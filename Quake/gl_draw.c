@@ -438,14 +438,14 @@ void Draw_CharacterQuad (int x, int y, char num)
 	fcol = col*0.0625;
 	size = 0.0625;
 
-	glTexCoord2f (fcol, frow);
+	/*glTexCoord2f (fcol, frow);
 	glVertex2f (x, y);
 	glTexCoord2f (fcol + size, frow);
 	glVertex2f (x+8, y);
 	glTexCoord2f (fcol + size, frow + size);
 	glVertex2f (x+8, y+8);
 	glTexCoord2f (fcol, frow + size);
-	glVertex2f (x, y+8);
+	glVertex2f (x, y+8);*/
 }
 
 /*
@@ -463,12 +463,12 @@ void Draw_Character (int x, int y, int num)
 	if (num == 32)
 		return; //don't waste verts on spaces
 
-	GL_Bind (char_texture);
+	/*GL_Bind (char_texture);
 	glBegin (GL_QUADS);
 
 	Draw_CharacterQuad (x, y, (char) num);
 
-	glEnd ();
+	glEnd ();*/
 }
 
 /*
@@ -481,7 +481,7 @@ void Draw_String (int x, int y, const char *str)
 	if (y <= -8)
 		return;			// totally off screen
 
-	GL_Bind (char_texture);
+	/*GL_Bind (char_texture);
 	glBegin (GL_QUADS);
 
 	while (*str)
@@ -492,7 +492,7 @@ void Draw_String (int x, int y, const char *str)
 		x += 8;
 	}
 
-	glEnd ();
+	glEnd ();*/
 }
 
 /*
@@ -507,7 +507,7 @@ void Draw_Pic (int x, int y, qpic_t *pic)
 	if (scrap_dirty)
 		Scrap_Upload ();
 	gl = (glpic_t *)pic->data;
-	GL_Bind (gl->gltexture);
+	/*GL_Bind (gl->gltexture);
 	glBegin (GL_QUADS);
 	glTexCoord2f (gl->sl, gl->tl);
 	glVertex2f (x, y);
@@ -517,7 +517,7 @@ void Draw_Pic (int x, int y, qpic_t *pic)
 	glVertex2f (x+pic->width, y+pic->height);
 	glTexCoord2f (gl->sl, gl->th);
 	glVertex2f (x, y+pic->height);
-	glEnd ();
+	glEnd ();*/
 }
 
 /*
@@ -561,7 +561,7 @@ void Draw_ConsoleBackground (void)
 
 	GL_SetCanvas (CANVAS_CONSOLE); //in case this is called from weird places
 
-	if (alpha > 0.0)
+	/*if (alpha > 0.0)
 	{
 		if (alpha < 1.0)
 		{
@@ -580,7 +580,7 @@ void Draw_ConsoleBackground (void)
 			glDisable (GL_BLEND);
 			glColor4f (1,1,1,1);
 		}
-	}
+	}*/
 }
 
 
@@ -598,7 +598,7 @@ void Draw_TileClear (int x, int y, int w, int h)
 
 	gl = (glpic_t *)draw_backtile->data;
 
-	glColor3f (1,1,1);
+	/*glColor3f (1,1,1);
 	GL_Bind (gl->gltexture);
 	glBegin (GL_QUADS);
 	glTexCoord2f (x/64.0, y/64.0);
@@ -609,7 +609,7 @@ void Draw_TileClear (int x, int y, int w, int h)
 	glVertex2f (x+w, y+h);
 	glTexCoord2f ( x/64.0, (y+h)/64.0 );
 	glVertex2f (x, y+h);
-	glEnd ();
+	glEnd ();*/
 }
 
 /*
@@ -623,7 +623,7 @@ void Draw_Fill (int x, int y, int w, int h, int c, float alpha) //johnfitz -- ad
 {
 	byte *pal = (byte *)d_8to24table; //johnfitz -- use d_8to24table instead of host_basepal
 
-	glDisable (GL_TEXTURE_2D);
+	/*glDisable (GL_TEXTURE_2D);
 	glEnable (GL_BLEND); //johnfitz -- for alpha
 	glDisable (GL_ALPHA_TEST); //johnfitz -- for alpha
 	glColor4f (pal[c*4]/255.0, pal[c*4+1]/255.0, pal[c*4+2]/255.0, alpha); //johnfitz -- added alpha
@@ -638,7 +638,7 @@ void Draw_Fill (int x, int y, int w, int h, int c, float alpha) //johnfitz -- ad
 	glColor3f (1,1,1);
 	glDisable (GL_BLEND); //johnfitz -- for alpha
 	glEnable (GL_ALPHA_TEST); //johnfitz -- for alpha
-	glEnable (GL_TEXTURE_2D);
+	glEnable (GL_TEXTURE_2D);*/
 }
 
 /*
@@ -650,7 +650,7 @@ void Draw_FadeScreen (void)
 {
 	GL_SetCanvas (CANVAS_DEFAULT);
 
-	glEnable (GL_BLEND);
+	/*glEnable (GL_BLEND);
 	glDisable (GL_ALPHA_TEST);
 	glDisable (GL_TEXTURE_2D);
 	glColor4f (0, 0, 0, 0.5);
@@ -665,7 +665,7 @@ void Draw_FadeScreen (void)
 	glColor4f (1,1,1,1);
 	glEnable (GL_TEXTURE_2D);
 	glEnable (GL_ALPHA_TEST);
-	glDisable (GL_BLEND);
+	glDisable (GL_BLEND);*/
 
 	Sbar_Changed();
 }
@@ -677,7 +677,7 @@ GL_SetCanvas -- johnfitz -- support various canvas types
 */
 void GL_SetCanvas (canvastype newcanvas)
 {
-	extern vrect_t scr_vrect;
+	/*extern vrect_t scr_vrect;
 	float s;
 	int lines;
 
@@ -748,7 +748,7 @@ void GL_SetCanvas (canvastype newcanvas)
 	}
 
 	glMatrixMode(GL_MODELVIEW);
-    glLoadIdentity ();
+    glLoadIdentity ();*/
 }
 
 /*
@@ -761,9 +761,9 @@ void GL_Set2D (void)
 	currentcanvas = CANVAS_INVALID;
 	GL_SetCanvas (CANVAS_DEFAULT);
 
-	glDisable (GL_DEPTH_TEST);
+	/*glDisable (GL_DEPTH_TEST);
 	glDisable (GL_CULL_FACE);
 	glDisable (GL_BLEND);
 	glEnable (GL_ALPHA_TEST);
-	glColor4f (1,1,1,1);
+	glColor4f (1,1,1,1);*/
 }

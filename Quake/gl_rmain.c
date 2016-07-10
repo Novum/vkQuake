@@ -118,13 +118,7 @@ qboolean r_drawflat_cheatsafe, r_fullbright_cheatsafe, r_lightmap_cheatsafe, r_d
 //
 //==============================================================================
 
-static GLuint r_gamma_texture;
-static GLuint r_gamma_program;
 static int r_gamma_texture_width, r_gamma_texture_height;
-
-// uniforms used in gamma shader
-static GLuint gammaLoc;
-static GLuint textureLoc;
 
 /*
 =============
@@ -133,9 +127,9 @@ GLSLGamma_DeleteTexture
 */
 void GLSLGamma_DeleteTexture (void)
 {
-	glDeleteTextures (1, &r_gamma_texture);
-	r_gamma_texture = 0;
-	r_gamma_program = 0; // deleted in R_DeleteShaders
+	//glDeleteTextures (1, &r_gamma_texture);
+	//r_gamma_texture = 0;
+	//r_gamma_program = 0; // deleted in R_DeleteShaders
 }
 
 /*
@@ -145,7 +139,7 @@ GLSLGamma_CreateShaders
 */
 static void GLSLGamma_CreateShaders (void)
 {
-	const GLchar *vertSource = \
+	/*const GLchar *vertSource = \
 		"#version 110\n"
 		"\n"
 		"void main(void) {\n"
@@ -171,7 +165,7 @@ static void GLSLGamma_CreateShaders (void)
 
 // get uniform locations
 	gammaLoc = GL_GetUniformLocation (&r_gamma_program, "GammaValue");
-	textureLoc = GL_GetUniformLocation (&r_gamma_program, "GammaTexture");
+	textureLoc = GL_GetUniformLocation (&r_gamma_program, "GammaTexture");*/
 }
 
 /*
@@ -181,10 +175,7 @@ GLSLGamma_GammaCorrect
 */
 void GLSLGamma_GammaCorrect (void)
 {
-	float smax, tmax;
-
-	if (!gl_glsl_gamma_able)
-		return;
+	/*float smax, tmax;
 
 	if (vid_gamma.value == 1)
 		return;
@@ -251,7 +242,7 @@ void GLSLGamma_GammaCorrect (void)
 	GL_UseProgramFunc (0);
 	
 // clear cached binding
-	GL_ClearBindings ();
+	GL_ClearBindings ();*/
 }
 
 /*
@@ -342,10 +333,10 @@ R_RotateForEntity -- johnfitz -- modified to take origin and angles instead of p
 */
 void R_RotateForEntity (vec3_t origin, vec3_t angles)
 {
-	glTranslatef (origin[0],  origin[1],  origin[2]);
+	/*glTranslatef (origin[0],  origin[1],  origin[2]);
 	glRotatef (angles[1],  0, 0, 1);
 	glRotatef (-angles[0],  0, 1, 0);
-	glRotatef (angles[2],  1, 0, 0);
+	glRotatef (angles[2],  1, 0, 0);*/
 }
 
 /*
@@ -357,7 +348,7 @@ negative offset moves polygon closer to camera
 */
 void GL_PolygonOffset (int offset)
 {
-	if (offset > 0)
+	/*if (offset > 0)
 	{
 		glEnable (GL_POLYGON_OFFSET_FILL);
 		glEnable (GL_POLYGON_OFFSET_LINE);
@@ -373,7 +364,7 @@ void GL_PolygonOffset (int offset)
 	{
 		glDisable (GL_POLYGON_OFFSET_FILL);
 		glDisable (GL_POLYGON_OFFSET_LINE);
-	}
+	}*/
 }
 
 //==============================================================================
@@ -457,7 +448,7 @@ void GL_SetFrustum(float fovx, float fovy)
 	float xmax, ymax;
 	xmax = NEARCLIP * tan( fovx * M_PI / 360.0 );
 	ymax = NEARCLIP * tan( fovy * M_PI / 360.0 );
-	glFrustum(-xmax + frustum_skew, xmax + frustum_skew, -ymax, ymax, NEARCLIP, gl_farclip.value);
+	//glFrustum(-xmax + frustum_skew, xmax + frustum_skew, -ymax, ymax, NEARCLIP, gl_farclip.value);
 }
 
 /*
@@ -467,7 +458,7 @@ R_SetupGL
 */
 void R_SetupGL (void)
 {
-	//johnfitz -- rewrote this section
+	/*//johnfitz -- rewrote this section
 	glMatrixMode(GL_PROJECTION);
     glLoadIdentity ();
 	glViewport (glx + r_refdef.vrect.x,
@@ -500,7 +491,7 @@ void R_SetupGL (void)
 
 	glDisable(GL_BLEND);
 	glDisable(GL_ALPHA_TEST);
-	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_DEPTH_TEST);*/
 }
 
 /*
@@ -510,7 +501,7 @@ R_Clear -- johnfitz -- rewritten and gutted
 */
 void R_Clear (void)
 {
-	unsigned int clearbits;
+	/*unsigned int clearbits;
 
 	clearbits = GL_DEPTH_BUFFER_BIT;
 	// from mh -- if we get a stencil buffer, we should clear it, even though we don't use it
@@ -518,7 +509,7 @@ void R_Clear (void)
 		clearbits |= GL_STENCIL_BUFFER_BIT;
 	if (gl_clear.value)
 		clearbits |= GL_COLOR_BUFFER_BIT;
-	glClear (clearbits);
+	glClear (clearbits);*/
 }
 
 /*
@@ -651,7 +642,7 @@ R_DrawViewModel -- johnfitz -- gutted
 */
 void R_DrawViewModel (void)
 {
-	if (!r_drawviewmodel.value || !r_drawentities.value || chase_active.value)
+	/*if (!r_drawviewmodel.value || !r_drawentities.value || chase_active.value)
 		return;
 
 	if (cl.items & IT_INVISIBILITY || cl.stats[STAT_HEALTH] <= 0)
@@ -669,7 +660,7 @@ void R_DrawViewModel (void)
 	// hack the depth range to prevent view model from poking into walls
 	glDepthRange (0, 0.3);
 	R_DrawAliasModel (currententity);
-	glDepthRange (0, 1);
+	glDepthRange (0, 1);*/
 }
 
 /*
@@ -679,7 +670,7 @@ R_EmitWirePoint -- johnfitz -- draws a wireframe cross shape for point entities
 */
 void R_EmitWirePoint (vec3_t origin)
 {
-	int size=8;
+	/*int size=8;
 
 	glBegin (GL_LINES);
 	glVertex3f (origin[0]-size, origin[1], origin[2]);
@@ -688,7 +679,7 @@ void R_EmitWirePoint (vec3_t origin)
 	glVertex3f (origin[0], origin[1]+size, origin[2]);
 	glVertex3f (origin[0], origin[1], origin[2]-size);
 	glVertex3f (origin[0], origin[1], origin[2]+size);
-	glEnd ();
+	glEnd ();*/
 }
 
 /*
@@ -698,7 +689,7 @@ R_EmitWireBox -- johnfitz -- draws one axis aligned bounding box
 */
 void R_EmitWireBox (vec3_t mins, vec3_t maxs)
 {
-	glBegin (GL_QUAD_STRIP);
+	/*glBegin (GL_QUAD_STRIP);
 	glVertex3f (mins[0], mins[1], mins[2]);
 	glVertex3f (mins[0], mins[1], maxs[2]);
 	glVertex3f (maxs[0], mins[1], mins[2]);
@@ -709,7 +700,7 @@ void R_EmitWireBox (vec3_t mins, vec3_t maxs)
 	glVertex3f (mins[0], maxs[1], maxs[2]);
 	glVertex3f (mins[0], mins[1], mins[2]);
 	glVertex3f (mins[0], mins[1], maxs[2]);
-	glEnd ();
+	glEnd ();*/
 }
 
 /*
@@ -721,7 +712,7 @@ draw bounding boxes -- the server-side boxes, not the renderer cullboxes
 */
 void R_ShowBoundingBoxes (void)
 {
-	extern		edict_t *sv_player;
+	/*extern		edict_t *sv_player;
 	vec3_t		mins,maxs;
 	edict_t		*ed;
 	int			i;
@@ -766,7 +757,7 @@ void R_ShowBoundingBoxes (void)
 	GL_PolygonOffset (OFFSET_NONE);
 	glEnable (GL_DEPTH_TEST);
 
-	Sbar_Changed (); //so we don't get dots collecting on the statusbar
+	Sbar_Changed (); //so we don't get dots collecting on the statusbar*/
 }
 
 /*
@@ -776,7 +767,7 @@ R_ShowTris -- johnfitz
 */
 void R_ShowTris (void)
 {
-	extern cvar_t r_particles;
+	/*extern cvar_t r_particles;
 	int i;
 
 	if (r_showtris.value < 1 || r_showtris.value > 2 || cl.maxclients > 1)
@@ -850,7 +841,7 @@ void R_ShowTris (void)
 	if (r_showtris.value == 1)
 		glEnable (GL_DEPTH_TEST);
 
-	Sbar_Changed (); //so we don't get dots collecting on the statusbar
+	Sbar_Changed (); //so we don't get dots collecting on the statusbar*/
 }
 
 /*
@@ -860,7 +851,7 @@ R_DrawShadows
 */
 void R_DrawShadows (void)
 {
-	int i;
+	/*int i;
 
 	if (!r_shadows.value || !r_drawentities.value || r_drawflat_cheatsafe || r_lightmap_cheatsafe)
 		return;
@@ -890,7 +881,7 @@ void R_DrawShadows (void)
 	if (gl_stencilbits)
 	{
 		glDisable(GL_STENCIL_TEST);
-	}
+	}*/
 }
 
 /*
@@ -949,15 +940,15 @@ void R_RenderView (void)
 	time1 = 0; /* avoid compiler warning */
 	if (r_speeds.value)
 	{
-		glFinish ();
+		//glFinish ();
 		time1 = Sys_DoubleTime ();
 
 		//johnfitz -- rendering statistics
 		rs_brushpolys = rs_aliaspolys = rs_skypolys = rs_particles = rs_fogpolys = rs_megatexels =
 		rs_dynamiclightmaps = rs_aliaspasses = rs_skypasses = rs_brushpasses = 0;
 	}
-	else if (gl_finish.value)
-		glFinish ();
+	//else if (gl_finish.value)
+	//	glFinish ();
 
 	R_SetupView (); //johnfitz -- this does everything that should be done once per frame
 
@@ -970,7 +961,7 @@ void R_RenderView (void)
 		AngleVectors (r_refdef.viewangles, vpn, vright, vup);
 
 		//render left eye (red)
-		glColorMask(1, 0, 0, 1);
+		//glColorMask(1, 0, 0, 1);
 		VectorMA (r_refdef.vieworg, -0.5f * eyesep, vright, r_refdef.vieworg);
 		frustum_skew = 0.5 * eyesep * NEARCLIP / fdepth;
 		srand((int) (cl.time * 1000)); //sync random stuff between eyes
@@ -978,8 +969,8 @@ void R_RenderView (void)
 		R_RenderScene ();
 
 		//render right eye (cyan)
-		glClear (GL_DEPTH_BUFFER_BIT);
-		glColorMask(0, 1, 1, 1);
+		//glClear (GL_DEPTH_BUFFER_BIT);
+		//glColorMask(0, 1, 1, 1);
 		VectorMA (r_refdef.vieworg, 1.0f * eyesep, vright, r_refdef.vieworg);
 		frustum_skew = -frustum_skew;
 		srand((int) (cl.time * 1000)); //sync random stuff between eyes
@@ -987,7 +978,7 @@ void R_RenderView (void)
 		R_RenderScene ();
 
 		//restore
-		glColorMask(1, 1, 1, 1);
+		//glColorMask(1, 1, 1, 1);
 		VectorMA (r_refdef.vieworg, -0.5f * eyesep, vright, r_refdef.vieworg);
 		frustum_skew = 0.0f;
 	}

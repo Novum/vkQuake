@@ -374,9 +374,6 @@ void GL_MakeAliasModelDisplayLists_VBO (void)
 	unsigned short *indexes;
 	aliasmesh_t *desc;
 
-	if (!gl_glsl_alias_able)
-		return;
-
 	// first, copy the verts onto the hunk
 	verts = (trivertx_t *) Hunk_Alloc (paliashdr->numposes * paliashdr->numverts * sizeof(trivertx_t));
 	paliashdr->vertexes = (byte *)verts - (byte *)paliashdr;
@@ -456,16 +453,13 @@ Original code by MH from RMQEngine
 */
 static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 {
-	int totalvbosize = 0;
+	/*int totalvbosize = 0;
 	const aliasmesh_t *desc;
 	const short *indexes;
 	const trivertx_t *trivertexes;
 	byte *vbodata;
 	int f;
 
-	if (!gl_glsl_alias_able)
-		return;
-	
 // count the sizes we need
 	
 	// ericw -- RMQEngine stored these vbo*ofs values in aliashdr_t, but we must not
@@ -553,7 +547,7 @@ static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 	free (vbodata);
 
 // invalidate the cached bindings
-	GL_ClearBufferBindings ();
+	GL_ClearBufferBindings ();*/
 }
 
 /*
@@ -569,9 +563,6 @@ void GLMesh_LoadVertexBuffers (void)
 	qmodel_t *m;
 	const aliashdr_t *hdr;
 
-	if (!gl_glsl_alias_able)
-		return;
-	
 	for (j = 1; j < MAX_MODELS; j++)
 	{
 		if (!(m = cl.model_precache[j])) break;
@@ -592,11 +583,8 @@ Delete VBOs for all loaded alias models
 */
 void GLMesh_DeleteVertexBuffers (void)
 {
-	int j;
+	/*int j;
 	qmodel_t *m;
-	
-	if (!gl_glsl_alias_able)
-		return;
 	
 	for (j = 1; j < MAX_MODELS; j++)
 	{
@@ -610,5 +598,5 @@ void GLMesh_DeleteVertexBuffers (void)
 		m->meshindexesvbo = 0;
 	}
 	
-	GL_ClearBufferBindings ();
+	GL_ClearBufferBindings ();*/
 }

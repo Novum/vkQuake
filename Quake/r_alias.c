@@ -66,25 +66,6 @@ typedef struct {
 } lerpdata_t;
 //johnfitz
 
-static GLuint r_alias_program;
-
-// uniforms used in vert shader
-static GLuint blendLoc;
-static GLuint shadevectorLoc;
-static GLuint lightColorLoc;
-
-// uniforms used in frag shader
-static GLuint texLoc;
-static GLuint fullbrightTexLoc;
-static GLuint useFullbrightTexLoc;
-static GLuint useOverbrightLoc;
-
-static const GLint pose1VertexAttrIndex = 0;
-static const GLint pose1NormalAttrIndex = 1;
-static const GLint pose2VertexAttrIndex = 2;
-static const GLint pose2NormalAttrIndex = 3;
-static const GLint texCoordsAttrIndex = 4;
-
 /*
 =============
 GLARB_GetXYZOffset
@@ -122,7 +103,7 @@ GLAlias_CreateShaders
 */
 void GLAlias_CreateShaders (void)
 {
-	const glsl_attrib_binding_t bindings[] = {
+	/*const glsl_attrib_binding_t bindings[] = {
 		{ "TexCoords", texCoordsAttrIndex },
 		{ "Pose1Vert", pose1VertexAttrIndex },
 		{ "Pose1Normal", pose1NormalAttrIndex },
@@ -202,7 +183,7 @@ void GLAlias_CreateShaders (void)
 		fullbrightTexLoc = GL_GetUniformLocation (&r_alias_program, "FullbrightTex");
 		useFullbrightTexLoc = GL_GetUniformLocation (&r_alias_program, "UseFullbrightTex");
 		useOverbrightLoc = GL_GetUniformLocation (&r_alias_program, "UseOverbright");
-	}
+	}*/
 }
 
 /*
@@ -232,7 +213,7 @@ void GL_DrawAliasFrame_GLSL (aliashdr_t *paliashdr, lerpdata_t lerpdata, gltextu
 		blend = 0;
 	}
 
-	GL_UseProgramFunc (r_alias_program);
+	/*GL_UseProgramFunc (r_alias_program);
 
 	GL_BindBuffer (GL_ARRAY_BUFFER, currententity->model->meshvbo);
 	GL_BindBuffer (GL_ELEMENT_ARRAY_BUFFER, currententity->model->meshindexesvbo);
@@ -280,7 +261,7 @@ void GL_DrawAliasFrame_GLSL (aliashdr_t *paliashdr, lerpdata_t lerpdata, gltextu
 	GL_DisableVertexAttribArrayFunc (pose2NormalAttrIndex);
 
 	GL_UseProgramFunc (0);
-	GL_SelectTexture (GL_TEXTURE0);
+	GL_SelectTexture (GL_TEXTURE0);*/
 
 	rs_aliaspasses += paliashdr->numtris;
 }
@@ -292,7 +273,7 @@ GL_DrawAliasFrame -- johnfitz -- rewritten to support colored light, lerping, en
 */
 void GL_DrawAliasFrame (aliashdr_t *paliashdr, lerpdata_t lerpdata)
 {
-	float	vertcolor[4];
+	/*float	vertcolor[4];
 	trivertx_t *verts1, *verts2;
 	int		*commands;
 	int		count;
@@ -391,7 +372,7 @@ void GL_DrawAliasFrame (aliashdr_t *paliashdr, lerpdata_t lerpdata)
 		} while (--count);
 
 		glEnd ();
-	}
+	}*/
 
 	rs_aliaspasses += paliashdr->numtris;
 }
@@ -618,8 +599,8 @@ R_DrawAliasModel -- johnfitz -- almost completely rewritten
 void R_DrawAliasModel (entity_t *e)
 {
 	aliashdr_t	*paliashdr;
-	int			i, anim;
-	gltexture_t	*tx, *fb;
+	//int			i, anim;
+	//gltexture_t	*tx, *fb;
 	lerpdata_t	lerpdata;
 
 	//
@@ -635,7 +616,7 @@ void R_DrawAliasModel (entity_t *e)
 	if (R_CullModelForEntity(e))
 		return;
 
-	//
+	/*//
 	// transform it
 	//
 	glPushMatrix ();
@@ -694,7 +675,7 @@ void R_DrawAliasModel (entity_t *e)
 	if (e->colormap != vid.colormap && !gl_nocolors.value)
 	{
 		i = e - cl_entities;
-		if (i >= 1 && i<=cl.maxclients /* && !strcmp (currententity->model->name, "progs/player.mdl") */)
+		if (i >= 1 && i<=cl.maxclients )
 		    tx = playertextures[i - 1];
 	}
 	if (!gl_fullbrights.value)
@@ -881,7 +862,7 @@ cleanup:
 	glDepthMask(GL_TRUE);
 	glDisable(GL_BLEND);
 	glColor3f(1,1,1);
-	glPopMatrix ();
+	glPopMatrix ();*/
 }
 
 //johnfitz -- values for shadow matrix
@@ -900,7 +881,7 @@ TODO: orient shadow onto "lightplane" (a global mplane_t*)
 */
 void GL_DrawAliasShadow (entity_t *e)
 {
-	float	shadowmatrix[16] = {1,				0,				0,				0,
+	/*float	shadowmatrix[16] = {1,				0,				0,				0,
 								0,				1,				0,				0,
 								SHADOW_SKEW_X,	SHADOW_SKEW_Y,	SHADOW_VSCALE,	0,
 								0,				0,				SHADOW_HEIGHT,	1};
@@ -948,7 +929,7 @@ void GL_DrawAliasShadow (entity_t *e)
 	glDepthMask(GL_TRUE);
 
 //clean up
-	glPopMatrix ();
+	glPopMatrix ();*/
 }
 
 /*
@@ -958,7 +939,7 @@ R_DrawAliasModel_ShowTris -- johnfitz
 */
 void R_DrawAliasModel_ShowTris (entity_t *e)
 {
-	aliashdr_t	*paliashdr;
+	/*aliashdr_t	*paliashdr;
 	lerpdata_t	lerpdata;
 
 	if (R_CullModelForEntity(e))
@@ -977,6 +958,6 @@ void R_DrawAliasModel_ShowTris (entity_t *e)
 	glColor3f(1,1,1);
 	GL_DrawAliasFrame (paliashdr, lerpdata);
 
-	glPopMatrix ();
+	glPopMatrix ();*/
 }
 

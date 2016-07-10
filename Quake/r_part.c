@@ -825,7 +825,7 @@ R_DrawParticles -- johnfitz -- moved all non-drawing code to CL_RunParticles
 */
 void R_DrawParticles (void)
 {
-	particle_t		*p;
+	/*particle_t		*p;
 	float			scale;
 	vec3_t			up, right, p_up, p_right, p_upright; //johnfitz -- p_ vectors
 	GLubyte			color[4], *c; //johnfitz -- particle transparency
@@ -939,7 +939,7 @@ void R_DrawParticles (void)
 	glDepthMask (GL_TRUE); //johnfitz -- fix for particle z-buffer bug
 	glDisable (GL_BLEND);
 	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
-	glColor3f(1,1,1);
+	glColor3f(1,1,1);*/
 }
 
 
@@ -950,7 +950,7 @@ R_DrawParticles_ShowTris -- johnfitz
 */
 void R_DrawParticles_ShowTris (void)
 {
-	particle_t		*p;
+	/*particle_t		*p;
 	float			scale;
 	vec3_t			up, right, p_up, p_right, p_upright;
 	extern	cvar_t	r_particles;
@@ -1019,6 +1019,6 @@ void R_DrawParticles_ShowTris (void)
 			glVertex3fv (p_right);
 		}
 		glEnd ();
-	}
+	}*/
 }
 

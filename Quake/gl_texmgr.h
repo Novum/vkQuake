@@ -45,7 +45,6 @@ typedef uintptr_t src_offset_t;
 
 typedef struct gltexture_s {
 //managed by texture manager
-	GLuint			texnum;
 	struct gltexture_s	*next;
 	qmodel_t		*owner;
 //managed by image loading
@@ -98,13 +97,6 @@ int TexMgr_Pad(int s);
 int TexMgr_SafeTextureSize (int s);
 int TexMgr_PadConditional (int s);
 
-// TEXTURE BINDING & TEXTURE UNIT SWITCHING
-
-void GL_SelectTexture (GLenum target);
-void GL_DisableMultitexture (void); //selects texture unit 0
-void GL_EnableMultitexture (void); //selects texture unit 1
-void GL_Bind (gltexture_t *texture);
-void GL_ClearBindings (void);
 
 #endif	/* _GL_TEXMAN_H */
 

@@ -485,8 +485,6 @@ typedef struct qmodel_s
 // alias model
 //
 
-	GLuint		meshvbo;
-	GLuint		meshindexesvbo;
 	int			vboindexofs;    // offset in vbo of the hdr->numindexes unsigned shorts
 	int			vboxyzofs;      // offset in vbo of hdr->numposes*hdr->numverts_vbo meshxyz_t
 	int			vbostofs;       // offset in vbo of hdr->numverts_vbo meshst_t

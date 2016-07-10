@@ -83,7 +83,7 @@ static void R_SetClearColor_f (cvar_t *var)
 
 	s = (int)r_clearcolor.value & 0xFF;
 	rgb = (byte*)(d_8to24table + s);
-	glClearColor (rgb[0]/255.0,rgb[1]/255.0,rgb[2]/255.0,0);
+	//glClearColor (rgb[0]/255.0,rgb[1]/255.0,rgb[2]/255.0,0);
 }
 
 /*
@@ -437,7 +437,7 @@ void R_TimeRefresh_f (void)
 		GL_EndRendering ();
 	}
 
-	glFinish ();
+	//glFinish ();
 	stop = Sys_DoubleTime ();
 	time = stop-start;
 	Con_Printf ("%f seconds (%f fps)\n", time, 128/time);
@@ -447,53 +447,14 @@ void D_FlushCaches (void)
 {
 }
 
-static GLuint gl_programs[16];
 static int gl_num_programs;
-
-static qboolean GL_CheckShader (GLuint shader)
-{
-	GLint status;
-	GL_GetShaderivFunc (shader, GL_COMPILE_STATUS, &status);
-
-	if (status != GL_TRUE)
-	{
-		char infolog[1024];
-
-		memset(infolog, 0, sizeof(infolog));
-		GL_GetShaderInfoLogFunc (shader, sizeof(infolog), NULL, infolog);
-		
-		Con_Warning ("GLSL program failed to compile: %s", infolog);
-
-		return false;
-	}
-	return true;
-}
-
-static qboolean GL_CheckProgram (GLuint program)
-{
-	GLint status;
-	GL_GetProgramivFunc (program, GL_LINK_STATUS, &status);
-
-	if (status != GL_TRUE)
-	{
-		char infolog[1024];
-
-		memset(infolog, 0, sizeof(infolog));
-		GL_GetProgramInfoLogFunc (program, sizeof(infolog), NULL, infolog);
-
-		Con_Warning ("GLSL program failed to link: %s", infolog);
-
-		return false;
-	}
-	return true;
-}
 
 /*
 =============
 GL_GetUniformLocation
 =============
 */
-GLint GL_GetUniformLocation (GLuint *programPtr, const char *name)
+/*GLint GL_GetUniformLocation (GLuint *programPtr, const char *name)
 {
 	GLint location;
 
@@ -507,7 +468,7 @@ GLint GL_GetUniformLocation (GLuint *programPtr, const char *name)
 		*programPtr = 0;
 	}
 	return location;
-}
+}*/
 
 /*
 ====================
@@ -516,7 +477,7 @@ GL_CreateProgram
 Compiles and returns GLSL program.
 ====================
 */
-GLuint GL_CreateProgram (const GLchar *vertSource, const GLchar *fragSource, int numbindings, const glsl_attrib_binding_t *bindings)
+/*GLuint GL_CreateProgram (const GLchar *vertSource, const GLchar *fragSource, int numbindings, const glsl_attrib_binding_t *bindings)
 {
 	int i;
 	GLuint program, vertShader, fragShader;
@@ -571,7 +532,7 @@ GLuint GL_CreateProgram (const GLchar *vertSource, const GLchar *fragSource, int
 
 		return program;
 	}
-}
+}*/
 
 /*
 ====================
@@ -582,19 +543,15 @@ Deletes any GLSL programs that have been created.
 */
 void R_DeleteShaders (void)
 {
-	int i;
-
-	if (!gl_glsl_able)
-		return;
+	/*int i;
 
 	for (i = 0; i < gl_num_programs; i++)
 	{
 		GL_DeleteProgramFunc (gl_programs[i]);
 		gl_programs[i] = 0;
-	}
+	}*/
 	gl_num_programs = 0;
 }
-GLuint current_array_buffer, current_element_array_buffer;
 
 /*
 ====================
@@ -603,7 +560,7 @@ GL_BindBuffer
 glBindBuffer wrapper
 ====================
 */
-void GL_BindBuffer (GLenum target, GLuint buffer)
+/*void GL_BindBuffer (GLenum target, GLuint buffer)
 {
 	GLuint *cache;
 
@@ -628,7 +585,7 @@ void GL_BindBuffer (GLenum target, GLuint buffer)
 		*cache = buffer;
 		GL_BindBufferFunc (target, *cache);
 	}
-}
+}*/
 
 /*
 ====================
@@ -640,11 +597,4 @@ invalid (e.g. manually binding, destroying the context).
 */
 void GL_ClearBufferBindings ()
 {
-	if (!gl_vbo_able)
-		return;
-
-	current_array_buffer = 0;
-	current_element_array_buffer = 0;
-	GL_BindBufferFunc (GL_ARRAY_BUFFER, 0);
-	GL_BindBufferFunc (GL_ELEMENT_ARRAY_BUFFER, 0);
 }

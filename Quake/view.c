@@ -513,35 +513,35 @@ V_PolyBlend -- johnfitz -- moved here from gl_rmain.c, and rewritten to use glOr
 */
 void V_PolyBlend (void)
 {
-	if (!gl_polyblend.value || !v_blend[3])
-		return;
+	//if (!gl_polyblend.value || !v_blend[3])
+	//	return;
 
-	GL_DisableMultitexture();
+	//GL_DisableMultitexture();
 
-	glDisable (GL_ALPHA_TEST);
-	glDisable (GL_TEXTURE_2D);
-	glDisable (GL_DEPTH_TEST);
-	glEnable (GL_BLEND);
+	//glDisable (GL_ALPHA_TEST);
+	//glDisable (GL_TEXTURE_2D);
+	//glDisable (GL_DEPTH_TEST);
+	//glEnable (GL_BLEND);
 
-	glMatrixMode(GL_PROJECTION);
-    glLoadIdentity ();
-	glOrtho (0, 1, 1, 0, -99999, 99999);
-	glMatrixMode(GL_MODELVIEW);
-    glLoadIdentity ();
+	//glMatrixMode(GL_PROJECTION);
+ //   glLoadIdentity ();
+	//glOrtho (0, 1, 1, 0, -99999, 99999);
+	//glMatrixMode(GL_MODELVIEW);
+ //   glLoadIdentity ();
 
-	glColor4fv (v_blend);
+	//glColor4fv (v_blend);
 
-	glBegin (GL_QUADS);
-	glVertex2f (0,0);
-	glVertex2f (1, 0);
-	glVertex2f (1, 1);
-	glVertex2f (0, 1);
-	glEnd ();
+	//glBegin (GL_QUADS);
+	//glVertex2f (0,0);
+	//glVertex2f (1, 0);
+	//glVertex2f (1, 1);
+	//glVertex2f (0, 1);
+	//glEnd ();
 
-	glDisable (GL_BLEND);
-	glEnable (GL_DEPTH_TEST);
-	glEnable (GL_TEXTURE_2D);
-	glEnable (GL_ALPHA_TEST);
+	//glDisable (GL_BLEND);
+	//glEnable (GL_DEPTH_TEST);
+	//glEnable (GL_TEXTURE_2D);
+	//glEnable (GL_ALPHA_TEST);
 }
 
 /*

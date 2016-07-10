@@ -679,8 +679,8 @@ void Sky_EmitSkyBoxVertex (float s, float t, int axis)
 	t = t * (h-1)/h + 0.5/h;
 
 	t = 1.0 - t;
-	glTexCoord2f (s, t);
-	glVertex3fv (v);
+	//glTexCoord2f (s, t);
+	//glVertex3fv (v);
 }
 
 /*
@@ -692,7 +692,7 @@ FIXME: eliminate cracks by adding an extra vert on tjuncs
 */
 void Sky_DrawSkyBox (void)
 {
-	int		i;
+	/*int		i;
 
 	for (i=0 ; i<6 ; i++)
 	{
@@ -739,7 +739,7 @@ void Sky_DrawSkyBox (void)
 
 			rs_skypasses++;
 		}
-	}
+	}*/
 }
 
 //==============================================================================
@@ -804,7 +804,7 @@ Sky_DrawFaceQuad
 */
 void Sky_DrawFaceQuad (glpoly_t *p)
 {
-	float	s, t;
+	/*float	s, t;
 	float	*v;
 	int		i;
 
@@ -887,7 +887,7 @@ void Sky_DrawFaceQuad (glpoly_t *p)
 		glDisable (GL_BLEND);
 
 		rs_skypasses++;
-	}
+	}*/
 }
 
 /*
@@ -957,7 +957,7 @@ draws the old-style scrolling cloud layers
 */
 void Sky_DrawSkyLayers (void)
 {
-	int i;
+	/*int i;
 
 	if (r_skyalpha.value < 1.0)
 		glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
@@ -967,7 +967,7 @@ void Sky_DrawSkyLayers (void)
 			Sky_DrawFace (i);
 
 	if (r_skyalpha.value < 1.0)
-		glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+		glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);*/
 }
 
 /*
@@ -979,7 +979,7 @@ called once per frame before drawing anything else
 */
 void Sky_DrawSky (void)
 {
-	int				i;
+	/*int				i;
 
 	//in these special render modes, the sky faces are handled in the normal world/brush renderer
 	if (r_drawflat_cheatsafe || r_lightmap_cheatsafe )
@@ -1025,5 +1025,5 @@ void Sky_DrawSky (void)
 		glDepthFunc(GL_LEQUAL);
 	}
 
-	Fog_EnableGFog ();
+	Fog_EnableGFog ();*/
 }

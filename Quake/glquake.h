@@ -154,86 +154,9 @@ extern	float	load_subdivide_size; //johnfitz -- remember what subdivide_size val
 
 extern int		gl_stencilbits;
 
-// Multitexture
-extern	qboolean	mtexenabled;
-extern	qboolean	gl_mtexable;
-extern PFNGLMULTITEXCOORD2FARBPROC  GL_MTexCoord2fFunc;
-extern PFNGLACTIVETEXTUREARBPROC    GL_SelectTextureFunc;
-extern PFNGLCLIENTACTIVETEXTUREARBPROC	GL_ClientActiveTextureFunc;
-extern GLint		gl_max_texture_units; //ericw
-
 //johnfitz -- anisotropic filtering
-#define	GL_TEXTURE_MAX_ANISOTROPY_EXT		0x84FE
-#define	GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT	0x84FF
 extern	float		gl_max_anisotropy;
 extern	qboolean	gl_anisotropy_able;
-
-//ericw -- VBO
-extern PFNGLBINDBUFFERARBPROC  GL_BindBufferFunc;
-extern PFNGLBUFFERDATAARBPROC  GL_BufferDataFunc;
-extern PFNGLBUFFERSUBDATAARBPROC  GL_BufferSubDataFunc;
-extern PFNGLDELETEBUFFERSARBPROC  GL_DeleteBuffersFunc;
-extern PFNGLGENBUFFERSARBPROC  GL_GenBuffersFunc;
-extern	qboolean	gl_vbo_able;
-//ericw
-
-//ericw -- GLSL
-
-// SDL 1.2 has a bug where it doesn't provide these typedefs on OS X!
-typedef GLuint (APIENTRYP QS_PFNGLCREATESHADERPROC) (GLenum type);
-typedef void (APIENTRYP QS_PFNGLDELETESHADERPROC) (GLuint shader);
-typedef void (APIENTRYP QS_PFNGLDELETEPROGRAMPROC) (GLuint program);
-typedef void (APIENTRYP QS_PFNGLSHADERSOURCEPROC) (GLuint shader, GLsizei count, const GLchar *const*string, const GLint *length);
-typedef void (APIENTRYP QS_PFNGLCOMPILESHADERPROC) (GLuint shader);
-typedef void (APIENTRYP QS_PFNGLGETSHADERIVPROC) (GLuint shader, GLenum pname, GLint *params);
-typedef void (APIENTRYP QS_PFNGLGETSHADERINFOLOGPROC) (GLuint shader, GLsizei bufSize, GLsizei *length, GLchar *infoLog);
-typedef void (APIENTRYP QS_PFNGLGETPROGRAMIVPROC) (GLuint program, GLenum pname, GLint *params);
-typedef void (APIENTRYP QS_PFNGLGETPROGRAMINFOLOGPROC) (GLuint program, GLsizei bufSize, GLsizei *length, GLchar *infoLog);
-typedef GLuint (APIENTRYP QS_PFNGLCREATEPROGRAMPROC) (void);
-typedef void (APIENTRYP QS_PFNGLATTACHSHADERPROC) (GLuint program, GLuint shader);
-typedef void (APIENTRYP QS_PFNGLLINKPROGRAMPROC) (GLuint program);
-typedef void (APIENTRYP QS_PFNGLBINDATTRIBLOCATIONFUNC) (GLuint program, GLuint index, const GLchar *name);
-typedef void (APIENTRYP QS_PFNGLUSEPROGRAMPROC) (GLuint program);
-typedef GLint (APIENTRYP QS_PFNGLGETATTRIBLOCATIONPROC) (GLuint program, const GLchar *name);
-typedef void (APIENTRYP QS_PFNGLVERTEXATTRIBPOINTERPROC) (GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const void *pointer);
-typedef void (APIENTRYP QS_PFNGLENABLEVERTEXATTRIBARRAYPROC) (GLuint index);
-typedef void (APIENTRYP QS_PFNGLDISABLEVERTEXATTRIBARRAYPROC) (GLuint index);
-typedef GLint (APIENTRYP QS_PFNGLGETUNIFORMLOCATIONPROC) (GLuint program, const GLchar *name);
-typedef void (APIENTRYP QS_PFNGLUNIFORM1IPROC) (GLint location, GLint v0);
-typedef void (APIENTRYP QS_PFNGLUNIFORM1FPROC) (GLint location, GLfloat v0);
-typedef void (APIENTRYP QS_PFNGLUNIFORM3FPROC) (GLint location, GLfloat v0, GLfloat v1, GLfloat v2);
-typedef void (APIENTRYP QS_PFNGLUNIFORM4FPROC) (GLint location, GLfloat v0, GLfloat v1, GLfloat v2, GLfloat v3);
-
-extern QS_PFNGLCREATESHADERPROC GL_CreateShaderFunc;
-extern QS_PFNGLDELETESHADERPROC GL_DeleteShaderFunc;
-extern QS_PFNGLDELETEPROGRAMPROC GL_DeleteProgramFunc;
-extern QS_PFNGLSHADERSOURCEPROC GL_ShaderSourceFunc;
-extern QS_PFNGLCOMPILESHADERPROC GL_CompileShaderFunc;
-extern QS_PFNGLGETSHADERIVPROC GL_GetShaderivFunc;
-extern QS_PFNGLGETSHADERINFOLOGPROC GL_GetShaderInfoLogFunc;
-extern QS_PFNGLGETPROGRAMIVPROC GL_GetProgramivFunc;
-extern QS_PFNGLGETPROGRAMINFOLOGPROC GL_GetProgramInfoLogFunc;
-extern QS_PFNGLCREATEPROGRAMPROC GL_CreateProgramFunc;
-extern QS_PFNGLATTACHSHADERPROC GL_AttachShaderFunc;
-extern QS_PFNGLLINKPROGRAMPROC GL_LinkProgramFunc;
-extern QS_PFNGLBINDATTRIBLOCATIONFUNC GL_BindAttribLocationFunc;
-extern QS_PFNGLUSEPROGRAMPROC GL_UseProgramFunc;
-extern QS_PFNGLGETATTRIBLOCATIONPROC GL_GetAttribLocationFunc;
-extern QS_PFNGLVERTEXATTRIBPOINTERPROC GL_VertexAttribPointerFunc;
-extern QS_PFNGLENABLEVERTEXATTRIBARRAYPROC GL_EnableVertexAttribArrayFunc;
-extern QS_PFNGLDISABLEVERTEXATTRIBARRAYPROC GL_DisableVertexAttribArrayFunc;
-extern QS_PFNGLGETUNIFORMLOCATIONPROC GL_GetUniformLocationFunc;
-extern QS_PFNGLUNIFORM1IPROC GL_Uniform1iFunc;
-extern QS_PFNGLUNIFORM1FPROC GL_Uniform1fFunc;
-extern QS_PFNGLUNIFORM3FPROC GL_Uniform3fFunc;
-extern QS_PFNGLUNIFORM4FPROC GL_Uniform4fFunc;
-extern	qboolean	gl_glsl_able;
-extern	qboolean	gl_glsl_gamma_able;
-extern	qboolean	gl_glsl_alias_able;
-// ericw --
-
-//ericw -- NPOT texture support
-extern	qboolean	gl_texture_NPOT;
 
 //johnfitz -- polygon offset
 #define OFFSET_BMODEL 1
@@ -242,22 +165,6 @@ extern	qboolean	gl_texture_NPOT;
 #define OFFSET_FOG -2
 #define OFFSET_SHOWTRIS -3
 void GL_PolygonOffset (int);
-
-//johnfitz -- GL_EXT_texture_env_combine
-//the values for GL_ARB_ are identical
-#define GL_COMBINE_EXT		0x8570
-#define GL_COMBINE_RGB_EXT	0x8571
-#define GL_COMBINE_ALPHA_EXT	0x8572
-#define GL_RGB_SCALE_EXT	0x8573
-#define GL_CONSTANT_EXT		0x8576
-#define GL_PRIMARY_COLOR_EXT	0x8577
-#define GL_PREVIOUS_EXT		0x8578
-#define GL_SOURCE0_RGB_EXT	0x8580
-#define GL_SOURCE1_RGB_EXT	0x8581
-#define GL_SOURCE0_ALPHA_EXT	0x8588
-#define GL_SOURCE1_ALPHA_EXT	0x8589
-extern qboolean gl_texture_env_combine;
-extern qboolean gl_texture_env_add; // for GL_EXT_texture_env_add
 
 //johnfitz -- rendering statistics
 extern int rs_brushpolys, rs_aliaspolys, rs_skypolys, rs_particles, rs_fogpolys;
@@ -294,11 +201,6 @@ extern gltexture_t *lightmap_textures[MAX_LIGHTMAPS]; //johnfitz -- changed to a
 extern int gl_warpimagesize; //johnfitz -- for water warp
 
 extern qboolean r_drawflat_cheatsafe, r_fullbright_cheatsafe, r_lightmap_cheatsafe, r_drawworld_cheatsafe; //johnfitz
-
-typedef struct glsl_attrib_binding_s {
-	const char *name;
-	GLuint attrib;
-} glsl_attrib_binding_t;
 
 extern float	map_wateralpha, map_lavaalpha, map_telealpha, map_slimealpha; //ericw
 
@@ -362,8 +264,6 @@ void R_DrawBrushModel_ShowTris (entity_t *e);
 void R_DrawAliasModel_ShowTris (entity_t *e);
 void R_DrawParticles_ShowTris (void);
 
-GLint GL_GetUniformLocation (GLuint *programPtr, const char *name);
-GLuint GL_CreateProgram (const GLchar *vertSource, const GLchar *fragSource, int numbindings, const glsl_attrib_binding_t *bindings);
 void R_DeleteShaders (void);
 
 void GLAlias_CreateShaders (void);
@@ -386,7 +286,6 @@ void R_ChainSurface (msurface_t *surf, texchain_t chain);
 void R_DrawTextureChains (qmodel_t *model, entity_t *ent, texchain_t chain);
 void R_DrawWorld_Water (void);
 
-void GL_BindBuffer (GLenum target, GLuint buffer);
 void GL_ClearBufferBindings ();
 
 void GLSLGamma_DeleteTexture (void);

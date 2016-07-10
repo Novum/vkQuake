@@ -764,7 +764,7 @@ SCR_ScreenShot_f -- johnfitz -- rewritten to use Image_WriteTGA
 */
 void SCR_ScreenShot_f (void)
 {
-	byte	*buffer;
+	/*byte	*buffer;
 	char	tganame[16];  //johnfitz -- was [80]
 	char	checkname[MAX_OSPATH];
 	int	i;
@@ -790,7 +790,6 @@ void SCR_ScreenShot_f (void)
 		return;
 	}
 
-	glPixelStorei (GL_PACK_ALIGNMENT, 1);/* for widths that aren't a multiple of 4 */
 	glReadPixels (glx, gly, glwidth, glheight, GL_RGB, GL_UNSIGNED_BYTE, buffer);
 
 // now write the file
@@ -799,7 +798,7 @@ void SCR_ScreenShot_f (void)
 	else
 		Con_Printf ("SCR_ScreenShot_f: Couldn't create a TGA file\n");
 
-	free (buffer);
+	free (buffer);*/
 }
 
 
@@ -953,9 +952,6 @@ johnfitz -- modified to use glwidth/glheight instead of vid.width/vid.height
 */
 void SCR_TileClear (void)
 {
-	//ericw -- added check for glsl gamma. TODO: remove this ugly optimization?
-	if (scr_tileclear_updates >= vid.numpages && !gl_clear.value && !(gl_glsl_gamma_able && vid_gamma.value != 1))
-		return;
 	scr_tileclear_updates++;
 
 	if (r_refdef.vrect.x > 0)

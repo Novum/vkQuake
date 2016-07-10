@@ -85,7 +85,7 @@ void AddLightBlend (float r, float g, float b, float a2)
 
 void R_RenderDlight (dlight_t *light)
 {
-	int		i, j;
+	/*int		i, j;
 	float	a;
 	vec3_t	v;
 	float	rad;
@@ -113,7 +113,7 @@ void R_RenderDlight (dlight_t *light)
 				+ vup[j]*sin(a)*rad;
 		glVertex3fv (v);
 	}
-	glEnd ();
+	glEnd ();*/
 }
 
 /*
@@ -123,7 +123,7 @@ R_RenderDlights
 */
 void R_RenderDlights (void)
 {
-	int		i;
+	/*int		i;
 	dlight_t	*l;
 
 	if (!gl_flashblend.value)
@@ -149,7 +149,7 @@ void R_RenderDlights (void)
 	glDisable (GL_BLEND);
 	glEnable (GL_TEXTURE_2D);
 	glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	glDepthMask (1);
+	glDepthMask (1);*/
 }
 
 

@@ -94,7 +94,7 @@ DrawGLPoly
 */
 void DrawGLPoly (glpoly_t *p)
 {
-	float	*v;
+	/*float	*v;
 	int		i;
 
 	glBegin (GL_POLYGON);
@@ -104,7 +104,7 @@ void DrawGLPoly (glpoly_t *p)
 		glTexCoord2f (v[3], v[4]);
 		glVertex3fv (v);
 	}
-	glEnd ();
+	glEnd ();*/
 }
 
 /*
@@ -114,7 +114,7 @@ DrawGLTriangleFan -- johnfitz -- like DrawGLPoly but for r_showtris
 */
 void DrawGLTriangleFan (glpoly_t *p)
 {
-	float	*v;
+	/*float	*v;
 	int		i;
 
 	glBegin (GL_TRIANGLE_FAN);
@@ -123,7 +123,7 @@ void DrawGLTriangleFan (glpoly_t *p)
 	{
 		glVertex3fv (v);
 	}
-	glEnd ();
+	glEnd ();*/
 }
 
 /*
@@ -513,7 +513,7 @@ R_DrawBrushModel
 */
 void R_DrawBrushModel (entity_t *e)
 {
-	int			i, k;
+	/*int			i, k;
 	msurface_t	*psurf;
 	float		dot;
 	mplane_t	*pplane;
@@ -555,7 +555,7 @@ void R_DrawBrushModel (entity_t *e)
 		}
 	}
 
-    glPushMatrix ();
+   glPushMatrix ();
 	e->angles[0] = -e->angles[0];	// stupid quake bug
 	if (gl_zfix.value)
 	{
@@ -588,7 +588,7 @@ void R_DrawBrushModel (entity_t *e)
 	R_DrawTextureChains (clmodel, e, chain_model);
 	R_DrawTextureChains_Water (clmodel, e, chain_model);
 
-	glPopMatrix ();
+	glPopMatrix ();*/
 }
 
 /*
@@ -598,7 +598,7 @@ R_DrawBrushModel_ShowTris -- johnfitz
 */
 void R_DrawBrushModel_ShowTris (entity_t *e)
 {
-	int			i;
+	/*int			i;
 	msurface_t	*psurf;
 	float		dot;
 	mplane_t	*pplane;
@@ -649,7 +649,7 @@ void R_DrawBrushModel_ShowTris (entity_t *e)
 		}
 	}
 
-	glPopMatrix ();
+	glPopMatrix ();*/
 }
 
 /*
@@ -875,7 +875,7 @@ with all the surfaces from all brush models
 */
 void GL_BuildLightmaps (void)
 {
-	char	name[16];
+	/*char	name[16];
 	byte	*data;
 	int		i, j;
 	qmodel_t	*m;
@@ -948,7 +948,7 @@ void GL_BuildLightmaps (void)
 	//johnfitz -- warn about exceeding old limits
 	if (i >= 64)
 		Con_DWarning ("%i lightmaps exceeds standard limit of 64.\n", i);
-	//johnfitz
+	//johnfitz*/
 }
 
 /*
@@ -959,17 +959,12 @@ void GL_BuildLightmaps (void)
 =============================================================
 */
 
-GLuint gl_bmodel_vbo = 0;
-
 void GL_DeleteBModelVertexBuffer (void)
 {
-	if (!(gl_vbo_able && gl_mtexable && gl_max_texture_units >= 3))
-		return;
-
-	GL_DeleteBuffersFunc (1, &gl_bmodel_vbo);
+	/*GL_DeleteBuffersFunc (1, &gl_bmodel_vbo);
 	gl_bmodel_vbo = 0;
 
-	GL_ClearBufferBindings ();
+	GL_ClearBufferBindings ();*/
 }
 
 /*
@@ -987,13 +982,6 @@ void GL_BuildBModelVertexBuffer (void)
 	qmodel_t	*m;
 	float		*varray;
 
-	if (!(gl_vbo_able && gl_mtexable && gl_max_texture_units >= 3))
-		return;
-
-// ask GL for a name for our VBO
-	GL_DeleteBuffersFunc (1, &gl_bmodel_vbo);
-	GL_GenBuffersFunc (1, &gl_bmodel_vbo);
-	
 // count all verts in all models
 	numverts = 0;
 	for (j=1 ; j<MAX_MODELS ; j++)
@@ -1029,8 +1017,6 @@ void GL_BuildBModelVertexBuffer (void)
 	}
 
 // upload to GPU
-	GL_BindBufferFunc (GL_ARRAY_BUFFER, gl_bmodel_vbo);
-	GL_BufferDataFunc (GL_ARRAY_BUFFER, varray_bytes, varray, GL_STATIC_DRAW);
 	free (varray);
 	
 // invalidate the cached bindings
@@ -1132,7 +1118,7 @@ Combine and scale multiple lightmaps into the 8.8 format in blocklights
 */
 void R_BuildLightMap (msurface_t *surf, byte *dest, int stride)
 {
-	int			smax, tmax;
+	/*int			smax, tmax;
 	int			r,g,b;
 	int			i, j, size;
 	byte		*lightmap;
@@ -1238,7 +1224,7 @@ void R_BuildLightMap (msurface_t *surf, byte *dest, int stride)
 		break;
 	default:
 		Sys_Error ("R_BuildLightMap: bad lightmap format");
-	}
+	}*/
 }
 
 /*
@@ -1250,7 +1236,7 @@ assumes lightmap texture is already bound
 */
 static void R_UploadLightmap(int lmap)
 {
-	glRect_t	*theRect;
+	/*glRect_t	*theRect;
 
 	if (!lightmap_modified[lmap])
 		return;
@@ -1265,12 +1251,12 @@ static void R_UploadLightmap(int lmap)
 	theRect->h = 0;
 	theRect->w = 0;
 
-	rs_dynamiclightmaps++;
+	rs_dynamiclightmaps++;*/
 }
 
 void R_UploadLightmaps (void)
 {
-	int lmap;
+	/*int lmap;
 
 	for (lmap = 0; lmap < MAX_LIGHTMAPS; lmap++)
 	{
@@ -1279,7 +1265,7 @@ void R_UploadLightmaps (void)
 
 		GL_Bind (lightmap_textures[lmap]);
 		R_UploadLightmap(lmap);
-	}
+	}*/
 }
 
 /*
@@ -1289,7 +1275,7 @@ R_RebuildAllLightmaps -- johnfitz -- called when gl_overbright gets toggled
 */
 void R_RebuildAllLightmaps (void)
 {
-	int			i, j;
+	/*int			i, j;
 	qmodel_t	*mod;
 	msurface_t	*fa;
 	byte		*base;
@@ -1321,5 +1307,5 @@ void R_RebuildAllLightmaps (void)
 		GL_Bind (lightmap_textures[i]);
 		glTexSubImage2D (GL_TEXTURE_2D, 0, 0, 0, BLOCK_WIDTH, BLOCK_HEIGHT, gl_lightmap_format,
 			GL_UNSIGNED_BYTE, lightmaps+i*BLOCK_WIDTH*BLOCK_HEIGHT*lightmap_bytes);
-	}
+	}*/
 }

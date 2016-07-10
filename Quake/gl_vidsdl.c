@@ -101,43 +101,9 @@ float gl_max_anisotropy; //johnfitz
 qboolean gl_texture_NPOT = false; //ericw
 qboolean gl_vbo_able = false; //ericw
 qboolean gl_glsl_able = false; //ericw
-GLint gl_max_texture_units = 0; //ericw
 qboolean gl_glsl_gamma_able = false; //ericw
 qboolean gl_glsl_alias_able = false; //ericw
 int gl_stencilbits;
-
-PFNGLMULTITEXCOORD2FARBPROC GL_MTexCoord2fFunc = NULL; //johnfitz
-PFNGLACTIVETEXTUREARBPROC GL_SelectTextureFunc = NULL; //johnfitz
-PFNGLCLIENTACTIVETEXTUREARBPROC GL_ClientActiveTextureFunc = NULL; //ericw
-PFNGLBINDBUFFERARBPROC GL_BindBufferFunc = NULL; //ericw
-PFNGLBUFFERDATAARBPROC GL_BufferDataFunc = NULL; //ericw
-PFNGLBUFFERSUBDATAARBPROC GL_BufferSubDataFunc = NULL; //ericw
-PFNGLDELETEBUFFERSARBPROC GL_DeleteBuffersFunc = NULL; //ericw
-PFNGLGENBUFFERSARBPROC GL_GenBuffersFunc = NULL; //ericw
-
-QS_PFNGLCREATESHADERPROC GL_CreateShaderFunc = NULL; //ericw
-QS_PFNGLDELETESHADERPROC GL_DeleteShaderFunc = NULL; //ericw
-QS_PFNGLDELETEPROGRAMPROC GL_DeleteProgramFunc = NULL; //ericw
-QS_PFNGLSHADERSOURCEPROC GL_ShaderSourceFunc = NULL; //ericw
-QS_PFNGLCOMPILESHADERPROC GL_CompileShaderFunc = NULL; //ericw
-QS_PFNGLGETSHADERIVPROC GL_GetShaderivFunc = NULL; //ericw
-QS_PFNGLGETSHADERINFOLOGPROC GL_GetShaderInfoLogFunc = NULL; //ericw
-QS_PFNGLGETPROGRAMIVPROC GL_GetProgramivFunc = NULL; //ericw
-QS_PFNGLGETPROGRAMINFOLOGPROC GL_GetProgramInfoLogFunc = NULL; //ericw
-QS_PFNGLCREATEPROGRAMPROC GL_CreateProgramFunc = NULL; //ericw
-QS_PFNGLATTACHSHADERPROC GL_AttachShaderFunc = NULL; //ericw
-QS_PFNGLLINKPROGRAMPROC GL_LinkProgramFunc = NULL; //ericw
-QS_PFNGLBINDATTRIBLOCATIONFUNC GL_BindAttribLocationFunc = NULL; //ericw
-QS_PFNGLUSEPROGRAMPROC GL_UseProgramFunc = NULL; //ericw
-QS_PFNGLGETATTRIBLOCATIONPROC GL_GetAttribLocationFunc = NULL; //ericw
-QS_PFNGLVERTEXATTRIBPOINTERPROC GL_VertexAttribPointerFunc = NULL; //ericw
-QS_PFNGLENABLEVERTEXATTRIBARRAYPROC GL_EnableVertexAttribArrayFunc = NULL; //ericw
-QS_PFNGLDISABLEVERTEXATTRIBARRAYPROC GL_DisableVertexAttribArrayFunc = NULL; //ericw
-QS_PFNGLGETUNIFORMLOCATIONPROC GL_GetUniformLocationFunc = NULL; //ericw
-QS_PFNGLUNIFORM1IPROC GL_Uniform1iFunc = NULL; //ericw
-QS_PFNGLUNIFORM1FPROC GL_Uniform1fFunc = NULL; //ericw
-QS_PFNGLUNIFORM3FPROC GL_Uniform3fFunc = NULL; //ericw
-QS_PFNGLUNIFORM4FPROC GL_Uniform4fFunc = NULL; //ericw
 
 //====================================
 
@@ -887,308 +853,8 @@ static void GL_Info_f (void)
 GL_CheckExtensions
 ===============
 */
-static qboolean GL_ParseExtensionList (const char *list, const char *name)
-{
-	const char	*start;
-	const char	*where, *terminator;
-
-	if (!list || !name || !*name)
-		return false;
-	if (strchr(name, ' ') != NULL)
-		return false;	// extension names must not have spaces
-
-	start = list;
-	while (1) {
-		where = strstr (start, name);
-		if (!where)
-			break;
-		terminator = where + strlen (name);
-		if (where == start || where[-1] == ' ')
-			if (*terminator == ' ' || *terminator == '\0')
-				return true;
-		start = terminator;
-	}
-	return false;
-}
-
 static void GL_CheckExtensions (void)
 {
-	int swap_control;
-
-	// ARB_vertex_buffer_object
-	//
-	if (COM_CheckParm("-novbo"))
-		Con_Warning ("Vertex buffer objects disabled at command line\n");
-	else if (gl_version_major < 1 || (gl_version_major == 1 && gl_version_minor < 5))
-		Con_Warning ("OpenGL version < 1.5, skipping ARB_vertex_buffer_object check\n");
-	else
-	{
-		GL_BindBufferFunc = (PFNGLBINDBUFFERARBPROC) SDL_GL_GetProcAddress("glBindBufferARB");
-		GL_BufferDataFunc = (PFNGLBUFFERDATAARBPROC) SDL_GL_GetProcAddress("glBufferDataARB");
-		GL_BufferSubDataFunc = (PFNGLBUFFERSUBDATAARBPROC) SDL_GL_GetProcAddress("glBufferSubDataARB");
-		GL_DeleteBuffersFunc = (PFNGLDELETEBUFFERSARBPROC) SDL_GL_GetProcAddress("glDeleteBuffersARB");
-		GL_GenBuffersFunc = (PFNGLGENBUFFERSARBPROC) SDL_GL_GetProcAddress("glGenBuffersARB");
-		if (GL_BindBufferFunc && GL_BufferDataFunc && GL_BufferSubDataFunc && GL_DeleteBuffersFunc && GL_GenBuffersFunc)
-		{
-			Con_Printf("FOUND: ARB_vertex_buffer_object\n");
-			gl_vbo_able = true;
-		}
-		else
-		{
-			Con_Warning ("ARB_vertex_buffer_object not available\n");
-		}
-	}
-
-	// multitexture
-	//
-	if (COM_CheckParm("-nomtex"))
-		Con_Warning ("Mutitexture disabled at command line\n");
-	else if (GL_ParseExtensionList(gl_extensions, "GL_ARB_multitexture"))
-	{
-		GL_MTexCoord2fFunc = (PFNGLMULTITEXCOORD2FARBPROC) SDL_GL_GetProcAddress("glMultiTexCoord2fARB");
-		GL_SelectTextureFunc = (PFNGLACTIVETEXTUREARBPROC) SDL_GL_GetProcAddress("glActiveTextureARB");
-		GL_ClientActiveTextureFunc = (PFNGLCLIENTACTIVETEXTUREARBPROC) SDL_GL_GetProcAddress("glClientActiveTextureARB");
-		if (GL_MTexCoord2fFunc && GL_SelectTextureFunc && GL_ClientActiveTextureFunc)
-		{
-			Con_Printf("FOUND: ARB_multitexture\n");
-			gl_mtexable = true;
-			
-			glGetIntegerv(GL_MAX_TEXTURE_UNITS, &gl_max_texture_units);
-			Con_Printf("GL_MAX_TEXTURE_UNITS: %d\n", (int)gl_max_texture_units);
-		}
-		else
-		{
-			Con_Warning ("Couldn't link to multitexture functions\n");
-		}
-	}
-	else
-	{
-		Con_Warning ("multitexture not supported (extension not found)\n");
-	}
-
-	// texture_env_combine
-	//
-	if (COM_CheckParm("-nocombine"))
-		Con_Warning ("texture_env_combine disabled at command line\n");
-	else if (GL_ParseExtensionList(gl_extensions, "GL_ARB_texture_env_combine"))
-	{
-		Con_Printf("FOUND: ARB_texture_env_combine\n");
-		gl_texture_env_combine = true;
-	}
-	else if (GL_ParseExtensionList(gl_extensions, "GL_EXT_texture_env_combine"))
-	{
-		Con_Printf("FOUND: EXT_texture_env_combine\n");
-		gl_texture_env_combine = true;
-	}
-	else
-	{
-		Con_Warning ("texture_env_combine not supported\n");
-	}
-
-	// texture_env_add
-	//
-	if (COM_CheckParm("-noadd"))
-		Con_Warning ("texture_env_add disabled at command line\n");
-	else if (GL_ParseExtensionList(gl_extensions, "GL_ARB_texture_env_add"))
-	{
-		Con_Printf("FOUND: ARB_texture_env_add\n");
-		gl_texture_env_add = true;
-	}
-	else if (GL_ParseExtensionList(gl_extensions, "GL_EXT_texture_env_add"))
-	{
-		Con_Printf("FOUND: EXT_texture_env_add\n");
-		gl_texture_env_add = true;
-	}
-	else
-	{
-		Con_Warning ("texture_env_add not supported\n");
-	}
-
-	// swap control
-	//
-	if (!gl_swap_control)
-	{
-#if defined(USE_SDL2)
-		Con_Warning ("vertical sync not supported (SDL_GL_SetSwapInterval failed)\n");
-#else
-		Con_Warning ("vertical sync not supported (SDL_GL_SetAttribute failed)\n");
-#endif
-	}
-#if defined(USE_SDL2)
-	else if ((swap_control = SDL_GL_GetSwapInterval()) == -1)
-#else
-	else if (SDL_GL_GetAttribute(SDL_GL_SWAP_CONTROL, &swap_control) == -1)
-#endif
-	{
-		gl_swap_control = false;
-#if defined(USE_SDL2)
-		Con_Warning ("vertical sync not supported (SDL_GL_GetSwapInterval failed)\n");
-#else
-		Con_Warning ("vertical sync not supported (SDL_GL_GetAttribute failed)\n");
-#endif
-	}
-	else if ((vid_vsync.value && swap_control != 1) || (!vid_vsync.value && swap_control != 0))
-	{
-		gl_swap_control = false;
-		Con_Warning ("vertical sync not supported (swap_control doesn't match vid_vsync)\n");
-	}
-	else
-	{
-#if defined(USE_SDL2)
-		Con_Printf("FOUND: SDL_GL_SetSwapInterval\n");
-#else
-		Con_Printf("FOUND: SDL_GL_SWAP_CONTROL\n");
-#endif
-	}
-
-	// anisotropic filtering
-	//
-	if (GL_ParseExtensionList(gl_extensions, "GL_EXT_texture_filter_anisotropic"))
-	{
-		float test1,test2;
-		GLuint tex;
-
-		// test to make sure we really have control over it
-		// 1.0 and 2.0 should always be legal values
-		glGenTextures(1, &tex);
-		glBindTexture (GL_TEXTURE_2D, tex);
-		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, 1.0f);
-		glGetTexParameterfv (GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, &test1);
-		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, 2.0f);
-		glGetTexParameterfv (GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, &test2);
-		glDeleteTextures(1, &tex);
-
-		if (test1 == 1 && test2 == 2)
-		{
-			Con_Printf("FOUND: EXT_texture_filter_anisotropic\n");
-			gl_anisotropy_able = true;
-		}
-		else
-		{
-			Con_Warning ("anisotropic filtering locked by driver. Current driver setting is %f\n", test1);
-		}
-
-		//get max value either way, so the menu and stuff know it
-		glGetFloatv (GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &gl_max_anisotropy);
-		if (gl_max_anisotropy < 2)
-		{
-			gl_anisotropy_able = false;
-			gl_max_anisotropy = 1;
-			Con_Warning ("anisotropic filtering broken: disabled\n");
-		}
-	}
-	else
-	{
-		gl_max_anisotropy = 1;
-		Con_Warning ("texture_filter_anisotropic not supported\n");
-	}
-
-	// texture_non_power_of_two
-	//
-	if (COM_CheckParm("-notexturenpot"))
-		Con_Warning ("texture_non_power_of_two disabled at command line\n");
-	else if (GL_ParseExtensionList(gl_extensions, "GL_ARB_texture_non_power_of_two"))
-	{
-		Con_Printf("FOUND: ARB_texture_non_power_of_two\n");
-		gl_texture_NPOT = true;
-	}
-	else
-	{
-		Con_Warning ("texture_non_power_of_two not supported\n");
-	}
-	
-	// GLSL
-	//
-	if (COM_CheckParm("-noglsl"))
-		Con_Warning ("GLSL disabled at command line\n");
-	else if (gl_version_major >= 2)
-	{
-		GL_CreateShaderFunc = (QS_PFNGLCREATESHADERPROC) SDL_GL_GetProcAddress("glCreateShader");
-		GL_DeleteShaderFunc = (QS_PFNGLDELETESHADERPROC) SDL_GL_GetProcAddress("glDeleteShader");
-		GL_DeleteProgramFunc = (QS_PFNGLDELETEPROGRAMPROC) SDL_GL_GetProcAddress("glDeleteProgram");
-		GL_ShaderSourceFunc = (QS_PFNGLSHADERSOURCEPROC) SDL_GL_GetProcAddress("glShaderSource");
-		GL_CompileShaderFunc = (QS_PFNGLCOMPILESHADERPROC) SDL_GL_GetProcAddress("glCompileShader");
-		GL_GetShaderivFunc = (QS_PFNGLGETSHADERIVPROC) SDL_GL_GetProcAddress("glGetShaderiv");
-		GL_GetShaderInfoLogFunc = (QS_PFNGLGETSHADERINFOLOGPROC) SDL_GL_GetProcAddress("glGetShaderInfoLog");
-		GL_GetProgramivFunc = (QS_PFNGLGETPROGRAMIVPROC) SDL_GL_GetProcAddress("glGetProgramiv");
-		GL_GetProgramInfoLogFunc = (QS_PFNGLGETPROGRAMINFOLOGPROC) SDL_GL_GetProcAddress("glGetProgramInfoLog");
-		GL_CreateProgramFunc = (QS_PFNGLCREATEPROGRAMPROC) SDL_GL_GetProcAddress("glCreateProgram");
-		GL_AttachShaderFunc = (QS_PFNGLATTACHSHADERPROC) SDL_GL_GetProcAddress("glAttachShader");
-		GL_LinkProgramFunc = (QS_PFNGLLINKPROGRAMPROC) SDL_GL_GetProcAddress("glLinkProgram");
-		GL_BindAttribLocationFunc = (QS_PFNGLBINDATTRIBLOCATIONFUNC) SDL_GL_GetProcAddress("glBindAttribLocation");
-		GL_UseProgramFunc = (QS_PFNGLUSEPROGRAMPROC) SDL_GL_GetProcAddress("glUseProgram");
-		GL_GetAttribLocationFunc = (QS_PFNGLGETATTRIBLOCATIONPROC) SDL_GL_GetProcAddress("glGetAttribLocation");
-		GL_VertexAttribPointerFunc = (QS_PFNGLVERTEXATTRIBPOINTERPROC) SDL_GL_GetProcAddress("glVertexAttribPointer");
-		GL_EnableVertexAttribArrayFunc = (QS_PFNGLENABLEVERTEXATTRIBARRAYPROC) SDL_GL_GetProcAddress("glEnableVertexAttribArray");
-		GL_DisableVertexAttribArrayFunc = (QS_PFNGLDISABLEVERTEXATTRIBARRAYPROC) SDL_GL_GetProcAddress("glDisableVertexAttribArray");
-		GL_GetUniformLocationFunc = (QS_PFNGLGETUNIFORMLOCATIONPROC) SDL_GL_GetProcAddress("glGetUniformLocation");
-		GL_Uniform1iFunc = (QS_PFNGLUNIFORM1IPROC) SDL_GL_GetProcAddress("glUniform1i");
-		GL_Uniform1fFunc = (QS_PFNGLUNIFORM1FPROC) SDL_GL_GetProcAddress("glUniform1f");
-		GL_Uniform3fFunc = (QS_PFNGLUNIFORM3FPROC) SDL_GL_GetProcAddress("glUniform3f");
-		GL_Uniform4fFunc = (QS_PFNGLUNIFORM4FPROC) SDL_GL_GetProcAddress("glUniform4f");
-
-		if (GL_CreateShaderFunc &&
-			GL_DeleteShaderFunc &&
-			GL_DeleteProgramFunc &&
-			GL_ShaderSourceFunc &&
-			GL_CompileShaderFunc &&
-			GL_GetShaderivFunc &&
-			GL_GetShaderInfoLogFunc &&
-			GL_GetProgramivFunc &&
-			GL_GetProgramInfoLogFunc &&
-			GL_CreateProgramFunc &&
-			GL_AttachShaderFunc &&
-			GL_LinkProgramFunc &&
-			GL_BindAttribLocationFunc &&
-			GL_UseProgramFunc &&
-			GL_GetAttribLocationFunc &&
-			GL_VertexAttribPointerFunc &&
-			GL_EnableVertexAttribArrayFunc &&
-			GL_DisableVertexAttribArrayFunc &&
-			GL_GetUniformLocationFunc &&
-			GL_Uniform1iFunc &&
-			GL_Uniform1fFunc &&
-			GL_Uniform3fFunc &&
-			GL_Uniform4fFunc)
-		{
-			Con_Printf("FOUND: GLSL\n");
-			gl_glsl_able = true;
-		}
-		else
-		{
-			Con_Warning ("GLSL not available\n");
-		}
-	}
-	else
-	{
-		Con_Warning ("OpenGL version < 2, GLSL not available\n");
-	}
-	
-	// GLSL gamma
-	//
-	if (COM_CheckParm("-noglslgamma"))
-		Con_Warning ("GLSL gamma disabled at command line\n");
-	else if (gl_glsl_able)
-	{
-		gl_glsl_gamma_able = true;
-	}
-	else
-	{
-		Con_Warning ("GLSL gamma not available, using hardware gamma\n");
-	}
-    
-    // GLSL alias model rendering
-    //
-	if (COM_CheckParm("-noglslalias"))
-		Con_Warning ("GLSL alias model rendering disabled at command line\n");
-	else if (gl_glsl_able && gl_vbo_able && gl_max_texture_units >= 3)
-	{
-		gl_glsl_alias_able = true;
-	}
-	else
-	{
-		Con_Warning ("GLSL alias model rendering not available, using Fitz renderer\n");
-	}
 }
 
 /*
@@ -1200,7 +866,7 @@ does all the stuff from GL_Init that needs to be done every time a new GL render
 */
 static void GL_SetupState (void)
 {
-	glClearColor (0.15,0.15,0.15,0); //johnfitz -- originally 1,0,0,0
+	/*glClearColor (0.15,0.15,0.15,0); //johnfitz -- originally 1,0,0,0
 	glCullFace(GL_BACK); //johnfitz -- glquake used CCW with backwards culling -- let's do it right
 	glFrontFace(GL_CW); //johnfitz -- glquake used CCW with backwards culling -- let's do it right
 	glEnable(GL_TEXTURE_2D);
@@ -1216,7 +882,7 @@ static void GL_SetupState (void)
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 	glDepthRange (0, 1); //johnfitz -- moved here becuase gl_ztrick is gone.
-	glDepthFunc (GL_LEQUAL); //johnfitz -- moved here becuase gl_ztrick is gone.
+	glDepthFunc (GL_LEQUAL); //johnfitz -- moved here becuase gl_ztrick is gone.*/
 }
 
 /*
@@ -1226,7 +892,7 @@ GL_Init
 */
 static void GL_Init (void)
 {
-	gl_vendor = (const char *) glGetString (GL_VENDOR);
+	/*gl_vendor = (const char *) glGetString (GL_VENDOR);
 	gl_renderer = (const char *) glGetString (GL_RENDERER);
 	gl_version = (const char *) glGetString (GL_VERSION);
 	gl_extensions = (const char *) glGetString (GL_EXTENSIONS);
@@ -1262,7 +928,7 @@ static void GL_Init (void)
 	//johnfitz
 
 	GLAlias_CreateShaders ();
-	GL_ClearBufferBindings ();	
+	GL_ClearBufferBindings ();	*/
 }
 
 /*

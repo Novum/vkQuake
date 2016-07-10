@@ -31,7 +31,6 @@ static cvar_t	gl_texturemode = {"gl_texturemode", "", CVAR_ARCHIVE};
 static cvar_t	gl_texture_anisotropy = {"gl_texture_anisotropy", "1", CVAR_ARCHIVE};
 static cvar_t	gl_max_size = {"gl_max_size", "0", CVAR_NONE};
 static cvar_t	gl_picmip = {"gl_picmip", "0", CVAR_NONE};
-static GLint	gl_hardware_maxsize;
 
 #define	MAX_GLTEXTURES	2048
 static int numgltextures;
@@ -61,16 +60,8 @@ typedef struct
 	int	minfilter;
 	const char  *name;
 } glmode_t;
-static glmode_t glmodes[] = {
-	{GL_NEAREST, GL_NEAREST,		"GL_NEAREST"},
-	{GL_NEAREST, GL_NEAREST_MIPMAP_NEAREST,	"GL_NEAREST_MIPMAP_NEAREST"},
-	{GL_NEAREST, GL_NEAREST_MIPMAP_LINEAR,	"GL_NEAREST_MIPMAP_LINEAR"},
-	{GL_LINEAR,  GL_LINEAR,			"GL_LINEAR"},
-	{GL_LINEAR,  GL_LINEAR_MIPMAP_NEAREST,	"GL_LINEAR_MIPMAP_NEAREST"},
-	{GL_LINEAR,  GL_LINEAR_MIPMAP_LINEAR,	"GL_LINEAR_MIPMAP_LINEAR"},
-};
+
 #define NUM_GLMODES (int)(sizeof(glmodes)/sizeof(glmodes[0]))
-static int glmode_idx = NUM_GLMODES - 1; /* trilinear */
 
 /*
 ===============
@@ -79,12 +70,12 @@ TexMgr_DescribeTextureModes_f -- report available texturemodes
 */
 static void TexMgr_DescribeTextureModes_f (void)
 {
-	int i;
+	/*int i;
 
 	for (i = 0; i < NUM_GLMODES; i++)
 		Con_SafePrintf ("   %2i: %s\n", i + 1, glmodes[i].name);
 
-	Con_Printf ("%i modes\n", i);
+	Con_Printf ("%i modes\n", i);*/
 }
 
 /*
@@ -94,7 +85,7 @@ TexMgr_SetFilterModes
 */
 static void TexMgr_SetFilterModes (gltexture_t *glt)
 {
-	GL_Bind (glt);
+	/*GL_Bind (glt);
 
 	if (glt->flags & TEXPREF_NEAREST)
 	{
@@ -116,7 +107,7 @@ static void TexMgr_SetFilterModes (gltexture_t *glt)
 	{
 		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, glmodes[glmode_idx].magfilter);
 		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, glmodes[glmode_idx].magfilter);
-	}
+	}*/
 }
 
 /*
@@ -126,7 +117,7 @@ TexMgr_TextureMode_f -- called when gl_texturemode changes
 */
 static void TexMgr_TextureMode_f (cvar_t *var)
 {
-	gltexture_t	*glt;
+	/*gltexture_t	*glt;
 	int i;
 
 	for (i = 0; i < NUM_GLMODES; i++)
@@ -162,7 +153,7 @@ static void TexMgr_TextureMode_f (cvar_t *var)
 	}
 
 	Con_Printf ("\"%s\" is not a valid texturemode\n", gl_texturemode.string);
-	Cvar_SetQuick (&gl_texturemode, glmodes[glmode_idx].name);
+	Cvar_SetQuick (&gl_texturemode, glmodes[glmode_idx].name);*/
 }
 
 /*
@@ -172,7 +163,7 @@ TexMgr_Anisotropy_f -- called when gl_texture_anisotropy changes
 */
 static void TexMgr_Anisotropy_f (cvar_t *var)
 {
-	if (gl_texture_anisotropy.value < 1)
+	/*if (gl_texture_anisotropy.value < 1)
 	{
 		Cvar_SetQuick (&gl_texture_anisotropy, "1");
 	}
@@ -185,7 +176,6 @@ static void TexMgr_Anisotropy_f (cvar_t *var)
 		gltexture_t	*glt;
 		for (glt = active_gltextures; glt; glt = glt->next)
 		{
-		/*  TexMgr_SetFilterModes (glt);*/
 		    if (glt->flags & TEXPREF_MIPMAP) {
 			GL_Bind (glt);
 			glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, glmodes[glmode_idx].magfilter);
@@ -193,7 +183,7 @@ static void TexMgr_Anisotropy_f (cvar_t *var)
 			glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, gl_texture_anisotropy.value);
 		    }
 		}
-	}
+	}*/
 }
 
 /*
@@ -227,7 +217,7 @@ TexMgr_Imagedump_f -- dump all current textures to TGA files
 */
 static void TexMgr_Imagedump_f (void)
 {
-	char tganame[MAX_OSPATH], tempname[MAX_OSPATH], dirname[MAX_OSPATH];
+	/*char tganame[MAX_OSPATH], tempname[MAX_OSPATH], dirname[MAX_OSPATH];
 	gltexture_t	*glt;
 	byte *buffer;
 	char *c;
@@ -261,7 +251,7 @@ static void TexMgr_Imagedump_f (void)
 		free (buffer);
 	}
 
-	Con_Printf ("dumped %i textures to %s\n", numgltextures, dirname);
+	Con_Printf ("dumped %i textures to %s\n", numgltextures, dirname);*/
 }
 
 /*
@@ -326,7 +316,7 @@ TexMgr_NewTexture
 */
 gltexture_t *TexMgr_NewTexture (void)
 {
-	gltexture_t *glt;
+	/*gltexture_t *glt;
 
 	if (numgltextures == MAX_GLTEXTURES)
 		Sys_Error("numgltextures == MAX_GLTEXTURES\n");
@@ -338,7 +328,7 @@ gltexture_t *TexMgr_NewTexture (void)
 
 	glGenTextures(1, &glt->texnum);
 	numgltextures++;
-	return glt;
+	return glt;*/
 }
 
 static void GL_DeleteTexture (gltexture_t *texture);
@@ -353,7 +343,7 @@ TexMgr_FreeTexture
 */
 void TexMgr_FreeTexture (gltexture_t *kill)
 {
-	gltexture_t *glt;
+	/*gltexture_t *glt;
 
 	if (in_reload_images)
 		return;
@@ -389,7 +379,7 @@ void TexMgr_FreeTexture (gltexture_t *kill)
 		}
 	}
 
-	Con_Printf ("TexMgr_FreeTexture: not found\n");
+	Con_Printf ("TexMgr_FreeTexture: not found\n");*/
 }
 
 /*
@@ -552,7 +542,7 @@ choose safe warpimage size and resize existing warpimage textures
 */
 void TexMgr_RecalcWarpImageSize (void)
 {
-	int	mark, oldsize;
+	/*int	mark, oldsize;
 	gltexture_t *glt;
 	byte *dummy;
 
@@ -589,7 +579,7 @@ void TexMgr_RecalcWarpImageSize (void)
 		}
 	}
 
-	Hunk_FreeToLowMark (mark);
+	Hunk_FreeToLowMark (mark);*/
 }
 
 /*
@@ -621,7 +611,6 @@ void TexMgr_Init (void)
 	Cvar_RegisterVariable (&gl_picmip);
 	Cvar_RegisterVariable (&gl_texture_anisotropy);
 	Cvar_SetCallback (&gl_texture_anisotropy, &TexMgr_Anisotropy_f);
-	gl_texturemode.string = glmodes[glmode_idx].name;
 	Cvar_RegisterVariable (&gl_texturemode);
 	Cvar_SetCallback (&gl_texturemode, &TexMgr_TextureMode_f);
 	Cmd_AddCommand ("gl_describetexturemodes", &TexMgr_DescribeTextureModes_f);
@@ -629,7 +618,7 @@ void TexMgr_Init (void)
 	Cmd_AddCommand ("imagedump", &TexMgr_Imagedump_f);
 
 	// poll max size from hardware
-	glGetIntegerv (GL_MAX_TEXTURE_SIZE, &gl_hardware_maxsize);
+	//glGetIntegerv (GL_MAX_TEXTURE_SIZE, &gl_hardware_maxsize);
 
 	// load notexture images
 	notexture = TexMgr_LoadImage (NULL, "notexture", 2, 2, SRC_RGBA, notexture_data, "", (src_offset_t)notexture_data, TEXPREF_NEAREST | TEXPREF_PERSIST | TEXPREF_NOPICMIP);
@@ -671,11 +660,13 @@ TexMgr_SafeTextureSize -- return a size with hardware and user prefs in mind
 */
 int TexMgr_SafeTextureSize (int s)
 {
-    if (!gl_texture_NPOT)
+    /*if (!gl_texture_NPOT)
         s = TexMgr_Pad(s);
 	if ((int)gl_max_size.value > 0)
 		s = q_min(TexMgr_Pad((int)gl_max_size.value), s);
 	s = q_min(gl_hardware_maxsize, s);
+	return s;*/
+
 	return s;
 }
 
@@ -1012,7 +1003,7 @@ TexMgr_LoadImage32 -- handles 32bit source data
 */
 static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 {
-	int	internalformat,	miplevel, mipwidth, mipheight, picmip;
+	/*int	internalformat,	miplevel, mipwidth, mipheight, picmip;
 
 	if (!gl_texture_NPOT)
 	{
@@ -1069,7 +1060,7 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	}
 
 	// set filter modes
-	TexMgr_SetFilterModes (glt);
+	TexMgr_SetFilterModes (glt);*/
 }
 
 /*
@@ -1176,12 +1167,12 @@ TexMgr_LoadLightmap -- handles lightmap data
 */
 static void TexMgr_LoadLightmap (gltexture_t *glt, byte *data)
 {
-	// upload it
+	/*// upload it
 	GL_Bind (glt);
 	glTexImage2D (GL_TEXTURE_2D, 0, lightmap_bytes, glt->width, glt->height, 0, gl_lightmap_format, GL_UNSIGNED_BYTE, data);
 
 	// set filter modes
-	TexMgr_SetFilterModes (glt);
+	TexMgr_SetFilterModes (glt);*/
 }
 
 /*
@@ -1396,7 +1387,7 @@ TexMgr_ReloadImages -- reloads all texture images. called only by vid_restart
 */
 void TexMgr_ReloadImages (void)
 {
-	gltexture_t *glt;
+	/*gltexture_t *glt;
 
 // ericw -- tricky bug: if the hunk is almost full, an allocation in TexMgr_ReloadImage
 // triggers cache items to be freed, which calls back into TexMgr to free the
@@ -1412,7 +1403,7 @@ void TexMgr_ReloadImages (void)
 	{
 		glGenTextures(1, &glt->texnum);
 		TexMgr_ReloadImage (glt, -1, -1);
-	}
+	}*/
 	
 	in_reload_images = false;
 }
@@ -1439,8 +1430,6 @@ void TexMgr_ReloadNobrightImages (void)
 ================================================================================
 */
 
-static GLuint	currenttexture[3] = {-1, -1, -1}; // to avoid unnecessary texture sets
-static GLenum	currenttarget = GL_TEXTURE0_ARB;
 qboolean	mtexenabled = false;
 
 /*
@@ -1448,14 +1437,14 @@ qboolean	mtexenabled = false;
 GL_SelectTexture -- johnfitz -- rewritten
 ================
 */
-void GL_SelectTexture (GLenum target)
+/*void GL_SelectTexture (GLenum target)
 {
 	if (target == currenttarget)
 		return;
 		
 	GL_SelectTextureFunc(target);
 	currenttarget = target;
-}
+}*/
 
 /*
 ================
@@ -1464,12 +1453,12 @@ GL_DisableMultitexture -- selects texture unit 0
 */
 void GL_DisableMultitexture(void)
 {
-	if (mtexenabled)
+	/*if (mtexenabled)
 	{
 		glDisable(GL_TEXTURE_2D);
 		GL_SelectTexture(GL_TEXTURE0_ARB);
 		mtexenabled = false;
-	}
+	}*/
 }
 
 /*
@@ -1479,12 +1468,12 @@ GL_EnableMultitexture -- selects texture unit 1
 */
 void GL_EnableMultitexture(void)
 {
-	if (gl_mtexable)
+	/*if (gl_mtexable)
 	{
 		GL_SelectTexture(GL_TEXTURE1_ARB);
 		glEnable(GL_TEXTURE_2D);
 		mtexenabled = true;
-	}
+	}*/
 }
 
 /*
@@ -1494,7 +1483,7 @@ GL_Bind -- johnfitz -- heavy revision
 */
 void GL_Bind (gltexture_t *texture)
 {
-	if (!texture)
+	/*if (!texture)
 		texture = nulltexture;
 
 	if (texture->texnum != currenttexture[currenttarget - GL_TEXTURE0_ARB])
@@ -1502,7 +1491,7 @@ void GL_Bind (gltexture_t *texture)
 		currenttexture[currenttarget - GL_TEXTURE0_ARB] = texture->texnum;
 		glBindTexture (GL_TEXTURE_2D, texture->texnum);
 		texture->visframe = r_framecount;
-	}
+	}*/
 }
 
 /*
@@ -1515,13 +1504,13 @@ from our per-TMU cached texture binding table.
 */
 static void GL_DeleteTexture (gltexture_t *texture)
 {
-	glDeleteTextures (1, &texture->texnum);
+	/*glDeleteTextures (1, &texture->texnum);
 
 	if (texture->texnum == currenttexture[0]) currenttexture[0] = -1;
     if (texture->texnum == currenttexture[1]) currenttexture[1] = -1;
     if (texture->texnum == currenttexture[2]) currenttexture[2] = -1;
 
-	texture->texnum = 0;
+	texture->texnum = 0;*/
 }
 
 /*
@@ -1535,9 +1524,9 @@ Call this after changing the binding outside of GL_Bind.
 */
 void GL_ClearBindings(void)
 {
-	int i;
+	/*int i;
 	for (i = 0; i < 3; i++)
 	{
 		currenttexture[i] = -1;
-	}
+	}*/
 }
