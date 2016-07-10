@@ -220,7 +220,7 @@ void	Host_FindMaxClients (void)
 void Host_Version_f (void)
 {
 	Con_Printf ("Quake Version %1.2f\n", VERSION);
-	Con_Printf ("QuakeSpasm Version %1.2f.%d\n", VKQUAKE_VERSION, VKQUAKE_VER_PATCH);
+	Con_Printf ("vkQuake Version %1.2f.%d\n", VKQUAKE_VERSION, VKQUAKE_VER_PATCH);
 	Con_Printf ("Exe: "__TIME__" "__DATE__"\n");
 }
 
