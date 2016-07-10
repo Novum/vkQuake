@@ -515,6 +515,8 @@ GL_Init
 */
 static void GL_Init( void )
 {
+	Con_Printf("\nVulkan Initialization\n");
+
 	VkResult err;
 
 	qboolean found_surface_extension = false;
@@ -607,7 +609,7 @@ static void GL_Init( void )
 	}
 
 	vkGetPhysicalDeviceProperties(vulkan_physical_device, &vulkan_physical_device_properties);
-	Con_Printf("Vulkan physical device: %s", vulkan_physical_device_properties.deviceName);
+	Con_Printf("Physical device: %s\n", vulkan_physical_device_properties.deviceName);
 
 	qboolean found_graphics_queue = false;
 
