@@ -66,7 +66,6 @@ static int		nummodes;
 static qboolean	vid_initialized = false;
 
 static SDL_Window	*draw_context;
-static SDL_GLContext	gl_context;
 
 static qboolean	vid_locked = false; //johnfitz
 static qboolean	vid_changed = false;
@@ -264,7 +263,7 @@ VID_GetVSync
 */
 static qboolean VID_GetVSync (void)
 {
-	return SDL_GL_GetSwapInterval() == 1;
+	return true;
 }
 
 /*
@@ -372,8 +371,6 @@ static qboolean VID_SetMode (int width, int height, int bpp, qboolean fullscreen
 	int		temp;
 	Uint32	flags;
 	char		caption[50];
-	int		depthbits, stencilbits;
-	int		fsaa_obtained;
 	
 	// so Con_Printfs don't mess us up by forcing vid and snd updates
 	temp = scr_disabled_for_loading;
@@ -382,45 +379,14 @@ static qboolean VID_SetMode (int width, int height, int bpp, qboolean fullscreen
 	CDAudio_Pause ();
 	BGM_Pause ();
 
-	/* z-buffer depth */
-	if (bpp == 16)
-	{
-		depthbits = 16;
-		stencilbits = 0;
-	}
-	else
-	{
-		depthbits = 24;
-		stencilbits = 8;
-	}
-	SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, depthbits);
-	SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, stencilbits);
-
-	/* fsaa */
-	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, fsaa > 0 ? 1 : 0);
-	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, fsaa);
-
 	q_snprintf(caption, sizeof(caption), "vkQuake %1.2f.%d", (float)VKQUAKE_VERSION, VKQUAKE_VER_PATCH);
 
 	/* Create the window if needed, hidden */
 	if (!draw_context)
 	{
-		flags = SDL_WINDOW_OPENGL | SDL_WINDOW_HIDDEN;
+		flags = SDL_WINDOW_HIDDEN;
 
 		draw_context = SDL_CreateWindow (caption, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, flags);
-		if (!draw_context) { // scale back fsaa
-			SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 0);
-			SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 0);
-			draw_context = SDL_CreateWindow (caption, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, flags);
-		}
-		if (!draw_context) { // scale back SDL_GL_DEPTH_SIZE
-			SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 16);
-			draw_context = SDL_CreateWindow (caption, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, flags);
-		}
-		if (!draw_context) { // scale back SDL_GL_STENCIL_SIZE
-			SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 0);
-			draw_context = SDL_CreateWindow (caption, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, flags);
-		}
 		if (!draw_context)
 			Sys_Error ("Couldn't create window");
 	}
@@ -449,34 +415,11 @@ static qboolean VID_SetMode (int width, int height, int bpp, qboolean fullscreen
 
 	SDL_ShowWindow (draw_context);
 
-	/* Create GL context if needed */
-	if (!gl_context) {
-		gl_context = SDL_GL_CreateContext(draw_context);
-		if (!gl_context)
-			Sys_Error("Couldn't create GL context");
-	}
-
-	gl_swap_control = true;
-	if (SDL_GL_SetSwapInterval ((vid_vsync.value) ? 1 : 0) == -1)
-		gl_swap_control = false;
-
 	vid.width = VID_GetCurrentWidth();
 	vid.height = VID_GetCurrentHeight();
 	vid.conwidth = vid.width & 0xFFFFFFF8;
 	vid.conheight = vid.conwidth * vid.height / vid.width;
 	vid.numpages = 2;
-
-// read the obtained z-buffer depth
-	if (SDL_GL_GetAttribute(SDL_GL_DEPTH_SIZE, &depthbits) == -1)
-		depthbits = 0;
-
-// read obtained fsaa samples
-	if (SDL_GL_GetAttribute(SDL_GL_MULTISAMPLESAMPLES, &fsaa_obtained) == -1)
-		fsaa_obtained = 0;
-
-// read stencil bits
-	if (SDL_GL_GetAttribute(SDL_GL_STENCIL_SIZE, &gl_stencilbits) == -1)
-		gl_stencilbits = 0;
 
 	modestate = VID_GetFullscreen() ? MS_FULLSCREEN : MS_WINDOWED;
 
@@ -486,13 +429,6 @@ static qboolean VID_SetMode (int width, int height, int bpp, qboolean fullscreen
 
 // fix the leftover Alt from any Alt-Tab or the like that switched us away
 	ClearAllStates ();
-
-	Con_SafePrintf ("Video mode %dx%dx%d (%d-bit z-buffer, %dx FSAA) initialized\n",
-				VID_GetCurrentWidth(),
-				VID_GetCurrentHeight(),
-				VID_GetCurrentBPP(),
-				depthbits,
-				fsaa_obtained);
 
 	vid.recalc_refdef = 1;
 
@@ -802,7 +738,6 @@ void	VID_Shutdown (void)
 
 		SDL_QuitSubSystem(SDL_INIT_VIDEO);
 		draw_context = NULL;
-		gl_context = NULL;
 		PL_VID_Shutdown();
 	}
 }
