@@ -3,6 +3,7 @@ Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2007-2008 Kristian Duske
 Copyright (C) 2010-2014 QuakeSpasm developers
+Copyright (C) 2016 Axel Gneiting
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -62,7 +63,6 @@ static void VID_MenuKey (int key);
 
 static void ClearAllStates (void);
 static void GL_Init (void);
-static void GL_SetupState (void); //johnfitz
 
 viddef_t	vid;				// global video state
 modestate_t	modestate = MS_UNINIT;
@@ -83,6 +83,7 @@ static cvar_t	vid_desktopfullscreen = {"vid_desktopfullscreen", "0", CVAR_ARCHIV
 cvar_t		vid_gamma = {"gamma", "1", CVAR_ARCHIVE}; //johnfitz -- moved here from view.c
 
 static VkInstance vulkan_instance;
+static VkPhysicalDevice vulkan_physical_device;
 
 /*
 ================
@@ -428,7 +429,6 @@ static void VID_Restart (void)
 	TexMgr_ReloadImages ();
 	GL_BuildBModelVertexBuffer ();
 	GLMesh_LoadVertexBuffers ();
-	GL_SetupState ();
 	Fog_SetupState ();
 
 	//warpimages needs to be recalculated
@@ -558,43 +558,15 @@ static void GL_CheckExtensions (void)
 
 /*
 ===============
-GL_SetupState -- johnfitz
-
-does all the stuff from GL_Init that needs to be done every time a new GL render context is created
-===============
-*/
-static void GL_SetupState (void)
-{
-	/*glClearColor (0.15,0.15,0.15,0); //johnfitz -- originally 1,0,0,0
-	glCullFace(GL_BACK); //johnfitz -- glquake used CCW with backwards culling -- let's do it right
-	glFrontFace(GL_CW); //johnfitz -- glquake used CCW with backwards culling -- let's do it right
-	glEnable(GL_TEXTURE_2D);
-	glEnable(GL_ALPHA_TEST);
-	glAlphaFunc(GL_GREATER, 0.666);
-	glPolygonMode (GL_FRONT_AND_BACK, GL_FILL);
-	glShadeModel (GL_FLAT);
-	glHint (GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST); //johnfitz
-	glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
-	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glDepthRange (0, 1); //johnfitz -- moved here becuase gl_ztrick is gone.
-	glDepthFunc (GL_LEQUAL); //johnfitz -- moved here becuase gl_ztrick is gone.*/
-}
-
-/*
-===============
 GL_Init
 ===============
 */
-static void GL_Init (void)
+static void GL_Init( void )
 {
 	VkResult err;
 
 	VkApplicationInfo app_info;
-	memset( &app_info, 0, sizeof( app_info ) );
+	memset(&app_info, 0, sizeof(app_info));
 	app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
 	app_info.pNext = NULL;
 	app_info.pApplicationName = "vkQuake";
@@ -604,7 +576,7 @@ static void GL_Init (void)
 	app_info.apiVersion = VK_API_VERSION_1_0;
 
 	VkInstanceCreateInfo inst_info;
-	memset( &inst_info, 0, sizeof( inst_info ) );
+	memset(&inst_info, 0, sizeof(inst_info));
 	inst_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
 	inst_info.pNext = NULL;
 	inst_info.pApplicationInfo = &app_info;
@@ -613,39 +585,50 @@ static void GL_Init (void)
 	inst_info.enabledExtensionCount = 0;
 	inst_info.ppEnabledExtensionNames = NULL;
 
-	err = vkCreateInstance(&inst_info, NULL, &vulkan_instance );
-	if ( err == VK_ERROR_INCOMPATIBLE_DRIVER )
+	err = vkCreateInstance(&inst_info, NULL, &vulkan_instance);
+	if (err != VK_SUCCESS)
 	{
 		Sys_Error("Couldn't create Vulkan instance");
 	}
 
-	/*gl_vendor = (const char *) glGetString (GL_VENDOR);
-	gl_renderer = (const char *) glGetString (GL_RENDERER);
-	gl_version = (const char *) glGetString (GL_VERSION);
-	gl_extensions = (const char *) glGetString (GL_EXTENSIONS);
-
-	if (gl_version == NULL || sscanf(gl_version, "%d.%d", &gl_version_major, &gl_version_minor) < 2)
+	int physical_device_count;
+	err = vkEnumeratePhysicalDevices(vulkan_instance, &physical_device_count, NULL);
+	if (err != VK_SUCCESS || physical_device_count == 0)
 	{
-		gl_version_major = 0;
-		gl_version_minor = 0;
+		Sys_Error("Couldn't find any Vulkan devices");
 	}
 
-	if (gl_extensions_nice != NULL)
-		Z_Free (gl_extensions_nice);
-	gl_extensions_nice = GL_MakeNiceExtensionsList (gl_extensions);
+	VkPhysicalDevice *physical_devices = malloc(sizeof(VkPhysicalDevice) * physical_device_count);
+	err = vkEnumeratePhysicalDevices(vulkan_instance, &physical_device_count, physical_devices);
+	vulkan_physical_device = physical_devices[0];
+	free(physical_devices);
 
-	GL_CheckExtensions (); //johnfitz
+	qboolean found_swapchain_extension = false;
 
-	//johnfitz -- intel video workarounds from Baker
-	if (!strcmp(gl_vendor, "Intel"))
+	uint32_t device_extension_count = 0;
+	err = vkEnumerateDeviceExtensionProperties(vulkan_physical_device, NULL, &device_extension_count, NULL);
+
+	if (err == VK_SUCCESS || device_extension_count > 0)
 	{
-		Con_Printf ("Intel Display Adapter detected, enabling gl_clear\n");
-		Cbuf_AddText ("gl_clear 1");
-	}
-	//johnfitz
+		VkExtensionProperties *device_extensions = malloc(sizeof(VkExtensionProperties) * device_extension_count);
+		err = vkEnumerateDeviceExtensionProperties(vulkan_physical_device, NULL, &device_extension_count, device_extensions);
 
-	GLAlias_CreateShaders ();
-	GL_ClearBufferBindings ();	*/
+		for (uint32_t i = 0; i < device_extension_count; ++i)
+		{
+			if (strcmp(VK_KHR_SWAPCHAIN_EXTENSION_NAME, device_extensions[i].extensionName) == 0)
+			{
+				found_swapchain_extension = true;
+				break;
+			}
+		}
+
+		free(device_extensions);
+	}
+
+	if(!found_swapchain_extension)
+	{
+		Sys_Error("Couldn't find swap chain extension");
+	}
 }
 
 /*
@@ -937,7 +920,6 @@ void	VID_Init (void)
 	VID_SetMode (width, height, bpp, fullscreen);
 
 	GL_Init ();
-	GL_SetupState ();
 	Cmd_AddCommand ("gl_info", GL_Info_f); //johnfitz
 
 	//johnfitz -- removed code creating "glquake" subdirectory

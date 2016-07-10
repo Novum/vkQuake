@@ -69,12 +69,6 @@ static void Sys_InitSDL (void)
 
 static quakeparms_t	parms;
 
-// On OS X we call SDL_main from the launcher, but SDL2 doesn't redefine main
-// as SDL_main on OS X anymore, so we do it ourselves.
-#if defined(__APPLE__)
-#define main SDL_main
-#endif
-
 int main(int argc, char *argv[])
 {
 	int		t;
