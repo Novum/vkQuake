@@ -39,8 +39,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define MAXWIDTH		10000
 #define MAXHEIGHT		10000
 
-#define DEFAULT_SDL_FLAGS	SDL_OPENGL
-
 typedef struct {
 	int			width;
 	int			height;
@@ -70,19 +68,6 @@ viddef_t	vid;				// global video state
 modestate_t	modestate = MS_UNINIT;
 qboolean	scr_skipupdate;
 
-qboolean gl_mtexable = false;
-qboolean gl_texture_env_combine = false; //johnfitz
-qboolean gl_texture_env_add = false; //johnfitz
-qboolean gl_swap_control = false; //johnfitz
-qboolean gl_anisotropy_able = false; //johnfitz
-float gl_max_anisotropy; //johnfitz
-qboolean gl_texture_NPOT = false; //ericw
-qboolean gl_vbo_able = false; //ericw
-qboolean gl_glsl_able = false; //ericw
-qboolean gl_glsl_gamma_able = false; //ericw
-qboolean gl_glsl_alias_able = false; //ericw
-int gl_stencilbits;
-
 //====================================
 
 //johnfitz -- new cvars
@@ -97,14 +82,7 @@ static cvar_t	vid_desktopfullscreen = {"vid_desktopfullscreen", "0", CVAR_ARCHIV
 
 cvar_t		vid_gamma = {"gamma", "1", CVAR_ARCHIVE}; //johnfitz -- moved here from view.c
 
-//==========================================================================
-//
-//  HARDWARE GAMMA -- johnfitz
-//
-//==========================================================================
-
-static qboolean	gammaworks = false;	// whether hw-gamma works
-static int fsaa;
+static VkInstance vulkan_instance;
 
 /*
 ================
@@ -113,21 +91,6 @@ VID_Gamma_SetGamma -- apply gamma correction
 */
 static void VID_Gamma_SetGamma (void)
 {
-	if (gl_glsl_gamma_able)
-		return;
-
-	if (draw_context && gammaworks)
-	{
-		float	value;
-
-		if (vid_gamma.value > (1.0f / GAMMA_MAX))
-			value = 1.0f / vid_gamma.value;
-		else
-			value = GAMMA_MAX;
-
-		if (SDL_SetWindowBrightness(draw_context, value) != 0)
-			Con_Printf ("VID_Gamma_SetGamma: failed on SDL_SetWindowBrightness\n");
-	}
 }
 
 /*
@@ -137,14 +100,6 @@ VID_Gamma_Restore -- restore system gamma
 */
 static void VID_Gamma_Restore (void)
 {
-	if (gl_glsl_gamma_able)
-		return;
-
-	if (draw_context && gammaworks)
-	{
-		if (SDL_SetWindowBrightness(draw_context, 1) != 0)
-			Con_Printf ("VID_Gamma_Restore: failed on SDL_SetWindowBrightness\n");
-	}
 }
 
 /*
@@ -154,7 +109,6 @@ VID_Gamma_Shutdown -- called on exit
 */
 static void VID_Gamma_Shutdown (void)
 {
-	VID_Gamma_Restore ();
 }
 
 /*
@@ -164,10 +118,6 @@ VID_Gamma_f -- callback when the cvar changes
 */
 static void VID_Gamma_f (cvar_t *var)
 {
-	if (gl_glsl_gamma_able)
-		return;
-
-	VID_Gamma_SetGamma ();
 }
 
 /*
@@ -179,13 +129,6 @@ static void VID_Gamma_Init (void)
 {
 	Cvar_RegisterVariable (&vid_gamma);
 	Cvar_SetCallback (&vid_gamma, VID_Gamma_f);
-
-	if (gl_glsl_gamma_able)
-		return;
-
-	gammaworks	= (SDL_SetWindowBrightness(draw_context, 1) == 0);
-	if (!gammaworks)
-		Con_SafePrintf("gamma adjustment not available\n");
 }
 
 /*
@@ -648,6 +591,34 @@ GL_Init
 */
 static void GL_Init (void)
 {
+	VkResult err;
+
+	VkApplicationInfo app_info;
+	memset( &app_info, 0, sizeof( app_info ) );
+	app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+	app_info.pNext = NULL;
+	app_info.pApplicationName = "vkQuake";
+	app_info.applicationVersion = 1;
+	app_info.pEngineName = "vkQuake";
+	app_info.engineVersion = 1;
+	app_info.apiVersion = VK_API_VERSION_1_0;
+
+	VkInstanceCreateInfo inst_info;
+	memset( &inst_info, 0, sizeof( inst_info ) );
+	inst_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+	inst_info.pNext = NULL;
+	inst_info.pApplicationInfo = &app_info;
+	inst_info.enabledLayerCount = 0;
+	inst_info.ppEnabledLayerNames = NULL;
+	inst_info.enabledExtensionCount = 0;
+	inst_info.ppEnabledExtensionNames = NULL;
+
+	err = vkCreateInstance(&inst_info, NULL, &vulkan_instance );
+	if ( err == VK_ERROR_INCOMPATIBLE_DRIVER )
+	{
+		Sys_Error("Couldn't create Vulkan instance");
+	}
+
 	/*gl_vendor = (const char *) glGetString (GL_VENDOR);
 	gl_renderer = (const char *) glGetString (GL_RENDERER);
 	gl_version = (const char *) glGetString (GL_VERSION);
@@ -703,7 +674,7 @@ void GL_EndRendering (void)
 }
 
 
-void	VID_Shutdown (void)
+void VID_Shutdown (void)
 {
 	if (vid_initialized)
 	{
@@ -899,7 +870,6 @@ void	VID_Init (void)
 	height = (int)vid_height.value;
 	bpp = (int)vid_bpp.value;
 	fullscreen = (int)vid_fullscreen.value;
-	fsaa = (int)vid_fsaa.value;
 
 	if (COM_CheckParm("-current"))
 	{
@@ -937,10 +907,6 @@ void	VID_Init (void)
 		else if (COM_CheckParm("-fullscreen") || COM_CheckParm("-f"))
 			fullscreen = true;
 	}
-
-	p = COM_CheckParm ("-fsaa");
-	if (p && p < com_argc-1)
-		fsaa = atoi(com_argv[p+1]);
 
 	if (!VID_ValidMode(width, height, bpp, fullscreen))
 	{
@@ -1005,7 +971,7 @@ void	VID_Toggle (void)
 
 	if (!vid_toggle_works)
 		goto vrestart;
-	else if (gl_vbo_able)
+	else
 	{
 		// disabling the fast path because with SDL 1.2 it invalidates VBOs (using them
 		// causes a crash, sugesting that the fullscreen toggle created a new GL context,
@@ -1417,10 +1383,7 @@ static void VID_MenuDraw (void)
 			break;
 		case VID_OPT_VSYNC:
 			M_Print (16, y, "     Vertical sync");
-			if (gl_swap_control)
-				M_DrawCheckbox (184, y, (int)vid_vsync.value);
-			else
-				M_Print (184, y, "N/A");
+			M_DrawCheckbox (184, y, (int)vid_vsync.value);
 			break;
 		case VID_OPT_TEST:
 			y += 8; //separate the test and apply items
