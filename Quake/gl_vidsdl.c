@@ -21,7 +21,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
-// gl_vidsdl.c -- SDL GL vid component
+// gl_vidsdl.c -- SDL vid component
 
 #include "quakedef.h"
 #include "cfgfile.h"
@@ -86,6 +86,7 @@ cvar_t		vid_gamma = {"gamma", "1", CVAR_ARCHIVE}; //johnfitz -- moved here from 
 static VkInstance vulkan_instance;
 static VkPhysicalDevice vulkan_physical_device;
 static VkPhysicalDeviceProperties vulkan_physical_device_properties;
+static VkDevice vulkan_device;
 
 /*
 ================
@@ -503,60 +504,9 @@ static void VID_Unlock (void)
 
 //==============================================================================
 //
-//	OPENGL STUFF
+//	Vulkan Stuff
 //
 //==============================================================================
-
-/*
-===============
-GL_MakeNiceExtensionsList -- johnfitz
-===============
-*/
-static char *GL_MakeNiceExtensionsList (const char *in)
-{
-	char *copy, *token, *out;
-	int i, count;
-
-	if (!in) return Z_Strdup("(none)");
-
-	//each space will be replaced by 4 chars, so count the spaces before we malloc
-	for (i = 0, count = 1; i < (int) strlen(in); i++)
-	{
-		if (in[i] == ' ')
-			count++;
-	}
-
-	out = (char *) Z_Malloc (strlen(in) + count*3 + 1); //usually about 1-2k
-	out[0] = 0;
-
-	copy = (char *) Z_Strdup(in);
-	for (token = strtok(copy, " "); token; token = strtok(NULL, " "))
-	{
-		strcat(out, "\n   ");
-		strcat(out, token);
-	}
-
-	Z_Free (copy);
-	return out;
-}
-
-/*
-===============
-GL_Info_f -- johnfitz
-===============
-*/
-static void GL_Info_f (void)
-{
-}
-
-/*
-===============
-GL_CheckExtensions
-===============
-*/
-static void GL_CheckExtensions (void)
-{
-}
 
 /*
 ===============
@@ -593,29 +543,25 @@ static void GL_Init( void )
 		Sys_Error("Couldn't find surface extension");
 	}
 	
-	VkApplicationInfo app_info;
-	memset(&app_info, 0, sizeof(app_info));
-	app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-	app_info.pNext = NULL;
-	app_info.pApplicationName = "vkQuake";
-	app_info.applicationVersion = 1;
-	app_info.pEngineName = "vkQuake";
-	app_info.engineVersion = 1;
-	app_info.apiVersion = VK_API_VERSION_1_0;
+	VkApplicationInfo application_info;
+	memset(&application_info, 0, sizeof(application_info));
+	application_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+	application_info.pApplicationName = "vkQuake";
+	application_info.applicationVersion = 1;
+	application_info.pEngineName = "vkQuake";
+	application_info.engineVersion = 1;
+	application_info.apiVersion = VK_API_VERSION_1_0;
 
 	char * instance_extensions[] = { VK_KHR_SURFACE_EXTENSION_NAME };
 
-	VkInstanceCreateInfo inst_info;
-	memset(&inst_info, 0, sizeof(inst_info));
-	inst_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-	inst_info.pNext = NULL;
-	inst_info.pApplicationInfo = &app_info;
-	inst_info.enabledLayerCount = 0;
-	inst_info.ppEnabledLayerNames = NULL;
-	inst_info.enabledExtensionCount = 1;
-	inst_info.ppEnabledExtensionNames = instance_extensions;
+	VkInstanceCreateInfo instance_create_info;
+	memset(&instance_create_info, 0, sizeof(instance_create_info));
+	instance_create_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+	instance_create_info.pApplicationInfo = &application_info;
+	instance_create_info.enabledExtensionCount = 1;
+	instance_create_info.ppEnabledExtensionNames = instance_extensions;
 
-	err = vkCreateInstance(&inst_info, NULL, &vulkan_instance);
+	err = vkCreateInstance(&instance_create_info, NULL, &vulkan_instance);
 	if (err != VK_SUCCESS)
 	{
 		Sys_Error("Couldn't create Vulkan instance");
@@ -689,6 +635,30 @@ static void GL_Init( void )
 	if(!found_graphics_queue)
 	{
 		Sys_Error("Couldn't find graphics queue");
+	}
+
+	float queue_priorities[] = {0.0};
+	VkDeviceQueueCreateInfo queue_create_info;
+	memset(&queue_create_info, 0, sizeof(queue_create_info));
+	queue_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+	queue_create_info.queueFamilyIndex = graphics_queue_node_index;
+	queue_create_info.queueCount = 1;
+	queue_create_info.pQueuePriorities = queue_priorities;
+
+	char * device_extensions[] = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
+
+	VkDeviceCreateInfo device_create_info;
+	memset(&device_create_info, 0, sizeof(device_create_info));
+	device_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+	device_create_info.queueCreateInfoCount = 1;
+	device_create_info.pQueueCreateInfos = &queue_create_info;
+	device_create_info.enabledExtensionCount = 1;
+	device_create_info.ppEnabledExtensionNames = device_extensions;
+
+	err = vkCreateDevice(vulkan_physical_device, &device_create_info, NULL, &vulkan_device);
+	if (err != VK_SUCCESS)
+	{
+		Sys_Error("Couldn't create Vulkan device");
 	}
 }
 
@@ -981,7 +951,6 @@ void	VID_Init (void)
 	VID_SetMode (width, height, bpp, fullscreen);
 
 	GL_Init ();
-	Cmd_AddCommand ("gl_info", GL_Info_f); //johnfitz
 
 	//johnfitz -- removed code creating "glquake" subdirectory
 
