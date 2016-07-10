@@ -32,11 +32,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "SDL.h"
 #endif
 
-//ericw -- for putting the driver into multithreaded mode
-#ifdef __APPLE__
-#include <OpenGL/OpenGL.h>
-#endif
-
 #define MAX_MODE_LIST	600 //johnfitz -- was 30
 #define MAX_BPPS_LIST	5
 #define WARP_WIDTH		320
@@ -51,14 +46,6 @@ typedef struct {
 	int			height;
 	int			bpp;
 } vmode_t;
-
-static const char *gl_vendor;
-static const char *gl_renderer;
-static const char *gl_version;
-static int gl_version_major;
-static int gl_version_minor;
-static const char *gl_extensions;
-static char * gl_extensions_nice;
 
 static vmode_t	modelist[MAX_MODE_LIST];
 static int		nummodes;
@@ -615,10 +602,6 @@ GL_Info_f -- johnfitz
 */
 static void GL_Info_f (void)
 {
-	Con_SafePrintf ("GL_VENDOR: %s\n", gl_vendor);
-	Con_SafePrintf ("GL_RENDERER: %s\n", gl_renderer);
-	Con_SafePrintf ("GL_VERSION: %s\n", gl_version);
-	Con_Printf ("GL_EXTENSIONS: %s\n", gl_extensions_nice);
 }
 
 /*
@@ -681,16 +664,6 @@ static void GL_Init (void)
 	gl_extensions_nice = GL_MakeNiceExtensionsList (gl_extensions);
 
 	GL_CheckExtensions (); //johnfitz
-
-#ifdef __APPLE__
-	// ericw -- enable multi-threaded OpenGL, gives a decent FPS boost.
-	// https://developer.apple.com/library/mac/technotes/tn2085/
-	if (host_parms->numcpus > 1 &&
-	    kCGLNoError != CGLEnable(CGLGetCurrentContext(), kCGLCEMPEngine))
-	{
-		Con_Warning ("Couldn't enable multi-threaded OpenGL");
-	}
-#endif
 
 	//johnfitz -- intel video workarounds from Baker
 	if (!strcmp(gl_vendor, "Intel"))

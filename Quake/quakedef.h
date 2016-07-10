@@ -220,6 +220,14 @@ typedef struct
 #else
 #include "SDL.h"
 #endif
+
+#ifdef _WIN32
+#define VK_USE_PLATFORM_WIN32_KHR
+#endif
+
+#include <vulkan/vulkan.h>
+#include <vulkan/vk_platform.h>
+
 #ifndef APIENTRY
 #define	APIENTRY
 #endif
@@ -245,7 +253,6 @@ typedef struct
 #include "menu.h"
 #include "cdaudio.h"
 #include "glquake.h"
-
 
 //=============================================================================
 
