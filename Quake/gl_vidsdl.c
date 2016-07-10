@@ -400,7 +400,7 @@ static qboolean VID_SetMode (int width, int height, int bpp, qboolean fullscreen
 	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, fsaa > 0 ? 1 : 0);
 	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, fsaa);
 
-	q_snprintf(caption, sizeof(caption), "QuakeSpasm %1.2f.%d", (float)QUAKESPASM_VERSION, QUAKESPASM_VER_PATCH);
+	q_snprintf(caption, sizeof(caption), "vkQuake %1.2f.%d", (float)VKQUAKE_VERSION, VKQUAKE_VER_PATCH);
 
 	/* Create the window if needed, hidden */
 	if (!draw_context)

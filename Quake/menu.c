@@ -1629,7 +1629,7 @@ void M_Quit_Draw (void) //johnfitz -- modified for new quit message
 		m_state = m_quit;
 	}
 
-	sprintf(msg1, "QuakeSpasm %1.2f.%d", (float)QUAKESPASM_VERSION, QUAKESPASM_VER_PATCH);
+	sprintf(msg1, "QuakeSpasm %1.2f.%d", (float)VKQUAKE_VERSION, VKQUAKE_VER_PATCH);
 
 	//okay, this is kind of fucked up.  M_DrawTextBox will always act as if
 	//width is even. Also, the width and lines values are for the interior of the box,
