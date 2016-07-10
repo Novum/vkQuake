@@ -340,6 +340,9 @@ void Sys_Printf (const char *fmt, ...)
 	/* SDL will put these into its own stdout log,
 	   so print to stdout even in graphical mode. */
 		fputs (text, stdout);
+#ifdef _WIN32
+		OutputDebugStringA(text);
+#endif
 	}
 }
 

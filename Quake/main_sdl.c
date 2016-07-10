@@ -111,7 +111,7 @@ int main(int argc, char *argv[])
 	Sys_Printf("GLQuake %1.2f (c) id Software\n", GLQUAKE_VERSION);
 	Sys_Printf("FitzQuake %1.2f (c) John Fitzgibbons\n", FITZQUAKE_VERSION);
 	Sys_Printf("FitzQuake SDL port (c) SleepwalkR, Baker\n");
-	Sys_Printf("QuakeSpasm %1.2f.%d (c) Ozkan Sezer, Eric Wasylishen & others\n",
+	Sys_Printf("vkQuake %1.2f.%d (c) Ozkan Sezer, Eric Wasylishen & others\n",
 					VKQUAKE_VERSION, VKQUAKE_VER_PATCH);
 
 	Sys_Printf("Host_Init\n");

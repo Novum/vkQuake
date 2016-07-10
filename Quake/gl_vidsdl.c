@@ -725,7 +725,7 @@ void GL_EndRendering (void)
 {
 	if (!scr_skipupdate)
 	{
-		SDL_GL_SwapWindow(draw_context);
+		//SDL_GL_SwapWindow(draw_context);
 	}
 }
 
