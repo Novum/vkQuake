@@ -1,0 +1,417 @@
+
+================================================================================
+
+Fitzquake version 0.80, May 26, 2005 
+
+Filename                : fitzquake080.exe
+Author                  : John Fitzgibbons
+Email Address           : johnfitz@u.washington.edu
+Author's Homepage       : http://www.celephais.net/
+Fitzquake Homepage      : http://www.celephais.net/fitzquake
+
+Fitzquake is a modified glquake based on the source code released by id 
+Software. My primary focus is fixing a lot of the rendering bugs which made 
+glquake inferior to the software renderer. My secondary focus is adding 
+conveniences for mappers and general users. I am also slowly adding support for
+new modding or mapping features such as skyboxes, fog, and colored light. 
+
+While I have made extensive changes to the code, I pretty much use the same 
+OpenGL features that the original glquake uses. Therefore, if you can run 
+glquake, you can probably run Fitzquake. 
+
+I am not finished working on this project, so bug reports and feature requests
+are welcome. 
+
+Acknowlegements
+--------------------------------------------------------------------------------
+
+id Software (quake and quake2 code)
+LordHavoc (code and assistance)
+Bengt Jardrup (feedback, assistance, testing)
+
+additional thanks to: Aardappel, SmallPileOfGibs, FrikaC, Vondur, Topaz, Tomaz,
+Tonik, Radix, EvilTypeGuy, NightBringer, MH, Maddes, Fett, Craig Wills, Heffo, 
+Riot, Gleeb, people in #flipcode, and others for their tutorials, code, testing, 
+and assistance.
+
+Copyright / Permissions
+--------------------------------------------------------------------------------
+
+Copyright (C) 1996-2001 Id Software, Inc.
+Copyright (C) 2002-2005 John Fitzgibbons and others
+
+This program is free software; you can redistribute it and/or modify it under 
+the terms of the GNU General Public License as published by the Free Software 
+Foundation; either version 2 of the License, or (at your option) any later 
+version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY 
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A 
+PARTICULAR PURPOSE.
+
+See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with 
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple 
+Place - Suite 330, Boston, MA  02111-1307, USA.
+
+History
+================================================================================
+
+changes in 0.80
+---------------
+
+	- map loading is about four times faster.  This is due to some optimizations in the texture loading code.
+	- video mode can now be changed in-game.  You can change resolution, color depth, refresh rate, and switch between windowed and fullscreen modes.  This can be accomplished easily using the video options menu, and is also available at the console using cvars. Note: if you launch fitzquake with -width, -height, -window, or -bpp in the command line, Fitzquake will use the command line settings and ignore whatever it reads from the config files at startup. However, you will still be able to change the video mode from the menu or the console as you like. Also note: to change video modes by execing a config file, the config file must include "vid_restart" after the other vid_ cvars have been set. (see cvars "vid_width," "vid_height," "vid_fullscreen," "vid_bpp," "vid_refreshrate," and commands "vid_restart," "vid_test")
+	- added control of entity count limits (MAX_EDICTS.)  The default maximum has been increased from 600 to 1024.  It can be raised even higher (up to 8192 -- this is a limit set by the network protocol) using a cvar. (see cvar "max_edicts")
+	- added control of vertical sync.  (see cvar "vid_vsync")
+	- added control of anistropic filtering.  Anisotropic filtering is a method to improve texture clarity on surfaces when viewed at steep angles.  (see cvar "gl_texture_anisotropy")
+	- console buffer size can now be set.  The command line option "-consize" allows you to specify the buffer size in kilobytes.  For reference, fitzquake's default buffer size is 64k, and glquake's is 16k.  16k is also the smallest size fitzquake will allow you to set.  Note: this buffer lives in the heap, so if you want to have a HUGE buffer, you might need to increase -heapsize also.
+	- increased max surface extents from 256 (the software quake maximum) to 2000.  For reference, the glquake maximum is 512.  This should eliminate the "bad surface extents" crash when running some maps that could be played in glquake, but not fitzquake or winquake.
+	- increased max vertices in an alias model from 1024 (the glquake maximum) to 2000 (the software quake maximum.)
+	- increased MAX_CHANNELS from 128 to 512 and MAX_DYNAMIC_CHANNELS from 8 to 128
+	- screenshot filenames are now in the format "fitz0000.tga", increasing the maximum number of screenshots per folder from one hundred to ten thousand.
+	- vid_describemodes output cleaned up; now displays a list of valid refresh rates for each mode
+	- added a more intuitive cvar control of slow motion/fast-forward for demos and live gameplay.  (see cvar "host_timescale")
+	- "reset to defaults" option in the menu now executes the "resetall" command before loading default.cfg
+	- game command now writes config.cfg to current gamedir before switching
+	- +mlook is now saved to config.cfg
+	- changed smallest allowed window size from 320x240 to 320x200
+	- console cursor images are now hard-coded, and the insert mode cursor is now a vertical bar instead of an underscore. This was prompted by several popular mods (OUM, Xmen TC) using nonstandard cursors, which are incompatible the fitzquake console enhancements.
+	- gl_farclip now defaults to 16384.  This should be high enough to handle even the largest open areas without unwanted clipping.  The only reason you'd want to lower this number is if you see z-fighting.
+	- added cvar r_drawworld (see below)
+	- added cvar r_showtris (see below)
+	- added cvar r_showbboxes (see below)
+	- added a command to cycle a cvar through a list of values. (see command "cycle")
+	- mapname command now works on dedicated server.
+	- added a hack to fix those white edges on the bottom of the large box of shells.  I feel dirty, but they look better, now.
+	- changed stuffcmds behavior to allow hyphenated map names, config file names, etc. in the command line. (example: "fitzquake.exe +exec my-config.cfg +map my-map")  However, you still can't load a map or config file when the first character in the filename is a hyphen.
+	- skybox loader now reverts to scrolling sky if all 6 skybox faces failed to load.
+	- tweaked circular particles to match the apparent size of the square particles.
+	- fixed crash when loading mods with large player skins (like the chainsaw mod, and PerQuake.)  Colormapping can now handle any size player texture (limited to the heapsize, of course.)
+	- fixed bug where a replacement model in a mod is messed up becuase a matching .ms2 file in id1/glquake is present.  The fix is simply to disable all mesh caching, which slows down model loading a little.
+	- fixed freeze when gl_overbright is 1 and either texture_env_combine or multitexture is disabled or not supported.
+	- fixed "numgltextures == MAX_GLTEXTURES" crash when viewing multiplayer->setup menu.
+	- fixed "numgltextures == MAX_GLTEXTURES" crash when playing large maps (nesp09,) due to frequent model recaches.
+	- fixed bug where entities and water were not being drawn any frame in which a model had to be recached.
+	- fixed skybox texture showing up in the place of other textures/skins/lightmaps, when the previous loaded map had a skybox.
+	- fixed missing polygons on edges of screen when underwater and r_waterwarp is 1.
+	- fixed missing polygons on edges of screen when r_stereo is enabled.
+	- fixed long mapnames that scroll are truncated to be shorter than what appears in the console.  Well, sort of.  What I did was increase the maximum length from 39 to 127.  A mapname longer than 127 will still be truncated, but these are pretty rare.
+	- fixed rogue's teamplay skin showing up as an all-white texture.
+	- fixed checkerboard texture shows up sometimes when an animated texture has fullbright pixels on some frames, but not others (reactor core in junk.bsp)
+	- fixed color 255 is not fullbright
+	- fixed fuscia dots appearing in corners of resampled textures
+	- fixed mapname command crashes when client is disconnected.
+	- fixed cl_nolerp 1 screws up speed of demo playback
+	- fixed annoying client-side step-up smoothing when in noclip mode (except on nonlocal servers.)
+	- fixed scr_clock 2 displays hour twelve as "0" instead of "12"
+	- fixed skip textured surfaces still drawn even after running tyrann's skip utility
+	- fixed crash when loading a map with a sky texture where the "sky" in the texturename is not lowercase
+	- fixed hang in e2m2 on easy skill, where you can shoot one of the buttons at the beginning and then trick-jump through the open gate.  Now it prints a warning message ("SV_TouchLinks: null link") and lets you keep playing.
+	- fixed bug when viewsize < 100, and r_oldwater is 0, where you can see the water textures overlaying part of the brown frame around the viewport.
+	- fixed bug where imagelist and r_speeds2 would report the same megabyte counts in both 16bpp and 32bpp mode, even though texture bpp should match (and does match) framebuffer bpp.  The numbers are now different and accurate for each bit depth.
+	- removed cvars "vid_config_x," "vid_config_y," "vid_wait," "vid_nopageflip," "_vid_wait_override," "_vid_default_mode," "_vid_default_mode_win," and "vid_stretch_by_2," none of which glquake ever used.
+	- removed cvar "vid_mode" and commands "vid_describemode" and "vid_nummodes," because of the new video mode handling.
+	
+cvars:
+
+	- gl_texture_anisotropy. Controls the amount of anisotropy in texture filtering.  If 1 or less than 1, texture filtering is normal (isotropic.)  If greater than 1, increasing degrees of anisotropic filtering are used, up to the hardware maximum. Set value to 2 for 2x anisotropic, 4 for 4x, etc. Default 1.
+
+	- host_timescale.  Scales the passage of time on client and server. Set to 0 or 1 for normal speed, less than 1 for slow motion, and greater than 1 for fast-forward.  If greater than 0, overrides host_framerate.  Default 0.
+	
+	- max_edicts. Sets the maximum number of entites on both the client and server. Default 1024. Acceptable values range from 256 to 8192. Set to 600 to mimic standard quake. Changes won't take effect until the next time a map is loaded. Note: if a client connects to a server, and the client's maximum is lower than the server's, the client will probably crash if it ever sees an entnum higher than its local max_edicts. Warning: you may need to increase -heapsize if you want a high max_edicts value.
+	
+	- r_drawworld. If 1, draw world as usual.  If 0, don't draw the world.  Default 1. (compare r_drawentities)
+	
+	- r_showbboxes. If 1, draw a wireframe bounding box around each entity.  Note that these are the server-side per-edict physics bounding boxes, not the client-side per-model rendering bboxes. If 0, disable this feature. Default 0.
+	
+	- r_showtris. If 1, draw wireframe outlines for every triangle in the scene. Like in Quake 3, the lines will be visible even through solid geometry.  If 2, draw the outlines only on visible surfaces (like r_showtris 2 in Medal of Honor.) If 0, disable wireframe overlay.  Default 0.
+	
+	- vid_bpp. Sets the color depth of the screen in fullscreen mode. Windowed mode ignores this setting. Can be 16 or 32. Default 16. (Changes won't take effect until the next call to vid_restart.)
+	
+	- vid_fullscreen. If 1, fitzquake will run fullscreen. If 0, fitzquake will run in a window. Default 1. (Changes won't take effect until the next call to vid_restart.)
+	
+	- vid_height. Sets the vertical screen/window resolution. Default 480. In windowed mode, cannot be less than 200. (Changes won't take effect until the next call to vid_restart.)
+	
+	- vid_refreshrate. Sets the refresh rate of the screen in fullscreen mode. Windowed mode ignores this setting. Possible values include 60, 70, 72, 75, 85, etc.  Default 60. (Changes won't take effect until the next call to vid_restart.)
+
+	- vid_width. Sets the horizontal screen/window resolution. Default 640. In windowed mode, cannot be less than 320. (Changes won't take effect until the next call to vid_restart.)
+
+	- vid_vsync.  Set to 1 to enable vertical sync, which eliminates tearing, but caps your framerate at the monitor refreshrate.  Set to 0 to disable vertical sync, which allows tearing but doesn't cap your framerate. Default 0.  Note: If fitzquake detects that your driver settings have forced vsync to be disabled, it will post a message to the console saying so, and this cvar will have no effect.
+
+commands:
+
+	- "cycle <cvar> <value> [<value> [<value> ...]]" to cycle a cvar through a list of values..  Note: this command will get stuck on a list that contains the same value more than once, such as "cycle blah 1 2 1 3". If you're doing anything that complex you can just use aliases.
+
+	- vid_restart.  Tries to set a video mode that matches the values of vid_width, vid_height, vid_fullscreen, and, if vid_fullscreen is 1, vid_bpp and vid_refreshrate.
+	
+	- vid_test. Like vid_restart, except that after switching to the new mode pops up a confirmation dialogue.  This is useful if you are not sure what modes your monitor can handle, so you don't get stuck with a blank screen.  The dialogue has a time limit so that if you don't press a key within 5 seconds, it will revert to the previous mode.
+
+changes in 0.75
+---------------
+
+	- totally rewritten bsp drawing code.  The new code combines the advantages of the gl_texsort 1 and gl_texsort 0 codepaths from glquake into one codepath that uses texture sorting and multitexture.  In my tests, i've found that it's about the same speed as glquake in low poly scenes (like the original quake levels,) but as you get into the thousands of wpolys, it's faster and faster.
+	- 2x overbright lighting.  Lighting now looks like software quake.  Just like overbright lighting on models, overbright on world polys requires GL_EXT_texture_env_combine (TNT and later, voodoo4 and later.)  Without it, FitzQuake will be use two passes to render overbright world polys.  So if you don't have that extension, you might disable it for performance reasons.  (see cvar "gl_overbright")
+	- colored lighting support using .lit files.
+	- totally new water surface animation.  The new method requires no surface subdivision, isn't plagued by tearing and sparklies caused by tjunctions, and looks almost identical to software quake's water, and doesn't slow down on very large sheets of water. (see cvars "r_waterquality" and "r_oldwater")
+	- old water aninmation fixed so that it doesn't look bad when gl_subdivide_size is 32 or lower.
+	- can load external textures (currently targa and pcx) if they match the texture name in the bsp and are located in the id1/textures, or <MODDIR>/textures directory.  At the moment no other images (skins, menu, etc.) can be replaced.
+	- gamma correction now goes back to normal when Fitzquake loses focus.
+	- tab completion now adds a space after the completed command/cvar if the cursor is at the end of the editline.
+	- increased the max length of the video mode list from 30 to 80.  This should alleviate the problems people with newer cards were having trying to use some 32-bit modes -- there were so many 16-bit modes that they filled up the list before all 32-bit modes could be detected.  The video menu will still only list a certain number of modes due to space constraints, but you can see the complete list by using the console command "vid_describemodes"
+	- number of listed video modes in the "video options" menu increased from 27 to 36.
+	- added alpha control for the front sky layer. (see cvar "r_skyalpha")
+	- clock can now display time in 24-hour or "military" time.
+	- added an "mtex" counter to the r_speeds 2 readout.  This measures the number of megabytes of texture memory used each frame to draw the scene. Note: this doesn't count textures used to draw the console, menu, or statusbar.
+	- added optional drawing of surfaces inside sky leaves, for compiler/map testing purposes.  (see cvar "r_oldskyleaf")
+	- sky surfaces on bmodels are now visible, though drawn incorrectly.
+	- fixed multiple textures in bsp with same name or no name get overwritten/not loaded. (example: rd1m3)
+	- fixed some nasty texture loading bugs that were especially hounding 3dfx users (wrong texture, no texture, or unnecessarily low-res textures displayed on models and world.)  These bugs would also occur in conjunction with nonzero values of gl_max_size or gl_picmip.
+	- fixed bug where changing gl_max_size or gl_picmip in-game would screw up alias model texture coordinates.
+	- fixed bug where if -gamma is specified at the command line, the "gamma" cvar would be ignored.
+	- fixed model more than 2048 units above floor us unlit by static lighting.
+	- fixed crash with con_logcenterprint when centerprint message was too long.
+	- fixed crash when changing to a nonexistant gamedir and then trying to write a file (screenshot, etc.)  Fitzquake now creates the directory as needed.
+	- fixed "bad surface extents" error when sky or water surface is missing from bsp file.
+	- fixed alias model shadows write to z-buffer.
+	- fixed underwater intermission camera has warp, but no screenblend.
+	- fixed console buffer still scrolled back after using the "clear" command.
+	- fixed console command history (the list of previous commands) not being rewound after toggling the console.
+	- removed cvar gl_texsort. New bsp drawing code always sorts by texture.
+	- removed cvar gl_ztrick. The depth buffer is now cleared every frame.
+	- removed cvar gl_keeptjunctions.  Extra verts created by qbsp to eliminate tjunctions are now always kept.
+	- removed "sliding on monsters' heads" fix, becuase I decided I don't like the idea of changing gameplay, even if the original behaviour is clearly a bug.  Since this bug can be fixed in quakec also, I feel safer leaving it as it was.
+	
+cvars:
+
+	- gl_overbright. default 1. This variable controls overbright lighting on the world polygons.  (For lighting on models, use gl_overbright_models.)  If 1, overbright will be enabled and lighting will resemble software Quake.  If 0, overbright will be disabled and lighting will resemble GLQuake.
+	
+	- r_oldskyleaf. default 0.  If 0, surfaces inside sky leaves will be skipped by the renderer.  If 1, they will be drawn whenever they are in your PVS, just like any other surface.
+	
+	- r_oldwater. default 1. If 1, use the old GLQuake method of subdividing the water surface to enable a warping animation.  If 0, use the new render-to-texture method.  Note: in general, r_oldwater 0 looks better and runs slower.  So experiment to see if the performance hit is acceptable to you.
+
+	- r_skyalpha. default 1.  Sets the alpha of the front sky layer. Note that if sky alpha is less than 1.0, the sky will be drawn in two passes even if you have multitexture.
+
+	- r_waterquality. default 8. Sets the quality of the water when r_oldwater is 0. Can be anywhere from 1 to 64.  Lower values give better performance, higher values look better.  A value of 4 will provide water that looks at least as good as glquake can get, and 32 is close enough to software quake for all but the most picky.  To control the quality of water when r_oldwater is 1, use gl_subdivide_size instead.
+
+	- scr_clock. default 0. If 1, game time is displayed. If 2, system time is displayed in 12-hour format. If 3, system time will be displayed in 24-hour or "military" time.
+
+Changes in 0.70
+---------------
+
+	- added anaglyph stereo rendering.  Note that this will cut your framerate in half, as it is rendering the scene once for each eye.  You might want to turn off r_drawviewmodel as it is hard to focus on becuase it is so close.  (see cvars "r_stereo", "r_stereodepth")
+	- now uses ARB_multitexture if present, otherwise tries to use SGIS_multitexture.  This should fix various blending bugs on some cards, such as weird cloud layers, all-black models, and inverted torches. (only ARB guarantees that GL_DECAL blending will work)
+	- overbright models now uses GL_EXT_texture_env_combine if supported (TNT and later, voodoo4 and later,) which saves one or two passes on model rendering when gl_overbright_models is 1. The command line option -nocombine will disable this.
+	- gl_overbright_models now defaults to 1
+	- custom palettes are now correctly loaded when you use the "game" command.
+	- RecursiveLightPoint is now lerped for smoother lighting of slow-moving models.  Check out the ogre in e3m3 for an example.
+	- dynamic lighting (rockets, etc) has been moderately sped up. (some lightmaps were being uploaded even though they weren't actually touched by a dynamic light.)
+	- overhauled 2d drawing to allow independent scaling of console, menu, and sbar (see cvars "scr_conwdith," "scr_menuscale," and "scr_sbarscale")  command line switches "-conwidth" and "-conheight" removed.  cvar "scr_stretch_menus" removed.
+	- user control of max framerate. (see cvar "host_maxfps")
+	- improved the accuracy of the FPS counter a bit, but it still seems suspect.
+	- particles can now be drawn as quads or triangles. (see cvar "r_quadparticles")
+	- opengl information (vendor, renderer, version, extensions) is no longer printed during initialization. (see command "gl_info")
+	- rewrote texture management.  Now instead of quake's memory usage going up and up forever (becuase textures were uploaded to the opengl.dll and never freed,) all textures will get flushed when you switch games, bringing you back down to where you were when fitzquake first launched.
+	- gl_texturemode command will now accept a number (1 through 6) as well as the name (gl_linear_mipmap_nearest, etc.)
+	- gl_describetexturemodes will list all texturemodes.
+	- the inside of sky leaves are no longer rendered -- so when noclipping inside them, it will look the same as noclipping inside a solid wall. This does not affect gameplay.
+	- cleaned up intermission display in singleplayer -- no more overlapping numbers
+	- r_speeds readout modified a bit. (see cvar "r_speeds")
+	- r_sky_quality now defaults to 12 instead of 8, since skies are now drawn in 1 pass (with multitexture at least)
+	- gl_texsort now always defaults to 0. (it used to be forced to 1 when multitexture was unavailable)
+	- fixed bug where models would actually darken when dlights got bright enough
+	- fixed deathmatch, coop cvars not reset to zero when starting a new game from the single player menu
+	- fixed r_lightmap doesn't work when gl_texsort = 0.
+	- fixed inverted lightmaps / no textures / no dynamic light bug when multitexture is disabled and gl_texsort = 0
+	- fixed scrolling map title in wrong place when width does not equal conwidth
+	- fixed a few color borking problems in 16-bit mode.  The front sky layer, sprites, and pics with transparency will still look a bit off (as in glquake,) but at least the console image and statusbar background look better.  Though it isn't perfect, it should once again look like what you expect from glquake in 16bit.
+	- fixed pixel gap on both sides of the console in 1024x768
+	- fixed wpoly count being slightly lower when gl_texsort = 0 (the count was correct when gl_texsort = 1)
+	- fixed lmap count always zero when gl_texsort = 1
+	- dlight fans are now drawn after water, so that it looks right at least when wateralpha is 1.
+	- fixed a possible bug with older 3dfx cards (voodoo 1/2/rush) where the gamma cvar might not work (untested)
+	- fixed old commands showing up in the console prompt after hitting 'enter'
+	- increased MAX_HANDLES so that you should never see the "out of handles" error message.
+	- removed cvar "chase_alpha."  the transparent player model was buggy and didn't work well in a lot of conditions.
+	- removed cvar "gl_doubleeys" (yes, that is the correct misspelling)  With overbright models, eyes can be seen as easily as in software mode.
+	- removed cvars "cl_crossx," "cl_crossy," "lcd_x," "lcd_yaw," and "gl_reporttjunctions" which didn't do anything (in glquake, at least).
+	- removed support for GL_EXT_shared_texture_palette (special 8-bit texture format)
+	- removed VCR code.  command line switches "-record" and "-playback" no longer supported.
+	- removed support for command line switch "-gamma" -- just use the gamma cvar, or idgamma or something.
+	
+cvars:
+
+	- r_stereo. default 0.  If nonzero, the scene will be rendered once in red, and again in cyan, with the two views shifted slightly.  If you have 3D glasses you can appreciate this (assumes that the left eye is red and the right eye is cyan.)  The value of r_stereo sets the eye separation.  If your glasses have red on the right eye, use a negative value to flip the views.
+	
+	- r_stereodepth. default 128.  Sets the distance at which the two views will converge when stereo rendering is active.
+	
+	- scr_conwdith. default 0.  Sets the virtual console width, where smaller numbers means larger text.  Values larger than window width, or smaller than 320, will be clamped to that range, and all values will be rounded to a multiple of 8.  If 0, the window width will be used.  Note that values that divide evenly into the window width will make the text look nicest.
+	
+	- scr_menuscale. default 1.  Sets the scale factor for menus and other centered overlays.  If 1, images will be drawn at 1:1 scale.  If 2, images will be double size.  Menus will never be drawn smaller than 1:1, and never larger than the size of the window.  Note that integer values will make the text look nicest.
+	
+	- scr_sbarscale. default 1.  Sets the scale factor for the statusbar.  If 1, images will be drawn at 1:1 scale.  If 2, images will be double size.  The statusbar will never be drawn smaller than 1:1, and never larger than the width of the window.  Note that integer values will make the text look nicest.
+	
+	- host_maxfps. default 72.  sets the maximum frames per second fitzquake will render (also the maximum number of server frames per second.)  Clamped to the range 10 - 1000.  Set to 72 to mimic standard quake.
+	
+	- r_quadparticles. default 1.  If 1, particles are drawn as GL_QUADS instead of GL_TRIANGLES.  Quads use 4 verts instead of 3, but the fillrate cost is 1/2 that of triangles. Depending on your card, either one may be faster. This cvar has no effect on the appearance of particles.
+	
+	- r_speeds. default 0.  Values of 1 and 2 will give you increasing amounts of information.  When you see two numbers separated by a slash, the first number is polys, and the second number is passes.
+	
+commands:
+
+	- gl_info.  Displays opengl info which was previously displayed during initialization: vendor, renderer, version, and extensions
+	
+	- imagelist.  Displays a list of loaded textures, and their dimentions.
+	
+	- gl_texturemode.  Now accepts a number (1 through 6) as well as the name (gl_nearest, etc.)
+	
+	- gl_describetexturemodes.  Lists all texturemodes.
+
+Changes in 0.65
+---------------
+
+	- gamma cvar now supported. (see cvar "gamma")
+	- fullbrights on models now supported.
+	- odd-sized world textures are now bilinearly resampled (instead of glquake's nearest pixel resample)
+	- removed all fixed-size buffers for loading textures; now the only limit is the size of your memory heap (textures will still be downsampled if they are bigger than the hardware can handle)
+	- styled lights (torch flicker, etc.) can now be disabled (see cvar "r_flatlightstyles")
+	- sky now uses multitexture if available.
+	- centerprints are now optionally logged to the console (see cvar "con_logcenterprint")
+	- number of savegame slots increased to 20 (from 12)
+	- if a map title is longer than 22 characters, it scrolls marquee-style in the statusbar.
+	- gl_flashblend defaults to 1 again. (consistency with glquake)
+	- gl_ztrick defaults to 1 again. (consistency with glquake)
+	- command line gamma now defaults to 1.0 for all cards. (consistency with glquake, plus hardware gamma is better)
+	- now checks hardware for maximum texture size. Users of later voodoo cards should be able to see large textures now. (see cvar "gl_max_size")
+	- now shows AM/PM when scr_clock is 2
+	- fixed crash when starting dedicated server
+	- fixed crash when loading too many textures. (now it throws a sys_error and quits)
+	- fixed fitzquake-specific crash when player goes near water in a demo playback.
+	- scr_conalpha now actually works.
+	- keypad enter in the console works again.
+	- optional 2x overbrightening on models. (see cvar "gl_overbright_models")
+	- optional quake2-style noclip. (see cvar "sv_altnoclip")
+	- new icon
+	
+cvars:
+
+	- con_logcenterprint: If 1, centerprint messages will be logged to the console in sp/coop. If 2, they will also be logged in deathmatch. Default 1.
+
+	- gamma: Brighten or darken the screen to compensate for differences between monitors. This is now supported by using your video card's gamma support. Just like in winquake, values less than 1 are brighter and values greater than one are darker. Default 1. Notes: I have added special code so that this will work on 3dfx cards too, but i have no way to check that it works. If fitzquake crashes, your hardware gamma may be stuck at the wrong value. You can use the "display settings" control panel fix this, or you could try lordhavoc's useful "setgamma" utility (available on this page.) Also note that if texture-brightening gamma has been requested at the command line (fitzquake.exe -gamma ), harware gamma will not be used and the gamma cvar will have no effect.
+
+	- gl_max_size: Now defaults to 0. If 0, textures will be as large as the hardware allows. Positive values can be used to impose a limit smaller than the hardware's reported maximum.
+
+	- gl_overbright_models: If 1, models will be rendered using 2x overbrightening and will appear at roughly the same brightness as they do in software quake, which is noticably brighter than the default fitzquake / glquake appearance. I disabled this cvar by default becuase this is still a poorly supported feature -- it currently takes 2 or 3 passes to render a model when this feature is enabled, compared to only 1 pass when it is disabled. Default 0.
+
+	- r_flatlightstyles: If 1, styled lights (torch flicker, etc.) will be displayed as a steady light. If 2, the peak intensity will be used instead of the average intensity. Default 0.
+
+	- sv_altnoclip: If 1, enable the alternative noclip movement which resembles quake2 and is not constrained to the horizontal plane. Set to 0 to retain quake's original noclip behavior. Default 1. 
+
+Changes in 0.60
+---------------
+
+	- graphics:
+		- better sky projection, configurable for performance
+		- menus and other overlays are now centered on the screen, and can optionally stretch to fit resolution.
+		- all 2d graphics now obey gl_texturemode and all texturemode changes take effect immediately
+		- underwater warping now resembles quake3's perspective munging, and obeys r_waterwarp
+		- fixed frustum culling b0rked (giving HOM at certain FOV / vidsize / screensize combinations)
+		- fixed lack of support for VP_PARALLEL_ORIENTED, VP_PARALLEL_UPRIGHT, and FACING_UPRIGHT sprites
+		- fixed fullbrights not displayed on world/bmodels
+		- fixed texture cache mismatch error
+		- fixed pink edges on sprites, menu items, etc
+		- fixed particle z-buffer bug (apparent when a particle is in front of a water surface)
+		- fixed ugly resampling of non-power of two gfx, skins, sprites
+		- fixed large models (shamblers, shub) dissapearing near edge of screen
+		- fixed statusbar not visible when gl_clear = 1
+		- fixed r_fullbright change not immedate when gl_texsort = 0
+		- fixed alias models still dark when r_fullbright = 1
+		- fixed HOM when screen is partially underwater
+		- fixed gunshot decals not showing up on some walls
+		- sky and water warp now freeze when you pause, as well as lightning bolts
+		- r_novis changes now take effect immediately, rather than when you cross a leaf boundary
+		- removed mirror code
+		- two particle styles, circle and square (cvar controlled)
+	- console:
+		- improved tab completion:
+			- hitting tab once will display a list of possible matches and complete the line using the first match
+			- hitting tab or shift-tab will cycle through the matches
+			- autocomplete will now match against aliases as well as commands and cvars.
+			- autocomplete will now complete later in the string (e.g. "bind mouse1 +att" + tab will complete '+attack')
+			- autocomplete will even complete inside the string (e.g. "bind m +attack" + tab will complete 'mouse1' if the cursor is right after the 'm')
+		- new key functionality:
+			- tab -- autocomplete, cycle through multiple matches
+			- shift-tab -- cycle backwards through multiple matches
+			- ins -- toggle insertmode
+			- del -- delete current character
+			- backspace -- delete previous character
+			- ctrl-v -- paste from windows clippboard
+			- leftarrow -- move cursor one character left in line
+			- rightarrow -- move cursor one character right in line. or, get one character from the previous command.
+			- home -- move cursor to beginning of line
+			- end -- move cursor to end of line
+			- ctrl-pgup -- scroll up a screen at a time
+			- ctrl-pgdn -- scroll down a screen at a time
+			- ctrl-home -- scroll to top of console history
+			- ctrl-end -- scroll to bottom of console history
+		- carets indicate that you are scrolled back, like in quakeworld/quake2
+		- left arrow, right arrow, pgup, pgdn keys now auto-repeat
+		- quadrupled the length of the console history
+	- commands: 
+		- "game <gamedir>" to load a mod.
+		- "reset <cvar>" to reset a cvar to default. Note that this is the engine default, not the default.cfg value
+		- resetall. resets all cvars.
+		- mods. lists all child folders of quake directory which contain either a progs.dat or a pak file
+		- maps. lists all addon levels available (i.e. all levels that are not in id1/*.pak)
+		- mapname. outputs the short name of the current level (e.g. "e1m5")
+		- cmdlist. alphabetized. 'cmdlist blah' will list only cmds that start with 'blah'
+		- cvarlist. alphabetized. 'cvarlist blah' will list only cvars that start with 'blah'
+		- "inc <cvar> [amount]" to increment a cvar by amount. amount defaults to 1.
+		- "toggle <cvar>" to invert the value of a cvar (nonzero -> 0 and 0 -> 1)
+		- god, noclip, notarget, and fly can now be explicitly set. example: "god 0" will disable god mode
+		- viewpos. outputs (X,Y,Z) pitch yaw roll
+		- "give a <value>" now gives you armour. type depends on value
+		- bindlist. lists all key bindings
+		- "alias <name>" now outputs the current command string
+		- "unalias <name>" to delete an alias
+		- unaliasall. delete all aliases.
+		- condump. dumps console to condump.txt
+		- fog. set global fog. syntax is "fog <density>", "fog <red> <green> <blue>", or "fog <density> <red> <green> <blue>"  See section on modding for details. Set density to 0 to disable fog.
+		- "sky <skyname>" to load a skybox. if skyname is "", this will turn off skybox rendering.
+		- stuffcmds now parses the "cmdline" cvar rather than the args actually passed to the program.  This is useful for loading mods dynamically, so you can edit the cmdline before execing quake.rc (which calls "stuffcmds")
+	- cvars:
+		- scr_stretch_menus. default 1. if 1, menus and other overlays are stretched to fill the screen
+		- scr_conalpha. default 1. This is the opacity when the console is halfscreen. 0.6 will mimic glquake
+		- scr_clock. default 0. if 1, game time is displayed. If 2, system time is displayed.
+		- scr_showfps. default 0. if 1, FPS are displayed.
+		- r_waterwarp recognized. default 1. if zero, no underwater warping will take place
+		- r_drawflat recognized. default 0. if 1, polygons will be drawn as a solid color with no lightmap or texture
+		- r_particles. default 1. 0 = no particles, 1 = circular particles, 2 = square particles
+		- r_fastsky. default 0. if 1, sky will be rendered as solid color, for added performance
+		- r_sky_quality. default 8.  Higher number divides the sky more, for a smoother effect and slower performance.
+		- r_clearcolor now supported. default 2.  specify a palette index from 0 to 255.
+		- gl_fullbrights. default 1. set to 0 to disable fullbrights
+		- gl_farclip. default 8192.  set to 4096 to mimic glquake.  note that the skybox will be drawn somewhat closer than this value.
+		- cl_maxpitch. default 90 (straight down.) set to 80 to mimic normal quake
+		- cl_minpitch. default -90 (straight up.) set to -70 to mimic normal quake
+		- cl_keypad. default 1.  if 0, keypad keys will respond as in quake.exe (for example, pushing 'KP_END' will be the same as pushing '1')
+		- gl_flashblend now defaults to 0.
+		- gl_ztrick now defaults to 0.
+		- gl_keeptjunctions now defaults to 1. (note, contrary to the name of this cvar, what is being kept is the extra polygon verts which *eliminate* tjunctions. This is a good thing, so i made it default to 1)
+		- chase_alpha. default 1.  lower values make the chasecam player model translucent. Buggy.
+	- keyboard
+		- keypad keys are now bindable:
+			KP_NUMLOCK, KP_SLASH, KP_STAR, KP_MINUS, KP_HOME, KP_UPARROW, KP_PGUP, KP_PLUS, KP_LEFTARROW, KP_5, KP_RIGHTARROW, KP_END, KP_DOWNARROW, KP_PGDN, KP_ENTER, KP_INS, KP_DEL
+	- command line:
+		- running with -gamma at the command line will set the gamma.  There is still no way to change this value in  game.  Default is 1.0 for 3dfx cards, 0.7 for all others
+		- if unspecified, -conwidth now defaults to -width
+	- modding extensions:
+		- skyboxes (worldspawn and qc settable), currently only targa and pcx formats accepted
+		- global fog (worldspawn and qc settable)
+	- physics
+		- fixed sliding around while standing on solid entities' bounding boxes (monsters, players, etc)
+	- misc
+		- default heapsize is now 32mb (was 16mb)
+		- default zonesize is now 256k (was 48k)
+

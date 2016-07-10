@@ -1,0 +1,3 @@
+FLAC v1.3.0 release + several fixes from the flac git repo at xiph.org.
+Decoder-only functionality, which is what we need: the encoder stuff is
+left out of the build.

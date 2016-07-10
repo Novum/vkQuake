@@ -1,0 +1,4 @@
+#include <winresrc.h>
+
+icon ICON "QuakeSpasm.ico"
+

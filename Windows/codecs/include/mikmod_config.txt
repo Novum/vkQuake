@@ -1,0 +1,4 @@
+libmikmod-3.3.8 (mercurial repo as of 2015-02-28)
+only the "nosound" driver (drv_nos) is included, all of
+the other libmikmod drivers were made "MISSING" drivers.
+we only need/register/use drv_nos here and nothing else.

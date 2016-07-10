@@ -1,0 +1,451 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav</Extensions>
+    </Filter>
+    <Filter Include="Sound">
+      <UniqueIdentifier>{9f8e4b2a-ec63-404c-b505-e324146b84f1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Network">
+      <UniqueIdentifier>{63a23ea6-c0f7-45eb-a79e-af73554b43b1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Renderer">
+      <UniqueIdentifier>{cddbc565-1943-4bf8-acf1-e26d4a11ecb3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Misc">
+      <UniqueIdentifier>{8f348e8d-144c-4886-a371-eb055d27b6bc}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\Quake\snd_codec.c">
+      <Filter>Sound</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\snd_dma.c">
+      <Filter>Sound</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\snd_flac.c">
+      <Filter>Sound</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\snd_mem.c">
+      <Filter>Sound</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\snd_mikmod.c">
+      <Filter>Sound</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\snd_mix.c">
+      <Filter>Sound</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\snd_modplug.c">
+      <Filter>Sound</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\snd_mp3.c">
+      <Filter>Sound</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\snd_opus.c">
+      <Filter>Sound</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\snd_sdl.c">
+      <Filter>Sound</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\snd_umx.c">
+      <Filter>Sound</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\snd_vorbis.c">
+      <Filter>Sound</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\snd_wave.c">
+      <Filter>Sound</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\net_dgrm.c">
+      <Filter>Network</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\net_loop.c">
+      <Filter>Network</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\net_main.c">
+      <Filter>Network</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\net_win.c">
+      <Filter>Network</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\net_wins.c">
+      <Filter>Network</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\net_wipx.c">
+      <Filter>Network</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\gl_draw.c">
+      <Filter>Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\gl_fog.c">
+      <Filter>Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\gl_mesh.c">
+      <Filter>Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\gl_model.c">
+      <Filter>Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\gl_refrag.c">
+      <Filter>Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\gl_rlight.c">
+      <Filter>Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\gl_rmain.c">
+      <Filter>Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\gl_rmisc.c">
+      <Filter>Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\gl_screen.c">
+      <Filter>Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\gl_sky.c">
+      <Filter>Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\gl_texmgr.c">
+      <Filter>Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\gl_vidsdl.c">
+      <Filter>Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\gl_warp.c">
+      <Filter>Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\cd_sdl.c">
+      <Filter>Sound</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\bgmusic.c">
+      <Filter>Sound</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\r_alias.c">
+      <Filter>Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\r_brush.c">
+      <Filter>Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\r_part.c">
+      <Filter>Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\r_sprite.c">
+      <Filter>Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\r_world.c">
+      <Filter>Renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\cfgfile.c">
+      <Filter>Misc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\chase.c">
+      <Filter>Misc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\cl_demo.c">
+      <Filter>Misc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\cl_input.c">
+      <Filter>Misc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\cl_main.c">
+      <Filter>Misc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\cl_parse.c">
+      <Filter>Misc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\cl_tent.c">
+      <Filter>Misc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\cmd.c">
+      <Filter>Misc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\common.c">
+      <Filter>Misc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\console.c">
+      <Filter>Misc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\crc.c">
+      <Filter>Misc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\cvar.c">
+      <Filter>Misc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\host.c">
+      <Filter>Misc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\host_cmd.c">
+      <Filter>Misc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\image.c">
+      <Filter>Misc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\in_sdl.c">
+      <Filter>Misc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\keys.c">
+      <Filter>Misc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\main_sdl.c">
+      <Filter>Misc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\mathlib.c">
+      <Filter>Misc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\menu.c">
+      <Filter>Misc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\pl_win.c">
+      <Filter>Misc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\pr_cmds.c">
+      <Filter>Misc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\pr_edict.c">
+      <Filter>Misc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\pr_exec.c">
+      <Filter>Misc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\sbar.c">
+      <Filter>Misc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\strlcat.c">
+      <Filter>Misc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\strlcpy.c">
+      <Filter>Misc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\sv_main.c">
+      <Filter>Misc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\sv_move.c">
+      <Filter>Misc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\sv_phys.c">
+      <Filter>Misc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\sv_user.c">
+      <Filter>Misc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\sys_sdl_win.c">
+      <Filter>Misc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\view.c">
+      <Filter>Misc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\wad.c">
+      <Filter>Misc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\world.c">
+      <Filter>Misc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\zone.c">
+      <Filter>Misc</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\Quake\snd_codec.h">
+      <Filter>Sound</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\snd_codeci.h">
+      <Filter>Sound</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\snd_flac.h">
+      <Filter>Sound</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\snd_mikmod.h">
+      <Filter>Sound</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\snd_modplug.h">
+      <Filter>Sound</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\snd_mp3.h">
+      <Filter>Sound</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\snd_opus.h">
+      <Filter>Sound</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\snd_umx.h">
+      <Filter>Sound</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\snd_vorbis.h">
+      <Filter>Sound</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\snd_wave.h">
+      <Filter>Sound</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\net.h">
+      <Filter>Network</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\net_defs.h">
+      <Filter>Network</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\net_dgrm.h">
+      <Filter>Network</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\net_loop.h">
+      <Filter>Network</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\net_sys.h">
+      <Filter>Network</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\net_wins.h">
+      <Filter>Network</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\net_wipx.h">
+      <Filter>Network</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\gl_model.h">
+      <Filter>Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\gl_texmgr.h">
+      <Filter>Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\gl_warp_sin.h">
+      <Filter>Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\anorm_dots.h">
+      <Filter>Misc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\anorms.h">
+      <Filter>Misc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\arch_def.h">
+      <Filter>Misc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\bgmusic.h">
+      <Filter>Misc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\bspfile.h">
+      <Filter>Misc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\cdaudio.h">
+      <Filter>Misc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\cfgfile.h">
+      <Filter>Misc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\client.h">
+      <Filter>Misc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\cmd.h">
+      <Filter>Misc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\common.h">
+      <Filter>Misc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\console.h">
+      <Filter>Misc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\crc.h">
+      <Filter>Misc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\cvar.h">
+      <Filter>Misc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\draw.h">
+      <Filter>Misc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\glquake.h">
+      <Filter>Misc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\image.h">
+      <Filter>Misc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\input.h">
+      <Filter>Misc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\keys.h">
+      <Filter>Misc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\mathlib.h">
+      <Filter>Misc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\menu.h">
+      <Filter>Misc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\modelgen.h">
+      <Filter>Misc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\platform.h">
+      <Filter>Misc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\pr_comp.h">
+      <Filter>Misc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\progdefs.h">
+      <Filter>Misc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\progs.h">
+      <Filter>Misc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\protocol.h">
+      <Filter>Misc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\q_sound.h">
+      <Filter>Misc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\q_stdinc.h">
+      <Filter>Misc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\qs_bmp.h">
+      <Filter>Misc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\quakedef.h">
+      <Filter>Misc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\render.h">
+      <Filter>Misc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\resource.h">
+      <Filter>Misc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\sbar.h">
+      <Filter>Misc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\screen.h">
+      <Filter>Misc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\server.h">
+      <Filter>Misc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\spritegn.h">
+      <Filter>Misc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\strl_fn.h">
+      <Filter>Misc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\sys.h">
+      <Filter>Misc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\vid.h">
+      <Filter>Misc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\view.h">
+      <Filter>Misc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\wad.h">
+      <Filter>Misc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\world.h">
+      <Filter>Misc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\wsaerror.h">
+      <Filter>Misc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\zone.h">
+      <Filter>Misc</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="..\QuakeSpasm.rc">
+      <Filter>Resource Files</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+</Project>

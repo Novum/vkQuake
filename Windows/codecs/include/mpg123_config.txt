@@ -1,0 +1,5 @@
+mpg123-1.22.4, configured using:
+--disable-modules --disable-debug --disable-fifo --disable-ipv6 --disable-network --disable-messages --disable-lfs-alias --with-audio=dummy
+edited src/libmpg123/mpg123lib_intern.h and changed macros
+NOQUIET, VERBOSE* and PVERB() to be 0, in order to disable
+some debug messages from the library.
