@@ -316,19 +316,15 @@ TexMgr_NewTexture
 */
 gltexture_t *TexMgr_NewTexture (void)
 {
-	/*gltexture_t *glt;
-
-	if (numgltextures == MAX_GLTEXTURES)
-		Sys_Error("numgltextures == MAX_GLTEXTURES\n");
+	gltexture_t *glt;
 
 	glt = free_gltextures;
 	free_gltextures = glt->next;
 	glt->next = active_gltextures;
 	active_gltextures = glt;
 
-	glGenTextures(1, &glt->texnum);
 	numgltextures++;
-	return glt;*/
+	return glt;
 }
 
 static void GL_DeleteTexture (gltexture_t *texture);
