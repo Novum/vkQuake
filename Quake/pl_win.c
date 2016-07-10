@@ -24,13 +24,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 #include <windows.h>
 #if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
-#if defined(USE_SDL2)
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_syswm.h>
-#else
-#include <SDL/SDL.h>
-#include <SDL/SDL_syswm.h>
-#endif
 #else
 #include "SDL.h"
 #include "SDL_syswm.h"
@@ -52,17 +47,10 @@ void PL_SetWindowIcon (void)
 
 	SDL_VERSION(&wminfo.version);
 
-#if defined(USE_SDL2)
 	if (SDL_GetWindowWMInfo((SDL_Window*) VID_GetWindow(), &wminfo) != SDL_TRUE)
 		return;	/* wrong SDL version */
 
 	hwnd = wminfo.info.win.window;
-#else
-	if (SDL_GetWMInfo(&wminfo) != 1)
-		return;	/* wrong SDL version */
-
-	hwnd = wminfo.window;
-#endif
 #ifdef _WIN64
 	SetClassLongPtr(hwnd, GCLP_HICON, (LONG_PTR) icon);
 #else

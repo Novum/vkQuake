@@ -20,7 +20,7 @@
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{AE77266F-0A23-4F08-A491-369DE664B273}</ProjectGuid>
-    <RootNamespace>quakespasm-sdl2</RootNamespace>
+    <RootNamespace>vkquake</RootNamespace>
     <Keyword>Win32Proj</Keyword>
     <ProjectName>vkQuake</ProjectName>
   </PropertyGroup>

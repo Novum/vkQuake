@@ -23,17 +23,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 #if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
-#if defined(USE_SDL2)
 #include <SDL2/SDL.h>
-#else
-#include <SDL/SDL.h>
-#endif
 #else
 #include "SDL.h"
 #endif
 #include <stdio.h>
-
-#if defined(USE_SDL2)
 
 /* need at least SDL_2.0.0 */
 #define SDL_MIN_X	2
@@ -42,18 +36,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define SDL_REQUIREDVERSION	(SDL_VERSIONNUM(SDL_MIN_X,SDL_MIN_Y,SDL_MIN_Z))
 #define SDL_NEW_VERSION_REJECT	(SDL_VERSIONNUM(3,0,0))
 
-#else
-
-/* need at least SDL_1.2.10 */
-#define SDL_MIN_X	1
-#define SDL_MIN_Y	2
-#define SDL_MIN_Z	10
-#define SDL_REQUIREDVERSION	(SDL_VERSIONNUM(SDL_MIN_X,SDL_MIN_Y,SDL_MIN_Z))
-/* reject 1.3.0 and newer at runtime. */
-#define SDL_NEW_VERSION_REJECT	(SDL_VERSIONNUM(1,3,0))
-
-#endif
-
 static void Sys_AtExit (void)
 {
 	SDL_Quit();
@@ -61,13 +43,9 @@ static void Sys_AtExit (void)
 
 static void Sys_InitSDL (void)
 {
-#if defined(USE_SDL2)
 	SDL_version v;
 	SDL_version *sdl_version = &v;
 	SDL_GetVersion(&v);
-#else
-	const SDL_version *sdl_version = SDL_Linked_Version();
-#endif
 
 	Sys_Printf("Found SDL version %i.%i.%i\n",sdl_version->major,sdl_version->minor,sdl_version->patch);
 	if (SDL_VERSIONNUM(sdl_version->major,sdl_version->minor,sdl_version->patch) < SDL_REQUIREDVERSION)
@@ -93,7 +71,7 @@ static quakeparms_t	parms;
 
 // On OS X we call SDL_main from the launcher, but SDL2 doesn't redefine main
 // as SDL_main on OS X anymore, so we do it ourselves.
-#if defined(USE_SDL2) && defined(__APPLE__)
+#if defined(__APPLE__)
 #define main SDL_main
 #endif
 
