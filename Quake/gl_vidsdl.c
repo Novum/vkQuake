@@ -82,8 +82,10 @@ static cvar_t	vid_desktopfullscreen = {"vid_desktopfullscreen", "0", CVAR_ARCHIV
 
 cvar_t		vid_gamma = {"gamma", "1", CVAR_ARCHIVE}; //johnfitz -- moved here from view.c
 
+// Vulkan
 static VkInstance vulkan_instance;
 static VkPhysicalDevice vulkan_physical_device;
+static VkPhysicalDeviceProperties vulkan_physical_device_properties;
 
 /*
 ================
@@ -565,6 +567,32 @@ static void GL_Init( void )
 {
 	VkResult err;
 
+	qboolean found_surface_extension = false;
+
+	uint32_t instance_extension_count;
+	err = vkEnumerateInstanceExtensionProperties(NULL, &instance_extension_count, NULL);
+	if (err == VK_SUCCESS || instance_extension_count > 0)
+	{
+		VkExtensionProperties *instance_extensions = malloc(sizeof(VkExtensionProperties) * instance_extension_count);
+		err = vkEnumerateInstanceExtensionProperties(NULL, &instance_extension_count, instance_extensions);
+
+		for (uint32_t i = 0; i < instance_extension_count; ++i)
+		{
+			if (strcmp(VK_KHR_SURFACE_EXTENSION_NAME, instance_extensions[i].extensionName) == 0)
+			{
+				found_surface_extension = true;
+				break;
+			}
+		}
+
+		free(instance_extensions);
+	}
+
+	if(!found_surface_extension)
+	{
+		Sys_Error("Couldn't find surface extension");
+	}
+	
 	VkApplicationInfo app_info;
 	memset(&app_info, 0, sizeof(app_info));
 	app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -575,6 +603,8 @@ static void GL_Init( void )
 	app_info.engineVersion = 1;
 	app_info.apiVersion = VK_API_VERSION_1_0;
 
+	char * instance_extensions[] = { VK_KHR_SURFACE_EXTENSION_NAME };
+
 	VkInstanceCreateInfo inst_info;
 	memset(&inst_info, 0, sizeof(inst_info));
 	inst_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -582,8 +612,8 @@ static void GL_Init( void )
 	inst_info.pApplicationInfo = &app_info;
 	inst_info.enabledLayerCount = 0;
 	inst_info.ppEnabledLayerNames = NULL;
-	inst_info.enabledExtensionCount = 0;
-	inst_info.ppEnabledExtensionNames = NULL;
+	inst_info.enabledExtensionCount = 1;
+	inst_info.ppEnabledExtensionNames = instance_extensions;
 
 	err = vkCreateInstance(&inst_info, NULL, &vulkan_instance);
 	if (err != VK_SUCCESS)
@@ -591,7 +621,7 @@ static void GL_Init( void )
 		Sys_Error("Couldn't create Vulkan instance");
 	}
 
-	int physical_device_count;
+	uint32_t physical_device_count;
 	err = vkEnumeratePhysicalDevices(vulkan_instance, &physical_device_count, NULL);
 	if (err != VK_SUCCESS || physical_device_count == 0)
 	{
@@ -605,7 +635,7 @@ static void GL_Init( void )
 
 	qboolean found_swapchain_extension = false;
 
-	uint32_t device_extension_count = 0;
+	uint32_t device_extension_count;
 	err = vkEnumerateDeviceExtensionProperties(vulkan_physical_device, NULL, &device_extension_count, NULL);
 
 	if (err == VK_SUCCESS || device_extension_count > 0)
@@ -628,6 +658,37 @@ static void GL_Init( void )
 	if(!found_swapchain_extension)
 	{
 		Sys_Error("Couldn't find swap chain extension");
+	}
+
+	vkGetPhysicalDeviceProperties(vulkan_physical_device, &vulkan_physical_device_properties);
+	Con_Printf("Vulkan physical device: %s", vulkan_physical_device_properties.deviceName);
+
+	qboolean found_graphics_queue = false;
+
+	uint32_t vulkan_queue_count;
+	uint32_t graphics_queue_node_index;
+	vkGetPhysicalDeviceQueueFamilyProperties(vulkan_physical_device, &vulkan_queue_count, NULL);
+	if (vulkan_queue_count == 0)
+	{
+		Sys_Error("Couldn't find any Vulkan queues");
+	}
+
+	VkQueueFamilyProperties * queue_family_properties = (VkQueueFamilyProperties *)malloc(vulkan_queue_count * sizeof(VkQueueFamilyProperties));
+	for (uint32_t i = 0; i < vulkan_queue_count; ++i)
+	{
+		if ((queue_family_properties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) != 0) 
+		{
+			found_graphics_queue = true;
+			graphics_queue_node_index = i;
+			break;
+		}
+	}
+
+	free(queue_family_properties);
+
+	if(!found_graphics_queue)
+	{
+		Sys_Error("Couldn't find graphics queue");
 	}
 }
 
