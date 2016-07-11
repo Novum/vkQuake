@@ -27,11 +27,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "cfgfile.h"
 #include "bgmusic.h"
 #include "resource.h"
-#if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
-#include <SDL2/SDL.h>
-#else
 #include "SDL.h"
-#endif
+#include "SDL_syswm.h"
 
 #define MAX_MODE_LIST	600 //johnfitz -- was 30
 #define MAX_BPPS_LIST	5
@@ -52,6 +49,7 @@ static int		nummodes;
 static qboolean	vid_initialized = false;
 
 static SDL_Window	*draw_context;
+static SDL_SysWMinfo sys_wm_info;
 
 static qboolean	vid_locked = false; //johnfitz
 static qboolean	vid_changed = false;
@@ -62,7 +60,10 @@ static void VID_MenuDraw (void);
 static void VID_MenuKey (int key);
 
 static void ClearAllStates (void);
-static void GL_Init (void);
+static void GL_InitInstance (void);
+static void GL_InitDevice (void);
+static void GL_CreateRenderTargets(void);
+static void GL_DestroyRenderTargets(void);
 
 viddef_t	vid;				// global video state
 modestate_t	modestate = MS_UNINIT;
@@ -87,6 +88,30 @@ static VkInstance vulkan_instance;
 static VkPhysicalDevice vulkan_physical_device;
 static VkPhysicalDeviceProperties vulkan_physical_device_properties;
 static VkDevice vulkan_device;
+static VkSurfaceKHR vulkan_surface;
+static VkSurfaceCapabilitiesKHR vulkan_surface_capabilities;
+static VkSwapchainKHR vulkan_swapchain;
+
+static PFN_vkGetDeviceProcAddr fpGetDeviceProcAddr;
+static PFN_vkGetPhysicalDeviceSurfaceSupportKHR fpGetPhysicalDeviceSurfaceSupportKHR;
+static PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR fpGetPhysicalDeviceSurfaceCapabilitiesKHR;
+static PFN_vkGetPhysicalDeviceSurfaceFormatsKHR fpGetPhysicalDeviceSurfaceFormatsKHR;
+static PFN_vkGetPhysicalDeviceSurfacePresentModesKHR fpGetPhysicalDeviceSurfacePresentModesKHR;
+static PFN_vkCreateSwapchainKHR fpCreateSwapchainKHR;
+static PFN_vkDestroySwapchainKHR fpDestroySwapchainKHR;
+static PFN_vkGetSwapchainImagesKHR fpGetSwapchainImagesKHR;
+static PFN_vkAcquireNextImageKHR fpAcquireNextImageKHR;
+static PFN_vkQueuePresentKHR fpQueuePresentKHR;
+
+#define GET_INSTANCE_PROC_ADDR(inst, entrypoint) { \
+	fp##entrypoint = (PFN_vk##entrypoint)vkGetInstanceProcAddr(inst, "vk" #entrypoint); \
+	if (fp##entrypoint == NULL) Sys_Error("vkGetInstanceProcAddr failed to find vk" #entrypoint); \
+}
+
+#define GET_DEVICE_PROC_ADDR(dev, entrypoint) { \
+	fp##entrypoint = (PFN_vk##entrypoint)fpGetDeviceProcAddr(dev, "vk" #entrypoint); \
+    if (fp##entrypoint == NULL) Sys_Error("vkGetDeviceProcAddr failed to find vk" #entrypoint); \
+}
 
 /*
 ================
@@ -296,6 +321,9 @@ static qboolean VID_SetMode (int width, int height, int bpp, qboolean fullscreen
 		draw_context = SDL_CreateWindow (caption, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, flags);
 		if (!draw_context)
 			Sys_Error ("Couldn't create window");
+
+		if(!SDL_GetWindowWMInfo(draw_context,&sys_wm_info))
+			Sys_Error ("Couldn't get window wm info");
 	}
 
 	/* Ensure the window is not fullscreen */
@@ -390,6 +418,7 @@ static void VID_Restart (void)
 // one of the new objects could be given the same ID as an invalid handle
 // which is later deleted.
 
+	GL_DestroyRenderTargets();
 	TexMgr_DeleteTextureObjects ();
 	GLSLGamma_DeleteTexture ();
 	R_DeleteShaders ();
@@ -401,7 +430,7 @@ static void VID_Restart (void)
 //
 	VID_SetMode (width, height, bpp, fullscreen);
 
-	GL_Init ();
+	GL_CreateRenderTargets();
 	TexMgr_ReloadImages ();
 	GL_BuildBModelVertexBuffer ();
 	GLMesh_LoadVertexBuffers ();
@@ -483,16 +512,14 @@ static void VID_Unlock (void)
 
 /*
 ===============
-GL_Init
+GL_InitInstance
 ===============
 */
-static void GL_Init( void )
+static void GL_InitInstance( void )
 {
-	Con_Printf("\nVulkan Initialization\n");
-
 	VkResult err;
 
-	qboolean found_surface_extension = false;
+	int found_surface_extensions = 0;
 
 	uint32_t instance_extension_count;
 	err = vkEnumerateInstanceExtensionProperties(NULL, &instance_extension_count, NULL);
@@ -505,18 +532,19 @@ static void GL_Init( void )
 		{
 			if (strcmp(VK_KHR_SURFACE_EXTENSION_NAME, instance_extensions[i].extensionName) == 0)
 			{
-				found_surface_extension = true;
-				break;
+				found_surface_extensions++;
+			}
+			if (strcmp(VK_KHR_WIN32_SURFACE_EXTENSION_NAME, instance_extensions[i].extensionName) == 0)
+			{
+				found_surface_extensions++;
 			}
 		}
 
 		free(instance_extensions);
 	}
 
-	if(!found_surface_extension)
-	{
-		Sys_Error("Couldn't find %s extension", VK_KHR_SURFACE_EXTENSION_NAME);
-	}
+	if(found_surface_extensions != 2)
+		Sys_Error("Couldn't find %s/%s extensions", VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_WIN32_SURFACE_EXTENSION_NAME);
 	
 	VkApplicationInfo application_info;
 	memset(&application_info, 0, sizeof(application_info));
@@ -527,27 +555,50 @@ static void GL_Init( void )
 	application_info.engineVersion = 1;
 	application_info.apiVersion = VK_API_VERSION_1_0;
 
-	char * instance_extensions[] = { VK_KHR_SURFACE_EXTENSION_NAME };
+	char * instance_extensions[] = { VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_WIN32_SURFACE_EXTENSION_NAME };
 
 	VkInstanceCreateInfo instance_create_info;
 	memset(&instance_create_info, 0, sizeof(instance_create_info));
 	instance_create_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
 	instance_create_info.pApplicationInfo = &application_info;
-	instance_create_info.enabledExtensionCount = 1;
+	instance_create_info.enabledExtensionCount = 2;
 	instance_create_info.ppEnabledExtensionNames = instance_extensions;
 
 	err = vkCreateInstance(&instance_create_info, NULL, &vulkan_instance);
 	if (err != VK_SUCCESS)
-	{
 		Sys_Error("Couldn't create Vulkan instance");
-	}
+
+	VkWin32SurfaceCreateInfoKHR surface_create_info;
+	memset(&surface_create_info, 0, sizeof(surface_create_info));
+	surface_create_info.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
+	surface_create_info.hinstance = GetModuleHandle(NULL);
+	surface_create_info.hwnd = sys_wm_info.info.win.window;
+
+	err = vkCreateWin32SurfaceKHR(vulkan_instance, &surface_create_info, NULL, &vulkan_surface);
+	if (err != VK_SUCCESS)
+		Sys_Error("Couldn't create Vulkan surface");
+
+	GET_INSTANCE_PROC_ADDR(vulkan_instance, GetDeviceProcAddr);
+	GET_INSTANCE_PROC_ADDR(vulkan_instance, GetPhysicalDeviceSurfaceSupportKHR);
+	GET_INSTANCE_PROC_ADDR(vulkan_instance, GetPhysicalDeviceSurfaceCapabilitiesKHR);
+	GET_INSTANCE_PROC_ADDR(vulkan_instance, GetPhysicalDeviceSurfaceFormatsKHR);
+	GET_INSTANCE_PROC_ADDR(vulkan_instance, GetPhysicalDeviceSurfacePresentModesKHR);
+	GET_INSTANCE_PROC_ADDR(vulkan_instance, GetSwapchainImagesKHR);
+}
+
+/*
+===============
+GL_InitDevice
+===============
+*/
+static void GL_InitDevice( void )
+{
+	VkResult err;
 
 	uint32_t physical_device_count;
 	err = vkEnumeratePhysicalDevices(vulkan_instance, &physical_device_count, NULL);
 	if (err != VK_SUCCESS || physical_device_count == 0)
-	{
 		Sys_Error("Couldn't find any Vulkan devices");
-	}
 
 	VkPhysicalDevice *physical_devices = malloc(sizeof(VkPhysicalDevice) * physical_device_count);
 	err = vkEnumeratePhysicalDevices(vulkan_instance, &physical_device_count, physical_devices);
@@ -577,9 +628,7 @@ static void GL_Init( void )
 	}
 
 	if(!found_swapchain_extension)
-	{
 		Sys_Error("Couldn't find %s extension", VK_KHR_SWAPCHAIN_EXTENSION_NAME);
-	}
 
 	vkGetPhysicalDeviceProperties(vulkan_physical_device, &vulkan_physical_device_properties);
 	switch(vulkan_physical_device_properties.vendorID)
@@ -612,7 +661,7 @@ static void GL_Init( void )
 	VkQueueFamilyProperties * queue_family_properties = (VkQueueFamilyProperties *)malloc(vulkan_queue_count * sizeof(VkQueueFamilyProperties));
 	for (uint32_t i = 0; i < vulkan_queue_count; ++i)
 	{
-		if ((queue_family_properties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) != 0) 
+		if ((queue_family_properties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) != 0)
 		{
 			found_graphics_queue = true;
 			graphics_queue_node_index = i;
@@ -623,9 +672,7 @@ static void GL_Init( void )
 	free(queue_family_properties);
 
 	if(!found_graphics_queue)
-	{
 		Sys_Error("Couldn't find graphics queue");
-	}
 
 	float queue_priorities[] = {0.0};
 	VkDeviceQueueCreateInfo queue_create_info;
@@ -647,9 +694,75 @@ static void GL_Init( void )
 
 	err = vkCreateDevice(vulkan_physical_device, &device_create_info, NULL, &vulkan_device);
 	if (err != VK_SUCCESS)
-	{
 		Sys_Error("Couldn't create Vulkan device");
-	}
+
+	GET_DEVICE_PROC_ADDR(vulkan_device, CreateSwapchainKHR);
+	GET_DEVICE_PROC_ADDR(vulkan_device, DestroySwapchainKHR);
+	GET_DEVICE_PROC_ADDR(vulkan_device, GetSwapchainImagesKHR);
+	GET_DEVICE_PROC_ADDR(vulkan_device, AcquireNextImageKHR);
+	GET_DEVICE_PROC_ADDR(vulkan_device, QueuePresentKHR);
+}
+
+/*
+===============
+GL_CreateRenderTargets
+===============
+*/
+static void GL_CreateRenderTargets( void )
+{
+	Con_Printf("Creating render targets\n");
+
+	VkResult err;
+
+	err = fpGetPhysicalDeviceSurfaceCapabilitiesKHR(vulkan_physical_device, vulkan_surface, &vulkan_surface_capabilities);
+	if (err != VK_SUCCESS)
+		Sys_Error("Couldn't get surface capabilities");
+	if (vulkan_surface_capabilities.currentExtent.width != vid.width || vulkan_surface_capabilities.currentExtent.height != vid.height)
+		Sys_Error("Surface doesn't match video width or height");
+
+	uint32_t format_count;
+	err = fpGetPhysicalDeviceSurfaceFormatsKHR(vulkan_physical_device, vulkan_surface, &format_count, NULL);
+	if (err != VK_SUCCESS)
+		Sys_Error("Couldn't get surface formats");
+
+	VkSurfaceFormatKHR *surface_formats = (VkSurfaceFormatKHR *)malloc(format_count * sizeof(VkSurfaceFormatKHR));
+	err = fpGetPhysicalDeviceSurfaceFormatsKHR(vulkan_physical_device, vulkan_surface, &format_count, surface_formats);
+
+	VkSwapchainCreateInfoKHR swapchain_create_info;
+	memset(&swapchain_create_info, 0, sizeof(swapchain_create_info));
+	swapchain_create_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+	swapchain_create_info.pNext = NULL;
+	swapchain_create_info.surface = vulkan_surface;
+	swapchain_create_info.minImageCount = 2;
+	swapchain_create_info.imageFormat = surface_formats[0].format;
+	swapchain_create_info.imageColorSpace = surface_formats[0].colorSpace;
+	swapchain_create_info.imageExtent.width = vid.width;
+	swapchain_create_info.imageExtent.height = vid.height;
+	swapchain_create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+	swapchain_create_info.preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
+	swapchain_create_info.imageArrayLayers = 1;
+	swapchain_create_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+	swapchain_create_info.queueFamilyIndexCount = 0;
+	swapchain_create_info.pQueueFamilyIndices = NULL;
+	swapchain_create_info.presentMode = VK_PRESENT_MODE_FIFO_KHR;
+	swapchain_create_info.clipped = true;
+
+	free(surface_formats);
+
+	err = fpCreateSwapchainKHR(vulkan_device, &swapchain_create_info, NULL, &vulkan_swapchain);
+	if (err != VK_SUCCESS)
+		Sys_Error("Couldn't create swap chain");
+}
+
+/*
+===============
+GL_DestroyRenderTargets
+===============
+*/
+static void GL_DestroyRenderTargets( void )
+{
+	Con_Printf("Destroying render targets\n");
+	fpDestroySwapchainKHR(vulkan_device, vulkan_swapchain, NULL);
 }
 
 /*
@@ -938,7 +1051,10 @@ void	VID_Init (void)
 
 	VID_SetMode (width, height, bpp, fullscreen);
 
-	GL_Init ();
+	Con_Printf("\nVulkan Initialization\n");
+	GL_InitInstance();
+	GL_InitDevice();
+	GL_CreateRenderTargets();
 
 	//johnfitz -- removed code creating "glquake" subdirectory
 
