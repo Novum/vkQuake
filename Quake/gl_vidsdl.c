@@ -90,33 +90,6 @@ static VkDevice vulkan_device;
 
 /*
 ================
-VID_Gamma_SetGamma -- apply gamma correction
-================
-*/
-static void VID_Gamma_SetGamma (void)
-{
-}
-
-/*
-================
-VID_Gamma_Restore -- restore system gamma
-================
-*/
-static void VID_Gamma_Restore (void)
-{
-}
-
-/*
-================
-VID_Gamma_Shutdown -- called on exit
-================
-*/
-static void VID_Gamma_Shutdown (void)
-{
-}
-
-/*
-================
 VID_Gamma_f -- callback when the cvar changes
 ================
 */
@@ -542,7 +515,7 @@ static void GL_Init( void )
 
 	if(!found_surface_extension)
 	{
-		Sys_Error("Couldn't find surface extension");
+		Sys_Error("Couldn't find %s extension", VK_KHR_SURFACE_EXTENSION_NAME);
 	}
 	
 	VkApplicationInfo application_info;
@@ -605,11 +578,26 @@ static void GL_Init( void )
 
 	if(!found_swapchain_extension)
 	{
-		Sys_Error("Couldn't find swap chain extension");
+		Sys_Error("Couldn't find %s extension", VK_KHR_SWAPCHAIN_EXTENSION_NAME);
 	}
 
 	vkGetPhysicalDeviceProperties(vulkan_physical_device, &vulkan_physical_device_properties);
-	Con_Printf("Physical device: %s\n", vulkan_physical_device_properties.deviceName);
+	switch(vulkan_physical_device_properties.vendorID)
+	{
+	case 0x8086:
+		Con_Printf("Vendor: Intel\n");
+		break;
+	case 0x10DE:
+		Con_Printf("Vendor: NVIDIA\n");
+		break;
+	case 0x1002:
+		Con_Printf("Vendor: AMD\n");
+		break;
+	default:
+		Con_Printf("Vendor: Unknown (0x%x)\n", vulkan_physical_device_properties.vendorID);
+	}
+
+	Con_Printf("Device: %s\n", vulkan_physical_device_properties.deviceName);
 
 	qboolean found_graphics_queue = false;
 
@@ -694,8 +682,6 @@ void VID_Shutdown (void)
 {
 	if (vid_initialized)
 	{
-		VID_Gamma_Shutdown (); //johnfitz
-
 		SDL_QuitSubSystem(SDL_INIT_VIDEO);
 		draw_context = NULL;
 		PL_VID_Shutdown();
