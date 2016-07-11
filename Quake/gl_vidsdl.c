@@ -91,6 +91,7 @@ static VkDevice vulkan_device;
 static VkSurfaceKHR vulkan_surface;
 static VkSurfaceCapabilitiesKHR vulkan_surface_capabilities;
 static VkSwapchainKHR vulkan_swapchain;
+static VkQueue vulkan_queue;
 
 static PFN_vkGetDeviceProcAddr fpGetDeviceProcAddr;
 static PFN_vkGetPhysicalDeviceSurfaceSupportKHR fpGetPhysicalDeviceSurfaceSupportKHR;
@@ -102,6 +103,9 @@ static PFN_vkDestroySwapchainKHR fpDestroySwapchainKHR;
 static PFN_vkGetSwapchainImagesKHR fpGetSwapchainImagesKHR;
 static PFN_vkAcquireNextImageKHR fpAcquireNextImageKHR;
 static PFN_vkQueuePresentKHR fpQueuePresentKHR;
+
+// Swap chain
+static uint32_t current_swapchain_buffer;
 
 #define GET_INSTANCE_PROC_ADDR(inst, entrypoint) { \
 	fp##entrypoint = (PFN_vk##entrypoint)vkGetInstanceProcAddr(inst, "vk" #entrypoint); \
@@ -701,6 +705,8 @@ static void GL_InitDevice( void )
 	GET_DEVICE_PROC_ADDR(vulkan_device, GetSwapchainImagesKHR);
 	GET_DEVICE_PROC_ADDR(vulkan_device, AcquireNextImageKHR);
 	GET_DEVICE_PROC_ADDR(vulkan_device, QueuePresentKHR);
+
+	vkGetDeviceQueue(vulkan_device, graphics_queue_node_index, 0, &vulkan_queue);
 }
 
 /*
@@ -728,12 +734,14 @@ static void GL_CreateRenderTargets( void )
 	VkSurfaceFormatKHR *surface_formats = (VkSurfaceFormatKHR *)malloc(format_count * sizeof(VkSurfaceFormatKHR));
 	err = fpGetPhysicalDeviceSurfaceFormatsKHR(vulkan_physical_device, vulkan_surface, &format_count, surface_formats);
 
+	uint32_t image_count = max(2, vulkan_surface_capabilities.minImageCount);
+
 	VkSwapchainCreateInfoKHR swapchain_create_info;
 	memset(&swapchain_create_info, 0, sizeof(swapchain_create_info));
 	swapchain_create_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
 	swapchain_create_info.pNext = NULL;
 	swapchain_create_info.surface = vulkan_surface;
-	swapchain_create_info.minImageCount = 2;
+	swapchain_create_info.minImageCount = image_count;
 	swapchain_create_info.imageFormat = surface_formats[0].format;
 	swapchain_create_info.imageColorSpace = surface_formats[0].colorSpace;
 	swapchain_create_info.imageExtent.width = vid.width;
@@ -775,6 +783,11 @@ void GL_BeginRendering (int *x, int *y, int *width, int *height)
 	*x = *y = 0;
 	*width = vid.width;
 	*height = vid.height;
+
+	VkResult err;
+	err = fpAcquireNextImageKHR(vulkan_device, vulkan_swapchain, UINT64_MAX, VK_NULL_HANDLE, VK_NULL_HANDLE, &current_swapchain_buffer);
+	if (err != VK_SUCCESS)
+		Sys_Error("Couldn't acquire next image");
 }
 
 /*
@@ -784,13 +797,19 @@ GL_EndRendering
 */
 void GL_EndRendering (void)
 {
-	if (!scr_skipupdate)
-	{
-		//SDL_GL_SwapWindow(draw_context);
-	}
+	VkPresentInfoKHR present_info;
+	memset(&present_info, 0, sizeof(present_info));
+	present_info.swapchainCount = 1;
+	present_info.pSwapchains = &vulkan_swapchain,
+	present_info.pImageIndices = &current_swapchain_buffer;
+	fpQueuePresentKHR(vulkan_queue, &present_info);
 }
 
-
+/*
+=================
+VID_Shutdown
+=================
+*/
 void VID_Shutdown (void)
 {
 	if (vid_initialized)
