@@ -50,6 +50,53 @@ extern cvar_t gl_zfix; // QuakeSpasm z-fighting fix
 
 extern gltexture_t *playertextures[MAX_SCOREBOARD]; //johnfitz
 
+vulkanglobals_t vulkan_globals;
+
+/*
+====================
+R_InitGlobals
+====================
+*/
+static void R_InitGlobals()
+{
+	VkResult err;
+
+	VkAttachmentDescription attachment_descriptions[1];
+	memset(&attachment_descriptions, 0, sizeof(attachment_descriptions));
+
+	attachment_descriptions[0].initialLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+	attachment_descriptions[0].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+	attachment_descriptions[0].samples = VK_SAMPLE_COUNT_1_BIT;
+	attachment_descriptions[0].format = vulkan_globals.swap_chain_format;
+	attachment_descriptions[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	attachment_descriptions[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+
+	VkAttachmentReference attachment_references[1];
+	memset(&attachment_references, 0, sizeof(attachment_references));
+
+	attachment_references[0].attachment = 0;
+	attachment_references[0].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+	VkSubpassDescription subpass_descriptions[1];
+	memset(&subpass_descriptions, 0, sizeof(subpass_descriptions));
+
+	subpass_descriptions[0].colorAttachmentCount = 1;
+	subpass_descriptions[0].pColorAttachments = attachment_references;
+	subpass_descriptions[0].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+
+	VkRenderPassCreateInfo render_pass_create_info;
+	memset(&render_pass_create_info, 0, sizeof(render_pass_create_info));
+	render_pass_create_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+	render_pass_create_info.attachmentCount = 1;
+	render_pass_create_info.pAttachments = attachment_descriptions;
+	render_pass_create_info.subpassCount = 1;
+	render_pass_create_info.pSubpasses = subpass_descriptions;
+
+	err = vkCreateRenderPass(vulkan_globals.device, &render_pass_create_info, NULL, &vulkan_globals.render_pass);
+	if (err != VK_SUCCESS)
+		Sys_Error("Couldn't create Vulkan render pass");
+
+}
 
 /*
 ====================
@@ -239,6 +286,8 @@ void R_Init (void)
 	Cvar_SetCallback (&r_lavaalpha, R_SetLavaalpha_f);
 	Cvar_SetCallback (&r_telealpha, R_SetTelealpha_f);
 	Cvar_SetCallback (&r_slimealpha, R_SetSlimealpha_f);
+
+	R_InitGlobals();
 
 	R_InitParticles ();
 	R_SetClearColor_f (&r_clearcolor); //johnfitz

@@ -87,7 +87,6 @@ cvar_t		vid_gamma = {"gamma", "1", CVAR_ARCHIVE}; //johnfitz -- moved here from 
 static VkInstance vulkan_instance;
 static VkPhysicalDevice vulkan_physical_device;
 static VkPhysicalDeviceProperties vulkan_physical_device_properties;
-static VkDevice vulkan_device;
 static VkSurfaceKHR vulkan_surface;
 static VkSurfaceCapabilitiesKHR vulkan_surface_capabilities;
 static VkSwapchainKHR vulkan_swapchain;
@@ -696,17 +695,17 @@ static void GL_InitDevice( void )
 	device_create_info.enabledExtensionCount = 1;
 	device_create_info.ppEnabledExtensionNames = device_extensions;
 
-	err = vkCreateDevice(vulkan_physical_device, &device_create_info, NULL, &vulkan_device);
+	err = vkCreateDevice(vulkan_physical_device, &device_create_info, NULL, &vulkan_globals.device);
 	if (err != VK_SUCCESS)
 		Sys_Error("Couldn't create Vulkan device");
 
-	GET_DEVICE_PROC_ADDR(vulkan_device, CreateSwapchainKHR);
-	GET_DEVICE_PROC_ADDR(vulkan_device, DestroySwapchainKHR);
-	GET_DEVICE_PROC_ADDR(vulkan_device, GetSwapchainImagesKHR);
-	GET_DEVICE_PROC_ADDR(vulkan_device, AcquireNextImageKHR);
-	GET_DEVICE_PROC_ADDR(vulkan_device, QueuePresentKHR);
+	GET_DEVICE_PROC_ADDR(vulkan_globals.device, CreateSwapchainKHR);
+	GET_DEVICE_PROC_ADDR(vulkan_globals.device, DestroySwapchainKHR);
+	GET_DEVICE_PROC_ADDR(vulkan_globals.device, GetSwapchainImagesKHR);
+	GET_DEVICE_PROC_ADDR(vulkan_globals.device, AcquireNextImageKHR);
+	GET_DEVICE_PROC_ADDR(vulkan_globals.device, QueuePresentKHR);
 
-	vkGetDeviceQueue(vulkan_device, graphics_queue_node_index, 0, &vulkan_queue);
+	vkGetDeviceQueue(vulkan_globals.device, graphics_queue_node_index, 0, &vulkan_queue);
 }
 
 /*
@@ -757,7 +756,7 @@ static void GL_CreateRenderTargets( void )
 
 	free(surface_formats);
 
-	err = fpCreateSwapchainKHR(vulkan_device, &swapchain_create_info, NULL, &vulkan_swapchain);
+	err = fpCreateSwapchainKHR(vulkan_globals.device, &swapchain_create_info, NULL, &vulkan_swapchain);
 	if (err != VK_SUCCESS)
 		Sys_Error("Couldn't create swap chain");
 }
@@ -770,7 +769,7 @@ GL_DestroyRenderTargets
 static void GL_DestroyRenderTargets( void )
 {
 	Con_Printf("Destroying render targets\n");
-	fpDestroySwapchainKHR(vulkan_device, vulkan_swapchain, NULL);
+	fpDestroySwapchainKHR(vulkan_globals.device, vulkan_swapchain, NULL);
 }
 
 /*
@@ -785,7 +784,7 @@ void GL_BeginRendering (int *x, int *y, int *width, int *height)
 	*height = vid.height;
 
 	VkResult err;
-	err = fpAcquireNextImageKHR(vulkan_device, vulkan_swapchain, UINT64_MAX, VK_NULL_HANDLE, VK_NULL_HANDLE, &current_swapchain_buffer);
+	err = fpAcquireNextImageKHR(vulkan_globals.device, vulkan_swapchain, UINT64_MAX, VK_NULL_HANDLE, VK_NULL_HANDLE, &current_swapchain_buffer);
 	if (err != VK_SUCCESS)
 		Sys_Error("Couldn't acquire next image");
 }

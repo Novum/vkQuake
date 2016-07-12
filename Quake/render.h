@@ -126,15 +126,23 @@ typedef struct
 	int			ambientlight;
 } refdef_t;
 
+typedef struct
+{
+	VkDevice		device;
+	VkRenderPass	render_pass;
+
+	// Swap chain
+	VkFormat		swap_chain_format;
+} vulkanglobals_t;
 
 //
 // refresh
 //
 extern	int		reinit_surfcache;
 
-
 extern	refdef_t	r_refdef;
 extern vec3_t	r_origin, vpn, vright, vup;
+extern vulkanglobals_t vulkan_globals;
 
 
 void R_Init (void);
