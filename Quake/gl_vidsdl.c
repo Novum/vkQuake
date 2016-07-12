@@ -99,6 +99,7 @@ static VkCommandBuffer vulkan_command_buffers[2];
 static VkFence vulkan_command_buffer_fences[2];
 static qboolean vulkan_command_buffer_submitted[2];
 static VkFramebuffer vulkan_framebuffers[2];
+static VkImageView swapchain_images_views[2];
 
 static PFN_vkGetDeviceProcAddr fpGetDeviceProcAddr;
 static PFN_vkGetPhysicalDeviceSurfaceSupportKHR fpGetPhysicalDeviceSurfaceSupportKHR;
@@ -828,14 +829,12 @@ static void GL_CreateRenderTargets( void )
 	VkSurfaceFormatKHR *surface_formats = (VkSurfaceFormatKHR *)malloc(format_count * sizeof(VkSurfaceFormatKHR));
 	err = fpGetPhysicalDeviceSurfaceFormatsKHR(vulkan_physical_device, vulkan_surface, &format_count, surface_formats);
 
-	uint32_t image_count = max(2, vulkan_surface_capabilities.minImageCount);
-
 	VkSwapchainCreateInfoKHR swapchain_create_info;
 	memset(&swapchain_create_info, 0, sizeof(swapchain_create_info));
 	swapchain_create_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
 	swapchain_create_info.pNext = NULL;
 	swapchain_create_info.surface = vulkan_surface;
-	swapchain_create_info.minImageCount = image_count;
+	swapchain_create_info.minImageCount = 2;
 	swapchain_create_info.imageFormat = surface_formats[0].format;
 	swapchain_create_info.imageColorSpace = surface_formats[0].colorSpace;
 	swapchain_create_info.imageExtent.width = vid.width;
@@ -849,11 +848,60 @@ static void GL_CreateRenderTargets( void )
 	swapchain_create_info.presentMode = VK_PRESENT_MODE_FIFO_KHR;
 	swapchain_create_info.clipped = true;
 
+	vulkan_globals.swap_chain_format = surface_formats[0].format;
 	free(surface_formats);
 
 	err = fpCreateSwapchainKHR(vulkan_globals.device, &swapchain_create_info, NULL, &vulkan_swapchain);
 	if (err != VK_SUCCESS)
 		Sys_Error("Couldn't create swap chain");
+
+	uint32_t image_count;
+	err = fpGetSwapchainImagesKHR(vulkan_globals.device, vulkan_swapchain, &image_count, NULL);
+	if (err != VK_SUCCESS || image_count != 2)
+		Sys_Error("Couldn't get swap chain images");
+
+	VkImage *swapchain_images = (VkImage *)malloc(image_count * sizeof(VkImage));
+	fpGetSwapchainImagesKHR(vulkan_globals.device, vulkan_swapchain, &image_count, swapchain_images);
+
+	VkImageViewCreateInfo image_view_create_info;
+	memset(&image_view_create_info, 0, sizeof(image_view_create_info));
+	image_view_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+	image_view_create_info.format = vulkan_globals.swap_chain_format;
+	image_view_create_info.components.r = VK_COMPONENT_SWIZZLE_R;
+	image_view_create_info.components.g = VK_COMPONENT_SWIZZLE_G;
+	image_view_create_info.components.b = VK_COMPONENT_SWIZZLE_B;
+	image_view_create_info.components.a = VK_COMPONENT_SWIZZLE_A;
+	image_view_create_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	image_view_create_info.subresourceRange.baseMipLevel = 0;
+	image_view_create_info.subresourceRange.levelCount = 1;
+	image_view_create_info.subresourceRange.baseArrayLayer = 0;
+	image_view_create_info.subresourceRange.layerCount = 1;
+	image_view_create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+	image_view_create_info.flags = 0;
+
+	VkFramebufferCreateInfo framebuffer_create_info;
+	memset(&framebuffer_create_info, 0, sizeof(framebuffer_create_info));
+	framebuffer_create_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+	framebuffer_create_info.renderPass = vulkan_globals.render_pass;
+	framebuffer_create_info.attachmentCount = 1;
+	framebuffer_create_info.width = vid.width;
+	framebuffer_create_info.height = vid.height;
+	framebuffer_create_info.layers = 1;
+
+	for (int i = 0; i < 2; ++i)
+	{
+		image_view_create_info.image = swapchain_images[i];
+		err = vkCreateImageView(vulkan_globals.device, &image_view_create_info, NULL, &swapchain_images_views[i]);
+		if (err != VK_SUCCESS)
+			Sys_Error("vkCreateImageView failed");
+
+		framebuffer_create_info.pAttachments = &swapchain_images_views[i];
+		err = vkCreateFramebuffer(vulkan_globals.device, &framebuffer_create_info, NULL, &vulkan_framebuffers[i]);
+		if (err != VK_SUCCESS)
+			Sys_Error("vkCreateFramebuffer failed");
+	}
+
+	free(swapchain_images);
 }
 
 /*
@@ -864,6 +912,13 @@ GL_DestroyRenderTargets
 static void GL_DestroyRenderTargets( void )
 {
 	Con_Printf("Destroying render targets\n");
+
+	for (int i = 0; i < 2; ++i)
+	{
+		vkDestroyImageView(vulkan_globals.device, swapchain_images_views[i], NULL);
+		swapchain_images_views[i] = VK_NULL_HANDLE;
+	}
+
 	fpDestroySwapchainKHR(vulkan_globals.device, vulkan_swapchain, NULL);
 }
 
