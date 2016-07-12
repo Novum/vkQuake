@@ -97,6 +97,7 @@ static uint32_t vulkan_current_command_buffers;
 static VkCommandPool vulkan_command_pool;
 static VkCommandBuffer vulkan_command_buffers[2];
 static VkFence vulkan_command_buffer_fences[2];
+static qboolean vulkan_command_buffer_submitted[2];
 
 static PFN_vkGetDeviceProcAddr fpGetDeviceProcAddr;
 static PFN_vkGetPhysicalDeviceSurfaceSupportKHR fpGetPhysicalDeviceSurfaceSupportKHR;
@@ -832,6 +833,27 @@ void GL_BeginRendering (int *x, int *y, int *width, int *height)
 	*height = vid.height;
 
 	VkResult err;
+
+	if (vulkan_command_buffer_submitted[vulkan_current_command_buffers])
+	{
+		err = vkWaitForFences(vulkan_globals.device, 1, &vulkan_command_buffer_fences[vulkan_current_command_buffers], VK_TRUE, UINT64_MAX);
+		if (err != VK_SUCCESS)
+			Sys_Error("vkWaitForFences failed");
+	}
+
+	err = vkResetFences(vulkan_globals.device, 1, &vulkan_command_buffer_fences[vulkan_current_command_buffers]);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkResetFences failed");
+
+	VkCommandBufferBeginInfo command_buffer_begin_info;
+	memset(&command_buffer_begin_info, 0, sizeof(command_buffer_begin_info));
+	command_buffer_begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+	vulkan_globals.command_buffer = vulkan_command_buffers[vulkan_current_command_buffers];
+	err = vkBeginCommandBuffer(vulkan_globals.command_buffer, &command_buffer_begin_info);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkBeginCommandBuffer failed");
+
 	err = fpAcquireNextImageKHR(vulkan_globals.device, vulkan_swapchain, UINT64_MAX, VK_NULL_HANDLE, VK_NULL_HANDLE, &current_swapchain_buffer);
 	if (err != VK_SUCCESS)
 		Sys_Error("Couldn't acquire next image");
@@ -844,12 +866,33 @@ GL_EndRendering
 */
 void GL_EndRendering (void)
 {
+	VkResult err;
+
+	err = vkEndCommandBuffer(vulkan_globals.command_buffer);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkEndCommandBuffer failed");
+
+	VkSubmitInfo submit_info;
+	memset(&submit_info, 0, sizeof(submit_info));
+	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submit_info.commandBufferCount = 1;
+	submit_info.pCommandBuffers = &vulkan_command_buffers[vulkan_current_command_buffers];
+
+	err = vkQueueSubmit(vulkan_queue, 1, &submit_info, vulkan_command_buffer_fences[vulkan_current_command_buffers]);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkQueueSubmit failed");
+
+	vulkan_command_buffer_submitted[vulkan_current_command_buffers] = true;
+	vulkan_current_command_buffers = (vulkan_current_command_buffers + 1) % 2;
+
 	VkPresentInfoKHR present_info;
 	memset(&present_info, 0, sizeof(present_info));
 	present_info.swapchainCount = 1;
 	present_info.pSwapchains = &vulkan_swapchain,
 	present_info.pImageIndices = &current_swapchain_buffer;
-	fpQueuePresentKHR(vulkan_queue, &present_info);
+	err = fpQueuePresentKHR(vulkan_queue, &present_info);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkQueuePresentKHR failed");
 }
 
 /*
