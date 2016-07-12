@@ -130,6 +130,7 @@ typedef struct
 {
 	VkDevice		device;
 	VkRenderPass	render_pass;
+	VkCommandBuffer command_buffer;
 
 	// Swap chain
 	VkFormat		swap_chain_format;

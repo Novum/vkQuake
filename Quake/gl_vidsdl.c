@@ -91,6 +91,12 @@ static VkSurfaceKHR vulkan_surface;
 static VkSurfaceCapabilitiesKHR vulkan_surface_capabilities;
 static VkSwapchainKHR vulkan_swapchain;
 static VkQueue vulkan_queue;
+static uint32_t vulkan_gfx_queue_family_index;
+
+static uint32_t vulkan_current_command_buffers;
+static VkCommandPool vulkan_command_pool;
+static VkCommandBuffer vulkan_command_buffers[2];
+static VkFence vulkan_command_buffer_fences[2];
 
 static PFN_vkGetDeviceProcAddr fpGetDeviceProcAddr;
 static PFN_vkGetPhysicalDeviceSurfaceSupportKHR fpGetPhysicalDeviceSurfaceSupportKHR;
@@ -654,7 +660,6 @@ static void GL_InitDevice( void )
 	qboolean found_graphics_queue = false;
 
 	uint32_t vulkan_queue_count;
-	uint32_t graphics_queue_node_index;
 	vkGetPhysicalDeviceQueueFamilyProperties(vulkan_physical_device, &vulkan_queue_count, NULL);
 	if (vulkan_queue_count == 0)
 	{
@@ -667,7 +672,7 @@ static void GL_InitDevice( void )
 		if ((queue_family_properties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) != 0)
 		{
 			found_graphics_queue = true;
-			graphics_queue_node_index = i;
+			vulkan_gfx_queue_family_index = i;
 			break;
 		}
 	}
@@ -681,7 +686,7 @@ static void GL_InitDevice( void )
 	VkDeviceQueueCreateInfo queue_create_info;
 	memset(&queue_create_info, 0, sizeof(queue_create_info));
 	queue_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-	queue_create_info.queueFamilyIndex = graphics_queue_node_index;
+	queue_create_info.queueFamilyIndex = vulkan_gfx_queue_family_index;
 	queue_create_info.queueCount = 1;
 	queue_create_info.pQueuePriorities = queue_priorities;
 
@@ -705,7 +710,50 @@ static void GL_InitDevice( void )
 	GET_DEVICE_PROC_ADDR(vulkan_globals.device, AcquireNextImageKHR);
 	GET_DEVICE_PROC_ADDR(vulkan_globals.device, QueuePresentKHR);
 
-	vkGetDeviceQueue(vulkan_globals.device, graphics_queue_node_index, 0, &vulkan_queue);
+	vkGetDeviceQueue(vulkan_globals.device, vulkan_gfx_queue_family_index, 0, &vulkan_queue);
+}
+
+/*
+===============
+GL_InitCommandBuffers
+===============
+*/
+static void GL_InitCommandBuffers( void )
+{
+	Con_Printf("Creating command buffers\n");
+
+	VkResult err;
+
+	VkCommandPoolCreateInfo command_pool_create_info;
+	memset(&command_pool_create_info, 0, sizeof(command_pool_create_info));
+	command_pool_create_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+	command_pool_create_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+	command_pool_create_info.queueFamilyIndex = vulkan_gfx_queue_family_index;
+
+	err = vkCreateCommandPool(vulkan_globals.device, &command_pool_create_info, NULL, &vulkan_command_pool);
+	if (err != VK_SUCCESS)
+		Sys_Error("Couldn't create Vulkan command pool");
+
+	VkCommandBufferAllocateInfo command_buffer_allocate_info;
+	memset(&command_buffer_allocate_info, 0, sizeof(command_buffer_allocate_info));
+	command_buffer_allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	command_buffer_allocate_info.commandPool = vulkan_command_pool;
+	command_buffer_allocate_info.commandBufferCount = 2;
+
+	err = vkAllocateCommandBuffers(vulkan_globals.device, &command_buffer_allocate_info, vulkan_command_buffers);
+	if (err != VK_SUCCESS)
+		Sys_Error("Couldn't create Vulkan command buffers");
+
+	VkFenceCreateInfo fence_create_info;
+	memset(&fence_create_info, 0, sizeof(fence_create_info));
+	fence_create_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+
+	for (int i = 0; i < 2; ++i) 
+	{
+		err = vkCreateFence(vulkan_globals.device, &fence_create_info, NULL, &vulkan_command_buffer_fences[i]);
+		if (err != VK_SUCCESS)
+			Sys_Error("Couldn't create Vulkan command fence");
+	}
 }
 
 /*
@@ -1072,6 +1120,7 @@ void	VID_Init (void)
 	Con_Printf("\nVulkan Initialization\n");
 	GL_InitInstance();
 	GL_InitDevice();
+	GL_InitCommandBuffers();
 	GL_CreateRenderTargets();
 
 	//johnfitz -- removed code creating "glquake" subdirectory
