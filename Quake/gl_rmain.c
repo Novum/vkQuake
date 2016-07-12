@@ -46,7 +46,7 @@ vec3_t	vpn;
 vec3_t	vright;
 vec3_t	r_origin;
 
-float r_fovx, r_fovy; //johnfitz -- rendering fov may be different becuase of r_waterwarp and r_stereo
+float r_fovx, r_fovy; //johnfitz -- rendering fov may be different becuase of r_waterwarp
 
 //
 // screen size info
@@ -81,8 +81,6 @@ cvar_t	gl_playermip = {"gl_playermip","0",CVAR_NONE};
 cvar_t	gl_nocolors = {"gl_nocolors","0",CVAR_NONE};
 
 //johnfitz -- new cvars
-cvar_t	r_stereo = {"r_stereo","0",CVAR_NONE};
-cvar_t	r_stereodepth = {"r_stereodepth","128",CVAR_NONE};
 cvar_t	r_clearcolor = {"r_clearcolor","2",CVAR_ARCHIVE};
 cvar_t	r_drawflat = {"r_drawflat","0",CVAR_NONE};
 cvar_t	r_flatlightstyles = {"r_flatlightstyles", "0", CVAR_NONE};
@@ -420,9 +418,6 @@ void R_SetFrustum (float fovx, float fovy)
 {
 	int		i;
 
-	if (r_stereo.value)
-		fovx += 10; //silly hack so that polygons don't drop out becuase of stereo skew
-
 	TurnVector(frustum[0].normal, vpn, vright, fovx/2 - 90); //left plane
 	TurnVector(frustum[1].normal, vpn, vright, 90 - fovx/2); //right plane
 	TurnVector(frustum[2].normal, vpn, vup, 90 - fovy/2); //bottom plane
@@ -442,13 +437,12 @@ GL_SetFrustum -- johnfitz -- written to replace MYgluPerspective
 =============
 */
 #define NEARCLIP 4
-float frustum_skew = 0.0; //used by r_stereo
 void GL_SetFrustum(float fovx, float fovy)
 {
 	float xmax, ymax;
 	xmax = NEARCLIP * tan( fovx * M_PI / 360.0 );
 	ymax = NEARCLIP * tan( fovy * M_PI / 360.0 );
-	//glFrustum(-xmax + frustum_skew, xmax + frustum_skew, -ymax, ymax, NEARCLIP, gl_farclip.value);
+	//glFrustum(-xmax, xmax, -ymax, ymax, NEARCLIP, gl_farclip.value);
 }
 
 /*
@@ -514,7 +508,7 @@ void R_Clear (void)
 
 /*
 ===============
-R_SetupScene -- johnfitz -- this is the stuff that needs to be done once per eye in stereo mode
+R_SetupScene
 ===============
 */
 void R_SetupScene (void)
@@ -527,7 +521,7 @@ void R_SetupScene (void)
 
 /*
 ===============
-R_SetupView -- johnfitz -- this is the stuff that needs to be done once per frame, even in stereo mode
+R_SetupView
 ===============
 */
 void R_SetupView (void)
@@ -952,40 +946,8 @@ void R_RenderView (void)
 
 	R_SetupView (); //johnfitz -- this does everything that should be done once per frame
 
-	//johnfitz -- stereo rendering -- full of hacky goodness
-	if (r_stereo.value)
-	{
-		float eyesep = CLAMP(-8.0f, r_stereo.value, 8.0f);
-		float fdepth = CLAMP(32.0f, r_stereodepth.value, 1024.0f);
+	R_RenderScene ();
 
-		AngleVectors (r_refdef.viewangles, vpn, vright, vup);
-
-		//render left eye (red)
-		//glColorMask(1, 0, 0, 1);
-		VectorMA (r_refdef.vieworg, -0.5f * eyesep, vright, r_refdef.vieworg);
-		frustum_skew = 0.5 * eyesep * NEARCLIP / fdepth;
-		srand((int) (cl.time * 1000)); //sync random stuff between eyes
-
-		R_RenderScene ();
-
-		//render right eye (cyan)
-		//glClear (GL_DEPTH_BUFFER_BIT);
-		//glColorMask(0, 1, 1, 1);
-		VectorMA (r_refdef.vieworg, 1.0f * eyesep, vright, r_refdef.vieworg);
-		frustum_skew = -frustum_skew;
-		srand((int) (cl.time * 1000)); //sync random stuff between eyes
-
-		R_RenderScene ();
-
-		//restore
-		//glColorMask(1, 1, 1, 1);
-		VectorMA (r_refdef.vieworg, -0.5f * eyesep, vright, r_refdef.vieworg);
-		frustum_skew = 0.0f;
-	}
-	else
-	{
-		R_RenderScene ();
-	}
 	//johnfitz
 
 	//johnfitz -- modified r_speeds output
