@@ -247,9 +247,6 @@ void R_BuildLightmapChains (qmodel_t *model, texchain_t chain)
 	msurface_t *s;
 	int i;
 
-	// clear lightmap chains (already done in r_marksurfaces, but clearing them here to be safe becuase of r_stereo)
-	memset (lightmap_polys, 0, sizeof(lightmap_polys));
-
 	// now rebuild them
 	for (i=0 ; i<model->numtextures ; i++)
 	{

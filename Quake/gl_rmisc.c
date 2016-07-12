@@ -25,8 +25,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 
 //johnfitz -- new cvars
-extern cvar_t r_stereo;
-extern cvar_t r_stereodepth;
 extern cvar_t r_clearcolor;
 extern cvar_t r_drawflat;
 extern cvar_t r_flatlightstyles;
@@ -251,8 +249,6 @@ void R_Init (void)
 	Cvar_RegisterVariable (&gl_nocolors);
 
 	//johnfitz -- new cvars
-	Cvar_RegisterVariable (&r_stereo);
-	Cvar_RegisterVariable (&r_stereodepth);
 	Cvar_RegisterVariable (&r_clearcolor);
 	Cvar_SetCallback (&r_clearcolor, R_SetClearColor_f);
 	Cvar_RegisterVariable (&r_waterquality);
