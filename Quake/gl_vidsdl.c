@@ -98,6 +98,7 @@ static VkCommandPool vulkan_command_pool;
 static VkCommandBuffer vulkan_command_buffers[2];
 static VkFence vulkan_command_buffer_fences[2];
 static qboolean vulkan_command_buffer_submitted[2];
+static VkFramebuffer vulkan_framebuffers[2];
 
 static PFN_vkGetDeviceProcAddr fpGetDeviceProcAddr;
 static PFN_vkGetPhysicalDeviceSurfaceSupportKHR fpGetPhysicalDeviceSurfaceSupportKHR;
@@ -758,6 +759,51 @@ static void GL_InitCommandBuffers( void )
 }
 
 /*
+====================
+GL_CreateRenderPass
+====================
+*/
+static void GL_CreateRenderPass()
+{
+	VkResult err;
+
+	VkAttachmentDescription attachment_descriptions[1];
+	memset(&attachment_descriptions, 0, sizeof(attachment_descriptions));
+
+	attachment_descriptions[0].initialLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+	attachment_descriptions[0].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+	attachment_descriptions[0].samples = VK_SAMPLE_COUNT_1_BIT;
+	attachment_descriptions[0].format = vulkan_globals.swap_chain_format;
+	attachment_descriptions[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	attachment_descriptions[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+
+	VkAttachmentReference attachment_references[1];
+	memset(&attachment_references, 0, sizeof(attachment_references));
+
+	attachment_references[0].attachment = 0;
+	attachment_references[0].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+	VkSubpassDescription subpass_descriptions[1];
+	memset(&subpass_descriptions, 0, sizeof(subpass_descriptions));
+
+	subpass_descriptions[0].colorAttachmentCount = 1;
+	subpass_descriptions[0].pColorAttachments = attachment_references;
+	subpass_descriptions[0].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+
+	VkRenderPassCreateInfo render_pass_create_info;
+	memset(&render_pass_create_info, 0, sizeof(render_pass_create_info));
+	render_pass_create_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+	render_pass_create_info.attachmentCount = 1;
+	render_pass_create_info.pAttachments = attachment_descriptions;
+	render_pass_create_info.subpassCount = 1;
+	render_pass_create_info.pSubpasses = subpass_descriptions;
+
+	err = vkCreateRenderPass(vulkan_globals.device, &render_pass_create_info, NULL, &vulkan_globals.render_pass);
+	if (err != VK_SUCCESS)
+		Sys_Error("Couldn't create Vulkan render pass");
+}
+
+/*
 ===============
 GL_CreateRenderTargets
 ===============
@@ -857,6 +903,21 @@ void GL_BeginRendering (int *x, int *y, int *width, int *height)
 	err = fpAcquireNextImageKHR(vulkan_globals.device, vulkan_swapchain, UINT64_MAX, VK_NULL_HANDLE, VK_NULL_HANDLE, &current_swapchain_buffer);
 	if (err != VK_SUCCESS)
 		Sys_Error("Couldn't acquire next image");
+
+	VkRect2D render_area;
+	render_area.extent.width = vid.width;
+	render_area.extent.height = vid.height;
+
+	VkRenderPassBeginInfo render_pass_begin_info;
+	memset(&render_pass_begin_info, 0, sizeof(render_pass_begin_info));
+	render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+	render_pass_begin_info.renderArea = render_area;
+	render_pass_begin_info.renderPass = vulkan_globals.render_pass;
+	render_pass_begin_info.framebuffer = vulkan_framebuffers[vulkan_current_command_buffers];
+	render_pass_begin_info.clearValueCount = 1;
+	render_pass_begin_info.pClearValues = &vulkan_globals.clear_value;
+
+	vkCmdBeginRenderPass(vulkan_globals.command_buffer, &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
 }
 
 /*
@@ -867,6 +928,8 @@ GL_EndRendering
 void GL_EndRendering (void)
 {
 	VkResult err;
+
+	vkCmdEndRenderPass(vulkan_globals.command_buffer);
 
 	err = vkEndCommandBuffer(vulkan_globals.command_buffer);
 	if (err != VK_SUCCESS)
@@ -1164,6 +1227,7 @@ void	VID_Init (void)
 	GL_InitInstance();
 	GL_InitDevice();
 	GL_InitCommandBuffers();
+	GL_CreateRenderPass();
 	GL_CreateRenderTargets();
 
 	//johnfitz -- removed code creating "glquake" subdirectory

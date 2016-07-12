@@ -131,8 +131,7 @@ typedef struct
 	VkDevice		device;
 	VkRenderPass	render_pass;
 	VkCommandBuffer command_buffer;
-
-	// Swap chain
+	VkClearValue	clear_value;
 	VkFormat		swap_chain_format;
 } vulkanglobals_t;
 
