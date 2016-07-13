@@ -24,9 +24,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 
-const int	gl_solid_format = 3;
-const int	gl_alpha_format = 4;
-
 static cvar_t	gl_texturemode = {"gl_texturemode", "", CVAR_ARCHIVE};
 static cvar_t	gl_texture_anisotropy = {"gl_texture_anisotropy", "1", CVAR_ARCHIVE};
 static cvar_t	gl_max_size = {"gl_max_size", "0", CVAR_NONE};
@@ -656,13 +653,7 @@ TexMgr_SafeTextureSize -- return a size with hardware and user prefs in mind
 */
 int TexMgr_SafeTextureSize (int s)
 {
-    /*if (!gl_texture_NPOT)
-        s = TexMgr_Pad(s);
-	if ((int)gl_max_size.value > 0)
-		s = q_min(TexMgr_Pad((int)gl_max_size.value), s);
-	s = q_min(gl_hardware_maxsize, s);
-	return s;*/
-
+	s = q_min((int)vulkan_globals.device_properties.limits.maxImageDimension2D, s);
 	return s;
 }
 
@@ -994,25 +985,52 @@ static byte *TexMgr_PadImageH (byte *in, int width, int height, byte padbyte)
 
 /*
 ================
+TexMgr_DeriveNumMips
+================
+*/
+static int TexMgr_DeriveNumMips(int width, int height)
+{
+	int num_mips = 0;
+	while(width >= 1 && height >= 1)
+	{
+		width /= 2;
+		height /= 2;
+		num_mips += 1;
+	}
+	return num_mips;
+}
+
+/*
+================
+GL_MemoryTypeFromProperties
+================
+*/
+static int GL_MemoryTypeFromProperties(uint32_t type_bits, VkFlags requirements_mask) 
+{
+	for (uint32_t i = 0; i < VK_MAX_MEMORY_TYPES; i++) {
+		if ((type_bits & 1) == 1)
+		{
+			if ((vulkan_globals.memory_properties.memoryTypes[i].propertyFlags & requirements_mask) == requirements_mask)
+				return i;
+		}
+		type_bits >>= 1;
+	}
+
+	Sys_Error("Could not find memory type");
+}
+
+
+/*
+================
 TexMgr_LoadImage32 -- handles 32bit source data
 ================
 */
 static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 {
-	/*int	internalformat,	miplevel, mipwidth, mipheight, picmip;
-
-	if (!gl_texture_NPOT)
-	{
-		// resample up
-		data = TexMgr_ResampleTexture (data, glt->width, glt->height, glt->flags & TEXPREF_ALPHA);
-		glt->width = TexMgr_Pad(glt->width);
-		glt->height = TexMgr_Pad(glt->height);
-	}
-
 	// mipmap down
-	picmip = (glt->flags & TEXPREF_NOPICMIP) ? 0 : q_max((int)gl_picmip.value, 0);
-	mipwidth = TexMgr_SafeTextureSize (glt->width >> picmip);
-	mipheight = TexMgr_SafeTextureSize (glt->height >> picmip);
+	int picmip = (glt->flags & TEXPREF_NOPICMIP) ? 0 : q_max((int)gl_picmip.value, 0);
+	int mipwidth = TexMgr_SafeTextureSize (glt->width >> picmip);
+	int mipheight = TexMgr_SafeTextureSize (glt->height >> picmip);
 	while ((int) glt->width > mipwidth)
 	{
 		TexMgr_MipMapW (data, glt->width, glt->height);
@@ -1028,35 +1046,66 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 			TexMgr_AlphaEdgeFix ((byte *)data, glt->width, glt->height);
 	}
 
-	// upload
-	GL_Bind (glt);
-	internalformat = (glt->flags & TEXPREF_ALPHA) ? gl_alpha_format : gl_solid_format;
-	glTexImage2D (GL_TEXTURE_2D, 0, internalformat, glt->width, glt->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+	int num_mips = TexMgr_DeriveNumMips(glt->width, glt->height);
 
-	// upload mipmaps
-	if (glt->flags & TEXPREF_MIPMAP)
-	{
-		mipwidth = glt->width;
-		mipheight = glt->height;
+	VkResult err;
 
-		for (miplevel=1; mipwidth > 1 || mipheight > 1; miplevel++)
-		{
-			if (mipwidth > 1)
-			{
-				TexMgr_MipMapW (data, mipwidth, mipheight);
-				mipwidth >>= 1;
-			}
-			if (mipheight > 1)
-			{
-				TexMgr_MipMapH (data, mipwidth, mipheight);
-				mipheight >>= 1;
-			}
-			glTexImage2D (GL_TEXTURE_2D, miplevel, internalformat, mipwidth, mipheight, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-		}
-	}
+	VkImageCreateInfo image_create_info;
+	memset(&image_create_info, 0, sizeof(image_create_info));
+	image_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+	image_create_info.imageType = VK_IMAGE_TYPE_2D;
+	image_create_info.format = VK_FORMAT_R8G8B8A8_UNORM;
+	image_create_info.extent.width = glt->width;
+	image_create_info.extent.height = glt->height;
+	image_create_info.extent.depth = 1;
+	image_create_info.mipLevels = num_mips;
+	image_create_info.arrayLayers = 1;
+	image_create_info.samples = VK_SAMPLE_COUNT_1_BIT;
+	image_create_info.tiling = VK_IMAGE_TILING_OPTIMAL;
+	image_create_info.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+	image_create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+	image_create_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
-	// set filter modes
-	TexMgr_SetFilterModes (glt);*/
+	err = vkCreateImage(vulkan_globals.device, &image_create_info, NULL, &glt->image);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkCreateImage failed");
+
+	VkMemoryRequirements mem_reqs;
+	vkGetImageMemoryRequirements(vulkan_globals.device, glt->image, &mem_reqs);
+
+	VkMemoryAllocateInfo mem_alloc;
+	memset(&mem_alloc, 0, sizeof(mem_alloc));
+	mem_alloc.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	mem_alloc.allocationSize = mem_reqs.size;
+	mem_alloc.memoryTypeIndex = GL_MemoryTypeFromProperties(mem_reqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+	err = vkAllocateMemory(vulkan_globals.device, &mem_alloc, NULL, &glt->memory);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkAllocateMemory failed");
+
+	err = vkBindImageMemory(vulkan_globals.device, glt->image, glt->memory, 0);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkBindImageMemory failed");
+
+	VkImageViewCreateInfo image_view_create_info;
+	memset(&image_view_create_info, 0, sizeof(image_view_create_info));
+	image_view_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+	image_view_create_info.image = glt->image;
+	image_view_create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+	image_view_create_info.format = VK_FORMAT_R8G8B8A8_UNORM;
+	image_view_create_info.components.r = VK_COMPONENT_SWIZZLE_R;
+	image_view_create_info.components.g = VK_COMPONENT_SWIZZLE_G;
+	image_view_create_info.components.b = VK_COMPONENT_SWIZZLE_B;
+	image_view_create_info.components.a = VK_COMPONENT_SWIZZLE_A;
+	image_view_create_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	image_view_create_info.subresourceRange.baseMipLevel = 0;
+	image_view_create_info.subresourceRange.levelCount = num_mips;
+	image_view_create_info.subresourceRange.baseArrayLayer = 0;
+	image_view_create_info.subresourceRange.layerCount = 1;
+
+	err = vkCreateImageView(vulkan_globals.device, &image_view_create_info, NULL, &glt->image_view);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkCreateImageView failed");
 }
 
 /*

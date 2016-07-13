@@ -97,6 +97,18 @@ typedef struct particle_s
 	ptype_t		type;
 } particle_t;
 
+typedef struct
+{
+	VkDevice							device;
+	VkRenderPass						render_pass;
+	VkCommandBuffer						command_buffer;
+	VkClearValue						clear_value;
+	VkFormat							swap_chain_format;
+	VkPhysicalDeviceProperties			device_properties;
+	VkPhysicalDeviceMemoryProperties	memory_properties;
+} vulkanglobals_t;
+
+extern vulkanglobals_t vulkan_globals;
 
 //====================================================
 

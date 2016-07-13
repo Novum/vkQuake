@@ -86,7 +86,6 @@ cvar_t		vid_gamma = {"gamma", "1", CVAR_ARCHIVE}; //johnfitz -- moved here from 
 // Vulkan
 static VkInstance vulkan_instance;
 static VkPhysicalDevice vulkan_physical_device;
-static VkPhysicalDeviceProperties vulkan_physical_device_properties;
 static VkSurfaceKHR vulkan_surface;
 static VkSurfaceCapabilitiesKHR vulkan_surface_capabilities;
 static VkSwapchainKHR vulkan_swapchain;
@@ -568,6 +567,7 @@ static void GL_InitInstance( void )
 	application_info.apiVersion = VK_API_VERSION_1_0;
 
 	char * instance_extensions[] = { VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_WIN32_SURFACE_EXTENSION_NAME };
+	char * layer_names[] = { "VK_LAYER_LUNARG_standard_validation" };
 
 	VkInstanceCreateInfo instance_create_info;
 	memset(&instance_create_info, 0, sizeof(instance_create_info));
@@ -575,6 +575,10 @@ static void GL_InitInstance( void )
 	instance_create_info.pApplicationInfo = &application_info;
 	instance_create_info.enabledExtensionCount = 2;
 	instance_create_info.ppEnabledExtensionNames = instance_extensions;
+#ifdef _DEBUG
+	instance_create_info.enabledLayerCount = 1;
+	instance_create_info.ppEnabledLayerNames = layer_names;
+#endif
 
 	err = vkCreateInstance(&instance_create_info, NULL, &vulkan_instance);
 	if (err != VK_SUCCESS)
@@ -619,6 +623,8 @@ static void GL_InitDevice( void )
 
 	qboolean found_swapchain_extension = false;
 
+	vkGetPhysicalDeviceMemoryProperties(vulkan_physical_device, &vulkan_globals.memory_properties);
+
 	uint32_t device_extension_count;
 	err = vkEnumerateDeviceExtensionProperties(vulkan_physical_device, NULL, &device_extension_count, NULL);
 
@@ -642,8 +648,8 @@ static void GL_InitDevice( void )
 	if(!found_swapchain_extension)
 		Sys_Error("Couldn't find %s extension", VK_KHR_SWAPCHAIN_EXTENSION_NAME);
 
-	vkGetPhysicalDeviceProperties(vulkan_physical_device, &vulkan_physical_device_properties);
-	switch(vulkan_physical_device_properties.vendorID)
+	vkGetPhysicalDeviceProperties(vulkan_physical_device, &vulkan_globals.device_properties);
+	switch(vulkan_globals.device_properties.vendorID)
 	{
 	case 0x8086:
 		Con_Printf("Vendor: Intel\n");
@@ -655,10 +661,10 @@ static void GL_InitDevice( void )
 		Con_Printf("Vendor: AMD\n");
 		break;
 	default:
-		Con_Printf("Vendor: Unknown (0x%x)\n", vulkan_physical_device_properties.vendorID);
+		Con_Printf("Vendor: Unknown (0x%x)\n", vulkan_globals.device_properties.vendorID);
 	}
 
-	Con_Printf("Device: %s\n", vulkan_physical_device_properties.deviceName);
+	Con_Printf("Device: %s\n", vulkan_globals.device_properties.deviceName);
 
 	qboolean found_graphics_queue = false;
 
@@ -694,6 +700,7 @@ static void GL_InitDevice( void )
 	queue_create_info.pQueuePriorities = queue_priorities;
 
 	char * device_extensions[] = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
+	char * layer_names[] = { "VK_LAYER_LUNARG_standard_validation" };
 
 	VkDeviceCreateInfo device_create_info;
 	memset(&device_create_info, 0, sizeof(device_create_info));
@@ -702,6 +709,10 @@ static void GL_InitDevice( void )
 	device_create_info.pQueueCreateInfos = &queue_create_info;
 	device_create_info.enabledExtensionCount = 1;
 	device_create_info.ppEnabledExtensionNames = device_extensions;
+#ifdef _DEBUG
+	device_create_info.enabledLayerCount = 1;
+	device_create_info.ppEnabledLayerNames = layer_names;
+#endif
 
 	err = vkCreateDevice(vulkan_physical_device, &device_create_info, NULL, &vulkan_globals.device);
 	if (err != VK_SUCCESS)
@@ -847,6 +858,7 @@ static void GL_CreateRenderTargets( void )
 	swapchain_create_info.pQueueFamilyIndices = NULL;
 	swapchain_create_info.presentMode = VK_PRESENT_MODE_FIFO_KHR;
 	swapchain_create_info.clipped = true;
+	swapchain_create_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
 
 	vulkan_globals.swap_chain_format = surface_formats[0].format;
 	free(surface_formats);
@@ -924,7 +936,7 @@ static void GL_DestroyRenderTargets( void )
 
 /*
 =================
-GL_BeginRendering -- sets values of glx, gly, glwidth, glheight
+GL_BeginRendering
 =================
 */
 void GL_BeginRendering (int *x, int *y, int *width, int *height)

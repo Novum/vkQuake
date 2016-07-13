@@ -61,6 +61,9 @@ typedef struct gltexture_s {
 	char				shirt; //0-13 shirt color, or -1 if never colormapped
 	char				pants; //0-13 pants color, or -1 if never colormapped
 //used for rendering
+	VkImage				image;
+	VkImageView			image_view;
+	VkDeviceMemory		memory;
 	int			visframe; //matches r_framecount if texture was bound this frame
 } gltexture_t;
 
