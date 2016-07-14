@@ -50,6 +50,32 @@ extern gltexture_t *playertextures[MAX_SCOREBOARD]; //johnfitz
 
 vulkanglobals_t vulkan_globals;
 
+#define STAGING_BUFFER_SIZE_KB	2048
+#define NUM_STAGING_BUFFERS		2
+
+static VkBuffer		staging_buffers[NUM_STAGING_BUFFERS];
+static VkFence		stating_buffer_fences[NUM_STAGING_BUFFERS];
+
+/*
+================
+GL_MemoryTypeFromProperties
+================
+*/
+int GL_MemoryTypeFromProperties(uint32_t type_bits, VkFlags requirements_mask)
+{
+	for (uint32_t i = 0; i < VK_MAX_MEMORY_TYPES; i++) {
+		if ((type_bits & 1) == 1)
+		{
+			if ((vulkan_globals.memory_properties.memoryTypes[i].propertyFlags & requirements_mask) == requirements_mask)
+				return i;
+		}
+		type_bits >>= 1;
+	}
+
+	Sys_Error("Could not find memory type");
+	return 0;
+}
+
 /*
 ====================
 GL_Overbright_f -- johnfitz
@@ -168,6 +194,65 @@ float GL_WaterAlphaForSurface (msurface_t *fa)
 		return map_wateralpha;
 }
 
+/*
+===============
+R_InitStaging
+===============
+*/
+static void R_InitStaging()
+{
+	VkResult err;
+
+	VkBufferCreateInfo buffer_create_info;
+	memset(&buffer_create_info, 0, sizeof(buffer_create_info));
+	buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	buffer_create_info.size = STAGING_BUFFER_SIZE_KB * 1024;
+	buffer_create_info.usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+
+	for(int i = 0; i < NUM_STAGING_BUFFERS; ++i)
+	{
+		err = vkCreateBuffer(vulkan_globals.device, &buffer_create_info, NULL, &staging_buffers[i]);
+		if (err != VK_SUCCESS)
+			Sys_Error("vkCreateBuffer failed");
+	}
+
+	VkMemoryRequirements memory_requirements;
+	vkGetBufferMemoryRequirements(vulkan_globals.device, staging_buffers[0], &memory_requirements);
+
+	const int align_mod = memory_requirements.size % memory_requirements.alignment;
+	const int aligned_size = ( ( memory_requirements.size % memory_requirements.alignment ) == 0 ) 
+		? memory_requirements.size 
+		: ( memory_requirements.size + memory_requirements.alignment - align_mod );
+
+	VkMemoryAllocateInfo memory_allocate_info;
+	memset(&memory_allocate_info, 0, sizeof(memory_allocate_info));
+	memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	memory_allocate_info.allocationSize = NUM_STAGING_BUFFERS * aligned_size;
+	memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+
+	VkDeviceMemory buffer_memory;
+	err = vkAllocateMemory(vulkan_globals.device, &memory_allocate_info, NULL, &buffer_memory);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkAllocateMemory failed");
+
+	for(int i = 0; i < NUM_STAGING_BUFFERS; ++i)
+	{
+		err = vkBindBufferMemory(vulkan_globals.device, staging_buffers[i], buffer_memory, i * aligned_size);
+		if (err != VK_SUCCESS)
+			Sys_Error("vkBindBufferMemory failed");
+	}
+
+	VkFenceCreateInfo fence_create_info;
+	memset(&fence_create_info, 0, sizeof(fence_create_info));
+	fence_create_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+
+	for(int i = 0; i < NUM_STAGING_BUFFERS; ++i)
+	{
+		err = vkCreateFence(vulkan_globals.device, &fence_create_info, NULL, &stating_buffer_fences[i]);
+		if (err != VK_SUCCESS)
+			Sys_Error("vkCreateFence failed");
+	}
+}
 
 /*
 ===============
@@ -245,6 +330,8 @@ void R_Init (void)
 
 	Sky_Init (); //johnfitz
 	Fog_Init (); //johnfitz
+
+	R_InitStaging();
 }
 
 /*

@@ -1002,26 +1002,6 @@ static int TexMgr_DeriveNumMips(int width, int height)
 
 /*
 ================
-GL_MemoryTypeFromProperties
-================
-*/
-static int GL_MemoryTypeFromProperties(uint32_t type_bits, VkFlags requirements_mask) 
-{
-	for (uint32_t i = 0; i < VK_MAX_MEMORY_TYPES; i++) {
-		if ((type_bits & 1) == 1)
-		{
-			if ((vulkan_globals.memory_properties.memoryTypes[i].propertyFlags & requirements_mask) == requirements_mask)
-				return i;
-		}
-		type_bits >>= 1;
-	}
-
-	Sys_Error("Could not find memory type");
-}
-
-
-/*
-================
 TexMgr_LoadImage32 -- handles 32bit source data
 ================
 */
@@ -1046,7 +1026,7 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 			TexMgr_AlphaEdgeFix ((byte *)data, glt->width, glt->height);
 	}
 
-	int num_mips = TexMgr_DeriveNumMips(glt->width, glt->height);
+	int num_mips = ( glt->flags & TEXPREF_MIPMAP ) ? TexMgr_DeriveNumMips(glt->width, glt->height) : 1;
 
 	VkResult err;
 
@@ -1070,16 +1050,16 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateImage failed");
 
-	VkMemoryRequirements mem_reqs;
-	vkGetImageMemoryRequirements(vulkan_globals.device, glt->image, &mem_reqs);
+	VkMemoryRequirements memory_requirements;
+	vkGetImageMemoryRequirements(vulkan_globals.device, glt->image, &memory_requirements);
 
-	VkMemoryAllocateInfo mem_alloc;
-	memset(&mem_alloc, 0, sizeof(mem_alloc));
-	mem_alloc.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	mem_alloc.allocationSize = mem_reqs.size;
-	mem_alloc.memoryTypeIndex = GL_MemoryTypeFromProperties(mem_reqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+	VkMemoryAllocateInfo memory_allocate_info;
+	memset(&memory_allocate_info, 0, sizeof(memory_allocate_info));
+	memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	memory_allocate_info.allocationSize = memory_requirements.size;
+	memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-	err = vkAllocateMemory(vulkan_globals.device, &mem_alloc, NULL, &glt->memory);
+	err = vkAllocateMemory(vulkan_globals.device, &memory_allocate_info, NULL, &glt->memory);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkAllocateMemory failed");
 
@@ -1106,6 +1086,31 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	err = vkCreateImageView(vulkan_globals.device, &image_view_create_info, NULL, &glt->image_view);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateImageView failed");
+
+	// Upload
+	// TODO: Upload base mip
+
+	if (glt->flags & TEXPREF_MIPMAP)
+	{
+		mipwidth = glt->width;
+		mipheight = glt->height;
+
+		for (int miplevel=1; mipwidth > 1 || mipheight > 1; ++miplevel)
+		{
+			if (mipwidth > 1)
+			{
+				TexMgr_MipMapW (data, mipwidth, mipheight);
+				mipwidth >>= 1;
+			}
+			if (mipheight > 1)
+			{
+				TexMgr_MipMapH (data, mipwidth, mipheight);
+				mipheight >>= 1;
+			}
+
+			// TODO: Upload mip
+		}
+	}
 }
 
 /*

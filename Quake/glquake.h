@@ -305,5 +305,7 @@ void GLSLGamma_GammaCorrect (void);
 
 float GL_WaterAlphaForSurface (msurface_t *fa);
 
+int GL_MemoryTypeFromProperties(uint32_t type_bits, VkFlags requirements_mask);
+
 #endif	/* __GLQUAKE_H */
 

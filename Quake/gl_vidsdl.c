@@ -37,6 +37,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define MAXWIDTH		10000
 #define MAXHEIGHT		10000
 
+#define NUM_COMMAND_BUFFERS 2
+
 typedef struct {
 	int			width;
 	int			height;
@@ -746,27 +748,27 @@ static void GL_InitCommandBuffers( void )
 
 	err = vkCreateCommandPool(vulkan_globals.device, &command_pool_create_info, NULL, &vulkan_command_pool);
 	if (err != VK_SUCCESS)
-		Sys_Error("Couldn't create Vulkan command pool");
+		Sys_Error("vkCreateCommandPool failed");
 
 	VkCommandBufferAllocateInfo command_buffer_allocate_info;
 	memset(&command_buffer_allocate_info, 0, sizeof(command_buffer_allocate_info));
 	command_buffer_allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
 	command_buffer_allocate_info.commandPool = vulkan_command_pool;
-	command_buffer_allocate_info.commandBufferCount = 2;
+	command_buffer_allocate_info.commandBufferCount = NUM_COMMAND_BUFFERS;
 
 	err = vkAllocateCommandBuffers(vulkan_globals.device, &command_buffer_allocate_info, vulkan_command_buffers);
 	if (err != VK_SUCCESS)
-		Sys_Error("Couldn't create Vulkan command buffers");
+		Sys_Error("vkAllocateCommandBuffers failed");
 
 	VkFenceCreateInfo fence_create_info;
 	memset(&fence_create_info, 0, sizeof(fence_create_info));
 	fence_create_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
 
-	for (int i = 0; i < 2; ++i) 
+	for (int i = 0; i < NUM_COMMAND_BUFFERS; ++i) 
 	{
 		err = vkCreateFence(vulkan_globals.device, &fence_create_info, NULL, &vulkan_command_buffer_fences[i]);
 		if (err != VK_SUCCESS)
-			Sys_Error("Couldn't create Vulkan command fence");
+			Sys_Error("vkCreateFence failed");
 	}
 }
 
@@ -972,6 +974,8 @@ void GL_BeginRendering (int *x, int *y, int *width, int *height)
 		Sys_Error("Couldn't acquire next image");
 
 	VkRect2D render_area;
+	render_area.offset.x = 0;
+	render_area.offset.y = 0;
 	render_area.extent.width = vid.width;
 	render_area.extent.height = vid.height;
 
@@ -1013,7 +1017,7 @@ void GL_EndRendering (void)
 		Sys_Error("vkQueueSubmit failed");
 
 	vulkan_command_buffer_submitted[vulkan_current_command_buffers] = true;
-	vulkan_current_command_buffers = (vulkan_current_command_buffers + 1) % 2;
+	vulkan_current_command_buffers = (vulkan_current_command_buffers + 1) % NUM_COMMAND_BUFFERS;
 
 	VkPresentInfoKHR present_info;
 	memset(&present_info, 0, sizeof(present_info));
