@@ -307,5 +307,7 @@ float GL_WaterAlphaForSurface (msurface_t *fa);
 
 int GL_MemoryTypeFromProperties(uint32_t type_bits, VkFlags requirements_mask);
 
+unsigned char * R_StagingAllocate(int size, VkCommandBuffer * command_buffer, VkBuffer * staging_buffer, int * staging_offset);
+
 #endif	/* __GLQUAKE_H */
 

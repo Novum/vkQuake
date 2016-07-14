@@ -53,8 +53,16 @@ vulkanglobals_t vulkan_globals;
 #define STAGING_BUFFER_SIZE_KB	2048
 #define NUM_STAGING_BUFFERS		2
 
-static VkBuffer		staging_buffers[NUM_STAGING_BUFFERS];
-static VkFence		stating_buffer_fences[NUM_STAGING_BUFFERS];
+typedef struct
+{
+	VkBuffer			buffer;
+	VkCommandBuffer		command_buffer;
+	VkFence				fence;
+	int					current_offset;
+} stagingbuffer_t;
+
+static VkDeviceMemory	staging_memory;
+static stagingbuffer_t	staging_buffers[NUM_STAGING_BUFFERS];
 
 /*
 ================
@@ -196,10 +204,10 @@ float GL_WaterAlphaForSurface (msurface_t *fa)
 
 /*
 ===============
-R_InitStaging
+R_InitStagingBuffers
 ===============
 */
-static void R_InitStaging()
+static void R_InitStagingBuffers()
 {
 	VkResult err;
 
@@ -211,13 +219,15 @@ static void R_InitStaging()
 
 	for(int i = 0; i < NUM_STAGING_BUFFERS; ++i)
 	{
-		err = vkCreateBuffer(vulkan_globals.device, &buffer_create_info, NULL, &staging_buffers[i]);
+		staging_buffers[i].current_offset = 0;
+
+		err = vkCreateBuffer(vulkan_globals.device, &buffer_create_info, NULL, &staging_buffers[i].buffer);
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateBuffer failed");
 	}
 
 	VkMemoryRequirements memory_requirements;
-	vkGetBufferMemoryRequirements(vulkan_globals.device, staging_buffers[0], &memory_requirements);
+	vkGetBufferMemoryRequirements(vulkan_globals.device, staging_buffers[0].buffer, &memory_requirements);
 
 	const int align_mod = memory_requirements.size % memory_requirements.alignment;
 	const int aligned_size = ( ( memory_requirements.size % memory_requirements.alignment ) == 0 ) 
@@ -230,14 +240,13 @@ static void R_InitStaging()
 	memory_allocate_info.allocationSize = NUM_STAGING_BUFFERS * aligned_size;
 	memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
 
-	VkDeviceMemory buffer_memory;
-	err = vkAllocateMemory(vulkan_globals.device, &memory_allocate_info, NULL, &buffer_memory);
+	err = vkAllocateMemory(vulkan_globals.device, &memory_allocate_info, NULL, &staging_memory);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkAllocateMemory failed");
 
 	for(int i = 0; i < NUM_STAGING_BUFFERS; ++i)
 	{
-		err = vkBindBufferMemory(vulkan_globals.device, staging_buffers[i], buffer_memory, i * aligned_size);
+		err = vkBindBufferMemory(vulkan_globals.device, staging_buffers[i].buffer, staging_memory, i * aligned_size);
 		if (err != VK_SUCCESS)
 			Sys_Error("vkBindBufferMemory failed");
 	}
@@ -248,10 +257,20 @@ static void R_InitStaging()
 
 	for(int i = 0; i < NUM_STAGING_BUFFERS; ++i)
 	{
-		err = vkCreateFence(vulkan_globals.device, &fence_create_info, NULL, &stating_buffer_fences[i]);
+		err = vkCreateFence(vulkan_globals.device, &fence_create_info, NULL, &staging_buffers[i].fence);
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateFence failed");
 	}
+}
+
+/*
+===============
+R_StagingAllocate
+===============
+*/
+unsigned char * R_StagingAllocate(int size, VkCommandBuffer * command_buffer, VkBuffer * staging_buffer, int * staging_offset)
+{
+	return NULL;
 }
 
 /*
@@ -331,7 +350,7 @@ void R_Init (void)
 	Sky_Init (); //johnfitz
 	Fog_Init (); //johnfitz
 
-	R_InitStaging();
+	R_InitStagingBuffers();
 }
 
 /*

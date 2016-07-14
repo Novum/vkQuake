@@ -30,6 +30,7 @@ static cvar_t	gl_max_size = {"gl_max_size", "0", CVAR_NONE};
 static cvar_t	gl_picmip = {"gl_picmip", "0", CVAR_NONE};
 
 #define	MAX_GLTEXTURES	2048
+#define	MAX_MIPS 16
 static int numgltextures;
 static gltexture_t	*active_gltextures, *free_gltextures;
 gltexture_t		*notexture, *nulltexture;
@@ -1002,6 +1003,23 @@ static int TexMgr_DeriveNumMips(int width, int height)
 
 /*
 ================
+TexMgr_DeriveNumMips
+================
+*/
+static int TexMgr_DeriveStagingSize(int width, int height)
+{
+	int size = 0;
+	while(width >= 1 && height >= 1)
+	{
+		width /= 2;
+		height /= 2;
+		size += width * height * 4;
+	}
+	return size;
+}
+
+/*
+================
 TexMgr_LoadImage32 -- handles 32bit source data
 ================
 */
@@ -1027,6 +1045,10 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	}
 
 	int num_mips = ( glt->flags & TEXPREF_MIPMAP ) ? TexMgr_DeriveNumMips(glt->width, glt->height) : 1;
+	
+	// Check for sanity. This should never be reached.
+	if (num_mips > MAX_MIPS)
+		Sys_Error("Texture has over %d mips", MAX_MIPS);
 
 	VkResult err;
 
@@ -1088,7 +1110,30 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 		Sys_Error("vkCreateImageView failed");
 
 	// Upload
-	// TODO: Upload base mip
+	VkBufferImageCopy regions[MAX_MIPS];
+	memset(&regions, 0, sizeof(regions));
+
+	int staging_size = (glt->flags & TEXPREF_MIPMAP) ? TexMgr_DeriveStagingSize(mipwidth, mipheight) : (mipwidth * mipheight * 4);
+
+	VkBuffer staging_buffer;
+	VkCommandBuffer command_buffer;
+	int staging_offset;
+	unsigned char * staging_memory = R_StagingAllocate(staging_size, &command_buffer, &staging_buffer, &staging_offset);
+
+	int num_regions = 0;
+	int mip_offset = 0;
+
+	memcpy(staging_memory + mip_offset, data, mipwidth * mipheight * 4);
+	regions[num_regions].bufferOffset = staging_offset + mip_offset;
+	regions[num_regions].imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	regions[num_regions].imageSubresource.layerCount = 1;
+	regions[num_regions].imageSubresource.mipLevel = num_regions;
+	regions[num_regions].imageExtent.width = mipwidth;
+	regions[num_regions].imageExtent.height = mipheight;
+	regions[num_regions].imageExtent.depth = 1;
+	
+	mip_offset += mipwidth * mipheight * 4;
+	num_regions += 1;
 
 	if (glt->flags & TEXPREF_MIPMAP)
 	{
@@ -1108,9 +1153,43 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 				mipheight >>= 1;
 			}
 
-			// TODO: Upload mip
+			memcpy(staging_memory + mip_offset, data, mipwidth * mipheight * 4);
+			regions[num_regions].bufferOffset = staging_offset + mip_offset;
+			regions[num_regions].imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+			regions[num_regions].imageSubresource.layerCount = 1;
+			regions[num_regions].imageSubresource.mipLevel = num_regions;
+			regions[num_regions].imageExtent.width = mipwidth;
+			regions[num_regions].imageExtent.height = mipheight;
+			regions[num_regions].imageExtent.depth = 1;
+			
+			mip_offset += mipwidth * mipheight * 4;
+			num_regions += 1;
 		}
 	}
+
+	VkImageMemoryBarrier image_memory_barrier;
+	memset(&image_memory_barrier, 0, sizeof(image_memory_barrier));
+	image_memory_barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+	image_memory_barrier.srcAccessMask = 0;
+	image_memory_barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+	image_memory_barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	image_memory_barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+	image_memory_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	image_memory_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	image_memory_barrier.image = glt->image;
+	image_memory_barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	image_memory_barrier.subresourceRange.baseMipLevel = 0;
+	image_memory_barrier.subresourceRange.levelCount = num_mips;
+	image_memory_barrier.subresourceRange.baseArrayLayer = 0;
+	image_memory_barrier.subresourceRange.layerCount = 1;
+
+	vkCmdPipelineBarrier(command_buffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, NULL, 0, NULL, 1, &image_memory_barrier);
+
+	vkCmdCopyBufferToImage(command_buffer, staging_buffer, glt->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, num_regions, regions);
+
+	image_memory_barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+	image_memory_barrier.oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	vkCmdPipelineBarrier(command_buffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, NULL, 0, NULL, 1, &image_memory_barrier);
 }
 
 /*
