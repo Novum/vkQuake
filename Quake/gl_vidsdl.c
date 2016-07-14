@@ -676,6 +676,7 @@ static void GL_InitDevice( void )
 	}
 
 	VkQueueFamilyProperties * queue_family_properties = (VkQueueFamilyProperties *)malloc(vulkan_queue_count * sizeof(VkQueueFamilyProperties));
+	vkGetPhysicalDeviceQueueFamilyProperties(vulkan_physical_device, &vulkan_queue_count, queue_family_properties);
 	for (uint32_t i = 0; i < vulkan_queue_count; ++i)
 	{
 		if ((queue_family_properties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) != 0)
