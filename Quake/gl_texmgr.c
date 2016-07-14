@@ -3,6 +3,7 @@ Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2007-2008 Kristian Duske
 Copyright (C) 2010-2014 QuakeSpasm developers
+Copyright (C) 2016 Axel Gneiting
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -1044,7 +1045,7 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 			TexMgr_AlphaEdgeFix ((byte *)data, glt->width, glt->height);
 	}
 
-	int num_mips = ( glt->flags & TEXPREF_MIPMAP ) ? TexMgr_DeriveNumMips(glt->width, glt->height) : 1;
+	int num_mips = (glt->flags & TEXPREF_MIPMAP) ? TexMgr_DeriveNumMips(glt->width, glt->height) : 1;
 	
 	// Check for sanity. This should never be reached.
 	if (num_mips > MAX_MIPS)
