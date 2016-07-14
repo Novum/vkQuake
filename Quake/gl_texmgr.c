@@ -338,7 +338,7 @@ TexMgr_FreeTexture
 */
 void TexMgr_FreeTexture (gltexture_t *kill)
 {
-	/*gltexture_t *glt;
+	gltexture_t *glt;
 
 	if (in_reload_images)
 		return;
@@ -374,7 +374,7 @@ void TexMgr_FreeTexture (gltexture_t *kill)
 		}
 	}
 
-	Con_Printf ("TexMgr_FreeTexture: not found\n");*/
+	Con_Printf ("TexMgr_FreeTexture: not found\n");
 }
 
 /*
@@ -1626,21 +1626,18 @@ void GL_Bind (gltexture_t *texture)
 
 /*
 ================
-GL_DeleteTexture -- ericw
-
-Wrapper around glDeleteTextures that also clears the given texture number
-from our per-TMU cached texture binding table.
+GL_DeleteTexture
 ================
 */
 static void GL_DeleteTexture (gltexture_t *texture)
 {
-	/*glDeleteTextures (1, &texture->texnum);
+	vkDestroyImageView(vulkan_globals.device, texture->image_view, NULL);
+	vkDestroyImage(vulkan_globals.device, texture->image, NULL);
+	vkFreeMemory(vulkan_globals.device, texture->memory, NULL);
 
-	if (texture->texnum == currenttexture[0]) currenttexture[0] = -1;
-    if (texture->texnum == currenttexture[1]) currenttexture[1] = -1;
-    if (texture->texnum == currenttexture[2]) currenttexture[2] = -1;
-
-	texture->texnum = 0;*/
+	texture->image_view = VK_NULL_HANDLE;
+	texture->image = VK_NULL_HANDLE;
+	texture->memory = VK_NULL_HANDLE;
 }
 
 /*
