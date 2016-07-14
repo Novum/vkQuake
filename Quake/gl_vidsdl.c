@@ -91,8 +91,6 @@ static VkPhysicalDevice vulkan_physical_device;
 static VkSurfaceKHR vulkan_surface;
 static VkSurfaceCapabilitiesKHR vulkan_surface_capabilities;
 static VkSwapchainKHR vulkan_swapchain;
-static VkQueue vulkan_queue;
-static uint32_t vulkan_gfx_queue_family_index;
 
 static uint32_t vulkan_current_command_buffers;
 static VkCommandPool vulkan_command_pool;
@@ -683,7 +681,7 @@ static void GL_InitDevice( void )
 		if ((queue_family_properties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) != 0)
 		{
 			found_graphics_queue = true;
-			vulkan_gfx_queue_family_index = i;
+			vulkan_globals.gfx_queue_family_index = i;
 			break;
 		}
 	}
@@ -697,7 +695,7 @@ static void GL_InitDevice( void )
 	VkDeviceQueueCreateInfo queue_create_info;
 	memset(&queue_create_info, 0, sizeof(queue_create_info));
 	queue_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-	queue_create_info.queueFamilyIndex = vulkan_gfx_queue_family_index;
+	queue_create_info.queueFamilyIndex = vulkan_globals.gfx_queue_family_index;
 	queue_create_info.queueCount = 1;
 	queue_create_info.pQueuePriorities = queue_priorities;
 
@@ -726,7 +724,7 @@ static void GL_InitDevice( void )
 	GET_DEVICE_PROC_ADDR(vulkan_globals.device, AcquireNextImageKHR);
 	GET_DEVICE_PROC_ADDR(vulkan_globals.device, QueuePresentKHR);
 
-	vkGetDeviceQueue(vulkan_globals.device, vulkan_gfx_queue_family_index, 0, &vulkan_queue);
+	vkGetDeviceQueue(vulkan_globals.device, vulkan_globals.gfx_queue_family_index, 0, &vulkan_globals.queue);
 }
 
 /*
@@ -744,7 +742,7 @@ static void GL_InitCommandBuffers( void )
 	memset(&command_pool_create_info, 0, sizeof(command_pool_create_info));
 	command_pool_create_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 	command_pool_create_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-	command_pool_create_info.queueFamilyIndex = vulkan_gfx_queue_family_index;
+	command_pool_create_info.queueFamilyIndex = vulkan_globals.gfx_queue_family_index;
 
 	err = vkCreateCommandPool(vulkan_globals.device, &command_pool_create_info, NULL, &vulkan_command_pool);
 	if (err != VK_SUCCESS)
@@ -943,6 +941,8 @@ GL_BeginRendering
 */
 void GL_BeginRendering (int *x, int *y, int *width, int *height)
 {
+	R_SubmitStagingBuffers();
+
 	*x = *y = 0;
 	*width = vid.width;
 	*height = vid.height;
@@ -1012,7 +1012,7 @@ void GL_EndRendering (void)
 	submit_info.commandBufferCount = 1;
 	submit_info.pCommandBuffers = &vulkan_command_buffers[vulkan_current_command_buffers];
 
-	err = vkQueueSubmit(vulkan_queue, 1, &submit_info, vulkan_command_buffer_fences[vulkan_current_command_buffers]);
+	err = vkQueueSubmit(vulkan_globals.queue, 1, &submit_info, vulkan_command_buffer_fences[vulkan_current_command_buffers]);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkQueueSubmit failed");
 
@@ -1024,7 +1024,7 @@ void GL_EndRendering (void)
 	present_info.swapchainCount = 1;
 	present_info.pSwapchains = &vulkan_swapchain,
 	present_info.pImageIndices = &current_swapchain_buffer;
-	err = fpQueuePresentKHR(vulkan_queue, &present_info);
+	err = fpQueuePresentKHR(vulkan_globals.queue, &present_info);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkQueuePresentKHR failed");
 }
@@ -1300,6 +1300,7 @@ void	VID_Init (void)
 	GL_InitCommandBuffers();
 	GL_CreateRenderPass();
 	GL_CreateRenderTargets();
+	R_InitStagingBuffers();
 
 	//johnfitz -- removed code creating "glquake" subdirectory
 

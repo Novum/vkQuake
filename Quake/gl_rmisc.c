@@ -59,10 +59,14 @@ typedef struct
 	VkCommandBuffer		command_buffer;
 	VkFence				fence;
 	int					current_offset;
+	qboolean			submitted;
+	unsigned char *		data;
 } stagingbuffer_t;
 
+static VkCommandPool	staging_command_pool;
 static VkDeviceMemory	staging_memory;
 static stagingbuffer_t	staging_buffers[NUM_STAGING_BUFFERS];
+static int				current_staging_buffer = 0;
 
 /*
 ================
@@ -207,7 +211,7 @@ float GL_WaterAlphaForSurface (msurface_t *fa)
 R_InitStagingBuffers
 ===============
 */
-static void R_InitStagingBuffers()
+void R_InitStagingBuffers()
 {
 	VkResult err;
 
@@ -220,6 +224,7 @@ static void R_InitStagingBuffers()
 	for(int i = 0; i < NUM_STAGING_BUFFERS; ++i)
 	{
 		staging_buffers[i].current_offset = 0;
+		staging_buffers[i].submitted = false;
 
 		err = vkCreateBuffer(vulkan_globals.device, &buffer_create_info, NULL, &staging_buffers[i].buffer);
 		if (err != VK_SUCCESS)
@@ -251,15 +256,88 @@ static void R_InitStagingBuffers()
 			Sys_Error("vkBindBufferMemory failed");
 	}
 
+	unsigned char * data;
+	err = vkMapMemory(vulkan_globals.device, staging_memory, 0, NUM_STAGING_BUFFERS * aligned_size, 0, &data);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkMapMemory failed");
+
+	VkCommandPoolCreateInfo command_pool_create_info;
+	memset(&command_pool_create_info, 0, sizeof(command_pool_create_info));
+	command_pool_create_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+	command_pool_create_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+	command_pool_create_info.queueFamilyIndex = vulkan_globals.gfx_queue_family_index;
+
+	err = vkCreateCommandPool(vulkan_globals.device, &command_pool_create_info, NULL, &staging_command_pool);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkCreateCommandPool failed");
+
+	VkCommandBufferAllocateInfo command_buffer_allocate_info;
+	memset(&command_buffer_allocate_info, 0, sizeof(command_buffer_allocate_info));
+	command_buffer_allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	command_buffer_allocate_info.commandPool = staging_command_pool;
+	command_buffer_allocate_info.commandBufferCount = NUM_STAGING_BUFFERS;
+
+	VkCommandBuffer command_buffers[NUM_STAGING_BUFFERS];
+	err = vkAllocateCommandBuffers(vulkan_globals.device, &command_buffer_allocate_info, command_buffers);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkAllocateCommandBuffers failed");
+
 	VkFenceCreateInfo fence_create_info;
 	memset(&fence_create_info, 0, sizeof(fence_create_info));
 	fence_create_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+
+	VkCommandBufferBeginInfo command_buffer_begin_info;
+	memset(&command_buffer_begin_info, 0, sizeof(command_buffer_begin_info));
+	command_buffer_begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 
 	for(int i = 0; i < NUM_STAGING_BUFFERS; ++i)
 	{
 		err = vkCreateFence(vulkan_globals.device, &fence_create_info, NULL, &staging_buffers[i].fence);
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateFence failed");
+
+		staging_buffers[i].command_buffer = command_buffers[i];
+		staging_buffers[i].data = data + (i * aligned_size);
+
+		err = vkBeginCommandBuffer(staging_buffers[i].command_buffer, &command_buffer_begin_info);
+		if (err != VK_SUCCESS)
+			Sys_Error("vkBeginCommandBuffer failed");
+	}
+}
+
+/*
+===============
+R_SubmitStagingBuffer
+===============
+*/
+static void R_SubmitStagingBuffer(int index)
+{
+	vkEndCommandBuffer(staging_buffers[index].command_buffer);
+
+	VkSubmitInfo submit_info;
+	memset(&submit_info, 0, sizeof(submit_info));
+	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submit_info.commandBufferCount = 1;
+	submit_info.pCommandBuffers = &staging_buffers[index].command_buffer;
+	
+	vkQueueSubmit(vulkan_globals.queue, 1, &submit_info, staging_buffers[index].fence);
+
+	staging_buffers[index].submitted = true;
+	current_staging_buffer = (current_staging_buffer + 1) % NUM_STAGING_BUFFERS;
+}
+
+
+/*
+===============
+R_SubmitStagingBuffers
+===============
+*/
+void R_SubmitStagingBuffers()
+{
+	for (int i = 0; i<NUM_STAGING_BUFFERS; ++i)
+	{
+		if (!staging_buffers[i].submitted && staging_buffers[i].current_offset > 0)
+			R_SubmitStagingBuffer(i);
 	}
 }
 
@@ -268,9 +346,45 @@ static void R_InitStagingBuffers()
 R_StagingAllocate
 ===============
 */
-unsigned char * R_StagingAllocate(int size, VkCommandBuffer * command_buffer, VkBuffer * staging_buffer, int * staging_offset)
+unsigned char * R_StagingAllocate(int size, VkCommandBuffer * command_buffer, VkBuffer * buffer, int * buffer_offset)
 {
-	return NULL;
+	if (size > (STAGING_BUFFER_SIZE_KB * 1024))
+		Sys_Error("Cannot allocate staging buffer space");
+
+	if ((staging_buffers[current_staging_buffer].current_offset + size) >= (STAGING_BUFFER_SIZE_KB * 1024) && !staging_buffers[current_staging_buffer].submitted)
+		R_SubmitStagingBuffer(current_staging_buffer);
+
+	stagingbuffer_t * staging_buffer = &staging_buffers[current_staging_buffer];
+	if (staging_buffer->submitted)
+	{
+		VkResult err;
+
+		vkWaitForFences(vulkan_globals.device, 1, &staging_buffer->fence, VK_TRUE, UINT64_MAX);
+
+		err = vkResetFences(vulkan_globals.device, 1, &staging_buffer->fence);
+		if (err != VK_SUCCESS)
+			Sys_Error("vkResetFences failed");
+
+		staging_buffer->current_offset = 0;
+		staging_buffer->submitted = false;
+
+		VkCommandBufferBeginInfo command_buffer_begin_info;
+		memset(&command_buffer_begin_info, 0, sizeof(command_buffer_begin_info));
+		command_buffer_begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+		err = vkBeginCommandBuffer(staging_buffer->command_buffer, &command_buffer_begin_info);
+		if (err != VK_SUCCESS)
+			Sys_Error("vkBeginCommandBuffer failed");
+	}
+
+	*command_buffer = staging_buffer->command_buffer;
+	*buffer = staging_buffer->buffer;
+	*buffer_offset = staging_buffer->current_offset;
+
+	unsigned char *data = staging_buffer->data + staging_buffer->current_offset;
+	staging_buffer->current_offset += size;
+
+	return data;
 }
 
 /*
@@ -349,8 +463,6 @@ void R_Init (void)
 
 	Sky_Init (); //johnfitz
 	Fog_Init (); //johnfitz
-
-	R_InitStagingBuffers();
 }
 
 /*

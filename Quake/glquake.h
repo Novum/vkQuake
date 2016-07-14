@@ -100,12 +100,14 @@ typedef struct particle_s
 typedef struct
 {
 	VkDevice							device;
-	VkRenderPass						render_pass;
+	VkQueue								queue;
 	VkCommandBuffer						command_buffer;
+	VkRenderPass						render_pass;
 	VkClearValue						clear_value;
 	VkFormat							swap_chain_format;
 	VkPhysicalDeviceProperties			device_properties;
 	VkPhysicalDeviceMemoryProperties	memory_properties;
+	uint32_t							gfx_queue_family_index;
 } vulkanglobals_t;
 
 extern vulkanglobals_t vulkan_globals;
@@ -307,7 +309,9 @@ float GL_WaterAlphaForSurface (msurface_t *fa);
 
 int GL_MemoryTypeFromProperties(uint32_t type_bits, VkFlags requirements_mask);
 
-unsigned char * R_StagingAllocate(int size, VkCommandBuffer * command_buffer, VkBuffer * staging_buffer, int * staging_offset);
+void R_InitStagingBuffers();
+void R_SubmitStagingBuffers();
+unsigned char * R_StagingAllocate(int size, VkCommandBuffer * command_buffer, VkBuffer * buffer, int * buffer_offset);
 
 #endif	/* __GLQUAKE_H */
 
