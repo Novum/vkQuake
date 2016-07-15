@@ -21,7 +21,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
-//gl_texmgr.c -- fitzquake's texture manager. manages opengl texture images
+//gl_texmgr.c -- fitzquake's texture manager. manages texture images
 
 #include "quakedef.h"
 
@@ -52,30 +52,6 @@ unsigned int d_8to24table_pants[256];
 
 ================================================================================
 */
-
-typedef struct
-{
-	int	magfilter;
-	int	minfilter;
-	const char  *name;
-} glmode_t;
-
-#define NUM_GLMODES (int)(sizeof(glmodes)/sizeof(glmodes[0]))
-
-/*
-===============
-TexMgr_DescribeTextureModes_f -- report available texturemodes
-===============
-*/
-static void TexMgr_DescribeTextureModes_f (void)
-{
-	/*int i;
-
-	for (i = 0; i < NUM_GLMODES; i++)
-		Con_SafePrintf ("   %2i: %s\n", i + 1, glmodes[i].name);
-
-	Con_Printf ("%i modes\n", i);*/
-}
 
 /*
 ===============
@@ -207,50 +183,6 @@ static void TexMgr_Imagelist_f (void)
 
 	mb = texels * (Cvar_VariableValue("vid_bpp") / 8.0f) / 0x100000;
 	Con_Printf ("%i textures %i pixels %1.1f megabytes\n", numgltextures, (int)texels, mb);
-}
-
-/*
-===============
-TexMgr_Imagedump_f -- dump all current textures to TGA files
-===============
-*/
-static void TexMgr_Imagedump_f (void)
-{
-	/*char tganame[MAX_OSPATH], tempname[MAX_OSPATH], dirname[MAX_OSPATH];
-	gltexture_t	*glt;
-	byte *buffer;
-	char *c;
-
-	//create directory
-	q_snprintf(dirname, sizeof(dirname), "%s/imagedump", com_gamedir);
-	Sys_mkdir (dirname);
-
-	//loop through textures
-	for (glt = active_gltextures; glt; glt = glt->next)
-	{
-		q_strlcpy (tempname, glt->name, sizeof(tempname));
-		while ( (c = strchr(tempname, ':')) ) *c = '_';
-		while ( (c = strchr(tempname, '/')) ) *c = '_';
-		while ( (c = strchr(tempname, '*')) ) *c = '_';
-		q_snprintf(tganame, sizeof(tganame), "imagedump/%s.tga", tempname);
-
-		GL_Bind (glt);
-		if (glt->flags & TEXPREF_ALPHA)
-		{
-			buffer = (byte *) malloc(glt->width*glt->height*4);
-			glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, buffer);
-			Image_WriteTGA (tganame, buffer, glt->width, glt->height, 32, true);
-		}
-		else
-		{
-			buffer = (byte *) malloc(glt->width*glt->height*3);
-			glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, buffer);
-			Image_WriteTGA (tganame, buffer, glt->width, glt->height, 24, true);
-		}
-		free (buffer);
-	}
-
-	Con_Printf ("dumped %i textures to %s\n", numgltextures, dirname);*/
 }
 
 /*
@@ -608,12 +540,7 @@ void TexMgr_Init (void)
 	Cvar_SetCallback (&gl_texture_anisotropy, &TexMgr_Anisotropy_f);
 	Cvar_RegisterVariable (&gl_texturemode);
 	Cvar_SetCallback (&gl_texturemode, &TexMgr_TextureMode_f);
-	Cmd_AddCommand ("gl_describetexturemodes", &TexMgr_DescribeTextureModes_f);
 	Cmd_AddCommand ("imagelist", &TexMgr_Imagelist_f);
-	Cmd_AddCommand ("imagedump", &TexMgr_Imagedump_f);
-
-	// poll max size from hardware
-	//glGetIntegerv (GL_MAX_TEXTURE_SIZE, &gl_hardware_maxsize);
 
 	// load notexture images
 	notexture = TexMgr_LoadImage (NULL, "notexture", 2, 2, SRC_RGBA, notexture_data, "", (src_offset_t)notexture_data, TEXPREF_NEAREST | TEXPREF_PERSIST | TEXPREF_NOPICMIP);
