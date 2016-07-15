@@ -214,6 +214,8 @@ R_InitStagingBuffers
 */
 void R_InitStagingBuffers()
 {
+	Con_Printf("Initializing staging\n");
+
 	VkResult err;
 
 	VkBufferCreateInfo buffer_create_info;

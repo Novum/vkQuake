@@ -38,6 +38,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define MAXHEIGHT		10000
 
 #define NUM_COMMAND_BUFFERS 2
+#define NUM_SWAP_CHAIN_IMAGES 2
 
 typedef struct {
 	int			width;
@@ -846,7 +847,7 @@ static void GL_CreateRenderTargets( void )
 	swapchain_create_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
 	swapchain_create_info.pNext = NULL;
 	swapchain_create_info.surface = vulkan_surface;
-	swapchain_create_info.minImageCount = 2;
+	swapchain_create_info.minImageCount = NUM_SWAP_CHAIN_IMAGES;
 	swapchain_create_info.imageFormat = surface_formats[0].format;
 	swapchain_create_info.imageColorSpace = surface_formats[0].colorSpace;
 	swapchain_create_info.imageExtent.width = vid.width;
@@ -870,7 +871,7 @@ static void GL_CreateRenderTargets( void )
 
 	uint32_t image_count;
 	err = fpGetSwapchainImagesKHR(vulkan_globals.device, vulkan_swapchain, &image_count, NULL);
-	if (err != VK_SUCCESS || image_count != 2)
+	if (err != VK_SUCCESS || image_count != NUM_SWAP_CHAIN_IMAGES)
 		Sys_Error("Couldn't get swap chain images");
 
 	VkImage *swapchain_images = (VkImage *)malloc(image_count * sizeof(VkImage));
@@ -901,7 +902,7 @@ static void GL_CreateRenderTargets( void )
 	framebuffer_create_info.height = vid.height;
 	framebuffer_create_info.layers = 1;
 
-	for (int i = 0; i < 2; ++i)
+	for (int i = 0; i < NUM_SWAP_CHAIN_IMAGES; ++i)
 	{
 		image_view_create_info.image = swapchain_images[i];
 		err = vkCreateImageView(vulkan_globals.device, &image_view_create_info, NULL, &swapchain_images_views[i]);
@@ -926,7 +927,7 @@ static void GL_DestroyRenderTargets( void )
 {
 	Con_Printf("Destroying render targets\n");
 
-	for (int i = 0; i < 2; ++i)
+	for (int i = 0; i < NUM_SWAP_CHAIN_IMAGES; ++i)
 	{
 		vkDestroyImageView(vulkan_globals.device, swapchain_images_views[i], NULL);
 		swapchain_images_views[i] = VK_NULL_HANDLE;
