@@ -422,10 +422,10 @@ void Draw_Init (void)
 
 /*
 ================
-Draw_CharacterQuad -- johnfitz -- seperate function to spit out verts
+Draw_FillCharacterQuad
 ================
 */
-void Draw_CharacterQuad (int x, int y, char num)
+void Draw_FillCharacterQuad (int x, int y, char num, basicvertex_t * output)
 {
 	int				row, col;
 	float			frow, fcol, size;
@@ -437,14 +437,35 @@ void Draw_CharacterQuad (int x, int y, char num)
 	fcol = col*0.0625;
 	size = 0.0625;
 
-	/*glTexCoord2f (fcol, frow);
-	glVertex2f (x, y);
-	glTexCoord2f (fcol + size, frow);
-	glVertex2f (x+8, y);
-	glTexCoord2f (fcol + size, frow + size);
-	glVertex2f (x+8, y+8);
-	glTexCoord2f (fcol, frow + size);
-	glVertex2f (x, y+8);*/
+	basicvertex_t vertices[4];
+	memset(&vertices, 0, sizeof(vertices));
+
+	vertices[0].position[0] = x;
+	vertices[0].position[1] = y;
+	vertices[0].texcoord[0] = fcol;
+	vertices[0].texcoord[1] = frow;
+
+	vertices[0].position[0] = x+8;
+	vertices[0].position[1] = y;
+	vertices[0].texcoord[0] = fcol + size;
+	vertices[0].texcoord[1] = frow;
+
+	vertices[0].position[0] = x+8;
+	vertices[0].position[1] = y+8;
+	vertices[0].texcoord[0] = fcol + size;
+	vertices[0].texcoord[1] = frow + size;
+
+	vertices[0].position[0] = x;
+	vertices[0].position[1] = y+8;
+	vertices[0].texcoord[0] = fcol;
+	vertices[0].texcoord[1] = frow + size;
+
+	output[0] = vertices[0];
+	output[1] = vertices[1];
+	output[2] = vertices[2];
+	output[3] = vertices[1];
+	output[4] = vertices[3];
+	output[5] = vertices[2];
 }
 
 /*
@@ -461,6 +482,14 @@ void Draw_Character (int x, int y, int num)
 
 	if (num == 32)
 		return; //don't waste verts on spaces
+
+	VkBuffer buffer;
+	uint64_t buffer_offset;
+	basicvertex_t * vertices = (basicvertex_t*)R_VertexAllocate(6 * sizeof(basicvertex_t), &buffer, &buffer_offset);
+
+	Draw_FillCharacterQuad(x, y, (char)num, vertices);
+
+	vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
 
 	/*GL_Bind (char_texture);
 	glBegin (GL_QUADS);

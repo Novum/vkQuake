@@ -85,7 +85,7 @@ Dynamic vertex buffer
 typedef struct
 {
 	VkBuffer			buffer;
-	int					current_offset;
+	uint32_t			current_offset;
 	unsigned char *		data;
 } dynvertexbuffer_t;
 
@@ -373,7 +373,7 @@ void R_SubmitStagingBuffers()
 R_StagingAllocate
 ===============
 */
-unsigned char * R_StagingAllocate(int size, VkCommandBuffer * command_buffer, VkBuffer * buffer, int * buffer_offset)
+byte * R_StagingAllocate(int size, VkCommandBuffer * command_buffer, VkBuffer * buffer, int * buffer_offset)
 {
 	if (size > (STAGING_BUFFER_SIZE_KB * 1024))
 		Sys_Error("Cannot allocate staging buffer space");
@@ -490,7 +490,7 @@ void R_SwapDynamicVertexBuffers()
 R_VertexAllocate
 ===============
 */
-unsigned char * R_VertexAllocate(int size, VkBuffer * buffer, int * buffer_offset)
+byte * R_VertexAllocate(int size, VkBuffer * buffer, uint64_t * buffer_offset)
 {
 	dynvertexbuffer_t *dyn_vb = &dyn_vertex_buffers[current_dyn_vb];
 

@@ -208,6 +208,13 @@ typedef struct {
 extern overflowtimes_t dev_overflows; //this stores the last time overflow messages were displayed, not the last time overflows occured
 #define CONSOLE_RESPAM_TIME 3 // seconds between repeated warning messages
 
+typedef struct
+{
+	float	position[3];
+	float	texcoord[2];
+	byte	color[3];
+} basicvertex_t;
+
 //johnfitz -- moved here from r_brush.c
 extern int gl_lightmap_format, lightmap_bytes;
 #define MAX_LIGHTMAPS 256 //johnfitz -- was 64
@@ -312,11 +319,11 @@ int GL_MemoryTypeFromProperties(uint32_t type_bits, VkFlags requirements_mask);
 
 void R_InitStagingBuffers();
 void R_SubmitStagingBuffers();
-unsigned char * R_StagingAllocate(int size, VkCommandBuffer * command_buffer, VkBuffer * buffer, int * buffer_offset);
+byte * R_StagingAllocate(int size, VkCommandBuffer * command_buffer, VkBuffer * buffer, int * buffer_offset);
 
 void R_InitDynamicVertexBuffers();
 void R_SwapDynamicVertexBuffers();
-unsigned char * R_VertexAllocate(int size, VkBuffer * buffer, int * buffer_offset);
+byte * R_VertexAllocate(int size, VkBuffer * buffer, uint64_t * buffer_offset);
 
 #endif	/* __GLQUAKE_H */
 
