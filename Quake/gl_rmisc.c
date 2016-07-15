@@ -51,6 +51,11 @@ extern gltexture_t *playertextures[MAX_SCOREBOARD]; //johnfitz
 
 vulkanglobals_t vulkan_globals;
 
+/*
+================
+Staging
+================
+*/
 #define STAGING_BUFFER_SIZE_KB	2048
 #define NUM_STAGING_BUFFERS		2
 
@@ -68,6 +73,25 @@ static VkCommandPool	staging_command_pool;
 static VkDeviceMemory	staging_memory;
 static stagingbuffer_t	staging_buffers[NUM_STAGING_BUFFERS];
 static int				current_staging_buffer = 0;
+
+/*
+================
+Dynamic vertex buffer
+================
+*/
+#define DYNAMIC_VERTEX_BUFFER_SIZE_KB	2048
+#define NUM_DYNAMIC_VERTEX_BUFFERS		2
+
+typedef struct
+{
+	VkBuffer			buffer;
+	int					current_offset;
+	unsigned char *		data;
+} dynvertexbuffer_t;
+
+static VkDeviceMemory		dyn_vertex_buffer_memory;
+static dynvertexbuffer_t	dyn_vertex_buffers[NUM_DYNAMIC_VERTEX_BUFFERS];
+static int					vertex_dynamic_vertex_buffer = 0;
 
 /*
 ================
@@ -222,7 +246,7 @@ void R_InitStagingBuffers()
 	memset(&buffer_create_info, 0, sizeof(buffer_create_info));
 	buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 	buffer_create_info.size = STAGING_BUFFER_SIZE_KB * 1024;
-	buffer_create_info.usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+	buffer_create_info.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 
 	for(int i = 0; i < NUM_STAGING_BUFFERS; ++i)
 	{
@@ -388,6 +412,66 @@ unsigned char * R_StagingAllocate(int size, VkCommandBuffer * command_buffer, Vk
 	staging_buffer->current_offset += size;
 
 	return data;
+}
+
+/*
+===============
+R_InitDynamicVertexBuffers
+===============
+*/
+void R_InitDynamicVertexBuffers()
+{
+	Con_Printf("Initializing dynamic vertex buffers\n");
+
+	VkResult err;
+
+	VkBufferCreateInfo buffer_create_info;
+	memset(&buffer_create_info, 0, sizeof(buffer_create_info));
+	buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	buffer_create_info.size = DYNAMIC_VERTEX_BUFFER_SIZE_KB * 1024;
+	buffer_create_info.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+
+	for(int i = 0; i < NUM_DYNAMIC_VERTEX_BUFFERS; ++i)
+	{
+		dyn_vertex_buffers[i].current_offset = 0;
+
+		err = vkCreateBuffer(vulkan_globals.device, &buffer_create_info, NULL, &dyn_vertex_buffers[i].buffer);
+		if (err != VK_SUCCESS)
+			Sys_Error("vkCreateBuffer failed");
+	}
+
+	VkMemoryRequirements memory_requirements;
+	vkGetBufferMemoryRequirements(vulkan_globals.device, dyn_vertex_buffers[0].buffer, &memory_requirements);
+
+	const int align_mod = memory_requirements.size % memory_requirements.alignment;
+	const int aligned_size = ( ( memory_requirements.size % memory_requirements.alignment ) == 0 ) 
+		? memory_requirements.size 
+		: ( memory_requirements.size + memory_requirements.alignment - align_mod );
+
+	VkMemoryAllocateInfo memory_allocate_info;
+	memset(&memory_allocate_info, 0, sizeof(memory_allocate_info));
+	memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	memory_allocate_info.allocationSize = NUM_DYNAMIC_VERTEX_BUFFERS * aligned_size;
+	memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+
+	err = vkAllocateMemory(vulkan_globals.device, &memory_allocate_info, NULL, &dyn_vertex_buffer_memory);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkAllocateMemory failed");
+
+	for(int i = 0; i < NUM_STAGING_BUFFERS; ++i)
+	{
+		err = vkBindBufferMemory(vulkan_globals.device, dyn_vertex_buffers[i].buffer, dyn_vertex_buffer_memory, i * aligned_size);
+		if (err != VK_SUCCESS)
+			Sys_Error("vkBindBufferMemory failed");
+	}
+
+	unsigned char * data;
+	err = vkMapMemory(vulkan_globals.device, dyn_vertex_buffer_memory, 0, NUM_STAGING_BUFFERS * aligned_size, 0, &data);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkMapMemory failed");
+
+	for(int i = 0; i < NUM_STAGING_BUFFERS; ++i)
+		dyn_vertex_buffers[i].data = data + (i * aligned_size);
 }
 
 /*

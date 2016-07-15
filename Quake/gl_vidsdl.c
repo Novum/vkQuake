@@ -1303,6 +1303,7 @@ void	VID_Init (void)
 	GL_CreateRenderPass();
 	GL_CreateRenderTargets();
 	R_InitStagingBuffers();
+	R_InitDynamicVertexBuffers();
 
 	//johnfitz -- removed code creating "glquake" subdirectory
 

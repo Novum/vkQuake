@@ -3,6 +3,7 @@ Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2007-2008 Kristian Duske
 Copyright (C) 2010-2014 QuakeSpasm developers
+Copyright (C) 2016 Axel Gneiting
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -312,6 +313,8 @@ int GL_MemoryTypeFromProperties(uint32_t type_bits, VkFlags requirements_mask);
 void R_InitStagingBuffers();
 void R_SubmitStagingBuffers();
 unsigned char * R_StagingAllocate(int size, VkCommandBuffer * command_buffer, VkBuffer * buffer, int * buffer_offset);
+
+void R_InitDynamicVertexBuffers();
 
 #endif	/* __GLQUAKE_H */
 
