@@ -508,6 +508,63 @@ byte * R_VertexAllocate(int size, VkBuffer * buffer, uint64_t * buffer_offset)
 
 /*
 ===============
+R_CreatePipelines
+===============
+*/
+static VkShaderModule R_CreateShaderModule(byte *code, int size)
+{
+	VkShaderModuleCreateInfo module_create_info;
+	memset(&module_create_info, 0, sizeof(module_create_info));
+	module_create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+	module_create_info.pNext = NULL;
+	module_create_info.codeSize = size;
+	module_create_info.pCode = (void*)code;
+
+	VkShaderModule module;
+	VkResult err = vkCreateShaderModule(vulkan_globals.device, &module_create_info, NULL, &module);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkCreateShaderModule failed");
+
+	return module;
+}
+
+/*
+===============
+R_CreatePipelines
+===============
+*/
+R_CreatePipelines()
+{
+	Con_Printf("Creating pipelines\n");
+
+	VkShaderModule basic_vert_module = R_CreateShaderModule(basic_vert_spv, basic_vert_spv_size);
+	VkShaderModule basic_frag_module = R_CreateShaderModule(basic_frag_spv, basic_frag_spv_size);
+
+	VkGraphicsPipelineCreateInfo pipeline_create_info;
+	memset(&pipeline_create_info, 0, sizeof(pipeline_create_info));
+	pipeline_create_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+
+	VkPipelineShaderStageCreateInfo shader_stages[2];
+	memset(&shader_stages, 0, 2 * sizeof(VkPipelineShaderStageCreateInfo));
+
+	shader_stages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	shader_stages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
+	shader_stages[0].module = basic_vert_module;
+	shader_stages[0].pName = "main";
+
+	shader_stages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	shader_stages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+	shader_stages[1].module = basic_frag_module;
+	shader_stages[1].pName = "main";
+
+	pipeline_create_info.stageCount = 2;
+	pipeline_create_info.pStages = shader_stages;
+
+	//vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.basic_pipeline);
+}
+
+/*
+===============
 R_Init
 ===============
 */
@@ -579,6 +636,8 @@ void R_Init (void)
 
 	R_InitParticles ();
 	R_SetClearColor_f (&r_clearcolor); //johnfitz
+
+	R_CreatePipelines();
 
 	Sky_Init (); //johnfitz
 	Fog_Init (); //johnfitz

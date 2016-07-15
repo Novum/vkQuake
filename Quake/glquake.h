@@ -109,6 +109,9 @@ typedef struct
 	VkPhysicalDeviceProperties			device_properties;
 	VkPhysicalDeviceMemoryProperties	memory_properties;
 	uint32_t							gfx_queue_family_index;
+
+	// Pipelines
+	VkPipeline							basic_pipeline;
 } vulkanglobals_t;
 
 extern vulkanglobals_t vulkan_globals;

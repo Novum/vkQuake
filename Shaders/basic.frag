@@ -11,5 +11,5 @@ layout (location = 0) out vec4 out_frag_color;
 
 void main() 
 {
-   out_frag_color = in_color * texture(tex, in_texcoord.xy);
+	out_frag_color = in_color * texture(tex, in_texcoord.xy);
 }

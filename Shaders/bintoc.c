@@ -18,7 +18,9 @@ int main(int argc, char** argv) {
         ++n;
         if(n % 10 == 0) printf("\n");
     }
-
+	
     fclose(f);
     printf("};\n");
+
+	printf("int %s_size = %d;\n", argv[2], n);	
 }

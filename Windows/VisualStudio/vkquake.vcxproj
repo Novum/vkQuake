@@ -353,6 +353,10 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
   <ItemGroup>
     <ResourceCompile Include="..\QuakeSpasm.rc" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\Shaders\basic.frag" />
+    <None Include="..\..\Shaders\basic.vert" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

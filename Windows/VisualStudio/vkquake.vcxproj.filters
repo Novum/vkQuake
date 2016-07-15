@@ -462,4 +462,12 @@
       <Filter>Resource Files</Filter>
     </ResourceCompile>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\Shaders\basic.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\..\Shaders\basic.vert">
+      <Filter>Shaders</Filter>
+    </None>
+  </ItemGroup>
 </Project>
