@@ -91,7 +91,7 @@ typedef struct
 
 static VkDeviceMemory		dyn_vertex_buffer_memory;
 static dynvertexbuffer_t	dyn_vertex_buffers[NUM_DYNAMIC_VERTEX_BUFFERS];
-static int					vertex_dynamic_vertex_buffer = 0;
+static int					current_dyn_vb = 0;
 
 /*
 ================
@@ -472,6 +472,38 @@ void R_InitDynamicVertexBuffers()
 
 	for(int i = 0; i < NUM_STAGING_BUFFERS; ++i)
 		dyn_vertex_buffers[i].data = data + (i * aligned_size);
+}
+
+/*
+===============
+R_SwapDynamicVertexBuffers
+===============
+*/
+void R_SwapDynamicVertexBuffers()
+{
+	current_dyn_vb = (current_dyn_vb + 1) % NUM_DYNAMIC_VERTEX_BUFFERS;
+	dyn_vertex_buffers[current_dyn_vb].current_offset = 0;
+}
+
+/*
+===============
+R_VertexAllocate
+===============
+*/
+unsigned char * R_VertexAllocate(int size, VkBuffer * buffer, int * buffer_offset)
+{
+	dynvertexbuffer_t *dyn_vb = &dyn_vertex_buffers[current_dyn_vb];
+
+	if ((dyn_vb->current_offset + size) > (DYNAMIC_VERTEX_BUFFER_SIZE_KB * 1024))
+		Sys_Error("Out of dynamic vertex buffer space, increase DYNAMIC_VERTEX_BUFFER_SIZE_KB");
+
+	*buffer = dyn_vb->buffer;
+	*buffer_offset = dyn_vb->current_offset;
+
+	unsigned char *data = dyn_vb->data + dyn_vb->current_offset;
+	dyn_vb->current_offset += size;
+
+	return data;
 }
 
 /*

@@ -596,7 +596,7 @@ void Draw_TileClear (int x, int y, int w, int h)
 	glpic_t	*gl;
 
 	gl = (glpic_t *)draw_backtile->data;
-
+	
 	/*glColor3f (1,1,1);
 	GL_Bind (gl->gltexture);
 	glBegin (GL_QUADS);
