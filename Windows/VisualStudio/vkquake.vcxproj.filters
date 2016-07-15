@@ -23,6 +23,9 @@
     <Filter Include="Main">
       <UniqueIdentifier>{8f348e8d-144c-4886-a371-eb055d27b6bc}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Shaders">
+      <UniqueIdentifier>{3dfdf89a-a886-4d6a-8620-83b81d0b5763}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\Quake\snd_codec.c">
@@ -250,6 +253,12 @@
     <ClCompile Include="..\..\Quake\sv_user.c">
       <Filter>Server</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Shaders\basic_frag.c">
+      <Filter>Shaders</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\basic_vert.c">
+      <Filter>Shaders</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\Quake\snd_codec.h">
@@ -443,6 +452,9 @@
     </ClInclude>
     <ClInclude Include="..\..\Quake\screen.h">
       <Filter>Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Shaders\shaders.h">
+      <Filter>Shaders</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

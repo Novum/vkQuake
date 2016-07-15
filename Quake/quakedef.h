@@ -254,6 +254,7 @@ typedef struct
 #include "menu.h"
 #include "cdaudio.h"
 #include "glquake.h"
+#include "../Shaders/shaders.h"
 
 //=============================================================================
 
