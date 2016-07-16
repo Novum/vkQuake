@@ -65,6 +65,7 @@ typedef struct gltexture_s {
 	VkImage				image;
 	VkImageView			image_view;
 	VkDeviceMemory		memory;
+	VkDescriptorSet		descriptor_set;
 	int			visframe; //matches r_framecount if texture was bound this frame
 } gltexture_t;
 

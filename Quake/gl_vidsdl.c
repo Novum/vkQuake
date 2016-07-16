@@ -951,6 +951,7 @@ GL_BeginRendering
 */
 void GL_BeginRendering (int *x, int *y, int *width, int *height)
 {
+	R_SwapDynamicVertexBuffers();
 	R_SubmitStagingBuffers();
 
 	*x = *y = 0;
@@ -1000,7 +1001,7 @@ void GL_BeginRendering (int *x, int *y, int *width, int *height)
 
 	vkCmdBeginRenderPass(vulkan_globals.command_buffer, &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
 
-	R_SwapDynamicVertexBuffers();
+	vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout, 0, 1, &vulkan_globals.sampler_descriptor_set, 0, NULL);
 }
 
 /*
@@ -1320,6 +1321,10 @@ void	VID_Init (void)
 	GL_CreateRenderTargets();
 	R_InitStagingBuffers();
 	R_InitDynamicVertexBuffers();
+	R_CreateDescriptorSetLayouts();
+	R_CreateDescriptorPool();
+	R_InitSamplers();
+	R_CreatePipelineLayouts();
 
 	//johnfitz -- removed code creating "glquake" subdirectory
 

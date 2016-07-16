@@ -46,6 +46,7 @@ extern	int glx, gly, glwidth, glheight;
 
 #define BACKFACE_EPSILON	0.01
 
+#define	MAX_GLTEXTURES	2048
 
 void R_TimeRefresh_f (void);
 void R_ReadPointFile_f (void);
@@ -112,8 +113,16 @@ typedef struct
 
 	// Pipelines
 	VkPipeline							basic_pipeline;
+	VkPipelineLayout					basic_pipeline_layout;
+
+	// Descriptors
+	VkDescriptorPool					descriptor_pool;
 	VkDescriptorSetLayout				sampler_set_layout;
+	VkDescriptorSet						sampler_descriptor_set;
 	VkDescriptorSetLayout				single_texture_set_layout;
+
+	// Samplers
+	VkSampler							point_sampler;
 } vulkanglobals_t;
 
 extern vulkanglobals_t vulkan_globals;
@@ -319,6 +328,11 @@ void GLSLGamma_GammaCorrect (void);
 float GL_WaterAlphaForSurface (msurface_t *fa);
 
 int GL_MemoryTypeFromProperties(uint32_t type_bits, VkFlags requirements_mask);
+
+void R_CreateDescriptorPool();
+void R_CreateDescriptorSetLayouts();
+void R_InitSamplers();
+void R_CreatePipelineLayouts();
 
 void R_InitStagingBuffers();
 void R_SubmitStagingBuffers();
