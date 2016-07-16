@@ -183,8 +183,8 @@ int Scrap_AllocBlock (int w, int h, int *x, int *y)
 		return texnum;
 	}
 
-	Sys_Error ("Scrap_AllocBlock: full"); //johnfitz -- correct function name
-	return 0; //johnfitz -- shut up compiler
+	Sys_Error ("Scrap_AllocBlock: full");
+	return 0;
 }
 
 /*
@@ -474,7 +474,7 @@ void Draw_FillCharacterQuad (int x, int y, char num, basicvertex_t * output)
 
 /*
 ================
-Draw_Character -- johnfitz -- modified to call Draw_CharacterQuad
+Draw_Character
 ================
 */
 void Draw_Character (int x, int y, int num)
@@ -501,7 +501,7 @@ void Draw_Character (int x, int y, int num)
 
 /*
 ================
-Draw_String -- johnfitz -- modified to call Draw_CharacterQuad
+Draw_String
 ================
 */
 void Draw_String (int x, int y, const char *str)
@@ -509,18 +509,26 @@ void Draw_String (int x, int y, const char *str)
 	if (y <= -8)
 		return;			// totally off screen
 
-	/*GL_Bind (char_texture);
-	glBegin (GL_QUADS);
+	int num_verts = 0;
+	for(const char * tmp = str; *tmp != 0; ++tmp)
+		if (*tmp != 32)
+			num_verts += 6;
 
-	while (*str)
+	VkBuffer buffer;
+	uint64_t buffer_offset;
+	basicvertex_t * vertices = (basicvertex_t*)R_VertexAllocate(num_verts * sizeof(basicvertex_t), &buffer, &buffer_offset);
+
+	for(int i = 0; *str != 0; ++str)
 	{
-		if (*str != 32) //don't waste verts on spaces
-			Draw_CharacterQuad (x, y, *str);
-		str++;
+		if (*str != 32)
+			Draw_FillCharacterQuad(x, y, *str, vertices + i * 6);
 		x += 8;
 	}
 
-	glEnd ();*/
+	vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
+	vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline);
+	vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout, 1, 1, &char_texture->descriptor_set, 0, NULL);
+	vkCmdDraw(vulkan_globals.command_buffer, num_verts, 1, 0, 0);
 }
 
 /*
@@ -825,7 +833,7 @@ void GL_SetCanvas (canvastype newcanvas)
 
 /*
 ================
-GL_Set2D -- johnfitz -- rewritten
+GL_Set2D
 ================
 */
 void GL_Set2D (void)
