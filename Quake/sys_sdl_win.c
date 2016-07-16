@@ -318,6 +318,10 @@ void Sys_Error (const char *error, ...)
 // shut down QHOST hooks if necessary
 //	DeinitConProc ();
 
+#if defined(_DEBUG) && defined(_WIN32)
+	__debugbreak();
+#endif
+
 	exit (1);
 }
 
