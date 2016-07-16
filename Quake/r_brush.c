@@ -503,7 +503,7 @@ with all the surfaces from all brush models
 */
 void GL_BuildLightmaps (void)
 {
-	/*char	name[16];
+	char	name[16];
 	byte	*data;
 	int		i, j;
 	qmodel_t	*m;
@@ -518,19 +518,7 @@ void GL_BuildLightmaps (void)
 		lightmap_textures[i] = NULL;
 	//johnfitz
 
-	gl_lightmap_format = GL_RGBA;//FIXME: hardcoded for now!
-
-	switch (gl_lightmap_format)
-	{
-	case GL_RGBA:
-		lightmap_bytes = 4;
-		break;
-	case GL_BGRA:
-		lightmap_bytes = 4;
-		break;
-	default:
-		Sys_Error ("GL_BuildLightmaps: bad lightmap format");
-	}
+	lightmap_bytes = 4;
 
 	for (j=1 ; j<MAX_MODELS ; j++)
 	{
@@ -576,7 +564,7 @@ void GL_BuildLightmaps (void)
 	//johnfitz -- warn about exceeding old limits
 	if (i >= 64)
 		Con_DWarning ("%i lightmaps exceeds standard limit of 64.\n", i);
-	//johnfitz*/
+	//johnfitz
 }
 
 /*
