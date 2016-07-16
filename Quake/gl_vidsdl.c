@@ -414,9 +414,9 @@ static void VID_Restart (void)
 	bpp = (int)vid_bpp.value;
 	fullscreen = vid_fullscreen.value ? true : false;
 
-//
-// validate new mode
-//
+	//
+	// validate new mode
+	//
 	if (!VID_ValidMode (width, height, bpp, fullscreen))
 	{
 		Con_Printf ("%dx%dx%d %s is not a valid mode\n",
@@ -424,12 +424,12 @@ static void VID_Restart (void)
 		return;
 	}
 	
-// ericw -- OS X, SDL1: textures, VBO's invalid after mode change
-//          OS X, SDL2: still valid after mode change
-// To handle both cases, delete all GL objects (textures, VBO, GLSL) now.
-// We must not interleave deleting the old objects with creating new ones, because
-// one of the new objects could be given the same ID as an invalid handle
-// which is later deleted.
+	// ericw -- OS X, SDL1: textures, VBO's invalid after mode change
+	//          OS X, SDL2: still valid after mode change
+	// To handle both cases, delete all GL objects (textures, VBO, GLSL) now.
+	// We must not interleave deleting the old objects with creating new ones, because
+	// one of the new objects could be given the same ID as an invalid handle
+	// which is later deleted.
 
 	GL_DestroyRenderTargets();
 	TexMgr_DeleteTextureObjects ();
@@ -437,9 +437,9 @@ static void VID_Restart (void)
 	GL_DeleteBModelVertexBuffer ();
 	GLMesh_DeleteVertexBuffers ();
 
-//
-// set new mode
-//
+	//
+	// set new mode
+	//
 	VID_SetMode (width, height, bpp, fullscreen);
 
 	GL_CreateRenderTargets();
@@ -456,13 +456,14 @@ static void VID_Restart (void)
 	vid.conwidth = CLAMP (320, vid.conwidth, vid.width);
 	vid.conwidth &= 0xFFFFFFF8;
 	vid.conheight = vid.conwidth * vid.height / vid.width;
-//
-// keep cvars in line with actual mode
-//
+	//
+	// keep cvars in line with actual mode
+	//
 	VID_SyncCvars();
-//
-// update mouse grab
-//
+
+	//
+	// update mouse grab
+	//
 	if (key_dest == key_console || key_dest == key_menu)
 	{
 		if (modestate == MS_WINDOWED)

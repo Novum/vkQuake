@@ -3,6 +3,7 @@ Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2007-2008 Kristian Duske
 Copyright (C) 2010-2014 QuakeSpasm developers
+Copyright (C) 2016 Axel Gneiting
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -52,6 +53,8 @@ int			last_lightmap_allocated; //ericw -- optimization: remember the index of th
 // main memory so texsubimage can update properly
 byte		lightmaps[4*MAX_LIGHTMAPS*BLOCK_WIDTH*BLOCK_HEIGHT];
 
+static VkDeviceMemory	bmodel_memory;
+static VkBuffer			bmodel_vertex_buffer;
 
 /*
 ===============
@@ -577,10 +580,8 @@ void GL_BuildLightmaps (void)
 
 void GL_DeleteBModelVertexBuffer (void)
 {
-	/*GL_DeleteBuffersFunc (1, &gl_bmodel_vbo);
-	gl_bmodel_vbo = 0;
-
-	GL_ClearBufferBindings ();*/
+	vkDestroyBuffer(vulkan_globals.device, bmodel_vertex_buffer, NULL);
+	vkFreeMemory(vulkan_globals.device, bmodel_memory, NULL);
 }
 
 /*
@@ -598,7 +599,7 @@ void GL_BuildBModelVertexBuffer (void)
 	qmodel_t	*m;
 	float		*varray;
 
-// count all verts in all models
+	// count all verts in all models
 	numverts = 0;
 	for (j=1 ; j<MAX_MODELS ; j++)
 	{
@@ -612,7 +613,7 @@ void GL_BuildBModelVertexBuffer (void)
 		}
 	}
 	
-// build vertex array
+	// build vertex array
 	varray_bytes = VERTEXSIZE * sizeof(float) * numverts;
 	varray = (float *) malloc (varray_bytes);
 	varray_index = 0;
@@ -632,7 +633,53 @@ void GL_BuildBModelVertexBuffer (void)
 		}
 	}
 
-// upload to GPU
+	// Allocate & upload to GPU
+	VkResult err;
+
+	VkBufferCreateInfo buffer_create_info;
+	memset(&buffer_create_info, 0, sizeof(buffer_create_info));
+	buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	buffer_create_info.size = varray_bytes;
+	buffer_create_info.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+	err = vkCreateBuffer(vulkan_globals.device, &buffer_create_info, NULL, &bmodel_vertex_buffer);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkCreateBuffer failed");
+
+	VkMemoryRequirements memory_requirements;
+	vkGetBufferMemoryRequirements(vulkan_globals.device, bmodel_vertex_buffer, &memory_requirements);
+
+	const int align_mod = memory_requirements.size % memory_requirements.alignment;
+	const int aligned_size = ( ( memory_requirements.size % memory_requirements.alignment ) == 0 ) 
+		? memory_requirements.size 
+		: ( memory_requirements.size + memory_requirements.alignment - align_mod );
+
+	VkMemoryAllocateInfo memory_allocate_info;
+	memset(&memory_allocate_info, 0, sizeof(memory_allocate_info));
+	memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	memory_allocate_info.allocationSize = aligned_size;
+	memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+	err = vkAllocateMemory(vulkan_globals.device, &memory_allocate_info, NULL, &bmodel_memory);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkAllocateMemory failed");
+
+	err = vkBindBufferMemory(vulkan_globals.device, bmodel_vertex_buffer, bmodel_memory, 0);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkBindImageMemory failed");
+
+	VkBuffer staging_buffer;
+	VkCommandBuffer command_buffer;
+	int staging_offset;
+	unsigned char * staging_memory = R_StagingAllocate(varray_bytes, &command_buffer, &staging_buffer, &staging_offset);
+
+	memcpy(staging_memory, varray, varray_bytes);
+
+	VkBufferCopy region;
+	region.srcOffset = 0;
+	region.dstOffset = 0;
+	region.size = varray_bytes;
+	vkCmdCopyBuffer(command_buffer, staging_buffer, bmodel_vertex_buffer, 1, &region);
+
 	free (varray);
 }
 
