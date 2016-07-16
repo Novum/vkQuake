@@ -123,7 +123,7 @@ static uint32_t current_swapchain_buffer;
 
 #define GET_DEVICE_PROC_ADDR(dev, entrypoint) { \
 	fp##entrypoint = (PFN_vk##entrypoint)fpGetDeviceProcAddr(dev, "vk" #entrypoint); \
-    if (fp##entrypoint == NULL) Sys_Error("vkGetDeviceProcAddr failed to find vk" #entrypoint); \
+	if (fp##entrypoint == NULL) Sys_Error("vkGetDeviceProcAddr failed to find vk" #entrypoint); \
 }
 
 /*
@@ -281,9 +281,9 @@ VID_ValidMode
 static qboolean VID_ValidMode (int width, int height, int bpp, qboolean fullscreen)
 {
 // ignore width / height / bpp if vid_desktopfullscreen is enabled
-    if (fullscreen && vid_desktopfullscreen.value)
-        return true;
-    
+	if (fullscreen && vid_desktopfullscreen.value)
+		return true;
+	
 	if (width < 320)
 		return false;
 
@@ -1408,11 +1408,11 @@ void VID_SyncCvars (void)
 {
 	if (draw_context)
 	{
-        if (!VID_GetDesktopFullscreen())
-        {
-            Cvar_SetValueQuick (&vid_width, VID_GetCurrentWidth());
-            Cvar_SetValueQuick (&vid_height, VID_GetCurrentHeight());
-        }
+		if (!VID_GetDesktopFullscreen())
+		{
+			Cvar_SetValueQuick (&vid_width, VID_GetCurrentWidth());
+			Cvar_SetValueQuick (&vid_height, VID_GetCurrentHeight());
+		}
 		Cvar_SetValueQuick (&vid_bpp, VID_GetCurrentBPP());
 		Cvar_SetQuick (&vid_fullscreen, VID_GetFullscreen() ? "1" : "0");
 		Cvar_SetQuick (&vid_vsync, VID_GetVSync() ? "1" : "0");

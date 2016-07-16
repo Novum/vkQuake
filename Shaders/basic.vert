@@ -1,10 +1,10 @@
-#version 400
+#version 450
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_ARB_shading_language_420pack : enable
 
-layout(std140, set = 0, binding = 0) uniform buf {
+layout(push_constant) uniform PushConsts {
 	mat4 mvp;
-} ubuf;
+} push_constants;
 
 layout (location = 0) in vec3 in_position;
 layout (location = 1) in vec2 in_texcoord;
@@ -19,7 +19,7 @@ out gl_PerVertex {
 
 void main() 
 {
-	gl_Position = ubuf.mvp * vec4(in_position, 1.0f);
+	gl_Position = push_constants.mvp * vec4(in_position, 1.0f);
 	out_texcoord = vec4(in_texcoord.xy, 0.0f, 0.0f);
 	out_color = in_color;
 }

@@ -508,7 +508,7 @@ byte * R_VertexAllocate(int size, VkBuffer * buffer, uint64_t * buffer_offset)
 
 /*
 ===============
-R_CreatePipelines
+R_CreateShaderModule
 ===============
 */
 static VkShaderModule R_CreateShaderModule(byte *code, int size)
@@ -537,12 +537,64 @@ R_CreatePipelines()
 {
 	Con_Printf("Creating pipelines\n");
 
+	VkResult err;
+
+	VkDescriptorSetLayoutBinding sampler_layout_binding;
+	memset(&sampler_layout_binding, 0, sizeof(sampler_layout_binding));
+	sampler_layout_binding.binding = 0;
+	sampler_layout_binding.descriptorCount = 1;
+	sampler_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+	sampler_layout_binding.stageFlags = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+
+	VkDescriptorSetLayoutBinding texture_layout_binding;
+	memset(&texture_layout_binding, 0, sizeof(texture_layout_binding));
+	texture_layout_binding.binding = 0;
+	texture_layout_binding.descriptorCount = 1;
+	texture_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+	texture_layout_binding.stageFlags = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+
+	VkDescriptorSetLayoutCreateInfo descriptor_set_layout_create_info;
+	memset(&descriptor_set_layout_create_info, 0, sizeof(descriptor_set_layout_create_info));
+	descriptor_set_layout_create_info.bindingCount = 1;
+	descriptor_set_layout_create_info.pBindings = &sampler_layout_binding;
+
+	VkDescriptorSetLayout descriptor_set_layouts[2];
+	err = vkCreateDescriptorSetLayout(vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &descriptor_set_layouts[0]);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkCreateDescriptorSetLayout failed");
+
+	descriptor_set_layout_create_info.pBindings = &texture_layout_binding;
+	err = vkCreateDescriptorSetLayout(vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &descriptor_set_layouts[1]);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkCreateDescriptorSetLayout failed");
+
+	VkPushConstantRange push_constant_range;
+	memset(&push_constant_range, 0, sizeof(push_constant_range));
+	push_constant_range.offset = 0;
+	push_constant_range.size = 4 * sizeof(float);
+	push_constant_range.stageFlags = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT;
+
+	VkPipelineLayoutCreateInfo pipeline_layout_create_info;
+	memset(&pipeline_layout_create_info, 0, sizeof(pipeline_layout_create_info));
+	pipeline_layout_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+	pipeline_layout_create_info.flags;
+	pipeline_layout_create_info.setLayoutCount = 2;
+	pipeline_layout_create_info.pSetLayouts = descriptor_set_layouts;
+	pipeline_layout_create_info.pushConstantRangeCount = 1;
+	pipeline_layout_create_info.pPushConstantRanges = &push_constant_range;
+
+	VkPipelineLayout basic_pipeline_layout;
+	err = vkCreatePipelineLayout(vulkan_globals.device, &pipeline_layout_create_info, NULL, &basic_pipeline_layout);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkCreatePipelineLayout failed");
+
 	VkShaderModule basic_vert_module = R_CreateShaderModule(basic_vert_spv, basic_vert_spv_size);
 	VkShaderModule basic_frag_module = R_CreateShaderModule(basic_frag_spv, basic_frag_spv_size);
 
-	VkGraphicsPipelineCreateInfo pipeline_create_info;
-	memset(&pipeline_create_info, 0, sizeof(pipeline_create_info));
-	pipeline_create_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+	VkPipelineDynamicStateCreateInfo dynamic_state_create_info;
+	memset(&dynamic_state_create_info, 0, sizeof(dynamic_state_create_info));
+	VkDynamicState dynamic_states[VK_DYNAMIC_STATE_RANGE_SIZE];
+	dynamic_state_create_info.pDynamicStates = dynamic_states;
 
 	VkPipelineShaderStageCreateInfo shader_stages[2];
 	memset(&shader_stages, 0, 2 * sizeof(VkPipelineShaderStageCreateInfo));
@@ -557,10 +609,107 @@ R_CreatePipelines()
 	shader_stages[1].module = basic_frag_module;
 	shader_stages[1].pName = "main";
 
+	VkVertexInputAttributeDescription vertex_input_attribute_descriptions[3];
+	vertex_input_attribute_descriptions[0].binding = 0;
+	vertex_input_attribute_descriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
+	vertex_input_attribute_descriptions[0].location = 0;
+	vertex_input_attribute_descriptions[0].offset = 0;
+	vertex_input_attribute_descriptions[1].binding = 0;
+	vertex_input_attribute_descriptions[1].format = VK_FORMAT_R32G32_SFLOAT;
+	vertex_input_attribute_descriptions[1].location = 0;
+	vertex_input_attribute_descriptions[1].offset = 12;
+	vertex_input_attribute_descriptions[2].binding = 0;
+	vertex_input_attribute_descriptions[2].format = VK_FORMAT_R8G8B8A8_UNORM;
+	vertex_input_attribute_descriptions[2].location = 0;
+	vertex_input_attribute_descriptions[2].offset = 20;
+
+	VkVertexInputBindingDescription vertex_binding_description;
+	vertex_binding_description.binding = 0;
+	vertex_binding_description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+	vertex_binding_description.stride = 24;
+
+	VkPipelineVertexInputStateCreateInfo vertex_input_state_create_info;
+	memset(&vertex_input_state_create_info, 0, sizeof(vertex_input_state_create_info));
+	vertex_input_state_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+	vertex_input_state_create_info.vertexAttributeDescriptionCount = 3;
+	vertex_input_state_create_info.pVertexAttributeDescriptions = vertex_input_attribute_descriptions;
+	vertex_input_state_create_info.vertexBindingDescriptionCount = 1;
+	vertex_input_state_create_info.pVertexBindingDescriptions = &vertex_binding_description;
+
+	VkPipelineInputAssemblyStateCreateInfo input_assembly_state_create_info;
+	memset(&input_assembly_state_create_info, 0, sizeof(input_assembly_state_create_info));
+	input_assembly_state_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+	input_assembly_state_create_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+
+	VkPipelineViewportStateCreateInfo viewport_state_create_info;
+	memset(&viewport_state_create_info, 0, sizeof(viewport_state_create_info));
+	viewport_state_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+	viewport_state_create_info.viewportCount = 1;
+	dynamic_states[dynamic_state_create_info.dynamicStateCount++] = VK_DYNAMIC_STATE_VIEWPORT;
+	viewport_state_create_info.scissorCount = 1;
+	dynamic_states[dynamic_state_create_info.dynamicStateCount++] = VK_DYNAMIC_STATE_SCISSOR;
+
+	VkPipelineRasterizationStateCreateInfo rasterization_state_create_info;
+	memset(&rasterization_state_create_info, 0, sizeof(rasterization_state_create_info));
+	rasterization_state_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+	rasterization_state_create_info.polygonMode = VK_POLYGON_MODE_FILL;
+	rasterization_state_create_info.cullMode = VK_CULL_MODE_NONE;
+	rasterization_state_create_info.frontFace = VK_FRONT_FACE_CLOCKWISE;
+	rasterization_state_create_info.depthClampEnable = VK_FALSE;
+	rasterization_state_create_info.rasterizerDiscardEnable = VK_FALSE;
+	rasterization_state_create_info.depthBiasEnable = VK_FALSE;
+	rasterization_state_create_info.lineWidth = 1.0f;
+
+	VkPipelineMultisampleStateCreateInfo multisample_state_create_info;
+	memset(&multisample_state_create_info, 0, sizeof(multisample_state_create_info));
+	multisample_state_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+	multisample_state_create_info.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+
+	VkPipelineDepthStencilStateCreateInfo depth_stencil_state_create_info;
+	memset(&depth_stencil_state_create_info, 0, sizeof(depth_stencil_state_create_info));
+	depth_stencil_state_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+	depth_stencil_state_create_info.depthTestEnable = VK_FALSE;
+	depth_stencil_state_create_info.depthWriteEnable = VK_FALSE;
+	depth_stencil_state_create_info.depthCompareOp = VK_COMPARE_OP_ALWAYS;
+	depth_stencil_state_create_info.depthBoundsTestEnable = VK_FALSE;
+	depth_stencil_state_create_info.back.failOp = VK_STENCIL_OP_KEEP;
+	depth_stencil_state_create_info.back.passOp = VK_STENCIL_OP_KEEP;
+	depth_stencil_state_create_info.back.compareOp = VK_COMPARE_OP_ALWAYS;
+	depth_stencil_state_create_info.stencilTestEnable = VK_FALSE;
+	depth_stencil_state_create_info.front = depth_stencil_state_create_info.back;
+
+	VkPipelineColorBlendStateCreateInfo color_blend_state_create_info;
+	VkPipelineColorBlendAttachmentState blend_attachment_state;
+	memset(&color_blend_state_create_info, 0, sizeof(color_blend_state_create_info));
+	color_blend_state_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+	memset(&blend_attachment_state, 0, sizeof(blend_attachment_state));
+	blend_attachment_state.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+	blend_attachment_state.blendEnable = VK_FALSE;
+	color_blend_state_create_info.attachmentCount = 1;
+	color_blend_state_create_info.pAttachments = &blend_attachment_state;
+
+	VkGraphicsPipelineCreateInfo pipeline_create_info;
+	memset(&pipeline_create_info, 0, sizeof(pipeline_create_info));
+	pipeline_create_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
 	pipeline_create_info.stageCount = 2;
 	pipeline_create_info.pStages = shader_stages;
+	pipeline_create_info.pVertexInputState = &vertex_input_state_create_info;
+	pipeline_create_info.pInputAssemblyState = &input_assembly_state_create_info;
+	pipeline_create_info.pViewportState = &viewport_state_create_info;
+	pipeline_create_info.pRasterizationState = &rasterization_state_create_info;
+	pipeline_create_info.pMultisampleState = &multisample_state_create_info;
+	pipeline_create_info.pDepthStencilState = &depth_stencil_state_create_info;
+	pipeline_create_info.pColorBlendState = &color_blend_state_create_info;
+	pipeline_create_info.pDynamicState = &dynamic_state_create_info;
+	pipeline_create_info.layout = basic_pipeline_layout;
+	pipeline_create_info.renderPass = vulkan_globals.render_pass;
 
-	//vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.basic_pipeline);
+	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.basic_pipeline);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkCreateGraphicsPipelines failed");
+
+	vkDestroyShaderModule(vulkan_globals.device, basic_frag_module, NULL);
+	vkDestroyShaderModule(vulkan_globals.device, basic_vert_module, NULL);
 }
 
 /*
