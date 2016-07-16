@@ -445,27 +445,27 @@ void Draw_FillCharacterQuad (int x, int y, char num, basicvertex_t * output)
 	vertices[0].texcoord[0] = fcol;
 	vertices[0].texcoord[1] = frow;
 
-	vertices[0].position[0] = x+8;
-	vertices[0].position[1] = y;
-	vertices[0].texcoord[0] = fcol + size;
-	vertices[0].texcoord[1] = frow;
+	vertices[1].position[0] = x+8;
+	vertices[1].position[1] = y;
+	vertices[1].texcoord[0] = fcol + size;
+	vertices[1].texcoord[1] = frow;
 
-	vertices[0].position[0] = x+8;
-	vertices[0].position[1] = y+8;
-	vertices[0].texcoord[0] = fcol + size;
-	vertices[0].texcoord[1] = frow + size;
+	vertices[2].position[0] = x+8;
+	vertices[2].position[1] = y+8;
+	vertices[2].texcoord[0] = fcol + size;
+	vertices[2].texcoord[1] = frow + size;
 
-	vertices[0].position[0] = x;
-	vertices[0].position[1] = y+8;
-	vertices[0].texcoord[0] = fcol;
-	vertices[0].texcoord[1] = frow + size;
+	vertices[3].position[0] = x;
+	vertices[3].position[1] = y+8;
+	vertices[3].texcoord[0] = fcol;
+	vertices[3].texcoord[1] = frow + size;
 
 	output[0] = vertices[0];
 	output[1] = vertices[1];
 	output[2] = vertices[2];
-	output[3] = vertices[1];
+	output[3] = vertices[2];
 	output[4] = vertices[3];
-	output[5] = vertices[2];
+	output[5] = vertices[0];
 }
 
 /*
@@ -490,13 +490,9 @@ void Draw_Character (int x, int y, int num)
 	Draw_FillCharacterQuad(x, y, (char)num, vertices);
 
 	vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
-
-	/*GL_Bind (char_texture);
-	glBegin (GL_QUADS);
-
-	Draw_CharacterQuad (x, y, (char) num);
-
-	glEnd ();*/
+	vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline);
+	vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout, 1, 1, &char_texture->descriptor_set, 0, NULL);
+	vkCmdDraw(vulkan_globals.command_buffer, 6, 1, 0, 0);
 }
 
 /*
@@ -705,17 +701,26 @@ GL_SetCanvas -- johnfitz -- support various canvas types
 */
 void GL_SetCanvas (canvastype newcanvas)
 {
+	if (newcanvas == currentcanvas)
+		return;
+
+	float matrix[] = { 
+		1.0f / vid.width, 0.0f, 0.0f, 0.0f,
+		0.0f, 1.0f / vid.height, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f, 0.0f,
+		0.0f, 0.0f, 0.0f, 1.0f 
+	};
+
+	vkCmdPushConstants(vulkan_globals.command_buffer, vulkan_globals.basic_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, 16 * sizeof(float), matrix);
+
 	/*extern vrect_t scr_vrect;
 	float s;
 	int lines;
 
-	if (newcanvas == currentcanvas)
-		return;
-
 	currentcanvas = newcanvas;
 
 	glMatrixMode(GL_PROJECTION);
-    glLoadIdentity ();
+	glLoadIdentity ();
 
 	switch(newcanvas)
 	{

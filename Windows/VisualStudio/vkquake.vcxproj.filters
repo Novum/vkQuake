@@ -26,6 +26,9 @@
     <Filter Include="Shaders">
       <UniqueIdentifier>{3dfdf89a-a886-4d6a-8620-83b81d0b5763}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Shaders\Compiled">
+      <UniqueIdentifier>{e400bd53-6d5f-424f-9a63-0c01cdb5967d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\Quake\snd_codec.c">
@@ -254,10 +257,10 @@
       <Filter>Server</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\basic_frag.c">
-      <Filter>Shaders</Filter>
+      <Filter>Shaders\Compiled</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\basic_vert.c">
-      <Filter>Shaders</Filter>
+      <Filter>Shaders\Compiled</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

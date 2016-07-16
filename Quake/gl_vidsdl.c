@@ -1002,6 +1002,18 @@ void GL_BeginRendering (int *x, int *y, int *width, int *height)
 	vkCmdBeginRenderPass(vulkan_globals.command_buffer, &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
 
 	vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout, 0, 1, &vulkan_globals.sampler_descriptor_set, 0, NULL);
+
+	vkCmdSetScissor(vulkan_globals.command_buffer, 0, 1, &render_area);
+
+	VkViewport viewport;
+	viewport.x = 0;
+	viewport.y = 0;
+	viewport.width = vid.width;
+	viewport.height = vid.height;
+	viewport.minDepth = 0.0f;
+	viewport.maxDepth = 1.0f;
+
+	vkCmdSetViewport(vulkan_globals.command_buffer, 0, 1, &viewport);
 }
 
 /*
@@ -1325,6 +1337,7 @@ void	VID_Init (void)
 	R_CreateDescriptorPool();
 	R_InitSamplers();
 	R_CreatePipelineLayouts();
+	R_CreatePipelines();
 
 	//johnfitz -- removed code creating "glquake" subdirectory
 

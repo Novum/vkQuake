@@ -333,6 +333,7 @@ void R_CreateDescriptorPool();
 void R_CreateDescriptorSetLayouts();
 void R_InitSamplers();
 void R_CreatePipelineLayouts();
+void R_CreatePipelines();
 
 void R_InitStagingBuffers();
 void R_SubmitStagingBuffers();

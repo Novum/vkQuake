@@ -596,7 +596,7 @@ void R_CreatePipelineLayouts()
 	VkPushConstantRange push_constant_range;
 	memset(&push_constant_range, 0, sizeof(push_constant_range));
 	push_constant_range.offset = 0;
-	push_constant_range.size = 4 * sizeof(float);
+	push_constant_range.size = 16 * sizeof(float);
 	push_constant_range.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
 	VkPipelineLayoutCreateInfo pipeline_layout_create_info;
@@ -686,7 +686,7 @@ static VkShaderModule R_CreateShaderModule(byte *code, int size)
 R_CreatePipelines
 ===============
 */
-static void R_CreatePipelines()
+void R_CreatePipelines()
 {
 	Con_Printf("Creating pipelines\n");
 
@@ -890,8 +890,6 @@ void R_Init (void)
 
 	R_InitParticles ();
 	R_SetClearColor_f (&r_clearcolor); //johnfitz
-
-	R_CreatePipelines();
 
 	Sky_Init (); //johnfitz
 	Fog_Init (); //johnfitz
