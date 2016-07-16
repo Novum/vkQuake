@@ -544,35 +544,38 @@ R_CreatePipelines()
 	sampler_layout_binding.binding = 0;
 	sampler_layout_binding.descriptorCount = 1;
 	sampler_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
-	sampler_layout_binding.stageFlags = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+	sampler_layout_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-	VkDescriptorSetLayoutBinding texture_layout_binding;
-	memset(&texture_layout_binding, 0, sizeof(texture_layout_binding));
-	texture_layout_binding.binding = 0;
-	texture_layout_binding.descriptorCount = 1;
-	texture_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-	texture_layout_binding.stageFlags = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+	VkDescriptorSetLayoutBinding single_texture_layout_binding;
+	memset(&single_texture_layout_binding, 0, sizeof(single_texture_layout_binding));
+	single_texture_layout_binding.binding = 0;
+	single_texture_layout_binding.descriptorCount = 1;
+	single_texture_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+	single_texture_layout_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
 	VkDescriptorSetLayoutCreateInfo descriptor_set_layout_create_info;
 	memset(&descriptor_set_layout_create_info, 0, sizeof(descriptor_set_layout_create_info));
+	descriptor_set_layout_create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 	descriptor_set_layout_create_info.bindingCount = 1;
 	descriptor_set_layout_create_info.pBindings = &sampler_layout_binding;
 
-	VkDescriptorSetLayout descriptor_set_layouts[2];
-	err = vkCreateDescriptorSetLayout(vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &descriptor_set_layouts[0]);
+	
+	err = vkCreateDescriptorSetLayout(vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.sampler_set_layout);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateDescriptorSetLayout failed");
 
-	descriptor_set_layout_create_info.pBindings = &texture_layout_binding;
-	err = vkCreateDescriptorSetLayout(vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &descriptor_set_layouts[1]);
+	descriptor_set_layout_create_info.pBindings = &single_texture_layout_binding;
+	err = vkCreateDescriptorSetLayout(vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.single_texture_set_layout);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateDescriptorSetLayout failed");
+
+	VkDescriptorSetLayout descriptor_set_layouts[2] = { vulkan_globals.sampler_set_layout, vulkan_globals.single_texture_set_layout };
 
 	VkPushConstantRange push_constant_range;
 	memset(&push_constant_range, 0, sizeof(push_constant_range));
 	push_constant_range.offset = 0;
 	push_constant_range.size = 4 * sizeof(float);
-	push_constant_range.stageFlags = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT;
+	push_constant_range.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
 	VkPipelineLayoutCreateInfo pipeline_layout_create_info;
 	memset(&pipeline_layout_create_info, 0, sizeof(pipeline_layout_create_info));
@@ -593,6 +596,7 @@ R_CreatePipelines()
 
 	VkPipelineDynamicStateCreateInfo dynamic_state_create_info;
 	memset(&dynamic_state_create_info, 0, sizeof(dynamic_state_create_info));
+	dynamic_state_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
 	VkDynamicState dynamic_states[VK_DYNAMIC_STATE_RANGE_SIZE];
 	dynamic_state_create_info.pDynamicStates = dynamic_states;
 
@@ -616,11 +620,11 @@ R_CreatePipelines()
 	vertex_input_attribute_descriptions[0].offset = 0;
 	vertex_input_attribute_descriptions[1].binding = 0;
 	vertex_input_attribute_descriptions[1].format = VK_FORMAT_R32G32_SFLOAT;
-	vertex_input_attribute_descriptions[1].location = 0;
+	vertex_input_attribute_descriptions[1].location = 1;
 	vertex_input_attribute_descriptions[1].offset = 12;
 	vertex_input_attribute_descriptions[2].binding = 0;
 	vertex_input_attribute_descriptions[2].format = VK_FORMAT_R8G8B8A8_UNORM;
-	vertex_input_attribute_descriptions[2].location = 0;
+	vertex_input_attribute_descriptions[2].location = 2;
 	vertex_input_attribute_descriptions[2].offset = 20;
 
 	VkVertexInputBindingDescription vertex_binding_description;

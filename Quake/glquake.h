@@ -112,6 +112,8 @@ typedef struct
 
 	// Pipelines
 	VkPipeline							basic_pipeline;
+	VkDescriptorSetLayout				sampler_set_layout;
+	VkDescriptorSetLayout				single_texture_set_layout;
 } vulkanglobals_t;
 
 extern vulkanglobals_t vulkan_globals;
