@@ -629,26 +629,26 @@ void Draw_ConsoleBackground (void)
 
 	GL_SetCanvas (CANVAS_CONSOLE); //in case this is called from weird places
 
-	/*if (alpha > 0.0)
+	if (alpha > 0.0)
 	{
 		if (alpha < 1.0)
 		{
-			glEnable (GL_BLEND);
-			glColor4f (1,1,1,alpha);
-			glDisable (GL_ALPHA_TEST);
-			glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+			//glEnable (GL_BLEND);
+			//glColor4f (1,1,1,alpha);
+			//glDisable (GL_ALPHA_TEST);
+			//glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 		}
 
 		Draw_Pic (0, 0, pic);
 
 		if (alpha < 1.0)
 		{
-			glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
-			glEnable (GL_ALPHA_TEST);
-			glDisable (GL_BLEND);
-			glColor4f (1,1,1,1);
+			//glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+			//glEnable (GL_ALPHA_TEST);
+			//glDisable (GL_BLEND);
+			//glColor4f (1,1,1,1);
 		}
-	}*/
+	}
 }
 
 
@@ -711,29 +711,45 @@ void Draw_Fill (int x, int y, int w, int h, int c, float alpha) //johnfitz -- ad
 
 /*
 ================
-Draw_FadeScreen -- johnfitz -- revised
+Draw_FadeScreen
 ================
 */
 void Draw_FadeScreen (void)
 {
 	GL_SetCanvas (CANVAS_DEFAULT);
 
-	/*glEnable (GL_BLEND);
-	glDisable (GL_ALPHA_TEST);
-	glDisable (GL_TEXTURE_2D);
-	glColor4f (0, 0, 0, 0.5);
-	glBegin (GL_QUADS);
+	VkBuffer buffer;
+	uint64_t buffer_offset;
+	basicvertex_t * vertices = (basicvertex_t*)R_VertexAllocate(6 * sizeof(basicvertex_t), &buffer, &buffer_offset);
 
-	glVertex2f (0,0);
-	glVertex2f (glwidth, 0);
-	glVertex2f (glwidth, glheight);
-	glVertex2f (0, glheight);
+	basicvertex_t corner_verts[4];
+	memset(&corner_verts, 0, sizeof(corner_verts));
 
-	glEnd ();
-	glColor4f (1,1,1,1);
-	glEnable (GL_TEXTURE_2D);
-	glEnable (GL_ALPHA_TEST);
-	glDisable (GL_BLEND);*/
+	corner_verts[0].position[0] = 0.0f;
+	corner_verts[0].position[1] = 0.0f;
+
+	corner_verts[1].position[0] = glwidth;
+	corner_verts[1].position[1] = 0.0f;
+
+	corner_verts[2].position[0] = glwidth;
+	corner_verts[2].position[1] = glheight;
+
+	corner_verts[3].position[0] = 0.0f;
+	corner_verts[3].position[1] = glheight;
+
+	for (int i = 0; i < 4; ++i)
+		corner_verts[i].color[3] = 128;
+
+	vertices[0] = corner_verts[0];
+	vertices[1] = corner_verts[1];
+	vertices[2] = corner_verts[2];
+	vertices[3] = corner_verts[2];
+	vertices[4] = corner_verts[3];
+	vertices[5] = corner_verts[0];
+
+	vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
+	vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_notex_blend_pipeline);
+	vkCmdDraw(vulkan_globals.command_buffer, 6, 1, 0, 0);
 
 	Sbar_Changed();
 }

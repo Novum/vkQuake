@@ -256,10 +256,13 @@
     <ClCompile Include="..\..\Quake\sv_user.c">
       <Filter>Server</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Shaders\basic_frag.c">
+    <ClCompile Include="..\..\Shaders\Compiled\basic_frag.c">
       <Filter>Shaders\Compiled</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Shaders\basic_vert.c">
+    <ClCompile Include="..\..\Shaders\Compiled\basic_notex_frag.c">
+      <Filter>Shaders\Compiled</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\basic_vert.c">
       <Filter>Shaders\Compiled</Filter>
     </ClCompile>
   </ItemGroup>
@@ -470,6 +473,9 @@
       <Filter>Shaders</Filter>
     </None>
     <None Include="..\..\Shaders\basic.vert">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\..\Shaders\basic_notex.frag">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>
