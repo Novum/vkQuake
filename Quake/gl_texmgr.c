@@ -468,7 +468,7 @@ choose safe warpimage size and resize existing warpimage textures
 */
 void TexMgr_RecalcWarpImageSize (void)
 {
-	/*int	mark, oldsize;
+	int	mark, oldsize;
 	gltexture_t *glt;
 	byte *dummy;
 
@@ -492,7 +492,7 @@ void TexMgr_RecalcWarpImageSize (void)
 	//
 	// resize the textures in opengl
 	//
-	mark = Hunk_LowMark();
+	/*mark = Hunk_LowMark();
 	dummy = (byte *) Hunk_Alloc (gl_warpimagesize*gl_warpimagesize*4);
 
 	for (glt = active_gltextures; glt; glt = glt->next)
