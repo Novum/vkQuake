@@ -646,9 +646,6 @@ void GL_BuildBModelVertexBuffer (void)
 
 // upload to GPU
 	free (varray);
-	
-// invalidate the cached bindings
-	GL_ClearBufferBindings ();
 }
 
 /*
