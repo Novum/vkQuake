@@ -700,6 +700,56 @@ void Draw_FadeScreen (void)
 
 /*
 ================
+GL_OrthoMatrix
+================
+*/
+static void GL_OrthoMatrix(float left, float right, float bottom, float top, float n, float f)
+{
+	float tx = -(right + left) / (right - left);
+	float ty = (top + bottom) / (top - bottom);
+	float tz = -(f + n) / (f - n);
+
+	float matrix[16];
+	memset(&matrix, 0, sizeof(matrix));
+
+	// First column
+	matrix[0*4 + 0] = 2.0f / (right-left);
+
+	// Second column
+	matrix[1*4 + 1] = -2.0f / (top-bottom);
+	
+	// Third column
+	matrix[2*4 + 2] = -2.0f / (f-n);
+
+	// Fourth
+	matrix[3*4 + 0] = tx;
+	matrix[3*4 + 1] = ty;
+	matrix[3*4 + 2] = tz;
+	matrix[3*4 + 3] = 1.0f;
+
+	vkCmdPushConstants(vulkan_globals.command_buffer, vulkan_globals.basic_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, 16 * sizeof(float), matrix);
+}
+
+/*
+================
+GL_Viewport
+================
+*/
+static void GL_Viewport(float x, float y, float width, float height)
+{
+	VkViewport viewport;
+	viewport.x = x;
+	viewport.y = y;
+	viewport.width = width;
+	viewport.height = height;
+	viewport.minDepth = 0.0f;
+	viewport.maxDepth = 1.0f;
+
+	vkCmdSetViewport(vulkan_globals.command_buffer, 0, 1, &viewport);
+}
+
+/*
+================
 GL_SetCanvas -- johnfitz -- support various canvas types
 ================
 */
@@ -708,84 +758,69 @@ void GL_SetCanvas (canvastype newcanvas)
 	if (newcanvas == currentcanvas)
 		return;
 
-	float matrix[] = { 
-		1.0f / vid.width, 0.0f, 0.0f, 0.0f,
-		0.0f, 1.0f / vid.height, 0.0f, 0.0f,
-		0.0f, 0.0f, 1.0f, 0.0f,
-		0.0f, 0.0f, 0.0f, 1.0f 
-	};
-
-	vkCmdPushConstants(vulkan_globals.command_buffer, vulkan_globals.basic_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, 16 * sizeof(float), matrix);
-
-	/*extern vrect_t scr_vrect;
+	extern vrect_t scr_vrect;
 	float s;
 	int lines;
 
 	currentcanvas = newcanvas;
 
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity ();
-
 	switch(newcanvas)
 	{
 	case CANVAS_DEFAULT:
-		glOrtho (0, glwidth, glheight, 0, -99999, 99999);
-		glViewport (glx, gly, glwidth, glheight);
+		GL_OrthoMatrix (0, glwidth, glheight, 0, -99999, 99999);
+		GL_Viewport (glx, gly, glwidth, glheight);
 		break;
 	case CANVAS_CONSOLE:
 		lines = vid.conheight - (scr_con_current * vid.conheight / glheight);
-		glOrtho (0, vid.conwidth, vid.conheight + lines, lines, -99999, 99999);
-		glViewport (glx, gly, glwidth, glheight);
+		GL_OrthoMatrix (0, vid.conwidth, vid.conheight + lines, lines, -99999, 99999);
+		GL_Viewport (glx, gly, glwidth, glheight);
 		break;
 	case CANVAS_MENU:
 		s = q_min((float)glwidth / 320.0, (float)glheight / 200.0);
 		s = CLAMP (1.0, scr_menuscale.value, s);
-		glOrtho (0, 320, 200, 0, -99999, 99999);
-		glViewport (glx + (glwidth - 320*s) / 2, gly + (glheight - 200*s) / 2, 320*s, 200*s);
+		GL_OrthoMatrix (0, 320, 200, 0, -99999, 99999);
+		GL_Viewport (glx + (glwidth - 320*s) / 2, gly + (glheight - 200*s) / 2, 320*s, 200*s);
 		break;
 	case CANVAS_SBAR:
 		s = CLAMP (1.0, scr_sbarscale.value, (float)glwidth / 320.0);
 		if (cl.gametype == GAME_DEATHMATCH)
 		{
-			glOrtho (0, glwidth / s, 48, 0, -99999, 99999);
-			glViewport (glx, gly, glwidth, 48*s);
+			GL_OrthoMatrix (0, glwidth / s, 48, 0, -99999, 99999);
+			GL_Viewport (glx, gly, glwidth, 48*s);
 		}
 		else
 		{
-			glOrtho (0, 320, 48, 0, -99999, 99999);
-			glViewport (glx + (glwidth - 320*s) / 2, gly, 320*s, 48*s);
+			GL_OrthoMatrix (0, 320, 48, 0, -99999, 99999);
+			GL_Viewport (glx + (glwidth - 320*s) / 2, gly, 320*s, 48*s);
 		}
 		break;
 	case CANVAS_WARPIMAGE:
-		glOrtho (0, 128, 0, 128, -99999, 99999);
-		glViewport (glx, gly+glheight-gl_warpimagesize, gl_warpimagesize, gl_warpimagesize);
+		GL_OrthoMatrix (0, 128, 0, 128, -99999, 99999);
+		GL_Viewport (glx, gly+glheight-gl_warpimagesize, gl_warpimagesize, gl_warpimagesize);
 		break;
 	case CANVAS_CROSSHAIR: //0,0 is center of viewport
 		s = CLAMP (1.0, scr_crosshairscale.value, 10.0);
-		glOrtho (scr_vrect.width/-2/s, scr_vrect.width/2/s, scr_vrect.height/2/s, scr_vrect.height/-2/s, -99999, 99999);
-		glViewport (scr_vrect.x, glheight - scr_vrect.y - scr_vrect.height, scr_vrect.width & ~1, scr_vrect.height & ~1);
+		GL_OrthoMatrix (scr_vrect.width/-2/s, scr_vrect.width/2/s, scr_vrect.height/2/s, scr_vrect.height/-2/s, -99999, 99999);
+		GL_Viewport (scr_vrect.x, glheight - scr_vrect.y - scr_vrect.height, scr_vrect.width & ~1, scr_vrect.height & ~1);
 		break;
 	case CANVAS_BOTTOMLEFT: //used by devstats
 		s = (float)glwidth/vid.conwidth; //use console scale
-		glOrtho (0, 320, 200, 0, -99999, 99999);
-		glViewport (glx, gly, 320*s, 200*s);
+		GL_OrthoMatrix (0, 320, 200, 0, -99999, 99999);
+		GL_Viewport (glx, gly, 320*s, 200*s);
 		break;
 	case CANVAS_BOTTOMRIGHT: //used by fps/clock
 		s = (float)glwidth/vid.conwidth; //use console scale
-		glOrtho (0, 320, 200, 0, -99999, 99999);
-		glViewport (glx+glwidth-320*s, gly, 320*s, 200*s);
+		GL_OrthoMatrix (0, 320, 200, 0, -99999, 99999);
+		GL_Viewport (glx+glwidth-320*s, gly, 320*s, 200*s);
 		break;
 	case CANVAS_TOPRIGHT: //used by disc
 		s = 1;
-		glOrtho (0, 320, 200, 0, -99999, 99999);
-		glViewport (glx+glwidth-320*s, gly+glheight-200*s, 320*s, 200*s);
+		GL_OrthoMatrix (0, 320, 200, 0, -99999, 99999);
+		GL_Viewport (glx+glwidth-320*s, gly+glheight-200*s, 320*s, 200*s);
 		break;
 	default:
 		Sys_Error ("GL_SetCanvas: bad canvas type");
 	}
-
-	glMatrixMode(GL_MODELVIEW);
-    glLoadIdentity ();*/
 }
 
 /*
@@ -797,10 +832,4 @@ void GL_Set2D (void)
 {
 	currentcanvas = CANVAS_INVALID;
 	GL_SetCanvas (CANVAS_DEFAULT);
-
-	/*glDisable (GL_DEPTH_TEST);
-	glDisable (GL_CULL_FACE);
-	glDisable (GL_BLEND);
-	glEnable (GL_ALPHA_TEST);
-	glColor4f (1,1,1,1);*/
 }
