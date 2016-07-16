@@ -226,7 +226,7 @@ typedef struct
 {
 	float	position[3];
 	float	texcoord[2];
-	byte	color[3];
+	byte	color[4];
 } basicvertex_t;
 
 //johnfitz -- moved here from r_brush.c

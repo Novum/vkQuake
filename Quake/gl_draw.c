@@ -438,25 +438,29 @@ void Draw_FillCharacterQuad (int x, int y, char num, basicvertex_t * output)
 	size = 0.0625;
 
 	basicvertex_t vertices[4];
-	memset(&vertices, 0, sizeof(vertices));
+	memset(&vertices, 255, sizeof(vertices));
 
 	vertices[0].position[0] = x;
 	vertices[0].position[1] = y;
+	vertices[0].position[2] = 0.0f;
 	vertices[0].texcoord[0] = fcol;
 	vertices[0].texcoord[1] = frow;
 
 	vertices[1].position[0] = x+8;
 	vertices[1].position[1] = y;
+	vertices[1].position[2] = 0.0f;
 	vertices[1].texcoord[0] = fcol + size;
 	vertices[1].texcoord[1] = frow;
 
 	vertices[2].position[0] = x+8;
 	vertices[2].position[1] = y+8;
+	vertices[2].position[2] = 0.0f;
 	vertices[2].texcoord[0] = fcol + size;
 	vertices[2].texcoord[1] = frow + size;
 
 	vertices[3].position[0] = x;
 	vertices[3].position[1] = y+8;
+	vertices[3].position[2] = 0.0f;
 	vertices[3].texcoord[0] = fcol;
 	vertices[3].texcoord[1] = frow + size;
 
