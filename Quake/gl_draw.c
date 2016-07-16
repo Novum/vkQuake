@@ -437,39 +437,39 @@ void Draw_FillCharacterQuad (int x, int y, char num, basicvertex_t * output)
 	fcol = col*0.0625;
 	size = 0.0625;
 
-	basicvertex_t vertices[4];
-	memset(&vertices, 255, sizeof(vertices));
+	basicvertex_t corner_verts[4];
+	memset(&corner_verts, 255, sizeof(corner_verts));
 
-	vertices[0].position[0] = x;
-	vertices[0].position[1] = y;
-	vertices[0].position[2] = 0.0f;
-	vertices[0].texcoord[0] = fcol;
-	vertices[0].texcoord[1] = frow;
+	corner_verts[0].position[0] = x;
+	corner_verts[0].position[1] = y;
+	corner_verts[0].position[2] = 0.0f;
+	corner_verts[0].texcoord[0] = fcol;
+	corner_verts[0].texcoord[1] = frow;
 
-	vertices[1].position[0] = x+8;
-	vertices[1].position[1] = y;
-	vertices[1].position[2] = 0.0f;
-	vertices[1].texcoord[0] = fcol + size;
-	vertices[1].texcoord[1] = frow;
+	corner_verts[1].position[0] = x+8;
+	corner_verts[1].position[1] = y;
+	corner_verts[1].position[2] = 0.0f;
+	corner_verts[1].texcoord[0] = fcol + size;
+	corner_verts[1].texcoord[1] = frow;
 
-	vertices[2].position[0] = x+8;
-	vertices[2].position[1] = y+8;
-	vertices[2].position[2] = 0.0f;
-	vertices[2].texcoord[0] = fcol + size;
-	vertices[2].texcoord[1] = frow + size;
+	corner_verts[2].position[0] = x+8;
+	corner_verts[2].position[1] = y+8;
+	corner_verts[2].position[2] = 0.0f;
+	corner_verts[2].texcoord[0] = fcol + size;
+	corner_verts[2].texcoord[1] = frow + size;
 
-	vertices[3].position[0] = x;
-	vertices[3].position[1] = y+8;
-	vertices[3].position[2] = 0.0f;
-	vertices[3].texcoord[0] = fcol;
-	vertices[3].texcoord[1] = frow + size;
+	corner_verts[3].position[0] = x;
+	corner_verts[3].position[1] = y+8;
+	corner_verts[3].position[2] = 0.0f;
+	corner_verts[3].texcoord[0] = fcol;
+	corner_verts[3].texcoord[1] = frow + size;
 
-	output[0] = vertices[0];
-	output[1] = vertices[1];
-	output[2] = vertices[2];
-	output[3] = vertices[2];
-	output[4] = vertices[3];
-	output[5] = vertices[0];
+	output[0] = corner_verts[0];
+	output[1] = corner_verts[1];
+	output[2] = corner_verts[2];
+	output[3] = corner_verts[2];
+	output[4] = corner_verts[3];
+	output[5] = corner_verts[0];
 }
 
 /*
@@ -543,17 +543,49 @@ void Draw_Pic (int x, int y, qpic_t *pic)
 	if (scrap_dirty)
 		Scrap_Upload ();
 	gl = (glpic_t *)pic->data;
-	/*GL_Bind (gl->gltexture);
-	glBegin (GL_QUADS);
-	glTexCoord2f (gl->sl, gl->tl);
-	glVertex2f (x, y);
-	glTexCoord2f (gl->sh, gl->tl);
-	glVertex2f (x+pic->width, y);
-	glTexCoord2f (gl->sh, gl->th);
-	glVertex2f (x+pic->width, y+pic->height);
-	glTexCoord2f (gl->sl, gl->th);
-	glVertex2f (x, y+pic->height);
-	glEnd ();*/
+
+	VkBuffer buffer;
+	uint64_t buffer_offset;
+	basicvertex_t * vertices = (basicvertex_t*)R_VertexAllocate(6 * sizeof(basicvertex_t), &buffer, &buffer_offset);
+
+	basicvertex_t corner_verts[4];
+	memset(&corner_verts, 255, sizeof(corner_verts));
+
+	corner_verts[0].position[0] = x;
+	corner_verts[0].position[1] = y;
+	corner_verts[0].position[2] = 0.0f;
+	corner_verts[0].texcoord[0] = gl->sl;
+	corner_verts[0].texcoord[1] = gl->tl;
+
+	corner_verts[1].position[0] = x+pic->width;
+	corner_verts[1].position[1] = y;
+	corner_verts[1].position[2] = 0.0f;
+	corner_verts[1].texcoord[0] = gl->sh;
+	corner_verts[1].texcoord[1] = gl->tl;
+
+	corner_verts[2].position[0] = x+pic->width;
+	corner_verts[2].position[1] = y+pic->height;
+	corner_verts[2].position[2] = 0.0f;
+	corner_verts[2].texcoord[0] = gl->sh;
+	corner_verts[2].texcoord[1] = gl->th;
+
+	corner_verts[3].position[0] = x;
+	corner_verts[3].position[1] = y+pic->height;
+	corner_verts[3].position[2] = 0.0f;
+	corner_verts[3].texcoord[0] = gl->sl;
+	corner_verts[3].texcoord[1] = gl->th;
+
+	vertices[0] = corner_verts[0];
+	vertices[1] = corner_verts[1];
+	vertices[2] = corner_verts[2];
+	vertices[3] = corner_verts[2];
+	vertices[4] = corner_verts[3];
+	vertices[5] = corner_verts[0];
+
+	vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
+	vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline);
+	vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout, 1, 1, &gl->gltexture->descriptor_set, 0, NULL);
+	vkCmdDraw(vulkan_globals.command_buffer, 6, 1, 0, 0);
 }
 
 /*
