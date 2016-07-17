@@ -610,13 +610,6 @@ void R_CreateDescriptorSetLayouts()
 	sampler_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
 	sampler_layout_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-	VkDescriptorSetLayoutBinding single_texture_layout_binding;
-	memset(&single_texture_layout_binding, 0, sizeof(single_texture_layout_binding));
-	single_texture_layout_binding.binding = 0;
-	single_texture_layout_binding.descriptorCount = 1;
-	single_texture_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-	single_texture_layout_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
 	VkDescriptorSetLayoutCreateInfo descriptor_set_layout_create_info;
 	memset(&descriptor_set_layout_create_info, 0, sizeof(descriptor_set_layout_create_info));
 	descriptor_set_layout_create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -627,7 +620,15 @@ void R_CreateDescriptorSetLayouts()
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateDescriptorSetLayout failed");
 
+	VkDescriptorSetLayoutBinding single_texture_layout_binding;
+	memset(&single_texture_layout_binding, 0, sizeof(single_texture_layout_binding));
+	single_texture_layout_binding.binding = 0;
+	single_texture_layout_binding.descriptorCount = 1;
+	single_texture_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+	single_texture_layout_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
 	descriptor_set_layout_create_info.pBindings = &single_texture_layout_binding;
+
 	err = vkCreateDescriptorSetLayout(vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.single_texture_set_layout);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateDescriptorSetLayout failed");
@@ -676,7 +677,7 @@ void R_CreatePipelineLayouts()
 
 	VkResult err;
 
-	VkDescriptorSetLayout descriptor_set_layouts[2] = { vulkan_globals.sampler_set_layout, vulkan_globals.single_texture_set_layout };
+	VkDescriptorSetLayout basic_descriptor_set_layouts[2] = { vulkan_globals.sampler_set_layout, vulkan_globals.single_texture_set_layout };
 
 	VkPushConstantRange push_constant_range;
 	memset(&push_constant_range, 0, sizeof(push_constant_range));
@@ -687,13 +688,21 @@ void R_CreatePipelineLayouts()
 	VkPipelineLayoutCreateInfo pipeline_layout_create_info;
 	memset(&pipeline_layout_create_info, 0, sizeof(pipeline_layout_create_info));
 	pipeline_layout_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	pipeline_layout_create_info.flags;
 	pipeline_layout_create_info.setLayoutCount = 2;
-	pipeline_layout_create_info.pSetLayouts = descriptor_set_layouts;
+	pipeline_layout_create_info.pSetLayouts = basic_descriptor_set_layouts;
 	pipeline_layout_create_info.pushConstantRangeCount = 1;
 	pipeline_layout_create_info.pPushConstantRanges = &push_constant_range;
 
 	err = vkCreatePipelineLayout(vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.basic_pipeline_layout);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkCreatePipelineLayout failed");
+
+	VkDescriptorSetLayout world_descriptor_set_layouts[3] = { vulkan_globals.sampler_set_layout, vulkan_globals.single_texture_set_layout, vulkan_globals.single_texture_set_layout };
+
+	pipeline_layout_create_info.setLayoutCount = 3;
+	pipeline_layout_create_info.pSetLayouts = world_descriptor_set_layouts;
+
+	err = vkCreatePipelineLayout(vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.world_pipeline_layout);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreatePipelineLayout failed");
 }
@@ -780,6 +789,8 @@ void R_CreatePipelines()
 	VkShaderModule basic_vert_module = R_CreateShaderModule(basic_vert_spv, basic_vert_spv_size);
 	VkShaderModule basic_frag_module = R_CreateShaderModule(basic_frag_spv, basic_frag_spv_size);
 	VkShaderModule basic_notex_frag_module = R_CreateShaderModule(basic_notex_frag_spv, basic_notex_frag_spv_size);
+	VkShaderModule world_vert_module = R_CreateShaderModule(world_vert_spv, world_vert_spv_size);
+	VkShaderModule world_frag_module = R_CreateShaderModule(world_frag_spv, world_frag_spv_size);
 
 	VkPipelineDynamicStateCreateInfo dynamic_state_create_info;
 	memset(&dynamic_state_create_info, 0, sizeof(dynamic_state_create_info));
@@ -800,32 +811,32 @@ void R_CreatePipelines()
 	shader_stages[1].module = basic_frag_module;
 	shader_stages[1].pName = "main";
 
-	VkVertexInputAttributeDescription vertex_input_attribute_descriptions[3];
-	vertex_input_attribute_descriptions[0].binding = 0;
-	vertex_input_attribute_descriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-	vertex_input_attribute_descriptions[0].location = 0;
-	vertex_input_attribute_descriptions[0].offset = 0;
-	vertex_input_attribute_descriptions[1].binding = 0;
-	vertex_input_attribute_descriptions[1].format = VK_FORMAT_R32G32_SFLOAT;
-	vertex_input_attribute_descriptions[1].location = 1;
-	vertex_input_attribute_descriptions[1].offset = 12;
-	vertex_input_attribute_descriptions[2].binding = 0;
-	vertex_input_attribute_descriptions[2].format = VK_FORMAT_R8G8B8A8_UNORM;
-	vertex_input_attribute_descriptions[2].location = 2;
-	vertex_input_attribute_descriptions[2].offset = 20;
+	VkVertexInputAttributeDescription basic_vertex_input_attribute_descriptions[3];
+	basic_vertex_input_attribute_descriptions[0].binding = 0;
+	basic_vertex_input_attribute_descriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
+	basic_vertex_input_attribute_descriptions[0].location = 0;
+	basic_vertex_input_attribute_descriptions[0].offset = 0;
+	basic_vertex_input_attribute_descriptions[1].binding = 0;
+	basic_vertex_input_attribute_descriptions[1].format = VK_FORMAT_R32G32_SFLOAT;
+	basic_vertex_input_attribute_descriptions[1].location = 1;
+	basic_vertex_input_attribute_descriptions[1].offset = 12;
+	basic_vertex_input_attribute_descriptions[2].binding = 0;
+	basic_vertex_input_attribute_descriptions[2].format = VK_FORMAT_R8G8B8A8_UNORM;
+	basic_vertex_input_attribute_descriptions[2].location = 2;
+	basic_vertex_input_attribute_descriptions[2].offset = 20;
 
-	VkVertexInputBindingDescription vertex_binding_description;
-	vertex_binding_description.binding = 0;
-	vertex_binding_description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-	vertex_binding_description.stride = 24;
+	VkVertexInputBindingDescription basic_vertex_binding_description;
+	basic_vertex_binding_description.binding = 0;
+	basic_vertex_binding_description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+	basic_vertex_binding_description.stride = 24;
 
 	VkPipelineVertexInputStateCreateInfo vertex_input_state_create_info;
 	memset(&vertex_input_state_create_info, 0, sizeof(vertex_input_state_create_info));
 	vertex_input_state_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 	vertex_input_state_create_info.vertexAttributeDescriptionCount = 3;
-	vertex_input_state_create_info.pVertexAttributeDescriptions = vertex_input_attribute_descriptions;
+	vertex_input_state_create_info.pVertexAttributeDescriptions = basic_vertex_input_attribute_descriptions;
 	vertex_input_state_create_info.vertexBindingDescriptionCount = 1;
-	vertex_input_state_create_info.pVertexBindingDescriptions = &vertex_binding_description;
+	vertex_input_state_create_info.pVertexBindingDescriptions = &basic_vertex_binding_description;
 
 	VkPipelineInputAssemblyStateCreateInfo input_assembly_state_create_info;
 	memset(&input_assembly_state_create_info, 0, sizeof(input_assembly_state_create_info));
@@ -895,6 +906,9 @@ void R_CreatePipelines()
 	pipeline_create_info.layout = vulkan_globals.basic_pipeline_layout;
 	pipeline_create_info.renderPass = vulkan_globals.render_pass;
 
+	//================
+	// Basic pipelines
+	//================
 	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.basic_pipeline);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateGraphicsPipelines failed");
@@ -913,6 +927,46 @@ void R_CreatePipelines()
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateGraphicsPipelines failed");
 
+	//================
+	// World pipelines
+	//================
+	VkVertexInputAttributeDescription world_vertex_input_attribute_descriptions[3];
+	world_vertex_input_attribute_descriptions[0].binding = 0;
+	world_vertex_input_attribute_descriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
+	world_vertex_input_attribute_descriptions[0].location = 0;
+	world_vertex_input_attribute_descriptions[0].offset = 0;
+	world_vertex_input_attribute_descriptions[1].binding = 0;
+	world_vertex_input_attribute_descriptions[1].format = VK_FORMAT_R32G32_SFLOAT;
+	world_vertex_input_attribute_descriptions[1].location = 1;
+	world_vertex_input_attribute_descriptions[1].offset = 12;
+	world_vertex_input_attribute_descriptions[2].binding = 0;
+	world_vertex_input_attribute_descriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
+	world_vertex_input_attribute_descriptions[2].location = 2;
+	world_vertex_input_attribute_descriptions[2].offset = 20;
+
+	VkVertexInputBindingDescription world_vertex_binding_description;
+	world_vertex_binding_description.binding = 0;
+	world_vertex_binding_description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+	world_vertex_binding_description.stride = 28;
+
+	vertex_input_state_create_info.vertexAttributeDescriptionCount = 3;
+	vertex_input_state_create_info.pVertexAttributeDescriptions = world_vertex_input_attribute_descriptions;
+	vertex_input_state_create_info.vertexBindingDescriptionCount = 1;
+	vertex_input_state_create_info.pVertexBindingDescriptions = &world_vertex_binding_description;
+
+	shader_stages[0].module = world_vert_module;
+	shader_stages[1].module = world_frag_module;
+
+	blend_attachment_state.blendEnable = VK_FALSE;
+	
+	pipeline_create_info.layout = vulkan_globals.world_pipeline_layout;
+
+	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.world_pipeline);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkCreateGraphicsPipelines failed");
+
+	vkDestroyShaderModule(vulkan_globals.device, world_frag_module, NULL);
+	vkDestroyShaderModule(vulkan_globals.device, world_vert_module, NULL);
 	vkDestroyShaderModule(vulkan_globals.device, basic_notex_frag_module, NULL);
 	vkDestroyShaderModule(vulkan_globals.device, basic_frag_module, NULL);
 	vkDestroyShaderModule(vulkan_globals.device, basic_vert_module, NULL);

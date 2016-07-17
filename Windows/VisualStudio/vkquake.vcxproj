@@ -283,6 +283,8 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClCompile Include="..\..\Shaders\Compiled\basic_frag.c" />
     <ClCompile Include="..\..\Shaders\Compiled\basic_notex_frag.c" />
     <ClCompile Include="..\..\Shaders\Compiled\basic_vert.c" />
+    <ClCompile Include="..\..\Shaders\Compiled\world_frag.c" />
+    <ClCompile Include="..\..\Shaders\Compiled\world_vert.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\Quake\anorms.h" />
@@ -358,6 +360,9 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <None Include="..\..\Shaders\basic.frag" />
     <None Include="..\..\Shaders\basic.vert" />
     <None Include="..\..\Shaders\basic_notex.frag" />
+    <None Include="..\..\Shaders\compile.bat" />
+    <None Include="..\..\Shaders\world.frag" />
+    <None Include="..\..\Shaders\world.vert" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

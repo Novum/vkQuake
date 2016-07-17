@@ -265,6 +265,12 @@
     <ClCompile Include="..\..\Shaders\Compiled\basic_vert.c">
       <Filter>Shaders\Compiled</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\world_frag.c">
+      <Filter>Shaders\Compiled</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\world_vert.c">
+      <Filter>Shaders\Compiled</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\Quake\snd_codec.h">
@@ -476,6 +482,15 @@
       <Filter>Shaders</Filter>
     </None>
     <None Include="..\..\Shaders\basic_notex.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\..\Shaders\world.vert">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\..\Shaders\world.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\..\Shaders\compile.bat">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>
