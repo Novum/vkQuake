@@ -341,8 +341,10 @@ void R_SubmitStagingBuffers();
 byte * R_StagingAllocate(int size, VkCommandBuffer * command_buffer, VkBuffer * buffer, int * buffer_offset);
 
 void R_InitDynamicVertexBuffers();
-void R_SwapDynamicVertexBuffers();
+void R_InitDynamicIndexBuffers();
+void R_SwapDynamicBuffers();
 byte * R_VertexAllocate(int size, VkBuffer * buffer, uint64_t * buffer_offset);
+byte * R_IndexAllocate(int size, VkBuffer * buffer, uint64_t * buffer_offset);
 
 #endif	/* __GLQUAKE_H */
 

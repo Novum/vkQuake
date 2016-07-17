@@ -77,22 +77,25 @@ static int				current_staging_buffer = 0;
 
 /*
 ================
-Dynamic vertex buffer
+Dynamic vertex/index buffer
 ================
 */
-#define DYNAMIC_VERTEX_BUFFER_SIZE_KB	2048
-#define NUM_DYNAMIC_VERTEX_BUFFERS		2
+#define DYNAMIC_VERTEX_BUFFER_SIZE_KB	1024
+#define DYNAMIC_INDEX_BUFFER_SIZE_KB	128
+#define NUM_DYNAMIC_BUFFERS				2
 
 typedef struct
 {
 	VkBuffer			buffer;
 	uint32_t			current_offset;
 	unsigned char *		data;
-} dynvertexbuffer_t;
+} dynbuffer_t;
 
-static VkDeviceMemory		dyn_vertex_buffer_memory;
-static dynvertexbuffer_t	dyn_vertex_buffers[NUM_DYNAMIC_VERTEX_BUFFERS];
-static int					current_dyn_vb = 0;
+static VkDeviceMemory	dyn_vertex_buffer_memory;
+static VkDeviceMemory	dyn_index_buffer_memory;
+static dynbuffer_t		dyn_vertex_buffers[NUM_DYNAMIC_BUFFERS];
+static dynbuffer_t		dyn_index_buffers[NUM_DYNAMIC_BUFFERS];
+static int				current_dyn_buffer_index = 0;
 
 /*
 ================
@@ -432,7 +435,7 @@ void R_InitDynamicVertexBuffers()
 	buffer_create_info.size = DYNAMIC_VERTEX_BUFFER_SIZE_KB * 1024;
 	buffer_create_info.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
 
-	for(int i = 0; i < NUM_DYNAMIC_VERTEX_BUFFERS; ++i)
+	for(int i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
 	{
 		dyn_vertex_buffers[i].current_offset = 0;
 
@@ -452,14 +455,14 @@ void R_InitDynamicVertexBuffers()
 	VkMemoryAllocateInfo memory_allocate_info;
 	memset(&memory_allocate_info, 0, sizeof(memory_allocate_info));
 	memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	memory_allocate_info.allocationSize = NUM_DYNAMIC_VERTEX_BUFFERS * aligned_size;
+	memory_allocate_info.allocationSize = NUM_DYNAMIC_BUFFERS * aligned_size;
 	memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
 
 	err = vkAllocateMemory(vulkan_globals.device, &memory_allocate_info, NULL, &dyn_vertex_buffer_memory);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkAllocateMemory failed");
 
-	for(int i = 0; i < NUM_STAGING_BUFFERS; ++i)
+	for(int i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
 	{
 		err = vkBindBufferMemory(vulkan_globals.device, dyn_vertex_buffers[i].buffer, dyn_vertex_buffer_memory, i * aligned_size);
 		if (err != VK_SUCCESS)
@@ -467,23 +470,84 @@ void R_InitDynamicVertexBuffers()
 	}
 
 	unsigned char * data;
-	err = vkMapMemory(vulkan_globals.device, dyn_vertex_buffer_memory, 0, NUM_STAGING_BUFFERS * aligned_size, 0, &data);
+	err = vkMapMemory(vulkan_globals.device, dyn_vertex_buffer_memory, 0, NUM_DYNAMIC_BUFFERS * aligned_size, 0, &data);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkMapMemory failed");
 
-	for(int i = 0; i < NUM_STAGING_BUFFERS; ++i)
+	for(int i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
 		dyn_vertex_buffers[i].data = data + (i * aligned_size);
 }
 
 /*
 ===============
-R_SwapDynamicVertexBuffers
+R_InitDynamicIndexBuffers
 ===============
 */
-void R_SwapDynamicVertexBuffers()
+void R_InitDynamicIndexBuffers()
 {
-	current_dyn_vb = (current_dyn_vb + 1) % NUM_DYNAMIC_VERTEX_BUFFERS;
-	dyn_vertex_buffers[current_dyn_vb].current_offset = 0;
+	Con_Printf("Initializing dynamic index buffers\n");
+
+	VkResult err;
+
+	VkBufferCreateInfo buffer_create_info;
+	memset(&buffer_create_info, 0, sizeof(buffer_create_info));
+	buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	buffer_create_info.size = DYNAMIC_INDEX_BUFFER_SIZE_KB * 1024;
+	buffer_create_info.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+
+	for(int i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
+	{
+		dyn_index_buffers[i].current_offset = 0;
+
+		err = vkCreateBuffer(vulkan_globals.device, &buffer_create_info, NULL, &dyn_index_buffers[i].buffer);
+		if (err != VK_SUCCESS)
+			Sys_Error("vkCreateBuffer failed");
+	}
+
+	VkMemoryRequirements memory_requirements;
+	vkGetBufferMemoryRequirements(vulkan_globals.device, dyn_index_buffers[0].buffer, &memory_requirements);
+
+	const int align_mod = memory_requirements.size % memory_requirements.alignment;
+	const int aligned_size = ((memory_requirements.size % memory_requirements.alignment) == 0) 
+		? memory_requirements.size 
+		: (memory_requirements.size + memory_requirements.alignment - align_mod);
+
+	VkMemoryAllocateInfo memory_allocate_info;
+	memset(&memory_allocate_info, 0, sizeof(memory_allocate_info));
+	memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	memory_allocate_info.allocationSize = NUM_DYNAMIC_BUFFERS * aligned_size;
+	memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+
+	err = vkAllocateMemory(vulkan_globals.device, &memory_allocate_info, NULL, &dyn_index_buffer_memory);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkAllocateMemory failed");
+
+	for(int i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
+	{
+		err = vkBindBufferMemory(vulkan_globals.device, dyn_index_buffers[i].buffer, dyn_index_buffer_memory, i * aligned_size);
+		if (err != VK_SUCCESS)
+			Sys_Error("vkBindBufferMemory failed");
+	}
+
+	unsigned char * data;
+	err = vkMapMemory(vulkan_globals.device, dyn_index_buffer_memory, 0, NUM_DYNAMIC_BUFFERS * aligned_size, 0, &data);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkMapMemory failed");
+
+	for(int i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
+		dyn_index_buffers[i].data = data + (i * aligned_size);
+}
+
+/*
+===============
+R_SwapDynamicBuffers
+===============
+*/
+void R_SwapDynamicBuffers()
+{
+	current_dyn_buffer_index = (current_dyn_buffer_index + 1) % NUM_DYNAMIC_BUFFERS;
+	dyn_vertex_buffers[current_dyn_buffer_index].current_offset = 0;
+	dyn_index_buffers[current_dyn_buffer_index].current_offset = 0;
 }
 
 /*
@@ -493,7 +557,7 @@ R_VertexAllocate
 */
 byte * R_VertexAllocate(int size, VkBuffer * buffer, uint64_t * buffer_offset)
 {
-	dynvertexbuffer_t *dyn_vb = &dyn_vertex_buffers[current_dyn_vb];
+	dynbuffer_t *dyn_vb = &dyn_vertex_buffers[current_dyn_buffer_index];
 
 	if ((dyn_vb->current_offset + size) > (DYNAMIC_VERTEX_BUFFER_SIZE_KB * 1024))
 		Sys_Error("Out of dynamic vertex buffer space, increase DYNAMIC_VERTEX_BUFFER_SIZE_KB");
@@ -503,6 +567,27 @@ byte * R_VertexAllocate(int size, VkBuffer * buffer, uint64_t * buffer_offset)
 
 	unsigned char *data = dyn_vb->data + dyn_vb->current_offset;
 	dyn_vb->current_offset += size;
+
+	return data;
+}
+
+/*
+===============
+R_IndexAllocate
+===============
+*/
+byte * R_IndexAllocate(int size, VkBuffer * buffer, uint64_t * buffer_offset)
+{
+	dynbuffer_t *dyn_ib = &dyn_index_buffers[current_dyn_buffer_index];
+
+	if ((dyn_ib->current_offset + size) > (DYNAMIC_INDEX_BUFFER_SIZE_KB * 1024))
+		Sys_Error("Out of dynamic index buffer space, increase DYNAMIC_INDEX_BUFFER_SIZE_KB");
+
+	*buffer = dyn_ib->buffer;
+	*buffer_offset = dyn_ib->current_offset;
+
+	unsigned char *data = dyn_ib->data + dyn_ib->current_offset;
+	dyn_ib->current_offset += size;
 
 	return data;
 }

@@ -952,7 +952,7 @@ GL_BeginRendering
 */
 void GL_BeginRendering (int *x, int *y, int *width, int *height)
 {
-	R_SwapDynamicVertexBuffers();
+	R_SwapDynamicBuffers();
 	R_SubmitStagingBuffers();
 
 	*x = *y = 0;
@@ -1334,6 +1334,7 @@ void	VID_Init (void)
 	GL_CreateRenderTargets();
 	R_InitStagingBuffers();
 	R_InitDynamicVertexBuffers();
+	R_InitDynamicIndexBuffers();
 	R_CreateDescriptorSetLayouts();
 	R_CreateDescriptorPool();
 	R_InitSamplers();

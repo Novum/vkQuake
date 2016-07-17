@@ -741,10 +741,10 @@ void R_DrawLightmapChains (void)
 
 /*
 ================
-R_DrawTextureChains_Multitexture_VBO
+R_DrawTextureChains_Multitexture
 ================
 */
-void R_DrawTextureChains_Multitexture_VBO (qmodel_t *model, entity_t *ent, texchain_t chain)
+void R_DrawTextureChains_Multitexture (qmodel_t *model, entity_t *ent, texchain_t chain)
 {
 	int			i;
 	msurface_t	*s;
@@ -900,7 +900,7 @@ void R_DrawTextureChains (qmodel_t *model, entity_t *ent, texchain_t chain)
 	R_BeginTransparentDrawing (entalpha);
 
 	R_DrawTextureChains_NoTexture (model, chain);
-	R_DrawTextureChains_Multitexture_VBO (model, ent, chain);
+	R_DrawTextureChains_Multitexture (model, ent, chain);
 
 	R_EndTransparentDrawing (entalpha);
 
