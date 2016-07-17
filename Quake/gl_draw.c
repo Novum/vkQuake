@@ -795,7 +795,7 @@ static void GL_Viewport(float x, float y, float width, float height)
 {
 	VkViewport viewport;
 	viewport.x = x;
-	viewport.y = y;
+	viewport.y = vid.height - (y + height);
 	viewport.width = width;
 	viewport.height = height;
 	viewport.minDepth = 0.0f;
