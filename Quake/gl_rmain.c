@@ -459,11 +459,11 @@ void R_SetupMatrix (void)
 	MatrixMultiply(matrix, rotation_matrix);
 	RotationMatrix(rotation_matrix,  M_PI / 2.0f, 0.0f, 0.0f, 1.0f);
 	MatrixMultiply(matrix, rotation_matrix);
-	RotationMatrix(rotation_matrix, -r_refdef.viewangles[2], 1.0f, 0.0f, 0.0f);
+	RotationMatrix(rotation_matrix, DEG2RAD(-r_refdef.viewangles[2]), 1.0f, 0.0f, 0.0f);
 	MatrixMultiply(matrix, rotation_matrix);
-	RotationMatrix(rotation_matrix, -r_refdef.viewangles[0], 0.0f, 1.0f, 0.0f);
+	RotationMatrix(rotation_matrix, DEG2RAD(-r_refdef.viewangles[0]), 0.0f, 1.0f, 0.0f);
 	MatrixMultiply(matrix, rotation_matrix);
-	RotationMatrix(rotation_matrix, -r_refdef.viewangles[1], 0.0f, 0.0f, 1.0f);
+	RotationMatrix(rotation_matrix, DEG2RAD(-r_refdef.viewangles[1]), 0.0f, 0.0f, 1.0f);
 	
 	float translation_matrix[16];
 	TranslationMatrix(translation_matrix, -r_refdef.vieworg[0], -r_refdef.vieworg[1], -r_refdef.vieworg[2]);
