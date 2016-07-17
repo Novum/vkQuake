@@ -411,32 +411,24 @@ GL_FrustumMatrix
 #define NEARCLIP 4
 static void GL_FrustumMatrix(float matrix[16], float fovx, float fovy)
 {
-	const float xmax = NEARCLIP * tanf(fovx * M_PI / 360.0f);
-	const float ymax = NEARCLIP * tanf(fovy * M_PI / 360.0f);
-
-	const float left = -xmax;
-	const float right = xmax;
-	const float bottom = -ymax;
-	const float top = ymax;
-	const float znear = NEARCLIP;
-	const float zfar = gl_farclip.value;
+	float w = 1.0f / tanf(fovx * 0.5f);
+	float h = 1.0f / tanf(fovy * 0.5f);
+	float q = gl_farclip.value / (gl_farclip.value - NEARCLIP);
 
 	memset(matrix, 0, 16 * sizeof(float));
 
 	// First column
-	matrix[0*4 + 0] = (2.0f * znear) / (right - left);
+	matrix[0*4 + 0] = w;
 
 	// Second column
-	matrix[1*4 + 1] = -(2.0f * znear) / (top - bottom);
+	matrix[1*4 + 1] = h;
 	
 	// Third column
-	matrix[2*4 + 0] = (right + left) / (right - left);
-	matrix[2*4 + 1] = -(top + bottom) / (right - left);
-	matrix[2*4 + 2] = (zfar + znear) / (zfar - znear);
-	matrix[2*4 + 3] = -1.0f;
+	matrix[2*4 + 2] = q;
+	matrix[2*4 + 3] = -q * NEARCLIP;
 
 	// Fourth column
-	matrix[3*4 + 2] = -(2.0f * zfar * znear) / (zfar - znear);
+	matrix[3*4 + 2] = 1.0f;
 }
 
 /*
