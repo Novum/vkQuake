@@ -149,10 +149,10 @@ static void R_SetClearColor_f (cvar_t *var)
 
 	s = (int)r_clearcolor.value & 0xFF;
 	rgb = (byte*)(d_8to24table + s);
-	vulkan_globals.clear_value.color.float32[0] = rgb[0]/255;
-	vulkan_globals.clear_value.color.float32[1] = rgb[1]/255;
-	vulkan_globals.clear_value.color.float32[2] = rgb[2]/255;
-	vulkan_globals.clear_value.color.float32[3] = 0.0f;
+	vulkan_globals.color_clear_value.color.float32[0] = rgb[0]/255;
+	vulkan_globals.color_clear_value.color.float32[1] = rgb[1]/255;
+	vulkan_globals.color_clear_value.color.float32[2] = rgb[2]/255;
+	vulkan_globals.color_clear_value.color.float32[3] = 0.0f;
 }
 
 /*
@@ -956,6 +956,10 @@ void R_CreatePipelines()
 
 	shader_stages[0].module = world_vert_module;
 	shader_stages[1].module = world_frag_module;
+
+	depth_stencil_state_create_info.depthTestEnable = VK_TRUE;
+	depth_stencil_state_create_info.depthWriteEnable = VK_TRUE;
+	depth_stencil_state_create_info.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
 
 	blend_attachment_state.blendEnable = VK_FALSE;
 	

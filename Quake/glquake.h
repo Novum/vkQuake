@@ -105,7 +105,7 @@ typedef struct
 	VkQueue								queue;
 	VkCommandBuffer						command_buffer;
 	VkRenderPass						render_pass;
-	VkClearValue						clear_value;
+	VkClearValue						color_clear_value;
 	VkFormat							swap_chain_format;
 	VkPhysicalDeviceProperties			device_properties;
 	VkPhysicalDeviceMemoryProperties	memory_properties;

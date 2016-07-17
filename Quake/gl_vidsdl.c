@@ -39,6 +39,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #define NUM_COMMAND_BUFFERS 2
 #define NUM_SWAP_CHAIN_IMAGES 2
+#define DEPTH_FORMAT VK_FORMAT_D16_UNORM
 
 typedef struct {
 	int			width;
@@ -87,20 +88,23 @@ static cvar_t	vid_desktopfullscreen = {"vid_desktopfullscreen", "0", CVAR_ARCHIV
 cvar_t		vid_gamma = {"gamma", "1", CVAR_ARCHIVE}; //johnfitz -- moved here from view.c
 
 // Vulkan
-static VkInstance vulkan_instance;
-static VkPhysicalDevice vulkan_physical_device;
-static VkSurfaceKHR vulkan_surface;
-static VkSurfaceCapabilitiesKHR vulkan_surface_capabilities;
-static VkSwapchainKHR vulkan_swapchain;
+static VkInstance					vulkan_instance;
+static VkPhysicalDevice				vulkan_physical_device;
+static VkSurfaceKHR					vulkan_surface;
+static VkSurfaceCapabilitiesKHR		vulkan_surface_capabilities;
+static VkSwapchainKHR				vulkan_swapchain;
 
-static uint32_t vulkan_current_command_buffer;
-static VkCommandPool vulkan_command_pool;
-static VkCommandBuffer vulkan_command_buffers[NUM_COMMAND_BUFFERS];
-static VkFence vulkan_command_buffer_fences[NUM_COMMAND_BUFFERS];
-static qboolean vulkan_command_buffer_submitted[NUM_COMMAND_BUFFERS];
-static VkFramebuffer vulkan_framebuffers[NUM_SWAP_CHAIN_IMAGES];
-static VkImageView swapchain_images_views[NUM_SWAP_CHAIN_IMAGES];
-static VkSemaphore vulkan_image_aquired_semaphores[NUM_SWAP_CHAIN_IMAGES];
+static uint32_t						current_command_buffer;
+static VkCommandPool				command_pool;
+static VkCommandBuffer				command_buffers[NUM_COMMAND_BUFFERS];
+static VkFence						command_buffer_fences[NUM_COMMAND_BUFFERS];
+static qboolean						command_buffer_submitted[NUM_COMMAND_BUFFERS];
+static VkFramebuffer				framebuffers[NUM_SWAP_CHAIN_IMAGES];
+static VkImageView					swapchain_images_views[NUM_SWAP_CHAIN_IMAGES];
+static VkSemaphore					image_aquired_semaphores[NUM_SWAP_CHAIN_IMAGES];
+static VkImage						depth_buffer;
+static VkDeviceMemory				depth_buffer_memory;
+static VkImageView					depth_buffer_view;
 
 static PFN_vkGetDeviceProcAddr fpGetDeviceProcAddr;
 static PFN_vkGetPhysicalDeviceSurfaceSupportKHR fpGetPhysicalDeviceSurfaceSupportKHR;
@@ -747,17 +751,17 @@ static void GL_InitCommandBuffers( void )
 	command_pool_create_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 	command_pool_create_info.queueFamilyIndex = vulkan_globals.gfx_queue_family_index;
 
-	err = vkCreateCommandPool(vulkan_globals.device, &command_pool_create_info, NULL, &vulkan_command_pool);
+	err = vkCreateCommandPool(vulkan_globals.device, &command_pool_create_info, NULL, &command_pool);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateCommandPool failed");
 
 	VkCommandBufferAllocateInfo command_buffer_allocate_info;
 	memset(&command_buffer_allocate_info, 0, sizeof(command_buffer_allocate_info));
 	command_buffer_allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-	command_buffer_allocate_info.commandPool = vulkan_command_pool;
+	command_buffer_allocate_info.commandPool = command_pool;
 	command_buffer_allocate_info.commandBufferCount = NUM_COMMAND_BUFFERS;
 
-	err = vkAllocateCommandBuffers(vulkan_globals.device, &command_buffer_allocate_info, vulkan_command_buffers);
+	err = vkAllocateCommandBuffers(vulkan_globals.device, &command_buffer_allocate_info, command_buffers);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkAllocateCommandBuffers failed");
 
@@ -767,7 +771,7 @@ static void GL_InitCommandBuffers( void )
 
 	for (int i = 0; i < NUM_COMMAND_BUFFERS; ++i) 
 	{
-		err = vkCreateFence(vulkan_globals.device, &fence_create_info, NULL, &vulkan_command_buffer_fences[i]);
+		err = vkCreateFence(vulkan_globals.device, &fence_create_info, NULL, &command_buffer_fences[i]);
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateFence failed");
 	}
@@ -782,7 +786,7 @@ static void GL_CreateRenderPass()
 {
 	VkResult err;
 
-	VkAttachmentDescription attachment_descriptions[1];
+	VkAttachmentDescription attachment_descriptions[2];
 	memset(&attachment_descriptions, 0, sizeof(attachment_descriptions));
 
 	attachment_descriptions[0].initialLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
@@ -792,30 +796,103 @@ static void GL_CreateRenderPass()
 	attachment_descriptions[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	attachment_descriptions[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 
-	VkAttachmentReference attachment_references[1];
-	memset(&attachment_references, 0, sizeof(attachment_references));
+	attachment_descriptions[1].initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+	attachment_descriptions[1].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+	attachment_descriptions[1].samples = VK_SAMPLE_COUNT_1_BIT;
+	attachment_descriptions[1].format = DEPTH_FORMAT;
+	attachment_descriptions[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	attachment_descriptions[1].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 
-	attachment_references[0].attachment = 0;
-	attachment_references[0].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	VkAttachmentReference color_attachment_reference;
+	color_attachment_reference.attachment = 0;
+	color_attachment_reference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-	VkSubpassDescription subpass_descriptions[1];
-	memset(&subpass_descriptions, 0, sizeof(subpass_descriptions));
+	VkAttachmentReference depth_attachment_reference;
+	depth_attachment_reference.attachment = 1;
+	depth_attachment_reference.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
-	subpass_descriptions[0].colorAttachmentCount = 1;
-	subpass_descriptions[0].pColorAttachments = attachment_references;
-	subpass_descriptions[0].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+	VkSubpassDescription subpass_description;
+	memset(&subpass_description, 0, sizeof(subpass_description));
+
+	subpass_description.colorAttachmentCount = 1;
+	subpass_description.pColorAttachments = &color_attachment_reference;
+	subpass_description.pDepthStencilAttachment = &depth_attachment_reference;
+	subpass_description.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 
 	VkRenderPassCreateInfo render_pass_create_info;
 	memset(&render_pass_create_info, 0, sizeof(render_pass_create_info));
 	render_pass_create_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-	render_pass_create_info.attachmentCount = 1;
+	render_pass_create_info.attachmentCount = 2;
 	render_pass_create_info.pAttachments = attachment_descriptions;
 	render_pass_create_info.subpassCount = 1;
-	render_pass_create_info.pSubpasses = subpass_descriptions;
+	render_pass_create_info.pSubpasses = &subpass_description;
 
 	err = vkCreateRenderPass(vulkan_globals.device, &render_pass_create_info, NULL, &vulkan_globals.render_pass);
 	if (err != VK_SUCCESS)
 		Sys_Error("Couldn't create Vulkan render pass");
+}
+
+/*
+===============
+GL_CreateDepthBuffer
+===============
+*/
+static void GL_CreateDepthBuffer( void )
+{
+	VkResult err;
+	
+	VkImageCreateInfo image_create_info;
+	memset(&image_create_info, 0, sizeof(image_create_info));
+	image_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+	image_create_info.pNext = NULL;
+	image_create_info.imageType = VK_IMAGE_TYPE_2D;
+	image_create_info.format = DEPTH_FORMAT;
+	image_create_info.extent.width = vid.width;
+	image_create_info.extent.height = vid.height;
+	image_create_info.extent.depth = 1;
+	image_create_info.mipLevels = 1;
+	image_create_info.arrayLayers = 1;
+	image_create_info.samples = VK_SAMPLE_COUNT_1_BIT;
+	image_create_info.tiling = VK_IMAGE_TILING_OPTIMAL;
+	image_create_info.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+
+	err = vkCreateImage(vulkan_globals.device, &image_create_info, NULL, &depth_buffer);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkCreateImage failed");
+
+	VkMemoryRequirements memory_requirements;
+	vkGetImageMemoryRequirements(vulkan_globals.device, depth_buffer, &memory_requirements);
+
+	VkMemoryAllocateInfo memory_allocate_info;
+	memset(&memory_allocate_info, 0, sizeof(memory_allocate_info));
+	memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	memory_allocate_info.allocationSize = memory_requirements.size;
+	memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+	err = vkAllocateMemory(vulkan_globals.device, &memory_allocate_info, NULL, &depth_buffer_memory);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkAllocateMemory failed");
+
+	err = vkBindImageMemory(vulkan_globals.device, depth_buffer, depth_buffer_memory, 0);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkBindImageMemory failed");
+
+	VkImageViewCreateInfo image_view_create_info;
+	memset(&image_view_create_info, 0, sizeof(image_view_create_info));
+	image_view_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+	image_view_create_info.format = DEPTH_FORMAT;
+	image_view_create_info.image = depth_buffer;
+	image_view_create_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+	image_view_create_info.subresourceRange.baseMipLevel = 0;
+	image_view_create_info.subresourceRange.levelCount = 1;
+	image_view_create_info.subresourceRange.baseArrayLayer = 0;
+	image_view_create_info.subresourceRange.layerCount = 1;
+	image_view_create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+	image_view_create_info.flags = 0;
+
+	err = vkCreateImageView(vulkan_globals.device, &image_view_create_info, NULL, &depth_buffer_view);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkCreateImageView failed");
 }
 
 /*
@@ -894,11 +971,13 @@ static void GL_CreateRenderTargets( void )
 	image_view_create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
 	image_view_create_info.flags = 0;
 
+	GL_CreateDepthBuffer();
+
 	VkFramebufferCreateInfo framebuffer_create_info;
 	memset(&framebuffer_create_info, 0, sizeof(framebuffer_create_info));
 	framebuffer_create_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
 	framebuffer_create_info.renderPass = vulkan_globals.render_pass;
-	framebuffer_create_info.attachmentCount = 1;
+	framebuffer_create_info.attachmentCount = 2;
 	framebuffer_create_info.width = vid.width;
 	framebuffer_create_info.height = vid.height;
 	framebuffer_create_info.layers = 1;
@@ -914,17 +993,20 @@ static void GL_CreateRenderTargets( void )
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateImageView failed");
 
-		framebuffer_create_info.pAttachments = &swapchain_images_views[i];
-		err = vkCreateFramebuffer(vulkan_globals.device, &framebuffer_create_info, NULL, &vulkan_framebuffers[i]);
+		VkImageView attachments[2] = { swapchain_images_views[i], depth_buffer_view };
+		framebuffer_create_info.pAttachments = attachments;
+		err = vkCreateFramebuffer(vulkan_globals.device, &framebuffer_create_info, NULL, &framebuffers[i]);
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateFramebuffer failed");
 
-		err = vkCreateSemaphore(vulkan_globals.device, &semaphore_create_info, NULL, &vulkan_image_aquired_semaphores[i]);
+		err = vkCreateSemaphore(vulkan_globals.device, &semaphore_create_info, NULL, &image_aquired_semaphores[i]);
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateSemaphore failed");
 	}
 
 	free(swapchain_images);
+
+	
 }
 
 /*
@@ -935,6 +1017,14 @@ GL_DestroyRenderTargets
 static void GL_DestroyRenderTargets( void )
 {
 	Con_Printf("Destroying render targets\n");
+
+	vkDestroyImageView(vulkan_globals.device, depth_buffer_view, NULL);
+	vkDestroyImage(vulkan_globals.device, depth_buffer, NULL);
+	vkFreeMemory(vulkan_globals.device, depth_buffer_memory, NULL);
+
+	depth_buffer_view = VK_NULL_HANDLE;
+	depth_buffer = VK_NULL_HANDLE;
+	depth_buffer_memory = VK_NULL_HANDLE;
 
 	for (int i = 0; i < NUM_SWAP_CHAIN_IMAGES; ++i)
 	{
@@ -961,14 +1051,14 @@ void GL_BeginRendering (int *x, int *y, int *width, int *height)
 
 	VkResult err;
 
-	if (vulkan_command_buffer_submitted[vulkan_current_command_buffer])
+	if (command_buffer_submitted[current_command_buffer])
 	{
-		err = vkWaitForFences(vulkan_globals.device, 1, &vulkan_command_buffer_fences[vulkan_current_command_buffer], VK_TRUE, UINT64_MAX);
+		err = vkWaitForFences(vulkan_globals.device, 1, &command_buffer_fences[current_command_buffer], VK_TRUE, UINT64_MAX);
 		if (err != VK_SUCCESS)
 			Sys_Error("vkWaitForFences failed");
 	}
 
-	err = vkResetFences(vulkan_globals.device, 1, &vulkan_command_buffer_fences[vulkan_current_command_buffer]);
+	err = vkResetFences(vulkan_globals.device, 1, &command_buffer_fences[current_command_buffer]);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkResetFences failed");
 
@@ -976,12 +1066,12 @@ void GL_BeginRendering (int *x, int *y, int *width, int *height)
 	memset(&command_buffer_begin_info, 0, sizeof(command_buffer_begin_info));
 	command_buffer_begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 
-	vulkan_globals.command_buffer = vulkan_command_buffers[vulkan_current_command_buffer];
+	vulkan_globals.command_buffer = command_buffers[current_command_buffer];
 	err = vkBeginCommandBuffer(vulkan_globals.command_buffer, &command_buffer_begin_info);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkBeginCommandBuffer failed");
 
-	err = fpAcquireNextImageKHR(vulkan_globals.device, vulkan_swapchain, UINT64_MAX, vulkan_image_aquired_semaphores[vulkan_current_command_buffer], VK_NULL_HANDLE, &current_swapchain_buffer);
+	err = fpAcquireNextImageKHR(vulkan_globals.device, vulkan_swapchain, UINT64_MAX, image_aquired_semaphores[current_command_buffer], VK_NULL_HANDLE, &current_swapchain_buffer);
 	if (err != VK_SUCCESS)
 		Sys_Error("Couldn't acquire next image");
 
@@ -991,14 +1081,20 @@ void GL_BeginRendering (int *x, int *y, int *width, int *height)
 	render_area.extent.width = vid.width;
 	render_area.extent.height = vid.height;
 
+	VkClearValue depth_clear_value;
+	depth_clear_value.depthStencil.depth = 1.0f;
+	depth_clear_value.depthStencil.stencil = 0;
+
+	VkClearValue clear_values[2] = { vulkan_globals.color_clear_value, depth_clear_value };
+
 	VkRenderPassBeginInfo render_pass_begin_info;
 	memset(&render_pass_begin_info, 0, sizeof(render_pass_begin_info));
 	render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 	render_pass_begin_info.renderArea = render_area;
 	render_pass_begin_info.renderPass = vulkan_globals.render_pass;
-	render_pass_begin_info.framebuffer = vulkan_framebuffers[vulkan_current_command_buffer];
-	render_pass_begin_info.clearValueCount = 1;
-	render_pass_begin_info.pClearValues = &vulkan_globals.clear_value;
+	render_pass_begin_info.framebuffer = framebuffers[current_command_buffer];
+	render_pass_begin_info.clearValueCount = 2;
+	render_pass_begin_info.pClearValues = clear_values;
 
 	vkCmdBeginRenderPass(vulkan_globals.command_buffer, &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
 
@@ -1038,17 +1134,17 @@ void GL_EndRendering (void)
 	memset(&submit_info, 0, sizeof(submit_info));
 	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 	submit_info.commandBufferCount = 1;
-	submit_info.pCommandBuffers = &vulkan_command_buffers[vulkan_current_command_buffer];
+	submit_info.pCommandBuffers = &command_buffers[current_command_buffer];
 	submit_info.waitSemaphoreCount = 1;
-	submit_info.pWaitSemaphores = &vulkan_image_aquired_semaphores[vulkan_current_command_buffer];
+	submit_info.pWaitSemaphores = &image_aquired_semaphores[current_command_buffer];
 	submit_info.pWaitDstStageMask = &wait_dst_stage_mask;
 
-	err = vkQueueSubmit(vulkan_globals.queue, 1, &submit_info, vulkan_command_buffer_fences[vulkan_current_command_buffer]);
+	err = vkQueueSubmit(vulkan_globals.queue, 1, &submit_info, command_buffer_fences[current_command_buffer]);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkQueueSubmit failed");
 
-	vulkan_command_buffer_submitted[vulkan_current_command_buffer] = true;
-	vulkan_current_command_buffer = (vulkan_current_command_buffer + 1) % NUM_COMMAND_BUFFERS;
+	command_buffer_submitted[current_command_buffer] = true;
+	current_command_buffer = (current_command_buffer + 1) % NUM_COMMAND_BUFFERS;
 
 	VkPresentInfoKHR present_info;
 	memset(&present_info, 0, sizeof(present_info));
