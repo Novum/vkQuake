@@ -555,9 +555,9 @@ void RotationMatrix(float matrix[16], float angle, float x, float y, float z)
 	matrix[0*4 + 3] = 0.0f;
 
 	// Second column
-	matrix[1*4 + 2] = y * z * (1.0f - c) + x * s;
 	matrix[1*4 + 0] = x * y * (1.0f - c) - z * s;
 	matrix[1*4 + 1] = y * y * (1.0f - c) + c;
+	matrix[1*4 + 2] = y * z * (1.0f - c) + x * s;
 	matrix[1*4 + 3] = 0.0f;
 	
 	// Third column
