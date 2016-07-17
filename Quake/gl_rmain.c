@@ -411,9 +411,11 @@ GL_FrustumMatrix
 #define NEARCLIP 4
 static void GL_FrustumMatrix(float matrix[16], float fovx, float fovy)
 {
-	float w = 1.0f / tanf(fovx * 0.5f);
-	float h = 1.0f / tanf(fovy * 0.5f);
-	float q = gl_farclip.value / (gl_farclip.value - NEARCLIP);
+	const float w = 1.0f / tanf(fovx * 0.5f);
+	const float h = 1.0f / tanf(fovy * 0.5f);
+
+	const float n = NEARCLIP;
+	const float f = gl_farclip.value;
 
 	memset(matrix, 0, 16 * sizeof(float));
 
@@ -421,14 +423,14 @@ static void GL_FrustumMatrix(float matrix[16], float fovx, float fovy)
 	matrix[0*4 + 0] = w;
 
 	// Second column
-	matrix[1*4 + 1] = h;
+	matrix[1*4 + 1] = -h;
 	
 	// Third column
-	matrix[2*4 + 2] = q;
-	matrix[2*4 + 3] = -q * NEARCLIP;
+	matrix[2*4 + 2] = -(f + n) / (f - n);
+	matrix[2*4 + 3] = -1.0f;
 
 	// Fourth column
-	matrix[3*4 + 2] = 1.0f;
+	matrix[3*4 + 2] = -(2.0f * f * n) / (f - n);
 }
 
 /*
@@ -444,7 +446,7 @@ void R_SetupMatrix (void)
 				r_refdef.vrect.height);
 
 	float matrix[16];
-	GL_FrustumMatrix(matrix, r_fovx, r_fovy);
+	GL_FrustumMatrix(matrix, DEG2RAD(r_fovx), DEG2RAD(r_fovy));
 
 	float rotation_matrix[16];
 	RotationMatrix(rotation_matrix, -M_PI / 2.0f, 1.0f, 0.0f, 0.0f);

@@ -32,6 +32,8 @@ byte *SV_FatPVS (vec3_t org, qmodel_t *worldmodel);
 extern byte mod_novis[MAX_MAP_LEAFS/8];
 int vis_changed; //if true, force pvs to be refreshed
 
+extern VkBuffer bmodel_vertex_buffer;
+
 //==============================================================================
 //
 // SETUP CHAINS
@@ -438,7 +440,7 @@ Writes out the triangle indices needed to draw s as a triangle list.
 The number of indices it will write is given by R_NumTriangleIndicesForSurf.
 ================
 */
-static void R_TriangleIndicesForSurf (msurface_t *s, unsigned int *dest)
+static void R_TriangleIndicesForSurf (msurface_t *s, uint32_t *dest)
 {
 	int i;
 	for (i=2; i<s->numedges; i++)
@@ -451,7 +453,7 @@ static void R_TriangleIndicesForSurf (msurface_t *s, unsigned int *dest)
 
 #define MAX_BATCH_SIZE 4096
 
-static unsigned int vbo_indices[MAX_BATCH_SIZE];
+static uint32_t vbo_indices[MAX_BATCH_SIZE];
 static unsigned int num_vbo_indices;
 
 /*
@@ -475,7 +477,14 @@ static void R_FlushBatch ()
 {
 	if (num_vbo_indices > 0)
 	{
-		//glDrawElements (GL_TRIANGLES, num_vbo_indices, GL_UNSIGNED_INT, vbo_indices);
+		VkBuffer buffer;
+		uint64_t buffer_offset;
+		byte * indices = R_IndexAllocate(num_vbo_indices * sizeof(uint32_t), &buffer, &buffer_offset);
+		memcpy(indices, vbo_indices, num_vbo_indices * sizeof(uint32_t));
+
+		vkCmdBindIndexBuffer(vulkan_globals.command_buffer, buffer, buffer_offset, VK_INDEX_TYPE_UINT32);
+		vkCmdDrawIndexed(vulkan_globals.command_buffer, num_vbo_indices, 1, 0, 0, 0);
+
 		num_vbo_indices = 0;
 	}
 }
@@ -753,6 +762,10 @@ void R_DrawTextureChains_Multitexture (qmodel_t *model, entity_t *ent, texchain_
 	int		lastlightmap;
 	gltexture_t	*fullbright = NULL;
 	
+	VkDeviceSize offset = 0;
+	vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &bmodel_vertex_buffer, &offset);
+	vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline);
+
 	/*
 // Bind the buffers
 	GL_BindBuffer (GL_ARRAY_BUFFER, gl_bmodel_vbo);
@@ -814,9 +827,10 @@ void R_DrawTextureChains_Multitexture (qmodel_t *model, entity_t *ent, texchain_
 			{
 				if (!bound) //only bind once we are sure we need this texture
 				{
-					//GL_SelectTexture (GL_TEXTURE0_ARB);
-					//GL_Bind ((R_TextureAnimation(t, ent != NULL ? ent->frame : 0))->gltexture);
-					
+					texture_t * texture = R_TextureAnimation(t, ent != NULL ? ent->frame : 0);
+					struct gltexture_s * gl = texture->gltexture;
+					vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout, 1, 1, &gl->descriptor_set, 0, NULL);
+
 					//if (t->texturechains[chain]->flags & SURF_DRAWFENCE)
 					//	glEnable (GL_ALPHA_TEST); // Flip alpha test back on
 										

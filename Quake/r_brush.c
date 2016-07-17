@@ -54,7 +54,7 @@ int			last_lightmap_allocated; //ericw -- optimization: remember the index of th
 byte		lightmaps[4*MAX_LIGHTMAPS*BLOCK_WIDTH*BLOCK_HEIGHT];
 
 static VkDeviceMemory	bmodel_memory;
-static VkBuffer			bmodel_vertex_buffer;
+VkBuffer				bmodel_vertex_buffer;
 
 /*
 ===============
