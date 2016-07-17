@@ -337,34 +337,6 @@ void R_RotateForEntity (vec3_t origin, vec3_t angles)
 	glRotatef (angles[2],  1, 0, 0);*/
 }
 
-/*
-=============
-GL_PolygonOffset -- johnfitz
-
-negative offset moves polygon closer to camera
-=============
-*/
-void GL_PolygonOffset (int offset)
-{
-	/*if (offset > 0)
-	{
-		glEnable (GL_POLYGON_OFFSET_FILL);
-		glEnable (GL_POLYGON_OFFSET_LINE);
-		glPolygonOffset(1, offset);
-	}
-	else if (offset < 0)
-	{
-		glEnable (GL_POLYGON_OFFSET_FILL);
-		glEnable (GL_POLYGON_OFFSET_LINE);
-		glPolygonOffset(-1, offset);
-	}
-	else
-	{
-		glDisable (GL_POLYGON_OFFSET_FILL);
-		glDisable (GL_POLYGON_OFFSET_LINE);
-	}*/
-}
-
 //==============================================================================
 //
 // SETUP FRAME
@@ -433,77 +405,71 @@ void R_SetFrustum (float fovx, float fovy)
 
 /*
 =============
-GL_SetFrustum -- johnfitz -- written to replace MYgluPerspective
+GL_FrustumMatrix
 =============
 */
 #define NEARCLIP 4
-void GL_SetFrustum(float fovx, float fovy)
+static void GL_FrustumMatrix(float matrix[16], float fovx, float fovy)
 {
-	float xmax, ymax;
-	xmax = NEARCLIP * tan( fovx * M_PI / 360.0 );
-	ymax = NEARCLIP * tan( fovy * M_PI / 360.0 );
-	//glFrustum(-xmax, xmax, -ymax, ymax, NEARCLIP, gl_farclip.value);
+	const float xmax = NEARCLIP * tanf(fovx * M_PI / 360.0f);
+	const float ymax = NEARCLIP * tanf(fovy * M_PI / 360.0f);
+
+	const float left = -xmax;
+	const float right = xmax;
+	const float bottom = -ymax;
+	const float top = ymax;
+	const float znear = NEARCLIP;
+	const float zfar = gl_farclip.value;
+
+	memset(matrix, 0, 16 * sizeof(float));
+
+	// First column
+	matrix[0*4 + 0] = (2.0f * znear) / (right - left);
+
+	// Second column
+	matrix[1*4 + 1] = -(2.0f * znear) / (top - bottom);
+	
+	// Third column
+	matrix[2*4 + 0] = (right + left) / (right - left);
+	matrix[2*4 + 1] = -(top + bottom) / (right - left);
+	matrix[2*4 + 2] = (zfar + znear) / (zfar - znear);
+	matrix[2*4 + 3] = -1.0f;
+
+	// Fourth column
+	matrix[3*4 + 2] = -(2.0f * zfar * znear) / (zfar - znear);
 }
 
 /*
 =============
-R_SetupGL
+R_SetupMatrix
 =============
 */
-void R_SetupGL (void)
+void R_SetupMatrix (void)
 {
-	/*//johnfitz -- rewrote this section
-	glMatrixMode(GL_PROJECTION);
-    glLoadIdentity ();
-	glViewport (glx + r_refdef.vrect.x,
+	GL_Viewport(glx + r_refdef.vrect.x,
 				gly + glheight - r_refdef.vrect.y - r_refdef.vrect.height,
 				r_refdef.vrect.width,
 				r_refdef.vrect.height);
-	//johnfitz
 
-    GL_SetFrustum (r_fovx, r_fovy); //johnfitz -- use r_fov* vars
+	float matrix[16];
+	GL_FrustumMatrix(matrix, r_fovx, r_fovy);
 
-//	glCullFace(GL_BACK); //johnfitz -- glquake used CCW with backwards culling -- let's do it right
+	float rotation_matrix[16];
+	RotationMatrix(rotation_matrix, -M_PI / 2.0f, 1.0f, 0.0f, 0.0f);
+	MatrixMultiply(matrix, rotation_matrix);
+	RotationMatrix(rotation_matrix,  M_PI / 2.0f, 0.0f, 0.0f, 1.0f);
+	MatrixMultiply(matrix, rotation_matrix);
+	RotationMatrix(rotation_matrix, -r_refdef.viewangles[2], 1.0f, 0.0f, 0.0f);
+	MatrixMultiply(matrix, rotation_matrix);
+	RotationMatrix(rotation_matrix, -r_refdef.viewangles[0], 0.0f, 1.0f, 0.0f);
+	MatrixMultiply(matrix, rotation_matrix);
+	RotationMatrix(rotation_matrix, -r_refdef.viewangles[1], 0.0f, 0.0f, 1.0f);
+	
+	float translation_matrix[16];
+	TranslationMatrix(translation_matrix, -r_refdef.vieworg[0], -r_refdef.vieworg[1], -r_refdef.vieworg[2]);
+	MatrixMultiply(matrix, translation_matrix);
 
-	glMatrixMode(GL_MODELVIEW);
-    glLoadIdentity ();
-
-    glRotatef (-90,  1, 0, 0);	    // put Z going up
-    glRotatef (90,  0, 0, 1);	    // put Z going up
-    glRotatef (-r_refdef.viewangles[2],  1, 0, 0);
-    glRotatef (-r_refdef.viewangles[0],  0, 1, 0);
-    glRotatef (-r_refdef.viewangles[1],  0, 0, 1);
-    glTranslatef (-r_refdef.vieworg[0],  -r_refdef.vieworg[1],  -r_refdef.vieworg[2]);
-
-	//
-	// set drawing parms
-	//
-	if (gl_cull.value)
-		glEnable(GL_CULL_FACE);
-	else
-		glDisable(GL_CULL_FACE);
-
-	glDisable(GL_BLEND);
-	glDisable(GL_ALPHA_TEST);
-	glEnable(GL_DEPTH_TEST);*/
-}
-
-/*
-=============
-R_Clear -- johnfitz -- rewritten and gutted
-=============
-*/
-void R_Clear (void)
-{
-	/*unsigned int clearbits;
-
-	clearbits = GL_DEPTH_BUFFER_BIT;
-	// from mh -- if we get a stencil buffer, we should clear it, even though we don't use it
-	if (gl_stencilbits)
-		clearbits |= GL_STENCIL_BUFFER_BIT;
-	if (gl_clear.value)
-		clearbits |= GL_COLOR_BUFFER_BIT;
-	glClear (clearbits);*/
+	vkCmdPushConstants(vulkan_globals.command_buffer, vulkan_globals.basic_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, 16 * sizeof(float), matrix);
 }
 
 /*
@@ -516,7 +482,7 @@ void R_SetupScene (void)
 	R_PushDlights ();
 	R_AnimateLight ();
 	r_framecount++;
-	R_SetupGL ();
+	R_SetupMatrix ();
 }
 
 /*
@@ -563,8 +529,6 @@ void R_SetupView (void)
 	R_CullSurfaces (); //johnfitz -- do after R_SetFrustum and R_MarkSurfaces
 
 	R_UpdateWarpTextures (); //johnfitz -- do this before R_Clear
-
-	R_Clear ();
 
 	//johnfitz -- cheat-protect some draw modes
 	r_drawflat_cheatsafe = r_fullbright_cheatsafe = r_lightmap_cheatsafe = false;

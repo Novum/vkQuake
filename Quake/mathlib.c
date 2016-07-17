@@ -515,3 +515,85 @@ fixed16_t Invert24To16(fixed16_t val)
 			(((double)0x10000 * (double)0x1000000 / (double)val) + 0.5);
 }
 
+/*
+===================
+MatrixMultiply
+====================
+*/
+void MatrixMultiply(float left[16], float right[16])
+{
+	float temp[16];
+	memcpy(temp, left, 16 * sizeof(float));
+
+	for(int column = 0; column < 4; ++column)
+	{
+		for(int row = 0; row < 4; ++row)
+		{
+			float value = 0.0f;
+			for (int i = 0; i < 4; ++i)
+				value += left[column*4 + i] * right[i*4 + row];
+
+			left[column * 4 + row] = value;
+		}
+	}
+}
+
+/*
+=============
+RotationMatrix
+=============
+*/
+void RotationMatrix(float matrix[16], float angle, float x, float y, float z)
+{
+	const float c = cosf(angle);
+	const float s = sinf(angle);
+
+	// First column
+	matrix[0*4 + 0] = x * x * (1.0f - c) + c;
+	matrix[0*4 + 1] = y * x * (1.0f - c) + z * s;
+	matrix[0*4 + 2] = x * z * (1.0f - c) - y * s;
+	matrix[0*4 + 3] = 0.0f;
+
+	// Second column
+	matrix[1*4 + 2] = y * z * (1.0f - c) + x * s;
+	matrix[1*4 + 0] = x * y * (1.0f - c) - z * s;
+	matrix[1*4 + 1] = y * y * (1.0f - c) + c;
+	matrix[1*4 + 3] = 0.0f;
+	
+	// Third column
+	matrix[2*4 + 0] = x * z * (1.0f - c) + y * s;
+	matrix[2*4 + 1] = y * z * (1.0f - c) - x * s;
+	matrix[2*4 + 2] = z * z * (1.0f - c) + c;
+	matrix[2*4 + 3] = 0.0f;
+
+	// Fourth column
+	matrix[3*4 + 0] = 0.0f;
+	matrix[3*4 + 1] = 0.0f;
+	matrix[3*4 + 2] = 0.0f;
+	matrix[3*4 + 3] = 1.0f;
+}
+
+/*
+=============
+TranslationMatrix
+=============
+*/
+void TranslationMatrix(float matrix[16], float x, float y, float z)
+{
+	memset(matrix, 0, 16 * sizeof(float));
+
+	// First column
+	matrix[0*4 + 0] = 1.0f;
+
+	// Second column
+	matrix[1*4 + 1] = 1.0f;
+	
+	// Third column
+	matrix[2*4 + 2] = 1.0f;
+
+	// Fourth column
+	matrix[3*4 + 0] = x;
+	matrix[3*4 + 1] = y;
+	matrix[3*4 + 2] = z;
+	matrix[3*4 + 3] = 1.0f;
+}

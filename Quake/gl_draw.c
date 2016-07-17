@@ -777,7 +777,7 @@ static void GL_OrthoMatrix(float left, float right, float bottom, float top, flo
 	// Third column
 	matrix[2*4 + 2] = -2.0f / (f-n);
 
-	// Fourth
+	// Fourth column
 	matrix[3*4 + 0] = tx;
 	matrix[3*4 + 1] = ty;
 	matrix[3*4 + 2] = tz;
@@ -791,7 +791,7 @@ static void GL_OrthoMatrix(float left, float right, float bottom, float top, flo
 GL_Viewport
 ================
 */
-static void GL_Viewport(float x, float y, float width, float height)
+void GL_Viewport(float x, float y, float width, float height)
 {
 	VkViewport viewport;
 	viewport.x = x;
