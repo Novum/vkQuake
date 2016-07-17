@@ -390,7 +390,9 @@ byte * R_StagingAllocate(int size, VkCommandBuffer * command_buffer, VkBuffer * 
 	{
 		VkResult err;
 
-		vkWaitForFences(vulkan_globals.device, 1, &staging_buffer->fence, VK_TRUE, UINT64_MAX);
+		err = vkWaitForFences(vulkan_globals.device, 1, &staging_buffer->fence, VK_TRUE, UINT64_MAX);
+		if (err != VK_SUCCESS)
+			Sys_Error("vkWaitForFences failed");
 
 		err = vkResetFences(vulkan_globals.device, 1, &staging_buffer->fence);
 		if (err != VK_SUCCESS)

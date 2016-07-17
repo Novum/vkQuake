@@ -19,5 +19,3 @@ bintoc.exe Compiled/basic.fspv basic_frag_spv > Compiled/basic_frag.c
 bintoc.exe Compiled/basic_notex.fspv basic_notex_frag_spv > Compiled/basic_notex_frag.c
 bintoc.exe Compiled/world.vspv world_vert_spv > Compiled/world_vert.c
 bintoc.exe Compiled/world.fspv world_frag_spv > Compiled/world_frag.c
-
-pause

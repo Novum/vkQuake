@@ -828,8 +828,8 @@ void R_DrawTextureChains_Multitexture (qmodel_t *model, entity_t *ent, texchain_
 				if (!bound) //only bind once we are sure we need this texture
 				{
 					texture_t * texture = R_TextureAnimation(t, ent != NULL ? ent->frame : 0);
-					struct gltexture_s * gl = texture->gltexture;
-					vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout, 1, 1, &gl->descriptor_set, 0, NULL);
+					gltexture_t * gl_texture = texture->gltexture;
+					vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout, 1, 1, &gl_texture->descriptor_set, 0, NULL);
 
 					//if (t->texturechains[chain]->flags & SURF_DRAWFENCE)
 					//	glEnable (GL_ALPHA_TEST); // Flip alpha test back on
@@ -841,8 +841,9 @@ void R_DrawTextureChains_Multitexture (qmodel_t *model, entity_t *ent, texchain_
 				if (s->lightmaptexturenum != lastlightmap)
 					R_FlushBatch ();
 
-				//GL_SelectTexture (GL_TEXTURE1_ARB);
-				//GL_Bind (lightmap_textures[s->lightmaptexturenum]);
+				gltexture_t * lightmap_texture = lightmap_textures[s->lightmaptexturenum];
+				vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout, 2, 1, &lightmap_texture->descriptor_set, 0, NULL);
+
 				lastlightmap = s->lightmaptexturenum;
 				R_BatchSurface (s);
 

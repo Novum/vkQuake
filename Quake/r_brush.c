@@ -675,7 +675,7 @@ void GL_BuildBModelVertexBuffer (void)
 	memcpy(staging_memory, varray, varray_bytes);
 
 	VkBufferCopy region;
-	region.srcOffset = 0;
+	region.srcOffset = staging_offset;
 	region.dstOffset = 0;
 	region.size = varray_bytes;
 	vkCmdCopyBuffer(command_buffer, staging_buffer, bmodel_vertex_buffer, 1, &region);
@@ -778,7 +778,7 @@ Combine and scale multiple lightmaps into the 8.8 format in blocklights
 */
 void R_BuildLightMap (msurface_t *surf, byte *dest, int stride)
 {
-	/*int			smax, tmax;
+	int			smax, tmax;
 	int			r,g,b;
 	int			i, j, size;
 	byte		*lightmap;
@@ -828,63 +828,30 @@ void R_BuildLightMap (msurface_t *surf, byte *dest, int stride)
 
 // bound, invert, and shift
 // store:
-	switch (gl_lightmap_format)
+	stride -= smax * 4;
+	bl = blocklights;
+	for (i=0 ; i<tmax ; i++, dest += stride)
 	{
-	case GL_RGBA:
-		stride -= smax * 4;
-		bl = blocklights;
-		for (i=0 ; i<tmax ; i++, dest += stride)
+		for (j=0 ; j<smax ; j++)
 		{
-			for (j=0 ; j<smax ; j++)
+			if (gl_overbright.value)
 			{
-				if (gl_overbright.value)
-				{
-					r = *bl++ >> 8;
-					g = *bl++ >> 8;
-					b = *bl++ >> 8;
-				}
-				else
-				{
-					r = *bl++ >> 7;
-					g = *bl++ >> 7;
-					b = *bl++ >> 7;
-				}
-				if (r > 255) r = 255; *dest++ = r;
-				if (g > 255) g = 255; *dest++ = g;
-				if (b > 255) b = 255; *dest++ = b;
-				*dest++ = 255;
+				r = *bl++ >> 8;
+				g = *bl++ >> 8;
+				b = *bl++ >> 8;
 			}
-		}
-		break;
-	case GL_BGRA:
-		stride -= smax * 4;
-		bl = blocklights;
-		for (i=0 ; i<tmax ; i++, dest += stride)
-		{
-			for (j=0 ; j<smax ; j++)
+			else
 			{
-				if (gl_overbright.value)
-				{
-					r = *bl++ >> 8;
-					g = *bl++ >> 8;
-					b = *bl++ >> 8;
-				}
-				else
-				{
-					r = *bl++ >> 7;
-					g = *bl++ >> 7;
-					b = *bl++ >> 7;
-				}
-				if (b > 255) b = 255; *dest++ = b;
-				if (g > 255) g = 255; *dest++ = g;
-				if (r > 255) r = 255; *dest++ = r;
-				*dest++ = 255;
+				r = *bl++ >> 7;
+				g = *bl++ >> 7;
+				b = *bl++ >> 7;
 			}
+			if (r > 255) r = 255; *dest++ = r;
+			if (g > 255) g = 255; *dest++ = g;
+			if (b > 255) b = 255; *dest++ = b;
+			*dest++ = 255;
 		}
-		break;
-	default:
-		Sys_Error ("R_BuildLightMap: bad lightmap format");
-	}*/
+	}
 }
 
 /*
@@ -894,9 +861,9 @@ R_UploadLightmap -- johnfitz -- uploads the modified lightmap to opengl if neces
 assumes lightmap texture is already bound
 ===============
 */
-static void R_UploadLightmap(int lmap)
+static void R_UploadLightmap(int lmap, gltexture_t * lightmap)
 {
-	/*glRect_t	*theRect;
+	glRect_t	*theRect;
 
 	if (!lightmap_modified[lmap])
 		return;
@@ -904,28 +871,27 @@ static void R_UploadLightmap(int lmap)
 	lightmap_modified[lmap] = false;
 
 	theRect = &lightmap_rectchange[lmap];
-	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, theRect->t, BLOCK_WIDTH, theRect->h, gl_lightmap_format,
-		  GL_UNSIGNED_BYTE, lightmaps+(lmap* BLOCK_HEIGHT + theRect->t) *BLOCK_WIDTH*lightmap_bytes);
+	//glTexSubImage2D(GL_TEXTURE_2D, 0, 0, theRect->t, BLOCK_WIDTH, theRect->h, gl_lightmap_format,
+	//	  GL_UNSIGNED_BYTE, lightmaps+(lmap* BLOCK_HEIGHT + theRect->t) *BLOCK_WIDTH*lightmap_bytes);
 	theRect->l = BLOCK_WIDTH;
 	theRect->t = BLOCK_HEIGHT;
 	theRect->h = 0;
 	theRect->w = 0;
 
-	rs_dynamiclightmaps++;*/
+	rs_dynamiclightmaps++;
 }
 
 void R_UploadLightmaps (void)
 {
-	/*int lmap;
+	int lmap;
 
 	for (lmap = 0; lmap < MAX_LIGHTMAPS; lmap++)
 	{
 		if (!lightmap_modified[lmap])
 			continue;
 
-		GL_Bind (lightmap_textures[lmap]);
-		R_UploadLightmap(lmap);
-	}*/
+		R_UploadLightmap(lmap, lightmap_textures[lmap]);
+	}
 }
 
 /*

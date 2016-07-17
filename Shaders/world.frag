@@ -3,8 +3,8 @@
 #extension GL_ARB_shading_language_420pack : enable
 
 layout(set = 0, binding = 0) uniform sampler s;
-layout(set = 1, binding = 0) uniform texture2D diffuse;
-layout(set = 2, binding = 0) uniform texture2D lightmap;
+layout(set = 1, binding = 0) uniform texture2D diffuse_tex;
+layout(set = 2, binding = 0) uniform texture2D lightmap_tex;
 
 layout (location = 0) in vec4 in_texcoords;
 
@@ -12,5 +12,7 @@ layout (location = 0) out vec4 out_frag_color;
 
 void main() 
 {
-	out_frag_color = texture(sampler2D(diffuse, s), in_texcoords.xy);
+	vec4 diffuse = texture(sampler2D(diffuse_tex, s), in_texcoords.xy);
+	vec4 light = texture(sampler2D(lightmap_tex, s), in_texcoords.zw);
+	out_frag_color = diffuse * light;
 }
