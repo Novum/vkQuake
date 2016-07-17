@@ -30,6 +30,8 @@ extern int basic_notex_frag_spv_size;
 extern unsigned char world_vert_spv[];
 extern int world_vert_spv_size;
 extern unsigned char world_frag_spv[];
-extern int world_frag_spv_size;;
+extern int world_frag_spv_size;
+extern unsigned char world_fullbright_frag_spv[];
+extern int world_fullbright_frag_spv_size;
 
 #endif

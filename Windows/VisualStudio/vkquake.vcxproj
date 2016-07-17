@@ -284,6 +284,7 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClCompile Include="..\..\Shaders\Compiled\basic_notex_frag.c" />
     <ClCompile Include="..\..\Shaders\Compiled\basic_vert.c" />
     <ClCompile Include="..\..\Shaders\Compiled\world_frag.c" />
+    <ClCompile Include="..\..\Shaders\Compiled\world_fullbright_frag.c" />
     <ClCompile Include="..\..\Shaders\Compiled\world_vert.c" />
   </ItemGroup>
   <ItemGroup>
@@ -363,6 +364,7 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <None Include="..\..\Shaders\compile.bat" />
     <None Include="..\..\Shaders\world.frag" />
     <None Include="..\..\Shaders\world.vert" />
+    <None Include="..\..\Shaders\world_fullbright.frag" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

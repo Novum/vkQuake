@@ -116,6 +116,7 @@ typedef struct
 	VkPipeline							basic_notex_blend_pipeline;
 	VkPipelineLayout					basic_pipeline_layout;
 	VkPipeline							world_pipeline;
+	VkPipeline							world_fullbright_pipeline;
 	VkPipelineLayout					world_pipeline_layout;
 
 	// Descriptors

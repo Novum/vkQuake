@@ -6,6 +6,7 @@ layout(set = 0, binding = 0) uniform sampler diffuse_sampler;
 layout(set = 0, binding = 1) uniform sampler lightmap_sampler;
 layout(set = 1, binding = 0) uniform texture2D diffuse_tex;
 layout(set = 2, binding = 0) uniform texture2D lightmap_tex;
+layout(set = 3, binding = 0) uniform texture2D fullbright_tex;
 
 layout (location = 0) in vec4 in_texcoords;
 

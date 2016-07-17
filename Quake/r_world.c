@@ -765,41 +765,7 @@ void R_DrawTextureChains_Multitexture (qmodel_t *model, entity_t *ent, texchain_
 	VkDeviceSize offset = 0;
 	vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &bmodel_vertex_buffer, &offset);
 	vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline);
-
-	/*
-// Bind the buffers
-	GL_BindBuffer (GL_ARRAY_BUFFER, gl_bmodel_vbo);
-	GL_BindBuffer (GL_ELEMENT_ARRAY_BUFFER, 0); // indices come from client memory!
-
-// Setup vertex array pointers
-	glVertexPointer (3, GL_FLOAT, VERTEXSIZE * sizeof(float), ((float *)0));
-	glEnableClientState (GL_VERTEX_ARRAY);
-
-	GL_ClientActiveTextureFunc (GL_TEXTURE0_ARB);
-	glTexCoordPointer (2, GL_FLOAT, VERTEXSIZE * sizeof(float), ((float *)0) + 3);
-	glEnableClientState (GL_TEXTURE_COORD_ARRAY);
-
-	GL_ClientActiveTextureFunc (GL_TEXTURE1_ARB);
-	glTexCoordPointer (2, GL_FLOAT, VERTEXSIZE * sizeof(float), ((float *)0) + 5);
-	glEnableClientState (GL_TEXTURE_COORD_ARRAY);
-
-// TMU 2 is for fullbrights; same texture coordinates as TMU 0
-	GL_ClientActiveTextureFunc (GL_TEXTURE2_ARB);
-	glTexCoordPointer (2, GL_FLOAT, VERTEXSIZE * sizeof(float), ((float *)0) + 3);
-	glEnableClientState (GL_TEXTURE_COORD_ARRAY);
-
-// Setup TMU 1 (lightmap)
-	GL_SelectTexture (GL_TEXTURE1_ARB);
-	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE_EXT);
-	glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB_EXT, GL_MODULATE);
-	glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_RGB_EXT, GL_PREVIOUS_EXT);
-	glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE1_RGB_EXT, GL_TEXTURE);
-	glTexEnvf(GL_TEXTURE_ENV, GL_RGB_SCALE_EXT, gl_overbright.value ? 2.0f : 1.0f);
-	glEnable(GL_TEXTURE_2D);
-
-// Setup TMU 2 (fullbrights)
-	GL_SelectTexture (GL_TEXTURE2_ARB);
-	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_ADD);*/
+	VkPipeline current_pipeline = vulkan_globals.world_pipeline;
 
 	for (i=0 ; i<model->numtextures ; i++)
 	{
@@ -809,14 +775,21 @@ void R_DrawTextureChains_Multitexture (qmodel_t *model, entity_t *ent, texchain_
 			continue;
 
 	// Enable/disable TMU 2 (fullbrights)
-		/*GL_SelectTexture (GL_TEXTURE2_ARB);
 		if (gl_fullbrights.value && (fullbright = R_TextureAnimation(t, ent != NULL ? ent->frame : 0)->fullbright))
 		{
-			glEnable(GL_TEXTURE_2D);
-			GL_Bind (fullbright);
+			if (current_pipeline != vulkan_globals.world_fullbright_pipeline)
+			{
+				vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_fullbright_pipeline);
+				current_pipeline = vulkan_globals.world_fullbright_pipeline;
+			}
+
+			vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout, 3, 1, &fullbright->descriptor_set, 0, NULL);
 		}
-		else
-			glDisable(GL_TEXTURE_2D);*/
+		else if (current_pipeline != vulkan_globals.world_pipeline)
+		{
+			vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline);
+			current_pipeline = vulkan_globals.world_pipeline;
+		}
 
 		R_ClearBatch ();
 
