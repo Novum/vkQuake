@@ -934,9 +934,9 @@ static int TexMgr_DeriveStagingSize(int width, int height)
 	int size = 0;
 	while(width >= 1 && height >= 1)
 	{
+		size += width * height * 4;
 		width /= 2;
 		height /= 2;
-		size += width * height * 4;
 	}
 	return size;
 }
