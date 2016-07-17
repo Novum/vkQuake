@@ -13,6 +13,6 @@ layout (location = 0) out vec4 out_frag_color;
 void main() 
 {
 	vec4 diffuse = texture(sampler2D(diffuse_tex, s), in_texcoords.xy);
-	vec4 light = texture(sampler2D(lightmap_tex, s), in_texcoords.zw);
+	vec4 light = texture(sampler2D(lightmap_tex, s), in_texcoords.zw) * 2.0f;
 	out_frag_color = diffuse * light;
 }
