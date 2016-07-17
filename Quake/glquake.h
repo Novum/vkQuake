@@ -126,6 +126,7 @@ typedef struct
 
 	// Samplers
 	VkSampler							point_sampler;
+	VkSampler							linear_sampler;
 } vulkanglobals_t;
 
 extern vulkanglobals_t vulkan_globals;

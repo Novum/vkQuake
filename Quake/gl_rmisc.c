@@ -605,18 +605,22 @@ void R_CreateDescriptorSetLayouts()
 
 	VkResult err;
 
-	VkDescriptorSetLayoutBinding sampler_layout_binding;
-	memset(&sampler_layout_binding, 0, sizeof(sampler_layout_binding));
-	sampler_layout_binding.binding = 0;
-	sampler_layout_binding.descriptorCount = 1;
-	sampler_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
-	sampler_layout_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+	VkDescriptorSetLayoutBinding sampler_layout_bindings[2];
+	memset(sampler_layout_bindings, 0, sizeof(sampler_layout_bindings));
+	sampler_layout_bindings[0].binding = 0;
+	sampler_layout_bindings[0].descriptorCount = 1;
+	sampler_layout_bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+	sampler_layout_bindings[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+	sampler_layout_bindings[1].binding = 1;
+	sampler_layout_bindings[1].descriptorCount = 1;
+	sampler_layout_bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+	sampler_layout_bindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
 	VkDescriptorSetLayoutCreateInfo descriptor_set_layout_create_info;
 	memset(&descriptor_set_layout_create_info, 0, sizeof(descriptor_set_layout_create_info));
 	descriptor_set_layout_create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-	descriptor_set_layout_create_info.bindingCount = 1;
-	descriptor_set_layout_create_info.pBindings = &sampler_layout_binding;
+	descriptor_set_layout_create_info.bindingCount = 2;
+	descriptor_set_layout_create_info.pBindings = sampler_layout_bindings;
 	
 	err = vkCreateDescriptorSetLayout(vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.sampler_set_layout);
 	if (err != VK_SUCCESS)
@@ -629,6 +633,7 @@ void R_CreateDescriptorSetLayouts()
 	single_texture_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
 	single_texture_layout_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
+	descriptor_set_layout_create_info.bindingCount = 1;
 	descriptor_set_layout_create_info.pBindings = &single_texture_layout_binding;
 
 	err = vkCreateDescriptorSetLayout(vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.single_texture_set_layout);
@@ -645,7 +650,7 @@ void R_CreateDescriptorPool()
 {
 	VkDescriptorPoolSize pool_sizes[2];
 	pool_sizes[0].type = VK_DESCRIPTOR_TYPE_SAMPLER;
-	pool_sizes[0].descriptorCount = 1;
+	pool_sizes[0].descriptorCount = 2;
 	pool_sizes[1].type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
 	pool_sizes[1].descriptorCount = MAX_GLTEXTURES;
 
@@ -725,12 +730,12 @@ void R_InitSamplers()
 	sampler_create_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
 	sampler_create_info.magFilter = VK_FILTER_NEAREST;
 	sampler_create_info.minFilter = VK_FILTER_NEAREST;
-	sampler_create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+	sampler_create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
 	sampler_create_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 	sampler_create_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 	sampler_create_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 	sampler_create_info.mipLodBias = 0.0f;
-	sampler_create_info.maxAnisotropy = 1;
+	sampler_create_info.maxAnisotropy = 1.0f;
 	sampler_create_info.minLod = 0;
 	sampler_create_info.maxLod = FLT_MAX;
 
@@ -738,21 +743,40 @@ void R_InitSamplers()
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateSampler failed");
 
-	VkDescriptorImageInfo image_info;
-	memset(&image_info, 0, sizeof(image_info));
-	image_info.sampler = vulkan_globals.point_sampler;
+	sampler_create_info.magFilter = VK_FILTER_LINEAR;
+	sampler_create_info.minFilter = VK_FILTER_LINEAR;
+	sampler_create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
 
-	VkWriteDescriptorSet sampler_write;
-	memset(&sampler_write, 0, sizeof(sampler_write));
-	sampler_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	sampler_write.dstSet = vulkan_globals.sampler_descriptor_set;
-	sampler_write.dstBinding = 0;
-	sampler_write.dstArrayElement = 0;
-	sampler_write.descriptorCount = 1;
-	sampler_write.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
-	sampler_write.pImageInfo = &image_info;
+	err = vkCreateSampler(vulkan_globals.device, &sampler_create_info, NULL, &vulkan_globals.linear_sampler);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkCreateSampler failed");
 
-	vkUpdateDescriptorSets(vulkan_globals.device, 1, &sampler_write, 0, NULL);
+	VkDescriptorImageInfo diffuse_image_info;
+	memset(&diffuse_image_info, 0, sizeof(diffuse_image_info));
+	diffuse_image_info.sampler = vulkan_globals.point_sampler;
+
+	VkDescriptorImageInfo lightmap_image_info;
+	memset(&lightmap_image_info, 0, sizeof(lightmap_image_info));
+	lightmap_image_info.sampler = vulkan_globals.linear_sampler;
+
+	VkWriteDescriptorSet sampler_writes[2];
+	memset(sampler_writes, 0, sizeof(sampler_writes));
+	sampler_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	sampler_writes[0].dstSet = vulkan_globals.sampler_descriptor_set;
+	sampler_writes[0].dstBinding = 0;
+	sampler_writes[0].dstArrayElement = 0;
+	sampler_writes[0].descriptorCount = 1;
+	sampler_writes[0].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+	sampler_writes[0].pImageInfo = &diffuse_image_info;
+	sampler_writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	sampler_writes[1].dstSet = vulkan_globals.sampler_descriptor_set;
+	sampler_writes[1].dstBinding = 1;
+	sampler_writes[1].dstArrayElement = 0;
+	sampler_writes[1].descriptorCount = 1;
+	sampler_writes[1].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+	sampler_writes[1].pImageInfo = &lightmap_image_info;
+
+	vkUpdateDescriptorSets(vulkan_globals.device, 2, sampler_writes, 0, NULL);
 }
 
 /*
