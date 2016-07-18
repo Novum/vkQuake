@@ -25,6 +25,8 @@ extern unsigned char basic_vert_spv[];
 extern int basic_vert_spv_size;
 extern unsigned char basic_frag_spv[];
 extern int basic_frag_spv_size;
+extern unsigned char basic_alphatest_frag_spv[];
+extern int basic_alphatest_frag_spv_size;
 extern unsigned char basic_notex_frag_spv[];
 extern int basic_notex_frag_spv_size;
 extern unsigned char world_vert_spv[];

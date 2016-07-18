@@ -818,6 +818,7 @@ void R_CreatePipelines()
 
 	VkShaderModule basic_vert_module = R_CreateShaderModule(basic_vert_spv, basic_vert_spv_size);
 	VkShaderModule basic_frag_module = R_CreateShaderModule(basic_frag_spv, basic_frag_spv_size);
+	VkShaderModule basic_alphatest_frag_module = R_CreateShaderModule(basic_alphatest_frag_spv, basic_alphatest_frag_spv_size);
 	VkShaderModule basic_notex_frag_module = R_CreateShaderModule(basic_notex_frag_spv, basic_notex_frag_spv_size);
 	VkShaderModule world_vert_module = R_CreateShaderModule(world_vert_spv, world_vert_spv_size);
 	VkShaderModule world_frag_module = R_CreateShaderModule(world_frag_spv, world_frag_spv_size);
@@ -839,7 +840,7 @@ void R_CreatePipelines()
 
 	shader_stages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 	shader_stages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-	shader_stages[1].module = basic_frag_module;
+	shader_stages[1].module = basic_alphatest_frag_module;
 	shader_stages[1].pName = "main";
 
 	VkVertexInputAttributeDescription basic_vertex_input_attribute_descriptions[3];
@@ -1025,6 +1026,7 @@ void R_CreatePipelines()
 	vkDestroyShaderModule(vulkan_globals.device, world_frag_module, NULL);
 	vkDestroyShaderModule(vulkan_globals.device, world_vert_module, NULL);
 	vkDestroyShaderModule(vulkan_globals.device, basic_notex_frag_module, NULL);
+	vkDestroyShaderModule(vulkan_globals.device, basic_alphatest_frag_module, NULL);
 	vkDestroyShaderModule(vulkan_globals.device, basic_frag_module, NULL);
 	vkDestroyShaderModule(vulkan_globals.device, basic_vert_module, NULL);
 }

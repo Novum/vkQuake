@@ -121,7 +121,7 @@ void DrawGLPoly (glpoly_t *p)
 	}
 
 	vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
-	vkCmdDraw(vulkan_globals.command_buffer, numverts, 0, 0, 1);
+	vkCmdDraw(vulkan_globals.command_buffer, numverts, 1, 0, 0);
 }
 
 /*
