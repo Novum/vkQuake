@@ -218,14 +218,14 @@ R_UpdateWarpTextures -- johnfitz -- each frame, update warping textures
 */
 void R_UpdateWarpTextures (void)
 {
-	/*texture_t *tx;
+	texture_t *tx;
 	int i;
-	float x, y, x2, warptess;
+	//float x, y, x2, warptess;
 
 	if (cl.paused || r_drawflat_cheatsafe || r_lightmap_cheatsafe)
 		return;
 
-	warptess = 128.0/CLAMP (3.0, floor(r_waterquality.value), 64.0);
+	float warptess = 128.0/CLAMP (3.0, floor(r_waterquality.value), 64.0);
 
 	for (i=0; i<cl.worldmodel->numtextures; i++)
 	{
@@ -236,7 +236,7 @@ void R_UpdateWarpTextures (void)
 			continue;
 
 		//render warp
-		GL_SetCanvas (CANVAS_WARPIMAGE);
+		/*GL_SetCanvas (CANVAS_WARPIMAGE);
 		GL_Bind (tx->gltexture);
 		for (x=0.0; x<128.0; x=x2)
 		{
@@ -250,11 +250,11 @@ void R_UpdateWarpTextures (void)
 				glVertex2f (x2,y);
 			}
 			glEnd();
-		}
+		}*/
 
 		//copy to texture
-		GL_Bind (tx->warpimage);
-		glCopyTexSubImage2D (GL_TEXTURE_2D, 0, 0, 0, glx, gly+glheight-gl_warpimagesize, gl_warpimagesize, gl_warpimagesize);
+		//GL_Bind (tx->warpimage);
+		//glCopyTexSubImage2D (GL_TEXTURE_2D, 0, 0, 0, glx, gly+glheight-gl_warpimagesize, gl_warpimagesize, gl_warpimagesize);
 
 		tx->update_warp = false;
 	}
@@ -264,5 +264,5 @@ void R_UpdateWarpTextures (void)
 		Sbar_Changed ();
 
 	//if viewsize is less than 100, we need to redraw the frame around the viewport
-	scr_tileclear_updates = 0;*/
+	scr_tileclear_updates = 0;
 }

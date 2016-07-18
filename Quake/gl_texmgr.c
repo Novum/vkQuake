@@ -488,20 +488,20 @@ void TexMgr_RecalcWarpImageSize (void)
 	//
 	// resize the textures in opengl
 	//
-	/*mark = Hunk_LowMark();
-	dummy = (byte *) Hunk_Alloc (gl_warpimagesize*gl_warpimagesize*4);
+	int mark = Hunk_LowMark();
+	byte *dummy = (byte *) Hunk_Alloc (gl_warpimagesize*gl_warpimagesize*4);
 
-	for (glt = active_gltextures; glt; glt = glt->next)
+	for (gltexture_t * glt = active_gltextures; glt; glt = glt->next)
 	{
 		if (glt->flags & TEXPREF_WARPIMAGE)
 		{
-			GL_Bind (glt);
-			glTexImage2D (GL_TEXTURE_2D, 0, gl_solid_format, gl_warpimagesize, gl_warpimagesize, 0, GL_RGBA, GL_UNSIGNED_BYTE, dummy);
-			glt->width = glt->height = gl_warpimagesize;
+			//GL_Bind (glt);
+			//glTexImage2D (GL_TEXTURE_2D, 0, gl_solid_format, gl_warpimagesize, gl_warpimagesize, 0, GL_RGBA, GL_UNSIGNED_BYTE, dummy);
+			//glt->width = glt->height = gl_warpimagesize;
 		}
 	}
 
-	Hunk_FreeToLowMark (mark);*/
+	Hunk_FreeToLowMark (mark);
 }
 
 /*
@@ -973,6 +973,8 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	if (num_mips > MAX_MIPS)
 		Sys_Error("Texture has over %d mips", MAX_MIPS);
 
+	const qboolean warp_image = (glt->flags & TEXPREF_WARPIMAGE);
+
 	VkResult err;
 
 	VkImageCreateInfo image_create_info;
@@ -987,7 +989,7 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	image_create_info.arrayLayers = 1;
 	image_create_info.samples = VK_SAMPLE_COUNT_1_BIT;
 	image_create_info.tiling = VK_IMAGE_TILING_OPTIMAL;
-	image_create_info.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+	image_create_info.usage = warp_image ? (VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT) : (VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
 	image_create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 	image_create_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
@@ -1031,6 +1033,37 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	err = vkCreateImageView(vulkan_globals.device, &image_view_create_info, NULL, &glt->image_view);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateImageView failed");
+
+	// Allocate and update descriptor for this texture
+	VkDescriptorSetAllocateInfo descriptor_set_allocate_info;
+	memset(&descriptor_set_allocate_info, 0, sizeof(descriptor_set_allocate_info));
+	descriptor_set_allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	descriptor_set_allocate_info.descriptorPool = vulkan_globals.descriptor_pool;
+	descriptor_set_allocate_info.descriptorSetCount = 1;
+	descriptor_set_allocate_info.pSetLayouts = &vulkan_globals.single_texture_set_layout;
+
+	vkAllocateDescriptorSets(vulkan_globals.device, &descriptor_set_allocate_info, &glt->descriptor_set);
+
+	VkDescriptorImageInfo image_info;
+	memset(&image_info, 0, sizeof(image_info));
+	image_info.imageView = glt->image_view;
+	image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+	VkWriteDescriptorSet texture_write;
+	memset(&texture_write, 0, sizeof(texture_write));
+	texture_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	texture_write.dstSet = glt->descriptor_set;
+	texture_write.dstBinding = 0;
+	texture_write.dstArrayElement = 0;
+	texture_write.descriptorCount = 1;
+	texture_write.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+	texture_write.pImageInfo = &image_info;
+
+	vkUpdateDescriptorSets(vulkan_globals.device, 1, &texture_write, 0, NULL);
+
+	// Don't upload data for warp image, will be updated by rendering
+	if (warp_image)
+		return;
 
 	// Upload
 	VkBufferImageCopy regions[MAX_MIPS];
@@ -1113,33 +1146,6 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	image_memory_barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
 	image_memory_barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	vkCmdPipelineBarrier(command_buffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, NULL, 0, NULL, 1, &image_memory_barrier);
-
-	// Allocate and update descriptor for this texture
-	VkDescriptorSetAllocateInfo descriptor_set_allocate_info;
-	memset(&descriptor_set_allocate_info, 0, sizeof(descriptor_set_allocate_info));
-	descriptor_set_allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-	descriptor_set_allocate_info.descriptorPool = vulkan_globals.descriptor_pool;
-	descriptor_set_allocate_info.descriptorSetCount = 1;
-	descriptor_set_allocate_info.pSetLayouts = &vulkan_globals.single_texture_set_layout;
-
-	vkAllocateDescriptorSets(vulkan_globals.device, &descriptor_set_allocate_info, &glt->descriptor_set);
-
-	VkDescriptorImageInfo image_info;
-	memset(&image_info, 0, sizeof(image_info));
-	image_info.imageView = glt->image_view;
-	image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-
-	VkWriteDescriptorSet texture_write;
-	memset(&texture_write, 0, sizeof(texture_write));
-	texture_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	texture_write.dstSet = glt->descriptor_set;
-	texture_write.dstBinding = 0;
-	texture_write.dstArrayElement = 0;
-	texture_write.descriptorCount = 1;
-	texture_write.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-	texture_write.pImageInfo = &image_info;
-
-	vkUpdateDescriptorSets(vulkan_globals.device, 1, &texture_write, 0, NULL);
 }
 
 /*
