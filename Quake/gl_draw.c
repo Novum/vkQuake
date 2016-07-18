@@ -852,7 +852,7 @@ void GL_SetCanvas (canvastype newcanvas)
 		break;
 	case CANVAS_WARPIMAGE:
 		GL_OrthoMatrix (0, 128, 0, 128, -99999, 99999);
-		GL_Viewport (glx, gly+glheight-gl_warpimagesize, gl_warpimagesize, gl_warpimagesize);
+		GL_Viewport (glx, gly+glheight-WARPIMAGESIZE, WARPIMAGESIZE, WARPIMAGESIZE);
 		break;
 	case CANVAS_CROSSHAIR: //0,0 is center of viewport
 		s = CLAMP (1.0, scr_crosshairscale.value, 10.0);

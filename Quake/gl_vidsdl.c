@@ -32,8 +32,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #define MAX_MODE_LIST	600 //johnfitz -- was 30
 #define MAX_BPPS_LIST	5
-#define WARP_WIDTH		320
-#define WARP_HEIGHT		200
 #define MAXWIDTH		10000
 #define MAXHEIGHT		10000
 
@@ -451,9 +449,6 @@ static void VID_Restart (void)
 	GL_BuildBModelVertexBuffer ();
 	GLMesh_LoadVertexBuffers ();
 	Fog_SetupState ();
-
-	//warpimages needs to be recalculated
-	TexMgr_RecalcWarpImageSize ();
 
 	//conwidth and conheight need to be recalculated
 	vid.conwidth = (scr_conwidth.value > 0) ? (int)scr_conwidth.value : (scr_conscale.value > 0) ? (int)(vid.width/scr_conscale.value) : vid.width;
@@ -1412,8 +1407,6 @@ void	VID_Init (void)
 
 	vid_initialized = true;
 
-	vid.maxwarpwidth = WARP_WIDTH;
-	vid.maxwarpheight = WARP_HEIGHT;
 	vid.colormap = host_colormap;
 	vid.fullbright = 256 - LittleLong (*((int *)vid.colormap + 2048));
 

@@ -460,51 +460,6 @@ void TexMgr_NewGame (void)
 }
 
 /*
-=============
-TexMgr_RecalcWarpImageSize -- called during init, and after a vid_restart
-
-choose safe warpimage size and resize existing warpimage textures
-=============
-*/
-void TexMgr_RecalcWarpImageSize (void)
-{
-	//
-	// find the new correct size
-	//
-	int oldsize = gl_warpimagesize;
-
-	gl_warpimagesize = TexMgr_SafeTextureSize (512);
-
-	while (gl_warpimagesize > vid.width)
-		gl_warpimagesize >>= 1;
-	while (gl_warpimagesize > vid.height)
-		gl_warpimagesize >>= 1;
-
-	// ericw -- removed early exit if (gl_warpimagesize == oldsize).
-	// after vid_restart TexMgr_ReloadImage reloads textures
-	// to tx->source_width/source_height, which might not match oldsize.
-	// fixes: https://sourceforge.net/p/quakespasm/bugs/13/
-	
-	//
-	// resize the textures in opengl
-	//
-	int mark = Hunk_LowMark();
-	byte *dummy = (byte *) Hunk_Alloc (gl_warpimagesize*gl_warpimagesize*4);
-
-	for (gltexture_t * glt = active_gltextures; glt; glt = glt->next)
-	{
-		if (glt->flags & TEXPREF_WARPIMAGE)
-		{
-			//GL_Bind (glt);
-			//glTexImage2D (GL_TEXTURE_2D, 0, gl_solid_format, gl_warpimagesize, gl_warpimagesize, 0, GL_RGBA, GL_UNSIGNED_BYTE, dummy);
-			//glt->width = glt->height = gl_warpimagesize;
-		}
-	}
-
-	Hunk_FreeToLowMark (mark);
-}
-
-/*
 ================
 TexMgr_Init
 
@@ -543,10 +498,6 @@ void TexMgr_Init (void)
 
 	//have to assign these here becuase Mod_Init is called before TexMgr_Init
 	r_notexture_mip->gltexture = r_notexture_mip2->gltexture = notexture;
-
-	//set safe size for warpimages
-	gl_warpimagesize = 0;
-	TexMgr_RecalcWarpImageSize ();
 }
 
 /*

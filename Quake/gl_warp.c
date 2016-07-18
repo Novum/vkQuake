@@ -27,7 +27,6 @@ extern cvar_t r_drawflat;
 cvar_t r_waterquality = {"r_waterquality", "8", CVAR_NONE};
 cvar_t r_waterwarp = {"r_waterwarp", "1", CVAR_NONE};
 
-int gl_warpimagesize;
 float load_subdivide_size; //johnfitz -- remember what subdivide_size value was when this map was loaded
 
 float	turbsin[] =
@@ -226,7 +225,7 @@ void R_UpdateWarpTextures (void)
 	}
 
 	//if warp render went down into sbar territory, we need to be sure to refresh it next frame
-	if (gl_warpimagesize + sb_lines > glheight)
+	if (WARPIMAGESIZE + sb_lines > glheight)
 		Sbar_Changed ();
 
 	//if viewsize is less than 100, we need to redraw the frame around the viewport

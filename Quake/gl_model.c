@@ -495,11 +495,11 @@ void Mod_LoadTextures (lump_t *l)
 				}
 
 				//now create the warpimage, using dummy data from the hunk to create the initial image
-				Hunk_Alloc (gl_warpimagesize*gl_warpimagesize*4); //make sure hunk is big enough so we don't reach an illegal address
+				Hunk_Alloc (WARPIMAGESIZE*WARPIMAGESIZE*4); //make sure hunk is big enough so we don't reach an illegal address
 				Hunk_FreeToLowMark (mark);
 				q_snprintf (texturename, sizeof(texturename), "%s_warp", texturename);
-				tx->warpimage = TexMgr_LoadImage (loadmodel, texturename, gl_warpimagesize,
-					gl_warpimagesize, SRC_RGBA, hunk_base, "", (src_offset_t)hunk_base, TEXPREF_NOPICMIP | TEXPREF_WARPIMAGE);
+				tx->warpimage = TexMgr_LoadImage (loadmodel, texturename, WARPIMAGESIZE,
+					WARPIMAGESIZE, SRC_RGBA, hunk_base, "", (src_offset_t)hunk_base, TEXPREF_NOPICMIP | TEXPREF_WARPIMAGE);
 				tx->update_warp = true;
 			}
 			else //regular texture

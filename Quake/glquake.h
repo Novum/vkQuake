@@ -240,8 +240,6 @@ extern int gl_lightmap_format, lightmap_bytes;
 #define MAX_LIGHTMAPS 256 //johnfitz -- was 64
 extern gltexture_t *lightmap_textures[MAX_LIGHTMAPS]; //johnfitz -- changed to an array
 
-extern int gl_warpimagesize; //johnfitz -- for water warp
-
 extern qboolean r_drawflat_cheatsafe, r_fullbright_cheatsafe, r_lightmap_cheatsafe, r_drawworld_cheatsafe; //johnfitz
 
 extern float	map_wateralpha, map_lavaalpha, map_telealpha, map_slimealpha; //ericw
@@ -317,8 +315,6 @@ void Sky_DrawSky (void);
 void Sky_NewMap (void);
 void Sky_LoadTexture (texture_t *mt);
 void Sky_LoadSkyBox (const char *name);
-
-void TexMgr_RecalcWarpImageSize (void);
 
 void R_ClearTextureChains (qmodel_t *mod, texchain_t chain);
 void R_ChainSurface (msurface_t *surf, texchain_t chain);
