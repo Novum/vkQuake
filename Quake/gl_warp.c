@@ -171,40 +171,6 @@ void GL_SubdivideSurface (msurface_t *fa)
 	SubdividePolygon (fa->polys->numverts, verts[0]);
 }
 
-/*
-================
-DrawWaterPoly -- johnfitz
-================
-*/
-void DrawWaterPoly (glpoly_t *p)
-{
-	/*float	*v;
-	int		i;
-
-	if (load_subdivide_size > 48)
-	{
-		glBegin (GL_POLYGON);
-		v = p->verts[0];
-		for (i=0 ; i<p->numverts ; i++, v+= VERTEXSIZE)
-		{
-			glTexCoord2f (WARPCALC2(v[3],v[4]), WARPCALC2(v[4],v[3]));
-			glVertex3fv (v);
-		}
-		glEnd ();
-	}
-	else
-	{
-		glBegin (GL_POLYGON);
-		v = p->verts[0];
-		for (i=0 ; i<p->numverts ; i++, v+= VERTEXSIZE)
-		{
-			glTexCoord2f (WARPCALC(v[3],v[4]), WARPCALC(v[4],v[3]));
-			glVertex3fv (v);
-		}
-		glEnd ();
-	}*/
-}
-
 //==============================================================================
 //
 //  RENDER-TO-FRAMEBUFFER WATER
