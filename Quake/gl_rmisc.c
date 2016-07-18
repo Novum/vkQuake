@@ -35,7 +35,6 @@ extern cvar_t gl_farclip;
 extern cvar_t gl_overbright;
 extern cvar_t gl_overbright_models;
 extern cvar_t r_waterquality;
-extern cvar_t r_oldwater;
 extern cvar_t r_waterwarp;
 extern cvar_t r_oldskyleaf;
 extern cvar_t r_drawworld;
@@ -557,7 +556,7 @@ void R_SwapDynamicBuffers()
 R_VertexAllocate
 ===============
 */
-byte * R_VertexAllocate(int size, VkBuffer * buffer, uint64_t * buffer_offset)
+byte * R_VertexAllocate(int size, VkBuffer * buffer, VkDeviceSize * buffer_offset)
 {
 	dynbuffer_t *dyn_vb = &dyn_vertex_buffers[current_dyn_buffer_index];
 
@@ -578,7 +577,7 @@ byte * R_VertexAllocate(int size, VkBuffer * buffer, uint64_t * buffer_offset)
 R_IndexAllocate
 ===============
 */
-byte * R_IndexAllocate(int size, VkBuffer * buffer, uint64_t * buffer_offset)
+byte * R_IndexAllocate(int size, VkBuffer * buffer, VkDeviceSize * buffer_offset)
 {
 	dynbuffer_t *dyn_ib = &dyn_index_buffers[current_dyn_buffer_index];
 
@@ -959,9 +958,30 @@ void R_CreatePipelines()
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateGraphicsPipelines failed");
 
+
+	//================
+	// Water
+	//================
+	input_assembly_state_create_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN;
+
+	shader_stages[0].module = basic_vert_module;
+	shader_stages[1].module = basic_frag_module;
+
+	depth_stencil_state_create_info.depthTestEnable = VK_TRUE;
+	depth_stencil_state_create_info.depthWriteEnable = VK_TRUE;
+	depth_stencil_state_create_info.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+
+	blend_attachment_state.blendEnable = VK_FALSE;
+
+	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.water_pipeline);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkCreateGraphicsPipelines failed");
+
 	//================
 	// World pipelines
 	//================
+	input_assembly_state_create_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+
 	VkVertexInputAttributeDescription world_vertex_input_attribute_descriptions[3];
 	world_vertex_input_attribute_descriptions[0].binding = 0;
 	world_vertex_input_attribute_descriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
@@ -988,12 +1008,6 @@ void R_CreatePipelines()
 
 	shader_stages[0].module = world_vert_module;
 	shader_stages[1].module = world_frag_module;
-
-	depth_stencil_state_create_info.depthTestEnable = VK_TRUE;
-	depth_stencil_state_create_info.depthWriteEnable = VK_TRUE;
-	depth_stencil_state_create_info.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
-
-	blend_attachment_state.blendEnable = VK_FALSE;
 	
 	pipeline_create_info.layout = vulkan_globals.world_pipeline_layout;
 
@@ -1055,7 +1069,6 @@ void R_Init (void)
 	Cvar_RegisterVariable (&r_clearcolor);
 	Cvar_SetCallback (&r_clearcolor, R_SetClearColor_f);
 	Cvar_RegisterVariable (&r_waterquality);
-	Cvar_RegisterVariable (&r_oldwater);
 	Cvar_RegisterVariable (&r_waterwarp);
 	Cvar_RegisterVariable (&r_drawflat);
 	Cvar_RegisterVariable (&r_flatlightstyles);

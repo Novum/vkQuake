@@ -488,7 +488,7 @@ void Draw_Character (int x, int y, int num)
 		return; //don't waste verts on spaces
 
 	VkBuffer buffer;
-	uint64_t buffer_offset;
+	VkDeviceSize buffer_offset;
 	basicvertex_t * vertices = (basicvertex_t*)R_VertexAllocate(6 * sizeof(basicvertex_t), &buffer, &buffer_offset);
 
 	Draw_FillCharacterQuad(x, y, (char)num, vertices);
@@ -515,7 +515,7 @@ void Draw_String (int x, int y, const char *str)
 			num_verts += 6;
 
 	VkBuffer buffer;
-	uint64_t buffer_offset;
+	VkDeviceSize buffer_offset;
 	basicvertex_t * vertices = (basicvertex_t*)R_VertexAllocate(num_verts * sizeof(basicvertex_t), &buffer, &buffer_offset);
 
 	for(int i = 0; *str != 0; ++str)
@@ -545,7 +545,7 @@ void Draw_Pic (int x, int y, qpic_t *pic)
 	gl = (glpic_t *)pic->data;
 
 	VkBuffer buffer;
-	uint64_t buffer_offset;
+	VkDeviceSize buffer_offset;
 	basicvertex_t * vertices = (basicvertex_t*)R_VertexAllocate(6 * sizeof(basicvertex_t), &buffer, &buffer_offset);
 
 	basicvertex_t corner_verts[4];
@@ -719,7 +719,7 @@ void Draw_FadeScreen (void)
 	GL_SetCanvas (CANVAS_DEFAULT);
 
 	VkBuffer buffer;
-	uint64_t buffer_offset;
+	VkDeviceSize buffer_offset;
 	basicvertex_t * vertices = (basicvertex_t*)R_VertexAllocate(6 * sizeof(basicvertex_t), &buffer, &buffer_offset);
 
 	basicvertex_t corner_verts[4];

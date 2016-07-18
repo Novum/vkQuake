@@ -24,7 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 
-extern cvar_t gl_fullbrights, r_drawflat, gl_overbright, r_oldwater, r_oldskyleaf, r_showtris; //johnfitz
+extern cvar_t gl_fullbrights, r_drawflat, gl_overbright, r_oldskyleaf, r_showtris; //johnfitz
 
 extern glpoly_t	*lightmap_polys[MAX_LIGHTMAPS];
 
@@ -311,7 +311,6 @@ void R_DrawTextureChains_ShowTris (qmodel_t *model, texchain_t chain)
 	int			i;
 	msurface_t	*s;
 	texture_t	*t;
-	glpoly_t	*p;
 
 	for (i=0 ; i<model->numtextures ; i++)
 	{
@@ -319,23 +318,11 @@ void R_DrawTextureChains_ShowTris (qmodel_t *model, texchain_t chain)
 		if (!t)
 			continue;
 
-		if (r_oldwater.value && t->texturechains[chain] && (t->texturechains[chain]->flags & SURF_DRAWTURB))
-		{
-			for (s = t->texturechains[chain]; s; s = s->texturechain)
-				if (!s->culled)
-					for (p = s->polys->next; p; p = p->next)
-					{
-						DrawGLTriangleFan (p);
-					}
-		}
-		else
-		{
-			for (s = t->texturechains[chain]; s; s = s->texturechain)
-				if (!s->culled)
-				{
-					DrawGLTriangleFan (s->polys);
-				}
-		}
+		for (s = t->texturechains[chain]; s; s = s->texturechain)
+			if (!s->culled)
+			{
+				DrawGLTriangleFan (s->polys);
+			}
 	}
 }
 
@@ -357,19 +344,6 @@ void R_DrawTextureChains_Drawflat (qmodel_t *model, texchain_t chain)
 	//	if (!t)
 	//		continue;
 
-	//	if (r_oldwater.value && t->texturechains[chain] && (t->texturechains[chain]->flags & SURF_DRAWTURB))
-	//	{
-	//		for (s = t->texturechains[chain]; s; s = s->texturechain)
-	//			if (!s->culled)
-	//				for (p = s->polys->next; p; p = p->next)
-	//				{
-	//					srand((unsigned int) (uintptr_t) p);
-	//					glColor3f (rand()%256/255.0, rand()%256/255.0, rand()%256/255.0);
-	//					DrawGLPoly (p);
-	//					rs_brushpasses++;
-	//				}
-	//	}
-	//	else
 	//	{
 	//		for (s = t->texturechains[chain]; s; s = s->texturechain)
 	//			if (!s->culled)
@@ -478,7 +452,7 @@ static void R_FlushBatch ()
 	if (num_vbo_indices > 0)
 	{
 		VkBuffer buffer;
-		uint64_t buffer_offset;
+		VkDeviceSize buffer_offset;
 		byte * indices = R_IndexAllocate(num_vbo_indices * sizeof(uint32_t), &buffer, &buffer_offset);
 		memcpy(indices, vbo_indices, num_vbo_indices * sizeof(uint32_t));
 
@@ -613,78 +587,51 @@ R_DrawTextureChains_Water -- johnfitz
 */
 void R_DrawTextureChains_Water (qmodel_t *model, entity_t *ent, texchain_t chain)
 {
-	//int			i;
-	//msurface_t	*s;
-	//texture_t	*t;
-	//glpoly_t	*p;
-	//qboolean	bound;
-	//float entalpha;
+	int			i;
+	msurface_t	*s;
+	texture_t	*t;
+	qboolean	bound;
+	float entalpha;
 
-	//if (r_drawflat_cheatsafe || r_lightmap_cheatsafe) // ericw -- !r_drawworld_cheatsafe check moved to R_DrawWorld_Water ()
-	//	return;
+	if (r_drawflat_cheatsafe || r_lightmap_cheatsafe) // ericw -- !r_drawworld_cheatsafe check moved to R_DrawWorld_Water ()
+		return;
 
-	//if (r_oldwater.value)
-	//{
-	//	for (i=0 ; i<model->numtextures ; i++)
-	//	{
-	//		t = model->textures[i];
-	//		if (!t || !t->texturechains[chain] || !(t->texturechains[chain]->flags & SURF_DRAWTURB))
-	//			continue;
-	//		bound = false;
-	//		entalpha = 1.0f;
-	//		for (s = t->texturechains[chain]; s; s = s->texturechain)
-	//			if (!s->culled)
-	//			{
-	//				if (!bound) //only bind once we are sure we need this texture
-	//				{
-	//					entalpha = GL_WaterAlphaForEntitySurface (ent, s);
-	//					R_BeginTransparentDrawing (entalpha);
-	//					GL_Bind (t->gltexture);
-	//					bound = true;
-	//				}
-	//				for (p = s->polys->next; p; p = p->next)
-	//				{
-	//					DrawWaterPoly (p);
-	//					rs_brushpasses++;
-	//				}
-	//			}
-	//		R_EndTransparentDrawing (entalpha);
-	//	}
-	//}
-	//else
-	//{
-	//	for (i=0 ; i<model->numtextures ; i++)
-	//	{
-	//		t = model->textures[i];
-	//		if (!t || !t->texturechains[chain] || !(t->texturechains[chain]->flags & SURF_DRAWTURB))
-	//			continue;
-	//		bound = false;
-	//		entalpha = 1.0f;
-	//		for (s = t->texturechains[chain]; s; s = s->texturechain)
-	//			if (!s->culled)
-	//			{
-	//				if (!bound) //only bind once we are sure we need this texture
-	//				{
-	//					entalpha = GL_WaterAlphaForEntitySurface (ent, s);
-	//					R_BeginTransparentDrawing (entalpha);
-	//					GL_Bind (t->warpimage);
+	vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.water_pipeline);
 
-	//					if (model != cl.worldmodel)
-	//					{
-	//						// ericw -- this is copied from R_DrawSequentialPoly.
-	//						// If the poly is not part of the world we have to
-	//						// set this flag
-	//						t->update_warp = true; // FIXME: one frame too late!
-	//					}
+	float matrix[16] = { 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f };
+	vkCmdPushConstants(vulkan_globals.command_buffer, vulkan_globals.basic_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, 16 * sizeof(float), matrix);
 
-	//					bound = true;
-	//				}
-	//				DrawGLPoly (s->polys);
-	//				rs_brushpasses++;
-	//			}
-	//		R_EndTransparentDrawing (entalpha);
-	//	}
-	//}
+	for (i=0 ; i<model->numtextures ; i++)
+	{
+		t = model->textures[i];
+		if (!t || !t->texturechains[chain] || !(t->texturechains[chain]->flags & SURF_DRAWTURB))
+			continue;
+		bound = false;
+		entalpha = 1.0f;
+		for (s = t->texturechains[chain]; s; s = s->texturechain)
+			if (!s->culled)
+			{
+				if (!bound) //only bind once we are sure we need this texture
+				{
+					entalpha = GL_WaterAlphaForEntitySurface (ent, s);
+					R_BeginTransparentDrawing (entalpha);
+					vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout, 1, 1, &t->warpimage->descriptor_set, 0, NULL);
+
+					if (model != cl.worldmodel)
+					{
+						// ericw -- this is copied from R_DrawSequentialPoly.
+						// If the poly is not part of the world we have to
+						// set this flag
+						t->update_warp = true; // FIXME: one frame too late!
+					}
+
+					bound = true;
+				}
+				DrawGLPoly (s->polys);
+				rs_brushpasses++;
+			}
+		R_EndTransparentDrawing (entalpha);
+	}
 }
 
 /*
@@ -802,7 +749,7 @@ void R_DrawTextureChains_Multitexture (qmodel_t *model, entity_t *ent, texchain_
 				{
 					texture_t * texture = R_TextureAnimation(t, ent != NULL ? ent->frame : 0);
 					gltexture_t * gl_texture = texture->gltexture;
-					vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout, 1, 1, &gl_texture->descriptor_set, 0, NULL);
+					vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout, 1, 1, &gl_texture->descriptor_set, 0, NULL);
 
 					//if (t->texturechains[chain]->flags & SURF_DRAWFENCE)
 					//	glEnable (GL_ALPHA_TEST); // Flip alpha test back on

@@ -25,7 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 
-extern cvar_t gl_fullbrights, r_drawflat, gl_overbright, r_oldwater; //johnfitz
+extern cvar_t gl_fullbrights, r_drawflat, gl_overbright; //johnfitz
 extern cvar_t gl_zfix; // QuakeSpasm z-fighting fix
 
 int		gl_lightmap_format;
@@ -97,17 +97,31 @@ DrawGLPoly
 */
 void DrawGLPoly (glpoly_t *p)
 {
-	/*float	*v;
+	const int numverts = p->numverts;
+
+	VkBuffer buffer;
+	VkDeviceSize buffer_offset;
+	basicvertex_t * vertices = (basicvertex_t*)R_VertexAllocate(numverts * sizeof(basicvertex_t), &buffer, &buffer_offset);
+
+	float	*v;
 	int		i;
 
-	glBegin (GL_POLYGON);
 	v = p->verts[0];
-	for (i=0 ; i<p->numverts ; i++, v+= VERTEXSIZE)
+	for (i=0; i < numverts ; ++i, v+= VERTEXSIZE)
 	{
-		glTexCoord2f (v[3], v[4]);
-		glVertex3fv (v);
+		vertices[i].position[0] = v[0];
+		vertices[i].position[1] = v[1];
+		vertices[i].position[2] = v[2];
+		vertices[i].texcoord[0] = v[3];
+		vertices[i].texcoord[1] = v[4];
+		vertices[i].color[0] = 255;
+		vertices[i].color[1] = 255;
+		vertices[i].color[2] = 255;
+		vertices[i].color[3] = 255;
 	}
-	glEnd ();*/
+
+	vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
+	vkCmdDraw(vulkan_globals.command_buffer, numverts, 0, 0, 1);
 }
 
 /*
@@ -272,11 +286,7 @@ void R_DrawBrushModel_ShowTris (entity_t *e)
 		if (((psurf->flags & SURF_PLANEBACK) && (dot < -BACKFACE_EPSILON)) ||
 			(!(psurf->flags & SURF_PLANEBACK) && (dot > BACKFACE_EPSILON)))
 		{
-			if ((psurf->flags & SURF_DRAWTURB) && r_oldwater.value)
-				for (p = psurf->polys->next; p; p = p->next)
-					DrawGLTriangleFan (p);
-			else
-				DrawGLTriangleFan (psurf->polys);
+			DrawGLTriangleFan (psurf->polys);
 		}
 	}
 

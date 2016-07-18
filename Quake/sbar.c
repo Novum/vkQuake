@@ -285,7 +285,7 @@ void Sbar_DrawPicAlpha (int x, int y, qpic_t *pic, float alpha)
 	glEnable (GL_BLEND);
 	glColor4f(1,1,1,alpha);
 	Draw_Pic (x, y + 24, pic);
-	glColor4f(1,1,1,1); // ericw -- changed from glColor3f to work around intel 855 bug with "r_oldwater 0" and "scr_sbaralpha 0"
+	glColor4f(1,1,1,1); // ericw -- changed from glColor3f to work around intel 855 bug with "scr_sbaralpha 0"
 	glDisable (GL_BLEND);
 	glEnable (GL_ALPHA_TEST);*/
 }
