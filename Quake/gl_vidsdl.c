@@ -774,10 +774,10 @@ static void GL_InitCommandBuffers( void )
 
 /*
 ====================
-GL_CreateRenderPass
+GL_CreateRenderPasses
 ====================
 */
-static void GL_CreateRenderPass()
+static void GL_CreateRenderPasses()
 {
 	VkResult err;
 
@@ -829,6 +829,7 @@ static void GL_CreateRenderPass()
 
 	// Warp rendering
 	attachment_descriptions[0].format = VK_FORMAT_R8G8B8A8_UNORM;
+	attachment_descriptions[0].loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 	attachment_descriptions[0].initialLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	attachment_descriptions[0].finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	color_attachment_reference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
@@ -1431,7 +1432,7 @@ void	VID_Init (void)
 	GL_InitInstance();
 	GL_InitDevice();
 	GL_InitCommandBuffers();
-	GL_CreateRenderPass();
+	GL_CreateRenderPasses();
 	GL_CreateRenderTargets();
 	R_InitStagingBuffers();
 	R_InitDynamicVertexBuffers();

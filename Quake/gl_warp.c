@@ -35,7 +35,6 @@ float	turbsin[] =
 };
 
 #define WARPCALC(s,t) ((s + turbsin[(int)((t*2)+(cl.time*(128.0/M_PI))) & 255]) * (1.0/64)) //johnfitz -- correct warp
-#define WARPCALC2(s,t) ((s + turbsin[(int)((t*0.125+cl.time)*(128.0/M_PI)) & 255]) * (1.0/64)) //johnfitz -- old warp
 
 //==============================================================================
 //
@@ -206,20 +205,12 @@ void R_UpdateWarpTextures (void)
 		render_area.extent.width = WARPIMAGESIZE;
 		render_area.extent.height = WARPIMAGESIZE;
 
-		VkClearValue clearValue;
-		clearValue.color.float32[0] = 1.0f;
-		clearValue.color.float32[1] = 0;
-		clearValue.color.float32[2] = 0;
-		clearValue.color.float32[3] = 0;
-
 		VkRenderPassBeginInfo render_pass_begin_info;
 		memset(&render_pass_begin_info, 0, sizeof(render_pass_begin_info));
 		render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 		render_pass_begin_info.renderArea = render_area;
 		render_pass_begin_info.renderPass = vulkan_globals.warp_render_pass;
 		render_pass_begin_info.framebuffer = tx->warpimage->frame_buffer;
-		render_pass_begin_info.clearValueCount = 1;
-		render_pass_begin_info.pClearValues = &clearValue;
 
 		vkCmdBeginRenderPass(vulkan_globals.command_buffer, &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
 
