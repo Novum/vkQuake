@@ -277,6 +277,12 @@
     <ClCompile Include="..\..\Shaders\Compiled\basic_alphatest_frag.c">
       <Filter>Shaders\Compiled</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\alias_vert.c">
+      <Filter>Shaders\Compiled</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\alias_frag.c">
+      <Filter>Shaders\Compiled</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\Quake\snd_codec.h">
