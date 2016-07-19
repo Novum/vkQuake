@@ -1549,6 +1549,8 @@ GL_DeleteTexture
 */
 static void GL_DeleteTexture (gltexture_t *texture)
 {
+	GL_WaitForDeviceIdle();
+
 	if (texture->frame_buffer != VK_NULL_HANDLE)
 		vkDestroyFramebuffer(vulkan_globals.device, texture->frame_buffer, NULL);
 	vkDestroyImageView(vulkan_globals.device, texture->image_view, NULL);

@@ -590,6 +590,8 @@ void GL_BuildLightmaps (void)
 
 void GL_DeleteBModelVertexBuffer (void)
 {
+	GL_WaitForDeviceIdle();
+
 	vkDestroyBuffer(vulkan_globals.device, bmodel_vertex_buffer, NULL);
 	vkFreeMemory(vulkan_globals.device, bmodel_memory, NULL);
 }

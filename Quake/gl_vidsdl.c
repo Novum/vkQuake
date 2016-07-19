@@ -118,6 +118,8 @@ static PFN_vkQueuePresentKHR fpQueuePresentKHR;
 // Swap chain
 static uint32_t current_swapchain_buffer;
 
+static qboolean device_idle;
+
 #define GET_INSTANCE_PROC_ADDR(inst, entrypoint) { \
 	fp##entrypoint = (PFN_vk##entrypoint)vkGetInstanceProcAddr(inst, "vk" #entrypoint); \
 	if (fp##entrypoint == NULL) Sys_Error("vkGetInstanceProcAddr failed to find vk" #entrypoint); \
@@ -1028,6 +1030,8 @@ static void GL_DestroyRenderTargets( void )
 {
 	Con_Printf("Destroying render targets\n");
 
+	GL_WaitForDeviceIdle();
+
 	vkDestroyImageView(vulkan_globals.device, depth_buffer_view, NULL);
 	vkDestroyImage(vulkan_globals.device, depth_buffer, NULL);
 	vkFreeMemory(vulkan_globals.device, depth_buffer_memory, NULL);
@@ -1055,6 +1059,7 @@ void GL_BeginRendering (int *x, int *y, int *width, int *height)
 	R_SwapDynamicBuffers();
 	R_SubmitStagingBuffers();
 
+	device_idle = false;
 	*x = *y = 0;
 	*width = vid.width;
 	*height = vid.height;
@@ -1151,6 +1156,8 @@ void GL_EndRendering (void)
 	if (err != VK_SUCCESS)
 		Sys_Error("vkQueueSubmit failed");
 
+	device_idle = false;
+
 	command_buffer_submitted[current_command_buffer] = true;
 	current_command_buffer = (current_command_buffer + 1) % NUM_COMMAND_BUFFERS;
 
@@ -1163,6 +1170,19 @@ void GL_EndRendering (void)
 	err = fpQueuePresentKHR(vulkan_globals.queue, &present_info);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkQueuePresentKHR failed");
+}
+
+/*
+=================
+GL_WaitForDeviceIdle
+=================
+*/
+void GL_WaitForDeviceIdle()
+{
+	if (!device_idle)
+		vkDeviceWaitIdle(vulkan_globals.device);
+
+	device_idle = true;
 }
 
 /*
