@@ -352,6 +352,7 @@ void R_InitDynamicBuffers();
 void R_SwapDynamicBuffers();
 byte * R_VertexAllocate(int size, VkBuffer * buffer, VkDeviceSize * buffer_offset);
 byte * R_IndexAllocate(int size, VkBuffer * buffer, VkDeviceSize * buffer_offset);
+byte * R_UniformAllocate(int size, VkBuffer * buffer, VkDeviceSize * buffer_offset);
 
 #endif	/* __GLQUAKE_H */
 

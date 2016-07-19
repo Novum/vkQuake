@@ -81,6 +81,7 @@ Dynamic vertex/index buffer
 */
 #define DYNAMIC_VERTEX_BUFFER_SIZE_KB	1024
 #define DYNAMIC_INDEX_BUFFER_SIZE_KB	128
+#define DYNAMIC_UNIFORM_BUFFER_SIZE_KB	128
 #define NUM_DYNAMIC_BUFFERS				2
 
 typedef struct
@@ -92,8 +93,10 @@ typedef struct
 
 static VkDeviceMemory	dyn_vertex_buffer_memory;
 static VkDeviceMemory	dyn_index_buffer_memory;
+static VkDeviceMemory	dyn_uniform_buffer_memory;
 static dynbuffer_t		dyn_vertex_buffers[NUM_DYNAMIC_BUFFERS];
 static dynbuffer_t		dyn_index_buffers[NUM_DYNAMIC_BUFFERS];
+static dynbuffer_t		dyn_uniform_buffers[NUM_DYNAMIC_BUFFERS];
 static int				current_dyn_buffer_index = 0;
 
 /*
@@ -541,6 +544,66 @@ static void R_InitDynamicIndexBuffers()
 
 /*
 ===============
+R_InitDynamicUniformBuffers
+===============
+*/
+static void R_InitDynamicUniformBuffers()
+{
+	Con_Printf("Initializing dynamic uniform buffers\n");
+
+	VkResult err;
+
+	VkBufferCreateInfo buffer_create_info;
+	memset(&buffer_create_info, 0, sizeof(buffer_create_info));
+	buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	buffer_create_info.size = DYNAMIC_UNIFORM_BUFFER_SIZE_KB * 1024;
+	buffer_create_info.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+
+	for(int i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
+	{
+		dyn_uniform_buffers[i].current_offset = 0;
+
+		err = vkCreateBuffer(vulkan_globals.device, &buffer_create_info, NULL, &dyn_uniform_buffers[i].buffer);
+		if (err != VK_SUCCESS)
+			Sys_Error("vkCreateBuffer failed");
+	}
+
+	VkMemoryRequirements memory_requirements;
+	vkGetBufferMemoryRequirements(vulkan_globals.device, dyn_uniform_buffers[0].buffer, &memory_requirements);
+
+	const int align_mod = memory_requirements.size % memory_requirements.alignment;
+	const int aligned_size = ((memory_requirements.size % memory_requirements.alignment) == 0) 
+		? memory_requirements.size 
+		: (memory_requirements.size + memory_requirements.alignment - align_mod);
+
+	VkMemoryAllocateInfo memory_allocate_info;
+	memset(&memory_allocate_info, 0, sizeof(memory_allocate_info));
+	memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	memory_allocate_info.allocationSize = NUM_DYNAMIC_BUFFERS * aligned_size;
+	memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+
+	err = vkAllocateMemory(vulkan_globals.device, &memory_allocate_info, NULL, &dyn_uniform_buffer_memory);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkAllocateMemory failed");
+
+	for(int i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
+	{
+		err = vkBindBufferMemory(vulkan_globals.device, dyn_uniform_buffers[i].buffer, dyn_uniform_buffer_memory, i * aligned_size);
+		if (err != VK_SUCCESS)
+			Sys_Error("vkBindBufferMemory failed");
+	}
+
+	unsigned char * data;
+	err = vkMapMemory(vulkan_globals.device, dyn_uniform_buffer_memory, 0, NUM_DYNAMIC_BUFFERS * aligned_size, 0, &data);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkMapMemory failed");
+
+	for(int i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
+		dyn_uniform_buffers[i].data = data + (i * aligned_size);
+}
+
+/*
+===============
 R_SwapDynamicBuffers
 ===============
 */
@@ -595,6 +658,33 @@ byte * R_IndexAllocate(int size, VkBuffer * buffer, VkDeviceSize * buffer_offset
 
 /*
 ===============
+R_UniformAllocate
+
+UBO offets need to be 256 byte aligned on NVIDIA hardware
+This is also the maximum required alignment by the Vulkan spec
+===============
+*/
+byte * R_UniformAllocate(int size, VkBuffer * buffer, VkDeviceSize * buffer_offset)
+{
+	const int align_mod = size % 256;
+	const int aligned_size = ((size % 256) == 0) ? size : (size + 256 - align_mod);
+
+	dynbuffer_t *dyn_ub = &dyn_uniform_buffers[current_dyn_buffer_index];
+
+	if ((dyn_ub->current_offset + aligned_size) > (DYNAMIC_UNIFORM_BUFFER_SIZE_KB * 1024))
+		Sys_Error("Out of dynamic uniform buffer space, increase DYNAMIC_UNIFORM_BUFFER_SIZE_KB");
+
+	*buffer = dyn_ub->buffer;
+	*buffer_offset = dyn_ub->current_offset;
+
+	unsigned char *data = dyn_ub->data + dyn_ub->current_offset;
+	dyn_ub->current_offset += aligned_size;
+
+	return data;
+}
+
+/*
+===============
 R_InitDynamicBuffers
 ===============
 */
@@ -602,6 +692,7 @@ void R_InitDynamicBuffers()
 {
 	R_InitDynamicVertexBuffers();
 	R_InitDynamicIndexBuffers();
+	R_InitDynamicUniformBuffers();
 }
 
 /*
