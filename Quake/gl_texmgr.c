@@ -1014,7 +1014,24 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 
 	// Don't upload data for warp image, will be updated by rendering
 	if (warp_image)
+	{
+		VkFramebufferCreateInfo framebuffer_create_info;
+		memset(&framebuffer_create_info, 0, sizeof(framebuffer_create_info));
+		framebuffer_create_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+		framebuffer_create_info.renderPass = vulkan_globals.warp_render_pass;
+		framebuffer_create_info.attachmentCount = 1;
+		framebuffer_create_info.pAttachments = &glt->image_view;
+		framebuffer_create_info.width = glt->width;
+		framebuffer_create_info.height = glt->height;
+		framebuffer_create_info.layers = 1;
+		err = vkCreateFramebuffer(vulkan_globals.device, &framebuffer_create_info, NULL, &glt->frame_buffer);
+		if (err != VK_SUCCESS)
+			Sys_Error("vkCreateFramebuffer failed");
+
 		return;
+	}
+
+	glt->frame_buffer = VK_NULL_HANDLE;
 
 	// Upload
 	VkBufferImageCopy regions[MAX_MIPS];
@@ -1532,10 +1549,13 @@ GL_DeleteTexture
 */
 static void GL_DeleteTexture (gltexture_t *texture)
 {
+	if (texture->frame_buffer != VK_NULL_HANDLE)
+		vkDestroyFramebuffer(vulkan_globals.device, texture->frame_buffer, NULL);
 	vkDestroyImageView(vulkan_globals.device, texture->image_view, NULL);
 	vkDestroyImage(vulkan_globals.device, texture->image, NULL);
 	vkFreeMemory(vulkan_globals.device, texture->memory, NULL);
 
+	texture->frame_buffer = VK_NULL_HANDLE;
 	texture->image_view = VK_NULL_HANDLE;
 	texture->image = VK_NULL_HANDLE;
 	texture->memory = VK_NULL_HANDLE;

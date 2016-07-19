@@ -781,6 +781,7 @@ static void GL_CreateRenderPass()
 {
 	VkResult err;
 
+	// Main render pass
 	VkAttachmentDescription attachment_descriptions[2];
 	memset(&attachment_descriptions, 0, sizeof(attachment_descriptions));
 
@@ -822,7 +823,20 @@ static void GL_CreateRenderPass()
 	render_pass_create_info.subpassCount = 1;
 	render_pass_create_info.pSubpasses = &subpass_description;
 
-	err = vkCreateRenderPass(vulkan_globals.device, &render_pass_create_info, NULL, &vulkan_globals.render_pass);
+	err = vkCreateRenderPass(vulkan_globals.device, &render_pass_create_info, NULL, &vulkan_globals.main_render_pass);
+	if (err != VK_SUCCESS)
+		Sys_Error("Couldn't create Vulkan render pass");
+
+	// Warp rendering
+	attachment_descriptions[0].format = VK_FORMAT_R8G8B8A8_UNORM;
+	attachment_descriptions[0].initialLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	attachment_descriptions[0].finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	color_attachment_reference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+	subpass_description.pDepthStencilAttachment = NULL;
+	render_pass_create_info.attachmentCount = 1;
+
+	err = vkCreateRenderPass(vulkan_globals.device, &render_pass_create_info, NULL, &vulkan_globals.warp_render_pass);
 	if (err != VK_SUCCESS)
 		Sys_Error("Couldn't create Vulkan render pass");
 }
@@ -971,7 +985,7 @@ static void GL_CreateRenderTargets( void )
 	VkFramebufferCreateInfo framebuffer_create_info;
 	memset(&framebuffer_create_info, 0, sizeof(framebuffer_create_info));
 	framebuffer_create_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-	framebuffer_create_info.renderPass = vulkan_globals.render_pass;
+	framebuffer_create_info.renderPass = vulkan_globals.main_render_pass;
 	framebuffer_create_info.attachmentCount = 2;
 	framebuffer_create_info.width = vid.width;
 	framebuffer_create_info.height = vid.height;
@@ -1086,7 +1100,7 @@ void GL_BeginRendering (int *x, int *y, int *width, int *height)
 	memset(&vulkan_globals.main_render_pass_begin_info, 0, sizeof(vulkan_globals.main_render_pass_begin_info));
 	vulkan_globals.main_render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 	vulkan_globals.main_render_pass_begin_info.renderArea = render_area;
-	vulkan_globals.main_render_pass_begin_info.renderPass = vulkan_globals.render_pass;
+	vulkan_globals.main_render_pass_begin_info.renderPass = vulkan_globals.main_render_pass;
 	vulkan_globals.main_render_pass_begin_info.framebuffer = framebuffers[current_command_buffer];
 	vulkan_globals.main_render_pass_begin_info.clearValueCount = 2;
 	vulkan_globals.main_render_pass_begin_info.pClearValues = vulkan_globals.main_clear_values;

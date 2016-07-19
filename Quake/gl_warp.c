@@ -200,6 +200,29 @@ void R_UpdateWarpTextures (void)
 		if (!tx->update_warp)
 			continue;
 
+		VkRect2D render_area;
+		render_area.offset.x = 0;
+		render_area.offset.y = 0;
+		render_area.extent.width = WARPIMAGESIZE;
+		render_area.extent.height = WARPIMAGESIZE;
+
+		VkClearValue clearValue;
+		clearValue.color.float32[0] = 1.0f;
+		clearValue.color.float32[1] = 0;
+		clearValue.color.float32[2] = 0;
+		clearValue.color.float32[3] = 0;
+
+		VkRenderPassBeginInfo render_pass_begin_info;
+		memset(&render_pass_begin_info, 0, sizeof(render_pass_begin_info));
+		render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+		render_pass_begin_info.renderArea = render_area;
+		render_pass_begin_info.renderPass = vulkan_globals.warp_render_pass;
+		render_pass_begin_info.framebuffer = tx->warpimage->frame_buffer;
+		render_pass_begin_info.clearValueCount = 1;
+		render_pass_begin_info.pClearValues = &clearValue;
+
+		vkCmdBeginRenderPass(vulkan_globals.command_buffer, &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
+
 		//render warp
 		/*GL_SetCanvas (CANVAS_WARPIMAGE);
 		GL_Bind (tx->gltexture);
@@ -220,6 +243,8 @@ void R_UpdateWarpTextures (void)
 		//copy to texture
 		//GL_Bind (tx->warpimage);
 		//glCopyTexSubImage2D (GL_TEXTURE_2D, 0, 0, 0, glx, gly+glheight-gl_warpimagesize, gl_warpimagesize, gl_warpimagesize);
+
+		vkCmdEndRenderPass(vulkan_globals.command_buffer);
 
 		tx->update_warp = false;
 	}

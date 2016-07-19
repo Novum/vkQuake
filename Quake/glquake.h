@@ -104,7 +104,6 @@ typedef struct
 	VkDevice							device;
 	VkQueue								queue;
 	VkCommandBuffer						command_buffer;
-	VkRenderPass						render_pass;
 	VkClearValue						color_clear_value;
 	VkFormat							swap_chain_format;
 	VkPhysicalDeviceProperties			device_properties;
@@ -112,8 +111,10 @@ typedef struct
 	uint32_t							gfx_queue_family_index;
 
 	// Render passes
+	VkRenderPass						main_render_pass;
 	VkClearValue						main_clear_values[2];
 	VkRenderPassBeginInfo				main_render_pass_begin_info;
+	VkRenderPass						warp_render_pass;
 
 	// Pipelines
 	VkPipeline							basic_pipeline;
@@ -123,6 +124,7 @@ typedef struct
 	VkPipeline							world_fullbright_pipeline;
 	VkPipelineLayout					world_pipeline_layout;
 	VkPipeline							water_pipeline;
+	VkPipeline							warp_pipeline;
 
 	// Descriptors
 	VkDescriptorPool					descriptor_pool;

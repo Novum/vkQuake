@@ -936,7 +936,7 @@ void R_CreatePipelines()
 	pipeline_create_info.pColorBlendState = &color_blend_state_create_info;
 	pipeline_create_info.pDynamicState = &dynamic_state_create_info;
 	pipeline_create_info.layout = vulkan_globals.basic_pipeline_layout;
-	pipeline_create_info.renderPass = vulkan_globals.render_pass;
+	pipeline_create_info.renderPass = vulkan_globals.main_render_pass;
 
 	//================
 	// Basic pipelines
@@ -959,24 +959,34 @@ void R_CreatePipelines()
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateGraphicsPipelines failed");
 
-
 	//================
-	// Water
+	// Warp
 	//================
-	input_assembly_state_create_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN;
+	blend_attachment_state.blendEnable = VK_FALSE;
 
 	shader_stages[0].module = basic_vert_module;
 	shader_stages[1].module = basic_frag_module;
 
+	pipeline_create_info.renderPass = vulkan_globals.warp_render_pass;
+
+	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.warp_pipeline);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkCreateGraphicsPipelines failed");
+
+	//================
+	// Water
+	//================
+	pipeline_create_info.renderPass = vulkan_globals.main_render_pass;
+
+	input_assembly_state_create_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN;
 	depth_stencil_state_create_info.depthTestEnable = VK_TRUE;
 	depth_stencil_state_create_info.depthWriteEnable = VK_TRUE;
 	depth_stencil_state_create_info.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
 
-	blend_attachment_state.blendEnable = VK_FALSE;
-
 	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.water_pipeline);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateGraphicsPipelines failed");
+
 
 	//================
 	// World pipelines
