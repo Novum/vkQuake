@@ -35,5 +35,9 @@ extern unsigned char world_frag_spv[];
 extern int world_frag_spv_size;
 extern unsigned char world_fullbright_frag_spv[];
 extern int world_fullbright_frag_spv_size;
+extern unsigned char alias_vert_spv[];
+extern int alias_vert_spv_size;
+extern unsigned char alias_frag_spv[];
+extern int alias_frag_spv_size;
 
 #endif

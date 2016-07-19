@@ -359,6 +359,8 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ResourceCompile Include="..\QuakeSpasm.rc" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\..\Shaders\alias.frag" />
+    <None Include="..\..\Shaders\alias.vert" />
     <None Include="..\..\Shaders\basic.frag" />
     <None Include="..\..\Shaders\basic.vert" />
     <None Include="..\..\Shaders\basic_alphatest.frag" />

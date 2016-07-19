@@ -499,10 +499,16 @@
     <None Include="..\..\Shaders\compile.bat">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="..\..\Shaders\world_fullbright.frag">
+    <None Include="..\..\Shaders\basic_alphatest.frag">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="..\..\Shaders\basic_alphatest.frag">
+    <None Include="..\..\Shaders\alias.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\..\Shaders\alias.vert">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\..\Shaders\world_fullbright.frag">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>

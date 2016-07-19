@@ -201,7 +201,7 @@ Supports optional overbright, optional fullbright pixels.
 Based on code by MH from RMQEngine
 =============
 */
-void GL_DrawAliasFrame_GLSL (aliashdr_t *paliashdr, lerpdata_t lerpdata, gltexture_t *tx, gltexture_t *fb)
+void GL_DrawAliasFrame (aliashdr_t *paliashdr, lerpdata_t lerpdata, gltexture_t *tx, gltexture_t *fb)
 {
 	float	blend;
 
@@ -263,117 +263,6 @@ void GL_DrawAliasFrame_GLSL (aliashdr_t *paliashdr, lerpdata_t lerpdata, gltextu
 
 	GL_UseProgramFunc (0);
 	GL_SelectTexture (GL_TEXTURE0);*/
-
-	rs_aliaspasses += paliashdr->numtris;
-}
-
-/*
-=============
-GL_DrawAliasFrame -- johnfitz -- rewritten to support colored light, lerping, entalpha, multitexture, and r_drawflat
-=============
-*/
-void GL_DrawAliasFrame (aliashdr_t *paliashdr, lerpdata_t lerpdata)
-{
-	/*float	vertcolor[4];
-	trivertx_t *verts1, *verts2;
-	int		*commands;
-	int		count;
-	float	u,v;
-	float	blend, iblend;
-	qboolean lerping;
-
-	if (lerpdata.pose1 != lerpdata.pose2)
-	{
-		lerping = true;
-		verts1  = (trivertx_t *)((byte *)paliashdr + paliashdr->posedata);
-		verts2  = verts1;
-		verts1 += lerpdata.pose1 * paliashdr->poseverts;
-		verts2 += lerpdata.pose2 * paliashdr->poseverts;
-		blend = lerpdata.blend;
-		iblend = 1.0f - blend;
-	}
-	else // poses the same means either 1. the entity has paused its animation, or 2. r_lerpmodels is disabled
-	{
-		lerping = false;
-		verts1  = (trivertx_t *)((byte *)paliashdr + paliashdr->posedata);
-		verts2  = verts1; // avoid bogus compiler warning
-		verts1 += lerpdata.pose1 * paliashdr->poseverts;
-		blend = iblend = 0; // avoid bogus compiler warning
-	}
-
-	commands = (int *)((byte *)paliashdr + paliashdr->commands);
-
-	vertcolor[3] = entalpha; //never changes, so there's no need to put this inside the loop
-
-	while (1)
-	{
-		// get the vertex count and primitive type
-		count = *commands++;
-		if (!count)
-			break;		// done
-
-		if (count < 0)
-		{
-			count = -count;
-			glBegin (GL_TRIANGLE_FAN);
-		}
-		else
-			glBegin (GL_TRIANGLE_STRIP);
-
-		do
-		{
-			u = ((float *)commands)[0];
-			v = ((float *)commands)[1];
-			if (mtexenabled)
-			{
-				GL_MTexCoord2fFunc (GL_TEXTURE0_ARB, u, v);
-				GL_MTexCoord2fFunc (GL_TEXTURE1_ARB, u, v);
-			}
-			else
-				glTexCoord2f (u, v);
-
-			commands += 2;
-
-			if (shading)
-			{
-				if (r_drawflat_cheatsafe)
-				{
-					srand(count * (unsigned int)(src_offset_t)commands);
-					glColor3f (rand()%256/255.0, rand()%256/255.0, rand()%256/255.0);
-				}
-				else if (lerping)
-				{
-					vertcolor[0] = (shadedots[verts1->lightnormalindex]*iblend + shadedots[verts2->lightnormalindex]*blend) * lightcolor[0];
-					vertcolor[1] = (shadedots[verts1->lightnormalindex]*iblend + shadedots[verts2->lightnormalindex]*blend) * lightcolor[1];
-					vertcolor[2] = (shadedots[verts1->lightnormalindex]*iblend + shadedots[verts2->lightnormalindex]*blend) * lightcolor[2];
-					glColor4fv (vertcolor);
-				}
-				else
-				{
-					vertcolor[0] = shadedots[verts1->lightnormalindex] * lightcolor[0];
-					vertcolor[1] = shadedots[verts1->lightnormalindex] * lightcolor[1];
-					vertcolor[2] = shadedots[verts1->lightnormalindex] * lightcolor[2];
-					glColor4fv (vertcolor);
-				}
-			}
-
-			if (lerping)
-			{
-				glVertex3f (verts1->v[0]*iblend + verts2->v[0]*blend,
-							verts1->v[1]*iblend + verts2->v[1]*blend,
-							verts1->v[2]*iblend + verts2->v[2]*blend);
-				verts1++;
-				verts2++;
-			}
-			else
-			{
-				glVertex3f (verts1->v[0], verts1->v[1], verts1->v[2]);
-				verts1++;
-			}
-		} while (--count);
-
-		glEnd ();
-	}*/
 
 	rs_aliaspasses += paliashdr->numtris;
 }
@@ -600,8 +489,8 @@ R_DrawAliasModel -- johnfitz -- almost completely rewritten
 void R_DrawAliasModel (entity_t *e)
 {
 	aliashdr_t	*paliashdr;
-	//int			i, anim;
-	//gltexture_t	*tx, *fb;
+	int			i, anim;
+	gltexture_t	*tx, *fb;
 	lerpdata_t	lerpdata;
 
 	//
@@ -617,21 +506,21 @@ void R_DrawAliasModel (entity_t *e)
 	if (R_CullModelForEntity(e))
 		return;
 
-	/*//
+	//
 	// transform it
 	//
-	glPushMatrix ();
+	//glPushMatrix ();
 	R_RotateForEntity (lerpdata.origin, lerpdata.angles);
-	glTranslatef (paliashdr->scale_origin[0], paliashdr->scale_origin[1], paliashdr->scale_origin[2]);
-	glScalef (paliashdr->scale[0], paliashdr->scale[1], paliashdr->scale[2]);
+	//glTranslatef (paliashdr->scale_origin[0], paliashdr->scale_origin[1], paliashdr->scale_origin[2]);
+	//glScalef (paliashdr->scale[0], paliashdr->scale[1], paliashdr->scale[2]);
 
 	//
 	// random stuff
 	//
-	if (gl_smoothmodels.value && !r_drawflat_cheatsafe)
-		glShadeModel (GL_SMOOTH);
-	if (gl_affinemodels.value)
-		glHint (GL_PERSPECTIVE_CORRECTION_HINT, GL_FASTEST);
+	//if (gl_smoothmodels.value && !r_drawflat_cheatsafe)
+	//	glShadeModel (GL_SMOOTH);
+	//if (gl_affinemodels.value)
+	//	glHint (GL_PERSPECTIVE_CORRECTION_HINT, GL_FASTEST);
 	overbright = gl_overbright_models.value;
 	shading = true;
 
@@ -643,12 +532,13 @@ void R_DrawAliasModel (entity_t *e)
 	else
 		entalpha = ENTALPHA_DECODE(e->alpha);
 	if (entalpha == 0)
-		goto cleanup;
+		return;
+
 	if (entalpha < 1)
 	{
-		if (!gl_texture_env_combine) overbright = false; //overbright can't be done in a single pass without combiners
-		glDepthMask(GL_FALSE);
-		glEnable(GL_BLEND);
+		//if (!gl_texture_env_combine) overbright = false; //overbright can't be done in a single pass without combiners
+		//glDepthMask(GL_FALSE);
+		//glEnable(GL_BLEND);
 	}
 
 	//
@@ -660,7 +550,7 @@ void R_DrawAliasModel (entity_t *e)
 	//
 	// set up textures
 	//
-	GL_DisableMultitexture();
+	//GL_DisableMultitexture();
 	anim = (int)(cl.time*10) & 3;
 	if ((e->skinnum >= paliashdr->numskins) || (e->skinnum < 0))
 	{
@@ -687,14 +577,14 @@ void R_DrawAliasModel (entity_t *e)
 	//
 	if (r_drawflat_cheatsafe)
 	{
-		glDisable (GL_TEXTURE_2D);
+		/*glDisable (GL_TEXTURE_2D);
 		GL_DrawAliasFrame (paliashdr, lerpdata);
 		glEnable (GL_TEXTURE_2D);
-		srand((int) (cl.time * 1000)); //restore randomness
+		srand((int) (cl.time * 1000)); //restore randomness*/
 	}
 	else if (r_fullbright_cheatsafe)
 	{
-		GL_Bind (tx);
+		/*GL_Bind (tx);
 		shading = false;
 		glColor4f(1,1,1,entalpha);
 		GL_DrawAliasFrame (paliashdr, lerpdata);
@@ -712,151 +602,24 @@ void R_DrawAliasModel (entity_t *e)
 			glDepthMask(GL_TRUE);
 			glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 			glDisable(GL_BLEND);
-		}
+		}*/
 	}
 	else if (r_lightmap_cheatsafe)
 	{
-		glDisable (GL_TEXTURE_2D);
+		/*glDisable (GL_TEXTURE_2D);
 		shading = false;
 		glColor3f(1,1,1);
 		GL_DrawAliasFrame (paliashdr, lerpdata);
-		glEnable (GL_TEXTURE_2D);
+		glEnable (GL_TEXTURE_2D);*/
 	}
 // call fast path if possible. if the shader compliation failed for some reason,
 // r_alias_program will be 0.
-	else if (r_alias_program != 0)
-	{
-		GL_DrawAliasFrame_GLSL (paliashdr, lerpdata, tx, fb);
-	}
-	else if (overbright)
-	{
-		if  (gl_texture_env_combine && gl_mtexable && gl_texture_env_add && fb) //case 1: everything in one pass
-		{
-			GL_Bind (tx);
-			glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE_EXT);
-			glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB_EXT, GL_MODULATE);
-			glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_RGB_EXT, GL_TEXTURE);
-			glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE1_RGB_EXT, GL_PRIMARY_COLOR_EXT);
-			glTexEnvf(GL_TEXTURE_ENV, GL_RGB_SCALE_EXT, 2.0f);
-			GL_EnableMultitexture(); // selects TEXTURE1
-			GL_Bind (fb);
-			glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_ADD);
-			glEnable(GL_BLEND);
-			GL_DrawAliasFrame (paliashdr, lerpdata);
-			glDisable(GL_BLEND);
-			GL_DisableMultitexture();
-			glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
-		}
-		else if (gl_texture_env_combine) //case 2: overbright in one pass, then fullbright pass
-		{
-		// first pass
-			GL_Bind(tx);
-			glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE_EXT);
-			glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB_EXT, GL_MODULATE);
-			glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_RGB_EXT, GL_TEXTURE);
-			glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE1_RGB_EXT, GL_PRIMARY_COLOR_EXT);
-			glTexEnvf(GL_TEXTURE_ENV, GL_RGB_SCALE_EXT, 2.0f);
-			GL_DrawAliasFrame (paliashdr, lerpdata);
-			glTexEnvf(GL_TEXTURE_ENV, GL_RGB_SCALE_EXT, 1.0f);
-			glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
-		// second pass
-			if (fb)
-			{
-				glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-				GL_Bind(fb);
-				glEnable(GL_BLEND);
-				glBlendFunc (GL_ONE, GL_ONE);
-				glDepthMask(GL_FALSE);
-				shading = false;
-				glColor3f(entalpha,entalpha,entalpha);
-				Fog_StartAdditive ();
-				GL_DrawAliasFrame (paliashdr, lerpdata);
-				Fog_StopAdditive ();
-				glDepthMask(GL_TRUE);
-				glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-				glDisable(GL_BLEND);
-				glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
-			}
-		}
-		else //case 3: overbright in two passes, then fullbright pass
-		{
-		// first pass
-			GL_Bind(tx);
-			glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-			GL_DrawAliasFrame (paliashdr, lerpdata);
-		// second pass -- additive with black fog, to double the object colors but not the fog color
-			glEnable(GL_BLEND);
-			glBlendFunc (GL_ONE, GL_ONE);
-			glDepthMask(GL_FALSE);
-			Fog_StartAdditive ();
-			GL_DrawAliasFrame (paliashdr, lerpdata);
-			Fog_StopAdditive ();
-			glDepthMask(GL_TRUE);
-			glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
-			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-			glDisable(GL_BLEND);
-		// third pass
-			if (fb)
-			{
-				glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-				GL_Bind(fb);
-				glEnable(GL_BLEND);
-				glBlendFunc (GL_ONE, GL_ONE);
-				glDepthMask(GL_FALSE);
-				shading = false;
-				glColor3f(entalpha,entalpha,entalpha);
-				Fog_StartAdditive ();
-				GL_DrawAliasFrame (paliashdr, lerpdata);
-				Fog_StopAdditive ();
-				glDepthMask(GL_TRUE);
-				glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-				glDisable(GL_BLEND);
-				glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
-			}
-		}
-	}
 	else
 	{
-		if (gl_mtexable && gl_texture_env_add && fb) //case 4: fullbright mask using multitexture
-		{
-			GL_DisableMultitexture(); // selects TEXTURE0
-			GL_Bind (tx);
-			glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-			GL_EnableMultitexture(); // selects TEXTURE1
-			GL_Bind (fb);
-			glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_ADD);
-			glEnable(GL_BLEND);
-			GL_DrawAliasFrame (paliashdr, lerpdata);
-			glDisable(GL_BLEND);
-			GL_DisableMultitexture();
-			glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
-		}
-		else //case 5: fullbright mask without multitexture
-		{
-		// first pass
-			GL_Bind(tx);
-			glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-			GL_DrawAliasFrame (paliashdr, lerpdata);
-		// second pass
-			if (fb)
-			{
-				GL_Bind(fb);
-				glEnable(GL_BLEND);
-				glBlendFunc (GL_ONE, GL_ONE);
-				glDepthMask(GL_FALSE);
-				shading = false;
-				glColor3f(entalpha,entalpha,entalpha);
-				Fog_StartAdditive ();
-				GL_DrawAliasFrame (paliashdr, lerpdata);
-				Fog_StopAdditive ();
-				glDepthMask(GL_TRUE);
-				glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-				glDisable(GL_BLEND);
-			}
-		}
+		GL_DrawAliasFrame (paliashdr, lerpdata, tx, fb);
 	}
 
-cleanup:
+/*cleanup:
 	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
 	glHint (GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
 	glShadeModel (GL_FLAT);
