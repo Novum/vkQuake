@@ -14,11 +14,11 @@ layout (set = 0, binding = 0) uniform UBO
 	vec4 light_color;
 } ubo;
 
-layout (location = 0) in vec2 TexCoords;
-layout (location = 1) in vec4 Pose1Vert;
-layout (location = 2) in vec3 Pose1Normal;
-layout (location = 3) in vec4 Pose2Vert;
-layout (location = 4) in vec3 Pose2Normal;
+layout (location = 0) in vec2 in_texcoord;
+layout (location = 1) in vec4 in_pose1_position;
+layout (location = 2) in vec3 in_pose1_normal;
+layout (location = 3) in vec4 in_pose2_position;
+layout (location = 4) in vec3 in_pose2_normal;
 
 layout (location = 0) out vec2 out_texcoord;
 layout (location = 1) out vec4 out_color;
@@ -40,16 +40,16 @@ float r_avertexnormal_dot(vec3 vertexnormal) // from MH
 
 void main()
 {
-	out_texcoord = TexCoords;
+	out_texcoord = in_texcoord;
 
-	vec4 lerpedVert = mix(Pose1Vert, Pose2Vert, ubo.blend_factor);
-	gl_Position = push_constants.mvp * lerpedVert;
+	vec4 lerped_vert = mix(in_pose1_position, in_pose2_position, ubo.blend_factor);
+	gl_Position = push_constants.mvp * lerped_vert;
 
-	float dot1 = r_avertexnormal_dot(Pose1Normal);
-	float dot2 = r_avertexnormal_dot(Pose2Normal);
+	float dot1 = r_avertexnormal_dot(in_pose1_normal);
+	float dot2 = r_avertexnormal_dot(in_pose2_normal);
 	out_color = ubo.light_color * vec4(vec3(mix(dot1, dot2, ubo.blend_factor)), 1.0);
 
 	// fog
-	vec3 ecPosition = vec3(ubo.model_view * lerpedVert);
+	vec3 ecPosition = vec3(ubo.model_view * lerped_vert);
 	out_fog_frag_coord = abs(ecPosition.z);
 }
