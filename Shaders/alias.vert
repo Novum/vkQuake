@@ -24,6 +24,10 @@ layout (location = 0) out vec2 out_texcoord;
 layout (location = 1) out vec4 out_color;
 layout (location = 2) out float out_fog_frag_coord;
 
+out gl_PerVertex {
+	vec4 gl_Position;
+};
+
 float r_avertexnormal_dot(vec3 vertexnormal) // from MH 
 {
 	float dot = dot(vertexnormal, ubo.shade_vector);
