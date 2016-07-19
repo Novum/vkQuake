@@ -348,8 +348,7 @@ void R_InitStagingBuffers();
 void R_SubmitStagingBuffers();
 byte * R_StagingAllocate(int size, VkCommandBuffer * command_buffer, VkBuffer * buffer, int * buffer_offset);
 
-void R_InitDynamicVertexBuffers();
-void R_InitDynamicIndexBuffers();
+void R_InitDynamicBuffers();
 void R_SwapDynamicBuffers();
 byte * R_VertexAllocate(int size, VkBuffer * buffer, VkDeviceSize * buffer_offset);
 byte * R_IndexAllocate(int size, VkBuffer * buffer, VkDeviceSize * buffer_offset);

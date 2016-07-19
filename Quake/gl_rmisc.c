@@ -424,7 +424,7 @@ byte * R_StagingAllocate(int size, VkCommandBuffer * command_buffer, VkBuffer * 
 R_InitDynamicVertexBuffers
 ===============
 */
-void R_InitDynamicVertexBuffers()
+static void R_InitDynamicVertexBuffers()
 {
 	Con_Printf("Initializing dynamic vertex buffers\n");
 
@@ -484,7 +484,7 @@ void R_InitDynamicVertexBuffers()
 R_InitDynamicIndexBuffers
 ===============
 */
-void R_InitDynamicIndexBuffers()
+static void R_InitDynamicIndexBuffers()
 {
 	Con_Printf("Initializing dynamic index buffers\n");
 
@@ -591,6 +591,17 @@ byte * R_IndexAllocate(int size, VkBuffer * buffer, VkDeviceSize * buffer_offset
 	dyn_ib->current_offset += size;
 
 	return data;
+}
+
+/*
+===============
+R_InitDynamicBuffers
+===============
+*/
+void R_InitDynamicBuffers()
+{
+	R_InitDynamicVertexBuffers();
+	R_InitDynamicIndexBuffers();
 }
 
 /*

@@ -1453,8 +1453,7 @@ void	VID_Init (void)
 	GL_CreateRenderPasses();
 	GL_CreateRenderTargets();
 	R_InitStagingBuffers();
-	R_InitDynamicVertexBuffers();
-	R_InitDynamicIndexBuffers();
+	R_InitDynamicBuffers();
 	R_CreateDescriptorSetLayouts();
 	R_CreateDescriptorPool();
 	R_InitSamplers();
