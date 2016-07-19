@@ -1080,18 +1080,16 @@ void GL_BeginRendering (int *x, int *y, int *width, int *height)
 	depth_clear_value.depthStencil.depth = 1.0f;
 	depth_clear_value.depthStencil.stencil = 0;
 
-	VkClearValue clear_values[2] = { vulkan_globals.color_clear_value, depth_clear_value };
+	vulkan_globals.main_clear_values[0] = vulkan_globals.color_clear_value;
+	vulkan_globals.main_clear_values[1] = depth_clear_value;
 
-	VkRenderPassBeginInfo render_pass_begin_info;
-	memset(&render_pass_begin_info, 0, sizeof(render_pass_begin_info));
-	render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-	render_pass_begin_info.renderArea = render_area;
-	render_pass_begin_info.renderPass = vulkan_globals.render_pass;
-	render_pass_begin_info.framebuffer = framebuffers[current_command_buffer];
-	render_pass_begin_info.clearValueCount = 2;
-	render_pass_begin_info.pClearValues = clear_values;
-
-	vkCmdBeginRenderPass(vulkan_globals.command_buffer, &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
+	memset(&vulkan_globals.main_render_pass_begin_info, 0, sizeof(vulkan_globals.main_render_pass_begin_info));
+	vulkan_globals.main_render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+	vulkan_globals.main_render_pass_begin_info.renderArea = render_area;
+	vulkan_globals.main_render_pass_begin_info.renderPass = vulkan_globals.render_pass;
+	vulkan_globals.main_render_pass_begin_info.framebuffer = framebuffers[current_command_buffer];
+	vulkan_globals.main_render_pass_begin_info.clearValueCount = 2;
+	vulkan_globals.main_render_pass_begin_info.pClearValues = vulkan_globals.main_clear_values;
 
 	vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout, 0, 1, &vulkan_globals.sampler_descriptor_set, 0, NULL);
 

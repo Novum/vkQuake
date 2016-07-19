@@ -853,7 +853,10 @@ extern vrect_t	scr_vrect;
 void V_RenderView (void)
 {
 	if (con_forcedup)
+	{
+		vkCmdBeginRenderPass(vulkan_globals.command_buffer, &vulkan_globals.main_render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
 		return;
+	}
 
 	if (cl.intermission)
 		V_CalcIntermissionRefdef ();

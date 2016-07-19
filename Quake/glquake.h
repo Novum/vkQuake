@@ -111,6 +111,10 @@ typedef struct
 	VkPhysicalDeviceMemoryProperties	memory_properties;
 	uint32_t							gfx_queue_family_index;
 
+	// Render passes
+	VkClearValue						main_clear_values[2];
+	VkRenderPassBeginInfo				main_render_pass_begin_info;
+
 	// Pipelines
 	VkPipeline							basic_pipeline;
 	VkPipeline							basic_notex_blend_pipeline;

@@ -474,6 +474,8 @@ R_SetupScene
 */
 void R_SetupScene (void)
 {
+	vkCmdBeginRenderPass(vulkan_globals.command_buffer, &vulkan_globals.main_render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
+
 	R_PushDlights ();
 	R_AnimateLight ();
 	r_framecount++;
