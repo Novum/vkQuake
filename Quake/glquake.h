@@ -126,6 +126,7 @@ typedef struct
 	VkPipelineLayout					world_pipeline_layout;
 	VkPipeline							water_pipeline;
 	VkPipeline							warp_pipeline;
+	VkPipeline							alias_pipeline;
 
 	// Descriptors
 	VkDescriptorPool					descriptor_pool;

@@ -191,8 +191,7 @@ void GLAlias_CreateShaders (void)
 =============
 GL_DrawAliasFrame_GLSL -- ericw
 
-Optimized alias model drawing codepath.
-Compared to the original GL_DrawAliasFrame, this makes 1 draw call,
+Optimized alias model drawing codepath. This makes 1 draw call,
 no vertex data is uploaded (it's already in the r_meshvbo and r_meshindexesvbo
 static VBOs), and lerping and lighting is done in the vertex shader.
 

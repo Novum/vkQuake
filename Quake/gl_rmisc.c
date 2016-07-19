@@ -823,6 +823,8 @@ void R_CreatePipelines()
 	VkShaderModule world_vert_module = R_CreateShaderModule(world_vert_spv, world_vert_spv_size);
 	VkShaderModule world_frag_module = R_CreateShaderModule(world_frag_spv, world_frag_spv_size);
 	VkShaderModule world_fullbright_frag_module = R_CreateShaderModule(world_fullbright_frag_spv, world_fullbright_frag_spv_size);
+	VkShaderModule alias_vert_module = R_CreateShaderModule(alias_vert_spv, alias_vert_spv_size);
+	VkShaderModule alias_frag_module = R_CreateShaderModule(alias_frag_spv, alias_frag_spv_size);
 
 	VkPipelineDynamicStateCreateInfo dynamic_state_create_info;
 	memset(&dynamic_state_create_info, 0, sizeof(dynamic_state_create_info));
@@ -1034,6 +1036,18 @@ void R_CreatePipelines()
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateGraphicsPipelines failed");
 
+	//================
+	// Alias pipeline
+	//================
+	shader_stages[0].module = alias_vert_module;
+	shader_stages[1].module = alias_frag_module;
+
+	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.alias_pipeline);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkCreateGraphicsPipelines failed");
+
+	vkDestroyShaderModule(vulkan_globals.device, alias_frag_module, NULL);
+	vkDestroyShaderModule(vulkan_globals.device, alias_vert_module, NULL);
 	vkDestroyShaderModule(vulkan_globals.device, world_fullbright_frag_module, NULL);
 	vkDestroyShaderModule(vulkan_globals.device, world_frag_module, NULL);
 	vkDestroyShaderModule(vulkan_globals.device, world_vert_module, NULL);

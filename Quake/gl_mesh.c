@@ -2,6 +2,7 @@
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2010-2014 QuakeSpasm developers
+Copyright (C) 2016 Axel Gneiting
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -453,12 +454,13 @@ Original code by MH from RMQEngine
 */
 static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 {
-	/*int totalvbosize = 0;
+	int totalvbosize = 0;
 	const aliasmesh_t *desc;
 	const short *indexes;
 	const trivertx_t *trivertexes;
 	byte *vbodata;
 	int f;
+	VkResult err;
 
 // count the sizes we need
 	
@@ -482,12 +484,54 @@ static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 	indexes = (short *) ((byte *) hdr + hdr->indexes);
 	trivertexes = (trivertx_t *) ((byte *)hdr + hdr->vertexes);
 
-// upload indices buffer
+	{
+		const int totalindexsize = hdr->numindexes * sizeof (unsigned short);
 
-	GL_DeleteBuffersFunc (1, &m->meshindexesvbo);
-	GL_GenBuffersFunc (1, &m->meshindexesvbo);
-	GL_BindBufferFunc (GL_ELEMENT_ARRAY_BUFFER, m->meshindexesvbo);
-	GL_BufferDataFunc (GL_ELEMENT_ARRAY_BUFFER, hdr->numindexes * sizeof (unsigned short), indexes, GL_STATIC_DRAW);
+		// Allocate index buffer & upload to GPU
+		VkBufferCreateInfo buffer_create_info;
+		memset(&buffer_create_info, 0, sizeof(buffer_create_info));
+		buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+		buffer_create_info.size = totalindexsize;
+		buffer_create_info.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+		err = vkCreateBuffer(vulkan_globals.device, &buffer_create_info, NULL, &m->index_buffer);
+		if (err != VK_SUCCESS)
+			Sys_Error("vkCreateBuffer failed");
+
+		VkMemoryRequirements memory_requirements;
+		vkGetBufferMemoryRequirements(vulkan_globals.device, m->index_buffer, &memory_requirements);
+
+		const int align_mod = memory_requirements.size % memory_requirements.alignment;
+		const int aligned_size = ((memory_requirements.size % memory_requirements.alignment) == 0 ) 
+			? memory_requirements.size 
+			: (memory_requirements.size + memory_requirements.alignment - align_mod);
+
+		VkMemoryAllocateInfo memory_allocate_info;
+		memset(&memory_allocate_info, 0, sizeof(memory_allocate_info));
+		memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+		memory_allocate_info.allocationSize = aligned_size;
+		memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+		err = vkAllocateMemory(vulkan_globals.device, &memory_allocate_info, NULL, &m->index_memory);
+		if (err != VK_SUCCESS)
+			Sys_Error("vkAllocateMemory failed");
+
+		err = vkBindBufferMemory(vulkan_globals.device, m->index_buffer, m->index_memory, 0);
+		if (err != VK_SUCCESS)
+			Sys_Error("vkBindImageMemory failed");
+
+		VkBuffer staging_buffer;
+		VkCommandBuffer command_buffer;
+		int staging_offset;
+		unsigned char * staging_memory = R_StagingAllocate(totalindexsize, &command_buffer, &staging_buffer, &staging_offset);
+
+		memcpy(staging_memory, indexes, totalindexsize);
+
+		VkBufferCopy region;
+		region.srcOffset = staging_offset;
+		region.dstOffset = 0;
+		region.size = totalindexsize;
+		vkCmdCopyBuffer(command_buffer, staging_buffer, m->index_buffer, 1, &region);
+	}
 
 // create the vertex buffer (empty)
 
@@ -538,16 +582,54 @@ static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 		}
 	}
 
-// upload vertexes buffer
-	GL_DeleteBuffersFunc (1, &m->meshvbo);
-	GL_GenBuffersFunc (1, &m->meshvbo);
-	GL_BindBufferFunc (GL_ARRAY_BUFFER, m->meshvbo);
-	GL_BufferDataFunc (GL_ARRAY_BUFFER, totalvbosize, vbodata, GL_STATIC_DRAW);
+	// Allocate vertex buffer & upload to GPU
+	{
+		VkBufferCreateInfo buffer_create_info;
+		memset(&buffer_create_info, 0, sizeof(buffer_create_info));
+		buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+		buffer_create_info.size = totalvbosize;
+		buffer_create_info.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+		err = vkCreateBuffer(vulkan_globals.device, &buffer_create_info, NULL, &m->vertex_buffer);
+		if (err != VK_SUCCESS)
+			Sys_Error("vkCreateBuffer failed");
+
+		VkMemoryRequirements memory_requirements;
+		vkGetBufferMemoryRequirements(vulkan_globals.device, m->vertex_buffer, &memory_requirements);
+
+		const int align_mod = memory_requirements.size % memory_requirements.alignment;
+		const int aligned_size = ((memory_requirements.size % memory_requirements.alignment) == 0 ) 
+			? memory_requirements.size 
+			: (memory_requirements.size + memory_requirements.alignment - align_mod);
+
+		VkMemoryAllocateInfo memory_allocate_info;
+		memset(&memory_allocate_info, 0, sizeof(memory_allocate_info));
+		memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+		memory_allocate_info.allocationSize = aligned_size;
+		memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+		err = vkAllocateMemory(vulkan_globals.device, &memory_allocate_info, NULL, &m->vertex_memory);
+		if (err != VK_SUCCESS)
+			Sys_Error("vkAllocateMemory failed");
+
+		err = vkBindBufferMemory(vulkan_globals.device, m->vertex_buffer, m->vertex_memory, 0);
+		if (err != VK_SUCCESS)
+			Sys_Error("vkBindImageMemory failed");
+
+		VkBuffer staging_buffer;
+		VkCommandBuffer command_buffer;
+		int staging_offset;
+		unsigned char * staging_memory = R_StagingAllocate(totalvbosize, &command_buffer, &staging_buffer, &staging_offset);
+
+		memcpy(staging_memory, vbodata, totalvbosize);
+
+		VkBufferCopy region;
+		region.srcOffset = staging_offset;
+		region.dstOffset = 0;
+		region.size = totalvbosize;
+		vkCmdCopyBuffer(command_buffer, staging_buffer, m->vertex_buffer, 1, &region);
+	}
 
 	free (vbodata);
-
-// invalidate the cached bindings
-	GL_ClearBufferBindings ();*/
 }
 
 /*
@@ -583,20 +665,25 @@ Delete VBOs for all loaded alias models
 */
 void GLMesh_DeleteVertexBuffers (void)
 {
-	/*int j;
+	GL_WaitForDeviceIdle();
+
+	int j;
 	qmodel_t *m;
 	
 	for (j = 1; j < MAX_MODELS; j++)
 	{
 		if (!(m = cl.model_precache[j])) break;
 		if (m->type != mod_alias) continue;
-		
-		GL_DeleteBuffersFunc (1, &m->meshvbo);
-		m->meshvbo = 0;
 
-		GL_DeleteBuffersFunc (1, &m->meshindexesvbo);
-		m->meshindexesvbo = 0;
+		vkDestroyBuffer(vulkan_globals.device, m->vertex_buffer, NULL);
+		vkFreeMemory(vulkan_globals.device, m->vertex_memory, NULL);
+
+		vkDestroyBuffer(vulkan_globals.device, m->index_buffer, NULL);
+		vkFreeMemory(vulkan_globals.device, m->index_memory, NULL);
+
+		m->vertex_buffer = VK_NULL_HANDLE;
+		m->vertex_memory = VK_NULL_HANDLE;
+		m->index_buffer = VK_NULL_HANDLE;
+		m->index_memory = VK_NULL_HANDLE;
 	}
-	
-	GL_ClearBufferBindings ();*/
 }
