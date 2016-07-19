@@ -56,7 +56,7 @@ vulkanglobals_t vulkan_globals;
 Staging
 ================
 */
-#define STAGING_BUFFER_SIZE_KB	2048
+#define STAGING_BUFFER_SIZE_KB	16384
 #define NUM_STAGING_BUFFERS		2
 
 typedef struct
