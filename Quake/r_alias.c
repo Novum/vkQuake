@@ -420,10 +420,17 @@ void R_DrawAliasModel (entity_t *e)
 	//
 	// transform it
 	//
-	//glPushMatrix ();
-	R_RotateForEntity (lerpdata.origin, lerpdata.angles);
-	//glTranslatef (paliashdr->scale_origin[0], paliashdr->scale_origin[1], paliashdr->scale_origin[2]);
-	//glScalef (paliashdr->scale[0], paliashdr->scale[1], paliashdr->scale[2]);
+	float model_matrix[16];
+	IdentityMatrix(model_matrix);
+	R_RotateForEntity (model_matrix, lerpdata.origin, lerpdata.angles);
+
+	float translation_matrix[16];
+	TranslationMatrix (translation_matrix, paliashdr->scale_origin[0], paliashdr->scale_origin[1], paliashdr->scale_origin[2]);
+	MatrixMultiply(model_matrix, translation_matrix);
+
+	float scale_matrix[16];
+	ScaleMatrix (scale_matrix, paliashdr->scale[0], paliashdr->scale[1], paliashdr->scale[2]);
+	MatrixMultiply(model_matrix, scale_matrix);
 
 	//
 	// random stuff
@@ -461,7 +468,6 @@ void R_DrawAliasModel (entity_t *e)
 	//
 	// set up textures
 	//
-	//GL_DisableMultitexture();
 	anim = (int)(cl.time*10) & 3;
 	if ((e->skinnum >= paliashdr->numskins) || (e->skinnum < 0))
 	{
@@ -523,21 +529,10 @@ void R_DrawAliasModel (entity_t *e)
 		GL_DrawAliasFrame (paliashdr, lerpdata);
 		glEnable (GL_TEXTURE_2D);*/
 	}
-// call fast path if possible. if the shader compliation failed for some reason,
-// r_alias_program will be 0.
 	else
 	{
 		GL_DrawAliasFrame (paliashdr, lerpdata, tx, fb);
 	}
-
-/*cleanup:
-	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
-	glHint (GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
-	glShadeModel (GL_FLAT);
-	glDepthMask(GL_TRUE);
-	glDisable(GL_BLEND);
-	glColor3f(1,1,1);
-	glPopMatrix ();*/
 }
 
 //johnfitz -- values for shadow matrix

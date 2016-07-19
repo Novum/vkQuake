@@ -329,12 +329,19 @@ qboolean R_CullModelForEntity (entity_t *e)
 R_RotateForEntity -- johnfitz -- modified to take origin and angles instead of pointer to entity
 ===============
 */
-void R_RotateForEntity (vec3_t origin, vec3_t angles)
+void R_RotateForEntity (float matrix[16], vec3_t origin, vec3_t angles)
 {
-	/*glTranslatef (origin[0],  origin[1],  origin[2]);
-	glRotatef (angles[1],  0, 0, 1);
-	glRotatef (-angles[0],  0, 1, 0);
-	glRotatef (angles[2],  1, 0, 0);*/
+	float translation_matrix[16];
+	TranslationMatrix (matrix, origin[0], origin[1], origin[2]);
+	MatrixMultiply (matrix, translation_matrix);
+
+	float rotation_matrix[16];
+	RotationMatrix (rotation_matrix, angles[1], 0, 0, 1);
+	MatrixMultiply (matrix, rotation_matrix);
+	RotationMatrix (rotation_matrix, -angles[0], 0, 1, 0);
+	MatrixMultiply (matrix, rotation_matrix);
+	RotationMatrix (rotation_matrix, angles[2], 1, 0, 0);
+	MatrixMultiply (matrix, rotation_matrix);
 }
 
 //==============================================================================

@@ -3,12 +3,13 @@
 #extension GL_ARB_shading_language_420pack : enable
 
 layout(push_constant) uniform PushConsts {
-	mat4 mvp;
+	mat4 view_projection_matrix;
 } push_constants;
 
 layout (set = 0, binding = 0) uniform UBO
 {
-	mat4 model_view;
+	mat4 model_matrix;
+	mat4 view_matrix;
 	vec3 shade_vector;
 	float blend_factor;
 	vec4 light_color;
@@ -42,14 +43,15 @@ void main()
 {
 	out_texcoord = in_texcoord;
 
-	vec4 lerped_vert = mix(in_pose1_position, in_pose2_position, ubo.blend_factor);
-	gl_Position = push_constants.mvp * lerped_vert;
+	vec4 lerped_position = mix(in_pose1_position, in_pose2_position, ubo.blend_factor);
+	vec4 model_space_position = ubo.model_matrix * lerped_position;
+	gl_Position = push_constants.view_projection_matrix * model_space_position;
 
 	float dot1 = r_avertexnormal_dot(in_pose1_normal);
 	float dot2 = r_avertexnormal_dot(in_pose2_normal);
 	out_color = ubo.light_color * vec4(vec3(mix(dot1, dot2, ubo.blend_factor)), 1.0);
 
 	// fog
-	vec3 ecPosition = vec3(ubo.model_view * lerped_vert);
+	vec3 ecPosition = vec3(ubo.view_matrix * model_space_position);
 	out_fog_frag_coord = abs(ecPosition.z);
 }

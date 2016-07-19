@@ -597,3 +597,47 @@ void TranslationMatrix(float matrix[16], float x, float y, float z)
 	matrix[3*4 + 2] = z;
 	matrix[3*4 + 3] = 1.0f;
 }
+
+/*
+=============
+ScaleMatrix
+=============
+*/
+void ScaleMatrix(float matrix[16], float x, float y, float z)
+{
+	memset(matrix, 0, 16 * sizeof(float));
+
+	// First column
+	matrix[0*4 + 0] = x;
+
+	// Second column
+	matrix[1*4 + 1] = y;
+	
+	// Third column
+	matrix[2*4 + 2] = z;
+
+	// Fourth column
+	matrix[3*4 + 3] = 1.0f;
+}
+
+/*
+=============
+IdentityMatrix
+=============
+*/
+void IdentityMatrix(float matrix[16])
+{
+	memset(matrix, 0, 16 * sizeof(float));
+
+	// First column
+	matrix[0*4 + 0] = 1.0f;
+
+	// Second column
+	matrix[1*4 + 1] = 1.0f;
+	
+	// Third column
+	matrix[2*4 + 2] = 1.0f;
+
+	// Fourth column
+	matrix[3*4 + 3] = 1.0f;
+}

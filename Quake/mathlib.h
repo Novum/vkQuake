@@ -103,6 +103,8 @@ float	anglemod(float a);
 void MatrixMultiply(float left[16], float right[16]);
 void RotationMatrix(float matrix[16], float angle, float x, float y, float z);
 void TranslationMatrix(float matrix[16], float x, float y, float z);
+void ScaleMatrix(float matrix[16], float x, float y, float z);
+void IdentityMatrix(float matrix[16]);
 
 #define BOX_ON_PLANE_SIDE(emins, emaxs, p)	\
 	(((p)->type < 3)?						\
