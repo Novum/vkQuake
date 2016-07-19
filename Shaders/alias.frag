@@ -5,16 +5,13 @@
 layout(push_constant) uniform PushConsts {
 	vec3 fog_color;
 	float fog_density;
-	bool UseFullbrightTex;
-	bool UseOverbright;
+	bool use_fullbright;
+	bool use_overbright;
 } push_constants;
 
 layout(set = 0, binding = 0) uniform sampler diffuse_sampler;
 layout(set = 1, binding = 0) uniform texture2D diffuse_tex;
 layout(set = 2, binding = 0) uniform texture2D fullbright_tex;
-
-uniform sampler2D Tex;
-uniform sampler2D FullbrightTex;
 
 layout (location = 0) in vec2 in_texcoord;
 layout (location = 1) in vec4 in_color;
@@ -27,10 +24,10 @@ void main()
 	vec4 result = texture(sampler2D(diffuse_tex, diffuse_sampler), in_texcoord.xy);
 	result *= in_color;
 
-	if (push_constants.UseOverbright)
+	if (push_constants.use_overbright)
 		result.rgb *= 2.0;
 
-	if (push_constants.UseFullbrightTex)
+	if (push_constants.use_fullbright)
 		result += texture(sampler2D(fullbright_tex, diffuse_sampler), in_texcoord.xy);
 
 	result = clamp(result, 0.0, 1.0);

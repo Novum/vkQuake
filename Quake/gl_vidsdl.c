@@ -1017,8 +1017,6 @@ static void GL_CreateRenderTargets( void )
 	}
 
 	free(swapchain_images);
-
-	
 }
 
 /*
