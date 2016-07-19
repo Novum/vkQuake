@@ -361,6 +361,7 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
   <ItemGroup>
     <None Include="..\..\Shaders\basic.frag" />
     <None Include="..\..\Shaders\basic.vert" />
+    <None Include="..\..\Shaders\basic_alphatest.frag" />
     <None Include="..\..\Shaders\basic_notex.frag" />
     <None Include="..\..\Shaders\compile.bat" />
     <None Include="..\..\Shaders\world.frag" />

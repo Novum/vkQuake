@@ -502,5 +502,8 @@
     <None Include="..\..\Shaders\world_fullbright.frag">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="..\..\Shaders\basic_alphatest.frag">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

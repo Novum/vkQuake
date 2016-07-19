@@ -962,6 +962,8 @@ void R_CreatePipelines()
 	//================
 	// Warp
 	//================
+	input_assembly_state_create_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
+	
 	blend_attachment_state.blendEnable = VK_FALSE;
 
 	shader_stages[0].module = basic_vert_module;

@@ -185,12 +185,12 @@ void R_UpdateWarpTextures (void)
 {
 	texture_t *tx;
 	int i;
-	//float x, y, x2, warptess;
+	float x, y, x2, warptess;
 
 	if (cl.paused || r_drawflat_cheatsafe || r_lightmap_cheatsafe)
 		return;
 
-	float warptess = 128.0/CLAMP (3.0, floor(r_waterquality.value), 64.0);
+	warptess = 128.0/CLAMP (3.0, floor(r_waterquality.value), 64.0);
 
 	for (i=0; i<cl.worldmodel->numtextures; i++)
 	{
@@ -224,25 +224,49 @@ void R_UpdateWarpTextures (void)
 		vkCmdBeginRenderPass(vulkan_globals.command_buffer, &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
 
 		//render warp
-		/*GL_SetCanvas (CANVAS_WARPIMAGE);
-		GL_Bind (tx->gltexture);
+		GL_SetCanvas (CANVAS_WARPIMAGE);
+		vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.warp_pipeline);
+		vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout, 1, 1, &tx->gltexture->descriptor_set, 0, NULL);
+
+		int num_verts = 0;
+		for (y=0.0; y<128.01; y+=warptess) // .01 for rounding errors
+			num_verts += 2;
+
 		for (x=0.0; x<128.0; x=x2)
-		{
+		{	
+			VkBuffer buffer;
+			VkDeviceSize buffer_offset;
+			basicvertex_t * vertices = (basicvertex_t*)R_VertexAllocate(num_verts * sizeof(basicvertex_t), &buffer, &buffer_offset);
+
+			int i = 0;
 			x2 = x + warptess;
-			glBegin (GL_TRIANGLE_STRIP);
 			for (y=0.0; y<128.01; y+=warptess) // .01 for rounding errors
 			{
-				glTexCoord2f (WARPCALC(x,y), WARPCALC(y,x));
-				glVertex2f (x,y);
-				glTexCoord2f (WARPCALC(x2,y), WARPCALC(y,x2));
-				glVertex2f (x2,y);
+				vertices[i].position[0] = x;
+				vertices[i].position[1] = y;
+				vertices[i].position[2] = 0.0f;
+				vertices[i].texcoord[0] = WARPCALC(x,y);
+				vertices[i].texcoord[1] = WARPCALC(y,x);
+				vertices[i].color[0] = 255;
+				vertices[i].color[1] = 255;
+				vertices[i].color[2] = 255;
+				vertices[i].color[3] = 255;
+				i += 1;
+				vertices[i].position[0] = x2;
+				vertices[i].position[1] = y;
+				vertices[i].position[2] = 0.0f;
+				vertices[i].texcoord[0] = WARPCALC(x2,y);
+				vertices[i].texcoord[1] = WARPCALC(y,x2);
+				vertices[i].color[0] = 255;
+				vertices[i].color[1] = 255;
+				vertices[i].color[2] = 255;
+				vertices[i].color[3] = 255;
+				i += 1;
 			}
-			glEnd();
-		}*/
 
-		//copy to texture
-		//GL_Bind (tx->warpimage);
-		//glCopyTexSubImage2D (GL_TEXTURE_2D, 0, 0, 0, glx, gly+glheight-gl_warpimagesize, gl_warpimagesize, gl_warpimagesize);
+			vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
+			vkCmdDraw(vulkan_globals.command_buffer, num_verts, 1, 0, 0);
+		}
 
 		vkCmdEndRenderPass(vulkan_globals.command_buffer);
 
