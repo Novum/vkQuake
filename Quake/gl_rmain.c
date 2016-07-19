@@ -445,26 +445,31 @@ void R_SetupMatrix (void)
 				r_refdef.vrect.width,
 				r_refdef.vrect.height);
 
-	float matrix[16];
-	GL_FrustumMatrix(matrix, DEG2RAD(r_fovx), DEG2RAD(r_fovy));
+	// Projection matrix
+	GL_FrustumMatrix(vulkan_globals.projection_matrix, DEG2RAD(r_fovx), DEG2RAD(r_fovy));
 
+	// View matrix
 	float rotation_matrix[16];
-	RotationMatrix(rotation_matrix, -M_PI / 2.0f, 1.0f, 0.0f, 0.0f);
-	MatrixMultiply(matrix, rotation_matrix);
+	RotationMatrix(vulkan_globals.view_matrix, -M_PI / 2.0f, 1.0f, 0.0f, 0.0f);
 	RotationMatrix(rotation_matrix,  M_PI / 2.0f, 0.0f, 0.0f, 1.0f);
-	MatrixMultiply(matrix, rotation_matrix);
+	MatrixMultiply(vulkan_globals.view_matrix, rotation_matrix);
 	RotationMatrix(rotation_matrix, DEG2RAD(-r_refdef.viewangles[2]), 1.0f, 0.0f, 0.0f);
-	MatrixMultiply(matrix, rotation_matrix);
+	MatrixMultiply(vulkan_globals.view_matrix, rotation_matrix);
 	RotationMatrix(rotation_matrix, DEG2RAD(-r_refdef.viewangles[0]), 0.0f, 1.0f, 0.0f);
-	MatrixMultiply(matrix, rotation_matrix);
+	MatrixMultiply(vulkan_globals.view_matrix, rotation_matrix);
 	RotationMatrix(rotation_matrix, DEG2RAD(-r_refdef.viewangles[1]), 0.0f, 0.0f, 1.0f);
-	MatrixMultiply(matrix, rotation_matrix);
+	MatrixMultiply(vulkan_globals.view_matrix, rotation_matrix);
 	
 	float translation_matrix[16];
 	TranslationMatrix(translation_matrix, -r_refdef.vieworg[0], -r_refdef.vieworg[1], -r_refdef.vieworg[2]);
-	MatrixMultiply(matrix, translation_matrix);
+	MatrixMultiply(vulkan_globals.view_matrix, translation_matrix);
 
-	vkCmdPushConstants(vulkan_globals.command_buffer, vulkan_globals.basic_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, 16 * sizeof(float), matrix);
+	// View projection matrix
+	float view_projection_matrix[16];
+	memcpy(view_projection_matrix, vulkan_globals.projection_matrix, 16 * sizeof(float));
+	MatrixMultiply(view_projection_matrix, vulkan_globals.view_matrix);
+
+	vkCmdPushConstants(vulkan_globals.command_buffer, vulkan_globals.basic_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, 16 * sizeof(float), view_projection_matrix);
 }
 
 /*
