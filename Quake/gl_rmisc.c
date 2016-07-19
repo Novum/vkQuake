@@ -638,6 +638,24 @@ void R_CreateDescriptorSetLayouts()
 	err = vkCreateDescriptorSetLayout(vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.single_texture_set_layout);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateDescriptorSetLayout failed");
+
+	VkDescriptorSetLayoutBinding ubo_sampler_layout_bindings[2];
+	memset(ubo_sampler_layout_bindings, 0, sizeof(ubo_sampler_layout_bindings));
+	ubo_sampler_layout_bindings[0].binding = 0;
+	ubo_sampler_layout_bindings[0].descriptorCount = 1;
+	ubo_sampler_layout_bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+	ubo_sampler_layout_bindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+	ubo_sampler_layout_bindings[1].binding = 1;
+	ubo_sampler_layout_bindings[1].descriptorCount = 1;
+	ubo_sampler_layout_bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+	ubo_sampler_layout_bindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+	descriptor_set_layout_create_info.bindingCount = 2;
+	descriptor_set_layout_create_info.pBindings = ubo_sampler_layout_bindings;
+	
+	err = vkCreateDescriptorSetLayout(vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.ubo_sampler_set_layout);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkCreateDescriptorSetLayout failed");
 }
 
 /*
@@ -683,8 +701,9 @@ void R_CreatePipelineLayouts()
 
 	VkResult err;
 
+	// Basic
 	VkDescriptorSetLayout basic_descriptor_set_layouts[2] = { vulkan_globals.sampler_set_layout, vulkan_globals.single_texture_set_layout };
-
+	
 	VkPushConstantRange push_constant_range;
 	memset(&push_constant_range, 0, sizeof(push_constant_range));
 	push_constant_range.offset = 0;
@@ -703,6 +722,7 @@ void R_CreatePipelineLayouts()
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreatePipelineLayout failed");
 
+	// World
 	VkDescriptorSetLayout world_descriptor_set_layouts[4] = { 
 		vulkan_globals.sampler_set_layout,
 		vulkan_globals.single_texture_set_layout,
@@ -714,6 +734,31 @@ void R_CreatePipelineLayouts()
 	pipeline_layout_create_info.pSetLayouts = world_descriptor_set_layouts;
 
 	err = vkCreatePipelineLayout(vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.world_pipeline_layout);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkCreatePipelineLayout failed");
+
+	// Alias
+	VkPushConstantRange alias_push_constant_ranges[2];
+	memset(&alias_push_constant_ranges, 0, sizeof(alias_push_constant_ranges));
+	alias_push_constant_ranges[0].offset = 0;
+	alias_push_constant_ranges[0].size = 16 * sizeof(float);
+	alias_push_constant_ranges[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+	alias_push_constant_ranges[1].offset = 16 * sizeof(float);
+	alias_push_constant_ranges[1].size = 6 * sizeof(float);
+	alias_push_constant_ranges[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+	VkDescriptorSetLayout alias_descriptor_set_layouts[3] = { 
+		vulkan_globals.ubo_sampler_set_layout,
+		vulkan_globals.single_texture_set_layout,
+		vulkan_globals.single_texture_set_layout
+	};
+
+	pipeline_layout_create_info.setLayoutCount = 3;
+	pipeline_layout_create_info.pSetLayouts = alias_descriptor_set_layouts;
+	pipeline_layout_create_info.pushConstantRangeCount = 2;
+	pipeline_layout_create_info.pPushConstantRanges = alias_push_constant_ranges;
+
+	err = vkCreatePipelineLayout(vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.alias_pipeline_layout);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreatePipelineLayout failed");
 }
@@ -1039,8 +1084,35 @@ void R_CreatePipelines()
 	//================
 	// Alias pipeline
 	//================
+	VkVertexInputAttributeDescription alias_vertex_input_attribute_descriptions[5];
+	alias_vertex_input_attribute_descriptions[0].binding = 0;
+	alias_vertex_input_attribute_descriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
+	alias_vertex_input_attribute_descriptions[0].location = 0;
+	alias_vertex_input_attribute_descriptions[0].offset = 0;
+	alias_vertex_input_attribute_descriptions[1].binding = 1;
+	alias_vertex_input_attribute_descriptions[1].format = VK_FORMAT_R8G8B8A8_USCALED;
+	alias_vertex_input_attribute_descriptions[1].location = 1;
+	alias_vertex_input_attribute_descriptions[1].offset = 0;
+	alias_vertex_input_attribute_descriptions[2].binding = 1;
+	alias_vertex_input_attribute_descriptions[2].format = VK_FORMAT_R8G8B8A8_SNORM;
+	alias_vertex_input_attribute_descriptions[2].location = 2;
+	alias_vertex_input_attribute_descriptions[2].offset = 4;
+	alias_vertex_input_attribute_descriptions[3].binding = 2;
+	alias_vertex_input_attribute_descriptions[3].format = VK_FORMAT_R8G8B8A8_USCALED;
+	alias_vertex_input_attribute_descriptions[3].location = 3;
+	alias_vertex_input_attribute_descriptions[3].offset = 0;
+	alias_vertex_input_attribute_descriptions[4].binding = 2;
+	alias_vertex_input_attribute_descriptions[4].format = VK_FORMAT_R8G8B8A8_SNORM;
+	alias_vertex_input_attribute_descriptions[4].location = 4;
+	alias_vertex_input_attribute_descriptions[4].offset = 4;
+
+	vertex_input_state_create_info.vertexAttributeDescriptionCount = 5;
+	vertex_input_state_create_info.pVertexAttributeDescriptions = alias_vertex_input_attribute_descriptions;
+
 	shader_stages[0].module = alias_vert_module;
 	shader_stages[1].module = alias_frag_module;
+
+	pipeline_create_info.layout = vulkan_globals.alias_pipeline_layout;
 
 	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.alias_pipeline);
 	if (err != VK_SUCCESS)

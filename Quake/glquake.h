@@ -127,11 +127,13 @@ typedef struct
 	VkPipeline							water_pipeline;
 	VkPipeline							warp_pipeline;
 	VkPipeline							alias_pipeline;
+	VkPipelineLayout					alias_pipeline_layout;
 
 	// Descriptors
 	VkDescriptorPool					descriptor_pool;
-	VkDescriptorSetLayout				sampler_set_layout;
 	VkDescriptorSet						sampler_descriptor_set;
+	VkDescriptorSetLayout				sampler_set_layout;
+	VkDescriptorSetLayout				ubo_sampler_set_layout;
 	VkDescriptorSetLayout				single_texture_set_layout;
 
 	// Samplers

@@ -3,13 +3,13 @@
 #extension GL_ARB_shading_language_420pack : enable
 
 layout(push_constant) uniform PushConsts {
-	vec3 fog_color;
-	float fog_density;
-	bool use_fullbright;
-	bool use_overbright;
+	layout(offset = 64) vec3 fog_color;
+	layout(offset = 76) float fog_density;
+	layout(offset = 80) bool use_fullbright;
+	layout(offset = 84) bool use_overbright;
 } push_constants;
 
-layout(set = 0, binding = 0) uniform sampler diffuse_sampler;
+layout(set = 0, binding = 1) uniform sampler diffuse_sampler;
 layout(set = 1, binding = 0) uniform texture2D diffuse_tex;
 layout(set = 2, binding = 0) uniform texture2D fullbright_tex;
 
