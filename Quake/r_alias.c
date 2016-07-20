@@ -25,7 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 
-extern cvar_t r_drawflat, gl_overbright_models, gl_fullbrights, r_lerpmodels, r_lerpmove; //johnfitz
+extern cvar_t r_drawflat, gl_fullbrights, r_lerpmodels, r_lerpmove; //johnfitz
 
 //up to 16 color translated skins
 gltexture_t *playertextures[MAX_SCOREBOARD]; //johnfitz -- changed to an array of pointers
@@ -52,8 +52,6 @@ float	*shadedots = r_avertexnormal_dots[0];
 vec3_t	shadevector;
 
 float	entalpha; //johnfitz
-
-qboolean	overbright; //johnfitz
 
 qboolean shading = true; //johnfitz -- if false, disable vertex shading for various reasons (fullbright, r_lightmap, showtris, etc)
 
@@ -105,7 +103,7 @@ Optimized alias model drawing codepath. This makes 1 draw call,
 no vertex data is uploaded (it's already in the r_meshvbo and r_meshindexesvbo
 static VBOs), and lerping and lighting is done in the vertex shader.
 
-Supports optional overbright, optional fullbright pixels.
+Supports optional fullbright pixels.
 
 Based on code by MH from RMQEngine
 =============
@@ -361,21 +359,9 @@ void R_SetupAliasLighting (entity_t	*e)
 	}
 
 	// clamp lighting so it doesn't overbright as much (96)
-	if (overbright)
-	{
-		add = 288.0f / (lightcolor[0] + lightcolor[1] + lightcolor[2]);
-		if (add < 1.0f)
-			VectorScale(lightcolor, add, lightcolor);
-	}
-
-	//hack up the brightness when fullbrights but no overbrights (256)
-	if (gl_fullbrights.value && !gl_overbright_models.value)
-		if (e->model->flags & MOD_FBRIGHTHACK)
-		{
-			lightcolor[0] = 256.0f;
-			lightcolor[1] = 256.0f;
-			lightcolor[2] = 256.0f;
-		}
+	add = 288.0f / (lightcolor[0] + lightcolor[1] + lightcolor[2]);
+	if (add < 1.0f)
+		VectorScale(lightcolor, add, lightcolor);
 
 	quantizedangle = ((int)(e->angles[1] * (SHADEDOT_QUANT / 360.0))) & (SHADEDOT_QUANT - 1);
 
@@ -439,7 +425,6 @@ void R_DrawAliasModel (entity_t *e)
 	//	glShadeModel (GL_SMOOTH);
 	//if (gl_affinemodels.value)
 	//	glHint (GL_PERSPECTIVE_CORRECTION_HINT, GL_FASTEST);
-	overbright = gl_overbright_models.value;
 	shading = true;
 
 	//

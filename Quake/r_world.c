@@ -24,7 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 
-extern cvar_t gl_fullbrights, r_drawflat, gl_overbright, r_oldskyleaf, r_showtris; //johnfitz
+extern cvar_t gl_fullbrights, r_drawflat, r_oldskyleaf, r_showtris; //johnfitz
 
 extern glpoly_t	*lightmap_polys[MAX_LIGHTMAPS];
 
@@ -814,17 +814,7 @@ void R_DrawTextureChains (qmodel_t *model, entity_t *ent, texchain_t chain)
 
 	if (r_lightmap_cheatsafe)
 	{
-		//if (!gl_overbright.value)
-		//{
-		//	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-		//	glColor3f(0.5, 0.5, 0.5);
-		//}
 		//R_DrawLightmapChains ();
-		//if (!gl_overbright.value)
-		//{
-		//	glColor3f(1,1,1);
-		//	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
-		//}
 		//R_DrawTextureChains_White (model, chain);
 		//return;
 	}

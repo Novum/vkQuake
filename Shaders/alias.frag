@@ -6,7 +6,6 @@ layout(push_constant) uniform PushConsts {
 	layout(offset = 64) vec3 fog_color;
 	layout(offset = 76) float fog_density;
 	layout(offset = 80) bool use_fullbright;
-	layout(offset = 84) bool use_overbright;
 } push_constants;
 
 layout(set = 0, binding = 1) uniform sampler diffuse_sampler;
@@ -23,9 +22,6 @@ void main()
 {
 	vec4 result = texture(sampler2D(diffuse_tex, diffuse_sampler), in_texcoord.xy);
 	result *= in_color;
-
-	if (push_constants.use_overbright)
-		result.rgb *= 2.0;
 
 	if (push_constants.use_fullbright)
 		result += texture(sampler2D(fullbright_tex, diffuse_sampler), in_texcoord.xy);

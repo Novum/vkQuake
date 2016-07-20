@@ -32,8 +32,6 @@ extern cvar_t r_drawflat;
 extern cvar_t r_flatlightstyles;
 extern cvar_t gl_fullbrights;
 extern cvar_t gl_farclip;
-extern cvar_t gl_overbright;
-extern cvar_t gl_overbright_models;
 extern cvar_t r_waterquality;
 extern cvar_t r_waterwarp;
 extern cvar_t r_oldskyleaf;
@@ -117,16 +115,6 @@ int GL_MemoryTypeFromProperties(uint32_t type_bits, VkFlags requirements_mask)
 
 	Sys_Error("Could not find memory type");
 	return 0;
-}
-
-/*
-====================
-GL_Overbright_f -- johnfitz
-====================
-*/
-static void GL_Overbright_f (cvar_t *var)
-{
-	R_RebuildAllLightmaps ();
 }
 
 /*
@@ -1281,10 +1269,7 @@ void R_Init (void)
 	Cvar_RegisterVariable (&r_showbboxes);
 	Cvar_RegisterVariable (&gl_farclip);
 	Cvar_RegisterVariable (&gl_fullbrights);
-	Cvar_RegisterVariable (&gl_overbright);
 	Cvar_SetCallback (&gl_fullbrights, GL_Fullbrights_f);
-	Cvar_SetCallback (&gl_overbright, GL_Overbright_f);
-	Cvar_RegisterVariable (&gl_overbright_models);
 	Cvar_RegisterVariable (&r_lerpmodels);
 	Cvar_RegisterVariable (&r_lerpmove);
 	Cvar_RegisterVariable (&r_nolerp_list);

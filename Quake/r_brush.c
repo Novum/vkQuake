@@ -25,7 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 
-extern cvar_t gl_fullbrights, r_drawflat, gl_overbright; //johnfitz
+extern cvar_t gl_fullbrights, r_drawflat; //johnfitz
 extern cvar_t gl_zfix; // QuakeSpasm z-fighting fix
 
 int		gl_lightmap_format;
@@ -846,18 +846,9 @@ void R_BuildLightMap (msurface_t *surf, byte *dest, int stride)
 	{
 		for (j=0 ; j<smax ; j++)
 		{
-			if (gl_overbright.value)
-			{
-				r = *bl++ >> 8;
-				g = *bl++ >> 8;
-				b = *bl++ >> 8;
-			}
-			else
-			{
-				r = *bl++ >> 7;
-				g = *bl++ >> 7;
-				b = *bl++ >> 7;
-			}
+			r = *bl++ >> 8;
+			g = *bl++ >> 8;
+			b = *bl++ >> 8;
 			if (r > 255) r = 255; *dest++ = r;
 			if (g > 255) g = 255; *dest++ = g;
 			if (b > 255) b = 255; *dest++ = b;
@@ -951,7 +942,7 @@ void R_UploadLightmaps (void)
 
 /*
 ================
-R_RebuildAllLightmaps -- johnfitz -- called when gl_overbright gets toggled
+R_RebuildAllLightmaps -- johnfitz 
 ================
 */
 void R_RebuildAllLightmaps (void)
