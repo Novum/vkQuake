@@ -74,7 +74,7 @@ static int				current_staging_buffer = 0;
 
 /*
 ================
-Dynamic vertex/index buffer
+Dynamic vertex/index & uniform buffer
 ================
 */
 #define DYNAMIC_VERTEX_BUFFER_SIZE_KB	1024
@@ -96,6 +96,7 @@ static dynbuffer_t		dyn_vertex_buffers[NUM_DYNAMIC_BUFFERS];
 static dynbuffer_t		dyn_index_buffers[NUM_DYNAMIC_BUFFERS];
 static dynbuffer_t		dyn_uniform_buffers[NUM_DYNAMIC_BUFFERS];
 static int				current_dyn_buffer_index = 0;
+static VkDescriptorSet	ubo_descriptor_sets[2];
 
 /*
 ================
@@ -588,6 +589,37 @@ static void R_InitDynamicUniformBuffers()
 
 	for(int i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
 		dyn_uniform_buffers[i].data = data + (i * aligned_size);
+
+	VkDescriptorSetAllocateInfo descriptor_set_allocate_info;
+	memset(&descriptor_set_allocate_info, 0, sizeof(descriptor_set_allocate_info));
+	descriptor_set_allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	descriptor_set_allocate_info.descriptorPool = vulkan_globals.descriptor_pool;
+	descriptor_set_allocate_info.descriptorSetCount = 1;
+	descriptor_set_allocate_info.pSetLayouts = &vulkan_globals.ubo_set_layout;
+
+	vkAllocateDescriptorSets(vulkan_globals.device, &descriptor_set_allocate_info, &ubo_descriptor_sets[0]);
+	vkAllocateDescriptorSets(vulkan_globals.device, &descriptor_set_allocate_info, &ubo_descriptor_sets[1]);
+
+	VkDescriptorBufferInfo buffer_info;
+	memset(&buffer_info, 0, sizeof(buffer_info));
+	buffer_info.offset = 0;
+	buffer_info.range = DYNAMIC_UNIFORM_BUFFER_SIZE_KB * 1024;
+
+	VkWriteDescriptorSet ubo_write;
+	memset(&ubo_write, 0, sizeof(ubo_write));
+	ubo_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	ubo_write.dstBinding = 0;
+	ubo_write.dstArrayElement = 0;
+	ubo_write.descriptorCount = 1;
+	ubo_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+	ubo_write.pBufferInfo = &buffer_info;
+
+	for(int i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
+	{
+		buffer_info.buffer = dyn_uniform_buffers[i].buffer;
+		ubo_write.dstSet = ubo_descriptor_sets[i];
+		vkUpdateDescriptorSets(vulkan_globals.device, 1, &ubo_write, 0, NULL);
+	}
 }
 
 /*
@@ -652,7 +684,7 @@ UBO offets need to be 256 byte aligned on NVIDIA hardware
 This is also the maximum required alignment by the Vulkan spec
 ===============
 */
-byte * R_UniformAllocate(int size, VkBuffer * buffer, VkDeviceSize * buffer_offset)
+byte * R_UniformAllocate(int size, VkBuffer * buffer, uint32_t * buffer_offset, VkDescriptorSet * descriptor_set)
 {
 	const int align_mod = size % 256;
 	const int aligned_size = ((size % 256) == 0) ? size : (size + 256 - align_mod);
@@ -667,6 +699,8 @@ byte * R_UniformAllocate(int size, VkBuffer * buffer, VkDeviceSize * buffer_offs
 
 	unsigned char *data = dyn_ub->data + dyn_ub->current_offset;
 	dyn_ub->current_offset += aligned_size;
+
+	*descriptor_set = ubo_descriptor_sets[current_dyn_buffer_index];
 
 	return data;
 }
@@ -751,17 +785,19 @@ R_CreateDescriptorPool
 */
 void R_CreateDescriptorPool()
 {
-	VkDescriptorPoolSize pool_sizes[2];
+	VkDescriptorPoolSize pool_sizes[3];
 	pool_sizes[0].type = VK_DESCRIPTOR_TYPE_SAMPLER;
 	pool_sizes[0].descriptorCount = 2;
 	pool_sizes[1].type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
 	pool_sizes[1].descriptorCount = MAX_GLTEXTURES;
+	pool_sizes[2].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+	pool_sizes[2].descriptorCount = 1;
 
 	VkDescriptorPoolCreateInfo descriptor_pool_create_info;
 	memset(&descriptor_pool_create_info, 0, sizeof(descriptor_pool_create_info));
 	descriptor_pool_create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-	descriptor_pool_create_info.maxSets = MAX_GLTEXTURES + 1;
-	descriptor_pool_create_info.poolSizeCount = 2;
+	descriptor_pool_create_info.maxSets = MAX_GLTEXTURES + 3;
+	descriptor_pool_create_info.poolSizeCount = 3;
 	descriptor_pool_create_info.pPoolSizes = pool_sizes;
 
 	vkCreateDescriptorPool(vulkan_globals.device, &descriptor_pool_create_info, NULL, &vulkan_globals.descriptor_pool);
@@ -825,10 +861,10 @@ void R_CreatePipelineLayouts()
 
 	// Alias
 	VkDescriptorSetLayout alias_descriptor_set_layouts[4] = { 
-		vulkan_globals.ubo_set_layout,
 		vulkan_globals.sampler_set_layout,
 		vulkan_globals.single_texture_set_layout,
-		vulkan_globals.single_texture_set_layout
+		vulkan_globals.single_texture_set_layout,
+		vulkan_globals.ubo_set_layout
 	};
 
 	pipeline_layout_create_info.setLayoutCount = 4;

@@ -7,7 +7,7 @@ layout(push_constant) uniform PushConsts {
 	mat4 view_projection_matrix;
 } push_constants;
 
-layout (set = 0, binding = 0) uniform UBO
+layout (set = 3, binding = 0) uniform UBO
 {
 	mat4 model_matrix;
 	vec3 shade_vector;

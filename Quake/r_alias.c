@@ -65,6 +65,14 @@ typedef struct {
 } lerpdata_t;
 //johnfitz
 
+typedef struct {
+	float model_matrix[16];
+	float shade_vector[3];
+	float blend_factor;
+	float light_color[4];
+	unsigned int use_fullbright;
+} aliasubo_t;
+
 /*
 =============
 GLARB_GetXYZOffset
@@ -108,7 +116,7 @@ Supports optional fullbright pixels.
 Based on code by MH from RMQEngine
 =============
 */
-void GL_DrawAliasFrame (aliashdr_t *paliashdr, lerpdata_t lerpdata, gltexture_t *tx, gltexture_t *fb)
+void GL_DrawAliasFrame (aliashdr_t *paliashdr, lerpdata_t lerpdata, gltexture_t *tx, gltexture_t *fb, float model_matrix[16])
 {
 	float	blend;
 
@@ -122,6 +130,20 @@ void GL_DrawAliasFrame (aliashdr_t *paliashdr, lerpdata_t lerpdata, gltexture_t 
 	}
 
 	vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.alias_pipeline);
+
+	VkBuffer uniform_buffer;
+	uint32_t uniform_offset;
+	VkDescriptorSet ubo_set;
+	aliasubo_t * ubo = (aliasubo_t*)R_UniformAllocate(sizeof(aliasubo_t), &uniform_buffer, &uniform_offset, &ubo_set);
+	
+	memcpy(ubo->model_matrix, model_matrix, 16 * sizeof(float));
+	memcpy(ubo->shade_vector, shadevector, 3 * sizeof(float));
+	ubo->blend_factor = blend;
+	memcpy(ubo->light_color, lightcolor, 4 * sizeof(float));
+	ubo->use_fullbright = (fb != NULL) ? 1 : 0;
+
+	VkDescriptorSet descriptor_sets[3] = { tx->descriptor_set, (fb != NULL) ? fb->descriptor_set : tx->descriptor_set, ubo_set };
+	vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.alias_pipeline_layout, 1, 3, descriptor_sets, 1, &uniform_offset);
 
 	/*GL_UseProgramFunc (r_alias_program);
 
@@ -516,7 +538,7 @@ void R_DrawAliasModel (entity_t *e)
 	}
 	else
 	{
-		GL_DrawAliasFrame (paliashdr, lerpdata, tx, fb);
+		GL_DrawAliasFrame (paliashdr, lerpdata, tx, fb, model_matrix);
 	}
 }
 
