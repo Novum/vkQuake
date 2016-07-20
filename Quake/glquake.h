@@ -143,6 +143,7 @@ typedef struct
 	// Matrices
 	float								projection_matrix[16];
 	float								view_matrix[16];
+	float								view_projection_matrix[16];
 } vulkanglobals_t;
 
 extern vulkanglobals_t vulkan_globals;

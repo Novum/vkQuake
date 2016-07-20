@@ -856,13 +856,6 @@ void R_DrawWorld (void)
 	if (!r_drawworld_cheatsafe)
 		return;
 
-	VkBuffer uniform_buffer;
-	uint32_t buffer_offset;
-	VkDescriptorSet descriptor_set;
-	float * matrix = (float*)R_UniformAllocate(16 * sizeof(float), &uniform_buffer, &buffer_offset, &descriptor_set);
-	IdentityMatrix(matrix);
-	vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout, 4, 1, &descriptor_set, 1, &buffer_offset);
-
 	R_DrawTextureChains (cl.worldmodel, NULL, chain_world);
 }
 

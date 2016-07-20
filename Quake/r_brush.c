@@ -218,12 +218,11 @@ void R_DrawBrushModel (entity_t *e)
 	}
 	e->angles[0] = -e->angles[0];	// stupid quake bug
 
-	VkBuffer uniform_buffer;
-	uint32_t buffer_offset;
-	VkDescriptorSet descriptor_set;
-	float * matrix = (float*)R_UniformAllocate(16 * sizeof(float), &uniform_buffer, &buffer_offset, &descriptor_set);
-	memcpy(matrix, model_matrix, 16 * sizeof(float));
-	vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout, 4, 1, &descriptor_set, 1, &buffer_offset);
+	float mvp[16];
+	memcpy(mvp, vulkan_globals.view_projection_matrix, 16 * sizeof(float));
+	MatrixMultiply(mvp, model_matrix);
+
+	vkCmdPushConstants(vulkan_globals.command_buffer, vulkan_globals.basic_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, 16 * sizeof(float), mvp);
 
 	R_ClearTextureChains (clmodel, chain_model);
 	for (i=0 ; i<clmodel->nummodelsurfaces ; i++, psurf++)
@@ -240,6 +239,8 @@ void R_DrawBrushModel (entity_t *e)
 
 	R_DrawTextureChains (clmodel, e, chain_model);
 	//R_DrawTextureChains_Water (clmodel, e, chain_model);
+
+	vkCmdPushConstants(vulkan_globals.command_buffer, vulkan_globals.basic_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, 16 * sizeof(float), vulkan_globals.view_projection_matrix);
 }
 
 /*

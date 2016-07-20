@@ -850,15 +850,14 @@ void R_CreatePipelineLayouts()
 		Sys_Error("vkCreatePipelineLayout failed");
 
 	// World
-	VkDescriptorSetLayout world_descriptor_set_layouts[5] = { 
+	VkDescriptorSetLayout world_descriptor_set_layouts[4] = { 
 		vulkan_globals.sampler_set_layout,
 		vulkan_globals.single_texture_set_layout,
 		vulkan_globals.single_texture_set_layout,
-		vulkan_globals.single_texture_set_layout,
-		vulkan_globals.ubo_set_layout
+		vulkan_globals.single_texture_set_layout
 	};
 
-	pipeline_layout_create_info.setLayoutCount = 5;
+	pipeline_layout_create_info.setLayoutCount = 4;
 	pipeline_layout_create_info.pSetLayouts = world_descriptor_set_layouts;
 
 	err = vkCreatePipelineLayout(vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.world_pipeline_layout);

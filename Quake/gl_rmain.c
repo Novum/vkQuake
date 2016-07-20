@@ -471,11 +471,10 @@ void R_SetupMatrix (void)
 	MatrixMultiply(vulkan_globals.view_matrix, translation_matrix);
 
 	// View projection matrix
-	float view_projection_matrix[16];
-	memcpy(view_projection_matrix, vulkan_globals.projection_matrix, 16 * sizeof(float));
-	MatrixMultiply(view_projection_matrix, vulkan_globals.view_matrix);
+	memcpy(vulkan_globals.view_projection_matrix, vulkan_globals.projection_matrix, 16 * sizeof(float));
+	MatrixMultiply(vulkan_globals.view_projection_matrix, vulkan_globals.view_matrix);
 
-	vkCmdPushConstants(vulkan_globals.command_buffer, vulkan_globals.basic_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, 16 * sizeof(float), view_projection_matrix);
+	vkCmdPushConstants(vulkan_globals.command_buffer, vulkan_globals.basic_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, 16 * sizeof(float), vulkan_globals.view_projection_matrix);
 }
 
 /*
