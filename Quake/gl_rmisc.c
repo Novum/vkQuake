@@ -729,21 +729,17 @@ void R_CreateDescriptorSetLayouts()
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateDescriptorSetLayout failed");
 
-	VkDescriptorSetLayoutBinding ubo_sampler_layout_bindings[2];
+	VkDescriptorSetLayoutBinding ubo_sampler_layout_bindings[1];
 	memset(ubo_sampler_layout_bindings, 0, sizeof(ubo_sampler_layout_bindings));
 	ubo_sampler_layout_bindings[0].binding = 0;
 	ubo_sampler_layout_bindings[0].descriptorCount = 1;
 	ubo_sampler_layout_bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
-	ubo_sampler_layout_bindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-	ubo_sampler_layout_bindings[1].binding = 1;
-	ubo_sampler_layout_bindings[1].descriptorCount = 1;
-	ubo_sampler_layout_bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
-	ubo_sampler_layout_bindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+	ubo_sampler_layout_bindings[0].stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS;
 
-	descriptor_set_layout_create_info.bindingCount = 2;
+	descriptor_set_layout_create_info.bindingCount = 1;
 	descriptor_set_layout_create_info.pBindings = ubo_sampler_layout_bindings;
 	
-	err = vkCreateDescriptorSetLayout(vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.ubo_sampler_set_layout);
+	err = vkCreateDescriptorSetLayout(vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.ubo_set_layout);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateDescriptorSetLayout failed");
 }
@@ -828,25 +824,15 @@ void R_CreatePipelineLayouts()
 		Sys_Error("vkCreatePipelineLayout failed");
 
 	// Alias
-	VkPushConstantRange alias_push_constant_ranges[2];
-	memset(&alias_push_constant_ranges, 0, sizeof(alias_push_constant_ranges));
-	alias_push_constant_ranges[0].offset = 0;
-	alias_push_constant_ranges[0].size = 16 * sizeof(float);
-	alias_push_constant_ranges[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-	alias_push_constant_ranges[1].offset = 16 * sizeof(float);
-	alias_push_constant_ranges[1].size = 6 * sizeof(float);
-	alias_push_constant_ranges[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-	VkDescriptorSetLayout alias_descriptor_set_layouts[3] = { 
-		vulkan_globals.ubo_sampler_set_layout,
+	VkDescriptorSetLayout alias_descriptor_set_layouts[4] = { 
+		vulkan_globals.ubo_set_layout,
+		vulkan_globals.sampler_set_layout,
 		vulkan_globals.single_texture_set_layout,
 		vulkan_globals.single_texture_set_layout
 	};
 
-	pipeline_layout_create_info.setLayoutCount = 3;
+	pipeline_layout_create_info.setLayoutCount = 4;
 	pipeline_layout_create_info.pSetLayouts = alias_descriptor_set_layouts;
-	pipeline_layout_create_info.pushConstantRangeCount = 2;
-	pipeline_layout_create_info.pPushConstantRanges = alias_push_constant_ranges;
 
 	err = vkCreatePipelineLayout(vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.alias_pipeline_layout);
 	if (err != VK_SUCCESS)

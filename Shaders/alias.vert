@@ -1,6 +1,7 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_ARB_shading_language_420pack : enable
+#extension GL_GOOGLE_include_directive : enable
 
 layout(push_constant) uniform PushConsts {
 	mat4 view_projection_matrix;
@@ -9,10 +10,10 @@ layout(push_constant) uniform PushConsts {
 layout (set = 0, binding = 0) uniform UBO
 {
 	mat4 model_matrix;
-	mat4 view_matrix;
 	vec3 shade_vector;
 	float blend_factor;
 	vec4 light_color;
+	bool use_fullbright;
 } ubo;
 
 layout (location = 0) in vec2 in_texcoord;
@@ -50,8 +51,4 @@ void main()
 	float dot1 = r_avertexnormal_dot(in_pose1_normal);
 	float dot2 = r_avertexnormal_dot(in_pose2_normal);
 	out_color = ubo.light_color * vec4(vec3(mix(dot1, dot2, ubo.blend_factor)), 1.0);
-
-	// fog
-	vec3 ecPosition = vec3(ubo.view_matrix * model_space_position);
-	out_fog_frag_coord = abs(ecPosition.z);
 }
