@@ -608,7 +608,7 @@ R_DrawViewModel -- johnfitz -- gutted
 */
 void R_DrawViewModel (void)
 {
-	/*if (!r_drawviewmodel.value || !r_drawentities.value || chase_active.value)
+	if (!r_drawviewmodel.value || !r_drawentities.value || chase_active.value)
 		return;
 
 	if (cl.items & IT_INVISIBILITY || cl.stats[STAT_HEALTH] <= 0)
@@ -624,9 +624,20 @@ void R_DrawViewModel (void)
 	//johnfitz
 
 	// hack the depth range to prevent view model from poking into walls
-	glDepthRange (0, 0.3);
+	VkViewport viewport;
+	viewport.x = 0;
+	viewport.y = 0;
+	viewport.width = vid.width;
+	viewport.height = vid.height;
+	viewport.minDepth = 0.0f;
+	viewport.maxDepth = 0.3f;
+	vkCmdSetViewport(vulkan_globals.command_buffer, 0, 1, &viewport);
+	
 	R_DrawAliasModel (currententity);
-	glDepthRange (0, 1);*/
+
+	viewport.minDepth = 0.0f;
+	viewport.maxDepth = 1.0f;
+	vkCmdSetViewport(vulkan_globals.command_buffer, 0, 1, &viewport);
 }
 
 /*
