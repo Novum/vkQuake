@@ -3,6 +3,7 @@ Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2007-2008 Kristian Duske
 Copyright (C) 2010-2014 QuakeSpasm developers
+Copyright (C) 2016 Axel Gneiting
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -979,7 +980,7 @@ called once per frame before drawing anything else
 */
 void Sky_DrawSky (void)
 {
-	/*int				i;
+	int				i;
 
 	//in these special render modes, the sky faces are handled in the normal world/brush renderer
 	if (r_drawflat_cheatsafe || r_lightmap_cheatsafe )
@@ -994,36 +995,38 @@ void Sky_DrawSky (void)
 		skymaxs[0][i] = skymaxs[1][i] = -9999;
 	}
 
+	vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_pipeline);
+
 	//
 	// process world and bmodels: draw flat-shaded sky surfs, and update skybounds
 	//
-	Fog_DisableGFog ();
+	/*Fog_DisableGFog ();
 	glDisable (GL_TEXTURE_2D);
 	if (Fog_GetDensity() > 0)
 		glColor3fv (Fog_GetColor());
 	else
-		glColor3fv (skyflatcolor);
+		glColor3fv (skyflatcolor);*/
 	Sky_ProcessTextureChains ();
 	Sky_ProcessEntities ();
-	glColor3f (1, 1, 1);
-	glEnable (GL_TEXTURE_2D);
+	/*glColor3f (1, 1, 1);
+	glEnable (GL_TEXTURE_2D);*/
 
 	//
 	// render slow sky: cloud layers or skybox
 	//
 	if (!r_fastsky.value && !(Fog_GetDensity() > 0 && skyfog >= 1))
 	{
-		glDepthFunc(GL_GEQUAL);
-		glDepthMask(0);
+		//glDepthFunc(GL_GEQUAL);
+		//glDepthMask(0);
 
 		if (skybox_name[0])
 			Sky_DrawSkyBox ();
 		else
 			Sky_DrawSkyLayers();
 
-		glDepthMask(1);
-		glDepthFunc(GL_LEQUAL);
+		//glDepthMask(1);
+		//glDepthFunc(GL_LEQUAL);
 	}
 
-	Fog_EnableGFog ();*/
+	Fog_EnableGFog ();
 }
