@@ -81,6 +81,7 @@ Dynamic vertex/index & uniform buffer
 #define DYNAMIC_INDEX_BUFFER_SIZE_KB	128
 #define DYNAMIC_UNIFORM_BUFFER_SIZE_KB	128
 #define NUM_DYNAMIC_BUFFERS				2
+#define MAX_UNIFORM_ALLOC				2048
 
 typedef struct
 {
@@ -603,7 +604,7 @@ static void R_InitDynamicUniformBuffers()
 	VkDescriptorBufferInfo buffer_info;
 	memset(&buffer_info, 0, sizeof(buffer_info));
 	buffer_info.offset = 0;
-	buffer_info.range = DYNAMIC_UNIFORM_BUFFER_SIZE_KB * 1024;
+	buffer_info.range = MAX_UNIFORM_ALLOC;
 
 	VkWriteDescriptorSet ubo_write;
 	memset(&ubo_write, 0, sizeof(ubo_write));
@@ -632,6 +633,7 @@ void R_SwapDynamicBuffers()
 	current_dyn_buffer_index = (current_dyn_buffer_index + 1) % NUM_DYNAMIC_BUFFERS;
 	dyn_vertex_buffers[current_dyn_buffer_index].current_offset = 0;
 	dyn_index_buffers[current_dyn_buffer_index].current_offset = 0;
+	dyn_uniform_buffers[current_dyn_buffer_index].current_offset = 0;
 }
 
 /*
@@ -686,12 +688,15 @@ This is also the maximum required alignment by the Vulkan spec
 */
 byte * R_UniformAllocate(int size, VkBuffer * buffer, uint32_t * buffer_offset, VkDescriptorSet * descriptor_set)
 {
+	if (size > MAX_UNIFORM_ALLOC)
+		Sys_Error("Increase MAX_UNIFORM_ALLOC");
+
 	const int align_mod = size % 256;
 	const int aligned_size = ((size % 256) == 0) ? size : (size + 256 - align_mod);
 
 	dynbuffer_t *dyn_ub = &dyn_uniform_buffers[current_dyn_buffer_index];
 
-	if ((dyn_ub->current_offset + aligned_size) > (DYNAMIC_UNIFORM_BUFFER_SIZE_KB * 1024))
+	if ((dyn_ub->current_offset + MAX_UNIFORM_ALLOC) > (DYNAMIC_UNIFORM_BUFFER_SIZE_KB * 1024))
 		Sys_Error("Out of dynamic uniform buffer space, increase DYNAMIC_UNIFORM_BUFFER_SIZE_KB");
 
 	*buffer = dyn_ub->buffer;
