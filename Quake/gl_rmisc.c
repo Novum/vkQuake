@@ -1171,6 +1171,8 @@ void R_CreatePipelines()
 	//================
 	// World pipelines
 	//================
+	rasterization_state_create_info.cullMode = VK_CULL_MODE_NONE;
+
 	input_assembly_state_create_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
 	VkVertexInputAttributeDescription world_vertex_input_attribute_descriptions[3];
