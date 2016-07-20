@@ -322,7 +322,7 @@ void R_DrawParticles_ShowTris (void);
 
 void GL_DrawAliasShadow (entity_t *e);
 void DrawGLTriangleFan (glpoly_t *p);
-void DrawGLPoly (glpoly_t *p);
+void DrawGLPoly (glpoly_t *p, float color[3]);
 void GL_MakeAliasModelDisplayLists (qmodel_t *m, aliashdr_t *hdr);
 
 void Sky_Init (void);

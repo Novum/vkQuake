@@ -510,13 +510,13 @@ void Sky_ClipPoly (int nump, vec3_t vecs, int stage)
 Sky_ProcessPoly
 ================
 */
-void Sky_ProcessPoly (glpoly_t	*p)
+void Sky_ProcessPoly (glpoly_t	*p, float color[3])
 {
 	int			i;
 	vec3_t		verts[MAX_CLIP_VERTS];
 
 	//draw it
-	DrawGLPoly(p);
+	DrawGLPoly(p, color);
 	rs_brushpasses++;
 
 	//update sky bounds
@@ -533,7 +533,7 @@ void Sky_ProcessPoly (glpoly_t	*p)
 Sky_ProcessTextureChains -- handles sky polys in world model
 ================
 */
-void Sky_ProcessTextureChains (void)
+void Sky_ProcessTextureChains (float color[3])
 {
 	int			i;
 	msurface_t	*s;
@@ -551,7 +551,7 @@ void Sky_ProcessTextureChains (void)
 
 		for (s = t->texturechains[chain_world]; s; s = s->texturechain)
 			if (!s->culled)
-				Sky_ProcessPoly (s->polys);
+				Sky_ProcessPoly (s->polys, color);
 	}
 }
 
@@ -560,7 +560,7 @@ void Sky_ProcessTextureChains (void)
 Sky_ProcessEntities -- handles sky polys on brush models
 ================
 */
-void Sky_ProcessEntities (void)
+void Sky_ProcessEntities (float color[3])
 {
 	entity_t	*e;
 	msurface_t	*s;
@@ -630,7 +630,7 @@ void Sky_ProcessEntities (void)
 						else
 							VectorAdd(s->polys->verts[k], e->origin, p->verts[k]);
 					}
-					Sky_ProcessPoly (p);
+					Sky_ProcessPoly (p, color);
 					Hunk_FreeToLowMark (mark);
 				}
 			}
@@ -1000,16 +1000,15 @@ void Sky_DrawSky (void)
 	//
 	// process world and bmodels: draw flat-shaded sky surfs, and update skybounds
 	//
-	/*Fog_DisableGFog ();
-	glDisable (GL_TEXTURE_2D);
+	Fog_DisableGFog ();
+	float * color;
 	if (Fog_GetDensity() > 0)
-		glColor3fv (Fog_GetColor());
+		color = Fog_GetColor();
 	else
-		glColor3fv (skyflatcolor);*/
-	Sky_ProcessTextureChains ();
-	Sky_ProcessEntities ();
-	/*glColor3f (1, 1, 1);
-	glEnable (GL_TEXTURE_2D);*/
+		color = skyflatcolor;
+
+	Sky_ProcessTextureChains (color);
+	Sky_ProcessEntities (color);
 
 	//
 	// render slow sky: cloud layers or skybox

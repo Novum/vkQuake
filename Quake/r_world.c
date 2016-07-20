@@ -597,6 +597,8 @@ void R_DrawTextureChains_Water (qmodel_t *model, entity_t *ent, texchain_t chain
 	if (r_drawflat_cheatsafe || r_lightmap_cheatsafe) // ericw -- !r_drawworld_cheatsafe check moved to R_DrawWorld_Water ()
 		return;
 
+	float color[3] = { 1.0f, 1.0f, 1.0f };
+
 	vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.water_pipeline);
 
 	for (i=0 ; i<model->numtextures ; i++)
@@ -625,7 +627,7 @@ void R_DrawTextureChains_Water (qmodel_t *model, entity_t *ent, texchain_t chain
 
 					bound = true;
 				}
-				DrawGLPoly (s->polys);
+				DrawGLPoly (s->polys, color);
 				rs_brushpasses++;
 			}
 		R_EndTransparentDrawing (entalpha);

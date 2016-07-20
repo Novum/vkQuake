@@ -95,7 +95,7 @@ texture_t *R_TextureAnimation (texture_t *base, int frame)
 DrawGLPoly
 ================
 */
-void DrawGLPoly (glpoly_t *p)
+void DrawGLPoly (glpoly_t *p, float color[3])
 {
 	const int numverts = p->numverts;
 
@@ -114,9 +114,9 @@ void DrawGLPoly (glpoly_t *p)
 		vertices[i].position[2] = v[2];
 		vertices[i].texcoord[0] = v[3];
 		vertices[i].texcoord[1] = v[4];
-		vertices[i].color[0] = 255;
-		vertices[i].color[1] = 255;
-		vertices[i].color[2] = 255;
+		vertices[i].color[0] = color[0] * 255.0f;
+		vertices[i].color[1] = color[1] * 255.0f;
+		vertices[i].color[2] = color[2] * 255.0f;
 		vertices[i].color[3] = 255;
 	}
 
