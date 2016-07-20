@@ -1223,8 +1223,21 @@ void R_CreatePipelines()
 	alias_vertex_input_attribute_descriptions[4].location = 4;
 	alias_vertex_input_attribute_descriptions[4].offset = 4;
 
+	VkVertexInputBindingDescription alias_vertex_binding_descriptions[3];
+	alias_vertex_binding_descriptions[0].binding = 0;
+	alias_vertex_binding_descriptions[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+	alias_vertex_binding_descriptions[0].stride = 8;
+	alias_vertex_binding_descriptions[1].binding = 1;
+	alias_vertex_binding_descriptions[1].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+	alias_vertex_binding_descriptions[1].stride = 8;
+	alias_vertex_binding_descriptions[2].binding = 2;
+	alias_vertex_binding_descriptions[2].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+	alias_vertex_binding_descriptions[2].stride = 8;
+
 	vertex_input_state_create_info.vertexAttributeDescriptionCount = 5;
 	vertex_input_state_create_info.pVertexAttributeDescriptions = alias_vertex_input_attribute_descriptions;
+	vertex_input_state_create_info.vertexBindingDescriptionCount = 3;
+	vertex_input_state_create_info.pVertexBindingDescriptions = alias_vertex_binding_descriptions;
 
 	shader_stages[0].module = alias_vert_module;
 	shader_stages[1].module = alias_frag_module;

@@ -133,7 +133,6 @@ void GL_DrawAliasFrame (aliashdr_t *paliashdr, lerpdata_t lerpdata, gltexture_t 
 	VkBuffer vertex_buffers[3] = { currententity->model->vertex_buffer, currententity->model->vertex_buffer, currententity->model->vertex_buffer };
 	VkDeviceSize vertex_offsets[3] = { currententity->model->vbostofs, GLARB_GetXYZOffset (paliashdr, lerpdata.pose1), GLARB_GetXYZOffset (paliashdr, lerpdata.pose2) };
 	vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 3, vertex_buffers, vertex_offsets);
-
 	vkCmdBindIndexBuffer(vulkan_globals.command_buffer, currententity->model->index_buffer, 0, VK_INDEX_TYPE_UINT16);
 
 	vkCmdDrawIndexed(vulkan_globals.command_buffer, paliashdr->numindexes, 1, 0, 0, 0);
