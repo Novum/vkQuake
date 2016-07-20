@@ -1164,7 +1164,14 @@ void R_CreatePipelines()
 	depth_stencil_state_create_info.depthWriteEnable = VK_TRUE;
 	depth_stencil_state_create_info.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
 
-	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.sky_pipeline);
+	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.sky_color_pipeline);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkCreateGraphicsPipelines failed");
+
+	shader_stages[1].module = basic_frag_module;
+	blend_attachment_state.blendEnable = VK_TRUE;
+
+	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.sky_layer_pipeline);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateGraphicsPipelines failed");
 
@@ -1201,6 +1208,8 @@ void R_CreatePipelines()
 
 	shader_stages[0].module = world_vert_module;
 	shader_stages[1].module = world_frag_module;
+
+	blend_attachment_state.blendEnable = VK_FALSE;
 	
 	pipeline_create_info.layout = vulkan_globals.world_pipeline_layout;
 

@@ -805,34 +805,34 @@ Sky_DrawFaceQuad
 */
 void Sky_DrawFaceQuad (glpoly_t *p)
 {
-	/*float	s, t;
+	float	s, t;
 	float	*v;
 	int		i;
 
-	if (gl_mtexable && r_skyalpha.value >= 1.0)
+	if (r_skyalpha.value >= 1.0)
 	{
-		GL_Bind (solidskytexture);
+		/*GL_Bind (solidskytexture);
 		GL_EnableMultitexture();
 		GL_Bind (alphaskytexture);
 		glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL);
 
-		glBegin (GL_QUADS);
+		glBegin (GL_QUADS);*/
 		for (i=0, v=p->verts[0] ; i<4 ; i++, v+=VERTEXSIZE)
 		{
 			Sky_GetTexCoord (v, 8, &s, &t);
-			GL_MTexCoord2fFunc (GL_TEXTURE0_ARB, s, t);
+			//GL_MTexCoord2fFunc (GL_TEXTURE0_ARB, s, t);
 			Sky_GetTexCoord (v, 16, &s, &t);
-			GL_MTexCoord2fFunc (GL_TEXTURE1_ARB, s, t);
-			glVertex3fv (v);
+			//GL_MTexCoord2fFunc (GL_TEXTURE1_ARB, s, t);
+			//glVertex3fv (v);
 		}
-		glEnd ();
+		/*glEnd ();
 
-		GL_DisableMultitexture();
+		GL_DisableMultitexture();*/
 
 		rs_skypolys++;
 		rs_skypasses++;
 	}
-	else
+	/*else
 	{
 		GL_Bind (solidskytexture);
 
@@ -958,17 +958,19 @@ draws the old-style scrolling cloud layers
 */
 void Sky_DrawSkyLayers (void)
 {
-	/*int i;
+	int i;
 
-	if (r_skyalpha.value < 1.0)
-		glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+	vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_layer_pipeline);
+
+	//if (r_skyalpha.value < 1.0)
+	//	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 
 	for (i=0 ; i<6 ; i++)
 		if (skymins[0][i] < skymaxs[0][i] && skymins[1][i] < skymaxs[1][i])
 			Sky_DrawFace (i);
 
-	if (r_skyalpha.value < 1.0)
-		glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);*/
+	//if (r_skyalpha.value < 1.0)
+	//	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);*/
 }
 
 /*
@@ -995,7 +997,7 @@ void Sky_DrawSky (void)
 		skymaxs[0][i] = skymaxs[1][i] = -9999;
 	}
 
-	vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_pipeline);
+	vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_color_pipeline);
 
 	//
 	// process world and bmodels: draw flat-shaded sky surfs, and update skybounds
