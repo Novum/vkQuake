@@ -158,7 +158,7 @@ R_DrawBrushModel
 */
 void R_DrawBrushModel (entity_t *e)
 {
-	/*int			i, k;
+	int			i, k;
 	msurface_t	*psurf;
 	float		dot;
 	mplane_t	*pplane;
@@ -200,7 +200,6 @@ void R_DrawBrushModel (entity_t *e)
 		}
 	}
 
-   glPushMatrix ();
 	e->angles[0] = -e->angles[0];	// stupid quake bug
 	if (gl_zfix.value)
 	{
@@ -208,7 +207,9 @@ void R_DrawBrushModel (entity_t *e)
 		e->origin[1] -= DIST_EPSILON;
 		e->origin[2] -= DIST_EPSILON;
 	}
-	R_RotateForEntity (e->origin, e->angles);
+	float model_matrix[16];
+	IdentityMatrix(model_matrix);
+	R_RotateForEntity (model_matrix, e->origin, e->angles);
 	if (gl_zfix.value)
 	{
 		e->origin[0] += DIST_EPSILON;
@@ -216,6 +217,13 @@ void R_DrawBrushModel (entity_t *e)
 		e->origin[2] += DIST_EPSILON;
 	}
 	e->angles[0] = -e->angles[0];	// stupid quake bug
+
+	VkBuffer uniform_buffer;
+	uint32_t buffer_offset;
+	VkDescriptorSet descriptor_set;
+	float * matrix = (float*)R_UniformAllocate(16 * sizeof(float), &uniform_buffer, &buffer_offset, &descriptor_set);
+	memcpy(matrix, model_matrix, 16 * sizeof(float));
+	vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout, 4, 1, &descriptor_set, 1, &buffer_offset);
 
 	R_ClearTextureChains (clmodel, chain_model);
 	for (i=0 ; i<clmodel->nummodelsurfaces ; i++, psurf++)
@@ -231,9 +239,7 @@ void R_DrawBrushModel (entity_t *e)
 	}
 
 	R_DrawTextureChains (clmodel, e, chain_model);
-	R_DrawTextureChains_Water (clmodel, e, chain_model);
-
-	glPopMatrix ();*/
+	//R_DrawTextureChains_Water (clmodel, e, chain_model);
 }
 
 /*
