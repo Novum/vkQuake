@@ -39,5 +39,9 @@ extern unsigned char alias_vert_spv[];
 extern int alias_vert_spv_size;
 extern unsigned char alias_frag_spv[];
 extern int alias_frag_spv_size;
+extern unsigned char sky_layer_vert_spv[];
+extern int sky_layer_vert_spv_size;
+extern unsigned char sky_layer_frag_spv[];
+extern int sky_layer_frag_spv_size;
 
 #endif

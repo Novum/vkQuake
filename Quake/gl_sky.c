@@ -64,8 +64,8 @@ int	st_to_vec[6][3] =
 	{-3,1,2},
 	{1,3,2},
 	{-1,-3,2},
- 	{-2,-1,3},		// straight up
- 	{2,-1,-3}		// straight down
+	{-2,-1,3},		// straight up
+	{2,-1,-3}		// straight down
 };
 
 int	vec_to_st[6][3] =
@@ -79,6 +79,14 @@ int	vec_to_st[6][3] =
 };
 
 float	skyfog; // ericw
+
+typedef struct
+{
+	float	position[3];
+	float	texcoord1[2];
+	float	texcoord2[2];
+	byte	color[4];
+} skylayervertex_t;
 
 //==============================================================================
 //
@@ -803,73 +811,41 @@ void Sky_GetTexCoord (vec3_t v, float speed, float *s, float *t)
 Sky_DrawFaceQuad
 ===============
 */
-void Sky_DrawFaceQuad (glpoly_t *p)
+void Sky_DrawFaceQuad (glpoly_t *p, float alpha)
 {
-	float	s, t;
 	float	*v;
 	int		i;
 
-	if (r_skyalpha.value >= 1.0)
+	VkDescriptorSet descriptor_sets[2] = { solidskytexture->descriptor_set, alphaskytexture->descriptor_set };
+	vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_layer_pipeline_layout, 1, 2, descriptor_sets, 0, NULL);
+
+	VkBuffer vertex_buffer;
+	VkDeviceSize vertex_buffer_offset;
+	skylayervertex_t * vertices = (skylayervertex_t*)R_VertexAllocate(4 * sizeof(skylayervertex_t), &vertex_buffer, &vertex_buffer_offset);
+
+	for (i=0, v=p->verts[0] ; i<4 ; i++, v+=VERTEXSIZE)
 	{
-		/*GL_Bind (solidskytexture);
-		GL_EnableMultitexture();
-		GL_Bind (alphaskytexture);
-		glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL);
+		vertices[i].position[0] = v[0];
+		vertices[i].position[1] = v[1];
+		vertices[i].position[2] = v[2];
+		
+		Sky_GetTexCoord (v, 8, &vertices[i].texcoord1[0], &vertices[i].texcoord1[1]);
+		Sky_GetTexCoord (v, 16, &vertices[i].texcoord2[0], &vertices[i].texcoord2[1]);
 
-		glBegin (GL_QUADS);*/
-		for (i=0, v=p->verts[0] ; i<4 ; i++, v+=VERTEXSIZE)
-		{
-			Sky_GetTexCoord (v, 8, &s, &t);
-			//GL_MTexCoord2fFunc (GL_TEXTURE0_ARB, s, t);
-			Sky_GetTexCoord (v, 16, &s, &t);
-			//GL_MTexCoord2fFunc (GL_TEXTURE1_ARB, s, t);
-			//glVertex3fv (v);
-		}
-		/*glEnd ();
-
-		GL_DisableMultitexture();*/
-
-		rs_skypolys++;
-		rs_skypasses++;
-	}
-	/*else
-	{
-		GL_Bind (solidskytexture);
-
-		if (r_skyalpha.value < 1.0)
-			glColor3f (1, 1, 1);
-
-		glBegin (GL_QUADS);
-		for (i=0, v=p->verts[0] ; i<4 ; i++, v+=VERTEXSIZE)
-		{
-			Sky_GetTexCoord (v, 8, &s, &t);
-			glTexCoord2f (s, t);
-			glVertex3fv (v);
-		}
-		glEnd ();
-
-		GL_Bind (alphaskytexture);
-		glEnable (GL_BLEND);
-
-		if (r_skyalpha.value < 1.0)
-			glColor4f (1, 1, 1, r_skyalpha.value);
-
-		glBegin (GL_QUADS);
-		for (i=0, v=p->verts[0] ; i<4 ; i++, v+=VERTEXSIZE)
-		{
-			Sky_GetTexCoord (v, 16, &s, &t);
-			glTexCoord2f (s, t);
-			glVertex3fv (v);
-		}
-		glEnd ();
-
-		glDisable (GL_BLEND);
-
-		rs_skypolys++;
-		rs_skypasses += 2;
+		vertices[i].color[0] = 255;
+		vertices[i].color[1] = 255;
+		vertices[i].color[2] = 255;
+		vertices[i].color[3] = alpha * 255.0f;
 	}
 
-	if (Fog_GetDensity() > 0 && skyfog > 0)
+	vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &vertex_buffer, &vertex_buffer_offset);
+
+	vkCmdDraw(vulkan_globals.command_buffer, 4, 1, 0, 0);
+
+	rs_skypolys++;
+	rs_skypasses++;
+
+	/*if (Fog_GetDensity() > 0 && skyfog > 0)
 	{
 		float *c;
 
@@ -897,7 +873,7 @@ Sky_DrawFace
 ==============
 */
 
-void Sky_DrawFace (int axis)
+void Sky_DrawFace (int axis, float alpha)
 {
 	glpoly_t	*p;
 	vec3_t		verts[4];
@@ -943,7 +919,7 @@ void Sky_DrawFace (int axis)
 
 			VectorAdd (p->verts[0],temp,p->verts[3]);
 
-			Sky_DrawFaceQuad (p);
+			Sky_DrawFaceQuad (p, alpha);
 		}
 	}
 	Hunk_FreeToLowMark (start);
@@ -962,15 +938,9 @@ void Sky_DrawSkyLayers (void)
 
 	vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_layer_pipeline);
 
-	//if (r_skyalpha.value < 1.0)
-	//	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-
 	for (i=0 ; i<6 ; i++)
 		if (skymins[0][i] < skymaxs[0][i] && skymins[1][i] < skymaxs[1][i])
-			Sky_DrawFace (i);
-
-	//if (r_skyalpha.value < 1.0)
-	//	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);*/
+			Sky_DrawFace (i, r_skyalpha.value);
 }
 
 /*
@@ -1017,16 +987,10 @@ void Sky_DrawSky (void)
 	//
 	if (!r_fastsky.value && !(Fog_GetDensity() > 0 && skyfog >= 1))
 	{
-		//glDepthFunc(GL_GEQUAL);
-		//glDepthMask(0);
-
 		if (skybox_name[0])
 			Sky_DrawSkyBox ();
 		else
-			Sky_DrawSkyLayers();
-
-		//glDepthMask(1);
-		//glDepthFunc(GL_LEQUAL);
+			Sky_DrawSkyLayers ();
 	}
 
 	Fog_EnableGFog ();

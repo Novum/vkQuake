@@ -283,6 +283,12 @@
     <ClCompile Include="..\..\Shaders\Compiled\alias_frag.c">
       <Filter>Shaders\Compiled</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\sky_layer_frag.c">
+      <Filter>Shaders\Compiled</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\sky_layer_vert.c">
+      <Filter>Shaders\Compiled</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\Quake\snd_codec.h">
@@ -515,6 +521,12 @@
       <Filter>Shaders</Filter>
     </None>
     <None Include="..\..\Shaders\world_fullbright.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\..\Shaders\sky_layer.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\..\Shaders\sky_layer.vert">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>

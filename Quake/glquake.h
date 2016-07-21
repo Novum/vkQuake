@@ -128,6 +128,7 @@ typedef struct
 	VkPipeline							warp_pipeline;
 	VkPipeline							sky_color_pipeline;
 	VkPipeline							sky_layer_pipeline;
+	VkPipelineLayout					sky_layer_pipeline_layout;
 	VkPipeline							alias_pipeline;
 	VkPipelineLayout					alias_pipeline_layout;
 

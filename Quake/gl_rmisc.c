@@ -878,6 +878,20 @@ void R_CreatePipelineLayouts()
 	err = vkCreatePipelineLayout(vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.alias_pipeline_layout);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreatePipelineLayout failed");
+
+	// Sky
+	VkDescriptorSetLayout sky_layer_descriptor_set_layouts[3] = { 
+		vulkan_globals.sampler_set_layout,
+		vulkan_globals.single_texture_set_layout,
+		vulkan_globals.single_texture_set_layout,
+	};
+
+	pipeline_layout_create_info.setLayoutCount = 3;
+	pipeline_layout_create_info.pSetLayouts = sky_layer_descriptor_set_layouts;
+
+	err = vkCreatePipelineLayout(vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.sky_layer_pipeline_layout);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkCreatePipelineLayout failed");
 }
 
 /*
@@ -987,6 +1001,8 @@ void R_CreatePipelines()
 	VkShaderModule world_fullbright_frag_module = R_CreateShaderModule(world_fullbright_frag_spv, world_fullbright_frag_spv_size);
 	VkShaderModule alias_vert_module = R_CreateShaderModule(alias_vert_spv, alias_vert_spv_size);
 	VkShaderModule alias_frag_module = R_CreateShaderModule(alias_frag_spv, alias_frag_spv_size);
+	VkShaderModule sky_layer_vert_module = R_CreateShaderModule(sky_layer_vert_spv, sky_layer_vert_spv_size);
+	VkShaderModule sky_layer_frag_module = R_CreateShaderModule(sky_layer_frag_spv, sky_layer_frag_spv_size);
 
 	VkPipelineDynamicStateCreateInfo dynamic_state_create_info;
 	memset(&dynamic_state_create_info, 0, sizeof(dynamic_state_create_info));
@@ -1160,16 +1176,47 @@ void R_CreatePipelines()
 
 	shader_stages[1].module = basic_notex_frag_module;
 
-	depth_stencil_state_create_info.depthTestEnable = VK_TRUE;
-	depth_stencil_state_create_info.depthWriteEnable = VK_TRUE;
+	depth_stencil_state_create_info.depthTestEnable = VK_FALSE;
+	depth_stencil_state_create_info.depthWriteEnable = VK_FALSE;
 	depth_stencil_state_create_info.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
 
 	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.sky_color_pipeline);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateGraphicsPipelines failed");
 
-	shader_stages[1].module = basic_frag_module;
-	blend_attachment_state.blendEnable = VK_TRUE;
+	VkVertexInputAttributeDescription sky_layer_vertex_input_attribute_descriptions[4];
+	sky_layer_vertex_input_attribute_descriptions[0].binding = 0;
+	sky_layer_vertex_input_attribute_descriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
+	sky_layer_vertex_input_attribute_descriptions[0].location = 0;
+	sky_layer_vertex_input_attribute_descriptions[0].offset = 0;
+	sky_layer_vertex_input_attribute_descriptions[1].binding = 0;
+	sky_layer_vertex_input_attribute_descriptions[1].format = VK_FORMAT_R32G32_SFLOAT;
+	sky_layer_vertex_input_attribute_descriptions[1].location = 1;
+	sky_layer_vertex_input_attribute_descriptions[1].offset = 12;
+	sky_layer_vertex_input_attribute_descriptions[2].binding = 0;
+	sky_layer_vertex_input_attribute_descriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
+	sky_layer_vertex_input_attribute_descriptions[2].location = 2;
+	sky_layer_vertex_input_attribute_descriptions[2].offset = 20;
+	sky_layer_vertex_input_attribute_descriptions[3].binding = 0;
+	sky_layer_vertex_input_attribute_descriptions[3].format = VK_FORMAT_R8G8B8A8_UNORM;
+	sky_layer_vertex_input_attribute_descriptions[3].location = 3;
+	sky_layer_vertex_input_attribute_descriptions[3].offset = 28;
+
+	VkVertexInputBindingDescription sky_layer_vertex_binding_description;
+	sky_layer_vertex_binding_description.binding = 0;
+	sky_layer_vertex_binding_description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+	sky_layer_vertex_binding_description.stride = 32;
+
+	vertex_input_state_create_info.vertexAttributeDescriptionCount = 4;
+	vertex_input_state_create_info.pVertexAttributeDescriptions = sky_layer_vertex_input_attribute_descriptions;
+	vertex_input_state_create_info.vertexBindingDescriptionCount = 1;
+	vertex_input_state_create_info.pVertexBindingDescriptions = &sky_layer_vertex_binding_description;
+
+	shader_stages[0].module = sky_layer_vert_module;
+	shader_stages[1].module = sky_layer_frag_module;
+	blend_attachment_state.blendEnable = VK_FALSE;
+
+	pipeline_create_info.layout = vulkan_globals.sky_layer_pipeline_layout;
 
 	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.sky_layer_pipeline);
 	if (err != VK_SUCCESS)
@@ -1178,7 +1225,9 @@ void R_CreatePipelines()
 	//================
 	// World pipelines
 	//================
-	rasterization_state_create_info.cullMode = VK_CULL_MODE_NONE;
+	rasterization_state_create_info.cullMode = VK_CULL_MODE_BACK_BIT;
+	depth_stencil_state_create_info.depthTestEnable = VK_TRUE;
+	depth_stencil_state_create_info.depthWriteEnable = VK_TRUE;
 
 	input_assembly_state_create_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
@@ -1273,6 +1322,8 @@ void R_CreatePipelines()
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateGraphicsPipelines failed");
 
+	vkDestroyShaderModule(vulkan_globals.device, sky_layer_frag_module, NULL);
+	vkDestroyShaderModule(vulkan_globals.device, sky_layer_vert_module, NULL);
 	vkDestroyShaderModule(vulkan_globals.device, alias_frag_module, NULL);
 	vkDestroyShaderModule(vulkan_globals.device, alias_vert_module, NULL);
 	vkDestroyShaderModule(vulkan_globals.device, world_fullbright_frag_module, NULL);
