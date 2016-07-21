@@ -839,7 +839,6 @@ void Sky_DrawFaceQuad (glpoly_t *p, float alpha)
 	}
 
 	vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &vertex_buffer, &vertex_buffer_offset);
-
 	vkCmdDraw(vulkan_globals.command_buffer, 4, 1, 0, 0);
 
 	rs_skypolys++;
