@@ -494,7 +494,7 @@ void Draw_Character (int x, int y, int num)
 	Draw_FillCharacterQuad(x, y, (char)num, vertices);
 
 	vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
-	vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline);
+	vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_alphatest_pipeline);
 	vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout, 1, 1, &char_texture->descriptor_set, 0, NULL);
 	vkCmdDraw(vulkan_globals.command_buffer, 6, 1, 0, 0);
 }
@@ -526,7 +526,7 @@ void Draw_String (int x, int y, const char *str)
 	}
 
 	vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
-	vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline);
+	vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_alphatest_pipeline);
 	vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout, 1, 1, &char_texture->descriptor_set, 0, NULL);
 	vkCmdDraw(vulkan_globals.command_buffer, num_verts, 1, 0, 0);
 }
@@ -536,7 +536,7 @@ void Draw_String (int x, int y, const char *str)
 Draw_Pic -- johnfitz -- modified
 =============
 */
-void Draw_Pic (int x, int y, qpic_t *pic)
+void Draw_Pic (int x, int y, qpic_t *pic, float alpha)
 {
 	glpic_t			*gl;
 
@@ -575,6 +575,9 @@ void Draw_Pic (int x, int y, qpic_t *pic)
 	corner_verts[3].texcoord[0] = gl->sl;
 	corner_verts[3].texcoord[1] = gl->th;
 
+	for (int i = 0; i<4; ++i)
+		corner_verts[i].color[3] = alpha * 255.0f;
+
 	vertices[0] = corner_verts[0];
 	vertices[1] = corner_verts[1];
 	vertices[2] = corner_verts[2];
@@ -583,7 +586,7 @@ void Draw_Pic (int x, int y, qpic_t *pic)
 	vertices[5] = corner_verts[0];
 
 	vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
-	vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline);
+	vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_blend_pipeline);
 	vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout, 1, 1, &gl->gltexture->descriptor_set, 0, NULL);
 	vkCmdDraw(vulkan_globals.command_buffer, 6, 1, 0, 0);
 }
@@ -608,7 +611,7 @@ void Draw_TransPicTranslate (int x, int y, qpic_t *pic, int top, int bottom)
 		oldbottom = bottom;
 		TexMgr_ReloadImage (glt, top, bottom);
 	}
-	Draw_Pic (x, y, pic);
+	Draw_Pic (x, y, pic, 1.0f);
 }
 
 /*
@@ -631,23 +634,7 @@ void Draw_ConsoleBackground (void)
 
 	if (alpha > 0.0)
 	{
-		if (alpha < 1.0)
-		{
-			//glEnable (GL_BLEND);
-			//glColor4f (1,1,1,alpha);
-			//glDisable (GL_ALPHA_TEST);
-			//glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-		}
-
-		Draw_Pic (0, 0, pic);
-
-		if (alpha < 1.0)
-		{
-			//glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
-			//glEnable (GL_ALPHA_TEST);
-			//glDisable (GL_BLEND);
-			//glColor4f (1,1,1,1);
-		}
+		Draw_Pic (0, 0, pic, alpha);
 	}
 }
 
@@ -691,22 +678,44 @@ void Draw_Fill (int x, int y, int w, int h, int c, float alpha) //johnfitz -- ad
 {
 	byte *pal = (byte *)d_8to24table; //johnfitz -- use d_8to24table instead of host_basepal
 
-	/*glDisable (GL_TEXTURE_2D);
-	glEnable (GL_BLEND); //johnfitz -- for alpha
-	glDisable (GL_ALPHA_TEST); //johnfitz -- for alpha
-	glColor4f (pal[c*4]/255.0, pal[c*4+1]/255.0, pal[c*4+2]/255.0, alpha); //johnfitz -- added alpha
+	VkBuffer buffer;
+	VkDeviceSize buffer_offset;
+	basicvertex_t * vertices = (basicvertex_t*)R_VertexAllocate(6 * sizeof(basicvertex_t), &buffer, &buffer_offset);
 
-	glBegin (GL_QUADS);
-	glVertex2f (x,y);
-	glVertex2f (x+w, y);
-	glVertex2f (x+w, y+h);
-	glVertex2f (x, y+h);
-	glEnd ();
+	basicvertex_t corner_verts[4];
+	memset(&corner_verts, 0, sizeof(corner_verts));
 
-	glColor3f (1,1,1);
-	glDisable (GL_BLEND); //johnfitz -- for alpha
-	glEnable (GL_ALPHA_TEST); //johnfitz -- for alpha
-	glEnable (GL_TEXTURE_2D);*/
+	corner_verts[0].position[0] = 0.0f;
+	corner_verts[0].position[1] = 0.0f;
+
+	corner_verts[1].position[0] = glwidth;
+	corner_verts[1].position[1] = 0.0f;
+
+	corner_verts[2].position[0] = glwidth;
+	corner_verts[2].position[1] = glheight;
+
+	corner_verts[3].position[0] = 0.0f;
+	corner_verts[3].position[1] = glheight;
+
+
+	for (int i = 0; i < 4; ++i)
+	{
+		corner_verts[i].color[0] = pal[c*4]/255.0;
+		corner_verts[i].color[1] = pal[c*4+1]/255.0;
+		corner_verts[i].color[2] = pal[c*4+2]/255.0;
+		corner_verts[i].color[3] = alpha;
+	}
+
+	vertices[0] = corner_verts[0];
+	vertices[1] = corner_verts[1];
+	vertices[2] = corner_verts[2];
+	vertices[3] = corner_verts[2];
+	vertices[4] = corner_verts[3];
+	vertices[5] = corner_verts[0];
+
+	vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
+	vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_notex_blend_pipeline);
+	vkCmdDraw(vulkan_globals.command_buffer, 6, 1, 0, 0);
 }
 
 /*

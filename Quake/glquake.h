@@ -118,7 +118,8 @@ typedef struct
 	VkRenderPass						warp_render_pass;
 
 	// Pipelines
-	VkPipeline							basic_pipeline;
+	VkPipeline							basic_alphatest_pipeline;
+	VkPipeline							basic_blend_pipeline;
 	VkPipeline							basic_notex_blend_pipeline;
 	VkPipelineLayout					basic_pipeline_layout;
 	VkPipeline							world_pipeline;

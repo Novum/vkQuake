@@ -271,7 +271,7 @@ Sbar_DrawPic -- johnfitz -- rewritten now that GL_SetCanvas is doing the work
 */
 void Sbar_DrawPic (int x, int y, qpic_t *pic)
 {
-	Draw_Pic (x, y + 24, pic);
+	Draw_Pic (x, y + 24, pic, 1.0f);
 }
 
 /*
@@ -281,13 +281,7 @@ Sbar_DrawPicAlpha -- johnfitz
 */
 void Sbar_DrawPicAlpha (int x, int y, qpic_t *pic, float alpha)
 {
-	/*glDisable (GL_ALPHA_TEST);
-	glEnable (GL_BLEND);
-	glColor4f(1,1,1,alpha);
-	Draw_Pic (x, y + 24, pic);
-	glColor4f(1,1,1,1); // ericw -- changed from glColor3f to work around intel 855 bug with "scr_sbaralpha 0"
-	glDisable (GL_BLEND);
-	glEnable (GL_ALPHA_TEST);*/
+	Draw_Pic (x, y + 24, pic, alpha);
 }
 
 /*
@@ -654,7 +648,7 @@ void Sbar_DrawInventory (void)
 
 	if (rogue)
 	{
-    // check for powered up weapon.
+	// check for powered up weapon.
 		if ( cl.stats[STAT_ACTIVEWEAPON] >= RIT_LAVA_NAILGUN )
 		{
 			for (i=0;i<5;i++)
@@ -1085,7 +1079,7 @@ void Sbar_IntermissionNumber (int x, int y, int num, int digits, int color)
 		else
 			frame = *ptr -'0';
 
-		Draw_Pic (x,y,sb_nums[color][frame]); //johnfitz -- stretched menus
+		Draw_Pic (x,y,sb_nums[color][frame], 1.0f); //johnfitz -- stretched menus
 		x += 24;
 		ptr++;
 	}
@@ -1267,24 +1261,24 @@ void Sbar_IntermissionOverlay (void)
 	GL_SetCanvas (CANVAS_MENU); //johnfitz
 
 	pic = Draw_CachePic ("gfx/complete.lmp");
-	Draw_Pic (64, 24, pic);
+	Draw_Pic (64, 24, pic, 1.0f);
 
 	pic = Draw_CachePic ("gfx/inter.lmp");
-	Draw_Pic (0, 56, pic);
+	Draw_Pic (0, 56, pic, 1.0f);
 
 	dig = cl.completed_time/60;
 	Sbar_IntermissionNumber (152, 64, dig, 3, 0); //johnfitz -- was 160
 	num = cl.completed_time - dig*60;
-	Draw_Pic (224,64,sb_colon); //johnfitz -- was 234
-	Draw_Pic (240,64,sb_nums[0][num/10]); //johnfitz -- was 246
-	Draw_Pic (264,64,sb_nums[0][num%10]); //johnfitz -- was 266
+	Draw_Pic (224,64,sb_colon, 1.0f); //johnfitz -- was 234
+	Draw_Pic (240,64,sb_nums[0][num/10], 1.0f); //johnfitz -- was 246
+	Draw_Pic (264,64,sb_nums[0][num%10], 1.0f); //johnfitz -- was 266
 
 	Sbar_IntermissionNumber (152, 104, cl.stats[STAT_SECRETS], 3, 0); //johnfitz -- was 160
-	Draw_Pic (224,104,sb_slash); //johnfitz -- was 232
+	Draw_Pic (224,104,sb_slash, 1.0f); //johnfitz -- was 232
 	Sbar_IntermissionNumber (240, 104, cl.stats[STAT_TOTALSECRETS], 3, 0); //johnfitz -- was 248
 
 	Sbar_IntermissionNumber (152, 144, cl.stats[STAT_MONSTERS], 3, 0); //johnfitz -- was 160
-	Draw_Pic (224,144,sb_slash); //johnfitz -- was 232
+	Draw_Pic (224,144,sb_slash, 1.0f); //johnfitz -- was 232
 	Sbar_IntermissionNumber (240, 144, cl.stats[STAT_TOTALMONSTERS], 3, 0); //johnfitz -- was 248
 }
 
@@ -1301,6 +1295,6 @@ void Sbar_FinaleOverlay (void)
 	GL_SetCanvas (CANVAS_MENU); //johnfitz
 
 	pic = Draw_CachePic ("gfx/finale.lmp");
-	Draw_Pic ( (320 - pic->width)/2, 16, pic); //johnfitz -- stretched menus
+	Draw_Pic ( (320 - pic->width)/2, 16, pic, 1.0f); //johnfitz -- stretched menus
 }
 

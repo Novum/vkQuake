@@ -566,7 +566,7 @@ void SCR_DrawRam (void)
 
 	GL_SetCanvas (CANVAS_DEFAULT); //johnfitz
 
-	Draw_Pic (scr_vrect.x+32, scr_vrect.y, scr_ram);
+	Draw_Pic (scr_vrect.x+32, scr_vrect.y, scr_ram, 1.0f);
 }
 
 /*
@@ -593,7 +593,7 @@ void SCR_DrawTurtle (void)
 
 	GL_SetCanvas (CANVAS_DEFAULT); //johnfitz
 
-	Draw_Pic (scr_vrect.x, scr_vrect.y, scr_turtle);
+	Draw_Pic (scr_vrect.x, scr_vrect.y, scr_turtle, 1.0f);
 }
 
 /*
@@ -610,7 +610,7 @@ void SCR_DrawNet (void)
 
 	GL_SetCanvas (CANVAS_DEFAULT); //johnfitz
 
-	Draw_Pic (scr_vrect.x+64, scr_vrect.y, scr_net);
+	Draw_Pic (scr_vrect.x+64, scr_vrect.y, scr_net, 1.0f);
 }
 
 /*
@@ -631,7 +631,7 @@ void SCR_DrawPause (void)
 	GL_SetCanvas (CANVAS_MENU); //johnfitz
 
 	pic = Draw_CachePic ("gfx/pause.lmp");
-	Draw_Pic ( (320 - pic->width)/2, (240 - 48 - pic->height)/2, pic); //johnfitz -- stretched menus
+	Draw_Pic ( (320 - pic->width)/2, (240 - 48 - pic->height)/2, pic, 1.0f); //johnfitz -- stretched menus
 
 	scr_tileclear_updates = 0; //johnfitz
 }
@@ -651,7 +651,7 @@ void SCR_DrawLoading (void)
 	GL_SetCanvas (CANVAS_MENU); //johnfitz
 
 	pic = Draw_CachePic ("gfx/loading.lmp");
-	Draw_Pic ( (320 - pic->width)/2, (240 - 48 - pic->height)/2, pic); //johnfitz -- stretched menus
+	Draw_Pic ( (320 - pic->width)/2, (240 - 48 - pic->height)/2, pic, 1.0f); //johnfitz -- stretched menus
 
 	scr_tileclear_updates = 0; //johnfitz
 }

@@ -1178,7 +1178,7 @@ void Con_DrawInput (void)
 	if (!((int)((realtime-key_blinktime)*con_cursorspeed) & 1))
 	{
 		i = key_linepos - ofs;
-		Draw_Pic ((i+1)<<3, vid.conheight - 16, key_insert ? pic_ins : pic_ovr);
+		Draw_Pic ((i+1)<<3, vid.conheight - 16, key_insert ? pic_ins : pic_ovr, 1.0f);
 	}
 }
 

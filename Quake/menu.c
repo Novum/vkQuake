@@ -129,12 +129,12 @@ void M_PrintWhite (int cx, int cy, const char *str)
 
 void M_DrawTransPic (int x, int y, qpic_t *pic)
 {
-	Draw_Pic (x, y, pic); //johnfitz -- simplified becuase centering is handled elsewhere
+	Draw_Pic (x, y, pic, 1.0f); //johnfitz -- simplified becuase centering is handled elsewhere
 }
 
 void M_DrawPic (int x, int y, qpic_t *pic)
 {
-	Draw_Pic (x, y, pic); //johnfitz -- simplified becuase centering is handled elsewhere
+	Draw_Pic (x, y, pic, 1.0f); //johnfitz -- simplified becuase centering is handled elsewhere
 }
 
 void M_DrawTransPicTranslate (int x, int y, qpic_t *pic, int top, int bottom) //johnfitz -- more parameters
