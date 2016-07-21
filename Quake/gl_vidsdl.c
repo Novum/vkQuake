@@ -81,6 +81,7 @@ static cvar_t	vid_bpp = {"vid_bpp", "16", CVAR_ARCHIVE};
 static cvar_t	vid_vsync = {"vid_vsync", "0", CVAR_ARCHIVE};
 static cvar_t	vid_fsaa = {"vid_fsaa", "0", CVAR_ARCHIVE}; // QuakeSpasm
 static cvar_t	vid_desktopfullscreen = {"vid_desktopfullscreen", "0", CVAR_ARCHIVE}; // QuakeSpasm
+cvar_t	vid_filter = {"vid_filter", "0", CVAR_ARCHIVE};
 //johnfitz
 
 cvar_t		vid_gamma = {"gamma", "1", CVAR_ARCHIVE}; //johnfitz -- moved here from view.c
@@ -398,6 +399,16 @@ VID_Changed_f -- kristian -- notify us that a value has changed that requires a 
 static void VID_Changed_f (cvar_t *var)
 {
 	vid_changed = true;
+}
+
+/*
+===================
+VID_FilterChanged_f
+===================
+*/
+static void VID_FilterChanged_f(cvar_t *var)
+{
+	R_InitSamplers();
 }
 
 /*
@@ -1336,12 +1347,14 @@ void	VID_Init (void)
 	Cvar_RegisterVariable (&vid_height); //johnfitz
 	Cvar_RegisterVariable (&vid_bpp); //johnfitz
 	Cvar_RegisterVariable (&vid_vsync); //johnfitz
+	Cvar_RegisterVariable (&vid_filter);
 	Cvar_RegisterVariable (&vid_fsaa); //QuakeSpasm
 	Cvar_RegisterVariable (&vid_desktopfullscreen); //QuakeSpasm
 	Cvar_SetCallback (&vid_fullscreen, VID_Changed_f);
 	Cvar_SetCallback (&vid_width, VID_Changed_f);
 	Cvar_SetCallback (&vid_height, VID_Changed_f);
 	Cvar_SetCallback (&vid_bpp, VID_Changed_f);
+	Cvar_SetCallback (&vid_filter, VID_FilterChanged_f);
 	Cvar_SetCallback (&vid_vsync, VID_Changed_f);
 	Cvar_SetCallback (&vid_fsaa, VID_FSAA_f);
 	Cvar_SetCallback (&vid_desktopfullscreen, VID_Changed_f);
@@ -1570,6 +1583,7 @@ enum {
 	VID_OPT_BPP,
 	VID_OPT_FULLSCREEN,
 	VID_OPT_VSYNC,
+	VID_OPT_FILTER,
 	VID_OPT_TEST,
 	VID_OPT_APPLY,
 	VIDEO_OPTIONS_ITEMS
@@ -1793,6 +1807,9 @@ static void VID_MenuKey (int key)
 		case VID_OPT_VSYNC:
 			Cbuf_AddText ("toggle vid_vsync\n"); // kristian
 			break;
+		case VID_OPT_FILTER:
+			Cbuf_AddText ("toggle vid_filter\n");
+			break;
 		default:
 			break;
 		}
@@ -1813,6 +1830,9 @@ static void VID_MenuKey (int key)
 			break;
 		case VID_OPT_VSYNC:
 			Cbuf_AddText ("toggle vid_vsync\n");
+			break;
+		case VID_OPT_FILTER:
+			Cbuf_AddText ("toggle vid_filter\n");
 			break;
 		default:
 			break;
@@ -1835,6 +1855,9 @@ static void VID_MenuKey (int key)
 			break;
 		case VID_OPT_VSYNC:
 			Cbuf_AddText ("toggle vid_vsync\n");
+			break;
+		case VID_OPT_FILTER:
+			Cbuf_AddText ("toggle vid_filter\n");
 			break;
 		case VID_OPT_TEST:
 			Cbuf_AddText ("vid_test\n");
@@ -1904,6 +1927,10 @@ static void VID_MenuDraw (void)
 		case VID_OPT_VSYNC:
 			M_Print (16, y, "     Vertical sync");
 			M_DrawCheckbox (184, y, (int)vid_vsync.value);
+			break;
+		case VID_OPT_FILTER:
+			M_Print (16, y, "      Filter");
+			M_Print (184, y, ((int)vid_filter.value == 0) ? "smooth" : "classic");
 			break;
 		case VID_OPT_TEST:
 			y += 8; //separate the test and apply items

@@ -14,6 +14,6 @@ layout (location = 0) out vec4 out_frag_color;
 void main() 
 {
 	out_frag_color = in_color * texture(sampler2D(tex, diffuse_sampler), in_texcoord.xy);
-	if(out_frag_color.a < 0.99f)
+	if(out_frag_color.a < 0.666f)
 		discard;
 }

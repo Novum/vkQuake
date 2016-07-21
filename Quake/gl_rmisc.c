@@ -44,6 +44,7 @@ extern cvar_t r_nolerp_list;
 extern cvar_t r_noshadow_list;
 //johnfitz
 extern cvar_t gl_zfix; // QuakeSpasm z-fighting fix
+extern cvar_t vid_filter;
 
 extern gltexture_t *playertextures[MAX_SCOREBOARD]; //johnfitz
 
@@ -792,16 +793,16 @@ void R_CreateDescriptorPool()
 {
 	VkDescriptorPoolSize pool_sizes[3];
 	pool_sizes[0].type = VK_DESCRIPTOR_TYPE_SAMPLER;
-	pool_sizes[0].descriptorCount = 2;
+	pool_sizes[0].descriptorCount = 16;
 	pool_sizes[1].type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
 	pool_sizes[1].descriptorCount = MAX_GLTEXTURES;
 	pool_sizes[2].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
-	pool_sizes[2].descriptorCount = 2;
+	pool_sizes[2].descriptorCount = 16;
 
 	VkDescriptorPoolCreateInfo descriptor_pool_create_info;
 	memset(&descriptor_pool_create_info, 0, sizeof(descriptor_pool_create_info));
 	descriptor_pool_create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-	descriptor_pool_create_info.maxSets = MAX_GLTEXTURES + 3;
+	descriptor_pool_create_info.maxSets = MAX_GLTEXTURES + 32;
 	descriptor_pool_create_info.poolSizeCount = 3;
 	descriptor_pool_create_info.pPoolSizes = pool_sizes;
 
@@ -815,6 +816,7 @@ void R_CreateDescriptorPool()
 	descriptor_set_allocate_info.pSetLayouts = &vulkan_globals.sampler_set_layout;
 
 	vkAllocateDescriptorSets(vulkan_globals.device, &descriptor_set_allocate_info, &vulkan_globals.sampler_descriptor_set);
+	vkAllocateDescriptorSets(vulkan_globals.device, &descriptor_set_allocate_info, &vulkan_globals.point_sampler_descriptor_set);
 }
 
 /*
@@ -905,35 +907,40 @@ void R_InitSamplers()
 
 	VkResult err;
 
-	VkSamplerCreateInfo sampler_create_info;
-	memset(&sampler_create_info, 0, sizeof(sampler_create_info));
-	sampler_create_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-	sampler_create_info.magFilter = VK_FILTER_NEAREST;
-	sampler_create_info.minFilter = VK_FILTER_NEAREST;
-	sampler_create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-	sampler_create_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-	sampler_create_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-	sampler_create_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-	sampler_create_info.mipLodBias = 0.0f;
-	sampler_create_info.maxAnisotropy = 1.0f;
-	sampler_create_info.minLod = 0;
-	sampler_create_info.maxLod = FLT_MAX;
+	if ( vulkan_globals.point_sampler == VK_NULL_HANDLE )
+	{
+		VkSamplerCreateInfo sampler_create_info;
+		memset(&sampler_create_info, 0, sizeof(sampler_create_info));
+		sampler_create_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+		sampler_create_info.magFilter = VK_FILTER_NEAREST;
+		sampler_create_info.minFilter = VK_FILTER_NEAREST;
+		sampler_create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+		sampler_create_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+		sampler_create_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+		sampler_create_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+		sampler_create_info.mipLodBias = 0.0f;
+		sampler_create_info.maxAnisotropy = 1.0f;
+		sampler_create_info.minLod = 0;
+		sampler_create_info.maxLod = FLT_MAX;
 
-	err = vkCreateSampler(vulkan_globals.device, &sampler_create_info, NULL, &vulkan_globals.point_sampler);
-	if (err != VK_SUCCESS)
-		Sys_Error("vkCreateSampler failed");
+		err = vkCreateSampler(vulkan_globals.device, &sampler_create_info, NULL, &vulkan_globals.point_sampler);
+		if (err != VK_SUCCESS)
+			Sys_Error("vkCreateSampler failed");
 
-	sampler_create_info.magFilter = VK_FILTER_LINEAR;
-	sampler_create_info.minFilter = VK_FILTER_LINEAR;
-	sampler_create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+		sampler_create_info.magFilter = VK_FILTER_LINEAR;
+		sampler_create_info.minFilter = VK_FILTER_LINEAR;
+		sampler_create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
 
-	err = vkCreateSampler(vulkan_globals.device, &sampler_create_info, NULL, &vulkan_globals.linear_sampler);
-	if (err != VK_SUCCESS)
-		Sys_Error("vkCreateSampler failed");
+		err = vkCreateSampler(vulkan_globals.device, &sampler_create_info, NULL, &vulkan_globals.linear_sampler);
+		if (err != VK_SUCCESS)
+			Sys_Error("vkCreateSampler failed");
+	}
+
+	GL_WaitForDeviceIdle();
 
 	VkDescriptorImageInfo diffuse_image_info;
 	memset(&diffuse_image_info, 0, sizeof(diffuse_image_info));
-	diffuse_image_info.sampler = vulkan_globals.point_sampler;
+	diffuse_image_info.sampler = (vid_filter.value == 0) ? vulkan_globals.linear_sampler : vulkan_globals.point_sampler;
 
 	VkDescriptorImageInfo lightmap_image_info;
 	memset(&lightmap_image_info, 0, sizeof(lightmap_image_info));
@@ -956,6 +963,11 @@ void R_InitSamplers()
 	sampler_writes[1].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
 	sampler_writes[1].pImageInfo = &lightmap_image_info;
 
+	vkUpdateDescriptorSets(vulkan_globals.device, 2, sampler_writes, 0, NULL);
+
+	diffuse_image_info.sampler = vulkan_globals.point_sampler;
+	sampler_writes[0].dstSet = vulkan_globals.point_sampler_descriptor_set;
+	sampler_writes[1].dstSet = vulkan_globals.point_sampler_descriptor_set;
 	vkUpdateDescriptorSets(vulkan_globals.device, 2, sampler_writes, 0, NULL);
 }
 
