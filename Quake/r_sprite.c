@@ -141,10 +141,6 @@ void R_DrawSpriteModel (entity_t *e)
 		return;
 	}
 
-	//johnfitz: offset decals
-	//if (psprite->type == SPR_ORIENTED)
-	//	GL_PolygonOffset (OFFSET_DECAL);
-
 	VkBuffer buffer;
 	VkDeviceSize buffer_offset;
 	basicvertex_t * vertices = (basicvertex_t*)R_VertexAllocate(4 * sizeof(basicvertex_t), &buffer, &buffer_offset);
@@ -185,11 +181,13 @@ void R_DrawSpriteModel (entity_t *e)
 
 	vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
 	vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sprite_pipeline);
+
+	if (psprite->type == SPR_ORIENTED)
+		vkCmdSetDepthBias(vulkan_globals.command_buffer, OFFSET_DECAL, 0.0f, 0.0f);
+	else
+		vkCmdSetDepthBias(vulkan_globals.command_buffer, OFFSET_NONE, 0.0f, 0.0f);
+
 	vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout, 0, 1, frame->gltexture->sampler_set, 0, NULL);
 	vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout, 1, 1, &frame->gltexture->descriptor_set, 0, NULL);
 	vkCmdDraw(vulkan_globals.command_buffer, 4, 1, 0, 0);
-
-	//johnfitz: offset decals
-	//if (psprite->type == SPR_ORIENTED)
-	//	GL_PolygonOffset (OFFSET_NONE);
 }

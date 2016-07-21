@@ -95,10 +95,10 @@ texture_t *R_TextureAnimation (texture_t *base, int frame)
 DrawGLPoly
 ================
 */
-void DrawGLPoly (glpoly_t *p, float color[3])
+void DrawGLPoly (glpoly_t *p, float color[3], float alpha)
 {
 	const int numverts = p->numverts;
-
+	
 	VkBuffer buffer;
 	VkDeviceSize buffer_offset;
 	basicvertex_t * vertices = (basicvertex_t*)R_VertexAllocate(numverts * sizeof(basicvertex_t), &buffer, &buffer_offset);
@@ -117,7 +117,7 @@ void DrawGLPoly (glpoly_t *p, float color[3])
 		vertices[i].color[0] = color[0] * 255.0f;
 		vertices[i].color[1] = color[1] * 255.0f;
 		vertices[i].color[2] = color[2] * 255.0f;
-		vertices[i].color[3] = 255;
+		vertices[i].color[3] = alpha * 255.0f;
 	}
 
 	vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);

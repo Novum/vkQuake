@@ -628,7 +628,7 @@ void R_DrawTextureChains_Water (qmodel_t *model, entity_t *ent, texchain_t chain
 
 					bound = true;
 				}
-				DrawGLPoly (s->polys, color);
+				DrawGLPoly (s->polys, color, entalpha);
 				rs_brushpasses++;
 			}
 		R_EndTransparentDrawing (entalpha);

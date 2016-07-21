@@ -524,7 +524,7 @@ void Sky_ProcessPoly (glpoly_t	*p, float color[3])
 	vec3_t		verts[MAX_CLIP_VERTS];
 
 	//draw it
-	DrawGLPoly(p, color);
+	DrawGLPoly(p, color, 1.0f);
 	rs_brushpasses++;
 
 	//update sky bounds
