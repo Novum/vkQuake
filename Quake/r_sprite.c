@@ -3,6 +3,7 @@ Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2007-2008 Kristian Duske
 Copyright (C) 2010-2014 QuakeSpasm developers
+Copyright (C) 2016 Axel Gneiting
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -81,7 +82,7 @@ R_DrawSpriteModel -- johnfitz -- rewritten: now supports all orientations
 */
 void R_DrawSpriteModel (entity_t *e)
 {
-	/*vec3_t			point, v_forward, v_right, v_up;
+	vec3_t			point, v_forward, v_right, v_up;
 	msprite_t		*psprite;
 	mspriteframe_t	*frame;
 	float			*s_up, *s_right;
@@ -141,42 +142,53 @@ void R_DrawSpriteModel (entity_t *e)
 	}
 
 	//johnfitz: offset decals
-	if (psprite->type == SPR_ORIENTED)
-		GL_PolygonOffset (OFFSET_DECAL);
+	//if (psprite->type == SPR_ORIENTED)
+	//	GL_PolygonOffset (OFFSET_DECAL);
 
-	glColor3f (1,1,1);
+	VkBuffer buffer;
+	VkDeviceSize buffer_offset;
+	basicvertex_t * vertices = (basicvertex_t*)R_VertexAllocate(4 * sizeof(basicvertex_t), &buffer, &buffer_offset);
 
-	GL_DisableMultitexture();
+	memset(vertices, 255, 4 * sizeof(basicvertex_t));
 
-	GL_Bind(frame->gltexture);
-
-	glEnable (GL_ALPHA_TEST);
-	glBegin (GL_TRIANGLE_FAN); //was GL_QUADS, but changed to support r_showtris
-
-	glTexCoord2f (0, frame->tmax);
 	VectorMA (e->origin, frame->down, s_up, point);
 	VectorMA (point, frame->left, s_right, point);
-	glVertex3fv (point);
+	vertices[0].position[0] = point[0];
+	vertices[0].position[1] = point[1];
+	vertices[0].position[2] = point[2];
+	vertices[0].texcoord[0] = 0.0f;
+	vertices[0].texcoord[1] = frame->tmax;
 
-	glTexCoord2f (0, 0);
 	VectorMA (e->origin, frame->up, s_up, point);
 	VectorMA (point, frame->left, s_right, point);
-	glVertex3fv (point);
+	vertices[1].position[0] = point[0];
+	vertices[1].position[1] = point[1];
+	vertices[1].position[2] = point[2];
+	vertices[1].texcoord[0] = 0.0f;
+	vertices[1].texcoord[1] = 0.0f;
 
-	glTexCoord2f (frame->smax, 0);
 	VectorMA (e->origin, frame->up, s_up, point);
 	VectorMA (point, frame->right, s_right, point);
-	glVertex3fv (point);
+	vertices[2].position[0] = point[0];
+	vertices[2].position[1] = point[1];
+	vertices[2].position[2] = point[2];
+	vertices[2].texcoord[0] = frame->smax;
+	vertices[2].texcoord[1] = 0.0f;
 
-	glTexCoord2f (frame->smax, frame->tmax);
 	VectorMA (e->origin, frame->down, s_up, point);
 	VectorMA (point, frame->right, s_right, point);
-	glVertex3fv (point);
+	vertices[3].position[0] = point[0];
+	vertices[3].position[1] = point[1];
+	vertices[3].position[2] = point[2];
+	vertices[3].texcoord[0] = frame->smax;
+	vertices[3].texcoord[1] = frame->tmax;
 
-	glEnd ();
-	glDisable (GL_ALPHA_TEST);
+	vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
+	vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sprite_pipeline);
+	vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout, 1, 1, &frame->gltexture->descriptor_set, 0, NULL);
+	vkCmdDraw(vulkan_globals.command_buffer, 4, 1, 0, 0);
 
 	//johnfitz: offset decals
-	if (psprite->type == SPR_ORIENTED)
-		GL_PolygonOffset (OFFSET_NONE);*/
+	//if (psprite->type == SPR_ORIENTED)
+	//	GL_PolygonOffset (OFFSET_NONE);
 }

@@ -128,6 +128,7 @@ typedef struct
 	VkPipeline							water_pipeline;
 	VkPipeline							warp_pipeline;
 	VkPipeline							particle_pipeline;
+	VkPipeline							sprite_pipeline;
 	VkPipeline							sky_color_pipeline;
 	VkPipeline							sky_layer_pipeline;
 	VkPipelineLayout					sky_layer_pipeline_layout;
@@ -219,7 +220,6 @@ extern	qboolean	gl_anisotropy_able;
 #define OFFSET_DECAL -1
 #define OFFSET_FOG -2
 #define OFFSET_SHOWTRIS -3
-void GL_PolygonOffset (int);
 
 //johnfitz -- rendering statistics
 extern int rs_brushpolys, rs_aliaspolys, rs_skypolys, rs_particles, rs_fogpolys;
