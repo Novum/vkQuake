@@ -1084,7 +1084,7 @@ void R_CreatePipelines()
 	depth_stencil_state_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
 	depth_stencil_state_create_info.depthTestEnable = VK_FALSE;
 	depth_stencil_state_create_info.depthWriteEnable = VK_FALSE;
-	depth_stencil_state_create_info.depthCompareOp = VK_COMPARE_OP_ALWAYS;
+	depth_stencil_state_create_info.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
 	depth_stencil_state_create_info.depthBoundsTestEnable = VK_FALSE;
 	depth_stencil_state_create_info.back.failOp = VK_STENCIL_OP_KEEP;
 	depth_stencil_state_create_info.back.passOp = VK_STENCIL_OP_KEEP;
