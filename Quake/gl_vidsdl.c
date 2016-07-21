@@ -560,7 +560,14 @@ static void GL_InitInstance( void )
 			{
 				found_surface_extensions++;
 			}
-			if (strcmp(VK_KHR_WIN32_SURFACE_EXTENSION_NAME, instance_extensions[i].extensionName) == 0)
+
+#ifdef VK_USE_PLATFORM_WIN32_KHR
+#define PLATFORM_SURF_EXT VK_KHR_WIN32_SURFACE_EXTENSION_NAME
+#elif VK_USE_PLATFORM_XCB_KHR
+#define PLATFORM_SURF_EXT VK_KHR_XCB_SURFACE_EXTENSION_NAME
+#endif
+
+			if (strcmp(PLATFORM_SURF_EXT, instance_extensions[i].extensionName) == 0)
 			{
 				found_surface_extensions++;
 			}
@@ -570,7 +577,7 @@ static void GL_InitInstance( void )
 	}
 
 	if(found_surface_extensions != 2)
-		Sys_Error("Couldn't find %s/%s extensions", VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_WIN32_SURFACE_EXTENSION_NAME);
+		Sys_Error("Couldn't find %s/%s extensions", VK_KHR_SURFACE_EXTENSION_NAME, PLATFORM_SURF_EXT);
 	
 	VkApplicationInfo application_info;
 	memset(&application_info, 0, sizeof(application_info));
@@ -581,7 +588,7 @@ static void GL_InitInstance( void )
 	application_info.engineVersion = 1;
 	application_info.apiVersion = VK_API_VERSION_1_0;
 
-	char * instance_extensions[] = { VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_WIN32_SURFACE_EXTENSION_NAME };
+	char * instance_extensions[] = { VK_KHR_SURFACE_EXTENSION_NAME, PLATFORM_SURF_EXT };
 	char * layer_names[] = { "VK_LAYER_LUNARG_standard_validation" };
 
 	VkInstanceCreateInfo instance_create_info;
@@ -599,6 +606,7 @@ static void GL_InitInstance( void )
 	if (err != VK_SUCCESS)
 		Sys_Error("Couldn't create Vulkan instance");
 
+#ifdef VK_USE_PLATFORM_WIN32_KHR
 	VkWin32SurfaceCreateInfoKHR surface_create_info;
 	memset(&surface_create_info, 0, sizeof(surface_create_info));
 	surface_create_info.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
@@ -608,6 +616,17 @@ static void GL_InitInstance( void )
 	err = vkCreateWin32SurfaceKHR(vulkan_instance, &surface_create_info, NULL, &vulkan_surface);
 	if (err != VK_SUCCESS)
 		Sys_Error("Couldn't create Vulkan surface");
+#elif VK_USE_PLATFORM_XCB_KHR
+	VkXcbSurfaceCreateInfoKHR surface_create_info;
+	memset(&surface_create_info, 0, sizeof(surface_create_info));
+	surface_create_info.sType = VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR;
+	surface_create_info.connection = XGetXCBConnection((Display*) sys_wm_info.info.x11.display);
+	surface_create_info.window = sys_wm_info.info.x11.window;
+
+	err = vkCreateXcbSurfaceKHR(vulkan_instance, &surface_create_info, NULL, &vulkan_surface);
+	if (err != VK_SUCCESS)
+		Sys_Error("Couldn't create Vulkan surface");
+#endif
 
 	GET_INSTANCE_PROC_ADDR(vulkan_instance, GetDeviceProcAddr);
 	GET_INSTANCE_PROC_ADDR(vulkan_instance, GetPhysicalDeviceSurfaceSupportKHR);

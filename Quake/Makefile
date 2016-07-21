@@ -7,8 +7,11 @@
 # Enable/Disable user directories support
 DO_USERDIRS=0
 
+### Vulkan SDK directory
+VULKAN_INCLUDE_DIR=$(VULKAN_SDK)/include
+
 ### Enable/Disable SDL2
-USE_SDL2=0
+USE_SDL2=1
 
 ### Enable/Disable codecs for streaming music support
 USE_CODEC_WAVE=1
@@ -52,7 +55,7 @@ STRIP ?= strip
 #CPUFLAGS= -mtune=k8
 #CPUFLAGS= -march=atom
 CPUFLAGS=
-LDFLAGS =
+LDFLAGS = -L$(VULKAN_SDK)/lib
 DFLAGS ?=
 CFLAGS ?= -Wall -Wno-trigraphs
 CFLAGS += $(CPUFLAGS)
@@ -63,6 +66,7 @@ do_strip=
 else
 DFLAGS += -DNDEBUG
 CFLAGS += -O2
+CFLAGS += -I$(VULKAN_INCLUDE_DIR) -DLINUX -DVK_USE_PLATFORM_XCB_KHR
 CFLAGS += $(call check_gcc,-fweb,)
 CFLAGS += $(call check_gcc,-frename-registers,)
 cmd_strip=$(STRIP) $(1)
@@ -176,7 +180,7 @@ ifeq ($(USE_CODEC_UMX),1)
 CFLAGS+= -DUSE_CODEC_UMX
 endif
 
-COMMON_LIBS:= -lm -lGL
+COMMON_LIBS:= -lm -lGL -l:libvulkan.so.1 -lX11-xcb
 
 LIBS := $(COMMON_LIBS) $(NET_LIBS) $(CODECLIBS)
 
@@ -218,6 +222,19 @@ SYSOBJ_NET := net_bsd.o net_udp.o
 SYSOBJ_SYS := pl_linux.o sys_sdl_unix.o
 SYSOBJ_MAIN:= main_sdl.o
 SYSOBJ_RES :=
+
+SHADER_OBJS = \
+	../Shaders/Compiled/alias_frag.c \
+	../Shaders/Compiled/alias_vert.c \
+	../Shaders/Compiled/basic_alphatest_frag.c \
+	../Shaders/Compiled/basic_frag.c \
+	../Shaders/Compiled/basic_notex_frag.c \
+	../Shaders/Compiled/basic_vert.c \
+	../Shaders/Compiled/sky_layer_frag.c \
+	../Shaders/Compiled/sky_layer_vert.c \
+	../Shaders/Compiled/world_frag.c \
+	../Shaders/Compiled/world_fullbright_frag.c \
+	../Shaders/Compiled/world_vert.c
 
 GLOBJS = \
 	gl_refrag.o \
@@ -280,7 +297,7 @@ OBJS := strlcat.o \
 	sv_user.o \
 	world.o \
 	zone.o \
-	$(SYSOBJ_SYS) $(SYSOBJ_MAIN) $(SYSOBJ_RES)
+	$(SYSOBJ_SYS) $(SYSOBJ_MAIN) $(SYSOBJ_RES) $(SHADER_OBJS)
 
 # ------------------------
 # Linux build rules
