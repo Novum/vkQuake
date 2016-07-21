@@ -340,6 +340,7 @@ static qboolean VID_SetMode (int width, int height, int bpp, qboolean fullscreen
 		if (!draw_context)
 			Sys_Error ("Couldn't create window");
 
+		SDL_VERSION(&sys_wm_info.version);
 		if(!SDL_GetWindowWMInfo(draw_context,&sys_wm_info))
 			Sys_Error ("Couldn't get window wm info");
 	}

@@ -59,10 +59,10 @@ TexMgr_SetFilterModes
 */
 static void TexMgr_SetFilterModes (gltexture_t *glt)
 {
-	if (glt->flags & TEXPREF_LINEAR || glt->flags & TEXPREF_MIPMAP)
-		glt->sampler_set = &vulkan_globals.sampler_descriptor_set;
-	else
+	if (glt->flags & TEXPREF_NEAREST)
 		glt->sampler_set = &vulkan_globals.point_sampler_descriptor_set;
+	else
+		glt->sampler_set = &vulkan_globals.sampler_descriptor_set;
 }
 
 /*
