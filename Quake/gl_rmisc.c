@@ -79,7 +79,7 @@ Dynamic vertex/index & uniform buffer
 ================
 */
 #define DYNAMIC_VERTEX_BUFFER_SIZE_KB	1024
-#define DYNAMIC_INDEX_BUFFER_SIZE_KB	128
+#define DYNAMIC_INDEX_BUFFER_SIZE_KB	512
 #define DYNAMIC_UNIFORM_BUFFER_SIZE_KB	128
 #define NUM_DYNAMIC_BUFFERS				2
 #define MAX_UNIFORM_ALLOC				2048
