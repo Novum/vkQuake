@@ -218,6 +218,7 @@ void R_UpdateWarpTextures (void)
 		//render warp
 		GL_SetCanvas (CANVAS_WARPIMAGE);
 		vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.warp_pipeline);
+		vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout, 0, 1, tx->gltexture->sampler_set, 0, NULL);
 		vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout, 1, 1, &tx->gltexture->descriptor_set, 0, NULL);
 
 		int num_verts = 0;

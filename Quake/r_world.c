@@ -615,6 +615,7 @@ void R_DrawTextureChains_Water (qmodel_t *model, entity_t *ent, texchain_t chain
 				{
 					entalpha = GL_WaterAlphaForEntitySurface (ent, s);
 					R_BeginTransparentDrawing (entalpha);
+					vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout, 0, 1, t->warpimage->sampler_set, 0, NULL);
 					vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout, 1, 1, &t->warpimage->descriptor_set, 0, NULL);
 
 					if (model != cl.worldmodel)
@@ -749,6 +750,7 @@ void R_DrawTextureChains_Multitexture (qmodel_t *model, entity_t *ent, texchain_
 				{
 					texture_t * texture = R_TextureAnimation(t, ent != NULL ? ent->frame : 0);
 					gltexture_t * gl_texture = texture->gltexture;
+					vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout, 0, 1, gl_texture->sampler_set, 0, NULL);
 					vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout, 1, 1, &gl_texture->descriptor_set, 0, NULL);
 
 					//if (t->texturechains[chain]->flags & SURF_DRAWFENCE)

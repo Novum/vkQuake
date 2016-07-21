@@ -817,6 +817,7 @@ void Sky_DrawFaceQuad (glpoly_t *p, float alpha)
 	int		i;
 
 	VkDescriptorSet descriptor_sets[2] = { solidskytexture->descriptor_set, alphaskytexture->descriptor_set };
+	vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout, 0, 1, &vulkan_globals.sampler_descriptor_set, 0, NULL);
 	vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_layer_pipeline_layout, 1, 2, descriptor_sets, 0, NULL);
 
 	VkBuffer vertex_buffer;

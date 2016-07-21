@@ -59,29 +59,10 @@ TexMgr_SetFilterModes
 */
 static void TexMgr_SetFilterModes (gltexture_t *glt)
 {
-	/*GL_Bind (glt);
-
-	if (glt->flags & TEXPREF_NEAREST)
-	{
-		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	}
-	else if (glt->flags & TEXPREF_LINEAR)
-	{
-		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	}
-	else if (glt->flags & TEXPREF_MIPMAP)
-	{
-		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, glmodes[glmode_idx].magfilter);
-		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, glmodes[glmode_idx].minfilter);
-		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, gl_texture_anisotropy.value);
-	}
+	if (glt->flags & TEXPREF_LINEAR || glt->flags & TEXPREF_MIPMAP)
+		glt->sampler_set = &vulkan_globals.sampler_descriptor_set;
 	else
-	{
-		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, glmodes[glmode_idx].magfilter);
-		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, glmodes[glmode_idx].magfilter);
-	}*/
+		glt->sampler_set = &vulkan_globals.point_sampler_descriptor_set;
 }
 
 /*
@@ -1011,6 +992,8 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	texture_write.pImageInfo = &image_info;
 
 	vkUpdateDescriptorSets(vulkan_globals.device, 1, &texture_write, 0, NULL);
+
+	TexMgr_SetFilterModes (glt);
 
 	// Don't upload data for warp image, will be updated by rendering
 	if (warp_image)

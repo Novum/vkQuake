@@ -238,7 +238,7 @@ void R_DrawBrushModel (entity_t *e)
 	}
 
 	R_DrawTextureChains (clmodel, e, chain_model);
-	//R_DrawTextureChains_Water (clmodel, e, chain_model);
+	R_DrawTextureChains_Water (clmodel, e, chain_model);
 
 	vkCmdPushConstants(vulkan_globals.command_buffer, vulkan_globals.basic_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, 16 * sizeof(float), vulkan_globals.view_projection_matrix);
 }
