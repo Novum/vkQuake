@@ -586,7 +586,7 @@ static void GL_InitInstance( void )
 	application_info.applicationVersion = 1;
 	application_info.pEngineName = "vkQuake";
 	application_info.engineVersion = 1;
-	application_info.apiVersion = VK_API_VERSION_1_0;
+	application_info.apiVersion = VK_MAKE_VERSION(1, 0, 6);
 
 	char * instance_extensions[] = { VK_KHR_SURFACE_EXTENSION_NAME, PLATFORM_SURF_EXT };
 	char * layer_names[] = { "VK_LAYER_LUNARG_standard_validation" };
