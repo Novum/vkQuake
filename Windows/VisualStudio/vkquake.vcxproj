@@ -106,6 +106,7 @@
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
       <CompileAs>CompileAsC</CompileAs>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <AdditionalDependencies>libvorbisfile.lib;libvorbis.lib;libopusfile.lib;libopus.lib;libFLAC.lib;libogg.lib;libmad.lib;libmikmod.lib;wsock32.lib;opengl32.lib;winmm.lib;SDL2.lib;SDL2main.lib;vulkan-1.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -132,6 +133,7 @@ copy "$(SolutionDir)\..\SDL2\lib\*.dll" "$(TargetDir)"</Command>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <CompileAs>CompileAsC</CompileAs>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <AdditionalDependencies>libvorbisfile.lib;libvorbis.lib;libopusfile.lib;libopus.lib;libFLAC.lib;libogg.lib;libmad.lib;libmikmod.lib;wsock32.lib;opengl32.lib;winmm.lib;SDL2.lib;SDL2main.lib;vulkan-1.lib;%(AdditionalDependencies)</AdditionalDependencies>
