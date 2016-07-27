@@ -1,4 +1,4 @@
-# GNU Makefile for QuakeSpasm unix targets, Sep. 10, 2014
+# GNU Makefile for vkQuake unix targets, Sep. 10, 2014
 # You need the SDL library fully installed.
 # "make DEBUG=1" to build a debug client.
 # "make SDL_CONFIG=/path/to/sdl-config" for unusual SDL installations.
@@ -66,6 +66,7 @@ do_strip=
 else
 DFLAGS += -DNDEBUG
 CFLAGS += -O2
+CFLAGS += -std=gnu99
 CFLAGS += -I$(VULKAN_INCLUDE_DIR) -DLINUX -DVK_USE_PLATFORM_XCB_KHR
 CFLAGS += $(call check_gcc,-fweb,)
 CFLAGS += $(call check_gcc,-frename-registers,)
@@ -190,7 +191,7 @@ LIBS := $(COMMON_LIBS) $(NET_LIBS) $(CODECLIBS)
 
 .PHONY:	clean debug release
 
-DEFAULT_TARGET := quakespasm
+DEFAULT_TARGET := vkquake
 
 # ---------------------------
 # rules
@@ -303,16 +304,16 @@ OBJS := strlcat.o \
 # Linux build rules
 # ------------------------
 
-quakespasm:	$(OBJS)
+vkquake:	$(OBJS)
 	$(LINKER) $(OBJS) $(LDFLAGS) $(LIBS) $(SDL_LIBS) -o $@
 	$(call do_strip,$@)
 
-release:	quakespasm
+release:	vkquake
 debug:
 	$(error Use "make DEBUG=1")
 
 clean:
 	rm -f $(shell find . \( -name '*~' -o -name '#*#' -o -name '*.o' -o -name '*.res' -o -name $(DEFAULT_TARGET) \) -print)
 
-install:	quakespasm
-	cp quakespasm /usr/local/games/quake
+install:	vkquake
+	cp vkquake /usr/local/games/quake
