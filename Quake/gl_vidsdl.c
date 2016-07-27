@@ -116,6 +116,31 @@ static PFN_vkGetSwapchainImagesKHR fpGetSwapchainImagesKHR;
 static PFN_vkAcquireNextImageKHR fpAcquireNextImageKHR;
 static PFN_vkQueuePresentKHR fpQueuePresentKHR;
 
+#ifdef _DEBUG
+static PFN_vkCreateDebugReportCallbackEXT fpCreateDebugReportCallbackEXT;
+static PFN_vkDestroyDebugReportCallbackEXT fpDestroyDebugReportCallbackEXT;
+
+VkDebugReportCallbackEXT debug_report_callback;
+
+VkBool32 debug_message_callback(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT obj, int64_t src, size_t loc, int32_t code, const char* pLayer,const char* pMsg, void* pUserData)
+{
+	const char* prefix;
+
+	if (flags & VK_DEBUG_REPORT_ERROR_BIT_EXT)
+	{
+		prefix = "ERROR";
+	};
+	if (flags & VK_DEBUG_REPORT_WARNING_BIT_EXT)
+	{
+		prefix = "WARNING";
+	};
+	
+	Sys_Printf("[Validation %s]: %s\n", prefix, pMsg);
+
+	return VK_FALSE;
+}
+#endif
+
 // Swap chain
 static uint32_t current_swapchain_buffer;
 
@@ -588,7 +613,8 @@ static void GL_InitInstance( void )
 	application_info.engineVersion = 1;
 	application_info.apiVersion = VK_API_VERSION_1_0;
 
-	char * instance_extensions[] = { VK_KHR_SURFACE_EXTENSION_NAME, PLATFORM_SURF_EXT };
+	char * instance_extensions[] = { VK_KHR_SURFACE_EXTENSION_NAME, PLATFORM_SURF_EXT, VK_EXT_DEBUG_REPORT_EXTENSION_NAME };
+
 	char * layer_names[] = { "VK_LAYER_LUNARG_standard_validation" };
 
 	VkInstanceCreateInfo instance_create_info;
@@ -598,6 +624,7 @@ static void GL_InitInstance( void )
 	instance_create_info.enabledExtensionCount = 2;
 	instance_create_info.ppEnabledExtensionNames = instance_extensions;
 #ifdef _DEBUG
+	instance_create_info.enabledExtensionCount = 3;
 	instance_create_info.enabledLayerCount = 1;
 	instance_create_info.ppEnabledLayerNames = layer_names;
 #endif
@@ -634,6 +661,21 @@ static void GL_InitInstance( void )
 	GET_INSTANCE_PROC_ADDR(vulkan_instance, GetPhysicalDeviceSurfaceFormatsKHR);
 	GET_INSTANCE_PROC_ADDR(vulkan_instance, GetPhysicalDeviceSurfacePresentModesKHR);
 	GET_INSTANCE_PROC_ADDR(vulkan_instance, GetSwapchainImagesKHR);
+
+#ifdef _DEBUG
+	GET_INSTANCE_PROC_ADDR(vulkan_instance, CreateDebugReportCallbackEXT);
+	GET_INSTANCE_PROC_ADDR(vulkan_instance, DestroyDebugReportCallbackEXT);
+
+	VkDebugReportCallbackCreateInfoEXT report_callback_Info;
+	memset(&report_callback_Info, 0, sizeof(report_callback_Info));
+	report_callback_Info.sType = VK_STRUCTURE_TYPE_DEBUG_REPORT_CREATE_INFO_EXT;
+	report_callback_Info.pfnCallback = (PFN_vkDebugReportCallbackEXT)debug_message_callback;
+	report_callback_Info.flags = VK_DEBUG_REPORT_ERROR_BIT_EXT;
+
+	err = fpCreateDebugReportCallbackEXT(vulkan_instance, &report_callback_Info, NULL, &debug_report_callback);
+	if (err != VK_SUCCESS)
+		Sys_Printf("Could not create debug report callback");
+#endif
 }
 
 /*
@@ -735,7 +777,6 @@ static void GL_InitDevice( void )
 	queue_create_info.pQueuePriorities = queue_priorities;
 
 	char * device_extensions[] = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
-	char * layer_names[] = { "VK_LAYER_LUNARG_standard_validation" };
 
 	VkDeviceCreateInfo device_create_info;
 	memset(&device_create_info, 0, sizeof(device_create_info));
@@ -744,10 +785,6 @@ static void GL_InitDevice( void )
 	device_create_info.pQueueCreateInfos = &queue_create_info;
 	device_create_info.enabledExtensionCount = 1;
 	device_create_info.ppEnabledExtensionNames = device_extensions;
-#ifdef _DEBUG
-	device_create_info.enabledLayerCount = 1;
-	device_create_info.ppEnabledLayerNames = layer_names;
-#endif
 
 	err = vkCreateDevice(vulkan_physical_device, &device_create_info, NULL, &vulkan_globals.device);
 	if (err != VK_SUCCESS)
