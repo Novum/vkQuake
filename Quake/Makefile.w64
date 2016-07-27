@@ -1,4 +1,4 @@
-# GNU Makefile for compiling Win64 quakespasm.exe using MinGW-w64.
+# GNU Makefile for compiling Win64 vkquake.exe using MinGW-w64.
 # Usage: "make -f Makefile.w64"
 # To cross-compile on Linux hosts, see the "build_cross_win32*.sh" scripts.
 # "make DEBUG=1" to build a debug client.
@@ -172,7 +172,7 @@ LIBS := $(COMMON_LIBS) $(NET_LIBS) $(CODEC_LINK) $(CODECLIBS)
 
 .PHONY:	clean debug release
 
-DEFAULT_TARGET := quakespasm.exe
+DEFAULT_TARGET := vkquake.exe
 
 # ---------------------------
 # rules
@@ -274,11 +274,11 @@ OBJS := strlcat.o \
 # MinGW-w64 build rules
 # ------------------------
 
-quakespasm.exe:	$(OBJS)
+vkquake.exe:	$(OBJS)
 	$(LINKER) $(OBJS) $(LDFLAGS) $(LIBS) $(SDL_LIBS) -o $@
 	$(call do_strip,$@)
 
-release:	quakespasm.exe
+release:	vkquake.exe
 debug:
 	$(error Use "make DEBUG=1")
 
