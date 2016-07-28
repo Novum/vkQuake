@@ -1030,36 +1030,13 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	int num_regions = 0;
 	int mip_offset = 0;
 
-	memcpy(staging_memory + mip_offset, data, mipwidth * mipheight * 4);
-	regions[num_regions].bufferOffset = staging_offset + mip_offset;
-	regions[num_regions].imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	regions[num_regions].imageSubresource.layerCount = 1;
-	regions[num_regions].imageSubresource.mipLevel = num_regions;
-	regions[num_regions].imageExtent.width = mipwidth;
-	regions[num_regions].imageExtent.height = mipheight;
-	regions[num_regions].imageExtent.depth = 1;
-	
-	mip_offset += mipwidth * mipheight * 4;
-	num_regions += 1;
-
 	if (glt->flags & TEXPREF_MIPMAP)
 	{
 		mipwidth = glt->width;
 		mipheight = glt->height;
 
-		for (int miplevel=1; mipwidth > 1 || mipheight > 1; ++miplevel)
+		while (mipwidth >= 1 && mipheight >= 1)
 		{
-			if (mipwidth > 1)
-			{
-				TexMgr_MipMapW (data, mipwidth, mipheight);
-				mipwidth >>= 1;
-			}
-			if (mipheight > 1)
-			{
-				TexMgr_MipMapH (data, mipwidth, mipheight);
-				mipheight >>= 1;
-			}
-
 			memcpy(staging_memory + mip_offset, data, mipwidth * mipheight * 4);
 			regions[num_regions].bufferOffset = staging_offset + mip_offset;
 			regions[num_regions].imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -1068,10 +1045,27 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 			regions[num_regions].imageExtent.width = mipwidth;
 			regions[num_regions].imageExtent.height = mipheight;
 			regions[num_regions].imageExtent.depth = 1;
-			
+
 			mip_offset += mipwidth * mipheight * 4;
 			num_regions += 1;
+
+			TexMgr_MipMapW(data, mipwidth, mipheight);
+			TexMgr_MipMapH(data, mipwidth, mipheight);
+
+			mipwidth /= 2;
+			mipheight /= 2;
 		}
+	}
+	else
+	{
+		memcpy(staging_memory + mip_offset, data, mipwidth * mipheight * 4);
+		regions[0].bufferOffset = staging_offset + mip_offset;
+		regions[0].imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		regions[0].imageSubresource.layerCount = 1;
+		regions[0].imageSubresource.mipLevel = 0;
+		regions[0].imageExtent.width = mipwidth;
+		regions[0].imageExtent.height = mipheight;
+		regions[0].imageExtent.depth = 1;
 	}
 
 	VkImageMemoryBarrier image_memory_barrier;
@@ -1092,7 +1086,7 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 
 	vkCmdPipelineBarrier(command_buffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, NULL, 0, NULL, 1, &image_memory_barrier);
 
-	vkCmdCopyBufferToImage(command_buffer, staging_buffer, glt->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, num_regions, regions);
+	vkCmdCopyBufferToImage(command_buffer, staging_buffer, glt->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, num_mips, regions);
 
 	image_memory_barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
 	image_memory_barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
