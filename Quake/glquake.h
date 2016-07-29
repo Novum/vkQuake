@@ -360,6 +360,7 @@ byte * R_StagingAllocate(int size, VkCommandBuffer * command_buffer, VkBuffer * 
 
 void R_InitDynamicBuffers();
 void R_SwapDynamicBuffers();
+void R_FlushDynamicBuffers();
 byte * R_VertexAllocate(int size, VkBuffer * buffer, VkDeviceSize * buffer_offset);
 byte * R_IndexAllocate(int size, VkBuffer * buffer, VkDeviceSize * buffer_offset);
 byte * R_UniformAllocate(int size, VkBuffer * buffer, uint32_t * buffer_offset, VkDescriptorSet * descriptor_set);

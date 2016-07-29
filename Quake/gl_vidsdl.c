@@ -60,16 +60,17 @@ static void VID_Menu_Init (void); //johnfitz
 static void VID_Menu_f (void); //johnfitz
 static void VID_MenuDraw (void);
 static void VID_MenuKey (int key);
+static void VID_Restart(void);
 
 static void ClearAllStates (void);
 static void GL_InitInstance (void);
 static void GL_InitDevice (void);
-static void GL_CreateRenderTargets(void);
-static void GL_DestroyRenderTargets(void);
+static void GL_CreateFrameBuffers(void);
+static void GL_DestroyBeforeSetMode(void);
 
 viddef_t	vid;				// global video state
 modestate_t	modestate = MS_UNINIT;
-qboolean	scr_skipupdate;
+extern qboolean scr_initialized;
 
 //====================================
 
@@ -115,6 +116,31 @@ static PFN_vkDestroySwapchainKHR fpDestroySwapchainKHR;
 static PFN_vkGetSwapchainImagesKHR fpGetSwapchainImagesKHR;
 static PFN_vkAcquireNextImageKHR fpAcquireNextImageKHR;
 static PFN_vkQueuePresentKHR fpQueuePresentKHR;
+
+#ifdef _DEBUG
+static PFN_vkCreateDebugReportCallbackEXT fpCreateDebugReportCallbackEXT;
+static PFN_vkDestroyDebugReportCallbackEXT fpDestroyDebugReportCallbackEXT;
+
+VkDebugReportCallbackEXT debug_report_callback;
+
+VkBool32 debug_message_callback(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT obj, int64_t src, size_t loc, int32_t code, const char* pLayer,const char* pMsg, void* pUserData)
+{
+	const char* prefix;
+
+	if (flags & VK_DEBUG_REPORT_ERROR_BIT_EXT)
+	{
+		prefix = "ERROR";
+	};
+	if (flags & VK_DEBUG_REPORT_WARNING_BIT_EXT)
+	{
+		prefix = "WARNING";
+	};
+	
+	Sys_Printf("[Validation %s]: %s\n", prefix, pMsg);
+
+	return VK_FALSE;
+}
+#endif
 
 // Swap chain
 static uint32_t current_swapchain_buffer;
@@ -413,80 +439,6 @@ static void VID_FilterChanged_f(cvar_t *var)
 }
 
 /*
-===================
-VID_Restart -- johnfitz -- change video modes on the fly
-===================
-*/
-static void VID_Restart (void)
-{
-	int width, height, bpp;
-	qboolean fullscreen;
-
-	if (vid_locked || !vid_changed)
-		return;
-
-	width = (int)vid_width.value;
-	height = (int)vid_height.value;
-	bpp = (int)vid_bpp.value;
-	fullscreen = vid_fullscreen.value ? true : false;
-
-	//
-	// validate new mode
-	//
-	if (!VID_ValidMode (width, height, bpp, fullscreen))
-	{
-		Con_Printf ("%dx%dx%d %s is not a valid mode\n",
-				width, height, bpp, fullscreen? "fullscreen" : "windowed");
-		return;
-	}
-	
-	// ericw -- OS X, SDL1: textures, VBO's invalid after mode change
-	//          OS X, SDL2: still valid after mode change
-	// To handle both cases, delete all GL objects (textures, VBO, GLSL) now.
-	// We must not interleave deleting the old objects with creating new ones, because
-	// one of the new objects could be given the same ID as an invalid handle
-	// which is later deleted.
-
-	GL_DestroyRenderTargets();
-	TexMgr_DeleteTextureObjects ();
-	GLSLGamma_DeleteTexture ();
-	GL_DeleteBModelVertexBuffer ();
-	GLMesh_DeleteVertexBuffers ();
-
-	//
-	// set new mode
-	//
-	VID_SetMode (width, height, bpp, fullscreen);
-
-	GL_CreateRenderTargets();
-	TexMgr_ReloadImages ();
-	GL_BuildBModelVertexBuffer ();
-	GLMesh_LoadVertexBuffers ();
-	Fog_SetupState ();
-
-	//conwidth and conheight need to be recalculated
-	vid.conwidth = (scr_conwidth.value > 0) ? (int)scr_conwidth.value : (scr_conscale.value > 0) ? (int)(vid.width/scr_conscale.value) : vid.width;
-	vid.conwidth = CLAMP (320, vid.conwidth, vid.width);
-	vid.conwidth &= 0xFFFFFFF8;
-	vid.conheight = vid.conwidth * vid.height / vid.width;
-	//
-	// keep cvars in line with actual mode
-	//
-	VID_SyncCvars();
-
-	//
-	// update mouse grab
-	//
-	if (key_dest == key_console || key_dest == key_menu)
-	{
-		if (modestate == MS_WINDOWED)
-			IN_Deactivate(true);
-		else if (modestate == MS_FULLSCREEN)
-			IN_Activate();
-	}
-}
-
-/*
 ================
 VID_Test -- johnfitz -- like vid_restart, but asks for confirmation after switching modes
 ================
@@ -588,7 +540,8 @@ static void GL_InitInstance( void )
 	application_info.engineVersion = 1;
 	application_info.apiVersion = VK_API_VERSION_1_0;
 
-	char * instance_extensions[] = { VK_KHR_SURFACE_EXTENSION_NAME, PLATFORM_SURF_EXT };
+	char * instance_extensions[] = { VK_KHR_SURFACE_EXTENSION_NAME, PLATFORM_SURF_EXT, VK_EXT_DEBUG_REPORT_EXTENSION_NAME };
+
 	char * layer_names[] = { "VK_LAYER_LUNARG_standard_validation" };
 
 	VkInstanceCreateInfo instance_create_info;
@@ -598,6 +551,7 @@ static void GL_InitInstance( void )
 	instance_create_info.enabledExtensionCount = 2;
 	instance_create_info.ppEnabledExtensionNames = instance_extensions;
 #ifdef _DEBUG
+	instance_create_info.enabledExtensionCount = 3;
 	instance_create_info.enabledLayerCount = 1;
 	instance_create_info.ppEnabledLayerNames = layer_names;
 #endif
@@ -634,6 +588,21 @@ static void GL_InitInstance( void )
 	GET_INSTANCE_PROC_ADDR(vulkan_instance, GetPhysicalDeviceSurfaceFormatsKHR);
 	GET_INSTANCE_PROC_ADDR(vulkan_instance, GetPhysicalDeviceSurfacePresentModesKHR);
 	GET_INSTANCE_PROC_ADDR(vulkan_instance, GetSwapchainImagesKHR);
+
+#ifdef _DEBUG
+	GET_INSTANCE_PROC_ADDR(vulkan_instance, CreateDebugReportCallbackEXT);
+	GET_INSTANCE_PROC_ADDR(vulkan_instance, DestroyDebugReportCallbackEXT);
+
+	VkDebugReportCallbackCreateInfoEXT report_callback_Info;
+	memset(&report_callback_Info, 0, sizeof(report_callback_Info));
+	report_callback_Info.sType = VK_STRUCTURE_TYPE_DEBUG_REPORT_CREATE_INFO_EXT;
+	report_callback_Info.pfnCallback = (PFN_vkDebugReportCallbackEXT)debug_message_callback;
+	report_callback_Info.flags = VK_DEBUG_REPORT_ERROR_BIT_EXT;
+
+	err = fpCreateDebugReportCallbackEXT(vulkan_instance, &report_callback_Info, NULL, &debug_report_callback);
+	if (err != VK_SUCCESS)
+		Sys_Printf("Could not create debug report callback");
+#endif
 }
 
 /*
@@ -709,11 +678,16 @@ static void GL_InitDevice( void )
 		Sys_Error("Couldn't find any Vulkan queues");
 	}
 
+	// Iterate over each queue to learn whether it supports presenting:
+	VkBool32 *queue_supports_present = (VkBool32 *)malloc(vulkan_queue_count * sizeof(VkBool32));
+	for (uint32_t i = 0; i < vulkan_queue_count; ++i)
+		fpGetPhysicalDeviceSurfaceSupportKHR(vulkan_physical_device, i, vulkan_surface, &queue_supports_present[i]);
+
 	VkQueueFamilyProperties * queue_family_properties = (VkQueueFamilyProperties *)malloc(vulkan_queue_count * sizeof(VkQueueFamilyProperties));
 	vkGetPhysicalDeviceQueueFamilyProperties(vulkan_physical_device, &vulkan_queue_count, queue_family_properties);
 	for (uint32_t i = 0; i < vulkan_queue_count; ++i)
 	{
-		if ((queue_family_properties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) != 0)
+		if (((queue_family_properties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) != 0) && queue_supports_present[i])
 		{
 			found_graphics_queue = true;
 			vulkan_globals.gfx_queue_family_index = i;
@@ -721,6 +695,7 @@ static void GL_InitDevice( void )
 		}
 	}
 
+	free(queue_supports_present);
 	free(queue_family_properties);
 
 	if(!found_graphics_queue)
@@ -735,7 +710,6 @@ static void GL_InitDevice( void )
 	queue_create_info.pQueuePriorities = queue_priorities;
 
 	char * device_extensions[] = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
-	char * layer_names[] = { "VK_LAYER_LUNARG_standard_validation" };
 
 	VkDeviceCreateInfo device_create_info;
 	memset(&device_create_info, 0, sizeof(device_create_info));
@@ -744,10 +718,6 @@ static void GL_InitDevice( void )
 	device_create_info.pQueueCreateInfos = &queue_create_info;
 	device_create_info.enabledExtensionCount = 1;
 	device_create_info.ppEnabledExtensionNames = device_extensions;
-#ifdef _DEBUG
-	device_create_info.enabledLayerCount = 1;
-	device_create_info.ppEnabledLayerNames = layer_names;
-#endif
 
 	err = vkCreateDevice(vulkan_physical_device, &device_create_info, NULL, &vulkan_globals.device);
 	if (err != VK_SUCCESS)
@@ -812,20 +782,22 @@ GL_CreateRenderPasses
 */
 static void GL_CreateRenderPasses()
 {
+	Con_Printf("Creating render passes\n");
+
 	VkResult err;
 
 	// Main render pass
 	VkAttachmentDescription attachment_descriptions[2];
 	memset(&attachment_descriptions, 0, sizeof(attachment_descriptions));
 
-	attachment_descriptions[0].initialLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+	attachment_descriptions[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	attachment_descriptions[0].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 	attachment_descriptions[0].samples = VK_SAMPLE_COUNT_1_BIT;
 	attachment_descriptions[0].format = vulkan_globals.swap_chain_format;
 	attachment_descriptions[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	attachment_descriptions[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 
-	attachment_descriptions[1].initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+	attachment_descriptions[1].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	attachment_descriptions[1].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 	attachment_descriptions[1].samples = VK_SAMPLE_COUNT_1_BIT;
 	attachment_descriptions[1].format = DEPTH_FORMAT;
@@ -863,7 +835,7 @@ static void GL_CreateRenderPasses()
 	// Warp rendering
 	attachment_descriptions[0].format = VK_FORMAT_R8G8B8A8_UNORM;
 	attachment_descriptions[0].loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-	attachment_descriptions[0].initialLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	attachment_descriptions[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	attachment_descriptions[0].finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	color_attachment_reference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
@@ -882,6 +854,8 @@ GL_CreateDepthBuffer
 */
 static void GL_CreateDepthBuffer( void )
 {
+	Con_Printf("Creating depth buffer\n");
+
 	VkResult err;
 	
 	VkImageCreateInfo image_create_info;
@@ -940,12 +914,12 @@ static void GL_CreateDepthBuffer( void )
 
 /*
 ===============
-GL_CreateRenderTargets
+GL_CreateSwapChain
 ===============
 */
-static void GL_CreateRenderTargets( void )
+static void GL_CreateSwapChain( void )
 {
-	Con_Printf("Creating render targets\n");
+	Con_Printf("Creating swap chain\n");
 
 	VkResult err;
 
@@ -962,6 +936,40 @@ static void GL_CreateRenderTargets( void )
 
 	VkSurfaceFormatKHR *surface_formats = (VkSurfaceFormatKHR *)malloc(format_count * sizeof(VkSurfaceFormatKHR));
 	err = fpGetPhysicalDeviceSurfaceFormatsKHR(vulkan_physical_device, vulkan_surface, &format_count, surface_formats);
+	if (err != VK_SUCCESS)
+		Sys_Error("fpGetPhysicalDeviceSurfaceFormatsKHR failed");
+
+	uint32_t present_mode_count = 0;
+	err = fpGetPhysicalDeviceSurfacePresentModesKHR(vulkan_physical_device, vulkan_surface, &present_mode_count, NULL);
+	if (err != VK_SUCCESS)
+		Sys_Error("fpGetPhysicalDeviceSurfacePresentModesKHR failed");
+
+	VkPresentModeKHR * present_modes = malloc(present_mode_count * sizeof(VkPresentModeKHR));
+	err = fpGetPhysicalDeviceSurfacePresentModesKHR(vulkan_physical_device, vulkan_surface, &present_mode_count, present_modes);
+	if (err != VK_SUCCESS)
+		Sys_Error("fpGetPhysicalDeviceSurfacePresentModesKHR failed");
+
+	// VK_PRESENT_MODE_FIFO_KHR is always supported
+	VkPresentModeKHR present_mode = VK_PRESENT_MODE_FIFO_KHR;
+	if (vid_vsync.value == 0)
+	{
+		qboolean found_immediate = false;
+		qboolean found_mailbox = false;
+		for (uint32_t i = 0; i < present_mode_count; ++i)
+		{
+			if(present_modes[i] == VK_PRESENT_MODE_IMMEDIATE_KHR)
+				found_immediate = true;
+			if(present_modes[i] == VK_PRESENT_MODE_MAILBOX_KHR)
+				found_mailbox = true;
+		}
+
+		if (found_immediate)
+			present_mode = VK_PRESENT_MODE_IMMEDIATE_KHR;
+		else if (found_mailbox)
+			present_mode = VK_PRESENT_MODE_MAILBOX_KHR;
+	}
+
+	free(present_modes);
 
 	VkSwapchainCreateInfoKHR swapchain_create_info;
 	memset(&swapchain_create_info, 0, sizeof(swapchain_create_info));
@@ -979,7 +987,7 @@ static void GL_CreateRenderTargets( void )
 	swapchain_create_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
 	swapchain_create_info.queueFamilyIndexCount = 0;
 	swapchain_create_info.pQueueFamilyIndices = NULL;
-	swapchain_create_info.presentMode = VK_PRESENT_MODE_FIFO_KHR;
+	swapchain_create_info.presentMode = present_mode;
 	swapchain_create_info.clipped = true;
 	swapchain_create_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
 
@@ -1014,17 +1022,6 @@ static void GL_CreateRenderTargets( void )
 	image_view_create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
 	image_view_create_info.flags = 0;
 
-	GL_CreateDepthBuffer();
-
-	VkFramebufferCreateInfo framebuffer_create_info;
-	memset(&framebuffer_create_info, 0, sizeof(framebuffer_create_info));
-	framebuffer_create_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-	framebuffer_create_info.renderPass = vulkan_globals.main_render_pass;
-	framebuffer_create_info.attachmentCount = 2;
-	framebuffer_create_info.width = vid.width;
-	framebuffer_create_info.height = vid.height;
-	framebuffer_create_info.layers = 1;
-
 	VkSemaphoreCreateInfo semaphore_create_info;
 	memset(&semaphore_create_info, 0, sizeof(semaphore_create_info));
 	semaphore_create_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
@@ -1036,12 +1033,6 @@ static void GL_CreateRenderTargets( void )
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateImageView failed");
 
-		VkImageView attachments[2] = { swapchain_images_views[i], depth_buffer_view };
-		framebuffer_create_info.pAttachments = attachments;
-		err = vkCreateFramebuffer(vulkan_globals.device, &framebuffer_create_info, NULL, &framebuffers[i]);
-		if (err != VK_SUCCESS)
-			Sys_Error("vkCreateFramebuffer failed");
-
 		err = vkCreateSemaphore(vulkan_globals.device, &semaphore_create_info, NULL, &image_aquired_semaphores[i]);
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateSemaphore failed");
@@ -1050,15 +1041,44 @@ static void GL_CreateRenderTargets( void )
 	free(swapchain_images);
 }
 
+
 /*
 ===============
-GL_DestroyRenderTargets
+GL_CreateFrameBuffers
 ===============
 */
-static void GL_DestroyRenderTargets( void )
+static void GL_CreateFrameBuffers( void )
 {
-	Con_Printf("Destroying render targets\n");
+	Con_Printf("Creating frame buffers\n");
 
+	VkResult err;
+
+	VkFramebufferCreateInfo framebuffer_create_info;
+	memset(&framebuffer_create_info, 0, sizeof(framebuffer_create_info));
+	framebuffer_create_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+	framebuffer_create_info.renderPass = vulkan_globals.main_render_pass;
+	framebuffer_create_info.attachmentCount = 2;
+	framebuffer_create_info.width = vid.width;
+	framebuffer_create_info.height = vid.height;
+	framebuffer_create_info.layers = 1;
+
+	for (int i = 0; i < NUM_SWAP_CHAIN_IMAGES; ++i)
+	{
+		VkImageView attachments[2] = { swapchain_images_views[i], depth_buffer_view };
+		framebuffer_create_info.pAttachments = attachments;
+		err = vkCreateFramebuffer(vulkan_globals.device, &framebuffer_create_info, NULL, &framebuffers[i]);
+		if (err != VK_SUCCESS)
+			Sys_Error("vkCreateFramebuffer failed");
+	}
+}
+
+/*
+===============
+GL_DestroyBeforeSetMode
+===============
+*/
+static void GL_DestroyBeforeSetMode( void )
+{
 	GL_WaitForDeviceIdle();
 
 	vkDestroyImageView(vulkan_globals.device, depth_buffer_view, NULL);
@@ -1073,6 +1093,8 @@ static void GL_DestroyRenderTargets( void )
 	{
 		vkDestroyImageView(vulkan_globals.device, swapchain_images_views[i], NULL);
 		swapchain_images_views[i] = VK_NULL_HANDLE;
+		vkDestroyFramebuffer(vulkan_globals.device, framebuffers[i], NULL);
+		framebuffers[i] = VK_NULL_HANDLE;
 	}
 
 	fpDestroySwapchainKHR(vulkan_globals.device, vulkan_swapchain, NULL);
@@ -1162,6 +1184,8 @@ GL_EndRendering
 */
 void GL_EndRendering (void)
 {
+	R_FlushDynamicBuffers();
+	
 	VkResult err;
 
 	vkCmdEndRenderPass(vulkan_globals.command_buffer);
@@ -1483,8 +1507,10 @@ void	VID_Init (void)
 	GL_InitInstance();
 	GL_InitDevice();
 	GL_InitCommandBuffers();
+	GL_CreateSwapChain();
 	GL_CreateRenderPasses();
-	GL_CreateRenderTargets();
+	GL_CreateDepthBuffer();
+	GL_CreateFrameBuffers();
 	R_InitStagingBuffers();
 	R_CreateDescriptorSetLayouts();
 	R_CreateDescriptorPool();
@@ -1505,6 +1531,75 @@ void	VID_Init (void)
 	//QuakeSpasm: current vid settings should override config file settings.
 	//so we have to lock the vid mode from now until after all config files are read.
 	vid_locked = true;
+}
+
+/*
+===================
+VID_Restart -- johnfitz -- change video modes on the fly
+===================
+*/
+static void VID_Restart (void)
+{
+	int width, height, bpp;
+	qboolean fullscreen;
+
+	if (vid_locked || !vid_changed)
+		return;
+
+	width = (int)vid_width.value;
+	height = (int)vid_height.value;
+	bpp = (int)vid_bpp.value;
+	fullscreen = vid_fullscreen.value ? true : false;
+
+	//
+	// validate new mode
+	//
+	if (!VID_ValidMode (width, height, bpp, fullscreen))
+	{
+		Con_Printf ("%dx%dx%d %s is not a valid mode\n",
+				width, height, bpp, fullscreen? "fullscreen" : "windowed");
+		return;
+	}
+
+	scr_initialized = false;
+	
+	GL_WaitForDeviceIdle();
+	GLSLGamma_DeleteTexture ();
+	GL_DestroyBeforeSetMode();
+
+	//
+	// set new mode
+	//
+	VID_SetMode (width, height, bpp, fullscreen);
+
+	GL_CreateSwapChain();
+	GL_CreateDepthBuffer();
+	GL_CreateFrameBuffers();
+
+	Fog_SetupState ();
+
+	//conwidth and conheight need to be recalculated
+	vid.conwidth = (scr_conwidth.value > 0) ? (int)scr_conwidth.value : (scr_conscale.value > 0) ? (int)(vid.width/scr_conscale.value) : vid.width;
+	vid.conwidth = CLAMP (320, vid.conwidth, vid.width);
+	vid.conwidth &= 0xFFFFFFF8;
+	vid.conheight = vid.conwidth * vid.height / vid.width;
+	//
+	// keep cvars in line with actual mode
+	//
+	VID_SyncCvars();
+
+	//
+	// update mouse grab
+	//
+	if (key_dest == key_console || key_dest == key_menu)
+	{
+		if (modestate == MS_WINDOWED)
+			IN_Deactivate(true);
+		else if (modestate == MS_FULLSCREEN)
+			IN_Activate();
+	}
+
+	scr_initialized = true;
 }
 
 // new proc by S.A., called by alt-return key binding.

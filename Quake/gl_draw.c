@@ -522,7 +522,10 @@ void Draw_String (int x, int y, const char *str)
 	for(int i = 0; *str != 0; ++str)
 	{
 		if (*str != 32)
+		{
 			Draw_FillCharacterQuad(x, y, *str, vertices + i * 6);
+			i++;
+		}
 		x += 8;
 	}
 

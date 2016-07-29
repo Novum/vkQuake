@@ -164,9 +164,14 @@ CFLAGS+= -DUSE_CODEC_UMX
 endif
 CFLAGS+= $(CODEC_INC)
 
+VULKAN_INC = -I$(VK_SDK_PATH)/Include
+VULKAN_LINK= -L$(VK_SDK_PATH)/Bin32
+VULKAN_LIBS= -lvulkan-1
+CFLAGS+= $(VULKAN_INC)
+
 COMMON_LIBS:= -lm -lopengl32 -lwinmm
 
-LIBS := $(COMMON_LIBS) $(NET_LIBS) $(CODEC_LINK) $(CODECLIBS)
+LIBS := $(COMMON_LIBS) $(NET_LIBS) $(CODEC_LINK) $(CODECLIBS) $(VULKAN_LINK) $(VULKAN_LIBS)
 
 # ---------------------------
 # targets
@@ -208,6 +213,19 @@ SYSOBJ_NET := net_win.o net_wins.o net_wipx.o
 SYSOBJ_SYS := pl_win.o sys_sdl_win.o
 SYSOBJ_MAIN:= main_sdl.o
 SYSOBJ_RES := QuakeSpasm.res
+
+SHADER_OBJS = \
+	../Shaders/Compiled/alias_frag.c \
+	../Shaders/Compiled/alias_vert.c \
+	../Shaders/Compiled/basic_alphatest_frag.c \
+	../Shaders/Compiled/basic_frag.c \
+	../Shaders/Compiled/basic_notex_frag.c \
+	../Shaders/Compiled/basic_vert.c \
+	../Shaders/Compiled/sky_layer_frag.c \
+	../Shaders/Compiled/sky_layer_vert.c \
+	../Shaders/Compiled/world_frag.c \
+	../Shaders/Compiled/world_fullbright_frag.c \
+	../Shaders/Compiled/world_vert.c
 
 GLOBJS = \
 	gl_refrag.o \
@@ -270,20 +288,23 @@ OBJS := strlcat.o \
 	sv_user.o \
 	world.o \
 	zone.o \
-	$(SYSOBJ_SYS) $(SYSOBJ_MAIN) $(SYSOBJ_RES)
+	$(SYSOBJ_SYS) $(SYSOBJ_MAIN) $(SYSOBJ_RES) $(SHADER_OBJS)
 
 # ------------------------
 # MinGW build rules
 # ------------------------
 
-vkquake.exe:	$(OBJS)
+vkquake.exe:	$(OBJS) dll
 	$(LINKER) $(OBJS) $(LDFLAGS) $(LIBS) $(SDL_LIBS) -o $@
 	$(call do_strip,$@)
+
+dll:
+	cp ../Windows/codecs/x86/*.dll .
+	cp ../Windows/SDL2/lib/*.dll .
 
 release:	vkquake.exe
 debug:
 	$(error Use "make DEBUG=1")
 
 clean:
-	rm -f $(shell find . \( -name '*~' -o -name '#*#' -o -name '*.o' -o -name '*.res' -o -name $(DEFAULT_TARGET) \) -print)
-
+	rm -f $(shell find . \( -name '*~' -o -name '#*#' -o -name '*.o' -o -name '*.res' -o -name '*.dll' -o -name $(DEFAULT_TARGET) \) -print)

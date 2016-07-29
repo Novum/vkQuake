@@ -181,7 +181,7 @@ ifeq ($(USE_CODEC_UMX),1)
 CFLAGS+= -DUSE_CODEC_UMX
 endif
 
-COMMON_LIBS:= -lm -lGL -l:libvulkan.so.1 -lX11-xcb
+COMMON_LIBS:= -lm -l:libvulkan.so.1 -lX11-xcb
 
 LIBS := $(COMMON_LIBS) $(NET_LIBS) $(CODECLIBS)
 

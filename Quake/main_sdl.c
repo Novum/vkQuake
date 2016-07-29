@@ -142,14 +142,7 @@ int main(int argc, char *argv[])
 		}
 		/* If we're minimised, sleep a bit more */
 		if (VID_IsMinimized())
-		{
-			scr_skipupdate = 1;
 			SDL_Delay(32);
-		}
-		else
-		{
-			scr_skipupdate = 0;
-		}
 		newtime = Sys_DoubleTime ();
 		time = newtime - oldtime;
 
