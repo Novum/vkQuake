@@ -1533,6 +1533,7 @@ static void GL_DeleteTexture (gltexture_t *texture)
 	vkDestroyImageView(vulkan_globals.device, texture->image_view, NULL);
 	vkDestroyImage(vulkan_globals.device, texture->image, NULL);
 	vkFreeMemory(vulkan_globals.device, texture->memory, NULL);
+	vkFreeDescriptorSets(vulkan_globals.device, vulkan_globals.descriptor_pool, 1, &texture->descriptor_set);
 
 	texture->frame_buffer = VK_NULL_HANDLE;
 	texture->image_view = VK_NULL_HANDLE;

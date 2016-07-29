@@ -832,6 +832,7 @@ void R_CreateDescriptorPool()
 	descriptor_pool_create_info.maxSets = MAX_GLTEXTURES + 32;
 	descriptor_pool_create_info.poolSizeCount = 3;
 	descriptor_pool_create_info.pPoolSizes = pool_sizes;
+	descriptor_pool_create_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
 
 	vkCreateDescriptorPool(vulkan_globals.device, &descriptor_pool_create_info, NULL, &vulkan_globals.descriptor_pool);
 
