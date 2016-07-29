@@ -782,6 +782,8 @@ GL_CreateRenderPasses
 */
 static void GL_CreateRenderPasses()
 {
+	Con_Printf("Creating render passes\n");
+
 	VkResult err;
 
 	// Main render pass
@@ -852,6 +854,8 @@ GL_CreateDepthBuffer
 */
 static void GL_CreateDepthBuffer( void )
 {
+	Con_Printf("Creating depth buffer\n");
+
 	VkResult err;
 	
 	VkImageCreateInfo image_create_info;
@@ -915,6 +919,8 @@ GL_CreateSwapChain
 */
 static void GL_CreateSwapChain( void )
 {
+	Con_Printf("Creating swap chain\n");
+
 	VkResult err;
 
 	err = fpGetPhysicalDeviceSurfaceCapabilitiesKHR(vulkan_physical_device, vulkan_surface, &vulkan_surface_capabilities);
@@ -1073,8 +1079,6 @@ GL_DestroyBeforeSetMode
 */
 static void GL_DestroyBeforeSetMode( void )
 {
-	Con_Printf("Destroying render targets\n");
-
 	GL_WaitForDeviceIdle();
 
 	vkDestroyImageView(vulkan_globals.device, depth_buffer_view, NULL);
