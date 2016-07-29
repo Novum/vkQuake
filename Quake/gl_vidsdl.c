@@ -1199,6 +1199,8 @@ GL_EndRendering
 */
 void GL_EndRendering (void)
 {
+	R_FlushDynamicBuffers();
+	
 	VkResult err;
 
 	vkCmdEndRenderPass(vulkan_globals.command_buffer);

@@ -337,6 +337,13 @@ R_SubmitStagingBuffer
 static void R_SubmitStagingBuffer(int index)
 {
 	vkEndCommandBuffer(staging_buffers[index].command_buffer);
+	
+	VkMappedMemoryRange range;
+	memset(&range, 0, sizeof(range));
+	range.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+    range.memory = staging_memory;
+    range.size = VK_WHOLE_SIZE;
+	vkFlushMappedMemoryRanges(vulkan_globals.device, 1, &range);
 
 	VkSubmitInfo submit_info;
 	memset(&submit_info, 0, sizeof(submit_info));
@@ -349,7 +356,6 @@ static void R_SubmitStagingBuffer(int index)
 	staging_buffers[index].submitted = true;
 	current_staging_buffer = (current_staging_buffer + 1) % NUM_STAGING_BUFFERS;
 }
-
 
 /*
 ===============
@@ -635,6 +641,27 @@ void R_SwapDynamicBuffers()
 	dyn_vertex_buffers[current_dyn_buffer_index].current_offset = 0;
 	dyn_index_buffers[current_dyn_buffer_index].current_offset = 0;
 	dyn_uniform_buffers[current_dyn_buffer_index].current_offset = 0;
+}
+
+/*
+===============
+R_FlushDynamicBuffers
+===============
+*/
+void R_FlushDynamicBuffers()
+{
+	VkMappedMemoryRange ranges[3];
+	memset(&ranges, 0, sizeof(ranges));
+	ranges[0].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+    ranges[0].memory = dyn_vertex_buffer_memory;
+    ranges[0].size = VK_WHOLE_SIZE;
+	ranges[1].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+    ranges[1].memory = dyn_index_buffer_memory;
+    ranges[1].size = VK_WHOLE_SIZE;
+	ranges[2].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+    ranges[2].memory = dyn_uniform_buffer_memory;
+    ranges[2].size = VK_WHOLE_SIZE;
+	vkFlushMappedMemoryRanges(vulkan_globals.device, 3, ranges);
 }
 
 /*
