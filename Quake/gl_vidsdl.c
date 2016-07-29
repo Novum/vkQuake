@@ -64,7 +64,7 @@ static void VID_MenuKey (int key);
 static void ClearAllStates (void);
 static void GL_InitInstance (void);
 static void GL_InitDevice (void);
-static void GL_CreateRenderTargets(void);
+static void GL_CreateFrameBuffers(void);
 static void GL_DestroyRenderTargets(void);
 
 viddef_t	vid;				// global video state
@@ -483,7 +483,7 @@ static void VID_Restart (void)
 	//
 	VID_SetMode (width, height, bpp, fullscreen);
 
-	GL_CreateRenderTargets();
+	GL_CreateFrameBuffers();
 	TexMgr_ReloadImages ();
 	GL_BuildBModelVertexBuffer ();
 	GLMesh_LoadVertexBuffers ();
@@ -977,13 +977,11 @@ static void GL_CreateDepthBuffer( void )
 
 /*
 ===============
-GL_CreateRenderTargets
+GL_CreateSwapChain
 ===============
 */
-static void GL_CreateRenderTargets( void )
+static void GL_CreateSwapChain( void )
 {
-	Con_Printf("Creating render targets\n");
-
 	VkResult err;
 
 	err = fpGetPhysicalDeviceSurfaceCapabilitiesKHR(vulkan_physical_device, vulkan_surface, &vulkan_surface_capabilities);
@@ -1051,17 +1049,6 @@ static void GL_CreateRenderTargets( void )
 	image_view_create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
 	image_view_create_info.flags = 0;
 
-	GL_CreateDepthBuffer();
-
-	VkFramebufferCreateInfo framebuffer_create_info;
-	memset(&framebuffer_create_info, 0, sizeof(framebuffer_create_info));
-	framebuffer_create_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-	framebuffer_create_info.renderPass = vulkan_globals.main_render_pass;
-	framebuffer_create_info.attachmentCount = 2;
-	framebuffer_create_info.width = vid.width;
-	framebuffer_create_info.height = vid.height;
-	framebuffer_create_info.layers = 1;
-
 	VkSemaphoreCreateInfo semaphore_create_info;
 	memset(&semaphore_create_info, 0, sizeof(semaphore_create_info));
 	semaphore_create_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
@@ -1073,18 +1060,43 @@ static void GL_CreateRenderTargets( void )
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateImageView failed");
 
-		VkImageView attachments[2] = { swapchain_images_views[i], depth_buffer_view };
-		framebuffer_create_info.pAttachments = attachments;
-		err = vkCreateFramebuffer(vulkan_globals.device, &framebuffer_create_info, NULL, &framebuffers[i]);
-		if (err != VK_SUCCESS)
-			Sys_Error("vkCreateFramebuffer failed");
-
 		err = vkCreateSemaphore(vulkan_globals.device, &semaphore_create_info, NULL, &image_aquired_semaphores[i]);
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateSemaphore failed");
 	}
 
 	free(swapchain_images);
+}
+
+
+/*
+===============
+GL_CreateFrameBuffers
+===============
+*/
+static void GL_CreateFrameBuffers( void )
+{
+	Con_Printf("Creating frame buffers\n");
+
+	VkResult err;
+
+	VkFramebufferCreateInfo framebuffer_create_info;
+	memset(&framebuffer_create_info, 0, sizeof(framebuffer_create_info));
+	framebuffer_create_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+	framebuffer_create_info.renderPass = vulkan_globals.main_render_pass;
+	framebuffer_create_info.attachmentCount = 2;
+	framebuffer_create_info.width = vid.width;
+	framebuffer_create_info.height = vid.height;
+	framebuffer_create_info.layers = 1;
+
+	for (int i = 0; i < NUM_SWAP_CHAIN_IMAGES; ++i)
+	{
+		VkImageView attachments[2] = { swapchain_images_views[i], depth_buffer_view };
+		framebuffer_create_info.pAttachments = attachments;
+		err = vkCreateFramebuffer(vulkan_globals.device, &framebuffer_create_info, NULL, &framebuffers[i]);
+		if (err != VK_SUCCESS)
+			Sys_Error("vkCreateFramebuffer failed");
+	}
 }
 
 /*
@@ -1522,8 +1534,10 @@ void	VID_Init (void)
 	GL_InitInstance();
 	GL_InitDevice();
 	GL_InitCommandBuffers();
+	GL_CreateSwapChain();
 	GL_CreateRenderPasses();
-	GL_CreateRenderTargets();
+	GL_CreateDepthBuffer();
+	GL_CreateFrameBuffers();
 	R_InitStagingBuffers();
 	R_CreateDescriptorSetLayouts();
 	R_CreateDescriptorPool();
