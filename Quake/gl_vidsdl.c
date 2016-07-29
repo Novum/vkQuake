@@ -782,14 +782,14 @@ static void GL_CreateRenderPasses()
 	VkAttachmentDescription attachment_descriptions[2];
 	memset(&attachment_descriptions, 0, sizeof(attachment_descriptions));
 
-	attachment_descriptions[0].initialLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+	attachment_descriptions[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	attachment_descriptions[0].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 	attachment_descriptions[0].samples = VK_SAMPLE_COUNT_1_BIT;
 	attachment_descriptions[0].format = vulkan_globals.swap_chain_format;
 	attachment_descriptions[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	attachment_descriptions[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 
-	attachment_descriptions[1].initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+	attachment_descriptions[1].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	attachment_descriptions[1].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 	attachment_descriptions[1].samples = VK_SAMPLE_COUNT_1_BIT;
 	attachment_descriptions[1].format = DEPTH_FORMAT;
