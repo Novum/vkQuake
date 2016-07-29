@@ -678,11 +678,16 @@ static void GL_InitDevice( void )
 		Sys_Error("Couldn't find any Vulkan queues");
 	}
 
+	// Iterate over each queue to learn whether it supports presenting:
+	VkBool32 *queue_supports_present = (VkBool32 *)malloc(vulkan_queue_count * sizeof(VkBool32));
+	for (uint32_t i = 0; i < vulkan_queue_count; ++i)
+		fpGetPhysicalDeviceSurfaceSupportKHR(vulkan_physical_device, i, vulkan_surface, &queue_supports_present[i]);
+
 	VkQueueFamilyProperties * queue_family_properties = (VkQueueFamilyProperties *)malloc(vulkan_queue_count * sizeof(VkQueueFamilyProperties));
 	vkGetPhysicalDeviceQueueFamilyProperties(vulkan_physical_device, &vulkan_queue_count, queue_family_properties);
 	for (uint32_t i = 0; i < vulkan_queue_count; ++i)
 	{
-		if ((queue_family_properties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) != 0)
+		if (((queue_family_properties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) != 0) && queue_supports_present[i])
 		{
 			found_graphics_queue = true;
 			vulkan_globals.gfx_queue_family_index = i;
@@ -690,6 +695,7 @@ static void GL_InitDevice( void )
 		}
 	}
 
+	free(queue_supports_present);
 	free(queue_family_properties);
 
 	if(!found_graphics_queue)
