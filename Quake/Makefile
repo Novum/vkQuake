@@ -315,5 +315,12 @@ debug:
 clean:
 	rm -f $(shell find . \( -name '*~' -o -name '#*#' -o -name '*.o' -o -name '*.res' -o -name $(DEFAULT_TARGET) \) -print)
 
-install:	vkquake
-	cp vkquake /usr/local/games/quake
+prefix ?= /usr
+exec_prefix ?= $(prefix)
+bindir ?= $(exec_prefix)/games
+sbindir ?= $(exec_prefix)/sbin
+INSTALL ?= install
+INSTALL_PROGRAM ?= $(INSTALL)
+INSTALL_DATA ?= ${INSTALL} -m 644
+install: vkquake
+        $(INSTALL_PROGRAM) $(CURDIR)/vkquake $(DESTDIR)$(bindir)/vkquake
