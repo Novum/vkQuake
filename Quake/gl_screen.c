@@ -996,6 +996,9 @@ needs almost the entire 256k of stack space!
 */
 void SCR_UpdateScreen (void)
 {
+	if (!scr_initialized || !con_initialized)
+		return;				// not initialized yet
+
 	vid.numpages = (gl_triplebuffer.value) ? 3 : 2;
 
 	if (scr_disabled_for_loading)
@@ -1008,10 +1011,6 @@ void SCR_UpdateScreen (void)
 		else
 			return;
 	}
-
-	if (!scr_initialized || !con_initialized)
-		return;				// not initialized yet
-
 
 	GL_BeginRendering (&glx, &gly, &glwidth, &glheight);
 

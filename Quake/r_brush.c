@@ -599,8 +599,11 @@ void GL_DeleteBModelVertexBuffer (void)
 {
 	GL_WaitForDeviceIdle();
 
-	vkDestroyBuffer(vulkan_globals.device, bmodel_vertex_buffer, NULL);
-	vkFreeMemory(vulkan_globals.device, bmodel_memory, NULL);
+	if (bmodel_vertex_buffer)
+		vkDestroyBuffer(vulkan_globals.device, bmodel_vertex_buffer, NULL);
+
+	if (bmodel_memory)
+		vkFreeMemory(vulkan_globals.device, bmodel_memory, NULL);
 }
 
 /*

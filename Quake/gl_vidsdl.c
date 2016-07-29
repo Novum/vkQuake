@@ -60,16 +60,17 @@ static void VID_Menu_Init (void); //johnfitz
 static void VID_Menu_f (void); //johnfitz
 static void VID_MenuDraw (void);
 static void VID_MenuKey (int key);
+static void VID_Restart(void);
 
 static void ClearAllStates (void);
 static void GL_InitInstance (void);
 static void GL_InitDevice (void);
 static void GL_CreateFrameBuffers(void);
-static void GL_DestroyRenderTargets(void);
+static void GL_DestroyBeforeSetMode(void);
 
 viddef_t	vid;				// global video state
 modestate_t	modestate = MS_UNINIT;
-qboolean	scr_skipupdate;
+extern qboolean scr_initialized;
 
 //====================================
 
@@ -435,80 +436,6 @@ VID_FilterChanged_f
 static void VID_FilterChanged_f(cvar_t *var)
 {
 	R_InitSamplers();
-}
-
-/*
-===================
-VID_Restart -- johnfitz -- change video modes on the fly
-===================
-*/
-static void VID_Restart (void)
-{
-	int width, height, bpp;
-	qboolean fullscreen;
-
-	if (vid_locked || !vid_changed)
-		return;
-
-	width = (int)vid_width.value;
-	height = (int)vid_height.value;
-	bpp = (int)vid_bpp.value;
-	fullscreen = vid_fullscreen.value ? true : false;
-
-	//
-	// validate new mode
-	//
-	if (!VID_ValidMode (width, height, bpp, fullscreen))
-	{
-		Con_Printf ("%dx%dx%d %s is not a valid mode\n",
-				width, height, bpp, fullscreen? "fullscreen" : "windowed");
-		return;
-	}
-	
-	// ericw -- OS X, SDL1: textures, VBO's invalid after mode change
-	//          OS X, SDL2: still valid after mode change
-	// To handle both cases, delete all GL objects (textures, VBO, GLSL) now.
-	// We must not interleave deleting the old objects with creating new ones, because
-	// one of the new objects could be given the same ID as an invalid handle
-	// which is later deleted.
-
-	GL_DestroyRenderTargets();
-	TexMgr_DeleteTextureObjects ();
-	GLSLGamma_DeleteTexture ();
-	GL_DeleteBModelVertexBuffer ();
-	GLMesh_DeleteVertexBuffers ();
-
-	//
-	// set new mode
-	//
-	VID_SetMode (width, height, bpp, fullscreen);
-
-	GL_CreateFrameBuffers();
-	TexMgr_ReloadImages ();
-	GL_BuildBModelVertexBuffer ();
-	GLMesh_LoadVertexBuffers ();
-	Fog_SetupState ();
-
-	//conwidth and conheight need to be recalculated
-	vid.conwidth = (scr_conwidth.value > 0) ? (int)scr_conwidth.value : (scr_conscale.value > 0) ? (int)(vid.width/scr_conscale.value) : vid.width;
-	vid.conwidth = CLAMP (320, vid.conwidth, vid.width);
-	vid.conwidth &= 0xFFFFFFF8;
-	vid.conheight = vid.conwidth * vid.height / vid.width;
-	//
-	// keep cvars in line with actual mode
-	//
-	VID_SyncCvars();
-
-	//
-	// update mouse grab
-	//
-	if (key_dest == key_console || key_dest == key_menu)
-	{
-		if (modestate == MS_WINDOWED)
-			IN_Deactivate(true);
-		else if (modestate == MS_FULLSCREEN)
-			IN_Activate();
-	}
 }
 
 /*
@@ -1101,10 +1028,10 @@ static void GL_CreateFrameBuffers( void )
 
 /*
 ===============
-GL_DestroyRenderTargets
+GL_DestroyBeforeSetMode
 ===============
 */
-static void GL_DestroyRenderTargets( void )
+static void GL_DestroyBeforeSetMode( void )
 {
 	Con_Printf("Destroying render targets\n");
 
@@ -1122,6 +1049,8 @@ static void GL_DestroyRenderTargets( void )
 	{
 		vkDestroyImageView(vulkan_globals.device, swapchain_images_views[i], NULL);
 		swapchain_images_views[i] = VK_NULL_HANDLE;
+		vkDestroyFramebuffer(vulkan_globals.device, framebuffers[i], NULL);
+		framebuffers[i] = VK_NULL_HANDLE;
 	}
 
 	fpDestroySwapchainKHR(vulkan_globals.device, vulkan_swapchain, NULL);
@@ -1558,6 +1487,75 @@ void	VID_Init (void)
 	//QuakeSpasm: current vid settings should override config file settings.
 	//so we have to lock the vid mode from now until after all config files are read.
 	vid_locked = true;
+}
+
+/*
+===================
+VID_Restart -- johnfitz -- change video modes on the fly
+===================
+*/
+static void VID_Restart (void)
+{
+	int width, height, bpp;
+	qboolean fullscreen;
+
+	if (vid_locked || !vid_changed)
+		return;
+
+	width = (int)vid_width.value;
+	height = (int)vid_height.value;
+	bpp = (int)vid_bpp.value;
+	fullscreen = vid_fullscreen.value ? true : false;
+
+	//
+	// validate new mode
+	//
+	if (!VID_ValidMode (width, height, bpp, fullscreen))
+	{
+		Con_Printf ("%dx%dx%d %s is not a valid mode\n",
+				width, height, bpp, fullscreen? "fullscreen" : "windowed");
+		return;
+	}
+
+	scr_initialized = false;
+	
+	GL_WaitForDeviceIdle();
+	GLSLGamma_DeleteTexture ();
+	GL_DestroyBeforeSetMode();
+
+	//
+	// set new mode
+	//
+	VID_SetMode (width, height, bpp, fullscreen);
+
+	GL_CreateSwapChain();
+	GL_CreateDepthBuffer();
+	GL_CreateFrameBuffers();
+
+	Fog_SetupState ();
+
+	//conwidth and conheight need to be recalculated
+	vid.conwidth = (scr_conwidth.value > 0) ? (int)scr_conwidth.value : (scr_conscale.value > 0) ? (int)(vid.width/scr_conscale.value) : vid.width;
+	vid.conwidth = CLAMP (320, vid.conwidth, vid.width);
+	vid.conwidth &= 0xFFFFFFF8;
+	vid.conheight = vid.conwidth * vid.height / vid.width;
+	//
+	// keep cvars in line with actual mode
+	//
+	VID_SyncCvars();
+
+	//
+	// update mouse grab
+	//
+	if (key_dest == key_console || key_dest == key_menu)
+	{
+		if (modestate == MS_WINDOWED)
+			IN_Deactivate(true);
+		else if (modestate == MS_FULLSCREEN)
+			IN_Activate();
+	}
+
+	scr_initialized = true;
 }
 
 // new proc by S.A., called by alt-return key binding.
