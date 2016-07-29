@@ -55,6 +55,7 @@ int main (int argc, char **argv)
 	f = fopen (argv[1], "rb");
 	if (f == NULL)
 	{
+		free(buf);
 		printf ("Couldn't open %s\n", argv[1]);
 		return 1;
 	}
