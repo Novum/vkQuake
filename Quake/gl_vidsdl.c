@@ -924,6 +924,40 @@ static void GL_CreateSwapChain( void )
 
 	VkSurfaceFormatKHR *surface_formats = (VkSurfaceFormatKHR *)malloc(format_count * sizeof(VkSurfaceFormatKHR));
 	err = fpGetPhysicalDeviceSurfaceFormatsKHR(vulkan_physical_device, vulkan_surface, &format_count, surface_formats);
+	if (err != VK_SUCCESS)
+		Sys_Error("fpGetPhysicalDeviceSurfaceFormatsKHR failed");
+
+	uint32_t present_mode_count = 0;
+	err = fpGetPhysicalDeviceSurfacePresentModesKHR(vulkan_physical_device, vulkan_surface, &present_mode_count, NULL);
+	if (err != VK_SUCCESS)
+		Sys_Error("fpGetPhysicalDeviceSurfacePresentModesKHR failed");
+
+	VkPresentModeKHR * present_modes = malloc(present_mode_count * sizeof(VkPresentModeKHR));
+	err = fpGetPhysicalDeviceSurfacePresentModesKHR(vulkan_physical_device, vulkan_surface, &present_mode_count, present_modes);
+	if (err != VK_SUCCESS)
+		Sys_Error("fpGetPhysicalDeviceSurfacePresentModesKHR failed");
+
+	// VK_PRESENT_MODE_FIFO_KHR is always supported
+	VkPresentModeKHR present_mode = VK_PRESENT_MODE_FIFO_KHR;
+	if (vid_vsync.value == 0)
+	{
+		qboolean found_immediate = false;
+		qboolean found_mailbox = false;
+		for (uint32_t i = 0; i < present_mode_count; ++i)
+		{
+			if(present_modes[i] == VK_PRESENT_MODE_IMMEDIATE_KHR)
+				found_immediate = true;
+			if(present_modes[i] == VK_PRESENT_MODE_MAILBOX_KHR)
+				found_mailbox = true;
+		}
+
+		if (found_immediate)
+			present_mode = VK_PRESENT_MODE_IMMEDIATE_KHR;
+		else if (found_mailbox)
+			present_mode = VK_PRESENT_MODE_MAILBOX_KHR;
+	}
+
+	free(present_modes);
 
 	VkSwapchainCreateInfoKHR swapchain_create_info;
 	memset(&swapchain_create_info, 0, sizeof(swapchain_create_info));
@@ -941,7 +975,7 @@ static void GL_CreateSwapChain( void )
 	swapchain_create_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
 	swapchain_create_info.queueFamilyIndexCount = 0;
 	swapchain_create_info.pQueueFamilyIndices = NULL;
-	swapchain_create_info.presentMode = VK_PRESENT_MODE_FIFO_KHR;
+	swapchain_create_info.presentMode = present_mode;
 	swapchain_create_info.clipped = true;
 	swapchain_create_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
 
