@@ -124,7 +124,7 @@ void GL_DrawAliasFrame (aliashdr_t *paliashdr, lerpdata_t lerpdata, gltexture_t 
 	memcpy(ubo->model_matrix, model_matrix, 16 * sizeof(float));
 	memcpy(ubo->shade_vector, shadevector, 3 * sizeof(float));
 	ubo->blend_factor = blend;
-	memcpy(ubo->light_color, lightcolor, 4 * sizeof(float));
+	memcpy(ubo->light_color, lightcolor, 3 * sizeof(float));
 	ubo->use_fullbright = (fb != NULL) ? 1 : 0;
 
 	VkDescriptorSet descriptor_sets[3] = { tx->descriptor_set, (fb != NULL) ? fb->descriptor_set : tx->descriptor_set, ubo_set };
