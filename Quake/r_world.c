@@ -448,10 +448,18 @@ R_FlushBatch
 Draw the current batch if non-empty and clears it, ready for more R_BatchSurface calls.
 ================
 */
-static void R_FlushBatch ()
+static void R_FlushBatch (VkPipeline * current_pipeline, qboolean fullbright_enabled, qboolean alpha_test)
 {
 	if (num_vbo_indices > 0)
 	{
+		int pipeline_index = (fullbright_enabled ? 1 : 0) + (alpha_test ? 2 : 0);
+		VkPipeline new_pipeline = vulkan_globals.world_pipelines[pipeline_index];
+		if (new_pipeline != *current_pipeline)
+		{
+			vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, new_pipeline);
+			*current_pipeline = new_pipeline;
+		}
+
 		VkBuffer buffer;
 		VkDeviceSize buffer_offset;
 		byte * indices = R_IndexAllocate(num_vbo_indices * sizeof(uint32_t), &buffer, &buffer_offset);
@@ -472,14 +480,14 @@ Add the surface to the current batch, or just draw it immediately if we're not
 using VBOs.
 ================
 */
-static void R_BatchSurface (msurface_t *s)
+static void R_BatchSurface (msurface_t *s, VkPipeline * current_pipeline, qboolean fullbright_enabled, qboolean alpha_test)
 {
 	int num_surf_indices;
 
 	num_surf_indices = R_NumTriangleIndicesForSurf (s);
 	
 	if (num_vbo_indices + num_surf_indices > MAX_BATCH_SIZE)
-		R_FlushBatch();
+		R_FlushBatch(current_pipeline, fullbright_enabled, alpha_test);
 	
 	R_TriangleIndicesForSurf (s, &vbo_indices[num_vbo_indices]);
 	num_vbo_indices += num_surf_indices;
@@ -706,36 +714,33 @@ void R_DrawTextureChains_Multitexture (qmodel_t *model, entity_t *ent, texchain_
 	msurface_t	*s;
 	texture_t	*t;
 	qboolean	bound;
+	qboolean	fullbright_enabled = false;
+	qboolean	alpha_test = false;
 	int		lastlightmap;
 	gltexture_t	*fullbright = NULL;
-	
+	VkPipeline current_pipeline = VK_NULL_HANDLE;
+
 	VkDeviceSize offset = 0;
 	vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &bmodel_vertex_buffer, &offset);
-	vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline);
-	VkPipeline current_pipeline = vulkan_globals.world_pipeline;
 
-	for (i=0 ; i<model->numtextures ; i++)
+	vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout, 2, 1, &nulltexture->descriptor_set, 0, NULL);
+
+	for (i = 0; i<model->numtextures; ++i)
 	{
 		t = model->textures[i];
 
 		if (!t || !t->texturechains[chain] || t->texturechains[chain]->flags & (SURF_DRAWTILED | SURF_NOTEXTURE))
 			continue;
 
-	// Enable/disable TMU 2 (fullbrights)
+
 		if (gl_fullbrights.value && (fullbright = R_TextureAnimation(t, ent != NULL ? ent->frame : 0)->fullbright))
 		{
-			if (current_pipeline != vulkan_globals.world_fullbright_pipeline)
-			{
-				vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_fullbright_pipeline);
-				current_pipeline = vulkan_globals.world_fullbright_pipeline;
-			}
-
+			fullbright_enabled = true;
 			vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout, 2, 1, &fullbright->descriptor_set, 0, NULL);
 		}
-		else if (current_pipeline != vulkan_globals.world_pipeline)
+		else
 		{
-			vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline);
-			current_pipeline = vulkan_globals.world_pipeline;
+			fullbright_enabled = false;
 		}
 
 		R_ClearBatch ();
@@ -743,6 +748,7 @@ void R_DrawTextureChains_Multitexture (qmodel_t *model, entity_t *ent, texchain_
 		bound = false;
 		lastlightmap = 0; // avoid compiler warning
 		for (s = t->texturechains[chain]; s; s = s->texturechain)
+		{
 			if (!s->culled)
 			{
 				if (!bound) //only bind once we are sure we need this texture
@@ -751,29 +757,27 @@ void R_DrawTextureChains_Multitexture (qmodel_t *model, entity_t *ent, texchain_
 					gltexture_t * gl_texture = texture->gltexture;
 					vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout, 0, 1, &gl_texture->descriptor_set, 0, NULL);
 
-					//if (t->texturechains[chain]->flags & SURF_DRAWFENCE)
-					//	glEnable (GL_ALPHA_TEST); // Flip alpha test back on
-										
+					alpha_test = (t->texturechains[chain]->flags & SURF_DRAWFENCE) != 0;
 					bound = true;
 					lastlightmap = s->lightmaptexturenum;
 				}
 				
 				if (s->lightmaptexturenum != lastlightmap)
-					R_FlushBatch ();
+				{	
+					R_FlushBatch (&current_pipeline, fullbright_enabled, alpha_test);
+				}
 
 				gltexture_t * lightmap_texture = lightmap_textures[s->lightmaptexturenum];
 				vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout, 1, 1, &lightmap_texture->descriptor_set, 0, NULL);
 
 				lastlightmap = s->lightmaptexturenum;
-				R_BatchSurface (s);
+				R_BatchSurface (s, &current_pipeline, fullbright_enabled, alpha_test);
 
 				rs_brushpasses++;
 			}
+		}
 
-		R_FlushBatch ();
-
-		//if (bound && t->texturechains[chain]->flags & SURF_DRAWFENCE)
-		//	glDisable (GL_ALPHA_TEST); // Flip alpha test back off
+		R_FlushBatch (&current_pipeline, fullbright_enabled, alpha_test);
 	}
 }
 

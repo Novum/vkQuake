@@ -100,6 +100,14 @@ typedef struct particle_s
 	ptype_t		type;
 } particle_t;
 
+typedef enum {
+	world_pipeline_base,
+	world_pipeline_fullbright,
+	world_pipeline_alpha_test,
+	world_pipeline_fullbright_alpha_test,
+	world_pipeline_count
+} world_pipeline_type;
+
 typedef struct
 {
 	VkDevice							device;
@@ -122,8 +130,7 @@ typedef struct
 	VkPipeline							basic_blend_pipeline;
 	VkPipeline							basic_notex_blend_pipeline;
 	VkPipelineLayout					basic_pipeline_layout;
-	VkPipeline							world_pipeline;
-	VkPipeline							world_fullbright_pipeline;
+	VkPipeline							world_pipelines[world_pipeline_count];
 	VkPipelineLayout					world_pipeline_layout;
 	VkPipeline							water_pipeline;
 	VkPipeline							warp_pipeline;

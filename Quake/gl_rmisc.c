@@ -972,7 +972,6 @@ void R_CreatePipelines()
 	VkShaderModule basic_notex_frag_module = R_CreateShaderModule(basic_notex_frag_spv, basic_notex_frag_spv_size);
 	VkShaderModule world_vert_module = R_CreateShaderModule(world_vert_spv, world_vert_spv_size);
 	VkShaderModule world_frag_module = R_CreateShaderModule(world_frag_spv, world_frag_spv_size);
-	VkShaderModule world_fullbright_frag_module = R_CreateShaderModule(world_fullbright_frag_spv, world_fullbright_frag_spv_size);
 	VkShaderModule alias_vert_module = R_CreateShaderModule(alias_vert_spv, alias_vert_spv_size);
 	VkShaderModule alias_frag_module = R_CreateShaderModule(alias_frag_spv, alias_frag_spv_size);
 	VkShaderModule sky_layer_vert_module = R_CreateShaderModule(sky_layer_vert_spv, sky_layer_vert_spv_size);
@@ -1265,22 +1264,58 @@ void R_CreatePipelines()
 	vertex_input_state_create_info.vertexBindingDescriptionCount = 1;
 	vertex_input_state_create_info.pVertexBindingDescriptions = &world_vertex_binding_description;
 
-	shader_stages[0].module = world_vert_module;
-	shader_stages[1].module = world_frag_module;
+	VkSpecializationMapEntry specialization_entries[2];
+	specialization_entries[0].constantID = 0;
+	specialization_entries[0].offset = 0;
+	specialization_entries[0].size = 4;
+	specialization_entries[1].constantID = 1;
+	specialization_entries[1].offset = 4;
+	specialization_entries[1].size = 4;
 
-	blend_attachment_state.blendEnable = VK_FALSE;
+	uint32_t specialization_data[2];
+	specialization_data[0] = 0;
+	specialization_data[1] = 0;
+
+	VkSpecializationInfo specialization_info;
+	specialization_info.mapEntryCount = 2;
+	specialization_info.pMapEntries = specialization_entries;
+	specialization_info.dataSize = 8;
+	specialization_info.pData = specialization_data;
 	
 	pipeline_create_info.layout = vulkan_globals.world_pipeline_layout;
 
-	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.world_pipeline);
+	shader_stages[0].module = world_vert_module;
+	shader_stages[1].module = world_frag_module;
+	shader_stages[1].pSpecializationInfo = &specialization_info;
+
+	blend_attachment_state.blendEnable = VK_FALSE;
+
+	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.world_pipelines[world_pipeline_base]);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateGraphicsPipelines failed");
 
-	shader_stages[1].module = world_fullbright_frag_module;
+	specialization_data[0] = 1;
+	specialization_data[1] = 0;
 
-	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.world_fullbright_pipeline);
+	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.world_pipelines[world_pipeline_fullbright]);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateGraphicsPipelines failed");
+
+	specialization_data[0] = 0;
+	specialization_data[1] = 1;
+
+	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.world_pipelines[world_pipeline_alpha_test]);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkCreateGraphicsPipelines failed");
+
+	specialization_data[0] = 1;
+	specialization_data[1] = 1;
+
+	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.world_pipelines[world_pipeline_fullbright_alpha_test]);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkCreateGraphicsPipelines failed");
+
+	shader_stages[1].pSpecializationInfo = NULL;
 
 	//================
 	// Alias pipeline
@@ -1336,7 +1371,6 @@ void R_CreatePipelines()
 	vkDestroyShaderModule(vulkan_globals.device, sky_layer_vert_module, NULL);
 	vkDestroyShaderModule(vulkan_globals.device, alias_frag_module, NULL);
 	vkDestroyShaderModule(vulkan_globals.device, alias_vert_module, NULL);
-	vkDestroyShaderModule(vulkan_globals.device, world_fullbright_frag_module, NULL);
 	vkDestroyShaderModule(vulkan_globals.device, world_frag_module, NULL);
 	vkDestroyShaderModule(vulkan_globals.device, world_vert_module, NULL);
 	vkDestroyShaderModule(vulkan_globals.device, basic_notex_frag_module, NULL);

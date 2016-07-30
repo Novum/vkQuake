@@ -222,7 +222,6 @@ SHADER_OBJS = \
 	../Shaders/Compiled/sky_layer_frag.c \
 	../Shaders/Compiled/sky_layer_vert.c \
 	../Shaders/Compiled/world_frag.c \
-	../Shaders/Compiled/world_fullbright_frag.c \
 	../Shaders/Compiled/world_vert.c
 
 GLOBJS = \

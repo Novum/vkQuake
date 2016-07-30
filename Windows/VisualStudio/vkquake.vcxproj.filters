@@ -271,9 +271,6 @@
     <ClCompile Include="..\..\Shaders\Compiled\world_vert.c">
       <Filter>Shaders\Compiled</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Shaders\Compiled\world_fullbright_frag.c">
-      <Filter>Shaders\Compiled</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\basic_alphatest_frag.c">
       <Filter>Shaders\Compiled</Filter>
     </ClCompile>
@@ -518,9 +515,6 @@
       <Filter>Shaders</Filter>
     </None>
     <None Include="..\..\Shaders\alias.vert">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="..\..\Shaders\world_fullbright.frag">
       <Filter>Shaders</Filter>
     </None>
     <None Include="..\..\Shaders\sky_layer.frag">
