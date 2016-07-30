@@ -1167,8 +1167,6 @@ void GL_BeginRendering (int *x, int *y, int *width, int *height)
 	vulkan_globals.main_render_pass_begin_info.clearValueCount = 2;
 	vulkan_globals.main_render_pass_begin_info.pClearValues = vulkan_globals.main_clear_values;
 
-	vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout, 0, 1, &vulkan_globals.sampler_descriptor_set, 0, NULL);
-
 	vkCmdSetScissor(vulkan_globals.command_buffer, 0, 1, &render_area);
 
 	VkViewport viewport;

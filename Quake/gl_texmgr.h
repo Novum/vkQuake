@@ -66,7 +66,6 @@ typedef struct gltexture_s {
 	VkImageView			image_view;
 	VkDeviceMemory		memory;
 	VkDescriptorSet		descriptor_set;
-	VkDescriptorSet	*	sampler_set;
 	VkFramebuffer		frame_buffer;
 	int			visframe; //matches r_framecount if texture was bound this frame
 } gltexture_t;
@@ -103,6 +102,8 @@ void TexMgr_ReloadNobrightImages (void);
 int TexMgr_Pad(int s);
 int TexMgr_SafeTextureSize (int s);
 int TexMgr_PadConditional (int s);
+
+void TexMgr_UpdateTextureDescriptorSets(void);
 
 
 #endif	/* _GL_TEXMAN_H */

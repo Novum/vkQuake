@@ -137,9 +137,6 @@ typedef struct
 
 	// Descriptors
 	VkDescriptorPool					descriptor_pool;
-	VkDescriptorSet						sampler_descriptor_set;
-	VkDescriptorSet						point_sampler_descriptor_set;
-	VkDescriptorSetLayout				sampler_set_layout;
 	VkDescriptorSetLayout				ubo_set_layout;
 	VkDescriptorSetLayout				single_texture_set_layout;
 

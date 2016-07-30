@@ -25,10 +25,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 
-static cvar_t	gl_texturemode = {"gl_texturemode", "", CVAR_ARCHIVE};
 static cvar_t	gl_texture_anisotropy = {"gl_texture_anisotropy", "1", CVAR_ARCHIVE};
 static cvar_t	gl_max_size = {"gl_max_size", "0", CVAR_NONE};
 static cvar_t	gl_picmip = {"gl_picmip", "0", CVAR_NONE};
+
+extern cvar_t vid_filter;
 
 #define	MAX_MIPS 16
 static int numgltextures;
@@ -59,56 +60,44 @@ TexMgr_SetFilterModes
 */
 static void TexMgr_SetFilterModes (gltexture_t *glt)
 {
+	VkDescriptorImageInfo image_info;
+	memset(&image_info, 0, sizeof(image_info));
+	image_info.imageView = glt->image_view;
+	image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
 	if (glt->flags & TEXPREF_NEAREST)
-		glt->sampler_set = &vulkan_globals.point_sampler_descriptor_set;
+		image_info.sampler = vulkan_globals.point_sampler;
+	else if (glt->flags & TEXPREF_LINEAR)
+		image_info.sampler = vulkan_globals.linear_sampler;
 	else
-		glt->sampler_set = &vulkan_globals.sampler_descriptor_set;
+		image_info.sampler = (vid_filter.value == 1) ? vulkan_globals.point_sampler : vulkan_globals.linear_sampler;
+
+	VkWriteDescriptorSet texture_write;
+	memset(&texture_write, 0, sizeof(texture_write));
+	texture_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	texture_write.dstSet = glt->descriptor_set;
+	texture_write.dstBinding = 0;
+	texture_write.dstArrayElement = 0;
+	texture_write.descriptorCount = 1;
+	texture_write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	texture_write.pImageInfo = &image_info;
+
+	vkUpdateDescriptorSets(vulkan_globals.device, 1, &texture_write, 0, NULL);
 }
 
 /*
 ===============
-TexMgr_TextureMode_f -- called when gl_texturemode changes
+TexMgr_UpdateTextureDescriptorSets
 ===============
 */
-static void TexMgr_TextureMode_f (cvar_t *var)
+void TexMgr_UpdateTextureDescriptorSets(void)
 {
-	/*gltexture_t	*glt;
-	int i;
+	GL_WaitForDeviceIdle();
 
-	for (i = 0; i < NUM_GLMODES; i++)
-	{
-		if (!Q_strcmp (glmodes[i].name, gl_texturemode.string))
-		{
-			if (glmode_idx != i)
-			{
-				glmode_idx = i;
-				for (glt = active_gltextures; glt; glt = glt->next)
-					TexMgr_SetFilterModes (glt);
-				Sbar_Changed (); //sbar graphics need to be redrawn with new filter mode
-				//FIXME: warpimages need to be redrawn, too.
-			}
-			return;
-		}
-	}
+	gltexture_t	*glt;
 
-	for (i = 0; i < NUM_GLMODES; i++)
-	{
-		if (!q_strcasecmp (glmodes[i].name, gl_texturemode.string))
-		{
-			Cvar_SetQuick (&gl_texturemode, glmodes[i].name);
-			return;
-		}
-	}
-
-	i = atoi(gl_texturemode.string);
-	if (i >= 1 && i <= NUM_GLMODES)
-	{
-		Cvar_SetQuick (&gl_texturemode, glmodes[i-1].name);
-		return;
-	}
-
-	Con_Printf ("\"%s\" is not a valid texturemode\n", gl_texturemode.string);
-	Cvar_SetQuick (&gl_texturemode, glmodes[glmode_idx].name);*/
+	for (glt = active_gltextures; glt; glt = glt->next)
+		TexMgr_SetFilterModes (glt);
 }
 
 /*
@@ -469,8 +458,6 @@ void TexMgr_Init (void)
 	Cvar_RegisterVariable (&gl_picmip);
 	Cvar_RegisterVariable (&gl_texture_anisotropy);
 	Cvar_SetCallback (&gl_texture_anisotropy, &TexMgr_Anisotropy_f);
-	Cvar_RegisterVariable (&gl_texturemode);
-	Cvar_SetCallback (&gl_texturemode, &TexMgr_TextureMode_f);
 	Cmd_AddCommand ("imagelist", &TexMgr_Imagelist_f);
 
 	// load notexture images
@@ -975,23 +962,6 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	descriptor_set_allocate_info.pSetLayouts = &vulkan_globals.single_texture_set_layout;
 
 	vkAllocateDescriptorSets(vulkan_globals.device, &descriptor_set_allocate_info, &glt->descriptor_set);
-
-	VkDescriptorImageInfo image_info;
-	memset(&image_info, 0, sizeof(image_info));
-	image_info.imageView = glt->image_view;
-	image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-
-	VkWriteDescriptorSet texture_write;
-	memset(&texture_write, 0, sizeof(texture_write));
-	texture_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	texture_write.dstSet = glt->descriptor_set;
-	texture_write.dstBinding = 0;
-	texture_write.dstArrayElement = 0;
-	texture_write.descriptorCount = 1;
-	texture_write.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-	texture_write.pImageInfo = &image_info;
-
-	vkUpdateDescriptorSets(vulkan_globals.device, 1, &texture_write, 0, NULL);
 
 	TexMgr_SetFilterModes (glt);
 
