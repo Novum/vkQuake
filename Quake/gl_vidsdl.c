@@ -968,10 +968,10 @@ static void GL_CreateSwapChain( void )
 				found_mailbox = true;
 		}
 
+		if (found_mailbox)
+			present_mode = VK_PRESENT_MODE_MAILBOX_KHR;
 		if (found_immediate)
 			present_mode = VK_PRESENT_MODE_IMMEDIATE_KHR;
-		else if (found_mailbox)
-			present_mode = VK_PRESENT_MODE_MAILBOX_KHR;
 	}
 
 	free(present_modes);
@@ -1689,7 +1689,6 @@ void VID_SyncCvars (void)
 		}
 		Cvar_SetValueQuick (&vid_bpp, VID_GetCurrentBPP());
 		Cvar_SetQuick (&vid_fullscreen, VID_GetFullscreen() ? "1" : "0");
-		Cvar_SetQuick (&vid_vsync, VID_GetVSync() ? "1" : "0");
 	}
 
 	vid_changed = false;
