@@ -12,7 +12,7 @@ layout (set = 3, binding = 0) uniform UBO
 	mat4 model_matrix;
 	vec3 shade_vector;
 	float blend_factor;
-	vec4 light_color;
+	vec3 light_color;
 	bool use_fullbright;
 } ubo;
 
@@ -50,5 +50,5 @@ void main()
 
 	float dot1 = r_avertexnormal_dot(in_pose1_normal);
 	float dot2 = r_avertexnormal_dot(in_pose2_normal);
-	out_color = ubo.light_color * vec4(vec3(mix(dot1, dot2, ubo.blend_factor)), 1.0);
+	out_color = vec4(ubo.light_color * mix(dot1, dot2, ubo.blend_factor), 1.0);
 }

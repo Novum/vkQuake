@@ -12,7 +12,7 @@ layout (set = 3, binding = 0) uniform UBO
 	mat4 model_matrix;
 	vec3 shade_vector;
 	float blend_factor;
-	vec4 light_color;
+	vec3 light_color;
 	bool use_fullbright;
 } ubo;
 
