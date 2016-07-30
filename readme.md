@@ -18,9 +18,8 @@ git clone https://github.com/Novum/vkQuake.git
 
 Install [Visual Studio Community](https://www.visualstudio.com/products/free-developer-offers-vs) with Visual C++ component.
 
-Open the Visual Studio solution, `Windows\VisualStudio\vkquake.sln`, and compile vkQuake as needed. The resulting files are
-put under `Windows\VisualStudio\Build-vkQuake`. vkQuake needs `pak0.pak` that comes with your copy of Quake 1 under the `id1`
-subfolder, e.g. `Windows\VisualStudio\Build-vkQuake\x64\Release\id1\pak0.pak`.
+Open the Visual Studio solution, `Windows\VisualStudio\vkquake.sln`, select the desired configuration and platform, then
+build the solution.
 
 ### MinGW
 
@@ -54,8 +53,6 @@ export PATH=${PATH}:/c/mingw-w64/mingw64/bin
 make USE_SDL2=1 -f Makefile.w64
 ~~~
 
-vkQuake needs `pak0.pak` that comes with your copy of Quake 1 under the `id1` subfolder, i.e. `Quake\id1\pak0.pak`.
-
 ## Ubuntu
 
 Make sure that both your [GPU](https://en.wikipedia.org/wiki/Vulkan_(API)#Compatibility) and your GPU driver supports Vulkan.
@@ -79,9 +76,21 @@ cd vkQuake/Quake
 make
 ~~~
 
-vkQuake needs `pak0.pak` that comes with your copy of Quake 1 under the `id1` subfolder, i.e. `Quake\id1\pak0.pak`.
-Then you can start the game with the `vkquake` executable:
+# Usage
 
-~~~
-./vkquake
-~~~
+Quake has 4 episodes that are split into 2 files:
+
+* `pak0.pak`: contains episode 1
+* `pak1.pak`: contains episodes 2-4
+
+These files aren't free to distribute, but `pak0.pak` is sufficient to run the game and it's freely available via the
+[shareware version of Quake](http://bit.ly/2aDMSiz). Use [7-Zip](http://7-zip.org/) or a similar file archiver to extract
+`quake106.zip/resource.1/ID1/PAK0.PAK`. Alternatively, if you own the game, you can obtain both .pak files from its install media.
+
+Now locate your vkQuake executable, i.e. `vkQuake.exe` on Windows or `vkquake` on Ubuntu. You need to create an `id1` directory
+next to that and copy `pak0.pak` there, e.g.:
+
+* Windows: `Windows\VisualStudio\Build-vkQuake\x64\Release\id1\pak0.pak`
+* Ubuntu: `Quake\id1\pak0.pak`
+
+Then vkQuake is ready to play.
