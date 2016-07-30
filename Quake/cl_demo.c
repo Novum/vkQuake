@@ -416,6 +416,7 @@ void CL_PlayDemo_f (void)
 // fscanf skips that byte too and screws up further reads.
 //	fscanf (cls.demofile, "%i\n", &cls.forcetrack);
 	cls.forcetrack = 0;
+	c = 0; /* silence pesky compiler warnings */
 	neg = false;
 	// read a decimal integer possibly with a leading '-',
 	// followed by a '\n':

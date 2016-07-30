@@ -267,8 +267,6 @@ mplane_t		*lightplane;
 vec3_t			lightspot;
 vec3_t			lightcolor; //johnfitz -- lit support via lordhavoc
 
-#define DoublePrecisionDotProduct(x,y) ((double)x[0]*y[0]+(double)x[1]*y[1]+(double)x[2]*y[2])
-
 /*
 =============
 RecursiveLightPoint -- johnfitz -- replaced entire function for lit support via lordhavoc

@@ -589,7 +589,7 @@ static void PF_ambientsound (void)
 	//johnfitz
 
 	for (i = 0; i < 3; i++)
-		MSG_WriteCoord(&sv.signon, pos[i]);
+		MSG_WriteCoord(&sv.signon, pos[i], sv.protocolflags);
 
 	//johnfitz -- PROTOCOL_FITZQUAKE
 	if (large)
@@ -1506,12 +1506,12 @@ static void PF_WriteLong (void)
 
 static void PF_WriteAngle (void)
 {
-	MSG_WriteAngle (WriteDest(), G_FLOAT(OFS_PARM1));
+	MSG_WriteAngle (WriteDest(), G_FLOAT(OFS_PARM1), sv.protocolflags);
 }
 
 static void PF_WriteCoord (void)
 {
-	MSG_WriteCoord (WriteDest(), G_FLOAT(OFS_PARM1));
+	MSG_WriteCoord (WriteDest(), G_FLOAT(OFS_PARM1), sv.protocolflags);
 }
 
 static void PF_WriteString (void)
@@ -1583,8 +1583,8 @@ static void PF_makestatic (void)
 	MSG_WriteByte (&sv.signon, ent->v.skin);
 	for (i = 0; i < 3; i++)
 	{
-		MSG_WriteCoord(&sv.signon, ent->v.origin[i]);
-		MSG_WriteAngle(&sv.signon, ent->v.angles[i]);
+		MSG_WriteCoord(&sv.signon, ent->v.origin[i], sv.protocolflags);
+		MSG_WriteAngle(&sv.signon, ent->v.angles[i], sv.protocolflags);
 	}
 
 	//johnfitz -- PROTOCOL_FITZQUAKE

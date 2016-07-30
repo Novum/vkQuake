@@ -366,6 +366,7 @@ void BGM_Resume (void)
 
 static void BGM_UpdateStream (void)
 {
+	qboolean did_rewind = false;
 	int	res;	/* Number of bytes read. */
 	int	bufferSamples;
 	int	fileSamples;
@@ -415,11 +416,19 @@ static void BGM_UpdateStream (void)
 							bgmstream->info.width,
 							bgmstream->info.channels,
 							raw, bgmvolume.value);
+			did_rewind = false;
 		}
 		else if (res == 0)	/* EOF */
 		{
 			if (bgmloop)
 			{
+				if (did_rewind)
+				{
+					Con_Printf("Stream keeps returning EOF.\n");
+					BGM_Stop();
+					return;
+				}
+
 				res = S_CodecRewindStream(bgmstream);
 				if (res != 0)
 				{
@@ -427,6 +436,7 @@ static void BGM_UpdateStream (void)
 					BGM_Stop();
 					return;
 				}
+				did_rewind = true;
 			}
 			else
 			{

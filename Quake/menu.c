@@ -276,6 +276,7 @@ void M_Main_Key (int key)
 	switch (key)
 	{
 	case K_ESCAPE:
+	case K_BBUTTON:
 		IN_Activate();
 		key_dest = key_game;
 		m_state = m_none;
@@ -300,6 +301,7 @@ void M_Main_Key (int key)
 
 	case K_ENTER:
 	case K_KP_ENTER:
+	case K_ABUTTON:
 		m_entersound = true;
 
 		switch (m_main_cursor)
@@ -364,6 +366,7 @@ void M_SinglePlayer_Key (int key)
 	switch (key)
 	{
 	case K_ESCAPE:
+	case K_BBUTTON:
 		M_Menu_Main_f ();
 		break;
 
@@ -381,6 +384,7 @@ void M_SinglePlayer_Key (int key)
 
 	case K_ENTER:
 	case K_KP_ENTER:
+	case K_ABUTTON:
 		m_entersound = true;
 
 		switch (m_singleplayer_cursor)
@@ -514,11 +518,13 @@ void M_Load_Key (int k)
 	switch (k)
 	{
 	case K_ESCAPE:
+	case K_BBUTTON:
 		M_Menu_SinglePlayer_f ();
 		break;
 
 	case K_ENTER:
 	case K_KP_ENTER:
+	case K_ABUTTON:
 		S_LocalSound ("misc/menu2.wav");
 		if (!loadable[load_cursor])
 			return;
@@ -558,11 +564,13 @@ void M_Save_Key (int k)
 	switch (k)
 	{
 	case K_ESCAPE:
+	case K_BBUTTON:
 		M_Menu_SinglePlayer_f ();
 		break;
 
 	case K_ENTER:
 	case K_KP_ENTER:
+	case K_ABUTTON:
 		m_state = m_none;
 		IN_Activate();
 		key_dest = key_game;
@@ -628,6 +636,7 @@ void M_MultiPlayer_Key (int key)
 	switch (key)
 	{
 	case K_ESCAPE:
+	case K_BBUTTON:
 		M_Menu_Main_f ();
 		break;
 
@@ -645,6 +654,7 @@ void M_MultiPlayer_Key (int key)
 
 	case K_ENTER:
 	case K_KP_ENTER:
+	case K_ABUTTON:
 		m_entersound = true;
 		switch (m_multiplayer_cursor)
 		{
@@ -735,6 +745,7 @@ void M_Setup_Key (int k)
 	switch (k)
 	{
 	case K_ESCAPE:
+	case K_BBUTTON:
 		M_Menu_MultiPlayer_f ();
 		break;
 
@@ -774,6 +785,7 @@ forward:
 
 	case K_ENTER:
 	case K_KP_ENTER:
+	case K_ABUTTON:
 		if (setup_cursor == 0 || setup_cursor == 1)
 			return;
 
@@ -926,6 +938,7 @@ again:
 	switch (k)
 	{
 	case K_ESCAPE:
+	case K_BBUTTON:
 		M_Menu_MultiPlayer_f ();
 		break;
 
@@ -943,6 +956,7 @@ again:
 
 	case K_ENTER:
 	case K_KP_ENTER:
+	case K_ABUTTON:
 		m_entersound = true;
 		M_Menu_LanConfig_f ();
 		break;
@@ -965,6 +979,7 @@ enum
 	OPT_SCALE,
 	OPT_SCRSIZE,
 	OPT_GAMMA,
+	OPT_CONTRAST,
 	OPT_MOUSESPEED,
 	OPT_SBALPHA,
 	OPT_SNDVOL,
@@ -1023,6 +1038,12 @@ void M_AdjustSliders (int dir)
 		if (f < 0.5)	f = 0.5;
 		else if (f > 1)	f = 1;
 		Cvar_SetValue ("gamma", f);
+		break;
+	case OPT_CONTRAST:	// contrast
+		f = vid_contrast.value + dir * 0.1;
+		if (f < 1)	f = 1;
+		else if (f > 2)	f = 2;
+		Cvar_SetValue ("contrast", f);
 		break;
 	case OPT_MOUSESPEED:	// mouse speed
 		f = sensitivity.value + dir * 0.5;
@@ -1151,6 +1172,11 @@ void M_Options_Draw (void)
 	r = (1.0 - vid_gamma.value) / 0.5;
 	M_DrawSlider (220, 32 + 8*OPT_GAMMA, r);
 
+	// OPT_CONTRAST:
+	M_Print (16, 32 + 8*OPT_CONTRAST,	"              Contrast");
+	r = vid_contrast.value - 1.0;
+	M_DrawSlider (220, 32 + 8*OPT_CONTRAST, r);
+	
 	// OPT_MOUSESPEED:
 	M_Print (16, 32 + 8*OPT_MOUSESPEED,	"           Mouse Speed");
 	r = (sensitivity.value - 1)/10;
@@ -1209,11 +1235,13 @@ void M_Options_Key (int k)
 	switch (k)
 	{
 	case K_ESCAPE:
+	case K_BBUTTON:
 		M_Menu_Main_f ();
 		break;
 
 	case K_ENTER:
 	case K_KP_ENTER:
+	case K_ABUTTON:
 		m_entersound = true;
 		switch (options_cursor)
 		{
@@ -1313,27 +1341,27 @@ void M_Menu_Keys_f (void)
 }
 
 
-void M_FindKeysForCommand (const char *command, int *twokeys)
+void M_FindKeysForCommand (const char *command, int *threekeys)
 {
 	int		count;
 	int		j;
 	int		l;
 	char	*b;
 
-	twokeys[0] = twokeys[1] = -1;
+	threekeys[0] = threekeys[1] = threekeys[2] = -1;
 	l = strlen(command);
 	count = 0;
 
-	for (j = 0; j < 256; j++)
+	for (j = 0; j < MAX_KEYS; j++)
 	{
 		b = keybindings[j];
 		if (!b)
 			continue;
 		if (!strncmp (b, command, l) )
 		{
-			twokeys[count] = j;
+			threekeys[count] = j;
 			count++;
-			if (count == 2)
+			if (count == 3)
 				break;
 		}
 	}
@@ -1347,7 +1375,7 @@ void M_UnbindCommand (const char *command)
 
 	l = strlen(command);
 
-	for (j = 0; j < 256; j++)
+	for (j = 0; j < MAX_KEYS; j++)
 	{
 		b = keybindings[j];
 		if (!b)
@@ -1362,7 +1390,7 @@ extern qpic_t	*pic_up, *pic_down;
 void M_Keys_Draw (void)
 {
 	int		i, x, y;
-	int		keys[2];
+	int		keys[3];
 	const char	*name;
 	qpic_t	*p;
 
@@ -1394,8 +1422,15 @@ void M_Keys_Draw (void)
 			x = strlen(name) * 8;
 			if (keys[1] != -1)
 			{
+				name = Key_KeynumToString (keys[1]);
 				M_Print (140 + x + 8, y, "or");
-				M_Print (140 + x + 32, y, Key_KeynumToString (keys[1]));
+				M_Print (140 + x + 32, y, name);
+				x = x + 32 + strlen(name) * 8;
+				if (keys[2] != -1)
+				{
+					M_Print (140 + x + 8, y, "or");
+					M_Print (140 + x + 32, y, Key_KeynumToString (keys[2]));
+				}
 			}
 		}
 	}
@@ -1410,7 +1445,7 @@ void M_Keys_Draw (void)
 void M_Keys_Key (int k)
 {
 	char	cmd[80];
-	int		keys[2];
+	int		keys[3];
 
 	if (bind_grab)
 	{	// defining a key
@@ -1429,6 +1464,7 @@ void M_Keys_Key (int k)
 	switch (k)
 	{
 	case K_ESCAPE:
+	case K_BBUTTON:
 		M_Menu_Options_f ();
 		break;
 
@@ -1450,9 +1486,10 @@ void M_Keys_Key (int k)
 
 	case K_ENTER:		// go into bind mode
 	case K_KP_ENTER:
+	case K_ABUTTON:
 		M_FindKeysForCommand (bindnames[keys_cursor][0], keys);
 		S_LocalSound ("misc/menu2.wav");
-		if (keys[1] != -1)
+		if (keys[2] != -1)
 			M_UnbindCommand (bindnames[keys_cursor][0]);
 		bind_grab = true;
 		IN_Activate(); // activate to allow mouse key binding
@@ -1515,6 +1552,7 @@ void M_Help_Key (int key)
 	switch (key)
 	{
 	case K_ESCAPE:
+	case K_BBUTTON:
 		M_Menu_Main_f ();
 		break;
 
@@ -1744,6 +1782,7 @@ void M_LanConfig_Key (int key)
 	switch (key)
 	{
 	case K_ESCAPE:
+	case K_BBUTTON:
 		M_Menu_Net_f ();
 		break;
 
@@ -1763,6 +1802,7 @@ void M_LanConfig_Key (int key)
 
 	case K_ENTER:
 	case K_KP_ENTER:
+	case K_ABUTTON:
 		if (lanConfig_cursor == 0)
 			break;
 
@@ -2254,6 +2294,7 @@ void M_GameOptions_Key (int key)
 	switch (key)
 	{
 	case K_ESCAPE:
+	case K_BBUTTON:
 		M_Menu_Net_f ();
 		break;
 
@@ -2287,6 +2328,7 @@ void M_GameOptions_Key (int key)
 
 	case K_ENTER:
 	case K_KP_ENTER:
+	case K_ABUTTON:
 		S_LocalSound ("misc/menu2.wav");
 		if (gameoptions_cursor == 0)
 		{
@@ -2418,6 +2460,7 @@ void M_ServerList_Key (int k)
 	switch (k)
 	{
 	case K_ESCAPE:
+	case K_BBUTTON:
 		M_Menu_LanConfig_f ();
 		break;
 
@@ -2443,6 +2486,7 @@ void M_ServerList_Key (int k)
 
 	case K_ENTER:
 	case K_KP_ENTER:
+	case K_ABUTTON:
 		S_LocalSound ("misc/menu2.wav");
 		m_return_state = m_state;
 		m_return_onerror = true;

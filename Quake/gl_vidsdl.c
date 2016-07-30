@@ -82,10 +82,11 @@ static cvar_t	vid_bpp = {"vid_bpp", "16", CVAR_ARCHIVE};
 static cvar_t	vid_vsync = {"vid_vsync", "0", CVAR_ARCHIVE};
 static cvar_t	vid_fsaa = {"vid_fsaa", "0", CVAR_ARCHIVE}; // QuakeSpasm
 static cvar_t	vid_desktopfullscreen = {"vid_desktopfullscreen", "0", CVAR_ARCHIVE}; // QuakeSpasm
+static cvar_t	vid_borderless = {"vid_borderless", "0", CVAR_ARCHIVE}; // QuakeSpasm
 cvar_t	vid_filter = {"vid_filter", "0", CVAR_ARCHIVE};
-//johnfitz
 
 cvar_t		vid_gamma = {"gamma", "1", CVAR_ARCHIVE}; //johnfitz -- moved here from view.c
+cvar_t		vid_contrast = {"contrast", "1", CVAR_ARCHIVE}; //QuakeSpasm, MarkV
 
 // Vulkan
 static VkInstance					vulkan_instance;
@@ -362,6 +363,9 @@ static qboolean VID_SetMode (int width, int height, int bpp, qboolean fullscreen
 	{
 		flags = SDL_WINDOW_HIDDEN;
 
+		if (vid_borderless.value)
+			flags |= SDL_WINDOW_BORDERLESS;
+		
 		draw_context = SDL_CreateWindow (caption, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, flags);
 		if (!draw_context)
 			Sys_Error ("Couldn't create window");
@@ -382,6 +386,7 @@ static qboolean VID_SetMode (int width, int height, int bpp, qboolean fullscreen
 	SDL_SetWindowSize (draw_context, width, height);
 	SDL_SetWindowPosition (draw_context, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
 	SDL_SetWindowDisplayMode (draw_context, VID_SDL2_GetDisplayMode(width, height, bpp));
+	SDL_SetWindowBordered (draw_context, vid_borderless.value ? SDL_FALSE : SDL_TRUE);
 
 	/* Make window fullscreen if needed, and show the window */
 
@@ -1383,7 +1388,8 @@ void	VID_Init (void)
 					 "vid_bpp",
 					 "vid_vsync",
 					 "vid_fsaa",
-					 "vid_desktopfullscreen" };
+					 "vid_desktopfullscreen",
+					 "vid_borderless"};
 #define num_readvars	( sizeof(read_vars)/sizeof(read_vars[0]) )
 
 	Cvar_RegisterVariable (&vid_fullscreen); //johnfitz
@@ -1394,6 +1400,7 @@ void	VID_Init (void)
 	Cvar_RegisterVariable (&vid_filter);
 	Cvar_RegisterVariable (&vid_fsaa); //QuakeSpasm
 	Cvar_RegisterVariable (&vid_desktopfullscreen); //QuakeSpasm
+	Cvar_RegisterVariable (&vid_borderless); //QuakeSpasm
 	Cvar_SetCallback (&vid_fullscreen, VID_Changed_f);
 	Cvar_SetCallback (&vid_width, VID_Changed_f);
 	Cvar_SetCallback (&vid_height, VID_Changed_f);
@@ -1402,7 +1409,8 @@ void	VID_Init (void)
 	Cvar_SetCallback (&vid_vsync, VID_Changed_f);
 	Cvar_SetCallback (&vid_fsaa, VID_FSAA_f);
 	Cvar_SetCallback (&vid_desktopfullscreen, VID_Changed_f);
-
+	Cvar_SetCallback (&vid_borderless, VID_Changed_f);
+	
 	Cmd_AddCommand ("vid_unlock", VID_Unlock); //johnfitz
 	Cmd_AddCommand ("vid_restart", VID_Restart); //johnfitz
 	Cmd_AddCommand ("vid_test", VID_Test); //johnfitz

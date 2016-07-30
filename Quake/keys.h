@@ -142,13 +142,26 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define K_MOUSE4		241
 #define K_MOUSE5		242
 
+// SDL2 game controller keys
+#define K_LTHUMB		243
+#define K_RTHUMB		244
+#define K_LSHOULDER		245
+#define K_RSHOULDER		246
+#define K_ABUTTON		247
+#define K_BBUTTON		248
+#define K_XBUTTON		249
+#define K_YBUTTON		250
+#define K_LTRIGGER		251
+#define K_RTRIGGER		252
+
+#define	MAX_KEYS		253
 
 #define	MAXCMDLINE	256
 
 typedef enum {key_game, key_console, key_message, key_menu} keydest_t;
 
 extern keydest_t	key_dest;
-extern	char	*keybindings[256];
+extern	char	*keybindings[MAX_KEYS];
 
 extern	char	key_lines[32][MAXCMDLINE];
 extern	int		edit_line;

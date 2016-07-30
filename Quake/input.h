@@ -32,7 +32,7 @@ void IN_Commands (void);
 // oportunity for devices to stick commands on the script buffer
 
 // mouse moved by dx and dy pixels
-void IN_MouseMove(int dx, int dy);
+void IN_MouseMotion(int dx, int dy);
 
 
 void IN_SendKeyEvents (void);

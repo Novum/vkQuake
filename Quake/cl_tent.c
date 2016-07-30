@@ -65,13 +65,13 @@ void CL_ParseBeam (qmodel_t *m)
 
 	ent = MSG_ReadShort ();
 
-	start[0] = MSG_ReadCoord ();
-	start[1] = MSG_ReadCoord ();
-	start[2] = MSG_ReadCoord ();
+	start[0] = MSG_ReadCoord (cl.protocolflags);
+	start[1] = MSG_ReadCoord (cl.protocolflags);
+	start[2] = MSG_ReadCoord (cl.protocolflags);
 
-	end[0] = MSG_ReadCoord ();
-	end[1] = MSG_ReadCoord ();
-	end[2] = MSG_ReadCoord ();
+	end[0] = MSG_ReadCoord (cl.protocolflags);
+	end[1] = MSG_ReadCoord (cl.protocolflags);
+	end[2] = MSG_ReadCoord (cl.protocolflags);
 
 // override any beam with the same entity
 	for (i=0, b=cl_beams ; i< MAX_BEAMS ; i++, b++)
@@ -125,25 +125,25 @@ void CL_ParseTEnt (void)
 	switch (type)
 	{
 	case TE_WIZSPIKE:			// spike hitting wall
-		pos[0] = MSG_ReadCoord ();
-		pos[1] = MSG_ReadCoord ();
-		pos[2] = MSG_ReadCoord ();
+		pos[0] = MSG_ReadCoord (cl.protocolflags);
+		pos[1] = MSG_ReadCoord (cl.protocolflags);
+		pos[2] = MSG_ReadCoord (cl.protocolflags);
 		R_RunParticleEffect (pos, vec3_origin, 20, 30);
 		S_StartSound (-1, 0, cl_sfx_wizhit, pos, 1, 1);
 		break;
 
 	case TE_KNIGHTSPIKE:			// spike hitting wall
-		pos[0] = MSG_ReadCoord ();
-		pos[1] = MSG_ReadCoord ();
-		pos[2] = MSG_ReadCoord ();
+		pos[0] = MSG_ReadCoord (cl.protocolflags);
+		pos[1] = MSG_ReadCoord (cl.protocolflags);
+		pos[2] = MSG_ReadCoord (cl.protocolflags);
 		R_RunParticleEffect (pos, vec3_origin, 226, 20);
 		S_StartSound (-1, 0, cl_sfx_knighthit, pos, 1, 1);
 		break;
 
 	case TE_SPIKE:			// spike hitting wall
-		pos[0] = MSG_ReadCoord ();
-		pos[1] = MSG_ReadCoord ();
-		pos[2] = MSG_ReadCoord ();
+		pos[0] = MSG_ReadCoord (cl.protocolflags);
+		pos[1] = MSG_ReadCoord (cl.protocolflags);
+		pos[2] = MSG_ReadCoord (cl.protocolflags);
 		R_RunParticleEffect (pos, vec3_origin, 0, 10);
 		if ( rand() % 5 )
 			S_StartSound (-1, 0, cl_sfx_tink1, pos, 1, 1);
@@ -159,9 +159,9 @@ void CL_ParseTEnt (void)
 		}
 		break;
 	case TE_SUPERSPIKE:			// super spike hitting wall
-		pos[0] = MSG_ReadCoord ();
-		pos[1] = MSG_ReadCoord ();
-		pos[2] = MSG_ReadCoord ();
+		pos[0] = MSG_ReadCoord (cl.protocolflags);
+		pos[1] = MSG_ReadCoord (cl.protocolflags);
+		pos[2] = MSG_ReadCoord (cl.protocolflags);
 		R_RunParticleEffect (pos, vec3_origin, 0, 20);
 
 		if ( rand() % 5 )
@@ -179,16 +179,16 @@ void CL_ParseTEnt (void)
 		break;
 
 	case TE_GUNSHOT:			// bullet hitting wall
-		pos[0] = MSG_ReadCoord ();
-		pos[1] = MSG_ReadCoord ();
-		pos[2] = MSG_ReadCoord ();
+		pos[0] = MSG_ReadCoord (cl.protocolflags);
+		pos[1] = MSG_ReadCoord (cl.protocolflags);
+		pos[2] = MSG_ReadCoord (cl.protocolflags);
 		R_RunParticleEffect (pos, vec3_origin, 0, 20);
 		break;
 
 	case TE_EXPLOSION:			// rocket explosion
-		pos[0] = MSG_ReadCoord ();
-		pos[1] = MSG_ReadCoord ();
-		pos[2] = MSG_ReadCoord ();
+		pos[0] = MSG_ReadCoord (cl.protocolflags);
+		pos[1] = MSG_ReadCoord (cl.protocolflags);
+		pos[2] = MSG_ReadCoord (cl.protocolflags);
 		R_ParticleExplosion (pos);
 		dl = CL_AllocDlight (0);
 		VectorCopy (pos, dl->origin);
@@ -199,9 +199,9 @@ void CL_ParseTEnt (void)
 		break;
 
 	case TE_TAREXPLOSION:			// tarbaby explosion
-		pos[0] = MSG_ReadCoord ();
-		pos[1] = MSG_ReadCoord ();
-		pos[2] = MSG_ReadCoord ();
+		pos[0] = MSG_ReadCoord (cl.protocolflags);
+		pos[1] = MSG_ReadCoord (cl.protocolflags);
+		pos[2] = MSG_ReadCoord (cl.protocolflags);
 		R_BlobExplosion (pos);
 
 		S_StartSound (-1, 0, cl_sfx_r_exp3, pos, 1, 1);
@@ -226,23 +226,23 @@ void CL_ParseTEnt (void)
 // PGM 01/21/97
 
 	case TE_LAVASPLASH:
-		pos[0] = MSG_ReadCoord ();
-		pos[1] = MSG_ReadCoord ();
-		pos[2] = MSG_ReadCoord ();
+		pos[0] = MSG_ReadCoord (cl.protocolflags);
+		pos[1] = MSG_ReadCoord (cl.protocolflags);
+		pos[2] = MSG_ReadCoord (cl.protocolflags);
 		R_LavaSplash (pos);
 		break;
 
 	case TE_TELEPORT:
-		pos[0] = MSG_ReadCoord ();
-		pos[1] = MSG_ReadCoord ();
-		pos[2] = MSG_ReadCoord ();
+		pos[0] = MSG_ReadCoord (cl.protocolflags);
+		pos[1] = MSG_ReadCoord (cl.protocolflags);
+		pos[2] = MSG_ReadCoord (cl.protocolflags);
 		R_TeleportSplash (pos);
 		break;
 
 	case TE_EXPLOSION2:				// color mapped explosion
-		pos[0] = MSG_ReadCoord ();
-		pos[1] = MSG_ReadCoord ();
-		pos[2] = MSG_ReadCoord ();
+		pos[0] = MSG_ReadCoord (cl.protocolflags);
+		pos[1] = MSG_ReadCoord (cl.protocolflags);
+		pos[2] = MSG_ReadCoord (cl.protocolflags);
 		colorStart = MSG_ReadByte ();
 		colorLength = MSG_ReadByte ();
 		R_ParticleExplosion2 (pos, colorStart, colorLength);

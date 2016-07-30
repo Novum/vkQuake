@@ -726,7 +726,7 @@ void CL_Tracepos_f (void)
 {
 	vec3_t	v, w;
 
-	VectorScale(vpn, 8192.0, v);
+	VectorMA(r_refdef.vieworg, 8192.0, vpn, v);
 	TraceLine(r_refdef.vieworg, v, w);
 
 	if (VectorLength(w) == 0)

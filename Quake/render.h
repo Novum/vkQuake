@@ -126,13 +126,16 @@ typedef struct
 	int			ambientlight;
 } refdef_t;
 
+
 //
 // refresh
 //
 extern	int		reinit_surfcache;
 
+
 extern	refdef_t	r_refdef;
 extern vec3_t	r_origin, vpn, vright, vup;
+
 
 void R_Init (void);
 void R_InitTextures (void);

@@ -117,7 +117,7 @@ typedef unsigned int	in_addr_t;	/* u_int32_t */
 	WaitSelect((_N),(_R),(_W),(_E),(_T),NULL)
 #define	IOCTLARG_P(x)	(char *) x
 #if defined(__AMIGA__) && !defined(__MORPHOS__)
-#define	inet_ntoa(x) Inet_NtoA((ULONG *)&x)
+#define	inet_ntoa(x) Inet_NtoA(x.s_addr) /* Inet_NtoA(*(ULONG*)&x) */
 #define	h_errno Errno()
 #endif
 

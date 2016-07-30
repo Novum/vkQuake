@@ -74,6 +74,7 @@ typedef struct
 	byte		signon_buf[MAX_MSGLEN-2]; //johnfitz -- was 8192, now uses MAX_MSGLEN
 
 	unsigned	protocol; //johnfitz
+	unsigned	protocolflags;
 } server_t;
 
 

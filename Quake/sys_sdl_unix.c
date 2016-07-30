@@ -469,6 +469,7 @@ void Sys_Sleep (unsigned long msecs)
 
 void Sys_SendKeyEvents (void)
 {
+	IN_Commands();		//ericw -- allow joysticks to add keys so they can be used to confirm SCR_ModalMessage
 	IN_SendKeyEvents();
 }
 

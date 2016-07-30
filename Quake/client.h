@@ -224,6 +224,7 @@ typedef struct
 	scoreboard_t	*scores;		// [cl.maxclients]
 
 	unsigned	protocol; //johnfitz
+	unsigned	protocolflags;
 } client_state_t;
 
 

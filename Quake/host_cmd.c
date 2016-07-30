@@ -20,9 +20,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
-#ifdef VK_USE_PLATFORM_WIN32
-#include <windows.h>
-#endif
+
 #include "quakedef.h"
 #ifndef _WIN32
 #include <dirent.h>
@@ -643,6 +641,67 @@ void Host_Noclip_f (void)
 }
 
 /*
+====================
+Host_SetPos_f
+
+adapted from fteqw, originally by Alex Shadowalker
+====================
+*/
+void Host_SetPos_f(void)
+{
+	if (cmd_source == src_command)
+	{
+		Cmd_ForwardToServer ();
+		return;
+	}
+	
+	if (pr_global_struct->deathmatch)
+		return;
+	
+	if (Cmd_Argc() != 7 && Cmd_Argc() != 4)
+	{
+		SV_ClientPrintf("usage:\n");
+		SV_ClientPrintf("   setpos <x> <y> <z>\n");
+		SV_ClientPrintf("   setpos <x> <y> <z> <pitch> <yaw> <roll>\n");
+		SV_ClientPrintf("current values:\n");
+		SV_ClientPrintf("   %i %i %i %i %i %i\n",
+			(int)sv_player->v.origin[0],
+			(int)sv_player->v.origin[1],
+			(int)sv_player->v.origin[2],
+			(int)sv_player->v.v_angle[0],
+			(int)sv_player->v.v_angle[1],
+			(int)sv_player->v.v_angle[2]);
+		return;
+	}
+	
+	if (sv_player->v.movetype != MOVETYPE_NOCLIP)
+	{
+		noclip_anglehack = true;
+		sv_player->v.movetype = MOVETYPE_NOCLIP;
+		SV_ClientPrintf ("noclip ON\n");
+	}
+	
+	//make sure they're not going to whizz away from it
+	sv_player->v.velocity[0] = 0;
+	sv_player->v.velocity[1] = 0;
+	sv_player->v.velocity[2] = 0;
+	
+	sv_player->v.origin[0] = atof(Cmd_Argv(1));
+	sv_player->v.origin[1] = atof(Cmd_Argv(2));
+	sv_player->v.origin[2] = atof(Cmd_Argv(3));
+	
+	if (Cmd_Argc() == 7)
+	{
+		sv_player->v.angles[0] = atof(Cmd_Argv(4));
+		sv_player->v.angles[1] = atof(Cmd_Argv(5));
+		sv_player->v.angles[2] = atof(Cmd_Argv(6));
+		sv_player->v.fixangle = 1;
+	}
+	
+	SV_LinkEdict (sv_player, false);
+}
+
+/*
 ==================
 Host_Fly_f
 
@@ -1166,10 +1225,14 @@ void Host_Loadgame_f (void)
 		}
 		else
 		{	// parse an edict
-
 			ent = EDICT_NUM(entnum);
-			memset (&ent->v, 0, progs->entityfields * 4);
-			ent->free = false;
+			if (entnum < sv.num_edicts) {
+				ent->free = false;
+				memset (&ent->v, 0, progs->entityfields * 4);
+			}
+			else {
+				memset (ent, 0, pr_edict_size);
+			}
 			ED_ParseEdict (start, ent);
 
 		// link it into the bsp tree
@@ -1652,8 +1715,8 @@ void Host_Spawn_f (void)
 	ent = EDICT_NUM( 1 + (host_client - svs.clients) );
 	MSG_WriteByte (&host_client->message, svc_setangle);
 	for (i = 0; i < 2; i++)
-		MSG_WriteAngle (&host_client->message, ent->v.angles[i] );
-	MSG_WriteAngle (&host_client->message, 0 );
+		MSG_WriteAngle (&host_client->message, ent->v.angles[i], sv.protocolflags );
+	MSG_WriteAngle (&host_client->message, 0, sv.protocolflags );
 
 	SV_WriteClientdataToMessage (sv_player, &host_client->message);
 
@@ -2238,6 +2301,7 @@ void Host_InitCommands (void)
 	Cmd_AddCommand ("reconnect", Host_Reconnect_f);
 	Cmd_AddCommand ("name", Host_Name_f);
 	Cmd_AddCommand ("noclip", Host_Noclip_f);
+	Cmd_AddCommand ("setpos", Host_SetPos_f); //QuakeSpasm
 
 	Cmd_AddCommand ("say", Host_Say_f);
 	Cmd_AddCommand ("say_team", Host_Say_Team_f);

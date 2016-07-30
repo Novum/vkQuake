@@ -534,8 +534,10 @@ void Mod_LoadTextures (lump_t *l)
 					q_snprintf (filename2, sizeof(filename2), "%s_glow", filename);
 					data = Image_LoadImage (filename2, &fwidth, &fheight);
 					if (!data)
+					{
 						q_snprintf (filename2, sizeof(filename2), "%s_luma", filename);
 						data = Image_LoadImage (filename2, &fwidth, &fheight);
+					}
 
 					if (data)
 						tx->fullbright = TexMgr_LoadImage (loadmodel, filename2, fwidth, fheight,

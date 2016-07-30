@@ -40,8 +40,6 @@ int		history_line = 0;
 
 keydest_t	key_dest;
 
-#define		MAX_KEYS 256
-
 char		*keybindings[MAX_KEYS];
 qboolean	consolekeys[MAX_KEYS];	// if true, can't be rebound while in console
 qboolean	menubound[MAX_KEYS];	// if true, can't be rebound while in menu
@@ -162,6 +160,17 @@ keyname_t keynames[] =
 
 	{"BACKQUOTE", '`'},	// because a raw backquote may toggle the console
 	{"TILDE", '~'},		// because a raw tilde may toggle the console
+
+	{"LTHUMB", K_LTHUMB},
+	{"RTHUMB", K_RTHUMB},
+	{"LSHOULDER", K_LSHOULDER},
+	{"RSHOULDER", K_RSHOULDER},
+	{"ABUTTON", K_ABUTTON},
+	{"BBUTTON", K_BBUTTON},
+	{"XBUTTON", K_XBUTTON},
+	{"YBUTTON", K_YBUTTON},
+	{"LTRIGGER", K_LTRIGGER},
+	{"RTRIGGER", K_RTRIGGER},
 
 	{NULL,		0}
 };
