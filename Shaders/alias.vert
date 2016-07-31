@@ -5,6 +5,8 @@
 
 layout(push_constant) uniform PushConsts {
 	mat4 view_projection_matrix;
+	vec3 fog_color;
+	float fog_density;
 } push_constants;
 
 layout (set = 2, binding = 0) uniform UBO
@@ -51,4 +53,6 @@ void main()
 	float dot1 = r_avertexnormal_dot(in_pose1_normal);
 	float dot2 = r_avertexnormal_dot(in_pose2_normal);
 	out_color = vec4(ubo.light_color * mix(dot1, dot2, ubo.blend_factor), 1.0);
+
+	out_fog_frag_coord = gl_Position.w;
 }

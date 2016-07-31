@@ -833,8 +833,8 @@ void R_CreatePipelineLayouts()
 	VkPushConstantRange push_constant_range;
 	memset(&push_constant_range, 0, sizeof(push_constant_range));
 	push_constant_range.offset = 0;
-	push_constant_range.size = 16 * sizeof(float);
-	push_constant_range.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+	push_constant_range.size = 20 * sizeof(float);
+	push_constant_range.stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS;
 
 	VkPipelineLayoutCreateInfo pipeline_layout_create_info;
 	memset(&pipeline_layout_create_info, 0, sizeof(pipeline_layout_create_info));

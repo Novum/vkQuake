@@ -795,7 +795,7 @@ static void GL_OrthoMatrix(float left, float right, float bottom, float top, flo
 	matrix[3*4 + 2] = tz;
 	matrix[3*4 + 3] = 1.0f;
 
-	vkCmdPushConstants(vulkan_globals.command_buffer, vulkan_globals.basic_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, 16 * sizeof(float), matrix);
+	vkCmdPushConstants(vulkan_globals.command_buffer, vulkan_globals.basic_pipeline_layout, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 16 * sizeof(float), matrix);
 }
 
 /*

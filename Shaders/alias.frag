@@ -3,6 +3,12 @@
 #extension GL_ARB_shading_language_420pack : enable
 #extension GL_GOOGLE_include_directive : enable
 
+layout(push_constant) uniform PushConsts {
+	mat4 mvp;
+	vec3 fog_color;
+	float fog_density;
+} push_constants;
+
 layout(set = 0, binding = 0) uniform sampler2D diffuse_tex;
 layout(set = 1, binding = 0) uniform sampler2D fullbright_tex;
 
@@ -31,4 +37,8 @@ void main()
 
 	result.a = in_color.a;
 	out_frag_color = result;
+
+	float fog = exp(-push_constants.fog_density * push_constants.fog_density * in_fog_frag_coord * in_fog_frag_coord);
+	fog = clamp(fog, 0.0, 1.0);
+	out_frag_color = mix(vec4(push_constants.fog_color, 1.0f), out_frag_color, fog);
 }

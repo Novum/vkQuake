@@ -222,7 +222,7 @@ void R_DrawBrushModel (entity_t *e)
 	memcpy(mvp, vulkan_globals.view_projection_matrix, 16 * sizeof(float));
 	MatrixMultiply(mvp, model_matrix);
 
-	vkCmdPushConstants(vulkan_globals.command_buffer, vulkan_globals.basic_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, 16 * sizeof(float), mvp);
+	vkCmdPushConstants(vulkan_globals.command_buffer, vulkan_globals.basic_pipeline_layout, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 16 * sizeof(float), mvp);
 
 	R_ClearTextureChains (clmodel, chain_model);
 	for (i=0 ; i<clmodel->nummodelsurfaces ; i++, psurf++)
@@ -240,7 +240,7 @@ void R_DrawBrushModel (entity_t *e)
 	R_DrawTextureChains (clmodel, e, chain_model);
 	R_DrawTextureChains_Water (clmodel, e, chain_model);
 
-	vkCmdPushConstants(vulkan_globals.command_buffer, vulkan_globals.basic_pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, 16 * sizeof(float), vulkan_globals.view_projection_matrix);
+	vkCmdPushConstants(vulkan_globals.command_buffer, vulkan_globals.basic_pipeline_layout, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 16 * sizeof(float), vulkan_globals.view_projection_matrix);
 }
 
 /*
