@@ -657,7 +657,7 @@ void Sky_ProcessEntities (float color[3])
 Sky_EmitSkyBoxVertex
 ==============
 */
-void Sky_EmitSkyBoxVertex (float s, float t, int axis)
+void Sky_EmitSkyBoxVertex (basicvertex_t * vertex, float s, float t, int axis)
 {
 	vec3_t		v, b;
 	int			j, k;
@@ -688,8 +688,18 @@ void Sky_EmitSkyBoxVertex (float s, float t, int axis)
 	t = t * (h-1)/h + 0.5/h;
 
 	t = 1.0 - t;
-	//glTexCoord2f (s, t);
-	//glVertex3fv (v);
+
+	vertex->position[0] = v[0];
+	vertex->position[1] = v[1];
+	vertex->position[2] = v[2];
+
+	vertex->texcoord[0] = s;
+	vertex->texcoord[1] = t;
+
+	vertex->color[0] = 255;
+	vertex->color[1] = 255;
+	vertex->color[2] = 255;
+	vertex->color[3] = 255;
 }
 
 /*
@@ -701,14 +711,18 @@ FIXME: eliminate cracks by adding an extra vert on tjuncs
 */
 void Sky_DrawSkyBox (void)
 {
-	/*int		i;
+	int		i;
 
 	for (i=0 ; i<6 ; i++)
 	{
 		if (skymins[0][i] >= skymaxs[0][i] || skymins[1][i] >= skymaxs[1][i])
 			continue;
 
-		GL_Bind (skybox_textures[skytexorder[i]]);
+		vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout, 0, 1, &skybox_textures[skytexorder[i]]->descriptor_set, 0, NULL);
+
+		VkBuffer buffer;
+		VkDeviceSize buffer_offset;
+		basicvertex_t * vertices = (basicvertex_t*)R_VertexAllocate(4 * sizeof(basicvertex_t), &buffer, &buffer_offset);
 
 #if 1 //FIXME: this is to avoid tjunctions until i can do it the right way
 		skymins[0][i] = -1;
@@ -716,39 +730,46 @@ void Sky_DrawSkyBox (void)
 		skymaxs[0][i] = 1;
 		skymaxs[1][i] = 1;
 #endif
-		glBegin (GL_QUADS);
-		Sky_EmitSkyBoxVertex (skymins[0][i], skymins[1][i], i);
-		Sky_EmitSkyBoxVertex (skymins[0][i], skymaxs[1][i], i);
-		Sky_EmitSkyBoxVertex (skymaxs[0][i], skymaxs[1][i], i);
-		Sky_EmitSkyBoxVertex (skymaxs[0][i], skymins[1][i], i);
-		glEnd ();
+		Sky_EmitSkyBoxVertex (vertices + 0, skymins[0][i], skymins[1][i], i);
+		Sky_EmitSkyBoxVertex (vertices + 1, skymins[0][i], skymaxs[1][i], i);
+		Sky_EmitSkyBoxVertex (vertices + 2, skymaxs[0][i], skymaxs[1][i], i);
+		Sky_EmitSkyBoxVertex (vertices + 3, skymaxs[0][i], skymins[1][i], i);
+
+		vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
+		vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_box_pipeline);
+		vkCmdDraw(vulkan_globals.command_buffer, 4, 1, 0, 0);
 
 		rs_skypolys++;
 		rs_skypasses++;
 
 		if (Fog_GetDensity() > 0 && skyfog > 0)
 		{
-			float *c;
+			float *c = Fog_GetColor();
 
-			c = Fog_GetColor();
-			glEnable (GL_BLEND);
-			glDisable (GL_TEXTURE_2D);
-			glColor4f (c[0],c[1],c[2], CLAMP(0.0,skyfog,1.0));
+			VkBuffer buffer;
+			VkDeviceSize buffer_offset;
+			basicvertex_t * vertices = (basicvertex_t*)R_VertexAllocate(4 * sizeof(basicvertex_t), &buffer, &buffer_offset);
 
-			glBegin (GL_QUADS);
-			Sky_EmitSkyBoxVertex (skymins[0][i], skymins[1][i], i);
-			Sky_EmitSkyBoxVertex (skymins[0][i], skymaxs[1][i], i);
-			Sky_EmitSkyBoxVertex (skymaxs[0][i], skymaxs[1][i], i);
-			Sky_EmitSkyBoxVertex (skymaxs[0][i], skymins[1][i], i);
-			glEnd ();
+			Sky_EmitSkyBoxVertex (vertices + 0, skymins[0][i], skymins[1][i], i);
+			Sky_EmitSkyBoxVertex (vertices + 1, skymins[0][i], skymaxs[1][i], i);
+			Sky_EmitSkyBoxVertex (vertices + 2, skymaxs[0][i], skymaxs[1][i], i);
+			Sky_EmitSkyBoxVertex (vertices + 3, skymaxs[0][i], skymins[1][i], i);
 
-			glColor3f (1, 1, 1);
-			glEnable (GL_TEXTURE_2D);
-			glDisable (GL_BLEND);
+			for (int j = 0; j < 4; ++j)
+			{
+				vertices[j].color[0] = c[0] * 255.0f;
+				vertices[j].color[1] = c[1] * 255.0f;
+				vertices[j].color[2] = c[2] * 255.0f;
+				vertices[j].color[3] = CLAMP(0.0,skyfog,1.0) * 255.0f;
+			}
+
+			vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
+			vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_poly_blend_pipeline);
+			vkCmdDraw(vulkan_globals.command_buffer, 4, 1, 0, 0);
 
 			rs_skypasses++;
 		}
-	}*/
+	}
 }
 
 //==============================================================================
@@ -839,31 +860,39 @@ void Sky_DrawFaceQuad (glpoly_t *p, float alpha)
 	}
 
 	vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &vertex_buffer, &vertex_buffer_offset);
+	vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_layer_pipeline);
 	vkCmdDraw(vulkan_globals.command_buffer, 4, 1, 0, 0);
 
 	rs_skypolys++;
 	rs_skypasses++;
 
-	/*if (Fog_GetDensity() > 0 && skyfog > 0)
+	if (Fog_GetDensity() > 0 && skyfog > 0)
 	{
-		float *c;
+		float *c = Fog_GetColor();
 
-		c = Fog_GetColor();
-		glEnable (GL_BLEND);
-		glDisable (GL_TEXTURE_2D);
-		glColor4f (c[0],c[1],c[2], CLAMP(0.0,skyfog,1.0));
-
-		glBegin (GL_QUADS);
+		VkBuffer buffer;
+		VkDeviceSize buffer_offset;
+		basicvertex_t * vertices = (basicvertex_t*)R_VertexAllocate(4 * sizeof(basicvertex_t), &buffer, &buffer_offset);
+		
 		for (i=0, v=p->verts[0] ; i<4 ; i++, v+=VERTEXSIZE)
-			glVertex3fv (v);
-		glEnd ();
+		{
+			vertices[i].position[0] = v[0];
+			vertices[i].position[1] = v[1];
+			vertices[i].position[2] = v[2];
+			vertices[i].texcoord[0] = 0.0f;
+			vertices[i].texcoord[1] = 0.0f;
+			vertices[i].color[0] = c[0] * 255.0f;
+			vertices[i].color[1] = c[1] * 255.0f;
+			vertices[i].color[2] = c[2] * 255.0f;
+			vertices[i].color[3] = CLAMP(0.0,skyfog,1.0) * 255.0f;
+		}
 
-		glColor3f (1, 1, 1);
-		glEnable (GL_TEXTURE_2D);
-		glDisable (GL_BLEND);
+		vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
+		vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_poly_blend_pipeline);
+		vkCmdDraw(vulkan_globals.command_buffer, 4, 1, 0, 0);
 
 		rs_skypasses++;
-	}*/
+	}
 }
 
 /*
@@ -934,8 +963,6 @@ draws the old-style scrolling cloud layers
 void Sky_DrawSkyLayers (void)
 {
 	int i;
-
-	vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_layer_pipeline);
 
 	for (i=0 ; i<6 ; i++)
 		if (skymins[0][i] < skymaxs[0][i] && skymins[1][i] < skymaxs[1][i])

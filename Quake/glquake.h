@@ -139,6 +139,7 @@ typedef struct
 	VkPipeline							particle_pipeline;
 	VkPipeline							sprite_pipeline;
 	VkPipeline							sky_color_pipeline;
+	VkPipeline							sky_box_pipeline;
 	VkPipeline							sky_layer_pipeline;
 	VkPipelineLayout					sky_layer_pipeline_layout;
 	VkPipeline							alias_pipeline;
