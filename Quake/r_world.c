@@ -271,38 +271,6 @@ void R_BuildLightmapChains (qmodel_t *model, texchain_t chain)
 //==============================================================================
 
 /*
-=============
-R_BeginTransparentDrawing -- ericw
-=============
-*/
-static void R_BeginTransparentDrawing (float entalpha)
-{
-	/*if (entalpha < 1.0f)
-	{
-		glDepthMask (GL_FALSE);
-		glEnable (GL_BLEND);
-		glTexEnvf (GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-		glColor4f (1,1,1,entalpha);
-	}*/
-}
-
-/*
-=============
-R_EndTransparentDrawing -- ericw
-=============
-*/
-static void R_EndTransparentDrawing (float entalpha)
-{
-	//if (entalpha < 1.0f)
-	//{
-	//	glDepthMask (GL_TRUE);
-	//	glDisable (GL_BLEND);
-	//	glTexEnvf (GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
-	//	glColor3f (1, 1, 1);
-	//}
-}
-
-/*
 ================
 R_DrawTextureChains_ShowTris -- johnfitz
 ================
@@ -622,7 +590,11 @@ void R_DrawTextureChains_Water (qmodel_t *model, entity_t *ent, texchain_t chain
 				if (!bound) //only bind once we are sure we need this texture
 				{
 					entalpha = GL_WaterAlphaForEntitySurface (ent, s);
-					R_BeginTransparentDrawing (entalpha);
+					if (entalpha < 1.0f)
+						vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.water_blend_pipeline);
+					else
+						vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.water_pipeline);
+
 					vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout, 0, 1, &t->warpimage->descriptor_set, 0, NULL);
 
 					if (model != cl.worldmodel)
@@ -638,7 +610,6 @@ void R_DrawTextureChains_Water (qmodel_t *model, entity_t *ent, texchain_t chain
 				DrawGLPoly (s->polys, color, entalpha);
 				rs_brushpasses++;
 			}
-		R_EndTransparentDrawing (entalpha);
 	}
 }
 
@@ -826,30 +797,8 @@ void R_DrawTextureChains (qmodel_t *model, entity_t *ent, texchain_t chain)
 		//return;
 	}
 
-	R_BeginTransparentDrawing (entalpha);
-
 	R_DrawTextureChains_NoTexture (model, chain);
 	R_DrawTextureChains_Multitexture (model, ent, chain);
-
-	R_EndTransparentDrawing (entalpha);
-
-/*fullbrights:
-	if (gl_fullbrights.value)
-	{
-		glDepthMask (GL_FALSE);
-		glEnable (GL_BLEND);
-		glBlendFunc (GL_ONE, GL_ONE);
-		glTexEnvf (GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-		glColor3f (entalpha, entalpha, entalpha);
-		Fog_StartAdditive ();
-		R_DrawTextureChains_Glow (model, ent, chain);
-		Fog_StopAdditive ();
-		glColor3f (1, 1, 1);
-		glTexEnvf (GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
-		glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-		glDisable (GL_BLEND);
-		glDepthMask (GL_TRUE);
-	}*/
 }
 
 /*

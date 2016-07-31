@@ -1165,10 +1165,18 @@ void R_CreatePipelines()
 	//================
 	input_assembly_state_create_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN;
 	depth_stencil_state_create_info.depthTestEnable = VK_TRUE;
-	depth_stencil_state_create_info.depthWriteEnable = VK_FALSE;
+	depth_stencil_state_create_info.depthWriteEnable = VK_TRUE;
 	depth_stencil_state_create_info.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+	blend_attachment_state.blendEnable = VK_FALSE;
 
 	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.water_pipeline);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkCreateGraphicsPipelines failed");
+
+	depth_stencil_state_create_info.depthWriteEnable = VK_FALSE;
+	blend_attachment_state.blendEnable = VK_TRUE;
+
+	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.water_blend_pipeline);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateGraphicsPipelines failed");
 	

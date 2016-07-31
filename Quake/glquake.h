@@ -134,6 +134,7 @@ typedef struct
 	VkPipeline							world_pipelines[world_pipeline_count];
 	VkPipelineLayout					world_pipeline_layout;
 	VkPipeline							water_pipeline;
+	VkPipeline							water_blend_pipeline;
 	VkPipeline							warp_pipeline;
 	VkPipeline							particle_pipeline;
 	VkPipeline							sprite_pipeline;
