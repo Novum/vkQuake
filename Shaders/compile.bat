@@ -21,6 +21,8 @@ cl.exe /nologo bintoc.c
 %VULKAN_SDK%\bin\glslangValidator.exe -V alias.frag -o Compiled/alias.fspv
 %VULKAN_SDK%\bin\glslangValidator.exe -V sky_layer.vert -o Compiled/sky_layer.vspv
 %VULKAN_SDK%\bin\glslangValidator.exe -V sky_layer.frag -o Compiled/sky_layer.fspv
+%VULKAN_SDK%\bin\glslangValidator.exe -V postprocess.vert -o Compiled/postprocess.vspv
+%VULKAN_SDK%\bin\glslangValidator.exe -V postprocess.frag -o Compiled/postprocess.fspv
 
 bintoc.exe Compiled/basic.vspv basic_vert_spv > Compiled/basic_vert.c
 bintoc.exe Compiled/basic.fspv basic_frag_spv > Compiled/basic_frag.c
@@ -32,3 +34,5 @@ bintoc.exe Compiled/alias.vspv alias_vert_spv > Compiled/alias_vert.c
 bintoc.exe Compiled/alias.fspv alias_frag_spv > Compiled/alias_frag.c
 bintoc.exe Compiled/sky_layer.vspv sky_layer_vert_spv > Compiled/sky_layer_vert.c
 bintoc.exe Compiled/sky_layer.fspv sky_layer_frag_spv > Compiled/sky_layer_frag.c
+bintoc.exe Compiled/postprocess.vspv postprocess_vert_spv > Compiled/postprocess_vert.c
+bintoc.exe Compiled/postprocess.fspv postprocess_frag_spv > Compiled/postprocess_frag.c

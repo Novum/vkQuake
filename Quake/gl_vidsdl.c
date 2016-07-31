@@ -38,6 +38,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define NUM_COMMAND_BUFFERS 2
 #define NUM_SWAP_CHAIN_IMAGES 2
 #define DEPTH_FORMAT VK_FORMAT_D16_UNORM
+#define COLOR_BUFFER_FORMAT VK_FORMAT_B10G11R11_UFLOAT_PACK32
 
 typedef struct {
 	int			width;
@@ -106,6 +107,9 @@ static VkSemaphore					image_aquired_semaphores[NUM_SWAP_CHAIN_IMAGES];
 static VkImage						depth_buffer;
 static VkDeviceMemory				depth_buffer_memory;
 static VkImageView					depth_buffer_view;
+static VkImage						color_buffer;
+static VkDeviceMemory				color_buffer_memory;
+static VkImageView					color_buffer_view;
 
 static PFN_vkGetDeviceProcAddr fpGetDeviceProcAddr;
 static PFN_vkGetPhysicalDeviceSurfaceSupportKHR fpGetPhysicalDeviceSurfaceSupportKHR;
@@ -792,15 +796,16 @@ static void GL_CreateRenderPasses()
 	VkResult err;
 
 	// Main render pass
-	VkAttachmentDescription attachment_descriptions[2];
+	VkAttachmentDescription attachment_descriptions[4];
 	memset(&attachment_descriptions, 0, sizeof(attachment_descriptions));
 
 	attachment_descriptions[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	attachment_descriptions[0].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+	attachment_descriptions[0].finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	attachment_descriptions[0].samples = VK_SAMPLE_COUNT_1_BIT;
-	attachment_descriptions[0].format = vulkan_globals.swap_chain_format;
+	attachment_descriptions[0].format = COLOR_BUFFER_FORMAT;
 	attachment_descriptions[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	attachment_descriptions[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+	attachment_descriptions[0].flags = VK_ATTACHMENT_DESCRIPTION_MAY_ALIAS_BIT;
 
 	attachment_descriptions[1].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	attachment_descriptions[1].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
@@ -808,6 +813,21 @@ static void GL_CreateRenderPasses()
 	attachment_descriptions[1].format = DEPTH_FORMAT;
 	attachment_descriptions[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	attachment_descriptions[1].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+
+	attachment_descriptions[2].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	attachment_descriptions[2].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+	attachment_descriptions[2].samples = VK_SAMPLE_COUNT_1_BIT;
+	attachment_descriptions[2].format = vulkan_globals.swap_chain_format;
+	attachment_descriptions[2].loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	attachment_descriptions[2].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+
+	attachment_descriptions[3].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	attachment_descriptions[3].finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	attachment_descriptions[3].samples = VK_SAMPLE_COUNT_1_BIT;
+	attachment_descriptions[3].format = COLOR_BUFFER_FORMAT;
+	attachment_descriptions[3].loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+	attachment_descriptions[3].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	attachment_descriptions[3].flags = VK_ATTACHMENT_DESCRIPTION_MAY_ALIAS_BIT;
 
 	VkAttachmentReference color_attachment_reference;
 	color_attachment_reference.attachment = 0;
@@ -817,21 +837,47 @@ static void GL_CreateRenderPasses()
 	depth_attachment_reference.attachment = 1;
 	depth_attachment_reference.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
-	VkSubpassDescription subpass_description;
-	memset(&subpass_description, 0, sizeof(subpass_description));
+	VkAttachmentReference swap_chain_attachment_reference;
+	swap_chain_attachment_reference.attachment = 2;
+	swap_chain_attachment_reference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-	subpass_description.colorAttachmentCount = 1;
-	subpass_description.pColorAttachments = &color_attachment_reference;
-	subpass_description.pDepthStencilAttachment = &depth_attachment_reference;
-	subpass_description.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+	VkAttachmentReference color_input_attachment_reference;
+	color_input_attachment_reference.attachment = 3;
+	color_input_attachment_reference.layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+	VkSubpassDescription subpass_descriptions[2];
+	memset(&subpass_descriptions, 0, sizeof(subpass_descriptions));
+
+	subpass_descriptions[0].colorAttachmentCount = 1;
+	subpass_descriptions[0].pColorAttachments = &color_attachment_reference;
+	subpass_descriptions[0].pDepthStencilAttachment = &depth_attachment_reference;
+	subpass_descriptions[0].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+
+	subpass_descriptions[1].colorAttachmentCount = 1;
+	subpass_descriptions[1].pColorAttachments = &swap_chain_attachment_reference;
+	subpass_descriptions[1].pDepthStencilAttachment = NULL;
+	subpass_descriptions[1].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+	subpass_descriptions[1].inputAttachmentCount = 1;
+	subpass_descriptions[1].pInputAttachments = &color_input_attachment_reference;
+
+	VkSubpassDependency subpass_dependencies[1];
+	subpass_dependencies[0].srcSubpass = 0;
+	subpass_dependencies[0].dstSubpass = 1;
+	subpass_dependencies[0].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	subpass_dependencies[0].dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+	subpass_dependencies[0].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+	subpass_dependencies[0].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+	subpass_dependencies[0].dependencyFlags = 0;
 
 	VkRenderPassCreateInfo render_pass_create_info;
 	memset(&render_pass_create_info, 0, sizeof(render_pass_create_info));
 	render_pass_create_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-	render_pass_create_info.attachmentCount = 2;
+	render_pass_create_info.attachmentCount = 4;
 	render_pass_create_info.pAttachments = attachment_descriptions;
-	render_pass_create_info.subpassCount = 1;
-	render_pass_create_info.pSubpasses = &subpass_description;
+	render_pass_create_info.subpassCount = 2;
+	render_pass_create_info.pSubpasses = subpass_descriptions;
+	render_pass_create_info.dependencyCount = 1;
+	render_pass_create_info.pDependencies = subpass_dependencies;
 
 	err = vkCreateRenderPass(vulkan_globals.device, &render_pass_create_info, NULL, &vulkan_globals.main_render_pass);
 	if (err != VK_SUCCESS)
@@ -844,8 +890,18 @@ static void GL_CreateRenderPasses()
 	attachment_descriptions[0].finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	color_attachment_reference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
+	VkSubpassDescription subpass_description;
+	memset(&subpass_description, 0, sizeof(subpass_description));
+	subpass_description.colorAttachmentCount = 1;
+	subpass_description.pColorAttachments = &color_attachment_reference;
 	subpass_description.pDepthStencilAttachment = NULL;
+	subpass_description.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+
+	render_pass_create_info.subpassCount = 1;
+	render_pass_create_info.pSubpasses = &subpass_description;
 	render_pass_create_info.attachmentCount = 1;
+	render_pass_create_info.dependencyCount = 0;
+	render_pass_create_info.pDependencies = NULL;
 
 	err = vkCreateRenderPass(vulkan_globals.device, &render_pass_create_info, NULL, &vulkan_globals.warp_render_pass);
 	if (err != VK_SUCCESS)
@@ -913,6 +969,72 @@ static void GL_CreateDepthBuffer( void )
 	image_view_create_info.flags = 0;
 
 	err = vkCreateImageView(vulkan_globals.device, &image_view_create_info, NULL, &depth_buffer_view);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkCreateImageView failed");
+}
+
+
+/*
+===============
+GL_CreateColorBuffer
+===============
+*/
+static void GL_CreateColorBuffer( void )
+{
+	Con_Printf("Creating color buffer\n");
+
+	VkResult err;
+	
+	VkImageCreateInfo image_create_info;
+	memset(&image_create_info, 0, sizeof(image_create_info));
+	image_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+	image_create_info.pNext = NULL;
+	image_create_info.imageType = VK_IMAGE_TYPE_2D;
+	image_create_info.format = COLOR_BUFFER_FORMAT;
+	image_create_info.extent.width = vid.width;
+	image_create_info.extent.height = vid.height;
+	image_create_info.extent.depth = 1;
+	image_create_info.mipLevels = 1;
+	image_create_info.arrayLayers = 1;
+	image_create_info.samples = VK_SAMPLE_COUNT_1_BIT;
+	image_create_info.tiling = VK_IMAGE_TILING_OPTIMAL;
+	image_create_info.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
+
+	err = vkCreateImage(vulkan_globals.device, &image_create_info, NULL, &color_buffer);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkCreateImage failed");
+
+	VkMemoryRequirements memory_requirements;
+	vkGetImageMemoryRequirements(vulkan_globals.device, color_buffer, &memory_requirements);
+
+	VkMemoryAllocateInfo memory_allocate_info;
+	memset(&memory_allocate_info, 0, sizeof(memory_allocate_info));
+	memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	memory_allocate_info.allocationSize = memory_requirements.size;
+	memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+	err = vkAllocateMemory(vulkan_globals.device, &memory_allocate_info, NULL, &color_buffer_memory);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkAllocateMemory failed");
+
+	err = vkBindImageMemory(vulkan_globals.device, color_buffer, color_buffer_memory, 0);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkBindImageMemory failed");
+
+	VkImageViewCreateInfo image_view_create_info;
+	memset(&image_view_create_info, 0, sizeof(image_view_create_info));
+	image_view_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+	image_view_create_info.format = COLOR_BUFFER_FORMAT;
+	image_view_create_info.image = color_buffer;
+	image_view_create_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	image_view_create_info.subresourceRange.baseMipLevel = 0;
+	image_view_create_info.subresourceRange.levelCount = 1;
+	image_view_create_info.subresourceRange.baseArrayLayer = 0;
+	image_view_create_info.subresourceRange.layerCount = 1;
+	image_view_create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+	image_view_create_info.flags = 0;
+
+	err = vkCreateImageView(vulkan_globals.device, &image_view_create_info, NULL, &color_buffer_view);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateImageView failed");
 }
@@ -1062,14 +1184,14 @@ static void GL_CreateFrameBuffers( void )
 	memset(&framebuffer_create_info, 0, sizeof(framebuffer_create_info));
 	framebuffer_create_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
 	framebuffer_create_info.renderPass = vulkan_globals.main_render_pass;
-	framebuffer_create_info.attachmentCount = 2;
+	framebuffer_create_info.attachmentCount = 4;
 	framebuffer_create_info.width = vid.width;
 	framebuffer_create_info.height = vid.height;
 	framebuffer_create_info.layers = 1;
 
 	for (int i = 0; i < NUM_SWAP_CHAIN_IMAGES; ++i)
 	{
-		VkImageView attachments[2] = { swapchain_images_views[i], depth_buffer_view };
+		VkImageView attachments[4] = { color_buffer_view, depth_buffer_view, swapchain_images_views[i], color_buffer_view };
 		framebuffer_create_info.pAttachments = attachments;
 		err = vkCreateFramebuffer(vulkan_globals.device, &framebuffer_create_info, NULL, &framebuffers[i]);
 		if (err != VK_SUCCESS)
@@ -1085,6 +1207,14 @@ GL_DestroyBeforeSetMode
 static void GL_DestroyBeforeSetMode( void )
 {
 	GL_WaitForDeviceIdle();
+
+	vkDestroyImageView(vulkan_globals.device, color_buffer_view, NULL);
+	vkDestroyImage(vulkan_globals.device, color_buffer, NULL);
+	vkFreeMemory(vulkan_globals.device, color_buffer_memory, NULL);
+
+	color_buffer_view = VK_NULL_HANDLE;
+	color_buffer = VK_NULL_HANDLE;
+	color_buffer_memory = VK_NULL_HANDLE;
 
 	vkDestroyImageView(vulkan_globals.device, depth_buffer_view, NULL);
 	vkDestroyImage(vulkan_globals.device, depth_buffer, NULL);
@@ -1191,6 +1321,7 @@ void GL_EndRendering (void)
 	
 	VkResult err;
 
+	vkCmdNextSubpass(vulkan_globals.command_buffer, VK_SUBPASS_CONTENTS_INLINE);
 	vkCmdEndRenderPass(vulkan_globals.command_buffer);
 
 	err = vkEndCommandBuffer(vulkan_globals.command_buffer);
@@ -1515,6 +1646,7 @@ void	VID_Init (void)
 	GL_InitCommandBuffers();
 	GL_CreateSwapChain();
 	GL_CreateRenderPasses();
+	GL_CreateColorBuffer();
 	GL_CreateDepthBuffer();
 	GL_CreateFrameBuffers();
 	R_InitStagingBuffers();
@@ -1579,6 +1711,7 @@ static void VID_Restart (void)
 	VID_SetMode (width, height, bpp, fullscreen);
 
 	GL_CreateSwapChain();
+	GL_CreateColorBuffer();
 	GL_CreateDepthBuffer();
 	GL_CreateFrameBuffers();
 

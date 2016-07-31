@@ -292,6 +292,8 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClCompile Include="..\..\Shaders\Compiled\basic_frag.c" />
     <ClCompile Include="..\..\Shaders\Compiled\basic_notex_frag.c" />
     <ClCompile Include="..\..\Shaders\Compiled\basic_vert.c" />
+    <ClCompile Include="..\..\Shaders\Compiled\postprocess_frag.c" />
+    <ClCompile Include="..\..\Shaders\Compiled\postprocess_vert.c" />
     <ClCompile Include="..\..\Shaders\Compiled\sky_layer_frag.c" />
     <ClCompile Include="..\..\Shaders\Compiled\sky_layer_vert.c" />
     <ClCompile Include="..\..\Shaders\Compiled\world_frag.c" />
@@ -375,6 +377,8 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <None Include="..\..\Shaders\basic_alphatest.frag" />
     <None Include="..\..\Shaders\basic_notex.frag" />
     <None Include="..\..\Shaders\compile.bat" />
+    <None Include="..\..\Shaders\postprocess.frag" />
+    <None Include="..\..\Shaders\postprocess.vert" />
     <None Include="..\..\Shaders\sky_layer.frag" />
     <None Include="..\..\Shaders\sky_layer.vert" />
     <None Include="..\..\Shaders\world.frag" />
