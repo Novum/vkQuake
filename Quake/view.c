@@ -513,35 +513,41 @@ V_PolyBlend -- johnfitz -- moved here from gl_rmain.c, and rewritten to use glOr
 */
 void V_PolyBlend (void)
 {
-	//if (!gl_polyblend.value || !v_blend[3])
-	//	return;
+	if (!gl_polyblend.value || !v_blend[3])
+		return;
 
-	//GL_DisableMultitexture();
+	GL_SetCanvas (CANVAS_DEFAULT);
 
-	//glDisable (GL_ALPHA_TEST);
-	//glDisable (GL_TEXTURE_2D);
-	//glDisable (GL_DEPTH_TEST);
-	//glEnable (GL_BLEND);
+	VkBuffer vertex_buffer;
+	VkDeviceSize vertex_buffer_offset;
+	basicvertex_t * vertices = (basicvertex_t*)R_VertexAllocate(4 * sizeof(basicvertex_t), &vertex_buffer, &vertex_buffer_offset);
 
-	//glMatrixMode(GL_PROJECTION);
- //   glLoadIdentity ();
-	//glOrtho (0, 1, 1, 0, -99999, 99999);
-	//glMatrixMode(GL_MODELVIEW);
- //   glLoadIdentity ();
+	memset(vertices, 0, 4 * sizeof(basicvertex_t));
 
-	//glColor4fv (v_blend);
+	vertices[0].position[0] = 0.0f;
+	vertices[0].position[1] = 0.0f;
 
-	//glBegin (GL_QUADS);
-	//glVertex2f (0,0);
-	//glVertex2f (1, 0);
-	//glVertex2f (1, 1);
-	//glVertex2f (0, 1);
-	//glEnd ();
+	vertices[1].position[0] = vid.width;
+	vertices[1].position[1] = 0.0f;
 
-	//glDisable (GL_BLEND);
-	//glEnable (GL_DEPTH_TEST);
-	//glEnable (GL_TEXTURE_2D);
-	//glEnable (GL_ALPHA_TEST);
+	vertices[2].position[0] = vid.width;
+	vertices[2].position[1] = vid.height;
+
+	vertices[3].position[0] = 0.0f;
+	vertices[3].position[1] = vid.height;
+
+	for (int i = 0; i < 4; ++i)
+	{
+		vertices[i].color[0] = v_blend[0] * 255.0f;
+		vertices[i].color[1] = v_blend[1] * 255.0f;
+		vertices[i].color[2] = v_blend[2] * 255.0f;
+		vertices[i].color[3] = v_blend[3] * 255.0f;
+	}
+
+	vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &vertex_buffer, &vertex_buffer_offset);
+	vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_poly_blend_pipeline);
+
+	vkCmdDraw(vulkan_globals.command_buffer, 4, 1, 0, 0);
 }
 
 /*

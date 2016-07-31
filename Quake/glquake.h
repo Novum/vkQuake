@@ -129,6 +129,7 @@ typedef struct
 	VkPipeline							basic_alphatest_pipeline;
 	VkPipeline							basic_blend_pipeline;
 	VkPipeline							basic_notex_blend_pipeline;
+	VkPipeline							basic_poly_blend_pipeline;
 	VkPipelineLayout					basic_pipeline_layout;
 	VkPipeline							world_pipelines[world_pipeline_count];
 	VkPipelineLayout					world_pipeline_layout;

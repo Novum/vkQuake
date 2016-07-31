@@ -709,7 +709,7 @@ byte * R_IndexAllocate(int size, VkBuffer * buffer, VkDeviceSize * buffer_offset
 ===============
 R_UniformAllocate
 
-UBO offets need to be 256 byte aligned on NVIDIA hardware
+UBO offsets need to be 256 byte aligned on NVIDIA hardware
 This is also the maximum required alignment by the Vulkan spec
 ===============
 */
@@ -1113,6 +1113,14 @@ void R_CreatePipelines()
 	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.basic_notex_blend_pipeline);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateGraphicsPipelines failed");
+
+	input_assembly_state_create_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN;
+
+	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.basic_poly_blend_pipeline);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkCreateGraphicsPipelines failed");
+
+	input_assembly_state_create_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
 	shader_stages[1].module = basic_frag_module;
 
