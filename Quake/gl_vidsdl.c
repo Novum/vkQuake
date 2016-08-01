@@ -165,22 +165,13 @@ static qboolean device_idle;
 
 /*
 ================
-VID_Gamma_f -- callback when the cvar changes
-================
-*/
-static void VID_Gamma_f (cvar_t *var)
-{
-}
-
-/*
-================
 VID_Gamma_Init -- call on init
 ================
 */
 static void VID_Gamma_Init (void)
 {
 	Cvar_RegisterVariable (&vid_gamma);
-	Cvar_SetCallback (&vid_gamma, VID_Gamma_f);
+	Cvar_RegisterVariable (&vid_contrast);
 }
 
 /*
@@ -1360,12 +1351,12 @@ void GL_EndRendering (void)
 
 	// Render post process
 	GL_Viewport(0, 0, vid.width, vid.height);
-	float postprocess_values[1] = { vid_gamma.value };
+	float postprocess_values[2] = { vid_gamma.value, q_min(2.0, q_max(1.0, vid_contrast.value)) };
 
 	vkCmdNextSubpass(vulkan_globals.command_buffer, VK_SUBPASS_CONTENTS_INLINE);
 	vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.postprocess_pipeline_layout, 0, 1, &postprocess_descriptor_set, 0, NULL);
 	vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.postprocess_pipeline);
-	vkCmdPushConstants(vulkan_globals.command_buffer, vulkan_globals.postprocess_pipeline_layout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(float), postprocess_values);
+	vkCmdPushConstants(vulkan_globals.command_buffer, vulkan_globals.postprocess_pipeline_layout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, 2 * sizeof(float), postprocess_values);
 	vkCmdDraw(vulkan_globals.command_buffer, 3, 1, 0, 0);
 
 	vkCmdEndRenderPass(vulkan_globals.command_buffer);
