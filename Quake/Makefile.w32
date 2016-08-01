@@ -223,6 +223,8 @@ SHADER_OBJS = \
 	../Shaders/Compiled/basic_vert.c \
 	../Shaders/Compiled/sky_layer_frag.c \
 	../Shaders/Compiled/sky_layer_vert.c \
+	../Shaders/Compiled/postprocess_frag.c \
+	../Shaders/Compiled/postprocess_vert.c \
 	../Shaders/Compiled/world_frag.c \
 	../Shaders/Compiled/world_vert.c
 
