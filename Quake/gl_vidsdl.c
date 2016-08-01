@@ -1359,6 +1359,7 @@ void GL_EndRendering (void)
 	VkResult err;
 
 	// Render post process
+	GL_Viewport(0, 0, vid.width, vid.height);
 	float postprocess_values[1] = { vid_gamma.value };
 
 	vkCmdNextSubpass(vulkan_globals.command_buffer, VK_SUBPASS_CONTENTS_INLINE);
