@@ -353,7 +353,7 @@ void GLSLGamma_GammaCorrect (void);
 
 float GL_WaterAlphaForSurface (msurface_t *fa);
 
-int GL_MemoryTypeFromProperties(uint32_t type_bits, VkFlags requirements_mask);
+int GL_MemoryTypeFromProperties(uint32_t type_bits, VkFlags requirements_mask, VkFlags preferred_mask);
 
 void R_CreateDescriptorPool();
 void R_CreateDescriptorSetLayouts();
