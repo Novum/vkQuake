@@ -110,6 +110,7 @@ static VkImageView					depth_buffer_view;
 static VkImage						color_buffer;
 static VkDeviceMemory				color_buffer_memory;
 static VkImageView					color_buffer_view;
+static VkDescriptorSet				postprocess_descriptor_set;
 
 static PFN_vkGetDeviceProcAddr fpGetDeviceProcAddr;
 static PFN_vkGetPhysicalDeviceSurfaceSupportKHR fpGetPhysicalDeviceSurfaceSupportKHR;
@@ -1041,6 +1042,39 @@ static void GL_CreateColorBuffer( void )
 
 /*
 ===============
+GL_CreatePostprocessDescriptorSet
+===============
+*/
+GL_CreatePostprocessDescriptorSet()
+{
+	VkDescriptorSetAllocateInfo descriptor_set_allocate_info;
+	memset(&descriptor_set_allocate_info, 0, sizeof(descriptor_set_allocate_info));
+	descriptor_set_allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	descriptor_set_allocate_info.descriptorPool = vulkan_globals.descriptor_pool;
+	descriptor_set_allocate_info.descriptorSetCount = 1;
+	descriptor_set_allocate_info.pSetLayouts = &vulkan_globals.input_attachment_set_layout;
+
+	vkAllocateDescriptorSets(vulkan_globals.device, &descriptor_set_allocate_info, &postprocess_descriptor_set);
+
+	VkDescriptorImageInfo image_info;
+	memset(&image_info, 0, sizeof(image_info));
+	image_info.imageView = color_buffer_view;
+	image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+	VkWriteDescriptorSet input_attachment_write;
+	memset(&input_attachment_write, 0, sizeof(input_attachment_write));
+	input_attachment_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	input_attachment_write.dstBinding = 0;
+	input_attachment_write.dstArrayElement = 0;
+	input_attachment_write.descriptorCount = 1;
+	input_attachment_write.descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+	input_attachment_write.dstSet = postprocess_descriptor_set;
+	input_attachment_write.pImageInfo = &image_info;
+	vkUpdateDescriptorSets(vulkan_globals.device, 1, &input_attachment_write, 0, NULL);
+}
+
+/*
+===============
 GL_CreateSwapChain
 ===============
 */
@@ -1208,6 +1242,9 @@ static void GL_DestroyBeforeSetMode( void )
 {
 	GL_WaitForDeviceIdle();
 
+	vkFreeDescriptorSets(vulkan_globals.device, vulkan_globals.descriptor_pool, 1, &postprocess_descriptor_set);
+	postprocess_descriptor_set = VK_NULL_HANDLE;
+
 	vkDestroyImageView(vulkan_globals.device, color_buffer_view, NULL);
 	vkDestroyImage(vulkan_globals.device, color_buffer, NULL);
 	vkFreeMemory(vulkan_globals.device, color_buffer_memory, NULL);
@@ -1321,7 +1358,15 @@ void GL_EndRendering (void)
 	
 	VkResult err;
 
+	// Render post process
+	float postprocess_values[1] = { vid_gamma.value };
+
 	vkCmdNextSubpass(vulkan_globals.command_buffer, VK_SUBPASS_CONTENTS_INLINE);
+	vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.postprocess_pipeline_layout, 0, 1, &postprocess_descriptor_set, 0, NULL);
+	vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.postprocess_pipeline);
+	vkCmdPushConstants(vulkan_globals.command_buffer, vulkan_globals.postprocess_pipeline_layout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(float), postprocess_values);
+	vkCmdDraw(vulkan_globals.command_buffer, 3, 1, 0, 0);
+
 	vkCmdEndRenderPass(vulkan_globals.command_buffer);
 
 	err = vkEndCommandBuffer(vulkan_globals.command_buffer);
@@ -1656,6 +1701,7 @@ void	VID_Init (void)
 	R_InitSamplers();
 	R_CreatePipelineLayouts();
 	R_CreatePipelines();
+	GL_CreatePostprocessDescriptorSet();
 
 	//johnfitz -- removed code creating "glquake" subdirectory
 
@@ -1714,6 +1760,7 @@ static void VID_Restart (void)
 	GL_CreateColorBuffer();
 	GL_CreateDepthBuffer();
 	GL_CreateFrameBuffers();
+	GL_CreatePostprocessDescriptorSet();
 
 	//conwidth and conheight need to be recalculated
 	vid.conwidth = (scr_conwidth.value > 0) ? (int)scr_conwidth.value : (scr_conscale.value > 0) ? (int)(vid.width/scr_conscale.value) : vid.width;

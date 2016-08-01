@@ -144,11 +144,14 @@ typedef struct
 	VkPipelineLayout					sky_layer_pipeline_layout;
 	VkPipeline							alias_pipeline;
 	VkPipelineLayout					alias_pipeline_layout;
+	VkPipeline							postprocess_pipeline;
+	VkPipelineLayout					postprocess_pipeline_layout;
 
 	// Descriptors
 	VkDescriptorPool					descriptor_pool;
 	VkDescriptorSetLayout				ubo_set_layout;
 	VkDescriptorSetLayout				single_texture_set_layout;
+	VkDescriptorSetLayout				input_attachment_set_layout;
 
 	// Samplers
 	VkSampler							point_sampler;

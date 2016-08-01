@@ -790,6 +790,20 @@ void R_CreateDescriptorSetLayouts()
 	err = vkCreateDescriptorSetLayout(vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.ubo_set_layout);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateDescriptorSetLayout failed");
+
+	VkDescriptorSetLayoutBinding input_attachment_layout_bindings;
+	memset(&input_attachment_layout_bindings, 0, sizeof(input_attachment_layout_bindings));
+	input_attachment_layout_bindings.binding = 0;
+	input_attachment_layout_bindings.descriptorCount = 1;
+	input_attachment_layout_bindings.descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+	input_attachment_layout_bindings.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+	descriptor_set_layout_create_info.bindingCount = 1;
+	descriptor_set_layout_create_info.pBindings = &input_attachment_layout_bindings;
+	
+	err = vkCreateDescriptorSetLayout(vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.input_attachment_set_layout);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkCreateDescriptorSetLayout failed");
 }
 
 /*
@@ -799,16 +813,18 @@ R_CreateDescriptorPool
 */
 void R_CreateDescriptorPool()
 {
-	VkDescriptorPoolSize pool_sizes[2];
+	VkDescriptorPoolSize pool_sizes[3];
 	pool_sizes[0].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	pool_sizes[0].descriptorCount = MAX_GLTEXTURES;
 	pool_sizes[1].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
 	pool_sizes[1].descriptorCount = 16;
+	pool_sizes[2].type = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+	pool_sizes[2].descriptorCount = 1;
 
 	VkDescriptorPoolCreateInfo descriptor_pool_create_info;
 	memset(&descriptor_pool_create_info, 0, sizeof(descriptor_pool_create_info));
 	descriptor_pool_create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-	descriptor_pool_create_info.maxSets = MAX_GLTEXTURES + 16;
+	descriptor_pool_create_info.maxSets = MAX_GLTEXTURES + 16 + 1;
 	descriptor_pool_create_info.poolSizeCount = 2;
 	descriptor_pool_create_info.pPoolSizes = pool_sizes;
 	descriptor_pool_create_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
@@ -863,7 +879,7 @@ void R_CreatePipelineLayouts()
 		Sys_Error("vkCreatePipelineLayout failed");
 
 	// Alias
-	VkDescriptorSetLayout alias_descriptor_set_layouts[3] = { 
+	VkDescriptorSetLayout alias_descriptor_set_layouts[3] = {
 		vulkan_globals.single_texture_set_layout,
 		vulkan_globals.single_texture_set_layout,
 		vulkan_globals.ubo_set_layout
@@ -877,7 +893,7 @@ void R_CreatePipelineLayouts()
 		Sys_Error("vkCreatePipelineLayout failed");
 
 	// Sky
-	VkDescriptorSetLayout sky_layer_descriptor_set_layouts[2] = { 
+	VkDescriptorSetLayout sky_layer_descriptor_set_layouts[2] = {
 		vulkan_globals.single_texture_set_layout,
 		vulkan_globals.single_texture_set_layout,
 	};
@@ -886,6 +902,25 @@ void R_CreatePipelineLayouts()
 	pipeline_layout_create_info.pSetLayouts = sky_layer_descriptor_set_layouts;
 
 	err = vkCreatePipelineLayout(vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.sky_layer_pipeline_layout);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkCreatePipelineLayout failed");
+
+	// Postprocess
+	VkDescriptorSetLayout postprocess_descriptor_set_layouts[1] = {
+		vulkan_globals.input_attachment_set_layout,
+	};
+
+	memset(&push_constant_range, 0, sizeof(push_constant_range));
+	push_constant_range.offset = 0;
+	push_constant_range.size = 1 * sizeof(float);
+	push_constant_range.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+	pipeline_layout_create_info.setLayoutCount = 1;
+	pipeline_layout_create_info.pSetLayouts = postprocess_descriptor_set_layouts;
+	pipeline_layout_create_info.pushConstantRangeCount = 1;
+	pipeline_layout_create_info.pPushConstantRanges = &push_constant_range;
+
+	err = vkCreatePipelineLayout(vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.postprocess_pipeline_layout);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreatePipelineLayout failed");
 }
@@ -976,6 +1011,8 @@ void R_CreatePipelines()
 	VkShaderModule alias_frag_module = R_CreateShaderModule(alias_frag_spv, alias_frag_spv_size);
 	VkShaderModule sky_layer_vert_module = R_CreateShaderModule(sky_layer_vert_spv, sky_layer_vert_spv_size);
 	VkShaderModule sky_layer_frag_module = R_CreateShaderModule(sky_layer_frag_spv, sky_layer_frag_spv_size);
+	VkShaderModule postprocess_vert_module = R_CreateShaderModule(postprocess_vert_spv, postprocess_vert_spv_size);
+	VkShaderModule postprocess_frag_module = R_CreateShaderModule(postprocess_frag_spv, postprocess_frag_spv_size);
 
 	VkPipelineDynamicStateCreateInfo dynamic_state_create_info;
 	memset(&dynamic_state_create_info, 0, sizeof(dynamic_state_create_info));
@@ -1389,6 +1426,28 @@ void R_CreatePipelines()
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateGraphicsPipelines failed");
 
+	//================
+	// Postprocess pipeline
+	//================
+	rasterization_state_create_info.cullMode = VK_CULL_MODE_NONE;
+	depth_stencil_state_create_info.depthTestEnable = VK_FALSE;
+	depth_stencil_state_create_info.depthWriteEnable = VK_FALSE;
+
+	vertex_input_state_create_info.vertexAttributeDescriptionCount = 0;
+	vertex_input_state_create_info.pVertexAttributeDescriptions = NULL;
+	vertex_input_state_create_info.vertexBindingDescriptionCount = 0;
+	vertex_input_state_create_info.pVertexBindingDescriptions = NULL;
+
+	shader_stages[0].module = postprocess_vert_module;
+	shader_stages[1].module = postprocess_frag_module;
+	pipeline_create_info.layout = vulkan_globals.postprocess_pipeline_layout;
+
+	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.postprocess_pipeline);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkCreateGraphicsPipelines failed");
+
+	vkDestroyShaderModule(vulkan_globals.device, postprocess_frag_module, NULL);
+	vkDestroyShaderModule(vulkan_globals.device, postprocess_vert_module, NULL);
 	vkDestroyShaderModule(vulkan_globals.device, sky_layer_frag_module, NULL);
 	vkDestroyShaderModule(vulkan_globals.device, sky_layer_vert_module, NULL);
 	vkDestroyShaderModule(vulkan_globals.device, alias_frag_module, NULL);

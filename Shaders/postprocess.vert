@@ -9,9 +9,9 @@ out gl_PerVertex {
 void main() 
 {
 	vec4 positions[3] = {
-		vec4(0.0f, 0.0f, 0.0f, 1.0f),
-		vec4(1.0f, 0.0f, 0.0f, 1.0f),
-		vec4(1.0f, 1.0f, 0.0f, 1.0f)
+		vec4(-1.0f, -1.0f, 0.0f, 1.0f),
+		vec4(3.0f, -1.0f, 0.0f, 1.0f),
+		vec4(-1.0f, 3.0f, 0.0f, 1.0f)
 	};
 
 	gl_Position = positions[gl_VertexIndex % 3];
