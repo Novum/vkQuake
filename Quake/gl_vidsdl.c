@@ -788,7 +788,7 @@ static void GL_CreateRenderPasses()
 	VkResult err;
 
 	// Main render pass
-	VkAttachmentDescription attachment_descriptions[4];
+	VkAttachmentDescription attachment_descriptions[3];
 	memset(&attachment_descriptions, 0, sizeof(attachment_descriptions));
 
 	attachment_descriptions[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -796,8 +796,7 @@ static void GL_CreateRenderPasses()
 	attachment_descriptions[0].samples = VK_SAMPLE_COUNT_1_BIT;
 	attachment_descriptions[0].format = COLOR_BUFFER_FORMAT;
 	attachment_descriptions[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-	attachment_descriptions[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-	attachment_descriptions[0].flags = VK_ATTACHMENT_DESCRIPTION_MAY_ALIAS_BIT;
+	attachment_descriptions[0].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 
 	attachment_descriptions[1].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	attachment_descriptions[1].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
@@ -813,14 +812,6 @@ static void GL_CreateRenderPasses()
 	attachment_descriptions[2].loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 	attachment_descriptions[2].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 
-	attachment_descriptions[3].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	attachment_descriptions[3].finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	attachment_descriptions[3].samples = VK_SAMPLE_COUNT_1_BIT;
-	attachment_descriptions[3].format = COLOR_BUFFER_FORMAT;
-	attachment_descriptions[3].loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
-	attachment_descriptions[3].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	attachment_descriptions[3].flags = VK_ATTACHMENT_DESCRIPTION_MAY_ALIAS_BIT;
-
 	VkAttachmentReference color_attachment_reference;
 	color_attachment_reference.attachment = 0;
 	color_attachment_reference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
@@ -834,7 +825,7 @@ static void GL_CreateRenderPasses()
 	swap_chain_attachment_reference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
 	VkAttachmentReference color_input_attachment_reference;
-	color_input_attachment_reference.attachment = 3;
+	color_input_attachment_reference.attachment = 0;
 	color_input_attachment_reference.layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
 	VkSubpassDescription subpass_descriptions[2];
@@ -864,7 +855,7 @@ static void GL_CreateRenderPasses()
 	VkRenderPassCreateInfo render_pass_create_info;
 	memset(&render_pass_create_info, 0, sizeof(render_pass_create_info));
 	render_pass_create_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-	render_pass_create_info.attachmentCount = 4;
+	render_pass_create_info.attachmentCount = 3;
 	render_pass_create_info.pAttachments = attachment_descriptions;
 	render_pass_create_info.subpassCount = 2;
 	render_pass_create_info.pSubpasses = subpass_descriptions;
@@ -878,6 +869,7 @@ static void GL_CreateRenderPasses()
 	// Warp rendering
 	attachment_descriptions[0].format = VK_FORMAT_R8G8B8A8_UNORM;
 	attachment_descriptions[0].loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	attachment_descriptions[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 	attachment_descriptions[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	attachment_descriptions[0].finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	color_attachment_reference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
@@ -1036,7 +1028,7 @@ static void GL_CreateColorBuffer( void )
 GL_CreatePostprocessDescriptorSet
 ===============
 */
-GL_CreatePostprocessDescriptorSet()
+static void GL_CreatePostprocessDescriptorSet(void)
 {
 	VkDescriptorSetAllocateInfo descriptor_set_allocate_info;
 	memset(&descriptor_set_allocate_info, 0, sizeof(descriptor_set_allocate_info));
@@ -1209,14 +1201,14 @@ static void GL_CreateFrameBuffers( void )
 	memset(&framebuffer_create_info, 0, sizeof(framebuffer_create_info));
 	framebuffer_create_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
 	framebuffer_create_info.renderPass = vulkan_globals.main_render_pass;
-	framebuffer_create_info.attachmentCount = 4;
+	framebuffer_create_info.attachmentCount = 3;
 	framebuffer_create_info.width = vid.width;
 	framebuffer_create_info.height = vid.height;
 	framebuffer_create_info.layers = 1;
 
 	for (int i = 0; i < NUM_SWAP_CHAIN_IMAGES; ++i)
 	{
-		VkImageView attachments[4] = { color_buffer_view, depth_buffer_view, swapchain_images_views[i], color_buffer_view };
+		VkImageView attachments[3] = { color_buffer_view, depth_buffer_view, swapchain_images_views[i] };
 		framebuffer_create_info.pAttachments = attachments;
 		err = vkCreateFramebuffer(vulkan_globals.device, &framebuffer_create_info, NULL, &framebuffers[i]);
 		if (err != VK_SUCCESS)
