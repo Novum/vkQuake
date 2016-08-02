@@ -26,6 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #endif
 #include <windows.h>
 #include <mmsystem.h>
+#include <VersionHelpers.h>
 
 #include "quakedef.h"
 
@@ -42,7 +43,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
 qboolean		isDedicated;
-qboolean	Win95, Win95old, WinNT, WinVista;
 cvar_t		sys_throttle = {"sys_throttle", "0.02", CVAR_ARCHIVE};
 
 static HANDLE		hinput, houtput;
@@ -213,8 +213,6 @@ static void Sys_SetTimerResolution(void)
 
 void Sys_Init (void)
 {
-	OSVERSIONINFO	vinfo;
-
 	Sys_SetTimerResolution ();
 	Sys_SetDPIAware ();
 
@@ -226,39 +224,17 @@ void Sys_Init (void)
 	 * can be done if necessary, though... */
 	host_parms->userdir = host_parms->basedir; /* code elsewhere relies on this ! */
 
-	vinfo.dwOSVersionInfoSize = sizeof(vinfo);
-
-	if (!GetVersionEx (&vinfo))
-		Sys_Error ("Couldn't get OS info");
-
-	if ((vinfo.dwMajorVersion < 4) ||
-		(vinfo.dwPlatformId == VER_PLATFORM_WIN32s))
+	if (!IsWindowsVersionOrGreater (HIBYTE(_WIN32_WINNT_NT4), LOBYTE(_WIN32_WINNT_NT4), 0))
 	{
-		Sys_Error ("vkQuake requires at least Win95 or NT 4.0");
+		Sys_Error ("vkQuake requires at least Windows NT 4.0");
 	}
 
-	if (vinfo.dwPlatformId == VER_PLATFORM_WIN32_NT)
+	SYSTEM_INFO info;
+	GetSystemInfo(&info);
+	host_parms->numcpus = info.dwNumberOfProcessors;
+	if (host_parms->numcpus < 1)
 	{
-		SYSTEM_INFO info;
-		WinNT = true;
-		if (vinfo.dwMajorVersion >= 6)
-			WinVista = true;
-		GetSystemInfo(&info);
-		host_parms->numcpus = info.dwNumberOfProcessors;
-		if (host_parms->numcpus < 1)
-			host_parms->numcpus = 1;
-	}
-	else
-	{
-		WinNT = false; /* Win9x or WinME */
 		host_parms->numcpus = 1;
-		if ((vinfo.dwMajorVersion == 4) && (vinfo.dwMinorVersion == 0))
-		{
-			Win95 = true;
-			/* Win95-gold or Win95A can't switch bpp automatically */
-			if (vinfo.szCSDVersion[1] != 'C' && vinfo.szCSDVersion[1] != 'B')
-				Win95old = true;
-		}
 	}
 	Sys_Printf("Detected %d CPUs.\n", host_parms->numcpus);
 
