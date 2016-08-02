@@ -24,6 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 //gl_texmgr.c -- fitzquake's texture manager. manages texture images
 
 #include "quakedef.h"
+#include "gl_heap.h"
 
 static cvar_t	gl_texture_anisotropy = {"gl_texture_anisotropy", "1", CVAR_ARCHIVE};
 static cvar_t	gl_max_size = {"gl_max_size", "0", CVAR_NONE};
@@ -44,6 +45,12 @@ unsigned int d_8to24table_nobright_fence[256];
 unsigned int d_8to24table_conchars[256];
 unsigned int d_8to24table_shirt[256];
 unsigned int d_8to24table_pants[256];
+
+// Heap
+#define TEXTURE_HEAP_SIZE_MB 16
+#define TEXTURE_MAX_HEAPS 64
+
+static glheap_t * texmgr_heaps[TEXTURE_MAX_HEAPS];
 
 /*
 ================================================================================
@@ -862,6 +869,36 @@ static int TexMgr_DeriveStagingSize(int width, int height)
 
 /*
 ================
+TexMgr_Allocate
+================
+*/
+static void TexMgr_Allocate(VkMemoryRequirements * memory_requirements, glheap_t ** heap, glheapnode_t ** heap_node)
+{
+	for(int i = 0; i < TEXTURE_MAX_HEAPS; ++i)
+	{
+		qboolean new_heap = false;
+		if(!texmgr_heaps[i])
+		{
+			uint32_t memory_type_index = GL_MemoryTypeFromProperties(memory_requirements->memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
+			texmgr_heaps[i] = GL_CreateHeap((VkDeviceSize)TEXTURE_HEAP_SIZE_MB * (VkDeviceSize)1024 * (VkDeviceSize)1024, memory_type_index);
+			new_heap = true;
+		}
+
+		glheapnode_t * node = GL_HeapAllocate(texmgr_heaps[i], memory_requirements->size, memory_requirements->alignment);
+		if(node)
+		{
+			*heap_node = node;
+			*heap = texmgr_heaps[i];
+			return;
+		} else if(new_heap)
+			break;
+	}
+
+	Sys_Error("Could not allocate memory for texture");
+}
+
+/*
+================
 TexMgr_LoadImage32 -- handles 32bit source data
 ================
 */
@@ -919,17 +956,9 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	VkMemoryRequirements memory_requirements;
 	vkGetImageMemoryRequirements(vulkan_globals.device, glt->image, &memory_requirements);
 
-	VkMemoryAllocateInfo memory_allocate_info;
-	memset(&memory_allocate_info, 0, sizeof(memory_allocate_info));
-	memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	memory_allocate_info.allocationSize = memory_requirements.size;
-	memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
+	TexMgr_Allocate(&memory_requirements, &glt->heap, &glt->heap_node);
 
-	err = vkAllocateMemory(vulkan_globals.device, &memory_allocate_info, NULL, &glt->memory);
-	if (err != VK_SUCCESS)
-		Sys_Error("vkAllocateMemory failed");
-
-	err = vkBindImageMemory(vulkan_globals.device, glt->image, glt->memory, 0);
+	err = vkBindImageMemory(vulkan_globals.device, glt->image, glt->heap->memory, glt->heap_node->offset);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkBindImageMemory failed");
 
@@ -1502,13 +1531,14 @@ static void GL_DeleteTexture (gltexture_t *texture)
 		vkDestroyFramebuffer(vulkan_globals.device, texture->frame_buffer, NULL);
 	vkDestroyImageView(vulkan_globals.device, texture->image_view, NULL);
 	vkDestroyImage(vulkan_globals.device, texture->image, NULL);
-	vkFreeMemory(vulkan_globals.device, texture->memory, NULL);
+	GL_HeapFree(texture->heap, texture->heap_node);
 	vkFreeDescriptorSets(vulkan_globals.device, vulkan_globals.descriptor_pool, 1, &texture->descriptor_set);
 
 	texture->frame_buffer = VK_NULL_HANDLE;
 	texture->image_view = VK_NULL_HANDLE;
 	texture->image = VK_NULL_HANDLE;
-	texture->memory = VK_NULL_HANDLE;
+	texture->heap = NULL;
+	texture->heap_node = NULL;
 }
 
 /*

@@ -23,7 +23,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 typedef struct glheapnode_s
 {
-	VkDeviceMemory memory;
 	VkDeviceSize offset;
 	VkDeviceSize size;
 	struct glheapnode_t * prev;
@@ -32,7 +31,7 @@ typedef struct glheapnode_s
 
 typedef struct glheap_s
 {
-	VkDeviceMemory	heap_memory;
+	VkDeviceMemory	memory;
 	glheapnode_t * free_head;
 } glheap_t;
 
