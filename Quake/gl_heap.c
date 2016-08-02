@@ -130,4 +130,32 @@ void GL_HeapFree(glheap_t * heap, glheapnode_t * node)
 {
 	if(node->free)
 		Sys_Error("Trying to free a node that is already freed");
+
+	node->free = true;
+	if(node->prev && node->prev->free)
+	{
+		glheapnode_t * prev = node->prev;
+
+		prev->next = node->next;
+		if (node->next)
+			node->next->prev = prev;
+
+		prev->size += node->size;
+
+		free(node);
+		node = prev;
+	}
+
+	if(node->next && node->next->free)
+	{
+		glheapnode_t * next = node->next;
+
+		if(next->next)
+			next->next->prev = node;
+		node->next = next->next;
+
+		node->size += next->size;
+
+		free(next);
+	}
 }
