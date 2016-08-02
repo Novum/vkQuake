@@ -369,7 +369,7 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClInclude Include="..\..\Shaders\shaders.h" />
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="..\QuakeSpasm.rc" />
+    <ResourceCompile Include="..\vkQuake.rc" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\Shaders\alias.frag" />
