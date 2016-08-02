@@ -245,7 +245,8 @@ GLOBJS = \
 	r_sprite.o \
 	r_alias.o \
 	r_brush.o \
-	gl_model.o
+	gl_model.o \
+	gl_heap.o
 
 OBJS := strlcat.o \
 	strlcpy.o \
