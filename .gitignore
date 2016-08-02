@@ -1,5 +1,6 @@
 *.suo
 vkquake.VC*
+Misc/vq_pak/vkquake.pak
 Quake/*.dll
 Quake/*.o
 Quake/history.txt
