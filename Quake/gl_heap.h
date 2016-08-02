@@ -25,20 +25,21 @@ typedef struct glheapnode_s
 {
 	VkDeviceSize offset;
 	VkDeviceSize size;
-	struct glheapnode_t * prev;
-	struct glheapnode_t * next;
+	glheapnode_t * prev;
+	glheapnode_t * next;
+	qboolean free;
 } glheapnode_t;
 
 typedef struct glheap_s
 {
 	VkDeviceMemory	memory;
-	glheapnode_t * free_head;
+	glheapnode_t * head;
 } glheap_t;
 
 glheap_t * GL_CreateHeap(VkDeviceSize size, uint32_t memory_type_index);
 void GL_DestroyHeap(glheap_t * heap);
 
-glheapnode_t * GL_HeapAllocate(glheap_t * heap, VkDeviceSize size, VkDeviceSize alignment);
+glheapnode_t * GL_HeapAllocate(glheap_t * heap, VkDeviceSize size, VkDeviceSize alignment, VkDeviceSize * aligned_offset);
 void GL_HeapFree(glheap_t * heap, glheapnode_t * node);
 
 #endif

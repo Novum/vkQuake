@@ -872,7 +872,7 @@ static int TexMgr_DeriveStagingSize(int width, int height)
 TexMgr_Allocate
 ================
 */
-static void TexMgr_Allocate(VkMemoryRequirements * memory_requirements, glheap_t ** heap, glheapnode_t ** heap_node)
+static VkDeviceSize TexMgr_Allocate(VkMemoryRequirements * memory_requirements, glheap_t ** heap, glheapnode_t ** heap_node)
 {
 	for(int i = 0; i < TEXTURE_MAX_HEAPS; ++i)
 	{
@@ -884,17 +884,19 @@ static void TexMgr_Allocate(VkMemoryRequirements * memory_requirements, glheap_t
 			new_heap = true;
 		}
 
-		glheapnode_t * node = GL_HeapAllocate(texmgr_heaps[i], memory_requirements->size, memory_requirements->alignment);
+		VkDeviceSize aligned_offset;
+		glheapnode_t * node = GL_HeapAllocate(texmgr_heaps[i], memory_requirements->size, memory_requirements->alignment, &aligned_offset);
 		if(node)
 		{
 			*heap_node = node;
 			*heap = texmgr_heaps[i];
-			return;
+			return aligned_offset;
 		} else if(new_heap)
 			break;
 	}
 
 	Sys_Error("Could not allocate memory for texture");
+	return 0;
 }
 
 /*
@@ -956,9 +958,8 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	VkMemoryRequirements memory_requirements;
 	vkGetImageMemoryRequirements(vulkan_globals.device, glt->image, &memory_requirements);
 
-	TexMgr_Allocate(&memory_requirements, &glt->heap, &glt->heap_node);
-
-	err = vkBindImageMemory(vulkan_globals.device, glt->image, glt->heap->memory, glt->heap_node->offset);
+	VkDeviceSize aligned_offset = TexMgr_Allocate(&memory_requirements, &glt->heap, &glt->heap_node);
+	err = vkBindImageMemory(vulkan_globals.device, glt->image, glt->heap->memory, aligned_offset);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkBindImageMemory failed");
 
@@ -1458,68 +1459,6 @@ qboolean	mtexenabled = false;
 
 /*
 ================
-GL_SelectTexture -- johnfitz -- rewritten
-================
-*/
-/*void GL_SelectTexture (GLenum target)
-{
-	if (target == currenttarget)
-		return;
-		
-	GL_SelectTextureFunc(target);
-	currenttarget = target;
-}*/
-
-/*
-================
-GL_DisableMultitexture -- selects texture unit 0
-================
-*/
-void GL_DisableMultitexture(void)
-{
-	/*if (mtexenabled)
-	{
-		glDisable(GL_TEXTURE_2D);
-		GL_SelectTexture(GL_TEXTURE0_ARB);
-		mtexenabled = false;
-	}*/
-}
-
-/*
-================
-GL_EnableMultitexture -- selects texture unit 1
-================
-*/
-void GL_EnableMultitexture(void)
-{
-	/*if (gl_mtexable)
-	{
-		GL_SelectTexture(GL_TEXTURE1_ARB);
-		glEnable(GL_TEXTURE_2D);
-		mtexenabled = true;
-	}*/
-}
-
-/*
-================
-GL_Bind -- johnfitz -- heavy revision
-================
-*/
-void GL_Bind (gltexture_t *texture)
-{
-	/*if (!texture)
-		texture = nulltexture;
-
-	if (texture->texnum != currenttexture[currenttarget - GL_TEXTURE0_ARB])
-	{
-		currenttexture[currenttarget - GL_TEXTURE0_ARB] = texture->texnum;
-		glBindTexture (GL_TEXTURE_2D, texture->texnum);
-		texture->visframe = r_framecount;
-	}*/
-}
-
-/*
-================
 GL_DeleteTexture
 ================
 */
@@ -1539,22 +1478,4 @@ static void GL_DeleteTexture (gltexture_t *texture)
 	texture->image = VK_NULL_HANDLE;
 	texture->heap = NULL;
 	texture->heap_node = NULL;
-}
-
-/*
-================
-GL_ClearBindings -- ericw
- 
-Invalidates cached bindings, so the next GL_Bind calls for each TMU will
-make real glBindTexture calls.
-Call this after changing the binding outside of GL_Bind.
-================
-*/
-void GL_ClearBindings(void)
-{
-	/*int i;
-	for (i = 0; i < 3; i++)
-	{
-		currenttexture[i] = -1;
-	}*/
 }

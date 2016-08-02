@@ -22,6 +22,15 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "gl_heap.h"
 
 /*
+================================================================================
+
+	DEVICE MEMORY HEAP
+	Dumbest possible allocator for device memory.
+
+================================================================================
+*/
+
+/*
 ===============
 GL_CreateHeap
 ===============
@@ -40,9 +49,12 @@ glheap_t * GL_CreateHeap(VkDeviceSize size, uint32_t memory_type_index)
 	if (err != VK_SUCCESS)
 		Sys_Error("vkAllocateMemory failed");
 
-	heap->free_head = malloc(sizeof(glheapnode_t));
-	heap->free_head->offset = 0;
-	heap->free_head->size = size;
+	heap->head = malloc(sizeof(glheapnode_t));
+	heap->head->offset = 0;
+	heap->head->size = size;
+	heap->head->prev = NULL;
+	heap->head->next = NULL;
+	heap->head->free = true;
 
 	return heap;
 }
@@ -56,7 +68,7 @@ void GL_DestroyHeap(glheap_t * heap)
 {
 	GL_WaitForDeviceIdle();
 	vkFreeMemory(vulkan_globals.device, heap->memory, NULL);
-	free(heap->free_head);
+	free(heap->head);
 	free(heap);
 }
 
@@ -65,8 +77,47 @@ void GL_DestroyHeap(glheap_t * heap)
 GL_HeapAllocate
 ===============
 */
-glheapnode_t * GL_HeapAllocate(glheap_t * heap, VkDeviceSize size, VkDeviceSize alignment)
+glheapnode_t * GL_HeapAllocate(glheap_t * heap, VkDeviceSize size, VkDeviceSize alignment, VkDeviceSize * aligned_offset)
 {
+	for(glheapnode_t * current_node = heap->head; current_node != NULL; current_node = current_node->next)
+	{
+		if (!current_node->free)
+			continue;
+
+		const VkDeviceSize align_mod = current_node->offset % alignment;
+		VkDeviceSize align_padding = (align_mod == 0) ? 0 : (alignment - align_mod);
+		VkDeviceSize aligned_size = size + align_padding;
+
+		if (current_node->size > aligned_size)
+		{
+			glheapnode_t * new_node = malloc(sizeof(glheapnode_t));
+			*new_node = *current_node;
+			new_node->prev = current_node->prev;
+			new_node->next = current_node;
+			if(current_node->prev)
+				current_node->prev->next = new_node;
+			current_node->prev = new_node;
+			new_node->free = false;
+
+			new_node->size = aligned_size;
+			current_node->size -= aligned_size;
+			current_node->offset += aligned_size;
+
+			if (current_node == heap->head)
+				heap->head = new_node;
+
+			*aligned_offset = new_node->offset + align_padding;
+			return new_node;
+		}
+		else if (current_node->size == aligned_size)
+		{
+			current_node->free = false;
+			*aligned_offset = current_node->offset + align_padding;
+			return current_node;
+		}
+	}
+
+	*aligned_offset = 0;
 	return NULL;
 }
 
@@ -77,4 +128,6 @@ GL_HeapFree
 */
 void GL_HeapFree(glheap_t * heap, glheapnode_t * node)
 {
+	if(node->free)
+		Sys_Error("Trying to free a node that is already freed");
 }
