@@ -5,6 +5,6 @@ Quake/*.o
 Quake/history.txt
 Quake/id1/
 Quake/vkquake
-Quake/vkquake.exe
+Quake/vkQuake.exe
 Quake/vkQuake.res
 Windows/VisualStudio/Build-vkQuake/

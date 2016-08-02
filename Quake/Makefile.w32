@@ -1,4 +1,4 @@
-# GNU Makefile for compiling Win32 vkquake.exe using MinGW or MinGW-w64.
+# GNU Makefile for compiling Win32 vkQuake.exe using MinGW or MinGW-w64.
 # Usage: "make -f Makefile.w32"
 # To cross-compile on Linux hosts, see the "build_cross_win32*.sh" scripts.
 # "make DEBUG=1" to build a debug client.
@@ -179,7 +179,7 @@ LIBS := $(COMMON_LIBS) $(NET_LIBS) $(CODEC_LINK) $(CODECLIBS) $(VULKAN_LINK) $(V
 
 .PHONY:	clean debug release
 
-DEFAULT_TARGET := vkquake.exe
+DEFAULT_TARGET := vkQuake.exe
 
 # ---------------------------
 # rules
@@ -296,7 +296,7 @@ OBJS := strlcat.o \
 # MinGW build rules
 # ------------------------
 
-vkquake.exe:	$(OBJS) dll
+vkQuake.exe:	$(OBJS) dll
 	$(LINKER) $(OBJS) $(LDFLAGS) $(LIBS) $(SDL_LIBS) -o $@
 	$(call do_strip,$@)
 
@@ -304,7 +304,7 @@ dll:
 	cp ../Windows/codecs/x86/*.dll .
 	cp ../Windows/SDL2/lib/*.dll .
 
-release:	vkquake.exe
+release:	vkQuake.exe
 debug:
 	$(error Use "make DEBUG=1")
 
