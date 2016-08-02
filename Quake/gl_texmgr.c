@@ -47,8 +47,8 @@ unsigned int d_8to24table_shirt[256];
 unsigned int d_8to24table_pants[256];
 
 // Heap
-#define TEXTURE_HEAP_SIZE_MB 16
-#define TEXTURE_MAX_HEAPS 64
+#define TEXTURE_HEAP_SIZE_MB 32
+#define TEXTURE_MAX_HEAPS 32
 
 static glheap_t * texmgr_heaps[TEXTURE_MAX_HEAPS];
 
