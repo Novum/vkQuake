@@ -1292,6 +1292,10 @@ void GL_BeginRendering (int *x, int *y, int *width, int *height)
 	if (err != VK_SUCCESS)
 		Sys_Error("vkBeginCommandBuffer failed");
 
+	err = fpAcquireNextImageKHR(vulkan_globals.device, vulkan_swapchain, UINT64_MAX, image_aquired_semaphores[current_command_buffer], VK_NULL_HANDLE, &current_swapchain_buffer);
+	if (err != VK_SUCCESS)
+		Sys_Error("Couldn't acquire next image");
+
 	VkRect2D render_area;
 	render_area.offset.x = 0;
 	render_area.offset.y = 0;
@@ -1309,7 +1313,7 @@ void GL_BeginRendering (int *x, int *y, int *width, int *height)
 	vulkan_globals.main_render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 	vulkan_globals.main_render_pass_begin_info.renderArea = render_area;
 	vulkan_globals.main_render_pass_begin_info.renderPass = vulkan_globals.main_render_pass;
-	vulkan_globals.main_render_pass_begin_info.framebuffer = framebuffers[current_command_buffer];
+	vulkan_globals.main_render_pass_begin_info.framebuffer = framebuffers[current_swapchain_buffer];
 	vulkan_globals.main_render_pass_begin_info.clearValueCount = 2;
 	vulkan_globals.main_render_pass_begin_info.pClearValues = vulkan_globals.main_clear_values;
 
@@ -1334,15 +1338,8 @@ GL_EndRendering
 void GL_EndRendering (void)
 {
 	R_FlushDynamicBuffers();
-
+	
 	VkResult err;
-
-	err = fpAcquireNextImageKHR(vulkan_globals.device, vulkan_swapchain, UINT64_MAX, image_aquired_semaphores[current_command_buffer], VK_NULL_HANDLE, &current_swapchain_buffer);
-	if (err != VK_SUCCESS)
-		Sys_Error("Couldn't acquire next image");
-
-	if (current_command_buffer != current_swapchain_buffer)
-		Sys_Error("vkAcquireNextImageKHR returned an unexpected image index");
 
 	// Render post process
 	GL_Viewport(0, 0, vid.width, vid.height);
