@@ -42,4 +42,6 @@ void GL_DestroyHeap(glheap_t * heap);
 glheapnode_t * GL_HeapAllocate(glheap_t * heap, VkDeviceSize size, VkDeviceSize alignment, VkDeviceSize * aligned_offset);
 void GL_HeapFree(glheap_t * heap, glheapnode_t * node);
 
+qboolean GL_IsHeapEmpty(glheap_t * heap);
+
 #endif

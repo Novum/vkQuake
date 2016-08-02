@@ -1473,6 +1473,14 @@ static void GL_DeleteTexture (gltexture_t *texture)
 	GL_HeapFree(texture->heap, texture->heap_node);
 	vkFreeDescriptorSets(vulkan_globals.device, vulkan_globals.descriptor_pool, 1, &texture->descriptor_set);
 
+	if(GL_IsHeapEmpty(texture->heap))
+	{
+		GL_DestroyHeap(texture->heap);
+		for(int i = 0; i < TEXTURE_MAX_HEAPS; ++i)
+			if(texmgr_heaps[i] == texture->heap)
+				texmgr_heaps[i]  = NULL;
+	}
+
 	texture->frame_buffer = VK_NULL_HANDLE;
 	texture->image_view = VK_NULL_HANDLE;
 	texture->image = VK_NULL_HANDLE;

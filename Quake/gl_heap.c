@@ -159,3 +159,13 @@ void GL_HeapFree(glheap_t * heap, glheapnode_t * node)
 		free(next);
 	}
 }
+
+/*
+===============
+GL_IsHeapEmpty
+===============
+*/
+qboolean GL_IsHeapEmpty(glheap_t * heap)
+{
+	return heap->head->next == NULL;
+}
