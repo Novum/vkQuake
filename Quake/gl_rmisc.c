@@ -49,6 +49,8 @@ extern gltexture_t *playertextures[MAX_SCOREBOARD]; //johnfitz
 
 vulkanglobals_t vulkan_globals;
 
+int num_vulkan_allocations = 0;
+
 /*
 ================
 Staging
@@ -98,6 +100,8 @@ static dynbuffer_t		dyn_index_buffers[NUM_DYNAMIC_BUFFERS];
 static dynbuffer_t		dyn_uniform_buffers[NUM_DYNAMIC_BUFFERS];
 static int				current_dyn_buffer_index = 0;
 static VkDescriptorSet	ubo_descriptor_sets[2];
+
+void R_VulkanMemStats_f (void);
 
 /*
 ================
@@ -280,6 +284,7 @@ void R_InitStagingBuffers()
 	memory_allocate_info.allocationSize = NUM_STAGING_BUFFERS * aligned_size;
 	memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
 
+	num_vulkan_allocations += 1;
 	err = vkAllocateMemory(vulkan_globals.device, &memory_allocate_info, NULL, &staging_memory);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkAllocateMemory failed");
@@ -470,6 +475,7 @@ static void R_InitDynamicVertexBuffers()
 	memory_allocate_info.allocationSize = NUM_DYNAMIC_BUFFERS * aligned_size;
 	memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
 
+	num_vulkan_allocations += 1;
 	err = vkAllocateMemory(vulkan_globals.device, &memory_allocate_info, NULL, &dyn_vertex_buffer_memory);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkAllocateMemory failed");
@@ -530,6 +536,7 @@ static void R_InitDynamicIndexBuffers()
 	memory_allocate_info.allocationSize = NUM_DYNAMIC_BUFFERS * aligned_size;
 	memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
 
+	num_vulkan_allocations += 1;
 	err = vkAllocateMemory(vulkan_globals.device, &memory_allocate_info, NULL, &dyn_index_buffer_memory);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkAllocateMemory failed");
@@ -590,6 +597,7 @@ static void R_InitDynamicUniformBuffers()
 	memory_allocate_info.allocationSize = NUM_DYNAMIC_BUFFERS * aligned_size;
 	memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
 
+	num_vulkan_allocations += 1;
 	err = vkAllocateMemory(vulkan_globals.device, &memory_allocate_info, NULL, &dyn_uniform_buffer_memory);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkAllocateMemory failed");
@@ -1483,6 +1491,7 @@ void R_Init (void)
 
 	Cmd_AddCommand ("timerefresh", R_TimeRefresh_f);
 	Cmd_AddCommand ("pointfile", R_ReadPointFile_f);
+	Cmd_AddCommand ("vkmemstats", R_VulkanMemStats_f);
 
 	Cvar_RegisterVariable (&r_norefresh);
 	Cvar_RegisterVariable (&r_lightmap);
@@ -1740,4 +1749,14 @@ void R_TimeRefresh_f (void)
 	stop = Sys_DoubleTime ();
 	time = stop-start;
 	Con_Printf ("%f seconds (%f fps)\n", time, 128/time);
+}
+
+/*
+====================
+R_VulkanMemStats_f
+====================
+*/
+void R_VulkanMemStats_f(void)
+{
+	Con_Printf("%d Vulkan allocations\n", num_vulkan_allocations);
 }

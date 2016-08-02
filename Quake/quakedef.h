@@ -312,5 +312,7 @@ extern qboolean		isDedicated;
 
 extern int		minimum_memory;
 
+extern int num_vulkan_allocations;
+
 #endif	/* __QUAKEDEFS_H */
 

@@ -292,6 +292,9 @@
     <ClCompile Include="..\..\Shaders\Compiled\postprocess_vert.c">
       <Filter>Shaders\Compiled</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Quake\gl_heap.c">
+      <Filter>Renderer</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\Quake\snd_codec.h">
@@ -488,6 +491,9 @@
     </ClInclude>
     <ClInclude Include="..\..\Shaders\shaders.h">
       <Filter>Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\gl_heap.h">
+      <Filter>Renderer</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
