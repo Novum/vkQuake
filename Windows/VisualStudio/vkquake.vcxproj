@@ -118,7 +118,8 @@
     </Link>
     <PostBuildEvent>
       <Command>copy "$(SolutionDir)\..\codecs\x86\*.dll" "$(TargetDir)"
-copy "$(SolutionDir)\..\SDL2\lib\*.dll" "$(TargetDir)"</Command>
+copy "$(SolutionDir)\..\SDL2\lib\*.dll" "$(TargetDir)"
+xcopy /i /y "$(SolutionDir)\id1" "$(TargetDir)\id1"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -146,7 +147,8 @@ copy "$(SolutionDir)\..\SDL2\lib\*.dll" "$(TargetDir)"</Command>
     </Link>
     <PostBuildEvent>
       <Command>copy "$(SolutionDir)\..\codecs\x86\*.dll" "$(TargetDir)"
-copy "$(SolutionDir)\..\SDL2\lib\*.dll" "$(TargetDir)"</Command>
+copy "$(SolutionDir)\..\SDL2\lib\*.dll" "$(TargetDir)"
+xcopy /i /y "$(SolutionDir)\id1" "$(TargetDir)\id1"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -176,7 +178,8 @@ copy "$(SolutionDir)\..\SDL2\lib\*.dll" "$(TargetDir)"</Command>
     </Link>
     <PostBuildEvent>
       <Command>copy "$(SolutionDir)\..\codecs\x64\*.dll" "$(TargetDir)"
-copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
+copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"
+xcopy /i /y "$(SolutionDir)\id1" "$(TargetDir)\id1"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -207,7 +210,8 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     </Link>
     <PostBuildEvent>
       <Command>copy "$(SolutionDir)\..\codecs\x64\*.dll" "$(TargetDir)"
-copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
+copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"
+xcopy /i /y "$(SolutionDir)\id1" "$(TargetDir)\id1"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
