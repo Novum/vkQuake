@@ -931,7 +931,7 @@ static void GL_CreateDepthBuffer( void )
 	memory_allocate_info.allocationSize = memory_requirements.size;
 	memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
 
-	num_vulkan_allocations += 1;
+	num_vulkan_misc_allocations += 1;
 	err = vkAllocateMemory(vulkan_globals.device, &memory_allocate_info, NULL, &depth_buffer_memory);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkAllocateMemory failed");
@@ -998,7 +998,7 @@ static void GL_CreateColorBuffer( void )
 	memory_allocate_info.allocationSize = memory_requirements.size;
 	memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
 
-	num_vulkan_allocations += 1;
+	num_vulkan_misc_allocations += 1;
 	err = vkAllocateMemory(vulkan_globals.device, &memory_allocate_info, NULL, &color_buffer_memory);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkAllocateMemory failed");
@@ -1232,7 +1232,7 @@ static void GL_DestroyBeforeSetMode( void )
 
 	vkDestroyImageView(vulkan_globals.device, color_buffer_view, NULL);
 	vkDestroyImage(vulkan_globals.device, color_buffer, NULL);
-	num_vulkan_allocations -= 1;
+	num_vulkan_misc_allocations -= 1;
 	vkFreeMemory(vulkan_globals.device, color_buffer_memory, NULL);
 
 	color_buffer_view = VK_NULL_HANDLE;
@@ -1241,7 +1241,7 @@ static void GL_DestroyBeforeSetMode( void )
 
 	vkDestroyImageView(vulkan_globals.device, depth_buffer_view, NULL);
 	vkDestroyImage(vulkan_globals.device, depth_buffer, NULL);
-	num_vulkan_allocations -= 1;
+	num_vulkan_misc_allocations -= 1;
 	vkFreeMemory(vulkan_globals.device, depth_buffer_memory, NULL);
 
 	depth_buffer_view = VK_NULL_HANDLE;

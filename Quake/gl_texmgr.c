@@ -881,6 +881,7 @@ static VkDeviceSize TexMgr_Allocate(VkMemoryRequirements * memory_requirements, 
 		{
 			uint32_t memory_type_index = GL_MemoryTypeFromProperties(memory_requirements->memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
 			texmgr_heaps[i] = GL_CreateHeap((VkDeviceSize)TEXTURE_HEAP_SIZE_MB * (VkDeviceSize)1024 * (VkDeviceSize)1024, memory_type_index);
+			num_vulkan_tex_allocations += 1;
 			new_heap = true;
 		}
 
@@ -1475,6 +1476,7 @@ static void GL_DeleteTexture (gltexture_t *texture)
 
 	if(GL_IsHeapEmpty(texture->heap))
 	{
+		num_vulkan_tex_allocations -= 1;
 		GL_DestroyHeap(texture->heap);
 		for(int i = 0; i < TEXTURE_MAX_HEAPS; ++i)
 			if(texmgr_heaps[i] == texture->heap)

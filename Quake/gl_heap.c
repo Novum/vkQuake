@@ -45,7 +45,6 @@ glheap_t * GL_CreateHeap(VkDeviceSize size, uint32_t memory_type_index)
 	memory_allocate_info.allocationSize = size;
 	memory_allocate_info.memoryTypeIndex = memory_type_index;
 
-	num_vulkan_allocations += 1;
 	VkResult err = vkAllocateMemory(vulkan_globals.device, &memory_allocate_info, NULL, &heap->memory);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkAllocateMemory failed");
@@ -68,7 +67,6 @@ GL_DestroyHeap
 void GL_DestroyHeap(glheap_t * heap)
 {
 	GL_WaitForDeviceIdle();
-	num_vulkan_allocations -= 1;
 	vkFreeMemory(vulkan_globals.device, heap->memory, NULL);
 	free(heap->head);
 	free(heap);

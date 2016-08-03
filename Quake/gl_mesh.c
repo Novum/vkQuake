@@ -511,7 +511,7 @@ static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 		memory_allocate_info.allocationSize = aligned_size;
 		memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
 
-		num_vulkan_allocations += 1;
+		num_vulkan_mesh_allocations += 1;
 		err = vkAllocateMemory(vulkan_globals.device, &memory_allocate_info, NULL, &m->index_memory);
 		if (err != VK_SUCCESS)
 			Sys_Error("vkAllocateMemory failed");
@@ -608,7 +608,7 @@ static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 		memory_allocate_info.allocationSize = aligned_size;
 		memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
 
-		num_vulkan_allocations += 1;
+		num_vulkan_mesh_allocations += 1;
 		err = vkAllocateMemory(vulkan_globals.device, &memory_allocate_info, NULL, &m->vertex_memory);
 		if (err != VK_SUCCESS)
 			Sys_Error("vkAllocateMemory failed");
@@ -678,11 +678,11 @@ void GLMesh_DeleteVertexBuffers (void)
 		if (m->type != mod_alias) continue;
 
 		vkDestroyBuffer(vulkan_globals.device, m->vertex_buffer, NULL);
-		num_vulkan_allocations -= 1;
+		num_vulkan_mesh_allocations -= 1;
 		vkFreeMemory(vulkan_globals.device, m->vertex_memory, NULL);
 
 		vkDestroyBuffer(vulkan_globals.device, m->index_buffer, NULL);
-		num_vulkan_allocations -= 1;
+		num_vulkan_mesh_allocations -= 1;
 		vkFreeMemory(vulkan_globals.device, m->index_memory, NULL);
 
 		m->vertex_buffer = VK_NULL_HANDLE;

@@ -604,7 +604,7 @@ void GL_DeleteBModelVertexBuffer (void)
 
 	if (bmodel_memory)
 	{
-		num_vulkan_allocations -= 1;
+		num_vulkan_bmodel_allocations -= 1;
 		vkFreeMemory(vulkan_globals.device, bmodel_memory, NULL);
 	}
 }
@@ -684,7 +684,7 @@ void GL_BuildBModelVertexBuffer (void)
 	memory_allocate_info.allocationSize = aligned_size;
 	memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
 
-	num_vulkan_allocations += 1;
+	num_vulkan_bmodel_allocations += 1;
 	err = vkAllocateMemory(vulkan_globals.device, &memory_allocate_info, NULL, &bmodel_memory);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkAllocateMemory failed");

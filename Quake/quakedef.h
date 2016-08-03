@@ -312,7 +312,11 @@ extern qboolean		isDedicated;
 
 extern int		minimum_memory;
 
-extern int num_vulkan_allocations;
+extern int num_vulkan_tex_allocations;
+extern int num_vulkan_bmodel_allocations;
+extern int num_vulkan_mesh_allocations;
+extern int num_vulkan_misc_allocations;
+extern int num_vulkan_dynbuf_allocations;
 
 #endif	/* __QUAKEDEFS_H */
 
