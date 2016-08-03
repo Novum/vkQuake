@@ -23,7 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // gl_mesh.c: triangle model functions
 
 #include "quakedef.h"
-
+#include "gl_heap.h"
 
 /*
 =================================================================
@@ -53,6 +53,13 @@ int		allverts, alltris;
 int		stripverts[128];
 int		striptris[128];
 int		stripcount;
+
+// Heap
+#define GEOMETRY_HEAP_SIZE_MB 4
+#define GEOMETRY_MAX_HEAPS 16
+
+static glheap_t * vertex_buffer_heaps[GEOMETRY_MAX_HEAPS];
+static glheap_t * index_buffer_heaps[GEOMETRY_MAX_HEAPS];
 
 /*
 ================
@@ -500,25 +507,12 @@ static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 		VkMemoryRequirements memory_requirements;
 		vkGetBufferMemoryRequirements(vulkan_globals.device, m->index_buffer, &memory_requirements);
 
-		const int align_mod = memory_requirements.size % memory_requirements.alignment;
-		const int aligned_size = ((memory_requirements.size % memory_requirements.alignment) == 0 ) 
-			? memory_requirements.size 
-			: (memory_requirements.size + memory_requirements.alignment - align_mod);
-
-		VkMemoryAllocateInfo memory_allocate_info;
-		memset(&memory_allocate_info, 0, sizeof(memory_allocate_info));
-		memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-		memory_allocate_info.allocationSize = aligned_size;
-		memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
-
-		num_vulkan_mesh_allocations += 1;
-		err = vkAllocateMemory(vulkan_globals.device, &memory_allocate_info, NULL, &m->index_memory);
+		uint32_t memory_type_index = GL_MemoryTypeFromProperties(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
+		VkDeviceSize heap_size = GEOMETRY_HEAP_SIZE_MB * (VkDeviceSize)1024 * (VkDeviceSize)1024;
+		VkDeviceSize aligned_offset = GL_AllocateFromHeaps(GEOMETRY_MAX_HEAPS, index_buffer_heaps, heap_size, memory_type_index, memory_requirements.size, memory_requirements.alignment, &m->index_heap, &m->index_heap_node, &num_vulkan_mesh_allocations);
+		err = vkBindBufferMemory(vulkan_globals.device, m->index_buffer, m->index_heap->memory, aligned_offset);
 		if (err != VK_SUCCESS)
-			Sys_Error("vkAllocateMemory failed");
-
-		err = vkBindBufferMemory(vulkan_globals.device, m->index_buffer, m->index_memory, 0);
-		if (err != VK_SUCCESS)
-			Sys_Error("vkBindImageMemory failed");
+			Sys_Error("vkBindBufferMemory failed");
 
 		VkBuffer staging_buffer;
 		VkCommandBuffer command_buffer;
@@ -597,25 +591,12 @@ static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 		VkMemoryRequirements memory_requirements;
 		vkGetBufferMemoryRequirements(vulkan_globals.device, m->vertex_buffer, &memory_requirements);
 
-		const int align_mod = memory_requirements.size % memory_requirements.alignment;
-		const int aligned_size = ((memory_requirements.size % memory_requirements.alignment) == 0 ) 
-			? memory_requirements.size 
-			: (memory_requirements.size + memory_requirements.alignment - align_mod);
-
-		VkMemoryAllocateInfo memory_allocate_info;
-		memset(&memory_allocate_info, 0, sizeof(memory_allocate_info));
-		memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-		memory_allocate_info.allocationSize = aligned_size;
-		memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
-
-		num_vulkan_mesh_allocations += 1;
-		err = vkAllocateMemory(vulkan_globals.device, &memory_allocate_info, NULL, &m->vertex_memory);
+		uint32_t memory_type_index = GL_MemoryTypeFromProperties(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
+		VkDeviceSize heap_size = GEOMETRY_HEAP_SIZE_MB * (VkDeviceSize)1024 * (VkDeviceSize)1024;
+		VkDeviceSize aligned_offset = GL_AllocateFromHeaps(GEOMETRY_MAX_HEAPS, vertex_buffer_heaps, heap_size, memory_type_index, memory_requirements.size, memory_requirements.alignment, &m->vertex_heap, &m->vertex_heap_node, &num_vulkan_mesh_allocations);
+		err = vkBindBufferMemory(vulkan_globals.device, m->vertex_buffer, m->vertex_heap->memory, aligned_offset);
 		if (err != VK_SUCCESS)
-			Sys_Error("vkAllocateMemory failed");
-
-		err = vkBindBufferMemory(vulkan_globals.device, m->vertex_buffer, m->vertex_memory, 0);
-		if (err != VK_SUCCESS)
-			Sys_Error("vkBindImageMemory failed");
+			Sys_Error("vkBindBufferMemory failed");
 
 		VkBuffer staging_buffer;
 		VkCommandBuffer command_buffer;
@@ -678,16 +659,16 @@ void GLMesh_DeleteVertexBuffers (void)
 		if (m->type != mod_alias) continue;
 
 		vkDestroyBuffer(vulkan_globals.device, m->vertex_buffer, NULL);
-		num_vulkan_mesh_allocations -= 1;
-		vkFreeMemory(vulkan_globals.device, m->vertex_memory, NULL);
+		GL_FreeFromHeaps(GEOMETRY_MAX_HEAPS, vertex_buffer_heaps, m->vertex_heap, m->vertex_heap_node, &num_vulkan_mesh_allocations);
 
 		vkDestroyBuffer(vulkan_globals.device, m->index_buffer, NULL);
-		num_vulkan_mesh_allocations -= 1;
-		vkFreeMemory(vulkan_globals.device, m->index_memory, NULL);
+		GL_FreeFromHeaps(GEOMETRY_MAX_HEAPS, index_buffer_heaps, m->index_heap, m->index_heap_node, &num_vulkan_mesh_allocations);
 
 		m->vertex_buffer = VK_NULL_HANDLE;
-		m->vertex_memory = VK_NULL_HANDLE;
+		m->vertex_heap = NULL;
+		m->vertex_heap_node = NULL;
 		m->index_buffer = VK_NULL_HANDLE;
-		m->index_memory = VK_NULL_HANDLE;
+		m->index_heap = NULL;
+		m->index_heap_node = NULL;
 	}
 }

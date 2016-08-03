@@ -169,3 +169,54 @@ qboolean GL_IsHeapEmpty(glheap_t * heap)
 {
 	return heap->head->next == NULL;
 }
+
+/*
+================
+GL_AllocateFromHeaps
+================
+*/
+VkDeviceSize GL_AllocateFromHeaps(int num_heaps, glheap_t ** heaps, VkDeviceSize heap_size, uint32_t memory_type_index,
+	VkDeviceSize size, VkDeviceSize alignment, glheap_t ** heap, glheapnode_t ** heap_node, int * num_allocations)
+{
+	for(int i = 0; i < num_heaps; ++i)
+	{
+		qboolean new_heap = false;
+		if(!heaps[i])
+		{
+			heaps[i] = GL_CreateHeap(heap_size, memory_type_index);
+			*num_allocations += 1;
+			new_heap = true;
+		}
+
+		VkDeviceSize aligned_offset;
+		glheapnode_t * node = GL_HeapAllocate(heaps[i], size, alignment, &aligned_offset);
+		if(node)
+		{
+			*heap_node = node;
+			*heap = heaps[i];
+			return aligned_offset;
+		} else if(new_heap)
+			break;
+	}
+
+	Sys_Error("Could not allocate memory for texture");
+	return 0;
+}
+
+/*
+================
+GL_FreeFromHeaps
+================
+*/
+void GL_FreeFromHeaps(int num_heaps, glheap_t ** heaps, glheap_t * heap, glheapnode_t * heap_node, int * num_allocations)
+{
+	GL_HeapFree(heap, heap_node);
+	if(GL_IsHeapEmpty(heap))
+	{
+		*num_allocations -= 1;
+		GL_DestroyHeap(heap);
+		for(int i = 0; i < num_heaps; ++i)
+			if(heaps[i] == heap)
+				heaps[i]  = NULL;
+	}
+}

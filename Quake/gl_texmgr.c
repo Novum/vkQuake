@@ -869,39 +869,6 @@ static int TexMgr_DeriveStagingSize(int width, int height)
 
 /*
 ================
-TexMgr_Allocate
-================
-*/
-static VkDeviceSize TexMgr_Allocate(VkMemoryRequirements * memory_requirements, glheap_t ** heap, glheapnode_t ** heap_node)
-{
-	for(int i = 0; i < TEXTURE_MAX_HEAPS; ++i)
-	{
-		qboolean new_heap = false;
-		if(!texmgr_heaps[i])
-		{
-			uint32_t memory_type_index = GL_MemoryTypeFromProperties(memory_requirements->memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
-			texmgr_heaps[i] = GL_CreateHeap((VkDeviceSize)TEXTURE_HEAP_SIZE_MB * (VkDeviceSize)1024 * (VkDeviceSize)1024, memory_type_index);
-			num_vulkan_tex_allocations += 1;
-			new_heap = true;
-		}
-
-		VkDeviceSize aligned_offset;
-		glheapnode_t * node = GL_HeapAllocate(texmgr_heaps[i], memory_requirements->size, memory_requirements->alignment, &aligned_offset);
-		if(node)
-		{
-			*heap_node = node;
-			*heap = texmgr_heaps[i];
-			return aligned_offset;
-		} else if(new_heap)
-			break;
-	}
-
-	Sys_Error("Could not allocate memory for texture");
-	return 0;
-}
-
-/*
-================
 TexMgr_LoadImage32 -- handles 32bit source data
 ================
 */
@@ -959,7 +926,9 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	VkMemoryRequirements memory_requirements;
 	vkGetImageMemoryRequirements(vulkan_globals.device, glt->image, &memory_requirements);
 
-	VkDeviceSize aligned_offset = TexMgr_Allocate(&memory_requirements, &glt->heap, &glt->heap_node);
+	uint32_t memory_type_index = GL_MemoryTypeFromProperties(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
+	VkDeviceSize heap_size = TEXTURE_HEAP_SIZE_MB * (VkDeviceSize)1024 * (VkDeviceSize)1024;
+	VkDeviceSize aligned_offset = GL_AllocateFromHeaps(TEXTURE_MAX_HEAPS, texmgr_heaps, heap_size, memory_type_index, memory_requirements.size, memory_requirements.alignment, &glt->heap, &glt->heap_node, &num_vulkan_tex_allocations);
 	err = vkBindImageMemory(vulkan_globals.device, glt->image, glt->heap->memory, aligned_offset);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkBindImageMemory failed");
@@ -1471,17 +1440,9 @@ static void GL_DeleteTexture (gltexture_t *texture)
 		vkDestroyFramebuffer(vulkan_globals.device, texture->frame_buffer, NULL);
 	vkDestroyImageView(vulkan_globals.device, texture->image_view, NULL);
 	vkDestroyImage(vulkan_globals.device, texture->image, NULL);
-	GL_HeapFree(texture->heap, texture->heap_node);
 	vkFreeDescriptorSets(vulkan_globals.device, vulkan_globals.descriptor_pool, 1, &texture->descriptor_set);
 
-	if(GL_IsHeapEmpty(texture->heap))
-	{
-		num_vulkan_tex_allocations -= 1;
-		GL_DestroyHeap(texture->heap);
-		for(int i = 0; i < TEXTURE_MAX_HEAPS; ++i)
-			if(texmgr_heaps[i] == texture->heap)
-				texmgr_heaps[i]  = NULL;
-	}
+	GL_FreeFromHeaps(TEXTURE_MAX_HEAPS, texmgr_heaps, texture->heap, texture->heap_node, &num_vulkan_tex_allocations);
 
 	texture->frame_buffer = VK_NULL_HANDLE;
 	texture->image_view = VK_NULL_HANDLE;
