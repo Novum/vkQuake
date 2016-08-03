@@ -241,9 +241,9 @@ static char	cwd[MAX_OSPATH];
 #ifdef DO_USERDIRS
 static char	userdir[MAX_OSPATH];
 #ifdef PLATFORM_OSX
-#define SYS_USERDIR	"Library/Application Support/QuakeSpasm"
+#define SYS_USERDIR	"Library/Application Support/vkQuake"
 #else
-#define SYS_USERDIR	".quakespasm"
+#define SYS_USERDIR	".vkquake"
 #endif
 
 static void Sys_GetUserdir (char *dst, size_t dstsize)

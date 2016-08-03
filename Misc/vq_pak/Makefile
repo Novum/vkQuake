@@ -7,7 +7,7 @@ INPUT := gfx/conback.lmp \
 	maps/e2m7.ent \
 	default.cfg
 
-OUTPUT := quakespasm.pak
+OUTPUT := vkquake.pak
 
 $(OUTPUT): $(INPUT)
 	./mkpak.sh $(INPUT) > $(OUTPUT)

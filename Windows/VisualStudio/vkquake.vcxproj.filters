@@ -497,7 +497,7 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="..\QuakeSpasm.rc">
+    <ResourceCompile Include="..\vkQuake.rc">
       <Filter>Resource Files</Filter>
     </ResourceCompile>
   </ItemGroup>

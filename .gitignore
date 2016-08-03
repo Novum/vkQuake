@@ -1,10 +1,11 @@
 *.suo
 vkquake.VC*
+Misc/vq_pak/vkquake.pak
 Quake/*.dll
 Quake/*.o
 Quake/history.txt
 Quake/id1/
-Quake/QuakeSpasm.res
 Quake/vkquake
-Quake/vkquake.exe
+Quake/vkQuake.exe
+Quake/vkQuake.res
 Windows/VisualStudio/Build-vkQuake/
