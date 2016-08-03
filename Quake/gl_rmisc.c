@@ -1707,6 +1707,7 @@ void R_NewMap (void)
 
 	r_viewleaf = NULL;
 	R_ClearParticles ();
+	GL_DeleteBModelVertexBuffer();
 
 	GL_BuildLightmaps ();
 	GL_BuildBModelVertexBuffer ();
