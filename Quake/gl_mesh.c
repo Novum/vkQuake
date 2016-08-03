@@ -55,8 +55,8 @@ int		striptris[128];
 int		stripcount;
 
 // Heap
-#define GEOMETRY_HEAP_SIZE_MB 4
-#define GEOMETRY_MAX_HEAPS 16
+#define GEOMETRY_HEAP_SIZE_MB 16
+#define GEOMETRY_MAX_HEAPS 4
 
 static glheap_t * vertex_buffer_heaps[GEOMETRY_MAX_HEAPS];
 static glheap_t * index_buffer_heaps[GEOMETRY_MAX_HEAPS];
