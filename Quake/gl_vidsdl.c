@@ -1146,7 +1146,7 @@ static void GL_CreateSwapChain( void )
 
 	uint32_t image_count;
 	err = fpGetSwapchainImagesKHR(vulkan_globals.device, vulkan_swapchain, &image_count, NULL);
-	if (err != VK_SUCCESS || image_count != NUM_SWAP_CHAIN_IMAGES)
+	if (err != VK_SUCCESS || image_count < NUM_SWAP_CHAIN_IMAGES)
 		Sys_Error("Couldn't get swap chain images");
 
 	VkImage *swapchain_images = (VkImage *)malloc(image_count * sizeof(VkImage));
