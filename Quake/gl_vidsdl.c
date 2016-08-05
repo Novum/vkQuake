@@ -36,7 +36,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define MAXHEIGHT		10000
 
 #define NUM_COMMAND_BUFFERS 2
-#define NUM_SWAP_CHAIN_IMAGES 2
+#define MAX_SWAP_CHAIN_IMAGES 8
 #define DEPTH_FORMAT VK_FORMAT_D16_UNORM
 #define COLOR_BUFFER_FORMAT VK_FORMAT_R8G8B8A8_UNORM;
 
@@ -96,14 +96,15 @@ static VkSurfaceKHR					vulkan_surface;
 static VkSurfaceCapabilitiesKHR		vulkan_surface_capabilities;
 static VkSwapchainKHR				vulkan_swapchain;
 
+static uint32_t						num_swap_chain_images;
 static uint32_t						current_command_buffer;
 static VkCommandPool				command_pool;
 static VkCommandBuffer				command_buffers[NUM_COMMAND_BUFFERS];
 static VkFence						command_buffer_fences[NUM_COMMAND_BUFFERS];
 static qboolean						command_buffer_submitted[NUM_COMMAND_BUFFERS];
-static VkFramebuffer				framebuffers[NUM_SWAP_CHAIN_IMAGES];
-static VkImageView					swapchain_images_views[NUM_SWAP_CHAIN_IMAGES];
-static VkSemaphore					image_aquired_semaphores[NUM_SWAP_CHAIN_IMAGES];
+static VkFramebuffer				framebuffers[MAX_SWAP_CHAIN_IMAGES];
+static VkImageView					swapchain_images_views[MAX_SWAP_CHAIN_IMAGES];
+static VkSemaphore					image_aquired_semaphores[MAX_SWAP_CHAIN_IMAGES];
 static VkImage						depth_buffer;
 static VkDeviceMemory				depth_buffer_memory;
 static VkImageView					depth_buffer_view;
@@ -1122,7 +1123,7 @@ static void GL_CreateSwapChain( void )
 	swapchain_create_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
 	swapchain_create_info.pNext = NULL;
 	swapchain_create_info.surface = vulkan_surface;
-	swapchain_create_info.minImageCount = NUM_SWAP_CHAIN_IMAGES;
+	swapchain_create_info.minImageCount = 2;
 	swapchain_create_info.imageFormat = surface_formats[0].format;
 	swapchain_create_info.imageColorSpace = surface_formats[0].colorSpace;
 	swapchain_create_info.imageExtent.width = vid.width;
@@ -1144,13 +1145,12 @@ static void GL_CreateSwapChain( void )
 	if (err != VK_SUCCESS)
 		Sys_Error("Couldn't create swap chain");
 
-	uint32_t image_count;
-	err = fpGetSwapchainImagesKHR(vulkan_globals.device, vulkan_swapchain, &image_count, NULL);
-	if (err != VK_SUCCESS || image_count != NUM_SWAP_CHAIN_IMAGES)
+	err = fpGetSwapchainImagesKHR(vulkan_globals.device, vulkan_swapchain, &num_swap_chain_images, NULL);
+	if (err != VK_SUCCESS || num_swap_chain_images > MAX_SWAP_CHAIN_IMAGES)
 		Sys_Error("Couldn't get swap chain images");
 
-	VkImage *swapchain_images = (VkImage *)malloc(image_count * sizeof(VkImage));
-	fpGetSwapchainImagesKHR(vulkan_globals.device, vulkan_swapchain, &image_count, swapchain_images);
+	VkImage *swapchain_images = (VkImage *)malloc(num_swap_chain_images * sizeof(VkImage));
+	fpGetSwapchainImagesKHR(vulkan_globals.device, vulkan_swapchain, &num_swap_chain_images, swapchain_images);
 
 	VkImageViewCreateInfo image_view_create_info;
 	memset(&image_view_create_info, 0, sizeof(image_view_create_info));
@@ -1172,7 +1172,7 @@ static void GL_CreateSwapChain( void )
 	memset(&semaphore_create_info, 0, sizeof(semaphore_create_info));
 	semaphore_create_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
-	for (int i = 0; i < NUM_SWAP_CHAIN_IMAGES; ++i)
+	for (uint32_t i = 0; i < num_swap_chain_images; ++i)
 	{
 		image_view_create_info.image = swapchain_images[i];
 		err = vkCreateImageView(vulkan_globals.device, &image_view_create_info, NULL, &swapchain_images_views[i]);
@@ -1208,7 +1208,7 @@ static void GL_CreateFrameBuffers( void )
 	framebuffer_create_info.height = vid.height;
 	framebuffer_create_info.layers = 1;
 
-	for (int i = 0; i < NUM_SWAP_CHAIN_IMAGES; ++i)
+	for (uint32_t i = 0; i < num_swap_chain_images; ++i)
 	{
 		VkImageView attachments[3] = { color_buffer_view, depth_buffer_view, swapchain_images_views[i] };
 		framebuffer_create_info.pAttachments = attachments;
@@ -1248,7 +1248,7 @@ static void GL_DestroyBeforeSetMode( void )
 	depth_buffer = VK_NULL_HANDLE;
 	depth_buffer_memory = VK_NULL_HANDLE;
 
-	for (int i = 0; i < NUM_SWAP_CHAIN_IMAGES; ++i)
+	for (uint32_t i = 0; i < num_swap_chain_images; ++i)
 	{
 		vkDestroyImageView(vulkan_globals.device, swapchain_images_views[i], NULL);
 		swapchain_images_views[i] = VK_NULL_HANDLE;
