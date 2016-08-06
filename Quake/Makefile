@@ -60,7 +60,7 @@ DFLAGS ?=
 CFLAGS ?= -Wall -Wno-trigraphs
 CFLAGS += $(CPUFLAGS)
 ifneq ($(DEBUG),0)
-DFLAGS += -DDEBUG
+DFLAGS += -D_DEBUG
 CFLAGS += -g
 do_strip=
 else

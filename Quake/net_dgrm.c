@@ -136,7 +136,7 @@ int Datagram_SendMessage (qsocket_t *sock, sizebuf_t *data)
 	unsigned int	dataLen;
 	unsigned int	eom;
 
-#ifdef DEBUG
+#ifdef _DEBUG
 	if (data->cursize == 0)
 		Sys_Error("Datagram_SendMessage: zero length message\n");
 
@@ -262,7 +262,7 @@ int Datagram_SendUnreliableMessage (qsocket_t *sock, sizebuf_t *data)
 {
 	int	packetLen;
 
-#ifdef DEBUG
+#ifdef _DEBUG
 	if (data->cursize == 0)
 		Sys_Error("Datagram_SendUnreliableMessage: zero length message\n");
 
