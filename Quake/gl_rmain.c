@@ -432,11 +432,11 @@ static void GL_FrustumMatrix(float matrix[16], float fovx, float fovy)
 	matrix[1*4 + 1] = -h;
 	
 	// Third column
-	matrix[2*4 + 2] = -(f + n) / (f - n);
+	matrix[2*4 + 2] = -f / (f - n);
 	matrix[2*4 + 3] = -1.0f;
 
 	// Fourth column
-	matrix[3*4 + 2] = -(2.0f * f * n) / (f - n);
+	matrix[3*4 + 2] = -(n * f) / (f - n);
 }
 
 /*
