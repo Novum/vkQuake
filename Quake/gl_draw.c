@@ -846,8 +846,8 @@ void GL_SetCanvas (canvastype newcanvas)
 	case CANVAS_MENU:
 		s = q_min((float)glwidth / 320.0, (float)glheight / 200.0);
 		s = CLAMP (1.0, scr_menuscale.value, s);
-		GL_OrthoMatrix (0, 320, 200, 0, -99999, 99999);
-		GL_Viewport (glx + (glwidth - 320*s) / 2, gly + (glheight - 200*s) / 2, 320*s, 200*s);
+		GL_OrthoMatrix (0, 640, 200, 0, -99999, 99999);
+		GL_Viewport (glx + (glwidth - 320*s) / 2, gly + (glheight - 200*s) / 2, 640*s, 200*s);
 		break;
 	case CANVAS_SBAR:
 		s = CLAMP (1.0, scr_sbarscale.value, (float)glwidth / 320.0);
