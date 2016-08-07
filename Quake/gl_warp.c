@@ -279,6 +279,7 @@ void R_UpdateWarpTextures (void)
 	{
 		VkMemoryBarrier memory_barrier;
 		memory_barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+		memory_barrier.pNext = NULL;
 		memory_barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 		memory_barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 		vkCmdPipelineBarrier(vulkan_globals.command_buffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 1, &memory_barrier, 0, NULL, 0, NULL);
