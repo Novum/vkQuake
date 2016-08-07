@@ -16,6 +16,7 @@ layout (set = 2, binding = 0) uniform UBO
 	float blend_factor;
 	vec3 light_color;
 	bool use_fullbright;
+	float entalpha;
 } ubo;
 
 layout (location = 0) in vec2 in_texcoord;

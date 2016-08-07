@@ -19,6 +19,7 @@ layout (set = 2, binding = 0) uniform UBO
 	float blend_factor;
 	vec3 light_color;
 	bool use_fullbright;
+	float entalpha;
 } ubo;
 
 layout (location = 0) in vec2 in_texcoord;
@@ -35,10 +36,11 @@ void main()
 	if (ubo.use_fullbright)
 		result += texture(fullbright_tex, in_texcoord.xy);
 
-	result.a = in_color.a;
-	out_frag_color = result;
+	result.a = ubo.entalpha;
 
 	float fog = exp(-push_constants.fog_density * push_constants.fog_density * in_fog_frag_coord * in_fog_frag_coord);
 	fog = clamp(fog, 0.0, 1.0);
-	out_frag_color = mix(vec4(push_constants.fog_color, 1.0f), out_frag_color, fog);
+	result.rgb = mix(push_constants.fog_color, result.rgb, fog);
+
+	out_frag_color = result;
 }

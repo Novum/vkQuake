@@ -71,6 +71,7 @@ typedef struct {
 	float blend_factor;
 	float light_color[3];
 	unsigned int use_fullbright;
+	float entalpha;
 } aliasubo_t;
 
 /*
@@ -101,7 +102,7 @@ Supports optional fullbright pixels.
 Based on code by MH from RMQEngine
 =============
 */
-void GL_DrawAliasFrame (aliashdr_t *paliashdr, lerpdata_t lerpdata, gltexture_t *tx, gltexture_t *fb, float model_matrix[16])
+static void GL_DrawAliasFrame (aliashdr_t *paliashdr, lerpdata_t lerpdata, gltexture_t *tx, gltexture_t *fb, float model_matrix[16], float entalpha)
 {
 	float	blend;
 
@@ -114,7 +115,7 @@ void GL_DrawAliasFrame (aliashdr_t *paliashdr, lerpdata_t lerpdata, gltexture_t 
 		blend = 0;
 	}
 
-	vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.alias_pipeline);
+	vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, (entalpha < 1.0f) ? vulkan_globals.alias_blend_pipeline : vulkan_globals.alias_pipeline);
 
 	VkBuffer uniform_buffer;
 	uint32_t uniform_offset;
@@ -126,6 +127,7 @@ void GL_DrawAliasFrame (aliashdr_t *paliashdr, lerpdata_t lerpdata, gltexture_t 
 	ubo->blend_factor = blend;
 	memcpy(ubo->light_color, lightcolor, 3 * sizeof(float));
 	ubo->use_fullbright = (fb != NULL) ? 1 : 0;
+	ubo->entalpha = entalpha;
 
 	VkDescriptorSet descriptor_sets[3] = { tx->descriptor_set, (fb != NULL) ? fb->descriptor_set : tx->descriptor_set, ubo_set };
 	vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.alias_pipeline_layout, 0, 3, descriptor_sets, 1, &uniform_offset);
@@ -401,13 +403,6 @@ void R_DrawAliasModel (entity_t *e)
 	if (entalpha == 0)
 		return;
 
-	if (entalpha < 1)
-	{
-		//if (!gl_texture_env_combine) overbright = false; //overbright can't be done in a single pass without combiners
-		//glDepthMask(GL_FALSE);
-		//glEnable(GL_BLEND);
-	}
-
 	//
 	// set up lighting
 	//
@@ -480,7 +475,7 @@ void R_DrawAliasModel (entity_t *e)
 	}
 	else
 	{
-		GL_DrawAliasFrame (paliashdr, lerpdata, tx, fb, model_matrix);
+		GL_DrawAliasFrame (paliashdr, lerpdata, tx, fb, model_matrix, entalpha);
 	}
 }
 

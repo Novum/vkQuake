@@ -1450,12 +1450,19 @@ void R_CreatePipelines()
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateGraphicsPipelines failed");
 
+	depth_stencil_state_create_info.depthWriteEnable = VK_FALSE;
+	blend_attachment_state.blendEnable = VK_TRUE;
+
+	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.alias_blend_pipeline);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkCreateGraphicsPipelines failed");
+
 	//================
 	// Postprocess pipeline
 	//================
 	rasterization_state_create_info.cullMode = VK_CULL_MODE_NONE;
 	depth_stencil_state_create_info.depthTestEnable = VK_FALSE;
-	depth_stencil_state_create_info.depthWriteEnable = VK_FALSE;
+	blend_attachment_state.blendEnable = VK_FALSE;
 
 	vertex_input_state_create_info.vertexAttributeDescriptionCount = 0;
 	vertex_input_state_create_info.pVertexAttributeDescriptions = NULL;
