@@ -32,7 +32,7 @@ void main()
 		out_frag_color += fullbright;
 	}
 
-	if (use_alpha_test && out_frag_color.a < 0.666f)
+	if (true && out_frag_color.a < 0.666f)
 		discard;
 
 	float fog = exp(-push_constants.fog_density * push_constants.fog_density * in_fog_frag_coord * in_fog_frag_coord);
