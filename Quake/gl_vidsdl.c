@@ -1400,7 +1400,10 @@ GL_WaitForDeviceIdle
 void GL_WaitForDeviceIdle()
 {
 	if (!device_idle)
+	{
+		R_SubmitStagingBuffers();
 		vkDeviceWaitIdle(vulkan_globals.device);
+	}
 
 	device_idle = true;
 }
