@@ -111,6 +111,7 @@ typedef enum {
 typedef struct
 {
 	VkDevice							device;
+	qboolean							device_idle;
 	VkQueue								queue;
 	VkCommandBuffer						command_buffer;
 	VkClearValue						color_clear_value;

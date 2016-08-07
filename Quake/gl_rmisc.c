@@ -398,6 +398,8 @@ R_StagingAllocate
 */
 byte * R_StagingAllocate(int size, VkCommandBuffer * command_buffer, VkBuffer * buffer, int * buffer_offset)
 {
+	vulkan_globals.device_idle = false;
+
 	if (size > (STAGING_BUFFER_SIZE_KB * 1024))
 		Sys_Error("Cannot allocate staging buffer space");
 
