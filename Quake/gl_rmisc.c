@@ -1472,6 +1472,7 @@ void R_CreatePipelines()
 	shader_stages[0].module = postprocess_vert_module;
 	shader_stages[1].module = postprocess_frag_module;
 	pipeline_create_info.layout = vulkan_globals.postprocess_pipeline_layout;
+	pipeline_create_info.subpass = 1;
 
 	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.postprocess_pipeline);
 	if (err != VK_SUCCESS)
