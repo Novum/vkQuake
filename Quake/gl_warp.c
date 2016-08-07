@@ -186,6 +186,7 @@ void R_UpdateWarpTextures (void)
 	texture_t *tx;
 	int i;
 	float x, y, x2, warptess;
+	qboolean rendered_warp_texture = false;
 
 	if (cl.paused || r_drawflat_cheatsafe || r_lightmap_cheatsafe)
 		return;
@@ -199,6 +200,8 @@ void R_UpdateWarpTextures (void)
 
 		if (!tx->update_warp)
 			continue;
+
+		rendered_warp_texture = true;
 
 		VkRect2D render_area;
 		render_area.offset.x = 0;
@@ -271,4 +274,13 @@ void R_UpdateWarpTextures (void)
 
 	//if viewsize is less than 100, we need to redraw the frame around the viewport
 	scr_tileclear_updates = 0;
+
+	if (rendered_warp_texture)
+	{
+		VkMemoryBarrier memory_barrier;
+		memory_barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+		memory_barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+		memory_barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+		vkCmdPipelineBarrier(vulkan_globals.command_buffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 1, &memory_barrier, 0, NULL, 0, NULL);
+	}
 }
