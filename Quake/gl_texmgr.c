@@ -31,6 +31,7 @@ static cvar_t	gl_max_size = {"gl_max_size", "0", CVAR_NONE};
 static cvar_t	gl_picmip = {"gl_picmip", "0", CVAR_NONE};
 
 extern cvar_t vid_filter;
+extern cvar_t vid_anisotropy;
 
 #define	MAX_MIPS 16
 static int numgltextures;
@@ -72,12 +73,15 @@ static void TexMgr_SetFilterModes (gltexture_t *glt)
 	image_info.imageView = glt->image_view;
 	image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
+	VkSampler point_sampler = (vid_anisotropy.value == 1) ? vulkan_globals.point_aniso_sampler : vulkan_globals.point_sampler;
+	VkSampler linear_sampler = (vid_anisotropy.value == 1) ? vulkan_globals.linear_aniso_sampler : vulkan_globals.linear_sampler;
+
 	if (glt->flags & TEXPREF_NEAREST)
-		image_info.sampler = vulkan_globals.point_sampler;
+		image_info.sampler = point_sampler;
 	else if (glt->flags & TEXPREF_LINEAR)
-		image_info.sampler = vulkan_globals.linear_sampler;
+		image_info.sampler = linear_sampler;
 	else
-		image_info.sampler = (vid_filter.value == 1) ? vulkan_globals.point_sampler : vulkan_globals.linear_sampler;
+		image_info.sampler = (vid_filter.value == 1) ? point_sampler : linear_sampler;
 
 	VkWriteDescriptorSet texture_write;
 	memset(&texture_write, 0, sizeof(texture_write));

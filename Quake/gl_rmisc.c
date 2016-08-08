@@ -962,7 +962,7 @@ void R_InitSamplers()
 
 	VkResult err;
 
-	if ( vulkan_globals.point_sampler == VK_NULL_HANDLE )
+	if (vulkan_globals.point_sampler == VK_NULL_HANDLE)
 	{
 		VkSamplerCreateInfo sampler_create_info;
 		memset(&sampler_create_info, 0, sizeof(sampler_create_info));
@@ -982,11 +982,25 @@ void R_InitSamplers()
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateSampler failed");
 
+		sampler_create_info.anisotropyEnable = VK_TRUE;
+		sampler_create_info.maxAnisotropy = 16.0f;
+		err = vkCreateSampler(vulkan_globals.device, &sampler_create_info, NULL, &vulkan_globals.point_aniso_sampler);
+		if (err != VK_SUCCESS)
+			Sys_Error("vkCreateSampler failed");
+
 		sampler_create_info.magFilter = VK_FILTER_LINEAR;
 		sampler_create_info.minFilter = VK_FILTER_LINEAR;
 		sampler_create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+		sampler_create_info.anisotropyEnable = VK_FALSE;
+		sampler_create_info.maxAnisotropy = 0.0f;
 
 		err = vkCreateSampler(vulkan_globals.device, &sampler_create_info, NULL, &vulkan_globals.linear_sampler);
+		if (err != VK_SUCCESS)
+			Sys_Error("vkCreateSampler failed");
+
+		sampler_create_info.anisotropyEnable = VK_TRUE;
+		sampler_create_info.maxAnisotropy = 16.0f;
+		err = vkCreateSampler(vulkan_globals.device, &sampler_create_info, NULL, &vulkan_globals.linear_aniso_sampler);
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateSampler failed");
 	}
