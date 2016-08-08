@@ -85,7 +85,7 @@ static cvar_t	vid_fsaa = {"vid_fsaa", "0", CVAR_ARCHIVE}; // QuakeSpasm
 static cvar_t	vid_desktopfullscreen = {"vid_desktopfullscreen", "0", CVAR_ARCHIVE}; // QuakeSpasm
 static cvar_t	vid_borderless = {"vid_borderless", "0", CVAR_ARCHIVE}; // QuakeSpasm
 cvar_t	vid_filter = {"vid_filter", "0", CVAR_ARCHIVE};
-cvar_t	vid_anisotropy = {"vid_anisotropy", "0", CVAR_ARCHIVE};
+cvar_t	vid_anisotropic = {"vid_anisotropic", "0", CVAR_ARCHIVE};
 
 cvar_t		vid_gamma = {"gamma", "1", CVAR_ARCHIVE}; //johnfitz -- moved here from view.c
 cvar_t		vid_contrast = {"contrast", "1", CVAR_ARCHIVE}; //QuakeSpasm, MarkV
@@ -1562,7 +1562,7 @@ void	VID_Init (void)
 	Cvar_RegisterVariable (&vid_bpp); //johnfitz
 	Cvar_RegisterVariable (&vid_vsync); //johnfitz
 	Cvar_RegisterVariable (&vid_filter);
-	Cvar_RegisterVariable (&vid_anisotropy);
+	Cvar_RegisterVariable (&vid_anisotropic);
 	Cvar_RegisterVariable (&vid_fsaa); //QuakeSpasm
 	Cvar_RegisterVariable (&vid_desktopfullscreen); //QuakeSpasm
 	Cvar_RegisterVariable (&vid_borderless); //QuakeSpasm
@@ -1571,7 +1571,7 @@ void	VID_Init (void)
 	Cvar_SetCallback (&vid_height, VID_Changed_f);
 	Cvar_SetCallback (&vid_bpp, VID_Changed_f);
 	Cvar_SetCallback (&vid_filter, VID_FilterChanged_f);
-	Cvar_SetCallback (&vid_anisotropy, VID_FilterChanged_f);
+	Cvar_SetCallback (&vid_anisotropic, VID_FilterChanged_f);
 	Cvar_SetCallback (&vid_vsync, VID_Changed_f);
 	Cvar_SetCallback (&vid_fsaa, VID_FSAA_f);
 	Cvar_SetCallback (&vid_desktopfullscreen, VID_Changed_f);
@@ -2102,7 +2102,7 @@ static void VID_MenuKey (int key)
 			Cbuf_AddText ("toggle vid_filter\n");
 			break;
 		case VID_OPT_ANISOTROPY:
-			Cbuf_AddText ("toggle vid_anisotropy\n");
+			Cbuf_AddText ("toggle vid_anisotropic\n");
 			break;
 		default:
 			break;
@@ -2129,7 +2129,7 @@ static void VID_MenuKey (int key)
 			Cbuf_AddText ("toggle vid_filter\n");
 			break;
 		case VID_OPT_ANISOTROPY:
-			Cbuf_AddText ("toggle vid_anisotropy\n");
+			Cbuf_AddText ("toggle vid_anisotropic\n");
 			break;
 		default:
 			break;
@@ -2157,7 +2157,7 @@ static void VID_MenuKey (int key)
 			Cbuf_AddText ("toggle vid_filter\n");
 			break;
 		case VID_OPT_ANISOTROPY:
-			Cbuf_AddText ("toggle vid_anisotropy\n");
+			Cbuf_AddText ("toggle vid_anisotropic\n");
 			break;
 		case VID_OPT_TEST:
 			Cbuf_AddText ("vid_test\n");
@@ -2234,7 +2234,7 @@ static void VID_MenuDraw (void)
 			break;
 		case VID_OPT_ANISOTROPY:
 			M_Print (16, y, "       Anisotropic");
-			M_Print (184, y, ((int)vid_anisotropy.value == 0) ? "off" : "on");
+			M_Print (184, y, ((int)vid_anisotropic.value == 0) ? "off" : "on");
 			break;
 		case VID_OPT_TEST:
 			y += 8; //separate the test and apply items
