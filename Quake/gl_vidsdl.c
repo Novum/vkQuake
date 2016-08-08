@@ -37,7 +37,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #define NUM_COMMAND_BUFFERS 2
 #define MAX_SWAP_CHAIN_IMAGES 8
-#define DEPTH_FORMAT VK_FORMAT_D16_UNORM
 #define COLOR_BUFFER_FORMAT VK_FORMAT_R8G8B8A8_UNORM;
 
 typedef struct {
@@ -731,6 +730,20 @@ static void GL_InitDevice( void )
 	GET_DEVICE_PROC_ADDR(vulkan_globals.device, QueuePresentKHR);
 
 	vkGetDeviceQueue(vulkan_globals.device, vulkan_globals.gfx_queue_family_index, 0, &vulkan_globals.queue);
+
+	// Find depth format
+	VkFormatProperties format_properties;
+
+	vkGetPhysicalDeviceFormatProperties(vulkan_physical_device, VK_FORMAT_X8_D24_UNORM_PACK32, &format_properties);
+	qboolean x8_d24_support = (format_properties.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) != 0;
+	vkGetPhysicalDeviceFormatProperties(vulkan_physical_device, VK_FORMAT_D32_SFLOAT, &format_properties);
+	qboolean d32_support = (format_properties.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) != 0;
+
+	vulkan_globals.depth_format = VK_FORMAT_D16_UNORM;
+	if (x8_d24_support)
+		vulkan_globals.depth_format = VK_FORMAT_X8_D24_UNORM_PACK32;
+	else if(d32_support)
+		vulkan_globals.depth_format = VK_FORMAT_D32_SFLOAT;
 }
 
 /*
@@ -801,7 +814,7 @@ static void GL_CreateRenderPasses()
 	attachment_descriptions[1].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	attachment_descriptions[1].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 	attachment_descriptions[1].samples = VK_SAMPLE_COUNT_1_BIT;
-	attachment_descriptions[1].format = DEPTH_FORMAT;
+	attachment_descriptions[1].format = vulkan_globals.depth_format;
 	attachment_descriptions[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	attachment_descriptions[1].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 
@@ -908,7 +921,7 @@ static void GL_CreateDepthBuffer( void )
 	image_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
 	image_create_info.pNext = NULL;
 	image_create_info.imageType = VK_IMAGE_TYPE_2D;
-	image_create_info.format = DEPTH_FORMAT;
+	image_create_info.format = vulkan_globals.depth_format;
 	image_create_info.extent.width = vid.width;
 	image_create_info.extent.height = vid.height;
 	image_create_info.extent.depth = 1;
@@ -943,7 +956,7 @@ static void GL_CreateDepthBuffer( void )
 	VkImageViewCreateInfo image_view_create_info;
 	memset(&image_view_create_info, 0, sizeof(image_view_create_info));
 	image_view_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-	image_view_create_info.format = DEPTH_FORMAT;
+	image_view_create_info.format = vulkan_globals.depth_format;
 	image_view_create_info.image = depth_buffer;
 	image_view_create_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
 	image_view_create_info.subresourceRange.baseMipLevel = 0;
