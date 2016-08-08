@@ -26,7 +26,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 #include "gl_heap.h"
 
-static cvar_t	gl_texture_anisotropy = {"gl_texture_anisotropy", "1", CVAR_ARCHIVE};
 static cvar_t	gl_max_size = {"gl_max_size", "0", CVAR_NONE};
 static cvar_t	gl_picmip = {"gl_picmip", "0", CVAR_NONE};
 
@@ -109,36 +108,6 @@ void TexMgr_UpdateTextureDescriptorSets(void)
 
 	for (glt = active_gltextures; glt; glt = glt->next)
 		TexMgr_SetFilterModes (glt);
-}
-
-/*
-===============
-TexMgr_Anisotropy_f -- called when gl_texture_anisotropy changes
-===============
-*/
-static void TexMgr_Anisotropy_f (cvar_t *var)
-{
-	/*if (gl_texture_anisotropy.value < 1)
-	{
-		Cvar_SetQuick (&gl_texture_anisotropy, "1");
-	}
-	else if (gl_texture_anisotropy.value > gl_max_anisotropy)
-	{
-		Cvar_SetValueQuick (&gl_texture_anisotropy, gl_max_anisotropy);
-	}
-	else
-	{
-		gltexture_t	*glt;
-		for (glt = active_gltextures; glt; glt = glt->next)
-		{
-		    if (glt->flags & TEXPREF_MIPMAP) {
-			GL_Bind (glt);
-			glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, glmodes[glmode_idx].magfilter);
-			glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, glmodes[glmode_idx].minfilter);
-			glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, gl_texture_anisotropy.value);
-		    }
-		}
-	}*/
 }
 
 /*
@@ -467,8 +436,6 @@ void TexMgr_Init (void)
 
 	Cvar_RegisterVariable (&gl_max_size);
 	Cvar_RegisterVariable (&gl_picmip);
-	Cvar_RegisterVariable (&gl_texture_anisotropy);
-	Cvar_SetCallback (&gl_texture_anisotropy, &TexMgr_Anisotropy_f);
 	Cmd_AddCommand ("imagelist", &TexMgr_Imagelist_f);
 
 	// load notexture images
