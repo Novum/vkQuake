@@ -1,3 +1,6 @@
+# Introduction
+vkQuake serves as a Vulkan demo application that shows basic usage of the API. For example it demonstrates render passes and sub passes, pipeline barriers, basic CPU/GPU parallelism and memory pooling. It is also meant as a port, which is as authentic to the original as possible.
+
 # Building
 
 ## Windows
