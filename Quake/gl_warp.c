@@ -313,7 +313,7 @@ void R_UpdateWarpTextures (void)
 			{
 				memory_barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 				memory_barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-				vkCmdPipelineBarrier(vulkan_globals.command_buffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 1, &memory_barrier, 0, NULL, 0, NULL);
+				vkCmdPipelineBarrier(vulkan_globals.command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 1, &memory_barrier, 0, NULL, 0, NULL);
 			}
 		}
 		
@@ -324,7 +324,7 @@ void R_UpdateWarpTextures (void)
 		image_barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 		image_barrier.subresourceRange.baseMipLevel = 0;
 		image_barrier.subresourceRange.levelCount = WARPIMAGEMIPS;
-		vkCmdPipelineBarrier(vulkan_globals.command_buffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, NULL, 0, NULL, 1, &image_barrier);
+		vkCmdPipelineBarrier(vulkan_globals.command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, NULL, 0, NULL, 1, &image_barrier);
 
 		tx->update_warp = false;
 	}
