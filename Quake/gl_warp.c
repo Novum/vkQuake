@@ -324,7 +324,7 @@ void R_UpdateWarpTextures (void)
 		image_barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 		image_barrier.subresourceRange.baseMipLevel = 0;
 		image_barrier.subresourceRange.levelCount = WARPIMAGEMIPS;
-		vkCmdPipelineBarrier(vulkan_globals.command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, NULL, 0, NULL, 1, &image_barrier);
+		vkCmdPipelineBarrier(vulkan_globals.command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL, 1, &image_barrier);
 
 		tx->update_warp = false;
 	}
