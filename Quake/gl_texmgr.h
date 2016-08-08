@@ -66,6 +66,7 @@ typedef struct gltexture_s {
 //used for rendering
 	VkImage				image;
 	VkImageView			image_view;
+	VkImageView			target_image_view;
 	glheap_t *			heap;
 	glheapnode_t *		heap_node;
 	VkDescriptorSet		descriptor_set;

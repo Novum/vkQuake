@@ -186,6 +186,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define	SOUND_CHANNELS		8
 
 #define WARPIMAGESIZE		512
+#define WARPIMAGEMIPS		5
 
 typedef struct
 {

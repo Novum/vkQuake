@@ -186,7 +186,6 @@ void R_UpdateWarpTextures (void)
 	texture_t *tx;
 	int i;
 	float x, y, x2, warptess;
-	qboolean rendered_warp_texture = false;
 
 	if (cl.paused || r_drawflat_cheatsafe || r_lightmap_cheatsafe)
 		return;
@@ -200,8 +199,6 @@ void R_UpdateWarpTextures (void)
 
 		if (!tx->update_warp)
 			continue;
-
-		rendered_warp_texture = true;
 
 		VkRect2D render_area;
 		render_area.offset.x = 0;
@@ -265,6 +262,70 @@ void R_UpdateWarpTextures (void)
 
 		vkCmdEndRenderPass(vulkan_globals.command_buffer);
 
+		// Make sure that writes are done for mip we just rendered to
+		VkMemoryBarrier memory_barrier;
+		memory_barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+		memory_barrier.pNext = NULL;
+		memory_barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+		memory_barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+		
+		// Transfer all other mips from UNDEFINED to GENERAL layout
+		VkImageMemoryBarrier image_barrier;
+		image_barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+		image_barrier.pNext = NULL;
+		image_barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+		image_barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+		image_barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		image_barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+		image_barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+		image_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		image_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		image_barrier.image = tx->warpimage->image;
+		image_barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		image_barrier.subresourceRange.baseMipLevel = 1;
+		image_barrier.subresourceRange.levelCount = WARPIMAGEMIPS - 1;
+		image_barrier.subresourceRange.baseArrayLayer = 0;
+		image_barrier.subresourceRange.layerCount = 1;
+
+		vkCmdPipelineBarrier(vulkan_globals.command_buffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 1, &memory_barrier, 0, NULL, 1, &image_barrier);
+
+		for (int i = 1; i<WARPIMAGEMIPS; ++i)
+		{
+			int srcSize = WARPIMAGESIZE >> (i - 1);
+			int dstSize = WARPIMAGESIZE >> i;
+
+			VkImageBlit region;
+			memset(&region, 0, sizeof(region));
+			region.srcOffsets[1].x = srcSize;
+			region.srcOffsets[1].y = srcSize;
+			region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+			region.srcSubresource.layerCount = 1;
+			region.srcSubresource.mipLevel = (i - 1);
+			region.dstOffsets[1].x = dstSize;
+			region.dstOffsets[1].y = dstSize;
+			region.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+			region.dstSubresource.layerCount = 1;
+			region.dstSubresource.mipLevel = i;
+
+			vkCmdBlitImage(vulkan_globals.command_buffer, tx->warpimage->image, VK_IMAGE_LAYOUT_GENERAL, tx->warpimage->image, VK_IMAGE_LAYOUT_GENERAL, 1, &region, VK_FILTER_LINEAR);
+
+			if (i < (WARPIMAGEMIPS - 1))
+			{
+				memory_barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+				memory_barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+				vkCmdPipelineBarrier(vulkan_globals.command_buffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 1, &memory_barrier, 0, NULL, 0, NULL);
+			}
+		}
+		
+		// Transfer all warp texture mips from GENERAL to VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+		image_barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+		image_barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+		image_barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
+		image_barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		image_barrier.subresourceRange.baseMipLevel = 0;
+		image_barrier.subresourceRange.levelCount = WARPIMAGEMIPS;
+		vkCmdPipelineBarrier(vulkan_globals.command_buffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, NULL, 0, NULL, 1, &image_barrier);
+
 		tx->update_warp = false;
 	}
 
@@ -274,14 +335,4 @@ void R_UpdateWarpTextures (void)
 
 	//if viewsize is less than 100, we need to redraw the frame around the viewport
 	scr_tileclear_updates = 0;
-
-	if (rendered_warp_texture)
-	{
-		VkMemoryBarrier memory_barrier;
-		memory_barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
-		memory_barrier.pNext = NULL;
-		memory_barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-		memory_barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-		vkCmdPipelineBarrier(vulkan_globals.command_buffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 1, &memory_barrier, 0, NULL, 0, NULL);
-	}
 }

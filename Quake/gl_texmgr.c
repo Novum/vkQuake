@@ -894,12 +894,14 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	}
 
 	int num_mips = (glt->flags & TEXPREF_MIPMAP) ? TexMgr_DeriveNumMips(glt->width, glt->height) : 1;
+
+	const qboolean warp_image = (glt->flags & TEXPREF_WARPIMAGE);
+	if (warp_image)
+		num_mips = WARPIMAGEMIPS;
 	
 	// Check for sanity. This should never be reached.
 	if (num_mips > MAX_MIPS)
 		Sys_Error("Texture has over %d mips", MAX_MIPS);
-
-	const qboolean warp_image = (glt->flags & TEXPREF_WARPIMAGE);
 
 	VkResult err;
 
@@ -915,7 +917,7 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	image_create_info.arrayLayers = 1;
 	image_create_info.samples = VK_SAMPLE_COUNT_1_BIT;
 	image_create_info.tiling = VK_IMAGE_TILING_OPTIMAL;
-	image_create_info.usage = warp_image ? (VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT) : (VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+	image_create_info.usage = warp_image ? (VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT) : (VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
 	image_create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 	image_create_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
@@ -968,12 +970,17 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	// Don't upload data for warp image, will be updated by rendering
 	if (warp_image)
 	{
+		image_view_create_info.subresourceRange.levelCount = 1;
+		err = vkCreateImageView(vulkan_globals.device, &image_view_create_info, NULL, &glt->target_image_view);
+		if (err != VK_SUCCESS)
+			Sys_Error("vkCreateImageView failed");
+
 		VkFramebufferCreateInfo framebuffer_create_info;
 		memset(&framebuffer_create_info, 0, sizeof(framebuffer_create_info));
 		framebuffer_create_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
 		framebuffer_create_info.renderPass = vulkan_globals.warp_render_pass;
 		framebuffer_create_info.attachmentCount = 1;
-		framebuffer_create_info.pAttachments = &glt->image_view;
+		framebuffer_create_info.pAttachments = &glt->target_image_view;
 		framebuffer_create_info.width = glt->width;
 		framebuffer_create_info.height = glt->height;
 		framebuffer_create_info.layers = 1;
@@ -983,6 +990,8 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 
 		return;
 	}
+	else
+		glt->target_image_view = NULL;
 
 	glt->frame_buffer = VK_NULL_HANDLE;
 
@@ -1438,6 +1447,8 @@ static void GL_DeleteTexture (gltexture_t *texture)
 
 	if (texture->frame_buffer != VK_NULL_HANDLE)
 		vkDestroyFramebuffer(vulkan_globals.device, texture->frame_buffer, NULL);
+	if(texture->target_image_view)
+		vkDestroyImageView(vulkan_globals.device, texture->target_image_view, NULL);
 	vkDestroyImageView(vulkan_globals.device, texture->image_view, NULL);
 	vkDestroyImage(vulkan_globals.device, texture->image, NULL);
 	vkFreeDescriptorSets(vulkan_globals.device, vulkan_globals.descriptor_pool, 1, &texture->descriptor_set);
@@ -1445,6 +1456,7 @@ static void GL_DeleteTexture (gltexture_t *texture)
 	GL_FreeFromHeaps(TEXTURE_MAX_HEAPS, texmgr_heaps, texture->heap, texture->heap_node, &num_vulkan_tex_allocations);
 
 	texture->frame_buffer = VK_NULL_HANDLE;
+	texture->target_image_view = VK_NULL_HANDLE;
 	texture->image_view = VK_NULL_HANDLE;
 	texture->image = VK_NULL_HANDLE;
 	texture->heap = NULL;
