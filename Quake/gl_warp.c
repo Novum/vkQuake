@@ -273,7 +273,7 @@ void R_UpdateWarpTextures (void)
 		VkImageMemoryBarrier image_barrier;
 		image_barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 		image_barrier.pNext = NULL;
-		image_barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+		image_barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
 		image_barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
 		image_barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 		image_barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
@@ -317,7 +317,7 @@ void R_UpdateWarpTextures (void)
 			}
 		}
 		
-		// Transfer all warp texture mips from GENERAL to VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+		// Transfer all warp texture mips from GENERAL to SHADER_READ_ONLY_OPTIMAL
 		image_barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 		image_barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 		image_barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
