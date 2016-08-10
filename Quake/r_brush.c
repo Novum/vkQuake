@@ -670,6 +670,8 @@ void GL_BuildBModelVertexBuffer (void)
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateBuffer failed");
 
+	GL_SetObjectName((uint64_t)bmodel_vertex_buffer, VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT, m->name);
+
 	VkMemoryRequirements memory_requirements;
 	vkGetBufferMemoryRequirements(vulkan_globals.device, bmodel_vertex_buffer, &memory_requirements);
 
@@ -688,6 +690,8 @@ void GL_BuildBModelVertexBuffer (void)
 	err = vkAllocateMemory(vulkan_globals.device, &memory_allocate_info, NULL, &bmodel_memory);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkAllocateMemory failed");
+
+	GL_SetObjectName((uint64_t)bmodel_memory, VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_MEMORY_EXT, m->name);
 
 	err = vkBindBufferMemory(vulkan_globals.device, bmodel_vertex_buffer, bmodel_memory, 0);
 	if (err != VK_SUCCESS)

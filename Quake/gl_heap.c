@@ -35,7 +35,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 GL_CreateHeap
 ===============
 */
-glheap_t * GL_CreateHeap(VkDeviceSize size, uint32_t memory_type_index)
+glheap_t * GL_CreateHeap(VkDeviceSize size, uint32_t memory_type_index, const char * name)
 {
 	glheap_t * heap = malloc(sizeof(glheap_t));
 
@@ -48,6 +48,8 @@ glheap_t * GL_CreateHeap(VkDeviceSize size, uint32_t memory_type_index)
 	VkResult err = vkAllocateMemory(vulkan_globals.device, &memory_allocate_info, NULL, &heap->memory);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkAllocateMemory failed");
+
+	GL_SetObjectName((uint64_t)heap->memory, VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_MEMORY_EXT, name);
 
 	heap->head = malloc(sizeof(glheapnode_t));
 	heap->head->offset = 0;
@@ -176,14 +178,14 @@ GL_AllocateFromHeaps
 ================
 */
 VkDeviceSize GL_AllocateFromHeaps(int num_heaps, glheap_t ** heaps, VkDeviceSize heap_size, uint32_t memory_type_index,
-	VkDeviceSize size, VkDeviceSize alignment, glheap_t ** heap, glheapnode_t ** heap_node, int * num_allocations)
+	VkDeviceSize size, VkDeviceSize alignment, glheap_t ** heap, glheapnode_t ** heap_node, int * num_allocations, const char * heap_name)
 {
 	for(int i = 0; i < num_heaps; ++i)
 	{
 		qboolean new_heap = false;
 		if(!heaps[i])
 		{
-			heaps[i] = GL_CreateHeap(heap_size, memory_type_index);
+			heaps[i] = GL_CreateHeap(heap_size, memory_type_index, heap_name);
 			*num_allocations += 1;
 			new_heap = true;
 		}

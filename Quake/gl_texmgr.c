@@ -907,7 +907,7 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 
 	uint32_t memory_type_index = GL_MemoryTypeFromProperties(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
 	VkDeviceSize heap_size = TEXTURE_HEAP_SIZE_MB * (VkDeviceSize)1024 * (VkDeviceSize)1024;
-	VkDeviceSize aligned_offset = GL_AllocateFromHeaps(TEXTURE_MAX_HEAPS, texmgr_heaps, heap_size, memory_type_index, memory_requirements.size, memory_requirements.alignment, &glt->heap, &glt->heap_node, &num_vulkan_tex_allocations);
+	VkDeviceSize aligned_offset = GL_AllocateFromHeaps(TEXTURE_MAX_HEAPS, texmgr_heaps, heap_size, memory_type_index, memory_requirements.size, memory_requirements.alignment, &glt->heap, &glt->heap_node, &num_vulkan_tex_allocations, "Textures");
 	err = vkBindImageMemory(vulkan_globals.device, glt->image, glt->heap->memory, aligned_offset);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkBindImageMemory failed");

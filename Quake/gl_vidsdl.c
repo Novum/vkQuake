@@ -994,6 +994,8 @@ static void GL_CreateDepthBuffer( void )
 	if (err != VK_SUCCESS)
 		Sys_Error("vkAllocateMemory failed");
 
+	GL_SetObjectName((uint64_t)depth_buffer_memory, VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_MEMORY_EXT, "Depth Buffer");
+
 	err = vkBindImageMemory(vulkan_globals.device, depth_buffer, depth_buffer_memory, 0);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkBindImageMemory failed");
@@ -1064,6 +1066,8 @@ static void GL_CreateColorBuffer( void )
 	err = vkAllocateMemory(vulkan_globals.device, &memory_allocate_info, NULL, &color_buffer_memory);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkAllocateMemory failed");
+
+	GL_SetObjectName((uint64_t)color_buffer_memory, VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_MEMORY_EXT, "Color Buffer");
 
 	err = vkBindImageMemory(vulkan_globals.device, color_buffer, color_buffer_memory, 0);
 	if (err != VK_SUCCESS)

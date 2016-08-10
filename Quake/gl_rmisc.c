@@ -272,6 +272,8 @@ void R_InitStagingBuffers()
 		err = vkCreateBuffer(vulkan_globals.device, &buffer_create_info, NULL, &staging_buffers[i].buffer);
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateBuffer failed");
+
+		GL_SetObjectName((uint64_t)staging_buffers[i].buffer, VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT, "Staging Buffer");
 	}
 
 	VkMemoryRequirements memory_requirements;
@@ -292,6 +294,8 @@ void R_InitStagingBuffers()
 	err = vkAllocateMemory(vulkan_globals.device, &memory_allocate_info, NULL, &staging_memory);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkAllocateMemory failed");
+
+	GL_SetObjectName((uint64_t)staging_memory, VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_MEMORY_EXT, "Staging Buffers");
 
 	for(int i = 0; i < NUM_STAGING_BUFFERS; ++i)
 	{
@@ -465,6 +469,8 @@ static void R_InitDynamicVertexBuffers()
 		err = vkCreateBuffer(vulkan_globals.device, &buffer_create_info, NULL, &dyn_vertex_buffers[i].buffer);
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateBuffer failed");
+
+		GL_SetObjectName((uint64_t)dyn_vertex_buffers[i].buffer, VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT, "Dynamic Vertex Buffer");
 	}
 
 	VkMemoryRequirements memory_requirements;
@@ -485,6 +491,8 @@ static void R_InitDynamicVertexBuffers()
 	err = vkAllocateMemory(vulkan_globals.device, &memory_allocate_info, NULL, &dyn_vertex_buffer_memory);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkAllocateMemory failed");
+
+	GL_SetObjectName((uint64_t)dyn_vertex_buffer_memory, VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_MEMORY_EXT, "Dynamic Vertex Buffers");
 
 	for(int i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
 	{
@@ -526,6 +534,8 @@ static void R_InitDynamicIndexBuffers()
 		err = vkCreateBuffer(vulkan_globals.device, &buffer_create_info, NULL, &dyn_index_buffers[i].buffer);
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateBuffer failed");
+
+		GL_SetObjectName((uint64_t)dyn_index_buffers[i].buffer, VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT, "Dynamic Index Buffer");
 	}
 
 	VkMemoryRequirements memory_requirements;
@@ -546,6 +556,8 @@ static void R_InitDynamicIndexBuffers()
 	err = vkAllocateMemory(vulkan_globals.device, &memory_allocate_info, NULL, &dyn_index_buffer_memory);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkAllocateMemory failed");
+
+	GL_SetObjectName((uint64_t)dyn_index_buffer_memory, VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_MEMORY_EXT, "Dynamic Index Buffers");
 
 	for(int i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
 	{
@@ -587,6 +599,8 @@ static void R_InitDynamicUniformBuffers()
 		err = vkCreateBuffer(vulkan_globals.device, &buffer_create_info, NULL, &dyn_uniform_buffers[i].buffer);
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateBuffer failed");
+
+		GL_SetObjectName((uint64_t)dyn_uniform_buffers[i].buffer, VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT, "Dynamic Uniform Buffer");
 	}
 
 	VkMemoryRequirements memory_requirements;
@@ -607,6 +621,8 @@ static void R_InitDynamicUniformBuffers()
 	err = vkAllocateMemory(vulkan_globals.device, &memory_allocate_info, NULL, &dyn_uniform_buffer_memory);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkAllocateMemory failed");
+
+	GL_SetObjectName((uint64_t)dyn_uniform_buffer_memory, VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_MEMORY_EXT, "Dynamic Uniform Buffers");
 
 	for(int i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
 	{
@@ -1177,6 +1193,8 @@ void R_CreatePipelines()
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateGraphicsPipelines failed");
 
+	GL_SetObjectName((uint64_t)vulkan_globals.basic_alphatest_pipeline, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "basic_alphatest");
+
 	shader_stages[1].module = basic_notex_frag_module;
 
 	blend_attachment_state.blendEnable = VK_TRUE;
@@ -1191,11 +1209,15 @@ void R_CreatePipelines()
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateGraphicsPipelines failed");
 
+	GL_SetObjectName((uint64_t)vulkan_globals.basic_notex_blend_pipeline, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "basic_notex_blend");
+
 	input_assembly_state_create_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN;
 
 	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.basic_poly_blend_pipeline);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateGraphicsPipelines failed");
+
+	GL_SetObjectName((uint64_t)vulkan_globals.basic_poly_blend_pipeline, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "basic_poly_blend");
 
 	input_assembly_state_create_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
@@ -1204,6 +1226,8 @@ void R_CreatePipelines()
 	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.basic_blend_pipeline);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateGraphicsPipelines failed");
+
+	GL_SetObjectName((uint64_t)vulkan_globals.basic_blend_pipeline, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "basic_blend");
 
 	//================
 	// Warp
@@ -1220,6 +1244,8 @@ void R_CreatePipelines()
 	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.warp_pipeline);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateGraphicsPipelines failed");
+
+	GL_SetObjectName((uint64_t)vulkan_globals.warp_pipeline, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "warp");
 
 	//================
 	// Particles
@@ -1250,12 +1276,16 @@ void R_CreatePipelines()
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateGraphicsPipelines failed");
 
+	GL_SetObjectName((uint64_t)vulkan_globals.water_pipeline, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "water");
+
 	depth_stencil_state_create_info.depthWriteEnable = VK_FALSE;
 	blend_attachment_state.blendEnable = VK_TRUE;
 
 	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.water_blend_pipeline);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateGraphicsPipelines failed");
+
+	GL_SetObjectName((uint64_t)vulkan_globals.water_blend_pipeline, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "water_blend");
 	
 	//================
 	// Sprites
@@ -1268,6 +1298,8 @@ void R_CreatePipelines()
 	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.sprite_pipeline);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateGraphicsPipelines failed");
+
+	GL_SetObjectName((uint64_t)vulkan_globals.sprite_pipeline, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "sprite");
 
 	dynamic_state_create_info.dynamicStateCount--;
 
@@ -1286,11 +1318,15 @@ void R_CreatePipelines()
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateGraphicsPipelines failed");
 
+	GL_SetObjectName((uint64_t)vulkan_globals.sky_color_pipeline, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "sky_color");
+
 	shader_stages[1].module = basic_frag_module;
 
 	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.sky_box_pipeline);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateGraphicsPipelines failed");
+
+	GL_SetObjectName((uint64_t)vulkan_globals.sky_box_pipeline, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "sky_box");
 
 	VkVertexInputAttributeDescription sky_layer_vertex_input_attribute_descriptions[4];
 	sky_layer_vertex_input_attribute_descriptions[0].binding = 0;
@@ -1329,6 +1365,8 @@ void R_CreatePipelines()
 	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.sky_layer_pipeline);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateGraphicsPipelines failed");
+
+	GL_SetObjectName((uint64_t)vulkan_globals.sky_layer_pipeline, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "sky_layer");
 
 	//================
 	// World pipelines
@@ -1393,12 +1431,16 @@ void R_CreatePipelines()
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateGraphicsPipelines failed");
 
+	GL_SetObjectName((uint64_t)vulkan_globals.world_pipelines[world_pipeline_base], VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "world_base");
+
 	specialization_data[0] = 1;
 	specialization_data[1] = 0;
 
 	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.world_pipelines[world_pipeline_fullbright]);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateGraphicsPipelines failed");
+
+	GL_SetObjectName((uint64_t)vulkan_globals.world_pipelines[world_pipeline_fullbright], VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "world_fullbright");
 
 	specialization_data[0] = 0;
 	specialization_data[1] = 1;
@@ -1407,12 +1449,16 @@ void R_CreatePipelines()
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateGraphicsPipelines failed");
 
+	GL_SetObjectName((uint64_t)vulkan_globals.world_pipelines[world_pipeline_alpha_test], VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "world_alpha_test");
+
 	specialization_data[0] = 1;
 	specialization_data[1] = 1;
 
 	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.world_pipelines[world_pipeline_fullbright_alpha_test]);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateGraphicsPipelines failed");
+
+	GL_SetObjectName((uint64_t)vulkan_globals.world_pipelines[world_pipeline_fullbright_alpha_test], VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "world_fullbright_alpha_test");
 
 	shader_stages[1].pSpecializationInfo = NULL;
 
@@ -1466,12 +1512,16 @@ void R_CreatePipelines()
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateGraphicsPipelines failed");
 
+	GL_SetObjectName((uint64_t)vulkan_globals.alias_pipeline, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "alias");
+
 	depth_stencil_state_create_info.depthWriteEnable = VK_FALSE;
 	blend_attachment_state.blendEnable = VK_TRUE;
 
 	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.alias_blend_pipeline);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateGraphicsPipelines failed");
+
+	GL_SetObjectName((uint64_t)vulkan_globals.alias_blend_pipeline, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "alias_blend");
 
 	//================
 	// Postprocess pipeline
@@ -1493,6 +1543,8 @@ void R_CreatePipelines()
 	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.postprocess_pipeline);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateGraphicsPipelines failed");
+
+	GL_SetObjectName((uint64_t)vulkan_globals.postprocess_pipeline, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "postprocess");
 
 	vkDestroyShaderModule(vulkan_globals.device, postprocess_frag_module, NULL);
 	vkDestroyShaderModule(vulkan_globals.device, postprocess_vert_module, NULL);
