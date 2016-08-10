@@ -922,6 +922,8 @@ static void GL_CreateRenderPasses()
 	if (err != VK_SUCCESS)
 		Sys_Error("Couldn't create Vulkan render pass");
 
+	GL_SetObjectName((uint64_t)vulkan_globals.main_render_pass, VK_DEBUG_REPORT_OBJECT_TYPE_RENDER_PASS_EXT, "main");
+
 	// Warp rendering
 	attachment_descriptions[0].format = VK_FORMAT_R8G8B8A8_UNORM;
 	attachment_descriptions[0].loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
@@ -946,6 +948,8 @@ static void GL_CreateRenderPasses()
 	err = vkCreateRenderPass(vulkan_globals.device, &render_pass_create_info, NULL, &vulkan_globals.warp_render_pass);
 	if (err != VK_SUCCESS)
 		Sys_Error("Couldn't create Vulkan render pass");
+
+	GL_SetObjectName((uint64_t)vulkan_globals.warp_render_pass, VK_DEBUG_REPORT_OBJECT_TYPE_RENDER_PASS_EXT, "warp");
 }
 
 /*
@@ -1286,6 +1290,8 @@ static void GL_CreateFrameBuffers( void )
 		err = vkCreateFramebuffer(vulkan_globals.device, &framebuffer_create_info, NULL, &framebuffers[i]);
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateFramebuffer failed");
+
+		GL_SetObjectName((uint64_t)framebuffers[i], VK_DEBUG_REPORT_OBJECT_TYPE_FRAMEBUFFER_EXT, "main");
 	}
 }
 

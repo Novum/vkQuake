@@ -998,11 +998,15 @@ void R_InitSamplers()
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateSampler failed");
 
+		GL_SetObjectName((uint64_t)vulkan_globals.point_sampler, VK_DEBUG_REPORT_OBJECT_TYPE_SAMPLER_EXT, "point");
+
 		sampler_create_info.anisotropyEnable = VK_TRUE;
 		sampler_create_info.maxAnisotropy = 16.0f;
 		err = vkCreateSampler(vulkan_globals.device, &sampler_create_info, NULL, &vulkan_globals.point_aniso_sampler);
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateSampler failed");
+
+		GL_SetObjectName((uint64_t)vulkan_globals.point_aniso_sampler, VK_DEBUG_REPORT_OBJECT_TYPE_SAMPLER_EXT, "point_aniso");
 
 		sampler_create_info.magFilter = VK_FILTER_LINEAR;
 		sampler_create_info.minFilter = VK_FILTER_LINEAR;
@@ -1014,11 +1018,15 @@ void R_InitSamplers()
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateSampler failed");
 
+		GL_SetObjectName((uint64_t)vulkan_globals.linear_sampler, VK_DEBUG_REPORT_OBJECT_TYPE_SAMPLER_EXT, "linear");
+
 		sampler_create_info.anisotropyEnable = VK_TRUE;
 		sampler_create_info.maxAnisotropy = 16.0f;
 		err = vkCreateSampler(vulkan_globals.device, &sampler_create_info, NULL, &vulkan_globals.linear_aniso_sampler);
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateSampler failed");
+
+		GL_SetObjectName((uint64_t)vulkan_globals.linear_aniso_sampler, VK_DEBUG_REPORT_OBJECT_TYPE_SAMPLER_EXT, "linear_aniso");
 	}
 
 	TexMgr_UpdateTextureDescriptorSets();
