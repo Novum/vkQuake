@@ -2185,6 +2185,9 @@ void COM_InitFilesystem (void) //johnfitz -- modified based on topaz's tutorial
 		}
 	}
 
+	if (COM_CheckParm ("-validation"))
+		vulkan_globals.validation = true;
+
 	COM_CheckRegistered ();
 }
 

@@ -112,6 +112,7 @@ typedef struct
 {
 	VkDevice							device;
 	qboolean							device_idle;
+	qboolean							validation;
 	VkQueue								queue;
 	VkCommandBuffer						command_buffer;
 	VkClearValue						color_clear_value;

@@ -83,9 +83,6 @@ static cvar_t	vid_vsync = {"vid_vsync", "0", CVAR_ARCHIVE};
 static cvar_t	vid_fsaa = {"vid_fsaa", "0", CVAR_ARCHIVE}; // QuakeSpasm
 static cvar_t	vid_desktopfullscreen = {"vid_desktopfullscreen", "0", CVAR_ARCHIVE}; // QuakeSpasm
 static cvar_t	vid_borderless = {"vid_borderless", "0", CVAR_ARCHIVE}; // QuakeSpasm
-#if _DEBUG
-static cvar_t	vid_validation = {"vid_validation", "0", 0};
-#endif
 cvar_t	vid_filter = {"vid_filter", "0", CVAR_ARCHIVE};
 cvar_t	vid_anisotropic = {"vid_anisotropic", "0", CVAR_ARCHIVE};
 
@@ -576,7 +573,7 @@ static void GL_InitInstance( void )
 	instance_create_info.enabledExtensionCount = 2;
 	instance_create_info.ppEnabledExtensionNames = instance_extensions;
 #ifdef _DEBUG
-	if(vid_validation.value)
+	if(vulkan_globals.validation)
 	{
 		instance_create_info.enabledExtensionCount = 3;
 		instance_create_info.enabledLayerCount = 1;
@@ -618,7 +615,7 @@ static void GL_InitInstance( void )
 	GET_INSTANCE_PROC_ADDR(vulkan_instance, GetSwapchainImagesKHR);
 
 #ifdef _DEBUG
-	if(vid_validation.value)
+	if(vulkan_globals.validation)
 	{
 		GET_INSTANCE_PROC_ADDR(vulkan_instance, CreateDebugReportCallbackEXT);
 		GET_INSTANCE_PROC_ADDR(vulkan_instance, DestroyDebugReportCallbackEXT);
@@ -1637,9 +1634,6 @@ void	VID_Init (void)
 	Cvar_RegisterVariable (&vid_fsaa); //QuakeSpasm
 	Cvar_RegisterVariable (&vid_desktopfullscreen); //QuakeSpasm
 	Cvar_RegisterVariable (&vid_borderless); //QuakeSpasm
-#if _DEBUG
-	Cvar_RegisterVariable (&vid_validation); //QuakeSpasm
-#endif
 	Cvar_SetCallback (&vid_fullscreen, VID_Changed_f);
 	Cvar_SetCallback (&vid_width, VID_Changed_f);
 	Cvar_SetCallback (&vid_height, VID_Changed_f);
