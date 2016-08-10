@@ -55,7 +55,8 @@ int		striptris[128];
 int		stripcount;
 
 // Heap
-#define GEOMETRY_HEAP_SIZE_MB 16
+#define INDEX_HEAP_SIZE_MB 1
+#define VERTEX_HEAP_SIZE_MB 16
 #define GEOMETRY_MAX_HEAPS 4
 
 static glheap_t * vertex_buffer_heaps[GEOMETRY_MAX_HEAPS];
@@ -510,7 +511,7 @@ static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 		vkGetBufferMemoryRequirements(vulkan_globals.device, m->index_buffer, &memory_requirements);
 
 		uint32_t memory_type_index = GL_MemoryTypeFromProperties(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
-		VkDeviceSize heap_size = GEOMETRY_HEAP_SIZE_MB * (VkDeviceSize)1024 * (VkDeviceSize)1024;
+		VkDeviceSize heap_size = INDEX_HEAP_SIZE_MB * (VkDeviceSize)1024 * (VkDeviceSize)1024;
 		VkDeviceSize aligned_offset = GL_AllocateFromHeaps(GEOMETRY_MAX_HEAPS, index_buffer_heaps, heap_size, memory_type_index, memory_requirements.size,
 			memory_requirements.alignment, &m->index_heap, &m->index_heap_node, &num_vulkan_mesh_allocations, "Index Buffers");
 		err = vkBindBufferMemory(vulkan_globals.device, m->index_buffer, m->index_heap->memory, aligned_offset);
@@ -597,7 +598,7 @@ static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 		vkGetBufferMemoryRequirements(vulkan_globals.device, m->vertex_buffer, &memory_requirements);
 
 		uint32_t memory_type_index = GL_MemoryTypeFromProperties(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
-		VkDeviceSize heap_size = GEOMETRY_HEAP_SIZE_MB * (VkDeviceSize)1024 * (VkDeviceSize)1024;
+		VkDeviceSize heap_size = VERTEX_HEAP_SIZE_MB * (VkDeviceSize)1024 * (VkDeviceSize)1024;
 		VkDeviceSize aligned_offset = GL_AllocateFromHeaps(GEOMETRY_MAX_HEAPS, vertex_buffer_heaps, heap_size, memory_type_index, memory_requirements.size,
 			memory_requirements.alignment, &m->vertex_heap, &m->vertex_heap_node, &num_vulkan_mesh_allocations, "Vertex Buffers");
 		err = vkBindBufferMemory(vulkan_globals.device, m->vertex_buffer, m->vertex_heap->memory, aligned_offset);
