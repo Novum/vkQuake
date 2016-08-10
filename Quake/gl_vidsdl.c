@@ -83,6 +83,9 @@ static cvar_t	vid_vsync = {"vid_vsync", "0", CVAR_ARCHIVE};
 static cvar_t	vid_fsaa = {"vid_fsaa", "0", CVAR_ARCHIVE}; // QuakeSpasm
 static cvar_t	vid_desktopfullscreen = {"vid_desktopfullscreen", "0", CVAR_ARCHIVE}; // QuakeSpasm
 static cvar_t	vid_borderless = {"vid_borderless", "0", CVAR_ARCHIVE}; // QuakeSpasm
+#if _DEBUG
+static cvar_t	vid_validation = {"vid_validation", "0", 0};
+#endif
 cvar_t	vid_filter = {"vid_filter", "0", CVAR_ARCHIVE};
 cvar_t	vid_anisotropic = {"vid_anisotropic", "0", CVAR_ARCHIVE};
 
@@ -127,6 +130,7 @@ static PFN_vkQueuePresentKHR fpQueuePresentKHR;
 #ifdef _DEBUG
 static PFN_vkCreateDebugReportCallbackEXT fpCreateDebugReportCallbackEXT;
 static PFN_vkDestroyDebugReportCallbackEXT fpDestroyDebugReportCallbackEXT;
+PFN_vkDebugMarkerSetObjectNameEXT fpDebugMarkerSetObjectNameEXT;
 
 VkDebugReportCallbackEXT debug_report_callback;
 
@@ -490,6 +494,27 @@ static void VID_Unlock (void)
 
 /*
 ===============
+GL_SetObjectName
+===============
+*/
+void GL_SetObjectName(uint64_t object, VkDebugReportObjectTypeEXT objectType, const char * name)
+{
+#ifdef _DEBUG
+	if (fpDebugMarkerSetObjectNameEXT && name)
+	{
+		VkDebugMarkerObjectNameInfoEXT nameInfo;
+		memset(&nameInfo, 0, sizeof(nameInfo));
+		nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT;
+		nameInfo.objectType = objectType;
+		nameInfo.object = object;
+		nameInfo.pObjectName = name;
+		fpDebugMarkerSetObjectNameEXT(vulkan_globals.device, &nameInfo);
+	};
+#endif
+}
+
+/*
+===============
 GL_InitInstance
 ===============
 */
@@ -551,9 +576,12 @@ static void GL_InitInstance( void )
 	instance_create_info.enabledExtensionCount = 2;
 	instance_create_info.ppEnabledExtensionNames = instance_extensions;
 #ifdef _DEBUG
-	instance_create_info.enabledExtensionCount = 3;
-	instance_create_info.enabledLayerCount = 1;
-	instance_create_info.ppEnabledLayerNames = layer_names;
+	if(vid_validation.value)
+	{
+		instance_create_info.enabledExtensionCount = 3;
+		instance_create_info.enabledLayerCount = 1;
+		instance_create_info.ppEnabledLayerNames = layer_names;
+	}
 #endif
 
 	err = vkCreateInstance(&instance_create_info, NULL, &vulkan_instance);
@@ -590,18 +618,21 @@ static void GL_InitInstance( void )
 	GET_INSTANCE_PROC_ADDR(vulkan_instance, GetSwapchainImagesKHR);
 
 #ifdef _DEBUG
-	GET_INSTANCE_PROC_ADDR(vulkan_instance, CreateDebugReportCallbackEXT);
-	GET_INSTANCE_PROC_ADDR(vulkan_instance, DestroyDebugReportCallbackEXT);
+	if(vid_validation.value)
+	{
+		GET_INSTANCE_PROC_ADDR(vulkan_instance, CreateDebugReportCallbackEXT);
+		GET_INSTANCE_PROC_ADDR(vulkan_instance, DestroyDebugReportCallbackEXT);
 
-	VkDebugReportCallbackCreateInfoEXT report_callback_Info;
-	memset(&report_callback_Info, 0, sizeof(report_callback_Info));
-	report_callback_Info.sType = VK_STRUCTURE_TYPE_DEBUG_REPORT_CREATE_INFO_EXT;
-	report_callback_Info.pfnCallback = (PFN_vkDebugReportCallbackEXT)debug_message_callback;
-	report_callback_Info.flags = VK_DEBUG_REPORT_ERROR_BIT_EXT;
+		VkDebugReportCallbackCreateInfoEXT report_callback_Info;
+		memset(&report_callback_Info, 0, sizeof(report_callback_Info));
+		report_callback_Info.sType = VK_STRUCTURE_TYPE_DEBUG_REPORT_CREATE_INFO_EXT;
+		report_callback_Info.pfnCallback = (PFN_vkDebugReportCallbackEXT)debug_message_callback;
+		report_callback_Info.flags = VK_DEBUG_REPORT_ERROR_BIT_EXT;
 
-	err = fpCreateDebugReportCallbackEXT(vulkan_instance, &report_callback_Info, NULL, &debug_report_callback);
-	if (err != VK_SUCCESS)
-		Sys_Printf("Could not create debug report callback");
+		err = fpCreateDebugReportCallbackEXT(vulkan_instance, &report_callback_Info, NULL, &debug_report_callback);
+		if (err != VK_SUCCESS)
+			Sys_Printf("Could not create debug report callback");
+	}
 #endif
 }
 
@@ -625,6 +656,7 @@ static void GL_InitDevice( void )
 	free(physical_devices);
 
 	qboolean found_swapchain_extension = false;
+	qboolean found_debug_marker_extension = false;
 
 	vkGetPhysicalDeviceMemoryProperties(vulkan_physical_device, &vulkan_globals.memory_properties);
 
@@ -641,7 +673,10 @@ static void GL_InitDevice( void )
 			if (strcmp(VK_KHR_SWAPCHAIN_EXTENSION_NAME, device_extensions[i].extensionName) == 0)
 			{
 				found_swapchain_extension = true;
-				break;
+			}
+			if (strcmp(VK_EXT_DEBUG_MARKER_EXTENSION_NAME, device_extensions[i].extensionName) == 0)
+			{
+				found_debug_marker_extension = true;
 			}
 		}
 
@@ -709,7 +744,7 @@ static void GL_InitDevice( void )
 	queue_create_info.queueCount = 1;
 	queue_create_info.pQueuePriorities = queue_priorities;
 
-	char * device_extensions[] = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
+	char * device_extensions[] = { VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_EXT_DEBUG_MARKER_EXTENSION_NAME };
 
 	VkDeviceCreateInfo device_create_info;
 	memset(&device_create_info, 0, sizeof(device_create_info));
@@ -718,6 +753,10 @@ static void GL_InitDevice( void )
 	device_create_info.pQueueCreateInfos = &queue_create_info;
 	device_create_info.enabledExtensionCount = 1;
 	device_create_info.ppEnabledExtensionNames = device_extensions;
+#if _DEBUG
+	if (found_debug_marker_extension)
+		device_create_info.enabledExtensionCount = 2;
+#endif
 
 	err = vkCreateDevice(vulkan_physical_device, &device_create_info, NULL, &vulkan_globals.device);
 	if (err != VK_SUCCESS)
@@ -728,6 +767,13 @@ static void GL_InitDevice( void )
 	GET_DEVICE_PROC_ADDR(vulkan_globals.device, GetSwapchainImagesKHR);
 	GET_DEVICE_PROC_ADDR(vulkan_globals.device, AcquireNextImageKHR);
 	GET_DEVICE_PROC_ADDR(vulkan_globals.device, QueuePresentKHR);
+
+#if _DEBUG
+	if (found_debug_marker_extension)
+	{
+		GET_DEVICE_PROC_ADDR(vulkan_globals.device, DebugMarkerSetObjectNameEXT);
+	}
+#endif
 
 	vkGetDeviceQueue(vulkan_globals.device, vulkan_globals.gfx_queue_family_index, 0, &vulkan_globals.queue);
 
@@ -935,6 +981,8 @@ static void GL_CreateDepthBuffer( void )
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateImage failed");
 
+	GL_SetObjectName((uint64_t)depth_buffer, VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT, "Depth Buffer");
+
 	VkMemoryRequirements memory_requirements;
 	vkGetImageMemoryRequirements(vulkan_globals.device, depth_buffer, &memory_requirements);
 
@@ -969,6 +1017,8 @@ static void GL_CreateDepthBuffer( void )
 	err = vkCreateImageView(vulkan_globals.device, &image_view_create_info, NULL, &depth_buffer_view);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateImageView failed");
+
+	GL_SetObjectName((uint64_t)depth_buffer_view, VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT, "Depth Buffer View");
 }
 
 
@@ -1001,6 +1051,8 @@ static void GL_CreateColorBuffer( void )
 	err = vkCreateImage(vulkan_globals.device, &image_create_info, NULL, &color_buffer);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateImage failed");
+
+	GL_SetObjectName((uint64_t)color_buffer, VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT, "Color Buffer");
 
 	VkMemoryRequirements memory_requirements;
 	vkGetImageMemoryRequirements(vulkan_globals.device, color_buffer, &memory_requirements);
@@ -1036,6 +1088,8 @@ static void GL_CreateColorBuffer( void )
 	err = vkCreateImageView(vulkan_globals.device, &image_view_create_info, NULL, &color_buffer_view);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateImageView failed");
+
+	GL_SetObjectName((uint64_t)color_buffer_view, VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT, "Color Buffer View");
 }
 
 /*
@@ -1186,10 +1240,14 @@ static void GL_CreateSwapChain( void )
 
 	for (uint32_t i = 0; i < num_swap_chain_images; ++i)
 	{
+		GL_SetObjectName((uint64_t)swapchain_images[i], VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT, "Swap Chain");
+
 		image_view_create_info.image = swapchain_images[i];
 		err = vkCreateImageView(vulkan_globals.device, &image_view_create_info, NULL, &swapchain_images_views[i]);
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateImageView failed");
+
+		GL_SetObjectName((uint64_t)swapchain_images_views[i], VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT, "Swap Chain View");
 
 		err = vkCreateSemaphore(vulkan_globals.device, &semaphore_create_info, NULL, &image_aquired_semaphores[i]);
 		if (err != VK_SUCCESS)
@@ -1579,6 +1637,9 @@ void	VID_Init (void)
 	Cvar_RegisterVariable (&vid_fsaa); //QuakeSpasm
 	Cvar_RegisterVariable (&vid_desktopfullscreen); //QuakeSpasm
 	Cvar_RegisterVariable (&vid_borderless); //QuakeSpasm
+#if _DEBUG
+	Cvar_RegisterVariable (&vid_validation); //QuakeSpasm
+#endif
 	Cvar_SetCallback (&vid_fullscreen, VID_Changed_f);
 	Cvar_SetCallback (&vid_width, VID_Changed_f);
 	Cvar_SetCallback (&vid_height, VID_Changed_f);

@@ -377,5 +377,7 @@ byte * R_VertexAllocate(int size, VkBuffer * buffer, VkDeviceSize * buffer_offse
 byte * R_IndexAllocate(int size, VkBuffer * buffer, VkDeviceSize * buffer_offset);
 byte * R_UniformAllocate(int size, VkBuffer * buffer, uint32_t * buffer_offset, VkDescriptorSet * descriptor_set);
 
+void GL_SetObjectName(uint64_t object, VkDebugReportObjectTypeEXT objectType, const char * name);
+
 #endif	/* __GLQUAKE_H */
 
