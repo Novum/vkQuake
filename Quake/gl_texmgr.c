@@ -872,7 +872,7 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 
 	const qboolean warp_image = (glt->flags & TEXPREF_WARPIMAGE);
 	if (warp_image)
-		num_mips = WARPIMAGEMIPS;
+		num_mips = vulkan_globals.enable_warp_mips ? WARPIMAGEMIPS : 1;
 	
 	// Check for sanity. This should never be reached.
 	if (num_mips > MAX_MIPS)

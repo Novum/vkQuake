@@ -683,6 +683,8 @@ static void GL_InitDevice( void )
 	if(!found_swapchain_extension)
 		Sys_Error("Couldn't find %s extension", VK_KHR_SWAPCHAIN_EXTENSION_NAME);
 
+	vulkan_globals.enable_warp_mips = false;
+
 	vkGetPhysicalDeviceProperties(vulkan_physical_device, &vulkan_globals.device_properties);
 	switch(vulkan_globals.device_properties.vendorID)
 	{
@@ -691,6 +693,7 @@ static void GL_InitDevice( void )
 		break;
 	case 0x10DE:
 		Con_Printf("Vendor: NVIDIA\n");
+		vulkan_globals.enable_warp_mips = true;
 		break;
 	case 0x1002:
 		Con_Printf("Vendor: AMD\n");
@@ -929,7 +932,7 @@ static void GL_CreateRenderPasses()
 	attachment_descriptions[0].loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 	attachment_descriptions[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 	attachment_descriptions[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	attachment_descriptions[0].finalLayout = VK_IMAGE_LAYOUT_GENERAL;
+	attachment_descriptions[0].finalLayout = vulkan_globals.enable_warp_mips ? VK_IMAGE_LAYOUT_GENERAL : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	color_attachment_reference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
 	VkSubpassDescription subpass_description;
