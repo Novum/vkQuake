@@ -69,28 +69,26 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <OutDir>$(SolutionDir)Build-$(ProjectName)\x86\$(Configuration)\</OutDir>
     <IntDir>Build-$(ProjectName)\x86\$(Configuration)\</IntDir>
-    <LinkIncremental>true</LinkIncremental>
     <IncludePath>$(VK_SDK_PATH)\Include;$(IncludePath)</IncludePath>
     <LibraryPath>$(VK_SDK_PATH)\Bin32;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <OutDir>$(SolutionDir)Build-$(ProjectName)\x86\$(Configuration)\</OutDir>
     <IntDir>Build-$(ProjectName)\x86\$(Configuration)\</IntDir>
-    <LinkIncremental>false</LinkIncremental>
+
     <IncludePath>$(VK_SDK_PATH)\Include;$(IncludePath)</IncludePath>
     <LibraryPath>$(VK_SDK_PATH)\Bin32;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <OutDir>$(SolutionDir)Build-$(ProjectName)\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>Build-$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
-    <LinkIncremental>true</LinkIncremental>
     <IncludePath>$(VK_SDK_PATH)\Include;$(IncludePath)</IncludePath>
     <LibraryPath>$(VK_SDK_PATH)\Bin;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <OutDir>$(SolutionDir)Build-$(ProjectName)\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>Build-$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
-    <LinkIncremental>false</LinkIncremental>
+
     <IncludePath>$(VK_SDK_PATH)\Include;$(IncludePath)</IncludePath>
     <LibraryPath>$(VK_SDK_PATH)\Bin;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
