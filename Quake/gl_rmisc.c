@@ -1001,7 +1001,7 @@ void R_InitSamplers()
 		GL_SetObjectName((uint64_t)vulkan_globals.point_sampler, VK_DEBUG_REPORT_OBJECT_TYPE_SAMPLER_EXT, "point");
 
 		sampler_create_info.anisotropyEnable = VK_TRUE;
-		sampler_create_info.maxAnisotropy = 16.0f;
+		sampler_create_info.maxAnisotropy = vulkan_globals.device_properties.limits.maxSamplerAnisotropy;
 		err = vkCreateSampler(vulkan_globals.device, &sampler_create_info, NULL, &vulkan_globals.point_aniso_sampler);
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateSampler failed");
@@ -1021,7 +1021,7 @@ void R_InitSamplers()
 		GL_SetObjectName((uint64_t)vulkan_globals.linear_sampler, VK_DEBUG_REPORT_OBJECT_TYPE_SAMPLER_EXT, "linear");
 
 		sampler_create_info.anisotropyEnable = VK_TRUE;
-		sampler_create_info.maxAnisotropy = 16.0f;
+		sampler_create_info.maxAnisotropy = vulkan_globals.device_properties.limits.maxSamplerAnisotropy;
 		err = vkCreateSampler(vulkan_globals.device, &sampler_create_info, NULL, &vulkan_globals.linear_aniso_sampler);
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateSampler failed");
