@@ -167,9 +167,6 @@ typedef struct
 	float								projection_matrix[16];
 	float								view_matrix[16];
 	float								view_projection_matrix[16];
-
-	// Workarounds
-	qboolean							enable_warp_mips;
 } vulkanglobals_t;
 
 extern vulkanglobals_t vulkan_globals;
