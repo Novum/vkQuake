@@ -1189,6 +1189,18 @@ static void GL_CreateSwapChain( void )
 
 	free(present_modes);
 
+	switch(present_mode) {
+	case VK_PRESENT_MODE_FIFO_KHR:
+		Con_Printf("Using FIFO present mode\n");
+		break;
+	case VK_PRESENT_MODE_MAILBOX_KHR:
+		Con_Printf("Using MAILBOX present mode\n");
+		break;
+	case VK_PRESENT_MODE_IMMEDIATE_KHR:
+		Con_Printf("Using IMMEDIATE present mode\n");
+		break;
+	}
+
 	VkSwapchainCreateInfoKHR swapchain_create_info;
 	memset(&swapchain_create_info, 0, sizeof(swapchain_create_info));
 	swapchain_create_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
