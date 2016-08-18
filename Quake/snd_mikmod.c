@@ -90,7 +90,6 @@ static qboolean S_MIKMOD_CodecInitialize (void)
 	if (shm->channels == 2)
 		md_mode |= DMODE_STEREO;
 	md_mode |= DMODE_SOFT_MUSIC;	/* this is a software-only mixer */
-	md_mode |= DMODE_HQMIXER;		/* high-quality mixer is OK */
 
 	/* md_mixfreq is UWORD, so something like 96000 isn't OK */
 	md_mixfreq = (shm->speed < 65536)? shm->speed : 48000;
