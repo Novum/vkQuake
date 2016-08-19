@@ -1929,7 +1929,6 @@ static void VID_Restart (void)
 	scr_initialized = false;
 	
 	GL_WaitForDeviceIdle();
-	GLSLGamma_DeleteTexture ();
 	R_DestroyPipelines();
 	GL_DestroyRenderPasses();
 	GL_DestroyBeforeSetMode();
