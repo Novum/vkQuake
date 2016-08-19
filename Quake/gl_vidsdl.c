@@ -80,11 +80,11 @@ static cvar_t	vid_width = {"vid_width", "800", CVAR_ARCHIVE};		// QuakeSpasm, wa
 static cvar_t	vid_height = {"vid_height", "600", CVAR_ARCHIVE};	// QuakeSpasm, was 480
 static cvar_t	vid_bpp = {"vid_bpp", "16", CVAR_ARCHIVE};
 static cvar_t	vid_vsync = {"vid_vsync", "0", CVAR_ARCHIVE};
-static cvar_t	vid_fsaa = {"vid_fsaa", "0", CVAR_ARCHIVE}; // QuakeSpasm
 static cvar_t	vid_desktopfullscreen = {"vid_desktopfullscreen", "0", CVAR_ARCHIVE}; // QuakeSpasm
 static cvar_t	vid_borderless = {"vid_borderless", "0", CVAR_ARCHIVE}; // QuakeSpasm
 cvar_t	vid_filter = {"vid_filter", "0", CVAR_ARCHIVE};
 cvar_t	vid_anisotropic = {"vid_anisotropic", "0", CVAR_ARCHIVE};
+cvar_t vid_multisample = {"vid_multisample", "0", CVAR_ARCHIVE};
 
 cvar_t		vid_gamma = {"gamma", "1", CVAR_ARCHIVE}; //johnfitz -- moved here from view.c
 cvar_t		vid_contrast = {"contrast", "1", CVAR_ARCHIVE}; //QuakeSpasm, MarkV
@@ -1581,18 +1581,6 @@ static void VID_DescribeModes_f (void)
 	Con_Printf ("\n%i modes\n", count);
 }
 
-/*
-===================
-VID_FSAA_f -- ericw -- warn that vid_fsaa requires engine restart
-===================
-*/
-static void VID_FSAA_f (cvar_t *var)
-{
-	// don't print the warning if vid_fsaa is set during startup
-	if (vid_initialized)
-		Con_Printf("%s %d requires engine restart to take effect\n", var->name, (int)var->value);
-}
-
 //==========================================================================
 //
 //  INIT
@@ -1641,7 +1629,6 @@ void	VID_Init (void)
 					 "vid_height",
 					 "vid_bpp",
 					 "vid_vsync",
-					 "vid_fsaa",
 					 "vid_desktopfullscreen",
 					 "vid_borderless"};
 #define num_readvars	( sizeof(read_vars)/sizeof(read_vars[0]) )
@@ -1653,7 +1640,7 @@ void	VID_Init (void)
 	Cvar_RegisterVariable (&vid_vsync); //johnfitz
 	Cvar_RegisterVariable (&vid_filter);
 	Cvar_RegisterVariable (&vid_anisotropic);
-	Cvar_RegisterVariable (&vid_fsaa); //QuakeSpasm
+	Cvar_RegisterVariable (&vid_multisample);
 	Cvar_RegisterVariable (&vid_desktopfullscreen); //QuakeSpasm
 	Cvar_RegisterVariable (&vid_borderless); //QuakeSpasm
 	Cvar_SetCallback (&vid_fullscreen, VID_Changed_f);
@@ -1662,8 +1649,8 @@ void	VID_Init (void)
 	Cvar_SetCallback (&vid_bpp, VID_Changed_f);
 	Cvar_SetCallback (&vid_filter, VID_FilterChanged_f);
 	Cvar_SetCallback (&vid_anisotropic, VID_FilterChanged_f);
+	Cvar_SetCallback (&vid_multisample, VID_Changed_f);
 	Cvar_SetCallback (&vid_vsync, VID_Changed_f);
-	Cvar_SetCallback (&vid_fsaa, VID_FSAA_f);
 	Cvar_SetCallback (&vid_desktopfullscreen, VID_Changed_f);
 	Cvar_SetCallback (&vid_borderless, VID_Changed_f);
 	
@@ -1963,6 +1950,7 @@ enum {
 	VID_OPT_BPP,
 	VID_OPT_FULLSCREEN,
 	VID_OPT_VSYNC,
+	VID_OPT_MULTISAMPLE,
 	VID_OPT_FILTER,
 	VID_OPT_ANISOTROPY,
 	VID_OPT_TEST,
@@ -2215,6 +2203,9 @@ static void VID_MenuKey (int key)
 		case VID_OPT_VSYNC:
 			Cbuf_AddText ("toggle vid_vsync\n");
 			break;
+		case VID_OPT_MULTISAMPLE:
+			Cbuf_AddText ("toggle vid_multisample\n");
+			break;
 		case VID_OPT_FILTER:
 			Cbuf_AddText ("toggle vid_filter\n");
 			break;
@@ -2242,6 +2233,9 @@ static void VID_MenuKey (int key)
 			break;
 		case VID_OPT_VSYNC:
 			Cbuf_AddText ("toggle vid_vsync\n");
+			break;
+		case VID_OPT_MULTISAMPLE:
+			Cbuf_AddText ("toggle vid_multisample\n");
 			break;
 		case VID_OPT_FILTER:
 			Cbuf_AddText ("toggle vid_filter\n");
@@ -2317,6 +2311,10 @@ static void VID_MenuDraw (void)
 		case VID_OPT_VSYNC:
 			M_Print (16, y, "     Vertical sync");
 			M_DrawCheckbox (184, y, (int)vid_vsync.value);
+			break;
+		case VID_OPT_MULTISAMPLE:
+			M_Print (16, y, "       Multisample");
+			M_Print (184, y, ((int)vid_multisample.value == 0) ? "off" : "on");
 			break;
 		case VID_OPT_FILTER:
 			M_Print (16, y, "            Filter");
