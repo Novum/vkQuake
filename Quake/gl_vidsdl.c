@@ -37,7 +37,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #define NUM_COMMAND_BUFFERS 2
 #define MAX_SWAP_CHAIN_IMAGES 8
-#define COLOR_BUFFER_FORMAT VK_FORMAT_R8G8B8A8_UNORM;
+#define COLOR_BUFFER_FORMAT VK_FORMAT_R8G8B8A8_UNORM
 
 typedef struct {
 	int			width;
@@ -850,6 +850,8 @@ static void GL_CreateRenderPasses()
 	VkAttachmentDescription attachment_descriptions[4];
 	memset(&attachment_descriptions, 0, sizeof(attachment_descriptions));
 
+	const qboolean resolve = ( vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT);
+
 	attachment_descriptions[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	attachment_descriptions[0].finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	attachment_descriptions[0].samples = VK_SAMPLE_COUNT_1_BIT;
@@ -859,7 +861,7 @@ static void GL_CreateRenderPasses()
 
 	attachment_descriptions[1].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	attachment_descriptions[1].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-	attachment_descriptions[1].samples = vid_multisample.value ? VK_SAMPLE_COUNT_4_BIT : VK_SAMPLE_COUNT_1_BIT;
+	attachment_descriptions[1].samples = vulkan_globals.sample_count;
 	attachment_descriptions[1].format = vulkan_globals.depth_format;
 	attachment_descriptions[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	attachment_descriptions[1].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
@@ -873,13 +875,13 @@ static void GL_CreateRenderPasses()
 
 	attachment_descriptions[3].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	attachment_descriptions[3].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-	attachment_descriptions[3].samples = VK_SAMPLE_COUNT_4_BIT;
+	attachment_descriptions[3].samples = vulkan_globals.sample_count;
 	attachment_descriptions[3].format = COLOR_BUFFER_FORMAT;
 	attachment_descriptions[3].loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 	attachment_descriptions[3].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 
 	VkAttachmentReference color_attachment_reference;
-	color_attachment_reference.attachment = vid_multisample.value ? 3 : 0;
+	color_attachment_reference.attachment = resolve ? 3 : 0;
 	color_attachment_reference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
 	VkAttachmentReference depth_attachment_reference;
@@ -905,7 +907,7 @@ static void GL_CreateRenderPasses()
 	subpass_descriptions[0].pColorAttachments = &color_attachment_reference;
 	subpass_descriptions[0].pDepthStencilAttachment = &depth_attachment_reference;
 	subpass_descriptions[0].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-	if (vid_multisample.value)
+	if (resolve)
 		subpass_descriptions[0].pResolveAttachments = &resolve_attachment_reference;
 
 	subpass_descriptions[1].colorAttachmentCount = 1;
@@ -927,7 +929,7 @@ static void GL_CreateRenderPasses()
 	VkRenderPassCreateInfo render_pass_create_info;
 	memset(&render_pass_create_info, 0, sizeof(render_pass_create_info));
 	render_pass_create_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-	render_pass_create_info.attachmentCount = vid_multisample.value ? 4 : 3;
+	render_pass_create_info.attachmentCount = resolve ? 4 : 3;
 	render_pass_create_info.pAttachments = attachment_descriptions;
 	render_pass_create_info.subpassCount = 2;
 	render_pass_create_info.pSubpasses = subpass_descriptions;
@@ -1003,7 +1005,7 @@ static void GL_CreateDepthBuffer( void )
 	image_create_info.extent.depth = 1;
 	image_create_info.mipLevels = 1;
 	image_create_info.arrayLayers = 1;
-	image_create_info.samples = vid_multisample.value ? VK_SAMPLE_COUNT_4_BIT : VK_SAMPLE_COUNT_1_BIT;
+	image_create_info.samples = vulkan_globals.sample_count;
 	image_create_info.tiling = VK_IMAGE_TILING_OPTIMAL;
 	image_create_info.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 
@@ -1125,9 +1127,41 @@ static void GL_CreateColorBuffer( void )
 
 	GL_SetObjectName((uint64_t)color_buffer_view, VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT, "Color Buffer View");
 
+	vulkan_globals.sample_count = VK_SAMPLE_COUNT_1_BIT;
 	if (vid_multisample.value)
 	{
-		image_create_info.samples = VK_SAMPLE_COUNT_4_BIT;
+		VkImageFormatProperties image_format_properties;
+		vkGetPhysicalDeviceImageFormatProperties(vulkan_physical_device, COLOR_BUFFER_FORMAT, VK_IMAGE_TYPE_2D, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, 0, &image_format_properties);
+
+		if (image_format_properties.sampleCounts & VK_SAMPLE_COUNT_2_BIT)
+			vulkan_globals.sample_count = VK_SAMPLE_COUNT_2_BIT;
+		if (image_format_properties.sampleCounts & VK_SAMPLE_COUNT_4_BIT)
+			vulkan_globals.sample_count = VK_SAMPLE_COUNT_4_BIT;
+		if (image_format_properties.sampleCounts & VK_SAMPLE_COUNT_8_BIT)
+			vulkan_globals.sample_count = VK_SAMPLE_COUNT_8_BIT;
+		if (image_format_properties.sampleCounts & VK_SAMPLE_COUNT_16_BIT)
+			vulkan_globals.sample_count = VK_SAMPLE_COUNT_16_BIT;
+
+		switch(vulkan_globals.sample_count)
+		{
+			case VK_SAMPLE_COUNT_2_BIT:
+				Con_Printf("2 MSAA Samples\n");
+				break;
+			case VK_SAMPLE_COUNT_4_BIT:
+				Con_Printf("4 MSAA Samples\n");
+				break;
+			case VK_SAMPLE_COUNT_8_BIT:
+				Con_Printf("8 MSAA Samples\n");
+				break;
+			case VK_SAMPLE_COUNT_16_BIT:
+				Con_Printf("16 MSAA Samples\n");
+				break;
+		}
+	}
+
+	if (vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT)
+	{
+		image_create_info.samples = vulkan_globals.sample_count;
 
 		err = vkCreateImage(vulkan_globals.device, &image_create_info, NULL, &msaa_color_buffer);
 		if (err != VK_SUCCESS)
@@ -1349,11 +1383,13 @@ static void GL_CreateFrameBuffers( void )
 
 	VkResult err;
 
+	const qboolean resolve = ( vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT);
+
 	VkFramebufferCreateInfo framebuffer_create_info;
 	memset(&framebuffer_create_info, 0, sizeof(framebuffer_create_info));
 	framebuffer_create_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
 	framebuffer_create_info.renderPass = vulkan_globals.main_render_pass;
-	framebuffer_create_info.attachmentCount = vid_multisample.value ? 4 : 3;
+	framebuffer_create_info.attachmentCount = resolve ? 4 : 3;
 	framebuffer_create_info.width = vid.width;
 	framebuffer_create_info.height = vid.height;
 	framebuffer_create_info.layers = 1;
@@ -1835,9 +1871,9 @@ void	VID_Init (void)
 	GL_InitDevice();
 	GL_InitCommandBuffers();
 	GL_CreateSwapChain();
-	GL_CreateRenderPasses();
 	GL_CreateColorBuffer();
 	GL_CreateDepthBuffer();
+	GL_CreateRenderPasses();
 	GL_CreateFrameBuffers();
 	R_InitStagingBuffers();
 	R_CreateDescriptorSetLayouts();
@@ -1845,7 +1881,7 @@ void	VID_Init (void)
 	R_InitDynamicBuffers();
 	R_InitSamplers();
 	R_CreatePipelineLayouts();
-	R_CreatePipelines(vid_multisample.value);
+	R_CreatePipelines();
 	GL_CreatePostprocessDescriptorSet();
 
 	//johnfitz -- removed code creating "glquake" subdirectory
@@ -1908,7 +1944,7 @@ static void VID_Restart (void)
 	GL_CreateDepthBuffer();
 	GL_CreateRenderPasses();
 	GL_CreateFrameBuffers();
-	R_CreatePipelines(vid_multisample.value);
+	R_CreatePipelines();
 	GL_CreatePostprocessDescriptorSet();
 
 	//conwidth and conheight need to be recalculated

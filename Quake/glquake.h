@@ -121,6 +121,7 @@ typedef struct
 	VkPhysicalDeviceMemoryProperties	memory_properties;
 	uint32_t							gfx_queue_family_index;
 	VkFormat							depth_format;
+	VkSampleCountFlagBits				sample_count;
 
 	// Render passes
 	VkRenderPass						main_render_pass;
@@ -366,7 +367,7 @@ void R_CreateDescriptorPool();
 void R_CreateDescriptorSetLayouts();
 void R_InitSamplers();
 void R_CreatePipelineLayouts();
-void R_CreatePipelines(qboolean multisample);
+void R_CreatePipelines();
 void R_DestroyPipelines();
 
 void R_InitStagingBuffers();

@@ -1059,7 +1059,7 @@ static VkShaderModule R_CreateShaderModule(byte *code, int size)
 R_CreatePipelines
 ===============
 */
-void R_CreatePipelines(qboolean multisample)
+void R_CreatePipelines()
 {
 	Con_Printf("Creating pipelines\n");
 
@@ -1152,7 +1152,7 @@ void R_CreatePipelines(qboolean multisample)
 	VkPipelineMultisampleStateCreateInfo multisample_state_create_info;
 	memset(&multisample_state_create_info, 0, sizeof(multisample_state_create_info));
 	multisample_state_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-	multisample_state_create_info.rasterizationSamples = multisample ? VK_SAMPLE_COUNT_4_BIT : VK_SAMPLE_COUNT_1_BIT;
+	multisample_state_create_info.rasterizationSamples = vulkan_globals.sample_count;
 
 	VkPipelineDepthStencilStateCreateInfo depth_stencil_state_create_info;
 	memset(&depth_stencil_state_create_info, 0, sizeof(depth_stencil_state_create_info));
@@ -1269,7 +1269,7 @@ void R_CreatePipelines(qboolean multisample)
 	//================
 	// Particles
 	//================
-	multisample_state_create_info.rasterizationSamples = multisample ? VK_SAMPLE_COUNT_4_BIT : VK_SAMPLE_COUNT_1_BIT;
+	multisample_state_create_info.rasterizationSamples = vulkan_globals.sample_count;
 
 	input_assembly_state_create_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 	
