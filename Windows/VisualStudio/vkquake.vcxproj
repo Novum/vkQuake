@@ -75,7 +75,6 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <OutDir>$(SolutionDir)Build-$(ProjectName)\x86\$(Configuration)\</OutDir>
     <IntDir>Build-$(ProjectName)\x86\$(Configuration)\</IntDir>
-
     <IncludePath>$(VK_SDK_PATH)\Include;$(IncludePath)</IncludePath>
     <LibraryPath>$(VK_SDK_PATH)\Bin32;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
@@ -88,7 +87,6 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <OutDir>$(SolutionDir)Build-$(ProjectName)\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>Build-$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
-
     <IncludePath>$(VK_SDK_PATH)\Include;$(IncludePath)</IncludePath>
     <LibraryPath>$(VK_SDK_PATH)\Bin;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
@@ -288,6 +286,7 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClCompile Include="..\..\Shaders\Compiled\alias_frag.c" />
     <ClCompile Include="..\..\Shaders\Compiled\alias_vert.c" />
     <ClCompile Include="..\..\Shaders\Compiled\basic_alphatest_frag.c" />
+    <ClCompile Include="..\..\Shaders\Compiled\basic_char_frag.c" />
     <ClCompile Include="..\..\Shaders\Compiled\basic_frag.c" />
     <ClCompile Include="..\..\Shaders\Compiled\basic_notex_frag.c" />
     <ClCompile Include="..\..\Shaders\Compiled\basic_vert.c" />
@@ -375,6 +374,7 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <None Include="..\..\Shaders\basic.frag" />
     <None Include="..\..\Shaders\basic.vert" />
     <None Include="..\..\Shaders\basic_alphatest.frag" />
+    <None Include="..\..\Shaders\basic_char.frag" />
     <None Include="..\..\Shaders\basic_notex.frag" />
     <None Include="..\..\Shaders\compile.bat" />
     <None Include="..\..\Shaders\postprocess.frag" />

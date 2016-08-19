@@ -218,6 +218,7 @@ SHADER_OBJS = \
 	../Shaders/Compiled/alias_frag.c \
 	../Shaders/Compiled/alias_vert.c \
 	../Shaders/Compiled/basic_alphatest_frag.c \
+	../Shaders/Compiled/basic_char_frag.c \
 	../Shaders/Compiled/basic_frag.c \
 	../Shaders/Compiled/basic_notex_frag.c \
 	../Shaders/Compiled/basic_vert.c \
