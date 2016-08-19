@@ -1570,6 +1570,32 @@ void R_CreatePipelines()
 
 /*
 ===============
+R_DestroyPipelines
+===============
+*/
+void R_DestroyPipelines(void)
+{
+	vkDestroyPipeline(vulkan_globals.device, vulkan_globals.basic_alphatest_pipeline, NULL);
+	vkDestroyPipeline(vulkan_globals.device, vulkan_globals.basic_blend_pipeline, NULL);
+	vkDestroyPipeline(vulkan_globals.device, vulkan_globals.basic_notex_blend_pipeline, NULL);
+	vkDestroyPipeline(vulkan_globals.device, vulkan_globals.basic_poly_blend_pipeline, NULL);
+	for (int i = 0; i < world_pipeline_count; ++i)
+		vkDestroyPipeline(vulkan_globals.device, vulkan_globals.world_pipelines[i], NULL);
+	vkDestroyPipeline(vulkan_globals.device, vulkan_globals.water_pipeline, NULL);
+	vkDestroyPipeline(vulkan_globals.device, vulkan_globals.water_blend_pipeline, NULL);
+	vkDestroyPipeline(vulkan_globals.device, vulkan_globals.warp_pipeline, NULL);
+	vkDestroyPipeline(vulkan_globals.device, vulkan_globals.particle_pipeline, NULL);
+	vkDestroyPipeline(vulkan_globals.device, vulkan_globals.sprite_pipeline, NULL);
+	vkDestroyPipeline(vulkan_globals.device, vulkan_globals.sky_color_pipeline, NULL);
+	vkDestroyPipeline(vulkan_globals.device, vulkan_globals.sky_box_pipeline, NULL);
+	vkDestroyPipeline(vulkan_globals.device, vulkan_globals.sky_layer_pipeline, NULL);
+	vkDestroyPipeline(vulkan_globals.device, vulkan_globals.alias_pipeline, NULL);
+	vkDestroyPipeline(vulkan_globals.device, vulkan_globals.alias_blend_pipeline, NULL);
+	vkDestroyPipeline(vulkan_globals.device, vulkan_globals.postprocess_pipeline, NULL);
+}
+
+/*
+===============
 R_Init
 ===============
 */

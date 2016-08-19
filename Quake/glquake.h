@@ -366,6 +366,7 @@ void R_CreateDescriptorSetLayouts();
 void R_InitSamplers();
 void R_CreatePipelineLayouts();
 void R_CreatePipelines();
+void R_DestroyPipelines();
 
 void R_InitStagingBuffers();
 void R_SubmitStagingBuffers();

@@ -1818,6 +1818,7 @@ static void VID_Restart (void)
 	
 	GL_WaitForDeviceIdle();
 	GLSLGamma_DeleteTexture ();
+	R_DestroyPipelines();
 	GL_DestroyBeforeSetMode();
 
 	//
@@ -1830,6 +1831,7 @@ static void VID_Restart (void)
 	GL_CreateDepthBuffer();
 	GL_CreateFrameBuffers();
 	GL_CreatePostprocessDescriptorSet();
+	R_CreatePipelines();
 
 	//conwidth and conheight need to be recalculated
 	vid.conwidth = (scr_conwidth.value > 0) ? (int)scr_conwidth.value : (scr_conscale.value > 0) ? (int)(vid.width/scr_conscale.value) : vid.width;
