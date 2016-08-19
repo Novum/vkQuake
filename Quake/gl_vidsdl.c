@@ -1705,6 +1705,7 @@ void	VID_Init (void)
 					 "vid_bpp",
 					 "vid_vsync",
 					 "vid_desktopfullscreen",
+					 "vid_multisample",
 					 "vid_borderless"};
 #define num_readvars	( sizeof(read_vars)/sizeof(read_vars[0]) )
 
