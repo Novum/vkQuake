@@ -942,45 +942,36 @@ static void GL_CreateRenderPasses()
 
 	GL_SetObjectName((uint64_t)vulkan_globals.main_render_pass, VK_DEBUG_REPORT_OBJECT_TYPE_RENDER_PASS_EXT, "main");
 
-	// Warp rendering
-	attachment_descriptions[0].format = VK_FORMAT_R8G8B8A8_UNORM;
-	attachment_descriptions[0].loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-	attachment_descriptions[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-	attachment_descriptions[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	attachment_descriptions[0].finalLayout = VK_IMAGE_LAYOUT_GENERAL;
-	color_attachment_reference.attachment = 0;
-	color_attachment_reference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	if(vulkan_globals.warp_render_pass == VK_NULL_HANDLE)
+	{
+		// Warp rendering
+		attachment_descriptions[0].format = VK_FORMAT_R8G8B8A8_UNORM;
+		attachment_descriptions[0].loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+		attachment_descriptions[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+		attachment_descriptions[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		attachment_descriptions[0].finalLayout = VK_IMAGE_LAYOUT_GENERAL;
+		color_attachment_reference.attachment = 0;
+		color_attachment_reference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-	VkSubpassDescription subpass_description;
-	memset(&subpass_description, 0, sizeof(subpass_description));
-	subpass_description.colorAttachmentCount = 1;
-	subpass_description.pColorAttachments = &color_attachment_reference;
-	subpass_description.pDepthStencilAttachment = NULL;
-	subpass_description.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+		VkSubpassDescription subpass_description;
+		memset(&subpass_description, 0, sizeof(subpass_description));
+		subpass_description.colorAttachmentCount = 1;
+		subpass_description.pColorAttachments = &color_attachment_reference;
+		subpass_description.pDepthStencilAttachment = NULL;
+		subpass_description.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 
-	render_pass_create_info.subpassCount = 1;
-	render_pass_create_info.pSubpasses = &subpass_description;
-	render_pass_create_info.attachmentCount = 1;
-	render_pass_create_info.dependencyCount = 0;
-	render_pass_create_info.pDependencies = NULL;
+		render_pass_create_info.subpassCount = 1;
+		render_pass_create_info.pSubpasses = &subpass_description;
+		render_pass_create_info.attachmentCount = 1;
+		render_pass_create_info.dependencyCount = 0;
+		render_pass_create_info.pDependencies = NULL;
 
-	err = vkCreateRenderPass(vulkan_globals.device, &render_pass_create_info, NULL, &vulkan_globals.warp_render_pass);
-	if (err != VK_SUCCESS)
-		Sys_Error("Couldn't create Vulkan render pass");
+		err = vkCreateRenderPass(vulkan_globals.device, &render_pass_create_info, NULL, &vulkan_globals.warp_render_pass);
+		if (err != VK_SUCCESS)
+			Sys_Error("Couldn't create Vulkan render pass");
 
-	GL_SetObjectName((uint64_t)vulkan_globals.warp_render_pass, VK_DEBUG_REPORT_OBJECT_TYPE_RENDER_PASS_EXT, "warp");
-}
-
-/*
-====================
-GL_DestroyRenderPasses
-====================
-*/
-static void GL_DestroyRenderPasses()
-{
-	vkDestroyRenderPass(vulkan_globals.device, vulkan_globals.main_render_pass, NULL);
-	vkDestroyRenderPass(vulkan_globals.device, vulkan_globals.warp_render_pass, NULL);
-
+		GL_SetObjectName((uint64_t)vulkan_globals.warp_render_pass, VK_DEBUG_REPORT_OBJECT_TYPE_RENDER_PASS_EXT, "warp");
+	}
 }
 
 /*
@@ -1457,6 +1448,8 @@ static void GL_DestroyBeforeSetMode( void )
 	}
 
 	fpDestroySwapchainKHR(vulkan_globals.device, vulkan_swapchain, NULL);
+
+	vkDestroyRenderPass(vulkan_globals.device, vulkan_globals.main_render_pass, NULL);
 }
 
 /*
@@ -1930,7 +1923,6 @@ static void VID_Restart (void)
 	
 	GL_WaitForDeviceIdle();
 	R_DestroyPipelines();
-	GL_DestroyRenderPasses();
 	GL_DestroyBeforeSetMode();
 
 	//
