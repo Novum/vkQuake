@@ -111,6 +111,9 @@ static VkImageView					depth_buffer_view;
 static VkImage						color_buffer;
 static VkDeviceMemory				color_buffer_memory;
 static VkImageView					color_buffer_view;
+static VkImage						msaa_color_buffer;
+static VkDeviceMemory				msaa_color_buffer_memory;
+static VkImageView					msaa_color_buffer_view;
 static VkDescriptorSet				postprocess_descriptor_set;
 
 static PFN_vkGetDeviceProcAddr fpGetDeviceProcAddr;
@@ -1107,6 +1110,40 @@ static void GL_CreateColorBuffer( void )
 		Sys_Error("vkCreateImageView failed");
 
 	GL_SetObjectName((uint64_t)color_buffer_view, VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT, "Color Buffer View");
+
+	if (vid_multisample.value)
+	{
+		image_create_info.samples = VK_SAMPLE_COUNT_4_BIT;
+
+		err = vkCreateImage(vulkan_globals.device, &image_create_info, NULL, &msaa_color_buffer);
+		if (err != VK_SUCCESS)
+			Sys_Error("vkCreateImage failed");
+
+		GL_SetObjectName((uint64_t)msaa_color_buffer, VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT, "MSAA Color Buffer");
+	
+		VkMemoryRequirements memory_requirements;
+		vkGetImageMemoryRequirements(vulkan_globals.device, msaa_color_buffer, &memory_requirements);
+
+		memory_allocate_info.allocationSize = memory_requirements.size;
+		memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
+
+		num_vulkan_misc_allocations += 1;
+		err = vkAllocateMemory(vulkan_globals.device, &memory_allocate_info, NULL, &msaa_color_buffer_memory);
+		if (err != VK_SUCCESS)
+			Sys_Error("vkAllocateMemory failed");
+
+		GL_SetObjectName((uint64_t)msaa_color_buffer_memory, VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_MEMORY_EXT, "MSAA Color Buffer");
+
+		err = vkBindImageMemory(vulkan_globals.device, msaa_color_buffer, msaa_color_buffer_memory, 0);
+		if (err != VK_SUCCESS)
+			Sys_Error("vkBindImageMemory failed");
+
+		image_view_create_info.image = msaa_color_buffer;
+
+		err = vkCreateImageView(vulkan_globals.device, &image_view_create_info, NULL, &msaa_color_buffer_view);
+		if (err != VK_SUCCESS)
+			Sys_Error("vkCreateImageView failed");
+	}
 }
 
 /*
@@ -1330,6 +1367,18 @@ static void GL_DestroyBeforeSetMode( void )
 
 	vkFreeDescriptorSets(vulkan_globals.device, vulkan_globals.descriptor_pool, 1, &postprocess_descriptor_set);
 	postprocess_descriptor_set = VK_NULL_HANDLE;
+
+	if (msaa_color_buffer)
+	{
+		vkDestroyImageView(vulkan_globals.device, msaa_color_buffer_view, NULL);
+		vkDestroyImage(vulkan_globals.device, msaa_color_buffer, NULL);
+		num_vulkan_misc_allocations -= 1;
+		vkFreeMemory(vulkan_globals.device, msaa_color_buffer_memory, NULL);
+
+		msaa_color_buffer_view = VK_NULL_HANDLE;
+		msaa_color_buffer = VK_NULL_HANDLE;
+		msaa_color_buffer_memory = VK_NULL_HANDLE;
+	}
 
 	vkDestroyImageView(vulkan_globals.device, color_buffer_view, NULL);
 	vkDestroyImage(vulkan_globals.device, color_buffer, NULL);
