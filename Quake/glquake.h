@@ -365,7 +365,7 @@ void R_CreateDescriptorPool();
 void R_CreateDescriptorSetLayouts();
 void R_InitSamplers();
 void R_CreatePipelineLayouts();
-void R_CreatePipelines();
+void R_CreatePipelines(qboolean multisample);
 void R_DestroyPipelines();
 
 void R_InitStagingBuffers();

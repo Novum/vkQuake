@@ -847,7 +847,7 @@ static void GL_CreateRenderPasses()
 	VkResult err;
 
 	// Main render pass
-	VkAttachmentDescription attachment_descriptions[3];
+	VkAttachmentDescription attachment_descriptions[4];
 	memset(&attachment_descriptions, 0, sizeof(attachment_descriptions));
 
 	attachment_descriptions[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -859,7 +859,7 @@ static void GL_CreateRenderPasses()
 
 	attachment_descriptions[1].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	attachment_descriptions[1].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-	attachment_descriptions[1].samples = VK_SAMPLE_COUNT_1_BIT;
+	attachment_descriptions[1].samples = vid_multisample.value ? VK_SAMPLE_COUNT_4_BIT : VK_SAMPLE_COUNT_1_BIT;
 	attachment_descriptions[1].format = vulkan_globals.depth_format;
 	attachment_descriptions[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	attachment_descriptions[1].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
@@ -871,8 +871,15 @@ static void GL_CreateRenderPasses()
 	attachment_descriptions[2].loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 	attachment_descriptions[2].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 
+	attachment_descriptions[3].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	attachment_descriptions[3].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	attachment_descriptions[3].samples = VK_SAMPLE_COUNT_4_BIT;
+	attachment_descriptions[3].format = COLOR_BUFFER_FORMAT;
+	attachment_descriptions[3].loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	attachment_descriptions[3].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+
 	VkAttachmentReference color_attachment_reference;
-	color_attachment_reference.attachment = 0;
+	color_attachment_reference.attachment = vid_multisample.value ? 3 : 0;
 	color_attachment_reference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
 	VkAttachmentReference depth_attachment_reference;
@@ -887,6 +894,10 @@ static void GL_CreateRenderPasses()
 	color_input_attachment_reference.attachment = 0;
 	color_input_attachment_reference.layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
+	VkAttachmentReference resolve_attachment_reference;
+	resolve_attachment_reference.attachment = 0;
+	resolve_attachment_reference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
 	VkSubpassDescription subpass_descriptions[2];
 	memset(&subpass_descriptions, 0, sizeof(subpass_descriptions));
 
@@ -894,6 +905,8 @@ static void GL_CreateRenderPasses()
 	subpass_descriptions[0].pColorAttachments = &color_attachment_reference;
 	subpass_descriptions[0].pDepthStencilAttachment = &depth_attachment_reference;
 	subpass_descriptions[0].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+	if (vid_multisample.value)
+		subpass_descriptions[0].pResolveAttachments = &resolve_attachment_reference;
 
 	subpass_descriptions[1].colorAttachmentCount = 1;
 	subpass_descriptions[1].pColorAttachments = &swap_chain_attachment_reference;
@@ -914,7 +927,7 @@ static void GL_CreateRenderPasses()
 	VkRenderPassCreateInfo render_pass_create_info;
 	memset(&render_pass_create_info, 0, sizeof(render_pass_create_info));
 	render_pass_create_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-	render_pass_create_info.attachmentCount = 3;
+	render_pass_create_info.attachmentCount = vid_multisample.value ? 4 : 3;
 	render_pass_create_info.pAttachments = attachment_descriptions;
 	render_pass_create_info.subpassCount = 2;
 	render_pass_create_info.pSubpasses = subpass_descriptions;
@@ -933,6 +946,7 @@ static void GL_CreateRenderPasses()
 	attachment_descriptions[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 	attachment_descriptions[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	attachment_descriptions[0].finalLayout = VK_IMAGE_LAYOUT_GENERAL;
+	color_attachment_reference.attachment = 0;
 	color_attachment_reference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
 	VkSubpassDescription subpass_description;
@@ -989,7 +1003,7 @@ static void GL_CreateDepthBuffer( void )
 	image_create_info.extent.depth = 1;
 	image_create_info.mipLevels = 1;
 	image_create_info.arrayLayers = 1;
-	image_create_info.samples = VK_SAMPLE_COUNT_1_BIT;
+	image_create_info.samples = vid_multisample.value ? VK_SAMPLE_COUNT_4_BIT : VK_SAMPLE_COUNT_1_BIT;
 	image_create_info.tiling = VK_IMAGE_TILING_OPTIMAL;
 	image_create_info.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 
@@ -1339,14 +1353,14 @@ static void GL_CreateFrameBuffers( void )
 	memset(&framebuffer_create_info, 0, sizeof(framebuffer_create_info));
 	framebuffer_create_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
 	framebuffer_create_info.renderPass = vulkan_globals.main_render_pass;
-	framebuffer_create_info.attachmentCount = 3;
+	framebuffer_create_info.attachmentCount = vid_multisample.value ? 4 : 3;
 	framebuffer_create_info.width = vid.width;
 	framebuffer_create_info.height = vid.height;
 	framebuffer_create_info.layers = 1;
 
 	for (uint32_t i = 0; i < num_swap_chain_images; ++i)
 	{
-		VkImageView attachments[3] = { color_buffer_view, depth_buffer_view, swapchain_images_views[i] };
+		VkImageView attachments[4] = { color_buffer_view, depth_buffer_view, swapchain_images_views[i], msaa_color_buffer_view };
 		framebuffer_create_info.pAttachments = attachments;
 		err = vkCreateFramebuffer(vulkan_globals.device, &framebuffer_create_info, NULL, &framebuffers[i]);
 		if (err != VK_SUCCESS)
@@ -1830,7 +1844,7 @@ void	VID_Init (void)
 	R_InitDynamicBuffers();
 	R_InitSamplers();
 	R_CreatePipelineLayouts();
-	R_CreatePipelines();
+	R_CreatePipelines(vid_multisample.value);
 	GL_CreatePostprocessDescriptorSet();
 
 	//johnfitz -- removed code creating "glquake" subdirectory
@@ -1893,7 +1907,7 @@ static void VID_Restart (void)
 	GL_CreateDepthBuffer();
 	GL_CreateRenderPasses();
 	GL_CreateFrameBuffers();
-	R_CreatePipelines();
+	R_CreatePipelines(vid_multisample.value);
 	GL_CreatePostprocessDescriptorSet();
 
 	//conwidth and conheight need to be recalculated

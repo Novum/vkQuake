@@ -1059,7 +1059,7 @@ static VkShaderModule R_CreateShaderModule(byte *code, int size)
 R_CreatePipelines
 ===============
 */
-void R_CreatePipelines()
+void R_CreatePipelines(qboolean multisample)
 {
 	Con_Printf("Creating pipelines\n");
 
@@ -1151,7 +1151,7 @@ void R_CreatePipelines()
 	VkPipelineMultisampleStateCreateInfo multisample_state_create_info;
 	memset(&multisample_state_create_info, 0, sizeof(multisample_state_create_info));
 	multisample_state_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-	multisample_state_create_info.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+	multisample_state_create_info.rasterizationSamples = multisample ? VK_SAMPLE_COUNT_4_BIT : VK_SAMPLE_COUNT_1_BIT;
 
 	VkPipelineDepthStencilStateCreateInfo depth_stencil_state_create_info;
 	memset(&depth_stencil_state_create_info, 0, sizeof(depth_stencil_state_create_info));
@@ -1240,8 +1240,10 @@ void R_CreatePipelines()
 	//================
 	// Warp
 	//================
+	multisample_state_create_info.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+
 	input_assembly_state_create_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
-	
+
 	blend_attachment_state.blendEnable = VK_FALSE;
 
 	shader_stages[0].module = basic_vert_module;
@@ -1258,6 +1260,8 @@ void R_CreatePipelines()
 	//================
 	// Particles
 	//================
+	multisample_state_create_info.rasterizationSamples = multisample ? VK_SAMPLE_COUNT_4_BIT : VK_SAMPLE_COUNT_1_BIT;
+
 	input_assembly_state_create_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 	
 	depth_stencil_state_create_info.depthTestEnable = VK_TRUE;
@@ -1534,6 +1538,7 @@ void R_CreatePipelines()
 	//================
 	// Postprocess pipeline
 	//================
+	multisample_state_create_info.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
 	rasterization_state_create_info.cullMode = VK_CULL_MODE_NONE;
 	depth_stencil_state_create_info.depthTestEnable = VK_FALSE;
 	blend_attachment_state.blendEnable = VK_FALSE;
