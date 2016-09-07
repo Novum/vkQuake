@@ -400,17 +400,23 @@ void R_SubmitStagingBuffers()
 R_StagingAllocate
 ===============
 */
-byte * R_StagingAllocate(int size, VkCommandBuffer * command_buffer, VkBuffer * buffer, int * buffer_offset)
+byte * R_StagingAllocate(int size, int alignment, VkCommandBuffer * command_buffer, VkBuffer * buffer, int * buffer_offset)
 {
 	vulkan_globals.device_idle = false;
+
+	stagingbuffer_t * staging_buffer = &staging_buffers[current_staging_buffer];
+	const int align_mod = staging_buffer->current_offset % alignment;
+	staging_buffer->current_offset = ((staging_buffer->current_offset % alignment) == 0) 
+		? staging_buffer->current_offset 
+		: (staging_buffer->current_offset + alignment - align_mod);
 
 	if (size > (STAGING_BUFFER_SIZE_KB * 1024))
 		Sys_Error("Cannot allocate staging buffer space");
 
-	if ((staging_buffers[current_staging_buffer].current_offset + size) >= (STAGING_BUFFER_SIZE_KB * 1024) && !staging_buffers[current_staging_buffer].submitted)
+	if ((staging_buffer->current_offset + size) >= (STAGING_BUFFER_SIZE_KB * 1024) && !staging_buffer->submitted)
 		R_SubmitStagingBuffer(current_staging_buffer);
 
-	stagingbuffer_t * staging_buffer = &staging_buffers[current_staging_buffer];
+	staging_buffer = &staging_buffers[current_staging_buffer];
 	if (staging_buffer->submitted)
 	{
 		VkResult err;

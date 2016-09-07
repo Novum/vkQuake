@@ -700,7 +700,7 @@ void GL_BuildBModelVertexBuffer (void)
 	VkBuffer staging_buffer;
 	VkCommandBuffer command_buffer;
 	int staging_offset;
-	unsigned char * staging_memory = R_StagingAllocate(varray_bytes, &command_buffer, &staging_buffer, &staging_offset);
+	unsigned char * staging_memory = R_StagingAllocate(varray_bytes, 1, &command_buffer, &staging_buffer, &staging_offset);
 
 	memcpy(staging_memory, varray, varray_bytes);
 
@@ -897,7 +897,7 @@ static void R_UploadLightmap(int lmap, gltexture_t * lightmap)
 	VkBuffer staging_buffer;
 	VkCommandBuffer command_buffer;
 	int staging_offset;
-	unsigned char * staging_memory = R_StagingAllocate(staging_size, &command_buffer, &staging_buffer, &staging_offset);
+	unsigned char * staging_memory = R_StagingAllocate(staging_size, 4, &command_buffer, &staging_buffer, &staging_offset);
 
 	byte * data = lightmaps + (lmap * BLOCK_HEIGHT + theRect->t) * BLOCK_WIDTH * lightmap_bytes;
 	memcpy(staging_memory, data, staging_size);

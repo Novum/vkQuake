@@ -369,7 +369,7 @@ void R_DestroyPipelines();
 
 void R_InitStagingBuffers();
 void R_SubmitStagingBuffers();
-byte * R_StagingAllocate(int size, VkCommandBuffer * command_buffer, VkBuffer * buffer, int * buffer_offset);
+byte * R_StagingAllocate(int size, int alignment, VkCommandBuffer * command_buffer, VkBuffer * buffer, int * buffer_offset);
 
 void R_InitDynamicBuffers();
 void R_SwapDynamicBuffers();

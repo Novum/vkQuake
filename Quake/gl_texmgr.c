@@ -987,7 +987,7 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	VkBuffer staging_buffer;
 	VkCommandBuffer command_buffer;
 	int staging_offset;
-	unsigned char * staging_memory = R_StagingAllocate(staging_size, &command_buffer, &staging_buffer, &staging_offset);
+	unsigned char * staging_memory = R_StagingAllocate(staging_size, 4, &command_buffer, &staging_buffer, &staging_offset);
 
 	int num_regions = 0;
 	int mip_offset = 0;

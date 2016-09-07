@@ -521,7 +521,7 @@ static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 		VkBuffer staging_buffer;
 		VkCommandBuffer command_buffer;
 		int staging_offset;
-		unsigned char * staging_memory = R_StagingAllocate(totalindexsize, &command_buffer, &staging_buffer, &staging_offset);
+		unsigned char * staging_memory = R_StagingAllocate(totalindexsize, 1, &command_buffer, &staging_buffer, &staging_offset);
 
 		memcpy(staging_memory, indexes, totalindexsize);
 
@@ -608,7 +608,7 @@ static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 		VkBuffer staging_buffer;
 		VkCommandBuffer command_buffer;
 		int staging_offset;
-		unsigned char * staging_memory = R_StagingAllocate(totalvbosize, &command_buffer, &staging_buffer, &staging_offset);
+		unsigned char * staging_memory = R_StagingAllocate(totalvbosize, 1, &command_buffer, &staging_buffer, &staging_offset);
 
 		memcpy(staging_memory, vbodata, totalvbosize);
 
