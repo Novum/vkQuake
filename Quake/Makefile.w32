@@ -5,9 +5,6 @@
 # "make SDL_CONFIG=/path/to/sdl-config" to override the locally included SDL versions.
 # "make WINSOCK2=1" to use WinSock2 api instead of old WinSock 1.1.
 
-### Enable/disable SDL2
-USE_SDL2=0
-
 ### Enable/disable codecs for streaming music support
 USE_CODEC_WAVE=1
 USE_CODEC_FLAC=1
@@ -48,7 +45,7 @@ STRIP = strip
 #CPUFLAGS= -mtune=i686
 #CPUFLAGS= -march=pentium4
 CPUFLAGS=
-LDFLAGS =
+LDFLAGS = -L../Windows/misc/x86
 DFLAGS ?=
 CFLAGS ?= -Wall -Wno-trigraphs
 CFLAGS += $(CPUFLAGS)
@@ -68,16 +65,10 @@ define do_strip
 endef
 endif
 
-ifeq ($(USE_SDL2),1)
 CFLAGS += -DUSE_SDL2
-endif
 
 # default to our local SDL[2] for build
-ifeq ($(USE_SDL2),1)
 SDL_CONFIG ?=../Windows/SDL2/bin/sdl2-config --prefix=../Windows/SDL2
-else
-SDL_CONFIG ?=../Windows/SDL/bin/sdl-config --prefix=../Windows/SDL
-endif
 SDL_CFLAGS := $(shell $(SDL_CONFIG) --cflags)
 SDL_LIBS   := $(shell $(SDL_CONFIG) --libs)
 
