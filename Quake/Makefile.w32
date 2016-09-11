@@ -155,7 +155,7 @@ CFLAGS+= -DUSE_CODEC_UMX
 endif
 CFLAGS+= $(CODEC_INC)
 
-VULKAN_INC = -I$(VK_SDK_PATH)/Include
+VULKAN_INC = -I$(VK_SDK_PATH)/include
 VULKAN_LINK= -L../Windows/misc/x86 # -L$(VK_SDK_PATH)/Bin32
 VULKAN_LIBS= -lvulkan-1
 CFLAGS+= $(VULKAN_INC)
