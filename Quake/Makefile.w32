@@ -30,7 +30,7 @@ check_gcc = $(shell if echo | $(CC) $(1) -Werror -S -o /dev/null -xc - > /dev/nu
 # ---------------------------
 
 DEBUG   ?= 0
-WINSOCK2?= 0
+WINSOCK2?= 1
 
 # ---------------------------
 # build variables
@@ -45,9 +45,9 @@ STRIP = strip
 #CPUFLAGS= -mtune=i686
 #CPUFLAGS= -march=pentium4
 CPUFLAGS=
-LDFLAGS = -L../Windows/misc/x86
+LDFLAGS = -m32 -mwindows -L../Windows/misc/x86
 DFLAGS ?=
-CFLAGS ?= -Wall -Wno-trigraphs
+CFLAGS ?= -m32 -Wall -Wno-trigraphs
 CFLAGS += $(CPUFLAGS)
 
 ifneq ($(DEBUG),0)
@@ -179,7 +179,7 @@ DEFAULT_TARGET := vkQuake.exe
 %.o:	%.c
 	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ $^
 %.res:	../Windows/%.rc
-	$(WINDRES) --output-format=coff -I../Windows -o $@ $^
+	$(WINDRES) -I../Windows --output-format=coff --target=pe-i386 -o $@ $^
 
 # ----------------------------------------------------------------------------
 # objects
