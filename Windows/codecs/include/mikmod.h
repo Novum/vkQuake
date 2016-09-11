@@ -74,7 +74,7 @@ extern "C" {
 
 #define LIBMIKMOD_VERSION_MAJOR 3L
 #define LIBMIKMOD_VERSION_MINOR 3L
-#define LIBMIKMOD_REVISION      8L
+#define LIBMIKMOD_REVISION      9L
 
 #define LIBMIKMOD_VERSION \
     ((LIBMIKMOD_VERSION_MAJOR<<16)| \
@@ -108,7 +108,7 @@ MIKMODAPI extern long MikMod_GetVersion(void);
 #define _MIKMOD_OS2
 #endif
 
-#if defined(__MORPHOS__) || defined(__AROS__) || defined(AMIGA) || defined(__amigaos__) || defined(AMIGAOS)
+#if defined(__MORPHOS__) || defined(__AROS__) || defined(_AMIGA) || defined(__AMIGA__) || defined(__amigaos__) || defined(AMIGAOS)
 #include <exec/types.h>
 #define _MIKMOD_AMIGA
 #endif
@@ -145,7 +145,7 @@ typedef unsigned short int UWORD;
 #if defined(_LP64) || defined(__LP64__) || defined(__arch64__) || defined(__alpha) || defined(__x86_64) || defined(__powerpc64__)
         /* 64 bit architectures: */
 typedef signed int         SLONG;
-#if !(defined(_WIN32) || defined(__AROS__))
+#if !(defined(_WIN32) || defined(_MIKMOD_AMIGA))
 typedef unsigned int       ULONG;
 #endif
 
