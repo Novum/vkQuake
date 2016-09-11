@@ -711,7 +711,7 @@ FIXME: eliminate cracks by adding an extra vert on tjuncs
 */
 void Sky_DrawSkyBox (void)
 {
-	int		i;
+	int		i, j;
 
 	for (i=0 ; i<6 ; i++)
 	{
@@ -755,7 +755,7 @@ void Sky_DrawSkyBox (void)
 			Sky_EmitSkyBoxVertex (vertices + 2, skymaxs[0][i], skymaxs[1][i], i);
 			Sky_EmitSkyBoxVertex (vertices + 3, skymaxs[0][i], skymins[1][i], i);
 
-			for (int j = 0; j < 4; ++j)
+			for (j = 0; j < 4; ++j)
 			{
 				vertices[j].color[0] = c[0] * 255.0f;
 				vertices[j].color[1] = c[1] * 255.0f;

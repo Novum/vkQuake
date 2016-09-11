@@ -523,14 +523,15 @@ MatrixMultiply
 void MatrixMultiply(float left[16], float right[16])
 {
 	float temp[16];
-	memcpy(temp, left, 16 * sizeof(float));
+	int column, row, i;
 
-	for(int row = 0; row < 4; ++row)
+	memcpy(temp, left, 16 * sizeof(float));
+	for(row = 0; row < 4; ++row)
 	{
-		for(int column = 0; column < 4; ++column)
+		for(column = 0; column < 4; ++column)
 		{
 			float value = 0.0f;
-			for (int i = 0; i < 4; ++i)
+			for (i = 0; i < 4; ++i)
 				value += temp[i*4 + row] * right[column*4 + i];
 
 			left[column * 4 + row] = value;

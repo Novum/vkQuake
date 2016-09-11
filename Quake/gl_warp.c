@@ -187,7 +187,7 @@ static VkImageMemoryBarrier warp_image_barriers[MAX_GLTEXTURES];
 void R_UpdateWarpTextures (void)
 {
 	texture_t *tx;
-	int i;
+	int i, mip;
 	float x, y, x2, warptess;
 
 	if (cl.paused || r_drawflat_cheatsafe || r_lightmap_cheatsafe)
@@ -300,7 +300,7 @@ void R_UpdateWarpTextures (void)
 	vkCmdPipelineBarrier(vulkan_globals.command_buffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 1, &memory_barrier, 0, NULL, num_warp_textures, warp_image_barriers);
 
 	// Generate mip chains
-	for (int mip = 1; mip < WARPIMAGEMIPS; ++mip)
+	for (mip = 1; mip < WARPIMAGEMIPS; ++mip)
 	{
 		int srcSize = WARPIMAGESIZE >> (mip - 1);
 		int dstSize = WARPIMAGESIZE >> mip;

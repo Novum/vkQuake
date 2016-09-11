@@ -513,6 +513,8 @@ V_PolyBlend -- johnfitz -- moved here from gl_rmain.c, and rewritten to use glOr
 */
 void V_PolyBlend (void)
 {
+	int i;
+
 	if (!gl_polyblend.value || !v_blend[3])
 		return;
 
@@ -536,7 +538,7 @@ void V_PolyBlend (void)
 	vertices[3].position[0] = 0.0f;
 	vertices[3].position[1] = vid.height;
 
-	for (int i = 0; i < 4; ++i)
+	for (i = 0; i < 4; ++i)
 	{
 		vertices[i].color[0] = v_blend[0] * 255.0f;
 		vertices[i].color[1] = v_blend[1] * 255.0f;
