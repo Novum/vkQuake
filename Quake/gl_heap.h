@@ -25,8 +25,8 @@ typedef struct glheapnode_s
 {
 	VkDeviceSize offset;
 	VkDeviceSize size;
-	glheapnode_t * prev;
-	glheapnode_t * next;
+	struct glheapnode_s * prev;
+	struct glheapnode_s * next;
 	qboolean free;
 } glheapnode_t;
 

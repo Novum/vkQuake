@@ -43,8 +43,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 enum srcformat {SRC_INDEXED, SRC_LIGHTMAP, SRC_RGBA};
 
 typedef uintptr_t src_offset_t;
-typedef struct glheap_s glheap_t;
-typedef struct glheapnode_s glheapnode_t;
+struct glheap_s;
+struct glheapnode_s;
 
 typedef struct gltexture_s {
 //managed by texture manager
@@ -67,8 +67,8 @@ typedef struct gltexture_s {
 	VkImage				image;
 	VkImageView			image_view;
 	VkImageView			target_image_view;
-	glheap_t *			heap;
-	glheapnode_t *		heap_node;
+	struct glheap_s *	heap;
+	struct glheapnode_s *	heap_node;
 	VkDescriptorSet		descriptor_set;
 	VkFramebuffer		frame_buffer;
 	int			visframe; //matches r_framecount if texture was bound this frame
