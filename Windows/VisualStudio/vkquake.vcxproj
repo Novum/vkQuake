@@ -105,7 +105,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>libvorbisfile.lib;libvorbis.lib;libopusfile.lib;libopus.lib;libFLAC.lib;libogg.lib;libmad.lib;libmikmod.lib;wsock32.lib;opengl32.lib;winmm.lib;SDL2.lib;SDL2main.lib;vulkan-1.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>libvorbisfile.lib;libvorbis.lib;libopusfile.lib;libopus.lib;libFLAC.lib;libogg.lib;libmad.lib;libmikmod.lib;wsock32.lib;winmm.lib;SDL2.lib;SDL2main.lib;vulkan-1.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>..\codecs\x86;..\SDL2\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>msvcrt.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -132,7 +132,7 @@ copy "$(SolutionDir)\..\SDL2\lib\*.dll" "$(TargetDir)"</Command>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>libvorbisfile.lib;libvorbis.lib;libopusfile.lib;libopus.lib;libFLAC.lib;libogg.lib;libmad.lib;libmikmod.lib;wsock32.lib;opengl32.lib;winmm.lib;SDL2.lib;SDL2main.lib;vulkan-1.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>libvorbisfile.lib;libvorbis.lib;libopusfile.lib;libopus.lib;libFLAC.lib;libogg.lib;libmad.lib;libmikmod.lib;wsock32.lib;winmm.lib;SDL2.lib;SDL2main.lib;vulkan-1.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>..\codecs\x86;..\SDL2\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Windows</SubSystem>
@@ -163,7 +163,7 @@ copy "$(SolutionDir)\..\SDL2\lib\*.dll" "$(TargetDir)"</Command>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>libvorbisfile.lib;libvorbis.lib;libopusfile.lib;libopus.lib;libFLAC.lib;libogg.lib;libmad.lib;libmikmod.lib;ws2_32.lib;opengl32.lib;winmm.lib;SDL2.lib;SDL2main.lib;vulkan-1.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>libvorbisfile.lib;libvorbis.lib;libopusfile.lib;libopus.lib;libFLAC.lib;libogg.lib;libmad.lib;libmikmod.lib;ws2_32.lib;winmm.lib;SDL2.lib;SDL2main.lib;vulkan-1.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>..\codecs\x64;..\SDL2\lib64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>msvcrt.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -193,7 +193,7 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>libvorbisfile.lib;libvorbis.lib;libopusfile.lib;libopus.lib;libFLAC.lib;libogg.lib;libmad.lib;libmikmod.lib;ws2_32.lib;opengl32.lib;winmm.lib;SDL2.lib;SDL2main.lib;vulkan-1.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>libvorbisfile.lib;libvorbis.lib;libopusfile.lib;libopus.lib;libFLAC.lib;libogg.lib;libmad.lib;libmikmod.lib;ws2_32.lib;winmm.lib;SDL2.lib;SDL2main.lib;vulkan-1.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>..\codecs\x64;..\SDL2\lib64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Windows</SubSystem>

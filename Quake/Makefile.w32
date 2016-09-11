@@ -45,7 +45,7 @@ STRIP = strip
 #CPUFLAGS= -mtune=i686
 #CPUFLAGS= -march=pentium4
 CPUFLAGS=
-LDFLAGS = -m32 -mwindows -L../Windows/misc/x86
+LDFLAGS = -m32 -mwindows
 DFLAGS ?=
 CFLAGS ?= -m32 -Wall -Wno-trigraphs
 CFLAGS += $(CPUFLAGS)
@@ -156,11 +156,11 @@ endif
 CFLAGS+= $(CODEC_INC)
 
 VULKAN_INC = -I$(VK_SDK_PATH)/Include
-VULKAN_LINK= -L$(VK_SDK_PATH)/Bin32
+VULKAN_LINK= -L../Windows/misc/x86 # -L$(VK_SDK_PATH)/Bin32
 VULKAN_LIBS= -lvulkan-1
 CFLAGS+= $(VULKAN_INC)
 
-COMMON_LIBS:= -lm -lopengl32 -lwinmm
+COMMON_LIBS:= -lm -lwinmm
 
 LIBS := $(COMMON_LIBS) $(NET_LIBS) $(CODEC_LINK) $(CODECLIBS) $(VULKAN_LINK) $(VULKAN_LIBS)
 
