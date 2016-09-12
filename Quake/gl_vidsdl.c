@@ -1556,7 +1556,7 @@ void GL_EndRendering (void)
 
 	// Render post process
 	GL_Viewport(0, 0, vid.width, vid.height);
-	float postprocess_values[2] = { vid_gamma.value, q_min(2.0, q_max(1.0, vid_contrast.value)) };
+	float postprocess_values[2] = { vid_gamma.value, q_min(2.0f, q_max(1.0f, vid_contrast.value)) };
 
 	vkCmdNextSubpass(vulkan_globals.command_buffer, VK_SUBPASS_CONTENTS_INLINE);
 	vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.postprocess_pipeline_layout, 0, 1, &postprocess_descriptor_set, 0, NULL);

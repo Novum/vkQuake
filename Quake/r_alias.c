@@ -133,7 +133,7 @@ static void GL_DrawAliasFrame (aliashdr_t *paliashdr, lerpdata_t lerpdata, gltex
 	vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.alias_pipeline_layout, 0, 3, descriptor_sets, 1, &uniform_offset);
 
 	VkBuffer vertex_buffers[3] = { currententity->model->vertex_buffer, currententity->model->vertex_buffer, currententity->model->vertex_buffer };
-	VkDeviceSize vertex_offsets[3] = { currententity->model->vbostofs, GLARB_GetXYZOffset (paliashdr, lerpdata.pose1), GLARB_GetXYZOffset (paliashdr, lerpdata.pose2) };
+	VkDeviceSize vertex_offsets[3] = { (unsigned)currententity->model->vbostofs, GLARB_GetXYZOffset (paliashdr, lerpdata.pose1), GLARB_GetXYZOffset (paliashdr, lerpdata.pose2) };
 	vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 3, vertex_buffers, vertex_offsets);
 	vkCmdBindIndexBuffer(vulkan_globals.command_buffer, currententity->model->index_buffer, 0, VK_INDEX_TYPE_UINT16);
 
