@@ -529,7 +529,8 @@ static void GL_InitInstance( void )
 	err = vkEnumerateInstanceExtensionProperties(NULL, &instance_extension_count, NULL);
 	if (err == VK_SUCCESS || instance_extension_count > 0)
 	{
-		VkExtensionProperties *instance_extensions = malloc(sizeof(VkExtensionProperties) * instance_extension_count);
+		VkExtensionProperties *instance_extensions = (VkExtensionProperties *)
+						malloc(sizeof(VkExtensionProperties) * instance_extension_count);
 		err = vkEnumerateInstanceExtensionProperties(NULL, &instance_extension_count, instance_extensions);
 
 		for (i = 0; i < instance_extension_count; ++i)
@@ -566,9 +567,7 @@ static void GL_InitInstance( void )
 	application_info.engineVersion = 1;
 	application_info.apiVersion = VK_API_VERSION_1_0;
 
-	char * instance_extensions[] = { VK_KHR_SURFACE_EXTENSION_NAME, PLATFORM_SURF_EXT, VK_EXT_DEBUG_REPORT_EXTENSION_NAME };
-
-	char * layer_names[] = { "VK_LAYER_LUNARG_standard_validation" };
+	const char * const instance_extensions[] = { VK_KHR_SURFACE_EXTENSION_NAME, PLATFORM_SURF_EXT, VK_EXT_DEBUG_REPORT_EXTENSION_NAME };
 
 	VkInstanceCreateInfo instance_create_info;
 	memset(&instance_create_info, 0, sizeof(instance_create_info));
@@ -577,6 +576,8 @@ static void GL_InitInstance( void )
 	instance_create_info.enabledExtensionCount = 2;
 	instance_create_info.ppEnabledExtensionNames = instance_extensions;
 #ifdef _DEBUG
+	const char * const layer_names[] = { "VK_LAYER_LUNARG_standard_validation" };
+
 	if(vulkan_globals.validation)
 	{
 		instance_create_info.enabledExtensionCount = 3;
@@ -652,7 +653,7 @@ static void GL_InitDevice( void )
 	if (err != VK_SUCCESS || physical_device_count == 0)
 		Sys_Error("Couldn't find any Vulkan devices");
 
-	VkPhysicalDevice *physical_devices = malloc(sizeof(VkPhysicalDevice) * physical_device_count);
+	VkPhysicalDevice *physical_devices = (VkPhysicalDevice *) malloc(sizeof(VkPhysicalDevice) * physical_device_count);
 	err = vkEnumeratePhysicalDevices(vulkan_instance, &physical_device_count, physical_devices);
 	vulkan_physical_device = physical_devices[0];
 	free(physical_devices);
@@ -667,7 +668,7 @@ static void GL_InitDevice( void )
 
 	if (err == VK_SUCCESS || device_extension_count > 0)
 	{
-		VkExtensionProperties *device_extensions = malloc(sizeof(VkExtensionProperties) * device_extension_count);
+		VkExtensionProperties *device_extensions = (VkExtensionProperties *) malloc(sizeof(VkExtensionProperties) * device_extension_count);
 		err = vkEnumerateDeviceExtensionProperties(vulkan_physical_device, NULL, &device_extension_count, device_extensions);
 
 		for (i = 0; i < device_extension_count; ++i)
@@ -747,7 +748,7 @@ static void GL_InitDevice( void )
 	queue_create_info.queueCount = 1;
 	queue_create_info.pQueuePriorities = queue_priorities;
 
-	char * device_extensions[] = { VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_EXT_DEBUG_MARKER_EXTENSION_NAME };
+	const char * const device_extensions[] = { VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_EXT_DEBUG_MARKER_EXTENSION_NAME };
 
 	VkDeviceCreateInfo device_create_info;
 	memset(&device_create_info, 0, sizeof(device_create_info));
@@ -1152,6 +1153,8 @@ static void GL_CreateColorBuffer( void )
 			case VK_SAMPLE_COUNT_16_BIT:
 				Con_Printf("16 MSAA Samples\n");
 				break;
+
+			default:break; /* silence compiler */
 		}
 	}
 
@@ -1257,7 +1260,7 @@ static void GL_CreateSwapChain( void )
 	if (err != VK_SUCCESS)
 		Sys_Error("fpGetPhysicalDeviceSurfacePresentModesKHR failed");
 
-	VkPresentModeKHR * present_modes = malloc(present_mode_count * sizeof(VkPresentModeKHR));
+	VkPresentModeKHR * present_modes = (VkPresentModeKHR *) malloc(present_mode_count * sizeof(VkPresentModeKHR));
 	err = fpGetPhysicalDeviceSurfacePresentModesKHR(vulkan_physical_device, vulkan_surface, &present_mode_count, present_modes);
 	if (err != VK_SUCCESS)
 		Sys_Error("fpGetPhysicalDeviceSurfacePresentModesKHR failed");
@@ -1294,6 +1297,8 @@ static void GL_CreateSwapChain( void )
 	case VK_PRESENT_MODE_IMMEDIATE_KHR:
 		Con_Printf("Using IMMEDIATE present mode\n");
 		break;
+
+	default:break; /* silence compiler */
 	}
 
 	VkSwapchainCreateInfoKHR swapchain_create_info;
