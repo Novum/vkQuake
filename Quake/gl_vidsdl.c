@@ -29,6 +29,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "resource.h"
 #include "SDL.h"
 #include "SDL_syswm.h"
+#ifdef VK_USE_PLATFORM_XCB_KHR
+#include <X11/Xlib-xcb.h> /* for XGetXCBConnection() */
+#endif
 
 #define MAX_MODE_LIST	600 //johnfitz -- was 30
 #define MAX_BPPS_LIST	5
