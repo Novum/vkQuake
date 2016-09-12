@@ -58,14 +58,18 @@ export PATH=${PATH}:/c/mingw-w64/mingw64/bin
 make USE_SDL2=1 -f Makefile.w64
 ~~~
 
-## Ubuntu
+## Linux
 
 Make sure that both your [GPU](https://en.wikipedia.org/wiki/Vulkan_(API)#Compatibility) and your GPU driver supports Vulkan.
 
 To compile vkQuake, first install the build dependencies:
 
+Ubuntu
 ~~~
 apt-get install git make gcc libsdl2-dev libvulkan-dev libvorbis-dev libmad0-dev
+~~~
+
+Arch Linux
 ~~~
 
 \* Please note that for vkquake > v0.50, you will need at least v1.0.12.0 of libvulkan-dev (See [#55](https://github.com/Novum/vkQuake/issues/55)).
