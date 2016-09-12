@@ -70,7 +70,6 @@ define do_strip
 	$(call cmd_strip,$(1));
 endef
 endif
-CFLAGS += -std=gnu99
 CFLAGS += -I$(VULKAN_INCLUDE_DIR) -DLINUX -DVK_USE_PLATFORM_XCB_KHR
 
 ifeq ($(DO_USERDIRS),1)
