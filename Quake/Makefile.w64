@@ -1,6 +1,7 @@
 # GNU Makefile for compiling Win64 vkQuake.exe using MinGW-w64.
 # Usage: "make -f Makefile.w64"
 # To cross-compile on Linux hosts, see the "build_cross_win32*.sh" scripts.
+# "make VK_SDK_PATH=/path/to/vksdk" to specify the Vulkan SDK root
 # "make DEBUG=1" to build a debug client.
 # "make SDL_CONFIG=/path/to/sdl-config" to override the locally included SDL versions.
 # "make WINSOCK2=0" to use the old WinSock 1.1 api (NOT RECOMMENDED)
