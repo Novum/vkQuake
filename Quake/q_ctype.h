@@ -63,8 +63,22 @@ static inline int q_isblank(int c)
 
 static inline int q_isspace(int c)
 {
-	return (q_isblank(c) || c == '\n' || c == '\r' ||
-				c == '\f' || c == '\v');
+	switch(c) {
+	case ' ':  case '\t':
+	case '\n': case '\r':
+	case '\f': case '\v': return 1;
+	}
+	return 0;
+}
+
+static inline int q_isgraph(int c)
+{
+	return (c > 0x20 && c <= 0x7e);
+}
+
+static inline int q_isprint(int c)
+{
+	return (c >= 0x20 && c <= 0x7e);
 }
 
 static inline int q_toascii(int c)
@@ -82,4 +96,4 @@ static inline int q_toupper(int c)
 	return ((q_islower(c)) ? (c & ~('a' - 'A')) : c);
 }
 
-#endif	/* Q_CTYPE_H */
+#endif /* Q_CTYPE_H */
