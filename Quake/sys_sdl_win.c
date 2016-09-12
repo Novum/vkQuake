@@ -26,7 +26,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #endif
 #include <windows.h>
 #include <mmsystem.h>
-#include <VersionHelpers.h>
 
 #include "quakedef.h"
 
@@ -223,11 +222,6 @@ void Sys_Init (void)
 	/* userdirs not really necessary for windows guys.
 	 * can be done if necessary, though... */
 	host_parms->userdir = host_parms->basedir; /* code elsewhere relies on this ! */
-
-	if (!IsWindowsVersionOrGreater (HIBYTE(_WIN32_WINNT_NT4), LOBYTE(_WIN32_WINNT_NT4), 0))
-	{
-		Sys_Error ("vkQuake requires at least Windows NT 4.0");
-	}
 
 	SYSTEM_INFO info;
 	GetSystemInfo(&info);

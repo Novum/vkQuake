@@ -406,8 +406,8 @@ typedef enum {mod_brush, mod_sprite, mod_alias} modtype_t;
 #define	MOD_FBRIGHTHACK	1024	//when fullbrights are disabled, use a hack to render this model brighter
 //johnfitz
 
-typedef struct glheap_s glheap_t;
-typedef struct glheapnode_s glheapnode_t;
+struct glheap_s;
+struct glheapnode_s;
 
 typedef struct qmodel_s
 {
@@ -489,11 +489,11 @@ typedef struct qmodel_s
 // alias model
 //
 	VkBuffer		vertex_buffer;
-	glheap_t *		vertex_heap;
-	glheapnode_t *	vertex_heap_node;
+	struct glheap_s *	vertex_heap;
+	struct glheapnode_s *	vertex_heap_node;
 	VkBuffer		index_buffer;
-	glheap_t *		index_heap;
-	glheapnode_t *	index_heap_node;
+	struct glheap_s *	index_heap;
+	struct glheapnode_s *	index_heap_node;
 	int				vboindexofs;    // offset in vbo of the hdr->numindexes unsigned shorts
 	int				vboxyzofs;      // offset in vbo of hdr->numposes*hdr->numverts_vbo meshxyz_t
 	int				vbostofs;       // offset in vbo of hdr->numverts_vbo meshst_t

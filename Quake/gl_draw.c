@@ -506,11 +506,14 @@ Draw_String
 */
 void Draw_String (int x, int y, const char *str)
 {
+	int num_verts = 0;
+	int i;
+	const char *tmp;
+
 	if (y <= -8)
 		return;			// totally off screen
 
-	int num_verts = 0;
-	for(const char * tmp = str; *tmp != 0; ++tmp)
+	for (tmp = str; *tmp != 0; ++tmp)
 		if (*tmp != 32)
 			num_verts += 6;
 
@@ -518,7 +521,7 @@ void Draw_String (int x, int y, const char *str)
 	VkDeviceSize buffer_offset;
 	basicvertex_t * vertices = (basicvertex_t*)R_VertexAllocate(num_verts * sizeof(basicvertex_t), &buffer, &buffer_offset);
 
-	for(int i = 0; *str != 0; ++str)
+	for (i = 0; *str != 0; ++str)
 	{
 		if (*str != 32)
 		{
@@ -542,6 +545,7 @@ Draw_Pic -- johnfitz -- modified
 void Draw_Pic (int x, int y, qpic_t *pic, float alpha)
 {
 	glpic_t			*gl;
+	int	i;
 
 	if (scrap_dirty)
 		Scrap_Upload ();
@@ -578,7 +582,7 @@ void Draw_Pic (int x, int y, qpic_t *pic, float alpha)
 	corner_verts[3].texcoord[0] = gl->sl;
 	corner_verts[3].texcoord[1] = gl->th;
 
-	for (int i = 0; i<4; ++i)
+	for (i = 0; i<4; ++i)
 		corner_verts[i].color[3] = alpha * 255.0f;
 
 	vertices[0] = corner_verts[0];
@@ -679,6 +683,7 @@ Fills a box of pixels with a single color
 */
 void Draw_Fill (int x, int y, int w, int h, int c, float alpha) //johnfitz -- added alpha
 {
+	int i;
 	byte *pal = (byte *)d_8to24table; //johnfitz -- use d_8to24table instead of host_basepal
 
 	VkBuffer buffer;
@@ -701,7 +706,7 @@ void Draw_Fill (int x, int y, int w, int h, int c, float alpha) //johnfitz -- ad
 	corner_verts[3].position[1] = glheight;
 
 
-	for (int i = 0; i < 4; ++i)
+	for (i = 0; i < 4; ++i)
 	{
 		corner_verts[i].color[0] = pal[c*4]/255.0;
 		corner_verts[i].color[1] = pal[c*4+1]/255.0;
@@ -728,6 +733,8 @@ Draw_FadeScreen
 */
 void Draw_FadeScreen (void)
 {
+	int i;
+
 	GL_SetCanvas (CANVAS_DEFAULT);
 
 	VkBuffer buffer;
@@ -749,7 +756,7 @@ void Draw_FadeScreen (void)
 	corner_verts[3].position[0] = 0.0f;
 	corner_verts[3].position[1] = glheight;
 
-	for (int i = 0; i < 4; ++i)
+	for (i = 0; i < 4; ++i)
 		corner_verts[i].color[3] = 128;
 
 	vertices[0] = corner_verts[0];

@@ -115,8 +115,9 @@ GL_MemoryTypeFromProperties
 int GL_MemoryTypeFromProperties(uint32_t type_bits, VkFlags requirements_mask, VkFlags preferred_mask)
 {
 	uint32_t current_type_bits = type_bits;
+	uint32_t i;
 
-	for (uint32_t i = 0; i < VK_MAX_MEMORY_TYPES; i++) {
+	for (i = 0; i < VK_MAX_MEMORY_TYPES; i++) {
 		if ((current_type_bits & 1) == 1)
 		{
 			if ((vulkan_globals.memory_properties.memoryTypes[i].propertyFlags & (requirements_mask | preferred_mask)) == (requirements_mask | preferred_mask))
@@ -126,7 +127,7 @@ int GL_MemoryTypeFromProperties(uint32_t type_bits, VkFlags requirements_mask, V
 	}
 
 	current_type_bits = type_bits;
-	for (uint32_t i = 0; i < VK_MAX_MEMORY_TYPES; i++) {
+	for (i = 0; i < VK_MAX_MEMORY_TYPES; i++) {
 		if ((current_type_bits & 1) == 1)
 		{
 			if ((vulkan_globals.memory_properties.memoryTypes[i].propertyFlags & requirements_mask) == requirements_mask)
@@ -254,6 +255,8 @@ R_InitStagingBuffers
 */
 void R_InitStagingBuffers()
 {
+	int i;
+
 	Con_Printf("Initializing staging\n");
 
 	VkResult err;
@@ -264,7 +267,7 @@ void R_InitStagingBuffers()
 	buffer_create_info.size = STAGING_BUFFER_SIZE_KB * 1024;
 	buffer_create_info.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 
-	for(int i = 0; i < NUM_STAGING_BUFFERS; ++i)
+	for(i = 0; i < NUM_STAGING_BUFFERS; ++i)
 	{
 		staging_buffers[i].current_offset = 0;
 		staging_buffers[i].submitted = false;
@@ -297,7 +300,7 @@ void R_InitStagingBuffers()
 
 	GL_SetObjectName((uint64_t)staging_memory, VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_MEMORY_EXT, "Staging Buffers");
 
-	for(int i = 0; i < NUM_STAGING_BUFFERS; ++i)
+	for(i = 0; i < NUM_STAGING_BUFFERS; ++i)
 	{
 		err = vkBindBufferMemory(vulkan_globals.device, staging_buffers[i].buffer, staging_memory, i * aligned_size);
 		if (err != VK_SUCCESS)
@@ -338,7 +341,7 @@ void R_InitStagingBuffers()
 	memset(&command_buffer_begin_info, 0, sizeof(command_buffer_begin_info));
 	command_buffer_begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 
-	for(int i = 0; i < NUM_STAGING_BUFFERS; ++i)
+	for(i = 0; i < NUM_STAGING_BUFFERS; ++i)
 	{
 		err = vkCreateFence(vulkan_globals.device, &fence_create_info, NULL, &staging_buffers[i].fence);
 		if (err != VK_SUCCESS)
@@ -388,7 +391,8 @@ R_SubmitStagingBuffers
 */
 void R_SubmitStagingBuffers()
 {
-	for (int i = 0; i<NUM_STAGING_BUFFERS; ++i)
+	int i;
+	for (i = 0; i<NUM_STAGING_BUFFERS; ++i)
 	{
 		if (!staging_buffers[i].submitted && staging_buffers[i].current_offset > 0)
 			R_SubmitStagingBuffer(i);
@@ -458,6 +462,8 @@ R_InitDynamicVertexBuffers
 */
 static void R_InitDynamicVertexBuffers()
 {
+	int i;
+
 	Con_Printf("Initializing dynamic vertex buffers\n");
 
 	VkResult err;
@@ -468,7 +474,7 @@ static void R_InitDynamicVertexBuffers()
 	buffer_create_info.size = DYNAMIC_VERTEX_BUFFER_SIZE_KB * 1024;
 	buffer_create_info.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
 
-	for(int i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
+	for(i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
 	{
 		dyn_vertex_buffers[i].current_offset = 0;
 
@@ -500,7 +506,7 @@ static void R_InitDynamicVertexBuffers()
 
 	GL_SetObjectName((uint64_t)dyn_vertex_buffer_memory, VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_MEMORY_EXT, "Dynamic Vertex Buffers");
 
-	for(int i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
+	for(i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
 	{
 		err = vkBindBufferMemory(vulkan_globals.device, dyn_vertex_buffers[i].buffer, dyn_vertex_buffer_memory, i * aligned_size);
 		if (err != VK_SUCCESS)
@@ -512,7 +518,7 @@ static void R_InitDynamicVertexBuffers()
 	if (err != VK_SUCCESS)
 		Sys_Error("vkMapMemory failed");
 
-	for(int i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
+	for(i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
 		dyn_vertex_buffers[i].data = data + (i * aligned_size);
 }
 
@@ -523,6 +529,8 @@ R_InitDynamicIndexBuffers
 */
 static void R_InitDynamicIndexBuffers()
 {
+	int i;
+
 	Con_Printf("Initializing dynamic index buffers\n");
 
 	VkResult err;
@@ -533,7 +541,7 @@ static void R_InitDynamicIndexBuffers()
 	buffer_create_info.size = DYNAMIC_INDEX_BUFFER_SIZE_KB * 1024;
 	buffer_create_info.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
 
-	for(int i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
+	for(i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
 	{
 		dyn_index_buffers[i].current_offset = 0;
 
@@ -565,7 +573,7 @@ static void R_InitDynamicIndexBuffers()
 
 	GL_SetObjectName((uint64_t)dyn_index_buffer_memory, VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_MEMORY_EXT, "Dynamic Index Buffers");
 
-	for(int i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
+	for(i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
 	{
 		err = vkBindBufferMemory(vulkan_globals.device, dyn_index_buffers[i].buffer, dyn_index_buffer_memory, i * aligned_size);
 		if (err != VK_SUCCESS)
@@ -577,7 +585,7 @@ static void R_InitDynamicIndexBuffers()
 	if (err != VK_SUCCESS)
 		Sys_Error("vkMapMemory failed");
 
-	for(int i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
+	for(i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
 		dyn_index_buffers[i].data = data + (i * aligned_size);
 }
 
@@ -588,6 +596,8 @@ R_InitDynamicUniformBuffers
 */
 static void R_InitDynamicUniformBuffers()
 {
+	int i;
+
 	Con_Printf("Initializing dynamic uniform buffers\n");
 
 	VkResult err;
@@ -598,7 +608,7 @@ static void R_InitDynamicUniformBuffers()
 	buffer_create_info.size = DYNAMIC_UNIFORM_BUFFER_SIZE_KB * 1024;
 	buffer_create_info.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
 
-	for(int i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
+	for(i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
 	{
 		dyn_uniform_buffers[i].current_offset = 0;
 
@@ -630,7 +640,7 @@ static void R_InitDynamicUniformBuffers()
 
 	GL_SetObjectName((uint64_t)dyn_uniform_buffer_memory, VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_MEMORY_EXT, "Dynamic Uniform Buffers");
 
-	for(int i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
+	for(i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
 	{
 		err = vkBindBufferMemory(vulkan_globals.device, dyn_uniform_buffers[i].buffer, dyn_uniform_buffer_memory, i * aligned_size);
 		if (err != VK_SUCCESS)
@@ -642,7 +652,7 @@ static void R_InitDynamicUniformBuffers()
 	if (err != VK_SUCCESS)
 		Sys_Error("vkMapMemory failed");
 
-	for(int i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
+	for(i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
 		dyn_uniform_buffers[i].data = data + (i * aligned_size);
 
 	VkDescriptorSetAllocateInfo descriptor_set_allocate_info;
@@ -669,7 +679,7 @@ static void R_InitDynamicUniformBuffers()
 	ubo_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
 	ubo_write.pBufferInfo = &buffer_info;
 
-	for(int i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
+	for(i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
 	{
 		buffer_info.buffer = dyn_uniform_buffers[i].buffer;
 		ubo_write.dstSet = ubo_descriptor_sets[i];
@@ -1596,12 +1606,13 @@ R_DestroyPipelines
 */
 void R_DestroyPipelines(void)
 {
+	int i;
 	vkDestroyPipeline(vulkan_globals.device, vulkan_globals.basic_char_pipeline, NULL);
 	vkDestroyPipeline(vulkan_globals.device, vulkan_globals.basic_alphatest_pipeline, NULL);
 	vkDestroyPipeline(vulkan_globals.device, vulkan_globals.basic_blend_pipeline, NULL);
 	vkDestroyPipeline(vulkan_globals.device, vulkan_globals.basic_notex_blend_pipeline, NULL);
 	vkDestroyPipeline(vulkan_globals.device, vulkan_globals.basic_poly_blend_pipeline, NULL);
-	for (int i = 0; i < world_pipeline_count; ++i)
+	for (i = 0; i < world_pipeline_count; ++i)
 		vkDestroyPipeline(vulkan_globals.device, vulkan_globals.world_pipelines[i], NULL);
 	vkDestroyPipeline(vulkan_globals.device, vulkan_globals.water_pipeline, NULL);
 	vkDestroyPipeline(vulkan_globals.device, vulkan_globals.water_blend_pipeline, NULL);

@@ -5,9 +5,6 @@
 # "make SDL_CONFIG=/path/to/sdl-config" to override the locally included SDL versions.
 # "make WINSOCK2=0" to use the old WinSock 1.1 api (NOT RECOMMENDED)
 
-### Enable/disable SDL2
-USE_SDL2=0
-
 ### Enable/disable codecs for streaming music support
 USE_CODEC_WAVE=1
 USE_CODEC_FLAC=1
@@ -46,9 +43,9 @@ WINDRES = windres
 STRIP = strip
 
 CPUFLAGS=
-LDFLAGS =
+LDFLAGS = -m64 -mwindows
 DFLAGS ?=
-CFLAGS ?= -Wall -Wno-trigraphs
+CFLAGS ?= -m64 -Wall -Wno-trigraphs
 CFLAGS += $(CPUFLAGS)
 
 ifneq ($(DEBUG),0)
@@ -66,16 +63,10 @@ define do_strip
 endef
 endif
 
-ifeq ($(USE_SDL2),1)
 CFLAGS += -DUSE_SDL2
-endif
 
 # default to our local SDL[2] for build
-ifeq ($(USE_SDL2),1)
 SDL_CONFIG ?=../Windows/SDL2/bin/sdl2-config --prefix=../Windows/SDL2 --lib-suffix=64
-else
-SDL_CONFIG ?=../Windows/SDL/bin/sdl-config --prefix=../Windows/SDL --lib-suffix=64
-endif
 SDL_CFLAGS := $(shell $(SDL_CONFIG) --cflags)
 SDL_LIBS   := $(shell $(SDL_CONFIG) --libs)
 
@@ -162,12 +153,12 @@ CFLAGS+= -DUSE_CODEC_UMX
 endif
 CFLAGS+= $(CODEC_INC)
 
-VULKAN_INC = -I$(VK_SDK_PATH)/Include
-VULKAN_LINK= -L$(VK_SDK_PATH)/Bin
+VULKAN_INC = -I$(VK_SDK_PATH)/include
+VULKAN_LINK= -L../Windows/misc/x64 # -L$(VK_SDK_PATH)/Bin
 VULKAN_LIBS= -lvulkan-1
 CFLAGS+= $(VULKAN_INC)
 
-COMMON_LIBS:= -lm -lopengl32 -lwinmm
+COMMON_LIBS:= -lm -lwinmm
 
 LIBS := $(COMMON_LIBS) $(NET_LIBS) $(CODEC_LINK) $(CODECLIBS) $(VULKAN_LINK) $(VULKAN_LIBS)
 
@@ -185,8 +176,10 @@ DEFAULT_TARGET := vkQuake.exe
 
 %.o:	%.c
 	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ $^
+%.o:	../Shaders/Compiled/%.c
+	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ $^
 %.res:	../Windows/%.rc
-	$(WINDRES) --output-format=coff -I../Windows -o $@ $^
+	$(WINDRES) -I../Windows --output-format=coff --target=pe-x86-64 -o $@ $^
 
 # ----------------------------------------------------------------------------
 # objects
@@ -213,21 +206,22 @@ SYSOBJ_MAIN:= main_sdl.o
 SYSOBJ_RES := vkQuake.res
 
 SHADER_OBJS = \
-	../Shaders/Compiled/alias_frag.c \
-	../Shaders/Compiled/alias_vert.c \
-	../Shaders/Compiled/basic_alphatest_frag.c \
-	../Shaders/Compiled/basic_char_frag.c \
-	../Shaders/Compiled/basic_frag.c \
-	../Shaders/Compiled/basic_notex_frag.c \
-	../Shaders/Compiled/basic_vert.c \
-	../Shaders/Compiled/sky_layer_frag.c \
-	../Shaders/Compiled/sky_layer_vert.c \
-	../Shaders/Compiled/postprocess_frag.c \
-	../Shaders/Compiled/postprocess_vert.c \
-	../Shaders/Compiled/world_frag.c \
-	../Shaders/Compiled/world_vert.c
+	alias_frag.o \
+	alias_vert.o \
+	basic_alphatest_frag.o \
+	basic_char_frag.o \
+	basic_frag.o \
+	basic_notex_frag.o \
+	basic_vert.o \
+	sky_layer_frag.o \
+	sky_layer_vert.o \
+	postprocess_frag.o \
+	postprocess_vert.o \
+	world_frag.o \
+	world_vert.o
 
 GLOBJS = \
+	$(SHADER_OBJS) \
 	gl_refrag.o \
 	gl_rlight.o \
 	gl_rmain.o \
@@ -289,7 +283,7 @@ OBJS := strlcat.o \
 	sv_user.o \
 	world.o \
 	zone.o \
-	$(SYSOBJ_SYS) $(SYSOBJ_MAIN) $(SYSOBJ_RES) $(SHADER_OBJS)
+	$(SYSOBJ_SYS) $(SYSOBJ_MAIN) $(SYSOBJ_RES)
 
 # ------------------------
 # MinGW-w64 build rules

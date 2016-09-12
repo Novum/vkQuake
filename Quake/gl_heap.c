@@ -81,7 +81,9 @@ GL_HeapAllocate
 */
 glheapnode_t * GL_HeapAllocate(glheap_t * heap, VkDeviceSize size, VkDeviceSize alignment, VkDeviceSize * aligned_offset)
 {
-	for(glheapnode_t * current_node = heap->head; current_node != NULL; current_node = current_node->next)
+	glheapnode_t * current_node;
+
+	for (current_node = heap->head; current_node != NULL; current_node = current_node->next)
 	{
 		if (!current_node->free)
 			continue;
@@ -180,7 +182,9 @@ GL_AllocateFromHeaps
 VkDeviceSize GL_AllocateFromHeaps(int num_heaps, glheap_t ** heaps, VkDeviceSize heap_size, uint32_t memory_type_index,
 	VkDeviceSize size, VkDeviceSize alignment, glheap_t ** heap, glheapnode_t ** heap_node, int * num_allocations, const char * heap_name)
 {
-	for(int i = 0; i < num_heaps; ++i)
+	int i;
+
+	for(i = 0; i < num_heaps; ++i)
 	{
 		qboolean new_heap = false;
 		if(!heaps[i])
@@ -212,12 +216,13 @@ GL_FreeFromHeaps
 */
 void GL_FreeFromHeaps(int num_heaps, glheap_t ** heaps, glheap_t * heap, glheapnode_t * heap_node, int * num_allocations)
 {
+	int i;
 	GL_HeapFree(heap, heap_node);
 	if(GL_IsHeapEmpty(heap))
 	{
 		*num_allocations -= 1;
 		GL_DestroyHeap(heap);
-		for(int i = 0; i < num_heaps; ++i)
+		for(i = 0; i < num_heaps; ++i)
 			if(heaps[i] == heap)
 				heaps[i]  = NULL;
 	}

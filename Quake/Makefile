@@ -10,9 +10,6 @@ DO_USERDIRS=0
 ### Vulkan SDK directory
 VULKAN_INCLUDE_DIR=$(VULKAN_SDK)/include
 
-### Enable/Disable SDL2
-USE_SDL2=1
-
 ### Enable/Disable codecs for streaming music support
 USE_CODEC_WAVE=1
 USE_CODEC_FLAC=0
@@ -100,15 +97,9 @@ LDFLAGS+= -L$(X11BASE)/lib
 CFLAGS += -I$(X11BASE)/include
 endif
 
-ifeq ($(USE_SDL2),1)
 CFLAGS += -DUSE_SDL2
-endif
 
-ifeq ($(USE_SDL2),1)
 SDL_CONFIG ?= sdl2-config
-else
-SDL_CONFIG ?= sdl-config
-endif
 SDL_CFLAGS := $(shell $(SDL_CONFIG) --cflags)
 SDL_LIBS   := $(shell $(SDL_CONFIG) --libs)
 
@@ -199,6 +190,8 @@ DEFAULT_TARGET := vkquake
 
 %.o:	%.c
 	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ $^
+%.o:	../Shaders/Compiled/%.c
+	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ $^
 
 # ----------------------------------------------------------------------------
 # objects
@@ -225,21 +218,22 @@ SYSOBJ_MAIN:= main_sdl.o
 SYSOBJ_RES :=
 
 SHADER_OBJS = \
-	../Shaders/Compiled/alias_frag.c \
-	../Shaders/Compiled/alias_vert.c \
-	../Shaders/Compiled/basic_alphatest_frag.c \
-	../Shaders/Compiled/basic_char_frag.c \
-	../Shaders/Compiled/basic_frag.c \
-	../Shaders/Compiled/basic_notex_frag.c \
-	../Shaders/Compiled/basic_vert.c \
-	../Shaders/Compiled/sky_layer_frag.c \
-	../Shaders/Compiled/sky_layer_vert.c \
-	../Shaders/Compiled/postprocess_frag.c \
-	../Shaders/Compiled/postprocess_vert.c \
-	../Shaders/Compiled/world_frag.c \
-	../Shaders/Compiled/world_vert.c
+	alias_frag.o \
+	alias_vert.o \
+	basic_alphatest_frag.o \
+	basic_char_frag.o \
+	basic_frag.o \
+	basic_notex_frag.o \
+	basic_vert.o \
+	sky_layer_frag.o \
+	sky_layer_vert.o \
+	postprocess_frag.o \
+	postprocess_vert.o \
+	world_frag.o \
+	world_vert.o
 
 GLOBJS = \
+	$(SHADER_OBJS) \
 	gl_refrag.o \
 	gl_rlight.o \
 	gl_rmain.o \
@@ -301,7 +295,7 @@ OBJS := strlcat.o \
 	sv_user.o \
 	world.o \
 	zone.o \
-	$(SYSOBJ_SYS) $(SYSOBJ_MAIN) $(SYSOBJ_RES) $(SHADER_OBJS)
+	$(SYSOBJ_SYS) $(SYSOBJ_MAIN) $(SYSOBJ_RES)
 
 # ------------------------
 # Linux build rules
