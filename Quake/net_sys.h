@@ -65,6 +65,11 @@ typedef int	sys_socket_t;
 #define	INVALID_SOCKET	(-1)
 #define	SOCKET_ERROR	(-1)
 
+#if defined(__APPLE__) && defined(SO_NKE) && !defined(SO_NOADDRERR)
+				/* ancient Mac OS X SDKs 10.2 and older are missing socklen_t */
+typedef int	socklen_t;			/* defining as signed int to match the old api */
+#endif	/* ancient OSX SDKs */
+
 #define	SOCKETERRNO	errno
 #define	ioctlsocket	ioctl
 #define	closesocket	close
@@ -116,7 +121,7 @@ typedef unsigned int	in_addr_t;	/* u_int32_t */
 #define	selectsocket(_N,_R,_W,_E,_T)		\
 	WaitSelect((_N),(_R),(_W),(_E),(_T),NULL)
 #define	IOCTLARG_P(x)	(char *) x
-#if defined(__AMIGA__) && !defined(__MORPHOS__)
+#if defined(__amigaos4__) || defined(PLATFORM_AMIGAOS3)
 #define	inet_ntoa(x) Inet_NtoA(x.s_addr) /* Inet_NtoA(*(ULONG*)&x) */
 #define	h_errno Errno()
 #endif

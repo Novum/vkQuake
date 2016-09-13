@@ -1,6 +1,7 @@
 # GNU Makefile for compiling Win32 vkQuake.exe using MinGW or MinGW-w64.
 # Usage: "make -f Makefile.w32"
 # To cross-compile on Linux hosts, see the "build_cross_win32*.sh" scripts.
+# "make VK_SDK_PATH=/path/to/vksdk" to specify the Vulkan SDK root
 # "make DEBUG=1" to build a debug client.
 # "make SDL_CONFIG=/path/to/sdl-config" to override the locally included SDL versions.
 # "make WINSOCK2=1" to use WinSock2 api instead of old WinSock 1.1.
@@ -239,11 +240,11 @@ GLOBJS = \
 	image.o \
 	gl_texmgr.o \
 	gl_mesh.o \
+	gl_heap.o \
 	r_sprite.o \
 	r_alias.o \
 	r_brush.o \
-	gl_model.o \
-	gl_heap.o
+	gl_model.o
 
 OBJS := strlcat.o \
 	strlcpy.o \

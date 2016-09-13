@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #set your VULKAN_SDK location  before running
-VULKAN_SDK=~/VulkanSDK/1.0.21.1/x86_64/
+VULKAN_SDK=~/VulkanSDK/1.0.26.0/x86_64/
 if [[ ! -x "./bintoc" ]]
 then
 	gcc bintoc.c -o bintoc

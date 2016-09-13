@@ -1,6 +1,7 @@
 # GNU Makefile for compiling Win64 vkQuake.exe using MinGW-w64.
 # Usage: "make -f Makefile.w64"
 # To cross-compile on Linux hosts, see the "build_cross_win32*.sh" scripts.
+# "make VK_SDK_PATH=/path/to/vksdk" to specify the Vulkan SDK root
 # "make DEBUG=1" to build a debug client.
 # "make SDL_CONFIG=/path/to/sdl-config" to override the locally included SDL versions.
 # "make WINSOCK2=0" to use the old WinSock 1.1 api (NOT RECOMMENDED)
@@ -49,7 +50,7 @@ CFLAGS ?= -m64 -Wall -Wno-trigraphs
 CFLAGS += $(CPUFLAGS)
 
 ifneq ($(DEBUG),0)
-DFLAGS += -DDEBUG
+DFLAGS += -D_DEBUG
 CFLAGS += -g
 do_strip=
 else
@@ -237,11 +238,11 @@ GLOBJS = \
 	image.o \
 	gl_texmgr.o \
 	gl_mesh.o \
+	gl_heap.o \
 	r_sprite.o \
 	r_alias.o \
 	r_brush.o \
-	gl_model.o \
-	gl_heap.o
+	gl_model.o
 
 OBJS := strlcat.o \
 	strlcpy.o \

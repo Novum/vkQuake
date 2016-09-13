@@ -59,7 +59,7 @@
 #   endif
 
 #elif defined(__MORPHOS__) || defined(__AROS__) || defined(AMIGAOS)	|| \
-      defined(__amigaos__) || defined(__amigados__)			|| \
+      defined(__amigaos__) || defined(__amigaos4__) ||defined(__amigados__) || \
       defined(AMIGA) || defined(_AMIGA) || defined(__AMIGA__)
 
 #   if !defined(PLATFORM_AMIGA)
@@ -108,6 +108,13 @@
 #endif	/* PLATFORM_BSD (for convenience) */
 
 
+#if defined(PLATFORM_AMIGA) && !defined(PLATFORM_AMIGAOS3)
+#   if !defined(__MORPHOS__) && !defined(__AROS__) && !defined(__amigaos4__)
+#	define	PLATFORM_AMIGAOS3	1
+#   endif
+#endif	/* PLATFORM_AMIGAOS3 (for convenience) */
+
+
 #if defined(_WIN64)
 #	define	PLATFORM_STRING	"Win64"
 #elif defined(_WIN32)
@@ -130,6 +137,8 @@
 #	define	PLATFORM_STRING	"MorphOS"
 #elif defined(__AROS__)
 #	define	PLATFORM_STRING	"AROS"
+#elif defined(__amigaos4__)
+#	define	PLATFORM_STRING	"AmigaOS4"
 #elif defined(PLATFORM_AMIGA)
 #	define	PLATFORM_STRING	"AmigaOS"
 #elif defined(__QNX__) || defined(__QNXNTO__)

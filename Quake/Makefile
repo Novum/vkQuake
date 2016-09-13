@@ -70,7 +70,6 @@ define do_strip
 	$(call cmd_strip,$(1));
 endef
 endif
-CFLAGS += -std=gnu99
 CFLAGS += -I$(VULKAN_INCLUDE_DIR) -DLINUX -DVK_USE_PLATFORM_XCB_KHR
 
 ifeq ($(DO_USERDIRS),1)
@@ -249,11 +248,11 @@ GLOBJS = \
 	image.o \
 	gl_texmgr.o \
 	gl_mesh.o \
+	gl_heap.o \
 	r_sprite.o \
 	r_alias.o \
 	r_brush.o \
-	gl_model.o \
-	gl_heap.o
+	gl_model.o
 
 OBJS := strlcat.o \
 	strlcpy.o \

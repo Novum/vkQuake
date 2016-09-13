@@ -923,6 +923,8 @@ int SCR_ModalMessage (const char *text, float timeout) //johnfitz -- timeout
 	} while (lastchar != 'y' && lastchar != 'Y' &&
 		 lastchar != 'n' && lastchar != 'N' &&
 		 lastkey != K_ESCAPE &&
+		 lastkey != K_ABUTTON &&
+		 lastkey != K_BBUTTON &&
 		 time2 <= time1);
 	Key_EndInputGrab ();
 
@@ -933,7 +935,7 @@ int SCR_ModalMessage (const char *text, float timeout) //johnfitz -- timeout
 		return false;
 	//johnfitz
 
-	return (lastchar == 'y' || lastchar == 'Y');
+	return (lastchar == 'y' || lastchar == 'Y' || lastkey == K_ABUTTON);
 }
 
 
