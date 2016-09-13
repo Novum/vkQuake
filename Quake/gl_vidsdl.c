@@ -1156,8 +1156,8 @@ static void GL_CreateColorBuffer( void )
 			case VK_SAMPLE_COUNT_16_BIT:
 				Con_Printf("16 MSAA Samples\n");
 				break;
-
-			default:break; /* silence compiler */
+			default:
+				break;
 		}
 	}
 
@@ -1300,8 +1300,8 @@ static void GL_CreateSwapChain( void )
 	case VK_PRESENT_MODE_IMMEDIATE_KHR:
 		Con_Printf("Using IMMEDIATE present mode\n");
 		break;
-
-	default:break; /* silence compiler */
+	default:
+		break;
 	}
 
 	VkSwapchainCreateInfoKHR swapchain_create_info;
