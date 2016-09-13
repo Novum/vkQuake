@@ -307,7 +307,7 @@ void R_InitStagingBuffers()
 			Sys_Error("vkBindBufferMemory failed");
 	}
 
-	unsigned char * data;
+	void * data;
 	err = vkMapMemory(vulkan_globals.device, staging_memory, 0, NUM_STAGING_BUFFERS * aligned_size, 0, &data);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkMapMemory failed");
@@ -348,7 +348,7 @@ void R_InitStagingBuffers()
 			Sys_Error("vkCreateFence failed");
 
 		staging_buffers[i].command_buffer = command_buffers[i];
-		staging_buffers[i].data = data + (i * aligned_size);
+		staging_buffers[i].data = (unsigned char *)data + (i * aligned_size);
 
 		err = vkBeginCommandBuffer(staging_buffers[i].command_buffer, &command_buffer_begin_info);
 		if (err != VK_SUCCESS)
@@ -513,13 +513,13 @@ static void R_InitDynamicVertexBuffers()
 			Sys_Error("vkBindBufferMemory failed");
 	}
 
-	unsigned char * data;
+	void * data;
 	err = vkMapMemory(vulkan_globals.device, dyn_vertex_buffer_memory, 0, NUM_DYNAMIC_BUFFERS * aligned_size, 0, &data);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkMapMemory failed");
 
 	for(i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
-		dyn_vertex_buffers[i].data = data + (i * aligned_size);
+		dyn_vertex_buffers[i].data = (unsigned char *)data + (i * aligned_size);
 }
 
 /*
@@ -580,13 +580,13 @@ static void R_InitDynamicIndexBuffers()
 			Sys_Error("vkBindBufferMemory failed");
 	}
 
-	unsigned char * data;
+	void * data;
 	err = vkMapMemory(vulkan_globals.device, dyn_index_buffer_memory, 0, NUM_DYNAMIC_BUFFERS * aligned_size, 0, &data);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkMapMemory failed");
 
 	for(i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
-		dyn_index_buffers[i].data = data + (i * aligned_size);
+		dyn_index_buffers[i].data = (unsigned char *)data + (i * aligned_size);
 }
 
 /*
@@ -647,13 +647,13 @@ static void R_InitDynamicUniformBuffers()
 			Sys_Error("vkBindBufferMemory failed");
 	}
 
-	unsigned char * data;
+	void * data;
 	err = vkMapMemory(vulkan_globals.device, dyn_uniform_buffer_memory, 0, NUM_DYNAMIC_BUFFERS * aligned_size, 0, &data);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkMapMemory failed");
 
 	for(i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
-		dyn_uniform_buffers[i].data = data + (i * aligned_size);
+		dyn_uniform_buffers[i].data = (unsigned char *)data + (i * aligned_size);
 
 	VkDescriptorSetAllocateInfo descriptor_set_allocate_info;
 	memset(&descriptor_set_allocate_info, 0, sizeof(descriptor_set_allocate_info));
@@ -1060,7 +1060,7 @@ static VkShaderModule R_CreateShaderModule(byte *code, int size)
 	module_create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
 	module_create_info.pNext = NULL;
 	module_create_info.codeSize = size;
-	module_create_info.pCode = (void*)code;
+	module_create_info.pCode = (uint32_t *)code;
 
 	VkShaderModule module;
 	VkResult err = vkCreateShaderModule(vulkan_globals.device, &module_create_info, NULL, &module);

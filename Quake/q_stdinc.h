@@ -29,6 +29,10 @@
 #ifndef __QSTDINC_H
 #define __QSTDINC_H
 
+#ifdef  __cplusplus
+#define __STDC_LIMIT_MACROS /* for UINT64_MAX & co. */
+#endif
+
 #include <sys/types.h>
 #include <stddef.h>
 #include <limits.h>

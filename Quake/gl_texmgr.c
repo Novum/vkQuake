@@ -974,7 +974,7 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 		return;
 	}
 	else
-		glt->target_image_view = NULL;
+		glt->target_image_view = VK_NULL_HANDLE;
 
 	glt->frame_buffer = VK_NULL_HANDLE;
 

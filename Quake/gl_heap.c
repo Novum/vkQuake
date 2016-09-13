@@ -37,7 +37,7 @@ GL_CreateHeap
 */
 glheap_t * GL_CreateHeap(VkDeviceSize size, uint32_t memory_type_index, const char * name)
 {
-	glheap_t * heap = malloc(sizeof(glheap_t));
+	glheap_t * heap = (glheap_t*) malloc(sizeof(glheap_t));
 
 	VkMemoryAllocateInfo memory_allocate_info;
 	memset(&memory_allocate_info, 0, sizeof(memory_allocate_info));
@@ -51,7 +51,7 @@ glheap_t * GL_CreateHeap(VkDeviceSize size, uint32_t memory_type_index, const ch
 
 	GL_SetObjectName((uint64_t)heap->memory, VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_MEMORY_EXT, name);
 
-	heap->head = malloc(sizeof(glheapnode_t));
+	heap->head = (glheapnode_t*) malloc(sizeof(glheapnode_t));
 	heap->head->offset = 0;
 	heap->head->size = size;
 	heap->head->prev = NULL;
@@ -94,7 +94,7 @@ glheapnode_t * GL_HeapAllocate(glheap_t * heap, VkDeviceSize size, VkDeviceSize 
 
 		if (current_node->size > aligned_size)
 		{
-			glheapnode_t * new_node = malloc(sizeof(glheapnode_t));
+			glheapnode_t * new_node = (glheapnode_t*) malloc(sizeof(glheapnode_t));
 			*new_node = *current_node;
 			new_node->prev = current_node->prev;
 			new_node->next = current_node;
