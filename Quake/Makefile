@@ -63,6 +63,7 @@ do_strip=
 else
 DFLAGS += -DNDEBUG
 CFLAGS += -O2
+CFLAGS += -std=gnu99
 CFLAGS += $(call check_gcc,-fweb,)
 CFLAGS += $(call check_gcc,-frename-registers,)
 cmd_strip=$(STRIP) $(1)
