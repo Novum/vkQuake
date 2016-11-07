@@ -1479,7 +1479,6 @@ GL_BeginRendering
 void GL_BeginRendering (int *x, int *y, int *width, int *height)
 {
 	R_SwapDynamicBuffers();
-	R_SubmitStagingBuffers();
 
 	vulkan_globals.device_idle = false;
 	*x = *y = 0;
@@ -1553,6 +1552,7 @@ GL_EndRendering
 */
 void GL_EndRendering (void)
 {
+	R_SubmitStagingBuffers();
 	R_FlushDynamicBuffers();
 	
 	VkResult err;
