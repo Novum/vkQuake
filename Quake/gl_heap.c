@@ -82,6 +82,8 @@ GL_HeapAllocate
 glheapnode_t * GL_HeapAllocate(glheap_t * heap, VkDeviceSize size, VkDeviceSize alignment, VkDeviceSize * aligned_offset)
 {
 	glheapnode_t * current_node;
+	glheapnode_t * best_fit_node = NULL;
+	VkDeviceSize best_fit_size = UINT64_MAX;
 
 	for (current_node = heap->head; current_node != NULL; current_node = current_node->next)
 	{
@@ -92,33 +94,43 @@ glheapnode_t * GL_HeapAllocate(glheap_t * heap, VkDeviceSize size, VkDeviceSize 
 		VkDeviceSize align_padding = (align_mod == 0) ? 0 : (alignment - align_mod);
 		VkDeviceSize aligned_size = size + align_padding;
 
-		if (current_node->size > aligned_size)
-		{
-			glheapnode_t * new_node = (glheapnode_t*) malloc(sizeof(glheapnode_t));
-			*new_node = *current_node;
-			new_node->prev = current_node->prev;
-			new_node->next = current_node;
-			if(current_node->prev)
-				current_node->prev->next = new_node;
-			current_node->prev = new_node;
-			new_node->free = false;
-
-			new_node->size = aligned_size;
-			current_node->size -= aligned_size;
-			current_node->offset += aligned_size;
-
-			if (current_node == heap->head)
-				heap->head = new_node;
-
-			*aligned_offset = new_node->offset + align_padding;
-			return new_node;
-		}
-		else if (current_node->size == aligned_size)
+		if (current_node->size == aligned_size)
 		{
 			current_node->free = false;
 			*aligned_offset = current_node->offset + align_padding;
 			return current_node;
 		}
+		else if ((current_node->size > aligned_size) && (current_node->size < best_fit_size))
+		{
+			best_fit_size = current_node->size;
+			best_fit_node = current_node;
+		}
+	}
+
+	if (best_fit_node != NULL)
+	{
+		const VkDeviceSize align_mod = best_fit_node->offset % alignment;
+		VkDeviceSize align_padding = (align_mod == 0) ? 0 : (alignment - align_mod);
+		VkDeviceSize aligned_size = size + align_padding;
+
+		glheapnode_t * new_node = (glheapnode_t*) malloc(sizeof(glheapnode_t));
+		*new_node = *best_fit_node;
+		new_node->prev = best_fit_node->prev;
+		new_node->next = best_fit_node;
+		if(best_fit_node->prev)
+			best_fit_node->prev->next = new_node;
+		best_fit_node->prev = new_node;
+		new_node->free = false;
+
+		new_node->size = aligned_size;
+		best_fit_node->size -= aligned_size;
+		best_fit_node->offset += aligned_size;
+
+		if (best_fit_node == heap->head)
+			heap->head = new_node;
+
+		*aligned_offset = new_node->offset + align_padding;
+		return new_node;
 	}
 
 	*aligned_offset = 0;
@@ -224,6 +236,6 @@ void GL_FreeFromHeaps(int num_heaps, glheap_t ** heaps, glheap_t * heap, glheapn
 		GL_DestroyHeap(heap);
 		for(i = 0; i < num_heaps; ++i)
 			if(heaps[i] == heap)
-				heaps[i]  = NULL;
+				heaps[i] = NULL;
 	}
 }
