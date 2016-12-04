@@ -9,3 +9,6 @@ Quake/vkquake
 Quake/vkQuake.exe
 Quake/vkQuake.res
 Windows/VisualStudio/Build-vkQuake/
+Shaders/Compiled
+Shaders/bintoc.exe
+Shaders/bintoc.obj
