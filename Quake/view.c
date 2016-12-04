@@ -862,6 +862,7 @@ void V_RenderView (void)
 {
 	if (con_forcedup)
 	{
+		subpass_index = 0;
 		vkCmdBeginRenderPass(vulkan_globals.command_buffer, &vulkan_globals.main_render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
 		return;
 	}

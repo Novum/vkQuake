@@ -130,11 +130,10 @@ typedef struct
 	VkRenderPass						warp_render_pass;
 
 	// Pipelines
-	VkPipeline							basic_alphatest_pipeline;
-	VkPipeline							basic_blend_pipeline;
-	VkPipeline							basic_notex_blend_pipeline;
+	VkPipeline							basic_alphatest_pipeline[2];
+	VkPipeline							basic_blend_pipeline[2];
+	VkPipeline							basic_notex_blend_pipeline[2];
 	VkPipeline							basic_poly_blend_pipeline;
-	VkPipeline							basic_char_pipeline;
 	VkPipelineLayout					basic_pipeline_layout;
 	VkPipeline							world_pipelines[world_pipeline_count];
 	VkPipelineLayout					world_pipeline_layout;
@@ -181,6 +180,7 @@ extern	entity_t	*currententity;
 extern	int		r_visframecount;	// ??? what difs?
 extern	int		r_framecount;
 extern	mplane_t	frustum[4];
+extern int subpass_index;
 
 //
 // view origin

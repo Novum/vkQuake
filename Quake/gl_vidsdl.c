@@ -889,9 +889,13 @@ static void GL_CreateRenderPasses()
 	attachment_descriptions[3].loadOp = resolve ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_DONT_CARE;;
 	attachment_descriptions[3].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 
-	VkAttachmentReference color_attachment_reference;
-	color_attachment_reference.attachment = resolve ? 3 : 0;
-	color_attachment_reference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	VkAttachmentReference scene_color_attachment_reference;
+	scene_color_attachment_reference.attachment = resolve ? 3 : 0;
+	scene_color_attachment_reference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+	VkAttachmentReference ui_color_attachment_reference;
+	ui_color_attachment_reference.attachment = 0;
+	ui_color_attachment_reference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
 	VkAttachmentReference depth_attachment_reference;
 	depth_attachment_reference.attachment = 1;
@@ -909,24 +913,27 @@ static void GL_CreateRenderPasses()
 	resolve_attachment_reference.attachment = 0;
 	resolve_attachment_reference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-	VkSubpassDescription subpass_descriptions[2];
+	VkSubpassDescription subpass_descriptions[3];
 	memset(&subpass_descriptions, 0, sizeof(subpass_descriptions));
 
 	subpass_descriptions[0].colorAttachmentCount = 1;
-	subpass_descriptions[0].pColorAttachments = &color_attachment_reference;
+	subpass_descriptions[0].pColorAttachments = &scene_color_attachment_reference;
 	subpass_descriptions[0].pDepthStencilAttachment = &depth_attachment_reference;
 	subpass_descriptions[0].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 	if (resolve)
 		subpass_descriptions[0].pResolveAttachments = &resolve_attachment_reference;
 
 	subpass_descriptions[1].colorAttachmentCount = 1;
-	subpass_descriptions[1].pColorAttachments = &swap_chain_attachment_reference;
-	subpass_descriptions[1].pDepthStencilAttachment = NULL;
+	subpass_descriptions[1].pColorAttachments = &ui_color_attachment_reference;
 	subpass_descriptions[1].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-	subpass_descriptions[1].inputAttachmentCount = 1;
-	subpass_descriptions[1].pInputAttachments = &color_input_attachment_reference;
 
-	VkSubpassDependency subpass_dependencies[1];
+	subpass_descriptions[2].colorAttachmentCount = 1;
+	subpass_descriptions[2].pColorAttachments = &swap_chain_attachment_reference;
+	subpass_descriptions[2].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+	subpass_descriptions[2].inputAttachmentCount = 1;
+	subpass_descriptions[2].pInputAttachments = &color_input_attachment_reference;
+
+	VkSubpassDependency subpass_dependencies[2];
 	subpass_dependencies[0].srcSubpass = 0;
 	subpass_dependencies[0].dstSubpass = 1;
 	subpass_dependencies[0].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
@@ -935,14 +942,22 @@ static void GL_CreateRenderPasses()
 	subpass_dependencies[0].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 	subpass_dependencies[0].dependencyFlags = 0;
 
+	subpass_dependencies[1].srcSubpass = 1;
+	subpass_dependencies[1].dstSubpass = 2;
+	subpass_dependencies[1].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	subpass_dependencies[1].dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+	subpass_dependencies[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+	subpass_dependencies[1].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+	subpass_dependencies[1].dependencyFlags = 0;
+
 	VkRenderPassCreateInfo render_pass_create_info;
 	memset(&render_pass_create_info, 0, sizeof(render_pass_create_info));
 	render_pass_create_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
 	render_pass_create_info.attachmentCount = resolve ? 4 : 3;
 	render_pass_create_info.pAttachments = attachment_descriptions;
-	render_pass_create_info.subpassCount = 2;
+	render_pass_create_info.subpassCount = 3;
 	render_pass_create_info.pSubpasses = subpass_descriptions;
-	render_pass_create_info.dependencyCount = 1;
+	render_pass_create_info.dependencyCount = 2;
 	render_pass_create_info.pDependencies = subpass_dependencies;
 
 	err = vkCreateRenderPass(vulkan_globals.device, &render_pass_create_info, NULL, &vulkan_globals.main_render_pass);
@@ -959,13 +974,13 @@ static void GL_CreateRenderPasses()
 		attachment_descriptions[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 		attachment_descriptions[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 		attachment_descriptions[0].finalLayout = VK_IMAGE_LAYOUT_GENERAL;
-		color_attachment_reference.attachment = 0;
-		color_attachment_reference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+		scene_color_attachment_reference.attachment = 0;
+		scene_color_attachment_reference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
 		VkSubpassDescription subpass_description;
 		memset(&subpass_description, 0, sizeof(subpass_description));
 		subpass_description.colorAttachmentCount = 1;
-		subpass_description.pColorAttachments = &color_attachment_reference;
+		subpass_description.pColorAttachments = &scene_color_attachment_reference;
 		subpass_description.pDepthStencilAttachment = NULL;
 		subpass_description.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 
