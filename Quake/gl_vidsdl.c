@@ -865,7 +865,7 @@ static void GL_CreateRenderPasses()
 	attachment_descriptions[0].finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	attachment_descriptions[0].samples = VK_SAMPLE_COUNT_1_BIT;
 	attachment_descriptions[0].format = COLOR_BUFFER_FORMAT;
-	attachment_descriptions[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	attachment_descriptions[0].loadOp = resolve ? VK_ATTACHMENT_LOAD_OP_DONT_CARE : VK_ATTACHMENT_LOAD_OP_CLEAR;
 	attachment_descriptions[0].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 
 	attachment_descriptions[1].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -886,7 +886,7 @@ static void GL_CreateRenderPasses()
 	attachment_descriptions[3].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 	attachment_descriptions[3].samples = vulkan_globals.sample_count;
 	attachment_descriptions[3].format = COLOR_BUFFER_FORMAT;
-	attachment_descriptions[3].loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	attachment_descriptions[3].loadOp = resolve ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_DONT_CARE;;
 	attachment_descriptions[3].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 
 	VkAttachmentReference color_attachment_reference;
@@ -1523,13 +1523,15 @@ void GL_BeginRendering (int *x, int *y, int *width, int *height)
 
 	vulkan_globals.main_clear_values[0] = vulkan_globals.color_clear_value;
 	vulkan_globals.main_clear_values[1] = depth_clear_value;
+	vulkan_globals.main_clear_values[2] = vulkan_globals.color_clear_value;
+	vulkan_globals.main_clear_values[3] = vulkan_globals.color_clear_value;
 
 	memset(&vulkan_globals.main_render_pass_begin_info, 0, sizeof(vulkan_globals.main_render_pass_begin_info));
 	vulkan_globals.main_render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 	vulkan_globals.main_render_pass_begin_info.renderArea = render_area;
 	vulkan_globals.main_render_pass_begin_info.renderPass = vulkan_globals.main_render_pass;
 	vulkan_globals.main_render_pass_begin_info.framebuffer = framebuffers[current_swapchain_buffer];
-	vulkan_globals.main_render_pass_begin_info.clearValueCount = 2;
+	vulkan_globals.main_render_pass_begin_info.clearValueCount = 4;
 	vulkan_globals.main_render_pass_begin_info.pClearValues = vulkan_globals.main_clear_values;
 
 	vkCmdSetScissor(vulkan_globals.command_buffer, 0, 1, &render_area);
