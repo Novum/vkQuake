@@ -864,7 +864,7 @@ static void GL_CreateRenderPasses()
 	const qboolean resolve = ( vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT);
 
 	attachment_descriptions[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	attachment_descriptions[0].finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	attachment_descriptions[0].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 	attachment_descriptions[0].samples = VK_SAMPLE_COUNT_1_BIT;
 	attachment_descriptions[0].format = COLOR_BUFFER_FORMAT;
 	attachment_descriptions[0].loadOp = resolve ? VK_ATTACHMENT_LOAD_OP_DONT_CARE : VK_ATTACHMENT_LOAD_OP_CLEAR;
@@ -921,7 +921,7 @@ static void GL_CreateRenderPasses()
 	GL_SetObjectName((uint64_t)vulkan_globals.main_render_pass, VK_DEBUG_REPORT_OBJECT_TYPE_RENDER_PASS_EXT, "main");
 
 	// UI Render Pass
-	attachment_descriptions[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	attachment_descriptions[0].initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 	attachment_descriptions[0].finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	attachment_descriptions[0].samples = VK_SAMPLE_COUNT_1_BIT;
 	attachment_descriptions[0].format = COLOR_BUFFER_FORMAT;
