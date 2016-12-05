@@ -106,7 +106,7 @@ static VkCommandPool				command_pool;
 static VkCommandBuffer				command_buffers[NUM_COMMAND_BUFFERS];
 static VkFence						command_buffer_fences[NUM_COMMAND_BUFFERS];
 static qboolean						command_buffer_submitted[NUM_COMMAND_BUFFERS];
-static VkFramebuffer				main_framebuffer;
+static VkFramebuffer				main_framebuffers[NUM_COLOR_BUFFERS];
 static VkFramebuffer				ui_framebuffers[MAX_SWAP_CHAIN_IMAGES];
 static VkImageView					swapchain_images_views[MAX_SWAP_CHAIN_IMAGES];
 static VkSemaphore					image_aquired_semaphores[MAX_SWAP_CHAIN_IMAGES];
@@ -1449,30 +1449,40 @@ static void GL_CreateFrameBuffers( void )
 
 	const qboolean resolve = ( vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT);
 
-	VkFramebufferCreateInfo framebuffer_create_info;
-	memset(&framebuffer_create_info, 0, sizeof(framebuffer_create_info));
-	framebuffer_create_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-	framebuffer_create_info.renderPass = vulkan_globals.main_render_pass;
-	framebuffer_create_info.attachmentCount = resolve ? 3 : 2;
-	framebuffer_create_info.width = vid.width;
-	framebuffer_create_info.height = vid.height;
-	framebuffer_create_info.layers = 1;
+	for (i = 0; i < NUM_COLOR_BUFFERS; ++i)
+	{
+		VkFramebufferCreateInfo framebuffer_create_info;
+		memset(&framebuffer_create_info, 0, sizeof(framebuffer_create_info));
+		framebuffer_create_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+		framebuffer_create_info.renderPass = vulkan_globals.main_render_pass;
+		framebuffer_create_info.attachmentCount = resolve ? 3 : 2;
+		framebuffer_create_info.width = vid.width;
+		framebuffer_create_info.height = vid.height;
+		framebuffer_create_info.layers = 1;
 
-	VkImageView attachments[3] = { color_buffers_view[0], depth_buffer_view, msaa_color_buffer_view };
-	framebuffer_create_info.pAttachments = attachments;
+		VkImageView attachments[3] = { color_buffers_view[i], depth_buffer_view, msaa_color_buffer_view };
+		framebuffer_create_info.pAttachments = attachments;
 
-	err = vkCreateFramebuffer(vulkan_globals.device, &framebuffer_create_info, NULL, &main_framebuffer);
-	if (err != VK_SUCCESS)
-		Sys_Error("vkCreateFramebuffer failed");
+		err = vkCreateFramebuffer(vulkan_globals.device, &framebuffer_create_info, NULL, &main_framebuffers[i]);
+		if (err != VK_SUCCESS)
+			Sys_Error("vkCreateFramebuffer failed");
 
-	GL_SetObjectName((uint64_t)main_framebuffer, VK_DEBUG_REPORT_OBJECT_TYPE_FRAMEBUFFER_EXT, "main");
+		GL_SetObjectName((uint64_t)main_framebuffers[i], VK_DEBUG_REPORT_OBJECT_TYPE_FRAMEBUFFER_EXT, "main");
+	}
 
 	for (i = 0; i < num_swap_chain_images; ++i)
 	{
-		VkImageView attachments[2] = { color_buffers_view[0],  swapchain_images_views[i] };
+		VkFramebufferCreateInfo framebuffer_create_info;
+		memset(&framebuffer_create_info, 0, sizeof(framebuffer_create_info));
+		framebuffer_create_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
 		framebuffer_create_info.renderPass = vulkan_globals.ui_render_pass;
-		framebuffer_create_info.pAttachments = attachments;
 		framebuffer_create_info.attachmentCount = 2;
+		framebuffer_create_info.width = vid.width;
+		framebuffer_create_info.height = vid.height;
+		framebuffer_create_info.layers = 1;
+
+		VkImageView attachments[2] = { color_buffers_view[0],  swapchain_images_views[i] };
+		framebuffer_create_info.pAttachments = attachments;
 
 		err = vkCreateFramebuffer(vulkan_globals.device, &framebuffer_create_info, NULL, &ui_framebuffers[i]);
 		if (err != VK_SUCCESS)
@@ -1537,8 +1547,11 @@ static void GL_DestroyBeforeSetMode( void )
 		ui_framebuffers[i] = VK_NULL_HANDLE;
 	}
 
-	vkDestroyFramebuffer(vulkan_globals.device, main_framebuffer, NULL);
-	main_framebuffer = VK_NULL_HANDLE;
+	for (i = 0; i < NUM_COLOR_BUFFERS; ++i)
+	{
+		vkDestroyFramebuffer(vulkan_globals.device, main_framebuffers[i], NULL);
+		main_framebuffers[i] = VK_NULL_HANDLE;
+	}
 
 	fpDestroySwapchainKHR(vulkan_globals.device, vulkan_swapchain, NULL);
 
@@ -1603,7 +1616,7 @@ void GL_BeginRendering (int *x, int *y, int *width, int *height)
 	vulkan_globals.main_render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 	vulkan_globals.main_render_pass_begin_info.renderArea = render_area;
 	vulkan_globals.main_render_pass_begin_info.renderPass = vulkan_globals.main_render_pass;
-	vulkan_globals.main_render_pass_begin_info.framebuffer = main_framebuffer;
+	vulkan_globals.main_render_pass_begin_info.framebuffer = main_framebuffers[0];
 	vulkan_globals.main_render_pass_begin_info.clearValueCount = 3;
 	vulkan_globals.main_render_pass_begin_info.pClearValues = vulkan_globals.main_clear_values;
 
