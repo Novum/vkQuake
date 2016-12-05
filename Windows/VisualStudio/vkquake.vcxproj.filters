@@ -295,7 +295,7 @@
     <ClCompile Include="..\..\Quake\gl_heap.c">
       <Filter>Renderer</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Shaders\Compiled\basic_char_frag.c">
+    <ClCompile Include="..\..\Shaders\Compiled\screen_warp_comp.c">
       <Filter>Shaders\Compiled</Filter>
     </ClCompile>
   </ItemGroup>
@@ -544,7 +544,7 @@
     <None Include="..\..\Shaders\postprocess.frag">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="..\..\Shaders\basic_char.frag">
+    <None Include="..\..\Shaders\screen_warp.comp">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>

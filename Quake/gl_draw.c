@@ -494,7 +494,7 @@ void Draw_Character (int x, int y, int num)
 	Draw_FillCharacterQuad(x, y, (char)num, vertices);
 
 	vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
-	vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_char_pipeline);
+	vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_alphatest_pipeline[render_pass_index]);
 	vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout, 0, 1, &char_texture->descriptor_set, 0, NULL);
 	vkCmdDraw(vulkan_globals.command_buffer, 6, 1, 0, 0);
 }
@@ -532,7 +532,7 @@ void Draw_String (int x, int y, const char *str)
 	}
 
 	vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
-	vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_char_pipeline);
+	vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_alphatest_pipeline[render_pass_index]);
 	vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout, 0, 1, &char_texture->descriptor_set, 0, NULL);
 	vkCmdDraw(vulkan_globals.command_buffer, num_verts, 1, 0, 0);
 }
@@ -593,7 +593,7 @@ void Draw_Pic (int x, int y, qpic_t *pic, float alpha)
 	vertices[5] = corner_verts[0];
 
 	vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
-	vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_blend_pipeline);
+	vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_blend_pipeline[render_pass_index]);
 	vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout, 0, 1, &gl->gltexture->descriptor_set, 0, NULL);
 	vkCmdDraw(vulkan_globals.command_buffer, 6, 1, 0, 0);
 }
@@ -722,7 +722,7 @@ void Draw_Fill (int x, int y, int w, int h, int c, float alpha) //johnfitz -- ad
 	vertices[5] = corner_verts[0];
 
 	vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
-	vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_notex_blend_pipeline);
+	vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_notex_blend_pipeline[render_pass_index]);
 	vkCmdDraw(vulkan_globals.command_buffer, 6, 1, 0, 0);
 }
 
@@ -767,7 +767,7 @@ void Draw_FadeScreen (void)
 	vertices[5] = corner_verts[0];
 
 	vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
-	vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_notex_blend_pipeline);
+	vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_notex_blend_pipeline[render_pass_index]);
 	vkCmdDraw(vulkan_globals.command_buffer, 6, 1, 0, 0);
 
 	Sbar_Changed();
@@ -907,4 +907,81 @@ void GL_Set2D (void)
 {
 	currentcanvas = CANVAS_INVALID;
 	GL_SetCanvas (CANVAS_DEFAULT);
+
+	vkCmdEndRenderPass(vulkan_globals.command_buffer);
+
+	if (render_warp)
+	{
+		VkImageMemoryBarrier image_barriers[2];
+		image_barriers[0].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+		image_barriers[0].pNext = NULL;
+		image_barriers[0].srcAccessMask = 0;
+		image_barriers[0].dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+		image_barriers[0].oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		image_barriers[0].newLayout = VK_IMAGE_LAYOUT_GENERAL;
+		image_barriers[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		image_barriers[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		image_barriers[0].image = vulkan_globals.color_buffers[0];
+		image_barriers[0].subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		image_barriers[0].subresourceRange.baseMipLevel = 0;
+		image_barriers[0].subresourceRange.levelCount = 1;
+		image_barriers[0].subresourceRange.baseArrayLayer = 0;
+		image_barriers[0].subresourceRange.layerCount = 1;
+
+		image_barriers[1].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+		image_barriers[1].pNext = NULL;
+		image_barriers[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+		image_barriers[1].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+		image_barriers[1].oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+		image_barriers[1].newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		image_barriers[1].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		image_barriers[1].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		image_barriers[1].image = vulkan_globals.color_buffers[1];
+		image_barriers[1].subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		image_barriers[1].subresourceRange.baseMipLevel = 0;
+		image_barriers[1].subresourceRange.levelCount = 1;
+		image_barriers[1].subresourceRange.baseArrayLayer = 0;
+		image_barriers[1].subresourceRange.layerCount = 1;
+
+		vkCmdPipelineBarrier(vulkan_globals.command_buffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, NULL, 0, NULL, 2, image_barriers);
+		
+		const uint32_t screen_size[2] = { vid.width, vid.height };
+		const float time = cl.time;
+		vkCmdPushConstants(vulkan_globals.command_buffer, vulkan_globals.screen_warp_pipeline_layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, 2 * sizeof(uint32_t), screen_size);
+		vkCmdPushConstants(vulkan_globals.command_buffer, vulkan_globals.screen_warp_pipeline_layout, VK_SHADER_STAGE_COMPUTE_BIT, 2 * sizeof(uint32_t), sizeof(float), &time);
+
+		vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, vulkan_globals.screen_warp_pipeline_layout, 0, 1, &vulkan_globals.screen_warp_desc_set, 0, NULL);
+		vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, vulkan_globals.screen_warp_pipeline);
+		vkCmdDispatch(vulkan_globals.command_buffer, (vid.width + 7) / 8, (vid.height + 7) / 8, 1);
+
+		image_barriers[0].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+		image_barriers[0].pNext = NULL;
+		image_barriers[0].srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+		image_barriers[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+		image_barriers[0].oldLayout = VK_IMAGE_LAYOUT_GENERAL;
+		image_barriers[0].newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+		image_barriers[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		image_barriers[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		image_barriers[0].image = vulkan_globals.color_buffers[0];
+		image_barriers[0].subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		image_barriers[0].subresourceRange.baseMipLevel = 0;
+		image_barriers[0].subresourceRange.levelCount = 1;
+		image_barriers[0].subresourceRange.baseArrayLayer = 0;
+		image_barriers[0].subresourceRange.layerCount = 1;
+
+		vkCmdPipelineBarrier(vulkan_globals.command_buffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, 0, 0, NULL, 0, NULL, 1, image_barriers);
+	}
+	else
+	{
+		VkMemoryBarrier memory_barrier;
+		memory_barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+		memory_barrier.pNext = NULL;
+		memory_barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+		memory_barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
+		vkCmdPipelineBarrier(vulkan_globals.command_buffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, 0, 1, &memory_barrier, 0, NULL, 0, NULL);
+	}
+	
+	vkCmdBeginRenderPass(vulkan_globals.command_buffer, &vulkan_globals.ui_render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
+	render_pass_index = 1;
 }

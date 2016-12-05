@@ -27,8 +27,6 @@ extern unsigned char basic_frag_spv[];
 extern int basic_frag_spv_size;
 extern unsigned char basic_alphatest_frag_spv[];
 extern int basic_alphatest_frag_spv_size;
-extern unsigned char basic_char_frag_spv[];
-extern int basic_char_frag_spv_size;
 extern unsigned char basic_notex_frag_spv[];
 extern int basic_notex_frag_spv_size;
 extern unsigned char world_vert_spv[];
@@ -47,5 +45,8 @@ extern unsigned char postprocess_vert_spv[];
 extern int postprocess_vert_spv_size;
 extern unsigned char postprocess_frag_spv[];
 extern int postprocess_frag_spv_size;
+extern unsigned char screen_warp_comp_spv[];
+extern int  screen_warp_comp_spv_size;
+
 
 #endif

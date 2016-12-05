@@ -13,9 +13,14 @@ find -type f -name "*.vert" | \
 find -type f -name "*.frag" | \
 	while read f; do $VULKAN_SDK/bin/glslangValidator -V ${f} -o "Compiled/${f%.*}.fspv"; done
 
+find -type f -name "*.comp" | \
+	while read f; do $VULKAN_SDK/bin/glslangValidator -V ${f} -o "Compiled/${f%.*}.cspv"; done	
 
 find -type f -name "*.vspv" | \
 	while read f; do ./bintoc ${f} `basename ${f%.*}`_vert_spv > ${f%.*}_vert.c; done
 
 find -type f -name "*.fspv" | \
 	while read f; do ./bintoc ${f} `basename ${f%.*}`_frag_spv > ${f%.*}_frag.c; done
+
+find -type f -name "*.cspv" | \
+	while read f; do ./bintoc ${f} `basename ${f%.*}`_comp_spv > ${f%.*}_comp.c; done

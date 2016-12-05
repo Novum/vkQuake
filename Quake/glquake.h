@@ -48,6 +48,7 @@ extern	int glx, gly, glwidth, glheight;
 #define BACKFACE_EPSILON	0.01
 
 #define	MAX_GLTEXTURES	2048
+#define NUM_COLOR_BUFFERS 2
 
 void R_TimeRefresh_f (void);
 void R_ReadPointFile_f (void);
@@ -123,18 +124,22 @@ typedef struct
 	VkFormat							depth_format;
 	VkSampleCountFlagBits				sample_count;
 
+	// Buffers
+	VkImage								color_buffers[NUM_COLOR_BUFFERS];
+
 	// Render passes
 	VkRenderPass						main_render_pass;
-	VkClearValue						main_clear_values[2];
-	VkRenderPassBeginInfo				main_render_pass_begin_info;
+	VkClearValue						main_clear_values[4];
+	VkRenderPassBeginInfo				main_render_pass_begin_infos[2];
+	VkRenderPass						ui_render_pass;
+	VkRenderPassBeginInfo				ui_render_pass_begin_info;
 	VkRenderPass						warp_render_pass;
 
 	// Pipelines
-	VkPipeline							basic_alphatest_pipeline;
-	VkPipeline							basic_blend_pipeline;
-	VkPipeline							basic_notex_blend_pipeline;
+	VkPipeline							basic_alphatest_pipeline[2];
+	VkPipeline							basic_blend_pipeline[2];
+	VkPipeline							basic_notex_blend_pipeline[2];
 	VkPipeline							basic_poly_blend_pipeline;
-	VkPipeline							basic_char_pipeline;
 	VkPipelineLayout					basic_pipeline_layout;
 	VkPipeline							world_pipelines[world_pipeline_count];
 	VkPipelineLayout					world_pipeline_layout;
@@ -152,12 +157,16 @@ typedef struct
 	VkPipelineLayout					alias_pipeline_layout;
 	VkPipeline							postprocess_pipeline;
 	VkPipelineLayout					postprocess_pipeline_layout;
+	VkPipeline							screen_warp_pipeline;
+	VkPipelineLayout					screen_warp_pipeline_layout;
 
 	// Descriptors
 	VkDescriptorPool					descriptor_pool;
 	VkDescriptorSetLayout				ubo_set_layout;
 	VkDescriptorSetLayout				single_texture_set_layout;
 	VkDescriptorSetLayout				input_attachment_set_layout;
+	VkDescriptorSet						screen_warp_desc_set;
+	VkDescriptorSetLayout				screen_warp_set_layout;
 
 	// Samplers
 	VkSampler							point_sampler;
@@ -181,6 +190,8 @@ extern	entity_t	*currententity;
 extern	int		r_visframecount;	// ??? what difs?
 extern	int		r_framecount;
 extern	mplane_t	frustum[4];
+extern	int render_pass_index;
+extern	qboolean render_warp;
 
 //
 // view origin

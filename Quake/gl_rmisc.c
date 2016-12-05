@@ -117,7 +117,8 @@ int GL_MemoryTypeFromProperties(uint32_t type_bits, VkFlags requirements_mask, V
 	uint32_t current_type_bits = type_bits;
 	uint32_t i;
 
-	for (i = 0; i < VK_MAX_MEMORY_TYPES; i++) {
+	for (i = 0; i < VK_MAX_MEMORY_TYPES; i++)
+	{
 		if ((current_type_bits & 1) == 1)
 		{
 			if ((vulkan_globals.memory_properties.memoryTypes[i].propertyFlags & (requirements_mask | preferred_mask)) == (requirements_mask | preferred_mask))
@@ -127,7 +128,8 @@ int GL_MemoryTypeFromProperties(uint32_t type_bits, VkFlags requirements_mask, V
 	}
 
 	current_type_bits = type_bits;
-	for (i = 0; i < VK_MAX_MEMORY_TYPES; i++) {
+	for (i = 0; i < VK_MAX_MEMORY_TYPES; i++)
+	{
 		if ((current_type_bits & 1) == 1)
 		{
 			if ((vulkan_globals.memory_properties.memoryTypes[i].propertyFlags & requirements_mask) == requirements_mask)
@@ -267,7 +269,7 @@ void R_InitStagingBuffers()
 	buffer_create_info.size = STAGING_BUFFER_SIZE_KB * 1024;
 	buffer_create_info.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 
-	for(i = 0; i < NUM_STAGING_BUFFERS; ++i)
+	for (i = 0; i < NUM_STAGING_BUFFERS; ++i)
 	{
 		staging_buffers[i].current_offset = 0;
 		staging_buffers[i].submitted = false;
@@ -300,7 +302,7 @@ void R_InitStagingBuffers()
 
 	GL_SetObjectName((uint64_t)staging_memory, VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_MEMORY_EXT, "Staging Buffers");
 
-	for(i = 0; i < NUM_STAGING_BUFFERS; ++i)
+	for (i = 0; i < NUM_STAGING_BUFFERS; ++i)
 	{
 		err = vkBindBufferMemory(vulkan_globals.device, staging_buffers[i].buffer, staging_memory, i * aligned_size);
 		if (err != VK_SUCCESS)
@@ -341,7 +343,7 @@ void R_InitStagingBuffers()
 	memset(&command_buffer_begin_info, 0, sizeof(command_buffer_begin_info));
 	command_buffer_begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 
-	for(i = 0; i < NUM_STAGING_BUFFERS; ++i)
+	for (i = 0; i < NUM_STAGING_BUFFERS; ++i)
 	{
 		err = vkCreateFence(vulkan_globals.device, &fence_create_info, NULL, &staging_buffers[i].fence);
 		if (err != VK_SUCCESS)
@@ -474,7 +476,7 @@ static void R_InitDynamicVertexBuffers()
 	buffer_create_info.size = DYNAMIC_VERTEX_BUFFER_SIZE_KB * 1024;
 	buffer_create_info.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
 
-	for(i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
+	for (i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
 	{
 		dyn_vertex_buffers[i].current_offset = 0;
 
@@ -506,7 +508,7 @@ static void R_InitDynamicVertexBuffers()
 
 	GL_SetObjectName((uint64_t)dyn_vertex_buffer_memory, VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_MEMORY_EXT, "Dynamic Vertex Buffers");
 
-	for(i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
+	for (i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
 	{
 		err = vkBindBufferMemory(vulkan_globals.device, dyn_vertex_buffers[i].buffer, dyn_vertex_buffer_memory, i * aligned_size);
 		if (err != VK_SUCCESS)
@@ -518,7 +520,7 @@ static void R_InitDynamicVertexBuffers()
 	if (err != VK_SUCCESS)
 		Sys_Error("vkMapMemory failed");
 
-	for(i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
+	for (i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
 		dyn_vertex_buffers[i].data = (unsigned char *)data + (i * aligned_size);
 }
 
@@ -541,7 +543,7 @@ static void R_InitDynamicIndexBuffers()
 	buffer_create_info.size = DYNAMIC_INDEX_BUFFER_SIZE_KB * 1024;
 	buffer_create_info.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
 
-	for(i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
+	for (i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
 	{
 		dyn_index_buffers[i].current_offset = 0;
 
@@ -573,7 +575,7 @@ static void R_InitDynamicIndexBuffers()
 
 	GL_SetObjectName((uint64_t)dyn_index_buffer_memory, VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_MEMORY_EXT, "Dynamic Index Buffers");
 
-	for(i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
+	for (i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
 	{
 		err = vkBindBufferMemory(vulkan_globals.device, dyn_index_buffers[i].buffer, dyn_index_buffer_memory, i * aligned_size);
 		if (err != VK_SUCCESS)
@@ -585,7 +587,7 @@ static void R_InitDynamicIndexBuffers()
 	if (err != VK_SUCCESS)
 		Sys_Error("vkMapMemory failed");
 
-	for(i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
+	for (i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
 		dyn_index_buffers[i].data = (unsigned char *)data + (i * aligned_size);
 }
 
@@ -608,7 +610,7 @@ static void R_InitDynamicUniformBuffers()
 	buffer_create_info.size = DYNAMIC_UNIFORM_BUFFER_SIZE_KB * 1024;
 	buffer_create_info.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
 
-	for(i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
+	for (i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
 	{
 		dyn_uniform_buffers[i].current_offset = 0;
 
@@ -640,7 +642,7 @@ static void R_InitDynamicUniformBuffers()
 
 	GL_SetObjectName((uint64_t)dyn_uniform_buffer_memory, VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_MEMORY_EXT, "Dynamic Uniform Buffers");
 
-	for(i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
+	for (i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
 	{
 		err = vkBindBufferMemory(vulkan_globals.device, dyn_uniform_buffers[i].buffer, dyn_uniform_buffer_memory, i * aligned_size);
 		if (err != VK_SUCCESS)
@@ -652,7 +654,7 @@ static void R_InitDynamicUniformBuffers()
 	if (err != VK_SUCCESS)
 		Sys_Error("vkMapMemory failed");
 
-	for(i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
+	for (i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
 		dyn_uniform_buffers[i].data = (unsigned char *)data + (i * aligned_size);
 
 	VkDescriptorSetAllocateInfo descriptor_set_allocate_info;
@@ -679,7 +681,7 @@ static void R_InitDynamicUniformBuffers()
 	ubo_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
 	ubo_write.pBufferInfo = &buffer_info;
 
-	for(i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
+	for (i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
 	{
 		buffer_info.buffer = dyn_uniform_buffers[i].buffer;
 		ubo_write.dstSet = ubo_descriptor_sets[i];
@@ -862,6 +864,24 @@ void R_CreateDescriptorSetLayouts()
 	err = vkCreateDescriptorSetLayout(vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.input_attachment_set_layout);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateDescriptorSetLayout failed");
+
+	VkDescriptorSetLayoutBinding screen_warp_layout_bindings[2];
+	memset(&screen_warp_layout_bindings, 0, sizeof(screen_warp_layout_bindings));
+	screen_warp_layout_bindings[0].binding = 0;
+	screen_warp_layout_bindings[0].descriptorCount = 1;
+	screen_warp_layout_bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	screen_warp_layout_bindings[0].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+	screen_warp_layout_bindings[1].binding = 1;
+	screen_warp_layout_bindings[1].descriptorCount = 1;
+	screen_warp_layout_bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+	screen_warp_layout_bindings[1].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
+	descriptor_set_layout_create_info.bindingCount = 2;
+	descriptor_set_layout_create_info.pBindings = screen_warp_layout_bindings;
+	
+	err = vkCreateDescriptorSetLayout(vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.screen_warp_set_layout);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkCreateDescriptorSetLayout failed");
 }
 
 /*
@@ -871,19 +891,21 @@ R_CreateDescriptorPool
 */
 void R_CreateDescriptorPool()
 {
-	VkDescriptorPoolSize pool_sizes[3];
+	VkDescriptorPoolSize pool_sizes[4];
 	pool_sizes[0].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	pool_sizes[0].descriptorCount = MAX_GLTEXTURES;
+	pool_sizes[0].descriptorCount = MAX_GLTEXTURES + 1;
 	pool_sizes[1].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
 	pool_sizes[1].descriptorCount = 16;
 	pool_sizes[2].type = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
 	pool_sizes[2].descriptorCount = 2;
+	pool_sizes[3].type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+	pool_sizes[3].descriptorCount = 1;
 
 	VkDescriptorPoolCreateInfo descriptor_pool_create_info;
 	memset(&descriptor_pool_create_info, 0, sizeof(descriptor_pool_create_info));
 	descriptor_pool_create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-	descriptor_pool_create_info.maxSets = MAX_GLTEXTURES + 16 + 2;
-	descriptor_pool_create_info.poolSizeCount = 3;
+	descriptor_pool_create_info.maxSets = MAX_GLTEXTURES + 32;
+	descriptor_pool_create_info.poolSizeCount = 4;
 	descriptor_pool_create_info.pPoolSizes = pool_sizes;
 	descriptor_pool_create_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
 
@@ -979,6 +1001,25 @@ void R_CreatePipelineLayouts()
 	pipeline_layout_create_info.pPushConstantRanges = &push_constant_range;
 
 	err = vkCreatePipelineLayout(vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.postprocess_pipeline_layout);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkCreatePipelineLayout failed");
+
+	// Screen warp
+	VkDescriptorSetLayout screen_warp_descriptor_set_layouts[1] = {
+		vulkan_globals.screen_warp_set_layout,
+	};
+
+	memset(&push_constant_range, 0, sizeof(push_constant_range));
+	push_constant_range.offset = 0;
+	push_constant_range.size = 2 * sizeof(uint32_t) + sizeof(float);
+	push_constant_range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
+	pipeline_layout_create_info.setLayoutCount = 1;
+	pipeline_layout_create_info.pSetLayouts = screen_warp_descriptor_set_layouts;
+	pipeline_layout_create_info.pushConstantRangeCount = 1;
+	pipeline_layout_create_info.pPushConstantRanges = &push_constant_range;
+
+	err = vkCreatePipelineLayout(vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.screen_warp_pipeline_layout);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreatePipelineLayout failed");
 }
@@ -1084,7 +1125,6 @@ void R_CreatePipelines()
 	VkShaderModule basic_vert_module = R_CreateShaderModule(basic_vert_spv, basic_vert_spv_size);
 	VkShaderModule basic_frag_module = R_CreateShaderModule(basic_frag_spv, basic_frag_spv_size);
 	VkShaderModule basic_alphatest_frag_module = R_CreateShaderModule(basic_alphatest_frag_spv, basic_alphatest_frag_spv_size);
-	VkShaderModule basic_char_frag_module = R_CreateShaderModule(basic_char_frag_spv, basic_char_frag_spv_size);
 	VkShaderModule basic_notex_frag_module = R_CreateShaderModule(basic_notex_frag_spv, basic_notex_frag_spv_size);
 	VkShaderModule world_vert_module = R_CreateShaderModule(world_vert_spv, world_vert_spv_size);
 	VkShaderModule world_frag_module = R_CreateShaderModule(world_frag_spv, world_frag_spv_size);
@@ -1094,6 +1134,7 @@ void R_CreatePipelines()
 	VkShaderModule sky_layer_frag_module = R_CreateShaderModule(sky_layer_frag_spv, sky_layer_frag_spv_size);
 	VkShaderModule postprocess_vert_module = R_CreateShaderModule(postprocess_vert_spv, postprocess_vert_spv_size);
 	VkShaderModule postprocess_frag_module = R_CreateShaderModule(postprocess_frag_spv, postprocess_frag_spv_size);
+	VkShaderModule screen_warp_comp_module = R_CreateShaderModule(screen_warp_comp_spv, screen_warp_comp_spv_size);
 
 	VkPipelineDynamicStateCreateInfo dynamic_state_create_info;
 	memset(&dynamic_state_create_info, 0, sizeof(dynamic_state_create_info));
@@ -1214,19 +1255,17 @@ void R_CreatePipelines()
 	//================
 	input_assembly_state_create_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
-	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.basic_alphatest_pipeline);
-	if (err != VK_SUCCESS)
-		Sys_Error("vkCreateGraphicsPipelines failed");
+	for (int render_pass = 0; render_pass < 2; ++render_pass)
+	{
+		pipeline_create_info.renderPass = (render_pass == 0) ? vulkan_globals.main_render_pass : vulkan_globals.ui_render_pass;
+		multisample_state_create_info.rasterizationSamples = (render_pass == 0) ? vulkan_globals.sample_count : VK_SAMPLE_COUNT_1_BIT;
 
-	GL_SetObjectName((uint64_t)vulkan_globals.basic_alphatest_pipeline, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "basic_alphatest");
+		err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.basic_alphatest_pipeline[render_pass]);
+		if (err != VK_SUCCESS)
+			Sys_Error("vkCreateGraphicsPipelines failed");
 
-	shader_stages[1].module = basic_char_frag_module;
-
-	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.basic_char_pipeline);
-	if (err != VK_SUCCESS)
-		Sys_Error("vkCreateGraphicsPipelines failed");
-
-	GL_SetObjectName((uint64_t)vulkan_globals.basic_char_pipeline, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "basic_char");
+		GL_SetObjectName((uint64_t)vulkan_globals.basic_alphatest_pipeline[render_pass], VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "basic_alphatest");
+	}
 
 	shader_stages[1].module = basic_notex_frag_module;
 
@@ -1238,11 +1277,21 @@ void R_CreatePipelines()
 	blend_attachment_state.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
 	blend_attachment_state.alphaBlendOp = VK_BLEND_OP_ADD;
 
-	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.basic_notex_blend_pipeline);
-	if (err != VK_SUCCESS)
-		Sys_Error("vkCreateGraphicsPipelines failed");
+	for (int render_pass = 0; render_pass < 2; ++render_pass)
+	{
+		pipeline_create_info.renderPass = (render_pass == 0) ? vulkan_globals.main_render_pass : vulkan_globals.ui_render_pass;
+		multisample_state_create_info.rasterizationSamples = (render_pass == 0) ? vulkan_globals.sample_count : VK_SAMPLE_COUNT_1_BIT;
 
-	GL_SetObjectName((uint64_t)vulkan_globals.basic_notex_blend_pipeline, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "basic_notex_blend");
+		err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.basic_notex_blend_pipeline[render_pass]);
+		if (err != VK_SUCCESS)
+			Sys_Error("vkCreateGraphicsPipelines failed");
+
+		GL_SetObjectName((uint64_t)vulkan_globals.basic_notex_blend_pipeline[render_pass], VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "basic_notex_blend");
+	}
+
+	pipeline_create_info.renderPass = vulkan_globals.main_render_pass;
+	pipeline_create_info.subpass = 0;
+	multisample_state_create_info.rasterizationSamples = vulkan_globals.sample_count;
 
 	input_assembly_state_create_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN;
 
@@ -1256,11 +1305,19 @@ void R_CreatePipelines()
 
 	shader_stages[1].module = basic_frag_module;
 
-	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.basic_blend_pipeline);
-	if (err != VK_SUCCESS)
-		Sys_Error("vkCreateGraphicsPipelines failed");
+	for (int render_pass = 0; render_pass < 2; ++render_pass)
+	{
+		pipeline_create_info.renderPass = (render_pass == 0) ? vulkan_globals.main_render_pass : vulkan_globals.ui_render_pass;
+		multisample_state_create_info.rasterizationSamples = (render_pass == 0) ? vulkan_globals.sample_count : VK_SAMPLE_COUNT_1_BIT;
 
-	GL_SetObjectName((uint64_t)vulkan_globals.basic_blend_pipeline, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "basic_blend");
+		err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.basic_blend_pipeline[render_pass]);
+		if (err != VK_SUCCESS)
+			Sys_Error("vkCreateGraphicsPipelines failed");
+
+		GL_SetObjectName((uint64_t)vulkan_globals.basic_blend_pipeline[render_pass], VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "basic_blend");
+	}
+
+	multisample_state_create_info.rasterizationSamples = vulkan_globals.sample_count;
 
 	//================
 	// Warp
@@ -1575,6 +1632,7 @@ void R_CreatePipelines()
 
 	shader_stages[0].module = postprocess_vert_module;
 	shader_stages[1].module = postprocess_frag_module;
+	pipeline_create_info.renderPass = vulkan_globals.ui_render_pass;
 	pipeline_create_info.layout = vulkan_globals.postprocess_pipeline_layout;
 	pipeline_create_info.subpass = 1;
 
@@ -1584,6 +1642,30 @@ void R_CreatePipelines()
 
 	GL_SetObjectName((uint64_t)vulkan_globals.postprocess_pipeline, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "postprocess");
 
+	//================
+	// Screen Warp
+	//================
+	VkPipelineShaderStageCreateInfo compute_shader_stage;
+	memset(&compute_shader_stage, 0, sizeof(compute_shader_stage));
+
+	compute_shader_stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	compute_shader_stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+	compute_shader_stage.module = screen_warp_comp_module;
+	compute_shader_stage.pName = "main";
+
+	VkComputePipelineCreateInfo compute_pipeline_create_info;
+	memset(&compute_pipeline_create_info, 0, sizeof(compute_pipeline_create_info));
+	compute_pipeline_create_info.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+	compute_pipeline_create_info.stage = compute_shader_stage;
+	compute_pipeline_create_info.layout = vulkan_globals.screen_warp_pipeline_layout;
+
+	err = vkCreateComputePipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &compute_pipeline_create_info, NULL, &vulkan_globals.screen_warp_pipeline);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkCreateGraphicsPipelines failed");
+
+	GL_SetObjectName((uint64_t)vulkan_globals.warp_pipeline, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "screen_warp");
+
+	vkDestroyShaderModule(vulkan_globals.device, screen_warp_comp_module, NULL);
 	vkDestroyShaderModule(vulkan_globals.device, postprocess_frag_module, NULL);
 	vkDestroyShaderModule(vulkan_globals.device, postprocess_vert_module, NULL);
 	vkDestroyShaderModule(vulkan_globals.device, sky_layer_frag_module, NULL);
@@ -1594,7 +1676,6 @@ void R_CreatePipelines()
 	vkDestroyShaderModule(vulkan_globals.device, world_vert_module, NULL);
 	vkDestroyShaderModule(vulkan_globals.device, basic_notex_frag_module, NULL);
 	vkDestroyShaderModule(vulkan_globals.device, basic_alphatest_frag_module, NULL);
-	vkDestroyShaderModule(vulkan_globals.device, basic_char_frag_module, NULL);
 	vkDestroyShaderModule(vulkan_globals.device, basic_frag_module, NULL);
 	vkDestroyShaderModule(vulkan_globals.device, basic_vert_module, NULL);
 }
@@ -1607,10 +1688,12 @@ R_DestroyPipelines
 void R_DestroyPipelines(void)
 {
 	int i;
-	vkDestroyPipeline(vulkan_globals.device, vulkan_globals.basic_char_pipeline, NULL);
-	vkDestroyPipeline(vulkan_globals.device, vulkan_globals.basic_alphatest_pipeline, NULL);
-	vkDestroyPipeline(vulkan_globals.device, vulkan_globals.basic_blend_pipeline, NULL);
-	vkDestroyPipeline(vulkan_globals.device, vulkan_globals.basic_notex_blend_pipeline, NULL);
+	for (int i =  0; i < 2; ++i)
+	{
+		vkDestroyPipeline(vulkan_globals.device, vulkan_globals.basic_alphatest_pipeline[i], NULL);
+		vkDestroyPipeline(vulkan_globals.device, vulkan_globals.basic_blend_pipeline[i], NULL);
+		vkDestroyPipeline(vulkan_globals.device, vulkan_globals.basic_notex_blend_pipeline[i], NULL);
+	}
 	vkDestroyPipeline(vulkan_globals.device, vulkan_globals.basic_poly_blend_pipeline, NULL);
 	for (i = 0; i < world_pipeline_count; ++i)
 		vkDestroyPipeline(vulkan_globals.device, vulkan_globals.world_pipelines[i], NULL);

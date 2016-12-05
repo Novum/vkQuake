@@ -20,3 +20,8 @@ for %%f in (*.frag) do (
 	%VULKAN_SDK%\bin\glslangValidator.exe -V %%f -o Compiled/%%~nf.fspv
 	bintoc.exe Compiled/%%~nf.fspv %%~nf_frag_spv > Compiled/%%~nf_frag.c
 )
+
+for %%f in (*.comp) do (
+	%VULKAN_SDK%\bin\glslangValidator.exe -V %%f -o Compiled/%%~nf.cspv
+	bintoc.exe Compiled/%%~nf.cspv %%~nf_comp_spv > Compiled/%%~nf_comp.c
+)

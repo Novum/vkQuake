@@ -33,6 +33,9 @@ int			r_framecount;		// used for dlight push checking
 
 mplane_t	frustum[4];
 
+int			render_pass_index;
+qboolean	render_warp;
+
 //johnfitz -- rendering statistics
 int rs_brushpolys, rs_aliaspolys, rs_skypolys, rs_particles, rs_fogpolys;
 int rs_dynamiclightmaps, rs_brushpasses, rs_aliaspasses, rs_skypasses;
@@ -351,7 +354,8 @@ R_SetupScene
 */
 void R_SetupScene (void)
 {
-	vkCmdBeginRenderPass(vulkan_globals.command_buffer, &vulkan_globals.main_render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
+	render_pass_index = 0;
+	vkCmdBeginRenderPass(vulkan_globals.command_buffer, &vulkan_globals.main_render_pass_begin_infos[render_warp ? 1 : 0], VK_SUBPASS_CONTENTS_INLINE);
 
 	R_PushDlights ();
 	R_AnimateLight ();
@@ -384,14 +388,21 @@ void R_SetupView (void)
 	//johnfitz -- calculate r_fovx and r_fovy here
 	r_fovx = r_refdef.fov_x;
 	r_fovy = r_refdef.fov_y;
+	render_warp = false;
+
 	if (r_waterwarp.value)
 	{
 		int contents = Mod_PointInLeaf (r_origin, cl.worldmodel)->contents;
 		if (contents == CONTENTS_WATER || contents == CONTENTS_SLIME || contents == CONTENTS_LAVA)
 		{
-			//variance is a percentage of width, where width = 2 * tan(fov / 2) otherwise the effect is too dramatic at high FOV and too subtle at low FOV.  what a mess!
-			r_fovx = atan(tan(DEG2RAD(r_refdef.fov_x) / 2) * (0.97 + sin(cl.time * 1.5) * 0.03)) * 2 / M_PI_DIV_180;
-			r_fovy = atan(tan(DEG2RAD(r_refdef.fov_y) / 2) * (1.03 - sin(cl.time * 1.5) * 0.03)) * 2 / M_PI_DIV_180;
+			if (r_waterwarp.value == 1)
+				render_warp = true;
+			else
+			{
+				//variance is a percentage of width, where width = 2 * tan(fov / 2) otherwise the effect is too dramatic at high FOV and too subtle at low FOV.  what a mess!
+				r_fovx = atan(tan(DEG2RAD(r_refdef.fov_x) / 2) * (0.97 + sin(cl.time * 1.5) * 0.03)) * 2 / M_PI_DIV_180;
+				r_fovy = atan(tan(DEG2RAD(r_refdef.fov_y) / 2) * (1.03 - sin(cl.time * 1.5) * 0.03)) * 2 / M_PI_DIV_180;
+			}
 		}
 	}
 	//johnfitz
