@@ -1109,7 +1109,7 @@ static void GL_CreateColorBuffer( void )
 	image_create_info.arrayLayers = 1;
 	image_create_info.samples = VK_SAMPLE_COUNT_1_BIT;
 	image_create_info.tiling = VK_IMAGE_TILING_OPTIMAL;
-	image_create_info.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
+	image_create_info.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
 
 	for (int i = 0; i < NUM_COLOR_BUFFERS; ++i)
 	{
@@ -1244,10 +1244,10 @@ static void GL_CreateColorBuffer( void )
 
 /*
 ===============
-GL_CreatePostprocessDescriptorSet
+GL_CreateDescriptorSets
 ===============
 */
-static void GL_CreatePostprocessDescriptorSet(void)
+static void GL_CreateDescriptorSets(void)
 {
 	VkDescriptorSetAllocateInfo descriptor_set_allocate_info;
 	memset(&descriptor_set_allocate_info, 0, sizeof(descriptor_set_allocate_info));
@@ -1273,6 +1273,43 @@ static void GL_CreatePostprocessDescriptorSet(void)
 	input_attachment_write.dstSet = postprocess_descriptor_set;
 	input_attachment_write.pImageInfo = &image_info;
 	vkUpdateDescriptorSets(vulkan_globals.device, 1, &input_attachment_write, 0, NULL);
+
+	memset(&descriptor_set_allocate_info, 0, sizeof(descriptor_set_allocate_info));
+	descriptor_set_allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	descriptor_set_allocate_info.descriptorPool = vulkan_globals.descriptor_pool;
+	descriptor_set_allocate_info.descriptorSetCount = 1;
+	descriptor_set_allocate_info.pSetLayouts = &vulkan_globals.screen_warp_set_layout;
+
+	vkAllocateDescriptorSets(vulkan_globals.device, &descriptor_set_allocate_info, &vulkan_globals.screen_warp_desc_set);
+
+	VkDescriptorImageInfo input_image_info;
+	memset(&input_image_info, 0, sizeof(input_image_info));
+	input_image_info.imageView = color_buffers_view[1];
+	input_image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	input_image_info.sampler = vulkan_globals.linear_sampler;
+
+	VkDescriptorImageInfo output_image_info;
+	memset(&output_image_info, 0, sizeof(output_image_info));
+	output_image_info.imageView = color_buffers_view[0];
+	output_image_info.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+
+	VkWriteDescriptorSet screen_warp_writes[2];
+	screen_warp_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	screen_warp_writes[0].dstBinding = 0;
+	screen_warp_writes[0].dstArrayElement = 0;
+	screen_warp_writes[0].descriptorCount = 1;
+	screen_warp_writes[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	screen_warp_writes[0].dstSet = vulkan_globals.screen_warp_desc_set;
+	screen_warp_writes[0].pImageInfo = &input_image_info;
+	screen_warp_writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	screen_warp_writes[1].dstBinding = 1;
+	screen_warp_writes[1].dstArrayElement = 0;
+	screen_warp_writes[1].descriptorCount = 1;
+	screen_warp_writes[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+	screen_warp_writes[1].dstSet = vulkan_globals.screen_warp_desc_set;
+	screen_warp_writes[1].pImageInfo = &output_image_info;
+
+	vkUpdateDescriptorSets(vulkan_globals.device, 2, screen_warp_writes, 0, NULL);
 }
 
 /*
@@ -1495,6 +1532,9 @@ static void GL_DestroyBeforeSetMode( void )
 
 	vkFreeDescriptorSets(vulkan_globals.device, vulkan_globals.descriptor_pool, 1, &postprocess_descriptor_set);
 	postprocess_descriptor_set = VK_NULL_HANDLE;
+
+	vkFreeDescriptorSets(vulkan_globals.device, vulkan_globals.descriptor_pool, 1, &vulkan_globals.screen_warp_desc_set);
+	vulkan_globals.screen_warp_desc_set = VK_NULL_HANDLE;
 
 	if (msaa_color_buffer)
 	{
@@ -1982,7 +2022,7 @@ void	VID_Init (void)
 	R_InitSamplers();
 	R_CreatePipelineLayouts();
 	R_CreatePipelines();
-	GL_CreatePostprocessDescriptorSet();
+	GL_CreateDescriptorSets();
 
 	//johnfitz -- removed code creating "glquake" subdirectory
 
@@ -2043,7 +2083,7 @@ static void VID_Restart (void)
 	GL_CreateRenderPasses();
 	GL_CreateFrameBuffers();
 	R_CreatePipelines();
-	GL_CreatePostprocessDescriptorSet();
+	GL_CreateDescriptorSets();
 
 	//conwidth and conheight need to be recalculated
 	vid.conwidth = (scr_conwidth.value > 0) ? (int)scr_conwidth.value : (scr_conscale.value > 0) ? (int)(vid.width/scr_conscale.value) : vid.width;

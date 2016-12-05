@@ -891,19 +891,21 @@ R_CreateDescriptorPool
 */
 void R_CreateDescriptorPool()
 {
-	VkDescriptorPoolSize pool_sizes[3];
+	VkDescriptorPoolSize pool_sizes[4];
 	pool_sizes[0].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	pool_sizes[0].descriptorCount = MAX_GLTEXTURES;
+	pool_sizes[0].descriptorCount = MAX_GLTEXTURES + 1;
 	pool_sizes[1].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
 	pool_sizes[1].descriptorCount = 16;
 	pool_sizes[2].type = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
 	pool_sizes[2].descriptorCount = 2;
+	pool_sizes[3].type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+	pool_sizes[3].descriptorCount = 1;
 
 	VkDescriptorPoolCreateInfo descriptor_pool_create_info;
 	memset(&descriptor_pool_create_info, 0, sizeof(descriptor_pool_create_info));
 	descriptor_pool_create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-	descriptor_pool_create_info.maxSets = MAX_GLTEXTURES + 16 + 2;
-	descriptor_pool_create_info.poolSizeCount = 3;
+	descriptor_pool_create_info.maxSets = MAX_GLTEXTURES + 32;
+	descriptor_pool_create_info.poolSizeCount = 4;
 	descriptor_pool_create_info.pPoolSizes = pool_sizes;
 	descriptor_pool_create_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
 
@@ -999,6 +1001,19 @@ void R_CreatePipelineLayouts()
 	pipeline_layout_create_info.pPushConstantRanges = &push_constant_range;
 
 	err = vkCreatePipelineLayout(vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.postprocess_pipeline_layout);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkCreatePipelineLayout failed");
+
+	// Screen warp
+	VkDescriptorSetLayout screen_warp_descriptor_set_layouts[1] = {
+		vulkan_globals.screen_warp_set_layout,
+	};
+
+	pipeline_layout_create_info.setLayoutCount = 1;
+	pipeline_layout_create_info.pSetLayouts = screen_warp_descriptor_set_layouts;
+	pipeline_layout_create_info.pushConstantRangeCount = 0;
+
+	err = vkCreatePipelineLayout(vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.screen_warp_pipeline_layout);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreatePipelineLayout failed");
 }
