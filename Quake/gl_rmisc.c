@@ -1245,6 +1245,7 @@ void R_CreatePipelines()
 		GL_SetObjectName((uint64_t)vulkan_globals.basic_notex_blend_pipeline[render_pass], VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "basic_notex_blend");
 	}
 
+	pipeline_create_info.renderPass = vulkan_globals.main_render_pass;
 	pipeline_create_info.subpass = 0;
 	multisample_state_create_info.rasterizationSamples = vulkan_globals.sample_count;
 
