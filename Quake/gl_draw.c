@@ -910,8 +910,6 @@ void GL_Set2D (void)
 
 	vkCmdEndRenderPass(vulkan_globals.command_buffer);
 
-	const qboolean resolve = (vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT);
-
 	if (render_warp)
 	{
 		VkImageMemoryBarrier image_barriers[2];
@@ -968,12 +966,12 @@ void GL_Set2D (void)
 
 		vkCmdPipelineBarrier(vulkan_globals.command_buffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, 0, 0, NULL, 0, NULL, 1, image_barriers);
 	}
-	else if (resolve)
+	else
 	{
 		VkMemoryBarrier memory_barrier;
 		memory_barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
 		memory_barrier.pNext = NULL;
-		memory_barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+		memory_barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 		memory_barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 
 		vkCmdPipelineBarrier(vulkan_globals.command_buffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, 0, 1, &memory_barrier, 0, NULL, 0, NULL);
