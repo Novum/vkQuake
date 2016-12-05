@@ -1009,9 +1009,15 @@ void R_CreatePipelineLayouts()
 		vulkan_globals.screen_warp_set_layout,
 	};
 
+	memset(&push_constant_range, 0, sizeof(push_constant_range));
+	push_constant_range.offset = 0;
+	push_constant_range.size = 2 * sizeof(uint32_t);
+	push_constant_range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
 	pipeline_layout_create_info.setLayoutCount = 1;
 	pipeline_layout_create_info.pSetLayouts = screen_warp_descriptor_set_layouts;
-	pipeline_layout_create_info.pushConstantRangeCount = 0;
+	pipeline_layout_create_info.pushConstantRangeCount = 1;
+	pipeline_layout_create_info.pPushConstantRanges = &push_constant_range;
 
 	err = vkCreatePipelineLayout(vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.screen_warp_pipeline_layout);
 	if (err != VK_SUCCESS)
