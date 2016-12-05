@@ -4,6 +4,7 @@
 
 layout(push_constant) uniform PushConsts {
 	uvec2 screen_size;
+	float time;
 } push_constants;
 
 layout(set = 0, binding = 0) uniform sampler2D input_tex;
@@ -12,6 +13,15 @@ layout(set = 0, binding = 1, rgba8) uniform writeonly image2D output_image;
 layout (local_size_x = 8, local_size_y = 8) in;
 void main() 
 {
-	vec4 value = texture(input_tex, vec2(float(gl_GlobalInvocationID.x) / float(push_constants.screen_size.x), float(gl_GlobalInvocationID.y) / float(push_constants.screen_size.y)));
+	const float CYCLE = 3.14159f * 10.0f;
+	const float AMP = 1.0f / 300.0f;
+
+	const float posX = float(gl_GlobalInvocationID.x) / float(push_constants.screen_size.x);
+	const float posY = float(gl_GlobalInvocationID.y) / float(push_constants.screen_size.y);
+
+	const float texX = (posX + (sin(posY * CYCLE + push_constants.time) * AMP)) * (1.0f - AMP * 2.0f) + AMP;
+	const float texY = (posY + (sin(posX * CYCLE + push_constants.time) * AMP)) * (1.0f - AMP * 2.0f) + AMP;
+
+	vec4 value = texture(input_tex, vec2(texX, texY));
 	imageStore(output_image, ivec2(gl_GlobalInvocationID.xy), value);
 }
