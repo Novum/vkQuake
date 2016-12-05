@@ -33,7 +33,7 @@ int			r_framecount;		// used for dlight push checking
 
 mplane_t	frustum[4];
 
-int			subpass_index;
+int			render_pass_index;
 
 //johnfitz -- rendering statistics
 int rs_brushpolys, rs_aliaspolys, rs_skypolys, rs_particles, rs_fogpolys;
@@ -353,7 +353,7 @@ R_SetupScene
 */
 void R_SetupScene (void)
 {
-	subpass_index = 0;
+	render_pass_index = 0;
 	vkCmdBeginRenderPass(vulkan_globals.command_buffer, &vulkan_globals.main_render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
 
 	R_PushDlights ();

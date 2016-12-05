@@ -127,6 +127,8 @@ typedef struct
 	VkRenderPass						main_render_pass;
 	VkClearValue						main_clear_values[4];
 	VkRenderPassBeginInfo				main_render_pass_begin_info;
+	VkRenderPass						ui_render_pass;
+	VkRenderPassBeginInfo				ui_render_pass_begin_info;
 	VkRenderPass						warp_render_pass;
 
 	// Pipelines
@@ -180,7 +182,7 @@ extern	entity_t	*currententity;
 extern	int		r_visframecount;	// ??? what difs?
 extern	int		r_framecount;
 extern	mplane_t	frustum[4];
-extern int subpass_index;
+extern int render_pass_index;
 
 //
 // view origin

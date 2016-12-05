@@ -105,7 +105,8 @@ static VkCommandPool				command_pool;
 static VkCommandBuffer				command_buffers[NUM_COMMAND_BUFFERS];
 static VkFence						command_buffer_fences[NUM_COMMAND_BUFFERS];
 static qboolean						command_buffer_submitted[NUM_COMMAND_BUFFERS];
-static VkFramebuffer				framebuffers[MAX_SWAP_CHAIN_IMAGES];
+static VkFramebuffer				main_framebuffer;
+static VkFramebuffer				ui_framebuffers[MAX_SWAP_CHAIN_IMAGES];
 static VkImageView					swapchain_images_views[MAX_SWAP_CHAIN_IMAGES];
 static VkSemaphore					image_aquired_semaphores[MAX_SWAP_CHAIN_IMAGES];
 static VkImage						depth_buffer;
@@ -866,7 +867,7 @@ static void GL_CreateRenderPasses()
 	attachment_descriptions[0].samples = VK_SAMPLE_COUNT_1_BIT;
 	attachment_descriptions[0].format = COLOR_BUFFER_FORMAT;
 	attachment_descriptions[0].loadOp = resolve ? VK_ATTACHMENT_LOAD_OP_DONT_CARE : VK_ATTACHMENT_LOAD_OP_CLEAR;
-	attachment_descriptions[0].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	attachment_descriptions[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 
 	attachment_descriptions[1].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	attachment_descriptions[1].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
@@ -876,44 +877,25 @@ static void GL_CreateRenderPasses()
 	attachment_descriptions[1].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 
 	attachment_descriptions[2].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	attachment_descriptions[2].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-	attachment_descriptions[2].samples = VK_SAMPLE_COUNT_1_BIT;
-	attachment_descriptions[2].format = vulkan_globals.swap_chain_format;
-	attachment_descriptions[2].loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-	attachment_descriptions[2].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-
-	attachment_descriptions[3].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	attachment_descriptions[3].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-	attachment_descriptions[3].samples = vulkan_globals.sample_count;
-	attachment_descriptions[3].format = COLOR_BUFFER_FORMAT;
-	attachment_descriptions[3].loadOp = resolve ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_DONT_CARE;;
-	attachment_descriptions[3].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	attachment_descriptions[2].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	attachment_descriptions[2].samples = vulkan_globals.sample_count;
+	attachment_descriptions[2].format = COLOR_BUFFER_FORMAT;
+	attachment_descriptions[2].loadOp = resolve ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	attachment_descriptions[2].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 
 	VkAttachmentReference scene_color_attachment_reference;
-	scene_color_attachment_reference.attachment = resolve ? 3 : 0;
+	scene_color_attachment_reference.attachment = resolve ? 2 : 0;
 	scene_color_attachment_reference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-	VkAttachmentReference ui_color_attachment_reference;
-	ui_color_attachment_reference.attachment = 0;
-	ui_color_attachment_reference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
 	VkAttachmentReference depth_attachment_reference;
 	depth_attachment_reference.attachment = 1;
 	depth_attachment_reference.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
-	VkAttachmentReference swap_chain_attachment_reference;
-	swap_chain_attachment_reference.attachment = 2;
-	swap_chain_attachment_reference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-	VkAttachmentReference color_input_attachment_reference;
-	color_input_attachment_reference.attachment = 0;
-	color_input_attachment_reference.layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-
 	VkAttachmentReference resolve_attachment_reference;
 	resolve_attachment_reference.attachment = 0;
 	resolve_attachment_reference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-	VkSubpassDescription subpass_descriptions[3];
+	VkSubpassDescription subpass_descriptions[2];
 	memset(&subpass_descriptions, 0, sizeof(subpass_descriptions));
 
 	subpass_descriptions[0].colorAttachmentCount = 1;
@@ -923,48 +905,89 @@ static void GL_CreateRenderPasses()
 	if (resolve)
 		subpass_descriptions[0].pResolveAttachments = &resolve_attachment_reference;
 
-	subpass_descriptions[1].colorAttachmentCount = 1;
-	subpass_descriptions[1].pColorAttachments = &ui_color_attachment_reference;
-	subpass_descriptions[1].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-
-	subpass_descriptions[2].colorAttachmentCount = 1;
-	subpass_descriptions[2].pColorAttachments = &swap_chain_attachment_reference;
-	subpass_descriptions[2].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-	subpass_descriptions[2].inputAttachmentCount = 1;
-	subpass_descriptions[2].pInputAttachments = &color_input_attachment_reference;
-
-	VkSubpassDependency subpass_dependencies[2];
-	subpass_dependencies[0].srcSubpass = 0;
-	subpass_dependencies[0].dstSubpass = 1;
-	subpass_dependencies[0].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-	subpass_dependencies[0].dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-	subpass_dependencies[0].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-	subpass_dependencies[0].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-	subpass_dependencies[0].dependencyFlags = 0;
-
-	subpass_dependencies[1].srcSubpass = 1;
-	subpass_dependencies[1].dstSubpass = 2;
-	subpass_dependencies[1].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-	subpass_dependencies[1].dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-	subpass_dependencies[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-	subpass_dependencies[1].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-	subpass_dependencies[1].dependencyFlags = 0;
-
 	VkRenderPassCreateInfo render_pass_create_info;
 	memset(&render_pass_create_info, 0, sizeof(render_pass_create_info));
 	render_pass_create_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-	render_pass_create_info.attachmentCount = resolve ? 4 : 3;
+	render_pass_create_info.attachmentCount = resolve ? 3 : 2;
 	render_pass_create_info.pAttachments = attachment_descriptions;
-	render_pass_create_info.subpassCount = 3;
+	render_pass_create_info.subpassCount = 1;
 	render_pass_create_info.pSubpasses = subpass_descriptions;
-	render_pass_create_info.dependencyCount = 2;
-	render_pass_create_info.pDependencies = subpass_dependencies;
 
 	err = vkCreateRenderPass(vulkan_globals.device, &render_pass_create_info, NULL, &vulkan_globals.main_render_pass);
 	if (err != VK_SUCCESS)
 		Sys_Error("Couldn't create Vulkan render pass");
 
 	GL_SetObjectName((uint64_t)vulkan_globals.main_render_pass, VK_DEBUG_REPORT_OBJECT_TYPE_RENDER_PASS_EXT, "main");
+
+	// UI Render Pass
+	attachment_descriptions[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	attachment_descriptions[0].finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	attachment_descriptions[0].samples = VK_SAMPLE_COUNT_1_BIT;
+	attachment_descriptions[0].format = COLOR_BUFFER_FORMAT;
+	attachment_descriptions[0].loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+	attachment_descriptions[0].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+
+	attachment_descriptions[1].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	attachment_descriptions[1].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+	attachment_descriptions[1].samples = VK_SAMPLE_COUNT_1_BIT;
+	attachment_descriptions[1].format = vulkan_globals.swap_chain_format;
+	attachment_descriptions[1].loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	attachment_descriptions[1].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+
+	VkAttachmentReference color_input_attachment_reference;
+	color_input_attachment_reference.attachment = 0;
+	color_input_attachment_reference.layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+	VkAttachmentReference ui_color_attachment_reference;
+	ui_color_attachment_reference.attachment = 0;
+	ui_color_attachment_reference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+	VkAttachmentReference swap_chain_attachment_reference;
+	swap_chain_attachment_reference.attachment = 1;
+	swap_chain_attachment_reference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+	memset(&subpass_descriptions, 0, sizeof(subpass_descriptions));
+	subpass_descriptions[0].colorAttachmentCount = 1;
+	subpass_descriptions[0].pColorAttachments = &ui_color_attachment_reference;
+	subpass_descriptions[0].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+
+	subpass_descriptions[1].colorAttachmentCount = 1;
+	subpass_descriptions[1].pColorAttachments = &swap_chain_attachment_reference;
+	subpass_descriptions[1].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+	subpass_descriptions[1].inputAttachmentCount = 1;
+	subpass_descriptions[1].pInputAttachments = &color_input_attachment_reference;
+
+	VkSubpassDependency subpass_dependencies[2];
+	subpass_dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
+	subpass_dependencies[0].dstSubpass = 0;
+	subpass_dependencies[0].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	subpass_dependencies[0].dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+	subpass_dependencies[0].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+	subpass_dependencies[0].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+	subpass_dependencies[0].dependencyFlags = 0;
+
+	subpass_dependencies[1].srcSubpass = 0;
+	subpass_dependencies[1].dstSubpass = 1;
+	subpass_dependencies[1].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	subpass_dependencies[1].dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+	subpass_dependencies[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+	subpass_dependencies[1].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+	subpass_dependencies[1].dependencyFlags = 0;
+
+	memset(&render_pass_create_info, 0, sizeof(render_pass_create_info));
+	render_pass_create_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+	render_pass_create_info.attachmentCount = 2;
+	render_pass_create_info.pAttachments = attachment_descriptions;
+	render_pass_create_info.subpassCount = 2;
+	render_pass_create_info.pSubpasses = subpass_descriptions;
+	render_pass_create_info.dependencyCount = 2;
+	render_pass_create_info.pDependencies = subpass_dependencies;
+
+	err = vkCreateRenderPass(vulkan_globals.device, &render_pass_create_info, NULL, &vulkan_globals.ui_render_pass);
+	if (err != VK_SUCCESS)
+		Sys_Error("Couldn't create Vulkan render pass");
+
+	GL_SetObjectName((uint64_t)vulkan_globals.main_render_pass, VK_DEBUG_REPORT_OBJECT_TYPE_RENDER_PASS_EXT, "ui");
 
 	if(vulkan_globals.warp_render_pass == VK_NULL_HANDLE)
 	{
@@ -1412,20 +1435,32 @@ static void GL_CreateFrameBuffers( void )
 	memset(&framebuffer_create_info, 0, sizeof(framebuffer_create_info));
 	framebuffer_create_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
 	framebuffer_create_info.renderPass = vulkan_globals.main_render_pass;
-	framebuffer_create_info.attachmentCount = resolve ? 4 : 3;
+	framebuffer_create_info.attachmentCount = resolve ? 3 : 2;
 	framebuffer_create_info.width = vid.width;
 	framebuffer_create_info.height = vid.height;
 	framebuffer_create_info.layers = 1;
 
+	VkImageView attachments[3] = { color_buffer_view, depth_buffer_view, msaa_color_buffer_view };
+	framebuffer_create_info.pAttachments = attachments;
+
+	err = vkCreateFramebuffer(vulkan_globals.device, &framebuffer_create_info, NULL, &main_framebuffer);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkCreateFramebuffer failed");
+
+	GL_SetObjectName((uint64_t)main_framebuffer, VK_DEBUG_REPORT_OBJECT_TYPE_FRAMEBUFFER_EXT, "main");
+
 	for (i = 0; i < num_swap_chain_images; ++i)
 	{
-		VkImageView attachments[4] = { color_buffer_view, depth_buffer_view, swapchain_images_views[i], msaa_color_buffer_view };
+		VkImageView attachments[2] = { color_buffer_view,  swapchain_images_views[i] };
+		framebuffer_create_info.renderPass = vulkan_globals.ui_render_pass;
 		framebuffer_create_info.pAttachments = attachments;
-		err = vkCreateFramebuffer(vulkan_globals.device, &framebuffer_create_info, NULL, &framebuffers[i]);
+		framebuffer_create_info.attachmentCount = 2;
+
+		err = vkCreateFramebuffer(vulkan_globals.device, &framebuffer_create_info, NULL, &ui_framebuffers[i]);
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateFramebuffer failed");
 
-		GL_SetObjectName((uint64_t)framebuffers[i], VK_DEBUG_REPORT_OBJECT_TYPE_FRAMEBUFFER_EXT, "main");
+		GL_SetObjectName((uint64_t)ui_framebuffers[i], VK_DEBUG_REPORT_OBJECT_TYPE_FRAMEBUFFER_EXT, "ui");
 	}
 }
 
@@ -1477,9 +1512,12 @@ static void GL_DestroyBeforeSetMode( void )
 	{
 		vkDestroyImageView(vulkan_globals.device, swapchain_images_views[i], NULL);
 		swapchain_images_views[i] = VK_NULL_HANDLE;
-		vkDestroyFramebuffer(vulkan_globals.device, framebuffers[i], NULL);
-		framebuffers[i] = VK_NULL_HANDLE;
+		vkDestroyFramebuffer(vulkan_globals.device, ui_framebuffers[i], NULL);
+		ui_framebuffers[i] = VK_NULL_HANDLE;
 	}
+
+	vkDestroyFramebuffer(vulkan_globals.device, main_framebuffer, NULL);
+	main_framebuffer = VK_NULL_HANDLE;
 
 	fpDestroySwapchainKHR(vulkan_globals.device, vulkan_swapchain, NULL);
 
@@ -1539,15 +1577,21 @@ void GL_BeginRendering (int *x, int *y, int *width, int *height)
 	vulkan_globals.main_clear_values[0] = vulkan_globals.color_clear_value;
 	vulkan_globals.main_clear_values[1] = depth_clear_value;
 	vulkan_globals.main_clear_values[2] = vulkan_globals.color_clear_value;
-	vulkan_globals.main_clear_values[3] = vulkan_globals.color_clear_value;
 
 	memset(&vulkan_globals.main_render_pass_begin_info, 0, sizeof(vulkan_globals.main_render_pass_begin_info));
 	vulkan_globals.main_render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 	vulkan_globals.main_render_pass_begin_info.renderArea = render_area;
 	vulkan_globals.main_render_pass_begin_info.renderPass = vulkan_globals.main_render_pass;
-	vulkan_globals.main_render_pass_begin_info.framebuffer = framebuffers[current_swapchain_buffer];
-	vulkan_globals.main_render_pass_begin_info.clearValueCount = 4;
+	vulkan_globals.main_render_pass_begin_info.framebuffer = main_framebuffer;
+	vulkan_globals.main_render_pass_begin_info.clearValueCount = 3;
 	vulkan_globals.main_render_pass_begin_info.pClearValues = vulkan_globals.main_clear_values;
+
+	memset(&vulkan_globals.ui_render_pass_begin_info, 0, sizeof(vulkan_globals.ui_render_pass_begin_info));
+	vulkan_globals.ui_render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+	vulkan_globals.ui_render_pass_begin_info.renderArea = render_area;
+	vulkan_globals.ui_render_pass_begin_info.renderPass = vulkan_globals.ui_render_pass;
+	vulkan_globals.ui_render_pass_begin_info.framebuffer = ui_framebuffers[current_swapchain_buffer];
+	vulkan_globals.ui_render_pass_begin_info.clearValueCount = 0;
 
 	vkCmdSetScissor(vulkan_globals.command_buffer, 0, 1, &render_area);
 
