@@ -1121,7 +1121,8 @@ static void GL_CreateColorBuffer( void )
 	image_create_info.tiling = VK_IMAGE_TILING_OPTIMAL;
 	image_create_info.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
 
-	for (int i = 0; i < NUM_COLOR_BUFFERS; ++i) {
+	for (int i = 0; i < NUM_COLOR_BUFFERS; ++i)
+	{
 		err = vkCreateImage(vulkan_globals.device, &image_create_info, NULL, &color_buffers[i]);
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateImage failed");
@@ -1507,7 +1508,8 @@ static void GL_DestroyBeforeSetMode( void )
 		msaa_color_buffer_memory = VK_NULL_HANDLE;
 	}
 
-	for (int i = 0; i < NUM_COLOR_BUFFERS; ++i) {
+	for (int i = 0; i < NUM_COLOR_BUFFERS; ++i)
+	{
 		vkDestroyImageView(vulkan_globals.device, color_buffers_view[i], NULL);
 		vkDestroyImage(vulkan_globals.device, color_buffers[i], NULL);
 		num_vulkan_misc_allocations -= 1;
