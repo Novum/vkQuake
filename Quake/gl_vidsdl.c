@@ -1612,13 +1612,16 @@ void GL_BeginRendering (int *x, int *y, int *width, int *height)
 	vulkan_globals.main_clear_values[1] = depth_clear_value;
 	vulkan_globals.main_clear_values[2] = vulkan_globals.color_clear_value;
 
-	memset(&vulkan_globals.main_render_pass_begin_info, 0, sizeof(vulkan_globals.main_render_pass_begin_info));
-	vulkan_globals.main_render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-	vulkan_globals.main_render_pass_begin_info.renderArea = render_area;
-	vulkan_globals.main_render_pass_begin_info.renderPass = vulkan_globals.main_render_pass;
-	vulkan_globals.main_render_pass_begin_info.framebuffer = main_framebuffers[0];
-	vulkan_globals.main_render_pass_begin_info.clearValueCount = 3;
-	vulkan_globals.main_render_pass_begin_info.pClearValues = vulkan_globals.main_clear_values;
+	memset(&vulkan_globals.main_render_pass_begin_infos, 0, sizeof(vulkan_globals.main_render_pass_begin_infos));
+	for (int i = 0; i < 2; ++i)
+	{
+		vulkan_globals.main_render_pass_begin_infos[i].sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+		vulkan_globals.main_render_pass_begin_infos[i].renderArea = render_area;
+		vulkan_globals.main_render_pass_begin_infos[i].renderPass = vulkan_globals.main_render_pass;
+		vulkan_globals.main_render_pass_begin_infos[i].framebuffer = main_framebuffers[i];
+		vulkan_globals.main_render_pass_begin_infos[i].clearValueCount = 3;
+		vulkan_globals.main_render_pass_begin_infos[i].pClearValues = vulkan_globals.main_clear_values;
+	}
 
 	memset(&vulkan_globals.ui_render_pass_begin_info, 0, sizeof(vulkan_globals.ui_render_pass_begin_info));
 	vulkan_globals.ui_render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;

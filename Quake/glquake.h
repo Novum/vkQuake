@@ -126,7 +126,7 @@ typedef struct
 	// Render passes
 	VkRenderPass						main_render_pass;
 	VkClearValue						main_clear_values[4];
-	VkRenderPassBeginInfo				main_render_pass_begin_info;
+	VkRenderPassBeginInfo				main_render_pass_begin_infos[2];
 	VkRenderPass						ui_render_pass;
 	VkRenderPassBeginInfo				ui_render_pass_begin_info;
 	VkRenderPass						warp_render_pass;
@@ -182,7 +182,8 @@ extern	entity_t	*currententity;
 extern	int		r_visframecount;	// ??? what difs?
 extern	int		r_framecount;
 extern	mplane_t	frustum[4];
-extern int render_pass_index;
+extern	int render_pass_index;
+extern	qboolean render_warp;
 
 //
 // view origin
