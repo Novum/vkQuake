@@ -48,6 +48,7 @@ extern	int glx, gly, glwidth, glheight;
 #define BACKFACE_EPSILON	0.01
 
 #define	MAX_GLTEXTURES	2048
+#define NUM_COLOR_BUFFERS 2
 
 void R_TimeRefresh_f (void);
 void R_ReadPointFile_f (void);
@@ -122,6 +123,9 @@ typedef struct
 	uint32_t							gfx_queue_family_index;
 	VkFormat							depth_format;
 	VkSampleCountFlagBits				sample_count;
+
+	// Buffers
+	VkImage								color_buffers[NUM_COLOR_BUFFERS];
 
 	// Render passes
 	VkRenderPass						main_render_pass;
