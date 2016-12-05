@@ -864,6 +864,24 @@ void R_CreateDescriptorSetLayouts()
 	err = vkCreateDescriptorSetLayout(vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.input_attachment_set_layout);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateDescriptorSetLayout failed");
+
+	VkDescriptorSetLayoutBinding screen_warp_layout_bindings[2];
+	memset(&screen_warp_layout_bindings, 0, sizeof(screen_warp_layout_bindings));
+	screen_warp_layout_bindings[0].binding = 0;
+	screen_warp_layout_bindings[0].descriptorCount = 1;
+	screen_warp_layout_bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	screen_warp_layout_bindings[0].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+	screen_warp_layout_bindings[1].binding = 1;
+	screen_warp_layout_bindings[1].descriptorCount = 1;
+	screen_warp_layout_bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+	screen_warp_layout_bindings[1].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
+	descriptor_set_layout_create_info.bindingCount = 2;
+	descriptor_set_layout_create_info.pBindings = screen_warp_layout_bindings;
+	
+	err = vkCreateDescriptorSetLayout(vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.screen_warp_set_layout);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkCreateDescriptorSetLayout failed");
 }
 
 /*
@@ -1095,6 +1113,7 @@ void R_CreatePipelines()
 	VkShaderModule sky_layer_frag_module = R_CreateShaderModule(sky_layer_frag_spv, sky_layer_frag_spv_size);
 	VkShaderModule postprocess_vert_module = R_CreateShaderModule(postprocess_vert_spv, postprocess_vert_spv_size);
 	VkShaderModule postprocess_frag_module = R_CreateShaderModule(postprocess_frag_spv, postprocess_frag_spv_size);
+	VkShaderModule screen_warp_comp_module = R_CreateShaderModule(screen_warp_comp_spv, screen_warp_comp_spv_size);
 
 	VkPipelineDynamicStateCreateInfo dynamic_state_create_info;
 	memset(&dynamic_state_create_info, 0, sizeof(dynamic_state_create_info));
@@ -1602,6 +1621,30 @@ void R_CreatePipelines()
 
 	GL_SetObjectName((uint64_t)vulkan_globals.postprocess_pipeline, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "postprocess");
 
+	//================
+	// Screen Warp
+	//================
+	VkPipelineShaderStageCreateInfo compute_shader_stage;
+	memset(&compute_shader_stage, 0, sizeof(compute_shader_stage));
+
+	compute_shader_stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	compute_shader_stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+	compute_shader_stage.module = screen_warp_comp_module;
+	compute_shader_stage.pName = "main";
+
+	VkComputePipelineCreateInfo compute_pipeline_create_info;
+	memset(&compute_pipeline_create_info, 0, sizeof(compute_pipeline_create_info));
+	compute_pipeline_create_info.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+	compute_pipeline_create_info.stage = compute_shader_stage;
+	compute_pipeline_create_info.layout = vulkan_globals.screen_warp_pipeline_layout;
+
+	err = vkCreateComputePipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &compute_pipeline_create_info, NULL, &vulkan_globals.screen_warp_pipeline);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkCreateGraphicsPipelines failed");
+
+	GL_SetObjectName((uint64_t)vulkan_globals.warp_pipeline, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "screen_warp");
+
+	vkDestroyShaderModule(vulkan_globals.device, screen_warp_comp_module, NULL);
 	vkDestroyShaderModule(vulkan_globals.device, postprocess_frag_module, NULL);
 	vkDestroyShaderModule(vulkan_globals.device, postprocess_vert_module, NULL);
 	vkDestroyShaderModule(vulkan_globals.device, sky_layer_frag_module, NULL);

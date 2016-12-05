@@ -45,5 +45,8 @@ extern unsigned char postprocess_vert_spv[];
 extern int postprocess_vert_spv_size;
 extern unsigned char postprocess_frag_spv[];
 extern int postprocess_frag_spv_size;
+extern unsigned char screen_warp_comp_spv[];
+extern int  screen_warp_comp_spv_size;
+
 
 #endif

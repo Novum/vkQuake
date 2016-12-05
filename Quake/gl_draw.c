@@ -947,7 +947,7 @@ void GL_Set2D (void)
 		
 		//vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, vulkan_globals.screen_warp_pipeline_layout, 0, 1, &vulkan_globals.screen_warp_desc_set, 0, NULL);
 		//vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, vulkan_globals.screen_warp_pipeline);
-		//vkCmdDispatch(vulkan_globals.command_buffer, (vid.width + 7) / 8, (vid.height + 7) / 8);
+		//vkCmdDispatch(vulkan_globals.command_buffer, (vid.width + 7) / 8, (vid.height + 7) / 8, 1);
 
 		image_barriers[0].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 		image_barriers[0].pNext = NULL;
