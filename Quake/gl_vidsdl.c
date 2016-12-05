@@ -2207,6 +2207,7 @@ enum {
 	VID_OPT_ANTIALIASING,
 	VID_OPT_FILTER,
 	VID_OPT_ANISOTROPY,
+	VID_OPT_UNDERWATER,
 	VID_OPT_TEST,
 	VID_OPT_APPLY,
 	VIDEO_OPTIONS_ITEMS
@@ -2387,6 +2388,16 @@ static void VID_Menu_ChooseNextBpp (int dir)
 
 /*
 ================
+VID_Menu_ChooseNextWaterWarp
+================
+*/
+static void VID_Menu_ChooseNextWaterWarp (int dir)
+{
+	Cvar_SetValueQuick(&r_waterwarp, (float)(((int)r_waterwarp.value + 3 + dir) % 3));
+}
+
+/*
+================
 VID_MenuKey
 ================
 */
@@ -2436,6 +2447,9 @@ static void VID_MenuKey (int key)
 		case VID_OPT_ANISOTROPY:
 			Cbuf_AddText ("toggle vid_anisotropic\n");
 			break;
+		case VID_OPT_UNDERWATER:
+			VID_Menu_ChooseNextWaterWarp (-1);
+			break;
 		default:
 			break;
 		}
@@ -2465,6 +2479,9 @@ static void VID_MenuKey (int key)
 			break;
 		case VID_OPT_ANISOTROPY:
 			Cbuf_AddText ("toggle vid_anisotropic\n");
+			break;
+		case VID_OPT_UNDERWATER:
+			VID_Menu_ChooseNextWaterWarp (1);
 			break;
 		default:
 			break;
@@ -2496,6 +2513,9 @@ static void VID_MenuKey (int key)
 			break;
 		case VID_OPT_ANISOTROPY:
 			Cbuf_AddText ("toggle vid_anisotropic\n");
+			break;
+		case VID_OPT_UNDERWATER:
+			VID_Menu_ChooseNextWaterWarp (1);
 			break;
 		case VID_OPT_TEST:
 			Cbuf_AddText ("vid_test\n");
@@ -2577,6 +2597,10 @@ static void VID_MenuDraw (void)
 		case VID_OPT_ANISOTROPY:
 			M_Print (16, y, "       Anisotropic");
 			M_Print (184, y, ((int)vid_anisotropic.value == 0) ? "off" : "on");
+			break;
+		case VID_OPT_UNDERWATER:
+			M_Print (16, y, "     Underwater FX");
+			M_Print (184, y, ((int)r_waterwarp.value == 0) ? "off" : (((int)r_waterwarp.value == 1)  ? "Classic" : "glQuake"));
 			break;
 		case VID_OPT_TEST:
 			y += 8; //separate the test and apply items
