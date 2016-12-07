@@ -1,6 +1,6 @@
 # GNU Makefile for compiling Win32 vkQuake.exe using MinGW or MinGW-w64.
 # Usage: "make -f Makefile.w32"
-# To cross-compile on Linux hosts, see the "build_cross_win32*.sh" scripts.
+# To cross-compile on Linux hosts, see the build_cross_win32*.sh scripts.
 # "make VK_SDK_PATH=/path/to/vksdk" to specify the Vulkan SDK root
 # "make DEBUG=1" to build a debug client.
 # "make SDL_CONFIG=/path/to/sdl-config" to override the locally included SDL versions.
@@ -12,8 +12,9 @@ USE_CODEC_FLAC=1
 USE_CODEC_MP3=1
 USE_CODEC_VORBIS=1
 USE_CODEC_OPUS=1
-# either mikmod (preferred) or modplug, not both
+# either mikmod, or xmp (or modplug.)
 USE_CODEC_MIKMOD=1
+USE_CODEC_XMP=0
 USE_CODEC_MODPLUG=0
 USE_CODEC_UMX=1
 
@@ -145,6 +146,12 @@ CODEC_INC = -I../Windows/codecs/include
 CODEC_LINK= -L../Windows/codecs/x86
 CODECLIBS+= -lmikmod
 endif
+ifeq ($(USE_CODEC_XMP),1)
+CFLAGS+= -DUSE_CODEC_XMP
+CODEC_INC = -I../Windows/codecs/include
+CODEC_LINK= -L../Windows/codecs/x86
+CODECLIBS+= -lxmp
+endif
 ifeq ($(USE_CODEC_MODPLUG),1)
 CFLAGS+= -DUSE_CODEC_MODPLUG
 CODEC_INC = -I../Windows/codecs/include
@@ -197,6 +204,7 @@ MUSIC_OBJS:= bgmusic.o \
 	$(mp3_obj) \
 	snd_mikmod.o \
 	snd_modplug.o \
+	snd_xmp.o \
 	snd_umx.o
 COMOBJ_SND := snd_dma.o snd_mix.o snd_mem.o $(MUSIC_OBJS)
 SYSOBJ_SND := snd_sdl.o

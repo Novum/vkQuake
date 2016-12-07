@@ -26,8 +26,8 @@
  *  data streams.  It can easily be extended to files, memory, etc.
  */
 
-#ifndef _SDL_rwops_h
-#define _SDL_rwops_h
+#ifndef SDL_rwops_h_
+#define SDL_rwops_h_
 
 #include "SDL_stdinc.h"
 #include "SDL_error.h"
@@ -39,12 +39,12 @@ extern "C" {
 #endif
 
 /* RWops Types */
-#define SDL_RWOPS_UNKNOWN   0   /* Unknown stream type */
-#define SDL_RWOPS_WINFILE   1   /* Win32 file */
-#define SDL_RWOPS_STDFILE   2   /* Stdio file */
-#define SDL_RWOPS_JNIFILE   3   /* Android asset */
-#define SDL_RWOPS_MEMORY    4   /* Memory stream */
-#define SDL_RWOPS_MEMORY_RO 5   /* Read-Only memory stream */
+#define SDL_RWOPS_UNKNOWN   0U  /* Unknown stream type */
+#define SDL_RWOPS_WINFILE   1U  /* Win32 file */
+#define SDL_RWOPS_STDFILE   2U  /* Stdio file */
+#define SDL_RWOPS_JNIFILE   3U  /* Android asset */
+#define SDL_RWOPS_MEMORY    4U  /* Memory stream */
+#define SDL_RWOPS_MEMORY_RO 5U  /* Read-Only memory stream */
 
 /**
  * This is the read/write operation structure -- very basic.
@@ -226,6 +226,6 @@ extern DECLSPEC size_t SDLCALL SDL_WriteBE64(SDL_RWops * dst, Uint64 value);
 #endif
 #include "close_code.h"
 
-#endif /* _SDL_rwops_h */
+#endif /* SDL_rwops_h_ */
 
 /* vi: set ts=4 sw=4 expandtab: */

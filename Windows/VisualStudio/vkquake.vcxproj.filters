@@ -70,6 +70,9 @@
     <ClCompile Include="..\..\Quake\snd_wave.c">
       <Filter>Sound</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Quake\snd_xmp.c">
+      <Filter>Sound</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\Quake\net_dgrm.c">
       <Filter>Network</Filter>
     </ClCompile>
@@ -328,6 +331,9 @@
       <Filter>Sound</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Quake\snd_wave.h">
+      <Filter>Sound</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\snd_xmp.h">
       <Filter>Sound</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Quake\net.h">

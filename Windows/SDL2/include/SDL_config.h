@@ -19,8 +19,8 @@
   3. This notice may not be removed or altered from any source distribution.
 */
 
-#ifndef _SDL_config_h
-#define _SDL_config_h
+#ifndef SDL_config_h_
+#define SDL_config_h_
 
 #include "SDL_platform.h"
 
@@ -29,9 +29,7 @@
  */
 
 /* Add any platform that doesn't build using the configure system. */
-#ifdef USING_PREMAKE_CONFIG_H
-#include "SDL_config_premake.h"
-#elif defined(__WIN32__)
+#if defined(__WIN32__)
 #include "SDL_config_windows.h"
 #elif defined(__WINRT__)
 #include "SDL_config_winrt.h"
@@ -52,4 +50,4 @@
 #error Wrong SDL_config.h, check your include path?
 #endif
 
-#endif /* _SDL_config_h */
+#endif /* SDL_config_h_ */
