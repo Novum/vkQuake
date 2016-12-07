@@ -1092,10 +1092,11 @@ GL_CreateColorBuffer
 */
 static void GL_CreateColorBuffer( void )
 {
+	VkResult err;
+	int i;
+
 	Con_Printf("Creating color buffer\n");
 
-	VkResult err;
-	
 	VkImageCreateInfo image_create_info;
 	memset(&image_create_info, 0, sizeof(image_create_info));
 	image_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -1111,7 +1112,7 @@ static void GL_CreateColorBuffer( void )
 	image_create_info.tiling = VK_IMAGE_TILING_OPTIMAL;
 	image_create_info.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
 
-	for (int i = 0; i < NUM_COLOR_BUFFERS; ++i)
+	for (i = 0; i < NUM_COLOR_BUFFERS; ++i)
 	{
 		err = vkCreateImage(vulkan_globals.device, &image_create_info, NULL, &vulkan_globals.color_buffers[i]);
 		if (err != VK_SUCCESS)
@@ -1548,7 +1549,7 @@ static void GL_DestroyBeforeSetMode( void )
 		msaa_color_buffer_memory = VK_NULL_HANDLE;
 	}
 
-	for (int i = 0; i < NUM_COLOR_BUFFERS; ++i)
+	for (i = 0; i < NUM_COLOR_BUFFERS; ++i)
 	{
 		vkDestroyImageView(vulkan_globals.device, color_buffers_view[i], NULL);
 		vkDestroyImage(vulkan_globals.device, vulkan_globals.color_buffers[i], NULL);
@@ -1595,6 +1596,8 @@ GL_BeginRendering
 */
 void GL_BeginRendering (int *x, int *y, int *width, int *height)
 {
+	int i;
+
 	R_SwapDynamicBuffers();
 
 	vulkan_globals.device_idle = false;
@@ -1643,7 +1646,7 @@ void GL_BeginRendering (int *x, int *y, int *width, int *height)
 	vulkan_globals.main_clear_values[2] = vulkan_globals.color_clear_value;
 
 	memset(&vulkan_globals.main_render_pass_begin_infos, 0, sizeof(vulkan_globals.main_render_pass_begin_infos));
-	for (int i = 0; i < 2; ++i)
+	for (i = 0; i < 2; ++i)
 	{
 		vulkan_globals.main_render_pass_begin_infos[i].sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 		vulkan_globals.main_render_pass_begin_infos[i].renderArea = render_area;
