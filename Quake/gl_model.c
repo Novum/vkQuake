@@ -700,7 +700,7 @@ void Mod_LoadLighting (lump_t *l)
 			i = LittleLong(((int *)data)[1]);
 			if (i == 1)
 			{
-				Con_DPrintf("%s loaded\n", litfilename);
+				Con_DPrintf2("%s loaded\n", litfilename);
 				loadmodel->lightdata = data + 8;
 				return;
 			}

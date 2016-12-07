@@ -547,7 +547,7 @@ Sbar_DrawInventory
 */
 void Sbar_DrawInventory (void)
 {
-	int	i;
+	int	i, val;
 	char	num[6];
 	float	time;
 	int	flashon;
@@ -664,7 +664,9 @@ void Sbar_DrawInventory (void)
 // ammo counts
 	for (i = 0; i < 4; i++)
 	{
-		sprintf (num, "%3i", q_min(999,cl.stats[STAT_SHELLS+i])); //johnfitz -- cap displayed value to 999
+		val = cl.stats[STAT_SHELLS+i];
+		val = (val < 0)? 0 : q_min(999,val);//johnfitz -- cap displayed value to 999
+		sprintf (num, "%3i", val);
 		if (num[0] != ' ')
 			Sbar_DrawCharacter ( (6*i+1)*8 + 2, -24, 18 + num[0] - '0');
 		if (num[1] != ' ')

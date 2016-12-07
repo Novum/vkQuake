@@ -25,8 +25,8 @@
  *  CPU feature detection for SDL.
  */
 
-#ifndef _SDL_cpuinfo_h
-#define _SDL_cpuinfo_h
+#ifndef SDL_cpuinfo_h_
+#define SDL_cpuinfo_h_
 
 #include "SDL_stdinc.h"
 
@@ -145,6 +145,11 @@ extern DECLSPEC SDL_bool SDLCALL SDL_HasAVX(void);
 extern DECLSPEC SDL_bool SDLCALL SDL_HasAVX2(void);
 
 /**
+ *  This function returns true if the CPU has NEON (ARM SIMD) features.
+ */
+extern DECLSPEC SDL_bool SDLCALL SDL_HasNEON(void);
+
+/**
  *  This function returns the amount of RAM configured in the system, in MB.
  */
 extern DECLSPEC int SDLCALL SDL_GetSystemRAM(void);
@@ -156,6 +161,6 @@ extern DECLSPEC int SDLCALL SDL_GetSystemRAM(void);
 #endif
 #include "close_code.h"
 
-#endif /* _SDL_cpuinfo_h */
+#endif /* SDL_cpuinfo_h_ */
 
 /* vi: set ts=4 sw=4 expandtab: */

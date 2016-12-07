@@ -19,8 +19,8 @@
   3. This notice may not be removed or altered from any source distribution.
 */
 
-#ifndef _SDL_assert_h
-#define _SDL_assert_h
+#ifndef SDL_assert_h_
+#define SDL_assert_h_
 
 #include "SDL_config.h"
 
@@ -201,7 +201,7 @@ typedef SDL_AssertState (SDLCALL *SDL_AssertionHandler)(
  *
  *  This callback is NOT reset to SDL's internal handler upon SDL_Quit()!
  *
- *  \return SDL_AssertState value of how to handle the assertion failure.
+ *  Return SDL_AssertState value of how to handle the assertion failure.
  *
  *  \param handler Callback function, called when an assertion fails.
  *  \param userdata A pointer passed to the callback as-is.
@@ -250,7 +250,7 @@ extern DECLSPEC SDL_AssertionHandler SDLCALL SDL_GetAssertionHandler(void **puse
  *  <code>
  *  const SDL_AssertData *item = SDL_GetAssertionReport();
  *  while (item) {
- *      printf("'%s', %s (%s:%d), triggered %u times, always ignore: %s.\n",
+ *      printf("'%s', %s (%s:%d), triggered %u times, always ignore: %s.\\n",
  *             item->condition, item->function, item->filename,
  *             item->linenum, item->trigger_count,
  *             item->always_ignore ? "yes" : "no");
@@ -284,6 +284,6 @@ extern DECLSPEC void SDLCALL SDL_ResetAssertionReport(void);
 #endif
 #include "close_code.h"
 
-#endif /* _SDL_assert_h */
+#endif /* SDL_assert_h_ */
 
 /* vi: set ts=4 sw=4 expandtab: */

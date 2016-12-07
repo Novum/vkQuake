@@ -5,10 +5,9 @@
  * use forward- and back-slash in path names interchangeably, and
  * some of them have case-insensitive file names.
  *
- * Copyright 2000, 2001, 2007 Free Software Foundation, Inc.
- *
- * This is based on filenames.h from BFD, the Binary File Descriptor
- * library, changed further for our needs.
+ * This was based on filenames.h from BFD, the Binary File Descriptor
+ * library, Copyright (C) 2000-2016 Free Software Foundation, Inc.,
+ * and changed by O. Sezer <sezero@users.sourceforge.net> for our needs.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,9 +30,10 @@
 #include <string.h>
 
 /* ---------------------- Windows, DOS, OS2: ---------------------- */
-#if defined(__MSDOS__) || defined(MSDOS) || defined(__DOS__)	|| \
-    defined(__DJGPP__) || defined(__OS2__) || defined(__EMX__)	|| \
-    defined(_WIN32) || defined(__CYGWIN__)
+#if defined(__MSDOS__) || defined(__DOS__) || defined(__DJGPP__) || \
+    defined(_MSDOS) || defined(__OS2__) || defined(__EMX__) || \
+    defined(_WIN32) || defined(_Windows) || defined(__WINDOWS__) || \
+    defined(__NT__) || defined(__CYGWIN__)
 
 #define HAVE_DOS_BASED_FILE_SYSTEM 1
 #define HAVE_CASE_INSENSITIVE_FILE_SYSTEM 1
@@ -191,4 +191,3 @@ static inline char *FIND_LAST_DIRSEP (const char *_the_path) {
 #endif
 
 #endif /* FILENAMES_H */
-

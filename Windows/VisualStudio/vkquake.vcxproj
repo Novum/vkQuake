@@ -272,6 +272,7 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClCompile Include="..\..\Quake\snd_umx.c" />
     <ClCompile Include="..\..\Quake\snd_vorbis.c" />
     <ClCompile Include="..\..\Quake\snd_wave.c" />
+    <ClCompile Include="..\..\Quake\snd_xmp.c" />
     <ClCompile Include="..\..\Quake\strlcat.c" />
     <ClCompile Include="..\..\Quake\strlcpy.c" />
     <ClCompile Include="..\..\Quake\sv_main.c" />
@@ -354,6 +355,7 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClInclude Include="..\..\Quake\snd_umx.h" />
     <ClInclude Include="..\..\Quake\snd_vorbis.h" />
     <ClInclude Include="..\..\Quake\snd_wave.h" />
+    <ClInclude Include="..\..\Quake\snd_xmp.h" />
     <ClInclude Include="..\..\Quake\spritegn.h" />
     <ClInclude Include="..\..\Quake\strl_fn.h" />
     <ClInclude Include="..\..\Quake\sys.h" />

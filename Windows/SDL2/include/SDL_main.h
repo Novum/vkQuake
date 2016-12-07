@@ -19,8 +19,8 @@
   3. This notice may not be removed or altered from any source distribution.
 */
 
-#ifndef _SDL_main_h
-#define _SDL_main_h
+#ifndef SDL_main_h_
+#define SDL_main_h_
 
 #include "SDL_stdinc.h"
 
@@ -63,7 +63,7 @@
 /* On Android SDL provides a Java class in SDLActivity.java that is the
    main activity entry point.
 
-   See README-android.txt for more details on extending that class.
+   See README-android.md for more details on extending that class.
  */
 #define SDL_MAIN_NEEDED
 
@@ -156,6 +156,6 @@ extern DECLSPEC int SDLCALL SDL_WinRTRunApp(int (*mainFunction)(int, char **), v
 #endif
 #include "close_code.h"
 
-#endif /* _SDL_main_h */
+#endif /* SDL_main_h_ */
 
 /* vi: set ts=4 sw=4 expandtab: */

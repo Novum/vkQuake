@@ -25,8 +25,8 @@
  *  Include file for SDL mouse event handling.
  */
 
-#ifndef _SDL_mouse_h
-#define _SDL_mouse_h
+#ifndef SDL_mouse_h_
+#define SDL_mouse_h_
 
 #include "SDL_stdinc.h"
 #include "SDL_error.h"
@@ -41,7 +41,7 @@ extern "C" {
 typedef struct SDL_Cursor SDL_Cursor;   /* Implementation dependent */
 
 /**
- * \brief Cursor types for SDL_CreateSystemCursor.
+ * \brief Cursor types for SDL_CreateSystemCursor().
  */
 typedef enum
 {
@@ -254,9 +254,11 @@ extern DECLSPEC SDL_Cursor *SDLCALL SDL_GetCursor(void);
 extern DECLSPEC SDL_Cursor *SDLCALL SDL_GetDefaultCursor(void);
 
 /**
- *  \brief Frees a cursor created with SDL_CreateCursor().
+ *  \brief Frees a cursor created with SDL_CreateCursor() or similar functions.
  *
  *  \sa SDL_CreateCursor()
+ *  \sa SDL_CreateColorCursor()
+ *  \sa SDL_CreateSystemCursor()
  */
 extern DECLSPEC void SDLCALL SDL_FreeCursor(SDL_Cursor * cursor);
 
@@ -295,6 +297,6 @@ extern DECLSPEC int SDLCALL SDL_ShowCursor(int toggle);
 #endif
 #include "close_code.h"
 
-#endif /* _SDL_mouse_h */
+#endif /* SDL_mouse_h_ */
 
 /* vi: set ts=4 sw=4 expandtab: */
