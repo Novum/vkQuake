@@ -1118,9 +1118,10 @@ R_CreatePipelines
 */
 void R_CreatePipelines()
 {
-	Con_Printf("Creating pipelines\n");
-
+	int render_pass;
 	VkResult err;
+
+	Con_Printf("Creating pipelines\n");
 
 	VkShaderModule basic_vert_module = R_CreateShaderModule(basic_vert_spv, basic_vert_spv_size);
 	VkShaderModule basic_frag_module = R_CreateShaderModule(basic_frag_spv, basic_frag_spv_size);
@@ -1255,7 +1256,7 @@ void R_CreatePipelines()
 	//================
 	input_assembly_state_create_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
-	for (int render_pass = 0; render_pass < 2; ++render_pass)
+	for (render_pass = 0; render_pass < 2; ++render_pass)
 	{
 		pipeline_create_info.renderPass = (render_pass == 0) ? vulkan_globals.main_render_pass : vulkan_globals.ui_render_pass;
 		multisample_state_create_info.rasterizationSamples = (render_pass == 0) ? vulkan_globals.sample_count : VK_SAMPLE_COUNT_1_BIT;
@@ -1277,7 +1278,7 @@ void R_CreatePipelines()
 	blend_attachment_state.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
 	blend_attachment_state.alphaBlendOp = VK_BLEND_OP_ADD;
 
-	for (int render_pass = 0; render_pass < 2; ++render_pass)
+	for (render_pass = 0; render_pass < 2; ++render_pass)
 	{
 		pipeline_create_info.renderPass = (render_pass == 0) ? vulkan_globals.main_render_pass : vulkan_globals.ui_render_pass;
 		multisample_state_create_info.rasterizationSamples = (render_pass == 0) ? vulkan_globals.sample_count : VK_SAMPLE_COUNT_1_BIT;
@@ -1305,7 +1306,7 @@ void R_CreatePipelines()
 
 	shader_stages[1].module = basic_frag_module;
 
-	for (int render_pass = 0; render_pass < 2; ++render_pass)
+	for (render_pass = 0; render_pass < 2; ++render_pass)
 	{
 		pipeline_create_info.renderPass = (render_pass == 0) ? vulkan_globals.main_render_pass : vulkan_globals.ui_render_pass;
 		multisample_state_create_info.rasterizationSamples = (render_pass == 0) ? vulkan_globals.sample_count : VK_SAMPLE_COUNT_1_BIT;
@@ -1688,7 +1689,7 @@ R_DestroyPipelines
 void R_DestroyPipelines(void)
 {
 	int i;
-	for (int i =  0; i < 2; ++i)
+	for (i =  0; i < 2; ++i)
 	{
 		vkDestroyPipeline(vulkan_globals.device, vulkan_globals.basic_alphatest_pipeline[i], NULL);
 		vkDestroyPipeline(vulkan_globals.device, vulkan_globals.basic_blend_pipeline[i], NULL);
