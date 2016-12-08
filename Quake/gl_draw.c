@@ -660,18 +660,48 @@ void Draw_TileClear (int x, int y, int w, int h)
 
 	gl = (glpic_t *)draw_backtile->data;
 	
-	/*glColor3f (1,1,1);
-	GL_Bind (gl->gltexture);
-	glBegin (GL_QUADS);
-	glTexCoord2f (x/64.0, y/64.0);
-	glVertex2f (x, y);
-	glTexCoord2f ( (x+w)/64.0, y/64.0);
-	glVertex2f (x+w, y);
-	glTexCoord2f ( (x+w)/64.0, (y+h)/64.0);
-	glVertex2f (x+w, y+h);
-	glTexCoord2f ( x/64.0, (y+h)/64.0 );
-	glVertex2f (x, y+h);
-	glEnd ();*/
+	VkBuffer buffer;
+	VkDeviceSize buffer_offset;
+	basicvertex_t * vertices = (basicvertex_t*)R_VertexAllocate(6 * sizeof(basicvertex_t), &buffer, &buffer_offset);
+
+	basicvertex_t corner_verts[4];
+	memset(&corner_verts, 255, sizeof(corner_verts));
+
+	corner_verts[0].position[0] = x;
+	corner_verts[0].position[1] = y;
+	corner_verts[0].position[2] = 0.0f;
+	corner_verts[0].texcoord[0] = x/64.0;
+	corner_verts[0].texcoord[1] = y/64.0;
+
+	corner_verts[1].position[0] = x+w;
+	corner_verts[1].position[1] = y;
+	corner_verts[1].position[2] = 0.0f;
+	corner_verts[1].texcoord[0] = (x+w)/64.0;
+	corner_verts[1].texcoord[1] = y/64.0;
+
+	corner_verts[2].position[0] = x+w;
+	corner_verts[2].position[1] = y+h;
+	corner_verts[2].position[2] = 0.0f;
+	corner_verts[2].texcoord[0] = (x+w)/64.0;
+	corner_verts[2].texcoord[1] = (y+h)/64.0;
+
+	corner_verts[3].position[0] = x;
+	corner_verts[3].position[1] = y+h;
+	corner_verts[3].position[2] = 0.0f;
+	corner_verts[3].texcoord[0] = x/64.0;
+	corner_verts[3].texcoord[1] = (y+h)/64.0;
+
+	vertices[0] = corner_verts[0];
+	vertices[1] = corner_verts[1];
+	vertices[2] = corner_verts[2];
+	vertices[3] = corner_verts[2];
+	vertices[4] = corner_verts[3];
+	vertices[5] = corner_verts[0];
+
+	vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout, 0, 1, &gl->gltexture->descriptor_set, 0, NULL);
+	vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
+	vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_blend_pipeline[render_pass_index]);
+	vkCmdDraw(vulkan_globals.command_buffer, 6, 1, 0, 0);
 }
 
 /*
