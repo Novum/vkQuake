@@ -26,7 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 extern cvar_t r_drawflat;
 
 cvar_t r_waterquality = {"r_waterquality", "8", CVAR_NONE};
-cvar_t r_waterwarp = {"r_waterwarp", "1", CVAR_NONE};
+cvar_t r_waterwarp = {"r_waterwarp", "1", CVAR_ARCHIVE};
 
 float load_subdivide_size; //johnfitz -- remember what subdivide_size value was when this map was loaded
 
