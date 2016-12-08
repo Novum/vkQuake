@@ -748,60 +748,6 @@ void SCR_DrawConsole (void)
 	}
 }
 
-
-/*
-==============================================================================
-
-SCREEN SHOTS
-
-==============================================================================
-*/
-
-/*
-==================
-SCR_ScreenShot_f -- johnfitz -- rewritten to use Image_WriteTGA
-==================
-*/
-void SCR_ScreenShot_f (void)
-{
-	/*byte	*buffer;
-	char	tganame[16];  //johnfitz -- was [80]
-	char	checkname[MAX_OSPATH];
-	int	i;
-
-// find a file name to save it to
-	for (i=0; i<10000; i++)
-	{
-		q_snprintf (tganame, sizeof(tganame), "spasm%04i.tga", i);	// "fitz%04i.tga"
-		q_snprintf (checkname, sizeof(checkname), "%s/%s", com_gamedir, tganame);
-		if (Sys_FileTime(checkname) == -1)
-			break;	// file doesn't exist
-	}
-	if (i == 10000)
-	{
-		Con_Printf ("SCR_ScreenShot_f: Couldn't find an unused filename\n");
-		return;
-	}
-
-//get data
-	if (!(buffer = (byte *) malloc(glwidth*glheight*3)))
-	{
-		Con_Printf ("SCR_ScreenShot_f: Couldn't allocate memory\n");
-		return;
-	}
-
-	glReadPixels (glx, gly, glwidth, glheight, GL_RGB, GL_UNSIGNED_BYTE, buffer);
-
-// now write the file
-	if (Image_WriteTGA (tganame, buffer, glwidth, glheight, 24, false))
-		Con_Printf ("Wrote %s\n", tganame);
-	else
-		Con_Printf ("SCR_ScreenShot_f: Couldn't create a TGA file\n");
-
-	free (buffer);*/
-}
-
-
 //=============================================================================
 
 

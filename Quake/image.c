@@ -129,11 +129,9 @@ int fgetLittleLong (FILE *f)
 Image_WriteTGA -- writes RGB or RGBA data to a TGA file
 
 returns true if successful
-
-TODO: support BGRA and BGR formats (since opengl can return them, and we don't have to swap)
 ============
 */
-qboolean Image_WriteTGA (const char *name, byte *data, int width, int height, int bpp, qboolean upsidedown)
+qboolean Image_WriteTGA (const char *name, byte *data, int width, int height, int bpp, qboolean upsidedown, qboolean bgra)
 {
 	int		handle, i, size, temp, bytes;
 	char	pathname[MAX_OSPATH];
@@ -158,11 +156,14 @@ qboolean Image_WriteTGA (const char *name, byte *data, int width, int height, in
 	// swap red and blue bytes
 	bytes = bpp/8;
 	size = width*height*bytes;
-	for (i=0; i<size; i+=bytes)
+	if (!bgra)
 	{
-		temp = data[i];
-		data[i] = data[i+2];
-		data[i+2] = temp;
+		for (i=0; i<size; i+=bytes)
+		{
+			temp = data[i];
+			data[i] = data[i+2];
+			data[i+2] = temp;
+		}
 	}
 
 	Sys_FileWrite (handle, &header, TARGAHEADERSIZE);

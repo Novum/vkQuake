@@ -447,9 +447,12 @@ byte * R_StagingAllocate(int size, int alignment, VkCommandBuffer * command_buff
 			Sys_Error("vkBeginCommandBuffer failed");
 	}
 
-	*command_buffer = staging_buffer->command_buffer;
-	*buffer = staging_buffer->buffer;
-	*buffer_offset = staging_buffer->current_offset;
+	if (command_buffer)
+		*command_buffer = staging_buffer->command_buffer;
+	if (buffer)
+		*buffer = staging_buffer->buffer;
+	if (buffer_offset)
+		*buffer_offset = staging_buffer->current_offset;
 
 	unsigned char *data = staging_buffer->data + staging_buffer->current_offset;
 	staging_buffer->current_offset += size;

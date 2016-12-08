@@ -107,6 +107,7 @@ static VkFence						command_buffer_fences[NUM_COMMAND_BUFFERS];
 static qboolean						command_buffer_submitted[NUM_COMMAND_BUFFERS];
 static VkFramebuffer				main_framebuffers[NUM_COLOR_BUFFERS];
 static VkFramebuffer				ui_framebuffers[MAX_SWAP_CHAIN_IMAGES];
+static VkImage						swapchain_images[MAX_SWAP_CHAIN_IMAGES];
 static VkImageView					swapchain_images_views[MAX_SWAP_CHAIN_IMAGES];
 static VkSemaphore					image_aquired_semaphores[MAX_SWAP_CHAIN_IMAGES];
 static VkImage						depth_buffer;
@@ -1398,7 +1399,7 @@ static void GL_CreateSwapChain( void )
 	swapchain_create_info.imageColorSpace = surface_formats[0].colorSpace;
 	swapchain_create_info.imageExtent.width = vid.width;
 	swapchain_create_info.imageExtent.height = vid.height;
-	swapchain_create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+	swapchain_create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 	swapchain_create_info.preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
 	swapchain_create_info.imageArrayLayers = 1;
 	swapchain_create_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
@@ -1419,7 +1420,6 @@ static void GL_CreateSwapChain( void )
 	if (err != VK_SUCCESS || num_swap_chain_images > MAX_SWAP_CHAIN_IMAGES)
 		Sys_Error("Couldn't get swap chain images");
 
-	VkImage *swapchain_images = (VkImage *)malloc(num_swap_chain_images * sizeof(VkImage));
 	fpGetSwapchainImagesKHR(vulkan_globals.device, vulkan_swapchain, &num_swap_chain_images, swapchain_images);
 
 	VkImageViewCreateInfo image_view_create_info;
@@ -1457,8 +1457,6 @@ static void GL_CreateSwapChain( void )
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateSemaphore failed");
 	}
-
-	free(swapchain_images);
 }
 
 
@@ -2638,5 +2636,132 @@ static void VID_Menu_f (void)
 
 	//set up bpp and rate lists based on current cvars
 	VID_Menu_RebuildBppList ();
+}
+
+/*
+==============================================================================
+
+SCREEN SHOTS
+
+==============================================================================
+*/
+
+/*
+==================
+SCR_ScreenShot_f -- johnfitz -- rewritten to use Image_WriteTGA
+==================
+*/
+void SCR_ScreenShot_f (void)
+{
+	VkBuffer buffer;
+	VkResult err;
+	char	tganame[16];  //johnfitz -- was [80]
+	char	checkname[MAX_OSPATH];
+	int	i;
+
+	qboolean bgra = (vulkan_globals.swap_chain_format == VK_FORMAT_B8G8R8A8_UNORM)
+		|| (vulkan_globals.swap_chain_format == VK_FORMAT_B8G8R8A8_SRGB);
+
+	if ((vulkan_globals.swap_chain_format != VK_FORMAT_B8G8R8A8_UNORM)
+		&& (vulkan_globals.swap_chain_format != VK_FORMAT_B8G8R8A8_SRGB)
+		&& (vulkan_globals.swap_chain_format != VK_FORMAT_R8G8B8A8_SRGB)
+		&& (vulkan_globals.swap_chain_format != VK_FORMAT_R8G8B8A8_SRGB))
+	{
+		Con_Printf ("SCR_ScreenShot_f: Unsupported surface format\n");
+		return;
+	}
+
+// find a file name to save it to
+	for (i=0; i<10000; i++)
+	{
+		q_snprintf (tganame, sizeof(tganame), "vkquake%04i.tga", i);	// "fitz%04i.tga"
+		q_snprintf (checkname, sizeof(checkname), "%s/%s", com_gamedir, tganame);
+		if (Sys_FileTime(checkname) == -1)
+			break;	// file doesn't exist
+	}
+	if (i == 10000)
+	{
+		Con_Printf ("SCR_ScreenShot_f: Couldn't find an unused filename\n");
+		return;
+	}
+
+// get data
+	VkBufferCreateInfo buffer_create_info;
+	memset(&buffer_create_info, 0, sizeof(buffer_create_info));
+	buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	buffer_create_info.size = glwidth * glheight * 4;
+	buffer_create_info.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+	err = vkCreateBuffer(vulkan_globals.device, &buffer_create_info, NULL, &buffer);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkCreateBuffer failed");
+
+	VkMemoryRequirements memory_requirements;
+	vkGetBufferMemoryRequirements(vulkan_globals.device, buffer, &memory_requirements);
+
+	uint32_t memory_type_index = GL_MemoryTypeFromProperties(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT, 0);
+
+	VkMemoryAllocateInfo memory_allocate_info;
+	memset(&memory_allocate_info, 0, sizeof(memory_allocate_info));
+	memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	memory_allocate_info.allocationSize = memory_requirements.size;
+	memory_allocate_info.memoryTypeIndex = memory_type_index;
+
+	VkDeviceMemory memory;
+	err = vkAllocateMemory(vulkan_globals.device, &memory_allocate_info, NULL, &memory);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkAllocateMemory failed");
+
+	err = vkBindBufferMemory(vulkan_globals.device, buffer, memory, 0);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkBindBufferMemory failed");
+
+	VkBufferImageCopy image_copy;
+	memset(&image_copy, 0, sizeof(image_copy));
+	image_copy.bufferOffset = 0;
+	image_copy.bufferRowLength = glwidth;
+	image_copy.bufferImageHeight = glheight;
+	image_copy.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	image_copy.imageSubresource.layerCount = 1;
+	image_copy.imageExtent.width = glwidth;
+	image_copy.imageExtent.height = glheight;
+	image_copy.imageExtent.depth = 1;
+
+	VkCommandBuffer command_buffer;
+	R_StagingAllocate(1, 1, &command_buffer, NULL, NULL);
+
+	VkImageMemoryBarrier image_barrier;
+	image_barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+	image_barrier.pNext = NULL;
+	image_barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+	image_barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+	image_barrier.oldLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+	image_barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+	image_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	image_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	image_barrier.image = swapchain_images[current_command_buffer];
+	image_barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	image_barrier.subresourceRange.baseMipLevel = 0;
+	image_barrier.subresourceRange.levelCount = 1;
+	image_barrier.subresourceRange.baseArrayLayer = 0;
+	image_barrier.subresourceRange.layerCount = 1;
+
+	vkCmdPipelineBarrier(command_buffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, NULL, 0, NULL, 1, &image_barrier);
+	vkCmdCopyImageToBuffer(command_buffer, swapchain_images[current_command_buffer], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, buffer, 1, &image_copy);
+
+	R_SubmitStagingBuffers();
+	vkDeviceWaitIdle(vulkan_globals.device);
+
+	void * buffer_ptr;
+	vkMapMemory(vulkan_globals.device, memory, 0, glwidth * glheight * 4, 0, &buffer_ptr);
+
+// now write the file
+	if (Image_WriteTGA (tganame, buffer_ptr, glwidth, glheight, 32, true, bgra))
+		Con_Printf ("Wrote %s\n", tganame);
+	else
+		Con_Printf ("SCR_ScreenShot_f: Couldn't create a TGA file\n");
+
+	vkUnmapMemory(vulkan_globals.device, memory);
+	vkFreeMemory(vulkan_globals.device, memory, NULL);
+	vkDestroyBuffer(vulkan_globals.device, buffer, NULL);
 }
 
