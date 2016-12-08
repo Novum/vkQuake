@@ -2698,7 +2698,7 @@ void SCR_ScreenShot_f (void)
 	VkMemoryRequirements memory_requirements;
 	vkGetBufferMemoryRequirements(vulkan_globals.device, buffer, &memory_requirements);
 
-	uint32_t memory_type_index = GL_MemoryTypeFromProperties(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT, 0);
+	uint32_t memory_type_index = GL_MemoryTypeFromProperties(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
 
 	VkMemoryAllocateInfo memory_allocate_info;
 	memset(&memory_allocate_info, 0, sizeof(memory_allocate_info));
@@ -2714,17 +2714,6 @@ void SCR_ScreenShot_f (void)
 	err = vkBindBufferMemory(vulkan_globals.device, buffer, memory, 0);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkBindBufferMemory failed");
-
-	VkBufferImageCopy image_copy;
-	memset(&image_copy, 0, sizeof(image_copy));
-	image_copy.bufferOffset = 0;
-	image_copy.bufferRowLength = glwidth;
-	image_copy.bufferImageHeight = glheight;
-	image_copy.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	image_copy.imageSubresource.layerCount = 1;
-	image_copy.imageExtent.width = glwidth;
-	image_copy.imageExtent.height = glheight;
-	image_copy.imageExtent.depth = 1;
 
 	VkCommandBuffer command_buffer;
 	R_StagingAllocate(1, 1, &command_buffer, NULL, NULL);
@@ -2746,6 +2735,18 @@ void SCR_ScreenShot_f (void)
 	image_barrier.subresourceRange.layerCount = 1;
 
 	vkCmdPipelineBarrier(command_buffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, NULL, 0, NULL, 1, &image_barrier);
+
+	VkBufferImageCopy image_copy;
+	memset(&image_copy, 0, sizeof(image_copy));
+	image_copy.bufferOffset = 0;
+	image_copy.bufferRowLength = glwidth;
+	image_copy.bufferImageHeight = glheight;
+	image_copy.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	image_copy.imageSubresource.layerCount = 1;
+	image_copy.imageExtent.width = glwidth;
+	image_copy.imageExtent.height = glheight;
+	image_copy.imageExtent.depth = 1;
+
 	vkCmdCopyImageToBuffer(command_buffer, swapchain_images[current_command_buffer], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, buffer, 1, &image_copy);
 
 	R_SubmitStagingBuffers();
