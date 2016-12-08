@@ -2664,7 +2664,7 @@ void SCR_ScreenShot_f (void)
 
 	if ((vulkan_globals.swap_chain_format != VK_FORMAT_B8G8R8A8_UNORM)
 		&& (vulkan_globals.swap_chain_format != VK_FORMAT_B8G8R8A8_SRGB)
-		&& (vulkan_globals.swap_chain_format != VK_FORMAT_R8G8B8A8_SRGB)
+		&& (vulkan_globals.swap_chain_format != VK_FORMAT_R8G8B8A8_UNORM)
 		&& (vulkan_globals.swap_chain_format != VK_FORMAT_R8G8B8A8_SRGB))
 	{
 		Con_Printf ("SCR_ScreenShot_f: Unsupported surface format\n");
