@@ -2801,6 +2801,6 @@ void SCR_ScreenShot_f (void)
 	vkUnmapMemory(vulkan_globals.device, memory);
 	vkFreeMemory(vulkan_globals.device, memory, NULL);
 	vkDestroyBuffer(vulkan_globals.device, buffer, NULL);
-	vkFreeCommandBuffers(vulkan_globals.device, command_pool, 1, &command_buffer);
+	vkFreeCommandBuffers(vulkan_globals.device, transient_command_pool, 1, &command_buffer);
 }
 
