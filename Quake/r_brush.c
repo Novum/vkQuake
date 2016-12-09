@@ -187,7 +187,7 @@ void R_DrawBrushModel (entity_t *e)
 
 // calculate dynamic lighting for bmodel if it's not an
 // instanced model
-	if (clmodel->firstmodelsurface != 0 && !gl_flashblend.value)
+	if (clmodel->firstmodelsurface != 0)
 	{
 		for (k=0 ; k<MAX_DLIGHTS ; k++)
 		{

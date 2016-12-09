@@ -65,97 +65,6 @@ void R_AnimateLight (void)
 /*
 =============================================================================
 
-DYNAMIC LIGHTS BLEND RENDERING (gl_flashblend 1)
-
-=============================================================================
-*/
-
-void AddLightBlend (float r, float g, float b, float a2)
-{
-	float	a;
-
-	v_blend[3] = a = v_blend[3] + a2*(1-v_blend[3]);
-
-	a2 = a2/a;
-
-	v_blend[0] = v_blend[1]*(1-a2) + r*a2;
-	v_blend[1] = v_blend[1]*(1-a2) + g*a2;
-	v_blend[2] = v_blend[2]*(1-a2) + b*a2;
-}
-
-void R_RenderDlight (dlight_t *light)
-{
-	/*int		i, j;
-	float	a;
-	vec3_t	v;
-	float	rad;
-
-	rad = light->radius * 0.35;
-
-	VectorSubtract (light->origin, r_origin, v);
-	if (VectorLength (v) < rad)
-	{	// view is inside the dlight
-		AddLightBlend (1, 0.5, 0, light->radius * 0.0003);
-		return;
-	}
-
-	glBegin (GL_TRIANGLE_FAN);
-	glColor3f (0.2,0.1,0.0);
-	for (i=0 ; i<3 ; i++)
-		v[i] = light->origin[i] - vpn[i]*rad;
-	glVertex3fv (v);
-	glColor3f (0,0,0);
-	for (i=16 ; i>=0 ; i--)
-	{
-		a = i/16.0 * M_PI*2;
-		for (j=0 ; j<3 ; j++)
-			v[j] = light->origin[j] + vright[j]*cos(a)*rad
-				+ vup[j]*sin(a)*rad;
-		glVertex3fv (v);
-	}
-	glEnd ();*/
-}
-
-/*
-=============
-R_RenderDlights
-=============
-*/
-void R_RenderDlights (void)
-{
-	/*int		i;
-	dlight_t	*l;
-
-	if (!gl_flashblend.value)
-		return;
-
-	r_dlightframecount = r_framecount + 1;	// because the count hasn't
-											//  advanced yet for this frame
-	glDepthMask (0);
-	glDisable (GL_TEXTURE_2D);
-	glShadeModel (GL_SMOOTH);
-	glEnable (GL_BLEND);
-	glBlendFunc (GL_ONE, GL_ONE);
-
-	l = cl_dlights;
-	for (i=0 ; i<MAX_DLIGHTS ; i++, l++)
-	{
-		if (l->die < cl.time || !l->radius)
-			continue;
-		R_RenderDlight (l);
-	}
-
-	glColor3f (1,1,1);
-	glDisable (GL_BLEND);
-	glEnable (GL_TEXTURE_2D);
-	glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	glDepthMask (1);*/
-}
-
-
-/*
-=============================================================================
-
 DYNAMIC LIGHTS
 
 =============================================================================
@@ -228,32 +137,6 @@ start:
 	if (node->children[1]->contents >= 0)
 		R_MarkLights (light, num, node->children[1]);
 }
-
-/*
-=============
-R_PushDlights
-=============
-*/
-void R_PushDlights (void)
-{
-	int		i;
-	dlight_t	*l;
-
-	if (gl_flashblend.value)
-		return;
-
-	r_dlightframecount = r_framecount + 1;	// because the count hasn't
-											//  advanced yet for this frame
-	l = cl_dlights;
-
-	for (i=0 ; i<MAX_DLIGHTS ; i++, l++)
-	{
-		if (l->die < cl.time || !l->radius)
-			continue;
-		R_MarkLights (l, i, cl.worldmodel->nodes);
-	}
-}
-
 
 /*
 =============================================================================

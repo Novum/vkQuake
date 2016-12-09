@@ -79,7 +79,6 @@ cvar_t	gl_cull = {"gl_cull","1",CVAR_NONE};
 cvar_t	gl_smoothmodels = {"gl_smoothmodels","1",CVAR_NONE};
 cvar_t	gl_affinemodels = {"gl_affinemodels","0",CVAR_NONE};
 cvar_t	gl_polyblend = {"gl_polyblend","1",CVAR_NONE};
-cvar_t	gl_flashblend = {"gl_flashblend","0",CVAR_ARCHIVE};
 cvar_t	gl_playermip = {"gl_playermip","0",CVAR_NONE};
 cvar_t	gl_nocolors = {"gl_nocolors","0",CVAR_NONE};
 
@@ -357,7 +356,6 @@ void R_SetupScene (void)
 	render_pass_index = 0;
 	vkCmdBeginRenderPass(vulkan_globals.command_buffer, &vulkan_globals.main_render_pass_begin_infos[render_warp ? 1 : 0], VK_SUBPASS_CONTENTS_INLINE);
 
-	R_PushDlights ();
 	R_AnimateLight ();
 	r_framecount++;
 	R_SetupMatrix ();
@@ -519,227 +517,6 @@ void R_DrawViewModel (void)
 
 /*
 ================
-R_EmitWirePoint -- johnfitz -- draws a wireframe cross shape for point entities
-================
-*/
-void R_EmitWirePoint (vec3_t origin)
-{
-	/*int size=8;
-
-	glBegin (GL_LINES);
-	glVertex3f (origin[0]-size, origin[1], origin[2]);
-	glVertex3f (origin[0]+size, origin[1], origin[2]);
-	glVertex3f (origin[0], origin[1]-size, origin[2]);
-	glVertex3f (origin[0], origin[1]+size, origin[2]);
-	glVertex3f (origin[0], origin[1], origin[2]-size);
-	glVertex3f (origin[0], origin[1], origin[2]+size);
-	glEnd ();*/
-}
-
-/*
-================
-R_EmitWireBox -- johnfitz -- draws one axis aligned bounding box
-================
-*/
-void R_EmitWireBox (vec3_t mins, vec3_t maxs)
-{
-	/*glBegin (GL_QUAD_STRIP);
-	glVertex3f (mins[0], mins[1], mins[2]);
-	glVertex3f (mins[0], mins[1], maxs[2]);
-	glVertex3f (maxs[0], mins[1], mins[2]);
-	glVertex3f (maxs[0], mins[1], maxs[2]);
-	glVertex3f (maxs[0], maxs[1], mins[2]);
-	glVertex3f (maxs[0], maxs[1], maxs[2]);
-	glVertex3f (mins[0], maxs[1], mins[2]);
-	glVertex3f (mins[0], maxs[1], maxs[2]);
-	glVertex3f (mins[0], mins[1], mins[2]);
-	glVertex3f (mins[0], mins[1], maxs[2]);
-	glEnd ();*/
-}
-
-/*
-================
-R_ShowBoundingBoxes -- johnfitz
-
-draw bounding boxes -- the server-side boxes, not the renderer cullboxes
-================
-*/
-void R_ShowBoundingBoxes (void)
-{
-	/*extern		edict_t *sv_player;
-	vec3_t		mins,maxs;
-	edict_t		*ed;
-	int			i;
-
-	if (!r_showbboxes.value || cl.maxclients > 1 || !r_drawentities.value || !sv.active)
-		return;
-
-	glDisable (GL_DEPTH_TEST);
-	glPolygonMode (GL_FRONT_AND_BACK, GL_LINE);
-	GL_PolygonOffset (OFFSET_SHOWTRIS);
-	glDisable (GL_TEXTURE_2D);
-	glDisable (GL_CULL_FACE);
-	glColor3f (1,1,1);
-
-	for (i=0, ed=NEXT_EDICT(sv.edicts) ; i<sv.num_edicts ; i++, ed=NEXT_EDICT(ed))
-	{
-		if (ed == sv_player)
-			continue; //don't draw player's own bbox
-
-//		if (r_showbboxes.value != 2)
-//			if (!SV_VisibleToClient (sv_player, ed, sv.worldmodel))
-//				continue; //don't draw if not in pvs
-
-		if (ed->v.mins[0] == ed->v.maxs[0] && ed->v.mins[1] == ed->v.maxs[1] && ed->v.mins[2] == ed->v.maxs[2])
-		{
-			//point entity
-			R_EmitWirePoint (ed->v.origin);
-		}
-		else
-		{
-			//box entity
-			VectorAdd (ed->v.mins, ed->v.origin, mins);
-			VectorAdd (ed->v.maxs, ed->v.origin, maxs);
-			R_EmitWireBox (mins, maxs);
-		}
-	}
-
-	glColor3f (1,1,1);
-	glEnable (GL_TEXTURE_2D);
-	glEnable (GL_CULL_FACE);
-	glPolygonMode (GL_FRONT_AND_BACK, GL_FILL);
-	GL_PolygonOffset (OFFSET_NONE);
-	glEnable (GL_DEPTH_TEST);
-
-	Sbar_Changed (); //so we don't get dots collecting on the statusbar*/
-}
-
-/*
-================
-R_ShowTris -- johnfitz
-================
-*/
-void R_ShowTris (void)
-{
-	/*extern cvar_t r_particles;
-	int i;
-
-	if (r_showtris.value < 1 || r_showtris.value > 2 || cl.maxclients > 1)
-		return;
-
-	if (r_showtris.value == 1)
-		glDisable (GL_DEPTH_TEST);
-	glPolygonMode (GL_FRONT_AND_BACK, GL_LINE);
-	GL_PolygonOffset (OFFSET_SHOWTRIS);
-	glDisable (GL_TEXTURE_2D);
-	glColor3f (1,1,1);
-//	glEnable (GL_BLEND);
-//	glBlendFunc (GL_ONE, GL_ONE);
-
-	if (r_drawworld.value)
-	{
-		R_DrawWorld_ShowTris ();
-	}
-
-	if (r_drawentities.value)
-	{
-		for (i=0 ; i<cl_numvisedicts ; i++)
-		{
-			currententity = cl_visedicts[i];
-
-			if (currententity == &cl_entities[cl.viewentity]) // chasecam
-				currententity->angles[0] *= 0.3;
-
-			switch (currententity->model->type)
-			{
-			case mod_brush:
-				R_DrawBrushModel_ShowTris (currententity);
-				break;
-			case mod_alias:
-				R_DrawAliasModel_ShowTris (currententity);
-				break;
-			case mod_sprite:
-				R_DrawSpriteModel (currententity);
-				break;
-			default:
-				break;
-			}
-		}
-
-		// viewmodel
-		currententity = &cl.viewent;
-		if (r_drawviewmodel.value
-			&& !chase_active.value
-			&& cl.stats[STAT_HEALTH] > 0
-			&& !(cl.items & IT_INVISIBILITY)
-			&& currententity->model
-			&& currententity->model->type == mod_alias)
-		{
-			glDepthRange (0, 0.3);
-			R_DrawAliasModel_ShowTris (currententity);
-			glDepthRange (0, 1);
-		}
-	}
-
-	if (r_particles.value)
-	{
-		R_DrawParticles_ShowTris ();
-	}
-
-//	glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-//	glDisable (GL_BLEND);
-	glColor3f (1,1,1);
-	glEnable (GL_TEXTURE_2D);
-	glPolygonMode (GL_FRONT_AND_BACK, GL_FILL);
-	GL_PolygonOffset (OFFSET_NONE);
-	if (r_showtris.value == 1)
-		glEnable (GL_DEPTH_TEST);
-
-	Sbar_Changed (); //so we don't get dots collecting on the statusbar*/
-}
-
-/*
-================
-R_DrawShadows
-================
-*/
-void R_DrawShadows (void)
-{
-	/*int i;
-
-	if (!r_shadows.value || !r_drawentities.value || r_drawflat_cheatsafe || r_lightmap_cheatsafe)
-		return;
-
-	// Use stencil buffer to prevent self-intersecting shadows, from Baker (MarkV)
-	if (gl_stencilbits)
-	{
-		glClear(GL_STENCIL_BUFFER_BIT);
-		glStencilFunc(GL_EQUAL, 0, ~0);
-		glStencilOp(GL_KEEP, GL_KEEP, GL_INCR);
-		glEnable(GL_STENCIL_TEST);
-	}
-
-	for (i=0 ; i<cl_numvisedicts ; i++)
-	{
-		currententity = cl_visedicts[i];
-
-		if (currententity->model->type != mod_alias)
-			continue;
-
-		if (currententity == &cl.viewent)
-			return;
-
-		GL_DrawAliasShadow (currententity);
-	}
-
-	if (gl_stencilbits)
-	{
-		glDisable(GL_STENCIL_TEST);
-	}*/
-}
-
-/*
-================
 R_RenderScene
 ================
 */
@@ -755,25 +532,17 @@ void R_RenderScene (void)
 
 	S_ExtraUpdate (); // don't let sound get messed up if going slow
 
-	R_DrawShadows (); //johnfitz -- render entity shadows
-
 	R_DrawEntitiesOnList (false); //johnfitz -- false means this is the pass for nonalpha entities
 
 	R_DrawWorld_Water (); //johnfitz -- drawn here since they might have transparency
 
 	R_DrawEntitiesOnList (true); //johnfitz -- true means this is the pass for alpha entities
 
-	R_RenderDlights (); //triangle fan dlights -- johnfitz -- moved after water
-
 	R_DrawParticles ();
 
 	Fog_DisableGFog (); //johnfitz
 
 	R_DrawViewModel (); //johnfitz -- moved here from R_RenderView
-
-	R_ShowTris (); //johnfitz
-
-	R_ShowBoundingBoxes (); //johnfitz
 }
 
 /*

@@ -1747,7 +1747,6 @@ void R_Init (void)
 	Cvar_RegisterVariable (&gl_smoothmodels);
 	Cvar_RegisterVariable (&gl_affinemodels);
 	Cvar_RegisterVariable (&gl_polyblend);
-	Cvar_RegisterVariable (&gl_flashblend);
 	Cvar_RegisterVariable (&gl_playermip);
 	Cvar_RegisterVariable (&gl_nocolors);
 

@@ -295,75 +295,6 @@ void R_DrawTextureChains_ShowTris (qmodel_t *model, texchain_t chain)
 	}
 }
 
-/*
-================
-R_DrawTextureChains_Drawflat -- johnfitz
-================
-*/
-void R_DrawTextureChains_Drawflat (qmodel_t *model, texchain_t chain)
-{
-	//int			i;
-	//msurface_t	*s;
-	//texture_t	*t;
-	//glpoly_t	*p;
-
-	//for (i=0 ; i<model->numtextures ; i++)
-	//{
-	//	t = model->textures[i];
-	//	if (!t)
-	//		continue;
-
-	//	{
-	//		for (s = t->texturechains[chain]; s; s = s->texturechain)
-	//			if (!s->culled)
-	//			{
-	//				srand((unsigned int) (uintptr_t) s->polys);
-	//				glColor3f (rand()%256/255.0, rand()%256/255.0, rand()%256/255.0);
-	//				DrawGLPoly (s->polys);
-	//				rs_brushpasses++;
-	//			}
-	//	}
-	//}
-	//glColor3f (1,1,1);
-	//srand ((int) (cl.time * 1000));
-}
-
-/*
-================
-R_DrawTextureChains_Glow -- johnfitz
-================
-*/
-void R_DrawTextureChains_Glow (qmodel_t *model, entity_t *ent, texchain_t chain)
-{
-	//int			i;
-	//msurface_t	*s;
-	//texture_t	*t;
-	//gltexture_t	*glt;
-	//qboolean	bound;
-
-	//for (i=0 ; i<model->numtextures ; i++)
-	//{
-	//	t = model->textures[i];
-
-	//	if (!t || !t->texturechains[chain] || !(glt = R_TextureAnimation(t, ent != NULL ? ent->frame : 0)->fullbright))
-	//		continue;
-
-	//	bound = false;
-
-	//	for (s = t->texturechains[chain]; s; s = s->texturechain)
-	//		if (!s->culled)
-	//		{
-	//			if (!bound) //only bind once we are sure we need this texture
-	//			{
-	//				GL_Bind (glt);
-	//				bound = true;
-	//			}
-	//			DrawGLPoly (s->polys);
-	//			rs_brushpasses++;
-	//		}
-	//}
-}
-
 //==============================================================================
 //
 // VBO SUPPORT
@@ -463,85 +394,6 @@ static void R_BatchSurface (msurface_t *s, VkPipeline * current_pipeline, qboole
 
 /*
 ================
-R_DrawTextureChains_NoTexture -- johnfitz
-
-draws surfs whose textures were missing from the BSP
-================
-*/
-void R_DrawTextureChains_NoTexture (qmodel_t *model, texchain_t chain)
-{
-	//int			i;
-	//msurface_t	*s;
-	//texture_t	*t;
-	//qboolean	bound;
-
-	//for (i=0 ; i<model->numtextures ; i++)
-	//{
-	//	t = model->textures[i];
-
-	//	if (!t || !t->texturechains[chain] || !(t->texturechains[chain]->flags & SURF_NOTEXTURE))
-	//		continue;
-
-	//	bound = false;
-
-	//	for (s = t->texturechains[chain]; s; s = s->texturechain)
-	//		if (!s->culled)
-	//		{
-	//			if (!bound) //only bind once we are sure we need this texture
-	//			{
-	//				GL_Bind (t->gltexture);
-	//				bound = true;
-	//			}
-	//			DrawGLPoly (s->polys);
-	//			rs_brushpasses++;
-	//		}
-	//}
-}
-
-/*
-================
-R_DrawTextureChains_TextureOnly -- johnfitz
-================
-*/
-void R_DrawTextureChains_TextureOnly (qmodel_t *model, entity_t *ent, texchain_t chain)
-{
-	//int			i;
-	//msurface_t	*s;
-	//texture_t	*t;
-	//qboolean	bound;
-
-	//for (i=0 ; i<model->numtextures ; i++)
-	//{
-	//	t = model->textures[i];
-
-	//	if (!t || !t->texturechains[chain] || t->texturechains[chain]->flags & (SURF_DRAWTURB | SURF_DRAWSKY))
-	//		continue;
-
-	//	bound = false;
-
-	//	for (s = t->texturechains[chain]; s; s = s->texturechain)
-	//		if (!s->culled)
-	//		{
-	//			if (!bound) //only bind once we are sure we need this texture
-	//			{
-	//				GL_Bind ((R_TextureAnimation(t, ent != NULL ? ent->frame : 0))->gltexture);
-	//				
-	//				if (t->texturechains[chain]->flags & SURF_DRAWFENCE)
-	//					glEnable (GL_ALPHA_TEST); // Flip alpha test back on
-	//				
-	//				bound = true;
-	//			}
-	//			DrawGLPoly (s->polys);
-	//			rs_brushpasses++;
-	//		}
-	//		
-	//	if (bound && t->texturechains[chain]->flags & SURF_DRAWFENCE)
-	//		glDisable (GL_ALPHA_TEST); // Flip alpha test back off
-	//}
-}
-
-/*
-================
 GL_WaterAlphaForEntitySurface -- ericw
  
 Returns the water alpha to use for the entity and surface combination.
@@ -611,67 +463,6 @@ void R_DrawTextureChains_Water (qmodel_t *model, entity_t *ent, texchain_t chain
 				rs_brushpasses++;
 			}
 	}
-}
-
-/*
-================
-R_DrawTextureChains_White -- johnfitz -- draw sky and water as white polys when r_lightmap is 1
-================
-*/
-void R_DrawTextureChains_White (qmodel_t *model, texchain_t chain)
-{
-	//int			i;
-	//msurface_t	*s;
-	//texture_t	*t;
-
-	//glDisable (GL_TEXTURE_2D);
-	//for (i=0 ; i<model->numtextures ; i++)
-	//{
-	//	t = model->textures[i];
-
-	//	if (!t || !t->texturechains[chain] || !(t->texturechains[chain]->flags & SURF_DRAWTILED))
-	//		continue;
-
-	//	for (s = t->texturechains[chain]; s; s = s->texturechain)
-	//		if (!s->culled)
-	//		{
-	//			DrawGLPoly (s->polys);
-	//			rs_brushpasses++;
-	//		}
-	//}
-	//glEnable (GL_TEXTURE_2D);
-}
-
-/*
-================
-R_DrawLightmapChains -- johnfitz -- R_BlendLightmaps stripped down to almost nothing
-================
-*/
-void R_DrawLightmapChains (void)
-{
-	//int			i, j;
-	//glpoly_t	*p;
-	//float		*v;
-
-	//for (i=0 ; i<MAX_LIGHTMAPS ; i++)
-	//{
-	//	if (!lightmap_polys[i])
-	//		continue;
-
-	//	GL_Bind (lightmap_textures[i]);
-	//	for (p = lightmap_polys[i]; p; p=p->chain)
-	//	{
-	//		glBegin (GL_POLYGON);
-	//		v = p->verts[0];
-	//		for (j=0 ; j<p->numverts ; j++, v+= VERTEXSIZE)
-	//		{
-	//			glTexCoord2f (v[5], v[6]);
-	//			glVertex3fv (v);
-	//		}
-	//		glEnd ();
-	//		rs_brushpasses++;
-	//	}
-	//}
 }
 
 /*
@@ -773,31 +564,6 @@ void R_DrawTextureChains (qmodel_t *model, entity_t *ent, texchain_t chain)
 	// late which was visible under some conditions, this method avoids that.
 	R_BuildLightmapChains (model, chain);
 	R_UploadLightmaps ();
-
-	if (r_drawflat_cheatsafe)
-	{
-		//glDisable (GL_TEXTURE_2D);
-		//R_DrawTextureChains_Drawflat (model, chain);
-		//glEnable (GL_TEXTURE_2D);
-		return;
-	}
-
-	if (r_fullbright_cheatsafe)
-	{
-		//R_BeginTransparentDrawing (entalpha);
-		//R_DrawTextureChains_TextureOnly (model, ent, chain);
-		//R_EndTransparentDrawing (entalpha);
-		//goto fullbrights;
-	}
-
-	if (r_lightmap_cheatsafe)
-	{
-		//R_DrawLightmapChains ();
-		//R_DrawTextureChains_White (model, chain);
-		//return;
-	}
-
-	R_DrawTextureChains_NoTexture (model, chain);
 	R_DrawTextureChains_Multitexture (model, ent, chain);
 }
 
