@@ -2705,7 +2705,7 @@ void SCR_ScreenShot_f (void)
 	VkMemoryRequirements memory_requirements;
 	vkGetBufferMemoryRequirements(vulkan_globals.device, buffer, &memory_requirements);
 
-	uint32_t memory_type_index = GL_MemoryTypeFromProperties(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
+	uint32_t memory_type_index = GL_MemoryTypeFromProperties(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
 
 	VkMemoryAllocateInfo memory_allocate_info;
 	memset(&memory_allocate_info, 0, sizeof(memory_allocate_info));
