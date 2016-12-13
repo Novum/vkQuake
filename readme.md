@@ -4,7 +4,7 @@ vkQuake serves as a Vulkan demo application that shows basic usage of the API. F
 It is compatible with all mods that run on QuakeSpasm like [In The Shadows](http://www.moddb.com/mods/its) or [Arcane Dimensions](https://www.quaddicted.com/reviews/ad_v1_42final.html).
 
 # Development status
-As of [release 0.90](https://github.com/Novum/vkQuake/releases/tag/0.90), vkQuake is considered feature complete. New releases will only fix bugs. 
+As of [release 0.90](https://github.com/Novum/vkQuake/releases/tag/0.90), vkQuake is considered feature complete. New releases will only fix bugs and keep in sync with the QuakeSpasm code base. 
 
 # Building
 
