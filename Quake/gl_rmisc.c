@@ -932,7 +932,7 @@ void R_CreatePipelineLayouts()
 	VkPushConstantRange push_constant_range;
 	memset(&push_constant_range, 0, sizeof(push_constant_range));
 	push_constant_range.offset = 0;
-	push_constant_range.size = 20 * sizeof(float);
+	push_constant_range.size = 21 * sizeof(float);
 	push_constant_range.stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS;
 
 	VkPipelineLayoutCreateInfo pipeline_layout_create_info;
@@ -1499,22 +1499,26 @@ void R_CreatePipelines()
 	vertex_input_state_create_info.vertexBindingDescriptionCount = 1;
 	vertex_input_state_create_info.pVertexBindingDescriptions = &world_vertex_binding_description;
 
-	VkSpecializationMapEntry specialization_entries[2];
+	VkSpecializationMapEntry specialization_entries[3];
 	specialization_entries[0].constantID = 0;
 	specialization_entries[0].offset = 0;
 	specialization_entries[0].size = 4;
 	specialization_entries[1].constantID = 1;
 	specialization_entries[1].offset = 4;
 	specialization_entries[1].size = 4;
+	specialization_entries[2].constantID = 2;
+	specialization_entries[2].offset = 8;
+	specialization_entries[2].size = 4;
 
-	uint32_t specialization_data[2];
+	uint32_t specialization_data[3];
 	specialization_data[0] = 0;
 	specialization_data[1] = 0;
+	specialization_data[2] = 0;
 
 	VkSpecializationInfo specialization_info;
-	specialization_info.mapEntryCount = 2;
+	specialization_info.mapEntryCount = 3;
 	specialization_info.pMapEntries = specialization_entries;
-	specialization_info.dataSize = 8;
+	specialization_info.dataSize = 12;
 	specialization_info.pData = specialization_data;
 	
 	pipeline_create_info.layout = vulkan_globals.world_pipeline_layout;
@@ -1523,41 +1527,27 @@ void R_CreatePipelines()
 	shader_stages[1].module = world_frag_module;
 	shader_stages[1].pSpecializationInfo = &specialization_info;
 
+	for (int alpha_blend = 0; alpha_blend < 2; ++alpha_blend) {
+		for (int alpha_test = 0; alpha_test < 2; ++alpha_test) {
+			for (int fullbright_enabled = 0; fullbright_enabled < 2; ++fullbright_enabled) {
+				int pipeline_index = fullbright_enabled + (alpha_test * 2) + (alpha_blend * 4);
+
+				specialization_data[0] = fullbright_enabled;
+				specialization_data[1] = alpha_test;
+				specialization_data[2] = alpha_blend;
+
+				blend_attachment_state.blendEnable = alpha_blend ? VK_TRUE : VK_FALSE;
+
+				err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.world_pipelines[pipeline_index]);
+				if (err != VK_SUCCESS)
+					Sys_Error("vkCreateGraphicsPipelines failed");
+
+				GL_SetObjectName((uint64_t)vulkan_globals.world_pipelines[pipeline_index], VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, va("world %d", pipeline_index));
+			}
+		}
+	}
+
 	blend_attachment_state.blendEnable = VK_FALSE;
-
-	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.world_pipelines[world_pipeline_base]);
-	if (err != VK_SUCCESS)
-		Sys_Error("vkCreateGraphicsPipelines failed");
-
-	GL_SetObjectName((uint64_t)vulkan_globals.world_pipelines[world_pipeline_base], VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "world_base");
-
-	specialization_data[0] = 1;
-	specialization_data[1] = 0;
-
-	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.world_pipelines[world_pipeline_fullbright]);
-	if (err != VK_SUCCESS)
-		Sys_Error("vkCreateGraphicsPipelines failed");
-
-	GL_SetObjectName((uint64_t)vulkan_globals.world_pipelines[world_pipeline_fullbright], VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "world_fullbright");
-
-	specialization_data[0] = 0;
-	specialization_data[1] = 1;
-
-	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.world_pipelines[world_pipeline_alpha_test]);
-	if (err != VK_SUCCESS)
-		Sys_Error("vkCreateGraphicsPipelines failed");
-
-	GL_SetObjectName((uint64_t)vulkan_globals.world_pipelines[world_pipeline_alpha_test], VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "world_alpha_test");
-
-	specialization_data[0] = 1;
-	specialization_data[1] = 1;
-
-	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.world_pipelines[world_pipeline_fullbright_alpha_test]);
-	if (err != VK_SUCCESS)
-		Sys_Error("vkCreateGraphicsPipelines failed");
-
-	GL_SetObjectName((uint64_t)vulkan_globals.world_pipelines[world_pipeline_fullbright_alpha_test], VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "world_fullbright_alpha_test");
-
 	shader_stages[1].pSpecializationInfo = NULL;
 
 	//================
@@ -1699,7 +1689,7 @@ void R_DestroyPipelines(void)
 		vkDestroyPipeline(vulkan_globals.device, vulkan_globals.basic_notex_blend_pipeline[i], NULL);
 	}
 	vkDestroyPipeline(vulkan_globals.device, vulkan_globals.basic_poly_blend_pipeline, NULL);
-	for (i = 0; i < world_pipeline_count; ++i)
+	for (i = 0; i < WORLD_PIPELINE_COUNT; ++i)
 		vkDestroyPipeline(vulkan_globals.device, vulkan_globals.world_pipelines[i], NULL);
 	vkDestroyPipeline(vulkan_globals.device, vulkan_globals.water_pipeline, NULL);
 	vkDestroyPipeline(vulkan_globals.device, vulkan_globals.water_blend_pipeline, NULL);

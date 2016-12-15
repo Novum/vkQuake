@@ -244,63 +244,6 @@ void R_DrawBrushModel (entity_t *e)
 }
 
 /*
-=================
-R_DrawBrushModel_ShowTris -- johnfitz
-=================
-*/
-void R_DrawBrushModel_ShowTris (entity_t *e)
-{
-	/*int			i;
-	msurface_t	*psurf;
-	float		dot;
-	mplane_t	*pplane;
-	qmodel_t	*clmodel;
-	glpoly_t	*p;
-
-	if (R_CullModelForEntity(e))
-		return;
-
-	currententity = e;
-	clmodel = e->model;
-
-	VectorSubtract (r_refdef.vieworg, e->origin, modelorg);
-	if (e->angles[0] || e->angles[1] || e->angles[2])
-	{
-		vec3_t	temp;
-		vec3_t	forward, right, up;
-
-		VectorCopy (modelorg, temp);
-		AngleVectors (e->angles, forward, right, up);
-		modelorg[0] = DotProduct (temp, forward);
-		modelorg[1] = -DotProduct (temp, right);
-		modelorg[2] = DotProduct (temp, up);
-	}
-
-	psurf = &clmodel->surfaces[clmodel->firstmodelsurface];
-
-	glPushMatrix ();
-	e->angles[0] = -e->angles[0];	// stupid quake bug
-	R_RotateForEntity (e->origin, e->angles);
-	e->angles[0] = -e->angles[0];	// stupid quake bug
-
-	//
-	// draw it
-	//
-	for (i=0 ; i<clmodel->nummodelsurfaces ; i++, psurf++)
-	{
-		pplane = psurf->plane;
-		dot = DotProduct (modelorg, pplane->normal) - pplane->dist;
-		if (((psurf->flags & SURF_PLANEBACK) && (dot < -BACKFACE_EPSILON)) ||
-			(!(psurf->flags & SURF_PLANEBACK) && (dot > BACKFACE_EPSILON)))
-		{
-			DrawGLTriangleFan (psurf->polys);
-		}
-	}
-
-	glPopMatrix ();*/
-}
-
-/*
 =============================================================
 
 	LIGHTMAPS

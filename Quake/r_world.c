@@ -347,11 +347,11 @@ R_FlushBatch
 Draw the current batch if non-empty and clears it, ready for more R_BatchSurface calls.
 ================
 */
-static void R_FlushBatch (VkPipeline * current_pipeline, qboolean fullbright_enabled, qboolean alpha_test)
+static void R_FlushBatch (VkPipeline * current_pipeline, qboolean fullbright_enabled, qboolean alpha_test, qboolean alpha_blend)
 {
 	if (num_vbo_indices > 0)
 	{
-		int pipeline_index = (fullbright_enabled ? 1 : 0) + (alpha_test ? 2 : 0);
+		int pipeline_index = (fullbright_enabled ? 1 : 0) + (alpha_test ? 2 : 0) + (alpha_blend ? 4 : 0);
 		VkPipeline new_pipeline = vulkan_globals.world_pipelines[pipeline_index];
 		if (new_pipeline != *current_pipeline)
 		{
@@ -379,14 +379,14 @@ Add the surface to the current batch, or just draw it immediately if we're not
 using VBOs.
 ================
 */
-static void R_BatchSurface (msurface_t *s, VkPipeline * current_pipeline, qboolean fullbright_enabled, qboolean alpha_test)
+static void R_BatchSurface (msurface_t *s, VkPipeline * current_pipeline, qboolean fullbright_enabled, qboolean alpha_test, qboolean alpha_blend)
 {
 	int num_surf_indices;
 
 	num_surf_indices = R_NumTriangleIndicesForSurf (s);
 	
 	if (num_vbo_indices + num_surf_indices > MAX_BATCH_SIZE)
-		R_FlushBatch(current_pipeline, fullbright_enabled, alpha_test);
+		R_FlushBatch(current_pipeline, fullbright_enabled, alpha_test, alpha_blend);
 	
 	R_TriangleIndicesForSurf (s, &vbo_indices[num_vbo_indices]);
 	num_vbo_indices += num_surf_indices;
@@ -470,7 +470,7 @@ void R_DrawTextureChains_Water (qmodel_t *model, entity_t *ent, texchain_t chain
 R_DrawTextureChains_Multitexture
 ================
 */
-void R_DrawTextureChains_Multitexture (qmodel_t *model, entity_t *ent, texchain_t chain)
+void R_DrawTextureChains_Multitexture (qmodel_t *model, entity_t *ent, texchain_t chain, const float alpha)
 {
 	int			i;
 	msurface_t	*s;
@@ -478,6 +478,7 @@ void R_DrawTextureChains_Multitexture (qmodel_t *model, entity_t *ent, texchain_
 	qboolean	bound;
 	qboolean	fullbright_enabled = false;
 	qboolean	alpha_test = false;
+	qboolean	alpha_blend = alpha < 1.0f;
 	int		lastlightmap;
 	gltexture_t	*fullbright = NULL;
 	VkPipeline current_pipeline = VK_NULL_HANDLE;
@@ -486,6 +487,9 @@ void R_DrawTextureChains_Multitexture (qmodel_t *model, entity_t *ent, texchain_
 	vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &bmodel_vertex_buffer, &offset);
 
 	vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout, 2, 1, &nulltexture->descriptor_set, 0, NULL);
+
+	if (alpha_blend)
+		vkCmdPushConstants(vulkan_globals.command_buffer, vulkan_globals.basic_pipeline_layout, VK_SHADER_STAGE_ALL_GRAPHICS, 20 * sizeof(float), 1 * sizeof(float), &alpha);
 
 	for (i = 0; i<model->numtextures; ++i)
 	{
@@ -526,20 +530,20 @@ void R_DrawTextureChains_Multitexture (qmodel_t *model, entity_t *ent, texchain_
 				
 				if (s->lightmaptexturenum != lastlightmap)
 				{	
-					R_FlushBatch (&current_pipeline, fullbright_enabled, alpha_test);
+					R_FlushBatch (&current_pipeline, fullbright_enabled, alpha_test, alpha_blend);
 				}
 
 				gltexture_t * lightmap_texture = lightmap_textures[s->lightmaptexturenum];
 				vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout, 1, 1, &lightmap_texture->descriptor_set, 0, NULL);
 
 				lastlightmap = s->lightmaptexturenum;
-				R_BatchSurface (s, &current_pipeline, fullbright_enabled, alpha_test);
+				R_BatchSurface (s, &current_pipeline, fullbright_enabled, alpha_test, alpha_blend);
 
 				rs_brushpasses++;
 			}
 		}
 
-		R_FlushBatch (&current_pipeline, fullbright_enabled, alpha_test);
+		R_FlushBatch (&current_pipeline, fullbright_enabled, alpha_test, alpha_blend);
 	}
 }
 
@@ -564,7 +568,7 @@ void R_DrawTextureChains (qmodel_t *model, entity_t *ent, texchain_t chain)
 	// late which was visible under some conditions, this method avoids that.
 	R_BuildLightmapChains (model, chain);
 	R_UploadLightmaps ();
-	R_DrawTextureChains_Multitexture (model, ent, chain);
+	R_DrawTextureChains_Multitexture (model, ent, chain, entalpha);
 }
 
 /*
