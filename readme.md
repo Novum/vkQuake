@@ -1,5 +1,5 @@
 # Goal
-vkQuake serves as a Vulkan demo application that shows basic usage of the API. For example it demonstrates render passes and sub passes, pipeline barriers, compute shaders, CPU/GPU parallelism and memory pooling. It is also meant as a port which is as authentic to the original as possible.
+vkQuake serves as a Vulkan demo application that shows basic usage of the API. For example it demonstrates render passes & sub passes, pipeline barriers & synchronization, compute shaders, push & specialization constants, CPU/GPU parallelism and memory pooling. It is also meant as a port which is as authentic to the original as possible.
 
 It is compatible with all mods that run on QuakeSpasm like [Arcane Dimensions](https://www.quaddicted.com/reviews/ad_v1_50final.html) or [In The Shadows](http://www.moddb.com/mods/its).
 
