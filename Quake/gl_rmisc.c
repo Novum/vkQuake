@@ -1122,6 +1122,7 @@ R_CreatePipelines
 void R_CreatePipelines()
 {
 	int render_pass;
+	int alpha_blend, alpha_test, fullbright_enabled;
 	VkResult err;
 
 	Con_Printf("Creating pipelines\n");
@@ -1527,9 +1528,9 @@ void R_CreatePipelines()
 	shader_stages[1].module = world_frag_module;
 	shader_stages[1].pSpecializationInfo = &specialization_info;
 
-	for (int alpha_blend = 0; alpha_blend < 2; ++alpha_blend) {
-		for (int alpha_test = 0; alpha_test < 2; ++alpha_test) {
-			for (int fullbright_enabled = 0; fullbright_enabled < 2; ++fullbright_enabled) {
+	for (alpha_blend = 0; alpha_blend < 2; ++alpha_blend) {
+		for (alpha_test = 0; alpha_test < 2; ++alpha_test) {
+			for (fullbright_enabled = 0; fullbright_enabled < 2; ++fullbright_enabled) {
 				int pipeline_index = fullbright_enabled + (alpha_test * 2) + (alpha_blend * 4);
 
 				specialization_data[0] = fullbright_enabled;
