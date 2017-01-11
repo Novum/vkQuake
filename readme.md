@@ -3,7 +3,7 @@ vkQuake serves as a Vulkan demo application that shows basic usage of the API. F
 
 It is compatible with all mods that run on QuakeSpasm like [Arcane Dimensions](https://www.quaddicted.com/reviews/ad_v1_50final.html) or [In The Shadows](http://www.moddb.com/mods/its).
 
-Compared to QuakeSpasm vkQuake also features a software Quake like underwater effect, generates mipmap for water surfaces at runtime and has native support for MSAA and AF.
+Compared to QuakeSpasm vkQuake also features a software Quake like underwater effect, generates mipmap for water surfaces at runtime and has native support for anti-aliasing and AF.
 
 # Development status
 As of [release 0.90](https://github.com/Novum/vkQuake/releases/tag/0.90), vkQuake is considered feature complete. New releases will only fix bugs and keep in sync with the QuakeSpasm code base.
