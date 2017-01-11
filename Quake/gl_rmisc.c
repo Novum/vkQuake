@@ -1215,7 +1215,8 @@ void R_CreatePipelines()
 	memset(&multisample_state_create_info, 0, sizeof(multisample_state_create_info));
 	multisample_state_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
 	multisample_state_create_info.rasterizationSamples = vulkan_globals.sample_count;
-	if (vulkan_globals.supersampling) {
+	if (vulkan_globals.supersampling)
+	{
 		multisample_state_create_info.sampleShadingEnable = VK_TRUE;
 		multisample_state_create_info.minSampleShading = 1.0f;
 	}

@@ -1207,6 +1207,9 @@ static void GL_CreateColorBuffer( void )
 		}
 
 		vulkan_globals.supersampling = (vulkan_physical_device_features.sampleRateShading && vid_fsaa.value >= 2) ? true : false;
+
+		if (vulkan_globals.supersampling)
+			Con_Printf( "Supersampling enabled\n" );
 	}
 
 	if (vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT)
