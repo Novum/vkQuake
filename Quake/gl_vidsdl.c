@@ -2620,7 +2620,7 @@ static void VID_MenuDraw (void)
 			break;
 		case VID_OPT_ANTIALIASING:
 			M_Print (16, y, "      Antialiasing");
-			M_Print (184, y, ((int)vid_fsaa.value == 0) ? "off" : (((int)vid_fsaa.value == 1) ? "MSAA" : "SSAA"));
+			M_Print (184, y, ((int)vid_fsaa.value == 0) ? "off" : (((int)vid_fsaa.value == 1) ? "Multisample" : "Supersample"));
 			break;
 		case VID_OPT_FILTER:
 			M_Print (16, y, "            Filter");
