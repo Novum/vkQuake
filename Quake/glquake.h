@@ -117,6 +117,7 @@ typedef struct
 	uint32_t							gfx_queue_family_index;
 	VkFormat							depth_format;
 	VkSampleCountFlagBits				sample_count;
+	qboolean							supersampling;
 
 	// Buffers
 	VkImage								color_buffers[NUM_COLOR_BUFFERS];

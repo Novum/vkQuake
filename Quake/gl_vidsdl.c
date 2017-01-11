@@ -1169,6 +1169,8 @@ static void GL_CreateColorBuffer( void )
 	}
 
 	vulkan_globals.sample_count = VK_SAMPLE_COUNT_1_BIT;
+	vulkan_globals.supersampling = false;
+
 	if (vid_fsaa.value)
 	{
 		VkImageFormatProperties image_format_properties;
@@ -1186,20 +1188,22 @@ static void GL_CreateColorBuffer( void )
 		switch(vulkan_globals.sample_count)
 		{
 			case VK_SAMPLE_COUNT_2_BIT:
-				Con_Printf("2 MSAA Samples\n");
+				Con_Printf("2 AA Samples\n");
 				break;
 			case VK_SAMPLE_COUNT_4_BIT:
-				Con_Printf("4 MSAA Samples\n");
+				Con_Printf("4 AA Samples\n");
 				break;
 			case VK_SAMPLE_COUNT_8_BIT:
-				Con_Printf("8 MSAA Samples\n");
+				Con_Printf("8 AA Samples\n");
 				break;
 			case VK_SAMPLE_COUNT_16_BIT:
-				Con_Printf("16 MSAA Samples\n");
+				Con_Printf("16 AA Samples\n");
 				break;
 			default:
 				break;
 		}
+
+		vulkan_globals.supersampling = (vid_fsaa.value >= 2) ? true : false;
 	}
 
 	if (vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT)
@@ -2396,6 +2400,16 @@ static void VID_Menu_ChooseNextBpp (int dir)
 
 /*
 ================
+VID_Menu_ChooseNextAAMode
+================
+*/
+static void VID_Menu_ChooseNextAAMode(int dir)
+{
+	Cvar_SetValueQuick(&vid_fsaa, (float)(((int)vid_fsaa.value + 3 + dir) % 3));
+}
+
+/*
+================
 VID_Menu_ChooseNextWaterWarp
 ================
 */
@@ -2449,6 +2463,9 @@ static void VID_MenuKey (int key)
 		case VID_OPT_VSYNC:
 			Cbuf_AddText ("toggle vid_vsync\n"); // kristian
 			break;
+		case VID_OPT_ANTIALIASING:
+			VID_Menu_ChooseNextAAMode (-1);
+			break;
 		case VID_OPT_FILTER:
 			Cbuf_AddText ("toggle vid_filter\n");
 			break;
@@ -2480,7 +2497,7 @@ static void VID_MenuKey (int key)
 			Cbuf_AddText ("toggle vid_vsync\n");
 			break;
 		case VID_OPT_ANTIALIASING:
-			Cbuf_AddText ("toggle vid_fsaa\n");
+			VID_Menu_ChooseNextAAMode(1);
 			break;
 		case VID_OPT_FILTER:
 			Cbuf_AddText ("toggle vid_filter\n");
@@ -2596,7 +2613,7 @@ static void VID_MenuDraw (void)
 			break;
 		case VID_OPT_ANTIALIASING:
 			M_Print (16, y, "      Antialiasing");
-			M_Print (184, y, ((int)vid_fsaa.value == 0) ? "off" : "on");
+			M_Print (184, y, ((int)vid_fsaa.value == 0) ? "off" : (((int)vid_fsaa.value == 1) ? "MSAA" : "SSAA"));
 			break;
 		case VID_OPT_FILTER:
 			M_Print (16, y, "            Filter");
