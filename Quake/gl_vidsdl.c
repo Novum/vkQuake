@@ -95,6 +95,7 @@ cvar_t		vid_contrast = {"contrast", "1", CVAR_ARCHIVE}; //QuakeSpasm, MarkV
 // Vulkan
 static VkInstance					vulkan_instance;
 static VkPhysicalDevice				vulkan_physical_device;
+static VkPhysicalDeviceFeatures		vulkan_physical_device_features;
 static VkSurfaceKHR					vulkan_surface;
 static VkSurfaceCapabilitiesKHR		vulkan_surface_capabilities;
 static VkSwapchainKHR				vulkan_swapchain;
@@ -771,6 +772,8 @@ static void GL_InitDevice( void )
 	if (err != VK_SUCCESS)
 		Sys_Error("Couldn't create Vulkan device");
 
+	vkGetPhysicalDeviceFeatures(vulkan_physical_device, &vulkan_physical_device_features);
+
 	GET_DEVICE_PROC_ADDR(vulkan_globals.device, CreateSwapchainKHR);
 	GET_DEVICE_PROC_ADDR(vulkan_globals.device, DestroySwapchainKHR);
 	GET_DEVICE_PROC_ADDR(vulkan_globals.device, GetSwapchainImagesKHR);
@@ -1203,7 +1206,7 @@ static void GL_CreateColorBuffer( void )
 				break;
 		}
 
-		vulkan_globals.supersampling = (vid_fsaa.value >= 2) ? true : false;
+		vulkan_globals.supersampling = (vulkan_physical_device_features.sampleRateShading && vid_fsaa.value >= 2) ? true : false;
 	}
 
 	if (vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT)
@@ -2405,7 +2408,11 @@ VID_Menu_ChooseNextAAMode
 */
 static void VID_Menu_ChooseNextAAMode(int dir)
 {
-	Cvar_SetValueQuick(&vid_fsaa, (float)(((int)vid_fsaa.value + 3 + dir) % 3));
+	if(vulkan_physical_device_features.sampleRateShading) {
+		Cvar_SetValueQuick(&vid_fsaa, (float)(((int)vid_fsaa.value + 3 + dir) % 3));
+	} else {
+		Cvar_SetValueQuick(&vid_fsaa, (float)(((int)vid_fsaa.value + 2 + dir) % 2));
+	}
 }
 
 /*
