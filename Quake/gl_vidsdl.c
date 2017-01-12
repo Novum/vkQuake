@@ -2541,7 +2541,7 @@ static void VID_MenuKey (int key)
 			Cbuf_AddText ("toggle vid_vsync\n");
 			break;
 		case VID_OPT_ANTIALIASING:
-			Cbuf_AddText ("toggle vid_fsaa\n");
+			VID_Menu_ChooseNextAAMode(1);
 			break;
 		case VID_OPT_FILTER:
 			Cbuf_AddText ("toggle vid_filter\n");
