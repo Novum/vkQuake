@@ -581,10 +581,20 @@ void IN_UpdateInputMode (void)
 	if (textmode != want_textmode)
 	{
 		textmode = want_textmode;
+		if (in_debugkeys.value)
+			Con_Printf("SDL_EnableUNICODE %d time: %g\n", textmode, Sys_DoubleTime());
 		if (textmode)
+		{
 			SDL_StartTextInput();
+			if (in_debugkeys.value)
+				Con_Printf("SDL_StartTextInput time: %g\n", Sys_DoubleTime());
+		}
 		else
+		{
 			SDL_StopTextInput();
+			if (in_debugkeys.value)
+				Con_Printf("SDL_StopTextInput time: %g\n", Sys_DoubleTime());
+		}
 	}
 }
 
@@ -711,16 +721,19 @@ static inline int IN_SDL2_ScancodeToQuakeKey(SDL_Scancode scancode)
 
 static void IN_DebugTextEvent(SDL_Event *event)
 {
-	Con_Printf ("SDL_TEXTINPUT '%s'\n", event->text.text);
+	Con_Printf ("SDL_TEXTINPUT '%s' time: %g\n", event->text.text, Sys_DoubleTime());
 }
 
 static void IN_DebugKeyEvent(SDL_Event *event)
 {
 	const char *eventtype = (event->key.state == SDL_PRESSED) ? "SDL_KEYDOWN" : "SDL_KEYUP";
-	Con_Printf ("%s scancode: '%s' keycode: '%s'\n",
+	Con_Printf ("%s scancode: '%s' keycode: '%s' time: %g\n",
 		eventtype,
 		SDL_GetScancodeName(event->key.keysym.scancode),
-		SDL_GetKeyName(event->key.keysym.sym));
+		SDL_GetKeyName(event->key.keysym.sym),
+		Sys_DoubleTime());
+
+
 }
 
 void IN_SendKeyEvents (void)
