@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2016 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2017 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -75,6 +75,20 @@ typedef Sint32 SDL_JoystickID;
 
 typedef enum
 {
+    SDL_JOYSTICK_TYPE_UNKNOWN,
+    SDL_JOYSTICK_TYPE_GAMECONTROLLER,
+    SDL_JOYSTICK_TYPE_WHEEL,
+    SDL_JOYSTICK_TYPE_ARCADE_STICK,
+    SDL_JOYSTICK_TYPE_FLIGHT_STICK,
+    SDL_JOYSTICK_TYPE_DANCE_PAD,
+    SDL_JOYSTICK_TYPE_GUITAR,
+    SDL_JOYSTICK_TYPE_DRUM_KIT,
+    SDL_JOYSTICK_TYPE_ARCADE_PAD,
+    SDL_JOYSTICK_TYPE_THROTTLE
+} SDL_JoystickType;
+
+typedef enum
+{
     SDL_JOYSTICK_POWER_UNKNOWN = -1,
     SDL_JOYSTICK_POWER_EMPTY,
     SDL_JOYSTICK_POWER_LOW,
@@ -125,6 +139,12 @@ extern DECLSPEC Uint16 SDLCALL SDL_JoystickGetDeviceProduct(int device_index);
 extern DECLSPEC Uint16 SDLCALL SDL_JoystickGetDeviceProductVersion(int device_index);
 
 /**
+ *  Get the type of a joystick, if available.
+ *  This can be called before any joysticks are opened.
+ */
+extern DECLSPEC SDL_JoystickType SDLCALL SDL_JoystickGetDeviceType(int device_index);
+
+/**
  *  Open a joystick for use.
  *  The index passed as an argument refers to the N'th joystick on the system.
  *  This index is not the value which will identify this joystick in future
@@ -168,6 +188,11 @@ extern DECLSPEC Uint16 SDLCALL SDL_JoystickGetProduct(SDL_Joystick * joystick);
  *  If the product version isn't available this function returns 0.
  */
 extern DECLSPEC Uint16 SDLCALL SDL_JoystickGetProductVersion(SDL_Joystick * joystick);
+
+/**
+ *  Get the type of an opened joystick.
+ */
+extern DECLSPEC SDL_JoystickType SDLCALL SDL_JoystickGetType(SDL_Joystick * joystick);
 
 /**
  *  Return a string representation for this guid. pszGUID must point to at least 33 bytes
@@ -241,6 +266,18 @@ extern DECLSPEC int SDLCALL SDL_JoystickEventState(int state);
  */
 extern DECLSPEC Sint16 SDLCALL SDL_JoystickGetAxis(SDL_Joystick * joystick,
                                                    int axis);
+
+/**
+ *  Get the initial state of an axis control on a joystick.
+ *
+ *  The state is a value ranging from -32768 to 32767.
+ *
+ *  The axis indices start at index 0.
+ *
+ *  \return SDL_TRUE if this axis has any initial value, or SDL_FALSE if not.
+ */
+extern DECLSPEC SDL_bool SDLCALL SDL_JoystickGetAxisInitialState(SDL_Joystick * joystick,
+                                                   int axis, Sint16 *state);
 
 /**
  *  \name Hat positions

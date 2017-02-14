@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2016 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2017 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -743,6 +743,63 @@ extern "C" {
  * The default is 10000.
  */
 #define SDL_HINT_RPI_VIDEO_LAYER           "SDL_RPI_VIDEO_LAYER"
+
+/**
+ *  \brief  A variable controlling what driver to use for OpenGL ES contexts.
+ *
+ *  On some platforms, currently Windows and X11, OpenGL drivers may support
+ *  creating contexts with an OpenGL ES profile. By default SDL uses these
+ *  profiles, when available, otherwise it attempts to load an OpenGL ES
+ *  library, e.g. that provided by the ANGLE project. This variable controls
+ *  whether SDL follows this default behaviour or will always load an
+ *  OpenGL ES library.
+ *
+ *  Circumstances where this is useful include
+ *  - Testing an app with a particular OpenGL ES implementation, e.g ANGLE,
+ *    or emulator, e.g. those from ARM, Imagination or Qualcomm.
+ *  - Resolving OpenGL ES function addresses at link time by linking with
+ *    the OpenGL ES library instead of querying them at run time with
+ *    SDL_GL_GetProcAddress().
+ *
+ *  Caution: for an application to work with the default behaviour across
+ *  different OpenGL drivers it must query the OpenGL ES function
+ *  addresses at run time using SDL_GL_GetProcAddress().
+ *
+ *  This variable is ignored on most platforms because OpenGL ES is native
+ *  or not supported.
+ *
+ *  This variable can be set to the following values:
+ *    "0"       - Use ES profile of OpenGL, if available. (Default when not set.)
+ *    "1"       - Load OpenGL ES library using the default library names.
+ *
+ */
+#define SDL_HINT_OPENGL_ES_DRIVER   "SDL_OPENGL_ES_DRIVER"
+
+/**
+ *  \brief  A variable controlling speed/quality tradeoff of audio resampling.
+ *
+ *  If available, SDL can use libsamplerate ( http://www.mega-nerd.com/SRC/ )
+ *  to handle audio resampling. There are different resampling modes available
+ *  that produce different levels of quality, using more CPU.
+ *
+ *  If this hint isn't specified to a valid setting, or libsamplerate isn't
+ *  available, SDL will use the default, internal resampling algorithm.
+ *
+ *  Note that this is currently only applicable to resampling audio that is
+ *  being written to a device for playback or audio being read from a device
+ *  for capture. SDL_AudioCVT always uses the default resampler (although this
+ *  might change for SDL 2.1).
+ *
+ *  This hint is currently only checked at audio subsystem initialization.
+ *
+ *  This variable can be set to the following values:
+ *
+ *    "0" or "default" - Use SDL's internal resampling (Default when not set - low quality, fast)
+ *    "1" or "fast"    - Use fast, slightly higher quality resampling, if available
+ *    "2" or "medium"  - Use medium quality resampling, if available
+ *    "3" or "best"    - Use high quality resampling, if available
+ */
+#define SDL_HINT_AUDIO_RESAMPLING_MODE   "SDL_AUDIO_RESAMPLING_MODE"
 
 /**
  *  \brief  An enumeration of hint priorities

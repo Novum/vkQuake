@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2016 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2017 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -185,6 +185,12 @@ typedef void (SDLCALL * SDL_AudioFilter) (struct SDL_AudioCVT * cvt,
 
 /**
  *  A structure to hold a set of audio conversion filters and buffers.
+ *
+ *  Note that various parts of the conversion pipeline can take advantage
+ *  of SIMD operations (like SSE2, for example). SDL_AudioCVT doesn't require
+ *  you to pass it aligned data, but can possibly run much faster if you
+ *  set both its (buf) field to a pointer that is aligned to 16 bytes, and its
+ *  (len) field to something that's a multiple of 16, if possible.
  */
 #ifdef __GNUC__
 /* This structure is 84 bytes on 32-bit architectures, make sure GCC doesn't
