@@ -117,7 +117,7 @@
 
 #if defined(_WIN64)
 #	define	PLATFORM_STRING	"Win64"
-#elif defined(_WIN32)
+#elif defined(PLATFORM_WINDOWS)
 #	define	PLATFORM_STRING	"Windows"
 #elif defined(PLATFORM_DOS)
 #	define	PLATFORM_STRING	"DOS"
