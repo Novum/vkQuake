@@ -140,7 +140,7 @@ extern DECLSPEC int SDLCALL SDL_GameControllerAddMapping(const char* mappingStri
  *
  *  \return the number of mappings
  */
-extern DECLSPEC int SDLCALL SDL_GameControllerNumMappings();
+extern DECLSPEC int SDLCALL SDL_GameControllerNumMappings(void);
 
 /**
  *  Get the mapping at a particular index.
@@ -247,6 +247,12 @@ extern DECLSPEC void SDLCALL SDL_GameControllerUpdate(void);
 
 /**
  *  The list of axes available from a controller
+ *
+ *  Thumbstick axis values range from SDL_JOYSTICK_AXIS_MIN to SDL_JOYSTICK_AXIS_MAX,
+ *  and are centered within ~8000 of zero, though advanced UI will allow users to set
+ *  or autodetect the dead zone, which varies between controllers.
+ *
+ *  Trigger axis values range from 0 to SDL_JOYSTICK_AXIS_MAX.
  */
 typedef enum
 {
