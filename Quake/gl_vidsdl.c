@@ -1313,6 +1313,7 @@ static void GL_CreateDescriptorSets(void)
 	output_image_info.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
 
 	VkWriteDescriptorSet screen_warp_writes[2];
+	memset(screen_warp_writes, 0, sizeof(screen_warp_writes));
 	screen_warp_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 	screen_warp_writes[0].dstBinding = 0;
 	screen_warp_writes[0].dstArrayElement = 0;
