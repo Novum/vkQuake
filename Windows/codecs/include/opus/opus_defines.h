@@ -64,8 +64,8 @@ extern "C" {
 /**Export control for opus functions */
 
 #ifndef OPUS_EXPORT
-# if defined(WIN32)
-#  ifdef OPUS_BUILD
+# if defined(_WIN32)
+#  if defined(OPUS_BUILD) && defined(DLL_EXPORT)
 #   define OPUS_EXPORT __declspec(dllexport)
 #  else
 #   define OPUS_EXPORT
