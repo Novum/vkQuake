@@ -26,6 +26,9 @@
 #include "snd_codec.h"
 #include "snd_codeci.h"
 #include "snd_xmp.h"
+#if defined(_WIN32) && defined(XMP_NO_DLL)
+#define BUILDING_STATIC
+#endif
 #include <xmp.h>
 #if ((XMP_VERCODE+0) < 0x040200)
 #error libxmp version 4.2 or newer is required
