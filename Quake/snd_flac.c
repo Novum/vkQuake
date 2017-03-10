@@ -31,12 +31,11 @@
 
 #undef LEGACY_FLAC
 #include <FLAC/stream_decoder.h>
-/* FLAC 1.1.3 has FLAC_API_VERSION_CURRENT == 8 */
+/* FLAC >= 1.1.3 has FLAC_API_VERSION_CURRENT == 8 */
 #if !defined(FLAC_API_VERSION_CURRENT) || ((FLAC_API_VERSION_CURRENT+0) < 8)
 #define LEGACY_FLAC
 #include <FLAC/seekable_stream_decoder.h>
 #endif
-#include <FLAC/metadata.h>
 
 #ifdef LEGACY_FLAC
 #define FLAC__StreamDecoder					FLAC__SeekableStreamDecoder
@@ -63,6 +62,9 @@
 #define FLAC__STREAM_DECODER_TELL_STATUS_OK			FLAC__SEEKABLE_STREAM_DECODER_TELL_STATUS_OK
 #define FLAC__STREAM_DECODER_TELL_STATUS_ERROR			FLAC__SEEKABLE_STREAM_DECODER_TELL_STATUS_ERROR
 #define FLAC__STREAM_DECODER_LENGTH_STATUS_OK			FLAC__SEEKABLE_STREAM_DECODER_LENGTH_STATUS_OK
+typedef unsigned FLAC_size_t;
+#else
+typedef size_t FLAC_size_t;
 #endif
 
 typedef struct {
@@ -85,7 +87,7 @@ flac_error_func (const FLAC__StreamDecoder *decoder,
 
 static FLAC__StreamDecoderReadStatus
 flac_read_func (const FLAC__StreamDecoder *decoder, FLAC__byte buffer[],
-		size_t *bytes, void *client_data)
+		FLAC_size_t *bytes, void *client_data)
 {
 	flacfile_t *ff = (flacfile_t *) client_data;
 	if (*bytes > 0)
