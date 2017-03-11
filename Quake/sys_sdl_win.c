@@ -153,9 +153,11 @@ static char	cwd[1024];
 
 static void Sys_GetBasedir (char *argv0, char *dst, size_t dstsize)
 {
-	char		*tmp;
+	char *tmp;
+	size_t rc;
 
-	if (GetCurrentDirectory(dstsize, dst) == 0)
+	rc = GetCurrentDirectory(dstsize, dst);
+	if (rc == 0 || rc > dstsize)
 		Sys_Error ("Couldn't determine current directory");
 
 	tmp = dst;
