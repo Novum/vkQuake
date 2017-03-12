@@ -586,6 +586,7 @@ static void GL_InitInstance( void )
 
 	if(vulkan_globals.validation)
 	{
+		Sys_Printf("Using VK_LAYER_LUNARG_standard_validation\n");
 		instance_create_info.enabledExtensionCount = 3;
 		instance_create_info.enabledLayerCount = 1;
 		instance_create_info.ppEnabledLayerNames = layer_names;
@@ -628,6 +629,7 @@ static void GL_InitInstance( void )
 #ifdef _DEBUG
 	if(vulkan_globals.validation)
 	{
+		Sys_Printf("Creating debug report callback\n");
 		GET_INSTANCE_PROC_ADDR(vulkan_instance, CreateDebugReportCallbackEXT);
 		GET_INSTANCE_PROC_ADDR(vulkan_instance, DestroyDebugReportCallbackEXT);
 
@@ -639,7 +641,7 @@ static void GL_InitInstance( void )
 
 		err = fpCreateDebugReportCallbackEXT(vulkan_instance, &report_callback_Info, NULL, &debug_report_callback);
 		if (err != VK_SUCCESS)
-			Sys_Printf("Could not create debug report callback");
+			Sys_Error("Could not create debug report callback");
 	}
 #endif
 }
