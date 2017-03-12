@@ -588,7 +588,7 @@ static void GL_InitInstance( void )
 
 	if(vulkan_globals.validation)
 	{
-		Sys_Printf("Using VK_LAYER_LUNARG_standard_validation\n");
+		Con_Printf("Using VK_LAYER_LUNARG_standard_validation\n");
 		instance_create_info.enabledExtensionCount = 3;
 		instance_create_info.enabledLayerCount = 1;
 		instance_create_info.ppEnabledLayerNames = layer_names;
@@ -631,7 +631,7 @@ static void GL_InitInstance( void )
 #ifdef _DEBUG
 	if(vulkan_globals.validation)
 	{
-		Sys_Printf("Creating debug report callback\n");
+		Con_Printf("Creating debug report callback\n");
 		GET_INSTANCE_PROC_ADDR(vulkan_instance, CreateDebugReportCallbackEXT);
 		GET_INSTANCE_PROC_ADDR(vulkan_instance, DestroyDebugReportCallbackEXT);
 
@@ -804,12 +804,12 @@ static void GL_InitDevice( void )
 
 	if (a2_b10_g10_r10_support)
 	{
-		Sys_Printf("Using VK_FORMAT_A2B10G10R10_UNORM_PACK32 for color buffers\n");
+		Con_Printf("Using VK_FORMAT_A2B10G10R10_UNORM_PACK32 for color buffers\n");
 		vulkan_globals.color_format = VK_FORMAT_A2B10G10R10_UNORM_PACK32;
 	}
 	else if (a2_r10_g10_r10_support)
 	{
-		Sys_Printf("Using VK_FORMAT_A2R10G10B10_UNORM_PACK32 for color buffers\n");
+		Con_Printf("Using VK_FORMAT_A2R10G10B10_UNORM_PACK32 for color buffers\n");
 		vulkan_globals.color_format = VK_FORMAT_A2R10G10B10_UNORM_PACK32;
 	}
 
@@ -822,12 +822,12 @@ static void GL_InitDevice( void )
 	vulkan_globals.depth_format = VK_FORMAT_D16_UNORM;
 	if (x8_d24_support)
 	{
-		Sys_Printf("Using VK_FORMAT_X8_D24_UNORM_PACK32 for depth buffer\n");
+		Con_Printf("Using VK_FORMAT_X8_D24_UNORM_PACK32 for depth buffer\n");
 		vulkan_globals.depth_format = VK_FORMAT_X8_D24_UNORM_PACK32;
 	}
 	else if(d32_support)
 	{
-		Sys_Printf("Using VK_FORMAT_D32_SFLOAT for depth buffer\n");
+		Con_Printf("Using VK_FORMAT_D32_SFLOAT for depth buffer\n");
 		vulkan_globals.depth_format = VK_FORMAT_D32_SFLOAT;
 	}
 	
