@@ -638,7 +638,7 @@ static void GL_InitInstance( void )
 		memset(&report_callback_Info, 0, sizeof(report_callback_Info));
 		report_callback_Info.sType = VK_STRUCTURE_TYPE_DEBUG_REPORT_CREATE_INFO_EXT;
 		report_callback_Info.pfnCallback = (PFN_vkDebugReportCallbackEXT)debug_message_callback;
-		report_callback_Info.flags = VK_DEBUG_REPORT_ERROR_BIT_EXT;
+		report_callback_Info.flags = VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT;
 
 		err = fpCreateDebugReportCallbackEXT(vulkan_instance, &report_callback_Info, NULL, &debug_report_callback);
 		if (err != VK_SUCCESS)
@@ -873,7 +873,7 @@ static void GL_CreateRenderPasses()
 	VkAttachmentDescription attachment_descriptions[4];
 	memset(&attachment_descriptions, 0, sizeof(attachment_descriptions));
 
-	const qboolean resolve = ( vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT);
+	const qboolean resolve = (vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT);
 
 	attachment_descriptions[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	attachment_descriptions[0].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
@@ -1129,12 +1129,12 @@ static void GL_CreateColorBuffer( void )
 		VkFormat format;
 		if ( i == 0 )
 		{
-			image_create_info.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+			image_create_info.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 			format = SCENE_COLOR_BUFFER_FORMAT;
 		}
 		else
 		{
-			image_create_info.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
+			image_create_info.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT | VK_IMAGE_USAGE_STORAGE_BIT |  VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 			format = UI_COLOR_BUFFER_FORMAT;
 		}
 
@@ -1669,12 +1669,14 @@ void GL_BeginRendering (int *x, int *y, int *width, int *height)
 	vulkan_globals.main_clear_values[1] = depth_clear_value;
 	vulkan_globals.main_clear_values[2] = vulkan_globals.color_clear_value;
 
+	const qboolean resolve = (vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT);
+
 	memset(&vulkan_globals.main_render_pass_begin_info, 0, sizeof(vulkan_globals.main_render_pass_begin_info));
 	vulkan_globals.main_render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 	vulkan_globals.main_render_pass_begin_info.renderArea = render_area;
 	vulkan_globals.main_render_pass_begin_info.renderPass = vulkan_globals.main_render_pass;
 	vulkan_globals.main_render_pass_begin_info.framebuffer = main_framebuffer;
-	vulkan_globals.main_render_pass_begin_info.clearValueCount = 3;
+	vulkan_globals.main_render_pass_begin_info.clearValueCount = resolve ? 3 : 2;
 	vulkan_globals.main_render_pass_begin_info.pClearValues = vulkan_globals.main_clear_values;
 
 	memset(&vulkan_globals.ui_render_pass_begin_info, 0, sizeof(vulkan_globals.ui_render_pass_begin_info));

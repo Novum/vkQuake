@@ -943,10 +943,16 @@ void GL_Set2D (void)
 	VkImageMemoryBarrier image_barriers[2];
 	image_barriers[0].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 	image_barriers[0].pNext = NULL;
-	image_barriers[0].srcAccessMask = 0;
-	image_barriers[0].dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-	image_barriers[0].oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	image_barriers[0].newLayout = VK_IMAGE_LAYOUT_GENERAL;
+	image_barriers[0].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+	if (render_warp)
+		image_barriers[0].dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+	else
+		image_barriers[0].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+	image_barriers[0].oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	if (render_warp)
+		image_barriers[0].newLayout = VK_IMAGE_LAYOUT_GENERAL;
+	else
+		image_barriers[0].newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	image_barriers[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 	image_barriers[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 	image_barriers[0].image = vulkan_globals.color_buffers[0];
@@ -958,10 +964,13 @@ void GL_Set2D (void)
 
 	image_barriers[1].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 	image_barriers[1].pNext = NULL;
-	image_barriers[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-	image_barriers[1].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-	image_barriers[1].oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-	image_barriers[1].newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	image_barriers[1].srcAccessMask = 0;
+	if (render_warp)
+		image_barriers[1].dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+	else
+		image_barriers[1].dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+	image_barriers[1].oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	image_barriers[1].newLayout = VK_IMAGE_LAYOUT_GENERAL;
 	image_barriers[1].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 	image_barriers[1].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 	image_barriers[1].image = vulkan_globals.color_buffers[1];
@@ -1006,13 +1015,16 @@ void GL_Set2D (void)
 
 	image_barriers[0].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 	image_barriers[0].pNext = NULL;
-	image_barriers[0].srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+	if (render_warp)
+		image_barriers[0].srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+	else
+		image_barriers[0].srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
 	image_barriers[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 	image_barriers[0].oldLayout = VK_IMAGE_LAYOUT_GENERAL;
 	image_barriers[0].newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 	image_barriers[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 	image_barriers[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	image_barriers[0].image = vulkan_globals.color_buffers[0];
+	image_barriers[0].image = vulkan_globals.color_buffers[1];
 	image_barriers[0].subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 	image_barriers[0].subresourceRange.baseMipLevel = 0;
 	image_barriers[0].subresourceRange.levelCount = 1;
@@ -1020,7 +1032,6 @@ void GL_Set2D (void)
 	image_barriers[0].subresourceRange.layerCount = 1;
 
 	vkCmdPipelineBarrier(vulkan_globals.command_buffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, 0, 0, NULL, 0, NULL, 1, image_barriers);
-
 	
 	vkCmdBeginRenderPass(vulkan_globals.command_buffer, &vulkan_globals.ui_render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
 	render_pass_index = 1;

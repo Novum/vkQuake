@@ -272,7 +272,7 @@ void R_UpdateWarpTextures (void)
 		VkImageMemoryBarrier * image_barrier = &warp_image_barriers[num_warp_textures];
 		image_barrier->sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 		image_barrier->pNext = NULL;
-		image_barrier->srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+		image_barrier->srcAccessMask = 0;
 		image_barrier->dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
 		image_barrier->oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 		image_barrier->newLayout = VK_IMAGE_LAYOUT_GENERAL;

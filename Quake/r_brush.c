@@ -861,8 +861,8 @@ static void R_UploadLightmap(int lmap, gltexture_t * lightmap)
 	VkImageMemoryBarrier image_memory_barrier;
 	memset(&image_memory_barrier, 0, sizeof(image_memory_barrier));
 	image_memory_barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-	image_memory_barrier.srcAccessMask = 0;
-	image_memory_barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+	image_memory_barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+	image_memory_barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 	image_memory_barrier.oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	image_memory_barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
 	image_memory_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
@@ -880,6 +880,8 @@ static void R_UploadLightmap(int lmap, gltexture_t * lightmap)
 
 	image_memory_barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
 	image_memory_barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	image_memory_barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+	image_memory_barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 	vkCmdPipelineBarrier(command_buffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, NULL, 0, NULL, 1, &image_memory_barrier);
 
 	theRect->l = BLOCK_WIDTH;
