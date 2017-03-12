@@ -40,7 +40,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #define NUM_COMMAND_BUFFERS 2
 #define MAX_SWAP_CHAIN_IMAGES 8
-#define COLOR_BUFFER_FORMAT VK_FORMAT_R8G8B8A8_UNORM
+#define REQUIRED_COLOR_BUFFER_FEATURES ( VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT | VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BLEND_BIT | \
+										 VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT | VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT | \
+										 VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT )
 
 typedef struct {
 	int			width;
@@ -791,9 +793,27 @@ static void GL_InitDevice( void )
 
 	vkGetDeviceQueue(vulkan_globals.device, vulkan_globals.gfx_queue_family_index, 0, &vulkan_globals.queue);
 
-	// Find depth format
 	VkFormatProperties format_properties;
+	
+	// Find color buffer format
+	vulkan_globals.color_format = VK_FORMAT_R8G8B8A8_UNORM;
+	vkGetPhysicalDeviceFormatProperties(vulkan_physical_device, VK_FORMAT_A2B10G10R10_UNORM_PACK32, &format_properties);
+	qboolean a2_b10_g10_r10_support = (format_properties.optimalTilingFeatures & REQUIRED_COLOR_BUFFER_FEATURES) != 0;
+	vkGetPhysicalDeviceFormatProperties(vulkan_physical_device, VK_FORMAT_A2R10G10B10_UNORM_PACK32, &format_properties);
+	qboolean a2_r10_g10_r10_support = (format_properties.optimalTilingFeatures & REQUIRED_COLOR_BUFFER_FEATURES) != 0;
 
+	if (a2_b10_g10_r10_support)
+	{
+		Sys_Printf("Using VK_FORMAT_A2B10G10R10_UNORM_PACK32 for color buffers\n");
+		vulkan_globals.color_format = VK_FORMAT_A2B10G10R10_UNORM_PACK32;
+	}
+	else if (a2_r10_g10_r10_support)
+	{
+		Sys_Printf("Using VK_FORMAT_A2R10G10B10_UNORM_PACK32 for color buffers\n");
+		vulkan_globals.color_format = VK_FORMAT_A2R10G10B10_UNORM_PACK32;
+	}
+
+	// Find depth format
 	vkGetPhysicalDeviceFormatProperties(vulkan_physical_device, VK_FORMAT_X8_D24_UNORM_PACK32, &format_properties);
 	qboolean x8_d24_support = (format_properties.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) != 0;
 	vkGetPhysicalDeviceFormatProperties(vulkan_physical_device, VK_FORMAT_D32_SFLOAT, &format_properties);
@@ -801,9 +821,16 @@ static void GL_InitDevice( void )
 
 	vulkan_globals.depth_format = VK_FORMAT_D16_UNORM;
 	if (x8_d24_support)
+	{
+		Sys_Printf("Using VK_FORMAT_X8_D24_UNORM_PACK32 for depth buffer\n");
 		vulkan_globals.depth_format = VK_FORMAT_X8_D24_UNORM_PACK32;
+	}
 	else if(d32_support)
+	{
+		Sys_Printf("Using VK_FORMAT_D32_SFLOAT for depth buffer\n");
 		vulkan_globals.depth_format = VK_FORMAT_D32_SFLOAT;
+	}
+	
 }
 
 /*
@@ -877,7 +904,7 @@ static void GL_CreateRenderPasses()
 	attachment_descriptions[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	attachment_descriptions[0].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 	attachment_descriptions[0].samples = VK_SAMPLE_COUNT_1_BIT;
-	attachment_descriptions[0].format = COLOR_BUFFER_FORMAT;
+	attachment_descriptions[0].format = vulkan_globals.color_format;
 	attachment_descriptions[0].loadOp = resolve ? VK_ATTACHMENT_LOAD_OP_DONT_CARE : VK_ATTACHMENT_LOAD_OP_CLEAR;
 	attachment_descriptions[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 
@@ -891,7 +918,7 @@ static void GL_CreateRenderPasses()
 	attachment_descriptions[2].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	attachment_descriptions[2].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 	attachment_descriptions[2].samples = vulkan_globals.sample_count;
-	attachment_descriptions[2].format = COLOR_BUFFER_FORMAT;
+	attachment_descriptions[2].format = vulkan_globals.color_format;
 	attachment_descriptions[2].loadOp = resolve ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 	attachment_descriptions[2].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 
@@ -935,7 +962,7 @@ static void GL_CreateRenderPasses()
 	attachment_descriptions[0].initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 	attachment_descriptions[0].finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	attachment_descriptions[0].samples = VK_SAMPLE_COUNT_1_BIT;
-	attachment_descriptions[0].format = COLOR_BUFFER_FORMAT;
+	attachment_descriptions[0].format = vulkan_globals.color_format;
 	attachment_descriptions[0].loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
 	attachment_descriptions[0].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 
@@ -1115,7 +1142,7 @@ static void GL_CreateColorBuffer( void )
 	image_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
 	image_create_info.pNext = NULL;
 	image_create_info.imageType = VK_IMAGE_TYPE_2D;
-	image_create_info.format = COLOR_BUFFER_FORMAT;
+	image_create_info.format = vulkan_globals.color_format;
 	image_create_info.extent.width = vid.width;
 	image_create_info.extent.height = vid.height;
 	image_create_info.extent.depth = 1;
@@ -1156,7 +1183,7 @@ static void GL_CreateColorBuffer( void )
 		VkImageViewCreateInfo image_view_create_info;
 		memset(&image_view_create_info, 0, sizeof(image_view_create_info));
 		image_view_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-		image_view_create_info.format = COLOR_BUFFER_FORMAT;
+		image_view_create_info.format = vulkan_globals.color_format;
 		image_view_create_info.image = vulkan_globals.color_buffers[i];
 		image_view_create_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 		image_view_create_info.subresourceRange.baseMipLevel = 0;
@@ -1179,7 +1206,7 @@ static void GL_CreateColorBuffer( void )
 	if (vid_fsaa.value)
 	{
 		VkImageFormatProperties image_format_properties;
-		vkGetPhysicalDeviceImageFormatProperties(vulkan_physical_device, COLOR_BUFFER_FORMAT, VK_IMAGE_TYPE_2D, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, 0, &image_format_properties);
+		vkGetPhysicalDeviceImageFormatProperties(vulkan_physical_device, vulkan_globals.color_format, VK_IMAGE_TYPE_2D, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, 0, &image_format_properties);
 
 		if (image_format_properties.sampleCounts & VK_SAMPLE_COUNT_2_BIT)
 			vulkan_globals.sample_count = VK_SAMPLE_COUNT_2_BIT;
@@ -1247,7 +1274,7 @@ static void GL_CreateColorBuffer( void )
 		VkImageViewCreateInfo image_view_create_info;
 		memset(&image_view_create_info, 0, sizeof(image_view_create_info));
 		image_view_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-		image_view_create_info.format = COLOR_BUFFER_FORMAT;
+		image_view_create_info.format = vulkan_globals.color_format;
 		image_view_create_info.image = msaa_color_buffer;
 		image_view_create_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 		image_view_create_info.subresourceRange.baseMipLevel = 0;

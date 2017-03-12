@@ -115,6 +115,7 @@ typedef struct
 	VkPhysicalDeviceProperties			device_properties;
 	VkPhysicalDeviceMemoryProperties	memory_properties;
 	uint32_t							gfx_queue_family_index;
+	VkFormat							color_format;
 	VkFormat							depth_format;
 	VkSampleCountFlagBits				sample_count;
 	qboolean							supersampling;
