@@ -798,9 +798,9 @@ static void GL_InitDevice( void )
 	// Find color buffer format
 	vulkan_globals.color_format = VK_FORMAT_R8G8B8A8_UNORM;
 	vkGetPhysicalDeviceFormatProperties(vulkan_physical_device, VK_FORMAT_A2B10G10R10_UNORM_PACK32, &format_properties);
-	qboolean a2_b10_g10_r10_support = (format_properties.optimalTilingFeatures & REQUIRED_COLOR_BUFFER_FEATURES) != 0;
+	qboolean a2_b10_g10_r10_support = (format_properties.optimalTilingFeatures & REQUIRED_COLOR_BUFFER_FEATURES) == REQUIRED_COLOR_BUFFER_FEATURES;
 	vkGetPhysicalDeviceFormatProperties(vulkan_physical_device, VK_FORMAT_A2R10G10B10_UNORM_PACK32, &format_properties);
-	qboolean a2_r10_g10_r10_support = (format_properties.optimalTilingFeatures & REQUIRED_COLOR_BUFFER_FEATURES) != 0;
+	qboolean a2_r10_g10_r10_support = (format_properties.optimalTilingFeatures & REQUIRED_COLOR_BUFFER_FEATURES) == REQUIRED_COLOR_BUFFER_FEATURES;
 
 	if (a2_b10_g10_r10_support)
 	{
