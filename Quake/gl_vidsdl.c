@@ -40,7 +40,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #define NUM_COMMAND_BUFFERS 2
 #define MAX_SWAP_CHAIN_IMAGES 8
-#define COLOR_BUFFER_FORMAT VK_FORMAT_R8G8B8A8_UNORM
+#define SCENE_COLOR_BUFFER_FORMAT VK_FORMAT_A2B10G10R10_UNORM_PACK32
+#define UI_COLOR_BUFFER_FORMAT VK_FORMAT_R8G8B8A8_UNORM
 
 typedef struct {
 	int			width;
@@ -107,7 +108,7 @@ static VkCommandPool				transient_command_pool;
 static VkCommandBuffer				command_buffers[NUM_COMMAND_BUFFERS];
 static VkFence						command_buffer_fences[NUM_COMMAND_BUFFERS];
 static qboolean						command_buffer_submitted[NUM_COMMAND_BUFFERS];
-static VkFramebuffer				main_framebuffers[NUM_COLOR_BUFFERS];
+static VkFramebuffer				main_framebuffer;
 static VkFramebuffer				ui_framebuffers[MAX_SWAP_CHAIN_IMAGES];
 static VkImage						swapchain_images[MAX_SWAP_CHAIN_IMAGES];
 static VkImageView					swapchain_images_views[MAX_SWAP_CHAIN_IMAGES];
@@ -877,7 +878,7 @@ static void GL_CreateRenderPasses()
 	attachment_descriptions[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	attachment_descriptions[0].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 	attachment_descriptions[0].samples = VK_SAMPLE_COUNT_1_BIT;
-	attachment_descriptions[0].format = COLOR_BUFFER_FORMAT;
+	attachment_descriptions[0].format = SCENE_COLOR_BUFFER_FORMAT;
 	attachment_descriptions[0].loadOp = resolve ? VK_ATTACHMENT_LOAD_OP_DONT_CARE : VK_ATTACHMENT_LOAD_OP_CLEAR;
 	attachment_descriptions[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 
@@ -891,7 +892,7 @@ static void GL_CreateRenderPasses()
 	attachment_descriptions[2].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	attachment_descriptions[2].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 	attachment_descriptions[2].samples = vulkan_globals.sample_count;
-	attachment_descriptions[2].format = COLOR_BUFFER_FORMAT;
+	attachment_descriptions[2].format = SCENE_COLOR_BUFFER_FORMAT;
 	attachment_descriptions[2].loadOp = resolve ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 	attachment_descriptions[2].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 
@@ -935,7 +936,7 @@ static void GL_CreateRenderPasses()
 	attachment_descriptions[0].initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 	attachment_descriptions[0].finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	attachment_descriptions[0].samples = VK_SAMPLE_COUNT_1_BIT;
-	attachment_descriptions[0].format = COLOR_BUFFER_FORMAT;
+	attachment_descriptions[0].format = UI_COLOR_BUFFER_FORMAT;
 	attachment_descriptions[0].loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
 	attachment_descriptions[0].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 
@@ -1115,7 +1116,6 @@ static void GL_CreateColorBuffer( void )
 	image_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
 	image_create_info.pNext = NULL;
 	image_create_info.imageType = VK_IMAGE_TYPE_2D;
-	image_create_info.format = COLOR_BUFFER_FORMAT;
 	image_create_info.extent.width = vid.width;
 	image_create_info.extent.height = vid.height;
 	image_create_info.extent.depth = 1;
@@ -1123,10 +1123,22 @@ static void GL_CreateColorBuffer( void )
 	image_create_info.arrayLayers = 1;
 	image_create_info.samples = VK_SAMPLE_COUNT_1_BIT;
 	image_create_info.tiling = VK_IMAGE_TILING_OPTIMAL;
-	image_create_info.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
 
 	for (i = 0; i < NUM_COLOR_BUFFERS; ++i)
 	{
+		VkFormat format;
+		if ( i == 0 )
+		{
+			image_create_info.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+			format = SCENE_COLOR_BUFFER_FORMAT;
+		}
+		else
+		{
+			image_create_info.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
+			format = UI_COLOR_BUFFER_FORMAT;
+		}
+
+		image_create_info.format = format;
 		err = vkCreateImage(vulkan_globals.device, &image_create_info, NULL, &vulkan_globals.color_buffers[i]);
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateImage failed");
@@ -1156,7 +1168,7 @@ static void GL_CreateColorBuffer( void )
 		VkImageViewCreateInfo image_view_create_info;
 		memset(&image_view_create_info, 0, sizeof(image_view_create_info));
 		image_view_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-		image_view_create_info.format = COLOR_BUFFER_FORMAT;
+		image_view_create_info.format = format;
 		image_view_create_info.image = vulkan_globals.color_buffers[i];
 		image_view_create_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 		image_view_create_info.subresourceRange.baseMipLevel = 0;
@@ -1179,7 +1191,7 @@ static void GL_CreateColorBuffer( void )
 	if (vid_fsaa.value)
 	{
 		VkImageFormatProperties image_format_properties;
-		vkGetPhysicalDeviceImageFormatProperties(vulkan_physical_device, COLOR_BUFFER_FORMAT, VK_IMAGE_TYPE_2D, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, 0, &image_format_properties);
+		vkGetPhysicalDeviceImageFormatProperties(vulkan_physical_device, SCENE_COLOR_BUFFER_FORMAT, VK_IMAGE_TYPE_2D, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, 0, &image_format_properties);
 
 		if (image_format_properties.sampleCounts & VK_SAMPLE_COUNT_2_BIT)
 			vulkan_globals.sample_count = VK_SAMPLE_COUNT_2_BIT;
@@ -1216,6 +1228,8 @@ static void GL_CreateColorBuffer( void )
 
 	if (vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT)
 	{
+		image_create_info.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+		image_create_info.format = SCENE_COLOR_BUFFER_FORMAT;
 		image_create_info.samples = vulkan_globals.sample_count;
 
 		err = vkCreateImage(vulkan_globals.device, &image_create_info, NULL, &msaa_color_buffer);
@@ -1247,7 +1261,7 @@ static void GL_CreateColorBuffer( void )
 		VkImageViewCreateInfo image_view_create_info;
 		memset(&image_view_create_info, 0, sizeof(image_view_create_info));
 		image_view_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-		image_view_create_info.format = COLOR_BUFFER_FORMAT;
+		image_view_create_info.format = SCENE_COLOR_BUFFER_FORMAT;
 		image_view_create_info.image = msaa_color_buffer;
 		image_view_create_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 		image_view_create_info.subresourceRange.baseMipLevel = 0;
@@ -1281,7 +1295,7 @@ static void GL_CreateDescriptorSets(void)
 
 	VkDescriptorImageInfo image_info;
 	memset(&image_info, 0, sizeof(image_info));
-	image_info.imageView = color_buffers_view[0];
+	image_info.imageView = color_buffers_view[1];
 	image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
 	VkWriteDescriptorSet input_attachment_write;
@@ -1305,13 +1319,13 @@ static void GL_CreateDescriptorSets(void)
 
 	VkDescriptorImageInfo input_image_info;
 	memset(&input_image_info, 0, sizeof(input_image_info));
-	input_image_info.imageView = color_buffers_view[1];
+	input_image_info.imageView = color_buffers_view[0];
 	input_image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	input_image_info.sampler = vulkan_globals.linear_sampler;
 
 	VkDescriptorImageInfo output_image_info;
 	memset(&output_image_info, 0, sizeof(output_image_info));
-	output_image_info.imageView = color_buffers_view[0];
+	output_image_info.imageView = color_buffers_view[1];
 	output_image_info.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
 
 	VkWriteDescriptorSet screen_warp_writes[2];
@@ -1495,26 +1509,23 @@ static void GL_CreateFrameBuffers( void )
 
 	const qboolean resolve = ( vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT);
 
-	for (i = 0; i < NUM_COLOR_BUFFERS; ++i)
-	{
-		VkFramebufferCreateInfo framebuffer_create_info;
-		memset(&framebuffer_create_info, 0, sizeof(framebuffer_create_info));
-		framebuffer_create_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-		framebuffer_create_info.renderPass = vulkan_globals.main_render_pass;
-		framebuffer_create_info.attachmentCount = resolve ? 3 : 2;
-		framebuffer_create_info.width = vid.width;
-		framebuffer_create_info.height = vid.height;
-		framebuffer_create_info.layers = 1;
+	VkFramebufferCreateInfo framebuffer_create_info;
+	memset(&framebuffer_create_info, 0, sizeof(framebuffer_create_info));
+	framebuffer_create_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+	framebuffer_create_info.renderPass = vulkan_globals.main_render_pass;
+	framebuffer_create_info.attachmentCount = resolve ? 3 : 2;
+	framebuffer_create_info.width = vid.width;
+	framebuffer_create_info.height = vid.height;
+	framebuffer_create_info.layers = 1;
 
-		VkImageView attachments[3] = { color_buffers_view[i], depth_buffer_view, msaa_color_buffer_view };
-		framebuffer_create_info.pAttachments = attachments;
+	VkImageView attachments[3] = { color_buffers_view[0], depth_buffer_view, msaa_color_buffer_view };
+	framebuffer_create_info.pAttachments = attachments;
 
-		err = vkCreateFramebuffer(vulkan_globals.device, &framebuffer_create_info, NULL, &main_framebuffers[i]);
-		if (err != VK_SUCCESS)
-			Sys_Error("vkCreateFramebuffer failed");
+	err = vkCreateFramebuffer(vulkan_globals.device, &framebuffer_create_info, NULL, &main_framebuffer);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkCreateFramebuffer failed");
 
-		GL_SetObjectName((uint64_t)main_framebuffers[i], VK_DEBUG_REPORT_OBJECT_TYPE_FRAMEBUFFER_EXT, "main");
-	}
+	GL_SetObjectName((uint64_t)main_framebuffer, VK_DEBUG_REPORT_OBJECT_TYPE_FRAMEBUFFER_EXT, "main");
 
 	for (i = 0; i < num_swap_chain_images; ++i)
 	{
@@ -1527,7 +1538,7 @@ static void GL_CreateFrameBuffers( void )
 		framebuffer_create_info.height = vid.height;
 		framebuffer_create_info.layers = 1;
 
-		VkImageView attachments[2] = { color_buffers_view[0],  swapchain_images_views[i] };
+		VkImageView attachments[2] = { color_buffers_view[1],  swapchain_images_views[i] };
 		framebuffer_create_info.pAttachments = attachments;
 
 		err = vkCreateFramebuffer(vulkan_globals.device, &framebuffer_create_info, NULL, &ui_framebuffers[i]);
@@ -1596,11 +1607,8 @@ static void GL_DestroyBeforeSetMode( void )
 		ui_framebuffers[i] = VK_NULL_HANDLE;
 	}
 
-	for (i = 0; i < NUM_COLOR_BUFFERS; ++i)
-	{
-		vkDestroyFramebuffer(vulkan_globals.device, main_framebuffers[i], NULL);
-		main_framebuffers[i] = VK_NULL_HANDLE;
-	}
+	vkDestroyFramebuffer(vulkan_globals.device, main_framebuffer, NULL);
+	main_framebuffer = VK_NULL_HANDLE;
 
 	fpDestroySwapchainKHR(vulkan_globals.device, vulkan_swapchain, NULL);
 
@@ -1614,8 +1622,6 @@ GL_BeginRendering
 */
 void GL_BeginRendering (int *x, int *y, int *width, int *height)
 {
-	int i;
-
 	R_SwapDynamicBuffers();
 
 	vulkan_globals.device_idle = false;
@@ -1663,16 +1669,13 @@ void GL_BeginRendering (int *x, int *y, int *width, int *height)
 	vulkan_globals.main_clear_values[1] = depth_clear_value;
 	vulkan_globals.main_clear_values[2] = vulkan_globals.color_clear_value;
 
-	memset(&vulkan_globals.main_render_pass_begin_infos, 0, sizeof(vulkan_globals.main_render_pass_begin_infos));
-	for (i = 0; i < 2; ++i)
-	{
-		vulkan_globals.main_render_pass_begin_infos[i].sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-		vulkan_globals.main_render_pass_begin_infos[i].renderArea = render_area;
-		vulkan_globals.main_render_pass_begin_infos[i].renderPass = vulkan_globals.main_render_pass;
-		vulkan_globals.main_render_pass_begin_infos[i].framebuffer = main_framebuffers[i];
-		vulkan_globals.main_render_pass_begin_infos[i].clearValueCount = 3;
-		vulkan_globals.main_render_pass_begin_infos[i].pClearValues = vulkan_globals.main_clear_values;
-	}
+	memset(&vulkan_globals.main_render_pass_begin_info, 0, sizeof(vulkan_globals.main_render_pass_begin_info));
+	vulkan_globals.main_render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+	vulkan_globals.main_render_pass_begin_info.renderArea = render_area;
+	vulkan_globals.main_render_pass_begin_info.renderPass = vulkan_globals.main_render_pass;
+	vulkan_globals.main_render_pass_begin_info.framebuffer = main_framebuffer;
+	vulkan_globals.main_render_pass_begin_info.clearValueCount = 3;
+	vulkan_globals.main_render_pass_begin_info.pClearValues = vulkan_globals.main_clear_values;
 
 	memset(&vulkan_globals.ui_render_pass_begin_info, 0, sizeof(vulkan_globals.ui_render_pass_begin_info));
 	vulkan_globals.ui_render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;

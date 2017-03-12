@@ -940,41 +940,41 @@ void GL_Set2D (void)
 
 	vkCmdEndRenderPass(vulkan_globals.command_buffer);
 
+	VkImageMemoryBarrier image_barriers[2];
+	image_barriers[0].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+	image_barriers[0].pNext = NULL;
+	image_barriers[0].srcAccessMask = 0;
+	image_barriers[0].dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+	image_barriers[0].oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	image_barriers[0].newLayout = VK_IMAGE_LAYOUT_GENERAL;
+	image_barriers[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	image_barriers[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	image_barriers[0].image = vulkan_globals.color_buffers[0];
+	image_barriers[0].subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	image_barriers[0].subresourceRange.baseMipLevel = 0;
+	image_barriers[0].subresourceRange.levelCount = 1;
+	image_barriers[0].subresourceRange.baseArrayLayer = 0;
+	image_barriers[0].subresourceRange.layerCount = 1;
+
+	image_barriers[1].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+	image_barriers[1].pNext = NULL;
+	image_barriers[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+	image_barriers[1].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+	image_barriers[1].oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	image_barriers[1].newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	image_barriers[1].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	image_barriers[1].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	image_barriers[1].image = vulkan_globals.color_buffers[1];
+	image_barriers[1].subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	image_barriers[1].subresourceRange.baseMipLevel = 0;
+	image_barriers[1].subresourceRange.levelCount = 1;
+	image_barriers[1].subresourceRange.baseArrayLayer = 0;
+	image_barriers[1].subresourceRange.layerCount = 1;
+
+	vkCmdPipelineBarrier(vulkan_globals.command_buffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, NULL, 0, NULL, 2, image_barriers);
+
 	if (render_warp)
 	{
-		VkImageMemoryBarrier image_barriers[2];
-		image_barriers[0].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-		image_barriers[0].pNext = NULL;
-		image_barriers[0].srcAccessMask = 0;
-		image_barriers[0].dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-		image_barriers[0].oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		image_barriers[0].newLayout = VK_IMAGE_LAYOUT_GENERAL;
-		image_barriers[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		image_barriers[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		image_barriers[0].image = vulkan_globals.color_buffers[0];
-		image_barriers[0].subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		image_barriers[0].subresourceRange.baseMipLevel = 0;
-		image_barriers[0].subresourceRange.levelCount = 1;
-		image_barriers[0].subresourceRange.baseArrayLayer = 0;
-		image_barriers[0].subresourceRange.layerCount = 1;
-
-		image_barriers[1].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-		image_barriers[1].pNext = NULL;
-		image_barriers[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-		image_barriers[1].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-		image_barriers[1].oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-		image_barriers[1].newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		image_barriers[1].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		image_barriers[1].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		image_barriers[1].image = vulkan_globals.color_buffers[1];
-		image_barriers[1].subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		image_barriers[1].subresourceRange.baseMipLevel = 0;
-		image_barriers[1].subresourceRange.levelCount = 1;
-		image_barriers[1].subresourceRange.baseArrayLayer = 0;
-		image_barriers[1].subresourceRange.layerCount = 1;
-
-		vkCmdPipelineBarrier(vulkan_globals.command_buffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, NULL, 0, NULL, 2, image_barriers);
-		
 		const uint32_t screen_size[2] = { vid.width, vid.height };
 		const float aspect_ratio_time[2] = { (float)vid.width / (float)vid.height, cl.time };
 		vkCmdPushConstants(vulkan_globals.command_buffer, vulkan_globals.screen_warp_pipeline_layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, 2 * sizeof(uint32_t), screen_size);
@@ -983,34 +983,44 @@ void GL_Set2D (void)
 		vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, vulkan_globals.screen_warp_pipeline_layout, 0, 1, &vulkan_globals.screen_warp_desc_set, 0, NULL);
 		vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, vulkan_globals.screen_warp_pipeline);
 		vkCmdDispatch(vulkan_globals.command_buffer, (vid.width + 7) / 8, (vid.height + 7) / 8, 1);
-
-		image_barriers[0].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-		image_barriers[0].pNext = NULL;
-		image_barriers[0].srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-		image_barriers[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-		image_barriers[0].oldLayout = VK_IMAGE_LAYOUT_GENERAL;
-		image_barriers[0].newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-		image_barriers[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		image_barriers[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		image_barriers[0].image = vulkan_globals.color_buffers[0];
-		image_barriers[0].subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		image_barriers[0].subresourceRange.baseMipLevel = 0;
-		image_barriers[0].subresourceRange.levelCount = 1;
-		image_barriers[0].subresourceRange.baseArrayLayer = 0;
-		image_barriers[0].subresourceRange.layerCount = 1;
-
-		vkCmdPipelineBarrier(vulkan_globals.command_buffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, 0, 0, NULL, 0, NULL, 1, image_barriers);
 	}
 	else
 	{
-		VkMemoryBarrier memory_barrier;
-		memory_barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
-		memory_barrier.pNext = NULL;
-		memory_barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-		memory_barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+		VkImageBlit region;
+		memset(&region, 0, sizeof(region));
+		region.srcOffsets[1].x = vid.width;
+		region.srcOffsets[1].y = vid.height;
+		region.srcOffsets[1].z = 1;
+		region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		region.srcSubresource.layerCount = 1;
+		region.srcSubresource.mipLevel = 0;
+		region.dstOffsets[1].x = vid.width;
+		region.dstOffsets[1].y = vid.height;
+		region.dstOffsets[1].z = 1;
+		region.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		region.dstSubresource.layerCount = 1;
+		region.dstSubresource.mipLevel = 0;
 
-		vkCmdPipelineBarrier(vulkan_globals.command_buffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, 0, 1, &memory_barrier, 0, NULL, 0, NULL);
+		vkCmdBlitImage(vulkan_globals.command_buffer, vulkan_globals.color_buffers[0], VK_IMAGE_LAYOUT_GENERAL, vulkan_globals.color_buffers[1], VK_IMAGE_LAYOUT_GENERAL, 1, &region, VK_FILTER_NEAREST);
 	}
+
+	image_barriers[0].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+	image_barriers[0].pNext = NULL;
+	image_barriers[0].srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+	image_barriers[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+	image_barriers[0].oldLayout = VK_IMAGE_LAYOUT_GENERAL;
+	image_barriers[0].newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	image_barriers[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	image_barriers[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	image_barriers[0].image = vulkan_globals.color_buffers[0];
+	image_barriers[0].subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	image_barriers[0].subresourceRange.baseMipLevel = 0;
+	image_barriers[0].subresourceRange.levelCount = 1;
+	image_barriers[0].subresourceRange.baseArrayLayer = 0;
+	image_barriers[0].subresourceRange.layerCount = 1;
+
+	vkCmdPipelineBarrier(vulkan_globals.command_buffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, 0, 0, NULL, 0, NULL, 1, image_barriers);
+
 	
 	vkCmdBeginRenderPass(vulkan_globals.command_buffer, &vulkan_globals.ui_render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
 	render_pass_index = 1;

@@ -125,7 +125,7 @@ typedef struct
 	// Render passes
 	VkRenderPass						main_render_pass;
 	VkClearValue						main_clear_values[4];
-	VkRenderPassBeginInfo				main_render_pass_begin_infos[2];
+	VkRenderPassBeginInfo				main_render_pass_begin_info;
 	VkRenderPass						ui_render_pass;
 	VkRenderPassBeginInfo				ui_render_pass_begin_info;
 	VkRenderPass						warp_render_pass;

@@ -864,7 +864,7 @@ void V_RenderView (void)
 	{
 		render_warp = false;
 		render_pass_index = 0;
-		vkCmdBeginRenderPass(vulkan_globals.command_buffer, &vulkan_globals.main_render_pass_begin_infos[0], VK_SUBPASS_CONTENTS_INLINE);
+		vkCmdBeginRenderPass(vulkan_globals.command_buffer, &vulkan_globals.main_render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
 		return;
 	}
 
