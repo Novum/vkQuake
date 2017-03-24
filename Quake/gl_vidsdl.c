@@ -1672,10 +1672,6 @@ void GL_BeginRendering (int *x, int *y, int *width, int *height)
 	if (err != VK_SUCCESS)
 		Sys_Error("vkBeginCommandBuffer failed");
 
-	err = fpAcquireNextImageKHR(vulkan_globals.device, vulkan_swapchain, UINT64_MAX, image_aquired_semaphores[current_command_buffer], VK_NULL_HANDLE, &current_swapchain_buffer);
-	if (err != VK_SUCCESS)
-		Sys_Error("Couldn't acquire next image");
-
 	VkRect2D render_area;
 	render_area.offset.x = 0;
 	render_area.offset.y = 0;
@@ -1721,6 +1717,18 @@ void GL_BeginRendering (int *x, int *y, int *width, int *height)
 	viewport.maxDepth = 1.0f;
 
 	vkCmdSetViewport(vulkan_globals.command_buffer, 0, 1, &viewport);
+}
+
+/*
+=================
+GL_AcquireNextSwapChainImage
+=================
+*/
+void GL_AcquireNextSwapChainImage(void)
+{
+	VkResult err = fpAcquireNextImageKHR(vulkan_globals.device, vulkan_swapchain, UINT64_MAX, image_aquired_semaphores[current_command_buffer], VK_NULL_HANDLE, &current_swapchain_buffer);
+	if (err != VK_SUCCESS)
+		Sys_Error("Couldn't acquire next image");
 }
 
 /*
@@ -1787,7 +1795,7 @@ void GL_EndRendering (void)
 GL_WaitForDeviceIdle
 =================
 */
-void GL_WaitForDeviceIdle()
+void GL_WaitForDeviceIdle (void)
 {
 	if (!vulkan_globals.device_idle)
 	{
