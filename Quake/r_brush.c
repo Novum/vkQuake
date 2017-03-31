@@ -526,7 +526,7 @@ void GL_BuildLightmaps (void)
 
 	//johnfitz -- warn about exceeding old limits
 	if (i >= 64)
-		Con_DWarning ("%i lightmaps exceeds standard limit of 64.\n", i);
+		Con_DWarning ("%i lightmaps exceeds standard limit of 64 (max = %d).\n", i, MAX_LIGHTMAPS);
 	//johnfitz
 }
 

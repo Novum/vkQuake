@@ -340,7 +340,7 @@ void CL_ParseServerInfo (void)
 
 	//johnfitz -- check for excessive models
 	if (nummodels >= 256)
-		Con_DWarning ("%i models exceeds standard limit of 256.\n", nummodels);
+		Con_DWarning ("%i models exceeds standard limit of 256 (max = %d).\n", nummodels, MAX_MODELS);
 	//johnfitz
 
 // precache sounds
@@ -360,7 +360,7 @@ void CL_ParseServerInfo (void)
 
 	//johnfitz -- check for excessive sounds
 	if (numsounds >= 256)
-		Con_DWarning ("%i sounds exceeds standard limit of 256.\n", numsounds);
+		Con_DWarning ("%i sounds exceeds standard limit of 256 (max = %d).\n", numsounds, MAX_SOUNDS);
 	//johnfitz
 
 //
@@ -1144,7 +1144,7 @@ void CL_ParseServerMessage (void)
 			if (i == 2)
 			{
 				if (cl.num_statics > 128)
-					Con_DWarning ("%i static entities exceeds standard limit of 128.\n", cl.num_statics);
+					Con_DWarning ("%i static entities exceeds standard limit of 128 (max = %d).\n", cl.num_statics, MAX_STATIC_ENTITIES);
 				R_CheckEfrags ();
 			}
 			//johnfitz

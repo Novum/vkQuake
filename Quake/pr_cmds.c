@@ -65,7 +65,7 @@ static char *PF_VarString (int	first)
 		}
 	}
 	if (s > 255)
-		Con_DWarning("PF_VarString: %i characters exceeds standard limit of 255.\n", (int) s);
+		Con_DWarning("PF_VarString: %i characters exceeds standard limit of 255 (max = %d).\n", (int) s, (int)(sizeof(out) - 1));
 	return out;
 }
 

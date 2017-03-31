@@ -178,7 +178,7 @@ void R_CheckEfrags (void)
 		;
 
 	if (count > 640 && dev_peakstats.efrags <= 640)
-		Con_DWarning ("%i efrags exceeds standard limit of 640.\n", count);
+		Con_DWarning ("%i efrags exceeds standard limit of 640 (max = %d).\n", count, MAX_EFRAGS);
 
 	dev_stats.efrags = count;
 	dev_peakstats.efrags = q_max(count, dev_peakstats.efrags);

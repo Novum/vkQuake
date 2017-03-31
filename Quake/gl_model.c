@@ -1905,7 +1905,7 @@ void Mod_LoadSubmodels (lump_t *l)
 		Sys_Error ("Mod_LoadSubmodels: too many visleafs (%d, max = %d) in %s", out->visleafs, MAX_MAP_LEAFS, loadmodel->name);
 
 	if (out->visleafs > 8192)
-		Con_DWarning ("%i visleafs exceeds standard limit of 8192.\n", out->visleafs);
+		Con_DWarning ("%i visleafs exceeds standard limit of 8192 (max = %d).\n", out->visleafs, MAX_MAP_LEAFS);
 	//johnfitz
 }
 

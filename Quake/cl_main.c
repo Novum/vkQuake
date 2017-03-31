@@ -633,13 +633,13 @@ int CL_ReadFromServer (void)
 
 	//visedicts
 	if (cl_numvisedicts > 256 && dev_peakstats.visedicts <= 256)
-		Con_DWarning ("%i visedicts exceeds standard limit of 256.\n", cl_numvisedicts);
+		Con_DWarning ("%i visedicts exceeds standard limit of 256 (max = %d).\n", cl_numvisedicts, MAX_VISEDICTS);
 	dev_stats.visedicts = cl_numvisedicts;
 	dev_peakstats.visedicts = q_max(cl_numvisedicts, dev_peakstats.visedicts);
 
 	//temp entities
 	if (num_temp_entities > 64 && dev_peakstats.tempents <= 64)
-		Con_DWarning ("%i tempentities exceeds standard limit of 64.\n", num_temp_entities);
+		Con_DWarning ("%i tempentities exceeds standard limit of 64 (max = %d).\n", num_temp_entities, MAX_TEMP_ENTITIES);
 	dev_stats.tempents = num_temp_entities;
 	dev_peakstats.tempents = q_max(num_temp_entities, dev_peakstats.tempents);
 
@@ -648,7 +648,7 @@ int CL_ReadFromServer (void)
 		if (b->model && b->endtime >= cl.time)
 			num_beams++;
 	if (num_beams > 24 && dev_peakstats.beams <= 24)
-		Con_DWarning ("%i beams exceeded standard limit of 24.\n", num_beams);
+		Con_DWarning ("%i beams exceeded standard limit of 24 (max = %d).\n", num_beams, MAX_BEAMS);
 	dev_stats.beams = num_beams;
 	dev_peakstats.beams = q_max(num_beams, dev_peakstats.beams);
 
@@ -657,7 +657,7 @@ int CL_ReadFromServer (void)
 		if (l->die >= cl.time && l->radius)
 			num_dlights++;
 	if (num_dlights > 32 && dev_peakstats.dlights <= 32)
-		Con_DWarning ("%i dlights exceeded standard limit of 32.\n", num_dlights);
+		Con_DWarning ("%i dlights exceeded standard limit of 32 (max = %d).\n", num_dlights, MAX_DLIGHTS);
 	dev_stats.dlights = num_dlights;
 	dev_peakstats.dlights = q_max(num_dlights, dev_peakstats.dlights);
 
