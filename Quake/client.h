@@ -85,7 +85,7 @@ typedef struct
 	vec3_t	start, end;
 } beam_t;
 
-#define	MAX_EFRAGS		4096 //ericw -- was 2048 //johnfitz -- was 640
+#define	MAX_EFRAGS		8192 //ericw -- was 2048 //johnfitz -- was 640
 
 #define	MAX_MAPSTRING	2048
 #define	MAX_DEMOS		8
@@ -265,7 +265,7 @@ extern	cvar_t	m_side;
 
 
 #define	MAX_TEMP_ENTITIES	256		//johnfitz -- was 64
-#define	MAX_STATIC_ENTITIES	2048	//ericw -- was 512	//johnfitz -- was 128
+#define	MAX_STATIC_ENTITIES	4096	//ericw -- was 512	//johnfitz -- was 128
 #define	MAX_VISEDICTS		4096	// larger, now we support BSP2
 
 extern	client_state_t	cl;
