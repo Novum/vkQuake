@@ -499,6 +499,62 @@ void Cmd_List_f (void)
 	Con_SafePrintf ("\n");
 }
 
+static char *Cmd_TintSubstring(const char *in, const char *substr, char *out, size_t outsize)
+{
+	int l;
+	char *m;
+	q_strlcpy(out, in, outsize);
+	while ((m = q_strcasestr(out, substr)))
+	{
+		l = strlen(substr);
+		while (l-->0)
+			if (*m >= ' ' && *m < 127)
+				*m++ |= 0x80;
+	}
+	return out;
+}
+
+/*
+============
+Cmd_Apropos_f
+
+scans through each command and cvar names+descriptions for the given substring
+we don't support descriptions, so this isn't really all that useful, but even without the sake of consistency it still combines cvars+commands under a single command.
+============
+*/
+void Cmd_Apropos_f(void)
+{
+	char tmpbuf[256];
+	int hits = 0;
+	cmd_function_t	*cmd;
+	cvar_t *var;
+	const char *substr = Cmd_Argv (1);
+	if (!*substr)
+	{
+		Con_SafePrintf ("%s <substring> : search through commands and cvars for the given substring\n", Cmd_Argv(0));
+		return;
+	}
+	for (cmd=cmd_functions ; cmd ; cmd=cmd->next)
+	{
+		if (q_strcasestr(cmd->name, substr))
+		{
+			hits++;
+			Con_SafePrintf ("%s\n", Cmd_TintSubstring(cmd->name, substr, tmpbuf, sizeof(tmpbuf)));
+		}
+	}
+	
+	for (var=Cvar_FindVarAfter("", 0) ; var ; var=var->next)
+	{
+		if (q_strcasestr(var->name, substr))
+		{
+			hits++;
+			Con_SafePrintf ("%s (current value: \"%s\")\n", Cmd_TintSubstring(var->name, substr, tmpbuf, sizeof(tmpbuf)), var->string);
+		}
+	}
+	if (!hits)
+		Con_SafePrintf ("no cvars nor commands contain that substring\n");
+}
+
 /*
 ============
 Cmd_Init
@@ -516,6 +572,8 @@ void Cmd_Init (void)
 	Cmd_AddCommand ("alias",Cmd_Alias_f);
 	Cmd_AddCommand ("cmd", Cmd_ForwardToServer);
 	Cmd_AddCommand ("wait", Cmd_Wait_f);
+
+	Cmd_AddCommand ("apropos", Cmd_Apropos_f);
 }
 
 /*

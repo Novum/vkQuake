@@ -141,6 +141,9 @@ float Q_atof (const char *str);
 extern int q_strcasecmp (const char * s1, const char * s2);
 extern int q_strncasecmp (const char *s1, const char *s2, size_t n);
 
+/* locale-insensitive case-insensitive alternative to strstr */
+extern char *q_strcasestr(const char *haystack, const char *needle);
+
 /* locale-insensitive strlwr/upr replacement functions: */
 extern char *q_strlwr (char *str);
 extern char *q_strupr (char *str);
