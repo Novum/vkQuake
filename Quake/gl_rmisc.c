@@ -60,7 +60,7 @@ int num_vulkan_dynbuf_allocations = 0;
 Staging
 ================
 */
-#define STAGING_BUFFER_SIZE_KB	16384
+#define STAGING_BUFFER_SIZE_KB	32768
 #define NUM_STAGING_BUFFERS		2
 
 typedef struct
