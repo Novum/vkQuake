@@ -82,7 +82,7 @@ unsigned short CRC_Value(unsigned short crcvalue)
 }
 
 //johnfitz -- texture crc
-unsigned short CRC_Block (byte *start, int count)
+unsigned short CRC_Block (const byte *start, int count)
 {
 	unsigned short	crc;
 
