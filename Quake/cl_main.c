@@ -51,7 +51,6 @@ cvar_t	cl_minpitch = {"cl_minpitch", "-90", CVAR_ARCHIVE}; //johnfitz -- variabl
 client_static_t	cls;
 client_state_t	cl;
 // FIXME: put these on hunk?
-efrag_t			cl_efrags[MAX_EFRAGS];
 entity_t		cl_static_entities[MAX_STATIC_ENTITIES];
 lightstyle_t	cl_lightstyle[MAX_LIGHTSTYLES];
 dlight_t		cl_dlights[MAX_DLIGHTS];
@@ -72,8 +71,6 @@ CL_ClearState
 */
 void CL_ClearState (void)
 {
-	int			i;
-
 	if (!sv.active)
 		Host_ClearMemory ();
 
@@ -83,7 +80,6 @@ void CL_ClearState (void)
 	SZ_Clear (&cls.message);
 
 // clear other arrays
-	memset (cl_efrags, 0, sizeof(cl_efrags));
 	memset (cl_dlights, 0, sizeof(cl_dlights));
 	memset (cl_lightstyle, 0, sizeof(cl_lightstyle));
 	memset (cl_temp_entities, 0, sizeof(cl_temp_entities));
@@ -93,14 +89,6 @@ void CL_ClearState (void)
 	cl_max_edicts = CLAMP (MIN_EDICTS,(int)max_edicts.value,MAX_EDICTS);
 	cl_entities = (entity_t *) Hunk_AllocName (cl_max_edicts*sizeof(entity_t), "cl_entities");
 	//johnfitz
-
-//
-// allocate the efrags and chain together into a free list
-//
-	cl.free_efrags = cl_efrags;
-	for (i=0 ; i<MAX_EFRAGS-1 ; i++)
-		cl.free_efrags[i].entnext = &cl.free_efrags[i+1];
-	cl.free_efrags[i].entnext = NULL;
 }
 
 /*
@@ -455,8 +443,11 @@ void CL_RelinkEntities (void)
 	{
 		if (!ent->model)
 		{	// empty slot
-			if (ent->forcelink)
-				R_RemoveEfrags (ent);	// just became empty
+			
+			// ericw -- efrags are only used for static entities in GLQuake
+			// ent can't be static, so this is a no-op.
+			//if (ent->forcelink)
+			//	R_RemoveEfrags (ent);	// just became empty
 			continue;
 		}
 

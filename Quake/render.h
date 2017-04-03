@@ -34,10 +34,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 typedef struct efrag_s
 {
-	struct mleaf_s		*leaf;
 	struct efrag_s		*leafnext;
 	struct entity_s		*entity;
-	struct efrag_s		*entnext;
 } efrag_t;
 
 //johnfitz -- for lerping
@@ -147,7 +145,6 @@ void R_ViewChanged (vrect_t *pvrect, int lineadj, float aspect);
 
 void R_CheckEfrags (void); //johnfitz
 void R_AddEfrags (entity_t *ent);
-void R_RemoveEfrags (entity_t *ent);
 
 void R_NewMap (void);
 

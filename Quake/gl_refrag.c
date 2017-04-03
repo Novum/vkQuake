@@ -33,55 +33,57 @@ mnode_t	*r_pefragtopnode;
 
 					ENTITY FRAGMENT FUNCTIONS
 
+ericw -- GLQuake only uses efrags for static entities, and they're never
+removed, so I trimmed out unused functionality and fields in efrag_t.
+
+Now, efrags are just a linked list for each leaf of the static
+entities that touch that leaf. The efrags are hunk-allocated so there is no
+fixed limit.
+ 
+This is inspired by MH's tutorial, and code from RMQEngine.
+http://forums.insideqc.com/viewtopic.php?t=1930
+ 
 ===============================================================================
 */
-
-efrag_t		**lastlink;
 
 vec3_t		r_emins, r_emaxs;
 
 entity_t	*r_addent;
 
 
-/*
-================
-R_RemoveEfrags
+#define EXTRA_EFRAGS	128
 
-Call when removing an object from the world or moving it to another position
-================
-*/
-void R_RemoveEfrags (entity_t *ent)
+// based on RMQEngine
+static efrag_t *R_GetEfrag (void)
 {
-	efrag_t		*ef, *old, *walk, **prev;
-
-	ef = ent->efrag;
-
-	while (ef)
+	// we could just Hunk_Alloc a single efrag_t and return it, but since
+	// the struct is so small (2 pointers) allocate groups of them
+	// to avoid wasting too much space on the hunk allocation headers.
+	
+	if (cl.free_efrags)
 	{
-		prev = &ef->leaf->efrags;
-		while (1)
-		{
-			walk = *prev;
-			if (!walk)
-				break;
-			if (walk == ef)
-			{	// remove this fragment
-				*prev = ef->leafnext;
-				break;
-			}
-			else
-				prev = &walk->leafnext;
-		}
-
-		old = ef;
-		ef = ef->entnext;
-
-	// put it on the free list
-		old->entnext = cl.free_efrags;
-		cl.free_efrags = old;
+		efrag_t *ef = cl.free_efrags;
+		cl.free_efrags = ef->leafnext;
+		ef->leafnext = NULL;
+		
+		cl.num_efrags++;
+		
+		return ef;
 	}
-
-	ent->efrag = NULL;
+	else
+	{
+		int i;
+		
+		cl.free_efrags = (efrag_t *) Hunk_AllocName (EXTRA_EFRAGS * sizeof (efrag_t), "efrags");
+		
+		for (i = 0; i < EXTRA_EFRAGS - 1; i++)
+			cl.free_efrags[i].leafnext = &cl.free_efrags[i + 1];
+		
+		cl.free_efrags[i].leafnext = NULL;
+		
+		// call recursively to get a newly allocated free efrag
+		return R_GetEfrag ();
+	}
 }
 
 /*
@@ -111,29 +113,10 @@ void R_SplitEntityOnNode (mnode_t *node)
 		leaf = (mleaf_t *)node;
 
 // grab an efrag off the free list
-		ef = cl.free_efrags;
-		if (!ef)
-		{
-			//johnfitz -- less spammy overflow message
-			if (!dev_overflows.efrags || dev_overflows.efrags + CONSOLE_RESPAM_TIME < realtime )
-			{
-				Con_Printf ("Too many efrags!\n");
-				dev_overflows.efrags = realtime;
-			}
-			//johnfitz
-			return;		// no free fragments...
-		}
-		cl.free_efrags = cl.free_efrags->entnext;
-
+		ef = R_GetEfrag();
 		ef->entity = r_addent;
 
-// add the entity link
-		*lastlink = ef;
-		lastlink = &ef->entnext;
-		ef->entnext = NULL;
-
 // set the leaf links
-		ef->leaf = leaf;
 		ef->leafnext = leaf->efrags;
 		leaf->efrags = ef;
 
@@ -168,20 +151,14 @@ R_CheckEfrags -- johnfitz -- check for excessive efrag count
 */
 void R_CheckEfrags (void)
 {
-	efrag_t		*ef;
-	int			count;
-
 	if (cls.signon < 2)
 		return; //don't spam when still parsing signon packet full of static ents
 
-	for (count=MAX_EFRAGS, ef = cl.free_efrags; ef; count--, ef = ef->entnext)
-		;
+	if (cl.num_efrags > 640 && dev_peakstats.efrags <= 640)
+		Con_DWarning ("%i efrags exceeds standard limit of 640.\n", cl.num_efrags);
 
-	if (count > 640 && dev_peakstats.efrags <= 640)
-		Con_DWarning ("%i efrags exceeds standard limit of 640 (max = %d).\n", count, MAX_EFRAGS);
-
-	dev_stats.efrags = count;
-	dev_peakstats.efrags = q_max(count, dev_peakstats.efrags);
+	dev_stats.efrags = cl.num_efrags;
+	dev_peakstats.efrags = q_max(cl.num_efrags, dev_peakstats.efrags);
 }
 
 /*
@@ -199,7 +176,6 @@ void R_AddEfrags (entity_t *ent)
 
 	r_addent = ent;
 
-	lastlink = &ent->efrag;
 	r_pefragtopnode = NULL;
 
 	entmodel = ent->model;
