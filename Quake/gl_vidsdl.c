@@ -760,6 +760,13 @@ static void GL_InitDevice( void )
 
 	const char * const device_extensions[] = { VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_EXT_DEBUG_MARKER_EXTENSION_NAME };
 
+	vkGetPhysicalDeviceFeatures(vulkan_physical_device, &vulkan_physical_device_features);
+	vulkan_globals.write_without_format = vulkan_physical_device_features.shaderStorageImageWriteWithoutFormat;
+
+	VkPhysicalDeviceFeatures device_features;
+	memset(&device_features, 0, sizeof(device_features));
+	device_features.shaderStorageImageWriteWithoutFormat = vulkan_globals.write_without_format ? VK_TRUE : VK_FALSE;
+
 	VkDeviceCreateInfo device_create_info;
 	memset(&device_create_info, 0, sizeof(device_create_info));
 	device_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -767,6 +774,7 @@ static void GL_InitDevice( void )
 	device_create_info.pQueueCreateInfos = &queue_create_info;
 	device_create_info.enabledExtensionCount = 1;
 	device_create_info.ppEnabledExtensionNames = device_extensions;
+	device_create_info.pEnabledFeatures = &device_features;
 #if _DEBUG
 	if (found_debug_marker_extension)
 		device_create_info.enabledExtensionCount = 2;
@@ -775,8 +783,6 @@ static void GL_InitDevice( void )
 	err = vkCreateDevice(vulkan_physical_device, &device_create_info, NULL, &vulkan_globals.device);
 	if (err != VK_SUCCESS)
 		Sys_Error("Couldn't create Vulkan device");
-
-	vkGetPhysicalDeviceFeatures(vulkan_physical_device, &vulkan_physical_device_features);
 
 	GET_DEVICE_PROC_ADDR(vulkan_globals.device, CreateSwapchainKHR);
 	GET_DEVICE_PROC_ADDR(vulkan_globals.device, DestroySwapchainKHR);
@@ -793,24 +799,29 @@ static void GL_InitDevice( void )
 
 	vkGetDeviceQueue(vulkan_globals.device, vulkan_globals.gfx_queue_family_index, 0, &vulkan_globals.queue);
 
+
 	VkFormatProperties format_properties;
-	
+	vkGetPhysicalDeviceFormatProperties(vulkan_physical_device, VK_FORMAT_A2B10G10R10_UNORM_PACK32, &format_properties);
+
 	// Find color buffer format
 	vulkan_globals.color_format = VK_FORMAT_R8G8B8A8_UNORM;
-	vkGetPhysicalDeviceFormatProperties(vulkan_physical_device, VK_FORMAT_A2B10G10R10_UNORM_PACK32, &format_properties);
-	qboolean a2_b10_g10_r10_support = (format_properties.optimalTilingFeatures & REQUIRED_COLOR_BUFFER_FEATURES) == REQUIRED_COLOR_BUFFER_FEATURES;
-	vkGetPhysicalDeviceFormatProperties(vulkan_physical_device, VK_FORMAT_A2R10G10B10_UNORM_PACK32, &format_properties);
-	qboolean a2_r10_g10_r10_support = (format_properties.optimalTilingFeatures & REQUIRED_COLOR_BUFFER_FEATURES) == REQUIRED_COLOR_BUFFER_FEATURES;
-
-	if (a2_b10_g10_r10_support)
+	
+	if (vulkan_globals.write_without_format)
 	{
-		Con_Printf("Using A2B10G10R10 color buffer format\n");
-		vulkan_globals.color_format = VK_FORMAT_A2B10G10R10_UNORM_PACK32;
-	}
-	else if (a2_r10_g10_r10_support)
-	{
-		Con_Printf("Using A2R10G10B10 color buffer format\n");
-		vulkan_globals.color_format = VK_FORMAT_A2R10G10B10_UNORM_PACK32;
+		qboolean a2_b10_g10_r10_support = (format_properties.optimalTilingFeatures & REQUIRED_COLOR_BUFFER_FEATURES) == REQUIRED_COLOR_BUFFER_FEATURES;
+		vkGetPhysicalDeviceFormatProperties(vulkan_physical_device, VK_FORMAT_A2R10G10B10_UNORM_PACK32, &format_properties);
+		qboolean a2_r10_g10_r10_support = (format_properties.optimalTilingFeatures & REQUIRED_COLOR_BUFFER_FEATURES) == REQUIRED_COLOR_BUFFER_FEATURES;
+	
+		if (a2_b10_g10_r10_support)
+		{
+			Con_Printf("Using A2B10G10R10 color buffer format\n");
+			vulkan_globals.color_format = VK_FORMAT_A2B10G10R10_UNORM_PACK32;
+		}
+		else if (a2_r10_g10_r10_support)
+		{
+			Con_Printf("Using A2R10G10B10 color buffer format\n");
+			vulkan_globals.color_format = VK_FORMAT_A2R10G10B10_UNORM_PACK32;
+		}
 	}
 
 	// Find depth format

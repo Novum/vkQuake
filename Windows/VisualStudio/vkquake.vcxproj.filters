@@ -301,6 +301,9 @@
     <ClCompile Include="..\..\Shaders\Compiled\screen_warp_comp.c">
       <Filter>Shaders\Compiled</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\screen_warp_rgba8_comp.c">
+      <Filter>Shaders\Compiled</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\Quake\snd_codec.h">
@@ -551,6 +554,9 @@
       <Filter>Shaders</Filter>
     </None>
     <None Include="..\..\Shaders\screen_warp.comp">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\..\Shaders\screen_warp_rgba8.comp">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>

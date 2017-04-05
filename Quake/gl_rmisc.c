@@ -1139,6 +1139,7 @@ void R_CreatePipelines()
 	VkShaderModule postprocess_vert_module = R_CreateShaderModule(postprocess_vert_spv, postprocess_vert_spv_size);
 	VkShaderModule postprocess_frag_module = R_CreateShaderModule(postprocess_frag_spv, postprocess_frag_spv_size);
 	VkShaderModule screen_warp_comp_module = R_CreateShaderModule(screen_warp_comp_spv, screen_warp_comp_spv_size);
+	VkShaderModule screen_warp_rgba8_comp_module = R_CreateShaderModule(screen_warp_rgba8_comp_spv, screen_warp_rgba8_comp_spv_size);
 
 	VkPipelineDynamicStateCreateInfo dynamic_state_create_info;
 	memset(&dynamic_state_create_info, 0, sizeof(dynamic_state_create_info));
@@ -1649,7 +1650,7 @@ void R_CreatePipelines()
 
 	compute_shader_stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 	compute_shader_stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
-	compute_shader_stage.module = screen_warp_comp_module;
+	compute_shader_stage.module = vulkan_globals.write_without_format ? screen_warp_comp_module : screen_warp_rgba8_comp_module;
 	compute_shader_stage.pName = "main";
 
 	VkComputePipelineCreateInfo compute_pipeline_create_info;
@@ -1664,6 +1665,7 @@ void R_CreatePipelines()
 
 	GL_SetObjectName((uint64_t)vulkan_globals.warp_pipeline, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "screen_warp");
 
+	vkDestroyShaderModule(vulkan_globals.device, screen_warp_rgba8_comp_module, NULL);
 	vkDestroyShaderModule(vulkan_globals.device, screen_warp_comp_module, NULL);
 	vkDestroyShaderModule(vulkan_globals.device, postprocess_frag_module, NULL);
 	vkDestroyShaderModule(vulkan_globals.device, postprocess_vert_module, NULL);
