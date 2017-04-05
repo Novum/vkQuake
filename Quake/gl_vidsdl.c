@@ -761,11 +761,11 @@ static void GL_InitDevice( void )
 	const char * const device_extensions[] = { VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_EXT_DEBUG_MARKER_EXTENSION_NAME };
 
 	vkGetPhysicalDeviceFeatures(vulkan_physical_device, &vulkan_physical_device_features);
-	vulkan_globals.extended_format_support = vulkan_physical_device_features.shaderStorageImageExtendedFormats;
+	const VkBool32 extended_format_support = vulkan_physical_device_features.shaderStorageImageExtendedFormats;
 
 	VkPhysicalDeviceFeatures device_features;
 	memset(&device_features, 0, sizeof(device_features));
-	device_features.shaderStorageImageExtendedFormats = vulkan_globals.extended_format_support ? VK_TRUE : VK_FALSE;
+	device_features.shaderStorageImageExtendedFormats = extended_format_support;
 
 	VkDeviceCreateInfo device_create_info;
 	memset(&device_create_info, 0, sizeof(device_create_info));
@@ -801,26 +801,19 @@ static void GL_InitDevice( void )
 
 
 	VkFormatProperties format_properties;
-	vkGetPhysicalDeviceFormatProperties(vulkan_physical_device, VK_FORMAT_A2B10G10R10_UNORM_PACK32, &format_properties);
 
 	// Find color buffer format
 	vulkan_globals.color_format = VK_FORMAT_R8G8B8A8_UNORM;
 	
-	if (vulkan_globals.extended_format_support)
+	if (extended_format_support == VK_TRUE)
 	{
+		vkGetPhysicalDeviceFormatProperties(vulkan_physical_device, VK_FORMAT_A2B10G10R10_UNORM_PACK32, &format_properties);
 		qboolean a2_b10_g10_r10_support = (format_properties.optimalTilingFeatures & REQUIRED_COLOR_BUFFER_FEATURES) == REQUIRED_COLOR_BUFFER_FEATURES;
-		vkGetPhysicalDeviceFormatProperties(vulkan_physical_device, VK_FORMAT_A2R10G10B10_UNORM_PACK32, &format_properties);
-		qboolean a2_r10_g10_r10_support = (format_properties.optimalTilingFeatures & REQUIRED_COLOR_BUFFER_FEATURES) == REQUIRED_COLOR_BUFFER_FEATURES;
 	
 		if (a2_b10_g10_r10_support)
 		{
 			Con_Printf("Using A2B10G10R10 color buffer format\n");
 			vulkan_globals.color_format = VK_FORMAT_A2B10G10R10_UNORM_PACK32;
-		}
-		else if (a2_r10_g10_r10_support)
-		{
-			Con_Printf("Using A2R10G10B10 color buffer format\n");
-			vulkan_globals.color_format = VK_FORMAT_A2R10G10B10_UNORM_PACK32;
 		}
 	}
 

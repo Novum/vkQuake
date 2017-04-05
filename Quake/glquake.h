@@ -121,7 +121,6 @@ typedef struct
 	VkFormat							depth_format;
 	VkSampleCountFlagBits				sample_count;
 	qboolean							supersampling;
-	qboolean							extended_format_support;
 
 	// Buffers
 	VkImage								color_buffers[NUM_COLOR_BUFFERS];
