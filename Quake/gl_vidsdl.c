@@ -1703,13 +1703,6 @@ void GL_BeginRendering (int *x, int *y, int *width, int *height)
 		vulkan_globals.main_render_pass_begin_infos[i].pClearValues = vulkan_globals.main_clear_values;
 	}
 
-	memset(&vulkan_globals.ui_render_pass_begin_info, 0, sizeof(vulkan_globals.ui_render_pass_begin_info));
-	vulkan_globals.ui_render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-	vulkan_globals.ui_render_pass_begin_info.renderArea = render_area;
-	vulkan_globals.ui_render_pass_begin_info.renderPass = vulkan_globals.ui_render_pass;
-	vulkan_globals.ui_render_pass_begin_info.framebuffer = ui_framebuffers[current_swapchain_buffer];
-	vulkan_globals.ui_render_pass_begin_info.clearValueCount = 0;
-
 	vkCmdSetScissor(vulkan_globals.command_buffer, 0, 1, &render_area);
 
 	VkViewport viewport;
@@ -1733,6 +1726,19 @@ void GL_AcquireNextSwapChainImage(void)
 	VkResult err = fpAcquireNextImageKHR(vulkan_globals.device, vulkan_swapchain, UINT64_MAX, image_aquired_semaphores[current_command_buffer], VK_NULL_HANDLE, &current_swapchain_buffer);
 	if (err != VK_SUCCESS)
 		Sys_Error("Couldn't acquire next image");
+
+	VkRect2D render_area;
+	render_area.offset.x = 0;
+	render_area.offset.y = 0;
+	render_area.extent.width = vid.width;
+	render_area.extent.height = vid.height;
+
+	memset(&vulkan_globals.ui_render_pass_begin_info, 0, sizeof(vulkan_globals.ui_render_pass_begin_info));
+	vulkan_globals.ui_render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+	vulkan_globals.ui_render_pass_begin_info.renderArea = render_area;
+	vulkan_globals.ui_render_pass_begin_info.renderPass = vulkan_globals.ui_render_pass;
+	vulkan_globals.ui_render_pass_begin_info.framebuffer = ui_framebuffers[current_swapchain_buffer];
+	vulkan_globals.ui_render_pass_begin_info.clearValueCount = 0;
 }
 
 /*
