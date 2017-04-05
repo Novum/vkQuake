@@ -228,6 +228,7 @@ SHADER_OBJS = \
 	alias_vert.o \
 	basic_alphatest_frag.o \
 	screen_warp_comp.o \
+	screen_warp_rgba8_comp.o \
 	basic_frag.o \
 	basic_notex_frag.o \
 	basic_vert.o \
