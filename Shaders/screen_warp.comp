@@ -9,7 +9,7 @@ layout(push_constant) uniform PushConsts {
 } push_constants;
 
 layout(set = 0, binding = 0) uniform sampler2D input_tex;
-layout(set = 0, binding = 1) uniform writeonly image2D output_image;
+layout(set = 0, binding = 1, rgb10_a2) uniform writeonly image2D output_image;
 
 layout (local_size_x = 8, local_size_y = 8) in;
 void main() 

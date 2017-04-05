@@ -1650,7 +1650,7 @@ void R_CreatePipelines()
 
 	compute_shader_stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 	compute_shader_stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
-	compute_shader_stage.module = vulkan_globals.write_without_format ? screen_warp_comp_module : screen_warp_rgba8_comp_module;
+	compute_shader_stage.module = vulkan_globals.extended_format_support ? screen_warp_comp_module : screen_warp_rgba8_comp_module;
 	compute_shader_stage.pName = "main";
 
 	VkComputePipelineCreateInfo compute_pipeline_create_info;
