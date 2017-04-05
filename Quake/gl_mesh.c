@@ -463,6 +463,8 @@ Original code by MH from RMQEngine
 static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 {
 	int totalvbosize = 0;
+	int remaining_size;
+	int copy_offset;
 	const aliasmesh_t *desc;
 	const short *indexes;
 	const trivertx_t *trivertexes;
@@ -518,18 +520,28 @@ static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 		if (err != VK_SUCCESS)
 			Sys_Error("vkBindBufferMemory failed");
 
-		VkBuffer staging_buffer;
-		VkCommandBuffer command_buffer;
-		int staging_offset;
-		unsigned char * staging_memory = R_StagingAllocate(totalindexsize, 1, &command_buffer, &staging_buffer, &staging_offset);
+		remaining_size = totalindexsize;
+		copy_offset = 0;
 
-		memcpy(staging_memory, indexes, totalindexsize);
+		while (remaining_size > 0)
+		{
+			const int size_to_copy = q_min(remaining_size, STAGING_BUFFER_SIZE_KB * 1024);
+			VkBuffer staging_buffer;
+			VkCommandBuffer command_buffer;
+			int staging_offset;
+			unsigned char * staging_memory = R_StagingAllocate(size_to_copy, 1, &command_buffer, &staging_buffer, &staging_offset);
 
-		VkBufferCopy region;
-		region.srcOffset = staging_offset;
-		region.dstOffset = 0;
-		region.size = totalindexsize;
-		vkCmdCopyBuffer(command_buffer, staging_buffer, m->index_buffer, 1, &region);
+			memcpy(staging_memory, (byte*)indexes + copy_offset, size_to_copy);
+
+			VkBufferCopy region;
+			region.srcOffset = staging_offset;
+			region.dstOffset = copy_offset;
+			region.size = size_to_copy;
+			vkCmdCopyBuffer(command_buffer, staging_buffer, m->index_buffer, 1, &region);
+
+			copy_offset += size_to_copy;
+			remaining_size -= size_to_copy;
+		}
 	}
 
 // create the vertex buffer (empty)
@@ -605,18 +617,28 @@ static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 		if (err != VK_SUCCESS)
 			Sys_Error("vkBindBufferMemory failed");
 
-		VkBuffer staging_buffer;
-		VkCommandBuffer command_buffer;
-		int staging_offset;
-		unsigned char * staging_memory = R_StagingAllocate(totalvbosize, 1, &command_buffer, &staging_buffer, &staging_offset);
+		remaining_size = totalvbosize;
+		copy_offset = 0;
 
-		memcpy(staging_memory, vbodata, totalvbosize);
+		while (remaining_size > 0)
+		{
+			const int size_to_copy = q_min(remaining_size, STAGING_BUFFER_SIZE_KB * 1024);
+			VkBuffer staging_buffer;
+			VkCommandBuffer command_buffer;
+			int staging_offset;
+			unsigned char * staging_memory = R_StagingAllocate(size_to_copy, 1, &command_buffer, &staging_buffer, &staging_offset);
 
-		VkBufferCopy region;
-		region.srcOffset = staging_offset;
-		region.dstOffset = 0;
-		region.size = totalvbosize;
-		vkCmdCopyBuffer(command_buffer, staging_buffer, m->vertex_buffer, 1, &region);
+			memcpy(staging_memory, (byte*)vbodata + copy_offset, size_to_copy);
+
+			VkBufferCopy region;
+			region.srcOffset = staging_offset;
+			region.dstOffset = copy_offset;
+			region.size = size_to_copy;
+			vkCmdCopyBuffer(command_buffer, staging_buffer, m->vertex_buffer, 1, &region);
+
+			copy_offset += size_to_copy;
+			remaining_size -= size_to_copy;
+		}
 	}
 
 	free (vbodata);

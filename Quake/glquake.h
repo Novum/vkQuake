@@ -50,6 +50,7 @@ extern	int glx, gly, glwidth, glheight;
 
 #define	MAX_GLTEXTURES	2048
 #define NUM_COLOR_BUFFERS 2
+#define STAGING_BUFFER_SIZE_KB	16384
 
 void R_TimeRefresh_f (void);
 void R_ReadPointFile_f (void);

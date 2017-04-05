@@ -60,7 +60,6 @@ int num_vulkan_dynbuf_allocations = 0;
 Staging
 ================
 */
-#define STAGING_BUFFER_SIZE_KB	32768
 #define NUM_STAGING_BUFFERS		2
 
 typedef struct
@@ -370,8 +369,8 @@ static void R_SubmitStagingBuffer(int index)
 	VkMappedMemoryRange range;
 	memset(&range, 0, sizeof(range));
 	range.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
-    range.memory = staging_memory;
-    range.size = VK_WHOLE_SIZE;
+	range.memory = staging_memory;
+	range.size = VK_WHOLE_SIZE;
 	vkFlushMappedMemoryRanges(vulkan_globals.device, 1, &range);
 
 	VkSubmitInfo submit_info;

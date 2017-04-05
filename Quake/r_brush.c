@@ -566,6 +566,8 @@ void GL_BuildBModelVertexBuffer (void)
 	int		i, j;
 	qmodel_t	*m;
 	float		*varray;
+	int remaining_size;
+	int copy_offset;
 
 	// count all verts in all models
 	numverts = 0;
@@ -640,18 +642,28 @@ void GL_BuildBModelVertexBuffer (void)
 	if (err != VK_SUCCESS)
 		Sys_Error("vkBindImageMemory failed");
 
-	VkBuffer staging_buffer;
-	VkCommandBuffer command_buffer;
-	int staging_offset;
-	unsigned char * staging_memory = R_StagingAllocate(varray_bytes, 1, &command_buffer, &staging_buffer, &staging_offset);
+	remaining_size = varray_bytes;
+	copy_offset = 0;
 
-	memcpy(staging_memory, varray, varray_bytes);
+	while (remaining_size > 0)
+	{
+		const int size_to_copy = q_min(remaining_size, STAGING_BUFFER_SIZE_KB * 1024);
+		VkBuffer staging_buffer;
+		VkCommandBuffer command_buffer;
+		int staging_offset;
+		unsigned char * staging_memory = R_StagingAllocate(size_to_copy, 1, &command_buffer, &staging_buffer, &staging_offset);
 
-	VkBufferCopy region;
-	region.srcOffset = staging_offset;
-	region.dstOffset = 0;
-	region.size = varray_bytes;
-	vkCmdCopyBuffer(command_buffer, staging_buffer, bmodel_vertex_buffer, 1, &region);
+		memcpy(staging_memory, (byte*)varray + copy_offset, size_to_copy);
+
+		VkBufferCopy region;
+		region.srcOffset = staging_offset;
+		region.dstOffset = copy_offset;
+		region.size = size_to_copy;
+		vkCmdCopyBuffer(command_buffer, staging_buffer, bmodel_vertex_buffer, 1, &region);
+
+		copy_offset += size_to_copy;
+		remaining_size -= size_to_copy;
+	}
 
 	free (varray);
 }
