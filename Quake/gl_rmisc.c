@@ -1071,7 +1071,7 @@ void R_InitSamplers()
 		sampler_create_info.minFilter = VK_FILTER_LINEAR;
 		sampler_create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
 		sampler_create_info.anisotropyEnable = VK_FALSE;
-		sampler_create_info.maxAnisotropy = 0.0f;
+		sampler_create_info.maxAnisotropy = 1.0f;
 
 		err = vkCreateSampler(vulkan_globals.device, &sampler_create_info, NULL, &vulkan_globals.linear_sampler);
 		if (err != VK_SUCCESS)

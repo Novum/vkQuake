@@ -762,10 +762,12 @@ static void GL_InitDevice( void )
 
 	vkGetPhysicalDeviceFeatures(vulkan_physical_device, &vulkan_physical_device_features);
 	const VkBool32 extended_format_support = vulkan_physical_device_features.shaderStorageImageExtendedFormats;
+	const VkBool32 sampler_anisotropic = vulkan_physical_device_features.samplerAnisotropy;
 
 	VkPhysicalDeviceFeatures device_features;
 	memset(&device_features, 0, sizeof(device_features));
 	device_features.shaderStorageImageExtendedFormats = extended_format_support;
+	device_features.samplerAnisotropy = sampler_anisotropic;
 
 	VkDeviceCreateInfo device_create_info;
 	memset(&device_create_info, 0, sizeof(device_create_info));
