@@ -1125,6 +1125,12 @@ void Host_Loadgame_f (void)
 		Con_Printf ("load <savename> : load a game\n");
 		return;
 	}
+	
+	if (strstr(Cmd_Argv(1), ".."))
+	{
+		Con_Printf ("Relative pathnames are not allowed.\n");
+		return;
+	}
 
 	cls.demonum = -1;		// stop demo loop in case this fails
 
