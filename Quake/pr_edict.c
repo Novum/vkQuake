@@ -705,7 +705,7 @@ void ED_ParseGlobals (const char *data)
 		if (!data)
 			Host_Error ("ED_ParseEntity: EOF without closing brace");
 
-		strcpy (keyname, com_token);
+		q_strlcpy (keyname, com_token, sizeof(keyname));
 
 	// parse value
 		data = COM_Parse (data);
