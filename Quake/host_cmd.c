@@ -1105,13 +1105,13 @@ Host_Loadgame_f
 */
 void Host_Loadgame_f (void)
 {
+	static char	*start;
+	
 	char	name[MAX_OSPATH];
-	FILE	*f;
 	char	mapname[MAX_QPATH];
 	float	time, tfloat;
-	char	str[32768];
-	const char  *start;
-	int	i, r;
+	const char	*data;
+	int	i;
 	edict_t	*ent;
 	int	entnum;
 	int	version;
@@ -1142,30 +1142,38 @@ void Host_Loadgame_f (void)
 //	SCR_BeginLoadingPlaque ();
 
 	Con_Printf ("Loading game from %s...\n", name);
-	f = fopen (name, "r");
-	if (!f)
+	
+// avoid leaking if the previous Host_Loadgame_f failed with a Host_Error
+	if (start != NULL)
+		free (start);
+	
+	start = (char *) COM_LoadMallocFile_OSPath(name, NULL);
+	if (start == NULL)
 	{
 		Con_Printf ("ERROR: couldn't open.\n");
 		return;
 	}
 
-	fscanf (f, "%i\n", &version);
+	data = start;
+	data = COM_ParseIntNewline (data, &version);
 	if (version != SAVEGAME_VERSION)
 	{
-		fclose (f);
+		free (start);
+		start = NULL;
 		Con_Printf ("Savegame is version %i, not %i\n", version, SAVEGAME_VERSION);
 		return;
 	}
-	fscanf (f, "%s\n", str);
+	data = COM_ParseStringNewline (data);
 	for (i = 0; i < NUM_SPAWN_PARMS; i++)
-		fscanf (f, "%f\n", &spawn_parms[i]);
+		data = COM_ParseFloatNewline (data, &spawn_parms[i]);
 // this silliness is so we can load 1.06 save files, which have float skill values
-	fscanf (f, "%f\n", &tfloat);
+	data = COM_ParseFloatNewline(data, &tfloat);
 	current_skill = (int)(tfloat + 0.1);
 	Cvar_SetValue ("skill", (float)current_skill);
 
-	fscanf (f, "%s\n",mapname);
-	fscanf (f, "%f\n",&time);
+	data = COM_ParseStringNewline (data);
+	q_strlcpy (mapname, com_token, sizeof(mapname));
+	data = COM_ParseFloatNewline (data, &time);
 
 	CL_Disconnect_f ();
 
@@ -1173,7 +1181,8 @@ void Host_Loadgame_f (void)
 
 	if (!sv.active)
 	{
-		fclose (f);
+		free (start);
+		start = NULL;
 		Con_Printf ("Couldn't load map\n");
 		return;
 	}
@@ -1184,50 +1193,25 @@ void Host_Loadgame_f (void)
 
 	for (i = 0; i < MAX_LIGHTSTYLES; i++)
 	{
-		fscanf (f, "%s\n", str);
-		sv.lightstyles[i] = (const char *)Hunk_Strdup (str, "lightstyles");
+		data = COM_ParseStringNewline (data);
+		sv.lightstyles[i] = (const char *)Hunk_Strdup (com_token, "lightstyles");
 	}
 
 // load the edicts out of the savegame file
 	entnum = -1;		// -1 is the globals
-	while (!feof(f))
+	while (*data)
 	{
-		qboolean inside_string = false;
-		for (i = 0; i < (int) sizeof(str) - 1; i++)
-		{
-			r = fgetc (f);
-			if (r == EOF || !r)
-				break;
-			str[i] = r;
-			if (r == '"')
-			{
-				inside_string = !inside_string;
-			}
-			else if (r == '}' && !inside_string) // only handle } characters outside of quoted strings
-			{
-				i++;
-				break;
-			}
-		}
-		if (i == (int) sizeof(str) - 1)
-		{
-			fclose (f);
-			Sys_Error ("Loadgame buffer overflow");
-		}
-		str[i] = 0;
-		start = str;
-		start = COM_Parse(str);
+		data = COM_Parse (data);
 		if (!com_token[0])
 			break;		// end of file
 		if (strcmp(com_token,"{"))
 		{
-			fclose (f);
 			Sys_Error ("First token isn't a brace");
 		}
 
 		if (entnum == -1)
 		{	// parse the global vars
-			ED_ParseGlobals (start);
+			data = ED_ParseGlobals (data);
 		}
 		else
 		{	// parse an edict
@@ -1239,7 +1223,7 @@ void Host_Loadgame_f (void)
 			else {
 				memset (ent, 0, pr_edict_size);
 			}
-			ED_ParseEdict (start, ent);
+			data = ED_ParseEdict (data, ent);
 
 		// link it into the bsp tree
 			if (!ent->free)
@@ -1252,7 +1236,8 @@ void Host_Loadgame_f (void)
 	sv.num_edicts = entnum;
 	sv.time = time;
 
-	fclose (f);
+	free (start);
+	start = NULL;
 
 	for (i = 0; i < NUM_SPAWN_PARMS; i++)
 		svs.clients->spawn_parms[i] = spawn_parms[i];

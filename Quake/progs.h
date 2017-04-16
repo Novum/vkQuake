@@ -87,7 +87,7 @@ void ED_Write (FILE *f, edict_t *ed);
 const char *ED_ParseEdict (const char *data, edict_t *ent);
 
 void ED_WriteGlobals (FILE *f);
-void ED_ParseGlobals (const char *data);
+const char *ED_ParseGlobals (const char *data);
 
 void ED_LoadFromFile (const char *data);
 

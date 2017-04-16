@@ -1872,6 +1872,56 @@ byte *COM_LoadMallocFile (const char *path, unsigned int *path_id)
 	return COM_LoadFile (path, LOADFILE_MALLOC, path_id);
 }
 
+byte *COM_LoadMallocFile_OSPath (const char *path, long *len_out)
+{
+	FILE	*f;
+	byte	*data;
+	long	len;
+	
+	f = fopen (path, "rb");
+	if (f == NULL)
+		return NULL;
+	
+	len = COM_filelength (f);
+	if (len < 0)
+		return NULL;
+	
+	data = (byte *) malloc (len + 1);
+	if (data == NULL)
+		return NULL;
+	if (fread (data, 1, len, f) != len)
+	{
+		free (data);
+		return NULL;
+	}
+	data[len] = '\0';
+	
+	if (len_out != NULL)
+		*len_out = len;
+	return data;
+}
+
+const char *COM_ParseIntNewline(const char *buffer, int *value)
+{
+	int consumed = 0;
+	sscanf (buffer, "%i\n%n", value, &consumed);
+	return buffer + consumed;
+}
+
+const char *COM_ParseFloatNewline(const char *buffer, float *value)
+{
+	int consumed = 0;
+	sscanf (buffer, "%f\n%n", value, &consumed);
+	return buffer + consumed;
+}
+
+const char *COM_ParseStringNewline(const char *buffer)
+{
+	int consumed = 0;
+	com_token[0] = '\0';
+	sscanf (buffer, "%1023s\n%n", com_token, &consumed);
+	return buffer + consumed;
+}
 
 /*
 =================
