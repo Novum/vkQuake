@@ -271,6 +271,7 @@ typedef struct {
 	double	packetsize;
 	double	efrags;
 	double	beams;
+	double	varstring;
 } overflowtimes_t;
 extern overflowtimes_t dev_overflows; //this stores the last time overflow messages were displayed, not the last time overflows occured
 #define CONSOLE_RESPAM_TIME 3 // seconds between repeated warning messages
