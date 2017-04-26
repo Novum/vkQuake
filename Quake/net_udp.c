@@ -59,6 +59,16 @@ sys_socket_t UDP_Init (void)
 	else
 	{
 		buff[MAXHOSTNAMELEN - 1] = 0;
+		
+		// ericw -- if our hostname ends in ".local" (a macOS thing),
+		// don't bother calling gethostbyname(), because it blocks for a few seconds
+		// and then fails (on my system anyway.)
+		if (strstr(buff, ".local") == (buff + strlen(buff) - 6))
+		{
+			Con_SafePrintf("UDP_Init: skipping gethostbyname for %s\n", buff);
+			goto skip_gethostbyname;
+		}
+		
 		local = gethostbyname(buff);
 		if (local == NULL)
 		{
@@ -75,6 +85,7 @@ sys_socket_t UDP_Init (void)
 		}
 	}
 
+skip_gethostbyname:
 	if ((net_controlsocket = UDP_OpenSocket(0)) == INVALID_SOCKET)
 	{
 		Con_SafePrintf("UDP_Init: Unable to open control socket, UDP disabled\n");
