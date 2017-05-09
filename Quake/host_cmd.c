@@ -1147,7 +1147,7 @@ void Host_Loadgame_f (void)
 	if (start != NULL)
 		free (start);
 	
-	start = (char *) COM_LoadMallocFile_OSPath(name, NULL);
+	start = (char *) COM_LoadMallocFile_TextMode_OSPath(name, NULL);
 	if (start == NULL)
 	{
 		Con_Printf ("ERROR: couldn't open.\n");

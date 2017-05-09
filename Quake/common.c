@@ -1872,13 +1872,17 @@ byte *COM_LoadMallocFile (const char *path, unsigned int *path_id)
 	return COM_LoadFile (path, LOADFILE_MALLOC, path_id);
 }
 
-byte *COM_LoadMallocFile_OSPath (const char *path, long *len_out)
+byte *COM_LoadMallocFile_TextMode_OSPath (const char *path, long *len_out)
 {
 	FILE	*f;
 	byte	*data;
-	long	len;
+	long	len, actuallen;
 	
-	f = fopen (path, "rb");
+	// ericw -- this is used by Host_Loadgame_f. Translate CRLF to LF on load games,
+	// othewise multiline messages have a garbage character at the end of each line.
+	// TODO: could handle in a way that allows loading CRLF savegames on mac/linux
+	// without the junk characters appearing.
+	f = fopen (path, "rt");
 	if (f == NULL)
 		return NULL;
 	
@@ -1889,15 +1893,18 @@ byte *COM_LoadMallocFile_OSPath (const char *path, long *len_out)
 	data = (byte *) malloc (len + 1);
 	if (data == NULL)
 		return NULL;
-	if (fread (data, 1, len, f) != len)
+
+	// (actuallen < len) if CRLF to LF translation was performed
+	actuallen = fread (data, 1, len, f);
+	if (ferror(f))
 	{
 		free (data);
 		return NULL;
 	}
-	data[len] = '\0';
+	data[actuallen] = '\0';
 	
 	if (len_out != NULL)
-		*len_out = len;
+		*len_out = actuallen;
 	return data;
 }
 

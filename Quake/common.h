@@ -257,7 +257,8 @@ byte *COM_LoadMallocFile (const char *path, unsigned int *path_id);
 
 // Opens the given path directly, ignoring search paths.
 // Returns NULL on failure, or else a '\0'-terminated malloc'ed buffer.
-byte *COM_LoadMallocFile_OSPath (const char *path, long *len_out);
+// Loads in "t" mode so CRLF to LF translation is performed on Windows.
+byte *COM_LoadMallocFile_TextMode_OSPath (const char *path, long *len_out);
 
 // Attempts to parse an int, followed by a newline.
 // Returns advanced buffer position.
