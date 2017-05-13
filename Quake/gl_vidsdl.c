@@ -1460,7 +1460,26 @@ static void GL_CreateSwapChain( void )
 	swapchain_create_info.pQueueFamilyIndices = NULL;
 	swapchain_create_info.presentMode = present_mode;
 	swapchain_create_info.clipped = true;
-	swapchain_create_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+
+	VkCompositeAlphaFlagBitsKHR composite_alpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+	VkCompositeAlphaFlagBitsKHR composite_alpha_flags[4] = 
+	{
+		VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
+		VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR,
+		VK_COMPOSITE_ALPHA_POST_MULTIPLIED_BIT_KHR,
+		VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR,
+	};
+
+	for (i = 0; i < 4; i++) 
+	{
+		if (vulkan_surface_capabilities.supportedCompositeAlpha & composite_alpha_flags[i]) 
+		{
+			composite_alpha = composite_alpha_flags[i];
+			break;
+		}
+	}	
+
+	swapchain_create_info.compositeAlpha = composite_alpha;
 
 	vulkan_globals.swap_chain_format = surface_formats[0].format;
 	free(surface_formats);
