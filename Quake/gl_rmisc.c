@@ -1565,7 +1565,7 @@ void R_CreatePipelines()
 	alias_vertex_input_attribute_descriptions[0].location = 0;
 	alias_vertex_input_attribute_descriptions[0].offset = 0;
 	alias_vertex_input_attribute_descriptions[1].binding = 1;
-	alias_vertex_input_attribute_descriptions[1].format = VK_FORMAT_R8G8B8A8_USCALED;
+	alias_vertex_input_attribute_descriptions[1].format = VK_FORMAT_R8G8B8A8_UNORM;
 	alias_vertex_input_attribute_descriptions[1].location = 1;
 	alias_vertex_input_attribute_descriptions[1].offset = 0;
 	alias_vertex_input_attribute_descriptions[2].binding = 1;
@@ -1573,7 +1573,7 @@ void R_CreatePipelines()
 	alias_vertex_input_attribute_descriptions[2].location = 2;
 	alias_vertex_input_attribute_descriptions[2].offset = 4;
 	alias_vertex_input_attribute_descriptions[3].binding = 2;
-	alias_vertex_input_attribute_descriptions[3].format = VK_FORMAT_R8G8B8A8_USCALED;
+	alias_vertex_input_attribute_descriptions[3].format = VK_FORMAT_R8G8B8A8_UNORM;
 	alias_vertex_input_attribute_descriptions[3].location = 3;
 	alias_vertex_input_attribute_descriptions[3].offset = 0;
 	alias_vertex_input_attribute_descriptions[4].binding = 2;
