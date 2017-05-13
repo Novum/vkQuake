@@ -380,17 +380,14 @@ void R_DrawAliasModel (entity_t *e)
 	TranslationMatrix (translation_matrix, paliashdr->scale_origin[0], paliashdr->scale_origin[1], paliashdr->scale_origin[2]);
 	MatrixMultiply(model_matrix, translation_matrix);
 
+	// Scale multiplied by 255 because we use UNORM instead of USCALED in the vertex shader
 	float scale_matrix[16];
-	ScaleMatrix (scale_matrix, paliashdr->scale[0], paliashdr->scale[1], paliashdr->scale[2]);
+	ScaleMatrix (scale_matrix, paliashdr->scale[0] * 255.0f, paliashdr->scale[1] * 255.0f, paliashdr->scale[2] * 255.0f);
 	MatrixMultiply(model_matrix, scale_matrix);
 
 	//
 	// random stuff
 	//
-	//if (gl_smoothmodels.value && !r_drawflat_cheatsafe)
-	//	glShadeModel (GL_SMOOTH);
-	//if (gl_affinemodels.value)
-	//	glHint (GL_PERSPECTIVE_CORRECTION_HINT, GL_FASTEST);
 	shading = true;
 
 	//
@@ -436,47 +433,7 @@ void R_DrawAliasModel (entity_t *e)
 	//
 	// draw it
 	//
-	if (r_drawflat_cheatsafe)
-	{
-		/*glDisable (GL_TEXTURE_2D);
-		GL_DrawAliasFrame (paliashdr, lerpdata);
-		glEnable (GL_TEXTURE_2D);
-		srand((int) (cl.time * 1000)); //restore randomness*/
-	}
-	else if (r_fullbright_cheatsafe)
-	{
-		/*GL_Bind (tx);
-		shading = false;
-		glColor4f(1,1,1,entalpha);
-		GL_DrawAliasFrame (paliashdr, lerpdata);
-		if (fb)
-		{
-			glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-			GL_Bind(fb);
-			glEnable(GL_BLEND);
-			glBlendFunc (GL_ONE, GL_ONE);
-			glDepthMask(GL_FALSE);
-			glColor3f(entalpha,entalpha,entalpha);
-			Fog_StartAdditive ();
-			GL_DrawAliasFrame (paliashdr, lerpdata);
-			Fog_StopAdditive ();
-			glDepthMask(GL_TRUE);
-			glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-			glDisable(GL_BLEND);
-		}*/
-	}
-	else if (r_lightmap_cheatsafe)
-	{
-		/*glDisable (GL_TEXTURE_2D);
-		shading = false;
-		glColor3f(1,1,1);
-		GL_DrawAliasFrame (paliashdr, lerpdata);
-		glEnable (GL_TEXTURE_2D);*/
-	}
-	else
-	{
-		GL_DrawAliasFrame (paliashdr, lerpdata, tx, fb, model_matrix, entalpha);
-	}
+	GL_DrawAliasFrame (paliashdr, lerpdata, tx, fb, model_matrix, entalpha);
 }
 
 //johnfitz -- values for shadow matrix
@@ -495,55 +452,6 @@ TODO: orient shadow onto "lightplane" (a global mplane_t*)
 */
 void GL_DrawAliasShadow (entity_t *e)
 {
-	/*float	shadowmatrix[16] = {1,				0,				0,				0,
-								0,				1,				0,				0,
-								SHADOW_SKEW_X,	SHADOW_SKEW_Y,	SHADOW_VSCALE,	0,
-								0,				0,				SHADOW_HEIGHT,	1};
-	float		lheight;
-	aliashdr_t	*paliashdr;
-	lerpdata_t	lerpdata;
-
-	if (R_CullModelForEntity(e))
-		return;
-
-	if (e == &cl.viewent || e->model->flags & MOD_NOSHADOW)
-		return;
-
-	entalpha = ENTALPHA_DECODE(e->alpha);
-	if (entalpha == 0) return;
-
-	paliashdr = (aliashdr_t *)Mod_Extradata (e->model);
-	R_SetupAliasFrame (paliashdr, e->frame, &lerpdata);
-	R_SetupEntityTransform (e, &lerpdata);
-	R_LightPoint (e->origin);
-	lheight = currententity->origin[2] - lightspot[2];
-
-// set up matrix
-	glPushMatrix ();
-	glTranslatef (lerpdata.origin[0],  lerpdata.origin[1],  lerpdata.origin[2]);
-	glTranslatef (0,0,-lheight);
-	glMultMatrixf (shadowmatrix);
-	glTranslatef (0,0,lheight);
-	glRotatef (lerpdata.angles[1],  0, 0, 1);
-	glRotatef (-lerpdata.angles[0],  0, 1, 0);
-	glRotatef (lerpdata.angles[2],  1, 0, 0);
-	glTranslatef (paliashdr->scale_origin[0], paliashdr->scale_origin[1], paliashdr->scale_origin[2]);
-	glScalef (paliashdr->scale[0], paliashdr->scale[1], paliashdr->scale[2]);
-
-// draw it
-	glDepthMask(GL_FALSE);
-	glEnable (GL_BLEND);
-	GL_DisableMultitexture ();
-	glDisable (GL_TEXTURE_2D);
-	shading = false;
-	glColor4f(0,0,0,entalpha * 0.5);
-	GL_DrawAliasFrame (paliashdr, lerpdata);
-	glEnable (GL_TEXTURE_2D);
-	glDisable (GL_BLEND);
-	glDepthMask(GL_TRUE);
-
-//clean up
-	glPopMatrix ();*/
 }
 
 /*
@@ -553,25 +461,5 @@ R_DrawAliasModel_ShowTris -- johnfitz
 */
 void R_DrawAliasModel_ShowTris (entity_t *e)
 {
-	/*aliashdr_t	*paliashdr;
-	lerpdata_t	lerpdata;
-
-	if (R_CullModelForEntity(e))
-		return;
-
-	paliashdr = (aliashdr_t *)Mod_Extradata (e->model);
-	R_SetupAliasFrame (paliashdr, e->frame, &lerpdata);
-	R_SetupEntityTransform (e, &lerpdata);
-
-	glPushMatrix ();
-	R_RotateForEntity (lerpdata.origin,lerpdata.angles);
-	glTranslatef (paliashdr->scale_origin[0], paliashdr->scale_origin[1], paliashdr->scale_origin[2]);
-	glScalef (paliashdr->scale[0], paliashdr->scale[1], paliashdr->scale[2]);
-
-	shading = false;
-	glColor3f(1,1,1);
-	GL_DrawAliasFrame (paliashdr, lerpdata);
-
-	glPopMatrix ();*/
 }
 
