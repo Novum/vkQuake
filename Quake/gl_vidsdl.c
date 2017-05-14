@@ -1461,6 +1461,10 @@ static void GL_CreateSwapChain( void )
 	swapchain_create_info.presentMode = present_mode;
 	swapchain_create_info.clipped = true;
 	swapchain_create_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+	// Not all devices support ALPHA_OPAQUE
+	if (!(vulkan_surface_capabilities.supportedCompositeAlpha & VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR))
+		swapchain_create_info.compositeAlpha = VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR;
+
 
 	vulkan_globals.swap_chain_format = surface_formats[0].format;
 	free(surface_formats);
