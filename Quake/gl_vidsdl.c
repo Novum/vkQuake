@@ -355,6 +355,7 @@ static qboolean VID_SetMode (int width, int height, int bpp, qboolean fullscreen
 	int		temp;
 	Uint32	flags;
 	char		caption[50];
+	int		previous_display;
 	
 	// so Con_Printfs don't mess us up by forcing vid and snd updates
 	temp = scr_disabled_for_loading;
@@ -380,6 +381,12 @@ static qboolean VID_SetMode (int width, int height, int bpp, qboolean fullscreen
 		SDL_VERSION(&sys_wm_info.version);
 		if(!SDL_GetWindowWMInfo(draw_context,&sys_wm_info))
 			Sys_Error ("Couldn't get window wm info");
+
+		previous_display = -1;
+	}
+	else
+	{
+		previous_display = SDL_GetWindowDisplayIndex(draw_context);
 	}
 
 	/* Ensure the window is not fullscreen */
@@ -391,7 +398,10 @@ static qboolean VID_SetMode (int width, int height, int bpp, qboolean fullscreen
 
 	/* Set window size and display mode */
 	SDL_SetWindowSize (draw_context, width, height);
-	SDL_SetWindowPosition (draw_context, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+	if (previous_display >= 0)
+		SDL_SetWindowPosition (draw_context, SDL_WINDOWPOS_CENTERED_DISPLAY(previous_display), SDL_WINDOWPOS_CENTERED_DISPLAY(previous_display));
+	else
+		SDL_SetWindowPosition(draw_context, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
 	SDL_SetWindowDisplayMode (draw_context, VID_SDL2_GetDisplayMode(width, height, bpp));
 	SDL_SetWindowBordered (draw_context, vid_borderless.value ? SDL_FALSE : SDL_TRUE);
 
