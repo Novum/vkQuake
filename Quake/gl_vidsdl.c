@@ -364,7 +364,7 @@ static qboolean VID_SetMode (int width, int height, int bpp, qboolean fullscreen
 	CDAudio_Pause ();
 	BGM_Pause ();
 
-	q_snprintf(caption, sizeof(caption), "vkQuake %1.2f.%d", (float)VKQUAKE_VERSION, VKQUAKE_VER_PATCH);
+	q_snprintf(caption, sizeof(caption), "vkQuake " VKQUAKE_VER_STRING);
 
 	/* Create the window if needed, hidden */
 	if (!draw_context)
