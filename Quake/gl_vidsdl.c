@@ -89,7 +89,8 @@ static cvar_t	vid_desktopfullscreen = {"vid_desktopfullscreen", "0", CVAR_ARCHIV
 static cvar_t	vid_borderless = {"vid_borderless", "0", CVAR_ARCHIVE}; // QuakeSpasm
 cvar_t	vid_filter = {"vid_filter", "0", CVAR_ARCHIVE};
 cvar_t	vid_anisotropic = {"vid_anisotropic", "0", CVAR_ARCHIVE};
-cvar_t vid_fsaa = {"vid_fsaa", "0", CVAR_ARCHIVE};
+cvar_t vid_fsaa = {"vid_fsaa", "4", CVAR_ARCHIVE};
+cvar_t vid_fsaamode = { "vid_fsaamode", "0", CVAR_ARCHIVE };
 
 cvar_t		vid_gamma = {"gamma", "1", CVAR_ARCHIVE}; //johnfitz -- moved here from view.c
 cvar_t		vid_contrast = {"contrast", "1", CVAR_ARCHIVE}; //QuakeSpasm, MarkV
@@ -1149,7 +1150,6 @@ static void GL_CreateDepthBuffer( void )
 	GL_SetObjectName((uint64_t)depth_buffer_view, VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT, "Depth Buffer View");
 }
 
-
 /*
 ===============
 GL_CreateColorBuffer
@@ -1228,21 +1228,20 @@ static void GL_CreateColorBuffer( void )
 	vulkan_globals.sample_count = VK_SAMPLE_COUNT_1_BIT;
 	vulkan_globals.supersampling = false;
 
-	if (vid_fsaa.value)
+	if (vid_fsaamode.value)
 	{
 		VkImageFormatProperties image_format_properties;
 		vkGetPhysicalDeviceImageFormatProperties(vulkan_physical_device, vulkan_globals.color_format, VK_IMAGE_TYPE_2D, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, 0, &image_format_properties);
 
-		if (image_format_properties.sampleCounts & VK_SAMPLE_COUNT_2_BIT)
-			vulkan_globals.sample_count = VK_SAMPLE_COUNT_2_BIT;
-		if (image_format_properties.sampleCounts & VK_SAMPLE_COUNT_4_BIT)
-			vulkan_globals.sample_count = VK_SAMPLE_COUNT_4_BIT;
-		if (image_format_properties.sampleCounts & VK_SAMPLE_COUNT_8_BIT)
-			vulkan_globals.sample_count = VK_SAMPLE_COUNT_8_BIT;
-
 		// Workaround: Intel advertises 16 samples but crashes when using it.
-		if ((image_format_properties.sampleCounts & VK_SAMPLE_COUNT_16_BIT) && (vulkan_globals.device_properties.vendorID != 0x8086))
+		if ((vid_fsaa.value >= 16) && (image_format_properties.sampleCounts & VK_SAMPLE_COUNT_16_BIT) && (vulkan_globals.device_properties.vendorID != 0x8086))
 			vulkan_globals.sample_count = VK_SAMPLE_COUNT_16_BIT;
+		else if ((vid_fsaa.value >= 8) && (image_format_properties.sampleCounts & VK_SAMPLE_COUNT_8_BIT))
+			vulkan_globals.sample_count = VK_SAMPLE_COUNT_8_BIT;
+		else if ((vid_fsaa.value >= 4) && (image_format_properties.sampleCounts & VK_SAMPLE_COUNT_4_BIT))
+			vulkan_globals.sample_count = VK_SAMPLE_COUNT_4_BIT;
+		else if ((vid_fsaa.value >= 2) && (image_format_properties.sampleCounts & VK_SAMPLE_COUNT_2_BIT))
+			vulkan_globals.sample_count = VK_SAMPLE_COUNT_2_BIT;
 
 		switch(vulkan_globals.sample_count)
 		{
@@ -1261,15 +1260,15 @@ static void GL_CreateColorBuffer( void )
 			default:
 				break;
 		}
-
-		vulkan_globals.supersampling = (vulkan_physical_device_features.sampleRateShading && vid_fsaa.value >= 2) ? true : false;
-
-		if (vulkan_globals.supersampling)
-			Con_Printf( "Supersampling enabled\n" );
 	}
 
 	if (vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT)
 	{
+		vulkan_globals.supersampling = (vulkan_physical_device_features.sampleRateShading && vid_fsaamode.value >= 2) ? true : false;
+
+		if (vulkan_globals.supersampling)
+			Con_Printf("Supersampling enabled\n");
+
 		image_create_info.samples = vulkan_globals.sample_count;
 
 		err = vkCreateImage(vulkan_globals.device, &image_create_info, NULL, &msaa_color_buffer);
@@ -1315,6 +1314,8 @@ static void GL_CreateColorBuffer( void )
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateImageView failed");
 	}
+	else
+		Con_Printf("AA disabled\n");
 }
 
 /*
@@ -1976,6 +1977,7 @@ void	VID_Init (void)
 					 "vid_bpp",
 					 "vid_vsync",
 					 "vid_desktopfullscreen",
+					 "vid_fsaamode",
 					 "vid_fsaa",
 					 "vid_borderless"};
 #define num_readvars	( sizeof(read_vars)/sizeof(read_vars[0]) )
@@ -1987,6 +1989,7 @@ void	VID_Init (void)
 	Cvar_RegisterVariable (&vid_vsync); //johnfitz
 	Cvar_RegisterVariable (&vid_filter);
 	Cvar_RegisterVariable (&vid_anisotropic);
+	Cvar_RegisterVariable (&vid_fsaamode);
 	Cvar_RegisterVariable (&vid_fsaa);
 	Cvar_RegisterVariable (&vid_desktopfullscreen); //QuakeSpasm
 	Cvar_RegisterVariable (&vid_borderless); //QuakeSpasm
@@ -1996,6 +1999,7 @@ void	VID_Init (void)
 	Cvar_SetCallback (&vid_bpp, VID_Changed_f);
 	Cvar_SetCallback (&vid_filter, VID_FilterChanged_f);
 	Cvar_SetCallback (&vid_anisotropic, VID_FilterChanged_f);
+	Cvar_SetCallback (&vid_fsaamode, VID_Changed_f);
 	Cvar_SetCallback (&vid_fsaa, VID_Changed_f);
 	Cvar_SetCallback (&vid_vsync, VID_Changed_f);
 	Cvar_SetCallback (&vid_desktopfullscreen, VID_Changed_f);
@@ -2299,7 +2303,8 @@ enum {
 	VID_OPT_BPP,
 	VID_OPT_FULLSCREEN,
 	VID_OPT_VSYNC,
-	VID_OPT_ANTIALIASING,
+	VID_OPT_ANTIALIASING_MODE,
+	VID_OPT_ANTIALIASING_SAMPLES,
 	VID_OPT_FILTER,
 	VID_OPT_ANISOTROPY,
 	VID_OPT_UNDERWATER,
@@ -2489,10 +2494,45 @@ VID_Menu_ChooseNextAAMode
 static void VID_Menu_ChooseNextAAMode(int dir)
 {
 	if(vulkan_physical_device_features.sampleRateShading) {
-		Cvar_SetValueQuick(&vid_fsaa, (float)(((int)vid_fsaa.value + 3 + dir) % 3));
+		Cvar_SetValueQuick(&vid_fsaamode, (float)(((int)vid_fsaamode.value + 3 + dir) % 3));
 	} else {
-		Cvar_SetValueQuick(&vid_fsaa, (float)(((int)vid_fsaa.value + 2 + dir) % 2));
+		Cvar_SetValueQuick(&vid_fsaamode, (float)(((int)vid_fsaamode.value + 2 + dir) % 2));
 	}
+}
+
+/*
+================
+VID_Menu_ChooseNextAASamples
+================
+*/
+static void VID_Menu_ChooseNextAASamples(int dir)
+{
+	int value = vid_fsaa.value;
+
+	if (dir > 0)
+	{
+		if (value >= 8)
+			value = 16;
+		else if (value >= 4)
+			value = 8;
+		else if (value >= 2)
+			value = 4;
+		else
+			value = 2;
+	}
+	else 
+	{
+		if (value <= 4)
+			value = 2;
+		else if (value <= 8)
+			value = 4;
+		else if (value <= 16)
+			value = 8;
+		else
+			value = 16;
+	}
+
+	Cvar_SetValueQuick(&vid_fsaa, (float)value);
 }
 
 /*
@@ -2550,8 +2590,11 @@ static void VID_MenuKey (int key)
 		case VID_OPT_VSYNC:
 			Cbuf_AddText ("toggle vid_vsync\n"); // kristian
 			break;
-		case VID_OPT_ANTIALIASING:
+		case VID_OPT_ANTIALIASING_MODE:
 			VID_Menu_ChooseNextAAMode (-1);
+			break;
+		case VID_OPT_ANTIALIASING_SAMPLES:
+			VID_Menu_ChooseNextAASamples(-1);
 			break;
 		case VID_OPT_FILTER:
 			Cbuf_AddText ("toggle vid_filter\n");
@@ -2583,8 +2626,11 @@ static void VID_MenuKey (int key)
 		case VID_OPT_VSYNC:
 			Cbuf_AddText ("toggle vid_vsync\n");
 			break;
-		case VID_OPT_ANTIALIASING:
+		case VID_OPT_ANTIALIASING_MODE:
 			VID_Menu_ChooseNextAAMode(1);
+			break;
+		case VID_OPT_ANTIALIASING_SAMPLES:
+			VID_Menu_ChooseNextAASamples(1);
 			break;
 		case VID_OPT_FILTER:
 			Cbuf_AddText ("toggle vid_filter\n");
@@ -2617,8 +2663,11 @@ static void VID_MenuKey (int key)
 		case VID_OPT_VSYNC:
 			Cbuf_AddText ("toggle vid_vsync\n");
 			break;
-		case VID_OPT_ANTIALIASING:
+		case VID_OPT_ANTIALIASING_MODE:
 			VID_Menu_ChooseNextAAMode(1);
+			break;
+		case VID_OPT_ANTIALIASING_SAMPLES:
+			VID_Menu_ChooseNextAASamples(1);
 			break;
 		case VID_OPT_FILTER:
 			Cbuf_AddText ("toggle vid_filter\n");
@@ -2698,9 +2747,13 @@ static void VID_MenuDraw (void)
 			M_Print (16, y, "     Vertical sync");
 			M_DrawCheckbox (184, y, (int)vid_vsync.value);
 			break;
-		case VID_OPT_ANTIALIASING:
+		case VID_OPT_ANTIALIASING_MODE:
 			M_Print (16, y, "      Antialiasing");
-			M_Print (184, y, ((int)vid_fsaa.value == 0) ? "off" : (((int)vid_fsaa.value == 1) ? "Multisample" : "Supersample"));
+			M_Print (184, y, ((int)vid_fsaamode.value == 0) ? "off" : (((int)vid_fsaamode.value == 1) ? "Multisample" : "Supersample"));
+			break;
+		case VID_OPT_ANTIALIASING_SAMPLES:
+			M_Print(16, y, "         AA Samples");
+			M_Print(184, y, va("%i", (int)CLAMP(2, vid_fsaa.value, 16)));
 			break;
 		case VID_OPT_FILTER:
 			M_Print (16, y, "            Filter");
