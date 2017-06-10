@@ -1239,7 +1239,9 @@ static void GL_CreateColorBuffer( void )
 			vulkan_globals.sample_count = VK_SAMPLE_COUNT_4_BIT;
 		if (image_format_properties.sampleCounts & VK_SAMPLE_COUNT_8_BIT)
 			vulkan_globals.sample_count = VK_SAMPLE_COUNT_8_BIT;
-		if (image_format_properties.sampleCounts & VK_SAMPLE_COUNT_16_BIT)
+
+		// Workaround: Intel advertises 16 samples but crashes when using it.
+		if ((image_format_properties.sampleCounts & VK_SAMPLE_COUNT_16_BIT) && (vulkan_globals.device_properties.vendorID != 0x8086))
 			vulkan_globals.sample_count = VK_SAMPLE_COUNT_16_BIT;
 
 		switch(vulkan_globals.sample_count)
