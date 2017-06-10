@@ -12,3 +12,4 @@ Windows/VisualStudio/Build-vkQuake/
 Shaders/Compiled/*spv
 Shaders/bintoc.exe
 Shaders/bintoc.obj
+Windows/VisualStudio/.vs
