@@ -1230,17 +1230,19 @@ static void GL_CreateColorBuffer( void )
 
 	if (vid_fsaamode.value)
 	{
+		const int fsaa = CLAMP(2, (int)vid_fsaa.value, 16);
+
 		VkImageFormatProperties image_format_properties;
 		vkGetPhysicalDeviceImageFormatProperties(vulkan_physical_device, vulkan_globals.color_format, VK_IMAGE_TYPE_2D, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, 0, &image_format_properties);
 
 		// Workaround: Intel advertises 16 samples but crashes when using it.
-		if ((vid_fsaa.value >= 16) && (image_format_properties.sampleCounts & VK_SAMPLE_COUNT_16_BIT) && (vulkan_globals.device_properties.vendorID != 0x8086))
+		if ((fsaa == 16) && (image_format_properties.sampleCounts & VK_SAMPLE_COUNT_16_BIT) && (vulkan_globals.device_properties.vendorID != 0x8086))
 			vulkan_globals.sample_count = VK_SAMPLE_COUNT_16_BIT;
-		else if ((vid_fsaa.value >= 8) && (image_format_properties.sampleCounts & VK_SAMPLE_COUNT_8_BIT))
+		else if ((fsaa >= 8) && (image_format_properties.sampleCounts & VK_SAMPLE_COUNT_8_BIT))
 			vulkan_globals.sample_count = VK_SAMPLE_COUNT_8_BIT;
-		else if ((vid_fsaa.value >= 4) && (image_format_properties.sampleCounts & VK_SAMPLE_COUNT_4_BIT))
+		else if ((fsaa >= 4) && (image_format_properties.sampleCounts & VK_SAMPLE_COUNT_4_BIT))
 			vulkan_globals.sample_count = VK_SAMPLE_COUNT_4_BIT;
-		else if ((vid_fsaa.value >= 2) && (image_format_properties.sampleCounts & VK_SAMPLE_COUNT_2_BIT))
+		else if (image_format_properties.sampleCounts & VK_SAMPLE_COUNT_2_BIT)
 			vulkan_globals.sample_count = VK_SAMPLE_COUNT_2_BIT;
 
 		switch(vulkan_globals.sample_count)
@@ -2753,7 +2755,7 @@ static void VID_MenuDraw (void)
 			break;
 		case VID_OPT_ANTIALIASING_SAMPLES:
 			M_Print(16, y, "         AA Samples");
-			M_Print(184, y, va("%i", (int)CLAMP(2, vid_fsaa.value, 16)));
+			M_Print(184, y, va("%i", CLAMP(2, (int)vid_fsaa.value, 16)));
 			break;
 		case VID_OPT_FILTER:
 			M_Print (16, y, "            Filter");
