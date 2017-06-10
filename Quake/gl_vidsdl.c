@@ -667,15 +667,24 @@ static void GL_InitDevice( void )
 {
 	VkResult err;
 	uint32_t i;
+	int argIndex;
+	int deviceIndex = 0;
 
 	uint32_t physical_device_count;
 	err = vkEnumeratePhysicalDevices(vulkan_instance, &physical_device_count, NULL);
 	if (err != VK_SUCCESS || physical_device_count == 0)
 		Sys_Error("Couldn't find any Vulkan devices");
 
+	argIndex = COM_CheckParm("-device");
+	if (argIndex && argIndex < com_argc - 1)
+	{
+		const char *deviceNum = com_argv[argIndex + 1];
+		deviceIndex = CLAMP(0, atoi(deviceNum) - 1, (int)physical_device_count - 1);
+	}
+
 	VkPhysicalDevice *physical_devices = (VkPhysicalDevice *) malloc(sizeof(VkPhysicalDevice) * physical_device_count);
 	err = vkEnumeratePhysicalDevices(vulkan_instance, &physical_device_count, physical_devices);
-	vulkan_physical_device = physical_devices[0];
+	vulkan_physical_device = physical_devices[deviceIndex];
 	free(physical_devices);
 
 	qboolean found_swapchain_extension = false;
