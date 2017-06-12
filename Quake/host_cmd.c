@@ -55,14 +55,6 @@ void Host_Quit_f (void)
 //johnfitz -- extramaps management
 //==============================================================================
 
-// ericw -- was extralevel_t, renamed and now used with mods list as well
-// to simplify completion code
-typedef struct filelist_item_s
-{
-	char			name[32];
-	struct filelist_item_s	*next;
-} filelist_item_t;
-
 /*
 ==================
 FileList_Add

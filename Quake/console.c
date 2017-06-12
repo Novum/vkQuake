@@ -806,17 +806,6 @@ void AddToTabList (const char *name, const char *type)
 	}
 }
 
-// This is redefined from host_cmd.c
-typedef struct filelist_item_s
-{
-	char			name[32];
-	struct filelist_item_s	*next;
-} filelist_item_t;
-
-extern filelist_item_t	*extralevels;
-extern filelist_item_t	*modlist;
-extern filelist_item_t	*demolist;
-
 typedef struct arg_completion_type_s
 {
 	const char		*command;

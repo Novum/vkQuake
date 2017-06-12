@@ -296,6 +296,16 @@ extern	int		host_framecount;	// incremented every frame, never reset
 extern	double		realtime;		// not bounded in any way, changed at
 							// start of every frame, never reset
 
+typedef struct filelist_item_s
+{
+	char			name[32];
+	struct filelist_item_s	*next;
+} filelist_item_t;
+
+extern filelist_item_t	*modlist;
+extern filelist_item_t	*extralevels;
+extern filelist_item_t	*demolist;
+
 void Host_ClearMemory (void);
 void Host_ServerFrame (void);
 void Host_InitCommands (void);
