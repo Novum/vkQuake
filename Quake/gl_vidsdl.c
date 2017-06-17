@@ -111,6 +111,7 @@ static VkCommandBuffer				command_buffers[NUM_COMMAND_BUFFERS];
 static VkFence						command_buffer_fences[NUM_COMMAND_BUFFERS];
 static qboolean						command_buffer_submitted[NUM_COMMAND_BUFFERS];
 static VkFramebuffer				main_framebuffers[NUM_COLOR_BUFFERS];
+static VkSemaphore					draw_complete_semaphores[MAX_SWAP_CHAIN_IMAGES];
 static VkFramebuffer				ui_framebuffers[MAX_SWAP_CHAIN_IMAGES];
 static VkImage						swapchain_images[MAX_SWAP_CHAIN_IMAGES];
 static VkImageView					swapchain_images_views[MAX_SWAP_CHAIN_IMAGES];
@@ -907,6 +908,11 @@ static void GL_InitCommandBuffers( void )
 		err = vkCreateFence(vulkan_globals.device, &fence_create_info, NULL, &command_buffer_fences[i]);
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateFence failed");
+
+		VkSemaphoreCreateInfo semaphore_create_info;
+		memset(&semaphore_create_info, 0, sizeof(semaphore_create_info));
+		semaphore_create_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+		err = vkCreateSemaphore(vulkan_globals.device, &semaphore_create_info, NULL, &draw_complete_semaphores[i]);
 	}
 }
 
@@ -1808,6 +1814,8 @@ void GL_EndRendering (void)
 	submit_info.pCommandBuffers = &command_buffers[current_command_buffer];
 	submit_info.waitSemaphoreCount = 1;
 	submit_info.pWaitSemaphores = &image_aquired_semaphores[current_command_buffer];
+	submit_info.signalSemaphoreCount = 1;
+	submit_info.pSignalSemaphores = &draw_complete_semaphores[current_command_buffer];
 	submit_info.pWaitDstStageMask = &wait_dst_stage_mask;
 
 	err = vkQueueSubmit(vulkan_globals.queue, 1, &submit_info, command_buffer_fences[current_command_buffer]);
@@ -1825,6 +1833,8 @@ void GL_EndRendering (void)
 	present_info.swapchainCount = 1;
 	present_info.pSwapchains = &vulkan_swapchain,
 	present_info.pImageIndices = &current_swapchain_buffer;
+	present_info.waitSemaphoreCount = 1;
+	present_info.pWaitSemaphores = &draw_complete_semaphores[current_command_buffer];
 	err = fpQueuePresentKHR(vulkan_globals.queue, &present_info);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkQueuePresentKHR failed");
