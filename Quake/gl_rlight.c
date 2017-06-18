@@ -139,6 +139,28 @@ start:
 }
 
 /*
+=============
+R_PushDlights
+=============
+*/
+void R_PushDlights(void)
+{
+	int		i;
+	dlight_t	*l;
+
+	r_dlightframecount = r_framecount + 1;	// because the count hasn't
+											//  advanced yet for this frame
+	l = cl_dlights;
+
+	for (i = 0; i<MAX_DLIGHTS; i++, l++)
+	{
+		if (l->die < cl.time || !l->radius)
+			continue;
+		R_MarkLights(l, i, cl.worldmodel->nodes);
+	}
+}
+
+/*
 =============================================================================
 
 LIGHT SAMPLING
