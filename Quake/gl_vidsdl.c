@@ -111,7 +111,7 @@ static VkCommandBuffer				command_buffers[NUM_COMMAND_BUFFERS];
 static VkFence						command_buffer_fences[NUM_COMMAND_BUFFERS];
 static qboolean						command_buffer_submitted[NUM_COMMAND_BUFFERS];
 static VkFramebuffer				main_framebuffers[NUM_COLOR_BUFFERS];
-static VkSemaphore					draw_complete_semaphores[MAX_SWAP_CHAIN_IMAGES];
+static VkSemaphore					draw_complete_semaphores[NUM_COMMAND_BUFFERS];
 static VkFramebuffer				ui_framebuffers[MAX_SWAP_CHAIN_IMAGES];
 static VkImage						swapchain_images[MAX_SWAP_CHAIN_IMAGES];
 static VkImageView					swapchain_images_views[MAX_SWAP_CHAIN_IMAGES];
@@ -1824,9 +1824,6 @@ void GL_EndRendering (void)
 
 	vulkan_globals.device_idle = false;
 
-	command_buffer_submitted[current_command_buffer] = true;
-	current_command_buffer = (current_command_buffer + 1) % NUM_COMMAND_BUFFERS;
-
 	VkPresentInfoKHR present_info;
 	memset(&present_info, 0, sizeof(present_info));
 	present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -1838,6 +1835,9 @@ void GL_EndRendering (void)
 	err = fpQueuePresentKHR(vulkan_globals.queue, &present_info);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkQueuePresentKHR failed");
+
+	command_buffer_submitted[current_command_buffer] = true;
+	current_command_buffer = (current_command_buffer + 1) % NUM_COMMAND_BUFFERS;
 }
 
 /*
