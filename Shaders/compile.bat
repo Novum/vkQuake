@@ -1,5 +1,7 @@
 @echo off
-if exist "%VS140COMNTOOLS%\VsDevCmd.bat" ( 
+if exist "%VS150COMNTOOLS%\VsDevCmd.bat" ( 
+call "%VS150COMNTOOLS%\VsDevCmd.bat"
+) else if exist "%VS140COMNTOOLS%\VsDevCmd.bat" ( 
 call "%VS140COMNTOOLS%\VsDevCmd.bat"
 ) else if exist "%VS120COMNTOOLS%\VsDevCmd.bat" ( 
 call "%VS120COMNTOOLS%\VsDevCmd.bat"
