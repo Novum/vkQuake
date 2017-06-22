@@ -1230,7 +1230,10 @@ static void PF_lightstyle (void)
 
 // bounds check to avoid clobbering sv struct
 	if (style < 0 || style >= MAX_LIGHTSTYLES)
-		Host_Error("PF_lightstyle: style = %d", style);
+	{
+		Con_DWarning("PF_lightstyle: invalid style %d\n", style);
+		return;
+	}
 
 // change the string in sv
 	sv.lightstyles[style] = val;
