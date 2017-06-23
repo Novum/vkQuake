@@ -874,6 +874,42 @@ void Host_Map_f (void)
 }
 
 /*
+======================
+Host_Randmap_f
+
+Loads a random map from the "maps" list.
+======================
+*/
+void Host_Randmap_f (void)
+{
+	int	i, randlevel, numlevels;
+	filelist_item_t	*level;
+
+	if (cmd_source != src_command)
+		return;
+
+	for (level = extralevels, numlevels = 0; level; level = level->next)
+		numlevels++;
+
+	if (numlevels == 0)
+	{
+		Con_Printf ("no maps\n");
+		return;
+	}
+
+	randlevel = (rand() % numlevels);
+
+	for (level = extralevels, i = 0; level; level = level->next, i++)
+	{
+		if (i == randlevel)
+		{
+			Cbuf_AddText (va("map %s\n", level->name));
+			return;
+		}
+	}
+}
+
+/*
 ==================
 Host_Changelevel_f
 
@@ -2288,6 +2324,7 @@ void Host_InitCommands (void)
 	Cmd_AddCommand ("mods", Host_Mods_f); //johnfitz
 	Cmd_AddCommand ("games", Host_Mods_f); // as an alias to "mods" -- S.A. / QuakeSpasm
 	Cmd_AddCommand ("mapname", Host_Mapname_f); //johnfitz
+	Cmd_AddCommand ("randmap", Host_Randmap_f); //ericw
 
 	Cmd_AddCommand ("status", Host_Status_f);
 	Cmd_AddCommand ("quit", Host_Quit_f);
