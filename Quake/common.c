@@ -2207,7 +2207,10 @@ static void COM_Game_f (void)
 		DemoList_Rebuild ();
 
 		Con_Printf("\"game\" changed to \"%s\"\n", COM_SkipPath(com_gamedir));
-		Cbuf_InsertText ("exec quake.rc\n");
+
+		VID_Lock ();
+		Cbuf_AddText ("exec quake.rc\n");
+		Cbuf_AddText ("vid_unlock\n");
 	}
 	else //Diplay the current gamedir
 		Con_Printf("\"game\" is \"%s\"\n", COM_SkipPath(com_gamedir));

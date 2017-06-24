@@ -85,6 +85,7 @@ void VID_Toggle (void);
 void *VID_GetWindow (void);
 qboolean VID_HasMouseOrInputFocus (void);
 qboolean VID_IsMinimized (void);
+void	VID_Lock (void);
 
 #endif	/* __VID_DEFS_H */
 

@@ -506,6 +506,22 @@ static void VID_Unlock (void)
 	VID_SyncCvars();
 }
 
+/*
+================
+VID_Lock -- ericw
+
+Subsequent changes to vid_* mode settings, and vid_restart commands, will
+be ignored until the "vid_unlock" command is run.
+
+Used when changing gamedirs so the current settings override what was saved
+in the config.cfg.
+================
+*/
+void VID_Lock (void)
+{
+	vid_locked = true;
+}
+
 //==============================================================================
 //
 //	Vulkan Stuff
@@ -2299,6 +2315,7 @@ void VID_SyncCvars (void)
 		}
 		Cvar_SetValueQuick (&vid_bpp, VID_GetCurrentBPP());
 		Cvar_SetQuick (&vid_fullscreen, VID_GetFullscreen() ? "1" : "0");
+		Cvar_SetQuick (&vid_desktopfullscreen, VID_GetDesktopFullscreen() ? "1" : "0");
 	}
 
 	vid_changed = false;
