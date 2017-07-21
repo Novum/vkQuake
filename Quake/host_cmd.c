@@ -903,6 +903,7 @@ void Host_Randmap_f (void)
 	{
 		if (i == randlevel)
 		{
+			Con_Printf ("Starting map %s...\n", level->name);
 			Cbuf_AddText (va("map %s\n", level->name));
 			return;
 		}
