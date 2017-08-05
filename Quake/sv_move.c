@@ -320,7 +320,7 @@ void SV_NewChaseDir (edict_t *actor, edict_t *enemy, float dist)
 	}
 
 // try other directions
-	if ( ((rand()&3) & 1) ||  abs(deltay)>abs(deltax))
+	if ( ((rand()&3) & 1) ||  abs((int)deltay)>abs((int)deltax)) // ericw -- explicit int cast to suppress clang suggestion to use fabsf
 	{
 		tdir=d[1];
 		d[1]=d[2];
