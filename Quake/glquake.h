@@ -152,6 +152,7 @@ typedef struct
 	VkPipelineLayout					sky_layer_pipeline_layout;
 	VkPipeline							alias_pipeline;
 	VkPipeline							alias_blend_pipeline;
+	VkPipeline							alias_alphatest_pipeline;
 	VkPipelineLayout					alias_pipeline_layout;
 	VkPipeline							postprocess_pipeline;
 	VkPipelineLayout					postprocess_pipeline_layout;

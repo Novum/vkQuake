@@ -2292,6 +2292,7 @@ void *Mod_LoadAllSkins (int numskins, daliasskintype_t *pskintype)
 	daliasskininterval_t	*pinskinintervals;
 	char			fbr_mask_name[MAX_QPATH]; //johnfitz -- added for fullbright support
 	src_offset_t		offset; //johnfitz
+	unsigned int		texflags = TEXPREF_PAD;
 
 	skin = (byte *)(pskintype + 1);
 
@@ -2299,6 +2300,9 @@ void *Mod_LoadAllSkins (int numskins, daliasskintype_t *pskintype)
 		Sys_Error ("Mod_LoadAliasModel: Invalid # of skins: %d\n", numskins);
 
 	size = pheader->skinwidth * pheader->skinheight;
+
+	if (loadmodel->flags & MF_HOLEY)
+		texflags |= TEXPREF_ALPHA;
 
 	for (i=0 ; i<numskins ; i++)
 	{
@@ -2317,15 +2321,15 @@ void *Mod_LoadAllSkins (int numskins, daliasskintype_t *pskintype)
 			if (Mod_CheckFullbrights ((byte *)(pskintype+1), size))
 			{
 				pheader->gltextures[i][0] = TexMgr_LoadImage (loadmodel, name, pheader->skinwidth, pheader->skinheight,
-					SRC_INDEXED, (byte *)(pskintype+1), loadmodel->name, offset, TEXPREF_PAD | TEXPREF_NOBRIGHT);
+					SRC_INDEXED, (byte *)(pskintype+1), loadmodel->name, offset, texflags | TEXPREF_NOBRIGHT);
 				q_snprintf (fbr_mask_name, sizeof(fbr_mask_name), "%s:frame%i_glow", loadmodel->name, i);
 				pheader->fbtextures[i][0] = TexMgr_LoadImage (loadmodel, fbr_mask_name, pheader->skinwidth, pheader->skinheight,
-					SRC_INDEXED, (byte *)(pskintype+1), loadmodel->name, offset, TEXPREF_PAD | TEXPREF_FULLBRIGHT);
+					SRC_INDEXED, (byte *)(pskintype+1), loadmodel->name, offset, texflags | TEXPREF_FULLBRIGHT);
 			}
 			else
 			{
 				pheader->gltextures[i][0] = TexMgr_LoadImage (loadmodel, name, pheader->skinwidth, pheader->skinheight,
-					SRC_INDEXED, (byte *)(pskintype+1), loadmodel->name, offset, TEXPREF_PAD);
+					SRC_INDEXED, (byte *)(pskintype+1), loadmodel->name, offset, texflags);
 				pheader->fbtextures[i][0] = NULL;
 			}
 
@@ -2360,15 +2364,15 @@ void *Mod_LoadAllSkins (int numskins, daliasskintype_t *pskintype)
 				if (Mod_CheckFullbrights ((byte *)(pskintype), size))
 				{
 					pheader->gltextures[i][j&3] = TexMgr_LoadImage (loadmodel, name, pheader->skinwidth, pheader->skinheight,
-						SRC_INDEXED, (byte *)(pskintype), loadmodel->name, offset, TEXPREF_PAD | TEXPREF_NOBRIGHT);
+						SRC_INDEXED, (byte *)(pskintype), loadmodel->name, offset, texflags | TEXPREF_NOBRIGHT);
 					q_snprintf (fbr_mask_name, sizeof(fbr_mask_name), "%s:frame%i_%i_glow", loadmodel->name, i,j);
 					pheader->fbtextures[i][j&3] = TexMgr_LoadImage (loadmodel, fbr_mask_name, pheader->skinwidth, pheader->skinheight,
-						SRC_INDEXED, (byte *)(pskintype), loadmodel->name, offset, TEXPREF_PAD | TEXPREF_FULLBRIGHT);
+						SRC_INDEXED, (byte *)(pskintype), loadmodel->name, offset, texflags | TEXPREF_FULLBRIGHT);
 				}
 				else
 				{
 					pheader->gltextures[i][j&3] = TexMgr_LoadImage (loadmodel, name, pheader->skinwidth, pheader->skinheight,
-						SRC_INDEXED, (byte *)(pskintype), loadmodel->name, offset, TEXPREF_PAD);
+						SRC_INDEXED, (byte *)(pskintype), loadmodel->name, offset, texflags);
 					pheader->fbtextures[i][j&3] = NULL;
 				}
 				//johnfitz
@@ -2482,7 +2486,7 @@ void Mod_SetExtraFlags (qmodel_t *mod)
 	if (!mod || !mod->name || mod->type != mod_alias)
 		return;
 
-	mod->flags &= 0xFF; //only preserve first byte
+	mod->flags &= (0xFF | MF_HOLEY); //only preserve first byte, plus MF_HOLEY
 
 	// nolerp flag
 	if (nameInList(r_nolerp_list.string, mod->name))

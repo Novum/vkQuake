@@ -1143,6 +1143,7 @@ void R_CreatePipelines()
 	VkShaderModule world_frag_module = R_CreateShaderModule(world_frag_spv, world_frag_spv_size);
 	VkShaderModule alias_vert_module = R_CreateShaderModule(alias_vert_spv, alias_vert_spv_size);
 	VkShaderModule alias_frag_module = R_CreateShaderModule(alias_frag_spv, alias_frag_spv_size);
+	VkShaderModule alias_alphatest_frag_module = R_CreateShaderModule(alias_alphatest_frag_spv, alias_alphatest_frag_spv_size);
 	VkShaderModule sky_layer_vert_module = R_CreateShaderModule(sky_layer_vert_spv, sky_layer_vert_spv_size);
 	VkShaderModule sky_layer_frag_module = R_CreateShaderModule(sky_layer_frag_spv, sky_layer_frag_spv_size);
 	VkShaderModule postprocess_vert_module = R_CreateShaderModule(postprocess_vert_spv, postprocess_vert_spv_size);
@@ -1617,8 +1618,17 @@ void R_CreatePipelines()
 
 	GL_SetObjectName((uint64_t)vulkan_globals.alias_pipeline, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "alias");
 
+	shader_stages[1].module = alias_alphatest_frag_module;
+
+	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.alias_alphatest_pipeline);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkCreateGraphicsPipelines failed");
+
+	GL_SetObjectName((uint64_t)vulkan_globals.alias_alphatest_pipeline, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "alias_alphatest");
+
 	depth_stencil_state_create_info.depthWriteEnable = VK_FALSE;
 	blend_attachment_state.blendEnable = VK_TRUE;
+	shader_stages[1].module = alias_frag_module;
 
 	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.alias_blend_pipeline);
 	if (err != VK_SUCCESS)
@@ -1681,6 +1691,7 @@ void R_CreatePipelines()
 	vkDestroyShaderModule(vulkan_globals.device, sky_layer_frag_module, NULL);
 	vkDestroyShaderModule(vulkan_globals.device, sky_layer_vert_module, NULL);
 	vkDestroyShaderModule(vulkan_globals.device, alias_frag_module, NULL);
+	vkDestroyShaderModule(vulkan_globals.device, alias_alphatest_frag_module, NULL);
 	vkDestroyShaderModule(vulkan_globals.device, alias_vert_module, NULL);
 	vkDestroyShaderModule(vulkan_globals.device, world_frag_module, NULL);
 	vkDestroyShaderModule(vulkan_globals.device, world_vert_module, NULL);

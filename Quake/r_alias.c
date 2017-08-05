@@ -102,7 +102,7 @@ Supports optional fullbright pixels.
 Based on code by MH from RMQEngine
 =============
 */
-static void GL_DrawAliasFrame (aliashdr_t *paliashdr, lerpdata_t lerpdata, gltexture_t *tx, gltexture_t *fb, float model_matrix[16], float entalpha)
+static void GL_DrawAliasFrame (aliashdr_t *paliashdr, lerpdata_t lerpdata, gltexture_t *tx, gltexture_t *fb, float model_matrix[16], float entalpha, qboolean alphatest)
 {
 	float	blend;
 
@@ -115,7 +115,8 @@ static void GL_DrawAliasFrame (aliashdr_t *paliashdr, lerpdata_t lerpdata, gltex
 		blend = 0;
 	}
 
-	vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, (entalpha < 1.0f) ? vulkan_globals.alias_blend_pipeline : vulkan_globals.alias_pipeline);
+	VkPipeline pipeline = alphatest ? vulkan_globals.alias_alphatest_pipeline : ((entalpha < 1.0f) ? vulkan_globals.alias_blend_pipeline : vulkan_globals.alias_pipeline);
+	vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 
 	VkBuffer uniform_buffer;
 	uint32_t uniform_offset;
@@ -355,6 +356,7 @@ void R_DrawAliasModel (entity_t *e)
 	int			i, anim;
 	gltexture_t	*tx, *fb;
 	lerpdata_t	lerpdata;
+	qboolean	alphatest = !!(e->model->flags & MF_HOLEY);
 
 	//
 	// setup pose/lerp data -- do it first so we don't miss updates due to culling
@@ -433,7 +435,7 @@ void R_DrawAliasModel (entity_t *e)
 	//
 	// draw it
 	//
-	GL_DrawAliasFrame (paliashdr, lerpdata, tx, fb, model_matrix, entalpha);
+	GL_DrawAliasFrame (paliashdr, lerpdata, tx, fb, model_matrix, entalpha, alphatest);
 }
 
 //johnfitz -- values for shadow matrix

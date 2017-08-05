@@ -219,6 +219,7 @@ SYSOBJ_RES :=
 
 SHADER_OBJS = \
 	alias_frag.o \
+	alias_alphatest_frag.o \
 	alias_vert.o \
 	basic_alphatest_frag.o \
 	screen_warp_comp.o \

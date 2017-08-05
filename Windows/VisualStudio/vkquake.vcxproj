@@ -283,6 +283,7 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClCompile Include="..\..\Quake\wad.c" />
     <ClCompile Include="..\..\Quake\world.c" />
     <ClCompile Include="..\..\Quake\zone.c" />
+    <ClCompile Include="..\..\Shaders\Compiled\alias_alphatest_frag.c" />
     <ClCompile Include="..\..\Shaders\Compiled\alias_frag.c" />
     <ClCompile Include="..\..\Shaders\Compiled\alias_vert.c" />
     <ClCompile Include="..\..\Shaders\Compiled\basic_alphatest_frag.c" />
@@ -372,6 +373,7 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
   <ItemGroup>
     <None Include="..\..\Shaders\alias.frag" />
     <None Include="..\..\Shaders\alias.vert" />
+    <None Include="..\..\Shaders\alias_alphatest.frag" />
     <None Include="..\..\Shaders\basic.frag" />
     <None Include="..\..\Shaders\basic.vert" />
     <None Include="..\..\Shaders\basic_alphatest.frag" />
