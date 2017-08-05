@@ -225,6 +225,8 @@ static int VID_GetCurrentBPP (void)
 /*
 ====================
 VID_GetFullscreen
+
+returns true if we are in regular fullscreen or "desktop fullscren"
 ====================
 */
 static qboolean VID_GetFullscreen (void)
@@ -235,11 +237,13 @@ static qboolean VID_GetFullscreen (void)
 /*
 ====================
 VID_GetDesktopFullscreen
+
+returns true if we are specifically in "desktop fullscreen" mode
 ====================
 */
 static qboolean VID_GetDesktopFullscreen (void)
 {
-	return (SDL_GetWindowFlags(draw_context) & SDL_WINDOW_FULLSCREEN_DESKTOP) != 0;
+	return (SDL_GetWindowFlags(draw_context) & SDL_WINDOW_FULLSCREEN_DESKTOP) == SDL_WINDOW_FULLSCREEN_DESKTOP;
 }
 
 /*
@@ -2315,7 +2319,8 @@ void VID_SyncCvars (void)
 		}
 		Cvar_SetValueQuick (&vid_bpp, VID_GetCurrentBPP());
 		Cvar_SetQuick (&vid_fullscreen, VID_GetFullscreen() ? "1" : "0");
-		Cvar_SetQuick (&vid_desktopfullscreen, VID_GetDesktopFullscreen() ? "1" : "0");
+		// don't sync vid_desktopfullscreen, it's a user preference that
+		// should persist even if we are in windowed mode.
 	}
 
 	vid_changed = false;
