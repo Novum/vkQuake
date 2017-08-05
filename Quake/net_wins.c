@@ -40,6 +40,7 @@ WSADATA		winsockdata;
 
 //=============================================================================
 
+#if !defined(_USE_WINSOCK2)
 static double	blocktime;
 
 static INT_PTR PASCAL FAR BlockingHook (void)
@@ -66,6 +67,7 @@ static INT_PTR PASCAL FAR BlockingHook (void)
 	/* TRUE if we got a message */
 	return ret;
 }
+#endif	/* ! _USE_WINSOCK2 */
 
 
 static void WINS_GetLocalAddress (void)
@@ -87,11 +89,15 @@ static void WINS_GetLocalAddress (void)
 	}
 
 	buff[MAXHOSTNAMELEN - 1] = 0;
+#ifndef _USE_WINSOCK2
 	blocktime = Sys_DoubleTime();
 	WSASetBlockingHook(BlockingHook);
+#endif
 	local = gethostbyname(buff);
 	err = WSAGetLastError();
+#ifndef _USE_WINSOCK2
 	WSAUnhookBlockingHook();
+#endif
 	if (local == NULL)
 	{
 		Con_SafePrintf("WINS_GetLocalAddress: gethostbyname failed (%s)\n",
