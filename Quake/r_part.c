@@ -287,6 +287,7 @@ void R_ReadPointFile_f (void)
 
 	Con_Printf ("Reading %s...\n", name);
 	c = 0;
+	org[0] = org[1] = org[2] = 0; // silence pesky compiler warnings
 	for ( ;; )
 	{
 		r = fscanf (f,"%f %f %f\n", &org[0], &org[1], &org[2]);
