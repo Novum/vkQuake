@@ -40,7 +40,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define	QUAKESPASM_VERSION	0.92
 #define	QUAKESPASM_VER_PATCH	2	// helper to print a string like 0.92.1
 #ifndef	QUAKESPASM_VER_SUFFIX
-#define	QUAKESPASM_VER_SUFFIX		// optional version suffix like -beta1
+#define	QUAKESPASM_VER_SUFFIX		// optional version suffix string literal like "-beta1"
 #endif
 #define	VKQUAKE_VERSION		0.96
 #define	VKQUAKE_VER_PATCH	2	// helper to print a string like 0.92.1
@@ -48,12 +48,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define	VKQUAKE_VER_SUFFIX		// optional version suffix like -beta1
 #endif
 
-#define	QS_STRINGIFY2(x)	QS_STRINGIFY(x)
-#define	QS_STRINGIFY(x)	#x
+#define	QS_STRINGIFY_(x)	#x
+#define	QS_STRINGIFY(x)	QS_STRINGIFY_(x)
 
 // combined version string like "0.92.1-beta1"
-#define	QUAKESPASM_VER_STRING	QS_STRINGIFY2(QUAKESPASM_VERSION) "." QS_STRINGIFY2(QUAKESPASM_VER_PATCH) QS_STRINGIFY2(QUAKESPASM_VER_SUFFIX)
-#define VKQUAKE_VER_STRING	QS_STRINGIFY2(VKQUAKE_VERSION) "." QS_STRINGIFY2(VKQUAKE_VER_PATCH) QS_STRINGIFY2(VKQUAKE_VER_SUFFIX)
+#define	QUAKESPASM_VER_STRING	QS_STRINGIFY(QUAKESPASM_VERSION) "." QS_STRINGIFY(QUAKESPASM_VER_PATCH) QUAKESPASM_VER_SUFFIX
+#define VKQUAKE_VER_STRING	QS_STRINGIFY(VKQUAKE_VERSION) "." QS_STRINGIFY(VKQUAKE_VER_PATCH) VKQUAKE_VER_SUFFIX
 
 //define	PARANOID			// speed sapping error checking
 
