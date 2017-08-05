@@ -735,7 +735,8 @@ static void PF_checkpos (void)
 
 //============================================================================
 
-static byte	checkpvs[MAX_MAP_LEAFS/8];
+static byte	*checkpvs;	//ericw -- changed to malloc
+static int	checkpvs_capacity;
 
 static int PF_newcheckclient (int check)
 {
@@ -744,6 +745,7 @@ static int PF_newcheckclient (int check)
 	edict_t	*ent;
 	mleaf_t	*leaf;
 	vec3_t	org;
+	int	pvsbytes;
 
 // cycle to the next one
 
@@ -782,7 +784,16 @@ static int PF_newcheckclient (int check)
 	VectorAdd (ent->v.origin, ent->v.view_ofs, org);
 	leaf = Mod_PointInLeaf (org, sv.worldmodel);
 	pvs = Mod_LeafPVS (leaf, sv.worldmodel);
-	memcpy (checkpvs, pvs, (sv.worldmodel->numleafs+7)>>3 );
+	
+	pvsbytes = (sv.worldmodel->numleafs+7)>>3;
+	if (checkpvs == NULL || pvsbytes > checkpvs_capacity)
+	{
+		checkpvs_capacity = pvsbytes;
+		checkpvs = (byte *) realloc (checkpvs, checkpvs_capacity);
+		if (!checkpvs)
+			Sys_Error ("PF_newcheckclient: realloc() failed on %d bytes", checkpvs_capacity);
+	}
+	memcpy (checkpvs, pvs, pvsbytes);
 
 	return i;
 }

@@ -36,7 +36,11 @@ qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash);
 
 cvar_t	external_ents = {"external_ents", "1", CVAR_ARCHIVE};
 
-byte	mod_novis[MAX_MAP_LEAFS/8];
+static byte	*mod_novis;
+static int	mod_novis_capacity;
+
+static byte	*mod_decompressed;
+static int	mod_decompressed_capacity;
 
 #define	MAX_MOD_KNOWN	2048 /*johnfitz -- was 512 */
 qmodel_t	mod_known[MAX_MOD_KNOWN];
@@ -54,8 +58,6 @@ void Mod_Init (void)
 {
 	Cvar_RegisterVariable (&gl_subdivide_size);
 	Cvar_RegisterVariable (&external_ents);
-
-	memset (mod_novis, 0xff, sizeof(mod_novis));
 
 	//johnfitz -- create notexture miptex
 	r_notexture_mip = (texture_t *) Hunk_AllocName (sizeof(texture_t), "r_notexture_mip");
@@ -128,13 +130,19 @@ Mod_DecompressVis
 */
 byte *Mod_DecompressVis (byte *in, qmodel_t *model)
 {
-	static byte	decompressed[MAX_MAP_LEAFS/8];
 	int		c;
 	byte	*out;
 	int		row;
 
 	row = (model->numleafs+7)>>3;
-	out = decompressed;
+	if (mod_decompressed == NULL || row > mod_decompressed_capacity)
+	{
+		mod_decompressed_capacity = row;
+		mod_decompressed = (byte *) realloc (mod_decompressed, mod_decompressed_capacity);
+		if (!mod_decompressed)
+			Sys_Error ("Mod_DecompressVis: realloc() failed on %d bytes", mod_decompressed_capacity);
+	}
+	out = mod_decompressed;
 
 #if 0
 	memcpy (out, in, row);
@@ -146,7 +154,7 @@ byte *Mod_DecompressVis (byte *in, qmodel_t *model)
 			*out++ = 0xff;
 			row--;
 		}
-		return decompressed;
+		return mod_decompressed;
 	}
 
 	do
@@ -164,17 +172,34 @@ byte *Mod_DecompressVis (byte *in, qmodel_t *model)
 			*out++ = 0;
 			c--;
 		}
-	} while (out - decompressed < row);
+	} while (out - mod_decompressed < row);
 #endif
 
-	return decompressed;
+	return mod_decompressed;
 }
 
 byte *Mod_LeafPVS (mleaf_t *leaf, qmodel_t *model)
 {
 	if (leaf == model->leafs)
-		return mod_novis;
+		return Mod_NoVisPVS (model);
 	return Mod_DecompressVis (leaf->compressed_vis, model);
+}
+
+byte *Mod_NoVisPVS (qmodel_t *model)
+{
+	int pvsbytes;
+ 
+	pvsbytes = (model->numleafs+7)>>3;
+	if (mod_novis == NULL || pvsbytes > mod_novis_capacity)
+	{
+		mod_novis_capacity = pvsbytes;
+		mod_novis = (byte *) realloc (mod_novis, mod_novis_capacity);
+		if (!mod_novis)
+			Sys_Error ("Mod_NoVisPVS: realloc() failed on %d bytes", mod_novis_capacity);
+		
+		memset(mod_novis, 0xff, mod_novis_capacity);
+	}
+	return mod_novis;
 }
 
 /*
@@ -1481,10 +1506,6 @@ void Mod_ProcessLeafs_L1 (dl1leaf_t *in, int filelen)
 
 	out = (mleaf_t *) Hunk_AllocName (count * sizeof(*out), loadname);
 
-
-	if (count > MAX_MAP_LEAFS)
-		Host_Error ("Mod_LoadLeafs: %i leafs exceeds limit of %i.\n", count, MAX_MAP_LEAFS);
-
 	loadmodel->leafs = out;
 	loadmodel->numleafs = count;
 
@@ -1527,10 +1548,6 @@ void Mod_ProcessLeafs_L2 (dl2leaf_t *in, int filelen)
 	count = filelen / sizeof(*in);
 
 	out = (mleaf_t *) Hunk_AllocName (count * sizeof(*out), loadname);
-
-
-	if (count > MAX_MAP_LEAFS)
-		Host_Error ("Mod_LoadLeafs: %i leafs exceeds limit of %i.\n", count, MAX_MAP_LEAFS);
 
 	loadmodel->leafs = out;
 	loadmodel->numleafs = count;
@@ -1901,11 +1918,8 @@ void Mod_LoadSubmodels (lump_t *l)
 	// johnfitz -- check world visleafs -- adapted from bjp
 	out = loadmodel->submodels;
 
-	if (out->visleafs > MAX_MAP_LEAFS)
-		Sys_Error ("Mod_LoadSubmodels: too many visleafs (%d, max = %d) in %s", out->visleafs, MAX_MAP_LEAFS, loadmodel->name);
-
 	if (out->visleafs > 8192)
-		Con_DWarning ("%i visleafs exceeds standard limit of 8192 (max = %d).\n", out->visleafs, MAX_MAP_LEAFS);
+		Con_DWarning ("%i visleafs exceeds standard limit of 8192.\n", out->visleafs);
 	//johnfitz
 }
 

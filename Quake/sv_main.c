@@ -460,8 +460,9 @@ crosses a waterline.
 =============================================================================
 */
 
-int		fatbytes;
-byte	fatpvs[MAX_MAP_LEAFS/8];
+static int	fatbytes;
+static byte	*fatpvs;
+static int	fatpvs_capacity;
 
 void SV_AddToFatPVS (vec3_t org, mnode_t *node, qmodel_t *worldmodel) //johnfitz -- added worldmodel as a parameter
 {
@@ -508,7 +509,15 @@ given point.
 */
 byte *SV_FatPVS (vec3_t org, qmodel_t *worldmodel) //johnfitz -- added worldmodel as a parameter
 {
-	fatbytes = (worldmodel->numleafs+31)>>3;
+	fatbytes = (worldmodel->numleafs+7)>>3; // ericw -- was +31, assumed to be a bug/typo
+	if (fatpvs == NULL || fatbytes > fatpvs_capacity)
+	{
+		fatpvs_capacity = fatbytes;
+		fatpvs = (byte *) realloc (fatpvs, fatpvs_capacity);
+		if (!fatpvs)
+			Sys_Error ("SV_FatPVS: realloc() failed on %d bytes", fatpvs_capacity);
+	}
+	
 	Q_memset (fatpvs, 0, fatbytes);
 	SV_AddToFatPVS (org, worldmodel->nodes, worldmodel); //johnfitz -- worldmodel as a parameter
 	return fatpvs;

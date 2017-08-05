@@ -35,7 +35,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define	MAX_MAP_PLANES		32767
 #define	MAX_MAP_NODES		32767 // because negative shorts are contents
 #define	MAX_MAP_CLIPNODES	32767
-#define	MAX_MAP_LEAFS		80000 //johnfitz -- was 8192
+//#define	MAX_MAP_LEAFS		80000 //johnfitz -- was 8192
 #define	MAX_MAP_VERTS		65535
 #define	MAX_MAP_FACES		65535
 #define	MAX_MAP_MARKSURFACES 65535
@@ -333,8 +333,8 @@ extern	byte		dtexdata[MAX_MAP_MIPTEX]; // (dmiptexlump_t)
 extern	int			entdatasize;
 extern	char		dentdata[MAX_MAP_ENTSTRING];
 
-extern	int			numleafs;
-extern	dleaf_t		dleafs[MAX_MAP_LEAFS];
+//extern	int			numleafs;
+//extern	dleaf_t		dleafs[MAX_MAP_LEAFS];
 
 extern	int			numplanes;
 extern	dplane_t	dplanes[MAX_MAP_PLANES];
