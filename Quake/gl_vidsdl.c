@@ -218,17 +218,6 @@ static int VID_GetCurrentHeight (void)
 
 /*
 ====================
-VID_GetCurrentBPP
-====================
-*/
-static int VID_GetCurrentBPP (void)
-{
-	const Uint32 pixelFormat = SDL_GetWindowPixelFormat(draw_context);
-	return SDL_BITSPERPIXEL(pixelFormat);
-}
-
-/*
-====================
 VID_GetCurrentRefreshRate
 ====================
 */
@@ -243,6 +232,17 @@ static int VID_GetCurrentRefreshRate (void)
 		return DEFAULT_REFRESHRATE;
 	
 	return mode.refresh_rate;
+}
+
+/*
+====================
+VID_GetCurrentBPP
+====================
+*/
+static int VID_GetCurrentBPP (void)
+{
+	const Uint32 pixelFormat = SDL_GetWindowPixelFormat(draw_context);
+	return SDL_BITSPERPIXEL(pixelFormat);
 }
 
 /*
@@ -520,8 +520,8 @@ static void VID_Test (void)
 		//revert cvars and mode
 		Cvar_SetValueQuick (&vid_width, old_width);
 		Cvar_SetValueQuick (&vid_height, old_height);
-		Cvar_SetValueQuick (&vid_bpp, old_bpp);
 		Cvar_SetValueQuick (&vid_refreshrate, old_refreshrate);
+		Cvar_SetValueQuick (&vid_bpp, old_bpp);
 		Cvar_SetQuick (&vid_fullscreen, old_fullscreen ? "1" : "0");
 		VID_Restart ();
 	}
