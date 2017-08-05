@@ -45,13 +45,12 @@ void Sys_mkdir (const char *path);
 //
 // system IO
 //
-void Sys_Error (const char *error, ...) __attribute__((__format__(__printf__,1,2), __noreturn__));
+FUNC_NORETURN void Sys_Quit (void);
+FUNC_NORETURN void Sys_Error (const char *error, ...) FUNC_PRINTF(1,2);
 // an error will cause the entire program to exit
 
-void Sys_Printf (const char *fmt, ...) __attribute__((__format__(__printf__,1,2)));
+void Sys_Printf (const char *fmt, ...) FUNC_PRINTF(1,2);
 // send text to the console
-
-void Sys_Quit (void) __attribute__((__noreturn__));
 
 double Sys_DoubleTime (void);
 

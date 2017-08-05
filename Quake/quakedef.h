@@ -312,11 +312,11 @@ void Host_InitCommands (void);
 void Host_Init (void);
 void Host_Shutdown(void);
 void Host_Callback_Notify (cvar_t *var);	/* callback function for CVAR_NOTIFY */
-void Host_Error (const char *error, ...) __attribute__((__format__(__printf__,1,2), __noreturn__));
-void Host_EndGame (const char *message, ...) __attribute__((__format__(__printf__,1,2), __noreturn__));
+FUNC_NORETURN void Host_Error (const char *error, ...) FUNC_PRINTF(1,2);
+FUNC_NORETURN void Host_EndGame (const char *message, ...) FUNC_PRINTF(1,2);
 void Host_Frame (float time);
 void Host_Quit_f (void);
-void Host_ClientCommands (const char *fmt, ...) __attribute__((__format__(__printf__,1,2)));
+void Host_ClientCommands (const char *fmt, ...) FUNC_PRINTF(1,2);
 void Host_ShutdownServer (qboolean crash);
 void Host_WriteConfiguration (void);
 

@@ -634,7 +634,7 @@ void Con_SafePrintf (const char *fmt, ...)
 Con_CenterPrintf -- johnfitz -- pad each line with spaces to make it appear centered
 ================
 */
-void Con_CenterPrintf (int linewidth, const char *fmt, ...) __attribute__((__format__(__printf__,2,3)));
+void Con_CenterPrintf (int linewidth, const char *fmt, ...) FUNC_PRINTF(2,3);
 void Con_CenterPrintf (int linewidth, const char *fmt, ...)
 {
 	va_list	argptr;

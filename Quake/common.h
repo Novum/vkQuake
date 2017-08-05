@@ -149,9 +149,8 @@ extern char *q_strlwr (char *str);
 extern char *q_strupr (char *str);
 
 /* snprintf, vsnprintf : always use our versions. */
-extern int q_snprintf (char *str, size_t size, const char *format, ...) __attribute__((__format__(__printf__,3,4)));
-extern int q_vsnprintf(char *str, size_t size, const char *format, va_list args)
-									__attribute__((__format__(__printf__,3,0)));
+extern int q_snprintf (char *str, size_t size, const char *format, ...) FUNC_PRINTF(3,4);
+extern int q_vsnprintf(char *str, size_t size, const char *format, va_list args) FUNC_PRINTF(3,0);
 
 //============================================================================
 
@@ -188,7 +187,7 @@ const char *COM_FileGetExtension (const char *in); /* doesn't return NULL */
 void COM_ExtractExtension (const char *in, char *out, size_t outsize);
 void COM_CreatePath (char *path);
 
-char *va (const char *format, ...) __attribute__((__format__(__printf__,1,2)));
+char *va (const char *format, ...) FUNC_PRINTF(1,2);
 // does a varargs printf into a temp buffer
 
 

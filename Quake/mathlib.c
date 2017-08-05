@@ -103,19 +103,6 @@ float	anglemod(float a)
 	return a;
 }
 
-/*
-==================
-BOPS_Error
-
-Split out like this for ASM to call.
-==================
-*/
-void BOPS_Error (void) __attribute__((__noreturn__));
-void BOPS_Error (void)
-{
-	Sys_Error ("BoxOnPlaneSide:  Bad signbits");
-}
-
 
 /*
 ==================
@@ -179,7 +166,7 @@ int BoxOnPlaneSide (vec3_t emins, vec3_t emaxs, mplane_t *p)
 		break;
 	default:
 		dist1 = dist2 = 0;		// shut up compiler
-		BOPS_Error ();
+		Sys_Error ("BoxOnPlaneSide:  Bad signbits");
 		break;
 	}
 

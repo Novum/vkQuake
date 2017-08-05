@@ -454,12 +454,13 @@ Host_Status_f
 */
 void Host_Status_f (void)
 {
+	void	(*print_fn) (const char *fmt, ...)
+				 FUNCP_PRINTF(1,2);
 	client_t	*client;
 	int			seconds;
 	int			minutes;
 	int			hours = 0;
 	int			j;
-	void		(*print_fn) (const char *fmt, ...) __fp_attribute__((__format__(__printf__,1,2)));
 
 	if (cmd_source == src_command)
 	{
