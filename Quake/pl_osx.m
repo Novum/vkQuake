@@ -68,6 +68,6 @@ void PL_ErrorDialog(const char *errorMsg)
 #else
     NSString* msg = [NSString stringWithCString:errorMsg encoding:NSASCIIStringEncoding];
 #endif
-    NSRunCriticalAlertPanel (@"Quake Error", msg, @"OK", nil, nil);
+    NSRunCriticalAlertPanel (@"Quake Error", @"%@", @"OK", nil, nil, msg);
 }
 
