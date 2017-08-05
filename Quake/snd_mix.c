@@ -38,7 +38,7 @@ static void Snd_WriteLinearBlastStereo16 (void)
 
 	for (i = 0; i < snd_linear_count; i += 2)
 	{
-		val = snd_p[i] >> 8;
+		val = snd_p[i] / 256;
 		if (val > 0x7fff)
 			snd_out[i] = 0x7fff;
 		else if (val < (short)0x8000)
@@ -46,7 +46,7 @@ static void Snd_WriteLinearBlastStereo16 (void)
 		else
 			snd_out[i] = val;
 
-		val = snd_p[i+1] >> 8;
+		val = snd_p[i+1] / 256;
 		if (val > 0x7fff)
 			snd_out[i+1] = 0x7fff;
 		else if (val < (short)0x8000)
@@ -108,7 +108,7 @@ static void S_TransferPaintBuffer (int endtime)
 		short *out = (short *)shm->buffer;
 		while (count--)
 		{
-			val = *p >> 8;
+			val = *p / 256;
 			p+= step;
 			if (val > 0x7fff)
 				val = 0x7fff;
@@ -123,13 +123,13 @@ static void S_TransferPaintBuffer (int endtime)
 		unsigned char *out = shm->buffer;
 		while (count--)
 		{
-			val = *p >> 8;
+			val = *p / 256;
 			p+= step;
 			if (val > 0x7fff)
 				val = 0x7fff;
 			else if (val < (short)0x8000)
 				val = (short)0x8000;
-			out[out_idx] = (val >> 8) + 128;
+			out[out_idx] = (val / 256) + 128;
 			out_idx = (out_idx + 1) & out_mask;
 		}
 	}
@@ -138,13 +138,13 @@ static void S_TransferPaintBuffer (int endtime)
 		signed char *out = (signed char *) shm->buffer;
 		while (count--)
 		{
-			val = *p >> 8;
+			val = *p / 256;
 			p+= step;
 			if (val > 0x7fff)
 				val = 0x7fff;
 			else if (val < (short)0x8000)
 				val = (short)0x8000;
-			out[out_idx] = (val >> 8);
+			out[out_idx] = (val / 256);
 			out_idx = (out_idx + 1) & out_mask;
 		}
 	}
@@ -407,8 +407,8 @@ void S_PaintChannels (int endtime)
 	// clipping
 		for (i=0; i<end-paintedtime; i++)
 		{
-			paintbuffer[i].left = CLAMP(-32768 << 8, paintbuffer[i].left, 32767 << 8) >> 1;
-			paintbuffer[i].right = CLAMP(-32768 << 8, paintbuffer[i].right, 32767 << 8) >> 1;
+			paintbuffer[i].left = CLAMP(-32768 * 256, paintbuffer[i].left, 32767 * 256) / 2;
+			paintbuffer[i].right = CLAMP(-32768 * 256, paintbuffer[i].right, 32767 * 256) / 2;
 		}
 
 	// apply a lowpass filter
@@ -431,8 +431,8 @@ void S_PaintChannels (int endtime)
 			{
 				s = i & (MAX_RAW_SAMPLES - 1);
 			// lower music by 6db to match sfx
-				paintbuffer[i - paintedtime].left += s_rawsamples[s].left >> 1;
-				paintbuffer[i - paintedtime].right += s_rawsamples[s].right >> 1;
+				paintbuffer[i - paintedtime].left += s_rawsamples[s].left / 2;
+				paintbuffer[i - paintedtime].right += s_rawsamples[s].right / 2;
 			}
 			//	if (i != end)
 			//		Con_Printf ("partial stream\n");
@@ -505,8 +505,8 @@ static void SND_PaintChannelFrom16 (channel_t *ch, sfxcache_t *sc, int count, in
 
 	leftvol = ch->leftvol * snd_vol;
 	rightvol = ch->rightvol * snd_vol;
-	leftvol >>= 8;
-	rightvol >>= 8;
+	leftvol /= 256;
+	rightvol /= 256;
 	sfx = (signed short *)sc->data + ch->pos;
 
 	for (i = 0; i < count; i++)
