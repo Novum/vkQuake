@@ -49,9 +49,6 @@
     <ClCompile Include="..\..\Quake\snd_mix.c">
       <Filter>Sound</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Quake\snd_modplug.c">
-      <Filter>Sound</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\Quake\snd_mp3.c">
       <Filter>Sound</Filter>
     </ClCompile>
@@ -316,9 +313,6 @@
       <Filter>Sound</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Quake\snd_mikmod.h">
-      <Filter>Sound</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Quake\snd_modplug.h">
       <Filter>Sound</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Quake\snd_mp3.h">
