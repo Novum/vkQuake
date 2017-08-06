@@ -1888,7 +1888,7 @@ void GL_EndRendering (void)
 	if (err != VK_SUCCESS)
 		Sys_Error("vkEndCommandBuffer failed");
 
-	VkPipelineStageFlags wait_dst_stage_mask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+	VkPipelineStageFlags wait_dst_stage_mask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 
 	VkSubmitInfo submit_info;
 	memset(&submit_info, 0, sizeof(submit_info));
