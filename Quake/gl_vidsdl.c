@@ -739,6 +739,7 @@ static void GL_InitDevice( void )
 
 	qboolean found_swapchain_extension = false;
 	qboolean found_debug_marker_extension = false;
+	vulkan_globals.dedicated_allocation = false;
 
 	vkGetPhysicalDeviceMemoryProperties(vulkan_physical_device, &vulkan_globals.memory_properties);
 
@@ -759,6 +760,10 @@ static void GL_InitDevice( void )
 			if (strcmp(VK_EXT_DEBUG_MARKER_EXTENSION_NAME, device_extensions[i].extensionName) == 0)
 			{
 				found_debug_marker_extension = true;
+			}
+			if (strcmp(VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME, device_extensions[i].extensionName) == 0)
+			{
+				vulkan_globals.dedicated_allocation = true;
 			}
 		}
 
@@ -864,9 +869,15 @@ static void GL_InitDevice( void )
 #if _DEBUG
 	if (found_debug_marker_extension)
 	{
+		Con_Printf("Using VK_EXT_DEBUG_MARKER\n");
 		GET_DEVICE_PROC_ADDR(vulkan_globals.device, DebugMarkerSetObjectNameEXT);
 	}
 #endif
+
+	if (vulkan_globals.dedicated_allocation)
+	{
+		Con_Printf("Using VK_KHR_DEDICATED_ALLOCATION\n");
+	}
 
 	vkGetDeviceQueue(vulkan_globals.device, vulkan_globals.gfx_queue_family_index, 0, &vulkan_globals.queue);
 
@@ -1167,11 +1178,19 @@ static void GL_CreateDepthBuffer( void )
 	VkMemoryRequirements memory_requirements;
 	vkGetImageMemoryRequirements(vulkan_globals.device, depth_buffer, &memory_requirements);
 
+	VkMemoryDedicatedAllocateInfoKHR dedicated_allocation_info;
+	memset(&dedicated_allocation_info, 0, sizeof(dedicated_allocation_info));
+	dedicated_allocation_info.sType = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO_KHR;
+	dedicated_allocation_info.image = depth_buffer;
+
 	VkMemoryAllocateInfo memory_allocate_info;
 	memset(&memory_allocate_info, 0, sizeof(memory_allocate_info));
 	memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 	memory_allocate_info.allocationSize = memory_requirements.size;
 	memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
+
+	if (vulkan_globals.dedicated_allocation)
+		memory_allocate_info.pNext = &dedicated_allocation_info;
 
 	num_vulkan_misc_allocations += 1;
 	err = vkAllocateMemory(vulkan_globals.device, &memory_allocate_info, NULL, &depth_buffer_memory);
@@ -1242,11 +1261,19 @@ static void GL_CreateColorBuffer( void )
 		VkMemoryRequirements memory_requirements;
 		vkGetImageMemoryRequirements(vulkan_globals.device, vulkan_globals.color_buffers[i], &memory_requirements);
 
+		VkMemoryDedicatedAllocateInfoKHR dedicated_allocation_info;
+		memset(&dedicated_allocation_info, 0, sizeof(dedicated_allocation_info));
+		dedicated_allocation_info.sType = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO_KHR;
+		dedicated_allocation_info.image = vulkan_globals.color_buffers[i];
+
 		VkMemoryAllocateInfo memory_allocate_info;
 		memset(&memory_allocate_info, 0, sizeof(memory_allocate_info));
 		memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 		memory_allocate_info.allocationSize = memory_requirements.size;
 		memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
+
+		if (vulkan_globals.dedicated_allocation)
+			memory_allocate_info.pNext = &dedicated_allocation_info;
 
 		num_vulkan_misc_allocations += 1;
 		err = vkAllocateMemory(vulkan_globals.device, &memory_allocate_info, NULL, &color_buffers_memory[i]);
@@ -1335,11 +1362,19 @@ static void GL_CreateColorBuffer( void )
 		VkMemoryRequirements memory_requirements;
 		vkGetImageMemoryRequirements(vulkan_globals.device, msaa_color_buffer, &memory_requirements);
 
+		VkMemoryDedicatedAllocateInfoKHR dedicated_allocation_info;
+		memset(&dedicated_allocation_info, 0, sizeof(dedicated_allocation_info));
+		dedicated_allocation_info.sType = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO_KHR;
+		dedicated_allocation_info.image = msaa_color_buffer;
+
 		VkMemoryAllocateInfo memory_allocate_info;
 		memset(&memory_allocate_info, 0, sizeof(memory_allocate_info));
 		memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 		memory_allocate_info.allocationSize = memory_requirements.size;
 		memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
+
+		if (vulkan_globals.dedicated_allocation)
+			memory_allocate_info.pNext = &dedicated_allocation_info;
 
 		num_vulkan_misc_allocations += 1;
 		err = vkAllocateMemory(vulkan_globals.device, &memory_allocate_info, NULL, &msaa_color_buffer_memory);

@@ -122,6 +122,9 @@ typedef struct
 	VkSampleCountFlagBits				sample_count;
 	qboolean							supersampling;
 
+	// Extensions
+	qboolean							dedicated_allocation;
+
 	// Buffers
 	VkImage								color_buffers[NUM_COLOR_BUFFERS];
 
