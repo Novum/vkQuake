@@ -345,7 +345,7 @@ const char *Sys_ConsoleInput (void)
 		if (GetNumberOfConsoleInputEvents(hinput, &numevents) == 0)
 			Sys_Error ("Error getting # of console events");
 
-		if (numevents <= 0)
+		if (! numevents)
 			break;
 
 		if (ReadConsoleInput(hinput, recs, 1, &numread) == 0)

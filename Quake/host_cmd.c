@@ -228,8 +228,8 @@ void Modlist_Add (const char *name)
 #ifdef _WIN32
 void Modlist_Init (void)
 {
-	WIN32_FIND_DATA	fdat, mod_fdat;
-	HANDLE		fhnd, mod_fhnd;
+	WIN32_FIND_DATA	fdat;
+	HANDLE		fhnd;
 	DWORD		attribs;
 	char		dir_string[MAX_OSPATH], mod_string[MAX_OSPATH];
 
@@ -242,30 +242,12 @@ void Modlist_Init (void)
 	{
 		if (!strcmp(fdat.cFileName, ".") || !strcmp(fdat.cFileName, ".."))
 			continue;
-#if 1
-		// treat all subdirectories as mods
 		q_snprintf (mod_string, sizeof(mod_string), "%s/%s", com_basedir, fdat.cFileName);
 		attribs = GetFileAttributes (mod_string);
-		if (attribs != INVALID_FILE_ATTRIBUTES && (attribs & FILE_ATTRIBUTE_DIRECTORY))
-		{
+		if (attribs != INVALID_FILE_ATTRIBUTES && (attribs & FILE_ATTRIBUTE_DIRECTORY)) {
+			/* don't bother testing for pak files / progs.dat */
 			Modlist_Add(fdat.cFileName);
 		}
-#else
-		q_snprintf (mod_string, sizeof(mod_string), "%s/%s/progs.dat", com_basedir, fdat.cFileName);
-		mod_fhnd = FindFirstFile(mod_string, &mod_fdat);
-		if (mod_fhnd != INVALID_HANDLE_VALUE) {
-			FindClose(mod_fhnd);
-			Modlist_Add(fdat.cFileName);
-		}
-		else {
-			q_snprintf (mod_string, sizeof(mod_string), "%s/%s/*.pak", com_basedir, fdat.cFileName);
-			mod_fhnd = FindFirstFile(mod_string, &mod_fdat);
-			if (mod_fhnd != INVALID_HANDLE_VALUE) {
-				FindClose(mod_fhnd);
-				Modlist_Add(fdat.cFileName);
-			}
-		}
-#endif
 	} while (FindNextFile(fhnd, &fdat));
 
 	FindClose(fhnd);
@@ -292,23 +274,8 @@ void Modlist_Init (void)
 		mod_dir_p = opendir(mod_string);
 		if (mod_dir_p == NULL)
 			continue;
-#if 0
-		// find progs.dat and pak file(s)
-		while ((mod_dir_t = readdir(mod_dir_p)) != NULL)
-		{
-			if (!q_strcasecmp(mod_dir_t->d_name, "progs.dat")) {
-				Modlist_Add(dir_t->d_name);
-				break;
-			}
-			if (!q_strcasecmp(COM_FileGetExtension(mod_dir_t->d_name), "pak")) {
-				Modlist_Add(dir_t->d_name);
-				break;
-			}
-		}
-#else
-		// don't bother testing for pak files / progs.dat
+		/* don't bother testing for pak files / progs.dat */
 		Modlist_Add(dir_t->d_name);
-#endif
 		closedir(mod_dir_p);
 	}
 
