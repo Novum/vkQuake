@@ -1117,10 +1117,15 @@ static void stbiw__jpg_calcBits(int val, unsigned short bits[2]) {
 }
 
 static int stbiw__jpg_processDU(stbi__write_context *s, int *bitBuf, int *bitCnt, float *CDU, float *fdtbl, int DC, const unsigned short HTDC[256][2], const unsigned short HTAC[256][2]) {
-   const unsigned short EOB[2] = { HTAC[0x00][0], HTAC[0x00][1] };
-   const unsigned short M16zeroes[2] = { HTAC[0xF0][0], HTAC[0xF0][1] };
+   unsigned short EOB[2];
+   unsigned short M16zeroes[2];
    int dataOff, i, diff, end0pos;
    int DU[64];
+
+   EOB[0] = HTAC[0x00][0];
+   EOB[1] = HTAC[0x00][1];
+   M16zeroes[0] = HTAC[0xF0][0];
+   M16zeroes[1] = HTAC[0xF0][1];
 
    // DCT rows
    for(dataOff=0; dataOff<64; dataOff+=8) {
@@ -1283,8 +1288,12 @@ static int stbi_write_jpg_core(stbi__write_context *s, int width, int height, in
    {
       static const unsigned char head0[] = { 0xFF,0xD8,0xFF,0xE0,0,0x10,'J','F','I','F',0,1,1,0,0,1,0,1,0,0,0xFF,0xDB,0,0x84,0 };
       static const unsigned char head2[] = { 0xFF,0xDA,0,0xC,3,1,0,2,0x11,3,0x11,0,0x3F,0 };
-      const unsigned char head1[] = { 0xFF,0xC0,0,0x11,8,(unsigned char)(height>>8),STBIW_UCHAR(height),(unsigned char)(width>>8),STBIW_UCHAR(width),
+      unsigned char head1[] =       { 0xFF,0xC0,0,0x11,8, /*[5]*/0,/*[6]*/0,/*[7]*/0,/*[8]*/0,
                                       3,1,0x11,0,2,0x11,1,3,0x11,1,0xFF,0xC4,0x01,0xA2,0 };
+      head1[5] = (unsigned char)(height>>8);
+      head1[6] = STBIW_UCHAR(height);
+      head1[7] = (unsigned char)(width>>8);
+      head1[8] = STBIW_UCHAR(width);
       s->func(s->context, (void*)head0, sizeof(head0));
       s->func(s->context, (void*)YTable, sizeof(YTable));
       stbiw__putc(s, 1);
