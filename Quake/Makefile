@@ -189,7 +189,7 @@ DEFAULT_TARGET := vkquake
 # ---------------------------
 
 %.o:	%.c
-	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ $^
+	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ $<
 %.o:	../Shaders/Compiled/%.c
 	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ $^
 
@@ -306,6 +306,8 @@ OBJS := strlcat.o \
 vkquake:	$(OBJS)
 	$(LINKER) $(OBJS) $(LDFLAGS) $(LIBS) $(SDL_LIBS) -o $@
 	$(call do_strip,$@)
+
+image.o: lodepng.c lodepng.h stb_image_write.h
 
 release:	vkquake
 debug:

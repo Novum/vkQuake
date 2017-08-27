@@ -176,11 +176,11 @@ DEFAULT_TARGET := vkQuake.exe
 # ---------------------------
 
 %.o:	%.c
-	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ $^
+	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ $<
 %.o:	../Shaders/Compiled/%.c
 	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ $^
 %.res:	../Windows/%.rc
-	$(WINDRES) -I../Windows --output-format=coff --target=pe-x86-64 -o $@ $^
+	$(WINDRES) -I../Windows --output-format=coff --target=pe-x86-64 -o $@ $<
 
 # ----------------------------------------------------------------------------
 # objects
@@ -295,6 +295,8 @@ OBJS := strlcat.o \
 vkQuake.exe:	$(OBJS) dll
 	$(LINKER) $(OBJS) $(LDFLAGS) $(LIBS) $(SDL_LIBS) -o $@
 	$(call do_strip,$@)
+
+image.o: lodepng.c lodepng.h stb_image_write.h
 
 dll:
 	cp ../Windows/codecs/x64/*.dll .
