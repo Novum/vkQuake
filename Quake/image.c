@@ -26,6 +26,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
+#define LODEPNG_NO_COMPILE_DECODER
+#define LODEPNG_NO_COMPILE_ANCILLARY_CHUNKS
+#define LODEPNG_NO_COMPILE_ERROR_TEXT
 #include "lodepng.h"
 #include "lodepng.c"
 
@@ -481,7 +484,7 @@ byte *Image_LoadPCX (FILE *f, int *width, int *height)
 //
 //==============================================================================
 
-static byte *CopyFlipped(byte *data, int width, int height, int bpp)
+static byte *CopyFlipped(const byte *data, int width, int height, int bpp)
 {
 	int	y, rowsize;
 	byte	*flipped;
@@ -498,20 +501,14 @@ static byte *CopyFlipped(byte *data, int width, int height, int bpp)
 	return flipped;
 }
 
-typedef enum {
-	format_png,
-	format_jpg
-} imageformat_t;
-
 /*
 ============
-Image_WriteSTB -- writes using stb_image_write
+Image_WriteJPG -- writes using stb_image_write
 
 returns true if successful
 ============
 */
-static qboolean
-Image_WriteSTB (const char *name, byte *data, int width, int height, int bpp, imageformat_t format, int quality, qboolean upsidedown)
+qboolean Image_WriteJPG (const char *name, byte *data, int width, int height, int bpp, int quality, qboolean upsidedown)
 {
 	unsigned error;
 	char	pathname[MAX_OSPATH];
@@ -535,18 +532,7 @@ Image_WriteSTB (const char *name, byte *data, int width, int height, int bpp, im
 	else
 		flipped = data;
 
-	switch (format)
-	{
-		case format_png:
-			error = stbi_write_png (pathname, width, height, bytes_per_pixel, flipped, width * bytes_per_pixel);
-			break;
-		case format_jpg:
-			error = stbi_write_jpg (pathname, width, height, bytes_per_pixel, flipped, quality);
-			break;
-		default:
-			Sys_Error ("invalid format");
-	}
-
+	error = stbi_write_jpg (pathname, width, height, bytes_per_pixel, flipped, quality);
 	if (!upsidedown)
 		free (flipped);
 
@@ -569,12 +555,13 @@ qboolean Image_WritePNG (const char *name, byte *data, int width, int height, in
 	Sys_mkdir (com_gamedir); //if we've switched to a nonexistant gamedir, create it now so we don't crash
 	q_snprintf (pathname, sizeof(pathname), "%s/%s", com_gamedir, name);
 	
-	flipped = CopyFlipped (data, width, height, bpp);
+	flipped = (!upsidedown)? CopyFlipped (data, width, height, bpp) : data;
 	filters = (unsigned char *) malloc (height);
 	
 	if (!filters || !flipped)
 	{
-		free (flipped);
+		if (!upsidedown)
+		  free (flipped);
 		free (filters);
 		return false;
 	}
@@ -600,17 +587,16 @@ qboolean Image_WritePNG (const char *name, byte *data, int width, int height, in
 	
 	error = lodepng_encode (&png, &pngsize, flipped, width, height, &state);
 	if (error == 0) lodepng_save_file (png, pngsize, pathname);
+#ifdef LODEPNG_COMPILE_ERROR_TEXT
+	else Con_Printf("WritePNG: %s\n", lodepng_error_text());
+#endif
 	
 	lodepng_state_cleanup (&state);
 	
 	free (png);
 	free (filters);
-	free (flipped);
+	if (!upsidedown)
+	  free (flipped);
 	
 	return (error == 0);
-}
-
-qboolean Image_WriteJPG (const char *name, byte *data, int width, int height, int bpp, int quality, qboolean upsidedown)
-{
-	return Image_WriteSTB (name, data, width, height, bpp, format_jpg, quality, upsidedown);
 }
