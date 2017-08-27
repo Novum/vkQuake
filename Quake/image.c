@@ -24,9 +24,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
+#define STB_IMAGE_WRITE_STATIC
 #include "stb_image_write.h"
 
 #define LODEPNG_NO_COMPILE_DECODER
+#define LODEPNG_NO_COMPILE_CPP
 #define LODEPNG_NO_COMPILE_ANCILLARY_CHUNKS
 #define LODEPNG_NO_COMPILE_ERROR_TEXT
 #include "lodepng.h"
@@ -551,13 +553,12 @@ qboolean Image_WritePNG (const char *name, byte *data, int width, int height, in
 
 	if (!(bpp == 32 || bpp == 24))
 		Sys_Error("bpp not 24 or 32");
-	
+
 	Sys_mkdir (com_gamedir); //if we've switched to a nonexistant gamedir, create it now so we don't crash
 	q_snprintf (pathname, sizeof(pathname), "%s/%s", com_gamedir, name);
-	
+
 	flipped = (!upsidedown)? CopyFlipped (data, width, height, bpp) : data;
 	filters = (unsigned char *) malloc (height);
-	
 	if (!filters || !flipped)
 	{
 		if (!upsidedown)
@@ -565,7 +566,7 @@ qboolean Image_WritePNG (const char *name, byte *data, int width, int height, in
 		free (filters);
 		return false;
 	}
-	
+
 // set some options for faster compression
 	lodepng_state_init(&state);
 	state.encoder.zlibsettings.use_lz77 = 0;
@@ -573,7 +574,7 @@ qboolean Image_WritePNG (const char *name, byte *data, int width, int height, in
 	state.encoder.filter_strategy = LFS_PREDEFINED;
 	memset(filters, 1, height); //use filter 1; see https://www.w3.org/TR/PNG-Filters.html
 	state.encoder.predefined_filters = filters;
-	
+
 	if (bpp == 24)
 	{
 		state.info_raw.colortype = LCT_RGB;
@@ -584,19 +585,18 @@ qboolean Image_WritePNG (const char *name, byte *data, int width, int height, in
 		state.info_raw.colortype = LCT_RGBA;
 		state.info_png.color.colortype = LCT_RGBA;
 	}
-	
+
 	error = lodepng_encode (&png, &pngsize, flipped, width, height, &state);
 	if (error == 0) lodepng_save_file (png, pngsize, pathname);
 #ifdef LODEPNG_COMPILE_ERROR_TEXT
 	else Con_Printf("WritePNG: %s\n", lodepng_error_text());
 #endif
-	
+
 	lodepng_state_cleanup (&state);
-	
 	free (png);
 	free (filters);
 	if (!upsidedown)
 	  free (flipped);
-	
+
 	return (error == 0);
 }
