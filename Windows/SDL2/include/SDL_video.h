@@ -116,7 +116,8 @@ typedef enum
     SDL_WINDOW_SKIP_TASKBAR  = 0x00010000,      /**< window should not be added to the taskbar */
     SDL_WINDOW_UTILITY       = 0x00020000,      /**< window should be treated as a utility window */
     SDL_WINDOW_TOOLTIP       = 0x00040000,      /**< window should be treated as a tooltip */
-    SDL_WINDOW_POPUP_MENU    = 0x00080000       /**< window should be treated as a popup menu */
+    SDL_WINDOW_POPUP_MENU    = 0x00080000,      /**< window should be treated as a popup menu */
+    SDL_WINDOW_VULKAN        = 0x00100000       /**< window usable for Vulkan surface */
 } SDL_WindowFlags;
 
 /**
@@ -207,7 +208,7 @@ typedef enum
 {
     SDL_GL_CONTEXT_PROFILE_CORE           = 0x0001,
     SDL_GL_CONTEXT_PROFILE_COMPATIBILITY  = 0x0002,
-    SDL_GL_CONTEXT_PROFILE_ES             = 0x0004 /* GLX_CONTEXT_ES2_PROFILE_BIT_EXT */
+    SDL_GL_CONTEXT_PROFILE_ES             = 0x0004 /**< GLX_CONTEXT_ES2_PROFILE_BIT_EXT */
 } SDL_GLprofile;
 
 typedef enum
@@ -1110,11 +1111,16 @@ extern DECLSPEC void SDLCALL SDL_GL_ResetAttributes(void);
 
 /**
  *  \brief Set an OpenGL window attribute before window creation.
+ *
+ *  \return 0 on success, or -1 if the attribute could not be set.
  */
 extern DECLSPEC int SDLCALL SDL_GL_SetAttribute(SDL_GLattr attr, int value);
 
 /**
  *  \brief Get the actual value for an attribute from the current context.
+ *
+ *  \return 0 on success, or -1 if the attribute could not be retrieved.
+ *          The integer at \c value will be modified in either case.
  */
 extern DECLSPEC int SDLCALL SDL_GL_GetAttribute(SDL_GLattr attr, int *value);
 

@@ -39,12 +39,12 @@ extern "C" {
 #endif
 
 /* RWops Types */
-#define SDL_RWOPS_UNKNOWN   0U  /* Unknown stream type */
-#define SDL_RWOPS_WINFILE   1U  /* Win32 file */
-#define SDL_RWOPS_STDFILE   2U  /* Stdio file */
-#define SDL_RWOPS_JNIFILE   3U  /* Android asset */
-#define SDL_RWOPS_MEMORY    4U  /* Memory stream */
-#define SDL_RWOPS_MEMORY_RO 5U  /* Read-Only memory stream */
+#define SDL_RWOPS_UNKNOWN   0U  /**< Unknown stream type */
+#define SDL_RWOPS_WINFILE   1U  /**< Win32 file */
+#define SDL_RWOPS_STDFILE   2U  /**< Stdio file */
+#define SDL_RWOPS_JNIFILE   3U  /**< Android asset */
+#define SDL_RWOPS_MEMORY    4U  /**< Memory stream */
+#define SDL_RWOPS_MEMORY_RO 5U  /**< Read-Only memory stream */
 
 /**
  * This is the read/write operation structure -- very basic.
@@ -189,6 +189,29 @@ extern DECLSPEC void SDLCALL SDL_FreeRW(SDL_RWops * area);
 #define SDL_RWclose(ctx)        (ctx)->close(ctx)
 /* @} *//* Read/write macros */
 
+
+/**
+ *  Load all the data from an SDL data stream.
+ *
+ *  The data is allocated with a zero byte at the end (null terminated)
+ *
+ *  If \c datasize is not NULL, it is filled with the size of the data read.
+ *
+ *  If \c freesrc is non-zero, the stream will be closed after being read.
+ *
+ *  The data should be freed with SDL_free().
+ *
+ *  \return the data, or NULL if there was an error.
+ */
+extern DECLSPEC void *SDLCALL SDL_LoadFile_RW(SDL_RWops * src, size_t *datasize,
+                                                    int freesrc);
+
+/**
+ *  Load an entire file.
+ *
+ *  Convenience macro.
+ */
+#define SDL_LoadFile(file, datasize)   SDL_LoadFile_RW(SDL_RWFromFile(file, "rb"), datasize, 1)
 
 /**
  *  \name Read endian functions
