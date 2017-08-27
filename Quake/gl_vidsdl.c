@@ -3028,6 +3028,14 @@ SCREEN SHOTS
 ==============================================================================
 */
 
+static void SCR_ScreenShot_Usage (void)
+{
+	Con_Printf ("usage: screenshot <format> <quality>\n");
+	Con_Printf ("   format must be \"png\" or \"tga\" or \"jpg\"\n");
+	Con_Printf ("   quality must be 1-100\n");
+	return;
+}
+
 /*
 ==================
 SCR_ScreenShot_f -- johnfitz -- rewritten to use Image_WriteTGA
@@ -3037,12 +3045,41 @@ void SCR_ScreenShot_f (void)
 {
 	VkBuffer buffer;
 	VkResult err;
-	char	tganame[16];  //johnfitz -- was [80]
+	char	ext[4];
+	char	imagename[16];  //johnfitz -- was [80]
 	char	checkname[MAX_OSPATH];
-	int	i;
+	int	i, quality;
+	qboolean	ok;
 
 	qboolean bgra = (vulkan_globals.swap_chain_format == VK_FORMAT_B8G8R8A8_UNORM)
 		|| (vulkan_globals.swap_chain_format == VK_FORMAT_B8G8R8A8_SRGB);
+
+	Q_strncpy (ext, "png", sizeof(ext));
+
+	if (Cmd_Argc () >= 2)
+	{
+		const char	*requested_ext = Cmd_Argv (1);
+
+		if (!q_strcasecmp ("png", requested_ext)
+		    || !q_strcasecmp ("tga", requested_ext)
+		    || !q_strcasecmp ("jpg", requested_ext))
+			Q_strncpy (ext, requested_ext, sizeof(ext));
+		else
+		{
+			SCR_ScreenShot_Usage ();
+			return;
+		}
+	}
+
+// read quality as the 3rd param (only used for JPG)
+	quality = 90;
+	if (Cmd_Argc () >= 3)
+		quality = Q_atoi (Cmd_Argv(2));
+	if (quality < 1 || quality > 100)
+	{
+		SCR_ScreenShot_Usage ();
+		return;
+	}
 
 	if ((vulkan_globals.swap_chain_format != VK_FORMAT_B8G8R8A8_UNORM)
 		&& (vulkan_globals.swap_chain_format != VK_FORMAT_B8G8R8A8_SRGB)
@@ -3056,8 +3093,8 @@ void SCR_ScreenShot_f (void)
 // find a file name to save it to
 	for (i=0; i<10000; i++)
 	{
-		q_snprintf (tganame, sizeof(tganame), "vkquake%04i.tga", i);	// "fitz%04i.tga"
-		q_snprintf (checkname, sizeof(checkname), "%s/%s", com_gamedir, tganame);
+		q_snprintf (imagename, sizeof(imagename), "vkquake%04i.%s", i, ext);	// "fitz%04i.tga"
+		q_snprintf (checkname, sizeof(checkname), "%s/%s", com_gamedir, imagename);
 		if (Sys_FileTime(checkname) == -1)
 			break;	// file doesn't exist
 	}
@@ -3169,11 +3206,31 @@ void SCR_ScreenShot_f (void)
 	void * buffer_ptr;
 	vkMapMemory(vulkan_globals.device, memory, 0, glwidth * glheight * 4, 0, &buffer_ptr);
 
-// now write the file
-	if (Image_WriteTGA (tganame, buffer_ptr, glwidth, glheight, 32, true, bgra))
-		Con_Printf ("Wrote %s\n", tganame);
+	if (bgra)
+	{
+		byte * data = (byte*)buffer_ptr;
+		const int size = glwidth * glheight * 4;
+		for (i = 0; i < size; i += 4)
+		{
+			const byte temp = data[i];
+			data[i] = data[i+2];
+			data[i+2] = temp;
+		}
+	}
+
+	if (!q_strncasecmp (ext, "png", sizeof(ext)))
+		ok = Image_WritePNG (imagename, buffer_ptr, glwidth, glheight, 32, true);
+	else if (!q_strncasecmp (ext, "tga", sizeof(ext)))
+		ok = Image_WriteTGA (imagename, buffer_ptr, glwidth, glheight, 32, true);
+	else if (!q_strncasecmp (ext, "jpg", sizeof(ext)))
+		ok = Image_WriteJPG (imagename, buffer_ptr, glwidth, glheight, 32, quality, true);
 	else
-		Con_Printf ("SCR_ScreenShot_f: Couldn't create a TGA file\n");
+		ok = false;
+
+	if (ok)
+		Con_Printf ("Wrote %s\n", imagename);
+	else
+		Con_Printf ("SCR_ScreenShot_f: Couldn't create %s\n", imagename);
 
 	vkUnmapMemory(vulkan_globals.device, memory);
 	vkFreeMemory(vulkan_globals.device, memory, NULL);
