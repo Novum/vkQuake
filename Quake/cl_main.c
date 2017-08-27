@@ -258,6 +258,9 @@ void CL_PrintEntities_f (void)
 	entity_t	*ent;
 	int			i;
 
+	if (cls.state != ca_connected)
+		return;
+
 	for (i=0,ent=cl_entities ; i<cl.num_entities ; i++,ent++)
 	{
 		Con_Printf ("%3i:",i);
@@ -717,6 +720,9 @@ void CL_Tracepos_f (void)
 {
 	vec3_t	v, w;
 
+	if (cls.state != ca_connected)
+		return;
+
 	VectorMA(r_refdef.vieworg, 8192.0, vpn, v);
 	TraceLine(r_refdef.vieworg, v, w);
 
@@ -735,6 +741,8 @@ display client's position and angles
 */
 void CL_Viewpos_f (void)
 {
+	if (cls.state != ca_connected)
+		return;
 #if 0
 	//camera position
 	Con_Printf ("Viewpos: (%i %i %i) %i %i %i\n",
