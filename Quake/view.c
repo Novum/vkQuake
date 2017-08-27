@@ -61,6 +61,8 @@ cvar_t	crosshair = {"crosshair", "0", CVAR_ARCHIVE};
 
 cvar_t	gl_cshiftpercent = {"gl_cshiftpercent", "100", CVAR_NONE};
 
+cvar_t	r_viewmodel_quake = {"r_viewmodel_quake", "0", CVAR_ARCHIVE};
+
 float	v_dmg_time, v_dmg_roll, v_dmg_pitch;
 
 extern	int			in_forward, in_forward2, in_back;
@@ -796,6 +798,18 @@ void V_CalcRefdef (void)
 	view->origin[2] += bob;
 
 	//johnfitz -- removed all gun position fudging code (was used to keep gun from getting covered by sbar)
+	//MarkV -- restored this with r_viewmodel_quake cvar
+	if (r_viewmodel_quake.value)
+	{
+		if (scr_viewsize.value == 110)
+			view->origin[2] += 1;
+		else if (scr_viewsize.value == 100)
+			view->origin[2] += 2;
+		else if (scr_viewsize.value == 90)
+			view->origin[2] += 1;
+		else if (scr_viewsize.value == 80)
+			view->origin[2] += 0.5;
+	}
 
 	view->model = cl.model_precache[cl.stats[STAT_WEAPON]];
 	view->frame = cl.stats[STAT_WEAPONFRAME];
@@ -926,5 +940,7 @@ void V_Init (void)
 	Cvar_RegisterVariable (&v_kickroll);
 	Cvar_RegisterVariable (&v_kickpitch);
 	Cvar_RegisterVariable (&v_gunkick); //johnfitz
+	
+	Cvar_RegisterVariable (&r_viewmodel_quake); //MarkV
 }
 
