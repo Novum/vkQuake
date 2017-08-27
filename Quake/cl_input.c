@@ -232,6 +232,7 @@ cvar_t	cl_pitchspeed = {"cl_pitchspeed","150",CVAR_NONE};
 
 cvar_t	cl_anglespeedkey = {"cl_anglespeedkey","1.5",CVAR_NONE};
 
+cvar_t	cl_alwaysrun = {"cl_alwaysrun","0",CVAR_ARCHIVE}; // QuakeSpasm -- new always run
 
 /*
 ================
@@ -245,7 +246,7 @@ void CL_AdjustAngles (void)
 	float	speed;
 	float	up, down;
 
-	if ((cl_forwardspeed.value > 200) ^ (in_speed.state & 1))
+	if ((in_speed.state & 1) ^ (cl_alwaysrun.value != 0.0))
 		speed = host_frametime * cl_anglespeedkey.value;
 	else
 		speed = host_frametime;
@@ -322,9 +323,7 @@ void CL_BaseMove (usercmd_t *cmd)
 //
 // adjust for speed key
 //
-	if (cl_forwardspeed.value > 200 && cl_movespeedkey.value)
-		cmd->forwardmove /= cl_movespeedkey.value;
-	if ((cl_forwardspeed.value > 200) ^ (in_speed.state & 1))
+	if ((in_speed.state & 1) ^ (cl_alwaysrun.value != 0.0))
 	{
 		cmd->forwardmove *= cl_movespeedkey.value;
 		cmd->sidemove *= cl_movespeedkey.value;

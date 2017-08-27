@@ -997,6 +997,14 @@ enum
 	OPTIONS_ITEMS
 };
 
+enum
+{
+	ALWAYSRUN_OFF = 0,
+	ALWAYSRUN_VANILLA,
+	ALWAYSRUN_QUAKESPASM,
+	ALWAYSRUN_ITEMS
+};
+
 #define	SLIDER_RANGE	10
 
 int		options_cursor;
@@ -1012,6 +1020,7 @@ void M_Menu_Options_f (void)
 
 void M_AdjustSliders (int dir)
 {
+	int	curr_alwaysrun, target_alwaysrun;
 	float	f, l;
 
 	S_LocalSound ("misc/menu3.wav");
@@ -1074,17 +1083,32 @@ void M_AdjustSliders (int dir)
 		break;
 
 	case OPT_ALWAYRUN:	// always run
-		if (cl_movespeedkey.value <= 1)
-			Cvar_Set ("cl_movespeedkey", "2.0");
-		if (cl_forwardspeed.value > 200)
-		{
-			Cvar_Set ("cl_forwardspeed", "200");
-			Cvar_Set ("cl_backspeed", "200");
-		}
+		if (cl_alwaysrun.value)
+			curr_alwaysrun = ALWAYSRUN_QUAKESPASM;
+		else if (cl_forwardspeed.value > 200)
+			curr_alwaysrun = ALWAYSRUN_VANILLA;
 		else
+			curr_alwaysrun = ALWAYSRUN_OFF;
+			
+		target_alwaysrun = (ALWAYSRUN_ITEMS + curr_alwaysrun + dir) % ALWAYSRUN_ITEMS;
+			
+		if (target_alwaysrun == ALWAYSRUN_VANILLA)
 		{
-			Cvar_SetValue ("cl_forwardspeed", 200 * cl_movespeedkey.value);
-			Cvar_SetValue ("cl_backspeed", 200 * cl_movespeedkey.value);
+			Cvar_SetValue ("cl_alwaysrun", 0);
+			Cvar_SetValue ("cl_forwardspeed", 400);
+			Cvar_SetValue ("cl_backspeed", 400);
+		}
+		else if (target_alwaysrun == ALWAYSRUN_QUAKESPASM)
+		{
+			Cvar_SetValue ("cl_alwaysrun", 1);
+			Cvar_SetValue ("cl_forwardspeed", 200);
+			Cvar_SetValue ("cl_backspeed", 200);
+		}
+		else // ALWAYSRUN_OFF
+		{
+			Cvar_SetValue ("cl_alwaysrun", 0);
+			Cvar_SetValue ("cl_forwardspeed", 200);
+			Cvar_SetValue ("cl_backspeed", 200);
 		}
 		break;
 
@@ -1203,7 +1227,12 @@ void M_Options_Draw (void)
 
 	// OPT_ALWAYRUN:
 	M_Print (16, 32 + 8*OPT_ALWAYRUN,	"            Always Run");
-	M_DrawCheckbox (220, 32 + 8*OPT_ALWAYRUN, cl_forwardspeed.value > 200);
+	if (cl_alwaysrun.value)
+		M_Print (220, 32 + 8*OPT_ALWAYRUN, "quakespasm");
+	else if (cl_forwardspeed.value > 200.0)
+		M_Print (220, 32 + 8*OPT_ALWAYRUN, "vanilla");
+	else
+		M_Print (220, 32 + 8*OPT_ALWAYRUN, "off");
 
 	// OPT_INVMOUSE:
 	M_Print (16, 32 + 8*OPT_INVMOUSE,	"          Invert Mouse");

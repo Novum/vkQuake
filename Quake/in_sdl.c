@@ -505,7 +505,7 @@ void IN_JoyMove (usercmd_t *cmd)
 	moveEased = IN_ApplyMoveEasing(moveDeadzone);
 	lookEased = IN_ApplyLookEasing(lookDeadzone, joy_exponent.value);
 	
-	if (in_speed.state & 1)
+	if ((in_speed.state & 1) ^ (cl_alwaysrun.value != 0.0))
 		speed = cl_movespeedkey.value;
 	else
 		speed = 1;
