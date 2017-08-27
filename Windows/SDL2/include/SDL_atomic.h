@@ -118,13 +118,16 @@ extern DECLSPEC void SDLCALL SDL_AtomicUnlock(SDL_SpinLock *lock);
  * The compiler barrier prevents the compiler from reordering
  * reads and writes to globally visible variables across the call.
  */
-#if defined(_MSC_VER) && (_MSC_VER > 1200)
+#if defined(_MSC_VER) && (_MSC_VER > 1200) && !defined(__clang__)
 void _ReadWriteBarrier(void);
 #pragma intrinsic(_ReadWriteBarrier)
 #define SDL_CompilerBarrier()   _ReadWriteBarrier()
 #elif (defined(__GNUC__) && !defined(__EMSCRIPTEN__)) || (defined(__SUNPRO_C) && (__SUNPRO_C >= 0x5120))
 /* This is correct for all CPUs when using GCC or Solaris Studio 12.1+. */
 #define SDL_CompilerBarrier()   __asm__ __volatile__ ("" : : : "memory")
+#elif defined(__WATCOMC__)
+extern _inline void SDL_CompilerBarrier (void);
+#pragma aux SDL_CompilerBarrier = "" parm [] modify exact [];
 #else
 #define SDL_CompilerBarrier()   \
 { SDL_SpinLock _tmp = 0; SDL_AtomicLock(&_tmp); SDL_AtomicUnlock(&_tmp); }

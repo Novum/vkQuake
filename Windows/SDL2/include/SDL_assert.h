@@ -53,7 +53,9 @@ assert can have unique static variables associated with it.
     #define SDL_TriggerBreakpoint() __debugbreak()
 #elif ( (!defined(__NACL__)) && ((defined(__GNUC__) || defined(__clang__)) && (defined(__i386__) || defined(__x86_64__))) )
     #define SDL_TriggerBreakpoint() __asm__ __volatile__ ( "int $3\n\t" )
-#elif defined(HAVE_SIGNAL_H)
+#elif defined(__386__) && defined(__WATCOMC__)
+    #define SDL_TriggerBreakpoint() { _asm { int 0x03 } }
+#elif defined(HAVE_SIGNAL_H) && !defined(__WATCOMC__)
     #include <signal.h>
     #define SDL_TriggerBreakpoint() raise(SIGTRAP)
 #else
@@ -63,7 +65,7 @@ assert can have unique static variables associated with it.
 
 #if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) /* C99 supports __func__ as a standard. */
 #   define SDL_FUNCTION __func__
-#elif ((__GNUC__ >= 2) || defined(_MSC_VER))
+#elif ((__GNUC__ >= 2) || defined(_MSC_VER) || defined (__WATCOMC__))
 #   define SDL_FUNCTION __FUNCTION__
 #else
 #   define SDL_FUNCTION "???"

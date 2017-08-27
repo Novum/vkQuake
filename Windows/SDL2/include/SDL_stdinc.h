@@ -62,6 +62,9 @@
 #ifdef HAVE_STRINGS_H
 # include <strings.h>
 #endif
+#ifdef HAVE_WCHAR_H
+# include <wchar.h>
+#endif
 #if defined(HAVE_INTTYPES_H)
 # include <inttypes.h>
 #elif defined(HAVE_STDINT_H)
@@ -404,6 +407,7 @@ extern DECLSPEC int SDLCALL SDL_memcmp(const void *s1, const void *s2, size_t le
 extern DECLSPEC size_t SDLCALL SDL_wcslen(const wchar_t *wstr);
 extern DECLSPEC size_t SDLCALL SDL_wcslcpy(SDL_OUT_Z_CAP(maxlen) wchar_t *dst, const wchar_t *src, size_t maxlen);
 extern DECLSPEC size_t SDLCALL SDL_wcslcat(SDL_INOUT_Z_CAP(maxlen) wchar_t *dst, const wchar_t *src, size_t maxlen);
+extern DECLSPEC int SDLCALL SDL_wcscmp(const wchar_t *str1, const wchar_t *str2);
 
 extern DECLSPEC size_t SDLCALL SDL_strlen(const char *str);
 extern DECLSPEC size_t SDLCALL SDL_strlcpy(SDL_OUT_Z_CAP(maxlen) char *dst, const char *src, size_t maxlen);
