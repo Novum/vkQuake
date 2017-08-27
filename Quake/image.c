@@ -26,6 +26,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
+#include "lodepng.h"
+#include "lodepng.c"
+
 static char loadfilename[MAX_OSPATH]; //file scope so that error messages can use it
 
 typedef struct stdio_buffer_s {
@@ -552,7 +555,59 @@ Image_WriteSTB (const char *name, byte *data, int width, int height, int bpp, im
 
 qboolean Image_WritePNG (const char *name, byte *data, int width, int height, int bpp, qboolean upsidedown)
 {
-	return Image_WriteSTB (name, data, width, height, bpp, format_png, 0, upsidedown);
+	unsigned error;
+	char	pathname[MAX_OSPATH];
+	byte	*flipped;
+	unsigned char	*filters;
+	unsigned char	*png;
+	size_t		pngsize;
+	LodePNGState	state;
+
+	if (!(bpp == 32 || bpp == 24))
+		Sys_Error("bpp not 24 or 32");
+	
+	Sys_mkdir (com_gamedir); //if we've switched to a nonexistant gamedir, create it now so we don't crash
+	q_snprintf (pathname, sizeof(pathname), "%s/%s", com_gamedir, name);
+	
+	flipped = CopyFlipped (data, width, height, bpp);
+	filters = (unsigned char *) malloc (height);
+	
+	if (!filters || !flipped)
+	{
+		free (flipped);
+		free (filters);
+		return false;
+	}
+	
+// set some options for faster compression
+	lodepng_state_init(&state);
+	state.encoder.zlibsettings.use_lz77 = 0;
+	state.encoder.auto_convert = 0;
+	state.encoder.filter_strategy = LFS_PREDEFINED;
+	memset(filters, 1, height); //use filter 1; see https://www.w3.org/TR/PNG-Filters.html
+	state.encoder.predefined_filters = filters;
+	
+	if (bpp == 24)
+	{
+		state.info_raw.colortype = LCT_RGB;
+		state.info_png.color.colortype = LCT_RGB;
+	}
+	else
+	{
+		state.info_raw.colortype = LCT_RGBA;
+		state.info_png.color.colortype = LCT_RGBA;
+	}
+	
+	error = lodepng_encode (&png, &pngsize, flipped, width, height, &state);
+	if (error == 0) lodepng_save_file (png, pngsize, pathname);
+	
+	lodepng_state_cleanup (&state);
+	
+	free (png);
+	free (filters);
+	free (flipped);
+	
+	return (error == 0);
 }
 
 qboolean Image_WriteJPG (const char *name, byte *data, int width, int height, int bpp, int quality, qboolean upsidedown)
