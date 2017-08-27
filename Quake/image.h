@@ -31,6 +31,8 @@ byte *Image_LoadPCX (FILE *f, int *width, int *height);
 byte *Image_LoadImage (const char *name, int *width, int *height);
 
 qboolean Image_WriteTGA (const char *name, byte *data, int width, int height, int bpp, qboolean upsidedown, qboolean bgra);
+qboolean Image_WritePNG (const char *name, byte *data, int width, int height, int bpp, qboolean upsidedown);
+qboolean Image_WriteJPG (const char *name, byte *data, int width, int height, int bpp, int quality, qboolean upsidedown);
 
 #endif	/* __GL_IMAGE_H */
 

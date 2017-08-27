@@ -23,6 +23,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb_image_write.h"
+
 static char loadfilename[MAX_OSPATH]; //file scope so that error messages can use it
 
 typedef struct stdio_buffer_s {
@@ -467,4 +470,92 @@ byte *Image_LoadPCX (FILE *f, int *width, int *height)
 	*width = w;
 	*height = h;
 	return data;
+}
+
+//==============================================================================
+//
+//  STB_IMAGE_WRITE
+//
+//==============================================================================
+
+static byte *CopyFlipped(byte *data, int width, int height, int bpp)
+{
+	int	y, rowsize;
+	byte	*flipped;
+
+	rowsize = width * (bpp / 8);
+	flipped = (byte *) malloc(height * rowsize);
+	if (!flipped)
+		return NULL;
+
+	for (y=0; y<height; y++)
+	{
+		memcpy(&flipped[y * rowsize], &data[(height - 1 - y) * rowsize], rowsize);
+	}
+	return flipped;
+}
+
+typedef enum {
+	format_png,
+	format_jpg
+} imageformat_t;
+
+/*
+============
+Image_WriteSTB -- writes using stb_image_write
+
+returns true if successful
+============
+*/
+static qboolean
+Image_WriteSTB (const char *name, byte *data, int width, int height, int bpp, imageformat_t format, int quality, qboolean upsidedown)
+{
+	unsigned error;
+	char	pathname[MAX_OSPATH];
+	byte	*flipped;
+	int	bytes_per_pixel;
+
+	if (!(bpp == 32 || bpp == 24))
+		Sys_Error ("bpp not 24 or 32");
+
+	bytes_per_pixel = bpp / 8;
+
+	Sys_mkdir (com_gamedir); //if we've switched to a nonexistant gamedir, create it now so we don't crash
+	q_snprintf (pathname, sizeof(pathname), "%s/%s", com_gamedir, name);
+
+	if (!upsidedown)
+	{
+		flipped = CopyFlipped (data, width, height, bpp);
+		if (!flipped)
+			return false;
+	}
+	else
+		flipped = data;
+
+	switch (format)
+	{
+		case format_png:
+			error = stbi_write_png (pathname, width, height, bytes_per_pixel, flipped, width * bytes_per_pixel);
+			break;
+		case format_jpg:
+			error = stbi_write_jpg (pathname, width, height, bytes_per_pixel, flipped, quality);
+			break;
+		default:
+			Sys_Error ("invalid format");
+	}
+
+	if (!upsidedown)
+		free (flipped);
+
+	return (error != 0);
+}
+
+qboolean Image_WritePNG (const char *name, byte *data, int width, int height, int bpp, qboolean upsidedown)
+{
+	return Image_WriteSTB (name, data, width, height, bpp, format_png, 0, upsidedown);
+}
+
+qboolean Image_WriteJPG (const char *name, byte *data, int width, int height, int bpp, int quality, qboolean upsidedown)
+{
+	return Image_WriteSTB (name, data, width, height, bpp, format_jpg, quality, upsidedown);
 }
