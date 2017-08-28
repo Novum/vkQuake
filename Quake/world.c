@@ -276,20 +276,81 @@ void SV_UnlinkEdict (edict_t *ent)
 
 /*
 ====================
-SV_TouchLinks
+SV_AreaTriggerEdicts
+
+Spike -- just builds a list of entities within the area, rather than walking
+them and risking the list getting corrupt.
 ====================
 */
-void SV_TouchLinks ( edict_t *ent, areanode_t *node )
+static void
+SV_AreaTriggerEdicts ( edict_t *ent, areanode_t *node, edict_t **list, int *listcount, const int listspace )
 {
 	link_t		*l, *next;
 	edict_t		*touch;
-	int			old_self, old_other;
 
 // touch linked edicts
 	for (l = node->trigger_edicts.next ; l != &node->trigger_edicts ; l = next)
 	{
 		next = l->next;
 		touch = EDICT_FROM_AREA(l);
+		if (touch == ent)
+			continue;
+		if (!touch->v.touch || touch->v.solid != SOLID_TRIGGER)
+			continue;
+		if (ent->v.absmin[0] > touch->v.absmax[0]
+		|| ent->v.absmin[1] > touch->v.absmax[1]
+		|| ent->v.absmin[2] > touch->v.absmax[2]
+		|| ent->v.absmax[0] < touch->v.absmin[0]
+		|| ent->v.absmax[1] < touch->v.absmin[1]
+		|| ent->v.absmax[2] < touch->v.absmin[2] )
+			continue;
+
+		if (*listcount == listspace)
+			return; // should never happen
+
+		list[*listcount] = touch;
+		(*listcount)++;
+	}
+
+// recurse down both sides
+	if (node->axis == -1)
+		return;
+
+	if ( ent->v.absmax[node->axis] > node->dist )
+		SV_AreaTriggerEdicts ( ent, node->children[0], list, listcount, listspace );
+	if ( ent->v.absmin[node->axis] < node->dist )
+		SV_AreaTriggerEdicts ( ent, node->children[1], list, listcount, listspace );
+}
+
+/*
+====================
+SV_TouchLinks
+
+ericw -- copy the touching edicts to an array (on the hunk) so we can avoid
+iteating the trigger_edicts linked list while calling PR_ExecuteProgram
+which could potentially corrupt the list while it's being iterated.
+Based on code from Spike.
+====================
+*/
+void SV_TouchLinks (edict_t *ent)
+{
+	edict_t		**list;
+	edict_t		*touch;
+	int		old_self, old_other;
+	int		i, listcount;
+	int		mark;
+	
+	mark = Hunk_LowMark ();
+	list = (edict_t **) Hunk_Alloc (sv.num_edicts*sizeof(edict_t *));
+	
+	listcount = 0;
+	SV_AreaTriggerEdicts (ent, sv_areanodes, list, &listcount, sv.num_edicts);
+
+	for (i = 0; i < listcount; i++)
+	{
+		touch = list[i];
+	// re-validate in case of PR_ExecuteProgram having side effects that make
+	// edicts later in the list no longer touch
 		if (touch == ent)
 			continue;
 		if (!touch->v.touch || touch->v.solid != SOLID_TRIGGER)
@@ -313,14 +374,8 @@ void SV_TouchLinks ( edict_t *ent, areanode_t *node )
 		pr_global_struct->other = old_other;
 	}
 
-// recurse down both sides
-	if (node->axis == -1)
-		return;
-
-	if ( ent->v.absmax[node->axis] > node->dist )
-		SV_TouchLinks ( ent, node->children[0] );
-	if ( ent->v.absmin[node->axis] < node->dist )
-		SV_TouchLinks ( ent, node->children[1] );
+// free hunk-allocated edicts array
+	Hunk_FreeToLowMark (mark);
 }
 
 
@@ -444,7 +499,7 @@ void SV_LinkEdict (edict_t *ent, qboolean touch_triggers)
 
 // if touch_triggers, touch all entities at this node and decend for more
 	if (touch_triggers)
-		SV_TouchLinks ( ent, sv_areanodes );
+		SV_TouchLinks ( ent );
 }
 
 
