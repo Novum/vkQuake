@@ -265,18 +265,11 @@ SV_UnlinkEdict
 
 ===============
 */
-static link_t	**sv_link_next;
-static link_t	**sv_link_prev;
-
 void SV_UnlinkEdict (edict_t *ent)
 {
 	if (!ent->area.prev)
 		return;		// not linked in anywhere
 	RemoveLink (&ent->area);
-	if (sv_link_next && *sv_link_next == &ent->area)
-		*sv_link_next = ent->area.next;
-	if (sv_link_prev && *sv_link_prev == &ent->area)
-		*sv_link_prev = ent->area.prev;
 	ent->area.prev = ent->area.next = NULL;
 }
 
@@ -293,15 +286,15 @@ void SV_TouchLinks ( edict_t *ent, areanode_t *node )
 	int			old_self, old_other;
 
 // touch linked edicts
-	sv_link_next = &next;
 	for (l = node->trigger_edicts.next ; l != &node->trigger_edicts ; l = next)
 	{
+		//johnfitz -- fixes a crash when a touch function deletes an entity which comes later in the list
 		if (!l)
 		{
-		// my area got removed out from under me!
-			Con_Printf ("SV_TouchLinks: encountered NULL link!\n");
+			Con_Printf ("SV_TouchLinks: null link\n");
 			break;
 		}
+		//johnfitz
 
 		next = l->next;
 		touch = EDICT_FROM_AREA(l);
@@ -324,11 +317,17 @@ void SV_TouchLinks ( edict_t *ent, areanode_t *node )
 		pr_global_struct->time = sv.time;
 		PR_ExecuteProgram (touch->v.touch);
 
+		//johnfitz -- the PR_ExecuteProgram above can alter the linked edicts -- fix from tyrquake 
+		if (next != l->next && l->next)
+		{
+			Con_Printf ("SV_TouchLinks: next != l->next\n");
+			next = l->next;
+		}
+		//johnfitz
+
 		pr_global_struct->self = old_self;
 		pr_global_struct->other = old_other;
 	}
-
-	sv_link_next = NULL;
 
 // recurse down both sides
 	if (node->axis == -1)
