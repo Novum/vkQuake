@@ -288,14 +288,6 @@ void SV_TouchLinks ( edict_t *ent, areanode_t *node )
 // touch linked edicts
 	for (l = node->trigger_edicts.next ; l != &node->trigger_edicts ; l = next)
 	{
-		//johnfitz -- fixes a crash when a touch function deletes an entity which comes later in the list
-		if (!l)
-		{
-			Con_Printf ("SV_TouchLinks: null link\n");
-			break;
-		}
-		//johnfitz
-
 		next = l->next;
 		touch = EDICT_FROM_AREA(l);
 		if (touch == ent)
@@ -316,14 +308,6 @@ void SV_TouchLinks ( edict_t *ent, areanode_t *node )
 		pr_global_struct->other = EDICT_TO_PROG(ent);
 		pr_global_struct->time = sv.time;
 		PR_ExecuteProgram (touch->v.touch);
-
-		//johnfitz -- the PR_ExecuteProgram above can alter the linked edicts -- fix from tyrquake 
-		if (next != l->next && l->next)
-		{
-			Con_Printf ("SV_TouchLinks: next != l->next\n");
-			next = l->next;
-		}
-		//johnfitz
 
 		pr_global_struct->self = old_self;
 		pr_global_struct->other = old_other;
