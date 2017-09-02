@@ -208,6 +208,8 @@ typedef unsigned int uintptr_t;
 #define SDL_VIDEO_OPENGL_EGL    1
 #endif
 
+/* Enable Vulkan support */
+#define SDL_VIDEO_VULKAN 1
 
 /* Enable system power support */
 #define SDL_POWER_WINDOWS 1

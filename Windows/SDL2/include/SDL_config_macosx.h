@@ -174,6 +174,14 @@
 #define SDL_VIDEO_OPENGL_GLX    1
 #endif
 
+/* Enable Vulkan support */
+/* Metal/MoltenVK/Vulkan only supported on 64-bit architectures with 10.11+ */
+#if TARGET_CPU_X86_64
+#define SDL_VIDEO_VULKAN 1
+#else
+#define  SDL_VIDEO_VULKAN 0
+#endif
+
 /* Enable system power support */
 #define SDL_POWER_MACOSX 1
 
