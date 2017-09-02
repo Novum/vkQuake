@@ -238,9 +238,6 @@ typedef struct
 #include "SDL.h"
 #endif
 
-#ifdef _WIN32
-#define VK_USE_PLATFORM_WIN32_KHR
-#endif
 #include <vulkan/vulkan.h>
 
 #ifndef APIENTRY
