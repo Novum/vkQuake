@@ -29,6 +29,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "resource.h"
 #include "SDL.h"
 #include "SDL_syswm.h"
+#include "SDL_vulkan.h"
 #ifdef VK_USE_PLATFORM_XCB_KHR
 #include <X11/Xlib-xcb.h> /* for XGetXCBConnection() */
 #endif
@@ -131,6 +132,7 @@ static VkDeviceMemory				msaa_color_buffer_memory;
 static VkImageView					msaa_color_buffer_view;
 static VkDescriptorSet				postprocess_descriptor_set;
 
+static PFN_vkGetInstanceProcAddr fpGetInstanceProcAddr;
 static PFN_vkGetDeviceProcAddr fpGetDeviceProcAddr;
 static PFN_vkGetPhysicalDeviceSurfaceSupportKHR fpGetPhysicalDeviceSurfaceSupportKHR;
 static PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR fpGetPhysicalDeviceSurfaceCapabilitiesKHR;
@@ -172,7 +174,7 @@ VkBool32 debug_message_callback(VkDebugReportFlagsEXT flags, VkDebugReportObject
 static uint32_t current_swapchain_buffer;
 
 #define GET_INSTANCE_PROC_ADDR(inst, entrypoint) { \
-	fp##entrypoint = (PFN_vk##entrypoint)vkGetInstanceProcAddr(inst, "vk" #entrypoint); \
+	fp##entrypoint = (PFN_vk##entrypoint)fpGetInstanceProcAddr(inst, "vk" #entrypoint); \
 	if (fp##entrypoint == NULL) Sys_Error("vkGetInstanceProcAddr failed to find vk" #entrypoint); \
 }
 
@@ -200,7 +202,7 @@ VID_GetCurrentWidth
 static int VID_GetCurrentWidth (void)
 {
 	int w = 0, h = 0;
-	SDL_GetWindowSize(draw_context, &w, &h);
+	SDL_Vulkan_GetDrawableSize(draw_context, &w, &h);
 	return w;
 }
 
@@ -212,7 +214,7 @@ VID_GetCurrentHeight
 static int VID_GetCurrentHeight (void)
 {
 	int w = 0, h = 0;
-	SDL_GetWindowSize(draw_context, &w, &h);
+	SDL_Vulkan_GetDrawableSize(draw_context, &w, &h);
 	return h;
 }
 
@@ -401,7 +403,7 @@ static qboolean VID_SetMode (int width, int height, int refreshrate, int bpp, qb
 	/* Create the window if needed, hidden */
 	if (!draw_context)
 	{
-		flags = SDL_WINDOW_HIDDEN;
+		flags = SDL_WINDOW_HIDDEN | SDL_WINDOW_VULKAN;
 
 		if (vid_borderless.value)
 			flags |= SDL_WINDOW_BORDERLESS;
@@ -589,43 +591,17 @@ GL_InitInstance
 static void GL_InitInstance( void )
 {
 	VkResult err;
-	uint32_t i;
+	unsigned int sdl_extension_count;
 
-	int found_surface_extensions = 0;
+	if(!SDL_Vulkan_GetInstanceExtensions(draw_context, &sdl_extension_count, NULL))
+		Sys_Error("SDL_Vulkan_GetInstanceExtensions failed: %s", SDL_GetError());
 
-	uint32_t instance_extension_count;
-	err = vkEnumerateInstanceExtensionProperties(NULL, &instance_extension_count, NULL);
-	if (err == VK_SUCCESS || instance_extension_count > 0)
-	{
-		VkExtensionProperties *instance_extensions = (VkExtensionProperties *)
-						malloc(sizeof(VkExtensionProperties) * instance_extension_count);
-		err = vkEnumerateInstanceExtensionProperties(NULL, &instance_extension_count, instance_extensions);
+	const char ** const instance_extensions = malloc(sizeof(const char *) * (sdl_extension_count + 1));
+	if(!SDL_Vulkan_GetInstanceExtensions(draw_context, &sdl_extension_count, instance_extensions))
+		Sys_Error("SDL_Vulkan_GetInstanceExtensions failed: %s", SDL_GetError());
 
-		for (i = 0; i < instance_extension_count; ++i)
-		{
-			if (strcmp(VK_KHR_SURFACE_EXTENSION_NAME, instance_extensions[i].extensionName) == 0)
-			{
-				found_surface_extensions++;
-			}
+	instance_extensions[sdl_extension_count] = VK_EXT_DEBUG_REPORT_EXTENSION_NAME;
 
-#ifdef VK_USE_PLATFORM_WIN32_KHR
-#define PLATFORM_SURF_EXT VK_KHR_WIN32_SURFACE_EXTENSION_NAME
-#elif VK_USE_PLATFORM_XCB_KHR
-#define PLATFORM_SURF_EXT VK_KHR_XCB_SURFACE_EXTENSION_NAME
-#endif
-
-			if (strcmp(PLATFORM_SURF_EXT, instance_extensions[i].extensionName) == 0)
-			{
-				found_surface_extensions++;
-			}
-		}
-
-		free(instance_extensions);
-	}
-
-	if(found_surface_extensions != 2)
-		Sys_Error("Couldn't find %s/%s extensions", VK_KHR_SURFACE_EXTENSION_NAME, PLATFORM_SURF_EXT);
-	
 	VkApplicationInfo application_info;
 	memset(&application_info, 0, sizeof(application_info));
 	application_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -635,13 +611,11 @@ static void GL_InitInstance( void )
 	application_info.engineVersion = 1;
 	application_info.apiVersion = VK_API_VERSION_1_0;
 
-	const char * const instance_extensions[] = { VK_KHR_SURFACE_EXTENSION_NAME, PLATFORM_SURF_EXT, VK_EXT_DEBUG_REPORT_EXTENSION_NAME };
-
 	VkInstanceCreateInfo instance_create_info;
 	memset(&instance_create_info, 0, sizeof(instance_create_info));
 	instance_create_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
 	instance_create_info.pApplicationInfo = &application_info;
-	instance_create_info.enabledExtensionCount = 2;
+	instance_create_info.enabledExtensionCount = sdl_extension_count;
 	instance_create_info.ppEnabledExtensionNames = instance_extensions;
 #ifdef _DEBUG
 	const char * const layer_names[] = { "VK_LAYER_LUNARG_standard_validation" };
@@ -649,7 +623,7 @@ static void GL_InitInstance( void )
 	if(vulkan_globals.validation)
 	{
 		Con_Printf("Using VK_LAYER_LUNARG_standard_validation\n");
-		instance_create_info.enabledExtensionCount = 3;
+		instance_create_info.enabledExtensionCount = sdl_extension_count + 1;
 		instance_create_info.enabledLayerCount = 1;
 		instance_create_info.ppEnabledLayerNames = layer_names;
 	}
@@ -659,27 +633,10 @@ static void GL_InitInstance( void )
 	if (err != VK_SUCCESS)
 		Sys_Error("Couldn't create Vulkan instance");
 
-#ifdef VK_USE_PLATFORM_WIN32_KHR
-	VkWin32SurfaceCreateInfoKHR surface_create_info;
-	memset(&surface_create_info, 0, sizeof(surface_create_info));
-	surface_create_info.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
-	surface_create_info.hinstance = GetModuleHandle(NULL);
-	surface_create_info.hwnd = sys_wm_info.info.win.window;
-
-	err = vkCreateWin32SurfaceKHR(vulkan_instance, &surface_create_info, NULL, &vulkan_surface);
-	if (err != VK_SUCCESS)
+	if (!SDL_Vulkan_CreateSurface(draw_context, vulkan_instance, &vulkan_surface))
 		Sys_Error("Couldn't create Vulkan surface");
-#elif VK_USE_PLATFORM_XCB_KHR
-	VkXcbSurfaceCreateInfoKHR surface_create_info;
-	memset(&surface_create_info, 0, sizeof(surface_create_info));
-	surface_create_info.sType = VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR;
-	surface_create_info.connection = XGetXCBConnection((Display*) sys_wm_info.info.x11.display);
-	surface_create_info.window = sys_wm_info.info.x11.window;
 
-	err = vkCreateXcbSurfaceKHR(vulkan_instance, &surface_create_info, NULL, &vulkan_surface);
-	if (err != VK_SUCCESS)
-		Sys_Error("Couldn't create Vulkan surface");
-#endif
+	fpGetInstanceProcAddr = SDL_Vulkan_GetVkGetInstanceProcAddr();
 
 	GET_INSTANCE_PROC_ADDR(vulkan_instance, GetDeviceProcAddr);
 	GET_INSTANCE_PROC_ADDR(vulkan_instance, GetPhysicalDeviceSurfaceSupportKHR);
@@ -706,6 +663,8 @@ static void GL_InitInstance( void )
 			Sys_Error("Could not create debug report callback");
 	}
 #endif
+
+	free((void*)instance_extensions);
 }
 
 /*
@@ -2216,6 +2175,7 @@ void	VID_Init (void)
 	VID_SetMode (width, height, refreshrate, bpp, fullscreen);
 
 	Con_Printf("\nVulkan Initialization\n");
+	SDL_Vulkan_LoadLibrary(NULL);
 	GL_InitInstance();
 	GL_InitDevice();
 	GL_InitCommandBuffers();
