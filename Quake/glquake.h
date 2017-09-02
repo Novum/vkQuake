@@ -289,7 +289,7 @@ typedef struct
 
 //johnfitz -- moved here from r_brush.c
 extern int gl_lightmap_format, lightmap_bytes;
-#define MAX_LIGHTMAPS 256 //johnfitz -- was 64
+#define MAX_LIGHTMAPS 512 //johnfitz -- was 64
 extern gltexture_t *lightmap_textures[MAX_LIGHTMAPS]; //johnfitz -- changed to an array
 
 extern qboolean r_drawflat_cheatsafe, r_fullbright_cheatsafe, r_lightmap_cheatsafe, r_drawworld_cheatsafe; //johnfitz
