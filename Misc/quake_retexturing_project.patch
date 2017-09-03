@@ -1,9 +1,9 @@
 
 Index: Quake/gl_model.c
 ===================================================================
---- Quake/gl_model.c	(revision 1280)
+--- Quake/gl_model.c	(revision 1463)
 +++ Quake/gl_model.c	(working copy)
-@@ -404,6 +404,8 @@ void Mod_LoadTextures (lump_t *l)
+@@ -429,6 +429,8 @@ void Mod_LoadTextures (lump_t *l)
  	extern byte *hunk_base;
  //johnfitz
  
@@ -12,7 +12,7 @@ Index: Quake/gl_model.c
  	//johnfitz -- don't return early if no textures; still need to create dummy texture
  	if (!l->filelen)
  	{
-@@ -465,7 +467,17 @@ void Mod_LoadTextures (lump_t *l)
+@@ -490,7 +492,17 @@ void Mod_LoadTextures (lump_t *l)
  		if (!isDedicated) //no texture uploading for dedicated server
  		{
  			if (!q_strncasecmp(tx->name,"sky",3)) //sky texture //also note -- was Q_strncmp, changed to match qbsp
@@ -30,7 +30,7 @@ Index: Quake/gl_model.c
  			else if (tx->name[0] == '*') //warping texture
  			{
  				//external textures -- first look in "textures/mapname/" then look in "textures/"
-@@ -515,6 +527,52 @@ void Mod_LoadTextures (lump_t *l)
+@@ -540,6 +552,52 @@ void Mod_LoadTextures (lump_t *l)
  				//external textures -- first look in "textures/mapname/" then look in "textures/"
  				mark = Hunk_LowMark ();
  				COM_StripExtension (loadmodel->name + 5, mapname, sizeof(mapname));
@@ -85,7 +85,7 @@ Index: Quake/gl_model.c
  				if (!data)
 Index: Quake/gl_rmain.c
 ===================================================================
---- Quake/gl_rmain.c	(revision 1280)
+--- Quake/gl_rmain.c	(revision 1406)
 +++ Quake/gl_rmain.c	(working copy)
 @@ -101,6 +101,8 @@
  
@@ -98,7 +98,7 @@ Index: Quake/gl_rmain.c
  
 Index: Quake/gl_rmisc.c
 ===================================================================
---- Quake/gl_rmisc.c	(revision 1280)
+--- Quake/gl_rmisc.c	(revision 1406)
 +++ Quake/gl_rmisc.c	(working copy)
 @@ -47,6 +47,7 @@
  extern cvar_t r_noshadow_list;
