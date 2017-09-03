@@ -240,10 +240,6 @@ typedef struct
 
 #include <vulkan/vulkan.h>
 
-#ifndef APIENTRY
-#define	APIENTRY
-#endif
-
 #include "console.h"
 #include "wad.h"
 #include "vid.h"
