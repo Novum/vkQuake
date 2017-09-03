@@ -1553,6 +1553,13 @@ void R_CreatePipelines()
 				specialization_data[2] = alpha_blend;
 
 				blend_attachment_state.blendEnable = alpha_blend ? VK_TRUE : VK_FALSE;
+				if ( pipeline_index > 0 ) {
+					pipeline_create_info.flags = VK_PIPELINE_CREATE_DERIVATIVE_BIT;
+					pipeline_create_info.basePipelineHandle = vulkan_globals.world_pipelines[0];
+					pipeline_create_info.basePipelineIndex = -1;
+				} else {
+					pipeline_create_info.flags = VK_PIPELINE_CREATE_ALLOW_DERIVATIVES_BIT;
+				}
 
 				err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.world_pipelines[pipeline_index]);
 				if (err != VK_SUCCESS)
@@ -1563,6 +1570,7 @@ void R_CreatePipelines()
 		}
 	}
 
+	pipeline_create_info.flags = 0;
 	blend_attachment_state.blendEnable = VK_FALSE;
 	shader_stages[1].pSpecializationInfo = NULL;
 
