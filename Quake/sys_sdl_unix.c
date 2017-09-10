@@ -236,37 +236,52 @@ static int Sys_NumCPUs (void)
 static char	cwd[MAX_OSPATH];
 #ifdef DO_USERDIRS
 static char	userdir[MAX_OSPATH];
-#ifdef PLATFORM_OSX
-#define SYS_USERDIR	"Library/Application Support/vkQuake"
-#else
-#define SYS_USERDIR	".vkquake"
-#endif
 
 static void Sys_GetUserdir (char *dst, size_t dstsize)
 {
 	size_t		n;
 	const char	*home_dir = NULL;
-	struct passwd	*pwent;
+	char		*config_dir = NULL;
 
-	pwent = getpwuid( getuid() );
-	if (pwent == NULL)
-		perror("getpwuid");
-	else
-		home_dir = pwent->pw_dir;
-	if (home_dir == NULL)
-		home_dir = getenv("HOME");
+	home_dir = getenv("HOME");
+	if (home_dir == NULL) {
+		struct passwd   *pwent;
+		pwent = getpwuid( getuid() );
+		if (pwent == NULL)
+			perror("getpwuid");
+		else
+			home_dir = pwent->pw_dir;
+	}
+
 	if (home_dir == NULL)
 		Sys_Error ("Couldn't determine userspace directory");
+
+#ifdef PLATFORM_OSX
+	config_dir = malloc(strlen(home_dir) + strlen("/Library/Application Support/vkQuake") + 1);
+	strcpy (config_dir, home_dir);
+	strcat (config_dir, "/Library/Application Support/vkQuake");
+#else
+	if (getenv("XDG_CONFIG_HOME")) {
+		config_dir = malloc(strlen(getenv("XDG_CONFIG_HOME")) + strlen("/vkquake") + 1);
+		strcpy(config_dir, getenv("XDG_CONFIG_HOME"));
+		strcat(config_dir, "/vkquake");
+	}
+	else {
+		config_dir = malloc(strlen(home_dir) + strlen("/.config/vkquake") + 1);
+		strcpy(config_dir, home_dir);
+		strcat(config_dir, "/.config/vkquake");
+	}
+#endif
 
 /* what would be a maximum path for a file in the user's directory...
  * $HOME/SYS_USERDIR/game_dir/dirname1/dirname2/dirname3/filename.ext
  * still fits in the MAX_OSPATH == 256 definition, but just in case :
  */
-	n = strlen(home_dir) + strlen(SYS_USERDIR) + 50;
+	n = strlen(config_dir) + 50;
 	if (n >= dstsize)
 		Sys_Error ("Insufficient array size for userspace directory");
 
-	q_snprintf (dst, dstsize, "%s/%s", home_dir, SYS_USERDIR);
+	q_snprintf (dst, dstsize, config_dir);
 }
 #endif	/* DO_USERDIRS */
 
