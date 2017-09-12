@@ -100,6 +100,17 @@ static void Max_Edicts_f (cvar_t *var)
 
 /*
 ================
+Max_Fps_f -- ericw
+================
+*/
+static void Max_Fps_f (cvar_t *var)
+{
+	if (host_maxfps.value > 72)
+		Con_Warning ("host_maxfps > 72 breaks physics.\n");
+}
+
+/*
+================
 Host_EndGame
 ================
 */
@@ -246,6 +257,7 @@ void Host_InitLocal (void)
 	Cvar_RegisterVariable (&host_framerate);
 	Cvar_RegisterVariable (&host_speeds);
 	Cvar_RegisterVariable (&host_maxfps); //johnfitz
+	Cvar_SetCallback (&host_maxfps, Max_Fps_f);
 	Cvar_RegisterVariable (&host_timescale); //johnfitz
 
 	Cvar_RegisterVariable (&max_edicts); //johnfitz
