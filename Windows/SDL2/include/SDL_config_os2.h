@@ -27,20 +27,6 @@
 #define HAVE_STDARG_H   1
 #define HAVE_STDDEF_H   1
 
-#if 0 /* have stdint.h instead */
-/* Here are some reasonable defaults */
-typedef unsigned int size_t;
-typedef signed char int8_t;
-typedef unsigned char uint8_t;
-typedef signed short int16_t;
-typedef unsigned short uint16_t;
-typedef signed int int32_t;
-typedef unsigned int uint32_t;
-typedef signed long long int64_t;
-typedef unsigned long long uint64_t;
-typedef unsigned long uintptr_t;
-#endif
-
 #define SDL_AUDIO_DRIVER_DUMMY 1
 #define SDL_AUDIO_DRIVER_DISK 1
 /* Enable the OS/2 audio driver (src/audio/os2/\*.c) */
@@ -88,14 +74,13 @@ typedef unsigned long uintptr_t;
 #define HAVE_MATH_H 1
 #define HAVE_FLOAT_H 1
 #define HAVE_SIGNAL_H 1
-/* #undef HAVE_LIBSAMPLERATE_H */
 
 /* C library functions */
 #define HAVE_MALLOC 1
 #define HAVE_CALLOC 1
 #define HAVE_REALLOC 1
 #define HAVE_FREE 1
-#ifdef __WATCOMC__
+#if defined(__WATCOMC__)
 #define HAVE__FSEEKI64 1
 #define HAVE__FTELLI64 1
 #endif
@@ -103,7 +88,6 @@ typedef unsigned long uintptr_t;
 #define HAVE_GETENV 1
 #define HAVE_SETENV 1
 #define HAVE_PUTENV 1
-/*#undef HAVE_UNSETENV */
 #define HAVE_QSORT 1
 #define HAVE_ABS 1
 #define HAVE_BCOPY 1
@@ -158,13 +142,15 @@ typedef unsigned long uintptr_t;
 #define HAVE_FABS 1
 #define HAVE_FLOOR 1
 #define HAVE_POW 1
-/*#define HAVE_SCALBN 1*/
+/* #undef HAVE_SCALBN */
 #define HAVE_SIN 1
 #define HAVE_SQRT 1
 #define HAVE_TAN 1
 #define HAVE_LOG 1
-/* #undef HAVE_ICONV */
-#define HAVE_ICONV_H 1
-/* #undef HAVE_POLL */
+
+/* #undef HAVE_LIBSAMPLERATE_H */
+
+/* Enable assembly routines */
+#define SDL_ASSEMBLY_ROUTINES 1
 
 #endif /* SDL_config_os2_h_ */
