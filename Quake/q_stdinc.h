@@ -201,8 +201,12 @@ typedef int	ssize_t;
 #define FUNCP_PRINTF(x,y)
 #endif
 
+/* llvm's optnone function attribute started with clang-3.5.0 */
+#if defined(__clang__) && \
+           (__clang_major__ > 3 || (__clang_major__ == 3 && __clang_minor__ >= 5))
+#define FUNC_NO_OPTIMIZE	__attribute__((__optnone__))
 /* function optimize attribute is added starting with gcc 4.4.0 */
-#if defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ > 3))
+#elif defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ > 3))
 #define FUNC_NO_OPTIMIZE	__attribute__((__optimize__("0")))
 #else
 #define FUNC_NO_OPTIMIZE
