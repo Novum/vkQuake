@@ -27,9 +27,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 void GL_WaitForDeviceIdle (void);
 void GL_BeginRendering (int *x, int *y, int *width, int *height);
-void GL_AcquireNextSwapChainImage (void);
-void GL_EndRendering (void);
-void GL_Set2D (void);
+qboolean GL_AcquireNextSwapChainImage (void);
+void GL_EndRendering (qboolean swapchain_acquired);
+qboolean GL_Set2D (void);
 
 extern	int glx, gly, glwidth, glheight;
 

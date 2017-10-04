@@ -975,7 +975,10 @@ void SCR_UpdateScreen (void)
 
 	V_RenderView ();
 
-	GL_Set2D ();
+	if (GL_Set2D () == false) {
+		GL_EndRendering (false);
+		return;
+	}
 
 	//FIXME: only call this when needed
 	SCR_TileClear ();
@@ -1021,6 +1024,6 @@ void SCR_UpdateScreen (void)
 
 	V_UpdateBlend (); //johnfitz -- V_UpdatePalette cleaned up and renamed
 
-	GL_EndRendering ();
+	GL_EndRendering (true);
 }
 

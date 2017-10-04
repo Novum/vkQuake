@@ -1796,10 +1796,19 @@ void GL_BeginRendering (int *x, int *y, int *width, int *height)
 GL_AcquireNextSwapChainImage
 =================
 */
-void GL_AcquireNextSwapChainImage(void)
+qboolean GL_AcquireNextSwapChainImage(void)
 {
 	VkResult err = fpAcquireNextImageKHR(vulkan_globals.device, vulkan_swapchain, UINT64_MAX, image_aquired_semaphores[current_command_buffer], VK_NULL_HANDLE, &current_swapchain_buffer);
-	if (err != VK_SUCCESS)
+	if ((err == VK_ERROR_OUT_OF_DATE_KHR) || (err == VK_ERROR_SURFACE_LOST_KHR)) {
+		vid_changed = true;
+		Cbuf_AddText ("vid_restart\n");
+		return false;
+	}
+	else if(err == VK_SUBOPTIMAL_KHR) {
+		vid_changed = true;
+		Cbuf_AddText ("vid_restart\n");
+	}
+	else if (err != VK_SUCCESS)
 		Sys_Error("Couldn't acquire next image");
 
 	VkRect2D render_area;
@@ -1814,6 +1823,8 @@ void GL_AcquireNextSwapChainImage(void)
 	vulkan_globals.ui_render_pass_begin_info.renderPass = vulkan_globals.ui_render_pass;
 	vulkan_globals.ui_render_pass_begin_info.framebuffer = ui_framebuffers[current_swapchain_buffer];
 	vulkan_globals.ui_render_pass_begin_info.clearValueCount = 0;
+
+	return true;
 }
 
 /*
@@ -1821,24 +1832,26 @@ void GL_AcquireNextSwapChainImage(void)
 GL_EndRendering
 =================
 */
-void GL_EndRendering (void)
+void GL_EndRendering (qboolean swapchain_acquired)
 {
 	R_SubmitStagingBuffers();
 	R_FlushDynamicBuffers();
 	
 	VkResult err;
 
-	// Render post process
-	GL_Viewport(0, 0, vid.width, vid.height);
-	float postprocess_values[2] = { vid_gamma.value, q_min(2.0f, q_max(1.0f, vid_contrast.value)) };
+	if (swapchain_acquired == true) {
+		// Render post process
+		GL_Viewport(0, 0, vid.width, vid.height);
+		float postprocess_values[2] = { vid_gamma.value, q_min(2.0f, q_max(1.0f, vid_contrast.value)) };
 
-	vkCmdNextSubpass(vulkan_globals.command_buffer, VK_SUBPASS_CONTENTS_INLINE);
-	vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.postprocess_pipeline_layout, 0, 1, &postprocess_descriptor_set, 0, NULL);
-	vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.postprocess_pipeline);
-	vkCmdPushConstants(vulkan_globals.command_buffer, vulkan_globals.postprocess_pipeline_layout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, 2 * sizeof(float), postprocess_values);
-	vkCmdDraw(vulkan_globals.command_buffer, 3, 1, 0, 0);
+		vkCmdNextSubpass(vulkan_globals.command_buffer, VK_SUBPASS_CONTENTS_INLINE);
+		vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.postprocess_pipeline_layout, 0, 1, &postprocess_descriptor_set, 0, NULL);
+		vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.postprocess_pipeline);
+		vkCmdPushConstants(vulkan_globals.command_buffer, vulkan_globals.postprocess_pipeline_layout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, 2 * sizeof(float), postprocess_values);
+		vkCmdDraw(vulkan_globals.command_buffer, 3, 1, 0, 0);
 
-	vkCmdEndRenderPass(vulkan_globals.command_buffer);
+		vkCmdEndRenderPass(vulkan_globals.command_buffer);
+	}
 
 	err = vkEndCommandBuffer(vulkan_globals.command_buffer);
 	if (err != VK_SUCCESS)
@@ -1853,7 +1866,7 @@ void GL_EndRendering (void)
 	submit_info.pCommandBuffers = &command_buffers[current_command_buffer];
 	submit_info.waitSemaphoreCount = 1;
 	submit_info.pWaitSemaphores = &image_aquired_semaphores[current_command_buffer];
-	submit_info.signalSemaphoreCount = 1;
+	submit_info.signalSemaphoreCount = swapchain_acquired ? 1 : 0;
 	submit_info.pSignalSemaphores = &draw_complete_semaphores[current_command_buffer];
 	submit_info.pWaitDstStageMask = &wait_dst_stage_mask;
 
@@ -1863,17 +1876,19 @@ void GL_EndRendering (void)
 
 	vulkan_globals.device_idle = false;
 
-	VkPresentInfoKHR present_info;
-	memset(&present_info, 0, sizeof(present_info));
-	present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-	present_info.swapchainCount = 1;
-	present_info.pSwapchains = &vulkan_swapchain,
-	present_info.pImageIndices = &current_swapchain_buffer;
-	present_info.waitSemaphoreCount = 1;
-	present_info.pWaitSemaphores = &draw_complete_semaphores[current_command_buffer];
-	err = fpQueuePresentKHR(vulkan_globals.queue, &present_info);
-	if (err != VK_SUCCESS)
-		Sys_Error("vkQueuePresentKHR failed");
+	if (swapchain_acquired == true) {
+		VkPresentInfoKHR present_info;
+		memset(&present_info, 0, sizeof(present_info));
+		present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+		present_info.swapchainCount = 1;
+		present_info.pSwapchains = &vulkan_swapchain,
+		present_info.pImageIndices = &current_swapchain_buffer;
+		present_info.waitSemaphoreCount = 1;
+		present_info.pWaitSemaphores = &draw_complete_semaphores[current_command_buffer];
+		err = fpQueuePresentKHR(vulkan_globals.queue, &present_info);
+		if (err != VK_SUCCESS)
+			Sys_Error("vkQueuePresentKHR failed");
+	}
 
 	command_buffer_submitted[current_command_buffer] = true;
 	current_command_buffer = (current_command_buffer + 1) % NUM_COMMAND_BUFFERS;
