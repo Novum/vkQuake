@@ -1017,4 +1017,6 @@ qboolean GL_Set2D (void)
 
 	vkCmdBeginRenderPass(vulkan_globals.command_buffer, &vulkan_globals.ui_render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
 	render_pass_index = 1;
+
+	return true;
 }
