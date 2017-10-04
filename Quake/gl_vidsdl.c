@@ -1709,6 +1709,7 @@ static void GL_DestroyBeforeSetMode( void )
 
 	fpDestroySwapchainKHR(vulkan_globals.device, vulkan_swapchain, NULL);
 
+	vkDestroyRenderPass(vulkan_globals.device, vulkan_globals.ui_render_pass, NULL);
 	vkDestroyRenderPass(vulkan_globals.device, vulkan_globals.main_render_pass, NULL);
 }
 
