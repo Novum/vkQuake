@@ -25,9 +25,6 @@
 
 #include "SDL_platform.h"
 
-#define HAVE_STDARG_H   1
-#define HAVE_STDDEF_H   1
-
 #define SDL_AUDIO_DRIVER_DUMMY 1
 #define SDL_AUDIO_DRIVER_DISK 1
 #define SDL_AUDIO_DRIVER_OS2 1
@@ -50,14 +47,22 @@
 #define SDL_FILESYSTEM_OS2 1
 #define SDL_POWER_OS2 1
 
+/* Enable assembly routines */
+#define SDL_ASSEMBLY_ROUTINES 1
+
+/* #undef HAVE_LIBSAMPLERATE_H */
+
+/* Enable dynamic libsamplerate support */
+/* #undef SDL_LIBSAMPLERATE_DYNAMIC */
+
 #define HAVE_LIBC 1
 
-/* Useful headers */
 #define HAVE_SYS_TYPES_H 1
 #define HAVE_STDIO_H 1
 #define STDC_HEADERS 1
 #define HAVE_STDLIB_H 1
 #define HAVE_STDARG_H 1
+#define HAVE_STDDEF_H 1
 #define HAVE_MALLOC_H 1
 #define HAVE_MEMORY_H 1
 #define HAVE_STRING_H 1
@@ -71,7 +76,6 @@
 #define HAVE_FLOAT_H 1
 #define HAVE_SIGNAL_H 1
 
-/* C library functions */
 #define HAVE_MALLOC 1
 #define HAVE_CALLOC 1
 #define HAVE_REALLOC 1
@@ -142,13 +146,5 @@
 #define HAVE_SQRT 1
 #define HAVE_TAN 1
 #define HAVE_LOG 1
-
-/* #undef HAVE_LIBSAMPLERATE_H */
-
-/* Enable dynamic libsamplerate support */
-/* #undef SDL_LIBSAMPLERATE_DYNAMIC */
-
-/* Enable assembly routines */
-#define SDL_ASSEMBLY_ROUTINES 1
 
 #endif /* SDL_config_os2_h_ */
