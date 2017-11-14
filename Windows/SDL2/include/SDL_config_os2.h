@@ -131,20 +131,36 @@
 #define HAVE_SNPRINTF 1
 #define HAVE_VSNPRINTF 1
 #define HAVE_SETJMP 1
+#define HAVE_ACOS 1
+/* #undef HAVE_ACOSF */
+#define HAVE_ASIN 1
+/* #undef HAVE_ASINF */
 #define HAVE_ATAN 1
 #define HAVE_ATAN2 1
-#define HAVE_ACOS 1
-#define HAVE_ASIN 1
+/* #undef HAVE_ATAN2F */
 #define HAVE_CEIL 1
+/* #undef HAVE_CEILF */
 /* #undef HAVE_COPYSIGN */
+/* #undef HAVE_COPYSIGNF */
 #define HAVE_COS 1
+/* #undef HAVE_COSF */
 #define HAVE_FABS 1
+/* #undef HAVE_FABSF */
 #define HAVE_FLOOR 1
-#define HAVE_POW 1
-/* #undef HAVE_SCALBN */
-#define HAVE_SIN 1
-#define HAVE_SQRT 1
-#define HAVE_TAN 1
+/* #undef HAVE_FLOORF */
+#define HAVE_FMOD 1
+/* #undef HAVE_FMODF */
 #define HAVE_LOG 1
+/* #undef HAVE_LOGF */
+#define HAVE_POW 1
+/* #undef HAVE_POWF */
+#define HAVE_SIN 1
+/* #undef HAVE_SINF */
+/* #undef HAVE_SCALBN */
+/* #undef HAVE_SCALBNF */
+#define HAVE_SQRT 1
+/* #undef HAVE_SQRTF */
+#define HAVE_TAN 1
+/* #undef HAVE_TANF */
 
 #endif /* SDL_config_os2_h_ */
