@@ -353,7 +353,7 @@ R_DrawAliasModel -- johnfitz -- almost completely rewritten
 void R_DrawAliasModel (entity_t *e)
 {
 	aliashdr_t	*paliashdr;
-	int			i, anim;
+	int			i, anim, skinnum;
 	gltexture_t	*tx, *fb;
 	lerpdata_t	lerpdata;
 	qboolean	alphatest = !!(e->model->flags & MF_HOLEY);
@@ -412,17 +412,15 @@ void R_DrawAliasModel (entity_t *e)
 	// set up textures
 	//
 	anim = (int)(cl.time*10) & 3;
-	if ((e->skinnum >= paliashdr->numskins) || (e->skinnum < 0))
+	skinnum = e->skinnum;
+	if ((skinnum >= paliashdr->numskins) || (skinnum < 0))
 	{
-		Con_DPrintf ("R_DrawAliasModel: no such skin # %d for '%s'\n", e->skinnum, e->model->name);
-		tx = NULL; // NULL will give the checkerboard texture
-		fb = NULL;
+		Con_DPrintf ("R_DrawAliasModel: no such skin # %d for '%s'\n", skinnum, e->model->name);
+		// ericw -- display skin 0 for winquake compatibility
+		skinnum = 0;
 	}
-	else
-	{
-		tx = paliashdr->gltextures[e->skinnum][anim];
-		fb = paliashdr->fbtextures[e->skinnum][anim];
-	} 
+	tx = paliashdr->gltextures[skinnum][anim];
+	fb = paliashdr->fbtextures[skinnum][anim];
 	if (e->colormap != vid.colormap && !gl_nocolors.value)
 	{
 		i = e - cl_entities;
