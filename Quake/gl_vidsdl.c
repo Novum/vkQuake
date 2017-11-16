@@ -1440,19 +1440,24 @@ static void GL_CreateDescriptorSets(void)
 GL_CreateSwapChain
 ===============
 */
-static void GL_CreateSwapChain( void )
+static qboolean GL_CreateSwapChain( void )
 {
 	uint32_t i;
-
-	Con_Printf("Creating swap chain\n");
-
 	VkResult err;
 
 	err = fpGetPhysicalDeviceSurfaceCapabilitiesKHR(vulkan_physical_device, vulkan_surface, &vulkan_surface_capabilities);
 	if (err != VK_SUCCESS)
 		Sys_Error("Couldn't get surface capabilities");
-	if (vulkan_surface_capabilities.currentExtent.width != vid.width || vulkan_surface_capabilities.currentExtent.height != vid.height)
-		Sys_Error("Surface doesn't match video width or height");
+	if (vulkan_surface_capabilities.currentExtent.width != vid.width || vulkan_surface_capabilities.currentExtent.height != vid.height) {
+		// Try again later
+		SDL_Delay(30);
+		SDL_PumpEvents();
+		vid_changed = true;
+		Cbuf_AddText ("vid_restart\n");
+		return false;
+	}
+
+	Con_Printf("Creating swap chain\n");
 
 	uint32_t format_count;
 	err = fpGetPhysicalDeviceSurfaceFormatsKHR(vulkan_physical_device, vulkan_surface, &format_count, NULL);
@@ -1582,8 +1587,34 @@ static void GL_CreateSwapChain( void )
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateSemaphore failed");
 	}
+
+	return true;
 }
 
+/*
+===============
+GL_DestroySwapChain
+===============
+*/
+static void GL_DestroySwapChain()
+{
+	uint32_t i;
+
+	if(vulkan_swapchain == VK_NULL_HANDLE) {
+		return;
+	}
+
+	for (i = 0; i < num_swap_chain_images; ++i)
+	{
+		vkDestroyImageView(vulkan_globals.device, swapchain_images_views[i], NULL);
+		swapchain_images_views[i] = VK_NULL_HANDLE;
+		vkDestroyFramebuffer(vulkan_globals.device, ui_framebuffers[i], NULL);
+		ui_framebuffers[i] = VK_NULL_HANDLE;
+	}
+
+	fpDestroySwapchainKHR(vulkan_globals.device, vulkan_swapchain, NULL);
+	vulkan_swapchain = VK_NULL_HANDLE;
+}
 
 /*
 ===============
@@ -1693,21 +1724,11 @@ static void GL_DestroyBeforeSetMode( void )
 	depth_buffer = VK_NULL_HANDLE;
 	depth_buffer_memory = VK_NULL_HANDLE;
 
-	for (i = 0; i < num_swap_chain_images; ++i)
-	{
-		vkDestroyImageView(vulkan_globals.device, swapchain_images_views[i], NULL);
-		swapchain_images_views[i] = VK_NULL_HANDLE;
-		vkDestroyFramebuffer(vulkan_globals.device, ui_framebuffers[i], NULL);
-		ui_framebuffers[i] = VK_NULL_HANDLE;
-	}
-
 	for (i = 0; i < NUM_COLOR_BUFFERS; ++i)
 	{
 		vkDestroyFramebuffer(vulkan_globals.device, main_framebuffers[i], NULL);
 		main_framebuffers[i] = VK_NULL_HANDLE;
 	}
-
-	fpDestroySwapchainKHR(vulkan_globals.device, vulkan_swapchain, NULL);
 
 	vkDestroyRenderPass(vulkan_globals.device, vulkan_globals.ui_render_pass, NULL);
 	vkDestroyRenderPass(vulkan_globals.device, vulkan_globals.main_render_pass, NULL);
@@ -1887,7 +1908,11 @@ void GL_EndRendering (qboolean swapchain_acquired)
 		present_info.waitSemaphoreCount = 1;
 		present_info.pWaitSemaphores = &draw_complete_semaphores[current_command_buffer];
 		err = fpQueuePresentKHR(vulkan_globals.queue, &present_info);
-		if (err != VK_SUCCESS)
+		if ((err == VK_ERROR_OUT_OF_DATE_KHR) || (err == VK_ERROR_SURFACE_LOST_KHR)) {
+			vid_changed = true;
+			Cbuf_AddText ("vid_restart\n");
+		}
+		else if (err != VK_SUCCESS)
 			Sys_Error("vkQueuePresentKHR failed");
 	}
 
@@ -2250,17 +2275,23 @@ static void VID_Restart (void)
 	}
 
 	scr_initialized = false;
-	
-	GL_WaitForDeviceIdle();
-	R_DestroyPipelines();
-	GL_DestroyBeforeSetMode();
 
 	//
 	// set new mode
 	//
+	
+	GL_WaitForDeviceIdle();
+	
 	VID_SetMode (width, height, refreshrate, bpp, fullscreen);
 
-	GL_CreateSwapChain();
+	GL_DestroySwapChain();
+	if (!GL_CreateSwapChain()) {
+		return;
+	}
+
+	R_DestroyPipelines();
+	GL_DestroyBeforeSetMode();
+
 	GL_CreateColorBuffer();
 	GL_CreateDepthBuffer();
 	GL_CreateRenderPasses();
