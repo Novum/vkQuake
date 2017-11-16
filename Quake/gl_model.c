@@ -2483,7 +2483,7 @@ void Mod_SetExtraFlags (qmodel_t *mod)
 {
 	extern cvar_t r_nolerp_list, r_noshadow_list;
 
-	if (!mod || !mod->name || mod->type != mod_alias)
+	if (!mod || mod->type != mod_alias)
 		return;
 
 	mod->flags &= (0xFF | MF_HOLEY); //only preserve first byte, plus MF_HOLEY
