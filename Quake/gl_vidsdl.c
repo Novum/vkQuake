@@ -1440,24 +1440,29 @@ static void GL_CreateDescriptorSets(void)
 GL_CreateSwapChain
 ===============
 */
-static qboolean GL_CreateSwapChain( void )
+static void GL_CreateSwapChain( void )
 {
 	uint32_t i;
-	VkResult err;
-
-	err = fpGetPhysicalDeviceSurfaceCapabilitiesKHR(vulkan_physical_device, vulkan_surface, &vulkan_surface_capabilities);
-	if (err != VK_SUCCESS)
-		Sys_Error("Couldn't get surface capabilities");
-	if (vulkan_surface_capabilities.currentExtent.width != vid.width || vulkan_surface_capabilities.currentExtent.height != vid.height) {
-		// Try again later
-		SDL_Delay(30);
-		SDL_PumpEvents();
-		vid_changed = true;
-		Cbuf_AddText ("vid_restart\n");
-		return false;
-	}
 
 	Con_Printf("Creating swap chain\n");
+
+	VkResult err;
+
+	while(true)
+	{
+		err = fpGetPhysicalDeviceSurfaceCapabilitiesKHR(vulkan_physical_device, vulkan_surface, &vulkan_surface_capabilities);
+		if (err != VK_SUCCESS)
+			Sys_Error("Couldn't get surface capabilities");
+
+		if (vulkan_surface_capabilities.currentExtent.width != vid.width || vulkan_surface_capabilities.currentExtent.height != vid.height) {
+			// Try again later
+			SDL_Delay(30);
+			SDL_PumpEvents();
+			continue;
+		}
+
+		break;
+	}
 
 	uint32_t format_count;
 	err = fpGetPhysicalDeviceSurfaceFormatsKHR(vulkan_physical_device, vulkan_surface, &format_count, NULL);
@@ -1587,34 +1592,8 @@ static qboolean GL_CreateSwapChain( void )
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateSemaphore failed");
 	}
-
-	return true;
 }
 
-/*
-===============
-GL_DestroySwapChain
-===============
-*/
-static void GL_DestroySwapChain()
-{
-	uint32_t i;
-
-	if(vulkan_swapchain == VK_NULL_HANDLE) {
-		return;
-	}
-
-	for (i = 0; i < num_swap_chain_images; ++i)
-	{
-		vkDestroyImageView(vulkan_globals.device, swapchain_images_views[i], NULL);
-		swapchain_images_views[i] = VK_NULL_HANDLE;
-		vkDestroyFramebuffer(vulkan_globals.device, ui_framebuffers[i], NULL);
-		ui_framebuffers[i] = VK_NULL_HANDLE;
-	}
-
-	fpDestroySwapchainKHR(vulkan_globals.device, vulkan_swapchain, NULL);
-	vulkan_swapchain = VK_NULL_HANDLE;
-}
 
 /*
 ===============
@@ -1724,11 +1703,21 @@ static void GL_DestroyBeforeSetMode( void )
 	depth_buffer = VK_NULL_HANDLE;
 	depth_buffer_memory = VK_NULL_HANDLE;
 
+	for (i = 0; i < num_swap_chain_images; ++i)
+	{
+		vkDestroyImageView(vulkan_globals.device, swapchain_images_views[i], NULL);
+		swapchain_images_views[i] = VK_NULL_HANDLE;
+		vkDestroyFramebuffer(vulkan_globals.device, ui_framebuffers[i], NULL);
+		ui_framebuffers[i] = VK_NULL_HANDLE;
+	}
+
 	for (i = 0; i < NUM_COLOR_BUFFERS; ++i)
 	{
 		vkDestroyFramebuffer(vulkan_globals.device, main_framebuffers[i], NULL);
 		main_framebuffers[i] = VK_NULL_HANDLE;
 	}
+
+	fpDestroySwapchainKHR(vulkan_globals.device, vulkan_swapchain, NULL);
 
 	vkDestroyRenderPass(vulkan_globals.device, vulkan_globals.ui_render_pass, NULL);
 	vkDestroyRenderPass(vulkan_globals.device, vulkan_globals.main_render_pass, NULL);
@@ -1886,7 +1875,7 @@ void GL_EndRendering (qboolean swapchain_acquired)
 	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 	submit_info.commandBufferCount = 1;
 	submit_info.pCommandBuffers = &command_buffers[current_command_buffer];
-	submit_info.waitSemaphoreCount = 1;
+	submit_info.waitSemaphoreCount = swapchain_acquired ? 1 : 0;
 	submit_info.pWaitSemaphores = &image_aquired_semaphores[current_command_buffer];
 	submit_info.signalSemaphoreCount = swapchain_acquired ? 1 : 0;
 	submit_info.pSignalSemaphores = &draw_complete_semaphores[current_command_buffer];
@@ -2275,23 +2264,17 @@ static void VID_Restart (void)
 	}
 
 	scr_initialized = false;
+	
+	GL_WaitForDeviceIdle();
+	R_DestroyPipelines();
+	GL_DestroyBeforeSetMode();
 
 	//
 	// set new mode
 	//
-	
-	GL_WaitForDeviceIdle();
-	
 	VID_SetMode (width, height, refreshrate, bpp, fullscreen);
 
-	GL_DestroySwapChain();
-	if (!GL_CreateSwapChain()) {
-		return;
-	}
-
-	R_DestroyPipelines();
-	GL_DestroyBeforeSetMode();
-
+	GL_CreateSwapChain();
 	GL_CreateColorBuffer();
 	GL_CreateDepthBuffer();
 	GL_CreateRenderPasses();
