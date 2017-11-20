@@ -26,7 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define __GLQUAKE_H
 
 void GL_WaitForDeviceIdle (void);
-void GL_BeginRendering (int *x, int *y, int *width, int *height);
+qboolean GL_BeginRendering (int *x, int *y, int *width, int *height);
 qboolean GL_AcquireNextSwapChainImage (void);
 void GL_EndRendering (qboolean swapchain_acquired);
 qboolean GL_Set2D (void);

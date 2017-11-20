@@ -944,8 +944,12 @@ needs almost the entire 256k of stack space!
 */
 void SCR_UpdateScreen (void)
 {
-	if (!scr_initialized || !con_initialized)
+	static qboolean in_update_screen = false;
+
+	if (!scr_initialized || !con_initialized || in_update_screen)
 		return;				// not initialized yet
+
+	in_update_screen = true;
 
 	vid.numpages = (gl_triplebuffer.value) ? 3 : 2;
 
@@ -956,11 +960,16 @@ void SCR_UpdateScreen (void)
 			scr_disabled_for_loading = false;
 			Con_Printf ("load failed.\n");
 		}
-		else
+		else {
+			in_update_screen = false;
 			return;
+		}
 	}
 
-	GL_BeginRendering (&glx, &gly, &glwidth, &glheight);
+	if (!GL_BeginRendering (&glx, &gly, &glwidth, &glheight)) {
+		in_update_screen = false;
+		return;
+	}
 
 	//
 	// determine size of refresh window
@@ -977,6 +986,7 @@ void SCR_UpdateScreen (void)
 
 	if (GL_Set2D () == false) {
 		GL_EndRendering (false);
+		in_update_screen = false;
 		return;
 	}
 
@@ -1025,5 +1035,6 @@ void SCR_UpdateScreen (void)
 	V_UpdateBlend (); //johnfitz -- V_UpdatePalette cleaned up and renamed
 
 	GL_EndRendering (true);
+	in_update_screen = false;
 }
 

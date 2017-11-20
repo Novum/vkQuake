@@ -31,6 +31,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "SDL_syswm.h"
 #include "SDL_vulkan.h"
 
+#include <assert.h>
+
 #define MAX_MODE_LIST	600 //johnfitz -- was 30
 #define MAX_BPPS_LIST	5
 #define MAX_RATES_LIST	20
@@ -73,7 +75,7 @@ static void ClearAllStates (void);
 static void GL_InitInstance (void);
 static void GL_InitDevice (void);
 static void GL_CreateFrameBuffers(void);
-static void GL_DestroyBeforeSetMode(void);
+static void GL_DestroyRenderResources(void);
 
 viddef_t	vid;				// global video state
 modestate_t	modestate = MS_UNINIT;
@@ -107,6 +109,7 @@ static VkSurfaceCapabilitiesKHR		vulkan_surface_capabilities;
 static VkSwapchainKHR				vulkan_swapchain;
 
 static uint32_t						num_swap_chain_images;
+static qboolean						render_resources_created = false;
 static uint32_t						current_command_buffer;
 static VkCommandPool				command_pool;
 static VkCommandPool				transient_command_pool;
@@ -999,6 +1002,7 @@ static void GL_CreateRenderPasses()
 	render_pass_create_info.subpassCount = 1;
 	render_pass_create_info.pSubpasses = subpass_descriptions;
 
+	assert(vulkan_globals.main_render_pass == VK_NULL_HANDLE);
 	err = vkCreateRenderPass(vulkan_globals.device, &render_pass_create_info, NULL, &vulkan_globals.main_render_pass);
 	if (err != VK_SUCCESS)
 		Sys_Error("Couldn't create Vulkan render pass");
@@ -1061,6 +1065,7 @@ static void GL_CreateRenderPasses()
 	render_pass_create_info.dependencyCount = 1;
 	render_pass_create_info.pDependencies = subpass_dependencies;
 
+	assert(vulkan_globals.ui_render_pass == VK_NULL_HANDLE);
 	err = vkCreateRenderPass(vulkan_globals.device, &render_pass_create_info, NULL, &vulkan_globals.ui_render_pass);
 	if (err != VK_SUCCESS)
 		Sys_Error("Couldn't create Vulkan render pass");
@@ -1108,6 +1113,9 @@ static void GL_CreateDepthBuffer( void )
 {
 	Con_Printf("Creating depth buffer\n");
 
+	if(depth_buffer != VK_NULL_HANDLE)
+		return;
+
 	VkResult err;
 	
 	VkImageCreateInfo image_create_info;
@@ -1125,6 +1133,7 @@ static void GL_CreateDepthBuffer( void )
 	image_create_info.tiling = VK_IMAGE_TILING_OPTIMAL;
 	image_create_info.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 
+	assert(depth_buffer == VK_NULL_HANDLE);
 	err = vkCreateImage(vulkan_globals.device, &image_create_info, NULL, &depth_buffer);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateImage failed");
@@ -1148,6 +1157,7 @@ static void GL_CreateDepthBuffer( void )
 	if (vulkan_globals.dedicated_allocation)
 		memory_allocate_info.pNext = &dedicated_allocation_info;
 
+	assert(depth_buffer_memory == VK_NULL_HANDLE);
 	num_vulkan_misc_allocations += 1;
 	err = vkAllocateMemory(vulkan_globals.device, &memory_allocate_info, NULL, &depth_buffer_memory);
 	if (err != VK_SUCCESS)
@@ -1172,6 +1182,7 @@ static void GL_CreateDepthBuffer( void )
 	image_view_create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
 	image_view_create_info.flags = 0;
 
+	assert(depth_buffer_view == VK_NULL_HANDLE);
 	err = vkCreateImageView(vulkan_globals.device, &image_view_create_info, NULL, &depth_buffer_view);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateImageView failed");
@@ -1208,6 +1219,7 @@ static void GL_CreateColorBuffer( void )
 
 	for (i = 0; i < NUM_COLOR_BUFFERS; ++i)
 	{
+		assert(vulkan_globals.color_buffers[i] == VK_NULL_HANDLE);
 		err = vkCreateImage(vulkan_globals.device, &image_create_info, NULL, &vulkan_globals.color_buffers[i]);
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateImage failed");
@@ -1231,6 +1243,7 @@ static void GL_CreateColorBuffer( void )
 		if (vulkan_globals.dedicated_allocation)
 			memory_allocate_info.pNext = &dedicated_allocation_info;
 
+		assert(color_buffers_memory[i] == VK_NULL_HANDLE);
 		num_vulkan_misc_allocations += 1;
 		err = vkAllocateMemory(vulkan_globals.device, &memory_allocate_info, NULL, &color_buffers_memory[i]);
 		if (err != VK_SUCCESS)
@@ -1255,6 +1268,7 @@ static void GL_CreateColorBuffer( void )
 		image_view_create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
 		image_view_create_info.flags = 0;
 
+		assert(color_buffers_view[i] == VK_NULL_HANDLE);
 		err = vkCreateImageView(vulkan_globals.device, &image_view_create_info, NULL, &color_buffers_view[i]);
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateImageView failed");
@@ -1309,6 +1323,7 @@ static void GL_CreateColorBuffer( void )
 
 		image_create_info.samples = vulkan_globals.sample_count;
 
+		assert(msaa_color_buffer == VK_NULL_HANDLE);
 		err = vkCreateImage(vulkan_globals.device, &image_create_info, NULL, &msaa_color_buffer);
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateImage failed");
@@ -1332,6 +1347,7 @@ static void GL_CreateColorBuffer( void )
 		if (vulkan_globals.dedicated_allocation)
 			memory_allocate_info.pNext = &dedicated_allocation_info;
 
+		assert(msaa_color_buffer_memory == VK_NULL_HANDLE);
 		num_vulkan_misc_allocations += 1;
 		err = vkAllocateMemory(vulkan_globals.device, &memory_allocate_info, NULL, &msaa_color_buffer_memory);
 		if (err != VK_SUCCESS)
@@ -1356,6 +1372,7 @@ static void GL_CreateColorBuffer( void )
 		image_view_create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
 		image_view_create_info.flags = 0;
 
+		assert(msaa_color_buffer_view == VK_NULL_HANDLE);
 		err = vkCreateImageView(vulkan_globals.device, &image_view_create_info, NULL, &msaa_color_buffer_view);
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateImageView failed");
@@ -1378,6 +1395,7 @@ static void GL_CreateDescriptorSets(void)
 	descriptor_set_allocate_info.descriptorSetCount = 1;
 	descriptor_set_allocate_info.pSetLayouts = &vulkan_globals.input_attachment_set_layout;
 
+	assert(postprocess_descriptor_set == VK_NULL_HANDLE);
 	vkAllocateDescriptorSets(vulkan_globals.device, &descriptor_set_allocate_info, &postprocess_descriptor_set);
 
 	VkDescriptorImageInfo image_info;
@@ -1402,6 +1420,7 @@ static void GL_CreateDescriptorSets(void)
 	descriptor_set_allocate_info.descriptorSetCount = 1;
 	descriptor_set_allocate_info.pSetLayouts = &vulkan_globals.screen_warp_set_layout;
 
+	assert(vulkan_globals.screen_warp_desc_set == VK_NULL_HANDLE);
 	vkAllocateDescriptorSets(vulkan_globals.device, &descriptor_set_allocate_info, &vulkan_globals.screen_warp_desc_set);
 
 	VkDescriptorImageInfo input_image_info;
@@ -1440,28 +1459,17 @@ static void GL_CreateDescriptorSets(void)
 GL_CreateSwapChain
 ===============
 */
-static void GL_CreateSwapChain( void )
+static qboolean GL_CreateSwapChain( void )
 {
 	uint32_t i;
-
-	Con_Printf("Creating swap chain\n");
-
 	VkResult err;
 
-	while(true)
-	{
-		err = fpGetPhysicalDeviceSurfaceCapabilitiesKHR(vulkan_physical_device, vulkan_surface, &vulkan_surface_capabilities);
-		if (err != VK_SUCCESS)
-			Sys_Error("Couldn't get surface capabilities");
+	err = fpGetPhysicalDeviceSurfaceCapabilitiesKHR(vulkan_physical_device, vulkan_surface, &vulkan_surface_capabilities);
+	if (err != VK_SUCCESS)
+		Sys_Error("Couldn't get surface capabilities");
 
-		if (vulkan_surface_capabilities.currentExtent.width != vid.width || vulkan_surface_capabilities.currentExtent.height != vid.height) {
-			// Try again later
-			SDL_Delay(30);
-			SDL_PumpEvents();
-			continue;
-		}
-
-		break;
+	if (vulkan_surface_capabilities.currentExtent.width != vid.width || vulkan_surface_capabilities.currentExtent.height != vid.height) {
+		return false;
 	}
 
 	uint32_t format_count;
@@ -1543,14 +1551,17 @@ static void GL_CreateSwapChain( void )
 	if (!(vulkan_surface_capabilities.supportedCompositeAlpha & VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR))
 		swapchain_create_info.compositeAlpha = VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR;
 
-
 	vulkan_globals.swap_chain_format = surface_formats[0].format;
 	free(surface_formats);
 
+	Sys_Printf("fpCreateSwapchainKHR\n");
+	assert(vulkan_swapchain == VK_NULL_HANDLE);
 	err = fpCreateSwapchainKHR(vulkan_globals.device, &swapchain_create_info, NULL, &vulkan_swapchain);
 	if (err != VK_SUCCESS)
 		Sys_Error("Couldn't create swap chain");
 
+	for (i = 0; i < num_swap_chain_images; ++i)
+		assert(swapchain_images[i] == VK_NULL_HANDLE);
 	err = fpGetSwapchainImagesKHR(vulkan_globals.device, vulkan_swapchain, &num_swap_chain_images, NULL);
 	if (err != VK_SUCCESS || num_swap_chain_images > MAX_SWAP_CHAIN_IMAGES)
 		Sys_Error("Couldn't get swap chain images");
@@ -1581,6 +1592,7 @@ static void GL_CreateSwapChain( void )
 	{
 		GL_SetObjectName((uint64_t)swapchain_images[i], VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT, "Swap Chain");
 
+		assert(swapchain_images_views[i] == VK_NULL_HANDLE);
 		image_view_create_info.image = swapchain_images[i];
 		err = vkCreateImageView(vulkan_globals.device, &image_view_create_info, NULL, &swapchain_images_views[i]);
 		if (err != VK_SUCCESS)
@@ -1588,10 +1600,13 @@ static void GL_CreateSwapChain( void )
 
 		GL_SetObjectName((uint64_t)swapchain_images_views[i], VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT, "Swap Chain View");
 
+		assert(image_aquired_semaphores[i] == VK_NULL_HANDLE);
 		err = vkCreateSemaphore(vulkan_globals.device, &semaphore_create_info, NULL, &image_aquired_semaphores[i]);
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateSemaphore failed");
 	}
+
+	return true;
 }
 
 
@@ -1624,6 +1639,7 @@ static void GL_CreateFrameBuffers( void )
 		VkImageView attachments[3] = { color_buffers_view[i], depth_buffer_view, msaa_color_buffer_view };
 		framebuffer_create_info.pAttachments = attachments;
 
+		assert(main_framebuffers[i] == VK_NULL_HANDLE);
 		err = vkCreateFramebuffer(vulkan_globals.device, &framebuffer_create_info, NULL, &main_framebuffers[i]);
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateFramebuffer failed");
@@ -1642,9 +1658,10 @@ static void GL_CreateFrameBuffers( void )
 		framebuffer_create_info.height = vid.height;
 		framebuffer_create_info.layers = 1;
 
-		VkImageView attachments[2] = { color_buffers_view[0],  swapchain_images_views[i] };
+		VkImageView attachments[2] = { color_buffers_view[0], swapchain_images_views[i] };
 		framebuffer_create_info.pAttachments = attachments;
 
+		assert(ui_framebuffers[i] == VK_NULL_HANDLE);
 		err = vkCreateFramebuffer(vulkan_globals.device, &framebuffer_create_info, NULL, &ui_framebuffers[i]);
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateFramebuffer failed");
@@ -1655,14 +1672,40 @@ static void GL_CreateFrameBuffers( void )
 
 /*
 ===============
-GL_DestroyBeforeSetMode
+GL_CreateRenderResources
 ===============
 */
-static void GL_DestroyBeforeSetMode( void )
+static void GL_CreateRenderResources( void )
+{
+	if (!GL_CreateSwapChain()) {
+		render_resources_created = false;
+		return;
+	}
+
+	GL_CreateColorBuffer();
+	GL_CreateDepthBuffer();
+	GL_CreateRenderPasses();
+	GL_CreateFrameBuffers();
+	R_CreatePipelines();
+	GL_CreateDescriptorSets();
+
+	render_resources_created = true;
+}
+
+/*
+===============
+GL_DestroyRenderResources
+===============
+*/
+static void GL_DestroyRenderResources( void )
 {
 	uint32_t i;
 
+	render_resources_created = false;
+
 	GL_WaitForDeviceIdle();
+
+	R_DestroyPipelines();
 
 	vkFreeDescriptorSets(vulkan_globals.device, vulkan_globals.descriptor_pool, 1, &postprocess_descriptor_set);
 	postprocess_descriptor_set = VK_NULL_HANDLE;
@@ -1703,24 +1746,32 @@ static void GL_DestroyBeforeSetMode( void )
 	depth_buffer = VK_NULL_HANDLE;
 	depth_buffer_memory = VK_NULL_HANDLE;
 
-	for (i = 0; i < num_swap_chain_images; ++i)
-	{
-		vkDestroyImageView(vulkan_globals.device, swapchain_images_views[i], NULL);
-		swapchain_images_views[i] = VK_NULL_HANDLE;
-		vkDestroyFramebuffer(vulkan_globals.device, ui_framebuffers[i], NULL);
-		ui_framebuffers[i] = VK_NULL_HANDLE;
-	}
-
 	for (i = 0; i < NUM_COLOR_BUFFERS; ++i)
 	{
 		vkDestroyFramebuffer(vulkan_globals.device, main_framebuffers[i], NULL);
 		main_framebuffers[i] = VK_NULL_HANDLE;
 	}
 
+	for (i = 0; i < num_swap_chain_images; ++i)
+	{
+		vkDestroyImageView(vulkan_globals.device, swapchain_images_views[i], NULL);
+		swapchain_images_views[i] = VK_NULL_HANDLE;
+		vkDestroyFramebuffer(vulkan_globals.device, ui_framebuffers[i], NULL);
+		ui_framebuffers[i] = VK_NULL_HANDLE;
+		vkDestroySemaphore(vulkan_globals.device, image_aquired_semaphores[i], NULL);
+		image_aquired_semaphores[i] = VK_NULL_HANDLE;
+
+		// Swapchain images do not need to be destroyed
+		swapchain_images[i] = VK_NULL_HANDLE;
+	}
+
 	fpDestroySwapchainKHR(vulkan_globals.device, vulkan_swapchain, NULL);
+	vulkan_swapchain = VK_NULL_HANDLE;
 
 	vkDestroyRenderPass(vulkan_globals.device, vulkan_globals.ui_render_pass, NULL);
+	vulkan_globals.ui_render_pass = VK_NULL_HANDLE;
 	vkDestroyRenderPass(vulkan_globals.device, vulkan_globals.main_render_pass, NULL);
+	vulkan_globals.main_render_pass = VK_NULL_HANDLE;
 }
 
 /*
@@ -1728,9 +1779,17 @@ static void GL_DestroyBeforeSetMode( void )
 GL_BeginRendering
 =================
 */
-void GL_BeginRendering (int *x, int *y, int *width, int *height)
+qboolean GL_BeginRendering (int *x, int *y, int *width, int *height)
 {
 	int i;
+
+	if (!render_resources_created) {
+		GL_CreateRenderResources();
+
+		if (!render_resources_created) {
+			return false;
+		}
+	}
 
 	R_SwapDynamicBuffers();
 
@@ -1800,6 +1859,8 @@ void GL_BeginRendering (int *x, int *y, int *width, int *height)
 	viewport.maxDepth = 1.0f;
 
 	vkCmdSetViewport(vulkan_globals.command_buffer, 0, 1, &viewport);
+
+	return true;
 }
 
 /*
@@ -2206,19 +2267,14 @@ void	VID_Init (void)
 	GL_InitInstance();
 	GL_InitDevice();
 	GL_InitCommandBuffers();
-	GL_CreateSwapChain();
-	GL_CreateColorBuffer();
-	GL_CreateDepthBuffer();
-	GL_CreateRenderPasses();
-	GL_CreateFrameBuffers();
 	R_InitStagingBuffers();
 	R_CreateDescriptorSetLayouts();
 	R_CreateDescriptorPool();
 	R_InitDynamicBuffers();
 	R_InitSamplers();
 	R_CreatePipelineLayouts();
-	R_CreatePipelines();
-	GL_CreateDescriptorSets();
+
+	GL_CreateRenderResources();
 
 	//johnfitz -- removed code creating "glquake" subdirectory
 
@@ -2266,21 +2322,14 @@ static void VID_Restart (void)
 	scr_initialized = false;
 	
 	GL_WaitForDeviceIdle();
-	R_DestroyPipelines();
-	GL_DestroyBeforeSetMode();
+	GL_DestroyRenderResources();
 
 	//
 	// set new mode
 	//
 	VID_SetMode (width, height, refreshrate, bpp, fullscreen);
 
-	GL_CreateSwapChain();
-	GL_CreateColorBuffer();
-	GL_CreateDepthBuffer();
-	GL_CreateRenderPasses();
-	GL_CreateFrameBuffers();
-	R_CreatePipelines();
-	GL_CreateDescriptorSets();
+	GL_CreateRenderResources();
 
 	//conwidth and conheight need to be recalculated
 	vid.conwidth = (scr_conwidth.value > 0) ? (int)scr_conwidth.value : (scr_conscale.value > 0) ? (int)(vid.width/scr_conscale.value) : vid.width;
