@@ -31,9 +31,6 @@ void SCR_LoadPics (void);
 void SCR_UpdateScreen (void);
 
 
-void SCR_SizeUp (void);
-void SCR_SizeDown (void);
-void SCR_BringDownConsole (void);
 void SCR_CenterPrint (const char *str);
 
 void SCR_BeginLoadingPlaque (void);
@@ -52,8 +49,6 @@ extern	qboolean	scr_disabled_for_loading;
 extern	cvar_t		scr_viewsize;
 
 extern	cvar_t		scr_sbaralpha; //johnfitz
-
-void SCR_UpdateWholeScreen (void);
 
 //johnfitz -- stuff for 2d drawing control
 typedef enum {

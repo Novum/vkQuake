@@ -125,25 +125,6 @@ void DrawGLPoly (glpoly_t *p, float color[3], float alpha)
 }
 
 /*
-================
-DrawGLTriangleFan -- johnfitz -- like DrawGLPoly but for r_showtris
-================
-*/
-void DrawGLTriangleFan (glpoly_t *p)
-{
-	/*float	*v;
-	int		i;
-
-	glBegin (GL_TRIANGLE_FAN);
-	v = p->verts[0];
-	for (i=0 ; i<p->numverts ; i++, v+= VERTEXSIZE)
-	{
-		glVertex3fv (v);
-	}
-	glEnd ();*/
-}
-
-/*
 =============================================================
 
 	BRUSH MODELS
