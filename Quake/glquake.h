@@ -338,7 +338,6 @@ void GL_DeleteBModelVertexBuffer (void);
 void GL_BuildBModelVertexBuffer (void);
 void GLMesh_LoadVertexBuffers (void);
 void GLMesh_DeleteVertexBuffers (void);
-void R_RebuildAllLightmaps (void);
 
 int R_LightPoint (vec3_t p);
 
@@ -347,10 +346,6 @@ void R_BuildLightMap (msurface_t *surf, byte *dest, int stride);
 void R_RenderDynamicLightmaps (msurface_t *fa);
 void R_UploadLightmaps (void);
 
-void R_DrawAliasModel_ShowTris (entity_t *e);
-void R_DrawParticles_ShowTris (void);
-
-void GL_DrawAliasShadow (entity_t *e);
 void DrawGLPoly (glpoly_t *p, float color[3], float alpha);
 void GL_MakeAliasModelDisplayLists (qmodel_t *m, aliashdr_t *hdr);
 

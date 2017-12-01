@@ -442,24 +442,3 @@ void R_DrawAliasModel (entity_t *e)
 #define SHADOW_VSCALE 0 //0=completely flat
 #define SHADOW_HEIGHT 0.1 //how far above the floor to render the shadow
 //johnfitz
-
-/*
-=============
-GL_DrawAliasShadow -- johnfitz -- rewritten
-
-TODO: orient shadow onto "lightplane" (a global mplane_t*)
-=============
-*/
-void GL_DrawAliasShadow (entity_t *e)
-{
-}
-
-/*
-=================
-R_DrawAliasModel_ShowTris -- johnfitz
-=================
-*/
-void R_DrawAliasModel_ShowTris (entity_t *e)
-{
-}
-
