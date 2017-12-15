@@ -736,7 +736,7 @@ void Sky_DrawSkyBox (void)
 		Sky_EmitSkyBoxVertex (vertices + 3, skymaxs[0][i], skymins[1][i], i);
 
 		vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
-		vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_box_pipeline);
+		R_BindPipeline(vulkan_globals.sky_box_pipeline);
 		vkCmdDraw(vulkan_globals.command_buffer, 4, 1, 0, 0);
 
 		rs_skypolys++;
@@ -764,7 +764,7 @@ void Sky_DrawSkyBox (void)
 			}
 
 			vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
-			vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_poly_blend_pipeline);
+			R_BindPipeline(vulkan_globals.basic_poly_blend_pipeline);
 			vkCmdDraw(vulkan_globals.command_buffer, 4, 1, 0, 0);
 
 			rs_skypasses++;
@@ -860,7 +860,7 @@ void Sky_DrawFaceQuad (glpoly_t *p, float alpha)
 	}
 
 	vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &vertex_buffer, &vertex_buffer_offset);
-	vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_layer_pipeline);
+	R_BindPipeline(vulkan_globals.sky_layer_pipeline);
 	vkCmdDraw(vulkan_globals.command_buffer, 4, 1, 0, 0);
 
 	rs_skypolys++;
@@ -888,7 +888,7 @@ void Sky_DrawFaceQuad (glpoly_t *p, float alpha)
 		}
 
 		vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
-		vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_poly_blend_pipeline);
+		R_BindPipeline(vulkan_globals.basic_poly_blend_pipeline);
 		vkCmdDraw(vulkan_globals.command_buffer, 4, 1, 0, 0);
 
 		rs_skypasses++;
@@ -993,7 +993,7 @@ void Sky_DrawSky (void)
 		skymaxs[0][i] = skymaxs[1][i] = -9999;
 	}
 
-	vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_color_pipeline);
+	R_BindPipeline(vulkan_globals.sky_color_pipeline);
 
 	//
 	// process world and bmodels: draw flat-shaded sky surfs, and update skybounds

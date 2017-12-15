@@ -562,7 +562,7 @@ void V_PolyBlend (void)
 	}
 
 	vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &vertex_buffer, &vertex_buffer_offset);
-	vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_poly_blend_pipeline);
+	R_BindPipeline(vulkan_globals.basic_poly_blend_pipeline);
 
 	vkCmdDraw(vulkan_globals.command_buffer, 4, 1, 0, 0);
 }

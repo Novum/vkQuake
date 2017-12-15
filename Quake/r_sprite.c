@@ -180,7 +180,7 @@ void R_DrawSpriteModel (entity_t *e)
 	vertices[3].texcoord[1] = frame->tmax;
 
 	vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
-	vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sprite_pipeline);
+	R_BindPipeline(vulkan_globals.sprite_pipeline);
 
 	if (psprite->type == SPR_ORIENTED)
 		vkCmdSetDepthBias(vulkan_globals.command_buffer, OFFSET_DECAL, 0.0f, 0.0f);

@@ -298,7 +298,6 @@ static void R_TriangleIndicesForSurf (msurface_t *s, uint32_t *dest)
 
 static uint32_t vbo_indices[MAX_BATCH_SIZE];
 static unsigned int num_vbo_indices;
-static VkPipeline current_pipeline = VK_NULL_HANDLE;
 
 /*
 ================
@@ -324,12 +323,7 @@ static void R_FlushBatch (qboolean fullbright_enabled, qboolean alpha_test, qboo
 		vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout, 1, 1, &lightmap_texture->descriptor_set, 0, NULL);
 
 		int pipeline_index = (fullbright_enabled ? 1 : 0) + (alpha_test ? 2 : 0) + (alpha_blend ? 4 : 0);
-		VkPipeline new_pipeline = vulkan_globals.world_pipelines[pipeline_index];
-		if (new_pipeline != current_pipeline)
-		{
-			vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, new_pipeline);
-			current_pipeline = new_pipeline;
-		}
+		R_BindPipeline(vulkan_globals.world_pipelines[pipeline_index]);
 
 		VkBuffer buffer;
 		VkDeviceSize buffer_offset;
@@ -399,7 +393,7 @@ void R_DrawTextureChains_Water (qmodel_t *model, entity_t *ent, texchain_t chain
 
 	float color[3] = { 1.0f, 1.0f, 1.0f };
 
-	vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.water_pipeline);
+	R_BindPipeline(vulkan_globals.water_pipeline);
 
 	for (i=0 ; i<model->numtextures ; i++)
 	{
@@ -415,9 +409,9 @@ void R_DrawTextureChains_Water (qmodel_t *model, entity_t *ent, texchain_t chain
 				{
 					entalpha = GL_WaterAlphaForEntitySurface (ent, s);
 					if (entalpha < 1.0f)
-						vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.water_blend_pipeline);
+						R_BindPipeline(vulkan_globals.water_blend_pipeline);
 					else
-						vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.water_pipeline);
+						R_BindPipeline(vulkan_globals.water_pipeline);
 
 					vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout, 0, 1, &t->warpimage->descriptor_set, 0, NULL);
 
@@ -536,8 +530,6 @@ void R_DrawTextureChains (qmodel_t *model, entity_t *ent, texchain_t chain)
 	// late which was visible under some conditions, this method avoids that.
 	R_BuildLightmapChains (model, chain);
 	R_UploadLightmaps ();
-
-	current_pipeline = VK_NULL_HANDLE;
 	R_DrawTextureChains_Multitexture (model, ent, chain, entalpha);
 }
 

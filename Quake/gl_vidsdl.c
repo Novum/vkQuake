@@ -1794,6 +1794,7 @@ qboolean GL_BeginRendering (int *x, int *y, int *width, int *height)
 	R_SwapDynamicBuffers();
 
 	vulkan_globals.device_idle = false;
+	vulkan_globals.current_pipeline = VK_NULL_HANDLE;
 	*x = *y = 0;
 	*width = vid.width;
 	*height = vid.height;
@@ -1918,7 +1919,7 @@ void GL_EndRendering (qboolean swapchain_acquired)
 
 		vkCmdNextSubpass(vulkan_globals.command_buffer, VK_SUBPASS_CONTENTS_INLINE);
 		vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.postprocess_pipeline_layout, 0, 1, &postprocess_descriptor_set, 0, NULL);
-		vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.postprocess_pipeline);
+		R_BindPipeline(vulkan_globals.postprocess_pipeline);
 		vkCmdPushConstants(vulkan_globals.command_buffer, vulkan_globals.postprocess_pipeline_layout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, 2 * sizeof(float), postprocess_values);
 		vkCmdDraw(vulkan_globals.command_buffer, 3, 1, 0, 0);
 
