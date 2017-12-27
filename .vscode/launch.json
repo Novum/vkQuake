@@ -12,7 +12,7 @@
             "args": [ "-basedir", "/home/axel/Quake" ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
-            "environment": [],
+            "environment": [ { "name": "XDG_RUNTIME_DIR", "value": "/run/user/1000" } ],
             "externalConsole": true,
             "MIMode": "lldb",
             "setupCommands": [
