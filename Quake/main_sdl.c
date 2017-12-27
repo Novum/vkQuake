@@ -62,6 +62,11 @@ static void Sys_InitSDL (void)
 	{
 		Sys_Error("Couldn't init SDL: %s", SDL_GetError());
 	}
+
+#ifdef _DEBUG
+	SDL_LogSetAllPriority(SDL_LOG_PRIORITY_DEBUG);
+#endif
+
 	atexit(Sys_AtExit);
 }
 
