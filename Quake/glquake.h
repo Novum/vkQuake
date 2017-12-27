@@ -372,7 +372,7 @@ void R_CreatePipelineLayouts();
 void R_CreatePipelines();
 void R_DestroyPipelines();
 
-inline void R_BindPipeline(VkPipeline pipeline) {
+static inline void R_BindPipeline(VkPipeline pipeline) {
 	if(vulkan_globals.current_pipeline != pipeline) {
 		vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 		vulkan_globals.current_pipeline = pipeline;
