@@ -91,6 +91,9 @@ cd vkQuake/Quake
 make
 ~~~
 
+### Note
+vkQuake 0.97 and later requires at least **SDL2 2.0.6 with enabled Vulkan support**. The precompiled versions in some of the distribution repositories (e.g. Ubuntu) do not currently ship with Vulkan support. You will therefore need to compile it from source. Make sure you have libvulkan-dev installed before running configure.
+
 # Usage
 
 Quake has 4 episodes that are split into 2 files:
