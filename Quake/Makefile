@@ -52,7 +52,7 @@ STRIP ?= strip
 #CPUFLAGS= -mtune=k8
 #CPUFLAGS= -march=atom
 CPUFLAGS=
-LDFLAGS = -L$(VULKAN_SDK)/lib
+LDFLAGS += -L$(VULKAN_SDK)/lib
 DFLAGS ?=
 CFLAGS ?= -Wall -Wno-trigraphs
 CFLAGS += $(CPUFLAGS)
