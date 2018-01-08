@@ -146,9 +146,6 @@ byte *Mod_DecompressVis (byte *in, qmodel_t *model)
 	out = mod_decompressed;
 	outend = mod_decompressed + row;
 
-#if 0
-	memcpy (out, in, row);
-#else
 	if (!in)
 	{	// no vis info, so make all visible
 		while (row)
@@ -173,19 +170,13 @@ byte *Mod_DecompressVis (byte *in, qmodel_t *model)
 		{
 			if (out == outend)
 			{
-				static qboolean warned = false;
-				if (!warned)
-				{
-					warned = true;
-					Con_Printf("Mod_DecompressVis: output overrun on model \"%s\"\n", model->name);
-				}
+				Con_Warning("Mod_DecompressVis: output overrun on model \"%s\"\n", model->name);
 				return mod_decompressed;
 			}
 			*out++ = 0;
 			c--;
 		}
 	} while (out - mod_decompressed < row);
-#endif
 
 	return mod_decompressed;
 }
