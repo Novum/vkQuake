@@ -132,6 +132,7 @@ byte *Mod_DecompressVis (byte *in, qmodel_t *model)
 {
 	int		c;
 	byte	*out;
+	byte	*outend;
 	int		row;
 
 	row = (model->numleafs+7)>>3;
@@ -143,6 +144,7 @@ byte *Mod_DecompressVis (byte *in, qmodel_t *model)
 			Sys_Error ("Mod_DecompressVis: realloc() failed on %d bytes", mod_decompressed_capacity);
 	}
 	out = mod_decompressed;
+	outend = mod_decompressed + row;
 
 #if 0
 	memcpy (out, in, row);
@@ -169,6 +171,16 @@ byte *Mod_DecompressVis (byte *in, qmodel_t *model)
 		in += 2;
 		while (c)
 		{
+			if (out == outend)
+			{
+				static qboolean warned = false;
+				if (!warned)
+				{
+					warned = true;
+					Con_Printf("Mod_DecompressVis: output overrun on model \"%s\"\n", model->name);
+				}
+				return mod_decompressed;
+			}
 			*out++ = 0;
 			c--;
 		}
