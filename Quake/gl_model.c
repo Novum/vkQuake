@@ -170,7 +170,10 @@ byte *Mod_DecompressVis (byte *in, qmodel_t *model)
 		{
 			if (out == outend)
 			{
-				Con_Warning("Mod_DecompressVis: output overrun on model \"%s\"\n", model->name);
+				if(!model->viswarn) {
+					model->viswarn = true;
+					Con_Warning("Mod_DecompressVis: output overrun on model \"%s\"\n", model->name);
+				}
 				return mod_decompressed;
 			}
 			*out++ = 0;
@@ -768,6 +771,7 @@ Mod_LoadVisibility
 */
 void Mod_LoadVisibility (lump_t *l)
 {
+	loadmodel->viswarn = false;
 	if (!l->filelen)
 	{
 		loadmodel->visdata = NULL;
