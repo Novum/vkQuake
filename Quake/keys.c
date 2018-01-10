@@ -27,7 +27,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 /* key up events are sent even if in console mode */
 
 #define		HISTORY_FILE_NAME "history.txt"
-#define		CMDLINES 32
 
 char		key_lines[CMDLINES][MAXCMDLINE];
 
