@@ -1468,7 +1468,8 @@ static qboolean GL_CreateSwapChain( void )
 	if (err != VK_SUCCESS)
 		Sys_Error("Couldn't get surface capabilities");
 
-	if (vulkan_surface_capabilities.currentExtent.width != vid.width || vulkan_surface_capabilities.currentExtent.height != vid.height) {
+	if ((vulkan_surface_capabilities.currentExtent.width != 0xFFFFFFFF || vulkan_surface_capabilities.currentExtent.width != 0xFFFFFFFF)
+		&& (vulkan_surface_capabilities.currentExtent.width != vid.width || vulkan_surface_capabilities.currentExtent.height != vid.height)) {
 		return false;
 	}
 
