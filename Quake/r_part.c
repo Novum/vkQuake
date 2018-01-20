@@ -841,7 +841,7 @@ void R_DrawParticles (void)
 	VectorScale (vright, 1.5, right);
 
 	R_BindPipeline(vulkan_globals.particle_pipeline);
-	vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout, 0, 1, &particletexture->descriptor_set, 0, NULL);
+	vulkan_globals.vk_cmd_bind_descriptor_sets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout, 0, 1, &particletexture->descriptor_set, 0, NULL);
 
 	int num_triangles = 0;
 	for (p=active_particles ; p ; p=p->next)
@@ -905,6 +905,6 @@ void R_DrawParticles (void)
 		rs_particles++;
 	}
 
-	vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &vertex_buffer, &vertex_buffer_offset);
-	vkCmdDraw(vulkan_globals.command_buffer, num_triangles * 3, 1, 0, 0);
+	vulkan_globals.vk_cmd_bind_vertex_buffers(vulkan_globals.command_buffer, 0, 1, &vertex_buffer, &vertex_buffer_offset);
+	vulkan_globals.vk_cmd_draw(vulkan_globals.command_buffer, num_triangles * 3, 1, 0, 0);
 }

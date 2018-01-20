@@ -181,6 +181,15 @@ typedef struct
 	float								projection_matrix[16];
 	float								view_matrix[16];
 	float								view_projection_matrix[16];
+
+	//Dispatch table
+	PFN_vkCmdBindPipeline				vk_cmd_bind_pipeline;
+	PFN_vkCmdPushConstants				vk_cmd_push_constants;
+	PFN_vkCmdBindDescriptorSets			vk_cmd_bind_descriptor_sets;
+	PFN_vkCmdBindIndexBuffer			vk_cmd_bind_index_buffer;
+	PFN_vkCmdBindVertexBuffers			vk_cmd_bind_vertex_buffers;
+	PFN_vkCmdDraw						vk_cmd_draw;
+	PFN_vkCmdDrawIndexed				vk_cmd_draw_indexed;
 } vulkanglobals_t;
 
 extern vulkanglobals_t vulkan_globals;
@@ -374,7 +383,7 @@ void R_DestroyPipelines();
 
 static inline void R_BindPipeline(VkPipeline pipeline) {
 	if(vulkan_globals.current_pipeline != pipeline) {
-		vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+		vulkan_globals.vk_cmd_bind_pipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 		vulkan_globals.current_pipeline = pipeline;
 	}
 }

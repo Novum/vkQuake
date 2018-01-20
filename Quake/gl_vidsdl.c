@@ -875,7 +875,14 @@ static void GL_InitDevice( void )
 		Con_Printf("Using D32 depth buffer format\n");
 		vulkan_globals.depth_format = VK_FORMAT_D32_SFLOAT;
 	}
-	
+
+	vulkan_globals.vk_cmd_bind_pipeline =			( PFN_vkCmdBindPipeline)		fpGetDeviceProcAddr(vulkan_globals.device, "vkCmdBindPipeline");
+	vulkan_globals.vk_cmd_push_constants =			( PFN_vkCmdPushConstants)		fpGetDeviceProcAddr(vulkan_globals.device, "vkCmdPushConstants");
+	vulkan_globals.vk_cmd_bind_descriptor_sets =	( PFN_vkCmdBindDescriptorSets)	fpGetDeviceProcAddr(vulkan_globals.device, "vkCmdBindDescriptorSets");
+	vulkan_globals.vk_cmd_bind_index_buffer =		( PFN_vkCmdBindIndexBuffer)		fpGetDeviceProcAddr(vulkan_globals.device, "vkCmdBindIndexBuffer");
+	vulkan_globals.vk_cmd_bind_vertex_buffers =		( PFN_vkCmdBindVertexBuffers)	fpGetDeviceProcAddr(vulkan_globals.device, "vkCmdBindVertexBuffers");
+	vulkan_globals.vk_cmd_draw =					( PFN_vkCmdDraw)				fpGetDeviceProcAddr(vulkan_globals.device, "vkCmdDraw");
+	vulkan_globals.vk_cmd_draw_indexed =			( PFN_vkCmdDrawIndexed)			fpGetDeviceProcAddr(vulkan_globals.device, "vkCmdDrawIndexed");
 }
 
 /*
