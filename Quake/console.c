@@ -924,7 +924,7 @@ void Con_TabComplete (void)
 	const char	*match;
 	static char	*c;
 	tab_t		*t;
-	int		mark, i;
+	int		mark, i, j;
 
 // if editline is empty, return
 	if (key_lines[edit_line][1] == 0)
@@ -945,11 +945,11 @@ void Con_TabComplete (void)
 
 // Map autocomplete function -- S.A
 // Since we don't have argument completion, this hack will do for now...
-	for (i=0; i<num_arg_completion_types; i++)
+	for (j=0; j<num_arg_completion_types; j++)
 	{
 	// arg_completion contains a command we can complete the arguments
 	// for (like "map ") and a list of all the maps.
-		arg_completion_type_t arg_completion = arg_completion_types[i];
+		arg_completion_type_t arg_completion = arg_completion_types[j];
 		const char *command_name = arg_completion.command;
 		
 		if (!strncmp (key_lines[edit_line] + 1, command_name, strlen(command_name)))
