@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2017 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2018 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -470,7 +470,7 @@ extern DECLSPEC Uint32 SDLCALL SDL_GetWindowPixelFormat(SDL_Window * window);
  *  If the window is created with any of the SDL_WINDOW_OPENGL or
  *  SDL_WINDOW_VULKAN flags, then the corresponding LoadLibrary function
  *  (SDL_GL_LoadLibrary or SDL_Vulkan_LoadLibrary) is called and the
- *  corrensponding UnloadLibrary function is called by SDL_DestroyWindow().
+ *  corresponding UnloadLibrary function is called by SDL_DestroyWindow().
  *
  *  If SDL_WINDOW_VULKAN is specified and there isn't a working Vulkan driver,
  *  SDL_CreateWindow() will fail because SDL_Vulkan_LoadLibrary() will fail.

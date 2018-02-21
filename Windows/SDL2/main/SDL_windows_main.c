@@ -52,7 +52,7 @@ ParseCommandLine(char *cmdline, char **argv)
     argc = last_argc = 0;
     for (bufp = cmdline; *bufp;) {
         /* Skip leading whitespace */
-        while (SDL_isspace(*bufp)) {
+        while (*bufp == ' ' || *bufp == '\t') {
             ++bufp;
         }
         /* Skip over argument */
@@ -78,7 +78,7 @@ ParseCommandLine(char *cmdline, char **argv)
                 ++argc;
             }
             /* Skip over word */
-            while (*bufp && !SDL_isspace(*bufp)) {
+            while (*bufp && (*bufp != ' ' && *bufp != '\t')) {
                 ++bufp;
             }
         }

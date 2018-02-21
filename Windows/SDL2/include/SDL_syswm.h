@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2017 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2018 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -110,6 +110,11 @@ typedef void *EGLSurface;
 #include "SDL_egl.h"
 #endif
 
+#if defined(SDL_VIDEO_DRIVER_OS2)
+#define INCL_WIN
+#include <os2.h>
+#endif
+
 /**
  *  These are the various supported windowing subsystems
  */
@@ -179,6 +184,16 @@ struct SDL_SysWMmsg
             int dummy;
             /* No Vivante window events yet */
         } vivante;
+#endif
+#if defined(SDL_VIDEO_DRIVER_OS2)
+        struct
+        {
+            BOOL fFrame;                /**< TRUE if hwnd is a frame window */
+            HWND hwnd;                  /**< The window receiving the message */
+            ULONG msg;                  /**< The message identifier */
+            MPARAM mp1;                 /**< The first first message parameter */
+            MPARAM mp2;                 /**< The second first message parameter */
+        } os2;
 #endif
         /* Can't have an empty union */
         int dummy;
@@ -271,6 +286,14 @@ struct SDL_SysWMinfo
             ANativeWindow *window;
             EGLSurface surface;
         } android;
+#endif
+
+#if defined(SDL_VIDEO_DRIVER_OS2)
+        struct
+        {
+            HWND hwnd;                  /**< The window handle */
+            HWND hwndFrame;             /**< The frame window handle */
+        } os2;
 #endif
 
 #if defined(SDL_VIDEO_DRIVER_VIVANTE)

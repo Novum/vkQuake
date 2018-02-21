@@ -152,6 +152,8 @@
 /* #undef HAVE_FMODF */
 #define HAVE_LOG 1
 /* #undef HAVE_LOGF */
+#define HAVE_LOG10 1
+/* #undef HAVE_LOG10F */
 #define HAVE_POW 1
 /* #undef HAVE_POWF */
 #define HAVE_SIN 1
