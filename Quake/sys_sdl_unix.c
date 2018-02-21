@@ -371,14 +371,14 @@ void Sys_Error (const char *error, ...)
 	va_list		argptr;
 	char		text[1024];
 
-	fputs (errortxt1, stderr);
-
-	Host_Shutdown ();
+	host_parms->errstate++;
 
 	va_start (argptr, error);
 	q_vsnprintf (text, sizeof(text), error, argptr);
 	va_end (argptr);
 
+	fputs (errortxt1, stderr);
+	Host_Shutdown ();
 	fputs (errortxt2, stderr);
 	fputs (text, stderr);
 	fputs ("\n\n", stderr);

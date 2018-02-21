@@ -303,7 +303,7 @@ void Host_WriteConfiguration (void)
 
 // dedicated servers initialize the host but don't parse and set the
 // config.cfg cvars
-	if (host_initialized && !isDedicated)
+	if (host_initialized && !isDedicated && !host_parms->errstate)
 	{
 		f = fopen (va("%s/config.cfg", com_gamedir), "w");
 		if (!f)
@@ -323,23 +323,6 @@ void Host_WriteConfiguration (void)
 		//johnfitz
 
 		fclose (f);
-
-//johnfitz -- also save fitzquake.rc
-#if 0
-		f = fopen (va("%s/fitzquake.rc", GAMENAME), "w"); //always save in id1
-		if (!f)
-		{
-			Con_Printf ("Couldn't write fitzquake.rc.\n");
-			return;
-		}
-
-		Cvar_WriteVariables (f);
-		fprintf (f, "vid_restart\n");
-		if (in_mlook.state & 1) fprintf (f, "+mlook\n");
-
-		fclose (f);
-#endif
-//johnfitz
 	}
 }
 

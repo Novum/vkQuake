@@ -264,6 +264,8 @@ void Sys_Error (const char *error, ...)
 	char		text[1024];
 	DWORD		dummy;
 
+	host_parms->errstate++;
+
 	va_start (argptr, error);
 	q_vsnprintf (text, sizeof(text), error, argptr);
 	va_end (argptr);
