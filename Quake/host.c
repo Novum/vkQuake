@@ -312,7 +312,7 @@ void Host_WriteConfiguration (void)
 			return;
 		}
 
-		VID_SyncCvars (); //johnfitz -- write actual current mode to config file, in case cvars were messed with
+		//VID_SyncCvars (); //johnfitz -- write actual current mode to config file, in case cvars were messed with
 
 		Key_WriteBindings (f);
 		Cvar_WriteVariables (f);
