@@ -20,6 +20,7 @@ Windows UWP:
 Mac OS X:
 * Added support for the Vulkan SDK for Mac:
   https://www.lunarg.com/lunarg-releases-vulkan-sdk-1-0-69-0-for-mac/
+* Added support for OpenGL ES using ANGLE when it's available
 
 Mac OS X / iOS / tvOS:
 * Added a Metal 2D render implementation
@@ -32,6 +33,7 @@ iOS / Android:
 * Added the hint SDL_HINT_RETURN_KEY_HIDES_IME to control whether the return key on the software keyboard should hide the keyboard or send a key event (the default)
 
 Android:
+* SDL now supports building with Android Studio and Gradle by default, and the old Ant project is available in android-project-ant
 * SDL now requires the API 19 SDK to build, but can still target devices down to API 14 (Android 4.0.1)
 * Added SDL_IsAndroidTV() to tell whether the application is running on Android TV
 
