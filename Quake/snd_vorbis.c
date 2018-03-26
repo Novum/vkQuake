@@ -64,8 +64,6 @@ static ov_callbacks ovc_qfs =
 	(long (*)(void *))				FS_ftell
 };
 
-#define OV_OPEN_CALLBACKS		ov_open_callbacks
-
 static qboolean S_VORBIS_CodecInitialize (void)
 {
 	return true;
@@ -84,7 +82,7 @@ static qboolean S_VORBIS_CodecOpenStream (snd_stream_t *stream)
 
 	ovFile = (OggVorbis_File *) Z_Malloc(sizeof(OggVorbis_File));
 	stream->priv = ovFile;
-	res = OV_OPEN_CALLBACKS(&stream->fh, ovFile, NULL, 0, ovc_qfs);
+	res = ov_open_callbacks(&stream->fh, ovFile, NULL, 0, ovc_qfs);
 	if (res != 0)
 	{
 		Con_Printf("%s is not a valid Ogg Vorbis file (error %i).\n",
@@ -152,11 +150,11 @@ static int S_VORBIS_CodecReadStream (snd_stream_t *stream, int bytes, void *buff
 	 *   the channels are interleaved in the output buffer.
 	 */
 		res = ov_read( (OggVorbis_File *)stream->priv, ptr, rem,
-#if !defined(VORBIS_USE_TREMOR)
+#ifndef VORBIS_USE_TREMOR
 				host_bigendian,
 				VORBIS_SAMPLEWIDTH,
 				VORBIS_SIGNED_DATA,
-#endif	/* ! VORBIS_USE_TREMOR */
+#endif
 				&section );
 		if (res <= 0)
 			break;
