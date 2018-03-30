@@ -737,7 +737,7 @@ void Sky_DrawSkyBox (void)
 
 		vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
 		R_BindPipeline(vulkan_globals.sky_box_pipeline);
-		vkCmdDraw(vulkan_globals.command_buffer, 4, 1, 0, 0);
+		vkCmdDrawIndexed(vulkan_globals.command_buffer, 6, 1, 0, 0, 0);
 
 		rs_skypolys++;
 		rs_skypasses++;
@@ -765,7 +765,7 @@ void Sky_DrawSkyBox (void)
 
 			vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
 			R_BindPipeline(vulkan_globals.basic_poly_blend_pipeline);
-			vkCmdDraw(vulkan_globals.command_buffer, 4, 1, 0, 0);
+			vkCmdDrawIndexed(vulkan_globals.command_buffer, 6, 1, 0, 0, 0);
 
 			rs_skypasses++;
 		}
@@ -861,7 +861,7 @@ void Sky_DrawFaceQuad (glpoly_t *p, float alpha)
 
 	vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &vertex_buffer, &vertex_buffer_offset);
 	R_BindPipeline(vulkan_globals.sky_layer_pipeline);
-	vkCmdDraw(vulkan_globals.command_buffer, 4, 1, 0, 0);
+	vkCmdDrawIndexed(vulkan_globals.command_buffer, 6, 1, 0, 0, 0);
 
 	rs_skypolys++;
 	rs_skypasses++;
@@ -889,7 +889,7 @@ void Sky_DrawFaceQuad (glpoly_t *p, float alpha)
 
 		vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
 		R_BindPipeline(vulkan_globals.basic_poly_blend_pipeline);
-		vkCmdDraw(vulkan_globals.command_buffer, 4, 1, 0, 0);
+		vkCmdDrawIndexed(vulkan_globals.command_buffer, 6, 1, 0, 0, 0);
 
 		rs_skypasses++;
 	}
@@ -994,6 +994,7 @@ void Sky_DrawSky (void)
 	}
 
 	R_BindPipeline(vulkan_globals.sky_color_pipeline);
+	vkCmdBindIndexBuffer(vulkan_globals.command_buffer, vulkan_globals.fan_index_buffer, 0, VK_INDEX_TYPE_UINT16);
 
 	//
 	// process world and bmodels: draw flat-shaded sky surfs, and update skybounds

@@ -2279,7 +2279,7 @@ void	VID_Init (void)
 	R_InitStagingBuffers();
 	R_CreateDescriptorSetLayouts();
 	R_CreateDescriptorPool();
-	R_InitDynamicBuffers();
+	R_InitGPUBuffers();
 	R_InitSamplers();
 	R_CreatePipelineLayouts();
 

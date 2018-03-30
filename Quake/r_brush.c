@@ -98,16 +98,22 @@ DrawGLPoly
 void DrawGLPoly (glpoly_t *p, float color[3], float alpha)
 {
 	const int numverts = p->numverts;
-	
-	VkBuffer buffer;
-	VkDeviceSize buffer_offset;
-	basicvertex_t * vertices = (basicvertex_t*)R_VertexAllocate(numverts * sizeof(basicvertex_t), &buffer, &buffer_offset);
+	const int numtriangles = (numverts - 2);
+	const int numindices = numtriangles * 3;
+
+	VkBuffer vertex_buffer;
+	VkDeviceSize vertex_buffer_offset;
+	VkBuffer index_buffer;
+	VkDeviceSize index_buffer_offset;
+
+	basicvertex_t * vertices = (basicvertex_t*)R_VertexAllocate(numverts * sizeof(basicvertex_t), &vertex_buffer, &vertex_buffer_offset);
 
 	float	*v;
 	int		i;
+	int		current_index = 0;
 
 	v = p->verts[0];
-	for (i=0; i < numverts ; ++i, v+= VERTEXSIZE)
+	for (i = 0; i < numverts; ++i, v += VERTEXSIZE)
 	{
 		vertices[i].position[0] = v[0];
 		vertices[i].position[1] = v[1];
@@ -120,8 +126,24 @@ void DrawGLPoly (glpoly_t *p, float color[3], float alpha)
 		vertices[i].color[3] = alpha * 255.0f;
 	}
 
-	vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
-	vkCmdDraw(vulkan_globals.command_buffer, numverts, 1, 0, 0);
+	// I don't know the maximum poly size quake maps can have, so just in case fall back to dynamic allocations
+	// TODO: Find out if it's necessary
+	if (numindices > FAN_INDEX_BUFFER_SIZE)
+	{
+		uint16_t * indices = (uint16_t *)R_IndexAllocate(numindices * sizeof(uint16_t), &index_buffer, &index_buffer_offset);
+		for (i = 0; i < numtriangles; ++i)
+		{
+			indices[current_index++] = 0;
+			indices[current_index++] = 1 + i;
+			indices[current_index++] = 2 + i;
+		}
+		vkCmdBindIndexBuffer(vulkan_globals.command_buffer, index_buffer, index_buffer_offset, VK_INDEX_TYPE_UINT16);
+	}
+	else
+		vkCmdBindIndexBuffer(vulkan_globals.command_buffer, vulkan_globals.fan_index_buffer, 0, VK_INDEX_TYPE_UINT16);
+
+	vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &vertex_buffer, &vertex_buffer_offset);
+	vkCmdDrawIndexed(vulkan_globals.command_buffer, numindices, 1, 0, 0, 0);
 }
 
 /*

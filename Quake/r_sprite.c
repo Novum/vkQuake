@@ -180,6 +180,8 @@ void R_DrawSpriteModel (entity_t *e)
 	vertices[3].texcoord[1] = frame->tmax;
 
 	vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
+	vkCmdBindIndexBuffer(vulkan_globals.command_buffer, vulkan_globals.fan_index_buffer, 0, VK_INDEX_TYPE_UINT16);
+
 	R_BindPipeline(vulkan_globals.sprite_pipeline);
 
 	if (psprite->type == SPR_ORIENTED)
@@ -188,5 +190,5 @@ void R_DrawSpriteModel (entity_t *e)
 		vkCmdSetDepthBias(vulkan_globals.command_buffer, OFFSET_NONE, 0.0f, 0.0f);
 
 	vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout, 0, 1, &frame->gltexture->descriptor_set, 0, NULL);
-	vkCmdDraw(vulkan_globals.command_buffer, 4, 1, 0, 0);
+	vkCmdDrawIndexed(vulkan_globals.command_buffer, 6, 1, 0, 0, 0);
 }

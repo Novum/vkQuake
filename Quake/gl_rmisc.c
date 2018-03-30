@@ -704,6 +704,72 @@ static void R_InitDynamicUniformBuffers()
 
 /*
 ===============
+R_InitFanIndexBuffer
+===============
+*/
+static void R_InitFanIndexBuffer()
+{
+	Con_Printf("Initializing dynamic uniform buffers\n");
+
+	VkResult err;
+	VkDeviceMemory memory;
+	const int bufferSize = sizeof(uint16_t) * FAN_INDEX_BUFFER_SIZE;
+
+	VkBufferCreateInfo buffer_create_info;
+	memset(&buffer_create_info, 0, sizeof(buffer_create_info));
+	buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	buffer_create_info.size = bufferSize;
+	buffer_create_info.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+
+	err = vkCreateBuffer(vulkan_globals.device, &buffer_create_info, NULL, &vulkan_globals.fan_index_buffer);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkCreateBuffer failed");
+
+	GL_SetObjectName((uint64_t)vulkan_globals.fan_index_buffer, VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT, "Quad Index Buffer");
+
+	VkMemoryRequirements memory_requirements;
+	vkGetBufferMemoryRequirements(vulkan_globals.device, vulkan_globals.fan_index_buffer, &memory_requirements);
+
+	VkMemoryAllocateInfo memory_allocate_info;
+	memset(&memory_allocate_info, 0, sizeof(memory_allocate_info));
+	memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	memory_allocate_info.allocationSize = memory_requirements.size;
+	memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
+
+	num_vulkan_dynbuf_allocations += 1;
+	err = vkAllocateMemory(vulkan_globals.device, &memory_allocate_info, NULL, &memory);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkAllocateMemory failed");
+
+	err = vkBindBufferMemory(vulkan_globals.device, vulkan_globals.fan_index_buffer, memory, 0);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkBindBufferMemory failed");
+
+	{
+		VkBuffer staging_buffer;
+		VkCommandBuffer command_buffer;
+		int staging_offset;
+		int current_index = 0;
+		int i;
+		uint16_t * staging_memory = (uint16_t*)R_StagingAllocate(bufferSize, 1, &command_buffer, &staging_buffer, &staging_offset);
+
+		for (i = 0; i < FAN_INDEX_BUFFER_SIZE / 3; ++i)
+		{
+			staging_memory[current_index++] = 0;
+			staging_memory[current_index++] = 1 + i;
+			staging_memory[current_index++] = 2 + i;
+		}
+
+		VkBufferCopy region;
+		region.srcOffset = staging_offset;
+		region.dstOffset = 0;
+		region.size = bufferSize;
+		vkCmdCopyBuffer(command_buffer, staging_buffer, vulkan_globals.fan_index_buffer, 1, &region);
+	}
+}
+
+/*
+===============
 R_SwapDynamicBuffers
 ===============
 */
@@ -764,16 +830,21 @@ R_IndexAllocate
 */
 byte * R_IndexAllocate(int size, VkBuffer * buffer, VkDeviceSize * buffer_offset)
 {
+	// Align to 4 bytes because we allocate both uint16 and uint32
+	// index buffers and alignment must match index size
+	const int align_mod = size % 4;
+	const int aligned_size = ((size % 4) == 0) ? size : (size + 4 - align_mod);
+
 	dynbuffer_t *dyn_ib = &dyn_index_buffers[current_dyn_buffer_index];
 
-	if ((dyn_ib->current_offset + size) > (DYNAMIC_INDEX_BUFFER_SIZE_KB * 1024))
+	if ((dyn_ib->current_offset + aligned_size) > (DYNAMIC_INDEX_BUFFER_SIZE_KB * 1024))
 		Sys_Error("Out of dynamic index buffer space, increase DYNAMIC_INDEX_BUFFER_SIZE_KB");
 
 	*buffer = dyn_ib->buffer;
 	*buffer_offset = dyn_ib->current_offset;
 
 	unsigned char *data = dyn_ib->data + dyn_ib->current_offset;
-	dyn_ib->current_offset += size;
+	dyn_ib->current_offset += aligned_size;
 
 	return data;
 }
@@ -812,14 +883,15 @@ byte * R_UniformAllocate(int size, VkBuffer * buffer, uint32_t * buffer_offset, 
 
 /*
 ===============
-R_InitDynamicBuffers
+R_InitGPUBuffers
 ===============
 */
-void R_InitDynamicBuffers()
+void R_InitGPUBuffers()
 {
 	R_InitDynamicVertexBuffers();
 	R_InitDynamicIndexBuffers();
 	R_InitDynamicUniformBuffers();
+	R_InitFanIndexBuffer();
 }
 
 /*
@@ -1317,16 +1389,12 @@ void R_CreatePipelines()
 	pipeline_create_info.subpass = 0;
 	multisample_state_create_info.rasterizationSamples = vulkan_globals.sample_count;
 
-	input_assembly_state_create_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN;
-
 	assert(vulkan_globals.basic_poly_blend_pipeline == VK_NULL_HANDLE);
 	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.basic_poly_blend_pipeline);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateGraphicsPipelines failed");
 
 	GL_SetObjectName((uint64_t)vulkan_globals.basic_poly_blend_pipeline, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "basic_poly_blend");
-
-	input_assembly_state_create_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
 	shader_stages[1].module = basic_frag_module;
 
@@ -1388,7 +1456,7 @@ void R_CreatePipelines()
 	//================
 	// Water
 	//================
-	input_assembly_state_create_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN;
+	input_assembly_state_create_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 	depth_stencil_state_create_info.depthTestEnable = VK_TRUE;
 	depth_stencil_state_create_info.depthWriteEnable = VK_TRUE;
 	depth_stencil_state_create_info.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;

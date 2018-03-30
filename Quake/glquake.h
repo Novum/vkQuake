@@ -52,6 +52,8 @@ extern	int glx, gly, glwidth, glheight;
 #define NUM_COLOR_BUFFERS 2
 #define STAGING_BUFFER_SIZE_KB	16384
 
+#define FAN_INDEX_BUFFER_SIZE 126
+
 void R_TimeRefresh_f (void);
 void R_ReadPointFile_f (void);
 texture_t *R_TextureAnimation (texture_t *base, int frame);
@@ -128,6 +130,9 @@ typedef struct
 
 	// Buffers
 	VkImage								color_buffers[NUM_COLOR_BUFFERS];
+
+	// Index buffers
+	VkBuffer							fan_index_buffer;
 
 	// Render passes
 	VkRenderPass						main_render_pass;
@@ -392,7 +397,7 @@ void R_InitStagingBuffers();
 void R_SubmitStagingBuffers();
 byte * R_StagingAllocate(int size, int alignment, VkCommandBuffer * command_buffer, VkBuffer * buffer, int * buffer_offset);
 
-void R_InitDynamicBuffers();
+void R_InitGPUBuffers();
 void R_SwapDynamicBuffers();
 void R_FlushDynamicBuffers();
 byte * R_VertexAllocate(int size, VkBuffer * buffer, VkDeviceSize * buffer_offset);
