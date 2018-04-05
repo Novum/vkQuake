@@ -86,7 +86,17 @@ extern "C" {
 #  endif
 # endif
 
-#if (!defined(__STDC_VERSION__) || (__STDC_VERSION__ < 199901L) )
+#if defined(__WATCOMC__)
+# if (__WATCOMC__ >= 1250)
+#  define OPUS_RESTRICT __restrict
+# else
+#  define OPUS_RESTRICT
+# endif
+#elif (defined(__GNUC__) && !OPUS_GNUC_PREREQ(3,4))
+/* __restrict is broken with gcc < 3.4
+   https://gcc.gnu.org/bugzilla/show_bug.cgi?id=6392 */
+# define OPUS_RESTRICT
+#elif (!defined(__STDC_VERSION__) || (__STDC_VERSION__ < 199901L) )
 # if OPUS_GNUC_PREREQ(3,0)
 #  define OPUS_RESTRICT __restrict__
 # elif (defined(_MSC_VER) && _MSC_VER >= 1400)
