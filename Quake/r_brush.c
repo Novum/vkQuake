@@ -847,9 +847,6 @@ static void R_UploadLightmap(int lmap, gltexture_t * lightmap)
 {
 	glRect_t	*theRect;
 
-	if (!lightmap_modified[lmap])
-		return;
-
 	lightmap_modified[lmap] = false;
 
 	theRect = &lightmap_rectchange[lmap];
@@ -890,15 +887,15 @@ static void R_UploadLightmap(int lmap, gltexture_t * lightmap)
 	image_memory_barrier.subresourceRange.baseArrayLayer = 0;
 	image_memory_barrier.subresourceRange.layerCount = 1;
 
-	vkCmdPipelineBarrier(command_buffer, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, NULL, 0, NULL, 1, &image_memory_barrier);
-
-	vkCmdCopyBufferToImage(command_buffer, staging_buffer, lightmap->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+	vulkan_globals.vk_cmd_pipeline_barrier(command_buffer, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, NULL, 0, NULL, 1, &image_memory_barrier);
+	
+	vulkan_globals.vk_cmd_copy_buffer_to_image(command_buffer, staging_buffer, lightmap->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 
 	image_memory_barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
 	image_memory_barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	image_memory_barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 	image_memory_barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-	vkCmdPipelineBarrier(command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL, 1, &image_memory_barrier);
+	vulkan_globals.vk_cmd_pipeline_barrier(command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL, 1, &image_memory_barrier);
 
 	theRect->l = BLOCK_WIDTH;
 	theRect->t = BLOCK_HEIGHT;

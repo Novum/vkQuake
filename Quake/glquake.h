@@ -195,6 +195,8 @@ typedef struct
 	PFN_vkCmdBindVertexBuffers			vk_cmd_bind_vertex_buffers;
 	PFN_vkCmdDraw						vk_cmd_draw;
 	PFN_vkCmdDrawIndexed				vk_cmd_draw_indexed;
+	PFN_vkCmdPipelineBarrier			vk_cmd_pipeline_barrier;
+	PFN_vkCmdCopyBufferToImage			vk_cmd_copy_buffer_to_image;
 } vulkanglobals_t;
 
 extern vulkanglobals_t vulkan_globals;
