@@ -103,8 +103,6 @@ void DrawGLPoly (glpoly_t *p, float color[3], float alpha)
 
 	VkBuffer vertex_buffer;
 	VkDeviceSize vertex_buffer_offset;
-	VkBuffer index_buffer;
-	VkDeviceSize index_buffer_offset;
 
 	basicvertex_t * vertices = (basicvertex_t*)R_VertexAllocate(numverts * sizeof(basicvertex_t), &vertex_buffer, &vertex_buffer_offset);
 
@@ -130,6 +128,9 @@ void DrawGLPoly (glpoly_t *p, float color[3], float alpha)
 	// TODO: Find out if it's necessary
 	if (numindices > FAN_INDEX_BUFFER_SIZE)
 	{
+		VkBuffer index_buffer;
+		VkDeviceSize index_buffer_offset;
+
 		uint16_t * indices = (uint16_t *)R_IndexAllocate(numindices * sizeof(uint16_t), &index_buffer, &index_buffer_offset);
 		for (i = 0; i < numtriangles; ++i)
 		{
@@ -137,13 +138,13 @@ void DrawGLPoly (glpoly_t *p, float color[3], float alpha)
 			indices[current_index++] = 1 + i;
 			indices[current_index++] = 2 + i;
 		}
-		vkCmdBindIndexBuffer(vulkan_globals.command_buffer, index_buffer, index_buffer_offset, VK_INDEX_TYPE_UINT16);
+		vulkan_globals.vk_cmd_bind_index_buffer(vulkan_globals.command_buffer, index_buffer, index_buffer_offset, VK_INDEX_TYPE_UINT16);
 	}
 	else
-		vkCmdBindIndexBuffer(vulkan_globals.command_buffer, vulkan_globals.fan_index_buffer, 0, VK_INDEX_TYPE_UINT16);
+		vulkan_globals.vk_cmd_bind_index_buffer(vulkan_globals.command_buffer, vulkan_globals.fan_index_buffer, 0, VK_INDEX_TYPE_UINT16);
 
-	vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &vertex_buffer, &vertex_buffer_offset);
-	vkCmdDrawIndexed(vulkan_globals.command_buffer, numindices, 1, 0, 0, 0);
+	vulkan_globals.vk_cmd_bind_vertex_buffers(vulkan_globals.command_buffer, 0, 1, &vertex_buffer, &vertex_buffer_offset);
+	vulkan_globals.vk_cmd_draw_indexed(vulkan_globals.command_buffer, numindices, 1, 0, 0, 0);
 }
 
 /*
@@ -225,7 +226,7 @@ void R_DrawBrushModel (entity_t *e)
 	memcpy(mvp, vulkan_globals.view_projection_matrix, 16 * sizeof(float));
 	MatrixMultiply(mvp, model_matrix);
 
-	vkCmdPushConstants(vulkan_globals.command_buffer, vulkan_globals.basic_pipeline_layout, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 16 * sizeof(float), mvp);
+	vulkan_globals.vk_cmd_push_constants(vulkan_globals.command_buffer, vulkan_globals.basic_pipeline_layout, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 16 * sizeof(float), mvp);
 
 	R_ClearTextureChains (clmodel, chain_model);
 	for (i=0 ; i<clmodel->nummodelsurfaces ; i++, psurf++)
@@ -243,7 +244,7 @@ void R_DrawBrushModel (entity_t *e)
 	R_DrawTextureChains (clmodel, e, chain_model);
 	R_DrawTextureChains_Water (clmodel, e, chain_model);
 
-	vkCmdPushConstants(vulkan_globals.command_buffer, vulkan_globals.basic_pipeline_layout, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 16 * sizeof(float), vulkan_globals.view_projection_matrix);
+	vulkan_globals.vk_cmd_push_constants(vulkan_globals.command_buffer, vulkan_globals.basic_pipeline_layout, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 16 * sizeof(float), vulkan_globals.view_projection_matrix);
 }
 
 /*
