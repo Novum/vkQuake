@@ -493,10 +493,10 @@ void Draw_Character (int x, int y, int num)
 
 	Draw_FillCharacterQuad(x, y, (char)num, vertices);
 
-	vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
+	vulkan_globals.vk_cmd_bind_vertex_buffers(vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
 	R_BindPipeline(vulkan_globals.basic_alphatest_pipeline[render_pass_index]);
-	vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout, 0, 1, &char_texture->descriptor_set, 0, NULL);
-	vkCmdDraw(vulkan_globals.command_buffer, 6, 1, 0, 0);
+	vulkan_globals.vk_cmd_bind_descriptor_sets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout, 0, 1, &char_texture->descriptor_set, 0, NULL);
+	vulkan_globals.vk_cmd_draw(vulkan_globals.command_buffer, 6, 1, 0, 0);
 }
 
 /*
@@ -531,10 +531,10 @@ void Draw_String (int x, int y, const char *str)
 		x += 8;
 	}
 
-	vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
+	vulkan_globals.vk_cmd_bind_vertex_buffers(vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
 	R_BindPipeline(vulkan_globals.basic_alphatest_pipeline[render_pass_index]);
-	vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout, 0, 1, &char_texture->descriptor_set, 0, NULL);
-	vkCmdDraw(vulkan_globals.command_buffer, num_verts, 1, 0, 0);
+	vulkan_globals.vk_cmd_bind_descriptor_sets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout, 0, 1, &char_texture->descriptor_set, 0, NULL);
+	vulkan_globals.vk_cmd_draw(vulkan_globals.command_buffer, num_verts, 1, 0, 0);
 }
 
 /*
