@@ -397,11 +397,11 @@ static void PF_normalize (void)
 {
 	float	*value1;
 	vec3_t	newvalue;
-	float	new_temp;
+	double	new_temp;
 
 	value1 = G_VECTOR(OFS_PARM0);
 
-	new_temp = value1[0] * value1[0] + value1[1] * value1[1] + value1[2]*value1[2];
+	new_temp = (double)value1[0] * value1[0] + (double)value1[1] * value1[1] + (double)value1[2]*value1[2];
 	new_temp = sqrt (new_temp);
 
 	if (new_temp == 0)
