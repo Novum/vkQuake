@@ -410,11 +410,11 @@ static qboolean VID_SetMode (int width, int height, int refreshrate, int bpp, qb
 		
 		draw_context = SDL_CreateWindow (caption, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, flags);
 		if (!draw_context)
-			Sys_Error ("Couldn't create window");
+			Sys_Error ("Couldn't create window: %s", SDL_GetError());
 
 		SDL_VERSION(&sys_wm_info.version);
 		if(!SDL_GetWindowWMInfo(draw_context,&sys_wm_info))
-			Sys_Error ("Couldn't get window wm info");
+			Sys_Error ("Couldn't get window wm info: %s", SDL_GetError());
 
 		previous_display = -1;
 	}
@@ -427,7 +427,7 @@ static qboolean VID_SetMode (int width, int height, int refreshrate, int bpp, qb
 	if (VID_GetFullscreen ())
 	{
 		if (SDL_SetWindowFullscreen (draw_context, 0) != 0)
-			Sys_Error("Couldn't set fullscreen state mode");
+			Sys_Error("Couldn't set fullscreen state mode: %s", SDL_GetError());
 	}
 
 	/* Set window size and display mode */
@@ -446,7 +446,7 @@ static qboolean VID_SetMode (int width, int height, int refreshrate, int bpp, qb
 			SDL_WINDOW_FULLSCREEN_DESKTOP :
 			SDL_WINDOW_FULLSCREEN;
 		if (SDL_SetWindowFullscreen (draw_context, flags) != 0)
-			Sys_Error ("Couldn't set fullscreen state mode");
+			Sys_Error ("Couldn't set fullscreen state mode: %s", SDL_GetError());
 	}
 
 	SDL_ShowWindow (draw_context);
@@ -2178,7 +2178,7 @@ void	VID_Init (void)
 	{
 		SDL_DisplayMode mode;
 		if (SDL_GetDesktopDisplayMode(0, &mode) != 0)
-			Sys_Error("Could not get desktop display mode");
+			Sys_Error("Could not get desktop display mode: %s\n", SDL_GetError());
 
 		display_width = mode.w;
 		display_height = mode.h;
