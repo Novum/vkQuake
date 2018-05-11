@@ -33,12 +33,6 @@
 #include "SDL_video.h"
 #include "SDL_version.h"
 
-#include "begin_code.h"
-/* Set up for C function definitions, even when using C++ */
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /**
  *  \file SDL_syswm.h
  *
@@ -113,6 +107,12 @@ typedef void *EGLSurface;
 #if defined(SDL_VIDEO_DRIVER_OS2)
 #define INCL_WIN
 #include <os2.h>
+#endif
+
+#include "begin_code.h"
+/* Set up for C function definitions, even when using C++ */
+#ifdef __cplusplus
+extern "C" {
 #endif
 
 /**
