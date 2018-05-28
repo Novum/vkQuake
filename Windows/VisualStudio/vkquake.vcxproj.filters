@@ -304,6 +304,9 @@
     <ClCompile Include="..\..\Shaders\Compiled\alias_alphatest_frag.c">
       <Filter>Shaders\Compiled</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\cs_tex_warp_comp.c">
+      <Filter>Shaders\Compiled</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\Quake\snd_codec.h">
@@ -557,6 +560,9 @@
       <Filter>Shaders</Filter>
     </None>
     <None Include="..\..\Shaders\alias_alphatest.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\..\Shaders\cs_tex_warp.comp">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>

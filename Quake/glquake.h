@@ -152,7 +152,7 @@ typedef struct
 	VkPipelineLayout					world_pipeline_layout;
 	VkPipeline							water_pipeline;
 	VkPipeline							water_blend_pipeline;
-	VkPipeline							warp_pipeline;
+	VkPipeline							raster_tex_warp_pipeline;
 	VkPipeline							particle_pipeline;
 	VkPipeline							sprite_pipeline;
 	VkPipeline							sky_color_pipeline;
@@ -167,6 +167,8 @@ typedef struct
 	VkPipelineLayout					postprocess_pipeline_layout;
 	VkPipeline							screen_warp_pipeline;
 	VkPipelineLayout					screen_warp_pipeline_layout;
+	VkPipeline							cs_tex_warp_pipeline;
+	VkPipelineLayout					cs_tex_warp_pipeline_layout;
 
 	// Descriptors
 	VkDescriptorPool					descriptor_pool;
@@ -175,6 +177,8 @@ typedef struct
 	VkDescriptorSetLayout				input_attachment_set_layout;
 	VkDescriptorSet						screen_warp_desc_set;
 	VkDescriptorSetLayout				screen_warp_set_layout;
+	VkDescriptorSetLayout				single_texture_cs_read_set_layout;
+	VkDescriptorSetLayout				single_texture_cs_write_set_layout;
 
 	// Samplers
 	VkSampler							point_sampler;

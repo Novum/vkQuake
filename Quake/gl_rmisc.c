@@ -36,6 +36,7 @@ extern cvar_t gl_fullbrights;
 extern cvar_t gl_farclip;
 extern cvar_t r_waterquality;
 extern cvar_t r_waterwarp;
+extern cvar_t r_waterwarpcompute;
 extern cvar_t r_oldskyleaf;
 extern cvar_t r_drawworld;
 extern cvar_t r_showtris;
@@ -967,6 +968,34 @@ void R_CreateDescriptorSetLayouts()
 	err = vkCreateDescriptorSetLayout(vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.screen_warp_set_layout);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateDescriptorSetLayout failed");
+
+	VkDescriptorSetLayoutBinding single_texture_cs_read_layout_binding;
+	memset(&single_texture_cs_read_layout_binding, 0, sizeof(single_texture_cs_read_layout_binding));
+	single_texture_cs_read_layout_binding.binding = 0;
+	single_texture_cs_read_layout_binding.descriptorCount = 1;
+	single_texture_cs_read_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	single_texture_cs_read_layout_binding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
+	descriptor_set_layout_create_info.bindingCount = 1;
+	descriptor_set_layout_create_info.pBindings = &single_texture_cs_read_layout_binding;
+
+	err = vkCreateDescriptorSetLayout(vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.single_texture_cs_read_set_layout);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkCreateDescriptorSetLayout failed");
+
+	VkDescriptorSetLayoutBinding single_texture_write_layout_binding;
+	memset(&single_texture_write_layout_binding, 0, sizeof(single_texture_write_layout_binding));
+	single_texture_write_layout_binding.binding = 0;
+	single_texture_write_layout_binding.descriptorCount = 1;
+	single_texture_write_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+	single_texture_write_layout_binding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
+	descriptor_set_layout_create_info.bindingCount = 1;
+	descriptor_set_layout_create_info.pBindings = &single_texture_write_layout_binding;
+
+	err = vkCreateDescriptorSetLayout(vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.single_texture_cs_write_set_layout);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkCreateDescriptorSetLayout failed");
 }
 
 /*
@@ -1107,6 +1136,26 @@ void R_CreatePipelineLayouts()
 	err = vkCreatePipelineLayout(vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.screen_warp_pipeline_layout);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreatePipelineLayout failed");
+
+	// Texture warp
+	VkDescriptorSetLayout tex_warp_descriptor_set_layouts[2] = {
+		vulkan_globals.single_texture_cs_read_set_layout,
+		vulkan_globals.single_texture_cs_write_set_layout,
+	};
+
+	memset(&push_constant_range, 0, sizeof(push_constant_range));
+	push_constant_range.offset = 0;
+	push_constant_range.size = 2 * sizeof(uint32_t) + 2 * sizeof(float);
+	push_constant_range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
+	pipeline_layout_create_info.setLayoutCount = 2;
+	pipeline_layout_create_info.pSetLayouts = tex_warp_descriptor_set_layouts;
+	pipeline_layout_create_info.pushConstantRangeCount = 1;
+	pipeline_layout_create_info.pPushConstantRanges = &push_constant_range;
+
+	err = vkCreatePipelineLayout(vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.cs_tex_warp_pipeline_layout);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkCreatePipelineLayout failed");
 }
 
 /*
@@ -1224,6 +1273,7 @@ void R_CreatePipelines()
 	VkShaderModule postprocess_frag_module = R_CreateShaderModule(postprocess_frag_spv, postprocess_frag_spv_size);
 	VkShaderModule screen_warp_comp_module = R_CreateShaderModule(screen_warp_comp_spv, screen_warp_comp_spv_size);
 	VkShaderModule screen_warp_rgba8_comp_module = R_CreateShaderModule(screen_warp_rgba8_comp_spv, screen_warp_rgba8_comp_spv_size);
+	VkShaderModule cs_tex_warp_module = R_CreateShaderModule(cs_tex_warp_comp_spv, cs_tex_warp_comp_spv_size);
 
 	VkPipelineDynamicStateCreateInfo dynamic_state_create_info;
 	memset(&dynamic_state_create_info, 0, sizeof(dynamic_state_create_info));
@@ -1427,12 +1477,12 @@ void R_CreatePipelines()
 
 	pipeline_create_info.renderPass = vulkan_globals.warp_render_pass;
 
-	assert(vulkan_globals.warp_pipeline == VK_NULL_HANDLE);
-	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.warp_pipeline);
+	assert(vulkan_globals.raster_tex_warp_pipeline == VK_NULL_HANDLE);
+	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.raster_tex_warp_pipeline);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateGraphicsPipelines failed");
 
-	GL_SetObjectName((uint64_t)vulkan_globals.warp_pipeline, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "warp");
+	GL_SetObjectName((uint64_t)vulkan_globals.raster_tex_warp_pipeline, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "warp");
 
 	//================
 	// Particles
@@ -1762,7 +1812,6 @@ void R_CreatePipelines()
 	//================
 	VkPipelineShaderStageCreateInfo compute_shader_stage;
 	memset(&compute_shader_stage, 0, sizeof(compute_shader_stage));
-
 	compute_shader_stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 	compute_shader_stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
 	compute_shader_stage.module = (vulkan_globals.color_format == VK_FORMAT_A2B10G10R10_UNORM_PACK32) ? screen_warp_comp_module : screen_warp_rgba8_comp_module;
@@ -1779,8 +1828,30 @@ void R_CreatePipelines()
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateGraphicsPipelines failed");
 
-	GL_SetObjectName((uint64_t)vulkan_globals.warp_pipeline, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "screen_warp");
+	GL_SetObjectName((uint64_t)vulkan_globals.raster_tex_warp_pipeline, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "screen_warp");
 
+	//================
+	// Texture Warp
+	//================
+	memset(&compute_shader_stage, 0, sizeof(compute_shader_stage));
+	compute_shader_stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	compute_shader_stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+	compute_shader_stage.module = cs_tex_warp_module;
+	compute_shader_stage.pName = "main";
+
+	memset(&compute_pipeline_create_info, 0, sizeof(compute_pipeline_create_info));
+	compute_pipeline_create_info.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+	compute_pipeline_create_info.stage = compute_shader_stage;
+	compute_pipeline_create_info.layout = vulkan_globals.cs_tex_warp_pipeline_layout;
+
+	assert(vulkan_globals.cs_tex_warp_pipeline == VK_NULL_HANDLE);
+	err = vkCreateComputePipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &compute_pipeline_create_info, NULL, &vulkan_globals.cs_tex_warp_pipeline);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkCreateGraphicsPipelines failed");
+
+	GL_SetObjectName((uint64_t)vulkan_globals.raster_tex_warp_pipeline, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "screen_warp");
+
+	vkDestroyShaderModule(vulkan_globals.device, cs_tex_warp_module, NULL);
 	vkDestroyShaderModule(vulkan_globals.device, screen_warp_rgba8_comp_module, NULL);
 	vkDestroyShaderModule(vulkan_globals.device, screen_warp_comp_module, NULL);
 	vkDestroyShaderModule(vulkan_globals.device, postprocess_frag_module, NULL);
@@ -1825,8 +1896,8 @@ void R_DestroyPipelines(void)
 	vulkan_globals.water_pipeline = VK_NULL_HANDLE;
 	vkDestroyPipeline(vulkan_globals.device, vulkan_globals.water_blend_pipeline, NULL);
 	vulkan_globals.water_blend_pipeline = VK_NULL_HANDLE;
-	vkDestroyPipeline(vulkan_globals.device, vulkan_globals.warp_pipeline, NULL);
-	vulkan_globals.warp_pipeline = VK_NULL_HANDLE;
+	vkDestroyPipeline(vulkan_globals.device, vulkan_globals.raster_tex_warp_pipeline, NULL);
+	vulkan_globals.raster_tex_warp_pipeline = VK_NULL_HANDLE;
 	vkDestroyPipeline(vulkan_globals.device, vulkan_globals.particle_pipeline, NULL);
 	vulkan_globals.particle_pipeline = VK_NULL_HANDLE;
 	vkDestroyPipeline(vulkan_globals.device, vulkan_globals.sprite_pipeline, NULL);
@@ -1847,6 +1918,8 @@ void R_DestroyPipelines(void)
 	vulkan_globals.postprocess_pipeline = VK_NULL_HANDLE;
 	vkDestroyPipeline(vulkan_globals.device, vulkan_globals.screen_warp_pipeline, NULL);
 	vulkan_globals.screen_warp_pipeline = VK_NULL_HANDLE;
+	vkDestroyPipeline(vulkan_globals.device, vulkan_globals.cs_tex_warp_pipeline, NULL);
+	vulkan_globals.cs_tex_warp_pipeline = VK_NULL_HANDLE;
 }
 
 /*
@@ -1890,6 +1963,7 @@ void R_Init (void)
 	Cvar_SetCallback (&r_clearcolor, R_SetClearColor_f);
 	Cvar_RegisterVariable (&r_waterquality);
 	Cvar_RegisterVariable (&r_waterwarp);
+	Cvar_RegisterVariable (&r_waterwarpcompute);
 	Cvar_RegisterVariable (&r_drawflat);
 	Cvar_RegisterVariable (&r_flatlightstyles);
 	Cvar_RegisterVariable (&r_oldskyleaf);

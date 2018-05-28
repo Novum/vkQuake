@@ -27,6 +27,7 @@ extern cvar_t r_drawflat;
 
 cvar_t r_waterquality = {"r_waterquality", "8", CVAR_NONE};
 cvar_t r_waterwarp = {"r_waterwarp", "1", CVAR_ARCHIVE};
+cvar_t r_waterwarpcompute = { "r_waterwarpcompute", "1", CVAR_ARCHIVE };
 
 float load_subdivide_size; //johnfitz -- remember what subdivide_size value was when this map was loaded
 
@@ -175,6 +176,85 @@ void GL_SubdivideSurface (msurface_t *fa)
 //  RENDER-TO-FRAMEBUFFER WATER
 //
 //==============================================================================
+static void R_RasterWarpTexture(texture_t *tx, float warptess) {
+	float x, y, x2;
+
+	VkRect2D render_area;
+	render_area.offset.x = 0;
+	render_area.offset.y = 0;
+	render_area.extent.width = WARPIMAGESIZE;
+	render_area.extent.height = WARPIMAGESIZE;
+
+	VkRenderPassBeginInfo render_pass_begin_info;
+	memset(&render_pass_begin_info, 0, sizeof(render_pass_begin_info));
+	render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+	render_pass_begin_info.renderArea = render_area;
+	render_pass_begin_info.renderPass = vulkan_globals.warp_render_pass;
+	render_pass_begin_info.framebuffer = tx->warpimage->frame_buffer;
+
+	vkCmdBeginRenderPass(vulkan_globals.command_buffer, &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
+
+	//render warp
+	GL_SetCanvas(CANVAS_WARPIMAGE);
+	R_BindPipeline(vulkan_globals.raster_tex_warp_pipeline);
+	vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout, 0, 1, &tx->gltexture->descriptor_set, 0, NULL);
+
+	int num_verts = 0;
+	for (y = 0.0; y<128.01; y += warptess) // .01 for rounding errors
+		num_verts += 2;
+
+	for (x = 0.0; x<128.0; x = x2)
+	{
+		VkBuffer buffer;
+		VkDeviceSize buffer_offset;
+		basicvertex_t * vertices = (basicvertex_t*)R_VertexAllocate(num_verts * sizeof(basicvertex_t), &buffer, &buffer_offset);
+
+		int i = 0;
+		x2 = x + warptess;
+		for (y = 0.0; y<128.01; y += warptess) // .01 for rounding errors
+		{
+			vertices[i].position[0] = x;
+			vertices[i].position[1] = y;
+			vertices[i].position[2] = 0.0f;
+			vertices[i].texcoord[0] = WARPCALC(x, y);
+			vertices[i].texcoord[1] = WARPCALC(y, x);
+			vertices[i].color[0] = 255;
+			vertices[i].color[1] = 255;
+			vertices[i].color[2] = 255;
+			vertices[i].color[3] = 255;
+			i += 1;
+			vertices[i].position[0] = x2;
+			vertices[i].position[1] = y;
+			vertices[i].position[2] = 0.0f;
+			vertices[i].texcoord[0] = WARPCALC(x2, y);
+			vertices[i].texcoord[1] = WARPCALC(y, x2);
+			vertices[i].color[0] = 255;
+			vertices[i].color[1] = 255;
+			vertices[i].color[2] = 255;
+			vertices[i].color[3] = 255;
+			i += 1;
+		}
+
+		vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
+		vkCmdDraw(vulkan_globals.command_buffer, num_verts, 1, 0, 0);
+	}
+
+	vkCmdEndRenderPass(vulkan_globals.command_buffer);
+}
+
+static void R_ComputeWarpTexture(texture_t *tx, float warptess) {
+	//render warp
+	vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, vulkan_globals.cs_tex_warp_pipeline);
+	vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, vulkan_globals.cs_tex_warp_pipeline_layout, 0, 1, &tx->gltexture->descriptor_set, 0, NULL);
+	vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, vulkan_globals.cs_tex_warp_pipeline_layout, 1, 1, &tx->warpimage->warp_write_descriptor_set, 0, NULL);
+
+	const uint32_t screen_size[2] = { WARPIMAGESIZE, WARPIMAGESIZE };
+	const float aspect_ratio_time[2] = { 1.0f, cl.time };
+	vkCmdPushConstants(vulkan_globals.command_buffer, vulkan_globals.screen_warp_pipeline_layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, 2 * sizeof(uint32_t), screen_size);
+	vkCmdPushConstants(vulkan_globals.command_buffer, vulkan_globals.screen_warp_pipeline_layout, VK_SHADER_STAGE_COMPUTE_BIT, 2 * sizeof(uint32_t), 2 * sizeof(float), aspect_ratio_time);
+
+	vkCmdDispatch(vulkan_globals.command_buffer, WARPIMAGESIZE / 8, WARPIMAGESIZE / 8, 1);
+}
 
 /*
 =============
@@ -188,7 +268,7 @@ void R_UpdateWarpTextures (void)
 {
 	texture_t *tx;
 	int i, mip;
-	float x, y, x2, warptess;
+	float warptess;
 
 	if (cl.paused || r_drawflat_cheatsafe || r_lightmap_cheatsafe)
 		return;
@@ -207,67 +287,10 @@ void R_UpdateWarpTextures (void)
 		if (!tx->update_warp)
 			continue;
 
-		VkRect2D render_area;
-		render_area.offset.x = 0;
-		render_area.offset.y = 0;
-		render_area.extent.width = WARPIMAGESIZE;
-		render_area.extent.height = WARPIMAGESIZE;
-
-		VkRenderPassBeginInfo render_pass_begin_info;
-		memset(&render_pass_begin_info, 0, sizeof(render_pass_begin_info));
-		render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-		render_pass_begin_info.renderArea = render_area;
-		render_pass_begin_info.renderPass = vulkan_globals.warp_render_pass;
-		render_pass_begin_info.framebuffer = tx->warpimage->frame_buffer;
-
-		vkCmdBeginRenderPass(vulkan_globals.command_buffer, &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
-
-		//render warp
-		GL_SetCanvas (CANVAS_WARPIMAGE);
-		R_BindPipeline(vulkan_globals.warp_pipeline);
-		vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout, 0, 1, &tx->gltexture->descriptor_set, 0, NULL);
-
-		int num_verts = 0;
-		for (y=0.0; y<128.01; y+=warptess) // .01 for rounding errors
-			num_verts += 2;
-
-		for (x=0.0; x<128.0; x=x2)
-		{	
-			VkBuffer buffer;
-			VkDeviceSize buffer_offset;
-			basicvertex_t * vertices = (basicvertex_t*)R_VertexAllocate(num_verts * sizeof(basicvertex_t), &buffer, &buffer_offset);
-
-			int i = 0;
-			x2 = x + warptess;
-			for (y=0.0; y<128.01; y+=warptess) // .01 for rounding errors
-			{
-				vertices[i].position[0] = x;
-				vertices[i].position[1] = y;
-				vertices[i].position[2] = 0.0f;
-				vertices[i].texcoord[0] = WARPCALC(x,y);
-				vertices[i].texcoord[1] = WARPCALC(y,x);
-				vertices[i].color[0] = 255;
-				vertices[i].color[1] = 255;
-				vertices[i].color[2] = 255;
-				vertices[i].color[3] = 255;
-				i += 1;
-				vertices[i].position[0] = x2;
-				vertices[i].position[1] = y;
-				vertices[i].position[2] = 0.0f;
-				vertices[i].texcoord[0] = WARPCALC(x2,y);
-				vertices[i].texcoord[1] = WARPCALC(y,x2);
-				vertices[i].color[0] = 255;
-				vertices[i].color[1] = 255;
-				vertices[i].color[2] = 255;
-				vertices[i].color[3] = 255;
-				i += 1;
-			}
-
-			vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
-			vkCmdDraw(vulkan_globals.command_buffer, num_verts, 1, 0, 0);
-		}
-
-		vkCmdEndRenderPass(vulkan_globals.command_buffer);
+		if (r_waterwarpcompute.value)
+			R_ComputeWarpTexture(tx, warptess);
+		else
+			R_RasterWarpTexture(tx, warptess);
 
 		VkImageMemoryBarrier * image_barrier = &warp_image_barriers[num_warp_textures];
 		image_barrier->sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;

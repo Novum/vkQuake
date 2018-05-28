@@ -886,7 +886,9 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	image_create_info.arrayLayers = 1;
 	image_create_info.samples = VK_SAMPLE_COUNT_1_BIT;
 	image_create_info.tiling = VK_IMAGE_TILING_OPTIMAL;
-	image_create_info.usage = warp_image ? (VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT) : (VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+	image_create_info.usage = 
+		warp_image ? (VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_STORAGE_BIT)
+		: (VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
 	image_create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 	image_create_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
@@ -964,6 +966,33 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 			Sys_Error("vkCreateFramebuffer failed");
 
 		GL_SetObjectName((uint64_t)glt->frame_buffer, VK_DEBUG_REPORT_OBJECT_TYPE_FRAMEBUFFER_EXT, glt->name);
+
+		// Allocate and update descriptor for this texture
+		VkDescriptorSetAllocateInfo descriptor_set_allocate_info;
+		memset(&descriptor_set_allocate_info, 0, sizeof(descriptor_set_allocate_info));
+		descriptor_set_allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+		descriptor_set_allocate_info.descriptorPool = vulkan_globals.descriptor_pool;
+		descriptor_set_allocate_info.descriptorSetCount = 1;
+		descriptor_set_allocate_info.pSetLayouts = &vulkan_globals.single_texture_cs_write_set_layout;
+
+		vkAllocateDescriptorSets(vulkan_globals.device, &descriptor_set_allocate_info, &glt->warp_write_descriptor_set);
+
+		VkDescriptorImageInfo output_image_info;
+		memset(&output_image_info, 0, sizeof(output_image_info));
+		output_image_info.imageView = glt->target_image_view;
+		output_image_info.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+
+		VkWriteDescriptorSet warp_image_write;
+		memset(&warp_image_write, 0, sizeof(warp_image_write));
+		warp_image_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		warp_image_write.dstBinding = 0;
+		warp_image_write.dstArrayElement = 0;
+		warp_image_write.descriptorCount = 1;
+		warp_image_write.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+		warp_image_write.dstSet = glt->warp_write_descriptor_set;
+		warp_image_write.pImageInfo = &output_image_info;
+
+		vkUpdateDescriptorSets(vulkan_globals.device, 1, &warp_image_write, 0, NULL);
 
 		return;
 	}

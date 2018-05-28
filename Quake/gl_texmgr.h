@@ -71,6 +71,7 @@ typedef struct gltexture_s {
 	struct glheapnode_s *	heap_node;
 	VkDescriptorSet		descriptor_set;
 	VkFramebuffer		frame_buffer;
+	VkDescriptorSet		warp_write_descriptor_set;
 	int			visframe; //matches r_framecount if texture was bound this frame
 } gltexture_t;
 

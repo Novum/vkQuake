@@ -51,5 +51,7 @@ extern unsigned char screen_warp_comp_spv[];
 extern int  screen_warp_comp_spv_size;
 extern unsigned char screen_warp_rgba8_comp_spv[];
 extern int  screen_warp_rgba8_comp_spv_size;
+extern unsigned char cs_tex_warp_comp_spv[];
+extern int  cs_tex_warp_comp_spv_size;
 
 #endif
