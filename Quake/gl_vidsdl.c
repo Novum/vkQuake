@@ -801,6 +801,7 @@ static void GL_InitDevice( void )
 	memset(&device_features, 0, sizeof(device_features));
 	device_features.shaderStorageImageExtendedFormats = extended_format_support;
 	device_features.samplerAnisotropy = sampler_anisotropic;
+	device_features.sampleRateShading = vulkan_physical_device_features.sampleRateShading;
 
 	VkDeviceCreateInfo device_create_info;
 	memset(&device_create_info, 0, sizeof(device_create_info));
