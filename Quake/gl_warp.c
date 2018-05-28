@@ -278,7 +278,7 @@ void R_UpdateWarpTextures (void)
 	int num_textures = cl.worldmodel->numtextures;
 	int num_warp_textures = 0;
 
-	// Render warp to top mips
+	// Count warp texture & prepare barrier from undefined to GENERL if using compute warp
 	for (i = 0; i < num_textures; ++i)
 	{
 		if (!(tx = cl.worldmodel->textures[i]))
@@ -288,11 +288,43 @@ void R_UpdateWarpTextures (void)
 			continue;
 
 		if (r_waterwarpcompute.value)
+		{
+			VkImageMemoryBarrier * image_barrier = &warp_image_barriers[num_warp_textures];
+			image_barrier->sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+			image_barrier->pNext = NULL;
+			image_barrier->srcAccessMask = 0;
+			image_barrier->dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+			image_barrier->oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+			image_barrier->newLayout = VK_IMAGE_LAYOUT_GENERAL;
+			image_barrier->srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+			image_barrier->dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+			image_barrier->image = tx->warpimage->image;
+			image_barrier->subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+			image_barrier->subresourceRange.baseMipLevel = 0;
+			image_barrier->subresourceRange.levelCount = WARPIMAGEMIPS;
+			image_barrier->subresourceRange.baseArrayLayer = 0;
+			image_barrier->subresourceRange.layerCount = 1;
+		}
+
+		warp_textures[num_warp_textures] = tx;
+		num_warp_textures += 1;
+	}
+
+	// Transfer mips from UNDEFINED to GENERAL layout
+	if (r_waterwarpcompute.value)
+		vkCmdPipelineBarrier(vulkan_globals.command_buffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, NULL, 0, NULL, num_warp_textures, warp_image_barriers);
+
+	// Render warp to top mips
+	for (i = 0; i < num_warp_textures; ++i)
+	{
+		tx = warp_textures[i];
+
+		if (r_waterwarpcompute.value)
 			R_ComputeWarpTexture(tx, warptess);
 		else
 			R_RasterWarpTexture(tx, warptess);
 
-		VkImageMemoryBarrier * image_barrier = &warp_image_barriers[num_warp_textures];
+		VkImageMemoryBarrier * image_barrier = &warp_image_barriers[i];
 		image_barrier->sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 		image_barrier->pNext = NULL;
 		image_barrier->srcAccessMask = 0;
@@ -307,20 +339,17 @@ void R_UpdateWarpTextures (void)
 		image_barrier->subresourceRange.levelCount = WARPIMAGEMIPS - 1;
 		image_barrier->subresourceRange.baseArrayLayer = 0;
 		image_barrier->subresourceRange.layerCount = 1;
-
-		warp_textures[num_warp_textures] = tx;
-		num_warp_textures += 1;
 	}
 
 	// Make sure that writes are done for top mips we just rendered to
 	VkMemoryBarrier memory_barrier;
 	memory_barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
 	memory_barrier.pNext = NULL;
-	memory_barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+	memory_barrier.srcAccessMask = r_waterwarpcompute.value ? VK_ACCESS_SHADER_WRITE_BIT : VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 	memory_barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
 
 	// Transfer all other mips from UNDEFINED to GENERAL layout
-	vkCmdPipelineBarrier(vulkan_globals.command_buffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 1, &memory_barrier, 0, NULL, num_warp_textures, warp_image_barriers);
+	vkCmdPipelineBarrier(vulkan_globals.command_buffer, r_waterwarpcompute.value ? VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT : VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 1, &memory_barrier, 0, NULL, num_warp_textures, warp_image_barriers);
 
 	// Generate mip chains
 	for (mip = 1; mip < WARPIMAGEMIPS; ++mip)
