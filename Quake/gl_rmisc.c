@@ -911,7 +911,7 @@ void R_CreateDescriptorSetLayouts()
 	single_texture_layout_binding.binding = 0;
 	single_texture_layout_binding.descriptorCount = 1;
 	single_texture_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	single_texture_layout_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+	single_texture_layout_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
 
 	VkDescriptorSetLayoutCreateInfo descriptor_set_layout_create_info;
 	memset(&descriptor_set_layout_create_info, 0, sizeof(descriptor_set_layout_create_info));
@@ -969,29 +969,15 @@ void R_CreateDescriptorSetLayouts()
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateDescriptorSetLayout failed");
 
-	VkDescriptorSetLayoutBinding single_texture_cs_read_layout_binding;
-	memset(&single_texture_cs_read_layout_binding, 0, sizeof(single_texture_cs_read_layout_binding));
-	single_texture_cs_read_layout_binding.binding = 0;
-	single_texture_cs_read_layout_binding.descriptorCount = 1;
-	single_texture_cs_read_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	single_texture_cs_read_layout_binding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+	VkDescriptorSetLayoutBinding single_texture_cs_write_layout_binding;
+	memset(&single_texture_cs_write_layout_binding, 0, sizeof(single_texture_cs_write_layout_binding));
+	single_texture_cs_write_layout_binding.binding = 0;
+	single_texture_cs_write_layout_binding.descriptorCount = 1;
+	single_texture_cs_write_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+	single_texture_cs_write_layout_binding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
 	descriptor_set_layout_create_info.bindingCount = 1;
-	descriptor_set_layout_create_info.pBindings = &single_texture_cs_read_layout_binding;
-
-	err = vkCreateDescriptorSetLayout(vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.single_texture_cs_read_set_layout);
-	if (err != VK_SUCCESS)
-		Sys_Error("vkCreateDescriptorSetLayout failed");
-
-	VkDescriptorSetLayoutBinding single_texture_write_layout_binding;
-	memset(&single_texture_write_layout_binding, 0, sizeof(single_texture_write_layout_binding));
-	single_texture_write_layout_binding.binding = 0;
-	single_texture_write_layout_binding.descriptorCount = 1;
-	single_texture_write_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-	single_texture_write_layout_binding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-
-	descriptor_set_layout_create_info.bindingCount = 1;
-	descriptor_set_layout_create_info.pBindings = &single_texture_write_layout_binding;
+	descriptor_set_layout_create_info.pBindings = &single_texture_cs_write_layout_binding;
 
 	err = vkCreateDescriptorSetLayout(vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.single_texture_cs_write_set_layout);
 	if (err != VK_SUCCESS)
@@ -1139,7 +1125,7 @@ void R_CreatePipelineLayouts()
 
 	// Texture warp
 	VkDescriptorSetLayout tex_warp_descriptor_set_layouts[2] = {
-		vulkan_globals.single_texture_cs_read_set_layout,
+		vulkan_globals.single_texture_set_layout,
 		vulkan_globals.single_texture_cs_write_set_layout,
 	};
 

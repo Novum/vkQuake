@@ -177,7 +177,6 @@ typedef struct
 	VkDescriptorSetLayout				input_attachment_set_layout;
 	VkDescriptorSet						screen_warp_desc_set;
 	VkDescriptorSetLayout				screen_warp_set_layout;
-	VkDescriptorSetLayout				single_texture_cs_read_set_layout;
 	VkDescriptorSetLayout				single_texture_cs_write_set_layout;
 
 	// Samplers
