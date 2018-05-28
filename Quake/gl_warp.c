@@ -245,8 +245,8 @@ static void R_RasterWarpTexture(texture_t *tx, float warptess) {
 static void R_ComputeWarpTexture(texture_t *tx, float warptess) {
 	//render warp
 	vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, vulkan_globals.cs_tex_warp_pipeline);
-	vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, vulkan_globals.cs_tex_warp_pipeline_layout, 0, 1, &tx->gltexture->descriptor_set, 0, NULL);
-	vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, vulkan_globals.cs_tex_warp_pipeline_layout, 1, 1, &tx->warpimage->warp_write_descriptor_set, 0, NULL);
+	VkDescriptorSet sets[2] = { tx->gltexture->descriptor_set, tx->warpimage->warp_write_descriptor_set };
+	vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, vulkan_globals.cs_tex_warp_pipeline_layout, 0, 2, sets, 0, NULL);
 
 	const uint32_t screen_size[2] = { WARPIMAGESIZE, WARPIMAGESIZE };
 	const float aspect_ratio_time[2] = { 1.0f, cl.time };
