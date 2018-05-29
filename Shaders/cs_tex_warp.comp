@@ -3,8 +3,6 @@
 #extension GL_ARB_shading_language_420pack : enable
 
 layout(push_constant) uniform PushConsts {
-	uvec2 texture_size;
-	float aspect_ratio;
 	float time;
 } push_constants;
 
@@ -27,8 +25,10 @@ float warp_calc(float s, float t)
 layout (local_size_x = 8, local_size_y = 8) in;
 void main() 
 {
-	const float posX = float(gl_GlobalInvocationID.x) / float(push_constants.texture_size.x);
-	const float posY = 1.0f - (float(gl_GlobalInvocationID.y) / float(push_constants.texture_size.y));
+	const float WARPIMAGESIZE_RCP = 1.0f / 512.0f;
+
+	const float posX = float(gl_GlobalInvocationID.x) * WARPIMAGESIZE_RCP;
+	const float posY = 1.0f - (float(gl_GlobalInvocationID.y) * WARPIMAGESIZE_RCP);
 
 	const float texX = warp_calc(posX * 128.0f, posY * 128.0f);
 	const float texY = warp_calc(posY * 128.0f, posX * 128.0f);

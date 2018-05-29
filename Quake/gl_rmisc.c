@@ -1111,7 +1111,7 @@ void R_CreatePipelineLayouts()
 
 	memset(&push_constant_range, 0, sizeof(push_constant_range));
 	push_constant_range.offset = 0;
-	push_constant_range.size = 2 * sizeof(uint32_t) + 2 * sizeof(float);
+	push_constant_range.size = 4 * sizeof(float);
 	push_constant_range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
 	pipeline_layout_create_info.setLayoutCount = 1;
@@ -1131,7 +1131,7 @@ void R_CreatePipelineLayouts()
 
 	memset(&push_constant_range, 0, sizeof(push_constant_range));
 	push_constant_range.offset = 0;
-	push_constant_range.size = 2 * sizeof(uint32_t) + 2 * sizeof(float);
+	push_constant_range.size = 1 * sizeof(float);
 	push_constant_range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
 	pipeline_layout_create_info.setLayoutCount = 2;

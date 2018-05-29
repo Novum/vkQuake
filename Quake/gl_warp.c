@@ -244,15 +244,11 @@ static void R_RasterWarpTexture(texture_t *tx, float warptess) {
 
 static void R_ComputeWarpTexture(texture_t *tx, float warptess) {
 	//render warp
+	const float time = cl.time;
 	vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, vulkan_globals.cs_tex_warp_pipeline);
 	VkDescriptorSet sets[2] = { tx->gltexture->descriptor_set, tx->warpimage->warp_write_descriptor_set };
 	vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, vulkan_globals.cs_tex_warp_pipeline_layout, 0, 2, sets, 0, NULL);
-
-	const uint32_t screen_size[2] = { WARPIMAGESIZE, WARPIMAGESIZE };
-	const float aspect_ratio_time[2] = { 1.0f, cl.time };
-	vkCmdPushConstants(vulkan_globals.command_buffer, vulkan_globals.screen_warp_pipeline_layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, 2 * sizeof(uint32_t), screen_size);
-	vkCmdPushConstants(vulkan_globals.command_buffer, vulkan_globals.screen_warp_pipeline_layout, VK_SHADER_STAGE_COMPUTE_BIT, 2 * sizeof(uint32_t), 2 * sizeof(float), aspect_ratio_time);
-
+	vkCmdPushConstants(vulkan_globals.command_buffer, vulkan_globals.screen_warp_pipeline_layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(float), &time);
 	vkCmdDispatch(vulkan_globals.command_buffer, WARPIMAGESIZE / 8, WARPIMAGESIZE / 8, 1);
 }
 
