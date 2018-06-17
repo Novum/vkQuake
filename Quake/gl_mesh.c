@@ -525,7 +525,7 @@ static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 
 		while (remaining_size > 0)
 		{
-			const int size_to_copy = q_min(remaining_size, STAGING_BUFFER_SIZE_KB * 1024);
+			const int size_to_copy = q_min(remaining_size, vulkan_globals.staging_buffer_size);
 			VkBuffer staging_buffer;
 			VkCommandBuffer command_buffer;
 			int staging_offset;
@@ -622,7 +622,7 @@ static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 
 		while (remaining_size > 0)
 		{
-			const int size_to_copy = q_min(remaining_size, STAGING_BUFFER_SIZE_KB * 1024);
+			const int size_to_copy = q_min(remaining_size, vulkan_globals.staging_buffer_size);
 			VkBuffer staging_buffer;
 			VkCommandBuffer command_buffer;
 			int staging_offset;

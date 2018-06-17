@@ -651,7 +651,7 @@ void GL_BuildBModelVertexBuffer (void)
 
 	while (remaining_size > 0)
 	{
-		const int size_to_copy = q_min(remaining_size, STAGING_BUFFER_SIZE_KB * 1024);
+		const int size_to_copy = q_min(remaining_size, vulkan_globals.staging_buffer_size);
 		VkBuffer staging_buffer;
 		VkCommandBuffer command_buffer;
 		int staging_offset;

@@ -50,7 +50,7 @@ extern	int glx, gly, glwidth, glheight;
 
 #define	MAX_GLTEXTURES	2048
 #define NUM_COLOR_BUFFERS 2
-#define STAGING_BUFFER_SIZE_KB	16384
+#define INITIAL_STAGING_BUFFER_SIZE_KB	16384
 
 #define FAN_INDEX_BUFFER_SIZE 126
 
@@ -133,6 +133,9 @@ typedef struct
 
 	// Index buffers
 	VkBuffer							fan_index_buffer;
+
+	// Staging buffers
+	int									staging_buffer_size;
 
 	// Render passes
 	VkRenderPass						main_render_pass;

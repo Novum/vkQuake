@@ -2279,6 +2279,7 @@ void	VID_Init (void)
 	GL_InitInstance();
 	GL_InitDevice();
 	GL_InitCommandBuffers();
+	vulkan_globals.staging_buffer_size = INITIAL_STAGING_BUFFER_SIZE_KB * 1024;
 	R_InitStagingBuffers();
 	R_CreateDescriptorSetLayouts();
 	R_CreateDescriptorPool();

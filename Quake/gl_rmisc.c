@@ -254,21 +254,18 @@ float GL_WaterAlphaForSurface (msurface_t *fa)
 
 /*
 ===============
-R_InitStagingBuffers
+R_CreateStagingBuffers
 ===============
 */
-void R_InitStagingBuffers()
+static void R_CreateStagingBuffers()
 {
 	int i;
-
-	Con_Printf("Initializing staging\n");
-
 	VkResult err;
 
 	VkBufferCreateInfo buffer_create_info;
 	memset(&buffer_create_info, 0, sizeof(buffer_create_info));
 	buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	buffer_create_info.size = STAGING_BUFFER_SIZE_KB * 1024;
+	buffer_create_info.size = vulkan_globals.staging_buffer_size;
 	buffer_create_info.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 
 	for (i = 0; i < NUM_STAGING_BUFFERS; ++i)
@@ -287,8 +284,8 @@ void R_InitStagingBuffers()
 	vkGetBufferMemoryRequirements(vulkan_globals.device, staging_buffers[0].buffer, &memory_requirements);
 
 	const int align_mod = memory_requirements.size % memory_requirements.alignment;
-	const int aligned_size = ((memory_requirements.size % memory_requirements.alignment) == 0 ) 
-		? memory_requirements.size 
+	const int aligned_size = ((memory_requirements.size % memory_requirements.alignment) == 0)
+		? memory_requirements.size
 		: (memory_requirements.size + memory_requirements.alignment - align_mod);
 
 	VkMemoryAllocateInfo memory_allocate_info;
@@ -315,6 +312,40 @@ void R_InitStagingBuffers()
 	err = vkMapMemory(vulkan_globals.device, staging_memory, 0, NUM_STAGING_BUFFERS * aligned_size, 0, &data);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkMapMemory failed");
+
+	for (i = 0; i < NUM_STAGING_BUFFERS; ++i)
+		staging_buffers[i].data = (unsigned char *)data + (i * aligned_size);
+}
+
+/*
+===============
+R_DestroyStagingBuffers
+===============
+*/
+static void R_DestroyStagingBuffers()
+{
+	int i;
+
+	vkUnmapMemory(vulkan_globals.device, staging_memory);
+	vkFreeMemory(vulkan_globals.device, staging_memory, NULL);
+	for (i = 0; i < NUM_STAGING_BUFFERS; ++i) {
+		vkDestroyBuffer(vulkan_globals.device, staging_buffers[i].buffer, NULL);
+	}
+}
+
+/*
+===============
+R_InitStagingBuffers
+===============
+*/
+void R_InitStagingBuffers()
+{
+	int i;
+	VkResult err;
+
+	Con_Printf("Initializing staging\n");
+
+	R_CreateStagingBuffers();
 
 	VkCommandPoolCreateInfo command_pool_create_info;
 	memset(&command_pool_create_info, 0, sizeof(command_pool_create_info));
@@ -353,7 +384,6 @@ void R_InitStagingBuffers()
 			Sys_Error("vkCreateFence failed");
 
 		staging_buffers[i].command_buffer = command_buffers[i];
-		staging_buffers[i].data = (unsigned char *)data + (i * aligned_size);
 
 		err = vkBeginCommandBuffer(staging_buffers[i].command_buffer, &command_buffer_begin_info);
 		if (err != VK_SUCCESS)
@@ -413,6 +443,39 @@ void R_SubmitStagingBuffers()
 
 /*
 ===============
+R_FlushStagingBuffer
+===============
+*/
+static void R_FlushStagingBuffer(stagingbuffer_t * staging_buffer)
+{
+	VkResult err;
+
+	if (!staging_buffer->submitted)
+		return;
+
+	err = vkWaitForFences(vulkan_globals.device, 1, &staging_buffer->fence, VK_TRUE, UINT64_MAX);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkWaitForFences failed");
+
+	err = vkResetFences(vulkan_globals.device, 1, &staging_buffer->fence);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkResetFences failed");
+
+	staging_buffer->current_offset = 0;
+	staging_buffer->submitted = false;
+
+	VkCommandBufferBeginInfo command_buffer_begin_info;
+	memset(&command_buffer_begin_info, 0, sizeof(command_buffer_begin_info));
+	command_buffer_begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	command_buffer_begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+	err = vkBeginCommandBuffer(staging_buffer->command_buffer, &command_buffer_begin_info);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkBeginCommandBuffer failed");
+}
+
+/*
+===============
 R_StagingAllocate
 ===============
 */
@@ -420,43 +483,30 @@ byte * R_StagingAllocate(int size, int alignment, VkCommandBuffer * command_buff
 {
 	vulkan_globals.device_idle = false;
 
+	if (size > vulkan_globals.staging_buffer_size)
+	{
+		R_SubmitStagingBuffers();
+
+		for (int i = 0; i < NUM_STAGING_BUFFERS; ++i)
+			R_FlushStagingBuffer(&staging_buffers[i]);
+
+		vulkan_globals.staging_buffer_size = size;
+
+		R_DestroyStagingBuffers();
+		R_CreateStagingBuffers();
+	}
+
 	stagingbuffer_t * staging_buffer = &staging_buffers[current_staging_buffer];
 	const int align_mod = staging_buffer->current_offset % alignment;
 	staging_buffer->current_offset = ((staging_buffer->current_offset % alignment) == 0) 
 		? staging_buffer->current_offset 
 		: (staging_buffer->current_offset + alignment - align_mod);
 
-	if (size > (STAGING_BUFFER_SIZE_KB * 1024))
-		Sys_Error("Cannot allocate staging buffer space");
-
-	if ((staging_buffer->current_offset + size) >= (STAGING_BUFFER_SIZE_KB * 1024) && !staging_buffer->submitted)
+	if ((staging_buffer->current_offset + size) >= vulkan_globals.staging_buffer_size && !staging_buffer->submitted)
 		R_SubmitStagingBuffer(current_staging_buffer);
 
 	staging_buffer = &staging_buffers[current_staging_buffer];
-	if (staging_buffer->submitted)
-	{
-		VkResult err;
-
-		err = vkWaitForFences(vulkan_globals.device, 1, &staging_buffer->fence, VK_TRUE, UINT64_MAX);
-		if (err != VK_SUCCESS)
-			Sys_Error("vkWaitForFences failed");
-
-		err = vkResetFences(vulkan_globals.device, 1, &staging_buffer->fence);
-		if (err != VK_SUCCESS)
-			Sys_Error("vkResetFences failed");
-
-		staging_buffer->current_offset = 0;
-		staging_buffer->submitted = false;
-
-		VkCommandBufferBeginInfo command_buffer_begin_info;
-		memset(&command_buffer_begin_info, 0, sizeof(command_buffer_begin_info));
-		command_buffer_begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-		command_buffer_begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
-		err = vkBeginCommandBuffer(staging_buffer->command_buffer, &command_buffer_begin_info);
-		if (err != VK_SUCCESS)
-			Sys_Error("vkBeginCommandBuffer failed");
-	}
+	R_FlushStagingBuffer(staging_buffer);
 
 	if (command_buffer)
 		*command_buffer = staging_buffer->command_buffer;
