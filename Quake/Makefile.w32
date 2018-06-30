@@ -224,7 +224,9 @@ SHADER_OBJS = \
 	postprocess_frag.o \
 	postprocess_vert.o \
 	world_frag.o \
-	world_vert.o
+	world_vert.o \
+	showtris_frag.o \
+	showtris_frag.o
 
 GLOBJS = \
 	$(SHADER_OBJS) \

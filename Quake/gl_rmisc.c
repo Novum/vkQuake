@@ -1192,7 +1192,14 @@ void R_CreatePipelineLayouts()
 	err = vkCreatePipelineLayout(vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.cs_tex_warp_pipeline_layout);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreatePipelineLayout failed");
-}
+
+	// Show triangles
+	pipeline_layout_create_info.setLayoutCount = 0;
+	pipeline_layout_create_info.pushConstantRangeCount = 0;
+
+	err = vkCreatePipelineLayout(vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.showtris_pipeline_layout);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkCreatePipelineLayout failed");}
 
 /*
 ===============
@@ -1310,6 +1317,8 @@ void R_CreatePipelines()
 	VkShaderModule screen_warp_comp_module = R_CreateShaderModule(screen_warp_comp_spv, screen_warp_comp_spv_size);
 	VkShaderModule screen_warp_rgba8_comp_module = R_CreateShaderModule(screen_warp_rgba8_comp_spv, screen_warp_rgba8_comp_spv_size);
 	VkShaderModule cs_tex_warp_module = R_CreateShaderModule(cs_tex_warp_comp_spv, cs_tex_warp_comp_spv_size);
+	VkShaderModule showtris_vert_module = R_CreateShaderModule(showtris_vert_spv, showtris_vert_spv_size);
+	VkShaderModule showtris_frag_module = R_CreateShaderModule(showtris_frag_spv, showtris_frag_spv_size);
 
 	VkPipelineDynamicStateCreateInfo dynamic_state_create_info;
 	memset(&dynamic_state_create_info, 0, sizeof(dynamic_state_create_info));
@@ -1652,12 +1661,63 @@ void R_CreatePipelines()
 	GL_SetObjectName((uint64_t)vulkan_globals.sky_layer_pipeline, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "sky_layer");
 
 	//================
+	// Show triangles
+	//================
+	if (vulkan_globals.non_solid_fill)
+	{
+		rasterization_state_create_info.cullMode = VK_CULL_MODE_NONE;
+		rasterization_state_create_info.polygonMode = VK_POLYGON_MODE_LINE;
+		depth_stencil_state_create_info.depthTestEnable = VK_FALSE;
+		depth_stencil_state_create_info.depthWriteEnable = VK_FALSE;
+		input_assembly_state_create_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+
+		VkVertexInputAttributeDescription showtris_vertex_input_attribute_descriptions;
+		showtris_vertex_input_attribute_descriptions.binding = 0;
+		showtris_vertex_input_attribute_descriptions.format = VK_FORMAT_R32G32B32_SFLOAT;
+		showtris_vertex_input_attribute_descriptions.location = 0;
+		showtris_vertex_input_attribute_descriptions.offset = 0;
+
+		VkVertexInputBindingDescription showtris_vertex_binding_description;
+		showtris_vertex_binding_description.binding = 0;
+		showtris_vertex_binding_description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+		showtris_vertex_binding_description.stride = 24;
+
+		vertex_input_state_create_info.vertexAttributeDescriptionCount = 1;
+		vertex_input_state_create_info.pVertexAttributeDescriptions = &showtris_vertex_input_attribute_descriptions;
+		vertex_input_state_create_info.vertexBindingDescriptionCount = 1;
+		vertex_input_state_create_info.pVertexBindingDescriptions = &showtris_vertex_binding_description;
+
+		shader_stages[0].module = showtris_vert_module;
+		shader_stages[1].module = showtris_frag_module;
+
+		assert(vulkan_globals.showtris_pipeline == VK_NULL_HANDLE);
+		err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.showtris_pipeline);
+		if (err != VK_SUCCESS)
+			Sys_Error("vkCreateGraphicsPipelines failed");
+
+		GL_SetObjectName((uint64_t)vulkan_globals.showtris_pipeline, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "showtris");
+
+		depth_stencil_state_create_info.depthTestEnable = VK_TRUE;
+		rasterization_state_create_info.depthBiasEnable = VK_TRUE;
+		rasterization_state_create_info.depthBiasConstantFactor = (vulkan_globals.depth_format != VK_FORMAT_D16_UNORM) ? -1000.0f : -5.0f;
+		rasterization_state_create_info.depthBiasSlopeFactor = 0.0f;
+
+		assert(vulkan_globals.showtris_depth_test_pipeline == VK_NULL_HANDLE);
+		err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.showtris_depth_test_pipeline);
+		if (err != VK_SUCCESS)
+			Sys_Error("vkCreateGraphicsPipelines failed");
+
+		GL_SetObjectName((uint64_t)vulkan_globals.showtris_depth_test_pipeline, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "showtris_depth_test");
+	}
+
+	//================
 	// World pipelines
 	//================
 	rasterization_state_create_info.cullMode = VK_CULL_MODE_BACK_BIT;
+	rasterization_state_create_info.polygonMode = VK_POLYGON_MODE_FILL;
 	depth_stencil_state_create_info.depthTestEnable = VK_TRUE;
 	depth_stencil_state_create_info.depthWriteEnable = VK_TRUE;
-
+	rasterization_state_create_info.depthBiasEnable = VK_FALSE;
 	input_assembly_state_create_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
 	VkVertexInputAttributeDescription world_vertex_input_attribute_descriptions[3];
@@ -1887,6 +1947,8 @@ void R_CreatePipelines()
 
 	GL_SetObjectName((uint64_t)vulkan_globals.raster_tex_warp_pipeline, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "screen_warp");
 
+	vkDestroyShaderModule(vulkan_globals.device, showtris_frag_module, NULL);
+	vkDestroyShaderModule(vulkan_globals.device, showtris_vert_module, NULL);
 	vkDestroyShaderModule(vulkan_globals.device, cs_tex_warp_module, NULL);
 	vkDestroyShaderModule(vulkan_globals.device, screen_warp_rgba8_comp_module, NULL);
 	vkDestroyShaderModule(vulkan_globals.device, screen_warp_comp_module, NULL);
@@ -1956,6 +2018,13 @@ void R_DestroyPipelines(void)
 	vulkan_globals.screen_warp_pipeline = VK_NULL_HANDLE;
 	vkDestroyPipeline(vulkan_globals.device, vulkan_globals.cs_tex_warp_pipeline, NULL);
 	vulkan_globals.cs_tex_warp_pipeline = VK_NULL_HANDLE;
+	if (vulkan_globals.showtris_pipeline != VK_NULL_HANDLE)
+	{
+		vkDestroyPipeline(vulkan_globals.device, vulkan_globals.showtris_pipeline, NULL);
+		vulkan_globals.showtris_pipeline = VK_NULL_HANDLE;
+		vkDestroyPipeline(vulkan_globals.device, vulkan_globals.showtris_depth_test_pipeline, NULL);
+		vulkan_globals.showtris_depth_test_pipeline = VK_NULL_HANDLE;
+	}
 }
 
 /*

@@ -518,6 +518,33 @@ void R_DrawViewModel (void)
 
 /*
 ================
+R_ShowTris -- johnfitz
+================
+*/
+void R_ShowTris(void)
+{
+	extern cvar_t r_particles;
+
+	if (r_showtris.value < 1 || r_showtris.value > 2 || cl.maxclients > 1 || !vulkan_globals.non_solid_fill)
+		return;
+
+	if ( r_showtris.value == 1 )
+		R_BindPipeline(vulkan_globals.showtris_pipeline);
+	else
+		R_BindPipeline(vulkan_globals.showtris_depth_test_pipeline);
+
+	vkCmdBindIndexBuffer(vulkan_globals.command_buffer, vulkan_globals.fan_index_buffer, 0, VK_INDEX_TYPE_UINT16);
+
+	if (r_drawworld.value)
+	{
+		R_DrawWorld_ShowTris();
+	}
+
+	Sbar_Changed(); //so we don't get dots collecting on the statusbar
+}
+
+/*
+================
 R_RenderScene
 ================
 */
@@ -544,6 +571,8 @@ void R_RenderScene (void)
 	Fog_DisableGFog (); //johnfitz
 
 	R_DrawViewModel (); //johnfitz -- moved here from R_RenderView
+	
+	R_ShowTris(); //johnfitz
 }
 
 /*

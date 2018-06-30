@@ -124,6 +124,7 @@ typedef struct
 	VkFormat							depth_format;
 	VkSampleCountFlagBits				sample_count;
 	qboolean							supersampling;
+	qboolean							non_solid_fill;
 
 	// Extensions
 	qboolean							dedicated_allocation;
@@ -172,6 +173,9 @@ typedef struct
 	VkPipelineLayout					screen_warp_pipeline_layout;
 	VkPipeline							cs_tex_warp_pipeline;
 	VkPipelineLayout					cs_tex_warp_pipeline_layout;
+	VkPipeline							showtris_pipeline;
+	VkPipeline							showtris_depth_test_pipeline;
+	VkPipelineLayout					showtris_pipeline_layout;
 
 	// Descriptors
 	VkDescriptorPool					descriptor_pool;
@@ -369,6 +373,7 @@ void R_BuildLightMap (msurface_t *surf, byte *dest, int stride);
 void R_RenderDynamicLightmaps (msurface_t *fa);
 void R_UploadLightmaps (void);
 
+void R_DrawWorld_ShowTris(void);
 void DrawGLPoly (glpoly_t *p, float color[3], float alpha);
 void GL_MakeAliasModelDisplayLists (qmodel_t *m, aliashdr_t *hdr);
 

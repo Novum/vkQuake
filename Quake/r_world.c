@@ -377,6 +377,33 @@ float GL_WaterAlphaForEntitySurface (entity_t *ent, msurface_t *s)
 
 /*
 ================
+R_DrawTextureChains_ShowTris -- johnfitz
+================
+*/
+void R_DrawTextureChains_ShowTris(qmodel_t *model, texchain_t chain)
+{
+	int			i;
+	msurface_t	*s;
+	texture_t	*t;
+	float color[] = { 1.0f, 1.0f, 1.0f };
+	const alpha = 1.0f;
+
+	for (i = 0; i<model->numtextures; i++)
+	{
+		t = model->textures[i];
+		if (!t)
+			continue;
+
+		for (s = t->texturechains[chain]; s; s = s->texturechain)
+			if (!s->culled)
+			{
+				DrawGLPoly(s->polys, color, alpha);
+			}
+	}
+}
+
+/*
+================
 R_DrawTextureChains_Water -- johnfitz
 ================
 */
@@ -557,4 +584,17 @@ void R_DrawWorld_Water (void)
 		return;
 
 	R_DrawTextureChains_Water (cl.worldmodel, NULL, chain_world);
+}
+
+/*
+=============
+R_DrawWorld_ShowTris -- ericw -- moved from R_DrawTextureChains_ShowTris, which is no longer specific to the world.
+=============
+*/
+void R_DrawWorld_ShowTris (void)
+{
+	if (!r_drawworld_cheatsafe)
+		return;
+
+	R_DrawTextureChains_ShowTris (cl.worldmodel, chain_world);
 }
