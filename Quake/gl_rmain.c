@@ -528,16 +528,14 @@ void R_ShowTris(void)
 	if (r_showtris.value < 1 || r_showtris.value > 2 || cl.maxclients > 1 || !vulkan_globals.non_solid_fill)
 		return;
 
-	if ( r_showtris.value == 1 )
-		R_BindPipeline(vulkan_globals.showtris_pipeline);
-	else
-		R_BindPipeline(vulkan_globals.showtris_depth_test_pipeline);
-
-	vkCmdBindIndexBuffer(vulkan_globals.command_buffer, vulkan_globals.fan_index_buffer, 0, VK_INDEX_TYPE_UINT16);
-
 	if (r_drawworld.value)
 	{
 		R_DrawWorld_ShowTris();
+	}
+
+	if (r_particles.value)
+	{
+		R_DrawParticles_ShowTris();
 	}
 
 	Sbar_Changed(); //so we don't get dots collecting on the statusbar

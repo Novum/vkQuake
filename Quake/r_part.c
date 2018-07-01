@@ -44,6 +44,8 @@ float texturescalefactor; //johnfitz -- compensate for apparent size of differen
 
 cvar_t	r_particles = {"r_particles","1", CVAR_ARCHIVE}; //johnfitz
 
+extern cvar_t r_showtris;
+
 /*
 ===============
 R_ParticleTextureLookup -- johnfitz -- generate nice antialiased 32x32 circle for particles
@@ -820,10 +822,10 @@ void CL_RunParticles (void)
 
 /*
 ===============
-R_DrawParticles -- johnfitz -- moved all non-drawing code to CL_RunParticles
+R_DrawParticlesFaces
 ===============
 */
-void R_DrawParticles (void)
+static void R_DrawParticlesFaces(void)
 {
 	particle_t		*p;
 	float			scale;
@@ -837,27 +839,24 @@ void R_DrawParticles (void)
 	if (!active_particles)
 		return;
 
-	VectorScale (vup, 1.5, up);
-	VectorScale (vright, 1.5, right);
-
-	R_BindPipeline(vulkan_globals.particle_pipeline);
-	vulkan_globals.vk_cmd_bind_descriptor_sets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout, 0, 1, &particletexture->descriptor_set, 0, NULL);
+	VectorScale(vup, 1.5, up);
+	VectorScale(vright, 1.5, right);
 
 	int num_triangles = 0;
-	for (p=active_particles ; p ; p=p->next)
+	for (p = active_particles; p; p = p->next)
 		num_triangles += 1;
 
 	VkBuffer vertex_buffer;
 	VkDeviceSize vertex_buffer_offset;
-	basicvertex_t * vertices = (basicvertex_t*)R_VertexAllocate(num_triangles * 3 * sizeof(basicvertex_t), &vertex_buffer, &vertex_buffer_offset);	
-	
+	basicvertex_t * vertices = (basicvertex_t*)R_VertexAllocate(num_triangles * 3 * sizeof(basicvertex_t), &vertex_buffer, &vertex_buffer_offset);
+
 	int current_vertex = 0;
-	for (p=active_particles ; p ; p=p->next)
+	for (p = active_particles; p; p = p->next)
 	{
 		// hack a scale up to keep particles from disapearing
 		scale = (p->org[0] - r_origin[0]) * vpn[0]
-				+ (p->org[1] - r_origin[1]) * vpn[1]
-				+ (p->org[2] - r_origin[2]) * vpn[2];
+			+ (p->org[1] - r_origin[1]) * vpn[1]
+			+ (p->org[2] - r_origin[2]) * vpn[2];
 		if (scale < 20)
 			scale = 1 + 0.08; //johnfitz -- added .08 to be consistent
 		else
@@ -877,8 +876,8 @@ void R_DrawParticles (void)
 		vertices[current_vertex].color[2] = c[2];
 		vertices[current_vertex].color[3] = 255;
 		current_vertex++;
-	
-		VectorMA (p->org, scale, up, p_up);
+
+		VectorMA(p->org, scale, up, p_up);
 		vertices[current_vertex].position[0] = p_up[0];
 		vertices[current_vertex].position[1] = p_up[1];
 		vertices[current_vertex].position[2] = p_up[2];
@@ -890,7 +889,7 @@ void R_DrawParticles (void)
 		vertices[current_vertex].color[3] = 255;
 		current_vertex++;
 
-		VectorMA (p->org, scale, right, p_right);
+		VectorMA(p->org, scale, right, p_right);
 		vertices[current_vertex].position[0] = p_right[0];
 		vertices[current_vertex].position[1] = p_right[1];
 		vertices[current_vertex].position[2] = p_right[2];
@@ -907,4 +906,32 @@ void R_DrawParticles (void)
 
 	vulkan_globals.vk_cmd_bind_vertex_buffers(vulkan_globals.command_buffer, 0, 1, &vertex_buffer, &vertex_buffer_offset);
 	vulkan_globals.vk_cmd_draw(vulkan_globals.command_buffer, num_triangles * 3, 1, 0, 0);
+}
+
+/*
+===============
+R_DrawParticles -- johnfitz -- moved all non-drawing code to CL_RunParticles
+===============
+*/
+void R_DrawParticles (void)
+{
+	R_BindPipeline(vulkan_globals.particle_pipeline);
+	vulkan_globals.vk_cmd_bind_descriptor_sets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout, 0, 1, &particletexture->descriptor_set, 0, NULL);
+
+	R_DrawParticlesFaces();
+}
+
+/*
+===============
+R_DrawParticles_ShowTris -- johnfitz
+===============
+*/
+void R_DrawParticles_ShowTris (void)
+{
+	if (r_showtris.value == 1)
+		R_BindPipeline(vulkan_globals.showtris_pipeline);
+	else
+		R_BindPipeline(vulkan_globals.showtris_depth_test_pipeline);
+
+	R_DrawParticlesFaces();
 }

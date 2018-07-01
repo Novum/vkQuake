@@ -593,6 +593,13 @@ R_DrawWorld_ShowTris -- ericw -- moved from R_DrawTextureChains_ShowTris, which 
 */
 void R_DrawWorld_ShowTris (void)
 {
+	if (r_showtris.value == 1)
+		R_BindPipeline(vulkan_globals.showtris_pipeline);
+	else
+		R_BindPipeline(vulkan_globals.showtris_depth_test_pipeline);
+
+	vkCmdBindIndexBuffer(vulkan_globals.command_buffer, vulkan_globals.fan_index_buffer, 0, VK_INDEX_TYPE_UINT16);
+
 	if (!r_drawworld_cheatsafe)
 		return;
 

@@ -346,6 +346,7 @@ void R_MarkLights (dlight_t *light, int num, mnode_t *node);
 
 void R_InitParticles (void);
 void R_DrawParticles (void);
+void R_DrawParticles_ShowTris (void);
 void CL_RunParticles (void);
 void R_ClearParticles (void);
 
