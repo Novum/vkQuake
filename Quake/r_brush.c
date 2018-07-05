@@ -56,6 +56,8 @@ byte		lightmaps[4*MAX_LIGHTMAPS*BLOCK_WIDTH*BLOCK_HEIGHT];
 static VkDeviceMemory	bmodel_memory;
 VkBuffer				bmodel_vertex_buffer;
 
+extern cvar_t r_showtris;
+
 /*
 ===============
 R_TextureAnimation -- johnfitz -- added "frame" param to eliminate use of "currententity" global
@@ -243,6 +245,76 @@ void R_DrawBrushModel (entity_t *e)
 
 	R_DrawTextureChains (clmodel, e, chain_model);
 	R_DrawTextureChains_Water (clmodel, e, chain_model);
+
+	vulkan_globals.vk_cmd_push_constants(vulkan_globals.command_buffer, vulkan_globals.basic_pipeline_layout, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 16 * sizeof(float), vulkan_globals.view_projection_matrix);
+}
+
+/*
+=================
+R_DrawBrushModel_ShowTris -- johnfitz
+=================
+*/
+void R_DrawBrushModel_ShowTris(entity_t *e)
+{
+	int			i;
+	msurface_t	*psurf;
+	float		dot;
+	mplane_t	*pplane;
+	qmodel_t	*clmodel;
+	float color[] = { 1.0f, 1.0f, 1.0f };
+	const alpha = 1.0f;
+
+	if (R_CullModelForEntity(e))
+		return;
+
+	currententity = e;
+	clmodel = e->model;
+
+	VectorSubtract (r_refdef.vieworg, e->origin, modelorg);
+	if (e->angles[0] || e->angles[1] || e->angles[2])
+	{
+		vec3_t	temp;
+		vec3_t	forward, right, up;
+
+		VectorCopy (modelorg, temp);
+		AngleVectors (e->angles, forward, right, up);
+		modelorg[0] = DotProduct (temp, forward);
+		modelorg[1] = -DotProduct (temp, right);
+		modelorg[2] = DotProduct (temp, up);
+	}
+
+	psurf = &clmodel->surfaces[clmodel->firstmodelsurface];
+
+	e->angles[0] = -e->angles[0];	// stupid quake bug
+	float model_matrix[16];
+	IdentityMatrix(model_matrix);
+	R_RotateForEntity (model_matrix, e->origin, e->angles);
+	e->angles[0] = -e->angles[0];	// stupid quake bug
+
+	float mvp[16];
+	memcpy(mvp, vulkan_globals.view_projection_matrix, 16 * sizeof(float));
+	MatrixMultiply(mvp, model_matrix);
+
+	vulkan_globals.vk_cmd_push_constants(vulkan_globals.command_buffer, vulkan_globals.basic_pipeline_layout, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 16 * sizeof(float), mvp);
+
+	if (r_showtris.value == 1)
+		R_BindPipeline(vulkan_globals.showtris_pipeline);
+	else
+		R_BindPipeline(vulkan_globals.showtris_depth_test_pipeline);
+
+	//
+	// draw it
+	//
+	for (i=0 ; i<clmodel->nummodelsurfaces ; i++, psurf++)
+	{
+		pplane = psurf->plane;
+		dot = DotProduct (modelorg, pplane->normal) - pplane->dist;
+		if (((psurf->flags & SURF_PLANEBACK) && (dot < -BACKFACE_EPSILON)) ||
+			(!(psurf->flags & SURF_PLANEBACK) && (dot > BACKFACE_EPSILON)))
+		{
+			DrawGLPoly (psurf->polys, color, alpha);
+		}
+	}
 
 	vulkan_globals.vk_cmd_push_constants(vulkan_globals.command_buffer, vulkan_globals.basic_pipeline_layout, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 16 * sizeof(float), vulkan_globals.view_projection_matrix);
 }

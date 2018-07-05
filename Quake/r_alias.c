@@ -442,3 +442,13 @@ void R_DrawAliasModel (entity_t *e)
 #define SHADOW_VSCALE 0 //0=completely flat
 #define SHADOW_HEIGHT 0.1 //how far above the floor to render the shadow
 //johnfitz
+
+/*
+=================
+R_DrawAliasModel_ShowTris -- johnfitz
+=================
+*/
+void R_DrawAliasModel_ShowTris (entity_t *e)
+{
+}
+

@@ -524,6 +524,7 @@ R_ShowTris -- johnfitz
 void R_ShowTris(void)
 {
 	extern cvar_t r_particles;
+	int i;
 
 	if (r_showtris.value < 1 || r_showtris.value > 2 || cl.maxclients > 1 || !vulkan_globals.non_solid_fill)
 		return;
@@ -531,6 +532,41 @@ void R_ShowTris(void)
 	if (r_drawworld.value)
 	{
 		R_DrawWorld_ShowTris();
+	}
+
+	if (r_drawentities.value)
+	{
+		for (i=0 ; i<cl_numvisedicts ; i++)
+		{
+			currententity = cl_visedicts[i];
+
+			if (currententity == &cl_entities[cl.viewentity]) // chasecam
+				currententity->angles[0] *= 0.3;
+
+			switch (currententity->model->type)
+			{
+			case mod_brush:
+				R_DrawBrushModel_ShowTris (currententity);
+				break;
+			case mod_alias:
+				R_DrawAliasModel_ShowTris (currententity);
+				break;
+			default:
+				break;
+			}
+		}
+
+		// viewmodel
+		currententity = &cl.viewent;
+		if (r_drawviewmodel.value
+			&& !chase_active.value
+			&& cl.stats[STAT_HEALTH] > 0
+			&& !(cl.items & IT_INVISIBILITY)
+			&& currententity->model
+			&& currententity->model->type == mod_alias)
+		{
+			R_DrawAliasModel_ShowTris (currententity);
+		}
 	}
 
 	if (r_particles.value)

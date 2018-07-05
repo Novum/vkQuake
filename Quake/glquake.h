@@ -346,7 +346,6 @@ void R_MarkLights (dlight_t *light, int num, mnode_t *node);
 
 void R_InitParticles (void);
 void R_DrawParticles (void);
-void R_DrawParticles_ShowTris (void);
 void CL_RunParticles (void);
 void R_ClearParticles (void);
 
@@ -375,6 +374,10 @@ void R_RenderDynamicLightmaps (msurface_t *fa);
 void R_UploadLightmaps (void);
 
 void R_DrawWorld_ShowTris(void);
+void R_DrawBrushModel_ShowTris (entity_t *e);
+void R_DrawAliasModel_ShowTris (entity_t *e);
+void R_DrawParticles_ShowTris(void);
+
 void DrawGLPoly (glpoly_t *p, float color[3], float alpha);
 void GL_MakeAliasModelDisplayLists (qmodel_t *m, aliashdr_t *hdr);
 
