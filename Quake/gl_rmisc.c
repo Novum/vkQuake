@@ -1782,6 +1782,7 @@ void R_CreatePipelines()
 				specialization_data[2] = alpha_blend;
 
 				blend_attachment_state.blendEnable = alpha_blend ? VK_TRUE : VK_FALSE;
+				depth_stencil_state_create_info.depthWriteEnable = alpha_blend ? VK_FALSE : VK_TRUE;
 				if ( pipeline_index > 0 ) {
 					pipeline_create_info.flags = VK_PIPELINE_CREATE_DERIVATIVE_BIT;
 					pipeline_create_info.basePipelineHandle = vulkan_globals.world_pipelines[0];
@@ -1800,6 +1801,8 @@ void R_CreatePipelines()
 		}
 	}
 
+	depth_stencil_state_create_info.depthTestEnable = VK_TRUE;
+	depth_stencil_state_create_info.depthWriteEnable = VK_TRUE;
 	pipeline_create_info.flags = 0;
 	blend_attachment_state.blendEnable = VK_FALSE;
 	shader_stages[1].pSpecializationInfo = NULL;
