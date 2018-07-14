@@ -235,7 +235,7 @@ SHADER_OBJS = \
 	world_frag.o \
 	world_vert.o \
 	showtris_frag.o \
-	showtris_frag.o
+	showtris_vert.o
 
 GLOBJS = \
 	$(SHADER_OBJS) \
