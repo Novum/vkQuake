@@ -760,8 +760,6 @@ R_InitFanIndexBuffer
 */
 static void R_InitFanIndexBuffer()
 {
-	Con_Printf("Initializing dynamic uniform buffers\n");
-
 	VkResult err;
 	VkDeviceMemory memory;
 	const int bufferSize = sizeof(uint16_t) * FAN_INDEX_BUFFER_SIZE;
