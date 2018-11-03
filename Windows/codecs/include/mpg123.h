@@ -28,6 +28,13 @@
 #endif
 #endif
 
+/* This is for Visual Studio, so this header works as distributed in the binary downloads */
+#if defined(_MSC_VER) && !defined(MPG123_DEF_SSIZE_T)
+#define MPG123_DEF_SSIZE_T
+#include <stddef.h>
+typedef ptrdiff_t ssize_t;
+#endif
+
 #ifndef MPG123_NO_CONFIGURE /* Enable use of this file without configure. */
 #include <stdlib.h>
 #include <sys/types.h>

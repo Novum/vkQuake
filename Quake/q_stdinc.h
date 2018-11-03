@@ -177,14 +177,10 @@ typedef int	fixed16_t;
 
 /*==========================================================================*/
 
-/* missing types */
+/* missing types: */
 #if defined(_MSC_VER)
-#if defined(_WIN64)
-#define ssize_t	SSIZE_T
-#else
-typedef int	ssize_t;
-#endif	/* _WIN64 */
-#endif	/* _MSC_VER */
+typedef ptrdiff_t	ssize_t;
+#endif
 
 /*==========================================================================*/
 

@@ -27,6 +27,8 @@
 #include "snd_codeci.h"
 #include "snd_mp3.h"
 #include <errno.h>
+
+#define MPG123_DEF_SSIZE_T  /* we do define ssize_t in our stdinc.h */
 #include <mpg123.h>
 
 #if !defined(MPG123_API_VERSION) || (MPG123_API_VERSION < 24)
