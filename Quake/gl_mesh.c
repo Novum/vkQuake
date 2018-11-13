@@ -485,6 +485,7 @@ static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 	m->vbostofs = totalvbosize;
 	totalvbosize += (hdr->numverts_vbo * sizeof (meshst_t));
 	
+	if (isDedicated) return;
 	if (!hdr->numindexes) return;
 	if (!totalvbosize) return;
 	
