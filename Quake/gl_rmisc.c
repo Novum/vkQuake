@@ -1047,7 +1047,7 @@ void R_CreateDescriptorPool()
 	pool_sizes[2].type = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
 	pool_sizes[2].descriptorCount = 2;
 	pool_sizes[3].type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-	pool_sizes[3].descriptorCount = 1;
+	pool_sizes[3].descriptorCount = MAX_GLTEXTURES;
 
 	VkDescriptorPoolCreateInfo descriptor_pool_create_info;
 	memset(&descriptor_pool_create_info, 0, sizeof(descriptor_pool_create_info));
