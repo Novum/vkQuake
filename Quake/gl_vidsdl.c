@@ -1962,6 +1962,7 @@ void GL_EndRendering (qboolean swapchain_acquired)
 		Sys_Error("vkQueueSubmit failed");
 
 	vulkan_globals.device_idle = false;
+	R_DeletePendingResources();
 
 	if (swapchain_acquired == true) {
 		VkPresentInfoKHR present_info;
