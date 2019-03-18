@@ -998,7 +998,7 @@ void CalcSurfaceExtents (msurface_t *s)
 	int		bmins[2], bmaxs[2];
 
 	mins[0] = mins[1] = 999999;
-	maxs[0] = maxs[1] = -99999;
+	maxs[0] = maxs[1] = -999999; // FIXME: change these two to FLT_MAX/-FLT_MAX
 
 	tex = s->texinfo;
 
