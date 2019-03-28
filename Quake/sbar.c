@@ -648,7 +648,7 @@ void Sbar_DrawInventory (void)
 
 	if (rogue)
 	{
-	// check for powered up weapon.
+    // check for powered up weapon.
 		if ( cl.stats[STAT_ACTIVEWEAPON] >= RIT_LAVA_NAILGUN )
 		{
 			for (i=0;i<5;i++)

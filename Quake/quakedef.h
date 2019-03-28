@@ -2,7 +2,7 @@
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2007-2008 Kristian Duske
-Copyright (C) 2010-2014 QuakeSpasm developers
+Copyright (C) 2010-2017 QuakeSpasm developers
 Copyright (C) 2016 Axel Gneiting
 
 This program is free software; you can redistribute it and/or
@@ -22,8 +22,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-#ifndef __QUAKEDEFS_H
-#define __QUAKEDEFS_H
+#ifndef QUAKEDEFS_H
+#define QUAKEDEFS_H
 
 // quakedef.h -- primary header for client
 
@@ -38,7 +38,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #define	FITZQUAKE_VERSION	0.85	//johnfitz
 #define	QUAKESPASM_VERSION	0.93
-#define	QUAKESPASM_VER_PATCH	0	// helper to print a string like 0.92.1
+#define	QUAKESPASM_VER_PATCH	1	// helper to print a string like 0.93.1
 #ifndef	QUAKESPASM_VER_SUFFIX
 #define	QUAKESPASM_VER_SUFFIX		// optional version suffix string literal like "-beta1"
 #endif
@@ -334,5 +334,5 @@ extern int num_vulkan_mesh_allocations;
 extern int num_vulkan_misc_allocations;
 extern int num_vulkan_dynbuf_allocations;
 
-#endif	/* __QUAKEDEFS_H */
+#endif	/* QUAKEDEFS_H */
 

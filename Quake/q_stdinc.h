@@ -29,10 +29,6 @@
 #ifndef __QSTDINC_H
 #define __QSTDINC_H
 
-#ifdef  __cplusplus
-#define __STDC_LIMIT_MACROS /* for UINT64_MAX & co. */
-#endif
-
 #include <sys/types.h>
 #include <stddef.h>
 #include <limits.h>
@@ -183,6 +179,8 @@ typedef ptrdiff_t	ssize_t;
 #endif
 
 /*==========================================================================*/
+
+/* function attributes, etc */
 
 #if defined(__GNUC__)
 #define FUNC_PRINTF(x,y)	__attribute__((__format__(__printf__,x,y)))

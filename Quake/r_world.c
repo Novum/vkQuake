@@ -149,7 +149,7 @@ void R_MarkSurfaces (void)
 	//becuase his tool doesn't actually remove the surfaces from the bsp surfaces lump
 	//nor does it remove references to them in each leaf's marksurfaces list
 	for (i=0, node = cl.worldmodel->nodes ; i<cl.worldmodel->numnodes ; i++, node++)
-		for (j=0, surf=&cl.worldmodel->surfaces[node->firstsurface] ; j<(int)node->numsurfaces ; j++, surf++)
+		for (j=0, surf=&cl.worldmodel->surfaces[node->firstsurface] ; j<node->numsurfaces ; j++, surf++)
 			if (surf->visframe == r_visframecount)
 			{
 				R_ChainSurface(surf, chain_world);
