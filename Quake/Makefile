@@ -3,12 +3,10 @@
 # "make DEBUG=1" to build a debug client.
 # "make SDL_CONFIG=/path/to/sdl-config" for unusual SDL installations.
 # "make DO_USERDIRS=1" to enable user directories support
+# "make VULKAN_SDK=/path/to/sdk" if it is not already in path
 
 # Enable/Disable user directories support
 DO_USERDIRS=0
-
-### Vulkan SDK directory
-VULKAN_INCLUDE_DIR=$(VULKAN_SDK)/include
 
 ### Enable/Disable codecs for streaming music support
 USE_CODEC_WAVE=1
@@ -52,7 +50,6 @@ STRIP ?= strip
 #CPUFLAGS= -mtune=k8
 #CPUFLAGS= -march=atom
 CPUFLAGS=
-LDFLAGS += -L$(VULKAN_SDK)/lib
 DFLAGS ?=
 CFLAGS ?= -Wall -Wno-trigraphs
 CFLAGS += $(CPUFLAGS)
@@ -71,7 +68,11 @@ define do_strip
 	$(call cmd_strip,$(1));
 endef
 endif
-CFLAGS += -I$(VULKAN_INCLUDE_DIR) -DLINUX
+
+ifneq ($(VULKAN_SDK),)
+LDFLAGS += -L$(VULKAN_SDK)/lib
+CFLAGS += -I$(VULKAN_SDK)/include
+endif
 
 ifeq ($(DO_USERDIRS),1)
 CFLAGS += -DDO_USERDIRS=1
@@ -172,7 +173,12 @@ ifeq ($(USE_CODEC_UMX),1)
 CFLAGS+= -DUSE_CODEC_UMX
 endif
 
-COMMON_LIBS:= -lm -l:libvulkan.so.1 -lX11-xcb
+COMMON_LIBS:= -lm -lvulkan
+
+ifneq ($(HOST_OS),darwin)
+COMMON_LIBS+= -lX11-xcb
+CFLAGS+= -DLINUX
+endif
 
 LIBS := $(COMMON_LIBS) $(NET_LIBS) $(CODECLIBS)
 
