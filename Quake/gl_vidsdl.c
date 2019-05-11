@@ -1296,7 +1296,7 @@ static void GL_CreateColorBuffer( void )
 		const int fsaa = (int)vid_fsaa.value;
 
 		VkImageFormatProperties image_format_properties;
-		vkGetPhysicalDeviceImageFormatProperties(vulkan_physical_device, vulkan_globals.color_format, VK_IMAGE_TYPE_2D, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, 0, &image_format_properties);
+		vkGetPhysicalDeviceImageFormatProperties(vulkan_physical_device, vulkan_globals.color_format, VK_IMAGE_TYPE_2D, VK_IMAGE_TILING_OPTIMAL, image_create_info.usage, 0, &image_format_properties);
 
 		// Workaround: Intel advertises 16 samples but crashes when using it.
 		if ((fsaa >= 16) && (image_format_properties.sampleCounts & VK_SAMPLE_COUNT_16_BIT) && (vulkan_globals.device_properties.vendorID != 0x8086))
