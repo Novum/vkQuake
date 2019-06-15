@@ -56,7 +56,7 @@ client_t	*host_client;			// current client
 jmp_buf 	host_abortserver;
 
 byte		*host_colormap;
-
+float	host_netinterval;
 cvar_t	host_framerate = {"host_framerate","0",CVAR_NONE};	// set for slow motion
 cvar_t	host_speeds = {"host_speeds","0",CVAR_NONE};			// set for running times
 cvar_t	host_maxfps = {"host_maxfps", "72", CVAR_ARCHIVE}; //johnfitz
@@ -105,8 +105,21 @@ Max_Fps_f -- ericw
 */
 static void Max_Fps_f (cvar_t *var)
 {
-	if (var->value > 72)
-		Con_Warning ("host_maxfps above 72 breaks physics.\n");
+	if (var->value > 72 || var->value <= 0)
+	{
+		if (!host_netinterval)
+			Con_Printf ("Using renderer/network isolation.\n");
+		host_netinterval = 1.0/72;
+	}
+	else
+	{
+		if (host_netinterval)
+			Con_Printf ("Disabling renderer/network isolation.\n");
+		host_netinterval = 0;
+
+		if (var->value > 72)
+			Con_Warning ("host_maxfps above 72 breaks physics.\n");
+	}
 }
 
 /*
@@ -571,7 +584,7 @@ qboolean Host_FilterTime (float time)
 
 	//johnfitz -- max fps cvar
 	maxfps = CLAMP (10.0, host_maxfps.value, 1000.0);
-	if (!cls.timedemo && realtime - oldrealtime < 1.0/maxfps)
+	if (host_maxfps.value && !cls.timedemo && realtime - oldrealtime < 1.0/maxfps)
 		return false; // framerate is too high
 	//johnfitz
 
@@ -584,8 +597,8 @@ qboolean Host_FilterTime (float time)
 	//johnfitz
 	else if (host_framerate.value > 0)
 		host_frametime = host_framerate.value;
-	else // don't allow really long or short frames
-		host_frametime = CLAMP (0.001, host_frametime, 0.1); //johnfitz -- use CLAMP
+	else if (host_maxfps.value)// don't allow really long or short frames
+		host_frametime = CLAMP (0.0001, host_frametime, 0.1); //johnfitz -- use CLAMP
 
 	return true;
 }
@@ -667,8 +680,9 @@ Host_Frame
 Runs all active servers
 ==================
 */
-void _Host_Frame (float time)
+void _Host_Frame (double time)
 {
+	static double	accumtime = 0;
 	static double		time1 = 0;
 	static double		time2 = 0;
 	static double		time3 = 0;
@@ -681,6 +695,7 @@ void _Host_Frame (float time)
 	rand ();
 
 // decide the simulation time
+	accumtime += host_netinterval?CLAMP(0, time, 0.2):0;	//for renderer/server isolation
 	if (!Host_FilterTime (time))
 		return;			// don't run too fast, or packets will flood out
 
@@ -692,37 +707,39 @@ void _Host_Frame (float time)
 // allow mice or other external controllers to add commands
 	IN_Commands ();
 
+//check the stdin for commands (dedicated servers)
+	Host_GetConsoleCommands ();
+
 // process console commands
 	Cbuf_Execute ();
 
 	NET_Poll();
 
-// if running the server locally, make intentions now
-	if (sv.active)
+	CL_AccumulateCmd ();
+
+	//Run the server+networking (client->server->client), at a different rate from everyt
+	if (accumtime >= host_netinterval)
+	{
+		float realframetime = host_frametime;
+		if (host_netinterval)
+		{
+			host_frametime = q_max(accumtime, host_netinterval);
+			accumtime -= host_frametime;
+			if (host_timescale.value > 0)
+				host_frametime *= host_timescale.value;
+			else if (host_framerate.value)
+				host_frametime = host_framerate.value;
+		}
+		else
+			accumtime -= host_netinterval;
 		CL_SendCmd ();
-
-//-------------------
-//
-// server operations
-//
-//-------------------
-
-// check for commands typed to the host
-	Host_GetConsoleCommands ();
-
-	if (sv.active)
-		Host_ServerFrame ();
-
-//-------------------
-//
-// client operations
-//
-//-------------------
-
-// if running the server remotely, send intentions now after
-// the incoming messages have been read
-	if (!sv.active)
-		CL_SendCmd ();
+		if (sv.active)
+		{
+			Host_ServerFrame ();
+		}
+		host_frametime = realframetime;
+		Cbuf_Waited();
+	}
 
 // fetch results from server
 	if (cls.state == ca_connected)
@@ -765,7 +782,7 @@ void _Host_Frame (float time)
 
 }
 
-void Host_Frame (float time)
+void Host_Frame (double time)
 {
 	double	time1, time2;
 	static double	timetotal;

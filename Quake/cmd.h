@@ -57,6 +57,13 @@ void Cbuf_Execute (void);
 // Normally called once per frame, but may be explicitly invoked.
 // Do not call inside a command function!
 
+void Cbuf_Waited (void);
+//In vanilla, the 'wait' command is used by both input configs and servers.
+//mods do hacky stuff like syncing waits to StartFrame calls.
+//thankfully, c2s packets and server logic can both happen at the same intervals.
+//so wait sets a flag to inhibit execution of more commands, and we only clear it once we've run a network frame.
+//so this function lets the cbuf know when to clear the flag again (instead of part of cbuf_execute).
+
 //===========================================================================
 
 /*

@@ -308,7 +308,7 @@ void Host_Shutdown(void);
 void Host_Callback_Notify (cvar_t *var);	/* callback function for CVAR_NOTIFY */
 FUNC_NORETURN void Host_Error (const char *error, ...) FUNC_PRINTF(1,2);
 FUNC_NORETURN void Host_EndGame (const char *message, ...) FUNC_PRINTF(1,2);
-void Host_Frame (float time);
+void Host_Frame (double time);
 void Host_Quit_f (void);
 void Host_ClientCommands (const char *fmt, ...) FUNC_PRINTF(1,2);
 void Host_ShutdownServer (qboolean crash);

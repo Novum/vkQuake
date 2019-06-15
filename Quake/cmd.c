@@ -137,9 +137,17 @@ void Cbuf_InsertText (const char *text)
 	}
 }
 
+//Spike: for renderer/server isolation
+void Cbuf_Waited(void)
+{
+	cmd_wait = false;
+}
+
 /*
 ============
 Cbuf_Execute
+
+Spike: reworked 'wait' for renderer/server rate independance
 ============
 */
 void Cbuf_Execute (void)
@@ -149,7 +157,7 @@ void Cbuf_Execute (void)
 	char	line[1024];
 	int		quotes;
 
-	while (cmd_text.cursize)
+	while (cmd_text.cursize && !cmd_wait)
 	{
 // find a \n or ; line break
 		text = (char *)cmd_text.data;
@@ -191,13 +199,6 @@ void Cbuf_Execute (void)
 
 // execute the command line
 		Cmd_ExecuteString (line, src_command);
-
-		if (cmd_wait)
-		{	// skip out while text still remains in buffer, leaving it
-			// for next frame
-			cmd_wait = false;
-			break;
-		}
 	}
 }
 
