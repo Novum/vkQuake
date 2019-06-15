@@ -85,11 +85,12 @@ static int				current_staging_buffer = 0;
 Dynamic vertex/index & uniform buffer
 ================
 */
-#define DYNAMIC_VERTEX_BUFFER_SIZE_KB	2048
-#define DYNAMIC_INDEX_BUFFER_SIZE_KB	4096
-#define DYNAMIC_UNIFORM_BUFFER_SIZE_KB	1024
-#define NUM_DYNAMIC_BUFFERS				2
-#define MAX_UNIFORM_ALLOC				2048
+#define INITIAL_DYNAMIC_VERTEX_BUFFER_SIZE_KB	256
+#define INITIAL_DYNAMIC_INDEX_BUFFER_SIZE_KB	1024
+#define INITIAL_DYNAMIC_UNIFORM_BUFFER_SIZE_KB	256
+#define NUM_DYNAMIC_BUFFERS						2
+#define GARBAGE_FRAME_COUNT						3
+#define MAX_UNIFORM_ALLOC						2048
 
 typedef struct
 {
@@ -98,6 +99,9 @@ typedef struct
 	unsigned char *		data;
 } dynbuffer_t;
 
+static uint32_t			current_dyn_vertex_buffer_size = INITIAL_DYNAMIC_VERTEX_BUFFER_SIZE_KB;
+static uint32_t			current_dyn_index_buffer_size = INITIAL_DYNAMIC_INDEX_BUFFER_SIZE_KB;
+static uint32_t			current_dyn_uniform_buffer_size = INITIAL_DYNAMIC_UNIFORM_BUFFER_SIZE_KB;
 static VkDeviceMemory	dyn_vertex_buffer_memory;
 static VkDeviceMemory	dyn_index_buffer_memory;
 static VkDeviceMemory	dyn_uniform_buffer_memory;
@@ -106,6 +110,14 @@ static dynbuffer_t		dyn_index_buffers[NUM_DYNAMIC_BUFFERS];
 static dynbuffer_t		dyn_uniform_buffers[NUM_DYNAMIC_BUFFERS];
 static int				current_dyn_buffer_index = 0;
 static VkDescriptorSet	ubo_descriptor_sets[2];
+
+static int					current_garbage_index = 0;
+static int					num_device_memory_garbage[GARBAGE_FRAME_COUNT];
+static int					num_buffer_garbage[GARBAGE_FRAME_COUNT];
+static int					num_desc_set_garbage[GARBAGE_FRAME_COUNT];
+static VkDeviceMemory *		device_memory_garbage[GARBAGE_FRAME_COUNT];
+static VkDescriptorSet *	descriptor_set_garbage[GARBAGE_FRAME_COUNT];
+static VkBuffer *			buffer_garbage[GARBAGE_FRAME_COUNT];
 
 void R_VulkanMemStats_f (void);
 
@@ -530,14 +542,14 @@ static void R_InitDynamicVertexBuffers()
 {
 	int i;
 
-	Con_Printf("Initializing dynamic vertex buffers\n");
+	Con_Printf("Reallocating dynamic vertex buffers (%u KB)\n", current_dyn_index_buffer_size);
 
 	VkResult err;
 
 	VkBufferCreateInfo buffer_create_info;
 	memset(&buffer_create_info, 0, sizeof(buffer_create_info));
 	buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	buffer_create_info.size = DYNAMIC_VERTEX_BUFFER_SIZE_KB * 1024;
+	buffer_create_info.size = current_dyn_index_buffer_size * 1024;
 	buffer_create_info.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
 
 	for (i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
@@ -597,14 +609,14 @@ static void R_InitDynamicIndexBuffers()
 {
 	int i;
 
-	Con_Printf("Initializing dynamic index buffers\n");
+	Con_Printf("Reallocating dynamic index buffers (%u KB)\n", current_dyn_index_buffer_size);
 
 	VkResult err;
 
 	VkBufferCreateInfo buffer_create_info;
 	memset(&buffer_create_info, 0, sizeof(buffer_create_info));
 	buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	buffer_create_info.size = DYNAMIC_INDEX_BUFFER_SIZE_KB * 1024;
+	buffer_create_info.size = current_dyn_index_buffer_size * 1024;
 	buffer_create_info.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
 
 	for (i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
@@ -664,14 +676,14 @@ static void R_InitDynamicUniformBuffers()
 {
 	int i;
 
-	Con_Printf("Initializing dynamic uniform buffers\n");
+	Con_Printf("Reallocating dynamic uniform buffers (%u KB)\n", current_dyn_uniform_buffer_size);
 
 	VkResult err;
 
 	VkBufferCreateInfo buffer_create_info;
 	memset(&buffer_create_info, 0, sizeof(buffer_create_info));
 	buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	buffer_create_info.size = DYNAMIC_UNIFORM_BUFFER_SIZE_KB * 1024;
+	buffer_create_info.size = current_dyn_uniform_buffer_size * 1024;
 	buffer_create_info.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
 
 	for (i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
@@ -853,6 +865,84 @@ void R_FlushDynamicBuffers()
 
 /*
 ===============
+R_AddDynamicBufferGarbage
+===============
+*/
+static void R_AddDynamicBufferGarbage(VkDeviceMemory device_memory, dynbuffer_t * buffers, VkDescriptorSet * descriptor_sets)
+{
+	{
+		int * num_garbage = &num_device_memory_garbage[current_garbage_index];
+		int old_num_memory_garbage = *num_garbage;
+		*num_garbage += 1;
+		if (device_memory_garbage[current_garbage_index] == NULL)
+			device_memory_garbage[current_garbage_index] = malloc(sizeof(VkDeviceMemory) * (*num_garbage));
+		else
+			device_memory_garbage[current_garbage_index] = realloc(device_memory_garbage[current_garbage_index], sizeof(VkDeviceMemory) * (*num_garbage));
+		device_memory_garbage[current_garbage_index][old_num_memory_garbage] = device_memory;
+	}
+
+	{
+		int * num_garbage = &num_buffer_garbage[current_garbage_index];
+		int old_num_buffer_garbage = *num_garbage;
+		*num_garbage += NUM_DYNAMIC_BUFFERS;
+		if (buffer_garbage[current_garbage_index] == NULL)
+			buffer_garbage[current_garbage_index] = malloc(sizeof(VkBuffer) * (*num_garbage));
+		else
+			buffer_garbage[current_garbage_index] = realloc(buffer_garbage[current_garbage_index], sizeof(VkBuffer) * (*num_garbage));
+		for (int i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
+			buffer_garbage[current_garbage_index][old_num_buffer_garbage + i] = buffers[i].buffer;
+	}
+
+	if (descriptor_sets)
+	{
+		int * num_garbage = &num_desc_set_garbage[current_garbage_index];
+		int old_num_desc_set_garbage = *num_garbage;
+		*num_garbage += 2;
+		if (descriptor_set_garbage[current_garbage_index] == NULL)
+			descriptor_set_garbage[current_garbage_index] = malloc(sizeof(VkBuffer) * (*num_garbage));
+		else
+			descriptor_set_garbage[current_garbage_index] = realloc(descriptor_set_garbage[current_garbage_index], sizeof(VkDescriptorSet) * (*num_garbage));
+		for (int i = 0; i < 2; ++i)
+			descriptor_set_garbage[current_garbage_index][old_num_desc_set_garbage + i] = descriptor_sets[i];
+	}
+}
+
+/*
+===============
+R_CollectDynamicBufferGarbage
+===============
+*/
+void R_CollectDynamicBufferGarbage()
+{
+	current_garbage_index = (current_garbage_index + 1) % GARBAGE_FRAME_COUNT;
+	const int collect_garbage_index = (current_garbage_index + 1) % GARBAGE_FRAME_COUNT;
+
+	if (num_desc_set_garbage[collect_garbage_index] > 0) {
+		vkFreeDescriptorSets(vulkan_globals.device, vulkan_globals.descriptor_pool, num_desc_set_garbage[collect_garbage_index], descriptor_set_garbage[collect_garbage_index]);
+		free(descriptor_set_garbage[collect_garbage_index]);
+		descriptor_set_garbage[collect_garbage_index] = NULL;
+		num_desc_set_garbage[collect_garbage_index] = 0;
+	}
+
+	if (num_buffer_garbage[collect_garbage_index] > 0) {
+		for (int i = 0; i < num_buffer_garbage[collect_garbage_index]; ++i)
+			vkDestroyBuffer(vulkan_globals.device, buffer_garbage[collect_garbage_index][i], NULL);
+		free(descriptor_set_garbage[collect_garbage_index]);
+		descriptor_set_garbage[collect_garbage_index] = NULL;
+		num_buffer_garbage[collect_garbage_index] = 0;
+	}
+
+	if (num_device_memory_garbage[collect_garbage_index] > 0) {
+		for (int i = 0; i < num_device_memory_garbage[collect_garbage_index]; ++i)
+			vkFreeMemory(vulkan_globals.device, device_memory_garbage[collect_garbage_index][i], NULL);
+		free(device_memory_garbage[collect_garbage_index]);
+		device_memory_garbage[collect_garbage_index] = NULL;
+		num_device_memory_garbage[collect_garbage_index] = 0;
+	}
+}
+
+/*
+===============
 R_VertexAllocate
 ===============
 */
@@ -860,8 +950,13 @@ byte * R_VertexAllocate(int size, VkBuffer * buffer, VkDeviceSize * buffer_offse
 {
 	dynbuffer_t *dyn_vb = &dyn_vertex_buffers[current_dyn_buffer_index];
 
-	if ((dyn_vb->current_offset + size) > (DYNAMIC_VERTEX_BUFFER_SIZE_KB * 1024))
-		Sys_Error("Out of dynamic vertex buffer space, increase DYNAMIC_VERTEX_BUFFER_SIZE_KB");
+	if ((dyn_vb->current_offset + size) > (current_dyn_vertex_buffer_size * 1024))
+	{
+		R_AddDynamicBufferGarbage(dyn_vertex_buffer_memory, dyn_vertex_buffers, NULL);
+		current_dyn_vertex_buffer_size = q_max(current_dyn_vertex_buffer_size * 2, (uint32_t)Q_nextPow2(size));
+		vkUnmapMemory(vulkan_globals.device, dyn_vertex_buffer_memory);
+		R_InitDynamicVertexBuffers();
+	}
 
 	*buffer = dyn_vb->buffer;
 	*buffer_offset = dyn_vb->current_offset;
@@ -886,8 +981,13 @@ byte * R_IndexAllocate(int size, VkBuffer * buffer, VkDeviceSize * buffer_offset
 
 	dynbuffer_t *dyn_ib = &dyn_index_buffers[current_dyn_buffer_index];
 
-	if ((dyn_ib->current_offset + aligned_size) > (DYNAMIC_INDEX_BUFFER_SIZE_KB * 1024))
-		Sys_Error("Out of dynamic index buffer space, increase DYNAMIC_INDEX_BUFFER_SIZE_KB");
+	if ((dyn_ib->current_offset + aligned_size) > (current_dyn_index_buffer_size * 1024))
+	{
+		R_AddDynamicBufferGarbage(dyn_index_buffer_memory, dyn_index_buffers, NULL);
+		current_dyn_index_buffer_size = q_max(current_dyn_index_buffer_size * 2, (uint32_t)Q_nextPow2(size));
+		vkUnmapMemory(vulkan_globals.device, dyn_index_buffer_memory);
+		R_InitDynamicIndexBuffers();
+	}
 
 	*buffer = dyn_ib->buffer;
 	*buffer_offset = dyn_ib->current_offset;
@@ -916,8 +1016,13 @@ byte * R_UniformAllocate(int size, VkBuffer * buffer, uint32_t * buffer_offset, 
 
 	dynbuffer_t *dyn_ub = &dyn_uniform_buffers[current_dyn_buffer_index];
 
-	if ((dyn_ub->current_offset + MAX_UNIFORM_ALLOC) > (DYNAMIC_UNIFORM_BUFFER_SIZE_KB * 1024))
-		Sys_Error("Out of dynamic uniform buffer space, increase DYNAMIC_UNIFORM_BUFFER_SIZE_KB");
+	if ((dyn_ub->current_offset + MAX_UNIFORM_ALLOC) > (current_dyn_uniform_buffer_size * 1024))
+	{
+		R_AddDynamicBufferGarbage(dyn_uniform_buffer_memory, dyn_uniform_buffers, ubo_descriptor_sets);
+		current_dyn_uniform_buffer_size = q_max(current_dyn_uniform_buffer_size * 2, (uint32_t)Q_nextPow2(size));
+		vkUnmapMemory(vulkan_globals.device, dyn_uniform_buffer_memory);
+		R_InitDynamicUniformBuffers();
+	}
 
 	*buffer = dyn_ub->buffer;
 	*buffer_offset = dyn_ub->current_offset;

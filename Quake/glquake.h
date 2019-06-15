@@ -417,6 +417,7 @@ byte * R_StagingAllocate(int size, int alignment, VkCommandBuffer * command_buff
 void R_InitGPUBuffers();
 void R_SwapDynamicBuffers();
 void R_FlushDynamicBuffers();
+void R_CollectDynamicBufferGarbage();
 byte * R_VertexAllocate(int size, VkBuffer * buffer, VkDeviceSize * buffer_offset);
 byte * R_IndexAllocate(int size, VkBuffer * buffer, VkDeviceSize * buffer_offset);
 byte * R_UniformAllocate(int size, VkBuffer * buffer, uint32_t * buffer_offset, VkDescriptorSet * descriptor_set);
