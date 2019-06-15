@@ -173,11 +173,13 @@ ifeq ($(USE_CODEC_UMX),1)
 CFLAGS+= -DUSE_CODEC_UMX
 endif
 
-COMMON_LIBS:= -lm -lvulkan
+COMMON_LIBS:= -lm
 
 ifneq ($(HOST_OS),darwin)
-COMMON_LIBS+= -lX11-xcb
+COMMON_LIBS+= -lX11-xcb -lvulkan
 CFLAGS+= -DLINUX
+else
+	COMMON_LIBS+= -lMoltenVK
 endif
 
 LIBS := $(COMMON_LIBS) $(NET_LIBS) $(CODECLIBS)
