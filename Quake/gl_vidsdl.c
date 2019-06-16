@@ -1930,7 +1930,7 @@ void GL_EndRendering (qboolean swapchain_acquired)
 
 	if (swapchain_acquired == true) {
 		// Render post process
-		GL_Viewport(0, 0, vid.width, vid.height);
+		GL_Viewport(0, 0, vid.width, vid.height, 0.0f, 1.0f);
 		float postprocess_values[2] = { vid_gamma.value, q_min(2.0f, q_max(1.0f, vid_contrast.value)) };
 
 		vkCmdNextSubpass(vulkan_globals.command_buffer, VK_SUBPASS_CONTENTS_INLINE);

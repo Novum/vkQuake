@@ -318,7 +318,8 @@ void R_SetupMatrix (void)
 	GL_Viewport(glx + r_refdef.vrect.x,
 				gly + glheight - r_refdef.vrect.y - r_refdef.vrect.height,
 				r_refdef.vrect.width,
-				r_refdef.vrect.height);
+				r_refdef.vrect.height,
+				0.0f, 1.0f);
 
 	// Projection matrix
 	GL_FrustumMatrix(vulkan_globals.projection_matrix, DEG2RAD(r_fovx), DEG2RAD(r_fovy));
@@ -500,20 +501,19 @@ void R_DrawViewModel (void)
 	//johnfitz
 
 	// hack the depth range to prevent view model from poking into walls
-	VkViewport viewport;
-	viewport.x = 0;
-	viewport.y = 0;
-	viewport.width = vid.width;
-	viewport.height = vid.height;
-	viewport.minDepth = 0.0f;
-	viewport.maxDepth = 0.3f;
-	vkCmdSetViewport(vulkan_globals.command_buffer, 0, 1, &viewport);
+	GL_Viewport(glx + r_refdef.vrect.x,
+				gly + glheight - r_refdef.vrect.y - r_refdef.vrect.height,
+				r_refdef.vrect.width,
+				r_refdef.vrect.height,
+				0.0f, 0.3f);
 	
 	R_DrawAliasModel (currententity);
 
-	viewport.minDepth = 0.0f;
-	viewport.maxDepth = 1.0f;
-	vkCmdSetViewport(vulkan_globals.command_buffer, 0, 1, &viewport);
+	GL_Viewport(glx + r_refdef.vrect.x,
+				gly + glheight - r_refdef.vrect.y - r_refdef.vrect.height,
+				r_refdef.vrect.width,
+				r_refdef.vrect.height,
+				0.0f, 1.0f);
 }
 
 /*
