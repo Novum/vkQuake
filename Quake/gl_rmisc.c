@@ -542,14 +542,14 @@ static void R_InitDynamicVertexBuffers()
 {
 	int i;
 
-	Con_Printf("Reallocating dynamic VBs (%u KB)\n", current_dyn_index_buffer_size);
+	Con_Printf("Reallocating dynamic VBs (%u KB)\n", current_dyn_vertex_buffer_size);
 
 	VkResult err;
 
 	VkBufferCreateInfo buffer_create_info;
 	memset(&buffer_create_info, 0, sizeof(buffer_create_info));
 	buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	buffer_create_info.size = current_dyn_index_buffer_size * 1024;
+	buffer_create_info.size = current_dyn_vertex_buffer_size * 1024;
 	buffer_create_info.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
 
 	for (i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
@@ -927,8 +927,8 @@ void R_CollectDynamicBufferGarbage()
 	if (num_buffer_garbage[collect_garbage_index] > 0) {
 		for (int i = 0; i < num_buffer_garbage[collect_garbage_index]; ++i)
 			vkDestroyBuffer(vulkan_globals.device, buffer_garbage[collect_garbage_index][i], NULL);
-		free(descriptor_set_garbage[collect_garbage_index]);
-		descriptor_set_garbage[collect_garbage_index] = NULL;
+		free(buffer_garbage[collect_garbage_index]);
+		buffer_garbage[collect_garbage_index] = NULL;
 		num_buffer_garbage[collect_garbage_index] = 0;
 	}
 
