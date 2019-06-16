@@ -56,7 +56,7 @@ client_t	*host_client;			// current client
 jmp_buf 	host_abortserver;
 
 byte		*host_colormap;
-float	host_netinterval;
+float	host_netinterval = 1.0/72;
 cvar_t	host_framerate = {"host_framerate","0",CVAR_NONE};	// set for slow motion
 cvar_t	host_speeds = {"host_speeds","0",CVAR_NONE};			// set for running times
 cvar_t	host_maxfps = {"host_maxfps", "200", CVAR_ARCHIVE}; //johnfitz
