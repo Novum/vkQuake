@@ -248,7 +248,7 @@ static void R_ComputeWarpTexture(texture_t *tx, float warptess) {
 	vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, vulkan_globals.cs_tex_warp_pipeline);
 	VkDescriptorSet sets[2] = { tx->gltexture->descriptor_set, tx->warpimage->warp_write_descriptor_set };
 	vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, vulkan_globals.cs_tex_warp_pipeline_layout, 0, 2, sets, 0, NULL);
-	vkCmdPushConstants(vulkan_globals.command_buffer, vulkan_globals.screen_warp_pipeline_layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(float), &time);
+	vkCmdPushConstants(vulkan_globals.command_buffer, vulkan_globals.cs_tex_warp_pipeline_layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(float), &time);
 	vkCmdDispatch(vulkan_globals.command_buffer, WARPIMAGESIZE / 8, WARPIMAGESIZE / 8, 1);
 }
 
