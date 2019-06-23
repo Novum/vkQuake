@@ -262,7 +262,7 @@ void R_DrawBrushModel_ShowTris(entity_t *e)
 	mplane_t	*pplane;
 	qmodel_t	*clmodel;
 	float color[] = { 1.0f, 1.0f, 1.0f };
-	const alpha = 1.0f;
+	const float alpha = 1.0f;
 
 	if (R_CullModelForEntity(e))
 		return;

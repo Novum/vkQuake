@@ -386,7 +386,7 @@ void R_DrawTextureChains_ShowTris(qmodel_t *model, texchain_t chain)
 	msurface_t	*s;
 	texture_t	*t;
 	float color[] = { 1.0f, 1.0f, 1.0f };
-	const alpha = 1.0f;
+	const float alpha = 1.0f;
 
 	for (i = 0; i<model->numtextures; i++)
 	{
