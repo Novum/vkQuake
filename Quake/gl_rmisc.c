@@ -899,7 +899,7 @@ static void R_AddDynamicBufferGarbage(VkDeviceMemory device_memory, dynbuffer_t 
 		int old_num_desc_set_garbage = *num_garbage;
 		*num_garbage += 2;
 		if (descriptor_set_garbage[current_garbage_index] == NULL)
-			descriptor_set_garbage[current_garbage_index] = malloc(sizeof(VkBuffer) * (*num_garbage));
+			descriptor_set_garbage[current_garbage_index] = malloc(sizeof(VkDescriptorSet) * (*num_garbage));
 		else
 			descriptor_set_garbage[current_garbage_index] = realloc(descriptor_set_garbage[current_garbage_index], sizeof(VkDescriptorSet) * (*num_garbage));
 		for (int i = 0; i < 2; ++i)
