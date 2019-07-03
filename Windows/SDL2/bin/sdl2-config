@@ -40,7 +40,7 @@ while test $# -gt 0; do
       lib_suffix=$optarg
       ;;
     --version)
-      echo 2.0.9
+      echo 2.0.10
       ;;
     --cflags)
       echo -I${prefix}/include -Dmain=SDL_main
@@ -55,4 +55,3 @@ while test $# -gt 0; do
   esac
   shift
 done
-
