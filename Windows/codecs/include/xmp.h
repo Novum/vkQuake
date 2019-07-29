@@ -5,11 +5,11 @@
 extern "C" {
 #endif
 
-#define XMP_VERSION "4.4.2"
-#define XMP_VERCODE 0x040402
+#define XMP_VERSION "4.5.0"
+#define XMP_VERCODE 0x040500
 #define XMP_VER_MAJOR 4
-#define XMP_VER_MINOR 4
-#define XMP_VER_RELEASE 2
+#define XMP_VER_MINOR 5
+#define XMP_VER_RELEASE 0
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
 # if defined(BUILDING_STATIC)
@@ -333,6 +333,8 @@ LIBXMP_EXPORT char      **xmp_get_format_list (void);
 LIBXMP_EXPORT int         xmp_next_position   (xmp_context);
 LIBXMP_EXPORT int         xmp_prev_position   (xmp_context);
 LIBXMP_EXPORT int         xmp_set_position    (xmp_context, int);
+LIBXMP_EXPORT int         xmp_set_row         (xmp_context, int);
+LIBXMP_EXPORT int         xmp_set_tempo_factor(xmp_context, double);
 LIBXMP_EXPORT void        xmp_stop_module     (xmp_context);
 LIBXMP_EXPORT void        xmp_restart_module  (xmp_context);
 LIBXMP_EXPORT int         xmp_seek_time       (xmp_context, int);
