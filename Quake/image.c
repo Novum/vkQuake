@@ -586,7 +586,7 @@ qboolean Image_WritePNG (const char *name, byte *data, int width, int height, in
 	error = lodepng_encode (&png, &pngsize, flipped, width, height, &state);
 	if (error == 0) lodepng_save_file (png, pngsize, pathname);
 #ifdef LODEPNG_COMPILE_ERROR_TEXT
-	else Con_Printf("WritePNG: %s\n", lodepng_error_text());
+	else Con_Printf("WritePNG: %s\n", lodepng_error_text (error));
 #endif
 
 	lodepng_state_cleanup (&state);

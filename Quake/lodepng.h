@@ -1,5 +1,5 @@
 /*
-LodePNG version 20190714
+LodePNG version 20190814
 
 Copyright (c) 2005-2019 Lode Vandevenne
 
@@ -95,13 +95,19 @@ source files with custom allocators.*/
 #endif /*LODEPNG_COMPILE_CPP*/
 
 #ifdef LODEPNG_COMPILE_PNG
-/*The PNG color types (also used for raw).*/
+/*The PNG color types (also used for raw image).*/
 typedef enum LodePNGColorType {
   LCT_GREY = 0, /*grayscale: 1,2,4,8,16 bit*/
   LCT_RGB = 2, /*RGB: 8,16 bit*/
   LCT_PALETTE = 3, /*palette: 1,2,4,8 bit*/
   LCT_GREY_ALPHA = 4, /*grayscale with alpha: 8,16 bit*/
-  LCT_RGBA = 6 /*RGB with alpha: 8,16 bit*/
+  LCT_RGBA = 6, /*RGB with alpha: 8,16 bit*/
+  /*LCT_MAX_OCTET_VALUE lets the compiler allow this enum to represent any invalid
+  byte value from 0 to 255 that could be present in an invalid PNG file header. Do
+  not use, compare with or set the name LCT_MAX_OCTET_VALUE, instead either use
+  the valid color type names above, or numeric values like 1 or 7 when checking for
+  particular disallowed color type byte values, or cast to integer to print it.*/
+  LCT_MAX_OCTET_VALUE = 255
 } LodePNGColorType;
 
 #ifdef LODEPNG_COMPILE_DECODER
@@ -644,7 +650,12 @@ void lodepng_decoder_settings_init(LodePNGDecoderSettings* settings);
 /*automatically use color type with less bits per pixel if losslessly possible. Default: AUTO*/
 typedef enum LodePNGFilterStrategy {
   /*every filter at zero*/
-  LFS_ZERO,
+  LFS_ZERO = 0,
+  /*every filter at 1, 2, 3 or 4 (paeth), unlike LFS_ZERO not a good choice, but for testing*/
+  LFS_ONE = 1,
+  LFS_TWO = 2,
+  LFS_THREE = 3,
+  LFS_FOUR = 4,
   /*Use filter that gives minimum sum, as described in the official PNG filter heuristic.*/
   LFS_MINSUM,
   /*Use the filter type that gives smallest Shannon entropy for this scanline. Depending
@@ -1774,8 +1785,9 @@ yyyymmdd.
 Some changes aren't backwards compatible. Those are indicated with a (!)
 symbol.
 
+*) 14 aug 2019: around 25% faster decoding thanks to huffman lookup tables.
 *) 15 jun 2019 (!): auto_choose_color API changed (for bugfix: don't use palette
-   if ICC profile) and non-ICC LodePNGColorProfile renamed to LodePNGColorStats.
+   if gray ICC profile) and non-ICC LodePNGColorProfile renamed to LodePNGColorStats.
 *) 30 dec 2018: code style changes only: removed newlines before opening braces.
 *) 10 sep 2018: added way to inspect metadata chunks without full decoding.
 *) 19 aug 2018 (!): fixed color mode bKGD is encoded with and made it use
