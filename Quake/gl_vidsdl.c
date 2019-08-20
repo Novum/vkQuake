@@ -117,11 +117,11 @@ static VkCommandBuffer				command_buffers[NUM_COMMAND_BUFFERS];
 static VkFence						command_buffer_fences[NUM_COMMAND_BUFFERS];
 static qboolean						command_buffer_submitted[NUM_COMMAND_BUFFERS];
 static VkFramebuffer				main_framebuffers[NUM_COLOR_BUFFERS];
+static VkSemaphore					image_aquired_semaphores[NUM_COMMAND_BUFFERS];
 static VkSemaphore					draw_complete_semaphores[NUM_COMMAND_BUFFERS];
 static VkFramebuffer				ui_framebuffers[MAX_SWAP_CHAIN_IMAGES];
 static VkImage						swapchain_images[MAX_SWAP_CHAIN_IMAGES];
 static VkImageView					swapchain_images_views[MAX_SWAP_CHAIN_IMAGES];
-static VkSemaphore					image_aquired_semaphores[MAX_SWAP_CHAIN_IMAGES];
 static VkImage						depth_buffer;
 static VkDeviceMemory				depth_buffer_memory;
 static VkImageView					depth_buffer_view;
@@ -1613,7 +1613,10 @@ static qboolean GL_CreateSwapChain( void )
 			Sys_Error("vkCreateImageView failed");
 
 		GL_SetObjectName((uint64_t)swapchain_images_views[i], VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT, "Swap Chain View");
+    }
 
+	for (i = 0; i < NUM_COMMAND_BUFFERS; ++i)
+	{
 		assert(image_aquired_semaphores[i] == VK_NULL_HANDLE);
 		err = vkCreateSemaphore(vulkan_globals.device, &semaphore_create_info, NULL, &image_aquired_semaphores[i]);
 		if (err != VK_SUCCESS)
@@ -1772,12 +1775,16 @@ static void GL_DestroyRenderResources( void )
 		swapchain_images_views[i] = VK_NULL_HANDLE;
 		vkDestroyFramebuffer(vulkan_globals.device, ui_framebuffers[i], NULL);
 		ui_framebuffers[i] = VK_NULL_HANDLE;
-		vkDestroySemaphore(vulkan_globals.device, image_aquired_semaphores[i], NULL);
-		image_aquired_semaphores[i] = VK_NULL_HANDLE;
 
 		// Swapchain images do not need to be destroyed
 		swapchain_images[i] = VK_NULL_HANDLE;
 	}
+
+	for (i = 0; i < NUM_COMMAND_BUFFERS; ++i)
+	{
+		vkDestroySemaphore(vulkan_globals.device, image_aquired_semaphores[i], NULL);
+		image_aquired_semaphores[i] = VK_NULL_HANDLE;
+    }
 
 	fpDestroySwapchainKHR(vulkan_globals.device, vulkan_swapchain, NULL);
 	vulkan_swapchain = VK_NULL_HANDLE;
