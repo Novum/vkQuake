@@ -1613,7 +1613,7 @@ static qboolean GL_CreateSwapChain( void )
 			Sys_Error("vkCreateImageView failed");
 
 		GL_SetObjectName((uint64_t)swapchain_images_views[i], VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT, "Swap Chain View");
-    }
+	}
 
 	for (i = 0; i < NUM_COMMAND_BUFFERS; ++i)
 	{
