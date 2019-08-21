@@ -117,6 +117,8 @@ typedef struct
 	VkPipeline							current_pipeline;
 	VkClearValue						color_clear_value;
 	VkFormat							swap_chain_format;
+	qboolean							swap_chain_full_screen_exclusive;
+	qboolean							swap_chain_full_screen_acquired;
 	VkPhysicalDeviceProperties			device_properties;
 	VkPhysicalDeviceMemoryProperties	memory_properties;
 	uint32_t							gfx_queue_family_index;
@@ -128,6 +130,7 @@ typedef struct
 
 	// Extensions
 	qboolean							dedicated_allocation;
+	qboolean							full_screen_exclusive;
 
 	// Buffers
 	VkImage								color_buffers[NUM_COLOR_BUFFERS];
