@@ -1,5 +1,5 @@
 /*
-LodePNG version 20190814
+LodePNG version 20190824
 
 Copyright (c) 2005-2019 Lode Vandevenne
 
@@ -275,8 +275,7 @@ struct LodePNGDecompressSettings {
                           const unsigned char*, size_t,
                           const LodePNGDecompressSettings*);
   /*use custom deflate decoder instead of built in one (default: null)
-  if custom_zlib is used, custom_deflate is ignored since only the built in
-  zlib function will call custom_deflate*/
+  if custom_zlib is not null, custom_inflate is ignored (the zlib format uses deflate)*/
   unsigned (*custom_inflate)(unsigned char**, size_t*,
                              const unsigned char*, size_t,
                              const LodePNGDecompressSettings*);
