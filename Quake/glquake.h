@@ -319,8 +319,22 @@ typedef struct
 
 //johnfitz -- moved here from r_brush.c
 extern int gl_lightmap_format, lightmap_bytes;
-#define MAX_LIGHTMAPS 512 //johnfitz -- was 64
-extern gltexture_t *lightmap_textures[MAX_LIGHTMAPS]; //johnfitz -- changed to an array
+typedef struct glRect_s {
+	unsigned short l,t,w,h;
+} glRect_t;
+struct lightmap_s
+{
+	gltexture_t *texture;
+	glpoly_t	*polys;
+	qboolean	modified;
+	glRect_t	rectchange;
+
+	// the lightmap texture data needs to be kept in
+	// main memory so texsubimage can update properly
+	byte		*data;//[4*LMBLOCK_WIDTH*LMBLOCK_HEIGHT];
+};
+extern struct lightmap_s *lightmap;
+extern int lightmap_count;	//allocated lightmaps
 
 extern qboolean r_drawflat_cheatsafe, r_fullbright_cheatsafe, r_lightmap_cheatsafe, r_drawworld_cheatsafe; //johnfitz
 

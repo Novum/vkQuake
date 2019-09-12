@@ -27,8 +27,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 extern cvar_t gl_fullbrights, r_drawflat, r_oldskyleaf, r_showtris; //johnfitz
 
-extern glpoly_t	*lightmap_polys[MAX_LIGHTMAPS];
-
 byte *SV_FatPVS (vec3_t org, qmodel_t *worldmodel);
 
 int vis_changed; //if true, force pvs to be refreshed
@@ -59,7 +57,8 @@ void R_ClearTextureChains (qmodel_t *mod, texchain_t chain)
 			mod->textures[i]->texturechains[chain] = NULL;
 			
 	// clear lightmap chains
-	memset (lightmap_polys, 0, sizeof(lightmap_polys));
+	for (i=0 ; i<lightmap_count ; i++)
+		lightmap[i].polys = NULL;
 }
 
 /*
@@ -88,7 +87,8 @@ void R_MarkSurfaces (void)
 	qboolean	nearwaterportal;
 
 	// clear lightmap chains
-	memset (lightmap_polys, 0, sizeof(lightmap_polys));
+	for (i=0 ; i<lightmap_count ; i++)
+		lightmap[i].polys = NULL;
 
 	// check this leaf for water portals
 	// TODO: loop through all water surfs and use distance to leaf cullbox
@@ -249,6 +249,10 @@ void R_BuildLightmapChains (qmodel_t *model, texchain_t chain)
 	texture_t *t;
 	msurface_t *s;
 	int i;
+
+	// clear lightmap chains
+	for (i=0 ; i<lightmap_count ; i++)
+		lightmap[i].polys = NULL;
 
 	// now rebuild them
 	for (i=0 ; i<model->numtextures ; i++)
@@ -516,13 +520,13 @@ void R_DrawTextureChains_Multitexture (qmodel_t *model, entity_t *ent, texchain_
 					alpha_test = (t->texturechains[chain]->flags & SURF_DRAWFENCE) != 0;
 					bound = true;
 					lastlightmap = s->lightmaptexturenum;
-					lightmap_texture = lightmap_textures[s->lightmaptexturenum];
+					lightmap_texture = lightmap[s->lightmaptexturenum].texture;
 				}
 				
 				if (s->lightmaptexturenum != lastlightmap)
 				{	
 					R_FlushBatch (fullbright_enabled, alpha_test, alpha_blend, lightmap_texture);
-					lightmap_texture = lightmap_textures[s->lightmaptexturenum];
+					lightmap_texture = lightmap[s->lightmaptexturenum].texture;
 				}
 
 				lastlightmap = s->lightmaptexturenum;
