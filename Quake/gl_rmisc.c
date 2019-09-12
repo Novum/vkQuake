@@ -2315,7 +2315,7 @@ static void R_ParseWorldspawn (void)
 			q_strlcpy(key, com_token + 1, sizeof(key));
 		else
 			q_strlcpy(key, com_token, sizeof(key));
-		while (strlen(key) > 0 && key[strlen(key)-1] == ' ') // remove trailing spaces
+		while (key[0] && key[strlen(key)-1] == ' ') // remove trailing spaces
 			key[strlen(key)-1] = 0;
 		data = COM_Parse(data);
 		if (!data)
