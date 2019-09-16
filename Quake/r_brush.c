@@ -391,9 +391,9 @@ int AllocBlock (int w, int h, int *x, int *y)
 		if (texnum == lightmap_count)
 		{
 			lightmap_count++;
-			lightmap = realloc(lightmap, sizeof(*lightmap)*lightmap_count);
+			lightmap = (struct lightmap_s *) realloc(lightmap, sizeof(*lightmap)*lightmap_count);
 			memset(&lightmap[texnum], 0, sizeof(lightmap[texnum]));
-			lightmap[texnum].data = malloc(4*LMBLOCK_WIDTH*LMBLOCK_HEIGHT);
+			lightmap[texnum].data = (byte *) malloc(4*LMBLOCK_WIDTH*LMBLOCK_HEIGHT);
 			//as we're only tracking one texture, we don't need multiple copies of allocated any more.
 			memset(allocated, 0, sizeof(allocated));
 		}
