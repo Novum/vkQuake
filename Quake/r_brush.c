@@ -539,7 +539,7 @@ with all the surfaces from all brush models
 */
 void GL_BuildLightmaps (void)
 {
-	char	name[16];
+	char	name[24];
 	int		i, j;
 	struct lightmap_s *lm;
 	qmodel_t	*m;
@@ -589,18 +589,18 @@ void GL_BuildLightmaps (void)
 		lm->rectchange.h = 0;
 
 		//johnfitz -- use texture manager
-		sprintf(name, "lightmap%03i",i);
+		sprintf(name, "lightmap%07i",i);
 		lm->texture = TexMgr_LoadImage (cl.worldmodel, name, LMBLOCK_WIDTH, LMBLOCK_HEIGHT,
 						SRC_LIGHTMAP, lm->data, "", (src_offset_t)lm->data, TEXPREF_LINEAR | TEXPREF_NOPICMIP);
 		//johnfitz
 	}
 
 	//johnfitz -- warn about exceeding old limits
-	//Spike: note that this warning isn't accurate.
-	//       I've doubled the lmblock dimensions, so the standard limit is more like 64/4 now.
-	//       additionally, ericw already changed the allocation strategy, which results in false positives.
-	if (i >= 64)
-		Con_DWarning ("%i lightmaps exceeds standard limit of 64 (max = %d).\n", i, MAX_SANITY_LIGHTMAPS);
+	//GLQuake limit was 64 textures of 128x128. Estimate how many 128x128 textures we would need
+	//given that we are using lightmap_count of LMBLOCK_WIDTH x LMBLOCK_HEIGHT
+	i = lightmap_count * ((LMBLOCK_WIDTH / 128) * (LMBLOCK_HEIGHT / 128));
+	if (i > 64)
+		Con_DWarning("%i lightmaps exceeds standard limit of 64.\n",i);
 	//johnfitz
 }
 
