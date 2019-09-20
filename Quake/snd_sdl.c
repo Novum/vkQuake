@@ -76,7 +76,7 @@ static void SDLCALL paint_audio (void *unused, Uint8 *stream, int len)
 
 qboolean SNDDMA_Init (dma_t *dma)
 {
-	SDL_AudioSpec desired, obtained;
+	SDL_AudioSpec desired;
 	int		tmp, val;
 	char	drivername[128];
 
@@ -87,7 +87,7 @@ qboolean SNDDMA_Init (dma_t *dma)
 	}
 
 	/* Set up the desired format */
-	desired.freq = tmp = snd_mixspeed.value;
+	desired.freq = snd_mixspeed.value;
 	desired.format = (loadas8bit.value) ? AUDIO_U8 : AUDIO_S16SYS;
 	desired.channels = 2; /* = desired_channels; */
 	if (desired.freq <= 11025)
@@ -104,24 +104,9 @@ qboolean SNDDMA_Init (dma_t *dma)
 	desired.userdata = NULL;
 
 	/* Open the audio device */
-	if (SDL_OpenAudio(&desired, &obtained) == -1)
+	if (SDL_OpenAudio(&desired, NULL) == -1)
 	{
 		Con_Printf("Couldn't open SDL audio: %s\n", SDL_GetError());
-		SDL_QuitSubSystem(SDL_INIT_AUDIO);
-		return false;
-	}
-
-	/* Make sure we can support the audio format */
-	switch (obtained.format)
-	{
-	case AUDIO_S8:		/* maybe needed by AHI */
-	case AUDIO_U8:
-	case AUDIO_S16SYS:
-		/* Supported */
-		break;
-	default:
-		Con_Printf ("Unsupported audio format received (%u)\n", obtained.format);
-		SDL_CloseAudio();
 		SDL_QuitSubSystem(SDL_INIT_AUDIO);
 		return false;
 	}
@@ -130,13 +115,14 @@ qboolean SNDDMA_Init (dma_t *dma)
 	shm = dma;
 
 	/* Fill the audio DMA information block */
-	shm->samplebits = (obtained.format & 0xFF); /* first byte of format is bits */
-	shm->signed8 = (obtained.format == AUDIO_S8);
-	if (obtained.freq != tmp)
-		Con_Printf ("Warning: Rate set (%d) didn't match requested rate (%d)!\n", obtained.freq, tmp);
-	shm->speed = obtained.freq;
-	shm->channels = obtained.channels;
-	tmp = (obtained.samples * obtained.channels) * 10;
+	/* Since we passed NULL as the 'obtained' spec to SDL_OpenAudio(),
+	 * SDL will convert to hardware format for us if needed, hence we
+	 * directly use the desired values here. */
+	shm->samplebits = (desired.format & 0xFF); /* first byte of format is bits */
+	shm->signed8 = (desired.format == AUDIO_S8);
+	shm->speed = desired.freq;
+	shm->channels = desired.channels;
+	tmp = (desired.samples * desired.channels) * 10;
 	if (tmp & (tmp - 1))
 	{	/* make it a power of two */
 		val = 1;
@@ -150,7 +136,7 @@ qboolean SNDDMA_Init (dma_t *dma)
 	shm->submission_chunk = 1;
 
 	Con_Printf ("SDL audio spec  : %d Hz, %d samples, %d channels\n",
-			obtained.freq, obtained.samples, obtained.channels);
+			desired.freq, desired.samples, desired.channels);
 	{
 		const char *driver = SDL_GetCurrentAudioDriver();
 		const char *device = SDL_GetAudioDeviceName(0, SDL_FALSE);
