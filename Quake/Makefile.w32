@@ -4,7 +4,6 @@
 # "make VK_SDK_PATH=/path/to/vksdk" to specify the Vulkan SDK root
 # "make DEBUG=1" to build a debug client.
 # "make SDL_CONFIG=/path/to/sdl-config" to override the locally included SDL versions.
-# "make WINSOCK2=1" to use WinSock2 api instead of old WinSock 1.1.
 
 ### Enable/disable codecs for streaming music support
 USE_CODEC_WAVE=1
@@ -57,7 +56,7 @@ CFLAGS += -g
 do_strip=
 else
 DFLAGS += -DNDEBUG
-CFLAGS += -O2
+CFLAGS += -O2 -std=gnu99
 CFLAGS += $(call check_gcc,-fweb,)
 CFLAGS += $(call check_gcc,-frename-registers,)
 cmd_strip=$(STRIP) $(1)
@@ -73,13 +72,8 @@ SDL_CONFIG ?=../Windows/SDL2/bin/sdl2-config --prefix=../Windows/SDL2
 SDL_CFLAGS := $(shell $(SDL_CONFIG) --cflags)
 SDL_LIBS   := $(shell $(SDL_CONFIG) --libs)
 
-ifeq ($(WINSOCK2),1)
 DEFWINSOCK :=-D_USE_WINSOCK2
 LIBWINSOCK := -lws2_32
-else
-DEFWINSOCK :=
-LIBWINSOCK := -lwsock32
-endif
 
 CFLAGS     += $(DEFWINSOCK)
 NET_LIBS   := $(LIBWINSOCK)
