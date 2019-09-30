@@ -31,9 +31,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "SDL.h"
 #include "SDL_syswm.h"
 #include "SDL_vulkan.h"
-#ifdef _WIN32
-#include <vulkan/vulkan_win32.h>
-#endif
 
 #include <assert.h>
 
@@ -50,7 +47,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 										 VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT )
 
 #define DEFAULT_REFRESHRATE	60
-#define USE_FULL_SCREEN_EXCLUSIVE 0
 
 typedef struct {
 	int			width;
@@ -148,10 +144,6 @@ static PFN_vkDestroySwapchainKHR fpDestroySwapchainKHR;
 static PFN_vkGetSwapchainImagesKHR fpGetSwapchainImagesKHR;
 static PFN_vkAcquireNextImageKHR fpAcquireNextImageKHR;
 static PFN_vkQueuePresentKHR fpQueuePresentKHR;
-#ifdef _WIN32
-static PFN_vkAcquireFullScreenExclusiveModeEXT fpAcquireFullScreenExclusiveModeEXT;
-static PFN_vkReleaseFullScreenExclusiveModeEXT fpReleaseFullScreenExclusiveModeEXT;
-#endif
 
 #ifdef _DEBUG
 static PFN_vkCreateDebugReportCallbackEXT fpCreateDebugReportCallbackEXT;
@@ -708,8 +700,6 @@ static void GL_InitDevice( void )
 	qboolean found_swapchain_extension = false;
 	qboolean found_debug_marker_extension = false;
 	vulkan_globals.dedicated_allocation = false;
-	vulkan_globals.full_screen_exclusive = false;
-	vulkan_globals.swap_chain_full_screen_acquired = false;
 
 	vkGetPhysicalDeviceMemoryProperties(vulkan_physical_device, &vulkan_globals.memory_properties);
 
@@ -735,12 +725,6 @@ static void GL_InitDevice( void )
 			{
 				vulkan_globals.dedicated_allocation = true;
 			}
-#if defined(_WIN32) && (USE_FULL_SCREEN_EXCLUSIVE == 1)
-			if ((strcmp(VK_EXT_FULL_SCREEN_EXCLUSIVE_EXTENSION_NAME, device_extensions[i].extensionName) == 0))
-			{
-				vulkan_globals.full_screen_exclusive = true;
-			}
-#endif
 		}
 
 		free(device_extensions);
@@ -808,20 +792,7 @@ static void GL_InitDevice( void )
 	queue_create_info.queueCount = 1;
 	queue_create_info.pQueuePriorities = queue_priorities;
 
-	const char * device_extensions[4] = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
-	int numEnabledExtensions = 1;
-#if _DEBUG
-	if (found_debug_marker_extension)
-		device_extensions[ numEnabledExtensions++ ] = VK_EXT_DEBUG_MARKER_EXTENSION_NAME;
-#endif
-	if (vulkan_globals.dedicated_allocation) {
-		device_extensions[ numEnabledExtensions++ ] = VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME;
-	}
-#ifdef _WIN32
-	if (vulkan_globals.full_screen_exclusive) {
-		device_extensions[ numEnabledExtensions++ ] = VK_EXT_FULL_SCREEN_EXCLUSIVE_EXTENSION_NAME;
-	}
-#endif
+	const char * const device_extensions[] = { VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_EXT_DEBUG_MARKER_EXTENSION_NAME };
 
 	vkGetPhysicalDeviceFeatures(vulkan_physical_device, &vulkan_physical_device_features);
 	const VkBool32 extended_format_support = vulkan_physical_device_features.shaderStorageImageExtendedFormats;
@@ -834,16 +805,20 @@ static void GL_InitDevice( void )
 	device_features.sampleRateShading = vulkan_physical_device_features.sampleRateShading;
 	device_features.fillModeNonSolid = vulkan_physical_device_features.fillModeNonSolid;
 
-	vulkan_globals.non_solid_fill = (device_features.fillModeNonSolid == VK_TRUE) ? true : false;
+	vulkan_globals.non_solid_fill = ( device_features.fillModeNonSolid == VK_TRUE ) ? true : false;
 
 	VkDeviceCreateInfo device_create_info;
 	memset(&device_create_info, 0, sizeof(device_create_info));
 	device_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 	device_create_info.queueCreateInfoCount = 1;
 	device_create_info.pQueueCreateInfos = &queue_create_info;
-	device_create_info.enabledExtensionCount = numEnabledExtensions;
+	device_create_info.enabledExtensionCount = 1;
 	device_create_info.ppEnabledExtensionNames = device_extensions;
 	device_create_info.pEnabledFeatures = &device_features;
+#if _DEBUG
+	if (found_debug_marker_extension)
+		device_create_info.enabledExtensionCount = 2;
+#endif
 
 	err = vkCreateDevice(vulkan_physical_device, &device_create_info, NULL, &vulkan_globals.device);
 	if (err != VK_SUCCESS)
@@ -858,25 +833,18 @@ static void GL_InitDevice( void )
 #if _DEBUG
 	if (found_debug_marker_extension)
 	{
-		Con_Printf("Using VK_EXT_debug_marker\n");
+		Con_Printf("Using VK_EXT_DEBUG_MARKER\n");
 		GET_DEVICE_PROC_ADDR(vulkan_globals.device, DebugMarkerSetObjectNameEXT);
 	}
 #endif
 
 	if (vulkan_globals.dedicated_allocation)
 	{
-		Con_Printf("Using VK_KHR_dedicated_allocation\n");
+		Con_Printf("Using VK_KHR_DEDICATED_ALLOCATION\n");
 	}
-#ifdef _WIN32
-	if (vulkan_globals.full_screen_exclusive)
-	{
-		Con_Printf("Using VK_EXT_full_screen_exclusive\n");
-		GET_DEVICE_PROC_ADDR(vulkan_globals.device, AcquireFullScreenExclusiveModeEXT);
-		GET_DEVICE_PROC_ADDR(vulkan_globals.device, ReleaseFullScreenExclusiveModeEXT);
-	}
-#endif
 
 	vkGetDeviceQueue(vulkan_globals.device, vulkan_globals.gfx_queue_family_index, 0, &vulkan_globals.queue);
+
 
 	VkFormatProperties format_properties;
 
@@ -1598,41 +1566,10 @@ static qboolean GL_CreateSwapChain( void )
 	if (!(vulkan_surface_capabilities.supportedCompositeAlpha & VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR))
 		swapchain_create_info.compositeAlpha = VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR;
 
-	vulkan_globals.swap_chain_full_screen_exclusive = false;
-	vulkan_globals.swap_chain_full_screen_acquired = false;
-
-#ifdef _WIN32
-	VkSurfaceFullScreenExclusiveInfoEXT full_screen_exclusive_info;
-	VkSurfaceFullScreenExclusiveWin32InfoEXT full_screen_exclusive_win32_info;
-	if (vulkan_globals.full_screen_exclusive && VID_GetFullscreen() && (vid_desktopfullscreen.value == 0)) {
-		SDL_SysWMinfo wmInfo;
-		HWND hwnd;
-		HMONITOR monitor;
-
-		SDL_VERSION(&wmInfo.version);
-		SDL_GetWindowWMInfo(draw_context, &wmInfo);
-		hwnd = wmInfo.info.win.window;
-
-		monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTOPRIMARY);
-
-		memset(&full_screen_exclusive_win32_info, 0, sizeof(full_screen_exclusive_win32_info));
-		full_screen_exclusive_win32_info.sType = VK_STRUCTURE_TYPE_SURFACE_FULL_SCREEN_EXCLUSIVE_WIN32_INFO_EXT;
-		full_screen_exclusive_win32_info.pNext = NULL;
-		full_screen_exclusive_win32_info.hmonitor = monitor;
-		
-		memset(&full_screen_exclusive_info, 0, sizeof(full_screen_exclusive_info));
-		full_screen_exclusive_info.sType = VK_STRUCTURE_TYPE_SURFACE_FULL_SCREEN_EXCLUSIVE_INFO_EXT;
-		full_screen_exclusive_info.pNext = &full_screen_exclusive_win32_info;
-		full_screen_exclusive_info.fullScreenExclusive = VK_FULL_SCREEN_EXCLUSIVE_APPLICATION_CONTROLLED_EXT;
-
-		swapchain_create_info.pNext = &full_screen_exclusive_info;
-		vulkan_globals.swap_chain_full_screen_exclusive = true;
-	}
-#endif
-
 	vulkan_globals.swap_chain_format = surface_formats[0].format;
 	free(surface_formats);
 
+	Sys_Printf("fpCreateSwapchainKHR\n");
 	assert(vulkan_swapchain == VK_NULL_HANDLE);
 	err = fpCreateSwapchainKHR(vulkan_globals.device, &swapchain_create_info, NULL, &vulkan_swapchain);
 	if (err != VK_SUCCESS)
@@ -1689,6 +1626,7 @@ static qboolean GL_CreateSwapChain( void )
 
 	return true;
 }
+
 
 /*
 ===============
@@ -1963,12 +1901,6 @@ qboolean GL_AcquireNextSwapChainImage(void)
 		Cbuf_AddText ("vid_restart\n");
 		return false;
 	}
-#ifdef _WIN32
-	else if(err == VK_ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT) {
-		Con_Printf("Full screen exclusive lost\n");
-		vulkan_globals.swap_chain_full_screen_acquired = false;
-	}
-#endif
 	else if(err == VK_SUBOPTIMAL_KHR) {
 		vid_changed = true;
 		Cbuf_AddText ("vid_restart\n");
@@ -1988,16 +1920,6 @@ qboolean GL_AcquireNextSwapChainImage(void)
 	vulkan_globals.ui_render_pass_begin_info.renderPass = vulkan_globals.ui_render_pass;
 	vulkan_globals.ui_render_pass_begin_info.framebuffer = ui_framebuffers[current_swapchain_buffer];
 	vulkan_globals.ui_render_pass_begin_info.clearValueCount = 0;
-
-#ifdef _WIN32
-	if (vulkan_globals.swap_chain_full_screen_exclusive && !vulkan_globals.swap_chain_full_screen_acquired) {
-		const VkResult result = fpAcquireFullScreenExclusiveModeEXT(vulkan_globals.device, vulkan_swapchain);
-		if (result == VK_SUCCESS) {
-			vulkan_globals.swap_chain_full_screen_acquired = true;
-			Con_Printf("Full screen exclusive acquired\n");
-		}
-	}
-#endif
 
 	return true;
 }
@@ -2065,12 +1987,6 @@ void GL_EndRendering (qboolean swapchain_acquired)
 			vid_changed = true;
 			Cbuf_AddText ("vid_restart\n");
 		}
-#ifdef _WIN32
-		else if (err == VK_ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT) {
-			Con_Printf("Full screen exclusive lost\n");
-			vulkan_globals.swap_chain_full_screen_acquired = false;
-		}
-#endif
 		else if (err != VK_SUCCESS)
 			Sys_Error("vkQueuePresentKHR failed");
 	}
