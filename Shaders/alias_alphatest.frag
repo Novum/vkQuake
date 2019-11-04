@@ -31,7 +31,7 @@ layout (location = 0) out vec4 out_frag_color;
 void main()
 {
 	vec4 result = texture(diffuse_tex, in_texcoord.xy);
-	if(out_frag_color.a < 0.666f)
+	if(result.a < 0.666f)
 		discard;
 	result *= in_color;
 
