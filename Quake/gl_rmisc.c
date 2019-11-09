@@ -99,9 +99,9 @@ typedef struct
 	unsigned char *		data;
 } dynbuffer_t;
 
-static uint32_t			current_dyn_vertex_buffer_size = INITIAL_DYNAMIC_VERTEX_BUFFER_SIZE_KB;
-static uint32_t			current_dyn_index_buffer_size = INITIAL_DYNAMIC_INDEX_BUFFER_SIZE_KB;
-static uint32_t			current_dyn_uniform_buffer_size = INITIAL_DYNAMIC_UNIFORM_BUFFER_SIZE_KB;
+static uint32_t			current_dyn_vertex_buffer_size = INITIAL_DYNAMIC_VERTEX_BUFFER_SIZE_KB * 1024;
+static uint32_t			current_dyn_index_buffer_size = INITIAL_DYNAMIC_INDEX_BUFFER_SIZE_KB * 1024;
+static uint32_t			current_dyn_uniform_buffer_size = INITIAL_DYNAMIC_UNIFORM_BUFFER_SIZE_KB * 1024;
 static VkDeviceMemory	dyn_vertex_buffer_memory;
 static VkDeviceMemory	dyn_index_buffer_memory;
 static VkDeviceMemory	dyn_uniform_buffer_memory;
@@ -542,14 +542,14 @@ static void R_InitDynamicVertexBuffers()
 {
 	int i;
 
-	Con_Printf("Reallocating dynamic VBs (%u KB)\n", current_dyn_vertex_buffer_size);
+	Con_Printf("Reallocating dynamic VBs (%u KB)\n", current_dyn_vertex_buffer_size / 1024);
 
 	VkResult err;
 
 	VkBufferCreateInfo buffer_create_info;
 	memset(&buffer_create_info, 0, sizeof(buffer_create_info));
 	buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	buffer_create_info.size = current_dyn_vertex_buffer_size * 1024;
+	buffer_create_info.size = current_dyn_vertex_buffer_size;
 	buffer_create_info.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
 
 	for (i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
@@ -609,14 +609,14 @@ static void R_InitDynamicIndexBuffers()
 {
 	int i;
 
-	Con_Printf("Reallocating dynamic IBs (%u KB)\n", current_dyn_index_buffer_size);
+	Con_Printf("Reallocating dynamic IBs (%u KB)\n", current_dyn_index_buffer_size / 1024);
 
 	VkResult err;
 
 	VkBufferCreateInfo buffer_create_info;
 	memset(&buffer_create_info, 0, sizeof(buffer_create_info));
 	buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	buffer_create_info.size = current_dyn_index_buffer_size * 1024;
+	buffer_create_info.size = current_dyn_index_buffer_size;
 	buffer_create_info.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
 
 	for (i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
@@ -676,14 +676,14 @@ static void R_InitDynamicUniformBuffers()
 {
 	int i;
 
-	Con_Printf("Reallocating dynamic UBs (%u KB)\n", current_dyn_uniform_buffer_size);
+	Con_Printf("Reallocating dynamic UBs (%u KB)\n", current_dyn_uniform_buffer_size / 1024);
 
 	VkResult err;
 
 	VkBufferCreateInfo buffer_create_info;
 	memset(&buffer_create_info, 0, sizeof(buffer_create_info));
 	buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	buffer_create_info.size = current_dyn_uniform_buffer_size * 1024;
+	buffer_create_info.size = current_dyn_uniform_buffer_size;
 	buffer_create_info.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
 
 	for (i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
@@ -950,7 +950,7 @@ byte * R_VertexAllocate(int size, VkBuffer * buffer, VkDeviceSize * buffer_offse
 {
 	dynbuffer_t *dyn_vb = &dyn_vertex_buffers[current_dyn_buffer_index];
 
-	if ((dyn_vb->current_offset + size) > (current_dyn_vertex_buffer_size * 1024))
+	if ((dyn_vb->current_offset + size) > current_dyn_vertex_buffer_size)
 	{
 		R_AddDynamicBufferGarbage(dyn_vertex_buffer_memory, dyn_vertex_buffers, NULL);
 		current_dyn_vertex_buffer_size = q_max(current_dyn_vertex_buffer_size * 2, (uint32_t)Q_nextPow2(size));
@@ -981,7 +981,7 @@ byte * R_IndexAllocate(int size, VkBuffer * buffer, VkDeviceSize * buffer_offset
 
 	dynbuffer_t *dyn_ib = &dyn_index_buffers[current_dyn_buffer_index];
 
-	if ((dyn_ib->current_offset + aligned_size) > (current_dyn_index_buffer_size * 1024))
+	if ((dyn_ib->current_offset + aligned_size) > current_dyn_index_buffer_size)
 	{
 		R_AddDynamicBufferGarbage(dyn_index_buffer_memory, dyn_index_buffers, NULL);
 		current_dyn_index_buffer_size = q_max(current_dyn_index_buffer_size * 2, (uint32_t)Q_nextPow2(size));
@@ -1016,7 +1016,7 @@ byte * R_UniformAllocate(int size, VkBuffer * buffer, uint32_t * buffer_offset, 
 
 	dynbuffer_t *dyn_ub = &dyn_uniform_buffers[current_dyn_buffer_index];
 
-	if ((dyn_ub->current_offset + MAX_UNIFORM_ALLOC) > (current_dyn_uniform_buffer_size * 1024))
+	if ((dyn_ub->current_offset + MAX_UNIFORM_ALLOC) > current_dyn_uniform_buffer_size)
 	{
 		R_AddDynamicBufferGarbage(dyn_uniform_buffer_memory, dyn_uniform_buffers, ubo_descriptor_sets);
 		current_dyn_uniform_buffer_size = q_max(current_dyn_uniform_buffer_size * 2, (uint32_t)Q_nextPow2(size));
