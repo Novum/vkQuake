@@ -731,9 +731,14 @@ void Mod_LoadLighting (lump_t *l)
 			i = LittleLong(((int *)data)[1]);
 			if (i == 1)
 			{
-				Con_DPrintf2("%s loaded\n", litfilename);
-				loadmodel->lightdata = data + 8;
-				return;
+				if (8+l->filelen*3 == com_filesize)
+				{
+					Con_DPrintf2("%s loaded\n", litfilename);
+					loadmodel->lightdata = data + 8;
+					return;
+				}
+				Hunk_FreeToLowMark(mark);
+				Con_Printf("Outdated .lit file (%s should be %u bytes, not %u)\n", litfilename, 8+l->filelen*3, com_filesize);
 			}
 			else
 			{
