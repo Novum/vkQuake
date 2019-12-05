@@ -1547,6 +1547,8 @@ void R_CreatePipelines()
 	//================
 	input_assembly_state_create_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
+	depth_stencil_state_create_info.depthTestEnable = VK_TRUE;
+	depth_stencil_state_create_info.depthWriteEnable = VK_TRUE;
 	for (render_pass = 0; render_pass < 2; ++render_pass)
 	{
 		pipeline_create_info.renderPass = (render_pass == 0) ? vulkan_globals.main_render_pass : vulkan_globals.ui_render_pass;
@@ -1569,6 +1571,9 @@ void R_CreatePipelines()
 	blend_attachment_state.srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
 	blend_attachment_state.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
 	blend_attachment_state.alphaBlendOp = VK_BLEND_OP_ADD;
+
+	depth_stencil_state_create_info.depthTestEnable = VK_FALSE;
+	depth_stencil_state_create_info.depthWriteEnable = VK_FALSE;
 
 	for (render_pass = 0; render_pass < 2; ++render_pass)
 	{
@@ -1682,6 +1687,8 @@ void R_CreatePipelines()
 	//================
 	shader_stages[1].module = basic_alphatest_frag_module;
 	blend_attachment_state.blendEnable = VK_FALSE;
+	depth_stencil_state_create_info.depthTestEnable = VK_TRUE;
+	depth_stencil_state_create_info.depthWriteEnable = VK_TRUE;
 
 	dynamic_states[dynamic_state_create_info.dynamicStateCount++] = VK_DYNAMIC_STATE_DEPTH_BIAS;
 
