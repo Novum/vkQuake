@@ -902,6 +902,9 @@ void SCR_TileClear (void)
 {
 	scr_tileclear_updates++;
 
+	if (r_refdef.vrect.x > 0 || r_refdef.vrect.y > 0)
+		GL_SetCanvas (CANVAS_DEFAULT);
+
 	if (r_refdef.vrect.x > 0)
 	{
 		// left

@@ -242,6 +242,11 @@ static void R_RasterWarpTexture(texture_t *tx, float warptess) {
 	vkCmdEndRenderPass(vulkan_globals.command_buffer);
 }
 
+/*
+=============
+R_ComputeWarpTexture
+=============
+*/
 static void R_ComputeWarpTexture(texture_t *tx, float warptess) {
 	//render warp
 	const float time = cl.time;
@@ -262,6 +267,8 @@ static VkImageMemoryBarrier warp_image_barriers[MAX_GLTEXTURES];
 
 void R_UpdateWarpTextures (void)
 {
+	GL_SetCanvas(CANVAS_NONE); // Invalidate canvas so push constants get set later
+
 	texture_t *tx;
 	int i, mip;
 	float warptess;

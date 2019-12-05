@@ -1885,6 +1885,8 @@ qboolean GL_BeginRendering (int *x, int *y, int *width, int *height)
 
 	vkCmdSetViewport(vulkan_globals.command_buffer, 0, 1, &viewport);
 
+	GL_SetCanvas(CANVAS_NONE);
+
 	return true;
 }
 
