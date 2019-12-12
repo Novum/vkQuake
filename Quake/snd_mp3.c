@@ -61,9 +61,10 @@ typedef struct _mp3_priv_t
 } mp3_priv_t;
 
 
-/* TAG HANDLING: put together by O. Sezer <sezero@users.sourceforge.net>
- * using public specs, put into public domain. *************************/
-
+/* TAG HANDLING:
+ * put together by O.Sezer <sezero@users.sourceforge.net> using public specs,
+ * put into public domain.
+ */
 static inline qboolean tag_is_id3v1(const unsigned char *data, size_t length) {
 	/* http://id3.org/ID3v1 :  3 bytes "TAG" identifier and 125 bytes tag data */
 	if (length < 3 || memcmp(data,"TAG",3) != 0) {
@@ -148,7 +149,6 @@ static inline long get_lyrics3v1_len(snd_stream_t *stream, unsigned char *buf) {
 	len = (stream->fh.length > 5109)? 5109 : stream->fh.length;
 	FS_fseek(&stream->fh, -len, SEEK_END);
 	FS_fread(buf, 1, (len -= 9), &stream->fh); /* exclude footer */
-	FS_rewind(&stream->fh);
 	/* strstr() won't work here. */
 	for (i = len - 11, p = (const char*)buf; i >= 0; --i, ++p) {
 	    if (memcmp(p, "LYRICSBEGIN", 11) == 0)
@@ -169,63 +169,55 @@ static inline qboolean verify_lyrics3v2(const unsigned char *data, size_t length
 	return false;
 }
 
-static int skip_tags_first(snd_stream_t *stream, unsigned char *buf, size_t bufsize)
+static int mp3_skiptags(snd_stream_t *stream, unsigned char *buf, size_t bufsize)
 {
 	long len; size_t readsize;
+	int rc = -1;
 
 	readsize = FS_fread(buf, 1, bufsize, &stream->fh);
-	if (!readsize || FS_ferror(&stream->fh))
-		return -1;
+	if (!readsize || FS_ferror(&stream->fh)) goto fail;
 
 	/* ID3v2 tag is at the start */
 	if (tag_is_id3v2(buf, readsize)) {
 		len = get_id3v2_len(buf, (long)readsize);
-		if (len >= stream->fh.length) return -1;
-		/* hack the fshandle_t start pos and length members */
+		if (len >= stream->fh.length) goto fail;
 		stream->fh.start += len;
 		stream->fh.length -= len;
-		FS_rewind(&stream->fh);
 		Con_DPrintf("MP3: skipped %ld bytes ID3v2 tag\n", len);
 	}
 	/* APE tag _might_ be at the start (discouraged
 	 * but not forbidden, either.)  read the header. */
 	else if (tag_is_apetag(buf, readsize)) {
 		len = get_ape_len(buf);
-		if (len >= stream->fh.length) return -1;
-		/* hack the fshandle_t start pos and length members */
+		if (len >= stream->fh.length) goto fail;
 		stream->fh.start += len;
 		stream->fh.length -= len;
-		FS_rewind(&stream->fh);
 		Con_DPrintf("MP3: skipped %ld bytes APE tag\n", len);
 	}
 
 	/* ID3v1 tag is at the end */
-	if (stream->fh.length < 128) goto ape;
-	FS_fseek(&stream->fh, -128, SEEK_END);
-	readsize = FS_fread(buf, 1, 128, &stream->fh);
-	FS_rewind(&stream->fh);
-	if (readsize != 128) return -1;
-	if (tag_is_id3v1(buf, 128)) {
-		/* hack fshandle_t->length */
-		stream->fh.length -= 128;
-		Con_DPrintf("MP3: skipped %ld bytes ID3v1 tag\n", 128L);
-
-		/* FIXME: handle possible double-ID3v1 tags? */
+	if (stream->fh.length >= 128) {
+		FS_fseek(&stream->fh, -128, SEEK_END);
+		readsize = FS_fread(buf, 1, 128, &stream->fh);
+		if (readsize != 128) goto fail;
+		if (tag_is_id3v1(buf, 128)) {
+			stream->fh.length -= 128;
+			Con_DPrintf("MP3: skipped %ld bytes ID3v1 tag\n", 128L);
+			/* FIXME: handle possible double-ID3v1 tags? */
+		}
 	}
 
 	/* do we know whether ape or lyrics3 is the first?
 	 * well, we don't: we need to handle that later... */
 
-	ape: /* APE tag may be at the end: read the footer */
+	/* APE tag may be at the end: read the footer */
 	if (stream->fh.length >= 32) {
 		FS_fseek(&stream->fh, -32, SEEK_END);
 		readsize = FS_fread(buf, 1, 32, &stream->fh);
-		FS_rewind(&stream->fh);
-		if (readsize != 32) return -1;
+		if (readsize != 32) goto fail;
 		if (tag_is_apetag(buf, 32)) {
 			len = get_ape_len(buf);
-			if (len >= stream->fh.length) return -1;
-			/* hack fshandle_t->length */
+			if (len >= stream->fh.length) goto fail;
 			stream->fh.length -= len;
 			Con_DPrintf("MP3: skipped %ld bytes APE tag\n", len);
 		}
@@ -234,32 +226,31 @@ static int skip_tags_first(snd_stream_t *stream, unsigned char *buf, size_t bufs
 	if (stream->fh.length >= 15) {
 		FS_fseek(&stream->fh, -15, SEEK_END);
 		readsize = FS_fread(buf, 1, 15, &stream->fh);
-		FS_rewind(&stream->fh);
-		if (readsize != 15) return -1;
+		if (readsize != 15) goto fail;
 		len = is_lyrics3tag(buf, 15);
 		if (len == 2) {
 			len = get_lyrics3v2_len(buf, 6);
-			if (len >= stream->fh.length) return -1;
-			if (len < 15) return -1;
+			if (len >= stream->fh.length) goto fail;
+			if (len < 15) goto fail;
 			FS_fseek(&stream->fh, -len, SEEK_END);
 			readsize = FS_fread(buf, 1, 11, &stream->fh);
-			FS_rewind(&stream->fh);
-			if (readsize != 11) return -1;
-			if (!verify_lyrics3v2(buf, 11)) return -1;
-			/* hack fshandle_t->length */
+			if (readsize != 11) goto fail;
+			if (!verify_lyrics3v2(buf, 11)) goto fail;
 			stream->fh.length -= len;
 			Con_DPrintf("MP3: skipped %ld bytes Lyrics3 tag\n", len);
 		}
 		else if (len == 1) {
 			len = get_lyrics3v1_len(stream, buf);
-			if (len < 0) return -1;
-			/* hack fshandle_t->length */
+			if (len < 0) goto fail;
 			stream->fh.length -= len;
 			Con_DPrintf("MP3: skipped %ld bytes Lyrics3 tag\n", len);
 		}
 	}
 
-	return (stream->fh.length > 0)? 0:  -1;
+	rc = 0;
+	fail:
+	FS_rewind(&stream->fh);
+	return (stream->fh.length > 0)? rc : -1;
 }
 
 /* (Re)fill the stream buffer that is to be decoded.  If any data
@@ -301,8 +292,7 @@ static int mp3_startread(snd_stream_t *stream)
 	mp3_priv_t *p = (mp3_priv_t *) stream->priv;
 	size_t ReadSize;
 
-	/* skip tags known to be at start or end and adjust the file */
-	if (skip_tags_first(stream, p->mp3_buffer, MP3_BUFFER_SIZE) < 0)
+	if (mp3_skiptags(stream, p->mp3_buffer, MP3_BUFFER_SIZE) < 0)
 		return -1;
 
 	mad_stream_init(&p->Stream);
@@ -321,8 +311,7 @@ static int mp3_startread(snd_stream_t *stream)
 	mad_stream_buffer(&p->Stream, p->mp3_buffer, ReadSize);
 
 	/* Find a valid frame before starting up.  This makes sure
-	 * that we have a valid MP3 and also skips past ID3v2 tags
-	 * at the beginning of the audio file.
+	 * that we have a valid MP3.
 	 */
 	p->Stream.error = MAD_ERROR_NONE;
 	while (mad_frame_decode(&p->Frame,&p->Stream))
