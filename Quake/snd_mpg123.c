@@ -1,8 +1,5 @@
-/*
- * MP3 decoding support using libmpg123, loosely based on an SDL_mixer
- * See: http://bubu.lv/changeset/4/public/libs/SDL/generated/SDL_mixer
- *
- * Copyright (C) 2011-2012 O.Sezer <sezero@users.sourceforge.net>
+/* MP3 decoding support using libmpg123
+ * Copyright (C) 2011-2019 O.Sezer <sezero@users.sourceforge.net>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,28 +30,23 @@
 
 #if !defined(MPG123_API_VERSION) || (MPG123_API_VERSION < 24)
 #error minimum required libmpg123 version is 1.12.0 (api version 24)
-#endif	/* MPG123_API_VERSION */
+#endif
 
 /* Private data */
 typedef struct _mp3_priv_t
 {
-	int handle_newed, handle_opened;
 	mpg123_handle* handle;
+	int handle_open;
 } mp3_priv_t;
 
-/* CALLBACK FUNCTIONS: */
-/* CAREFUL: libmpg123 expects POSIX read() and lseek() behavior,
- * however our FS_fread() and FS_fseek() return fread() and fseek()
- * compatible values.  */
-
+/* CALLBACKS: libmpg123 expects POSIX read/lseek() behavior! */
 static ssize_t mp3_read (void *f, void *buf, size_t size)
 {
 	ssize_t ret = (ssize_t) FS_fread(buf, 1, size, (fshandle_t *)f);
 	if (ret == 0 && errno != 0)
-		ret = -1;
+		return -1;
 	return ret;
 }
-
 static off_t mp3_seek (void *f, off_t offset, int whence)
 {
 	if (f == NULL) return (-1);
@@ -73,9 +65,7 @@ static qboolean S_MP3_CodecInitialize (void)
 			return false;
 		}
 		mp3_codec.initialized = true;
-		return true;
 	}
-
 	return true;
 }
 
@@ -94,6 +84,12 @@ static qboolean S_MP3_CodecOpenStream (snd_stream_t *stream)
 	int encoding = 0, channels = 0;
 	mp3_priv_t *priv = NULL;
 
+	if (mp3_skiptags(stream) < 0)
+	{
+		Con_Printf("Corrupt mp3 file (bad tags.)\n");
+		return false;
+	}
+
 	stream->priv = Z_Malloc(sizeof(mp3_priv_t));
 	priv = (mp3_priv_t *) stream->priv;
 	priv->handle = mpg123_new(NULL, NULL);
@@ -102,7 +98,6 @@ static qboolean S_MP3_CodecOpenStream (snd_stream_t *stream)
 		Con_Printf("Unable to allocate mpg123 handle\n");
 		goto _fail;
 	}
-	priv->handle_newed = 1;
 
 	if (mpg123_replace_reader_handle(priv->handle, mp3_read, mp3_seek, NULL) != MPG123_OK ||
 	    mpg123_open_handle(priv->handle, &stream->fh) != MPG123_OK)
@@ -110,7 +105,7 @@ static qboolean S_MP3_CodecOpenStream (snd_stream_t *stream)
 		Con_Printf("Unable to open mpg123 handle\n");
 		goto _fail;
 	}
-	priv->handle_opened = 1;
+	priv->handle_open = 1;
 
 	if (mpg123_getformat(priv->handle, &rate, &channels, &encoding) != MPG123_OK)
 	{
@@ -118,8 +113,7 @@ static qboolean S_MP3_CodecOpenStream (snd_stream_t *stream)
 		goto _fail;
 	}
 
-	switch (channels)
-	{
+	switch (channels) {
 	case MPG123_MONO:
 		stream->info.channels = 1;
 		break;
@@ -133,8 +127,7 @@ static qboolean S_MP3_CodecOpenStream (snd_stream_t *stream)
 
 	stream->info.rate = rate;
 
-	switch (encoding)
-	{
+	switch (encoding) {
 	case MPG123_ENC_UNSIGNED_8:
 		stream->info.bits = 8;
 		stream->info.width = 1;
@@ -169,10 +162,12 @@ static qboolean S_MP3_CodecOpenStream (snd_stream_t *stream)
 _fail:
 	if (priv)
 	{
-		if (priv->handle_opened)
-			mpg123_close(priv->handle);
-		if (priv->handle_newed)
+		if (priv->handle)
+		{
+			if (priv->handle_open)
+			    mpg123_close(priv->handle);
 			mpg123_delete(priv->handle);
+		}
 		Z_Free(stream->priv);
 	}
 	return false;
@@ -183,8 +178,7 @@ static int S_MP3_CodecReadStream (snd_stream_t *stream, int bytes, void *buffer)
 	mp3_priv_t *priv = (mp3_priv_t *) stream->priv;
 	size_t bytes_read = 0;
 	int res = mpg123_read (priv->handle, (unsigned char *)buffer, (size_t)bytes, &bytes_read);
-	switch (res)
-	{
+	switch (res) {
 	case MPG123_DONE:
 		Con_DPrintf("mp3 EOF\n");
 	case MPG123_OK:
