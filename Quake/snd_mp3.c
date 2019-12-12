@@ -100,9 +100,6 @@ static int mp3_startread(snd_stream_t *stream)
 	mp3_priv_t *p = (mp3_priv_t *) stream->priv;
 	size_t ReadSize;
 
-	if (mp3_skiptags(stream) < 0)
-		return -1;
-
 	mad_stream_init(&p->Stream);
 	mad_frame_init(&p->Frame);
 	mad_synth_init(&p->Synth);
@@ -391,6 +388,12 @@ static void S_MP3_CodecShutdown (void)
 static qboolean S_MP3_CodecOpenStream (snd_stream_t *stream)
 {
 	int err;
+
+	if (mp3_skiptags(stream) < 0)
+	{
+		Con_Printf("Corrupt mp3 file (bad tags.)\n");
+		return false;
+	}
 
 	stream->priv = calloc(1, sizeof(mp3_priv_t));
 	if (!stream->priv)
