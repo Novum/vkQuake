@@ -242,6 +242,9 @@ int mp3_skiptags(snd_stream_t *stream)
     unsigned char buf[128];
     long len; size_t readsize;
     int rc = -1;
+    /* failsafe */
+    long oldlength = stream->fh.length;
+    long oldstart = stream->fh.start;
 
     readsize = FS_fread(buf, 1, 128, &stream->fh);
     if (!readsize || FS_ferror(&stream->fh)) goto fail;
@@ -330,10 +333,14 @@ int mp3_skiptags(snd_stream_t *stream)
         }
     }
 
-    rc = 0;
+    rc = (stream->fh.length > 0)? 0 : -1;
     fail:
+    if (rc < 0) {
+        stream->fh.start = oldstart;
+        stream->fh.length = oldlength;
+    }
     FS_rewind(&stream->fh);
-    return (stream->fh.length > 0)? rc : -1;
+    return rc;
 }
 
 #endif /* USE_CODEC_MP3 */
