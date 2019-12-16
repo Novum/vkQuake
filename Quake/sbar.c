@@ -271,7 +271,7 @@ Sbar_DrawPic -- johnfitz -- rewritten now that GL_SetCanvas is doing the work
 */
 void Sbar_DrawPic (int x, int y, qpic_t *pic)
 {
-	Draw_Pic (x, y + 24, pic, 1.0f);
+	Draw_Pic (x, y + 24, pic, 1.0f, false);
 }
 
 /*
@@ -281,7 +281,7 @@ Sbar_DrawPicAlpha -- johnfitz
 */
 void Sbar_DrawPicAlpha (int x, int y, qpic_t *pic, float alpha)
 {
-	Draw_Pic (x, y + 24, pic, alpha);
+	Draw_Pic (x, y + 24, pic, alpha, true);
 }
 
 /*
@@ -1081,7 +1081,7 @@ void Sbar_IntermissionNumber (int x, int y, int num, int digits, int color)
 		else
 			frame = *ptr -'0';
 
-		Draw_Pic (x,y,sb_nums[color][frame], 1.0f); //johnfitz -- stretched menus
+		Draw_Pic (x,y,sb_nums[color][frame], 1.0f, false); //johnfitz -- stretched menus
 		x += 24;
 		ptr++;
 	}
@@ -1263,24 +1263,24 @@ void Sbar_IntermissionOverlay (void)
 	GL_SetCanvas (CANVAS_MENU); //johnfitz
 
 	pic = Draw_CachePic ("gfx/complete.lmp");
-	Draw_Pic (64, 24, pic, 1.0f);
+	Draw_Pic (64, 24, pic, 1.0f, false);
 
 	pic = Draw_CachePic ("gfx/inter.lmp");
-	Draw_Pic (0, 56, pic, 1.0f);
+	Draw_Pic (0, 56, pic, 1.0f, false);
 
 	dig = cl.completed_time/60;
 	Sbar_IntermissionNumber (152, 64, dig, 3, 0); //johnfitz -- was 160
 	num = cl.completed_time - dig*60;
-	Draw_Pic (224,64,sb_colon, 1.0f); //johnfitz -- was 234
-	Draw_Pic (240,64,sb_nums[0][num/10], 1.0f); //johnfitz -- was 246
-	Draw_Pic (264,64,sb_nums[0][num%10], 1.0f); //johnfitz -- was 266
+	Draw_Pic (224,64,sb_colon, 1.0f, false); //johnfitz -- was 234
+	Draw_Pic (240,64,sb_nums[0][num/10], 1.0f, false); //johnfitz -- was 246
+	Draw_Pic (264,64,sb_nums[0][num%10], 1.0f, false); //johnfitz -- was 266
 
 	Sbar_IntermissionNumber (152, 104, cl.stats[STAT_SECRETS], 3, 0); //johnfitz -- was 160
-	Draw_Pic (224,104,sb_slash, 1.0f); //johnfitz -- was 232
+	Draw_Pic (224,104,sb_slash, 1.0f, false); //johnfitz -- was 232
 	Sbar_IntermissionNumber (240, 104, cl.stats[STAT_TOTALSECRETS], 3, 0); //johnfitz -- was 248
 
 	Sbar_IntermissionNumber (152, 144, cl.stats[STAT_MONSTERS], 3, 0); //johnfitz -- was 160
-	Draw_Pic (224,144,sb_slash, 1.0f); //johnfitz -- was 232
+	Draw_Pic (224,144,sb_slash, 1.0f, false); //johnfitz -- was 232
 	Sbar_IntermissionNumber (240, 144, cl.stats[STAT_TOTALMONSTERS], 3, 0); //johnfitz -- was 248
 }
 
@@ -1297,6 +1297,6 @@ void Sbar_FinaleOverlay (void)
 	GL_SetCanvas (CANVAS_MENU); //johnfitz
 
 	pic = Draw_CachePic ("gfx/finale.lmp");
-	Draw_Pic ( (320 - pic->width)/2, 16, pic, 1.0f); //johnfitz -- stretched menus
+	Draw_Pic ( (320 - pic->width)/2, 16, pic, 1.0f, false); //johnfitz -- stretched menus
 }
 
