@@ -3042,7 +3042,7 @@ static void VID_MenuDraw (void)
 			break;
 		case VID_OPT_ANISOTROPY:
 			M_Print (16, y, "       Anisotropic");
-			M_Print (184, y, ((int)vid_anisotropic.value == 0) ? "off" : "on");
+			M_Print (184, y, ((int)vid_anisotropic.value == 0) ? "off" : va("on (%gx)", vulkan_globals.device_properties.limits.maxSamplerAnisotropy));
 			break;
 		case VID_OPT_UNDERWATER:
 			M_Print (16, y, "     Underwater FX");
