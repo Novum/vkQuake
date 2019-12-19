@@ -313,6 +313,9 @@
     <ClCompile Include="..\..\Shaders\Compiled\showtris_vert.c">
       <Filter>Shaders</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Quake\snd_mp3tag.c">
+      <Filter>Sound</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\Quake\snd_codec.h">
