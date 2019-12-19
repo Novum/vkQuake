@@ -1985,7 +1985,7 @@ void GL_EndRendering (qboolean swapchain_acquired)
 		present_info.waitSemaphoreCount = 1;
 		present_info.pWaitSemaphores = &draw_complete_semaphores[current_command_buffer];
 		err = fpQueuePresentKHR(vulkan_globals.queue, &present_info);
-		if ((err == VK_ERROR_OUT_OF_DATE_KHR) || (err == VK_ERROR_SURFACE_LOST_KHR)) {
+		if ((err == VK_ERROR_OUT_OF_DATE_KHR) || (err == VK_ERROR_SURFACE_LOST_KHR) || (err == VK_SUBOPTIMAL_KHR)) {
 			vid_changed = true;
 			Cbuf_AddText ("vid_restart\n");
 		}
