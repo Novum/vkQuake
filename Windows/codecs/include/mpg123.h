@@ -12,7 +12,7 @@
 
 /* A macro to check at compile time which set of API functions to expect.
    This should be incremented at least each time a new symbol is added to the header. */
-#define MPG123_API_VERSION 41
+#define MPG123_API_VERSION 42
 
 /* These aren't actually in use... seems to work without using libtool. */
 #ifdef BUILD_MPG123_DLL
@@ -86,6 +86,7 @@ typedef ptrdiff_t ssize_t;
 #define mpg123_set_index    MPG123_LARGENAME(mpg123_set_index)
 #define mpg123_position     MPG123_LARGENAME(mpg123_position)
 #define mpg123_length       MPG123_LARGENAME(mpg123_length)
+#define mpg123_framelength  MPG123_LARGENAME(mpg123_framelength)
 #define mpg123_set_filesize MPG123_LARGENAME(mpg123_set_filesize)
 #define mpg123_replace_reader MPG123_LARGENAME(mpg123_replace_reader)
 #define mpg123_replace_reader_handle MPG123_LARGENAME(mpg123_replace_reader_handle)
@@ -684,6 +685,7 @@ MPG123_EXPORT int mpg123_set_index(mpg123_handle *mh, off_t *offsets, off_t step
 
 /** Get information about current and remaining frames/seconds.
  *  WARNING: This function is there because of special usage by standalone mpg123 and may be removed in the final version of libmpg123!
+ *  broken for various cases (p.ex. 24 bit output). Do never use.
  *  You provide an offset (in frames) from now and a number of output bytes 
  *  served by libmpg123 but not yet played. You get the projected current frame 
  *  and seconds, as well as the remaining frames/seconds. This does _not_ care 
@@ -811,6 +813,10 @@ MPG123_EXPORT size_t mpg123_safe_buffer(void);
  *  \return MPG123_OK on success
  */
 MPG123_EXPORT int mpg123_scan(mpg123_handle *mh);
+
+/** Return, if possible, the full (expected) length of current track in frames.
+  * \return length >= 0 or MPG123_ERR if there is no length guess possible. */
+MPG123_EXPORT off_t mpg123_framelength(mpg123_handle *mh);
 
 /** Return, if possible, the full (expected) length of current track in samples.
   * \return length >= 0 or MPG123_ERR if there is no length guess possible. */
