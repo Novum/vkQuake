@@ -25,7 +25,7 @@
 
 static inline qboolean is_id3v1(const unsigned char *data, long length) {
     /* http://id3.org/ID3v1 :  3 bytes "TAG" identifier and 125 bytes tag data */
-    if (length < 3 || memcmp(data,"TAG",3) != 0) {
+    if (length < 128 || memcmp(data,"TAG",3) != 0) {
         return false;
     }
     return true;
@@ -237,12 +237,19 @@ static long get_musicmatch_len(snd_stream_t *stream) {
     return len + 256; /* header is present. */
 }
 
-static int probe_id3v1(snd_stream_t *stream, unsigned char *buf) {
+static int probe_id3v1(snd_stream_t *stream, unsigned char *buf, int atend) {
     if (stream->fh.length >= 128) {
         FS_fseek(&stream->fh, -128, SEEK_END);
         if (FS_fread(buf, 1, 128, &stream->fh) != 128)
             return -1;
         if (is_id3v1(buf, 128)) {
+            if (!atend) { /* possible false positive? */
+                if (is_musicmatch(buf + 128 - 48, 48) ||
+                    is_apetag    (buf + 128 - 32, 32) ||
+                    is_lyrics3tag(buf + 128 - 15, 15)) {
+                    return 0;
+                }
+            }
             stream->fh.length -= 128;
             Con_DPrintf("MP3: skipped %ld bytes ID3v1 tag\n", 128L);
             return 1;
@@ -359,7 +366,7 @@ int mp3_skiptags(snd_stream_t *stream)
         goto fail;
     }
     /* ID3v1 tag is at the end */
-    if ((c_id3 = probe_id3v1(stream, buf)) < 0) {
+    if ((c_id3 = probe_id3v1(stream, buf, !c_mm)) < 0) {
         goto fail;
     }
     /* we do not know the order of ape or lyrics3
@@ -395,5 +402,4 @@ int mp3_skiptags(snd_stream_t *stream)
     FS_rewind(&stream->fh);
     return rc;
 }
-
 #endif /* USE_CODEC_MP3 */
