@@ -28,18 +28,18 @@ void main()
 	if (use_alpha_test && diffuse.a < 0.666f)
 		discard;
 
-	vec4 light = texture(lightmap_tex, in_texcoords.zw) * 2.0f;
-	out_frag_color = diffuse * light;
+	vec3 light = texture(lightmap_tex, in_texcoords.zw).rgb * 2.0f;
+	out_frag_color.rgb = diffuse.rgb * light.rgb;
 
 	if (use_fullbright)
 	{
-		vec4 fullbright = texture(fullbright_tex, in_texcoords.xy);
-		out_frag_color += fullbright;
+		vec3 fullbright = texture(fullbright_tex, in_texcoords.xy).rgb;
+		out_frag_color.rgb += fullbright;
 	}
 
 	float fog = exp(-push_constants.fog_density * push_constants.fog_density * in_fog_frag_coord * in_fog_frag_coord);
 	fog = clamp(fog, 0.0, 1.0);
-	out_frag_color = mix(vec4(push_constants.fog_color, 1.0f), out_frag_color, fog);
+	out_frag_color.rgb = mix(push_constants.fog_color, out_frag_color.rgb, fog);
 
 	if (use_alpha_blend)
 		out_frag_color.a = push_constants.alpha;
