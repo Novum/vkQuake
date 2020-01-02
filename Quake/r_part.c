@@ -161,7 +161,7 @@ void R_InitParticleIndexBuffer(void)
 	memset(&buffer_create_info, 0, sizeof(buffer_create_info));
 	buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 	buffer_create_info.size = particle_index_buffer_size;
-	buffer_create_info.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+	buffer_create_info.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 
 	err = vkCreateBuffer(vulkan_globals.device, &buffer_create_info, NULL, &particle_index_buffer);
 	if (err != VK_SUCCESS)
