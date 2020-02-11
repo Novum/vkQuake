@@ -1543,14 +1543,27 @@ static qboolean GL_CreateSwapChain( void )
 		break;
 	}
 
+	// Select surface format
+	uint32_t surface_format_index = 0;
+	for (i = 0; i < format_count; ++i) {
+		if (surface_formats[i].format == VK_FORMAT_B8G8R8A8_UNORM ||
+		    surface_formats[i].format == VK_FORMAT_R8G8B8A8_UNORM ||
+			surface_formats[i].format == VK_FORMAT_B8G8R8_UNORM ||
+			surface_formats[i].format == VK_FORMAT_R8G8B8_UNORM )
+		{
+			surface_format_index = i;
+			break;
+		}
+	}
+
 	VkSwapchainCreateInfoKHR swapchain_create_info;
 	memset(&swapchain_create_info, 0, sizeof(swapchain_create_info));
 	swapchain_create_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
 	swapchain_create_info.pNext = NULL;
 	swapchain_create_info.surface = vulkan_surface;
 	swapchain_create_info.minImageCount = 2;
-	swapchain_create_info.imageFormat = surface_formats[0].format;
-	swapchain_create_info.imageColorSpace = surface_formats[0].colorSpace;
+	swapchain_create_info.imageFormat = surface_formats[surface_format_index].format;
+	swapchain_create_info.imageColorSpace = surface_formats[surface_format_index].colorSpace;
 	swapchain_create_info.imageExtent.width = vid.width;
 	swapchain_create_info.imageExtent.height = vid.height;
 	swapchain_create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
@@ -1566,7 +1579,7 @@ static qboolean GL_CreateSwapChain( void )
 	if (!(vulkan_surface_capabilities.supportedCompositeAlpha & VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR))
 		swapchain_create_info.compositeAlpha = VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR;
 
-	vulkan_globals.swap_chain_format = surface_formats[0].format;
+	vulkan_globals.swap_chain_format = surface_formats[surface_format_index].format;
 	free(surface_formats);
 
 	Sys_Printf("fpCreateSwapchainKHR\n");
