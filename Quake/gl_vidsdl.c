@@ -31,6 +31,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "SDL.h"
 #include "SDL_syswm.h"
 #include "SDL_vulkan.h"
+#ifdef _WIN32
+#include <vulkan/vulkan_win32.h>
+#endif
 
 #include <assert.h>
 
@@ -137,6 +140,7 @@ static PFN_vkGetInstanceProcAddr fpGetInstanceProcAddr;
 static PFN_vkGetDeviceProcAddr fpGetDeviceProcAddr;
 static PFN_vkGetPhysicalDeviceSurfaceSupportKHR fpGetPhysicalDeviceSurfaceSupportKHR;
 static PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR fpGetPhysicalDeviceSurfaceCapabilitiesKHR;
+static PFN_vkGetPhysicalDeviceSurfaceCapabilities2KHR fpGetPhysicalDeviceSurfaceCapabilities2KHR;
 static PFN_vkGetPhysicalDeviceSurfaceFormatsKHR fpGetPhysicalDeviceSurfaceFormatsKHR;
 static PFN_vkGetPhysicalDeviceSurfacePresentModesKHR fpGetPhysicalDeviceSurfacePresentModesKHR;
 static PFN_vkCreateSwapchainKHR fpCreateSwapchainKHR;
@@ -144,6 +148,9 @@ static PFN_vkDestroySwapchainKHR fpDestroySwapchainKHR;
 static PFN_vkGetSwapchainImagesKHR fpGetSwapchainImagesKHR;
 static PFN_vkAcquireNextImageKHR fpAcquireNextImageKHR;
 static PFN_vkQueuePresentKHR fpQueuePresentKHR;
+#ifdef _WIN32
+static PFN_vkAcquireFullScreenExclusiveModeEXT fpAcquireFullScreenExclusiveModeEXT;
+#endif
 
 #ifdef _DEBUG
 static PFN_vkCreateDebugReportCallbackEXT fpCreateDebugReportCallbackEXT;
@@ -592,16 +599,35 @@ GL_InitInstance
 static void GL_InitInstance( void )
 {
 	VkResult err;
+	uint32_t i;
 	unsigned int sdl_extension_count;
 
 	if(!SDL_Vulkan_GetInstanceExtensions(draw_context, &sdl_extension_count, NULL))
 		Sys_Error("SDL_Vulkan_GetInstanceExtensions failed: %s", SDL_GetError());
 
-	const char ** const instance_extensions = malloc(sizeof(const char *) * (sdl_extension_count + 1));
+	const char ** const instance_extensions = malloc(sizeof(const char *) * (sdl_extension_count + 2));
 	if(!SDL_Vulkan_GetInstanceExtensions(draw_context, &sdl_extension_count, instance_extensions))
 		Sys_Error("SDL_Vulkan_GetInstanceExtensions failed: %s", SDL_GetError());
 
-	instance_extensions[sdl_extension_count] = VK_EXT_DEBUG_REPORT_EXTENSION_NAME;
+	uint32_t instance_extension_count;
+	err = vkEnumerateInstanceExtensionProperties(NULL, &instance_extension_count, NULL);
+
+	uint32_t additionalExtensionCount = 0;
+
+	vulkan_globals.get_surface_capabilities_2 = false;
+	if (err == VK_SUCCESS || instance_extension_count > 0)
+	{
+		VkExtensionProperties *instance_extensions = (VkExtensionProperties *) malloc(sizeof(VkExtensionProperties) * instance_extension_count);
+		err = vkEnumerateInstanceExtensionProperties(NULL, &instance_extension_count, instance_extensions);
+
+		for (i = 0; i < instance_extension_count; ++i)
+		{
+			if (strcmp(VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME, instance_extensions[i].extensionName) == 0)
+				vulkan_globals.get_surface_capabilities_2 = true;
+		}
+
+		free(instance_extensions);
+	}
 
 	VkApplicationInfo application_info;
 	memset(&application_info, 0, sizeof(application_info));
@@ -616,19 +642,27 @@ static void GL_InitInstance( void )
 	memset(&instance_create_info, 0, sizeof(instance_create_info));
 	instance_create_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
 	instance_create_info.pApplicationInfo = &application_info;
-	instance_create_info.enabledExtensionCount = sdl_extension_count;
 	instance_create_info.ppEnabledExtensionNames = instance_extensions;
+
+	if (vulkan_globals.get_surface_capabilities_2)
+	{
+		instance_extensions[sdl_extension_count + additionalExtensionCount++] = VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME;
+		Con_Printf("Using VK_KHR_get_surface_capabilities2\n");
+	}
+
 #ifdef _DEBUG
 	const char * const layer_names[] = { "VK_LAYER_LUNARG_standard_validation" };
 
 	if(vulkan_globals.validation)
 	{
+		instance_extensions[sdl_extension_count + additionalExtensionCount++] = VK_EXT_DEBUG_REPORT_EXTENSION_NAME;
 		Con_Printf("Using VK_LAYER_LUNARG_standard_validation\n");
-		instance_create_info.enabledExtensionCount = sdl_extension_count + 1;
 		instance_create_info.enabledLayerCount = 1;
 		instance_create_info.ppEnabledLayerNames = layer_names;
 	}
 #endif
+
+	instance_create_info.enabledExtensionCount = sdl_extension_count + additionalExtensionCount;
 
 	err = vkCreateInstance(&instance_create_info, NULL, &vulkan_instance);
 	if (err != VK_SUCCESS)
@@ -645,6 +679,9 @@ static void GL_InitInstance( void )
 	GET_INSTANCE_PROC_ADDR(vulkan_instance, GetPhysicalDeviceSurfaceFormatsKHR);
 	GET_INSTANCE_PROC_ADDR(vulkan_instance, GetPhysicalDeviceSurfacePresentModesKHR);
 	GET_INSTANCE_PROC_ADDR(vulkan_instance, GetSwapchainImagesKHR);
+
+	if(vulkan_globals.get_surface_capabilities_2)
+		GET_INSTANCE_PROC_ADDR(vulkan_instance, GetPhysicalDeviceSurfaceCapabilities2KHR);
 
 #ifdef _DEBUG
 	if(vulkan_globals.validation)
@@ -700,6 +737,8 @@ static void GL_InitDevice( void )
 	qboolean found_swapchain_extension = false;
 	qboolean found_debug_marker_extension = false;
 	vulkan_globals.dedicated_allocation = false;
+	vulkan_globals.full_screen_exclusive = false;
+	vulkan_globals.swap_chain_full_screen_acquired = false;
 
 	vkGetPhysicalDeviceMemoryProperties(vulkan_physical_device, &vulkan_globals.memory_properties);
 
@@ -714,17 +753,17 @@ static void GL_InitDevice( void )
 		for (i = 0; i < device_extension_count; ++i)
 		{
 			if (strcmp(VK_KHR_SWAPCHAIN_EXTENSION_NAME, device_extensions[i].extensionName) == 0)
-			{
 				found_swapchain_extension = true;
-			}
+#if _DEBUG
 			if (strcmp(VK_EXT_DEBUG_MARKER_EXTENSION_NAME, device_extensions[i].extensionName) == 0)
-			{
 				found_debug_marker_extension = true;
-			}
+#endif
 			if (strcmp(VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME, device_extensions[i].extensionName) == 0)
-			{
 				vulkan_globals.dedicated_allocation = true;
-			}
+#if defined(_WIN32)
+			if ((strcmp(VK_EXT_FULL_SCREEN_EXCLUSIVE_EXTENSION_NAME, device_extensions[i].extensionName) == 0))
+				vulkan_globals.full_screen_exclusive = true;
+#endif
 		}
 
 		free(device_extensions);
@@ -792,7 +831,20 @@ static void GL_InitDevice( void )
 	queue_create_info.queueCount = 1;
 	queue_create_info.pQueuePriorities = queue_priorities;
 
-	const char * const device_extensions[] = { VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_EXT_DEBUG_MARKER_EXTENSION_NAME };
+	const char * device_extensions[6] = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
+	int numEnabledExtensions = 1;
+#if _DEBUG
+	if (found_debug_marker_extension)
+		device_extensions[ numEnabledExtensions++ ] = VK_EXT_DEBUG_MARKER_EXTENSION_NAME;
+#endif
+	if (vulkan_globals.dedicated_allocation) {
+		device_extensions[ numEnabledExtensions++ ] = VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME;
+	}
+#ifdef _WIN32
+	if (vulkan_globals.full_screen_exclusive) {
+		device_extensions[ numEnabledExtensions++ ] = VK_EXT_FULL_SCREEN_EXCLUSIVE_EXTENSION_NAME;
+	}
+#endif
 
 	vkGetPhysicalDeviceFeatures(vulkan_physical_device, &vulkan_physical_device_features);
 	const VkBool32 extended_format_support = vulkan_physical_device_features.shaderStorageImageExtendedFormats;
@@ -805,20 +857,16 @@ static void GL_InitDevice( void )
 	device_features.sampleRateShading = vulkan_physical_device_features.sampleRateShading;
 	device_features.fillModeNonSolid = vulkan_physical_device_features.fillModeNonSolid;
 
-	vulkan_globals.non_solid_fill = ( device_features.fillModeNonSolid == VK_TRUE ) ? true : false;
+	vulkan_globals.non_solid_fill = (device_features.fillModeNonSolid == VK_TRUE) ? true : false;
 
 	VkDeviceCreateInfo device_create_info;
 	memset(&device_create_info, 0, sizeof(device_create_info));
 	device_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 	device_create_info.queueCreateInfoCount = 1;
 	device_create_info.pQueueCreateInfos = &queue_create_info;
-	device_create_info.enabledExtensionCount = 1;
+	device_create_info.enabledExtensionCount = numEnabledExtensions;
 	device_create_info.ppEnabledExtensionNames = device_extensions;
 	device_create_info.pEnabledFeatures = &device_features;
-#if _DEBUG
-	if (found_debug_marker_extension)
-		device_create_info.enabledExtensionCount = 2;
-#endif
 
 	err = vkCreateDevice(vulkan_physical_device, &device_create_info, NULL, &vulkan_globals.device);
 	if (err != VK_SUCCESS)
@@ -833,18 +881,24 @@ static void GL_InitDevice( void )
 #if _DEBUG
 	if (found_debug_marker_extension)
 	{
-		Con_Printf("Using VK_EXT_DEBUG_MARKER\n");
+		Con_Printf("Using VK_EXT_debug_marker\n");
 		GET_DEVICE_PROC_ADDR(vulkan_globals.device, DebugMarkerSetObjectNameEXT);
 	}
 #endif
 
 	if (vulkan_globals.dedicated_allocation)
 	{
-		Con_Printf("Using VK_KHR_DEDICATED_ALLOCATION\n");
+		Con_Printf("Using VK_KHR_dedicated_allocation\n");
 	}
+#ifdef _WIN32
+	if (vulkan_globals.full_screen_exclusive)
+	{
+		Con_Printf("Using VK_EXT_full_screen_exclusive\n");
+		GET_DEVICE_PROC_ADDR(vulkan_globals.device, AcquireFullScreenExclusiveModeEXT);
+	}
+#endif
 
 	vkGetDeviceQueue(vulkan_globals.device, vulkan_globals.gfx_queue_family_index, 0, &vulkan_globals.queue);
-
 
 	VkFormatProperties format_properties;
 
@@ -1478,9 +1532,62 @@ static qboolean GL_CreateSwapChain( void )
 	uint32_t i;
 	VkResult err;
 
-	err = fpGetPhysicalDeviceSurfaceCapabilitiesKHR(vulkan_physical_device, vulkan_surface, &vulkan_surface_capabilities);
-	if (err != VK_SUCCESS)
-		Sys_Error("Couldn't get surface capabilities");
+#ifdef _WIN32
+	qboolean use_exclusive_full_screen = false;
+	qboolean try_use_exclusive_full_screen = vulkan_globals.full_screen_exclusive && VID_GetFullscreen() && (vid_desktopfullscreen.value == 0);
+	VkSurfaceFullScreenExclusiveInfoEXT full_screen_exclusive_info;
+	VkSurfaceFullScreenExclusiveWin32InfoEXT full_screen_exclusive_win32_info;
+	if (try_use_exclusive_full_screen)
+	{
+		SDL_SysWMinfo wmInfo;
+		HWND hwnd;
+		HMONITOR monitor;
+
+		SDL_VERSION(&wmInfo.version);
+		SDL_GetWindowWMInfo(draw_context, &wmInfo);
+		hwnd = wmInfo.info.win.window;
+
+		monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTOPRIMARY);
+
+		memset(&full_screen_exclusive_win32_info, 0, sizeof(full_screen_exclusive_win32_info));
+		full_screen_exclusive_win32_info.sType = VK_STRUCTURE_TYPE_SURFACE_FULL_SCREEN_EXCLUSIVE_WIN32_INFO_EXT;
+		full_screen_exclusive_win32_info.pNext = NULL;
+		full_screen_exclusive_win32_info.hmonitor = monitor;
+		
+		memset(&full_screen_exclusive_info, 0, sizeof(full_screen_exclusive_info));
+		full_screen_exclusive_info.sType = VK_STRUCTURE_TYPE_SURFACE_FULL_SCREEN_EXCLUSIVE_INFO_EXT;
+		full_screen_exclusive_info.pNext = &full_screen_exclusive_win32_info;
+		full_screen_exclusive_info.fullScreenExclusive = VK_FULL_SCREEN_EXCLUSIVE_APPLICATION_CONTROLLED_EXT;
+
+		VkPhysicalDeviceSurfaceInfo2KHR surface_info_2;
+		memset(&surface_info_2, 0, sizeof(surface_info_2));
+		surface_info_2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SURFACE_INFO_2_KHR;
+		surface_info_2.pNext = &full_screen_exclusive_info;
+		surface_info_2.surface = vulkan_surface;
+
+		VkSurfaceCapabilitiesFullScreenExclusiveEXT surface_capabilities_full_screen_exclusive;
+		memset(&surface_capabilities_full_screen_exclusive, 0, sizeof(surface_capabilities_full_screen_exclusive));
+		surface_capabilities_full_screen_exclusive.sType = VK_STRUCTURE_TYPE_SURFACE_CAPABILITIES_FULL_SCREEN_EXCLUSIVE_EXT;
+		surface_capabilities_full_screen_exclusive.fullScreenExclusiveSupported = VK_FALSE;
+
+		VkSurfaceCapabilities2KHR surface_capabilitities_2;
+		surface_capabilitities_2.sType = VK_STRUCTURE_TYPE_SURFACE_CAPABILITIES_2_KHR;
+		surface_capabilitities_2.pNext = &surface_capabilities_full_screen_exclusive;
+
+		err = fpGetPhysicalDeviceSurfaceCapabilities2KHR(vulkan_physical_device, &surface_info_2, &surface_capabilitities_2);
+		if (err != VK_SUCCESS)
+			Sys_Error("Couldn't get surface capabilities");
+
+		vulkan_surface_capabilities = surface_capabilitities_2.surfaceCapabilities;
+		use_exclusive_full_screen = surface_capabilities_full_screen_exclusive.fullScreenExclusiveSupported;
+	}
+	else
+#endif
+	{
+		err = fpGetPhysicalDeviceSurfaceCapabilitiesKHR(vulkan_physical_device, vulkan_surface, &vulkan_surface_capabilities);
+		if (err != VK_SUCCESS)
+			Sys_Error("Couldn't get surface capabilities");
+	}
 
 	if ((vulkan_surface_capabilities.currentExtent.width != 0xFFFFFFFF || vulkan_surface_capabilities.currentExtent.width != 0xFFFFFFFF)
 		&& (vulkan_surface_capabilities.currentExtent.width != vid.width || vulkan_surface_capabilities.currentExtent.height != vid.height)) {
@@ -1566,10 +1673,19 @@ static qboolean GL_CreateSwapChain( void )
 	if (!(vulkan_surface_capabilities.supportedCompositeAlpha & VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR))
 		swapchain_create_info.compositeAlpha = VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR;
 
+	vulkan_globals.swap_chain_full_screen_exclusive = false;
+	vulkan_globals.swap_chain_full_screen_acquired = false;
+
+#ifdef _WIN32
+	if (use_exclusive_full_screen) {
+		swapchain_create_info.pNext = &full_screen_exclusive_info;
+		vulkan_globals.swap_chain_full_screen_exclusive = true;
+	}
+#endif
+
 	vulkan_globals.swap_chain_format = surface_formats[0].format;
 	free(surface_formats);
 
-	Sys_Printf("fpCreateSwapchainKHR\n");
 	assert(vulkan_swapchain == VK_NULL_HANDLE);
 	err = fpCreateSwapchainKHR(vulkan_globals.device, &swapchain_create_info, NULL, &vulkan_swapchain);
 	if (err != VK_SUCCESS)
@@ -1626,7 +1742,6 @@ static qboolean GL_CreateSwapChain( void )
 
 	return true;
 }
-
 
 /*
 ===============
@@ -1897,12 +2012,28 @@ GL_AcquireNextSwapChainImage
 */
 qboolean GL_AcquireNextSwapChainImage(void)
 {
+#ifdef _WIN32
+	if (VID_GetFullscreen() && vulkan_globals.swap_chain_full_screen_exclusive && !vulkan_globals.swap_chain_full_screen_acquired) {
+		const VkResult result = fpAcquireFullScreenExclusiveModeEXT(vulkan_globals.device, vulkan_swapchain);
+		if (result == VK_SUCCESS) {
+			vulkan_globals.swap_chain_full_screen_acquired = true;
+			Con_Printf("Full screen exclusive acquired\n");
+		}
+	}
+#endif
+
 	VkResult err = fpAcquireNextImageKHR(vulkan_globals.device, vulkan_swapchain, UINT64_MAX, image_aquired_semaphores[current_command_buffer], VK_NULL_HANDLE, &current_swapchain_buffer);
 	if ((err == VK_ERROR_OUT_OF_DATE_KHR) || (err == VK_ERROR_SURFACE_LOST_KHR)) {
 		vid_changed = true;
 		Cbuf_AddText ("vid_restart\n");
 		return false;
 	}
+#ifdef _WIN32
+	else if(err == VK_ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT) {
+		Con_Printf("Full screen exclusive lost\n");
+		vulkan_globals.swap_chain_full_screen_acquired = false;
+	}
+#endif
 	else if(err == VK_SUBOPTIMAL_KHR) {
 		vid_changed = true;
 		Cbuf_AddText ("vid_restart\n");
@@ -1989,6 +2120,12 @@ void GL_EndRendering (qboolean swapchain_acquired)
 			vid_changed = true;
 			Cbuf_AddText ("vid_restart\n");
 		}
+#ifdef _WIN32
+		else if (err == VK_ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT) {
+			Con_Printf("Full screen exclusive lost\n");
+			vulkan_globals.swap_chain_full_screen_acquired = false;
+		}
+#endif
 		else if (err != VK_SUCCESS)
 			Sys_Error("vkQueuePresentKHR failed");
 	}

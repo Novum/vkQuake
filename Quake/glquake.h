@@ -117,6 +117,8 @@ typedef struct
 	VkPipeline							current_pipeline;
 	VkClearValue						color_clear_value;
 	VkFormat							swap_chain_format;
+	qboolean							swap_chain_full_screen_exclusive;
+	qboolean							swap_chain_full_screen_acquired;
 	VkPhysicalDeviceProperties			device_properties;
 	VkPhysicalDeviceMemoryProperties	memory_properties;
 	uint32_t							gfx_queue_family_index;
@@ -126,8 +128,12 @@ typedef struct
 	qboolean							supersampling;
 	qboolean							non_solid_fill;
 
-	// Extensions
+	// Instance extensions
+	qboolean							get_surface_capabilities_2;
+
+	// Device extensions
 	qboolean							dedicated_allocation;
+	qboolean							full_screen_exclusive;
 
 	// Buffers
 	VkImage								color_buffers[NUM_COLOR_BUFFERS];
