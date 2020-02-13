@@ -606,7 +606,7 @@ static void GL_InitInstance( void )
 	if(!SDL_Vulkan_GetInstanceExtensions(draw_context, &sdl_extension_count, NULL))
 		Sys_Error("SDL_Vulkan_GetInstanceExtensions failed: %s", SDL_GetError());
 
-	const char ** const instance_extensions = malloc(sizeof(const char *) * (sdl_extension_count + 2));
+	const char ** const instance_extensions = malloc(sizeof(const char *) * (sdl_extension_count + 3));
 	if(!SDL_Vulkan_GetInstanceExtensions(draw_context, &sdl_extension_count, instance_extensions))
 		Sys_Error("SDL_Vulkan_GetInstanceExtensions failed: %s", SDL_GetError());
 
@@ -625,6 +625,8 @@ static void GL_InitInstance( void )
 		{
 			if (strcmp(VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME, instance_extensions[i].extensionName) == 0)
 				vulkan_globals.get_surface_capabilities_2 = true;
+			if (strcmp(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME, instance_extensions[i].extensionName) == 0)
+				vulkan_globals.get_physical_device_properties_2 = true;
 		}
 
 		free(instance_extensions);
@@ -649,6 +651,11 @@ static void GL_InitInstance( void )
 	{
 		instance_extensions[sdl_extension_count + additionalExtensionCount++] = VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME;
 		Con_Printf("Using VK_KHR_get_surface_capabilities2\n");
+	}
+	if (vulkan_globals.get_physical_device_properties_2)
+	{
+		instance_extensions[sdl_extension_count + additionalExtensionCount++] = VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME;
+		Con_Printf("Using VK_KHR_get_physical_device_properties2\n");
 	}
 
 #ifdef _DEBUG
@@ -832,13 +839,14 @@ static void GL_InitDevice( void )
 	queue_create_info.queueCount = 1;
 	queue_create_info.pQueuePriorities = queue_priorities;
 
-	const char * device_extensions[6] = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
+	const char * device_extensions[5] = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
 	int numEnabledExtensions = 1;
 #if _DEBUG
 	if (found_debug_marker_extension)
 		device_extensions[ numEnabledExtensions++ ] = VK_EXT_DEBUG_MARKER_EXTENSION_NAME;
 #endif
 	if (vulkan_globals.dedicated_allocation) {
+		device_extensions[ numEnabledExtensions++ ] = VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME;
 		device_extensions[ numEnabledExtensions++ ] = VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME;
 	}
 #ifdef _WIN32

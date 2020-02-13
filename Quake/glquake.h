@@ -130,6 +130,7 @@ typedef struct
 
 	// Instance extensions
 	qboolean							get_surface_capabilities_2;
+	qboolean							get_physical_device_properties_2;
 
 	// Device extensions
 	qboolean							dedicated_allocation;
