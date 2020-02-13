@@ -1604,6 +1604,30 @@ static qboolean GL_CreateSwapChain( void )
 	if (err != VK_SUCCESS)
 		Sys_Error("fpGetPhysicalDeviceSurfaceFormatsKHR failed");
 
+	VkFormat swap_chain_format = VK_FORMAT_B8G8R8A8_UNORM;
+	VkColorSpaceKHR swap_chain_color_space = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+
+	if (surface_formats[0].format != VK_FORMAT_UNDEFINED || format_count > 1)
+	{
+		qboolean found_wanted_format = false;
+		for (i = 0; i < format_count; ++i)
+		{
+			if (surface_formats[i].format == swap_chain_format && surface_formats[i].colorSpace == swap_chain_color_space)
+			{
+				found_wanted_format = true;
+				break;
+			}
+		}
+
+		// If we can't find VK_FORMAT_B8G8R8A8_UNORM/VK_COLOR_SPACE_SRGB_NONLINEAR_KHR select first entry
+		// I doubt this will ever happen, but the spec doesn't guarantee it
+		if (!found_wanted_format)
+		{
+			swap_chain_format = surface_formats[0].format;
+			swap_chain_color_space = surface_formats[0].colorSpace;
+		}
+	}
+
 	uint32_t present_mode_count = 0;
 	err = fpGetPhysicalDeviceSurfacePresentModesKHR(vulkan_physical_device, vulkan_surface, &present_mode_count, NULL);
 	if (err != VK_SUCCESS)
@@ -1656,8 +1680,8 @@ static qboolean GL_CreateSwapChain( void )
 	swapchain_create_info.pNext = NULL;
 	swapchain_create_info.surface = vulkan_surface;
 	swapchain_create_info.minImageCount = 2;
-	swapchain_create_info.imageFormat = surface_formats[0].format;
-	swapchain_create_info.imageColorSpace = surface_formats[0].colorSpace;
+	swapchain_create_info.imageFormat = swap_chain_format;
+	swapchain_create_info.imageColorSpace = swap_chain_color_space;
 	swapchain_create_info.imageExtent.width = vid.width;
 	swapchain_create_info.imageExtent.height = vid.height;
 	swapchain_create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
@@ -1683,7 +1707,7 @@ static qboolean GL_CreateSwapChain( void )
 	}
 #endif
 
-	vulkan_globals.swap_chain_format = surface_formats[0].format;
+	vulkan_globals.swap_chain_format = swap_chain_format;
 	free(surface_formats);
 
 	assert(vulkan_swapchain == VK_NULL_HANDLE);
