@@ -616,6 +616,7 @@ static void GL_InitInstance( void )
 	uint32_t additionalExtensionCount = 0;
 
 	vulkan_globals.get_surface_capabilities_2 = false;
+	vulkan_globals.get_physical_device_properties_2 = false;
 	if (err == VK_SUCCESS || instance_extension_count > 0)
 	{
 		VkExtensionProperties *instance_extensions = (VkExtensionProperties *) malloc(sizeof(VkExtensionProperties) * instance_extension_count);
