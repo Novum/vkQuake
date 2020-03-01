@@ -307,32 +307,25 @@ void Sbar_DrawString (int x, int y, const char *str)
 /*
 ===============
 Sbar_DrawScrollString -- johnfitz
-
-scroll the string inside a glscissor region
 ===============
 */
 void Sbar_DrawScrollString (int x, int y, int width, const char *str)
 {
-	//float scale;
-	//int len, ofs, left;
+	float scale;
+	int len, ofs, left;
 
-	//scale = CLAMP (1.0, scr_sbarscale.value, (float)glwidth / 320.0);
-	//left = x * scale;
-	//if (cl.gametype != GAME_DEATHMATCH)
-	//	left += (((float)glwidth - 320.0 * scale) / 2);
+	scale = CLAMP (1.0, scr_sbarscale.value, (float)glwidth / 320.0);
+	left = x * scale;
+	if (cl.gametype != GAME_DEATHMATCH)
+		left += (((float)glwidth - 320.0 * scale) / 2);
 
-	//glEnable (GL_SCISSOR_TEST);
-	//glScissor (left, 0, width * scale, glheight);
-
-	//len = strlen(str)*8 + 40;
-	//ofs = ((int)(realtime*30))%len;
-	//Sbar_DrawString (x - ofs, y, str);
-	//Sbar_DrawCharacter (x - ofs + len - 32, y, '/');
-	//Sbar_DrawCharacter (x - ofs + len - 24, y, '/');
-	//Sbar_DrawCharacter (x - ofs + len - 16, y, '/');
-	//Sbar_DrawString (x - ofs + len, y, str);
-
-	//glDisable (GL_SCISSOR_TEST);
+	len = strlen(str)*8 + 40;
+	ofs = ((int)(realtime*30))%len;
+	Sbar_DrawString (x - ofs, y, str);
+	Sbar_DrawCharacter (x - ofs + len - 32, y, '/');
+	Sbar_DrawCharacter (x - ofs + len - 24, y, '/');
+	Sbar_DrawCharacter (x - ofs + len - 16, y, '/');
+	Sbar_DrawString (x - ofs + len, y, str);
 }
 
 /*
