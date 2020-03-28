@@ -990,8 +990,8 @@ void Sky_DrawSky (void)
 	//
 	for (i=0 ; i<6 ; i++)
 	{
-		skymins[0][i] = skymins[1][i] = 9999;
-		skymaxs[0][i] = skymaxs[1][i] = -9999;
+		skymins[0][i] = skymins[1][i] = FLT_MAX;
+		skymaxs[0][i] = skymaxs[1][i] = -FLT_MAX;
 	}
 
 	R_BindPipeline(vulkan_globals.sky_color_pipeline);
