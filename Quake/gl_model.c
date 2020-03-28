@@ -2141,6 +2141,9 @@ void * Mod_LoadAliasFrame (void * pin, maliasframedesc_t *frame)
 	int				i;
 	daliasframe_t	*pdaliasframe;
 
+	if (posenum >= MAXALIASFRAMES)
+		Sys_Error ("posenum >= MAXALIASFRAMES");
+
 	pdaliasframe = (daliasframe_t *)pin;
 
 	strcpy (frame->name, pdaliasframe->name);
@@ -2204,6 +2207,8 @@ void *Mod_LoadAliasGroup (void * pin,  maliasframedesc_t *frame)
 
 	for (i=0 ; i<numframes ; i++)
 	{
+		if (posenum >= MAXALIASFRAMES) Sys_Error ("posenum >= MAXALIASFRAMES");
+
 		poseverts[posenum] = (trivertx_t *)((daliasframe_t *)ptemp + 1);
 		posenum++;
 
