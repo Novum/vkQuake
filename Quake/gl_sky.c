@@ -36,7 +36,7 @@ extern	int rs_skypasses; //for r_speeds readout
 float	skyflatcolor[3];
 float	skymins[2][6], skymaxs[2][6];
 
-char	skybox_name[32] = ""; //name of current skybox, or "" if no skybox
+char	skybox_name[1024]; //name of current skybox, or "" if no skybox
 
 gltexture_t	*skybox_textures[6];
 gltexture_t	*solidskytexture, *alphaskytexture;
@@ -214,7 +214,7 @@ void Sky_LoadSkyBox (const char *name)
 		return;
 	}
 
-	strcpy(skybox_name, name);
+	q_strlcpy(skybox_name, name, sizeof(skybox_name));
 }
 
 /*
@@ -330,6 +330,7 @@ void Sky_Init (void)
 
 	Cmd_AddCommand ("sky",Sky_SkyCommand_f);
 
+	skybox_name[0] = 0;
 	for (i=0; i<6; i++)
 		skybox_textures[i] = NULL;
 }
