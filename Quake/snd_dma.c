@@ -632,14 +632,15 @@ S_UpdateAmbientSounds
 static void S_UpdateAmbientSounds (void)
 {
 	mleaf_t		*l;
-	int		vol, ambient_channel;
+	int		ambient_channel;
 	channel_t	*chan;
+	static float vol, levels[NUM_AMBIENTS];	//Spike: fixing ambient levels not changing at high enough framerates due to integer precison.
 
 // no ambients when disconnected
-	if (cls.state != ca_connected)
+	if (cls.state != ca_connected || cls.signon != SIGNONS)
 		return;
 // calc ambient sound levels
-	if (!cl.worldmodel)
+	if (!cl.worldmodel || cl.worldmodel->needload)
 		return;
 
 	l = Mod_PointInLeaf (listener_origin, cl.worldmodel);
@@ -660,20 +661,20 @@ static void S_UpdateAmbientSounds (void)
 			vol = 0;
 
 	// don't adjust volume too fast
-		if (chan->master_vol < vol)
+		if (levels[ambient_channel] < vol)
 		{
-			chan->master_vol += (int) (host_frametime * ambient_fade.value);
-			if (chan->master_vol > vol)
-				chan->master_vol = vol;
+			levels[ambient_channel] += (host_frametime * ambient_fade.value);
+			if (levels[ambient_channel] > vol)
+				levels[ambient_channel] = vol;
 		}
 		else if (chan->master_vol > vol)
 		{
-			chan->master_vol -= (int) (host_frametime * ambient_fade.value);
-			if (chan->master_vol < vol)
-				chan->master_vol = vol;
+			levels[ambient_channel] -= (host_frametime * ambient_fade.value);
+			if (levels[ambient_channel] < vol)
+				levels[ambient_channel] = vol;
 		}
 
-		chan->leftvol = chan->rightvol = chan->master_vol;
+		chan->leftvol = chan->rightvol = chan->master_vol = levels[ambient_channel];
 	}
 }
 
