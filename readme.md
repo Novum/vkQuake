@@ -94,6 +94,18 @@ make
 ### Note
 vkQuake 0.97 and later requires at least **SDL2 2.0.6 with enabled Vulkan support**. The precompiled versions in some of the distribution repositories (e.g. Ubuntu) do not currently ship with Vulkan support. You will therefore need to compile it from source. Make sure you have libvulkan-dev installed before running configure.
 
+Two components need to be updated for this Vulkan support:
+
+- New enough version of libvulkan-dev (etc)
+
+- New enough version of libsdl2-dev (etc)
+
+For the first, there is a [bionic (18.04) Backports PPA](https://launchpad.net/%7Ecybermax-dexter/+archive/ubuntu/sdl2-backport) for newer SDL2 built in with Vulkan support.
+
+For the second, LunarG [provides](https://vulkan.lunarg.com/sdk/home#linux) builds of the Vulkan SDK, including an updated libvulkan-dev. Go to the LunarG site and follow the instructions there to link in the new sources.
+
+Alternatively, the Ubuntu 20.04 Release provides versions of each of these libraries which are sufficient for building vkQuake with.
+
 ## MacOS
 
 To compile vkQuake, first install the build dependencies with Homebrew:
