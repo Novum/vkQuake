@@ -1426,7 +1426,7 @@ void R_CreatePipelines()
 	VkPipelineDynamicStateCreateInfo dynamic_state_create_info;
 	memset(&dynamic_state_create_info, 0, sizeof(dynamic_state_create_info));
 	dynamic_state_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-	VkDynamicState dynamic_states[VK_DYNAMIC_STATE_RANGE_SIZE];
+	VkDynamicState dynamic_states[3];
 	dynamic_state_create_info.pDynamicStates = dynamic_states;
 
 	VkPipelineShaderStageCreateInfo shader_stages[2];
