@@ -73,7 +73,7 @@ apt-get install git make gcc libsdl2-dev libvulkan-dev libvorbis-dev libmad0-dev
 
 Arch Linux:
 ~~~
-pacman -S git flac glibc libgl libmad libvorbis libx11 sdl2 vulkan-validation-layers
+pacman -S git flac glibc libgl libmad libmikmod libvorbis libx11 opusfile sdl2 vulkan-validation-layers
 ~~~
 
 \* Please note that for vkquake > v0.50, you will need at least v1.0.12.0 of libvulkan-dev (See [#55](https://github.com/Novum/vkQuake/issues/55)).
