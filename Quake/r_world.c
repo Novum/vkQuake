@@ -148,7 +148,8 @@ void R_MarkSurfaces (void)
 						if (!R_CullBox(surf->mins, surf->maxs) && !R_BackFaceCull (surf))
 						{
 							rs_brushpolys++; //count wpolys here
-							R_ChainSurface(*mark, chain_world);
+							R_ChainSurface(surf, chain_world);
+							R_RenderDynamicLightmaps(surf);
 						}
 					}
 				}
@@ -157,37 +158,6 @@ void R_MarkSurfaces (void)
 			if (leaf->efrags)
 				R_StoreEfrags (&leaf->efrags);
 		}
-	}
-}
-
-/*
-================
-R_BuildLightmapChains -- johnfitz -- used for r_lightmap 1
-
-ericw -- now always used at the start of R_DrawTextureChains for the 
-mh dynamic lighting speedup
-================
-*/
-void R_BuildLightmapChains (qmodel_t *model, texchain_t chain)
-{
-	texture_t *t;
-	msurface_t *s;
-	int i;
-
-	// clear lightmap chains
-	for (i=0 ; i<lightmap_count ; i++)
-		lightmap[i].polys = NULL;
-
-	// now rebuild them
-	for (i=0 ; i<model->numtextures ; i++)
-	{
-		t = model->textures[i];
-
-		if (!t || !t->texturechains[chain])
-			continue;
-
-		for (s = t->texturechains[chain]; s; s = s->texturechain)
-			R_RenderDynamicLightmaps (s);
 	}
 }
 
@@ -470,12 +440,6 @@ void R_DrawTextureChains (qmodel_t *model, entity_t *ent, texchain_t chain)
 	else
 		entalpha = 1;
 
-	// ericw -- the mh dynamic lightmap speedup: make a first pass through all
-	// surfaces we are going to draw, and rebuild any lightmaps that need it.
-	// this also chains surfaces by lightmap which is used by r_lightmap 1.
-	// the previous implementation of the speedup uploaded lightmaps one frame
-	// late which was visible under some conditions, this method avoids that.
-	R_BuildLightmapChains (model, chain);
 	R_UploadLightmaps ();
 	R_DrawTextureChains_Multitexture (model, ent, chain, entalpha);
 }
