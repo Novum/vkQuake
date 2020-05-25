@@ -79,21 +79,10 @@ qboolean R_BackFaceCull (msurface_t *surf)
 {
 	double dot;
 
-	switch (surf->plane->type)
-	{
-	case PLANE_X:
-		dot = r_refdef.vieworg[0] - surf->plane->dist;
-		break;
-	case PLANE_Y:
-		dot = r_refdef.vieworg[1] - surf->plane->dist;
-		break;
-	case PLANE_Z:
-		dot = r_refdef.vieworg[2] - surf->plane->dist;
-		break;
-	default:
+	if (surf->plane->type < 3)
+		dot = r_refdef.vieworg[surf->plane->type] - surf->plane->dist;
+	else
 		dot = DotProduct (r_refdef.vieworg, surf->plane->normal) - surf->plane->dist;
-		break;
-	}
 
 	if ((dot < 0) ^ !!(surf->flags & SURF_PLANEBACK))
 		return true;
