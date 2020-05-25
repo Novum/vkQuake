@@ -121,45 +121,17 @@ qboolean R_CullBox (vec3_t emins, vec3_t emaxs)
 {
 	int i;
 	mplane_t *p;
+	byte signbits;
+	float vec[3];
 	for (i = 0;i < 4;i++)
 	{
 		p = frustum + i;
-		switch(p->signbits)
-		{
-		default:
-		case 0:
-			if (p->normal[0]*emaxs[0] + p->normal[1]*emaxs[1] + p->normal[2]*emaxs[2] < p->dist)
-				return true;
-			break;
-		case 1:
-			if (p->normal[0]*emins[0] + p->normal[1]*emaxs[1] + p->normal[2]*emaxs[2] < p->dist)
-				return true;
-			break;
-		case 2:
-			if (p->normal[0]*emaxs[0] + p->normal[1]*emins[1] + p->normal[2]*emaxs[2] < p->dist)
-				return true;
-			break;
-		case 3:
-			if (p->normal[0]*emins[0] + p->normal[1]*emins[1] + p->normal[2]*emaxs[2] < p->dist)
-				return true;
-			break;
-		case 4:
-			if (p->normal[0]*emaxs[0] + p->normal[1]*emaxs[1] + p->normal[2]*emins[2] < p->dist)
-				return true;
-			break;
-		case 5:
-			if (p->normal[0]*emins[0] + p->normal[1]*emaxs[1] + p->normal[2]*emins[2] < p->dist)
-				return true;
-			break;
-		case 6:
-			if (p->normal[0]*emaxs[0] + p->normal[1]*emins[1] + p->normal[2]*emins[2] < p->dist)
-				return true;
-			break;
-		case 7:
-			if (p->normal[0]*emins[0] + p->normal[1]*emins[1] + p->normal[2]*emins[2] < p->dist)
-				return true;
-			break;
-		}
+		signbits = p->signbits;
+		vec[0] = ((signbits % 2)<1) ? emaxs[0] : emins[0];
+		vec[1] = ((signbits % 4)<2) ? emaxs[1] : emins[1];
+		vec[2] = ((signbits % 8)<4) ? emaxs[2] : emins[2];
+		if (p->normal[0]*vec[0] + p->normal[1]*vec[1] + p->normal[2]*vec[2] < p->dist)
+			return true;
 	}
 	return false;
 }
