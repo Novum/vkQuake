@@ -29,8 +29,6 @@ extern cvar_t gl_fullbrights, r_drawflat, r_oldskyleaf, r_showtris; //johnfitz
 
 byte *SV_FatPVS (vec3_t org, qmodel_t *worldmodel);
 
-int vis_changed; //if true, force pvs to be refreshed
-
 extern VkBuffer bmodel_vertex_buffer;
 
 //==============================================================================
@@ -73,101 +71,6 @@ void R_ChainSurface (msurface_t *surf, texchain_t chain)
 }
 
 /*
-===============
-R_MarkSurfaces -- johnfitz -- mark surfaces based on PVS and rebuild texture chains
-===============
-*/
-void R_MarkSurfaces (void)
-{
-	byte		*vis;
-	mleaf_t		*leaf;
-	mnode_t		*node;
-	msurface_t	*surf, **mark;
-	int			i, j;
-	qboolean	nearwaterportal;
-
-	// clear lightmap chains
-	for (i=0 ; i<lightmap_count ; i++)
-		lightmap[i].polys = NULL;
-
-	// check this leaf for water portals
-	// TODO: loop through all water surfs and use distance to leaf cullbox
-	nearwaterportal = false;
-	for (i=0, mark = r_viewleaf->firstmarksurface; i < r_viewleaf->nummarksurfaces; i++, mark++)
-		if ((*mark)->flags & SURF_DRAWTURB)
-			nearwaterportal = true;
-
-	// choose vis data
-	if (r_novis.value || r_viewleaf->contents == CONTENTS_SOLID || r_viewleaf->contents == CONTENTS_SKY)
-		vis = Mod_NoVisPVS (cl.worldmodel);
-	else if (nearwaterportal)
-		vis = SV_FatPVS (r_origin, cl.worldmodel);
-	else
-		vis = Mod_LeafPVS (r_viewleaf, cl.worldmodel);
-
-	// if surface chains don't need regenerating, just add static entities and return
-	if (r_oldviewleaf == r_viewleaf && !vis_changed && !nearwaterportal)
-	{
-		leaf = &cl.worldmodel->leafs[1];
-		for (i=0 ; i<cl.worldmodel->numleafs ; i++, leaf++)
-			if (vis[i>>3] & (1<<(i&7)))
-				if (leaf->efrags)
-					R_StoreEfrags (&leaf->efrags);
-		return;
-	}
-
-	vis_changed = false;
-	r_visframecount++;
-	r_oldviewleaf = r_viewleaf;
-
-	// iterate through leaves, marking surfaces
-	leaf = &cl.worldmodel->leafs[1];
-	for (i=0 ; i<cl.worldmodel->numleafs ; i++, leaf++)
-	{
-		if (vis[i>>3] & (1<<(i&7)))
-		{
-			if (r_oldskyleaf.value || leaf->contents != CONTENTS_SKY)
-				for (j=0, mark = leaf->firstmarksurface; j<leaf->nummarksurfaces; j++, mark++)
-					(*mark)->visframe = r_visframecount;
-
-			// add static models
-			if (leaf->efrags)
-				R_StoreEfrags (&leaf->efrags);
-		}
-	}
-
-	// set all chains to null
-	for (i=0 ; i<cl.worldmodel->numtextures ; i++)
-		if (cl.worldmodel->textures[i])
-			cl.worldmodel->textures[i]->texturechains[chain_world] = NULL;
-
-	// rebuild chains
-
-#if 1
-	//iterate through surfaces one node at a time to rebuild chains
-	//need to do it this way if we want to work with tyrann's skip removal tool
-	//becuase his tool doesn't actually remove the surfaces from the bsp surfaces lump
-	//nor does it remove references to them in each leaf's marksurfaces list
-	for (i=0, node = cl.worldmodel->nodes ; i<cl.worldmodel->numnodes ; i++, node++)
-		for (j=0, surf=&cl.worldmodel->surfaces[node->firstsurface] ; j<node->numsurfaces ; j++, surf++)
-			if (surf->visframe == r_visframecount)
-			{
-				R_ChainSurface(surf, chain_world);
-			}
-#else
-	//the old way
-	surf = &cl.worldmodel->surfaces[cl.worldmodel->firstmodelsurface];
-	for (i=0 ; i<cl.worldmodel->nummodelsurfaces ; i++, surf++)
-	{
-		if (surf->visframe == r_visframecount)
-		{
-			R_ChainSurface(surf, chain_world);
-		}
-	}
-#endif
-}
-
-/*
 ================
 R_BackFaceCull -- johnfitz -- returns true if the surface is facing away from vieworg
 ================
@@ -199,39 +102,71 @@ qboolean R_BackFaceCull (msurface_t *surf)
 }
 
 /*
-================
-R_CullSurfaces -- johnfitz
-================
+===============
+R_MarkSurfaces -- johnfitz -- mark surfaces based on PVS and rebuild texture chains
+===============
 */
-void R_CullSurfaces (void)
+void R_MarkSurfaces (void)
 {
-	msurface_t *s;
-	int i;
-	texture_t *t;
+	byte		*vis;
+	mleaf_t		*leaf;
+	msurface_t	*surf, **mark;
+	int			i, j;
+	qboolean	nearwaterportal;
 
-	if (!r_drawworld_cheatsafe)
-		return;
+	// clear lightmap chains
+	for (i=0 ; i<lightmap_count ; i++)
+		lightmap[i].polys = NULL;
 
-// ericw -- instead of testing (s->visframe == r_visframecount) on all world
-// surfaces, use the chained surfaces, which is exactly the same set of sufaces
+	// check this leaf for water portals
+	// TODO: loop through all water surfs and use distance to leaf cullbox
+	nearwaterportal = false;
+	for (i=0, mark = r_viewleaf->firstmarksurface; i < r_viewleaf->nummarksurfaces; i++, mark++)
+		if ((*mark)->flags & SURF_DRAWTURB)
+			nearwaterportal = true;
+
+	// choose vis data
+	if (r_novis.value || r_viewleaf->contents == CONTENTS_SOLID || r_viewleaf->contents == CONTENTS_SKY)
+		vis = Mod_NoVisPVS (cl.worldmodel);
+	else if (nearwaterportal)
+		vis = SV_FatPVS (r_origin, cl.worldmodel);
+	else
+		vis = Mod_LeafPVS (r_viewleaf, cl.worldmodel);
+
+	r_visframecount++;
+
+	// set all chains to null
 	for (i=0 ; i<cl.worldmodel->numtextures ; i++)
+		if (cl.worldmodel->textures[i])
+			cl.worldmodel->textures[i]->texturechains[chain_world] = NULL;
+
+	// iterate through leaves, marking surfaces
+	leaf = &cl.worldmodel->leafs[1];
+	for (i=0 ; i<cl.worldmodel->numleafs ; i++, leaf++)
 	{
-		t = cl.worldmodel->textures[i];
-
-		if (!t || !t->texturechains[chain_world])
-			continue;
-
-		for (s = t->texturechains[chain_world]; s; s = s->texturechain)
+		if (vis[i>>3] & (1<<(i&7)))
 		{
-			if (R_CullBox(s->mins, s->maxs) || R_BackFaceCull (s))
-				s->culled = true;
-			else
-			{
-				s->culled = false;
-				rs_brushpolys++; //count wpolys here
-				if (s->texinfo->texture->warpimage)
-					s->texinfo->texture->update_warp = true;
-			}
+			if (R_CullBox(leaf->minmaxs, leaf->minmaxs + 3))
+				continue;
+
+			if (r_oldskyleaf.value || leaf->contents != CONTENTS_SKY)
+				for (j=0, mark = leaf->firstmarksurface; j<leaf->nummarksurfaces; j++, mark++)
+				{
+					surf = *mark;
+					if (surf->visframe != r_visframecount)
+					{
+						(*mark)->visframe = r_visframecount;
+						if (!R_CullBox(surf->mins, surf->maxs) && !R_BackFaceCull (surf))
+						{
+							rs_brushpolys++; //count wpolys here
+							R_ChainSurface(*mark, chain_world);
+						}
+					}
+				}
+
+			// add static models
+			if (leaf->efrags)
+				R_StoreEfrags (&leaf->efrags);
 		}
 	}
 }
@@ -263,8 +198,7 @@ void R_BuildLightmapChains (qmodel_t *model, texchain_t chain)
 			continue;
 
 		for (s = t->texturechains[chain]; s; s = s->texturechain)
-			if (!s->culled)
-				R_RenderDynamicLightmaps (s);
+			R_RenderDynamicLightmaps (s);
 	}
 }
 
@@ -399,10 +333,7 @@ void R_DrawTextureChains_ShowTris(qmodel_t *model, texchain_t chain)
 			continue;
 
 		for (s = t->texturechains[chain]; s; s = s->texturechain)
-			if (!s->culled)
-			{
-				DrawGLPoly(s->polys, color, alpha);
-			}
+			DrawGLPoly(s->polys, color, alpha);
 	}
 }
 
@@ -434,31 +365,30 @@ void R_DrawTextureChains_Water (qmodel_t *model, entity_t *ent, texchain_t chain
 		bound = false;
 		entalpha = 1.0f;
 		for (s = t->texturechains[chain]; s; s = s->texturechain)
-			if (!s->culled)
+		{
+			if (!bound) //only bind once we are sure we need this texture
 			{
-				if (!bound) //only bind once we are sure we need this texture
+				entalpha = GL_WaterAlphaForEntitySurface (ent, s);
+				if (entalpha < 1.0f)
+					R_BindPipeline(vulkan_globals.water_blend_pipeline);
+				else
+					R_BindPipeline(vulkan_globals.water_pipeline);
+
+				vulkan_globals.vk_cmd_bind_descriptor_sets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout, 0, 1, &t->warpimage->descriptor_set, 0, NULL);
+
+				if (model != cl.worldmodel)
 				{
-					entalpha = GL_WaterAlphaForEntitySurface (ent, s);
-					if (entalpha < 1.0f)
-						R_BindPipeline(vulkan_globals.water_blend_pipeline);
-					else
-						R_BindPipeline(vulkan_globals.water_pipeline);
-
-					vulkan_globals.vk_cmd_bind_descriptor_sets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout, 0, 1, &t->warpimage->descriptor_set, 0, NULL);
-
-					if (model != cl.worldmodel)
-					{
-						// ericw -- this is copied from R_DrawSequentialPoly.
-						// If the poly is not part of the world we have to
-						// set this flag
-						t->update_warp = true; // FIXME: one frame too late!
-					}
-
-					bound = true;
+					// ericw -- this is copied from R_DrawSequentialPoly.
+					// If the poly is not part of the world we have to
+					// set this flag
+					t->update_warp = true; // FIXME: one frame too late!
 				}
-				DrawGLPoly (s->polys, color, entalpha);
-				rs_brushpasses++;
+
+				bound = true;
 			}
+			DrawGLPoly (s->polys, color, entalpha);
+			rs_brushpasses++;
+		}
 	}
 }
 
@@ -509,31 +439,28 @@ void R_DrawTextureChains_Multitexture (qmodel_t *model, entity_t *ent, texchain_
 		lastlightmap = 0; // avoid compiler warning
 		for (s = t->texturechains[chain]; s; s = s->texturechain)
 		{
-			if (!s->culled)
+			if (!bound) //only bind once we are sure we need this texture
 			{
-				if (!bound) //only bind once we are sure we need this texture
-				{
-					texture_t * texture = R_TextureAnimation(t, ent != NULL ? ent->frame : 0);
-					gltexture_t * gl_texture = texture->gltexture;
-					vulkan_globals.vk_cmd_bind_descriptor_sets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout, 0, 1, &gl_texture->descriptor_set, 0, NULL);
+				texture_t * texture = R_TextureAnimation(t, ent != NULL ? ent->frame : 0);
+				gltexture_t * gl_texture = texture->gltexture;
+				vulkan_globals.vk_cmd_bind_descriptor_sets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout, 0, 1, &gl_texture->descriptor_set, 0, NULL);
 
-					alpha_test = (t->texturechains[chain]->flags & SURF_DRAWFENCE) != 0;
-					bound = true;
-					lastlightmap = s->lightmaptexturenum;
-					lightmap_texture = lightmap[s->lightmaptexturenum].texture;
-				}
-				
-				if (s->lightmaptexturenum != lastlightmap)
-				{	
-					R_FlushBatch (fullbright_enabled, alpha_test, alpha_blend, lightmap_texture);
-					lightmap_texture = lightmap[s->lightmaptexturenum].texture;
-				}
-
+				alpha_test = (t->texturechains[chain]->flags & SURF_DRAWFENCE) != 0;
+				bound = true;
 				lastlightmap = s->lightmaptexturenum;
-				R_BatchSurface (s, fullbright_enabled, alpha_test, alpha_blend, lightmap_texture);
-
-				rs_brushpasses++;
+				lightmap_texture = lightmap[s->lightmaptexturenum].texture;
 			}
+				
+			if (s->lightmaptexturenum != lastlightmap)
+			{	
+				R_FlushBatch (fullbright_enabled, alpha_test, alpha_blend, lightmap_texture);
+				lightmap_texture = lightmap[s->lightmaptexturenum].texture;
+			}
+
+			lastlightmap = s->lightmaptexturenum;
+			R_BatchSurface (s, fullbright_enabled, alpha_test, alpha_blend, lightmap_texture);
+
+			rs_brushpasses++;
 		}
 
 		R_FlushBatch (fullbright_enabled, alpha_test, alpha_blend, lightmap_texture);

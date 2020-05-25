@@ -362,7 +362,6 @@ void R_NewGame (void);
 
 void R_AnimateLight (void);
 void R_MarkSurfaces (void);
-void R_CullSurfaces (void);
 qboolean R_CullBox (vec3_t emins, vec3_t emaxs);
 void R_StoreEfrags (efrag_t **ppefrag);
 qboolean R_CullModelForEntity (entity_t *e);
