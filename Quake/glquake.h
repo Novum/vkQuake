@@ -333,7 +333,6 @@ typedef struct glRect_s {
 struct lightmap_s
 {
 	gltexture_t *texture;
-	glpoly_t	*polys;
 	qboolean	modified;
 	glRect_t	rectchange;
 

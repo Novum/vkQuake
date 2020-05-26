@@ -134,7 +134,6 @@ typedef struct
 typedef struct glpoly_s
 {
 	struct	glpoly_s	*next;
-	struct	glpoly_s	*chain;
 	int		numverts;
 	float	verts[4][VERTEXSIZE];	// variable sized (xyz s1t1 s2t2)
 } glpoly_t;

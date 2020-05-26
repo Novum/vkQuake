@@ -53,10 +53,6 @@ void R_ClearTextureChains (qmodel_t *mod, texchain_t chain)
 	for (i=0 ; i<mod->numtextures ; i++)
 		if (mod->textures[i])
 			mod->textures[i]->texturechains[chain] = NULL;
-			
-	// clear lightmap chains
-	for (i=0 ; i<lightmap_count ; i++)
-		lightmap[i].polys = NULL;
 }
 
 /*
@@ -102,10 +98,6 @@ void R_MarkSurfaces (void)
 	msurface_t	*surf, **mark;
 	int			i, j;
 	qboolean	nearwaterportal;
-
-	// clear lightmap chains
-	for (i=0 ; i<lightmap_count ; i++)
-		lightmap[i].polys = NULL;
 
 	// check this leaf for water portals
 	// TODO: loop through all water surfs and use distance to leaf cullbox

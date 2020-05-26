@@ -329,10 +329,6 @@ void R_RenderDynamicLightmaps (msurface_t *fa)
 	if (fa->flags & SURF_DRAWTILED) //johnfitz -- not a lightmapped surface
 		return;
 
-	// add to lightmap chain
-	fa->polys->chain = lightmap[fa->lightmaptexturenum].polys;
-	lightmap[fa->lightmaptexturenum].polys = fa->polys;
-
 	// check for lightmap modification
 	for (maps=0; maps < MAXLIGHTMAPS && fa->styles[maps] != 255; maps++)
 		if (d_lightstylevalue[fa->styles[maps]] != fa->cached_light[maps])
