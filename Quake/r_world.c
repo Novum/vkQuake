@@ -88,16 +88,111 @@ qboolean R_BackFaceCull (msurface_t *surf)
 
 /*
 ===============
-R_MarkSurfaces -- johnfitz -- mark surfaces based on PVS and rebuild texture chains
+R_MarkLeafSurfaces -- johnfitz -- mark surfaces based on PVS and rebuild texture chains
 ===============
 */
-void R_MarkSurfaces (void)
+void R_MarkLeafSurfaces (mleaf_t * leaf, byte *vis)
+{
+	msurface_t	*surf, **mark;
+	int			j;
+
+	if (leaf->visframe != r_visframecount)
+		return;
+
+	if (r_oldskyleaf.value || leaf->contents != CONTENTS_SKY)
+		for (j=0, mark = leaf->firstmarksurface; j<leaf->nummarksurfaces; j++, mark++)
+		{
+			surf = *mark;
+			if (surf->visframe != r_visframecount)
+			{
+				(*mark)->visframe = r_visframecount;
+				if (!R_CullBox(surf->mins, surf->maxs) && !R_BackFaceCull (surf))
+				{
+					rs_brushpolys++; //count wpolys here
+					R_ChainSurface(surf, chain_world);
+					R_RenderDynamicLightmaps(surf);
+					if (surf->texinfo->texture->warpimage)
+						surf->texinfo->texture->update_warp = true;
+				}
+			}
+		}
+
+	// add static models
+	if (leaf->efrags)
+		R_StoreEfrags (&leaf->efrags);
+}
+
+/*
+===============
+R_MarkNodeSurfaces
+===============
+*/
+void R_MarkNodeSurfaces (mnode_t *node, byte *vis)
+{
+	int			side;
+	mleaf_t		*pleaf;
+	mplane_t	*plane;
+	double		dot;
+
+	if (node->contents == CONTENTS_SOLID)
+		return;		// solid
+
+	if (R_CullBox (node->minmaxs, node->minmaxs+3))
+		return;
+
+	// if a leaf node, draw stuff
+	if (node->contents < 0)
+	{
+		pleaf = (mleaf_t *)node;
+		R_MarkLeafSurfaces(pleaf, vis);
+		return;
+	}
+
+	if (node->visframe == r_visframecount)
+		return;
+	node->visframe = r_visframecount;
+
+	plane = node->plane;
+
+	switch (plane->type)
+	{
+	case PLANE_X:
+		dot = modelorg[0] - plane->dist;
+		break;
+	case PLANE_Y:
+		dot = modelorg[1] - plane->dist;
+		break;
+	case PLANE_Z:
+		dot = modelorg[2] - plane->dist;
+		break;
+	default:
+		dot = DotProduct (modelorg, plane->normal) - plane->dist;
+		break;
+	}
+
+	if (dot >= 0)
+		side = 0;
+	else
+		side = 1;
+
+	R_MarkNodeSurfaces (node->children[side], vis);
+	R_MarkNodeSurfaces (node->children[!side], vis);
+}
+
+/*
+===============
+R_MarkSurfaces
+===============
+*/
+void R_MarkSurfaces ()
 {
 	byte		*vis;
-	mleaf_t		*leaf;
-	msurface_t	*surf, **mark;
-	int			i, j;
 	qboolean	nearwaterportal;
+	int i;
+	msurface_t	**mark;
+	mleaf_t		*leaf;
+
+	r_visframecount++;
 
 	// check this leaf for water portals
 	// TODO: loop through all water surfs and use distance to leaf cullbox
@@ -114,8 +209,6 @@ void R_MarkSurfaces (void)
 	else
 		vis = Mod_LeafPVS (r_viewleaf, cl.worldmodel);
 
-	r_visframecount++;
-
 	// set all chains to null
 	for (i=0 ; i<cl.worldmodel->numtextures ; i++)
 		if (cl.worldmodel->textures[i])
@@ -126,33 +219,10 @@ void R_MarkSurfaces (void)
 	for (i=0 ; i<cl.worldmodel->numleafs ; i++, leaf++)
 	{
 		if (vis[i>>3] & (1<<(i&7)))
-		{
-			if (R_CullBox(leaf->minmaxs, leaf->minmaxs + 3))
-				continue;
-
-			if (r_oldskyleaf.value || leaf->contents != CONTENTS_SKY)
-				for (j=0, mark = leaf->firstmarksurface; j<leaf->nummarksurfaces; j++, mark++)
-				{
-					surf = *mark;
-					if (surf->visframe != r_visframecount)
-					{
-						(*mark)->visframe = r_visframecount;
-						if (!R_CullBox(surf->mins, surf->maxs) && !R_BackFaceCull (surf))
-						{
-							rs_brushpolys++; //count wpolys here
-							R_ChainSurface(surf, chain_world);
-							R_RenderDynamicLightmaps(surf);
-							if (surf->texinfo->texture->warpimage)
-								surf->texinfo->texture->update_warp = true;
-						}
-					}
-				}
-
-			// add static models
-			if (leaf->efrags)
-				R_StoreEfrags (&leaf->efrags);
-		}
+			leaf->visframe = r_visframecount;
 	}
+
+	R_MarkNodeSurfaces (cl.worldmodel->nodes, vis);
 }
 
 //==============================================================================
