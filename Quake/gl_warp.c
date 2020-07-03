@@ -331,7 +331,7 @@ void R_UpdateWarpTextures (void)
 		image_barrier->sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 		image_barrier->pNext = NULL;
 		image_barrier->srcAccessMask = 0;
-		image_barrier->dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+		image_barrier->dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 		image_barrier->oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 		image_barrier->newLayout = VK_IMAGE_LAYOUT_GENERAL;
 		image_barrier->srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
