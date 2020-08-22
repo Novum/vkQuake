@@ -819,7 +819,7 @@ static void GL_OrthoMatrix(float left, float right, float bottom, float top, flo
 	float ty = (top + bottom) / (top - bottom);
 	float tz = -(f + n) / (f - n);
 
-	float matrix[16];
+	float matrix[21];
 	memset(&matrix, 0, sizeof(matrix));
 
 	// First column
@@ -837,7 +837,11 @@ static void GL_OrthoMatrix(float left, float right, float bottom, float top, flo
 	matrix[3*4 + 2] = tz;
 	matrix[3*4 + 3] = 1.0f;
 
-	vkCmdPushConstants(vulkan_globals.command_buffer, vulkan_globals.basic_pipeline_layout, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 16 * sizeof(float), matrix);
+	// Leave 4 Fog values at 0.0f
+
+	// Alpha
+	matrix[20] = 1.0f;
+	vkCmdPushConstants(vulkan_globals.command_buffer, vulkan_globals.basic_pipeline_layout, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 21 * sizeof(float), matrix);
 }
 
 /*

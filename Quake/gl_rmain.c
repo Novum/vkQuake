@@ -316,7 +316,14 @@ void R_SetupMatrix (void)
 	memcpy(vulkan_globals.view_projection_matrix, vulkan_globals.projection_matrix, 16 * sizeof(float));
 	MatrixMultiply(vulkan_globals.view_projection_matrix, vulkan_globals.view_matrix);
 
-	vkCmdPushConstants(vulkan_globals.command_buffer, vulkan_globals.basic_pipeline_layout, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 16 * sizeof(float), vulkan_globals.view_projection_matrix);
+	float final_push_constants[21];
+	memcpy(final_push_constants, vulkan_globals.view_projection_matrix, 16 * sizeof(float));
+	final_push_constants[16] = 0.0f;  // fog
+	final_push_constants[17] = 0.0f;
+	final_push_constants[18] = 0.0f;
+	final_push_constants[19] = 0.0f;
+	final_push_constants[20] = 1.0f;  // alpha
+	vkCmdPushConstants(vulkan_globals.command_buffer, vulkan_globals.basic_pipeline_layout, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 21 * sizeof(float), final_push_constants);
 }
 
 /*
