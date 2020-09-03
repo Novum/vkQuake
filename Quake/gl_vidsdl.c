@@ -660,12 +660,12 @@ static void GL_InitInstance( void )
 	}
 
 #ifdef _DEBUG
-	const char * const layer_names[] = { "VK_LAYER_LUNARG_standard_validation" };
+	const char * const layer_names[] = { "VK_LAYER_KHRONOS_validation" };
 
 	if(vulkan_globals.validation)
 	{
 		instance_extensions[sdl_extension_count + additionalExtensionCount++] = VK_EXT_DEBUG_REPORT_EXTENSION_NAME;
-		Con_Printf("Using VK_LAYER_LUNARG_standard_validation\n");
+		Con_Printf("Using VK_LAYER_KHRONOS_validation\n");
 		instance_create_info.enabledLayerCount = 1;
 		instance_create_info.ppEnabledLayerNames = layer_names;
 	}
