@@ -196,8 +196,8 @@ static void R_RasterWarpTexture(texture_t *tx, float warptess) {
 
 	//render warp
 	GL_SetCanvas(CANVAS_WARPIMAGE);
-	R_BindPipeline(vulkan_globals.raster_tex_warp_pipeline);
-	vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout, 0, 1, &tx->gltexture->descriptor_set, 0, NULL);
+	R_BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.raster_tex_warp_pipeline);
+	vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &tx->gltexture->descriptor_set, 0, NULL);
 
 	int num_verts = 0;
 	for (y = 0.0; y<128.01; y += warptess) // .01 for rounding errors
@@ -250,10 +250,10 @@ R_ComputeWarpTexture
 static void R_ComputeWarpTexture(texture_t *tx, float warptess) {
 	//render warp
 	const float time = cl.time;
-	vkCmdBindPipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, vulkan_globals.cs_tex_warp_pipeline);
+	R_BindPipeline(VK_PIPELINE_BIND_POINT_COMPUTE, vulkan_globals.cs_tex_warp_pipeline);
 	VkDescriptorSet sets[2] = { tx->gltexture->descriptor_set, tx->warpimage->warp_write_descriptor_set };
-	vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, vulkan_globals.cs_tex_warp_pipeline_layout, 0, 2, sets, 0, NULL);
-	vkCmdPushConstants(vulkan_globals.command_buffer, vulkan_globals.cs_tex_warp_pipeline_layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(float), &time);
+	vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, vulkan_globals.cs_tex_warp_pipeline.layout.handle, 0, 2, sets, 0, NULL);
+	R_PushConstants(VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(float), &time);
 	vkCmdDispatch(vulkan_globals.command_buffer, WARPIMAGESIZE / 8, WARPIMAGESIZE / 8, 1);
 }
 

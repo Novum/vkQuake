@@ -718,7 +718,7 @@ void Sky_DrawSkyBox (void)
 		if (skymins[0][i] >= skymaxs[0][i] || skymins[1][i] >= skymaxs[1][i])
 			continue;
 
-		vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout, 0, 1, &skybox_textures[skytexorder[i]]->descriptor_set, 0, NULL);
+		vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &skybox_textures[skytexorder[i]]->descriptor_set, 0, NULL);
 
 		VkBuffer buffer;
 		VkDeviceSize buffer_offset;
@@ -736,7 +736,7 @@ void Sky_DrawSkyBox (void)
 		Sky_EmitSkyBoxVertex (vertices + 3, skymaxs[0][i], skymins[1][i], i);
 
 		vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
-		R_BindPipeline(vulkan_globals.sky_box_pipeline);
+		R_BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_box_pipeline);
 		vkCmdDrawIndexed(vulkan_globals.command_buffer, 6, 1, 0, 0, 0);
 
 		rs_skypolys++;
@@ -764,7 +764,7 @@ void Sky_DrawSkyBox (void)
 			}
 
 			vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
-			R_BindPipeline(vulkan_globals.basic_poly_blend_pipeline);
+			R_BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_poly_blend_pipeline);
 			vkCmdDrawIndexed(vulkan_globals.command_buffer, 6, 1, 0, 0, 0);
 
 			rs_skypasses++;
@@ -837,8 +837,10 @@ void Sky_DrawFaceQuad (glpoly_t *p, float alpha)
 	float	*v;
 	int		i;
 
+	R_BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_layer_pipeline);
+
 	VkDescriptorSet descriptor_sets[2] = { solidskytexture->descriptor_set, alphaskytexture->descriptor_set };
-	vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_layer_pipeline_layout, 0, 2, descriptor_sets, 0, NULL);
+	vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_layer_pipeline.layout.handle, 0, 2, descriptor_sets, 0, NULL);
 
 	VkBuffer vertex_buffer;
 	VkDeviceSize vertex_buffer_offset;
@@ -860,7 +862,6 @@ void Sky_DrawFaceQuad (glpoly_t *p, float alpha)
 	}
 
 	vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &vertex_buffer, &vertex_buffer_offset);
-	R_BindPipeline(vulkan_globals.sky_layer_pipeline);
 	vkCmdDrawIndexed(vulkan_globals.command_buffer, 6, 1, 0, 0, 0);
 
 	rs_skypolys++;
@@ -888,7 +889,7 @@ void Sky_DrawFaceQuad (glpoly_t *p, float alpha)
 		}
 
 		vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
-		R_BindPipeline(vulkan_globals.basic_poly_blend_pipeline);
+		R_BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_poly_blend_pipeline);
 		vkCmdDrawIndexed(vulkan_globals.command_buffer, 6, 1, 0, 0, 0);
 
 		rs_skypasses++;
@@ -993,7 +994,7 @@ void Sky_DrawSky (void)
 		skymaxs[0][i] = skymaxs[1][i] = -FLT_MAX;
 	}
 
-	R_BindPipeline(vulkan_globals.sky_color_pipeline);
+	R_BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_color_pipeline);
 	vkCmdBindIndexBuffer(vulkan_globals.command_buffer, vulkan_globals.fan_index_buffer, 0, VK_INDEX_TYPE_UINT16);
 
 	//

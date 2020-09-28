@@ -214,8 +214,7 @@ void R_DrawBrushModel (entity_t *e)
 	memcpy(mvp, vulkan_globals.view_projection_matrix, 16 * sizeof(float));
 	MatrixMultiply(mvp, model_matrix);
 
-	vulkan_globals.vk_cmd_push_constants(vulkan_globals.command_buffer, vulkan_globals.basic_pipeline_layout, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 16 * sizeof(float), mvp);
-
+	R_PushConstants(VK_SHADER_STAGE_ALL_GRAPHICS, 0, 16 * sizeof(float), mvp);
 	R_ClearTextureChains (clmodel, chain_model);
 	for (i=0 ; i<clmodel->nummodelsurfaces ; i++, psurf++)
 	{
@@ -231,8 +230,7 @@ void R_DrawBrushModel (entity_t *e)
 
 	R_DrawTextureChains (clmodel, e, chain_model);
 	R_DrawTextureChains_Water (clmodel, e, chain_model);
-
-	vulkan_globals.vk_cmd_push_constants(vulkan_globals.command_buffer, vulkan_globals.basic_pipeline_layout, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 16 * sizeof(float), vulkan_globals.view_projection_matrix);
+	R_PushConstants(VK_SHADER_STAGE_ALL_GRAPHICS, 0, 16 * sizeof(float), vulkan_globals.view_projection_matrix);
 }
 
 /*
@@ -281,12 +279,11 @@ void R_DrawBrushModel_ShowTris(entity_t *e)
 	memcpy(mvp, vulkan_globals.view_projection_matrix, 16 * sizeof(float));
 	MatrixMultiply(mvp, model_matrix);
 
-	vulkan_globals.vk_cmd_push_constants(vulkan_globals.command_buffer, vulkan_globals.basic_pipeline_layout, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 16 * sizeof(float), mvp);
-
 	if (r_showtris.value == 1)
-		R_BindPipeline(vulkan_globals.showtris_pipeline);
+		R_BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_pipeline);
 	else
-		R_BindPipeline(vulkan_globals.showtris_depth_test_pipeline);
+		R_BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_depth_test_pipeline);
+	R_PushConstants(VK_SHADER_STAGE_ALL_GRAPHICS, 0, 16 * sizeof(float), mvp);
 
 	//
 	// draw it
@@ -302,7 +299,7 @@ void R_DrawBrushModel_ShowTris(entity_t *e)
 		}
 	}
 
-	vulkan_globals.vk_cmd_push_constants(vulkan_globals.command_buffer, vulkan_globals.basic_pipeline_layout, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 16 * sizeof(float), vulkan_globals.view_projection_matrix);
+	R_PushConstants(VK_SHADER_STAGE_ALL_GRAPHICS, 0, 16 * sizeof(float), vulkan_globals.view_projection_matrix);
 }
 
 /*

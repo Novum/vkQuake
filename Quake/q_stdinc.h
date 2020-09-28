@@ -65,6 +65,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <float.h>
+#include <assert.h>
 
 /*==========================================================================*/
 

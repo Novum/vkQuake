@@ -115,8 +115,8 @@ static void GL_DrawAliasFrame (aliashdr_t *paliashdr, lerpdata_t lerpdata, gltex
 		blend = 0;
 	}
 
-	VkPipeline pipeline = alphatest ? vulkan_globals.alias_alphatest_pipeline : ((entalpha < 1.0f) ? vulkan_globals.alias_blend_pipeline : vulkan_globals.alias_pipeline);
-	R_BindPipeline(pipeline);
+	vulkan_pipeline_t pipeline = alphatest ? vulkan_globals.alias_alphatest_pipeline : ((entalpha < 1.0f) ? vulkan_globals.alias_blend_pipeline : vulkan_globals.alias_pipeline);
+	R_BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 
 	VkBuffer uniform_buffer;
 	uint32_t uniform_offset;
@@ -131,7 +131,7 @@ static void GL_DrawAliasFrame (aliashdr_t *paliashdr, lerpdata_t lerpdata, gltex
 	ubo->entalpha = entalpha;
 
 	VkDescriptorSet descriptor_sets[3] = { tx->descriptor_set, (fb != NULL) ? fb->descriptor_set : tx->descriptor_set, ubo_set };
-	vulkan_globals.vk_cmd_bind_descriptor_sets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.alias_pipeline_layout, 0, 3, descriptor_sets, 1, &uniform_offset);
+	vulkan_globals.vk_cmd_bind_descriptor_sets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.alias_pipeline.layout.handle, 0, 3, descriptor_sets, 1, &uniform_offset);
 
 	VkBuffer vertex_buffers[3] = { currententity->model->vertex_buffer, currententity->model->vertex_buffer, currententity->model->vertex_buffer };
 	VkDeviceSize vertex_offsets[3] = { (unsigned)currententity->model->vbostofs, GLARB_GetXYZOffset (paliashdr, lerpdata.pose1), GLARB_GetXYZOffset (paliashdr, lerpdata.pose2) };

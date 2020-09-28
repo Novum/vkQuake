@@ -316,7 +316,8 @@ void R_SetupMatrix (void)
 	memcpy(vulkan_globals.view_projection_matrix, vulkan_globals.projection_matrix, 16 * sizeof(float));
 	MatrixMultiply(vulkan_globals.view_projection_matrix, vulkan_globals.view_matrix);
 
-	vkCmdPushConstants(vulkan_globals.command_buffer, vulkan_globals.basic_pipeline_layout, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 16 * sizeof(float), vulkan_globals.view_projection_matrix);
+	R_BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_blend_pipeline[0]);
+	R_PushConstants(VK_SHADER_STAGE_ALL_GRAPHICS, 0, 16 * sizeof(float), vulkan_globals.view_projection_matrix);
 }
 
 /*
