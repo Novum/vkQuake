@@ -1399,6 +1399,7 @@ static void GL_CreateColorBuffer( void )
 			Con_Printf("Supersampling enabled\n");
 
 		image_create_info.samples = vulkan_globals.sample_count;
+		image_create_info.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
 		assert(msaa_color_buffer == VK_NULL_HANDLE);
 		err = vkCreateImage(vulkan_globals.device, &image_create_info, NULL, &msaa_color_buffer);
