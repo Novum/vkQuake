@@ -68,7 +68,7 @@ To compile vkQuake, first install the build dependencies:
 
 Ubuntu:
 ~~~
-apt-get install git make gcc libsdl2-dev libvulkan-dev libvorbis-dev libmad0-dev
+apt-get install git make gcc libsdl2-dev libvulkan-dev libvorbis-dev libmad0-dev libx11-xcb-dev
 ~~~
 
 Arch Linux:
