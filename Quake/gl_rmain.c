@@ -598,15 +598,12 @@ void R_RenderView (void)
 	time1 = 0; /* avoid compiler warning */
 	if (r_speeds.value)
 	{
-		//glFinish ();
 		time1 = Sys_DoubleTime ();
 
 		//johnfitz -- rendering statistics
 		rs_brushpolys = rs_aliaspolys = rs_skypolys = rs_particles = rs_fogpolys = rs_megatexels =
 		rs_dynamiclightmaps = rs_aliaspasses = rs_skypasses = rs_brushpasses = 0;
 	}
-	//else if (gl_finish.value)
-	//	glFinish ();
 
 	R_SetupView (); //johnfitz -- this does everything that should be done once per frame
 
