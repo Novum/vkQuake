@@ -217,7 +217,7 @@ VkDeviceSize GL_AllocateFromHeaps(int num_heaps, glheap_t ** heaps, VkDeviceSize
 			break;
 	}
 
-	Sys_Error("Could not allocate memory for texture");
+	Sys_Error("Could not allocate memory in '%s' heap", heap_name);
 	return 0;
 }
 
