@@ -57,7 +57,7 @@ int		stripcount;
 // Heap
 #define INDEX_HEAP_SIZE_MB 1
 #define VERTEX_HEAP_SIZE_MB 16
-#define GEOMETRY_MAX_HEAPS 4
+#define GEOMETRY_MAX_HEAPS 16
 
 static glheap_t * vertex_buffer_heaps[GEOMETRY_MAX_HEAPS];
 static glheap_t * index_buffer_heaps[GEOMETRY_MAX_HEAPS];
