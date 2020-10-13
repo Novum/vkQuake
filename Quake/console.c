@@ -31,7 +31,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <unistd.h>
 #endif
 #include "quakedef.h"
-#include "q_ctype.h"
 
 int 		con_linewidth;
 
@@ -54,9 +53,6 @@ cvar_t		con_notifytime = {"con_notifytime","3",CVAR_NONE};	//seconds
 cvar_t		con_logcenterprint = {"con_logcenterprint", "1", CVAR_NONE}; //johnfitz
 
 char		con_lastcenterstring[1024]; //johnfitz
-
-void (*con_redirect_flush)(const char *buffer);	//call this to flush the redirection buffer (for rcon)
-char con_redirect_buffer[8192];
 
 #define	NUM_CON_TIMES 4
 float		con_times[NUM_CON_TIMES];	// realtime time the line was generated
@@ -117,17 +113,23 @@ void Con_ToggleConsole_f (void)
 		history_line = edit_line; //johnfitz -- it should also return you to the bottom of the command history
 
 		if (cls.state == ca_connected)
+		{
+			IN_Activate();
 			key_dest = key_game;
+		}
 		else
+		{
 			M_Menu_Main_f ();
+		}
 	}
 	else
+	{
+		IN_Deactivate(modestate == MS_WINDOWED);
 		key_dest = key_console;
+	}
 
 	SCR_EndLoadingPlaque ();
 	memset (con_times, 0, sizeof(con_times));
-
-	IN_UpdateGrabs();
 }
 
 /*
@@ -356,17 +358,6 @@ static void Con_Linefeed (void)
 	Q_memset (&con_text[(con_current%con_totallines)*con_linewidth], ' ', con_linewidth);
 }
 
-#define ishex(c) ((c>='0' && c<= '9') || (c>='a' && c<='f') || (c>='A' && c<='F'))
-static int dehex(char c)
-{
-	if (c >= '0' && c <= '9')
-		return c-'0';
-	if (c >= 'A' && c <= 'F')
-		return c-('A'-10);
-	if (c >= 'a' && c <= 'f')
-		return c-('a'-10);
-	return 0;
-}
 /*
 ================
 Con_Print
@@ -404,95 +395,6 @@ static void Con_Print (const char *txt)
 
 	while ( (c = *txt) )
 	{
-		if (c == '^' && pr_checkextension.value)
-		{	//parse markup like FTE/DP might.
-			switch(txt[1])
-			{
-			case '^':	//doubled up char for escaping.
-				txt++;
-				break;
-			case '0':	//black
-			case '1':	//red
-			case '2':	//green
-			case '3':	//yellow
-			case '4':	//blue
-			case '5':	//cyan
-			case '6':	//magenta
-			case '7':	//white
-			case '8':	//white+half-alpha
-			case '9':	//grey
-			case 'h':	//toggle half-alpha
-			case 'b':	//blink
-			case 'd':	//reset to defaults (fixme: should reset ^m without resetting \1)
-			case 's':	//modstack push
-			case 'r':	//modstack restore
-				txt+=2;
-				continue;
-			case 'x':	//RGB 12-bit colour
-				if (ishex(txt[2]) && ishex(txt[3]) && ishex(txt[4]))
-				{
-					txt+=4;
-					continue;
-				}
-				break;	//malformed
-			case '[':	//start fte's ^[text\key\value\key\value^] links
-			case ']':	//end link
-				break;	//fixme... skip the keys, recolour properly, etc
-//				txt+=2;
-//				continue;
-			case '&':
-				if ((ishex(txt[2])||txt[2]=='-') && (ishex(txt[3])||txt[3]=='-'))
-				{	//ignore fte's fore/back ansi colours
-					txt += 4;
-					continue;
-				}
-				break;	//malformed
-			case 'm':	//toggle masking.
-				txt+=2;
-				mask ^= 128;
-				continue;
-			case 'U':	//ucs-2 unicode codepoint
-				if (ishex(txt[2]) && ishex(txt[3]) && ishex(txt[4]) && ishex(txt[5]))
-				{
-					c = (dehex(txt[2])<<12) | (dehex(txt[3])<<8) | (dehex(txt[4])<<4) | dehex(txt[5]);
-					txt += 6-1;
-
-					if (c >= 0xe000 && c <= 0xe0ff)
-						c &= 0xff;	//private-use 0xE0XX maps to quake's chars
-					else if (c >= 0x20 && c <= 0x7f)
-						c &= 0x7f;	//ascii is okay too.
-					else
-						c = '?'; //otherwise its some unicode char that we don't know how to handle.
-					break;
-				}
-				break; //malformed
-			case '{':	//full unicode codepoint, for chars up to 0x10ffff
-				txt += 2;
-				c = 0;	//no idea
-				while(*txt)
-				{
-					if (*txt == '}')
-					{
-						txt++;
-						break;
-					}
-					if (!ishex(*txt))
-						break;
-					c<<=4;
-					c |= dehex(*txt++);
-				}
-				txt--; // for the ++ below
-
-				if (c >= 0xe000 && c <= 0xe0ff)
-					c &= 0xff;	//private-use 0xE0XX maps to quake's chars
-				else if (c >= 0x20 && c <= 0x7f)
-					c &= 0x7f;	//ascii is okay too.
-				else
-					c = '?'; //otherwise its some unicode char that we don't know how to handle.
-				break;
-			}
-		}
-
 		if (c <= ' ')
 		{
 			boundary = true;
@@ -587,9 +489,6 @@ void Con_Printf (const char *fmt, ...)
 	q_vsnprintf (msg, sizeof(msg), fmt, argptr);
 	va_end (argptr);
 
-	if (con_redirect_flush)
-		q_strlcat(con_redirect_buffer, msg, sizeof(con_redirect_buffer));
-
 // also echo to debugging console
 	Sys_Printf ("%s", msg);
 
@@ -634,17 +533,15 @@ void Con_DWarning (const char *fmt, ...)
 	va_list		argptr;
 	char		msg[MAXPRINTMSG];
 
-	if (developer.value >= 2)
-	{	// don't confuse non-developers with techie stuff...
-		// (this is limit exceeded warnings)
+	if (!developer.value)
+		return;			// don't confuse non-developers with techie stuff...
 
-		va_start (argptr, fmt);
-		q_vsnprintf (msg, sizeof(msg), fmt, argptr);
-		va_end (argptr);
+	va_start (argptr, fmt);
+	q_vsnprintf (msg, sizeof(msg), fmt, argptr);
+	va_end (argptr);
 
-		Con_SafePrintf ("\x02Warning: ");
-		Con_Printf ("%s", msg);
-	}
+	Con_SafePrintf ("\x02Warning: ");
+	Con_Printf ("%s", msg);
 }
 
 /*
@@ -798,18 +695,6 @@ void Con_LogCenterPrint (const char *str)
 	}
 }
 
-qboolean Con_IsRedirected(void)
-{
-	return !!con_redirect_flush;
-}
-void Con_Redirect(void(*flush)(const char *))
-{
-	if (con_redirect_flush)
-		con_redirect_flush(con_redirect_buffer);
-	*con_redirect_buffer = 0;
-	con_redirect_flush = flush;
-}
-
 /*
 ==============================================================================
 
@@ -832,6 +717,12 @@ tab_t	*tablist;
 
 //defs from elsewhere
 extern qboolean	keydown[256];
+typedef struct cmd_function_s
+{
+	struct cmd_function_s	*next;
+	const char		*name;
+	xcommand_t		function;
+} cmd_function_t;
 extern	cmd_function_t	*cmd_functions;
 #define	MAX_ALIAS_NAME	32
 typedef struct cmdalias_s
@@ -872,7 +763,7 @@ void AddToTabList (const char *name, const char *type)
 		// find max common between bash_partial and name
 		i_bash = bash_partial;
 		i_name = name;
-		while (*i_bash && (q_tolower(*i_bash) == q_tolower(*i_name)))
+		while (*i_bash && (*i_bash == *i_name))
 		{
 			i_bash++;
 			i_name++;
@@ -1010,15 +901,15 @@ void BuildTabList (const char *partial)
 
 	cvar = Cvar_FindVarAfter ("", CVAR_NONE);
 	for ( ; cvar ; cvar=cvar->next)
-		if (!q_strncasecmp (partial, cvar->name, len))
+		if (!Q_strncmp (partial, cvar->name, len))
 			AddToTabList (cvar->name, "cvar");
 
 	for (cmd=cmd_functions ; cmd ; cmd=cmd->next)
-		if (!q_strncasecmp (partial,cmd->name, len) && cmd->srctype != src_server)
+		if (!Q_strncmp (partial,cmd->name, len))
 			AddToTabList (cmd->name, "command");
 
 	for (alias=cmd_alias ; alias ; alias=alias->next)
-		if (!q_strncasecmp (partial, alias->name, len))
+		if (!Q_strncmp (partial, alias->name, len))
 			AddToTabList (alias->name, "alias");
 }
 
@@ -1277,7 +1168,7 @@ void Con_DrawInput (void)
 	if (!((int)((realtime-key_blinktime)*con_cursorspeed) & 1))
 	{
 		i = key_linepos - ofs;
-		Draw_Pic ((i+1)<<3, vid.conheight - 16, key_insert ? pic_ins : pic_ovr);
+		Draw_Pic ((i+1)<<3, vid.conheight - 16, key_insert ? pic_ins : pic_ovr, 1.0f, false);
 	}
 }
 
@@ -1293,7 +1184,7 @@ void Con_DrawConsole (int lines, qboolean drawinput)
 {
 	int	i, x, y, j, sb, rows;
 	const char	*text;
-	const char	*ver = ENGINE_NAME_AND_VER;
+	char	ver[32];
 
 	if (lines <= 0)
 		return;
@@ -1336,6 +1227,7 @@ void Con_DrawConsole (int lines, qboolean drawinput)
 
 //draw version number in bottom right
 	y += 8;
+	q_snprintf (ver, sizeof(ver), "vkQuake " VKQUAKE_VER_STRING);
 	for (x = 0; x < (int)strlen(ver); x++)
 		Draw_Character ((con_linewidth - strlen(ver) + x + 2)<<3, y, ver[x] /*+ 128*/);
 }
@@ -1357,8 +1249,8 @@ void Con_NotifyBox (const char *text)
 	Con_Printf ("Press a key.\n");
 	Con_Printf ("%s", Con_Quakebar(40)); //johnfitz
 
+	IN_Deactivate(modestate == MS_WINDOWED);
 	key_dest = key_console;
-	IN_UpdateGrabs();
 
 	Key_BeginInputGrab ();
 	do
@@ -1374,9 +1266,9 @@ void Con_NotifyBox (const char *text)
 	Key_EndInputGrab ();
 
 	Con_Printf ("\n");
+	IN_Activate();
 	key_dest = key_game;
 	realtime = 0;		// put the cursor back to invisible
-	IN_UpdateGrabs();
 }
 
 

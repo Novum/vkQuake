@@ -37,9 +37,7 @@ typedef enum
 	ev_entity,
 	ev_field,
 	ev_function,
-	ev_pointer,
-
-	ev_ext_integer
+	ev_pointer
 } etype_t;
 
 #define	OFS_NULL		0

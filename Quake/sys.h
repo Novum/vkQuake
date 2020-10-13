@@ -33,9 +33,8 @@ void Sys_Init (void);
 // returns the file size or -1 if file is not present.
 // the file should be in BINARY mode for stupid OSs that care
 int Sys_FileOpenRead (const char *path, int *hndl);
-int Sys_FileOpenWrite (const char *path);
-int Sys_FileOpenStdio (FILE *file);
 
+int Sys_FileOpenWrite (const char *path);
 void Sys_FileClose (int handle);
 void Sys_FileSeek (int handle, int position);
 int Sys_FileRead (int handle, void *dest, int count);

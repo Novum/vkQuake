@@ -499,10 +499,6 @@ VID_FilterChanged_f
 static void VID_FilterChanged_f(cvar_t *var)
 {
 	R_InitSamplers();
-//
-// update mouse grab
-//
-	IN_UpdateGrabs();
 }
 
 /*
@@ -2603,7 +2599,14 @@ void	VID_Toggle (void)
 
 		VID_SyncCvars();
 
-		IN_UpdateGrabs();
+		// update mouse grab
+		if (key_dest == key_console || key_dest == key_menu)
+		{
+			if (modestate == MS_WINDOWED)
+				IN_Deactivate(true);
+			else if (modestate == MS_FULLSCREEN)
+				IN_Activate();
+		}
 	}
 	else
 	{
@@ -2992,7 +2995,6 @@ static void VID_MenuKey (int key)
 	switch (key)
 	{
 	case K_ESCAPE:
-	case K_BBUTTON:
 		VID_SyncCvars (); //sync cvars before leaving menu. FIXME: there are other ways to leave menu
 		S_LocalSound ("misc/menu1.wav");
 		M_Menu_Options_f ();
@@ -3092,7 +3094,6 @@ static void VID_MenuKey (int key)
 
 	case K_ENTER:
 	case K_KP_ENTER:
-	case K_ABUTTON:
 		m_entersound = true;
 		switch (video_options_cursor)
 		{
@@ -3133,7 +3134,7 @@ static void VID_MenuKey (int key)
 			Cbuf_AddText ("vid_restart\n");
 			key_dest = key_game;
 			m_state = m_none;
-			IN_UpdateGrabs();
+			IN_Activate();
 			break;
 		default:
 			break;
@@ -3242,10 +3243,10 @@ VID_Menu_f
 */
 static void VID_Menu_f (void)
 {
+	IN_Deactivate(modestate == MS_WINDOWED);
 	key_dest = key_menu;
 	m_state = m_video;
 	m_entersound = true;
-	IN_UpdateGrabs();
 
 	//set all the cvars to match the current mode when entering the menu
 	VID_SyncCvars ();

@@ -45,7 +45,7 @@ static snd_codec_t *codecs;
 S_CodecRegister
 =================
 */
-void S_CodecRegister(snd_codec_t *codec)
+static void S_CodecRegister(snd_codec_t *codec)
 {
 	codec->next = codecs;
 	codecs = codec;

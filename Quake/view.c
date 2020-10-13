@@ -208,7 +208,7 @@ void V_DriftPitch (void)
 		return;
 	}
 
-	delta = cl.statsf[STAT_IDEALPITCH] - cl.viewangles[PITCH];
+	delta = cl.idealpitch - cl.viewangles[PITCH];
 
 	if (!delta)
 	{
@@ -278,21 +278,6 @@ void V_ParseDamage (void)
 	for (i=0 ; i<3 ; i++)
 		from[i] = MSG_ReadCoord (cl.protocolflags);
 
-	if (cl.qcvm.extfuncs.CSQC_Parse_Damage)
-	{
-		qboolean inhibit;
-		PR_SwitchQCVM(&cl.qcvm);
-		pr_global_struct->time = cl.time;
-		G_FLOAT(OFS_PARM0) = armor;
-		G_FLOAT(OFS_PARM1) = blood;
-		G_VECTORSET(OFS_PARM2, from[0], from[1], from[2]);
-		PR_ExecuteProgram(cl.qcvm.extfuncs.CSQC_Parse_Damage);
-		inhibit = G_FLOAT(OFS_RETURN);
-		PR_SwitchQCVM(NULL);
-		if (inhibit)
-			return;
-	}
-
 	count = blood*0.5 + armor*0.5;
 	if (count < 10)
 		count = 10;
@@ -327,7 +312,7 @@ void V_ParseDamage (void)
 //
 // calculate view angle kicks
 //
-	ent = &cl.entities[cl.viewentity];
+	ent = &cl_entities[cl.viewentity];
 
 	VectorSubtract (from, ent->origin, from);
 	VectorNormalize (from);
@@ -367,20 +352,10 @@ When you run over an item, the server sends this command
 */
 void V_BonusFlash_f (void)
 {
-	if (Cmd_Argc() >= 5)
-	{
-		cl.cshifts[CSHIFT_BONUS].destcolor[0] = atof(Cmd_Argv(1))*255;
-		cl.cshifts[CSHIFT_BONUS].destcolor[1] = atof(Cmd_Argv(2))*255;
-		cl.cshifts[CSHIFT_BONUS].destcolor[2] = atof(Cmd_Argv(3))*255;
-		cl.cshifts[CSHIFT_BONUS].percent = atof(Cmd_Argv(4))*255;
-	}
-	else
-	{
-		cl.cshifts[CSHIFT_BONUS].destcolor[0] = 215;
-		cl.cshifts[CSHIFT_BONUS].destcolor[1] = 186;
-		cl.cshifts[CSHIFT_BONUS].destcolor[2] = 69;
-		cl.cshifts[CSHIFT_BONUS].percent = 50;
-	}
+	cl.cshifts[CSHIFT_BONUS].destcolor[0] = 215;
+	cl.cshifts[CSHIFT_BONUS].destcolor[1] = 186;
+	cl.cshifts[CSHIFT_BONUS].destcolor[2] = 69;
+	cl.cshifts[CSHIFT_BONUS].percent = 50;
 }
 
 /*
@@ -675,7 +650,7 @@ void V_BoundOffsets (void)
 {
 	entity_t	*ent;
 
-	ent = &cl.entities[cl.viewentity];
+	ent = &cl_entities[cl.viewentity];
 
 // absolutely bound refresh reletive to entity clipping hull
 // so the view can never be inside a solid wall
@@ -720,7 +695,7 @@ void V_CalcViewRoll (void)
 {
 	float		side;
 
-	side = V_CalcRoll (cl.entities[cl.viewentity].angles, cl.velocity);
+	side = V_CalcRoll (cl_entities[cl.viewentity].angles, cl.velocity);
 	r_refdef.viewangles[ROLL] += side;
 
 	if (v_dmg_time > 0)
@@ -749,7 +724,7 @@ void V_CalcIntermissionRefdef (void)
 	float		old;
 
 // ent is the player model (visible when out of body)
-	ent = &cl.entities[cl.viewentity];
+	ent = &cl_entities[cl.viewentity];
 // view is the weapon model (only visible from inside body)
 	view = &cl.viewent;
 
@@ -783,7 +758,7 @@ void V_CalcRefdef (void)
 	V_DriftPitch ();
 
 // ent is the player model (visible when out of body)
-	ent = &cl.entities[cl.viewentity];
+	ent = &cl_entities[cl.viewentity];
 // view is the weapon model (only visible from inside body)
 	view = &cl.viewent;
 
@@ -797,7 +772,7 @@ void V_CalcRefdef (void)
 
 // refresh position
 	VectorCopy (ent->origin, r_refdef.vieworg);
-	r_refdef.vieworg[2] += cl.stats[STAT_VIEWHEIGHT] + bob;
+	r_refdef.vieworg[2] += cl.viewheight + bob;
 
 // never let it sit exactly on a node line, because a water plane can
 // dissapear when viewed with the eye exactly on it.
@@ -829,7 +804,7 @@ void V_CalcRefdef (void)
 	CalcGunAngle ();
 
 	VectorCopy (ent->origin, view->origin);
-	view->origin[2] += cl.stats[STAT_VIEWHEIGHT];
+	view->origin[2] += cl.viewheight;
 
 	for (i=0 ; i<3 ; i++)
 		view->origin[i] += forward[i]*bob*0.4;

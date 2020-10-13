@@ -105,6 +105,9 @@ void S_UnblockSound (void);
 
 sfx_t *S_PrecacheSound (const char *sample);
 void S_TouchSound (const char *sample);
+void S_ClearPrecache (void);
+void S_BeginPrecaching (void);
+void S_EndPrecaching (void);
 void S_PaintChannels (int endtime);
 void S_InitPaintChannels (void);
 
@@ -144,10 +147,10 @@ void SNDDMA_UnblockSound(void);
  * ====================================================================
  */
 
-//#define	MAX_CHANNELS		1024 // spike -- made this obsolete. ericw -- was 512 /* johnfitz -- was 128 */
+#define	MAX_CHANNELS		1024 // ericw -- was 512 /* johnfitz -- was 128 */
 #define	MAX_DYNAMIC_CHANNELS	128 /* johnfitz -- was 8   */
 
-extern	channel_t	*snd_channels;
+extern	channel_t	snd_channels[MAX_CHANNELS];
 /* 0 to MAX_DYNAMIC_CHANNELS-1	= normal entity sounds
  * MAX_DYNAMIC_CHANNELS to MAX_DYNAMIC_CHANNELS + NUM_AMBIENTS -1 = water, etc
  * MAX_DYNAMIC_CHANNELS + NUM_AMBIENTS to total_channels = static sounds
@@ -155,13 +158,10 @@ extern	channel_t	*snd_channels;
 
 extern	volatile dma_t	*shm;
 
-extern	int		max_channels;
 extern	int		total_channels;
 extern	int		soundtime;
 extern	int		paintedtime;
 extern	int		s_rawend;
-
-extern float voicevolumescale;
 
 extern	vec3_t		listener_origin;
 extern	vec3_t		listener_forward;

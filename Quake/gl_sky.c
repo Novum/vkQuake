@@ -36,11 +36,6 @@ extern	int rs_skypasses; //for r_speeds readout
 float	skyflatcolor[3];
 float	skymins[2][6], skymaxs[2][6];
 
-qboolean skyroom_drawn;
-qboolean skyroom_enabled;
-vec4_t skyroom_origin;
-vec4_t skyroom_orientation;
-
 char	skybox_name[1024]; //name of current skybox, or "" if no skybox
 
 gltexture_t	*skybox_textures[6];
@@ -106,55 +101,43 @@ Sky_LoadTexture
 A sky texture is 256*128, with the left side being a masked overlay
 ==============
 */
-void Sky_LoadTexture (texture_t *mt, enum srcformat fmt, unsigned int srcwidth, unsigned int height)
+void Sky_LoadTexture (texture_t *mt)
 {
 	char		texturename[64];
-	int			i, p, r, g, b, count;
+	int			i, j, p, r, g, b, count;
 	byte		*src;
-	byte	*front_data;
-	byte	*back_data;
+	static byte	front_data[128*128]; //FIXME: Hunk_Alloc
+	static byte	back_data[128*128]; //FIXME: Hunk_Alloc
 	unsigned	*rgba;
-	int rows, columns;
-	int bb,bw,bh;
-	int width = srcwidth/2;
 
-	TexMgr_BlockSize(fmt, &bb, &bw, &bh);
-	columns = (width+bw-1) / bw;
-	rows = (height+bh-1) / bh;
-
-	front_data = Hunk_AllocName (bb*columns*rows*2, "skytex");
-	back_data = front_data+bb*columns*rows;
-
-	src = (byte *)(mt+1);
+	src = (byte *)mt + mt->offsets[0];
 
 // extract back layer and upload
-	for (i=0 ; i<rows ; i++)
-		memcpy(back_data+bb*i*columns, src+bb*(i*columns*2 + columns), columns*bb);
+	for (i=0 ; i<128 ; i++)
+		for (j=0 ; j<128 ; j++)
+			back_data[(i*128) + j] = src[i*256 + j + 128];
 
 	q_snprintf(texturename, sizeof(texturename), "%s:%s_back", loadmodel->name, mt->name);
-	solidskytexture = TexMgr_LoadImage (loadmodel, texturename, width, height, fmt, back_data, "", (src_offset_t)back_data, TEXPREF_NONE);
+	solidskytexture = TexMgr_LoadImage (loadmodel, texturename, 128, 128, SRC_INDEXED, back_data, "", (src_offset_t)back_data, TEXPREF_NONE);
 
 // extract front layer and upload
-	for (i=0 ; i<rows ; i++)
-		memcpy(front_data+bb*i*columns, src+bb*(i*columns*2), columns*bb);
-	if (fmt == SRC_INDEXED)
-	{	//the lame texmgr only knows one transparent index...
-		for (i=0 ; i<width*height ; i++)
+	for (i=0 ; i<128 ; i++)
+		for (j=0 ; j<128 ; j++)
 		{
-			if (front_data[i] == 0)
-				front_data[i] = 255;
+			front_data[(i*128) + j] = src[i*256 + j];
+			if (front_data[(i*128) + j] == 0)
+				front_data[(i*128) + j] = 255;
 		}
-	}
-	q_snprintf(texturename, sizeof(texturename), "%s:%s_front", loadmodel->name, mt->name);
-	alphaskytexture = TexMgr_LoadImage (loadmodel, texturename, width, height, fmt, front_data, "", (src_offset_t)front_data, TEXPREF_ALPHA);
 
-// calculate r_fastsky color based on average of all opaque foreground colors, if we can.
+	q_snprintf(texturename, sizeof(texturename), "%s:%s_front", loadmodel->name, mt->name);
+	alphaskytexture = TexMgr_LoadImage (loadmodel, texturename, 128, 128, SRC_INDEXED, front_data, "", (src_offset_t)front_data, TEXPREF_ALPHA);
+
+// calculate r_fastsky color based on average of all opaque foreground colors
 	r = g = b = count = 0;
-	if (fmt == SRC_INDEXED)
-	{
-		for (i=0 ; i<width*height ; i++)
+	for (i=0 ; i<128 ; i++)
+		for (j=0 ; j<128 ; j++)
 		{
-			p = src[i];
+			p = src[i*256 + j];
 			if (p != 0)
 			{
 				rgba = &d_8to24table[p];
@@ -164,7 +147,6 @@ void Sky_LoadTexture (texture_t *mt, enum srcformat fmt, unsigned int srcwidth, 
 				count++;
 			}
 		}
-	}
 	skyflatcolor[0] = (float)r/(count*255);
 	skyflatcolor[1] = (float)g/(count*255);
 	skyflatcolor[2] = (float)b/(count*255);
@@ -182,7 +164,6 @@ void Sky_LoadSkyBox (const char *name)
 	char	filename[MAX_OSPATH];
 	byte	*data;
 	qboolean nonefound = true;
-	qboolean malloced;
 
 	if (strcmp(skybox_name, name) == 0)
 		return; //no change
@@ -207,7 +188,7 @@ void Sky_LoadSkyBox (const char *name)
 	{
 		mark = Hunk_LowMark ();
 		q_snprintf (filename, sizeof(filename), "gfx/env/%s%s", name, suf[i]);
-		data = Image_LoadImage (filename, &width, &height, &malloced);
+		data = Image_LoadImage (filename, &width, &height);
 		if (data)
 		{
 			skybox_textures[i] = TexMgr_LoadImage (cl.worldmodel, filename, width, height, SRC_RGBA, data, filename, 0, TEXPREF_NONE);
@@ -218,8 +199,6 @@ void Sky_LoadSkyBox (const char *name)
 			Con_Printf ("Couldn't load %s\n", filename);
 			skybox_textures[i] = notexture;
 		}
-		if (malloced)
-			free(data);
 		Hunk_FreeToLowMark (mark);
 	}
 
@@ -252,7 +231,6 @@ void Sky_NewMap (void)
 	//
 	// initially no sky
 	//
-	skyroom_enabled = false;
 	skybox_name[0] = 0;
 	for (i=0; i<6; i++)
 		skybox_textures[i] = NULL;
@@ -291,29 +269,8 @@ void Sky_NewMap (void)
 
 		if (!strcmp("sky", key))
 			Sky_LoadSkyBox(value);
-		else if (!strcmp("skyroom", key))
-		{	//"_skyroom" "X Y Z". ideally the gamecode would do this with an entity, but people want to use the vanilla gamecode from 1996 for some reason.
-			const char *t = COM_Parse(value);
-			skyroom_origin[0] = atof(com_token);
-			t = COM_Parse(t);
-			skyroom_origin[1] = atof(com_token);
-			t = COM_Parse(t);
-			skyroom_origin[2] = atof(com_token);
-			t = COM_Parse(t);
-			skyroom_origin[3] = atof(com_token);
-			skyroom_enabled = true;
 
-			t = COM_Parse(t);
-			skyroom_orientation[3] = atof(com_token);
-			t = COM_Parse(t);
-			skyroom_orientation[0] = atof(com_token);
-			t = COM_Parse(t);
-			skyroom_orientation[1] = atof(com_token);
-			t = COM_Parse(t);
-			skyroom_orientation[2] = atof(com_token);
-		}
-
-		else if (!strcmp("skyfog", key))
+		if (!strcmp("skyfog", key))
 			skyfog = atof(value);
 
 #if 1 //also accept non-standard keys
@@ -345,36 +302,6 @@ void Sky_SkyCommand_f (void)
 	}
 }
 
-static void Sky_SkyRoomCommand_f (void)
-{
-	switch (Cmd_Argc())
-	{
-	case 1:
-		if (skyroom_enabled)
-			Con_Printf("\"skyroom\" is \"%f %f %f %f %f %f %f %f\"\n", skyroom_origin[0],skyroom_origin[1],skyroom_origin[2],skyroom_origin[3], skyroom_orientation[3],skyroom_orientation[0],skyroom_orientation[1],skyroom_orientation[2]);
-		else
-			Con_Printf("\"skyroom\" is \"\"\n");
-		break;
-	case 4:
-	case 5:
-	case 6:
-		Sky_LoadSkyBox(Cmd_Argv(1));
-		skyroom_enabled = true;
-		skyroom_origin[0] = atof(Cmd_Argv(1));
-		skyroom_origin[1] = atof(Cmd_Argv(2));
-		skyroom_origin[2] = atof(Cmd_Argv(3));
-		skyroom_origin[3] = atof(Cmd_Argv(4));	//paralax
-
-		skyroom_orientation[3] = atof(Cmd_Argv(5));	//speed
-		skyroom_orientation[0] = atof(Cmd_Argv(6));
-		skyroom_orientation[1] = atof(Cmd_Argv(7));
-		skyroom_orientation[2] = atof(Cmd_Argv(8));
-		break;
-	case 2:
-	default:
-		Con_Printf("usage: skyroom origin_x origin_y origin_z paralax_scale speed axis_x axis_y axis_z\n");
-	}
-}
 /*
 ====================
 R_SetSkyfog_f -- ericw
@@ -1055,7 +982,7 @@ void Sky_DrawSky (void)
 	int				i;
 
 	//in these special render modes, the sky faces are handled in the normal world/brush renderer
-	if (r_drawflat_cheatsafe || r_lightmap_cheatsafe || skyroom_drawn)
+	if (r_drawflat_cheatsafe || r_lightmap_cheatsafe )
 		return;
 
 	//

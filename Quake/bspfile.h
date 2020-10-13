@@ -98,23 +98,7 @@ typedef struct
 	int			headnode[MAX_MAP_HULLS];
 	int			visleafs;		// not including the solid leaf 0
 	int			firstface, numfaces;
-} mmodel_t;
-typedef struct
-{
-	float		mins[3], maxs[3];
-	float		origin[3];
-	int			headnode[4];
-	int			visleafs;		// not including the solid leaf 0
-	int			firstface, numfaces;
-} dmodelq1_t;
-typedef struct
-{
-	float		mins[3], maxs[3];
-	float		origin[3];
-	int			headnode[8];
-	int			visleafs;		// not including the solid leaf 0
-	int			firstface, numfaces;
-} dmodelh2_t;
+} dmodel_t;
 
 typedef struct
 {
@@ -176,8 +160,6 @@ typedef struct
 #define	CONTENTS_CURRENT_270	-12
 #define	CONTENTS_CURRENT_UP		-13
 #define	CONTENTS_CURRENT_DOWN	-14
-
-#define	CONTENTS_LADDER			-16
 
 
 // !!! if this is changed, it must be changed in asm_i386.h too !!!
@@ -245,9 +227,7 @@ typedef struct
 	unsigned int	v[2];		// vertex numbers
 } dledge_t;
 
-#define	MAXLIGHTMAPS	16
-#define INVALID_LIGHTSTYLE 0xffffu
-#define INVALID_LIGHTSTYLE_OLD 0xffu
+#define	MAXLIGHTMAPS	4
 typedef struct
 {
 	short		planenum;
@@ -258,7 +238,7 @@ typedef struct
 	short		texinfo;
 
 // lighting info
-	byte		styles[4];
+	byte		styles[MAXLIGHTMAPS];
 	int			lightofs;		// start of [numstyles*surfsize] samples
 } dsface_t;
 
@@ -272,7 +252,7 @@ typedef struct
 	int			texinfo;
 
 // lighting info
-	byte		styles[4];
+	byte		styles[MAXLIGHTMAPS];
 	int			lightofs;		// start of [numstyles*surfsize] samples
 } dlface_t;
 

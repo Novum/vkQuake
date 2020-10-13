@@ -24,12 +24,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 #include "bgmusic.h"
 
-#include "arch_def.h"
-#ifdef PLATFORM_UNIX
-//for unlink
-#include <unistd.h>
-#endif
-
 // we need to declare some mouse variables here, because the menu system
 // references them even when on a unix system.
 
@@ -54,39 +48,21 @@ cvar_t	m_side = {"m_side","0.8", CVAR_ARCHIVE};
 cvar_t	cl_maxpitch = {"cl_maxpitch", "90", CVAR_ARCHIVE}; //johnfitz -- variable pitch clamping
 cvar_t	cl_minpitch = {"cl_minpitch", "-90", CVAR_ARCHIVE}; //johnfitz -- variable pitch clamping
 
-cvar_t cl_recordingdemo = {"cl_recordingdemo", "", CVAR_ROM};	//the name of the currently-recording demo.
-
 client_static_t	cls;
 client_state_t	cl;
 // FIXME: put these on hunk?
+entity_t		cl_static_entities[MAX_STATIC_ENTITIES];
 lightstyle_t	cl_lightstyle[MAX_LIGHTSTYLES];
 dlight_t		cl_dlights[MAX_DLIGHTS];
 
+entity_t		*cl_entities; //johnfitz -- was a static array, now on hunk
+int				cl_max_edicts; //johnfitz -- only changes when new map loads
+
 int				cl_numvisedicts;
-int				cl_maxvisedicts;
-entity_t		**cl_visedicts;
+entity_t		*cl_visedicts[MAX_VISEDICTS];
 
 extern cvar_t	r_lerpmodels, r_lerpmove; //johnfitz
 extern float	host_netinterval;	//Spike
-
-void CL_ClearTrailStates(void)
-{
-	int i;
-	for (i = 0; i < cl.num_statics; i++)
-	{
-		PScript_DelinkTrailstate(&(cl.static_entities[i]->trailstate));
-		PScript_DelinkTrailstate(&(cl.static_entities[i]->emitstate));
-	}
-	for (i = 0; i < cl.max_edicts; i++)
-	{
-		PScript_DelinkTrailstate(&(cl.entities[i].trailstate));
-		PScript_DelinkTrailstate(&(cl.entities[i].emitstate));
-	}
-	for (i = 0; i < MAX_BEAMS; i++)
-	{
-		PScript_DelinkTrailstate(&(cl_beams[i].trailstate));
-	}
-}
 
 /*
 =====================
@@ -98,10 +74,6 @@ void CL_ClearState (void)
 {
 	if (!sv.active)
 		Host_ClearMemory ();
-
-	CL_ClearTrailStates();
-
-	PR_ClearProgs(&cl.qcvm);
 
 // wipe the entire cl structure
 	memset (&cl, 0, sizeof(cl));
@@ -115,17 +87,9 @@ void CL_ClearState (void)
 	memset (cl_beams, 0, sizeof(cl_beams));
 
 	//johnfitz -- cl_entities is now dynamically allocated
-	cl.max_edicts = CLAMP (MIN_EDICTS,(int)max_edicts.value,MAX_EDICTS);
-	cl.entities = (entity_t *) Hunk_AllocName (cl.max_edicts*sizeof(entity_t), "cl_entities");
+	cl_max_edicts = CLAMP (MIN_EDICTS,(int)max_edicts.value,MAX_EDICTS);
+	cl_entities = (entity_t *) Hunk_AllocName (cl_max_edicts*sizeof(entity_t), "cl_entities");
 	//johnfitz
-
-	//Spike -- this stuff needs to get reset to defaults.
-	cl.csqc_sensitivity = 1;
-
-	cl.viewent.netstate = nullentitystate;
-#ifdef PSET_SCRIPT
-	PScript_Shutdown();
-#endif
 }
 
 /*
@@ -160,7 +124,6 @@ void CL_Disconnect (void)
 		NET_SendUnreliableMessage (cls.netcon, &cls.message);
 		SZ_Clear (&cls.message);
 		NET_Close (cls.netcon);
-		cls.netcon = NULL;
 
 		cls.state = ca_disconnected;
 		if (sv.active)
@@ -170,13 +133,7 @@ void CL_Disconnect (void)
 	cls.demoplayback = cls.timedemo = false;
 	cls.demopaused = false;
 	cls.signon = 0;
-	cls.netcon = NULL;
-	if (cls.download.file)
-		fclose(cls.download.file);
-	memset(&cls.download, 0, sizeof(cls.download));
 	cl.intermission = 0;
-	cl.worldmodel = NULL;
-	cl.sendprespawn = false;
 }
 
 void CL_Disconnect_f (void)
@@ -196,20 +153,11 @@ Host should be either "local" or a net address to be passed on
 */
 void CL_EstablishConnection (const char *host)
 {
-	static char lasthost[NET_NAMELEN];
 	if (cls.state == ca_dedicated)
 		return;
 
 	if (cls.demoplayback)
 		return;
-	if (!host)
-	{
-		host = lasthost;
-		if (!*host)
-			return;
-	}
-	else
-		q_strlcpy(lasthost, host, sizeof(lasthost));
 
 	CL_Disconnect ();
 
@@ -241,12 +189,12 @@ void CL_SignonReply (void)
 	{
 	case 1:
 		MSG_WriteByte (&cls.message, clc_stringcmd);
-		MSG_WriteString (&cls.message, va("name \"%s\"\n", cl_name.string));
-
-		cl.sendprespawn = true;
+		MSG_WriteString (&cls.message, "prespawn");
 		break;
 
 	case 2:
+		MSG_WriteByte (&cls.message, clc_stringcmd);
+		MSG_WriteString (&cls.message, va("name \"%s\"\n", cl_name.string));
 
 		MSG_WriteByte (&cls.message, clc_stringcmd);
 		MSG_WriteString (&cls.message, va("color %i %i\n", ((int)cl_color.value)>>4, ((int)cl_color.value)&15));
@@ -314,7 +262,7 @@ void CL_PrintEntities_f (void)
 	if (cls.state != ca_connected)
 		return;
 
-	for (i=0,ent=cl.entities ; i<cl.num_entities ; i++,ent++)
+	for (i=0,ent=cl_entities ; i<cl.num_entities ; i++,ent++)
 	{
 		Con_Printf ("%3i:",i);
 		if (!ent->model)
@@ -451,126 +399,6 @@ float	CL_LerpPoint (void)
 	return frac;
 }
 
-static qboolean CL_LerpEntity(entity_t *ent, vec3_t org, vec3_t ang, float frac)
-{
-	float f, d;
-	int j;
-	vec3_t delta;
-	qboolean teleported = false;
-	//figure out the pos+angles of the parent
-	if (ent->forcelink)
-	{	// the entity was not updated in the last message
-		// so move to the final spot
-		VectorCopy (ent->msg_origins[0], org);
-		VectorCopy (ent->msg_angles[0], ang);
-	}
-	else
-	{	// if the delta is large, assume a teleport and don't lerp
-		f = frac;
-		for (j=0 ; j<3 ; j++)
-		{
-			delta[j] = ent->msg_origins[0][j] - ent->msg_origins[1][j];
-			if (delta[j] > 100 || delta[j] < -100)
-			{
-				f = 1;		// assume a teleportation, not a motion
-				teleported = true;	//johnfitz -- don't lerp teleports
-			}
-		}
-
-		//johnfitz -- don't cl_lerp entities that will be r_lerped
-		if (r_lerpmove.value && (ent->lerpflags & LERP_MOVESTEP))
-			f = 1;
-		//johnfitz
-
-	// interpolate the origin and angles
-		for (j=0 ; j<3 ; j++)
-		{
-			org[j] = ent->msg_origins[1][j] + f*delta[j];
-
-			d = ent->msg_angles[0][j] - ent->msg_angles[1][j];
-			if (d > 180)
-				d -= 360;
-			else if (d < -180)
-				d += 360;
-			ang[j] = ent->msg_angles[1][j] + f*d;
-		}
-	}
-	return teleported;
-}
-
-static qboolean CL_AttachEntity(entity_t *ent, float frac)
-{
-	entity_t *parent;
-	vec3_t porg, pang;
-	vec3_t paxis[3];
-	vec3_t tmp, fwd, up;
-	unsigned int tagent = ent->netstate.tagentity;
-	int runaway = 0;
-
-	while(1)
-	{
-		if (!tagent)
-			return true;	//nothing to do.
-		if (runaway++==10 || tagent >= (unsigned int)cl.num_entities)
-			return false;	//parent isn't valid
-		parent = &cl.entities[tagent];
-
-		if (tagent == cl.viewentity)
-			ent->eflags |= EFLAGS_EXTERIORMODEL;
-
-		if (!parent->model)
-			return false;
-		if (0)//tagent < ent-cl_entities)
-		{
-			tagent = parent->netstate.tagentity;
-			VectorCopy(parent->origin, porg);
-			VectorCopy(parent->angles, pang);
-		}
-		else
-		{
-			tagent = parent->netstate.tagentity;
-			CL_LerpEntity(parent, porg, pang, frac);
-		}
-
-		//FIXME: this code needs to know the exact lerp info of the underlaying model.
-		//however for some idiotic reason, someone decided to figure out what should be displayed somewhere far removed from the code that deals with timing
-		//so we have absolutely no way to get a reliable origin
-		//in the meantime, r_lerpmove 0; r_lerpmodels 0
-		//you might be able to work around it by setting the attached entity to movetype_step to match the attachee, and to avoid EF_MUZZLEFLASH.
-		//personally I'm just going to call it a quakespasm bug that I cba to fix.
-
-		//FIXME: update porg+pang according to the tag index (we don't support md3s/iqms, so we don't need to do anything here yet)
-
-		if (parent->model && parent->model->type == mod_alias)
-			pang[0] *= -1;
-		AngleVectors(pang, paxis[0], paxis[1], paxis[2]);
-
-		if (ent->model && ent->model->type == mod_alias)
-			ent->angles[0] *= -1;
-		AngleVectors(ent->angles, fwd, tmp, up);
-
-		//transform the origin
-		VectorMA(parent->origin, ent->origin[0], paxis[0], tmp);
-		VectorMA(tmp, -ent->origin[1], paxis[1], tmp);
-		VectorMA(tmp, ent->origin[2], paxis[2], ent->origin);
-
-		//transform the forward vector
-		VectorMA(vec3_origin, fwd[0], paxis[0], tmp);
-		VectorMA(tmp, -fwd[1], paxis[1], tmp);
-		VectorMA(tmp, fwd[2], paxis[2], fwd);
-		//transform the up vector
-		VectorMA(vec3_origin, up[0], paxis[0], tmp);
-		VectorMA(tmp, -up[1], paxis[1], tmp);
-		VectorMA(tmp, up[2], paxis[2], up);
-		//regenerate the new angles.
-		VectorAngles(fwd, up, ent->angles);
-		if (ent->model && ent->model->type == mod_alias)
-			ent->angles[0] *= -1;
-
-		ent->eflags |= parent->netstate.eflags & (EFLAGS_VIEWMODEL|EFLAGS_EXTERIORMODEL);
-	}
-}
-
 /*
 ===============
 CL_RelinkEntities
@@ -580,27 +408,15 @@ void CL_RelinkEntities (void)
 {
 	entity_t	*ent;
 	int			i, j;
-	float		frac, d;
+	float		frac, f, d;
+	vec3_t		delta;
 	float		bobjrotate;
 	vec3_t		oldorg;
 	dlight_t	*dl;
-	float		frametime;
-	int			modelflags;
 
 // determine partial update time
 	frac = CL_LerpPoint ();
 
-	frametime = cl.time - cl.oldtime;
-	if (frametime < 0)
-		frametime = 0;
-	if (frametime > 0.1)
-		frametime = 0.1;
-
-	if (cl_numvisedicts + 64 > cl_maxvisedicts)
-	{
-		cl_maxvisedicts = cl_maxvisedicts+64;
-		cl_visedicts = realloc(cl_visedicts, sizeof(*cl_visedicts)*cl_maxvisedicts);
-	}
 	cl_numvisedicts = 0;
 
 //
@@ -627,10 +443,10 @@ void CL_RelinkEntities (void)
 	bobjrotate = anglemod(100*cl.time);
 
 // start on the entity after the world
-	for (i=1,ent=cl.entities+1 ; i<cl.num_entities ; i++,ent++)
+	for (i=1,ent=cl_entities+1 ; i<cl.num_entities ; i++,ent++)
 	{
 		if (!ent->model)
-		{	// empty slot, ish.
+		{	// empty slot
 			
 			// ericw -- efrags are only used for static entities in GLQuake
 			// ent can't be static, so this is a no-op.
@@ -638,7 +454,6 @@ void CL_RelinkEntities (void)
 			//	R_RemoveEfrags (ent);	// just became empty
 			continue;
 		}
-		ent->eflags = ent->netstate.eflags;
 
 // if the object wasn't included in the last packet, remove it
 		if (ent->msgtime != cl.mtime[0])
@@ -650,22 +465,46 @@ void CL_RelinkEntities (void)
 
 		VectorCopy (ent->origin, oldorg);
 
-		if (CL_LerpEntity(ent, ent->origin, ent->angles, frac))
-			ent->lerpflags |= LERP_RESETMOVE;
+		if (ent->forcelink)
+		{	// the entity was not updated in the last message
+			// so move to the final spot
+			VectorCopy (ent->msg_origins[0], ent->origin);
+			VectorCopy (ent->msg_angles[0], ent->angles);
+		}
+		else
+		{	// if the delta is large, assume a teleport and don't lerp
+			f = frac;
+			for (j=0 ; j<3 ; j++)
+			{
+				delta[j] = ent->msg_origins[0][j] - ent->msg_origins[1][j];
+				if (delta[j] > 100 || delta[j] < -100)
+				{
+					f = 1;		// assume a teleportation, not a motion
+					ent->lerpflags |= LERP_RESETMOVE; //johnfitz -- don't lerp teleports
+				}
+			}
 
-		if (ent->netstate.tagentity)
-		if (!CL_AttachEntity(ent, frac))
-		{
-			//can't draw it if we don't know where its parent is.
-			continue;
+			//johnfitz -- don't cl_lerp entities that will be r_lerped
+			if (r_lerpmove.value && (ent->lerpflags & LERP_MOVESTEP))
+				f = 1;
+			//johnfitz
+
+		// interpolate the origin and angles
+			for (j=0 ; j<3 ; j++)
+			{
+				ent->origin[j] = ent->msg_origins[1][j] + f*delta[j];
+
+				d = ent->msg_angles[0][j] - ent->msg_angles[1][j];
+				if (d > 180)
+					d -= 360;
+				else if (d < -180)
+					d += 360;
+				ent->angles[j] = ent->msg_angles[1][j] + f*d;
+			}
 		}
 
-		modelflags = (ent->effects>>24)&0xff;
-		if (!(ent->effects & EF_NOMODELFLAGS))
-			modelflags |= ent->model->flags;
-
 // rotate binary objects locally
-		if (modelflags & EF_ROTATE)
+		if (ent->model->flags & EF_ROTATE)
 			ent->angles[1] = bobjrotate;
 
 		if (ent->effects & EF_BRIGHTFIELD)
@@ -688,10 +527,10 @@ void CL_RelinkEntities (void)
 			//johnfitz -- assume muzzle flash accompanied by muzzle flare, which looks bad when lerped
 			if (r_lerpmodels.value != 2)
 			{
-				if (ent == &cl.entities[cl.viewentity])
-					cl.viewent.lerpflags |= LERP_RESETANIM|LERP_RESETANIM2; //no lerping for two frames
-				else
-					ent->lerpflags |= LERP_RESETANIM|LERP_RESETANIM2; //no lerping for two frames
+			if (ent == &cl_entities[cl.viewentity])
+				cl.viewent.lerpflags |= LERP_RESETANIM|LERP_RESETANIM2; //no lerping for two frames
+			else
+				ent->lerpflags |= LERP_RESETANIM|LERP_RESETANIM2; //no lerping for two frames
 			}
 			//johnfitz
 		}
@@ -711,342 +550,38 @@ void CL_RelinkEntities (void)
 			dl->die = cl.time + 0.001;
 		}
 
-#ifdef PSET_SCRIPT
-		if (cl.paused)
-			;
-		else if (ent->netstate.traileffectnum > 0 && ent->netstate.traileffectnum < MAX_PARTICLETYPES)
+		if (ent->model->flags & EF_GIB)
+			R_RocketTrail (oldorg, ent->origin, 2);
+		else if (ent->model->flags & EF_ZOMGIB)
+			R_RocketTrail (oldorg, ent->origin, 4);
+		else if (ent->model->flags & EF_TRACER)
+			R_RocketTrail (oldorg, ent->origin, 3);
+		else if (ent->model->flags & EF_TRACER2)
+			R_RocketTrail (oldorg, ent->origin, 5);
+		else if (ent->model->flags & EF_ROCKET)
 		{
-			vec3_t axis[3];
-			AngleVectors(ent->angles, axis[0], axis[1], axis[2]);
-			PScript_ParticleTrail(oldorg, ent->origin, cl.particle_precache[ent->netstate.traileffectnum].index, frametime, i, axis, &ent->trailstate);
-		}
-		else if (ent->model->traileffect >= 0)
-		{
-			vec3_t axis[3];
-			AngleVectors(ent->angles, axis[0], axis[1], axis[2]);
-			PScript_ParticleTrail(oldorg, ent->origin, ent->model->traileffect, frametime, i, axis, &ent->trailstate);
-		}
-		else
-#endif
-			if (modelflags & EF_GIB)
-		{
-			if (PScript_EntParticleTrail(oldorg, ent, "TR_BLOOD"))
-				R_RocketTrail (oldorg, ent->origin, 2);
-		}
-		else if (modelflags & EF_ZOMGIB)
-		{
-			if (PScript_EntParticleTrail(oldorg, ent, "TR_SLIGHTBLOOD"))
-				R_RocketTrail (oldorg, ent->origin, 4);
-		}
-		else if (modelflags & EF_TRACER)
-		{
-			if (PScript_EntParticleTrail(oldorg, ent, "TR_WIZSPIKE"))
-				R_RocketTrail (oldorg, ent->origin, 3);
-		}
-		else if (modelflags & EF_TRACER2)
-		{
-			if (PScript_EntParticleTrail(oldorg, ent, "TR_KNIGHTSPIKE"))
-				R_RocketTrail (oldorg, ent->origin, 5);
-		}
-		else if (modelflags & EF_ROCKET)
-		{
-			if (PScript_EntParticleTrail(oldorg, ent, "TR_ROCKET"))
-				R_RocketTrail (oldorg, ent->origin, 0);
+			R_RocketTrail (oldorg, ent->origin, 0);
 			dl = CL_AllocDlight (i);
 			VectorCopy (ent->origin, dl->origin);
 			dl->radius = 200;
 			dl->die = cl.time + 0.01;
 		}
-		else if (modelflags & EF_GRENADE)
-		{
-			if (PScript_EntParticleTrail(oldorg, ent, "TR_GRENADE"))
-				R_RocketTrail (oldorg, ent->origin, 1);
-		}
-		else if (modelflags & EF_TRACER3)
-		{
-			if (PScript_EntParticleTrail(oldorg, ent, "TR_VORESPIKE"))
-				R_RocketTrail (oldorg, ent->origin, 6);
-		}
+		else if (ent->model->flags & EF_GRENADE)
+			R_RocketTrail (oldorg, ent->origin, 1);
+		else if (ent->model->flags & EF_TRACER3)
+			R_RocketTrail (oldorg, ent->origin, 6);
 
 		ent->forcelink = false;
-
-#ifdef PSET_SCRIPT
-		if (ent->netstate.emiteffectnum > 0)
-		{
-			vec3_t axis[3];
-			AngleVectors(ent->angles, axis[0], axis[1], axis[2]);
-			if (ent->model->type == mod_alias)
-				axis[0][2] *= -1;	//stupid vanilla bug
-			PScript_RunParticleEffectState(ent->origin, axis[0], frametime, cl.particle_precache[ent->netstate.emiteffectnum].index, &ent->emitstate);
-		}
-		else if (ent->model->emiteffect >= 0)
-		{
-			vec3_t axis[3];
-			AngleVectors(ent->angles, axis[0], axis[1], axis[2]);
-			if (ent->model->flags & MOD_EMITFORWARDS)
-			{
-				if (ent->model->type == mod_alias)
-					axis[0][2] *= -1;	//stupid vanilla bug
-			}
-			else
-				VectorScale(axis[2], -1, axis[0]);
-			PScript_RunParticleEffectState(ent->origin, axis[0], frametime, ent->model->emiteffect, &ent->emitstate);
-			if (ent->model->flags & MOD_EMITREPLACE)
-				continue;
-		}
-#endif
 
 		if (i == cl.viewentity && !chase_active.value)
 			continue;
 
-		if (cl_numvisedicts < cl_maxvisedicts)
+		if (cl_numvisedicts < MAX_VISEDICTS)
 		{
 			cl_visedicts[cl_numvisedicts] = ent;
 			cl_numvisedicts++;
 		}
 	}
-}
-
-#ifdef PSET_SCRIPT
-int CL_GenerateRandomParticlePrecache(const char *pname)
-{	//for dpp7 compat
-	size_t i;
-	pname = va("%s", pname);
-	for (i = 1; i < MAX_PARTICLETYPES; i++)
-	{
-		if (!cl.particle_precache[i].name)
-		{
-			cl.particle_precache[i].name = strcpy(Hunk_Alloc(strlen(pname)+1), pname);
-			cl.particle_precache[i].index = PScript_FindParticleType(cl.particle_precache[i].name);
-			return i;
-		}
-		if (!strcmp(cl.particle_precache[i].name, pname))
-			return i;
-	}
-	return 0;
-}
-#endif
-
-//sent by the server to let us know that dp downloads can be used
-void CL_ServerExtension_Download_f(void)
-{
-	if (Cmd_Argc() == 2)
-		cl.protocol_dpdownload = atoi(Cmd_Argv(1));
-}
-
-//sent by the server to let us know when its finished sending the entire file
-void CL_Download_Finished_f(void)
-{
-	if (cls.download.file)
-	{
-		char finalpath[MAX_OSPATH];
-		unsigned int size = strtoul(Cmd_Argv(1), NULL, 0);
-		unsigned int hash = strtoul(Cmd_Argv(2), NULL, 0);
-		//const char *fname = Cmd_Argv(3);
-		qboolean hashokay = false;
-		if (size == cls.download.size)
-		{
-			byte *tmp = malloc(size);
-			if (tmp)
-			{
-				fseek(cls.download.file, 0, SEEK_SET);
-				fread(tmp, 1, size, cls.download.file);
-				hashokay = (hash == CRC_Block(tmp, size));
-				free(tmp);
-
-				if (!hashokay) Con_Warning("Download hash failure\n");
-			}
-			else Con_Warning("Download size too large\n");
-		}
-		else Con_Warning("Download size mismatch\n");
-
-		fclose(cls.download.file);
-		cls.download.file = NULL;
-		if (hashokay)
-		{
-			q_snprintf (finalpath, sizeof(finalpath), "%s/%s", com_gamedir, cls.download.current);
-			rename(cls.download.temp, finalpath);
-			Con_SafePrintf("Downloaded %s: %u bytes\n", cls.download.current, cls.download.size);
-		}
-		else
-		{
-			Con_Warning("Download of %s failed\n", cls.download.current);
-			unlink(cls.download.temp);	//kill the temp
-		}
-	}
-
-	cls.download.active = false;
-}
-//sent by the server (or issued by the user) to stop the current download for any reason.
-void CL_StopDownload_f(void)
-{
-	if (cls.download.file)
-	{
-		fclose(cls.download.file);
-		cls.download.file = NULL;
-		unlink(cls.download.temp);
-
-//		Con_SafePrintf("Download cancelled\n", cl.download_current, cl.download_size);
-	}
-	cls.download.active = false;
-}
-//sent by the server to let us know that its going to start spamming us now.
-void CL_Download_Begin_f(void)
-{
-	if (!cls.download.active)
-		return;
-
-	if (cls.download.file)
-		CL_StopDownload_f();
-
-	//cl_downloadbegin size "name"
-	cls.download.size = strtoul(Cmd_Argv(1), NULL, 0);
-
-	COM_CreatePath(cls.download.temp);
-	cls.download.file = fopen(cls.download.temp, "wb+");	//+ so we can read the data back to validate it
-
-	MSG_WriteByte (&cls.message, clc_stringcmd);
-	MSG_WriteString (&cls.message, "sv_startdownload\n");
-}
-
-void CL_Download_Data(void)
-{
-	byte *data;
-	unsigned int start, size;
-	start = MSG_ReadLong();
-	size = (unsigned short)MSG_ReadShort();
-	data = MSG_ReadData(size);
-	if (msg_badread)
-		return;
-	if (!cls.download.file)
-		return;	//demo started mid-record? something weird anyway
-
-	fseek(cls.download.file, start, SEEK_SET);
-	fwrite(data, 1, size, cls.download.file);
-
-	Con_SafePrintf("Downloading %s: %g%%\r", cls.download.current, 100*(start+size) / (double)cls.download.size);
-
-	//should maybe use unreliables, but whatever, shouldn't matter too much, it'll still complete
-	MSG_WriteByte(&cls.message, clcdp_ackdownloaddata);
-	MSG_WriteLong(&cls.message, start);
-	MSG_WriteShort(&cls.message, size);
-}
-
-//returns true if we should block waiting for a download, false if there's no point.
-qboolean CL_CheckDownload(const char *filename)
-{
-	if (sv.active)
-		return false;	//no point downloading if we're the server...
-	if (*filename == '*')
-		return false;	//don't download these...
-	if (cls.download.active)
-		return true;	//block while we're already downloading something
-	if (!cl.protocol_dpdownload)
-		return false;	//can't download anyway
-	if (*cls.download.current && !strcmp(cls.download.current, filename))
-		return false;	//if the previous download failed, don't endlessly retry.
-	if (COM_FileExists(filename, NULL))
-		return false;	//no need to download anything.
-	if (!COM_DownloadNameOkay(filename))
-		return false;	//diediedie
-
-	cls.download.active = true;
-	q_strlcpy(cls.download.current, filename, sizeof(cls.download.current));
-	q_snprintf (cls.download.temp, sizeof(cls.download.temp), "%s/%s.tmp", com_gamedir, filename);
-	Con_Printf("Downloading %s...\r", filename);
-	MSG_WriteByte (&cls.message, clc_stringcmd);
-	MSG_WriteString (&cls.message, va("download \"%s\"\n", filename));
-	return true;
-}
-
-//download+load models and sounds as needed, once complete let the server know we're ready for the next stage.
-//returning false will trigger nops.
-qboolean CL_CheckDownloads(void)
-{
-	int i;
-	if (cl.model_download == 0 && cl.model_count && cl.model_name[1])
-	{	//haxors, download the lit first, but only if we don't already have the bsp
-		//this ensures that we don't keep requesting the lit for maps that just don't have one (although may be problematic if the first server we find deleted them all, but oh well)
-		char litname[MAX_QPATH];
-		char *ext;
-		q_strlcpy(litname, cl.model_name[1], sizeof(litname));
-		ext = (char*)COM_FileGetExtension(litname);
-		if (!q_strcasecmp(ext, "bsp"))
-		{
-			if (!COM_FileExists(litname, NULL))
-			{
-				strcpy(ext, "lit");
-				if (CL_CheckDownload(litname))
-					return false;
-			}
-		}
-		cl.model_download++;
-	}
-	for (; cl.model_download < cl.model_count; )
-	{
-		if (*cl.model_name[cl.model_download])
-		{
-			if (CL_CheckDownload(cl.model_name[cl.model_download]))
-				return false;
-			cl.model_precache[cl.model_download] = Mod_ForName (cl.model_name[cl.model_download], false);
-			if (cl.model_precache[cl.model_download] == NULL)
-			{
-				Host_Error ("Model %s not found", cl.model_name[cl.model_download]);
-			}
-		}
-		cl.model_download++;
-	}
-
-	for (; cl.sound_download < cl.sound_count; )
-	{
-		if (*cl.sound_name[cl.sound_download])
-		{
-			if (CL_CheckDownload(va("sound/%s", cl.sound_name[cl.sound_download])))
-				return false;
-			cl.sound_precache[cl.sound_download] = S_PrecacheSound (cl.sound_name[cl.sound_download]);
-		}
-		cl.sound_download++;
-	}
-
-	if (!cl.worldmodel && cl.model_count >= 2)
-	{
-	// local state
-		cl.entities[0].model = cl.worldmodel = cl.model_precache[1];
-		if (cl.worldmodel->type != mod_brush)
-		{
-			if (cl.worldmodel->type == mod_ext_invalid)
-				Host_Error ("Worldmodel %s was not loaded", cl.model_name[1]);
-			else
-				Host_Error ("Worldmodel %s is not a brushmodel", cl.model_name[1]);
-		}
-
-		//fixme: deal with skybox somehow
-
-		R_NewMap ();
-
-#ifdef PSET_SCRIPT
-		//the protocol changing depending upon files found on the client's computer is of course a really shit way to design things
-		//especially when users have a nasty habit of changing config files.
-		if (cl.protocol == PROTOCOL_VERSION_DP7)
-		{
-			PScript_FindParticleType("effectinfo.");	//make sure this is implicitly loaded.
-			COM_Effectinfo_Enumerate(CL_GenerateRandomParticlePrecache);
-			cl.protocol_particles = true;
-		}
-		else if (cl.protocol_pext2)
-			cl.protocol_particles = true;	//doesn't have a pext flag of its own, but at least we know what it is.
-#endif
-	}
-
-	//make sure ents have the correct models, now that they're actually loaded.
-	for (i = 0; i < cl.num_statics; i++)
-	{
-		if (cl.static_entities[i]->model)
-			continue;
-		cl.static_entities[i]->model = cl.model_precache[cl.static_entities[i]->netstate.modelindex];
-		R_AddEfrags (cl.static_entities[i]);
-	}
-	return true;
 }
 
 
@@ -1093,7 +628,7 @@ int CL_ReadFromServer (void)
 
 	//visedicts
 	if (cl_numvisedicts > 256 && dev_peakstats.visedicts <= 256)
-		Con_DWarning ("%i visedicts exceeds standard limit of 256.\n", cl_numvisedicts);
+		Con_DWarning ("%i visedicts exceeds standard limit of 256 (max = %d).\n", cl_numvisedicts, MAX_VISEDICTS);
 	dev_stats.visedicts = cl_numvisedicts;
 	dev_peakstats.visedicts = q_max(cl_numvisedicts, dev_peakstats.visedicts);
 
@@ -1245,28 +780,13 @@ void CL_Viewpos_f (void)
 #else
 	//player position
 	Con_Printf ("Viewpos: (%i %i %i) %i %i %i\n",
-		(int)cl.entities[cl.viewentity].origin[0],
-		(int)cl.entities[cl.viewentity].origin[1],
-		(int)cl.entities[cl.viewentity].origin[2],
+		(int)cl_entities[cl.viewentity].origin[0],
+		(int)cl_entities[cl.viewentity].origin[1],
+		(int)cl_entities[cl.viewentity].origin[2],
 		(int)cl.viewangles[PITCH],
 		(int)cl.viewangles[YAW],
 		(int)cl.viewangles[ROLL]);
 #endif
-}
-
-static void CL_ServerExtension_FullServerinfo_f(void)
-{
-//	const char *newserverinfo = Cmd_Argv(1);
-}
-static void CL_ServerExtension_ServerinfoUpdate_f(void)
-{
-//	const char *newserverkey = Cmd_Argv(1);
-//	const char *newservervalue = Cmd_Argv(2);
-}
-
-static void CL_ServerExtension_Ignore_f(void)
-{
-	Con_DPrintf2("Ignoring stufftext: %s\n", Cmd_Argv(0));
 }
 
 /*
@@ -1308,7 +828,6 @@ void CL_Init (void)
 
 	Cvar_RegisterVariable (&cl_maxpitch); //johnfitz -- variable pitch clamping
 	Cvar_RegisterVariable (&cl_minpitch); //johnfitz -- variable pitch clamping
-	Cvar_RegisterVariable (&cl_recordingdemo); //spike -- for mod hacks. combine with cvar_string or something
 
 	Cmd_AddCommand ("entities", CL_PrintEntities_f);
 	Cmd_AddCommand ("disconnect", CL_Disconnect_f);
@@ -1319,27 +838,5 @@ void CL_Init (void)
 
 	Cmd_AddCommand ("tracepos", CL_Tracepos_f); //johnfitz
 	Cmd_AddCommand ("viewpos", CL_Viewpos_f); //johnfitz
-
-	//spike -- add stubs to mute various invalid stuffcmds
-	Cmd_AddCommand_ServerCommand ("fullserverinfo", CL_ServerExtension_FullServerinfo_f); //spike
-	Cmd_AddCommand_ServerCommand ("svi", CL_ServerExtension_ServerinfoUpdate_f); //spike
-	Cmd_AddCommand_ServerCommand ("paknames", CL_ServerExtension_Ignore_f); //package names in use by the server (including gamedir+extension)
-	Cmd_AddCommand_ServerCommand ("paks", CL_ServerExtension_Ignore_f); //provides hashes to go with the paknames list
-	//Cmd_AddCommand_ServerCommand ("vwep", CL_ServerExtension_Ignore_f); //invalid for nq, provides an alternative list of model precaches for vweps.
-	//Cmd_AddCommand_ServerCommand ("at", CL_ServerExtension_Ignore_f); //invalid for nq, autotrack info for mvds
-	Cmd_AddCommand_ServerCommand ("wps", CL_ServerExtension_Ignore_f); //ktx/cspree weapon stats
-	Cmd_AddCommand_ServerCommand ("it", CL_ServerExtension_Ignore_f); //cspree item timers
-	Cmd_AddCommand_ServerCommand ("tinfo", CL_ServerExtension_Ignore_f); //ktx team info
-	Cmd_AddCommand_ServerCommand ("exectrigger", CL_ServerExtension_Ignore_f); //spike
-	Cmd_AddCommand_ServerCommand ("csqc_progname", CL_ServerExtension_Ignore_f); //spike
-	Cmd_AddCommand_ServerCommand ("csqc_progsize", CL_ServerExtension_Ignore_f); //spike
-	Cmd_AddCommand_ServerCommand ("csqc_progcrc", CL_ServerExtension_Ignore_f); //spike
-	Cmd_AddCommand_ServerCommand ("cl_fullpitch", CL_ServerExtension_Ignore_f); //spike
-	Cmd_AddCommand_ServerCommand ("pq_fullpitch", CL_ServerExtension_Ignore_f); //spike
-
-	Cmd_AddCommand_ServerCommand ("cl_serverextension_download", CL_ServerExtension_Download_f); //spike
-	Cmd_AddCommand_ServerCommand ("cl_downloadbegin", CL_Download_Begin_f); //spike
-	Cmd_AddCommand_ServerCommand ("cl_downloadfinished", CL_Download_Finished_f); //spike
-	Cmd_AddCommand ("stopdownload", CL_StopDownload_f); //spike
 }
 

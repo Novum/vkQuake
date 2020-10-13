@@ -105,37 +105,6 @@ typedef struct particle_s
 	ptype_t		type;
 } particle_t;
 
-#define P_INVALID -1
-#ifdef PSET_SCRIPT
-	void PScript_InitParticles (void);
-	void PScript_Shutdown (void);
-	void PScript_DrawParticles (void);
-	struct trailstate_s;
-	int PScript_ParticleTrail (vec3_t startpos, vec3_t end, int type, float timeinterval, int dlkey, vec3_t axis[3], struct trailstate_s **tsk);
-	int PScript_RunParticleEffectState (vec3_t org, vec3_t dir, float count, int typenum, struct trailstate_s **tsk);
-	void PScript_RunParticleWeather(vec3_t minb, vec3_t maxb, vec3_t dir, float count, int colour, const char *efname);
-	void PScript_EmitSkyEffectTris(qmodel_t *mod, msurface_t 	*fa, int ptype);
-	int PScript_FindParticleType(const char *fullname);
-	int PScript_RunParticleEffectTypeString (vec3_t org, vec3_t dir, float count, const char *name);
-	int PScript_EntParticleTrail(vec3_t oldorg, entity_t *ent, const char *name);
-	int PScript_RunParticleEffect (vec3_t org, vec3_t dir, int color, int count);
-	void PScript_DelinkTrailstate(struct trailstate_s **tsk);
-	void PScript_ClearParticles (void);
-	void PScript_UpdateModelEffects(qmodel_t *mod);
-	void PScript_ClearSurfaceParticles(qmodel_t *mod);	//model is being unloaded.
-#else
-	#define PScript_RunParticleEffectState(o,d,c,t,s) true
-	#define PScript_RunParticleEffectTypeString(o,d,c,n) true	//just unconditionally returns an error
-	#define PScript_EntParticleTrail(o,e,n) true
-	#define PScript_ParticleTrail(o,e,t,d,a,s) true
-	#define PScript_EntParticleTrail(o,e,n) true
-	#define PScript_RunParticleEffect(o,d,p,c) true
-	#define PScript_RunParticleWeather(min,max,d,c,p,n) true
-	#define PScript_ClearSurfaceParticles(m)
-	#define PScript_DelinkTrailstate(tsp)
-#endif
-
-
 typedef struct vulkan_pipeline_layout_s {
 	VkPipelineLayout		handle;
 	VkPushConstantRange		push_constant_range;
@@ -277,7 +246,7 @@ extern	vec3_t	r_origin;
 //
 extern	refdef_t	r_refdef;
 extern	mleaf_t		*r_viewleaf, *r_oldviewleaf;
-extern	int		d_lightstylevalue[MAX_LIGHTSTYLES];	// 8.8 fraction of base light value
+extern	int		d_lightstylevalue[256];	// 8.8 fraction of base light value
 
 extern	cvar_t	r_norefresh;
 extern	cvar_t	r_drawentities;
@@ -342,6 +311,7 @@ extern devstats_t dev_stats, dev_peakstats;
 //ohnfitz -- reduce overflow warning spam
 typedef struct {
 	double	packetsize;
+	double	efrags;
 	double	beams;
 	double	varstring;
 } overflowtimes_t;
@@ -380,7 +350,6 @@ extern int lightmap_count;	//allocated lightmaps
 extern qboolean r_drawflat_cheatsafe, r_fullbright_cheatsafe, r_lightmap_cheatsafe, r_drawworld_cheatsafe; //johnfitz
 
 extern float	map_wateralpha, map_lavaalpha, map_telealpha, map_slimealpha; //ericw
-extern float	map_fallbackalpha; //spike -- because we might want r_wateralpha to apply to teleporters while water itself wasn't watervised
 
 //johnfitz -- fog functions called from outside gl_fog.c
 void Fog_ParseServerMessage (void);
@@ -388,24 +357,19 @@ float *Fog_GetColor (void);
 float Fog_GetDensity (void);
 void Fog_EnableGFog (void);
 void Fog_DisableGFog (void);
-void Fog_StartAdditive (void);
-void Fog_StopAdditive (void);
 void Fog_SetupFrame (void);
 void Fog_NewMap (void);
 void Fog_Init (void);
-void Fog_SetupState (void);
-const char *Fog_GetFogCommand(void);	//for demo recording
 
 void R_NewGame (void);
 
-void CL_UpdateLightstyle(unsigned int idx, const char *stylestring);
 void R_AnimateLight (void);
 void R_MarkSurfaces (void);
 qboolean R_CullBox (vec3_t emins, vec3_t emaxs);
 void R_StoreEfrags (efrag_t **ppefrag);
 qboolean R_CullModelForEntity (entity_t *e);
-void R_RotateForEntity (vec3_t origin, vec3_t angles, unsigned char scale);
-void R_MarkLights (dlight_t *light, vec3_t lightorg, int num, mnode_t *node);
+void R_RotateForEntity (float matrix[16], vec3_t origin, vec3_t angles);
+void R_MarkLights (dlight_t *light, int num, mnode_t *node);
 
 void R_InitParticles (void);
 void R_DrawParticles (void);
@@ -428,14 +392,12 @@ void GL_DeleteBModelVertexBuffer (void);
 void GL_BuildBModelVertexBuffer (void);
 void GLMesh_LoadVertexBuffers (void);
 void GLMesh_DeleteVertexBuffers (void);
-void GLMesh_LoadVertexBuffer (qmodel_t *m, aliashdr_t *hdr);
-void R_RebuildAllLightmaps (void);
 
 int R_LightPoint (vec3_t p);
 
 void GL_SubdivideSurface (msurface_t *fa);
-void R_BuildLightMap (qmodel_t *model, msurface_t *surf, byte *dest, int stride);
-void R_RenderDynamicLightmaps (qmodel_t *model, msurface_t *fa);
+void R_BuildLightMap (msurface_t *surf, byte *dest, int stride);
+void R_RenderDynamicLightmaps (msurface_t *fa);
 void R_UploadLightmaps (void);
 
 void R_DrawWorld_ShowTris(void);

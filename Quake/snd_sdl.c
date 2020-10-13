@@ -25,11 +25,7 @@
 #include "quakedef.h"
 
 #if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
-#if defined(USE_SDL2)
 #include <SDL2/SDL.h>
-#else
-#include <SDL/SDL.h>
-#endif
 #else
 #include "SDL.h"
 #endif
@@ -141,7 +137,6 @@ qboolean SNDDMA_Init (dma_t *dma)
 
 	Con_Printf ("SDL audio spec  : %d Hz, %d samples, %d channels\n",
 			desired.freq, desired.samples, desired.channels);
-#if defined(USE_SDL2)
 	{
 		const char *driver = SDL_GetCurrentAudioDriver();
 		const char *device = SDL_GetAudioDeviceName(0, SDL_FALSE);
@@ -149,10 +144,6 @@ qboolean SNDDMA_Init (dma_t *dma)
 			driver != NULL ? driver : "(UNKNOWN)",
 			device != NULL ? device : "(UNKNOWN)");
 	}
-#else
-	if (SDL_AudioDriverName(drivername, sizeof(drivername)) == NULL)
-		strcpy(drivername, "(UNKNOWN)");
-#endif
 	buffersize = shm->samples * (shm->samplebits / 8);
 	Con_Printf ("SDL audio driver: %s, %d bytes buffer\n", drivername, buffersize);
 

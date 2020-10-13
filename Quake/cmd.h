@@ -42,7 +42,6 @@ The game starts with a Cbuf_AddText ("exec quake.rc\n"); Cbuf_Execute ();
 void Cbuf_Init (void);
 // allocates an initial text buffer that will grow as needed
 
-void Cbuf_AddTextLen (const char *text, int l);
 void Cbuf_AddText (const char *text);
 // as new commands are generated from the console or keybindings,
 // the text is added to the end of the command buffer.
@@ -78,36 +77,24 @@ not apropriate.
 
 */
 
+typedef void (*xcommand_t) (void);
+
 typedef enum
 {
 	src_client,		// came in over a net connection as a clc_stringcmd
 					// host_client will be valid during this state.
-	src_command,	// from the command buffer
-	src_server		// from a svc_stufftext
+	src_command		// from the command buffer
 } cmd_source_t;
-extern	cmd_source_t	cmd_source;
 
-typedef void (*xcommand_t) (void);
-typedef struct cmd_function_s
-{
-	struct cmd_function_s	*next;
-	const char		*name;
-	xcommand_t		function;
-	cmd_source_t	srctype;
-} cmd_function_t;
+extern	cmd_source_t	cmd_source;
 
 void	Cmd_Init (void);
 
-void	Cmd_AddCommand2 (const char *cmd_name, xcommand_t function, cmd_source_t srctype);
+void	Cmd_AddCommand (const char *cmd_name, xcommand_t function);
 // called by the init functions of other parts of the program to
 // register commands and functions to call for them.
 // The cmd_name is referenced later, so it should not be in temp memory
-#define Cmd_AddCommand(cmdname,func) Cmd_AddCommand2(cmdname,func,src_command)				//regular console commands
-#define Cmd_AddCommand_ClientCommand(cmdname,func) Cmd_AddCommand2(cmdname,func,src_client)	//command is meant to be safe for anyone to execute.
-#define Cmd_AddCommand_ServerCommand(cmdname,func) Cmd_AddCommand2(cmdname,func,src_server)	//command came from a server
-#define Cmd_AddCommand_Console Cmd_AddCommand	//to make the disabiguation more obvious
 
-qboolean Cmd_AliasExists (const char *aliasname);
 qboolean Cmd_Exists (const char *cmd_name);
 // used by the cvar code to check for cvar / command name overlap
 
@@ -130,7 +117,7 @@ void Cmd_TokenizeString (const char *text);
 // Takes a null terminated string.  Does not need to be /n terminated.
 // breaks the string up into arg tokens.
 
-qboolean	Cmd_ExecuteString (const char *text, cmd_source_t src);
+void	Cmd_ExecuteString (const char *text, cmd_source_t src);
 // Parses a single line of text into arguments and tries to execute it.
 // The text can come from the command buffer, a remote client, or stdin.
 

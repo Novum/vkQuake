@@ -45,8 +45,6 @@ extern	double		net_time;
 extern	sizebuf_t	net_message;
 extern	int		net_activeconnections;
 
-typedef char qhostaddr_t[NET_NAMELEN];
-
 
 void	NET_Init (void);
 void	NET_Shutdown (void);
@@ -58,22 +56,11 @@ struct qsocket_s	*NET_Connect (const char *host);
 // called by client to connect to a host.  Returns -1 if not able to
 
 double NET_QSocketGetTime (const struct qsocket_s *sock);
-const char *NET_QSocketGetTrueAddressString (const struct qsocket_s *sock);
-const char *NET_QSocketGetMaskedAddressString (const struct qsocket_s *sock);
-qboolean NET_QSocketGetProQuakeAngleHack (const struct qsocket_s *sock);
-int NET_QSocketGetSequenceIn (const struct qsocket_s *sock);
-int NET_QSocketGetSequenceOut (const struct qsocket_s *sock);
-void NET_QSocketSetMSS(struct qsocket_s *s, int mss);
+const char *NET_QSocketGetAddressString (const struct qsocket_s *sock);
 
 qboolean NET_CanSendMessage (struct qsocket_s *sock);
 // Returns true or false if the given qsocket can currently accept a
 // message to be transmitted.
-
-struct qsocket_s *NET_GetServerMessage(void);
-//returns data in net_message, qsocket says which client its from
-
-int NET_ListAddresses(qhostaddr_t *addresses, int maxaddresses);
-//gets a list of public addresses.
 
 int	NET_GetMessage (struct qsocket_s *sock);
 // returns data in net_message sizebuf
@@ -107,29 +94,22 @@ void	NET_Poll (void);
 // Server list related globals:
 extern	qboolean	slistInProgress;
 extern	qboolean	slistSilent;
-extern	enum slistScope_e
-{
-	SLIST_LOOP,
-	SLIST_LAN,
-	SLIST_INTERNET
-} slistScope;
+extern	qboolean	slistLocal;
 
-extern	size_t		hostCacheCount;
+extern	int		hostCacheCount;
 
 void	NET_Slist_f (void);
 void	NET_SlistSort (void);
-const char *NET_SlistPrintServer (size_t n);
-const char *NET_SlistPrintServerName (size_t n);
+const char *NET_SlistPrintServer (int n);
+const char *NET_SlistPrintServerName (int n);
 
 
 /* FIXME: driver related, but public:
  */
 extern	qboolean	ipxAvailable;
-extern	qboolean	ipv4Available;
-extern	qboolean	ipv6Available;
+extern	qboolean	tcpipAvailable;
 extern	char		my_ipx_address[NET_NAMELEN];
-extern	char		my_ipv4_address[NET_NAMELEN];
-extern	char		my_ipv6_address[NET_NAMELEN];
+extern	char		my_tcpip_address[NET_NAMELEN];
 
 #endif	/* _QUAKE_NET_H */
 

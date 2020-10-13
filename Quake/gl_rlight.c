@@ -27,32 +27,6 @@ int	r_dlightframecount;
 
 extern cvar_t r_flatlightstyles; //johnfitz
 
-//Spike - made this a general function
-void CL_UpdateLightstyle(unsigned int idx, const char *str)
-{
-	int total;
-	int j;
-	if (idx < MAX_LIGHTSTYLES)
-	{
-		q_strlcpy (cl_lightstyle[idx].map, str, MAX_STYLESTRING);
-		cl_lightstyle[idx].length = Q_strlen(cl_lightstyle[idx].map);
-		//johnfitz -- save extra info
-		if (cl_lightstyle[idx].length)
-		{
-			total = 0;
-			cl_lightstyle[idx].peak = 'a';
-			for (j=0; j<cl_lightstyle[idx].length; j++)
-			{
-				total += cl_lightstyle[idx].map[j] - 'a';
-				cl_lightstyle[idx].peak = q_max(cl_lightstyle[idx].peak, cl_lightstyle[idx].map[j]);
-			}
-			cl_lightstyle[idx].average = total / cl_lightstyle[idx].length + 'a';
-		}
-		else
-			cl_lightstyle[idx].average = cl_lightstyle[idx].peak = 'm';
-		//johnfitz
-	}
-}
 /*
 ==================
 R_AnimateLight
@@ -101,14 +75,13 @@ DYNAMIC LIGHTS
 R_MarkLights -- johnfitz -- rewritten to use LordHavoc's lighting speedup
 =============
 */
-void R_MarkLights (dlight_t *light, vec3_t lightorg, int num, mnode_t *node)
+void R_MarkLights (dlight_t *light, int num, mnode_t *node)
 {
 	mplane_t	*splitplane;
 	msurface_t	*surf;
 	vec3_t		impact;
 	float		dist, l, maxdist;
-	unsigned int i;
-	int			 j, s, t;
+	int			i, j, s, t;
 
 start:
 
@@ -117,9 +90,9 @@ start:
 
 	splitplane = node->plane;
 	if (splitplane->type < 3)
-		dist = lightorg[splitplane->type] - splitplane->dist;
+		dist = light->origin[splitplane->type] - splitplane->dist;
 	else
-		dist = DotProduct (lightorg, splitplane->normal) - splitplane->dist;
+		dist = DotProduct (light->origin, splitplane->normal) - splitplane->dist;
 
 	if (dist > light->radius)
 	{
@@ -138,7 +111,7 @@ start:
 	for (i=0 ; i<node->numsurfaces ; i++, surf++)
 	{
 		for (j=0 ; j<3 ; j++)
-			impact[j] = lightorg[j] - surf->plane->normal[j]*dist;
+			impact[j] = light->origin[j] - surf->plane->normal[j]*dist;
 		// clamp center of light to corner and check brightness
 		l = DotProduct (impact, surf->texinfo->vecs[0]) + surf->texinfo->vecs[0][3] - surf->texturemins[0];
 		s = l+0.5;if (s < 0) s = 0;else if (s > surf->extents[0]) s = surf->extents[0];
@@ -160,9 +133,9 @@ start:
 	}
 
 	if (node->children[0]->contents >= 0)
-		R_MarkLights (light, lightorg, num, node->children[0]);
+		R_MarkLights (light, num, node->children[0]);
 	if (node->children[1]->contents >= 0)
-		R_MarkLights (light, lightorg, num, node->children[1]);
+		R_MarkLights (light, num, node->children[1]);
 }
 
 /*
@@ -183,7 +156,7 @@ void R_PushDlights(void)
 	{
 		if (l->die < cl.time || !l->radius)
 			continue;
-		R_MarkLights (l, l->origin, i, cl.worldmodel->nodes);
+		R_MarkLights(l, i, cl.worldmodel->nodes);
 	}
 }
 
@@ -243,8 +216,7 @@ loc0:
 		return true;	// hit something
 	else
 	{
-		unsigned int i;
-		int ds, dt;
+		int i, ds, dt;
 		msurface_t *surf;
 	// check for impact on this node
 		VectorCopy (mid, lightspot);
@@ -277,18 +249,18 @@ loc0:
 				byte *lightmap;
 				int maps, line3, dsfrac = ds & 15, dtfrac = dt & 15, r00 = 0, g00 = 0, b00 = 0, r01 = 0, g01 = 0, b01 = 0, r10 = 0, g10 = 0, b10 = 0, r11 = 0, g11 = 0, b11 = 0;
 				float scale;
-				line3 = ((surf->extents[0]>>surf->lmshift)+1)*3;
+				line3 = ((surf->extents[0]>>4)+1)*3;
 
-				lightmap = surf->samples + ((dt>>surf->lmshift) * ((surf->extents[0]>>surf->lmshift)+1) + (ds>>surf->lmshift))*3; // LordHavoc: *3 for color
+				lightmap = surf->samples + ((dt>>4) * ((surf->extents[0]>>4)+1) + (ds>>4))*3; // LordHavoc: *3 for color
 
-				for (maps = 0;maps < MAXLIGHTMAPS && surf->styles[maps] != INVALID_LIGHTSTYLE;maps++)
+				for (maps = 0;maps < MAXLIGHTMAPS && surf->styles[maps] != 255;maps++)
 				{
 					scale = (float) d_lightstylevalue[surf->styles[maps]] * 1.0 / 256.0;
 					r00 += (float) lightmap[      0] * scale;g00 += (float) lightmap[      1] * scale;b00 += (float) lightmap[2] * scale;
 					r01 += (float) lightmap[      3] * scale;g01 += (float) lightmap[      4] * scale;b01 += (float) lightmap[5] * scale;
 					r10 += (float) lightmap[line3+0] * scale;g10 += (float) lightmap[line3+1] * scale;b10 += (float) lightmap[line3+2] * scale;
 					r11 += (float) lightmap[line3+3] * scale;g11 += (float) lightmap[line3+4] * scale;b11 += (float) lightmap[line3+5] * scale;
-					lightmap += ((surf->extents[0]>>surf->lmshift)+1) * ((surf->extents[1]>>surf->lmshift)+1)*3; // LordHavoc: *3 for colored lighting
+					lightmap += ((surf->extents[0]>>4)+1) * ((surf->extents[1]>>4)+1)*3; // LordHavoc: *3 for colored lighting
 				}
 
 				color[0] += (float) ((int) ((((((((r11-r10) * dsfrac) >> 4) + r10)-((((r01-r00) * dsfrac) >> 4) + r00)) * dtfrac) >> 4) + ((((r01-r00) * dsfrac) >> 4) + r00)));

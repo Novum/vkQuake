@@ -52,7 +52,6 @@ static inline int IS_NAN (float x) {
 #define Q_rint(x) ((x) > 0 ? (int)((x) + 0.5) : (int)((x) - 0.5)) //johnfitz -- from joequake
 
 #define DotProduct(x,y) (x[0]*y[0]+x[1]*y[1]+x[2]*y[2])
-#define DotProduct2(x,y) (x[0]*y[0]+x[1]*y[1])
 #define DoublePrecisionDotProduct(x,y) ((double)x[0]*y[0]+(double)x[1]*y[1]+(double)x[2]*y[2])
 #define VectorSubtract(a,b,c) {c[0]=a[0]-b[0];c[1]=a[1]-b[1];c[2]=a[2]-b[2];}
 #define VectorAdd(a,b,c) {c[0]=a[0]+b[0];c[1]=a[1]+b[1];c[2]=a[2]+b[2];}
@@ -73,27 +72,26 @@ static inline int IS_NAN (float x) {
 }
 
 void TurnVector (vec3_t out, const vec3_t forward, const vec3_t side, float angle); //johnfitz
-void VectorAngles (const vec3_t forward, float *up, vec3_t angles); //johnfitz, spike(up is optional)
+void VectorAngles (const vec3_t forward, vec3_t angles); //johnfitz
 
-void VectorMA (const vec3_t veca, float scale, const vec3_t vecb, vec3_t vecc);
+void VectorMA (vec3_t veca, float scale, vec3_t vecb, vec3_t vecc);
 
-vec_t _DotProduct (const vec3_t v1, const vec3_t v2);
-void _VectorSubtract (const vec3_t veca, const vec3_t vecb, vec3_t out);
-void _VectorAdd (const vec3_t veca, const vec3_t vecb, vec3_t out);
-void _VectorCopy (const vec3_t in, vec3_t out);
+vec_t _DotProduct (vec3_t v1, vec3_t v2);
+void _VectorSubtract (vec3_t veca, vec3_t vecb, vec3_t out);
+void _VectorAdd (vec3_t veca, vec3_t vecb, vec3_t out);
+void _VectorCopy (vec3_t in, vec3_t out);
 
-int VectorCompare (const vec3_t v1, const vec3_t v2);
-vec_t VectorLength (const vec3_t v);
-void CrossProduct (const vec3_t v1, const vec3_t v2, vec3_t cross);
+int VectorCompare (vec3_t v1, vec3_t v2);
+vec_t VectorLength (vec3_t v);
+void CrossProduct (vec3_t v1, vec3_t v2, vec3_t cross);
 float VectorNormalize (vec3_t v);		// returns vector length
 void VectorInverse (vec3_t v);
-void VectorScale (const vec3_t in, vec_t scale, vec3_t out);
+void VectorScale (vec3_t in, vec_t scale, vec3_t out);
 int Q_log2(int val);
 int Q_nextPow2(int val);
 
 void R_ConcatRotations (float in1[3][3], float in2[3][3], float out[3][3]);
 void R_ConcatTransforms (float in1[3][4], float in2[3][4], float out[3][4]);
-void RotatePointAroundVector( vec3_t dst, const vec3_t dir, const vec3_t point, float degrees );
 
 void FloorDivMod (double numer, double denom, int *quotient,
 		int *rem);

@@ -21,6 +21,25 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 
+typedef struct
+{
+	int		s;
+	dfunction_t	*f;
+} prstack_t;
+
+#define	MAX_STACK_DEPTH		64	/* was 32 */
+static prstack_t	pr_stack[MAX_STACK_DEPTH];
+static int		pr_depth;
+
+#define	LOCALSTACK_SIZE		2048
+static int		localstack[LOCALSTACK_SIZE];
+static int		localstack_used;
+
+qboolean	pr_trace;
+dfunction_t	*pr_xfunction;
+int		pr_xstatement;
+int		pr_argc;
+
 static const char *pr_opnames[] =
 {
 	"DONE",
@@ -166,16 +185,16 @@ static void PR_StackTrace (void)
 	int		i;
 	dfunction_t	*f;
 
-	if (qcvm->depth == 0)
+	if (pr_depth == 0)
 	{
 		Con_Printf("<NO STACK>\n");
 		return;
 	}
 
-	qcvm->stack[qcvm->depth].f = qcvm->xfunction;
-	for (i = qcvm->depth; i >= 0; i--)
+	pr_stack[pr_depth].f = pr_xfunction;
+	for (i = pr_depth; i >= 0; i--)
 	{
-		f = qcvm->stack[i].f;
+		f = pr_stack[i].f;
 		if (!f)
 		{
 			Con_Printf("<NO FUNCTION>\n");
@@ -203,16 +222,14 @@ void PR_Profile_f (void)
 	if (!sv.active)
 		return;
 
-	PR_SwitchQCVM(&sv.qcvm);
-
 	num = 0;
 	do
 	{
 		pmax = 0;
 		best = NULL;
-		for (i = 0; i < qcvm->progs->numfunctions; i++)
+		for (i = 0; i < progs->numfunctions; i++)
 		{
-			f = &qcvm->functions[i];
+			f = &pr_functions[i];
 			if (f->profile > pmax)
 			{
 				pmax = f->profile;
@@ -227,8 +244,6 @@ void PR_Profile_f (void)
 			best->profile = 0;
 		}
 	} while (best);
-
-	PR_SwitchQCVM(NULL);
 }
 
 
@@ -248,12 +263,12 @@ void PR_RunError (const char *error, ...)
 	q_vsnprintf (string, sizeof(string), error, argptr);
 	va_end (argptr);
 
-	PR_PrintStatement(qcvm->statements + qcvm->xstatement);
+	PR_PrintStatement(pr_statements + pr_xstatement);
 	PR_StackTrace();
 
 	Con_Printf("%s\n", string);
 
-	qcvm->depth = 0;	// dump the stack so host_error can shutdown functions
+	pr_depth = 0;	// dump the stack so host_error can shutdown functions
 
 	Host_Error("Program error");
 }
@@ -269,20 +284,20 @@ static int PR_EnterFunction (dfunction_t *f)
 {
 	int	i, j, c, o;
 
-	qcvm->stack[qcvm->depth].s = qcvm->xstatement;
-	qcvm->stack[qcvm->depth].f = qcvm->xfunction;
-	qcvm->depth++;
-	if (qcvm->depth >= MAX_STACK_DEPTH)
+	pr_stack[pr_depth].s = pr_xstatement;
+	pr_stack[pr_depth].f = pr_xfunction;
+	pr_depth++;
+	if (pr_depth >= MAX_STACK_DEPTH)
 		PR_RunError("stack overflow");
 
 	// save off any locals that the new function steps on
 	c = f->locals;
-	if (qcvm->localstack_used + c > LOCALSTACK_SIZE)
+	if (localstack_used + c > LOCALSTACK_SIZE)
 		PR_RunError("PR_ExecuteProgram: locals stack overflow\n");
 
 	for (i = 0; i < c ; i++)
-		qcvm->localstack[qcvm->localstack_used + i] = ((int *)qcvm->globals)[f->parm_start + i];
-	qcvm->localstack_used += c;
+		localstack[localstack_used + i] = ((int *)pr_globals)[f->parm_start + i];
+	localstack_used += c;
 
 	// copy parameters
 	o = f->parm_start;
@@ -290,12 +305,12 @@ static int PR_EnterFunction (dfunction_t *f)
 	{
 		for (j = 0; j < f->parm_size[i]; j++)
 		{
-			((int *)qcvm->globals)[o] = ((int *)qcvm->globals)[OFS_PARM0 + i*3 + j];
+			((int *)pr_globals)[o] = ((int *)pr_globals)[OFS_PARM0 + i*3 + j];
 			o++;
 		}
 	}
 
-	qcvm->xfunction = f;
+	pr_xfunction = f;
 	return f->first_statement - 1;	// offset the s++
 }
 
@@ -308,22 +323,22 @@ static int PR_LeaveFunction (void)
 {
 	int	i, c;
 
-	if (qcvm->depth <= 0)
+	if (pr_depth <= 0)
 		Host_Error("prog stack underflow");
 
 	// Restore locals from the stack
-	c = qcvm->xfunction->locals;
-	qcvm->localstack_used -= c;
-	if (qcvm->localstack_used < 0)
+	c = pr_xfunction->locals;
+	localstack_used -= c;
+	if (localstack_used < 0)
 		PR_RunError("PR_ExecuteProgram: locals stack underflow");
 
 	for (i = 0; i < c; i++)
-		((int *)qcvm->globals)[qcvm->xfunction->parm_start + i] = qcvm->localstack[qcvm->localstack_used + i];
+		((int *)pr_globals)[pr_xfunction->parm_start + i] = localstack[localstack_used + i];
 
 	// up stack
-	qcvm->depth--;
-	qcvm->xfunction = qcvm->stack[qcvm->depth].f;
-	return qcvm->stack[qcvm->depth].s;
+	pr_depth--;
+	pr_xfunction = pr_stack[pr_depth].f;
+	return pr_stack[pr_depth].s;
 }
 
 
@@ -334,9 +349,9 @@ PR_ExecuteProgram
 The interpretation main loop
 ====================
 */
-#define OPA ((eval_t *)&qcvm->globals[(unsigned short)st->a])
-#define OPB ((eval_t *)&qcvm->globals[(unsigned short)st->b])
-#define OPC ((eval_t *)&qcvm->globals[(unsigned short)st->c])
+#define OPA ((eval_t *)&pr_globals[(unsigned short)st->a])
+#define OPB ((eval_t *)&pr_globals[(unsigned short)st->b])
+#define OPC ((eval_t *)&pr_globals[(unsigned short)st->c])
 
 void PR_ExecuteProgram (func_t fnum)
 {
@@ -347,36 +362,34 @@ void PR_ExecuteProgram (func_t fnum)
 	edict_t		*ed;
 	int		exitdepth;
 
-	if (!fnum || fnum >= qcvm->progs->numfunctions)
+	if (!fnum || fnum >= progs->numfunctions)
 	{
 		if (pr_global_struct->self)
 			ED_Print (PROG_TO_EDICT(pr_global_struct->self));
 		Host_Error ("PR_ExecuteProgram: NULL function");
 	}
 
-	f = &qcvm->functions[fnum];
+	f = &pr_functions[fnum];
 
-	//FIXME: if this is a builtin, then we're going to crash.
-
-	qcvm->trace = false;
+	pr_trace = false;
 
 // make a stack frame
-	exitdepth = qcvm->depth;
+	exitdepth = pr_depth;
 
-	st = &qcvm->statements[PR_EnterFunction(f)];
+	st = &pr_statements[PR_EnterFunction(f)];
 	startprofile = profile = 0;
 
     while (1)
     {
 	st++;	/* next statement */
 
-	if (++profile > 0x10000000)	//spike -- was decimal 100000
+	if (++profile > 100000)
 	{
-		qcvm->xstatement = st - qcvm->statements;
+		pr_xstatement = st - pr_statements;
 		PR_RunError("runaway loop error");
 	}
 
-	if (qcvm->trace)
+	if (pr_trace)
 		PR_PrintStatement(st);
 
 	switch (st->op)
@@ -462,7 +475,7 @@ void PR_ExecuteProgram (func_t fnum)
 		OPC->_float = !OPA->function;
 		break;
 	case OP_NOT_ENT:
-		OPC->_float = (PROG_TO_EDICT(OPA->edict) == qcvm->edicts);
+		OPC->_float = (PROG_TO_EDICT(OPA->edict) == sv.edicts);
 		break;
 
 	case OP_EQ_F:
@@ -519,11 +532,11 @@ void PR_ExecuteProgram (func_t fnum)
 	case OP_STOREP_FLD:	// integers
 	case OP_STOREP_S:
 	case OP_STOREP_FNC:	// pointers
-		ptr = (eval_t *)((byte *)qcvm->edicts + OPB->_int);
+		ptr = (eval_t *)((byte *)sv.edicts + OPB->_int);
 		ptr->_int = OPA->_int;
 		break;
 	case OP_STOREP_V:
-		ptr = (eval_t *)((byte *)qcvm->edicts + OPB->_int);
+		ptr = (eval_t *)((byte *)sv.edicts + OPB->_int);
 		ptr->vector[0] = OPA->vector[0];
 		ptr->vector[1] = OPA->vector[1];
 		ptr->vector[2] = OPA->vector[2];
@@ -534,12 +547,12 @@ void PR_ExecuteProgram (func_t fnum)
 #ifdef PARANOID
 		NUM_FOR_EDICT(ed);	// Make sure it's in range
 #endif
-		if (ed == (edict_t *)qcvm->edicts && sv.state == ss_active)
+		if (ed == (edict_t *)sv.edicts && sv.state == ss_active)
 		{
-			qcvm->xstatement = st - qcvm->statements;
+			pr_xstatement = st - pr_statements;
 			PR_RunError("assignment to world entity");
 		}
-		OPC->_int = (byte *)((int *)&ed->v + OPB->_int) - (byte *)qcvm->edicts;
+		OPC->_int = (byte *)((int *)&ed->v + OPB->_int) - (byte *)sv.edicts;
 		break;
 
 	case OP_LOAD_F:
@@ -588,35 +601,35 @@ void PR_ExecuteProgram (func_t fnum)
 	case OP_CALL6:
 	case OP_CALL7:
 	case OP_CALL8:
-		qcvm->xfunction->profile += profile - startprofile;
+		pr_xfunction->profile += profile - startprofile;
 		startprofile = profile;
-		qcvm->xstatement = st - qcvm->statements;
-		qcvm->argc = st->op - OP_CALL0;
+		pr_xstatement = st - pr_statements;
+		pr_argc = st->op - OP_CALL0;
 		if (!OPA->function)
 			PR_RunError("NULL function");
-		newf = &qcvm->functions[OPA->function];
+		newf = &pr_functions[OPA->function];
 		if (newf->first_statement < 0)
 		{ // Built-in function
 			int i = -newf->first_statement;
-			if (i >= qcvm->numbuiltins)
-				i = 0;	//just invoke the fixme builtin.
-			qcvm->builtins[i]();
+			if (i >= pr_numbuiltins)
+				PR_RunError("Bad builtin call number %d", i);
+			pr_builtins[i]();
 			break;
 		}
 		// Normal function
-		st = &qcvm->statements[PR_EnterFunction(newf)];
+		st = &pr_statements[PR_EnterFunction(newf)];
 		break;
 
 	case OP_DONE:
 	case OP_RETURN:
-		qcvm->xfunction->profile += profile - startprofile;
+		pr_xfunction->profile += profile - startprofile;
 		startprofile = profile;
-		qcvm->xstatement = st - qcvm->statements;
-		qcvm->globals[OFS_RETURN] = qcvm->globals[(unsigned short)st->a];
-		qcvm->globals[OFS_RETURN + 1] = qcvm->globals[(unsigned short)st->a + 1];
-		qcvm->globals[OFS_RETURN + 2] = qcvm->globals[(unsigned short)st->a + 2];
-		st = &qcvm->statements[PR_LeaveFunction()];
-		if (qcvm->depth == exitdepth)
+		pr_xstatement = st - pr_statements;
+		pr_globals[OFS_RETURN] = pr_globals[(unsigned short)st->a];
+		pr_globals[OFS_RETURN + 1] = pr_globals[(unsigned short)st->a + 1];
+		pr_globals[OFS_RETURN + 2] = pr_globals[(unsigned short)st->a + 2];
+		st = &pr_statements[PR_LeaveFunction()];
+		if (pr_depth == exitdepth)
 		{ // Done
 			return;
 		}
@@ -630,7 +643,7 @@ void PR_ExecuteProgram (func_t fnum)
 		break;
 
 	default:
-		qcvm->xstatement = st - qcvm->statements;
+		pr_xstatement = st - pr_statements;
 		PR_RunError("Bad opcode %i", st->op);
 	}
     }	/* end of while(1) loop */

@@ -103,8 +103,6 @@ void MSG_WriteString (sizebuf_t *sb, const char *s);
 void MSG_WriteCoord (sizebuf_t *sb, float f, unsigned int flags);
 void MSG_WriteAngle (sizebuf_t *sb, float f, unsigned int flags);
 void MSG_WriteAngle16 (sizebuf_t *sb, float f, unsigned int flags); //johnfitz
-struct entity_state_s;
-void MSG_WriteStaticOrBaseLine(sizebuf_t *buf, int idx, struct entity_state_s *state, unsigned int protocol_pext2, unsigned int protocol, unsigned int protocolflags); //spike
 
 extern	int			msg_readcount;
 extern	qboolean	msg_badread;		// set if a read goes beyond end of message
@@ -120,10 +118,6 @@ const char *MSG_ReadString (void);
 float MSG_ReadCoord (unsigned int flags);
 float MSG_ReadAngle (unsigned int flags);
 float MSG_ReadAngle16 (unsigned int flags); //johnfitz
-byte *MSG_ReadData (unsigned int length); // spike
-int MSG_ReadEntity(unsigned int pext2); //spike
-
-void COM_Effectinfo_Enumerate(int (*cb)(const char *pname));	//spike -- for dp compat
 
 //============================================================================
 
@@ -177,7 +171,6 @@ extern	int		safemode;
  */
 
 int COM_CheckParm (const char *parm);
-int COM_CheckParmNext (int last, const char *parm);
 
 void COM_Init (void);
 void COM_InitArgv (int argc, char **argv);
@@ -187,7 +180,6 @@ const char *COM_SkipPath (const char *pathname);
 void COM_StripExtension (const char *in, char *out, size_t outsize);
 void COM_FileBase (const char *in, char *out, size_t outsize);
 void COM_AddExtension (char *path, const char *extension, size_t len);
-qboolean COM_DownloadNameOkay(const char *filename);
 #if 0 /* COM_DefaultExtension can be dangerous */
 void COM_DefaultExtension (char *path, const char *extension, size_t len);
 #endif
@@ -206,7 +198,6 @@ typedef struct
 {
 	char	name[MAX_QPATH];
 	int		filepos, filelen;
-	int		deflatedsize;
 } packfile_t;
 
 typedef struct pack_s
@@ -236,12 +227,6 @@ struct cache_user_s;
 extern	char	com_basedir[MAX_OSPATH];
 extern	char	com_gamedir[MAX_OSPATH];
 extern	int	file_from_pak;	// global indicating that file came from a pak
-
-const char *COM_GetGameNames(qboolean full);
-qboolean COM_GameDirMatches(const char *tdirs);
-
-pack_t *FSZIP_LoadArchive (const char *packfile);
-FILE *FSZIP_Deflate(FILE *src, int srcsize, int outsize);
 
 void COM_WriteFile (const char *filename, const void *data, int len);
 int COM_OpenFile (const char *filename, int *handle, unsigned int *path_id);

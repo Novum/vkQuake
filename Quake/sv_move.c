@@ -129,7 +129,7 @@ qboolean SV_movestep (edict_t *ent, vec3_t move, qboolean relink)
 		{
 			VectorAdd (ent->v.origin, move, neworg);
 			enemy = PROG_TO_EDICT(ent->v.enemy);
-			if (i == 0 && enemy != qcvm->edicts)
+			if (i == 0 && enemy != sv.edicts)
 			{
 				dz = ent->v.origin[2] - PROG_TO_EDICT(ent->v.enemy)->v.origin[2];
 				if (dz > 40)
@@ -150,7 +150,7 @@ qboolean SV_movestep (edict_t *ent, vec3_t move, qboolean relink)
 				return true;
 			}
 
-			if (enemy == qcvm->edicts)
+			if (enemy == sv.edicts)
 				break;
 		}
 
@@ -408,7 +408,7 @@ void SV_MoveToGoal (void)
 	}
 
 // if the next step hits the enemy, return immediately
-	if ( PROG_TO_EDICT(ent->v.enemy) != qcvm->edicts &&  SV_CloseEnough (ent, goal, dist) )
+	if ( PROG_TO_EDICT(ent->v.enemy) != sv.edicts &&  SV_CloseEnough (ent, goal, dist) )
 		return;
 
 // bump around...

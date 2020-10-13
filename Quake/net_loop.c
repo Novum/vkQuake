@@ -48,10 +48,10 @@ void Loop_Listen (qboolean state)
 }
 
 
-qboolean Loop_SearchForHosts (qboolean xmit)
+void Loop_SearchForHosts (qboolean xmit)
 {
 	if (!sv.active)
-		return false;
+		return;
 
 	hostCacheCount = 1;
 	if (Q_strcmp(hostname.string, "UNNAMED") == 0)
@@ -63,7 +63,6 @@ qboolean Loop_SearchForHosts (qboolean xmit)
 	hostcache[0].maxusers = svs.maxclients;
 	hostcache[0].driver = net_driverlevel;
 	Q_strcpy(hostcache[0].cname, "local");
-	return false;
 }
 
 
@@ -81,8 +80,7 @@ qsocket_t *Loop_Connect (const char *host)
 			Con_Printf("Loop_Connect: no qsocket available\n");
 			return NULL;
 		}
-		Q_strcpy (loop_client->trueaddress, "localhost");
-		Q_strcpy (loop_client->maskedaddress, "localhost");
+		Q_strcpy (loop_client->address, "localhost");
 	}
 	loop_client->receiveMessageLength = 0;
 	loop_client->sendMessageLength = 0;
@@ -95,8 +93,7 @@ qsocket_t *Loop_Connect (const char *host)
 			Con_Printf("Loop_Connect: no qsocket available\n");
 			return NULL;
 		}
-		Q_strcpy (loop_server->trueaddress, "LOCAL");
-		Q_strcpy (loop_server->maskedaddress, "LOCAL");
+		Q_strcpy (loop_server->address, "LOCAL");
 	}
 	loop_server->receiveMessageLength = 0;
 	loop_server->sendMessageLength = 0;
@@ -104,8 +101,6 @@ qsocket_t *Loop_Connect (const char *host)
 
 	loop_client->driverdata = (void *)loop_server;
 	loop_server->driverdata = (void *)loop_client;
-
-	loop_client->proquake_angle_hack = loop_server->proquake_angle_hack = true;
 
 	return loop_client;
 }
@@ -132,6 +127,7 @@ static int IntAlign(int value)
 	return (value + (sizeof(int) - 1)) & (~(sizeof(int) - 1));
 }
 
+
 int Loop_GetMessage (qsocket_t *sock)
 {
 	int		ret;
@@ -144,19 +140,9 @@ int Loop_GetMessage (qsocket_t *sock)
 	length = sock->receiveMessage[1] + (sock->receiveMessage[2] << 8);
 	// alignment byte skipped here
 	SZ_Clear (&net_message);
-	if (ret == 2)
-	{	//unreliables have sequences that we (now) care about so that clients can ack them.
-		sock->unreliableReceiveSequence = sock->receiveMessage[4] | (sock->receiveMessage[5]<<8) | (sock->receiveMessage[6]<<16) | (sock->receiveMessage[7]<<16);
-		sock->unreliableReceiveSequence++;
-		SZ_Write (&net_message, &sock->receiveMessage[8], length);
-		length = IntAlign(length + 8);
-	}
-	else
-	{	//reliable
-		SZ_Write (&net_message, &sock->receiveMessage[4], length);
-		length = IntAlign(length + 4);
-	}
+	SZ_Write (&net_message, &sock->receiveMessage[4], length);
 
+	length = IntAlign(length + 4);
 	sock->receiveMessageLength -= length;
 
 	if (sock->receiveMessageLength)
@@ -166,16 +152,6 @@ int Loop_GetMessage (qsocket_t *sock)
 		((qsocket_t *)sock->driverdata)->canSend = true;
 
 	return ret;
-}
-
-qsocket_t *Loop_GetAnyMessage(void)
-{
-	if (loop_server)
-	{
-		if (Loop_GetMessage(loop_server) > 0)
-			return loop_server;
-	}
-	return NULL;
 }
 
 
@@ -217,7 +193,6 @@ int Loop_SendUnreliableMessage (qsocket_t *sock, sizebuf_t *data)
 {
 	byte *buffer;
 	int  *bufferLength;
-	int   sequence = sock->unreliableSendSequence++;
 
 	if (!sock->driverdata)
 		return -1;
@@ -239,14 +214,9 @@ int Loop_SendUnreliableMessage (qsocket_t *sock, sizebuf_t *data)
 	// align
 	buffer++;
 
-	*buffer++ = (sequence >>  0) & 0xff;
-	*buffer++ = (sequence >>  8) & 0xff;
-	*buffer++ = (sequence >> 16) & 0xff;
-	*buffer++ = (sequence >> 24) & 0xff;
-
 	// message
 	Q_memcpy(buffer, data->data, data->cursize);
-	*bufferLength = IntAlign(*bufferLength + data->cursize + 8);
+	*bufferLength = IntAlign(*bufferLength + data->cursize + 4);
 	return 1;
 }
 

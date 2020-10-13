@@ -24,8 +24,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 
-cvar_t	cl_nopext = {"cl_nopext","0",CVAR_NONE};	//Spike -- prevent autodetection of protocol extensions, so that servers fall back to only their base protocol (without needing to reconfigure the server. Requires reconnect.
-cvar_t	cmd_warncmd = {"cl_warncmd","1",CVAR_NONE};	//Spike -- prevent autodetection of protocol extensions, so that servers fall back to only their base protocol (without needing to reconfigure the server. Requires reconnect.
 void Cmd_ForwardToServer (void);
 
 #define	MAX_ALIAS_NAME	32
@@ -99,17 +97,7 @@ void Cbuf_AddText (const char *text)
 		return;
 	}
 
-	SZ_Write (&cmd_text, text, l);
-}
-void Cbuf_AddTextLen (const char *text, int l)
-{
-	if (cmd_text.cursize + l >= cmd_text.maxsize)
-	{
-		Con_Printf ("Cbuf_AddText: overflow\n");
-		return;
-	}
-
-	SZ_Write (&cmd_text, text, l);
+	SZ_Write (&cmd_text, text, Q_strlen (text));
 }
 
 
@@ -167,7 +155,7 @@ void Cbuf_Execute (void)
 	int		i;
 	char	*text;
 	char	line[1024];
-	int		quotes, comment;
+	int		quotes;
 
 	while (cmd_text.cursize && !cmd_wait)
 	{
@@ -175,14 +163,11 @@ void Cbuf_Execute (void)
 		text = (char *)cmd_text.data;
 
 		quotes = 0;
-		comment = 0;
 		for (i=0 ; i< cmd_text.cursize ; i++)
 		{
 			if (text[i] == '"')
 				quotes++;
-			if (text[i] == '/' && text[i+1] == '/')
-				comment=true;
-			if ( !(quotes&1) && !comment &&  text[i] == ';')
+			if ( !(quotes&1) &&  text[i] == ';')
 				break;	// don't break if inside a quoted string
 			if (text[i] == '\n')
 				break;
@@ -286,12 +271,10 @@ void Cmd_Exec_f (void)
 	f = (char *)COM_LoadHunkFile (Cmd_Argv(1), NULL);
 	if (!f)
 	{
-		if (cmd_warncmd.value)
-			Con_Printf ("couldn't exec %s\n",Cmd_Argv(1));
+		Con_Printf ("couldn't exec %s\n",Cmd_Argv(1));
 		return;
 	}
-	if (cmd_warncmd.value)
-		Con_Printf ("execing %s\n",Cmd_Argv(1));
+	Con_Printf ("execing %s\n",Cmd_Argv(1));
 
 	Cbuf_InsertText (f);
 	Hunk_FreeToLowMark (mark);
@@ -428,17 +411,6 @@ void Cmd_Unalias_f (void)
 	}
 }
 
-qboolean Cmd_AliasExists (const char *aliasname)
-{
-	cmdalias_t *a;
-	for (a=cmd_alias ; a ; a=a->next)
-	{
-		if (!q_strcasecmp (aliasname, a->name))
-			return true;
-	}
-	return false;
-}
-
 /*
 ===============
 Cmd_Unaliasall_f -- johnfitz
@@ -464,6 +436,14 @@ void Cmd_Unaliasall_f (void)
 
 =============================================================================
 */
+
+typedef struct cmd_function_s
+{
+	struct cmd_function_s	*next;
+	const char		*name;
+	xcommand_t		function;
+} cmd_function_t;
+
 
 #define	MAX_ARGS		80
 
@@ -557,13 +537,13 @@ void Cmd_Apropos_f(void)
 	}
 	for (cmd=cmd_functions ; cmd ; cmd=cmd->next)
 	{
-		if (q_strcasestr(cmd->name, substr) && cmd->srctype != src_server)
+		if (q_strcasestr(cmd->name, substr))
 		{
 			hits++;
 			Con_SafePrintf ("%s\n", Cmd_TintSubstring(cmd->name, substr, tmpbuf, sizeof(tmpbuf)));
 		}
 	}
-
+	
 	for (var=Cvar_FindVarAfter("", 0) ; var ; var=var->next)
 	{
 		if (q_strcasestr(var->name, substr))
@@ -596,9 +576,6 @@ void Cmd_Init (void)
 
 	Cmd_AddCommand ("apropos", Cmd_Apropos_f);
 	Cmd_AddCommand ("find", Cmd_Apropos_f);
-
-	Cvar_RegisterVariable (&cl_nopext);
-	Cvar_RegisterVariable (&cmd_warncmd);
 }
 
 /*
@@ -630,8 +607,6 @@ Cmd_Args
 */
 const char	*Cmd_Args (void)
 {
-	if (!cmd_args)
-		return "";
 	return cmd_args;
 }
 
@@ -690,16 +665,14 @@ void Cmd_TokenizeString (const char *text)
 /*
 ============
 Cmd_AddCommand
-
-spike -- added an extra arg for client (also renamed and made a macro)
 ============
 */
-void	Cmd_AddCommand2 (const char *cmd_name, xcommand_t function, cmd_source_t srctype)
+void	Cmd_AddCommand (const char *cmd_name, xcommand_t function)
 {
 	cmd_function_t	*cmd;
 	cmd_function_t	*cursor,*prev; //johnfitz -- sorted list insert
 
-	if (host_initialized && function)	// because hunk allocation would get stomped
+	if (host_initialized)	// because hunk allocation would get stomped
 		Sys_Error ("Cmd_AddCommand after host_initialized");
 
 // fail if the command is a variable name
@@ -712,21 +685,16 @@ void	Cmd_AddCommand2 (const char *cmd_name, xcommand_t function, cmd_source_t sr
 // fail if the command already exists
 	for (cmd=cmd_functions ; cmd ; cmd=cmd->next)
 	{
-		if (!Q_strcmp (cmd_name, cmd->name) && cmd->srctype == srctype)
+		if (!Q_strcmp (cmd_name, cmd->name))
 		{
-			if (cmd->function != function && function)
-				Con_Printf ("Cmd_AddCommand: %s already defined\n", cmd_name);
+			Con_Printf ("Cmd_AddCommand: %s already defined\n", cmd_name);
 			return;
 		}
 	}
 
-	if (host_initialized)
-		cmd = malloc(sizeof(cmd_function_t));
-	else
-		cmd = (cmd_function_t *) Hunk_Alloc (sizeof(cmd_function_t));
+	cmd = (cmd_function_t *) Hunk_Alloc (sizeof(cmd_function_t));
 	cmd->name = cmd_name;
 	cmd->function = function;
-	cmd->srctype = srctype;
 
 	//johnfitz -- insert each entry in alphabetical order
 	if (cmd_functions == NULL || strcmp(cmd->name, cmd_functions->name) < 0) //insert at front
@@ -800,7 +768,7 @@ A complete command line has been parsed, so try to execute it
 FIXME: lookupnoadd the token to speed search?
 ============
 */
-qboolean	Cmd_ExecuteString (const char *text, cmd_source_t src)
+void	Cmd_ExecuteString (const char *text, cmd_source_t src)
 {
 	cmd_function_t	*cmd;
 	cmdalias_t		*a;
@@ -810,49 +778,17 @@ qboolean	Cmd_ExecuteString (const char *text, cmd_source_t src)
 
 // execute the command line
 	if (!Cmd_Argc())
-		return true;		// no tokens
+		return;		// no tokens
 
 // check functions
 	for (cmd=cmd_functions ; cmd ; cmd=cmd->next)
 	{
 		if (!q_strcasecmp (cmd_argv[0],cmd->name))
 		{
-			if (src == src_client && cmd->srctype != src_client)
-				Con_DPrintf("%s tried to %s\n", host_client->name, text);	//src_client only allows client commands
-			else if (src == src_command && cmd->srctype == src_server)
-				continue;	//src_command can execute anything but server commands (which it ignores, allowing for alternative behaviour)
-			else if (src == src_server && cmd->srctype != src_server)
-				continue;	//src_server may only execute server commands (such commands must be safe to parse within the context of a network message, so no disconnect/connect/playdemo/etc)
-			else if (cmd->function)
-				cmd->function ();
-			else
-			{
-				if (cl.qcvm.extfuncs.CSQC_ConsoleCommand)
-				{
-					qboolean ret;
-					PR_SwitchQCVM(&cl.qcvm);
-					G_INT(OFS_PARM0) = PR_MakeTempString(text);
-					PR_ExecuteProgram(cl.qcvm.extfuncs.CSQC_ConsoleCommand);
-					ret = G_FLOAT(OFS_RETURN);
-					if (!ret)
-						Con_Printf ("gamecode cannot \"%s\"\n", Cmd_Argv(0));
-					PR_SwitchQCVM(NULL);
-					return ret;
-				}
-				else
-					Con_Printf ("gamecode not running, cannot \"%s\"\n", Cmd_Argv(0));
-			}
-			return true;
+			cmd->function ();
+			return;
 		}
 	}
-
-	if (src == src_client)
-	{	//spike -- please don't execute similarly named aliases, nor custom cvars...
-		Con_DPrintf("%s tried to %s\n", host_client->name, text);
-		return false;
-	}
-	if (src != src_command)
-		return false;
 
 // check alias
 	for (a=cmd_alias ; a ; a=a->next)
@@ -860,16 +796,14 @@ qboolean	Cmd_ExecuteString (const char *text, cmd_source_t src)
 		if (!q_strcasecmp (cmd_argv[0], a->name))
 		{
 			Cbuf_InsertText (a->value);
-			return true;
+			return;
 		}
 	}
 
 // check cvars
 	if (!Cvar_Command ())
-		if (cmd_warncmd.value || developer.value)
-			Con_Printf ("Unknown command \"%s\"\n", Cmd_Argv(0));
+		Con_Printf ("Unknown command \"%s\"\n", Cmd_Argv(0));
 
-	return true;
 }
 
 
@@ -896,22 +830,6 @@ void Cmd_ForwardToServer (void)
 	{
 		SZ_Print (&cls.message, Cmd_Argv(0));
 		SZ_Print (&cls.message, " ");
-	}
-	else
-	{
-		//hack zone for compat.
-		//stuffcmd("cmd foo\n") is a good way to query the client to see if it knows foo because the server is guarenteed a response even if it doesn't understand it, saving a timeout
-		if (!strcmp(Cmd_Args(), "protocols"))
-		{	//server asked us for a list of protocol numbers that we claim to support. this allows cool servers like fte to autodetect higher limits etc.
-			//servers may assume that the client's preferred protocol will be listed first.
-			SZ_Print (&cls.message, va("protocols %i %i %i %i %i", PROTOCOL_RMQ, PROTOCOL_FITZQUAKE, PROTOCOL_VERSION_BJP3, PROTOCOL_VERSION_DP7, PROTOCOL_NETQUAKE));
-			return;
-		}
-		if (!strcmp(Cmd_Args(), "pext") && !cl_nopext.value)
-		{	//server asked us for a key+value list of the extensions+attributes we support
-			SZ_Print (&cls.message, va("pext %#x %#x", PROTOCOL_FTE_PEXT2, PEXT2_SUPPORTED_CLIENT));
-			return;
-		}
 	}
 	if (Cmd_Argc() > 1)
 		SZ_Print (&cls.message, Cmd_Args());

@@ -88,61 +88,6 @@ void PerpendicularVector( vec3_t dst, const vec3_t src )
 
 //johnfitz -- removed RotatePointAroundVector() becuase it's no longer used and my compiler fucked it up anyway
 
-//spike -- readded, because it is useful, and my version of gcc has never had a problem with it.
-void RotatePointAroundVector( vec3_t dst, const vec3_t dir, const vec3_t point, float degrees )
-{
-	float	m[3][3];
-	float	im[3][3];
-	float	zrot[3][3];
-	float	tmpmat[3][3];
-	float	rot[3][3];
-	int	i;
-	vec3_t vr, vup, vf;
-
-	vf[0] = dir[0];
-	vf[1] = dir[1];
-	vf[2] = dir[2];
-
-	PerpendicularVector( vr, dir );
-	CrossProduct( vr, vf, vup );
-
-	m[0][0] = vr[0];
-	m[1][0] = vr[1];
-	m[2][0] = vr[2];
-
-	m[0][1] = vup[0];
-	m[1][1] = vup[1];
-	m[2][1] = vup[2];
-
-	m[0][2] = vf[0];
-	m[1][2] = vf[1];
-	m[2][2] = vf[2];
-
-	memcpy( im, m, sizeof( im ) );
-
-	im[0][1] = m[1][0];
-	im[0][2] = m[2][0];
-	im[1][0] = m[0][1];
-	im[1][2] = m[2][1];
-	im[2][0] = m[0][2];
-	im[2][1] = m[1][2];
-
-	memset( zrot, 0, sizeof( zrot ) );
-	zrot[0][0] = zrot[1][1] = zrot[2][2] = 1.0F;
-
-	zrot[0][0] = cos( DEG2RAD( degrees ) );
-	zrot[0][1] = sin( DEG2RAD( degrees ) );
-	zrot[1][0] = -sin( DEG2RAD( degrees ) );
-	zrot[1][1] = cos( DEG2RAD( degrees ) );
-
-	R_ConcatRotations( m, zrot, tmpmat );
-	R_ConcatRotations( tmpmat, im, rot );
-
-	for ( i = 0; i < 3; i++ )
-	{
-		dst[i] = rot[i][0] * point[0] + rot[i][1] * point[1] + rot[i][2] * point[2];
-	}
-}
 /*-----------------------------------------------------------------*/
 
 
@@ -266,46 +211,17 @@ int BoxOnPlaneSide (vec3_t emins, vec3_t emaxs, mplane_t *p)
 }
 
 //johnfitz -- the opposite of AngleVectors.  this takes forward and generates pitch yaw roll
-//Spike: take right and up vectors to properly set yaw and roll
-void VectorAngles (const vec3_t forward, float *up, vec3_t angles)
+//TODO: take right and up vectors to properly set yaw and roll
+void VectorAngles (const vec3_t forward, vec3_t angles)
 {
-	if (forward[0] == 0 && forward[1] == 0)
-	{	//either vertically up or down
-		if (forward[2] > 0)
-		{
-			angles[PITCH] = -90;
-			angles[YAW] = up ? atan2(-up[1], -up[0]) / M_PI_DIV_180: 0;
-		}
-		else
-		{
-			angles[PITCH] = 90;
-			angles[YAW] = up ? atan2(up[1], up[0]) / M_PI_DIV_180: 0;
-		}
-		angles[ROLL] = 0;
-	}
-	else
-	{
-		angles[PITCH] = -atan2(forward[2], sqrt(DotProduct2(forward,forward)));
-		angles[YAW] = atan2(forward[1], forward[0]);
+	vec3_t temp;
 
-		if (up)
-		{
-			vec_t cp = cos(angles[PITCH]), sp = sin(angles[PITCH]);
-			vec_t cy = cos(angles[YAW]), sy = sin(angles[YAW]);
-			vec3_t tleft, tup;
-			tleft[0] = -sy;
-			tleft[1] = cy;
-			tleft[2] = 0;
-			tup[0] = sp*cy;
-			tup[1] = sp*sy;
-			tup[2] = cp;
-			angles[ROLL] = -atan2(DotProduct(up, tleft), DotProduct(up, tup)) / M_PI_DIV_180;
-		}
-		else angles[ROLL] = 0;
-
-		angles[PITCH] /= M_PI_DIV_180;
-		angles[YAW] /= M_PI_DIV_180;
-	}
+	temp[0] = forward[0];
+	temp[1] = forward[1];
+	temp[2] = 0;
+	angles[PITCH] = -atan2(forward[2], VectorLength(temp)) / M_PI_DIV_180;
+	angles[YAW] = atan2(forward[1], forward[0]) / M_PI_DIV_180;
+	angles[ROLL] = 0;
 }
 
 void AngleVectors (vec3_t angles, vec3_t forward, vec3_t right, vec3_t up)
@@ -334,7 +250,7 @@ void AngleVectors (vec3_t angles, vec3_t forward, vec3_t right, vec3_t up)
 	up[2] = cr*cp;
 }
 
-int VectorCompare (const vec3_t v1, const vec3_t v2)
+int VectorCompare (vec3_t v1, vec3_t v2)
 {
 	int		i;
 
@@ -345,7 +261,7 @@ int VectorCompare (const vec3_t v1, const vec3_t v2)
 	return 1;
 }
 
-void VectorMA (const vec3_t veca, float scale, const vec3_t vecb, vec3_t vecc)
+void VectorMA (vec3_t veca, float scale, vec3_t vecb, vec3_t vecc)
 {
 	vecc[0] = veca[0] + scale*vecb[0];
 	vecc[1] = veca[1] + scale*vecb[1];
@@ -353,40 +269,40 @@ void VectorMA (const vec3_t veca, float scale, const vec3_t vecb, vec3_t vecc)
 }
 
 
-vec_t _DotProduct (const vec3_t v1, const vec3_t v2)
+vec_t _DotProduct (vec3_t v1, vec3_t v2)
 {
 	return v1[0]*v2[0] + v1[1]*v2[1] + v1[2]*v2[2];
 }
 
-void _VectorSubtract (const vec3_t veca, const vec3_t vecb, vec3_t out)
+void _VectorSubtract (vec3_t veca, vec3_t vecb, vec3_t out)
 {
 	out[0] = veca[0]-vecb[0];
 	out[1] = veca[1]-vecb[1];
 	out[2] = veca[2]-vecb[2];
 }
 
-void _VectorAdd (const vec3_t veca, const vec3_t vecb, vec3_t out)
+void _VectorAdd (vec3_t veca, vec3_t vecb, vec3_t out)
 {
 	out[0] = veca[0]+vecb[0];
 	out[1] = veca[1]+vecb[1];
 	out[2] = veca[2]+vecb[2];
 }
 
-void _VectorCopy (const vec3_t in, vec3_t out)
+void _VectorCopy (vec3_t in, vec3_t out)
 {
 	out[0] = in[0];
 	out[1] = in[1];
 	out[2] = in[2];
 }
 
-void CrossProduct (const vec3_t v1, const vec3_t v2, vec3_t cross)
+void CrossProduct (vec3_t v1, vec3_t v2, vec3_t cross)
 {
 	cross[0] = v1[1]*v2[2] - v1[2]*v2[1];
 	cross[1] = v1[2]*v2[0] - v1[0]*v2[2];
 	cross[2] = v1[0]*v2[1] - v1[1]*v2[0];
 }
 
-vec_t VectorLength(const vec3_t v)
+vec_t VectorLength(vec3_t v)
 {
 	return sqrt(DotProduct(v,v));
 }
@@ -416,7 +332,7 @@ void VectorInverse (vec3_t v)
 	v[2] = -v[2];
 }
 
-void VectorScale (const vec3_t in, vec_t scale, vec3_t out)
+void VectorScale (vec3_t in, vec_t scale, vec3_t out)
 {
 	out[0] = in[0]*scale;
 	out[1] = in[1]*scale;
