@@ -11,7 +11,7 @@ USE_CODEC_FLAC=1
 USE_CODEC_MP3=1
 USE_CODEC_VORBIS=1
 USE_CODEC_OPUS=1
-# either mikmod, or xmp
+# either mikmod or xmp
 USE_CODEC_MIKMOD=1
 USE_CODEC_XMP=0
 USE_CODEC_UMX=1
@@ -30,6 +30,8 @@ check_gcc = $(shell if echo | $(CC) $(1) -Werror -S -o /dev/null -xc - > /dev/nu
 # ---------------------------
 
 DEBUG   ?= 0
+WINSOCK2?= 1
+USE_ZLIB?= 1
 
 # ---------------------------
 # build variables
@@ -48,7 +50,7 @@ CFLAGS ?= -m64 -Wall -Wno-trigraphs
 CFLAGS += $(CPUFLAGS)
 
 ifneq ($(DEBUG),0)
-DFLAGS += -D_DEBUG
+DFLAGS += -DDEBUG
 CFLAGS += -g
 do_strip=
 else
@@ -69,8 +71,13 @@ SDL_CONFIG ?=../Windows/SDL2/bin/sdl2-config --prefix=../Windows/SDL2 --lib-suff
 SDL_CFLAGS := $(shell $(SDL_CONFIG) --cflags)
 SDL_LIBS   := $(shell $(SDL_CONFIG) --libs)
 
+ifeq ($(WINSOCK2),1)
 DEFWINSOCK :=-D_USE_WINSOCK2
 LIBWINSOCK := -lws2_32
+else
+DEFWINSOCK :=
+LIBWINSOCK := -lwsock32
+endif
 
 CFLAGS     += $(DEFWINSOCK)
 NET_LIBS   := $(LIBWINSOCK)
@@ -155,6 +162,11 @@ CFLAGS+= $(VULKAN_INC)
 
 COMMON_LIBS:= -lm -lwinmm
 
+ifeq ($(USE_ZLIB),1)
+CFLAGS+= -DUSE_ZLIB
+COMMON_LIBS+= `$(CC) -print-file-name=libz.a`
+endif
+
 LIBS := $(COMMON_LIBS) $(NET_LIBS) $(CODEC_LINK) $(CODECLIBS) $(VULKAN_LINK) $(VULKAN_LIBS)
 
 # ---------------------------
@@ -191,7 +203,7 @@ MUSIC_OBJS:= bgmusic.o \
 	snd_mikmod.o \
 	snd_xmp.o \
 	snd_umx.o
-COMOBJ_SND := snd_dma.o snd_mix.o snd_mem.o $(MUSIC_OBJS)
+COMOBJ_SND := snd_voip.o snd_dma.o snd_mix.o snd_mem.o $(MUSIC_OBJS)
 SYSOBJ_SND := snd_sdl.o
 SYSOBJ_CDA := cd_sdl.o
 SYSOBJ_INPUT := in_sdl.o
@@ -229,6 +241,7 @@ GLOBJS = \
 	gl_fog.o \
 	gl_rmisc.o \
 	r_part.o \
+	r_part_fte.o \
 	r_world.o \
 	gl_screen.o \
 	gl_sky.o \
@@ -269,6 +282,7 @@ OBJS := strlcat.o \
 	wad.o \
 	cmd.o \
 	common.o \
+	fs_zip.o \
 	crc.o \
 	cvar.o \
 	cfgfile.o \
@@ -276,6 +290,7 @@ OBJS := strlcat.o \
 	host_cmd.o \
 	mathlib.o \
 	pr_cmds.o \
+	pr_ext.o \
 	pr_edict.o \
 	pr_exec.o \
 	sv_main.o \

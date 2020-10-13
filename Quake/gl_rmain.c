@@ -430,9 +430,13 @@ void R_DrawEntitiesOnList (qboolean alphapass) //johnfitz -- added parameter
 			continue;
 
 		//johnfitz -- chasecam
-		if (currententity == &cl_entities[cl.viewentity])
+		if (currententity == &cl.entities[cl.viewentity])
 			currententity->angles[0] *= 0.3;
 		//johnfitz
+
+		//spike -- this would be more efficient elsewhere, but its more correct here.
+		if (currententity->eflags & EFLAGS_EXTERIORMODEL)
+			continue;
 
 		switch (currententity->model->type)
 		{
@@ -444,6 +448,9 @@ void R_DrawEntitiesOnList (qboolean alphapass) //johnfitz -- added parameter
 				break;
 			case mod_sprite:
 				R_DrawSpriteModel (currententity);
+				break;
+			case mod_ext_invalid:
+				//nothing. could draw a blob instead.
 				break;
 		}
 	}
@@ -615,9 +622,9 @@ void R_RenderView (void)
 	time2 = Sys_DoubleTime ();
 	if (r_pos.value)
 		Con_Printf ("x %i y %i z %i (pitch %i yaw %i roll %i)\n",
-			(int)cl_entities[cl.viewentity].origin[0],
-			(int)cl_entities[cl.viewentity].origin[1],
-			(int)cl_entities[cl.viewentity].origin[2],
+			(int)cl.entities[cl.viewentity].origin[0],
+			(int)cl.entities[cl.viewentity].origin[1],
+			(int)cl.entities[cl.viewentity].origin[2],
 			(int)cl.viewangles[PITCH],
 			(int)cl.viewangles[YAW],
 			(int)cl.viewangles[ROLL]);

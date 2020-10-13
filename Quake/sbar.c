@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 
+extern	qboolean premul_hud;
 int		sb_updates;		// if >= vid.numpages, no update needed
 
 #define STAT_MINUS		10	// num frame for '-' stats digit
@@ -62,6 +63,11 @@ qpic_t		*hsb_weapons[7][5];   // 0 is active, 1 is owned, 2-5 are flashes
 int		hipweapons[4] = {HIT_LASER_CANNON_BIT,HIT_MJOLNIR_BIT,4,HIT_PROXIMITY_GUN_BIT};
 //MED 01/04/97 added hipnotic items array
 qpic_t		*hsb_items[2];
+
+//spike -- fix -game hipnotic by autodetecting hud types. the fte protocols will deal with the networking issue, other than demos, anyway
+static int hudtype;
+#define hipnotic (hudtype==1)
+#define rogue (hudtype==2)
 
 void Sbar_MiniDeathmatchOverlay (void);
 void Sbar_DeathmatchOverlay (void);
@@ -105,6 +111,22 @@ void Sbar_Changed (void)
 	sb_updates = 0;	// update next frame
 }
 
+
+qpic_t *Sbar_CheckPicFromWad (const char *name)
+{
+	extern qpic_t *pic_nul;
+	qpic_t *r;
+	lumpinfo_t *info;
+	if (!hudtype)
+		return pic_nul;	//one already failed, don't waste cpu
+	if (!W_GetLumpName(name, &info))
+		r = pic_nul;
+	else
+		r = Draw_PicFromWad(name);
+	if (r == pic_nul)
+		hudtype = 0;
+	return r;
+}
 /*
 ===============
 Sbar_LoadPics -- johnfitz -- load all the sbar pics
@@ -194,55 +216,59 @@ void Sbar_LoadPics (void)
 	sb_ibar = Draw_PicFromWad ("ibar");
 	sb_scorebar = Draw_PicFromWad ("scorebar");
 
-//MED 01/04/97 added new hipnotic weapons
-	if (hipnotic)
-	{
-		hsb_weapons[0][0] = Draw_PicFromWad ("inv_laser");
-		hsb_weapons[0][1] = Draw_PicFromWad ("inv_mjolnir");
-		hsb_weapons[0][2] = Draw_PicFromWad ("inv_gren_prox");
-		hsb_weapons[0][3] = Draw_PicFromWad ("inv_prox_gren");
-		hsb_weapons[0][4] = Draw_PicFromWad ("inv_prox");
+	hudtype = 0;
 
-		hsb_weapons[1][0] = Draw_PicFromWad ("inv2_laser");
-		hsb_weapons[1][1] = Draw_PicFromWad ("inv2_mjolnir");
-		hsb_weapons[1][2] = Draw_PicFromWad ("inv2_gren_prox");
-		hsb_weapons[1][3] = Draw_PicFromWad ("inv2_prox_gren");
-		hsb_weapons[1][4] = Draw_PicFromWad ("inv2_prox");
+//MED 01/04/97 added new hipnotic weapons
+	if (!hudtype)
+	{
+		hudtype = 1;
+		hsb_weapons[0][0] = Sbar_CheckPicFromWad ("inv_laser");
+		hsb_weapons[0][1] = Sbar_CheckPicFromWad ("inv_mjolnir");
+		hsb_weapons[0][2] = Sbar_CheckPicFromWad ("inv_gren_prox");
+		hsb_weapons[0][3] = Sbar_CheckPicFromWad ("inv_prox_gren");
+		hsb_weapons[0][4] = Sbar_CheckPicFromWad ("inv_prox");
+
+		hsb_weapons[1][0] = Sbar_CheckPicFromWad ("inv2_laser");
+		hsb_weapons[1][1] = Sbar_CheckPicFromWad ("inv2_mjolnir");
+		hsb_weapons[1][2] = Sbar_CheckPicFromWad ("inv2_gren_prox");
+		hsb_weapons[1][3] = Sbar_CheckPicFromWad ("inv2_prox_gren");
+		hsb_weapons[1][4] = Sbar_CheckPicFromWad ("inv2_prox");
 
 		for (i = 0; i < 5; i++)
 		{
-			hsb_weapons[2+i][0] = Draw_PicFromWad (va("inva%i_laser",i+1));
-			hsb_weapons[2+i][1] = Draw_PicFromWad (va("inva%i_mjolnir",i+1));
-			hsb_weapons[2+i][2] = Draw_PicFromWad (va("inva%i_gren_prox",i+1));
-			hsb_weapons[2+i][3] = Draw_PicFromWad (va("inva%i_prox_gren",i+1));
-			hsb_weapons[2+i][4] = Draw_PicFromWad (va("inva%i_prox",i+1));
+			hsb_weapons[2+i][0] = Sbar_CheckPicFromWad (va("inva%i_laser",i+1));
+			hsb_weapons[2+i][1] = Sbar_CheckPicFromWad (va("inva%i_mjolnir",i+1));
+			hsb_weapons[2+i][2] = Sbar_CheckPicFromWad (va("inva%i_gren_prox",i+1));
+			hsb_weapons[2+i][3] = Sbar_CheckPicFromWad (va("inva%i_prox_gren",i+1));
+			hsb_weapons[2+i][4] = Sbar_CheckPicFromWad (va("inva%i_prox",i+1));
 		}
 
-		hsb_items[0] = Draw_PicFromWad ("sb_wsuit");
-		hsb_items[1] = Draw_PicFromWad ("sb_eshld");
+		hsb_items[0] = Sbar_CheckPicFromWad ("sb_wsuit");
+		hsb_items[1] = Sbar_CheckPicFromWad ("sb_eshld");
 	}
 
-	if (rogue)
+	if (!hudtype)
 	{
-		rsb_invbar[0] = Draw_PicFromWad ("r_invbar1");
-		rsb_invbar[1] = Draw_PicFromWad ("r_invbar2");
+		hudtype = 2;
+		rsb_invbar[0] = Sbar_CheckPicFromWad ("r_invbar1");
+		rsb_invbar[1] = Sbar_CheckPicFromWad ("r_invbar2");
 
-		rsb_weapons[0] = Draw_PicFromWad ("r_lava");
-		rsb_weapons[1] = Draw_PicFromWad ("r_superlava");
-		rsb_weapons[2] = Draw_PicFromWad ("r_gren");
-		rsb_weapons[3] = Draw_PicFromWad ("r_multirock");
-		rsb_weapons[4] = Draw_PicFromWad ("r_plasma");
+		rsb_weapons[0] = Sbar_CheckPicFromWad ("r_lava");
+		rsb_weapons[1] = Sbar_CheckPicFromWad ("r_superlava");
+		rsb_weapons[2] = Sbar_CheckPicFromWad ("r_gren");
+		rsb_weapons[3] = Sbar_CheckPicFromWad ("r_multirock");
+		rsb_weapons[4] = Sbar_CheckPicFromWad ("r_plasma");
 
-		rsb_items[0] = Draw_PicFromWad ("r_shield1");
-		rsb_items[1] = Draw_PicFromWad ("r_agrav1");
+		rsb_items[0] = Sbar_CheckPicFromWad ("r_shield1");
+		rsb_items[1] = Sbar_CheckPicFromWad ("r_agrav1");
 
 // PGM 01/19/97 - team color border
-		rsb_teambord = Draw_PicFromWad ("r_teambord");
+		rsb_teambord = Sbar_CheckPicFromWad ("r_teambord");
 // PGM 01/19/97 - team color border
 
-		rsb_ammo[0] = Draw_PicFromWad ("r_ammolava");
-		rsb_ammo[1] = Draw_PicFromWad ("r_ammomulti");
-		rsb_ammo[2] = Draw_PicFromWad ("r_ammoplasma");
+		rsb_ammo[0] = Sbar_CheckPicFromWad ("r_ammolava");
+		rsb_ammo[1] = Sbar_CheckPicFromWad ("r_ammomulti");
+		rsb_ammo[2] = Sbar_CheckPicFromWad ("r_ammoplasma");
 	}
 }
 
@@ -905,6 +931,34 @@ void Sbar_DrawFace (void)
 	Sbar_DrawPic (112, 0, sb_faces[f][anim]);
 }
 
+static void Sbar_Voice(int y)
+{
+	cvar_t snd_voip_showmeter;
+	int loudness;
+	snd_voip_showmeter.value = 1;
+	if (!snd_voip_showmeter.value)
+		return;
+	loudness = S_Voip_Loudness(snd_voip_showmeter.value>=2);
+	if (loudness >= 0)
+	{
+		int cw = 8;
+		int w;
+		int x=160;
+		int s, i;
+		float range = loudness/100.0f;
+		w = (5+16+1)*cw;
+		x -= w/2;
+		Draw_Character (x, y, 'M');		x+=cw;
+		Draw_Character (x, y, 'i');		x+=cw;
+		Draw_Character (x, y, 'c');		x+=cw;
+										x+=cw;
+		Draw_Character (x, y, 0xe080);	x+=cw;
+		for (s=x,i=0 ; i<16 ; i++, x+=cw)
+			Draw_Character(x, y, 0xe081);
+		Draw_Character (x, y, 0xe082);
+		Draw_Character (s + (x-s) * range - cw/2, y, 0xe083);
+	}
+}
 /*
 ===============
 Sbar_Draw
@@ -923,6 +977,13 @@ void Sbar_Draw (void)
 	sb_updates++;
 
 	GL_SetCanvas (CANVAS_DEFAULT); //johnfitz
+
+	if (sb_lines > 24)
+		Sbar_Voice(-32);
+	else if (sb_lines > 0)
+		Sbar_Voice(-8);
+	else
+		Sbar_Voice(16);
 
 	//johnfitz -- don't waste fillrate by clearing the area behind the sbar
 	w = CLAMP (320.0f, scr_sbarscale.value * 320.0f, (float)glwidth);
@@ -1121,6 +1182,9 @@ void Sbar_DeathmatchOverlay (void)
 		top = Sbar_ColorForMap (top);
 		bottom = Sbar_ColorForMap (bottom);
 
+		if (S_Voip_Speaking(k))	//spike -- display an underlay for people who are speaking
+			Draw_Fill ( x, y, 320-x*2, 8, ((k+1)==cl.viewentity)?75:73, 1);
+
 		Draw_Fill ( x, y, 40, 4, top, 1); //johnfitz -- stretched overlays
 		Draw_Fill ( x, y+4, 40, 4, bottom, 1); //johnfitz -- stretched overlays
 
@@ -1153,6 +1217,9 @@ void Sbar_DeathmatchOverlay (void)
 }
 #endif
 
+		sprintf (num, "%4i", s->ping);
+		M_PrintWhite (x-8*5, y, num); //johnfitz -- was Draw_String, changed for stretched overlays
+
 	// draw name
 		M_Print (x+64, y, s->name); //johnfitz -- was Draw_String, changed for stretched overlays
 
@@ -1160,6 +1227,13 @@ void Sbar_DeathmatchOverlay (void)
 	}
 
 	GL_SetCanvas (CANVAS_SBAR); //johnfitz
+
+	if (!cls.message.cursize && cl.expectingpingtimes < realtime)
+	{
+		cl.expectingpingtimes = realtime + 5;
+		MSG_WriteByte (&cls.message, clc_stringcmd);
+		MSG_WriteString(&cls.message, "ping");
+	}
 }
 
 /*

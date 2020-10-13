@@ -31,6 +31,9 @@ void SCR_LoadPics (void);
 void SCR_UpdateScreen (void);
 
 
+void SCR_SizeUp (void);
+void SCR_SizeDown (void);
+void SCR_BringDownConsole (void);
 void SCR_CenterPrint (const char *str);
 
 void SCR_BeginLoadingPlaque (void);
@@ -45,10 +48,13 @@ extern	int			sb_lines;
 
 extern	int			clearnotify;	// set to 0 whenever notify text is drawn
 extern	qboolean	scr_disabled_for_loading;
+extern	qboolean	scr_skipupdate;
 
 extern	cvar_t		scr_viewsize;
 
 extern	cvar_t		scr_sbaralpha; //johnfitz
+
+void SCR_UpdateWholeScreen (void);
 
 //johnfitz -- stuff for 2d drawing control
 typedef enum {
@@ -62,6 +68,7 @@ typedef enum {
 	CANVAS_BOTTOMLEFT,
 	CANVAS_BOTTOMRIGHT,
 	CANVAS_TOPRIGHT,
+	CANVAS_CSQC,
 	CANVAS_INVALID = -1
 } canvastype;
 extern	cvar_t		scr_menuscale;

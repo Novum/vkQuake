@@ -86,6 +86,7 @@ void *VID_GetWindow (void);
 qboolean VID_HasMouseOrInputFocus (void);
 qboolean VID_IsMinimized (void);
 void	VID_Lock (void);
+void	VID_SetWindowCaption(const char *newcaption);
 
 #endif	/* __VID_DEFS_H */
 

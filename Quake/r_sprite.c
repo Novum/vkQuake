@@ -87,6 +87,7 @@ void R_DrawSpriteModel (entity_t *e)
 	mspriteframe_t	*frame;
 	float			*s_up, *s_right;
 	float			angle, sr, cr;
+	float			scale;
 
 	//TODO: frustum cull it?
 
@@ -141,38 +142,47 @@ void R_DrawSpriteModel (entity_t *e)
 		return;
 	}
 
+	//johnfitz: offset decals
+	if (psprite->type == SPR_ORIENTED)
+		GL_PolygonOffset (OFFSET_DECAL);
+
+	if (e->netstate.scale != 16)
+		scale = e->netstate.scale/16.0;
+	else
+		scale = 1;
+
 	VkBuffer buffer;
 	VkDeviceSize buffer_offset;
 	basicvertex_t * vertices = (basicvertex_t*)R_VertexAllocate(4 * sizeof(basicvertex_t), &buffer, &buffer_offset);
 
 	memset(vertices, 255, 4 * sizeof(basicvertex_t));
 
-	VectorMA (e->origin, frame->down, s_up, point);
-	VectorMA (point, frame->left, s_right, point);
+	VectorMA (e->origin, frame->down*scale, s_up, point);
+	VectorMA (point, frame->left*scale, s_right, point);
 	vertices[0].position[0] = point[0];
 	vertices[0].position[1] = point[1];
 	vertices[0].position[2] = point[2];
 	vertices[0].texcoord[0] = 0.0f;
 	vertices[0].texcoord[1] = frame->tmax;
 
-	VectorMA (e->origin, frame->up, s_up, point);
-	VectorMA (point, frame->left, s_right, point);
+	VectorMA (e->origin, frame->up*scale, s_up, point);
+	VectorMA (point, frame->left*scale, s_right, point);
 	vertices[1].position[0] = point[0];
 	vertices[1].position[1] = point[1];
 	vertices[1].position[2] = point[2];
 	vertices[1].texcoord[0] = 0.0f;
 	vertices[1].texcoord[1] = 0.0f;
 
-	VectorMA (e->origin, frame->up, s_up, point);
-	VectorMA (point, frame->right, s_right, point);
+	VectorMA (e->origin, frame->up*scale, s_up, point);
+	VectorMA (point, frame->right*scale, s_right, point);
 	vertices[2].position[0] = point[0];
 	vertices[2].position[1] = point[1];
 	vertices[2].position[2] = point[2];
 	vertices[2].texcoord[0] = frame->smax;
 	vertices[2].texcoord[1] = 0.0f;
 
-	VectorMA (e->origin, frame->down, s_up, point);
-	VectorMA (point, frame->right, s_right, point);
+	VectorMA (e->origin, frame->down*scale, s_up, point);
+	VectorMA (point, frame->right*scale, s_right, point);
 	vertices[3].position[0] = point[0];
 	vertices[3].position[1] = point[1];
 	vertices[3].position[2] = point[2];

@@ -414,9 +414,19 @@ void R_ParseParticleEffect (void)
 	color = MSG_ReadByte ();
 
 	if (msgcount == 255)
-		count = 1024;
+	{
+		if (!PScript_RunParticleEffectTypeString(org, dir, 1, "te_explosion"))
+			count = 0;
+		else
+			count = 1024;
+	}
 	else
-		count = msgcount;
+	{
+		if (!PScript_RunParticleEffect(org, dir, color, msgcount))
+			count = 0;
+		else
+			count = msgcount;
+	}
 
 	R_RunParticleEffect (org, dir, color, count);
 }

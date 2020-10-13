@@ -54,7 +54,7 @@ state bit 2 is edge triggered on the down to up transition
 kbutton_t	in_mlook, in_klook;
 kbutton_t	in_left, in_right, in_forward, in_back;
 kbutton_t	in_lookup, in_lookdown, in_moveleft, in_moveright;
-kbutton_t	in_strafe, in_speed, in_use, in_jump, in_attack;
+kbutton_t	in_strafe, in_speed, in_jump, in_attack, in_button3, in_button4, in_button5, in_button6, in_button7, in_button8;
 kbutton_t	in_up, in_down;
 
 int			in_impulse;
@@ -156,10 +156,23 @@ void IN_StrafeUp(void) {KeyUp(&in_strafe);}
 void IN_AttackDown(void) {KeyDown(&in_attack);}
 void IN_AttackUp(void) {KeyUp(&in_attack);}
 
-void IN_UseDown (void) {KeyDown(&in_use);}
-void IN_UseUp (void) {KeyUp(&in_use);}
+void IN_UseDown (void) {KeyDown(&in_button3);}
+void IN_UseUp (void) {KeyUp(&in_button3);}
 void IN_JumpDown (void) {KeyDown(&in_jump);}
 void IN_JumpUp (void) {KeyUp(&in_jump);}
+
+void IN_Button3Down(void) {KeyDown(&in_button3);}
+void IN_Button3Up(void) {KeyUp(&in_button3);}
+void IN_Button4Down(void) {KeyDown(&in_button4);}
+void IN_Button4Up(void) {KeyUp(&in_button4);}
+void IN_Button5Down(void) {KeyDown(&in_button5);}
+void IN_Button5Up(void) {KeyUp(&in_button5);}
+void IN_Button6Down(void) {KeyDown(&in_button6);}
+void IN_Button6Up(void) {KeyUp(&in_button6);}
+void IN_Button7Down(void) {KeyDown(&in_button7);}
+void IN_Button7Up(void) {KeyUp(&in_button7);}
+void IN_Button8Down(void) {KeyDown(&in_button8);}
+void IN_Button8Up(void) {KeyUp(&in_button8);}
 
 void IN_Impulse (void) {in_impulse=Q_atoi(Cmd_Argv(1));}
 
@@ -337,17 +350,25 @@ CL_SendMove
 */
 void CL_SendMove (const usercmd_t *cmd)
 {
-	int		i;
-	int		bits;
-	sizebuf_t	buf;
-	byte	data[128];
+	unsigned int	i;
+	int				bits;
+	sizebuf_t		buf;
+	byte			data[1024];
 
-	buf.maxsize = 128;
+	buf.maxsize = sizeof(data);
 	buf.cursize = 0;
 	buf.data = data;
 
-	if (cmd) 
+	for (i = 0; i < cl.ackframes_count; i++)
 	{
+		MSG_WriteByte(&buf, clcdp_ackframe);
+		MSG_WriteLong(&buf, cl.ackframes[i]);
+	}
+	cl.ackframes_count = 0;
+
+	if (cmd)
+	{
+		int dump = buf.cursize;
 		cl.cmd = *cmd;
 
 	//
@@ -355,11 +376,23 @@ void CL_SendMove (const usercmd_t *cmd)
 	//
 		MSG_WriteByte (&buf, clc_move);
 
+		if (cl.protocol == PROTOCOL_VERSION_DP7)
+		{
+			if (1)
+				MSG_WriteLong(&buf, 0);
+			else
+				MSG_WriteLong(&buf, cl.movemessages);
+		}
+		else if (cl.protocol_pext2 & PEXT2_PREDINFO)
+			MSG_WriteShort(&buf, cl.movemessages&0xffff);	//server will ack this once it has been applied to the player's entity state
 		MSG_WriteFloat (&buf, cl.mtime[0]);	// so server can get ping times
 
 		for (i=0 ; i<3 ; i++)
 			//johnfitz -- 16-bit angles for PROTOCOL_FITZQUAKE
-			if (cl.protocol == PROTOCOL_NETQUAKE)
+			//spike -- nq+bjp3 use 8bit angles. all other supported protocols use 16bit ones.
+			//spike -- proquake servers bump client->server angles up to at least 16bit. this is safe because it only happens when both client+server advertise it, and because it never actually gets recorded into demos anyway.
+			//spike -- predinfo also always means 16bit angles, even if for some reason the server doesn't advertise proquake (like dp).
+			if ((cl.protocol == PROTOCOL_NETQUAKE || cl.protocol == PROTOCOL_VERSION_BJP3) && !NET_QSocketGetProQuakeAngleHack(cls.netcon) && !(cl.protocol_pext2 & PEXT2_PREDINFO))
 				MSG_WriteAngle (&buf, cl.viewangles[i], cl.protocolflags);
 			else
 				MSG_WriteAngle16 (&buf, cl.viewangles[i], cl.protocolflags);
@@ -382,23 +415,69 @@ void CL_SendMove (const usercmd_t *cmd)
 			bits |= 2;
 		in_jump.state &= ~2;
 
-		MSG_WriteByte (&buf, bits);
+		if (in_button3.state & 3)
+			bits |= 4;
+		in_button3.state &= ~2;
 
-		MSG_WriteByte (&buf, in_impulse);
+		if (in_button4.state & 3)
+			bits |= 8;
+		in_button4.state &= ~2;
+
+		if (in_button5.state & 3)
+			bits |= 16;
+		in_button5.state &= ~2;
+		
+		if (in_button6.state & 3)
+			bits |= 32;
+		in_button6.state &= ~2;
+
+		if (in_button7.state & 3)
+			bits |= 64;
+		in_button7.state &= ~2;
+
+		if (in_button8.state & 3)
+			bits |= 128;
+		in_button8.state &= ~2;
+
+		if (cl.protocol == PROTOCOL_VERSION_DP7)
+		{
+			MSG_WriteLong (&buf, bits);
+			MSG_WriteByte (&buf, in_impulse);
+			MSG_WriteShort(&buf, 32767);//cursor x
+			MSG_WriteShort(&buf, 32767);//cursor y
+			MSG_WriteFloat(&buf, r_refdef.vieworg[0]);	//start (view pos)
+			MSG_WriteFloat(&buf, r_refdef.vieworg[1]);
+			MSG_WriteFloat(&buf, r_refdef.vieworg[2]);
+			MSG_WriteFloat(&buf, r_refdef.vieworg[0]);	//impact
+			MSG_WriteFloat(&buf, r_refdef.vieworg[1]);
+			MSG_WriteFloat(&buf, r_refdef.vieworg[2]);
+			MSG_WriteShort(&buf, 0);	//entity
+		}
+		else
+		{
+			MSG_WriteByte (&buf, bits);
+			MSG_WriteByte (&buf, in_impulse);
+		}
 		in_impulse = 0;
+
+	//
+	// allways dump the first two message, because it may contain leftover inputs
+	// from the last level
+	//
+		if (++cl.movemessages <= 2)
+			buf.cursize = dump;
+		else
+			S_Voip_Transmit(clcfte_voicechat, &buf);/*Spike: Add voice data*/
 	}
+	else
+		S_Voip_Transmit(clcfte_voicechat, NULL);/*Spike: Add voice data (with cl_voip_test anyway)*/
 
-//
-// deliver the message
-//
-	if (cls.demoplayback)
-		return;
+	//fixme: nops if we're still connecting, or something.
 
-//
-// allways dump the first two message, because it may contain leftover inputs
-// from the last level
-//
-	if (++cl.movemessages <= 2)
+	//
+	// deliver the message
+	//
+	if (cls.demoplayback || !buf.cursize)
 		return;
 
 	if (NET_SendUnreliableMessage (cls.netcon, &buf) == -1)
@@ -443,6 +522,18 @@ void CL_InitInput (void)
 	Cmd_AddCommand ("-attack", IN_AttackUp);
 	Cmd_AddCommand ("+use", IN_UseDown);
 	Cmd_AddCommand ("-use", IN_UseUp);
+	Cmd_AddCommand ("+button3", IN_Button3Down);
+	Cmd_AddCommand ("-button3", IN_Button3Up);
+	Cmd_AddCommand ("+button4", IN_Button4Down);
+	Cmd_AddCommand ("-button4", IN_Button4Up);
+	Cmd_AddCommand ("+button5", IN_Button5Down);
+	Cmd_AddCommand ("-button5", IN_Button5Up);
+	Cmd_AddCommand ("+button6", IN_Button6Down);
+	Cmd_AddCommand ("-button6", IN_Button6Up);
+	Cmd_AddCommand ("+button7", IN_Button7Down);
+	Cmd_AddCommand ("-button7", IN_Button7Up);
+	Cmd_AddCommand ("+button8", IN_Button8Down);
+	Cmd_AddCommand ("-button8", IN_Button8Up);
 	Cmd_AddCommand ("+jump", IN_JumpDown);
 	Cmd_AddCommand ("-jump", IN_JumpUp);
 	Cmd_AddCommand ("impulse", IN_Impulse);

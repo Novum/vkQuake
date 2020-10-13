@@ -237,6 +237,12 @@ void *Z_Realloc(void *ptr, int size)
 	if (!ptr)
 		Sys_Error ("Z_Realloc: failed on allocation of %i bytes", size);
 
+	//Spike -- fix a bug where alignment resulted in no 0-initialisation
+	block = (memblock_t *) ((byte *) ptr - sizeof (memblock_t));
+	size = block->size;
+	size -= (4 + (int)sizeof(memblock_t));	/* see Z_TagMalloc() */
+	//Spike -- end fix
+
 	if (ptr != old_ptr)
 		memmove (ptr, old_ptr, q_min(old_size, size));
 	if (old_size < size)

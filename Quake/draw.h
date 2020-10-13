@@ -30,7 +30,9 @@ extern	qpic_t		*draw_disc;	// also used on sbar
 
 void Draw_Init (void);
 void Draw_Character (int x, int y, int num);
+void Draw_DebugChar (char num);
 void Draw_Pic (int x, int y, qpic_t *pic, float alpha, qboolean alpha_blend);
+void Draw_SubPic (float x, float y, float w, float h, qpic_t *pic, float s1, float t1, float s2, float t2);
 void Draw_TransPicTranslate (int x, int y, qpic_t *pic, int top, int bottom); //johnfitz -- more parameters
 void Draw_ConsoleBackground (void); //johnfitz -- removed parameter int lines
 void Draw_TileClear (int x, int y, int w, int h);
@@ -39,7 +41,17 @@ void Draw_FadeScreen (void);
 void Draw_String (int x, int y, const char *str);
 qpic_t *Draw_PicFromWad (const char *name);
 qpic_t *Draw_CachePic (const char *path);
+qpic_t *Draw_TryCachePic (const char *path);
 void Draw_NewGame (void);
+
+//Spike -- this is for csqc
+typedef struct
+{
+	vec_t xy[2];
+	vec_t st[2];
+	vec4_t rgba;
+} polygonvert_t;
+void Draw_PicPolygon(qpic_t *pic, unsigned int numverts, polygonvert_t *verts);
 
 void GL_Viewport(float x, float y, float width, float height, float min_depth, float max_depth);
 void GL_SetCanvas (canvastype newcanvas); //johnfitz

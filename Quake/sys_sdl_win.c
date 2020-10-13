@@ -42,25 +42,29 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
 qboolean		isDedicated;
+qboolean	Win95, Win95old, WinNT, WinVista;
 cvar_t		sys_throttle = {"sys_throttle", "0.02", CVAR_ARCHIVE};
 
 static HANDLE		hinput, houtput;
 
-#define	MAX_HANDLES		32	/* johnfitz -- was 10 */
-static FILE		*sys_handles[MAX_HANDLES];
-
-
+static size_t	sys_handles_max;	/* spike -- removed limit, was 32 (johnfitz -- was 10) */
+static FILE		**sys_handles;
 static int findhandle (void)
 {
-	int i;
+	size_t i, n;
 
-	for (i = 1; i < MAX_HANDLES; i++)
+	for (i = 1; i < sys_handles_max; i++)
 	{
 		if (!sys_handles[i])
 			return i;
 	}
-	Sys_Error ("out of handles");
-	return -1;
+	n = sys_handles_max+10;
+	sys_handles = realloc(sys_handles, sizeof(*sys_handles)*n);
+	if (!sys_handles)
+		Sys_Error ("out of handles");
+	while (sys_handles_max < n)
+		sys_handles[sys_handles_max++] = NULL;
+	return i;
 }
 
 long Sys_filelength (FILE *f)
@@ -110,6 +114,14 @@ int Sys_FileOpenWrite (const char *path)
 		Sys_Error ("Error opening %s: %s", path, strerror(errno));
 
 	sys_handles[i] = f;
+	return i;
+}
+
+int Sys_FileOpenStdio (FILE *file)
+{
+	int		i;
+	i = findhandle ();
+	sys_handles[i] = file;
 	return i;
 }
 
@@ -270,6 +282,10 @@ void Sys_Error (const char *error, ...)
 	q_vsnprintf (text, sizeof(text), error, argptr);
 	va_end (argptr);
 
+	PR_SwitchQCVM(NULL);
+
+	Con_Redirect(NULL);
+
 	if (isDedicated)
 		WriteFile (houtput, errortxt1, strlen(errortxt1), &dummy, NULL);
 	/* SDL will put these into its own stderr log,
@@ -308,14 +324,20 @@ void Sys_Printf (const char *fmt, ...)
 
 	if (isDedicated)
 	{
-		WriteFile(houtput, text, strlen(text), &dummy, NULL);
+		if (*text == 1 || *text == 2)
+		{	//mostly for Con_[D]Warning
+			SetConsoleTextAttribute(houtput, FOREGROUND_RED);
+			WriteFile(houtput, text+1, strlen(text+1), &dummy, NULL);
+			SetConsoleTextAttribute(houtput, FOREGROUND_BLUE|FOREGROUND_GREEN|FOREGROUND_RED);
+		}
+		else
+			WriteFile(houtput, text, strlen(text), &dummy, NULL);
 	}
 	else
 	{
 	/* SDL will put these into its own stdout log,
 	   so print to stdout even in graphical mode. */
 		fputs (text, stdout);
-		OutputDebugStringA(text);
 	}
 }
 
@@ -331,7 +353,11 @@ void Sys_Quit (void)
 
 double Sys_DoubleTime (void)
 {
+#if 1
+	return SDL_GetPerformanceCounter() / (long double)SDL_GetPerformanceFrequency();
+#else
 	return SDL_GetTicks() / 1000.0;
+#endif
 }
 
 const char *Sys_ConsoleInput (void)

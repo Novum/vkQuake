@@ -8,13 +8,17 @@
 # Enable/Disable user directories support
 DO_USERDIRS=0
 
+
+### Enable the use of zlib, for compressed pk3s.
+USE_ZLIB=1
+
 ### Enable/Disable codecs for streaming music support
 USE_CODEC_WAVE=1
 USE_CODEC_FLAC=0
 USE_CODEC_MP3=1
 USE_CODEC_VORBIS=1
-USE_CODEC_OPUS=0
-# either mikmod, or xmp
+USE_CODEC_OPUS=1
+# either mikmod or xmp
 USE_CODEC_MIKMOD=0
 USE_CODEC_XMP=0
 USE_CODEC_UMX=0
@@ -50,11 +54,12 @@ STRIP ?= strip
 #CPUFLAGS= -mtune=k8
 #CPUFLAGS= -march=atom
 CPUFLAGS=
+LDFLAGS =
 DFLAGS ?=
 CFLAGS ?= -Wall -Wno-trigraphs
 CFLAGS += $(CPUFLAGS)
 ifneq ($(DEBUG),0)
-DFLAGS += -D_DEBUG
+DFLAGS += -DDEBUG
 CFLAGS += -g
 do_strip=
 else
@@ -68,6 +73,10 @@ define do_strip
 	$(call cmd_strip,$(1));
 endef
 endif
+
+CFLAGS += $(QSS_CFLAGS)
+LDFLAGS += $(QSS_LDFLAGS)
+
 
 ifneq ($(VULKAN_SDK),)
 LDFLAGS += -L$(VULKAN_SDK)/lib
@@ -152,6 +161,7 @@ ifeq ($(USE_CODEC_OPUS),1)
 CFLAGS+= -DUSE_CODEC_OPUS
 CFLAGS+= $(shell pkg-config --cflags opusfile)
 CODECLIBS+= $(shell pkg-config --libs   opusfile)
+CODECLIBS+= $(shell pkg-config --libs   opus)
 endif
 ifeq ($(USE_CODEC_VORBIS),1)
 CFLAGS+= -DUSE_CODEC_VORBIS $(cpp_vorbisdec)
@@ -181,6 +191,8 @@ CFLAGS+= -DLINUX
 else
 	COMMON_LIBS+= -lMoltenVK
 endif
+
+COMMON_LIBS+= -lz
 
 LIBS := $(COMMON_LIBS) $(NET_LIBS) $(CODECLIBS)
 
@@ -216,7 +228,7 @@ MUSIC_OBJS:= bgmusic.o \
 	snd_mikmod.o \
 	snd_xmp.o \
 	snd_umx.o
-COMOBJ_SND := snd_dma.o snd_mix.o snd_mem.o $(MUSIC_OBJS)
+COMOBJ_SND := snd_voip.o snd_dma.o snd_mix.o snd_mem.o $(MUSIC_OBJS)
 SYSOBJ_SND := snd_sdl.o
 SYSOBJ_CDA := cd_sdl.o
 SYSOBJ_INPUT := in_sdl.o
@@ -254,6 +266,7 @@ GLOBJS = \
 	gl_fog.o \
 	gl_rmisc.o \
 	r_part.o \
+	r_part_fte.o \
 	r_world.o \
 	gl_screen.o \
 	gl_sky.o \
@@ -294,6 +307,7 @@ OBJS := strlcat.o \
 	wad.o \
 	cmd.o \
 	common.o \
+	fs_zip.o \
 	crc.o \
 	cvar.o \
 	cfgfile.o \
@@ -301,6 +315,7 @@ OBJS := strlcat.o \
 	host_cmd.o \
 	mathlib.o \
 	pr_cmds.o \
+	pr_ext.o \
 	pr_edict.o \
 	pr_exec.o \
 	sv_main.o \

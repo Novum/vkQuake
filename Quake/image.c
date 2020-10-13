@@ -69,6 +69,54 @@ static inline int Buf_GetC(stdio_buffer_t *buf)
 	return buf->buffer[buf->pos++];
 }
 
+/*small function to read files with stb_image - single-file image loader library.
+** downloaded from: https://raw.githubusercontent.com/nothings/stb/master/stb_image.h
+** only use jpeg+png formats, because tbh there's not much need for the others.
+** */
+#define STB_IMAGE_IMPLEMENTATION
+#define STBI_ONLY_JPEG
+#ifdef LODEPNG_NO_COMPILE_DECODER
+	#define STBI_ONLY_PNG
+#endif
+#include "stb_image.h"
+static byte *Image_LoadSTBI(FILE *f, int *width, int *height)
+{
+	int bytesPerPixel;
+	byte *heap = stbi_load_from_file(f, width, height, &bytesPerPixel, 4);
+	fclose(f);
+	if (heap)
+	{	//this is silly, but we do it for consistency.
+		//frankly, most people should be using tga-inside-pk3.
+		byte *hunk = Hunk_Alloc(*width**height*4);
+		memcpy(hunk, heap, *width**height*4);
+		free(heap);
+		return hunk;
+	}
+	return NULL;
+}
+
+byte *Image_LoadPNG(FILE *f, int *width, int *height, qboolean *malloced)
+{
+#ifdef LODEPNG_NO_COMPILE_DECODER
+	return Image_LoadSTBI (f, width, height);
+#else
+	unsigned w, h;
+	unsigned char *out = NULL, *in;
+	size_t insize = com_filesize;
+
+	in = malloc(com_filesize);
+	if (!in)
+		return NULL;
+	if (com_filesize == fread(in, 1, com_filesize, f))
+	{
+		*malloced = true;
+		lodepng_decode32(&out, &w, &h, in, insize);
+	}
+	free(in);
+	return out;
+#endif
+}
+
 /*
 ============
 Image_LoadImage
@@ -78,19 +126,44 @@ returns a pointer to hunk allocated RGBA data
 TODO: search order: tga png jpg pcx lmp
 ============
 */
-byte *Image_LoadImage (const char *name, int *width, int *height)
+byte *Image_LoadImage (const char *name, int *width, int *height, qboolean *malloced)
 {
 	FILE	*f;
+	char *prefixes[3] = {"", "textures/", "textures/"};
+	int i;
 
-	q_snprintf (loadfilename, sizeof(loadfilename), "%s.tga", name);
-	COM_FOpenFile (loadfilename, &f, NULL);
-	if (f)
-		return Image_LoadTGA (f, width, height);
+	*malloced = false;
 
-	q_snprintf (loadfilename, sizeof(loadfilename), "%s.pcx", name);
-	COM_FOpenFile (loadfilename, &f, NULL);
-	if (f)
-		return Image_LoadPCX (f, width, height);
+	for (i = 0; i < sizeof(prefixes)/sizeof(prefixes[0]); i++)
+	{
+		if (i == 2)	//last resort...
+			name = COM_SkipPath(name);
+
+		q_snprintf (loadfilename, sizeof(loadfilename), "%s%s.tga", prefixes[i], name);
+		COM_FOpenFile (loadfilename, &f, NULL);
+		if (f)
+			return Image_LoadTGA (f, width, height);
+
+		q_snprintf (loadfilename, sizeof(loadfilename), "%s%s.png", prefixes[i], name);
+		COM_FOpenFile (loadfilename, &f, NULL);
+		if (f)
+			return Image_LoadPNG (f, width, height, malloced);
+
+		q_snprintf (loadfilename, sizeof(loadfilename), "%s%s.jpeg", prefixes[i], name);
+		COM_FOpenFile (loadfilename, &f, NULL);
+		if (f)
+			return Image_LoadSTBI (f, width, height);
+
+		q_snprintf (loadfilename, sizeof(loadfilename), "%s%s.jpg", prefixes[i], name);
+		COM_FOpenFile (loadfilename, &f, NULL);
+		if (f)
+			return Image_LoadSTBI (f, width, height);
+
+		q_snprintf (loadfilename, sizeof(loadfilename), "%s%s.pcx", prefixes[i], name);
+		COM_FOpenFile (loadfilename, &f, NULL);
+		if (f)
+			return Image_LoadPCX (f, width, height);
+	}
 
 	return NULL;
 }
@@ -154,7 +227,7 @@ qboolean Image_WriteTGA (const char *name, byte *data, int width, int height, in
 	if (handle == -1)
 		return false;
 
-	Q_memset (&header, 0, TARGAHEADERSIZE);
+	Q_memset (header, 0, TARGAHEADERSIZE);
 	header[2] = 2; // uncompressed type
 	header[12] = width&255;
 	header[13] = width>>8;
@@ -174,7 +247,7 @@ qboolean Image_WriteTGA (const char *name, byte *data, int width, int height, in
 		data[i+2] = temp;
 	}
 
-	Sys_FileWrite (handle, &header, TARGAHEADERSIZE);
+	Sys_FileWrite (handle, header, TARGAHEADERSIZE);
 	Sys_FileWrite (handle, data, size);
 	Sys_FileClose (handle);
 
@@ -210,11 +283,19 @@ byte *Image_LoadTGA (FILE *fin, int *width, int *height)
 	targa_header.pixel_size = fgetc(fin);
 	targa_header.attributes = fgetc(fin);
 
-	if (targa_header.image_type!=2 && targa_header.image_type!=10)
-		Sys_Error ("Image_LoadTGA: %s is not a type 2 or type 10 targa\n", loadfilename);
+	if (targa_header.image_type==1)
+	{
+		if (targa_header.pixel_size != 8 || targa_header.colormap_size != 24 || targa_header.colormap_length > 256)
+			Sys_Error ("Image_LoadTGA: %s has an %ibit palette\n", loadfilename, targa_header.colormap_type);
+	}
+	else
+	{
+		if (targa_header.image_type!=2 && targa_header.image_type!=10)
+			Sys_Error ("Image_LoadTGA: %s is not a type 2 or type 10 targa (%i)\n", loadfilename, targa_header.image_type);
 
-	if (targa_header.colormap_type !=0 || (targa_header.pixel_size!=32 && targa_header.pixel_size!=24))
-		Sys_Error ("Image_LoadTGA: %s is not a 24bit or 32bit targa\n", loadfilename);
+		if (targa_header.colormap_type !=0 || (targa_header.pixel_size!=32 && targa_header.pixel_size!=24))
+			Sys_Error ("Image_LoadTGA: %s is not a 24bit or 32bit targa\n", loadfilename);
+	}
 
 	columns = targa_header.width;
 	rows = targa_header.height;
@@ -228,7 +309,36 @@ byte *Image_LoadTGA (FILE *fin, int *width, int *height)
 
 	buf = Buf_Alloc(fin);
 
-	if (targa_header.image_type==2) // Uncompressed, RGB images
+	if (targa_header.image_type==1) // Uncompressed, paletted images
+	{
+		byte palette[256*4];
+		int i;
+		//palette data comes first
+		for (i = 0; i < targa_header.colormap_length; i++)
+		{	//this palette data is bgr.
+			palette[i*3+2] = Buf_GetC(buf);
+			palette[i*3+1] = Buf_GetC(buf);
+			palette[i*3+0] = Buf_GetC(buf);
+			palette[i*3+3] = 255;
+		}
+		for (i = targa_header.colormap_length*4; i < sizeof(palette); i++)
+			palette[i] = 0;
+		for(row=rows-1; row>=0; row--)
+		{
+			realrow = upside_down ? row : rows - 1 - row;
+			pixbuf = targa_rgba + realrow*columns*4;
+
+			for(column=0; column<columns; column++)
+			{
+				i = Buf_GetC(buf);
+				*pixbuf++= palette[i*3+0];
+				*pixbuf++= palette[i*3+1];
+				*pixbuf++= palette[i*3+2];
+				*pixbuf++= palette[i*3+3];
+			}
+		}
+	}
+	else if (targa_header.image_type==2) // Uncompressed, RGB images
 	{
 		for(row=rows-1; row>=0; row--)
 		{

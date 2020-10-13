@@ -53,6 +53,7 @@ typedef struct entity_s
 	int						update_type;
 
 	entity_state_t			baseline;		// to fill in defaults in updates
+	entity_state_t			netstate;		// the latest network state
 
 	double					msgtime;		// time of last update
 	vec3_t					msg_origins[2];	// last two updates (0 is newest)
@@ -78,6 +79,7 @@ typedef struct entity_s
 											//  that splits bmodel, or NULL if
 											//  not split
 
+	byte					eflags;			//spike -- mostly a mirror of netstate, but handles tag inheritance (eww!)
 	byte					alpha;			//johnfitz -- alpha
 	byte					lerpflags;		//johnfitz -- lerping
 	float					lerpstart;		//johnfitz -- animation lerping
@@ -91,6 +93,9 @@ typedef struct entity_s
 	vec3_t					currentorigin;	//johnfitz -- transform lerping
 	vec3_t					previousangles;	//johnfitz -- transform lerping
 	vec3_t					currentangles;	//johnfitz -- transform lerping
+
+	struct trailstate_s		*trailstate;	//spike -- managed by the particle system, so we don't loose our position and spawn the wrong number of particles, and we can track beams etc
+	struct trailstate_s		*emitstate;		//spike -- for effects which are not so static.
 } entity_t;
 
 // !!! if this is changed, it must be changed in asm_draw.h too !!!
@@ -169,6 +174,7 @@ extern	int		reinit_surfcache;	// if 1, surface cache is currently empty and
 extern qboolean	r_cache_thrash;	// set if thrashing the surface cache
 
 int	D_SurfaceCacheForRes (int width, int height);
+void D_FlushCaches (void);
 void D_DeleteSurfaceCache (void);
 void D_InitCaches (void *buffer, int size);
 void R_SetVrect (vrect_t *pvrect, vrect_t *pvrectin, int lineadj);

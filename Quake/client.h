@@ -39,13 +39,14 @@ typedef struct
 	float	entertime;
 	int		frags;
 	int		colors;			// two 4 bit fields
+	int		ping;
 	byte	translations[VID_GRADES*256];
 } scoreboard_t;
 
 typedef struct
 {
 	int		destcolor[3];
-	int		percent;		// 0-256
+	float	percent;		// 0-256
 } cshift_t;
 
 #define	CSHIFT_CONTENTS	0
@@ -83,6 +84,8 @@ typedef struct
 	struct qmodel_s	*model;
 	float	endtime;
 	vec3_t	start, end;
+	const char *trailname;
+	struct trailstate_s *trailstate;
 } beam_t;
 
 #define	MAX_MAPSTRING	2048
@@ -131,6 +134,16 @@ typedef struct
 	struct qsocket_s	*netcon;
 	sizebuf_t	message;		// writing buffer to send to server
 
+//downloads don't restart/fail when the server sends random serverinfo packets
+	struct
+	{
+		qboolean active;
+		unsigned int size;
+		FILE	*file;
+		char	current[MAX_QPATH];	//also prevents us from repeatedly trying to download the same file
+		char	temp[MAX_OSPATH];		//the temp filename for the download, will be renamed to current
+		float	starttime;
+	} download;
 } client_static_t;
 
 extern client_static_t	cls;
@@ -150,6 +163,7 @@ typedef struct
 
 // information for local display
 	int			stats[MAX_CL_STATS];	// health, etc
+	float		statsf[MAX_CL_STATS];
 	int			items;			// inventory bit flags
 	float	item_gettime[32];	// cl.time of aquiring item, for blinking
 	float		faceanimtime;	// use anim frame if cl.time < this
@@ -172,13 +186,11 @@ typedef struct
 	vec3_t		punchangle;		// temporary offset
 
 // pitch drifting vars
-	float		idealpitch;
 	float		pitchvel;
 	qboolean	nodrift;
 	float		driftmove;
 	double		laststop;
 
-	float		viewheight;
 	float		crouch;			// local amount for smoothing stepups
 
 	qboolean	paused;			// send over by server
@@ -214,9 +226,17 @@ typedef struct
 	struct qmodel_s	*worldmodel;	// cl_entitites[0].model
 	struct efrag_s	*free_efrags;
 	int			num_efrags;
-	int			num_entities;	// held in cl_entities array
-	int			num_statics;	// held in cl_staticentities array
+//	int			num_entities;	// held in cl_entities array
+//	int			num_statics;	// held in cl_staticentities array
 	entity_t	viewent;			// the gun model
+
+	entity_t	*entities;	//spike -- moved into here
+	int			max_edicts;
+	int			num_entities;
+
+	entity_t	**static_entities; //spike -- was static
+	int			max_static_entities;
+	int			num_statics;
 
 	int			cdtrack, looptrack;	// cd audio
 
@@ -225,6 +245,52 @@ typedef struct
 
 	unsigned	protocol; //johnfitz
 	unsigned	protocolflags;
+	unsigned	protocol_pext2;	//spike -- flag of fte protocol extensions
+	qboolean	protocol_dpdownload;
+
+#ifdef PSET_SCRIPT
+	qboolean	protocol_particles;
+	struct
+	{
+		const char *name;
+		int index;
+	} particle_precache[MAX_PARTICLETYPES];
+	struct
+	{
+		const char *name;
+		int index;
+	} local_particle_precache[MAX_PARTICLETYPES];
+#endif
+	int ackframes[8];	//big enough to cover burst
+	unsigned int ackframes_count;
+	qboolean requestresend;
+
+	char stuffcmdbuf[1024];	//comment-extensions are a thing with certain servers, make sure we can handle them properly without further hacks/breakages. there's also some server->client only console commands that we might as well try to handle a bit better, like reconnect
+	enum
+	{
+		PRINT_NONE,
+		PRINT_PINGS,
+//		PRINT_STATUSINFO,
+//		PRINT_STATUSPLAYER,
+//		PRINT_STATUSIP,
+	} printtype;
+	int printplayer;
+	float expectingpingtimes;
+	float printversionresponse;
+
+	//spike -- moved this stuff here to deal with downloading content named by the server
+	qboolean sendprespawn;	//download+load content, send the prespawn command once done
+	int		model_count;
+	int		model_download;
+	char	model_name[MAX_MODELS][MAX_QPATH];
+	int		sound_count;
+	int		sound_download;
+	char	sound_name[MAX_SOUNDS][MAX_QPATH];
+	//spike -- end downloads
+
+	qcvm_t	qcvm;	//for csqc.
+	qboolean csqc_cursorforced;	//we want a mouse cursor.
+	float	csqc_sensitivity;	//scaler for sensitivity
 } client_state_t;
 
 
@@ -250,6 +316,7 @@ extern	cvar_t	cl_alwaysrun; // QuakeSpasm
 
 extern	cvar_t	cl_autofire;
 
+extern	cvar_t	cl_recordingdemo;
 extern	cvar_t	cl_shownet;
 extern	cvar_t	cl_nolerp;
 
@@ -266,23 +333,18 @@ extern	cvar_t	m_forward;
 extern	cvar_t	m_side;
 
 
-#define	MAX_TEMP_ENTITIES	256		//johnfitz -- was 64
-#define	MAX_STATIC_ENTITIES	4096	//ericw -- was 512	//johnfitz -- was 128
-#define	MAX_VISEDICTS		4096	// larger, now we support BSP2
+#define	MAX_TEMP_ENTITIES			256		//johnfitz -- was 64
 
 extern	client_state_t	cl;
 
 // FIXME, allocate dynamically
-extern	entity_t		cl_static_entities[MAX_STATIC_ENTITIES];
 extern	lightstyle_t	cl_lightstyle[MAX_LIGHTSTYLES];
 extern	dlight_t		cl_dlights[MAX_DLIGHTS];
 extern	entity_t		cl_temp_entities[MAX_TEMP_ENTITIES];
 extern	beam_t			cl_beams[MAX_BEAMS];
-extern	entity_t		*cl_visedicts[MAX_VISEDICTS];
+extern	entity_t		**cl_visedicts;
 extern	int				cl_numvisedicts;
-
-extern	entity_t		*cl_entities; //johnfitz -- was a static array, now on hunk
-extern	int				cl_max_edicts; //johnfitz -- only changes when new map loads
+extern	int				cl_maxvisedicts;	//extended if we exceeded it the previous frame
 
 //=============================================================================
 
@@ -325,10 +387,15 @@ int  CL_ReadFromServer (void);
 void CL_AdjustAngles (void);
 void CL_BaseMove (usercmd_t *cmd);
 
+void CL_Download_Data(void);
+qboolean CL_CheckDownloads(void);
+
+void CL_ParseEffect (qboolean big);
 void CL_ParseTEnt (void);
 void CL_UpdateTEnts (void);
 
 void CL_ClearState (void);
+void CL_ClearTrailStates(void);
 
 //
 // cl_demo.c
@@ -345,7 +412,8 @@ void CL_TimeDemo_f (void);
 // cl_parse.c
 //
 void CL_ParseServerMessage (void);
-void CL_NewTranslation (int slot);
+void CL_RegisterParticles(void);
+//void CL_NewTranslation (int slot);
 
 //
 // view
@@ -364,6 +432,7 @@ void V_SetContentsColor (int contents);
 //
 void CL_InitTEnts (void);
 void CL_SignonReply (void);
+float CL_TraceLine (vec3_t start, vec3_t end, vec3_t impact, vec3_t normal, int *ent);
 
 //
 // chase

@@ -73,6 +73,11 @@ static void Sys_InitSDL (void)
 #define DEFAULT_MEMORY (256 * 1024 * 1024) // ericw -- was 72MB (64-bit) / 64MB (32-bit)
 
 static quakeparms_t	parms;
+// On OS X we call SDL_main from the launcher, but SDL2 doesn't redefine main
+// as SDL_main on OS X anymore, so we do it ourselves.
+#if defined(USE_SDL2) && defined(__APPLE__)
+#define main SDL_main
+#endif
 
 int main(int argc, char *argv[])
 {

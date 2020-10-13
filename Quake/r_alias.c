@@ -62,6 +62,7 @@ typedef struct {
 	float blend;
 	vec3_t origin;
 	vec3_t angles;
+	bonepose_t *bonestate;
 } lerpdata_t;
 //johnfitz
 
@@ -210,6 +211,35 @@ void R_SetupAliasFrame (aliashdr_t *paliashdr, int frame, lerpdata_t *lerpdata)
 		lerpdata->pose1 = posenum;
 		lerpdata->pose2 = posenum;
 	}
+
+
+	if (paliashdr->numboneposes)
+	{
+		static bonepose_t inverted[256];
+		bonepose_t lerpbones[256], l;
+		int b, j;
+		const boneinfo_t *bi = (const boneinfo_t *)((byte*)paliashdr + paliashdr->boneinfo);
+		const bonepose_t *p1 = (const bonepose_t *)((byte*)paliashdr + paliashdr->boneposedata) + lerpdata->pose1*paliashdr->numbones;
+		const bonepose_t *p2 = (const bonepose_t *)((byte*)paliashdr + paliashdr->boneposedata) + lerpdata->pose2*paliashdr->numbones;
+		float w2 = lerpdata->blend;
+		float w1 = 1-w2;
+		for (b = 0; b < paliashdr->numbones; b++, p1++, p2++)
+		{
+			//interpolate it
+			for (j = 0; j < 12; j++)
+				l.mat[j] = p1->mat[j]*w1 + p2->mat[j]*w2;
+			//concat it onto the parent (relative->abs)
+			if (bi[b].parent < 0)
+				memcpy(lerpbones[b].mat, l.mat, sizeof(l.mat));
+			else
+				R_ConcatTransforms((void*)lerpbones[bi[b].parent].mat, (void*)l.mat, (void*)lerpbones[b].mat);
+			//and finally invert it
+			R_ConcatTransforms((void*)lerpbones[b].mat, (void*)bi[b].inverse.mat, (void*)inverted[b].mat);
+		}
+		lerpdata->bonestate = inverted;	//and now we can use it.
+	}
+	else
+		lerpdata->bonestate = NULL;
 }
 
 /*
@@ -286,15 +316,18 @@ void R_SetupAliasLighting (entity_t	*e)
 	int			i;
 	int		quantizedangle;
 	float		radiansangle;
+	float		*origin = e->origin;
 
-	R_LightPoint (e->origin);
+	if (e->eflags & EFLAGS_VIEWMODEL)
+		origin = r_refdef.vieworg;
+	R_LightPoint (origin);
 
 	//add dlights
 	for (i=0 ; i<MAX_DLIGHTS ; i++)
 	{
 		if (cl_dlights[i].die >= cl.time)
 		{
-			VectorSubtract (currententity->origin, cl_dlights[i].origin, dist);
+			VectorSubtract (origin, cl_dlights[i].origin, dist);
 			add = cl_dlights[i].radius - VectorLength(dist);
 			if (add > 0)
 				VectorMA (lightcolor, add, cl_dlights[i].color, lightcolor);
@@ -314,7 +347,7 @@ void R_SetupAliasLighting (entity_t	*e)
 	}
 
 	// minimum light value on players (8)
-	if (currententity > cl_entities && currententity <= cl_entities + cl.maxclients)
+	if (e > cl.entities && e <= cl.entities + cl.maxclients)
 	{
 		add = 24.0f - (lightcolor[0] + lightcolor[1] + lightcolor[2]);
 		if (add > 0.0f)
@@ -343,6 +376,10 @@ void R_SetupAliasLighting (entity_t	*e)
 
 	shadedots = r_avertexnormal_dots[quantizedangle];
 	VectorScale (lightcolor, 1.0f / 200.0f, lightcolor);
+
+	lightcolor[0] *= e->netstate.colormod[0] / 32.0;
+	lightcolor[1] *= e->netstate.colormod[1] / 32.0;
+	lightcolor[2] *= e->netstate.colormod[2] / 32.0;
 }
 
 /*

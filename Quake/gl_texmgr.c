@@ -1281,6 +1281,7 @@ void TexMgr_ReloadImage (gltexture_t *glt, int shirt, int pants)
 	byte	translation[256];
 	byte	*src, *dst, *data = NULL, *translated;
 	int	mark, size, i;
+	qboolean malloced = false;
 //
 // get source data
 //
@@ -1295,18 +1296,14 @@ void TexMgr_ReloadImage (gltexture_t *glt, int shirt, int pants)
 		if (!f)
 			goto invalid;
 		fseek (f, glt->source_offset, SEEK_CUR);
-		size = (long) (glt->source_width * glt->source_height);
-		/* should be SRC_INDEXED, but no harm being paranoid:  */
-		if (glt->source_format == SRC_RGBA)
-			size *= 4;
-		else if (glt->source_format == SRC_LIGHTMAP)
-			size *= lightmap_bytes;
+
+		size = TexMgr_ImageSize(glt->source_width, glt->source_height, glt->source_format);
 		data = (byte *) Hunk_Alloc (size);
 		fread (data, 1, size, f);
 		fclose (f);
 	}
 	else if (glt->source_file[0] && !glt->source_offset)
-		data = Image_LoadImage (glt->source_file, (int *)&glt->source_width, (int *)&glt->source_height); //simple file
+		data = Image_LoadImage (glt->source_file, (int *)&glt->source_width, (int *)&glt->source_height, &malloced); //simple file
 	else if (!glt->source_file[0] && glt->source_offset)
 		data = (byte *) glt->source_offset; //image in memory
 
@@ -1386,12 +1383,46 @@ invalid:
 	case SRC_LIGHTMAP:
 		TexMgr_LoadLightmap (glt, data);
 		break;
+	case SRC_EXTERNAL:
 	case SRC_RGBA:
 		TexMgr_LoadImage32 (glt, (unsigned *)data);
 		break;
+	default:
+		TexMgr_LoadImageCompressed (glt, data);
+		break;
 	}
 
+	if (malloced)
+		free(data);
 	Hunk_FreeToLowMark(mark);
+}
+
+/*
+================
+TexMgr_ReloadImages -- reloads all texture images. called only by vid_restart
+================
+*/
+void TexMgr_ReloadImages (void)
+{
+	gltexture_t *glt;
+
+// ericw -- tricky bug: if the hunk is almost full, an allocation in TexMgr_ReloadImage
+// triggers cache items to be freed, which calls back into TexMgr to free the
+// texture. If this frees 'glt' in the loop below, the active_gltextures
+// list gets corrupted.
+// A test case is jam3_tronyn.bsp with -heapsize 65536, and do several mode
+// switches/fullscreen toggles
+// 2015-09-04 -- Cache_Flush workaround was causing issues (http://sourceforge.net/p/quakespasm/bugs/10/)
+// switching to a boolean flag.
+	in_reload_images = true;
+
+	for (glt = active_gltextures; glt; glt = glt->next)
+	{
+		glGenTextures(1, &glt->texnum);
+		TexMgr_ReloadImage (glt, -1, -1);
+	}
+	
+	in_reload_images = false;
 }
 
 /*
