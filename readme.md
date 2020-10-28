@@ -130,7 +130,8 @@ Now locate your vkQuake executable, i.e. `vkQuake.exe` on Windows or `vkquake` o
 next to that and copy `pak0.pak` there, e.g.:
 
 * Windows: `Windows\VisualStudio\Build-vkQuake\x64\Release\id1\pak0.pak`
-* Ubuntu: `Quake\id1\pak0.pak`
+* Ubuntu: `Quake/id1/pak0.pak`
+* Arch/Manjaro: `~/id1/pak0.pak`
 
 Then vkQuake is ready to play.
 
