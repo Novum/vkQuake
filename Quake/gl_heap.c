@@ -191,27 +191,35 @@ qboolean GL_IsHeapEmpty(glheap_t * heap)
 GL_AllocateFromHeaps
 ================
 */
-VkDeviceSize GL_AllocateFromHeaps(int num_heaps, glheap_t ** heaps, VkDeviceSize heap_size, uint32_t memory_type_index,
+VkDeviceSize GL_AllocateFromHeaps(int * num_heaps, glheap_t *** heaps, VkDeviceSize heap_size, uint32_t memory_type_index,
 	VkDeviceSize size, VkDeviceSize alignment, glheap_t ** heap, glheapnode_t ** heap_node, int * num_allocations, const char * heap_name)
 {
 	int i;
+	int num_heaps_allocated = *num_heaps;
 
-	for(i = 0; i < num_heaps; ++i)
+	for(i = 0; i < (num_heaps_allocated + 1); ++i)
 	{
-		qboolean new_heap = false;
-		if(!heaps[i])
+		if (i == num_heaps_allocated)
 		{
-			heaps[i] = GL_CreateHeap(heap_size, memory_type_index, heap_name);
+			*heaps = realloc(*heaps, sizeof(glheap_t*) * (num_heaps_allocated + 1));
+			(*heaps)[i] = NULL;
+			*num_heaps = num_heaps_allocated + 1;
+		}
+
+		qboolean new_heap = false;
+		if(!(*heaps)[i])
+		{
+			(*heaps)[i] = GL_CreateHeap(heap_size, memory_type_index, heap_name);
 			*num_allocations += 1;
 			new_heap = true;
 		}
 
 		VkDeviceSize aligned_offset;
-		glheapnode_t * node = GL_HeapAllocate(heaps[i], size, alignment, &aligned_offset);
+		glheapnode_t * node = GL_HeapAllocate((*heaps)[i], size, alignment, &aligned_offset);
 		if(node)
 		{
 			*heap_node = node;
-			*heap = heaps[i];
+			*heap = (*heaps)[i];
 			return aligned_offset;
 		} else if(new_heap)
 			break;

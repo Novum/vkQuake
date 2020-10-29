@@ -48,9 +48,9 @@ unsigned int d_8to24table_pants[256];
 
 // Heap
 #define TEXTURE_HEAP_SIZE_MB 32
-#define TEXTURE_MAX_HEAPS 32
 
-static glheap_t * texmgr_heaps[TEXTURE_MAX_HEAPS];
+static glheap_t ** texmgr_heaps;
+static int num_texmgr_heaps;
 
 #ifdef _DEBUG
 extern PFN_vkDebugMarkerSetObjectNameEXT fpDebugMarkerSetObjectNameEXT;
@@ -903,7 +903,7 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 
 	uint32_t memory_type_index = GL_MemoryTypeFromProperties(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
 	VkDeviceSize heap_size = TEXTURE_HEAP_SIZE_MB * (VkDeviceSize)1024 * (VkDeviceSize)1024;
-	VkDeviceSize aligned_offset = GL_AllocateFromHeaps(TEXTURE_MAX_HEAPS, texmgr_heaps, heap_size, memory_type_index, memory_requirements.size, memory_requirements.alignment, &glt->heap, &glt->heap_node, &num_vulkan_tex_allocations, "Textures");
+	VkDeviceSize aligned_offset = GL_AllocateFromHeaps(&num_texmgr_heaps, &texmgr_heaps, heap_size, memory_type_index, memory_requirements.size, memory_requirements.alignment, &glt->heap, &glt->heap_node, &num_vulkan_tex_allocations, "Textures");
 	err = vkBindImageMemory(vulkan_globals.device, glt->image, glt->heap->memory, aligned_offset);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkBindImageMemory failed");
@@ -1437,7 +1437,7 @@ static void GL_DeleteTexture (gltexture_t *texture)
 	if (texture->warp_write_descriptor_set)
 		vkFreeDescriptorSets(vulkan_globals.device, vulkan_globals.descriptor_pool, 1, &texture->warp_write_descriptor_set);
 
-	GL_FreeFromHeaps(TEXTURE_MAX_HEAPS, texmgr_heaps, texture->heap, texture->heap_node, &num_vulkan_tex_allocations);
+	GL_FreeFromHeaps(num_texmgr_heaps, texmgr_heaps, texture->heap, texture->heap_node, &num_vulkan_tex_allocations);
 
 	texture->frame_buffer = VK_NULL_HANDLE;
 	texture->target_image_view = VK_NULL_HANDLE;
