@@ -224,6 +224,7 @@ void R_DrawBrushModel (entity_t *e)
 			(!(psurf->flags & SURF_PLANEBACK) && (dot > BACKFACE_EPSILON)))
 		{
 			R_ChainSurface (psurf, chain_model);
+			R_RenderDynamicLightmaps(psurf);
 			rs_brushpolys++;
 		}
 	}
