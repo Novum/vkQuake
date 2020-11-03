@@ -1984,6 +1984,7 @@ qboolean GL_BeginRendering (int *x, int *y, int *width, int *height)
 		Sys_Error("vkResetFences failed");
 
 	R_CollectDynamicBufferGarbage();
+	R_CollectMeshBufferGarbage();
 
 	VkCommandBufferBeginInfo command_buffer_begin_info;
 	memset(&command_buffer_begin_info, 0, sizeof(command_buffer_begin_info));
