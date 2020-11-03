@@ -1416,7 +1416,54 @@ void TexMgr_ReloadNobrightImages (void)
 ================================================================================
 */
 
-qboolean	mtexenabled = false;
+typedef struct
+{
+	VkImage				image;
+	VkImageView			target_image_view;
+	VkImageView			image_view;
+	VkFramebuffer		frame_buffer;
+	VkDescriptorSet		descriptor_set;
+	VkDescriptorSet		warp_write_descriptor_set;
+	glheap_t *			heap;
+	glheapnode_t *		heap_node;
+} texture_garbage_t;
+
+static int current_garbage_index;
+static int num_garbage_textures[2];
+static texture_garbage_t texture_garbage[MAX_GLTEXTURES][2];
+
+/*
+================
+TexMgr_CollectGarbage
+================
+*/
+void TexMgr_CollectGarbage (void)
+{
+	int num;
+	int i;
+	texture_garbage_t * garbage;
+
+	current_garbage_index = (current_garbage_index + 1) % 2;
+	num = num_garbage_textures[current_garbage_index];
+	for (i=0; i<num; ++i)
+	{
+		garbage = &texture_garbage[i][current_garbage_index];
+		if (garbage->frame_buffer != VK_NULL_HANDLE)
+			vkDestroyFramebuffer(vulkan_globals.device, garbage->frame_buffer, NULL);
+		if(garbage->target_image_view)
+			vkDestroyImageView(vulkan_globals.device, garbage->target_image_view, NULL);
+		vkDestroyImageView(vulkan_globals.device, garbage->image_view, NULL);
+		vkDestroyImage(vulkan_globals.device, garbage->image, NULL);
+		vkFreeDescriptorSets(vulkan_globals.device, vulkan_globals.descriptor_pool, 1, &garbage->descriptor_set);
+		if (garbage->warp_write_descriptor_set)
+			vkFreeDescriptorSets(vulkan_globals.device, vulkan_globals.descriptor_pool, 1, &garbage->warp_write_descriptor_set);
+
+		GL_FreeFromHeaps(num_texmgr_heaps, texmgr_heaps, garbage->heap, garbage->heap_node, &num_vulkan_tex_allocations);
+	}
+	num_garbage_textures[current_garbage_index] = 0;
+
+
+}
 
 /*
 ================
@@ -1425,19 +1472,38 @@ GL_DeleteTexture
 */
 static void GL_DeleteTexture (gltexture_t *texture)
 {
-	GL_WaitForDeviceIdle();
+	int garbage_index;
+	texture_garbage_t * garbage;
 
-	if (texture->frame_buffer != VK_NULL_HANDLE)
-		vkDestroyFramebuffer(vulkan_globals.device, texture->frame_buffer, NULL);
-	if(texture->target_image_view)
-		vkDestroyImageView(vulkan_globals.device, texture->target_image_view, NULL);
-	vkDestroyImageView(vulkan_globals.device, texture->image_view, NULL);
-	vkDestroyImage(vulkan_globals.device, texture->image, NULL);
-	vkFreeDescriptorSets(vulkan_globals.device, vulkan_globals.descriptor_pool, 1, &texture->descriptor_set);
-	if (texture->warp_write_descriptor_set)
-		vkFreeDescriptorSets(vulkan_globals.device, vulkan_globals.descriptor_pool, 1, &texture->warp_write_descriptor_set);
+	if (in_update_screen)
+	{
+		garbage_index = num_garbage_textures[current_garbage_index]++;
+		garbage = &texture_garbage[garbage_index][current_garbage_index];
+		garbage->image = texture->image;
+		garbage->target_image_view = texture->target_image_view;
+		garbage->image_view = texture->image_view;
+		garbage->frame_buffer = texture->frame_buffer;
+		garbage->descriptor_set = texture->descriptor_set;
+		garbage->warp_write_descriptor_set = texture->warp_write_descriptor_set;
+		garbage->heap = texture->heap;
+		garbage->heap_node = texture->heap_node;
+	}
+	else
+	{
+		GL_WaitForDeviceIdle();
 
-	GL_FreeFromHeaps(num_texmgr_heaps, texmgr_heaps, texture->heap, texture->heap_node, &num_vulkan_tex_allocations);
+		if (texture->frame_buffer != VK_NULL_HANDLE)
+			vkDestroyFramebuffer(vulkan_globals.device, texture->frame_buffer, NULL);
+		if(texture->target_image_view)
+			vkDestroyImageView(vulkan_globals.device, texture->target_image_view, NULL);
+		vkDestroyImageView(vulkan_globals.device, texture->image_view, NULL);
+		vkDestroyImage(vulkan_globals.device, texture->image, NULL);
+		vkFreeDescriptorSets(vulkan_globals.device, vulkan_globals.descriptor_pool, 1, &texture->descriptor_set);
+		if (texture->warp_write_descriptor_set)
+			vkFreeDescriptorSets(vulkan_globals.device, vulkan_globals.descriptor_pool, 1, &texture->warp_write_descriptor_set);
+
+		GL_FreeFromHeaps(num_texmgr_heaps, texmgr_heaps, texture->heap, texture->heap_node, &num_vulkan_tex_allocations);
+	}
 
 	texture->frame_buffer = VK_NULL_HANDLE;
 	texture->target_image_view = VK_NULL_HANDLE;

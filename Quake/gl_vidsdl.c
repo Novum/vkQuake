@@ -1985,6 +1985,7 @@ qboolean GL_BeginRendering (int *x, int *y, int *width, int *height)
 
 	R_CollectDynamicBufferGarbage();
 	R_CollectMeshBufferGarbage();
+	TexMgr_CollectGarbage();
 
 	VkCommandBufferBeginInfo command_buffer_begin_info;
 	memset(&command_buffer_begin_info, 0, sizeof(command_buffer_begin_info));
