@@ -1731,8 +1731,20 @@ static qboolean GL_CreateSwapChain( void )
 
 	assert(vulkan_swapchain == VK_NULL_HANDLE);
 	err = fpCreateSwapchainKHR(vulkan_globals.device, &swapchain_create_info, NULL, &vulkan_swapchain);
-	if (err != VK_SUCCESS)
-		Sys_Error("Couldn't create swap chain");
+	if (err != VK_SUCCESS) {
+#ifdef _WIN32
+		if (use_exclusive_full_screen) {
+			// At least one person reported that a driver fails to create the swap chain even though it advertises full screen exclusivity
+			swapchain_create_info.pNext = NULL;
+			vulkan_globals.swap_chain_full_screen_exclusive = false;
+			use_exclusive_full_screen = false;
+			err = fpCreateSwapchainKHR(vulkan_globals.device, &swapchain_create_info, NULL, &vulkan_swapchain);
+		}
+#endif
+		if (err != VK_SUCCESS) {
+			Sys_Error("Couldn't create swap chain");
+		}
+	}
 
 	for (i = 0; i < num_swap_chain_images; ++i)
 		assert(swapchain_images[i] == VK_NULL_HANDLE);
