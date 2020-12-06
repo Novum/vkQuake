@@ -35,8 +35,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <vulkan/vulkan_win32.h>
 #endif
 
-#include <assert.h>
-
 #define MAX_MODE_LIST	600 //johnfitz -- was 30
 #define MAX_BPPS_LIST	5
 #define MAX_RATES_LIST	20
@@ -669,12 +667,12 @@ static void GL_InitInstance( void )
 	}
 
 #ifdef _DEBUG
-	const char * const layer_names[] = { "VK_LAYER_LUNARG_standard_validation" };
+	const char * const layer_names[] = { "VK_LAYER_KHRONOS_validation" };
 
 	if(vulkan_globals.validation)
 	{
 		instance_extensions[sdl_extension_count + additionalExtensionCount++] = VK_EXT_DEBUG_REPORT_EXTENSION_NAME;
-		Con_Printf("Using VK_LAYER_LUNARG_standard_validation\n");
+		Con_Printf("Using VK_LAYER_KHRONOS_validation\n");
 		instance_create_info.enabledLayerCount = 1;
 		instance_create_info.ppEnabledLayerNames = layer_names;
 	}
@@ -1410,6 +1408,7 @@ static void GL_CreateColorBuffer( void )
 			Con_Printf("Supersampling enabled\n");
 
 		image_create_info.samples = vulkan_globals.sample_count;
+		image_create_info.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
 		assert(msaa_color_buffer == VK_NULL_HANDLE);
 		err = vkCreateImage(vulkan_globals.device, &image_create_info, NULL, &msaa_color_buffer);
@@ -1975,7 +1974,7 @@ qboolean GL_BeginRendering (int *x, int *y, int *width, int *height)
 	R_SwapDynamicBuffers();
 
 	vulkan_globals.device_idle = false;
-	vulkan_globals.current_pipeline = VK_NULL_HANDLE;
+	memset(&vulkan_globals.current_pipeline, 0, sizeof(vulkan_globals.current_pipeline));
 	*x = *y = 0;
 	*width = vid.width;
 	*height = vid.height;
@@ -1994,6 +1993,8 @@ qboolean GL_BeginRendering (int *x, int *y, int *width, int *height)
 		Sys_Error("vkResetFences failed");
 
 	R_CollectDynamicBufferGarbage();
+	R_CollectMeshBufferGarbage();
+	TexMgr_CollectGarbage();
 
 	VkCommandBufferBeginInfo command_buffer_begin_info;
 	memset(&command_buffer_begin_info, 0, sizeof(command_buffer_begin_info));
@@ -2044,6 +2045,7 @@ qboolean GL_BeginRendering (int *x, int *y, int *width, int *height)
 
 	vkCmdSetViewport(vulkan_globals.command_buffer, 0, 1, &viewport);
 
+	R_BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_blend_pipeline[0]);
 	GL_SetCanvas(CANVAS_NONE);
 
 	return true;
@@ -2124,9 +2126,9 @@ void GL_EndRendering (qboolean swapchain_acquired)
 		float postprocess_values[2] = { vid_gamma.value, q_min(2.0f, q_max(1.0f, vid_contrast.value)) };
 
 		vkCmdNextSubpass(vulkan_globals.command_buffer, VK_SUBPASS_CONTENTS_INLINE);
-		vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.postprocess_pipeline_layout, 0, 1, &postprocess_descriptor_set, 0, NULL);
-		R_BindPipeline(vulkan_globals.postprocess_pipeline);
-		vkCmdPushConstants(vulkan_globals.command_buffer, vulkan_globals.postprocess_pipeline_layout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, 2 * sizeof(float), postprocess_values);
+		R_BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.postprocess_pipeline);
+		vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.postprocess_pipeline.layout.handle, 0, 1, &postprocess_descriptor_set, 0, NULL);
+		R_PushConstants(VK_SHADER_STAGE_FRAGMENT_BIT, 0, 2 * sizeof(float), postprocess_values);
 		vkCmdDraw(vulkan_globals.command_buffer, 3, 1, 0, 0);
 
 		vkCmdEndRenderPass(vulkan_globals.command_buffer);

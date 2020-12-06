@@ -211,10 +211,10 @@ static void R_FlushBatch (qboolean fullbright_enabled, qboolean alpha_test, qboo
 {
 	if (num_vbo_indices > 0)
 	{
-		vulkan_globals.vk_cmd_bind_descriptor_sets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout, 1, 1, &lightmap_texture->descriptor_set, 0, NULL);
-
 		int pipeline_index = (fullbright_enabled ? 1 : 0) + (alpha_test ? 2 : 0) + (alpha_blend ? 4 : 0);
-		R_BindPipeline(vulkan_globals.world_pipelines[pipeline_index]);
+		R_BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipelines[pipeline_index]);
+
+		vulkan_globals.vk_cmd_bind_descriptor_sets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 1, 1, &lightmap_texture->descriptor_set, 0, NULL);
 
 		VkBuffer buffer;
 		VkDeviceSize buffer_offset;
@@ -308,7 +308,7 @@ void R_DrawTextureChains_Water (qmodel_t *model, entity_t *ent, texchain_t chain
 
 	float color[3] = { 1.0f, 1.0f, 1.0f };
 
-	R_BindPipeline(vulkan_globals.water_pipeline);
+	R_BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.water_pipeline);
 
 	for (i=0 ; i<model->numtextures ; i++)
 	{
@@ -323,11 +323,11 @@ void R_DrawTextureChains_Water (qmodel_t *model, entity_t *ent, texchain_t chain
 			{
 				entalpha = GL_WaterAlphaForEntitySurface (ent, s);
 				if (entalpha < 1.0f)
-					R_BindPipeline(vulkan_globals.water_blend_pipeline);
+					R_BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.water_blend_pipeline);
 				else
-					R_BindPipeline(vulkan_globals.water_pipeline);
+					R_BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.water_pipeline);
 
-				vulkan_globals.vk_cmd_bind_descriptor_sets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout, 0, 1, &t->warpimage->descriptor_set, 0, NULL);
+				vulkan_globals.vk_cmd_bind_descriptor_sets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &t->warpimage->descriptor_set, 0, NULL);
 
 				if (model != cl.worldmodel)
 				{
@@ -365,10 +365,11 @@ void R_DrawTextureChains_Multitexture (qmodel_t *model, entity_t *ent, texchain_
 	VkDeviceSize offset = 0;
 	vulkan_globals.vk_cmd_bind_vertex_buffers(vulkan_globals.command_buffer, 0, 1, &bmodel_vertex_buffer, &offset);
 
-	vulkan_globals.vk_cmd_bind_descriptor_sets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout, 2, 1, &nulltexture->descriptor_set, 0, NULL);
+	vulkan_globals.vk_cmd_bind_descriptor_sets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 2, 1, &nulltexture->descriptor_set, 0, NULL);
 
-	if (alpha_blend)
-		vulkan_globals.vk_cmd_push_constants(vulkan_globals.command_buffer, vulkan_globals.basic_pipeline_layout, VK_SHADER_STAGE_ALL_GRAPHICS, 20 * sizeof(float), 1 * sizeof(float), &alpha);
+	if (alpha_blend) {
+		R_PushConstants(VK_SHADER_STAGE_ALL_GRAPHICS, 20 * sizeof(float), 1 * sizeof(float), &alpha);
+	}
 
 	for (i = 0; i<model->numtextures; ++i)
 	{
@@ -380,7 +381,7 @@ void R_DrawTextureChains_Multitexture (qmodel_t *model, entity_t *ent, texchain_
 		if (gl_fullbrights.value && (fullbright = R_TextureAnimation(t, ent != NULL ? ent->frame : 0)->fullbright))
 		{
 			fullbright_enabled = true;
-			vulkan_globals.vk_cmd_bind_descriptor_sets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout, 2, 1, &fullbright->descriptor_set, 0, NULL);
+			vulkan_globals.vk_cmd_bind_descriptor_sets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 2, 1, &fullbright->descriptor_set, 0, NULL);
 		}
 		else
 			fullbright_enabled = false;
@@ -396,7 +397,7 @@ void R_DrawTextureChains_Multitexture (qmodel_t *model, entity_t *ent, texchain_
 			{
 				texture_t * texture = R_TextureAnimation(t, ent != NULL ? ent->frame : 0);
 				gltexture_t * gl_texture = texture->gltexture;
-				vulkan_globals.vk_cmd_bind_descriptor_sets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout, 0, 1, &gl_texture->descriptor_set, 0, NULL);
+				vulkan_globals.vk_cmd_bind_descriptor_sets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 0, 1, &gl_texture->descriptor_set, 0, NULL);
 
 				alpha_test = (t->texturechains[chain]->flags & SURF_DRAWFENCE) != 0;
 				bound = true;
@@ -472,9 +473,9 @@ R_DrawWorld_ShowTris -- ericw -- moved from R_DrawTextureChains_ShowTris, which 
 void R_DrawWorld_ShowTris (void)
 {
 	if (r_showtris.value == 1)
-		R_BindPipeline(vulkan_globals.showtris_pipeline);
+		R_BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_pipeline);
 	else
-		R_BindPipeline(vulkan_globals.showtris_depth_test_pipeline);
+		R_BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_depth_test_pipeline);
 
 	vkCmdBindIndexBuffer(vulkan_globals.command_buffer, vulkan_globals.fan_index_buffer, 0, VK_INDEX_TYPE_UINT16);
 

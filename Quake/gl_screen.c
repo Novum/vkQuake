@@ -116,6 +116,8 @@ qboolean	scr_disabled_for_loading;
 qboolean	scr_drawloading;
 float		scr_disabled_time;
 
+qboolean	in_update_screen;
+
 int	scr_tileclear_updates = 0; //johnfitz
 
 void SCR_ScreenShot_f (void);
@@ -947,8 +949,6 @@ needs almost the entire 256k of stack space!
 */
 void SCR_UpdateScreen (void)
 {
-	static qboolean in_update_screen = false;
-
 	if (!scr_initialized || !con_initialized || in_update_screen)
 		return;				// not initialized yet
 

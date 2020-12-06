@@ -105,6 +105,16 @@ typedef struct particle_s
 	ptype_t		type;
 } particle_t;
 
+typedef struct vulkan_pipeline_layout_s {
+	VkPipelineLayout		handle;
+	VkPushConstantRange		push_constant_range;
+} vulkan_pipeline_layout_t;
+
+typedef struct vulkan_pipeline_s {
+	VkPipeline					handle;
+	vulkan_pipeline_layout_t	layout;
+} vulkan_pipeline_t;
+
 #define WORLD_PIPELINE_COUNT 8
 
 typedef struct
@@ -114,7 +124,7 @@ typedef struct
 	qboolean							validation;
 	VkQueue								queue;
 	VkCommandBuffer						command_buffer;
-	VkPipeline							current_pipeline;
+	vulkan_pipeline_t					current_pipeline;
 	VkClearValue						color_clear_value;
 	VkFormat							swap_chain_format;
 	qboolean							swap_chain_full_screen_exclusive;
@@ -154,35 +164,29 @@ typedef struct
 	VkRenderPass						warp_render_pass;
 
 	// Pipelines
-	VkPipeline							basic_alphatest_pipeline[2];
-	VkPipeline							basic_blend_pipeline[2];
-	VkPipeline							basic_notex_blend_pipeline[2];
-	VkPipeline							basic_poly_blend_pipeline;
-	VkPipelineLayout					basic_pipeline_layout;
-	VkPipeline							world_pipelines[WORLD_PIPELINE_COUNT];
-	VkPipelineLayout					world_pipeline_layout;
-	VkPipeline							water_pipeline;
-	VkPipeline							water_blend_pipeline;
-	VkPipeline							raster_tex_warp_pipeline;
-	VkPipeline							particle_pipeline;
-	VkPipeline							sprite_pipeline;
-	VkPipeline							sky_color_pipeline;
-	VkPipeline							sky_box_pipeline;
-	VkPipeline							sky_layer_pipeline;
-	VkPipelineLayout					sky_layer_pipeline_layout;
-	VkPipeline							alias_pipeline;
-	VkPipeline							alias_blend_pipeline;
-	VkPipeline							alias_alphatest_pipeline;
-	VkPipelineLayout					alias_pipeline_layout;
-	VkPipeline							postprocess_pipeline;
-	VkPipelineLayout					postprocess_pipeline_layout;
-	VkPipeline							screen_warp_pipeline;
-	VkPipelineLayout					screen_warp_pipeline_layout;
-	VkPipeline							cs_tex_warp_pipeline;
-	VkPipelineLayout					cs_tex_warp_pipeline_layout;
-	VkPipeline							showtris_pipeline;
-	VkPipeline							showtris_depth_test_pipeline;
-	VkPipelineLayout					showtris_pipeline_layout;
+	vulkan_pipeline_t					basic_alphatest_pipeline[2];
+	vulkan_pipeline_t					basic_blend_pipeline[2];
+	vulkan_pipeline_t					basic_notex_blend_pipeline[2];
+	vulkan_pipeline_t					basic_poly_blend_pipeline;
+	vulkan_pipeline_layout_t			basic_pipeline_layout;
+	vulkan_pipeline_t					world_pipelines[WORLD_PIPELINE_COUNT];
+	vulkan_pipeline_layout_t			world_pipeline_layout;
+	vulkan_pipeline_t					water_pipeline;
+	vulkan_pipeline_t					water_blend_pipeline;
+	vulkan_pipeline_t					raster_tex_warp_pipeline;
+	vulkan_pipeline_t					particle_pipeline;
+	vulkan_pipeline_t					sprite_pipeline;
+	vulkan_pipeline_t					sky_color_pipeline;
+	vulkan_pipeline_t					sky_box_pipeline;
+	vulkan_pipeline_t					sky_layer_pipeline;
+	vulkan_pipeline_t					alias_pipeline;
+	vulkan_pipeline_t					alias_blend_pipeline;
+	vulkan_pipeline_t					alias_alphatest_pipeline;
+	vulkan_pipeline_t					postprocess_pipeline;
+	vulkan_pipeline_t					screen_warp_pipeline;
+	vulkan_pipeline_t					cs_tex_warp_pipeline;
+	vulkan_pipeline_t					showtris_pipeline;
+	vulkan_pipeline_t					showtris_depth_test_pipeline;
 
 	// Descriptors
 	VkDescriptorPool					descriptor_pool;
@@ -228,6 +232,7 @@ extern	int		r_framecount;
 extern	mplane_t	frustum[4];
 extern	int render_pass_index;
 extern	qboolean render_warp;
+extern	qboolean in_update_screen;
 
 //
 // view origin
@@ -426,11 +431,26 @@ void R_CreatePipelineLayouts();
 void R_CreatePipelines();
 void R_DestroyPipelines();
 
-static inline void R_BindPipeline(VkPipeline pipeline) {
-	if(vulkan_globals.current_pipeline != pipeline) {
-		vulkan_globals.vk_cmd_bind_pipeline(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+static inline void R_BindPipeline(VkPipelineBindPoint bind_point, vulkan_pipeline_t pipeline)
+{
+	assert(pipeline.handle != VK_NULL_HANDLE);
+	assert(pipeline.layout.handle != VK_NULL_HANDLE);
+	if(vulkan_globals.current_pipeline.handle != pipeline.handle) {
+		vulkan_globals.vk_cmd_bind_pipeline(vulkan_globals.command_buffer, bind_point, pipeline.handle);
+		if ((vulkan_globals.current_pipeline.layout.push_constant_range.stageFlags != pipeline.layout.push_constant_range.stageFlags)
+			|| (vulkan_globals.current_pipeline.layout.push_constant_range.size != pipeline.layout.push_constant_range.size))
+		{
+			void * zeroes = alloca(pipeline.layout.push_constant_range.size);
+			memset(zeroes, 0, pipeline.layout.push_constant_range.size);
+			vulkan_globals.vk_cmd_push_constants(vulkan_globals.command_buffer, pipeline.layout.handle, pipeline.layout.push_constant_range.stageFlags, 0, pipeline.layout.push_constant_range.size, zeroes);
+		}
 		vulkan_globals.current_pipeline = pipeline;
 	}
+}
+
+static inline void R_PushConstants(VkShaderStageFlags stage_flags, int offset, int size, const void * data)
+{
+	vulkan_globals.vk_cmd_push_constants(vulkan_globals.command_buffer, vulkan_globals.current_pipeline.layout.handle, stage_flags, offset, size, data);
 }
 
 void R_InitStagingBuffers();
@@ -441,6 +461,7 @@ void R_InitGPUBuffers();
 void R_SwapDynamicBuffers();
 void R_FlushDynamicBuffers();
 void R_CollectDynamicBufferGarbage();
+void R_CollectMeshBufferGarbage();
 byte * R_VertexAllocate(int size, VkBuffer * buffer, VkDeviceSize * buffer_offset);
 byte * R_IndexAllocate(int size, VkBuffer * buffer, VkDeviceSize * buffer_offset);
 byte * R_UniformAllocate(int size, VkBuffer * buffer, uint32_t * buffer_offset, VkDescriptorSet * descriptor_set);
