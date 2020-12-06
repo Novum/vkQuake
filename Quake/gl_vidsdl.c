@@ -417,9 +417,18 @@ static qboolean VID_SetMode (int width, int height, int refreshrate, int bpp, qb
 		if (vid_borderless.value)
 			flags |= SDL_WINDOW_BORDERLESS;
 		
-		draw_context = SDL_CreateWindow (caption, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, flags);
+		draw_context = SDL_CreateWindow (
+							caption, 
+							SDL_WINDOWPOS_UNDEFINED, 
+							SDL_WINDOWPOS_UNDEFINED, 
+							width, 
+							height, 
+							flags);
+
 		if (!draw_context)
 			Sys_Error ("Couldn't create window: %s", SDL_GetError());
+
+		Con_Printf ("SDL using driver \"%s\"\n", SDL_GetCurrentVideoDriver( ));
 
 		SDL_VERSION(&sys_wm_info.version);
 		if(!SDL_GetWindowWMInfo(draw_context,&sys_wm_info))
