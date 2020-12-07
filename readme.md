@@ -99,20 +99,28 @@ vkQuake 0.97 and later requires at least **SDL2 2.0.6 with enabled Vulkan suppor
 To compile vkQuake, first install the build dependencies with Homebrew:
 
 ~~~
-brew install molten-vk vulkan-headers sdl2 libvorbis flac mad
+brew install sdl2 libvorbis flac mad
 ~~~
 
-Then clone the vkQuake repo:
+Install the Vulkan SDK: https://vulkan.lunarg.com/sdk/home
+
+Make sure after you installed it to add the "setup-env.sh" in your ~/.bash_profile
+
+~~~
+# Setup env's for Vulkan SDK ..."
+source /${PATH-TO-VULKAN-SDK}/setup-env.sh"
+~~~
+
+Clone the vkQuake repo:
 
 ~~~
 git clone https://github.com/Novum/vkQuake.git
 ~~~
 
-Now go to the Quake directory and compile the executable:
+Now run the build script to compile the executable:
 
 ~~~
-cd vkQuake/Quake
-make
+./build-macos.sh
 ~~~
 
 # Usage
