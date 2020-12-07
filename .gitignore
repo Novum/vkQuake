@@ -16,41 +16,5 @@ Windows/VisualStudio/.vs
 
 .DS_Store
 
-
 Shaders/bintoc
 
-Shaders/Compiled/alias_alphatest_frag.c
-
-Shaders/Compiled/alias_frag.c
-
-Shaders/Compiled/alias_vert.c
-
-Shaders/Compiled/basic_alphatest_frag.c
-
-Shaders/Compiled/world_vert.c
-
-Shaders/Compiled/basic_frag.c
-
-Shaders/Compiled/basic_notex_frag.c
-
-Shaders/Compiled/basic_vert.c
-
-Shaders/Compiled/cs_tex_warp_comp.c
-
-Shaders/Compiled/postprocess_frag.c
-
-Shaders/Compiled/postprocess_vert.c
-
-Shaders/Compiled/screen_warp_comp.c
-
-Shaders/Compiled/screen_warp_rgba8_comp.c
-
-Shaders/Compiled/showtris_frag.c
-
-Shaders/Compiled/showtris_vert.c
-
-Shaders/Compiled/sky_layer_frag.c
-
-Shaders/Compiled/sky_layer_vert.c
-
-Shaders/Compiled/world_frag.c
