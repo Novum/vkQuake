@@ -176,7 +176,7 @@ endif
 COMMON_LIBS:= -lm
 
 ifneq ($(HOST_OS),darwin)
-COMMON_LIBS+= -lX11-xcb -lvulkan -lMoltenVK
+COMMON_LIBS+= -lX11-xcb -lvulkan
 CFLAGS+= -DLINUX
 else
 	COMMON_LIBS+= -lMoltenVK
