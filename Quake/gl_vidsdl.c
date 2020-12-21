@@ -146,7 +146,7 @@ static PFN_vkDestroySwapchainKHR fpDestroySwapchainKHR;
 static PFN_vkGetSwapchainImagesKHR fpGetSwapchainImagesKHR;
 static PFN_vkAcquireNextImageKHR fpAcquireNextImageKHR;
 static PFN_vkQueuePresentKHR fpQueuePresentKHR;
-#ifdef _WIN32
+#if defined(VK_EXT_full_screen_exclusive)
 static PFN_vkAcquireFullScreenExclusiveModeEXT fpAcquireFullScreenExclusiveModeEXT;
 static PFN_vkReleaseFullScreenExclusiveModeEXT fpReleaseFullScreenExclusiveModeEXT;
 #endif
@@ -767,7 +767,7 @@ static void GL_InitDevice( void )
 #endif
 			if (strcmp(VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME, device_extensions[i].extensionName) == 0)
 				vulkan_globals.dedicated_allocation = true;
-#if defined(_WIN32)
+#if defined(VK_EXT_full_screen_exclusive)
 			if ((strcmp(VK_EXT_FULL_SCREEN_EXCLUSIVE_EXTENSION_NAME, device_extensions[i].extensionName) == 0))
 				vulkan_globals.full_screen_exclusive = true;
 #endif
@@ -848,7 +848,7 @@ static void GL_InitDevice( void )
 		device_extensions[ numEnabledExtensions++ ] = VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME;
 		device_extensions[ numEnabledExtensions++ ] = VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME;
 	}
-#ifdef _WIN32
+#if defined(VK_EXT_full_screen_exclusive)
 	if (vulkan_globals.full_screen_exclusive) {
 		device_extensions[ numEnabledExtensions++ ] = VK_EXT_FULL_SCREEN_EXCLUSIVE_EXTENSION_NAME;
 	}
@@ -898,7 +898,7 @@ static void GL_InitDevice( void )
 	{
 		Con_Printf("Using VK_KHR_dedicated_allocation\n");
 	}
-#ifdef _WIN32
+#if defined(VK_EXT_full_screen_exclusive)
 	if (vulkan_globals.full_screen_exclusive)
 	{
 		Con_Printf("Using VK_EXT_full_screen_exclusive\n");
@@ -1542,7 +1542,7 @@ static qboolean GL_CreateSwapChain( void )
 	uint32_t i;
 	VkResult err;
 
-#ifdef _WIN32
+#if defined(VK_EXT_full_screen_exclusive)
 	qboolean use_exclusive_full_screen = false;
 	qboolean try_use_exclusive_full_screen = vulkan_globals.full_screen_exclusive && VID_GetFullscreen();
 	VkSurfaceFullScreenExclusiveInfoEXT full_screen_exclusive_info;
@@ -1710,7 +1710,7 @@ static qboolean GL_CreateSwapChain( void )
 	vulkan_globals.swap_chain_full_screen_exclusive = false;
 	vulkan_globals.swap_chain_full_screen_acquired = false;
 
-#ifdef _WIN32
+#if defined(VK_EXT_full_screen_exclusive)
 	if (use_exclusive_full_screen) {
 		swapchain_create_info.pNext = &full_screen_exclusive_info;
 		vulkan_globals.swap_chain_full_screen_exclusive = true;
@@ -1723,7 +1723,7 @@ static qboolean GL_CreateSwapChain( void )
 	assert(vulkan_swapchain == VK_NULL_HANDLE);
 	err = fpCreateSwapchainKHR(vulkan_globals.device, &swapchain_create_info, NULL, &vulkan_swapchain);
 	if (err != VK_SUCCESS) {
-#ifdef _WIN32
+#if defined(VK_EXT_full_screen_exclusive)
 		if (use_exclusive_full_screen) {
 			// At least one person reported that a driver fails to create the swap chain even though it advertises full screen exclusivity
 			swapchain_create_info.pNext = NULL;
@@ -2061,7 +2061,7 @@ GL_AcquireNextSwapChainImage
 */
 qboolean GL_AcquireNextSwapChainImage(void)
 {
-#ifdef _WIN32
+#if defined(VK_EXT_full_screen_exclusive)
 	if ((vid_desktopfullscreen.value == 0) && VID_GetFullscreen() && vulkan_globals.swap_chain_full_screen_exclusive && !vulkan_globals.swap_chain_full_screen_acquired)
 	{
 		const VkResult result = fpAcquireFullScreenExclusiveModeEXT(vulkan_globals.device, vulkan_swapchain);
@@ -2081,7 +2081,11 @@ qboolean GL_AcquireNextSwapChainImage(void)
 #endif
 
 	VkResult err = fpAcquireNextImageKHR(vulkan_globals.device, vulkan_swapchain, UINT64_MAX, image_aquired_semaphores[current_command_buffer], VK_NULL_HANDLE, &current_swapchain_buffer);
+#if defined(VK_EXT_full_screen_exclusive)
 	if ((err == VK_ERROR_OUT_OF_DATE_KHR) || (err == VK_ERROR_SURFACE_LOST_KHR) || (err == VK_ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT))
+#else
+	if ((err == VK_ERROR_OUT_OF_DATE_KHR) || (err == VK_ERROR_SURFACE_LOST_KHR))
+#endif
 	{
 		vid_changed = true;
 		Cbuf_AddText ("vid_restart\n");
@@ -2170,7 +2174,11 @@ void GL_EndRendering (qboolean swapchain_acquired)
 		present_info.waitSemaphoreCount = 1;
 		present_info.pWaitSemaphores = &draw_complete_semaphores[current_command_buffer];
 		err = fpQueuePresentKHR(vulkan_globals.queue, &present_info);
-		if ((err == VK_ERROR_OUT_OF_DATE_KHR) || (err == VK_ERROR_SURFACE_LOST_KHR) || (err == VK_SUBOPTIMAL_KHR) || (err == VK_ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT)) 
+#if defined(VK_EXT_full_screen_exclusive)
+		if ((err == VK_ERROR_OUT_OF_DATE_KHR) || (err == VK_ERROR_SURFACE_LOST_KHR) || (err == VK_SUBOPTIMAL_KHR) || (err == VK_ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT))
+#else
+		if ((err == VK_ERROR_OUT_OF_DATE_KHR) || (err == VK_ERROR_SURFACE_LOST_KHR) || (err == VK_SUBOPTIMAL_KHR))
+#endif
 		{
 			vid_changed = true;
 			Cbuf_AddText ("vid_restart\n");
