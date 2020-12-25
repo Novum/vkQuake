@@ -6,24 +6,42 @@ layout(push_constant) uniform PushConsts {
 	vec2 screen_size_rcp;
 	float aspect_ratio;
 	float time;
+	float water_warp_flag;
+	float scale;
+	float inv_scale;
 } push_constants;
 
 layout(set = 0, binding = 0) uniform sampler2D input_tex;
 layout(set = 0, binding = 1, rgb10_a2) uniform writeonly image2D output_image;
 
 layout (local_size_x = 8, local_size_y = 8) in;
-void main() 
+void main()
 {
 	const float CYCLE_X = 3.14159f * 5.0f;
 	const float CYCLE_Y = CYCLE_X * push_constants.aspect_ratio;
 	const float AMP_X = 1.0f / 300.0f;
 	const float AMP_Y = AMP_X * push_constants.aspect_ratio;
 
-	const float posX = float(gl_GlobalInvocationID.x) * push_constants.screen_size_rcp.x;
-	const float posY = float(gl_GlobalInvocationID.y) * push_constants.screen_size_rcp.y;
+	const float coordX = floor(float(gl_GlobalInvocationID.x) * push_constants.inv_scale) * push_constants.scale + 0.5f;
+	const float coordY = floor(float(gl_GlobalInvocationID.y) * push_constants.inv_scale) * push_constants.scale + 0.5f;
 
-	const float texX = (posX + (sin(posY * CYCLE_X + push_constants.time) * AMP_X)) * (1.0f - AMP_X * 2.0f) + AMP_X;
-	const float texY = (posY + (sin(posX * CYCLE_Y + push_constants.time) * AMP_Y)) * (1.0f - AMP_Y * 2.0f) + AMP_Y;
+	const float posX = coordX * push_constants.screen_size_rcp.x;
+	const float posY = coordY * push_constants.screen_size_rcp.y;
+
+	const float warp_flag = push_constants.water_warp_flag;
+	const float warp_disabled_flag = 1.0f - warp_flag;
+
+	const float AX = (sin(posY * CYCLE_X + push_constants.time) * AMP_X) * warp_flag;
+	const float AY = (sin(posX * CYCLE_Y + push_constants.time) * AMP_Y) * warp_flag;
+
+	const float BX = (1.0f - AMP_X * 2.0f) * warp_flag + warp_disabled_flag;
+	const float BY = (1.0f - AMP_Y * 2.0f) * warp_flag + warp_disabled_flag;
+
+	const float CX = AMP_X * warp_flag;
+	const float CY = AMP_Y * warp_flag;
+
+	const float texX = (posX + AX) * BX + CX;
+	const float texY = (posY + AY) * BY + CY;
 
 	vec4 value = texture(input_tex, vec2(texX, texY));
 	imageStore(output_image, ivec2(gl_GlobalInvocationID.xy), value);

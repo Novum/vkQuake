@@ -72,6 +72,7 @@ cvar_t	r_shadows = {"r_shadows","0",CVAR_ARCHIVE};
 cvar_t	r_wateralpha = {"r_wateralpha","1",CVAR_ARCHIVE};
 cvar_t	r_dynamic = {"r_dynamic","1",CVAR_ARCHIVE};
 cvar_t	r_novis = {"r_novis","0",CVAR_ARCHIVE};
+cvar_t	r_scale = {"r_scale","1",CVAR_ARCHIVE};
 
 cvar_t	gl_finish = {"gl_finish","0",CVAR_NONE};
 cvar_t	gl_clear = {"gl_clear","0",CVAR_NONE};
@@ -328,7 +329,7 @@ R_SetupScene
 void R_SetupScene (void)
 {
 	render_pass_index = 0;
-	vkCmdBeginRenderPass(vulkan_globals.command_buffer, &vulkan_globals.main_render_pass_begin_infos[render_warp ? 1 : 0], VK_SUBPASS_CONTENTS_INLINE);
+	vkCmdBeginRenderPass(vulkan_globals.command_buffer, &vulkan_globals.main_render_pass_begin_infos[(render_warp || r_scale.value > 1.0f) ? 1 : 0], VK_SUBPASS_CONTENTS_INLINE);
 
 	R_PushDlights();
 	R_AnimateLight ();

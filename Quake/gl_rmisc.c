@@ -1256,7 +1256,7 @@ void R_CreatePipelineLayouts()
 
 	memset(&push_constant_range, 0, sizeof(push_constant_range));
 	push_constant_range.offset = 0;
-	push_constant_range.size = 4 * sizeof(float);
+	push_constant_range.size = 7 * sizeof(float);
 	push_constant_range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
 	pipeline_layout_create_info.setLayoutCount = 1;
@@ -2179,6 +2179,7 @@ void R_Init (void)
 	Cvar_RegisterVariable (&r_novis);
 	Cvar_RegisterVariable (&r_speeds);
 	Cvar_RegisterVariable (&r_pos);
+	Cvar_RegisterVariable (&r_scale);
 
 	Cvar_RegisterVariable (&gl_finish);
 	Cvar_RegisterVariable (&gl_clear);

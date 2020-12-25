@@ -947,7 +947,7 @@ qboolean GL_Set2D (void)
 
 	vkCmdEndRenderPass(vulkan_globals.command_buffer);
 
-	if (render_warp)
+	if (render_warp || r_scale.value > 1.0f)
 	{
 		VkImageMemoryBarrier image_barriers[2];
 		image_barriers[0].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -986,8 +986,9 @@ qboolean GL_Set2D (void)
 
 		R_BindPipeline(VK_PIPELINE_BIND_POINT_COMPUTE, vulkan_globals.screen_warp_pipeline);
 		vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, vulkan_globals.screen_warp_pipeline.layout.handle, 0, 1, &vulkan_globals.screen_warp_desc_set, 0, NULL);
-		const float push_constants[4] = { 1.0f / (float)vid.width, 1.0f / (float)vid.height, (float)vid.width / (float)vid.height, cl.time };
-		R_PushConstants(VK_SHADER_STAGE_COMPUTE_BIT, 0, 4 * sizeof(float), push_constants);
+		const float inv_scale = 1.0f / r_scale.value;
+		const float push_constants[7] = { 1.0f / (float)vid.width, 1.0f / (float)vid.height, (float)vid.width / (float)vid.height, cl.time, (render_warp ? 1.0f : 0.0f), r_scale.value, inv_scale };
+		R_PushConstants(VK_SHADER_STAGE_COMPUTE_BIT, 0, 7 * sizeof(float), push_constants);
 		vkCmdDispatch(vulkan_globals.command_buffer, (vid.width + 7) / 8, (vid.height + 7) / 8, 1);
 
 		image_barriers[0].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
