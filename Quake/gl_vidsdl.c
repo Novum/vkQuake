@@ -749,6 +749,24 @@ static void GL_InitDevice( void )
 
 	vkGetPhysicalDeviceMemoryProperties(vulkan_physical_device, &vulkan_globals.memory_properties);
 
+	vkGetPhysicalDeviceProperties(vulkan_physical_device, &vulkan_globals.device_properties);
+	switch(vulkan_globals.device_properties.vendorID)
+	{
+	case 0x8086:
+		Con_Printf("Vendor: Intel\n");
+		break;
+	case 0x10DE:
+		Con_Printf("Vendor: NVIDIA\n");
+		break;
+	case 0x1002:
+		Con_Printf("Vendor: AMD\n");
+		break;
+	default:
+		Con_Printf("Vendor: Unknown (0x%x)\n", vulkan_globals.device_properties.vendorID);
+	}
+
+	Con_Printf("Device: %s\n", vulkan_globals.device_properties.deviceName);
+
 	uint32_t device_extension_count;
 	err = vkEnumerateDeviceExtensionProperties(vulkan_physical_device, NULL, &device_extension_count, NULL);
 
@@ -768,7 +786,8 @@ static void GL_InitDevice( void )
 			if (strcmp(VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME, device_extensions[i].extensionName) == 0)
 				vulkan_globals.dedicated_allocation = true;
 #if defined(VK_EXT_full_screen_exclusive)
-			if ((strcmp(VK_EXT_FULL_SCREEN_EXCLUSIVE_EXTENSION_NAME, device_extensions[i].extensionName) == 0))
+			// Only enable on NVIDIA for now. Some people report issues with the mouse cursor on AMD hardware.
+			if ((vulkan_globals.device_properties.vendorID == 0x10DE) && (strcmp(VK_EXT_FULL_SCREEN_EXCLUSIVE_EXTENSION_NAME, device_extensions[i].extensionName) == 0))
 				vulkan_globals.full_screen_exclusive = true;
 #endif
 		}
@@ -778,24 +797,6 @@ static void GL_InitDevice( void )
 
 	if(!found_swapchain_extension)
 		Sys_Error("Couldn't find %s extension", VK_KHR_SWAPCHAIN_EXTENSION_NAME);
-
-	vkGetPhysicalDeviceProperties(vulkan_physical_device, &vulkan_globals.device_properties);
-	switch(vulkan_globals.device_properties.vendorID)
-	{
-	case 0x8086:
-		Con_Printf("Vendor: Intel\n");
-		break;
-	case 0x10DE:
-		Con_Printf("Vendor: NVIDIA\n");
-		break;
-	case 0x1002:
-		Con_Printf("Vendor: AMD\n");
-		break;
-	default:
-		Con_Printf("Vendor: Unknown (0x%x)\n", vulkan_globals.device_properties.vendorID);
-	}
-
-	Con_Printf("Device: %s\n", vulkan_globals.device_properties.deviceName);
 
 	qboolean found_graphics_queue = false;
 
