@@ -1376,9 +1376,8 @@ invalid:
 		data = translated;
 	}
 //
-// delete previous texture and upload new one
+// upload it
 //
-	GL_DeleteTexture(glt);
 	switch (glt->source_format)
 	{
 	case SRC_INDEXED:
