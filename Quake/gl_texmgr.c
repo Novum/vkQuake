@@ -1378,7 +1378,7 @@ invalid:
 //
 // delete previous texture and upload new one
 //
-	TexMgr_FreeTexture(glt);
+	GL_DeleteTexture(glt);
 	switch (glt->source_format)
 	{
 	case SRC_INDEXED:
