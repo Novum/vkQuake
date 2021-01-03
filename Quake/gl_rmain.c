@@ -330,8 +330,6 @@ void R_SetupScene (void)
 	render_pass_index = 0;
 	vkCmdBeginRenderPass(vulkan_globals.command_buffer, &vulkan_globals.main_render_pass_begin_infos[render_warp ? 1 : 0], VK_SUBPASS_CONTENTS_INLINE);
 
-	R_PushDlights();
-	R_AnimateLight ();
 	r_framecount++;
 	R_SetupMatrix ();
 }
@@ -343,6 +341,10 @@ R_SetupView
 */
 void R_SetupView (void)
 {
+	// Need to do those early because we now update dynamic light maps during R_MarkSurfaces
+	R_PushDlights();
+	R_AnimateLight ();
+
 	Fog_SetupFrame (); //johnfitz
 
 // build the transformation matrix for the given view angles
