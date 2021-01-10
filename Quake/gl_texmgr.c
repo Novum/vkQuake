@@ -1485,7 +1485,7 @@ static void GL_DeleteTexture (gltexture_t *texture)
 		vkDestroyImageView(vulkan_globals.device, texture->image_view, NULL);
 		vkDestroyImage(vulkan_globals.device, texture->image, NULL);
 		R_FreeDescriptorSet(texture->descriptor_set, &vulkan_globals.single_texture_set_layout);
-		if (garbage->warp_write_descriptor_set)
+		if (texture->warp_write_descriptor_set)
 			R_FreeDescriptorSet(texture->warp_write_descriptor_set, &vulkan_globals.single_texture_cs_write_set_layout);
 
 		GL_FreeFromHeaps(num_texmgr_heaps, texmgr_heaps, texture->heap, texture->heap_node, &num_vulkan_tex_allocations);
