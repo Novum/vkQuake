@@ -843,6 +843,8 @@ TexMgr_LoadImage32 -- handles 32bit source data
 */
 static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 {
+	GL_DeleteTexture(glt);
+
 	// mipmap down
 	int picmip = (glt->flags & TEXPREF_NOPICMIP) ? 0 : q_max((int)gl_picmip.value, 0);
 	int mipwidth = TexMgr_SafeTextureSize (glt->width >> picmip);
@@ -1075,6 +1077,8 @@ TexMgr_LoadImage8 -- handles 8bit source data, then passes it to LoadImage32
 */
 static void TexMgr_LoadImage8 (gltexture_t *glt, byte *data)
 {
+	GL_DeleteTexture(glt);
+
 	extern cvar_t gl_fullbrights;
 	qboolean padw = false, padh = false;
 	byte padbyte;
@@ -1460,6 +1464,9 @@ static void GL_DeleteTexture (gltexture_t *texture)
 {
 	int garbage_index;
 	texture_garbage_t * garbage;
+
+	if (texture->image_view == NULL)
+		return;
 
 	if (in_update_screen)
 	{
