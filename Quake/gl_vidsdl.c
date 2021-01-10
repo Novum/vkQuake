@@ -1467,15 +1467,8 @@ GL_CreateDescriptorSets
 */
 static void GL_CreateDescriptorSets(void)
 {
-	VkDescriptorSetAllocateInfo descriptor_set_allocate_info;
-	memset(&descriptor_set_allocate_info, 0, sizeof(descriptor_set_allocate_info));
-	descriptor_set_allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-	descriptor_set_allocate_info.descriptorPool = vulkan_globals.descriptor_pool;
-	descriptor_set_allocate_info.descriptorSetCount = 1;
-	descriptor_set_allocate_info.pSetLayouts = &vulkan_globals.input_attachment_set_layout;
-
 	assert(postprocess_descriptor_set == VK_NULL_HANDLE);
-	vkAllocateDescriptorSets(vulkan_globals.device, &descriptor_set_allocate_info, &postprocess_descriptor_set);
+	postprocess_descriptor_set = R_AllocateDescriptorSet(&vulkan_globals.input_attachment_set_layout);
 
 	VkDescriptorImageInfo image_info;
 	memset(&image_info, 0, sizeof(image_info));
@@ -1493,14 +1486,8 @@ static void GL_CreateDescriptorSets(void)
 	input_attachment_write.pImageInfo = &image_info;
 	vkUpdateDescriptorSets(vulkan_globals.device, 1, &input_attachment_write, 0, NULL);
 
-	memset(&descriptor_set_allocate_info, 0, sizeof(descriptor_set_allocate_info));
-	descriptor_set_allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-	descriptor_set_allocate_info.descriptorPool = vulkan_globals.descriptor_pool;
-	descriptor_set_allocate_info.descriptorSetCount = 1;
-	descriptor_set_allocate_info.pSetLayouts = &vulkan_globals.screen_warp_set_layout;
-
 	assert(vulkan_globals.screen_warp_desc_set == VK_NULL_HANDLE);
-	vkAllocateDescriptorSets(vulkan_globals.device, &descriptor_set_allocate_info, &vulkan_globals.screen_warp_desc_set);
+	vulkan_globals.screen_warp_desc_set = R_AllocateDescriptorSet(&vulkan_globals.screen_warp_set_layout);
 
 	VkDescriptorImageInfo input_image_info;
 	memset(&input_image_info, 0, sizeof(input_image_info));
@@ -1887,10 +1874,10 @@ static void GL_DestroyRenderResources( void )
 
 	R_DestroyPipelines();
 
-	vkFreeDescriptorSets(vulkan_globals.device, vulkan_globals.descriptor_pool, 1, &postprocess_descriptor_set);
+	R_FreeDescriptorSet(postprocess_descriptor_set, &vulkan_globals.input_attachment_set_layout);
 	postprocess_descriptor_set = VK_NULL_HANDLE;
 
-	vkFreeDescriptorSets(vulkan_globals.device, vulkan_globals.descriptor_pool, 1, &vulkan_globals.screen_warp_desc_set);
+	R_FreeDescriptorSet(vulkan_globals.screen_warp_desc_set, &vulkan_globals.screen_warp_set_layout);
 	vulkan_globals.screen_warp_desc_set = VK_NULL_HANDLE;
 
 	if (msaa_color_buffer)

@@ -55,6 +55,10 @@ int num_vulkan_bmodel_allocations = 0;
 int num_vulkan_mesh_allocations = 0;
 int num_vulkan_misc_allocations = 0;
 int num_vulkan_dynbuf_allocations = 0;
+int num_vulkan_combined_image_samplers = 0;
+int num_vulkan_ubos_dynamic = 0;
+int num_vulkan_input_attachments = 0;
+int num_vulkan_storage_images = 0;
 
 /*
 ================
@@ -725,10 +729,10 @@ static void R_InitDynamicUniformBuffers()
 	descriptor_set_allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
 	descriptor_set_allocate_info.descriptorPool = vulkan_globals.descriptor_pool;
 	descriptor_set_allocate_info.descriptorSetCount = 1;
-	descriptor_set_allocate_info.pSetLayouts = &vulkan_globals.ubo_set_layout;
+	descriptor_set_allocate_info.pSetLayouts = &vulkan_globals.ubo_set_layout.handle;
 
-	vkAllocateDescriptorSets(vulkan_globals.device, &descriptor_set_allocate_info, &ubo_descriptor_sets[0]);
-	vkAllocateDescriptorSets(vulkan_globals.device, &descriptor_set_allocate_info, &ubo_descriptor_sets[1]);
+	ubo_descriptor_sets[0] = R_AllocateDescriptorSet(&vulkan_globals.ubo_set_layout);
+	ubo_descriptor_sets[1] = R_AllocateDescriptorSet(&vulkan_globals.ubo_set_layout);
 
 	VkDescriptorBufferInfo buffer_info;
 	memset(&buffer_info, 0, sizeof(buffer_info));
@@ -905,7 +909,8 @@ void R_CollectDynamicBufferGarbage()
 	const int collect_garbage_index = (current_garbage_index + 1) % GARBAGE_FRAME_COUNT;
 
 	if (num_desc_set_garbage[collect_garbage_index] > 0) {
-		vkFreeDescriptorSets(vulkan_globals.device, vulkan_globals.descriptor_pool, num_desc_set_garbage[collect_garbage_index], descriptor_set_garbage[collect_garbage_index]);
+		for (int i = 0; i < num_desc_set_garbage[collect_garbage_index]; ++i)
+			R_FreeDescriptorSet(descriptor_set_garbage[collect_garbage_index][i], &vulkan_globals.ubo_set_layout);
 		free(descriptor_set_garbage[collect_garbage_index]);
 		descriptor_set_garbage[collect_garbage_index] = NULL;
 		num_desc_set_garbage[collect_garbage_index] = 0;
@@ -1059,7 +1064,10 @@ void R_CreateDescriptorSetLayouts()
 	descriptor_set_layout_create_info.bindingCount = 1;
 	descriptor_set_layout_create_info.pBindings = &single_texture_layout_binding;
 
-	err = vkCreateDescriptorSetLayout(vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.single_texture_set_layout);
+	memset(&vulkan_globals.single_texture_set_layout, 0, sizeof(vulkan_globals.single_texture_set_layout));
+	vulkan_globals.single_texture_set_layout.num_combined_image_samplers = 1;
+
+	err = vkCreateDescriptorSetLayout(vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.single_texture_set_layout.handle);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateDescriptorSetLayout failed");
 
@@ -1072,8 +1080,11 @@ void R_CreateDescriptorSetLayouts()
 
 	descriptor_set_layout_create_info.bindingCount = 1;
 	descriptor_set_layout_create_info.pBindings = &ubo_sampler_layout_bindings;
-	
-	err = vkCreateDescriptorSetLayout(vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.ubo_set_layout);
+
+	memset(&vulkan_globals.ubo_set_layout, 0, sizeof(vulkan_globals.ubo_set_layout));
+	vulkan_globals.ubo_set_layout.num_ubos_dynamic = 1;
+
+	err = vkCreateDescriptorSetLayout(vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.ubo_set_layout.handle);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateDescriptorSetLayout failed");
 
@@ -1086,8 +1097,11 @@ void R_CreateDescriptorSetLayouts()
 
 	descriptor_set_layout_create_info.bindingCount = 1;
 	descriptor_set_layout_create_info.pBindings = &input_attachment_layout_bindings;
+
+	memset(&vulkan_globals.input_attachment_set_layout, 0, sizeof(vulkan_globals.input_attachment_set_layout));
+	vulkan_globals.input_attachment_set_layout.num_input_attachments = 1;
 	
-	err = vkCreateDescriptorSetLayout(vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.input_attachment_set_layout);
+	err = vkCreateDescriptorSetLayout(vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.input_attachment_set_layout.handle);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateDescriptorSetLayout failed");
 
@@ -1105,7 +1119,11 @@ void R_CreateDescriptorSetLayouts()
 	descriptor_set_layout_create_info.bindingCount = 2;
 	descriptor_set_layout_create_info.pBindings = screen_warp_layout_bindings;
 	
-	err = vkCreateDescriptorSetLayout(vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.screen_warp_set_layout);
+	memset(&vulkan_globals.screen_warp_set_layout, 0, sizeof(vulkan_globals.screen_warp_set_layout));
+	vulkan_globals.screen_warp_set_layout.num_combined_image_samplers = 1;
+	vulkan_globals.screen_warp_set_layout.num_storage_images = 1;
+
+	err = vkCreateDescriptorSetLayout(vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.screen_warp_set_layout.handle);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateDescriptorSetLayout failed");
 
@@ -1119,7 +1137,10 @@ void R_CreateDescriptorSetLayouts()
 	descriptor_set_layout_create_info.bindingCount = 1;
 	descriptor_set_layout_create_info.pBindings = &single_texture_cs_write_layout_binding;
 
-	err = vkCreateDescriptorSetLayout(vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.single_texture_cs_write_set_layout);
+	memset(&vulkan_globals.single_texture_cs_write_set_layout, 0, sizeof(vulkan_globals.single_texture_cs_write_set_layout));
+	vulkan_globals.single_texture_cs_write_set_layout.num_storage_images = 1;
+
+	err = vkCreateDescriptorSetLayout(vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.single_texture_cs_write_set_layout.handle);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateDescriptorSetLayout failed");
 }
@@ -1164,7 +1185,7 @@ void R_CreatePipelineLayouts()
 	VkResult err;
 
 	// Basic
-	VkDescriptorSetLayout basic_descriptor_set_layouts[1] = { vulkan_globals.single_texture_set_layout };
+	VkDescriptorSetLayout basic_descriptor_set_layouts[1] = { vulkan_globals.single_texture_set_layout.handle };
 	
 	VkPushConstantRange push_constant_range;
 	memset(&push_constant_range, 0, sizeof(push_constant_range));
@@ -1187,9 +1208,9 @@ void R_CreatePipelineLayouts()
 
 	// World
 	VkDescriptorSetLayout world_descriptor_set_layouts[3] = {
-		vulkan_globals.single_texture_set_layout,
-		vulkan_globals.single_texture_set_layout,
-		vulkan_globals.single_texture_set_layout
+		vulkan_globals.single_texture_set_layout.handle,
+		vulkan_globals.single_texture_set_layout.handle,
+		vulkan_globals.single_texture_set_layout.handle
 	};
 
 	pipeline_layout_create_info.setLayoutCount = 3;
@@ -1202,9 +1223,9 @@ void R_CreatePipelineLayouts()
 
 	// Alias
 	VkDescriptorSetLayout alias_descriptor_set_layouts[3] = {
-		vulkan_globals.single_texture_set_layout,
-		vulkan_globals.single_texture_set_layout,
-		vulkan_globals.ubo_set_layout
+		vulkan_globals.single_texture_set_layout.handle,
+		vulkan_globals.single_texture_set_layout.handle,
+		vulkan_globals.ubo_set_layout.handle
 	};
 
 	pipeline_layout_create_info.setLayoutCount = 3;
@@ -1217,8 +1238,8 @@ void R_CreatePipelineLayouts()
 
 	// Sky
 	VkDescriptorSetLayout sky_layer_descriptor_set_layouts[2] = {
-		vulkan_globals.single_texture_set_layout,
-		vulkan_globals.single_texture_set_layout,
+		vulkan_globals.single_texture_set_layout.handle,
+		vulkan_globals.single_texture_set_layout.handle,
 	};
 
 	pipeline_layout_create_info.setLayoutCount = 2;
@@ -1231,7 +1252,7 @@ void R_CreatePipelineLayouts()
 
 	// Postprocess
 	VkDescriptorSetLayout postprocess_descriptor_set_layouts[1] = {
-		vulkan_globals.input_attachment_set_layout,
+		vulkan_globals.input_attachment_set_layout.handle,
 	};
 
 	memset(&push_constant_range, 0, sizeof(push_constant_range));
@@ -1251,7 +1272,7 @@ void R_CreatePipelineLayouts()
 
 	// Screen warp
 	VkDescriptorSetLayout screen_warp_descriptor_set_layouts[1] = {
-		vulkan_globals.screen_warp_set_layout,
+		vulkan_globals.screen_warp_set_layout.handle,
 	};
 
 	memset(&push_constant_range, 0, sizeof(push_constant_range));
@@ -1271,8 +1292,8 @@ void R_CreatePipelineLayouts()
 
 	// Texture warp
 	VkDescriptorSetLayout tex_warp_descriptor_set_layouts[2] = {
-		vulkan_globals.single_texture_set_layout,
-		vulkan_globals.single_texture_cs_write_set_layout,
+		vulkan_globals.single_texture_set_layout.handle,
+		vulkan_globals.single_texture_cs_write_set_layout.handle,
 	};
 
 	memset(&push_constant_range, 0, sizeof(push_constant_range));
@@ -2229,6 +2250,47 @@ void R_Init (void)
 
 /*
 ===============
+R_AllocateDescriptorSet
+===============
+*/
+VkDescriptorSet R_AllocateDescriptorSet(vulkan_desc_set_layout_t * layout)
+{
+	VkDescriptorSetAllocateInfo descriptor_set_allocate_info;
+	memset(&descriptor_set_allocate_info, 0, sizeof(descriptor_set_allocate_info));
+	descriptor_set_allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	descriptor_set_allocate_info.descriptorPool = vulkan_globals.descriptor_pool;
+	descriptor_set_allocate_info.descriptorSetCount = 1;
+	descriptor_set_allocate_info.pSetLayouts = &layout->handle;
+
+	VkDescriptorSet handle;
+	vkAllocateDescriptorSets(vulkan_globals.device, &descriptor_set_allocate_info, &handle);
+
+	num_vulkan_combined_image_samplers += layout->num_combined_image_samplers;
+	num_vulkan_ubos_dynamic += layout->num_ubos_dynamic;
+	num_vulkan_input_attachments += layout->num_input_attachments;
+	num_vulkan_storage_images += layout->num_storage_images;
+
+	return handle;
+}
+
+/*
+===============
+R_FreeDescriptorSet
+===============
+*/
+
+void R_FreeDescriptorSet(VkDescriptorSet desc_set, vulkan_desc_set_layout_t * layout)
+{
+	vkFreeDescriptorSets(vulkan_globals.device, vulkan_globals.descriptor_pool, 1, &desc_set);
+
+	num_vulkan_combined_image_samplers -= layout->num_combined_image_samplers;
+	num_vulkan_ubos_dynamic -= layout->num_ubos_dynamic;
+	num_vulkan_input_attachments -= layout->num_input_attachments;
+	num_vulkan_storage_images -= layout->num_storage_images;
+}
+
+/*
+===============
 R_TranslatePlayerSkin -- johnfitz -- rewritten.  also, only handles new colors, not new skins
 ===============
 */
@@ -2437,5 +2499,9 @@ void R_VulkanMemStats_f(void)
 	Con_Printf(" Mesh:   %d\n", num_vulkan_mesh_allocations);
 	Con_Printf(" Misc:   %d\n", num_vulkan_misc_allocations);
 	Con_Printf(" DynBuf: %d\n", num_vulkan_dynbuf_allocations);
-
+	Con_Printf("Descriptors:\n");
+	Con_Printf(" Combined image samplers: %d\n", num_vulkan_combined_image_samplers );
+	Con_Printf(" Dynamic UBOs: %d\n", num_vulkan_ubos_dynamic );
+	Con_Printf(" Input attachments: %d\n", num_vulkan_input_attachments );
+	Con_Printf(" Storage images: %d\n", num_vulkan_storage_images );
 }

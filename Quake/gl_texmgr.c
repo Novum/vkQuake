@@ -931,14 +931,7 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	GL_SetObjectName((uint64_t)glt->image_view, VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT, glt->name);
 
 	// Allocate and update descriptor for this texture
-	VkDescriptorSetAllocateInfo descriptor_set_allocate_info;
-	memset(&descriptor_set_allocate_info, 0, sizeof(descriptor_set_allocate_info));
-	descriptor_set_allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-	descriptor_set_allocate_info.descriptorPool = vulkan_globals.descriptor_pool;
-	descriptor_set_allocate_info.descriptorSetCount = 1;
-	descriptor_set_allocate_info.pSetLayouts = &vulkan_globals.single_texture_set_layout;
-
-	vkAllocateDescriptorSets(vulkan_globals.device, &descriptor_set_allocate_info, &glt->descriptor_set);
+	glt->descriptor_set = R_AllocateDescriptorSet(&vulkan_globals.single_texture_set_layout);
 
 	TexMgr_SetFilterModes (glt);
 
@@ -968,14 +961,7 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 		GL_SetObjectName((uint64_t)glt->frame_buffer, VK_DEBUG_REPORT_OBJECT_TYPE_FRAMEBUFFER_EXT, glt->name);
 
 		// Allocate and update descriptor for this texture
-		VkDescriptorSetAllocateInfo descriptor_set_allocate_info;
-		memset(&descriptor_set_allocate_info, 0, sizeof(descriptor_set_allocate_info));
-		descriptor_set_allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-		descriptor_set_allocate_info.descriptorPool = vulkan_globals.descriptor_pool;
-		descriptor_set_allocate_info.descriptorSetCount = 1;
-		descriptor_set_allocate_info.pSetLayouts = &vulkan_globals.single_texture_cs_write_set_layout;
-
-		vkAllocateDescriptorSets(vulkan_globals.device, &descriptor_set_allocate_info, &glt->warp_write_descriptor_set);
+		glt->warp_write_descriptor_set = R_AllocateDescriptorSet(&vulkan_globals.single_texture_cs_write_set_layout);
 
 		VkDescriptorImageInfo output_image_info;
 		memset(&output_image_info, 0, sizeof(output_image_info));
@@ -1454,9 +1440,9 @@ void TexMgr_CollectGarbage (void)
 			vkDestroyImageView(vulkan_globals.device, garbage->target_image_view, NULL);
 		vkDestroyImageView(vulkan_globals.device, garbage->image_view, NULL);
 		vkDestroyImage(vulkan_globals.device, garbage->image, NULL);
-		vkFreeDescriptorSets(vulkan_globals.device, vulkan_globals.descriptor_pool, 1, &garbage->descriptor_set);
+		R_FreeDescriptorSet(garbage->descriptor_set, &vulkan_globals.single_texture_set_layout);
 		if (garbage->warp_write_descriptor_set)
-			vkFreeDescriptorSets(vulkan_globals.device, vulkan_globals.descriptor_pool, 1, &garbage->warp_write_descriptor_set);
+			R_FreeDescriptorSet(garbage->descriptor_set, &vulkan_globals.single_texture_cs_write_set_layout);
 
 		GL_FreeFromHeaps(num_texmgr_heaps, texmgr_heaps, garbage->heap, garbage->heap_node, &num_vulkan_tex_allocations);
 	}
@@ -1498,9 +1484,9 @@ static void GL_DeleteTexture (gltexture_t *texture)
 			vkDestroyImageView(vulkan_globals.device, texture->target_image_view, NULL);
 		vkDestroyImageView(vulkan_globals.device, texture->image_view, NULL);
 		vkDestroyImage(vulkan_globals.device, texture->image, NULL);
-		vkFreeDescriptorSets(vulkan_globals.device, vulkan_globals.descriptor_pool, 1, &texture->descriptor_set);
-		if (texture->warp_write_descriptor_set)
-			vkFreeDescriptorSets(vulkan_globals.device, vulkan_globals.descriptor_pool, 1, &texture->warp_write_descriptor_set);
+		R_FreeDescriptorSet(texture->descriptor_set, &vulkan_globals.single_texture_set_layout);
+		if (garbage->warp_write_descriptor_set)
+			R_FreeDescriptorSet(texture->warp_write_descriptor_set, &vulkan_globals.single_texture_cs_write_set_layout);
 
 		GL_FreeFromHeaps(num_texmgr_heaps, texmgr_heaps, texture->heap, texture->heap_node, &num_vulkan_tex_allocations);
 	}
