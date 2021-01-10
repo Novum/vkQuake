@@ -68,6 +68,8 @@ typedef struct
 	VkBuffer		buffer;
 	glheap_t *		heap;
 	glheapnode_t *	heap_node;
+	glheap_t ***	heaps;
+	int *			num_heaps;
 } buffer_garbage_t;
 
 static int current_garbage_index;
@@ -79,7 +81,7 @@ static buffer_garbage_t buffer_garbage[MAX_MODELS * 2][2];
 AddBufferGarbage
 ================
 */
-static void AddBufferGarbage(VkBuffer buffer, glheap_t * heap, glheapnode_t * heap_node)
+static void AddBufferGarbage(VkBuffer buffer, glheap_t * heap, glheapnode_t * heap_node, glheap_t *** heaps, int * num_heaps)
 {
 	int garbage_index;
 	buffer_garbage_t * garbage;
@@ -89,6 +91,8 @@ static void AddBufferGarbage(VkBuffer buffer, glheap_t * heap, glheapnode_t * he
 	garbage->buffer = buffer;
 	garbage->heap = heap;
 	garbage->heap_node = heap_node;
+	garbage->heaps = heaps;
+	garbage->num_heaps = num_heaps;
 }
 
 /*
@@ -108,7 +112,7 @@ void R_CollectMeshBufferGarbage()
 	{
 		garbage = &buffer_garbage[i][current_garbage_index];
 		vkDestroyBuffer(vulkan_globals.device, garbage->buffer, NULL);
-		GL_FreeFromHeaps(num_index_buffer_heaps, index_buffer_heaps, garbage->heap, garbage->heap_node, &num_vulkan_mesh_allocations);
+		GL_FreeFromHeaps(*garbage->num_heaps, *garbage->heaps, garbage->heap, garbage->heap_node, &num_vulkan_mesh_allocations);
 	}
 	num_garbage_buffers[current_garbage_index] = 0;
 }
@@ -514,8 +518,8 @@ static void GLMesh_DeleteVertexBuffer(qmodel_t *m)
 
 	if (in_update_screen)
 	{
-		AddBufferGarbage(m->vertex_buffer, m->vertex_heap, m->vertex_heap_node);
-		AddBufferGarbage(m->index_buffer, m->index_heap, m->index_heap_node);
+		AddBufferGarbage(m->vertex_buffer, m->vertex_heap, m->vertex_heap_node, &vertex_buffer_heaps, &num_vertex_buffer_heaps);
+		AddBufferGarbage(m->index_buffer, m->index_heap, m->index_heap_node, &index_buffer_heaps, &num_index_buffer_heaps);
 	}
 	else
 	{
