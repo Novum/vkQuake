@@ -232,6 +232,7 @@ extern	int		r_framecount;
 extern	mplane_t	frustum[4];
 extern	int render_pass_index;
 extern	qboolean render_warp;
+extern	qboolean render_warp_water;
 extern	qboolean in_update_screen;
 
 //
