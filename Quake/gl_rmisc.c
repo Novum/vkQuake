@@ -1047,7 +1047,7 @@ R_CreateDescriptorSetLayouts
 */
 void R_CreateDescriptorSetLayouts()
 {
-	Con_Printf("Creating descriptor set layouts\n");
+	Sys_Printf("Creating descriptor set layouts\n");
 
 	VkResult err;
 
@@ -1180,7 +1180,7 @@ R_CreatePipelineLayouts
 */
 void R_CreatePipelineLayouts()
 {
-	Con_Printf("Creating pipeline layouts\n");
+	Sys_Printf("Creating pipeline layouts\n");
 
 	VkResult err;
 
@@ -1328,7 +1328,7 @@ R_InitSamplers
 */
 void R_InitSamplers()
 {
-	Con_Printf("Initializing samplers\n");
+	Sys_Printf("Initializing samplers\n");
 
 	VkResult err;
 
@@ -1419,7 +1419,7 @@ void R_CreatePipelines()
 	int alpha_blend, alpha_test, fullbright_enabled;
 	VkResult err;
 
-	Con_Printf("Creating pipelines\n");
+	Sys_Printf("Creating pipelines\n");
 
 	VkShaderModule basic_vert_module = R_CreateShaderModule(basic_vert_spv, basic_vert_spv_size);
 	VkShaderModule basic_frag_module = R_CreateShaderModule(basic_frag_spv, basic_frag_spv_size);

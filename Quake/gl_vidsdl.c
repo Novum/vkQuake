@@ -1019,7 +1019,7 @@ GL_CreateRenderPasses
 */
 static void GL_CreateRenderPasses()
 {
-	Con_Printf("Creating render passes\n");
+	Sys_Printf("Creating render passes\n");
 
 	VkResult err;
 
@@ -1189,7 +1189,7 @@ GL_CreateDepthBuffer
 */
 static void GL_CreateDepthBuffer( void )
 {
-	Con_Printf("Creating depth buffer\n");
+	Sys_Printf("Creating depth buffer\n");
 
 	if(depth_buffer != VK_NULL_HANDLE)
 		return;
@@ -1278,7 +1278,7 @@ static void GL_CreateColorBuffer( void )
 	VkResult err;
 	int i;
 
-	Con_Printf("Creating color buffer\n");
+	Sys_Printf("Creating color buffer\n");
 
 	VkImageCreateInfo image_create_info;
 	memset(&image_create_info, 0, sizeof(image_create_info));
@@ -1376,16 +1376,16 @@ static void GL_CreateColorBuffer( void )
 		switch(vulkan_globals.sample_count)
 		{
 			case VK_SAMPLE_COUNT_2_BIT:
-				Con_Printf("2 AA Samples\n");
+				Sys_Printf("2 AA Samples\n");
 				break;
 			case VK_SAMPLE_COUNT_4_BIT:
-				Con_Printf("4 AA Samples\n");
+				Sys_Printf("4 AA Samples\n");
 				break;
 			case VK_SAMPLE_COUNT_8_BIT:
-				Con_Printf("8 AA Samples\n");
+				Sys_Printf("8 AA Samples\n");
 				break;
 			case VK_SAMPLE_COUNT_16_BIT:
-				Con_Printf("16 AA Samples\n");
+				Sys_Printf("16 AA Samples\n");
 				break;
 			default:
 				break;
@@ -1397,7 +1397,7 @@ static void GL_CreateColorBuffer( void )
 		vulkan_globals.supersampling = (vulkan_physical_device_features.sampleRateShading && vid_fsaamode.value >= 1) ? true : false;
 
 		if (vulkan_globals.supersampling)
-			Con_Printf("Supersampling enabled\n");
+			Sys_Printf("Supersampling enabled\n");
 
 		image_create_info.samples = vulkan_globals.sample_count;
 		image_create_info.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
@@ -1457,7 +1457,7 @@ static void GL_CreateColorBuffer( void )
 			Sys_Error("vkCreateImageView failed");
 	}
 	else
-		Con_Printf("AA disabled\n");
+		Sys_Printf("AA disabled\n");
 }
 
 /*
@@ -1660,13 +1660,13 @@ static qboolean GL_CreateSwapChain( void )
 
 	switch(present_mode) {
 	case VK_PRESENT_MODE_FIFO_KHR:
-		Con_Printf("Using FIFO present mode\n");
+		Sys_Printf("Using FIFO present mode\n");
 		break;
 	case VK_PRESENT_MODE_MAILBOX_KHR:
-		Con_Printf("Using MAILBOX present mode\n");
+		Sys_Printf("Using MAILBOX present mode\n");
 		break;
 	case VK_PRESENT_MODE_IMMEDIATE_KHR:
-		Con_Printf("Using IMMEDIATE present mode\n");
+		Sys_Printf("Using IMMEDIATE present mode\n");
 		break;
 	default:
 		break;
@@ -1786,7 +1786,7 @@ static void GL_CreateFrameBuffers( void )
 {
 	uint32_t i;
 
-	Con_Printf("Creating frame buffers\n");
+	Sys_Printf("Creating frame buffers\n");
 
 	VkResult err;
 
@@ -2055,15 +2055,15 @@ qboolean GL_AcquireNextSwapChainImage(void)
 		const VkResult result = fpAcquireFullScreenExclusiveModeEXT(vulkan_globals.device, vulkan_swapchain);
 		if (result == VK_SUCCESS) {
 			vulkan_globals.swap_chain_full_screen_acquired = true;
-			Con_Printf("Full screen exclusive acquired\n");
+			Sys_Printf("Full screen exclusive acquired\n");
 		}
 	}
 	else if (!vulkan_globals.want_full_screen_exclusive  && vulkan_globals.swap_chain_full_screen_exclusive && vulkan_globals.swap_chain_full_screen_acquired)
 	{
 		const VkResult result = fpReleaseFullScreenExclusiveModeEXT(vulkan_globals.device, vulkan_swapchain);
 		if (result == VK_SUCCESS) {
-			vulkan_globals.swap_chain_full_screen_acquired = true;
-			Con_Printf("Full screen exclusive released\n");
+			vulkan_globals.swap_chain_full_screen_acquired = false;
+			Sys_Printf("Full screen exclusive released\n");
 		}
 	}
 #endif
@@ -2625,7 +2625,7 @@ void	VID_Toggle (void)
 		vid_toggle_works = false;
 		Con_DPrintf ("SDL_WM_ToggleFullScreen failed, attempting VID_Restart\n");
 	vrestart:
-		Cvar_SetQuick (&vid_fullscreen, VID_GetFullscreen() ? (vulkan_globals.swap_chain_full_screen_acquired ? "2" : "1") : "0");
+		Cvar_SetQuick (&vid_fullscreen, VID_GetFullscreen() ? (vulkan_globals.swap_chain_full_screen_exclusive ? "2" : "1") : "0");
 		Cbuf_AddText ("vid_restart\n");
 	}
 }
@@ -2646,7 +2646,7 @@ void VID_SyncCvars (void)
 		}
 		Cvar_SetValueQuick (&vid_refreshrate, VID_GetCurrentRefreshRate());
 		Cvar_SetValueQuick (&vid_bpp, VID_GetCurrentBPP());
-		Cvar_SetQuick (&vid_fullscreen, VID_GetFullscreen() ? (vulkan_globals.swap_chain_full_screen_acquired ? "2" : "1") : "0");
+		Cvar_SetQuick (&vid_fullscreen, VID_GetFullscreen() ? (vulkan_globals.swap_chain_full_screen_exclusive ? "2" : "1") : "0");
 		// don't sync vid_desktopfullscreen, it's a user preference that
 		// should persist even if we are in windowed mode.
 	}
