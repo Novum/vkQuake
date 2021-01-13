@@ -2037,7 +2037,7 @@ qboolean GL_BeginRendering (int *x, int *y, int *width, int *height)
 
 	vkCmdSetViewport(vulkan_globals.command_buffer, 0, 1, &viewport);
 
-	R_BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_blend_pipeline[0]);
+	R_BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_blend_pipeline[render_pass_index]);
 	GL_SetCanvas(CANVAS_NONE);
 
 	return true;

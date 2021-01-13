@@ -1022,8 +1022,8 @@ qboolean GL_Set2D (void)
 		return false;
 
 	vkCmdBeginRenderPass(vulkan_globals.command_buffer, &vulkan_globals.ui_render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
-	R_BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_blend_pipeline[0]);
 	render_pass_index = 1;
+	R_BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_blend_pipeline[render_pass_index]);
 
 	return true;
 }
