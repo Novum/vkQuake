@@ -82,6 +82,7 @@ static void GL_DestroyRenderResources(void);
 viddef_t	vid;				// global video state
 modestate_t	modestate = MS_UNINIT;
 extern qboolean scr_initialized;
+extern cvar_t r_particles;
 
 //====================================
 
@@ -2671,6 +2672,7 @@ enum {
 	VID_OPT_FILTER,
 	VID_OPT_ANISOTROPY,
 	VID_OPT_UNDERWATER,
+	VID_OPT_PARTICLES,
 	VID_OPT_TEST,
 	VID_OPT_APPLY,
 	VIDEO_OPTIONS_ITEMS
@@ -2966,6 +2968,33 @@ static void VID_Menu_ChooseNextWaterWarp (int dir)
 
 /*
 ================
+VID_Menu_ChooseNextParticles
+================
+*/
+static void VID_Menu_ChooseNextParticles (int dir)
+{
+	if (dir > 0)
+	{
+		if (r_particles.value == 0.0f)
+			Cvar_SetValueQuick(&r_particles, 2.0f);
+		else if (r_particles.value == 2.0f)
+			Cvar_SetValueQuick(&r_particles, 1.0f);
+		else 
+			Cvar_SetValueQuick(&r_particles, 0.0f);
+	}
+	else
+	{
+		if (r_particles.value == 0.0f)
+			Cvar_SetValueQuick(&r_particles, 1.0f);
+		else if (r_particles.value == 2.0f)
+			Cvar_SetValueQuick(&r_particles, 0.0f);
+		else 
+			Cvar_SetValueQuick(&r_particles, 2.0f);
+	}
+}
+
+/*
+================
 VID_Menu_ChooseNextRate
 
 chooses next refresh rate in order, then updates vid_refreshrate cvar
@@ -3073,6 +3102,9 @@ static void VID_MenuKey (int key)
 		case VID_OPT_UNDERWATER:
 			VID_Menu_ChooseNextWaterWarp (-1);
 			break;
+		case VID_OPT_PARTICLES:
+			VID_Menu_ChooseNextParticles (-1);
+			break;
 		default:
 			break;
 		}
@@ -3111,6 +3143,9 @@ static void VID_MenuKey (int key)
 			break;
 		case VID_OPT_UNDERWATER:
 			VID_Menu_ChooseNextWaterWarp (1);
+			break;
+		case VID_OPT_PARTICLES:
+			VID_Menu_ChooseNextParticles (1);
 			break;
 		default:
 			break;
@@ -3151,6 +3186,9 @@ static void VID_MenuKey (int key)
 			break;
 		case VID_OPT_UNDERWATER:
 			VID_Menu_ChooseNextWaterWarp (1);
+			break;
+		case VID_OPT_PARTICLES:
+			VID_Menu_ChooseNextParticles (1);
 			break;
 		case VID_OPT_TEST:
 			Cbuf_AddText ("vid_test\n");
@@ -3244,6 +3282,10 @@ static void VID_MenuDraw (void)
 		case VID_OPT_UNDERWATER:
 			M_Print (16, y, "     Underwater FX");
 			M_Print (184, y, ((int)r_waterwarp.value == 0) ? "off" : (((int)r_waterwarp.value == 1)  ? "Classic" : "glQuake"));
+			break;
+		case VID_OPT_PARTICLES:
+			M_Print (16, y, "         Particles");
+			M_Print (184, y, ((int)r_particles.value == 0) ? "off" : (((int)r_particles.value == 2)  ? "Classic" : "glQuake"));
 			break;
 		case VID_OPT_TEST:
 			y += 8; //separate the test and apply items
