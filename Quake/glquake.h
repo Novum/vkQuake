@@ -135,6 +135,7 @@ typedef struct
 	vulkan_pipeline_t					current_pipeline;
 	VkClearValue						color_clear_value;
 	VkFormat							swap_chain_format;
+	qboolean							want_full_screen_exclusive;
 	qboolean							swap_chain_full_screen_exclusive;
 	qboolean							swap_chain_full_screen_acquired;
 	VkPhysicalDeviceProperties			device_properties;

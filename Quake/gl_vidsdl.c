@@ -519,7 +519,7 @@ static void VID_Test (void)
 	old_height = VID_GetCurrentHeight();
 	old_refreshrate = VID_GetCurrentRefreshRate();
 	old_bpp = VID_GetCurrentBPP();
-	old_fullscreen = VID_GetFullscreen() ? true : false;
+	old_fullscreen = VID_GetFullscreen() ? (vulkan_globals.swap_chain_full_screen_exclusive ? 2 : 1) : 0;
 
 	VID_Restart ();
 
@@ -531,7 +531,7 @@ static void VID_Test (void)
 		Cvar_SetValueQuick (&vid_height, old_height);
 		Cvar_SetValueQuick (&vid_refreshrate, old_refreshrate);
 		Cvar_SetValueQuick (&vid_bpp, old_bpp);
-		Cvar_SetQuick (&vid_fullscreen, old_fullscreen ? "1" : "0");
+		Cvar_SetValueQuick (&vid_fullscreen, old_fullscreen);
 		VID_Restart ();
 	}
 }
@@ -787,7 +787,7 @@ static void GL_InitDevice( void )
 				vulkan_globals.dedicated_allocation = true;
 #if defined(VK_EXT_full_screen_exclusive)
 			// Only enable on NVIDIA for now. Some people report issues with the mouse cursor on AMD hardware.
-			if ((vulkan_globals.device_properties.vendorID == 0x10DE) && (strcmp(VK_EXT_FULL_SCREEN_EXCLUSIVE_EXTENSION_NAME, device_extensions[i].extensionName) == 0))
+			if (strcmp(VK_EXT_FULL_SCREEN_EXCLUSIVE_EXTENSION_NAME, device_extensions[i].extensionName) == 0)
 				vulkan_globals.full_screen_exclusive = true;
 #endif
 		}
@@ -1532,7 +1532,7 @@ static qboolean GL_CreateSwapChain( void )
 
 #if defined(VK_EXT_full_screen_exclusive)
 	qboolean use_exclusive_full_screen = false;
-	qboolean try_use_exclusive_full_screen = vulkan_globals.full_screen_exclusive && VID_GetFullscreen();
+	qboolean try_use_exclusive_full_screen = vulkan_globals.full_screen_exclusive && vulkan_globals.want_full_screen_exclusive && VID_GetFullscreen();
 	VkSurfaceFullScreenExclusiveInfoEXT full_screen_exclusive_info;
 	VkSurfaceFullScreenExclusiveWin32InfoEXT full_screen_exclusive_win32_info;
 	if (try_use_exclusive_full_screen)
@@ -2050,7 +2050,7 @@ GL_AcquireNextSwapChainImage
 qboolean GL_AcquireNextSwapChainImage(void)
 {
 #if defined(VK_EXT_full_screen_exclusive)
-	if ((vid_desktopfullscreen.value == 0) && VID_GetFullscreen() && vulkan_globals.swap_chain_full_screen_exclusive && !vulkan_globals.swap_chain_full_screen_acquired)
+	if (VID_GetFullscreen() && vulkan_globals.want_full_screen_exclusive && vulkan_globals.swap_chain_full_screen_exclusive && !vulkan_globals.swap_chain_full_screen_acquired)
 	{
 		const VkResult result = fpAcquireFullScreenExclusiveModeEXT(vulkan_globals.device, vulkan_swapchain);
 		if (result == VK_SUCCESS) {
@@ -2058,7 +2058,7 @@ qboolean GL_AcquireNextSwapChainImage(void)
 			Con_Printf("Full screen exclusive acquired\n");
 		}
 	}
-	else if ((vid_desktopfullscreen.value != 0) && vulkan_globals.swap_chain_full_screen_acquired)
+	else if (!vulkan_globals.want_full_screen_exclusive  && vulkan_globals.swap_chain_full_screen_exclusive && vulkan_globals.swap_chain_full_screen_acquired)
 	{
 		const VkResult result = fpReleaseFullScreenExclusiveModeEXT(vulkan_globals.device, vulkan_swapchain);
 		if (result == VK_SUCCESS) {
@@ -2400,6 +2400,7 @@ void	VID_Init (void)
 	refreshrate = (int)vid_refreshrate.value;
 	bpp = (int)vid_bpp.value;
 	fullscreen = (int)vid_fullscreen.value;
+	vulkan_globals.want_full_screen_exclusive = vid_fullscreen.value >= 2;
 
 	if (COM_CheckParm("-current"))
 	{
@@ -2518,6 +2519,7 @@ static void VID_Restart (void)
 	refreshrate = (int)vid_refreshrate.value;
 	bpp = (int)vid_bpp.value;
 	fullscreen = vid_fullscreen.value ? true : false;
+	vulkan_globals.want_full_screen_exclusive = vid_fullscreen.value >= 2;
 
 	//
 	// validate new mode
@@ -2623,7 +2625,7 @@ void	VID_Toggle (void)
 		vid_toggle_works = false;
 		Con_DPrintf ("SDL_WM_ToggleFullScreen failed, attempting VID_Restart\n");
 	vrestart:
-		Cvar_SetQuick (&vid_fullscreen, VID_GetFullscreen() ? "0" : "1");
+		Cvar_SetQuick (&vid_fullscreen, VID_GetFullscreen() ? (vulkan_globals.swap_chain_full_screen_acquired ? "2" : "1") : "0");
 		Cbuf_AddText ("vid_restart\n");
 	}
 }
@@ -2644,7 +2646,7 @@ void VID_SyncCvars (void)
 		}
 		Cvar_SetValueQuick (&vid_refreshrate, VID_GetCurrentRefreshRate());
 		Cvar_SetValueQuick (&vid_bpp, VID_GetCurrentBPP());
-		Cvar_SetQuick (&vid_fullscreen, VID_GetFullscreen() ? "1" : "0");
+		Cvar_SetQuick (&vid_fullscreen, VID_GetFullscreen() ? (vulkan_globals.swap_chain_full_screen_acquired ? "2" : "1") : "0");
 		// don't sync vid_desktopfullscreen, it's a user preference that
 		// should persist even if we are in windowed mode.
 	}
@@ -2997,6 +2999,19 @@ static void VID_Menu_ChooseNextRate (int dir)
 
 /*
 ================
+VID_Menu_ChooseNextFullScreenMode
+================
+*/
+static void VID_Menu_ChooseNextFullScreenMode (int dir)
+{
+	if (vulkan_globals.full_screen_exclusive)
+		Cvar_SetValueQuick(&vid_fullscreen, (float)(((int)vid_fullscreen.value + 3 + dir) % 3));
+	else
+		Cvar_SetValueQuick(&vid_fullscreen, (float)(((int)vid_fullscreen.value + 2 + dir) % 2));
+}
+
+/*
+================
 VID_MenuKey
 ================
 */
@@ -3038,7 +3053,7 @@ static void VID_MenuKey (int key)
 			VID_Menu_ChooseNextRate (1);
 			break;
 		case VID_OPT_FULLSCREEN:
-			Cbuf_AddText ("toggle vid_fullscreen\n");
+			VID_Menu_ChooseNextFullScreenMode(-1);
 			break;
 		case VID_OPT_VSYNC:
 			Cbuf_AddText ("toggle vid_vsync\n"); // kristian
@@ -3077,7 +3092,7 @@ static void VID_MenuKey (int key)
 			VID_Menu_ChooseNextRate (-1);
 			break;
 		case VID_OPT_FULLSCREEN:
-			Cbuf_AddText ("toggle vid_fullscreen\n");
+			VID_Menu_ChooseNextFullScreenMode(1);
 			break;
 		case VID_OPT_VSYNC:
 			Cbuf_AddText ("toggle vid_vsync\n");
@@ -3117,7 +3132,7 @@ static void VID_MenuKey (int key)
 			VID_Menu_ChooseNextRate (1);
 			break;
 		case VID_OPT_FULLSCREEN:
-			Cbuf_AddText ("toggle vid_fullscreen\n");
+			VID_Menu_ChooseNextFullScreenMode(1);
 			break;
 		case VID_OPT_VSYNC:
 			Cbuf_AddText ("toggle vid_vsync\n");
@@ -3204,7 +3219,7 @@ static void VID_MenuDraw (void)
 			break;
 		case VID_OPT_FULLSCREEN:
 			M_Print (16, y, "        Fullscreen");
-			M_DrawCheckbox (184, y, (int)vid_fullscreen.value);
+			M_Print (184, y, ((int)vid_fullscreen.value == 0) ? "off" : (((int)vid_fullscreen.value == 1)  ? "on" : "exclusive"));
 			break;
 		case VID_OPT_VSYNC:
 			M_Print (16, y, "     Vertical sync");
