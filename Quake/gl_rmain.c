@@ -61,41 +61,29 @@ mleaf_t		*r_viewleaf, *r_oldviewleaf;
 int		d_lightstylevalue[256];	// 8.8 fraction of base light value
 
 
-cvar_t	r_norefresh = {"r_norefresh","0",CVAR_NONE};
 cvar_t	r_drawentities = {"r_drawentities","1",CVAR_NONE};
 cvar_t	r_drawviewmodel = {"r_drawviewmodel","1",CVAR_NONE};
 cvar_t	r_speeds = {"r_speeds","0",CVAR_NONE};
 cvar_t	r_pos = {"r_pos","0",CVAR_NONE};
-cvar_t	r_fullbright = {"r_fullbright","0",CVAR_NONE};
-cvar_t	r_lightmap = {"r_lightmap","0",CVAR_NONE};
-cvar_t	r_shadows = {"r_shadows","0",CVAR_ARCHIVE};
 cvar_t	r_wateralpha = {"r_wateralpha","1",CVAR_ARCHIVE};
 cvar_t	r_dynamic = {"r_dynamic","1",CVAR_ARCHIVE};
 cvar_t	r_novis = {"r_novis","0",CVAR_ARCHIVE};
 
 cvar_t	gl_finish = {"gl_finish","0",CVAR_NONE};
-cvar_t	gl_clear = {"gl_clear","0",CVAR_NONE};
-cvar_t	gl_cull = {"gl_cull","1",CVAR_NONE};
-cvar_t	gl_smoothmodels = {"gl_smoothmodels","1",CVAR_NONE};
-cvar_t	gl_affinemodels = {"gl_affinemodels","0",CVAR_NONE};
 cvar_t	gl_polyblend = {"gl_polyblend","1",CVAR_NONE};
-cvar_t	gl_playermip = {"gl_playermip","0",CVAR_NONE};
 cvar_t	gl_nocolors = {"gl_nocolors","0",CVAR_NONE};
 
 //johnfitz -- new cvars
 cvar_t	r_clearcolor = {"r_clearcolor","2",CVAR_ARCHIVE};
-cvar_t	r_drawflat = {"r_drawflat","0",CVAR_NONE};
 cvar_t	r_flatlightstyles = {"r_flatlightstyles", "0", CVAR_NONE};
 cvar_t	gl_fullbrights = {"gl_fullbrights", "1", CVAR_ARCHIVE};
 cvar_t	gl_farclip = {"gl_farclip", "16384", CVAR_ARCHIVE};
 cvar_t	r_oldskyleaf = {"r_oldskyleaf", "0", CVAR_NONE};
 cvar_t	r_drawworld = {"r_drawworld", "1", CVAR_NONE};
 cvar_t	r_showtris = {"r_showtris", "0", CVAR_NONE};
-cvar_t	r_showbboxes = {"r_showbboxes", "0", CVAR_NONE};
 cvar_t	r_lerpmodels = {"r_lerpmodels", "1", CVAR_NONE};
 cvar_t	r_lerpmove = {"r_lerpmove", "1", CVAR_NONE};
 cvar_t	r_nolerp_list = {"r_nolerp_list", "progs/flame.mdl,progs/flame2.mdl,progs/braztall.mdl,progs/brazshrt.mdl,progs/longtrch.mdl,progs/flame_pyre.mdl,progs/v_saw.mdl,progs/v_xfist.mdl,progs/h2stuff/newfire.mdl", CVAR_NONE};
-cvar_t	r_noshadow_list = {"r_noshadow_list", "progs/flame2.mdl,progs/flame.mdl,progs/bolt1.mdl,progs/bolt2.mdl,progs/bolt3.mdl,progs/laser.mdl", CVAR_NONE};
 
 extern cvar_t	r_vfog;
 //johnfitz
@@ -108,7 +96,7 @@ cvar_t	r_slimealpha = {"r_slimealpha","0",CVAR_NONE};
 
 float	map_wateralpha, map_lavaalpha, map_telealpha, map_slimealpha;
 
-qboolean r_drawflat_cheatsafe, r_fullbright_cheatsafe, r_lightmap_cheatsafe, r_drawworld_cheatsafe; //johnfitz
+qboolean r_drawworld_cheatsafe; //johnfitz
 
 /*
 =================
@@ -389,16 +377,9 @@ void R_SetupView (void)
 	R_UpdateWarpTextures (); //johnfitz -- do this before R_Clear
 
 	//johnfitz -- cheat-protect some draw modes
-	r_drawflat_cheatsafe = r_fullbright_cheatsafe = r_lightmap_cheatsafe = false;
 	r_drawworld_cheatsafe = true;
-	if (cl.maxclients == 1)
-	{
-		if (!r_drawworld.value) r_drawworld_cheatsafe = false;
-
-		if (r_drawflat.value) r_drawflat_cheatsafe = true;
-		else if (r_fullbright.value || !cl.worldmodel->lightdata) r_fullbright_cheatsafe = true;
-		else if (r_lightmap.value) r_lightmap_cheatsafe = true;
-	}
+	if (cl.maxclients == 1 && !r_drawworld.value)
+		r_drawworld_cheatsafe = false;
 	//johnfitz
 }
 
@@ -590,9 +571,6 @@ R_RenderView
 void R_RenderView (void)
 {
 	double	time1, time2;
-
-	if (r_norefresh.value)
-		return;
 
 	if (!cl.worldmodel)
 		Sys_Error ("R_RenderView: NULL worldmodel");

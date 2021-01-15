@@ -395,10 +395,7 @@ void R_DrawAliasModel (entity_t *e)
 	//
 	// set up for alpha blending
 	//
-	if (r_drawflat_cheatsafe || r_lightmap_cheatsafe) //no alpha in drawflat or lightmap mode
-		entalpha = 1;
-	else
-		entalpha = ENTALPHA_DECODE(e->alpha);
+	entalpha = ENTALPHA_DECODE(e->alpha);
 	if (entalpha == 0)
 		return;
 

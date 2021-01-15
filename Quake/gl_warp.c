@@ -29,8 +29,6 @@ cvar_t r_waterquality = {"r_waterquality", "8", CVAR_NONE};
 cvar_t r_waterwarp = {"r_waterwarp", "1", CVAR_ARCHIVE};
 cvar_t r_waterwarpcompute = { "r_waterwarpcompute", "1", CVAR_ARCHIVE };
 
-float load_subdivide_size; //johnfitz -- remember what subdivide_size value was when this map was loaded
-
 float	turbsin[] =
 {
 #include "gl_warp_sin.h"
@@ -273,7 +271,7 @@ void R_UpdateWarpTextures (void)
 	int i, mip;
 	float warptess;
 
-	if (cl.paused || r_drawflat_cheatsafe || r_lightmap_cheatsafe)
+	if (cl.paused)
 		return;
 
 	warptess = 128.0/CLAMP (3.0, floor(r_waterquality.value), 64.0);

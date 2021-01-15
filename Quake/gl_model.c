@@ -2480,7 +2480,7 @@ Mod_SetExtraFlags -- johnfitz -- set up extra flags that aren't in the mdl
 */
 void Mod_SetExtraFlags (qmodel_t *mod)
 {
-	extern cvar_t r_nolerp_list, r_noshadow_list;
+	extern cvar_t r_nolerp_list;
 
 	if (!mod || mod->type != mod_alias)
 		return;
@@ -2490,10 +2490,6 @@ void Mod_SetExtraFlags (qmodel_t *mod)
 	// nolerp flag
 	if (nameInList(r_nolerp_list.string, mod->name))
 		mod->flags |= MOD_NOLERP;
-
-	// noshadow flag
-	if (nameInList(r_noshadow_list.string, mod->name))
-		mod->flags |= MOD_NOSHADOW;
 
 	// fullbright hack (TODO: make this a cvar list)
 	if (!strcmp (mod->name, "progs/flame2.mdl") ||

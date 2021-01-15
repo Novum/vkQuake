@@ -258,16 +258,12 @@ extern	refdef_t	r_refdef;
 extern	mleaf_t		*r_viewleaf, *r_oldviewleaf;
 extern	int		d_lightstylevalue[256];	// 8.8 fraction of base light value
 
-extern	cvar_t	r_norefresh;
 extern	cvar_t	r_drawentities;
 extern	cvar_t	r_drawworld;
 extern	cvar_t	r_drawviewmodel;
 extern	cvar_t	r_speeds;
 extern	cvar_t	r_pos;
 extern	cvar_t	r_waterwarp;
-extern	cvar_t	r_fullbright;
-extern	cvar_t	r_lightmap;
-extern	cvar_t	r_shadows;
 extern	cvar_t	r_wateralpha;
 extern	cvar_t	r_lavaalpha;
 extern	cvar_t	r_telealpha;
@@ -275,23 +271,10 @@ extern	cvar_t	r_slimealpha;
 extern	cvar_t	r_dynamic;
 extern	cvar_t	r_novis;
 
-extern	cvar_t	gl_clear;
-extern	cvar_t	gl_cull;
-extern	cvar_t	gl_smoothmodels;
-extern	cvar_t	gl_affinemodels;
 extern	cvar_t	gl_polyblend;
 extern	cvar_t	gl_nocolors;
 
-extern	cvar_t	gl_playermip;
-
 extern	cvar_t	gl_subdivide_size;
-extern	float	load_subdivide_size; //johnfitz -- remember what subdivide_size value was when this map was loaded
-
-extern int		gl_stencilbits;
-
-//johnfitz -- anisotropic filtering
-extern	float		gl_max_anisotropy;
-extern	qboolean	gl_anisotropy_able;
 
 //johnfitz -- polygon offset
 #define OFFSET_BMODEL 1
@@ -357,7 +340,7 @@ struct lightmap_s
 extern struct lightmap_s *lightmap;
 extern int lightmap_count;	//allocated lightmaps
 
-extern qboolean r_drawflat_cheatsafe, r_fullbright_cheatsafe, r_lightmap_cheatsafe, r_drawworld_cheatsafe; //johnfitz
+extern qboolean r_drawworld_cheatsafe; //johnfitz
 
 extern float	map_wateralpha, map_lavaalpha, map_telealpha, map_slimealpha; //ericw
 
