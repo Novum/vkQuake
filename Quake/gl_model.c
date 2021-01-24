@@ -1989,54 +1989,11 @@ typedef struct vispatch_s
 // 2001-12-28 .VIS support by Maddes  end
 #define VISPATCH_HEADER_LEN_36 36
 
-///*
-//=================
-//Mod_LoadEntities
-//=================
-//*/
-//void Mod_LoadEntities(lump_t* l)
-//{
-//	char	entfilename[MAX_QPATH];
-//	char* ents;
-//	int		mark;
-//	unsigned int	path_id;
-//
-//	if (!external_ents.value)
-//		goto _load_embedded;
-//
-//	q_strlcpy(entfilename, loadmodel->name, sizeof(entfilename));
-//	COM_StripExtension(entfilename, entfilename, sizeof(entfilename));
-//	q_strlcat(entfilename, ".ent", sizeof(entfilename));
-//	Con_DPrintf2("trying to load %s\n", entfilename);
-//	mark = Hunk_LowMark();
-//	ents = (char*)COM_LoadHunkFile(entfilename, &path_id);
-//	if (ents)
-//	{
-//		// use ent file only from the same gamedir as the map
-//		// itself or from a searchpath with higher priority.
-//		if (path_id < loadmodel->path_id)
-//		{
-//			Hunk_FreeToLowMark(mark);
-//			Con_DPrintf("ignored %s from a gamedir with lower priority\n", entfilename);
-//		}
-//		else
-//		{
-//			loadmodel->entities = ents;
-//			Con_DPrintf("Loaded external entity file %s\n", entfilename);
-//			return;
-//		}
-//	}
-//
-//_load_embedded:
-//	if (!l->filelen)
-//	{
-//		loadmodel->entities = NULL;
-//		return;
-//	}
-//	loadmodel->entities = (char*)Hunk_AllocName(l->filelen, loadname);
-//	memcpy(loadmodel->entities, mod_base + l->fileofs, l->filelen);
-//}
-
+/*
+=================
+Mod_FindVisibilityExternal
+=================
+*/
 static qboolean Mod_FindVisibilityExternal(FILE** filehandle) // 01-24-2021 Dan Abbott - cbool to qboolean
 {
 	char visfilename[MAX_QPATH]; // 01-24-2021 Dan Abbott - MAX_QPATH_64 to MAX_QPATH
