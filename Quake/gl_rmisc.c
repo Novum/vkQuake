@@ -43,6 +43,8 @@ extern cvar_t r_nolerp_list;
 //johnfitz
 extern cvar_t gl_zfix; // QuakeSpasm z-fighting fix
 
+extern cvar_t external_vis; // 01-24-2021 Dan Abbott
+
 extern gltexture_t *playertextures[MAX_SCOREBOARD]; //johnfitz
 
 vulkanglobals_t vulkan_globals;
@@ -2189,6 +2191,7 @@ void R_Init (void)
 	Cvar_SetCallback (&r_wateralpha, R_SetWateralpha_f);
 	Cvar_RegisterVariable (&r_dynamic);
 	Cvar_RegisterVariable (&r_novis);
+	Cvar_RegisterVariable(&external_vis); // 01-24-2021 Dan Abbott
 	Cvar_RegisterVariable (&r_speeds);
 	Cvar_RegisterVariable (&r_pos);
 
