@@ -2191,7 +2191,7 @@ void R_Init (void)
 	Cvar_SetCallback (&r_wateralpha, R_SetWateralpha_f);
 	Cvar_RegisterVariable (&r_dynamic);
 	Cvar_RegisterVariable (&r_novis);
-	Cvar_RegisterVariable(&external_vis); // 01-24-2021 Dan Abbott
+	Cvar_RegisterVariable (&external_vis); // 01-24-2021 Dan Abbott
 	Cvar_RegisterVariable (&r_speeds);
 	Cvar_RegisterVariable (&r_pos);
 
