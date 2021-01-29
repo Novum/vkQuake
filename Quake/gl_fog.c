@@ -288,7 +288,7 @@ called at the beginning of each frame
 void Fog_SetupFrame (void)
 {
 	float * fog_color = Fog_GetColor();
-	float fog_values[4] = { fog_color[0], fog_color[1], fog_color[2], Fog_GetDensity() / 64.0f };
+	float fog_values[4] = { CLAMP( 0.0f, fog_color[0], 1.0f ), CLAMP(0.0f, fog_color[1], 1.0f), CLAMP(0.0f, fog_color[2], 1.0f), Fog_GetDensity() / 64.0f };
 	R_PushConstants(VK_SHADER_STAGE_ALL_GRAPHICS, 16 * sizeof(float), 4 * sizeof(float), fog_values);
 }
 
@@ -302,7 +302,7 @@ called before drawing stuff that should be fogged
 void Fog_EnableGFog (void)
 {
 	float * fog_color = Fog_GetColor();
-	float fog_values[4] = { fog_color[0], fog_color[1], fog_color[2], Fog_GetDensity() / 64.0f };
+	float fog_values[4] = { CLAMP( 0.0f, fog_color[0], 1.0f ), CLAMP(0.0f, fog_color[1], 1.0f), CLAMP(0.0f, fog_color[2], 1.0f), Fog_GetDensity() / 64.0f };
 	R_PushConstants(VK_SHADER_STAGE_ALL_GRAPHICS, 16 * sizeof(float), 4 * sizeof(float), fog_values);
 }
 
