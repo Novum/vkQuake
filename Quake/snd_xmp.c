@@ -34,18 +34,6 @@
 #error libxmp version 4.2 or newer is required
 #endif
 
-static int S_XMP_StartPlay (snd_stream_t *stream)
-{
-	int fmt = 0;
-
-	if (stream->info.channels == 1)
-		fmt |= XMP_FORMAT_MONO;
-	if (stream->info.width == 1)
-		fmt |= XMP_FORMAT_8BIT|XMP_FORMAT_UNSIGNED;
-
-	return xmp_start_player((xmp_context)stream->priv, stream->info.rate, fmt);
-}
-
 static qboolean S_XMP_CodecInitialize (void)
 {
 	return true;
@@ -64,6 +52,7 @@ static qboolean S_XMP_CodecOpenStream (snd_stream_t *stream)
 	xmp_context c;
 	byte *moddata;
 	long len;
+	int fmt;
 	int mark;
 
 	c = xmp_create_context();
@@ -74,13 +63,12 @@ static qboolean S_XMP_CodecOpenStream (snd_stream_t *stream)
 	mark = Hunk_LowMark();
 	moddata = (byte *) Hunk_Alloc(len);
 	FS_fread(moddata, 1, len, &stream->fh);
-	if (xmp_load_module_from_memory(c, moddata, len) != 0)
-	{
+	if (xmp_load_module_from_memory(c, moddata, len) < 0) {
 		Con_DPrintf("Could not load module %s\n", stream->name);
 		goto err1;
 	}
-
 	Hunk_FreeToLowMark(mark); /* free original file data */
+
 	stream->priv = c;
 	if (shm->speed > XMP_MAX_SRATE)
 		stream->info.rate = 44100;
@@ -91,19 +79,19 @@ static qboolean S_XMP_CodecOpenStream (snd_stream_t *stream)
 	stream->info.width = stream->info.bits / 8;
 	stream->info.channels = shm->channels;
 
-	if (S_XMP_StartPlay(stream) != 0)
+	fmt = 0;
+	if (stream->info.channels == 1)
+		fmt |= XMP_FORMAT_MONO;
+	if (stream->info.width == 1)
+		fmt |= XMP_FORMAT_8BIT|XMP_FORMAT_UNSIGNED;
+	if (xmp_start_player(c, stream->info.rate, fmt) < 0)
 		goto err2;
-	/* percentual left/right channel separation, default is 70. */
-	if (stream->info.channels == 2)
-		if (xmp_set_player(c, XMP_PLAYER_MIX, 100) != 0)
-			goto err3;
+
 	/* interpolation type, default is XMP_INTERP_LINEAR */
-	if (xmp_set_player(c, XMP_PLAYER_INTERP, XMP_INTERP_SPLINE) != 0)
-		goto err3;
+	xmp_set_player(c, XMP_PLAYER_INTERP, XMP_INTERP_SPLINE);
 
 	return true;
 
-err3:	xmp_end_player(c);
 err2:	xmp_release_module(c);
 err1:	xmp_free_context(c);
 	return false;
@@ -115,8 +103,8 @@ static int S_XMP_CodecReadStream (snd_stream_t *stream, int bytes, void *buffer)
 	/* xmp_play_buffer() requires libxmp >= 4.1.  it will write
 	 * native-endian pcm data to the buffer.  if the data write
 	 * is partial, the rest of the buffer will be zero-filled.
-	 * the last param is the number that the current sequence of
-	 * the song will be looped at max. */
+	 * the last param is the max number that the current sequence
+	 * of song will be looped, or 0 to disable loop checking.  */
 	r = xmp_play_buffer((xmp_context)stream->priv, buffer, bytes, 1);
 	if (r == 0) {
 		return bytes;
@@ -139,15 +127,10 @@ static void S_XMP_CodecCloseStream (snd_stream_t *stream)
 
 static int S_XMP_CodecRewindStream (snd_stream_t *stream)
 {
-	int ret;
-
-	ret = S_XMP_StartPlay(stream);
+	int ret = xmp_seek_time((xmp_context)stream->priv, 0);
 	if (ret < 0) return ret;
-
-	/*ret = xmp_set_position((xmp_context)stream->priv, 0);*/
-	ret = xmp_seek_time((xmp_context)stream->priv, 0);
-	if (ret < 0) return ret;
-
+	/* reset internal state */
+	xmp_play_buffer((xmp_context)stream->priv, NULL, 0, 0);
 	return 0;
 }
 
