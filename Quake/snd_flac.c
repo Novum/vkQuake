@@ -356,8 +356,7 @@ static void S_FLAC_CodecCloseStream (snd_stream_t *stream)
 	FLAC__stream_decoder_finish (ff->decoder);
 	FLAC__stream_decoder_delete (ff->decoder);
 
-	if (ff->buffer)
-			free(ff->buffer);
+	if (ff->buffer) free(ff->buffer);
 	Z_Free(ff);
 
 	S_CodecUtilClose(&stream);
@@ -382,6 +381,7 @@ snd_codec_t flac_codec =
 	S_FLAC_CodecOpenStream,
 	S_FLAC_CodecReadStream,
 	S_FLAC_CodecRewindStream,
+	NULL, /* jump */
 	S_FLAC_CodecCloseStream,
 	NULL
 };

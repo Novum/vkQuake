@@ -32,6 +32,7 @@ typedef void (*CODEC_SHUTDOWN)(void);
 typedef qboolean (*CODEC_OPEN)(snd_stream_t *stream);
 typedef int (*CODEC_READ)(snd_stream_t *stream, int bytes, void *buffer);
 typedef int (*CODEC_REWIND)(snd_stream_t *stream);
+typedef int (*CODEC_JUMP)(snd_stream_t *stream, int order);
 typedef void (*CODEC_CLOSE)(snd_stream_t *stream);
 
 struct snd_codec_s
@@ -44,6 +45,7 @@ struct snd_codec_s
 	CODEC_OPEN codec_open;
 	CODEC_READ codec_read;
 	CODEC_REWIND codec_rewind;
+	CODEC_JUMP codec_jump;
 	CODEC_CLOSE codec_close;
 	snd_codec_t *next;
 };

@@ -2,12 +2,7 @@
  * Unreal UMX container support.
  * UPKG parsing partially based on Unreal Media Ripper (UMR) v0.3
  * by Andy Ward <wardwh@swbell.net>, with additional updates
- * by O. Sezer - see git repo at https://github.com/sezero/umr/
- *
- * The cheaper way, i.e. linear search of music object like libxmp
- * and libmodplug does, is possible. With this however we're using
- * the embedded offset, size and object type directly from the umx
- * file, and I feel safer with it.
+ * by O. Sezer - see git repo at https://github.com/sezero/umr.git
  *
  * Copyright (C) 2013 O. Sezer <sezero@users.sourceforge.net>
  *
@@ -63,10 +58,9 @@ struct upkg_hdr {
 	uint32_t guid[4];
 	int32_t generation_count;
 #define UPKG_HDR_SIZE 64			/* 64 bytes up until here */
-	/*struct _genhist *gen;*/
+	struct _genhist *gen;
 };
-/*COMPILE_TIME_ASSERT(upkg_hdr, offsetof(struct upkg_hdr, gen) == UPKG_HDR_SIZE);*/
-COMPILE_TIME_ASSERT(upkg_hdr, sizeof(struct upkg_hdr) == UPKG_HDR_SIZE);
+COMPILE_TIME_ASSERT(upkg_hdr, offsetof(struct upkg_hdr, gen) == UPKG_HDR_SIZE);
 
 #define UMUSIC_IT	0
 #define UMUSIC_S3M	1
@@ -274,21 +268,21 @@ static int probe_umx   (fshandle_t *f, const struct upkg_hdr *hdr,
 	return t;
 }
 
-static int32_t probe_header (void *header)
+static int32_t probe_header (fshandle_t *f, struct upkg_hdr *hdr)
 {
-	struct upkg_hdr *hdr;
-	unsigned char *p;
-	uint32_t *swp;
-	int i;
-
+	if (FS_fread(hdr, 1, UPKG_HDR_SIZE, f) < UPKG_HDR_SIZE)
+		return -1;
 	/* byte swap the header - all members are 32 bit LE values */
-	p = (unsigned char *) header;
-	swp = (uint32_t *) header;
-	for (i = 0; i < UPKG_HDR_SIZE/4; i++, p += 4) {
-		swp[i] = p[0] | (p[1] << 8) | (p[2] << 16) | (p[3] << 24);
-	}
+	hdr->tag           = (uint32_t) LittleLong(hdr->tag);
+	hdr->file_version  = LittleLong(hdr->file_version);
+	hdr->pkg_flags     = (uint32_t) LittleLong(hdr->pkg_flags);
+	hdr->name_count    = LittleLong(hdr->name_count);
+	hdr->name_offset   = LittleLong(hdr->name_offset);
+	hdr->export_count  = LittleLong(hdr->export_count);
+	hdr->export_offset = LittleLong(hdr->export_offset);
+	hdr->import_count  = LittleLong(hdr->import_count);
+	hdr->import_offset = LittleLong(hdr->import_offset);
 
-	hdr = (struct upkg_hdr *) header;
 	if (hdr->tag != UPKG_HDR_TAG) {
 		Con_DPrintf("Unknown header tag 0x%x\n", hdr->tag);
 		return -1;
@@ -325,14 +319,13 @@ static int32_t probe_header (void *header)
 
 static int process_upkg (fshandle_t *f, int32_t *ofs, int32_t *objsize)
 {
-	char header[UPKG_HDR_SIZE];
+	struct upkg_hdr header;
 
-	if (FS_fread(header, 1, UPKG_HDR_SIZE, f) < UPKG_HDR_SIZE)
-		return -1;
-	if (probe_header(header) < 0)
+	memset(&header, 0, sizeof(header));
+	if (probe_header(f, &header) < 0)
 		return -1;
 
-	return probe_umx(f, (struct upkg_hdr *)header, ofs, objsize);
+	return probe_umx(f, &header, ofs, objsize);
 }
 
 static qboolean S_UMX_CodecInitialize (void)
@@ -399,6 +392,7 @@ snd_codec_t umx_codec =
 	S_UMX_CodecOpenStream,
 	S_UMX_CodecReadStream,
 	S_UMX_CodecRewindStream,
+	NULL, /* jump */
 	S_UMX_CodecCloseStream,
 	NULL
 };

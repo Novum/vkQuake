@@ -1,6 +1,6 @@
 /* tracker music (module file) decoding support using libxmp >= v4.2.0
  * https://sourceforge.net/projects/xmp/
- * https://github.com/cmatsuoka/libxmp.git
+ * https://github.com/libxmp/libxmp.git
  *
  * Copyright (C) 2016 O.Sezer <sezero@users.sourceforge.net>
  *
@@ -105,7 +105,7 @@ static int S_XMP_CodecReadStream (snd_stream_t *stream, int bytes, void *buffer)
 	 * is partial, the rest of the buffer will be zero-filled.
 	 * the last param is the max number that the current sequence
 	 * of song will be looped, or 0 to disable loop checking.  */
-	r = xmp_play_buffer((xmp_context)stream->priv, buffer, bytes, 1);
+	r = xmp_play_buffer((xmp_context)stream->priv, buffer, bytes, !stream->loop);
 	if (r == 0) {
 		return bytes;
 	}
@@ -125,12 +125,16 @@ static void S_XMP_CodecCloseStream (snd_stream_t *stream)
 	S_CodecUtilClose(&stream);
 }
 
+static int S_XMP_CodecJumpToOrder (snd_stream_t *stream, int to)
+{
+	return xmp_set_position((xmp_context)stream->priv, to);
+}
+
 static int S_XMP_CodecRewindStream (snd_stream_t *stream)
 {
 	int ret = xmp_seek_time((xmp_context)stream->priv, 0);
 	if (ret < 0) return ret;
-	/* reset internal state */
-	xmp_play_buffer((xmp_context)stream->priv, NULL, 0, 0);
+	xmp_play_buffer((xmp_context)stream->priv, NULL, 0, 0); /* reset internal state */
 	return 0;
 }
 
@@ -144,6 +148,7 @@ snd_codec_t xmp_codec =
 	S_XMP_CodecOpenStream,
 	S_XMP_CodecReadStream,
 	S_XMP_CodecRewindStream,
+	S_XMP_CodecJumpToOrder,
 	S_XMP_CodecCloseStream,
 	NULL
 };

@@ -452,6 +452,7 @@ snd_codec_t mp3_codec =
 	S_MP3_CodecOpenStream,
 	S_MP3_CodecReadStream,
 	S_MP3_CodecRewindStream,
+	NULL, /* jump */
 	S_MP3_CodecCloseStream,
 	NULL
 };

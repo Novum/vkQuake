@@ -49,7 +49,7 @@ static ssize_t mp3_read (void *f, void *buf, size_t size)
 }
 static off_t mp3_seek (void *f, off_t offset, int whence)
 {
-	if (f == NULL) return (-1);
+	if (f == NULL) return -1;
 	if (FS_fseek((fshandle_t *)f, (long) offset, whence) < 0)
 		return (off_t)-1;
 	return (off_t) FS_ftell((fshandle_t *)f);
@@ -200,7 +200,7 @@ static int S_MP3_CodecRewindStream (snd_stream_t *stream)
 {
 	mp3_priv_t *priv = (mp3_priv_t *) stream->priv;
 	off_t res = mpg123_seek(priv->handle, 0, SEEK_SET);
-	if (res >= 0) return (0);
+	if (res >= 0) return 0;
 	return res;
 }
 
@@ -214,6 +214,7 @@ snd_codec_t mp3_codec =
 	S_MP3_CodecOpenStream,
 	S_MP3_CodecReadStream,
 	S_MP3_CodecRewindStream,
+	NULL, /* jump */
 	S_MP3_CodecCloseStream,
 	NULL
 };

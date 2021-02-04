@@ -43,12 +43,15 @@
 #endif
 
 typedef struct _mik_priv {
-/* struct MREADER in libmikmod <= 3.2.0-beta2
- * doesn't have iobase members. adding them here
- * so that if we compile against 3.2.0-beta2, we
- * can still run OK against 3.2.0b3 and newer. */
-	struct MREADER reader;
+	/* MREADER core members in libmikmod2/3: */
+	int  (*Seek)(struct MREADER*, long, int);
+	long (*Tell)(struct MREADER*);
+	BOOL (*Read)(struct MREADER*, void*, size_t);
+	int  (*Get)(struct MREADER*);
+	BOOL (*Eof)(struct MREADER*);
+	/* no iobase members in libmikmod <= 3.2.0-beta2 */
 	long iobase, prev_iobase;
+
 	fshandle_t *fh;
 	MODULE *module;
 } mik_priv_t;
@@ -132,11 +135,11 @@ static qboolean S_MIKMOD_CodecOpenStream (snd_stream_t *stream)
 
 	stream->priv = Z_Malloc(sizeof(mik_priv_t));
 	priv = (mik_priv_t *) stream->priv;
-	priv->reader.Seek = MIK_Seek;
-	priv->reader.Tell = MIK_Tell;
-	priv->reader.Read = MIK_Read;
-	priv->reader.Get  = MIK_Get;
-	priv->reader.Eof  = MIK_Eof;
+	priv->Seek = MIK_Seek;
+	priv->Tell = MIK_Tell;
+	priv->Read = MIK_Read;
+	priv->Get  = MIK_Get;
+	priv->Eof  = MIK_Eof;
 	priv->fh = &stream->fh;
 
 	priv->module = Player_LoadGeneric((MREADER *)stream->priv, 64, 0);
@@ -147,13 +150,16 @@ static qboolean S_MIKMOD_CodecOpenStream (snd_stream_t *stream)
 		return false;
 	}
 
-	/* keep default values of fadeout (0: don't fade out volume during when last
-	 * position of the module is being played), extspd (1: do process Protracker
-	 * extended speed effect), panflag (1: do process panning effects), wrap (0:
-	 * don't wrap to restart position when module is finished) are OK with us as
-	 * set internally by libmikmod::Player_Init(). */
-	/* just change the loop setting to 0, i.e. don't process in-module loops: */
-	priv->module->loop	= 0;
+	/* default values of module options set by Player_Init():
+	 * fadeout (0): don't fade out volume during when last position of the
+	 *              module is being played,
+	 * extspd  (1): process Protracker extended speed effect,
+	 * panflag (1): process panning effects,
+	 * wrap    (0): don't wrap to restart position when module is finished,
+	 * loop    (1): process all in-module loops -- possible backward loops
+	 *              would make the module to loop endlessly.
+	 */
+	priv->module->wrap = stream->loop;
 	Player_Start(priv->module);
 
 	stream->info.rate	= md_mixfreq;
@@ -169,6 +175,10 @@ static int S_MIKMOD_CodecReadStream (snd_stream_t *stream, int bytes, void *buff
 {
 	if (!Player_Active())
 		return 0;
+
+	/* handle possible loop setting change: */
+	((mik_priv_t *)stream->priv)->module->wrap = stream->loop;
+
 	return (int) VC_WriteBytes((SBYTE *)buffer, bytes);
 }
 
@@ -180,9 +190,15 @@ static void S_MIKMOD_CodecCloseStream (snd_stream_t *stream)
 	S_CodecUtilClose(&stream);
 }
 
+static int S_MIKMOD_CodecJumpToOrder (snd_stream_t *stream, int to)
+{
+	Player_SetPosition ((UWORD)to);
+	return 0;
+}
+
 static int S_MIKMOD_CodecRewindStream (snd_stream_t *stream)
 {
-	Player_SetPosition (0);
+	Player_SetPosition (0); /* FIXME: WRONG: THIS IS NOT A TIME SEEK */
 	return 0;
 }
 
@@ -196,6 +212,7 @@ snd_codec_t mikmod_codec =
 	S_MIKMOD_CodecOpenStream,
 	S_MIKMOD_CodecReadStream,
 	S_MIKMOD_CodecRewindStream,
+	S_MIKMOD_CodecJumpToOrder,
 	S_MIKMOD_CodecCloseStream,
 	NULL
 };

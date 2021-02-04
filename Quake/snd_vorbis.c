@@ -196,6 +196,7 @@ snd_codec_t vorbis_codec =
 	S_VORBIS_CodecOpenStream,
 	S_VORBIS_CodecReadStream,
 	S_VORBIS_CodecRewindStream,
+	NULL, /* jump */
 	S_VORBIS_CodecCloseStream,
 	NULL
 };

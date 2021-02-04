@@ -37,9 +37,7 @@ FGetLittleLong
 static int FGetLittleLong (FILE *f)
 {
 	int		v;
-
 	fread(&v, 1, sizeof(v), f);
-
 	return LittleLong(v);
 }
 
@@ -51,9 +49,7 @@ FGetLittleShort
 static short FGetLittleShort(FILE *f)
 {
 	short	v;
-
 	fread(&v, 1, sizeof(v), f);
-
 	return LittleShort(v);
 }
 
@@ -268,6 +264,7 @@ snd_codec_t wav_codec =
 	S_WAV_CodecOpenStream,
 	S_WAV_CodecReadStream,
 	S_WAV_CodecRewindStream,
+	NULL, /* jump */
 	S_WAV_CodecCloseStream,
 	NULL
 };

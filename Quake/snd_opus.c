@@ -202,6 +202,7 @@ snd_codec_t opus_codec =
 	S_OPUS_CodecOpenStream,
 	S_OPUS_CodecReadStream,
 	S_OPUS_CodecRewindStream,
+	NULL, /* jump */
 	S_OPUS_CodecCloseStream,
 	NULL
 };
