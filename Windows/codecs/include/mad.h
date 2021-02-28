@@ -24,40 +24,14 @@
 extern "C" {
 #endif
 
-/* windows-only configuration : */
-#ifdef _WIN64
-# define FPM_64BIT /* FPM_DEFAULT */
-#else
-# define FPM_INTEL /* for x86 only */
-#endif
-# define SIZEOF_LONG 4
-/*
-#ifdef __i386__
-# define FPM_INTEL
-# define SIZEOF_LONG 4
-#endif
-#ifdef __x86_64__
+/* configuration for windows */
+#if defined(_WIN64)
 # define FPM_64BIT
-# ifdef _WIN64
-# define SIZEOF_LONG 4
-# else
-# define SIZEOF_LONG 8
-# endif
+#elif defined(_M_IX86) || defined(__i386__) || defined(__386__)
+# define FPM_INTEL
+#else
+# define FPM_DEFAULT
 #endif
-#if (defined(__ppc__) || defined(__POWERPC__) || defined(__powerpc__)) && !(defined(__ppc64__) || defined(__powerpc64__))
-# define FPM_PPC
-# define SIZEOF_LONG 4
-#endif
-#if defined(__ppc64__) || defined(__powerpc64__)
-# define FPM_PPC
-# define SIZEOF_LONG 8
-#endif
-*/
-
-
-#define SIZEOF_INT 4
-#define SIZEOF_LONG_LONG 8
-
 
 /* Id: version.h,v 1.26 2004/01/23 09:41:33 rob Exp */
 
@@ -93,7 +67,9 @@ extern char const mad_build[];
 # ifndef LIBMAD_FIXED_H
 # define LIBMAD_FIXED_H
 
-# if SIZEOF_INT >= 4
+#  include <limits.h>
+
+# if INT_MAX >= 2147483647
 typedef   signed int mad_fixed_t;
 
 typedef   signed int mad_fixed64hi_t;
@@ -104,6 +80,8 @@ typedef   signed long mad_fixed_t;
 typedef   signed long mad_fixed64hi_t;
 typedef unsigned long mad_fixed64lo_t;
 # endif
+/* compile-time assert: */
+typedef int _mad_check_fixed_t[2*(sizeof(mad_fixed_t)>=4) - 1];
 
 # if defined(_MSC_VER)
 #  define mad_fixed64_t  signed __int64
@@ -232,6 +210,20 @@ mad_fixed_t mad_f_mul_inline(mad_fixed_t x, mad_fixed_t y)
 
 #   define mad_f_mul		mad_f_mul_inline
 #   define mad_f_scale64
+
+#  elif defined(__WATCOMC__) && defined(__386__)
+mad_fixed_t mad_f_mul_inl(mad_fixed_t,mad_fixed_t);
+/* 28 == MAD_F_FRACBITS */
+#pragma aux mad_f_mul_inl =		\
+	"imul ebx",			\
+	"shrd eax,edx,28"		\
+	parm	[eax] [ebx]		\
+	value	[eax]			\
+	modify exact [eax edx]
+
+#   define mad_f_mul		mad_f_mul_inl
+#   define mad_f_scale64
+
 #  else
 /*
  * This Intel version is fast and accurate; the disposition of the least
@@ -1008,6 +1000,6 @@ int mad_decoder_message(struct mad_decoder *, void *, unsigned int *);
 
 # endif
 
-# ifdef __cplusplus
+#ifdef __cplusplus
 }
-# endif
+#endif
