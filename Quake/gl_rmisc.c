@@ -2194,7 +2194,7 @@ void R_Init (void)
 	Cvar_RegisterVariable (&external_vis); // 01-24-2021 Dan Abbott
 	Cvar_RegisterVariable (&r_speeds);
 	Cvar_RegisterVariable (&r_pos);
-
+	Cvar_RegisterVariable (&gl_polyblend);
 	Cvar_RegisterVariable (&gl_nocolors);
 
 	//johnfitz -- new cvars
