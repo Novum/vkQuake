@@ -116,6 +116,9 @@ float V_CalcBob (void)
 	float	bob;
 	float	cycle;
 
+	if (!cl_bobcycle.value) /* Avoid divide-by-zero, don't bob */
+		return 0.0f;
+
 	cycle = cl.time - (int)(cl.time/cl_bobcycle.value)*cl_bobcycle.value;
 	cycle /= cl_bobcycle.value;
 	if (cycle < cl_bobup.value)
