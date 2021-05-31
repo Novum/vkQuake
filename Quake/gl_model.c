@@ -1856,35 +1856,6 @@ void Mod_LoadPlanes (lump_t *l)
 	}
 }
 
-// 01-24-2021 Dan Abbott - vis support from MarkV : start
-// 2001-12-28 .VIS support by Maddes  start
-/*
-=================
-Mod_LoadExternalVisibility
-=================
-*/
-static void Mod_LoadVisibilityExternal(FILE** fhandle)
-{
-	long	filelen = 0;
-
-	// get visibility data length
-	filelen = 0;
-	fread(&filelen, 1, 4, *fhandle);
-	filelen = LittleLong(filelen);
-
-	Con_DPrintf("...%d bytes visibility data\n", (int)filelen); // 01-24-2021 Dan Abbott - Con_DPrintLinef to Con_DPrintf
-
-	// load visibility data
-	if (!filelen)
-	{
-		loadmodel->visdata = NULL;
-		return;
-	}
-	loadmodel->visdata = Hunk_AllocName(filelen, "EXT_VIS");
-	fread(loadmodel->visdata, 1, filelen, *fhandle);
-}
-// 01-24-2021 Dan Abbott - vis support from MarkV : end
-
 /*
 =================
 RadiusFromBounds
@@ -1945,99 +1916,6 @@ void Mod_LoadSubmodels (lump_t *l)
 		Con_DWarning ("%i visleafs exceeds standard limit of 8192.\n", out->visleafs);
 	//johnfitz
 }
-
-// 01-24-2021 Dan Abbott - ganked from Mark V with some changes to work with vkQuake : start
-
-/*
-=================
-Mod_LoadExternalLeafs
-=================
-*/
-static void Mod_LoadLeafsExternal(FILE** fhandle)
-{
-	dsleaf_t* in;
-	long	filelen;
-
-	// get leaf data length
-	filelen = 0;
-	fread(&filelen, 1, 4, *fhandle);
-	filelen = LittleLong(filelen);
-
-	Con_DPrintf("...%d bytes leaf data\n", (int)filelen); // 01-24-2021 Dan Abbott - Con_DPrintLinef to Con_DPrintf
-
-	// load leaf data
-	if (!filelen)
-	{
-		loadmodel->leafs = NULL;
-		loadmodel->numleafs = 0;
-		return;
-	}
-	in = Hunk_AllocName(filelen, "EXT_LEAF");
-	fread(in, 1, filelen, *fhandle);
-
-	Mod_ProcessLeafs_S(in, filelen);
-}
-
-// 2001-12-28 .VIS support by Maddes  start
-#define VISPATCH_MAPNAME_LENGTH	32
-
-typedef struct vispatch_s
-{
-	char	mapname[VISPATCH_MAPNAME_LENGTH];	// Baker: DO NOT CHANGE THIS to MAX_QPATH_64, must be 32
-	int		filelen;		// length of data after VisPatch header (VIS+Leafs)
-} vispatch_t;
-// 2001-12-28 .VIS support by Maddes  end
-#define VISPATCH_HEADER_LEN_36 36
-
-/*
-=================
-Mod_FindVisibilityExternal
-=================
-*/
-static qboolean Mod_FindVisibilityExternal(FILE** filehandle) // 01-24-2021 Dan Abbott - cbool to qboolean
-{
-	char visfilename[MAX_QPATH]; // 01-24-2021 Dan Abbott - MAX_QPATH_64 to MAX_QPATH
-	q_snprintf(visfilename, sizeof(visfilename), "maps/%s.vis", loadname); // 01-24-2021 Dan Abbott
-	COM_FOpenFile(visfilename, filehandle, &loadmodel->path_id); //01-24-2021 Dan Abbott - COM_FOpenFile_Limited to COM_FOpenFile
-
-	if (!*filehandle)
-	{
-		Con_DPrintf("Standard vis, %s not found\n", visfilename); // 01-24-2021 Dan Abbott - Con_VerbosePrintLinef to Con_DPrintf
-		
-		return false; // None
-	}
-
-	Con_DPrintf("External .vis found: %s\n", visfilename); // 01-24-2021 Dan Abbott - Con_VerbosePrintLinef to Con_DPrintf
-	{
-		int			i, pos;
-		vispatch_t	header;
-		const char* shortname = COM_SkipPath(loadmodel->name); // start.bsp, e1m1.bsp, etc. // 01-24-2021 Dan Abbott - File_URL_SkipPath to COM_SkipPath
-		pos = 0;
-
-		while ((i = fread(&header, 1, VISPATCH_HEADER_LEN_36, *filehandle))) // i will be length of read, continue while a read
-		{
-			header.filelen = LittleLong(header.filelen);	// Endian correct header.filelen
-			pos += i;										// Advance the length of the break
-
-			if (!q_strcasecmp(header.mapname, shortname)) // 01-24-2021 Dan Abbott - strcasecmp to q_strcasecmp
-				break;
-
-			pos += header.filelen;							// Advance the length of the filelength
-			fseek(*filehandle, pos, SEEK_SET);
-		}
-
-		if (i != VISPATCH_HEADER_LEN_36)
-		{
-			FS_fclose(*filehandle);
-			return false;
-		}
-	}
-
-	return true;
-
-}
-// 2001-12-28 .VIS support by Maddes  end
-// 01-24-2021 Dan Abbott - ganked from Mark V with some changes to work with vkQuake : end
 
 /*
 =================
@@ -2104,8 +1982,6 @@ void Mod_LoadBrushModel (qmodel_t *mod, void *buffer)
 	dmodel_t 	*bm;
 	float		radius; //johnfitz
 
-	extern cvar_t external_vis; // 01-24-2021 Dan Abbott
-
 	loadmodel->type = mod_brush;
 
 	header = (dheader_t *)buffer;
@@ -2145,49 +2021,8 @@ void Mod_LoadBrushModel (qmodel_t *mod, void *buffer)
 	Mod_LoadTexinfo (&header->lumps[LUMP_TEXINFO]);
 	Mod_LoadFaces (&header->lumps[LUMP_FACES], bsp2);
 	Mod_LoadMarksurfaces (&header->lumps[LUMP_MARKSURFACES], bsp2);
-
-	// 01-24-2021 Dan Abbott - use Mark V vis file loading : start
-	do
-	{
-		// 2001-12-28 .VIS support by Maddes  start
-		FILE* visfhandle;	// Baker: try to localize this var
-
-		loadmodel->visdata = NULL;
-		loadmodel->leafs = NULL;
-		loadmodel->numleafs = 0;
-		if ((sv.modelname[0] && !q_strcasecmp(loadname, sv.name)) && external_vis.value) // 01-24-2021 Dan Abbott
-		{
-			Con_DPrintf("trying to open external vis file\n"); // 01-24-2021 Dan Abbott - Con_DPrintLinef to Con_DPrintf
-
-			if (Mod_FindVisibilityExternal(&visfhandle /* We should be passing infos here &visfilehandle*/))
-			{
-				// File exists, valid and open
-				Con_DPrintf("found valid external .vis file for map\n"); // 01-24-2021 Dan Abbott - Con_DPrintLinef to Con_DPrintf
-				Mod_LoadVisibilityExternal(&visfhandle);
-				Mod_LoadLeafsExternal(&visfhandle);
-
-				FS_fclose(&visfhandle); // 01-24-2021 Dan Abbott
-
-				if (loadmodel->visdata && loadmodel->leafs && loadmodel->numleafs)
-				{
-					break; // skip standard vis
-				}
-				Con_Printf("External VIS data are invalid! Doing standard vis.\n"); // 01-24-2021 Dan Abbott - Con_PrintLinef to Con_Printf
-			}
-		}
-		// Extern vis didn't exist or was invalid ..
-
-		//
-		// standard vis
-		//
-		Mod_LoadVisibility(&header->lumps[LUMP_VISIBILITY]);
-		Mod_LoadLeafs(&header->lumps[LUMP_LEAFS], bsp2);
-	} while (0);
-
-	// 01-24-2021 Dan Abbott - use Mark V vis file loading : end
-
-	// Mod_LoadVisibility (&header->lumps[LUMP_VISIBILITY]); // 01-24-2021 Dan Abbott
-	// Mod_LoadLeafs (&header->lumps[LUMP_LEAFS], bsp2); // 01-24-2021 Dan Abbott
+	Mod_LoadVisibility (&header->lumps[LUMP_VISIBILITY]);
+	Mod_LoadLeafs (&header->lumps[LUMP_LEAFS], bsp2);
 	Mod_LoadNodes (&header->lumps[LUMP_NODES], bsp2);
 	Mod_LoadClipnodes (&header->lumps[LUMP_CLIPNODES], bsp2);
 	Mod_LoadEntities (&header->lumps[LUMP_ENTITIES]);
