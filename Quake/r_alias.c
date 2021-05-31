@@ -115,6 +115,12 @@ static void GL_DrawAliasFrame (aliashdr_t *paliashdr, lerpdata_t lerpdata, gltex
 		blend = 0;
 	}
 
+	if (cl.maxclients == 1 && r_lightmap.value)
+	{
+		tx = greytexture;
+		fb = NULL;
+	}
+
 	vulkan_pipeline_t pipeline = alphatest ? vulkan_globals.alias_alphatest_pipeline : ((entalpha < 1.0f) ? vulkan_globals.alias_blend_pipeline : vulkan_globals.alias_pipeline);
 	R_BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 

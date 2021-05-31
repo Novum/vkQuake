@@ -712,13 +712,17 @@ FIXME: eliminate cracks by adding an extra vert on tjuncs
 void Sky_DrawSkyBox (void)
 {
 	int		i, j;
+	qboolean show_lightmap = (cl.maxclients == 1 && r_lightmap.value);
 
 	for (i=0 ; i<6 ; i++)
 	{
 		if (skymins[0][i] >= skymaxs[0][i] || skymins[1][i] >= skymaxs[1][i])
 			continue;
 
-		vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &skybox_textures[skytexorder[i]]->descriptor_set, 0, NULL);
+		gltexture_t * gl_texture = skybox_textures[skytexorder[i]];
+		if (show_lightmap)
+			gl_texture = greytexture;
+		vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &gl_texture->descriptor_set, 0, NULL);
 
 		VkBuffer buffer;
 		VkDeviceSize buffer_offset;
@@ -836,10 +840,13 @@ void Sky_DrawFaceQuad (glpoly_t *p, float alpha)
 {
 	float	*v;
 	int		i;
+	qboolean show_lightmap = (cl.maxclients == 1 && r_lightmap.value);
 
 	R_BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_layer_pipeline);
 
 	VkDescriptorSet descriptor_sets[2] = { solidskytexture->descriptor_set, alphaskytexture->descriptor_set };
+	if (show_lightmap)
+		descriptor_sets[0] = descriptor_sets[1] = greytexture->descriptor_set;
 	vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_layer_pipeline.layout.handle, 0, 2, descriptor_sets, 0, NULL);
 
 	VkBuffer vertex_buffer;

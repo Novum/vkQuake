@@ -301,6 +301,7 @@ void R_DrawTextureChains_Water (qmodel_t *model, entity_t *ent, texchain_t chain
 	msurface_t	*s;
 	texture_t	*t;
 	qboolean	bound;
+	qboolean	show_lightmap = (cl.maxclients == 1 && r_lightmap.value);
 	float entalpha;
 
 	float color[3] = { 1.0f, 1.0f, 1.0f };
@@ -324,7 +325,11 @@ void R_DrawTextureChains_Water (qmodel_t *model, entity_t *ent, texchain_t chain
 				else
 					R_BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.water_pipeline);
 
-				vulkan_globals.vk_cmd_bind_descriptor_sets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &t->warpimage->descriptor_set, 0, NULL);
+				gltexture_t * gl_texture = t->warpimage;
+				if (show_lightmap)
+					gl_texture = greytexture;
+
+				vulkan_globals.vk_cmd_bind_descriptor_sets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &gl_texture->descriptor_set, 0, NULL);
 
 				if (model != cl.worldmodel)
 				{
@@ -353,6 +358,7 @@ void R_DrawTextureChains_Multitexture (qmodel_t *model, entity_t *ent, texchain_
 	msurface_t	*s;
 	texture_t	*t;
 	qboolean	bound;
+	qboolean	show_lightmap = (cl.maxclients == 1 && r_lightmap.value);
 	qboolean	fullbright_enabled = false;
 	qboolean	alpha_test = false;
 	qboolean	alpha_blend = alpha < 1.0f;
@@ -375,7 +381,7 @@ void R_DrawTextureChains_Multitexture (qmodel_t *model, entity_t *ent, texchain_
 		if (!t || !t->texturechains[chain] || t->texturechains[chain]->flags & (SURF_DRAWTILED | SURF_NOTEXTURE))
 			continue;
 
-		if (gl_fullbrights.value && (fullbright = R_TextureAnimation(t, ent != NULL ? ent->frame : 0)->fullbright))
+		if (gl_fullbrights.value && !show_lightmap && (fullbright = R_TextureAnimation(t, ent != NULL ? ent->frame : 0)->fullbright))
 		{
 			fullbright_enabled = true;
 			vulkan_globals.vk_cmd_bind_descriptor_sets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 2, 1, &fullbright->descriptor_set, 0, NULL);
@@ -394,6 +400,8 @@ void R_DrawTextureChains_Multitexture (qmodel_t *model, entity_t *ent, texchain_
 			{
 				texture_t * texture = R_TextureAnimation(t, ent != NULL ? ent->frame : 0);
 				gltexture_t * gl_texture = texture->gltexture;
+				if (show_lightmap)
+					gl_texture = greytexture;
 				vulkan_globals.vk_cmd_bind_descriptor_sets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 0, 1, &gl_texture->descriptor_set, 0, NULL);
 
 				alpha_test = (t->texturechains[chain]->flags & SURF_DRAWFENCE) != 0;

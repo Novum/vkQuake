@@ -2183,6 +2183,7 @@ void R_Init (void)
 	Cmd_AddCommand ("pointfile", R_ReadPointFile_f);
 	Cmd_AddCommand ("vkmemstats", R_VulkanMemStats_f);
 
+	Cvar_RegisterVariable (&r_lightmap);
 	Cvar_RegisterVariable (&r_drawentities);
 	Cvar_RegisterVariable (&r_drawviewmodel);
 	Cvar_RegisterVariable (&r_wateralpha);
