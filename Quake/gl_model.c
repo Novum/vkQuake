@@ -1095,9 +1095,11 @@ void Mod_CalcSurfaceBounds (msurface_t *s)
 {
 	int			i, e;
 	mvertex_t	*v;
+	float * mins = &s->maxsmins[3];
+	float * maxs = &s->maxsmins[0];
 
-	s->mins[0] = s->mins[1] = s->mins[2] = FLT_MAX;
-	s->maxs[0] = s->maxs[1] = s->maxs[2] = -FLT_MAX;
+	mins[0] = mins[1] = mins[2] = FLT_MAX;
+	maxs[0] = maxs[1] = maxs[2] = -FLT_MAX;
 
 	for (i=0 ; i<s->numedges ; i++)
 	{
@@ -1107,19 +1109,19 @@ void Mod_CalcSurfaceBounds (msurface_t *s)
 		else
 			v = &loadmodel->vertexes[loadmodel->edges[-e].v[1]];
 
-		if (s->mins[0] > v->position[0])
-			s->mins[0] = v->position[0];
-		if (s->mins[1] > v->position[1])
-			s->mins[1] = v->position[1];
-		if (s->mins[2] > v->position[2])
-			s->mins[2] = v->position[2];
+		if (mins[0] > v->position[0])
+			mins[0] = v->position[0];
+		if (mins[1] > v->position[1])
+			mins[1] = v->position[1];
+		if (mins[2] > v->position[2])
+			mins[2] = v->position[2];
 
-		if (s->maxs[0] < v->position[0])
-			s->maxs[0] = v->position[0];
-		if (s->maxs[1] < v->position[1])
-			s->maxs[1] = v->position[1];
-		if (s->maxs[2] < v->position[2])
-			s->maxs[2] = v->position[2];
+		if (maxs[0] < v->position[0])
+			maxs[0] = v->position[0];
+		if (maxs[1] < v->position[1])
+			maxs[1] = v->position[1];
+		if (maxs[2] < v->position[2])
+			maxs[2] = v->position[2];
 	}
 }
 
@@ -1464,8 +1466,8 @@ void Mod_ProcessLeafs_S (dsleaf_t *in, int filelen)
 	{
 		for (j=0 ; j<3 ; j++)
 		{
-			out->minmaxs[j] = LittleShort (in->mins[j]);
-			out->minmaxs[3+j] = LittleShort (in->maxs[j]);
+			out->maxsmins[j] = LittleShort (in->maxs[j]);
+			out->maxsmins[j+3] = LittleShort (in->mins[j]);
 		}
 
 		p = LittleLong(in->contents);
@@ -1507,8 +1509,8 @@ void Mod_ProcessLeafs_L1 (dl1leaf_t *in, int filelen)
 	{
 		for (j=0 ; j<3 ; j++)
 		{
-			out->minmaxs[j] = LittleShort (in->mins[j]);
-			out->minmaxs[3+j] = LittleShort (in->maxs[j]);
+			out->maxsmins[j] = LittleShort (in->maxs[j]);
+			out->maxsmins[j+3] = LittleShort (in->mins[j]);
 		}
 
 		p = LittleLong(in->contents);
@@ -1550,8 +1552,8 @@ void Mod_ProcessLeafs_L2 (dl2leaf_t *in, int filelen)
 	{
 		for (j=0 ; j<3 ; j++)
 		{
-			out->minmaxs[j] = LittleFloat (in->mins[j]);
-			out->minmaxs[3+j] = LittleFloat (in->maxs[j]);
+			out->maxsmins[j] = LittleFloat (in->maxs[j]);
+			out->maxsmins[j+3] = LittleFloat (in->mins[j]);
 		}
 
 		p = LittleLong(in->contents);

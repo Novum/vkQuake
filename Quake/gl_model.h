@@ -140,8 +140,7 @@ typedef struct glpoly_s
 typedef struct msurface_s
 {
 	int			visframe;		// should be drawn when node is crossed
-	float		mins[3];		// johnfitz -- for frustum culling
-	float		maxs[3];		// johnfitz -- for frustum culling
+	float		maxsmins[6];	// johnfitz -- for frustum culling
 
 	mplane_t	*plane;
 	int			flags;
@@ -199,7 +198,7 @@ typedef struct mleaf_s
 	int			contents;		// wil be a negative contents number
 	int			visframe;		// node needs to be traversed if current
 
-	float		minmaxs[6];		// for bounding box culling
+	float		maxsmins[6];		// for bounding box culling
 
 	struct mnode_s	*parent;
 

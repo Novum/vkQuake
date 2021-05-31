@@ -127,7 +127,7 @@ void R_MarkSurfaces (void)
 	{
 		if (vis[i>>3] & (1<<(i&7)))
 		{
-			if (R_CullBox(leaf->minmaxs, leaf->minmaxs + 3))
+			if (R_CullBox(leaf->maxsmins))
 				continue;
 
 			if (r_oldskyleaf.value || leaf->contents != CONTENTS_SKY)
@@ -137,7 +137,7 @@ void R_MarkSurfaces (void)
 					if (surf->visframe != r_visframecount)
 					{
 						(*mark)->visframe = r_visframecount;
-						if (!R_CullBox(surf->mins, surf->maxs) && !R_BackFaceCull (surf))
+						if (!R_CullBox(surf->maxsmins) && !R_BackFaceCull (surf))
 						{
 							rs_brushpolys++; //count wpolys here
 							R_ChainSurface(surf, chain_world);

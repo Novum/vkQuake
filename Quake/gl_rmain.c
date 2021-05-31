@@ -105,7 +105,7 @@ R_CullBox -- johnfitz -- replaced with new function from lordhavoc
 Returns true if the box is completely outside the frustum
 =================
 */
-qboolean R_CullBox (vec3_t emins, vec3_t emaxs)
+qboolean R_CullBox (float * emaxsmins)
 {
 	int i;
 	mplane_t *p;
@@ -115,14 +115,15 @@ qboolean R_CullBox (vec3_t emins, vec3_t emaxs)
 	{
 		p = frustum + i;
 		signbits = p->signbits;
-		vec[0] = ((signbits % 2)<1) ? emaxs[0] : emins[0];
-		vec[1] = ((signbits % 4)<2) ? emaxs[1] : emins[1];
-		vec[2] = ((signbits % 8)<4) ? emaxs[2] : emins[2];
+		vec[0] = emaxsmins[(signbits & 1)*3];
+		vec[1] = emaxsmins[((signbits>>1) & 1)*3 + 1];
+		vec[2] = emaxsmins[((signbits>>2) & 1)*3 + 2];
 		if (p->normal[0]*vec[0] + p->normal[1]*vec[1] + p->normal[2]*vec[2] < p->dist)
 			return true;
 	}
 	return false;
 }
+
 /*
 ===============
 R_CullModelForEntity -- johnfitz -- uses correct bounds based on rotation
@@ -130,7 +131,9 @@ R_CullModelForEntity -- johnfitz -- uses correct bounds based on rotation
 */
 qboolean R_CullModelForEntity (entity_t *e)
 {
-	vec3_t mins, maxs;
+	float maxsmins[6];
+	float * maxs = &maxsmins[0];
+	float * mins = &maxsmins[3];
 
 	if (e->angles[0] || e->angles[2]) //pitch or roll
 	{
@@ -148,7 +151,7 @@ qboolean R_CullModelForEntity (entity_t *e)
 		VectorAdd (e->origin, e->model->maxs, maxs);
 	}
 
-	return R_CullBox (mins, maxs);
+	return R_CullBox (maxsmins);
 }
 
 /*
