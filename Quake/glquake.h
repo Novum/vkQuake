@@ -242,6 +242,7 @@ extern	mplane_t	frustum[4];
 extern	int render_pass_index;
 extern	qboolean render_warp;
 extern	qboolean in_update_screen;
+extern	qboolean use_simd;
 
 //
 // view origin
@@ -359,7 +360,7 @@ void R_NewGame (void);
 
 void R_AnimateLight (void);
 void R_MarkSurfaces (void);
-qboolean R_CullBox (float * emaxsmins);
+qboolean R_CullBox (vec3_t emins, vec3_t emaxs);
 void R_StoreEfrags (efrag_t **ppefrag);
 qboolean R_CullModelForEntity (entity_t *e);
 void R_RotateForEntity (float matrix[16], vec3_t origin, vec3_t angles);

@@ -43,6 +43,9 @@ extern cvar_t r_nolerp_list;
 //johnfitz
 extern cvar_t gl_zfix; // QuakeSpasm z-fighting fix
 
+#if defined(USE_SIMD)
+extern cvar_t r_simd;
+#endif
 extern gltexture_t *playertextures[MAX_SCOREBOARD]; //johnfitz
 
 vulkanglobals_t vulkan_globals;
@@ -56,6 +59,8 @@ int num_vulkan_combined_image_samplers = 0;
 int num_vulkan_ubos_dynamic = 0;
 int num_vulkan_input_attachments = 0;
 int num_vulkan_storage_images = 0;
+
+qboolean use_simd;
 
 /*
 ================
@@ -204,6 +209,22 @@ static void R_SetWateralpha_f (cvar_t *var)
 {
 	map_wateralpha = var->value;
 }
+
+#if defined(USE_SIMD)
+/*
+====================
+R_SIMD_f
+====================
+*/
+static void R_SIMD_f (cvar_t *var)
+{
+#if defined(USE_SSE2)
+	use_simd = SDL_HasSSE() && SDL_HasSSE2() && (var->value != 0.0f);
+#else
+	#error not implemented
+#endif
+}
+#endif
 
 /*
 ====================
@@ -2190,6 +2211,10 @@ void R_Init (void)
 	Cvar_SetCallback (&r_wateralpha, R_SetWateralpha_f);
 	Cvar_RegisterVariable (&r_dynamic);
 	Cvar_RegisterVariable (&r_novis);
+#if defined(USE_SIMD)
+	Cvar_RegisterVariable (&r_simd);
+	Cvar_SetCallback (&r_simd, R_SIMD_f);
+#endif
 	Cvar_RegisterVariable (&r_speeds);
 	Cvar_RegisterVariable (&r_pos);
 	Cvar_RegisterVariable (&gl_polyblend);

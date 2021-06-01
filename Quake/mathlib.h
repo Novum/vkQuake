@@ -124,5 +124,16 @@ void IdentityMatrix(float matrix[16]);
 	:										\
 		BoxOnPlaneSide( (emins), (emaxs), (p)))
 
+/*==========================================================================*/
+
+/* SIMD */
+#if (defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86))) || (defined(__GNUC__) && defined(__SSE__) && defined(__SSE2__))
+	#define USE_SIMD
+	#define USE_SSE2
+	#include <immintrin.h>
+#endif
+
+/*==========================================================================*/
+
 #endif	/* __MATHLIB_H */
 

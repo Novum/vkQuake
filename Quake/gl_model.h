@@ -140,7 +140,6 @@ typedef struct glpoly_s
 typedef struct msurface_s
 {
 	int			visframe;		// should be drawn when node is crossed
-	float		maxsmins[6];	// johnfitz -- for frustum culling
 
 	mplane_t	*plane;
 	int			flags;
@@ -198,7 +197,7 @@ typedef struct mleaf_s
 	int			contents;		// wil be a negative contents number
 	int			visframe;		// node needs to be traversed if current
 
-	float		maxsmins[6];		// for bounding box culling
+	float		minmaxs[6];		// for bounding box culling
 
 	struct mnode_s	*parent;
 
@@ -206,7 +205,7 @@ typedef struct mleaf_s
 	byte		*compressed_vis;
 	efrag_t		*efrags;
 
-	msurface_t	**firstmarksurface;
+	int			*firstmarksurface;
 	int			nummarksurfaces;
 	int			key;			// BSP sequence number for leaf's contents
 	byte		ambient_sound_level[NUM_AMBIENTS];
@@ -230,6 +229,9 @@ typedef struct
 	vec3_t		clip_mins;
 	vec3_t		clip_maxs;
 } hull_t;
+
+typedef float soa_aabb_t[2 * 3 * 8]; // 8 AABB's in SoA form
+typedef float soa_plane_t[4 * 8]; // 8 planes in SoA form
 
 /*
 ==============================================================================
@@ -468,7 +470,11 @@ typedef struct qmodel_s
 	mclipnode_t	*clipnodes; //johnfitz -- was dclipnode_t
 
 	int			nummarksurfaces;
-	msurface_t	**marksurfaces;
+	int			*marksurfaces;
+
+	soa_aabb_t	*soa_leafbounds;
+	byte		*surfvis;
+	soa_plane_t	*soa_surfplanes;
 
 	hull_t		hulls[MAX_MAP_HULLS];
 
