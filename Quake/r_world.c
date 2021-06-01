@@ -259,7 +259,9 @@ Returns the water alpha to use for the entity and surface combination.
 float GL_WaterAlphaForEntitySurface (entity_t *ent, msurface_t *s)
 {
 	float entalpha;
-	if (ent == NULL || ent->alpha == ENTALPHA_DEFAULT)
+	if (r_lightmap_cheatsafe)
+		entalpha = 1;
+	else if (ent == NULL || ent->alpha == ENTALPHA_DEFAULT)
 		entalpha = GL_WaterAlphaForSurface(s);
 	else
 		entalpha = ENTALPHA_DECODE(ent->alpha);
@@ -363,6 +365,8 @@ void R_DrawTextureChains_Multitexture (qmodel_t *model, entity_t *ent, texchain_
 	vulkan_globals.vk_cmd_bind_vertex_buffers(vulkan_globals.command_buffer, 0, 1, &bmodel_vertex_buffer, &offset);
 
 	vulkan_globals.vk_cmd_bind_descriptor_sets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 2, 1, &nulltexture->descriptor_set, 0, NULL);
+	if (r_lightmap_cheatsafe)
+		vulkan_globals.vk_cmd_bind_descriptor_sets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 0, 1, &greytexture->descriptor_set, 0, NULL);
 
 	if (alpha_blend) {
 		R_PushConstants(VK_SHADER_STAGE_ALL_GRAPHICS, 20 * sizeof(float), 1 * sizeof(float), &alpha);
@@ -375,7 +379,7 @@ void R_DrawTextureChains_Multitexture (qmodel_t *model, entity_t *ent, texchain_
 		if (!t || !t->texturechains[chain] || t->texturechains[chain]->flags & (SURF_DRAWTILED | SURF_NOTEXTURE))
 			continue;
 
-		if (gl_fullbrights.value && (fullbright = R_TextureAnimation(t, ent != NULL ? ent->frame : 0)->fullbright))
+		if (gl_fullbrights.value && (fullbright = R_TextureAnimation(t, ent != NULL ? ent->frame : 0)->fullbright) && !r_lightmap_cheatsafe)
 		{
 			fullbright_enabled = true;
 			vulkan_globals.vk_cmd_bind_descriptor_sets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 2, 1, &fullbright->descriptor_set, 0, NULL);
@@ -394,7 +398,8 @@ void R_DrawTextureChains_Multitexture (qmodel_t *model, entity_t *ent, texchain_
 			{
 				texture_t * texture = R_TextureAnimation(t, ent != NULL ? ent->frame : 0);
 				gltexture_t * gl_texture = texture->gltexture;
-				vulkan_globals.vk_cmd_bind_descriptor_sets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 0, 1, &gl_texture->descriptor_set, 0, NULL);
+				if (!r_lightmap_cheatsafe)
+					vulkan_globals.vk_cmd_bind_descriptor_sets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 0, 1, &gl_texture->descriptor_set, 0, NULL);
 
 				alpha_test = (t->texturechains[chain]->flags & SURF_DRAWFENCE) != 0;
 				bound = true;

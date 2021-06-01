@@ -981,6 +981,9 @@ void Sky_DrawSky (void)
 {
 	int				i;
 
+	if (r_lightmap_cheatsafe)
+		return;
+
 	//
 	// reset sky bounds
 	//

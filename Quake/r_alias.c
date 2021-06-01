@@ -395,7 +395,10 @@ void R_DrawAliasModel (entity_t *e)
 	//
 	// set up for alpha blending
 	//
-	entalpha = ENTALPHA_DECODE(e->alpha);
+	if (r_lightmap_cheatsafe)
+		entalpha = 1;
+	else
+		entalpha = ENTALPHA_DECODE(e->alpha);
 	if (entalpha == 0)
 		return;
 
@@ -426,6 +429,15 @@ void R_DrawAliasModel (entity_t *e)
 	}
 	if (!gl_fullbrights.value)
 		fb = NULL;
+
+	if (r_lightmap_cheatsafe)
+	{
+		tx = whitetexture;
+		fb = NULL;
+		lightcolor[0] = 1;
+		lightcolor[1] = 1;
+		lightcolor[2] = 1;
+	}
 
 	//
 	// draw it
