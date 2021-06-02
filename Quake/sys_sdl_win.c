@@ -42,7 +42,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
 qboolean		isDedicated;
-cvar_t		sys_throttle = {"sys_throttle", "0.02", CVAR_ARCHIVE};
 
 static HANDLE		hinput, houtput;
 
