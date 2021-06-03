@@ -1,7 +1,7 @@
 # 🌋 vkQuake
-vkQuake is a Quake 1 port using Vulkan instead of OpenGL for rendering. It is based on the popular [QuakeSpasm](http://quakespasm.sourceforge.net/) port and runs all mods compatible with it like [Arcane Dimensions](http://www.simonoc.com/pages/design/sp/ad.htm).
+vkQuake is a Quake 1 port using Vulkan instead of OpenGL for rendering. It is based on the popular [QuakeSpasm](http://quakespasm.sourceforge.net/) port and runs all mods compatible with it like [Arcane Dimensions](http://www.simonoc.com/pages/design/sp/ad.htm). Due to the port using Vulkan and other optimizations it can achieve much better frame rates.
 
-Compared to QuakeSpasm vkQuake also features a software Quake like underwater effect, has better color precision, generates mipmap for water surfaces at runtime and has native support for anti-aliasing and AF.
+Compared to QuakeSpasm vkQuake also features a software Quake like underwater effect, has better color precision, generates mipmap for water surfaces at runtime and has native support for anti-aliasing and AF. Furthermore frame rates above 72FPS do not break physics.
 
 vkQuake also serves as a Vulkan demo application that shows basic usage of the API. For example it demonstrates render passes & sub passes, pipeline barriers & synchronization, compute shaders, push & specialization constants, CPU/GPU parallelism and memory pooling.
 
