@@ -1796,7 +1796,7 @@ void Mod_LoadMarksurfaces (lump_t *l, int bsp2)
 			Host_Error ("Mod_LoadMarksurfaces: funny lump size in %s",loadmodel->name);
 
 		count = l->filelen / sizeof(*in);
-		out = (msurface_t **)Hunk_AllocName ( count*sizeof(*out), loadname);
+		out = (int*)Hunk_AllocName ( count*sizeof(*out), loadname);
 
 		loadmodel->marksurfaces = out;
 		loadmodel->nummarksurfaces = count;

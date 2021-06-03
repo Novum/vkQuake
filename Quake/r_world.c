@@ -190,7 +190,7 @@ void R_MarkVisSurfacesSIMD (byte *vis)
 		if (mask == 0)
 			continue;
 
-		for (j = 0; j < 8; j++)
+		for (j = 0; j < 8 && i + j < numleafs; j++)
 		{
 			if (!(mask & (1 << j)))
 				continue;
