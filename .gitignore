@@ -15,3 +15,8 @@ Shaders/bintoc.exe
 Shaders/bintoc.obj
 Windows/VisualStudio/.vs
 /Windows/VisualStudio/history.txt
+Debug
+Release
+.settings
+.project
+.cproject
