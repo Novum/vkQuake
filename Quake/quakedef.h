@@ -233,11 +233,6 @@ typedef struct
 #include "server.h"
 
 #include "platform.h"
-#if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
-#include <SDL2/SDL.h>
-#else
-#include "SDL.h"
-#endif
 
 #include <vulkan/vulkan_core.h>
 
