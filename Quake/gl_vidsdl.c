@@ -61,6 +61,7 @@ static int		nummodes;
 
 static qboolean	vid_initialized = false;
 static qboolean has_focus = true;
+static int num_images_acquired = 0;
 
 static SDL_Window	*draw_context;
 static SDL_SysWMinfo sys_wm_info;
@@ -1726,6 +1727,7 @@ static qboolean GL_CreateSwapChain( void )
 			Sys_Error("Couldn't create swap chain");
 		}
 	}
+	num_images_acquired = 0;
 
 	for (i = 0; i < num_swap_chain_images; ++i)
 		assert(swapchain_images[i] == VK_NULL_HANDLE);
@@ -2051,6 +2053,10 @@ GL_AcquireNextSwapChainImage
 */
 qboolean GL_AcquireNextSwapChainImage(void)
 {
+	if (num_images_acquired >= (num_swap_chain_images - 1)) {
+		return false;
+	}
+
 #if defined(VK_EXT_full_screen_exclusive)
 	if (VID_GetFullscreen() && vulkan_globals.want_full_screen_exclusive && vulkan_globals.swap_chain_full_screen_exclusive && !vulkan_globals.swap_chain_full_screen_acquired)
 	{
@@ -2088,6 +2094,8 @@ qboolean GL_AcquireNextSwapChainImage(void)
 	}
 	else if (err != VK_SUCCESS)
 		Sys_Error("Couldn't acquire next image");
+
+	num_images_acquired += 1;
 
 	VkRect2D render_area;
 	render_area.offset.x = 0;
@@ -2175,6 +2183,9 @@ void GL_EndRendering (qboolean swapchain_acquired)
 		}
 		else if (err != VK_SUCCESS)
 			Sys_Error("vkQueuePresentKHR failed");
+
+		if (err == VK_SUCCESS || err == VK_ERROR_OUT_OF_DATE_KHR || err == VK_ERROR_SURFACE_LOST_KHR)
+			num_images_acquired -= 1;
 	}
 
 	command_buffer_submitted[current_command_buffer] = true;
