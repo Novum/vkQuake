@@ -557,7 +557,7 @@ static void R_InitDynamicVertexBuffers()
 {
 	int i;
 
-	Con_Printf("Reallocating dynamic VBs (%u KB)\n", current_dyn_vertex_buffer_size / 1024);
+	Sys_Printf("Reallocating dynamic VBs (%u KB)\n", current_dyn_vertex_buffer_size / 1024);
 
 	VkResult err;
 
@@ -624,7 +624,7 @@ static void R_InitDynamicIndexBuffers()
 {
 	int i;
 
-	Con_Printf("Reallocating dynamic IBs (%u KB)\n", current_dyn_index_buffer_size / 1024);
+	Sys_Printf("Reallocating dynamic IBs (%u KB)\n", current_dyn_index_buffer_size / 1024);
 
 	VkResult err;
 
@@ -691,7 +691,7 @@ static void R_InitDynamicUniformBuffers()
 {
 	int i;
 
-	Con_Printf("Reallocating dynamic UBs (%u KB)\n", current_dyn_uniform_buffer_size / 1024);
+	Sys_Printf("Reallocating dynamic UBs (%u KB)\n", current_dyn_uniform_buffer_size / 1024);
 
 	VkResult err;
 
