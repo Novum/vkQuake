@@ -60,6 +60,7 @@ static vmode_t	modelist[MAX_MODE_LIST];
 static int		nummodes;
 
 static qboolean	vid_initialized = false;
+static qboolean has_focus = true;
 
 static SDL_Window	*draw_context;
 static SDL_SysWMinfo sys_wm_info;
@@ -1533,7 +1534,7 @@ static qboolean GL_CreateSwapChain( void )
 
 #if defined(VK_EXT_full_screen_exclusive)
 	qboolean use_exclusive_full_screen = false;
-	qboolean try_use_exclusive_full_screen = vulkan_globals.full_screen_exclusive && vulkan_globals.want_full_screen_exclusive && VID_GetFullscreen();
+	qboolean try_use_exclusive_full_screen = vulkan_globals.full_screen_exclusive && vulkan_globals.want_full_screen_exclusive && has_focus && VID_GetFullscreen();
 	VkSurfaceFullScreenExclusiveInfoEXT full_screen_exclusive_info;
 	VkSurfaceFullScreenExclusiveWin32InfoEXT full_screen_exclusive_win32_info;
 	if (try_use_exclusive_full_screen)
@@ -2626,7 +2627,7 @@ void	VID_Toggle (void)
 		vid_toggle_works = false;
 		Con_DPrintf ("SDL_WM_ToggleFullScreen failed, attempting VID_Restart\n");
 	vrestart:
-		Cvar_SetQuick (&vid_fullscreen, VID_GetFullscreen() ? (vulkan_globals.swap_chain_full_screen_exclusive ? "2" : "1") : "0");
+		Cvar_SetQuick (&vid_fullscreen, VID_GetFullscreen() ? (vulkan_globals.want_full_screen_exclusive ? "2" : "1") : "0");
 		Cbuf_AddText ("vid_restart\n");
 	}
 }
@@ -2647,7 +2648,7 @@ void VID_SyncCvars (void)
 		}
 		Cvar_SetValueQuick (&vid_refreshrate, VID_GetCurrentRefreshRate());
 		Cvar_SetValueQuick (&vid_bpp, VID_GetCurrentBPP());
-		Cvar_SetQuick (&vid_fullscreen, VID_GetFullscreen() ? (vulkan_globals.swap_chain_full_screen_exclusive ? "2" : "1") : "0");
+		Cvar_SetQuick (&vid_fullscreen, VID_GetFullscreen() ? (vulkan_globals.want_full_screen_exclusive ? "2" : "1") : "0");
 		// don't sync vid_desktopfullscreen, it's a user preference that
 		// should persist even if we are in windowed mode.
 	}
@@ -3541,3 +3542,22 @@ void SCR_ScreenShot_f (void)
 	vkFreeCommandBuffers(vulkan_globals.device, transient_command_pool, 1, &command_buffer);
 }
 
+void VID_FocusGained (void)
+{
+	has_focus = true;
+	if (vulkan_globals.want_full_screen_exclusive)
+	{
+		vid_changed = true;
+		Cbuf_AddText ("vid_restart\n");
+	}
+}
+
+void VID_FocusLost (void)
+{
+	has_focus = false;
+	if (vulkan_globals.want_full_screen_exclusive)
+	{
+		vid_changed = true;
+		Cbuf_AddText ("vid_restart\n");
+	}
+}

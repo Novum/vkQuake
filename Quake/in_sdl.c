@@ -750,9 +750,15 @@ void IN_SendKeyEvents (void)
 		{
 		case SDL_WINDOWEVENT:
 			if (event.window.event == SDL_WINDOWEVENT_FOCUS_GAINED)
+			{
 				S_UnblockSound();
+				VID_FocusGained();
+			}
 			else if (event.window.event == SDL_WINDOWEVENT_FOCUS_LOST)
+			{
 				S_BlockSound();
+				VID_FocusLost();
+			}
 			break;
 		case SDL_TEXTINPUT:
 			if (in_debugkeys.value)
