@@ -70,7 +70,7 @@ static void Sys_InitSDL (void)
 	atexit(Sys_AtExit);
 }
 
-#define DEFAULT_MEMORY (256 * 1024 * 1024) // ericw -- was 72MB (64-bit) / 64MB (32-bit)
+#define DEFAULT_MEMORY (384 * 1024 * 1024) // ericw -- was 72MB (64-bit) / 64MB (32-bit)
 
 static quakeparms_t	parms;
 
