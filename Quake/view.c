@@ -72,6 +72,7 @@ float	v_dmg_time, v_dmg_roll, v_dmg_pitch;
 extern	int			in_forward, in_forward2, in_back;
 
 vec3_t	v_punchangles[2]; //johnfitz -- copied from cl.punchangle.  0 is current, 1 is previous value. never the same unless map just loaded
+double	v_punchangles_times[2]; //spike -- times, to avoid assumptions...
 
 /*
 ===============
@@ -198,7 +199,7 @@ void V_DriftPitch (void)
 // don't count small mouse motion
 	if (cl.nodrift)
 	{
-		if ( fabs(cl.cmd.forwardmove) < cl_forwardspeed.value)
+		if ( fabs(cl.movecmds[(cl.movemessages-1)&MOVECMDS_MASK].forwardmove) < cl_forwardspeed.value)
 			cl.driftmove = 0;
 		else
 			cl.driftmove += host_frametime;
@@ -211,7 +212,7 @@ void V_DriftPitch (void)
 		return;
 	}
 
-	delta = cl.idealpitch - cl.viewangles[PITCH];
+	delta = cl.statsf[STAT_IDEALPITCH] - cl.viewangles[PITCH];
 
 	if (!delta)
 	{
@@ -315,7 +316,7 @@ void V_ParseDamage (void)
 //
 // calculate view angle kicks
 //
-	ent = &cl_entities[cl.viewentity];
+	ent = &cl.entities[cl.viewentity];
 
 	VectorSubtract (from, ent->origin, from);
 	VectorNormalize (from);
@@ -653,7 +654,7 @@ void V_BoundOffsets (void)
 {
 	entity_t	*ent;
 
-	ent = &cl_entities[cl.viewentity];
+	ent = &cl.entities[cl.viewentity];
 
 // absolutely bound refresh reletive to entity clipping hull
 // so the view can never be inside a solid wall
@@ -698,7 +699,7 @@ void V_CalcViewRoll (void)
 {
 	float		side;
 
-	side = V_CalcRoll (cl_entities[cl.viewentity].angles, cl.velocity);
+	side = V_CalcRoll (cl.entities[cl.viewentity].angles, cl.velocity);
 	r_refdef.viewangles[ROLL] += side;
 
 	if (v_dmg_time > 0)
@@ -727,7 +728,7 @@ void V_CalcIntermissionRefdef (void)
 	float		old;
 
 // ent is the player model (visible when out of body)
-	ent = &cl_entities[cl.viewentity];
+	ent = &cl.entities[cl.viewentity];
 // view is the weapon model (only visible from inside body)
 	view = &cl.viewent;
 
@@ -761,7 +762,7 @@ void V_CalcRefdef (void)
 	V_DriftPitch ();
 
 // ent is the player model (visible when out of body)
-	ent = &cl_entities[cl.viewentity];
+	ent = &cl.entities[cl.viewentity];
 // view is the weapon model (only visible from inside body)
 	view = &cl.viewent;
 
@@ -775,7 +776,7 @@ void V_CalcRefdef (void)
 
 // refresh position
 	VectorCopy (ent->origin, r_refdef.vieworg);
-	r_refdef.vieworg[2] += cl.viewheight + bob;
+	r_refdef.vieworg[2] += cl.stats[STAT_VIEWHEIGHT] + bob;
 
 // never let it sit exactly on a node line, because a water plane can
 // dissapear when viewed with the eye exactly on it.
@@ -807,7 +808,7 @@ void V_CalcRefdef (void)
 	CalcGunAngle ();
 
 	VectorCopy (ent->origin, view->origin);
-	view->origin[2] += cl.viewheight;
+	view->origin[2] += cl.stats[STAT_VIEWHEIGHT];
 
 	for (i=0 ; i<3 ; i++)
 		view->origin[i] += forward[i]*bob*0.4;
@@ -829,7 +830,7 @@ void V_CalcRefdef (void)
 
 	view->model = cl.model_precache[cl.stats[STAT_WEAPON]];
 	view->frame = cl.stats[STAT_WEAPONFRAME];
-	view->colormap = vid.colormap;
+	view->netstate.colormap = 0;
 
 //johnfitz -- v_gunkick
 	if (v_gunkick.value == 1) //original quake kick
@@ -839,8 +840,11 @@ void V_CalcRefdef (void)
 		for (i=0; i<3; i++)
 			if (punch[i] != v_punchangles[0][i])
 			{
+				double interval = v_punchangles_times[0] - v_punchangles_times[1];
+				if (interval > 0.1) interval = 0.1;
+
 				//speed determined by how far we need to lerp in 1/10th of a second
-				delta = (v_punchangles[0][i]-v_punchangles[1][i]) * host_frametime * 10;
+				delta = (v_punchangles[0][i]-v_punchangles[1][i]) * host_frametime / interval;
 
 				if (delta > 0)
 					punch[i] = q_min(punch[i]+delta, v_punchangles[0][i]);

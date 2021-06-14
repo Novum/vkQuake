@@ -439,37 +439,64 @@ void SV_ReadClientMove (usercmd_t *move)
 {
 	int		i;
 	vec3_t	angle;
-	int		bits;
+	int		buttonbits;
+	int		newimpulse;
+	qboolean drop = false;
+	vec3_t movevalues;
+	int sequence;
+
+	if (host_client->protocol_pext2 & PEXT2_PREDINFO)
+	{
+		i = (unsigned short)MSG_ReadShort();
+		sequence = (host_client->lastmovemessage & 0xffff0000) | (i&0xffff);
+
+		//tollerance of a few old frames, so we can have redundancy for packetloss
+		if (sequence+0x100 < host_client->lastmovemessage)
+			sequence += 0x10000;
+
+		if (sequence <= host_client->lastmovemessage)
+			drop = true;
+	}
+	else
+		sequence = 0;
 
 // read ping time
 	host_client->ping_times[host_client->num_pings%NUM_PING_TIMES]
 		= sv.time - MSG_ReadFloat ();
 	host_client->num_pings++;
 
-// read current angles
 	for (i=0 ; i<3 ; i++)
-		//johnfitz -- 16-bit angles for PROTOCOL_FITZQUAKE
-		if (sv.protocol == PROTOCOL_NETQUAKE)
+	{
+		if (sv.protocol == PROTOCOL_NETQUAKE && !(host_client->protocol_pext2 & PEXT2_PREDINFO))
 			angle[i] = MSG_ReadAngle (sv.protocolflags);
 		else
-			angle[i] = MSG_ReadAngle16 (sv.protocolflags);
-		//johnfitz
+			angle[i] = MSG_ReadAngle16 (sv.protocolflags);	//johnfitz -- 16-bit angles for PROTOCOL_FITZQUAKE
+	}
+	movevalues[0] = MSG_ReadShort ();
+	movevalues[1] = MSG_ReadShort ();
+	movevalues[2] = MSG_ReadShort ();
+	buttonbits = MSG_ReadByte();
+	newimpulse = MSG_ReadByte();
 
+	if (drop)
+		return;	//okay, we don't care about that then
+
+// calc ping times
+	host_client->lastmovemessage = sequence;
+
+	// read movement
 	VectorCopy (angle, host_client->edict->v.v_angle);
-
-// read movement
-	move->forwardmove = MSG_ReadShort ();
-	move->sidemove = MSG_ReadShort ();
-	move->upmove = MSG_ReadShort ();
+	move->forwardmove = movevalues[0];
+	move->sidemove = movevalues[1];
+	move->upmove = movevalues[2];
 
 // read buttons
-	bits = MSG_ReadByte ();
-	host_client->edict->v.button0 = bits & 1;
-	host_client->edict->v.button2 = (bits & 2)>>1;
+	host_client->edict->v.button0 = (buttonbits & 1)>>0;
+	//button1 was meant to be 'use', but got reused by too many mods to get implemented now
+	host_client->edict->v.button2 = (buttonbits & 2)>>1;
 
-	i = MSG_ReadByte ();
-	if (i)
-		host_client->edict->v.impulse = i;
+	if (newimpulse)
+		host_client->edict->v.impulse = newimpulse;
 }
 
 /*
@@ -481,110 +508,56 @@ Returns false if the client should be killed
 */
 qboolean SV_ReadClientMessage (void)
 {
-	int		ret;
 	int		ccmd;
 	const char	*s;
 
-	do
+	MSG_BeginReading ();
+
+	while (1)
 	{
-nextmsg:
-		ret = NET_GetMessage (host_client->netconnection);
-		if (ret == -1)
+		if (!host_client->active)
+			return false;	// a command caused an error
+
+		if (msg_badread)
 		{
-			Sys_Printf ("SV_ReadClientMessage: NET_GetMessage failed\n");
+			Sys_Printf ("SV_ReadClientMessage: badread\n");
 			return false;
 		}
-		if (!ret)
-			return true;
 
-		MSG_BeginReading ();
+		ccmd = MSG_ReadChar ();
 
-		while (1)
+		switch (ccmd)
 		{
-			if (!host_client->active)
-				return false;	// a command caused an error
+		case -1:
+			return true;	//msg_badread, meaning we just hit eof.
 
-			if (msg_badread)
-			{
-				Sys_Printf ("SV_ReadClientMessage: badread\n");
-				return false;
-			}
+		default:
+			Sys_Printf ("SV_ReadClientMessage: unknown command char\n");
+			return false;
 
-			ccmd = MSG_ReadChar ();
+		case clc_nop:
+//			Sys_Printf ("clc_nop\n");
+			break;
 
-			switch (ccmd)
-			{
-			case -1:
-				goto nextmsg;		// end of message
+		case clc_stringcmd:
+			s = MSG_ReadString ();
+			Cmd_ExecuteString (s, src_client);
+			break;
 
-			default:
-				Sys_Printf ("SV_ReadClientMessage: unknown command char\n");
-				return false;
+		case clc_disconnect:
+//			Sys_Printf ("SV_ReadClientMessage: client disconnected\n");
+			return false;
 
-			case clc_nop:
-//				Sys_Printf ("clc_nop\n");
-				break;
-
-			case clc_stringcmd:
-				s = MSG_ReadString ();
-				ret = 0;
-				if (q_strncasecmp(s, "status", 6) == 0)
-					ret = 1;
-				else if (q_strncasecmp(s, "god", 3) == 0)
-					ret = 1;
-				else if (q_strncasecmp(s, "notarget", 8) == 0)
-					ret = 1;
-				else if (q_strncasecmp(s, "fly", 3) == 0)
-					ret = 1;
-				else if (q_strncasecmp(s, "name", 4) == 0)
-					ret = 1;
-				else if (q_strncasecmp(s, "noclip", 6) == 0)
-					ret = 1;
-				else if (q_strncasecmp(s, "setpos", 6) == 0)
-					ret = 1;
-				else if (q_strncasecmp(s, "say", 3) == 0)
-					ret = 1;
-				else if (q_strncasecmp(s, "say_team", 8) == 0)
-					ret = 1;
-				else if (q_strncasecmp(s, "tell", 4) == 0)
-					ret = 1;
-				else if (q_strncasecmp(s, "color", 5) == 0)
-					ret = 1;
-				else if (q_strncasecmp(s, "kill", 4) == 0)
-					ret = 1;
-				else if (q_strncasecmp(s, "pause", 5) == 0)
-					ret = 1;
-				else if (q_strncasecmp(s, "spawn", 5) == 0)
-					ret = 1;
-				else if (q_strncasecmp(s, "begin", 5) == 0)
-					ret = 1;
-				else if (q_strncasecmp(s, "prespawn", 8) == 0)
-					ret = 1;
-				else if (q_strncasecmp(s, "kick", 4) == 0)
-					ret = 1;
-				else if (q_strncasecmp(s, "ping", 4) == 0)
-					ret = 1;
-				else if (q_strncasecmp(s, "give", 4) == 0)
-					ret = 1;
-				else if (q_strncasecmp(s, "ban", 3) == 0)
-					ret = 1;
-
-				if (ret == 1)
-					Cmd_ExecuteString (s, src_client);
-				else
-					Con_DPrintf("%s tried to %s\n", host_client->name, s);
-				break;
-
-			case clc_disconnect:
-//				Sys_Printf ("SV_ReadClientMessage: client disconnected\n");
-				return false;
-
-			case clc_move:
-				SV_ReadClientMove (&host_client->cmd);
-				break;
-			}
+		case clc_move:
+			if (!host_client->spawned)
+				return true;	//this is to suck up any stale moves on map changes, so we don't get confused (quite so easily) when protocols are changed between maps
+			SV_ReadClientMove (&host_client->cmd);
+			break;
+		case clcdp_ackframe:
+			SVFTE_Ack(host_client, MSG_ReadLong());
+			break;
 		}
-	} while (ret == 1);
+	}
 
 	return true;
 }
@@ -599,6 +572,31 @@ void SV_RunClients (void)
 {
 	int				i;
 
+	//receive from clients first
+	//Spike -- reworked this to query the network code for an active connection.
+	//this allows the network code to serve multiple clients with the same listening port.
+	//this solves server-side nats, which is important for coop etc.
+	while(1)
+	{
+		struct qsocket_s *sock = NET_GetServerMessage();
+		if (!sock)
+			break;	//no more this frame
+
+		for (i=0, host_client = svs.clients ; i<svs.maxclients ; i++, host_client++)
+		{
+			if (host_client->netconnection == sock)
+			{
+				sv_player = host_client->edict;
+				if (!SV_ReadClientMessage ())
+				{
+					SV_DropClient (false);	// client misbehaved...
+					break;
+				}
+			}
+		}
+	}
+
+	//then do the per-frame stuff
 	for (i=0, host_client = svs.clients ; i<svs.maxclients ; i++, host_client++)
 	{
 		if (!host_client->active)
@@ -606,17 +604,18 @@ void SV_RunClients (void)
 
 		sv_player = host_client->edict;
 
-		if (!SV_ReadClientMessage ())
-		{
-			SV_DropClient (false);	// client misbehaved...
-			continue;
-		}
-
 		if (!host_client->spawned)
 		{
 		// clear client movement until a new packet is received
 			memset (&host_client->cmd, 0, sizeof(host_client->cmd));
 			continue;
+		}
+
+		if (!host_client->netconnection)
+		{
+			host_client->cmd.viewangles[0] = host_client->edict->v.v_angle[0];
+			host_client->cmd.viewangles[1] = host_client->edict->v.v_angle[1];
+			host_client->cmd.viewangles[2] = host_client->edict->v.v_angle[2];
 		}
 
 // always pause in single player if in console or menus

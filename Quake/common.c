@@ -547,6 +547,241 @@ float Q_atof (const char *str)
 	return val*sign;
 }
 
+// Q_ftoa: convert IEEE 754 float to a base-10 string with "infinite" decimal places
+void Q_ftoa(char *str, float in)
+{
+	struct {
+		float f;
+		unsigned int i;
+	} u = {in};
+
+	int signbit = (u.i & 0x80000000) >> 31;
+	int exp = (signed int)((u.i & 0x7F800000) >> 23) - 127;
+	int mantissa = (u.i & 0x007FFFFF);
+
+	if (exp == 128) // 255(NaN/Infinity bits) - 127(bias)
+	{
+		if (signbit)
+		{
+			*str = '-';
+			str++;
+		}
+		if (mantissa == 0) // infinity
+			strcpy(str, "1.#INF");
+		else // NaN or indeterminate
+			strcpy(str, "1.#NAN");
+		return;
+	}
+
+	exp = -exp;
+	exp = (int)(exp * 0.30102999957f); // convert base 2 to base 10
+	exp += 8;
+
+	if (exp <= 0)
+		sprintf(str, "%.0f", in);
+	else
+	{
+		char tstr[32];
+		char *lsig = str - 1;
+		sprintf(tstr, "%%.%if", exp);
+		sprintf(str, tstr, in);
+		// find last significant digit and trim
+		while (*str)
+		{
+			if (*str >= '1' && *str <= '9')
+				lsig = str;
+			else if (*str == '.')
+				lsig = str - 1;
+			str++;
+		}
+		lsig[1] = '\0';
+	}
+}
+
+int wildcmp(const char *wild, const char *string)
+{	//case-insensitive string compare with wildcards. returns true for a match.
+	while (*string)
+	{
+		if (*wild == '*')
+		{
+			if (*string == '/' || *string == '\\')
+			{
+				//* terminates if we get a match on the char following it, or if its a \ or / char
+				wild++;
+				continue;
+			}
+			if (wildcmp(wild+1, string))
+				return true;
+			string++;
+		}
+		else if ((q_tolower(*wild) == q_tolower(*string)) || (*wild == '?'))
+		{
+			//this char matches
+			wild++;
+			string++;
+		}
+		else
+		{
+			//failure
+			return false;
+		}
+	}
+
+	while (*wild == '*')
+	{
+		wild++;
+	}
+	return !*wild;
+}
+
+void Info_RemoveKey(char *info, const char *key)
+{	//only shrinks, so no need for max size.
+	size_t keylen = strlen(key);
+
+	while(*info)
+	{
+		char *l = info;
+		if (*info++ != '\\')
+			break;	//error / end-of-string
+
+		if (!strncmp(info, key, keylen) && info[keylen] == '\\')
+		{
+			//skip the key name
+			info += keylen+1;
+			//this is the old value for the key. skip over it
+			while (*info && *info != '\\')
+				info++;
+
+			//okay, we found it. strip it out now.
+			memmove(l, info, strlen(info)+1);
+			return;
+		}
+		else
+		{
+			//skip the key
+			while (*info && *info != '\\')
+				info++;
+
+			//validate that its a value now
+			if (*info++ != '\\')
+				break;	//error
+			//skip the value
+			while (*info && *info != '\\')
+				info++;
+		}
+	}
+}
+void Info_SetKey(char *info, size_t infosize, const char *key, const char *val)
+{
+	size_t keylen = strlen(key);
+	size_t vallen = strlen(val);
+
+	Info_RemoveKey(info, key);
+
+	if (vallen)
+	{
+		char *o = info + strlen(info);
+		char *e = info + infosize-1;
+
+		if (!*key || strchr(key, '\\') || strchr(val, '\\'))
+			Con_Warning("Info_SetKey(%s): invalid key/value\n", key);
+		else if (o + 2 + keylen + vallen >= e)
+			Con_Warning("Info_SetKey(%s): length exceeds max\n", key);
+		else
+		{
+			*o++ = '\\';
+			memcpy(o, key, keylen);
+			o += keylen;
+			*o++ = '\\';
+			memcpy(o, val, vallen);
+			o += vallen;
+
+			*o = 0;
+		}
+	}
+}
+const char *Info_GetKey(const char *info, const char *key, char *out, size_t outsize)
+{
+	const char *r = out;
+	size_t keylen = strlen(key);
+
+	outsize--;
+
+	while(*info)
+	{
+		if (*info++ != '\\')
+			break;	//error / end-of-string
+
+		if (!strncmp(info, key, keylen) && info[keylen] == '\\')
+		{
+			//skip the key name
+			info += keylen+1;
+			//this is the value for the key. copy it out
+			while (*info && *info != '\\' && outsize-->0)
+				*out++ = *info++;
+			break;
+		}
+		else
+		{
+			//skip the key
+			while (*info && *info != '\\')
+				info++;
+
+			//validate that its a value now
+			if (*info++ != '\\')
+				break;	//error
+			//skip the value
+			while (*info && *info != '\\')
+				info++;
+		}
+	}
+	*out = 0;
+	return r;
+}
+
+void Info_Enumerate(const char *info, void(*cb)(void *ctx, const char *key, const char *value), void *cbctx)
+{
+	char key[1024];
+	char val[1024];
+	size_t kl, vl;
+	while(*info)
+	{
+		kl=vl=0;
+		if (*info++ != '\\')
+			break;	//error / end-of-string
+
+		//skip the key
+		while (*info && *info != '\\')
+		{
+			if (kl < sizeof(key)-1)
+				key[kl++] = *info;
+			info++;
+		}
+
+		//validate that its a value now
+		if (*info++ != '\\')
+			break;	//error
+		//skip the value
+		while (*info && *info != '\\')
+		{
+			if (vl < sizeof(val)-1)
+				val[vl++] = *info;
+			info++;
+		}
+
+		key[kl] = 0;
+		val[vl] = 0;
+		cb(cbctx, key, val);
+	}
+}
+static void Info_Print_Callback(void *ctx, const char *key, const char *val)
+{
+	Con_Printf("%20s: %s\n", key, val);
+}
+void Info_Print(const char *info)
+{
+	Info_Enumerate(info, Info_Print_Callback, NULL);
+}
 /*
 ============================================================================
 
@@ -703,6 +938,10 @@ void MSG_WriteString (sizebuf_t *sb, const char *s)
 	else
 		SZ_Write (sb, s, Q_strlen(s)+1);
 }
+void MSG_WriteStringUnterminated (sizebuf_t *sb, const char *s)
+{
+	SZ_Write (sb, s, Q_strlen(s));
+}
 
 //johnfitz -- original behavior, 13.3 fixed point coords, max range +-4096
 void MSG_WriteCoord16 (sizebuf_t *sb, float f)
@@ -751,6 +990,19 @@ void MSG_WriteAngle16 (sizebuf_t *sb, float f, unsigned int flags)
 	else MSG_WriteShort (sb, Q_rint(f * 65536.0 / 360.0) & 65535);
 }
 //johnfitz
+
+//spike -- for PEXT2_REPLACEMENTDELTAS
+void MSG_WriteEntity (sizebuf_t *sb, unsigned int entnum, unsigned int pext2)
+{
+	//high short, low byte
+	if (entnum > 0x7fff && (pext2 & PEXT2_REPLACEMENTDELTAS))
+	{
+		MSG_WriteShort(sb, 0x8000|(entnum>>8));
+		MSG_WriteByte(sb, entnum&0xff);
+	}
+	else
+		MSG_WriteShort(sb, entnum);
+}
 
 //
 // reading functions
@@ -923,6 +1175,20 @@ float MSG_ReadAngle16 (unsigned int flags)
 }
 //johnfitz
 
+unsigned int MSG_ReadEntity(unsigned int pext2)
+{
+	unsigned int e = (unsigned short)MSG_ReadShort();
+	if (pext2 & PEXT2_REPLACEMENTDELTAS)
+	{
+		if (e & 0x8000)
+		{
+			e = (e & 0x7fff) << 8;
+			e |= MSG_ReadByte();
+		}
+	}
+	return e;
+}
+
 //===========================================================================
 
 void SZ_Alloc (sizebuf_t *buf, int startsize)
@@ -946,6 +1212,7 @@ void SZ_Free (sizebuf_t *buf)
 void SZ_Clear (sizebuf_t *buf)
 {
 	buf->cursize = 0;
+	buf->overflowed = false;
 }
 
 void *SZ_GetSpace (sizebuf_t *buf, int length)
@@ -960,9 +1227,9 @@ void *SZ_GetSpace (sizebuf_t *buf, int length)
 		if (length > buf->maxsize)
 			Sys_Error ("SZ_GetSpace: %i is > full buffer size", length);
 
-		buf->overflowed = true;
-		Con_Printf ("SZ_GetSpace: overflow");
+		Con_Printf ("SZ_GetSpace: overflow\n");
 		SZ_Clear (buf);
+		buf->overflowed = true;
 	}
 
 	data = buf->data + buf->cursize;
@@ -1388,6 +1655,23 @@ static void FitzTest_f (void)
 }
 #endif
 
+
+entity_state_t nullentitystate;
+static void COM_SetupNullState(void)
+{
+	//the null state has some specific default values
+//	nullentitystate.drawflags = /*SCALE_ORIGIN_ORIGIN*/96;
+	nullentitystate.colormod[0] = 32;
+	nullentitystate.colormod[1] = 32;
+	nullentitystate.colormod[2] = 32;
+//	nullentitystate.glowmod[0] = 32;
+//	nullentitystate.glowmod[1] = 32;
+//	nullentitystate.glowmod[2] = 32;
+	nullentitystate.alpha = 0;	//fte has 255 by default, with 0 for invisible. fitz uses 1 for invisible, 0 default, and 255=full alpha
+	nullentitystate.scale = 16;
+//	nullentitystate.solidsize = 0;//ES_SOLID_BSP;
+}
+
 /*
 ================
 COM_Init
@@ -1439,6 +1723,8 @@ void COM_Init (void)
 #ifdef _DEBUG
 	Cmd_AddCommand ("fitztest", FitzTest_f); //johnfitz
 #endif
+
+	COM_SetupNullState();
 }
 
 
@@ -2030,6 +2316,45 @@ const char *COM_GetGameNames(qboolean full)
 	}
 	return com_gamenames;
 //	return COM_SkipPath(com_gamedir);
+}
+
+//if either contain id1 then that gets ignored
+qboolean COM_GameDirMatches(const char *tdirs)
+{
+	int gnl = strlen(GAMENAME);
+	const char *odirs = COM_GetGameNames(false);
+
+	//ignore any core paths.
+	if (!strncmp(tdirs, GAMENAME, gnl) && (tdirs[gnl] == ';' || !tdirs[gnl]))
+	{
+		tdirs+=gnl;
+		if (*tdirs == ';')
+			tdirs++;
+	}
+	if (!strncmp(odirs, GAMENAME, gnl) && (odirs[gnl] == ';' || !odirs[gnl]))
+	{
+		odirs+=gnl;
+		if (*odirs == ';')
+			odirs++;
+	}
+	//skip any qw in there from quakeworld (remote servers should really be skipping this, unless its maybe the only one in the path).
+	if (!strncmp(tdirs, "qw;", 3) || !strcmp(tdirs, "qw"))
+	{
+		tdirs+=2;
+		if (*tdirs==';')
+			tdirs++;
+	}
+	if (!strncmp(odirs, "qw;", 3) || !strcmp(odirs, "qw"))	//need to cope with ourselves setting it that way too, just in case.
+	{
+		odirs+=2;
+		if (*odirs==';')
+			odirs++;
+	}
+
+	//okay, now check it properly
+	if (!strcmp(odirs, tdirs))
+		return true;
+	return false;
 }
 
 /*

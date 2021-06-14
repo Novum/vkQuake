@@ -38,7 +38,7 @@ void M_Menu_Main_f (void);
 		void M_Menu_Net_f (void);
 		void M_Menu_LanConfig_f (void);
 		void M_Menu_GameOptions_f (void);
-		void M_Menu_Search_f (void);
+		void M_Menu_Search_f (enum slistScope_e scope);
 		void M_Menu_ServerList_f (void);
 	void M_Menu_Options_f (void);
 		void M_Menu_Keys_f (void);
@@ -625,7 +625,7 @@ void M_MultiPlayer_Draw (void)
 
 	M_DrawTransPic (54, 32 + m_multiplayer_cursor * 20,Draw_CachePic( va("gfx/menudot%i.lmp", f+1 ) ) );
 
-	if (ipxAvailable || tcpipAvailable)
+	if (ipxAvailable || ipv4Available || ipv6Available)
 		return;
 	M_PrintWhite ((320/2) - ((27*8)/2), 148, "No Communications Available");
 }
@@ -659,12 +659,12 @@ void M_MultiPlayer_Key (int key)
 		switch (m_multiplayer_cursor)
 		{
 		case 0:
-			if (ipxAvailable || tcpipAvailable)
+			if (ipxAvailable || ipv4Available || ipv6Available)
 				M_Menu_Net_f ();
 			break;
 
 		case 1:
-			if (ipxAvailable || tcpipAvailable)
+			if (ipxAvailable || ipv4Available || ipv6Available)
 				M_Menu_Net_f ();
 			break;
 
@@ -913,7 +913,7 @@ void M_Net_Draw (void)
 	M_DrawTransPic (72, f, p);
 
 	f += 19;
-	if (tcpipAvailable)
+	if (ipv4Available || ipv6Available)
 		p = Draw_CachePic ("gfx/netmen4.lmp");
 	else
 		p = Draw_CachePic ("gfx/dim_tcp.lmp");
@@ -964,7 +964,7 @@ again:
 
 	if (m_net_cursor == 0 && !ipxAvailable)
 		goto again;
-	if (m_net_cursor == 1 && !tcpipAvailable)
+	if (m_net_cursor == 1 && !ipv4Available && !ipv6Available)
 		goto again;
 }
 
@@ -1735,7 +1735,7 @@ void M_Menu_LanConfig_f (void)
 		else
 			lanConfig_cursor = 1;
 	}
-	if (StartingGame && lanConfig_cursor == 2)
+	if (StartingGame && lanConfig_cursor >= 2)
 		lanConfig_cursor = 1;
 	lanConfig_port = DEFAULTnet_hostport;
 	sprintf(lanConfig_portname, "%u", lanConfig_port);
@@ -1749,6 +1749,9 @@ void M_LanConfig_Draw (void)
 {
 	qpic_t	*p;
 	int		basex;
+	int		y;
+	int		numaddresses, i;
+	qhostaddr_t addresses[16];
 	const char	*startJoin;
 	const char	*protocol;
 
@@ -1768,36 +1771,62 @@ void M_LanConfig_Draw (void)
 	M_Print (basex, 32, va ("%s - %s", startJoin, protocol));
 	basex += 8;
 
-	M_Print (basex, 52, "Address:");
-	if (IPXConfig)
-		M_Print (basex+9*8, 52, my_ipx_address);
-	else
-		M_Print (basex+9*8, 52, my_tcpip_address);
+	y = 52;
+	M_Print (basex, y, "Address:");
+	numaddresses = NET_ListAddresses(addresses, sizeof(addresses)/sizeof(addresses[0]));
+	if (!numaddresses)
+	{
+		M_Print (basex+9*8, y, "NONE KNOWN");
+		y += 8;
+	}
+	else for (i = 0; i < numaddresses; i++)
+	{
+		M_Print (basex+9*8, y, addresses[i]);
+		y += 8;
+	}
 
-	M_Print (basex, lanConfig_cursor_table[0], "Port");
-	M_DrawTextBox (basex+8*8, lanConfig_cursor_table[0]-8, 6, 1);
-	M_Print (basex+9*8, lanConfig_cursor_table[0], lanConfig_portname);
+	y+=8;	//for the port's box
+	M_Print (basex, y, "Port");
+	M_DrawTextBox (basex+8*8, y-8, 6, 1);
+	M_Print (basex+9*8, y, lanConfig_portname);
+	if (lanConfig_cursor == 0)
+	{
+		M_DrawCharacter (basex+9*8 + 8*strlen(lanConfig_portname), y, 10+((int)(realtime*4)&1));
+		M_DrawCharacter (basex-8, y, 12+((int)(realtime*4)&1));
+	}
+	y += 20;
 
 	if (JoiningGame)
 	{
-		M_Print (basex, lanConfig_cursor_table[1], "Search for local games...");
-		M_Print (basex, 108, "Join game at:");
-		M_DrawTextBox (basex+8, lanConfig_cursor_table[2]-8, 22, 1);
-		M_Print (basex+16, lanConfig_cursor_table[2], lanConfig_joinname);
+		M_Print (basex, y, "Search for local games...");
+		if (lanConfig_cursor == 1)
+			M_DrawCharacter (basex-8, y, 12+((int)(realtime*4)&1));
+		y+=8;
+
+		M_Print (basex, y, "Search for public games...");
+		if (lanConfig_cursor == 2)
+			M_DrawCharacter (basex-8, y, 12+((int)(realtime*4)&1));
+		y+=8;
+
+		M_Print (basex, y, "Join game at:");
+		y+=24;
+		M_DrawTextBox (basex+8, y-8, 22, 1);
+		M_Print (basex+16, y, lanConfig_joinname);
+		if (lanConfig_cursor == 3)
+		{
+			M_DrawCharacter (basex+16 + 8*strlen(lanConfig_joinname), y, 10+((int)(realtime*4)&1));
+			M_DrawCharacter (basex-8, y, 12+((int)(realtime*4)&1));
+		}
+		y += 16;
 	}
 	else
 	{
-		M_DrawTextBox (basex, lanConfig_cursor_table[1]-8, 2, 1);
-		M_Print (basex+8, lanConfig_cursor_table[1], "OK");
+		M_DrawTextBox (basex, y-8, 2, 1);
+		M_Print (basex+8, y, "OK");
+		if (lanConfig_cursor == 1)
+			M_DrawCharacter (basex-8, y, 12+((int)(realtime*4)&1));
+		y += 16;
 	}
-
-	M_DrawCharacter (basex-8, lanConfig_cursor_table [lanConfig_cursor], 12+((int)(realtime*4)&1));
-
-	if (lanConfig_cursor == 0)
-		M_DrawCharacter (basex+9*8 + 8*strlen(lanConfig_portname), lanConfig_cursor_table [0], 10+((int)(realtime*4)&1));
-
-	if (lanConfig_cursor == 2)
-		M_DrawCharacter (basex+16 + 8*strlen(lanConfig_joinname), lanConfig_cursor_table [2], 10+((int)(realtime*4)&1));
 
 	if (*m_return_reason)
 		M_PrintWhite (basex, 148, m_return_reason);
@@ -1839,26 +1868,26 @@ void M_LanConfig_Key (int key)
 
 		M_ConfigureNetSubsystem ();
 
-		if (lanConfig_cursor == 1)
+		if (StartingGame)
 		{
-			if (StartingGame)
-			{
+			if (lanConfig_cursor == 1)
 				M_Menu_GameOptions_f ();
-				break;
-			}
-			M_Menu_Search_f();
-			break;
 		}
-
-		if (lanConfig_cursor == 2)
+		else
 		{
-			m_return_state = m_state;
-			m_return_onerror = true;
-			IN_Activate();
-			key_dest = key_game;
-			m_state = m_none;
-			Cbuf_AddText ( va ("connect \"%s\"\n", lanConfig_joinname) );
-			break;
+			if (lanConfig_cursor == 1)
+				M_Menu_Search_f(SLIST_LAN);
+			else if (lanConfig_cursor == 2)
+				M_Menu_Search_f(SLIST_INTERNET);
+			else if (lanConfig_cursor == 3)
+			{
+				m_return_state = m_state;
+				m_return_onerror = true;
+				IN_Activate();
+				key_dest = key_game;
+				m_state = m_none;
+				Cbuf_AddText ( va ("connect \"%s\"\n", lanConfig_joinname) );
+			}
 		}
 
 		break;
@@ -1870,7 +1899,7 @@ void M_LanConfig_Key (int key)
 				lanConfig_portname[strlen(lanConfig_portname)-1] = 0;
 		}
 
-		if (lanConfig_cursor == 2)
+		if (lanConfig_cursor == 3)
 		{
 			if (strlen(lanConfig_joinname))
 				lanConfig_joinname[strlen(lanConfig_joinname)-1] = 0;
@@ -1878,7 +1907,7 @@ void M_LanConfig_Key (int key)
 		break;
 	}
 
-	if (StartingGame && lanConfig_cursor == 2)
+	if (StartingGame && lanConfig_cursor >= 2)
 	{
 		if (key == K_UPARROW)
 			lanConfig_cursor = 1;
@@ -1911,7 +1940,7 @@ void M_LanConfig_Char (int key)
 			lanConfig_portname[l] = key;
 		}
 		break;
-	case 2:
+	case 3:
 		l = strlen(lanConfig_joinname);
 		if (l < 21)
 		{
@@ -1925,7 +1954,7 @@ void M_LanConfig_Char (int key)
 
 qboolean M_LanConfig_TextEntry (void)
 {
-	return (lanConfig_cursor == 0 || lanConfig_cursor == 2);
+	return (lanConfig_cursor == 0 || lanConfig_cursor == 3);
 }
 
 //=============================================================================
@@ -2387,15 +2416,16 @@ void M_GameOptions_Key (int key)
 
 qboolean	searchComplete = false;
 double		searchCompleteTime;
+enum slistScope_e searchLastScope = SLIST_LAN;
 
-void M_Menu_Search_f (void)
+void M_Menu_Search_f (enum slistScope_e scope)
 {
 	IN_Deactivate(modestate == MS_WINDOWED);
 	key_dest = key_menu;
 	m_state = m_search;
 	m_entersound = false;
 	slistSilent = true;
-	slistLocal = false;
+	slistScope = searchLastScope = scope;
 	searchComplete = false;
 	NET_Slist_f();
 
@@ -2446,7 +2476,8 @@ void M_Search_Key (int key)
 //=============================================================================
 /* SLIST MENU */
 
-int		slist_cursor;
+size_t		slist_cursor;
+size_t		slist_first;
 qboolean slist_sorted;
 
 void M_Menu_ServerList_f (void)
@@ -2456,6 +2487,7 @@ void M_Menu_ServerList_f (void)
 	m_state = m_slist;
 	m_entersound = true;
 	slist_cursor = 0;
+	slist_first = 0;
 	m_return_onerror = false;
 	m_return_reason[0] = 0;
 	slist_sorted = false;
@@ -2464,7 +2496,7 @@ void M_Menu_ServerList_f (void)
 
 void M_ServerList_Draw (void)
 {
-	int	n;
+	size_t	n, slist_shown;
 	qpic_t	*p;
 
 	if (!slist_sorted)
@@ -2473,11 +2505,19 @@ void M_ServerList_Draw (void)
 		NET_SlistSort ();
 	}
 
+	slist_shown = hostCacheCount;
+	if (slist_shown > (200-32)/8)
+		slist_shown = (200-32)/8;
+	if (slist_first+slist_shown-1 < slist_cursor)
+		slist_first = slist_cursor-(slist_shown-1);
+	if (slist_first > slist_cursor)
+		slist_first = slist_cursor;
+
 	p = Draw_CachePic ("gfx/p_multi.lmp");
 	M_DrawPic ( (320-p->width)/2, 4, p);
-	for (n = 0; n < hostCacheCount; n++)
-		M_Print (16, 32 + 8*n, NET_SlistPrintServer (n));
-	M_DrawCharacter (0, 32 + slist_cursor*8, 12+((int)(realtime*4)&1));
+	for (n = 0; n < slist_shown; n++)
+		M_Print (16, 32 + 8*n, NET_SlistPrintServer (slist_first+n));
+	M_DrawCharacter (0, 32 + (slist_cursor-slist_first)*8, 12+((int)(realtime*4)&1));
 
 	if (*m_return_reason)
 		M_PrintWhite (16, 148, m_return_reason);
@@ -2494,14 +2534,14 @@ void M_ServerList_Key (int k)
 		break;
 
 	case K_SPACE:
-		M_Menu_Search_f ();
+		M_Menu_Search_f (searchLastScope);
 		break;
 
 	case K_UPARROW:
 	case K_LEFTARROW:
 		S_LocalSound ("misc/menu1.wav");
 		slist_cursor--;
-		if (slist_cursor < 0)
+		if (slist_cursor >= hostCacheCount)
 			slist_cursor = hostCacheCount - 1;
 		break;
 

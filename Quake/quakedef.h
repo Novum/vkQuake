@@ -55,6 +55,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define	QUAKESPASM_VER_STRING	QS_STRINGIFY(QUAKESPASM_VERSION) "." QS_STRINGIFY(QUAKESPASM_VER_PATCH) QUAKESPASM_VER_SUFFIX
 #define VKQUAKE_VER_STRING	QS_STRINGIFY(VKQUAKE_VERSION) "." QS_STRINGIFY(VKQUAKE_VER_PATCH) VKQUAKE_VER_SUFFIX
 
+#ifdef QSS_DATE
+	// combined version string like "2020-10-20-beta1"
+	#define	ENGINE_NAME_AND_VER	"vkQuake " QS_STRINGIFY(QSS_DATE) VKQUAKE_VER_SUFFIX
+#else
+	#define ENGINE_NAME_AND_VER "vkQuake" " " VKQUAKE_VER_STRING
+#endif
+
 //define	PARANOID			// speed sapping error checking
 
 #define	GAMENAME	"id1"		// directory to look in by default
@@ -109,7 +116,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 //
 // stats are integers communicated to the client by the server
 //
-#define	MAX_CL_STATS		32
+#define	MAX_CL_STATS		256
 #define	STAT_HEALTH		0
 #define	STAT_FRAGS		1
 #define	STAT_WEAPON		2
@@ -125,6 +132,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define	STAT_TOTALMONSTERS	12
 #define	STAT_SECRETS		13	// bumped on client side by svc_foundsecret
 #define	STAT_MONSTERS		14	// bumped by svc_killedmonster
+#define STAT_ITEMS			15	//replaces clc_clientdata info
+#define STAT_VIEWHEIGHT		16	//replaces clc_clientdata info
+#define STAT_VIEWZOOM		21 // DP
+#define STAT_IDEALPITCH		25	//nq-emu
+#define STAT_PUNCHANGLE_X	26	//nq-emu
+#define STAT_PUNCHANGLE_Y	27	//nq-emu
+#define STAT_PUNCHANGLE_Z	28	//nq-emu
 
 // stock defines
 //

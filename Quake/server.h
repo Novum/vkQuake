@@ -75,18 +75,38 @@ typedef struct
 
 	unsigned	protocol; //johnfitz
 	unsigned	protocolflags;
+
+	entity_state_t	*static_entities;
+	int			num_statics;
+	int			max_statics;
 } server_t;
 
 
 #define	NUM_PING_TIMES		16
-#define	NUM_SPAWN_PARMS		16
+#define	NUM_BASIC_SPAWN_PARMS		16
+#define	NUM_TOTAL_SPAWN_PARMS		64
 
 typedef struct client_s
 {
 	qboolean		active;				// false = client is free
-	qboolean		spawned;			// false = don't send datagrams
+	qboolean		spawned;			// false = don't send datagrams (set when client acked the first entities)
 	qboolean		dropasap;			// has been told to go to another level
-	qboolean		sendsignon;			// only valid before spawned
+	enum
+	{
+		PRESPAWN_DONE,
+		PRESPAWN_FLUSH=1,
+//		PRESPAWN_SERVERINFO,
+		PRESPAWN_MODELS,
+		PRESPAWN_SOUNDS,
+		PRESPAWN_PARTICLES,
+		PRESPAWN_BASELINES,
+		PRESPAWN_STATICS,
+		PRESPAWN_AMBIENTS,
+		PRESPAWN_SIGNONMSG,
+	}				sendsignon;			// only valid before spawned
+	int				signonidx;
+	unsigned int	signon_sounds;		//
+	unsigned int	signon_models;		//
 
 	double			last_message;		// reliable messages must be sent
 										// periodically
@@ -107,10 +127,60 @@ typedef struct client_s
 	int				num_pings;			// ping_times[num_pings%NUM_PING_TIMES]
 
 // spawn parms are carried from level to level
-	float			spawn_parms[NUM_SPAWN_PARMS];
+	float			spawn_parms[NUM_TOTAL_SPAWN_PARMS];
 
 // client known data for deltas
 	int				old_frags;
+
+	sizebuf_t		datagram;
+	byte			datagram_buf[MAX_DATAGRAM];
+
+	unsigned int	limit_entities;		//vanilla is 600
+	unsigned int	limit_unreliable;	//max allowed size for unreliables
+	unsigned int	limit_reliable;		//max (total) size of a reliable message.
+	unsigned int	limit_models;		//
+	unsigned int	limit_sounds;		//
+	qboolean		pextknown;
+	unsigned int	protocol_pext2;
+	unsigned int	resendstatsnum[MAX_CL_STATS/32];	//the stats which need to be resent.
+	unsigned int	resendstatsstr[MAX_CL_STATS/32];	//the stats which need to be resent.
+	int				oldstats_i[MAX_CL_STATS];		//previous values of stats. if these differ from the current values, reflag resendstats.
+	float			oldstats_f[MAX_CL_STATS];		//previous values of stats. if these differ from the current values, reflag resendstats.
+	char			*oldstats_s[MAX_CL_STATS];
+	struct entity_num_state_s{
+		unsigned int num;	//ascending order, there can be gaps.
+		entity_state_t state;
+	} *previousentities;
+	size_t numpreviousentities;
+	size_t maxpreviousentities;
+	unsigned int snapshotresume;
+	unsigned int *pendingentities_bits;	//UF_ flags for each entity
+	size_t numpendingentities;	//realloc if too small
+					#define	SENDFLAG_PRESENT	0x80000000u	//tracks that we previously sent one of these ents (resulting in a remove if the ent gets remove()d).
+					#define	SENDFLAG_REMOVE		0x40000000u	//for packetloss to signal that we need to resend a remove.
+					#define	SENDFLAG_USABLE		0x00ffffffu	//SendFlags bits that the qc is actually able to use (don't get confused if the mod uses SendFlags=-1).
+	struct deltaframe_s
+	{	//quick overview of how this stuff actually works:
+		//when the server notices a gap in the ack sequence, we walk through the dropped frames and reflag everything that was dropped.
+		//if the server isn't tracking enough frames, then we just treat those as dropped;
+		//small note: when an entity is new, it re-flags itself as new for the next packet too, this reduces the immediate impact of packetloss on new entities.
+		//reflagged state includes stats updates, entity updates, and entity removes.
+		int				sequence;	//to see if its stale
+		float			timestamp;	
+		unsigned int	resendstatsnum[MAX_CL_STATS/32];
+		unsigned int	resendstatsstr[MAX_CL_STATS/32];
+		struct
+		{
+			unsigned int num;
+			unsigned int ebits;
+		} *ents;
+		int numents;	//doesn't contain an entry for every entity, just ones that were sent this frame. no 0 bits
+		int maxents;
+	} *frames;
+	size_t numframes;	//preallocated power-of-two
+	int lastacksequence;
+	int lastmovemessage;
+	double lastmovetime;
 } client_t;
 
 
@@ -173,6 +243,13 @@ typedef struct client_s
 #define	SPAWNFLAG_NOT_HARD			1024
 #define	SPAWNFLAG_NOT_DEATHMATCH	2048
 
+#define	MSG_BROADCAST		0	// unreliable to all
+#define	MSG_ONE				1	// reliable to one (msg_entity)
+#define	MSG_ALL				2	// reliable to all
+#define	MSG_INIT			3	// write to the init string
+#define	MSG_EXT_MULTICAST	4	// temporary buffer that can be splurged more reliably / with more control.
+#define	MSG_EXT_ENTITY		5	// for csqc networking. we don't actually support this. I'm just defining it for completeness.
+
 //============================================================================
 
 extern	cvar_t	teamplay;
@@ -194,11 +271,14 @@ extern	edict_t		*sv_player;
 void SV_Init (void);
 
 void SV_StartParticle (vec3_t org, vec3_t dir, int color, int count);
-void SV_StartSound (edict_t *entity, int channel, const char *sample, int volume,
-    float attenuation);
+void SV_StartSound (edict_t *entity, float *origin, int channel, 
+                    const char *sample, int volume, float attenuation);
 
 void SV_DropClient (qboolean crash);
 
+void SVFTE_Ack(client_t *client, int sequence);
+void SVFTE_DestroyFrames(client_t *client);
+void SV_BuildEntityState(edict_t *ent, entity_state_t *state);
 void SV_SendClientMessages (void);
 void SV_ClearDatagram (void);
 
@@ -219,10 +299,11 @@ void SV_Physics (void);
 qboolean SV_CheckBottom (edict_t *ent);
 qboolean SV_movestep (edict_t *ent, vec3_t move, qboolean relink);
 
-void SV_WriteClientdataToMessage (edict_t *ent, sizebuf_t *msg);
+void SV_WriteClientdataToMessage (client_t *client, sizebuf_t *msg);
 
 void SV_MoveToGoal (void);
 
+void SV_ConnectClient (int clientnum);	//called from the netcode to add new clients. also called from pr_ext to spawn new botclients.
 void SV_CheckForNewClients (void);
 void SV_RunClients (void);
 void SV_SaveSpawnparms ();

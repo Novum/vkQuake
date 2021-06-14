@@ -53,7 +53,7 @@ void TraceLine (vec3_t start, vec3_t end, vec3_t impact)
 	trace_t	trace;
 
 	memset (&trace, 0, sizeof(trace));
-	SV_RecursiveHullCheck (cl.worldmodel->hulls, 0, 0, 1, start, end, &trace);
+	SV_RecursiveHullCheck (cl.worldmodel->hulls, start, end, &trace, CONTENTMASK_ANYSOLID);
 
 	VectorCopy (trace.endpos, impact);
 }
@@ -111,7 +111,7 @@ void Chase_UpdateForDrawing (void)
 
 	// calculate camera angles to look at the same spot
 	VectorSubtract (crosshair, r_refdef.vieworg, temp);
-	VectorAngles (temp, r_refdef.viewangles);
+	VectorAngles (temp, NULL, r_refdef.viewangles);
 	if (r_refdef.viewangles[PITCH] == 90 || r_refdef.viewangles[PITCH] == -90)
 		r_refdef.viewangles[YAW] = cl.viewangles[YAW];
 }

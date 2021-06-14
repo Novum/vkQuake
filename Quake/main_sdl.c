@@ -113,6 +113,7 @@ int main(int argc, char *argv[])
 	Sys_Printf("FitzQuake %1.2f (c) John Fitzgibbons\n", FITZQUAKE_VERSION);
 	Sys_Printf("FitzQuake SDL port (c) SleepwalkR, Baker\n");
 	Sys_Printf("QuakeSpasm " QUAKESPASM_VER_STRING " (c) Ozkan Sezer, Eric Wasylishen & others\n");
+	Sys_Printf("QuakeSpasm-Spiked (c) Spike\n");
 	Sys_Printf("vkQuake " VKQUAKE_VER_STRING " (c) Axel Gneiting & others\n");
 
 	Sys_Printf("Host_Init\n");

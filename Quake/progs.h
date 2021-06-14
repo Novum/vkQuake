@@ -42,7 +42,7 @@ typedef struct edict_s
 	qboolean	free;
 	link_t		area;			/* linked to a division node or leaf */
 
-	int		num_leafs;
+	unsigned int		num_leafs;
 	int		leafnums[MAX_ENT_LEAFS];
 
 	entity_state_t	baseline;
@@ -131,11 +131,20 @@ extern	int		pr_xstatement;
 extern	unsigned short	pr_crc;
 
 FUNC_NORETURN void PR_RunError (const char *error, ...) FUNC_PRINTF(1,2);
+void PR_RunWarning (const char *error, ...) FUNC_PRINTF(1,2);
 
 void ED_PrintEdicts (void);
 void ED_PrintNum (int ent);
 
 eval_t *GetEdictFieldValue(edict_t *ed, const char *field);
 
+//from pr_cmds, no longer static so that pr_ext can use them.
+sizebuf_t *WriteDest (void);
+char *PR_GetTempString (void);
+int PR_MakeTempString (const char *val);
+char *PF_VarString (int	first);
+#define	STRINGTEMP_BUFFERS		1024
+#define	STRINGTEMP_LENGTH		1024
+void PF_Fixme(void);	//the 'unimplemented' builtin. woot.
 #endif	/* _QUAKE_PROGS_H */
 

@@ -38,12 +38,16 @@ typedef struct
 	vec3_t	endpos;			// final position
 	plane_t	plane;			// surface normal at impact
 	edict_t	*ent;			// entity the surface is on
+
+	int		contents;		// spike -- the content type(s) that we found.
 } trace_t;
 
 
 #define	MOVE_NORMAL		0
 #define	MOVE_NOMONSTERS	1
 #define	MOVE_MISSILE	2
+
+#define MOVE_HITALLCONTENTS (1<<9)
 
 
 void SV_ClearWorld (void);
@@ -60,6 +64,7 @@ void SV_LinkEdict (edict_t *ent, qboolean touch_triggers);
 // sets ent->v.absmin and ent->v.absmax
 // if touchtriggers, calls prog functions for the intersected triggers
 
+int SV_PointContentsAllBsps(vec3_t p, edict_t *forent); //check all SOLID_BSP ents
 int SV_PointContents (vec3_t p);
 int SV_TruePointContents (vec3_t p);
 // returns the CONTENTS_* value from the world at the given point.
@@ -68,6 +73,9 @@ int SV_TruePointContents (vec3_t p);
 
 edict_t	*SV_TestEntityPosition (edict_t *ent);
 
+#define CONTENTMASK_FROMQ1(c) (1u<<(-(c)))
+#define CONTENTMASK_ANYSOLID (CONTENTMASK_FROMQ1(CONTENTS_SOLID) | CONTENTMASK_FROMQ1(CONTENTS_CLIP))
+trace_t SV_ClipMoveToEntity (edict_t *ent, vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, unsigned int hitcontents);
 trace_t SV_Move (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type, edict_t *passedict);
 // mins and maxs are reletive
 
@@ -81,7 +89,7 @@ trace_t SV_Move (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type, e
 
 // passedict is explicitly excluded from clipping checks (normally NULL)
 
-qboolean SV_RecursiveHullCheck (hull_t *hull, int num, float p1f, float p2f, vec3_t p1, vec3_t p2, trace_t *trace);
+qboolean SV_RecursiveHullCheck (hull_t *hull, vec3_t p1, vec3_t p2, trace_t *trace, unsigned int hitcontents);
 
 #endif	/* _QUAKE_WORLD_H */
 

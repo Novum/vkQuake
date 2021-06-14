@@ -421,9 +421,13 @@ void R_DrawEntitiesOnList (qboolean alphapass) //johnfitz -- added parameter
 			continue;
 
 		//johnfitz -- chasecam
-		if (currententity == &cl_entities[cl.viewentity])
+		if (currententity == &cl.entities[cl.viewentity])
 			currententity->angles[0] *= 0.3;
 		//johnfitz
+
+		//spike -- this would be more efficient elsewhere, but its more correct here.
+		if (currententity->eflags & EFLAGS_EXTERIORMODEL)
+			continue;
 
 		switch (currententity->model->type)
 		{
@@ -502,7 +506,7 @@ void R_ShowTris(void)
 		{
 			currententity = cl_visedicts[i];
 
-			if (currententity == &cl_entities[cl.viewentity]) // chasecam
+			if (currententity == &cl.entities[cl.viewentity]) // chasecam
 				currententity->angles[0] *= 0.3;
 
 			switch (currententity->model->type)
@@ -546,6 +550,8 @@ R_RenderScene
 */
 void R_RenderScene (void)
 {
+	static entity_t r_worldentity;	//so we can make sure currententity is valid
+	currententity = &r_worldentity;
 	R_SetupScene (); //johnfitz -- this does everything that should be done once per call to RenderScene
 
 	Fog_EnableGFog (); //johnfitz
@@ -553,6 +559,7 @@ void R_RenderScene (void)
 	Sky_DrawSky (); //johnfitz
 
 	R_DrawWorld ();
+	currententity = NULL;
 
 	S_ExtraUpdate (); // don't let sound get messed up if going slow
 
@@ -603,9 +610,9 @@ void R_RenderView (void)
 	time2 = Sys_DoubleTime ();
 	if (r_pos.value)
 		Con_Printf ("x %i y %i z %i (pitch %i yaw %i roll %i)\n",
-			(int)cl_entities[cl.viewentity].origin[0],
-			(int)cl_entities[cl.viewentity].origin[1],
-			(int)cl_entities[cl.viewentity].origin[2],
+			(int)cl.entities[cl.viewentity].origin[0],
+			(int)cl.entities[cl.viewentity].origin[1],
+			(int)cl.entities[cl.viewentity].origin[2],
 			(int)cl.viewangles[PITCH],
 			(int)cl.viewangles[YAW],
 			(int)cl.viewangles[ROLL]);

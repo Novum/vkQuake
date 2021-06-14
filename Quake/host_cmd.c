@@ -429,9 +429,12 @@ void Host_Status_f (void)
 	int			seconds;
 	int			minutes;
 	int			hours = 0;
-	int			j;
+	int			j, i;
 
-	if (cmd_source == src_command)
+	qhostaddr_t addresses[32];
+	int numaddresses;
+
+	if (cmd_source != src_client)
 	{
 		if (!sv.active)
 		{
@@ -443,10 +446,21 @@ void Host_Status_f (void)
 	else
 		print_fn = SV_ClientPrintf;
 
-	print_fn ("host:    %s\n", Cvar_VariableString ("hostname"));
-	print_fn ("version: %4.2f\n", VERSION);
-	if (tcpipAvailable)
-		print_fn ("tcp/ip:  %s\n", my_tcpip_address);
+	print_fn (    "host:    %s\n", Cvar_VariableString ("hostname"));
+	print_fn (    "version: "ENGINE_NAME_AND_VER"\n");
+
+	numaddresses = NET_ListAddresses(addresses, sizeof(addresses)/sizeof(addresses[0]));
+	for (i = 0; i < numaddresses; i++)
+	{
+		if (*addresses[i] == '[')
+			print_fn ("ipv6:    %s\n", addresses[i]);	//Spike -- FIXME: we should really have ports displayed here or something
+		else
+			print_fn ("tcp/ip:  %s\n", addresses[i]);	//Spike -- FIXME: we should really have ports displayed here or something
+	}
+	if (ipv4Available)
+		print_fn ("tcp/ip:  %s\n", my_ipv4_address);	//Spike -- FIXME: we should really have ports displayed here or something
+	if (ipv6Available)
+		print_fn ("ipv6:    %s\n", my_ipv6_address);
 	if (ipxAvailable)
 		print_fn ("ipx:     %s\n", my_ipx_address);
 	print_fn ("map:     %s\n", sv.name);
@@ -455,7 +469,10 @@ void Host_Status_f (void)
 	{
 		if (!client->active)
 			continue;
-		seconds = (int)(net_time - NET_QSocketGetTime(client->netconnection));
+		if (client->netconnection)
+			seconds = (int)(net_time - NET_QSocketGetTime(client->netconnection));
+		else
+			seconds = 0;
 		minutes = seconds / 60;
 		if (minutes)
 		{
@@ -467,7 +484,10 @@ void Host_Status_f (void)
 		else
 			hours = 0;
 		print_fn ("#%-2u %-16.16s  %3i  %2i:%02i:%02i\n", j+1, client->name, (int)client->edict->v.frags, hours, minutes, seconds);
-		print_fn ("   %s\n", NET_QSocketGetAddressString(client->netconnection));
+		if (cmd_source != src_client)
+			print_fn ("   %s\n", client->netconnection?NET_QSocketGetTrueAddressString(client->netconnection):"botclient");
+		else
+			print_fn ("   %s\n", client->netconnection?NET_QSocketGetMaskedAddressString(client->netconnection):"botclient");
 	}
 }
 
@@ -480,7 +500,7 @@ Sets client to godmode
 */
 void Host_God_f (void)
 {
-	if (cmd_source == src_command)
+	if (cmd_source != src_client)
 	{
 		Cmd_ForwardToServer ();
 		return;
@@ -525,7 +545,7 @@ Host_Notarget_f
 */
 void Host_Notarget_f (void)
 {
-	if (cmd_source == src_command)
+	if (cmd_source != src_client)
 	{
 		Cmd_ForwardToServer ();
 		return;
@@ -572,7 +592,7 @@ Host_Noclip_f
 */
 void Host_Noclip_f (void)
 {
-	if (cmd_source == src_command)
+	if (cmd_source != src_client)
 	{
 		Cmd_ForwardToServer ();
 		return;
@@ -628,7 +648,7 @@ adapted from fteqw, originally by Alex Shadowalker
 */
 void Host_SetPos_f(void)
 {
-	if (cmd_source == src_command)
+	if (cmd_source != src_client)
 	{
 		Cmd_ForwardToServer ();
 		return;
@@ -689,7 +709,7 @@ Sets client to flymode
 */
 void Host_Fly_f (void)
 {
-	if (cmd_source == src_command)
+	if (cmd_source != src_client)
 	{
 		Cmd_ForwardToServer ();
 		return;
@@ -745,7 +765,7 @@ void Host_Ping_f (void)
 	float		total;
 	client_t	*client;
 
-	if (cmd_source == src_command)
+	if (cmd_source != src_client)
 	{
 		Cmd_ForwardToServer ();
 		return;
@@ -754,7 +774,7 @@ void Host_Ping_f (void)
 	SV_ClientPrintf ("Client ping times:\n");
 	for (i = 0, client = svs.clients; i < svs.maxclients; i++, client++)
 	{
-		if (!client->active)
+		if (!client->spawned || !client->netconnection)
 			continue;
 		total = 0;
 		for (j = 0; j < NUM_PING_TIMES; j++)
@@ -1097,7 +1117,7 @@ void Host_Savegame_f (void)
 	fprintf (f, "%i\n", SAVEGAME_VERSION);
 	Host_SavegameComment (comment);
 	fprintf (f, "%s\n", comment);
-	for (i = 0; i < NUM_SPAWN_PARMS; i++)
+	for (i = 0; i < NUM_TOTAL_SPAWN_PARMS; i++)
 		fprintf (f, "%f\n", svs.clients->spawn_parms[i]);
 	fprintf (f, "%d\n", current_skill);
 	fprintf (f, "%s\n", sv.name);
@@ -1142,7 +1162,7 @@ void Host_Loadgame_f (void)
 	edict_t	*ent;
 	int	entnum;
 	int	version;
-	float	spawn_parms[NUM_SPAWN_PARMS];
+	float	spawn_parms[NUM_TOTAL_SPAWN_PARMS];
 
 	if (cmd_source != src_command)
 		return;
@@ -1191,7 +1211,7 @@ void Host_Loadgame_f (void)
 		return;
 	}
 	data = COM_ParseStringNewline (data);
-	for (i = 0; i < NUM_SPAWN_PARMS; i++)
+	for (i = 0; i < NUM_TOTAL_SPAWN_PARMS; i++)
 		data = COM_ParseFloatNewline (data, &spawn_parms[i]);
 // this silliness is so we can load 1.06 save files, which have float skill values
 	data = COM_ParseFloatNewline(data, &tfloat);
@@ -1266,7 +1286,7 @@ void Host_Loadgame_f (void)
 	free (start);
 	start = NULL;
 
-	for (i = 0; i < NUM_SPAWN_PARMS; i++)
+	for (i = 0; i < NUM_TOTAL_SPAWN_PARMS; i++)
 		svs.clients->spawn_parms[i] = spawn_parms[i];
 
 	if (cls.state != ca_dedicated)
@@ -1617,10 +1637,9 @@ void Host_PreSpawn_f (void)
 		return;
 	}
 
-	SZ_Write (&host_client->message, sv.signon.data, sv.signon.cursize);
-	MSG_WriteByte (&host_client->message, svc_signonnum);
-	MSG_WriteByte (&host_client->message, 2);
-	host_client->sendsignon = true;
+	//will start splurging out prespawn data
+	host_client->sendsignon = 2;
+	host_client->signonidx = 0;
 }
 
 /*
@@ -1663,7 +1682,7 @@ void Host_Spawn_f (void)
 		ent->v.netname = PR_SetEngineString(host_client->name);
 
 		// copy spawn parms out of the client_t
-		for (i=0 ; i< NUM_SPAWN_PARMS ; i++)
+		for (i=0 ; i< NUM_TOTAL_SPAWN_PARMS ; i++)
 			(&pr_global_struct->parm1)[i] = host_client->spawn_parms[i];
 		// call the spawn function
 		pr_global_struct->time = sv.time;
@@ -1683,6 +1702,8 @@ void Host_Spawn_f (void)
 // send time of update
 	MSG_WriteByte (&host_client->message, svc_time);
 	MSG_WriteFloat (&host_client->message, sv.time);
+	if (host_client->protocol_pext2 & PEXT2_PREDINFO)
+		MSG_WriteShort(&host_client->message, (host_client->lastmovemessage&0xffff));
 
 	for (i = 0, client = svs.clients; i < svs.maxclients; i++, client++)
 	{
@@ -1736,7 +1757,8 @@ void Host_Spawn_f (void)
 		MSG_WriteAngle (&host_client->message, ent->v.angles[i], sv.protocolflags );
 	MSG_WriteAngle (&host_client->message, 0, sv.protocolflags );
 
-	SV_WriteClientdataToMessage (sv_player, &host_client->message);
+	if (!(host_client->protocol_pext2 & PEXT2_REPLACEMENTDELTAS))
+		SV_WriteClientdataToMessage (host_client, &host_client->message);
 
 	MSG_WriteByte (&host_client->message, svc_signonnum);
 	MSG_WriteByte (&host_client->message, 3);

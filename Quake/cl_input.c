@@ -295,10 +295,12 @@ Send the intended movement message to the server
 */
 void CL_BaseMove (usercmd_t *cmd)
 {
+	Q_memset (cmd, 0, sizeof(*cmd));
+
+	VectorCopy(cl.viewangles, cmd->viewangles);
+
 	if (cls.signon != SIGNONS)
 		return;
-
-	Q_memset (cmd, 0, sizeof(*cmd));
 
 	if (in_strafe.state & 1)
 	{
@@ -329,6 +331,31 @@ void CL_BaseMove (usercmd_t *cmd)
 	}
 }
 
+void CL_FinishMove(usercmd_t *cmd)
+{
+	unsigned int bits;
+	//
+	// send button bits
+	//
+	bits = 0;
+
+	if ( in_attack.state & 3 )
+		bits |= 1;
+	in_attack.state &= ~2;
+
+	if (in_jump.state & 3)
+		bits |= 2;
+	in_jump.state &= ~2;
+
+	if (in_use.state & 3)
+		bits |= 4;
+	in_use.state &= ~2;
+
+	cmd->buttons = bits;
+	cmd->impulse = in_impulse;
+
+	in_impulse = 0;
+}
 
 /*
 ==============
@@ -337,29 +364,45 @@ CL_SendMove
 */
 void CL_SendMove (const usercmd_t *cmd)
 {
-	int		i;
-	int		bits;
-	sizebuf_t	buf;
-	byte	data[128];
+	unsigned int	i;
+	sizebuf_t		buf;
+	byte			data[1024];
 
-	buf.maxsize = 128;
+	buf.maxsize = sizeof(data);
 	buf.cursize = 0;
 	buf.data = data;
 
-	if (cmd) 
+	for (i = 0; i < cl.ackframes_count; i++)
 	{
-		cl.cmd = *cmd;
+		MSG_WriteByte(&buf, clcdp_ackframe);
+		MSG_WriteLong(&buf, cl.ackframes[i]);
+	}
+	cl.ackframes_count = 0;
+
+	if (cmd)
+	{
+		int dump = buf.cursize;
+		unsigned int bits = cmd->buttons;
 
 	//
 	// send the movement message
 	//
 		MSG_WriteByte (&buf, clc_move);
 
-		MSG_WriteFloat (&buf, cl.mtime[0]);	// so server can get ping times
+		if (cl.protocol_pext2 & PEXT2_PREDINFO)
+		{
+			MSG_WriteShort(&buf, cl.movemessages&0xffff);	//server will ack this once it has been applied to the player's entity state
+			MSG_WriteFloat (&buf, cmd->servertime);	// so server can get cmd timing (pings will be calculated by entframe acks).
+		}
+		else
+			MSG_WriteFloat (&buf, cl.mtime[0]);	// so server can get ping times
 
 		for (i=0 ; i<3 ; i++)
 			//johnfitz -- 16-bit angles for PROTOCOL_FITZQUAKE
-			if (cl.protocol == PROTOCOL_NETQUAKE)
+			//spike -- nq+bjp3 use 8bit angles. all other supported protocols use 16bit ones.
+			//spike -- proquake servers bump client->server angles up to at least 16bit. this is safe because it only happens when both client+server advertise it, and because it never actually gets recorded into demos anyway.
+			//spike -- predinfo also always means 16bit angles, even if for some reason the server doesn't advertise proquake (like dp).
+			if (cl.protocol == PROTOCOL_NETQUAKE && !NET_QSocketGetProQuakeAngleHack(cls.netcon) && !(cl.protocol_pext2 & PEXT2_PREDINFO))
 				MSG_WriteAngle (&buf, cl.viewangles[i], cl.protocolflags);
 			else
 				MSG_WriteAngle16 (&buf, cl.viewangles[i], cl.protocolflags);
@@ -369,36 +412,28 @@ void CL_SendMove (const usercmd_t *cmd)
 		MSG_WriteShort (&buf, cmd->sidemove);
 		MSG_WriteShort (&buf, cmd->upmove);
 
-	//
-	// send button bits
-	//
-		bits = 0;
-
-		if ( in_attack.state & 3 )
-			bits |= 1;
-		in_attack.state &= ~2;
-
-		if (in_jump.state & 3)
-			bits |= 2;
-		in_jump.state &= ~2;
-
 		MSG_WriteByte (&buf, bits);
-
-		MSG_WriteByte (&buf, in_impulse);
+		MSG_WriteByte (&buf, cmd->impulse);
+		if (bits & (1u<<30))
+			MSG_WriteLong (&buf, cmd->weapon);
 		in_impulse = 0;
+
+		cl.movecmds[cl.movemessages&MOVECMDS_MASK] = *cmd;
+
+		//
+		// allways dump the first two message, because it may contain leftover inputs
+		// from the last level
+		//
+		if (++cl.movemessages <= 2)
+			buf.cursize = dump;
 	}
 
-//
-// deliver the message
-//
-	if (cls.demoplayback)
-		return;
+	//fixme: nops if we're still connecting, or something.
 
-//
-// allways dump the first two message, because it may contain leftover inputs
-// from the last level
-//
-	if (++cl.movemessages <= 2)
+	//
+	// deliver the message
+	//
+	if (cls.demoplayback || !buf.cursize)
 		return;
 
 	if (NET_SendUnreliableMessage (cls.netcon, &buf) == -1)

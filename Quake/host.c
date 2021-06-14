@@ -447,6 +447,8 @@ void SV_DropClient (qboolean crash)
 	NET_Close (host_client->netconnection);
 	host_client->netconnection = NULL;
 
+	SVFTE_DestroyFrames(host_client);	//release any delta state
+
 // free the client (the body stays around)
 	host_client->active = false;
 	host_client->name[0] = 0;
@@ -456,17 +458,23 @@ void SV_DropClient (qboolean crash)
 // send notification to all clients
 	for (i = 0, client = svs.clients; i < svs.maxclients; i++, client++)
 	{
-		if (!client->active)
-			continue;
-		MSG_WriteByte (&client->message, svc_updatename);
-		MSG_WriteByte (&client->message, host_client - svs.clients);
-		MSG_WriteString (&client->message, "");
+		if (host_client->protocol_pext2 & PEXT2_REPLACEMENTDELTAS)
+		{
+			MSG_WriteByte (&client->message, svc_stufftext);
+			MSG_WriteString (&client->message, va("//fui %u \"\"\n", (unsigned)(host_client - svs.clients)));
+		}
+		else
+		{
+			MSG_WriteByte (&client->message, svc_updatename);
+			MSG_WriteByte (&client->message, host_client - svs.clients);
+			MSG_WriteString (&client->message, "");
+			MSG_WriteByte (&client->message, svc_updatecolors);
+			MSG_WriteByte (&client->message, host_client - svs.clients);
+			MSG_WriteByte (&client->message, 0);
+		}
 		MSG_WriteByte (&client->message, svc_updatefrags);
 		MSG_WriteByte (&client->message, host_client - svs.clients);
 		MSG_WriteShort (&client->message, 0);
-		MSG_WriteByte (&client->message, svc_updatecolors);
-		MSG_WriteByte (&client->message, host_client - svs.clients);
-		MSG_WriteByte (&client->message, 0);
 	}
 }
 
@@ -501,7 +509,7 @@ void Host_ShutdownServer(qboolean crash)
 		count = 0;
 		for (i=0, host_client = svs.clients ; i<svs.maxclients ; i++, host_client++)
 		{
-			if (host_client->active && host_client->message.cursize)
+			if (host_client->active && host_client->message.cursize && host_client->netconnection)
 			{
 				if (NET_CanSendMessage (host_client->netconnection))
 				{
@@ -558,7 +566,8 @@ void Host_ClearMemory (void)
 	cls.signon = 0;
 	free(sv.edicts); // ericw -- sv.edicts switched to use malloc()
 	memset (&sv, 0, sizeof(sv));
-	memset (&cl, 0, sizeof(cl));
+
+	CL_FreeState();
 }
 
 

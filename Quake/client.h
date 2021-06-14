@@ -39,13 +39,16 @@ typedef struct
 	float	entertime;
 	int		frags;
 	int		colors;			// two 4 bit fields
+	int		ping;
 	byte	translations[VID_GRADES*256];
+
+	char	userinfo[8192];
 } scoreboard_t;
 
 typedef struct
 {
 	int		destcolor[3];
-	int		percent;		// 0-256
+	float	percent;		// 0-256
 } cshift_t;
 
 #define	CSHIFT_CONTENTS	0
@@ -131,6 +134,7 @@ typedef struct
 	struct qsocket_s	*netcon;
 	sizebuf_t	message;		// writing buffer to send to server
 
+	char userinfo[8192];
 } client_static_t;
 
 extern client_static_t	cls;
@@ -145,11 +149,15 @@ typedef struct
 								// throw out the first couple, so the player
 								// doesn't accidentally do something the
 								// first frame
-	usercmd_t	cmd;			// last command sent to the server
+	int			ackedmovemessages;	// echo of movemessages from the server.
+	usercmd_t	movecmds[64];	// ringbuffer of previous movement commands (journal for prediction)
+#define MOVECMDS_MASK (countof(cl.movecmds)-1)
 	usercmd_t	pendingcmd;		// accumulated state from mice+joysticks.
 
 // information for local display
 	int			stats[MAX_CL_STATS];	// health, etc
+	float		statsf[MAX_CL_STATS];
+	char		*statss[MAX_CL_STATS];
 	int			items;			// inventory bit flags
 	float	item_gettime[32];	// cl.time of aquiring item, for blinking
 	float		faceanimtime;	// use anim frame if cl.time < this
@@ -214,9 +222,17 @@ typedef struct
 	struct qmodel_s	*worldmodel;	// cl_entitites[0].model
 	struct efrag_s	*free_efrags;
 	int			num_efrags;
-	int			num_entities;	// held in cl_entities array
-	int			num_statics;	// held in cl_staticentities array
+//	int			num_entities;	// held in cl_entities array
+//	int			num_statics;	// held in cl_staticentities array
 	entity_t	viewent;			// the gun model
+
+	entity_t	*entities;	//spike -- moved into here
+	int			max_edicts;
+	int			num_entities;
+
+	entity_t	**static_entities; //spike -- was static
+	int			max_static_entities;
+	int			num_statics;
 
 	int			cdtrack, looptrack;	// cd audio
 
@@ -225,6 +241,13 @@ typedef struct
 
 	unsigned	protocol; //johnfitz
 	unsigned	protocolflags;
+	unsigned	protocol_pext2;	//spike -- flag of fte protocol extensions
+
+	int ackframes[8];	//big enough to cover burst
+	unsigned int ackframes_count;
+	qboolean requestresend;
+
+	char serverinfo[8192];	// \key\value infostring data.
 } client_state_t;
 
 
@@ -266,23 +289,18 @@ extern	cvar_t	m_forward;
 extern	cvar_t	m_side;
 
 
-#define	MAX_TEMP_ENTITIES	256		//johnfitz -- was 64
-#define	MAX_STATIC_ENTITIES	4096	//ericw -- was 512	//johnfitz -- was 128
-#define	MAX_VISEDICTS		4096	// larger, now we support BSP2
+#define	MAX_TEMP_ENTITIES			256		//johnfitz -- was 64
 
 extern	client_state_t	cl;
 
 // FIXME, allocate dynamically
-extern	entity_t		cl_static_entities[MAX_STATIC_ENTITIES];
 extern	lightstyle_t	cl_lightstyle[MAX_LIGHTSTYLES];
 extern	dlight_t		cl_dlights[MAX_DLIGHTS];
 extern	entity_t		cl_temp_entities[MAX_TEMP_ENTITIES];
 extern	beam_t			cl_beams[MAX_BEAMS];
-extern	entity_t		*cl_visedicts[MAX_VISEDICTS];
+extern	entity_t		**cl_visedicts;
 extern	int				cl_numvisedicts;
-
-extern	entity_t		*cl_entities; //johnfitz -- was a static array, now on hunk
-extern	int				cl_max_edicts; //johnfitz -- only changes when new map loads
+extern	int				cl_maxvisedicts;	//extended if we exceeded it the previous frame
 
 //=============================================================================
 
@@ -324,10 +342,12 @@ void CL_SendMove (const usercmd_t *cmd);
 int  CL_ReadFromServer (void);
 void CL_AdjustAngles (void);
 void CL_BaseMove (usercmd_t *cmd);
+void CL_FinishMove(usercmd_t *cmd);
 
 void CL_ParseTEnt (void);
 void CL_UpdateTEnts (void);
 
+void CL_FreeState(void);
 void CL_ClearState (void);
 
 //
@@ -364,6 +384,7 @@ void V_SetContentsColor (int contents);
 //
 void CL_InitTEnts (void);
 void CL_SignonReply (void);
+float CL_TraceLine (vec3_t start, vec3_t end, vec3_t impact, vec3_t normal, int *ent);
 
 //
 // chase

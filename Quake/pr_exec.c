@@ -273,6 +273,21 @@ void PR_RunError (const char *error, ...)
 	Host_Error("Program error");
 }
 
+void PR_RunWarning (const char *error, ...)
+{
+	va_list	argptr;
+	char	string[1024];
+
+	va_start (argptr, error);
+	q_vsnprintf (string, sizeof(string), error, argptr);
+	va_end (argptr);
+
+	PR_PrintStatement(pr_statements + pr_xstatement);
+	PR_StackTrace();
+
+	Con_Warning("%s\n", string);
+}
+
 /*
 ====================
 PR_EnterFunction

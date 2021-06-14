@@ -27,13 +27,13 @@ int			num_temp_entities;
 entity_t	cl_temp_entities[MAX_TEMP_ENTITIES];
 beam_t		cl_beams[MAX_BEAMS];
 
-sfx_t			*cl_sfx_wizhit;
-sfx_t			*cl_sfx_knighthit;
-sfx_t			*cl_sfx_tink1;
-sfx_t			*cl_sfx_ric1;
-sfx_t			*cl_sfx_ric2;
-sfx_t			*cl_sfx_ric3;
-sfx_t			*cl_sfx_r_exp3;
+static sfx_t			*cl_sfx_wizhit;
+static sfx_t			*cl_sfx_knighthit;
+static sfx_t			*cl_sfx_tink1;
+static sfx_t			*cl_sfx_ric1;
+static sfx_t			*cl_sfx_ric2;
+static sfx_t			*cl_sfx_ric3;
+static sfx_t			*cl_sfx_r_exp3;
 
 /*
 =================
@@ -269,7 +269,7 @@ entity_t *CL_NewTempEntity (void)
 {
 	entity_t	*ent;
 
-	if (cl_numvisedicts == MAX_VISEDICTS)
+	if (cl_numvisedicts == cl_maxvisedicts)
 		return NULL;
 	if (num_temp_entities == MAX_TEMP_ENTITIES)
 		return NULL;
@@ -279,7 +279,9 @@ entity_t *CL_NewTempEntity (void)
 	cl_visedicts[cl_numvisedicts] = ent;
 	cl_numvisedicts++;
 
-	ent->colormap = vid.colormap;
+	ent->netstate.scale = 16;
+	ent->netstate.colormod[0] = ent->netstate.colormod[1] = ent->netstate.colormod[2] = 32;
+	ent->netstate.colormap = 0;
 	return ent;
 }
 
@@ -301,6 +303,7 @@ void CL_UpdateTEnts (void)
 
 	num_temp_entities = 0;
 
+	if (cl.paused)
 	srand ((int) (cl.time * 1000)); //johnfitz -- freeze beams when paused
 
 // update lightning
@@ -310,9 +313,9 @@ void CL_UpdateTEnts (void)
 			continue;
 
 	// if coming from the player, update the start position
-		if (b->entity == cl.viewentity)
+		if (b->entity == cl.viewentity && cl.entities)
 		{
-			VectorCopy (cl_entities[cl.viewentity].origin, b->start);
+			VectorCopy (cl.entities[cl.viewentity].origin, b->start);
 		}
 
 	// calculate pitch and yaw

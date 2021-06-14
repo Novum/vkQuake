@@ -443,6 +443,210 @@ trace_t SV_PushEntity (edict_t *ent, vec3_t push)
 SV_PushMove
 ============
 */
+static qboolean SV_PushMoveAngles (edict_t *pusher, float movetime)
+{
+	int			i, e;
+	edict_t		*check, *block;
+	vec3_t		mins, maxs;
+	//float oldsolid;
+	vec3_t		org, org2, move2, forward, right, up;
+	vec3_t		move, amove;
+	struct {
+		edict_t *ent;
+		vec3_t origin;
+		vec3_t angles;
+	} *pushed, *pushed_p, *p;
+
+	for (i=0 ; i<3 ; i++)
+	{
+		move[i] = pusher->v.velocity[i] * movetime;
+		amove[i] = pusher->v.avelocity[i] * movetime;
+		mins[i] = pusher->v.absmin[i] + move[i];
+		maxs[i] = pusher->v.absmax[i] + move[i];
+	}
+
+	//using johnfitz's dynamic alloc strategy, consistent with SV_PushMove
+	pushed_p = pushed = Hunk_Alloc (sv.num_edicts*sizeof(*pushed));
+
+	// find the bounding box
+	for (i=0 ; i<3 ; i++)
+	{
+		mins[i] = pusher->v.absmin[i] + move[i];
+		maxs[i] = pusher->v.absmax[i] + move[i];
+	}
+
+// we need this for pushing things later
+	VectorSubtract(vec3_origin, amove, org);
+	AngleVectors (org, forward, right, up);
+
+// save the pusher's original position
+	pushed_p->ent = pusher;
+	VectorCopy (pusher->v.origin, pushed_p->origin);
+	VectorCopy (pusher->v.angles, pushed_p->angles);
+	pushed_p++;
+
+// move the pusher to it's final position
+	VectorAdd (pusher->v.origin, move, pusher->v.origin);
+	VectorAdd (pusher->v.angles, amove, pusher->v.angles);
+	SV_LinkEdict (pusher, false);
+
+// see if any solid entities are inside the final position
+	check = NEXT_EDICT(sv.edicts);
+	for (e = 1; e < sv.num_edicts; e++, check = NEXT_EDICT(check))
+	{
+		if (check->free)
+			continue;
+
+		if (check->v.movetype == MOVETYPE_PUSH
+		|| check->v.movetype == MOVETYPE_NONE
+		|| check->v.movetype == MOVETYPE_NOCLIP
+		|| check->v.movetype == MOVETYPE_ANGLENOCLIP)
+			continue;
+/*
+		oldsolid = pusher->v->solid;
+		pusher->v->solid = SOLID_NOT;
+		block = World_TestEntityPosition (w, check);
+		pusher->v->solid = oldsolid;
+		if (block)
+			continue;
+*/
+	// if the entity is standing on the pusher, it will definitely be moved
+		if ( ! ( ((int)check->v.flags & FL_ONGROUND)
+			&& PROG_TO_EDICT(check->v.groundentity) == pusher) )
+		{
+			// see if the ent needs to be tested
+			if ( check->v.absmin[0] >= maxs[0]
+			|| check->v.absmin[1] >= maxs[1]
+			|| check->v.absmin[2] >= maxs[2]
+			|| check->v.absmax[0] <= mins[0]
+			|| check->v.absmax[1] <= mins[1]
+			|| check->v.absmax[2] <= mins[2] )
+				continue;
+
+
+			// see if the ent's bbox is inside the pusher's final position
+			if (!SV_TestEntityPosition (check))
+				continue;
+		}
+
+		if ((pusher->v.movetype == MOVETYPE_PUSH) || (PROG_TO_EDICT(check->v.groundentity) == pusher))
+		{
+			// move this entity
+			pushed_p->ent = check;
+			VectorCopy (check->v.origin, pushed_p->origin);
+			VectorCopy (check->v.angles, pushed_p->angles);
+			pushed_p++;
+
+			// try moving the contacted entity
+			VectorAdd (check->v.origin, move, check->v.origin);
+			VectorAdd (check->v.angles, amove, check->v.angles);
+
+			// figure movement due to the pusher's amove
+			VectorSubtract (check->v.origin, pusher->v.origin, org);
+			org2[0] = DotProduct (org, forward);
+			org2[1] = -DotProduct (org, right);
+			org2[2] = DotProduct (org, up);
+			VectorSubtract (org2, org, move2);
+			VectorAdd (check->v.origin, move2, check->v.origin);
+
+			if (check->v.movetype != MOVETYPE_WALK)
+				check->v.flags = (int)check->v.flags & ~FL_ONGROUND;
+
+			// may have pushed them off an edge
+			if (PROG_TO_EDICT(check->v.groundentity) != pusher)
+				check->v.groundentity = 0;
+
+			block = SV_TestEntityPosition (check);
+			if (!block)
+			{	// pushed ok
+				SV_LinkEdict (check, false);
+				// impact?
+				continue;
+			}
+
+
+
+			// if it is ok to leave in the old position, do it
+			// this is only relevent for riding entities, not pushed
+			// FIXME: this doesn't acount for rotation
+			VectorCopy (pushed_p[-1].origin, check->v.origin);
+			block = SV_TestEntityPosition (check);
+			if (!block)
+			{
+				pushed_p--;
+				continue;
+			}
+
+			//okay, that didn't work, try pushing the against stuff
+			SV_PushEntity(check, move);
+			block = SV_TestEntityPosition (check);
+			if (!block)
+				continue;
+
+			VectorCopy(check->v.origin, move);
+			for (i = 0; i < 8 && block; i++)
+			{
+				//precision errors can strike when you least expect it. lets try and reduce them.
+				check->v.origin[0] = move[0] + ((i&1)?-1:1)/8.0;
+				check->v.origin[1] = move[1] + ((i&2)?-1:1)/8.0;
+				check->v.origin[2] = move[2] + ((i&4)?-1:1)/8.0;
+				block = SV_TestEntityPosition (check);
+			}
+			if (!block)
+			{
+				SV_LinkEdict (check, false);
+				continue;
+			}
+		}
+
+		// if it is sitting on top. Do not block.
+		if (check->v.mins[0] == check->v.maxs[0])
+		{
+			SV_LinkEdict (check, false);
+			continue;
+		}
+
+		//some pushers are contents brushes, and are not solid. water cannot crush. the player just enters the water.
+		//but, the player will be moved along with the water if possible.
+		if (pusher->v.skin < 0)
+			continue;
+
+		if (check->v.solid == SOLID_NOT || check->v.solid == SOLID_TRIGGER)
+		{	// corpse
+			check->v.mins[0] = check->v.mins[1] = 0;
+			VectorCopy (check->v.mins, check->v.maxs);
+			SV_LinkEdict (check, false);
+			continue;
+		}
+
+//		Con_Printf("Pusher hit %s\n", PR_GetString(w->progs, check->v->classname));
+		if (pusher->v.blocked)
+		{
+			pr_global_struct->self = EDICT_TO_PROG(pusher);
+			pr_global_struct->other = EDICT_TO_PROG(check);
+			PR_ExecuteProgram (pusher->v.blocked);
+		}
+
+		// move back any entities we already moved
+		// go backwards, so if the same entity was pushed
+		// twice, it goes back to the original position
+		for (p=pushed_p-1 ; p>=pushed ; p--)
+		{
+			VectorCopy (p->origin, p->ent->v.origin);
+			VectorCopy (p->angles, p->ent->v.angles);
+			SV_LinkEdict (p->ent, false);
+		}
+		return false;
+	}
+
+//FIXME: is there a better way to handle this?
+	// see if anything we moved has touched a trigger
+	for (p=pushed_p-1 ; p>=pushed ; p--)
+		SV_LinkEdict (p->ent, true);
+
+	return true;
+}
+
 void SV_PushMove (edict_t *pusher, float movetime)
 {
 	int			i, e;
@@ -453,6 +657,7 @@ void SV_PushMove (edict_t *pusher, float movetime)
 	edict_t		**moved_edict; //johnfitz -- dynamically allocate
 	vec3_t		*moved_from; //johnfitz -- dynamically allocate
 	int			mark; //johnfitz
+	float	solid_backup;
 
 	if (!pusher->v.velocity[0] && !pusher->v.velocity[1] && !pusher->v.velocity[2])
 	{
@@ -506,8 +711,16 @@ void SV_PushMove (edict_t *pusher, float movetime)
 				continue;
 
 		// see if the ent's bbox is inside the pusher's final position
-			if (!SV_TestEntityPosition (check))
-				continue;
+			if (pusher->v.skin < 0)
+			{	//a more precise check...
+				if (!SV_ClipMoveToEntity (pusher, check->v.origin, check->v.mins, check->v.maxs, check->v.origin, CONTENTMASK_ANYSOLID).startsolid)
+					continue;
+			}
+			else
+			{
+				if (!SV_TestEntityPosition (check))
+					continue;
+			}
 		}
 
 	// remove the onground flag for non-players
@@ -519,13 +732,30 @@ void SV_PushMove (edict_t *pusher, float movetime)
 		moved_edict[num_moved] = check;
 		num_moved++;
 
-		// try moving the contacted entity
-		pusher->v.solid = SOLID_NOT;
-		SV_PushEntity (check, move);
-		pusher->v.solid = SOLID_BSP;
+		//QIP fix for end.bsp
+		solid_backup = pusher->v.solid;
+		if ( solid_backup == SOLID_BSP		// everything that blocks: bsp models = map brushes = doors, plats, etc.
+		  || solid_backup == SOLID_BBOX		// normally boxes
+		  || solid_backup == SOLID_SLIDEBOX )	// normally monsters
+		{
+			// try moving the contacted entity
+			pusher->v.solid = SOLID_NOT;
+			SV_PushEntity (check, move);
 
-	// if it is still inside the pusher, block
-		block = SV_TestEntityPosition (check);
+			// if it is still inside the pusher, block
+			if (pusher->v.skin < 0)
+			{	//if it has forced contents then do things in a slightly different order, so water can push properly.
+				block = SV_TestEntityPosition (check);
+				pusher->v.solid = solid_backup;
+			}
+			else
+			{
+				pusher->v.solid = solid_backup;
+				block = SV_TestEntityPosition (check);
+			}
+		}
+		else
+			block = NULL;
 		if (block)
 		{	// fail the move
 			if (check->v.mins[0] == check->v.maxs[0])
@@ -956,7 +1186,7 @@ void SV_Physics_Client (edict_t	*ent, int num)
 		break;
 
 	default:
-		Sys_Error ("SV_Physics_client: bad movetype %i", (int)ent->v.movetype);
+		Host_EndGame ("SV_Physics_client: bad movetype %i", (int)ent->v.movetype);
 	}
 
 //
@@ -1034,7 +1264,7 @@ void SV_CheckWaterTransition (edict_t *ent)
 	{
 		if (ent->v.watertype == CONTENTS_EMPTY)
 		{	// just crossed into water
-			SV_StartSound (ent, 0, "misc/h2ohit1.wav", 255, 1);
+			SV_StartSound (ent, NULL, 0, "misc/h2ohit1.wav", 255, 1);
 		}
 		ent->v.watertype = cont;
 		ent->v.waterlevel = 1;
@@ -1043,7 +1273,7 @@ void SV_CheckWaterTransition (edict_t *ent)
 	{
 		if (ent->v.watertype != CONTENTS_EMPTY)
 		{	// just crossed into water
-			SV_StartSound (ent, 0, "misc/h2ohit1.wav", 255, 1);
+			SV_StartSound (ent, NULL, 0, "misc/h2ohit1.wav", 255, 1);
 		}
 		ent->v.watertype = CONTENTS_EMPTY;
 		ent->v.waterlevel = cont;
@@ -1151,7 +1381,7 @@ void SV_Physics_Step (edict_t *ent)
 		if ( (int)ent->v.flags & FL_ONGROUND )	// just hit ground
 		{
 			if (hitsound)
-				SV_StartSound (ent, 0, "demon/dland2.wav", 255, 1);
+				SV_StartSound (ent, NULL, 0, "demon/dland2.wav", 255, 1);
 		}
 	}
 

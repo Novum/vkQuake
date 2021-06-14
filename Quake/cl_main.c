@@ -51,18 +51,24 @@ cvar_t	cl_minpitch = {"cl_minpitch", "-90", CVAR_ARCHIVE}; //johnfitz -- variabl
 client_static_t	cls;
 client_state_t	cl;
 // FIXME: put these on hunk?
-entity_t		cl_static_entities[MAX_STATIC_ENTITIES];
 lightstyle_t	cl_lightstyle[MAX_LIGHTSTYLES];
 dlight_t		cl_dlights[MAX_DLIGHTS];
 
-entity_t		*cl_entities; //johnfitz -- was a static array, now on hunk
-int				cl_max_edicts; //johnfitz -- only changes when new map loads
-
 int				cl_numvisedicts;
-entity_t		*cl_visedicts[MAX_VISEDICTS];
+int				cl_maxvisedicts;
+entity_t		**cl_visedicts;
 
 extern cvar_t	r_lerpmodels, r_lerpmove; //johnfitz
 extern float	host_netinterval;	//Spike
+
+void CL_FreeState(void)
+{
+	int i;
+	for (i = 0; i < MAX_CL_STATS; i++)
+		free(cl.statss[i]);
+	free(cl.static_entities);
+	memset (&cl, 0, sizeof(cl));
+}
 
 /*
 =====================
@@ -76,7 +82,7 @@ void CL_ClearState (void)
 		Host_ClearMemory ();
 
 // wipe the entire cl structure
-	memset (&cl, 0, sizeof(cl));
+	CL_FreeState();
 
 	SZ_Clear (&cls.message);
 
@@ -87,9 +93,11 @@ void CL_ClearState (void)
 	memset (cl_beams, 0, sizeof(cl_beams));
 
 	//johnfitz -- cl_entities is now dynamically allocated
-	cl_max_edicts = CLAMP (MIN_EDICTS,(int)max_edicts.value,MAX_EDICTS);
-	cl_entities = (entity_t *) Hunk_AllocName (cl_max_edicts*sizeof(entity_t), "cl_entities");
+	cl.max_edicts = CLAMP (MIN_EDICTS,(int)max_edicts.value,MAX_EDICTS);
+	cl.entities = (entity_t *) Hunk_AllocName (cl.max_edicts*sizeof(entity_t), "cl_entities");
 	//johnfitz
+
+	//Spike -- this stuff needs to get reset to defaults.
 }
 
 /*
@@ -124,6 +132,7 @@ void CL_Disconnect (void)
 		NET_SendUnreliableMessage (cls.netcon, &cls.message);
 		SZ_Clear (&cls.message);
 		NET_Close (cls.netcon);
+		cls.netcon = NULL;
 
 		cls.state = ca_disconnected;
 		if (sv.active)
@@ -133,7 +142,9 @@ void CL_Disconnect (void)
 	cls.demoplayback = cls.timedemo = false;
 	cls.demopaused = false;
 	cls.signon = 0;
+	cls.netcon = NULL;
 	cl.intermission = 0;
+	cl.worldmodel = NULL;
 }
 
 void CL_Disconnect_f (void)
@@ -172,6 +183,15 @@ void CL_EstablishConnection (const char *host)
 	MSG_WriteByte (&cls.message, clc_nop);	// NAT Fix from ProQuake
 }
 
+void CL_SendInitialUserinfo(void *ctx, const char *key, const char *val)
+{
+	if (*key == '*')
+		return;	//servers don't like that sort of userinfo key
+	if (!strcmp(key, "name"))
+		return;	//already unconditionally sent earlier.
+	MSG_WriteByte (&cls.message, clc_stringcmd);
+	MSG_WriteString (&cls.message, va("setinfo \"%s\" \"%s\"\n", key, val));
+}
 /*
 =====================
 CL_SignonReply
@@ -199,6 +219,9 @@ void CL_SignonReply (void)
 		MSG_WriteByte (&cls.message, clc_stringcmd);
 		MSG_WriteString (&cls.message, va("color %i %i\n", ((int)cl_color.value)>>4, ((int)cl_color.value)&15));
 
+		if (*cl.serverinfo)
+			Info_Enumerate(cls.userinfo, CL_SendInitialUserinfo, NULL);
+
 		MSG_WriteByte (&cls.message, clc_stringcmd);
 		sprintf (str, "spawn %s", cls.spawnparms);
 		MSG_WriteString (&cls.message, str);
@@ -215,6 +238,7 @@ void CL_SignonReply (void)
 		break;
 	}
 }
+
 
 /*
 =====================
@@ -262,7 +286,7 @@ void CL_PrintEntities_f (void)
 	if (cls.state != ca_connected)
 		return;
 
-	for (i=0,ent=cl_entities ; i<cl.num_entities ; i++,ent++)
+	for (i=0,ent=cl.entities ; i<cl.num_entities ; i++,ent++)
 	{
 		Con_Printf ("%3i:",i);
 		if (!ent->model)
@@ -336,6 +360,8 @@ void CL_DecayLights (void)
 	float		time;
 
 	time = cl.time - cl.oldtime;
+	if (time < 0)
+		return;
 
 	dl = cl_dlights;
 	for (i=0 ; i<MAX_DLIGHTS ; i++, dl++)
@@ -399,6 +425,126 @@ float	CL_LerpPoint (void)
 	return frac;
 }
 
+static qboolean CL_LerpEntity(entity_t *ent, vec3_t org, vec3_t ang, float frac)
+{
+	float f, d;
+	int j;
+	vec3_t delta;
+	qboolean teleported = false;
+	//figure out the pos+angles of the parent
+	if (ent->forcelink)
+	{	// the entity was not updated in the last message
+		// so move to the final spot
+		VectorCopy (ent->msg_origins[0], org);
+		VectorCopy (ent->msg_angles[0], ang);
+	}
+	else
+	{	// if the delta is large, assume a teleport and don't lerp
+		f = frac;
+		for (j=0 ; j<3 ; j++)
+		{
+			delta[j] = ent->msg_origins[0][j] - ent->msg_origins[1][j];
+			if (delta[j] > 100 || delta[j] < -100)
+			{
+				f = 1;		// assume a teleportation, not a motion
+				teleported = true;	//johnfitz -- don't lerp teleports
+			}
+		}
+
+		//johnfitz -- don't cl_lerp entities that will be r_lerped
+		if (r_lerpmove.value && (ent->lerpflags & LERP_MOVESTEP))
+			f = 1;
+		//johnfitz
+
+	// interpolate the origin and angles
+		for (j=0 ; j<3 ; j++)
+		{
+			org[j] = ent->msg_origins[1][j] + f*delta[j];
+
+			d = ent->msg_angles[0][j] - ent->msg_angles[1][j];
+			if (d > 180)
+				d -= 360;
+			else if (d < -180)
+				d += 360;
+			ang[j] = ent->msg_angles[1][j] + f*d;
+		}
+	}
+	return teleported;
+}
+
+static qboolean CL_AttachEntity(entity_t *ent, float frac)
+{
+	entity_t *parent;
+	vec3_t porg, pang;
+	vec3_t paxis[3];
+	vec3_t tmp, fwd, up;
+	unsigned int tagent = ent->netstate.tagentity;
+	int runaway = 0;
+
+	while(1)
+	{
+		if (!tagent)
+			return true;	//nothing to do.
+		if (runaway++==10 || tagent >= (unsigned int)cl.num_entities)
+			return false;	//parent isn't valid
+		parent = &cl.entities[tagent];
+
+		if (tagent == cl.viewentity)
+			ent->eflags |= EFLAGS_EXTERIORMODEL;
+
+		if (!parent->model)
+			return false;
+		if (0)//tagent < ent-cl_entities)
+		{
+			tagent = parent->netstate.tagentity;
+			VectorCopy(parent->origin, porg);
+			VectorCopy(parent->angles, pang);
+		}
+		else
+		{
+			tagent = parent->netstate.tagentity;
+			CL_LerpEntity(parent, porg, pang, frac);
+		}
+
+		//FIXME: this code needs to know the exact lerp info of the underlaying model.
+		//however for some idiotic reason, someone decided to figure out what should be displayed somewhere far removed from the code that deals with timing
+		//so we have absolutely no way to get a reliable origin
+		//in the meantime, r_lerpmove 0; r_lerpmodels 0
+		//you might be able to work around it by setting the attached entity to movetype_step to match the attachee, and to avoid EF_MUZZLEFLASH.
+		//personally I'm just going to call it a quakespasm bug that I cba to fix.
+
+		//FIXME: update porg+pang according to the tag index (we don't support md3s/iqms, so we don't need to do anything here yet)
+
+		if (parent->model && parent->model->type == mod_alias)
+			pang[0] *= -1;
+		AngleVectors(pang, paxis[0], paxis[1], paxis[2]);
+
+		if (ent->model && ent->model->type == mod_alias)
+			ent->angles[0] *= -1;
+		AngleVectors(ent->angles, fwd, tmp, up);
+
+		//transform the origin
+		VectorMA(parent->origin, ent->origin[0], paxis[0], tmp);
+		VectorMA(tmp, -ent->origin[1], paxis[1], tmp);
+		VectorMA(tmp, ent->origin[2], paxis[2], ent->origin);
+
+		//transform the forward vector
+		VectorMA(vec3_origin, fwd[0], paxis[0], tmp);
+		VectorMA(tmp, -fwd[1], paxis[1], tmp);
+		VectorMA(tmp, fwd[2], paxis[2], fwd);
+		//transform the up vector
+		VectorMA(vec3_origin, up[0], paxis[0], tmp);
+		VectorMA(tmp, -up[1], paxis[1], tmp);
+		VectorMA(tmp, up[2], paxis[2], up);
+		//regenerate the new angles.
+		VectorAngles(fwd, up, ent->angles);
+		if (ent->model && ent->model->type == mod_alias)
+			ent->angles[0] *= -1;
+
+		ent->eflags |= parent->netstate.eflags & (EFLAGS_VIEWMODEL|EFLAGS_EXTERIORMODEL);
+	}
+}
+
 /*
 ===============
 CL_RelinkEntities
@@ -408,15 +554,27 @@ void CL_RelinkEntities (void)
 {
 	entity_t	*ent;
 	int			i, j;
-	float		frac, f, d;
-	vec3_t		delta;
+	float		frac, d;
 	float		bobjrotate;
 	vec3_t		oldorg;
 	dlight_t	*dl;
+	float		frametime;
+	int			modelflags;
 
 // determine partial update time
 	frac = CL_LerpPoint ();
 
+	frametime = cl.time - cl.oldtime;
+	if (frametime < 0)
+		frametime = 0;
+	if (frametime > 0.1)
+		frametime = 0.1;
+
+	if (cl_numvisedicts + 64 > cl_maxvisedicts)
+	{
+		cl_maxvisedicts = cl_maxvisedicts+64;
+		cl_visedicts = realloc(cl_visedicts, sizeof(*cl_visedicts)*cl_maxvisedicts);
+	}
 	cl_numvisedicts = 0;
 
 //
@@ -443,10 +601,10 @@ void CL_RelinkEntities (void)
 	bobjrotate = anglemod(100*cl.time);
 
 // start on the entity after the world
-	for (i=1,ent=cl_entities+1 ; i<cl.num_entities ; i++,ent++)
+	for (i=1,ent=cl.entities+1 ; i<cl.num_entities ; i++,ent++)
 	{
 		if (!ent->model)
-		{	// empty slot
+		{	// empty slot, ish.
 			
 			// ericw -- efrags are only used for static entities in GLQuake
 			// ent can't be static, so this is a no-op.
@@ -454,6 +612,7 @@ void CL_RelinkEntities (void)
 			//	R_RemoveEfrags (ent);	// just became empty
 			continue;
 		}
+		ent->eflags = ent->netstate.eflags;
 
 // if the object wasn't included in the last packet, remove it
 		if (ent->msgtime != cl.mtime[0])
@@ -465,46 +624,21 @@ void CL_RelinkEntities (void)
 
 		VectorCopy (ent->origin, oldorg);
 
-		if (ent->forcelink)
-		{	// the entity was not updated in the last message
-			// so move to the final spot
-			VectorCopy (ent->msg_origins[0], ent->origin);
-			VectorCopy (ent->msg_angles[0], ent->angles);
+		if (CL_LerpEntity(ent, ent->origin, ent->angles, frac))
+			ent->lerpflags |= LERP_RESETMOVE;
+
+		if (ent->netstate.tagentity)
+		if (!CL_AttachEntity(ent, frac))
+		{
+			//can't draw it if we don't know where its parent is.
+			continue;
 		}
-		else
-		{	// if the delta is large, assume a teleport and don't lerp
-			f = frac;
-			for (j=0 ; j<3 ; j++)
-			{
-				delta[j] = ent->msg_origins[0][j] - ent->msg_origins[1][j];
-				if (delta[j] > 100 || delta[j] < -100)
-				{
-					f = 1;		// assume a teleportation, not a motion
-					ent->lerpflags |= LERP_RESETMOVE; //johnfitz -- don't lerp teleports
-				}
-			}
 
-			//johnfitz -- don't cl_lerp entities that will be r_lerped
-			if (r_lerpmove.value && (ent->lerpflags & LERP_MOVESTEP))
-				f = 1;
-			//johnfitz
-
-		// interpolate the origin and angles
-			for (j=0 ; j<3 ; j++)
-			{
-				ent->origin[j] = ent->msg_origins[1][j] + f*delta[j];
-
-				d = ent->msg_angles[0][j] - ent->msg_angles[1][j];
-				if (d > 180)
-					d -= 360;
-				else if (d < -180)
-					d += 360;
-				ent->angles[j] = ent->msg_angles[1][j] + f*d;
-			}
-		}
+		modelflags = (ent->effects>>24)&0xff;
+		modelflags |= ent->model->flags;
 
 // rotate binary objects locally
-		if (ent->model->flags & EF_ROTATE)
+		if (modelflags & EF_ROTATE)
 			ent->angles[1] = bobjrotate;
 
 		if (ent->effects & EF_BRIGHTFIELD)
@@ -527,9 +661,9 @@ void CL_RelinkEntities (void)
 			//johnfitz -- assume muzzle flash accompanied by muzzle flare, which looks bad when lerped
 			if (r_lerpmodels.value != 2)
 			{
-			if (ent == &cl_entities[cl.viewentity])
-				cl.viewent.lerpflags |= LERP_RESETANIM|LERP_RESETANIM2; //no lerping for two frames
-			else
+				if (ent == &cl.entities[cl.viewentity])
+					cl.viewent.lerpflags |= LERP_RESETANIM|LERP_RESETANIM2; //no lerping for two frames
+				else
 				ent->lerpflags |= LERP_RESETANIM|LERP_RESETANIM2; //no lerping for two frames
 			}
 			//johnfitz
@@ -576,7 +710,7 @@ void CL_RelinkEntities (void)
 		if (i == cl.viewentity && !chase_active.value)
 			continue;
 
-		if (cl_numvisedicts < MAX_VISEDICTS)
+		if (cl_numvisedicts < cl_maxvisedicts)
 		{
 			cl_visedicts[cl_numvisedicts] = ent;
 			cl_numvisedicts++;
@@ -628,7 +762,7 @@ int CL_ReadFromServer (void)
 
 	//visedicts
 	if (cl_numvisedicts > 256 && dev_peakstats.visedicts <= 256)
-		Con_DWarning ("%i visedicts exceeds standard limit of 256 (max = %d).\n", cl_numvisedicts, MAX_VISEDICTS);
+		Con_DWarning ("%i visedicts exceeds standard limit of 256.\n", cl_numvisedicts);
 	dev_stats.visedicts = cl_numvisedicts;
 	dev_peakstats.visedicts = q_max(cl_numvisedicts, dev_peakstats.visedicts);
 
@@ -681,6 +815,8 @@ void CL_AccumulateCmd (void)
 		//accumulate movement from other devices
 		IN_Move (&cl.pendingcmd);
 	}
+
+	cl.pendingcmd.seconds		= cl.mtime[0] - cl.pendingcmd.servertime;
 }
 
 /*
@@ -695,22 +831,25 @@ void CL_SendCmd (void)
 	if (cls.state != ca_connected)
 		return;
 
-	if (cls.signon == SIGNONS)
-	{
 	// get basic movement from keyboard
-		CL_BaseMove (&cmd);
+	CL_BaseMove (&cmd);
 
 	// allow mice or other external controllers to add to the move
-		cmd.forwardmove	+= cl.pendingcmd.forwardmove;
-		cmd.sidemove	+= cl.pendingcmd.sidemove;
-		cmd.upmove		+= cl.pendingcmd.upmove;
+	cmd.forwardmove	+= cl.pendingcmd.forwardmove;
+	cmd.sidemove	+= cl.pendingcmd.sidemove;
+	cmd.upmove		+= cl.pendingcmd.upmove;
+	cmd.sequence	= cl.movemessages;
+	cmd.servertime	= cl.time;
+	cmd.seconds		= cmd.servertime - cl.pendingcmd.servertime;
 
-	// send the unreliable message
-		CL_SendMove (&cmd);
-	}
+	CL_FinishMove(&cmd);
+
+	if (cls.signon == SIGNONS)
+		CL_SendMove (&cmd);	// send the unreliable message
 	else
 		CL_SendMove (NULL);
 	memset(&cl.pendingcmd, 0, sizeof(cl.pendingcmd));
+	cl.pendingcmd.servertime = cmd.servertime;
 
 	if (cls.demoplayback)
 	{
@@ -780,13 +919,58 @@ void CL_Viewpos_f (void)
 #else
 	//player position
 	Con_Printf ("Viewpos: (%i %i %i) %i %i %i\n",
-		(int)cl_entities[cl.viewentity].origin[0],
-		(int)cl_entities[cl.viewentity].origin[1],
-		(int)cl_entities[cl.viewentity].origin[2],
+		(int)cl.entities[cl.viewentity].origin[0],
+		(int)cl.entities[cl.viewentity].origin[1],
+		(int)cl.entities[cl.viewentity].origin[2],
 		(int)cl.viewangles[PITCH],
 		(int)cl.viewangles[YAW],
 		(int)cl.viewangles[ROLL]);
 #endif
+}
+
+static void CL_ServerExtension_FullServerinfo_f(void)
+{
+	const char *newserverinfo = Cmd_Argv(1);
+	Q_strncpy(cl.serverinfo, newserverinfo, sizeof(cl.serverinfo));	//just replace it
+}
+static void CL_ServerExtension_ServerinfoUpdate_f(void)
+{
+	const char *newserverkey = Cmd_Argv(1);
+	const char *newservervalue = Cmd_Argv(2);
+	Info_SetKey(cl.serverinfo, sizeof(cl.serverinfo), newserverkey, newservervalue);
+}
+static void CL_UserinfoChanged(scoreboard_t *sb)
+{
+	char tmp[64];
+	Info_GetKey(sb->userinfo, "name", sb->name, sizeof(sb->name));
+
+	Info_GetKey(sb->userinfo, "topcolor", tmp, sizeof(tmp));
+	sb->colors = (atoi(tmp)&15)<<4;
+	Info_GetKey(sb->userinfo, "bottomcolor", tmp, sizeof(tmp));
+	sb->colors |= (atoi(tmp)&15);
+}
+static void CL_ServerExtension_FullUserinfo_f(void)
+{
+	size_t slot = atoi(Cmd_Argv(1));
+	const char *newserverinfo = Cmd_Argv(2);
+	if (slot < cl.maxclients)
+	{
+		scoreboard_t *sb = &cl.scores[slot];
+		Q_strncpy(sb->userinfo, newserverinfo, sizeof(sb->userinfo));	//just replace it
+		CL_UserinfoChanged(sb);
+	}
+}
+static void CL_ServerExtension_UserinfoUpdate_f(void)
+{
+	size_t slot = atoi(Cmd_Argv(1));
+	const char *newserverkey = Cmd_Argv(2);
+	const char *newservervalue = Cmd_Argv(3);
+	if (slot < cl.maxclients)
+	{
+		scoreboard_t *sb = &cl.scores[slot];
+		Info_SetKey(sb->userinfo, sizeof(sb->userinfo), newserverkey, newservervalue);
+		CL_UserinfoChanged(sb);
+	}
 }
 
 /*
@@ -838,5 +1022,13 @@ void CL_Init (void)
 
 	Cmd_AddCommand ("tracepos", CL_Tracepos_f); //johnfitz
 	Cmd_AddCommand ("viewpos", CL_Viewpos_f); //johnfitz
+
+	//spike -- serverinfo stuff
+	Cmd_AddCommand_ServerCommand ("fullserverinfo", CL_ServerExtension_FullServerinfo_f);
+	Cmd_AddCommand_ServerCommand ("svi", CL_ServerExtension_ServerinfoUpdate_f);
+
+	//spike -- userinfo stuff
+	Cmd_AddCommand_ServerCommand ("fui", CL_ServerExtension_FullUserinfo_f);
+	Cmd_AddCommand_ServerCommand ("ui", CL_ServerExtension_UserinfoUpdate_f);
 }
 

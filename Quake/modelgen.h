@@ -54,7 +54,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // must match definition in spritegn.h
 #ifndef SYNCTYPE_T
 #define SYNCTYPE_T
-typedef enum {ST_SYNC=0, ST_RAND } synctype_t;
+typedef enum {ST_SYNC=0, ST_RAND, ST_FRAMETIME/*sync to when .frame changes*/ } synctype_t;
 #endif
 
 typedef enum { ALIAS_SINGLE=0, ALIAS_GROUP } aliasframetype_t;

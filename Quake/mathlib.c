@@ -211,17 +211,46 @@ int BoxOnPlaneSide (vec3_t emins, vec3_t emaxs, mplane_t *p)
 }
 
 //johnfitz -- the opposite of AngleVectors.  this takes forward and generates pitch yaw roll
-//TODO: take right and up vectors to properly set yaw and roll
-void VectorAngles (const vec3_t forward, vec3_t angles)
+//Spike: take right and up vectors to properly set yaw and roll
+void VectorAngles (const vec3_t forward, float *up, vec3_t angles)
 {
-	vec3_t temp;
+	if (forward[0] == 0 && forward[1] == 0)
+	{	//either vertically up or down
+		if (forward[2] > 0)
+		{
+			angles[PITCH] = -90;
+			angles[YAW] = up ? atan2(-up[1], -up[0]) / M_PI_DIV_180: 0;
+		}
+		else
+		{
+			angles[PITCH] = 90;
+			angles[YAW] = up ? atan2(up[1], up[0]) / M_PI_DIV_180: 0;
+		}
+		angles[ROLL] = 0;
+	}
+	else
+	{
+		angles[PITCH] = -atan2(forward[2], sqrt(DotProduct2(forward,forward)));
+		angles[YAW] = atan2(forward[1], forward[0]);
 
-	temp[0] = forward[0];
-	temp[1] = forward[1];
-	temp[2] = 0;
-	angles[PITCH] = -atan2(forward[2], VectorLength(temp)) / M_PI_DIV_180;
-	angles[YAW] = atan2(forward[1], forward[0]) / M_PI_DIV_180;
-	angles[ROLL] = 0;
+		if (up)
+		{
+			vec_t cp = cos(angles[PITCH]), sp = sin(angles[PITCH]);
+			vec_t cy = cos(angles[YAW]), sy = sin(angles[YAW]);
+			vec3_t tleft, tup;
+			tleft[0] = -sy;
+			tleft[1] = cy;
+			tleft[2] = 0;
+			tup[0] = sp*cy;
+			tup[1] = sp*sy;
+			tup[2] = cp;
+			angles[ROLL] = -atan2(DotProduct(up, tleft), DotProduct(up, tup)) / M_PI_DIV_180;
+		}
+		else angles[ROLL] = 0;
+
+		angles[PITCH] /= M_PI_DIV_180;
+		angles[YAW] /= M_PI_DIV_180;
+	}
 }
 
 void AngleVectors (vec3_t angles, vec3_t forward, vec3_t right, vec3_t up)

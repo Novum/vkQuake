@@ -47,6 +47,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 	((x) < (_minval) ? (_minval) :		\
 	 (x) > (_maxval) ? (_maxval) : (x))
 
+#define countof(x) (sizeof(x)/sizeof((x)[0]))
+
 typedef struct sizebuf_s
 {
 	qboolean	allowoverflow;	// if false, do a Sys_Error
@@ -99,10 +101,14 @@ void MSG_WriteByte (sizebuf_t *sb, int c);
 void MSG_WriteShort (sizebuf_t *sb, int c);
 void MSG_WriteLong (sizebuf_t *sb, int c);
 void MSG_WriteFloat (sizebuf_t *sb, float f);
+void MSG_WriteStringUnterminated (sizebuf_t *sb, const char *s);
 void MSG_WriteString (sizebuf_t *sb, const char *s);
 void MSG_WriteCoord (sizebuf_t *sb, float f, unsigned int flags);
 void MSG_WriteAngle (sizebuf_t *sb, float f, unsigned int flags);
 void MSG_WriteAngle16 (sizebuf_t *sb, float f, unsigned int flags); //johnfitz
+void MSG_WriteEntity(sizebuf_t *sb, unsigned int index, unsigned int pext2); //spike
+struct entity_state_s;
+void MSG_WriteStaticOrBaseLine(sizebuf_t *buf, int idx, struct entity_state_s *state, unsigned int protocol_pext2, unsigned int protocol, unsigned int protocolflags); //spike
 
 extern	int			msg_readcount;
 extern	qboolean	msg_badread;		// set if a read goes beyond end of message
@@ -118,6 +124,8 @@ const char *MSG_ReadString (void);
 float MSG_ReadCoord (unsigned int flags);
 float MSG_ReadAngle (unsigned int flags);
 float MSG_ReadAngle16 (unsigned int flags); //johnfitz
+byte *MSG_ReadData (unsigned int length); // spike
+unsigned int MSG_ReadEntity(unsigned int pext2); //spike
 
 //============================================================================
 
@@ -133,6 +141,13 @@ int Q_strcmp (const char *s1, const char *s2);
 int Q_strncmp (const char *s1, const char *s2, int count);
 int	Q_atoi (const char *str);
 float Q_atof (const char *str);
+void Q_ftoa(char *str, float in);
+int wildcmp(const char *wild, const char *string);
+void Info_RemoveKey(char *info, const char *key);
+void Info_SetKey(char *info, size_t infosize, const char *key, const char *val);
+const char *Info_GetKey(const char *info, const char *key, char *out, size_t outsize);
+void Info_Print(const char *info);
+void Info_Enumerate(const char *info, void(*cb)(void *ctx, const char *key, const char *value), void *cbctx);
 
 
 #include "strl_fn.h"
@@ -227,6 +242,9 @@ struct cache_user_s;
 extern	char	com_basedir[MAX_OSPATH];
 extern	char	com_gamedir[MAX_OSPATH];
 extern	int	file_from_pak;	// global indicating that file came from a pak
+
+const char *COM_GetGameNames(qboolean full);
+qboolean COM_GameDirMatches(const char *tdirs);
 
 void COM_WriteFile (const char *filename, const void *data, int len);
 int COM_OpenFile (const char *filename, int *handle, unsigned int *path_id);

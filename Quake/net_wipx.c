@@ -97,7 +97,7 @@ sys_socket_t WIPX_Init (void)
 	broadcastaddr.sa_socket = htons((unsigned short)net_hostport);
 
 	WIPX_GetSocketAddr (net_controlsocket, &addr);
-	Q_strcpy(my_ipx_address, WIPX_AddrToString (&addr));
+	Q_strcpy(my_ipx_address, WIPX_AddrToString (&addr, false));
 	colon = Q_strrchr (my_ipx_address, ':');
 	if (colon)
 		*colon = 0;
@@ -106,6 +106,14 @@ sys_socket_t WIPX_Init (void)
 	ipxAvailable = true;
 
 	return net_controlsocket;
+}
+
+int	WIPX_GetAddresses (qhostaddr_t *addresses, int maxaddresses)
+{
+	int result = 0;
+	if (ipxAvailable)
+		q_strlcpy(addresses[result++], my_ipx_address, sizeof(addresses[0])); 
+	return result;
 }
 
 //=============================================================================
@@ -120,23 +128,27 @@ void WIPX_Shutdown (void)
 
 //=============================================================================
 
-void WIPX_Listen (qboolean state)
+sys_socket_t WIPX_Listen (qboolean state)
 {
-	// enable listening
 	if (state)
 	{
-		if (net_acceptsocket != INVALID_SOCKET)
-			return;
-		if ((net_acceptsocket = WIPX_OpenSocket (net_hostport)) == INVALID_SOCKET)
-			Sys_Error ("WIPX_Listen: Unable to open accept socket");
-		return;
+		// enable listening
+		if (net_acceptsocket == INVALID_SOCKET)
+		{
+			if ((net_acceptsocket = WIPX_OpenSocket (net_hostport)) == INVALID_SOCKET)
+				Sys_Error ("WIPX_Listen: Unable to open accept socket");
+		}
 	}
-
-	// disable listening
-	if (net_acceptsocket == INVALID_SOCKET)
-		return;
-	WIPX_CloseSocket (net_acceptsocket);
-	net_acceptsocket = INVALID_SOCKET;
+	else
+	{
+		// disable listening
+		if (net_acceptsocket != INVALID_SOCKET)
+		{
+			WIPX_CloseSocket (net_acceptsocket);
+			net_acceptsocket = INVALID_SOCKET;
+		}
+	}
+	return net_acceptsocket;
 }
 
 //=============================================================================
@@ -300,23 +312,36 @@ int WIPX_Write (sys_socket_t handle, byte *buf, int len, struct qsockaddr *addr)
 
 //=============================================================================
 
-const char *WIPX_AddrToString (struct qsockaddr *addr)
+const char *WIPX_AddrToString (struct qsockaddr *addr, qboolean masked)
 {
 	static char buf[28];
 
-	sprintf(buf, "%02x%02x%02x%02x:%02x%02x%02x%02x%02x%02x:%u",
-		((struct sockaddr_ipx *)addr)->sa_netnum[0] & 0xff,
-		((struct sockaddr_ipx *)addr)->sa_netnum[1] & 0xff,
-		((struct sockaddr_ipx *)addr)->sa_netnum[2] & 0xff,
-		((struct sockaddr_ipx *)addr)->sa_netnum[3] & 0xff,
-		((struct sockaddr_ipx *)addr)->sa_nodenum[0] & 0xff,
-		((struct sockaddr_ipx *)addr)->sa_nodenum[1] & 0xff,
-		((struct sockaddr_ipx *)addr)->sa_nodenum[2] & 0xff,
-		((struct sockaddr_ipx *)addr)->sa_nodenum[3] & 0xff,
-		((struct sockaddr_ipx *)addr)->sa_nodenum[4] & 0xff,
-		((struct sockaddr_ipx *)addr)->sa_nodenum[5] & 0xff,
-		ntohs(((struct sockaddr_ipx *)addr)->sa_socket)
-		);
+	if (masked)
+	{
+		sprintf(buf, "%02x%02x%02x%02x:??""??""??""??""??""??:%u",
+			((struct sockaddr_ipx *)addr)->sa_netnum[0] & 0xff,
+			((struct sockaddr_ipx *)addr)->sa_netnum[1] & 0xff,
+			((struct sockaddr_ipx *)addr)->sa_netnum[2] & 0xff,
+			((struct sockaddr_ipx *)addr)->sa_netnum[3] & 0xff,
+			ntohs(((struct sockaddr_ipx *)addr)->sa_socket)
+			);
+	}
+	else
+	{
+		sprintf(buf, "%02x%02x%02x%02x:%02x%02x%02x%02x%02x%02x:%u",
+			((struct sockaddr_ipx *)addr)->sa_netnum[0] & 0xff,
+			((struct sockaddr_ipx *)addr)->sa_netnum[1] & 0xff,
+			((struct sockaddr_ipx *)addr)->sa_netnum[2] & 0xff,
+			((struct sockaddr_ipx *)addr)->sa_netnum[3] & 0xff,
+			((struct sockaddr_ipx *)addr)->sa_nodenum[0] & 0xff,
+			((struct sockaddr_ipx *)addr)->sa_nodenum[1] & 0xff,
+			((struct sockaddr_ipx *)addr)->sa_nodenum[2] & 0xff,
+			((struct sockaddr_ipx *)addr)->sa_nodenum[3] & 0xff,
+			((struct sockaddr_ipx *)addr)->sa_nodenum[4] & 0xff,
+			((struct sockaddr_ipx *)addr)->sa_nodenum[5] & 0xff,
+			ntohs(((struct sockaddr_ipx *)addr)->sa_socket)
+			);
+	}
 	return buf;
 }
 
@@ -379,7 +404,7 @@ int WIPX_GetSocketAddr (sys_socket_t handle, struct qsockaddr *addr)
 
 int WIPX_GetNameFromAddr (struct qsockaddr *addr, char *name)
 {
-	Q_strcpy(name, WIPX_AddrToString(addr));
+	Q_strcpy(name, WIPX_AddrToString(addr, false));
 	return 0;
 }
 
