@@ -247,6 +247,7 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClCompile Include="..\..\Quake\keys.c" />
     <ClCompile Include="..\..\Quake\main_sdl.c" />
     <ClCompile Include="..\..\Quake\mathlib.c" />
+    <ClCompile Include="..\..\Quake\mdfour.c" />
     <ClCompile Include="..\..\Quake\menu.c" />
     <ClCompile Include="..\..\Quake\net_dgrm.c" />
     <ClCompile Include="..\..\Quake\net_loop.c" />

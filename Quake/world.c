@@ -144,7 +144,7 @@ hull_t *SV_HullForEntity (edict_t *ent, vec3_t mins, vec3_t maxs, vec3_t offset)
 			Host_Error ("SOLID_BSP without MOVETYPE_PUSH (%s at %f %f %f)",
 				    PR_GetString(ent->v.classname), ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]);
 
-		model = sv.models[ (int)ent->v.modelindex ];
+		model = qcvm->GetModel(ent->v.modelindex);
 
 		if (!model || model->type != mod_brush)
 			Host_Error ("SOLID_BSP with a non bsp model (%s at %f %f %f)",
@@ -184,21 +184,6 @@ ENTITY AREA CHECKING
 ===============================================================================
 */
 
-typedef struct areanode_s
-{
-	int		axis;		// -1 = leaf node
-	float	dist;
-	struct areanode_s	*children[2];
-	link_t	trigger_edicts;
-	link_t	solid_edicts;
-} areanode_t;
-
-#define	AREA_DEPTH	4
-#define	AREA_NODES	32
-
-static	areanode_t	sv_areanodes[AREA_NODES];
-static	int			sv_numareanodes;
-
 /*
 ===============
 SV_CreateAreaNode
@@ -211,8 +196,8 @@ areanode_t *SV_CreateAreaNode (int depth, vec3_t mins, vec3_t maxs)
 	vec3_t		size;
 	vec3_t		mins1, maxs1, mins2, maxs2;
 
-	anode = &sv_areanodes[sv_numareanodes];
-	sv_numareanodes++;
+	anode = &qcvm->areanodes[qcvm->numareanodes];
+	qcvm->numareanodes++;
 
 	ClearLink (&anode->trigger_edicts);
 	ClearLink (&anode->solid_edicts);
@@ -254,9 +239,9 @@ void SV_ClearWorld (void)
 {
 	SV_InitBoxHull ();
 
-	memset (sv_areanodes, 0, sizeof(sv_areanodes));
-	sv_numareanodes = 0;
-	SV_CreateAreaNode (0, sv.worldmodel->mins, sv.worldmodel->maxs);
+	memset (qcvm->areanodes, 0, sizeof(qcvm->areanodes));
+	qcvm->numareanodes = 0;
+	SV_CreateAreaNode (0, qcvm->worldmodel->mins, qcvm->worldmodel->maxs);
 }
 
 
@@ -342,10 +327,10 @@ void SV_TouchLinks (edict_t *ent)
 	int		mark;
 	
 	mark = Hunk_LowMark ();
-	list = (edict_t **) Hunk_Alloc (sv.num_edicts*sizeof(edict_t *));
+	list = (edict_t **) Hunk_Alloc (qcvm->num_edicts*sizeof(edict_t *));
 	
 	listcount = 0;
-	SV_AreaTriggerEdicts (ent, sv_areanodes, list, &listcount, sv.num_edicts);
+	SV_AreaTriggerEdicts (ent, qcvm->areanodes, list, &listcount, qcvm->num_edicts);
 
 	for (i = 0; i < listcount; i++)
 	{
@@ -368,7 +353,7 @@ void SV_TouchLinks (edict_t *ent)
 
 		pr_global_struct->self = EDICT_TO_PROG(touch);
 		pr_global_struct->other = EDICT_TO_PROG(ent);
-		pr_global_struct->time = sv.time;
+		pr_global_struct->time = qcvm->time;
 		PR_ExecuteProgram (touch->v.touch);
 
 		pr_global_struct->self = old_self;
@@ -404,7 +389,7 @@ void SV_FindTouchedLeafs (edict_t *ent, mnode_t *node)
 			return;
 
 		leaf = (mleaf_t *)node;
-		leafnum = leaf - sv.worldmodel->leafs - 1;
+		leafnum = leaf - qcvm->worldmodel->leafs - 1;
 
 		ent->leafnums[ent->num_leafs] = leafnum;
 		ent->num_leafs++;
@@ -437,7 +422,7 @@ void SV_LinkEdict (edict_t *ent, qboolean touch_triggers)
 	if (ent->area.prev)
 		SV_UnlinkEdict (ent);	// unlink from old position
 
-	if (ent == sv.edicts)
+	if (ent == qcvm->edicts)
 		return;		// don't add the world
 
 	if (ent->free)
@@ -472,13 +457,13 @@ void SV_LinkEdict (edict_t *ent, qboolean touch_triggers)
 // link to PVS leafs
 	ent->num_leafs = 0;
 	if (ent->v.modelindex)
-		SV_FindTouchedLeafs (ent, sv.worldmodel->nodes);
+		SV_FindTouchedLeafs (ent, qcvm->worldmodel->nodes);
 
 	if (ent->v.solid == SOLID_NOT)
 		return;
 
 // find the first node that the ent's box crosses
-	node = sv_areanodes;
+	node = qcvm->areanodes;
 	while (1)
 	{
 		if (node->axis == -1)
@@ -557,7 +542,7 @@ int SV_PointContents (vec3_t p)
 {
 	int		cont;
 
-	cont = SV_HullPointContents (&sv.worldmodel->hulls[0], 0, p);
+	cont = SV_HullPointContents (&qcvm->worldmodel->hulls[0], 0, p);
 	if (cont <= CONTENTS_CURRENT_0 && cont >= CONTENTS_CURRENT_DOWN)
 		cont = CONTENTS_WATER;
 	return cont;
@@ -565,7 +550,7 @@ int SV_PointContents (vec3_t p)
 
 int SV_TruePointContents (vec3_t p)
 {
-	return SV_HullPointContents (&sv.worldmodel->hulls[0], 0, p);
+	return SV_HullPointContents (&qcvm->worldmodel->hulls[0], 0, p);
 }
 
 int SV_PointContentsAllBsps(vec3_t p, edict_t *forent)
@@ -592,7 +577,7 @@ edict_t	*SV_TestEntityPosition (edict_t *ent)
 	trace = SV_Move (ent->v.origin, ent->v.mins, ent->v.maxs, ent->v.origin, 0, ent);
 
 	if (trace.startsolid)
-		return sv.edicts;
+		return qcvm->edicts;
 
 	return NULL;
 }
@@ -928,6 +913,131 @@ static void SV_ClipToLinks ( areanode_t *node, moveclip_t *clip )
 		SV_ClipToLinks ( node->children[1], clip );
 }
 
+static void World_ClipToNetwork ( moveclip_t *clip )
+{
+	entity_t	*touch;
+	trace_t		trace;
+	int i;
+
+	for (i=1,touch=cl.entities+1 ; i<cl.num_entities ; i++,touch++)
+	{
+		if (!touch->model)
+			continue;
+
+		if (touch->netstate.solidsize == ES_SOLID_NOT)
+			continue;
+//		if (touch == clip->passedict)
+//			continue;
+
+		if (clip->type == MOVE_NOMONSTERS && touch->netstate.solidsize != ES_SOLID_BSP)
+			continue;
+
+/*		if (clip->boxmins[0] > touch->v.absmax[0]
+		|| clip->boxmins[1] > touch->v.absmax[1]
+		|| clip->boxmins[2] > touch->v.absmax[2]
+		|| clip->boxmaxs[0] < touch->v.absmin[0]
+		|| clip->boxmaxs[1] < touch->v.absmin[1]
+		|| clip->boxmaxs[2] < touch->v.absmin[2] )
+			continue;
+*/
+
+	// might intersect, so do an exact clip
+		if (clip->trace.allsolid)
+			return;
+/*		if (clip->passedict)
+		{
+			if (PROG_TO_EDICT(touch->v.owner) == clip->passedict)
+				continue;	// don't clip against own missiles
+			if (PROG_TO_EDICT(clip->passedict->v.owner) == touch)
+				continue;	// don't clip against owner
+		}
+*/
+
+		//:: trace = SV_ClipMoveToEntity (touch, clip->start, clip->mins, clip->maxs, clip->end);
+		{
+			vec3_t		offset;
+			vec3_t		start_l, end_l;
+			hull_t		*hull;
+
+		// fill in a default trace
+			memset (&trace, 0, sizeof(trace_t));
+			trace.fraction = 1;
+			trace.allsolid = true;
+			VectorCopy (clip->end, trace.endpos);
+
+		// get the clipping hull
+			//:: hull = SV_HullForEntity (ent, clip->mins, clip->maxs, offset);
+			{
+				vec3_t		size;
+				if (touch->netstate.solidsize == ES_SOLID_BSP && touch->model && touch->model->type == mod_brush)
+				{	// explicit hulls in the BSP model
+					VectorSubtract (clip->maxs, clip->mins, size);
+					if (size[0] < 3)
+						hull = &touch->model->hulls[0];
+					else if (size[0] <= 32)
+						hull = &touch->model->hulls[1];
+					else
+						hull = &touch->model->hulls[2];
+
+			// calculate an offset value to center the origin
+					VectorSubtract (hull->clip_mins, clip->mins, offset);
+					VectorAdd (offset, touch->origin, offset);
+				}
+				else
+				{	// create a temp hull from bounding box sizes
+					vec3_t		hullmins, hullmaxs;
+					vec3_t		touch_mins, touch_maxs;
+
+					touch_maxs[0] = touch_maxs[1] = touch->netstate.solidsize & 255;
+					touch_mins[0] = touch_mins[1] = -touch_maxs[0];
+					touch_mins[2] = -(int)((touch->netstate.solidsize >>8) & 255);
+					touch_maxs[2] = ((touch->netstate.solidsize>>16) & 65535) - 32768;
+
+					VectorSubtract (touch_mins, clip->maxs, hullmins);
+					VectorSubtract (touch_maxs, clip->mins, hullmaxs);
+					hull = SV_HullForBox (hullmins, hullmaxs);
+
+					VectorCopy (touch->origin, offset);
+				}
+			}
+
+			VectorSubtract (clip->start, offset, start_l);
+			VectorSubtract (clip->end, offset, end_l);
+
+			SV_RecursiveHullCheck (hull, start_l, end_l, &trace, clip->hitcontents);
+
+		// fix trace up by the offset
+			if (trace.fraction != 1)
+				VectorAdd (trace.endpos, offset, trace.endpos);
+
+		// did we clip the move?
+			if (trace.fraction < 1 || trace.startsolid)
+				trace.ent = qcvm->edicts;
+
+		}
+
+		if (trace.contents == CONTENTS_SOLID && touch->skinnum < 0)
+			trace.contents = touch->skinnum;
+		if (!((1<<(-trace.contents)) & clip->hitcontents))
+			continue;
+
+		if (trace.allsolid || trace.startsolid ||
+		trace.fraction < clip->trace.fraction)
+		{
+			trace.ent = qcvm->edicts;	//no real way to return entity number.
+			if (clip->trace.startsolid)
+			{
+				clip->trace = trace;
+				clip->trace.startsolid = true;
+			}
+			else
+				clip->trace = trace;
+		}
+		else if (trace.startsolid)
+			clip->trace.startsolid = true;
+	}
+}
+
 /*
 ==================
 SV_MoveBounds
@@ -976,7 +1086,7 @@ trace_t SV_Move (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type, e
 		clip.hitcontents = CONTENTMASK_ANYSOLID;
 
 // clip to world
-	clip.trace = SV_ClipMoveToEntity ( sv.edicts, start, mins, maxs, end, clip.hitcontents );
+	clip.trace = SV_ClipMoveToEntity ( qcvm->edicts, start, mins, maxs, end, clip.hitcontents );
 
 	clip.start = start;
 	clip.end = end;
@@ -1003,7 +1113,10 @@ trace_t SV_Move (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type, e
 	SV_MoveBounds ( start, clip.mins2, clip.maxs2, end, clip.boxmins, clip.boxmaxs );
 
 // clip to entities
-	SV_ClipToLinks ( sv_areanodes, &clip );
+	SV_ClipToLinks ( qcvm->areanodes, &clip );
+
+	if (qcvm == &cl.qcvm)
+		World_ClipToNetwork(&clip);
 
 	return clip.trace;
 }

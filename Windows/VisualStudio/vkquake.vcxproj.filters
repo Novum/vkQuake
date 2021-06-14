@@ -316,6 +316,9 @@
     <ClCompile Include="..\..\Quake\snd_mp3tag.c">
       <Filter>Sound</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Quake\mdfour.c">
+      <Filter>Main</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\Quake\snd_codec.h">

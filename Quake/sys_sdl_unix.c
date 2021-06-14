@@ -373,6 +373,7 @@ void Sys_Error (const char *error, ...)
 	va_list		argptr;
 	char		text[1024];
 
+	PR_SwitchQCVM(NULL);
 	host_parms->errstate++;
 
 	va_start (argptr, error);

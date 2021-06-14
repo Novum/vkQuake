@@ -242,7 +242,16 @@ static unsigned int CLFTE_ReadDelta(unsigned int entnum, entity_state_t *news, c
 	else if (!olds)
 	{
 		/*reset got lost, probably the data will be filled in later - FIXME: we should probably ignore this entity*/
-		Con_DPrintf("New entity %i without reset\n", entnum);
+		if (sv.active)
+		{	//for extra debug info
+			qcvm_t *old = qcvm;
+			qcvm = NULL;
+			PR_SwitchQCVM(&sv.qcvm);
+			Con_DPrintf("New entity %i(%s / %s) without reset\n", entnum, PR_GetString(EDICT_NUM(entnum)->v.classname), PR_GetString(EDICT_NUM(entnum)->v.model));
+			PR_SwitchQCVM(old);
+		}
+		else
+			Con_DPrintf("New entity %i without reset\n", entnum);
 		*news = nullentitystate;
 	}
 	else

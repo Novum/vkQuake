@@ -271,6 +271,7 @@ OBJS := strlcat.o \
 	wad.o \
 	cmd.o \
 	common.o \
+	mdfour.o \
 	crc.o \
 	cvar.o \
 	cfgfile.o \

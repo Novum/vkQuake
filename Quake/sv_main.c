@@ -370,7 +370,7 @@ static void SVFTE_SetupFrames(client_t *client)
 	for (fr = 0; fr < client->numframes; fr++)
 		client->frames[fr].sequence = client->lastacksequence;
 
-	client->numpendingentities = sv.num_edicts;
+	client->numpendingentities = qcvm->num_edicts;
 	client->pendingentities_bits = calloc(client->numpendingentities, sizeof(*client->pendingentities_bits));
 
 	client->pendingentities_bits[0] = UF_REMOVE;
@@ -418,7 +418,7 @@ void SVFTE_Ack(client_t *client, int sequence)
 	if (frame->sequence >= 0)
 	{
 		frame->sequence = -1;
-		host_client->ping_times[host_client->num_pings%NUM_PING_TIMES] = sv.time - frame->timestamp;
+		host_client->ping_times[host_client->num_pings%NUM_PING_TIMES] = qcvm->time - frame->timestamp;
 		host_client->num_pings++;
 	}
 }
@@ -522,9 +522,9 @@ static void SVFTE_CalcEntityDeltas(client_t *client)
 {
 	struct entity_num_state_s *olds, *news, *oldstop, *newstop;
 
-	if ((int)client->numpendingentities < sv.num_edicts)
+	if ((int)client->numpendingentities < qcvm->num_edicts)
 	{
-		int newmax = sv.num_edicts+64;
+		int newmax = qcvm->num_edicts+64;
 		client->pendingentities_bits = realloc(client->pendingentities_bits, sizeof(*client->pendingentities_bits) * newmax);
 		memset(client->pendingentities_bits+client->numpendingentities, 0, sizeof(*client->pendingentities_bits)*(newmax-client->numpendingentities));
 		client->numpendingentities = newmax;
@@ -596,7 +596,7 @@ static void SVFTE_WriteEntitiesToClient(client_t *client, sizebuf_t *msg, size_t
 	size_t rollbacksize;	//I'm too lazy to figure out sizes (especially if someone updates this for bone states or whatever)
 	struct deltaframe_s *frame = &client->frames[sequence&(client->numframes-1)];
 	frame->sequence = sequence;	//so we know that it wasn't stale later.
-	frame->timestamp = sv.time;
+	frame->timestamp = qcvm->time;
 
 	msg->maxsize = overflowsize;
 
@@ -678,6 +678,7 @@ static void SVFTE_WriteEntitiesToClient(client_t *client, sizebuf_t *msg, size_t
 		}
 		frame->ents[frame->numents].num = entnum;
 		frame->ents[frame->numents].ebits = logbits;
+		frame->ents[frame->numents].csqcbits = 0;
 		frame->numents++;
 	}
 	msg->maxsize = origmaxsize;
@@ -740,13 +741,13 @@ static void SVFTE_BuildSnapshotForClient (client_t *client)
 
 // find the client's PVS
 	VectorAdd (clent->v.origin, clent->v.view_ofs, org);
-	pvs = SV_FatPVS (org, sv.worldmodel);
+	pvs = SV_FatPVS (org, qcvm->worldmodel);
 
-	if (maxentities > (unsigned int)sv.num_edicts)
-		maxentities = (unsigned int)sv.num_edicts;
+	if (maxentities > (unsigned int)qcvm->num_edicts)
+		maxentities = (unsigned int)qcvm->num_edicts;
 
 // send over all entities (excpet the client) that touch the pvs
-	ent = NEXT_EDICT(sv.edicts);
+	ent = NEXT_EDICT(qcvm->edicts);
 	for (e=1 ; e<maxentities ; e++, ent = NEXT_EDICT(ent))
 	{
 		eflags = 0;
@@ -976,8 +977,6 @@ void SV_Init (void)
 	extern	cvar_t	sv_idealpitchscale;
 	extern	cvar_t	sv_aim;
 	extern	cvar_t	sv_altnoclip; //johnfitz
-
-	sv.edicts = NULL; // ericw -- sv.edicts switched to use malloc()
 
 	Cvar_RegisterVariable (&sv_maxvelocity);
 	Cvar_RegisterVariable (&sv_gravity);
@@ -1277,7 +1276,8 @@ void SV_SendServerinfo (client_t *client)
 	cantruncate = client->message.cursize == 0;
 retry:
 	MSG_WriteByte (&client->message, svc_print);
-	sprintf (message, "%c\nFITZQUAKE %1.2f SERVER (%i CRC)\n", 2, FITZQUAKE_VERSION, pr_crc); //johnfitz -- include fitzquake version
+//	sprintf (message, "%c\nFITZQUAKE %1.2f SERVER (%i CRC)\n", 2, FITZQUAKE_VERSION, pr_crc); //johnfitz -- include fitzquake version
+	sprintf (message, "%c\n"ENGINE_NAME_AND_VER" Server (%i CRC)\n", 2, qcvm->progscrc); //spike -- quakespasm has moved on, and has its own server capabilities now. Advertising = good, right?
 	MSG_WriteString (&client->message,message);
 
 	MSG_WriteByte (&client->message, svc_serverinfo);
@@ -1309,7 +1309,7 @@ retry:
 	else
 		MSG_WriteByte (&client->message, GAME_COOP);
 
-	MSG_WriteString (&client->message, PR_GetString(sv.edicts->v.message));
+	MSG_WriteString (&client->message, PR_GetString(qcvm->edicts->v.message));
 
 	//johnfitz -- only send the first 256 model and sound precaches if protocol is 15
 	for (i=1,s = sv.model_precache+1 ; *s && i < client->limit_models; s++,i++)
@@ -1328,8 +1328,8 @@ retry:
 
 // send music
 	MSG_WriteByte (&client->message, svc_cdtrack);
-	MSG_WriteByte (&client->message, sv.edicts->v.sounds);
-	MSG_WriteByte (&client->message, sv.edicts->v.sounds);
+	MSG_WriteByte (&client->message, qcvm->edicts->v.sounds);
+	MSG_WriteByte (&client->message, qcvm->edicts->v.sounds);
 
 // set view
 	MSG_WriteByte (&client->message, svc_setview);
@@ -1646,7 +1646,7 @@ SV_WriteEntitiesToClient
 void SV_WriteEntitiesToClient (client_t *client, sizebuf_t *msg)
 {
 	edict_t	*clent = client->edict;
-	unsigned int		e, i, maxedict=sv.num_edicts;
+	unsigned int		e, i, maxedict=qcvm->num_edicts;
 	int		bits;
 	byte	*pvs;
 	vec3_t	org;
@@ -1664,10 +1664,10 @@ void SV_WriteEntitiesToClient (client_t *client, sizebuf_t *msg)
 
 // find the client's PVS
 	VectorAdd (clent->v.origin, clent->v.view_ofs, org);
-	pvs = SV_FatPVS (org, sv.worldmodel);
+	pvs = SV_FatPVS (org, qcvm->worldmodel);
 
 // send over all entities (excpet the client) that touch the pvs
-	ent = NEXT_EDICT(sv.edicts);
+	ent = NEXT_EDICT(qcvm->edicts);
 	for (e=1 ; e<maxedict ; e++, ent = NEXT_EDICT(ent))
 	{
 
@@ -1678,7 +1678,7 @@ void SV_WriteEntitiesToClient (client_t *client, sizebuf_t *msg)
 				continue;
 
 			//johnfitz -- don't send model>255 entities if protocol is 15
-			if (sv.protocol == PROTOCOL_NETQUAKE && (int)ent->v.modelindex & 0xFF00)
+			if ((unsigned int)ent->v.modelindex >= client->limit_models)
 				continue;
 
 			// ignore if not touching a PV leaf
@@ -1698,7 +1698,7 @@ void SV_WriteEntitiesToClient (client_t *client, sizebuf_t *msg)
 
 		//johnfitz -- max size for protocol 15 is 18 bytes, not 16 as originally
 		//assumed here.  And, for protocol 85 the max size is actually 24 bytes.
-		if (msg->cursize + 24 > msg->maxsize)
+		if (msg->cursize + 24 > maxsize)
 		{
 			//johnfitz -- less spammy overflow message
 			if (!dev_overflows.packetsize || dev_overflows.packetsize + CONSOLE_RESPAM_TIME < realtime )
@@ -1751,7 +1751,7 @@ void SV_WriteEntitiesToClient (client_t *client, sizebuf_t *msg)
 		if (pr_alpha_supported)
 		{
 			// TODO: find a cleaner place to put this code
-			val = GetEdictFieldValue(ent, "alpha");
+			val = GetEdictFieldValue(ent, ED_FindFieldOffset("alpha"));
 			if (val)
 				ent->alpha = ENTALPHA_ENCODE(val->_float);
 		}
@@ -1831,7 +1831,7 @@ void SV_WriteEntitiesToClient (client_t *client, sizebuf_t *msg)
 		if (bits & U_MODEL2)
 			MSG_WriteByte(msg, (int)ent->v.modelindex >> 8);
 		if (bits & U_LERPFINISH)
-			MSG_WriteByte(msg, (byte)(Q_rint((ent->v.nextthink-sv.time)*255)));
+				MSG_WriteByte(msg, (byte)(Q_rint((ent->v.nextthink-qcvm->time)*255)));
 		//johnfitz
 	}
 
@@ -1855,8 +1855,9 @@ void SV_CleanupEnts (void)
 	int		e;
 	edict_t	*ent;
 
-	ent = NEXT_EDICT(sv.edicts);
-	for (e=1 ; e<sv.num_edicts ; e++, ent = NEXT_EDICT(ent))
+	ent = NEXT_EDICT(qcvm->edicts);
+
+	for (e=1 ; e<qcvm->num_edicts ; e++, ent = NEXT_EDICT(ent))
 	{
 		ent->v.effects = (int)ent->v.effects & ~EF_MUZZLEFLASH;
 	}
@@ -1932,7 +1933,7 @@ void SV_WriteClientdataToMessage (client_t *client, sizebuf_t *msg)
 
 // stuff the sigil bits into the high bits of items for sbar, or else
 // mix in items2
-	val = GetEdictFieldValue(ent, "items2");
+	val = GetEdictFieldValue(ent, ED_FindFieldOffset("items2"));
 
 	if (val)
 		items = (int)ent->v.items | ((int)val->_float << 23);
@@ -2123,7 +2124,7 @@ qboolean SV_SendClientDatagram (client_t *client)
 		else
 		{
 			MSG_WriteByte (&msg, svc_time);
-			MSG_WriteFloat (&msg, sv.time);
+			MSG_WriteFloat (&msg, qcvm->time);
 			if (client->protocol_pext2 & PEXT2_PREDINFO)
 				MSG_WriteShort(&msg, (client->lastmovemessage&0xffff));
 
@@ -2298,7 +2299,7 @@ int SV_SendPrespawnBaselines(int idx)
 
 	while (1)
 	{
-		if (idx >= sv.num_edicts)
+		if (idx >= qcvm->num_edicts)
 			return -1;
 		svent = EDICT_NUM(idx);
 
@@ -2496,7 +2497,7 @@ void SV_CreateBaseline (void)
 	edict_t		*svent;
 	int			entnum;
 
-	for (entnum = 0; entnum < sv.num_edicts ; entnum++)
+	for (entnum = 0; entnum < qcvm->num_edicts; entnum++)
 	{
 	// get the current server version
 		svent = EDICT_NUM(entnum);
@@ -2586,6 +2587,13 @@ void SV_SaveSpawnparms (void)
 	}
 }
 
+//used for sv.qcvm.GetModel (so ssqc+csqc can share builtins)
+qmodel_t *SV_ModelForIndex(int index)
+{
+	if (index < 0 || index >= MAX_MODELS)
+		return NULL;
+	return sv.models[index];
+}
 
 /*
 ================
@@ -2600,6 +2608,7 @@ void SV_SpawnServer (const char *server)
 	static char	dummy[8] = { 0,0,0,0,0,0,0,0 };
 	edict_t		*ent;
 	int			i;
+	qcvm_t *vm = qcvm;
 
 	// let's not have any servers with no name
 	if (hostname.string[0] == 0)
@@ -2608,6 +2617,8 @@ void SV_SpawnServer (const char *server)
 
 	Con_DPrintf ("SpawnServer: %s\n",server);
 	svs.changelevel_issued = false;		// now safe to issue another
+
+	PR_SwitchQCVM(NULL);
 
 //
 // tell all connected clients that we are going to a new level
@@ -2649,13 +2660,15 @@ void SV_SpawnServer (const char *server)
 	}
 	else sv.protocolflags = 0;
 
+
+	PR_SwitchQCVM(vm);
 // load progs to get entity field count
-	PR_LoadProgs ();
+	PR_LoadProgs ("progs.dat", true, PROGHEADER_CRC, pr_ssqcbuiltins, pr_ssqcnumbuiltins);
 
 // allocate server memory
 	/* Host_ClearMemory() called above already cleared the whole sv structure */
-	sv.max_edicts = CLAMP (MIN_EDICTS,(int)max_edicts.value,MAX_EDICTS); //johnfitz -- max_edicts cvar
-	sv.edicts = (edict_t *) malloc (sv.max_edicts*pr_edict_size); // ericw -- sv.edicts switched to use malloc()
+	qcvm->max_edicts = CLAMP (MIN_EDICTS,(int)max_edicts.value,MAX_EDICTS); //johnfitz -- max_edicts cvar
+	qcvm->edicts = (edict_t *) malloc (qcvm->max_edicts*qcvm->edict_size); // ericw -- sv.edicts switched to use malloc()
 
 	sv.datagram.maxsize = sizeof(sv.datagram_buf);
 	sv.datagram.cursize = 0;
@@ -2670,8 +2683,8 @@ void SV_SpawnServer (const char *server)
 	sv.signon.data = sv.signon_buf;
 
 // leave slots at start for clients only
-	sv.num_edicts = svs.maxclients+1;
-	memset(sv.edicts, 0, sv.num_edicts*pr_edict_size); // ericw -- sv.edicts switched to use malloc()
+	qcvm->num_edicts = qcvm->reserved_edicts = svs.maxclients+1;
+	memset(qcvm->edicts, 0, qcvm->num_edicts*qcvm->edict_size); // ericw -- sv.edicts switched to use malloc()
 	for (i=0 ; i<svs.maxclients ; i++)
 	{
 		ent = EDICT_NUM(i+1);
@@ -2681,18 +2694,19 @@ void SV_SpawnServer (const char *server)
 	sv.state = ss_loading;
 	sv.paused = false;
 
-	sv.time = 1.0;
+	qcvm->time = 1.0;
 
 	q_strlcpy (sv.name, server, sizeof(sv.name));
 	q_snprintf (sv.modelname, sizeof(sv.modelname), "maps/%s.bsp", server);
-	sv.worldmodel = Mod_ForName (sv.modelname, false);
-	if (!sv.worldmodel)
+	qcvm->worldmodel = Mod_ForName (sv.modelname, false);
+	if (!qcvm->worldmodel || qcvm->worldmodel->type != mod_brush)
 	{
 		Con_Printf ("Couldn't spawn server %s\n", sv.modelname);
 		sv.active = false;
 		return;
 	}
-	sv.models[1] = sv.worldmodel;
+	sv.models[1] = qcvm->worldmodel;
+	qcvm->GetModel = SV_ModelForIndex;
 
 //
 // clear world interaction links
@@ -2702,7 +2716,7 @@ void SV_SpawnServer (const char *server)
 	sv.sound_precache[0] = dummy;
 	sv.model_precache[0] = dummy;
 	sv.model_precache[1] = sv.modelname;
-	for (i=1 ; i<sv.worldmodel->numsubmodels ; i++)
+	for (i=1 ; i<qcvm->worldmodel->numsubmodels ; i++)
 	{
 		sv.model_precache[1+i] = localmodels[i];
 		sv.models[i+1] = Mod_ForName (localmodels[i], false);
@@ -2712,9 +2726,9 @@ void SV_SpawnServer (const char *server)
 // load the rest of the entities
 //
 	ent = EDICT_NUM(0);
-	memset (&ent->v, 0, progs->entityfields * 4);
+	memset (&ent->v, 0, qcvm->progs->entityfields * 4);
 	ent->free = false;
-	ent->v.model = PR_SetEngineString(sv.worldmodel->name);
+	ent->v.model = PR_SetEngineString(qcvm->worldmodel->name);
 	ent->v.modelindex = 1;		// world model
 	ent->v.solid = SOLID_BSP;
 	ent->v.movetype = MOVETYPE_PUSH;
@@ -2729,9 +2743,11 @@ void SV_SpawnServer (const char *server)
 // serverflags are for cross level information (sigils)
 	pr_global_struct->serverflags = svs.serverflags;
 
-	ED_LoadFromFile (sv.worldmodel->entities);
+	ED_LoadFromFile (qcvm->worldmodel->entities);
 
 	sv.active = true;
+
+	SV_Precache_Model("progs/player.mdl");	//Spike -- SV_CreateBaseline depends on this model.
 
 // all setup is completed, any further precache statements are errors
 	sv.state = ss_active;
@@ -2751,8 +2767,11 @@ void SV_SpawnServer (const char *server)
 
 // send serverinfo to all connected clients
 	for (i=0,host_client = svs.clients ; i<svs.maxclients ; i++, host_client++)
+	{
+		host_client->knowntoqc = false;
 		if (host_client->active)
 			SV_SendServerinfo (host_client);
+	}
 
 	Con_DPrintf ("Server spawned.\n");
 }

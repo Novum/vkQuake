@@ -300,6 +300,7 @@ OBJS := strlcat.o \
 	host.o \
 	host_cmd.o \
 	mathlib.o \
+	mdfour.o \
 	pr_cmds.o \
 	pr_edict.o \
 	pr_exec.o \

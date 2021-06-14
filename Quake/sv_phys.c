@@ -64,8 +64,8 @@ void SV_CheckAllEnts (void)
 	edict_t		*check;
 
 // see if any solid entities are inside the final position
-	check = NEXT_EDICT(sv.edicts);
-	for (e=1 ; e<sv.num_edicts ; e++, check = NEXT_EDICT(check))
+	check = NEXT_EDICT(qcvm->edicts);
+	for (e=1 ; e<qcvm->num_edicts ; e++, check = NEXT_EDICT(check))
 	{
 		if (check->free)
 			continue;
@@ -127,11 +127,11 @@ qboolean SV_RunThink (edict_t *ent)
 	int		i; //johnfitz
 
 	thinktime = ent->v.nextthink;
-	if (thinktime <= 0 || thinktime > sv.time + host_frametime)
+	if (thinktime <= 0 || thinktime > qcvm->time + host_frametime)
 		return true;
 
-	if (thinktime < sv.time)
-		thinktime = sv.time;	// don't let things stay in the past.
+	if (thinktime < qcvm->time)
+		thinktime = qcvm->time;	// don't let things stay in the past.
 								// it is possible to start that way
 								// by a trigger with a local time.
 
@@ -140,7 +140,7 @@ qboolean SV_RunThink (edict_t *ent)
 	ent->v.nextthink = 0;
 	pr_global_struct->time = thinktime;
 	pr_global_struct->self = EDICT_TO_PROG(ent);
-	pr_global_struct->other = EDICT_TO_PROG(sv.edicts);
+	pr_global_struct->other = EDICT_TO_PROG(qcvm->edicts);
 	PR_ExecuteProgram (ent->v.think);
 
 //johnfitz -- PROTOCOL_FITZQUAKE
@@ -172,7 +172,7 @@ void SV_Impact (edict_t *e1, edict_t *e2)
 	old_self = pr_global_struct->self;
 	old_other = pr_global_struct->other;
 
-	pr_global_struct->time = sv.time;
+	pr_global_struct->time = qcvm->time;
 	if (e1->v.touch && e1->v.solid != SOLID_NOT)
 	{
 		pr_global_struct->self = EDICT_TO_PROG(e1);
@@ -388,7 +388,7 @@ void SV_AddGravity (edict_t *ent)
 	float	ent_gravity;
 	eval_t	*val;
 
-	val = GetEdictFieldValue(ent, "gravity");
+	val = GetEdictFieldValue(ent, ED_FindFieldOffset("gravity"));
 	if (val && val->_float)
 		ent_gravity = val->_float;
 	else
@@ -466,7 +466,7 @@ static qboolean SV_PushMoveAngles (edict_t *pusher, float movetime)
 	}
 
 	//using johnfitz's dynamic alloc strategy, consistent with SV_PushMove
-	pushed_p = pushed = Hunk_Alloc (sv.num_edicts*sizeof(*pushed));
+	pushed_p = pushed = Hunk_Alloc (qcvm->num_edicts*sizeof(*pushed));
 
 	// find the bounding box
 	for (i=0 ; i<3 ; i++)
@@ -491,8 +491,8 @@ static qboolean SV_PushMoveAngles (edict_t *pusher, float movetime)
 	SV_LinkEdict (pusher, false);
 
 // see if any solid entities are inside the final position
-	check = NEXT_EDICT(sv.edicts);
-	for (e = 1; e < sv.num_edicts; e++, check = NEXT_EDICT(check))
+	check = NEXT_EDICT(qcvm->edicts);
+	for (e = 1; e < qcvm->num_edicts; e++, check = NEXT_EDICT(check))
 	{
 		if (check->free)
 			continue;
@@ -682,14 +682,14 @@ void SV_PushMove (edict_t *pusher, float movetime)
 
 	//johnfitz -- dynamically allocate
 	mark = Hunk_LowMark ();
-	moved_edict = (edict_t **) Hunk_Alloc (sv.num_edicts*sizeof(edict_t *));
-	moved_from = (vec3_t *) Hunk_Alloc (sv.num_edicts*sizeof(vec3_t));
+	moved_edict = (edict_t **) Hunk_Alloc (qcvm->num_edicts*sizeof(edict_t *));
+	moved_from = (vec3_t *) Hunk_Alloc (qcvm->num_edicts*sizeof(vec3_t));
 	//johnfitz
 
 // see if any solid entities are inside the final position
 	num_moved = 0;
-	check = NEXT_EDICT(sv.edicts);
-	for (e=1 ; e<sv.num_edicts ; e++, check = NEXT_EDICT(check))
+	check = NEXT_EDICT(qcvm->edicts);
+	for (e=1 ; e<qcvm->num_edicts ; e++, check = NEXT_EDICT(check))
 	{
 		if (check->free)
 			continue;
@@ -830,9 +830,9 @@ void SV_Physics_Pusher (edict_t *ent)
 	if (thinktime > oldltime && thinktime <= ent->v.ltime)
 	{
 		ent->v.nextthink = 0;
-		pr_global_struct->time = sv.time;
+		pr_global_struct->time = qcvm->time;
 		pr_global_struct->self = EDICT_TO_PROG(ent);
-		pr_global_struct->other = EDICT_TO_PROG(sv.edicts);
+		pr_global_struct->other = EDICT_TO_PROG(qcvm->edicts);
 		PR_ExecuteProgram (ent->v.think);
 		if (ent->free)
 			return;
@@ -1140,7 +1140,7 @@ void SV_Physics_Client (edict_t	*ent, int num)
 //
 // call standard client pre-think
 //
-	pr_global_struct->time = sv.time;
+	pr_global_struct->time = qcvm->time;
 	pr_global_struct->self = EDICT_TO_PROG(ent);
 	PR_ExecuteProgram (pr_global_struct->PlayerPreThink);
 
@@ -1194,7 +1194,7 @@ void SV_Physics_Client (edict_t	*ent, int num)
 //
 	SV_LinkEdict (ent, true);
 
-	pr_global_struct->time = sv.time;
+	pr_global_struct->time = qcvm->time;
 	pr_global_struct->self = EDICT_TO_PROG(ent);
 	PR_ExecuteProgram (pr_global_struct->PlayerPostThink);
 }
@@ -1407,9 +1407,9 @@ void SV_Physics (void)
 	edict_t	*ent;
 
 // let the progs know that a new frame has started
-	pr_global_struct->self = EDICT_TO_PROG(sv.edicts);
-	pr_global_struct->other = EDICT_TO_PROG(sv.edicts);
-	pr_global_struct->time = sv.time;
+	pr_global_struct->self = EDICT_TO_PROG(qcvm->edicts);
+	pr_global_struct->other = EDICT_TO_PROG(qcvm->edicts);
+	pr_global_struct->time = qcvm->time;
 	PR_ExecuteProgram (pr_global_struct->StartFrame);
 
 //SV_CheckAllEnts ();
@@ -1417,12 +1417,12 @@ void SV_Physics (void)
 //
 // treat each object in turn
 //
-	ent = sv.edicts;
+	ent = qcvm->edicts;
 
-	if (sv_freezenonclients.value)
+	if (sv_freezenonclients.value && qcvm == &sv.qcvm)
 	  entity_cap = svs.maxclients + 1; // Only run physics on clients and the world
 	else
-	  entity_cap = sv.num_edicts; 
+		entity_cap = qcvm->num_edicts; 
 
 	//for (i=0 ; i<sv.num_edicts ; i++, ent = NEXT_EDICT(ent))
 	for (i=0 ; i<entity_cap ; i++, ent = NEXT_EDICT(ent))
@@ -1435,7 +1435,7 @@ void SV_Physics (void)
 			SV_LinkEdict (ent, true);	// force retouch even for stationary
 		}
 
-		if (i > 0 && i <= svs.maxclients)
+		if (i > 0 && i <= svs.maxclients && qcvm == &sv.qcvm)
 			SV_Physics_Client (ent, i);
 		else if (ent->v.movetype == MOVETYPE_PUSH)
 			SV_Physics_Pusher (ent);
@@ -1451,12 +1451,12 @@ void SV_Physics (void)
 		|| ent->v.movetype == MOVETYPE_FLYMISSILE)
 			SV_Physics_Toss (ent);
 		else
-			Sys_Error ("SV_Physics: bad movetype %i", (int)ent->v.movetype);
+			Host_EndGame ("SV_Physics: bad movetype %i", (int)ent->v.movetype);
 	}
 
 	if (pr_global_struct->force_retouch)
 		pr_global_struct->force_retouch--;
 
-	if (!sv_freezenonclients.value) 
-	  sv.time += host_frametime;
+	if (!(sv_freezenonclients.value && qcvm == &sv.qcvm))
+	  qcvm->time += host_frametime;
 }

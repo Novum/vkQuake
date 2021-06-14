@@ -27,12 +27,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 static	char	pr_string_temp[STRINGTEMP_BUFFERS][STRINGTEMP_LENGTH];
 static	byte	pr_string_tempindex = 0;
 
-static char *PR_GetTempString (void)
+char *PR_GetTempString (void)
 {
 	return pr_string_temp[(STRINGTEMP_BUFFERS-1) & ++pr_string_tempindex];
 }
 
-#define	RETURN_EDICT(e) (((int *)pr_globals)[OFS_RETURN] = EDICT_TO_PROG(e))
+#define	RETURN_EDICT(e) (((int *)qcvm->globals)[OFS_RETURN] = EDICT_TO_PROG(e))
 
 /*
 ===============================================================================
@@ -42,7 +42,7 @@ static char *PR_GetTempString (void)
 ===============================================================================
 */
 
-static char *PF_VarString (int	first)
+char *PF_VarString (int	first)
 {
 	int		i;
 	static char out[1024];
@@ -50,7 +50,7 @@ static char *PF_VarString (int	first)
 
 	out[0] = 0;
 	s = 0;
-	for (i = first; i < pr_argc; i++)
+	for (i = first; i < qcvm->argc; i++)
 	{
 		s = q_strlcat(out, G_STRING((OFS_PARM0+i*3)), sizeof(out));
 		if (s >= sizeof(out))
@@ -88,7 +88,7 @@ static void PF_error (void)
 
 	s = PF_VarString(0);
 	Con_Printf ("======SERVER ERROR in %s:\n%s\n",
-			PR_GetString(pr_xfunction->s_name), s);
+			PR_GetString(qcvm->xfunction->s_name), s);
 	ed = PROG_TO_EDICT(pr_global_struct->self);
 	ED_Print (ed);
 
@@ -112,7 +112,7 @@ static void PF_objerror (void)
 
 	s = PF_VarString(0);
 	Con_Printf ("======OBJECT ERROR in %s:\n%s\n",
-			PR_GetString(pr_xfunction->s_name), s);
+			PR_GetString(qcvm->xfunction->s_name), s);
 	ed = PROG_TO_EDICT(pr_global_struct->self);
 	ED_Print (ed);
 	ED_Free (ed);
@@ -683,7 +683,7 @@ static void PF_traceline (void)
 	if (trace.ent)
 		pr_global_struct->trace_ent = EDICT_TO_PROG(trace.ent);
 	else
-		pr_global_struct->trace_ent = EDICT_TO_PROG(sv.edicts);
+		pr_global_struct->trace_ent = EDICT_TO_PROG(qcvm->edicts);
 }
 
 /*
@@ -751,10 +751,10 @@ static int PF_newcheckclient (int check)
 
 // get the PVS for the entity
 	VectorAdd (ent->v.origin, ent->v.view_ofs, org);
-	leaf = Mod_PointInLeaf (org, sv.worldmodel);
-	pvs = Mod_LeafPVS (leaf, sv.worldmodel);
+	leaf = Mod_PointInLeaf (org, qcvm->worldmodel);
+	pvs = Mod_LeafPVS (leaf, qcvm->worldmodel);
 	
-	pvsbytes = (sv.worldmodel->numleafs+7)>>3;
+	pvsbytes = (qcvm->worldmodel->numleafs+7)>>3;
 	if (checkpvs == NULL || pvsbytes > checkpvs_capacity)
 	{
 		checkpvs_capacity = pvsbytes;
@@ -792,29 +792,29 @@ static void PF_sv_checkclient (void)
 	vec3_t	view;
 
 // find a new check if on a new frame
-	if (sv.time - sv.lastchecktime >= 0.1)
+	if (qcvm->time - sv.lastchecktime >= 0.1)
 	{
 		sv.lastcheck = PF_newcheckclient (sv.lastcheck);
-		sv.lastchecktime = sv.time;
+		sv.lastchecktime = qcvm->time;
 	}
 
 // return check if it might be visible
 	ent = EDICT_NUM(sv.lastcheck);
 	if (ent->free || ent->v.health <= 0)
 	{
-		RETURN_EDICT(sv.edicts);
+		RETURN_EDICT(qcvm->edicts);
 		return;
 	}
 
 // if current entity can't possibly see the check entity, return 0
 	self = PROG_TO_EDICT(pr_global_struct->self);
 	VectorAdd (self->v.origin, self->v.view_ofs, view);
-	leaf = Mod_PointInLeaf (view, sv.worldmodel);
-	l = (leaf - sv.worldmodel->leafs) - 1;
+	leaf = Mod_PointInLeaf (view, qcvm->worldmodel);
+	l = (leaf - qcvm->worldmodel->leafs) - 1;
 	if ( (l < 0) || !(checkpvs[l>>3] & (1 << (l & 7))) )
 	{
 		c_notvis++;
-		RETURN_EDICT(sv.edicts);
+		RETURN_EDICT(qcvm->edicts);
 		return;
 	}
 
@@ -919,13 +919,13 @@ static void PF_findradius (void)
 	vec3_t	eorg;
 	int	i, j;
 
-	chain = (edict_t *)sv.edicts;
+	chain = (edict_t *)qcvm->edicts;
 
 	org = G_VECTOR(OFS_PARM0);
 	rad = G_FLOAT(OFS_PARM1);
 
-	ent = NEXT_EDICT(sv.edicts);
-	for (i = 1; i < sv.num_edicts; i++, ent = NEXT_EDICT(ent))
+	ent = NEXT_EDICT(qcvm->edicts);
+	for (i = 1; i < qcvm->num_edicts; i++, ent = NEXT_EDICT(ent))
 	{
 		if (ent->free)
 			continue;
@@ -1015,7 +1015,7 @@ static void PF_Find (void)
 	if (!s)
 		PR_RunError ("PF_Find: bad search string");
 
-	for (e++ ; e < sv.num_edicts ; e++)
+	for (e++ ; e < qcvm->num_edicts ; e++)
 	{
 		ed = EDICT_NUM(e);
 		if (ed->free)
@@ -1030,7 +1030,7 @@ static void PF_Find (void)
 		}
 	}
 
-	RETURN_EDICT(sv.edicts);
+	RETURN_EDICT(qcvm->edicts);
 }
 
 static void PR_CheckEmptyString (const char *s)
@@ -1144,12 +1144,12 @@ static void PF_coredump (void)
 
 static void PF_traceon (void)
 {
-	pr_trace = true;
+	qcvm->trace = true;
 }
 
 static void PF_traceoff (void)
 {
-	pr_trace = false;
+	qcvm->trace = false;
 }
 
 static void PF_eprint (void)
@@ -1189,14 +1189,14 @@ static void PF_walkmove (void)
 	move[2] = 0;
 
 // save program state, because SV_movestep may call other progs
-	oldf = pr_xfunction;
+	oldf = qcvm->xfunction;
 	oldself = pr_global_struct->self;
 
 	G_FLOAT(OFS_RETURN) = SV_movestep(ent, move, true);
 
 
 // restore program state
-	pr_xfunction = oldf;
+	qcvm->xfunction = oldf;
 	pr_global_struct->self = oldself;
 }
 
@@ -1347,9 +1347,9 @@ static void PF_nextent (void)
 	while (1)
 	{
 		i++;
-		if (i == sv.num_edicts)
+		if (i == qcvm->num_edicts)
 		{
-			RETURN_EDICT(sv.edicts);
+			RETURN_EDICT(qcvm->edicts);
 			return;
 		}
 		ent = EDICT_NUM(i);
@@ -1402,8 +1402,8 @@ static void PF_aim (void)
 	bestdist = sv_aim.value;
 	bestent = NULL;
 
-	check = NEXT_EDICT(sv.edicts);
-	for (i = 1; i < sv.num_edicts; i++, check = NEXT_EDICT(check) )
+	check = NEXT_EDICT(qcvm->edicts);
+	for (i = 1; i < qcvm->num_edicts; i++, check = NEXT_EDICT(check) )
 	{
 		if (check->v.takedamage != DAMAGE_AIM)
 			continue;
@@ -1648,7 +1648,7 @@ void PF_Fixme (void)
 void PR_spawnfunc_misc_model(edict_t *self)
 {
 	eval_t *val;
-	if (!self->v.model && (val = GetEdictFieldValue(self, "mdl")))
+	if (!self->v.model && (val = GetEdictFieldValue(self, ED_FindFieldOffset("mdl"))))
 		self->v.model = val->string;
 	if (!*PR_GetString(self->v.model)) //must have a model, because otherwise various things will assume its not valid at all.
 		self->v.model = PR_SetEngineString("*null");
@@ -1665,7 +1665,7 @@ void PR_spawnfunc_misc_model(edict_t *self)
 	PF_sv_makestatic();
 }
 
-static builtin_t pr_ssqcbuiltins[] =
+builtin_t pr_ssqcbuiltins[] =
 {
 	PF_Fixme,
 	PF_makevectors,		// void(entity e) makevectors		= #1
@@ -1755,5 +1755,6 @@ static builtin_t pr_ssqcbuiltins[] =
 
 	PF_sv_setspawnparms
 };
+int pr_ssqcnumbuiltins = sizeof(pr_ssqcbuiltins)/sizeof(pr_ssqcbuiltins[0]);
 builtin_t *pr_builtins = pr_ssqcbuiltins;
 int pr_numbuiltins = sizeof(pr_ssqcbuiltins)/sizeof(pr_ssqcbuiltins[0]);

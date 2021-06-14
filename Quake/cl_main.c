@@ -66,6 +66,7 @@ void CL_FreeState(void)
 	int i;
 	for (i = 0; i < MAX_CL_STATS; i++)
 		free(cl.statss[i]);
+	PR_ClearProgs(&cl.qcvm);
 	free(cl.static_entities);
 	memset (&cl, 0, sizeof(cl));
 }

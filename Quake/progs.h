@@ -59,19 +59,19 @@ typedef struct edict_s
 
 //============================================================================
 
-extern	dprograms_t	*progs;
-extern	dfunction_t	*pr_functions;
-extern	dstatement_t	*pr_statements;
-extern	globalvars_t	*pr_global_struct;
-extern	float		*pr_globals;	/* same as pr_global_struct */
-
-extern	int		pr_edict_size;	/* in bytes */
-
+typedef void (*builtin_t) (void);
+typedef struct qcvm_s qcvm_t;
 
 void PR_Init (void);
 
 void PR_ExecuteProgram (func_t fnum);
-void PR_LoadProgs (void);
+void PR_ClearProgs(qcvm_t *vm);
+qboolean PR_LoadProgs (const char *filename, qboolean fatal, unsigned int needcrc, builtin_t *builtins, size_t numbuiltins);
+
+int SV_Precache_Model(const char *s);
+
+//from pr_edict, for pr_ext. reflection is messy.
+qboolean	ED_ParseEpair (void *base, ddef_t *key, const char *s, qboolean zoned);
 
 const char *PR_GetString (int num);
 int PR_SetEngineString (const char *s);
@@ -98,18 +98,18 @@ void ED_LoadFromFile (const char *data);
 edict_t *EDICT_NUM(int n);
 int NUM_FOR_EDICT(edict_t *e);
 
-#define	NEXT_EDICT(e)		((edict_t *)( (byte *)e + pr_edict_size))
+#define	NEXT_EDICT(e)		((edict_t *)( (byte *)e + qcvm->edict_size))
 
-#define	EDICT_TO_PROG(e)	((byte *)e - (byte *)sv.edicts)
-#define PROG_TO_EDICT(e)	((edict_t *)((byte *)sv.edicts + e))
+#define	EDICT_TO_PROG(e)	((byte *)e - (byte *)qcvm->edicts)
+#define PROG_TO_EDICT(e)	((edict_t *)((byte *)qcvm->edicts + e))
 
-#define	G_FLOAT(o)		(pr_globals[o])
-#define	G_INT(o)		(*(int *)&pr_globals[o])
-#define	G_EDICT(o)		((edict_t *)((byte *)sv.edicts+ *(int *)&pr_globals[o]))
+#define	G_FLOAT(o)		(qcvm->globals[o])
+#define	G_INT(o)		(*(int *)&qcvm->globals[o])
+#define	G_EDICT(o)		((edict_t *)((byte *)qcvm->edicts+ *(int *)&qcvm->globals[o]))
 #define G_EDICTNUM(o)		NUM_FOR_EDICT(G_EDICT(o))
-#define	G_VECTOR(o)		(&pr_globals[o])
-#define	G_STRING(o)		(PR_GetString(*(string_t *)&pr_globals[o]))
-#define	G_FUNCTION(o)		(*(func_t *)&pr_globals[o])
+#define	G_VECTOR(o)		(&qcvm->globals[o])
+#define	G_STRING(o)		(PR_GetString(*(string_t *)&qcvm->globals[o]))
+#define	G_FUNCTION(o)		(*(func_t *)&qcvm->globals[o])
 
 #define	E_FLOAT(e,o)		(((float*)&e->v)[o])
 #define	E_INT(e,o)		(*(int *)&((float*)&e->v)[o])
@@ -118,25 +118,17 @@ int NUM_FOR_EDICT(edict_t *e);
 
 extern	int		type_size[8];
 
-typedef void (*builtin_t) (void);
-extern	builtin_t	*pr_builtins;
-extern	int		pr_numbuiltins;
-
-extern	int		pr_argc;
-
-extern	qboolean	pr_trace;
-extern	dfunction_t	*pr_xfunction;
-extern	int		pr_xstatement;
-
-extern	unsigned short	pr_crc;
-
 FUNC_NORETURN void PR_RunError (const char *error, ...) FUNC_PRINTF(1,2);
 void PR_RunWarning (const char *error, ...) FUNC_PRINTF(1,2);
 
 void ED_PrintEdicts (void);
 void ED_PrintNum (int ent);
 
-eval_t *GetEdictFieldValue(edict_t *ed, const char *field);
+eval_t *GetEdictFieldValue(edict_t *ed, int fldofs);	//handles invalid offsets with a null
+int ED_FindFieldOffset (const char *name);
+
+#define GetEdictFieldValid(fld) (qcvm->extfields.fld>=0)
+#define GetEdictFieldEval(ed,fld) ((eval_t *)((char *)&ed->v + qcvm->extfields.fld*4)) //caller must validate the field first
 
 //from pr_cmds, no longer static so that pr_ext can use them.
 sizebuf_t *WriteDest (void);
@@ -146,5 +138,93 @@ char *PF_VarString (int	first);
 #define	STRINGTEMP_BUFFERS		1024
 #define	STRINGTEMP_LENGTH		1024
 void PF_Fixme(void);	//the 'unimplemented' builtin. woot.
+
+typedef struct
+{
+	int		s;
+	dfunction_t	*f;
+} prstack_t;
+
+
+typedef struct areanode_s
+{
+	int		axis;		// -1 = leaf node
+	float	dist;
+	struct areanode_s	*children[2];
+	link_t	trigger_edicts;
+	link_t	solid_edicts;
+} areanode_t;
+#define	AREA_DEPTH	4
+#define	AREA_NODES	32
+
+struct qcvm_s
+{
+	dprograms_t	*progs;
+	dfunction_t	*functions;
+	dstatement_t	*statements;
+	float		*globals;	/* same as pr_global_struct */
+	ddef_t		*fielddefs;	//yay reflection.
+
+	int			edict_size;	/* in bytes */
+
+	builtin_t	builtins[1024];
+	int			numbuiltins;
+
+	int			argc;
+
+	qboolean	trace;
+	dfunction_t	*xfunction;
+	int			xstatement;
+
+	unsigned short	progscrc;	//crc16 of the entire file
+	unsigned int	progshash;	//folded file md4
+	unsigned int	progssize;	//file size (bytes)
+
+	qboolean cursorforced;
+	void *cursorhandle;	//video code.
+	qboolean nogameaccess;	//simplecsqc isn't allowed to poke properties of the actual game (to prevent cheats when there's no restrictions on what it can access)
+
+	//was static inside pr_edict
+	char		*strings;
+	int			stringssize;
+	const char	**knownstrings;
+	int			maxknownstrings;
+	int			numknownstrings;
+	int			freeknownstrings;
+	ddef_t		*globaldefs;
+
+	unsigned char *knownzone;
+	size_t knownzonesize;
+
+	//originally defined in pr_exec, but moved into the switchable qcvm struct
+#define	MAX_STACK_DEPTH		1024 /*was 64*/	/* was 32 */
+	prstack_t	stack[MAX_STACK_DEPTH];
+	int			depth;
+
+#define	LOCALSTACK_SIZE		16384 /* was 2048*/
+	int			localstack[LOCALSTACK_SIZE];
+	int			localstack_used;
+
+	//originally part of the sv_state_t struct
+	//FIXME: put worldmodel in here too.
+	double		time;
+	int			num_edicts;
+	int			reserved_edicts;
+	int			max_edicts;
+	edict_t		*edicts;			// can NOT be array indexed, because edict_t is variable sized, but can be used to reference the world ent
+	struct qmodel_s	*worldmodel;
+	struct qmodel_s	*(*GetModel)(int modelindex);	//returns the model for the given index, or null.
+
+	//originally from world.c
+	areanode_t	areanodes[AREA_NODES];
+	int			numareanodes;
+};
+extern globalvars_t	*pr_global_struct;
+
+extern qcvm_t *qcvm;
+void PR_SwitchQCVM(qcvm_t *nvm);
+
+extern builtin_t pr_ssqcbuiltins[];
+extern int pr_ssqcnumbuiltins;
 #endif	/* _QUAKE_PROGS_H */
 

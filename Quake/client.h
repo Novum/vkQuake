@@ -247,6 +247,8 @@ typedef struct
 	unsigned int ackframes_count;
 	qboolean requestresend;
 
+	qcvm_t	qcvm;	//for csqc.
+
 	char serverinfo[8192];	// \key\value infostring data.
 } client_state_t;
 
