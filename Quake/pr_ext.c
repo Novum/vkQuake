@@ -3136,6 +3136,7 @@ static void PF_findchain(void)
 
 	chain = (edict_t *)qcvm->edicts;
 
+	ent = NEXT_EDICT(qcvm->edicts);
 	f = G_INT(OFS_PARM0);
 	s = G_STRING(OFS_PARM1);
 	if (qcvm->argc > 2)
@@ -3143,7 +3144,6 @@ static void PF_findchain(void)
 	else
 		cfld = &ent->v.chain - (int*)&ent->v;
 
-	ent = NEXT_EDICT(qcvm->edicts);
 	for (i = 1; i < qcvm->num_edicts; i++, ent = NEXT_EDICT(ent))
 	{
 		if (ent->free)
@@ -3192,6 +3192,7 @@ static void PF_findchainfloat(void)
 
 	chain = (edict_t *)qcvm->edicts;
 
+	ent = NEXT_EDICT(qcvm->edicts);
 	f = G_INT(OFS_PARM0);
 	s = G_FLOAT(OFS_PARM1);
 	if (qcvm->argc > 2)
@@ -3199,7 +3200,6 @@ static void PF_findchainfloat(void)
 	else
 		cfld = &ent->v.chain - (int*)&ent->v;
 
-	ent = NEXT_EDICT(qcvm->edicts);
 	for (i = 1; i < qcvm->num_edicts; i++, ent = NEXT_EDICT(ent))
 	{
 		if (ent->free)
