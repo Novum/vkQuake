@@ -307,17 +307,17 @@
     <ClCompile Include="..\..\Shaders\Compiled\cs_tex_warp_comp.c">
       <Filter>Shaders\Compiled</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Shaders\Compiled\showtris_frag.c">
-      <Filter>Shaders</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Shaders\Compiled\showtris_vert.c">
-      <Filter>Shaders</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\Quake\snd_mp3tag.c">
       <Filter>Sound</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Quake\mdfour.c">
       <Filter>Main</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\showtris_frag.c">
+      <Filter>Shaders\Compiled</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\showtris_vert.c">
+      <Filter>Shaders\Compiled</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
