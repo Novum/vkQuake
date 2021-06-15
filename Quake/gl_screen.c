@@ -308,7 +308,7 @@ static void SCR_CalcRefdef (void)
 	size = scr_viewsize.value;
 	scale = CLAMP (1.0, scr_sbarscale.value, (float)glwidth / 320.0);
 
-	if (size >= 120 || cl.intermission || scr_sbaralpha.value < 1) //johnfitz -- scr_sbaralpha.value
+	if (size >= 120 || cl.intermission || (scr_sbaralpha.value < 1 || cl.qcvm.extfuncs.CSQC_DrawHud || cl.qcvm.extfuncs.CSQC_UpdateView)) //johnfitz -- scr_sbaralpha.value. Spike -- simple csqc assumes fullscreen video the same way.
 		sb_lines = 0;
 	else if (size >= 110)
 		sb_lines = 24 * scale;
@@ -963,39 +963,82 @@ void SCR_UpdateScreen (void)
 			scr_disabled_for_loading = false;
 			Con_Printf ("load failed.\n");
 		}
-		else {
+		else
+		{
 			in_update_screen = false;
 			return;
 		}
 	}
 
-	if (!GL_BeginRendering (&glx, &gly, &glwidth, &glheight)) {
+	if (!GL_BeginRendering (&glx, &gly, &glwidth, &glheight)) 
+	{
 		in_update_screen = false;
 		return;
 	}
 
-	//
-	// determine size of refresh window
-	//
-	if (vid.recalc_refdef)
+	if (cl.worldmodel && cl.qcvm.worldmodel && cl.qcvm.extfuncs.CSQC_UpdateView)
+	{
+		float s = CLAMP (1.0, scr_sbarscale.value, (float)glwidth / 320.0);
+		SCR_SetUpToDrawConsole ();
+		GL_SetCanvas (CANVAS_CSQC);
+
+		PR_SwitchQCVM(&cl.qcvm);
+
+		if (qcvm->extglobals.cltime)
+			*qcvm->extglobals.cltime = realtime;
+		if (qcvm->extglobals.clframetime)
+			*qcvm->extglobals.clframetime = host_frametime;
+		if (qcvm->extglobals.player_localentnum)
+			*qcvm->extglobals.player_localentnum = cl.viewentity;
+		if (qcvm->extglobals.intermission)
+			*qcvm->extglobals.intermission = cl.intermission;
+		if (qcvm->extglobals.intermission_time)
+			*qcvm->extglobals.intermission_time = cl.completed_time;
+		if (qcvm->extglobals.clientcommandframe)
+			*qcvm->extglobals.clientcommandframe = cl.movemessages;
+		if (qcvm->extglobals.servercommandframe)
+			*qcvm->extglobals.servercommandframe = cl.ackedmovemessages;
+
+		pr_global_struct->time = qcvm->time;
+		pr_global_struct->frametime = host_frametime;
+		G_FLOAT(OFS_PARM0) = glwidth/s;
+		G_FLOAT(OFS_PARM1) = glheight/s;
+		G_FLOAT(OFS_PARM2) = true;
+		PR_ExecuteProgram(cl.qcvm.extfuncs.CSQC_UpdateView);
+		PR_SwitchQCVM(NULL);
+
+		if (GL_Set2D () == false) 
+		{
+			GL_EndRendering (false);
+			in_update_screen = false;
+			return;
+		}
+	}
+	else
+	{
+		//
+		// determine size of refresh window
+		//
+		if (vid.recalc_refdef)
 		SCR_CalcRefdef ();
 
 //
 // do 3D refresh drawing, and then update the screen
 //
-	SCR_SetUpToDrawConsole ();
+		SCR_SetUpToDrawConsole ();
 
-	V_RenderView ();
+		V_RenderView ();
 
-	if (GL_Set2D () == false) {
-		GL_EndRendering (false);
-		in_update_screen = false;
-		return;
+		if (GL_Set2D () == false)
+		{
+			GL_EndRendering (false);
+			in_update_screen = false;
+			return;
+		}
+
+		//FIXME: only call this when needed
+		SCR_TileClear ();
 	}
-
-	//FIXME: only call this when needed
-	SCR_TileClear ();
-
 	if (scr_drawdialog) //new game confirm
 	{
 		if (con_forcedup)

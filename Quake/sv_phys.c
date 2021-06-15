@@ -1406,11 +1406,37 @@ void SV_Physics (void)
 	int	entity_cap; // For sv_freezenonclients 
 	edict_t	*ent;
 
+	int physics_mode;
+	if (qcvm->extglobals.physics_mode)
+		physics_mode = *qcvm->extglobals.physics_mode;
+	else
+		physics_mode = (qcvm==&cl.qcvm)?0:2;	//csqc doesn't run thinks by default. it was meant to simplify implementations, but we just force fields to match ssqc so its not that large a burden.
+
+	if (!physics_mode)
+	{
+		qcvm->time += host_frametime;
+		return;
+	}
+	else if (physics_mode==1)
+	{	//for dp compat. note that this violates MOVETYPE_PUSH.
+		for (i=0, ent = qcvm->edicts; i<qcvm->num_edicts ; i++, ent = NEXT_EDICT(ent))
+		{
+			if (ent->free)
+				continue;
+			SV_RunThink(ent);
+		}
+		qcvm->time += host_frametime;
+		return;
+	}
+
 // let the progs know that a new frame has started
-	pr_global_struct->self = EDICT_TO_PROG(qcvm->edicts);
-	pr_global_struct->other = EDICT_TO_PROG(qcvm->edicts);
-	pr_global_struct->time = qcvm->time;
-	PR_ExecuteProgram (pr_global_struct->StartFrame);
+	if (pr_global_struct->StartFrame)
+	{
+		pr_global_struct->self = EDICT_TO_PROG(qcvm->edicts);
+		pr_global_struct->other = EDICT_TO_PROG(qcvm->edicts);
+		pr_global_struct->time = qcvm->time;
+		PR_ExecuteProgram (pr_global_struct->StartFrame);
+	}
 
 //SV_CheckAllEnts ();
 

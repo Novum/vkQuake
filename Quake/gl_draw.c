@@ -119,7 +119,7 @@ typedef struct cachepic_s
 	byte		padding[32];	// for appended glpic
 } cachepic_t;
 
-#define	MAX_CACHED_PICS		128
+#define	MAX_CACHED_PICS		512	//Spike -- increased to avoid csqc issues.
 cachepic_t	menu_cachepics[MAX_CACHED_PICS];
 int			menu_numcachepics;
 
@@ -212,14 +212,32 @@ void Scrap_Upload (void)
 Draw_PicFromWad
 ================
 */
-qpic_t *Draw_PicFromWad (const char *name)
+qpic_t *Draw_PicFromWad2 (const char *name, unsigned int texflags)
 {
+	int i;
+	cachepic_t *pic;
 	qpic_t	*p;
 	glpic_t	gl;
 	src_offset_t offset; //johnfitz
+	lumpinfo_t *info;
 
-	p = (qpic_t *) W_GetLumpName (name);
-	if (!p) return pic_nul; //johnfitz
+	//Spike -- added cachepic stuff here, to avoid glitches if the function is called multiple times with the same image.
+	for (pic=menu_cachepics, i=0 ; i<menu_numcachepics ; pic++, i++)
+	{
+		if (!strcmp (name, pic->name))
+			return &pic->pic;
+	}
+	if (menu_numcachepics == MAX_CACHED_PICS)
+		Sys_Error ("menu_numcachepics == MAX_CACHED_PICS");
+
+	p = (qpic_t *) W_GetLumpName (name, &info);
+	if (!p)
+	{
+		Con_SafePrintf ("W_GetLumpName: %s not found\n", name);
+		return pic_nul; //johnfitz
+	}
+	if (info->type != TYP_QPIC) Sys_Error ("Draw_PicFromWad: lump \"%s\" is not a qpic", name);
+	if (info->size < sizeof(int)*2 || 8+p->width*p->height < info->size) Sys_Error ("Draw_PicFromWad: pic \"%s\" truncated", name);
 
 	// load little ones into the scrap
 	if (p->width < 64 && p->height < 64)
@@ -251,16 +269,37 @@ qpic_t *Draw_PicFromWad (const char *name)
 		offset = (src_offset_t)p - (src_offset_t)wad_base + sizeof(int)*2; //johnfitz
 
 		gl.gltexture = TexMgr_LoadImage (NULL, texturename, p->width, p->height, SRC_INDEXED, p->data, WADFILENAME,
-										  offset, TEXPREF_ALPHA | TEXPREF_PAD | TEXPREF_NOPICMIP); //johnfitz -- TexMgr
+										  offset, texflags); //johnfitz -- TexMgr
 		gl.sl = 0;
-		gl.sh = (float)p->width/(float)TexMgr_PadConditional(p->width); //johnfitz
+		gl.sh = (texflags&TEXPREF_PAD)?(float)p->width/(float)TexMgr_PadConditional(p->width):1; //johnfitz
 		gl.tl = 0;
-		gl.th = (float)p->height/(float)TexMgr_PadConditional(p->height); //johnfitz
+		gl.th = (texflags&TEXPREF_PAD)?(float)p->height/(float)TexMgr_PadConditional(p->height):1; //johnfitz
 	}
 
-	memcpy (p->data, &gl, sizeof(glpic_t));
+	menu_numcachepics++;
+	strcpy (pic->name, name);
+	pic->pic = *p;
+	memcpy (pic->pic.data, &gl, sizeof(glpic_t));
 
-	return p;
+	return &pic->pic;
+}
+
+qpic_t *Draw_PicFromWad (const char *name)
+{
+	return Draw_PicFromWad2(name, TEXPREF_ALPHA | TEXPREF_PAD | TEXPREF_NOPICMIP);
+}
+
+qpic_t	*Draw_GetCachedPic (const char *path)
+{
+	cachepic_t	*pic;
+	int			i;
+
+	for (pic=menu_cachepics, i=0 ; i<menu_numcachepics ; pic++, i++)
+	{
+		if (!strcmp (path, pic->name))
+			return &pic->pic;
+	}
+	return NULL;
 }
 
 /*
@@ -268,7 +307,7 @@ qpic_t *Draw_PicFromWad (const char *name)
 Draw_CachePic
 ================
 */
-qpic_t	*Draw_CachePic (const char *path)
+qpic_t	*Draw_TryCachePic (const char *path, unsigned int texflags)
 {
 	cachepic_t	*pic;
 	int			i;
@@ -290,7 +329,7 @@ qpic_t	*Draw_CachePic (const char *path)
 //
 	dat = (qpic_t *)COM_LoadTempFile (path, NULL);
 	if (!dat)
-		Sys_Error ("Draw_CachePic: failed to load %s", path);
+		return NULL;
 	SwapPic (dat);
 
 	// HACK HACK HACK --- we need to keep the bytes for
@@ -303,14 +342,23 @@ qpic_t	*Draw_CachePic (const char *path)
 	pic->pic.height = dat->height;
 
 	gl.gltexture = TexMgr_LoadImage (NULL, path, dat->width, dat->height, SRC_INDEXED, dat->data, path,
-									  sizeof(int)*2, TEXPREF_ALPHA | TEXPREF_PAD | TEXPREF_NOPICMIP); //johnfitz -- TexMgr
+										sizeof(int)*2, texflags | TEXPREF_NOPICMIP); //johnfitz -- TexMgr
 	gl.sl = 0;
-	gl.sh = (float)dat->width/(float)TexMgr_PadConditional(dat->width); //johnfitz
+	gl.sh = (texflags&TEXPREF_PAD)?(float)dat->width/(float)TexMgr_PadConditional(dat->width):1; //johnfitz
 	gl.tl = 0;
-	gl.th = (float)dat->height/(float)TexMgr_PadConditional(dat->height); //johnfitz
+	gl.th = (texflags&TEXPREF_PAD)?(float)dat->height/(float)TexMgr_PadConditional(dat->height):1; //johnfitz
+
 	memcpy (pic->pic.data, &gl, sizeof(glpic_t));
 
 	return &pic->pic;
+}
+
+qpic_t	*Draw_CachePic (const char *path)
+{
+	qpic_t *pic = Draw_TryCachePic(path, TEXPREF_ALPHA | TEXPREF_PAD | TEXPREF_NOPICMIP);
+	if (!pic)
+		Sys_Error ("Draw_CachePic: failed to load %s", path);
+	return pic;
 }
 
 /*
@@ -353,8 +401,9 @@ void Draw_LoadPics (void)
 {
 	byte		*data;
 	src_offset_t	offset;
+	lumpinfo_t *info;
 
-	data = (byte *) W_GetLumpName ("conchars");
+	data = (byte *) W_GetLumpName ("conchars", &info);
 	if (!data) Sys_Error ("Draw_LoadPics: couldn't load conchars");
 	offset = (src_offset_t)data - (src_offset_t)wad_base;
 	char_texture = TexMgr_LoadImage (NULL, WADFILENAME":conchars", 128, 128, SRC_INDEXED, data,
@@ -603,6 +652,76 @@ void Draw_Pic (int x, int y, qpic_t *pic, float alpha, qboolean alpha_blend)
 	vkCmdDraw(vulkan_globals.command_buffer, 6, 1, 0, 0);
 }
 
+void Draw_SubPic (float x, float y, float w, float h, qpic_t *pic, float s1, float t1, float s2, float t2, float * rgb, float alpha)
+{
+	glpic_t			*gl;
+	qboolean alpha_blend = alpha < 1.0f;
+	int	i;
+	if (alpha <= 0.0f)
+		return;
+
+	s2 += s1;
+	t2 += t1;
+
+	if (scrap_dirty)
+		Scrap_Upload ();
+	gl = (glpic_t *)pic->data;
+
+	VkBuffer buffer;
+	VkDeviceSize buffer_offset;
+	basicvertex_t * vertices = (basicvertex_t*)R_VertexAllocate(6 * sizeof(basicvertex_t), &buffer, &buffer_offset);
+
+	basicvertex_t corner_verts[4];
+	memset(&corner_verts, 255, sizeof(corner_verts));
+
+	corner_verts[0].position[0] = x;
+	corner_verts[0].position[1] = y;
+	corner_verts[0].position[2] = 0.0f;
+	corner_verts[0].texcoord[0] = gl->sl*(1-s1) + s1*gl->sh;
+	corner_verts[0].texcoord[1] = gl->tl*(1-t1) + t1*gl->th;
+
+	corner_verts[1].position[0] = x+w;
+	corner_verts[1].position[1] = y;
+	corner_verts[1].position[2] = 0.0f;
+	corner_verts[1].texcoord[0] = gl->sl*(1-s2) + s2*gl->sh;
+	corner_verts[1].texcoord[1] = gl->tl*(1-t1) + t1*gl->th;
+
+	corner_verts[2].position[0] = x+w;
+	corner_verts[2].position[1] = y+h;
+	corner_verts[2].position[2] = 0.0f;
+	corner_verts[2].texcoord[0] = gl->sl*(1-s2) + s2*gl->sh;
+	corner_verts[2].texcoord[1] = gl->tl*(1-t2) + t2*gl->th;
+
+	corner_verts[3].position[0] = x;
+	corner_verts[3].position[1] = y+h;
+	corner_verts[3].position[2] = 0.0f;
+	corner_verts[3].texcoord[0] = gl->sl*(1-s1) + s1*gl->sh;
+	corner_verts[3].texcoord[1] = gl->tl*(1-t2) + t2*gl->th;
+
+	for (i = 0; i<4; ++i)
+	{
+		corner_verts[i].color[0] = rgb[0] * 255.0f;
+		corner_verts[i].color[1] = rgb[1] * 255.0f;
+		corner_verts[i].color[2] = rgb[2] * 255.0f;
+		corner_verts[i].color[3] = alpha * 255.0f;
+	}
+
+	vertices[0] = corner_verts[0];
+	vertices[1] = corner_verts[1];
+	vertices[2] = corner_verts[2];
+	vertices[3] = corner_verts[2];
+	vertices[4] = corner_verts[3];
+	vertices[5] = corner_verts[0];
+
+	vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
+	if (alpha_blend)
+		R_BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_blend_pipeline[render_pass_index]);
+	else 
+		R_BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_alphatest_pipeline[render_pass_index]);
+	vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &gl->gltexture->descriptor_set, 0, NULL);
+	vkCmdDraw(vulkan_globals.command_buffer, 6, 1, 0, 0);
+}
+
 /*
 =============
 Draw_TransPicTranslate -- johnfitz -- rewritten to use texmgr to do translation
@@ -649,7 +768,6 @@ void Draw_ConsoleBackground (void)
 		Draw_Pic (0, 0, pic, alpha, alpha < 1.0f);
 	}
 }
-
 
 /*
 =============
@@ -892,6 +1010,11 @@ void GL_SetCanvas (canvastype newcanvas)
 		s = CLAMP (1.0, scr_menuscale.value, s);
 		GL_OrthoMatrix (0, 640, 200, 0, -99999, 99999);
 		GL_Viewport (glx + (glwidth - 320*s) / 2, gly + (glheight - 200*s) / 2, 640*s, 200*s, 0.0f, 1.0f);
+		break;
+	case CANVAS_CSQC:
+		s = CLAMP (1.0, scr_sbarscale.value, (float)glwidth / 320.0);
+		GL_OrthoMatrix (0, glwidth/s, glheight/s, 0, -99999, 99999);
+		GL_Viewport (glx, gly, glwidth, glheight, 0.0f, 1.0f);
 		break;
 	case CANVAS_SBAR:
 		s = CLAMP (1.0, scr_sbarscale.value, (float)glwidth / 320.0);

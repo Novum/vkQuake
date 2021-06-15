@@ -919,7 +919,9 @@ void Cmd_ForwardToServer (void)
 		if (!strcmp(Cmd_Args(), "pext") && !cl_nopext.value)
 		{	//server asked us for a key+value list of the extensions+attributes we support
 			SZ_Print (&cls.message, va("pext"
+						" %#x %#x"
 						" %#x %#x",
+						PROTOCOL_FTE_PEXT1, PEXT1_SUPPORTED_CLIENT,
 						PROTOCOL_FTE_PEXT2, PEXT2_SUPPORTED_CLIENT));
 			return;
 		}

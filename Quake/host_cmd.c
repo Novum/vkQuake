@@ -1125,7 +1125,7 @@ void Host_Savegame_f (void)
 	fprintf (f, "%i\n", SAVEGAME_VERSION);
 	Host_SavegameComment (comment);
 	fprintf (f, "%s\n", comment);
-	for (i = 0; i < NUM_TOTAL_SPAWN_PARMS; i++)
+	for (i = 0; i < NUM_BASIC_SPAWN_PARMS; i++)
 		fprintf (f, "%f\n", svs.clients->spawn_parms[i]);
 	fprintf (f, "%d\n", current_skill);
 	fprintf (f, "%s\n", sv.name);

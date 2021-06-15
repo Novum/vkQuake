@@ -241,11 +241,13 @@ typedef struct
 
 	unsigned	protocol; //johnfitz
 	unsigned	protocolflags;
+	unsigned	protocol_pext1;	//spike -- flag of fte protocol extensions
 	unsigned	protocol_pext2;	//spike -- flag of fte protocol extensions
 
 	int ackframes[8];	//big enough to cover burst
 	unsigned int ackframes_count;
 	qboolean requestresend;
+	qboolean sendprespawn;
 
 	qcvm_t	qcvm;	//for csqc.
 

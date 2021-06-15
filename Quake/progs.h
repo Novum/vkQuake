@@ -163,13 +163,27 @@ struct pr_extfuncs_s
 	QCEXTFUNC(EndFrame,					"void()")				\
 /*ssqc*/
 #define QCEXTFUNCS_SV \
-	QCEXTFUNC(SV_ParseClientCommand,		"void(string cmd)")		\
+	QCEXTFUNC(SV_ParseClientCommand,	"void(string cmd)")		\
 	QCEXTFUNC(SV_RunClientCommand,		"void()")		\
+/*csqc*/
+#define QCEXTFUNCS_CS \
+	QCEXTFUNC(CSQC_Init,				"void(float apilevel, string enginename, float engineversion)")	\
+	QCEXTFUNC(CSQC_Shutdown,			"void()")	\
+	QCEXTFUNC(CSQC_DrawHud,				"void(vector virtsize, float showscores)")							/*simple: for the simple(+limited) hud-only csqc interface.*/	\
+	QCEXTFUNC(CSQC_DrawScores,			"void(vector virtsize, float showscores)")							/*simple: (optional) for the simple hud-only csqc interface.*/		\
+	QCEXTFUNC(CSQC_InputEvent,			"float(float evtype, float scanx, float chary, float devid)")		\
+	QCEXTFUNC(CSQC_ConsoleCommand,		"float(string cmdstr)")												\
+	QCEXTFUNC(CSQC_Parse_Event,			"void()")															\
+	QCEXTFUNC(CSQC_Parse_Damage,		"float(float save, float take, vector dir)")						\
+	QCEXTFUNC(CSQC_UpdateView,			"void(float vwidth, float vheight, float notmenu)")					/*full only: for the full csqc-draws-entire-screen interface*/	\
+	QCEXTFUNC(CSQC_Parse_CenterPrint,	"float(string msg)")												\
+	QCEXTFUNC(CSQC_Parse_Print,			"void(string printmsg, float printlvl)")							\
 
 #define QCEXTFUNC(n,t) func_t n;
 	QCEXTFUNCS_COMMON
 	QCEXTFUNCS_GAME
 	QCEXTFUNCS_SV
+	QCEXTFUNCS_CS
 #undef QCEXTFUNC
 };
 extern	cvar_t	pr_checkextension;	//if 0, extensions are disabled (unless they'd be fatal, but they're still spammy)
@@ -193,11 +207,23 @@ struct pr_extglobals_s
 	QCEXTGLOBAL_FLOAT(input_cursor_entitynumber)\
 	QCEXTGLOBAL_FLOAT(physics_mode)\
 	//end
+#define QCEXTGLOBALS_CSQC \
+	QCEXTGLOBAL_FLOAT(cltime)\
+	QCEXTGLOBAL_FLOAT(clframetime)\
+	QCEXTGLOBAL_FLOAT(maxclients)\
+	QCEXTGLOBAL_FLOAT(intermission)\
+	QCEXTGLOBAL_FLOAT(intermission_time)\
+	QCEXTGLOBAL_FLOAT(player_localnum)\
+	QCEXTGLOBAL_FLOAT(player_localentnum)\
+	QCEXTGLOBAL_FLOAT(clientcommandframe)\
+	QCEXTGLOBAL_FLOAT(servercommandframe)\
+	//end
 #define QCEXTGLOBAL_FLOAT(n) float *n;
 #define QCEXTGLOBAL_INT(n) int *n;
 #define QCEXTGLOBAL_VECTOR(n) float *n;
 	QCEXTGLOBALS_COMMON
 	QCEXTGLOBALS_GAME
+	QCEXTGLOBALS_CSQC
 #undef QCEXTGLOBAL_FLOAT
 #undef QCEXTGLOBAL_INT
 #undef QCEXTGLOBAL_VECTOR
@@ -340,5 +366,8 @@ void PR_SwitchQCVM(qcvm_t *nvm);
 
 extern builtin_t pr_ssqcbuiltins[];
 extern int pr_ssqcnumbuiltins;
+extern builtin_t pr_csqcbuiltins[];
+extern int pr_csqcnumbuiltins;
+
 #endif	/* _QUAKE_PROGS_H */
 

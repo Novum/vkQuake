@@ -67,6 +67,20 @@ void Sbar_MiniDeathmatchOverlay (void);
 void Sbar_DeathmatchOverlay (void);
 void M_DrawPic (int x, int y, qpic_t *pic);
 
+qboolean Sbar_CSQCCommand(void)
+{
+	qboolean ret = false;
+	if (cl.qcvm.extfuncs.CSQC_ConsoleCommand)
+	{
+		PR_SwitchQCVM(&cl.qcvm);
+		G_INT(OFS_PARM0) = PR_MakeTempString(Cmd_Argv(0));
+		PR_ExecuteProgram(cl.qcvm.extfuncs.CSQC_ConsoleCommand);
+		ret = G_FLOAT(OFS_RETURN);
+		PR_SwitchQCVM(NULL);
+	}
+	return ret;
+}
+
 /*
 ===============
 Sbar_ShowScores
@@ -76,6 +90,7 @@ Tab key down
 */
 void Sbar_ShowScores (void)
 {
+	Sbar_CSQCCommand();
 	if (sb_showscores)
 		return;
 	sb_showscores = true;
@@ -91,6 +106,7 @@ Tab key up
 */
 void Sbar_DontShowScores (void)
 {
+	Sbar_CSQCCommand();
 	sb_showscores = false;
 	sb_updates = 0;
 }
@@ -917,6 +933,44 @@ void Sbar_Draw (void)
 	if (scr_con_current == vid.height)
 		return;		// console is full screen
 
+	if (cl.qcvm.extfuncs.CSQC_DrawHud && !qcvm)
+	{
+		qboolean deathmatchoverlay = false;
+		float s = CLAMP (1.0, scr_sbarscale.value, (float)glwidth / 320.0);
+		sb_updates++;
+		GL_SetCanvas (CANVAS_CSQC); //johnfitz
+		PR_SwitchQCVM(&cl.qcvm);
+		pr_global_struct->frametime = host_frametime;
+		if (qcvm->extglobals.cltime)
+			*qcvm->extglobals.cltime = realtime;
+		if (qcvm->extglobals.clframetime)
+			*qcvm->extglobals.clframetime = host_frametime;
+		if (qcvm->extglobals.player_localentnum)
+			*qcvm->extglobals.player_localentnum = cl.viewentity;
+		pr_global_struct->time = cl.time;
+		Sbar_SortFrags ();
+		G_VECTORSET(OFS_PARM0, vid.width/s, vid.height/s, 0);
+		G_FLOAT(OFS_PARM1) = sb_showscores;
+		PR_ExecuteProgram(cl.qcvm.extfuncs.CSQC_DrawHud);
+		if (cl.qcvm.extfuncs.CSQC_DrawScores)
+		{
+			G_VECTORSET(OFS_PARM0, vid.width/s, vid.height/s, 0);
+			G_FLOAT(OFS_PARM1) = sb_showscores;
+			if (key_dest != key_menu)
+				PR_ExecuteProgram(cl.qcvm.extfuncs.CSQC_DrawScores);
+		}
+		else
+			deathmatchoverlay = (sb_showscores || cl.stats[STAT_HEALTH] <= 0);
+		PR_SwitchQCVM(NULL);
+
+		if (deathmatchoverlay && cl.gametype == GAME_DEATHMATCH)
+		{
+			GL_SetCanvas (CANVAS_SBAR);
+			Sbar_DeathmatchOverlay ();
+		}
+		return;
+	}
+
 	if (cl.intermission)
 		return; //johnfitz -- never draw sbar during intermission
 
@@ -1246,6 +1300,31 @@ void Sbar_IntermissionOverlay (void)
 	qpic_t	*pic;
 	int	dig;
 	int	num;
+
+	if (cl.qcvm.extfuncs.CSQC_DrawScores && !qcvm)
+	{
+		float s = CLAMP (1.0, scr_sbarscale.value, (float)glwidth / 320.0);
+		GL_SetCanvas (CANVAS_CSQC);
+		PR_SwitchQCVM(&cl.qcvm);
+		if (qcvm->extglobals.cltime)
+			*qcvm->extglobals.cltime = realtime;
+		if (qcvm->extglobals.clframetime)
+			*qcvm->extglobals.clframetime = host_frametime;
+		if (qcvm->extglobals.player_localentnum)
+			*qcvm->extglobals.player_localentnum = cl.viewentity;
+		if (qcvm->extglobals.intermission)
+			*qcvm->extglobals.intermission = cl.intermission;
+		if (qcvm->extglobals.intermission_time)
+			*qcvm->extglobals.intermission_time = cl.completed_time;
+		pr_global_struct->time = cl.time;
+		pr_global_struct->frametime = host_frametime;
+		Sbar_SortFrags ();
+		G_VECTORSET(OFS_PARM0, vid.width/s, vid.height/s, 0);
+		G_FLOAT(OFS_PARM1) = sb_showscores;
+		PR_ExecuteProgram(cl.qcvm.extfuncs.CSQC_DrawScores);
+		PR_SwitchQCVM(NULL);
+		return;
+	}
 
 	if (cl.gametype == GAME_DEATHMATCH)
 	{

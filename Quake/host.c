@@ -69,6 +69,7 @@ cvar_t	host_speeds = {"host_speeds","0",CVAR_NONE};			// set for running times
 cvar_t	host_maxfps = {"host_maxfps", "200", CVAR_ARCHIVE}; //johnfitz
 cvar_t	host_timescale = {"host_timescale", "0", CVAR_NONE}; //johnfitz
 cvar_t	max_edicts = {"max_edicts", "8192", CVAR_NONE}; //johnfitz //ericw -- changed from 2048 to 8192, removed CVAR_ARCHIVE
+cvar_t	cl_nocsqc = {"cl_nocsqc", "0", CVAR_NONE};	//spike -- blocks the loading of any csqc modules
 
 cvar_t	sys_ticrate = {"sys_ticrate","0.05",CVAR_NONE}; // dedicated server
 cvar_t	serverprofile = {"serverprofile","0",CVAR_NONE};
@@ -86,6 +87,7 @@ cvar_t	pausable = {"pausable","1",CVAR_NONE};
 
 cvar_t	developer = {"developer","0",CVAR_NONE};
 
+static cvar_t	pr_engine = {"pr_engine", ENGINE_NAME_AND_VER, CVAR_NONE};
 cvar_t	temp1 = {"temp1","0",CVAR_NONE};
 
 cvar_t devstats = {"devstats","0",CVAR_NONE}; //johnfitz -- track developer statistics that vary every frame
@@ -176,6 +178,8 @@ void Host_Error (const char *error, ...)
 	if (inerror)
 		Sys_Error ("Host_Error: recursively entered");
 	inerror = true;
+
+	PR_SwitchQCVM(NULL);
 
 	SCR_EndLoadingPlaque ();		// reenable screen updates
 
@@ -276,12 +280,14 @@ void Host_InitLocal (void)
 
 	Host_InitCommands ();
 
+	Cvar_RegisterVariable (&pr_engine);
 	Cvar_RegisterVariable (&host_framerate);
 	Cvar_RegisterVariable (&host_speeds);
 	Cvar_RegisterVariable (&host_maxfps); //johnfitz
 	Cvar_SetCallback (&host_maxfps, Max_Fps_f);
 	Cvar_RegisterVariable (&host_timescale); //johnfitz
 
+	Cvar_RegisterVariable (&cl_nocsqc);	//spike
 	Cvar_RegisterVariable (&max_edicts); //johnfitz
 	Cvar_SetCallback (&max_edicts, Max_Edicts_f);
 	Cvar_RegisterVariable (&devstats); //johnfitz
@@ -474,7 +480,7 @@ void SV_DropClient (qboolean crash)
 	{
 		if (!client->knowntoqc)
 			continue;
-		if (host_client->protocol_pext2 & PEXT2_REPLACEMENTDELTAS)
+		if ((host_client->protocol_pext1 & PEXT1_CSQC) || (host_client->protocol_pext2 & PEXT2_REPLACEMENTDELTAS))
 		{
 			MSG_WriteByte (&client->message, svc_stufftext);
 			MSG_WriteString (&client->message, va("//fui %u \"\"\n", (unsigned)(host_client - svs.clients)));
@@ -579,6 +585,14 @@ not reinitialize anything.
 */
 void Host_ClearMemory (void)
 {
+	if (cl.qcvm.extfuncs.CSQC_Shutdown)
+	{
+		PR_SwitchQCVM(&cl.qcvm);
+		PR_ExecuteProgram(qcvm->extfuncs.CSQC_Shutdown);
+		qcvm->extfuncs.CSQC_Shutdown = 0;
+		PR_SwitchQCVM(NULL);
+	}
+
 	Con_DPrintf ("Clearing memory\n");
 	Mod_ClearAll ();
 /* host_hunklevel MUST be set at this point */
@@ -713,6 +727,98 @@ void Host_ServerFrame (void)
 	SV_SendClientMessages ();
 }
 
+static void CL_LoadCSProgs(void)
+{
+	qboolean fullcsqc = false;
+	PR_ClearProgs(&cl.qcvm);
+	if (pr_checkextension.value && !cl_nocsqc.value)
+	{	//only try to use csqc if qc extensions are enabled.
+		char versionedname[MAX_QPATH];
+		unsigned int csqchash;
+		size_t csqcsize;
+		PR_SwitchQCVM(&cl.qcvm);
+		csqchash = strtoul(Info_GetKey(cl.serverinfo, "*csprogs", versionedname, sizeof(versionedname)), NULL, 0);
+		csqcsize = strtoul(Info_GetKey(cl.serverinfo, "*csprogssize", versionedname, sizeof(versionedname)), NULL, 0);
+
+		snprintf(versionedname, MAX_QPATH, "csprogsvers/%x.dat", csqchash);
+
+		//try csprogs.dat first, then fall back on progs.dat in case someone tried merging the two.
+		//we only care about it if it actually contains a CSQC_DrawHud, otherwise its either just a (misnamed) ssqc progs or a full csqc progs that would just crash us on 3d stuff.
+		if ((PR_LoadProgs(versionedname, false, PROGHEADER_CRC, pr_csqcbuiltins, pr_csqcnumbuiltins) && (qcvm->extfuncs.CSQC_DrawHud||cl.qcvm.extfuncs.CSQC_UpdateView))||
+			(PR_LoadProgs("csprogs.dat", false, PROGHEADER_CRC, pr_csqcbuiltins, pr_csqcnumbuiltins) && (qcvm->extfuncs.CSQC_DrawHud||cl.qcvm.extfuncs.CSQC_UpdateView))||
+			(PR_LoadProgs("progs.dat",   false, PROGHEADER_CRC, pr_csqcbuiltins, pr_csqcnumbuiltins) && (qcvm->extfuncs.CSQC_DrawHud||cl.qcvm.extfuncs.CSQC_UpdateView)))
+		{
+			qcvm->max_edicts = CLAMP (MIN_EDICTS,(int)max_edicts.value,MAX_EDICTS);
+			qcvm->edicts = (edict_t *) malloc (qcvm->max_edicts*qcvm->edict_size);
+			qcvm->num_edicts = qcvm->reserved_edicts = 1;
+			memset(qcvm->edicts, 0, qcvm->num_edicts*qcvm->edict_size);
+
+			//in terms of exploit protection this is kinda pointless as someone can just strip out this check and compile themselves. oh well.
+			if ((qcvm->progshash == csqchash && qcvm->progssize == csqcsize) || cls.demoplayback)
+				fullcsqc = true;
+			else
+			{	//okay, it doesn't match. full csqc is disallowed to prevent cheats, but we still allow simplecsqc...
+				if (!qcvm->extfuncs.CSQC_DrawHud)
+				{	//no simplecsqc entry points... abort entirely!
+					PR_ClearProgs(qcvm);
+					PR_SwitchQCVM(NULL);
+					return;
+				}
+				fullcsqc = false;
+				qcvm->nogameaccess = true;
+
+				qcvm->extfuncs.CSQC_UpdateView = 0;		//will probably bug out. block it.
+
+				qcvm->extglobals.clientcommandframe = NULL;	//input frames are blocked, so don't bother to connect these either.
+				qcvm->extglobals.servercommandframe = NULL;
+			}
+
+			//set a few globals, if they exist
+			if (qcvm->extglobals.maxclients)
+				*qcvm->extglobals.maxclients = cl.maxclients;
+			pr_global_struct->time = cl.time;
+			pr_global_struct->mapname = PR_SetEngineString(cl.mapname);
+			pr_global_struct->total_monsters = cl.statsf[STAT_TOTALMONSTERS];
+			pr_global_struct->total_secrets = cl.statsf[STAT_TOTALSECRETS];
+			pr_global_struct->deathmatch = cl.gametype;
+			pr_global_struct->coop = (cl.gametype == GAME_COOP) && cl.maxclients != 1;
+			if (qcvm->extglobals.player_localnum)
+				*qcvm->extglobals.player_localnum = cl.viewentity-1;	//this is a guess, but is important for scoreboards.
+
+			//set a few worldspawn fields too
+			qcvm->edicts->v.solid = SOLID_BSP;
+			qcvm->edicts->v.modelindex = 1;
+			qcvm->edicts->v.model = PR_SetEngineString(cl.worldmodel->name);
+			VectorCopy(cl.worldmodel->mins, qcvm->edicts->v.mins);
+			VectorCopy(cl.worldmodel->maxs, qcvm->edicts->v.maxs);
+			qcvm->edicts->v.message = PR_SetEngineString(cl.levelname);
+
+			//and call the init function... if it exists.
+			qcvm->worldmodel = cl.worldmodel;
+			SV_ClearWorld();
+			if (qcvm->extfuncs.CSQC_Init)
+			{
+				int maj = (int)QUAKESPASM_VERSION;
+				int min = (QUAKESPASM_VERSION-maj) * 100;
+				G_FLOAT(OFS_PARM0) = fullcsqc;
+				G_INT(OFS_PARM1) = PR_SetEngineString("QuakeSpasm-Spiked");
+				G_FLOAT(OFS_PARM2) = 10000*maj + 100*(min) + QUAKESPASM_VER_PATCH;
+				PR_ExecuteProgram(qcvm->extfuncs.CSQC_Init);
+			}
+
+			if (fullcsqc)
+			{
+				//let the server know.
+				MSG_WriteByte (&cls.message, clc_stringcmd);
+				MSG_WriteString (&cls.message, "enablecsqc");
+			}
+		}
+		else
+			PR_ClearProgs(qcvm);
+		PR_SwitchQCVM(NULL);
+	}
+}
+
 /*
 ==================
 Host_Frame
@@ -754,6 +860,16 @@ void _Host_Frame (double time)
 	Cbuf_Execute ();
 
 	NET_Poll();
+
+	if (cl.sendprespawn)
+	{
+		CL_LoadCSProgs();
+
+		cl.sendprespawn = false;
+		MSG_WriteByte (&cls.message, clc_stringcmd);
+		MSG_WriteString (&cls.message, "prespawn");
+		vid.recalc_refdef = true;
+	}
 
 	CL_AccumulateCmd ();
 

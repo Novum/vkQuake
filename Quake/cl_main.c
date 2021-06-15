@@ -146,6 +146,7 @@ void CL_Disconnect (void)
 	cls.netcon = NULL;
 	cl.intermission = 0;
 	cl.worldmodel = NULL;
+	cl.sendprespawn = false;
 }
 
 void CL_Disconnect_f (void)
@@ -211,6 +212,8 @@ void CL_SignonReply (void)
 	case 1:
 		MSG_WriteByte (&cls.message, clc_stringcmd);
 		MSG_WriteString (&cls.message, "prespawn");
+
+		cl.sendprespawn = true;
 		break;
 
 	case 2:

@@ -111,7 +111,7 @@ void W_LoadWadFile (void) //johnfitz -- filename is now hard-coded for honesty
 W_GetLumpinfo
 =============
 */
-lumpinfo_t	*W_GetLumpinfo (const char *name)
+static lumpinfo_t	*W_GetLumpinfo (const char *name)
 {
 	int		i;
 	lumpinfo_t	*lump_p;
@@ -125,30 +125,19 @@ lumpinfo_t	*W_GetLumpinfo (const char *name)
 			return lump_p;
 	}
 
-	Con_SafePrintf ("W_GetLumpinfo: %s not found\n", name); //johnfitz -- was Sys_Error
 	return NULL;
 }
 
-void *W_GetLumpName (const char *name)
+void *W_GetLumpName (const char *name, lumpinfo_t **out_info)	//Spike: so caller can verify that the qpic was written properly.
 {
 	lumpinfo_t	*lump;
 
 	lump = W_GetLumpinfo (name);
 
-	if (!lump) return NULL; //johnfitz
+	if (!lump)
+		return NULL; //johnfitz
 
-	return (void *)(wad_base + lump->filepos);
-}
-
-void *W_GetLumpNum (int num)
-{
-	lumpinfo_t	*lump;
-
-	if (num < 0 || num > wad_numlumps)
-		Sys_Error ("W_GetLumpNum: bad number: %i", num);
-
-	lump = wad_lumps + num;
-
+	*out_info = lump;
 	return (void *)(wad_base + lump->filepos);
 }
 

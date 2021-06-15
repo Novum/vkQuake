@@ -147,6 +147,7 @@ typedef struct client_s
 	unsigned int	limit_models;		//
 	unsigned int	limit_sounds;		//
 	qboolean		pextknown;
+	unsigned int	protocol_pext1;
 	unsigned int	protocol_pext2;
 	unsigned int	resendstatsnum[MAX_CL_STATS/32];	//the stats which need to be resent.
 	unsigned int	resendstatsstr[MAX_CL_STATS/32];	//the stats which need to be resent.

@@ -28,6 +28,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define	PROTOCOL_NETQUAKE	15 //johnfitz -- standard quake protocol
 #define PROTOCOL_FITZQUAKE	666 //johnfitz -- added new protocol for fitzquake 0.85
 #define PROTOCOL_RMQ		999
+#define PROTOCOL_FTE_PEXT1		(('F'<<0) + ('T'<<8) + ('E'<<16) + ('X' << 24))	//fte extensions, provides extensions to the underlying base protocol (like 666 or even 15).
 #define PROTOCOL_FTE_PEXT2		(('F'<<0) + ('T'<<8) + ('E'<<16) + ('2' << 24))	//fte extensions, provides extensions to the underlying base protocol (like 666 or even 15).
 
 // PROTOCOL_RMQ protocol flags
@@ -39,7 +40,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define PRFL_ALPHASANITY	(1 << 6)	// cleanup insanity with alpha
 #define PRFL_INT32COORD		(1 << 7)
 #define PRFL_MOREFLAGS		(1 << 31)	// not supported
-
+// PROTOCOL_FTE_PEXT1 flags
+#define PEXT1_CSQC					0x40000000	//(full)csqc additions, required for csqc ents+events.
+#define PEXT1_SUPPORTED_CLIENT		(PEXT1_CSQC)	//pext1 flags that we advertise to servers (aka: full support)
+#define PEXT1_SUPPORTED_SERVER		(PEXT1_CSQC)	//pext1 flags that we accept from clients.
+#define PEXT1_ACCEPTED_CLIENT		(PEXT1_SUPPORTED_CLIENT)
 // PROTOCOL_FTE_PEXT2 flags
 #define PEXT2_REPLACEMENTDELTAS		0x00000008	//more compact entity deltas (can also be split across multiple packets)
 #define PEXT2_PREDINFO				0x00000020	//provides input acks and reworks stats such that clc_clientdata becomes redundant.

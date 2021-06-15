@@ -27,6 +27,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 #include "q_ctype.h"
 
+static float PR_GetVMScale(void)
+{
+	//sigh, this is horrible (divides glwidth)
+	float s = CLAMP (1.0, scr_sbarscale.value, (float)glwidth / 320.0);
+	return s;
+}
+
 //there's a few different aproaches to tempstrings...
 //the lame way is to just have a single one (vanilla).
 //the only slightly less lame way is to just cycle between 16 or so (most engines).
@@ -3834,7 +3841,368 @@ static void PF_isbackbuffered(void)
 		return;
 	G_FLOAT(OFS_RETURN) = false;	//okay to spam with more reliables.
 }
+static void PF_cl_getstat_int(void)
+{
+	int stnum = G_FLOAT(OFS_PARM0);
+	if (stnum < 0 || stnum > countof(cl.stats))
+		G_INT(OFS_RETURN) = 0;
+	else
+		G_INT(OFS_RETURN) = cl.stats[stnum];
+}
+static void PF_cl_getstat_float(void)
+{
+	int stnum = G_FLOAT(OFS_PARM0);
+	if (stnum < 0 || stnum > countof(cl.stats))
+		G_FLOAT(OFS_RETURN) = 0;
+	else if (qcvm->argc > 1)
+	{
+		int firstbit = G_FLOAT(OFS_PARM1);
+		int bitcount = G_FLOAT(OFS_PARM2);
+		G_FLOAT(OFS_RETURN) = (cl.stats[stnum]>>firstbit) & ((1<<bitcount)-1);
+	}
+	else
+		G_FLOAT(OFS_RETURN) = cl.statsf[stnum];
+}
+static void PF_cl_getstat_string(void)
+{
+	int stnum = G_FLOAT(OFS_PARM0);
+	if (stnum < 0 || stnum > countof(cl.statss) || !cl.statss[stnum])
+		G_INT(OFS_RETURN) = 0;
+	else
+	{
+		char *result = PR_GetTempString();
+		q_strlcpy(result, cl.statss[stnum], STRINGTEMP_LENGTH);
+		G_INT(OFS_RETURN) = PR_SetEngineString(result);
+	}
+}
 
+static struct
+{
+	char name[MAX_QPATH];
+	unsigned int flags;
+	qpic_t *pic;
+} *qcpics;
+static size_t numqcpics;
+static size_t maxqcpics;
+void PR_ReloadPics(qboolean purge)
+{
+	numqcpics = 0;
+
+	free(qcpics);
+	qcpics = NULL;
+	maxqcpics = 0;
+}
+#define PICFLAG_AUTO		0	//value used when no flags known
+#define PICFLAG_WAD			(1u<<0)	//name matches that of a wad lump
+#define PICFLAG_WRAP		(1u<<2)	//make sure npot stuff doesn't break wrapping.
+#define PICFLAG_MIPMAP		(1u<<3)	//disable use of scrap...
+#define PICFLAG_BLOCK		(1u<<9)	//wait until the texture is fully loaded.
+#define PICFLAG_NOLOAD		(1u<<31)
+static qpic_t *DrawQC_CachePic(const char *picname, unsigned int flags)
+{	//okay, so this is silly. we've ended up with 3 different cache levels. qcpics, pics, and images.
+	size_t i;
+	unsigned int texflags;
+	for (i = 0; i < numqcpics; i++)
+	{	//binary search? something more sane?
+		if (!strcmp(picname, qcpics[i].name))
+		{
+			if (qcpics[i].pic)
+				return qcpics[i].pic;
+			break;
+		}
+	}
+
+	if (strlen(picname) >= MAX_QPATH)
+		return NULL;	//too long. get lost.
+
+	if (flags & PICFLAG_NOLOAD)
+		return NULL;	//its a query, not actually needed.
+
+	if (i+1 > maxqcpics)
+	{
+		maxqcpics = i + 32;
+		qcpics = realloc(qcpics, maxqcpics * sizeof(*qcpics));
+	}
+
+	strcpy(qcpics[i].name, picname);
+	qcpics[i].flags = flags;
+	qcpics[i].pic = NULL;
+
+	texflags = TEXPREF_ALPHA | TEXPREF_PAD | TEXPREF_NOPICMIP;
+	if (flags & PICFLAG_WRAP)
+		texflags &= ~TEXPREF_PAD;	//don't allow padding if its going to need to wrap (even if we don't enable clamp-to-edge normally). I just hope we have npot support.
+	if (flags & PICFLAG_MIPMAP)
+		texflags |= TEXPREF_MIPMAP;
+
+	//try to load it from a wad if applicable.
+	//the extra gfx/ crap is because DP insists on it for wad images. and its a nightmare to get things working in all engines if we don't accept that quirk too.
+	if (flags & PICFLAG_WAD)
+		qcpics[i].pic = Draw_PicFromWad2(picname + (strncmp(picname, "gfx/", 4)?0:4), texflags);
+	else if (!strncmp(picname, "gfx/", 4) && !strchr(picname+4, '.'))
+		qcpics[i].pic = Draw_PicFromWad2(picname+4, texflags);
+
+	//okay, not a wad pic, try and load a lmp/tga/etc
+	if (!qcpics[i].pic)
+		qcpics[i].pic = Draw_TryCachePic(picname, texflags);
+
+	if (i == numqcpics)
+		numqcpics++;
+
+	return qcpics[i].pic;
+}
+extern gltexture_t *char_texture;
+static void DrawQC_CharacterQuad (float x, float y, int num, float w, float h, float * rgb, float alpha)
+{
+	float size = 0.0625;
+	float frow = (num>>4)*size;
+	float fcol = (num&15)*size;
+	int i;
+	qboolean alpha_blend = alpha < 1.0f;
+	size = 0.0624;	//avoid rounding errors...
+
+	VkBuffer buffer;
+	VkDeviceSize buffer_offset;
+	basicvertex_t * vertices = (basicvertex_t*)R_VertexAllocate(6 * sizeof(basicvertex_t), &buffer, &buffer_offset);
+
+	basicvertex_t corner_verts[4];
+	memset(&corner_verts, 255, sizeof(corner_verts));
+
+	corner_verts[0].position[0] = x;
+	corner_verts[0].position[1] = y;
+	corner_verts[0].position[2] = 0.0f;
+	corner_verts[0].texcoord[0] = fcol;
+	corner_verts[0].texcoord[1] = frow;
+
+	corner_verts[1].position[0] = x+8;
+	corner_verts[1].position[1] = y;
+	corner_verts[1].position[2] = 0.0f;
+	corner_verts[1].texcoord[0] = fcol + size;
+	corner_verts[1].texcoord[1] = frow;
+
+	corner_verts[2].position[0] = x+8;
+	corner_verts[2].position[1] = y+8;
+	corner_verts[2].position[2] = 0.0f;
+	corner_verts[2].texcoord[0] = fcol + size;
+	corner_verts[2].texcoord[1] = frow + size;
+
+	corner_verts[3].position[0] = x;
+	corner_verts[3].position[1] = y+8;
+	corner_verts[3].position[2] = 0.0f;
+	corner_verts[3].texcoord[0] = fcol;
+	corner_verts[3].texcoord[1] = frow + size;
+
+	vertices[0] = corner_verts[0];
+	vertices[1] = corner_verts[1];
+	vertices[2] = corner_verts[2];
+	vertices[3] = corner_verts[2];
+	vertices[4] = corner_verts[3];
+	vertices[5] = corner_verts[0];
+
+	for (i = 0; i<4; ++i)
+	{
+		corner_verts[i].color[0] = rgb[0] * 255.0f;
+		corner_verts[i].color[1] = rgb[1] * 255.0f;
+		corner_verts[i].color[2] = rgb[2] * 255.0f;
+		corner_verts[i].color[3] = alpha * 255.0f;
+	}
+
+	vulkan_globals.vk_cmd_bind_vertex_buffers(vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
+	if (alpha_blend)
+		R_BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_blend_pipeline[render_pass_index]);
+	else 
+		R_BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_alphatest_pipeline[render_pass_index]);
+	vulkan_globals.vk_cmd_bind_descriptor_sets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &char_texture->descriptor_set, 0, NULL);
+	vulkan_globals.vk_cmd_draw(vulkan_globals.command_buffer, 6, 1, 0, 0);
+}
+static void PF_cl_drawcharacter(void)
+{
+	extern gltexture_t *char_texture;
+	
+	float *pos	= G_VECTOR(OFS_PARM0);
+	int charcode= (int)G_FLOAT (OFS_PARM1) & 0xff;
+	float *size	= G_VECTOR(OFS_PARM2);
+	float *rgb	= G_VECTOR(OFS_PARM3);
+	float alpha	= G_FLOAT (OFS_PARM4);
+
+	if (charcode == 32)
+		return; //don't waste time on spaces
+
+	DrawQC_CharacterQuad (pos[0], pos[1], charcode, size[0], size[1], rgb, alpha);
+}
+
+static void PF_cl_drawrawstring(void)
+{
+	float *pos	= G_VECTOR(OFS_PARM0);
+	const char *text = G_STRING (OFS_PARM1);
+	float *size	= G_VECTOR(OFS_PARM2);
+	float *rgb	= G_VECTOR(OFS_PARM3);
+	float alpha	= G_FLOAT (OFS_PARM4);
+
+	float x = pos[0];
+	int c;
+	
+	if (!*text)
+		return; //don't waste time on spaces
+
+	while ((c = *text++))
+	{
+		DrawQC_CharacterQuad (x, pos[1], c, size[0], size[1], rgb, alpha);
+		x += size[0];
+	}
+}
+static void PF_cl_drawstring(void)
+{
+	float *pos	= G_VECTOR(OFS_PARM0);
+	const char *text = G_STRING (OFS_PARM1);
+	float *size	= G_VECTOR(OFS_PARM2);
+	float *rgb	= G_VECTOR(OFS_PARM3);
+	float alpha	= G_FLOAT (OFS_PARM4);
+	
+	float x = pos[0];
+	struct markup_s mu;
+	int c;
+	
+	if (!*text)
+		return; //don't waste time on spaces
+	
+	PR_Markup_Begin(&mu, text, rgb, alpha);
+
+	while ((c = PR_Markup_Parse(&mu)))
+	{
+		DrawQC_CharacterQuad (x, pos[1], c, size[0], size[1], rgb, alpha);
+		x += size[0];
+	}
+}
+static void PF_cl_stringwidth(void)
+{
+	static const float defaultfontsize[] = {8,8};
+	const char *text = G_STRING (OFS_PARM0);
+	qboolean usecolours = G_FLOAT(OFS_PARM1);
+	const float *fontsize = (qcvm->argc>2)?G_VECTOR (OFS_PARM2):defaultfontsize;
+	struct markup_s mu;
+	int r = 0;
+
+	if (!usecolours)
+		r = strlen(text);
+	else
+	{
+		PR_Markup_Begin(&mu, text, vec3_origin, 1);
+		while (PR_Markup_Parse(&mu))
+		{
+			r += 1;
+		}
+	}
+
+	//primitive and lame, but hey.
+	G_FLOAT(OFS_RETURN) = fontsize[0] * r;
+}
+
+static void PF_cl_drawsetclip(void)
+{
+	float s = PR_GetVMScale();
+
+	float x = G_FLOAT(OFS_PARM0)*s;
+	float y = G_FLOAT(OFS_PARM1)*s;
+	float w = G_FLOAT(OFS_PARM2)*s;
+	float h = G_FLOAT(OFS_PARM3)*s;
+
+	VkRect2D render_area;
+	render_area.offset.x = x;
+	render_area.offset.y = y;
+	render_area.extent.width = w;
+	render_area.extent.height = h;
+	vkCmdSetScissor(vulkan_globals.command_buffer, 0, 1, &render_area);
+}
+static void PF_cl_drawresetclip(void)
+{
+	VkRect2D render_area;
+	render_area.offset.x = 0;
+	render_area.offset.y = 0;
+	render_area.extent.width = vid.width;
+	render_area.extent.height = vid.height;
+	vkCmdSetScissor(vulkan_globals.command_buffer, 0, 1, &render_area);
+}
+
+static void PF_cl_precachepic(void)
+{
+	const char *name	= G_STRING(OFS_PARM0);
+	unsigned int flags = G_FLOAT(OFS_PARM1);
+
+	G_INT(OFS_RETURN) = G_INT(OFS_PARM0);	//return input string, for convienience
+
+	if (!DrawQC_CachePic(name, flags) && (flags & PICFLAG_BLOCK))
+		G_INT(OFS_RETURN) = 0;	//return input string, for convienience
+}
+static void PF_cl_iscachedpic(void)
+{
+	const char *name	= G_STRING(OFS_PARM0);
+	if (DrawQC_CachePic(name, PICFLAG_NOLOAD))
+		G_FLOAT(OFS_RETURN) = true;
+	else
+		G_FLOAT(OFS_RETURN) = false;
+}
+
+static void PF_cl_drawpic(void)
+{
+	float *pos	= G_VECTOR(OFS_PARM0);
+	qpic_t *pic	= DrawQC_CachePic(G_STRING(OFS_PARM1), PICFLAG_AUTO);
+	float *size	= G_VECTOR(OFS_PARM2);
+	float *rgb	= G_VECTOR(OFS_PARM3);
+	float alpha	= G_FLOAT (OFS_PARM4);
+	
+	if (pic)
+		Draw_SubPic (pos[0], pos[1], size[0], size[1], pic, 0, 0, 1, 1, rgb, alpha);
+}
+
+static void PF_cl_getimagesize(void)
+{
+	qpic_t *pic	= DrawQC_CachePic(G_STRING(OFS_PARM0), PICFLAG_AUTO);
+	if (pic)
+		G_VECTORSET(OFS_RETURN, pic->width, pic->height, 0);
+	else
+		G_VECTORSET(OFS_RETURN, 0, 0, 0);
+}
+
+static void PF_cl_drawsubpic(void)
+{
+	float *pos	= G_VECTOR(OFS_PARM0);
+	float *size	= G_VECTOR(OFS_PARM1);
+	qpic_t *pic	= DrawQC_CachePic(G_STRING(OFS_PARM2), PICFLAG_AUTO);
+	float *srcpos	= G_VECTOR(OFS_PARM3);
+	float *srcsize	= G_VECTOR(OFS_PARM4);
+	float *rgb	= G_VECTOR(OFS_PARM5);
+	float alpha	= G_FLOAT (OFS_PARM6); 
+	
+	if (pic)
+		Draw_SubPic (pos[0], pos[1], size[0], size[1], pic, srcpos[0], srcpos[1], srcsize[0], srcsize[1], rgb, alpha);
+}
+
+static void PF_cl_drawfill(void)
+{
+	//float *pos	= G_VECTOR(OFS_PARM0);
+	//float *size	= G_VECTOR(OFS_PARM1);
+	//float *rgb	= G_VECTOR(OFS_PARM2);
+	//float alpha	= G_FLOAT (OFS_PARM3);
+	//
+	//glDisable (GL_TEXTURE_2D);
+	//
+	//glColor4f (rgb[0], rgb[1], rgb[2], alpha);
+	//
+	//glBegin (GL_QUADS);
+	//glVertex2f (pos[0],			pos[1]);
+	//glVertex2f (pos[0]+size[0],	pos[1]);
+	//glVertex2f (pos[0]+size[0],	pos[1]+size[1]);
+	//glVertex2f (pos[0],			pos[1]+size[1]);
+	//glEnd ();
+	//
+	//glEnable (GL_TEXTURE_2D);
+}
+
+static void PF_cl_registercommand(void)
+{
+	const char *cmdname = G_STRING(OFS_PARM0);
+	Cmd_AddCommand(cmdname, NULL);
+}
 static void PF_uri_get(void){G_VECTORSET(OFS_RETURN, 0,0,0);}
 
 static void PF_touchtriggers (void)
@@ -3960,8 +4328,24 @@ static struct
 	{"WriteFloat",					PF_WriteFloat,					PF_NoCSQC,						280,	"void(float buf, float fl)"},
 	{"frametoname",					PF_frametoname,					PF_frametoname,					284,	"string(float modidx, float framenum)"},
 	{"checkcommand",				PF_checkcommand,				PF_checkcommand,				294,	D("float(string name)", "Checks to see if the supplied name is a valid command, cvar, or alias. Returns 0 if it does not exist.")},
+	{"iscachedpic",					PF_NoSSQC,						PF_cl_iscachedpic,				316,	D("float(string name)", "Checks to see if the image is currently loaded. Engines might lie, or cache between maps.")},// (EXT_CSQC)
+	{"precache_pic",				PF_NoSSQC,						PF_cl_precachepic,				317,	D("string(string name, optional float flags)", "Forces the engine to load the named image. If trywad is specified, the specified name must any lack path and extension.")},// (EXT_CSQC)
+	{"drawgetimagesize",			PF_NoSSQC,						PF_cl_getimagesize,				318,	D("#define draw_getimagesize drawgetimagesize\nvector(string picname)", "Returns the dimensions of the named image. Images specified with .lmp should give the original .lmp's dimensions even if texture replacements use a different resolution.")},// (EXT_CSQC)
+	{"drawcharacter",				PF_NoSSQC,						PF_cl_drawcharacter,			320,	D("float(vector position, float character, vector size, vector rgb, float alpha, optional float drawflag)", "Draw the given quake character at the given position.\nIf flag&4, the function will consider the char to be a unicode char instead (or display as a ? if outside the 32-127 range).\nsize should normally be something like '8 8 0'.\nrgb should normally be '1 1 1'\nalpha normally 1.\nSoftware engines may assume the named defaults.\nNote that ALL text may be rescaled on the X axis due to variable width fonts. The X axis may even be ignored completely.")},// (EXT_CSQC, [EXT_CSQC_???])
+	{"drawrawstring",				PF_NoSSQC,						PF_cl_drawrawstring,			321,	D("float(vector position, string text, vector size, vector rgb, float alpha, optional float drawflag)", "Draws the specified string without using any markup at all, even in engines that support it.\nIf UTF-8 is globally enabled in the engine, then that encoding is used (without additional markup), otherwise it is raw quake chars.\nSoftware engines may assume a size of '8 8 0', rgb='1 1 1', alpha=1, flag&3=0, but it is not an error to draw out of the screen.")},// (EXT_CSQC, [EXT_CSQC_???])
+	{"drawpic",						PF_NoSSQC,						PF_cl_drawpic,					322,	D("float(vector position, string pic, vector size, vector rgb, float alpha, optional float drawflag)", "Draws an shader within the given 2d screen box. Software engines may omit support for rgb+alpha, but must support rescaling, and must clip to the screen without crashing.")},// (EXT_CSQC, [EXT_CSQC_???])
+	{"drawfill",					PF_NoSSQC,						PF_cl_drawfill,					323,	D("float(vector position, vector size, vector rgb, float alpha, optional float drawflag)", "Draws a solid block over the given 2d box, with given colour, alpha, and blend mode (specified via flags).\nflags&3=0 simple blend.\nflags&3=1 additive blend")},// (EXT_CSQC, [EXT_CSQC_???])
+	{"drawsetcliparea",				PF_NoSSQC,						PF_cl_drawsetclip,				324,	D("void(float x, float y, float width, float height)", "Specifies a 2d clipping region (aka: scissor test). 2d draw calls will all be clipped to this 2d box, the area outside will not be modified by any 2d draw call (even 2d polygons).")},// (EXT_CSQC_???)
+	{"drawresetcliparea",			PF_NoSSQC,						PF_cl_drawresetclip,			325,	D("void(void)", "Reverts the scissor/clip area to the whole screen.")},// (EXT_CSQC_???)
+	{"drawstring",					PF_NoSSQC,						PF_cl_drawstring,				326,	D("float(vector position, string text, vector size, vector rgb, float alpha, float drawflag)", "Draws a string, interpreting markup and recolouring as appropriate.")},// #326
+	{"stringwidth",					PF_NoSSQC,						PF_cl_stringwidth,				327,	D("float(string text, float usecolours, vector fontsize='8 8')", "Calculates the width of the screen in virtual pixels. If usecolours is 1, markup that does not affect the string width will be ignored. Will always be decoded as UTF-8 if UTF-8 is globally enabled.\nIf the char size is not specified, '8 8 0' will be assumed.")},// EXT_CSQC_'DARKPLACES'
+	{"drawsubpic",					PF_NoSSQC,						PF_cl_drawsubpic,				328,	D("void(vector pos, vector sz, string pic, vector srcpos, vector srcsz, vector rgb, float alpha, optional float drawflag)", "Draws a rescaled subsection of an image to the screen.")},// #328 EXT_CSQC_'DARKPLACES'
+	{"getstati",					PF_NoSSQC,						PF_cl_getstat_int,				330,	D("#define getstati_punf(stnum) (float)(__variant)getstati(stnum)\nint(float stnum)", "Retrieves the numerical value of the given EV_INTEGER or EV_ENTITY stat. Use getstati_punf if you wish to type-pun a float stat as an int to avoid truncation issues in DP.")},// (EXT_CSQC)
+	{"getstatf",					PF_NoSSQC,						PF_cl_getstat_float,			331,	D("#define getstatbits getstatf\nfloat(float stnum, optional float firstbit, optional float bitcount)", "Retrieves the numerical value of the given EV_FLOAT stat. If firstbit and bitcount are specified, retrieves the upper bits of the STAT_ITEMS stat (converted into a float, so there are no VM dependancies).")},// (EXT_CSQC)
+	{"getstats",					PF_NoSSQC,						PF_cl_getstat_string,			332,	D("string(float stnum)", "Retrieves the value of the given EV_STRING stat, as a tempstring.\nString stats use a separate pool of stats from numeric ones.\n")},
 	{"setmodelindex",				PF_sv_setmodelindex,			PF_cl_setmodelindex,			333,	D("void(entity e, float mdlindex)", "Sets a model by precache index instead of by name. Otherwise identical to setmodel.")},//
 	{"print",						PF_print,						PF_print,						339,	D("void(string s, ...)", "Unconditionally print on the local system's console, even in ssqc (doesn't care about the value of the developer cvar).")},//(EXT_CSQC)
+	{"registercommand",				NULL,							PF_cl_registercommand,			352,	D("void(string cmdname)", "Register the given console command, for easy console use.\nConsole commands that are later used will invoke CSQC_ConsoleCommand.")},//(EXT_CSQC)
 	{"wasfreed",					PF_WasFreed,					PF_WasFreed,					353,	D("float(entity ent)", "Quickly check to see if the entity is currently free. This function is only valid during the two-second non-reuse window, after that it may give bad results. Try one second to make it more robust.")},//(EXT_CSQC) (should be availabe on server too)
 	{"copyentity",					PF_copyentity,					PF_copyentity,					400,	D("entity(entity from, optional entity to)", "Copies all fields from one entity to another.")},// (DP_QC_COPYENTITY)
 	{"findchain",					PF_findchain,					PF_findchain,					402,	"entity(.string field, string match, optional .entity chainfield)"},// (DP_QC_FINDCHAIN)
@@ -4163,7 +4547,7 @@ static void PF_checkextension(void)
 		{
 			if (qcextensions[i].checkextsupported)
 			{
-				unsigned int prot, pext2;
+				unsigned int prot, pext1, pext2;
 				extern unsigned int sv_protocol;
 				extern unsigned int sv_protocol_pext1;
 				extern unsigned int sv_protocol_pext2;
@@ -4171,23 +4555,26 @@ static void PF_checkextension(void)
 				if (sv.active || qcvm == &sv.qcvm)
 				{	//server or client+server
 					prot = sv_protocol;
+					pext1 = sv_protocol_pext1;
 					pext2 = sv_protocol_pext2;
 
 					//if the server seems to be set up for singleplayer then filter by client settings. otherwise just assume the best.
 					if (!isDedicated && svs.maxclients == 1 && cl_nopext.value)
-						pext2 = 0;
+						pext1 = pext2 = 0;
 				}
 				else if (cls.state == ca_connected)
 				{	//client only (or demo)
 					prot = cl.protocol;
+					pext1 = cl.protocol_pext1;
 					pext2 = cl.protocol_pext2;
 				}
 				else
 				{	//menuqc? ooer
 					prot = 0;
+					pext1 = 0;
 					pext2 = 0;
 				}
-				if (!qcextensions[i].checkextsupported(prot, 0, pext2))
+				if (!qcextensions[i].checkextsupported(prot, pext1, pext2))
 				{
 					if (!pr_checkextension.value)
 						Con_Printf("Mod queried extension %s, but not enabled\n", extname);
@@ -4393,6 +4780,7 @@ void PR_EnableExtensions(ddef_t *pr_globaldefs)
 		}
 
 		QCEXTFUNCS_GAME
+		QCEXTFUNCS_CS
 	}
 	else if (qcvm == &sv.qcvm)
 	{	//ssqc

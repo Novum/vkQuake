@@ -927,6 +927,13 @@ static void CL_ParseServerInfo (void)
 	for(;;)
 	{
 		i = MSG_ReadLong ();
+		if (i == PROTOCOL_FTE_PEXT1)
+		{
+			cl.protocol_pext1 = MSG_ReadLong();
+			if (cl.protocol_pext1& ~PEXT1_ACCEPTED_CLIENT)
+				Host_Error ("Server returned FTE1 protocol extensions that are not supported (%#x)", cl.protocol_pext1 & ~PEXT1_SUPPORTED_CLIENT);
+			continue;
+		}
 		if (i == PROTOCOL_FTE_PEXT2)
 		{
 			cl.protocol_pext2 = MSG_ReadLong();
@@ -1955,6 +1962,19 @@ void CL_ParseServerMessage (void)
 			if (!(cl.protocol_pext2 & PEXT2_REPLACEMENTDELTAS))
 				Host_Error ("Received svcfte_updateentities but extension not active");
 			CLFTE_ParseEntitiesUpdate();
+			break;
+
+		case svcfte_cgamepacket:
+			if (!(cl.protocol_pext1 & PEXT1_CSQC))
+				Host_Error ("Received svcfte_cgamepacket but extension not active");
+			if (cl.qcvm.extfuncs.CSQC_Parse_Event)
+			{
+				PR_SwitchQCVM(&cl.qcvm);
+				PR_ExecuteProgram(cl.qcvm.extfuncs.CSQC_Parse_Event);
+				PR_SwitchQCVM(NULL);
+			}
+			else
+				Host_Error ("CSQC_Parse_Event: Missing or incompatible CSQC\n");
 			break;
 		}
 

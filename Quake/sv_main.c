@@ -30,6 +30,7 @@ server_static_t	svs;
 static char	localmodels[MAX_MODELS][8];	// inline model names for precache
 
 int				sv_protocol = PROTOCOL_RMQ;//spike -- enough maps need this now that we can probably afford incompatibility with engines that still don't support 999 (vanilla was already broken) -- PROTOCOL_FITZQUAKE; //johnfitz
+unsigned int	sv_protocol_pext1 = PEXT1_SUPPORTED_SERVER; //spike
 unsigned int	sv_protocol_pext2 = PEXT2_SUPPORTED_SERVER; //spike
 
 
@@ -945,9 +946,10 @@ static void SV_Protocol_f (void)
 {
 	int i;
 	const char *s;
-	int prot, pext2;
+	int prot, pext1, pext2;
 
 	prot = sv_protocol;
+	pext1 = sv_protocol_pext1;
 	pext2 = sv_protocol_pext2;
 
 	switch (Cmd_Argc())
@@ -963,11 +965,13 @@ static void SV_Protocol_f (void)
 			s += 3;
 			if (*s == '+' || *s == '-')
 				s++;
+			pext1 = PEXT1_SUPPORTED_SERVER;
 			pext2 = PEXT2_SUPPORTED_SERVER;
 		}
 		else if (!q_strncasecmp(s, "+", 3))
 		{
 			s += 1;
+			pext1 = PEXT1_SUPPORTED_SERVER;
 			pext2 = PEXT2_SUPPORTED_SERVER;
 		}
 		else if (!q_strncasecmp(s, "Base", 4))
@@ -975,21 +979,25 @@ static void SV_Protocol_f (void)
 			s+= 4;
 			if (*s == '+' || *s == '-')
 				s++;
+			pext1 = 0;
 			pext2 = 0;
 		}
 		else if (*s == '-')
 		{
 			s++;
+			pext1 = 0;
 			pext2 = 0;
 		}
 
 		i = strtol(s, (char**)&s, 0);
 		if (*s == '-')
 		{
+			pext1 = 0;
 			pext2 = 0;
 		}
 		else if (*s == '+')
 		{
+			pext1 = PEXT1_SUPPORTED_SERVER;
 			pext2 = PEXT2_SUPPORTED_SERVER;
 		}
 
@@ -998,10 +1006,11 @@ static void SV_Protocol_f (void)
 		else
 		{
 			sv_protocol = i;
+			sv_protocol_pext1 = pext1;
 			sv_protocol_pext2 = pext2;
 			if (sv.active)
 			{
-				if (prot == sv_protocol && pext2 == sv_protocol_pext2)
+				if (prot == sv_protocol && pext1 == sv_protocol_pext1 && pext2 == sv_protocol_pext2)
 					Con_Printf ("specified protocol already active.\n");
 				else
 					Con_Printf ("changes will not take effect until the next level load.\n");
