@@ -1577,8 +1577,6 @@ static void CL_ParseStatNumeric(int stat, int ival, float fval)
 	}
 	cl.stats[stat] = ival;
 	cl.statsf[stat] = fval;
-	if (stat == STAT_VIEWZOOM)
-		vid.recalc_refdef = true;
 	//just assume that they all affect the hud
 	Sbar_Changed ();
 }

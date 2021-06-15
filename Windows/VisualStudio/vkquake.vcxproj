@@ -259,6 +259,7 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClCompile Include="..\..\Quake\pr_cmds.c" />
     <ClCompile Include="..\..\Quake\pr_edict.c" />
     <ClCompile Include="..\..\Quake\pr_exec.c" />
+    <ClCompile Include="..\..\Quake\pr_ext.c" />
     <ClCompile Include="..\..\Quake\r_alias.c" />
     <ClCompile Include="..\..\Quake\r_brush.c" />
     <ClCompile Include="..\..\Quake\r_part.c" />

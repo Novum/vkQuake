@@ -32,20 +32,20 @@ static char	localmodels[MAX_MODELS][8];	// inline model names for precache
 int				sv_protocol = PROTOCOL_RMQ;//spike -- enough maps need this now that we can probably afford incompatibility with engines that still don't support 999 (vanilla was already broken) -- PROTOCOL_FITZQUAKE; //johnfitz
 unsigned int	sv_protocol_pext2 = PEXT2_SUPPORTED_SERVER; //spike
 
-extern qboolean	pr_alpha_supported; //johnfitz
 
 //============================================================================
 
 
-void SV_CalcStats(client_t *client, int *statsi, float *statsf, char **statss)
+void SV_CalcStats(client_t *client, int *statsi, float *statsf, const char **statss)
 {
+	size_t i;
 	edict_t *ent = client->edict;
 	//FIXME: string stats!
 	int items = (int)ent->v.items | ((int)pr_global_struct->serverflags << 28);
 
 	memset(statsi, 0, sizeof(*statsi)*MAX_CL_STATS);
 	memset(statsf, 0, sizeof(*statsf)*MAX_CL_STATS);
-	memset(statss, 0, sizeof(*statss)*MAX_CL_STATS);
+	memset((void*)statss, 0, sizeof(*statss)*MAX_CL_STATS);
 	statsf[STAT_HEALTH] = ent->v.health;
 	statsi[STAT_WEAPON] = SV_ModelIndex(PR_GetString(ent->v.weaponmodel));
 	if ((unsigned int)statsi[STAT_WEAPON] >= client->limit_models)
@@ -68,7 +68,42 @@ void SV_CalcStats(client_t *client, int *statsi, float *statsf, char **statss)
 		statsf[STAT_PUNCHANGLE_Y] = ent->v.punchangle[1];
 		statsf[STAT_PUNCHANGLE_Z] = ent->v.punchangle[2];
 	}
+
+	for (i = 0; i < sv.numcustomstats; i++)
+	{
+		eval_t *eval = sv.customstats[i].ptr;
+		if (!eval)
+			eval = GetEdictFieldValue(ent, sv.customstats[i].fld);
+
+		switch(sv.customstats[i].type)
+		{
+		case ev_ext_integer:
+			statsi[sv.customstats[i].idx] = eval->_int;
+			break;
+		case ev_entity:
+			statsi[sv.customstats[i].idx] = NUM_FOR_EDICT(PROG_TO_EDICT(eval->edict));
+			break;
+		case ev_float:
+			statsf[sv.customstats[i].idx] = eval->_float;
+			break;
+		case ev_vector:
+			statsf[sv.customstats[i].idx+0] = eval->vector[0];
+			statsf[sv.customstats[i].idx+1] = eval->vector[1];
+			statsf[sv.customstats[i].idx+2] = eval->vector[2];
+			break;
+		case ev_string:		//not supported in this build... send with svcfte_updatestatstring on change, which is annoying.
+			statss[sv.customstats[i].idx] = PR_GetString(eval->string);
+			break;
+		case ev_void:		//nothing...
+		case ev_field:		//panic! everyone panic!
+		case ev_function:	//doesn't make much sense
+		case ev_pointer:	//doesn't make sense
+		default:
+			break;
+		}
+	}
 }
+
 
 /*server-side-only flags that re-use encoding bits*/
 #define UF_REMOVE		UF_16BIT	/*says we removed the entity in this frame*/
@@ -702,6 +737,7 @@ note: ignores viewmodelforclient and other client-specific stuff.
 */
 void SV_BuildEntityState(edict_t *ent, entity_state_t *state)
 {
+	eval_t			*val;
 	state->eflags = 0;
 	VectorCopy(ent->v.origin, state->origin);
 	VectorCopy(ent->v.angles, state->angles);
@@ -709,14 +745,35 @@ void SV_BuildEntityState(edict_t *ent, entity_state_t *state)
 	state->frame = ent->v.frame;
 	state->colormap = ent->v.colormap;
 	state->skin = ent->v.skin;
-	state->scale = 16;
-	state->alpha = ent->alpha;
-	state->colormod[0] = state->colormod[1] = state->colormod[2] = 32;
-	state->traileffectnum = 0;
-	state->emiteffectnum = 0;
-	state->tagentity = 0;
-	state->tagindex = 0;
+	if ((val = GetEdictFieldValue(ent, qcvm->extfields.scale)) && val->_float)
+		state->scale = val->_float*16;
+	else
+		state->scale = 16;
+	if ((val = GetEdictFieldValue(ent, qcvm->extfields.alpha)))
+		state->alpha = ENTALPHA_ENCODE(val->_float);
+	else
+		state->alpha = ent->alpha;
+	if ((val = GetEdictFieldValue(ent, qcvm->extfields.colormod)) && (val->vector[0]||val->vector[1]||val->vector[2]))
+	{
+		state->colormod[0] = val->vector[0]*32;
+		state->colormod[1] = val->vector[1]*32;
+		state->colormod[2] = val->vector[2]*32;
+	}
+	else
+		state->colormod[0] = state->colormod[1] = state->colormod[2] = 32;
+	state->traileffectnum = qcvm->extfields.traileffectnum>=0?GetEdictFieldValue(ent, qcvm->extfields.traileffectnum)->_float:0;
+	state->emiteffectnum = qcvm->extfields.emiteffectnum>=0?GetEdictFieldValue(ent, qcvm->extfields.emiteffectnum)->_float:0;
+	if ((val = GetEdictFieldValue(ent, qcvm->extfields.tag_entity)) && val->edict)
+		state->tagentity = NUM_FOR_EDICT(PROG_TO_EDICT(val->edict));
+	else
+		state->tagentity = 0;
+	if ((val = GetEdictFieldValue(ent, qcvm->extfields.tag_index)))
+		state->tagindex = val->_float;
+	else
+		state->tagindex = 0;
 	state->effects = ent->v.effects;
+	if ((val = GetEdictFieldValue(ent, qcvm->extfields.modelflags)))
+		state->effects |= ((unsigned int)val->_float)<<24;
 	if (!ent->v.movetype || ent->v.movetype == MOVETYPE_STEP)
 		state->eflags |= EFLAGS_STEP;
 
@@ -993,6 +1050,7 @@ void SV_Init (void)
 	Cvar_RegisterVariable (&sv_aim);
 	Cvar_RegisterVariable (&sv_nostep);
 	Cvar_RegisterVariable (&sv_freezenonclients);
+	Cvar_RegisterVariable (&pr_checkextension);
 	Cvar_RegisterVariable (&sv_altnoclip); //johnfitz
 
 	Cmd_AddCommand("pext", SV_Pext_f);
@@ -1749,13 +1807,10 @@ void SV_WriteEntitiesToClient (client_t *client, sizebuf_t *msg)
 			bits |= U_MODEL;
 
 		//johnfitz -- alpha
-		if (pr_alpha_supported)
-		{
-			// TODO: find a cleaner place to put this code
-			val = GetEdictFieldValue(ent, ED_FindFieldOffset("alpha"));
-			if (val)
-				ent->alpha = ENTALPHA_ENCODE(val->_float);
-		}
+		// TODO: find a cleaner place to put this code
+		val = GetEdictFieldValue(ent, qcvm->extfields.alpha);
+		if (val)
+			ent->alpha = ENTALPHA_ENCODE(val->_float);
 
 		//don't send invisible entities unless they have effects
 		if (ent->alpha == ENTALPHA_ZERO && !ent->v.effects)
@@ -2497,6 +2552,7 @@ void SV_CreateBaseline (void)
 {
 	edict_t		*svent;
 	int			entnum;
+	eval_t		*val;
 
 	for (entnum = 0; entnum < qcvm->num_edicts; entnum++)
 	{
@@ -2524,7 +2580,11 @@ void SV_CreateBaseline (void)
 		{
 			svent->baseline.colormap = 0;
 			svent->baseline.modelindex = SV_ModelIndex(PR_GetString(svent->v.model));
-			svent->baseline.alpha = svent->alpha; //johnfitz -- alpha support
+			val = GetEdictFieldValue(svent, qcvm->extfields.alpha);
+			if (val)
+				svent->baseline.alpha = ENTALPHA_ENCODE(val->_float);
+			else
+				svent->baseline.alpha = svent->alpha; //johnfitz -- alpha support
 		}
 
 		//Spike -- baselines are now generated on a per-client basis.
@@ -2583,8 +2643,13 @@ void SV_SaveSpawnparms (void)
 	// call the progs to get default spawn parms for the new client
 		pr_global_struct->self = EDICT_TO_PROG(host_client->edict);
 		PR_ExecuteProgram (pr_global_struct->SetChangeParms);
-		for (j=0 ; j<NUM_TOTAL_SPAWN_PARMS ; j++)
+		for (j=0 ; j<NUM_BASIC_SPAWN_PARMS ; j++)
 			host_client->spawn_parms[j] = (&pr_global_struct->parm1)[j];
+		for ( ; j< NUM_TOTAL_SPAWN_PARMS ; j++)
+		{
+			ddef_t *g = ED_FindGlobal(va("parm%i", j+1));
+			host_client->spawn_parms[j] = g?qcvm->globals[g->ofs]:0;
+		}
 	}
 }
 
@@ -2661,7 +2726,6 @@ void SV_SpawnServer (const char *server)
 	}
 	else sv.protocolflags = 0;
 
-
 	PR_SwitchQCVM(vm);
 // load progs to get entity field count
 	PR_LoadProgs ("progs.dat", true, PROGHEADER_CRC, pr_ssqcbuiltins, pr_ssqcnumbuiltins);
@@ -2674,6 +2738,10 @@ void SV_SpawnServer (const char *server)
 	sv.datagram.maxsize = sizeof(sv.datagram_buf);
 	sv.datagram.cursize = 0;
 	sv.datagram.data = sv.datagram_buf;
+
+	sv.multicast.maxsize = sizeof(sv.multicast_buf);
+	sv.multicast.cursize = 0;
+	sv.multicast.data = sv.multicast_buf;
 
 	sv.reliable_datagram.maxsize = sizeof(sv.reliable_datagram_buf);
 	sv.reliable_datagram.cursize = 0;
@@ -2717,6 +2785,12 @@ void SV_SpawnServer (const char *server)
 	sv.sound_precache[0] = dummy;
 	sv.model_precache[0] = dummy;
 	sv.model_precache[1] = sv.modelname;
+	if (qcvm->worldmodel->numsubmodels > MAX_MODELS)
+	{
+		Con_Printf ("too many inline models %s\n", sv.modelname);
+		sv.active = false;
+		return;
+	}
 	for (i=1 ; i<qcvm->worldmodel->numsubmodels ; i++)
 	{
 		sv.model_precache[1+i] = localmodels[i];

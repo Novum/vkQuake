@@ -362,7 +362,7 @@ void PR_ExecuteProgram (func_t fnum)
 	edict_t		*ed;
 	int		exitdepth;
 
-	if (!fnum || fnum >= qcvm->progs->numfunctions)
+	if (!fnum || fnum >= (func_t)qcvm->progs->numfunctions)
 	{
 		if (pr_global_struct->self)
 			ED_Print (PROG_TO_EDICT(pr_global_struct->self));

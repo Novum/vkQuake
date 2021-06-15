@@ -319,6 +319,9 @@
     <ClCompile Include="..\..\Shaders\Compiled\showtris_vert.c">
       <Filter>Shaders\Compiled</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Quake\pr_ext.c">
+      <Filter>Main</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\Quake\snd_codec.h">

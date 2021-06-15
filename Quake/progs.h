@@ -68,14 +68,27 @@ void PR_ExecuteProgram (func_t fnum);
 void PR_ClearProgs(qcvm_t *vm);
 qboolean PR_LoadProgs (const char *filename, qboolean fatal, unsigned int needcrc, builtin_t *builtins, size_t numbuiltins);
 
+//from pr_ext.c
+void PR_InitExtensions(void);
+void PR_EnableExtensions(ddef_t *pr_globaldefs);	//adds in the extra builtins etc
+void PR_AutoCvarChanged(cvar_t *var);				//updates the autocvar_ globals when their cvar is changed
+void PR_ShutdownExtensions(void);					//nooooes!
+func_t PR_FindExtFunction(const char *entryname);
+void PR_DumpPlatform_f(void);						//console command: writes out a qsextensions.qc file
+//special hacks...
 int SV_Precache_Model(const char *s);
 
 //from pr_edict, for pr_ext. reflection is messy.
 qboolean	ED_ParseEpair (void *base, ddef_t *key, const char *s, qboolean zoned);
+const char *PR_UglyValueString (int type, eval_t *val);
+ddef_t *ED_FindField (const char *name);
+ddef_t *ED_FindGlobal (const char *name);
+dfunction_t *ED_FindFunction (const char *fn_name);
 
 const char *PR_GetString (int num);
 int PR_SetEngineString (const char *s);
 int PR_AllocString (int bufferlength, char **ptr);
+void PR_ClearEngineString(int num);
 
 void PR_Profile_f (void);
 
@@ -111,6 +124,7 @@ int NUM_FOR_EDICT(edict_t *e);
 #define	G_STRING(o)		(PR_GetString(*(string_t *)&qcvm->globals[o]))
 #define	G_FUNCTION(o)		(*(func_t *)&qcvm->globals[o])
 
+#define G_VECTORSET(r,x,y,z) do{G_FLOAT((r)+0) = x; G_FLOAT((r)+1) = y;G_FLOAT((r)+2) = z;}while(0)
 #define	E_FLOAT(e,o)		(((float*)&e->v)[o])
 #define	E_INT(e,o)		(*(int *)&((float*)&e->v)[o])
 #define	E_VECTOR(e,o)		(&((float*)&e->v)[o])
@@ -138,6 +152,102 @@ char *PF_VarString (int	first);
 #define	STRINGTEMP_BUFFERS		1024
 #define	STRINGTEMP_LENGTH		1024
 void PF_Fixme(void);	//the 'unimplemented' builtin. woot.
+
+struct pr_extfuncs_s
+{
+/*all vms*/
+#define QCEXTFUNCS_COMMON \
+	QCEXTFUNC(GameCommand,				"void(string cmdtext)")												/*obsoleted by m_consolecommand, included for dp compat.*/	\
+/*csqc+ssqc*/
+#define QCEXTFUNCS_GAME \
+	QCEXTFUNC(EndFrame,					"void()")				\
+/*ssqc*/
+#define QCEXTFUNCS_SV \
+	QCEXTFUNC(SV_ParseClientCommand,		"void(string cmd)")		\
+	QCEXTFUNC(SV_RunClientCommand,		"void()")		\
+
+#define QCEXTFUNC(n,t) func_t n;
+	QCEXTFUNCS_COMMON
+	QCEXTFUNCS_GAME
+	QCEXTFUNCS_SV
+#undef QCEXTFUNC
+};
+extern	cvar_t	pr_checkextension;	//if 0, extensions are disabled (unless they'd be fatal, but they're still spammy)
+
+struct pr_extglobals_s
+{
+#define QCEXTGLOBALS_COMMON \
+	QCEXTGLOBAL_FLOAT(time)\
+	QCEXTGLOBAL_FLOAT(frametime)\
+	//end
+#define QCEXTGLOBALS_GAME \
+	QCEXTGLOBAL_FLOAT(input_timelength)\
+	QCEXTGLOBAL_VECTOR(input_movevalues)\
+	QCEXTGLOBAL_VECTOR(input_angles)\
+	QCEXTGLOBAL_FLOAT(input_buttons)\
+	QCEXTGLOBAL_FLOAT(input_impulse)\
+	QCEXTGLOBAL_INT(input_weapon)\
+	QCEXTGLOBAL_VECTOR(input_cursor_screen)\
+	QCEXTGLOBAL_VECTOR(input_cursor_trace_start)\
+	QCEXTGLOBAL_VECTOR(input_cursor_trace_endpos)\
+	QCEXTGLOBAL_FLOAT(input_cursor_entitynumber)\
+	QCEXTGLOBAL_FLOAT(physics_mode)\
+	//end
+#define QCEXTGLOBAL_FLOAT(n) float *n;
+#define QCEXTGLOBAL_INT(n) int *n;
+#define QCEXTGLOBAL_VECTOR(n) float *n;
+	QCEXTGLOBALS_COMMON
+	QCEXTGLOBALS_GAME
+#undef QCEXTGLOBAL_FLOAT
+#undef QCEXTGLOBAL_INT
+#undef QCEXTGLOBAL_VECTOR
+};
+
+struct pr_extfields_s
+{	//various fields that might be wanted by the engine. -1 == invalid
+
+#define QCEXTFIELDS_ALL	\
+	/*renderscene means we need a number of fields here*/	\
+	QCEXTFIELD(alpha,					".float")				/*float*/	\
+	QCEXTFIELD(scale,					".float")				/*float*/	\
+	QCEXTFIELD(colormod,				".vector")			/*vector*/	\
+	QCEXTFIELD(tag_entity,				".entity")			/*entity*/	\
+	QCEXTFIELD(tag_index,				".float")			/*float*/	\
+	QCEXTFIELD(modelflags,				".float")			/*float, the upper 8 bits of .effects*/	\
+	QCEXTFIELD(origin,					".vector")				/*for menuqc's addentity builtin.*/	\
+	QCEXTFIELD(angles,					".vector")				/*for menuqc's addentity builtin.*/	\
+	QCEXTFIELD(frame,					".float")				/*for menuqc's addentity builtin.*/	\
+	QCEXTFIELD(skin,					".float")				/*for menuqc's addentity builtin.*/	\
+	/*end of list*/
+#define QCEXTFIELDS_GAME	\
+	/*stuff used by csqc+ssqc, but not menu*/	\
+	QCEXTFIELD(customphysics,			".void()")/*function*/	\
+	QCEXTFIELD(gravity,					".float")			/*float*/	\
+	//end of list
+#define QCEXTFIELDS_SS	\
+	/*ssqc-only*/	\
+	QCEXTFIELD(items2,					"//.float")				/*float*/	\
+	QCEXTFIELD(movement,				".vector")			/*vector*/	\
+	QCEXTFIELD(viewmodelforclient,		".entity")	/*entity*/	\
+	QCEXTFIELD(exteriormodeltoclient,	".entity")	/*entity*/	\
+	QCEXTFIELD(traileffectnum,			".float")		/*float*/	\
+	QCEXTFIELD(emiteffectnum,			".float")		/*float*/	\
+	QCEXTFIELD(button3,					".float")			/*float*/	\
+	QCEXTFIELD(button4,					".float")			/*float*/	\
+	QCEXTFIELD(button5,					".float")			/*float*/	\
+	QCEXTFIELD(button6,					".float")			/*float*/	\
+	QCEXTFIELD(button7,					".float")			/*float*/	\
+	QCEXTFIELD(button8,					".float")			/*float*/	\
+	QCEXTFIELD(SendEntity,				".float(entity to, float changedflags)")			/*function*/	\
+	QCEXTFIELD(SendFlags,				".float")			/*float. :( */	\
+	//end of list
+
+#define QCEXTFIELD(n,t) int n;
+	QCEXTFIELDS_ALL
+	QCEXTFIELDS_GAME
+	QCEXTFIELDS_SS
+#undef QCEXTFIELD
+};
 
 typedef struct
 {
@@ -179,6 +289,10 @@ struct qcvm_s
 	unsigned short	progscrc;	//crc16 of the entire file
 	unsigned int	progshash;	//folded file md4
 	unsigned int	progssize;	//file size (bytes)
+
+	struct pr_extglobals_s extglobals;
+	struct pr_extfuncs_s extfuncs;
+	struct pr_extfields_s extfields;
 
 	qboolean cursorforced;
 	void *cursorhandle;	//video code.

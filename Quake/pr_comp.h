@@ -24,7 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 // this file is shared by quake and qcc
 
-typedef int	func_t;
+typedef unsigned int	func_t;
 typedef int	string_t;
 
 typedef enum
@@ -37,7 +37,9 @@ typedef enum
 	ev_entity,
 	ev_field,
 	ev_function,
-	ev_pointer
+	ev_pointer,
+
+	ev_ext_integer
 } etype_t;
 
 #define	OFS_NULL		0

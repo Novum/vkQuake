@@ -346,6 +346,7 @@ void CL_AdjustAngles (void);
 void CL_BaseMove (usercmd_t *cmd);
 void CL_FinishMove(usercmd_t *cmd);
 
+void CL_UpdateBeam (struct qmodel_s *m, const char *trailname, const char *impactname, int ent, float *start, float *end);
 void CL_ParseTEnt (void);
 void CL_UpdateTEnts (void);
 

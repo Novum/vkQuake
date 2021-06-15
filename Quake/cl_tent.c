@@ -56,22 +56,10 @@ void CL_InitTEnts (void)
 CL_ParseBeam
 =================
 */
-void CL_ParseBeam (qmodel_t *m)
+void CL_UpdateBeam (qmodel_t *m, const char *trailname, const char *impactname, int ent, float *start, float *end)
 {
-	int		ent;
-	vec3_t	start, end;
 	beam_t	*b;
 	int		i;
-
-	ent = MSG_ReadShort ();
-
-	start[0] = MSG_ReadCoord (cl.protocolflags);
-	start[1] = MSG_ReadCoord (cl.protocolflags);
-	start[2] = MSG_ReadCoord (cl.protocolflags);
-
-	end[0] = MSG_ReadCoord (cl.protocolflags);
-	end[1] = MSG_ReadCoord (cl.protocolflags);
-	end[2] = MSG_ReadCoord (cl.protocolflags);
 
 // override any beam with the same entity
 	for (i=0, b=cl_beams ; i< MAX_BEAMS ; i++, b++)
@@ -106,6 +94,24 @@ void CL_ParseBeam (qmodel_t *m)
 		dev_overflows.beams = realtime;
 	}
 	//johnfitz
+}
+
+static void CL_ParseBeam (qmodel_t *m, const char *trailname, const char *impactname)
+{
+	int		ent;
+	vec3_t	start, end;
+
+	ent = MSG_ReadEntity (cl.protocol_pext2);
+
+	start[0] = MSG_ReadCoord (cl.protocolflags);
+	start[1] = MSG_ReadCoord (cl.protocolflags);
+	start[2] = MSG_ReadCoord (cl.protocolflags);
+
+	end[0] = MSG_ReadCoord (cl.protocolflags);
+	end[1] = MSG_ReadCoord (cl.protocolflags);
+	end[2] = MSG_ReadCoord (cl.protocolflags);
+
+	CL_UpdateBeam (m, trailname, impactname, ent, start, end);
 }
 
 /*
@@ -208,20 +214,20 @@ void CL_ParseTEnt (void)
 		break;
 
 	case TE_LIGHTNING1:				// lightning bolts
-		CL_ParseBeam (Mod_ForName("progs/bolt.mdl", true));
+		CL_ParseBeam (Mod_ForName("progs/bolt.mdl", true), "TE_LIGHTNING1", "TE_LIGHTNING1_END");
 		break;
 
 	case TE_LIGHTNING2:				// lightning bolts
-		CL_ParseBeam (Mod_ForName("progs/bolt2.mdl", true));
+		CL_ParseBeam (Mod_ForName("progs/bolt2.mdl", true), "TE_LIGHTNING2", "TE_LIGHTNING2_END");
 		break;
 
 	case TE_LIGHTNING3:				// lightning bolts
-		CL_ParseBeam (Mod_ForName("progs/bolt3.mdl", true));
+		CL_ParseBeam (Mod_ForName("progs/bolt3.mdl", true), "TE_LIGHTNING3", "TE_LIGHTNING3_END");
 		break;
 
 // PGM 01/21/97
 	case TE_BEAM:				// grappling hook beam
-		CL_ParseBeam (Mod_ForName("progs/beam.mdl", true));
+		CL_ParseBeam (Mod_ForName("progs/beam.mdl", true), "TE_BEAM", "TE_BEAM_END");
 		break;
 // PGM 01/21/97
 

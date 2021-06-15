@@ -1640,11 +1640,6 @@ static void PF_sv_changelevel (void)
 	Cbuf_AddText (va("changelevel %s\n",s));
 }
 
-void PF_Fixme (void)
-{
-	PR_RunError ("unimplemented builtin");
-}
-
 void PR_spawnfunc_misc_model(edict_t *self)
 {
 	eval_t *val;

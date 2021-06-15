@@ -23,7 +23,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 
-qboolean	pr_alpha_supported; //johnfitz
 
 int		type_size[8] = {
 	1,					// ev_void
@@ -289,6 +288,9 @@ static const char *PR_ValueString (int type, eval_t *val)
 	case ev_float:
 		sprintf (line, "%5.1f", val->_float);
 		break;
+	case ev_ext_integer:
+		sprintf (line, "%i", val->_int);
+		break;
 	case ev_vector:
 		sprintf (line, "'%5.1f %5.1f %5.1f'", val->vector[0], val->vector[1], val->vector[2]);
 		break;
@@ -341,6 +343,9 @@ const char *PR_UglyValueString (int type, eval_t *val)
 		break;
 	case ev_float:
 		q_snprintf (line, sizeof(line), "%f", val->_float);
+		break;
+	case ev_ext_integer:
+		sprintf (line, "%i", val->_int);
 		break;
 	case ev_vector:
 		q_snprintf (line, sizeof(line), "%f %f %f", val->vector[0], val->vector[1], val->vector[2]);
@@ -507,7 +512,7 @@ void ED_Write (FILE *f, edict_t *ed)
 	}
 
 	//johnfitz -- save entity alpha manually when progs.dat doesn't know about alpha
-	if (!pr_alpha_supported && ed->alpha != ENTALPHA_DEFAULT)
+	if (qcvm->extfields.alpha<0 && ed->alpha != ENTALPHA_DEFAULT)
 		fprintf (f, "\"alpha\" \"%f\"\n", ENTALPHA_TOSAVE(ed->alpha));
 	//johnfitz
 
@@ -647,7 +652,7 @@ void ED_WriteGlobals (FILE *f)
 			continue;
 		type &= ~DEF_SAVEGLOBAL;
 
-		if (type != ev_string && type != ev_float && type != ev_entity)
+		if (type != ev_string && type != ev_float && type != ev_ext_integer && type != ev_entity)
 			continue;
 
 		name = PR_GetString(def->s_name);
@@ -732,7 +737,37 @@ static string_t ED_NewString (const char *string)
 
 	return num;
 }
+static void ED_RezoneString (string_t *ref, const char *str)
+{
+	char *buf;
+	size_t len = strlen(str)+1;
+	size_t id;
 
+	if (*ref)
+	{	//if the reference is already a zoned string then free it first.
+		id = -1-*ref;
+		if (id < qcvm->knownzonesize && (qcvm->knownzone[id>>3] & (1u<<(id&7))))
+		{	//okay, it was zoned.
+			qcvm->knownzone[id>>3] &= ~(1u<<(id&7));
+			buf = (char*)PR_GetString(*ref);
+			PR_ClearEngineString(*ref);
+			Z_Free(buf);
+		}
+//		else
+//			Con_Warning("ED_RezoneString: string wasn't strzoned\n");	//warnings would trigger from the default cvar value that autocvars are initialised with
+	}
+
+	buf = Z_Malloc(len);
+	memcpy(buf, str, len);
+	id = -1-(*ref = PR_SetEngineString(buf));
+	//make sure its flagged as zoned so we can clean up properly after.
+	if (id >= qcvm->knownzonesize)
+	{
+		qcvm->knownzonesize = (id+32)&~7;
+		qcvm->knownzone = Z_Realloc(qcvm->knownzone, (qcvm->knownzonesize+7)>>3);
+	}
+	qcvm->knownzone[id>>3] |= 1u<<(id&7);
+}
 
 /*
 =============
@@ -742,7 +777,7 @@ Can parse either fields or globals
 returns false if error
 =============
 */
-static qboolean ED_ParseEpair (void *base, ddef_t *key, const char *s)
+qboolean ED_ParseEpair (void *base, ddef_t *key, const char *s, qboolean zoned)
 {
 	int		i;
 	char	string[128];
@@ -757,11 +792,18 @@ static qboolean ED_ParseEpair (void *base, ddef_t *key, const char *s)
 	switch (key->type & ~DEF_SAVEGLOBAL)
 	{
 	case ev_string:
-		*(string_t *)d = ED_NewString(s);
+		if (zoned)	//zoned version allows us to change the strings more freely
+			ED_RezoneString((string_t *)d, s);
+		else
+			*(string_t *)d = ED_NewString(s);
 		break;
 
 	case ev_float:
 		*(float *)d = atof (s);
+		break;
+
+	case ev_ext_integer:
+		*(int *)d = atoi (s);
 		break;
 
 	case ev_vector:
@@ -790,6 +832,8 @@ static qboolean ED_ParseEpair (void *base, ddef_t *key, const char *s)
 		break;
 
 	case ev_entity:
+		if (!strncmp(s, "entity ", 7))	//Spike: putentityfieldstring/etc should be able to cope with etos's weirdness.
+			s += 7;
 		*(int *)d = EDICT_TO_PROG(EDICT_NUM(atoi (s)));
 		break;
 
@@ -913,7 +957,7 @@ const char *ED_ParseEdict (const char *data, edict_t *ent)
 			sprintf (com_token, "0 %s 0", temp);
 		}
 
-		if (!ED_ParseEpair ((void *)&ent->v, key, com_token))
+		if (!ED_ParseEpair ((void *)&ent->v, key, com_token, qcvm != &sv.qcvm))
 			Host_Error ("ED_ParseEdict: parse error");
 	}
 
@@ -944,6 +988,7 @@ void ED_LoadFromFile (const char *data)
 	dfunction_t	*func;
 	edict_t		*ent = NULL;
 	int		inhibit = 0;
+	int usingspawnfunc = 0;
 
 	pr_global_struct->time = qcvm->time;
 
@@ -994,10 +1039,19 @@ void ED_LoadFromFile (const char *data)
 		}
 
 	// look for the spawn function
-		func = ED_FindFunction ( PR_GetString(ent->v.classname) );
+		//
+		func = ED_FindFunction (va("spawnfunc_%s", PR_GetString(ent->v.classname)));
+		if (func)
+		{
+			if (!usingspawnfunc++)
+				Con_DPrintf2 ("Using DP_SV_SPAWNFUNC_PREFIX\n");
+		}
+		else
+			func = ED_FindFunction ( PR_GetString(ent->v.classname) );
 
 		if (!func)
 		{
+			const char *classname = PR_GetString(ent->v.classname);
 			Con_SafePrintf ("No spawn function for:\n"); //johnfitz -- was Con_Printf
 			ED_Print (ent);
 			ED_Free (ent);
@@ -1034,6 +1088,7 @@ void PR_ClearProgs(qcvm_t *vm)
 		return;	//wasn't loaded.
 	qcvm = NULL;
 	PR_SwitchQCVM(vm);
+	PR_ShutdownExtensions();
 
 	if (qcvm->knownstrings)
 		Z_Free ((void *)qcvm->knownstrings);
@@ -1046,6 +1101,89 @@ void PR_ClearProgs(qcvm_t *vm)
 	qcvm = NULL;
 	PR_SwitchQCVM(oldvm);
 }
+
+//makes sure extension fields are actually registered so they can be used for mappers without qc changes. eg so scale can be used.
+static void PR_MergeEngineFieldDefs (void)
+{
+	struct {
+		const char *fname;
+		etype_t type;
+		int newidx;
+	} extrafields[] =
+	{	//table of engine fields to add. we'll be using ED_FindFieldOffset for these later.
+		//this is useful for fields that should be defined for mappers which are not defined by the mod.
+		//future note: mutators will need to edit the mutator's globaldefs table too. remember to handle vectors and their 3 globals too.
+		{"alpha",			ev_float},	//just because we can (though its already handled in a weird hacky way)
+		{"scale",			ev_float},	//hurrah for being able to rescale entities.
+		{"emiteffectnum",	ev_float},	//constantly emitting particles, even without moving.
+		{"traileffectnum",	ev_float},	//custom effect for trails
+		//{"glow_size",		ev_float},	//deprecated particle trail rubbish
+		//{"glow_color",	ev_float},	//deprecated particle trail rubbish
+		{"tag_entity",		ev_float},	//for setattachment to not bug out when omitted.
+		{"tag_index",		ev_float},	//for setattachment to not bug out when omitted.
+		{"modelflags",		ev_float},	//deprecated rubbish to fill the high 8 bits of effects.
+		//{"vw_index",		ev_float},	//modelindex2
+		//{"pflags",		ev_float},	//for rtlights
+		//{"drawflags",		ev_float},	//hexen2 compat
+		//{"abslight",		ev_float},	//hexen2 compat
+		{"colormod",		ev_vector},	//lighting tints
+		//{"glowmod",		ev_vector},	//fullbright tints
+		//{"fatness",		ev_float},	//bloated rendering...
+		//{"gravitydir",	ev_vector},	//says which direction gravity should act for this ent...
+
+	};
+	int maxofs = qcvm->progs->entityfields;
+	int maxdefs = qcvm->progs->numfielddefs;
+	unsigned int j, a;
+
+	//figure out where stuff goes
+	for (j = 0; j < countof(extrafields); j++)
+	{
+		extrafields[j].newidx = ED_FindFieldOffset(extrafields[j].fname);
+		if (extrafields[j].newidx < 0)
+		{
+			extrafields[j].newidx = maxofs;
+			maxdefs++;
+			if (extrafields[j].type == ev_vector)
+				maxdefs+=3;
+			maxofs+=type_size[extrafields[j].type];
+		}
+	}
+
+	if (maxdefs != qcvm->progs->numfielddefs)
+	{	//we now know how many entries we need to add...
+		ddef_t *olddefs = qcvm->fielddefs;
+		qcvm->fielddefs = malloc(maxdefs * sizeof(*qcvm->fielddefs));
+		memcpy(qcvm->fielddefs, olddefs, qcvm->progs->numfielddefs*sizeof(*qcvm->fielddefs));
+		if (olddefs != (ddef_t *)((byte *)qcvm->progs + qcvm->progs->ofs_fielddefs))
+			free(olddefs);
+
+		//allocate the extra defs
+		for (j = 0; j < countof(extrafields); j++)
+		{
+			if (extrafields[j].newidx >= qcvm->progs->entityfields && extrafields[j].newidx < maxofs)
+			{	//looks like its new. make sure ED_FindField can find it.
+				qcvm->fielddefs[qcvm->progs->numfielddefs].ofs = extrafields[j].newidx;
+				qcvm->fielddefs[qcvm->progs->numfielddefs].type = extrafields[j].type;
+				qcvm->fielddefs[qcvm->progs->numfielddefs].s_name = ED_NewString(extrafields[j].fname);
+				qcvm->progs->numfielddefs++;
+
+				if (extrafields[j].type == ev_vector)
+				{	//vectors are weird and annoying.
+					for (a = 0; a < 3; a++)
+					{
+						qcvm->fielddefs[qcvm->progs->numfielddefs].ofs = extrafields[j].newidx+a;
+						qcvm->fielddefs[qcvm->progs->numfielddefs].type = ev_float;
+						qcvm->fielddefs[qcvm->progs->numfielddefs].s_name = ED_NewString(va("%s_%c", extrafields[j].fname, 'x'+a));
+						qcvm->progs->numfielddefs++;
+					}
+				}
+			}
+		}
+		qcvm->progs->entityfields = maxofs;
+	}
+}
+
 /*
 ===============
 PR_LoadProgs
@@ -1161,8 +1299,6 @@ qboolean PR_LoadProgs (const char *filename, qboolean fatal, unsigned int needcr
 		qcvm->globaldefs[i].s_name = LittleLong (qcvm->globaldefs[i].s_name);
 	}
 
-	pr_alpha_supported = false; //johnfitz
-
 	for (i = 0; i < qcvm->progs->numfielddefs; i++)
 	{
 		qcvm->fielddefs[i].type = LittleShort (qcvm->fielddefs[i].type);
@@ -1170,11 +1306,6 @@ qboolean PR_LoadProgs (const char *filename, qboolean fatal, unsigned int needcr
 			Host_Error ("PR_LoadProgs: pr_fielddefs[i].type & DEF_SAVEGLOBAL");
 		qcvm->fielddefs[i].ofs = LittleShort (qcvm->fielddefs[i].ofs);
 		qcvm->fielddefs[i].s_name = LittleLong (qcvm->fielddefs[i].s_name);
-
-		//johnfitz -- detect alpha support in progs.dat
-		if (!strcmp(qcvm->strings + qcvm->fielddefs[i].s_name,"alpha"))
-			pr_alpha_supported = true;
-		//johnfitz
 	}
 
 	for (i = 0; i < qcvm->progs->numglobals; i++)
@@ -1182,6 +1313,14 @@ qboolean PR_LoadProgs (const char *filename, qboolean fatal, unsigned int needcr
 
 	memcpy(qcvm->builtins, builtins, numbuiltins*sizeof(qcvm->builtins[0]));
 	qcvm->numbuiltins = numbuiltins;
+
+	//spike: detect extended fields from progs
+	PR_MergeEngineFieldDefs();
+#define QCEXTFIELD(n,t) qcvm->extfields.n = ED_FindFieldOffset(#n);
+	QCEXTFIELDS_ALL
+	QCEXTFIELDS_GAME
+	QCEXTFIELDS_SS
+#undef QCEXTFIELD
 
 	qcvm->edict_size = qcvm->progs->entityfields * 4 + sizeof(edict_t) - sizeof(entvars_t);
 	// round off to next highest whole word address (esp for Alpha)
@@ -1191,6 +1330,7 @@ qboolean PR_LoadProgs (const char *filename, qboolean fatal, unsigned int needcr
 	qcvm->edict_size &= ~(sizeof(void *) - 1);
 
 	PR_SetEngineString("");
+	PR_EnableExtensions(qcvm->globaldefs);
 
 	return true;
 }
@@ -1207,6 +1347,7 @@ void PR_Init (void)
 	Cmd_AddCommand ("edicts", ED_PrintEdicts);
 	Cmd_AddCommand ("edictcount", ED_Count);
 	Cmd_AddCommand ("profile", PR_Profile_f);
+	Cmd_AddCommand ("pr_dumpplatform", PR_DumpPlatform_f);
 	Cvar_RegisterVariable (&nomonsters);
 	Cvar_RegisterVariable (&gamecfg);
 	Cvar_RegisterVariable (&scratch1);
@@ -1218,6 +1359,8 @@ void PR_Init (void)
 	Cvar_RegisterVariable (&saved2);
 	Cvar_RegisterVariable (&saved3);
 	Cvar_RegisterVariable (&saved4);
+
+	PR_InitExtensions();
 }
 
 
@@ -1270,6 +1413,17 @@ const char *PR_GetString (int num)
 		return qcvm->strings;
 		Host_Error("PR_GetString: invalid string offset %d\n", num);
 		return "";
+	}
+}
+
+void PR_ClearEngineString(int num)
+{
+	if (num < 0 && num >= -qcvm->numknownstrings)
+	{
+		num = -1 - num;
+		qcvm->knownstrings[num] = NULL;
+		if (qcvm->freeknownstrings > num)
+			qcvm->freeknownstrings = num;
 	}
 }
 

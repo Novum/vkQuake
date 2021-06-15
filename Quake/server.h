@@ -70,9 +70,21 @@ typedef struct
 	unsigned	protocol; //johnfitz
 	unsigned	protocolflags;
 
+	sizebuf_t	multicast;	// selectively copied to clients by the multicast builtin
+	byte		multicast_buf[MAX_DATAGRAM];
+
 	entity_state_t	*static_entities;
 	int			num_statics;
 	int			max_statics;
+
+	struct svcustomstat_s
+	{
+		int idx;
+		int type;
+		int fld;
+		eval_t *ptr;
+	} customstats[MAX_CL_STATS*2];	//strings or numeric...
+	size_t numcustomstats;
 } server_t;
 
 
