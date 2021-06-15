@@ -515,6 +515,9 @@ void R_ShowTris(void)
 			case mod_alias:
 				R_DrawAliasModel_ShowTris (currententity);
 				break;
+			case mod_sprite:
+				R_DrawSpriteModel_ShowTris (currententity);
+				break;
 			default:
 				break;
 			}

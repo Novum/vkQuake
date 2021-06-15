@@ -401,6 +401,7 @@ void R_DrawWorld_ShowTris(void);
 void R_DrawBrushModel_ShowTris (entity_t *e);
 void R_DrawAliasModel_ShowTris (entity_t *e);
 void R_DrawParticles_ShowTris(void);
+void R_DrawSpriteModel_ShowTris (entity_t *e);
 
 void DrawGLPoly (glpoly_t *p, float color[3], float alpha);
 void GL_MakeAliasModelDisplayLists (qmodel_t *m, aliashdr_t *hdr);

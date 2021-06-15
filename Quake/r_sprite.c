@@ -24,12 +24,14 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 
+extern cvar_t r_showtris;
+
 /*
 ================
 R_GetSpriteFrame
 ================
 */
-mspriteframe_t *R_GetSpriteFrame (entity_t *currentent)
+static mspriteframe_t *R_GetSpriteFrame (entity_t *currentent)
 {
 	msprite_t		*psprite;
 	mspritegroup_t	*pspritegroup;
@@ -75,22 +77,21 @@ mspriteframe_t *R_GetSpriteFrame (entity_t *currentent)
 	return pspriteframe;
 }
 
+
 /*
-=================
-R_DrawSpriteModel -- johnfitz -- rewritten: now supports all orientations
-=================
+================
+R_CreateSpriteVertices
+================
 */
-void R_DrawSpriteModel (entity_t *e)
+static void R_CreateSpriteVertices (entity_t *e, mspriteframe_t	*frame, basicvertex_t * vertices)
 {
 	vec3_t			point, v_forward, v_right, v_up;
 	msprite_t		*psprite;
-	mspriteframe_t	*frame;
 	float			*s_up, *s_right;
 	float			angle, sr, cr;
 
 	//TODO: frustum cull it?
 
-	frame = R_GetSpriteFrame (e);
 	psprite = (msprite_t *) currententity->model->cache.data;
 
 	switch(psprite->type)
@@ -141,10 +142,6 @@ void R_DrawSpriteModel (entity_t *e)
 		return;
 	}
 
-	VkBuffer buffer;
-	VkDeviceSize buffer_offset;
-	basicvertex_t * vertices = (basicvertex_t*)R_VertexAllocate(4 * sizeof(basicvertex_t), &buffer, &buffer_offset);
-
 	memset(vertices, 255, 4 * sizeof(basicvertex_t));
 
 	VectorMA (e->origin, frame->down, s_up, point);
@@ -178,16 +175,61 @@ void R_DrawSpriteModel (entity_t *e)
 	vertices[3].position[2] = point[2];
 	vertices[3].texcoord[0] = frame->smax;
 	vertices[3].texcoord[1] = frame->tmax;
+}
+
+/*
+=================
+R_DrawSpriteModel -- johnfitz -- rewritten: now supports all orientations
+=================
+*/
+void R_DrawSpriteModel (entity_t *e)
+{
+	VkBuffer buffer;
+	VkDeviceSize buffer_offset;
+	basicvertex_t * vertices = (basicvertex_t*)R_VertexAllocate(4 * sizeof(basicvertex_t), &buffer, &buffer_offset);
+	msprite_t * psprite;
+	mspriteframe_t	*frame = R_GetSpriteFrame (e);
+
+	R_CreateSpriteVertices(e, frame, vertices);
 
 	vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
 	vkCmdBindIndexBuffer(vulkan_globals.command_buffer, vulkan_globals.fan_index_buffer, 0, VK_INDEX_TYPE_UINT16);
 
 	R_BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sprite_pipeline);
 
+	psprite = (msprite_t *) currententity->model->cache.data;
 	if (psprite->type == SPR_ORIENTED)
 		vkCmdSetDepthBias(vulkan_globals.command_buffer, OFFSET_DECAL, 0.0f, 0.0f);
 	else
 		vkCmdSetDepthBias(vulkan_globals.command_buffer, OFFSET_NONE, 0.0f, 0.0f);
+
+	vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &frame->gltexture->descriptor_set, 0, NULL);
+	vkCmdDrawIndexed(vulkan_globals.command_buffer, 6, 1, 0, 0, 0);
+}
+
+/*
+=================
+R_DrawSpriteModel_ShowTris
+=================
+*/
+void R_DrawSpriteModel_ShowTris (entity_t *e)
+{
+	VkBuffer buffer;
+	VkDeviceSize buffer_offset;
+	basicvertex_t * vertices = (basicvertex_t*)R_VertexAllocate(4 * sizeof(basicvertex_t), &buffer, &buffer_offset);
+	mspriteframe_t	*frame = R_GetSpriteFrame (e);
+
+	R_CreateSpriteVertices(e, frame, vertices);
+
+	vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
+	vkCmdBindIndexBuffer(vulkan_globals.command_buffer, vulkan_globals.fan_index_buffer, 0, VK_INDEX_TYPE_UINT16);
+
+	R_BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sprite_pipeline);
+
+	if (r_showtris.value == 1)
+		R_BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_pipeline);
+	else
+		R_BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_depth_test_pipeline);
 
 	vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &frame->gltexture->descriptor_set, 0, NULL);
 	vkCmdDrawIndexed(vulkan_globals.command_buffer, 6, 1, 0, 0, 0);
