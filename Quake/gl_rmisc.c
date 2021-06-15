@@ -2049,12 +2049,51 @@ void R_CreatePipelines()
 
 	GL_SetObjectName((uint64_t)vulkan_globals.alias_blend_pipeline.handle, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "alias_blend");
 
+	if (vulkan_globals.non_solid_fill)
+	{
+		rasterization_state_create_info.cullMode = VK_CULL_MODE_NONE;
+		rasterization_state_create_info.polygonMode = VK_POLYGON_MODE_LINE;
+		depth_stencil_state_create_info.depthTestEnable = VK_FALSE;
+		depth_stencil_state_create_info.depthWriteEnable = VK_FALSE;
+		blend_attachment_state.blendEnable = VK_FALSE;
+		input_assembly_state_create_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+
+		shader_stages[0].module = alias_vert_module;
+		shader_stages[1].module = showtris_frag_module;
+
+		pipeline_create_info.layout = vulkan_globals.alias_pipeline.layout.handle;
+
+		assert(vulkan_globals.alias_showtris_pipeline.handle == VK_NULL_HANDLE);
+		err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.alias_showtris_pipeline.handle);
+		if (err != VK_SUCCESS)
+			Sys_Error("vkCreateGraphicsPipelines failed");
+		vulkan_globals.alias_showtris_pipeline.layout = vulkan_globals.alias_pipeline.layout;
+
+		GL_SetObjectName((uint64_t)vulkan_globals.alias_showtris_pipeline.handle, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "alias_showtris");
+
+		depth_stencil_state_create_info.depthTestEnable = VK_TRUE;
+		rasterization_state_create_info.depthBiasEnable = VK_TRUE;
+		rasterization_state_create_info.depthBiasConstantFactor = (vulkan_globals.depth_format != VK_FORMAT_D16_UNORM) ? -250.0f : -1.25f;
+		rasterization_state_create_info.depthBiasSlopeFactor = 0.0f;
+
+		assert(vulkan_globals.alias_showtris_depth_test_pipeline.handle == VK_NULL_HANDLE);
+		err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.alias_showtris_depth_test_pipeline.handle);
+		if (err != VK_SUCCESS)
+			Sys_Error("vkCreateGraphicsPipelines failed");
+		vulkan_globals.alias_showtris_depth_test_pipeline.layout = vulkan_globals.alias_pipeline.layout;
+
+		GL_SetObjectName((uint64_t)vulkan_globals.alias_showtris_depth_test_pipeline.handle, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "alias_showtris_depth_test");
+	}
+
 	//================
 	// Postprocess pipeline
 	//================
 	multisample_state_create_info.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+	rasterization_state_create_info.polygonMode = VK_POLYGON_MODE_FILL;
 	rasterization_state_create_info.cullMode = VK_CULL_MODE_NONE;
-	depth_stencil_state_create_info.depthTestEnable = VK_FALSE;
+	rasterization_state_create_info.depthBiasEnable = VK_FALSE;
+	depth_stencil_state_create_info.depthTestEnable = VK_TRUE;
+	depth_stencil_state_create_info.depthWriteEnable = VK_TRUE;
 	blend_attachment_state.blendEnable = VK_FALSE;
 
 	vertex_input_state_create_info.vertexAttributeDescriptionCount = 0;
@@ -2196,6 +2235,13 @@ void R_DestroyPipelines(void)
 		vulkan_globals.showtris_pipeline.handle = VK_NULL_HANDLE;
 		vkDestroyPipeline(vulkan_globals.device, vulkan_globals.showtris_depth_test_pipeline.handle, NULL);
 		vulkan_globals.showtris_depth_test_pipeline.handle = VK_NULL_HANDLE;
+	}
+	if (vulkan_globals.alias_showtris_pipeline.handle != VK_NULL_HANDLE)
+	{
+		vkDestroyPipeline(vulkan_globals.device, vulkan_globals.alias_showtris_pipeline.handle, NULL);
+		vulkan_globals.alias_showtris_pipeline.handle = VK_NULL_HANDLE;
+		vkDestroyPipeline(vulkan_globals.device, vulkan_globals.alias_showtris_depth_test_pipeline.handle, NULL);
+		vulkan_globals.alias_showtris_depth_test_pipeline.handle = VK_NULL_HANDLE;
 	}
 }
 

@@ -196,6 +196,8 @@ typedef struct
 	vulkan_pipeline_t					cs_tex_warp_pipeline;
 	vulkan_pipeline_t					showtris_pipeline;
 	vulkan_pipeline_t					showtris_depth_test_pipeline;
+	vulkan_pipeline_t					alias_showtris_pipeline;
+	vulkan_pipeline_t					alias_showtris_depth_test_pipeline;
 
 	// Descriptors
 	VkDescriptorPool					descriptor_pool;

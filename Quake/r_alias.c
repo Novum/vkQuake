@@ -25,7 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 
-extern cvar_t r_drawflat, gl_fullbrights, r_lerpmodels, r_lerpmove; //johnfitz
+extern cvar_t r_drawflat, gl_fullbrights, r_lerpmodels, r_lerpmove, r_showtris; //johnfitz
 
 //up to 16 color translated skins
 gltexture_t *playertextures[MAX_SCOREBOARD]; //johnfitz -- changed to an array of pointers
@@ -107,13 +107,9 @@ static void GL_DrawAliasFrame (aliashdr_t *paliashdr, lerpdata_t lerpdata, gltex
 	float	blend;
 
 	if (lerpdata.pose1 != lerpdata.pose2)
-	{
 		blend = lerpdata.blend;
-	}
 	else // poses the same means either 1. the entity has paused its animation, or 2. r_lerpmodels is disabled
-	{
 		blend = 0;
-	}
 
 	vulkan_pipeline_t pipeline = alphatest ? vulkan_globals.alias_alphatest_pipeline : ((entalpha < 1.0f) ? vulkan_globals.alias_blend_pipeline : vulkan_globals.alias_pipeline);
 	R_BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
@@ -459,5 +455,68 @@ R_DrawAliasModel_ShowTris -- johnfitz
 */
 void R_DrawAliasModel_ShowTris (entity_t *e)
 {
-}
+	aliashdr_t	*paliashdr;
+	lerpdata_t	lerpdata;
+	float	blend;
 
+	//
+	// setup pose/lerp data -- do it first so we don't miss updates due to culling
+	//
+	paliashdr = (aliashdr_t *)Mod_Extradata (e->model);
+	R_SetupAliasFrame (paliashdr, e->frame, &lerpdata);
+	R_SetupEntityTransform (e, &lerpdata);
+
+	//
+	// cull it
+	//
+	if (R_CullModelForEntity(e))
+		return;
+
+	//
+	// transform it
+	//
+	float model_matrix[16];
+	IdentityMatrix(model_matrix);
+	R_RotateForEntity (model_matrix, lerpdata.origin, lerpdata.angles);
+
+	float translation_matrix[16];
+	TranslationMatrix (translation_matrix, paliashdr->scale_origin[0], paliashdr->scale_origin[1], paliashdr->scale_origin[2]);
+	MatrixMultiply(model_matrix, translation_matrix);
+
+	// Scale multiplied by 255 because we use UNORM instead of USCALED in the vertex shader
+	float scale_matrix[16];
+	ScaleMatrix (scale_matrix, paliashdr->scale[0] * 255.0f, paliashdr->scale[1] * 255.0f, paliashdr->scale[2] * 255.0f);
+	MatrixMultiply(model_matrix, scale_matrix);
+
+	if (r_showtris.value == 1)
+		R_BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.alias_showtris_pipeline);
+	else
+		R_BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.alias_showtris_depth_test_pipeline);
+
+	if (lerpdata.pose1 != lerpdata.pose2)
+		blend = lerpdata.blend;
+	else // poses the same means either 1. the entity has paused its animation, or 2. r_lerpmodels is disabled
+		blend = 0;
+
+	VkBuffer uniform_buffer;
+	uint32_t uniform_offset;
+	VkDescriptorSet ubo_set;
+	aliasubo_t * ubo = (aliasubo_t*)R_UniformAllocate(sizeof(aliasubo_t), &uniform_buffer, &uniform_offset, &ubo_set);
+	
+	memcpy(ubo->model_matrix, model_matrix, 16 * sizeof(float));
+	memset(ubo->shade_vector, 0, 3 * sizeof(float));
+	ubo->blend_factor = blend;
+	memset(ubo->light_color, 0, 3 * sizeof(float));
+	ubo->use_fullbright = false;
+	ubo->entalpha = 1.0f;
+
+	VkDescriptorSet descriptor_sets[3] = { nulltexture->descriptor_set, nulltexture->descriptor_set, ubo_set };
+	vulkan_globals.vk_cmd_bind_descriptor_sets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.alias_pipeline.layout.handle, 0, 3, descriptor_sets, 1, &uniform_offset);
+
+	VkBuffer vertex_buffers[3] = { currententity->model->vertex_buffer, currententity->model->vertex_buffer, currententity->model->vertex_buffer };
+	VkDeviceSize vertex_offsets[3] = { (unsigned)currententity->model->vbostofs, GLARB_GetXYZOffset (paliashdr, lerpdata.pose1), GLARB_GetXYZOffset (paliashdr, lerpdata.pose2) };
+	vulkan_globals.vk_cmd_bind_vertex_buffers(vulkan_globals.command_buffer, 0, 3, vertex_buffers, vertex_offsets);
+	vulkan_globals.vk_cmd_bind_index_buffer(vulkan_globals.command_buffer, currententity->model->index_buffer, 0, VK_INDEX_TYPE_UINT16);
+
+	vulkan_globals.vk_cmd_draw_indexed(vulkan_globals.command_buffer, paliashdr->numindexes, 1, 0, 0, 0);
+}

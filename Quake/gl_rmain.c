@@ -496,9 +496,7 @@ void R_ShowTris(void)
 		return;
 
 	if (r_drawworld.value)
-	{
 		R_DrawWorld_ShowTris();
-	}
 
 	if (r_drawentities.value)
 	{
