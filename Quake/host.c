@@ -26,6 +26,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "bgmusic.h"
 #include <setjmp.h>
 
+#include <windows.h>
+#if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
+#include <SDL2/SDL.h>
+#else
+#include "SDL.h"
+#endif
+
 /*
 
 A server can allways be started, even if the system started out as a client
@@ -602,12 +609,22 @@ Returns false if the time is too short to run a frame
 qboolean Host_FilterTime (float time)
 {
 	float maxfps; //johnfitz
+	float min_frame_time;
+	float delta_since_last_frame;
 
 	realtime += time;
 
 	//johnfitz -- max fps cvar
 	maxfps = CLAMP (10.0, host_maxfps.value, 1000.0);
-	if (host_maxfps.value && !cls.timedemo && realtime - oldrealtime < 1.0/maxfps)
+
+	// Check if we still have more than 2ms till next frame and if so wait for "1ms"
+	// E.g. Windows is not a real time OS and the sleeps can vary in length even with timeBeginPeriod(1)
+	min_frame_time = 1.0f / maxfps;
+	delta_since_last_frame = realtime - oldrealtime;
+	if((min_frame_time - delta_since_last_frame) > (2.0f/1000.0f))
+		SDL_Delay(1);
+
+	if (host_maxfps.value && !cls.timedemo && (delta_since_last_frame < min_frame_time))
 		return false; // framerate is too high
 	//johnfitz
 
