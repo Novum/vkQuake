@@ -56,12 +56,12 @@ typedef struct {
 	int			bpp;
 } vmode_t;
 
-static vmode_t	modelist[MAX_MODE_LIST];
+static vmode_t * modelist = NULL;
 static int		nummodes;
 
 static qboolean	vid_initialized = false;
 static qboolean has_focus = true;
-static int num_images_acquired = 0;
+static uint32_t num_images_acquired = 0;
 
 static SDL_Window	*draw_context;
 static SDL_SysWMinfo sys_wm_info;
@@ -84,7 +84,7 @@ static void GL_DestroyRenderResources(void);
 viddef_t	vid;				// global video state
 modestate_t	modestate = MS_UNINIT;
 extern qboolean scr_initialized;
-extern cvar_t r_particles;
+extern cvar_t r_particles, host_maxfps;
 
 //====================================
 
@@ -2309,13 +2309,12 @@ static void VID_InitModelist (void)
 	const int sdlmodes = SDL_GetNumDisplayModes(0);
 	int i;
 
+	modelist = realloc(modelist, sizeof(vmode_t) * sdlmodes);
 	nummodes = 0;
 	for (i = 0; i < sdlmodes; i++)
 	{
 		SDL_DisplayMode mode;
 
-		if (nummodes >= MAX_MODE_LIST)
-			break;
 		if (SDL_GetDisplayMode(0, i, &mode) == 0)
 		{
 			modelist[nummodes].width = mode.w;
@@ -2643,6 +2642,17 @@ void	VID_Toggle (void)
 	}
 }
 
+// For settings that are not applied during vid_restart
+typedef struct {
+	int				host_maxfps;
+	int				r_waterwarp;
+	int				r_particles;
+	int				vid_filter;
+	int				vid_anisotropic;
+} vid_menu_settings_t;
+
+static vid_menu_settings_t menu_settings;
+
 /*
 ================
 VID_SyncCvars -- johnfitz -- set vid cvars to match current video mode
@@ -2664,6 +2674,12 @@ void VID_SyncCvars (void)
 		// should persist even if we are in windowed mode.
 	}
 
+	menu_settings.r_waterwarp = CLAMP(0, (int)r_waterwarp.value, 2);
+	menu_settings.r_particles = CLAMP(0, (int)r_particles.value, 2);
+	menu_settings.host_maxfps = CLAMP(10, (int)host_maxfps.value, 1000);
+	menu_settings.vid_filter = CLAMP(0, (int)vid_filter.value, 1);
+	menu_settings.vid_anisotropic = CLAMP(0, (int)vid_anisotropic.value, 1);
+
 	vid_changed = false;
 }
 
@@ -2679,6 +2695,7 @@ enum {
 	VID_OPT_REFRESHRATE,
 	VID_OPT_FULLSCREEN,
 	VID_OPT_VSYNC,
+	VID_OPT_MAX_FPS,
 	VID_OPT_ANTIALIASING_SAMPLES,
 	VID_OPT_ANTIALIASING_MODE,
 	VID_OPT_FILTER,
@@ -2968,6 +2985,16 @@ static void VID_Menu_ChooseNextAASamples(int dir)
 	Cvar_SetValueQuick(&vid_fsaa, (float)value);
 }
 
+
+/*
+================
+VID_Menu_ChooseNextMaxFPS
+================
+*/
+static void VID_Menu_ChooseNextMaxFPS(int dir)
+{
+	menu_settings.host_maxfps =  CLAMP(10, ((menu_settings.host_maxfps + (dir*10)) / 10) * 10, 1000);
+}
 /*
 ================
 VID_Menu_ChooseNextWaterWarp
@@ -2975,7 +3002,7 @@ VID_Menu_ChooseNextWaterWarp
 */
 static void VID_Menu_ChooseNextWaterWarp (int dir)
 {
-	Cvar_SetValueQuick(&r_waterwarp, (float)(((int)r_waterwarp.value + 3 + dir) % 3));
+	menu_settings.r_waterwarp = (menu_settings.r_waterwarp + 3 + dir) % 3;
 }
 
 /*
@@ -2987,21 +3014,21 @@ static void VID_Menu_ChooseNextParticles (int dir)
 {
 	if (dir > 0)
 	{
-		if (r_particles.value == 0.0f)
-			Cvar_SetValueQuick(&r_particles, 2.0f);
-		else if (r_particles.value == 2.0f)
-			Cvar_SetValueQuick(&r_particles, 1.0f);
+		if (menu_settings.r_particles == 0)
+			menu_settings.r_particles = 2;
+		else if (r_particles.value == 2)
+			menu_settings.r_particles = 1;
 		else 
-			Cvar_SetValueQuick(&r_particles, 0.0f);
+			menu_settings.r_particles = 0;
 	}
 	else
 	{
-		if (r_particles.value == 0.0f)
-			Cvar_SetValueQuick(&r_particles, 1.0f);
-		else if (r_particles.value == 2.0f)
-			Cvar_SetValueQuick(&r_particles, 0.0f);
+		if (menu_settings.r_particles == 0)
+			menu_settings.r_particles = 1;
+		else if (menu_settings.r_particles == 2)
+			menu_settings.r_particles = 0;
 		else 
-			Cvar_SetValueQuick(&r_particles, 2.0f);
+			menu_settings.r_particles = 2;
 	}
 }
 
@@ -3099,6 +3126,9 @@ static void VID_MenuKey (int key)
 		case VID_OPT_VSYNC:
 			Cbuf_AddText ("toggle vid_vsync\n"); // kristian
 			break;
+		case VID_OPT_MAX_FPS:
+			VID_Menu_ChooseNextMaxFPS (-1);
+			break;
 		case VID_OPT_ANTIALIASING_SAMPLES:
 			VID_Menu_ChooseNextAASamples(-1);
 			break;
@@ -3106,10 +3136,10 @@ static void VID_MenuKey (int key)
 			VID_Menu_ChooseNextAAMode (-1);
 			break;
 		case VID_OPT_FILTER:
-			Cbuf_AddText ("toggle vid_filter\n");
+			menu_settings.vid_filter = (menu_settings.vid_filter==0)?1:0;
 			break;
 		case VID_OPT_ANISOTROPY:
-			Cbuf_AddText ("toggle vid_anisotropic\n");
+			menu_settings.vid_anisotropic = (menu_settings.vid_anisotropic==0)?1:0;
 			break;
 		case VID_OPT_UNDERWATER:
 			VID_Menu_ChooseNextWaterWarp (-1);
@@ -3141,6 +3171,9 @@ static void VID_MenuKey (int key)
 		case VID_OPT_VSYNC:
 			Cbuf_AddText ("toggle vid_vsync\n");
 			break;
+		case VID_OPT_MAX_FPS:
+			VID_Menu_ChooseNextMaxFPS (1);
+			break;
 		case VID_OPT_ANTIALIASING_SAMPLES:
 			VID_Menu_ChooseNextAASamples(1);
 			break;
@@ -3148,10 +3181,10 @@ static void VID_MenuKey (int key)
 			VID_Menu_ChooseNextAAMode(1);
 			break;
 		case VID_OPT_FILTER:
-			Cbuf_AddText ("toggle vid_filter\n");
+			menu_settings.vid_filter = (menu_settings.vid_filter==0)?1:0;
 			break;
 		case VID_OPT_ANISOTROPY:
-			Cbuf_AddText ("toggle vid_anisotropic\n");
+			menu_settings.vid_anisotropic = (menu_settings.vid_anisotropic==0)?1:0;
 			break;
 		case VID_OPT_UNDERWATER:
 			VID_Menu_ChooseNextWaterWarp (1);
@@ -3191,10 +3224,10 @@ static void VID_MenuKey (int key)
 			VID_Menu_ChooseNextAAMode(1);
 			break;
 		case VID_OPT_FILTER:
-			Cbuf_AddText ("toggle vid_filter\n");
+			menu_settings.vid_filter = (menu_settings.vid_filter==0)?1:0;
 			break;
 		case VID_OPT_ANISOTROPY:
-			Cbuf_AddText ("toggle vid_anisotropic\n");
+			menu_settings.vid_anisotropic = (menu_settings.vid_anisotropic==0)?1:0;
 			break;
 		case VID_OPT_UNDERWATER:
 			VID_Menu_ChooseNextWaterWarp (1);
@@ -3206,6 +3239,11 @@ static void VID_MenuKey (int key)
 			Cbuf_AddText ("vid_test\n");
 			break;
 		case VID_OPT_APPLY:
+			Cvar_SetValueQuick(&host_maxfps, menu_settings.host_maxfps);
+			Cvar_SetValueQuick(&r_particles, menu_settings.r_particles);
+			Cvar_SetValueQuick(&r_waterwarp, menu_settings.r_waterwarp);
+			Cvar_SetValueQuick(&vid_filter, menu_settings.vid_filter);
+			Cvar_SetValueQuick(&vid_anisotropic, menu_settings.vid_anisotropic);
 			Cbuf_AddText ("vid_restart\n");
 			key_dest = key_game;
 			m_state = m_none;
@@ -3275,6 +3313,10 @@ static void VID_MenuDraw (void)
 			M_Print (16, y, "     Vertical sync");
 			M_DrawCheckbox (184, y, (int)vid_vsync.value);
 			break;
+		case VID_OPT_MAX_FPS:
+			M_Print (16, y, "           Max FPS");
+			M_Print (184, y, va("%d", menu_settings.host_maxfps));
+			break;
 		case VID_OPT_ANTIALIASING_SAMPLES:
 			M_Print (16, y, "      Antialiasing");
 			M_Print (184, y, ((int)vid_fsaa.value >= 2) ? va("%ix", CLAMP(2, (int)vid_fsaa.value, 16)) : "off");
@@ -3285,19 +3327,19 @@ static void VID_MenuDraw (void)
 			break;
 		case VID_OPT_FILTER:
 			M_Print (16, y, "            Filter");
-			M_Print (184, y, ((int)vid_filter.value == 0) ? "smooth" : "classic");
+			M_Print (184, y, (menu_settings.vid_filter == 0) ? "smooth" : "classic");
 			break;
 		case VID_OPT_ANISOTROPY:
 			M_Print (16, y, "       Anisotropic");
-			M_Print (184, y, ((int)vid_anisotropic.value == 0) ? "off" : va("on (%gx)", vulkan_globals.device_properties.limits.maxSamplerAnisotropy));
+			M_Print (184, y, (menu_settings.vid_anisotropic == 0) ? "off" : va("on (%gx)", vulkan_globals.device_properties.limits.maxSamplerAnisotropy));
 			break;
 		case VID_OPT_UNDERWATER:
 			M_Print (16, y, "     Underwater FX");
-			M_Print (184, y, ((int)r_waterwarp.value == 0) ? "off" : (((int)r_waterwarp.value == 1)  ? "Classic" : "glQuake"));
+			M_Print (184, y, (menu_settings.r_waterwarp == 0) ? "off" : ((menu_settings.r_waterwarp == 1)  ? "Classic" : "glQuake"));
 			break;
 		case VID_OPT_PARTICLES:
 			M_Print (16, y, "         Particles");
-			M_Print (184, y, ((int)r_particles.value == 0) ? "off" : (((int)r_particles.value == 2)  ? "Classic" : "glQuake"));
+			M_Print (184, y, (menu_settings.r_particles == 0) ? "off" : ((menu_settings.r_particles == 2)  ? "Classic" : "glQuake"));
 			break;
 		case VID_OPT_TEST:
 			y += 8; //separate the test and apply items

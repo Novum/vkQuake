@@ -63,6 +63,7 @@ void M_Menu_Quit_f (void);
 
 void M_Print (int cx, int cy, const char *str);
 void M_PrintWhite (int cx, int cy, const char *str);
+void M_DrawSlider (int x, int y, float range);
 
 void M_Draw (void);
 void M_DrawCharacter (int cx, int line, int num);
