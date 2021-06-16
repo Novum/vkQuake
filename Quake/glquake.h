@@ -428,6 +428,14 @@ void R_CreatePipelineLayouts();
 void R_CreatePipelines();
 void R_DestroyPipelines();
 
+#if defined(_MSC_VER)
+#include <malloc.h>
+#define alloca _alloca
+#endif
+#if defined(__GNUC__) && !defined(alloca)
+#define alloca __builtin_alloca
+#endif
+
 static inline void R_BindPipeline(VkPipelineBindPoint bind_point, vulkan_pipeline_t pipeline)
 {
 	assert(pipeline.handle != VK_NULL_HANDLE);
