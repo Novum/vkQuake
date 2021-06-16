@@ -1410,7 +1410,7 @@ static void GL_DeleteTexture (gltexture_t *texture)
 	int garbage_index;
 	texture_garbage_t * garbage;
 
-	if (texture->image_view == NULL)
+	if (!texture->image_view)
 		return;
 
 	if (in_update_screen)
