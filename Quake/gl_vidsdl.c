@@ -283,16 +283,6 @@ static qboolean VID_GetDesktopFullscreen (void)
 
 /*
 ====================
-VID_GetVSync
-====================
-*/
-static qboolean VID_GetVSync (void)
-{
-	return true;
-}
-
-/*
-====================
 VID_GetWindow
 
 used by pl_win.c
@@ -745,7 +735,9 @@ static void GL_InitDevice( void )
 	free(physical_devices);
 
 	qboolean found_swapchain_extension = false;
+#if _DEBUG
 	qboolean found_debug_marker_extension = false;
+#endif
 	vulkan_globals.dedicated_allocation = false;
 	vulkan_globals.full_screen_exclusive = false;
 	vulkan_globals.swap_chain_full_screen_acquired = false;

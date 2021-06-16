@@ -463,7 +463,7 @@ static void SVFTE_WriteStats(client_t *client, sizebuf_t *msg)
 {
 	int statsi[MAX_CL_STATS];
 	float statsf[MAX_CL_STATS];
-	char *statss[MAX_CL_STATS];
+	const char *statss[MAX_CL_STATS];
 	int i;
 	struct deltaframe_s *frame;
 	int sequence = NET_QSocketGetSequenceOut(client->netconnection);
@@ -792,7 +792,6 @@ static void SVFTE_BuildSnapshotForClient (client_t *client)
 	unsigned int	maxentities = client->limit_entities;
 	edict_t			*clent = client->edict;
 	unsigned char	eflags;
-	int proged = EDICT_TO_PROG(clent);
 
 	struct entity_num_state_s *ents = snapshot_entstate;
 	size_t numents = 0;
@@ -2326,9 +2325,6 @@ qboolean SV_SendPrespawnSoundPrecaches(void)
 }
 int SV_SendPrespawnParticlePrecaches(int idx)
 {
-	size_t maxsize = host_client->message.maxsize;	//we can go quite large
-	if (!host_client->protocol_pext2)
-		return -1;	//unsupported by this client.
 	return -1;
 }
 int SV_SendPrespawnStatics(int idx)

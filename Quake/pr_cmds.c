@@ -557,13 +557,12 @@ static void PF_sv_ambientsound (void)
 {
 	const char	*samp, **check;
 	float		*pos;
-	float		vol, attenuation;
+	float		vol;
 	int		soundnum;
 
 	pos = G_VECTOR (OFS_PARM0);
 	samp = G_STRING(OFS_PARM1);
 	vol = G_FLOAT(OFS_PARM2);
-	attenuation = G_FLOAT(OFS_PARM3);
 
 // check to see if samp was properly precached
 	for (soundnum = 0, check = sv.sound_precache; *check; check++, soundnum++)

@@ -2596,8 +2596,6 @@ static void PF_sv_te_explosion2(void)
 static void PF_cl_te_explosion2(void)
 {
 	float *pos = G_VECTOR(OFS_PARM0);
-	int colorStart = G_FLOAT(OFS_PARM1);
-	int colorLength = G_FLOAT(OFS_PARM1);
 	dlight_t *dl;
 
 	dl = CL_AllocDlight (0);
@@ -2649,29 +2647,6 @@ static void PF_cl_pointsound(void)
 	S_StartSound(0, 0, S_PrecacheSound(sample), origin, volume, attenuation);
 }
 //file stuff
-
-//returns false if the file is denied.
-//fallbackread can be NULL, if the qc is not allowed to read that (original) file at all.
-static qboolean QC_FixFileName(const char *name, const char **result, const char **fallbackread)
-{
-	if (!*name ||	//blank names are bad
-		strchr(name, ':') ||	//dos/win absolute path, ntfs ADS, amiga drives. reject them all.
-		strchr(name, '\\') ||	//windows-only paths.
-		*name == '/' ||	//absolute path was given - reject
-		strstr(name, ".."))	//someone tried to be clever.
-	{
-		return false;
-	}
-
-	*fallbackread = name;
-	//if its a user config, ban any fallback locations so that csqc can't read passwords or whatever.
-	if ((!strchr(name, '/') || q_strncasecmp(name, "configs/", 8)) 
-		&& !q_strcasecmp(COM_FileGetExtension(name), "cfg")
-		&& q_strncasecmp(name, "particles/", 10) && q_strncasecmp(name, "huds/", 5) && q_strncasecmp(name, "models/", 7))
-		*fallbackread = NULL;
-	*result = va("data/%s", name);
-	return true;
-}
 
 static void PF_whichpack(void)
 {
@@ -3784,10 +3759,6 @@ static void PF_setattachment(void)
 		val->edict = EDICT_TO_PROG(tagent);
 	if ((val = GetEdictFieldValue(ent, qcvm->extfields.tag_index)))
 		val->_float = 0;
-}
-static void PF_void_stub(void)
-{
-	G_FLOAT(OFS_RETURN) = 0;
 }
 
 static struct svcustomstat_s *PR_CustomStat(int idx, int type)

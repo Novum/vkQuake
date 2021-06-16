@@ -1051,7 +1051,6 @@ void ED_LoadFromFile (const char *data)
 
 		if (!func)
 		{
-			const char *classname = PR_GetString(ent->v.classname);
 			Con_SafePrintf ("No spawn function for:\n"); //johnfitz -- was Con_Printf
 			ED_Print (ent);
 			ED_Free (ent);
