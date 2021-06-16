@@ -428,27 +428,19 @@ void R_CreatePipelineLayouts();
 void R_CreatePipelines();
 void R_DestroyPipelines();
 
-#if defined(_MSC_VER)
-#include <malloc.h>
-#define alloca _alloca
-#endif
-#if defined(__GNUC__) && !defined(alloca)
-#define alloca __builtin_alloca
-#endif
+#define MAX_PUSH_CONSTANT_SIZE 128 // Vulkan guaranteed minimum maxPushConstantsSize
 
 static inline void R_BindPipeline(VkPipelineBindPoint bind_point, vulkan_pipeline_t pipeline)
 {
+	static byte zeroes[MAX_PUSH_CONSTANT_SIZE];
 	assert(pipeline.handle != VK_NULL_HANDLE);
 	assert(pipeline.layout.handle != VK_NULL_HANDLE);
+	assert(vulkan_globals.current_pipeline.layout.push_constant_range.size <= MAX_PUSH_CONSTANT_SIZE);
 	if(vulkan_globals.current_pipeline.handle != pipeline.handle) {
 		vulkan_globals.vk_cmd_bind_pipeline(vulkan_globals.command_buffer, bind_point, pipeline.handle);
 		if ((vulkan_globals.current_pipeline.layout.push_constant_range.stageFlags != pipeline.layout.push_constant_range.stageFlags)
 			|| (vulkan_globals.current_pipeline.layout.push_constant_range.size != pipeline.layout.push_constant_range.size))
-		{
-			void * zeroes = alloca(pipeline.layout.push_constant_range.size);
-			memset(zeroes, 0, pipeline.layout.push_constant_range.size);
 			vulkan_globals.vk_cmd_push_constants(vulkan_globals.command_buffer, pipeline.layout.handle, pipeline.layout.push_constant_range.stageFlags, 0, pipeline.layout.push_constant_range.size, zeroes);
-		}
 		vulkan_globals.current_pipeline = pipeline;
 	}
 }
