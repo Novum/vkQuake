@@ -99,6 +99,7 @@ cvar_t	r_telealpha = {"r_telealpha","0",CVAR_NONE};
 cvar_t	r_slimealpha = {"r_slimealpha","0",CVAR_NONE};
 
 float	map_wateralpha, map_lavaalpha, map_telealpha, map_slimealpha;
+float	map_fallbackalpha;
 
 qboolean r_drawworld_cheatsafe, r_lightmap_cheatsafe; //johnfitz
 

@@ -213,7 +213,10 @@ R_SetWateralpha_f -- ericw
 */
 static void R_SetWateralpha_f (cvar_t *var)
 {
+	if (cls.signon == SIGNONS && cl.worldmodel && !(cl.worldmodel->contentstransparent&SURF_DRAWWATER) && var->value < 1)
+		Con_Warning("Map does not appear to be water-vised\n");
 	map_wateralpha = var->value;
+	map_fallbackalpha = var->value;
 }
 
 #if defined(USE_SIMD)
@@ -239,6 +242,8 @@ R_SetLavaalpha_f -- ericw
 */
 static void R_SetLavaalpha_f (cvar_t *var)
 {
+	if (cls.signon == SIGNONS && cl.worldmodel && !(cl.worldmodel->contentstransparent&SURF_DRAWLAVA) && var->value && var->value < 1)
+		Con_Warning("Map does not appear to be lava-vised\n");
 	map_lavaalpha = var->value;
 }
 
@@ -249,6 +254,8 @@ R_SetTelealpha_f -- ericw
 */
 static void R_SetTelealpha_f (cvar_t *var)
 {
+	if (cls.signon == SIGNONS && cl.worldmodel && !(cl.worldmodel->contentstransparent&SURF_DRAWTELE) && var->value && var->value < 1)
+		Con_Warning("Map does not appear to be tele-vised\n");
 	map_telealpha = var->value;
 }
 
@@ -259,6 +266,8 @@ R_SetSlimealpha_f -- ericw
 */
 static void R_SetSlimealpha_f (cvar_t *var)
 {
+	if (cls.signon == SIGNONS && cl.worldmodel && !(cl.worldmodel->contentstransparent&SURF_DRAWSLIME) && var->value && var->value < 1)
+		Con_Warning("Map does not appear to be slime-vised\n");
 	map_slimealpha = var->value;
 }
 
@@ -270,11 +279,11 @@ GL_WaterAlphaForSurfface -- ericw
 float GL_WaterAlphaForSurface (msurface_t *fa)
 {
 	if (fa->flags & SURF_DRAWLAVA)
-		return map_lavaalpha > 0 ? map_lavaalpha : map_wateralpha;
+		return map_lavaalpha > 0 ? map_lavaalpha : map_fallbackalpha;
 	else if (fa->flags & SURF_DRAWTELE)
-		return map_telealpha > 0 ? map_telealpha : map_wateralpha;
+		return map_telealpha > 0 ? map_telealpha : map_fallbackalpha;
 	else if (fa->flags & SURF_DRAWSLIME)
-		return map_slimealpha > 0 ? map_slimealpha : map_wateralpha;
+		return map_slimealpha > 0 ? map_slimealpha : map_fallbackalpha;
 	else
 		return map_wateralpha;
 }
@@ -2434,10 +2443,11 @@ static void R_ParseWorldspawn (void)
 	char key[128], value[4096];
 	const char *data;
 
-	map_wateralpha = r_wateralpha.value;
-	map_lavaalpha = r_lavaalpha.value;
-	map_telealpha = r_telealpha.value;
-	map_slimealpha = r_slimealpha.value;
+	map_fallbackalpha = r_wateralpha.value;
+	map_wateralpha = (cl.worldmodel->contentstransparent&SURF_DRAWWATER)?r_wateralpha.value:1;
+	map_lavaalpha = (cl.worldmodel->contentstransparent&SURF_DRAWLAVA)?r_lavaalpha.value:1;
+	map_telealpha = (cl.worldmodel->contentstransparent&SURF_DRAWTELE)?r_telealpha.value:1;
+	map_slimealpha = (cl.worldmodel->contentstransparent&SURF_DRAWSLIME)?r_slimealpha.value:1;
 
 	data = COM_Parse(cl.worldmodel->entities);
 	if (!data)

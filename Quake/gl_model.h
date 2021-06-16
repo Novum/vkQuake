@@ -488,6 +488,7 @@ typedef struct qmodel_s
 	qboolean	viswarn; // for Mod_DecompressVis()
 
 	int			bspversion;
+	int			contentstransparent;	//spike -- added this so we can disable glitchy wateralpha where its not supported.
 
 //
 // alias model

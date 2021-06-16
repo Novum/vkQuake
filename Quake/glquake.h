@@ -347,6 +347,7 @@ extern int lightmap_count;	//allocated lightmaps
 extern qboolean r_lightmap_cheatsafe, r_drawworld_cheatsafe; //johnfitz
 
 extern float	map_wateralpha, map_lavaalpha, map_telealpha, map_slimealpha; //ericw
+extern float	map_fallbackalpha; //spike -- because we might want r_wateralpha to apply to teleporters while water itself wasn't watervised
 
 //johnfitz -- fog functions called from outside gl_fog.c
 void Fog_ParseServerMessage (void);

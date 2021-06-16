@@ -166,6 +166,8 @@ byte *Mod_DecompressVis (byte *in, qmodel_t *model)
 
 		c = in[1];
 		in += 2;
+		if (c > row - (out - mod_decompressed))
+			c = row - (out - mod_decompressed);	//now that we're dynamically allocating pvs buffers, we have to be more careful to avoid heap overflows with buggy maps.
 		while (c)
 		{
 			if (out == outend)
@@ -1554,6 +1556,114 @@ void Mod_LoadLeafs (lump_t *l, int bsp2)
 
 /*
 =================
+Mod_CheckWaterVis
+=================
+*/
+void Mod_CheckWaterVis(void)
+{
+	mleaf_t		*leaf, *other;
+	msurface_t * surf;
+	int i, j, k;
+	int numclusters = loadmodel->submodels[0].visleafs;
+	int contentfound = 0;
+	int contenttransparent = 0;
+	int contenttype;
+	unsigned hascontents = 0;
+
+	if (r_novis.value)
+	{	//all can be
+		loadmodel->contentstransparent = (SURF_DRAWWATER|SURF_DRAWTELE|SURF_DRAWSLIME|SURF_DRAWLAVA);
+		return;
+	}
+
+	//pvs is 1-based. leaf 0 sees all (the solid leaf).
+	//leaf 0 has no pvs, and does not appear in other leafs either, so watch out for the biases.
+	for (i=0,leaf=loadmodel->leafs+1 ; i<numclusters ; i++, leaf++)
+	{
+		byte *vis;
+		if (leaf->contents < 0)	//err... wtf?
+			hascontents |= 1u<<-leaf->contents;
+		if (leaf->contents == CONTENTS_WATER)
+		{
+			if ((contenttransparent & (SURF_DRAWWATER|SURF_DRAWTELE))==(SURF_DRAWWATER|SURF_DRAWTELE))
+				continue;
+			//this check is somewhat risky, but we should be able to get away with it.
+			for (contenttype = 0, i = 0; i < leaf->nummarksurfaces; i++)
+			{
+				surf = &loadmodel->surfaces[leaf->firstmarksurface[i]];
+				if (surf->flags & (SURF_DRAWWATER|SURF_DRAWTELE))
+				{
+					contenttype = surf->flags & (SURF_DRAWWATER|SURF_DRAWTELE);
+					break;
+				}
+			}
+			//its possible that this leaf has absolutely no surfaces in it, turb or otherwise.
+			if (contenttype == 0)
+				continue;
+		}
+		else if (leaf->contents == CONTENTS_SLIME)
+			contenttype = SURF_DRAWSLIME;
+		else if (leaf->contents == CONTENTS_LAVA)
+			contenttype = SURF_DRAWLAVA;
+		//fixme: tele
+		else
+			continue;
+		if (contenttransparent & contenttype)
+		{
+			nextleaf:
+			continue;	//found one of this type already
+		}
+		contentfound |= contenttype;
+		vis = Mod_DecompressVis(leaf->compressed_vis, loadmodel);
+		for (j = 0; j < (numclusters+7)/8; j++)
+		{
+			if (vis[j])
+			{
+				for (k = 0; k < 8; k++)
+				{
+					if (vis[j] & (1u<<k))
+					{
+						other = &loadmodel->leafs[(j<<3)+k+1];
+						if (leaf->contents != other->contents)
+						{
+//							Con_Printf("%p:%i sees %p:%i\n", leaf, leaf->contents, other, other->contents);
+							contenttransparent |= contenttype;
+							goto nextleaf;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	if (!contenttransparent)
+	{	//no water leaf saw a non-water leaf
+		//but only warn when there's actually water somewhere there...
+		if (hascontents & ((1<<-CONTENTS_WATER)
+						|  (1<<-CONTENTS_SLIME)
+						|  (1<<-CONTENTS_LAVA)))
+			Con_DPrintf("%s is not watervised\n", loadmodel->name);
+	}
+	else
+	{
+		Con_DPrintf2("%s is vised for transparent", loadmodel->name);
+		if (contenttransparent & SURF_DRAWWATER)
+			Con_DPrintf2(" water");
+		if (contenttransparent & SURF_DRAWTELE)
+			Con_DPrintf2(" tele");
+		if (contenttransparent & SURF_DRAWLAVA)
+			Con_DPrintf2(" lava");
+		if (contenttransparent & SURF_DRAWSLIME)
+			Con_DPrintf2(" slime");
+		Con_DPrintf2("\n");
+	}
+	//any types that we didn't find are assumed to be transparent.
+	//this allows submodels to work okay (eg: ad uses func_illusionary teleporters for some reason).
+	loadmodel->contentstransparent = contenttransparent | (~contentfound & (SURF_DRAWWATER|SURF_DRAWTELE|SURF_DRAWSLIME|SURF_DRAWLAVA));
+}
+
+/*
+=================
 SoA_FillBoxLane
 =================
 */
@@ -2054,6 +2164,8 @@ void Mod_LoadBrushModel (qmodel_t *mod, void *buffer)
 	Mod_MakeHull0 ();
 
 	mod->numframes = 2;		// regular and alternate animation
+
+	Mod_CheckWaterVis();
 
 //
 // set up the submodels (FIXME: this is confusing)
