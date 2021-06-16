@@ -283,7 +283,15 @@ static void PF_sv_setmodel (void)
 
 	if (!*check)
 	{
-		PR_RunError ("no precache: %s", m);
+		if (pr_checkextension.value)
+		{
+//			PR_PrintStatement(pr_statements + pr_xstatement);
+//			PR_StackTrace();
+			Con_Warning("PF_setmodel(\"%s\"): Model was not precached\n", m);
+			i = SV_Precache_Model(m);
+		}
+		else
+			PR_RunError ("no precache: %s", m);
 	}
 	e->v.model = PR_SetEngineString(*check);
 	e->v.modelindex = i; //SV_ModelIndex (m);
@@ -1115,9 +1123,6 @@ static void PF_sv_precache_model (void)
 	const char	*s;
 	int		i;
 
-	if (sv.state != ss_loading)
-		PR_RunError ("PF_Precache_*: Precache can only be done in spawn functions");
-
 	s = G_STRING(OFS_PARM0);
 	G_INT(OFS_RETURN) = G_INT(OFS_PARM0);
 	PR_CheckEmptyString (s);
@@ -1126,12 +1131,25 @@ static void PF_sv_precache_model (void)
 	{
 		if (!sv.model_precache[i])
 		{
+			if (sv.state != ss_loading)
+			{
+				Con_Warning ("PF_precache_model(\"%s\"): Precache should only be done in spawn functions\n", s);
+				//let existing clients know about it
+				MSG_WriteByte(&sv.reliable_datagram, svcdp_precache);
+				MSG_WriteShort(&sv.reliable_datagram, i|0x8000);
+				MSG_WriteString(&sv.reliable_datagram, s);
+			}
+
 			sv.model_precache[i] = s;
-			sv.models[i] = Mod_ForName (s, true);
+			sv.models[i] = Mod_ForName (s, i==1);
 			return;
 		}
 		if (!strcmp(sv.model_precache[i], s))
+		{
+			if (sv.state != ss_loading && !pr_checkextension.value)
+				Con_Warning ("PF_precache_model(\"%s\"): Precache should only be done in spawn functions\n", s);
 			return;
+		}
 	}
 	PR_RunError ("PF_precache_model: overflow");
 }

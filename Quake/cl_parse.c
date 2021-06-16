@@ -1572,6 +1572,53 @@ static void CL_ParseStaticSound (int version) //johnfitz -- added argument
 	S_StaticSound (cl.sound_precache[sound_num], org, vol, atten);
 }
 
+/*
+CL_ParsePrecache
+
+spike -- added this mostly for particle effects, but its also used for models+sounds (if needed)
+*/
+static void CL_ParsePrecache(void)
+{
+	unsigned short code = MSG_ReadShort();
+	unsigned int index = code&0x3fff;
+	const char *name = MSG_ReadString();
+	switch((code>>14) & 0x3)
+	{
+	case 0:	//models
+		if (index < MAX_MODELS)
+		{
+			cl.model_precache[index] = Mod_ForName (name, false);
+			//FIXME: if its a bsp model, generate lightmaps.
+			//FIXME: update static entities with that modelindex
+		}
+		break;
+#ifdef PSET_SCRIPT
+	case 1:	//particles
+		if (index < MAX_PARTICLETYPES)
+		{
+			if (*name)
+			{
+				cl.particle_precache[index].name = strcpy(Hunk_Alloc(strlen(name)+1), name);
+				cl.particle_precache[index].index = PScript_FindParticleType(cl.particle_precache[index].name);
+			}
+			else
+			{
+				cl.particle_precache[index].name = NULL;
+				cl.particle_precache[index].index = -1;
+			}
+		}
+		break;
+#endif
+	case 2:	//sounds
+		if (index < MAX_SOUNDS)
+			cl.sound_precache[index] = S_PrecacheSound (name);
+		break;
+//	case 3:	//unused
+	default:
+		Con_Warning("CL_ParsePrecache: unsupported precache type\n");
+		break;
+	}
+}
 
 #define SHOWNET(x) if(cl_shownet.value==2)Con_Printf ("%3i:%s\n", msg_readcount-1, x);
 
@@ -1923,6 +1970,12 @@ void CL_ParseServerMessage (void)
 			break;
 		//johnfitz
 
+		//spike -- for particles more than anything else
+		case svcdp_precache:
+			if (!cl.protocol_pext2)
+				Host_Error ("Received svcdp_precache but extension not active");
+			CL_ParsePrecache();
+			break;
 		//spike -- new deltas (including new fields etc)
 		//stats also changed, and are sent unreliably using the same ack mechanism (which means they're not blocked until the reliables are acked, preventing the need to spam them in every packet).
 		case svcdp_updatestatbyte:
