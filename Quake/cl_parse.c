@@ -1492,7 +1492,7 @@ static void CL_ParseClientdata (void)
 CL_NewTranslation
 =====================
 */
-static void CL_NewTranslation (int slot)
+void CL_NewTranslation (int slot)
 {
 	if (slot > cl.maxclients)
 		Sys_Error ("CL_NewTranslation: slot > cl.maxclients");
