@@ -626,22 +626,25 @@ qboolean Host_FilterTime (float time)
 	float delta_since_last_frame;
 
 	realtime += time;
-
-	//johnfitz -- max fps cvar
-	maxfps = CLAMP (10.0, host_maxfps.value, 1000.0);
-
-	// Check if we still have more than 2ms till next frame and if so wait for "1ms"
-	// E.g. Windows is not a real time OS and the sleeps can vary in length even with timeBeginPeriod(1)
-	min_frame_time = 1.0f / maxfps;
 	delta_since_last_frame = realtime - oldrealtime;
-	if((min_frame_time - delta_since_last_frame) > (2.0f/1000.0f))
-		SDL_Delay(1);
 
-	if (host_maxfps.value && !cls.timedemo && (delta_since_last_frame < min_frame_time))
-		return false; // framerate is too high
-	//johnfitz
+	if (host_maxfps.value)
+	{
+		//johnfitz -- max fps cvar
+		maxfps = CLAMP (10.0, host_maxfps.value, 1000.0);
 
-	host_frametime = realtime - oldrealtime;
+		// Check if we still have more than 2ms till next frame and if so wait for "1ms"
+		// E.g. Windows is not a real time OS and the sleeps can vary in length even with timeBeginPeriod(1)
+		min_frame_time = 1.0f / maxfps;
+		if((min_frame_time - delta_since_last_frame) > (2.0f/1000.0f))
+			SDL_Delay(1);
+
+		if (!cls.timedemo && (delta_since_last_frame < min_frame_time))
+			return false; // framerate is too high
+		//johnfitz
+	}
+
+	host_frametime = delta_since_last_frame;
 	oldrealtime = realtime;
 
 	//johnfitz -- host_timescale is more intuitive than host_framerate
