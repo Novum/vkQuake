@@ -729,48 +729,28 @@ void Host_ServerFrame (void)
 
 static void CL_LoadCSProgs(void)
 {
-	qboolean fullcsqc = false;
 	PR_ClearProgs(&cl.qcvm);
 	if (pr_checkextension.value && !cl_nocsqc.value)
 	{	//only try to use csqc if qc extensions are enabled.
 		char versionedname[MAX_QPATH];
-		unsigned int csqchash;
-		size_t csqcsize;
 		PR_SwitchQCVM(&cl.qcvm);
-		csqchash = strtoul(Info_GetKey(cl.serverinfo, "*csprogs", versionedname, sizeof(versionedname)), NULL, 0);
-		csqcsize = strtoul(Info_GetKey(cl.serverinfo, "*csprogssize", versionedname, sizeof(versionedname)), NULL, 0);
-
-		snprintf(versionedname, MAX_QPATH, "csprogsvers/%x.dat", csqchash);
 
 		//try csprogs.dat first, then fall back on progs.dat in case someone tried merging the two.
 		//we only care about it if it actually contains a CSQC_DrawHud, otherwise its either just a (misnamed) ssqc progs or a full csqc progs that would just crash us on 3d stuff.
-		if ((PR_LoadProgs(versionedname, false, PROGHEADER_CRC, pr_csqcbuiltins, pr_csqcnumbuiltins) && (qcvm->extfuncs.CSQC_DrawHud||cl.qcvm.extfuncs.CSQC_UpdateView))||
-			(PR_LoadProgs("csprogs.dat", false, PROGHEADER_CRC, pr_csqcbuiltins, pr_csqcnumbuiltins) && (qcvm->extfuncs.CSQC_DrawHud||cl.qcvm.extfuncs.CSQC_UpdateView))||
-			(PR_LoadProgs("progs.dat",   false, PROGHEADER_CRC, pr_csqcbuiltins, pr_csqcnumbuiltins) && (qcvm->extfuncs.CSQC_DrawHud||cl.qcvm.extfuncs.CSQC_UpdateView)))
+		if ((PR_LoadProgs(versionedname, false, PROGHEADER_CRC, pr_csqcbuiltins, pr_csqcnumbuiltins) && qcvm->extfuncs.CSQC_DrawHud)||
+			(PR_LoadProgs("csprogs.dat", false, PROGHEADER_CRC, pr_csqcbuiltins, pr_csqcnumbuiltins) && qcvm->extfuncs.CSQC_DrawHud)||
+			(PR_LoadProgs("progs.dat",   false, PROGHEADER_CRC, pr_csqcbuiltins, pr_csqcnumbuiltins) && qcvm->extfuncs.CSQC_DrawHud))
 		{
 			qcvm->max_edicts = CLAMP (MIN_EDICTS,(int)max_edicts.value,MAX_EDICTS);
 			qcvm->edicts = (edict_t *) malloc (qcvm->max_edicts*qcvm->edict_size);
 			qcvm->num_edicts = qcvm->reserved_edicts = 1;
 			memset(qcvm->edicts, 0, qcvm->num_edicts*qcvm->edict_size);
 
-			//in terms of exploit protection this is kinda pointless as someone can just strip out this check and compile themselves. oh well.
-			if ((qcvm->progshash == csqchash && qcvm->progssize == csqcsize) || cls.demoplayback)
-				fullcsqc = true;
-			else
-			{	//okay, it doesn't match. full csqc is disallowed to prevent cheats, but we still allow simplecsqc...
-				if (!qcvm->extfuncs.CSQC_DrawHud)
-				{	//no simplecsqc entry points... abort entirely!
-					PR_ClearProgs(qcvm);
-					PR_SwitchQCVM(NULL);
-					return;
-				}
-				fullcsqc = false;
-				qcvm->nogameaccess = true;
-
-				qcvm->extfuncs.CSQC_UpdateView = 0;		//will probably bug out. block it.
-
-				qcvm->extglobals.clientcommandframe = NULL;	//input frames are blocked, so don't bother to connect these either.
-				qcvm->extglobals.servercommandframe = NULL;
+			if (!qcvm->extfuncs.CSQC_DrawHud)
+			{	//no simplecsqc entry points... abort entirely!
+				PR_ClearProgs(qcvm);
+				PR_SwitchQCVM(NULL);
+				return;
 			}
 
 			//set a few globals, if they exist
@@ -798,19 +778,12 @@ static void CL_LoadCSProgs(void)
 			SV_ClearWorld();
 			if (qcvm->extfuncs.CSQC_Init)
 			{
-				int maj = (int)QUAKESPASM_VERSION;
-				int min = (QUAKESPASM_VERSION-maj) * 100;
-				G_FLOAT(OFS_PARM0) = fullcsqc;
-				G_INT(OFS_PARM1) = PR_SetEngineString("QuakeSpasm-Spiked");
-				G_FLOAT(OFS_PARM2) = 10000*maj + 100*(min) + QUAKESPASM_VER_PATCH;
+				int maj = (int)VKQUAKE_VERSION;
+				int min = (VKQUAKE_VERSION-maj) * 100;
+				G_FLOAT(OFS_PARM0) = false;
+				G_INT(OFS_PARM1) = PR_SetEngineString("vkQuake");
+				G_FLOAT(OFS_PARM2) = 10000*maj + 100*(min) + VKQUAKE_VER_PATCH;
 				PR_ExecuteProgram(qcvm->extfuncs.CSQC_Init);
-			}
-
-			if (fullcsqc)
-			{
-				//let the server know.
-				MSG_WriteByte (&cls.message, clc_stringcmd);
-				MSG_WriteString (&cls.message, "enablecsqc");
 			}
 		}
 		else

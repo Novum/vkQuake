@@ -175,7 +175,6 @@ struct pr_extfuncs_s
 	QCEXTFUNC(CSQC_ConsoleCommand,		"float(string cmdstr)")												\
 	QCEXTFUNC(CSQC_Parse_Event,			"void()")															\
 	QCEXTFUNC(CSQC_Parse_Damage,		"float(float save, float take, vector dir)")						\
-	QCEXTFUNC(CSQC_UpdateView,			"void(float vwidth, float vheight, float notmenu)")					/*full only: for the full csqc-draws-entire-screen interface*/	\
 	QCEXTFUNC(CSQC_Parse_CenterPrint,	"float(string msg)")												\
 	QCEXTFUNC(CSQC_Parse_Print,			"void(string printmsg, float printlvl)")							\
 
@@ -215,8 +214,6 @@ struct pr_extglobals_s
 	QCEXTGLOBAL_FLOAT(intermission_time)\
 	QCEXTGLOBAL_FLOAT(player_localnum)\
 	QCEXTGLOBAL_FLOAT(player_localentnum)\
-	QCEXTGLOBAL_FLOAT(clientcommandframe)\
-	QCEXTGLOBAL_FLOAT(servercommandframe)\
 	//end
 #define QCEXTGLOBAL_FLOAT(n) float *n;
 #define QCEXTGLOBAL_INT(n) int *n;
@@ -319,10 +316,6 @@ struct qcvm_s
 	struct pr_extglobals_s extglobals;
 	struct pr_extfuncs_s extfuncs;
 	struct pr_extfields_s extfields;
-
-	qboolean cursorforced;
-	void *cursorhandle;	//video code.
-	qboolean nogameaccess;	//simplecsqc isn't allowed to poke properties of the actual game (to prevent cheats when there's no restrictions on what it can access)
 
 	//was static inside pr_edict
 	char		*strings;

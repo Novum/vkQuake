@@ -4261,7 +4261,6 @@ static struct
 } extensionbuiltins[] = 
 #define PF_NoSSQC NULL
 #define PF_NoCSQC NULL
-#define PF_FullCSQCOnly NULL
 #define PF_NoMenu NULL
 {
 	{"vectoangles2",				PF_ext_vectoangles,				PF_ext_vectoangles,				51,		 D("vector(vector fwd, optional vector up)", "Returns the angles (+x=UP) required to orient an entity to look in the given direction. The 'up' argument is required if you wish to set a roll angle, otherwise it will be limited to just monster-style turning.")},
