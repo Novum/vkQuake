@@ -44,7 +44,7 @@ STRIP = strip
 CPUFLAGS=
 LDFLAGS = -m64 -mwindows
 DFLAGS ?=
-CFLAGS ?= -m64 -Wall -Wno-trigraphs
+CFLAGS ?= -m64 -Wall -Wno-trigraphs -D_WIN32_WINNT=0x0501
 CFLAGS += $(CPUFLAGS)
 
 ifneq ($(DEBUG),0)
