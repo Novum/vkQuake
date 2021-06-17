@@ -103,6 +103,7 @@ void AngleVectors (vec3_t angles, vec3_t forward, vec3_t right, vec3_t up);
 int BoxOnPlaneSide (vec3_t emins, vec3_t emaxs, struct mplane_s *plane);
 float	anglemod(float a);
 
+
 void MatrixMultiply(float left[16], float right[16]);
 void RotationMatrix(float matrix[16], float angle, float x, float y, float z);
 void TranslationMatrix(float matrix[16], float x, float y, float z);
@@ -131,7 +132,7 @@ void IdentityMatrix(float matrix[16]);
 #if (defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86))) || (defined(__GNUC__) && defined(__SSE__) && defined(__SSE2__))
 	#define USE_SIMD
 	#define USE_SSE2
-	#include <immintrin.h>
+	#include <emmintrin.h>
 #endif
 
 /*==========================================================================*/
