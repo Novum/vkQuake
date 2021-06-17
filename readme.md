@@ -17,7 +17,6 @@ Copy all files from the `vkquake-<version>` folder in the zip file to the Quake 
 Prerequisites:
 
 * [Git for Windows](https://github.com/git-for-windows/git/releases)
-* [Vulkan SDK](https://vulkan.lunarg.com/signin) (download link is on the bottom of page)
 * A [Vulkan-capable GPU](https://en.wikipedia.org/wiki/Vulkan_(API)#Compatibility) with the appropriate drivers installed
 
 Start `Git Bash` and clone the vkQuake repo:
