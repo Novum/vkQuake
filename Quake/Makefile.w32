@@ -5,6 +5,9 @@
 # "make DEBUG=1" to build a debug client.
 # "make SDL_CONFIG=/path/to/sdl-config" to override the locally included SDL versions.
 
+### Enable SSE2 optimizations
+USE_SSE2=1
+
 ### Enable/disable codecs for streaming music support
 USE_CODEC_WAVE=1
 USE_CODEC_FLAC=1
@@ -41,9 +44,10 @@ WINDRES = windres
 
 STRIP = strip
 
-#CPUFLAGS= -mtune=i686
-#CPUFLAGS= -march=pentium4
 CPUFLAGS=
+ifeq ($(USE_SSE2),1)
+CPUFLAGS+=-msse2
+endif
 LDFLAGS = -m32 -mwindows
 DFLAGS ?=
 CFLAGS ?= -m32 -Wall -Wno-trigraphs -D_WIN32_WINNT=0x0501
