@@ -1706,7 +1706,7 @@ void Mod_PrepareSIMDData (void)
 	int i;
 
 	loadmodel->soa_leafbounds = Hunk_Alloc(6 * sizeof(float) * ((loadmodel->numleafs + 7) & ~7));
-	loadmodel->surfvis        = Hunk_Alloc((loadmodel->numsurfaces + 7) & ~7);
+	loadmodel->surfvis        = Hunk_Alloc((loadmodel->numsurfaces + 7) >> 3);
 	loadmodel->soa_surfplanes = Hunk_Alloc(4 * sizeof(float) * ((loadmodel->numsurfaces + 7) & ~7));
 
 	for (i = 0; i < loadmodel->numleafs; ++i)
