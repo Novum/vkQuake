@@ -3962,13 +3962,6 @@ static void DrawQC_CharacterQuad (float x, float y, int num, float w, float h, f
 	corner_verts[3].texcoord[0] = fcol;
 	corner_verts[3].texcoord[1] = frow + size;
 
-	vertices[0] = corner_verts[0];
-	vertices[1] = corner_verts[1];
-	vertices[2] = corner_verts[2];
-	vertices[3] = corner_verts[2];
-	vertices[4] = corner_verts[3];
-	vertices[5] = corner_verts[0];
-
 	for (i = 0; i<4; ++i)
 	{
 		corner_verts[i].color[0] = rgb[0] * 255.0f;
@@ -3976,6 +3969,13 @@ static void DrawQC_CharacterQuad (float x, float y, int num, float w, float h, f
 		corner_verts[i].color[2] = rgb[2] * 255.0f;
 		corner_verts[i].color[3] = alpha * 255.0f;
 	}
+
+	vertices[0] = corner_verts[0];
+	vertices[1] = corner_verts[1];
+	vertices[2] = corner_verts[2];
+	vertices[3] = corner_verts[2];
+	vertices[4] = corner_verts[3];
+	vertices[5] = corner_verts[0];
 
 	vulkan_globals.vk_cmd_bind_vertex_buffers(vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
 	if (alpha_blend)
@@ -4150,23 +4150,54 @@ static void PF_cl_drawsubpic(void)
 
 static void PF_cl_drawfill(void)
 {
-	//float *pos	= G_VECTOR(OFS_PARM0);
-	//float *size	= G_VECTOR(OFS_PARM1);
-	//float *rgb	= G_VECTOR(OFS_PARM2);
-	//float alpha	= G_FLOAT (OFS_PARM3);
-	//
-	//glDisable (GL_TEXTURE_2D);
-	//
-	//glColor4f (rgb[0], rgb[1], rgb[2], alpha);
-	//
-	//glBegin (GL_QUADS);
-	//glVertex2f (pos[0],			pos[1]);
-	//glVertex2f (pos[0]+size[0],	pos[1]);
-	//glVertex2f (pos[0]+size[0],	pos[1]+size[1]);
-	//glVertex2f (pos[0],			pos[1]+size[1]);
-	//glEnd ();
-	//
-	//glEnable (GL_TEXTURE_2D);
+	int i;
+	float *pos	= G_VECTOR(OFS_PARM0);
+	float *size	= G_VECTOR(OFS_PARM1);
+	float *rgb	= G_VECTOR(OFS_PARM2);
+	float alpha	= G_FLOAT (OFS_PARM3);
+
+	VkBuffer buffer;
+	VkDeviceSize buffer_offset;
+	basicvertex_t * vertices = (basicvertex_t*)R_VertexAllocate(6 * sizeof(basicvertex_t), &buffer, &buffer_offset);
+
+	basicvertex_t corner_verts[4];
+	memset(&corner_verts, 255, sizeof(corner_verts));
+
+	corner_verts[0].position[0] = pos[0];
+	corner_verts[0].position[1] = pos[1];
+	corner_verts[0].position[2] = 0.0f;
+
+	corner_verts[1].position[0] = pos[0]+size[0];
+	corner_verts[1].position[1] = pos[1];
+	corner_verts[1].position[2] = 0.0f;
+
+	corner_verts[2].position[0] = pos[0]+size[0];
+	corner_verts[2].position[1] = pos[1]+size[1];
+	corner_verts[2].position[2] = 0.0f;
+
+	corner_verts[3].position[0] = pos[0];
+	corner_verts[3].position[1] = pos[1]+size[1];
+	corner_verts[3].position[2] = 0.0f;
+
+	for (i = 0; i<4; ++i)
+	{
+		corner_verts[i].color[0] = rgb[0] * 255.0f;
+		corner_verts[i].color[1] = rgb[1] * 255.0f;
+		corner_verts[i].color[2] = rgb[2] * 255.0f;
+		corner_verts[i].color[3] = alpha * 255.0f;
+	}
+
+	vertices[0] = corner_verts[0];
+	vertices[1] = corner_verts[1];
+	vertices[2] = corner_verts[2];
+	vertices[3] = corner_verts[2];
+	vertices[4] = corner_verts[3];
+	vertices[5] = corner_verts[0];
+
+	vulkan_globals.vk_cmd_bind_vertex_buffers(vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
+	R_BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_notex_blend_pipeline[render_pass_index]);
+	vulkan_globals.vk_cmd_bind_descriptor_sets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &char_texture->descriptor_set, 0, NULL);
+	vulkan_globals.vk_cmd_draw(vulkan_globals.command_buffer, 6, 1, 0, 0);
 }
 
 static void PF_cl_registercommand(void)
