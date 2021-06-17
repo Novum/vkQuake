@@ -5,6 +5,11 @@ Compared to QuakeSpasm vkQuake also features a software Quake like underwater ef
 
 vkQuake also serves as a Vulkan demo application that shows basic usage of the API. For example it demonstrates render passes & sub passes, pipeline barriers & synchronization, compute shaders, push & specialization constants, CPU/GPU parallelism and memory pooling.
 
+# Installation
+
+## Windows
+Copy all files from the `vkquake-<version>` folder in the zip file to the Quake base directory. Overwrite any existing files. Afterward to run the game just execute `vkQuake.exe`.
+
 # Building
 
 ## Windows
