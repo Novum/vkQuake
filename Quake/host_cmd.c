@@ -1148,6 +1148,22 @@ void Host_Savegame_f (void)
 		ED_Write (f, EDICT_NUM(i));
 		fflush (f);
 	}
+
+	//add extra info (lightstyles, precaches, etc) in a way that's supposed to be compatible with DP.
+	//sidenote - this provides extended lightstyles and support for late precaches
+	//it does NOT protect against spawnfunc precache changes - we would need to include makestatics here too (and optionally baselines, or just recalculate those).
+	fprintf(f, "/*\n");
+	fprintf(f, "// QuakeSpasm extended savegame\n");
+	fprintf (f, "sv.serverflags %i\n", svs.serverflags);
+	for (i = NUM_BASIC_SPAWN_PARMS ; i < NUM_TOTAL_SPAWN_PARMS ; i++)
+	{
+		if (svs.clients->spawn_parms[i])
+			fprintf (f, "spawnparm %i \"%f\"\n", i+1, svs.clients->spawn_parms[i]);
+	}
+
+	fprintf(f, "*/\n");
+
+
 	fclose (f);
 	Con_Printf ("done.\n");
 	PR_SwitchQCVM(NULL);
@@ -1220,8 +1236,10 @@ void Host_Loadgame_f (void)
 		return;
 	}
 	data = COM_ParseStringNewline (data);
-	for (i = 0; i < NUM_TOTAL_SPAWN_PARMS; i++)
+	for (i = 0; i < NUM_BASIC_SPAWN_PARMS; i++)
 		data = COM_ParseFloatNewline (data, &spawn_parms[i]);
+	for (; i < NUM_TOTAL_SPAWN_PARMS; i++)
+		spawn_parms[i] = 0;
 // this silliness is so we can load 1.06 save files, which have float skill values
 	data = COM_ParseFloatNewline(data, &tfloat);
 	current_skill = (int)(tfloat + 0.1);
@@ -1331,7 +1349,7 @@ void Host_Name_f (void)
 		q_strlcpy(newName, Cmd_Args(), sizeof(newName));
 	newName[15] = 0;	// client_t structure actually says name[32].
 
-	if (cmd_source == src_command)
+	if (cmd_source != src_client)
 	{
 		if (Q_strcmp(cl_name.string, newName) == 0)
 			return;
@@ -1455,7 +1473,7 @@ void Host_Tell_f(void)
 	char		text[MAXCMDLINE], *p2;
 	qboolean	quoted;
 
-	if (cmd_source == src_command)
+	if (cmd_source != src_client)
 	{
 		Cmd_ForwardToServer ();
 		return;
@@ -1545,7 +1563,7 @@ void Host_Color_f(void)
 
 	playercolor = top*16 + bottom;
 
-	if (cmd_source == src_command)
+	if (cmd_source != src_client)
 	{
 		Cvar_SetValue ("_cl_color", playercolor);
 		if (cls.state == ca_connected)
@@ -1699,6 +1717,15 @@ void Host_Spawn_f (void)
 		// copy spawn parms out of the client_t
 		for (i=0 ; i< NUM_BASIC_SPAWN_PARMS ; i++)
 			(&pr_global_struct->parm1)[i] = host_client->spawn_parms[i];
+		if (pr_checkextension.value)
+		{	//extended spawn parms
+			for ( ; i< NUM_TOTAL_SPAWN_PARMS ; i++)
+			{
+				ddef_t *g = ED_FindGlobal(va("parm%i", i+1));
+				if (g)
+					qcvm->globals[g->ofs] = host_client->spawn_parms[i];
+			}
+		}
 		// call the spawn function
 		pr_global_struct->time = qcvm->time;
 		pr_global_struct->self = EDICT_TO_PROG(sv_player);
