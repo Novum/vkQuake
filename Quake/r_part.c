@@ -167,7 +167,7 @@ void R_InitParticleIndexBuffer(void)
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateBuffer failed");
 
-	GL_SetObjectName((uint64_t)particle_index_buffer, VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT, "Particle index buffer");
+	GL_SetObjectName((uint64_t)particle_index_buffer, VK_OBJECT_TYPE_BUFFER, "Particle index buffer");
 
 	VkMemoryRequirements memory_requirements;
 	vkGetBufferMemoryRequirements(vulkan_globals.device, particle_index_buffer, &memory_requirements);
@@ -189,7 +189,7 @@ void R_InitParticleIndexBuffer(void)
 	if (err != VK_SUCCESS)
 		Sys_Error("vkAllocateMemory failed");
 
-	GL_SetObjectName((uint64_t)particle_index_buffer_memory, VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_MEMORY_EXT, "Particle index buffer");
+	GL_SetObjectName((uint64_t)particle_index_buffer_memory, VK_OBJECT_TYPE_DEVICE_MEMORY, "Particle index buffer");
 
 	err = vkBindBufferMemory(vulkan_globals.device, particle_index_buffer, particle_index_buffer_memory, 0);
 	if (err != VK_SUCCESS)

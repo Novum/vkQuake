@@ -52,10 +52,6 @@ unsigned int d_8to24table_pants[256];
 static glheap_t ** texmgr_heaps;
 static int num_texmgr_heaps;
 
-#ifdef _DEBUG
-extern PFN_vkDebugMarkerSetObjectNameEXT fpDebugMarkerSetObjectNameEXT;
-#endif
-
 /*
 ================================================================================
 
@@ -843,7 +839,7 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateImage failed");
 
-	GL_SetObjectName((uint64_t)glt->image, VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT, glt->name);
+	GL_SetObjectName((uint64_t)glt->image, VK_OBJECT_TYPE_IMAGE, glt->name);
 
 	VkMemoryRequirements memory_requirements;
 	vkGetImageMemoryRequirements(vulkan_globals.device, glt->image, &memory_requirements);
@@ -875,7 +871,7 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateImageView failed");
 
-	GL_SetObjectName((uint64_t)glt->image_view, VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT, glt->name);
+	GL_SetObjectName((uint64_t)glt->image_view, VK_OBJECT_TYPE_IMAGE_VIEW, glt->name);
 
 	// Allocate and update descriptor for this texture
 	glt->descriptor_set = R_AllocateDescriptorSet(&vulkan_globals.single_texture_set_layout);
@@ -890,7 +886,7 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateImageView failed");
 
-		GL_SetObjectName((uint64_t)glt->target_image_view, VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT, glt->name);
+		GL_SetObjectName((uint64_t)glt->target_image_view, VK_OBJECT_TYPE_IMAGE_VIEW, glt->name);
 
 		VkFramebufferCreateInfo framebuffer_create_info;
 		memset(&framebuffer_create_info, 0, sizeof(framebuffer_create_info));
@@ -905,7 +901,7 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateFramebuffer failed");
 
-		GL_SetObjectName((uint64_t)glt->frame_buffer, VK_DEBUG_REPORT_OBJECT_TYPE_FRAMEBUFFER_EXT, glt->name);
+		GL_SetObjectName((uint64_t)glt->frame_buffer, VK_OBJECT_TYPE_FRAMEBUFFER, glt->name);
 
 		// Allocate and update descriptor for this texture
 		glt->warp_write_descriptor_set = R_AllocateDescriptorSet(&vulkan_globals.single_texture_cs_write_set_layout);

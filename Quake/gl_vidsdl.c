@@ -155,27 +155,14 @@ static PFN_vkReleaseFullScreenExclusiveModeEXT fpReleaseFullScreenExclusiveModeE
 #endif
 
 #ifdef _DEBUG
-static PFN_vkCreateDebugReportCallbackEXT fpCreateDebugReportCallbackEXT;
-static PFN_vkDestroyDebugReportCallbackEXT fpDestroyDebugReportCallbackEXT;
-PFN_vkDebugMarkerSetObjectNameEXT fpDebugMarkerSetObjectNameEXT;
+static PFN_vkCreateDebugUtilsMessengerEXT fpCreateDebugUtilsMessengerEXT;
+PFN_vkSetDebugUtilsObjectNameEXT fpSetDebugUtilsObjectNameEXT;
 
-VkDebugReportCallbackEXT debug_report_callback;
+VkDebugUtilsMessengerEXT debug_utils_messenger;
 
-VkBool32 debug_message_callback(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT obj, int64_t src, size_t loc, int32_t code, const char* pLayer,const char* pMsg, void* pUserData)
+VkBool32 DebugMessageCallback(VkDebugUtilsMessageSeverityFlagBitsEXT message_severity, VkDebugUtilsMessageTypeFlagsEXT message_types, const VkDebugUtilsMessengerCallbackDataEXT * callback_data, void * user_data)
 {
-	const char* prefix;
-
-	if (flags & VK_DEBUG_REPORT_ERROR_BIT_EXT)
-	{
-		prefix = "ERROR";
-	};
-	if (flags & VK_DEBUG_REPORT_WARNING_BIT_EXT)
-	{
-		prefix = "WARNING";
-	};
-	
-	Sys_Printf("[Validation %s]: %s\n", prefix, pMsg);
-
+	Sys_Printf("%s\n", callback_data->pMessage);
 	return VK_FALSE;
 }
 #endif
@@ -567,18 +554,18 @@ void VID_Lock (void)
 GL_SetObjectName
 ===============
 */
-void GL_SetObjectName(uint64_t object, VkDebugReportObjectTypeEXT objectType, const char * name)
+void GL_SetObjectName(uint64_t object, VkObjectType object_type, const char * name)
 {
 #ifdef _DEBUG
-	if (fpDebugMarkerSetObjectNameEXT && name)
+	if (fpSetDebugUtilsObjectNameEXT && name)
 	{
-		VkDebugMarkerObjectNameInfoEXT nameInfo;
+		VkDebugUtilsObjectNameInfoEXT nameInfo;
 		memset(&nameInfo, 0, sizeof(nameInfo));
 		nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT;
-		nameInfo.objectType = objectType;
-		nameInfo.object = object;
+		nameInfo.objectType = object_type;
+		nameInfo.objectHandle = object;
 		nameInfo.pObjectName = name;
-		fpDebugMarkerSetObjectNameEXT(vulkan_globals.device, &nameInfo);
+		fpSetDebugUtilsObjectNameEXT(vulkan_globals.device, &nameInfo);
 	};
 #endif
 }
@@ -593,6 +580,7 @@ static void GL_InitInstance( void )
 	VkResult err;
 	uint32_t i;
 	unsigned int sdl_extension_count;
+	vulkan_globals.debug_utils = false;
 
 	if(!SDL_Vulkan_GetInstanceExtensions(draw_context, &sdl_extension_count, NULL))
 		Sys_Error("SDL_Vulkan_GetInstanceExtensions failed: %s", SDL_GetError());
@@ -619,6 +607,10 @@ static void GL_InitInstance( void )
 				vulkan_globals.get_surface_capabilities_2 = true;
 			if (strcmp(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME, instance_extensions[i].extensionName) == 0)
 				vulkan_globals.get_physical_device_properties_2 = true;
+#if _DEBUG
+			if (strcmp(VK_EXT_DEBUG_UTILS_EXTENSION_NAME, instance_extensions[i].extensionName) == 0)
+				vulkan_globals.debug_utils = true;
+#endif
 		}
 
 		free(instance_extensions);
@@ -651,11 +643,15 @@ static void GL_InitInstance( void )
 	}
 
 #ifdef _DEBUG
-	const char * const layer_names[] = { "VK_LAYER_KHRONOS_validation" };
-
-	if(vulkan_globals.validation)
+	if (vulkan_globals.debug_utils)
 	{
-		instance_extensions[sdl_extension_count + additionalExtensionCount++] = VK_EXT_DEBUG_REPORT_EXTENSION_NAME;
+		instance_extensions[sdl_extension_count + additionalExtensionCount++] = VK_EXT_DEBUG_UTILS_EXTENSION_NAME;
+		Con_Printf("Using VK_EXT_debug_utils\n");
+	}
+
+	const char * const layer_names[] = { "VK_LAYER_KHRONOS_validation" };
+	if (vulkan_globals.validation)
+	{
 		Con_Printf("Using VK_LAYER_KHRONOS_validation\n");
 		instance_create_info.enabledLayerCount = 1;
 		instance_create_info.ppEnabledLayerNames = layer_names;
@@ -687,18 +683,20 @@ static void GL_InitInstance( void )
 	if(vulkan_globals.validation)
 	{
 		Con_Printf("Creating debug report callback\n");
-		GET_INSTANCE_PROC_ADDR(vulkan_instance, CreateDebugReportCallbackEXT);
-		GET_INSTANCE_PROC_ADDR(vulkan_instance, DestroyDebugReportCallbackEXT);
+		GET_INSTANCE_PROC_ADDR(vulkan_instance, CreateDebugUtilsMessengerEXT);
+		if (fpCreateDebugUtilsMessengerEXT)
+		{
+			VkDebugUtilsMessengerCreateInfoEXT debug_utils_messenger_create_info;
+			memset(&debug_utils_messenger_create_info, 0, sizeof(debug_utils_messenger_create_info));
+			debug_utils_messenger_create_info.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+			debug_utils_messenger_create_info.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT;
+			debug_utils_messenger_create_info.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT;
+			debug_utils_messenger_create_info.pfnUserCallback = DebugMessageCallback;
 
-		VkDebugReportCallbackCreateInfoEXT report_callback_Info;
-		memset(&report_callback_Info, 0, sizeof(report_callback_Info));
-		report_callback_Info.sType = VK_STRUCTURE_TYPE_DEBUG_REPORT_CREATE_INFO_EXT;
-		report_callback_Info.pfnCallback = (PFN_vkDebugReportCallbackEXT)debug_message_callback;
-		report_callback_Info.flags = VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT;
-
-		err = fpCreateDebugReportCallbackEXT(vulkan_instance, &report_callback_Info, NULL, &debug_report_callback);
-		if (err != VK_SUCCESS)
-			Sys_Error("Could not create debug report callback");
+			err = fpCreateDebugUtilsMessengerEXT(vulkan_instance, &debug_utils_messenger_create_info, NULL, &debug_utils_messenger);
+			if (err != VK_SUCCESS)
+				Sys_Error("Could not create debug report callback");
+		}
 	}
 #endif
 
@@ -735,9 +733,6 @@ static void GL_InitDevice( void )
 	free(physical_devices);
 
 	qboolean found_swapchain_extension = false;
-#if _DEBUG
-	qboolean found_debug_marker_extension = false;
-#endif
 	vulkan_globals.dedicated_allocation = false;
 	vulkan_globals.full_screen_exclusive = false;
 	vulkan_globals.swap_chain_full_screen_acquired = false;
@@ -774,10 +769,6 @@ static void GL_InitDevice( void )
 		{
 			if (strcmp(VK_KHR_SWAPCHAIN_EXTENSION_NAME, device_extensions[i].extensionName) == 0)
 				found_swapchain_extension = true;
-#if _DEBUG
-			if (strcmp(VK_EXT_DEBUG_MARKER_EXTENSION_NAME, device_extensions[i].extensionName) == 0)
-				found_debug_marker_extension = true;
-#endif
 			if (strcmp(VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME, device_extensions[i].extensionName) == 0)
 				vulkan_globals.dedicated_allocation = true;
 #if defined(VK_EXT_full_screen_exclusive)
@@ -836,10 +827,6 @@ static void GL_InitDevice( void )
 
 	const char * device_extensions[5] = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
 	int numEnabledExtensions = 1;
-#if _DEBUG
-	if (found_debug_marker_extension)
-		device_extensions[ numEnabledExtensions++ ] = VK_EXT_DEBUG_MARKER_EXTENSION_NAME;
-#endif
 	if (vulkan_globals.dedicated_allocation) {
 		device_extensions[ numEnabledExtensions++ ] = VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME;
 		device_extensions[ numEnabledExtensions++ ] = VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME;
@@ -882,14 +869,6 @@ static void GL_InitDevice( void )
 	GET_DEVICE_PROC_ADDR(vulkan_globals.device, AcquireNextImageKHR);
 	GET_DEVICE_PROC_ADDR(vulkan_globals.device, QueuePresentKHR);
 
-#if _DEBUG
-	if (found_debug_marker_extension)
-	{
-		Con_Printf("Using VK_EXT_debug_marker\n");
-		GET_DEVICE_PROC_ADDR(vulkan_globals.device, DebugMarkerSetObjectNameEXT);
-	}
-#endif
-
 	if (vulkan_globals.dedicated_allocation)
 	{
 		Con_Printf("Using VK_KHR_dedicated_allocation\n");
@@ -901,6 +880,10 @@ static void GL_InitDevice( void )
 		GET_DEVICE_PROC_ADDR(vulkan_globals.device, AcquireFullScreenExclusiveModeEXT);
 		GET_DEVICE_PROC_ADDR(vulkan_globals.device, ReleaseFullScreenExclusiveModeEXT);
 	}
+#endif
+#ifdef _DEBUG
+	if (vulkan_globals.debug_utils)
+		GET_DEVICE_PROC_ADDR(vulkan_globals.device, SetDebugUtilsObjectNameEXT);
 #endif
 
 	vkGetDeviceQueue(vulkan_globals.device, vulkan_globals.gfx_queue_family_index, 0, &vulkan_globals.queue);
@@ -1080,7 +1063,7 @@ static void GL_CreateRenderPasses()
 	if (err != VK_SUCCESS)
 		Sys_Error("Couldn't create Vulkan render pass");
 
-	GL_SetObjectName((uint64_t)vulkan_globals.main_render_pass, VK_DEBUG_REPORT_OBJECT_TYPE_RENDER_PASS_EXT, "main");
+	GL_SetObjectName((uint64_t)vulkan_globals.main_render_pass, VK_OBJECT_TYPE_RENDER_PASS, "main");
 
 	// UI Render Pass
 	attachment_descriptions[0].initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
@@ -1143,7 +1126,7 @@ static void GL_CreateRenderPasses()
 	if (err != VK_SUCCESS)
 		Sys_Error("Couldn't create Vulkan render pass");
 
-	GL_SetObjectName((uint64_t)vulkan_globals.main_render_pass, VK_DEBUG_REPORT_OBJECT_TYPE_RENDER_PASS_EXT, "ui");
+	GL_SetObjectName((uint64_t)vulkan_globals.main_render_pass, VK_OBJECT_TYPE_RENDER_PASS, "ui");
 
 	if(vulkan_globals.warp_render_pass == VK_NULL_HANDLE)
 	{
@@ -1173,7 +1156,7 @@ static void GL_CreateRenderPasses()
 		if (err != VK_SUCCESS)
 			Sys_Error("Couldn't create Vulkan render pass");
 
-		GL_SetObjectName((uint64_t)vulkan_globals.warp_render_pass, VK_DEBUG_REPORT_OBJECT_TYPE_RENDER_PASS_EXT, "warp");
+		GL_SetObjectName((uint64_t)vulkan_globals.warp_render_pass, VK_OBJECT_TYPE_RENDER_PASS, "warp");
 	}
 }
 
@@ -1211,7 +1194,7 @@ static void GL_CreateDepthBuffer( void )
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateImage failed");
 
-	GL_SetObjectName((uint64_t)depth_buffer, VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT, "Depth Buffer");
+	GL_SetObjectName((uint64_t)depth_buffer, VK_OBJECT_TYPE_IMAGE, "Depth Buffer");
 
 	VkMemoryRequirements memory_requirements;
 	vkGetImageMemoryRequirements(vulkan_globals.device, depth_buffer, &memory_requirements);
@@ -1236,7 +1219,7 @@ static void GL_CreateDepthBuffer( void )
 	if (err != VK_SUCCESS)
 		Sys_Error("vkAllocateMemory failed");
 
-	GL_SetObjectName((uint64_t)depth_buffer_memory, VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_MEMORY_EXT, "Depth Buffer");
+	GL_SetObjectName((uint64_t)depth_buffer_memory, VK_OBJECT_TYPE_DEVICE_MEMORY, "Depth Buffer");
 
 	err = vkBindImageMemory(vulkan_globals.device, depth_buffer, depth_buffer_memory, 0);
 	if (err != VK_SUCCESS)
@@ -1260,7 +1243,7 @@ static void GL_CreateDepthBuffer( void )
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateImageView failed");
 
-	GL_SetObjectName((uint64_t)depth_buffer_view, VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT, "Depth Buffer View");
+	GL_SetObjectName((uint64_t)depth_buffer_view, VK_OBJECT_TYPE_IMAGE_VIEW, "Depth Buffer View");
 }
 
 /*
@@ -1297,7 +1280,7 @@ static void GL_CreateColorBuffer( void )
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateImage failed");
 	
-		GL_SetObjectName((uint64_t)vulkan_globals.color_buffers[i], VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT, va("Color Buffer %d", i));
+		GL_SetObjectName((uint64_t)vulkan_globals.color_buffers[i], VK_OBJECT_TYPE_IMAGE, va("Color Buffer %d", i));
 
 		VkMemoryRequirements memory_requirements;
 		vkGetImageMemoryRequirements(vulkan_globals.device, vulkan_globals.color_buffers[i], &memory_requirements);
@@ -1322,7 +1305,7 @@ static void GL_CreateColorBuffer( void )
 		if (err != VK_SUCCESS)
 			Sys_Error("vkAllocateMemory failed");
 
-		GL_SetObjectName((uint64_t)color_buffers_memory[i], VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_MEMORY_EXT, va("Color Buffer %d", i));
+		GL_SetObjectName((uint64_t)color_buffers_memory[i], VK_OBJECT_TYPE_DEVICE_MEMORY, va("Color Buffer %d", i));
 
 		err = vkBindImageMemory(vulkan_globals.device, vulkan_globals.color_buffers[i], color_buffers_memory[i], 0);
 		if (err != VK_SUCCESS)
@@ -1346,7 +1329,7 @@ static void GL_CreateColorBuffer( void )
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateImageView failed");
 
-		GL_SetObjectName((uint64_t)color_buffers_view[i], VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT, va("Color Buffer View %d", i));
+		GL_SetObjectName((uint64_t)color_buffers_view[i], VK_OBJECT_TYPE_IMAGE_VIEW, va("Color Buffer View %d", i));
 	}
 
 	vulkan_globals.sample_count = VK_SAMPLE_COUNT_1_BIT;
@@ -1402,7 +1385,7 @@ static void GL_CreateColorBuffer( void )
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateImage failed");
 
-		GL_SetObjectName((uint64_t)msaa_color_buffer, VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT, "MSAA Color Buffer");
+		GL_SetObjectName((uint64_t)msaa_color_buffer, VK_OBJECT_TYPE_IMAGE, "MSAA Color Buffer");
 	
 		VkMemoryRequirements memory_requirements;
 		vkGetImageMemoryRequirements(vulkan_globals.device, msaa_color_buffer, &memory_requirements);
@@ -1427,7 +1410,7 @@ static void GL_CreateColorBuffer( void )
 		if (err != VK_SUCCESS)
 			Sys_Error("vkAllocateMemory failed");
 
-		GL_SetObjectName((uint64_t)msaa_color_buffer_memory, VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_MEMORY_EXT, "MSAA Color Buffer");
+		GL_SetObjectName((uint64_t)msaa_color_buffer_memory, VK_OBJECT_TYPE_DEVICE_MEMORY, "MSAA Color Buffer");
 
 		err = vkBindImageMemory(vulkan_globals.device, msaa_color_buffer, msaa_color_buffer_memory, 0);
 		if (err != VK_SUCCESS)
@@ -1751,7 +1734,7 @@ static qboolean GL_CreateSwapChain( void )
 
 	for (i = 0; i < num_swap_chain_images; ++i)
 	{
-		GL_SetObjectName((uint64_t)swapchain_images[i], VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT, "Swap Chain");
+		GL_SetObjectName((uint64_t)swapchain_images[i], VK_OBJECT_TYPE_IMAGE, "Swap Chain");
 
 		assert(swapchain_images_views[i] == VK_NULL_HANDLE);
 		image_view_create_info.image = swapchain_images[i];
@@ -1759,7 +1742,7 @@ static qboolean GL_CreateSwapChain( void )
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateImageView failed");
 
-		GL_SetObjectName((uint64_t)swapchain_images_views[i], VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT, "Swap Chain View");
+		GL_SetObjectName((uint64_t)swapchain_images_views[i], VK_OBJECT_TYPE_IMAGE_VIEW, "Swap Chain View");
 	}
 
 	for (i = 0; i < NUM_COMMAND_BUFFERS; ++i)
@@ -1807,7 +1790,7 @@ static void GL_CreateFrameBuffers( void )
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateFramebuffer failed");
 
-		GL_SetObjectName((uint64_t)main_framebuffers[i], VK_DEBUG_REPORT_OBJECT_TYPE_FRAMEBUFFER_EXT, "main");
+		GL_SetObjectName((uint64_t)main_framebuffers[i], VK_OBJECT_TYPE_FRAMEBUFFER, "main");
 	}
 
 	for (i = 0; i < num_swap_chain_images; ++i)
@@ -1829,7 +1812,7 @@ static void GL_CreateFrameBuffers( void )
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateFramebuffer failed");
 
-		GL_SetObjectName((uint64_t)ui_framebuffers[i], VK_DEBUG_REPORT_OBJECT_TYPE_FRAMEBUFFER_EXT, "ui");
+		GL_SetObjectName((uint64_t)ui_framebuffers[i], VK_OBJECT_TYPE_FRAMEBUFFER, "ui");
 	}
 }
 
