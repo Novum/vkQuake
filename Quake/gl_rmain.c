@@ -65,6 +65,7 @@ cvar_t	r_drawentities = {"r_drawentities","1",CVAR_NONE};
 cvar_t	r_drawviewmodel = {"r_drawviewmodel","1",CVAR_NONE};
 cvar_t	r_speeds = {"r_speeds","0",CVAR_NONE};
 cvar_t	r_pos = {"r_pos","0",CVAR_NONE};
+cvar_t	r_fullbright = {"r_fullbright","0",CVAR_NONE};
 cvar_t	r_lightmap = {"r_lightmap","0",CVAR_NONE};
 cvar_t	r_wateralpha = {"r_wateralpha","1",CVAR_ARCHIVE};
 cvar_t	r_dynamic = {"r_dynamic","1",CVAR_ARCHIVE};
@@ -101,7 +102,7 @@ cvar_t	r_slimealpha = {"r_slimealpha","0",CVAR_NONE};
 float	map_wateralpha, map_lavaalpha, map_telealpha, map_slimealpha;
 float	map_fallbackalpha;
 
-qboolean r_drawworld_cheatsafe, r_lightmap_cheatsafe; //johnfitz
+qboolean r_drawworld_cheatsafe, r_fullbright_cheatsafe, r_lightmap_cheatsafe; //johnfitz
 
 /*
 =================
@@ -382,12 +383,14 @@ void R_SetupView (void)
 	R_UpdateWarpTextures (); //johnfitz -- do this before R_Clear
 
 	//johnfitz -- cheat-protect some draw modes
+	r_fullbright_cheatsafe = false;
 	r_lightmap_cheatsafe = false;
 	r_drawworld_cheatsafe = true;
 	if (cl.maxclients == 1)
 	{
 		if (!r_drawworld.value) r_drawworld_cheatsafe = false;
-		if (r_lightmap.value) r_lightmap_cheatsafe = true;
+		if (r_fullbright.value) r_fullbright_cheatsafe = true;
+		else if (r_lightmap.value) r_lightmap_cheatsafe = true;
 	}
 	//johnfitz
 }

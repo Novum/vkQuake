@@ -274,6 +274,7 @@ extern	cvar_t	r_drawviewmodel;
 extern	cvar_t	r_speeds;
 extern	cvar_t	r_pos;
 extern	cvar_t	r_waterwarp;
+extern	cvar_t	r_fullbright;
 extern	cvar_t	r_lightmap;
 extern	cvar_t	r_wateralpha;
 extern	cvar_t	r_lavaalpha;
@@ -351,7 +352,7 @@ struct lightmap_s
 extern struct lightmap_s *lightmap;
 extern int lightmap_count;	//allocated lightmaps
 
-extern qboolean r_lightmap_cheatsafe, r_drawworld_cheatsafe; //johnfitz
+extern qboolean r_fullbright_cheatsafe, r_lightmap_cheatsafe, r_drawworld_cheatsafe; //johnfitz
 
 extern float	map_wateralpha, map_lavaalpha, map_telealpha, map_slimealpha; //ericw
 extern float	map_fallbackalpha; //spike -- because we might want r_wateralpha to apply to teleporters while water itself wasn't watervised

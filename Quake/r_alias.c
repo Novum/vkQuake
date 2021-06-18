@@ -70,8 +70,8 @@ typedef struct {
 	float shade_vector[3];
 	float blend_factor;
 	float light_color[3];
-	unsigned int use_fullbright;
 	float entalpha;
+	unsigned int flags;
 } aliasubo_t;
 
 /*
@@ -123,7 +123,9 @@ static void GL_DrawAliasFrame (aliashdr_t *paliashdr, lerpdata_t lerpdata, gltex
 	memcpy(ubo->shade_vector, shadevector, 3 * sizeof(float));
 	ubo->blend_factor = blend;
 	memcpy(ubo->light_color, lightcolor, 3 * sizeof(float));
-	ubo->use_fullbright = (fb != NULL) ? 1 : 0;
+	ubo->flags = (fb != NULL) ? 0x1 : 0x0;
+	if (r_fullbright_cheatsafe || r_lightmap_cheatsafe)
+		ubo->flags |= 0x2;
 	ubo->entalpha = entalpha;
 
 	VkDescriptorSet descriptor_sets[3] = { tx->descriptor_set, (fb != NULL) ? fb->descriptor_set : tx->descriptor_set, ubo_set };
@@ -426,13 +428,19 @@ void R_DrawAliasModel (entity_t *e)
 	if (!gl_fullbrights.value)
 		fb = NULL;
 
+	if (r_fullbright_cheatsafe)
+	{
+		lightcolor[0] = 0.5f;
+		lightcolor[1] = 0.5f;
+		lightcolor[2] = 0.5f;
+	}
 	if (r_lightmap_cheatsafe)
 	{
 		tx = whitetexture;
 		fb = NULL;
-		lightcolor[0] = 1;
-		lightcolor[1] = 1;
-		lightcolor[2] = 1;
+		lightcolor[0] = 1.0f;
+		lightcolor[1] = 1.0f;
+		lightcolor[2] = 1.0f;
 	}
 
 	//
@@ -507,8 +515,8 @@ void R_DrawAliasModel_ShowTris (entity_t *e)
 	memset(ubo->shade_vector, 0, 3 * sizeof(float));
 	ubo->blend_factor = blend;
 	memset(ubo->light_color, 0, 3 * sizeof(float));
-	ubo->use_fullbright = false;
 	ubo->entalpha = 1.0f;
+	ubo->flags = 0;
 
 	VkDescriptorSet descriptor_sets[3] = { nulltexture->descriptor_set, nulltexture->descriptor_set, ubo_set };
 	vulkan_globals.vk_cmd_bind_descriptor_sets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.alias_pipeline.layout.handle, 0, 3, descriptor_sets, 1, &uniform_offset);

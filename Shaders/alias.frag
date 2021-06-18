@@ -18,8 +18,8 @@ layout (set = 2, binding = 0) uniform UBO
 	vec3 shade_vector;
 	float blend_factor;
 	vec3 light_color;
-	bool use_fullbright;
 	float entalpha;
+	uint flags;
 } ubo;
 
 layout (location = 0) in vec2 in_texcoord;
@@ -33,7 +33,7 @@ void main()
 	vec4 result = texture(diffuse_tex, in_texcoord.xy);
 	result *= in_color * 2.0f;
 
-	if (ubo.use_fullbright)
+	if ((ubo.flags & 0x1) != 0)
 		result += texture(fullbright_tex, in_texcoord.xy);
 
 	result.a = ubo.entalpha;

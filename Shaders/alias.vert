@@ -15,8 +15,8 @@ layout (set = 2, binding = 0) uniform UBO
 	vec3 shade_vector;
 	float blend_factor;
 	vec3 light_color;
-	bool use_fullbright;
 	float entalpha;
+	uint flags;
 } ubo;
 
 layout (location = 0) in vec2 in_texcoord;
@@ -51,9 +51,14 @@ void main()
 	vec4 model_space_position = ubo.model_matrix * lerped_position;
 	gl_Position = push_constants.view_projection_matrix * model_space_position;
 
-	float dot1 = r_avertexnormal_dot(in_pose1_normal);
-	float dot2 = r_avertexnormal_dot(in_pose2_normal);
-	out_color = vec4(ubo.light_color * mix(dot1, dot2, ubo.blend_factor), 1.0);
+	if ((ubo.flags & 0x2) == 0)
+	{
+		float dot1 = r_avertexnormal_dot(in_pose1_normal);
+		float dot2 = r_avertexnormal_dot(in_pose2_normal);
+		out_color = vec4(ubo.light_color * mix(dot1, dot2, ubo.blend_factor), 1.0);
+	}
+	else
+		out_color = vec4(ubo.light_color, 1.0f);
 
 	out_fog_frag_coord = gl_Position.w;
 }
