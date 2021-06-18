@@ -712,7 +712,7 @@ FIXME: eliminate cracks by adding an extra vert on tjuncs
 */
 void Sky_DrawSkyBox (void)
 {
-	int		i, j;
+	int i;
 
 	for (i=0 ; i<6 ; i++)
 	{
@@ -736,40 +736,17 @@ void Sky_DrawSkyBox (void)
 		Sky_EmitSkyBoxVertex (vertices + 2, skymaxs[0][i], skymaxs[1][i], i);
 		Sky_EmitSkyBoxVertex (vertices + 3, skymaxs[0][i], skymins[1][i], i);
 
+		float fog_density = (Fog_GetDensity() > 0) ? skyfog : 0.0f;
+		float * fog_color = Fog_GetColor();
+		float fog_values[4] = { CLAMP( 0.0f, fog_color[0], 1.0f ), CLAMP(0.0f, fog_color[1], 1.0f), CLAMP(0.0f, fog_color[2], 1.0f), fog_density };
+		R_PushConstants(VK_SHADER_STAGE_ALL_GRAPHICS, 16 * sizeof(float), 4 * sizeof(float), fog_values);
+
 		vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
 		R_BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_box_pipeline);
 		vkCmdDrawIndexed(vulkan_globals.command_buffer, 6, 1, 0, 0, 0);
 
 		rs_skypolys++;
 		rs_skypasses++;
-
-		if (Fog_GetDensity() > 0 && skyfog > 0)
-		{
-			float *c = Fog_GetColor();
-
-			VkBuffer buffer;
-			VkDeviceSize buffer_offset;
-			basicvertex_t * vertices = (basicvertex_t*)R_VertexAllocate(4 * sizeof(basicvertex_t), &buffer, &buffer_offset);
-
-			Sky_EmitSkyBoxVertex (vertices + 0, skymins[0][i], skymins[1][i], i);
-			Sky_EmitSkyBoxVertex (vertices + 1, skymins[0][i], skymaxs[1][i], i);
-			Sky_EmitSkyBoxVertex (vertices + 2, skymaxs[0][i], skymaxs[1][i], i);
-			Sky_EmitSkyBoxVertex (vertices + 3, skymaxs[0][i], skymins[1][i], i);
-
-			for (j = 0; j < 4; ++j)
-			{
-				vertices[j].color[0] = c[0] * 255.0f;
-				vertices[j].color[1] = c[1] * 255.0f;
-				vertices[j].color[2] = c[2] * 255.0f;
-				vertices[j].color[3] = CLAMP(0.0,skyfog,1.0) * 255.0f;
-			}
-
-			vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
-			R_BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_box_blend_pipeline);
-			vkCmdDrawIndexed(vulkan_globals.command_buffer, 6, 1, 0, 0, 0);
-
-			rs_skypasses++;
-		}
 	}
 }
 

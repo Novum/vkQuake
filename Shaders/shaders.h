@@ -43,6 +43,8 @@ extern unsigned char sky_layer_vert_spv[];
 extern int sky_layer_vert_spv_size;
 extern unsigned char sky_layer_frag_spv[];
 extern int sky_layer_frag_spv_size;
+extern unsigned char sky_box_frag_spv[];
+extern int sky_box_frag_spv_size;
 extern unsigned char postprocess_vert_spv[];
 extern int postprocess_vert_spv_size;
 extern unsigned char postprocess_frag_spv[];

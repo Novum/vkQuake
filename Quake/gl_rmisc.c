@@ -1469,6 +1469,7 @@ void R_CreatePipelines()
 	CREATE_SHADER_MODULE(alias_alphatest_frag);
 	CREATE_SHADER_MODULE(sky_layer_vert);
 	CREATE_SHADER_MODULE(sky_layer_frag);
+	CREATE_SHADER_MODULE(sky_box_frag);
 	CREATE_SHADER_MODULE(postprocess_vert);
 	CREATE_SHADER_MODULE(postprocess_frag);
 	CREATE_SHADER_MODULE(screen_warp_comp);
@@ -1656,16 +1657,6 @@ void R_CreatePipelines()
 
 	GL_SetObjectName((uint64_t)vulkan_globals.basic_poly_blend_pipeline.handle, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "basic_poly_blend");
 
-	depth_stencil_state_create_info.depthTestEnable = VK_TRUE;
-	assert(vulkan_globals.sky_box_blend_pipeline.handle == VK_NULL_HANDLE);
-	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.sky_box_blend_pipeline.handle);
-	if (err != VK_SUCCESS)
-		Sys_Error("vkCreateGraphicsPipelines failed");
-
-	GL_SetObjectName((uint64_t)vulkan_globals.sky_box_blend_pipeline.handle, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "sky_box_blend");
-	vulkan_globals.sky_box_blend_pipeline.layout = vulkan_globals.basic_pipeline_layout;
-	depth_stencil_state_create_info.depthTestEnable = VK_FALSE;
-
 	shader_stages[1].module = basic_frag_module;
 
 	for (render_pass = 0; render_pass < 2; ++render_pass)
@@ -1793,7 +1784,7 @@ void R_CreatePipelines()
 
 	GL_SetObjectName((uint64_t)vulkan_globals.sky_color_pipeline.handle, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "sky_color");
 
-	shader_stages[1].module = basic_frag_module;
+	shader_stages[1].module = sky_box_frag_module;
 
 	assert(vulkan_globals.sky_box_pipeline.handle == VK_NULL_HANDLE);
 	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.sky_box_pipeline.handle);
@@ -2237,8 +2228,6 @@ void R_DestroyPipelines(void)
 	vulkan_globals.sky_color_pipeline.handle = VK_NULL_HANDLE;
 	vkDestroyPipeline(vulkan_globals.device, vulkan_globals.sky_box_pipeline.handle, NULL);
 	vulkan_globals.sky_box_pipeline.handle = VK_NULL_HANDLE;
-	vkDestroyPipeline(vulkan_globals.device, vulkan_globals.sky_box_blend_pipeline.handle, NULL);
-	vulkan_globals.sky_box_blend_pipeline.handle = VK_NULL_HANDLE;
 	vkDestroyPipeline(vulkan_globals.device, vulkan_globals.sky_layer_pipeline.handle, NULL);
 	vulkan_globals.sky_layer_pipeline.handle = VK_NULL_HANDLE;
 	vkDestroyPipeline(vulkan_globals.device, vulkan_globals.alias_pipeline.handle, NULL);

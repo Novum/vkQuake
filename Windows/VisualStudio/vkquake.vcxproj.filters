@@ -322,6 +322,9 @@
     <ClCompile Include="..\..\Quake\pr_ext.c">
       <Filter>Main</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\sky_box_frag.c">
+      <Filter>Shaders\Compiled</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\Quake\snd_codec.h">
