@@ -1298,27 +1298,56 @@ void SV_SendServerinfo (client_t *client)
 	if (!(client->protocol_pext2 & PEXT2_REPLACEMENTDELTAS))
 		client->protocol_pext2 &= ~PEXT2_PREDINFO;	//stats can't be deltaed if there's no deltas, so just pretend its not supported on its own.
 
-	client->limit_entities = (sv_protocol_pext2&&NET_QSocketGetProQuakeAngleHack(client->netconnection))?2048:600;	//vanilla sucks. proquake supports more so assume we can use that limit if angles are also available (but only if we're allowing other non-vanilla extensions)
-	client->limit_models = 256;				//single byte
-	client->limit_sounds = 256;				//single byte
-
-	//now we know their protocol, pick some real defaults
-	if (sv.protocol != PROTOCOL_NETQUAKE || client->protocol_pext2)
+	//now we know their protocol, pick some real defaults that match the limits of the engine that most defines that protocol's limits.
+	switch(client->protocol_pext2?PROTOCOL_FTE_PEXT2:sv.protocol)
 	{
-		client->limit_unreliable = DATAGRAM_MTU;//some safe ethernet limit. these clients should accept pretty much anything, but any routers will not.
-		client->limit_reliable = NET_MAXMESSAGE;	//quite large, ip allows 16 bits
-		client->limit_entities = MAX_EDICTS;	//we don't really know, 8k is probably a save guess but could be 32k, 65k, or even more...
-		client->limit_models = MAX_MODELS;		//not really sure, client's problem until >14bits
-		client->limit_sounds = MAX_SOUNDS;		//not really sure, client's problem until >14bits
+	default: //eep
+	case PROTOCOL_NETQUAKE:
+		client->limit_unreliable	= 1024;
+		client->limit_reliable		= 8192;
+		if (sv_protocol_pext2&&NET_QSocketGetProQuakeAngleHack(client->netconnection))
+			client->limit_entities	= 2048;	//proquake supports more so assume we can use that limit if angles are also available (but only if we're not being strict about protocols)
+		else
+			client->limit_entities	= 600;	//vanilla sucks.
+		client->limit_models		= 256;	//single byte
+		client->limit_sounds		= 256;	//single byte
+		break;
+	case PROTOCOL_FITZQUAKE:	//fitzquake didn't get abused quite as much as later engines did.
+		client->limit_unreliable	= 32000;
+		client->limit_reliable		= 32000;
+		client->limit_entities		= 32000;
+		client->limit_models		= 2048;
+		client->limit_sounds		= 2048;
+		break;
+	case PROTOCOL_RMQ:			//actually QS - a moving target, so use our server's limits.
+		client->limit_unreliable	= 32000;
+		client->limit_reliable		= 64000;
+		client->limit_entities		= 32000;
+		client->limit_models		= 2048;
+		client->limit_sounds		= 2048;
+		break;
+	case PROTOCOL_FTE_PEXT2:	//not a real protocol in itself, used to indicate QSS's full limits. FTE will match or allow higher.
+		client->limit_unreliable	= NET_MAXMESSAGE;	//some safe ethernet limit. these clients should accept pretty much anything, but any routers will not.
+		client->limit_reliable		= NET_MAXMESSAGE;	//adhere to fitzquake's limits if we're recording a demoquite large, ip allows 16 bits
+		client->limit_entities		= MAX_EDICTS;		//we don't really know, 8k is probably a save guess but could be 32k, 65k, or even more...
+		client->limit_models		= MAX_MODELS;		//not really sure, client's problem until >14bits
+		client->limit_sounds		= MAX_SOUNDS;		//not really sure, client's problem until >14bits
+		break;
+	}
 
-		if (!Q_strcmp(NET_QSocketGetTrueAddressString(client->netconnection), "LOCAL"))
-		{	//override some other limits for localhost, because we can probably get away with it.
-			//only do this if we're using extensions, so we don't break demos
-			client->limit_unreliable = client->limit_reliable = NET_MAXMESSAGE;
-		}
+	if (!Q_strcmp(NET_QSocketGetTrueAddressString(client->netconnection), "LOCAL"))
+	{	//might as well super-size it. demo playback doesn't care. mostly only affects vanilla. we should trigger other warnings if this limit is exceeded so don't worry about testers.
+		client->limit_unreliable = client->limit_reliable;
+	}
+	else
+	{	//remote clients must not exceed ip MTUs.
+		if (client->limit_unreliable > DATAGRAM_MTU)
+			client->limit_unreliable = DATAGRAM_MTU;
 	}
 	if (client->limit_entities > 0x8000 && !(client->protocol_pext2 & PEXT2_REPLACEMENTDELTAS))
 		client->limit_entities = 0x8000;	//pext2 changes the encoding of entities to support 23 bits instead of dpp7's 15bits or vanilla's 16bits, but our writeentity is lazy.
+	if (client->limit_entities > qcvm->max_edicts)
+		client->limit_entities = qcvm->max_edicts;
 
 
 	//unfortunately we can't split this up, so if its oversized, we'll just let the client complain instead of always kicking them
