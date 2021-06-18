@@ -519,13 +519,14 @@ void Sky_ClipPoly (int nump, vec3_t vecs, int stage)
 Sky_ProcessPoly
 ================
 */
-void Sky_ProcessPoly (glpoly_t	*p, float color[3])
+void Sky_ProcessPoly (glpoly_t	*p, float color[3], qboolean slow_sky)
 {
 	int			i;
 	vec3_t		verts[MAX_CLIP_VERTS];
 
 	//draw it
-	DrawGLPoly(p, color, 1.0f);
+	if (!slow_sky)
+		DrawGLPoly(p, color, 1.0f);
 	rs_brushpasses++;
 
 	//update sky bounds
@@ -542,7 +543,7 @@ void Sky_ProcessPoly (glpoly_t	*p, float color[3])
 Sky_ProcessTextureChains -- handles sky polys in world model
 ================
 */
-void Sky_ProcessTextureChains (float color[3])
+void Sky_ProcessTextureChains (float color[3], qboolean slow_sky)
 {
 	int			i;
 	msurface_t	*s;
@@ -559,7 +560,7 @@ void Sky_ProcessTextureChains (float color[3])
 			continue;
 
 		for (s = t->texturechains[chain_world]; s; s = s->texturechain)
-			Sky_ProcessPoly (s->polys, color);
+			Sky_ProcessPoly (s->polys, color, slow_sky);
 	}
 }
 
@@ -568,7 +569,7 @@ void Sky_ProcessTextureChains (float color[3])
 Sky_ProcessEntities -- handles sky polys on brush models
 ================
 */
-void Sky_ProcessEntities (float color[3])
+void Sky_ProcessEntities (float color[3], qboolean slow_sky)
 {
 	entity_t	*e;
 	msurface_t	*s;
@@ -638,7 +639,7 @@ void Sky_ProcessEntities (float color[3])
 						else
 							VectorAdd(s->polys->verts[k], e->origin, p->verts[k]);
 					}
-					Sky_ProcessPoly (p, color);
+					Sky_ProcessPoly (p, color, slow_sky);
 					Hunk_FreeToLowMark (mark);
 				}
 			}
@@ -983,7 +984,7 @@ called once per frame before drawing anything else
 */
 void Sky_DrawSky (void)
 {
-	int				i;
+	int i;
 
 	if (r_lightmap_cheatsafe)
 		return;
@@ -1006,19 +1007,21 @@ void Sky_DrawSky (void)
 	// process world and bmodels: draw flat-shaded sky surfs, and update skybounds
 	//
 	Fog_DisableGFog ();
+	const qboolean slow_sky = !r_fastsky.value && !(Fog_GetDensity() > 0 && skyfog >= 1);
+
 	float * color;
 	if (Fog_GetDensity() > 0)
 		color = Fog_GetColor();
 	else
 		color = skyflatcolor;
 
-	Sky_ProcessTextureChains (color);
-	Sky_ProcessEntities (color);
+	Sky_ProcessTextureChains (color, slow_sky);
+	Sky_ProcessEntities (color, slow_sky);
 
 	//
 	// render slow sky: cloud layers or skybox
 	//
-	if (!r_fastsky.value && !(Fog_GetDensity() > 0 && skyfog >= 1))
+	if (slow_sky)
 	{
 		if (skybox_name[0])
 			Sky_DrawSkyBox ();
