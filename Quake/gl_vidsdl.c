@@ -2659,7 +2659,7 @@ void VID_SyncCvars (void)
 
 	menu_settings.r_waterwarp = CLAMP(0, (int)r_waterwarp.value, 2);
 	menu_settings.r_particles = CLAMP(0, (int)r_particles.value, 2);
-	menu_settings.host_maxfps = CLAMP(10, (int)host_maxfps.value, 1000);
+	menu_settings.host_maxfps = CLAMP(0, host_maxfps.value, 1000);
 	menu_settings.vid_filter = CLAMP(0, (int)vid_filter.value, 1);
 	menu_settings.vid_anisotropic = CLAMP(0, (int)vid_anisotropic.value, 1);
 
@@ -2976,7 +2976,7 @@ VID_Menu_ChooseNextMaxFPS
 */
 static void VID_Menu_ChooseNextMaxFPS(int dir)
 {
-	menu_settings.host_maxfps =  CLAMP(10, ((menu_settings.host_maxfps + (dir*10)) / 10) * 10, 1000);
+	menu_settings.host_maxfps = CLAMP(0, ((menu_settings.host_maxfps + (dir*10)) / 10) * 10, 1000);
 }
 /*
 ================
@@ -3298,7 +3298,10 @@ static void VID_MenuDraw (void)
 			break;
 		case VID_OPT_MAX_FPS:
 			M_Print (16, y, "           Max FPS");
-			M_Print (184, y, va("%d", menu_settings.host_maxfps));
+			if (menu_settings.host_maxfps <= 0)
+				M_Print (184, y, "inf");
+			else
+				M_Print (184, y, va("%d", menu_settings.host_maxfps));
 			break;
 		case VID_OPT_ANTIALIASING_SAMPLES:
 			M_Print (16, y, "      Antialiasing");
