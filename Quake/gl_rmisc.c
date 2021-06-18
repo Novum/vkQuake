@@ -1783,7 +1783,6 @@ void R_CreatePipelines()
 
 	GL_SetObjectName((uint64_t)vulkan_globals.sky_color_pipeline.handle, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "sky_color");
 
-	depth_stencil_state_create_info.depthTestEnable = VK_FALSE;
 	shader_stages[1].module = basic_frag_module;
 
 	assert(vulkan_globals.sky_box_pipeline.handle == VK_NULL_HANDLE);
@@ -1793,6 +1792,16 @@ void R_CreatePipelines()
 
 	GL_SetObjectName((uint64_t)vulkan_globals.sky_box_pipeline.handle, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "sky_box");
 	vulkan_globals.sky_box_pipeline.layout = vulkan_globals.basic_pipeline_layout;
+
+	blend_attachment_state.blendEnable = VK_TRUE;
+	assert(vulkan_globals.sky_box_blend_pipeline.handle == VK_NULL_HANDLE);
+	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.sky_box_blend_pipeline.handle);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkCreateGraphicsPipelines failed");
+	blend_attachment_state.blendEnable = VK_FALSE;
+
+	GL_SetObjectName((uint64_t)vulkan_globals.sky_box_blend_pipeline.handle, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "sky_box_blend");
+	vulkan_globals.sky_box_blend_pipeline.layout = vulkan_globals.basic_pipeline_layout;
 
 	VkVertexInputAttributeDescription sky_layer_vertex_input_attribute_descriptions[4];
 	sky_layer_vertex_input_attribute_descriptions[0].binding = 0;
@@ -2228,6 +2237,8 @@ void R_DestroyPipelines(void)
 	vulkan_globals.sky_color_pipeline.handle = VK_NULL_HANDLE;
 	vkDestroyPipeline(vulkan_globals.device, vulkan_globals.sky_box_pipeline.handle, NULL);
 	vulkan_globals.sky_box_pipeline.handle = VK_NULL_HANDLE;
+	vkDestroyPipeline(vulkan_globals.device, vulkan_globals.sky_box_blend_pipeline.handle, NULL);
+	vulkan_globals.sky_box_blend_pipeline.handle = VK_NULL_HANDLE;
 	vkDestroyPipeline(vulkan_globals.device, vulkan_globals.sky_layer_pipeline.handle, NULL);
 	vulkan_globals.sky_layer_pipeline.handle = VK_NULL_HANDLE;
 	vkDestroyPipeline(vulkan_globals.device, vulkan_globals.alias_pipeline.handle, NULL);

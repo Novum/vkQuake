@@ -566,14 +566,14 @@ void R_RenderScene (void)
 
 	Fog_EnableGFog (); //johnfitz
 
-	Sky_DrawSky (); //johnfitz
-
 	R_DrawWorld ();
 	currententity = NULL;
 
 	S_ExtraUpdate (); // don't let sound get messed up if going slow
 
 	R_DrawEntitiesOnList (false); //johnfitz -- false means this is the pass for nonalpha entities
+
+	Sky_DrawSky (); //johnfitz
 
 	R_DrawWorld_Water (); //johnfitz -- drawn here since they might have transparency
 

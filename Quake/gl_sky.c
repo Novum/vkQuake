@@ -765,7 +765,7 @@ void Sky_DrawSkyBox (void)
 			}
 
 			vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
-			R_BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_poly_blend_pipeline);
+			R_BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_box_blend_pipeline);
 			vkCmdDrawIndexed(vulkan_globals.command_buffer, 6, 1, 0, 0, 0);
 
 			rs_skypasses++;
