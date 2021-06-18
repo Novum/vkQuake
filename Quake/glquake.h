@@ -186,6 +186,7 @@ typedef struct
 	vulkan_pipeline_t					raster_tex_warp_pipeline;
 	vulkan_pipeline_t					particle_pipeline;
 	vulkan_pipeline_t					sprite_pipeline;
+	vulkan_pipeline_t					sky_stencil_pipeline;
 	vulkan_pipeline_t					sky_color_pipeline;
 	vulkan_pipeline_t					sky_box_pipeline;
 	vulkan_pipeline_t					sky_layer_pipeline;

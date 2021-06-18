@@ -914,21 +914,26 @@ static void GL_InitDevice( void )
 	}
 
 	// Find depth format
-	vkGetPhysicalDeviceFormatProperties(vulkan_physical_device, VK_FORMAT_X8_D24_UNORM_PACK32, &format_properties);
+	vkGetPhysicalDeviceFormatProperties(vulkan_physical_device, VK_FORMAT_D24_UNORM_S8_UINT, &format_properties);
 	qboolean x8_d24_support = (format_properties.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) != 0;
-	vkGetPhysicalDeviceFormatProperties(vulkan_physical_device, VK_FORMAT_D32_SFLOAT, &format_properties);
+	vkGetPhysicalDeviceFormatProperties(vulkan_physical_device, VK_FORMAT_D32_SFLOAT_S8_UINT, &format_properties);
 	qboolean d32_support = (format_properties.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) != 0;
 
-	vulkan_globals.depth_format = VK_FORMAT_D16_UNORM;
+	vulkan_globals.depth_format = VK_FORMAT_UNDEFINED;
 	if (x8_d24_support)
 	{
-		Con_Printf("Using X8_D24 depth buffer format\n");
-		vulkan_globals.depth_format = VK_FORMAT_X8_D24_UNORM_PACK32;
+		Con_Printf("Using D24_S8 depth buffer format\n");
+		vulkan_globals.depth_format = VK_FORMAT_D24_UNORM_S8_UINT;
 	}
 	else if(d32_support)
 	{
-		Con_Printf("Using D32 depth buffer format\n");
-		vulkan_globals.depth_format = VK_FORMAT_D32_SFLOAT;
+		Con_Printf("Using D32_S8 depth buffer format\n");
+		vulkan_globals.depth_format = VK_FORMAT_D32_SFLOAT_S8_UINT;
+	}
+	else
+	{
+		// This cannot happen with a compliant Vulkan driver. The spec requires support for one of the formats.
+		Sys_Error("Cannot find VK_FORMAT_D24_UNORM_S8_UINT or VK_FORMAT_D32_SFLOAT_S8_UINT depth buffer format");
 	}
 
 	GET_GLOBAL_DEVICE_PROC_ADDR(vk_cmd_bind_pipeline, vkCmdBindPipeline);
@@ -1028,6 +1033,8 @@ static void GL_CreateRenderPasses()
 	attachment_descriptions[1].format = vulkan_globals.depth_format;
 	attachment_descriptions[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	attachment_descriptions[1].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	attachment_descriptions[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	attachment_descriptions[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 
 	attachment_descriptions[2].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	attachment_descriptions[2].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;

@@ -1770,11 +1770,36 @@ void R_CreatePipelines()
 	//================
 	pipeline_create_info.renderPass = vulkan_globals.main_render_pass;
 
-	shader_stages[1].module = basic_notex_frag_module;
+	pipeline_create_info.stageCount = 1;
+	shader_stages[1].module = VK_NULL_HANDLE;
 
 	depth_stencil_state_create_info.depthTestEnable = VK_TRUE;
 	depth_stencil_state_create_info.depthWriteEnable = VK_TRUE;
 	depth_stencil_state_create_info.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+	depth_stencil_state_create_info.stencilTestEnable = VK_TRUE;
+	depth_stencil_state_create_info.front.compareOp = VK_COMPARE_OP_ALWAYS;
+	depth_stencil_state_create_info.front.failOp = VK_STENCIL_OP_KEEP;
+	depth_stencil_state_create_info.front.depthFailOp = VK_STENCIL_OP_KEEP;
+	depth_stencil_state_create_info.front.passOp = VK_STENCIL_OP_REPLACE;
+	depth_stencil_state_create_info.front.compareMask = 0xFF;
+	depth_stencil_state_create_info.front.writeMask = 0xFF;
+	depth_stencil_state_create_info.front.reference = 0x1;
+
+	blend_attachment_state.colorWriteMask = 0; 	// We only want to write stencil
+
+	assert(vulkan_globals.sky_stencil_pipeline.handle == VK_NULL_HANDLE);
+	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.sky_stencil_pipeline.handle);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkCreateGraphicsPipelines failed");
+	vulkan_globals.sky_stencil_pipeline.layout = vulkan_globals.basic_pipeline_layout;
+
+	GL_SetObjectName((uint64_t)vulkan_globals.sky_stencil_pipeline.handle, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "sky_stencil");
+
+	depth_stencil_state_create_info.stencilTestEnable = VK_FALSE;
+	blend_attachment_state.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+	pipeline_create_info.stageCount = 2;
+
+	shader_stages[1].module = basic_notex_frag_module;
 
 	assert(vulkan_globals.sky_color_pipeline.handle == VK_NULL_HANDLE);
 	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.sky_color_pipeline.handle);
@@ -1784,6 +1809,16 @@ void R_CreatePipelines()
 
 	GL_SetObjectName((uint64_t)vulkan_globals.sky_color_pipeline.handle, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "sky_color");
 
+	depth_stencil_state_create_info.depthTestEnable = VK_FALSE;
+	depth_stencil_state_create_info.depthWriteEnable = VK_FALSE;
+	depth_stencil_state_create_info.stencilTestEnable = VK_TRUE;
+	depth_stencil_state_create_info.front.compareOp = VK_COMPARE_OP_EQUAL;
+	depth_stencil_state_create_info.front.failOp = VK_STENCIL_OP_KEEP;
+	depth_stencil_state_create_info.front.depthFailOp = VK_STENCIL_OP_KEEP;
+	depth_stencil_state_create_info.front.passOp = VK_STENCIL_OP_KEEP;
+	depth_stencil_state_create_info.front.compareMask = 0xFF;
+	depth_stencil_state_create_info.front.writeMask = 0x0;
+	depth_stencil_state_create_info.front.reference = 0x1;
 	shader_stages[1].module = sky_box_frag_module;
 
 	assert(vulkan_globals.sky_box_pipeline.handle == VK_NULL_HANDLE);
@@ -1834,6 +1869,8 @@ void R_CreatePipelines()
 		Sys_Error("vkCreateGraphicsPipelines failed");
 
 	GL_SetObjectName((uint64_t)vulkan_globals.sky_layer_pipeline.handle, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "sky_layer");
+
+	depth_stencil_state_create_info.stencilTestEnable = VK_FALSE;
 
 	//================
 	// Show triangles
@@ -2224,6 +2261,8 @@ void R_DestroyPipelines(void)
 	vulkan_globals.particle_pipeline.handle = VK_NULL_HANDLE;
 	vkDestroyPipeline(vulkan_globals.device, vulkan_globals.sprite_pipeline.handle, NULL);
 	vulkan_globals.sprite_pipeline.handle = VK_NULL_HANDLE;
+	vkDestroyPipeline(vulkan_globals.device, vulkan_globals.sky_stencil_pipeline.handle, NULL);
+	vulkan_globals.sky_stencil_pipeline.handle = VK_NULL_HANDLE;
 	vkDestroyPipeline(vulkan_globals.device, vulkan_globals.sky_color_pipeline.handle, NULL);
 	vulkan_globals.sky_color_pipeline.handle = VK_NULL_HANDLE;
 	vkDestroyPipeline(vulkan_globals.device, vulkan_globals.sky_box_pipeline.handle, NULL);

@@ -519,14 +519,13 @@ void Sky_ClipPoly (int nump, vec3_t vecs, int stage)
 Sky_ProcessPoly
 ================
 */
-void Sky_ProcessPoly (glpoly_t	*p, float color[3], qboolean slow_sky)
+void Sky_ProcessPoly (glpoly_t	*p, float color[3])
 {
 	int			i;
 	vec3_t		verts[MAX_CLIP_VERTS];
 
 	//draw it
-	if (!slow_sky)
-		DrawGLPoly(p, color, 1.0f);
+	DrawGLPoly(p, color, 1.0f);
 	rs_brushpasses++;
 
 	//update sky bounds
@@ -543,7 +542,7 @@ void Sky_ProcessPoly (glpoly_t	*p, float color[3], qboolean slow_sky)
 Sky_ProcessTextureChains -- handles sky polys in world model
 ================
 */
-void Sky_ProcessTextureChains (float color[3], qboolean slow_sky)
+void Sky_ProcessTextureChains (float color[3])
 {
 	int			i;
 	msurface_t	*s;
@@ -560,7 +559,7 @@ void Sky_ProcessTextureChains (float color[3], qboolean slow_sky)
 			continue;
 
 		for (s = t->texturechains[chain_world]; s; s = s->texturechain)
-			Sky_ProcessPoly (s->polys, color, slow_sky);
+			Sky_ProcessPoly (s->polys, color);
 	}
 }
 
@@ -569,7 +568,7 @@ void Sky_ProcessTextureChains (float color[3], qboolean slow_sky)
 Sky_ProcessEntities -- handles sky polys on brush models
 ================
 */
-void Sky_ProcessEntities (float color[3], qboolean slow_sky)
+void Sky_ProcessEntities (float color[3])
 {
 	entity_t	*e;
 	msurface_t	*s;
@@ -639,7 +638,7 @@ void Sky_ProcessEntities (float color[3], qboolean slow_sky)
 						else
 							VectorAdd(s->polys->verts[k], e->origin, p->verts[k]);
 					}
-					Sky_ProcessPoly (p, color, slow_sky);
+					Sky_ProcessPoly (p, color);
 					Hunk_FreeToLowMark (mark);
 				}
 			}
@@ -903,8 +902,6 @@ draws the old-style scrolling cloud layers
 */
 void Sky_DrawSkyLayers (void)
 {
-	R_BeginDebugUtilsLabel ("Sky Layers");
-
 	int i;
 
 	R_BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_layer_pipeline);
@@ -915,8 +912,6 @@ void Sky_DrawSkyLayers (void)
 	for (i=0 ; i<6 ; i++)
 		if (skymins[0][i] < skymaxs[0][i] && skymins[1][i] < skymaxs[1][i])
 			Sky_DrawFace (i, r_skyalpha.value);
-
-	R_EndDebugUtilsLabel ();
 }
 
 /*
@@ -935,6 +930,8 @@ void Sky_DrawSky (void)
 
 	R_BeginDebugUtilsLabel ("Sky");
 
+	const qboolean slow_sky = !r_fastsky.value && !(Fog_GetDensity() > 0 && skyfog >= 1);
+
 	//
 	// reset sky bounds
 	//
@@ -944,14 +941,18 @@ void Sky_DrawSky (void)
 		skymaxs[0][i] = skymaxs[1][i] = -FLT_MAX;
 	}
 
-	R_BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_color_pipeline);
+	// With slow sky we first write stencil for the part of the screen that is covered by sky geometry and passes the depth test
+	// Sky_DrawSkyBox/Sky_DrawSkyLayers then only fill the parts that had stencil written
+	if(slow_sky)
+		R_BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_stencil_pipeline);
+	else
+		R_BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_color_pipeline);
 	vkCmdBindIndexBuffer(vulkan_globals.command_buffer, vulkan_globals.fan_index_buffer, 0, VK_INDEX_TYPE_UINT16);
 
 	//
 	// process world and bmodels: draw flat-shaded sky surfs, and update skybounds
 	//
 	Fog_DisableGFog ();
-	const qboolean slow_sky = !r_fastsky.value && !(Fog_GetDensity() > 0 && skyfog >= 1);
 
 	float * color;
 	if (Fog_GetDensity() > 0)
@@ -959,8 +960,8 @@ void Sky_DrawSky (void)
 	else
 		color = skyflatcolor;
 
-	Sky_ProcessTextureChains (color, slow_sky);
-	Sky_ProcessEntities (color, slow_sky);
+	Sky_ProcessTextureChains (color);
+	Sky_ProcessEntities (color);
 
 	//
 	// render slow sky: cloud layers or skybox
