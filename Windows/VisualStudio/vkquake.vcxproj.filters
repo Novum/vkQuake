@@ -589,5 +589,8 @@
     <None Include="..\..\Shaders\showtris.frag">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="..\..\Shaders\sky_box.frag">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

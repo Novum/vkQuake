@@ -2,6 +2,12 @@
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_ARB_shading_language_420pack : enable
 
+layout(push_constant) uniform PushConsts {
+	mat4 mvp;
+	vec3 fog_color;
+	float fog_density;
+} push_constants;
+
 layout(set = 0, binding = 0) uniform sampler2D solid_tex;
 layout(set = 1, binding = 0) uniform sampler2D alpha_tex;
 
@@ -17,4 +23,7 @@ void main()
 	vec4 alpha_layer = texture(alpha_tex, in_texcoord2.xy);
 
 	out_frag_color = vec4((solid_layer.rgb * (1.0f - alpha_layer.a) + alpha_layer.rgb * alpha_layer.a), in_color.a);
+
+	if (push_constants.fog_density > 0.0f)
+		out_frag_color.rgb = (out_frag_color.rgb * (1.0f - push_constants.fog_density)) + (push_constants.fog_color * push_constants.fog_density);
 }

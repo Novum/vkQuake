@@ -396,6 +396,7 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <None Include="..\..\Shaders\screen_warp_rgba8.comp" />
     <None Include="..\..\Shaders\showtris.frag" />
     <None Include="..\..\Shaders\showtris.vert" />
+    <None Include="..\..\Shaders\sky_box.frag" />
     <None Include="..\..\Shaders\sky_layer.frag" />
     <None Include="..\..\Shaders\sky_layer.vert" />
     <None Include="..\..\Shaders\world.frag" />

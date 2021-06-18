@@ -736,11 +736,6 @@ void Sky_DrawSkyBox (void)
 		Sky_EmitSkyBoxVertex (vertices + 2, skymaxs[0][i], skymaxs[1][i], i);
 		Sky_EmitSkyBoxVertex (vertices + 3, skymaxs[0][i], skymins[1][i], i);
 
-		float fog_density = (Fog_GetDensity() > 0) ? skyfog : 0.0f;
-		float * fog_color = Fog_GetColor();
-		float fog_values[4] = { CLAMP( 0.0f, fog_color[0], 1.0f ), CLAMP(0.0f, fog_color[1], 1.0f), CLAMP(0.0f, fog_color[2], 1.0f), fog_density };
-		R_PushConstants(VK_SHADER_STAGE_ALL_GRAPHICS, 16 * sizeof(float), 4 * sizeof(float), fog_values);
-
 		vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
 		R_BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_box_pipeline);
 		vkCmdDrawIndexed(vulkan_globals.command_buffer, 6, 1, 0, 0, 0);
@@ -815,11 +810,6 @@ void Sky_DrawFaceQuad (glpoly_t *p, float alpha)
 	float	*v;
 	int		i;
 
-	R_BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_layer_pipeline);
-
-	VkDescriptorSet descriptor_sets[2] = { solidskytexture->descriptor_set, alphaskytexture->descriptor_set };
-	vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_layer_pipeline.layout.handle, 0, 2, descriptor_sets, 0, NULL);
-
 	VkBuffer vertex_buffer;
 	VkDeviceSize vertex_buffer_offset;
 	skylayervertex_t * vertices = (skylayervertex_t*)R_VertexAllocate(4 * sizeof(skylayervertex_t), &vertex_buffer, &vertex_buffer_offset);
@@ -844,34 +834,6 @@ void Sky_DrawFaceQuad (glpoly_t *p, float alpha)
 
 	rs_skypolys++;
 	rs_skypasses++;
-
-	if (Fog_GetDensity() > 0 && skyfog > 0)
-	{
-		float *c = Fog_GetColor();
-
-		VkBuffer buffer;
-		VkDeviceSize buffer_offset;
-		basicvertex_t * vertices = (basicvertex_t*)R_VertexAllocate(4 * sizeof(basicvertex_t), &buffer, &buffer_offset);
-		
-		for (i=0, v=p->verts[0] ; i<4 ; i++, v+=VERTEXSIZE)
-		{
-			vertices[i].position[0] = v[0];
-			vertices[i].position[1] = v[1];
-			vertices[i].position[2] = v[2];
-			vertices[i].texcoord[0] = 0.0f;
-			vertices[i].texcoord[1] = 0.0f;
-			vertices[i].color[0] = c[0] * 255.0f;
-			vertices[i].color[1] = c[1] * 255.0f;
-			vertices[i].color[2] = c[2] * 255.0f;
-			vertices[i].color[3] = CLAMP(0.0,skyfog,1.0) * 255.0f;
-		}
-
-		vkCmdBindVertexBuffers(vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
-		R_BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_poly_blend_pipeline);
-		vkCmdDrawIndexed(vulkan_globals.command_buffer, 6, 1, 0, 0, 0);
-
-		rs_skypasses++;
-	}
 }
 
 /*
@@ -945,6 +907,11 @@ void Sky_DrawSkyLayers (void)
 
 	int i;
 
+	R_BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_layer_pipeline);
+
+	VkDescriptorSet descriptor_sets[2] = { solidskytexture->descriptor_set, alphaskytexture->descriptor_set };
+	vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_layer_pipeline.layout.handle, 0, 2, descriptor_sets, 0, NULL);
+
 	for (i=0 ; i<6 ; i++)
 		if (skymins[0][i] < skymaxs[0][i] && skymins[1][i] < skymaxs[1][i])
 			Sky_DrawFace (i, r_skyalpha.value);
@@ -1000,6 +967,11 @@ void Sky_DrawSky (void)
 	//
 	if (slow_sky)
 	{
+		float fog_density = (Fog_GetDensity() > 0) ? skyfog : 0.0f;
+		float * fog_color = Fog_GetColor();
+		float fog_values[4] = { CLAMP( 0.0f, fog_color[0], 1.0f ), CLAMP(0.0f, fog_color[1], 1.0f), CLAMP(0.0f, fog_color[2], 1.0f), fog_density };
+		R_PushConstants(VK_SHADER_STAGE_ALL_GRAPHICS, 16 * sizeof(float), 4 * sizeof(float), fog_values);
+
 		if (skybox_name[0])
 			Sky_DrawSkyBox ();
 		else
