@@ -565,7 +565,7 @@ void GL_SetObjectName(uint64_t object, VkObjectType object_type, const char * na
 	{
 		VkDebugUtilsObjectNameInfoEXT nameInfo;
 		memset(&nameInfo, 0, sizeof(nameInfo));
-		nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT;
+		nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
 		nameInfo.objectType = object_type;
 		nameInfo.objectHandle = object;
 		nameInfo.pObjectName = name;
