@@ -1424,7 +1424,7 @@ void R_InitSamplers()
 R_CreateShaderModule
 ===============
 */
-static VkShaderModule R_CreateShaderModule(byte *code, int size)
+static VkShaderModule R_CreateShaderModule(byte *code, int size, const char * name)
 {
 	VkShaderModuleCreateInfo module_create_info;
 	memset(&module_create_info, 0, sizeof(module_create_info));
@@ -1438,8 +1438,12 @@ static VkShaderModule R_CreateShaderModule(byte *code, int size)
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateShaderModule failed");
 
+	GL_SetObjectName((uint64_t)module, VK_OBJECT_TYPE_SHADER_MODULE, name);
+
 	return module;
 }
+
+#define CREATE_SHADER_MODULE(name) VkShaderModule name##_module = R_CreateShaderModule(name##_spv, name##_spv_size, #name)
 
 /*
 ===============
@@ -1454,24 +1458,24 @@ void R_CreatePipelines()
 
 	Sys_Printf("Creating pipelines\n");
 
-	VkShaderModule basic_vert_module = R_CreateShaderModule(basic_vert_spv, basic_vert_spv_size);
-	VkShaderModule basic_frag_module = R_CreateShaderModule(basic_frag_spv, basic_frag_spv_size);
-	VkShaderModule basic_alphatest_frag_module = R_CreateShaderModule(basic_alphatest_frag_spv, basic_alphatest_frag_spv_size);
-	VkShaderModule basic_notex_frag_module = R_CreateShaderModule(basic_notex_frag_spv, basic_notex_frag_spv_size);
-	VkShaderModule world_vert_module = R_CreateShaderModule(world_vert_spv, world_vert_spv_size);
-	VkShaderModule world_frag_module = R_CreateShaderModule(world_frag_spv, world_frag_spv_size);
-	VkShaderModule alias_vert_module = R_CreateShaderModule(alias_vert_spv, alias_vert_spv_size);
-	VkShaderModule alias_frag_module = R_CreateShaderModule(alias_frag_spv, alias_frag_spv_size);
-	VkShaderModule alias_alphatest_frag_module = R_CreateShaderModule(alias_alphatest_frag_spv, alias_alphatest_frag_spv_size);
-	VkShaderModule sky_layer_vert_module = R_CreateShaderModule(sky_layer_vert_spv, sky_layer_vert_spv_size);
-	VkShaderModule sky_layer_frag_module = R_CreateShaderModule(sky_layer_frag_spv, sky_layer_frag_spv_size);
-	VkShaderModule postprocess_vert_module = R_CreateShaderModule(postprocess_vert_spv, postprocess_vert_spv_size);
-	VkShaderModule postprocess_frag_module = R_CreateShaderModule(postprocess_frag_spv, postprocess_frag_spv_size);
-	VkShaderModule screen_warp_comp_module = R_CreateShaderModule(screen_warp_comp_spv, screen_warp_comp_spv_size);
-	VkShaderModule screen_warp_rgba8_comp_module = R_CreateShaderModule(screen_warp_rgba8_comp_spv, screen_warp_rgba8_comp_spv_size);
-	VkShaderModule cs_tex_warp_module = R_CreateShaderModule(cs_tex_warp_comp_spv, cs_tex_warp_comp_spv_size);
-	VkShaderModule showtris_vert_module = R_CreateShaderModule(showtris_vert_spv, showtris_vert_spv_size);
-	VkShaderModule showtris_frag_module = R_CreateShaderModule(showtris_frag_spv, showtris_frag_spv_size);
+	CREATE_SHADER_MODULE(basic_vert);
+	CREATE_SHADER_MODULE(basic_frag);
+	CREATE_SHADER_MODULE(basic_alphatest_frag);
+	CREATE_SHADER_MODULE(basic_notex_frag);
+	CREATE_SHADER_MODULE(world_vert);
+	CREATE_SHADER_MODULE(world_frag);
+	CREATE_SHADER_MODULE(alias_vert);
+	CREATE_SHADER_MODULE(alias_frag);
+	CREATE_SHADER_MODULE(alias_alphatest_frag);
+	CREATE_SHADER_MODULE(sky_layer_vert);
+	CREATE_SHADER_MODULE(sky_layer_frag);
+	CREATE_SHADER_MODULE(postprocess_vert);
+	CREATE_SHADER_MODULE(postprocess_frag);
+	CREATE_SHADER_MODULE(screen_warp_comp);
+	CREATE_SHADER_MODULE(screen_warp_rgba8_comp);
+	CREATE_SHADER_MODULE(cs_tex_warp_comp);
+	CREATE_SHADER_MODULE(showtris_vert);
+	CREATE_SHADER_MODULE(showtris_frag);
 
 	VkPipelineDynamicStateCreateInfo dynamic_state_create_info;
 	memset(&dynamic_state_create_info, 0, sizeof(dynamic_state_create_info));
@@ -2152,7 +2156,7 @@ void R_CreatePipelines()
 	memset(&compute_shader_stage, 0, sizeof(compute_shader_stage));
 	compute_shader_stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 	compute_shader_stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
-	compute_shader_stage.module = cs_tex_warp_module;
+	compute_shader_stage.module = cs_tex_warp_comp_module;
 	compute_shader_stage.pName = "main";
 
 	memset(&compute_pipeline_create_info, 0, sizeof(compute_pipeline_create_info));
@@ -2169,7 +2173,7 @@ void R_CreatePipelines()
 
 	vkDestroyShaderModule(vulkan_globals.device, showtris_frag_module, NULL);
 	vkDestroyShaderModule(vulkan_globals.device, showtris_vert_module, NULL);
-	vkDestroyShaderModule(vulkan_globals.device, cs_tex_warp_module, NULL);
+	vkDestroyShaderModule(vulkan_globals.device, cs_tex_warp_comp_module, NULL);
 	vkDestroyShaderModule(vulkan_globals.device, screen_warp_rgba8_comp_module, NULL);
 	vkDestroyShaderModule(vulkan_globals.device, screen_warp_comp_module, NULL);
 	vkDestroyShaderModule(vulkan_globals.device, postprocess_frag_module, NULL);
