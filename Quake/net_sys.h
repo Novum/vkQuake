@@ -142,14 +142,9 @@ COMPILE_TIME_ASSERT(sockaddr, offsetof(struct sockaddr, sa_family) == SA_FAM_OFF
 /* windows includes and compatibility macros */
 #if defined(PLATFORM_WINDOWS)
 
-/* NOTE: winsock[2].h already includes windows.h */
-#if 0//!defined(_USE_WINSOCK2)
-#include <winsock.h>
-#else
-//winsock2 has been available since win98, and is available as a separate download for win95, which would be needed for any web browsers anyway.
+/* NOTE: winsock2.h already includes windows.h */
 #include <winsock2.h>
 #include <ws2tcpip.h>
-#endif
 
 /* there is no in_addr_t on windows: define it as
    the type of the S_addr of in_addr structure */

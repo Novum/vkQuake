@@ -75,10 +75,8 @@ SDL_CONFIG ?=../Windows/SDL2/bin/sdl2-config --prefix=../Windows/SDL2
 SDL_CFLAGS := $(shell $(SDL_CONFIG) --cflags)
 SDL_LIBS   := $(shell $(SDL_CONFIG) --libs)
 
-DEFWINSOCK :=-D_USE_WINSOCK2
 LIBWINSOCK := -lws2_32
 
-CFLAGS     += $(DEFWINSOCK)
 NET_LIBS   := $(LIBWINSOCK)
 
 ifneq ($(VORBISLIB),vorbis)

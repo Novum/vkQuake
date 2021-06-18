@@ -59,36 +59,6 @@ WSADATA		winsockdata;
 
 //=============================================================================
 
-#if !defined(_USE_WINSOCK2)
-static double	blocktime;
-
-static INT_PTR PASCAL FAR BlockingHook (void)
-{
-	MSG	msg;
-	BOOL	ret;
-
-	if ((Sys_DoubleTime() - blocktime) > 2.0)
-	{
-		WSACancelBlockingCall();
-		return FALSE;
-	}
-
-	/* get the next message, if any */
-	ret = (BOOL) PeekMessage(&msg, NULL, 0, 0, PM_REMOVE);
-
-	/* if we got one, process it */
-	if (ret)
-	{
-		TranslateMessage(&msg);
-		DispatchMessage(&msg);
-	}
-
-	/* TRUE if we got a message */
-	return ret;
-}
-#endif	/* ! _USE_WINSOCK2 */
-
-
 static void WINIPv4_GetLocalAddress (void)
 {
 	struct hostent	*local = NULL;
@@ -108,15 +78,9 @@ static void WINIPv4_GetLocalAddress (void)
 	}
 
 	buff[MAXHOSTNAMELEN - 1] = 0;
-#ifndef _USE_WINSOCK2
-	blocktime = Sys_DoubleTime();
-	WSASetBlockingHook(BlockingHook);
-#endif
 	local = gethostbyname(buff);
 	err = WSAGetLastError();
-#ifndef _USE_WINSOCK2
-	WSAUnhookBlockingHook();
-#endif
+
 	if (local == NULL)
 	{
 		Con_SafePrintf("WINIPV4_GetLocalAddress: gethostbyname failed (%s)\n",
@@ -763,10 +727,6 @@ static void WINIPv6_GetLocalAddress (void)
 	}
 	buff[MAXHOSTNAMELEN - 1] = 0;
 
-#ifndef _USE_WINSOCK2
-	blocktime = Sys_DoubleTime();
-	WSASetBlockingHook(BlockingHook);
-#endif
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_INET6;
 	hints.ai_socktype = SOCK_DGRAM;
@@ -781,9 +741,6 @@ static void WINIPv6_GetLocalAddress (void)
 		qfreeaddrinfo(local);
 	}
 	err = WSAGetLastError();
-#ifndef _USE_WINSOCK2
-	WSAUnhookBlockingHook();
-#endif
 
 	if (local == NULL)
 	{
