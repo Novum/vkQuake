@@ -50,7 +50,7 @@ CPUFLAGS+=-msse2
 endif
 LDFLAGS = -m32 -mwindows
 DFLAGS ?=
-CFLAGS ?= -m32 -Wall -Wno-trigraphs -D_WIN32_WINNT=0x0501
+CFLAGS ?= -m32 -Wall -Wno-trigraphs -std=gnu99 -D_WIN32_WINNT=0x0501
 CFLAGS += $(CPUFLAGS)
 
 ifneq ($(DEBUG),0)
@@ -59,7 +59,7 @@ CFLAGS += -g
 do_strip=
 else
 DFLAGS += -DNDEBUG
-CFLAGS += -O2 -std=gnu99
+CFLAGS += -O2
 CFLAGS += $(call check_gcc,-fweb,)
 CFLAGS += $(call check_gcc,-frename-registers,)
 cmd_strip=$(STRIP) $(1)

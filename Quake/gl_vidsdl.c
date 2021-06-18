@@ -160,7 +160,7 @@ PFN_vkSetDebugUtilsObjectNameEXT fpSetDebugUtilsObjectNameEXT;
 
 VkDebugUtilsMessengerEXT debug_utils_messenger;
 
-VkBool32 DebugMessageCallback(VkDebugUtilsMessageSeverityFlagBitsEXT message_severity, VkDebugUtilsMessageTypeFlagsEXT message_types, const VkDebugUtilsMessengerCallbackDataEXT * callback_data, void * user_data)
+VkBool32 VKAPI_PTR DebugMessageCallback(VkDebugUtilsMessageSeverityFlagBitsEXT message_severity, VkDebugUtilsMessageTypeFlagsEXT message_types, const VkDebugUtilsMessengerCallbackDataEXT * callback_data, void * user_data)
 {
 	Sys_Printf("%s\n", callback_data->pMessage);
 	return VK_FALSE;
