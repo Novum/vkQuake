@@ -626,7 +626,9 @@ void R_DrawWorld (void)
 	if (!r_drawworld_cheatsafe)
 		return;
 
+	R_BeginDebugUtilsLabel ("World");
 	R_DrawTextureChains (cl.worldmodel, NULL, chain_world);
+	R_EndDebugUtilsLabel ();
 }
 
 /*
@@ -639,7 +641,9 @@ void R_DrawWorld_Water (void)
 	if (!r_drawworld_cheatsafe)
 		return;
 
+	R_BeginDebugUtilsLabel ("Water");
 	R_DrawTextureChains_Water (cl.worldmodel, NULL, chain_world);
+	R_EndDebugUtilsLabel ();
 }
 
 /*

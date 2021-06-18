@@ -997,6 +997,7 @@ void SCR_UpdateScreen (void)
 	}
 
 	//FIXME: only call this when needed
+	R_BeginDebugUtilsLabel ("2D");
 	SCR_TileClear ();
 	
 	if (scr_drawdialog) //new game confirm
@@ -1037,6 +1038,7 @@ void SCR_UpdateScreen (void)
 		SCR_DrawConsole ();
 		M_Draw ();
 	}
+	R_EndDebugUtilsLabel ();
 
 	V_UpdateBlend (); //johnfitz -- V_UpdatePalette cleaned up and renamed
 

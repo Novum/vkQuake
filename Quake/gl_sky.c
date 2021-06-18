@@ -963,11 +963,15 @@ draws the old-style scrolling cloud layers
 */
 void Sky_DrawSkyLayers (void)
 {
+	R_BeginDebugUtilsLabel ("Sky Layers");
+
 	int i;
 
 	for (i=0 ; i<6 ; i++)
 		if (skymins[0][i] < skymaxs[0][i] && skymins[1][i] < skymaxs[1][i])
 			Sky_DrawFace (i, r_skyalpha.value);
+
+	R_EndDebugUtilsLabel ();
 }
 
 /*
@@ -983,6 +987,8 @@ void Sky_DrawSky (void)
 
 	if (r_lightmap_cheatsafe)
 		return;
+
+	R_BeginDebugUtilsLabel ("Sky");
 
 	//
 	// reset sky bounds
@@ -1021,4 +1027,6 @@ void Sky_DrawSky (void)
 	}
 
 	Fog_EnableGFog ();
+
+	R_EndDebugUtilsLabel ();
 }

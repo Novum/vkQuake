@@ -230,6 +230,11 @@ typedef struct
 	PFN_vkCmdDrawIndexed				vk_cmd_draw_indexed;
 	PFN_vkCmdPipelineBarrier			vk_cmd_pipeline_barrier;
 	PFN_vkCmdCopyBufferToImage			vk_cmd_copy_buffer_to_image;
+
+#ifdef _DEBUG
+	PFN_vkCmdBeginDebugUtilsLabelEXT	vk_cmd_begin_debug_utils_label;
+	PFN_vkCmdEndDebugUtilsLabelEXT		vk_cmd_end_debug_utils_label;
+#endif
 } vulkanglobals_t;
 
 extern vulkanglobals_t vulkan_globals;
@@ -450,6 +455,27 @@ static inline void R_BindPipeline(VkPipelineBindPoint bind_point, vulkan_pipelin
 static inline void R_PushConstants(VkShaderStageFlags stage_flags, int offset, int size, const void * data)
 {
 	vulkan_globals.vk_cmd_push_constants(vulkan_globals.command_buffer, vulkan_globals.current_pipeline.layout.handle, stage_flags, offset, size, data);
+}
+
+static inline void R_BeginDebugUtilsLabel(const char * name)
+{
+#ifdef _DEBUG
+	VkDebugUtilsLabelEXT label;
+	memset(&label, 0, sizeof(label));
+	label.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
+	label.pLabelName = name;
+	if (vulkan_globals.vk_cmd_begin_debug_utils_label)
+		vulkan_globals.vk_cmd_begin_debug_utils_label(vulkan_globals.command_buffer, &label);
+#endif
+}
+
+
+static inline void R_EndDebugUtilsLabel()
+{
+#ifdef _DEBUG
+	if (vulkan_globals.vk_cmd_end_debug_utils_label)
+		vulkan_globals.vk_cmd_end_debug_utils_label(vulkan_globals.command_buffer);
+#endif
 }
 
 VkDescriptorSet R_AllocateDescriptorSet(vulkan_desc_set_layout_t * layout);

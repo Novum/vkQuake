@@ -1028,10 +1028,12 @@ R_DrawParticles -- johnfitz -- moved all non-drawing code to CL_RunParticles
 */
 void R_DrawParticles (void)
 {
+	R_BeginDebugUtilsLabel ("Particles");
 	R_BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.particle_pipeline);
 	vulkan_globals.vk_cmd_bind_descriptor_sets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &particletexture->descriptor_set, 0, NULL);
 
 	R_DrawParticlesFaces();
+	R_EndDebugUtilsLabel ();
 }
 
 /*

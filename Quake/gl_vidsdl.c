@@ -170,16 +170,20 @@ VkBool32 VKAPI_PTR DebugMessageCallback(VkDebugUtilsMessageSeverityFlagBitsEXT m
 // Swap chain
 static uint32_t current_swapchain_buffer;
 
-#define GET_INSTANCE_PROC_ADDR(inst, entrypoint) { \
-	fp##entrypoint = (PFN_vk##entrypoint)fpGetInstanceProcAddr(inst, "vk" #entrypoint); \
+#define GET_INSTANCE_PROC_ADDR(entrypoint) { \
+	fp##entrypoint = (PFN_vk##entrypoint)fpGetInstanceProcAddr(vulkan_instance, "vk" #entrypoint); \
 	if (fp##entrypoint == NULL) Sys_Error("vkGetInstanceProcAddr failed to find vk" #entrypoint); \
 }
 
-#define GET_DEVICE_PROC_ADDR(dev, entrypoint) { \
-	fp##entrypoint = (PFN_vk##entrypoint)fpGetDeviceProcAddr(dev, "vk" #entrypoint); \
+#define GET_DEVICE_PROC_ADDR(entrypoint) { \
+	fp##entrypoint = (PFN_vk##entrypoint)fpGetDeviceProcAddr(vulkan_globals.device, "vk" #entrypoint); \
 	if (fp##entrypoint == NULL) Sys_Error("vkGetDeviceProcAddr failed to find vk" #entrypoint); \
 }
 
+#define GET_GLOBAL_DEVICE_PROC_ADDR(var, entrypoint) { \
+	vulkan_globals.##var = (PFN_##entrypoint)fpGetDeviceProcAddr(vulkan_globals.device, #entrypoint); \
+	if (vulkan_globals.##var == NULL) Sys_Error("vkGetDeviceProcAddr failed to find vk" #entrypoint); \
+}
 /*
 ================
 VID_Gamma_Init -- call on init
@@ -669,21 +673,21 @@ static void GL_InitInstance( void )
 
 	fpGetInstanceProcAddr = SDL_Vulkan_GetVkGetInstanceProcAddr();
 
-	GET_INSTANCE_PROC_ADDR(vulkan_instance, GetDeviceProcAddr);
-	GET_INSTANCE_PROC_ADDR(vulkan_instance, GetPhysicalDeviceSurfaceSupportKHR);
-	GET_INSTANCE_PROC_ADDR(vulkan_instance, GetPhysicalDeviceSurfaceCapabilitiesKHR);
-	GET_INSTANCE_PROC_ADDR(vulkan_instance, GetPhysicalDeviceSurfaceFormatsKHR);
-	GET_INSTANCE_PROC_ADDR(vulkan_instance, GetPhysicalDeviceSurfacePresentModesKHR);
-	GET_INSTANCE_PROC_ADDR(vulkan_instance, GetSwapchainImagesKHR);
+	GET_INSTANCE_PROC_ADDR(GetDeviceProcAddr);
+	GET_INSTANCE_PROC_ADDR(GetPhysicalDeviceSurfaceSupportKHR);
+	GET_INSTANCE_PROC_ADDR(GetPhysicalDeviceSurfaceCapabilitiesKHR);
+	GET_INSTANCE_PROC_ADDR(GetPhysicalDeviceSurfaceFormatsKHR);
+	GET_INSTANCE_PROC_ADDR(GetPhysicalDeviceSurfacePresentModesKHR);
+	GET_INSTANCE_PROC_ADDR(GetSwapchainImagesKHR);
 
 	if(vulkan_globals.get_surface_capabilities_2)
-		GET_INSTANCE_PROC_ADDR(vulkan_instance, GetPhysicalDeviceSurfaceCapabilities2KHR);
+		GET_INSTANCE_PROC_ADDR(GetPhysicalDeviceSurfaceCapabilities2KHR);
 
 #ifdef _DEBUG
 	if(vulkan_globals.validation)
 	{
 		Con_Printf("Creating debug report callback\n");
-		GET_INSTANCE_PROC_ADDR(vulkan_instance, CreateDebugUtilsMessengerEXT);
+		GET_INSTANCE_PROC_ADDR(CreateDebugUtilsMessengerEXT);
 		if (fpCreateDebugUtilsMessengerEXT)
 		{
 			VkDebugUtilsMessengerCreateInfoEXT debug_utils_messenger_create_info;
@@ -863,11 +867,11 @@ static void GL_InitDevice( void )
 	if (err != VK_SUCCESS)
 		Sys_Error("Couldn't create Vulkan device");
 
-	GET_DEVICE_PROC_ADDR(vulkan_globals.device, CreateSwapchainKHR);
-	GET_DEVICE_PROC_ADDR(vulkan_globals.device, DestroySwapchainKHR);
-	GET_DEVICE_PROC_ADDR(vulkan_globals.device, GetSwapchainImagesKHR);
-	GET_DEVICE_PROC_ADDR(vulkan_globals.device, AcquireNextImageKHR);
-	GET_DEVICE_PROC_ADDR(vulkan_globals.device, QueuePresentKHR);
+	GET_DEVICE_PROC_ADDR(CreateSwapchainKHR);
+	GET_DEVICE_PROC_ADDR(DestroySwapchainKHR);
+	GET_DEVICE_PROC_ADDR(GetSwapchainImagesKHR);
+	GET_DEVICE_PROC_ADDR(AcquireNextImageKHR);
+	GET_DEVICE_PROC_ADDR(QueuePresentKHR);
 
 	if (vulkan_globals.dedicated_allocation)
 	{
@@ -877,13 +881,17 @@ static void GL_InitDevice( void )
 	if (vulkan_globals.full_screen_exclusive)
 	{
 		Con_Printf("Using VK_EXT_full_screen_exclusive\n");
-		GET_DEVICE_PROC_ADDR(vulkan_globals.device, AcquireFullScreenExclusiveModeEXT);
-		GET_DEVICE_PROC_ADDR(vulkan_globals.device, ReleaseFullScreenExclusiveModeEXT);
+		GET_DEVICE_PROC_ADDR(AcquireFullScreenExclusiveModeEXT);
+		GET_DEVICE_PROC_ADDR(ReleaseFullScreenExclusiveModeEXT);
 	}
 #endif
 #ifdef _DEBUG
 	if (vulkan_globals.debug_utils)
-		GET_DEVICE_PROC_ADDR(vulkan_globals.device, SetDebugUtilsObjectNameEXT);
+	{
+		GET_DEVICE_PROC_ADDR(SetDebugUtilsObjectNameEXT);
+		GET_GLOBAL_DEVICE_PROC_ADDR(vk_cmd_begin_debug_utils_label, vkCmdBeginDebugUtilsLabelEXT);
+		GET_GLOBAL_DEVICE_PROC_ADDR(vk_cmd_end_debug_utils_label, vkCmdEndDebugUtilsLabelEXT);
+	}
 #endif
 
 	vkGetDeviceQueue(vulkan_globals.device, vulkan_globals.gfx_queue_family_index, 0, &vulkan_globals.queue);
@@ -923,15 +931,15 @@ static void GL_InitDevice( void )
 		vulkan_globals.depth_format = VK_FORMAT_D32_SFLOAT;
 	}
 
-	vulkan_globals.vk_cmd_bind_pipeline =			(PFN_vkCmdBindPipeline)			fpGetDeviceProcAddr(vulkan_globals.device, "vkCmdBindPipeline");
-	vulkan_globals.vk_cmd_push_constants =			(PFN_vkCmdPushConstants)		fpGetDeviceProcAddr(vulkan_globals.device, "vkCmdPushConstants");
-	vulkan_globals.vk_cmd_bind_descriptor_sets =	(PFN_vkCmdBindDescriptorSets)	fpGetDeviceProcAddr(vulkan_globals.device, "vkCmdBindDescriptorSets");
-	vulkan_globals.vk_cmd_bind_index_buffer =		(PFN_vkCmdBindIndexBuffer)		fpGetDeviceProcAddr(vulkan_globals.device, "vkCmdBindIndexBuffer");
-	vulkan_globals.vk_cmd_bind_vertex_buffers =		(PFN_vkCmdBindVertexBuffers)	fpGetDeviceProcAddr(vulkan_globals.device, "vkCmdBindVertexBuffers");
-	vulkan_globals.vk_cmd_draw =					(PFN_vkCmdDraw)					fpGetDeviceProcAddr(vulkan_globals.device, "vkCmdDraw");
-	vulkan_globals.vk_cmd_draw_indexed =			(PFN_vkCmdDrawIndexed)			fpGetDeviceProcAddr(vulkan_globals.device, "vkCmdDrawIndexed");
-	vulkan_globals.vk_cmd_pipeline_barrier =		(PFN_vkCmdPipelineBarrier)		fpGetDeviceProcAddr(vulkan_globals.device, "vkCmdPipelineBarrier");
-	vulkan_globals.vk_cmd_copy_buffer_to_image =	(PFN_vkCmdCopyBufferToImage)	fpGetDeviceProcAddr(vulkan_globals.device, "vkCmdCopyBufferToImage");
+	GET_GLOBAL_DEVICE_PROC_ADDR(vk_cmd_bind_pipeline, vkCmdBindPipeline);
+	GET_GLOBAL_DEVICE_PROC_ADDR(vk_cmd_push_constants, vkCmdPushConstants);
+	GET_GLOBAL_DEVICE_PROC_ADDR(vk_cmd_bind_descriptor_sets, vkCmdBindDescriptorSets);
+	GET_GLOBAL_DEVICE_PROC_ADDR(vk_cmd_bind_index_buffer, vkCmdBindIndexBuffer);
+	GET_GLOBAL_DEVICE_PROC_ADDR(vk_cmd_bind_vertex_buffers, vkCmdBindVertexBuffers);
+	GET_GLOBAL_DEVICE_PROC_ADDR(vk_cmd_draw, vkCmdDraw);
+	GET_GLOBAL_DEVICE_PROC_ADDR(vk_cmd_draw_indexed, vkCmdDrawIndexed);
+	GET_GLOBAL_DEVICE_PROC_ADDR(vk_cmd_pipeline_barrier, vkCmdPipelineBarrier);
+	GET_GLOBAL_DEVICE_PROC_ADDR(vk_cmd_copy_buffer_to_image, vkCmdCopyBufferToImage);
 }
 
 /*

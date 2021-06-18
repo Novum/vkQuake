@@ -410,6 +410,7 @@ void R_DrawEntitiesOnList (qboolean alphapass) //johnfitz -- added parameter
 	if (!r_drawentities.value)
 		return;
 
+	R_BeginDebugUtilsLabel (alphapass ? "Entities Alpha Pass" : "Entities" );
 	//johnfitz -- sprites are not a special case
 	for (i=0 ; i<cl_numvisedicts ; i++)
 	{
@@ -443,6 +444,7 @@ void R_DrawEntitiesOnList (qboolean alphapass) //johnfitz -- added parameter
 				break;
 		}
 	}
+	R_EndDebugUtilsLabel();
 }
 
 /*
@@ -467,6 +469,8 @@ void R_DrawViewModel (void)
 		return;
 	//johnfitz
 
+	R_BeginDebugUtilsLabel ("View Model");
+
 	// hack the depth range to prevent view model from poking into walls
 	GL_Viewport(glx + r_refdef.vrect.x,
 				gly + glheight - r_refdef.vrect.y - r_refdef.vrect.height,
@@ -481,6 +485,8 @@ void R_DrawViewModel (void)
 				r_refdef.vrect.width,
 				r_refdef.vrect.height,
 				0.0f, 1.0f);
+
+	R_EndDebugUtilsLabel ();
 }
 
 /*
@@ -496,6 +502,7 @@ void R_ShowTris(void)
 	if (r_showtris.value < 1 || r_showtris.value > 2 || cl.maxclients > 1 || !vulkan_globals.non_solid_fill)
 		return;
 
+	R_BeginDebugUtilsLabel ("show tris");
 	if (r_drawworld.value)
 		R_DrawWorld_ShowTris();
 
@@ -543,6 +550,7 @@ void R_ShowTris(void)
 	}
 
 	Sbar_Changed(); //so we don't get dots collecting on the statusbar
+	R_EndDebugUtilsLabel ();
 }
 
 /*
