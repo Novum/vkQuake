@@ -180,9 +180,9 @@ static uint32_t current_swapchain_buffer;
 	if (fp##entrypoint == NULL) Sys_Error("vkGetDeviceProcAddr failed to find vk" #entrypoint); \
 }
 
-#define GET_GLOBAL_DEVICE_PROC_ADDR(var, entrypoint) { \
-	vulkan_globals.##var = (PFN_##entrypoint)fpGetDeviceProcAddr(vulkan_globals.device, #entrypoint); \
-	if (vulkan_globals.##var == NULL) Sys_Error("vkGetDeviceProcAddr failed to find vk" #entrypoint); \
+#define GET_GLOBAL_DEVICE_PROC_ADDR(_var, entrypoint) { \
+	vulkan_globals. _var = (PFN_##entrypoint)fpGetDeviceProcAddr(vulkan_globals.device, #entrypoint); \
+	if (vulkan_globals. _var == NULL) Sys_Error("vkGetDeviceProcAddr failed to find vk" #entrypoint); \
 }
 /*
 ================
