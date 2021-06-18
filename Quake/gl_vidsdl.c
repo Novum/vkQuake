@@ -3299,7 +3299,7 @@ static void VID_MenuDraw (void)
 		case VID_OPT_MAX_FPS:
 			M_Print (16, y, "           Max FPS");
 			if (menu_settings.host_maxfps <= 0)
-				M_Print (184, y, "inf");
+				M_Print (184, y, "no limit");
 			else
 				M_Print (184, y, va("%d", menu_settings.host_maxfps));
 			break;
