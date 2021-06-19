@@ -1,7 +1,7 @@
-# GNU Makefile for vkQuake unix targets, Sep. 10, 2014
-# You need the SDL library fully installed.
+# GNU Makefile for vkQuake unix targets
+# You need the SDL2 library fully installed.
 # "make DEBUG=1" to build a debug client.
-# "make SDL_CONFIG=/path/to/sdl-config" for unusual SDL installations.
+# "make SDL_CONFIG=/path/to/sdl2-config" for unusual SDL2 installations.
 # "make DO_USERDIRS=1" to enable user directories support
 # "make VULKAN_SDK=/path/to/sdk" if it is not already in path
 
@@ -97,8 +97,6 @@ ifneq ($(X11BASE),)
 LDFLAGS+= -L$(X11BASE)/lib
 CFLAGS += -I$(X11BASE)/include
 endif
-
-CFLAGS += -DUSE_SDL2
 
 SDL_CONFIG ?= sdl2-config
 SDL_CFLAGS := $(shell $(SDL_CONFIG) --cflags)
