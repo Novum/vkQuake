@@ -903,6 +903,8 @@ draws the old-style scrolling cloud layers
 void Sky_DrawSkyLayers (void)
 {
 	int i;
+	if (!solidskytexture || !alphaskytexture)
+		return;
 
 	R_BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_layer_pipeline);
 
