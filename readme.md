@@ -35,35 +35,23 @@ build the solution.
 
 ### MinGW
 
-Download the latest release of [MinGW-w64](https://sourceforge.net/projects/mingw-w64/files/latest/download) and install it:
+Setup your MinGW-w64(https://sourceforge.net/projects/mingw-w64/) environment, e.g. using [w64devkit](https://github.com/skeeto/w64devkit) or [MSYS2](https://www.msys2.org/).
 
-* 32 bit:
-  * Architecture: i686
-  * Install location: C:\mingw-w32
-* 64 bit:
-  * Architecture: x86_64
-  * Install location: C:\mingw-w64
-
-Also install the latest release of
-[MozillaBuild](https://ftp.mozilla.org/pub/mozilla.org/mozilla/libraries/win32/MozillaBuildSetup-Latest.exe) with default settings.
-
-Start MSYS with `c:\mozilla-build\msys\msys.bat` and compile vkQuake.
-
-32 bit:
+Build 32 bit (x86) vkQuake:
 
 ~~~
 cd vkQuake/Quake
-export PATH=${PATH}:/c/mingw-w32/mingw32/bin
-make USE_SDL2=1 -f Makefile.w32
+make -f Makefile.w32
 ~~~
 
-64 bit:
+Build 64 bit (x64) vkQuake:
 
 ~~~
 cd vkQuake/Quake
-export PATH=${PATH}:/c/mingw-w64/mingw64/bin
-make USE_SDL2=1 -f Makefile.w64
+make -f Makefile.w64
 ~~~
+
+If you are on Linux want to cross-compile for windows, see the build_cross_win??.sh scripts.
 
 ## Linux
 
