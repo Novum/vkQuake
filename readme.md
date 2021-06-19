@@ -35,7 +35,7 @@ build the solution.
 
 ### MinGW
 
-Setup your MinGW-w64(https://sourceforge.net/projects/mingw-w64/) environment, e.g. using [w64devkit](https://github.com/skeeto/w64devkit) or [MSYS2](https://www.msys2.org/).
+Setup your [MinGW-w64](https://sourceforge.net/projects/mingw-w64/) environment, e.g. using [w64devkit](https://github.com/skeeto/w64devkit) or [MSYS2](https://www.msys2.org/).
 
 Build 32 bit (x86) vkQuake:
 
