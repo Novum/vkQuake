@@ -1,14 +1,15 @@
 # 🌋 vkQuake
-vkQuake is a port of id Software's [Quake](https://en.wikipedia.org/wiki/Quake_(video_game)) using Vulkan instead of OpenGL for rendering. It is based on the popular [QuakeSpasm](http://quakespasm.sourceforge.net/) and [QuakeSpasm-Spiked](https://triptohell.info/moodles/qss/) ports and runs all mods compatible with them like [Arcane Dimensions](http://www.simonoc.com/pages/design/sp/ad.htm). Due to the port using Vulkan and other optimizations it can achieve much better frame rates.
+vkQuake is a port of id Software's [Quake](https://en.wikipedia.org/wiki/Quake_(video_game)) using Vulkan instead of OpenGL for rendering. It is based on the popular [QuakeSpasm](http://quakespasm.sourceforge.net/) and [QuakeSpasm-Spiked](https://triptohell.info/moodles/qss/) ports and runs all mods compatible with QuakeSpasm like [Arcane Dimensions](http://www.simonoc.com/pages/design/sp/ad.htm). 
 
-Compared to QuakeSpasm vkQuake also features a software Quake like underwater effect, has better color precision, generates mipmap for water surfaces at runtime and has native support for anti-aliasing and AF. Furthermore frame rates above 72FPS do not break physics.
-
-vkQuake also serves as a Vulkan demo application that shows basic usage of the API. For example it demonstrates render passes & sub passes, pipeline barriers & synchronization, compute shaders, push & specialization constants, CPU/GPU parallelism and memory pooling.
+Compared to QuakeSpasm vkQuake also features a software Quake like underwater effect, has better color precision, generates mipmap for water surfaces at runtime and has native support for anti-aliasing and AF. Due to the port using Vulkan and other optimizations it can also achieve much better frame rates. Code ported from QuakeSpasm-Spiked makes it possible to run the game at over 72FPS without breaking physics.
 
 # Installation
 
 ## Windows
 Copy all files from the `vkquake-<version>` folder in the zip file to the Quake base directory. Overwrite any existing files. Afterward to run the game just execute `vkQuake.exe`.
+
+# Vulkan
+vkQuake shows basic usage of the API. For example it demonstrates render passes & sub passes, pipeline barriers & synchronization, compute shaders, push & specialization constants, CPU/GPU parallelism and memory pooling.
 
 # Building
 
