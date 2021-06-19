@@ -51,7 +51,7 @@ cd vkQuake/Quake
 make -f Makefile.w64
 ~~~
 
-If you are on Linux want to cross-compile for windows, see the build_cross_win??.sh scripts.
+If you are on Linux and want to cross-compile for Windows, see the `build_cross_win??.sh` scripts.
 
 ## Linux
 
