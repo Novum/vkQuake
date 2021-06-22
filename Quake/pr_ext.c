@@ -4803,6 +4803,7 @@ void PR_EnableExtensions(ddef_t *pr_globaldefs)
 #define QCEXTGLOBAL_VECTOR(n) qcvm->extglobals.n = PR_FindExtGlobal(ev_vector, #n);
 	QCEXTGLOBALS_COMMON
 	QCEXTGLOBALS_GAME
+	QCEXTGLOBALS_CSQC
 #undef QCEXTGLOBAL_FLOAT
 #undef QCEXTGLOBAL_INT
 #undef QCEXTGLOBAL_VECTOR
