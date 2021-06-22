@@ -720,6 +720,14 @@ void CL_RelinkEntities (void)
 			cl_numvisedicts++;
 		}
 	}
+
+	//johnfitz -- lerping
+	//ericw -- this was done before the upper 8 bits of cl.stats[STAT_WEAPON] were filled in, breaking on large maps like zendar.bsp
+	if (cl.viewent.model != cl.model_precache[cl.stats[STAT_WEAPON]])
+	{
+		cl.viewent.lerpflags |= LERP_RESETANIM; //don't lerp animation across model changes
+	}
+	//johnfitz
 }
 
 

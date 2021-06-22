@@ -1478,13 +1478,6 @@ static void CL_ParseClientdata (void)
 		CL_SetHudStat(STAT_ROCKETS, ammovals[2]);
 		CL_SetHudStat(STAT_CELLS, ammovals[3]);
 	}
-	//johnfitz -- lerping
-	//ericw -- this was done before the upper 8 bits of cl.stats[STAT_WEAPON] were filled in, breaking on large maps like zendar.bsp
-	if (cl.viewent.model != cl.model_precache[cl.stats[STAT_WEAPON]])
-	{
-		cl.viewent.lerpflags |= LERP_RESETANIM; //don't lerp animation across model changes
-	}
-	//johnfitz
 }
 
 /*

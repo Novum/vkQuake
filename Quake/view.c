@@ -828,11 +828,7 @@ void V_CalcRefdef (void)
 			view->origin[2] += 0.5;
 	}
 
-	if (view->model != cl.model_precache[cl.stats[STAT_WEAPON]])
-	{
-		view->model = cl.model_precache[cl.stats[STAT_WEAPON]];
-		view->lerpflags |= LERP_RESETANIM;
-	}
+	view->model = cl.model_precache[cl.stats[STAT_WEAPON]];
 	view->frame = cl.stats[STAT_WEAPONFRAME];
 	view->netstate.colormap = 0;
 
