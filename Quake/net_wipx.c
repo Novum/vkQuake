@@ -112,7 +112,7 @@ int	WIPX_GetAddresses (qhostaddr_t *addresses, int maxaddresses)
 {
 	int result = 0;
 	if (ipxAvailable)
-		q_strlcpy(addresses[result++], my_ipx_address, sizeof(addresses[0])); 
+		q_strlcpy(addresses[result++], my_ipx_address, sizeof (addresses[0]));
 	return result;
 }
 
