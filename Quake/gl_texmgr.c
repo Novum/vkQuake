@@ -1217,34 +1217,32 @@ void TexMgr_ReloadImage (gltexture_t *glt, int shirt, int pants)
 //
 	mark = Hunk_LowMark ();
 
-	if (glt->source_file[0] && glt->source_offset)
-	{
+	if (glt->source_file[0] && glt->source_offset) {
 		//lump inside file
-		long size;
 		FILE *f;
 		COM_FOpenFile(glt->source_file, &f, NULL);
-		if (!f)
-			goto invalid;
+		if (!f) goto invalid;
 		fseek (f, glt->source_offset, SEEK_CUR);
-		size = (long) (glt->source_width * glt->source_height);
+		size = glt->source_width * glt->source_height;
 		/* should be SRC_INDEXED, but no harm being paranoid:  */
-		if (glt->source_format == SRC_RGBA)
+		if (glt->source_format == SRC_RGBA) {
 			size *= 4;
-		else if (glt->source_format == SRC_LIGHTMAP)
+		}
+		else if (glt->source_format == SRC_LIGHTMAP) {
 			size *= lightmap_bytes;
+		}
 		data = (byte *) Hunk_Alloc (size);
 		fread (data, 1, size, f);
 		fclose (f);
 	}
-	else if (glt->source_file[0] && !glt->source_offset)
+	else if (glt->source_file[0] && !glt->source_offset) {
 		data = Image_LoadImage (glt->source_file, (int *)&glt->source_width, (int *)&glt->source_height); //simple file
-	else if (!glt->source_file[0] && glt->source_offset)
+	}
+	else if (!glt->source_file[0] && glt->source_offset) {
 		data = (byte *) glt->source_offset; //image in memory
-
-	if (!data)
-	{
-invalid:
-		Con_Printf ("TexMgr_ReloadImage: invalid source for %s\n", glt->name);
+	}
+	if (!data) {
+invalid:	Con_Printf ("TexMgr_ReloadImage: invalid source for %s\n", glt->name);
 		Hunk_FreeToLowMark(mark);
 		return;
 	}

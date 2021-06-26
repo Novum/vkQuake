@@ -847,7 +847,7 @@ void Sky_DrawFace (int axis, float alpha)
 	vec3_t		verts[4];
 	int			i, j, start;
 	float		di,qi,dj,qj;
-	vec3_t		vup, vright, temp, temp2;
+	vec3_t		up, right, temp, temp2;
 
 	Sky_SetBoxVert(-1.0, -1.0, axis, verts[0]);
 	Sky_SetBoxVert(-1.0,  1.0, axis, verts[1]);
@@ -857,8 +857,8 @@ void Sky_DrawFace (int axis, float alpha)
 	start = Hunk_LowMark ();
 	p = (glpoly_t *) Hunk_Alloc(sizeof(glpoly_t));
 
-	VectorSubtract(verts[2],verts[3],vup);
-	VectorSubtract(verts[2],verts[1],vright);
+	VectorSubtract(verts[2],verts[3],up);
+	VectorSubtract(verts[2],verts[1],right);
 
 	di = q_max((int)r_sky_quality.value, 1);
 	qi = 1.0 / di;
@@ -874,15 +874,15 @@ void Sky_DrawFace (int axis, float alpha)
 				continue;
 
 			//if (i&1 ^ j&1) continue; //checkerboard test
-			VectorScale (vright, qi*i, temp);
-			VectorScale (vup, qj*j, temp2);
+			VectorScale (right, qi*i, temp);
+			VectorScale (up, qj*j, temp2);
 			VectorAdd(temp,temp2,temp);
 			VectorAdd(verts[0],temp,p->verts[0]);
 
-			VectorScale (vup, qj, temp);
+			VectorScale (up, qj, temp);
 			VectorAdd (p->verts[0],temp,p->verts[1]);
 
-			VectorScale (vright, qi, temp);
+			VectorScale (right, qi, temp);
 			VectorAdd (p->verts[1],temp,p->verts[2]);
 
 			VectorAdd (p->verts[0],temp,p->verts[3]);

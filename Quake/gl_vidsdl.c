@@ -435,10 +435,9 @@ static qboolean VID_SetMode (int width, int height, int refreshrate, int bpp, qb
 	/* Make window fullscreen if needed, and show the window */
 
 	if (fullscreen) {
-		Uint32 flags = vid_desktopfullscreen.value ?
-			SDL_WINDOW_FULLSCREEN_DESKTOP :
-			SDL_WINDOW_FULLSCREEN;
-		if (SDL_SetWindowFullscreen (draw_context, flags) != 0)
+		const Uint32 flag = vid_desktopfullscreen.value ?
+				SDL_WINDOW_FULLSCREEN_DESKTOP : SDL_WINDOW_FULLSCREEN;
+		if (SDL_SetWindowFullscreen (draw_context, flag) != 0)
 			Sys_Error ("Couldn't set fullscreen state mode: %s", SDL_GetError());
 	}
 
