@@ -1590,15 +1590,15 @@ static void PF_strftime(void)
 	const char *in = G_STRING(OFS_PARM1);
 	char *result = PR_GetTempString();
 
-	time_t ctime;
+	time_t curtime;
 	struct tm *tm;
 
-	ctime = time(NULL);
+	curtime = time(NULL);
 
 	if (G_FLOAT(OFS_PARM0))
-		tm = localtime(&ctime);
+		tm = localtime(&curtime);
 	else
-		tm = gmtime(&ctime);
+		tm = gmtime(&curtime);
 
 #ifdef _WIN32
 	//msvc sucks. this is a crappy workaround.
