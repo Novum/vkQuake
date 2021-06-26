@@ -151,10 +151,12 @@ typedef struct
 	// Instance extensions
 	qboolean							get_surface_capabilities_2;
 	qboolean							get_physical_device_properties_2;
+	qboolean							vulkan_1_1_available;
 
 	// Device extensions
 	qboolean							dedicated_allocation;
 	qboolean							full_screen_exclusive;
+	qboolean							screen_effects_sops;
 
 	// Buffers
 	VkImage								color_buffers[NUM_COLOR_BUFFERS];
@@ -194,7 +196,9 @@ typedef struct
 	vulkan_pipeline_t					alias_blend_pipeline;
 	vulkan_pipeline_t					alias_alphatest_pipeline;
 	vulkan_pipeline_t					postprocess_pipeline;
-	vulkan_pipeline_t					screen_warp_pipeline;
+	vulkan_pipeline_t					screen_effects_pipeline;
+	vulkan_pipeline_t					screen_effects_scale_pipeline;
+	vulkan_pipeline_t					screen_effects_scale_sops_pipeline;
 	vulkan_pipeline_t					cs_tex_warp_pipeline;
 	vulkan_pipeline_t					showtris_pipeline;
 	vulkan_pipeline_t					showtris_depth_test_pipeline;
@@ -252,6 +256,7 @@ extern	int render_pass_index;
 extern	qboolean render_warp;
 extern	qboolean in_update_screen;
 extern	qboolean use_simd;
+extern int render_scale;
 
 //
 // view origin
@@ -282,6 +287,7 @@ extern	cvar_t	r_telealpha;
 extern	cvar_t	r_slimealpha;
 extern	cvar_t	r_dynamic;
 extern	cvar_t	r_novis;
+extern	cvar_t	r_scale;
 
 extern	cvar_t	gl_polyblend;
 extern	cvar_t	gl_nocolors;

@@ -144,11 +144,13 @@ static PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR fpGetPhysicalDeviceSurfaceC
 static PFN_vkGetPhysicalDeviceSurfaceCapabilities2KHR fpGetPhysicalDeviceSurfaceCapabilities2KHR;
 static PFN_vkGetPhysicalDeviceSurfaceFormatsKHR fpGetPhysicalDeviceSurfaceFormatsKHR;
 static PFN_vkGetPhysicalDeviceSurfacePresentModesKHR fpGetPhysicalDeviceSurfacePresentModesKHR;
+static PFN_vkGetPhysicalDeviceProperties2 fpGetPhysicalDeviceProperties2;
 static PFN_vkCreateSwapchainKHR fpCreateSwapchainKHR;
 static PFN_vkDestroySwapchainKHR fpDestroySwapchainKHR;
 static PFN_vkGetSwapchainImagesKHR fpGetSwapchainImagesKHR;
 static PFN_vkAcquireNextImageKHR fpAcquireNextImageKHR;
 static PFN_vkQueuePresentKHR fpQueuePresentKHR;
+static PFN_vkEnumerateInstanceVersion fpEnumerateInstanceVersion;
 #if defined(VK_EXT_full_screen_exclusive)
 static PFN_vkAcquireFullScreenExclusiveModeEXT fpAcquireFullScreenExclusiveModeEXT;
 static PFN_vkReleaseFullScreenExclusiveModeEXT fpReleaseFullScreenExclusiveModeEXT;
@@ -620,6 +622,20 @@ static void GL_InitInstance( void )
 		free(instance_extensions);
 	}
 
+	vulkan_globals.vulkan_1_1_available = false;
+	fpGetInstanceProcAddr = SDL_Vulkan_GetVkGetInstanceProcAddr();
+	GET_INSTANCE_PROC_ADDR(EnumerateInstanceVersion);
+	if (fpEnumerateInstanceVersion)
+	{
+		uint32_t api_version = 0;
+		fpEnumerateInstanceVersion(&api_version);
+		if (api_version >= VK_MAKE_VERSION(1, 1, 0))
+		{
+			Con_Printf("Using Vulkan 1.1\n");
+			vulkan_globals.vulkan_1_1_available = true;
+		}
+	}
+
 	VkApplicationInfo application_info;
 	memset(&application_info, 0, sizeof(application_info));
 	application_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -627,7 +643,7 @@ static void GL_InitInstance( void )
 	application_info.applicationVersion = 1;
 	application_info.pEngineName = "vkQuake";
 	application_info.engineVersion = 1;
-	application_info.apiVersion = VK_API_VERSION_1_0;
+	application_info.apiVersion = vulkan_globals.vulkan_1_1_available ? VK_MAKE_VERSION(1, 1, 0) : VK_MAKE_VERSION(1, 0, 0);
 
 	VkInstanceCreateInfo instance_create_info;
 	memset(&instance_create_info, 0, sizeof(instance_create_info));
@@ -671,8 +687,6 @@ static void GL_InitInstance( void )
 	if (!SDL_Vulkan_CreateSurface(draw_context, vulkan_instance, &vulkan_surface))
 		Sys_Error("Couldn't create Vulkan surface");
 
-	fpGetInstanceProcAddr = SDL_Vulkan_GetVkGetInstanceProcAddr();
-
 	GET_INSTANCE_PROC_ADDR(GetDeviceProcAddr);
 	GET_INSTANCE_PROC_ADDR(GetPhysicalDeviceSurfaceSupportKHR);
 	GET_INSTANCE_PROC_ADDR(GetPhysicalDeviceSurfaceCapabilitiesKHR);
@@ -682,6 +696,9 @@ static void GL_InitInstance( void )
 
 	if(vulkan_globals.get_surface_capabilities_2)
 		GET_INSTANCE_PROC_ADDR(GetPhysicalDeviceSurfaceCapabilities2KHR);
+
+	if (vulkan_globals.vulkan_1_1_available)
+		GET_INSTANCE_PROC_ADDR(GetPhysicalDeviceProperties2);
 
 #ifdef _DEBUG
 	if(vulkan_globals.validation)
@@ -740,10 +757,32 @@ static void GL_InitDevice( void )
 	vulkan_globals.dedicated_allocation = false;
 	vulkan_globals.full_screen_exclusive = false;
 	vulkan_globals.swap_chain_full_screen_acquired = false;
+	vulkan_globals.screen_effects_sops = false;
 
 	vkGetPhysicalDeviceMemoryProperties(vulkan_physical_device, &vulkan_globals.memory_properties);
 
-	vkGetPhysicalDeviceProperties(vulkan_physical_device, &vulkan_globals.device_properties);
+	if (vulkan_globals.vulkan_1_1_available)
+	{
+		VkPhysicalDeviceSubgroupProperties physical_device_subgroup_properties;
+		memset(&physical_device_subgroup_properties, 0, sizeof(physical_device_subgroup_properties));
+		physical_device_subgroup_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_PROPERTIES;
+		VkPhysicalDeviceProperties2 physical_device_properties_2;
+		memset(&physical_device_properties_2, 0, sizeof(physical_device_properties_2));
+		physical_device_properties_2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+		physical_device_properties_2.pNext = &physical_device_subgroup_properties;
+		fpGetPhysicalDeviceProperties2(vulkan_physical_device, &physical_device_properties_2);
+		vulkan_globals.device_properties = physical_device_properties_2.properties;
+		vulkan_globals.screen_effects_sops =
+			((physical_device_subgroup_properties.supportedStages & VK_SHADER_STAGE_COMPUTE_BIT) != 0)
+			&& ((physical_device_subgroup_properties.supportedOperations & VK_SUBGROUP_FEATURE_SHUFFLE_BIT) != 0)
+			&& (physical_device_subgroup_properties.subgroupSize >= 4);
+	}
+	else
+		vkGetPhysicalDeviceProperties(vulkan_physical_device, &vulkan_globals.device_properties);
+
+	if (vulkan_globals.screen_effects_sops)
+		Con_Printf("Using subgroup operations\n");
+
 	switch(vulkan_globals.device_properties.vendorID)
 	{
 	case 0x8086:
@@ -2639,6 +2678,7 @@ typedef struct {
 	int				r_particles;
 	int				vid_filter;
 	int				vid_anisotropic;
+	int				r_scale;
 } vid_menu_settings_t;
 
 static vid_menu_settings_t menu_settings;
@@ -2669,6 +2709,7 @@ void VID_SyncCvars (void)
 	menu_settings.host_maxfps = CLAMP(0, host_maxfps.value, 1000);
 	menu_settings.vid_filter = CLAMP(0, (int)vid_filter.value, 1);
 	menu_settings.vid_anisotropic = CLAMP(0, (int)vid_anisotropic.value, 1);
+	menu_settings.r_scale = CLAMP(1, (int)r_scale.value, 8);
 
 	vid_changed = false;
 }
@@ -2688,6 +2729,7 @@ enum {
 	VID_OPT_MAX_FPS,
 	VID_OPT_ANTIALIASING_SAMPLES,
 	VID_OPT_ANTIALIASING_MODE,
+	VID_OPT_RENDER_SCALE,
 	VID_OPT_FILTER,
 	VID_OPT_ANISOTROPY,
 	VID_OPT_UNDERWATER,
@@ -2975,6 +3017,38 @@ static void VID_Menu_ChooseNextAASamples(int dir)
 	Cvar_SetValueQuick(&vid_fsaa, (float)value);
 }
 
+/*
+================
+VID_Menu_ChooseNextRenderScale
+================
+*/
+static void VID_Menu_ChooseNextRenderScale(int dir)
+{
+	int value = menu_settings.r_scale;
+
+	if (dir > 0)
+	{
+		if (value >= 4)
+			value = 8;
+		else if (value >= 2)
+			value = 4;
+		else
+			value = 2;
+	}
+	else 
+	{
+		if (value <= 2)
+			value = 0;
+		else if (value <= 4)
+			value = 2;
+		else if (value <= 8)
+			value = 4;
+		else
+			value = 8;
+	}
+
+	menu_settings.r_scale = value;
+}
 
 /*
 ================
@@ -3125,6 +3199,9 @@ static void VID_MenuKey (int key)
 		case VID_OPT_ANTIALIASING_MODE:
 			VID_Menu_ChooseNextAAMode (-1);
 			break;
+		case VID_OPT_RENDER_SCALE:
+			VID_Menu_ChooseNextRenderScale (-1);
+			break;
 		case VID_OPT_FILTER:
 			menu_settings.vid_filter = (menu_settings.vid_filter==0)?1:0;
 			break;
@@ -3170,6 +3247,9 @@ static void VID_MenuKey (int key)
 		case VID_OPT_ANTIALIASING_MODE:
 			VID_Menu_ChooseNextAAMode(1);
 			break;
+		case VID_OPT_RENDER_SCALE:
+			VID_Menu_ChooseNextRenderScale (1);
+			break;
 		case VID_OPT_FILTER:
 			menu_settings.vid_filter = (menu_settings.vid_filter==0)?1:0;
 			break;
@@ -3202,16 +3282,19 @@ static void VID_MenuKey (int key)
 			VID_Menu_ChooseNextRate (1);
 			break;
 		case VID_OPT_FULLSCREEN:
-			VID_Menu_ChooseNextFullScreenMode(1);
+			VID_Menu_ChooseNextFullScreenMode (1);
 			break;
 		case VID_OPT_VSYNC:
 			Cbuf_AddText ("toggle vid_vsync\n");
 			break;
 		case VID_OPT_ANTIALIASING_SAMPLES:
-			VID_Menu_ChooseNextAASamples(1);
+			VID_Menu_ChooseNextAASamples (1);
 			break;
 		case VID_OPT_ANTIALIASING_MODE:
-			VID_Menu_ChooseNextAAMode(1);
+			VID_Menu_ChooseNextAAMode (1);
+			break;
+		case VID_OPT_RENDER_SCALE:
+			VID_Menu_ChooseNextRenderScale (1);
 			break;
 		case VID_OPT_FILTER:
 			menu_settings.vid_filter = (menu_settings.vid_filter==0)?1:0;
@@ -3234,6 +3317,7 @@ static void VID_MenuKey (int key)
 			Cvar_SetValueQuick(&r_waterwarp, menu_settings.r_waterwarp);
 			Cvar_SetValueQuick(&vid_filter, menu_settings.vid_filter);
 			Cvar_SetValueQuick(&vid_anisotropic, menu_settings.vid_anisotropic);
+			Cvar_SetValueQuick(&r_scale, menu_settings.r_scale);
 			Cbuf_AddText ("vid_restart\n");
 			key_dest = key_game;
 			m_state = m_none;
@@ -3317,6 +3401,10 @@ static void VID_MenuDraw (void)
 		case VID_OPT_ANTIALIASING_MODE:
 			M_Print (16, y, "           AA Mode");
 			M_Print (184, y, ((int)vid_fsaamode.value == 0) ? "Multisample" : "Supersample");
+			break;
+		case VID_OPT_RENDER_SCALE:
+			M_Print (16, y, "      Render Scale");
+			M_Print (184, y, (menu_settings.r_scale >= 2) ? va("1/%i", menu_settings.r_scale) : "off");
 			break;
 		case VID_OPT_FILTER:
 			M_Print (16, y, "            Filter");

@@ -27,6 +27,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 
 cvar_t		scr_conalpha = {"scr_conalpha", "0.5", CVAR_ARCHIVE}; //johnfitz
+cvar_t		r_usesops = {"r_usesops", "1", CVAR_ARCHIVE}; //johnfitz
 
 qpic_t		*draw_disc;
 qpic_t		*draw_backtile;
@@ -449,6 +450,7 @@ Draw_Init -- johnfitz -- rewritten
 void Draw_Init (void)
 {
 	Cvar_RegisterVariable (&scr_conalpha);
+	Cvar_RegisterVariable (&r_usesops);
 
 	// clear scrap and allocate gltextures
 	memset(scrap_allocated, 0, sizeof(scrap_allocated));
@@ -1058,6 +1060,15 @@ void GL_SetCanvas (canvastype newcanvas)
 	}
 }
 
+typedef struct screen_effect_constants_s
+{
+	float 		screen_size_rcp_x;
+	float 		screen_size_rcp_y;
+	float 		aspect_ratio;
+	float 		time;
+	uint32_t 	flags;
+} screen_effect_constants_t;
+
 /*
 ================
 GL_Set2D
@@ -1070,8 +1081,11 @@ qboolean GL_Set2D (void)
 
 	vkCmdEndRenderPass(vulkan_globals.command_buffer);
 
-	if (render_warp)
+	qboolean screen_effects = render_warp || (render_scale >= 2);
+	if (screen_effects)
 	{
+		R_BeginDebugUtilsLabel ("Screen Effects");
+
 		VkImageMemoryBarrier image_barriers[2];
 		image_barriers[0].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 		image_barriers[0].pNext = NULL;
@@ -1107,10 +1121,32 @@ qboolean GL_Set2D (void)
 		
 		GL_SetCanvas(CANVAS_NONE); // Invalidate canvas so push constants get set later
 
-		R_BindPipeline(VK_PIPELINE_BIND_POINT_COMPUTE, vulkan_globals.screen_warp_pipeline);
-		vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, vulkan_globals.screen_warp_pipeline.layout.handle, 0, 1, &vulkan_globals.screen_warp_desc_set, 0, NULL);
-		const float push_constants[4] = { 1.0f / (float)vid.width, 1.0f / (float)vid.height, (float)vid.width / (float)vid.height, cl.time };
-		R_PushConstants(VK_SHADER_STAGE_COMPUTE_BIT, 0, 4 * sizeof(float), push_constants);
+		vulkan_pipeline_t * pipeline = NULL;
+		if (render_scale >= 2)
+		{
+			if (vulkan_globals.screen_effects_sops && r_usesops.value)
+				pipeline = &vulkan_globals.screen_effects_scale_sops_pipeline;
+			else
+				pipeline = &vulkan_globals.screen_effects_scale_pipeline;
+		}
+		else
+			pipeline = &vulkan_globals.screen_effects_pipeline;
+
+		R_BindPipeline(VK_PIPELINE_BIND_POINT_COMPUTE, *pipeline);
+		vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->layout.handle, 0, 1, &vulkan_globals.screen_warp_desc_set, 0, NULL);
+
+		uint32_t screen_effect_flags = 0;
+		if (render_warp)
+			screen_effect_flags |= 0x1;
+		if (render_scale >= 2)
+			screen_effect_flags |= 0x2;
+		if (render_scale >= 4)
+			screen_effect_flags |= 0x4;
+		if (render_scale >= 8)
+			screen_effect_flags |= 0x8;
+		const screen_effect_constants_t push_constants = { 1.0f / (float)vid.width, 1.0f / (float)vid.height, (float)vid.width / (float)vid.height, cl.time, screen_effect_flags };
+		R_PushConstants(VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(screen_effect_constants_t), &push_constants);
+
 		vkCmdDispatch(vulkan_globals.command_buffer, (vid.width + 7) / 8, (vid.height + 7) / 8, 1);
 
 		image_barriers[0].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -1129,6 +1165,8 @@ qboolean GL_Set2D (void)
 		image_barriers[0].subresourceRange.layerCount = 1;
 
 		vkCmdPipelineBarrier(vulkan_globals.command_buffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, 0, 0, NULL, 0, NULL, 1, image_barriers);
+
+		R_EndDebugUtilsLabel ();
 	}
 	else
 	{

@@ -35,6 +35,7 @@ mplane_t	frustum[4];
 
 int			render_pass_index;
 qboolean	render_warp;
+int			render_scale;
 
 //johnfitz -- rendering statistics
 int rs_brushpolys, rs_aliaspolys, rs_skypolys, rs_particles, rs_fogpolys;
@@ -103,6 +104,8 @@ float	map_wateralpha, map_lavaalpha, map_telealpha, map_slimealpha;
 float	map_fallbackalpha;
 
 qboolean r_drawworld_cheatsafe, r_fullbright_cheatsafe, r_lightmap_cheatsafe; //johnfitz
+
+cvar_t	r_scale = {"r_scale", "1", CVAR_ARCHIVE};
 
 /*
 =================
@@ -322,7 +325,8 @@ R_SetupScene
 void R_SetupScene (void)
 {
 	render_pass_index = 0;
-	vkCmdBeginRenderPass(vulkan_globals.command_buffer, &vulkan_globals.main_render_pass_begin_infos[render_warp ? 1 : 0], VK_SUBPASS_CONTENTS_INLINE);
+	qboolean screen_effects = render_warp || (render_scale >= 2);
+	vkCmdBeginRenderPass(vulkan_globals.command_buffer, &vulkan_globals.main_render_pass_begin_infos[screen_effects ? 1 : 0], VK_SUBPASS_CONTENTS_INLINE);
 
 	R_SetupMatrix ();
 }
@@ -358,6 +362,7 @@ void R_SetupView (void)
 	r_fovx = r_refdef.fov_x;
 	r_fovy = r_refdef.fov_y;
 	render_warp = false;
+	render_scale = (int)r_scale.value;
 
 	if (r_waterwarp.value)
 	{

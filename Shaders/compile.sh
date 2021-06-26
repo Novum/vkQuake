@@ -14,7 +14,15 @@ find -type f -name "*.frag" | \
 	while read f; do $VULKAN_SDK/bin/glslangValidator -V ${f} -o "Compiled/${f%.*}.fspv"; done
 
 find -type f -name "*.comp" | \
-	while read f; do $VULKAN_SDK/bin/glslangValidator -V ${f} -o "Compiled/${f%.*}.cspv"; done	
+	while read f; do
+		filename=${f}
+		substring="sops"
+		if test "${filename#*$substring}" != "$filename"; then
+			$VULKAN_SDK/bin/glslangValidator -V ${f} --target-env vulkan1.1 -o "Compiled/${f%.*}.cspv";
+		else
+			$VULKAN_SDK/bin/glslangValidator -V ${f} -o "Compiled/${f%.*}.cspv";
+		fi
+	done
 
 find -type f -name "*.vspv" | \
 	while read f; do ./bintoc ${f} `basename ${f%.*}`_vert_spv > ${f%.*}_vert.c; done

@@ -1,4 +1,6 @@
 @echo off
+setlocal EnableDelayedExpansion
+
 if exist "%VS150COMNTOOLS%\VsDevCmd.bat" ( 
 call "%VS150COMNTOOLS%\VsDevCmd.bat"
 ) else if exist "%VS140COMNTOOLS%\VsDevCmd.bat" ( 
@@ -24,6 +26,11 @@ for %%f in (*.frag) do (
 )
 
 for %%f in (*.comp) do (
-	%VULKAN_SDK%\bin\glslangValidator.exe -V %%f -o Compiled/%%~nf.cspv
+	set "file=%%f"
+	If not "!file!"=="!file:sops=!" (
+		%VULKAN_SDK%\bin\glslangValidator.exe --target-env vulkan1.1 -V %%f -o Compiled/%%~nf.cspv
+	) else (
+		%VULKAN_SDK%\bin\glslangValidator.exe -V %%f -o Compiled/%%~nf.cspv
+	)
 	bintoc.exe Compiled/%%~nf.cspv %%~nf_comp_spv > Compiled/%%~nf_comp.c
 )

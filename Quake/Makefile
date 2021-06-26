@@ -229,8 +229,12 @@ SHADER_OBJS = \
 	alias_alphatest_frag.o \
 	alias_vert.o \
 	basic_alphatest_frag.o \
-	screen_warp_comp.o \
-	screen_warp_rgba8_comp.o \
+	screen_effects_8bit_comp.o \
+	screen_effects_8bit_scale_comp.o \
+	screen_effects_8bit_scale_sops_comp.o \
+	screen_effects_10bit_comp.o \
+	screen_effects_10bit_scale_comp.o \
+	screen_effects_10bit_scale_sops_comp.o \
 	cs_tex_warp_comp.o \
 	basic_frag.o \
 	basic_notex_frag.o \
