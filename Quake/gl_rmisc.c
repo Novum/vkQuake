@@ -836,13 +836,13 @@ static void R_InitFanIndexBuffer()
 		int staging_offset;
 		int current_index = 0;
 		int i;
-		uint16_t * staging_memory = (uint16_t*)R_StagingAllocate(bufferSize, 1, &command_buffer, &staging_buffer, &staging_offset);
+		uint16_t * staging_mem = (uint16_t*)R_StagingAllocate(bufferSize, 1, &command_buffer, &staging_buffer, &staging_offset);
 
 		for (i = 0; i < FAN_INDEX_BUFFER_SIZE / 3; ++i)
 		{
-			staging_memory[current_index++] = 0;
-			staging_memory[current_index++] = 1 + i;
-			staging_memory[current_index++] = 2 + i;
+			staging_mem[current_index++] = 0;
+			staging_mem[current_index++] = 1 + i;
+			staging_mem[current_index++] = 2 + i;
 		}
 
 		VkBufferCopy region;

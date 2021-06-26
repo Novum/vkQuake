@@ -102,7 +102,7 @@ Supports optional fullbright pixels.
 Based on code by MH from RMQEngine
 =============
 */
-static void GL_DrawAliasFrame (aliashdr_t *paliashdr, lerpdata_t lerpdata, gltexture_t *tx, gltexture_t *fb, float model_matrix[16], float entalpha, qboolean alphatest)
+static void GL_DrawAliasFrame (aliashdr_t *paliashdr, lerpdata_t lerpdata, gltexture_t *tx, gltexture_t *fb, float model_matrix[16], float entity_alpha, qboolean alphatest)
 {
 	float	blend;
 
@@ -111,7 +111,7 @@ static void GL_DrawAliasFrame (aliashdr_t *paliashdr, lerpdata_t lerpdata, gltex
 	else // poses the same means either 1. the entity has paused its animation, or 2. r_lerpmodels is disabled
 		blend = 0;
 
-	vulkan_pipeline_t pipeline = alphatest ? vulkan_globals.alias_alphatest_pipeline : ((entalpha < 1.0f) ? vulkan_globals.alias_blend_pipeline : vulkan_globals.alias_pipeline);
+	vulkan_pipeline_t pipeline = alphatest ? vulkan_globals.alias_alphatest_pipeline : ((entity_alpha < 1.0f) ? vulkan_globals.alias_blend_pipeline : vulkan_globals.alias_pipeline);
 	R_BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 
 	VkBuffer uniform_buffer;
@@ -126,7 +126,7 @@ static void GL_DrawAliasFrame (aliashdr_t *paliashdr, lerpdata_t lerpdata, gltex
 	ubo->flags = (fb != NULL) ? 0x1 : 0x0;
 	if (r_fullbright_cheatsafe || r_lightmap_cheatsafe)
 		ubo->flags |= 0x2;
-	ubo->entalpha = entalpha;
+	ubo->entalpha = entity_alpha;
 
 	VkDescriptorSet descriptor_sets[3] = { tx->descriptor_set, (fb != NULL) ? fb->descriptor_set : tx->descriptor_set, ubo_set };
 	vulkan_globals.vk_cmd_bind_descriptor_sets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.alias_pipeline.layout.handle, 0, 3, descriptor_sets, 1, &uniform_offset);

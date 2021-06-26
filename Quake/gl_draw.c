@@ -244,7 +244,7 @@ qpic_t *Draw_PicFromWad2 (const char *name, unsigned int texflags)
 	if (p->width < 64 && p->height < 64)
 	{
 		int		x, y;
-		int		i, j, k;
+		int		j, k;
 		int		texnum;
 
 		texnum = Scrap_AllocBlock (p->width, p->height, &x, &y);

@@ -603,22 +603,22 @@ static void GL_InitInstance( void )
 	vulkan_globals.get_physical_device_properties_2 = false;
 	if (err == VK_SUCCESS || instance_extension_count > 0)
 	{
-		VkExtensionProperties *instance_extensions = (VkExtensionProperties *) malloc(sizeof(VkExtensionProperties) * instance_extension_count);
-		err = vkEnumerateInstanceExtensionProperties(NULL, &instance_extension_count, instance_extensions);
+		VkExtensionProperties *extension_props = (VkExtensionProperties *) malloc(sizeof(VkExtensionProperties) * instance_extension_count);
+		err = vkEnumerateInstanceExtensionProperties(NULL, &instance_extension_count, extension_props);
 
 		for (i = 0; i < instance_extension_count; ++i)
 		{
-			if (strcmp(VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME, instance_extensions[i].extensionName) == 0)
+			if (strcmp(VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME, extension_props[i].extensionName) == 0)
 				vulkan_globals.get_surface_capabilities_2 = true;
-			if (strcmp(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME, instance_extensions[i].extensionName) == 0)
+			if (strcmp(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME, extension_props[i].extensionName) == 0)
 				vulkan_globals.get_physical_device_properties_2 = true;
 #if _DEBUG
-			if (strcmp(VK_EXT_DEBUG_UTILS_EXTENSION_NAME, instance_extensions[i].extensionName) == 0)
+			if (strcmp(VK_EXT_DEBUG_UTILS_EXTENSION_NAME, extension_props[i].extensionName) == 0)
 				vulkan_globals.debug_utils = true;
 #endif
 		}
 
-		free(instance_extensions);
+		free(extension_props);
 	}
 
 	vulkan_globals.vulkan_1_1_available = false;
