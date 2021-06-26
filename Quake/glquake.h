@@ -355,7 +355,7 @@ struct lightmap_s
 	// main memory so texsubimage can update properly
 	byte		*data;//[4*LMBLOCK_WIDTH*LMBLOCK_HEIGHT];
 };
-extern struct lightmap_s *lightmap;
+extern struct lightmap_s *lightmaps;
 extern int lightmap_count;	//allocated lightmaps
 
 extern qboolean r_fullbright_cheatsafe, r_lightmap_cheatsafe, r_drawworld_cheatsafe; //johnfitz

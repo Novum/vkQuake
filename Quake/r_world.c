@@ -185,7 +185,7 @@ void R_MarkVisSurfacesSIMD (byte *vis)
 		int mask = vis[i>>3];
 		if (mask == 0)
 			continue;
-		
+
 		mask = R_CullBoxSIMD(leafbounds[i>>3], mask);
 		if (mask == 0)
 			continue;
@@ -327,7 +327,7 @@ void R_MarkSurfaces (void)
 		R_MarkVisSurfacesSIMD(vis);
 	else
 #endif
-		R_MarkVisSurfaces(vis);
+	  R_MarkVisSurfaces(vis);
 }
 
 //==============================================================================
@@ -419,10 +419,10 @@ static void R_BatchSurface (msurface_t *s, qboolean fullbright_enabled, qboolean
 	int num_surf_indices;
 
 	num_surf_indices = R_NumTriangleIndicesForSurf (s);
-	
+
 	if (num_vbo_indices + num_surf_indices > MAX_BATCH_SIZE)
 		R_FlushBatch(fullbright_enabled, alpha_test, alpha_blend, lightmap_texture);
-	
+
 	R_TriangleIndicesForSurf (s, &vbo_indices[num_vbo_indices]);
 	num_vbo_indices += num_surf_indices;
 }
@@ -582,13 +582,13 @@ void R_DrawTextureChains_Multitexture (qmodel_t *model, entity_t *ent, texchain_
 				alpha_test = (t->texturechains[chain]->flags & SURF_DRAWFENCE) != 0;
 				bound = true;
 				lastlightmap = s->lightmaptexturenum;
-				lightmap_texture = lightmap[s->lightmaptexturenum].texture;
+				lightmap_texture = lightmaps[s->lightmaptexturenum].texture;
 			}
-				
+
 			if (s->lightmaptexturenum != lastlightmap)
-			{	
+			{
 				R_FlushBatch (fullbright_enabled, alpha_test, alpha_blend, lightmap_texture);
-				lightmap_texture = lightmap[s->lightmaptexturenum].texture;
+				lightmap_texture = lightmaps[s->lightmaptexturenum].texture;
 			}
 
 			lastlightmap = s->lightmaptexturenum;
