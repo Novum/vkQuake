@@ -1176,13 +1176,13 @@ static void _Datagram_ServerControlPacket (sys_socket_t acceptsock, struct qsock
 			//masters only really need gamename and player counts. actual clients might want player names too.
 			qboolean full = !strcmp(Cmd_Argv(0), "getstatus");
 			char cookie[128];
-			const char *s = Cmd_Args();
+			const char *str = Cmd_Args();
 			const char *gamedir = COM_GetGameNames(false);
 			unsigned int numclients = 0, numbots = 0;
 			int i;
 			size_t j;
-			if (!s) s = "";
-			q_strlcpy(cookie, s, sizeof(cookie));
+			if (!str) str = "";
+			q_strlcpy(cookie, str, sizeof(cookie));
 
 			for (i = 0; i < svs.maxclients; i++)
 			{
@@ -1769,7 +1769,7 @@ static qboolean _Datagram_SearchForHosts (qboolean xmit)
 			if (msg_readcount+19 <= net_message.cursize && !strncmp((char*)net_message.data+msg_readcount, "getserversResponse", 18))
 			{
 				struct qsockaddr addr;
-				int i;
+				int j;
 				msg_readcount += 18;
 				for(;;)
 				{
@@ -1778,8 +1778,8 @@ static qboolean _Datagram_SearchForHosts (qboolean xmit)
 					case '\\':
 						memset(&addr, 0, sizeof(addr));
 						addr.qsa_family = AF_INET;
-						for (i = 0; i < 4; i++)
-							((byte*)&((struct sockaddr_in*)&addr)->sin_addr)[i] = MSG_ReadByte();
+						for (j = 0; j < 4; i++)
+							((byte*)&((struct sockaddr_in*)&addr)->sin_addr)[j] = MSG_ReadByte();
 						((byte*)&((struct sockaddr_in*)&addr)->sin_port)[0] = MSG_ReadByte();
 						((byte*)&((struct sockaddr_in*)&addr)->sin_port)[1] = MSG_ReadByte();
 						if (!((struct sockaddr_in*)&addr)->sin_port)
@@ -1788,8 +1788,8 @@ static qboolean _Datagram_SearchForHosts (qboolean xmit)
 					case '/':
 						memset(&addr, 0, sizeof(addr));
 						addr.qsa_family = AF_INET6;
-						for (i = 0; i < 16; i++)
-							((byte*)&((struct sockaddr_in6*)&addr)->sin6_addr)[i] = MSG_ReadByte();
+						for (j = 0; j < 16; i++)
+							((byte*)&((struct sockaddr_in6*)&addr)->sin6_addr)[j] = MSG_ReadByte();
 						((byte*)&((struct sockaddr_in6*)&addr)->sin6_port)[0] = MSG_ReadByte();
 						((byte*)&((struct sockaddr_in6*)&addr)->sin6_port)[1] = MSG_ReadByte();
 						if (!((struct sockaddr_in6*)&addr)->sin6_port)

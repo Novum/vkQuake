@@ -518,8 +518,8 @@ int WINS_GetSocketAddr (sys_socket_t socketid, struct qsockaddr *addr)
 #ifdef IPPROTO_IPV6
 	if (addr->qsa_family == AF_INET6)
 	{
-		static const in_addr6_t in6addr_any;// = IN6ADDR_ANY_INIT;
-		if (!memcmp(&((struct sockaddr_in6 *)addr)->sin6_addr, &in6addr_any, sizeof(in_addr6_t)))
+		static const in_addr6_t _in6addr_any;// = IN6ADDR_ANY_INIT;
+		if (!memcmp(&((struct sockaddr_in6 *)addr)->sin6_addr, &_in6addr_any, sizeof(in_addr6_t)))
 			memcpy(&((struct sockaddr_in6 *)addr)->sin6_addr, &myAddrv6, sizeof(in_addr6_t));
 	}
 #endif
@@ -553,11 +553,11 @@ int	WINIPv4_GetAddresses (qhostaddr_t *addresses, int maxaddresses)
 	if (bindAddrv4 == INADDR_ANY)
 	{
 		//on windows, we can just do a dns lookup on our own hostname and expect an ipv4 result
-		char		hostname[64];
+		char		buf[64];
 		u_long		addr;
-		gethostname(hostname, sizeof(hostname));
+		gethostname(buf, sizeof(buf));
 
-		h = gethostbyname(hostname);
+		h = gethostbyname(buf);
 		if(h && h->h_addrtype == AF_INET)
 		{
 			for (b = 0; h->h_addr_list[b] && result < maxaddresses; b++)
@@ -580,15 +580,15 @@ int	WINIPv6_GetAddresses (qhostaddr_t *addresses, int maxaddresses)
 	{
 		//on windows, we can just do a dns lookup on our own hostname and expect an ipv4 result
 		struct addrinfo hints, *addrlist, *itr;
-		char		hostname[64];
+		char		buf[64];
 		memset(&hints, 0, sizeof(struct addrinfo));
 		hints.ai_family = AF_INET6;    /* Allow IPv4 or IPv6 */
 		hints.ai_socktype = SOCK_DGRAM; /* Datagram socket */
 		hints.ai_flags = 0;
 		hints.ai_protocol = 0;          /* Any protocol */
 
-		gethostname(hostname, sizeof(hostname));
-		if (qgetaddrinfo(hostname, NULL, &hints, &addrlist) == 0)
+		gethostname(buf, sizeof(buf));
+		if (qgetaddrinfo(buf, NULL, &hints, &addrlist) == 0)
 		{
 			for (itr = addrlist; itr && result < maxaddresses; itr = itr->ai_next)
 			{

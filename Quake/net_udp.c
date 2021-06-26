@@ -456,8 +456,8 @@ int UDP_GetSocketAddr (sys_socket_t socketid, struct qsockaddr *addr)
 	}
 	else if (addr->qsa_family == AF_INET6)
 	{
-		static const struct in6_addr in6addr_any = IN6ADDR_ANY_INIT;
-		if (!memcmp(&((struct sockaddr_in6 *)addr)->sin6_addr, &in6addr_any, sizeof(in6addr_any)))
+		static const struct in6_addr _in6addr_any = IN6ADDR_ANY_INIT;
+		if (!memcmp(&((struct sockaddr_in6 *)addr)->sin6_addr, &_in6addr_any, sizeof(_in6addr_any)))
 			memcpy(&((struct sockaddr_in6 *)addr)->sin6_addr, &myAddrv6, sizeof(((struct sockaddr_in6 *)addr)->sin6_addr));
 	}
 
