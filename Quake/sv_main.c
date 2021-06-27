@@ -1147,7 +1147,7 @@ void SV_StartSound (edict_t *entity, float *origin, int channel, const char *sam
 	unsigned int	sound_num, ent;
 	int			i, field_mask;
 	int			p;
-	client_t	*cl;
+	client_t	*client;
 
 	if (volume < 0)
 		Host_Error ("SV_StartSound: volume = %i", volume);
@@ -1198,51 +1198,51 @@ void SV_StartSound (edict_t *entity, float *origin, int channel, const char *sam
 
 	for (p = 0; p < svs.maxclients; p++)
 	{
-		cl = &svs.clients[p];
-		if (!cl->active || !cl->spawned)
+		client = &svs.clients[p];
+		if (!client->active || !client->spawned)
 			continue;
 
-		if (ent >= cl->limit_entities)
+		if (ent >= client->limit_entities)
 			continue;
-		if (sound_num >= cl->limit_sounds)
+		if (sound_num >= client->limit_sounds)
 			continue;
-		if ((field_mask & (SND_LARGEENTITY|SND_LARGESOUND)) && (!cl->protocol_pext2 || sv.protocol == PROTOCOL_NETQUAKE))
+		if ((field_mask & (SND_LARGEENTITY|SND_LARGESOUND)) && (!client->protocol_pext2 || sv.protocol == PROTOCOL_NETQUAKE))
 			continue;
 
 		// directed messages go only to the entity the are targeted on
-		MSG_WriteByte (&cl->datagram, svc_sound);
-		MSG_WriteByte (&cl->datagram, field_mask);
+		MSG_WriteByte (&client->datagram, svc_sound);
+		MSG_WriteByte (&client->datagram, field_mask);
 		if (field_mask & SND_VOLUME)
-			MSG_WriteByte (&cl->datagram, volume);
+			MSG_WriteByte (&client->datagram, volume);
 		if (field_mask & SND_ATTENUATION)
-			MSG_WriteByte (&cl->datagram, attenuation*64);
+			MSG_WriteByte (&client->datagram, attenuation*64);
 
 		//johnfitz -- PROTOCOL_FITZQUAKE
 		if (field_mask & SND_LARGEENTITY)
 		{
-			if ((cl->protocol_pext2 & PEXT2_REPLACEMENTDELTAS) && ent > 0x7fff)
+			if ((client->protocol_pext2 & PEXT2_REPLACEMENTDELTAS) && ent > 0x7fff)
 			{
-				MSG_WriteShort(&cl->datagram, (ent>>8) | 0x8000);
-				MSG_WriteByte(&cl->datagram, ent & 0xff);
+				MSG_WriteShort(&client->datagram, (ent>>8) | 0x8000);
+				MSG_WriteByte(&client->datagram, ent & 0xff);
 			}
 			else
-				MSG_WriteShort (&cl->datagram, ent);
-			MSG_WriteByte (&cl->datagram, channel);
+				MSG_WriteShort (&client->datagram, ent);
+			MSG_WriteByte (&client->datagram, channel);
 		}
 		else
-			MSG_WriteShort (&cl->datagram, (ent<<3) | channel);
+			MSG_WriteShort (&client->datagram, (ent<<3) | channel);
 		if (field_mask & SND_LARGESOUND)
-			MSG_WriteShort (&cl->datagram, sound_num);
+			MSG_WriteShort (&client->datagram, sound_num);
 		else
-			MSG_WriteByte (&cl->datagram, sound_num);
+			MSG_WriteByte (&client->datagram, sound_num);
 		//johnfitz
 
 		for (i = 0; i < 3; i++)
 		{
 			if (origin)
-				MSG_WriteCoord (&cl->datagram, origin[i], sv.protocolflags);
+				MSG_WriteCoord (&client->datagram, origin[i], sv.protocolflags);
 			else
-				MSG_WriteCoord (&cl->datagram, entity->v.origin[i]+0.5*(entity->v.mins[i]+entity->v.maxs[i]), sv.protocolflags);
+				MSG_WriteCoord (&client->datagram, entity->v.origin[i]+0.5*(entity->v.mins[i]+entity->v.maxs[i]), sv.protocolflags);
 		}
 	}
 }

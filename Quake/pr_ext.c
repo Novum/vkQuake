@@ -3398,16 +3398,16 @@ static void PF_infokey_internal(qboolean returnfloat)
 	}
 	else if (ent <= (unsigned int)svs.maxclients && svs.clients[ent-1].active)
 	{
-		client_t *cl = &svs.clients[ent-1];
+		client_t *client = &svs.clients[ent-1];
 		r = buf;
 		if (!strcmp(key, "ip"))
-			r = NET_QSocketGetTrueAddressString(cl->netconnection);
+			r = NET_QSocketGetTrueAddressString(client->netconnection);
 		else if (!strcmp(key, "ping"))
 		{
 			float total = 0;
 			unsigned int j;
 			for (j = 0; j < NUM_PING_TIMES; j++)
-				total+=cl->ping_times[j];
+				total+=client->ping_times[j];
 			total /= NUM_PING_TIMES;
 			q_snprintf(buf, sizeof(buf), "%f", total);
 		}
@@ -3430,13 +3430,13 @@ static void PF_infokey_internal(qboolean returnfloat)
 			}
 		}
 		else if (!strcmp(key, "name"))
-			r = cl->name;
+			r = client->name;
 		else if (!strcmp(key, "topcolor"))
-			q_snprintf(buf, sizeof(buf), "%u", cl->colors>>4);
+			q_snprintf(buf, sizeof(buf), "%u", client->colors>>4);
 		else if (!strcmp(key, "bottomcolor"))
-			q_snprintf(buf, sizeof(buf), "%u", cl->colors&15);
+			q_snprintf(buf, sizeof(buf), "%u", client->colors&15);
 		else if (!strcmp(key, "team"))	//nq doesn't really do teams. qw does though. yay compat?
-			q_snprintf(buf, sizeof(buf), "t%u", (cl->colors&15)+1);
+			q_snprintf(buf, sizeof(buf), "t%u", (client->colors&15)+1);
 		else if (!strcmp(key, "*VIP"))
 			r = "";
 		else if (!strcmp(key, "*spectator"))
