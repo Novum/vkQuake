@@ -1686,6 +1686,14 @@ void CL_ParseServerMessage (void)
 		if (cmd == -1)
 		{
 			SHOWNET("END OF MESSAGE");
+
+			if (cl.items != cl.stats[STAT_ITEMS])
+			{
+				for (i = 0; i < 32; i++)
+					if ( (cl.stats[STAT_ITEMS] & (1<<i)) && !(cl.items & (1<<i)))
+						cl.item_gettime[i] = cl.time;
+				cl.items = cl.stats[STAT_ITEMS];
+			}
 			return;		// end of message
 		}
 
