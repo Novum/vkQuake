@@ -1778,7 +1778,7 @@ static qboolean _Datagram_SearchForHosts (qboolean xmit)
 					case '\\':
 						memset(&addr, 0, sizeof(addr));
 						addr.qsa_family = AF_INET;
-						for (j = 0; j < 4; i++)
+						for (j = 0; j < 4; j++)
 							((byte*)&((struct sockaddr_in*)&addr)->sin_addr)[j] = MSG_ReadByte();
 						((byte*)&((struct sockaddr_in*)&addr)->sin_port)[0] = MSG_ReadByte();
 						((byte*)&((struct sockaddr_in*)&addr)->sin_port)[1] = MSG_ReadByte();
@@ -1788,7 +1788,7 @@ static qboolean _Datagram_SearchForHosts (qboolean xmit)
 					case '/':
 						memset(&addr, 0, sizeof(addr));
 						addr.qsa_family = AF_INET6;
-						for (j = 0; j < 16; i++)
+						for (j = 0; j < 16; j++)
 							((byte*)&((struct sockaddr_in6*)&addr)->sin6_addr)[j] = MSG_ReadByte();
 						((byte*)&((struct sockaddr_in6*)&addr)->sin6_port)[0] = MSG_ReadByte();
 						((byte*)&((struct sockaddr_in6*)&addr)->sin6_port)[1] = MSG_ReadByte();
