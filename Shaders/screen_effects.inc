@@ -74,10 +74,11 @@ void main()
 	// Morton order for subgroupShuffleXor
 	const uint subgroup_x = DecodeMorton2X(gl_SubgroupInvocationID);
 	const uint subgroup_y = DecodeMorton2Y(gl_SubgroupInvocationID);
-	const uint local_x = ((gl_LocalInvocationID.x / subgroup_width) * subgroup_width) + subgroup_x;
-	const uint local_y = ((gl_LocalInvocationID.y / subgroup_height) * subgroup_height) + subgroup_y;
-	const uint pos_x = (gl_WorkGroupID.x * 8) + local_x;
-	const uint pos_y = (gl_WorkGroupID.y * 8) + local_y;
+	const uint num_subgroups_x = (gl_WorkGroupSize.x + subgroup_width - 1) / subgroup_width;
+	const uint local_x = ((gl_SubgroupID % num_subgroups_x) * subgroup_width) + subgroup_x;
+	const uint local_y = ((gl_SubgroupID / num_subgroups_x) * subgroup_height) + subgroup_y;
+	const uint pos_x = (gl_WorkGroupID.x * gl_WorkGroupSize.x) + local_x;
+	const uint pos_y = (gl_WorkGroupID.y * gl_WorkGroupSize.y) + local_y;
 #else
 	const uint local_x = gl_LocalInvocationID.x;
 	const uint local_y = gl_LocalInvocationID.y;
@@ -125,7 +126,7 @@ void main()
 		} else
 		{
 #endif
-			const uint local_idx = local_x + (local_y * 8);
+			const uint local_idx = local_x + (local_y * gl_WorkGroupSize.x);
 			if (local_idx < 16)
 			{
 				group_red[local_idx] = 0;
@@ -133,7 +134,7 @@ void main()
 				group_blue[local_idx] = 0;
 			}
 			groupMemoryBarrierSync();
-			const uint shared_mem_idx = (local_x / 2) + ((local_y / 2) * 4);
+			const uint shared_mem_idx = (local_x / 2) + ((local_y / 2) * (gl_WorkGroupSize.x / 2));
 			atomicAdd(group_red[shared_mem_idx], color_int.r);
 			atomicAdd(group_green[shared_mem_idx], color_int.g);
 			atomicAdd(group_blue[shared_mem_idx], color_int.b);
@@ -172,7 +173,7 @@ void main()
 				group_blue[local_x] = 0;
 			}
 			groupMemoryBarrierSync();
-			const uint shared_mem_idx = (local_x / 4) + ((local_y / 4) * 2);
+			const uint shared_mem_idx = (local_x / 4) + ((local_y / 4) * (gl_WorkGroupSize.x / 4));
 			if (((local_x & 0x1)==0) && ((local_y & 0x1)==0))
 			{
 				atomicAdd(group_red[shared_mem_idx], color_int.r);
