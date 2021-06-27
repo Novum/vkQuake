@@ -1062,6 +1062,8 @@ void GL_SetCanvas (canvastype newcanvas)
 
 typedef struct screen_effect_constants_s
 {
+	uint32_t	clamp_size_x;
+	uint32_t	clamp_size_y;
 	float 		screen_size_rcp_x;
 	float 		screen_size_rcp_y;
 	float 		aspect_ratio;
@@ -1144,7 +1146,12 @@ qboolean GL_Set2D (void)
 			screen_effect_flags |= 0x4;
 		if (render_scale >= 8)
 			screen_effect_flags |= 0x8;
-		const screen_effect_constants_t push_constants = { 1.0f / (float)vid.width, 1.0f / (float)vid.height, (float)vid.width / (float)vid.height, cl.time, screen_effect_flags };
+		const screen_effect_constants_t push_constants = {
+			vid.width - 1, vid.height - 1,
+			1.0f / (float)vid.width, 1.0f / (float)vid.height,
+			(float)vid.width / (float)vid.height,
+			cl.time,
+			screen_effect_flags };
 		R_PushConstants(VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(screen_effect_constants_t), &push_constants);
 
 		vkCmdDispatch(vulkan_globals.command_buffer, (vid.width + 7) / 8, (vid.height + 7) / 8, 1);

@@ -1,4 +1,5 @@
 layout(push_constant) uniform PushConsts {
+	uvec2	clamp_size;
 	vec2	screen_size_rcp;
 	float	aspect_ratio;
 	float	time;
@@ -104,7 +105,7 @@ void main()
 		color = texture(input_tex, vec2(tex_x, tex_y));
 	}
 	else
-		color = texelFetch(input_tex, ivec2(pos_x, pos_y), 0);
+		color = texelFetch(input_tex, ivec2(min(push_constants.clamp_size.x, pos_x), min(push_constants.clamp_size.y, pos_y)), 0);
 
 #if defined(SCALING)
 	// Only integer atomics are supported, so scale up to have enough precision
