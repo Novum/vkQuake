@@ -1811,10 +1811,10 @@ void Mod_LoadClipnodes (lump_t *l, qboolean bsp2)
 		{
 			out->planenum = LittleLong(ins->planenum);
 
-		//johnfitz -- bounds check
-		if (out->planenum < 0 || out->planenum >= loadmodel->numplanes)
-			Host_Error ("Mod_LoadClipnodes: planenum out of bounds");
-		//johnfitz
+			//johnfitz -- bounds check
+			if (out->planenum < 0 || out->planenum >= loadmodel->numplanes)
+				Host_Error ("Mod_LoadClipnodes: planenum out of bounds");
+			//johnfitz
 
 			//johnfitz -- support clipnodes > 32k
 			out->children[0] = (unsigned short)LittleShort(ins->children[0]);
