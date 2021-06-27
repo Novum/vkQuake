@@ -42,7 +42,7 @@ WINDRES = windres
 STRIP = strip
 
 CPUFLAGS=
-LDFLAGS = -m64 -mwindows
+LDFLAGS = -m64 -mwindows -static-libgcc
 DFLAGS ?=
 CFLAGS ?= -m64 -Wall -Wno-trigraphs -std=gnu99 -D_WIN32_WINNT=0x0501
 CFLAGS += $(CPUFLAGS)
