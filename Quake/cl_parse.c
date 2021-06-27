@@ -975,7 +975,8 @@ static void CL_ParseServerInfo (void)
 			gamedirswitchwarning = true;
 		}
 	}
-	
+	(void) gamedirswitchwarning;/* variable set but not used */
+
 // parse maxclients
 	cl.maxclients = MSG_ReadByte ();
 	if (cl.maxclients < 1 || cl.maxclients > MAX_SCOREBOARD)

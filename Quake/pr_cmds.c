@@ -564,6 +564,8 @@ static void PF_sv_ambientsound (void)
 	samp = G_STRING(OFS_PARM1);
 	vol = G_FLOAT(OFS_PARM2);
 
+	(void) pos; (void) vol; /* variable set but not used */
+
 // check to see if samp was properly precached
 	for (soundnum = 0, check = sv.sound_precache; *check; check++, soundnum++)
 	{
