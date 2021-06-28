@@ -3406,7 +3406,7 @@ static void VID_MenuDraw (void)
 			M_Print (184, y, (menu_settings.r_scale >= 2) ? va("1/%i", menu_settings.r_scale) : "off");
 			break;
 		case VID_OPT_FILTER:
-			M_Print (16, y, "            Filter");
+			M_Print (16, y, "          Textures");
 			M_Print (184, y, (menu_settings.vid_filter == 0) ? "smooth" : "classic");
 			break;
 		case VID_OPT_ANISOTROPY:
