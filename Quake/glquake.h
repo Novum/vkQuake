@@ -195,6 +195,7 @@ typedef struct
 	vulkan_pipeline_t					alias_pipeline;
 	vulkan_pipeline_t					alias_blend_pipeline;
 	vulkan_pipeline_t					alias_alphatest_pipeline;
+	vulkan_pipeline_t					alias_alphatest_blend_pipeline;
 	vulkan_pipeline_t					postprocess_pipeline;
 	vulkan_pipeline_t					screen_effects_pipeline;
 	vulkan_pipeline_t					screen_effects_scale_pipeline;

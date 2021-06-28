@@ -111,7 +111,22 @@ static void GL_DrawAliasFrame (aliashdr_t *paliashdr, lerpdata_t lerpdata, gltex
 	else // poses the same means either 1. the entity has paused its animation, or 2. r_lerpmodels is disabled
 		blend = 0;
 
-	vulkan_pipeline_t pipeline = alphatest ? vulkan_globals.alias_alphatest_pipeline : ((entity_alpha < 1.0f) ? vulkan_globals.alias_blend_pipeline : vulkan_globals.alias_pipeline);
+	vulkan_pipeline_t pipeline;
+	if (entity_alpha >= 1.0f)
+	{
+		if (!alphatest)
+			pipeline = vulkan_globals.alias_pipeline;
+		else
+			pipeline = vulkan_globals.alias_alphatest_pipeline;
+	}
+	else
+	{
+		if (!alphatest)
+			pipeline = vulkan_globals.alias_blend_pipeline;
+		else
+			pipeline = vulkan_globals.alias_alphatest_blend_pipeline;
+	}
+
 	R_BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 
 	VkBuffer uniform_buffer;
