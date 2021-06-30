@@ -6,7 +6,7 @@
  * IN 'COPYING'. PLEASE READ THESE TERMS BEFORE DISTRIBUTING.       *
  *                                                                  *
  * THE libopusfile SOURCE CODE IS (C) COPYRIGHT 1994-2012           *
- * by the Xiph.Org Foundation and contributors http://www.xiph.org/ *
+ * by the Xiph.Org Foundation and contributors https://xiph.org/    *
  *                                                                  *
  ********************************************************************
 
@@ -28,7 +28,7 @@
     reference
     <tt><a href="https://www.xiph.org/ogg/doc/libogg/reference.html">libogg</a></tt>
     and
-    <tt><a href="https://mf4.xiph.org/jenkins/view/opus/job/opus/ws/doc/html/index.html">libopus</a></tt>
+    <tt><a href="https://opus-codec.org/docs/opus_api-1.3.1/">libopus</a></tt>
     libraries.
 
    <tt>libopusfile</tt> provides several sets of built-in routines for
@@ -58,7 +58,7 @@
     it is stored in the header to allow you to resample to it after decoding
     (the <tt>libopusfile</tt> API does not currently provide a resampler,
     but the
-    <a href="http://www.speex.org/docs/manual/speex-manual/node7.html#SECTION00760000000000000000">the
+    <a href="https://www.speex.org/docs/manual/speex-manual/node7.html#SECTION00760000000000000000">the
     Speex resampler</a> is a good choice if you need one).
    In general, if you are playing back the audio, you should leave it at
     48&nbsp;kHz, provided your audio hardware supports it.
@@ -68,7 +68,7 @@
 
    Opus files can contain anywhere from 1 to 255 channels of audio.
    The channel mappings for up to 8 channels are the same as the
-    <a href="http://www.xiph.org/vorbis/doc/Vorbis_I_spec.html#x1-800004.3.9">Vorbis
+    <a href="https://www.xiph.org/vorbis/doc/Vorbis_I_spec.html#x1-810004.3.9">Vorbis
     mappings</a>.
    A special stereo API can convert everything to 2 channels, making it simple
     to support multichannel files in an application which only has stereo
@@ -284,7 +284,7 @@ struct OpusHead{
    A particular tag may occur more than once, and order is significant.
    The character set encoding for the strings is always UTF-8, but the tag
     names are limited to ASCII, and treated as case-insensitive.
-   See <a href="http://www.xiph.org/vorbis/doc/v-comment.html">the Vorbis
+   See <a href="https://www.xiph.org/vorbis/doc/v-comment.html">the Vorbis
     comment header specification</a> for details.
 
    In filling in this structure, <tt>libopusfile</tt> will null-terminate the
@@ -698,7 +698,7 @@ void opus_picture_tag_clear(OpusPictureTag *_pic) OP_ARG_NONNULL(1);
 #define OP_HTTP_PROXY_PASS_REQUEST            (6720)
 #define OP_GET_SERVER_INFO_REQUEST            (6784)
 
-#define OP_URL_OPT(_request) ((_request)+(char *)0)
+#define OP_URL_OPT(_request) ((char *)(_request))
 
 /*These macros trigger compilation errors or warnings if the wrong types are
    provided to one of the URL options.*/
@@ -1890,7 +1890,7 @@ void op_set_dither_enabled(OggOpusFile *_of,int _enabled) OP_ARG_NONNULL(1);
                           signed native-endian 16-bit values at 48&nbsp;kHz
                           with a nominal range of <code>[-32768,32767)</code>.
                          Multiple channels are interleaved using the
-                          <a href="http://www.xiph.org/vorbis/doc/Vorbis_I_spec.html#x1-800004.3.9">Vorbis
+                          <a href="https://www.xiph.org/vorbis/doc/Vorbis_I_spec.html#x1-810004.3.9">Vorbis
                           channel ordering</a>.
                          This must have room for at least \a _buf_size values.
    \param      _buf_size The number of values that can be stored in \a _pcm.
@@ -1972,7 +1972,7 @@ OP_WARN_UNUSED_RESULT int op_read(OggOpusFile *_of,
                           signed floats at 48&nbsp;kHz with a nominal range of
                           <code>[-1.0,1.0]</code>.
                          Multiple channels are interleaved using the
-                          <a href="http://www.xiph.org/vorbis/doc/Vorbis_I_spec.html#x1-800004.3.9">Vorbis
+                          <a href="https://www.xiph.org/vorbis/doc/Vorbis_I_spec.html#x1-810004.3.9">Vorbis
                           channel ordering</a>.
                          This must have room for at least \a _buf_size floats.
    \param      _buf_size The number of floats that can be stored in \a _pcm.
