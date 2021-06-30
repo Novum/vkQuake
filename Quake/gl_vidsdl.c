@@ -686,7 +686,7 @@ static void GL_InitInstance( void )
 	if(vulkan_globals.get_surface_capabilities_2)
 		GET_INSTANCE_PROC_ADDR(GetPhysicalDeviceSurfaceCapabilities2KHR);
 
-	for (unsigned int i = 0; i < (sdl_extension_count + additionalExtensionCount); ++i)
+	for (i = 0; i < (sdl_extension_count + additionalExtensionCount); ++i)
 		Con_Printf("Using %s\n", instance_extensions[i]);
 
 #ifdef _DEBUG
