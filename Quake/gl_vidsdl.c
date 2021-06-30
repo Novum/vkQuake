@@ -884,7 +884,7 @@ static void GL_InitDevice( void )
 		Con_Printf("Using subgroup operations\n");
 
 	const char * device_extensions[5] = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
-	int numEnabledExtensions = 1;
+	uint32_t numEnabledExtensions = 1;
 	if (vulkan_globals.dedicated_allocation) {
 		device_extensions[ numEnabledExtensions++ ] = VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME;
 		device_extensions[ numEnabledExtensions++ ] = VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME;
@@ -929,7 +929,7 @@ static void GL_InitDevice( void )
 	GET_DEVICE_PROC_ADDR(AcquireNextImageKHR);
 	GET_DEVICE_PROC_ADDR(QueuePresentKHR);
 
-	for (int i = 0; i < numEnabledExtensions; ++i)
+	for (i = 0; i < numEnabledExtensions; ++i)
 		Con_Printf("Using %s\n", device_extensions[i]);
 
 #if defined(VK_EXT_full_screen_exclusive)
@@ -1982,7 +1982,7 @@ static void GL_DestroyRenderResources( void )
 	{
 		vkDestroySemaphore(vulkan_globals.device, image_aquired_semaphores[i], NULL);
 		image_aquired_semaphores[i] = VK_NULL_HANDLE;
-    }
+	}
 
 	fpDestroySwapchainKHR(vulkan_globals.device, vulkan_swapchain, NULL);
 	vulkan_swapchain = VK_NULL_HANDLE;
