@@ -144,7 +144,6 @@ static PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR fpGetPhysicalDeviceSurfaceC
 static PFN_vkGetPhysicalDeviceSurfaceCapabilities2KHR fpGetPhysicalDeviceSurfaceCapabilities2KHR;
 static PFN_vkGetPhysicalDeviceSurfaceFormatsKHR fpGetPhysicalDeviceSurfaceFormatsKHR;
 static PFN_vkGetPhysicalDeviceSurfacePresentModesKHR fpGetPhysicalDeviceSurfacePresentModesKHR;
-static PFN_vkGetPhysicalDeviceProperties2 fpGetPhysicalDeviceProperties2;
 static PFN_vkCreateSwapchainKHR fpCreateSwapchainKHR;
 static PFN_vkDestroySwapchainKHR fpDestroySwapchainKHR;
 static PFN_vkGetSwapchainImagesKHR fpGetSwapchainImagesKHR;
@@ -687,9 +686,6 @@ static void GL_InitInstance( void )
 	if(vulkan_globals.get_surface_capabilities_2)
 		GET_INSTANCE_PROC_ADDR(GetPhysicalDeviceSurfaceCapabilities2KHR);
 
-	if (vulkan_globals.vulkan_1_1_available)
-		GET_INSTANCE_PROC_ADDR(GetPhysicalDeviceProperties2);
-
 	for (unsigned int i = 0; i < (sdl_extension_count + additionalExtensionCount); ++i)
 		Con_Printf("Using %s\n", instance_extensions[i]);
 
@@ -753,21 +749,7 @@ static void GL_InitDevice( void )
 	vulkan_globals.screen_effects_sops = false;
 
 	vkGetPhysicalDeviceMemoryProperties(vulkan_physical_device, &vulkan_globals.memory_properties);
-
-	VkPhysicalDeviceSubgroupProperties physical_device_subgroup_properties;
-	if (vulkan_globals.vulkan_1_1_available)
-	{
-		memset(&physical_device_subgroup_properties, 0, sizeof(physical_device_subgroup_properties));
-		physical_device_subgroup_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_PROPERTIES;
-		VkPhysicalDeviceProperties2 physical_device_properties_2;
-		memset(&physical_device_properties_2, 0, sizeof(physical_device_properties_2));
-		physical_device_properties_2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
-		physical_device_properties_2.pNext = &physical_device_subgroup_properties;
-		fpGetPhysicalDeviceProperties2(vulkan_physical_device, &physical_device_properties_2);
-		vulkan_globals.device_properties = physical_device_properties_2.properties;
-	}
-	else
-		vkGetPhysicalDeviceProperties(vulkan_physical_device, &vulkan_globals.device_properties);
+	vkGetPhysicalDeviceProperties(vulkan_physical_device, &vulkan_globals.device_properties);
 
 	switch(vulkan_globals.device_properties.vendorID)
 	{
@@ -857,21 +839,22 @@ static void GL_InitDevice( void )
 	queue_create_info.queueCount = 1;
 	queue_create_info.pQueuePriorities = queue_priorities;
 
+	VkPhysicalDeviceSubgroupProperties physical_device_subgroup_properties;
 	VkPhysicalDeviceSubgroupSizeControlPropertiesEXT physical_device_subgroup_size_control_properties;
+	VkPhysicalDeviceSubgroupSizeControlFeaturesEXT subgroup_size_control_features;
 	if (vulkan_globals.vulkan_1_1_available && subgroup_size_control)
 	{
 		memset(&physical_device_subgroup_size_control_properties, 0, sizeof(physical_device_subgroup_size_control_properties));
 		physical_device_subgroup_size_control_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_PROPERTIES_EXT;
+		memset(&physical_device_subgroup_properties, 0, sizeof(physical_device_subgroup_properties));
+		physical_device_subgroup_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_PROPERTIES;
+		physical_device_subgroup_properties.pNext = &physical_device_subgroup_size_control_properties;
 		VkPhysicalDeviceProperties2 physical_device_properties_2;
 		memset(&physical_device_properties_2, 0, sizeof(physical_device_properties_2));
 		physical_device_properties_2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
-		physical_device_properties_2.pNext = &physical_device_subgroup_size_control_properties;
-		fpGetPhysicalDeviceProperties2(vulkan_physical_device, &physical_device_properties_2);
-	}
+		physical_device_properties_2.pNext = &physical_device_subgroup_properties;
+		vkGetPhysicalDeviceProperties2(vulkan_physical_device, &physical_device_properties_2);
 
-	VkPhysicalDeviceSubgroupSizeControlFeaturesEXT subgroup_size_control_features;
-	if (vulkan_globals.vulkan_1_1_available && subgroup_size_control)
-	{
 		memset(&subgroup_size_control_features, 0, sizeof(subgroup_size_control_features));
 		subgroup_size_control_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_FEATURES_EXT;
 		VkPhysicalDeviceFeatures2 physical_device_features_2;
@@ -879,14 +862,17 @@ static void GL_InitDevice( void )
 		physical_device_features_2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
 		physical_device_features_2.pNext = &subgroup_size_control_features;
 		vkGetPhysicalDeviceFeatures2(vulkan_physical_device, &physical_device_features_2);
+
 		vulkan_physical_device_features = physical_device_features_2.features;
-		subgroup_size_control = subgroup_size_control_features.subgroupSizeControl && subgroup_size_control_features.computeFullSubgroups;
 	}
 	else
 		vkGetPhysicalDeviceFeatures(vulkan_physical_device, &vulkan_physical_device_features);
 
 	vulkan_globals.screen_effects_sops =
-		vulkan_globals.vulkan_1_1_available && subgroup_size_control
+		   vulkan_globals.vulkan_1_1_available
+		&& subgroup_size_control
+		&& subgroup_size_control_features.subgroupSizeControl
+		&& subgroup_size_control_features.computeFullSubgroups
 		&& ((physical_device_subgroup_properties.supportedStages & VK_SHADER_STAGE_COMPUTE_BIT) != 0)
 		&& ((physical_device_subgroup_properties.supportedOperations & VK_SUBGROUP_FEATURE_SHUFFLE_BIT) != 0)
 		// Shader only supports subgroup sizes from 4 to 64. 128 can't be supported because Vulkan spec states that workgroup size
