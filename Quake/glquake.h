@@ -147,6 +147,7 @@ typedef struct
 	VkSampleCountFlagBits				sample_count;
 	qboolean							supersampling;
 	qboolean							non_solid_fill;
+	qboolean							screen_effects_sops;
 
 	// Instance extensions
 	qboolean							get_surface_capabilities_2;
@@ -156,7 +157,6 @@ typedef struct
 	// Device extensions
 	qboolean							dedicated_allocation;
 	qboolean							full_screen_exclusive;
-	qboolean							screen_effects_sops;
 
 	// Buffers
 	VkImage								color_buffers[NUM_COLOR_BUFFERS];

@@ -37,11 +37,20 @@ shared uint group_blue[16];
 
 #define groupMemoryBarrierSync() groupMemoryBarrier(); barrier();
 
-layout (local_size_x = 8, local_size_y = 8) in;
-void main() 
-{
 #if defined(SCALING) && defined(USE_SUBGROUP_OPS)
-	// gl_SubgroupSize >= 4 otherwise the host code chooses the shared mem only shader
+// Vulkan spec states that workgroup size in x dimension must be a multiple of the
+// subgroup size for VK_PIPELINE_SHADER_STAGE_CREATE_REQUIRE_FULL_SUBGROUPS_BIT_EXT
+layout (local_size_x = 64, local_size_y = 1) in;
+#else
+layout (local_size_x = 8, local_size_y = 8) in;
+#endif
+void main()
+{
+	const uint tile_size_x = 8;
+	const uint tile_size_y = 8;
+
+#if defined(SCALING) && defined(USE_SUBGROUP_OPS)
+	// gl_SubgroupSize >= 4 && gl_SubgroupSize <= 64 otherwise the host code chooses the shared mem only shader
 	// Vulkan guarantees subgroup size must be power of two and between 1 and 128
 	uint subgroup_width = 0;
 	uint subgroup_height = 0;
@@ -67,19 +76,15 @@ void main()
 			subgroup_width = 8;
 			subgroup_height = 8;
 			break;
-		case 128:
-			subgroup_width = 16;
-			subgroup_height = 8;
-			break;
 	}
 	// Morton order for subgroupShuffleXor
 	const uint subgroup_x = DecodeMorton2X(gl_SubgroupInvocationID);
 	const uint subgroup_y = DecodeMorton2Y(gl_SubgroupInvocationID);
-	const uint num_subgroups_x = (gl_WorkGroupSize.x + subgroup_width - 1) / subgroup_width;
+	const uint num_subgroups_x = (tile_size_x + subgroup_width - 1) / subgroup_width;
 	const uint local_x = ((gl_SubgroupID % num_subgroups_x) * subgroup_width) + subgroup_x;
 	const uint local_y = ((gl_SubgroupID / num_subgroups_x) * subgroup_height) + subgroup_y;
-	const uint pos_x = (gl_WorkGroupID.x * gl_WorkGroupSize.x) + local_x;
-	const uint pos_y = (gl_WorkGroupID.y * gl_WorkGroupSize.y) + local_y;
+	const uint pos_x = (gl_WorkGroupID.x * tile_size_x) + local_x;
+	const uint pos_y = (gl_WorkGroupID.y * tile_size_y) + local_y;
 #else
 	const uint local_x = gl_LocalInvocationID.x;
 	const uint local_y = gl_LocalInvocationID.y;
@@ -127,7 +132,7 @@ void main()
 		} else
 		{
 #endif
-			const uint local_idx = local_x + (local_y * gl_WorkGroupSize.x);
+			const uint local_idx = local_x + (local_y * tile_size_x);
 			if (local_idx < 16)
 			{
 				group_red[local_idx] = 0;
@@ -135,7 +140,7 @@ void main()
 				group_blue[local_idx] = 0;
 			}
 			groupMemoryBarrierSync();
-			const uint shared_mem_idx = (local_x / 2) + ((local_y / 2) * (gl_WorkGroupSize.x / 2));
+			const uint shared_mem_idx = (local_x / 2) + ((local_y / 2) * (tile_size_x / 2));
 			atomicAdd(group_red[shared_mem_idx], color_int.r);
 			atomicAdd(group_green[shared_mem_idx], color_int.g);
 			atomicAdd(group_blue[shared_mem_idx], color_int.b);
@@ -174,7 +179,7 @@ void main()
 				group_blue[local_x] = 0;
 			}
 			groupMemoryBarrierSync();
-			const uint shared_mem_idx = (local_x / 4) + ((local_y / 4) * (gl_WorkGroupSize.x / 4));
+			const uint shared_mem_idx = (local_x / 4) + ((local_y / 4) * (tile_size_x / 4));
 			if (((local_x & 0x1)==0) && ((local_y & 0x1)==0))
 			{
 				atomicAdd(group_red[shared_mem_idx], color_int.r);

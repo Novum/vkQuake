@@ -2209,12 +2209,14 @@ void R_CreatePipelines()
 	if (vulkan_globals.screen_effects_sops)
 	{
 		compute_shader_stage.module = (vulkan_globals.color_format == VK_FORMAT_A2B10G10R10_UNORM_PACK32) ? screen_effects_10bit_scale_sops_comp_module : screen_effects_8bit_scale_sops_comp_module;
+		compute_shader_stage.flags = VK_PIPELINE_SHADER_STAGE_CREATE_ALLOW_VARYING_SUBGROUP_SIZE_BIT_EXT | VK_PIPELINE_SHADER_STAGE_CREATE_REQUIRE_FULL_SUBGROUPS_BIT_EXT;
 		compute_pipeline_create_info.stage = compute_shader_stage;
 		assert(vulkan_globals.screen_effects_scale_sops_pipeline.handle == VK_NULL_HANDLE);
 		err = vkCreateComputePipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &compute_pipeline_create_info, NULL, &vulkan_globals.screen_effects_scale_sops_pipeline.handle);
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateGraphicsPipelines failed");
 		GL_SetObjectName((uint64_t)vulkan_globals.screen_effects_scale_sops_pipeline.handle, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "screen_effects_scale_sops");
+		compute_shader_stage.flags = 0;
 	}
 
 	//================

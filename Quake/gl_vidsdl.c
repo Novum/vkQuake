@@ -651,22 +651,13 @@ static void GL_InitInstance( void )
 	instance_create_info.ppEnabledExtensionNames = instance_extensions;
 
 	if (vulkan_globals.get_surface_capabilities_2)
-	{
 		instance_extensions[sdl_extension_count + additionalExtensionCount++] = VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME;
-		Con_Printf("Using VK_KHR_get_surface_capabilities2\n");
-	}
 	if (vulkan_globals.get_physical_device_properties_2)
-	{
 		instance_extensions[sdl_extension_count + additionalExtensionCount++] = VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME;
-		Con_Printf("Using VK_KHR_get_physical_device_properties2\n");
-	}
 
 #ifdef _DEBUG
 	if (vulkan_globals.debug_utils)
-	{
 		instance_extensions[sdl_extension_count + additionalExtensionCount++] = VK_EXT_DEBUG_UTILS_EXTENSION_NAME;
-		Con_Printf("Using VK_EXT_debug_utils\n");
-	}
 
 	const char * const layer_names[] = { "VK_LAYER_KHRONOS_validation" };
 	if (vulkan_globals.validation)
@@ -698,6 +689,9 @@ static void GL_InitInstance( void )
 
 	if (vulkan_globals.vulkan_1_1_available)
 		GET_INSTANCE_PROC_ADDR(GetPhysicalDeviceProperties2);
+
+	for (unsigned int i = 0; i < (sdl_extension_count + additionalExtensionCount); ++i)
+		Con_Printf("Using %s\n", instance_extensions[i]);
 
 #ifdef _DEBUG
 	if(vulkan_globals.validation)
@@ -760,9 +754,9 @@ static void GL_InitDevice( void )
 
 	vkGetPhysicalDeviceMemoryProperties(vulkan_physical_device, &vulkan_globals.memory_properties);
 
+	VkPhysicalDeviceSubgroupProperties physical_device_subgroup_properties;
 	if (vulkan_globals.vulkan_1_1_available)
 	{
-		VkPhysicalDeviceSubgroupProperties physical_device_subgroup_properties;
 		memset(&physical_device_subgroup_properties, 0, sizeof(physical_device_subgroup_properties));
 		physical_device_subgroup_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_PROPERTIES;
 		VkPhysicalDeviceProperties2 physical_device_properties_2;
@@ -771,16 +765,9 @@ static void GL_InitDevice( void )
 		physical_device_properties_2.pNext = &physical_device_subgroup_properties;
 		fpGetPhysicalDeviceProperties2(vulkan_physical_device, &physical_device_properties_2);
 		vulkan_globals.device_properties = physical_device_properties_2.properties;
-		vulkan_globals.screen_effects_sops =
-			((physical_device_subgroup_properties.supportedStages & VK_SHADER_STAGE_COMPUTE_BIT) != 0)
-			&& ((physical_device_subgroup_properties.supportedOperations & VK_SUBGROUP_FEATURE_SHUFFLE_BIT) != 0)
-			&& (physical_device_subgroup_properties.subgroupSize >= 4);
 	}
 	else
 		vkGetPhysicalDeviceProperties(vulkan_physical_device, &vulkan_globals.device_properties);
-
-	if (vulkan_globals.screen_effects_sops)
-		Con_Printf("Using subgroup operations\n");
 
 	switch(vulkan_globals.device_properties.vendorID)
 	{
@@ -802,6 +789,7 @@ static void GL_InitDevice( void )
 	uint32_t device_extension_count;
 	err = vkEnumerateDeviceExtensionProperties(vulkan_physical_device, NULL, &device_extension_count, NULL);
 
+	qboolean subgroup_size_control = false;
 	if (err == VK_SUCCESS || device_extension_count > 0)
 	{
 		VkExtensionProperties *device_extensions = (VkExtensionProperties *) malloc(sizeof(VkExtensionProperties) * device_extension_count);
@@ -813,6 +801,8 @@ static void GL_InitDevice( void )
 				found_swapchain_extension = true;
 			if (strcmp(VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME, device_extensions[i].extensionName) == 0)
 				vulkan_globals.dedicated_allocation = true;
+			if (strcmp(VK_EXT_SUBGROUP_SIZE_CONTROL_EXTENSION_NAME, device_extensions[i].extensionName) == 0)
+				subgroup_size_control = true;
 #if defined(VK_EXT_full_screen_exclusive)
 			// Only enable on NVIDIA for now. Some people report issues with the mouse cursor on AMD hardware.
 			if (strcmp(VK_EXT_FULL_SCREEN_EXCLUSIVE_EXTENSION_NAME, device_extensions[i].extensionName) == 0)
@@ -867,19 +857,60 @@ static void GL_InitDevice( void )
 	queue_create_info.queueCount = 1;
 	queue_create_info.pQueuePriorities = queue_priorities;
 
+	VkPhysicalDeviceSubgroupSizeControlPropertiesEXT physical_device_subgroup_size_control_properties;
+	if (vulkan_globals.vulkan_1_1_available && subgroup_size_control)
+	{
+		memset(&physical_device_subgroup_size_control_properties, 0, sizeof(physical_device_subgroup_size_control_properties));
+		physical_device_subgroup_size_control_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_PROPERTIES_EXT;
+		VkPhysicalDeviceProperties2 physical_device_properties_2;
+		memset(&physical_device_properties_2, 0, sizeof(physical_device_properties_2));
+		physical_device_properties_2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+		physical_device_properties_2.pNext = &physical_device_subgroup_size_control_properties;
+		fpGetPhysicalDeviceProperties2(vulkan_physical_device, &physical_device_properties_2);
+	}
+
+	VkPhysicalDeviceSubgroupSizeControlFeaturesEXT subgroup_size_control_features;
+	if (vulkan_globals.vulkan_1_1_available && subgroup_size_control)
+	{
+		memset(&subgroup_size_control_features, 0, sizeof(subgroup_size_control_features));
+		subgroup_size_control_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_FEATURES_EXT;
+		VkPhysicalDeviceFeatures2 physical_device_features_2;
+		memset(&physical_device_features_2, 0, sizeof(physical_device_features_2));
+		physical_device_features_2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+		physical_device_features_2.pNext = &subgroup_size_control_features;
+		vkGetPhysicalDeviceFeatures2(vulkan_physical_device, &physical_device_features_2);
+		vulkan_physical_device_features = physical_device_features_2.features;
+		subgroup_size_control = subgroup_size_control_features.subgroupSizeControl && subgroup_size_control_features.computeFullSubgroups;
+	}
+	else
+		vkGetPhysicalDeviceFeatures(vulkan_physical_device, &vulkan_physical_device_features);
+
+	vulkan_globals.screen_effects_sops =
+		vulkan_globals.vulkan_1_1_available && subgroup_size_control
+		&& ((physical_device_subgroup_properties.supportedStages & VK_SHADER_STAGE_COMPUTE_BIT) != 0)
+		&& ((physical_device_subgroup_properties.supportedOperations & VK_SUBGROUP_FEATURE_SHUFFLE_BIT) != 0)
+		// Shader only supports subgroup sizes from 4 to 64. 128 can't be supported because Vulkan spec states that workgroup size
+		// in x dimension must be a multiple of the subgroup size for VK_PIPELINE_SHADER_STAGE_CREATE_REQUIRE_FULL_SUBGROUPS_BIT_EXT.
+		&& (physical_device_subgroup_size_control_properties.minSubgroupSize >= 4)
+		&& (physical_device_subgroup_size_control_properties.maxSubgroupSize <= 64);
+
+	if (vulkan_globals.screen_effects_sops)
+		Con_Printf("Using subgroup operations\n");
+
 	const char * device_extensions[5] = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
 	int numEnabledExtensions = 1;
 	if (vulkan_globals.dedicated_allocation) {
 		device_extensions[ numEnabledExtensions++ ] = VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME;
 		device_extensions[ numEnabledExtensions++ ] = VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME;
 	}
+	if (vulkan_globals.screen_effects_sops)
+		device_extensions[ numEnabledExtensions++ ] = VK_EXT_SUBGROUP_SIZE_CONTROL_EXTENSION_NAME;
 #if defined(VK_EXT_full_screen_exclusive)
 	if (vulkan_globals.full_screen_exclusive) {
 		device_extensions[ numEnabledExtensions++ ] = VK_EXT_FULL_SCREEN_EXCLUSIVE_EXTENSION_NAME;
 	}
 #endif
 
-	vkGetPhysicalDeviceFeatures(vulkan_physical_device, &vulkan_physical_device_features);
 	const VkBool32 extended_format_support = vulkan_physical_device_features.shaderStorageImageExtendedFormats;
 	const VkBool32 sampler_anisotropic = vulkan_physical_device_features.samplerAnisotropy;
 
@@ -895,6 +926,7 @@ static void GL_InitDevice( void )
 	VkDeviceCreateInfo device_create_info;
 	memset(&device_create_info, 0, sizeof(device_create_info));
 	device_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+	device_create_info.pNext = vulkan_globals.screen_effects_sops ? &subgroup_size_control_features : NULL;
 	device_create_info.queueCreateInfoCount = 1;
 	device_create_info.pQueueCreateInfos = &queue_create_info;
 	device_create_info.enabledExtensionCount = numEnabledExtensions;
@@ -911,14 +943,12 @@ static void GL_InitDevice( void )
 	GET_DEVICE_PROC_ADDR(AcquireNextImageKHR);
 	GET_DEVICE_PROC_ADDR(QueuePresentKHR);
 
-	if (vulkan_globals.dedicated_allocation)
-	{
-		Con_Printf("Using VK_KHR_dedicated_allocation\n");
-	}
+	for (int i = 0; i < numEnabledExtensions; ++i)
+		Con_Printf("Using %s\n", device_extensions[i]);
+
 #if defined(VK_EXT_full_screen_exclusive)
 	if (vulkan_globals.full_screen_exclusive)
 	{
-		Con_Printf("Using VK_EXT_full_screen_exclusive\n");
 		GET_DEVICE_PROC_ADDR(AcquireFullScreenExclusiveModeEXT);
 		GET_DEVICE_PROC_ADDR(ReleaseFullScreenExclusiveModeEXT);
 	}
