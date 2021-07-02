@@ -45,7 +45,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define	VKQUAKE_VERSION		1.10
 #define	VKQUAKE_VER_PATCH	0	// helper to print a string like 0.92.1
 #ifndef	VKQUAKE_VER_SUFFIX
-#define	VKQUAKE_VER_SUFFIX "-beta1"	// optional version suffix like -beta1
+#define	VKQUAKE_VER_SUFFIX "-beta2"	// optional version suffix like -beta1
 #endif
 
 #define	QS_STRINGIFY_(x)	#x
