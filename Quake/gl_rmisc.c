@@ -2206,6 +2206,7 @@ void R_CreatePipelines()
 		Sys_Error("vkCreateGraphicsPipelines failed");
 	GL_SetObjectName((uint64_t)vulkan_globals.screen_effects_scale_pipeline.handle, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "screen_effects_scale");
 
+#if defined(VK_EXT_subgroup_size_control)
 	if (vulkan_globals.screen_effects_sops)
 	{
 		compute_shader_stage.module = (vulkan_globals.color_format == VK_FORMAT_A2B10G10R10_UNORM_PACK32) ? screen_effects_10bit_scale_sops_comp_module : screen_effects_8bit_scale_sops_comp_module;
@@ -2218,6 +2219,7 @@ void R_CreatePipelines()
 		GL_SetObjectName((uint64_t)vulkan_globals.screen_effects_scale_sops_pipeline.handle, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "screen_effects_scale_sops");
 		compute_shader_stage.flags = 0;
 	}
+#endif
 
 	//================
 	// Texture Warp

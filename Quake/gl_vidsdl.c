@@ -783,8 +783,10 @@ static void GL_InitDevice( void )
 				found_swapchain_extension = true;
 			if (strcmp(VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME, device_extensions[i].extensionName) == 0)
 				vulkan_globals.dedicated_allocation = true;
+#if defined(VK_EXT_subgroup_size_control)
 			if (strcmp(VK_EXT_SUBGROUP_SIZE_CONTROL_EXTENSION_NAME, device_extensions[i].extensionName) == 0)
 				subgroup_size_control = true;
+#endif
 #if defined(VK_EXT_full_screen_exclusive)
 			// Only enable on NVIDIA for now. Some people report issues with the mouse cursor on AMD hardware.
 			if (strcmp(VK_EXT_FULL_SCREEN_EXCLUSIVE_EXTENSION_NAME, device_extensions[i].extensionName) == 0)
@@ -839,6 +841,7 @@ static void GL_InitDevice( void )
 	queue_create_info.queueCount = 1;
 	queue_create_info.pQueuePriorities = queue_priorities;
 
+#if defined(VK_EXT_subgroup_size_control)
 	VkPhysicalDeviceSubgroupProperties physical_device_subgroup_properties;
 	VkPhysicalDeviceSubgroupSizeControlPropertiesEXT physical_device_subgroup_size_control_properties;
 	VkPhysicalDeviceSubgroupSizeControlFeaturesEXT subgroup_size_control_features;
@@ -866,8 +869,10 @@ static void GL_InitDevice( void )
 		vulkan_physical_device_features = physical_device_features_2.features;
 	}
 	else
+#endif
 		vkGetPhysicalDeviceFeatures(vulkan_physical_device, &vulkan_physical_device_features);
 
+#if defined(VK_EXT_subgroup_size_control)
 	vulkan_globals.screen_effects_sops =
 		   vulkan_globals.vulkan_1_1_available
 		&& subgroup_size_control
@@ -882,6 +887,7 @@ static void GL_InitDevice( void )
 
 	if (vulkan_globals.screen_effects_sops)
 		Con_Printf("Using subgroup operations\n");
+#endif
 
 	const char * device_extensions[5] = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
 	uint32_t numEnabledExtensions = 1;
@@ -889,8 +895,10 @@ static void GL_InitDevice( void )
 		device_extensions[ numEnabledExtensions++ ] = VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME;
 		device_extensions[ numEnabledExtensions++ ] = VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME;
 	}
+#if defined(VK_EXT_subgroup_size_control)
 	if (vulkan_globals.screen_effects_sops)
 		device_extensions[ numEnabledExtensions++ ] = VK_EXT_SUBGROUP_SIZE_CONTROL_EXTENSION_NAME;
+#endif
 #if defined(VK_EXT_full_screen_exclusive)
 	if (vulkan_globals.full_screen_exclusive) {
 		device_extensions[ numEnabledExtensions++ ] = VK_EXT_FULL_SCREEN_EXCLUSIVE_EXTENSION_NAME;
@@ -912,7 +920,9 @@ static void GL_InitDevice( void )
 	VkDeviceCreateInfo device_create_info;
 	memset(&device_create_info, 0, sizeof(device_create_info));
 	device_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+#if defined(VK_EXT_subgroup_size_control)
 	device_create_info.pNext = vulkan_globals.screen_effects_sops ? &subgroup_size_control_features : NULL;
+#endif
 	device_create_info.queueCreateInfoCount = 1;
 	device_create_info.pQueueCreateInfos = &queue_create_info;
 	device_create_info.enabledExtensionCount = numEnabledExtensions;
