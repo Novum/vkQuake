@@ -2380,7 +2380,39 @@ int SV_SendPrespawnStatics(int idx)
 }
 int SV_SendAmbientSounds(int idx)
 {
-	return -1;
+	struct	ambientsound_s *snd;
+	int maxsize = host_client->message.maxsize - 128;	//we can go quite large
+	qboolean large;
+	size_t i;
+
+	while (1)
+	{
+		if (idx >= sv.num_ambients)
+			return -1;
+		snd = &sv.ambientsounds[idx];
+
+		if (host_client->message.cursize > maxsize)
+			break;
+		idx++;
+
+		if (snd->soundindex >= host_client->limit_sounds)
+			continue;
+
+		large = (snd->soundindex > 255);
+		if (large)
+			MSG_WriteByte (&host_client->message,svc_spawnstaticsound2);	//johnfitz -- PROTOCOL_FITZQUAKE
+		else
+			MSG_WriteByte (&host_client->message,svc_spawnstaticsound);
+		for (i = 0; i < 3; i++)
+			MSG_WriteCoord(&host_client->message, snd->origin[i], sv.protocolflags);
+		if (large)
+			MSG_WriteShort(&host_client->message, snd->soundindex);
+		else
+			MSG_WriteByte (&host_client->message, snd->soundindex);
+		MSG_WriteByte (&host_client->message, snd->volume*255);
+		MSG_WriteByte (&host_client->message, snd->attenuation*64);
+	}
+	return idx;
 }
 int SV_SendPrespawnBaselines(int idx)
 {

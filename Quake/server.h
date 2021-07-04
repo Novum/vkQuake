@@ -77,6 +77,16 @@ typedef struct
 	int			num_statics;
 	int			max_statics;
 
+	struct ambientsound_s
+	{
+		vec3_t origin;
+		unsigned int soundindex;
+		float volume;
+		float attenuation;
+	}			*ambientsounds;
+	int			num_ambients;
+	int			max_ambients;
+
 	struct svcustomstat_s
 	{
 		int idx;

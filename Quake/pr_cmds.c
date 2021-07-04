@@ -557,14 +557,14 @@ static void PF_sv_ambientsound (void)
 {
 	const char	*samp, **check;
 	float		*pos;
-	float		vol;
+	float		vol, attenuation;
 	int		soundnum;
+	struct ambientsound_s *st;
 
 	pos = G_VECTOR (OFS_PARM0);
 	samp = G_STRING(OFS_PARM1);
 	vol = G_FLOAT(OFS_PARM2);
-
-	(void) pos; (void) vol; /* variable set but not used */
+	attenuation = G_FLOAT(OFS_PARM3);
 
 // check to see if samp was properly precached
 	for (soundnum = 0, check = sv.sound_precache; *check; check++, soundnum++)
@@ -578,6 +578,23 @@ static void PF_sv_ambientsound (void)
 		Con_Printf ("no precache: %s\n", samp);
 		return;
 	}
+
+	//generate data to splurge on a per-client basis in SV_SendAmbientSounds
+	if (sv.num_ambients == sv.max_ambients)
+	{
+		int nm = sv.max_ambients + 128;
+		struct ambientsound_s *n = (nm*sizeof(*n)<sv.max_ambients*sizeof(*n))?NULL:realloc(sv.ambientsounds, nm*sizeof(*n));
+		if (!n)
+			PR_RunError ("PF_ambientsound: out of memory");	//shouldn't really happen.
+		sv.ambientsounds = n;
+		memset(sv.ambientsounds+sv.max_ambients, 0, (nm-sv.max_ambients)*sizeof(*n));
+		sv.max_ambients = nm;
+	}
+	st = &sv.ambientsounds[sv.num_ambients++];
+	VectorCopy(pos, st->origin);
+	st->soundindex = soundnum;
+	st->volume = vol;
+	st->attenuation = attenuation;
 }
 
 /*
