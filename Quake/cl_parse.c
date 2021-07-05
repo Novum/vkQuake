@@ -759,8 +759,9 @@ static void CL_ParseStartSoundPacket(void)
 	int	i;
 
 	field_mask = MSG_ReadByte();
+	//spike -- extra channel flags
 	if (field_mask & SND_FTE_MOREFLAGS)
-		field_mask |= MSG_ReadByte()<<8;
+		field_mask |= MSG_ReadUInt64()<<8;
 
 	if (field_mask & SND_VOLUME)
 		volume = MSG_ReadByte ();

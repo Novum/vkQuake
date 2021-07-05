@@ -173,24 +173,36 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define SU_EXTEND3		(1<<31) // another byte to follow, future expansion
 //johnfitz
 
+#define DEFAULT_SOUND_PACKET_VOLUME		255
+#define DEFAULT_SOUND_PACKET_ATTENUATION	1.0
 // a sound with no channel is a local only sound
 #define	SND_VOLUME		(1<<0)	// a byte
 #define	SND_ATTENUATION		(1<<1)	// a byte
-#define	SND_LOOPING		(1<<2)	// a long
-
-#define DEFAULT_SOUND_PACKET_VOLUME		255
-#define DEFAULT_SOUND_PACKET_ATTENUATION	1.0
-
+//#define	SND_LOOPING		(1<<2)	// a long (unused in vanilla)
+//spike -- parsing, but not using at this time
+#define	SND_FTE_MOREFLAGS	(1<<2)	// a byte, for channel flags
 //johnfitz -- PROTOCOL_FITZQUAKE -- new bits
 #define	SND_LARGEENTITY	(1<<3)	// a short + byte (instead of just a short)
 #define	SND_LARGESOUND	(1<<4)	// a short soundindex (instead of a byte)
 //johnfitz
-//spike -- parsing, but not using at this time
-#define	SND_FTE_MOREFLAGS	(1<<2)	// a byte, for channel flags
 #define SND_DP_PITCH		(1<<5)	//dp uses this for pitch...
 #define SND_FTE_TIMEOFS		(1<<6)	//signed short, in milliseconds.
 #define SND_FTE_PITCHADJ	(1<<7)	//a byte (speed percent (0=100%))
 #define SND_FTE_VELOCITY	(1<<8)	//3 shorts (1/8th), for doppler or whatever.
+#define SND_FTE_FORCELOOP	(1<<9)	//flag
+#define SND_FTE_NOSPACIALISE (1<<10)//flag
+#define SND_FTE_NOREVERB	(1<<13)	//flat
+#define SND_FTE_FOLLOW		(1<<14)	//flag only
+#define SND_FTE_NOREPLACE	(1<<15)	//flag only
+
+#define CF_RELIABLE			(1<<0)	//send over reliable channel
+#define CF_FORCELOOP		(1<<1)	//force looping
+#define CF_NOSPACIALISE		(1<<2)	//mono-ize. play on the local player to avoid distance fading.
+#define CF_NOREVERB			(1<<5)	//disable reverb effects (for music, QS doesn't have reverb)
+#define CF_FOLLOW			(1<<6)	//sound origin follows entity
+#define CF_NOREPLACE		(1<<7)	//drop the sound if it would replace one.
+#define CF_UNICAST			(1<<8)	//send only to msg_entity
+#define CF_SENDVELOCITY		(1<<9)	//include the velocity, for doppler effects.
 //spike
 
 //johnfitz -- PROTOCOL_FITZQUAKE -- flags for entity baseline messages

@@ -642,6 +642,9 @@ static void PF_sound (void)
 	edict_t		*entity;
 	int		volume;
 	float	attenuation;
+	float	ratepct;
+	unsigned int flags;
+	float	offset;
 
 	entity = G_EDICT(OFS_PARM0);
 	channel = G_FLOAT(OFS_PARM1);
@@ -649,11 +652,22 @@ static void PF_sound (void)
 	volume = G_FLOAT(OFS_PARM3) * 255;
 	attenuation = G_FLOAT(OFS_PARM4);
 
+	ratepct	= (qcvm->argc<6)?100:G_FLOAT(OFS_PARM5);
+	flags	= (qcvm->argc<7)?0:G_FLOAT(OFS_PARM6);
+	offset	= (qcvm->argc<8)?0:G_FLOAT(OFS_PARM7);
+
 	if (!*sample)
 	{
 		PR_RunWarning("PF_sound: empty string\n");
 		return;
 	}
+
+	if (ratepct && ratepct != 100)
+		Con_DPrintf("sound() rate scaling is not supported\n");
+	if (flags)
+		Con_DPrintf("sound() flags %#x not supported\n", flags);
+	if (offset)
+		Con_DPrintf("sound() time offsets are not supported\n");
 
 /*	Spike -- these checks are redundant
 	if (volume < 0 || volume > 255)

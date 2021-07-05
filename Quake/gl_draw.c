@@ -237,9 +237,9 @@ qpic_t *Draw_PicFromWad2 (const char *name, unsigned int texflags)
 		Con_SafePrintf ("W_GetLumpName: %s not found\n", name);
 		return pic_nul; //johnfitz
 	}
-	if (info->type != TYP_QPIC) Sys_Error ("Draw_PicFromWad: lump \"%s\" is not a qpic", name);
-	if (info->size < sizeof(int)*2 || sizeof(int)*2+p->width*p->height > info->size) Sys_Error ("Draw_PicFromWad: pic \"%s\" truncated", name);
-	if (p->width < 0 || p->height < 0) Sys_Error ("Draw_PicFromWad: bad size (%dx%d) for pic \"%s\"", p->width, p->height, name);
+	if (info->type != TYP_QPIC) {Con_SafePrintf ("Draw_PicFromWad: lump \"%s\" is not a qpic\n", name); return pic_nul;}
+	if (info->size < sizeof(int)*2) {Con_SafePrintf ("Draw_PicFromWad: pic \"%s\" is too small for its qpic header (%u bytes)\n", name, info->size); return pic_nul;}
+	if (8+p->width*p->height < info->size) Sys_Error ("Draw_PicFromWad: pic \"%s\" truncated (%u*%u requires %u bytes)\n", name, p->width,p->height, 8+p->width*p->height);
 
 	// load little ones into the scrap
 	if (p->width < 64 && p->height < 64)
