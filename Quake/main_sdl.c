@@ -108,6 +108,16 @@ int main(int argc, char *argv[])
 	if (!parms.membase)
 		Sys_Error ("Not enough memory free; check disk space\n");
 
+#if defined( __GNUC__ )
+	Sys_Printf( "Compiler: GCC %u.%u.%u\n", __GNUC__, __GNUC_MINOR__, __GNUC_PATCHLEVEL__ );
+#elif defined( __clang_version__ )
+	Sys_Printf( "Compiler: Clang " __clang_version__ "\n" );
+#elif defined( _MSC_FULL_VER )
+	Sys_Printf( "Compiler: Microsoft %u\n", _MSC_FULL_VER );
+#else
+	Sys_Printf( "Compiler: Unknown\n" );
+#endif
+
 	Sys_Printf("Quake %1.2f (c) id Software\n", VERSION);
 	Sys_Printf("GLQuake %1.2f (c) id Software\n", GLQUAKE_VERSION);
 	Sys_Printf("FitzQuake %1.2f (c) John Fitzgibbons\n", FITZQUAKE_VERSION);
@@ -159,4 +169,3 @@ int main(int argc, char *argv[])
 
 	return 0;
 }
-
