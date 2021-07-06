@@ -183,7 +183,7 @@ static uint32_t current_swapchain_buffer;
 
 #define GET_GLOBAL_DEVICE_PROC_ADDR(_var, entrypoint) { \
 	vulkan_globals. _var = (PFN_##entrypoint)fpGetDeviceProcAddr(vulkan_globals.device, #entrypoint); \
-	if (vulkan_globals. _var == NULL) Sys_Error("vkGetDeviceProcAddr failed to find vk" #entrypoint); \
+	if (vulkan_globals. _var == NULL) Sys_Error("vkGetDeviceProcAddr failed to find " #entrypoint); \
 }
 /*
 ================
