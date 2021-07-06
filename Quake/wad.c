@@ -89,17 +89,44 @@ void W_LoadWadFile (void) //johnfitz -- filename is now hard-coded for honesty
 
 	if (header->identification[0] != 'W' || header->identification[1] != 'A'
 	 || header->identification[2] != 'D' || header->identification[3] != '2')
-		Sys_Error ("Wad file %s doesn't have WAD2 id\n",filename);
-
-	wad_numlumps = LittleLong(header->numlumps);
-	infotableofs = LittleLong(header->infotableofs);
+	{
+		Con_Printf ("Wad file %s doesn't have WAD2 id\n",filename);
+		wad_numlumps = 0;
+		infotableofs = 0;
+	}
+	else
+	{
+		wad_numlumps = LittleLong(header->numlumps);
+		infotableofs = LittleLong(header->infotableofs);
+	}
 	wad_lumps = (lumpinfo_t *)(wad_base + infotableofs);
+	if (infotableofs < 0 || infotableofs+wad_numlumps*sizeof(lumpinfo_t)>com_filesize)
+	{
+		Con_Printf ("Wad file %s header extends beyond end of file\n",filename);
+		wad_numlumps = 0;
+	}
 
 	for (i=0, lump_p = wad_lumps ; i<wad_numlumps ; i++,lump_p++)
 	{
 		lump_p->filepos = LittleLong(lump_p->filepos);
 		lump_p->size = LittleLong(lump_p->size);
-		W_CleanupName (lump_p->name, lump_p->name);	// CAUTION: in-place editing!!!
+		if (lump_p->filepos + lump_p->size > com_filesize && !(lump_p->filepos + LittleLong(lump_p->disksize) > com_filesize))
+			lump_p->size = LittleLong(lump_p->disksize);
+		if (lump_p->filepos < 0 || lump_p->size < 0 || lump_p->filepos + lump_p->size > com_filesize)
+		{
+			if (lump_p->filepos > com_filesize || lump_p->size < 0)
+			{
+				Con_Printf ("Wad file %s lump \"%.16s\" begins %u bytes beyond end of wad\n",filename, lump_p->name, lump_p->filepos - com_filesize);
+				lump_p->filepos = 0;
+				lump_p->size = q_max(0, lump_p->size-lump_p->filepos);
+			}
+			else
+			{
+				Con_Printf ("Wad file %s lump \"%.16s\" extends %u bytes beyond end of wad (lump size: %u)\n",filename, lump_p->name, (lump_p->filepos + lump_p->size) - com_filesize, lump_p->size);
+				lump_p->size = q_max(0, lump_p->size-lump_p->filepos);
+			}
+		}
+		W_CleanupName (lump_p->name, lump_p->name);	// CAUTION: in-place editing!!! The endian fixups too.
 		if (lump_p->type == TYP_QPIC)
 			SwapPic ( (qpic_t *)(wad_base + lump_p->filepos));
 	}
