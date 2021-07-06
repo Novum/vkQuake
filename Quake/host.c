@@ -562,7 +562,7 @@ void Host_ShutdownServer(qboolean crash)
 	for (i = 0, host_client = svs.clients; i < svs.maxclients; i++, host_client++)
 		if (host_client->active)
 			SV_DropClient(crash);
-	
+
 	qcvm->worldmodel = NULL;
 	PR_SwitchQCVM(NULL);
 
@@ -735,7 +735,11 @@ static void CL_LoadCSProgs(void)
 	if (pr_checkextension.value && !cl_nocsqc.value)
 	{	//only try to use csqc if qc extensions are enabled.
 		char versionedname[MAX_QPATH];
+		unsigned int csqchash;
 		PR_SwitchQCVM(&cl.qcvm);
+		csqchash = strtoul(Info_GetKey(cl.serverinfo, "*csprogs", versionedname, sizeof(versionedname)), NULL, 0);
+
+		q_snprintf(versionedname, MAX_QPATH, "csprogsvers/%x.dat", csqchash);
 
 		//try csprogs.dat first, then fall back on progs.dat in case someone tried merging the two.
 		//we only care about it if it actually contains a CSQC_DrawHud, otherwise its either just a (misnamed) ssqc progs or a full csqc progs that would just crash us on 3d stuff.
