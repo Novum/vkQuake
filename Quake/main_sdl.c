@@ -109,13 +109,13 @@ int main(int argc, char *argv[])
 		Sys_Error ("Not enough memory free; check disk space\n");
 
 #if defined( __clang_version__ )
-	Sys_Printf( "Compiler: Clang " __clang_version__ "\n" );
+	Sys_Printf( "Built with Clang " __clang_version__ "\n" );
 #elif defined( __GNUC__ )
-	Sys_Printf( "Compiler: GCC %u.%u.%u\n", __GNUC__, __GNUC_MINOR__, __GNUC_PATCHLEVEL__ );
+	Sys_Printf( "Built with GCC %u.%u.%u\n", __GNUC__, __GNUC_MINOR__, __GNUC_PATCHLEVEL__ );
 #elif defined( _MSC_FULL_VER )
-	Sys_Printf( "Compiler: Microsoft %u\n", _MSC_FULL_VER );
+	Sys_Printf( "Built with Microsoft C %u\n", _MSC_FULL_VER );
 #else
-	Sys_Printf( "Compiler: Unknown\n" );
+	Sys_Printf( "Built with unknown compiler\n" );
 #endif
 
 	Sys_Printf("Quake %1.2f (c) id Software\n", VERSION);
