@@ -599,7 +599,7 @@ static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateBuffer failed");
 
-		GL_SetObjectName((uint64_t)m->index_buffer, VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT, m->name);
+		GL_SetObjectName((uint64_t)m->index_buffer, VK_OBJECT_TYPE_BUFFER, m->name);
 
 		VkMemoryRequirements memory_requirements;
 		vkGetBufferMemoryRequirements(vulkan_globals.device, m->index_buffer, &memory_requirements);
@@ -696,7 +696,7 @@ static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateBuffer failed");
 
-		GL_SetObjectName((uint64_t)m->vertex_buffer, VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT, m->name);
+		GL_SetObjectName((uint64_t)m->vertex_buffer, VK_OBJECT_TYPE_BUFFER, m->name);
 
 		VkMemoryRequirements memory_requirements;
 		vkGetBufferMemoryRequirements(vulkan_globals.device, m->vertex_buffer, &memory_requirements);

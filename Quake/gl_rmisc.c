@@ -313,7 +313,7 @@ static void R_CreateStagingBuffers()
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateBuffer failed");
 
-		GL_SetObjectName((uint64_t)staging_buffers[i].buffer, VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT, "Staging Buffer");
+		GL_SetObjectName((uint64_t)staging_buffers[i].buffer, VK_OBJECT_TYPE_BUFFER, "Staging Buffer");
 	}
 
 	VkMemoryRequirements memory_requirements;
@@ -335,7 +335,7 @@ static void R_CreateStagingBuffers()
 	if (err != VK_SUCCESS)
 		Sys_Error("vkAllocateMemory failed");
 
-	GL_SetObjectName((uint64_t)staging_memory, VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_MEMORY_EXT, "Staging Buffers");
+	GL_SetObjectName((uint64_t)staging_memory, VK_OBJECT_TYPE_DEVICE_MEMORY, "Staging Buffers");
 
 	for (i = 0; i < NUM_STAGING_BUFFERS; ++i)
 	{
@@ -584,7 +584,7 @@ static void R_InitDynamicVertexBuffers()
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateBuffer failed");
 
-		GL_SetObjectName((uint64_t)dyn_vertex_buffers[i].buffer, VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT, "Dynamic Vertex Buffer");
+		GL_SetObjectName((uint64_t)dyn_vertex_buffers[i].buffer, VK_OBJECT_TYPE_BUFFER, "Dynamic Vertex Buffer");
 	}
 
 	VkMemoryRequirements memory_requirements;
@@ -606,7 +606,7 @@ static void R_InitDynamicVertexBuffers()
 	if (err != VK_SUCCESS)
 		Sys_Error("vkAllocateMemory failed");
 
-	GL_SetObjectName((uint64_t)dyn_vertex_buffer_memory, VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_MEMORY_EXT, "Dynamic Vertex Buffers");
+	GL_SetObjectName((uint64_t)dyn_vertex_buffer_memory, VK_OBJECT_TYPE_DEVICE_MEMORY, "Dynamic Vertex Buffers");
 
 	for (i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
 	{
@@ -651,7 +651,7 @@ static void R_InitDynamicIndexBuffers()
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateBuffer failed");
 
-		GL_SetObjectName((uint64_t)dyn_index_buffers[i].buffer, VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT, "Dynamic Index Buffer");
+		GL_SetObjectName((uint64_t)dyn_index_buffers[i].buffer, VK_OBJECT_TYPE_BUFFER, "Dynamic Index Buffer");
 	}
 
 	VkMemoryRequirements memory_requirements;
@@ -673,7 +673,7 @@ static void R_InitDynamicIndexBuffers()
 	if (err != VK_SUCCESS)
 		Sys_Error("vkAllocateMemory failed");
 
-	GL_SetObjectName((uint64_t)dyn_index_buffer_memory, VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_MEMORY_EXT, "Dynamic Index Buffers");
+	GL_SetObjectName((uint64_t)dyn_index_buffer_memory, VK_OBJECT_TYPE_DEVICE_MEMORY, "Dynamic Index Buffers");
 
 	for (i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
 	{
@@ -718,7 +718,7 @@ static void R_InitDynamicUniformBuffers()
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateBuffer failed");
 
-		GL_SetObjectName((uint64_t)dyn_uniform_buffers[i].buffer, VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT, "Dynamic Uniform Buffer");
+		GL_SetObjectName((uint64_t)dyn_uniform_buffers[i].buffer, VK_OBJECT_TYPE_BUFFER, "Dynamic Uniform Buffer");
 	}
 
 	VkMemoryRequirements memory_requirements;
@@ -740,7 +740,7 @@ static void R_InitDynamicUniformBuffers()
 	if (err != VK_SUCCESS)
 		Sys_Error("vkAllocateMemory failed");
 
-	GL_SetObjectName((uint64_t)dyn_uniform_buffer_memory, VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_MEMORY_EXT, "Dynamic Uniform Buffers");
+	GL_SetObjectName((uint64_t)dyn_uniform_buffer_memory, VK_OBJECT_TYPE_DEVICE_MEMORY, "Dynamic Uniform Buffers");
 
 	for (i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
 	{
@@ -810,7 +810,7 @@ static void R_InitFanIndexBuffer()
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateBuffer failed");
 
-	GL_SetObjectName((uint64_t)vulkan_globals.fan_index_buffer, VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT, "Quad Index Buffer");
+	GL_SetObjectName((uint64_t)vulkan_globals.fan_index_buffer, VK_OBJECT_TYPE_BUFFER, "Quad Index Buffer");
 
 	VkMemoryRequirements memory_requirements;
 	vkGetBufferMemoryRequirements(vulkan_globals.device, vulkan_globals.fan_index_buffer, &memory_requirements);
@@ -1237,6 +1237,7 @@ void R_CreatePipelineLayouts()
 	err = vkCreatePipelineLayout(vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.basic_pipeline_layout.handle);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreatePipelineLayout failed");
+	GL_SetObjectName((uint64_t)vulkan_globals.basic_pipeline_layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "basic_pipeline_layout");
 	vulkan_globals.basic_pipeline_layout.push_constant_range = push_constant_range;
 
 	// World
@@ -1252,6 +1253,7 @@ void R_CreatePipelineLayouts()
 	err = vkCreatePipelineLayout(vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.world_pipeline_layout.handle);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreatePipelineLayout failed");
+	GL_SetObjectName((uint64_t)vulkan_globals.world_pipeline_layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "world_pipeline_layout");
 	vulkan_globals.world_pipeline_layout.push_constant_range = push_constant_range;
 
 	// Alias
@@ -1267,6 +1269,7 @@ void R_CreatePipelineLayouts()
 	err = vkCreatePipelineLayout(vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.alias_pipeline.layout.handle);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreatePipelineLayout failed");
+	GL_SetObjectName((uint64_t)vulkan_globals.alias_pipeline.layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "alias_pipeline_layout");
 	vulkan_globals.alias_pipeline.layout.push_constant_range = push_constant_range;
 
 	// Sky
@@ -1281,6 +1284,7 @@ void R_CreatePipelineLayouts()
 	err = vkCreatePipelineLayout(vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.sky_layer_pipeline.layout.handle);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreatePipelineLayout failed");
+	GL_SetObjectName((uint64_t)vulkan_globals.sky_layer_pipeline.layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "sky_layer_pipeline_layout");
 	vulkan_globals.sky_layer_pipeline.layout.push_constant_range = push_constant_range;
 
 	// Postprocess
@@ -1301,6 +1305,7 @@ void R_CreatePipelineLayouts()
 	err = vkCreatePipelineLayout(vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.postprocess_pipeline.layout.handle);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreatePipelineLayout failed");
+	GL_SetObjectName((uint64_t)vulkan_globals.postprocess_pipeline.layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "postprocess_pipeline_layout");
 	vulkan_globals.postprocess_pipeline.layout.push_constant_range = push_constant_range;
 
 	// Screen warp
@@ -1321,6 +1326,7 @@ void R_CreatePipelineLayouts()
 	err = vkCreatePipelineLayout(vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.screen_effects_pipeline.layout.handle);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreatePipelineLayout failed");
+	GL_SetObjectName((uint64_t)vulkan_globals.screen_effects_pipeline.layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "screen_effects_pipeline_layout");
 	vulkan_globals.screen_effects_pipeline.layout.push_constant_range = push_constant_range;
 
 	vulkan_globals.screen_effects_scale_pipeline.layout.handle = vulkan_globals.screen_effects_pipeline.layout.handle;
@@ -1347,6 +1353,7 @@ void R_CreatePipelineLayouts()
 	err = vkCreatePipelineLayout(vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.cs_tex_warp_pipeline.layout.handle);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreatePipelineLayout failed");
+	GL_SetObjectName((uint64_t)vulkan_globals.cs_tex_warp_pipeline.layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "cs_tex_warp_pipeline_layout");
 	vulkan_globals.cs_tex_warp_pipeline.layout.push_constant_range = push_constant_range;
 
 	// Show triangles
@@ -1356,6 +1363,7 @@ void R_CreatePipelineLayouts()
 	err = vkCreatePipelineLayout(vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.showtris_pipeline.layout.handle);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreatePipelineLayout failed");
+	GL_SetObjectName((uint64_t)vulkan_globals.showtris_pipeline.layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "showtris_pipeline_layout");
 	vulkan_globals.showtris_pipeline.layout.push_constant_range = push_constant_range;
 }
 
@@ -1390,7 +1398,7 @@ void R_InitSamplers()
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateSampler failed");
 
-		GL_SetObjectName((uint64_t)vulkan_globals.point_sampler, VK_DEBUG_REPORT_OBJECT_TYPE_SAMPLER_EXT, "point");
+		GL_SetObjectName((uint64_t)vulkan_globals.point_sampler, VK_OBJECT_TYPE_SAMPLER, "point");
 
 		sampler_create_info.anisotropyEnable = VK_TRUE;
 		sampler_create_info.maxAnisotropy = vulkan_globals.device_properties.limits.maxSamplerAnisotropy;
@@ -1398,7 +1406,7 @@ void R_InitSamplers()
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateSampler failed");
 
-		GL_SetObjectName((uint64_t)vulkan_globals.point_aniso_sampler, VK_DEBUG_REPORT_OBJECT_TYPE_SAMPLER_EXT, "point_aniso");
+		GL_SetObjectName((uint64_t)vulkan_globals.point_aniso_sampler, VK_OBJECT_TYPE_SAMPLER, "point_aniso");
 
 		sampler_create_info.magFilter = VK_FILTER_LINEAR;
 		sampler_create_info.minFilter = VK_FILTER_LINEAR;
@@ -1410,7 +1418,7 @@ void R_InitSamplers()
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateSampler failed");
 
-		GL_SetObjectName((uint64_t)vulkan_globals.linear_sampler, VK_DEBUG_REPORT_OBJECT_TYPE_SAMPLER_EXT, "linear");
+		GL_SetObjectName((uint64_t)vulkan_globals.linear_sampler, VK_OBJECT_TYPE_SAMPLER, "linear");
 
 		sampler_create_info.anisotropyEnable = VK_TRUE;
 		sampler_create_info.maxAnisotropy = vulkan_globals.device_properties.limits.maxSamplerAnisotropy;
@@ -1418,7 +1426,7 @@ void R_InitSamplers()
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateSampler failed");
 
-		GL_SetObjectName((uint64_t)vulkan_globals.linear_aniso_sampler, VK_DEBUG_REPORT_OBJECT_TYPE_SAMPLER_EXT, "linear_aniso");
+		GL_SetObjectName((uint64_t)vulkan_globals.linear_aniso_sampler, VK_OBJECT_TYPE_SAMPLER, "linear_aniso");
 	}
 
 	TexMgr_UpdateTextureDescriptorSets();
@@ -1624,8 +1632,7 @@ void R_CreatePipelines()
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateGraphicsPipelines failed");
 		vulkan_globals.basic_alphatest_pipeline[render_pass].layout = vulkan_globals.basic_pipeline_layout;
-
-		GL_SetObjectName((uint64_t)vulkan_globals.basic_alphatest_pipeline[render_pass].handle, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "basic_alphatest");
+		GL_SetObjectName((uint64_t)vulkan_globals.basic_alphatest_pipeline[render_pass].handle, VK_OBJECT_TYPE_PIPELINE, "basic_alphatest");
 	}
 
 	shader_stages[1].module = basic_notex_frag_module;
@@ -1651,8 +1658,7 @@ void R_CreatePipelines()
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateGraphicsPipelines failed");
 		vulkan_globals.basic_notex_blend_pipeline[render_pass].layout = vulkan_globals.basic_pipeline_layout;
-
-		GL_SetObjectName((uint64_t)vulkan_globals.basic_notex_blend_pipeline[render_pass].handle, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "basic_notex_blend");
+		GL_SetObjectName((uint64_t)vulkan_globals.basic_notex_blend_pipeline[render_pass].handle, VK_OBJECT_TYPE_PIPELINE, "basic_notex_blend");
 	}
 
 	pipeline_create_info.renderPass = vulkan_globals.main_render_pass;
@@ -1664,8 +1670,7 @@ void R_CreatePipelines()
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateGraphicsPipelines failed");
 	vulkan_globals.basic_poly_blend_pipeline.layout = vulkan_globals.basic_pipeline_layout;
-
-	GL_SetObjectName((uint64_t)vulkan_globals.basic_poly_blend_pipeline.handle, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "basic_poly_blend");
+	GL_SetObjectName((uint64_t)vulkan_globals.basic_poly_blend_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "basic_poly_blend");
 
 	shader_stages[1].module = basic_frag_module;
 
@@ -1680,7 +1685,7 @@ void R_CreatePipelines()
 			Sys_Error("vkCreateGraphicsPipelines failed");
 		vulkan_globals.basic_blend_pipeline[render_pass].layout = vulkan_globals.basic_pipeline_layout;
 
-		GL_SetObjectName((uint64_t)vulkan_globals.basic_blend_pipeline[render_pass].handle, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "basic_blend");
+		GL_SetObjectName((uint64_t)vulkan_globals.basic_blend_pipeline[render_pass].handle, VK_OBJECT_TYPE_PIPELINE, "basic_blend");
 	}
 
 	multisample_state_create_info.rasterizationSamples = vulkan_globals.sample_count;
@@ -1704,8 +1709,7 @@ void R_CreatePipelines()
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateGraphicsPipelines failed");
 	vulkan_globals.raster_tex_warp_pipeline.layout = vulkan_globals.basic_pipeline_layout;
-
-	GL_SetObjectName((uint64_t)vulkan_globals.raster_tex_warp_pipeline.handle, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "warp");
+	GL_SetObjectName((uint64_t)vulkan_globals.raster_tex_warp_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "warp");
 
 	//================
 	// Particles
@@ -1726,6 +1730,7 @@ void R_CreatePipelines()
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateGraphicsPipelines failed");
 	vulkan_globals.particle_pipeline.layout = vulkan_globals.basic_pipeline_layout;
+	GL_SetObjectName((uint64_t)vulkan_globals.particle_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "particle_pipeline");
 
 	//================
 	// Water
@@ -1742,7 +1747,7 @@ void R_CreatePipelines()
 		Sys_Error("vkCreateGraphicsPipelines failed");
 	vulkan_globals.water_pipeline.layout = vulkan_globals.basic_pipeline_layout;
 
-	GL_SetObjectName((uint64_t)vulkan_globals.water_pipeline.handle, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "water");
+	GL_SetObjectName((uint64_t)vulkan_globals.water_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "water");
 
 	depth_stencil_state_create_info.depthWriteEnable = VK_FALSE;
 	blend_attachment_state.blendEnable = VK_TRUE;
@@ -1752,8 +1757,7 @@ void R_CreatePipelines()
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateGraphicsPipelines failed");
 	vulkan_globals.water_blend_pipeline.layout = vulkan_globals.basic_pipeline_layout;
-
-	GL_SetObjectName((uint64_t)vulkan_globals.water_blend_pipeline.handle, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "water_blend");
+	GL_SetObjectName((uint64_t)vulkan_globals.water_blend_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "water_blend");
 	
 	//================
 	// Sprites
@@ -1770,8 +1774,7 @@ void R_CreatePipelines()
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateGraphicsPipelines failed");
 	vulkan_globals.sprite_pipeline.layout = vulkan_globals.basic_pipeline_layout;
-
-	GL_SetObjectName((uint64_t)vulkan_globals.sprite_pipeline.handle, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "sprite");
+	GL_SetObjectName((uint64_t)vulkan_globals.sprite_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "sprite");
 
 	dynamic_state_create_info.dynamicStateCount--;
 
@@ -1802,8 +1805,7 @@ void R_CreatePipelines()
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateGraphicsPipelines failed");
 	vulkan_globals.sky_stencil_pipeline.layout = vulkan_globals.basic_pipeline_layout;
-
-	GL_SetObjectName((uint64_t)vulkan_globals.sky_stencil_pipeline.handle, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "sky_stencil");
+	GL_SetObjectName((uint64_t)vulkan_globals.sky_stencil_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "sky_stencil");
 
 	depth_stencil_state_create_info.stencilTestEnable = VK_FALSE;
 	blend_attachment_state.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
@@ -1816,8 +1818,7 @@ void R_CreatePipelines()
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateGraphicsPipelines failed");
 	vulkan_globals.sky_color_pipeline.layout = vulkan_globals.basic_pipeline_layout;
-
-	GL_SetObjectName((uint64_t)vulkan_globals.sky_color_pipeline.handle, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "sky_color");
+	GL_SetObjectName((uint64_t)vulkan_globals.sky_color_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "sky_color");
 
 	depth_stencil_state_create_info.depthTestEnable = VK_FALSE;
 	depth_stencil_state_create_info.depthWriteEnable = VK_FALSE;
@@ -1835,8 +1836,8 @@ void R_CreatePipelines()
 	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.sky_box_pipeline.handle);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateGraphicsPipelines failed");
+	GL_SetObjectName((uint64_t)vulkan_globals.sky_box_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "sky_box");
 
-	GL_SetObjectName((uint64_t)vulkan_globals.sky_box_pipeline.handle, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "sky_box");
 	vulkan_globals.sky_box_pipeline.layout = vulkan_globals.basic_pipeline_layout;
 
 	VkVertexInputAttributeDescription sky_layer_vertex_input_attribute_descriptions[4];
@@ -1877,8 +1878,7 @@ void R_CreatePipelines()
 	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.sky_layer_pipeline.handle);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateGraphicsPipelines failed");
-
-	GL_SetObjectName((uint64_t)vulkan_globals.sky_layer_pipeline.handle, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "sky_layer");
+	GL_SetObjectName((uint64_t)vulkan_globals.sky_layer_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "sky_layer");
 
 	depth_stencil_state_create_info.stencilTestEnable = VK_FALSE;
 
@@ -1919,8 +1919,7 @@ void R_CreatePipelines()
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateGraphicsPipelines failed");
 		vulkan_globals.showtris_pipeline.layout = vulkan_globals.basic_pipeline_layout;
-
-		GL_SetObjectName((uint64_t)vulkan_globals.showtris_pipeline.handle, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "showtris");
+		GL_SetObjectName((uint64_t)vulkan_globals.showtris_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "showtris");
 
 		depth_stencil_state_create_info.depthTestEnable = VK_TRUE;
 		rasterization_state_create_info.depthBiasEnable = VK_TRUE;
@@ -1933,7 +1932,7 @@ void R_CreatePipelines()
 			Sys_Error("vkCreateGraphicsPipelines failed");
 		vulkan_globals.showtris_depth_test_pipeline.layout = vulkan_globals.basic_pipeline_layout;
 
-		GL_SetObjectName((uint64_t)vulkan_globals.showtris_depth_test_pipeline.handle, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "showtris_depth_test");
+		GL_SetObjectName((uint64_t)vulkan_globals.showtris_depth_test_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "showtris_depth_test");
 	}
 
 	//================
@@ -2021,7 +2020,7 @@ void R_CreatePipelines()
 				err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.world_pipelines[pipeline_index].handle);
 				if (err != VK_SUCCESS)
 					Sys_Error("vkCreateGraphicsPipelines failed");
-				GL_SetObjectName((uint64_t)vulkan_globals.world_pipelines[pipeline_index].handle, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, va("world %d", pipeline_index));
+				GL_SetObjectName((uint64_t)vulkan_globals.world_pipelines[pipeline_index].handle, VK_OBJECT_TYPE_PIPELINE, va("world %d", pipeline_index));
 				vulkan_globals.world_pipelines[pipeline_index].layout = vulkan_globals.world_pipeline_layout;
 			}
 		}
@@ -2083,7 +2082,7 @@ void R_CreatePipelines()
 	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.alias_pipeline.handle);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateGraphicsPipelines failed");
-	GL_SetObjectName((uint64_t)vulkan_globals.alias_pipeline.handle, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "alias");
+	GL_SetObjectName((uint64_t)vulkan_globals.alias_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "alias");
 
 	shader_stages[1].module = alias_alphatest_frag_module;
 
@@ -2091,7 +2090,7 @@ void R_CreatePipelines()
 	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.alias_alphatest_pipeline.handle);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateGraphicsPipelines failed");
-	GL_SetObjectName((uint64_t)vulkan_globals.alias_alphatest_pipeline.handle, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "alias_alphatest");
+	GL_SetObjectName((uint64_t)vulkan_globals.alias_alphatest_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "alias_alphatest");
 	vulkan_globals.alias_alphatest_pipeline.layout = vulkan_globals.alias_pipeline.layout;
 
 	depth_stencil_state_create_info.depthWriteEnable = VK_FALSE;
@@ -2102,7 +2101,7 @@ void R_CreatePipelines()
 	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.alias_blend_pipeline.handle);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateGraphicsPipelines failed");
-	GL_SetObjectName((uint64_t)vulkan_globals.alias_blend_pipeline.handle, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "alias_blend");
+	GL_SetObjectName((uint64_t)vulkan_globals.alias_blend_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "alias_blend");
 	vulkan_globals.alias_blend_pipeline.layout = vulkan_globals.alias_pipeline.layout;
 
 	shader_stages[1].module = alias_alphatest_frag_module;
@@ -2111,7 +2110,7 @@ void R_CreatePipelines()
 	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.alias_alphatest_blend_pipeline.handle);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateGraphicsPipelines failed");
-	GL_SetObjectName((uint64_t)vulkan_globals.alias_alphatest_blend_pipeline.handle, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "alias_alphatest_blend");
+	GL_SetObjectName((uint64_t)vulkan_globals.alias_alphatest_blend_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "alias_alphatest_blend");
 	vulkan_globals.alias_alphatest_blend_pipeline.layout = vulkan_globals.alias_pipeline.layout;
 
 	if (vulkan_globals.non_solid_fill)
@@ -2132,7 +2131,7 @@ void R_CreatePipelines()
 		err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.alias_showtris_pipeline.handle);
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateGraphicsPipelines failed");
-		GL_SetObjectName((uint64_t)vulkan_globals.alias_showtris_pipeline.handle, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "alias_showtris");
+		GL_SetObjectName((uint64_t)vulkan_globals.alias_showtris_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "alias_showtris");
 		vulkan_globals.alias_showtris_pipeline.layout = vulkan_globals.alias_pipeline.layout;
 
 		depth_stencil_state_create_info.depthTestEnable = VK_TRUE;
@@ -2144,7 +2143,7 @@ void R_CreatePipelines()
 		err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.alias_showtris_depth_test_pipeline.handle);
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateGraphicsPipelines failed");
-		GL_SetObjectName((uint64_t)vulkan_globals.alias_showtris_depth_test_pipeline.handle, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "alias_showtris_depth_test");
+		GL_SetObjectName((uint64_t)vulkan_globals.alias_showtris_depth_test_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "alias_showtris_depth_test");
 		vulkan_globals.alias_showtris_depth_test_pipeline.layout = vulkan_globals.alias_pipeline.layout;
 	}
 
@@ -2174,7 +2173,7 @@ void R_CreatePipelines()
 	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.postprocess_pipeline.handle);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateGraphicsPipelines failed");
-	GL_SetObjectName((uint64_t)vulkan_globals.postprocess_pipeline.handle, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "postprocess");
+	GL_SetObjectName((uint64_t)vulkan_globals.postprocess_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "postprocess");
 
 	//================
 	// Screen Effects
@@ -2195,16 +2194,16 @@ void R_CreatePipelines()
 	assert(vulkan_globals.screen_effects_pipeline.handle == VK_NULL_HANDLE);
 	err = vkCreateComputePipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &compute_pipeline_create_info, NULL, &vulkan_globals.screen_effects_pipeline.handle);
 	if (err != VK_SUCCESS)
-		Sys_Error("vkCreateGraphicsPipelines failed");
-	GL_SetObjectName((uint64_t)vulkan_globals.screen_effects_pipeline.handle, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "screen_effects");
+		Sys_Error("vkCreateComputePipelines failed");
+	GL_SetObjectName((uint64_t)vulkan_globals.screen_effects_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "screen_effects");
 
 	compute_shader_stage.module = (vulkan_globals.color_format == VK_FORMAT_A2B10G10R10_UNORM_PACK32) ? screen_effects_10bit_scale_comp_module : screen_effects_8bit_scale_comp_module;
 	compute_pipeline_create_info.stage = compute_shader_stage;
 	assert(vulkan_globals.screen_effects_scale_pipeline.handle == VK_NULL_HANDLE);
 	err = vkCreateComputePipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &compute_pipeline_create_info, NULL, &vulkan_globals.screen_effects_scale_pipeline.handle);
 	if (err != VK_SUCCESS)
-		Sys_Error("vkCreateGraphicsPipelines failed");
-	GL_SetObjectName((uint64_t)vulkan_globals.screen_effects_scale_pipeline.handle, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "screen_effects_scale");
+		Sys_Error("vkCreateComputePipelines failed");
+	GL_SetObjectName((uint64_t)vulkan_globals.screen_effects_scale_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "screen_effects_scale");
 
 #if defined(VK_EXT_subgroup_size_control)
 	if (vulkan_globals.screen_effects_sops)
@@ -2215,8 +2214,8 @@ void R_CreatePipelines()
 		assert(vulkan_globals.screen_effects_scale_sops_pipeline.handle == VK_NULL_HANDLE);
 		err = vkCreateComputePipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &compute_pipeline_create_info, NULL, &vulkan_globals.screen_effects_scale_sops_pipeline.handle);
 		if (err != VK_SUCCESS)
-			Sys_Error("vkCreateGraphicsPipelines failed");
-		GL_SetObjectName((uint64_t)vulkan_globals.screen_effects_scale_sops_pipeline.handle, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "screen_effects_scale_sops");
+			Sys_Error("vkCreateComputePipelines failed");
+		GL_SetObjectName((uint64_t)vulkan_globals.screen_effects_scale_sops_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "screen_effects_scale_sops");
 		compute_shader_stage.flags = 0;
 	}
 #endif
@@ -2238,8 +2237,8 @@ void R_CreatePipelines()
 	assert(vulkan_globals.cs_tex_warp_pipeline.handle == VK_NULL_HANDLE);
 	err = vkCreateComputePipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &compute_pipeline_create_info, NULL, &vulkan_globals.cs_tex_warp_pipeline.handle);
 	if (err != VK_SUCCESS)
-		Sys_Error("vkCreateGraphicsPipelines failed");
-	GL_SetObjectName((uint64_t)vulkan_globals.cs_tex_warp_pipeline.handle, VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT, "cs_tex_warp");
+		Sys_Error("vkCreateComputePipelines failed");
+	GL_SetObjectName((uint64_t)vulkan_globals.cs_tex_warp_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "cs_tex_warp");
 
 	vkDestroyShaderModule(vulkan_globals.device, showtris_frag_module, NULL);
 	vkDestroyShaderModule(vulkan_globals.device, showtris_vert_module, NULL);

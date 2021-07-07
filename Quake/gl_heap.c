@@ -49,7 +49,7 @@ glheap_t * GL_CreateHeap(VkDeviceSize size, uint32_t memory_type_index, const ch
 	if (err != VK_SUCCESS)
 		Sys_Error("vkAllocateMemory failed");
 
-	GL_SetObjectName((uint64_t)heap->memory, VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_MEMORY_EXT, name);
+	GL_SetObjectName((uint64_t)heap->memory, VK_OBJECT_TYPE_DEVICE_MEMORY, name);
 
 	heap->head = (glheapnode_t*) malloc(sizeof(glheapnode_t));
 	heap->head->offset = 0;

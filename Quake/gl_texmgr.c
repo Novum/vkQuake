@@ -838,15 +838,14 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	err = vkCreateImage(vulkan_globals.device, &image_create_info, NULL, &glt->image);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateImage failed");
-
-	GL_SetObjectName((uint64_t)glt->image, VK_OBJECT_TYPE_IMAGE, glt->name);
+	GL_SetObjectName((uint64_t)glt->image, VK_OBJECT_TYPE_IMAGE, va("%s image", glt->name));
 
 	VkMemoryRequirements memory_requirements;
 	vkGetImageMemoryRequirements(vulkan_globals.device, glt->image, &memory_requirements);
 
 	uint32_t memory_type_index = GL_MemoryTypeFromProperties(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
 	VkDeviceSize heap_size = TEXTURE_HEAP_SIZE_MB * (VkDeviceSize)1024 * (VkDeviceSize)1024;
-	VkDeviceSize aligned_offset = GL_AllocateFromHeaps(&num_texmgr_heaps, &texmgr_heaps, heap_size, memory_type_index, memory_requirements.size, memory_requirements.alignment, &glt->heap, &glt->heap_node, &num_vulkan_tex_allocations, "Textures");
+	VkDeviceSize aligned_offset = GL_AllocateFromHeaps(&num_texmgr_heaps, &texmgr_heaps, heap_size, memory_type_index, memory_requirements.size, memory_requirements.alignment, &glt->heap, &glt->heap_node, &num_vulkan_tex_allocations, "Textures Heap");
 	err = vkBindImageMemory(vulkan_globals.device, glt->image, glt->heap->memory, aligned_offset);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkBindImageMemory failed");
@@ -870,11 +869,11 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	err = vkCreateImageView(vulkan_globals.device, &image_view_create_info, NULL, &glt->image_view);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateImageView failed");
-
-	GL_SetObjectName((uint64_t)glt->image_view, VK_OBJECT_TYPE_IMAGE_VIEW, glt->name);
+	GL_SetObjectName((uint64_t)glt->image_view, VK_OBJECT_TYPE_IMAGE_VIEW, va("%s image view", glt->name));
 
 	// Allocate and update descriptor for this texture
 	glt->descriptor_set = R_AllocateDescriptorSet(&vulkan_globals.single_texture_set_layout);
+	GL_SetObjectName((uint64_t)glt->descriptor_set, VK_OBJECT_TYPE_DESCRIPTOR_SET, va("%s desc set", glt->name));
 
 	TexMgr_SetFilterModes (glt);
 
@@ -885,8 +884,7 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 		err = vkCreateImageView(vulkan_globals.device, &image_view_create_info, NULL, &glt->target_image_view);
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateImageView failed");
-
-		GL_SetObjectName((uint64_t)glt->target_image_view, VK_OBJECT_TYPE_IMAGE_VIEW, glt->name);
+		GL_SetObjectName((uint64_t)glt->target_image_view, VK_OBJECT_TYPE_IMAGE_VIEW, va("%s target image view", glt->name));
 
 		VkFramebufferCreateInfo framebuffer_create_info;
 		memset(&framebuffer_create_info, 0, sizeof(framebuffer_create_info));
@@ -900,11 +898,11 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 		err = vkCreateFramebuffer(vulkan_globals.device, &framebuffer_create_info, NULL, &glt->frame_buffer);
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateFramebuffer failed");
-
-		GL_SetObjectName((uint64_t)glt->frame_buffer, VK_OBJECT_TYPE_FRAMEBUFFER, glt->name);
+		GL_SetObjectName((uint64_t)glt->frame_buffer, VK_OBJECT_TYPE_FRAMEBUFFER, va("%s framebuffer", glt->name));
 
 		// Allocate and update descriptor for this texture
 		glt->warp_write_descriptor_set = R_AllocateDescriptorSet(&vulkan_globals.single_texture_cs_write_set_layout);
+		GL_SetObjectName((uint64_t)glt->warp_write_descriptor_set, VK_OBJECT_TYPE_DESCRIPTOR_SET, va("%s warp write desc set", glt->name));
 
 		VkDescriptorImageInfo output_image_info;
 		memset(&output_image_info, 0, sizeof(output_image_info));
