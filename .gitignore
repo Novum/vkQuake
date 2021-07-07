@@ -17,6 +17,8 @@ Windows/VisualStudio/.vs
 /Windows/VisualStudio/history.txt
 Debug
 Release
+AppImage/AppDir
+AppImage/vkquake-x86_64.AppImage
 .settings
 .project
 .cproject
