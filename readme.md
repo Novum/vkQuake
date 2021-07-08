@@ -6,7 +6,12 @@ Compared to QuakeSpasm vkQuake also features a software Quake like underwater ef
 # Installation
 
 ## Windows
-Copy all files from the `vkquake-<version>` folder in the zip file to the Quake base directory. Overwrite any existing files. Afterward to run the game just execute `vkQuake.exe`.
+Copy all files from the `vkquake-<version>_win64.zip` or `vkquake-<version>_win32.zip` folder in the zip file to the Quake base directory. Overwrite any existing files. Afterward to run the game just execute `vkQuake.exe`.
+
+## Linux
+Copy the `vkquake-<version>-linux-x86_64.AppImage` to the Quake base directory. Set permission of the AppImage to executable and run it.
+
+Note: Make sure all data files are lowercase, e.g. "id1", not "ID1" and "pak0.pak", not "PAK0.PAK". Some distributions of the game have upper case file names, e.g. from GOG.com.
 
 # Vulkan
 vkQuake shows basic usage of the API. For example it demonstrates render passes & sub passes, pipeline barriers & synchronization, compute shaders, push & specialization constants, CPU/GPU parallelism and memory pooling.
