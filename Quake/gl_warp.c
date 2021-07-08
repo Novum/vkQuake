@@ -218,7 +218,7 @@ static void R_RasterWarpTexture(texture_t *tx, float warptess) {
 			vertices[i].position[1] = y;
 			vertices[i].position[2] = 0.0f;
 			vertices[i].texcoord[0] = WARPCALC(x, y);
-			vertices[i].texcoord[1] = WARPCALC(y, x);
+			vertices[i].texcoord[1] = 1.0f - WARPCALC(y, x);
 			vertices[i].color[0] = 255;
 			vertices[i].color[1] = 255;
 			vertices[i].color[2] = 255;
@@ -228,7 +228,7 @@ static void R_RasterWarpTexture(texture_t *tx, float warptess) {
 			vertices[i].position[1] = y;
 			vertices[i].position[2] = 0.0f;
 			vertices[i].texcoord[0] = WARPCALC(x2, y);
-			vertices[i].texcoord[1] = WARPCALC(y, x2);
+			vertices[i].texcoord[1] = 1.0f - WARPCALC(y, x2);
 			vertices[i].color[0] = 255;
 			vertices[i].color[1] = 255;
 			vertices[i].color[2] = 255;

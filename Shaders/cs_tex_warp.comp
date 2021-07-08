@@ -31,7 +31,7 @@ void main()
 	const float posY = 1.0f - (float(gl_GlobalInvocationID.y) * WARPIMAGESIZE_RCP);
 
 	const float texX = warp_calc(posX * 128.0f, posY * 128.0f);
-	const float texY = warp_calc(posY * 128.0f, posX * 128.0f);
+	const float texY = 1.0f - warp_calc(posY * 128.0f, posX * 128.0f);
 
 	vec4 value = texture(input_tex, vec2(texX, texY));
 	imageStore(output_image, ivec2(gl_GlobalInvocationID.xy), value);
