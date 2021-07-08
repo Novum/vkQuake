@@ -1562,7 +1562,7 @@ qsocket_t *Datagram_CheckNewConnections (void)
 		{
 			//darkplaces here refers to the master server protocol, rather than the game protocol
 			//(specifies that the server responds to infoRequest packets from the master)
-			char *str = "\377\377\377\377heartbeat DarkPlaces\n";
+			char str[] = "\377\377\377\377heartbeat DarkPlaces\n";
 			size_t k;
 			struct qsockaddr addr;
 			heartbeat_time = Sys_DoubleTime() + 300;

@@ -2442,8 +2442,9 @@ _add_path:
 	}
 }
 
-void COM_ResetGameDirectories(char *newgamedirs)
+void COM_ResetGameDirectories(const char *newdirs)
 {
+	char *newgamedirs = Z_Strdup(newdirs);
 	char *newpath, *path;
 	searchpath_t *search;
 	//Kill the extra game if it is loaded
@@ -2475,16 +2476,20 @@ void COM_ResetGameDirectories(char *newgamedirs)
 
 		if (!q_strcasecmp(GAMENAME, newpath))
 			path = NULL;
-		else for (path = newgamedirs; path < newpath; path += strlen(path)+1)
+		else
 		{
+		    for (path = newgamedirs; path < newpath; path += strlen(path)+1)
+		    {
 			if (!q_strcasecmp(path, newpath))
 				break;
+		    }
 		}
 
 		if (path == newpath)	//not already loaded
 			COM_AddGameDirectory(newpath);
 		newpath = e;
 	}
+	Z_Free(newgamedirs);
 }
 
 //==============================================================================
