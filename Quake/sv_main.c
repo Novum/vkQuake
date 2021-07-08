@@ -2187,7 +2187,7 @@ qboolean SV_SendClientDatagram (client_t *client)
 
 	msg.allowoverflow = false;
 	msg.data = buf;
-	msg.maxsize = client->limit_unreliable;
+	msg.maxsize = q_min(sizeof(buf), client->limit_unreliable);
 	msg.cursize = 0;
 
 	host_client = client;
@@ -2238,7 +2238,7 @@ qboolean SV_SendClientDatagram (client_t *client)
 			SZ_Write (&msg, sv.datagram.data, sv.datagram.cursize);
 	}
 
-	msg.maxsize = client->limit_unreliable;
+	msg.maxsize = q_min(sizeof(buf), client->limit_unreliable);
 
 // send the datagram
 	if (msg.cursize && NET_SendUnreliableMessage (client->netconnection, &msg) == -1)
