@@ -45,13 +45,9 @@ LINKER = $(CC)
 
 STRIP ?= strip
 
-#CPUFLAGS= -mtune=i686
-#CPUFLAGS= -march=pentium4
-#CPUFLAGS= -mtune=k8
-#CPUFLAGS= -march=atom
 CPUFLAGS=
 DFLAGS ?=
-CFLAGS ?= -Wall -Wno-trigraphs
+CFLAGS ?= -Wall -Wno-trigraphs -std=gnu99
 CFLAGS += $(CPUFLAGS)
 ifneq ($(DEBUG),0)
 DFLAGS += -D_DEBUG
@@ -60,7 +56,6 @@ do_strip=
 else
 DFLAGS += -DNDEBUG
 CFLAGS += -O2
-CFLAGS += -std=gnu99
 CFLAGS += $(call check_gcc,-fweb,)
 CFLAGS += $(call check_gcc,-frename-registers,)
 cmd_strip=$(STRIP) $(1)
@@ -76,26 +71,6 @@ endif
 
 ifeq ($(DO_USERDIRS),1)
 CFLAGS += -DDO_USERDIRS=1
-endif
-
-### X11BASE only gets used if its in an unusual place
-
-X11DIRS := /usr/X11R7 /usr/local/X11R7 /usr/X11R6 /usr/local/X11R6
-X11BASE_GUESS := $(shell \
-	if [ -e /usr/include/X11/Xlib.h ] && \
-		[ -e /usr/lib/libX11.a ]; then exit 0; fi; \
-	if [ -e /usr/local/include/X11/Xlib.h ] && \
-		[ -e /usr/local/lib/libX11.a ]; then exit 0; fi; \
-	for DIR in $(X11DIRS); do \
-            if [ -e $$DIR/include/X11/Xlib.h ] && \
-		[ -e $$DIR/lib/libX11.a ]; then echo $$DIR; break; fi; \
-	done )
-
-X11BASE	?= $(X11BASE_GUESS)
-
-ifneq ($(X11BASE),)
-LDFLAGS+= -L$(X11BASE)/lib
-CFLAGS += -I$(X11BASE)/include
 endif
 
 SDL_CONFIG ?= sdl2-config
@@ -174,10 +149,10 @@ endif
 COMMON_LIBS:= -lm
 
 ifneq ($(HOST_OS),darwin)
-COMMON_LIBS+= -lX11-xcb -lvulkan
+COMMON_LIBS+= -lvulkan
 CFLAGS+= -DLINUX
 else
-	COMMON_LIBS+= -lMoltenVK
+COMMON_LIBS+= -lMoltenVK
 endif
 
 LIBS := $(COMMON_LIBS) $(NET_LIBS) $(CODECLIBS)
