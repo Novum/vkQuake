@@ -9,7 +9,7 @@ Compared to QuakeSpasm vkQuake also features a software Quake like underwater ef
 Copy all files inside the `vkquake-<version>_win64` or `vkquake-<version>_win32` folder in the zip to the Quake base directory. Overwrite any existing files. Afterward to run the game just execute `vkQuake.exe`.
 
 ## Linux
-Copy the `vkquake-<version>-linux-x86_64.AppImage` to the Quake base directory. Set permission of the AppImage to executable and run it.
+Copy all files inside the `vkquake-<version>-linux64` folder in the tar archive to the Quake base directory. Overwrite any existing files. Run `vkquake-<version>-linux-x86_64.AppImage`.
 
 Note: Make sure all data files are lowercase, e.g. "id1", not "ID1" and "pak0.pak", not "PAK0.PAK". Some distributions of the game have upper case file names, e.g. from GOG.com.
 
