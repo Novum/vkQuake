@@ -18,7 +18,7 @@ Windows/VisualStudio/.vs
 Debug
 Release
 AppImage/AppDir
-AppImage/vkquake-x86_64.AppImage
+AppImage/vkquake*.AppImage
 .settings
 .project
 .cproject
