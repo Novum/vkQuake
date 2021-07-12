@@ -440,6 +440,7 @@ void Draw_NewGame (void)
 	Draw_LoadPics ();
 	SCR_LoadPics ();
 	Sbar_LoadPics ();
+	PR_ReloadPics(false);
 }
 
 /*

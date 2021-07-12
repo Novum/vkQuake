@@ -73,6 +73,7 @@ void PR_InitExtensions(void);
 void PR_EnableExtensions(ddef_t *pr_globaldefs);	//adds in the extra builtins etc
 void PR_AutoCvarChanged(cvar_t *var);				//updates the autocvar_ globals when their cvar is changed
 void PR_ShutdownExtensions(void);					//nooooes!
+void PR_ReloadPics(qboolean purge);					//for gamedir or video changes
 func_t PR_FindExtFunction(const char *entryname);
 void PR_DumpPlatform_f(void);						//console command: writes out a qsextensions.qc file
 //special hacks...
