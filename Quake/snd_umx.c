@@ -4,7 +4,7 @@
  * by Andy Ward <wardwh@swbell.net>, with additional updates
  * by O. Sezer - see git repo at https://github.com/sezero/umr.git
  *
- * Copyright (C) 2013 O. Sezer <sezero@users.sourceforge.net>
+ * Copyright (C) 2013-2021 O. Sezer <sezero@users.sourceforge.net>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -201,13 +201,13 @@ static int read_typname(fshandle_t *f, const struct upkg_hdr *hdr,
 	char buf[64];
 
 	if (idx >= hdr->name_count) return -1;
-	buf[63] = '\0';
+	memset(buf, 0, 64);
 	for (i = 0, l = 0; i <= idx; i++) {
-		FS_fseek(f, hdr->name_offset + l, SEEK_SET);
-		FS_fread(buf, 1, 63, f);
+		if (FS_fseek(f, hdr->name_offset + l, SEEK_SET) < 0) return -1;
+		if (!FS_fread(buf, 1, 63, f)) return -1;
 		if (hdr->file_version >= 64) {
 			s = *(signed char *)buf; /* numchars *including* terminator */
-			if (s <= 0 || s > 64) return -1;
+			if (s <= 0) return -1;
 			l += s + 5;	/* 1 for buf[0], 4 for int32_t name_flags */
 		} else {
 			l += (long)strlen(buf);
@@ -229,6 +229,13 @@ static int probe_umx   (fshandle_t *f, const struct upkg_hdr *hdr,
 
 	idx = 0;
 	fsiz = FS_filelength (f);
+
+	if (hdr->name_offset	>= fsiz ||
+	    hdr->export_offset	>= fsiz ||
+	    hdr->import_offset	>= fsiz) {
+		Con_DPrintf("Illegal values in header.\n");
+		return -1;
+	}
 
 	/* Find the offset and size of the first IT, S3M or XM
 	 * by parsing the exports table. The umx files should
@@ -288,12 +295,12 @@ static int32_t probe_header (fshandle_t *f, struct upkg_hdr *hdr)
 		return -1;
 	}
 	if (hdr->name_count	< 0	||
-	    hdr->name_offset	< 0	||
 	    hdr->export_count	< 0	||
-	    hdr->export_offset	< 0	||
 	    hdr->import_count	< 0	||
-	    hdr->import_offset	< 0	) {
-		Con_DPrintf("Negative values in header\n");
+	    hdr->name_offset	< 36	||
+	    hdr->export_offset	< 36	||
+	    hdr->import_offset	< 36) {
+		Con_DPrintf("Illegal values in header.\n");
 		return -1;
 	}
 
