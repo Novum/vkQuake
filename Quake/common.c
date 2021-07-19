@@ -1981,6 +1981,7 @@ static int COM_FindFile (const char *filename, int *handle, FILE **file,
 	if (strcmp(COM_FileGetExtension(filename), "pcx") != 0
 		&& strcmp(COM_FileGetExtension(filename), "tga") != 0
 		&& strcmp(COM_FileGetExtension(filename), "lit") != 0
+		&& strcmp(COM_FileGetExtension(filename), "vis") != 0
 		&& strcmp(COM_FileGetExtension(filename), "ent") != 0)
 		Con_DPrintf ("FindFile: can't find %s\n", filename);
 	else	Con_DPrintf2("FindFile: can't find %s\n", filename);
