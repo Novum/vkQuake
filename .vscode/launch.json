@@ -6,22 +6,14 @@
     "configurations": [
         {
             "name": "vkquake",
-            "type": "cppdbg",
+            // The CodeLLDB extension is required for this.
+            // https://marketplace.visualstudio.com/items?itemName=vadimcn.vscode-lldb
+            "type": "lldb",
             "request": "launch",
             "program": "${workspaceFolder}/Quake/vkquake",
             "args": [ "-basedir", "/home/axel/Quake" ],
-            "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
-            "environment": [ { "name": "XDG_RUNTIME_DIR", "value": "/run/user/1000" } ],
-            "externalConsole": true,
-            "MIMode": "lldb",
-            "setupCommands": [
-                {
-                    "description": "Enable pretty-printing for gdb",
-                    "text": "-enable-pretty-printing",
-                    "ignoreFailures": true
-                }
-            ]
+            "preLaunchTask": "debug"
         }
     ]
 }
