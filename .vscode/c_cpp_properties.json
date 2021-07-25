@@ -5,6 +5,7 @@
             "includePath": [
                 "/usr/include",
                 "/usr/local/include",
+                "/opt/homebrew/include",
                 "${workspaceRoot}"
             ],
             "defines": [],
@@ -13,6 +14,7 @@
                 "path": [
                     "/usr/include",
                     "/usr/local/include",
+                    "/opt/homebrew/include",
                     "${workspaceRoot}"
                 ],
                 "limitSymbolsToIncludedHeaders": true,
@@ -21,7 +23,10 @@
             "macFrameworkPath": [
                 "/System/Library/Frameworks",
                 "/Library/Frameworks"
-            ]
+            ],
+            "compilerPath": "/usr/bin/clang",
+            "cStandard": "gnu99",
+            "cppStandard": "c++98"
         },
         {
             "name": "Linux",
@@ -54,7 +59,9 @@
                 ],
                 "limitSymbolsToIncludedHeaders": true,
                 "databaseFilename": ""
-            }
+            },
+            "cStandard": "gnu99",
+            "cppStandard": "c++98"
         },
         {
             "name": "Win32",
@@ -74,8 +81,10 @@
                 ],
                 "limitSymbolsToIncludedHeaders": true,
                 "databaseFilename": ""
-            }
+            },
+            "cStandard": "gnu99",
+            "cppStandard": "c++98"
         }
     ],
-    "version": 3
+    "version": 4
 }
