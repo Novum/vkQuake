@@ -176,6 +176,11 @@ static uint32_t current_swapchain_buffer;
 	if (fp##entrypoint == NULL) Sys_Error("vkGetInstanceProcAddr failed to find vk" #entrypoint); \
 }
 
+#define GET_GLOBAL_INSTANCE_PROC_ADDR(_var, entrypoint) { \
+	vulkan_globals. _var = (PFN_##entrypoint)fpGetInstanceProcAddr(vulkan_instance, #entrypoint); \
+	if (vulkan_globals. _var == NULL) Sys_Error("vkGetDeviceProcAddr failed to find " #entrypoint); \
+}
+
 #define GET_DEVICE_PROC_ADDR(entrypoint) { \
 	fp##entrypoint = (PFN_vk##entrypoint)fpGetDeviceProcAddr(vulkan_globals.device, "vk" #entrypoint); \
 	if (fp##entrypoint == NULL) Sys_Error("vkGetDeviceProcAddr failed to find vk" #entrypoint); \
@@ -952,9 +957,9 @@ static void GL_InitDevice( void )
 #ifdef _DEBUG
 	if (vulkan_globals.debug_utils)
 	{
-		GET_DEVICE_PROC_ADDR(SetDebugUtilsObjectNameEXT);
-		GET_GLOBAL_DEVICE_PROC_ADDR(vk_cmd_begin_debug_utils_label, vkCmdBeginDebugUtilsLabelEXT);
-		GET_GLOBAL_DEVICE_PROC_ADDR(vk_cmd_end_debug_utils_label, vkCmdEndDebugUtilsLabelEXT);
+		GET_INSTANCE_PROC_ADDR(SetDebugUtilsObjectNameEXT);
+		GET_GLOBAL_INSTANCE_PROC_ADDR(vk_cmd_begin_debug_utils_label, vkCmdBeginDebugUtilsLabelEXT);
+		GET_GLOBAL_INSTANCE_PROC_ADDR(vk_cmd_end_debug_utils_label, vkCmdEndDebugUtilsLabelEXT);
 	}
 #endif
 
