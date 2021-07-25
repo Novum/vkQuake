@@ -152,6 +152,10 @@ ifneq ($(HOST_OS),darwin)
 COMMON_LIBS+= -lvulkan
 CFLAGS+= -DLINUX
 else
+ifeq ($(shell test -d /opt/homebrew && echo true),true)
+COMMON_LIBS+= -L/opt/homebrew/lib
+CFLAGS+= -I/opt/homebrew/include
+endif
 COMMON_LIBS+= -lMoltenVK
 endif
 
