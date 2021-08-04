@@ -178,7 +178,7 @@ static uint32_t current_swapchain_buffer;
 
 #define GET_GLOBAL_INSTANCE_PROC_ADDR(_var, entrypoint) { \
 	vulkan_globals. _var = (PFN_##entrypoint)fpGetInstanceProcAddr(vulkan_instance, #entrypoint); \
-	if (vulkan_globals. _var == NULL) Sys_Error("vkGetDeviceProcAddr failed to find " #entrypoint); \
+	if (vulkan_globals. _var == NULL) Sys_Error("vkGetInstanceProcAddr failed to find " #entrypoint); \
 }
 
 #define GET_DEVICE_PROC_ADDR(entrypoint) { \
@@ -1649,7 +1649,7 @@ static qboolean GL_CreateSwapChain( void )
 			Sys_Error("Couldn't get surface capabilities");
 	}
 
-	if ((vulkan_surface_capabilities.currentExtent.width != 0xFFFFFFFF || vulkan_surface_capabilities.currentExtent.width != 0xFFFFFFFF)
+	if ((vulkan_surface_capabilities.currentExtent.width != 0xFFFFFFFF || vulkan_surface_capabilities.currentExtent.height != 0xFFFFFFFF)
 		&& (vulkan_surface_capabilities.currentExtent.width != vid.width || vulkan_surface_capabilities.currentExtent.height != vid.height)) {
 		return false;
 	}
