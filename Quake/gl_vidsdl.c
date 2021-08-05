@@ -2067,7 +2067,7 @@ qboolean GL_BeginRendering (int *x, int *y, int *width, int *height)
 	render_area.extent.height = vid.height;
 
 	VkClearValue depth_clear_value;
-	depth_clear_value.depthStencil.depth = 1.0f;
+	depth_clear_value.depthStencil.depth = 0.0f;
 	depth_clear_value.depthStencil.stencil = 0;
 
 	vulkan_globals.main_clear_values[0] = vulkan_globals.color_clear_value;
