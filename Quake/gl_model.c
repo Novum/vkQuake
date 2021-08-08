@@ -228,6 +228,7 @@ void Mod_ClearAll (void)
 			mod->needload = true;
 			TexMgr_FreeTexturesForOwner (mod); //johnfitz
 		}
+	Sky_ClearAll();
 }
 
 void Mod_ResetAll (void)
@@ -245,6 +246,7 @@ void Mod_ResetAll (void)
 		memset(mod, 0, sizeof(qmodel_t));
 	}
 	mod_numknown = 0;
+	Sky_ClearAll();
 }
 
 /*
