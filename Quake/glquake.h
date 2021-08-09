@@ -423,6 +423,7 @@ void DrawGLPoly (glpoly_t *p, float color[3], float alpha);
 void GL_MakeAliasModelDisplayLists (qmodel_t *m, aliashdr_t *hdr);
 
 void Sky_Init (void);
+void Sky_ClearAll (void);
 void Sky_DrawSky (void);
 void Sky_NewMap (void);
 void Sky_LoadTexture (texture_t *mt);

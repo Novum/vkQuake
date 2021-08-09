@@ -219,6 +219,24 @@ void Sky_LoadSkyBox (const char *name)
 
 /*
 =================
+Sky_ClearAll
+
+Called on map unload/game change to avoid keeping pointers to freed data
+=================
+*/
+void Sky_ClearAll (void)
+{
+	int i;
+
+	skybox_name[0] = 0;
+	for (i=0; i<6; i++)
+		skybox_textures[i] = NULL;
+	solidskytexture = NULL;
+	alphaskytexture = NULL;
+}
+
+/*
+=================
 Sky_NewMap
 =================
 */
@@ -226,14 +244,7 @@ void Sky_NewMap (void)
 {
 	char	key[128], value[4096];
 	const char	*data;
-	int		i;
 
-	//
-	// initially no sky
-	//
-	skybox_name[0] = 0;
-	for (i=0; i<6; i++)
-		skybox_textures[i] = NULL;
 	skyfog = r_skyfog.value;
 
 	//
