@@ -2563,6 +2563,7 @@ static void COM_Game_f (void)
 		//clear out and reload appropriate data
 		Cache_Flush ();
 		Mod_ResetAll();
+		Sky_ClearAll();
 		if (!isDedicated)
 		{
 			TexMgr_NewGame ();
