@@ -4,7 +4,11 @@ Misc/vq_pak/vkquake.pak
 Quake/*.dll
 Quake/*.o
 Quake/history.txt
+Quake/auth_mdl.txt
 Quake/id1/
+Quake/hipnotic/
+Quake/rogue/
+Quake/ad/
 Quake/vkquake
 Quake/vkQuake.exe
 Quake/vkQuake.res
