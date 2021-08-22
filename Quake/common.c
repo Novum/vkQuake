@@ -3025,7 +3025,7 @@ void LOC_LoadFile (const char *path)
 	localization.numindices = localization.numentries * 2; // 50% load factor
 	if (localization.numindices == 0)
 	{
-		Con_DPrintf("No localized strings in file '%s'\n", localization.numentries, path);
+		Con_DPrintf("No localized strings in file '%s'\n", path);
 		return;
 	}
 
