@@ -42,6 +42,15 @@ char *PR_GetTempString (void)
 ===============================================================================
 */
 
+static const char* PF_GetStringArg(int index, void* userdata)
+{
+	if (userdata)
+		index += *(int*)userdata;
+	if (index < 0 || index >= qcvm->argc)
+		return "";
+	return G_STRING((OFS_PARM0 + index * 3));
+}
+
 char *PF_VarString (int	first)
 {
 	int		i;
@@ -50,13 +59,25 @@ char *PF_VarString (int	first)
 
 	out[0] = 0;
 	s = 0;
-	for (i = first; i < qcvm->argc; i++)
+	if (first >= qcvm->argc)
+		return out;
+
+	const char *localized = LOC_GetRawString(G_STRING((OFS_PARM0 + first * 3)));
+	if (localized)
 	{
-		s = q_strlcat(out, G_STRING((OFS_PARM0+i*3)), sizeof(out));
-		if (s >= sizeof(out))
+		int offset = first + 1;
+		s = LOC_Format(localized, PF_GetStringArg, &offset, out, sizeof(out));
+	}
+	else
+	{
+		for (i = first; i < qcvm->argc; i++)
 		{
-			Con_Warning("PF_VarString: overflow (string truncated)\n");
-			return out;
+			s = q_strlcat(out, G_STRING((OFS_PARM0+i*3)), sizeof(out));
+			if (s >= sizeof(out))
+			{
+				Con_Warning("PF_VarString: overflow (string truncated)\n");
+				return out;
+			}
 		}
 	}
 	if (s > 255)

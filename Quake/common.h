@@ -205,6 +205,12 @@ void COM_CreatePath (char *path);
 char *va (const char *format, ...) FUNC_PRINTF(1,2);
 // does a varargs printf into a temp buffer
 
+unsigned COM_HashString (const char *str);
+
+void LOC_Init ();
+const char* LOC_GetRawString (const char* key);
+const char* LOC_GetString (const char* key);
+size_t LOC_Format (const char *format, const char* (*getarg) (int index, void* userdata), void* userdata, char* out, size_t len);
 
 //============================================================================
 

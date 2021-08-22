@@ -2572,6 +2572,7 @@ static void COM_Game_f (void)
 		}
 		ExtraMaps_NewGame ();
 		DemoList_Rebuild ();
+		LOC_Init ();
 
 		Con_Printf("\"game\" changed to \"%s\"\n", COM_GetGameNames(true));
 
@@ -2839,3 +2840,332 @@ long FS_filelength (fshandle_t *fh)
 	return fh->length;
 }
 
+/*
+============================================================================
+								LOCALIZATION
+============================================================================
+*/
+typedef struct
+{
+	char *key;
+	char *value;
+} locentry_t;
+
+typedef struct
+{
+	int			numentries;
+	int			maxnumentries;
+	int			numindices;
+	unsigned	*indices;
+	locentry_t	*entries;
+	char		*text;
+} localization_t;
+
+localization_t localization;
+
+/*
+================
+COM_HashString
+Computes the FNV-1a hash of string str
+================
+*/
+unsigned COM_HashString (const char *str)
+{
+	unsigned hash = 0x811c9dc5u;
+	while (*str)
+	{
+		hash ^= *str++;
+		hash *= 0x01000193u;
+	}
+	return hash;
+}
+
+/*
+================
+LOC_LoadFile
+================
+*/
+void LOC_LoadFile (const char *path)
+{
+	// clear existing data
+	if (localization.text)
+	{
+		free(localization.text);
+		localization.text = NULL;
+	}
+	localization.numentries = 0;
+	localization.numindices = 0;
+
+	if (!path)
+		return;
+
+	localization.text = (char*) COM_LoadMallocFile(path, NULL);
+	if (!localization.text)
+	{
+		Con_DPrintf("Couldn't load localization file '%s'\n", path);
+		return;
+	}
+
+	char *cursor = localization.text;
+
+	// skip BOM
+	if (cursor[0] == 0xEF && cursor[1] == 0xBB && cursor[2] == 0xB)
+		cursor += 3;
+
+	int lineno = 0;
+	while (*cursor)
+	{
+		lineno++;
+
+		// skip leading whitespace
+		while (q_isblank(*cursor))
+			++cursor;
+
+		char *line = cursor;
+		char *equals = NULL;
+		// find line end and first equals sign, if any
+		while (*cursor && *cursor != '\n')
+		{
+			if (*cursor == '=' && !equals)
+				equals = cursor;
+			cursor++;
+		}
+
+		if (equals)
+		{
+			char *key_end = equals;
+			// trim whitespace before equals sign
+			while (key_end != line && q_isspace(key_end[-1]))
+				key_end--;
+			*key_end = 0;
+
+			char *value = equals + 1;
+			// skip whitespace after equals sign
+			while (value != cursor && q_isspace(*value))
+				value++;
+
+			qboolean leading_quote = (*value == '\"');
+			qboolean trailing_quote = false;
+			value += leading_quote;
+
+			// transform escape sequences in-place
+			char *value_src = value;
+			char *value_dst = value;
+			while (value_src != cursor)
+			{
+				if (*value_src == '\\' && value_src + 1 != cursor)
+				{
+					char c = value_src[1];
+					value_src += 2;
+					switch (c)
+					{
+						case 'n': *value_dst++ = '\n'; break;
+						case 't': *value_dst++ = '\t'; break;
+						case 'v': *value_dst++ = '\v'; break;
+						case 'b': *value_dst++ = '\b'; break;
+						case 'f': *value_dst++ = '\f'; break;
+
+						case '"':
+						case '\'':
+							*value_dst++ = c;
+							break;
+
+						default:
+							Con_Printf("LOC_LoadFile: unrecognized escape sequence \\%c on line %d\n", c, lineno);
+							*value_dst++ = c;
+							break;
+					}
+					continue;
+				}
+
+				if (*value_src == '\"')
+				{
+					trailing_quote = true;
+					*value_dst = 0;
+					break;
+				}
+
+				*value_dst++ = *value_src++;
+			}
+
+			// if not a quoted string, trim trailing whitespace
+			if (!trailing_quote)
+			{
+				while (value_dst != value && q_isblank(value_dst[-1]))
+				{
+					*value_dst = 0;
+					value_dst--;
+				}
+			}
+
+			if (localization.numentries == localization.maxnumentries)
+			{
+				// grow by 50%
+				localization.maxnumentries += localization.maxnumentries >> 1;
+				localization.maxnumentries = q_max(localization.maxnumentries, 32);
+				localization.entries = (locentry_t*) realloc(localization.entries, sizeof(*localization.entries) * localization.maxnumentries);
+			}
+
+			locentry_t *entry = &localization.entries[localization.numentries++];
+			entry->key = line;
+			entry->value = value;
+		}
+
+		if (*cursor)
+			*cursor++ = 0; // terminate line and advance to next
+	}
+
+	// hash all entries
+
+	localization.numindices = localization.numentries * 2; // 50% load factor
+	if (localization.numindices == 0)
+	{
+		Con_DPrintf("No localized strings in file '%s'\n", localization.numentries, path);
+		return;
+	}
+
+	localization.indices = (unsigned*) realloc(localization.indices, localization.numindices * sizeof(*localization.indices));
+	memset(localization.indices, 0, localization.numindices * sizeof(*localization.indices));
+
+	int i;
+	for (i = 0; i < localization.numentries; i++)
+	{
+		locentry_t *entry = &localization.entries[i];
+		unsigned pos = COM_HashString(entry->key) % localization.numindices, end = pos;
+
+		for (;;)
+		{
+			if (!localization.indices[pos])
+			{
+				localization.indices[pos] = i + 1;
+				break;
+			}
+
+			++pos;
+			if (pos == localization.numindices)
+				pos = 0;
+
+			if (pos == end)
+				Sys_Error("COM_LoadLocalization failed");
+		}
+	}
+
+	Con_DPrintf("Loaded %d localized strings from '%s'\n", localization.numentries, path);
+}
+
+/*
+================
+LOC_Init
+================
+*/
+void LOC_Init()
+{
+	LOC_LoadFile("loc_english.txt");
+}
+
+/*
+================
+LOC_GetRawString
+
+Returns localized string if available, or NULL otherwise
+================
+*/
+const char* LOC_GetRawString (const char* key)
+{
+	if (!key || !*key || *key != '$' || !localization.numindices)
+		return NULL;
+	key++;
+
+	unsigned pos = COM_HashString(key) % localization.numindices, end = pos;
+
+	do
+	{
+		unsigned index = localization.indices[pos];
+		if (!index)
+			return NULL;
+
+		locentry_t *entry = &localization.entries[index - 1];
+		if (!Q_strcmp(entry->key, key))
+			return entry->value;
+
+		++pos;
+		if (pos == localization.numindices)
+			pos = 0;
+	} while (pos != end);
+
+	return NULL;
+}
+
+/*
+================
+LOC_GetString
+
+Returns localized string if available, or input string otherwise
+================
+*/
+const char* LOC_GetString (const char* key)
+{
+	const char* value = LOC_GetRawString(key);
+	return value ? value : key;
+}
+
+/*
+================
+LOC_Format
+
+Localizes the format string and performs argument substitution (also localizing the arguments)
+
+Returns number of written chars, excluding the NUL terminator
+If len > 0, output is always NUL-terminated
+================
+*/
+size_t LOC_Format (const char *format, const char* (*getarg) (int index, void* userdata), void* userdata, char* out, size_t len)
+{
+	if (!len)
+	{
+		Con_DPrintf("LOC_Format: no output space\n");
+		return 0;
+	}
+	--len; // reserve space for the terminator
+
+	format = LOC_GetString(format);
+	size_t written = 0;
+	int numargs = 0;
+
+	while (*format && written < len)
+	{
+		if (*format != '{')
+		{
+			out[written++] = *format++;
+			continue;
+		}
+
+		format++;
+		numargs++;
+
+		int argindex = 0;
+		int consumed = 0;
+		sscanf(format, "%d}%n", &argindex, &consumed);
+		format += consumed;
+
+		const char* insert = LOC_GetString(getarg(argindex, userdata));
+		size_t space_left = len - written;
+		size_t insert_len = Q_strlen(insert);
+
+		if (insert_len > space_left)
+		{
+			Con_DPrintf("LOC_Format: overflow at argument #%d\n", numargs);
+			insert_len = space_left;
+		}
+
+		Q_memcpy(out + written, insert, insert_len);
+		written += insert_len;
+	}
+
+	if (*format)
+		Con_DPrintf("LOC_Format: overflow\n");
+
+	out[written] = 0;
+
+	return written;
+}
