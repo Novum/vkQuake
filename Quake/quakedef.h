@@ -272,8 +272,6 @@ typedef struct
 #include "glquake.h"
 #include "../Shaders/shaders.h"
 
-#include "nightdive.h"
-
 //=============================================================================
 
 // the host system specifies the base of the directory tree, the
