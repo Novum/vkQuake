@@ -966,6 +966,7 @@ void SV_Physics_Client (edict_t	*ent, int num)
 
 	case MOVETYPE_TOSS:
 	case MOVETYPE_BOUNCE:
+	case MOVETYPE_GIB:
 		SV_Physics_Toss (ent);
 		break;
 
@@ -1268,6 +1269,7 @@ void SV_Physics (void)
 		else if (ent->v.movetype == MOVETYPE_STEP)
 			SV_Physics_Step (ent);
 		else if (ent->v.movetype == MOVETYPE_TOSS
+		|| ent->v.movetype == MOVETYPE_GIB
 		|| ent->v.movetype == MOVETYPE_BOUNCE
 		|| ent->v.movetype == MOVETYPE_FLY
 		|| ent->v.movetype == MOVETYPE_FLYMISSILE)
