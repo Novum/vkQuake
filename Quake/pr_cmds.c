@@ -55,14 +55,16 @@ char *PF_VarString (int	first)
 {
 	int		i;
 	static char out[1024];
+	const char *localized;
 	size_t s;
 
 	out[0] = 0;
 	s = 0;
+
 	if (first >= qcvm->argc)
 		return out;
 
-	const char *localized = LOC_GetRawString(G_STRING((OFS_PARM0 + first * 3)));
+	localized = LOC_GetRawString(G_STRING((OFS_PARM0 + first * 3)));
 	if (localized)
 	{
 		int offset = first + 1;

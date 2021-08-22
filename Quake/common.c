@@ -2887,6 +2887,9 @@ LOC_LoadFile
 */
 void LOC_LoadFile (const char *path)
 {
+	int i,lineno;
+	char *cursor;
+
 	// clear existing data
 	if (localization.text)
 	{
@@ -2906,23 +2909,25 @@ void LOC_LoadFile (const char *path)
 		return;
 	}
 
-	char *cursor = localization.text;
+	cursor = localization.text;
 
 	// skip BOM
 	if (cursor[0] == 0xEF && cursor[1] == 0xBB && cursor[2] == 0xB)
 		cursor += 3;
 
-	int lineno = 0;
+	lineno = 0;
 	while (*cursor)
 	{
+		char *line, *equals;
+
 		lineno++;
 
 		// skip leading whitespace
 		while (q_isblank(*cursor))
 			++cursor;
 
-		char *line = cursor;
-		char *equals = NULL;
+		line = cursor;
+		equals = NULL;
 		// find line end and first equals sign, if any
 		while (*cursor && *cursor != '\n')
 		{
@@ -2939,23 +2944,29 @@ void LOC_LoadFile (const char *path)
 		else if (equals)
 		{
 			char *key_end = equals;
+			qboolean leading_quote;
+			qboolean trailing_quote;
+			char *value_src;
+			char *value_dst;
+			char *value;
+
 			// trim whitespace before equals sign
 			while (key_end != line && q_isspace(key_end[-1]))
 				key_end--;
 			*key_end = 0;
 
-			char *value = equals + 1;
+			value = equals + 1;
 			// skip whitespace after equals sign
 			while (value != cursor && q_isspace(*value))
 				value++;
 
-			qboolean leading_quote = (*value == '\"');
-			qboolean trailing_quote = false;
+			leading_quote = (*value == '\"');
+			trailing_quote = false;
 			value += leading_quote;
 
 			// transform escape sequences in-place
-			char *value_src = value;
-			char *value_dst = value;
+			value_src = value;
+			value_dst = value;
 			while (value_src != cursor)
 			{
 				if (*value_src == '\\' && value_src + 1 != cursor)
@@ -3032,7 +3043,6 @@ void LOC_LoadFile (const char *path)
 	localization.indices = (unsigned*) realloc(localization.indices, localization.numindices * sizeof(*localization.indices));
 	memset(localization.indices, 0, localization.numindices * sizeof(*localization.indices));
 
-	int i;
 	for (i = 0; i < localization.numentries; i++)
 	{
 		locentry_t *entry = &localization.entries[i];
@@ -3063,7 +3073,7 @@ void LOC_LoadFile (const char *path)
 LOC_Init
 ================
 */
-void LOC_Init()
+void LOC_Init(void)
 {
 	LOC_LoadFile("localization/loc_english.txt");
 }
@@ -3077,19 +3087,23 @@ Returns localized string if available, or NULL otherwise
 */
 const char* LOC_GetRawString (const char* key)
 {
+	unsigned pos, end;
+
 	if (!key || !*key || *key != '$' || !localization.numindices)
 		return NULL;
 	key++;
 
-	unsigned pos = COM_HashString(key) % localization.numindices, end = pos;
+	pos = COM_HashString(key) % localization.numindices;
+	end = pos;
 
 	do
 	{
-		unsigned index = localization.indices[pos];
-		if (!index)
+		unsigned idx = localization.indices[pos];
+		locentry_t *entry;
+		if (!idx)
 			return NULL;
 
-		locentry_t *entry = &localization.entries[index - 1];
+		entry = &localization.entries[idx - 1];
 		if (!Q_strcmp(entry->key, key))
 			return entry->value;
 
@@ -3124,8 +3138,11 @@ Returns number of written chars, excluding the NUL terminator
 If len > 0, output is always NUL-terminated
 ================
 */
-size_t LOC_Format (const char *format, const char* (*getarg) (int index, void* userdata), void* userdata, char* out, size_t len)
+size_t LOC_Format (const char *format, const char* (*getarg) (int idx, void* userdata), void* userdata, char* out, size_t len)
 {
+	size_t written = 0;
+	int numargs = 0;
+
 	if (!len)
 	{
 		Con_DPrintf("LOC_Format: no output space\n");
@@ -3134,11 +3151,15 @@ size_t LOC_Format (const char *format, const char* (*getarg) (int index, void* u
 	--len; // reserve space for the terminator
 
 	format = LOC_GetString(format);
-	size_t written = 0;
-	int numargs = 0;
 
 	while (*format && written < len)
 	{
+		const char* insert;
+		int argindex = 0;
+		int consumed = 0;
+		size_t space_left;
+		size_t insert_len;
+
 		if (*format != '{')
 		{
 			out[written++] = *format++;
@@ -3148,14 +3169,12 @@ size_t LOC_Format (const char *format, const char* (*getarg) (int index, void* u
 		format++;
 		numargs++;
 
-		int argindex = 0;
-		int consumed = 0;
 		sscanf(format, "%d}%n", &argindex, &consumed);
 		format += consumed;
 
-		const char* insert = LOC_GetString(getarg(argindex, userdata));
-		size_t space_left = len - written;
-		size_t insert_len = Q_strlen(insert);
+		insert = LOC_GetString(getarg(argindex, userdata));
+		space_left = len - written;
+		insert_len = Q_strlen(insert);
 
 		if (insert_len > space_left)
 		{
