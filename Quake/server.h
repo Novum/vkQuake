@@ -217,6 +217,7 @@ typedef struct client_s
 #define	MOVETYPE_NOCLIP			8
 #define	MOVETYPE_FLYMISSILE		9		// extra size to monsters
 #define	MOVETYPE_BOUNCE			10
+#define	MOVETYPE_GIB			11		// 2021 rerelease gibs
 
 // edict->solid values
 #define	SOLID_NOT				0		// no interaction with other objects

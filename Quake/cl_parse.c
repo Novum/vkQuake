@@ -1972,6 +1972,12 @@ void CL_ParseServerMessage (void)
 			break;
 		//johnfitz
 
+		//used by the 2021 rerelease
+		case svc_achievement:
+			str = MSG_ReadString();
+			Con_DPrintf("Ignoring svc_achievement (%s)\n", str);
+			break;
+
 		//spike -- for particles more than anything else
 		case svcdp_precache:
 			if (!cl.protocol_pext2)
