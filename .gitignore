@@ -23,3 +23,5 @@ AppImage/vkquake*.AppImage
 .project
 .cproject
 .DS_Store
+build/
+vkquake.xcodeproj/
