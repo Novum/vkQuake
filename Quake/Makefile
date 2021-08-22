@@ -293,6 +293,7 @@ OBJS := strlcat.o \
 	sv_user.o \
 	world.o \
 	zone.o \
+	nightdive.o \
 	$(SYSOBJ_SYS) $(SYSOBJ_MAIN) $(SYSOBJ_RES)
 
 # ------------------------
