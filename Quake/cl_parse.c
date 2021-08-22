@@ -1707,12 +1707,6 @@ void CL_ParseServerMessage (void)
 
 		SHOWNET(svc_strings[cmd]);
 
-        // Nightdive
-        if (ND_ParseServerMessage(cmd))
-        {
-            return;
-        }
-        
 	// other commands
 		switch (cmd)
 		{
