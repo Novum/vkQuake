@@ -3065,7 +3065,7 @@ LOC_Init
 */
 void LOC_Init()
 {
-	LOC_LoadFile("loc_english.txt");
+	LOC_LoadFile("localization/loc_english.txt");
 }
 
 /*
