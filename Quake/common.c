@@ -2931,7 +2931,12 @@ void LOC_LoadFile (const char *path)
 			cursor++;
 		}
 
-		if (equals)
+		if (line[0] == '/')
+		{
+			if (line[1] != '/')
+				Con_Printf("LOC_LoadFile: malformed comment on line %d\n", lineno);
+		}
+		else if (equals)
 		{
 			char *key_end = equals;
 			// trim whitespace before equals sign
