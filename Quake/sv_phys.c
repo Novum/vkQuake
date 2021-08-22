@@ -1273,7 +1273,7 @@ void SV_Physics (void)
 		|| ent->v.movetype == MOVETYPE_FLYMISSILE)
 			SV_Physics_Toss (ent);
         // Nightdive
-        else if (ent->v.movetype == MOVETYPE_NIGHTDIVE)
+        else if (ent->v.movetype == MOVETYPE_NIGHTDIVE && nightdiveEnabled)
             SV_Physics_Nightdive (ent);
 		else
 			Host_EndGame ("SV_Physics: bad movetype %i", (int)ent->v.movetype);
