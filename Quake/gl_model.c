@@ -2125,7 +2125,13 @@ static FILE *Mod_FindVisibilityExternal(void)
 	q_snprintf(visfilename, sizeof(visfilename), "maps/%s.vis", loadname);
 	if (COM_FOpenFile(visfilename, &f, &path_id) < 0)
 	{
-		Con_DPrintf("Standard vis, %s not found\n", visfilename);
+		Con_DPrintf("%s not found, trying ", visfilename);
+		q_snprintf(visfilename, sizeof(visfilename), "%s.vis", COM_SkipPath(com_gamedir));
+		Con_DPrintf("%s\n", visfilename);
+	}
+	if (COM_FOpenFile(visfilename, &f, &path_id) < 0)
+	{
+		Con_DPrintf("external vis not found\n");
 		return NULL;
 	}
 	if (path_id < loadmodel->path_id)
