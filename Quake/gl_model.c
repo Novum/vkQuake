@@ -418,6 +418,25 @@ qboolean Mod_CheckFullbrights (byte *pixels, int count)
 
 /*
 =================
+Mod_CheckAnimTextureArrayQ64
+
+Check if we have any missing textures in the array
+=================
+*/
+qboolean Mod_CheckAnimTextureArrayQ64(texture_t *anims[], int numTex)
+{
+	int i;
+
+	for (i = 0; i < numTex; i++)
+	{
+		if (!anims[i])
+			return false;
+	}
+	return true;
+}
+
+/*
+=================
 Mod_LoadTextures
 =================
 */
@@ -468,7 +487,7 @@ void Mod_LoadTextures (lump_t *l, qboolean isQ64bsp)
 		for (j=0 ; j<MIPLEVELS ; j++)
 			mt->offsets[j] = LittleLong (mt->offsets[j]);
 
-		if ( !isQ64bsp && ((mt->width & 15) || (mt->height & 15)) )
+		if ( !isQ64bsp && ((mt->width & 15) || (mt->height & 15)) ) // Supported in Q64 bsp
 		{
 			Sys_Error ("Texture %s is not 16 aligned", mt->name);
 		}
@@ -673,6 +692,9 @@ void Mod_LoadTextures (lump_t *l, qboolean isQ64bsp)
 			else
 				Sys_Error ("Bad animating texture %s", tx->name);
 		}
+
+		if (isQ64bsp && !Mod_CheckAnimTextureArrayQ64(anims, maxanim))
+			continue; // Just pretend this is a normal texture
 
 #define	ANIM_CYCLE	2
 	// link them all together
