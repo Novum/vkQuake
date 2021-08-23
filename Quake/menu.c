@@ -1716,7 +1716,7 @@ void M_Quit_Draw (void) //johnfitz -- modified for new quit message
 
 int		lanConfig_cursor = -1;
 int		lanConfig_cursor_table [] = {72, 92, 124};
-#define NUM_LANCONFIG_CMDS	3
+#define NUM_LANCONFIG_CMDS	4
 
 int 	lanConfig_port;
 char	lanConfig_portname[6];
