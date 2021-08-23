@@ -66,6 +66,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 /* BSP2 support. 32bits instead of shorts for everything (bboxes use floats) */
 #define BSP2VERSION_BSP2 (('B' << 0) | ('S' << 8) | ('P' << 16) | ('2'<<24))
 
+// Quake64
+#define BSPVERSION_Q64 (('Q' << 24) | ('6' << 16) | ('4' << 8) | ' ')
+
 #define	TOOLVERSION	2
 
 typedef struct

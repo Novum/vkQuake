@@ -421,7 +421,7 @@ qboolean Mod_CheckFullbrights (byte *pixels, int count)
 Mod_LoadTextures
 =================
 */
-void Mod_LoadTextures (lump_t *l)
+void Mod_LoadTextures (lump_t *l, qboolean isQ64bsp)
 {
 	int		i, j, pixels, num, maxanim, altmax;
 	miptex_t	*mt;
@@ -468,8 +468,11 @@ void Mod_LoadTextures (lump_t *l)
 		for (j=0 ; j<MIPLEVELS ; j++)
 			mt->offsets[j] = LittleLong (mt->offsets[j]);
 
-		if ( (mt->width & 15) || (mt->height & 15) )
+		if ( !isQ64bsp && ((mt->width & 15) || (mt->height & 15)) )
+		{
 			Sys_Error ("Texture %s is not 16 aligned", mt->name);
+		}
+
 		pixels = mt->width*mt->height/64*85;
 		tx = (texture_t *) Hunk_AllocName (sizeof(texture_t) +pixels, loadname );
 		loadmodel->textures[i] = tx;
@@ -2204,6 +2207,7 @@ void Mod_LoadBrushModel (qmodel_t *mod, void *buffer)
 	dheader_t	*header;
 	dmodel_t 	*bm;
 	float		radius; //johnfitz
+	qboolean    isQ64bsp;
 
 	loadmodel->type = mod_brush;
 
@@ -2222,6 +2226,10 @@ void Mod_LoadBrushModel (qmodel_t *mod, void *buffer)
 	case BSP2VERSION_BSP2:
 		bsp2 = 2;	//sanitised revision
 		break;
+	case BSPVERSION_Q64:
+		isQ64bsp = true;
+		bsp2 = false;	// quake64
+		break;
 	default:
 		Sys_Error ("Mod_LoadBrushModel: %s has wrong version number (%i should be %i)", mod->name, mod->bspversion, BSPVERSION);
 		break;
@@ -2238,7 +2246,7 @@ void Mod_LoadBrushModel (qmodel_t *mod, void *buffer)
 	Mod_LoadVertexes (&header->lumps[LUMP_VERTEXES]);
 	Mod_LoadEdges (&header->lumps[LUMP_EDGES], bsp2);
 	Mod_LoadSurfedges (&header->lumps[LUMP_SURFEDGES]);
-	Mod_LoadTextures (&header->lumps[LUMP_TEXTURES]);
+	Mod_LoadTextures (&header->lumps[LUMP_TEXTURES], isQ64bsp);
 	Mod_LoadLighting (&header->lumps[LUMP_LIGHTING]);
 	Mod_LoadPlanes (&header->lumps[LUMP_PLANES]);
 	Mod_LoadTexinfo (&header->lumps[LUMP_TEXINFO]);
