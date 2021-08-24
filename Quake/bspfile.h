@@ -67,7 +67,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define BSP2VERSION_BSP2 (('B' << 0) | ('S' << 8) | ('P' << 16) | ('2'<<24))
 
 // Quake64
-#define BSPVERSION_Q64 (('Q' << 24) | ('6' << 16) | ('4' << 8) | ' ')
+#define BSPVERSION_QUAKE64 (('Q' << 24) | ('6' << 16) | ('4' << 8) | ' ')
 
 #define	TOOLVERSION	2
 

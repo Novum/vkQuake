@@ -487,7 +487,7 @@ void Mod_LoadTextures (lump_t *l, qboolean isQ64bsp)
 		for (j=0 ; j<MIPLEVELS ; j++)
 			mt->offsets[j] = LittleLong (mt->offsets[j]);
 
-		if ( !isQ64bsp && ((mt->width & 15) || (mt->height & 15)) ) // Supported in Q64 bsp
+		if (!isQ64bsp && ((mt->width & 15) || (mt->height & 15)))
 		{
 			Sys_Error ("Texture %s is not 16 aligned", mt->name);
 		}
@@ -599,6 +599,14 @@ void Mod_LoadTextures (lump_t *l, qboolean isQ64bsp)
 					if (data)
 						tx->fullbright = TexMgr_LoadImage (loadmodel, filename2, fwidth, fheight,
 							SRC_RGBA, data, filename, 0, TEXPREF_MIPMAP | extraflags );
+				}
+				else if (isQ64bsp) // Quake 64 RERELEASE
+				{
+					// Q64 bsp's have MIPLEVELS is 5 instead of 4 in bsp29
+					// Offset data by 4 since the mipmap 5 is not required... I think...
+					q_snprintf (texturename, sizeof(texturename), "%s:%s", loadmodel->name, tx->name);
+					tx->gltexture = TexMgr_LoadImage (loadmodel, texturename, tx->width, tx->height,
+						SRC_INDEXED, ((byte *)(tx+1) + 4), loadmodel->name, 0, TEXPREF_MIPMAP | extraflags);
 				}
 				else //use the texture from the bsp file
 				{
@@ -2229,7 +2237,7 @@ void Mod_LoadBrushModel (qmodel_t *mod, void *buffer)
 	dheader_t	*header;
 	dmodel_t 	*bm;
 	float		radius; //johnfitz
-	qboolean    isQ64bsp;
+	qboolean    isQ64bsp = false;
 
 	loadmodel->type = mod_brush;
 
@@ -2248,9 +2256,9 @@ void Mod_LoadBrushModel (qmodel_t *mod, void *buffer)
 	case BSP2VERSION_BSP2:
 		bsp2 = 2;	//sanitised revision
 		break;
-	case BSPVERSION_Q64:
+	case BSPVERSION_QUAKE64:
 		isQ64bsp = true;
-		bsp2 = false;	// quake64
+		bsp2 = false;
 		break;
 	default:
 		Sys_Error ("Mod_LoadBrushModel: %s has wrong version number (%i should be %i)", mod->name, mod->bspversion, BSPVERSION);
@@ -2269,7 +2277,7 @@ void Mod_LoadBrushModel (qmodel_t *mod, void *buffer)
 	Mod_LoadEdges (&header->lumps[LUMP_EDGES], bsp2);
 	Mod_LoadSurfedges (&header->lumps[LUMP_SURFEDGES]);
 	Mod_LoadTextures (&header->lumps[LUMP_TEXTURES], isQ64bsp);
-	Mod_LoadLighting (&header->lumps[LUMP_LIGHTING]);
+	if (!isQ64bsp)Mod_LoadLighting (&header->lumps[LUMP_LIGHTING]);
 	Mod_LoadPlanes (&header->lumps[LUMP_PLANES]);
 	Mod_LoadTexinfo (&header->lumps[LUMP_TEXINFO]);
 	Mod_LoadFaces (&header->lumps[LUMP_FACES], bsp2);
