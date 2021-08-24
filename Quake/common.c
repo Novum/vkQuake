@@ -3085,7 +3085,7 @@ LOC_GetRawString
 Returns localized string if available, or NULL otherwise
 ================
 */
-const char* LOC_GetRawString (const char* key)
+const char* LOC_GetRawString (const char *key)
 {
 	unsigned pos, end;
 
@@ -3122,7 +3122,7 @@ LOC_GetString
 Returns localized string if available, or input string otherwise
 ================
 */
-const char* LOC_GetString (const char* key)
+const char* LOC_GetString (const char *key)
 {
 	const char* value = LOC_GetRawString(key);
 	return value ? value : key;
@@ -3130,9 +3130,57 @@ const char* LOC_GetString (const char* key)
 
 /*
 ================
+LOC_ParseArg
+
+Returns argument index (>= 0) and advances the string if it starts with a placeholder ({} or {N}),
+otherwise returns a negative value and leaves the pointer unchanged
+================
+*/
+static int LOC_ParseArg (const char **pstr)
+{
+	int arg;
+	const char *start;
+	const char *str = *pstr;
+
+	// opening brace
+	if (*str != '{')
+		return -1;
+	start = ++str;
+
+	// optional index, defaulting to 0
+	arg = 0;
+	while (q_isdigit(*str))
+		arg = arg * 10 + *str++ - '0';
+
+	// closing brace
+	if (*str != '}')
+		return -1;
+	*pstr = ++str;
+
+	return arg;
+}
+
+/*
+================
+LOC_HasPlaceholders
+================
+*/
+qboolean LOC_HasPlaceholders (const char *str)
+{
+	while (*str)
+	{
+		if (LOC_ParseArg(&str) >= 0)
+			return true;
+		str++;
+	}
+	return false;
+}
+
+/*
+================
 LOC_Format
 
-Localizes the format string and performs argument substitution (also localizing the arguments)
+Replaces placeholders (of the form {} or {N}) with the corresponding arguments
 
 Returns number of written chars, excluding the NUL terminator
 If len > 0, output is always NUL-terminated
@@ -3150,29 +3198,20 @@ size_t LOC_Format (const char *format, const char* (*getarg) (int idx, void* use
 	}
 	--len; // reserve space for the terminator
 
-	format = LOC_GetString(format);
-
 	while (*format && written < len)
 	{
 		const char* insert;
-		int argindex = 0;
-		int consumed = 0;
 		size_t space_left;
 		size_t insert_len;
+		int argindex = LOC_ParseArg(&format);
 
-		if (*format != '{')
+		if (argindex < 0)
 		{
 			out[written++] = *format++;
 			continue;
 		}
 
-		format++;
-		numargs++;
-
-		sscanf(format, "%d}%n", &argindex, &consumed);
-		format += consumed;
-
-		insert = LOC_GetString(getarg(argindex, userdata));
+		insert = getarg(argindex, userdata);
 		space_left = len - written;
 		insert_len = Q_strlen(insert);
 

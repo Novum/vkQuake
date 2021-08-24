@@ -42,20 +42,20 @@ char *PR_GetTempString (void)
 ===============================================================================
 */
 
-static const char* PF_GetStringArg(int index, void* userdata)
+static const char* PF_GetStringArg(int idx, void* userdata)
 {
 	if (userdata)
-		index += *(int*)userdata;
-	if (index < 0 || index >= qcvm->argc)
+		idx += *(int*)userdata;
+	if (idx < 0 || idx >= qcvm->argc)
 		return "";
-	return G_STRING((OFS_PARM0 + index * 3));
+	return LOC_GetString(G_STRING(OFS_PARM0 + idx * 3));
 }
 
 char *PF_VarString (int	first)
 {
 	int		i;
 	static char out[1024];
-	const char *localized;
+	const char *format;
 	size_t s;
 
 	out[0] = 0;
@@ -64,17 +64,17 @@ char *PF_VarString (int	first)
 	if (first >= qcvm->argc)
 		return out;
 
-	localized = LOC_GetRawString(G_STRING((OFS_PARM0 + first * 3)));
-	if (localized)
+	format = LOC_GetString(G_STRING((OFS_PARM0 + first * 3)));
+	if (LOC_HasPlaceholders(format))
 	{
 		int offset = first + 1;
-		s = LOC_Format(localized, PF_GetStringArg, &offset, out, sizeof(out));
+		s = LOC_Format(format, PF_GetStringArg, &offset, out, sizeof(out));
 	}
 	else
 	{
 		for (i = first; i < qcvm->argc; i++)
 		{
-			s = q_strlcat(out, G_STRING((OFS_PARM0+i*3)), sizeof(out));
+			s = q_strlcat(out, LOC_GetString(G_STRING(OFS_PARM0+i*3)), sizeof(out));
 			if (s >= sizeof(out))
 			{
 				Con_Warning("PF_VarString: overflow (string truncated)\n");

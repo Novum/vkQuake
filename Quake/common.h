@@ -208,8 +208,9 @@ char *va (const char *format, ...) FUNC_PRINTF(1,2);
 unsigned COM_HashString (const char *str);
 
 void LOC_Init (void);
-const char* LOC_GetRawString (const char* key);
-const char* LOC_GetString (const char* key);
+const char* LOC_GetRawString (const char *key);
+const char* LOC_GetString (const char *key);
+qboolean LOC_HasPlaceholders (const char *str);
 size_t LOC_Format (const char *format, const char* (*getarg) (int index, void* userdata), void* userdata, char* out, size_t len);
 
 //============================================================================
