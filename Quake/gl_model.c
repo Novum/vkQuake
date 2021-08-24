@@ -420,6 +420,7 @@ qboolean Mod_CheckFullbrights (byte *pixels, int count)
 =================
 Mod_CheckAnimTextureArrayQ64
 
+Quake64 bsp
 Check if we have any missing textures in the array
 =================
 */
@@ -487,9 +488,10 @@ void Mod_LoadTextures (lump_t *l, qboolean isQ64bsp)
 		for (j=0 ; j<MIPLEVELS ; j++)
 			mt->offsets[j] = LittleLong (mt->offsets[j]);
 
-		if (!isQ64bsp && ((mt->width & 15) || (mt->height & 15)))
+		if ((mt->width & 15) || (mt->height & 15))
 		{
-			Sys_Error ("Texture %s is not 16 aligned", mt->name);
+			if (!isQ64bsp)
+				Sys_Error ("Texture %s is not 16 aligned", mt->name);
 		}
 
 		pixels = mt->width*mt->height/64*85;
@@ -602,11 +604,14 @@ void Mod_LoadTextures (lump_t *l, qboolean isQ64bsp)
 				}
 				else if (isQ64bsp) // Quake 64 RERELEASE
 				{
-					// Q64 bsp's have MIPLEVELS is 5 instead of 4 in bsp29
-					// Offset data by 4 since the mipmap 5 is not required... I think...
+					// Q64 bsp's have and extra int (divider) before the 4 mip offsets	
+					miptex64_t *mt64 = (miptex64_t *)mt;
+					byte * tex_data = (byte *)(mt64+1);
+					tx->name[15] = (char)mt64->shift; // store this in the texture name so we dont hace to modify texture_t... :)
+
 					q_snprintf (texturename, sizeof(texturename), "%s:%s", loadmodel->name, tx->name);
 					tx->gltexture = TexMgr_LoadImage (loadmodel, texturename, tx->width, tx->height,
-						SRC_INDEXED, ((byte *)(tx+1) + 4), loadmodel->name, 0, TEXPREF_MIPMAP | extraflags);
+						SRC_INDEXED, tex_data, loadmodel->name, 0, TEXPREF_MIPMAP | extraflags);
 				}
 				else //use the texture from the bsp file
 				{
@@ -956,7 +961,7 @@ void Mod_LoadEdges (lump_t *l, int bsp2)
 Mod_LoadTexinfo
 =================
 */
-void Mod_LoadTexinfo (lump_t *l)
+void Mod_LoadTexinfo (lump_t *l, qboolean isQ64bsp)
 {
 	texinfo_t *in;
 	mtexinfo_t *out;
@@ -998,6 +1003,22 @@ void Mod_LoadTexinfo (lump_t *l)
 			out->texture = loadmodel->textures[miptex];
 		}
 		//johnfitz
+
+		if (isQ64bsp && out->texture)
+		{
+			// Not sure yet if this is the right way to offset textures.
+			// Lets work on the lightdata and see how it goes...
+			for (j=0 ; j<4 ; j++)
+			{
+				int shift = (int)out->texture->name[15]; // multiplier stored in name[15]
+
+				if (shift > 0)
+				{
+					out->vecs[0][j] /= ( 2 * shift); 
+					out->vecs[1][j] /= ( 2 * shift);
+				}
+			}
+		}
 	}
 
 	//johnfitz: report missing textures
@@ -2277,9 +2298,9 @@ void Mod_LoadBrushModel (qmodel_t *mod, void *buffer)
 	Mod_LoadEdges (&header->lumps[LUMP_EDGES], bsp2);
 	Mod_LoadSurfedges (&header->lumps[LUMP_SURFEDGES]);
 	Mod_LoadTextures (&header->lumps[LUMP_TEXTURES], isQ64bsp);
-	if (!isQ64bsp)Mod_LoadLighting (&header->lumps[LUMP_LIGHTING]);
+	Mod_LoadLighting (&header->lumps[LUMP_LIGHTING]);
 	Mod_LoadPlanes (&header->lumps[LUMP_PLANES]);
-	Mod_LoadTexinfo (&header->lumps[LUMP_TEXINFO]);
+	Mod_LoadTexinfo (&header->lumps[LUMP_TEXINFO], isQ64bsp);
 	Mod_LoadFaces (&header->lumps[LUMP_FACES], bsp2);
 	Mod_LoadMarksurfaces (&header->lumps[LUMP_MARKSURFACES], bsp2);
 

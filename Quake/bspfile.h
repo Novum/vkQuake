@@ -123,6 +123,14 @@ typedef struct miptex_s
 	unsigned	offsets[MIPLEVELS];		// four mip maps stored
 } miptex_t;
 
+// Quake64
+typedef struct miptex64_s
+{
+	char		name[16];
+	unsigned	width, height;
+	unsigned	shift;
+	unsigned	offsets[MIPLEVELS];		// four mip maps stored
+} miptex64_t;
 
 typedef struct
 {
