@@ -1676,6 +1676,15 @@ static void PF_sv_changelevel (void)
 	Cbuf_AddText (va("changelevel %s\n",s));
 }
 
+/*
+==============
+PF_sv_finale_finished
+==============
+*/
+static void PF_sv_finale_finished (void)
+{
+}
+
 void PR_spawnfunc_misc_model(edict_t *self)
 {
 	eval_t *val;
@@ -1784,7 +1793,10 @@ builtin_t pr_ssqcbuiltins[] =
 	PF_sv_precache_sound,	// precache_sound2 is different only for qcc
 	PF_precache_file,
 
-	PF_sv_setspawnparms
+	PF_sv_setspawnparms,
+
+	// 2021 release
+	PF_sv_finale_finished,	// void() finaleFinished = #79
 };
 int pr_ssqcnumbuiltins = sizeof(pr_ssqcbuiltins)/sizeof(pr_ssqcbuiltins[0]);
 
