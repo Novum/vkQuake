@@ -2176,7 +2176,7 @@ static byte *Mod_LoadVisibilityExternal(FILE* f)
 	filelen = LittleLong(filelen);
 	if (filelen <= 0) return NULL;
 	Con_DPrintf("...%d bytes visibility data\n", filelen);
-	visdata = Hunk_AllocName(filelen, "EXT_VIS");
+	visdata = (byte *) Hunk_AllocName(filelen, "EXT_VIS");
 	if (!fread(visdata, filelen, 1, f))
 		return NULL;
 	return visdata;
@@ -2287,7 +2287,7 @@ visdone:
 
 	mod->numframes = 2;		// regular and alternate animation
 
-	Mod_CheckWaterVis();
+	Mod_CheckWaterVis ();
 
 //
 // set up the submodels (FIXME: this is confusing)

@@ -2573,7 +2573,7 @@ void M_ServerList_Key (int k)
 }
 
 //=============================================================================
-/* Credits menu */
+/* Credits menu -- used by the 2021 re-release */
 
 void M_Menu_Credits_f (void)
 {
