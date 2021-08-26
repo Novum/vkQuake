@@ -2900,26 +2900,23 @@ void LOC_LoadFile (const char *file)
 	localization.numentries = 0;
 	localization.numindices = 0;
 
-	if (!file || !*file) return;
+	if (!file || !*file)
+		return;
 
 	q_snprintf(path, sizeof(path), "%s/%s", com_basedir, file);
 	fp = fopen(path, "r");
 	if (!fp) goto fail;
-
 	fseek(fp, 0, SEEK_END);
 	i = ftell(fp);
 	if (i <= 0) goto fail;
-
-	localization.text = (char *) calloc(1, i + 1);
+	localization.text = (char *) calloc(1, i+1);
 	if (!localization.text)
 	{
 fail:		if (fp) fclose(fp);
 		Con_DPrintf("Couldn't load localization file '%s'\n", file);
 		return;
 	}
-
 	fseek(fp, 0, SEEK_SET);
-	localization.text[i] = 0;
 	fread(localization.text, 1, i, fp);
 	fclose(fp);
 
