@@ -2572,7 +2572,6 @@ static void COM_Game_f (void)
 		}
 		ExtraMaps_NewGame ();
 		DemoList_Rebuild ();
-		LOC_Init ();
 
 		Con_Printf("\"game\" changed to \"%s\"\n", COM_GetGameNames(true));
 
@@ -2885,8 +2884,10 @@ unsigned COM_HashString (const char *str)
 LOC_LoadFile
 ================
 */
-void LOC_LoadFile (const char *path)
+void LOC_LoadFile (const char *file)
 {
+	char path[1024];
+	FILE *fp = NULL;
 	int i,lineno;
 	char *cursor;
 
@@ -2899,15 +2900,28 @@ void LOC_LoadFile (const char *path)
 	localization.numentries = 0;
 	localization.numindices = 0;
 
-	if (!path)
-		return;
+	if (!file || !*file) return;
 
-	localization.text = (char*) COM_LoadMallocFile(path, NULL);
+	q_snprintf(path, sizeof(path), "%s/%s", com_basedir, file);
+	fp = fopen(path, "r");
+	if (!fp) goto fail;
+
+	fseek(fp, 0, SEEK_END);
+	i = ftell(fp);
+	if (i <= 0) goto fail;
+
+	localization.text = (char *) calloc(1, i + 1);
 	if (!localization.text)
 	{
-		Con_DPrintf("Couldn't load localization file '%s'\n", path);
+fail:		if (fp) fclose(fp);
+		Con_DPrintf("Couldn't load localization file '%s'\n", file);
 		return;
 	}
+
+	fseek(fp, 0, SEEK_SET);
+	localization.text[i] = 0;
+	fread(localization.text, 1, i, fp);
+	fclose(fp);
 
 	cursor = localization.text;
 
