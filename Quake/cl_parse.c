@@ -1923,7 +1923,7 @@ void CL_ParseServerMessage (void)
 			cl.completed_time = cl.time;
 			vid.recalc_refdef = true;	// go to full screen
 			//johnfitz -- log centerprints to console
-			str = LOC_GetString (MSG_ReadString ());
+			str = MSG_ReadString ();
 			SCR_CenterPrint (str);
 			Con_LogCenterPrint (str);
 			//johnfitz
@@ -1934,7 +1934,7 @@ void CL_ParseServerMessage (void)
 			cl.completed_time = cl.time;
 			vid.recalc_refdef = true;	// go to full screen
 			//johnfitz -- log centerprints to console
-			str = LOC_GetString (MSG_ReadString ());
+			str = MSG_ReadString ();
 			SCR_CenterPrint (str);
 			Con_LogCenterPrint (str);
 			//johnfitz

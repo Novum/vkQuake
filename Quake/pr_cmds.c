@@ -1617,7 +1617,7 @@ static void PF_sv_WriteCoord (void)
 
 static void PF_sv_WriteString (void)
 {
-	MSG_WriteString (WriteDest(), G_STRING(OFS_PARM1));
+	MSG_WriteString (WriteDest(), LOC_GetString(G_STRING(OFS_PARM1)));
 }
 
 static void PF_sv_WriteEntity (void)
