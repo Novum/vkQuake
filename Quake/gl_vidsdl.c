@@ -989,15 +989,15 @@ static void GL_InitDevice( void )
 	qboolean d32_support = (format_properties.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) != 0;
 
 	vulkan_globals.depth_format = VK_FORMAT_UNDEFINED;
-	if (x8_d24_support)
-	{
-		Con_Printf("Using D24_S8 depth buffer format\n");
-		vulkan_globals.depth_format = VK_FORMAT_D24_UNORM_S8_UINT;
-	}
-	else if(d32_support)
+	if (d32_support)
 	{
 		Con_Printf("Using D32_S8 depth buffer format\n");
 		vulkan_globals.depth_format = VK_FORMAT_D32_SFLOAT_S8_UINT;
+	}
+	else if (x8_d24_support)
+	{
+		Con_Printf("Using D24_S8 depth buffer format\n");
+		vulkan_globals.depth_format = VK_FORMAT_D24_UNORM_S8_UINT;
 	}
 	else
 	{
