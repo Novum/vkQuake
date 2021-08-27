@@ -2903,6 +2903,8 @@ void LOC_LoadFile (const char *file)
 	if (!file || !*file)
 		return;
 
+	Con_Printf("\nLanguage initialization\n");
+
 	q_snprintf(path, sizeof(path), "%s/%s", com_basedir, file);
 	fp = fopen(path, "r");
 	if (!fp) goto fail;
@@ -2913,7 +2915,7 @@ void LOC_LoadFile (const char *file)
 	if (!localization.text)
 	{
 fail:		if (fp) fclose(fp);
-		Con_DPrintf("Couldn't load localization file '%s'\n", file);
+		Con_Printf("Couldn't load '%s'\nfrom '%s'\n", file, com_basedir);
 		return;
 	}
 	fseek(fp, 0, SEEK_SET);
@@ -2950,7 +2952,7 @@ fail:		if (fp) fclose(fp);
 		if (line[0] == '/')
 		{
 			if (line[1] != '/')
-				Con_Printf("LOC_LoadFile: malformed comment on line %d\n", lineno);
+				Con_DPrintf("LOC_LoadFile: malformed comment on line %d\n", lineno);
 		}
 		else if (equals)
 		{
@@ -3048,7 +3050,7 @@ fail:		if (fp) fclose(fp);
 	localization.numindices = localization.numentries * 2; // 50% load factor
 	if (localization.numindices == 0)
 	{
-		Con_DPrintf("No localized strings in file '%s'\n", path);
+		Con_Printf("No localized strings in file '%s'\n", file);
 		return;
 	}
 
@@ -3073,11 +3075,11 @@ fail:		if (fp) fclose(fp);
 				pos = 0;
 
 			if (pos == end)
-				Sys_Error("COM_LoadLocalization failed");
+				Sys_Error("LOC_LoadFile failed");
 		}
 	}
 
-	Con_DPrintf("Loaded %d localized strings from '%s'\n", localization.numentries, path);
+	Con_Printf("Loaded %d strings from '%s'\n", localization.numentries, file);
 }
 
 /*
