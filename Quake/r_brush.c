@@ -388,9 +388,7 @@ int AllocBlock (int w, int h, int *x, int *y)
 			lightmap_count++;
 			lightmaps = (struct lightmap_s *) realloc(lightmaps, sizeof(*lightmaps)*lightmap_count);
 			memset(&lightmaps[texnum], 0, sizeof(lightmaps[texnum]));
-			/* FIXME: we leave 'gaps' in malloc()ed data,  CRC_Block() later accesses
-			 * that uninitialized data and valgrind complains for it.  use calloc() ? */
-			lightmaps[texnum].data = (byte *) malloc(4*LMBLOCK_WIDTH*LMBLOCK_HEIGHT);
+			lightmaps[texnum].data = (byte *) calloc(1, 4*LMBLOCK_WIDTH*LMBLOCK_HEIGHT);
 			//as we're only tracking one texture, we don't need multiple copies of allocated any more.
 			memset(allocated, 0, sizeof(allocated));
 		}
