@@ -23,8 +23,4 @@ AppImage/vkquake*.AppImage
 .project
 .cproject
 .DS_Store
-<<<<<<< Updated upstream
 build/
-=======
-build
->>>>>>> Stashed changes

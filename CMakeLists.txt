@@ -3,8 +3,6 @@ project(vkquake)
 
 set(CMAKE_CXX_STANDARD 98)
 
-<<<<<<< Updated upstream
-=======
 ### Enable/Disable codecs for streaming music support
 set(USE_CODEC_WAVE 1)
 set(USE_CODEC_FLAC 0)
@@ -16,7 +14,6 @@ set(USE_CODEC_MIKMOD 0)
 set(USE_CODEC_XMP 0)
 set(USE_CODEC_UMX 0)
 
->>>>>>> Stashed changes
 if(APPLE)
     set(CMAKE_APPLE_SILICON_PROCESSOR ON)
     set(CMAKE_OSX_ARCHITECTURES "arm64")
@@ -27,13 +24,6 @@ if(APPLE)
     message("CMAKE_CROSSCOMPILING: ${CMAKE_CROSSCOMPILING}")
 endif(APPLE)
 
-<<<<<<< Updated upstream
-if(MSVC)
-set(WINDOWS_RES_DIR ${PROJECT_SOURCE_DIR}/Windows/)
-endif(MSVC)
-
-if(MSVC)
-=======
 if(WIN32)
 set(WINDOWS_RES_DIR ${PROJECT_SOURCE_DIR}/Windows/)
 	if( CMAKE_SIZEOF_VOID_P EQUAL 8 )
@@ -44,7 +34,6 @@ set(WINDOWS_RES_DIR ${PROJECT_SOURCE_DIR}/Windows/)
 endif(WIN32)
 
 if(WIN32)
->>>>>>> Stashed changes
 	set(COMPILE_DEF
 		WIN32
 		_DEBUG
@@ -52,30 +41,6 @@ if(WIN32)
 		_CRT_NONSTDC_NO_DEPRECATE
 		_CRT_SECURE_NO_WARNINGS
 		_WINSOCK_DEPRECATED_NO_WARNINGS
-<<<<<<< Updated upstream
-		USE_CODEC_WAVE
-		#USE_CODEC_VORBIS
-		#sUSE_CODEC_MP3
-		#USE_CODEC_FLAC
-		#USE_CODEC_OPUS
-		#USE_CODEC_MIKMOD
-		#USE_CODEC_UMX
-		)
-endif(MSVC)
-
-add_compile_definitions(
-	${COMPILE_DEF}
-    )
-
-set(INCLUDES "")
-
-if(MSVC)
-	set(INCLUDES ${INCLUDES}
-	${WINDOWS_RES_DIR}/SDL2/include
-	C:/VulkanSDK/1.2.182.0/Include
-	)
-endif(MSVC)
-=======
 		)
 endif(WIN32)
 
@@ -90,7 +55,6 @@ if(WIN32)
 	${WINDOWS_RES_DIR}/codecs/Include
 	)
 endif(WIN32)
->>>>>>> Stashed changes
 
 include_directories(
     /usr/local/include/
@@ -98,45 +62,6 @@ include_directories(
 	${INCLUDES}
     )
 
-<<<<<<< Updated upstream
-link_directories(
-    /usr/local/lib/
-    /opt/homebrew/lib
-    )
-
-# Libraries
-#find_library(VULKAN_LIBRARY NAMES vulkan vulkan-1)
-#set(LIB_VULKAN ${VULKAN_LIBRARY})
-
-#find_library(SDL_LIBRARY NAMES SDL2)
-#set(LIB_SDL ${SDL_LIBRARY})
-#find_package(SDL2 REQUIRED)
-
-if (MSVC)
-
-	find_library(VULKAN_LIBRARY_64 NAMES vulkan vulkan-1
-		PATHS C:/VulkanSDK/1.2.182.0/lib
-		REQUIRED
-	)
-	
-	find_library(VULKAN_LIBRARY_32 NAMES vulkan vulkan-1
-		PATHS C:/VulkanSDK/1.2.182.0/lib32
-		REQUIRED
-	)
-
-	find_library(SDL2_LIBRARY_RELEASE_64 NAMES SDL2 sdl2 
-		PATHS ${WINDOWS_RES_DIR}/SDL2/lib64
-		NO_DEFAULT_PATH
-		REQUIRED
-	)
-
-	find_library(SDL2_LIBRARY_RELEASE_32 NAMES SDL2 sdl2 
-	PATHS ${WINDOWS_RES_DIR}/SDL2/lib
-	NO_DEFAULT_PATH
-	REQUIRED
-)
-endif(MSVC)
-=======
 set(LIBRARY_PATH
 	/usr/local/lib/
 	/opt/homebrew/lib
@@ -232,7 +157,6 @@ endif()
 
 link_directories(${LIBRARY_PATH})
 
->>>>>>> Stashed changes
 
 file(GLOB MUSIC_OBJS
     quake/bgmusic.c
@@ -257,24 +181,14 @@ file(GLOB SYSOBJ_NET quake/net_bsd.c quake/net_udp.c)
 file(GLOB SYSOBJ_MAIN quake/main_sdl.c)
 
 # SYS
-<<<<<<< Updated upstream
-if(APPLE)
-file(GLOB SYSOBJ_SYS quake/pl_linux.c quake/sys_sdl_unix.c)
-elseif(MSVC)
-=======
 if(APPLE OR LINUX)
 file(GLOB SYSOBJ_SYS quake/pl_linux.c quake/sys_sdl_unix.c)
 elseif(WIN32)
->>>>>>> Stashed changes
 file(GLOB SYSOBJ_SYS quake/pl_win.c quake/sys_sdl_win.c)
 endif()
 
 # NET
-<<<<<<< Updated upstream
-if(APPLE)
-=======
 if(APPLE OR LINUX)
->>>>>>> Stashed changes
 file(GLOB SYSOBJ_NET quake/net_bsd.c quake/net_udp.c)
 elseif(WIN32)
 file(GLOB SYSOBJ_NET quake/net_win.c quake/net_wins.c quake/net_wipx.c)
@@ -330,20 +244,11 @@ file(GLOB GLOBJS
 	quake/gl_model.c
     )
 
-<<<<<<< Updated upstream
-IF(MSVC)
-set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /NODEFAULTLIB:MSVCRT.lib /SUBSYSTEM:WINDOWS")
-set (MSVC_RUNTIME_LIBRARY MultiThreadedDebugDLL)
-ENDIF(MSVC)
-
-add_executable(${PROJECT_NAME} 
-=======
 if(MSVC)
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SUBSYSTEM:WINDOWS")
 endif(MSVC)
 
 add_executable(${PROJECT_NAME}
->>>>>>> Stashed changes
     # Source
     quake/strlcat.c
 	quake/strlcpy.c
@@ -390,29 +295,9 @@ add_executable(${PROJECT_NAME}
 	${SYSOBJ_SYS} ${SYSOBJ_MAIN}
     )
 
-<<<<<<< Updated upstream
-set(PLATFORM_LIB
-	#libvorbisfile.lib
-	#libvorbis.lib
-	#libopusfile.lib
-	#libopus.lib
-	#libFLAC.lib
-	#libogg.lib
-	#libmad.lib
-	#libmikmod.lib
-	ws2_32.lib
-	winmm.lib
-	)
-
-target_link_libraries(${PROJECT_NAME}
-	${PLATFORM_LIB}
-    ${VULKAN_LIBRARY_64}
-	${SDL2_LIBRARY_RELEASE_64}
-=======
 target_link_libraries(${PROJECT_NAME}
 	${PLATFORM_LIB}
     ${VULKAN_LIBRARY}
 	${CODECS_LIBS}
 	${SDL2_LIBRARY}
->>>>>>> Stashed changes
     )
