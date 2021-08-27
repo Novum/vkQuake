@@ -2923,7 +2923,7 @@ fail:		if (fp) fclose(fp);
 	cursor = localization.text;
 
 	// skip BOM
-	if (cursor[0] == 0xEF && cursor[1] == 0xBB && cursor[2] == 0xB)
+	if ((unsigned char)(cursor[0]) == 0xEF && (unsigned char)(cursor[1]) == 0xBB && cursor[2] == 0xB)
 		cursor += 3;
 
 	lineno = 0;
@@ -2957,6 +2957,7 @@ fail:		if (fp) fclose(fp);
 			char *key_end = equals;
 			qboolean leading_quote;
 			qboolean trailing_quote;
+			locentry_t *entry;
 			char *value_src;
 			char *value_dst;
 			char *value;
@@ -3033,7 +3034,7 @@ fail:		if (fp) fclose(fp);
 				localization.entries = (locentry_t*) realloc(localization.entries, sizeof(*localization.entries) * localization.maxnumentries);
 			}
 
-			locentry_t *entry = &localization.entries[localization.numentries++];
+			entry = &localization.entries[localization.numentries++];
 			entry->key = line;
 			entry->value = value;
 		}
