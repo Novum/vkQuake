@@ -2860,7 +2860,7 @@ typedef struct
 	char		*text;
 } localization_t;
 
-localization_t localization;
+static localization_t localization;
 
 /*
 ================
@@ -3092,6 +3092,18 @@ void LOC_Init(void)
 
 /*
 ================
+LOC_Shutdown
+================
+*/
+void LOC_Shutdown(void)
+{
+	free(localization.indices);
+	free(localization.entries);
+	free(localization.text);
+}
+
+/*
+================
 LOC_GetRawString
 
 Returns localized string if available, or NULL otherwise
@@ -3101,7 +3113,7 @@ const char* LOC_GetRawString (const char *key)
 {
 	unsigned pos, end;
 
-	if (!key || !*key || *key != '$' || !localization.numindices)
+	if (!localization.numindices || !key || !*key || *key != '$')
 		return NULL;
 	key++;
 
@@ -3179,6 +3191,8 @@ LOC_HasPlaceholders
 */
 qboolean LOC_HasPlaceholders (const char *str)
 {
+	if (!localization.numindices)
+		return false;
 	while (*str)
 	{
 		if (LOC_ParseArg(&str) >= 0)
@@ -3198,7 +3212,7 @@ Returns number of written chars, excluding the NUL terminator
 If len > 0, output is always NUL-terminated
 ================
 */
-size_t LOC_Format (const char *format, const char* (*getarg) (int idx, void* userdata), void* userdata, char* out, size_t len)
+size_t LOC_Format (const char *format, const char* (*getarg_fn) (int idx, void* userdata), void* userdata, char* out, size_t len)
 {
 	size_t written = 0;
 	int numargs = 0;
@@ -3223,7 +3237,7 @@ size_t LOC_Format (const char *format, const char* (*getarg) (int idx, void* use
 			continue;
 		}
 
-		insert = getarg(argindex, userdata);
+		insert = getarg_fn(argindex, userdata);
 		space_left = len - written;
 		insert_len = Q_strlen(insert);
 
