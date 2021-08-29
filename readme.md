@@ -150,3 +150,14 @@ Generally, the below setup works for multiple engines, including Quakespasm/vkQu
 * The files are named in the pattern "tracknn", where "nn" is the CD track number that the file was ripped from. Since the soundtrack starts at the second CD track, MP3 soundtrack files are named "track02.mp3", "track03.mp3", etc. OGG soundtrack files are named "track02.ogg", "track03.ogg", etc. FLAC soundtrack files are named "track02.flac", "track03.flac", etc. WAV soundtrack files are named "track02.wav", "track03.wav", etc.
 
 **See more:** [Quake Soundtrack Solutions (Steam Community)](http://steamcommunity.com/sharedfiles/filedetails/?id=119489135)
+
+# Quake '2021 re-release'
+
+vkQuake has initial support for playing the 2021 re-release content:
+
+* Copy the vkQuake exe to your rerelease installation.
+* Note: Do not mix-and-match original and rerelease contents: results may be unpredictable.
+* Extract the English localization file in the rerelease directory:<br/>
+  `unzip QuakeEX.kpf localization/loc_english.txt`<br/>
+  Note: the extracted file should be in the `rerelease/localization` directory, not `rerelease`.
+* Run vkQuake as you normally do.
