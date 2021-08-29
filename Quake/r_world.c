@@ -382,11 +382,11 @@ R_FlushBatch
 Draw the current batch if non-empty and clears it, ready for more R_BatchSurface calls.
 ================
 */
-static void R_FlushBatch (qboolean fullbright_enabled, qboolean alpha_test, qboolean alpha_blend, gltexture_t * lightmap_texture)
+static void R_FlushBatch (qboolean fullbright_enabled, qboolean alpha_test, qboolean alpha_blend, qboolean use_zbias, gltexture_t * lightmap_texture)
 {
 	if (num_vbo_indices > 0)
 	{
-		int pipeline_index = (fullbright_enabled ? 1 : 0) + (alpha_test ? 2 : 0) + (alpha_blend ? 4 : 0);
+		int pipeline_index = (fullbright_enabled ? 1 : 0) + (alpha_test ? 2 : 0) + (alpha_blend ? 4 : 0) + (use_zbias ? 8 : 0);
 		R_BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipelines[pipeline_index]);
 
 		if (!r_fullbright_cheatsafe)
@@ -414,14 +414,14 @@ Add the surface to the current batch, or just draw it immediately if we're not
 using VBOs.
 ================
 */
-static void R_BatchSurface (msurface_t *s, qboolean fullbright_enabled, qboolean alpha_test, qboolean alpha_blend, gltexture_t * lightmap_texture)
+static void R_BatchSurface (msurface_t *s, qboolean fullbright_enabled, qboolean alpha_test, qboolean alpha_blend, qboolean use_zbias, gltexture_t * lightmap_texture)
 {
 	int num_surf_indices;
 
 	num_surf_indices = R_NumTriangleIndicesForSurf (s);
 
 	if (num_vbo_indices + num_surf_indices > MAX_BATCH_SIZE)
-		R_FlushBatch(fullbright_enabled, alpha_test, alpha_blend, lightmap_texture);
+		R_FlushBatch(fullbright_enabled, alpha_test, alpha_blend, use_zbias, lightmap_texture);
 
 	R_TriangleIndicesForSurf (s, &vbo_indices[num_vbo_indices]);
 	num_vbo_indices += num_surf_indices;
@@ -536,6 +536,7 @@ void R_DrawTextureChains_Multitexture (qmodel_t *model, entity_t *ent, texchain_
 	qboolean	fullbright_enabled = false;
 	qboolean	alpha_test = false;
 	qboolean	alpha_blend = alpha < 1.0f;
+	qboolean	use_zbias = model != cl.worldmodel;
 	int		lastlightmap;
 	gltexture_t	*fullbright = NULL;
 
@@ -587,17 +588,17 @@ void R_DrawTextureChains_Multitexture (qmodel_t *model, entity_t *ent, texchain_
 
 			if (s->lightmaptexturenum != lastlightmap)
 			{
-				R_FlushBatch (fullbright_enabled, alpha_test, alpha_blend, lightmap_texture);
+				R_FlushBatch (fullbright_enabled, alpha_test, alpha_blend, use_zbias, lightmap_texture);
 				lightmap_texture = lightmaps[s->lightmaptexturenum].texture;
 			}
 
 			lastlightmap = s->lightmaptexturenum;
-			R_BatchSurface (s, fullbright_enabled, alpha_test, alpha_blend, lightmap_texture);
+			R_BatchSurface (s, fullbright_enabled, alpha_test, alpha_blend, use_zbias, lightmap_texture);
 
 			rs_brushpasses++;
 		}
 
-		R_FlushBatch (fullbright_enabled, alpha_test, alpha_blend, lightmap_texture);
+		R_FlushBatch (fullbright_enabled, alpha_test, alpha_blend, use_zbias, lightmap_texture);
 	}
 }
 
