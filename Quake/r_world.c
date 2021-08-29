@@ -25,7 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 
-extern cvar_t gl_fullbrights, r_drawflat, r_oldskyleaf, r_showtris, r_simd; //johnfitz
+extern cvar_t gl_fullbrights, r_drawflat, r_oldskyleaf, r_showtris, r_simd, gl_zfix; //johnfitz
 
 byte *SV_FatPVS (vec3_t org, qmodel_t *worldmodel);
 
@@ -536,7 +536,7 @@ void R_DrawTextureChains_Multitexture (qmodel_t *model, entity_t *ent, texchain_
 	qboolean	fullbright_enabled = false;
 	qboolean	alpha_test = false;
 	qboolean	alpha_blend = alpha < 1.0f;
-	qboolean	use_zbias = model != cl.worldmodel;
+	qboolean	use_zbias = (gl_zfix.value && model != cl.worldmodel);
 	int		lastlightmap;
 	gltexture_t	*fullbright = NULL;
 
