@@ -2538,10 +2538,10 @@ void	VID_Init (void)
 	vid.colormap = host_colormap;
 	vid.fullbright = 256 - LittleLong (*((int *)vid.colormap + 2048));
 
+	VID_SetMode (width, height, refreshrate, bpp, fullscreen);
+
 	// set window icon
 	PL_SetWindowIcon();
-
-	VID_SetMode (width, height, refreshrate, bpp, fullscreen);
 
 	Con_Printf("\nVulkan Initialization\n");
 	SDL_Vulkan_LoadLibrary(NULL);
