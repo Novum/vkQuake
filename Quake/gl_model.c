@@ -808,9 +808,10 @@ void Mod_LoadEntities (lump_t *l)
 	if (! external_ents.value)
 		goto _load_embedded;
 
-	if (l->filelen > 0)
-		crc = CRC_Block(mod_base + l->fileofs, l->filelen - 1);
 	mark = Hunk_LowMark();
+	if (l->filelen > 0) {
+		crc = CRC_Block(mod_base + l->fileofs, l->filelen - 1);
+	}
 
 	q_strlcpy(basemapname, loadmodel->name, sizeof(basemapname));
 	COM_StripExtension(basemapname, basemapname, sizeof(basemapname));
