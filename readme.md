@@ -156,10 +156,8 @@ Generally, the below setup works for multiple engines, including Quakespasm/vkQu
 vkQuake has initial support for playing the 2021 re-release content:
 
 * Copy the vkQuake exe to your rerelease installation.
-* Note: Do not copy vkquake.pak: the entity fixes contained in it might cause ill effects.
 * Note: Do not mix-and-match original and rerelease contents: results may be unpredictable.
 * Extract the English localization file in the rerelease directory:<br/>
   `unzip QuakeEX.kpf localization/loc_english.txt`<br/>
   Note: the extracted file should be in the `rerelease/localization` directory, not `rerelease`.
 * Run vkQuake as you normally do.
-
