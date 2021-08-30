@@ -123,7 +123,7 @@ typedef struct vulkan_desc_set_layout_s {
 	int							num_storage_images;
 } vulkan_desc_set_layout_t;
 
-#define WORLD_PIPELINE_COUNT 16
+#define WORLD_PIPELINE_COUNT 8
 
 typedef struct
 {

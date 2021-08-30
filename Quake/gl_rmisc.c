@@ -1467,7 +1467,7 @@ R_CreatePipelines
 void R_CreatePipelines()
 {
 	int render_pass;
-	int alpha_blend, alpha_test, fullbright_enabled, use_zbias;
+	int alpha_blend, alpha_test, fullbright_enabled;
 	VkResult err;
 
 	Sys_Printf("Creating pipelines\n");
@@ -1942,8 +1942,9 @@ void R_CreatePipelines()
 	rasterization_state_create_info.polygonMode = VK_POLYGON_MODE_FILL;
 	depth_stencil_state_create_info.depthTestEnable = VK_TRUE;
 	depth_stencil_state_create_info.depthWriteEnable = VK_TRUE;
-	rasterization_state_create_info.depthBiasEnable = VK_FALSE;
+	rasterization_state_create_info.depthBiasEnable = VK_TRUE;
 	input_assembly_state_create_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+	dynamic_states[dynamic_state_create_info.dynamicStateCount++] = VK_DYNAMIC_STATE_DEPTH_BIAS;
 
 	VkVertexInputAttributeDescription world_vertex_input_attribute_descriptions[3];
 	world_vertex_input_attribute_descriptions[0].binding = 0;
@@ -1997,41 +1998,31 @@ void R_CreatePipelines()
 	shader_stages[1].module = world_frag_module;
 	shader_stages[1].pSpecializationInfo = &specialization_info;
 
-	for (use_zbias = 0; use_zbias < 2; ++use_zbias) {
-		if (use_zbias) {
-			rasterization_state_create_info.depthBiasEnable = VK_TRUE;
-			rasterization_state_create_info.depthBiasConstantFactor = (vulkan_globals.depth_format != VK_FORMAT_D16_UNORM) ? -500.0f : -2.5f;
-		} else {
-			rasterization_state_create_info.depthBiasEnable = VK_FALSE;
-			rasterization_state_create_info.depthBiasConstantFactor = 0.f;
-		}
+	for (alpha_blend = 0; alpha_blend < 2; ++alpha_blend) {
+		for (alpha_test = 0; alpha_test < 2; ++alpha_test) {
+			for (fullbright_enabled = 0; fullbright_enabled < 2; ++fullbright_enabled) {
+				int pipeline_index = fullbright_enabled + (alpha_test * 2) + (alpha_blend * 4);
 
-		for (alpha_blend = 0; alpha_blend < 2; ++alpha_blend) {
-			for (alpha_test = 0; alpha_test < 2; ++alpha_test) {
-				for (fullbright_enabled = 0; fullbright_enabled < 2; ++fullbright_enabled) {
-					int pipeline_index = fullbright_enabled + (alpha_test * 2) + (alpha_blend * 4) + (use_zbias * 8);
+				specialization_data[0] = fullbright_enabled;
+				specialization_data[1] = alpha_test;
+				specialization_data[2] = alpha_blend;
 
-					specialization_data[0] = fullbright_enabled;
-					specialization_data[1] = alpha_test;
-					specialization_data[2] = alpha_blend;
-
-					blend_attachment_state.blendEnable = alpha_blend ? VK_TRUE : VK_FALSE;
-					depth_stencil_state_create_info.depthWriteEnable = alpha_blend ? VK_FALSE : VK_TRUE;
-					if ( pipeline_index > 0 ) {
-						pipeline_create_info.flags = VK_PIPELINE_CREATE_DERIVATIVE_BIT;
-						pipeline_create_info.basePipelineHandle = vulkan_globals.world_pipelines[0].handle;
-						pipeline_create_info.basePipelineIndex = -1;
-					} else {
-						pipeline_create_info.flags = VK_PIPELINE_CREATE_ALLOW_DERIVATIVES_BIT;
-					}
-
-					assert(vulkan_globals.world_pipelines[pipeline_index].handle == VK_NULL_HANDLE);
-					err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.world_pipelines[pipeline_index].handle);
-					if (err != VK_SUCCESS)
-						Sys_Error("vkCreateGraphicsPipelines failed");
-					GL_SetObjectName((uint64_t)vulkan_globals.world_pipelines[pipeline_index].handle, VK_OBJECT_TYPE_PIPELINE, va("world %d", pipeline_index));
-					vulkan_globals.world_pipelines[pipeline_index].layout = vulkan_globals.world_pipeline_layout;
+				blend_attachment_state.blendEnable = alpha_blend ? VK_TRUE : VK_FALSE;
+				depth_stencil_state_create_info.depthWriteEnable = alpha_blend ? VK_FALSE : VK_TRUE;
+				if ( pipeline_index > 0 ) {
+					pipeline_create_info.flags = VK_PIPELINE_CREATE_DERIVATIVE_BIT;
+					pipeline_create_info.basePipelineHandle = vulkan_globals.world_pipelines[0].handle;
+					pipeline_create_info.basePipelineIndex = -1;
+				} else {
+					pipeline_create_info.flags = VK_PIPELINE_CREATE_ALLOW_DERIVATIVES_BIT;
 				}
+
+				assert(vulkan_globals.world_pipelines[pipeline_index].handle == VK_NULL_HANDLE);
+				err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.world_pipelines[pipeline_index].handle);
+				if (err != VK_SUCCESS)
+					Sys_Error("vkCreateGraphicsPipelines failed");
+				GL_SetObjectName((uint64_t)vulkan_globals.world_pipelines[pipeline_index].handle, VK_OBJECT_TYPE_PIPELINE, va("world %d", pipeline_index));
+				vulkan_globals.world_pipelines[pipeline_index].layout = vulkan_globals.world_pipeline_layout;
 			}
 		}
 	}
@@ -2039,7 +2030,7 @@ void R_CreatePipelines()
 	depth_stencil_state_create_info.depthTestEnable = VK_TRUE;
 	depth_stencil_state_create_info.depthWriteEnable = VK_TRUE;
 	rasterization_state_create_info.depthBiasEnable = VK_FALSE;
-	rasterization_state_create_info.depthBiasConstantFactor = 0.f;
+	dynamic_state_create_info.dynamicStateCount--;
 	pipeline_create_info.flags = 0;
 	blend_attachment_state.blendEnable = VK_FALSE;
 	shader_stages[1].pSpecializationInfo = NULL;

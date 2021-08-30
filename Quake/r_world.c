@@ -386,8 +386,24 @@ static void R_FlushBatch (qboolean fullbright_enabled, qboolean alpha_test, qboo
 {
 	if (num_vbo_indices > 0)
 	{
-		int pipeline_index = (fullbright_enabled ? 1 : 0) + (alpha_test ? 2 : 0) + (alpha_blend ? 4 : 0) + (use_zbias ? 8 : 0);
+		int pipeline_index = (fullbright_enabled ? 1 : 0) + (alpha_test ? 2 : 0) + (alpha_blend ? 4 : 0);
 		R_BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipelines[pipeline_index]);
+
+		float constant_factor = 0.0f, slope_factor = 0.0f;
+		if (use_zbias)
+		{
+			if (vulkan_globals.depth_format == VK_FORMAT_D32_SFLOAT_S8_UINT || vulkan_globals.depth_format == VK_FORMAT_D32_SFLOAT)
+			{
+				constant_factor = -0.125f;
+				slope_factor = -0.125f;
+			}
+			else
+			{
+				constant_factor = -0.5f;
+				slope_factor = -0.25f;
+			}
+		}
+		vkCmdSetDepthBias(vulkan_globals.command_buffer, constant_factor, 0.0f, slope_factor);
 
 		if (!r_fullbright_cheatsafe)
 			vulkan_globals.vk_cmd_bind_descriptor_sets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 1, 1, &lightmap_texture->descriptor_set, 0, NULL);
