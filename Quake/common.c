@@ -2896,11 +2896,11 @@ LOC_LoadFile
 void LOC_LoadFile (const char *file)
 {
 	char path[1024];
-	FILE *fp = NULL;
 	int i,lineno;
 	char *cursor;
 
 	SDL_RWops *rw = NULL;
+	Sint64 sz;
 	mz_zip_archive archive;
 	size_t size = 0;
 
@@ -2920,10 +2920,9 @@ void LOC_LoadFile (const char *file)
 
 	memset(&archive, 0, sizeof(archive));
 	q_snprintf(path, sizeof(path), "%s/%s", com_basedir, file);
-	fp = fopen(path, "rb");
-	if (!fp)
+	rw = SDL_RWFromFile(path, "rb");
+	if (!rw)
 	{
-		Sint64 sz;
 		q_snprintf(path, sizeof(path), "%s/QuakeEX.kpf", com_basedir);
 		rw = SDL_RWFromFile(path, "rb");
 		if (!rw) goto fail;
@@ -2941,21 +2940,18 @@ void LOC_LoadFile (const char *file)
 	}
 	else
 	{
-		fseek(fp, 0, SEEK_END);
-		i = ftell(fp);
-		if (i <= 0) goto fail;
-		localization.text = (char *) calloc(1, i+1);
+		sz = SDL_RWsize(rw);
+		if (sz <= 0) goto fail;
+		localization.text = (char *) calloc(1, sz+1);
 		if (!localization.text)
 		{
-fail:			if (fp) fclose(fp);
-			mz_zip_reader_end(&archive);
+fail:			mz_zip_reader_end(&archive);
 			if (rw) SDL_RWclose(rw);
 			Con_Printf("Couldn't load '%s'\nfrom '%s'\n", file, com_basedir);
 			return;
 		}
-		fseek(fp, 0, SEEK_SET);
-		fread(localization.text, 1, i, fp);
-		fclose(fp);
+		SDL_RWread(rw, localization.text, 1, sz);
+		SDL_RWclose(rw);
 	}
 
 	cursor = localization.text;
