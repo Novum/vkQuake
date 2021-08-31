@@ -1942,8 +1942,9 @@ void R_CreatePipelines()
 	rasterization_state_create_info.polygonMode = VK_POLYGON_MODE_FILL;
 	depth_stencil_state_create_info.depthTestEnable = VK_TRUE;
 	depth_stencil_state_create_info.depthWriteEnable = VK_TRUE;
-	rasterization_state_create_info.depthBiasEnable = VK_FALSE;
+	rasterization_state_create_info.depthBiasEnable = VK_TRUE;
 	input_assembly_state_create_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+	dynamic_states[dynamic_state_create_info.dynamicStateCount++] = VK_DYNAMIC_STATE_DEPTH_BIAS;
 
 	VkVertexInputAttributeDescription world_vertex_input_attribute_descriptions[3];
 	world_vertex_input_attribute_descriptions[0].binding = 0;
@@ -2028,6 +2029,8 @@ void R_CreatePipelines()
 
 	depth_stencil_state_create_info.depthTestEnable = VK_TRUE;
 	depth_stencil_state_create_info.depthWriteEnable = VK_TRUE;
+	rasterization_state_create_info.depthBiasEnable = VK_FALSE;
+	dynamic_state_create_info.dynamicStateCount--;
 	pipeline_create_info.flags = 0;
 	blend_attachment_state.blendEnable = VK_FALSE;
 	shader_stages[1].pSpecializationInfo = NULL;
