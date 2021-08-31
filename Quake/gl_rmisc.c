@@ -1581,7 +1581,7 @@ void R_CreatePipelines()
 	depth_stencil_state_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
 	depth_stencil_state_create_info.depthTestEnable = VK_FALSE;
 	depth_stencil_state_create_info.depthWriteEnable = VK_FALSE;
-	depth_stencil_state_create_info.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+	depth_stencil_state_create_info.depthCompareOp = VK_COMPARE_OP_GREATER_OR_EQUAL;
 	depth_stencil_state_create_info.depthBoundsTestEnable = VK_FALSE;
 	depth_stencil_state_create_info.back.failOp = VK_STENCIL_OP_KEEP;
 	depth_stencil_state_create_info.back.passOp = VK_STENCIL_OP_KEEP;
@@ -1738,7 +1738,7 @@ void R_CreatePipelines()
 	input_assembly_state_create_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 	depth_stencil_state_create_info.depthTestEnable = VK_TRUE;
 	depth_stencil_state_create_info.depthWriteEnable = VK_TRUE;
-	depth_stencil_state_create_info.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+	depth_stencil_state_create_info.depthCompareOp = VK_COMPARE_OP_GREATER_OR_EQUAL;
 	blend_attachment_state.blendEnable = VK_FALSE;
 
 	assert(vulkan_globals.water_pipeline.handle == VK_NULL_HANDLE);
@@ -1788,7 +1788,7 @@ void R_CreatePipelines()
 
 	depth_stencil_state_create_info.depthTestEnable = VK_TRUE;
 	depth_stencil_state_create_info.depthWriteEnable = VK_TRUE;
-	depth_stencil_state_create_info.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+	depth_stencil_state_create_info.depthCompareOp = VK_COMPARE_OP_GREATER_OR_EQUAL;
 	depth_stencil_state_create_info.stencilTestEnable = VK_TRUE;
 	depth_stencil_state_create_info.front.compareOp = VK_COMPARE_OP_ALWAYS;
 	depth_stencil_state_create_info.front.failOp = VK_STENCIL_OP_KEEP;
@@ -1923,7 +1923,7 @@ void R_CreatePipelines()
 
 		depth_stencil_state_create_info.depthTestEnable = VK_TRUE;
 		rasterization_state_create_info.depthBiasEnable = VK_TRUE;
-		rasterization_state_create_info.depthBiasConstantFactor = (vulkan_globals.depth_format != VK_FORMAT_D16_UNORM) ? -250.0f : -1.25f;
+		rasterization_state_create_info.depthBiasConstantFactor = (vulkan_globals.depth_format != VK_FORMAT_D16_UNORM) ? 500.0f : 2.5f;
 		rasterization_state_create_info.depthBiasSlopeFactor = 0.0f;
 
 		assert(vulkan_globals.showtris_depth_test_pipeline.handle == VK_NULL_HANDLE);
@@ -1942,8 +1942,9 @@ void R_CreatePipelines()
 	rasterization_state_create_info.polygonMode = VK_POLYGON_MODE_FILL;
 	depth_stencil_state_create_info.depthTestEnable = VK_TRUE;
 	depth_stencil_state_create_info.depthWriteEnable = VK_TRUE;
-	rasterization_state_create_info.depthBiasEnable = VK_FALSE;
+	rasterization_state_create_info.depthBiasEnable = VK_TRUE;
 	input_assembly_state_create_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+	dynamic_states[dynamic_state_create_info.dynamicStateCount++] = VK_DYNAMIC_STATE_DEPTH_BIAS;
 
 	VkVertexInputAttributeDescription world_vertex_input_attribute_descriptions[3];
 	world_vertex_input_attribute_descriptions[0].binding = 0;
@@ -2028,6 +2029,8 @@ void R_CreatePipelines()
 
 	depth_stencil_state_create_info.depthTestEnable = VK_TRUE;
 	depth_stencil_state_create_info.depthWriteEnable = VK_TRUE;
+	rasterization_state_create_info.depthBiasEnable = VK_FALSE;
+	dynamic_state_create_info.dynamicStateCount--;
 	pipeline_create_info.flags = 0;
 	blend_attachment_state.blendEnable = VK_FALSE;
 	shader_stages[1].pSpecializationInfo = NULL;
@@ -2136,7 +2139,7 @@ void R_CreatePipelines()
 
 		depth_stencil_state_create_info.depthTestEnable = VK_TRUE;
 		rasterization_state_create_info.depthBiasEnable = VK_TRUE;
-		rasterization_state_create_info.depthBiasConstantFactor = (vulkan_globals.depth_format != VK_FORMAT_D16_UNORM) ? -250.0f : -1.25f;
+		rasterization_state_create_info.depthBiasConstantFactor = (vulkan_globals.depth_format != VK_FORMAT_D16_UNORM) ? 500.0f : 2.5f;
 		rasterization_state_create_info.depthBiasSlopeFactor = 0.0f;
 
 		assert(vulkan_globals.alias_showtris_depth_test_pipeline.handle == VK_NULL_HANDLE);

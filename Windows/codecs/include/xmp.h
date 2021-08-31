@@ -1,6 +1,10 @@
 #ifndef XMP_H
 #define XMP_H
 
+#if defined(EMSCRIPTEN)
+# include <emscripten.h>
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -26,7 +30,6 @@ extern "C" {
 #elif defined(__SUNPRO_C) && defined(XMP_LDSCOPE_GLOBAL)
 # define LIBXMP_EXPORT __global
 #elif defined(EMSCRIPTEN)
-# include <emscripten.h>
 # define LIBXMP_EXPORT EMSCRIPTEN_KEEPALIVE
 # define LIBXMP_EXPORT_VAR
 #else
