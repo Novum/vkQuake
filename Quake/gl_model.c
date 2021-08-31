@@ -1027,21 +1027,6 @@ void Mod_LoadTexinfo (lump_t *l)
 			out->texture = loadmodel->textures[miptex];
 		}
 		//johnfitz
-
-		if (loadmodel->bspversion == BSPVERSION_QUAKE64 && out->texture && false)
-		{
-			// This break the lightmaps so lets scale the texture some other place
-			for (j=0 ; j<4 ; j++)
-			{
-				int shift = (int)out->texture->name[15]; // multiplier stored in name[15]
-
-				if (shift > 0)
-				{
-					out->vecs[0][j] /= ( 2 * shift); 
-					out->vecs[1][j] /= ( 2 * shift);
-				}
-			}
-		}
 	}
 
 	//johnfitz: report missing textures
