@@ -94,7 +94,7 @@ cvar_t	r_nolerp_list = {"r_nolerp_list", "progs/flame.mdl,progs/flame2.mdl,progs
 extern cvar_t	r_vfog;
 //johnfitz
 
-cvar_t	gl_zfix = {"gl_zfix", "0", CVAR_NONE}; // QuakeSpasm z-fighting fix
+cvar_t	gl_zfix = {"gl_zfix", "1", CVAR_ARCHIVE}; // QuakeSpasm z-fighting fix
 
 cvar_t	r_lavaalpha = {"r_lavaalpha","0",CVAR_NONE};
 cvar_t	r_telealpha = {"r_telealpha","0",CVAR_NONE};
@@ -270,11 +270,11 @@ static void GL_FrustumMatrix(float matrix[16], float fovx, float fovy)
 	matrix[1*4 + 1] = -h;
 	
 	// Third column
-	matrix[2*4 + 2] = -f / (f - n);
+	matrix[2*4 + 2] = f / (f - n) - 1.0f;
 	matrix[2*4 + 3] = -1.0f;
 
 	// Fourth column
-	matrix[3*4 + 2] = -(n * f) / (f - n);
+	matrix[3*4 + 2] = (n * f) / (f - n);
 }
 
 /*
@@ -484,7 +484,7 @@ void R_DrawViewModel (void)
 				gly + glheight - r_refdef.vrect.y - r_refdef.vrect.height,
 				r_refdef.vrect.width,
 				r_refdef.vrect.height,
-				0.0f, 0.3f);
+				0.7f, 1.0f);
 	
 	R_DrawAliasModel (currententity);
 
