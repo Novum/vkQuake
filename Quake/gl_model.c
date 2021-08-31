@@ -441,7 +441,7 @@ qboolean Mod_CheckAnimTextureArrayQ64(texture_t *anims[], int numTex)
 Mod_LoadTextures
 =================
 */
-void Mod_LoadTextures (lump_t *l, qboolean isQ64bsp)
+void Mod_LoadTextures (lump_t *l)
 {
 	int		i, j, pixels, num, maxanim, altmax;
 	miptex_t	*mt;
@@ -490,7 +490,7 @@ void Mod_LoadTextures (lump_t *l, qboolean isQ64bsp)
 
 		if ((mt->width & 15) || (mt->height & 15))
 		{
-			if (!isQ64bsp)
+			if (loadmodel->bspversion != BSPVERSION_QUAKE64)
 				Sys_Error ("Texture %s is not 16 aligned", mt->name);
 		}
 
@@ -602,7 +602,7 @@ void Mod_LoadTextures (lump_t *l, qboolean isQ64bsp)
 						tx->fullbright = TexMgr_LoadImage (loadmodel, filename2, fwidth, fheight,
 							SRC_RGBA, data, filename, 0, TEXPREF_MIPMAP | extraflags );
 				}
-				else if (isQ64bsp) // Quake 64 RERELEASE
+				else if (loadmodel->bspversion == (int)BSPVERSION_QUAKE64) // Quake 64 RERELEASE
 				{
 					// Q64 bsp's have and extra int (divider) before the 4 mip offsets	
 					miptex64_t *mt64 = (miptex64_t *)mt;
@@ -706,7 +706,7 @@ void Mod_LoadTextures (lump_t *l, qboolean isQ64bsp)
 				Sys_Error ("Bad animating texture %s", tx->name);
 		}
 
-		if (isQ64bsp && !Mod_CheckAnimTextureArrayQ64(anims, maxanim))
+		if (loadmodel->bspversion == BSPVERSION_QUAKE64 && !Mod_CheckAnimTextureArrayQ64(anims, maxanim))
 			continue; // Just pretend this is a normal texture
 
 #define	ANIM_CYCLE	2
@@ -743,11 +743,12 @@ void Mod_LoadTextures (lump_t *l, qboolean isQ64bsp)
 Mod_LoadLighting -- johnfitz -- replaced with lit support code via lordhavoc
 =================
 */
+
 void Mod_LoadLighting (lump_t *l)
 {
 	int i, mark;
 	byte *in, *out, *data;
-	byte d;
+	byte d, q64_b0, q64_b1;
 	char litfilename[MAX_OSPATH];
 	unsigned int path_id;
 
@@ -797,6 +798,29 @@ void Mod_LoadLighting (lump_t *l)
 	// LordHavoc: no .lit found, expand the white lighting data to color
 	if (!l->filelen)
 		return;
+
+	// Quake64 bsp lighmap data
+	if (loadmodel->bspversion == BSPVERSION_QUAKE64)
+	{
+		// RGB lightmap samples are packed in 16bits.
+		// RRRRR GGGGG BBBBBB
+
+		loadmodel->lightdata = (byte *) Hunk_AllocName ( (l->filelen / 2)*3, litfilename);
+		in = mod_base + l->fileofs;
+		out = loadmodel->lightdata;
+
+		for (i = 0;i < (l->filelen / 2) ;i++)
+		{
+			q64_b0 = *in++;
+			q64_b1 = *in++;
+
+			*out++ = q64_b0 & 0b11111000;
+			*out++ = ((q64_b0 & 0b00000111) << 5) + ((q64_b1 & 0b11000000) >> 5);
+			*out++ = (q64_b1 & 0b00111111) << 2;
+		}
+		return;
+	}
+
 	loadmodel->lightdata = (byte *) Hunk_AllocName ( l->filelen*3, litfilename);
 	in = loadmodel->lightdata + l->filelen*2; // place the file at the end, so it will not be overwritten until the very last write
 	out = loadmodel->lightdata;
@@ -961,7 +985,7 @@ void Mod_LoadEdges (lump_t *l, int bsp2)
 Mod_LoadTexinfo
 =================
 */
-void Mod_LoadTexinfo (lump_t *l, qboolean isQ64bsp)
+void Mod_LoadTexinfo (lump_t *l)
 {
 	texinfo_t *in;
 	mtexinfo_t *out;
@@ -1004,10 +1028,9 @@ void Mod_LoadTexinfo (lump_t *l, qboolean isQ64bsp)
 		}
 		//johnfitz
 
-		if (isQ64bsp && out->texture)
+		if (loadmodel->bspversion == BSPVERSION_QUAKE64 && out->texture && false)
 		{
-			// Not sure yet if this is the right way to offset textures.
-			// Lets work on the lightdata and see how it goes...
+			// This break the lightmaps so lets scale the texture some other place
 			for (j=0 ; j<4 ; j++)
 			{
 				int shift = (int)out->texture->name[15]; // multiplier stored in name[15]
@@ -1222,6 +1245,10 @@ void Mod_LoadFaces (lump_t *l, qboolean bsp2)
 		CalcSurfaceExtents (out);
 
 	// lighting info
+
+		if (loadmodel->bspversion == BSPVERSION_QUAKE64)
+			lofs /= 2; // isQ64bsp Q64 lightdata is 2 bytes per samples {Tone, color}?
+
 		if (lofs == -1)
 			out->samples = NULL;
 		else
@@ -2278,8 +2305,9 @@ void Mod_LoadBrushModel (qmodel_t *mod, void *buffer)
 		bsp2 = 2;	//sanitised revision
 		break;
 	case BSPVERSION_QUAKE64:
-		isQ64bsp = true;
 		bsp2 = false;
+		mod->bspversion = BSPVERSION_QUAKE64;
+
 		break;
 	default:
 		Sys_Error ("Mod_LoadBrushModel: %s has wrong version number (%i should be %i)", mod->name, mod->bspversion, BSPVERSION);
@@ -2297,10 +2325,10 @@ void Mod_LoadBrushModel (qmodel_t *mod, void *buffer)
 	Mod_LoadVertexes (&header->lumps[LUMP_VERTEXES]);
 	Mod_LoadEdges (&header->lumps[LUMP_EDGES], bsp2);
 	Mod_LoadSurfedges (&header->lumps[LUMP_SURFEDGES]);
-	Mod_LoadTextures (&header->lumps[LUMP_TEXTURES], isQ64bsp);
+	Mod_LoadTextures (&header->lumps[LUMP_TEXTURES]);
 	Mod_LoadLighting (&header->lumps[LUMP_LIGHTING]);
 	Mod_LoadPlanes (&header->lumps[LUMP_PLANES]);
-	Mod_LoadTexinfo (&header->lumps[LUMP_TEXINFO], isQ64bsp);
+	Mod_LoadTexinfo (&header->lumps[LUMP_TEXINFO]);
 	Mod_LoadFaces (&header->lumps[LUMP_FACES], bsp2);
 	Mod_LoadMarksurfaces (&header->lumps[LUMP_MARKSURFACES], bsp2);
 
