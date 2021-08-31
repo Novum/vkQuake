@@ -116,6 +116,12 @@
 
 #if 1 /* QUAKESPASM-SPECIFIC CONFIG: */
 
+#if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
+#include <SDL2/SDL.h>
+#else
+#include "SDL.h"
+#endif
+
 /* Defines to completely disable specific portions of miniz.c: 
    If all macros here are defined the only functionality remaining will be CRC-32 and adler-32. */
 
