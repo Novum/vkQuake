@@ -26,6 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 
 extern cvar_t gl_fullbrights, r_drawflat; //johnfitz
+extern cvar_t gl_zfix; // QuakeSpasm z-fighting fix
 
 int		gl_lightmap_format;
 int		lightmap_bytes;
@@ -193,9 +194,21 @@ void R_DrawBrushModel (entity_t *e)
 	}
 
 	e->angles[0] = -e->angles[0];	// stupid quake bug
+	if (gl_zfix.value)
+	{
+		e->origin[0] -= DIST_EPSILON;
+		e->origin[1] -= DIST_EPSILON;
+		e->origin[2] -= DIST_EPSILON;
+	}
 	float model_matrix[16];
 	IdentityMatrix(model_matrix);
 	R_RotateForEntity (model_matrix, e->origin, e->angles);
+	if (gl_zfix.value)
+	{
+		e->origin[0] += DIST_EPSILON;
+		e->origin[1] += DIST_EPSILON;
+		e->origin[2] += DIST_EPSILON;
+	}
 	e->angles[0] = -e->angles[0];	// stupid quake bug
 
 	float mvp[16];
@@ -375,7 +388,9 @@ int AllocBlock (int w, int h, int *x, int *y)
 			lightmap_count++;
 			lightmaps = (struct lightmap_s *) realloc(lightmaps, sizeof(*lightmaps)*lightmap_count);
 			memset(&lightmaps[texnum], 0, sizeof(lightmaps[texnum]));
-			lightmaps[texnum].data = (byte *) calloc(1, 4*LMBLOCK_WIDTH*LMBLOCK_HEIGHT);
+			/* FIXME: we leave 'gaps' in malloc()ed data,  CRC_Block() later accesses
+			 * that uninitialized data and valgrind complains for it.  use calloc() ? */
+			lightmaps[texnum].data = (byte *) malloc(4*LMBLOCK_WIDTH*LMBLOCK_HEIGHT);
 			//as we're only tracking one texture, we don't need multiple copies of allocated any more.
 			memset(allocated, 0, sizeof(allocated));
 		}

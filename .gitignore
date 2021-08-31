@@ -23,4 +23,3 @@ AppImage/vkquake*.AppImage
 .project
 .cproject
 .DS_Store
-build/

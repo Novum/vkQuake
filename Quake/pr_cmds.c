@@ -42,44 +42,21 @@ char *PR_GetTempString (void)
 ===============================================================================
 */
 
-static const char* PF_GetStringArg(int idx, void* userdata)
-{
-	if (userdata)
-		idx += *(int*)userdata;
-	if (idx < 0 || idx >= qcvm->argc)
-		return "";
-	return LOC_GetString(G_STRING(OFS_PARM0 + idx * 3));
-}
-
 char *PF_VarString (int	first)
 {
 	int		i;
 	static char out[1024];
-	const char *format;
 	size_t s;
 
 	out[0] = 0;
 	s = 0;
-
-	if (first >= qcvm->argc)
-		return out;
-
-	format = LOC_GetString(G_STRING((OFS_PARM0 + first * 3)));
-	if (LOC_HasPlaceholders(format))
+	for (i = first; i < qcvm->argc; i++)
 	{
-		int offset = first + 1;
-		s = LOC_Format(format, PF_GetStringArg, &offset, out, sizeof(out));
-	}
-	else
-	{
-		for (i = first; i < qcvm->argc; i++)
+		s = q_strlcat(out, G_STRING((OFS_PARM0+i*3)), sizeof(out));
+		if (s >= sizeof(out))
 		{
-			s = q_strlcat(out, LOC_GetString(G_STRING(OFS_PARM0+i*3)), sizeof(out));
-			if (s >= sizeof(out))
-			{
-				Con_Warning("PF_VarString: overflow (string truncated)\n");
-				return out;
-			}
+			Con_Warning("PF_VarString: overflow (string truncated)\n");
+			return out;
 		}
 	}
 	if (s > 255)
@@ -1617,7 +1594,7 @@ static void PF_sv_WriteCoord (void)
 
 static void PF_sv_WriteString (void)
 {
-	MSG_WriteString (WriteDest(), LOC_GetString(G_STRING(OFS_PARM1)));
+	MSG_WriteString (WriteDest(), G_STRING(OFS_PARM1));
 }
 
 static void PF_sv_WriteEntity (void)
@@ -1697,15 +1674,6 @@ static void PF_sv_changelevel (void)
 
 	s = G_STRING(OFS_PARM0);
 	Cbuf_AddText (va("changelevel %s\n",s));
-}
-
-/*
-==============
-PF_sv_finalefinished -- used by 2021 release.
-==============
-*/
-static void PF_sv_finalefinished (void)
-{
 }
 
 void PR_spawnfunc_misc_model(edict_t *self)
@@ -1816,10 +1784,7 @@ builtin_t pr_ssqcbuiltins[] =
 	PF_sv_precache_sound,	// precache_sound2 is different only for qcc
 	PF_precache_file,
 
-	PF_sv_setspawnparms,
-
-	// 2021 release
-	PF_sv_finalefinished,	// void() finaleFinished = #79
+	PF_sv_setspawnparms
 };
 int pr_ssqcnumbuiltins = sizeof(pr_ssqcbuiltins)/sizeof(pr_ssqcbuiltins[0]);
 

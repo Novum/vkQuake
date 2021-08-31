@@ -2267,7 +2267,7 @@ void SV_UpdateToReliableMessages (void)
 		{
 			for (j=0, client = svs.clients ; j<svs.maxclients ; j++, client++)
 			{
-				if (!client->knowntoqc)
+				if (!client->active)
 					continue;
 				MSG_WriteByte (&client->message, svc_updatefrags);
 				MSG_WriteByte (&client->message, i);

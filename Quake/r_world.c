@@ -25,7 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 
-extern cvar_t gl_fullbrights, r_drawflat, r_oldskyleaf, r_showtris, r_simd, gl_zfix; //johnfitz
+extern cvar_t gl_fullbrights, r_drawflat, r_oldskyleaf, r_showtris, r_simd; //johnfitz
 
 byte *SV_FatPVS (vec3_t org, qmodel_t *worldmodel);
 
@@ -382,28 +382,12 @@ R_FlushBatch
 Draw the current batch if non-empty and clears it, ready for more R_BatchSurface calls.
 ================
 */
-static void R_FlushBatch (qboolean fullbright_enabled, qboolean alpha_test, qboolean alpha_blend, qboolean use_zbias, gltexture_t * lightmap_texture)
+static void R_FlushBatch (qboolean fullbright_enabled, qboolean alpha_test, qboolean alpha_blend, gltexture_t * lightmap_texture)
 {
 	if (num_vbo_indices > 0)
 	{
 		int pipeline_index = (fullbright_enabled ? 1 : 0) + (alpha_test ? 2 : 0) + (alpha_blend ? 4 : 0);
 		R_BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipelines[pipeline_index]);
-
-		float constant_factor = 0.0f, slope_factor = 0.0f;
-		if (use_zbias)
-		{
-			if (vulkan_globals.depth_format == VK_FORMAT_D32_SFLOAT_S8_UINT || vulkan_globals.depth_format == VK_FORMAT_D32_SFLOAT)
-			{
-				constant_factor = -0.125f;
-				slope_factor = -0.125f;
-			}
-			else
-			{
-				constant_factor = -0.5f;
-				slope_factor = -0.25f;
-			}
-		}
-		vkCmdSetDepthBias(vulkan_globals.command_buffer, constant_factor, 0.0f, slope_factor);
 
 		if (!r_fullbright_cheatsafe)
 			vulkan_globals.vk_cmd_bind_descriptor_sets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 1, 1, &lightmap_texture->descriptor_set, 0, NULL);
@@ -430,14 +414,14 @@ Add the surface to the current batch, or just draw it immediately if we're not
 using VBOs.
 ================
 */
-static void R_BatchSurface (msurface_t *s, qboolean fullbright_enabled, qboolean alpha_test, qboolean alpha_blend, qboolean use_zbias, gltexture_t * lightmap_texture)
+static void R_BatchSurface (msurface_t *s, qboolean fullbright_enabled, qboolean alpha_test, qboolean alpha_blend, gltexture_t * lightmap_texture)
 {
 	int num_surf_indices;
 
 	num_surf_indices = R_NumTriangleIndicesForSurf (s);
 
 	if (num_vbo_indices + num_surf_indices > MAX_BATCH_SIZE)
-		R_FlushBatch(fullbright_enabled, alpha_test, alpha_blend, use_zbias, lightmap_texture);
+		R_FlushBatch(fullbright_enabled, alpha_test, alpha_blend, lightmap_texture);
 
 	R_TriangleIndicesForSurf (s, &vbo_indices[num_vbo_indices]);
 	num_vbo_indices += num_surf_indices;
@@ -552,7 +536,6 @@ void R_DrawTextureChains_Multitexture (qmodel_t *model, entity_t *ent, texchain_
 	qboolean	fullbright_enabled = false;
 	qboolean	alpha_test = false;
 	qboolean	alpha_blend = alpha < 1.0f;
-	qboolean	use_zbias = (gl_zfix.value && model != cl.worldmodel);
 	int		lastlightmap;
 	gltexture_t	*fullbright = NULL;
 
@@ -604,17 +587,17 @@ void R_DrawTextureChains_Multitexture (qmodel_t *model, entity_t *ent, texchain_
 
 			if (s->lightmaptexturenum != lastlightmap)
 			{
-				R_FlushBatch (fullbright_enabled, alpha_test, alpha_blend, use_zbias, lightmap_texture);
+				R_FlushBatch (fullbright_enabled, alpha_test, alpha_blend, lightmap_texture);
 				lightmap_texture = lightmaps[s->lightmaptexturenum].texture;
 			}
 
 			lastlightmap = s->lightmaptexturenum;
-			R_BatchSurface (s, fullbright_enabled, alpha_test, alpha_blend, use_zbias, lightmap_texture);
+			R_BatchSurface (s, fullbright_enabled, alpha_test, alpha_blend, lightmap_texture);
 
 			rs_brushpasses++;
 		}
 
-		R_FlushBatch (fullbright_enabled, alpha_test, alpha_blend, use_zbias, lightmap_texture);
+		R_FlushBatch (fullbright_enabled, alpha_test, alpha_blend, lightmap_texture);
 	}
 }
 

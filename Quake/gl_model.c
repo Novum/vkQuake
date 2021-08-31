@@ -860,35 +860,20 @@ Mod_LoadEntities
 */
 void Mod_LoadEntities (lump_t *l)
 {
-	char	basemapname[MAX_QPATH];
 	char	entfilename[MAX_QPATH];
 	char		*ents;
 	int		mark;
 	unsigned int	path_id;
-	unsigned int	crc = 0;
 
 	if (! external_ents.value)
 		goto _load_embedded;
 
-	mark = Hunk_LowMark();
-	if (l->filelen > 0) {
-		crc = CRC_Block(mod_base + l->fileofs, l->filelen - 1);
-	}
-
-	q_strlcpy(basemapname, loadmodel->name, sizeof(basemapname));
-	COM_StripExtension(basemapname, basemapname, sizeof(basemapname));
-
-	q_snprintf(entfilename, sizeof(entfilename), "%s@%04x.ent", basemapname, crc);
+	q_strlcpy(entfilename, loadmodel->name, sizeof(entfilename));
+	COM_StripExtension(entfilename, entfilename, sizeof(entfilename));
+	q_strlcat(entfilename, ".ent", sizeof(entfilename));
 	Con_DPrintf2("trying to load %s\n", entfilename);
+	mark = Hunk_LowMark();
 	ents = (char *) COM_LoadHunkFile (entfilename, &path_id);
-
-	if (!ents)
-	{
-		q_snprintf(entfilename, sizeof(entfilename), "%s.ent", basemapname);
-		Con_DPrintf2("trying to load %s\n", entfilename);
-		ents = (char *) COM_LoadHunkFile (entfilename, &path_id);
-	}
-
 	if (ents)
 	{
 		// use ent file only from the same gamedir as the map
@@ -2221,14 +2206,8 @@ static FILE *Mod_FindVisibilityExternal(void)
 	q_snprintf(visfilename, sizeof(visfilename), "maps/%s.vis", loadname);
 	if (COM_FOpenFile(visfilename, &f, &path_id) < 0)
 	{
-		Con_DPrintf("%s not found, trying ", visfilename);
-		q_snprintf(visfilename, sizeof(visfilename), "%s.vis", COM_SkipPath(com_gamedir));
-		Con_DPrintf("%s\n", visfilename);
-		if (COM_FOpenFile(visfilename, &f, &path_id) < 0)
-		{
-			Con_DPrintf("external vis not found\n");
-			return NULL;
-		}
+		Con_DPrintf("Standard vis, %s not found\n", visfilename);
+		return NULL;
 	}
 	if (path_id < loadmodel->path_id)
 	{
@@ -2272,7 +2251,7 @@ static byte *Mod_LoadVisibilityExternal(FILE* f)
 	filelen = LittleLong(filelen);
 	if (filelen <= 0) return NULL;
 	Con_DPrintf("...%d bytes visibility data\n", filelen);
-	visdata = (byte *) Hunk_AllocName(filelen, "EXT_VIS");
+	visdata = Hunk_AllocName(filelen, "EXT_VIS");
 	if (!fread(visdata, filelen, 1, f))
 		return NULL;
 	return visdata;
@@ -2389,7 +2368,7 @@ visdone:
 
 	mod->numframes = 2;		// regular and alternate animation
 
-	Mod_CheckWaterVis ();
+	Mod_CheckWaterVis();
 
 //
 // set up the submodels (FIXME: this is confusing)
@@ -2903,7 +2882,7 @@ void Mod_LoadAliasModel (qmodel_t *mod, void *buffer)
 	pheader->skinheight = LittleLong (pinmodel->skinheight);
 
 	if (pheader->skinheight > MAX_LBM_HEIGHT)
-		Con_DWarning ("model %s has a skin taller than %d", mod->name,
+		Sys_Error ("model %s has a skin taller than %d", mod->name,
 				   MAX_LBM_HEIGHT);
 
 	pheader->numverts = LittleLong (pinmodel->numverts);

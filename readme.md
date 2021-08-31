@@ -13,14 +13,6 @@ Copy all files inside the `vkquake-<version>-linux64` folder in the tar archive 
 
 Note: Make sure all data files are lowercase, e.g. "id1", not "ID1" and "pak0.pak", not "PAK0.PAK". Some distributions of the game have upper case file names, e.g. from GOG.com.
 
-## Quake '2021 re-release'
-
-vkQuake has initial support for playing the 2021 re-release content:
-
-* Copy the vkQuake exe to your rerelease installation.
-* Extract the localization folder from the QuakeEX.kpf zip file and place it in the rerelease directory.
-* Run vkQuake as you normally do.
-
 # Vulkan
 vkQuake shows basic usage of the API. For example it demonstrates render passes & sub passes, pipeline barriers & synchronization, compute shaders, push & specialization constants, CPU/GPU parallelism and memory pooling.
 
