@@ -2935,7 +2935,7 @@ void LOC_LoadFile (const char *file)
 		localization.text = (char *) mz_zip_reader_extract_file_to_heap(&archive, file, &size, 0);
 		if (!localization.text) goto fail;
 		mz_zip_reader_end(&archive);
-		SDL_FreeRW(rw);
+		SDL_RWclose(rw);
 		localization.text = (char *) realloc(localization.text, size+1);
 		localization.text[size] = 0;
 	}
