@@ -989,15 +989,15 @@ static void GL_InitDevice( void )
 	qboolean d32_support = (format_properties.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) != 0;
 
 	vulkan_globals.depth_format = VK_FORMAT_UNDEFINED;
-	if (x8_d24_support)
-	{
-		Con_Printf("Using D24_S8 depth buffer format\n");
-		vulkan_globals.depth_format = VK_FORMAT_D24_UNORM_S8_UINT;
-	}
-	else if(d32_support)
+	if (d32_support)
 	{
 		Con_Printf("Using D32_S8 depth buffer format\n");
 		vulkan_globals.depth_format = VK_FORMAT_D32_SFLOAT_S8_UINT;
+	}
+	else if (x8_d24_support)
+	{
+		Con_Printf("Using D24_S8 depth buffer format\n");
+		vulkan_globals.depth_format = VK_FORMAT_D24_UNORM_S8_UINT;
 	}
 	else
 	{
@@ -2067,7 +2067,7 @@ qboolean GL_BeginRendering (int *x, int *y, int *width, int *height)
 	render_area.extent.height = vid.height;
 
 	VkClearValue depth_clear_value;
-	depth_clear_value.depthStencil.depth = 1.0f;
+	depth_clear_value.depthStencil.depth = 0.0f;
 	depth_clear_value.depthStencil.stencil = 0;
 
 	vulkan_globals.main_clear_values[0] = vulkan_globals.color_clear_value;
@@ -2538,10 +2538,10 @@ void	VID_Init (void)
 	vid.colormap = host_colormap;
 	vid.fullbright = 256 - LittleLong (*((int *)vid.colormap + 2048));
 
+	VID_SetMode (width, height, refreshrate, bpp, fullscreen);
+
 	// set window icon
 	PL_SetWindowIcon();
-
-	VID_SetMode (width, height, refreshrate, bpp, fullscreen);
 
 	Con_Printf("\nVulkan Initialization\n");
 	SDL_Vulkan_LoadLibrary(NULL);
