@@ -24,6 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 #include "q_ctype.h"
+#include <zip.h>
 #include <errno.h>
 
 static char	*largv[MAX_NUM_ARGVS + 1];
@@ -2888,8 +2889,11 @@ void LOC_LoadFile (const char *file)
 {
 	char path[1024];
 	FILE *fp = NULL;
-	int i,lineno;
+	int i,lineno,err;
 	char *cursor;
+	zip_t *za = NULL;
+	zip_file_t * zf = NULL;
+	zip_stat_t zs;
 
 	// clear existing data
 	if (localization.text)
@@ -2907,20 +2911,38 @@ void LOC_LoadFile (const char *file)
 
 	q_snprintf(path, sizeof(path), "%s/%s", com_basedir, file);
 	fp = fopen(path, "r");
-	if (!fp) goto fail;
-	fseek(fp, 0, SEEK_END);
-	i = ftell(fp);
-	if (i <= 0) goto fail;
-	localization.text = (char *) calloc(1, i+1);
-	if (!localization.text)
+	if (!fp) 
 	{
-fail:		if (fp) fclose(fp);
-		Con_Printf("Couldn't load '%s'\nfrom '%s'\n", file, com_basedir);
-		return;
+		q_snprintf(path, sizeof(path), "%s/QuakeEX.kpf", com_basedir);
+		if ((za = zip_open(path, 0, &err)) == NULL) goto fail;
+		if (zip_stat(za, file, 0, &zs) < 0) goto fail;
+		if ((zf = zip_fopen(za, file, 0)) == NULL) goto fail;
+		i = zs.size;
+		if (i <= 0) goto fail;
+		localization.text = (char *) calloc(1, i+1);
+		if (!localization.text) goto fail;
+		zip_fread(zf, localization.text, i);
+		zip_fclose(zf);
+		zip_close(za);
 	}
-	fseek(fp, 0, SEEK_SET);
-	fread(localization.text, 1, i, fp);
-	fclose(fp);
+	else
+	{
+		fseek(fp, 0, SEEK_END);
+		i = ftell(fp);
+		if (i <= 0) goto fail;
+		localization.text = (char *) calloc(1, i+1);
+		if (!localization.text)
+		{
+fail:		if (fp) fclose(fp);
+			if (zf) zip_fclose(zf);
+			if (za) zip_close(za);
+			Con_Printf("Couldn't load '%s'\nfrom '%s'\n", file, com_basedir);
+			return;
+		}
+		fseek(fp, 0, SEEK_SET);
+		fread(localization.text, 1, i, fp);
+		fclose(fp);
+	}
 
 	cursor = localization.text;
 
