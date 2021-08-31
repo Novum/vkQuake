@@ -11,7 +11,7 @@
             "type": "lldb",
             "request": "launch",
             "program": "${workspaceFolder}/Quake/vkquake",
-            "args": [ "-basedir", "/Users/guillaume/Quake/" ],
+            "args": [ "-basedir", "/home/axel/Quake" ],
             "cwd": "${workspaceFolder}",
             "preLaunchTask": "debug"
         }

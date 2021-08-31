@@ -24,3 +24,4 @@ AppImage/vkquake*.AppImage
 .cproject
 .DS_Store
 build/
+CMakeLists.txt
