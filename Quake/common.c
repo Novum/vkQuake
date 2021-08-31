@@ -26,6 +26,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "q_ctype.h"
 #include <errno.h>
 
+#include "miniz.h"
+
 static char	*largv[MAX_NUM_ARGVS + 1];
 static char	argvdummy[] = " ";
 
@@ -2879,6 +2881,13 @@ unsigned COM_HashString (const char *str)
 	return hash;
 }
 
+static size_t mz_zip_file_read_func(void *opaque, mz_uint64 ofs, void *buf, size_t n)
+{
+	if (fseek((FILE *)opaque, (long)ofs, SEEK_SET))
+		return 0;
+	return fread(buf, 1, n, (FILE *)opaque);
+}
+
 /*
 ================
 LOC_LoadFile
@@ -2890,6 +2899,9 @@ void LOC_LoadFile (const char *file)
 	FILE *fp = NULL;
 	int i,lineno;
 	char *cursor;
+
+	mz_zip_archive archive;
+	size_t size = 0;
 
 	// clear existing data
 	if (localization.text)
@@ -2905,22 +2917,45 @@ void LOC_LoadFile (const char *file)
 
 	Con_Printf("\nLanguage initialization\n");
 
+	memset(&archive, 0, sizeof(archive));
 	q_snprintf(path, sizeof(path), "%s/%s", com_basedir, file);
-	fp = fopen(path, "r");
-	if (!fp) goto fail;
-	fseek(fp, 0, SEEK_END);
-	i = ftell(fp);
-	if (i <= 0) goto fail;
-	localization.text = (char *) calloc(1, i+1);
-	if (!localization.text)
+	fp = fopen(path, "rb");
+	if (!fp)
 	{
-fail:		if (fp) fclose(fp);
-		Con_Printf("Couldn't load '%s'\nfrom '%s'\n", file, com_basedir);
-		return;
+		q_snprintf(path, sizeof(path), "%s/QuakeEX.kpf", com_basedir);
+		fp = fopen(path, "rb");
+		if (!fp) goto fail;
+		fseek(fp, 0, SEEK_END);
+		i = ftell(fp);
+		fseek(fp, 0, SEEK_SET);
+		if (i <= 0) goto fail;
+		archive.m_pRead = mz_zip_file_read_func;
+		archive.m_pIO_opaque = fp;
+		if (!mz_zip_reader_init(&archive, i, 0)) goto fail;
+		localization.text = (char *) mz_zip_reader_extract_file_to_heap(&archive, file, &size, 0);
+		if (!localization.text) goto fail;
+		localization.text = (char *) realloc(localization.text, size+1);
+		localization.text[size] = 0;
+		fclose(fp);
+		mz_zip_reader_end(&archive);
 	}
-	fseek(fp, 0, SEEK_SET);
-	fread(localization.text, 1, i, fp);
-	fclose(fp);
+	else
+	{
+		fseek(fp, 0, SEEK_END);
+		i = ftell(fp);
+		if (i <= 0) goto fail;
+		localization.text = (char *) calloc(1, i+1);
+		if (!localization.text)
+		{
+fail:			if (fp) fclose(fp);
+			mz_zip_reader_end(&archive);
+			Con_Printf("Couldn't load '%s'\nfrom '%s'\n", file, com_basedir);
+			return;
+		}
+		fseek(fp, 0, SEEK_SET);
+		fread(localization.text, 1, i, fp);
+		fclose(fp);
+	}
 
 	cursor = localization.text;
 
