@@ -2338,7 +2338,7 @@ void Mod_LoadBrushModel (qmodel_t *mod, void *buffer)
 	Mod_LoadFaces (&header->lumps[LUMP_FACES], bsp2);
 	Mod_LoadMarksurfaces (&header->lumps[LUMP_MARKSURFACES], bsp2);
 
-	if (!bsp2 && external_vis.value && sv.modelname[0] && !q_strcasecmp(loadname, sv.name))
+	if (!bsp2 && mod->bspversion != BSPVERSION_QUAKE64 && external_vis.value && sv.modelname[0] && !q_strcasecmp(loadname, sv.name))
 	{
 		FILE* fvis;
 		Con_DPrintf("trying to open external vis file\n");
