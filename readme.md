@@ -15,11 +15,7 @@ Note: Make sure all data files are lowercase, e.g. "id1", not "ID1" and "pak0.pa
 
 ## Quake '2021 re-release'
 
-vkQuake has initial support for playing the 2021 re-release content:
-
-* Copy the vkQuake exe to your rerelease installation.
-* Extract the localization folder from the QuakeEX.kpf zip file and place it in the rerelease directory.
-* Run vkQuake as you normally do.
+vkQuake has initial support for playing the 2021 re-release content. Follow installation instructions as above but copy the files into the rerelease folder.
 
 # Vulkan
 vkQuake shows basic usage of the API. For example it demonstrates render passes & sub passes, pipeline barriers & synchronization, compute shaders, push & specialization constants, CPU/GPU parallelism and memory pooling.
