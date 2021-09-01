@@ -66,6 +66,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 /* BSP2 support. 32bits instead of shorts for everything (bboxes use floats) */
 #define BSP2VERSION_BSP2 (('B' << 0) | ('S' << 8) | ('P' << 16) | ('2'<<24))
 
+// Quake64
+#define BSPVERSION_QUAKE64 (('Q' << 24) | ('6' << 16) | ('4' << 8) | ' ')
+
 #define	TOOLVERSION	2
 
 typedef struct
@@ -120,6 +123,14 @@ typedef struct miptex_s
 	unsigned	offsets[MIPLEVELS];		// four mip maps stored
 } miptex_t;
 
+// Quake64
+typedef struct miptex64_s
+{
+	char		name[16];
+	unsigned	width, height;
+	unsigned	shift;
+	unsigned	offsets[MIPLEVELS];		// four mip maps stored
+} miptex64_t;
 
 typedef struct
 {

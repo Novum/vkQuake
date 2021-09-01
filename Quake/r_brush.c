@@ -487,6 +487,13 @@ void BuildSurfaceDisplayList (msurface_t *fa)
 		poly->verts[i][3] = s;
 		poly->verts[i][4] = t;
 
+		// Q64 RERELEASE texture shift
+		if (fa->texinfo->texture->shift > 0)
+		{
+			poly->verts[i][3] /= ( 2 * fa->texinfo->texture->shift);
+			poly->verts[i][4] /= ( 2 * fa->texinfo->texture->shift);
+		}
+
 		//
 		// lightmap texture coordinates
 		//
