@@ -459,9 +459,7 @@ void Mod_LoadTextures (lump_t *l)
 	extern byte *hunk_base;
 //johnfitz
 
-//Quake64
-	miptex64_t *mt64;
-//Quake64
+	miptex64_t *mt64; //Quake64
 
 	//johnfitz -- don't return early if no textures; still need to create dummy texture
 	if (!l->filelen)
@@ -492,7 +490,7 @@ void Mod_LoadTextures (lump_t *l)
 		for (j=0 ; j<MIPLEVELS ; j++)
 			mt->offsets[j] = LittleLong (mt->offsets[j]);
 
-		if ((mt->width & 15) || (mt->height & 15))
+		if ( (mt->width & 15) || (mt->height & 15) )
 		{
 			if (loadmodel->bspversion != BSPVERSION_QUAKE64)
 				Sys_Error ("Texture %s is not 16 aligned", mt->name);
@@ -747,7 +745,6 @@ void Mod_LoadTextures (lump_t *l)
 Mod_LoadLighting -- johnfitz -- replaced with lit support code via lordhavoc
 =================
 */
-
 void Mod_LoadLighting (lump_t *l)
 {
 	int i, mark;
@@ -818,9 +815,9 @@ void Mod_LoadLighting (lump_t *l)
 			q64_b0 = *in++;
 			q64_b1 = *in++;
 
-			*out++ = q64_b0 & 0b11111000;
-			*out++ = ((q64_b0 & 0b00000111) << 5) + ((q64_b1 & 0b11000000) >> 5);
-			*out++ = (q64_b1 & 0b00111111) << 2;
+			*out++ = q64_b0 & 0xf8;/* 0b11111000 */
+			*out++ = ((q64_b0 & 0x07) << 5) + ((q64_b1 & 0xc0) >> 5);/* 0b00000111, 0b11000000 */
+			*out++ = (q64_b1 & 0x3f) << 2;/* 0b00111111 */
 		}
 		return;
 	}
@@ -1249,7 +1246,6 @@ void Mod_LoadFaces (lump_t *l, qboolean bsp2)
 		CalcSurfaceExtents (out);
 
 	// lighting info
-
 		if (loadmodel->bspversion == BSPVERSION_QUAKE64)
 			lofs /= 2; // Q64 lightdata is 2 bytes per samples {Tone, color}?
 
