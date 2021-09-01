@@ -394,12 +394,12 @@ static void R_FlushBatch (qboolean fullbright_enabled, qboolean alpha_test, qboo
 		{
 			if (vulkan_globals.depth_format == VK_FORMAT_D32_SFLOAT_S8_UINT || vulkan_globals.depth_format == VK_FORMAT_D32_SFLOAT)
 			{
-				constant_factor = -0.125f;
+				constant_factor = -4.f;
 				slope_factor = -0.125f;
 			}
 			else
 			{
-				constant_factor = -0.5f;
+				constant_factor = -1.f;
 				slope_factor = -0.25f;
 			}
 		}
