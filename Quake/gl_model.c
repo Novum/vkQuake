@@ -459,6 +459,11 @@ void Mod_LoadTextures (lump_t *l)
 	extern byte *hunk_base;
 //johnfitz
 
+//Quake64
+	miptex64_t *mt64;
+	byte* texture_data_ptr;
+//Quake64
+
 	//johnfitz -- don't return early if no textures; still need to create dummy texture
 	if (!l->filelen)
 	{
@@ -514,11 +519,22 @@ void Mod_LoadTextures (lump_t *l)
 			Con_DPrintf("Texture %s extends past end of lump\n", mt->name);
 			pixels = q_max(0, (mod_base + l->fileofs + l->filelen) - (byte*)(mt+1));
 		}
-		memcpy ( tx+1, mt+1, pixels);
 
 		tx->update_warp = false; //johnfitz
 		tx->warpimage = NULL; //johnfitz
 		tx->fullbright = NULL; //johnfitz
+		tx->shift = 0;	// Q64 only
+
+		if (loadmodel->bspversion != BSPVERSION_QUAKE64)
+		{
+			memcpy ( tx+1, mt+1, pixels);
+		}
+		else
+		{ // Q64 bsp
+			mt64 = (miptex64_t *)mt;
+			memcpy ( tx+1, mt64+1, pixels);
+			tx->shift = mt64->shift;
+		}
 
 		//johnfitz -- lots of changes
 		if (!isDedicated) //no texture uploading for dedicated server
@@ -530,7 +546,7 @@ void Mod_LoadTextures (lump_t *l)
 				//external textures -- first look in "textures/mapname/" then look in "textures/"
 				mark = Hunk_LowMark();
 				COM_StripExtension (loadmodel->name + 5, mapname, sizeof(mapname));
-				q_snprintf (filename, sizeof(filename), "textures/%s/#%s", mapname, tx->name+1); //this also replaces the '*' with a '#'
+				q_snprintf (filename, sizeof(filename), "textur`es/%s/#%s", mapname, tx->name+1); //this also replaces the '*' with a '#'
 				data = Image_LoadImage (filename, &fwidth, &fheight);
 				if (!data)
 				{
@@ -602,16 +618,27 @@ void Mod_LoadTextures (lump_t *l)
 						tx->fullbright = TexMgr_LoadImage (loadmodel, filename2, fwidth, fheight,
 							SRC_RGBA, data, filename, 0, TEXPREF_MIPMAP | extraflags );
 				}
-				else if (loadmodel->bspversion == (int)BSPVERSION_QUAKE64) // Quake 64 RERELEASE
+				else if (loadmodel->bspversion == BSPVERSION_QUAKE64 && false) // Quake 64 RERELEASE
 				{
 					// Q64 bsp's have and extra int (divider) before the 4 mip offsets	
-					miptex64_t *mt64 = (miptex64_t *)mt;
-					byte * tex_data = (byte *)(mt64+1);
-					tx->name[15] = (char)mt64->shift; // store this in the texture name so we dont hace to modify texture_t... :)
+					texture_data_ptr = (byte *)(tx+1); //(byte *)(mt64+1); // we have an extra 4bytes to consider in our texture data for the shift value
+					tx->shift = mt64->shift;
 
 					q_snprintf (texturename, sizeof(texturename), "%s:%s", loadmodel->name, tx->name);
-					tx->gltexture = TexMgr_LoadImage (loadmodel, texturename, tx->width, tx->height,
-						SRC_INDEXED, tex_data, loadmodel->name, 0, TEXPREF_MIPMAP | extraflags);
+
+					if (Mod_CheckFullbrights ((byte *)(tx+1), pixels))
+					{	
+						tx->gltexture = TexMgr_LoadImage (loadmodel, texturename, tx->width, tx->height,
+							SRC_INDEXED, texture_data_ptr, loadmodel->name, offset, TEXPREF_MIPMAP | TEXPREF_NOBRIGHT | extraflags);
+						q_snprintf (texturename, sizeof(texturename), "%s:%s_glow", loadmodel->name, tx->name);
+						tx->fullbright = TexMgr_LoadImage (loadmodel, texturename, tx->width, tx->height,
+							SRC_INDEXED, texture_data_ptr, loadmodel->name, offset, TEXPREF_MIPMAP | TEXPREF_FULLBRIGHT | extraflags);
+					}
+					else
+					{
+						tx->gltexture = TexMgr_LoadImage (loadmodel, texturename, tx->width, tx->height,
+							SRC_INDEXED, texture_data_ptr, loadmodel->name, offset, TEXPREF_MIPMAP | extraflags);
+					}
 				}
 				else //use the texture from the bsp file
 				{
@@ -1247,7 +1274,7 @@ void Mod_LoadFaces (lump_t *l, qboolean bsp2)
 	// lighting info
 
 		if (loadmodel->bspversion == BSPVERSION_QUAKE64)
-			lofs /= 2; // isQ64bsp Q64 lightdata is 2 bytes per samples {Tone, color}?
+			lofs /= 2; // Q64 lightdata is 2 bytes per samples {Tone, color}?
 
 		if (lofs == -1)
 			out->samples = NULL;
@@ -2291,7 +2318,6 @@ void Mod_LoadBrushModel (qmodel_t *mod, void *buffer)
 	dheader_t	*header;
 	dmodel_t 	*bm;
 	float		radius; //johnfitz
-	qboolean    isQ64bsp = false;
 
 	loadmodel->type = mod_brush;
 
@@ -2314,7 +2340,7 @@ void Mod_LoadBrushModel (qmodel_t *mod, void *buffer)
 		bsp2 = false;
 		break;
 	default:
-		Sys_Error ("Mod_LoadBrushModel: %s has wrong version number (%i should be %i)", mod->name, mod->bspversion, BSPVERSION);
+		Sys_Error ("Mod_LoadBrushModel: %s has unsupported version number (%i)", mod->name, mod->bspversion);
 		break;
 	}
 
