@@ -461,7 +461,6 @@ void Mod_LoadTextures (lump_t *l)
 
 //Quake64
 	miptex64_t *mt64;
-	byte* texture_data_ptr;
 //Quake64
 
 	//johnfitz -- don't return early if no textures; still need to create dummy texture
@@ -546,7 +545,7 @@ void Mod_LoadTextures (lump_t *l)
 				//external textures -- first look in "textures/mapname/" then look in "textures/"
 				mark = Hunk_LowMark();
 				COM_StripExtension (loadmodel->name + 5, mapname, sizeof(mapname));
-				q_snprintf (filename, sizeof(filename), "textur`es/%s/#%s", mapname, tx->name+1); //this also replaces the '*' with a '#'
+				q_snprintf (filename, sizeof(filename), "textures/%s/#%s", mapname, tx->name+1); //this also replaces the '*' with a '#'
 				data = Image_LoadImage (filename, &fwidth, &fheight);
 				if (!data)
 				{
@@ -617,28 +616,6 @@ void Mod_LoadTextures (lump_t *l)
 					if (data)
 						tx->fullbright = TexMgr_LoadImage (loadmodel, filename2, fwidth, fheight,
 							SRC_RGBA, data, filename, 0, TEXPREF_MIPMAP | extraflags );
-				}
-				else if (loadmodel->bspversion == BSPVERSION_QUAKE64 && false) // Quake 64 RERELEASE
-				{
-					// Q64 bsp's have and extra int (divider) before the 4 mip offsets	
-					texture_data_ptr = (byte *)(tx+1); //(byte *)(mt64+1); // we have an extra 4bytes to consider in our texture data for the shift value
-					tx->shift = mt64->shift;
-
-					q_snprintf (texturename, sizeof(texturename), "%s:%s", loadmodel->name, tx->name);
-
-					if (Mod_CheckFullbrights ((byte *)(tx+1), pixels))
-					{	
-						tx->gltexture = TexMgr_LoadImage (loadmodel, texturename, tx->width, tx->height,
-							SRC_INDEXED, texture_data_ptr, loadmodel->name, offset, TEXPREF_MIPMAP | TEXPREF_NOBRIGHT | extraflags);
-						q_snprintf (texturename, sizeof(texturename), "%s:%s_glow", loadmodel->name, tx->name);
-						tx->fullbright = TexMgr_LoadImage (loadmodel, texturename, tx->width, tx->height,
-							SRC_INDEXED, texture_data_ptr, loadmodel->name, offset, TEXPREF_MIPMAP | TEXPREF_FULLBRIGHT | extraflags);
-					}
-					else
-					{
-						tx->gltexture = TexMgr_LoadImage (loadmodel, texturename, tx->width, tx->height,
-							SRC_INDEXED, texture_data_ptr, loadmodel->name, offset, TEXPREF_MIPMAP | extraflags);
-					}
 				}
 				else //use the texture from the bsp file
 				{
