@@ -22,8 +22,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-#ifndef __GLQUAKE_H
-#define __GLQUAKE_H
+#ifndef GLQUAKE_H
+#define GLQUAKE_H
 
 void GL_WaitForDeviceIdle (void);
 qboolean GL_BeginRendering (int *x, int *y, int *width, int *height);
@@ -447,6 +447,7 @@ void R_CreatePipelineLayouts();
 void R_CreatePipelines();
 void R_DestroyPipelines();
 
+
 #define MAX_PUSH_CONSTANT_SIZE 128 // Vulkan guaranteed minimum maxPushConstantsSize
 
 static inline void R_BindPipeline(VkPipelineBindPoint bind_point, vulkan_pipeline_t pipeline)
@@ -508,5 +509,4 @@ byte * R_UniformAllocate(int size, VkBuffer * buffer, uint32_t * buffer_offset, 
 
 void GL_SetObjectName(uint64_t object, VkObjectType object_type, const char * name);
 
-#endif	/* __GLQUAKE_H */
-
+#endif	/* GLQUAKE_H */
