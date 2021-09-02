@@ -259,7 +259,9 @@ static void GL_FrustumMatrix(float matrix[16], float fovx, float fovy)
 	const float w = 1.0f / tanf(fovx * 0.5f);
 	const float h = 1.0f / tanf(fovy * 0.5f);
 
-	const float n = NEARCLIP;
+	// reduce near clip distance at high FOV's to avoid seeing through walls
+	const float d = 12.f * q_min(w, h);
+	const float n = CLAMP(0.5f, d, NEARCLIP);
 	const float f = gl_farclip.value;
 
 	memset(matrix, 0, 16 * sizeof(float));
