@@ -169,7 +169,7 @@ void Sky_LoadTextureQ64 (texture_t *mt)
 	// pointers to both layer textures
 	front = (byte *)(mt+1);
 	back = (byte *)(mt+1) + (32*32);
-	front_rgba = Hunk_Alloc(4*(32*32));
+	front_rgba = (byte *) Hunk_Alloc(4*(32*32));
 
 	// Normal indexed texture for the back layer
 	q_snprintf(texturename, sizeof(texturename), "%s:%s_back", loadmodel->name, mt->name);
@@ -194,7 +194,6 @@ void Sky_LoadTextureQ64 (texture_t *mt)
 		g += ((byte *)rgba)[1];
 		b += ((byte *)rgba)[2];
 		count++;
-
 	}
 
 	q_snprintf(texturename, sizeof(texturename), "%s:%s_front", loadmodel->name, mt->name);
@@ -204,7 +203,6 @@ void Sky_LoadTextureQ64 (texture_t *mt)
 	skyflatcolor[0] = (float)r/(count*255);
 	skyflatcolor[1] = (float)g/(count*255);
 	skyflatcolor[2] = (float)b/(count*255);
-	
 }
 
 /*

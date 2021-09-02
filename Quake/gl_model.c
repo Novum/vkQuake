@@ -459,8 +459,6 @@ void Mod_LoadTextures (lump_t *l)
 	extern byte *hunk_base;
 //johnfitz
 
-	miptex64_t *mt64; //Quake64
-
 	//johnfitz -- don't return early if no textures; still need to create dummy texture
 	if (!l->filelen)
 	{
@@ -528,7 +526,7 @@ void Mod_LoadTextures (lump_t *l)
 		}
 		else
 		{ // Q64 bsp
-			mt64 = (miptex64_t *)mt;
+			miptex64_t *mt64 = (miptex64_t *)mt;
 			tx->shift = LittleLong (mt64->shift);
 			memcpy ( tx+1, mt64+1, pixels);
 		}
