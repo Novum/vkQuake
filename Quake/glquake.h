@@ -48,7 +48,8 @@ extern	int glx, gly, glwidth, glheight;
 
 #define BACKFACE_EPSILON	0.01
 
-#define	MAX_GLTEXTURES	2048
+#define	MAX_GLTEXTURES	4096
+
 #define NUM_COLOR_BUFFERS 2
 #define INITIAL_STAGING_BUFFER_SIZE_KB	16384
 

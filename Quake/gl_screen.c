@@ -99,6 +99,8 @@ cvar_t		scr_showpause = {"showpause","1",CVAR_NONE};
 cvar_t		scr_printspeed = {"scr_printspeed","8",CVAR_NONE};
 cvar_t		gl_triplebuffer = {"gl_triplebuffer", "1", CVAR_ARCHIVE};
 
+cvar_t		cl_gun_fovscale = {"cl_gun_fovscale","1",CVAR_ARCHIVE}; // Qrack
+
 extern	cvar_t	crosshair;
 
 qboolean	scr_initialized;		// ready to draw
@@ -423,6 +425,7 @@ void SCR_Init (void)
 	Cvar_RegisterVariable (&scr_centertime);
 	Cvar_RegisterVariable (&scr_printspeed);
 	Cvar_RegisterVariable (&gl_triplebuffer);
+	Cvar_RegisterVariable (&cl_gun_fovscale);
 
 	Cmd_AddCommand ("screenshot",SCR_ScreenShot_f);
 	Cmd_AddCommand ("sizeup",SCR_SizeUp_f);

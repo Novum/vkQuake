@@ -11,7 +11,7 @@ Copy all files inside the `vkquake-<version>_win64` or `vkquake-<version>_win32`
 ## Linux
 Copy all files inside the `vkquake-<version>-linux64` folder in the tar archive to the Quake base directory. Overwrite any existing files. Run `vkquake.AppImage`.
 
-Note: Make sure all data files are lowercase, e.g. "id1", not "ID1" and "pak0.pak", not "PAK0.PAK". Some distributions of the game have upper case file names, e.g. from GOG.com.
+> 📝 **Note**: Make sure all data files are lowercase, e.g. "id1", not "ID1" and "pak0.pak", not "PAK0.PAK". Some distributions of the game have upper case file names, e.g. from GOG.com.
 
 ## Quake '2021 re-release'
 
@@ -78,7 +78,7 @@ Arch Linux:
 pacman -S git flac glibc libgl libmad libvorbis libx11 sdl2 vulkan-validation-layers
 ~~~
 
-\* Please note that for vkquake > v0.50, you will need at least v1.0.12.0 of libvulkan-dev (See [#55](https://github.com/Novum/vkQuake/issues/55)).
+> 📝 **Note**: For vkquake > v0.50, you will need at least v1.0.12.0 of libvulkan-dev (See [#55](https://github.com/Novum/vkQuake/issues/55)).
 
 Then clone the vkQuake repo:
 
@@ -93,8 +93,7 @@ cd vkQuake/Quake
 make
 ~~~
 
-### Note
-vkQuake 0.97 and later requires at least **SDL2 2.0.6 with enabled Vulkan support**. The precompiled versions in some of the distribution repositories (e.g. Ubuntu) do not currently ship with Vulkan support. You will therefore need to compile it from source. Make sure you have libvulkan-dev installed before running configure.
+> 📝 **Note**: vkQuake 0.97 and later requires at least **SDL2 2.0.6 with enabled Vulkan support**. The precompiled versions in some of the distribution repositories (e.g. Ubuntu) do not currently ship with Vulkan support. You will therefore need to compile it from source. Make sure you have libvulkan-dev installed before running configure.
 
 ## MacOS
 
@@ -138,7 +137,9 @@ Then vkQuake is ready to play.
 
 # Optional - Music / Soundtrack
 
-The original quake had a great soundtrack by Nine Inch Nails. Unfortunately, the Steam version does not come with the soundtrack files. The GOG-provided files need to be converted before they are ready for use. In general, you'll just need to move a "music" folder to the correct location within your vkQuake installation (.e.g `/usr/share/quake/id1/music`). Most Quake engines play nicest with soundtracks placed in the `id1/music` subfolder vs. `sound\cdtracks`
+> 📝 **Note**: This section only applies to older releases. For the 2021 re-release music will work out of the box.
+
+The original Quake had a great soundtrack by Nine Inch Nails. Unfortunately, the Steam version does not come with the soundtrack files. The GOG-provided files need to be converted before they are ready for use. In general, you'll just need to move a "music" folder to the correct location within your vkQuake installation (.e.g `/usr/share/quake/id1/music`). Most Quake engines play nicest with soundtracks placed in the `id1/music` subfolder vs. `sound\cdtracks`
 
 QuakeSpasm, the engine vkQuake is derived from, supports OGG, MP3, FLAC, and WAV audio formats. The Linux version of QuakeSpasm/VkQuake requires external libraries: libogg or libvorbis for OGG support, libmad or libmpg123 for MP3, and libflac for FLAC. If you already have a setup that works for the engine you're currently using, then you don't necessarily have to change it. 
 
