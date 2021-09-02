@@ -529,8 +529,8 @@ void Mod_LoadTextures (lump_t *l)
 		else
 		{ // Q64 bsp
 			mt64 = (miptex64_t *)mt;
+			tx->shift = LittleLong (mt64->shift);
 			memcpy ( tx+1, mt64+1, pixels);
-			tx->shift = mt64->shift;
 		}
 
 		//johnfitz -- lots of changes
