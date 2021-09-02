@@ -1958,7 +1958,7 @@ void R_CreatePipelines()
 
 		depth_stencil_state_create_info.depthTestEnable = VK_TRUE;
 		rasterization_state_create_info.depthBiasEnable = VK_TRUE;
-		rasterization_state_create_info.depthBiasConstantFactor = (vulkan_globals.depth_format != VK_FORMAT_D16_UNORM) ? 500.0f : 2.5f;
+		rasterization_state_create_info.depthBiasConstantFactor = 500.0f;
 		rasterization_state_create_info.depthBiasSlopeFactor = 0.0f;
 
 		assert(vulkan_globals.showtris_depth_test_pipeline.handle == VK_NULL_HANDLE);
@@ -2174,7 +2174,7 @@ void R_CreatePipelines()
 
 		depth_stencil_state_create_info.depthTestEnable = VK_TRUE;
 		rasterization_state_create_info.depthBiasEnable = VK_TRUE;
-		rasterization_state_create_info.depthBiasConstantFactor = (vulkan_globals.depth_format != VK_FORMAT_D16_UNORM) ? 500.0f : 2.5f;
+		rasterization_state_create_info.depthBiasConstantFactor = 500.0f;
 		rasterization_state_create_info.depthBiasSlopeFactor = 0.0f;
 
 		assert(vulkan_globals.alias_showtris_depth_test_pipeline.handle == VK_NULL_HANDLE);
