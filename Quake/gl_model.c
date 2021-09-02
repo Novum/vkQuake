@@ -537,7 +537,12 @@ void Mod_LoadTextures (lump_t *l)
 		if (!isDedicated) //no texture uploading for dedicated server
 		{
 			if (!q_strncasecmp(tx->name,"sky",3)) //sky texture //also note -- was Q_strncmp, changed to match qbsp
-				Sky_LoadTexture (tx);
+			{
+				if (loadmodel->bspversion == BSPVERSION_QUAKE64)
+					Sky_LoadTextureQ64 (tx);
+				else
+					Sky_LoadTexture (tx);
+			}
 			else if (tx->name[0] == '*') //warping texture
 			{
 				//external textures -- first look in "textures/mapname/" then look in "textures/"
@@ -1247,7 +1252,7 @@ void Mod_LoadFaces (lump_t *l, qboolean bsp2)
 
 	// lighting info
 		if (loadmodel->bspversion == BSPVERSION_QUAKE64)
-			lofs /= 2; // Q64 lightdata is 2 bytes per samples {Tone, color}?
+			lofs /= 2; // Q64 samples are 16bits instead 8 in normal Quake 
 
 		if (lofs == -1)
 			out->samples = NULL;
