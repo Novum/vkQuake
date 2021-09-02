@@ -162,9 +162,9 @@ Quake64 sky textures are 32*64
 void Sky_LoadTextureQ64 (texture_t *mt)
 {
 	char		texturename[64];
-	int			i, pos;
-	byte 		c;
+	int			i, p, r, g, b, count;
 	byte		*front, *back, *front_rgba;
+	unsigned	*rgba;
 
 	// pointers to both layer textures
 	front = (byte *)(mt+1);
@@ -176,22 +176,35 @@ void Sky_LoadTextureQ64 (texture_t *mt)
 	solidskytexture = TexMgr_LoadImage (loadmodel, texturename, 32, 32, SRC_INDEXED, back, "", (src_offset_t)back, TEXPREF_NONE);
 	
 	// front layer, convert to RGBA and upload
-	pos = 0;
+	p = r = g = b = count = 0;
+
 	for (i=0 ; i < (32*32) ; i++)
 	{
-		c = *front++;
+		rgba = &d_8to24table[*front++];
 
 		// RGB
-		front_rgba[pos++] = ((byte *) &d_8to24table[c])[0];
-		front_rgba[pos++] = ((byte *) &d_8to24table[c])[1];
-		front_rgba[pos++] = ((byte *) &d_8to24table[c])[2];
-
+		front_rgba[p++] = ((byte*)rgba)[0];
+		front_rgba[p++] = ((byte*)rgba)[1];
+		front_rgba[p++] = ((byte*)rgba)[2];
 		// Alpha
-		front_rgba[pos++] = 128; // this look ok to me!
+		front_rgba[p++] = 128; // this look ok to me!
+		
+		// Fast sky
+		r += ((byte *)rgba)[0];
+		g += ((byte *)rgba)[1];
+		b += ((byte *)rgba)[2];
+		count++;
+
 	}
 
 	q_snprintf(texturename, sizeof(texturename), "%s:%s_front", loadmodel->name, mt->name);
 	alphaskytexture = TexMgr_LoadImage (loadmodel, texturename, 32, 32, SRC_RGBA, front_rgba, "", (src_offset_t)front_rgba, TEXPREF_NONE);
+
+	// calculate r_fastsky color based on average of all opaque foreground colors
+	skyflatcolor[0] = (float)r/(count*255);
+	skyflatcolor[1] = (float)g/(count*255);
+	skyflatcolor[2] = (float)b/(count*255);
+	
 }
 
 /*
