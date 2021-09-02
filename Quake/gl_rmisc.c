@@ -34,6 +34,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 //johnfitz -- new cvars
 extern cvar_t r_clearcolor;
+extern cvar_t r_fastclear;
 extern cvar_t r_flatlightstyles;
 extern cvar_t gl_fullbrights;
 extern cvar_t gl_farclip;
@@ -178,20 +179,54 @@ static void GL_Fullbrights_f (cvar_t *var)
 
 /*
 ====================
+SetClearColor
+====================
+*/
+static void SetClearColor()
+{
+	byte	*rgb;
+	int		s;
+
+	if (r_fastclear.value != 0.0f)
+	{
+		// Set to black so fast clear works properly on modern GPUs
+		vulkan_globals.color_clear_value.color.float32[0] = 0.0f;
+		vulkan_globals.color_clear_value.color.float32[1] = 0.0f;
+		vulkan_globals.color_clear_value.color.float32[2] = 0.0f;
+		vulkan_globals.color_clear_value.color.float32[3] = 0.0f;
+	}
+	else
+	{
+		s = (int)r_clearcolor.value & 0xFF;
+		rgb = (byte*)(d_8to24table + s);
+		vulkan_globals.color_clear_value.color.float32[0] = rgb[0]/255.0f;
+		vulkan_globals.color_clear_value.color.float32[1] = rgb[1]/255.0f;
+		vulkan_globals.color_clear_value.color.float32[2] = rgb[2]/255.0f;
+		vulkan_globals.color_clear_value.color.float32[3] = 0.0f;
+	}
+}
+
+/*
+====================
 R_SetClearColor_f -- johnfitz
 ====================
 */
 static void R_SetClearColor_f (cvar_t *var)
 {
-	byte	*rgb;
-	int		s;
+	if (r_fastclear.value != 0.0f)
+		Con_Warning("Black clear color forced by r_fastclear\n");
 
-	s = (int)r_clearcolor.value & 0xFF;
-	rgb = (byte*)(d_8to24table + s);
-	vulkan_globals.color_clear_value.color.float32[0] = rgb[0]/255;
-	vulkan_globals.color_clear_value.color.float32[1] = rgb[1]/255;
-	vulkan_globals.color_clear_value.color.float32[2] = rgb[2]/255;
-	vulkan_globals.color_clear_value.color.float32[3] = 0.0f;
+	SetClearColor();
+}
+
+/*
+====================
+R_SetFastClear_f -- johnfitz
+====================
+*/
+static void R_SetFastClear_f (cvar_t *var)
+{
+	SetClearColor();
 }
 
 /*
@@ -2379,6 +2414,8 @@ void R_Init (void)
 	//johnfitz -- new cvars
 	Cvar_RegisterVariable (&r_clearcolor);
 	Cvar_SetCallback (&r_clearcolor, R_SetClearColor_f);
+	Cvar_RegisterVariable (&r_fastclear);
+	Cvar_SetCallback (&r_fastclear, R_SetFastClear_f);
 	Cvar_RegisterVariable (&r_waterquality);
 	Cvar_RegisterVariable (&r_waterwarp);
 	Cvar_RegisterVariable (&r_waterwarpcompute);
@@ -2405,7 +2442,7 @@ void R_Init (void)
 	Cvar_SetCallback (&r_slimealpha, R_SetSlimealpha_f);
 
 	R_InitParticles ();
-	R_SetClearColor_f (&r_clearcolor); //johnfitz
+	SetClearColor(); //johnfitz
 
 	Sky_Init (); //johnfitz
 	Fog_Init (); //johnfitz
