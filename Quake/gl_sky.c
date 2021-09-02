@@ -153,6 +153,48 @@ void Sky_LoadTexture (texture_t *mt)
 }
 
 /*
+=============
+Sky_LoadTextureQ64
+
+Quake64 sky textures are 32*64
+==============
+*/
+void Sky_LoadTextureQ64 (texture_t *mt)
+{
+	char		texturename[64];
+	int			i, pos;
+	byte 		c;
+	byte		*front, *back, *front_rgba;
+
+	// pointers to both layer textures
+	front = (byte *)(mt+1);
+	back = (byte *)(mt+1) + (32*32);
+	front_rgba = Hunk_Alloc(4*(32*32));
+
+	// Normal indexed texture for the back layer
+	q_snprintf(texturename, sizeof(texturename), "%s:%s_back", loadmodel->name, mt->name);
+	solidskytexture = TexMgr_LoadImage (loadmodel, texturename, 32, 32, SRC_INDEXED, back, "", (src_offset_t)back, TEXPREF_NONE);
+	
+	// front layer, convert to RGBA and upload
+	pos = 0;
+	for (i=0 ; i < (32*32) ; i++)
+	{
+		c = *front++;
+
+		// RGB
+		front_rgba[pos++] = ((byte *) &d_8to24table[c])[0];
+		front_rgba[pos++] = ((byte *) &d_8to24table[c])[1];
+		front_rgba[pos++] = ((byte *) &d_8to24table[c])[2];
+
+		// Alpha
+		front_rgba[pos++] = 128; // this look ok to me!
+	}
+
+	q_snprintf(texturename, sizeof(texturename), "%s:%s_front", loadmodel->name, mt->name);
+	alphaskytexture = TexMgr_LoadImage (loadmodel, texturename, 32, 32, SRC_RGBA, front_rgba, "", (src_offset_t)front_rgba, TEXPREF_NONE);
+}
+
+/*
 ==================
 Sky_LoadSkyBox
 ==================
