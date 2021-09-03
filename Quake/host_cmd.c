@@ -1753,18 +1753,19 @@ void Host_Spawn_f (void)
 			continue;
 		if (host_client->protocol_pext2 & PEXT2_PREDINFO)
 		{
+			// From QSS - Broken or incompleted call of CL_ServerExtension_FullUserinfo_f...
 			MSG_WriteByte (&host_client->message, svc_stufftext);
 			MSG_WriteString (&host_client->message, va("//fui %i \"\"\n", i));
 		}
-
-		// Perpixel - Update scoreboard. Players color is stored in the scoreboard... We need it to set the top, bottom color on spawn.
-		MSG_WriteByte (&host_client->message, svc_updatename);
-		MSG_WriteByte (&host_client->message, i);
-		MSG_WriteString (&host_client->message, client->name);
-		MSG_WriteByte (&host_client->message, svc_updatecolors);
-		MSG_WriteByte (&host_client->message, i);
-		MSG_WriteByte (&host_client->message, client->colors);
-		// Perpixel
+		//else
+		{
+			MSG_WriteByte (&host_client->message, svc_updatename);
+			MSG_WriteByte (&host_client->message, i);
+			MSG_WriteString (&host_client->message, client->name);
+			MSG_WriteByte (&host_client->message, svc_updatecolors);
+			MSG_WriteByte (&host_client->message, i);
+			MSG_WriteByte (&host_client->message, client->colors);
+		}
 
 		MSG_WriteByte (&host_client->message, svc_updatefrags);
 		MSG_WriteByte (&host_client->message, i);

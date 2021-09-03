@@ -485,18 +485,19 @@ void SV_DropClient (qboolean crash)
 			continue;
 		if ((host_client->protocol_pext1 & PEXT1_CSQC) || (host_client->protocol_pext2 & PEXT2_REPLACEMENTDELTAS))
 		{
+			// From QSS - Broken or incompleted call of CL_ServerExtension_FullUserinfo_f...
 			MSG_WriteByte (&client->message, svc_stufftext);
 			MSG_WriteString (&client->message, va("//fui %u \"\"\n", (unsigned)(host_client - svs.clients)));
 		}
-
-		// Perpixel - Update scoreboard
-		MSG_WriteByte (&client->message, svc_updatename);
-		MSG_WriteByte (&client->message, host_client - svs.clients);
-		MSG_WriteString (&client->message, "");
-		MSG_WriteByte (&client->message, svc_updatecolors);
-		MSG_WriteByte (&client->message, host_client - svs.clients);
-		MSG_WriteByte (&client->message, 0);
-		//
+		//else
+		{		
+			MSG_WriteByte (&client->message, svc_updatename);
+			MSG_WriteByte (&client->message, host_client - svs.clients);
+			MSG_WriteString (&client->message, "");
+			MSG_WriteByte (&client->message, svc_updatecolors);
+			MSG_WriteByte (&client->message, host_client - svs.clients);
+			MSG_WriteByte (&client->message, 0);
+		}
 
 		MSG_WriteByte (&client->message, svc_updatefrags);
 		MSG_WriteByte (&client->message, host_client - svs.clients);
