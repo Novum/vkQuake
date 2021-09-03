@@ -2,8 +2,8 @@
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2007-2008 Kristian Duske
-Copyright (C) 2010-2019 QuakeSpasm developers
-Copyright (C) 2016 Axel Gneiting
+Copyright (C) 2010-2021 QuakeSpasm developers
+Copyright (C) 2016-2021 vkQuake developers
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
