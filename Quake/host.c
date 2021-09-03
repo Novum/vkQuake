@@ -488,15 +488,16 @@ void SV_DropClient (qboolean crash)
 			MSG_WriteByte (&client->message, svc_stufftext);
 			MSG_WriteString (&client->message, va("//fui %u \"\"\n", (unsigned)(host_client - svs.clients)));
 		}
-		else
-		{
-			MSG_WriteByte (&client->message, svc_updatename);
-			MSG_WriteByte (&client->message, host_client - svs.clients);
-			MSG_WriteString (&client->message, "");
-			MSG_WriteByte (&client->message, svc_updatecolors);
-			MSG_WriteByte (&client->message, host_client - svs.clients);
-			MSG_WriteByte (&client->message, 0);
-		}
+
+		// Perpixel - Update scoreboard
+		MSG_WriteByte (&client->message, svc_updatename);
+		MSG_WriteByte (&client->message, host_client - svs.clients);
+		MSG_WriteString (&client->message, "");
+		MSG_WriteByte (&client->message, svc_updatecolors);
+		MSG_WriteByte (&client->message, host_client - svs.clients);
+		MSG_WriteByte (&client->message, 0);
+		//
+
 		MSG_WriteByte (&client->message, svc_updatefrags);
 		MSG_WriteByte (&client->message, host_client - svs.clients);
 		MSG_WriteShort (&client->message, 0);

@@ -1756,15 +1756,15 @@ void Host_Spawn_f (void)
 			MSG_WriteByte (&host_client->message, svc_stufftext);
 			MSG_WriteString (&host_client->message, va("//fui %i \"\"\n", i));
 		}
-		else
-		{
-			MSG_WriteByte (&host_client->message, svc_updatename);
-			MSG_WriteByte (&host_client->message, i);
-			MSG_WriteString (&host_client->message, client->name);
-			MSG_WriteByte (&host_client->message, svc_updatecolors);
-			MSG_WriteByte (&host_client->message, i);
-			MSG_WriteByte (&host_client->message, client->colors);
-		}
+
+		// Perpixel - Update scoreboard. Players color is stored in the scoreboard... We need it to set the top, bottom color on spawn.
+		MSG_WriteByte (&host_client->message, svc_updatename);
+		MSG_WriteByte (&host_client->message, i);
+		MSG_WriteString (&host_client->message, client->name);
+		MSG_WriteByte (&host_client->message, svc_updatecolors);
+		MSG_WriteByte (&host_client->message, i);
+		MSG_WriteByte (&host_client->message, client->colors);
+		// Perpixel
 
 		MSG_WriteByte (&host_client->message, svc_updatefrags);
 		MSG_WriteByte (&host_client->message, i);
