@@ -489,7 +489,7 @@ void SV_DropClient (qboolean crash)
 			MSG_WriteByte (&client->message, svc_stufftext);
 			MSG_WriteString (&client->message, va("//fui %u \"\"\n", (unsigned)(host_client - svs.clients)));
 		}
-		//else
+
 		{		
 			MSG_WriteByte (&client->message, svc_updatename);
 			MSG_WriteByte (&client->message, host_client - svs.clients);
