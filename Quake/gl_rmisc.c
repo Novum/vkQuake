@@ -2676,7 +2676,7 @@ void R_TimeRefresh_f (void)
 		GL_BeginRendering(&glx, &gly, &glwidth, &glheight);
 		r_refdef.viewangles[1] = i/128.0*360.0;
 		R_RenderView ();
-		GL_EndRendering (true);
+		GL_EndRendering (false);
 	}
 
 	//glFinish ();
