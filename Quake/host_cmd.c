@@ -1757,7 +1757,7 @@ void Host_Spawn_f (void)
 			MSG_WriteByte (&host_client->message, svc_stufftext);
 			MSG_WriteString (&host_client->message, va("//fui %i \"\"\n", i));
 		}
-		//else
+
 		{
 			MSG_WriteByte (&host_client->message, svc_updatename);
 			MSG_WriteByte (&host_client->message, i);
