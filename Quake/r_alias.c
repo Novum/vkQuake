@@ -407,7 +407,10 @@ void R_DrawAliasModel (entity_t *e)
 
 	float fovscale = 1.0f;
 	if (e == &cl.viewent && scr_fov.value > 90.f && cl_gun_fovscale.value)
+	{
 		fovscale = tan(scr_fov.value * (0.5f * M_PI / 180.f));
+		fovscale = 1.f + (fovscale - 1.f) * cl_gun_fovscale.value;
+	}
 
 	float translation_matrix[16];
 	TranslationMatrix (translation_matrix, paliashdr->scale_origin[0], paliashdr->scale_origin[1] * fovscale, paliashdr->scale_origin[2] * fovscale);
@@ -522,7 +525,10 @@ void R_DrawAliasModel_ShowTris (entity_t *e)
 
 	float fovscale = 1.0f;
 	if (e == &cl.viewent && scr_fov.value > 90.f)
+	{
 		fovscale = tan(scr_fov.value * (0.5f * M_PI / 180.f));
+		fovscale = 1.f + (fovscale - 1.f) * cl_gun_fovscale.value;
+	}
 
 	float translation_matrix[16];
 	TranslationMatrix (translation_matrix, paliashdr->scale_origin[0], paliashdr->scale_origin[1] * fovscale, paliashdr->scale_origin[2] * fovscale);
