@@ -342,7 +342,7 @@ R_SetupView
 void R_SetupView (void)
 {
 	// Need to do those early because we now update dynamic light maps during R_MarkSurfaces
-	R_PushDlights();
+	R_PushDlights ();
 	R_AnimateLight ();
 	r_framecount++;
 
