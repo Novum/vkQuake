@@ -1,7 +1,7 @@
 # 🌋 vkQuake
 vkQuake is a port of id Software's [Quake](https://en.wikipedia.org/wiki/Quake_(video_game)) using Vulkan instead of OpenGL for rendering. It is based on the popular [QuakeSpasm](http://quakespasm.sourceforge.net/) and [QuakeSpasm-Spiked](https://triptohell.info/moodles/qss/) ports and runs all mods compatible with QuakeSpasm like [Arcane Dimensions](http://www.simonoc.com/pages/design/sp/ad.htm). 
 
-Compared to QuakeSpasm vkQuake also features a software Quake like underwater effect, has better color precision, generates mipmap for water surfaces at runtime and has native support for anti-aliasing and AF. Due to the port using Vulkan and other optimizations it can also achieve much better frame rates. Code ported from QuakeSpasm-Spiked makes it possible to run the game at over 72FPS without breaking physics.
+Compared to QuakeSpasm vkQuake also features a software Quake like underwater effect, has better color precision, generates mipmaps for water surfaces at runtime and has native support for anti-aliasing and AF. Due to the port using Vulkan and other optimizations it can also achieve much better frame rates. Code ported from QuakeSpasm-Spiked makes it possible to run the game at over 72FPS without breaking physics.
 
 # Installation
 
