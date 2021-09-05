@@ -85,8 +85,7 @@ model and pose.
 */
 static VkDeviceSize GLARB_GetXYZOffset (aliashdr_t *hdr, int pose)
 {
-	meshxyz_t dummy;
-	int xyzoffs = ((char*)&dummy.xyz - (char*)&dummy);
+	const int xyzoffs = offsetof (meshxyz_t, xyz);
 	return currententity->model->vboxyzofs + (hdr->numverts_vbo * pose * sizeof (meshxyz_t)) + xyzoffs;
 }
 
