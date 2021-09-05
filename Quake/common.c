@@ -1646,17 +1646,6 @@ void COM_InitArgv (int argc, char **argv)
 	}
 }
 
-/*
-================
-Test_f -- johnfitz
-================
-*/
-#ifdef _DEBUG
-static void FitzTest_f (void)
-{
-}
-#endif
-
 
 entity_state_t nullentitystate;
 static void COM_SetupNullState(void)
@@ -1722,9 +1711,6 @@ void COM_Init (void)
 
 	if (COM_CheckParm("-fitz"))
 		fitzmode = true;
-#ifdef _DEBUG
-	Cmd_AddCommand ("fitztest", FitzTest_f); //johnfitz
-#endif
 
 	COM_SetupNullState();
 }
