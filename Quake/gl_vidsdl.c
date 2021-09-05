@@ -3110,7 +3110,7 @@ static void VID_Menu_ChooseNextParticles (int dir)
 	{
 		if (menu_settings.r_particles == 0)
 			menu_settings.r_particles = 2;
-		else if (r_particles.value == 2)
+		else if (menu_settings.r_particles == 2)
 			menu_settings.r_particles = 1;
 		else 
 			menu_settings.r_particles = 0;
