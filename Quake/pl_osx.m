@@ -45,29 +45,28 @@ char *PL_GetClipboardData (void)
     NSPasteboard* pasteboard	= [NSPasteboard generalPasteboard];
     NSArray* types		= [pasteboard types];
 
-    if ([types containsObject: NSStringPboardType]) {
-	NSString* clipboardString = [pasteboard stringForType: NSStringPboardType];
+    if ([types containsObject: NSPasteboardTypeString]) {
+	NSString* clipboardString = [pasteboard stringForType: NSPasteboardTypeString];
 	if (clipboardString != NULL && [clipboardString length] > 0) {
 		size_t sz = [clipboardString length] + 1;
 		sz = q_min(MAX_CLIPBOARDTXT, sz);
 		data = (char *) Z_Malloc(sz);
-#if (MAC_OS_X_VERSION_MIN_REQUIRED < 1040)	/* for ppc builds targeting 10.3 and older */
-		q_strlcpy (data, [clipboardString cString], sz);
-#else
 		q_strlcpy (data, [clipboardString cStringUsingEncoding: NSASCIIStringEncoding], sz);
-#endif
 	}
     }
     return data;
 }
 
+#ifndef MAC_OS_X_VERSION_10_12
+#define NSAlertStyleCritical NSCriticalAlertStyle
+#endif
 void PL_ErrorDialog(const char *errorMsg)
 {
-#if (MAC_OS_X_VERSION_MIN_REQUIRED < 1040)	/* ppc builds targeting 10.3 and older */
-    NSString* msg = [NSString stringWithCString:errorMsg];
-#else
     NSString* msg = [NSString stringWithCString:errorMsg encoding:NSASCIIStringEncoding];
-#endif
-    NSRunCriticalAlertPanel (@"Quake Error", @"%@", @"OK", nil, nil, msg);
+    NSAlert *alert = [[[NSAlert alloc] init] autorelease];
+    alert.alertStyle = NSAlertStyleCritical;
+    alert.messageText = @"Quake Error";
+    alert.informativeText = msg;
+    [alert runModal];
 }
 
