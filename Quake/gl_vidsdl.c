@@ -2635,6 +2635,8 @@ static void VID_Restart (void)
 			IN_Activate();
 	}
 
+	R_InitSamplers();
+
 	scr_initialized = true;
 }
 

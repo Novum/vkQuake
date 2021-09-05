@@ -221,6 +221,10 @@ typedef struct
 	VkSampler							linear_sampler;
 	VkSampler							point_aniso_sampler;
 	VkSampler							linear_aniso_sampler;
+	VkSampler							point_sampler_lod_bias;
+	VkSampler							linear_sampler_lod_bias;
+	VkSampler							point_aniso_sampler_lod_bias;
+	VkSampler							linear_aniso_sampler_lod_bias;
 
 	// Matrices
 	float								projection_matrix[16];

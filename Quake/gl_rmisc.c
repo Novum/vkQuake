@@ -32,6 +32,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "SDL.h"
 #endif
 
+cvar_t	r_lodbias = {"r_lodbias", "1", CVAR_ARCHIVE};
+
 //johnfitz -- new cvars
 extern cvar_t r_clearcolor;
 extern cvar_t r_fastclear;
@@ -1409,6 +1411,7 @@ R_InitSamplers
 */
 void R_InitSamplers()
 {
+	GL_WaitForDeviceIdle();
 	Sys_Printf("Initializing samplers\n");
 
 	VkResult err;
@@ -1462,6 +1465,96 @@ void R_InitSamplers()
 			Sys_Error("vkCreateSampler failed");
 
 		GL_SetObjectName((uint64_t)vulkan_globals.linear_aniso_sampler, VK_OBJECT_TYPE_SAMPLER, "linear_aniso");
+	}
+
+	if (vulkan_globals.point_sampler_lod_bias != VK_NULL_HANDLE)
+	{
+		vkDestroySampler(vulkan_globals.device, vulkan_globals.point_sampler_lod_bias, NULL);
+		vkDestroySampler(vulkan_globals.device, vulkan_globals.point_aniso_sampler_lod_bias, NULL);
+		vkDestroySampler(vulkan_globals.device, vulkan_globals.linear_sampler_lod_bias, NULL);
+		vkDestroySampler(vulkan_globals.device, vulkan_globals.linear_aniso_sampler_lod_bias, NULL);
+	}
+
+	{
+		float lod_bias = 0.0f;
+		if (r_lodbias.value)
+		{
+			if (vulkan_globals.supersampling)
+			{
+				switch (vulkan_globals.sample_count)
+				{
+				case VK_SAMPLE_COUNT_2_BIT:
+					lod_bias -= 0.5f;
+					break;
+				case VK_SAMPLE_COUNT_4_BIT:
+					lod_bias -= 1.0f;
+					break;
+				case VK_SAMPLE_COUNT_8_BIT:
+					lod_bias -= 1.5f;
+					break;
+				case VK_SAMPLE_COUNT_16_BIT:
+					lod_bias -= 2.0f;
+					break;
+				}
+			}
+
+			if (r_scale.value >= 2)
+				lod_bias -= 1.0f;
+			if (r_scale.value >= 4)
+				lod_bias -= 2.0f;
+			if (r_scale.value >= 8)
+				lod_bias -= 4.0f;
+		}
+
+		Sys_Printf("Texture lod bias: %f\n", lod_bias);
+
+		VkSamplerCreateInfo sampler_create_info;
+		memset(&sampler_create_info, 0, sizeof(sampler_create_info));
+		sampler_create_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+		sampler_create_info.magFilter = VK_FILTER_NEAREST;
+		sampler_create_info.minFilter = VK_FILTER_NEAREST;
+		sampler_create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+		sampler_create_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+		sampler_create_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+		sampler_create_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+		sampler_create_info.mipLodBias = lod_bias;
+		sampler_create_info.maxAnisotropy = 1.0f;
+		sampler_create_info.minLod = 0;
+		sampler_create_info.maxLod = FLT_MAX;
+
+		err = vkCreateSampler(vulkan_globals.device, &sampler_create_info, NULL, &vulkan_globals.point_sampler_lod_bias);
+		if (err != VK_SUCCESS)
+			Sys_Error("vkCreateSampler failed");
+
+		GL_SetObjectName((uint64_t)vulkan_globals.point_sampler_lod_bias, VK_OBJECT_TYPE_SAMPLER, "point_lod_bias");
+
+		sampler_create_info.anisotropyEnable = VK_TRUE;
+		sampler_create_info.maxAnisotropy = vulkan_globals.device_properties.limits.maxSamplerAnisotropy;
+		err = vkCreateSampler(vulkan_globals.device, &sampler_create_info, NULL, &vulkan_globals.point_aniso_sampler_lod_bias);
+		if (err != VK_SUCCESS)
+			Sys_Error("vkCreateSampler failed");
+
+		GL_SetObjectName((uint64_t)vulkan_globals.point_aniso_sampler_lod_bias, VK_OBJECT_TYPE_SAMPLER, "point_aniso_lod_bias");
+
+		sampler_create_info.magFilter = VK_FILTER_LINEAR;
+		sampler_create_info.minFilter = VK_FILTER_LINEAR;
+		sampler_create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+		sampler_create_info.anisotropyEnable = VK_FALSE;
+		sampler_create_info.maxAnisotropy = 1.0f;
+
+		err = vkCreateSampler(vulkan_globals.device, &sampler_create_info, NULL, &vulkan_globals.linear_sampler_lod_bias);
+		if (err != VK_SUCCESS)
+			Sys_Error("vkCreateSampler failed");
+
+		GL_SetObjectName((uint64_t)vulkan_globals.linear_sampler_lod_bias, VK_OBJECT_TYPE_SAMPLER, "linear_lod_bias");
+
+		sampler_create_info.anisotropyEnable = VK_TRUE;
+		sampler_create_info.maxAnisotropy = vulkan_globals.device_properties.limits.maxSamplerAnisotropy;
+		err = vkCreateSampler(vulkan_globals.device, &sampler_create_info, NULL, &vulkan_globals.linear_aniso_sampler_lod_bias);
+		if (err != VK_SUCCESS)
+			Sys_Error("vkCreateSampler failed");
+
+		GL_SetObjectName((uint64_t)vulkan_globals.linear_aniso_sampler_lod_bias, VK_OBJECT_TYPE_SAMPLER, "linear_aniso_lod_bias");
 	}
 
 	TexMgr_UpdateTextureDescriptorSets();
@@ -2383,6 +2476,16 @@ void R_DestroyPipelines(void)
 }
 
 /*
+===================
+R_ScaleChanged_f
+===================
+*/
+static void R_ScaleChanged_f(cvar_t *var)
+{
+	R_InitSamplers();
+}
+
+/*
 ===============
 R_Init
 ===============
@@ -2437,6 +2540,9 @@ void R_Init (void)
 	Cvar_RegisterVariable (&r_telealpha);
 	Cvar_RegisterVariable (&r_slimealpha);
 	Cvar_RegisterVariable (&r_scale);
+	Cvar_RegisterVariable (&r_lodbias);
+	Cvar_SetCallback (&r_scale, R_ScaleChanged_f);
+	Cvar_SetCallback (&r_lodbias, R_ScaleChanged_f);
 	Cvar_SetCallback (&r_lavaalpha, R_SetLavaalpha_f);
 	Cvar_SetCallback (&r_telealpha, R_SetTelealpha_f);
 	Cvar_SetCallback (&r_slimealpha, R_SetSlimealpha_f);
