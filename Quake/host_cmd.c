@@ -1751,21 +1751,13 @@ void Host_Spawn_f (void)
 	{
 		if (!client->knowntoqc)
 			continue;
-		if (host_client->protocol_pext2 & PEXT2_PREDINFO)
-		{
-			// From QSS - Broken or incompleted call of CL_ServerExtension_FullUserinfo_f...
-			MSG_WriteByte (&host_client->message, svc_stufftext);
-			MSG_WriteString (&host_client->message, va("//fui %i \"\"\n", i));
-		}
 
-		{
-			MSG_WriteByte (&host_client->message, svc_updatename);
-			MSG_WriteByte (&host_client->message, i);
-			MSG_WriteString (&host_client->message, client->name);
-			MSG_WriteByte (&host_client->message, svc_updatecolors);
-			MSG_WriteByte (&host_client->message, i);
-			MSG_WriteByte (&host_client->message, client->colors);
-		}
+		MSG_WriteByte (&host_client->message, svc_updatename);
+		MSG_WriteByte (&host_client->message, i);
+		MSG_WriteString (&host_client->message, client->name);
+		MSG_WriteByte (&host_client->message, svc_updatecolors);
+		MSG_WriteByte (&host_client->message, i);
+		MSG_WriteByte (&host_client->message, client->colors);
 
 		MSG_WriteByte (&host_client->message, svc_updatefrags);
 		MSG_WriteByte (&host_client->message, i);
