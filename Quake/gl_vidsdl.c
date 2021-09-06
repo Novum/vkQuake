@@ -2663,31 +2663,10 @@ new proc by S.A., called by alt-return key binding.
 */
 void	VID_Toggle (void)
 {
-	// disabling the fast path completely because SDL_SetWindowFullscreen was changing
-	// the window size on SDL2/WinXP and we weren't set up to handle it. --ericw
-	//
-	// TODO: Clear out the dead code, reinstate the fast path using SDL_SetWindowFullscreen
-	// inside VID_SetMode, check window size to fix WinXP issue. This will
-	// keep all the mode changing code in one place.
-	static qboolean vid_toggle_works = false;
 	qboolean toggleWorked;
 	Uint32 flags = 0;
 
 	S_ClearBuffer ();
-
-	if (!vid_toggle_works)
-		goto vrestart;
-	else
-	{
-		// disabling the fast path because with SDL 1.2 it invalidates VBOs (using them
-		// causes a crash, sugesting that the fullscreen toggle created a new GL context,
-		// although texture objects remain valid for some reason).
-		//
-		// SDL2 does promise window resizes / fullscreen changes preserve the GL context,
-		// so we could use the fast path with SDL2. --ericw
-		vid_toggle_works = false;
-		goto vrestart;
-	}
 
 	if (!VID_GetFullscreen())
 	{
@@ -2695,7 +2674,6 @@ void	VID_Toggle (void)
 	}
 
 	toggleWorked = SDL_SetWindowFullscreen(draw_context, flags) == 0;
-
 	if (toggleWorked)
 	{
 		Sbar_Changed ();	// Sbar seems to need refreshing
@@ -2712,14 +2690,6 @@ void	VID_Toggle (void)
 			else if (modestate == MS_FULLSCREEN)
 				IN_Activate();
 		}
-	}
-	else
-	{
-		vid_toggle_works = false;
-		Con_DPrintf ("SDL_WM_ToggleFullScreen failed, attempting VID_Restart\n");
-	vrestart:
-		Cvar_SetQuick (&vid_fullscreen, VID_GetFullscreen() ? (vulkan_globals.want_full_screen_exclusive ? "2" : "1") : "0");
-		Cbuf_AddText ("vid_restart\n");
 	}
 }
 
