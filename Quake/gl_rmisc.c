@@ -1495,6 +1495,8 @@ void R_InitSamplers()
 				case VK_SAMPLE_COUNT_16_BIT:
 					lod_bias -= 2.0f;
 					break;
+				default:		/* silences gcc's -Wswitch */
+					break;
 				}
 			}
 
