@@ -61,7 +61,7 @@ typedef struct
 	int		conrowbytes;
 	int		conwidth;
 	int		conheight;
-	pixel_t		*direct;	// direct drawing to framebuffer, if not NULL
+	qboolean restart_next_frame;
 } viddef_t;
 
 extern	viddef_t	vid;				// global video state

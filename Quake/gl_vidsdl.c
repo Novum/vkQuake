@@ -73,7 +73,8 @@ static void VID_Menu_Init (void); //johnfitz
 static void VID_Menu_f (void); //johnfitz
 static void VID_MenuDraw (void);
 static void VID_MenuKey (int key);
-static void VID_Restart(void);
+static void VID_Restart (qboolean set_mode);
+static void VID_Restart_f (void);
 
 static void ClearAllStates (void);
 static void GL_InitInstance (void);
@@ -404,6 +405,8 @@ static qboolean VID_SetMode (int width, int height, int refreshrate, int bpp, qb
 
 		if (vid_borderless.value)
 			flags |= SDL_WINDOW_BORDERLESS;
+		else if (!fullscreen)
+			flags |= SDL_WINDOW_RESIZABLE;
 		
 		draw_context = SDL_CreateWindow (caption, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, flags);
 		if (!draw_context)
@@ -509,8 +512,7 @@ static void VID_Test (void)
 	old_refreshrate = VID_GetCurrentRefreshRate();
 	old_bpp = VID_GetCurrentBPP();
 	old_fullscreen = VID_GetFullscreen() ? (vulkan_globals.swap_chain_full_screen_exclusive ? 2 : 1) : 0;
-
-	VID_Restart ();
+	VID_Restart (true);
 
 	//pop up confirmation dialoge
 	if (!SCR_ModalMessage("Would you like to keep this\nvideo mode? (y/n)\n", 5.0f))
@@ -521,7 +523,7 @@ static void VID_Test (void)
 		Cvar_SetValueQuick (&vid_refreshrate, old_refreshrate);
 		Cvar_SetValueQuick (&vid_bpp, old_bpp);
 		Cvar_SetValueQuick (&vid_fullscreen, old_fullscreen);
-		VID_Restart ();
+		VID_Restart (true);
 	}
 }
 
@@ -2017,6 +2019,12 @@ qboolean GL_BeginRendering (int *x, int *y, int *width, int *height)
 {
 	int i;
 
+	if (vid.restart_next_frame)
+	{
+		VID_Restart(false);
+		vid.restart_next_frame = false;
+	}
+
 	if (!render_resources_created) {
 		GL_CreateRenderResources();
 
@@ -2142,14 +2150,12 @@ qboolean GL_AcquireNextSwapChainImage(void)
 	if ((err == VK_ERROR_OUT_OF_DATE_KHR) || (err == VK_ERROR_SURFACE_LOST_KHR))
 #endif
 	{
-		vid_changed = true;
-		Cbuf_AddText ("vid_restart\n");
+		vid.restart_next_frame = true;
 		return false;
 	}
 	else if(err == VK_SUBOPTIMAL_KHR)
 	{
-		vid_changed = true;
-		Cbuf_AddText ("vid_restart\n");
+		vid.restart_next_frame = true;
 	}
 	else if (err != VK_SUCCESS)
 		Sys_Error("Couldn't acquire next image");
@@ -2237,8 +2243,7 @@ void GL_EndRendering (qboolean swapchain_acquired)
 		if ((err == VK_ERROR_OUT_OF_DATE_KHR) || (err == VK_ERROR_SURFACE_LOST_KHR) || (err == VK_SUBOPTIMAL_KHR))
 #endif
 		{
-			vid_changed = true;
-			Cbuf_AddText ("vid_restart\n");
+			vid.restart_next_frame = true;
 		}
 		else if (err != VK_SUCCESS)
 			Sys_Error("vkQueuePresentKHR failed");
@@ -2434,7 +2439,7 @@ void	VID_Init (void)
 	Cvar_SetCallback (&vid_borderless, VID_Changed_f);
 	
 	Cmd_AddCommand ("vid_unlock", VID_Unlock); //johnfitz
-	Cmd_AddCommand ("vid_restart", VID_Restart); //johnfitz
+	Cmd_AddCommand ("vid_restart", VID_Restart_f); //johnfitz
 	Cmd_AddCommand ("vid_test", VID_Test); //johnfitz
 	Cmd_AddCommand ("vid_describecurrentmode", VID_DescribeCurrentMode_f);
 	Cmd_AddCommand ("vid_describemodes", VID_DescribeModes_f);
@@ -2574,16 +2579,13 @@ void	VID_Init (void)
 
 /*
 ===================
-VID_Restart -- johnfitz -- change video modes on the fly
+VID_Restart
 ===================
 */
-static void VID_Restart (void)
+static void VID_Restart (qboolean set_mode)
 {
 	int width, height, refreshrate, bpp;
 	qboolean fullscreen;
-
-	if (vid_locked || !vid_changed)
-		return;
 
 	width = (int)vid_width.value;
 	height = (int)vid_height.value;
@@ -2595,7 +2597,7 @@ static void VID_Restart (void)
 	//
 	// validate new mode
 	//
-	if (!VID_ValidMode (width, height, refreshrate, bpp, fullscreen))
+	if (set_mode && !VID_ValidMode (width, height, refreshrate, bpp, fullscreen))
 	{
 		Con_Printf ("%dx%dx%d %dHz %s is not a valid mode\n",
 				width, height, bpp, refreshrate, fullscreen? "fullscreen" : "windowed");
@@ -2610,7 +2612,8 @@ static void VID_Restart (void)
 	//
 	// set new mode
 	//
-	VID_SetMode (width, height, refreshrate, bpp, fullscreen);
+	if (set_mode)
+		VID_SetMode (width, height, refreshrate, bpp, fullscreen);
 
 	GL_CreateRenderResources();
 
@@ -2640,7 +2643,24 @@ static void VID_Restart (void)
 	scr_initialized = true;
 }
 
-// new proc by S.A., called by alt-return key binding.
+/*
+===================
+VID_Restart_f -- johnfitz -- change video modes on the fly
+===================
+*/
+static void VID_Restart_f (void)
+{
+	if (vid_locked || !vid_changed)
+		return;
+	VID_Restart(true);
+}
+
+/*
+===================
+VID_Toggle
+new proc by S.A., called by alt-return key binding.
+===================
+*/
 void	VID_Toggle (void)
 {
 	// disabling the fast path completely because SDL_SetWindowFullscreen was changing
@@ -3713,8 +3733,7 @@ void VID_FocusGained (void)
 	has_focus = true;
 	if (vulkan_globals.want_full_screen_exclusive)
 	{
-		vid_changed = true;
-		Cbuf_AddText ("vid_restart\n");
+		vid.restart_next_frame = true;
 	}
 }
 
@@ -3723,7 +3742,6 @@ void VID_FocusLost (void)
 	has_focus = false;
 	if (vulkan_globals.want_full_screen_exclusive)
 	{
-		vid_changed = true;
-		Cbuf_AddText ("vid_restart\n");
+		vid.restart_next_frame = true;
 	}
 }

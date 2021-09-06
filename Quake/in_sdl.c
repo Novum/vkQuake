@@ -759,6 +759,13 @@ void IN_SendKeyEvents (void)
 				S_BlockSound();
 				VID_FocusLost();
 			}
+			else if (event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)
+			{
+				vid.width = event.window.data1;
+				vid.height = event.window.data2;
+				vid.restart_next_frame = true;
+				Cvar_FindVar("scr_conscale")->callback(NULL);
+			}
 			break;
 		case SDL_TEXTINPUT:
 			if (in_debugkeys.value)
