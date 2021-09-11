@@ -235,8 +235,8 @@ void R_SetFrustum (float fovx, float fovy)
 {
 	int		i;
 
-	TurnVector(frustum[0].normal, vpn, vright, fovx/2 - 90); //left plane
-	TurnVector(frustum[1].normal, vpn, vright, 90 - fovx/2); //right plane
+	TurnVector(frustum[0].normal, vpn, vright, fovx/2 - 90); //right plane
+	TurnVector(frustum[1].normal, vpn, vright, 90 - fovx/2); //left plane
 	TurnVector(frustum[2].normal, vpn, vup, 90 - fovy/2); //bottom plane
 	TurnVector(frustum[3].normal, vpn, vup, fovy/2 - 90); //top plane
 
