@@ -177,7 +177,7 @@ vec3_t			lightcolor; //johnfitz -- lit support via lordhavoc
 RecursiveLightPoint -- johnfitz -- replaced entire function for lit support via lordhavoc
 =============
 */
-int RecursiveLightPoint (vec3_t color, mnode_t *node, vec3_t start, vec3_t end)
+int RecursiveLightPoint (vec3_t color, mnode_t *node, vec3_t rayorg, vec3_t start, vec3_t end, float *maxdist)
 {
 	float		front, back, frac;
 	vec3_t		mid;
@@ -200,7 +200,7 @@ loc0:
 
 	// LordHavoc: optimized recursion
 	if ((back < 0) == (front < 0))
-//		return RecursiveLightPoint (color, node->children[front < 0], start, end);
+//		return RecursiveLightPoint (color, node->children[front < 0], rayorg, start, end, maxdist);
 	{
 		node = node->children[front < 0];
 		goto loc0;
@@ -212,7 +212,7 @@ loc0:
 	mid[2] = start[2] + (end[2] - start[2])*frac;
 
 // go down front side
-	if (RecursiveLightPoint (color, node->children[front < 0], start, mid))
+	if (RecursiveLightPoint (color, node->children[front < 0], rayorg, start, mid, maxdist))
 		return true;	// hit something
 	else
 	{
@@ -225,6 +225,9 @@ loc0:
 		surf = cl.worldmodel->surfaces + node->firstsurface;
 		for (i = 0;i < node->numsurfaces;i++, surf++)
 		{
+			float sfront, sback, dist;
+			vec3_t raydelta;
+
 			if (surf->flags & SURF_DRAWTILED)
 				continue;	// no lightmaps
 
@@ -243,7 +246,32 @@ loc0:
 			if (ds > surf->extents[0] || dt > surf->extents[1])
 				continue;
 
-			if (surf->samples)
+			if (surf->plane->type < 3)
+			{
+				sfront = rayorg[surf->plane->type] - surf->plane->dist;
+				sback = end[surf->plane->type] - surf->plane->dist;
+			}
+			else
+			{
+				sfront = DotProduct(rayorg, surf->plane->normal) - surf->plane->dist;
+				sback = DotProduct(end, surf->plane->normal) - surf->plane->dist;
+			}
+			VectorSubtract(end, rayorg, raydelta);
+			dist = sfront / (sfront - sback) * VectorLength(raydelta);
+
+			if (!surf->samples)
+			{
+				// We hit a surface that is flagged as lightmapped, but doesn't have actual lightmap info.
+				// Instead of just returning black, we'll keep looking for nearby surfaces that do have valid samples.
+				// This fixes occasional pitch-black models in otherwise well-lit areas in DOTM (e.g. mge1m1, mge4m1)
+				// caused by overlapping surfaces with mixed lighting data.
+				const float nearby = 8.f;
+				dist += nearby;
+				*maxdist = q_min(*maxdist, dist);
+				continue;
+			}
+
+			if (dist < *maxdist)
 			{
 				// LordHavoc: enhanced to interpolate lighting
 				byte *lightmap;
@@ -271,7 +299,7 @@ loc0:
 		}
 
 	// go down back side
-		return RecursiveLightPoint (color, node->children[front >= 0], mid, end);
+		return RecursiveLightPoint (color, node->children[front >= 0], rayorg, mid, end, maxdist);
 	}
 }
 
@@ -283,6 +311,7 @@ R_LightPoint -- johnfitz -- replaced entire function for lit support via lordhav
 int R_LightPoint (vec3_t p)
 {
 	vec3_t		end;
+	float		maxdist = 8192.f; //johnfitz -- was 2048
 
 	if (!cl.worldmodel->lightdata)
 	{
@@ -292,9 +321,9 @@ int R_LightPoint (vec3_t p)
 
 	end[0] = p[0];
 	end[1] = p[1];
-	end[2] = p[2] - 8192; //johnfitz -- was 2048
+	end[2] = p[2] - maxdist;
 
 	lightcolor[0] = lightcolor[1] = lightcolor[2] = 0;
-	RecursiveLightPoint (lightcolor, cl.worldmodel->nodes, p, end);
+	RecursiveLightPoint (lightcolor, cl.worldmodel->nodes, p, p, end, &maxdist);
 	return ((lightcolor[0] + lightcolor[1] + lightcolor[2]) * (1.0f / 3.0f));
 }
