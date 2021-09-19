@@ -1009,10 +1009,20 @@ void GL_SetCanvas (canvastype newcanvas)
 		GL_Viewport (glx, gly, glwidth, glheight, 0.0f, 1.0f);
 		break;
 	case CANVAS_MENU:
+		//s is scale from 1 -> 2;
 		s = q_min((float)glwidth / 320.0, (float)glheight / 200.0);
 		s = CLAMP (1.0, scr_menuscale.value, s);
-		GL_OrthoMatrix (0, 640, 200, 0, -99999, 99999);
-		GL_Viewport (glx + (glwidth - 320*s) / 2, gly + (glheight - 200*s) / 2, 640*s, 200*s, 0.0f, 1.0f);
+
+		//Original GL_OrthoMatrix(0, 640, 200, 0, -99999, 99999);
+		//Original GL_Viewport(glx + (glwidth - 320 * s) / 2, gly + (glheight - 200 * s) / 2, 640 * s, 200 * s, 0.0f, 1.0f);
+		
+		GL_OrthoMatrix (0, 640, 275, 0, -99999, 99999);// 200
+		float x = glx + (glwidth - 320 * s) / 2,
+			y = (gly + (glheight - 275 * s) / 2) - 75,
+			width = 640 * s,
+			height = 275 * s;
+		//original output values 160, 140, 640, 200
+		GL_Viewport (x, y, width, height, 0.0f, 1.0f);
 		break;
 	case CANVAS_CSQC:
 		s = CLAMP (1.0, scr_sbarscale.value, (float)glwidth / 320.0);
