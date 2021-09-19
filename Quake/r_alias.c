@@ -26,6 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 
 extern cvar_t r_drawflat, gl_fullbrights, r_lerpmodels, r_lerpmove, r_showtris; //johnfitz
+extern cvar_t scr_fov, cl_gun_fovscale;
 
 //up to 16 color translated skins
 gltexture_t *playertextures[MAX_SCOREBOARD]; //johnfitz -- changed to an array of pointers
@@ -84,8 +85,7 @@ model and pose.
 */
 static VkDeviceSize GLARB_GetXYZOffset (aliashdr_t *hdr, int pose)
 {
-	meshxyz_t dummy;
-	int xyzoffs = ((char*)&dummy.xyz - (char*)&dummy);
+	const int xyzoffs = offsetof (meshxyz_t, xyz);
 	return currententity->model->vboxyzofs + (hdr->numverts_vbo * pose * sizeof (meshxyz_t)) + xyzoffs;
 }
 
@@ -404,13 +404,20 @@ void R_DrawAliasModel (entity_t *e)
 	IdentityMatrix(model_matrix);
 	R_RotateForEntity (model_matrix, lerpdata.origin, lerpdata.angles);
 
+	float fovscale = 1.0f;
+	if (e == &cl.viewent && scr_fov.value > 90.f && cl_gun_fovscale.value)
+	{
+		fovscale = tan(scr_fov.value * (0.5f * M_PI / 180.f));
+		fovscale = 1.f + (fovscale - 1.f) * cl_gun_fovscale.value;
+	}
+
 	float translation_matrix[16];
-	TranslationMatrix (translation_matrix, paliashdr->scale_origin[0], paliashdr->scale_origin[1], paliashdr->scale_origin[2]);
+	TranslationMatrix (translation_matrix, paliashdr->scale_origin[0], paliashdr->scale_origin[1] * fovscale, paliashdr->scale_origin[2] * fovscale);
 	MatrixMultiply(model_matrix, translation_matrix);
 
 	// Scale multiplied by 255 because we use UNORM instead of USCALED in the vertex shader
 	float scale_matrix[16];
-	ScaleMatrix (scale_matrix, paliashdr->scale[0] * 255.0f, paliashdr->scale[1] * 255.0f, paliashdr->scale[2] * 255.0f);
+	ScaleMatrix (scale_matrix, paliashdr->scale[0] * 255.0f, paliashdr->scale[1] * fovscale * 255.0f, paliashdr->scale[2] * fovscale * 255.0f);
 	MatrixMultiply(model_matrix, scale_matrix);
 
 	//
@@ -515,13 +522,20 @@ void R_DrawAliasModel_ShowTris (entity_t *e)
 	IdentityMatrix(model_matrix);
 	R_RotateForEntity (model_matrix, lerpdata.origin, lerpdata.angles);
 
+	float fovscale = 1.0f;
+	if (e == &cl.viewent && scr_fov.value > 90.f)
+	{
+		fovscale = tan(scr_fov.value * (0.5f * M_PI / 180.f));
+		fovscale = 1.f + (fovscale - 1.f) * cl_gun_fovscale.value;
+	}
+
 	float translation_matrix[16];
-	TranslationMatrix (translation_matrix, paliashdr->scale_origin[0], paliashdr->scale_origin[1], paliashdr->scale_origin[2]);
+	TranslationMatrix (translation_matrix, paliashdr->scale_origin[0], paliashdr->scale_origin[1] * fovscale, paliashdr->scale_origin[2] * fovscale);
 	MatrixMultiply(model_matrix, translation_matrix);
 
 	// Scale multiplied by 255 because we use UNORM instead of USCALED in the vertex shader
 	float scale_matrix[16];
-	ScaleMatrix (scale_matrix, paliashdr->scale[0] * 255.0f, paliashdr->scale[1] * 255.0f, paliashdr->scale[2] * 255.0f);
+	ScaleMatrix (scale_matrix, paliashdr->scale[0] * 255.0f, paliashdr->scale[1] * fovscale * 255.0f, paliashdr->scale[2] * fovscale * 255.0f);
 	MatrixMultiply(model_matrix, scale_matrix);
 
 	if (r_showtris.value == 1)

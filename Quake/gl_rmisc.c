@@ -32,8 +32,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "SDL.h"
 #endif
 
+cvar_t	r_lodbias = {"r_lodbias", "1", CVAR_ARCHIVE};
+
 //johnfitz -- new cvars
 extern cvar_t r_clearcolor;
+extern cvar_t r_fastclear;
 extern cvar_t r_flatlightstyles;
 extern cvar_t gl_fullbrights;
 extern cvar_t gl_farclip;
@@ -178,20 +181,54 @@ static void GL_Fullbrights_f (cvar_t *var)
 
 /*
 ====================
+SetClearColor
+====================
+*/
+static void SetClearColor()
+{
+	byte	*rgb;
+	int		s;
+
+	if (r_fastclear.value != 0.0f)
+	{
+		// Set to black so fast clear works properly on modern GPUs
+		vulkan_globals.color_clear_value.color.float32[0] = 0.0f;
+		vulkan_globals.color_clear_value.color.float32[1] = 0.0f;
+		vulkan_globals.color_clear_value.color.float32[2] = 0.0f;
+		vulkan_globals.color_clear_value.color.float32[3] = 0.0f;
+	}
+	else
+	{
+		s = (int)r_clearcolor.value & 0xFF;
+		rgb = (byte*)(d_8to24table + s);
+		vulkan_globals.color_clear_value.color.float32[0] = rgb[0]/255.0f;
+		vulkan_globals.color_clear_value.color.float32[1] = rgb[1]/255.0f;
+		vulkan_globals.color_clear_value.color.float32[2] = rgb[2]/255.0f;
+		vulkan_globals.color_clear_value.color.float32[3] = 0.0f;
+	}
+}
+
+/*
+====================
 R_SetClearColor_f -- johnfitz
 ====================
 */
 static void R_SetClearColor_f (cvar_t *var)
 {
-	byte	*rgb;
-	int		s;
+	if (r_fastclear.value != 0.0f)
+		Con_Warning("Black clear color forced by r_fastclear\n");
 
-	s = (int)r_clearcolor.value & 0xFF;
-	rgb = (byte*)(d_8to24table + s);
-	vulkan_globals.color_clear_value.color.float32[0] = rgb[0]/255;
-	vulkan_globals.color_clear_value.color.float32[1] = rgb[1]/255;
-	vulkan_globals.color_clear_value.color.float32[2] = rgb[2]/255;
-	vulkan_globals.color_clear_value.color.float32[3] = 0.0f;
+	SetClearColor();
+}
+
+/*
+====================
+R_SetFastClear_f -- johnfitz
+====================
+*/
+static void R_SetFastClear_f (cvar_t *var)
+{
+	SetClearColor();
 }
 
 /*
@@ -1374,6 +1411,7 @@ R_InitSamplers
 */
 void R_InitSamplers()
 {
+	GL_WaitForDeviceIdle();
 	Sys_Printf("Initializing samplers\n");
 
 	VkResult err;
@@ -1427,6 +1465,98 @@ void R_InitSamplers()
 			Sys_Error("vkCreateSampler failed");
 
 		GL_SetObjectName((uint64_t)vulkan_globals.linear_aniso_sampler, VK_OBJECT_TYPE_SAMPLER, "linear_aniso");
+	}
+
+	if (vulkan_globals.point_sampler_lod_bias != VK_NULL_HANDLE)
+	{
+		vkDestroySampler(vulkan_globals.device, vulkan_globals.point_sampler_lod_bias, NULL);
+		vkDestroySampler(vulkan_globals.device, vulkan_globals.point_aniso_sampler_lod_bias, NULL);
+		vkDestroySampler(vulkan_globals.device, vulkan_globals.linear_sampler_lod_bias, NULL);
+		vkDestroySampler(vulkan_globals.device, vulkan_globals.linear_aniso_sampler_lod_bias, NULL);
+	}
+
+	{
+		float lod_bias = 0.0f;
+		if (r_lodbias.value)
+		{
+			if (vulkan_globals.supersampling)
+			{
+				switch (vulkan_globals.sample_count)
+				{
+				case VK_SAMPLE_COUNT_2_BIT:
+					lod_bias -= 0.5f;
+					break;
+				case VK_SAMPLE_COUNT_4_BIT:
+					lod_bias -= 1.0f;
+					break;
+				case VK_SAMPLE_COUNT_8_BIT:
+					lod_bias -= 1.5f;
+					break;
+				case VK_SAMPLE_COUNT_16_BIT:
+					lod_bias -= 2.0f;
+					break;
+				default:		/* silences gcc's -Wswitch */
+					break;
+				}
+			}
+
+			if (r_scale.value >= 2)
+				lod_bias -= 1.0f;
+			if (r_scale.value >= 4)
+				lod_bias -= 2.0f;
+			if (r_scale.value >= 8)
+				lod_bias -= 4.0f;
+		}
+
+		Sys_Printf("Texture lod bias: %f\n", lod_bias);
+
+		VkSamplerCreateInfo sampler_create_info;
+		memset(&sampler_create_info, 0, sizeof(sampler_create_info));
+		sampler_create_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+		sampler_create_info.magFilter = VK_FILTER_NEAREST;
+		sampler_create_info.minFilter = VK_FILTER_NEAREST;
+		sampler_create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+		sampler_create_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+		sampler_create_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+		sampler_create_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+		sampler_create_info.mipLodBias = lod_bias;
+		sampler_create_info.maxAnisotropy = 1.0f;
+		sampler_create_info.minLod = 0;
+		sampler_create_info.maxLod = FLT_MAX;
+
+		err = vkCreateSampler(vulkan_globals.device, &sampler_create_info, NULL, &vulkan_globals.point_sampler_lod_bias);
+		if (err != VK_SUCCESS)
+			Sys_Error("vkCreateSampler failed");
+
+		GL_SetObjectName((uint64_t)vulkan_globals.point_sampler_lod_bias, VK_OBJECT_TYPE_SAMPLER, "point_lod_bias");
+
+		sampler_create_info.anisotropyEnable = VK_TRUE;
+		sampler_create_info.maxAnisotropy = vulkan_globals.device_properties.limits.maxSamplerAnisotropy;
+		err = vkCreateSampler(vulkan_globals.device, &sampler_create_info, NULL, &vulkan_globals.point_aniso_sampler_lod_bias);
+		if (err != VK_SUCCESS)
+			Sys_Error("vkCreateSampler failed");
+
+		GL_SetObjectName((uint64_t)vulkan_globals.point_aniso_sampler_lod_bias, VK_OBJECT_TYPE_SAMPLER, "point_aniso_lod_bias");
+
+		sampler_create_info.magFilter = VK_FILTER_LINEAR;
+		sampler_create_info.minFilter = VK_FILTER_LINEAR;
+		sampler_create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+		sampler_create_info.anisotropyEnable = VK_FALSE;
+		sampler_create_info.maxAnisotropy = 1.0f;
+
+		err = vkCreateSampler(vulkan_globals.device, &sampler_create_info, NULL, &vulkan_globals.linear_sampler_lod_bias);
+		if (err != VK_SUCCESS)
+			Sys_Error("vkCreateSampler failed");
+
+		GL_SetObjectName((uint64_t)vulkan_globals.linear_sampler_lod_bias, VK_OBJECT_TYPE_SAMPLER, "linear_lod_bias");
+
+		sampler_create_info.anisotropyEnable = VK_TRUE;
+		sampler_create_info.maxAnisotropy = vulkan_globals.device_properties.limits.maxSamplerAnisotropy;
+		err = vkCreateSampler(vulkan_globals.device, &sampler_create_info, NULL, &vulkan_globals.linear_aniso_sampler_lod_bias);
+		if (err != VK_SUCCESS)
+			Sys_Error("vkCreateSampler failed");
+
+		GL_SetObjectName((uint64_t)vulkan_globals.linear_aniso_sampler_lod_bias, VK_OBJECT_TYPE_SAMPLER, "linear_aniso_lod_bias");
 	}
 
 	TexMgr_UpdateTextureDescriptorSets();
@@ -1581,7 +1711,7 @@ void R_CreatePipelines()
 	depth_stencil_state_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
 	depth_stencil_state_create_info.depthTestEnable = VK_FALSE;
 	depth_stencil_state_create_info.depthWriteEnable = VK_FALSE;
-	depth_stencil_state_create_info.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+	depth_stencil_state_create_info.depthCompareOp = VK_COMPARE_OP_GREATER_OR_EQUAL;
 	depth_stencil_state_create_info.depthBoundsTestEnable = VK_FALSE;
 	depth_stencil_state_create_info.back.failOp = VK_STENCIL_OP_KEEP;
 	depth_stencil_state_create_info.back.passOp = VK_STENCIL_OP_KEEP;
@@ -1738,7 +1868,7 @@ void R_CreatePipelines()
 	input_assembly_state_create_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 	depth_stencil_state_create_info.depthTestEnable = VK_TRUE;
 	depth_stencil_state_create_info.depthWriteEnable = VK_TRUE;
-	depth_stencil_state_create_info.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+	depth_stencil_state_create_info.depthCompareOp = VK_COMPARE_OP_GREATER_OR_EQUAL;
 	blend_attachment_state.blendEnable = VK_FALSE;
 
 	assert(vulkan_globals.water_pipeline.handle == VK_NULL_HANDLE);
@@ -1788,7 +1918,7 @@ void R_CreatePipelines()
 
 	depth_stencil_state_create_info.depthTestEnable = VK_TRUE;
 	depth_stencil_state_create_info.depthWriteEnable = VK_TRUE;
-	depth_stencil_state_create_info.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+	depth_stencil_state_create_info.depthCompareOp = VK_COMPARE_OP_GREATER_OR_EQUAL;
 	depth_stencil_state_create_info.stencilTestEnable = VK_TRUE;
 	depth_stencil_state_create_info.front.compareOp = VK_COMPARE_OP_ALWAYS;
 	depth_stencil_state_create_info.front.failOp = VK_STENCIL_OP_KEEP;
@@ -1923,7 +2053,7 @@ void R_CreatePipelines()
 
 		depth_stencil_state_create_info.depthTestEnable = VK_TRUE;
 		rasterization_state_create_info.depthBiasEnable = VK_TRUE;
-		rasterization_state_create_info.depthBiasConstantFactor = (vulkan_globals.depth_format != VK_FORMAT_D16_UNORM) ? -250.0f : -1.25f;
+		rasterization_state_create_info.depthBiasConstantFactor = 500.0f;
 		rasterization_state_create_info.depthBiasSlopeFactor = 0.0f;
 
 		assert(vulkan_globals.showtris_depth_test_pipeline.handle == VK_NULL_HANDLE);
@@ -1942,8 +2072,9 @@ void R_CreatePipelines()
 	rasterization_state_create_info.polygonMode = VK_POLYGON_MODE_FILL;
 	depth_stencil_state_create_info.depthTestEnable = VK_TRUE;
 	depth_stencil_state_create_info.depthWriteEnable = VK_TRUE;
-	rasterization_state_create_info.depthBiasEnable = VK_FALSE;
+	rasterization_state_create_info.depthBiasEnable = VK_TRUE;
 	input_assembly_state_create_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+	dynamic_states[dynamic_state_create_info.dynamicStateCount++] = VK_DYNAMIC_STATE_DEPTH_BIAS;
 
 	VkVertexInputAttributeDescription world_vertex_input_attribute_descriptions[3];
 	world_vertex_input_attribute_descriptions[0].binding = 0;
@@ -2028,6 +2159,8 @@ void R_CreatePipelines()
 
 	depth_stencil_state_create_info.depthTestEnable = VK_TRUE;
 	depth_stencil_state_create_info.depthWriteEnable = VK_TRUE;
+	rasterization_state_create_info.depthBiasEnable = VK_FALSE;
+	dynamic_state_create_info.dynamicStateCount--;
 	pipeline_create_info.flags = 0;
 	blend_attachment_state.blendEnable = VK_FALSE;
 	shader_stages[1].pSpecializationInfo = NULL;
@@ -2136,7 +2269,7 @@ void R_CreatePipelines()
 
 		depth_stencil_state_create_info.depthTestEnable = VK_TRUE;
 		rasterization_state_create_info.depthBiasEnable = VK_TRUE;
-		rasterization_state_create_info.depthBiasConstantFactor = (vulkan_globals.depth_format != VK_FORMAT_D16_UNORM) ? -250.0f : -1.25f;
+		rasterization_state_create_info.depthBiasConstantFactor = 500.0f;
 		rasterization_state_create_info.depthBiasSlopeFactor = 0.0f;
 
 		assert(vulkan_globals.alias_showtris_depth_test_pipeline.handle == VK_NULL_HANDLE);
@@ -2345,6 +2478,16 @@ void R_DestroyPipelines(void)
 }
 
 /*
+===================
+R_ScaleChanged_f
+===================
+*/
+static void R_ScaleChanged_f(cvar_t *var)
+{
+	R_InitSamplers();
+}
+
+/*
 ===============
 R_Init
 ===============
@@ -2376,6 +2519,8 @@ void R_Init (void)
 	//johnfitz -- new cvars
 	Cvar_RegisterVariable (&r_clearcolor);
 	Cvar_SetCallback (&r_clearcolor, R_SetClearColor_f);
+	Cvar_RegisterVariable (&r_fastclear);
+	Cvar_SetCallback (&r_fastclear, R_SetFastClear_f);
 	Cvar_RegisterVariable (&r_waterquality);
 	Cvar_RegisterVariable (&r_waterwarp);
 	Cvar_RegisterVariable (&r_waterwarpcompute);
@@ -2397,12 +2542,15 @@ void R_Init (void)
 	Cvar_RegisterVariable (&r_telealpha);
 	Cvar_RegisterVariable (&r_slimealpha);
 	Cvar_RegisterVariable (&r_scale);
+	Cvar_RegisterVariable (&r_lodbias);
+	Cvar_SetCallback (&r_scale, R_ScaleChanged_f);
+	Cvar_SetCallback (&r_lodbias, R_ScaleChanged_f);
 	Cvar_SetCallback (&r_lavaalpha, R_SetLavaalpha_f);
 	Cvar_SetCallback (&r_telealpha, R_SetTelealpha_f);
 	Cvar_SetCallback (&r_slimealpha, R_SetSlimealpha_f);
 
 	R_InitParticles ();
-	R_SetClearColor_f (&r_clearcolor); //johnfitz
+	SetClearColor(); //johnfitz
 
 	Sky_Init (); //johnfitz
 	Fog_Init (); //johnfitz
@@ -2636,7 +2784,7 @@ void R_TimeRefresh_f (void)
 		GL_BeginRendering(&glx, &gly, &glwidth, &glheight);
 		r_refdef.viewangles[1] = i/128.0*360.0;
 		R_RenderView ();
-		GL_EndRendering (true);
+		GL_EndRendering (false);
 	}
 
 	//glFinish ();

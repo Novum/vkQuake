@@ -87,6 +87,7 @@ typedef struct texture_s
 {
 	char				name[16];
 	unsigned			width, height;
+	unsigned			shift;		// Q64
 	struct gltexture_s	*gltexture; //johnfitz -- pointer to gltexture
 	struct gltexture_s	*fullbright; //johnfitz -- fullbright mask texture
 	struct gltexture_s	*warpimage; //johnfitz -- for water animation

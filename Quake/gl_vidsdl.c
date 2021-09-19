@@ -73,7 +73,8 @@ static void VID_Menu_Init (void); //johnfitz
 static void VID_Menu_f (void); //johnfitz
 static void VID_MenuDraw (void);
 static void VID_MenuKey (int key);
-static void VID_Restart(void);
+static void VID_Restart (qboolean set_mode);
+static void VID_Restart_f (void);
 
 static void ClearAllStates (void);
 static void GL_InitInstance (void);
@@ -404,6 +405,8 @@ static qboolean VID_SetMode (int width, int height, int refreshrate, int bpp, qb
 
 		if (vid_borderless.value)
 			flags |= SDL_WINDOW_BORDERLESS;
+		else if (!fullscreen)
+			flags |= SDL_WINDOW_RESIZABLE;
 		
 		draw_context = SDL_CreateWindow (caption, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, flags);
 		if (!draw_context)
@@ -509,8 +512,7 @@ static void VID_Test (void)
 	old_refreshrate = VID_GetCurrentRefreshRate();
 	old_bpp = VID_GetCurrentBPP();
 	old_fullscreen = VID_GetFullscreen() ? (vulkan_globals.swap_chain_full_screen_exclusive ? 2 : 1) : 0;
-
-	VID_Restart ();
+	VID_Restart (true);
 
 	//pop up confirmation dialoge
 	if (!SCR_ModalMessage("Would you like to keep this\nvideo mode? (y/n)\n", 5.0f))
@@ -521,7 +523,7 @@ static void VID_Test (void)
 		Cvar_SetValueQuick (&vid_refreshrate, old_refreshrate);
 		Cvar_SetValueQuick (&vid_bpp, old_bpp);
 		Cvar_SetValueQuick (&vid_fullscreen, old_fullscreen);
-		VID_Restart ();
+		VID_Restart (true);
 	}
 }
 
@@ -989,15 +991,15 @@ static void GL_InitDevice( void )
 	qboolean d32_support = (format_properties.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) != 0;
 
 	vulkan_globals.depth_format = VK_FORMAT_UNDEFINED;
-	if (x8_d24_support)
-	{
-		Con_Printf("Using D24_S8 depth buffer format\n");
-		vulkan_globals.depth_format = VK_FORMAT_D24_UNORM_S8_UINT;
-	}
-	else if(d32_support)
+	if (d32_support)
 	{
 		Con_Printf("Using D32_S8 depth buffer format\n");
 		vulkan_globals.depth_format = VK_FORMAT_D32_SFLOAT_S8_UINT;
+	}
+	else if (x8_d24_support)
+	{
+		Con_Printf("Using D24_S8 depth buffer format\n");
+		vulkan_globals.depth_format = VK_FORMAT_D24_UNORM_S8_UINT;
 	}
 	else
 	{
@@ -2017,6 +2019,12 @@ qboolean GL_BeginRendering (int *x, int *y, int *width, int *height)
 {
 	int i;
 
+	if (vid.restart_next_frame)
+	{
+		VID_Restart(false);
+		vid.restart_next_frame = false;
+	}
+
 	if (!render_resources_created) {
 		GL_CreateRenderResources();
 
@@ -2067,7 +2075,7 @@ qboolean GL_BeginRendering (int *x, int *y, int *width, int *height)
 	render_area.extent.height = vid.height;
 
 	VkClearValue depth_clear_value;
-	depth_clear_value.depthStencil.depth = 1.0f;
+	depth_clear_value.depthStencil.depth = 0.0f;
 	depth_clear_value.depthStencil.stencil = 0;
 
 	vulkan_globals.main_clear_values[0] = vulkan_globals.color_clear_value;
@@ -2142,14 +2150,12 @@ qboolean GL_AcquireNextSwapChainImage(void)
 	if ((err == VK_ERROR_OUT_OF_DATE_KHR) || (err == VK_ERROR_SURFACE_LOST_KHR))
 #endif
 	{
-		vid_changed = true;
-		Cbuf_AddText ("vid_restart\n");
+		vid.restart_next_frame = true;
 		return false;
 	}
 	else if(err == VK_SUBOPTIMAL_KHR)
 	{
-		vid_changed = true;
-		Cbuf_AddText ("vid_restart\n");
+		vid.restart_next_frame = true;
 	}
 	else if (err != VK_SUCCESS)
 		Sys_Error("Couldn't acquire next image");
@@ -2237,8 +2243,7 @@ void GL_EndRendering (qboolean swapchain_acquired)
 		if ((err == VK_ERROR_OUT_OF_DATE_KHR) || (err == VK_ERROR_SURFACE_LOST_KHR) || (err == VK_SUBOPTIMAL_KHR))
 #endif
 		{
-			vid_changed = true;
-			Cbuf_AddText ("vid_restart\n");
+			vid.restart_next_frame = true;
 		}
 		else if (err != VK_SUCCESS)
 			Sys_Error("vkQueuePresentKHR failed");
@@ -2434,7 +2439,7 @@ void	VID_Init (void)
 	Cvar_SetCallback (&vid_borderless, VID_Changed_f);
 	
 	Cmd_AddCommand ("vid_unlock", VID_Unlock); //johnfitz
-	Cmd_AddCommand ("vid_restart", VID_Restart); //johnfitz
+	Cmd_AddCommand ("vid_restart", VID_Restart_f); //johnfitz
 	Cmd_AddCommand ("vid_test", VID_Test); //johnfitz
 	Cmd_AddCommand ("vid_describecurrentmode", VID_DescribeCurrentMode_f);
 	Cmd_AddCommand ("vid_describemodes", VID_DescribeModes_f);
@@ -2538,10 +2543,10 @@ void	VID_Init (void)
 	vid.colormap = host_colormap;
 	vid.fullbright = 256 - LittleLong (*((int *)vid.colormap + 2048));
 
+	VID_SetMode (width, height, refreshrate, bpp, fullscreen);
+
 	// set window icon
 	PL_SetWindowIcon();
-
-	VID_SetMode (width, height, refreshrate, bpp, fullscreen);
 
 	Con_Printf("\nVulkan Initialization\n");
 	SDL_Vulkan_LoadLibrary(NULL);
@@ -2574,16 +2579,13 @@ void	VID_Init (void)
 
 /*
 ===================
-VID_Restart -- johnfitz -- change video modes on the fly
+VID_Restart
 ===================
 */
-static void VID_Restart (void)
+static void VID_Restart (qboolean set_mode)
 {
 	int width, height, refreshrate, bpp;
 	qboolean fullscreen;
-
-	if (vid_locked || !vid_changed)
-		return;
 
 	width = (int)vid_width.value;
 	height = (int)vid_height.value;
@@ -2595,7 +2597,7 @@ static void VID_Restart (void)
 	//
 	// validate new mode
 	//
-	if (!VID_ValidMode (width, height, refreshrate, bpp, fullscreen))
+	if (set_mode && !VID_ValidMode (width, height, refreshrate, bpp, fullscreen))
 	{
 		Con_Printf ("%dx%dx%d %dHz %s is not a valid mode\n",
 				width, height, bpp, refreshrate, fullscreen? "fullscreen" : "windowed");
@@ -2610,7 +2612,8 @@ static void VID_Restart (void)
 	//
 	// set new mode
 	//
-	VID_SetMode (width, height, refreshrate, bpp, fullscreen);
+	if (set_mode)
+		VID_SetMode (width, height, refreshrate, bpp, fullscreen);
 
 	GL_CreateRenderResources();
 
@@ -2635,37 +2638,35 @@ static void VID_Restart (void)
 			IN_Activate();
 	}
 
+	R_InitSamplers();
+
 	scr_initialized = true;
 }
 
-// new proc by S.A., called by alt-return key binding.
+/*
+===================
+VID_Restart_f -- johnfitz -- change video modes on the fly
+===================
+*/
+static void VID_Restart_f (void)
+{
+	if (vid_locked || !vid_changed)
+		return;
+	VID_Restart(true);
+}
+
+/*
+===================
+VID_Toggle
+new proc by S.A., called by alt-return key binding.
+===================
+*/
 void	VID_Toggle (void)
 {
-	// disabling the fast path completely because SDL_SetWindowFullscreen was changing
-	// the window size on SDL2/WinXP and we weren't set up to handle it. --ericw
-	//
-	// TODO: Clear out the dead code, reinstate the fast path using SDL_SetWindowFullscreen
-	// inside VID_SetMode, check window size to fix WinXP issue. This will
-	// keep all the mode changing code in one place.
-	static qboolean vid_toggle_works = false;
 	qboolean toggleWorked;
 	Uint32 flags = 0;
 
 	S_ClearBuffer ();
-
-	if (!vid_toggle_works)
-		goto vrestart;
-	else
-	{
-		// disabling the fast path because with SDL 1.2 it invalidates VBOs (using them
-		// causes a crash, sugesting that the fullscreen toggle created a new GL context,
-		// although texture objects remain valid for some reason).
-		//
-		// SDL2 does promise window resizes / fullscreen changes preserve the GL context,
-		// so we could use the fast path with SDL2. --ericw
-		vid_toggle_works = false;
-		goto vrestart;
-	}
 
 	if (!VID_GetFullscreen())
 	{
@@ -2673,7 +2674,6 @@ void	VID_Toggle (void)
 	}
 
 	toggleWorked = SDL_SetWindowFullscreen(draw_context, flags) == 0;
-
 	if (toggleWorked)
 	{
 		Sbar_Changed ();	// Sbar seems to need refreshing
@@ -2690,14 +2690,6 @@ void	VID_Toggle (void)
 			else if (modestate == MS_FULLSCREEN)
 				IN_Activate();
 		}
-	}
-	else
-	{
-		vid_toggle_works = false;
-		Con_DPrintf ("SDL_WM_ToggleFullScreen failed, attempting VID_Restart\n");
-	vrestart:
-		Cvar_SetQuick (&vid_fullscreen, VID_GetFullscreen() ? (vulkan_globals.want_full_screen_exclusive ? "2" : "1") : "0");
-		Cbuf_AddText ("vid_restart\n");
 	}
 }
 
@@ -3110,7 +3102,7 @@ static void VID_Menu_ChooseNextParticles (int dir)
 	{
 		if (menu_settings.r_particles == 0)
 			menu_settings.r_particles = 2;
-		else if (r_particles.value == 2)
+		else if (menu_settings.r_particles == 2)
 			menu_settings.r_particles = 1;
 		else 
 			menu_settings.r_particles = 0;
@@ -3711,8 +3703,7 @@ void VID_FocusGained (void)
 	has_focus = true;
 	if (vulkan_globals.want_full_screen_exclusive)
 	{
-		vid_changed = true;
-		Cbuf_AddText ("vid_restart\n");
+		vid.restart_next_frame = true;
 	}
 }
 
@@ -3721,7 +3712,6 @@ void VID_FocusLost (void)
 	has_focus = false;
 	if (vulkan_globals.want_full_screen_exclusive)
 	{
-		vid_changed = true;
-		Cbuf_AddText ("vid_restart\n");
+		vid.restart_next_frame = true;
 	}
 }

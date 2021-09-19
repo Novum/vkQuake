@@ -1724,7 +1724,7 @@ void M_Quit_Draw (void) //johnfitz -- modified for new quit message
 
 int		lanConfig_cursor = -1;
 int		lanConfig_cursor_table [] = {72, 92, 124};
-#define NUM_LANCONFIG_CMDS	3
+#define NUM_LANCONFIG_CMDS	4
 
 int 	lanConfig_port;
 char	lanConfig_portname[6];
@@ -2581,6 +2581,13 @@ void M_ServerList_Key (int k)
 }
 
 //=============================================================================
+/* Credits menu -- used by the 2021 re-release */
+
+void M_Menu_Credits_f (void)
+{
+}
+
+//=============================================================================
 /* Menu Subsystem */
 
 
@@ -2599,6 +2606,7 @@ void M_Init (void)
 	Cmd_AddCommand ("menu_video", M_Menu_Video_f);
 	Cmd_AddCommand ("help", M_Menu_Help_f);
 	Cmd_AddCommand ("menu_quit", M_Menu_Quit_f);
+	Cmd_AddCommand ("menu_credits", M_Menu_Credits_f); // needed by the 2021 re-release
 }
 
 

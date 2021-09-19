@@ -72,8 +72,8 @@ static void TexMgr_SetFilterModes (gltexture_t *glt)
 	image_info.imageView = glt->image_view;
 	image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
-	VkSampler point_sampler = (vid_anisotropic.value == 1) ? vulkan_globals.point_aniso_sampler : vulkan_globals.point_sampler;
-	VkSampler linear_sampler = (vid_anisotropic.value == 1) ? vulkan_globals.linear_aniso_sampler : vulkan_globals.linear_sampler;
+	VkSampler point_sampler = (vid_anisotropic.value == 1) ? vulkan_globals.point_aniso_sampler_lod_bias : vulkan_globals.point_sampler_lod_bias;
+	VkSampler linear_sampler = (vid_anisotropic.value == 1) ? vulkan_globals.linear_aniso_sampler_lod_bias : vulkan_globals.linear_sampler_lod_bias;
 
 	if (glt->flags & TEXPREF_NEAREST)
 		image_info.sampler = point_sampler;
@@ -102,8 +102,6 @@ TexMgr_UpdateTextureDescriptorSets
 */
 void TexMgr_UpdateTextureDescriptorSets(void)
 {
-	GL_WaitForDeviceIdle();
-
 	gltexture_t	*glt;
 
 	for (glt = active_gltextures; glt; glt = glt->next)

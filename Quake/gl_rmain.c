@@ -81,6 +81,7 @@ cvar_t	gl_nocolors = {"gl_nocolors","0",CVAR_NONE};
 
 //johnfitz -- new cvars
 cvar_t	r_clearcolor = {"r_clearcolor","2",CVAR_ARCHIVE};
+cvar_t	r_fastclear = {"r_fastclear","1",CVAR_ARCHIVE};
 cvar_t	r_flatlightstyles = {"r_flatlightstyles", "0", CVAR_NONE};
 cvar_t	gl_fullbrights = {"gl_fullbrights", "1", CVAR_ARCHIVE};
 cvar_t	gl_farclip = {"gl_farclip", "16384", CVAR_ARCHIVE};
@@ -94,7 +95,7 @@ cvar_t	r_nolerp_list = {"r_nolerp_list", "progs/flame.mdl,progs/flame2.mdl,progs
 extern cvar_t	r_vfog;
 //johnfitz
 
-cvar_t	gl_zfix = {"gl_zfix", "0", CVAR_NONE}; // QuakeSpasm z-fighting fix
+cvar_t	gl_zfix = {"gl_zfix", "1", CVAR_ARCHIVE}; // QuakeSpasm z-fighting fix
 
 cvar_t	r_lavaalpha = {"r_lavaalpha","0",CVAR_NONE};
 cvar_t	r_telealpha = {"r_telealpha","0",CVAR_NONE};
@@ -234,8 +235,8 @@ void R_SetFrustum (float fovx, float fovy)
 {
 	int		i;
 
-	TurnVector(frustum[0].normal, vpn, vright, fovx/2 - 90); //left plane
-	TurnVector(frustum[1].normal, vpn, vright, 90 - fovx/2); //right plane
+	TurnVector(frustum[0].normal, vpn, vright, fovx/2 - 90); //right plane
+	TurnVector(frustum[1].normal, vpn, vright, 90 - fovx/2); //left plane
 	TurnVector(frustum[2].normal, vpn, vup, 90 - fovy/2); //bottom plane
 	TurnVector(frustum[3].normal, vpn, vup, fovy/2 - 90); //top plane
 
@@ -258,7 +259,9 @@ static void GL_FrustumMatrix(float matrix[16], float fovx, float fovy)
 	const float w = 1.0f / tanf(fovx * 0.5f);
 	const float h = 1.0f / tanf(fovy * 0.5f);
 
-	const float n = NEARCLIP;
+	// reduce near clip distance at high FOV's to avoid seeing through walls
+	const float d = 12.f * q_min(w, h);
+	const float n = CLAMP(0.5f, d, NEARCLIP);
 	const float f = gl_farclip.value;
 
 	memset(matrix, 0, 16 * sizeof(float));
@@ -270,11 +273,11 @@ static void GL_FrustumMatrix(float matrix[16], float fovx, float fovy)
 	matrix[1*4 + 1] = -h;
 	
 	// Third column
-	matrix[2*4 + 2] = -f / (f - n);
+	matrix[2*4 + 2] = f / (f - n) - 1.0f;
 	matrix[2*4 + 3] = -1.0f;
 
 	// Fourth column
-	matrix[3*4 + 2] = -(n * f) / (f - n);
+	matrix[3*4 + 2] = (n * f) / (f - n);
 }
 
 /*
@@ -339,7 +342,7 @@ R_SetupView
 void R_SetupView (void)
 {
 	// Need to do those early because we now update dynamic light maps during R_MarkSurfaces
-	R_PushDlights();
+	R_PushDlights ();
 	R_AnimateLight ();
 	r_framecount++;
 
@@ -484,7 +487,7 @@ void R_DrawViewModel (void)
 				gly + glheight - r_refdef.vrect.y - r_refdef.vrect.height,
 				r_refdef.vrect.width,
 				r_refdef.vrect.height,
-				0.0f, 0.3f);
+				0.7f, 1.0f);
 	
 	R_DrawAliasModel (currententity);
 

@@ -2,8 +2,8 @@
 Copyright (C) 1996-2001 Id Software, Inc.
 Copyright (C) 2002-2009 John Fitzgibbons and others
 Copyright (C) 2007-2008 Kristian Duske
-Copyright (C) 2010-2019 QuakeSpasm developers
-Copyright (C) 2016 Axel Gneiting
+Copyright (C) 2010-2021 QuakeSpasm developers
+Copyright (C) 2016-2021 vkQuake developers
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -37,15 +37,15 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define	X11_VERSION		1.10
 
 #define	FITZQUAKE_VERSION	0.85	//johnfitz
-#define	QUAKESPASM_VERSION	0.93
-#define	QUAKESPASM_VER_PATCH	2	// helper to print a string like 0.93.2
+#define	QUAKESPASM_VERSION	0.94
+#define	QUAKESPASM_VER_PATCH	1	// helper to print a string like 0.94.1
 #ifndef	QUAKESPASM_VER_SUFFIX
 #define	QUAKESPASM_VER_SUFFIX		// optional version suffix string literal like "-beta1"
 #endif
-#define	VKQUAKE_VERSION		1.10
+#define	VKQUAKE_VERSION		1.11
 #define	VKQUAKE_VER_PATCH	0	// helper to print a string like 0.92.1
 #ifndef	VKQUAKE_VER_SUFFIX
-#define	VKQUAKE_VER_SUFFIX "-beta3"	// optional version suffix like -beta1
+#define	VKQUAKE_VER_SUFFIX ""	// optional version suffix like -beta1
 #endif
 
 #define	QS_STRINGIFY_(x)	#x
