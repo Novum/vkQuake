@@ -2907,6 +2907,12 @@ void LOC_LoadFile (const char *file)
 	memset(&archive, 0, sizeof(archive));
 	q_snprintf(path, sizeof(path), "%s/%s", com_basedir, file);
 	rw = SDL_RWFromFile(path, "rb");
+	#if defined(DO_USERDIRS)
+	if (!rw) {
+		q_snprintf(path, sizeof(path), "%s/%s", host_parms->userdir, file);
+		rw = SDL_RWFromFile(path, "rb");
+	}
+	#endif
 	if (!rw)
 	{
 		q_snprintf(path, sizeof(path), "%s/QuakeEX.kpf", com_basedir);
