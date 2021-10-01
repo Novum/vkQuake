@@ -2917,6 +2917,12 @@ void LOC_LoadFile (const char *file)
 	{
 		q_snprintf(path, sizeof(path), "%s/QuakeEX.kpf", com_basedir);
 		rw = SDL_RWFromFile(path, "rb");
+		#if defined(DO_USERDIRS)
+		if (!rw) {
+			q_snprintf(path, sizeof(path), "%s/QuakeEX.kpf", host_parms->userdir);
+			rw = SDL_RWFromFile(path, "rb");
+		}
+		#endif
 		if (!rw) goto fail;
 		sz = SDL_RWsize(rw);
 		if (sz <= 0) goto fail;
