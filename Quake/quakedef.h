@@ -325,6 +325,7 @@ void ExtraMaps_Init (void);
 void Modlist_Init (void);
 void DemoList_Init (void);
 
+void ExtraMaps_NewGame (void);
 void DemoList_Rebuild (void);
 
 extern int		current_skill;	// skill level for currently loaded level (in case

@@ -1973,7 +1973,6 @@ static int COM_FindFile (const char *filename, int *handle, FILE **file,
 		&& strcmp(COM_FileGetExtension(filename), "ent") != 0)
 		Con_DPrintf ("FindFile: can't find %s\n", filename);
 	else	Con_DPrintf2("FindFile: can't find %s\n", filename);
-		// Log pcx, tga, lit, ent misses only if (developer.value >= 2)
 
 	if (handle)
 		*handle = -1;
@@ -2484,7 +2483,6 @@ void COM_ResetGameDirectories(const char *newdirs)
 //==============================================================================
 //johnfitz -- dynamic gamedir stuff -- modified by QuakeSpasm team.
 //==============================================================================
-void ExtraMaps_NewGame (void);
 static void COM_Game_f (void)
 {
 	if (Cmd_Argc() > 1)
