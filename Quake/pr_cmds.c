@@ -1821,6 +1821,19 @@ builtin_t pr_ssqcbuiltins[] =
 
 	// 2021 release
 	PF_sv_finalefinished,	// float() finaleFinished = #79
+	PF_Fixme,		// void localsound (entity client, string sample) = #80
+	PF_Fixme,		// void draw_point (vector point, float colormap, float lifetime, float depthtest) = #81
+	PF_Fixme,		// void draw_line (vector start, vector end, float colormap, float lifetime, float depthtest) = #82
+	PF_Fixme,		// void draw_arrow (vector start, vector end, float colormap, float size, float lifetime, float depthtest) = #83
+	PF_Fixme,		// void draw_ray (vector start, vector direction, float length, float colormap, float size, float lifetime, float depthtest) = #84
+	PF_Fixme,		// void draw_circle (vector origin, float radius, float colormap, float lifetime, float depthtest) = #85
+	PF_Fixme,		// void draw_bounds (vector min, vector max, float colormap, float lifetime, float depthtest) = #86
+	PF_Fixme,		// void draw_worldtext (string s, vector origin, float size, float lifetime, float depthtest) = #87
+	PF_Fixme,		// void draw_sphere (vector origin, float radius, float colormap, float lifetime, float depthtest) = #88
+	PF_Fixme,		// void draw_cylinder (vector origin, float halfHeight, float radius, float colormap, float lifetime, float depthtest) = #89
+	PF_centerprint ,	// #90
+	PF_bprint,
+	PF_sprint,
 };
 int pr_ssqcnumbuiltins = sizeof(pr_ssqcbuiltins)/sizeof(pr_ssqcbuiltins[0]);
 
