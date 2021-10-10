@@ -1706,6 +1706,7 @@ PF_sv_finalefinished -- used by 2021 release.
 */
 static void PF_sv_finalefinished (void)
 {
+	G_FLOAT(OFS_RETURN) = 0;
 }
 
 void PR_spawnfunc_misc_model(edict_t *self)
@@ -1819,7 +1820,7 @@ builtin_t pr_ssqcbuiltins[] =
 	PF_sv_setspawnparms,
 
 	// 2021 release
-	PF_sv_finalefinished,	// void() finaleFinished = #79
+	PF_sv_finalefinished,	// float() finaleFinished = #79
 };
 int pr_ssqcnumbuiltins = sizeof(pr_ssqcbuiltins)/sizeof(pr_ssqcbuiltins[0]);
 
