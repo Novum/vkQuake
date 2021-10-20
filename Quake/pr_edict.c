@@ -1185,6 +1185,28 @@ static void PR_MergeEngineFieldDefs (void)
 
 /*
 ===============
+PR_PatchRereleaseBuiltins
+
+Quake 2021 release update 1 adds bprint/sprint/centerprint builtins with new id's
+(see https://steamcommunity.com/games/2310/announcements/detail/2943653788150871156)
+This function patches them back to use the old indices
+===============
+*/
+static void PR_PatchRereleaseBuiltins (void)
+{
+	dfunction_t *f;
+	if (qcvm != &sv.qcvm)
+		return;
+	if ((f = ED_FindFunction ("centerprint")) != NULL && f->first_statement == -90)
+		f->first_statement = -73;
+	if ((f = ED_FindFunction ("bprint")) != NULL && f->first_statement == -91)
+		f->first_statement = -23;
+	if ((f = ED_FindFunction ("sprint")) != NULL && f->first_statement == -92)
+		f->first_statement = -24;
+}
+
+/*
+===============
 PR_LoadProgs
 ===============
 */
@@ -1330,6 +1352,7 @@ qboolean PR_LoadProgs (const char *filename, qboolean fatal, unsigned int needcr
 
 	PR_SetEngineString("");
 	PR_EnableExtensions(qcvm->globaldefs);
+	PR_PatchRereleaseBuiltins();
 
 	return true;
 }
