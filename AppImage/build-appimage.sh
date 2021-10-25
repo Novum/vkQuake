@@ -1,5 +1,3 @@
 #/bin/sh
-make -C ../Quake clean
-make -C ../Quake -j
-rm -rf AppDir
-./linuxdeploy-x86_64.AppImage -e ../Quake/vkquake --appdir=AppDir --create-desktop-file -i ../Misc/vkQuake_256.png --icon-filename=vkquake --output appimage
+docker build --tag=build-vkquake docker
+docker run --rm --privileged --mount type=tmpfs,destination=/tmp -v ${PWD}/..:/usr/src/vkQuake build-vkquake /usr/src/vkQuake/AppImage/run-in-docker.sh
