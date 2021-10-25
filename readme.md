@@ -13,6 +13,16 @@ Copy all files inside the `vkquake-<version>-linux64` folder in the tar archive 
 
 > 📝 **Note**: Make sure all data files are lowercase, e.g. "id1", not "ID1" and "pak0.pak", not "PAK0.PAK". Some distributions of the game have upper case file names, e.g. from GOG.com.
 
+## OpenBSD
+
+[OpenBSD](https://openbsd.org) includes vkQuake in the standard package repositories since version [6.6](https://www.openbsd.org/66.html).
+
+If you're running `OpenBSD 6.6` or greater you can install the package with:
+
+```console
+$ pkg_add vkquake
+```
+
 ## Quake '2021 re-release'
 
 vkQuake has initial support for playing the 2021 re-release content. Follow installation instructions as above but copy the files into the rerelease folder.
