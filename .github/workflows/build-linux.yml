@@ -14,9 +14,9 @@ jobs:
     - name: Build Docker image
       run: docker build . --file AppImage/docker/Dockerfile --tag build-vkquake
     - name: Build vkQuake
-      run: docker run --rm --privileged -v ${PWD}:/usr/src/vkQuake build-vkquake /usr/src/vkQuake/AppImage/run-in-docker.sh
+      run: docker run --rm --privileged -e VERSION=-${GITHUB_SHA::8} -v ${PWD}:/usr/src/vkQuake build-vkquake /usr/src/vkQuake/AppImage/run-in-docker.sh
     - name: Upload vkQuake
       uses: actions/upload-artifact@v2
       with:
-        name: vkquake_linux64.tar.gz
-        path: AppImage/vkquake_linux64.tar.gz
+        name: vkQuake archive
+        path: AppImage/*.tar.gz
