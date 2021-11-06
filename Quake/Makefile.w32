@@ -14,7 +14,7 @@ USE_CODEC_FLAC=1
 USE_CODEC_MP3=1
 USE_CODEC_VORBIS=1
 USE_CODEC_OPUS=1
-# either mikmod or xmp
+# either mikmod, or xmp
 USE_CODEC_MIKMOD=1
 USE_CODEC_XMP=0
 USE_CODEC_UMX=1
@@ -67,9 +67,6 @@ define do_strip
 	$(call cmd_strip,$(1));
 endef
 endif
-
-# for compatibility with old sdks
-CFLAGS += -DNO_WINSDKVER_H
 
 # default to our local SDL2 for build
 SDL_CONFIG ?=../Windows/SDL2/bin/sdl2-config --prefix=../Windows/SDL2
@@ -319,4 +316,3 @@ debug:
 
 clean:
 	rm -f $(shell find . \( -name '*~' -o -name '#*#' -o -name '*.o' -o -name '*.res' -o -name '*.dll' -o -name $(DEFAULT_TARGET) \) -print)
-
