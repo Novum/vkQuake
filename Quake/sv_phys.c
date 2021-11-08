@@ -47,6 +47,7 @@ cvar_t sv_gravity = {"sv_gravity", "800", CVAR_NOTIFY | CVAR_SERVERINFO};
 cvar_t sv_maxvelocity = {"sv_maxvelocity", "2000", CVAR_NONE};
 cvar_t sv_nostep = {"sv_nostep", "0", CVAR_NONE};
 cvar_t sv_freezenonclients = {"sv_freezenonclients", "0", CVAR_NONE};
+cvar_t	sv_gameplayfix_bouncedownslopes = {"sv_gameplayfix_bouncedownslopes","0",CVAR_NONE};	//fixes grenades making horrible noises on slopes.
 
 #define MOVE_EPSILON 0.01
 
@@ -523,7 +524,8 @@ void SV_PushMove (edict_t *pusher, float movetime)
 
 		// remove the onground flag for non-players
 		if (check->v.movetype != MOVETYPE_WALK)
-			check->v.flags = (int)check->v.flags & ~FL_ONGROUND;
+			if (!pr_checkextension.value || PROG_TO_EDICT(check->v.groundentity) != pusher) //unless they're already riding us (prevents grenade sound spam)
+				check->v.flags = (int)check->v.flags & ~FL_ONGROUND;
 
 		VectorCopy (check->v.origin, entorig);
 		VectorCopy (check->v.origin, moved_from[num_moved]);
