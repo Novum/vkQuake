@@ -2082,16 +2082,6 @@ static void PF_getsurfaceclippedpoint(void)
 	getsurface_clippointpoly(model, surf, point, result, 0x7fffffff);
 }
 
-enum
-{
-	SPA_POSITION	= 0,
-	SPA_S_AXIS		= 1,
-	SPA_T_AXIS		= 2,
-	SPA_R_AXIS		= 3,	//normal
-	SPA_TEXCOORDS0	= 4,
-	SPA_LIGHTMAP0_TEXCOORDS	= 5,
-	SPA_LIGHTMAP0_COLOR		= 6,
-};
 static void PF_getsurfacepointattribute(void)
 {
 	edict_t	*ed				= G_EDICT(OFS_PARM0);
@@ -2113,11 +2103,11 @@ static void PF_getsurfacepointattribute(void)
 			G_FLOAT(OFS_RETURN+1) = 0;
 			G_FLOAT(OFS_RETURN+2) = 0;
 			break;
-		case SPA_POSITION:
+		case 0:	//xyz coord
 			VectorCopy(v->position, G_VECTOR(OFS_RETURN));
 			break;
-		case SPA_S_AXIS:
-		case SPA_T_AXIS:
+		case 1:	//s dir
+		case 2:	//t dir
 			{
 				//figure out how similar to the normal it is, and negate any influence, so that its perpendicular
 				float sc = -DotProduct(fa->plane->normal, fa->texinfo->vecs[attribute-1]);
@@ -2125,22 +2115,22 @@ static void PF_getsurfacepointattribute(void)
 				VectorNormalize(G_VECTOR(OFS_RETURN));
 			}
 			break;
-		case SPA_R_AXIS: //normal
+		case 3: //normal
 			VectorCopy(fa->plane->normal, G_VECTOR(OFS_RETURN));
 			if (fa->flags & SURF_PLANEBACK)
 				VectorInverse(G_VECTOR(OFS_RETURN));
 			break;
-		case SPA_TEXCOORDS0:
+		case 4: //st coord
 			G_FLOAT(OFS_RETURN+0) = (DotProduct(v->position, fa->texinfo->vecs[0]) + fa->texinfo->vecs[0][3]) / fa->texinfo->texture->width;
 			G_FLOAT(OFS_RETURN+1) = (DotProduct(v->position, fa->texinfo->vecs[1]) + fa->texinfo->vecs[1][3]) / fa->texinfo->texture->height;
 			G_FLOAT(OFS_RETURN+2) = 0;
 			break;
-		case SPA_LIGHTMAP0_TEXCOORDS: //lmst coord, not actually very useful
+		case 5: //lmst coord, not actually very useful
 			G_FLOAT(OFS_RETURN+0) = (DotProduct(v->position, fa->texinfo->vecs[0]) + fa->texinfo->vecs[0][3] - fa->texturemins[0] + (fa->light_s+.5)) / LMBLOCK_WIDTH;
 			G_FLOAT(OFS_RETURN+1) = (DotProduct(v->position, fa->texinfo->vecs[1]) + fa->texinfo->vecs[1][3] - fa->texturemins[1] + (fa->light_t+.5)) / LMBLOCK_HEIGHT;
 			G_FLOAT(OFS_RETURN+2) = 0;
 			break;
-		case SPA_LIGHTMAP0_COLOR: //colour
+		case 6: //colour
 			G_FLOAT(OFS_RETURN+0) = 1;
 			G_FLOAT(OFS_RETURN+1) = 1;
 			G_FLOAT(OFS_RETURN+2) = 1;
@@ -5152,14 +5142,6 @@ void PR_DumpPlatform_f(void)
 		fprintf(f, "const float CHAN_VOICE = %i;\n", 2);
 		fprintf(f, "const float CHAN_ITEM = %i;\n", 3);
 		fprintf(f, "const float CHAN_BODY = %i;\n", 4);
-
-		fprintf(f, "const float SPA_POSITION = %i;\n", SPA_POSITION);
-		fprintf(f, "const float SPA_S_AXIS = %i;\n", SPA_S_AXIS);
-		fprintf(f, "const float SPA_T_AXIS = %i;\n", SPA_T_AXIS);
-		fprintf(f, "const float SPA_R_AXIS = %i;\n", SPA_R_AXIS);
-		fprintf(f, "const float SPA_TEXCOORDS0 = %i;\n", SPA_TEXCOORDS0);
-		fprintf(f, "const float SPA_LIGHTMAP0_TEXCOORDS = %i;\n", SPA_LIGHTMAP0_TEXCOORDS);
-		fprintf(f, "const float SPA_LIGHTMAP0_COLOR = %i;\n", SPA_LIGHTMAP0_COLOR);
 	}
 
 	fprintf(f, "const float STAT_USER = 32;			/* Custom user stats start here (lower values are reserved for engine use). */\n");

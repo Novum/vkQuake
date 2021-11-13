@@ -919,29 +919,6 @@ void MSG_WriteLong (sizebuf_t *sb, int c)
 	buf[3] = c>>24;
 }
 
-void MSG_WriteUInt64 (sizebuf_t *sb, unsigned long long c)
-{	//0* 10*,*, 110*,*,* etc, up to 0xff followed by 8 continuation bytes
-	byte *buf;
-	int b = 0;
-	unsigned long long l = 128;
-	while (c > l-1u)
-	{	//count the extra bytes we need
-		b++;
-		l <<= 7;	//each byte we add gains 8 bits, but we spend one on length.
-	}
-	buf = (byte*)SZ_GetSpace (sb, 1+b);
-	*buf++ = 0xffu<<(8-b) | (c >> (b*8));
-	while(b --> 0)
-		*buf++ = (c >> (b*8))&0xff;
-}
-void MSG_WriteInt64 (sizebuf_t *sb, long long c)
-{	//move the sign bit into the low bit and avoid sign extension for more efficient length coding.
-	if (c < 0)
-		MSG_WriteUInt64(sb, ((unsigned long long)(-1-c)<<1)|1);
-	else
-		MSG_WriteUInt64(sb, c<<1);
-}
-
 void MSG_WriteFloat (sizebuf_t *sb, float f)
 {
 	union
@@ -1110,30 +1087,6 @@ int MSG_ReadLong (void)
 	msg_readcount += 4;
 
 	return c;
-}
-
-unsigned long long MSG_ReadUInt64 (void)
-{	//0* 10*,*, 110*,*,* etc, up to 0xff followed by 8 continuation bytes
-	byte l=0x80, v, b = 0;
-	unsigned long long r;
-	v = MSG_ReadByte();
-	for (; v&l; l>>=1)
-	{
-		v-=l;
-		b++;
-	}
-	r = v<<(b*8);
-	while(b --> 0)
-		r |= MSG_ReadByte()<<(b*8);
-	return r;
-}
-long long MSG_ReadInt64 (void)
-{	//we do some fancy bit recoding for more efficient length coding.
-	unsigned long long c = MSG_ReadUInt64();
-	if (c&1)
-		return -1-(long long)(c>>1);
-	else
-		return (long long)(c>>1);
 }
 
 float MSG_ReadFloat (void)

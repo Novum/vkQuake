@@ -100,8 +100,6 @@ void MSG_WriteChar (sizebuf_t *sb, int c);
 void MSG_WriteByte (sizebuf_t *sb, int c);
 void MSG_WriteShort (sizebuf_t *sb, int c);
 void MSG_WriteLong (sizebuf_t *sb, int c);
-void MSG_WriteUInt64 (sizebuf_t *sb, unsigned long long c);
-void MSG_WriteInt64 (sizebuf_t *sb, long long c);
 void MSG_WriteFloat (sizebuf_t *sb, float f);
 void MSG_WriteStringUnterminated (sizebuf_t *sb, const char *s);
 void MSG_WriteString (sizebuf_t *sb, const char *s);
@@ -120,8 +118,6 @@ int MSG_ReadChar (void);
 int MSG_ReadByte (void);
 int MSG_ReadShort (void);
 int MSG_ReadLong (void);
-unsigned long long MSG_ReadUInt64 (void);
-long long MSG_ReadInt64 (void);
 float MSG_ReadFloat (void);
 const char *MSG_ReadString (void);
 
