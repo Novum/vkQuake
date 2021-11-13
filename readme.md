@@ -74,7 +74,7 @@ If you are on Linux and want to cross-compile for Windows, see the `build_cross_
 
 ## Linux
 
-Make sure that both your [GPU](https://en.wikipedia.org/wiki/Vulkan_(API)#Compatibility) and your GPU driver supports Vulkan.
+Make sure that both your GPU and your GPU driver support [Vulkan](https://en.wikipedia.org/wiki/Vulkan#Support_across_vendors).
 
 To compile vkQuake, first install the build dependencies:
 
