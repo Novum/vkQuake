@@ -1,0 +1,25 @@
+name: MacOS CI
+
+on:
+  push:
+    branches: [ master, qtx-buildauto ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: macos-11
+    steps:
+    - uses: actions/checkout@v2
+    - name: Dependencies
+      run: brew install molten-vk vulkan-headers sdl2 libvorbis flac mad glslang
+    - name: compile shaders
+      working-directory: ./Shaders
+      run: ./compile.zsh
+    - name: Build vkQuake
+      working-directory: ./Quake
+      run: make
+    - uses: actions/upload-artifact@v2
+      with:
+          name: vkQuake mac_archive
+          path: Quake/vkquake
