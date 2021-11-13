@@ -88,6 +88,7 @@ cvar_t	gl_farclip = {"gl_farclip", "16384", CVAR_ARCHIVE};
 cvar_t	r_oldskyleaf = {"r_oldskyleaf", "0", CVAR_NONE};
 cvar_t	r_drawworld = {"r_drawworld", "1", CVAR_NONE};
 cvar_t	r_showtris = {"r_showtris", "0", CVAR_NONE};
+cvar_t	r_showbboxes = {"r_showbboxes", "0", CVAR_NONE};
 cvar_t	r_lerpmodels = {"r_lerpmodels", "1", CVAR_NONE};
 cvar_t	r_lerpmove = {"r_lerpmove", "1", CVAR_NONE};
 cvar_t	r_nolerp_list = {"r_nolerp_list", "progs/flame.mdl,progs/flame2.mdl,progs/braztall.mdl,progs/brazshrt.mdl,progs/longtrch.mdl,progs/flame_pyre.mdl,progs/v_saw.mdl,progs/v_xfist.mdl,progs/h2stuff/newfire.mdl", CVAR_NONE};
@@ -502,6 +503,121 @@ void R_DrawViewModel (void)
 
 /*
 ================
+R_EmitWirePoint -- johnfitz -- draws a wireframe cross shape for point entities
+================
+*/
+void R_EmitWirePoint (vec3_t origin)
+{
+	VkBuffer vertex_buffer;
+	VkDeviceSize vertex_buffer_offset;
+	basicvertex_t * vertices = (basicvertex_t*)R_VertexAllocate(6 * sizeof(basicvertex_t), &vertex_buffer, &vertex_buffer_offset);
+	int size=8;
+
+	vertices[0].position[0] = origin[0]-size;
+	vertices[0].position[1] = origin[1];
+	vertices[0].position[2] = origin[2];
+	vertices[1].position[0] = origin[0]+size;
+	vertices[1].position[1] = origin[1];
+	vertices[1].position[2] = origin[2];
+	vertices[2].position[0] = origin[0];
+	vertices[2].position[1] = origin[1]-size;
+	vertices[2].position[2] = origin[2];
+	vertices[3].position[0] = origin[0];
+	vertices[3].position[1] = origin[1]+size;
+	vertices[3].position[2] = origin[2];
+	vertices[4].position[0] = origin[0];
+	vertices[4].position[1] = origin[1];
+	vertices[4].position[2] = origin[2]-size;
+	vertices[5].position[0] = origin[0];
+	vertices[5].position[1] = origin[1];
+	vertices[5].position[2] = origin[2]+size;
+
+	vulkan_globals.vk_cmd_bind_vertex_buffers(vulkan_globals.command_buffer, 0, 1, &vertex_buffer, &vertex_buffer_offset);
+	vulkan_globals.vk_cmd_draw(vulkan_globals.command_buffer, 6, 1, 0, 0);
+}
+
+/*
+================
+R_EmitWireBox -- johnfitz -- draws one axis aligned bounding box
+================
+*/
+void R_EmitWireBox (vec3_t mins, vec3_t maxs, VkBuffer box_index_buffer, VkDeviceSize box_index_buffer_offset)
+{
+	VkBuffer vertex_buffer;
+	VkDeviceSize vertex_buffer_offset;
+	basicvertex_t * vertices = (basicvertex_t*)R_VertexAllocate(8 * sizeof(basicvertex_t), &vertex_buffer, &vertex_buffer_offset);
+
+	for (int i = 0; i < 8; ++i)
+	{
+		vertices[i].position[0] = ((i % 2) < 1) ? mins[0] : maxs[0];
+		vertices[i].position[1] = ((i % 4) < 2) ? mins[1] : maxs[1];
+		vertices[i].position[2] = ((i % 8) < 4) ? mins[2] : maxs[2];
+	}
+
+	vulkan_globals.vk_cmd_bind_index_buffer(vulkan_globals.command_buffer, box_index_buffer, box_index_buffer_offset, VK_INDEX_TYPE_UINT16);
+	vulkan_globals.vk_cmd_bind_vertex_buffers(vulkan_globals.command_buffer, 0, 1, &vertex_buffer, &vertex_buffer_offset);
+	vulkan_globals.vk_cmd_draw_indexed(vulkan_globals.command_buffer, 24, 1, 0, 0, 0);
+}
+
+static uint16_t box_indices[24] =
+{
+	0, 1, 2, 3, 4, 5, 6, 7,
+	0, 4, 1, 5, 2, 6, 3, 7,
+	0, 2, 1, 3, 4, 6, 5, 7
+};
+
+/*
+================
+R_ShowBoundingBoxes -- johnfitz
+
+draw bounding boxes -- the server-side boxes, not the renderer cullboxes
+================
+*/
+void R_ShowBoundingBoxes (void)
+{
+	extern		edict_t *sv_player;
+	vec3_t		mins,maxs;
+	edict_t		*ed;
+	int			i;
+
+	if (!r_showbboxes.value || cl.maxclients > 1 || !r_drawentities.value || !sv.active)
+		return;
+
+	R_BeginDebugUtilsLabel ("show bboxes");
+	R_BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showbboxes_pipeline);
+
+	VkBuffer box_index_buffer;
+	VkDeviceSize box_index_buffer_offset;
+	uint16_t * indices = (uint16_t *)R_IndexAllocate(24 * sizeof(uint16_t), &box_index_buffer, &box_index_buffer_offset);
+	memcpy(indices, box_indices, 24 * sizeof(uint16_t));
+
+	PR_SwitchQCVM(&sv.qcvm);
+	for (i=0, ed=NEXT_EDICT(qcvm->edicts) ; i<qcvm->num_edicts ; i++, ed=NEXT_EDICT(ed))
+	{
+		if (ed == sv_player)
+			continue; //don't draw player's own bbox
+
+		if (ed->v.mins[0] == ed->v.maxs[0] && ed->v.mins[1] == ed->v.maxs[1] && ed->v.mins[2] == ed->v.maxs[2])
+		{
+			//point entity
+			R_EmitWirePoint (ed->v.origin);
+		}
+		else
+		{
+			//box entity
+			VectorAdd (ed->v.mins, ed->v.origin, mins);
+			VectorAdd (ed->v.maxs, ed->v.origin, maxs);
+			R_EmitWireBox (mins, maxs, box_index_buffer, box_index_buffer_offset);
+		}
+	}
+	PR_SwitchQCVM(NULL);
+
+	Sbar_Changed (); //so we don't get dots collecting on the statusbar
+	R_EndDebugUtilsLabel ();
+}
+
+/*
+================
 R_ShowTris -- johnfitz
 ================
 */
@@ -597,6 +713,8 @@ void R_RenderScene (void)
 	R_DrawViewModel (); //johnfitz -- moved here from R_RenderView
 	
 	R_ShowTris(); //johnfitz
+
+	R_ShowBoundingBoxes (); //johnfitz
 }
 
 /*

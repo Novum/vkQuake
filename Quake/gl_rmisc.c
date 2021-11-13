@@ -46,6 +46,7 @@ extern cvar_t r_waterwarpcompute;
 extern cvar_t r_oldskyleaf;
 extern cvar_t r_drawworld;
 extern cvar_t r_showtris;
+extern cvar_t r_showbboxes;
 extern cvar_t r_lerpmodels;
 extern cvar_t r_lerpmove;
 extern cvar_t r_nolerp_list;
@@ -2063,6 +2064,17 @@ void R_CreatePipelines()
 		vulkan_globals.showtris_depth_test_pipeline.layout = vulkan_globals.basic_pipeline_layout;
 
 		GL_SetObjectName((uint64_t)vulkan_globals.showtris_depth_test_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "showtris_depth_test");
+
+		depth_stencil_state_create_info.depthTestEnable = VK_FALSE;
+		rasterization_state_create_info.depthBiasEnable = VK_FALSE;
+		input_assembly_state_create_info.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
+		assert(vulkan_globals.showbboxes_pipeline.handle == VK_NULL_HANDLE);
+		err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.showbboxes_pipeline.handle);
+		if (err != VK_SUCCESS)
+			Sys_Error("vkCreateGraphicsPipelines failed");
+		vulkan_globals.showbboxes_pipeline.layout = vulkan_globals.basic_pipeline_layout;
+
+		GL_SetObjectName((uint64_t)vulkan_globals.showbboxes_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "showbboxes");
 	}
 
 	//================
@@ -2467,6 +2479,8 @@ void R_DestroyPipelines(void)
 		vulkan_globals.showtris_pipeline.handle = VK_NULL_HANDLE;
 		vkDestroyPipeline(vulkan_globals.device, vulkan_globals.showtris_depth_test_pipeline.handle, NULL);
 		vulkan_globals.showtris_depth_test_pipeline.handle = VK_NULL_HANDLE;
+		vkDestroyPipeline(vulkan_globals.device, vulkan_globals.showbboxes_pipeline.handle, NULL);
+		vulkan_globals.showbboxes_pipeline.handle = VK_NULL_HANDLE;
 	}
 	if (vulkan_globals.alias_showtris_pipeline.handle != VK_NULL_HANDLE)
 	{
@@ -2528,6 +2542,7 @@ void R_Init (void)
 	Cvar_RegisterVariable (&r_oldskyleaf);
 	Cvar_RegisterVariable (&r_drawworld);
 	Cvar_RegisterVariable (&r_showtris);
+	Cvar_RegisterVariable (&r_showbboxes);
 	Cvar_RegisterVariable (&gl_farclip);
 	Cvar_RegisterVariable (&gl_fullbrights);
 	Cvar_SetCallback (&gl_fullbrights, GL_Fullbrights_f);
