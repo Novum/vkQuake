@@ -62,7 +62,10 @@ client_t	*host_client;			// current client
 jmp_buf 	host_abortserver;
 
 byte		*host_colormap;
-float	host_netinterval = 1.0/72;
+
+#define TICKS_PER_SECOND 10000000
+uint64_t host_netinterval = TICKS_PER_SECOND / 72;
+
 cvar_t	host_framerate = {"host_framerate","0",CVAR_NONE};	// set for slow motion
 cvar_t	host_speeds = {"host_speeds","0",CVAR_NONE};			// set for running times
 cvar_t	host_maxfps = {"host_maxfps", "200", CVAR_ARCHIVE}; //johnfitz
@@ -115,20 +118,17 @@ Max_Fps_f -- ericw
 */
 static void Max_Fps_f (cvar_t *var)
 {
-	if (var->value > 72 || var->value <= 0)
+	if (var->value != 72)
 	{
 		if (!host_netinterval)
 			Con_Printf ("Using renderer/network isolation.\n");
-		host_netinterval = 1.0/72;
+		host_netinterval = TICKS_PER_SECOND / 72;
 	}
 	else
 	{
 		if (host_netinterval)
 			Con_Printf ("Disabling renderer/network isolation.\n");
 		host_netinterval = 0;
-
-		if (var->value > 72)
-			Con_Warning ("host_maxfps above 72 breaks physics.\n");
 	}
 }
 
@@ -806,7 +806,7 @@ Runs all active servers
 */
 void _Host_Frame (double time)
 {
-	static double	accumtime = 0;
+	static uint64_t	accumtime = 0;
 	static double		time1 = 0;
 	static double		time2 = 0;
 	static double		time3 = 0;
@@ -819,7 +819,10 @@ void _Host_Frame (double time)
 	rand ();
 
 // decide the simulation time
-	accumtime += host_netinterval?CLAMP(0, time, 0.2):0;	//for renderer/server isolation
+	if (host_netinterval != 0)
+		accumtime += (uint64_t)(CLAMP(0, time, 0.2) * (double)TICKS_PER_SECOND);	//for renderer/server isolation
+	else
+		accumtime = 0;
 	if (!Host_FilterTime (time))
 		return;			// don't run too fast, or packets will flood out
 
@@ -851,21 +854,20 @@ void _Host_Frame (double time)
 
 	CL_AccumulateCmd ();
 
-	//Run the server+networking (client->server->client), at a different rate from everyt
-	if (accumtime >= host_netinterval)
+	//Run the server+networking (client->server->client), at a different rate from everything else (always 72Hz)
+	while ((host_netinterval == 0) || (accumtime >= host_netinterval))
 	{
-		float realframetime = host_frametime;
+		double realframetime = host_frametime;
 		if (host_netinterval)
 		{
-			host_frametime = q_max(accumtime, host_netinterval);
-			accumtime -= host_frametime;
+			host_frametime = (double)host_netinterval / (double)TICKS_PER_SECOND;
+			accumtime -= host_netinterval;
 			if (host_timescale.value > 0)
 				host_frametime *= host_timescale.value;
 			else if (host_framerate.value)
 				host_frametime = host_framerate.value;
 		}
-		else
-			accumtime -= host_netinterval;
+		
 		CL_SendCmd ();
 		if (sv.active)
 		{
@@ -875,6 +877,9 @@ void _Host_Frame (double time)
 		}
 		host_frametime = realframetime;
 		Cbuf_Waited();
+
+		if (host_netinterval == 0)
+			break;
 	}
 
 	if (cl.qcvm.progs)
