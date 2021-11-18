@@ -86,6 +86,10 @@ typedef struct
 	struct qmodel_s	*model;
 	float	endtime;
 	vec3_t	start, end;
+#ifdef PSET_SCRIPT
+	const char *trailname;
+	struct trailstate_s *trailstate;
+#endif
 } beam_t;
 
 #define	MAX_MAPSTRING	2048
@@ -244,6 +248,19 @@ typedef struct
 	unsigned	protocol_pext1;	//spike -- flag of fte protocol extensions
 	unsigned	protocol_pext2;	//spike -- flag of fte protocol extensions
 
+#ifdef PSET_SCRIPT
+	qboolean	protocol_particles;
+	struct
+	{
+		const char *name;
+		int index;
+	} particle_precache[MAX_PARTICLETYPES];
+	struct
+	{
+		const char *name;
+		int index;
+	} local_particle_precache[MAX_PARTICLETYPES];
+#endif
 	int ackframes[8];	//big enough to cover burst
 	unsigned int ackframes_count;
 	qboolean requestresend;
@@ -354,6 +371,7 @@ void CL_UpdateTEnts (void);
 
 void CL_FreeState(void);
 void CL_ClearState (void);
+void CL_ClearTrailStates(void);
 
 //
 // cl_demo.c
@@ -370,6 +388,7 @@ void CL_TimeDemo_f (void);
 // cl_parse.c
 //
 void CL_ParseServerMessage (void);
+void CL_RegisterParticles(void);
 void CL_NewTranslation (int slot);
 
 //

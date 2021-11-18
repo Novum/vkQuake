@@ -127,6 +127,8 @@ float MSG_ReadAngle16 (unsigned int flags); //johnfitz
 byte *MSG_ReadData (unsigned int length); // spike
 unsigned int MSG_ReadEntity(unsigned int pext2); //spike
 
+void COM_Effectinfo_Enumerate(int (*cb)(const char *pname));	//spike -- for dp compat
+
 //============================================================================
 
 void Q_memset (void *dest, int fill, size_t count);

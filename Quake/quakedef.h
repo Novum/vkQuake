@@ -66,6 +66,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #define	GAMENAME	"id1"		// directory to look in by default
 
+//#define PSET_SCRIPT		//enable the scriptable particle system (poorly ported from FTE)
+//#define PSET_SCRIPT_EFFECTINFO	//scripted particle system can load dp's effects
+
+
 #include "q_stdinc.h"
 
 // !!! if this is changed, it must be changed in d_ifacea.h too !!!
@@ -108,6 +112,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define	MAX_LIGHTSTYLES	64
 #define	MAX_MODELS	2048		// johnfitz -- was 256
 #define	MAX_SOUNDS	2048		// johnfitz -- was 256
+#define	MAX_PARTICLETYPES	2048
 
 #define	SAVEGAME_COMMENT_LENGTH	39
 

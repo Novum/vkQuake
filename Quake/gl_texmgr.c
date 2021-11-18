@@ -775,6 +775,23 @@ static int TexMgr_DeriveStagingSize(int width, int height)
 	return size;
 }
 
+static byte *TexMgr_PreMultiply32(byte *in, size_t width, size_t height)
+{
+	size_t pixels = width * height;
+	byte *out = (byte *) Hunk_Alloc(pixels*4);
+	byte *result = out;
+	while (pixels --> 0)
+	{
+		out[0] = (in[0]*in[3])>>8;
+		out[1] = (in[1]*in[3])>>8;
+		out[2] = (in[2]*in[3])>>8;
+		out[3] = in[3];
+		in += 4;
+		out += 4;
+	}
+	return result;
+}
+
 /*
 ================
 TexMgr_LoadImage32 -- handles 32bit source data
@@ -783,6 +800,10 @@ TexMgr_LoadImage32 -- handles 32bit source data
 static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 {
 	GL_DeleteTexture(glt);
+
+	//do this before any rescaling
+	if (glt->flags & TEXPREF_PREMULTIPLY)
+		data = (unsigned*)TexMgr_PreMultiply32((byte*)data, glt->width, glt->height);
 
 	// mipmap down
 	int picmip = (glt->flags & TEXPREF_NOPICMIP) ? 0 : q_max((int)gl_picmip.value, 0);

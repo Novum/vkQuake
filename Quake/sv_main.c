@@ -2354,7 +2354,22 @@ qboolean SV_SendPrespawnSoundPrecaches(void)
 }
 int SV_SendPrespawnParticlePrecaches(int idx)
 {
-	return -1;
+	size_t maxsize = host_client->message.maxsize;	//we can go quite large
+	if (!host_client->protocol_pext2)
+		return -1;	//unsupported by this client.
+	for (;;idx++)
+	{
+		if (idx == MAX_PARTICLETYPES)
+			return -1;
+		if (!sv.particle_precache[idx])
+			continue;
+		if (host_client->message.cursize + 4+strlen(sv.particle_precache[idx]) > maxsize)
+			break;
+		MSG_WriteByte(&host_client->message, svcdp_precache);
+		MSG_WriteShort(&host_client->message, 0x4000 | idx);
+		MSG_WriteString(&host_client->message, sv.particle_precache[idx]);
+	}
+	return idx;
 }
 int SV_SendPrespawnStatics(int idx)
 {

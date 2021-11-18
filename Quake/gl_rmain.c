@@ -707,6 +707,9 @@ void R_RenderScene (void)
 	R_DrawEntitiesOnList (true); //johnfitz -- true means this is the pass for alpha entities
 
 	R_DrawParticles ();
+#ifdef PSET_SCRIPT
+	PScript_DrawParticles();
+#endif
 
 	Fog_DisableGFog (); //johnfitz
 

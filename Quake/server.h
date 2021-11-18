@@ -73,6 +73,8 @@ typedef struct
 	sizebuf_t	multicast;	// selectively copied to clients by the multicast builtin
 	byte		multicast_buf[MAX_DATAGRAM];
 
+	const char	*particle_precache[MAX_PARTICLETYPES];	// NULL terminated
+
 	entity_state_t	*static_entities;
 	int			num_statics;
 	int			max_statics;

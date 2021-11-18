@@ -40,7 +40,7 @@ static float PR_GetVMScale(void)
 //one funky way is to allocate a single large buffer and just concatenate it for more tempstring space. don't forget to resize (dp).
 //alternatively, just allocate them persistently and purge them only when there appear to be no more references to it (fte). makes strzone redundant.
 
-extern cvar_t sv_gameplayfix_setmodelrealbox;
+extern cvar_t sv_gameplayfix_setmodelrealbox, r_fteparticles;
 cvar_t pr_checkextension = {"pr_checkextension", "1", CVAR_NONE};	//spike - enables qc extensions. if 0 then they're ALL BLOCKED! MWAHAHAHA! *cough* *splutter*
 static int pr_ext_warned_particleeffectnum;	//so these only spam once per map
 
@@ -2629,6 +2629,81 @@ static void PF_cl_te_beam(void)
 
 	CL_UpdateBeam (Mod_ForName("progs/beam.mdl", true), "TE_BEAM", "TE_BEAM_END", -NUM_FOR_EDICT(ed), start, end);
 }
+#ifdef PSET_SCRIPT
+static void PF_sv_te_particlerain(void)
+{
+	float *min = G_VECTOR(OFS_PARM0);
+	float *max = G_VECTOR(OFS_PARM1);
+	float *velocity = G_VECTOR(OFS_PARM2);
+	float count = G_FLOAT(OFS_PARM3);
+	float colour = G_FLOAT(OFS_PARM4);
+
+	if (count < 1)
+		return;
+	if (count > 65535)
+		count = 65535;
+
+	MSG_WriteByte(&sv.multicast, svc_temp_entity);
+	MSG_WriteByte(&sv.multicast, TEDP_PARTICLERAIN);
+	MSG_WriteCoord(&sv.multicast, min[0], sv.protocolflags);
+	MSG_WriteCoord(&sv.multicast, min[1], sv.protocolflags);
+	MSG_WriteCoord(&sv.multicast, min[2], sv.protocolflags);
+	MSG_WriteCoord(&sv.multicast, max[0], sv.protocolflags);
+	MSG_WriteCoord(&sv.multicast, max[1], sv.protocolflags);
+	MSG_WriteCoord(&sv.multicast, max[2], sv.protocolflags);
+	MSG_WriteCoord(&sv.multicast, velocity[0], sv.protocolflags);
+	MSG_WriteCoord(&sv.multicast, velocity[1], sv.protocolflags);
+	MSG_WriteCoord(&sv.multicast, velocity[2], sv.protocolflags);
+	MSG_WriteShort(&sv.multicast, count);
+	MSG_WriteByte(&sv.multicast, colour);
+
+	SV_Multicast (MULTICAST_ALL_U, NULL, 0, PEXT2_REPLACEMENTDELTAS);
+}
+static void PF_sv_te_particlesnow(void)
+{
+	float *min = G_VECTOR(OFS_PARM0);
+	float *max = G_VECTOR(OFS_PARM1);
+	float *velocity = G_VECTOR(OFS_PARM2);
+	float count = G_FLOAT(OFS_PARM3);
+	float colour = G_FLOAT(OFS_PARM4);
+
+	if (count < 1)
+		return;
+	if (count > 65535)
+		count = 65535;
+
+	MSG_WriteByte(&sv.multicast, svc_temp_entity);
+	MSG_WriteByte(&sv.multicast, TEDP_PARTICLESNOW);
+	MSG_WriteCoord(&sv.multicast, min[0], sv.protocolflags);
+	MSG_WriteCoord(&sv.multicast, min[1], sv.protocolflags);
+	MSG_WriteCoord(&sv.multicast, min[2], sv.protocolflags);
+	MSG_WriteCoord(&sv.multicast, max[0], sv.protocolflags);
+	MSG_WriteCoord(&sv.multicast, max[1], sv.protocolflags);
+	MSG_WriteCoord(&sv.multicast, max[2], sv.protocolflags);
+	MSG_WriteCoord(&sv.multicast, velocity[0], sv.protocolflags);
+	MSG_WriteCoord(&sv.multicast, velocity[1], sv.protocolflags);
+	MSG_WriteCoord(&sv.multicast, velocity[2], sv.protocolflags);
+	MSG_WriteShort(&sv.multicast, count);
+	MSG_WriteByte(&sv.multicast, colour);
+
+	SV_Multicast (MULTICAST_ALL_U, NULL, 0, PEXT2_REPLACEMENTDELTAS);
+}
+#else
+#define PF_sv_te_particlerain PF_void_stub
+#define PF_sv_te_particlesnow PF_void_stub
+#endif
+#define PF_sv_te_bloodshower PF_void_stub
+#define PF_sv_te_explosionrgb PF_void_stub
+#define PF_sv_te_particlecube PF_void_stub
+#define PF_sv_te_spark PF_void_stub
+#define PF_sv_te_gunshotquad PF_sv_te_gunshot
+#define PF_sv_te_spikequad PF_sv_te_spike
+#define PF_sv_te_superspikequad PF_sv_te_superspike
+#define PF_sv_te_explosionquad PF_sv_te_explosion
+#define PF_sv_te_smallflash PF_void_stub
+#define PF_sv_te_customflash PF_void_stub
+#define PF_sv_te_plasmaburn PF_sv_te_tarexplosion
+#define PF_sv_effect PF_void_stub
 
 static void PF_sv_pointsound(void)
 {
@@ -3761,6 +3836,11 @@ static void PF_setattachment(void)
 		val->_float = 0;
 }
 
+static void PF_void_stub(void)
+{
+	G_FLOAT(OFS_RETURN) = 0;
+}
+
 static struct svcustomstat_s *PR_CustomStat(int idx, int type)
 {
 	size_t i;
@@ -3812,6 +3892,261 @@ static void PF_isbackbuffered(void)
 		return;
 	G_FLOAT(OFS_RETURN) = false;	//okay to spam with more reliables.
 }
+
+#ifdef PSET_SCRIPT
+int PF_SV_ForceParticlePrecache(const char *s)
+{
+	unsigned int i;
+	for (i = 1; i < MAX_PARTICLETYPES; i++)
+	{
+		if (!sv.particle_precache[i])
+		{
+			if (sv.state != ss_loading)
+			{
+				MSG_WriteByte(&sv.multicast, svcdp_precache);
+				MSG_WriteShort(&sv.multicast, i|0x4000);
+				MSG_WriteString(&sv.multicast, s);
+				SV_Multicast(MULTICAST_ALL_R, NULL, 0, PEXT2_REPLACEMENTDELTAS); //FIXME
+			}
+
+			sv.particle_precache[i] = strcpy(Hunk_Alloc(strlen(s)+1), s);	//weirdness to avoid issues with tempstrings
+			return i;
+		}
+		if (!strcmp(sv.particle_precache[i], s))
+			return i;
+	}
+	return 0;
+}
+static void PF_sv_particleeffectnum(void)
+{
+	const char	*s;
+	unsigned int i;
+	extern cvar_t r_particledesc;
+
+	s = G_STRING(OFS_PARM0);
+	G_FLOAT(OFS_RETURN) = 0;
+//	PR_CheckEmptyString (s);
+
+	if (!*s)
+		return;
+
+	if (!sv.particle_precache[1] && (!strncmp(s, "effectinfo.", 11) || strstr(r_particledesc.string, "effectinfo")))
+		COM_Effectinfo_Enumerate(PF_SV_ForceParticlePrecache);
+
+	for (i = 1; i < MAX_PARTICLETYPES; i++)
+	{
+		if (!sv.particle_precache[i])
+		{
+			if (sv.state != ss_loading)
+			{
+				if (pr_ext_warned_particleeffectnum++ < 3)
+					Con_Warning ("PF_sv_particleeffectnum(%s): Precache should only be done in spawn functions\n", s);
+
+				MSG_WriteByte(&sv.multicast, svcdp_precache);
+				MSG_WriteShort(&sv.multicast, i|0x4000);
+				MSG_WriteString(&sv.multicast, s);
+				SV_Multicast(MULTICAST_ALL_R, NULL, 0, PEXT2_REPLACEMENTDELTAS);
+			}
+
+			sv.particle_precache[i] = strcpy(Hunk_Alloc(strlen(s)+1), s);	//weirdness to avoid issues with tempstrings
+			G_FLOAT(OFS_RETURN) = i;
+			return;
+		}
+		if (!strcmp(sv.particle_precache[i], s))
+		{
+			if (sv.state != ss_loading && !pr_checkextension.value)
+			{
+				if (pr_ext_warned_particleeffectnum++ < 3)
+					Con_Warning ("PF_sv_particleeffectnum(%s): Precache should only be done in spawn functions\n", s);
+			}
+			G_FLOAT(OFS_RETURN) = i;
+			return;
+		}
+	}
+	PR_RunError ("PF_sv_particleeffectnum: overflow");
+}
+static void PF_sv_trailparticles(void)
+{
+	int efnum;
+	int ednum;
+	float *start = G_VECTOR(OFS_PARM2);
+	float *end = G_VECTOR(OFS_PARM3);
+
+	/*DP gets this wrong, lets try to be compatible*/
+	if ((unsigned int)G_INT(OFS_PARM1) >= MAX_EDICTS*(unsigned int)qcvm->edict_size)
+	{
+		ednum = G_EDICTNUM(OFS_PARM0);
+		efnum = G_FLOAT(OFS_PARM1);
+	}
+	else
+	{
+		efnum = G_FLOAT(OFS_PARM0);
+		ednum = G_EDICTNUM(OFS_PARM1);
+	}
+
+	if (efnum <= 0)
+		return;
+
+	MSG_WriteByte(&sv.multicast, svcdp_trailparticles);
+	MSG_WriteShort(&sv.multicast, ednum);
+	MSG_WriteShort(&sv.multicast, efnum);
+	MSG_WriteCoord(&sv.multicast, start[0], sv.protocolflags);
+	MSG_WriteCoord(&sv.multicast, start[1], sv.protocolflags);
+	MSG_WriteCoord(&sv.multicast, start[2], sv.protocolflags);
+	MSG_WriteCoord(&sv.multicast, end[0], sv.protocolflags);
+	MSG_WriteCoord(&sv.multicast, end[1], sv.protocolflags);
+	MSG_WriteCoord(&sv.multicast, end[2], sv.protocolflags);
+
+	SV_Multicast(MULTICAST_PHS_U, start, 0, PEXT2_REPLACEMENTDELTAS);
+}
+static void PF_sv_pointparticles(void)
+{
+	int efnum = G_FLOAT(OFS_PARM0);
+	float *org = G_VECTOR(OFS_PARM1);
+	float *vel = (qcvm->argc < 3)?vec3_origin:G_VECTOR(OFS_PARM2);
+	int count = (qcvm->argc < 4)?1:G_FLOAT(OFS_PARM3);
+
+	if (efnum <= 0)
+		return;
+	if (count > 65535)
+		count = 65535;
+	if (count < 1)
+		return;
+
+	if (count == 1 && !vel[0] && !vel[1] && !vel[2])
+	{
+		MSG_WriteByte(&sv.multicast, svcdp_pointparticles1);
+		MSG_WriteShort(&sv.multicast, efnum);
+		MSG_WriteCoord(&sv.multicast, org[0], sv.protocolflags);
+		MSG_WriteCoord(&sv.multicast, org[1], sv.protocolflags);
+		MSG_WriteCoord(&sv.multicast, org[2], sv.protocolflags);
+	}
+	else
+	{
+		MSG_WriteByte(&sv.multicast, svcdp_pointparticles);
+		MSG_WriteShort(&sv.multicast, efnum);
+		MSG_WriteCoord(&sv.multicast, org[0], sv.protocolflags);
+		MSG_WriteCoord(&sv.multicast, org[1], sv.protocolflags);
+		MSG_WriteCoord(&sv.multicast, org[2], sv.protocolflags);
+		MSG_WriteCoord(&sv.multicast, vel[0], sv.protocolflags);
+		MSG_WriteCoord(&sv.multicast, vel[1], sv.protocolflags);
+		MSG_WriteCoord(&sv.multicast, vel[2], sv.protocolflags);
+		MSG_WriteShort(&sv.multicast, count);
+	}
+
+	SV_Multicast(MULTICAST_PVS_U, org, 0, PEXT2_REPLACEMENTDELTAS);
+}
+
+int PF_CL_ForceParticlePrecache(const char *s)
+{
+	int i;
+
+	//check if an ssqc one already exists with that name
+	for (i = 1; i < MAX_PARTICLETYPES; i++)
+	{
+		if (!cl.particle_precache[i].name)
+			break;	//nope, no more known
+		if (!strcmp(cl.particle_precache[i].name, s))
+			return i;
+	}
+
+	//nope, check for a csqc one, and allocate if needed
+	for (i = 1; i < MAX_PARTICLETYPES; i++)
+	{
+		if (!cl.local_particle_precache[i].name)
+		{
+			cl.local_particle_precache[i].name = strcpy(Hunk_Alloc(strlen(s)+1), s);	//weirdness to avoid issues with tempstrings
+			cl.local_particle_precache[i].index = PScript_FindParticleType(cl.local_particle_precache[i].name);
+			return -i;
+		}
+		if (!strcmp(cl.local_particle_precache[i].name, s))
+			return -i;
+	}
+
+	//err... too many. bum.
+	return 0;
+}
+int PF_CL_GetParticle(int idx)
+{	//negatives are csqc-originated particles, positives are ssqc-originated, for consistency allowing networking of particles as identifiers
+	if (!idx)
+		return P_INVALID;
+	if (idx < 0)
+	{
+		idx = -idx;
+		if (idx >= MAX_PARTICLETYPES)
+			return P_INVALID;
+		return cl.local_particle_precache[idx].index;
+	}
+	else
+	{
+		if (idx >= MAX_PARTICLETYPES)
+			return P_INVALID;
+		return cl.particle_precache[idx].index;
+	}
+}
+
+static void PF_cl_particleeffectnum(void)
+{
+	const char	*s;
+
+	s = G_STRING(OFS_PARM0);
+	G_FLOAT(OFS_RETURN) = 0;
+//	PR_CheckEmptyString (s);
+
+	if (!*s)
+		return;
+
+	G_FLOAT(OFS_RETURN) = PF_CL_ForceParticlePrecache(s);
+	if (!G_FLOAT(OFS_RETURN))
+		PR_RunError ("PF_cl_particleeffectnum: overflow");
+}
+static void PF_cl_trailparticles(void)
+{
+	int efnum;
+	edict_t *ent;
+	float *start = G_VECTOR(OFS_PARM2);
+	float *end = G_VECTOR(OFS_PARM3);
+
+	if ((unsigned int)G_INT(OFS_PARM1) >= MAX_EDICTS*(unsigned int)qcvm->edict_size)
+	{	/*DP gets this wrong, lets try to be compatible*/
+		ent = G_EDICT(OFS_PARM0);
+		efnum = G_FLOAT(OFS_PARM1);
+	}
+	else
+	{
+		efnum = G_FLOAT(OFS_PARM0);
+		ent = G_EDICT(OFS_PARM1);
+	}
+
+	if (efnum <= 0)
+		return;
+	efnum = PF_CL_GetParticle(efnum);
+	PScript_ParticleTrail(start, end, efnum, host_frametime, -NUM_FOR_EDICT(ent), NULL, NULL/*&ent->trailstate*/);
+}
+static void PF_cl_pointparticles(void)
+{
+	int efnum = G_FLOAT(OFS_PARM0);
+	float *org = G_VECTOR(OFS_PARM1);
+	float *vel = (qcvm->argc < 3)?vec3_origin:G_VECTOR(OFS_PARM2);
+	int count = (qcvm->argc < 4)?1:G_FLOAT(OFS_PARM3);
+
+	if (efnum <= 0)
+		return;
+	if (count < 1)
+		return;
+	efnum = PF_CL_GetParticle(efnum);
+	PScript_RunParticleEffectState (org, vel, count, efnum, NULL);
+}
+#else
+#define PF_sv_particleeffectnum PF_void_stub
+#define PF_sv_trailparticles PF_void_stub
+#define PF_sv_pointparticles PF_void_stub
+#define PF_cl_particleeffectnum PF_void_stub
+#define PF_cl_trailparticles PF_void_stub
+#define PF_cl_pointparticles PF_void_stub
+#endif
+
+
 static void PF_cl_getstat_int(void)
 {
 	int stnum = G_FLOAT(OFS_PARM0);
@@ -4345,6 +4680,9 @@ static struct
 	{"getstatf",					PF_NoSSQC,						PF_cl_getstat_float,			331,	D("#define getstatbits getstatf\nfloat(float stnum, optional float firstbit, optional float bitcount)", "Retrieves the numerical value of the given EV_FLOAT stat. If firstbit and bitcount are specified, retrieves the upper bits of the STAT_ITEMS stat (converted into a float, so there are no VM dependancies).")},// (EXT_CSQC)
 	{"getstats",					PF_NoSSQC,						PF_cl_getstat_string,			332,	D("string(float stnum)", "Retrieves the value of the given EV_STRING stat, as a tempstring.\nString stats use a separate pool of stats from numeric ones.\n")},
 	{"setmodelindex",				PF_sv_setmodelindex,			PF_cl_setmodelindex,			333,	D("void(entity e, float mdlindex)", "Sets a model by precache index instead of by name. Otherwise identical to setmodel.")},//
+	{"particleeffectnum",			PF_sv_particleeffectnum,		PF_cl_particleeffectnum,		335,	D("float(string effectname)", "Precaches the named particle effect. If your effect name is of the form 'foo.bar' then particles/foo.cfg will be loaded by the client if foo.bar was not already defined.\nDifferent engines will have different particle systems, this specifies the QC API only.")},// (EXT_CSQC)
+	{"trailparticles",				PF_sv_trailparticles,			PF_cl_trailparticles,			336,	D("void(float effectnum, entity ent, vector start, vector end)", "Draws the given effect between the two named points. If ent is not world, distances will be cached in the entity in order to avoid framerate dependancies. The entity is not otherwise used.")},// (EXT_CSQC),
+	{"pointparticles",				PF_sv_pointparticles,			PF_cl_pointparticles,			337,	D("void(float effectnum, vector origin, optional vector dir, optional float count)", "Spawn a load of particles from the given effect at the given point traveling or aiming along the direction specified. The number of particles are scaled by the count argument.")},// (EXT_CSQC)
 	{"print",						PF_print,						PF_print,						339,	D("void(string s, ...)", "Unconditionally print on the local system's console, even in ssqc (doesn't care about the value of the developer cvar).")},//(EXT_CSQC)
 	{"registercommand",				NULL,							PF_cl_registercommand,			352,	D("void(string cmdname)", "Register the given console command, for easy console use.\nConsole commands that are later used will invoke CSQC_ConsoleCommand.")},//(EXT_CSQC)
 	{"wasfreed",					PF_WasFreed,					PF_WasFreed,					353,	D("float(entity ent)", "Quickly check to see if the entity is currently free. This function is only valid during the two-second non-reuse window, after that it may give bad results. Try one second to make it more robust.")},//(EXT_CSQC) (should be availabe on server too)
@@ -4352,6 +4690,8 @@ static struct
 	{"findchain",					PF_findchain,					PF_findchain,					402,	"entity(.string field, string match, optional .entity chainfield)"},// (DP_QC_FINDCHAIN)
 	{"findchainfloat",				PF_findchainfloat,				PF_findchainfloat,				403,	"entity(.float fld, float match, optional .entity chainfield)"},// (DP_QC_FINDCHAINFLOAT)
 	{"te_blood",					PF_sv_te_blooddp,				NULL,							405,	"void(vector org, vector dir, float count)"},// #405 te_blood
+	{"te_particlerain",				PF_sv_te_particlerain,			NULL,							409,	"void(vector mincorner, vector maxcorner, vector vel, float howmany, float color)"},// (DP_TE_PARTICLERAIN)
+	{"te_particlesnow",				PF_sv_te_particlesnow,			NULL,							410,	"void(vector mincorner, vector maxcorner, vector vel, float howmany, float color)"},// (DP_TE_PARTICLESNOW)
 	{"te_gunshot",					PF_sv_te_gunshot,				PF_cl_te_gunshot,				418,	"void(vector org, optional float count)"},// #418 te_gunshot
 	{"te_spike",					PF_sv_te_spike,					PF_cl_te_spike,					419,	"void(vector org)"},// #419 te_spike
 	{"te_superspike",				PF_sv_te_superspike,			PF_cl_te_superspike,			420,	"void(vector org)"},// #420 te_superspike
@@ -4419,8 +4759,8 @@ static struct
 	{"entityfieldref",				PF_entityfieldref,				PF_entityfieldref,				0,		D("typedef .__variant field_t;\nfield_t(float fieldnum)", "Returns a field value that can be directly used to read entity fields. Be sure to validate the type with entityfieldtype before using.")},//DP_QC_ENTITYDATA
 	{"entityfieldname",				PF_entityfieldname,				PF_entityfieldname,				497,	D("string(float fieldnum)", "Retrieves the name of the given entity field.")},//DP_QC_ENTITYDATA
 	{"entityfieldtype",				PF_entityfieldtype,				PF_entityfieldtype,				498,	D("float(float fieldnum)", "Provides information about the type of the field specified by the field num. Returns one of the EV_ values.")},//DP_QC_ENTITYDATA
-	{"getentityfieldstri			ng",PF_getentfldstr,			PF_getentfldstr,				499,	"string(float fieldnum, entity ent)"},//DP_QC_ENTITYDATA
-	{"putentityfieldstri			ng",PF_putentfldstr,			PF_putentfldstr,				500,	"float(float fieldnum, entity ent, string s)"},//DP_QC_ENTITYDATA
+	{"getentityfieldstring",		PF_getentfldstr,				PF_getentfldstr,				499,	"string(float fieldnum, entity ent)"},//DP_QC_ENTITYDATA
+	{"putentityfieldstring",		PF_putentfldstr,				PF_putentfldstr,				500,	"float(float fieldnum, entity ent, string s)"},//DP_QC_ENTITYDATA
 	{"whichpack",					PF_whichpack,					PF_whichpack,					503,	D("string(string filename, optional float makereferenced)", "Returns the pak file name that contains the file specified. progs/player.mdl will generally return something like 'pak0.pak'. If makereferenced is true, clients will automatically be told that the returned package should be pre-downloaded and used, even if allow_download_refpackages is not set.")},//DP_QC_WHICHPACK
 	{"uri_escape",					PF_uri_escape,					PF_uri_escape,					510,	"string(string in)"},//DP_QC_URI_ESCAPE
 	{"uri_unescape",				PF_uri_unescape,				PF_uri_unescape,				511,	"string(string in)"},//DP_QC_URI_ESCAPE
@@ -4442,6 +4782,15 @@ static struct
 	{"digest_hex",					PF_digest_hex,					PF_digest_hex,					639,	"string(string digest, string data, ...)"},
 };
 
+qboolean PR_Can_Particles(unsigned int prot, unsigned int pext1, unsigned int pext2)
+{
+	if (r_fteparticles.value == 0)
+		return false;
+	if (pext2 || (pext1&PEXT1_CSQC))
+		return true;	//a bit different, but works
+	else
+		return false;	//sorry. don't report it as supported.
+}
 qboolean PR_Can_Ent_Alpha(unsigned int prot, unsigned int pext1, unsigned int pext2)
 {
 	if (prot != PROTOCOL_NETQUAKE)
@@ -4479,6 +4828,7 @@ static struct
 	{"DP_ENT_ALPHA",			PR_Can_Ent_Alpha},	//already in quakespasm, supposedly.
 	{"DP_ENT_COLORMOD",			PR_Can_Ent_ColorMod},
 	{"DP_ENT_SCALE",			PR_Can_Ent_Scale},
+	{"DP_ENT_TRAILEFFECTNUM",	PR_Can_Particles},
 	{"DP_INPUTBUTTONS"},
 	{"DP_QC_ASINACOSATANATAN2TAN"},
 	{"DP_QC_COPYENTITY"},
@@ -4523,15 +4873,29 @@ static struct
 	{"DP_SV_PRINT"},
 	{"DP_SV_SPAWNFUNC_PREFIX"},
 	{"DP_SV_WRITEUNTERMINATEDSTRING"},
+#ifdef PSET_SCRIPT
+	{"DP_TE_PARTICLERAIN",		PR_Can_Particles},
+	{"DP_TE_PARTICLESNOW",		PR_Can_Particles},
+#endif
 	{"DP_TE_STANDARDEFFECTBUILTINS"},
 	{"EXT_BITSHIFT"},
 	{"FTE_ENT_SKIN_CONTENTS"},	//SOLID_BSP&&skin==CONTENTS_FOO changes CONTENTS_SOLID to CONTENTS_FOO, allowing you to swim in moving ents without qc hacks, as well as correcting view cshifts etc.
+#ifdef PSET_SCRIPT
+	{"FTE_PART_SCRIPT"},
+	{"FTE_PART_NAMESPACES"},
+#ifdef PSET_SCRIPT_EFFECTINFO
+	{"FTE_PART_NAMESPACE_EFFECTINFO"},
+#endif
+#endif
 	{"FTE_QC_CHECKCOMMAND"},
 	{"FTE_QC_CROSSPRODUCT"},
 	{"FTE_QC_INFOKEY"},
 	{"FTE_QC_INTCONV"},
 	{"FTE_QC_MULTICAST"},
 	{"FTE_STRINGS"},
+#ifdef PSET_SCRIPT
+	{"FTE_SV_POINTPARTICLES",	PR_Can_Particles},
+#endif
 	{"KRIMZON_SV_PARSECLIENTCOMMAND"},
 	{"ZQ_QC_STRINGS"},
 };
@@ -5020,6 +5384,11 @@ void PR_DumpPlatform_f(void)
 	{
 		fprintf(f, "\n\n//Serverside entry points\n");
 		QCEXTFUNCS_SV
+	}
+	if (targs & CS)
+	{
+		fprintf(f, "\n\n//CSQC entry points\n");
+		QCEXTFUNCS_CS
 	}
 #undef QCEXTFUNC
 

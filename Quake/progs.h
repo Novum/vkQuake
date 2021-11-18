@@ -77,6 +77,7 @@ void PR_ReloadPics(qboolean purge);					//for gamedir or video changes
 func_t PR_FindExtFunction(const char *entryname);
 void PR_DumpPlatform_f(void);						//console command: writes out a qsextensions.qc file
 //special hacks...
+int PF_SV_ForceParticlePrecache(const char *s);
 int SV_Precache_Model(const char *s);
 
 //from pr_edict, for pr_ext. reflection is messy.

@@ -2825,6 +2825,75 @@ long FS_filelength (fshandle_t *fh)
 	return fh->length;
 }
 
+#ifdef PSET_SCRIPT
+//for compat with dpp7 protocols, and mods that cba to precache things.
+void COM_Effectinfo_Enumerate(int (*cb)(const char *pname))
+{
+	int i;
+	const char *f, *e;
+	char *buf;
+	static const char *dpnames[] =
+	{
+		"TE_GUNSHOT",
+		"TE_GUNSHOTQUAD",
+		"TE_SPIKE",
+		"TE_SPIKEQUAD",
+		"TE_SUPERSPIKE",
+		"TE_SUPERSPIKEQUAD",
+		"TE_WIZSPIKE",
+		"TE_KNIGHTSPIKE",
+		"TE_EXPLOSION",
+		"TE_EXPLOSIONQUAD",
+		"TE_TAREXPLOSION",
+		"TE_TELEPORT",
+		"TE_LAVASPLASH",
+		"TE_SMALLFLASH",
+		"TE_FLAMEJET",
+		"EF_FLAME",
+		"TE_BLOOD",
+		"TE_SPARK",
+		"TE_PLASMABURN",
+		"TE_TEI_G3",
+		"TE_TEI_SMOKE",
+		"TE_TEI_BIGEXPLOSION",
+		"TE_TEI_PLASMAHIT",
+		"EF_STARDUST",
+		"TR_ROCKET",
+		"TR_GRENADE",
+		"TR_BLOOD",
+		"TR_WIZSPIKE",
+		"TR_SLIGHTBLOOD",
+		"TR_KNIGHTSPIKE",
+		"TR_VORESPIKE",
+		"TR_NEHAHRASMOKE",
+		"TR_NEXUIZPLASMA",
+		"TR_GLOWTRAIL",
+		"SVC_PARTICLE",
+		NULL
+	};
+
+	buf = (char*)COM_LoadMallocFile("effectinfo.txt", NULL);
+	if (!buf)
+		return;
+
+	for (i = 0; dpnames[i]; i++)
+		cb(dpnames[i]);
+
+	for (f = buf; f; f = e)
+	{
+		e = COM_Parse (f);
+		if (!strcmp(com_token, "effect"))
+		{
+			e = COM_Parse (e);
+			cb(com_token);
+		}
+		while (e && *e && *e != '\n')
+			e++;
+	}
+	free(buf);
+}
+#endif
+
 /*
 ============================================================================
 								LOCALIZATION

@@ -61,6 +61,17 @@ void CL_UpdateBeam (qmodel_t *m, const char *trailname, const char *impactname, 
 	beam_t	*b;
 	int		i;
 
+#ifdef PSET_SCRIPT
+	{
+		vec3_t normal, extra, impact;
+		VectorSubtract(end, start, normal);
+		VectorNormalize(normal);
+		VectorMA(end, 4, normal, extra);	//extend the end-point by four
+		if (CL_TraceLine(start, extra, impact, normal, NULL)<1)
+			PScript_RunParticleEffectTypeString(impact, normal, 1, impactname);
+	}
+#endif
+
 // override any beam with the same entity
 	for (i=0, b=cl_beams ; i< MAX_BEAMS ; i++, b++)
 		if (b->entity == ent)
@@ -258,6 +269,34 @@ void CL_ParseTEnt (void)
 		dl->die = cl.time + 0.5;
 		dl->decay = 300;
 		S_StartSound (-1, 0, cl_sfx_r_exp3, pos, 1, 1);
+		break;
+
+	case TEDP_PARTICLERAIN:
+	case TEDP_PARTICLESNOW:
+		{
+			vec3_t dir, pos2;
+			int cnt, colour;
+
+			//min
+			pos[0] = MSG_ReadCoord(cl.protocolflags);
+			pos[1] = MSG_ReadCoord(cl.protocolflags);
+			pos[2] = MSG_ReadCoord(cl.protocolflags);
+
+			//max
+			pos2[0] = MSG_ReadCoord(cl.protocolflags);
+			pos2[1] = MSG_ReadCoord(cl.protocolflags);
+			pos2[2] = MSG_ReadCoord(cl.protocolflags);
+
+			//dir
+			dir[0] = MSG_ReadCoord(cl.protocolflags);
+			dir[1] = MSG_ReadCoord(cl.protocolflags);
+			dir[2] = MSG_ReadCoord(cl.protocolflags);
+
+			cnt = (unsigned short)MSG_ReadShort();	//count
+			colour = MSG_ReadByte ();	//colour
+
+			PScript_RunParticleWeather(pos, pos2, dir, cnt, colour, ((type==TEDP_PARTICLESNOW)?"snow":"rain"));
+		}
 		break;
 
 	default:

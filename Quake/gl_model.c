@@ -2826,20 +2826,27 @@ void Mod_SetExtraFlags (qmodel_t *mod)
 {
 	extern cvar_t r_nolerp_list;
 
-	if (!mod || mod->type != mod_alias)
+	if (!mod)
 		return;
 
 	mod->flags &= (0xFF | MF_HOLEY); //only preserve first byte, plus MF_HOLEY
 
-	// nolerp flag
-	if (nameInList(r_nolerp_list.string, mod->name))
-		mod->flags |= MOD_NOLERP;
+	if (mod->type == mod_alias)
+	{
+		// nolerp flag
+		if (nameInList(r_nolerp_list.string, mod->name))
+			mod->flags |= MOD_NOLERP;
 
 	// fullbright hack (TODO: make this a cvar list)
 	if (!strcmp (mod->name, "progs/flame2.mdl") ||
 		!strcmp (mod->name, "progs/flame.mdl") ||
 		!strcmp (mod->name, "progs/boss.mdl"))
 		mod->flags |= MOD_FBRIGHTHACK;
+	}
+
+#ifdef PSET_SCRIPT
+	PScript_UpdateModelEffects(mod);
+#endif
 }
 
 /*

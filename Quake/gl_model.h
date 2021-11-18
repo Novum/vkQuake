@@ -404,6 +404,10 @@ typedef enum {mod_brush, mod_sprite, mod_alias} modtype_t;
 #define	MOD_NOLERP		256		//don't lerp when animating
 #define	MOD_FBRIGHTHACK	1024	//when fullbrights are disabled, use a hack to render this model brighter
 //johnfitz
+//spike -- added this for particle stuff
+#define MOD_EMITREPLACE 2048	//particle effect completely replaces the model (for flames or whatever).
+#define MOD_EMITFORWARDS 4096	//particle effect is emitted forwards, rather than downwards. why down? good question.
+//spike
 
 struct glheap_s;
 struct glheapnode_s;
@@ -421,6 +425,13 @@ typedef struct qmodel_s
 
 	int			flags;
 
+#ifdef PSET_SCRIPT
+	int			emiteffect;		//spike -- this effect is emitted per-frame by entities with this model
+	int			traileffect;	//spike -- this effect is used when entities move
+	struct skytris_s		*skytris;	//spike -- surface-based particle emission for this model
+	struct skytriblock_s	*skytrimem;	//spike -- surface-based particle emission for this model (for better cache performance+less allocs)
+	double					skytime;	//doesn't really cope with multiples. oh well...
+#endif
 //
 // volume occupied by the model graphics
 //

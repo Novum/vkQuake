@@ -93,6 +93,11 @@ typedef struct entity_s
 	vec3_t					currentorigin;	//johnfitz -- transform lerping
 	vec3_t					previousangles;	//johnfitz -- transform lerping
 	vec3_t					currentangles;	//johnfitz -- transform lerping
+
+#ifdef PSET_SCRIPT
+	struct trailstate_s		*trailstate;	//spike -- managed by the particle system, so we don't loose our position and spawn the wrong number of particles, and we can track beams etc
+	struct trailstate_s		*emitstate;		//spike -- for effects which are not so static.
+#endif
 } entity_t;
 
 // !!! if this is changed, it must be changed in asm_draw.h too !!!

@@ -1861,7 +1861,90 @@ void R_CreatePipelines()
 	if (err != VK_SUCCESS)
 		Sys_Error("vkCreateGraphicsPipelines failed");
 	vulkan_globals.particle_pipeline.layout = vulkan_globals.basic_pipeline_layout;
-	GL_SetObjectName((uint64_t)vulkan_globals.particle_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "particle_pipeline");
+	GL_SetObjectName((uint64_t)vulkan_globals.particle_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "particles");
+
+#ifdef PSET_SCRIPT
+	//================
+	// FTE particles
+	//================
+	static const VkBlendFactor source_blend_factors[8] =
+	{
+		VK_BLEND_FACTOR_SRC_ALPHA, //BM_BLEND
+		VK_BLEND_FACTOR_SRC_COLOR, //BM_BLENDCOLOUR
+		VK_BLEND_FACTOR_SRC_ALPHA, //BM_ADDA
+		VK_BLEND_FACTOR_SRC_COLOR, //BM_ADDC
+		VK_BLEND_FACTOR_SRC_ALPHA, //BM_SUBTRACT
+		VK_BLEND_FACTOR_ZERO,	   //BM_INVMODA
+		VK_BLEND_FACTOR_ZERO,	   //BM_INVMODC
+		VK_BLEND_FACTOR_ONE		   //BM_PREMUL
+	};
+	static const VkBlendFactor dest_blend_factors[8] =
+	{
+		VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA, //BM_BLEND
+		VK_BLEND_FACTOR_ONE_MINUS_SRC_COLOR, //BM_BLENDCOLOUR
+		VK_BLEND_FACTOR_ONE,				 //BM_ADDA
+		VK_BLEND_FACTOR_ONE,				 //BM_ADDC
+		VK_BLEND_FACTOR_ONE_MINUS_SRC_COLOR, //BM_SUBTRACT
+		VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA, //BM_INVMODA
+		VK_BLEND_FACTOR_ONE_MINUS_SRC_COLOR, //BM_INVMODC
+		VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA	 //BM_PREMUL
+	};
+
+	static const char* fte_particle_pipeline_names[16] = 
+	{
+		"fte_particles_blend_tris",
+		"fte_particles_blend_color_tris",
+		"fte_particles_add_color_tris",
+		"fte_particles_add_alpha_tris",
+		"fte_particles_subtract_tris",
+		"fte_particles_inv_modulate_alpha_tris",
+		"fte_particles_inv_modulate_color_tris",
+		"fte_particles_premultiplied_tris",
+		"fte_particles_blend_lines",
+		"fte_particles_blend_color_lines",
+		"fte_particles_add_color_lines",
+		"fte_particles_add_alpha_lines",
+		"fte_particles_subtract_lines",
+		"fte_particles_inv_modulate_alpha_lines",
+		"fte_particles_inv_modulate_color_lines",
+		"fte_particles_premultiplied_lines"
+	};
+
+	rasterization_state_create_info.cullMode = VK_CULL_MODE_NONE;
+	rasterization_state_create_info.depthBiasEnable = VK_TRUE;
+	rasterization_state_create_info.depthBiasConstantFactor = OFFSET_DECAL;
+
+	for (int i = 0; i < 8; ++i)
+	{
+		input_assembly_state_create_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+		rasterization_state_create_info.polygonMode = VK_POLYGON_MODE_FILL;
+		blend_attachment_state.srcColorBlendFactor = source_blend_factors[i];
+		blend_attachment_state.dstColorBlendFactor = dest_blend_factors[i];
+		blend_attachment_state.colorBlendOp = VK_BLEND_OP_ADD;
+		blend_attachment_state.srcAlphaBlendFactor = source_blend_factors[i];
+		blend_attachment_state.dstAlphaBlendFactor = source_blend_factors[i];
+
+		assert(vulkan_globals.fte_particle_pipelines[i].handle == VK_NULL_HANDLE);
+		err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.fte_particle_pipelines[i].handle);
+		if (err != VK_SUCCESS)
+			Sys_Error("vkCreateGraphicsPipelines failed");
+		vulkan_globals.fte_particle_pipelines[i].layout = vulkan_globals.basic_pipeline_layout;
+		GL_SetObjectName((uint64_t)vulkan_globals.fte_particle_pipelines[i].handle, VK_OBJECT_TYPE_PIPELINE, fte_particle_pipeline_names[i]);
+
+		if (vulkan_globals.non_solid_fill)
+		{
+			input_assembly_state_create_info.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
+			rasterization_state_create_info.polygonMode = VK_POLYGON_MODE_LINE;
+
+			assert(vulkan_globals.fte_particle_pipelines[i + 8].handle == VK_NULL_HANDLE);
+			err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.fte_particle_pipelines[i + 8].handle);
+			if (err != VK_SUCCESS)
+				Sys_Error("vkCreateGraphicsPipelines failed");
+			vulkan_globals.fte_particle_pipelines[i + 8].layout = vulkan_globals.basic_pipeline_layout;
+			GL_SetObjectName((uint64_t)vulkan_globals.fte_particle_pipelines[i + 8].handle, VK_OBJECT_TYPE_PIPELINE, fte_particle_pipeline_names[i + 8]);
+		}
+	}
+#endif
 
 	//================
 	// Water
@@ -1870,7 +1953,9 @@ void R_CreatePipelines()
 	depth_stencil_state_create_info.depthTestEnable = VK_TRUE;
 	depth_stencil_state_create_info.depthWriteEnable = VK_TRUE;
 	depth_stencil_state_create_info.depthCompareOp = VK_COMPARE_OP_GREATER_OR_EQUAL;
+	rasterization_state_create_info.polygonMode = VK_POLYGON_MODE_FILL;
 	blend_attachment_state.blendEnable = VK_FALSE;
+	rasterization_state_create_info.depthBiasEnable = VK_FALSE;
 
 	assert(vulkan_globals.water_pipeline.handle == VK_NULL_HANDLE);
 	err = vkCreateGraphicsPipelines(vulkan_globals.device, VK_NULL_HANDLE, 1, &pipeline_create_info, NULL, &vulkan_globals.water_pipeline.handle);
@@ -2442,6 +2527,18 @@ void R_DestroyPipelines(void)
 	vulkan_globals.raster_tex_warp_pipeline.handle = VK_NULL_HANDLE;
 	vkDestroyPipeline(vulkan_globals.device, vulkan_globals.particle_pipeline.handle, NULL);
 	vulkan_globals.particle_pipeline.handle = VK_NULL_HANDLE;
+#ifdef PSET_SCRIPT
+	for (int i = 0; i < 8; ++i)
+	{
+		vkDestroyPipeline(vulkan_globals.device, vulkan_globals.fte_particle_pipelines[i].handle, NULL);
+		vulkan_globals.fte_particle_pipelines[i].handle = VK_NULL_HANDLE;
+		if (vulkan_globals.non_solid_fill)
+		{
+			vkDestroyPipeline(vulkan_globals.device, vulkan_globals.fte_particle_pipelines[i + 8].handle, NULL);
+			vulkan_globals.fte_particle_pipelines[i + 8].handle = VK_NULL_HANDLE;
+		}
+	}
+#endif
 	vkDestroyPipeline(vulkan_globals.device, vulkan_globals.sprite_pipeline.handle, NULL);
 	vulkan_globals.sprite_pipeline.handle = VK_NULL_HANDLE;
 	vkDestroyPipeline(vulkan_globals.device, vulkan_globals.sky_stencil_pipeline.handle, NULL);
@@ -2565,6 +2662,9 @@ void R_Init (void)
 	Cvar_SetCallback (&r_slimealpha, R_SetSlimealpha_f);
 
 	R_InitParticles ();
+#ifdef PSET_SCRIPT
+	PScript_InitParticles();
+#endif
 	SetClearColor(); //johnfitz
 
 	Sky_Init (); //johnfitz
@@ -2761,6 +2861,9 @@ void R_NewMap (void)
 
 	r_viewleaf = NULL;
 	R_ClearParticles ();
+#ifdef PSET_SCRIPT
+	PScript_ClearParticles();
+#endif
 	GL_DeleteBModelVertexBuffer();
 
 	GL_BuildLightmaps ();
