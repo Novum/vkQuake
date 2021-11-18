@@ -59,7 +59,7 @@ int				cl_maxvisedicts;
 entity_t		**cl_visedicts;
 
 extern cvar_t	r_lerpmodels, r_lerpmove; //johnfitz
-extern float	host_netinterval;	//Spike
+extern uint64_t	host_netinterval;	//Spike
 
 void CL_FreeState(void)
 {
