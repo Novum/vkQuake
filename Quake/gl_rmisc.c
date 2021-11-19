@@ -1956,6 +1956,12 @@ void R_CreatePipelines()
 	depth_stencil_state_create_info.depthCompareOp = VK_COMPARE_OP_GREATER_OR_EQUAL;
 	rasterization_state_create_info.polygonMode = VK_POLYGON_MODE_FILL;
 	blend_attachment_state.blendEnable = VK_FALSE;
+	blend_attachment_state.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+	blend_attachment_state.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+	blend_attachment_state.colorBlendOp = VK_BLEND_OP_ADD;
+	blend_attachment_state.srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+	blend_attachment_state.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+	blend_attachment_state.alphaBlendOp = VK_BLEND_OP_ADD;
 	rasterization_state_create_info.depthBiasEnable = VK_FALSE;
 
 	assert(vulkan_globals.water_pipeline.handle == VK_NULL_HANDLE);
