@@ -2360,6 +2360,8 @@ static void PF_cl_te_spike(void)
 {
 	float *pos = G_VECTOR(OFS_PARM0);
 
+	if (PScript_RunParticleEffectTypeString(pos, NULL, 1, "TE_SPIKE"))
+		R_RunParticleEffect (pos, vec3_origin, 0, 10);
 	if ( rand() % 5 )
 		S_StartSound (-1, 0, S_PrecacheSound ("weapons/tink1.wav"), pos, 1, 1);
 	else
@@ -2387,6 +2389,9 @@ static void PF_cl_te_superspike(void)
 {
 	float *pos = G_VECTOR(OFS_PARM0);
 
+	if (PScript_RunParticleEffectTypeString(pos, NULL, 1, "TE_SUPERSPIKE"))
+		R_RunParticleEffect (pos, vec3_origin, 0, 20);
+
 	if ( rand() % 5 )
 		S_StartSound (-1, 0, S_PrecacheSound ("weapons/tink1.wav"), pos, 1, 1);
 	else
@@ -2413,6 +2418,11 @@ static void PF_sv_te_gunshot(void)
 }
 static void PF_cl_te_gunshot(void)
 {
+	float *pos = G_VECTOR(OFS_PARM0);
+
+	int rnd = 20;
+	if (PScript_RunParticleEffectTypeString(pos, NULL, rnd, "TE_GUNSHOT"))
+		R_RunParticleEffect (pos, vec3_origin, 0, rnd);
 }
 static void PF_sv_te_explosion(void)
 {
@@ -2429,6 +2439,8 @@ static void PF_cl_te_explosion(void)
 	float *pos = G_VECTOR(OFS_PARM0);
 
 	dlight_t *dl;
+	if (PScript_RunParticleEffectTypeString(pos, NULL, 1, "TE_EXPLOSION"))
+		R_ParticleExplosion (pos);
 	dl = CL_AllocDlight (0);
 	VectorCopy (pos, dl->origin);
 	dl->radius = 350;
@@ -2449,6 +2461,9 @@ static void PF_sv_te_tarexplosion(void)
 static void PF_cl_te_tarexplosion(void)
 {
 	float *pos = G_VECTOR(OFS_PARM0);
+
+	if (PScript_RunParticleEffectTypeString(pos, NULL, 1, "TE_TAREXPLOSION"))
+		R_BlobExplosion (pos);
 	S_StartSound (-1, 0, S_PrecacheSound ("weapons/r_exp3.wav"), pos, 1, 1);
 }
 static void PF_sv_te_lightning1(void)

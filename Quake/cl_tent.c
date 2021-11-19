@@ -145,7 +145,8 @@ void CL_ParseTEnt (void)
 		pos[0] = MSG_ReadCoord (cl.protocolflags);
 		pos[1] = MSG_ReadCoord (cl.protocolflags);
 		pos[2] = MSG_ReadCoord (cl.protocolflags);
-		R_RunParticleEffect (pos, vec3_origin, 20, 30);
+		if (PScript_RunParticleEffectTypeString(pos, NULL, 1, "TE_WIZSPIKE"))
+			R_RunParticleEffect (pos, vec3_origin, 20, 30);
 		S_StartSound (-1, 0, cl_sfx_wizhit, pos, 1, 1);
 		break;
 
@@ -153,7 +154,8 @@ void CL_ParseTEnt (void)
 		pos[0] = MSG_ReadCoord (cl.protocolflags);
 		pos[1] = MSG_ReadCoord (cl.protocolflags);
 		pos[2] = MSG_ReadCoord (cl.protocolflags);
-		R_RunParticleEffect (pos, vec3_origin, 226, 20);
+		if (PScript_RunParticleEffectTypeString(pos, NULL, 1, "TE_KNIGHTSPIKE"))
+			R_RunParticleEffect (pos, vec3_origin, 226, 20);
 		S_StartSound (-1, 0, cl_sfx_knighthit, pos, 1, 1);
 		break;
 
@@ -161,7 +163,8 @@ void CL_ParseTEnt (void)
 		pos[0] = MSG_ReadCoord (cl.protocolflags);
 		pos[1] = MSG_ReadCoord (cl.protocolflags);
 		pos[2] = MSG_ReadCoord (cl.protocolflags);
-		R_RunParticleEffect (pos, vec3_origin, 0, 10);
+		if (PScript_RunParticleEffectTypeString(pos, NULL, 1, "TE_SPIKE"))
+			R_RunParticleEffect (pos, vec3_origin, 0, 10);
 		if ( rand() % 5 )
 			S_StartSound (-1, 0, cl_sfx_tink1, pos, 1, 1);
 		else
@@ -179,7 +182,8 @@ void CL_ParseTEnt (void)
 		pos[0] = MSG_ReadCoord (cl.protocolflags);
 		pos[1] = MSG_ReadCoord (cl.protocolflags);
 		pos[2] = MSG_ReadCoord (cl.protocolflags);
-		R_RunParticleEffect (pos, vec3_origin, 0, 20);
+		if (PScript_RunParticleEffectTypeString(pos, NULL, 1, "TE_SUPERSPIKE"))
+			R_RunParticleEffect (pos, vec3_origin, 0, 20);
 
 		if ( rand() % 5 )
 			S_StartSound (-1, 0, cl_sfx_tink1, pos, 1, 1);
@@ -196,17 +200,20 @@ void CL_ParseTEnt (void)
 		break;
 
 	case TE_GUNSHOT:			// bullet hitting wall
+		rnd = 20;
 		pos[0] = MSG_ReadCoord (cl.protocolflags);
 		pos[1] = MSG_ReadCoord (cl.protocolflags);
 		pos[2] = MSG_ReadCoord (cl.protocolflags);
-		R_RunParticleEffect (pos, vec3_origin, 0, 20);
+		if (PScript_RunParticleEffectTypeString(pos, NULL, rnd, "TE_GUNSHOT"))
+			R_RunParticleEffect (pos, vec3_origin, 0, rnd);
 		break;
 
 	case TE_EXPLOSION:			// rocket explosion
 		pos[0] = MSG_ReadCoord (cl.protocolflags);
 		pos[1] = MSG_ReadCoord (cl.protocolflags);
 		pos[2] = MSG_ReadCoord (cl.protocolflags);
-		R_ParticleExplosion (pos);
+		if (PScript_RunParticleEffectTypeString(pos, NULL, 1, "TE_EXPLOSION"))
+			R_ParticleExplosion (pos);
 		dl = CL_AllocDlight (0);
 		VectorCopy (pos, dl->origin);
 		dl->radius = 350;
@@ -219,7 +226,8 @@ void CL_ParseTEnt (void)
 		pos[0] = MSG_ReadCoord (cl.protocolflags);
 		pos[1] = MSG_ReadCoord (cl.protocolflags);
 		pos[2] = MSG_ReadCoord (cl.protocolflags);
-		R_BlobExplosion (pos);
+		if (PScript_RunParticleEffectTypeString(pos, NULL, 1, "TE_TAREXPLOSION"))
+			R_BlobExplosion (pos);
 
 		S_StartSound (-1, 0, cl_sfx_r_exp3, pos, 1, 1);
 		break;
@@ -246,14 +254,16 @@ void CL_ParseTEnt (void)
 		pos[0] = MSG_ReadCoord (cl.protocolflags);
 		pos[1] = MSG_ReadCoord (cl.protocolflags);
 		pos[2] = MSG_ReadCoord (cl.protocolflags);
-		R_LavaSplash (pos);
+		if (PScript_RunParticleEffectTypeString(pos, NULL, 1, "TE_LAVASPLASH"))
+			R_LavaSplash (pos);
 		break;
 
 	case TE_TELEPORT:
 		pos[0] = MSG_ReadCoord (cl.protocolflags);
 		pos[1] = MSG_ReadCoord (cl.protocolflags);
 		pos[2] = MSG_ReadCoord (cl.protocolflags);
-		R_TeleportSplash (pos);
+		if (PScript_RunParticleEffectTypeString(pos, NULL, 1, "TE_TELEPORT"))
+			R_TeleportSplash (pos);
 		break;
 
 	case TE_EXPLOSION2:				// color mapped explosion
@@ -262,7 +272,8 @@ void CL_ParseTEnt (void)
 		pos[2] = MSG_ReadCoord (cl.protocolflags);
 		colorStart = MSG_ReadByte ();
 		colorLength = MSG_ReadByte ();
-		R_ParticleExplosion2 (pos, colorStart, colorLength);
+		if (PScript_RunParticleEffectTypeString(pos, NULL, 1, va("TE_EXPLOSION2_%i_%i", colorStart, colorLength)))
+			R_ParticleExplosion2 (pos, colorStart, colorLength);
 		dl = CL_AllocDlight (0);
 		VectorCopy (pos, dl->origin);
 		dl->radius = 350;

@@ -4841,6 +4841,8 @@ skip:
 
 int PScript_RunParticleEffectTypeString (vec3_t org, vec3_t dir, float count, const char *name)
 {
+	if (r_fteparticles.value == 0)
+		return 1;
 	int type = PScript_FindParticleType(name);
 	if (type < 0)
 		return 1;
@@ -4850,6 +4852,8 @@ int PScript_RunParticleEffectTypeString (vec3_t org, vec3_t dir, float count, co
 
 int PScript_EntParticleTrail(vec3_t oldorg, entity_t *ent, const char *name)
 {
+	if (r_fteparticles.value == 0)
+		return 1;
 	float timeinterval = cl.time - cl.oldtime;
 	vec3_t axis[3];
 	int type = PScript_FindParticleType(name);
@@ -4868,6 +4872,8 @@ P_RunParticleEffect
 */
 int PScript_RunParticleEffect (vec3_t org, vec3_t dir, int color, int count)
 {
+	if (r_fteparticles.value == 0)
+		return false;
 	int ptype;
 
 	ptype = PScript_FindParticleType(va("pe_%i", color));
@@ -5464,6 +5470,9 @@ static void PScript_ParticleTrailSpawn (vec3_t startpos, vec3_t end, part_type_t
 int PScript_ParticleTrail (vec3_t startpos, vec3_t end, int type, float timeinterval, int dlkey, vec3_t axis[3], trailstate_t **tsk)
 {
 	part_type_t *ptype = &part_type[type];
+
+	if (r_fteparticles.value == 0)
+		return 1;
 
 	if (type < 0 || type >= numparticletypes)
 		return 1;	//bad value
@@ -6821,7 +6830,7 @@ void PScript_DrawParticles (void)
 		pframetime = 1;
 	oldtime = cl.time;
 
-	if (r_part_rain.value)
+	if (r_part_rain.value && r_fteparticles.value)
 	{
 		for (i = 0; i < cl.num_entities; i++)
 		{
