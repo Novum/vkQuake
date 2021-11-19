@@ -1913,6 +1913,7 @@ void R_CreatePipelines()
 	rasterization_state_create_info.cullMode = VK_CULL_MODE_NONE;
 	rasterization_state_create_info.depthBiasEnable = VK_TRUE;
 	rasterization_state_create_info.depthBiasConstantFactor = OFFSET_DECAL;
+	rasterization_state_create_info.depthBiasSlopeFactor = 1.0f;
 
 	for (int i = 0; i < 8; ++i)
 	{

@@ -199,7 +199,7 @@ void R_DrawSpriteModel (entity_t *e)
 
 	psprite = (msprite_t *) currententity->model->cache.data;
 	if (psprite->type == SPR_ORIENTED)
-		vkCmdSetDepthBias(vulkan_globals.command_buffer, OFFSET_DECAL, 0.0f, 0.0f);
+		vkCmdSetDepthBias(vulkan_globals.command_buffer, OFFSET_DECAL, 0.0f, 1.0f);
 	else
 		vkCmdSetDepthBias(vulkan_globals.command_buffer, OFFSET_NONE, 0.0f, 0.0f);
 

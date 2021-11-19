@@ -337,11 +337,8 @@ extern	cvar_t	gl_nocolors;
 extern	cvar_t	gl_subdivide_size;
 
 //johnfitz -- polygon offset
-#define OFFSET_BMODEL 1
 #define OFFSET_NONE 0
-#define OFFSET_DECAL -1
-#define OFFSET_FOG -2
-#define OFFSET_SHOWTRIS -3
+#define OFFSET_DECAL 1
 
 //johnfitz -- rendering statistics
 extern int rs_brushpolys, rs_aliaspolys, rs_skypolys, rs_particles, rs_fogpolys;
