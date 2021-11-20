@@ -85,7 +85,7 @@ static void GL_DestroyRenderResources(void);
 viddef_t	vid;				// global video state
 modestate_t	modestate = MS_UNINIT;
 extern qboolean scr_initialized;
-extern cvar_t r_particles, r_fteparticles, host_maxfps;
+extern cvar_t r_particles, host_maxfps;
 
 //====================================
 
@@ -2698,9 +2698,6 @@ typedef struct {
 	int				host_maxfps;
 	int				r_waterwarp;
 	int				r_particles;
-#ifdef PSET_SCRIPT
-	int				r_fteparticles;
-#endif
 	int				vid_filter;
 	int				vid_anisotropic;
 	int				r_scale;
@@ -2731,9 +2728,6 @@ void VID_SyncCvars (void)
 
 	menu_settings.r_waterwarp = CLAMP(0, (int)r_waterwarp.value, 2);
 	menu_settings.r_particles = CLAMP(0, (int)r_particles.value, 2);
-#ifdef PSET_SCRIPT
-	menu_settings.r_fteparticles = CLAMP(0, (int)r_fteparticles.value, 1);
-#endif
 	menu_settings.host_maxfps = CLAMP(0, host_maxfps.value, 1000);
 	menu_settings.vid_filter = CLAMP(0, (int)vid_filter.value, 1);
 	menu_settings.vid_anisotropic = CLAMP(0, (int)vid_anisotropic.value, 1);
@@ -3245,11 +3239,6 @@ static void VID_MenuKey (int key)
 		case VID_OPT_PARTICLES:
 			VID_Menu_ChooseNextParticles (-1);
 			break;
-#ifdef PSET_SCRIPT
-		case VID_OPT_FTE_PARTICLES:
-			menu_settings.r_fteparticles = (menu_settings.r_fteparticles==0)?1:0;
-			break;
-#endif
 		default:
 			break;
 		}
@@ -3298,11 +3287,6 @@ static void VID_MenuKey (int key)
 		case VID_OPT_PARTICLES:
 			VID_Menu_ChooseNextParticles (1);
 			break;
-#ifdef PSET_SCRIPT
-		case VID_OPT_FTE_PARTICLES:
-			menu_settings.r_fteparticles = (menu_settings.r_fteparticles==0)?1:0;
-			break;
-#endif
 		default:
 			break;
 		}
@@ -3349,20 +3333,12 @@ static void VID_MenuKey (int key)
 		case VID_OPT_PARTICLES:
 			VID_Menu_ChooseNextParticles (1);
 			break;
-#ifdef PSET_SCRIPT
-		case VID_OPT_FTE_PARTICLES:
-			menu_settings.r_fteparticles = (menu_settings.r_fteparticles==0)?1:0;
-			break;
-#endif
 		case VID_OPT_TEST:
 			Cbuf_AddText ("vid_test\n");
 			break;
 		case VID_OPT_APPLY:
 			Cvar_SetValueQuick(&host_maxfps, menu_settings.host_maxfps);
 			Cvar_SetValueQuick(&r_particles, menu_settings.r_particles);
-#ifdef PSET_SCRIPT
-			Cvar_SetValueQuick(&r_fteparticles, menu_settings.r_fteparticles);
-#endif
 			Cvar_SetValueQuick(&r_waterwarp, menu_settings.r_waterwarp);
 			Cvar_SetValueQuick(&vid_filter, menu_settings.vid_filter);
 			Cvar_SetValueQuick(&vid_anisotropic, menu_settings.vid_anisotropic);
@@ -3471,12 +3447,6 @@ static void VID_MenuDraw (void)
 			M_Print (16, y, "         Particles");
 			M_Print (184, y, (menu_settings.r_particles == 0) ? "off" : ((menu_settings.r_particles == 2)  ? "Classic" : "glQuake"));
 			break;
-#ifdef PSET_SCRIPT
-		case VID_OPT_FTE_PARTICLES:
-			M_Print (16, y, "     FTE Particles");
-			M_Print (184, y, (menu_settings.r_fteparticles == 0) ? "off" : "on");
-			break;
-#endif
 		case VID_OPT_TEST:
 			y += 8; //separate the test and apply items
 			M_Print (16, y, "      Test changes");
