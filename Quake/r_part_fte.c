@@ -5507,6 +5507,18 @@ int PScript_ParticleTrail (vec3_t startpos, vec3_t end, int type, float timeinte
 	return 0;
 }
 
+static void ReallocateVertexBuffer()
+{
+	cl_maxstrisvert = q_max(cl_maxstrisvert * 2, 1024);
+	cl_strisvert = (basicvertex_t*)Z_Realloc(cl_strisvert, sizeof(*cl_strisvert)*cl_maxstrisvert);
+}
+
+static void ReallocateIndexBuffer()
+{
+	cl_maxstrisidx = q_max(cl_maxstrisidx * 2, 1536);
+	cl_strisidx = (unsigned short*)Z_Realloc(cl_strisidx, sizeof(*cl_strisidx)*cl_maxstrisidx);
+}
+
 static vec3_t pright, pup;
 
 static void R_AddFanSparkParticle(scenetris_t *t, particle_t *p, plooks_t *type)
@@ -5515,10 +5527,7 @@ static void R_AddFanSparkParticle(scenetris_t *t, particle_t *p, plooks_t *type)
 	float scale;
 
 	if (cl_numstrisvert+3 > cl_maxstrisvert)
-	{
-		cl_maxstrisvert+=64*3;
-		cl_strisvert = Z_Realloc(cl_strisvert, sizeof(*cl_strisvert)*cl_maxstrisvert);
-	}
+		ReallocateVertexBuffer();
 
 	scale = (p->org[0] - r_origin[0])*vpn[0] + (p->org[1] - r_origin[1])*vpn[1]
 		+ (p->org[2] - r_origin[2])*vpn[2];
@@ -5565,10 +5574,8 @@ static void R_AddFanSparkParticle(scenetris_t *t, particle_t *p, plooks_t *type)
 	VectorMA(o2, p->scale, cr, cl_strisvert[cl_numstrisvert+2].position);
 
 	if (cl_numstrisidx+3 > cl_maxstrisidx)
-	{
-		cl_maxstrisidx += 64*3;
-		cl_strisidx = Z_Realloc(cl_strisidx, sizeof(*cl_strisidx)*cl_maxstrisidx);
-	}
+		ReallocateIndexBuffer();
+
 	cl_strisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 0;
 	cl_strisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 1;
 	cl_strisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 2;
@@ -5583,10 +5590,7 @@ static void R_AddFanSparkParticle(scenetris_t *t, particle_t *p, plooks_t *type)
 static void R_AddLineSparkParticle(scenetris_t *t, particle_t *p, plooks_t *type)
 {
 	if (cl_numstrisvert+2 > cl_maxstrisvert)
-	{
-		cl_maxstrisvert+=64*2;
-		cl_strisvert = Z_Realloc(cl_strisvert, sizeof(*cl_strisvert)*cl_maxstrisvert);
-	}
+		ReallocateVertexBuffer();
 
 	if (type->premul)
 	{
@@ -5612,10 +5616,8 @@ static void R_AddLineSparkParticle(scenetris_t *t, particle_t *p, plooks_t *type
 	VectorMA(p->org, -1.0/10, p->vel, cl_strisvert[cl_numstrisvert+1].position);
 	
 	if (cl_numstrisidx+2 > cl_maxstrisidx)
-	{
-		cl_maxstrisidx += 64*2;
-		cl_strisidx = Z_Realloc(cl_strisidx, sizeof(*cl_strisidx)*cl_maxstrisidx);
-	}
+		ReallocateIndexBuffer();
+
 	cl_strisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 0;
 	cl_strisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 1;
 
@@ -5628,13 +5630,9 @@ static void R_AddLineSparkParticle(scenetris_t *t, particle_t *p, plooks_t *type
 static void R_AddTSparkParticle(scenetris_t *t, particle_t *p, plooks_t *type)
 {
 	vec3_t v, cr, o2;
-//	float scale;
 
 	if (cl_numstrisvert+4 > cl_maxstrisvert)
-	{
-		cl_maxstrisvert+=64*4;
-		cl_strisvert = Z_Realloc(cl_strisvert, sizeof(*cl_strisvert)*cl_maxstrisvert);
-	}
+		ReallocateVertexBuffer();
 
 	if (type->premul)
 	{
@@ -5699,10 +5697,8 @@ static void R_AddTSparkParticle(scenetris_t *t, particle_t *p, plooks_t *type)
 
 
 	if (cl_numstrisidx+6 > cl_maxstrisidx)
-	{
-		cl_maxstrisidx += 64*6;
-		cl_strisidx = Z_Realloc(cl_strisidx, sizeof(*cl_strisidx)*cl_maxstrisidx);
-	}
+		ReallocateIndexBuffer();
+
 	cl_strisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 0;
 	cl_strisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 1;
 	cl_strisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 2;
@@ -5733,10 +5729,7 @@ static void R_DrawParticleBeam(scenetris_t *t, beamseg_t *b, plooks_t *type)
 	p = b->p;
 
 	if (cl_numstrisvert+4 > cl_maxstrisvert)
-	{
-		cl_maxstrisvert+=64*4;
-		cl_strisvert = Z_Realloc(cl_strisvert, sizeof(*cl_strisvert)*cl_maxstrisvert);
-	}
+		ReallocateVertexBuffer();
 
 	VectorSubtract(r_refdef.vieworg, q->org, v);
 	VectorNormalize(v);
@@ -5765,10 +5758,8 @@ static void R_DrawParticleBeam(scenetris_t *t, beamseg_t *b, plooks_t *type)
 	t->numvert += 4;
 
 	if (cl_numstrisidx+6 > cl_maxstrisidx)
-	{
-		cl_maxstrisidx += 64*6;
-		cl_strisidx = Z_Realloc(cl_strisidx, sizeof(*cl_strisidx)*cl_maxstrisidx);
-	}
+		ReallocateIndexBuffer();
+
 	cl_strisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 0;
 	cl_strisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 1;
 	cl_strisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 2;
@@ -5782,10 +5773,7 @@ static void R_DrawParticleBeam(scenetris_t *t, beamseg_t *b, plooks_t *type)
 static void R_AddClippedDecal(scenetris_t *t, clippeddecal_t *d, plooks_t *type)
 {
 	if (cl_numstrisvert+4 > cl_maxstrisvert)
-	{
-		cl_maxstrisvert+=64*4;
-		cl_strisvert = Z_Realloc(cl_strisvert, sizeof(*cl_strisvert)*cl_maxstrisvert);
-	}
+		ReallocateVertexBuffer();
 
 	if (d->entity > 0)
 	{
@@ -5843,10 +5831,8 @@ static void R_AddClippedDecal(scenetris_t *t, clippeddecal_t *d, plooks_t *type)
 	Vector2Copy(d->texcoords[2], cl_strisvert[cl_numstrisvert+2].texcoord);
 
 	if (cl_numstrisidx+3 > cl_maxstrisidx)
-	{
-		cl_maxstrisidx += 64*3;
-		cl_strisidx = Z_Realloc(cl_strisidx, sizeof(*cl_strisidx)*cl_maxstrisidx);
-	}
+		ReallocateIndexBuffer();
+
 	cl_strisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 0;
 	cl_strisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 1;
 	cl_strisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 2;
@@ -5863,10 +5849,7 @@ static void R_AddUnclippedDecal(scenetris_t *t, particle_t *p, plooks_t *type)
 	vec3_t sdir, tdir;
 
 	if (cl_numstrisvert+4 > cl_maxstrisvert)
-	{
-		cl_maxstrisvert+=64*4;
-		cl_strisvert = Z_Realloc(cl_strisvert, sizeof(*cl_strisvert)*cl_maxstrisvert);
-	}
+		ReallocateVertexBuffer();
 
 	if (type->premul)
 	{
@@ -5929,10 +5912,8 @@ static void R_AddUnclippedDecal(scenetris_t *t, particle_t *p, plooks_t *type)
 	}
 
 	if (cl_numstrisidx+6 > cl_maxstrisidx)
-	{
-		cl_maxstrisidx += 64*6;
-		cl_strisidx = Z_Realloc(cl_strisidx, sizeof(*cl_strisidx)*cl_maxstrisidx);
-	}
+		ReallocateIndexBuffer();
+
 	cl_strisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 0;
 	cl_strisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 1;
 	cl_strisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 2;
@@ -5951,10 +5932,7 @@ static void R_AddTexturedParticle(scenetris_t *t, particle_t *p, plooks_t *type)
 	float scale, x, y;
 
 	if (cl_numstrisvert+4 > cl_maxstrisvert)
-	{
-		cl_maxstrisvert+=64*4;
-		cl_strisvert = Z_Realloc(cl_strisvert, sizeof(*cl_strisvert)*cl_maxstrisvert);
-	}
+		ReallocateVertexBuffer();
 
 	if (type->scalefactor == 1)
 		scale = p->scale*0.25;
@@ -6024,10 +6002,8 @@ static void R_AddTexturedParticle(scenetris_t *t, particle_t *p, plooks_t *type)
 	}
 
 	if (cl_numstrisidx+6 > cl_maxstrisidx)
-	{
-		cl_maxstrisidx += 64*6;
-		cl_strisidx = Z_Realloc(cl_strisidx, sizeof(*cl_strisidx)*cl_maxstrisidx);
-	}
+		ReallocateIndexBuffer();
+
 	cl_strisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 0;
 	cl_strisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 1;
 	cl_strisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 2;
