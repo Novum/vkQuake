@@ -2430,6 +2430,8 @@ visdone:
 			loadmodel = Mod_FindName (name);
 			*loadmodel = *mod;
 			strcpy (loadmodel->name, name);
+			// Need to NULL this otherwise we double delete in PScript_ClearSurfaceParticles
+			loadmodel->skytrimem = NULL;
 			mod = loadmodel;
 		}
 	}
