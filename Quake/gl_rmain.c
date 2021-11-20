@@ -674,6 +674,9 @@ void R_ShowTris(void)
 	if (r_particles.value)
 	{
 		R_DrawParticles_ShowTris();
+#ifdef PSET_SCRIPT
+		PScript_DrawParticles_ShowTris();
+#endif
 	}
 
 	Sbar_Changed(); //so we don't get dots collecting on the statusbar

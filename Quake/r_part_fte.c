@@ -438,6 +438,7 @@ static cvar_t r_part_density = {"r_part_density", "1"};
 static cvar_t r_part_maxparticles = {"r_part_maxparticles", "65536"};
 static cvar_t r_part_maxdecals = {"r_part_maxdecals", "8192"};
 static cvar_t r_lightflicker = {"r_lightflicker", "1"};
+extern cvar_t r_showtris;
 
 static float particletime;
 
@@ -451,6 +452,11 @@ typedef struct
 	gltexture_t *texture;
 	blendmode_t blendmode;
 	int beflags;
+
+	VkBuffer index_buffer;
+	VkDeviceSize index_buffer_offset;
+	VkBuffer vertex_buffer;
+	VkDeviceSize vertex_buffer_offset;
 } scenetris_t;
 #define MAX_INDICIES 0xffff
 static scenetris_t *cl_stris;
@@ -6778,17 +6784,13 @@ endtype:
 			R_BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 			gltexture_t* tex = (tris->beflags & BEF_LINES) ? whitetexture : tris->texture;
 
-			VkBuffer index_buffer;
-			VkDeviceSize index_buffer_offset;
 			const int num_indices = tris->numidx;
-			uint16_t * indices = (uint16_t*)R_IndexAllocate(num_indices * sizeof(uint16_t), &index_buffer, &index_buffer_offset);
+			uint16_t * indices = (uint16_t*)R_IndexAllocate(num_indices * sizeof(uint16_t), &tris->index_buffer, &tris->index_buffer_offset);
 			memcpy(indices, cl_strisidx + tris->firstidx, num_indices * sizeof(uint16_t));
 
-			VkBuffer vertex_buffer;
-			VkDeviceSize vertex_buffer_offset;
 			const int num_vertices = tris->numvert;
 			const int first_vertex = tris->firstvert;
-			basicvertex_t * vertices = (basicvertex_t*)R_VertexAllocate(num_vertices * sizeof(basicvertex_t), &vertex_buffer, &vertex_buffer_offset);
+			basicvertex_t * vertices = (basicvertex_t*)R_VertexAllocate(num_vertices * sizeof(basicvertex_t), &tris->vertex_buffer, &tris->vertex_buffer_offset);
 			for (int i = 0; i < num_vertices; ++i)
 			{
 				const int vertex_index = first_vertex + i;
@@ -6798,21 +6800,17 @@ endtype:
 				for(int j = 0; j < 4; ++j) vertex->color[j] = (byte)(CLAMP(0.0f, cl_strisvertc[vertex_index][j], 1.0f) * 255.0f);
 			}
 
-			vulkan_globals.vk_cmd_bind_index_buffer(vulkan_globals.command_buffer, index_buffer, index_buffer_offset, VK_INDEX_TYPE_UINT16);
-			vulkan_globals.vk_cmd_bind_vertex_buffers(vulkan_globals.command_buffer, 0, 1, &vertex_buffer, &vertex_buffer_offset);
+			vulkan_globals.vk_cmd_bind_index_buffer(vulkan_globals.command_buffer, tris->index_buffer, tris->index_buffer_offset, VK_INDEX_TYPE_UINT16);
+			vulkan_globals.vk_cmd_bind_vertex_buffers(vulkan_globals.command_buffer, 0, 1, &tris->vertex_buffer, &tris->vertex_buffer_offset);
 			vulkan_globals.vk_cmd_bind_descriptor_sets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.layout.handle, 0, 1, &tex->descriptor_set, 0, NULL);
 			vulkan_globals.vk_cmd_draw_indexed(vulkan_globals.command_buffer, num_indices, 1, 0, 0, 0);
 		}
 	}
-
-	cl_numstris = 0;
-	cl_numstrisvert = 0;
-	cl_numstrisidx = 0;
 }
 
 /*
 ===============
-R_DrawParticles
+PScript_DrawParticles
 ===============
 */
 void PScript_DrawParticles (void)
@@ -6829,6 +6827,10 @@ void PScript_DrawParticles (void)
 	if (pframetime > 1)
 		pframetime = 1;
 	oldtime = cl.time;
+
+	cl_numstris = 0;
+	cl_numstrisvert = 0;
+	cl_numstrisidx = 0;
 
 	if (r_part_rain.value && r_fteparticles.value)
 	{
@@ -6847,6 +6849,28 @@ void PScript_DrawParticles (void)
 	}
 
 	PScript_DrawParticleTypes(pframetime);
+}
+
+/*
+===============
+R_DrawParticles_ShowTris
+===============
+*/
+void PScript_DrawParticles_ShowTris (void)
+{
+	if (r_showtris.value == 1)
+		R_BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_pipeline);
+	else
+		R_BindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_depth_test_pipeline);
+
+	for (unsigned int i = 0; i < cl_numstris; i++)
+	{
+		scenetris_t* tris = &cl_stris[i];
+		const int num_indices = tris->numidx;
+		vulkan_globals.vk_cmd_bind_index_buffer(vulkan_globals.command_buffer, tris->index_buffer, tris->index_buffer_offset, VK_INDEX_TYPE_UINT16);
+		vulkan_globals.vk_cmd_bind_vertex_buffers(vulkan_globals.command_buffer, 0, 1, &tris->vertex_buffer, &tris->vertex_buffer_offset);
+		vulkan_globals.vk_cmd_draw_indexed(vulkan_globals.command_buffer, num_indices, 1, 0, 0, 0);
+	}
 }
 
 #endif

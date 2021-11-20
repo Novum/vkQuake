@@ -111,6 +111,7 @@ typedef struct particle_s
 	void PScript_InitParticles (void);
 	void PScript_Shutdown (void);
 	void PScript_DrawParticles (void);
+	void PScript_DrawParticles_ShowTris (void);
 	struct trailstate_s;
 	int PScript_ParticleTrail (vec3_t startpos, vec3_t end, int type, float timeinterval, int dlkey, vec3_t axis[3], struct trailstate_s **tsk);
 	int PScript_RunParticleEffectState (vec3_t org, vec3_t dir, float count, int typenum, struct trailstate_s **tsk);
