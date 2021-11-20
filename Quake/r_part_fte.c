@@ -53,6 +53,20 @@ typedef vec_t	vec2_t[2];
 #define Vector4Clear(a)			((a)[0]=(a)[1]=(a)[2]=(a)[3]=0)
 #define Vector4Copy(a,b) do{(b)[0]=(a)[0];(b)[1]=(a)[1];(b)[2]=(a)[2];(b)[3]=(a)[3];}while(0)
 #define Vector4Scale(in,scale,out)		((out)[0]=(in)[0]*scale,(out)[1]=(in)[1]*scale,(out)[2]=(in)[2]*scale,(out)[3]=(in)[3]*scale)
+#define FloatToColor(a,b) do { \
+	(b)=(byte)(CLAMP(0.0f, (a), 1.0f) * 255.0f); \
+} while(0)
+#define Vector3ToColor(a,b) do { \
+	(b)[0]=(byte)(CLAMP(0.0f, (a)[0], 1.0f) * 255.0f); \
+	(b)[1]=(byte)(CLAMP(0.0f, (a)[1], 1.0f) * 255.0f); \
+	(b)[2]=(byte)(CLAMP(0.0f, (a)[2], 1.0f) * 255.0f); \
+} while(0)
+#define Vector4ToColor(a,b) do { \
+	(b)[0]=(byte)(CLAMP(0.0f, (a)[0], 1.0f) * 255.0f); \
+	(b)[1]=(byte)(CLAMP(0.0f, (a)[1], 1.0f) * 255.0f); \
+	(b)[2]=(byte)(CLAMP(0.0f, (a)[2], 1.0f) * 255.0f); \
+	(b)[3]=(byte)(CLAMP(0.0f, (a)[3], 1.0f) * 255.0f); \
+} while(0)
 vec_t VectorNormalize2 (const vec3_t v, vec3_t out)
 {
 	float	length, ilength;
@@ -463,9 +477,7 @@ typedef struct
 static scenetris_t *cl_stris;
 static unsigned int cl_numstris;
 static unsigned int cl_maxstris;
-static vec3_t *cl_strisvertv;
-static vec2_t *cl_strisvertt;
-static vec4_t *cl_strisvertc;
+static basicvertex_t * cl_strisvert;
 static unsigned int cl_numstrisvert;
 static unsigned int cl_maxstrisvert;
 static unsigned short *cl_strisidx;
@@ -5505,9 +5517,7 @@ static void R_AddFanSparkParticle(scenetris_t *t, particle_t *p, plooks_t *type)
 	if (cl_numstrisvert+3 > cl_maxstrisvert)
 	{
 		cl_maxstrisvert+=64*3;
-		cl_strisvertv = Z_Realloc(cl_strisvertv, sizeof(*cl_strisvertv)*cl_maxstrisvert);
-		cl_strisvertt = Z_Realloc(cl_strisvertt, sizeof(*cl_strisvertt)*cl_maxstrisvert);
-		cl_strisvertc = Z_Realloc(cl_strisvertc, sizeof(*cl_strisvertc)*cl_maxstrisvert);
+		cl_strisvert = Z_Realloc(cl_strisvert, sizeof(*cl_strisvert)*cl_maxstrisvert);
 	}
 
 	scale = (p->org[0] - r_origin[0])*vpn[0] + (p->org[1] - r_origin[1])*vpn[1]
@@ -5524,24 +5534,25 @@ static void R_AddFanSparkParticle(scenetris_t *t, particle_t *p, plooks_t *type)
 		float a = p->rgba[3];
 		if (a > 1)
 			a = 1;
+		a *= 255.0f;
 		rgba[0] = p->rgba[0] * a;
 		rgba[1] = p->rgba[1] * a;
 		rgba[2] = p->rgba[2] * a;
 		rgba[3] = (type->premul==2)?0:a;
-		Vector4Copy(rgba, cl_strisvertc[cl_numstrisvert+0]);
-		Vector4Copy(rgba, cl_strisvertc[cl_numstrisvert+1]);
-		Vector4Copy(rgba, cl_strisvertc[cl_numstrisvert+2]);
+		Vector4ToColor(rgba, cl_strisvert[cl_numstrisvert+0].color);
+		Vector4ToColor(rgba, cl_strisvert[cl_numstrisvert+1].color);
+		Vector4ToColor(rgba, cl_strisvert[cl_numstrisvert+2].color);
 	}
 	else
 	{
-		Vector4Copy(p->rgba, cl_strisvertc[cl_numstrisvert+0]);
-		Vector4Copy(p->rgba, cl_strisvertc[cl_numstrisvert+1]);
-		Vector4Copy(p->rgba, cl_strisvertc[cl_numstrisvert+2]);
+		Vector4ToColor(p->rgba, cl_strisvert[cl_numstrisvert+0].color);
+		Vector4ToColor(p->rgba, cl_strisvert[cl_numstrisvert+1].color);
+		Vector4ToColor(p->rgba, cl_strisvert[cl_numstrisvert+2].color);
 	}
 
-	Vector2Set(cl_strisvertt[cl_numstrisvert+0], p->s1, p->t1);
-	Vector2Set(cl_strisvertt[cl_numstrisvert+1], p->s1, p->t2);
-	Vector2Set(cl_strisvertt[cl_numstrisvert+2], p->s2, p->t1);
+	Vector2Set(cl_strisvert[cl_numstrisvert+0].texcoord, p->s1, p->t1);
+	Vector2Set(cl_strisvert[cl_numstrisvert+1].texcoord, p->s1, p->t2);
+	Vector2Set(cl_strisvert[cl_numstrisvert+2].texcoord, p->s2, p->t1);
 
 
 	VectorMA(p->org, -scale, p->vel, o2);
@@ -5549,9 +5560,9 @@ static void R_AddFanSparkParticle(scenetris_t *t, particle_t *p, plooks_t *type)
 	CrossProduct(v, p->vel, cr);
 	VectorNormalize(cr);
 
-	VectorCopy(p->org, cl_strisvertv[cl_numstrisvert+0]);
-	VectorMA(o2, -p->scale, cr, cl_strisvertv[cl_numstrisvert+1]);
-	VectorMA(o2, p->scale, cr, cl_strisvertv[cl_numstrisvert+2]);
+	VectorCopy(p->org, cl_strisvert[cl_numstrisvert+0].position);
+	VectorMA(o2, -p->scale, cr, cl_strisvert[cl_numstrisvert+1].position);
+	VectorMA(o2, p->scale, cr, cl_strisvert[cl_numstrisvert+2].position);
 
 	if (cl_numstrisidx+3 > cl_maxstrisidx)
 	{
@@ -5574,31 +5585,31 @@ static void R_AddLineSparkParticle(scenetris_t *t, particle_t *p, plooks_t *type
 	if (cl_numstrisvert+2 > cl_maxstrisvert)
 	{
 		cl_maxstrisvert+=64*2;
-		cl_strisvertv = Z_Realloc(cl_strisvertv, sizeof(*cl_strisvertv)*cl_maxstrisvert);
-		cl_strisvertt = Z_Realloc(cl_strisvertt, sizeof(*cl_strisvertt)*cl_maxstrisvert);
-		cl_strisvertc = Z_Realloc(cl_strisvertc, sizeof(*cl_strisvertc)*cl_maxstrisvert);
+		cl_strisvert = Z_Realloc(cl_strisvert, sizeof(*cl_strisvert)*cl_maxstrisvert);
 	}
 
 	if (type->premul)
 	{
+		vec4_t scaled_color;
 		float a = p->rgba[3];
 		if (a > 1)
 			a = 1;
-		VectorScale(p->rgba, a, cl_strisvertc[cl_numstrisvert+0]);
-		cl_strisvertc[cl_numstrisvert+0][3] = (type->premul==2)?0:a;
-		Vector4Clear(cl_strisvertc[cl_numstrisvert+1]);
+		VectorScale(p->rgba, a, scaled_color);
+		Vector3ToColor(scaled_color, cl_strisvert[cl_numstrisvert+0].color);
+		FloatToColor((type->premul==2)?0:a, cl_strisvert[cl_numstrisvert+0].color[3]);
+		Vector4Clear(cl_strisvert[cl_numstrisvert+1].color);
 	}
 	else
 	{
-		Vector4Copy(p->rgba, cl_strisvertc[cl_numstrisvert+0]);
-		VectorCopy(p->rgba, cl_strisvertc[cl_numstrisvert+1]);
-		cl_strisvertc[cl_numstrisvert+1][3] = 0;
+		Vector4ToColor(p->rgba, cl_strisvert[cl_numstrisvert+0].color);
+		Vector3ToColor(p->rgba, cl_strisvert[cl_numstrisvert+1].color);
+		cl_strisvert[cl_numstrisvert+1].color[3] = 0;
 	}
-	Vector2Set(cl_strisvertt[cl_numstrisvert+0], p->s1, p->t1);
-	Vector2Set(cl_strisvertt[cl_numstrisvert+1], p->s2, p->t2);
+	Vector2Set(cl_strisvert[cl_numstrisvert+0].texcoord, p->s1, p->t1);
+	Vector2Set(cl_strisvert[cl_numstrisvert+1].texcoord, p->s2, p->t2);
 
-	VectorCopy(p->org, cl_strisvertv[cl_numstrisvert+0]);
-	VectorMA(p->org, -1.0/10, p->vel, cl_strisvertv[cl_numstrisvert+1]);
+	VectorCopy(p->org, cl_strisvert[cl_numstrisvert+0].position);
+	VectorMA(p->org, -1.0/10, p->vel, cl_strisvert[cl_numstrisvert+1].position);
 	
 	if (cl_numstrisidx+2 > cl_maxstrisidx)
 	{
@@ -5622,9 +5633,7 @@ static void R_AddTSparkParticle(scenetris_t *t, particle_t *p, plooks_t *type)
 	if (cl_numstrisvert+4 > cl_maxstrisvert)
 	{
 		cl_maxstrisvert+=64*4;
-		cl_strisvertv = Z_Realloc(cl_strisvertv, sizeof(*cl_strisvertv)*cl_maxstrisvert);
-		cl_strisvertt = Z_Realloc(cl_strisvertt, sizeof(*cl_strisvertt)*cl_maxstrisvert);
-		cl_strisvertc = Z_Realloc(cl_strisvertc, sizeof(*cl_strisvertc)*cl_maxstrisvert);
+		cl_strisvert = Z_Realloc(cl_strisvert, sizeof(*cl_strisvert)*cl_maxstrisvert);
 	}
 
 	if (type->premul)
@@ -5637,23 +5646,23 @@ static void R_AddTSparkParticle(scenetris_t *t, particle_t *p, plooks_t *type)
 		rgba[1] = p->rgba[1] * a;
 		rgba[2] = p->rgba[2] * a;
 		rgba[3] = (type->premul==2)?0:a;
-		Vector4Copy(rgba, cl_strisvertc[cl_numstrisvert+0]);
-		Vector4Copy(rgba, cl_strisvertc[cl_numstrisvert+1]);
-		Vector4Copy(rgba, cl_strisvertc[cl_numstrisvert+2]);
-		Vector4Copy(rgba, cl_strisvertc[cl_numstrisvert+3]);
+		Vector4ToColor(rgba, cl_strisvert[cl_numstrisvert+0].color);
+		Vector4ToColor(rgba, cl_strisvert[cl_numstrisvert+1].color);
+		Vector4ToColor(rgba, cl_strisvert[cl_numstrisvert+2].color);
+		Vector4ToColor(rgba, cl_strisvert[cl_numstrisvert+3].color);
 	}
 	else
 	{
-		Vector4Copy(p->rgba, cl_strisvertc[cl_numstrisvert+0]);
-		Vector4Copy(p->rgba, cl_strisvertc[cl_numstrisvert+1]);
-		Vector4Copy(p->rgba, cl_strisvertc[cl_numstrisvert+2]);
-		Vector4Copy(p->rgba, cl_strisvertc[cl_numstrisvert+3]);
+		Vector4ToColor(p->rgba, cl_strisvert[cl_numstrisvert+0].color);
+		Vector4ToColor(p->rgba, cl_strisvert[cl_numstrisvert+1].color);
+		Vector4ToColor(p->rgba, cl_strisvert[cl_numstrisvert+2].color);
+		Vector4ToColor(p->rgba, cl_strisvert[cl_numstrisvert+3].color);
 	}
 
-	Vector2Set(cl_strisvertt[cl_numstrisvert+0], p->s1, p->t1);
-	Vector2Set(cl_strisvertt[cl_numstrisvert+1], p->s1, p->t2);
-	Vector2Set(cl_strisvertt[cl_numstrisvert+2], p->s2, p->t2);
-	Vector2Set(cl_strisvertt[cl_numstrisvert+3], p->s2, p->t1);
+	Vector2Set(cl_strisvert[cl_numstrisvert+0].texcoord, p->s1, p->t1);
+	Vector2Set(cl_strisvert[cl_numstrisvert+1].texcoord, p->s1, p->t2);
+	Vector2Set(cl_strisvert[cl_numstrisvert+2].texcoord, p->s2, p->t2);
+	Vector2Set(cl_strisvert[cl_numstrisvert+3].texcoord, p->s2, p->t1);
 
 	{
 		vec3_t movedir;
@@ -5674,8 +5683,8 @@ static void R_AddTSparkParticle(scenetris_t *t, particle_t *p, plooks_t *type)
 		VectorSubtract(r_refdef.vieworg, o2, v);
 		CrossProduct(v, p->vel, cr);
 		VectorNormalize(cr);
-		VectorMA(o2, -p->scale/2, cr, cl_strisvertv[cl_numstrisvert+0]);
-		VectorMA(o2, p->scale/2, cr, cl_strisvertv[cl_numstrisvert+1]);
+		VectorMA(o2, -p->scale/2, cr, cl_strisvert[cl_numstrisvert+0].position);
+		VectorMA(o2, p->scale/2, cr, cl_strisvert[cl_numstrisvert+1].position);
 
 		VectorMA(p->org, length, movedir, o2);
 	}
@@ -5684,8 +5693,8 @@ static void R_AddTSparkParticle(scenetris_t *t, particle_t *p, plooks_t *type)
 	CrossProduct(v, p->vel, cr);
 	VectorNormalize(cr);
 
-	VectorMA(o2, p->scale*0.5, cr, cl_strisvertv[cl_numstrisvert+2]);
-	VectorMA(o2, -p->scale*0.5, cr, cl_strisvertv[cl_numstrisvert+3]);
+	VectorMA(o2, p->scale*0.5, cr, cl_strisvert[cl_numstrisvert+2].position);
+	VectorMA(o2, -p->scale*0.5, cr, cl_strisvert[cl_numstrisvert+3].position);
 
 
 
@@ -5726,37 +5735,32 @@ static void R_DrawParticleBeam(scenetris_t *t, beamseg_t *b, plooks_t *type)
 	if (cl_numstrisvert+4 > cl_maxstrisvert)
 	{
 		cl_maxstrisvert+=64*4;
-		cl_strisvertv = Z_Realloc(cl_strisvertv, sizeof(*cl_strisvertv)*cl_maxstrisvert);
-		cl_strisvertt = Z_Realloc(cl_strisvertt, sizeof(*cl_strisvertt)*cl_maxstrisvert);
-		cl_strisvertc = Z_Realloc(cl_strisvertc, sizeof(*cl_strisvertc)*cl_maxstrisvert);
+		cl_strisvert = Z_Realloc(cl_strisvert, sizeof(*cl_strisvert)*cl_maxstrisvert);
 	}
-
-//		q->rgba[3] = 1;
-//		p->rgba[3] = 1;
 
 	VectorSubtract(r_refdef.vieworg, q->org, v);
 	VectorNormalize(v);
 	CrossProduct(c->dir, v, cr);
 	VectorNormalize(cr);
 	ts = c->texture_s*q->angle + particletime*q->rotationspeed;
-	Vector4Copy(q->rgba, cl_strisvertc[cl_numstrisvert+0]);
-	Vector4Copy(q->rgba, cl_strisvertc[cl_numstrisvert+1]);
-	Vector2Set(cl_strisvertt[cl_numstrisvert+0], ts, p->t1);
-	Vector2Set(cl_strisvertt[cl_numstrisvert+1], ts, p->t2);
-	VectorMA(q->org, -q->scale, cr, cl_strisvertv[cl_numstrisvert+0]);
-	VectorMA(q->org, q->scale, cr, cl_strisvertv[cl_numstrisvert+1]);
+	Vector4ToColor(q->rgba, cl_strisvert[cl_numstrisvert+0].color);
+	Vector4ToColor(q->rgba, cl_strisvert[cl_numstrisvert+1].color);
+	Vector2Set(cl_strisvert[cl_numstrisvert+0].texcoord, ts, p->t1);
+	Vector2Set(cl_strisvert[cl_numstrisvert+1].texcoord, ts, p->t2);
+	VectorMA(q->org, -q->scale, cr, cl_strisvert[cl_numstrisvert+0].position);
+	VectorMA(q->org, q->scale, cr, cl_strisvert[cl_numstrisvert+1].position);
 
 	VectorSubtract(r_refdef.vieworg, p->org, v);
 	VectorNormalize(v);
 	CrossProduct(b->dir, v, cr); // replace with old p->dir?
 	VectorNormalize(cr);
 	ts = b->texture_s*p->angle + particletime*p->rotationspeed;
-	Vector4Copy(p->rgba, cl_strisvertc[cl_numstrisvert+2]);
-	Vector4Copy(p->rgba, cl_strisvertc[cl_numstrisvert+3]);
-	Vector2Set(cl_strisvertt[cl_numstrisvert+2], ts, p->t2);
-	Vector2Set(cl_strisvertt[cl_numstrisvert+3], ts, p->t1);
-	VectorMA(p->org, p->scale, cr, cl_strisvertv[cl_numstrisvert+2]);
-	VectorMA(p->org, -p->scale, cr, cl_strisvertv[cl_numstrisvert+3]);
+	Vector4ToColor(p->rgba, cl_strisvert[cl_numstrisvert+2].color);
+	Vector4ToColor(p->rgba, cl_strisvert[cl_numstrisvert+3].color);
+	Vector2Set(cl_strisvert[cl_numstrisvert+2].texcoord, ts, p->t2);
+	Vector2Set(cl_strisvert[cl_numstrisvert+3].texcoord, ts, p->t1);
+	VectorMA(p->org, p->scale, cr, cl_strisvert[cl_numstrisvert+2].position);
+	VectorMA(p->org, -p->scale, cr, cl_strisvert[cl_numstrisvert+3].position);
 
 	t->numvert += 4;
 
@@ -5780,9 +5784,7 @@ static void R_AddClippedDecal(scenetris_t *t, clippeddecal_t *d, plooks_t *type)
 	if (cl_numstrisvert+4 > cl_maxstrisvert)
 	{
 		cl_maxstrisvert+=64*4;
-		cl_strisvertv = Z_Realloc(cl_strisvertv, sizeof(*cl_strisvertv)*cl_maxstrisvert);
-		cl_strisvertt = Z_Realloc(cl_strisvertt, sizeof(*cl_strisvertt)*cl_maxstrisvert);
-		cl_strisvertc = Z_Realloc(cl_strisvertc, sizeof(*cl_strisvertc)*cl_maxstrisvert);
+		cl_strisvert = Z_Realloc(cl_strisvert, sizeof(*cl_strisvert)*cl_maxstrisvert);
 	}
 
 	if (d->entity > 0)
@@ -5793,20 +5795,21 @@ static void R_AddClippedDecal(scenetris_t *t, clippeddecal_t *d, plooks_t *type)
 			d->die = -1;
 			return;
 		}
-		VectorAdd(d->vertex[0], le->origin, cl_strisvertv[cl_numstrisvert+0]);
-		VectorAdd(d->vertex[1], le->origin, cl_strisvertv[cl_numstrisvert+1]);
-		VectorAdd(d->vertex[2], le->origin, cl_strisvertv[cl_numstrisvert+2]);
+		VectorAdd(d->vertex[0], le->origin, cl_strisvert[cl_numstrisvert+0].position);
+		VectorAdd(d->vertex[1], le->origin, cl_strisvert[cl_numstrisvert+1].position);
+		VectorAdd(d->vertex[2], le->origin, cl_strisvert[cl_numstrisvert+2].position);
 	}
 	else
 	{
-		VectorCopy(d->vertex[0], cl_strisvertv[cl_numstrisvert+0]);
-		VectorCopy(d->vertex[1], cl_strisvertv[cl_numstrisvert+1]);
-		VectorCopy(d->vertex[2], cl_strisvertv[cl_numstrisvert+2]);
+		VectorCopy(d->vertex[0], cl_strisvert[cl_numstrisvert+0].position);
+		VectorCopy(d->vertex[1], cl_strisvert[cl_numstrisvert+1].position);
+		VectorCopy(d->vertex[2], cl_strisvert[cl_numstrisvert+2].position);
 	}
 
 	if (type->premul)
 	{
 		vec4_t rgba;
+		vec4_t scaled_color;
 		float a = d->rgba[3];
 		if (a > 1)
 			a = 1;
@@ -5814,23 +5817,30 @@ static void R_AddClippedDecal(scenetris_t *t, clippeddecal_t *d, plooks_t *type)
 		rgba[1] = d->rgba[1] * a;
 		rgba[2] = d->rgba[2] * a;
 		rgba[3] = (type->premul==2)?0:a;
-		Vector4Scale(rgba, d->valpha[0], cl_strisvertc[cl_numstrisvert+0]);
-		Vector4Scale(rgba, d->valpha[1], cl_strisvertc[cl_numstrisvert+1]);
-		Vector4Scale(rgba, d->valpha[2], cl_strisvertc[cl_numstrisvert+2]);
+		Vector4Scale(rgba, d->valpha[0], scaled_color);
+		Vector4ToColor(scaled_color, cl_strisvert[cl_numstrisvert+0].color);
+		Vector4Scale(rgba, d->valpha[1], scaled_color);
+		Vector4ToColor(scaled_color, cl_strisvert[cl_numstrisvert+1].color);
+		Vector4Scale(rgba, d->valpha[2], scaled_color);
+		Vector4ToColor(scaled_color, cl_strisvert[cl_numstrisvert+2].color);
 	}
 	else
 	{
-		Vector4Copy(d->rgba, cl_strisvertc[cl_numstrisvert+0]);
-		cl_strisvertc[cl_numstrisvert+0][3] *= d->valpha[0];
-		Vector4Copy(d->rgba, cl_strisvertc[cl_numstrisvert+1]);
-		cl_strisvertc[cl_numstrisvert+1][3] *= d->valpha[1];
-		Vector4Copy(d->rgba, cl_strisvertc[cl_numstrisvert+2]);
-		cl_strisvertc[cl_numstrisvert+2][3] *= d->valpha[2];
+		vec4_t rgba;
+		rgba[0] = d->rgba[0];
+		rgba[1] = d->rgba[1];
+		rgba[2] = d->rgba[2];
+		rgba[3] = d->rgba[3] * d->valpha[0];
+		Vector4ToColor(rgba, cl_strisvert[cl_numstrisvert+0].color);
+		rgba[3] = d->rgba[3] * d->valpha[1];
+		Vector4ToColor(rgba, cl_strisvert[cl_numstrisvert+1].color);
+		rgba[3] = d->rgba[3] * d->valpha[2];
+		Vector4ToColor(rgba, cl_strisvert[cl_numstrisvert+2].color);
 	}
 
-	Vector2Copy(d->texcoords[0], cl_strisvertt[cl_numstrisvert+0]);
-	Vector2Copy(d->texcoords[1], cl_strisvertt[cl_numstrisvert+1]);
-	Vector2Copy(d->texcoords[2], cl_strisvertt[cl_numstrisvert+2]);
+	Vector2Copy(d->texcoords[0], cl_strisvert[cl_numstrisvert+0].texcoord);
+	Vector2Copy(d->texcoords[1], cl_strisvert[cl_numstrisvert+1].texcoord);
+	Vector2Copy(d->texcoords[2], cl_strisvert[cl_numstrisvert+2].texcoord);
 
 	if (cl_numstrisidx+3 > cl_maxstrisidx)
 	{
@@ -5855,9 +5865,7 @@ static void R_AddUnclippedDecal(scenetris_t *t, particle_t *p, plooks_t *type)
 	if (cl_numstrisvert+4 > cl_maxstrisvert)
 	{
 		cl_maxstrisvert+=64*4;
-		cl_strisvertv = Z_Realloc(cl_strisvertv, sizeof(*cl_strisvertv)*cl_maxstrisvert);
-		cl_strisvertt = Z_Realloc(cl_strisvertt, sizeof(*cl_strisvertt)*cl_maxstrisvert);
-		cl_strisvertc = Z_Realloc(cl_strisvertc, sizeof(*cl_strisvertc)*cl_maxstrisvert);
+		cl_strisvert = Z_Realloc(cl_strisvert, sizeof(*cl_strisvert)*cl_maxstrisvert);
 	}
 
 	if (type->premul)
@@ -5870,23 +5878,23 @@ static void R_AddUnclippedDecal(scenetris_t *t, particle_t *p, plooks_t *type)
 		rgba[1] = p->rgba[1] * a;
 		rgba[2] = p->rgba[2] * a;
 		rgba[3] = (type->premul==2)?0:a;
-		Vector4Copy(rgba, cl_strisvertc[cl_numstrisvert+0]);
-		Vector4Copy(rgba, cl_strisvertc[cl_numstrisvert+1]);
-		Vector4Copy(rgba, cl_strisvertc[cl_numstrisvert+2]);
-		Vector4Copy(rgba, cl_strisvertc[cl_numstrisvert+3]);
+		Vector4ToColor(rgba, cl_strisvert[cl_numstrisvert+0].color);
+		Vector4ToColor(rgba, cl_strisvert[cl_numstrisvert+1].color);
+		Vector4ToColor(rgba, cl_strisvert[cl_numstrisvert+2].color);
+		Vector4ToColor(rgba, cl_strisvert[cl_numstrisvert+3].color);
 	}
 	else
 	{
-		Vector4Copy(p->rgba, cl_strisvertc[cl_numstrisvert+0]);
-		Vector4Copy(p->rgba, cl_strisvertc[cl_numstrisvert+1]);
-		Vector4Copy(p->rgba, cl_strisvertc[cl_numstrisvert+2]);
-		Vector4Copy(p->rgba, cl_strisvertc[cl_numstrisvert+3]);
+		Vector4ToColor(p->rgba, cl_strisvert[cl_numstrisvert+0].color);
+		Vector4ToColor(p->rgba, cl_strisvert[cl_numstrisvert+1].color);
+		Vector4ToColor(p->rgba, cl_strisvert[cl_numstrisvert+2].color);
+		Vector4ToColor(p->rgba, cl_strisvert[cl_numstrisvert+3].color);
 	}
 
-	Vector2Set(cl_strisvertt[cl_numstrisvert+0], p->s1, p->t1);
-	Vector2Set(cl_strisvertt[cl_numstrisvert+1], p->s1, p->t2);
-	Vector2Set(cl_strisvertt[cl_numstrisvert+2], p->s2, p->t2);
-	Vector2Set(cl_strisvertt[cl_numstrisvert+3], p->s2, p->t1);
+	Vector2Set(cl_strisvert[cl_numstrisvert+0].texcoord, p->s1, p->t1);
+	Vector2Set(cl_strisvert[cl_numstrisvert+1].texcoord, p->s1, p->t2);
+	Vector2Set(cl_strisvert[cl_numstrisvert+2].texcoord, p->s2, p->t2);
+	Vector2Set(cl_strisvert[cl_numstrisvert+3].texcoord, p->s2, p->t1);
 
 //	if (p->vel[1] == 1)
 	{
@@ -5899,25 +5907,25 @@ static void R_AddUnclippedDecal(scenetris_t *t, particle_t *p, plooks_t *type)
 		x = sin(p->angle)*p->scale;
 		y = cos(p->angle)*p->scale;
 
-		cl_strisvertv[cl_numstrisvert+0][0] = p->org[0] - x*sdir[0] - y*tdir[0];
-		cl_strisvertv[cl_numstrisvert+0][1] = p->org[1] - x*sdir[1] - y*tdir[1];
-		cl_strisvertv[cl_numstrisvert+0][2] = p->org[2] - x*sdir[2] - y*tdir[2];
-		cl_strisvertv[cl_numstrisvert+1][0] = p->org[0] - y*sdir[0] + x*tdir[0];
-		cl_strisvertv[cl_numstrisvert+1][1] = p->org[1] - y*sdir[1] + x*tdir[1];
-		cl_strisvertv[cl_numstrisvert+1][2] = p->org[2] - y*sdir[2] + x*tdir[2];
-		cl_strisvertv[cl_numstrisvert+2][0] = p->org[0] + x*sdir[0] + y*tdir[0];
-		cl_strisvertv[cl_numstrisvert+2][1] = p->org[1] + x*sdir[1] + y*tdir[1];
-		cl_strisvertv[cl_numstrisvert+2][2] = p->org[2] + x*sdir[2] + y*tdir[2];
-		cl_strisvertv[cl_numstrisvert+3][0] = p->org[0] + y*sdir[0] - x*tdir[0];
-		cl_strisvertv[cl_numstrisvert+3][1] = p->org[1] + y*sdir[1] - x*tdir[1];
-		cl_strisvertv[cl_numstrisvert+3][2] = p->org[2] + y*sdir[2] - x*tdir[2];
+		cl_strisvert[cl_numstrisvert+0].position[0] = p->org[0] - x*sdir[0] - y*tdir[0];
+		cl_strisvert[cl_numstrisvert+0].position[1] = p->org[1] - x*sdir[1] - y*tdir[1];
+		cl_strisvert[cl_numstrisvert+0].position[2] = p->org[2] - x*sdir[2] - y*tdir[2];
+		cl_strisvert[cl_numstrisvert+1].position[0] = p->org[0] - y*sdir[0] + x*tdir[0];
+		cl_strisvert[cl_numstrisvert+1].position[1] = p->org[1] - y*sdir[1] + x*tdir[1];
+		cl_strisvert[cl_numstrisvert+1].position[2] = p->org[2] - y*sdir[2] + x*tdir[2];
+		cl_strisvert[cl_numstrisvert+2].position[0] = p->org[0] + x*sdir[0] + y*tdir[0];
+		cl_strisvert[cl_numstrisvert+2].position[1] = p->org[1] + x*sdir[1] + y*tdir[1];
+		cl_strisvert[cl_numstrisvert+2].position[2] = p->org[2] + x*sdir[2] + y*tdir[2];
+		cl_strisvert[cl_numstrisvert+3].position[0] = p->org[0] + y*sdir[0] - x*tdir[0];
+		cl_strisvert[cl_numstrisvert+3].position[1] = p->org[1] + y*sdir[1] - x*tdir[1];
+		cl_strisvert[cl_numstrisvert+3].position[2] = p->org[2] + y*sdir[2] - x*tdir[2];
 	}
 	else
 	{
-		VectorMA(p->org, -p->scale, tdir, cl_strisvertv[cl_numstrisvert+0]);
-		VectorMA(p->org, -p->scale, sdir, cl_strisvertv[cl_numstrisvert+1]);
-		VectorMA(p->org, p->scale, tdir, cl_strisvertv[cl_numstrisvert+2]);
-		VectorMA(p->org, p->scale, sdir, cl_strisvertv[cl_numstrisvert+3]);
+		VectorMA(p->org, -p->scale, tdir, cl_strisvert[cl_numstrisvert+0].position);
+		VectorMA(p->org, -p->scale, sdir, cl_strisvert[cl_numstrisvert+1].position);
+		VectorMA(p->org, p->scale, tdir, cl_strisvert[cl_numstrisvert+2].position);
+		VectorMA(p->org, p->scale, sdir, cl_strisvert[cl_numstrisvert+3].position);
 	}
 
 	if (cl_numstrisidx+6 > cl_maxstrisidx)
@@ -5945,9 +5953,7 @@ static void R_AddTexturedParticle(scenetris_t *t, particle_t *p, plooks_t *type)
 	if (cl_numstrisvert+4 > cl_maxstrisvert)
 	{
 		cl_maxstrisvert+=64*4;
-		cl_strisvertv = Z_Realloc(cl_strisvertv, sizeof(*cl_strisvertv)*cl_maxstrisvert);
-		cl_strisvertt = Z_Realloc(cl_strisvertt, sizeof(*cl_strisvertt)*cl_maxstrisvert);
-		cl_strisvertc = Z_Realloc(cl_strisvertc, sizeof(*cl_strisvertc)*cl_maxstrisvert);
+		cl_strisvert = Z_Realloc(cl_strisvert, sizeof(*cl_strisvert)*cl_maxstrisvert);
 	}
 
 	if (type->scalefactor == 1)
@@ -5973,48 +5979,48 @@ static void R_AddTexturedParticle(scenetris_t *t, particle_t *p, plooks_t *type)
 		rgba[1] = p->rgba[1] * a;
 		rgba[2] = p->rgba[2] * a;
 		rgba[3] = (type->premul==2)?0:a;
-		Vector4Copy(rgba, cl_strisvertc[cl_numstrisvert+0]);
-		Vector4Copy(rgba, cl_strisvertc[cl_numstrisvert+1]);
-		Vector4Copy(rgba, cl_strisvertc[cl_numstrisvert+2]);
-		Vector4Copy(rgba, cl_strisvertc[cl_numstrisvert+3]);
+		Vector4ToColor(rgba, cl_strisvert[cl_numstrisvert+0].color);
+		Vector4ToColor(rgba, cl_strisvert[cl_numstrisvert+1].color);
+		Vector4ToColor(rgba, cl_strisvert[cl_numstrisvert+2].color);
+		Vector4ToColor(rgba, cl_strisvert[cl_numstrisvert+3].color);
 	}
 	else
 	{
-		Vector4Copy(p->rgba, cl_strisvertc[cl_numstrisvert+0]);
-		Vector4Copy(p->rgba, cl_strisvertc[cl_numstrisvert+1]);
-		Vector4Copy(p->rgba, cl_strisvertc[cl_numstrisvert+2]);
-		Vector4Copy(p->rgba, cl_strisvertc[cl_numstrisvert+3]);
+		Vector4ToColor(p->rgba, cl_strisvert[cl_numstrisvert+0].color);
+		Vector4ToColor(p->rgba, cl_strisvert[cl_numstrisvert+1].color);
+		Vector4ToColor(p->rgba, cl_strisvert[cl_numstrisvert+2].color);
+		Vector4ToColor(p->rgba, cl_strisvert[cl_numstrisvert+3].color);
 	}
 
-	Vector2Set(cl_strisvertt[cl_numstrisvert+0], p->s1, p->t1);
-	Vector2Set(cl_strisvertt[cl_numstrisvert+1], p->s1, p->t2);
-	Vector2Set(cl_strisvertt[cl_numstrisvert+2], p->s2, p->t2);
-	Vector2Set(cl_strisvertt[cl_numstrisvert+3], p->s2, p->t1);
+	Vector2Set(cl_strisvert[cl_numstrisvert+0].texcoord, p->s1, p->t1);
+	Vector2Set(cl_strisvert[cl_numstrisvert+1].texcoord, p->s1, p->t2);
+	Vector2Set(cl_strisvert[cl_numstrisvert+2].texcoord, p->s2, p->t2);
+	Vector2Set(cl_strisvert[cl_numstrisvert+3].texcoord, p->s2, p->t1);
 
 	if (p->angle)
 	{
 		x = sin(p->angle)*scale;
 		y = cos(p->angle)*scale;
 
-		cl_strisvertv[cl_numstrisvert+0][0] = p->org[0] - x*pright[0] - y*pup[0];
-		cl_strisvertv[cl_numstrisvert+0][1] = p->org[1] - x*pright[1] - y*pup[1];
-		cl_strisvertv[cl_numstrisvert+0][2] = p->org[2] - x*pright[2] - y*pup[2];
-		cl_strisvertv[cl_numstrisvert+1][0] = p->org[0] - y*pright[0] + x*pup[0];
-		cl_strisvertv[cl_numstrisvert+1][1] = p->org[1] - y*pright[1] + x*pup[1];
-		cl_strisvertv[cl_numstrisvert+1][2] = p->org[2] - y*pright[2] + x*pup[2];
-		cl_strisvertv[cl_numstrisvert+2][0] = p->org[0] + x*pright[0] + y*pup[0];
-		cl_strisvertv[cl_numstrisvert+2][1] = p->org[1] + x*pright[1] + y*pup[1];
-		cl_strisvertv[cl_numstrisvert+2][2] = p->org[2] + x*pright[2] + y*pup[2];
-		cl_strisvertv[cl_numstrisvert+3][0] = p->org[0] + y*pright[0] - x*pup[0];
-		cl_strisvertv[cl_numstrisvert+3][1] = p->org[1] + y*pright[1] - x*pup[1];
-		cl_strisvertv[cl_numstrisvert+3][2] = p->org[2] + y*pright[2] - x*pup[2];
+		cl_strisvert[cl_numstrisvert+0].position[0] = p->org[0] - x*pright[0] - y*pup[0];
+		cl_strisvert[cl_numstrisvert+0].position[1] = p->org[1] - x*pright[1] - y*pup[1];
+		cl_strisvert[cl_numstrisvert+0].position[2] = p->org[2] - x*pright[2] - y*pup[2];
+		cl_strisvert[cl_numstrisvert+1].position[0] = p->org[0] - y*pright[0] + x*pup[0];
+		cl_strisvert[cl_numstrisvert+1].position[1] = p->org[1] - y*pright[1] + x*pup[1];
+		cl_strisvert[cl_numstrisvert+1].position[2] = p->org[2] - y*pright[2] + x*pup[2];
+		cl_strisvert[cl_numstrisvert+2].position[0] = p->org[0] + x*pright[0] + y*pup[0];
+		cl_strisvert[cl_numstrisvert+2].position[1] = p->org[1] + x*pright[1] + y*pup[1];
+		cl_strisvert[cl_numstrisvert+2].position[2] = p->org[2] + x*pright[2] + y*pup[2];
+		cl_strisvert[cl_numstrisvert+3].position[0] = p->org[0] + y*pright[0] - x*pup[0];
+		cl_strisvert[cl_numstrisvert+3].position[1] = p->org[1] + y*pright[1] - x*pup[1];
+		cl_strisvert[cl_numstrisvert+3].position[2] = p->org[2] + y*pright[2] - x*pup[2];
 	}
 	else
 	{
-		VectorMA(p->org, -scale, pup, cl_strisvertv[cl_numstrisvert+0]);
-		VectorMA(p->org, -scale, pright, cl_strisvertv[cl_numstrisvert+1]);
-		VectorMA(p->org, scale, pup, cl_strisvertv[cl_numstrisvert+2]);
-		VectorMA(p->org, scale, pright, cl_strisvertv[cl_numstrisvert+3]);
+		VectorMA(p->org, -scale, pup, cl_strisvert[cl_numstrisvert+0].position);
+		VectorMA(p->org, -scale, pright, cl_strisvert[cl_numstrisvert+1].position);
+		VectorMA(p->org, scale, pup, cl_strisvert[cl_numstrisvert+2].position);
+		VectorMA(p->org, scale, pright, cl_strisvert[cl_numstrisvert+3].position);
 	}
 
 	if (cl_numstrisidx+6 > cl_maxstrisidx)
@@ -6787,14 +6793,7 @@ endtype:
 			const int num_vertices = tris->numvert;
 			const int first_vertex = tris->firstvert;
 			basicvertex_t * vertices = (basicvertex_t*)R_VertexAllocate(num_vertices * sizeof(basicvertex_t), &tris->vertex_buffer, &tris->vertex_buffer_offset);
-			for (int i = 0; i < num_vertices; ++i)
-			{
-				const int vertex_index = first_vertex + i;
-				basicvertex_t* vertex = &vertices[i];
-				for(int j = 0; j < 3; ++j) vertex->position[j] = cl_strisvertv[vertex_index][j];
-				for(int j = 0; j < 2; ++j) vertex->texcoord[j] = cl_strisvertt[vertex_index][j];
-				for(int j = 0; j < 4; ++j) vertex->color[j] = (byte)(CLAMP(0.0f, cl_strisvertc[vertex_index][j], 1.0f) * 255.0f);
-			}
+			memcpy(vertices, cl_strisvert + tris->firstvert, num_vertices * sizeof(basicvertex_t));
 
 			vulkan_globals.vk_cmd_bind_index_buffer(vulkan_globals.command_buffer, tris->index_buffer, tris->index_buffer_offset, VK_INDEX_TYPE_UINT16);
 			vulkan_globals.vk_cmd_bind_vertex_buffers(vulkan_globals.command_buffer, 0, 1, &tris->vertex_buffer, &tris->vertex_buffer_offset);
