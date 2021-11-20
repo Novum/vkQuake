@@ -3581,7 +3581,7 @@ static void R_ParticleDesc_Callback(struct cvar_s *var)
 	CL_RegisterParticles();
 }
 
-static void P_AddRainParticles(qmodel_t *mod, vec3_t axis[3], vec3_t eorg, int visframe, float contribution)
+static void P_AddRainParticles(qmodel_t *mod, vec3_t axis[3], vec3_t eorg, float contribution)
 {
 	float x;
 	float y;
@@ -3597,12 +3597,6 @@ static void P_AddRainParticles(qmodel_t *mod, vec3_t axis[3], vec3_t eorg, int v
 
 	for (st = mod->skytris; st; st = st->next)
 	{
-		if (st->face->visframe != visframe)
-		{
-			st->nexttime = mod->skytime;
-			continue;
-		}
-
 		if ((unsigned int)st->ptype >= (unsigned int)numparticletypes)
 			continue;
 		type = &part_type[st->ptype];
@@ -6844,7 +6838,7 @@ void PScript_DrawParticles (void)
 			AngleVectors(ent->angles, axis[0], axis[1], axis[2]);
 			//this timer, as well as the per-tri timer, are unable to deal with certain rates+sizes. it would be good to fix that...
 			//it would also be nice to do mdls too...
-			P_AddRainParticles(ent->model, axis, ent->origin, ((i==0)?r_visframecount:0), pframetime);
+			P_AddRainParticles(ent->model, axis, ent->origin, pframetime);
 		}
 	}
 
