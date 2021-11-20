@@ -130,7 +130,6 @@ entity_t	*CL_EntityNum (int num);
 #define Z_Realloc realloc
 
 extern int PClassic_PointFile(int c, vec3_t point);
-//#define FALLBACKBIAS 0x1000000
 
 #define PART_VALID(part) ((part) >= 0 && (part) < numparticletypes)
 
@@ -206,8 +205,6 @@ typedef struct beamseg_s
 
 	float texture_s;
 } beamseg_t;
-
-
 
 typedef struct skytris_s {
 	struct skytris_s *next;
@@ -397,22 +394,12 @@ static pcfg_t *loadedconfigs;
 
 #ifndef TYPESONLY
 
-//triangle fan sparks use these. // defined but not used
-//static double sint[7] = {0.000000, 0.781832,  0.974928,  0.433884, -0.433884, -0.974928, -0.781832};
-//static double cost[7] = {1.000000, 0.623490, -0.222521, -0.900969, -0.900969, -0.222521,  0.623490};
-
 #define crand() (rand()%32767/16383.5f-1)
-
-//static void P_ReadPointFile_f (void);
 
 #define MAX_BEAMSEGS			(1<<11)	// default max # of beam segments
 #define MAX_PARTICLES			(1<<18)	// max # of particles at one time
 #define MAX_DECALS				(1<<18)	// max # of decal fragments at one time
 #define MAX_TRAILSTATES			(1<<10)	// default max # of trailstates
-
-//int		ramp1[8] = {0x6f, 0x6d, 0x6b, 0x69, 0x67, 0x65, 0x63, 0x61};
-//int		ramp2[8] = {0x6f, 0x6e, 0x6d, 0x6c, 0x6b, 0x6a, 0x68, 0x66};
-//int		ramp3[8] = {0x6d, 0x6b, 6,	  5,    4,    3,    2,    1};
 
 static particle_t	*free_particles;
 static particle_t	*particles;	//contains the initial list of alloced particles.
@@ -467,23 +454,23 @@ typedef struct
 	gltexture_t *texture;
 	blendmode_t blendmode;
 	int beflags;
-
-	VkBuffer index_buffer;
-	VkDeviceSize index_buffer_offset;
-	VkBuffer vertex_buffer;
-	VkDeviceSize vertex_buffer_offset;
 } scenetris_t;
-#define MAX_INDICIES 0xffff
+
+#define MAX_INDICES 0xffff
+#define INITIAL_NUM_VERTICES 100000
+#define INITIAL_NUM_INDICES 150000
+
 static scenetris_t *cl_stris;
 static unsigned int cl_numstris;
 static unsigned int cl_maxstris;
-static basicvertex_t * cl_strisvert;
+static basicvertex_t * cl_strisvert[2];
+static basicvertex_t * cl_curstrisvert;
 static unsigned int cl_numstrisvert;
-static unsigned int cl_maxstrisvert;
-static unsigned short *cl_strisidx;
+static unsigned int cl_maxstrisvert[2];
+static unsigned short *cl_strisidx[2];
+static unsigned short *cl_curstrisidx;
 static unsigned int cl_numstrisidx;
-static unsigned int cl_maxstrisidx;
-
+static unsigned int cl_maxstrisidx[2];
 
 /*
 Q1BSP_RecursiveHullTrace
@@ -651,7 +638,6 @@ float CL_TraceLine (vec3_t start, vec3_t end, vec3_t impact, vec3_t normal, int 
 		memset (&trace, 0, sizeof(trace));
 		trace.fraction = 1;
 		Q1BSP_RecursiveHullCheck(&ent->model->hulls[0], ent->model->hulls[0].firstclipnode, 0, 1, relstart, relend, &trace);
-//		SV_RecursiveHullCheck (ent->model->hulls, ent->model->hulls[0].firstclipnode, 0, 1, relstart, relend, &trace);
 
 		if (frac > trace.fraction)
 		{
@@ -3440,9 +3426,6 @@ void PScript_ClearParticles (void)
 
 	PScript_Startup();
 
-//	if (fallback)
-//		fallback->ClearParticles();
-
 	free_particles = &particles[0];
 	for (i=0 ;i<r_numparticles ; i++)
 		particles[i].next = &particles[i+1];
@@ -5507,16 +5490,134 @@ int PScript_ParticleTrail (vec3_t startpos, vec3_t end, int type, float timeinte
 	return 0;
 }
 
+static int current_buffer_index = 0;
+static VkBuffer vertex_buffers[2] = {VK_NULL_HANDLE, VK_NULL_HANDLE};
+static VkDeviceMemory vertex_buffers_memory[2] = {VK_NULL_HANDLE, VK_NULL_HANDLE};
+static VkBuffer index_buffers[2] = {VK_NULL_HANDLE, VK_NULL_HANDLE};
+static VkDeviceMemory index_buffers_memory[2] = {VK_NULL_HANDLE, VK_NULL_HANDLE};
+
 static void ReallocateVertexBuffer()
 {
-	cl_maxstrisvert = q_max(cl_maxstrisvert * 2, 1024);
-	cl_strisvert = (basicvertex_t*)Z_Realloc(cl_strisvert, sizeof(*cl_strisvert)*cl_maxstrisvert);
+	VkResult err;
+
+	const VkDeviceMemory old_memory = vertex_buffers_memory[current_buffer_index];
+	const basicvertex_t* old_cl_curstrisvert = cl_curstrisvert;
+	const int old_maxstrisvert = cl_maxstrisvert[current_buffer_index];
+
+	cl_maxstrisvert[current_buffer_index] = q_max(cl_maxstrisvert[current_buffer_index] * 2, INITIAL_NUM_VERTICES);
+	const VkDeviceSize new_size = cl_maxstrisvert[current_buffer_index] * sizeof(basicvertex_t);
+	Sys_Printf("Reallocating FTE particle vertex buffer (%u KB)\n", (int)(new_size / 1024));
+
+	VkBufferCreateInfo buffer_create_info;
+	memset(&buffer_create_info, 0, sizeof(buffer_create_info));
+	buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	buffer_create_info.size = new_size;
+	buffer_create_info.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+
+	err = vkCreateBuffer(vulkan_globals.device, &buffer_create_info, NULL, &vertex_buffers[current_buffer_index]);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkCreateBuffer failed");
+	GL_SetObjectName((uint64_t)vertex_buffers[current_buffer_index], VK_OBJECT_TYPE_BUFFER, "FTE Particle Vertex Buffer");
+
+	VkMemoryRequirements memory_requirements;
+	vkGetBufferMemoryRequirements(vulkan_globals.device, vertex_buffers[current_buffer_index], &memory_requirements);
+
+	const int align_mod = memory_requirements.size % memory_requirements.alignment;
+	const int aligned_size = ((memory_requirements.size % memory_requirements.alignment) == 0) 
+		? memory_requirements.size 
+		: (memory_requirements.size + memory_requirements.alignment - align_mod);
+
+	VkMemoryAllocateInfo memory_allocate_info;
+	memset(&memory_allocate_info, 0, sizeof(memory_allocate_info));
+	memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	memory_allocate_info.allocationSize = aligned_size;
+	memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
+
+	err = vkAllocateMemory(vulkan_globals.device, &memory_allocate_info, NULL, &vertex_buffers_memory[current_buffer_index]);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkAllocateMemory failed");
+
+	GL_SetObjectName((uint64_t)vertex_buffers_memory[current_buffer_index], VK_OBJECT_TYPE_DEVICE_MEMORY, "FTE Particle Vertex Buffer");
+
+	err = vkBindBufferMemory(vulkan_globals.device, vertex_buffers[current_buffer_index], vertex_buffers_memory[current_buffer_index], 0);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkBindBufferMemory failed");
+
+	err = vkMapMemory(vulkan_globals.device, vertex_buffers_memory[current_buffer_index], 0, new_size, 0, &cl_curstrisvert);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkMapMemory failed");
+	cl_strisvert[current_buffer_index] = cl_curstrisvert;
+
+	if (old_memory != VK_NULL_HANDLE)
+	{
+		// Copy over data from old buffer
+		memcpy(cl_curstrisvert, old_cl_curstrisvert, old_maxstrisvert * sizeof(basicvertex_t));
+
+		vkUnmapMemory(vulkan_globals.device, old_memory);
+		vkFreeMemory(vulkan_globals.device, old_memory, NULL);
+	}
 }
 
 static void ReallocateIndexBuffer()
 {
-	cl_maxstrisidx = q_max(cl_maxstrisidx * 2, 1536);
-	cl_strisidx = (unsigned short*)Z_Realloc(cl_strisidx, sizeof(*cl_strisidx)*cl_maxstrisidx);
+	VkResult err;
+
+	const VkDeviceMemory old_memory = index_buffers_memory[current_buffer_index];
+	const unsigned short * old_cl_curstrisidx = cl_curstrisidx;
+	const int old_maxstrisidx = cl_maxstrisidx[current_buffer_index];
+
+	cl_maxstrisidx[current_buffer_index] = q_max(cl_maxstrisidx[current_buffer_index] * 2, INITIAL_NUM_INDICES);
+	const VkDeviceSize new_size = cl_maxstrisidx[current_buffer_index] * sizeof(unsigned short);
+	Sys_Printf("Reallocating FTE particle index buffer (%u KB)\n", (int)(new_size / 1024));
+
+	VkBufferCreateInfo buffer_create_info;
+	memset(&buffer_create_info, 0, sizeof(buffer_create_info));
+	buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	buffer_create_info.size = new_size;
+	buffer_create_info.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+
+	err = vkCreateBuffer(vulkan_globals.device, &buffer_create_info, NULL, &index_buffers[current_buffer_index]);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkCreateBuffer failed");
+	GL_SetObjectName((uint64_t)index_buffers[current_buffer_index], VK_OBJECT_TYPE_BUFFER, "FTE Particle Index Buffer");
+
+	VkMemoryRequirements memory_requirements;
+	vkGetBufferMemoryRequirements(vulkan_globals.device, index_buffers[current_buffer_index], &memory_requirements);
+
+	const int align_mod = memory_requirements.size % memory_requirements.alignment;
+	const int aligned_size = ((memory_requirements.size % memory_requirements.alignment) == 0) 
+		? memory_requirements.size 
+		: (memory_requirements.size + memory_requirements.alignment - align_mod);
+
+	VkMemoryAllocateInfo memory_allocate_info;
+	memset(&memory_allocate_info, 0, sizeof(memory_allocate_info));
+	memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	memory_allocate_info.allocationSize = aligned_size;
+	memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
+
+	err = vkAllocateMemory(vulkan_globals.device, &memory_allocate_info, NULL, &index_buffers_memory[current_buffer_index]);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkAllocateMemory failed");
+
+	GL_SetObjectName((uint64_t)index_buffers_memory[current_buffer_index], VK_OBJECT_TYPE_DEVICE_MEMORY, "FTE Particle index Buffer");
+
+	err = vkBindBufferMemory(vulkan_globals.device, index_buffers[current_buffer_index], index_buffers_memory[current_buffer_index], 0);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkBindBufferMemory failed");
+
+	err = vkMapMemory(vulkan_globals.device, index_buffers_memory[current_buffer_index], 0, new_size, 0, &cl_curstrisidx);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkMapMemory failed");
+	cl_strisidx[current_buffer_index] = cl_curstrisidx;
+
+	if (old_memory != VK_NULL_HANDLE)
+	{
+		// Copy over data from old buffer
+		memcpy(cl_curstrisidx, old_cl_curstrisidx, old_maxstrisidx * sizeof(unsigned short));
+
+		vkUnmapMemory(vulkan_globals.device, old_memory);
+		vkFreeMemory(vulkan_globals.device, old_memory, NULL);
+	}
 }
 
 static vec3_t pright, pup;
@@ -5526,7 +5627,7 @@ static void R_AddFanSparkParticle(scenetris_t *t, particle_t *p, plooks_t *type)
 	vec3_t v, cr, o2;
 	float scale;
 
-	if (cl_numstrisvert+3 > cl_maxstrisvert)
+	if (cl_numstrisvert+3 > cl_maxstrisvert[current_buffer_index])
 		ReallocateVertexBuffer();
 
 	scale = (p->org[0] - r_origin[0])*vpn[0] + (p->org[1] - r_origin[1])*vpn[1]
@@ -5548,20 +5649,20 @@ static void R_AddFanSparkParticle(scenetris_t *t, particle_t *p, plooks_t *type)
 		rgba[1] = p->rgba[1] * a;
 		rgba[2] = p->rgba[2] * a;
 		rgba[3] = (type->premul==2)?0:a;
-		Vector4ToColor(rgba, cl_strisvert[cl_numstrisvert+0].color);
-		Vector4ToColor(rgba, cl_strisvert[cl_numstrisvert+1].color);
-		Vector4ToColor(rgba, cl_strisvert[cl_numstrisvert+2].color);
+		Vector4ToColor(rgba, cl_curstrisvert[cl_numstrisvert+0].color);
+		Vector4ToColor(rgba, cl_curstrisvert[cl_numstrisvert+1].color);
+		Vector4ToColor(rgba, cl_curstrisvert[cl_numstrisvert+2].color);
 	}
 	else
 	{
-		Vector4ToColor(p->rgba, cl_strisvert[cl_numstrisvert+0].color);
-		Vector4ToColor(p->rgba, cl_strisvert[cl_numstrisvert+1].color);
-		Vector4ToColor(p->rgba, cl_strisvert[cl_numstrisvert+2].color);
+		Vector4ToColor(p->rgba, cl_curstrisvert[cl_numstrisvert+0].color);
+		Vector4ToColor(p->rgba, cl_curstrisvert[cl_numstrisvert+1].color);
+		Vector4ToColor(p->rgba, cl_curstrisvert[cl_numstrisvert+2].color);
 	}
 
-	Vector2Set(cl_strisvert[cl_numstrisvert+0].texcoord, p->s1, p->t1);
-	Vector2Set(cl_strisvert[cl_numstrisvert+1].texcoord, p->s1, p->t2);
-	Vector2Set(cl_strisvert[cl_numstrisvert+2].texcoord, p->s2, p->t1);
+	Vector2Set(cl_curstrisvert[cl_numstrisvert+0].texcoord, p->s1, p->t1);
+	Vector2Set(cl_curstrisvert[cl_numstrisvert+1].texcoord, p->s1, p->t2);
+	Vector2Set(cl_curstrisvert[cl_numstrisvert+2].texcoord, p->s2, p->t1);
 
 
 	VectorMA(p->org, -scale, p->vel, o2);
@@ -5569,16 +5670,16 @@ static void R_AddFanSparkParticle(scenetris_t *t, particle_t *p, plooks_t *type)
 	CrossProduct(v, p->vel, cr);
 	VectorNormalize(cr);
 
-	VectorCopy(p->org, cl_strisvert[cl_numstrisvert+0].position);
-	VectorMA(o2, -p->scale, cr, cl_strisvert[cl_numstrisvert+1].position);
-	VectorMA(o2, p->scale, cr, cl_strisvert[cl_numstrisvert+2].position);
+	VectorCopy(p->org, cl_curstrisvert[cl_numstrisvert+0].position);
+	VectorMA(o2, -p->scale, cr, cl_curstrisvert[cl_numstrisvert+1].position);
+	VectorMA(o2, p->scale, cr, cl_curstrisvert[cl_numstrisvert+2].position);
 
-	if (cl_numstrisidx+3 > cl_maxstrisidx)
+	if (cl_numstrisidx+3 > cl_maxstrisidx[current_buffer_index])
 		ReallocateIndexBuffer();
 
-	cl_strisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 0;
-	cl_strisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 1;
-	cl_strisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 2;
+	cl_curstrisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 0;
+	cl_curstrisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 1;
+	cl_curstrisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 2;
 
 	cl_numstrisvert += 3;
 
@@ -5589,7 +5690,7 @@ static void R_AddFanSparkParticle(scenetris_t *t, particle_t *p, plooks_t *type)
 
 static void R_AddLineSparkParticle(scenetris_t *t, particle_t *p, plooks_t *type)
 {
-	if (cl_numstrisvert+2 > cl_maxstrisvert)
+	if (cl_numstrisvert+2 > cl_maxstrisvert[current_buffer_index])
 		ReallocateVertexBuffer();
 
 	if (type->premul)
@@ -5599,27 +5700,27 @@ static void R_AddLineSparkParticle(scenetris_t *t, particle_t *p, plooks_t *type
 		if (a > 1)
 			a = 1;
 		VectorScale(p->rgba, a, scaled_color);
-		Vector3ToColor(scaled_color, cl_strisvert[cl_numstrisvert+0].color);
-		FloatToColor((type->premul==2)?0:a, cl_strisvert[cl_numstrisvert+0].color[3]);
-		Vector4Clear(cl_strisvert[cl_numstrisvert+1].color);
+		Vector3ToColor(scaled_color, cl_curstrisvert[cl_numstrisvert+0].color);
+		FloatToColor((type->premul==2)?0:a, cl_curstrisvert[cl_numstrisvert+0].color[3]);
+		Vector4Clear(cl_curstrisvert[cl_numstrisvert+1].color);
 	}
 	else
 	{
-		Vector4ToColor(p->rgba, cl_strisvert[cl_numstrisvert+0].color);
-		Vector3ToColor(p->rgba, cl_strisvert[cl_numstrisvert+1].color);
-		cl_strisvert[cl_numstrisvert+1].color[3] = 0;
+		Vector4ToColor(p->rgba, cl_curstrisvert[cl_numstrisvert+0].color);
+		Vector3ToColor(p->rgba, cl_curstrisvert[cl_numstrisvert+1].color);
+		cl_curstrisvert[cl_numstrisvert+1].color[3] = 0;
 	}
-	Vector2Set(cl_strisvert[cl_numstrisvert+0].texcoord, p->s1, p->t1);
-	Vector2Set(cl_strisvert[cl_numstrisvert+1].texcoord, p->s2, p->t2);
+	Vector2Set(cl_curstrisvert[cl_numstrisvert+0].texcoord, p->s1, p->t1);
+	Vector2Set(cl_curstrisvert[cl_numstrisvert+1].texcoord, p->s2, p->t2);
 
-	VectorCopy(p->org, cl_strisvert[cl_numstrisvert+0].position);
-	VectorMA(p->org, -1.0/10, p->vel, cl_strisvert[cl_numstrisvert+1].position);
+	VectorCopy(p->org, cl_curstrisvert[cl_numstrisvert+0].position);
+	VectorMA(p->org, -1.0/10, p->vel, cl_curstrisvert[cl_numstrisvert+1].position);
 	
-	if (cl_numstrisidx+2 > cl_maxstrisidx)
+	if (cl_numstrisidx+2 > cl_maxstrisidx[current_buffer_index])
 		ReallocateIndexBuffer();
 
-	cl_strisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 0;
-	cl_strisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 1;
+	cl_curstrisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 0;
+	cl_curstrisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 1;
 
 	cl_numstrisvert += 2;
 
@@ -5631,7 +5732,7 @@ static void R_AddTSparkParticle(scenetris_t *t, particle_t *p, plooks_t *type)
 {
 	vec3_t v, cr, o2;
 
-	if (cl_numstrisvert+4 > cl_maxstrisvert)
+	if (cl_numstrisvert+4 > cl_maxstrisvert[current_buffer_index])
 		ReallocateVertexBuffer();
 
 	if (type->premul)
@@ -5644,23 +5745,23 @@ static void R_AddTSparkParticle(scenetris_t *t, particle_t *p, plooks_t *type)
 		rgba[1] = p->rgba[1] * a;
 		rgba[2] = p->rgba[2] * a;
 		rgba[3] = (type->premul==2)?0:a;
-		Vector4ToColor(rgba, cl_strisvert[cl_numstrisvert+0].color);
-		Vector4ToColor(rgba, cl_strisvert[cl_numstrisvert+1].color);
-		Vector4ToColor(rgba, cl_strisvert[cl_numstrisvert+2].color);
-		Vector4ToColor(rgba, cl_strisvert[cl_numstrisvert+3].color);
+		Vector4ToColor(rgba, cl_curstrisvert[cl_numstrisvert+0].color);
+		Vector4ToColor(rgba, cl_curstrisvert[cl_numstrisvert+1].color);
+		Vector4ToColor(rgba, cl_curstrisvert[cl_numstrisvert+2].color);
+		Vector4ToColor(rgba, cl_curstrisvert[cl_numstrisvert+3].color);
 	}
 	else
 	{
-		Vector4ToColor(p->rgba, cl_strisvert[cl_numstrisvert+0].color);
-		Vector4ToColor(p->rgba, cl_strisvert[cl_numstrisvert+1].color);
-		Vector4ToColor(p->rgba, cl_strisvert[cl_numstrisvert+2].color);
-		Vector4ToColor(p->rgba, cl_strisvert[cl_numstrisvert+3].color);
+		Vector4ToColor(p->rgba, cl_curstrisvert[cl_numstrisvert+0].color);
+		Vector4ToColor(p->rgba, cl_curstrisvert[cl_numstrisvert+1].color);
+		Vector4ToColor(p->rgba, cl_curstrisvert[cl_numstrisvert+2].color);
+		Vector4ToColor(p->rgba, cl_curstrisvert[cl_numstrisvert+3].color);
 	}
 
-	Vector2Set(cl_strisvert[cl_numstrisvert+0].texcoord, p->s1, p->t1);
-	Vector2Set(cl_strisvert[cl_numstrisvert+1].texcoord, p->s1, p->t2);
-	Vector2Set(cl_strisvert[cl_numstrisvert+2].texcoord, p->s2, p->t2);
-	Vector2Set(cl_strisvert[cl_numstrisvert+3].texcoord, p->s2, p->t1);
+	Vector2Set(cl_curstrisvert[cl_numstrisvert+0].texcoord, p->s1, p->t1);
+	Vector2Set(cl_curstrisvert[cl_numstrisvert+1].texcoord, p->s1, p->t2);
+	Vector2Set(cl_curstrisvert[cl_numstrisvert+2].texcoord, p->s2, p->t2);
+	Vector2Set(cl_curstrisvert[cl_numstrisvert+3].texcoord, p->s2, p->t1);
 
 	{
 		vec3_t movedir;
@@ -5681,8 +5782,8 @@ static void R_AddTSparkParticle(scenetris_t *t, particle_t *p, plooks_t *type)
 		VectorSubtract(r_refdef.vieworg, o2, v);
 		CrossProduct(v, p->vel, cr);
 		VectorNormalize(cr);
-		VectorMA(o2, -p->scale/2, cr, cl_strisvert[cl_numstrisvert+0].position);
-		VectorMA(o2, p->scale/2, cr, cl_strisvert[cl_numstrisvert+1].position);
+		VectorMA(o2, -p->scale/2, cr, cl_curstrisvert[cl_numstrisvert+0].position);
+		VectorMA(o2, p->scale/2, cr, cl_curstrisvert[cl_numstrisvert+1].position);
 
 		VectorMA(p->org, length, movedir, o2);
 	}
@@ -5691,20 +5792,20 @@ static void R_AddTSparkParticle(scenetris_t *t, particle_t *p, plooks_t *type)
 	CrossProduct(v, p->vel, cr);
 	VectorNormalize(cr);
 
-	VectorMA(o2, p->scale*0.5, cr, cl_strisvert[cl_numstrisvert+2].position);
-	VectorMA(o2, -p->scale*0.5, cr, cl_strisvert[cl_numstrisvert+3].position);
+	VectorMA(o2, p->scale*0.5, cr, cl_curstrisvert[cl_numstrisvert+2].position);
+	VectorMA(o2, -p->scale*0.5, cr, cl_curstrisvert[cl_numstrisvert+3].position);
 
 
 
-	if (cl_numstrisidx+6 > cl_maxstrisidx)
+	if (cl_numstrisidx+6 > cl_maxstrisidx[current_buffer_index])
 		ReallocateIndexBuffer();
 
-	cl_strisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 0;
-	cl_strisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 1;
-	cl_strisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 2;
-	cl_strisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 0;
-	cl_strisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 2;
-	cl_strisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 3;
+	cl_curstrisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 0;
+	cl_curstrisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 1;
+	cl_curstrisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 2;
+	cl_curstrisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 0;
+	cl_curstrisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 2;
+	cl_curstrisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 3;
 
 	cl_numstrisvert += 4;
 
@@ -5728,7 +5829,7 @@ static void R_DrawParticleBeam(scenetris_t *t, beamseg_t *b, plooks_t *type)
 		return;
 	p = b->p;
 
-	if (cl_numstrisvert+4 > cl_maxstrisvert)
+	if (cl_numstrisvert+4 > cl_maxstrisvert[current_buffer_index])
 		ReallocateVertexBuffer();
 
 	VectorSubtract(r_refdef.vieworg, q->org, v);
@@ -5736,43 +5837,43 @@ static void R_DrawParticleBeam(scenetris_t *t, beamseg_t *b, plooks_t *type)
 	CrossProduct(c->dir, v, cr);
 	VectorNormalize(cr);
 	ts = c->texture_s*q->angle + particletime*q->rotationspeed;
-	Vector4ToColor(q->rgba, cl_strisvert[cl_numstrisvert+0].color);
-	Vector4ToColor(q->rgba, cl_strisvert[cl_numstrisvert+1].color);
-	Vector2Set(cl_strisvert[cl_numstrisvert+0].texcoord, ts, p->t1);
-	Vector2Set(cl_strisvert[cl_numstrisvert+1].texcoord, ts, p->t2);
-	VectorMA(q->org, -q->scale, cr, cl_strisvert[cl_numstrisvert+0].position);
-	VectorMA(q->org, q->scale, cr, cl_strisvert[cl_numstrisvert+1].position);
+	Vector4ToColor(q->rgba, cl_curstrisvert[cl_numstrisvert+0].color);
+	Vector4ToColor(q->rgba, cl_curstrisvert[cl_numstrisvert+1].color);
+	Vector2Set(cl_curstrisvert[cl_numstrisvert+0].texcoord, ts, p->t1);
+	Vector2Set(cl_curstrisvert[cl_numstrisvert+1].texcoord, ts, p->t2);
+	VectorMA(q->org, -q->scale, cr, cl_curstrisvert[cl_numstrisvert+0].position);
+	VectorMA(q->org, q->scale, cr, cl_curstrisvert[cl_numstrisvert+1].position);
 
 	VectorSubtract(r_refdef.vieworg, p->org, v);
 	VectorNormalize(v);
 	CrossProduct(b->dir, v, cr); // replace with old p->dir?
 	VectorNormalize(cr);
 	ts = b->texture_s*p->angle + particletime*p->rotationspeed;
-	Vector4ToColor(p->rgba, cl_strisvert[cl_numstrisvert+2].color);
-	Vector4ToColor(p->rgba, cl_strisvert[cl_numstrisvert+3].color);
-	Vector2Set(cl_strisvert[cl_numstrisvert+2].texcoord, ts, p->t2);
-	Vector2Set(cl_strisvert[cl_numstrisvert+3].texcoord, ts, p->t1);
-	VectorMA(p->org, p->scale, cr, cl_strisvert[cl_numstrisvert+2].position);
-	VectorMA(p->org, -p->scale, cr, cl_strisvert[cl_numstrisvert+3].position);
+	Vector4ToColor(p->rgba, cl_curstrisvert[cl_numstrisvert+2].color);
+	Vector4ToColor(p->rgba, cl_curstrisvert[cl_numstrisvert+3].color);
+	Vector2Set(cl_curstrisvert[cl_numstrisvert+2].texcoord, ts, p->t2);
+	Vector2Set(cl_curstrisvert[cl_numstrisvert+3].texcoord, ts, p->t1);
+	VectorMA(p->org, p->scale, cr, cl_curstrisvert[cl_numstrisvert+2].position);
+	VectorMA(p->org, -p->scale, cr, cl_curstrisvert[cl_numstrisvert+3].position);
 
 	t->numvert += 4;
 
-	if (cl_numstrisidx+6 > cl_maxstrisidx)
+	if (cl_numstrisidx+6 > cl_maxstrisidx[current_buffer_index])
 		ReallocateIndexBuffer();
 
-	cl_strisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 0;
-	cl_strisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 1;
-	cl_strisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 2;
-	cl_strisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 0;
-	cl_strisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 2;
-	cl_strisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 3;
+	cl_curstrisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 0;
+	cl_curstrisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 1;
+	cl_curstrisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 2;
+	cl_curstrisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 0;
+	cl_curstrisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 2;
+	cl_curstrisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 3;
 	cl_numstrisvert += 4;
 	t->numidx += 4;
 }
 
 static void R_AddClippedDecal(scenetris_t *t, clippeddecal_t *d, plooks_t *type)
 {
-	if (cl_numstrisvert+4 > cl_maxstrisvert)
+	if (cl_numstrisvert+4 > cl_maxstrisvert[current_buffer_index])
 		ReallocateVertexBuffer();
 
 	if (d->entity > 0)
@@ -5783,15 +5884,15 @@ static void R_AddClippedDecal(scenetris_t *t, clippeddecal_t *d, plooks_t *type)
 			d->die = -1;
 			return;
 		}
-		VectorAdd(d->vertex[0], le->origin, cl_strisvert[cl_numstrisvert+0].position);
-		VectorAdd(d->vertex[1], le->origin, cl_strisvert[cl_numstrisvert+1].position);
-		VectorAdd(d->vertex[2], le->origin, cl_strisvert[cl_numstrisvert+2].position);
+		VectorAdd(d->vertex[0], le->origin, cl_curstrisvert[cl_numstrisvert+0].position);
+		VectorAdd(d->vertex[1], le->origin, cl_curstrisvert[cl_numstrisvert+1].position);
+		VectorAdd(d->vertex[2], le->origin, cl_curstrisvert[cl_numstrisvert+2].position);
 	}
 	else
 	{
-		VectorCopy(d->vertex[0], cl_strisvert[cl_numstrisvert+0].position);
-		VectorCopy(d->vertex[1], cl_strisvert[cl_numstrisvert+1].position);
-		VectorCopy(d->vertex[2], cl_strisvert[cl_numstrisvert+2].position);
+		VectorCopy(d->vertex[0], cl_curstrisvert[cl_numstrisvert+0].position);
+		VectorCopy(d->vertex[1], cl_curstrisvert[cl_numstrisvert+1].position);
+		VectorCopy(d->vertex[2], cl_curstrisvert[cl_numstrisvert+2].position);
 	}
 
 	if (type->premul)
@@ -5806,11 +5907,11 @@ static void R_AddClippedDecal(scenetris_t *t, clippeddecal_t *d, plooks_t *type)
 		rgba[2] = d->rgba[2] * a;
 		rgba[3] = (type->premul==2)?0:a;
 		Vector4Scale(rgba, d->valpha[0], scaled_color);
-		Vector4ToColor(scaled_color, cl_strisvert[cl_numstrisvert+0].color);
+		Vector4ToColor(scaled_color, cl_curstrisvert[cl_numstrisvert+0].color);
 		Vector4Scale(rgba, d->valpha[1], scaled_color);
-		Vector4ToColor(scaled_color, cl_strisvert[cl_numstrisvert+1].color);
+		Vector4ToColor(scaled_color, cl_curstrisvert[cl_numstrisvert+1].color);
 		Vector4Scale(rgba, d->valpha[2], scaled_color);
-		Vector4ToColor(scaled_color, cl_strisvert[cl_numstrisvert+2].color);
+		Vector4ToColor(scaled_color, cl_curstrisvert[cl_numstrisvert+2].color);
 	}
 	else
 	{
@@ -5819,23 +5920,23 @@ static void R_AddClippedDecal(scenetris_t *t, clippeddecal_t *d, plooks_t *type)
 		rgba[1] = d->rgba[1];
 		rgba[2] = d->rgba[2];
 		rgba[3] = d->rgba[3] * d->valpha[0];
-		Vector4ToColor(rgba, cl_strisvert[cl_numstrisvert+0].color);
+		Vector4ToColor(rgba, cl_curstrisvert[cl_numstrisvert+0].color);
 		rgba[3] = d->rgba[3] * d->valpha[1];
-		Vector4ToColor(rgba, cl_strisvert[cl_numstrisvert+1].color);
+		Vector4ToColor(rgba, cl_curstrisvert[cl_numstrisvert+1].color);
 		rgba[3] = d->rgba[3] * d->valpha[2];
-		Vector4ToColor(rgba, cl_strisvert[cl_numstrisvert+2].color);
+		Vector4ToColor(rgba, cl_curstrisvert[cl_numstrisvert+2].color);
 	}
 
-	Vector2Copy(d->texcoords[0], cl_strisvert[cl_numstrisvert+0].texcoord);
-	Vector2Copy(d->texcoords[1], cl_strisvert[cl_numstrisvert+1].texcoord);
-	Vector2Copy(d->texcoords[2], cl_strisvert[cl_numstrisvert+2].texcoord);
+	Vector2Copy(d->texcoords[0], cl_curstrisvert[cl_numstrisvert+0].texcoord);
+	Vector2Copy(d->texcoords[1], cl_curstrisvert[cl_numstrisvert+1].texcoord);
+	Vector2Copy(d->texcoords[2], cl_curstrisvert[cl_numstrisvert+2].texcoord);
 
-	if (cl_numstrisidx+3 > cl_maxstrisidx)
+	if (cl_numstrisidx+3 > cl_maxstrisidx[current_buffer_index])
 		ReallocateIndexBuffer();
 
-	cl_strisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 0;
-	cl_strisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 1;
-	cl_strisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 2;
+	cl_curstrisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 0;
+	cl_curstrisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 1;
+	cl_curstrisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 2;
 
 	cl_numstrisvert += 3;
 
@@ -5848,7 +5949,7 @@ static void R_AddUnclippedDecal(scenetris_t *t, particle_t *p, plooks_t *type)
 	float x, y;
 	vec3_t sdir, tdir;
 
-	if (cl_numstrisvert+4 > cl_maxstrisvert)
+	if (cl_numstrisvert+4 > cl_maxstrisvert[current_buffer_index])
 		ReallocateVertexBuffer();
 
 	if (type->premul)
@@ -5861,23 +5962,23 @@ static void R_AddUnclippedDecal(scenetris_t *t, particle_t *p, plooks_t *type)
 		rgba[1] = p->rgba[1] * a;
 		rgba[2] = p->rgba[2] * a;
 		rgba[3] = (type->premul==2)?0:a;
-		Vector4ToColor(rgba, cl_strisvert[cl_numstrisvert+0].color);
-		Vector4ToColor(rgba, cl_strisvert[cl_numstrisvert+1].color);
-		Vector4ToColor(rgba, cl_strisvert[cl_numstrisvert+2].color);
-		Vector4ToColor(rgba, cl_strisvert[cl_numstrisvert+3].color);
+		Vector4ToColor(rgba, cl_curstrisvert[cl_numstrisvert+0].color);
+		Vector4ToColor(rgba, cl_curstrisvert[cl_numstrisvert+1].color);
+		Vector4ToColor(rgba, cl_curstrisvert[cl_numstrisvert+2].color);
+		Vector4ToColor(rgba, cl_curstrisvert[cl_numstrisvert+3].color);
 	}
 	else
 	{
-		Vector4ToColor(p->rgba, cl_strisvert[cl_numstrisvert+0].color);
-		Vector4ToColor(p->rgba, cl_strisvert[cl_numstrisvert+1].color);
-		Vector4ToColor(p->rgba, cl_strisvert[cl_numstrisvert+2].color);
-		Vector4ToColor(p->rgba, cl_strisvert[cl_numstrisvert+3].color);
+		Vector4ToColor(p->rgba, cl_curstrisvert[cl_numstrisvert+0].color);
+		Vector4ToColor(p->rgba, cl_curstrisvert[cl_numstrisvert+1].color);
+		Vector4ToColor(p->rgba, cl_curstrisvert[cl_numstrisvert+2].color);
+		Vector4ToColor(p->rgba, cl_curstrisvert[cl_numstrisvert+3].color);
 	}
 
-	Vector2Set(cl_strisvert[cl_numstrisvert+0].texcoord, p->s1, p->t1);
-	Vector2Set(cl_strisvert[cl_numstrisvert+1].texcoord, p->s1, p->t2);
-	Vector2Set(cl_strisvert[cl_numstrisvert+2].texcoord, p->s2, p->t2);
-	Vector2Set(cl_strisvert[cl_numstrisvert+3].texcoord, p->s2, p->t1);
+	Vector2Set(cl_curstrisvert[cl_numstrisvert+0].texcoord, p->s1, p->t1);
+	Vector2Set(cl_curstrisvert[cl_numstrisvert+1].texcoord, p->s1, p->t2);
+	Vector2Set(cl_curstrisvert[cl_numstrisvert+2].texcoord, p->s2, p->t2);
+	Vector2Set(cl_curstrisvert[cl_numstrisvert+3].texcoord, p->s2, p->t1);
 
 //	if (p->vel[1] == 1)
 	{
@@ -5890,36 +5991,36 @@ static void R_AddUnclippedDecal(scenetris_t *t, particle_t *p, plooks_t *type)
 		x = sin(p->angle)*p->scale;
 		y = cos(p->angle)*p->scale;
 
-		cl_strisvert[cl_numstrisvert+0].position[0] = p->org[0] - x*sdir[0] - y*tdir[0];
-		cl_strisvert[cl_numstrisvert+0].position[1] = p->org[1] - x*sdir[1] - y*tdir[1];
-		cl_strisvert[cl_numstrisvert+0].position[2] = p->org[2] - x*sdir[2] - y*tdir[2];
-		cl_strisvert[cl_numstrisvert+1].position[0] = p->org[0] - y*sdir[0] + x*tdir[0];
-		cl_strisvert[cl_numstrisvert+1].position[1] = p->org[1] - y*sdir[1] + x*tdir[1];
-		cl_strisvert[cl_numstrisvert+1].position[2] = p->org[2] - y*sdir[2] + x*tdir[2];
-		cl_strisvert[cl_numstrisvert+2].position[0] = p->org[0] + x*sdir[0] + y*tdir[0];
-		cl_strisvert[cl_numstrisvert+2].position[1] = p->org[1] + x*sdir[1] + y*tdir[1];
-		cl_strisvert[cl_numstrisvert+2].position[2] = p->org[2] + x*sdir[2] + y*tdir[2];
-		cl_strisvert[cl_numstrisvert+3].position[0] = p->org[0] + y*sdir[0] - x*tdir[0];
-		cl_strisvert[cl_numstrisvert+3].position[1] = p->org[1] + y*sdir[1] - x*tdir[1];
-		cl_strisvert[cl_numstrisvert+3].position[2] = p->org[2] + y*sdir[2] - x*tdir[2];
+		cl_curstrisvert[cl_numstrisvert+0].position[0] = p->org[0] - x*sdir[0] - y*tdir[0];
+		cl_curstrisvert[cl_numstrisvert+0].position[1] = p->org[1] - x*sdir[1] - y*tdir[1];
+		cl_curstrisvert[cl_numstrisvert+0].position[2] = p->org[2] - x*sdir[2] - y*tdir[2];
+		cl_curstrisvert[cl_numstrisvert+1].position[0] = p->org[0] - y*sdir[0] + x*tdir[0];
+		cl_curstrisvert[cl_numstrisvert+1].position[1] = p->org[1] - y*sdir[1] + x*tdir[1];
+		cl_curstrisvert[cl_numstrisvert+1].position[2] = p->org[2] - y*sdir[2] + x*tdir[2];
+		cl_curstrisvert[cl_numstrisvert+2].position[0] = p->org[0] + x*sdir[0] + y*tdir[0];
+		cl_curstrisvert[cl_numstrisvert+2].position[1] = p->org[1] + x*sdir[1] + y*tdir[1];
+		cl_curstrisvert[cl_numstrisvert+2].position[2] = p->org[2] + x*sdir[2] + y*tdir[2];
+		cl_curstrisvert[cl_numstrisvert+3].position[0] = p->org[0] + y*sdir[0] - x*tdir[0];
+		cl_curstrisvert[cl_numstrisvert+3].position[1] = p->org[1] + y*sdir[1] - x*tdir[1];
+		cl_curstrisvert[cl_numstrisvert+3].position[2] = p->org[2] + y*sdir[2] - x*tdir[2];
 	}
 	else
 	{
-		VectorMA(p->org, -p->scale, tdir, cl_strisvert[cl_numstrisvert+0].position);
-		VectorMA(p->org, -p->scale, sdir, cl_strisvert[cl_numstrisvert+1].position);
-		VectorMA(p->org, p->scale, tdir, cl_strisvert[cl_numstrisvert+2].position);
-		VectorMA(p->org, p->scale, sdir, cl_strisvert[cl_numstrisvert+3].position);
+		VectorMA(p->org, -p->scale, tdir, cl_curstrisvert[cl_numstrisvert+0].position);
+		VectorMA(p->org, -p->scale, sdir, cl_curstrisvert[cl_numstrisvert+1].position);
+		VectorMA(p->org, p->scale, tdir, cl_curstrisvert[cl_numstrisvert+2].position);
+		VectorMA(p->org, p->scale, sdir, cl_curstrisvert[cl_numstrisvert+3].position);
 	}
 
-	if (cl_numstrisidx+6 > cl_maxstrisidx)
+	if (cl_numstrisidx+6 > cl_maxstrisidx[current_buffer_index])
 		ReallocateIndexBuffer();
 
-	cl_strisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 0;
-	cl_strisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 1;
-	cl_strisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 2;
-	cl_strisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 0;
-	cl_strisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 2;
-	cl_strisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 3;
+	cl_curstrisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 0;
+	cl_curstrisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 1;
+	cl_curstrisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 2;
+	cl_curstrisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 0;
+	cl_curstrisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 2;
+	cl_curstrisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 3;
 
 	cl_numstrisvert += 4;
 
@@ -5931,7 +6032,7 @@ static void R_AddTexturedParticle(scenetris_t *t, particle_t *p, plooks_t *type)
 {
 	float scale, x, y;
 
-	if (cl_numstrisvert+4 > cl_maxstrisvert)
+	if (cl_numstrisvert+4 > cl_maxstrisvert[current_buffer_index])
 		ReallocateVertexBuffer();
 
 	if (type->scalefactor == 1)
@@ -5957,59 +6058,59 @@ static void R_AddTexturedParticle(scenetris_t *t, particle_t *p, plooks_t *type)
 		rgba[1] = p->rgba[1] * a;
 		rgba[2] = p->rgba[2] * a;
 		rgba[3] = (type->premul==2)?0:a;
-		Vector4ToColor(rgba, cl_strisvert[cl_numstrisvert+0].color);
-		Vector4ToColor(rgba, cl_strisvert[cl_numstrisvert+1].color);
-		Vector4ToColor(rgba, cl_strisvert[cl_numstrisvert+2].color);
-		Vector4ToColor(rgba, cl_strisvert[cl_numstrisvert+3].color);
+		Vector4ToColor(rgba, cl_curstrisvert[cl_numstrisvert+0].color);
+		Vector4ToColor(rgba, cl_curstrisvert[cl_numstrisvert+1].color);
+		Vector4ToColor(rgba, cl_curstrisvert[cl_numstrisvert+2].color);
+		Vector4ToColor(rgba, cl_curstrisvert[cl_numstrisvert+3].color);
 	}
 	else
 	{
-		Vector4ToColor(p->rgba, cl_strisvert[cl_numstrisvert+0].color);
-		Vector4ToColor(p->rgba, cl_strisvert[cl_numstrisvert+1].color);
-		Vector4ToColor(p->rgba, cl_strisvert[cl_numstrisvert+2].color);
-		Vector4ToColor(p->rgba, cl_strisvert[cl_numstrisvert+3].color);
+		Vector4ToColor(p->rgba, cl_curstrisvert[cl_numstrisvert+0].color);
+		Vector4ToColor(p->rgba, cl_curstrisvert[cl_numstrisvert+1].color);
+		Vector4ToColor(p->rgba, cl_curstrisvert[cl_numstrisvert+2].color);
+		Vector4ToColor(p->rgba, cl_curstrisvert[cl_numstrisvert+3].color);
 	}
 
-	Vector2Set(cl_strisvert[cl_numstrisvert+0].texcoord, p->s1, p->t1);
-	Vector2Set(cl_strisvert[cl_numstrisvert+1].texcoord, p->s1, p->t2);
-	Vector2Set(cl_strisvert[cl_numstrisvert+2].texcoord, p->s2, p->t2);
-	Vector2Set(cl_strisvert[cl_numstrisvert+3].texcoord, p->s2, p->t1);
+	Vector2Set(cl_curstrisvert[cl_numstrisvert+0].texcoord, p->s1, p->t1);
+	Vector2Set(cl_curstrisvert[cl_numstrisvert+1].texcoord, p->s1, p->t2);
+	Vector2Set(cl_curstrisvert[cl_numstrisvert+2].texcoord, p->s2, p->t2);
+	Vector2Set(cl_curstrisvert[cl_numstrisvert+3].texcoord, p->s2, p->t1);
 
 	if (p->angle)
 	{
 		x = sin(p->angle)*scale;
 		y = cos(p->angle)*scale;
 
-		cl_strisvert[cl_numstrisvert+0].position[0] = p->org[0] - x*pright[0] - y*pup[0];
-		cl_strisvert[cl_numstrisvert+0].position[1] = p->org[1] - x*pright[1] - y*pup[1];
-		cl_strisvert[cl_numstrisvert+0].position[2] = p->org[2] - x*pright[2] - y*pup[2];
-		cl_strisvert[cl_numstrisvert+1].position[0] = p->org[0] - y*pright[0] + x*pup[0];
-		cl_strisvert[cl_numstrisvert+1].position[1] = p->org[1] - y*pright[1] + x*pup[1];
-		cl_strisvert[cl_numstrisvert+1].position[2] = p->org[2] - y*pright[2] + x*pup[2];
-		cl_strisvert[cl_numstrisvert+2].position[0] = p->org[0] + x*pright[0] + y*pup[0];
-		cl_strisvert[cl_numstrisvert+2].position[1] = p->org[1] + x*pright[1] + y*pup[1];
-		cl_strisvert[cl_numstrisvert+2].position[2] = p->org[2] + x*pright[2] + y*pup[2];
-		cl_strisvert[cl_numstrisvert+3].position[0] = p->org[0] + y*pright[0] - x*pup[0];
-		cl_strisvert[cl_numstrisvert+3].position[1] = p->org[1] + y*pright[1] - x*pup[1];
-		cl_strisvert[cl_numstrisvert+3].position[2] = p->org[2] + y*pright[2] - x*pup[2];
+		cl_curstrisvert[cl_numstrisvert+0].position[0] = p->org[0] - x*pright[0] - y*pup[0];
+		cl_curstrisvert[cl_numstrisvert+0].position[1] = p->org[1] - x*pright[1] - y*pup[1];
+		cl_curstrisvert[cl_numstrisvert+0].position[2] = p->org[2] - x*pright[2] - y*pup[2];
+		cl_curstrisvert[cl_numstrisvert+1].position[0] = p->org[0] - y*pright[0] + x*pup[0];
+		cl_curstrisvert[cl_numstrisvert+1].position[1] = p->org[1] - y*pright[1] + x*pup[1];
+		cl_curstrisvert[cl_numstrisvert+1].position[2] = p->org[2] - y*pright[2] + x*pup[2];
+		cl_curstrisvert[cl_numstrisvert+2].position[0] = p->org[0] + x*pright[0] + y*pup[0];
+		cl_curstrisvert[cl_numstrisvert+2].position[1] = p->org[1] + x*pright[1] + y*pup[1];
+		cl_curstrisvert[cl_numstrisvert+2].position[2] = p->org[2] + x*pright[2] + y*pup[2];
+		cl_curstrisvert[cl_numstrisvert+3].position[0] = p->org[0] + y*pright[0] - x*pup[0];
+		cl_curstrisvert[cl_numstrisvert+3].position[1] = p->org[1] + y*pright[1] - x*pup[1];
+		cl_curstrisvert[cl_numstrisvert+3].position[2] = p->org[2] + y*pright[2] - x*pup[2];
 	}
 	else
 	{
-		VectorMA(p->org, -scale, pup, cl_strisvert[cl_numstrisvert+0].position);
-		VectorMA(p->org, -scale, pright, cl_strisvert[cl_numstrisvert+1].position);
-		VectorMA(p->org, scale, pup, cl_strisvert[cl_numstrisvert+2].position);
-		VectorMA(p->org, scale, pright, cl_strisvert[cl_numstrisvert+3].position);
+		VectorMA(p->org, -scale, pup, cl_curstrisvert[cl_numstrisvert+0].position);
+		VectorMA(p->org, -scale, pright, cl_curstrisvert[cl_numstrisvert+1].position);
+		VectorMA(p->org, scale, pup, cl_curstrisvert[cl_numstrisvert+2].position);
+		VectorMA(p->org, scale, pright, cl_curstrisvert[cl_numstrisvert+3].position);
 	}
 
-	if (cl_numstrisidx+6 > cl_maxstrisidx)
+	if (cl_numstrisidx+6 > cl_maxstrisidx[current_buffer_index])
 		ReallocateIndexBuffer();
 
-	cl_strisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 0;
-	cl_strisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 1;
-	cl_strisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 2;
-	cl_strisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 0;
-	cl_strisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 2;
-	cl_strisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 3;
+	cl_curstrisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 0;
+	cl_curstrisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 1;
+	cl_curstrisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 2;
+	cl_curstrisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 0;
+	cl_curstrisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 2;
+	cl_curstrisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 3;
 
 	cl_numstrisvert += 4;
 
@@ -6201,7 +6302,7 @@ static void PScript_DrawParticleTypes (float pframetime)
 					}
 				}
 
-				if (cl_numstrisvert - scenetri->firstvert >= MAX_INDICIES-6)
+				if (cl_numstrisvert - scenetri->firstvert >= MAX_INDICES-6)
 				{
 					//generate a new mesh if the old one overflowed. yay smc...
 					if (cl_numstris == cl_maxstris)
@@ -6281,7 +6382,7 @@ static void PScript_DrawParticleTypes (float pframetime)
 			{
 				if (scenetri && tdraw)
 				{
-					if (cl_numstrisvert - scenetri->firstvert >= MAX_INDICIES-6)
+					if (cl_numstrisvert - scenetri->firstvert >= MAX_INDICES-6)
 					{
 						//generate a new mesh if the old one overflowed. yay smc...
 						if (cl_numstris == cl_maxstris)
@@ -6614,7 +6715,7 @@ static void PScript_DrawParticleTypes (float pframetime)
 			}
 			if (scenetri && tdraw)
 			{
-				if (cl_numstrisvert - scenetri->firstvert >= MAX_INDICIES-6)
+				if (cl_numstrisvert - scenetri->firstvert >= MAX_INDICES-6)
 				{
 					//generate a new mesh if the old one overflowed. yay smc...
 					if (cl_numstris == cl_maxstris)
@@ -6763,18 +6864,11 @@ endtype:
 			gltexture_t* tex = (tris->beflags & BEF_LINES) ? whitetexture : tris->texture;
 
 			const int num_indices = tris->numidx;
-			uint16_t * indices = (uint16_t*)R_IndexAllocate(num_indices * sizeof(uint16_t), &tris->index_buffer, &tris->index_buffer_offset);
-			memcpy(indices, cl_strisidx + tris->firstidx, num_indices * sizeof(uint16_t));
-
-			const int num_vertices = tris->numvert;
-			const int first_vertex = tris->firstvert;
-			basicvertex_t * vertices = (basicvertex_t*)R_VertexAllocate(num_vertices * sizeof(basicvertex_t), &tris->vertex_buffer, &tris->vertex_buffer_offset);
-			memcpy(vertices, cl_strisvert + tris->firstvert, num_vertices * sizeof(basicvertex_t));
-
-			vulkan_globals.vk_cmd_bind_index_buffer(vulkan_globals.command_buffer, tris->index_buffer, tris->index_buffer_offset, VK_INDEX_TYPE_UINT16);
-			vulkan_globals.vk_cmd_bind_vertex_buffers(vulkan_globals.command_buffer, 0, 1, &tris->vertex_buffer, &tris->vertex_buffer_offset);
+			const VkDeviceSize vertex_buffer_offset = 0;
+			vulkan_globals.vk_cmd_bind_index_buffer(vulkan_globals.command_buffer, index_buffers[current_buffer_index], 0, VK_INDEX_TYPE_UINT16);
+			vulkan_globals.vk_cmd_bind_vertex_buffers(vulkan_globals.command_buffer, 0, 1, &vertex_buffers[current_buffer_index], &vertex_buffer_offset);
 			vulkan_globals.vk_cmd_bind_descriptor_sets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.layout.handle, 0, 1, &tex->descriptor_set, 0, NULL);
-			vulkan_globals.vk_cmd_draw_indexed(vulkan_globals.command_buffer, num_indices, 1, 0, 0, 0);
+			vulkan_globals.vk_cmd_draw_indexed(vulkan_globals.command_buffer, num_indices, 1, tris->firstidx, tris->firstvert, 0);
 		}
 	}
 	R_EndDebugUtilsLabel ();
@@ -6800,9 +6894,12 @@ void PScript_DrawParticles (void)
 		pframetime = 1;
 	oldtime = cl.time;
 
+	current_buffer_index = (current_buffer_index + 1) % 2;
 	cl_numstris = 0;
 	cl_numstrisvert = 0;
 	cl_numstrisidx = 0;
+	cl_curstrisvert = cl_strisvert[current_buffer_index];
+	cl_curstrisidx = cl_strisidx[current_buffer_index];
 
 	if (!r_particles.value)
 		return;
@@ -6842,9 +6939,10 @@ void PScript_DrawParticles_ShowTris (void)
 	{
 		scenetris_t* tris = &cl_stris[i];
 		const int num_indices = tris->numidx;
-		vulkan_globals.vk_cmd_bind_index_buffer(vulkan_globals.command_buffer, tris->index_buffer, tris->index_buffer_offset, VK_INDEX_TYPE_UINT16);
-		vulkan_globals.vk_cmd_bind_vertex_buffers(vulkan_globals.command_buffer, 0, 1, &tris->vertex_buffer, &tris->vertex_buffer_offset);
-		vulkan_globals.vk_cmd_draw_indexed(vulkan_globals.command_buffer, num_indices, 1, 0, 0, 0);
+		const VkDeviceSize vertex_buffer_offset = 0;
+		vulkan_globals.vk_cmd_bind_index_buffer(vulkan_globals.command_buffer, index_buffers[current_buffer_index], 0, VK_INDEX_TYPE_UINT16);
+		vulkan_globals.vk_cmd_bind_vertex_buffers(vulkan_globals.command_buffer, 0, 1, &vertex_buffers[current_buffer_index], &vertex_buffer_offset);
+		vulkan_globals.vk_cmd_draw_indexed(vulkan_globals.command_buffer, num_indices, 1, tris->firstidx, tris->firstvert, 0);
 	}
 }
 
