@@ -6760,6 +6760,7 @@ endtype:
 	if (!cl_numstris)
 		return;
 
+	R_BeginDebugUtilsLabel ("FTE Particles");
 	Fog_DisableGFog ();
 
 	for (o = 0; o < 3; o++)
@@ -6801,6 +6802,7 @@ endtype:
 			vulkan_globals.vk_cmd_draw_indexed(vulkan_globals.command_buffer, num_indices, 1, 0, 0, 0);
 		}
 	}
+	R_EndDebugUtilsLabel ();
 }
 
 /*
