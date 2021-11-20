@@ -132,7 +132,7 @@ typedef struct particle_s
 	#define PScript_ParticleTrail(o,e,t,d,a,s) true
 	#define PScript_EntParticleTrail(o,e,n) true
 	#define PScript_RunParticleEffect(o,d,p,c) true
-	#define PScript_RunParticleWeather(min,max,d,c,p,n) true
+	#define PScript_RunParticleWeather(min,max,d,c,p,n)
 	#define PScript_ClearSurfaceParticles(m)
 	#define PScript_DelinkTrailstate(tsp)
 #endif
