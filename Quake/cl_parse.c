@@ -589,6 +589,8 @@ static void CL_EntitiesDeltaed(void)
 		if (model != ent->model)
 		{
 			ent->model = model;
+			InvalidateTraceLineCache();
+
 		// automatic animation (torches, etc) can be either all together
 		// or randomized
 			if (model)
@@ -682,6 +684,7 @@ static void CLFTE_ParseEntitiesUpdate(void)
 			}
 			ent->update_type = false; //no longer valid
 			ent->model = NULL;
+			InvalidateTraceLineCache();
 			continue;
 		}
 		else if (ent->update_type)
@@ -1295,6 +1298,7 @@ static void CL_ParseUpdate (int bits)
 	if (model != ent->model)
 	{
 		ent->model = model;
+		InvalidateTraceLineCache();
 	// automatic animation (torches, etc) can be either all together
 	// or randomized
 		if (model)
@@ -1543,6 +1547,8 @@ static void CL_ParseStatic (int version) //johnfitz -- added a parameter
 	VectorCopy (ent->baseline.angles, ent->angles);
 	if (ent->model)
 		R_AddEfrags (ent);
+
+	InvalidateTraceLineCache();
 }
 
 /*

@@ -34,10 +34,6 @@ cvar_t	r_fteparticles = {"r_fteparticles","1", CVAR_ARCHIVE};
 #define USE_DECALS
 #define Con_Printf Con_SafePrintf
 
-#ifdef GLQUAKE
-#include "glquake.h"//hack
-#endif
-
 #define frandom() (rand()*(1.0f/RAND_MAX))
 #define crandom() (rand()*(2.0f/RAND_MAX)-1.0f)
 #define hrandom() (rand()*(1.0f/RAND_MAX)-0.5f)
@@ -142,9 +138,7 @@ static int pe_defaulttrail = P_INVALID;
 static float psintable[SINTABLE_ENTRIES];
 static float pcostable[SINTABLE_ENTRIES];
 
-static int trace_line_filter_visframe = -1;
-static int num_trace_line_ents;
-static int trace_line_ents[MAX_EDICTS];
+int r_trace_line_cache_counter;
 
 int PScript_RunParticleEffectState (vec3_t org, vec3_t dir, float count, int typenum, trailstate_t **tsk);
 int PScript_ParticleTrail (vec3_t startpos, vec3_t end, int type, float timeinterval, int dlkey, vec3_t axis[3], trailstate_t **tsk);
@@ -632,7 +626,11 @@ float CL_TraceLine (vec3_t start, vec3_t end, vec3_t impact, vec3_t normal, int 
 	vec3_t relstart, relend;
 	VectorCopy (end, impact);
 	VectorSet(normal, 0, 0, 1);
-	if (trace_line_filter_visframe != r_visframecount)
+
+	static int num_trace_line_ents;
+	static int trace_line_ents[MAX_EDICTS];
+	static int cache_valid_count = -1;
+	if (cache_valid_count != r_trace_line_cache_counter)
 	{
 		num_trace_line_ents = 0;
 		for (i = 0; i < cl.num_entities; i++)
@@ -642,15 +640,14 @@ float CL_TraceLine (vec3_t start, vec3_t end, vec3_t impact, vec3_t normal, int 
 				continue;
 			trace_line_ents[num_trace_line_ents++] = i;
 		}
-		trace_line_filter_visframe = r_visframecount;
+		cache_valid_count = r_trace_line_cache_counter;
 	}
+
 	if (entnum)
 		*entnum = 0;
 	for (i = 0; i < num_trace_line_ents; i++)
 	{
 		ent = &cl.entities[trace_line_ents[i]];
-		if (!ent->model || ent->model->needload || ent->model->type != mod_brush)
-			continue;
 
 		//FIXME: deal with rotations
 		VectorSubtract(start, ent->origin, relstart);

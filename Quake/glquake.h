@@ -125,6 +125,9 @@ typedef struct particle_s
 	void PScript_ClearParticles (void);
 	void PScript_UpdateModelEffects(qmodel_t *mod);
 	void PScript_ClearSurfaceParticles(qmodel_t *mod);	//model is being unloaded.
+
+	extern int r_trace_line_cache_counter;
+	#define InvalidateTraceLineCache() do { ++r_trace_line_cache_counter; } while(0);
 #else
 	#define PScript_RunParticleEffectState(o,d,c,t,s) true
 	#define PScript_RunParticleEffectTypeString(o,d,c,n) true	//just unconditionally returns an error
@@ -135,6 +138,7 @@ typedef struct particle_s
 	#define PScript_RunParticleWeather(min,max,d,c,p,n)
 	#define PScript_ClearSurfaceParticles(m)
 	#define PScript_DelinkTrailstate(tsp)
+	#define InvalidateTraceLineCache()
 #endif
 
 

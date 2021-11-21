@@ -647,6 +647,7 @@ void CL_RelinkEntities (void)
 		{
 			ent->model = NULL;
 			ent->lerpflags |= LERP_RESETMOVE|LERP_RESETANIM; //johnfitz -- next time this entity slot is reused, the lerp will need to be reset
+			InvalidateTraceLineCache();
 			continue;
 		}
 

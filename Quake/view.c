@@ -735,6 +735,7 @@ void V_CalcIntermissionRefdef (void)
 	VectorCopy (ent->origin, r_refdef.vieworg);
 	VectorCopy (ent->angles, r_refdef.viewangles);
 	view->model = NULL;
+	InvalidateTraceLineCache();
 
 // allways idle in intermission
 	old = v_idlescale.value;

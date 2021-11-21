@@ -29,9 +29,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 qmodel_t	*loadmodel;
 char	loadname[32];	// for hunk tags
 
-void Mod_LoadSpriteModel (qmodel_t *mod, void *buffer);
-void Mod_LoadBrushModel (qmodel_t *mod, void *buffer);
-void Mod_LoadAliasModel (qmodel_t *mod, void *buffer);
+static void Mod_LoadSpriteModel (qmodel_t *mod, void *buffer);
+static void Mod_LoadBrushModel (qmodel_t *mod, void *buffer);
+static void Mod_LoadAliasModel (qmodel_t *mod, void *buffer);
 qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash);
 
 cvar_t	external_ents = {"external_ents", "1", CVAR_ARCHIVE};
@@ -228,6 +228,8 @@ void Mod_ClearAll (void)
 			mod->needload = true;
 			TexMgr_FreeTexturesForOwner (mod); //johnfitz
 		}
+
+	InvalidateTraceLineCache();
 }
 
 void Mod_ResetAll (void)
@@ -275,6 +277,7 @@ qmodel_t *Mod_FindName (const char *name)
 		q_strlcpy (mod->name, name, MAX_QPATH);
 		mod->needload = true;
 		mod_numknown++;
+		InvalidateTraceLineCache();
 	}
 
 	return mod;
@@ -323,13 +326,7 @@ qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 			return mod;		// not cached at all
 	}
 
-//
-// because the world is so huge, load it one piece at a time
-//
-	if (!crash)
-	{
-
-	}
+	InvalidateTraceLineCache();
 
 //
 // load the file
@@ -2287,7 +2284,7 @@ static void Mod_LoadLeafsExternal(FILE* f)
 Mod_LoadBrushModel
 =================
 */
-void Mod_LoadBrushModel (qmodel_t *mod, void *buffer)
+static void Mod_LoadBrushModel (qmodel_t *mod, void *buffer)
 {
 	int			i, j;
 	int			bsp2;
@@ -2858,7 +2855,7 @@ void Mod_SetExtraFlags (qmodel_t *mod)
 Mod_LoadAliasModel
 =================
 */
-void Mod_LoadAliasModel (qmodel_t *mod, void *buffer)
+static void Mod_LoadAliasModel (qmodel_t *mod, void *buffer)
 {
 	int					i, j;
 	mdl_t				*pinmodel;
@@ -3119,7 +3116,7 @@ void * Mod_LoadSpriteGroup (void * pin, mspriteframe_t **ppframe, int framenum)
 Mod_LoadSpriteModel
 =================
 */
-void Mod_LoadSpriteModel (qmodel_t *mod, void *buffer)
+static void Mod_LoadSpriteModel (qmodel_t *mod, void *buffer)
 {
 	int					i;
 	int					version;
