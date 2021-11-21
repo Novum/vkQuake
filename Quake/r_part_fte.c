@@ -138,7 +138,7 @@ static int pe_size2 = P_INVALID;
 static int pe_size3 = P_INVALID;
 static int pe_defaulttrail = P_INVALID;
 
-#define SINTABLE_ENTRIES 64
+#define SINTABLE_ENTRIES 128
 static float psintable[SINTABLE_ENTRIES];
 static float pcostable[SINTABLE_ENTRIES];
 
