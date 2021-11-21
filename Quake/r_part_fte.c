@@ -649,6 +649,8 @@ float CL_TraceLine (vec3_t start, vec3_t end, vec3_t impact, vec3_t normal, int 
 	for (i = 0; i < num_trace_line_ents; i++)
 	{
 		ent = &cl.entities[trace_line_ents[i]];
+		if (!ent->model || ent->model->needload || ent->model->type != mod_brush)
+			continue;
 
 		//FIXME: deal with rotations
 		VectorSubtract(start, ent->origin, relstart);
