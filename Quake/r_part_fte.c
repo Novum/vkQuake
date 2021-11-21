@@ -138,7 +138,9 @@ static int pe_size2 = P_INVALID;
 static int pe_size3 = P_INVALID;
 static int pe_defaulttrail = P_INVALID;
 
-static float psintable[256];
+#define SINTABLE_ENTRIES 64
+static float psintable[SINTABLE_ENTRIES];
+static float pcostable[SINTABLE_ENTRIES];
 
 static int trace_line_filter_visframe = -1;
 static int num_trace_line_ents;
@@ -152,11 +154,14 @@ static void R_Particles_KillAllEffects(void);
 static void buildsintable(void)
 {
 	int i;
-	for (i = 0; i < 256; i++)
-		psintable[i] = sin((i*M_PI)/128);
+	for (i = 0; i < SINTABLE_ENTRIES; i++)
+	{
+		psintable[i] = sin((i*M_PI)/(SINTABLE_ENTRIES/2));
+		pcostable[i] = cos((i*M_PI)/(SINTABLE_ENTRIES/2));
+	}
 }
-#define sin(x) (psintable[(int)((x)*(128/M_PI)) & 255])
-#define cos(x) (psintable[((int)((x)*(128/M_PI)) + 64) & 255])
+#define sin(x) (psintable[(int)((x)*((SINTABLE_ENTRIES/2)/M_PI)) % SINTABLE_ENTRIES])
+#define cos(x) (pcostable[(int)((x)*((SINTABLE_ENTRIES/2)/M_PI)) % SINTABLE_ENTRIES])
 
 typedef struct particle_s
 {
