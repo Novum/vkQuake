@@ -411,7 +411,9 @@ byte *Image_LoadPCX (FILE *f, int *width, int *height)
 
 	start = ftell (f); //save start of file (since we might be inside a pak file, SEEK_SET might not be the start of the pcx)
 
-	fread(&pcx, sizeof(pcx), 1, f);
+	if (fread(&pcx, sizeof(pcx), 1, f) != sizeof(pcx))
+		Sys_Error ("'%s' is not a valid PCX file", loadfilename);
+
 	pcx.xmin = (unsigned short)LittleShort (pcx.xmin);
 	pcx.ymin = (unsigned short)LittleShort (pcx.ymin);
 	pcx.xmax = (unsigned short)LittleShort (pcx.xmax);
@@ -434,7 +436,8 @@ byte *Image_LoadPCX (FILE *f, int *width, int *height)
 
 	//load palette
 	fseek (f, start + com_filesize - 768, SEEK_SET);
-	fread (palette, 1, 768, f);
+	if (fread (palette, 1, 768, f) != 768)
+		Sys_Error ("'%s' is not a valid PCX file", loadfilename);
 
 	//back to start of image data
 	fseek (f, start + sizeof(pcx), SEEK_SET);

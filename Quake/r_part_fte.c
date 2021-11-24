@@ -34,9 +34,9 @@ cvar_t	r_fteparticles = {"r_fteparticles","1", CVAR_ARCHIVE};
 #define USE_DECALS
 #define Con_Printf Con_SafePrintf
 
-#define frandom() (rand()*(1.0f/RAND_MAX))
-#define crandom() (rand()*(2.0f/RAND_MAX)-1.0f)
-#define hrandom() (rand()*(1.0f/RAND_MAX)-0.5f)
+#define frandom() (rand()*(1.0f/(float)RAND_MAX))
+#define crandom() (rand()*(2.0f/(float)RAND_MAX)-1.0f)
+#define hrandom() (rand()*(1.0f/(float)RAND_MAX)-0.5f)
 #define particle_s fparticle_s
 #define particle_t fparticle_t
 typedef vec_t	vec2_t[2];
@@ -5561,7 +5561,7 @@ static void ReallocateVertexBuffer()
 	if (err != VK_SUCCESS)
 		Sys_Error("vkBindBufferMemory failed");
 
-	err = vkMapMemory(vulkan_globals.device, vertex_buffers_memory[current_buffer_index], 0, new_size, 0, &cl_curstrisvert);
+	err = vkMapMemory(vulkan_globals.device, vertex_buffers_memory[current_buffer_index], 0, new_size, 0, (void**)&cl_curstrisvert);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkMapMemory failed");
 	cl_strisvert[current_buffer_index] = cl_curstrisvert;
@@ -5623,7 +5623,7 @@ static void ReallocateIndexBuffer()
 	if (err != VK_SUCCESS)
 		Sys_Error("vkBindBufferMemory failed");
 
-	err = vkMapMemory(vulkan_globals.device, index_buffers_memory[current_buffer_index], 0, new_size, 0, &cl_curstrisidx);
+	err = vkMapMemory(vulkan_globals.device, index_buffers_memory[current_buffer_index], 0, new_size, 0, (void**)&cl_curstrisidx);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkMapMemory failed");
 	cl_strisidx[current_buffer_index] = cl_curstrisidx;

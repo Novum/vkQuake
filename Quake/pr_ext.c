@@ -2024,7 +2024,7 @@ static void PF_getsurfacenearpoint(void)
 	float *point;
 
 	vec3_t cpoint = {0,0,0};
-	float bestdist = 0x7fffffff, dist;
+	float bestdist, dist;
 	int bestsurf = -1;
 
 	ent = G_EDICT(OFS_PARM0);
@@ -2079,7 +2079,7 @@ static void PF_getsurfaceclippedpoint(void)
 
 	//all polies, we can skip parts. special case.
 	surf = model->surfaces + model->firstmodelsurface + surfnum;
-	getsurface_clippointpoly(model, surf, point, result, 0x7fffffff);
+	getsurface_clippointpoly(model, surf, point, result, FLT_MAX);
 }
 
 static void PF_getsurfacepointattribute(void)
@@ -3849,11 +3849,6 @@ static void PF_setattachment(void)
 		val->edict = EDICT_TO_PROG(tagent);
 	if ((val = GetEdictFieldValue(ent, qcvm->extfields.tag_index)))
 		val->_float = 0;
-}
-
-static void PF_void_stub(void)
-{
-	G_FLOAT(OFS_RETURN) = 0;
 }
 
 static struct svcustomstat_s *PR_CustomStat(int idx, int type)

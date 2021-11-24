@@ -445,7 +445,7 @@ void Key_Console (int key)
 void Char_Console (int key)
 {
 	size_t		len;
-	char *workline = key_lines[edit_line];
+	char *workline = key_lines[CLAMP(0, edit_line, CMDLINES - 1)];
 
 	if (key_linepos < MAXCMDLINE-1)
 	{

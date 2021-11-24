@@ -24,6 +24,15 @@
 #ifndef __NET_DEFS_H
 #define __NET_DEFS_H
 
+struct qsockaddr_hdr
+{
+#if defined(HAVE_SA_LEN)
+	unsigned char qsa_len;
+	unsigned char qsa_family;
+#else
+	short qsa_family;
+#endif	/* BSD, sockaddr */
+};
 struct qsockaddr
 {
 #if defined(HAVE_SA_LEN)

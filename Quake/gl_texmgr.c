@@ -326,7 +326,8 @@ void TexMgr_LoadPalette (void)
 
 	mark = Hunk_LowMark ();
 	pal = (byte *) Hunk_Alloc (768);
-	fread (pal, 1, 768, f);
+	if (fread (pal, 1, 768, f) != 768)
+		Sys_Error ("Couldn't load gfx/palette.lmp");
 	fclose(f);
 
 	//standard palette, 255 is transparent
@@ -1249,7 +1250,8 @@ void TexMgr_ReloadImage (gltexture_t *glt, int shirt, int pants)
 			size *= lightmap_bytes;
 		}
 		data = (byte *) Hunk_Alloc (size);
-		fread (data, 1, size, f);
+		if (fread (data, 1, size, f) != size)
+			goto invalid;
 		fclose (f);
 	}
 	else if (glt->source_file[0] && !glt->source_offset) {

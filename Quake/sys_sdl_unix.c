@@ -427,7 +427,8 @@ const char *Sys_ConsoleInput (void)
 
 	while (select (1, &set, NULL, NULL, &timeout))
 	{
-		read (0, &c, 1);
+		if (read (0, &c, 1) != 1)
+			return NULL;
 		if (c == '\n' || c == '\r')
 		{
 			con_text[textlen] = '\0';

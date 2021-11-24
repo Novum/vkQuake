@@ -2293,12 +2293,13 @@ static byte *Mod_LoadVisibilityExternal(FILE* f)
 	byte*	visdata;
 
 	filelen = 0;
-	fread(&filelen, 1, 4, f);
+	if (fread(&filelen, 1, 4, f) != 4)
+		return NULL;
 	filelen = LittleLong(filelen);
 	if (filelen <= 0) return NULL;
 	Con_DPrintf("...%d bytes visibility data\n", filelen);
 	visdata = (byte *) Hunk_AllocName(filelen, "EXT_VIS");
-	if (!fread(visdata, filelen, 1, f))
+	if (fread(visdata, filelen, 1, f) != filelen)
 		return NULL;
 	return visdata;
 }
@@ -2309,12 +2310,13 @@ static void Mod_LoadLeafsExternal(FILE* f)
 	void*	in;
 
 	filelen = 0;
-	fread(&filelen, 1, 4, f);
+	if (fread(&filelen, 1, 4, f) != 4)
+		Sys_Error("Invalid leaf");
 	filelen = LittleLong(filelen);
 	if (filelen <= 0) return;
 	Con_DPrintf("...%d bytes leaf data\n", filelen);
 	in = Hunk_AllocName(filelen, "EXT_LEAF");
-	if (!fread(in, filelen, 1, f))
+	if (fread(in, filelen, 1, f) != filelen)
 		return;
 	Mod_ProcessLeafs_S((byte*)in, filelen);
 }
@@ -2729,12 +2731,11 @@ void *Mod_LoadAllSkins (int numskins, byte *pskintype)
 			pinskingroup = pskintype + sizeof(daliasskintype_t);
 			groupskins = ReadLongUnaligned (pinskingroup + offsetof(daliasskingroup_t, numskins));
 			pinskinintervals = pinskingroup + sizeof(daliasskingroup_t);
-
-			pskintype = pinskinintervals + (groupskins * sizeof(daliasskintype_t));
+			skin = pinskinintervals + (groupskins * sizeof(daliasskintype_t));
 
 			for (j=0 ; j<groupskins ; j++)
 			{
-				Mod_FloodFillSkin( skin, pheader->skinwidth, pheader->skinheight );
+				Mod_FloodFillSkin (skin, pheader->skinwidth, pheader->skinheight);
 				if (j == 0) {
 					texels = (byte *) Hunk_AllocName(size, loadname);
 					pheader->texels[i] = texels - (byte *)pheader;
@@ -2743,24 +2744,24 @@ void *Mod_LoadAllSkins (int numskins, byte *pskintype)
 
 				//johnfitz -- rewritten
 				q_snprintf (name, sizeof(name), "%s:frame%i_%i", loadmodel->name, i,j);
-				offset = (src_offset_t)(pskintype) - (src_offset_t)mod_base; //johnfitz
-				if (Mod_CheckFullbrights (pskintype, size))
+				offset = (src_offset_t)(skin) - (src_offset_t)mod_base; //johnfitz
+				if (Mod_CheckFullbrights (skin, size))
 				{
 					pheader->gltextures[i][j&3] = TexMgr_LoadImage (loadmodel, name, pheader->skinwidth, pheader->skinheight,
-						SRC_INDEXED, pskintype, loadmodel->name, offset, texflags | TEXPREF_NOBRIGHT);
+						SRC_INDEXED, skin, loadmodel->name, offset, texflags | TEXPREF_NOBRIGHT);
 					q_snprintf (fbr_mask_name, sizeof(fbr_mask_name), "%s:frame%i_%i_glow", loadmodel->name, i,j);
 					pheader->fbtextures[i][j&3] = TexMgr_LoadImage (loadmodel, fbr_mask_name, pheader->skinwidth, pheader->skinheight,
-						SRC_INDEXED, pskintype, loadmodel->name, offset, texflags | TEXPREF_FULLBRIGHT);
+						SRC_INDEXED, skin, loadmodel->name, offset, texflags | TEXPREF_FULLBRIGHT);
 				}
 				else
 				{
 					pheader->gltextures[i][j&3] = TexMgr_LoadImage (loadmodel, name, pheader->skinwidth, pheader->skinheight,
-						SRC_INDEXED, pskintype, loadmodel->name, offset, texflags);
+						SRC_INDEXED, skin, loadmodel->name, offset, texflags);
 					pheader->fbtextures[i][j&3] = NULL;
 				}
 				//johnfitz
 
-				pskintype += sizeof(daliasskintype_t) + size;
+				skin += sizeof(daliasskintype_t) + size;
 			}
 			k = j;
 			for (/**/; j < 4; j++)

@@ -244,7 +244,7 @@ qpic_t *Draw_PicFromWad2 (const char *name, unsigned int texflags)
 	// load little ones into the scrap
 	if (p->width < 64 && p->height < 64)
 	{
-		int		x, y;
+		int		x = 0, y = 0;
 		int		j, k;
 		int		texnum;
 
