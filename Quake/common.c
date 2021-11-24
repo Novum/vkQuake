@@ -300,9 +300,9 @@ void Q_memset (void *dest, int fill, size_t count)
 	if ( (((uintptr_t)dest | count) & 3) == 0)
 	{
 		count >>= 2;
-		fill = fill | (fill<<8) | (fill<<16) | (fill<<24);
+		uint32_t fill32 = (uint32_t)fill | ((uint32_t)fill<<8) | ((uint32_t)fill<<16) | ((uint32_t)fill<<24);;
 		for (i = 0; i < count; i++)
-			((int *)dest)[i] = fill;
+			((uint32_t *)dest)[i] = fill32;
 	}
 	else
 		for (i = 0; i < count; i++)
@@ -808,7 +808,7 @@ short ShortSwap (short l)
 	b1 = l&255;
 	b2 = (l>>8)&255;
 
-	return (b1<<8) + b2;
+	return ((unsigned short)b1<<8) + b2;
 }
 
 short ShortNoSwap (short l)
@@ -825,7 +825,7 @@ int LongSwap (int l)
 	b3 = (l>>16)&255;
 	b4 = (l>>24)&255;
 
-	return ((int)b1<<24) + ((int)b2<<16) + ((int)b3<<8) + b4;
+	return ((unsigned int)b1<<24) + ((unsigned int)b2<<16) + ((unsigned int)b3<<8) + b4;
 }
 
 int LongNoSwap (int l)
@@ -3262,13 +3262,11 @@ otherwise returns a negative value and leaves the pointer unchanged
 static int LOC_ParseArg (const char **pstr)
 {
 	int arg;
-	const char *start;
 	const char *str = *pstr;
 
 	// opening brace
 	if (*str != '{')
 		return -1;
-	start = ++str;
 
 	// optional index, defaulting to 0
 	arg = 0;
