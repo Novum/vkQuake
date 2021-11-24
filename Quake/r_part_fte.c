@@ -4249,6 +4249,7 @@ int PScript_RunParticleEffectState (vec3_t org, vec3_t dir, float count, int typ
 	particle_t	*p;
 	beamseg_t *b, *bfirst;
 	vec3_t ofsvec, arsvec; // offsetspread vec, areaspread vec
+	vec3_t bestdir;
 
 	float orgadd, veladd;
 	trailstate_t *ts;
@@ -4332,7 +4333,6 @@ int PScript_RunParticleEffectState (vec3_t org, vec3_t dir, float count, int typ
 			vec3_t vec={0.5, 0.5, 0.5};
 			int i;
 			decalctx_t ctx;
-			vec3_t bestdir;
 			vec3_t start, end;
 
 			if (!free_decals)
