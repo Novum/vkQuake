@@ -154,8 +154,8 @@ static void buildsintable(void)
 		pcostable[i] = cos((i*M_PI)/(SINTABLE_ENTRIES/2));
 	}
 }
-#define sin(x) (psintable[(int)((x)*((SINTABLE_ENTRIES/2)/M_PI)) % SINTABLE_ENTRIES])
-#define cos(x) (pcostable[(int)((x)*((SINTABLE_ENTRIES/2)/M_PI)) % SINTABLE_ENTRIES])
+#define sin(x) (psintable[(size_t)(int)((x)*((SINTABLE_ENTRIES/2)/M_PI)) % SINTABLE_ENTRIES])
+#define cos(x) (pcostable[(size_t)(int)((x)*((SINTABLE_ENTRIES/2)/M_PI)) % SINTABLE_ENTRIES])
 
 typedef struct particle_s
 {
@@ -432,7 +432,7 @@ static cvar_t r_part_rain = {"r_part_rain", "1"};
 static cvar_t r_decal_noperpendicular = {"r_decal_noperpendicular", "1"};
 cvar_t r_particledesc = {"r_particledesc", "classic"};
 static cvar_t r_part_rain_quantity = {"r_part_rain_quantity", "1"};
-static cvar_t r_particle_tracelimit = {"r_particle_tracelimit", "0x7fffffff"};
+static cvar_t r_particle_tracelimit = {"r_particle_tracelimit", "16777216"};
 static cvar_t r_part_sparks = {"r_part_sparks", "1"};
 static cvar_t r_part_sparks_trifan = {"r_part_sparks_trifan", "1"};
 static cvar_t r_part_sparks_textured = {"r_part_sparks_textured", "1"};
@@ -1225,7 +1225,7 @@ static void P_LoadTexture(part_type_t *ptype, qboolean warn)
 					for (x = 0;x < PARTICLETEXTURESIZE;x++)
 					{
 						dx = (x - 0.5f*PARTICLETEXTURESIZE) / (PARTICLETEXTURESIZE*0.5f-1);
-						d = 256 * (1 - (dx*dx+dy*dy));
+						d = 255 * (1 - (dx*dx+dy*dy));
 						if (d < 0) d = 0;
 						data[(y*PARTICLETEXTURESIZE+x)*4+3] = (byte) d;
 					}

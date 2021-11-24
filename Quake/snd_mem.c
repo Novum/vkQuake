@@ -74,7 +74,7 @@ static void ResampleSfx (sfx_t *sfx, int inrate, int inwidth, byte *data)
 			if (inwidth == 2)
 				sample = LittleShort ( ((short *)data)[srcsample] );
 			else
-				sample = (int)( (unsigned char)(data[srcsample]) - 128) << 8;
+				sample = (unsigned int)( (unsigned char)(data[srcsample]) - 128) << 8;
 			if (sc->width == 2)
 				((short *)sc->data)[i] = sample;
 			else
@@ -178,20 +178,20 @@ static int	iff_chunk_len;
 
 static short GetLittleShort (void)
 {
-	short val = 0;
+	unsigned short val = 0;
 	val = *data_p;
-	val = val + (*(data_p+1)<<8);
+	val = val + (((unsigned short)(*(data_p+1)))<<8);
 	data_p += 2;
 	return val;
 }
 
 static int GetLittleLong (void)
 {
-	int val = 0;
+	unsigned int val = 0;
 	val = *data_p;
-	val = val + (*(data_p+1)<<8);
-	val = val + (*(data_p+2)<<16);
-	val = val + (*(data_p+3)<<24);
+	val = val + (((unsigned int)(*(data_p+1)))<<8);
+	val = val + (((unsigned int)(*(data_p+2)))<<16);
+	val = val + (((unsigned int)(*(data_p+3)))<<24);
 	data_p += 4;
 	return val;
 }

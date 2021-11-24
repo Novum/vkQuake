@@ -1071,7 +1071,7 @@ int MSG_ReadShort (void)
 
 int MSG_ReadLong (void)
 {
-	int	c;
+	uint32_t c;
 
 	if (msg_readcount+4 > net_message.cursize)
 	{
@@ -1079,10 +1079,10 @@ int MSG_ReadLong (void)
 		return -1;
 	}
 
-	c = net_message.data[msg_readcount]
-			+ (net_message.data[msg_readcount+1]<<8)
-			+ (net_message.data[msg_readcount+2]<<16)
-			+ (net_message.data[msg_readcount+3]<<24);
+	c = (uint32_t)net_message.data[msg_readcount]
+			+ ((uint32_t)(net_message.data[msg_readcount+1])<<8)
+			+ ((uint32_t)(net_message.data[msg_readcount+2])<<16)
+			+ ((uint32_t)(net_message.data[msg_readcount+3])<<24);
 
 	msg_readcount += 4;
 

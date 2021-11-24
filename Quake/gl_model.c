@@ -1665,7 +1665,7 @@ void Mod_CheckWaterVis(void)
 	{
 		byte *vis;
 		if (leaf->contents < 0)	//err... wtf?
-			hascontents |= 1u<<-leaf->contents;
+			hascontents = 0;
 		if (leaf->contents == CONTENTS_WATER)
 		{
 			if ((contenttransparent & (SURF_DRAWWATER|SURF_DRAWTELE))==(SURF_DRAWWATER|SURF_DRAWTELE))

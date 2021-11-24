@@ -42,7 +42,7 @@ void SV_CalcStats(client_t *client, int *statsi, float *statsf, const char **sta
 	size_t i;
 	edict_t *ent = client->edict;
 	//FIXME: string stats!
-	int items = (int)ent->v.items | ((int)pr_global_struct->serverflags << 28);
+	int items = (int)((uint32_t)ent->v.items | ((uint32_t)pr_global_struct->serverflags << 28));
 
 	memset(statsi, 0, sizeof(*statsi)*MAX_CL_STATS);
 	memset(statsf, 0, sizeof(*statsf)*MAX_CL_STATS);

@@ -1788,7 +1788,7 @@ void CL_ParseServerMessage (void)
 			if (cl.items != cl.stats[STAT_ITEMS])
 			{
 				for (i = 0; i < 32; i++)
-					if ( (cl.stats[STAT_ITEMS] & (1<<i)) && !(cl.items & (1<<i)))
+					if ( ((uint32_t)cl.stats[STAT_ITEMS] & (1u<<i)) && !((uint32_t)cl.items & (1u<<i)))
 						cl.item_gettime[i] = cl.time;
 				cl.items = cl.stats[STAT_ITEMS];
 			}
