@@ -59,7 +59,7 @@ int				cl_maxvisedicts;
 entity_t		**cl_visedicts;
 
 extern cvar_t	r_lerpmodels, r_lerpmove; //johnfitz
-extern uint64_t	host_netinterval;	//Spike
+extern float	host_netinterval;	//Spike
 
 #ifdef PSET_SCRIPT
 void CL_ClearTrailStates(void)
