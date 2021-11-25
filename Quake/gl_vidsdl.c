@@ -732,6 +732,10 @@ static void GL_InitDevice( void )
 	int argIndex;
 	int deviceIndex = 0;
 
+#if defined(VK_EXT_subgroup_size_control)
+	qboolean subgroup_size_control = false;
+#endif
+
 	uint32_t physical_device_count;
 	err = vkEnumeratePhysicalDevices(vulkan_instance, &physical_device_count, NULL);
 	if (err != VK_SUCCESS || physical_device_count == 0)
@@ -778,7 +782,6 @@ static void GL_InitDevice( void )
 	uint32_t device_extension_count;
 	err = vkEnumerateDeviceExtensionProperties(vulkan_physical_device, NULL, &device_extension_count, NULL);
 
-	qboolean subgroup_size_control = false;
 	if (err == VK_SUCCESS || device_extension_count > 0)
 	{
 		VkExtensionProperties *device_extensions = (VkExtensionProperties *) malloc(sizeof(VkExtensionProperties) * device_extension_count);
