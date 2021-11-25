@@ -1561,7 +1561,7 @@ void Mod_ProcessLeafs_S (byte *in, int filelen)
 		if (p == -1)
 			out->compressed_vis = NULL;
 		else
-			out->compressed_vis = loadmodel->visdata + p;
+			out->compressed_vis = (loadmodel->visdata != NULL) ? (loadmodel->visdata + p) : NULL;
 		out->efrags = NULL;
 
 		for (j=0 ; j<4 ; j++)
