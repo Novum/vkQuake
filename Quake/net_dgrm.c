@@ -1872,7 +1872,7 @@ static qboolean _Datagram_SearchForHosts (qboolean xmit)
 						else
 							hostcache[n].name[i-1]++;
 
-						i = MAXSIZE_T;
+						i = (size_t)-1;
 					}
 				}
 			}
@@ -1954,7 +1954,7 @@ static qboolean _Datagram_SearchForHosts (qboolean xmit)
 				else
 					hostcache[n].name[i-1]++;
 
-				i = MAXSIZE_T;
+				i = (size_t)-1;
 			}
 		}
 	}
