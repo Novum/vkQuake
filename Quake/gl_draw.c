@@ -247,6 +247,7 @@ qpic_t *Draw_PicFromWad2 (const char *name, unsigned int texflags)
 		int		x = 0, y = 0;
 		int		j, k;
 		int		texnum;
+		byte* data = p->data;
 
 		texnum = Scrap_AllocBlock (p->width, p->height, &x, &y);
 		scrap_dirty = true;
@@ -254,7 +255,7 @@ qpic_t *Draw_PicFromWad2 (const char *name, unsigned int texflags)
 		for (i=0 ; i<p->height ; i++)
 		{
 			for (j=0 ; j<p->width ; j++, k++)
-				scrap_texels[texnum][(y+i)*BLOCK_WIDTH + x + j] = p->data[k];
+				scrap_texels[texnum][(y+i)*BLOCK_WIDTH + x + j] = data[k];
 		}
 		gl.gltexture = scrap_textures[texnum]; //johnfitz -- changed to an array
 		//johnfitz -- no longer go from 0.01 to 0.99

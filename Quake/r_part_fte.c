@@ -4135,6 +4135,7 @@ static void Q1BSP_Fragment_Surface (fragmentdecal_t *dec, msurface_t *surf)
 	int i;
 	vec3_t verts[MAXFRAGMENTVERTS];
 	glpoly_t *poly;
+	float *poly_vert;
 
 	//water and sky should not get decals.
 	if (surf->flags & (SURF_DRAWSKY|SURF_DRAWTURB))
@@ -4146,7 +4147,10 @@ static void Q1BSP_Fragment_Surface (fragmentdecal_t *dec, msurface_t *surf)
 			continue;
 
 		for (i = 0; i < poly->numverts; i++)
-			VectorCopy(poly->verts[i], verts[i]);
+		{
+			poly_vert = &poly->verts[0][0] + (i * VERTEXSIZE);
+			VectorCopy(poly_vert, verts[i]);
+		}
 		Fragment_ClipPoly(dec, i, verts);
 	}
 }

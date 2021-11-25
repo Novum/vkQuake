@@ -577,7 +577,7 @@ static void SVFTE_CalcEntityDeltas(client_t *client)
 	news = snapshot_entstate;
 	newstop = news + snapshot_numents;
 	olds = client->previousentities;
-	oldstop = olds+client->numpreviousentities;
+	oldstop = (olds != NULL) ? (olds+client->numpreviousentities) : NULL;
 
 	//we have two sets of entity state, pvs culled etc already.
 	//figure out which flags changed,
@@ -613,7 +613,7 @@ static void SVFTE_CalcEntityDeltas(client_t *client)
 	//outgoing data can just read off these states too, instead of needing to hit the edicts memory (which may be spread over multiple allocations, yay cache).
 	//to avoid a potentially large memcopy, I'm just going to swap these buffers. 
 	olds = client->previousentities;
-	oldstop = olds + client->maxpreviousentities;
+	oldstop = (olds != NULL) ? (olds + client->maxpreviousentities) : NULL;
 
 	client->previousentities = snapshot_entstate;
 	client->numpreviousentities = snapshot_numents;
@@ -621,7 +621,7 @@ static void SVFTE_CalcEntityDeltas(client_t *client)
 
 	snapshot_entstate = olds;
 	snapshot_numents = 0;
-	snapshot_maxents = oldstop-olds;
+	snapshot_maxents = (olds != NULL) ? (oldstop - olds) : 0;
 }
 static void SVFTE_WriteEntitiesToClient(client_t *client, sizebuf_t *msg, size_t overflowsize)
 {

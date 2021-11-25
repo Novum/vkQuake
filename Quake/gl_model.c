@@ -1169,6 +1169,7 @@ void Mod_PolyForUnlitSurface (msurface_t *fa)
 	int			numverts, i, lindex;
 	float		*vec;
 	glpoly_t	*poly;
+	float 		*poly_vert;
 	float		texscale;
 
 	if (fa->flags & (SURF_DRAWTURB | SURF_DRAWSKY))
@@ -1197,9 +1198,10 @@ void Mod_PolyForUnlitSurface (msurface_t *fa)
 	poly->numverts = numverts;
 	for (i=0, vec=(float *)verts; i<numverts; i++, vec+= 3)
 	{
-		VectorCopy (vec, poly->verts[i]);
-		poly->verts[i][3] = DotProduct(vec, fa->texinfo->vecs[0]) * texscale;
-		poly->verts[i][4] = DotProduct(vec, fa->texinfo->vecs[1]) * texscale;
+		poly_vert = &poly->verts[0][0] + (i * VERTEXSIZE);
+		VectorCopy (vec, poly_vert);
+		poly_vert[3] = DotProduct(vec, fa->texinfo->vecs[0]) * texscale;
+		poly_vert[4] = DotProduct(vec, fa->texinfo->vecs[1]) * texscale;
 	}
 }
 

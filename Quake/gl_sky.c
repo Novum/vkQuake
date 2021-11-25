@@ -587,6 +587,7 @@ void Sky_ProcessPoly (glpoly_t	*p, float color[3])
 {
 	int			i;
 	vec3_t		verts[MAX_CLIP_VERTS];
+	float		*poly_vert;
 
 	//draw it
 	DrawGLPoly(p, color, 1.0f);
@@ -596,7 +597,10 @@ void Sky_ProcessPoly (glpoly_t	*p, float color[3])
 	if (!r_fastsky.value)
 	{
 		for (i=0 ; i<p->numverts ; i++)
-			VectorSubtract (p->verts[i], r_origin, verts[i]);
+		{
+			poly_vert = &p->verts[0][0] + (i * VERTEXSIZE);
+			VectorSubtract (poly_vert, r_origin, verts[i]);
+		}
 		Sky_ClipPoly (p->numverts, verts[0], 0);
 	}
 }
@@ -641,6 +645,8 @@ void Sky_ProcessEntities (float color[3])
 	float		dot;
 	qboolean	rotated;
 	vec3_t		temp, forward, right, up;
+	float		*s_poly_vert;
+	float		*poly_vert;
 
 	if (!r_drawentities.value)
 		return;
@@ -700,7 +706,11 @@ void Sky_ProcessEntities (float color[3])
 														  + s->polys->verts[k][2] * up[2];
 						}
 						else
-							VectorAdd(s->polys->verts[k], e->origin, p->verts[k]);
+						{
+							s_poly_vert = &s->polys->verts[0][0] + (k * VERTEXSIZE);
+							poly_vert = &p->verts[0][0] + (k * VERTEXSIZE);
+							VectorAdd(s_poly_vert, e->origin, poly_vert);
+						}
 					}
 					Sky_ProcessPoly (p, color);
 					Hunk_FreeToLowMark (mark);
