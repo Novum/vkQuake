@@ -100,7 +100,7 @@ void W_LoadWadFile (void) //johnfitz -- filename is now hard-coded for honesty
 		infotableofs = LittleLong(header->infotableofs);
 	}
 	wad_lumps = (lumpinfo_t *)(wad_base + infotableofs);
-	if (infotableofs < 0 || infotableofs+wad_numlumps*sizeof(lumpinfo_t)>com_filesize)
+	if (infotableofs < 0 || infotableofs+wad_numlumps*sizeof(lumpinfo_t)>(size_t)com_filesize)
 	{
 		Con_Printf ("Wad file %s header extends beyond end of file\n",filename);
 		wad_numlumps = 0;
