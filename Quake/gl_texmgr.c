@@ -133,32 +133,6 @@ static void TexMgr_Imagelist_f (void)
 }
 
 /*
-===============
-TexMgr_FrameUsage -- report texture memory usage for this frame
-===============
-*/
-float TexMgr_FrameUsage (void)
-{
-	float mb;
-	float texels = 0;
-	gltexture_t	*glt;
-
-	for (glt = active_gltextures; glt; glt = glt->next)
-	{
-		if (glt->visframe == r_framecount)
-		{
-			if (glt->flags & TEXPREF_MIPMAP)
-				texels += glt->width * glt->height * 4.0f / 3.0f;
-			else
-				texels += (glt->width * glt->height);
-		}
-	}
-
-	mb = (texels * 4) / 0x100000;
-	return mb;
-}
-
-/*
 ================================================================================
 
 	TEXTURE MANAGER

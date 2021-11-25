@@ -73,7 +73,6 @@ typedef struct gltexture_s {
 	VkDescriptorSet		descriptor_set;
 	VkFramebuffer		frame_buffer;
 	VkDescriptorSet		warp_write_descriptor_set;
-	int			visframe; //matches r_framecount if texture was bound this frame
 } gltexture_t;
 
 extern gltexture_t *notexture;
@@ -90,7 +89,6 @@ extern unsigned int d_8to24table_pants[256];
 
 // TEXTURE MANAGER
 
-float TexMgr_FrameUsage (void);
 gltexture_t *TexMgr_FindTexture (qmodel_t *owner, const char *name);
 gltexture_t *TexMgr_NewTexture (void);
 void TexMgr_FreeTexture (gltexture_t *kill);

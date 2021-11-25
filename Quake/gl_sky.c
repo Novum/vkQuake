@@ -31,8 +31,8 @@ float Fog_GetDensity(void);
 float *Fog_GetColor(void);
 
 extern	qmodel_t	*loadmodel;
-extern	int	rs_skypolys; //for r_speeds readout
-extern	int rs_skypasses; //for r_speeds readout
+extern	unsigned int	rs_skypolys; //for r_speeds readout
+extern	unsigned int rs_skypasses; //for r_speeds readout
 float	skyflatcolor[3];
 float	skymins[2][6], skymaxs[2][6];
 

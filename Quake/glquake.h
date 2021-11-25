@@ -346,8 +346,8 @@ extern	cvar_t	gl_subdivide_size;
 #define OFFSET_DECAL 1
 
 //johnfitz -- rendering statistics
-extern int rs_brushpolys, rs_aliaspolys, rs_skypolys, rs_particles, rs_fogpolys;
-extern int rs_dynamiclightmaps, rs_brushpasses, rs_aliaspasses, rs_skypasses;
+extern unsigned int rs_brushpolys, rs_aliaspolys, rs_skypolys, rs_particles, rs_fogpolys;
+extern unsigned int rs_dynamiclightmaps, rs_brushpasses, rs_aliaspasses, rs_skypasses;
 extern float rs_megatexels;
 
 //johnfitz -- track developer statistics that vary every frame
