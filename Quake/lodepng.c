@@ -627,7 +627,7 @@ static unsigned HuffmanTree_makeTable(HuffmanTree* tree) {
   size = headsize;
   for(i = 0; i < headsize; ++i) {
     unsigned l = maxlens[i];
-    if(l > FIRSTBITS) size += (1u << (l - FIRSTBITS));
+    if(l > FIRSTBITS) size += (1ull << (l - FIRSTBITS));
   }
   tree->table_len = (unsigned*)lodepng_malloc(size * sizeof(unsigned));
   tree->table_value = (unsigned*)lodepng_malloc(size * sizeof(unsigned));
@@ -645,7 +645,7 @@ static unsigned HuffmanTree_makeTable(HuffmanTree* tree) {
     if(l <= FIRSTBITS) continue;
     tree->table_len[i] = l;
     tree->table_value[i] = pointer;
-    pointer += (1u << (l - FIRSTBITS));
+    pointer += (1ull << (l - FIRSTBITS));
   }
   lodepng_free(maxlens);
 

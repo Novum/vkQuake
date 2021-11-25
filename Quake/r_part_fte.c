@@ -1900,25 +1900,25 @@ parsefluid:
 				ptype->fluidmask = 0;
 				while (i --> 1)
 				{
-					const char *value = Cmd_Argv(i);
-					if (!strcmp(value, "water"))
+					const char *value_i = Cmd_Argv(i);
+					if (!strcmp(value_i, "water"))
 						ptype->fluidmask |= FTECONTENTS_WATER;
-					else if (!strcmp(value, "slime"))
+					else if (!strcmp(value_i, "slime"))
 						ptype->fluidmask |= FTECONTENTS_SLIME;
-					else if (!strcmp(value, "lava"))
+					else if (!strcmp(value_i, "lava"))
 						ptype->fluidmask |= FTECONTENTS_LAVA;
-					else if (!strcmp(value, "sky"))
+					else if (!strcmp(value_i, "sky"))
 						ptype->fluidmask |= FTECONTENTS_SKY;
-					else if (!strcmp(value, "fluid"))
+					else if (!strcmp(value_i, "fluid"))
 						ptype->fluidmask |= FTECONTENTS_FLUID;
-					else if (!strcmp(value, "solid"))
+					else if (!strcmp(value_i, "solid"))
 						ptype->fluidmask |= FTECONTENTS_SOLID;
-					else if (!strcmp(value, "playerclip"))
+					else if (!strcmp(value_i, "playerclip"))
 						ptype->fluidmask |= FTECONTENTS_PLAYERCLIP;
-					else if (!strcmp(value, "none"))
+					else if (!strcmp(value_i, "none"))
 						ptype->fluidmask |= 0;
 					else
-						Con_Printf("%s.%s: unknown contents: %s\n", ptype->config, ptype->name, value);
+						Con_Printf("%s.%s: unknown contents: %s\n", ptype->config, ptype->name, value_i);
 				}
 			}
 		}
@@ -2767,7 +2767,7 @@ static void P_ImportEffectInfo(const char *config, char *line, qboolean part_par
 	{
 		int i;
 		char *file;
-		const char *line;
+		const char *font_line;
 		char linebuf[1024];
 		//default assumes 8*8 grid, but we allow more
 		for (i = 0; i < 256; i++)
@@ -2785,17 +2785,17 @@ static void P_ImportEffectInfo(const char *config, char *line, qboolean part_par
 			while (PScript_ReadLine(linebuf, sizeof(linebuf), file, com_filesize, &offset))
 			{
 				float s1,s2,t1,t2;
-				line = COM_Parse(linebuf);
+				font_line = COM_Parse(linebuf);
 				i = atoi(com_token);
-				line = COM_Parse(line);
+				font_line = COM_Parse(font_line);
 				s1 = atof(com_token);
-				line = COM_Parse(line);
+				font_line = COM_Parse(font_line);
 				t1 = atof(com_token);
-				line = COM_Parse(line);
+				font_line = COM_Parse(font_line);
 				s2 = atof(com_token);
-				line = COM_Parse(line);
+				font_line = COM_Parse(font_line);
 				t2 = atof(com_token);
-				if (line)
+				if (font_line)
 				{
 					teximages[i][0] = s1;
 					teximages[i][1] = s2;
@@ -4244,6 +4244,8 @@ static void Mod_ClipDecal(qmodel_t *mod, vec3_t center, vec3_t normal, vec3_t ta
 }
 #endif
 
+void PerpendicularVector( vec3_t dst, const vec3_t src );
+
 int PScript_RunParticleEffectState (vec3_t org, vec3_t dir, float count, int typenum, trailstate_t **tsk)
 {
 	part_type_t *ptype = &part_type[typenum];
@@ -4321,7 +4323,6 @@ int PScript_RunParticleEffectState (vec3_t org, vec3_t dir, float count, int typ
 
 		if (dir && (dir[0] || dir[1] || dir[2]))
 		{
-			void PerpendicularVector( vec3_t dst, const vec3_t src );
 			VectorCopy(dir, axis[2]);
 			VectorNormalize(axis[2]);
 			PerpendicularVector(axis[0], axis[2]);
@@ -4335,7 +4336,7 @@ int PScript_RunParticleEffectState (vec3_t org, vec3_t dir, float count, int typ
 		{
 #ifdef USE_DECALS
 			vec3_t vec={0.5, 0.5, 0.5};
-			int i;
+			int n;
 			decalctx_t ctx;
 			vec3_t start, end;
 
@@ -4355,19 +4356,19 @@ int PScript_RunParticleEffectState (vec3_t org, vec3_t dir, float count, int typ
 				bestdir[1] = 0.73;
 				bestdir[2] = 0.73;
 				VectorNormalize(bestdir);
-				for (i = 0; i < 6; i++)
+				for (n = 0; n < 6; n++)
 				{
-					if (i >= 3)
+					if (n >= 3)
 					{
-						end[0] = (i==3)*16;
-						end[1] = (i==4)*16;
-						end[2] = (i==5)*16;
+						end[0] = (n==3)*16;
+						end[1] = (n==4)*16;
+						end[2] = (n==5)*16;
 					}
 					else
 					{
-						end[0] = -(i==0)*16;
-						end[1] = -(i==1)*16;
-						end[2] = -(i==2)*16;
+						end[0] = -(n==0)*16;
+						end[1] = -(n==1)*16;
+						end[2] = -(n==2)*16;
 					}
 					VectorSubtract(org, end, start);
 					VectorAdd(org, end, end);
@@ -6169,22 +6170,22 @@ static void PScript_DrawParticleTypes (float pframetime)
 
 	if (r_plooksdirty)
 	{
-		int i, j;
+		int j, k;
 
 		pe_default			= PScript_FindParticleType("PE_DEFAULT");
 		pe_size2			= PScript_FindParticleType("PE_SIZE2");
 		pe_size3			= PScript_FindParticleType("PE_SIZE3");
 		pe_defaulttrail		= PScript_FindParticleType("PE_DEFAULTTRAIL");
 
-		for (i = 0; i < numparticletypes; i++)
+		for (j = 0; j < numparticletypes; j++)
 		{
 			//set the fallback
-			part_type[i].slooks = &part_type[i].looks;
-			for (j = i-1; j-- > 0;)
+			part_type[j].slooks = &part_type[j].looks;
+			for (k = j-1; k-- > 0;)
 			{
-				if (!memcmp(&part_type[i].looks, &part_type[j].looks, sizeof(plooks_t)))
+				if (!memcmp(&part_type[j].looks, &part_type[k].looks, sizeof(plooks_t)))
 				{
-					part_type[i].slooks = part_type[j].slooks;
+					part_type[j].slooks = part_type[k].slooks;
 					break;
 				}
 			}

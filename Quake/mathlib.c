@@ -97,22 +97,22 @@ void RotatePointAroundVector( vec3_t dst, const vec3_t dir, const vec3_t point, 
 	float	tmpmat[3][3];
 	float	rot[3][3];
 	int	i;
-	vec3_t vr, vup, vf;
+	vec3_t vr, vu, vf;
 
 	vf[0] = dir[0];
 	vf[1] = dir[1];
 	vf[2] = dir[2];
 
 	PerpendicularVector( vr, dir );
-	CrossProduct( vr, vf, vup );
+	CrossProduct( vr, vf, vu );
 
 	m[0][0] = vr[0];
 	m[1][0] = vr[1];
 	m[2][0] = vr[2];
 
-	m[0][1] = vup[0];
-	m[1][1] = vup[1];
-	m[2][1] = vup[2];
+	m[0][1] = vu[0];
+	m[1][1] = vu[1];
+	m[2][1] = vu[2];
 
 	m[0][2] = vf[0];
 	m[1][2] = vf[1];

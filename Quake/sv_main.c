@@ -1346,8 +1346,8 @@ void SV_SendServerinfo (client_t *client)
 	}
 	if (client->limit_entities > 0x8000 && !(client->protocol_pext2 & PEXT2_REPLACEMENTDELTAS))
 		client->limit_entities = 0x8000;	//pext2 changes the encoding of entities to support 23 bits instead of dpp7's 15bits or vanilla's 16bits, but our writeentity is lazy.
-	if (client->limit_entities > qcvm->max_edicts)
-		client->limit_entities = qcvm->max_edicts;
+	if (client->limit_entities > (unsigned int)qcvm->max_edicts)
+		client->limit_entities = (unsigned int)qcvm->max_edicts;
 
 
 	//unfortunately we can't split this up, so if its oversized, we'll just let the client complain instead of always kicking them
@@ -2316,22 +2316,6 @@ void SV_SendNop (client_t *client)
 qboolean SV_SendPrespawnModelPrecaches(void)
 {
 	return false;
-	size_t maxsize = host_client->message.maxsize;	//we can go quite large
-	unsigned int idx = host_client->signon_models;
-	if (!host_client->protocol_pext2)
-		return false;	//unsupported by this client.
-	for (;idx < host_client->limit_models;idx++)
-	{
-		if (!sv.model_precache[idx])
-			continue;
-		if (host_client->message.cursize + 4+strlen(sv.model_precache[idx]) > maxsize)
-			break;
-		MSG_WriteByte(&host_client->message, svcdp_precache);
-		MSG_WriteShort(&host_client->message, 0x0000 | idx);
-		MSG_WriteString(&host_client->message, sv.model_precache[idx]);
-	}
-	host_client->signon_models = idx;
-	return idx < host_client->limit_models;
 }
 qboolean SV_SendPrespawnSoundPrecaches(void)
 {
@@ -2343,7 +2327,7 @@ qboolean SV_SendPrespawnSoundPrecaches(void)
 	{
 		if (!sv.sound_precache[idx])
 			continue;
-		if (host_client->message.cursize + 4+strlen(sv.sound_precache[idx]) > maxsize)
+		if ((size_t)host_client->message.cursize + 4+strlen(sv.sound_precache[idx]) > maxsize)
 			break;
 		MSG_WriteByte(&host_client->message, svcdp_precache);
 		MSG_WriteShort(&host_client->message, 0x8000 | idx);

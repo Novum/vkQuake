@@ -2535,7 +2535,7 @@ void R_DestroyPipelines(void)
 	vkDestroyPipeline(vulkan_globals.device, vulkan_globals.particle_pipeline.handle, NULL);
 	vulkan_globals.particle_pipeline.handle = VK_NULL_HANDLE;
 #ifdef PSET_SCRIPT
-	for (int i = 0; i < 8; ++i)
+	for (i = 0; i < 8; ++i)
 	{
 		vkDestroyPipeline(vulkan_globals.device, vulkan_globals.fte_particle_pipelines[i].handle, NULL);
 		vulkan_globals.fte_particle_pipelines[i].handle = VK_NULL_HANDLE;

@@ -77,11 +77,12 @@ R_MarkLights -- johnfitz -- rewritten to use LordHavoc's lighting speedup
 */
 void R_MarkLights (dlight_t *light, int num, mnode_t *node)
 {
-	mplane_t	*splitplane;
-	msurface_t	*surf;
-	vec3_t		impact;
-	float		dist, l, maxdist;
-	int			i, j, s, t;
+	mplane_t		*splitplane;
+	msurface_t		*surf;
+	vec3_t			impact;
+	float			dist, l, maxdist;
+	unsigned int	i;
+	int				j, s, t;
 
 start:
 
@@ -216,7 +217,8 @@ loc0:
 		return true;	// hit something
 	else
 	{
-		int i, ds, dt;
+		unsigned int i;
+		int ds, dt;
 		msurface_t *surf;
 	// check for impact on this node
 		VectorCopy (mid, lightspot);

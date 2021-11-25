@@ -39,18 +39,18 @@ static void Snd_WriteLinearBlastStereo16 (void)
 	for (i = 0; i < snd_linear_count; i += 2)
 	{
 		val = snd_p[i] / 256;
-		if (val > 0x7fff)
-			snd_out[i] = 0x7fff;
-		else if (val < (short)0x8000)
-			snd_out[i] = (short)0x8000;
+		if (val > SHRT_MAX)
+			snd_out[i] = SHRT_MAX;
+		else if (val < SHRT_MIN)
+			snd_out[i] = SHRT_MIN;
 		else
 			snd_out[i] = val;
 
 		val = snd_p[i+1] / 256;
-		if (val > 0x7fff)
-			snd_out[i+1] = 0x7fff;
-		else if (val < (short)0x8000)
-			snd_out[i+1] = (short)0x8000;
+		if (val > SHRT_MAX)
+			snd_out[i+1] = SHRT_MAX;
+		else if (val < SHRT_MIN)
+			snd_out[i+1] = SHRT_MIN;
 		else
 			snd_out[i+1] = val;
 	}
@@ -110,10 +110,10 @@ static void S_TransferPaintBuffer (int endtime)
 		{
 			val = *p / 256;
 			p+= step;
-			if (val > 0x7fff)
-				val = 0x7fff;
-			else if (val < (short)0x8000)
-				val = (short)0x8000;
+			if (val > SHRT_MAX)
+				val = SHRT_MAX;
+			else if (val < SHRT_MIN)
+				val = SHRT_MIN;
 			out[out_idx] = val;
 			out_idx = (out_idx + 1) & out_mask;
 		}
@@ -125,10 +125,10 @@ static void S_TransferPaintBuffer (int endtime)
 		{
 			val = *p / 256;
 			p+= step;
-			if (val > 0x7fff)
-				val = 0x7fff;
-			else if (val < (short)0x8000)
-				val = (short)0x8000;
+			if (val > SHRT_MAX)
+				val = SHRT_MAX;
+			else if (val < SHRT_MIN)
+				val = SHRT_MIN;
 			out[out_idx] = (val / 256) + 128;
 			out_idx = (out_idx + 1) & out_mask;
 		}
@@ -140,10 +140,10 @@ static void S_TransferPaintBuffer (int endtime)
 		{
 			val = *p / 256;
 			p+= step;
-			if (val > 0x7fff)
-				val = 0x7fff;
-			else if (val < (short)0x8000)
-				val = (short)0x8000;
+			if (val > SHRT_MAX)
+				val = SHRT_MAX;
+			else if (val < SHRT_MIN)
+				val = SHRT_MIN;
 			out[out_idx] = (val / 256);
 			out_idx = (out_idx + 1) & out_mask;
 		}

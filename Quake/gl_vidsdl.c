@@ -628,7 +628,7 @@ static void GL_InitInstance( void )
 	}
 
 	vulkan_globals.vulkan_1_1_available = false;
-	fpGetInstanceProcAddr = SDL_Vulkan_GetVkGetInstanceProcAddr();
+	fpGetInstanceProcAddr = (PFN_vkGetInstanceProcAddr)SDL_Vulkan_GetVkGetInstanceProcAddr();
 	GET_INSTANCE_PROC_ADDR(EnumerateInstanceVersion);
 	if (fpEnumerateInstanceVersion)
 	{
@@ -850,8 +850,11 @@ static void GL_InitDevice( void )
 
 #if defined(VK_EXT_subgroup_size_control)
 	VkPhysicalDeviceSubgroupProperties physical_device_subgroup_properties;
+	memset(&physical_device_subgroup_properties, 0, sizeof(physical_device_subgroup_properties));
 	VkPhysicalDeviceSubgroupSizeControlPropertiesEXT physical_device_subgroup_size_control_properties;
+	memset(&physical_device_subgroup_size_control_properties, 0, sizeof(physical_device_subgroup_size_control_properties));
 	VkPhysicalDeviceSubgroupSizeControlFeaturesEXT subgroup_size_control_features;
+	memset(&subgroup_size_control_features, 0, sizeof(subgroup_size_control_features));
 	if (vulkan_globals.vulkan_1_1_available && subgroup_size_control)
 	{
 		memset(&physical_device_subgroup_size_control_properties, 0, sizeof(physical_device_subgroup_size_control_properties));
