@@ -2895,7 +2895,7 @@ void Mod_SetExtraFlags (qmodel_t *mod)
 Mod_LoadAliasModel
 =================
 */
-static void Mod_LoadAliasModel (qmodel_t *mod, byte *buffer)
+static void Mod_LoadAliasModel (qmodel_t *mod, void *buffer)
 {
 	int					i, j;
 	byte			*pinstverts;
@@ -2910,7 +2910,7 @@ static void Mod_LoadAliasModel (qmodel_t *mod, byte *buffer)
 
 	mod_base = (byte *)buffer; //johnfitz
 
-	version = ReadLongUnaligned (buffer + offsetof(mdl_t, version));
+	version = ReadLongUnaligned (mod_base + offsetof(mdl_t, version));
 	if (version != ALIAS_VERSION)
 		Sys_Error ("%s has wrong version number (%i should be %i)",
 				 mod->name, version, ALIAS_VERSION);
@@ -2920,24 +2920,24 @@ static void Mod_LoadAliasModel (qmodel_t *mod, byte *buffer)
 // skin and group info
 //
 	size	= sizeof(aliashdr_t) +
-		 (ReadLongUnaligned (buffer + offsetof(mdl_t, numframes)) - 1) * sizeof (pheader->frames[0]);
+		 (ReadLongUnaligned (mod_base + offsetof(mdl_t, numframes)) - 1) * sizeof (pheader->frames[0]);
 	pheader = (aliashdr_t *) Hunk_AllocName (size, loadname);
 
-	mod->flags = ReadLongUnaligned (buffer + offsetof(mdl_t, flags));
+	mod->flags = ReadLongUnaligned (mod_base + offsetof(mdl_t, flags));
 
 //
 // endian-adjust and copy the data, starting with the alias model header
 //
-	pheader->boundingradius = ReadLongUnaligned (buffer + offsetof(mdl_t, boundingradius));
-	pheader->numskins = ReadLongUnaligned (buffer + offsetof(mdl_t, numskins));
-	pheader->skinwidth = ReadLongUnaligned (buffer + offsetof(mdl_t, skinwidth));
-	pheader->skinheight = ReadLongUnaligned (buffer + offsetof(mdl_t, skinheight));
+	pheader->boundingradius = ReadLongUnaligned (mod_base + offsetof(mdl_t, boundingradius));
+	pheader->numskins = ReadLongUnaligned (mod_base + offsetof(mdl_t, numskins));
+	pheader->skinwidth = ReadLongUnaligned (mod_base + offsetof(mdl_t, skinwidth));
+	pheader->skinheight = ReadLongUnaligned (mod_base + offsetof(mdl_t, skinheight));
 
 	if (pheader->skinheight > MAX_LBM_HEIGHT)
 		Con_DWarning ("model %s has a skin taller than %d", mod->name,
 				   MAX_LBM_HEIGHT);
 
-	pheader->numverts = ReadLongUnaligned (buffer + offsetof(mdl_t, numverts));
+	pheader->numverts = ReadLongUnaligned (mod_base + offsetof(mdl_t, numverts));
 
 	if (pheader->numverts <= 0)
 		Sys_Error ("model %s has no vertices", mod->name);
@@ -2945,7 +2945,7 @@ static void Mod_LoadAliasModel (qmodel_t *mod, byte *buffer)
 	if (pheader->numverts > MAXALIASVERTS)
 		Sys_Error ("model %s has too many vertices (%d; max = %d)", mod->name, pheader->numverts, MAXALIASVERTS);
 
-	pheader->numtris = ReadLongUnaligned (buffer + offsetof(mdl_t, numtris));
+	pheader->numtris = ReadLongUnaligned (mod_base + offsetof(mdl_t, numtris));
 
 	if (pheader->numtris <= 0)
 		Sys_Error ("model %s has no triangles", mod->name);
@@ -2953,27 +2953,27 @@ static void Mod_LoadAliasModel (qmodel_t *mod, byte *buffer)
 	if (pheader->numtris > MAXALIASTRIS)
 		Sys_Error ("model %s has too many triangles (%d; max = %d)", mod->name, pheader->numtris, MAXALIASTRIS);
 
-	pheader->numframes = ReadLongUnaligned (buffer + offsetof(mdl_t, numframes));
+	pheader->numframes = ReadLongUnaligned (mod_base + offsetof(mdl_t, numframes));
 	numframes = pheader->numframes;
 	if (numframes < 1)
 		Sys_Error ("Mod_LoadAliasModel: Invalid # of frames: %d\n", numframes);
 
-	pheader->size = ReadFloatUnaligned (buffer + offsetof(mdl_t, size)) * ALIAS_BASE_SIZE_RATIO;
-	mod->synctype = (synctype_t) ReadLongUnaligned (buffer + offsetof(mdl_t, synctype));
+	pheader->size = ReadFloatUnaligned (mod_base + offsetof(mdl_t, size)) * ALIAS_BASE_SIZE_RATIO;
+	mod->synctype = (synctype_t) ReadLongUnaligned (mod_base + offsetof(mdl_t, synctype));
 	mod->numframes = pheader->numframes;
 
 	for (i=0 ; i<3 ; i++)
 	{
-		pheader->scale[i] = ReadFloatUnaligned (buffer + offsetof(mdl_t, scale[i]));
-		pheader->scale_origin[i] = ReadFloatUnaligned (buffer + offsetof(mdl_t, scale_origin[i]));
-		pheader->eyeposition[i] = ReadFloatUnaligned (buffer + offsetof(mdl_t, eyeposition[i]));
+		pheader->scale[i] = ReadFloatUnaligned (mod_base + offsetof(mdl_t, scale[i]));
+		pheader->scale_origin[i] = ReadFloatUnaligned (mod_base + offsetof(mdl_t, scale_origin[i]));
+		pheader->eyeposition[i] = ReadFloatUnaligned (mod_base + offsetof(mdl_t, eyeposition[i]));
 	}
 
 
 //
 // load the skins
 //
-	pskintype = buffer + sizeof(mdl_t);
+	pskintype = mod_base + sizeof(mdl_t);
 	pskintype = Mod_LoadAllSkins (pheader->numskins, pskintype);
 
 //
