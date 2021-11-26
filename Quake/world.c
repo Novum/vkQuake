@@ -421,7 +421,7 @@ SV_LinkEdict
 void SV_LinkEdict (edict_t *ent, qboolean touch_triggers)
 {
 	areanode_t	*node;
-	int what = NUM_FOR_EDICT(ent);
+	
 	if (ent->area.prev)
 		SV_UnlinkEdict (ent);	// unlink from old position
 
@@ -434,6 +434,7 @@ void SV_LinkEdict (edict_t *ent, qboolean touch_triggers)
 // set the abs box
 	if (ent->v.solid == SOLID_BSP && (!IsOrthogonalDeg(ent->v.angles)) && pr_checkextension.value)
 	{	// expand for rotation the lame way. hopefully there's an origin brush in there.
+		// this breaks when the origin lies outside of mins/maxs
 		int i;
 		float v1,v2;
 		vec3_t max;
