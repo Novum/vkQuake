@@ -2733,7 +2733,7 @@ void *Mod_LoadAllSkins (int numskins, byte *pskintype)
 			pinskingroup = pskintype + sizeof(daliasskintype_t);
 			groupskins = ReadLongUnaligned (pinskingroup + offsetof(daliasskingroup_t, numskins));
 			pinskinintervals = pinskingroup + sizeof(daliasskingroup_t);
-			skin = pinskinintervals + (groupskins * sizeof(daliasskintype_t));
+			skin = pinskinintervals + (groupskins * sizeof(daliasskininterval_t));
 
 			for (j=0 ; j<groupskins ; j++)
 			{
@@ -2741,7 +2741,7 @@ void *Mod_LoadAllSkins (int numskins, byte *pskintype)
 				if (j == 0) {
 					texels = (byte *) Hunk_AllocName(size, loadname);
 					pheader->texels[i] = texels - (byte *)pheader;
-					memcpy (texels, pskintype, size);
+					memcpy (texels, skin, size);
 				}
 
 				//johnfitz -- rewritten
@@ -2763,11 +2763,13 @@ void *Mod_LoadAllSkins (int numskins, byte *pskintype)
 				}
 				//johnfitz
 
-				skin += sizeof(daliasskintype_t) + size;
+				skin += size;
 			}
 			k = j;
 			for (/**/; j < 4; j++)
 				pheader->gltextures[i][j&3] = pheader->gltextures[i][j - k];
+
+			pskintype = skin;
 		}
 	}
 
