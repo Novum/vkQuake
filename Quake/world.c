@@ -432,9 +432,11 @@ void SV_LinkEdict (edict_t *ent, qboolean touch_triggers)
 		return;
 
 // set the abs box
-	if (ent->v.solid == SOLID_BSP && (!IsOrthogonalDeg(ent->v.angles)) && pr_checkextension.value)
+	if (ent->v.solid == SOLID_BSP
+		&& pr_checkextension.value
+		&& IsOriginWithinMinMax(ent->v.origin, ent->v.mins, ent->v.maxs)
+		&& !IsOrthogonalDeg(ent->v.angles))
 	{	// expand for rotation the lame way. hopefully there's an origin brush in there.
-		// this breaks when the origin lies outside of mins/maxs
 		int i;
 		float v1,v2;
 		vec3_t max;

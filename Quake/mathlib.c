@@ -725,6 +725,15 @@ void IdentityMatrix(float matrix[16])
 	matrix[3*4 + 3] = 1.0f;
 }
 
+qboolean IsOriginWithinMinMax(vec3_t origin, vec3_t mins, vec3_t maxs){
+	return origin[0] > mins[0]
+		&& origin[1] > mins[1]
+		&& origin[2] > mins[2]
+		&& origin[0] < maxs[0]
+		&& origin[1] < maxs[1]
+		&& origin[2] < maxs[2];
+}
+
 //is angle (in degrees) within an arcsec of a mulitple of 90 degrees (ignoring gimbal lock)
 qboolean IsOrthogonalDeg(vec3_t angle){
 	int remainder[3] = {
