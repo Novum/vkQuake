@@ -59,7 +59,28 @@ int				cl_maxvisedicts;
 entity_t		**cl_visedicts;
 
 extern cvar_t	r_lerpmodels, r_lerpmove; //johnfitz
-extern uint64_t	host_netinterval;	//Spike
+extern float	host_netinterval;	//Spike
+
+#ifdef PSET_SCRIPT
+void CL_ClearTrailStates(void)
+{
+	int i;
+	for (i = 0; i < cl.num_statics; i++)
+	{
+		PScript_DelinkTrailstate(&(cl.static_entities[i]->trailstate));
+		PScript_DelinkTrailstate(&(cl.static_entities[i]->emitstate));
+	}
+	for (i = 0; i < cl.max_edicts; i++)
+	{
+		PScript_DelinkTrailstate(&(cl.entities[i].trailstate));
+		PScript_DelinkTrailstate(&(cl.entities[i].emitstate));
+	}
+	for (i = 0; i < MAX_BEAMS; i++)
+	{
+		PScript_DelinkTrailstate(&(cl_beams[i].trailstate));
+	}
+}
+#endif
 
 void CL_FreeState(void)
 {
@@ -99,6 +120,9 @@ void CL_ClearState (void)
 	//johnfitz
 
 	//Spike -- this stuff needs to get reset to defaults.
+#ifdef PSET_SCRIPT
+	PScript_Shutdown();
+#endif
 }
 
 /*
@@ -605,7 +629,8 @@ void CL_RelinkEntities (void)
 	bobjrotate = anglemod(100*cl.time);
 
 // start on the entity after the world
-	for (i=1,ent=cl.entities+1 ; i<cl.num_entities ; i++,ent++)
+	ent = (cl.entities != NULL) ? (cl.entities + 1) : NULL;
+	for (i=1; i<cl.num_entities ; i++,ent++)
 	{
 		if (!ent->model)
 		{	// empty slot, ish.
@@ -623,6 +648,7 @@ void CL_RelinkEntities (void)
 		{
 			ent->model = NULL;
 			ent->lerpflags |= LERP_RESETMOVE|LERP_RESETANIM; //johnfitz -- next time this entity slot is reused, the lerp will need to be reset
+			InvalidateTraceLineCache();
 			continue;
 		}
 
@@ -688,6 +714,23 @@ void CL_RelinkEntities (void)
 			dl->die = cl.time + 0.001;
 		}
 
+#ifdef PSET_SCRIPT
+		if (cl.paused)
+			;
+		else if (ent->netstate.traileffectnum > 0 && ent->netstate.traileffectnum < MAX_PARTICLETYPES)
+		{
+			vec3_t axis[3];
+			AngleVectors(ent->angles, axis[0], axis[1], axis[2]);
+			PScript_ParticleTrail(oldorg, ent->origin, cl.particle_precache[ent->netstate.traileffectnum].index, frametime, i, axis, &ent->trailstate);
+		}
+		else if (ent->model->traileffect >= 0)
+		{
+			vec3_t axis[3];
+			AngleVectors(ent->angles, axis[0], axis[1], axis[2]);
+			PScript_ParticleTrail(oldorg, ent->origin, ent->model->traileffect, frametime, i, axis, &ent->trailstate);
+		}
+		else
+#endif
 		if (ent->model->flags & EF_GIB)
 			R_RocketTrail (oldorg, ent->origin, 2);
 		else if (ent->model->flags & EF_ZOMGIB)
@@ -711,6 +754,32 @@ void CL_RelinkEntities (void)
 
 		ent->forcelink = false;
 
+#ifdef PSET_SCRIPT
+		if (ent->netstate.emiteffectnum > 0)
+		{
+			vec3_t axis[3];
+			AngleVectors(ent->angles, axis[0], axis[1], axis[2]);
+			if (ent->model->type == mod_alias)
+				axis[0][2] *= -1;	//stupid vanilla bug
+			PScript_RunParticleEffectState(ent->origin, axis[0], frametime, cl.particle_precache[ent->netstate.emiteffectnum].index, &ent->emitstate);
+		}
+		else if (ent->model->emiteffect >= 0)
+		{
+			vec3_t axis[3];
+			AngleVectors(ent->angles, axis[0], axis[1], axis[2]);
+			if (ent->model->flags & MOD_EMITFORWARDS)
+			{
+				if (ent->model->type == mod_alias)
+					axis[0][2] *= -1;	//stupid vanilla bug
+			}
+			else
+				VectorScale(axis[2], -1, axis[0]);
+			PScript_RunParticleEffectState(ent->origin, axis[0], frametime, ent->model->emiteffect, &ent->emitstate);
+			if (ent->model->flags & MOD_EMITREPLACE)
+				continue;
+		}
+#endif
+
 		if (i == cl.viewentity && !chase_active.value)
 			continue;
 
@@ -729,6 +798,26 @@ void CL_RelinkEntities (void)
 	}
 	//johnfitz
 }
+
+#ifdef PSET_SCRIPT
+int CL_GenerateRandomParticlePrecache(const char *pname)
+{	//for dpp7 compat
+	size_t i;
+	pname = va("%s", pname);
+	for (i = 1; i < MAX_PARTICLETYPES; i++)
+	{
+		if (!cl.particle_precache[i].name)
+		{
+			cl.particle_precache[i].name = strcpy(Hunk_Alloc(strlen(pname)+1), pname);
+			cl.particle_precache[i].index = PScript_FindParticleType(cl.particle_precache[i].name);
+			return i;
+		}
+		if (!strcmp(cl.particle_precache[i].name, pname))
+			return i;
+	}
+	return 0;
+}
+#endif
 
 
 /*

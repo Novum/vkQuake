@@ -450,6 +450,7 @@ void BuildSurfaceDisplayList (msurface_t *fa)
 	float		*vec;
 	float		s, t;
 	glpoly_t	*poly;
+	float		*poly_vert;
 
 // reconstruct the polygon
 	pedges = currentmodel->edges;
@@ -483,15 +484,16 @@ void BuildSurfaceDisplayList (msurface_t *fa)
 		t = DotProduct (vec, fa->texinfo->vecs[1]) + fa->texinfo->vecs[1][3];
 		t /= fa->texinfo->texture->height;
 
-		VectorCopy (vec, poly->verts[i]);
-		poly->verts[i][3] = s;
-		poly->verts[i][4] = t;
+		poly_vert = &poly->verts[0][0] + (i * VERTEXSIZE);
+		VectorCopy (vec, poly_vert);
+		poly_vert[3] = s;
+		poly_vert[4] = t;
 
 		// Q64 RERELEASE texture shift
 		if (fa->texinfo->texture->shift > 0)
 		{
-			poly->verts[i][3] /= ( 2 * fa->texinfo->texture->shift);
-			poly->verts[i][4] /= ( 2 * fa->texinfo->texture->shift);
+			poly_vert[3] /= ( 2 * fa->texinfo->texture->shift);
+			poly_vert[4] /= ( 2 * fa->texinfo->texture->shift);
 		}
 
 		//
@@ -509,8 +511,8 @@ void BuildSurfaceDisplayList (msurface_t *fa)
 		t += 8;
 		t /= LMBLOCK_HEIGHT*16; //fa->texinfo->texture->height;
 
-		poly->verts[i][5] = s;
-		poly->verts[i][6] = t;
+		poly_vert[5] = s;
+		poly_vert[6] = t;
 	}
 
 	//johnfitz -- removed gl_keeptjunctions code

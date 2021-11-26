@@ -1057,9 +1057,9 @@ static void SV_ClipToLinks ( areanode_t *node, moveclip_t *clip )
 			if (!(clip->hitcontents & (1<<-(int)touch->v.skin)))
 				continue;	//not solid, don't bother trying to clip.
 			if ((int)touch->v.flags & FL_MONSTER)
-				trace = SV_ClipMoveToEntity (touch, clip->start, clip->mins2, clip->maxs2, clip->end, ~(1<<-CONTENTS_EMPTY));
+				trace = SV_ClipMoveToEntity (touch, clip->start, clip->mins2, clip->maxs2, clip->end, ~(1u<<-CONTENTS_EMPTY));
 			else
-				trace = SV_ClipMoveToEntity (touch, clip->start, clip->mins, clip->maxs, clip->end, ~(1<<-CONTENTS_EMPTY));
+				trace = SV_ClipMoveToEntity (touch, clip->start, clip->mins, clip->maxs, clip->end, ~(1u<<-CONTENTS_EMPTY));
 			if (trace.contents != CONTENTS_EMPTY)
 				trace.contents = touch->v.skin;
 		}

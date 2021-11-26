@@ -38,8 +38,8 @@ qboolean	render_warp;
 int			render_scale;
 
 //johnfitz -- rendering statistics
-int rs_brushpolys, rs_aliaspolys, rs_skypolys, rs_particles, rs_fogpolys;
-int rs_dynamiclightmaps, rs_brushpasses, rs_aliaspasses, rs_skypasses;
+unsigned int rs_brushpolys, rs_aliaspolys, rs_skypolys, rs_particles, rs_fogpolys;
+unsigned int rs_dynamiclightmaps, rs_brushpasses, rs_aliaspasses, rs_skypasses;
 float rs_megatexels;
 
 //
@@ -674,6 +674,9 @@ void R_ShowTris(void)
 	if (r_particles.value)
 	{
 		R_DrawParticles_ShowTris();
+#ifdef PSET_SCRIPT
+		PScript_DrawParticles_ShowTris();
+#endif
 	}
 
 	Sbar_Changed(); //so we don't get dots collecting on the statusbar
@@ -707,6 +710,9 @@ void R_RenderScene (void)
 	R_DrawEntitiesOnList (true); //johnfitz -- true means this is the pass for alpha entities
 
 	R_DrawParticles ();
+#ifdef PSET_SCRIPT
+	PScript_DrawParticles();
+#endif
 
 	Fog_DisableGFog (); //johnfitz
 
@@ -756,16 +762,15 @@ void R_RenderView (void)
 			(int)cl.viewangles[YAW],
 			(int)cl.viewangles[ROLL]);
 	else if (r_speeds.value == 2)
-		Con_Printf ("%3i ms  %4i/%4i wpoly %4i/%4i epoly %3i lmap %4i/%4i sky %1.1f mtex\n",
-					(int)((time2-time1)*1000),
+		Con_Printf ("%6.3f ms  %4u/%4u wpoly %4u/%4u epoly %3u lmap %4u/%4u sky\n",
+					(time2-time1)*1000.0,
 					rs_brushpolys,
 					rs_brushpasses,
 					rs_aliaspolys,
 					rs_aliaspasses,
 					rs_dynamiclightmaps,
 					rs_skypolys,
-					rs_skypasses,
-					TexMgr_FrameUsage ());
+					rs_skypasses);
 	else if (r_speeds.value)
 		Con_Printf ("%3i ms  %4i wpoly %4i epoly %3i lmap\n",
 					(int)((time2-time1)*1000),

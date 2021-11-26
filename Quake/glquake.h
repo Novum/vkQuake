@@ -106,6 +106,42 @@ typedef struct particle_s
 	ptype_t		type;
 } particle_t;
 
+#define P_INVALID -1
+#ifdef PSET_SCRIPT
+	void PScript_InitParticles (void);
+	void PScript_Shutdown (void);
+	void PScript_DrawParticles (void);
+	void PScript_DrawParticles_ShowTris (void);
+	struct trailstate_s;
+	int PScript_ParticleTrail (vec3_t startpos, vec3_t end, int type, float timeinterval, int dlkey, vec3_t axis[3], struct trailstate_s **tsk);
+	int PScript_RunParticleEffectState (vec3_t org, vec3_t dir, float count, int typenum, struct trailstate_s **tsk);
+	void PScript_RunParticleWeather(vec3_t minb, vec3_t maxb, vec3_t dir, float count, int colour, const char *efname);
+	void PScript_EmitSkyEffectTris(qmodel_t *mod, msurface_t 	*fa, int ptype);
+	int PScript_FindParticleType(const char *fullname);
+	int PScript_RunParticleEffectTypeString (vec3_t org, vec3_t dir, float count, const char *name);
+	int PScript_EntParticleTrail(vec3_t oldorg, entity_t *ent, const char *name);
+	int PScript_RunParticleEffect (vec3_t org, vec3_t dir, int color, int count);
+	void PScript_DelinkTrailstate(struct trailstate_s **tsk);
+	void PScript_ClearParticles (void);
+	void PScript_UpdateModelEffects(qmodel_t *mod);
+	void PScript_ClearSurfaceParticles(qmodel_t *mod);	//model is being unloaded.
+
+	extern int r_trace_line_cache_counter;
+	#define InvalidateTraceLineCache() do { ++r_trace_line_cache_counter; } while(0);
+#else
+	#define PScript_RunParticleEffectState(o,d,c,t,s) true
+	#define PScript_RunParticleEffectTypeString(o,d,c,n) true	//just unconditionally returns an error
+	#define PScript_EntParticleTrail(o,e,n) true
+	#define PScript_ParticleTrail(o,e,t,d,a,s) true
+	#define PScript_EntParticleTrail(o,e,n) true
+	#define PScript_RunParticleEffect(o,d,p,c) true
+	#define PScript_RunParticleWeather(min,max,d,c,p,n)
+	#define PScript_ClearSurfaceParticles(m)
+	#define PScript_DelinkTrailstate(tsp)
+	#define InvalidateTraceLineCache()
+#endif
+
+
 typedef struct vulkan_pipeline_layout_s {
 	VkPipelineLayout		handle;
 	VkPushConstantRange		push_constant_range;
@@ -125,6 +161,7 @@ typedef struct vulkan_desc_set_layout_s {
 } vulkan_desc_set_layout_t;
 
 #define WORLD_PIPELINE_COUNT 8
+#define FTE_PARTICLE_PIPELINE_COUNT 16
 
 typedef struct
 {
@@ -207,6 +244,9 @@ typedef struct
 	vulkan_pipeline_t					showbboxes_pipeline;
 	vulkan_pipeline_t					alias_showtris_pipeline;
 	vulkan_pipeline_t					alias_showtris_depth_test_pipeline;
+#ifdef PSET_SCRIPT
+	vulkan_pipeline_t					fte_particle_pipelines[FTE_PARTICLE_PIPELINE_COUNT];
+#endif
 
 	// Descriptors
 	VkDescriptorPool					descriptor_pool;
@@ -302,15 +342,12 @@ extern	cvar_t	gl_nocolors;
 extern	cvar_t	gl_subdivide_size;
 
 //johnfitz -- polygon offset
-#define OFFSET_BMODEL 1
 #define OFFSET_NONE 0
-#define OFFSET_DECAL -1
-#define OFFSET_FOG -2
-#define OFFSET_SHOWTRIS -3
+#define OFFSET_DECAL 1
 
 //johnfitz -- rendering statistics
-extern int rs_brushpolys, rs_aliaspolys, rs_skypolys, rs_particles, rs_fogpolys;
-extern int rs_dynamiclightmaps, rs_brushpasses, rs_aliaspasses, rs_skypasses;
+extern unsigned int rs_brushpolys, rs_aliaspolys, rs_skypolys, rs_particles, rs_fogpolys;
+extern unsigned int rs_dynamiclightmaps, rs_brushpasses, rs_aliaspasses, rs_skypasses;
 extern float rs_megatexels;
 
 //johnfitz -- track developer statistics that vary every frame

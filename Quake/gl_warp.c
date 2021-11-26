@@ -77,6 +77,7 @@ void SubdividePolygon (int numverts, float *verts)
 	float	dist[64];
 	float	frac;
 	glpoly_t	*poly;
+	float	*poly_vert;
 	float	s, t;
 
 	if (numverts > 60)
@@ -141,11 +142,12 @@ void SubdividePolygon (int numverts, float *verts)
 	poly->numverts = numverts;
 	for (i=0 ; i<numverts ; i++, verts+= 3)
 	{
-		VectorCopy (verts, poly->verts[i]);
+		poly_vert = &poly->verts[0][0] + (i * VERTEXSIZE);
+		VectorCopy (verts, poly_vert);
 		s = DotProduct (verts, warpface->texinfo->vecs[0]);
 		t = DotProduct (verts, warpface->texinfo->vecs[1]);
-		poly->verts[i][3] = s;
-		poly->verts[i][4] = t;
+		poly_vert[3] = s;
+		poly_vert[4] = t;
 	}
 }
 
@@ -158,13 +160,17 @@ void GL_SubdivideSurface (msurface_t *fa)
 {
 	vec3_t	verts[64];
 	int		i;
+	float *poly_vert;
 
 	warpface = fa;
 
 	//the first poly in the chain is the undivided poly for newwater rendering.
 	//grab the verts from that.
 	for (i=0; i<fa->polys->numverts; i++)
-		VectorCopy (fa->polys->verts[i], verts[i]);
+	{
+		poly_vert = &fa->polys->verts[0][0] + (i * VERTEXSIZE);
+		VectorCopy (poly_vert, verts[i]);
+	}
 
 	SubdividePolygon (fa->polys->numverts, verts[0]);
 }

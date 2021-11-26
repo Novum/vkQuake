@@ -300,9 +300,9 @@ void Q_memset (void *dest, int fill, size_t count)
 	if ( (((uintptr_t)dest | count) & 3) == 0)
 	{
 		count >>= 2;
-		fill = fill | (fill<<8) | (fill<<16) | (fill<<24);
+		uint32_t fill32 = (uint32_t)fill | ((uint32_t)fill<<8) | ((uint32_t)fill<<16) | ((uint32_t)fill<<24);;
 		for (i = 0; i < count; i++)
-			((int *)dest)[i] = fill;
+			((uint32_t *)dest)[i] = fill32;
 	}
 	else
 		for (i = 0; i < count; i++)
@@ -808,7 +808,7 @@ short ShortSwap (short l)
 	b1 = l&255;
 	b2 = (l>>8)&255;
 
-	return (b1<<8) + b2;
+	return ((unsigned short)b1<<8) + b2;
 }
 
 short ShortNoSwap (short l)
@@ -825,7 +825,7 @@ int LongSwap (int l)
 	b3 = (l>>16)&255;
 	b4 = (l>>24)&255;
 
-	return ((int)b1<<24) + ((int)b2<<16) + ((int)b3<<8) + b4;
+	return ((unsigned int)b1<<24) + ((unsigned int)b2<<16) + ((unsigned int)b3<<8) + b4;
 }
 
 int LongNoSwap (int l)
@@ -1071,7 +1071,7 @@ int MSG_ReadShort (void)
 
 int MSG_ReadLong (void)
 {
-	int	c;
+	uint32_t c;
 
 	if (msg_readcount+4 > net_message.cursize)
 	{
@@ -1079,10 +1079,10 @@ int MSG_ReadLong (void)
 		return -1;
 	}
 
-	c = net_message.data[msg_readcount]
-			+ (net_message.data[msg_readcount+1]<<8)
-			+ (net_message.data[msg_readcount+2]<<16)
-			+ (net_message.data[msg_readcount+3]<<24);
+	c = (uint32_t)net_message.data[msg_readcount]
+			+ ((uint32_t)(net_message.data[msg_readcount+1])<<8)
+			+ ((uint32_t)(net_message.data[msg_readcount+2])<<16)
+			+ ((uint32_t)(net_message.data[msg_readcount+3])<<24);
 
 	msg_readcount += 4;
 
@@ -2825,6 +2825,75 @@ long FS_filelength (fshandle_t *fh)
 	return fh->length;
 }
 
+#ifdef PSET_SCRIPT
+//for compat with dpp7 protocols, and mods that cba to precache things.
+void COM_Effectinfo_Enumerate(int (*cb)(const char *pname))
+{
+	int i;
+	const char *f, *e;
+	char *buf;
+	static const char *dpnames[] =
+	{
+		"TE_GUNSHOT",
+		"TE_GUNSHOTQUAD",
+		"TE_SPIKE",
+		"TE_SPIKEQUAD",
+		"TE_SUPERSPIKE",
+		"TE_SUPERSPIKEQUAD",
+		"TE_WIZSPIKE",
+		"TE_KNIGHTSPIKE",
+		"TE_EXPLOSION",
+		"TE_EXPLOSIONQUAD",
+		"TE_TAREXPLOSION",
+		"TE_TELEPORT",
+		"TE_LAVASPLASH",
+		"TE_SMALLFLASH",
+		"TE_FLAMEJET",
+		"EF_FLAME",
+		"TE_BLOOD",
+		"TE_SPARK",
+		"TE_PLASMABURN",
+		"TE_TEI_G3",
+		"TE_TEI_SMOKE",
+		"TE_TEI_BIGEXPLOSION",
+		"TE_TEI_PLASMAHIT",
+		"EF_STARDUST",
+		"TR_ROCKET",
+		"TR_GRENADE",
+		"TR_BLOOD",
+		"TR_WIZSPIKE",
+		"TR_SLIGHTBLOOD",
+		"TR_KNIGHTSPIKE",
+		"TR_VORESPIKE",
+		"TR_NEHAHRASMOKE",
+		"TR_NEXUIZPLASMA",
+		"TR_GLOWTRAIL",
+		"SVC_PARTICLE",
+		NULL
+	};
+
+	buf = (char*)COM_LoadMallocFile("effectinfo.txt", NULL);
+	if (!buf)
+		return;
+
+	for (i = 0; dpnames[i]; i++)
+		cb(dpnames[i]);
+
+	for (f = buf; f; f = e)
+	{
+		e = COM_Parse (f);
+		if (!strcmp(com_token, "effect"))
+		{
+			e = COM_Parse (e);
+			cb(com_token);
+		}
+		while (e && *e && *e != '\n')
+			e++;
+	}
+	free(buf);
+}
+#endif
+
 /*
 ============================================================================
 								LOCALIZATION
@@ -3193,13 +3262,11 @@ otherwise returns a negative value and leaves the pointer unchanged
 static int LOC_ParseArg (const char **pstr)
 {
 	int arg;
-	const char *start;
 	const char *str = *pstr;
 
 	// opening brace
 	if (*str != '{')
 		return -1;
-	start = ++str;
 
 	// optional index, defaulting to 0
 	arg = 0;

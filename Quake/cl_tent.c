@@ -61,6 +61,17 @@ void CL_UpdateBeam (qmodel_t *m, const char *trailname, const char *impactname, 
 	beam_t	*b;
 	int		i;
 
+#ifdef PSET_SCRIPT
+	{
+		vec3_t normal, extra, impact;
+		VectorSubtract(end, start, normal);
+		VectorNormalize(normal);
+		VectorMA(end, 4, normal, extra);	//extend the end-point by four
+		if (CL_TraceLine(start, extra, impact, normal, NULL)<1)
+			PScript_RunParticleEffectTypeString(impact, normal, 1, impactname);
+	}
+#endif
+
 // override any beam with the same entity
 	for (i=0, b=cl_beams ; i< MAX_BEAMS ; i++, b++)
 		if (b->entity == ent)
@@ -134,7 +145,8 @@ void CL_ParseTEnt (void)
 		pos[0] = MSG_ReadCoord (cl.protocolflags);
 		pos[1] = MSG_ReadCoord (cl.protocolflags);
 		pos[2] = MSG_ReadCoord (cl.protocolflags);
-		R_RunParticleEffect (pos, vec3_origin, 20, 30);
+		if (PScript_RunParticleEffectTypeString(pos, NULL, 1, "TE_WIZSPIKE"))
+			R_RunParticleEffect (pos, vec3_origin, 20, 30);
 		S_StartSound (-1, 0, cl_sfx_wizhit, pos, 1, 1);
 		break;
 
@@ -142,7 +154,8 @@ void CL_ParseTEnt (void)
 		pos[0] = MSG_ReadCoord (cl.protocolflags);
 		pos[1] = MSG_ReadCoord (cl.protocolflags);
 		pos[2] = MSG_ReadCoord (cl.protocolflags);
-		R_RunParticleEffect (pos, vec3_origin, 226, 20);
+		if (PScript_RunParticleEffectTypeString(pos, NULL, 1, "TE_KNIGHTSPIKE"))
+			R_RunParticleEffect (pos, vec3_origin, 226, 20);
 		S_StartSound (-1, 0, cl_sfx_knighthit, pos, 1, 1);
 		break;
 
@@ -150,7 +163,8 @@ void CL_ParseTEnt (void)
 		pos[0] = MSG_ReadCoord (cl.protocolflags);
 		pos[1] = MSG_ReadCoord (cl.protocolflags);
 		pos[2] = MSG_ReadCoord (cl.protocolflags);
-		R_RunParticleEffect (pos, vec3_origin, 0, 10);
+		if (PScript_RunParticleEffectTypeString(pos, NULL, 1, "TE_SPIKE"))
+			R_RunParticleEffect (pos, vec3_origin, 0, 10);
 		if ( rand() % 5 )
 			S_StartSound (-1, 0, cl_sfx_tink1, pos, 1, 1);
 		else
@@ -168,7 +182,8 @@ void CL_ParseTEnt (void)
 		pos[0] = MSG_ReadCoord (cl.protocolflags);
 		pos[1] = MSG_ReadCoord (cl.protocolflags);
 		pos[2] = MSG_ReadCoord (cl.protocolflags);
-		R_RunParticleEffect (pos, vec3_origin, 0, 20);
+		if (PScript_RunParticleEffectTypeString(pos, NULL, 1, "TE_SUPERSPIKE"))
+			R_RunParticleEffect (pos, vec3_origin, 0, 20);
 
 		if ( rand() % 5 )
 			S_StartSound (-1, 0, cl_sfx_tink1, pos, 1, 1);
@@ -185,17 +200,20 @@ void CL_ParseTEnt (void)
 		break;
 
 	case TE_GUNSHOT:			// bullet hitting wall
+		rnd = 20;
 		pos[0] = MSG_ReadCoord (cl.protocolflags);
 		pos[1] = MSG_ReadCoord (cl.protocolflags);
 		pos[2] = MSG_ReadCoord (cl.protocolflags);
-		R_RunParticleEffect (pos, vec3_origin, 0, 20);
+		if (PScript_RunParticleEffectTypeString(pos, NULL, rnd, "TE_GUNSHOT"))
+			R_RunParticleEffect (pos, vec3_origin, 0, rnd);
 		break;
 
 	case TE_EXPLOSION:			// rocket explosion
 		pos[0] = MSG_ReadCoord (cl.protocolflags);
 		pos[1] = MSG_ReadCoord (cl.protocolflags);
 		pos[2] = MSG_ReadCoord (cl.protocolflags);
-		R_ParticleExplosion (pos);
+		if (PScript_RunParticleEffectTypeString(pos, NULL, 1, "TE_EXPLOSION"))
+			R_ParticleExplosion (pos);
 		dl = CL_AllocDlight (0);
 		VectorCopy (pos, dl->origin);
 		dl->radius = 350;
@@ -208,7 +226,8 @@ void CL_ParseTEnt (void)
 		pos[0] = MSG_ReadCoord (cl.protocolflags);
 		pos[1] = MSG_ReadCoord (cl.protocolflags);
 		pos[2] = MSG_ReadCoord (cl.protocolflags);
-		R_BlobExplosion (pos);
+		if (PScript_RunParticleEffectTypeString(pos, NULL, 1, "TE_TAREXPLOSION"))
+			R_BlobExplosion (pos);
 
 		S_StartSound (-1, 0, cl_sfx_r_exp3, pos, 1, 1);
 		break;
@@ -235,14 +254,16 @@ void CL_ParseTEnt (void)
 		pos[0] = MSG_ReadCoord (cl.protocolflags);
 		pos[1] = MSG_ReadCoord (cl.protocolflags);
 		pos[2] = MSG_ReadCoord (cl.protocolflags);
-		R_LavaSplash (pos);
+		if (PScript_RunParticleEffectTypeString(pos, NULL, 1, "TE_LAVASPLASH"))
+			R_LavaSplash (pos);
 		break;
 
 	case TE_TELEPORT:
 		pos[0] = MSG_ReadCoord (cl.protocolflags);
 		pos[1] = MSG_ReadCoord (cl.protocolflags);
 		pos[2] = MSG_ReadCoord (cl.protocolflags);
-		R_TeleportSplash (pos);
+		if (PScript_RunParticleEffectTypeString(pos, NULL, 1, "TE_TELEPORT"))
+			R_TeleportSplash (pos);
 		break;
 
 	case TE_EXPLOSION2:				// color mapped explosion
@@ -251,13 +272,42 @@ void CL_ParseTEnt (void)
 		pos[2] = MSG_ReadCoord (cl.protocolflags);
 		colorStart = MSG_ReadByte ();
 		colorLength = MSG_ReadByte ();
-		R_ParticleExplosion2 (pos, colorStart, colorLength);
+		if (PScript_RunParticleEffectTypeString(pos, NULL, 1, va("TE_EXPLOSION2_%i_%i", colorStart, colorLength)))
+			R_ParticleExplosion2 (pos, colorStart, colorLength);
 		dl = CL_AllocDlight (0);
 		VectorCopy (pos, dl->origin);
 		dl->radius = 350;
 		dl->die = cl.time + 0.5;
 		dl->decay = 300;
 		S_StartSound (-1, 0, cl_sfx_r_exp3, pos, 1, 1);
+		break;
+
+	case TEDP_PARTICLERAIN:
+	case TEDP_PARTICLESNOW:
+		{
+			vec3_t dir, pos2;
+			int cnt, colour;
+
+			//min
+			pos[0] = MSG_ReadCoord(cl.protocolflags);
+			pos[1] = MSG_ReadCoord(cl.protocolflags);
+			pos[2] = MSG_ReadCoord(cl.protocolflags);
+
+			//max
+			pos2[0] = MSG_ReadCoord(cl.protocolflags);
+			pos2[1] = MSG_ReadCoord(cl.protocolflags);
+			pos2[2] = MSG_ReadCoord(cl.protocolflags);
+
+			//dir
+			dir[0] = MSG_ReadCoord(cl.protocolflags);
+			dir[1] = MSG_ReadCoord(cl.protocolflags);
+			dir[2] = MSG_ReadCoord(cl.protocolflags);
+
+			cnt = (unsigned short)MSG_ReadShort();	//count
+			colour = MSG_ReadByte ();	//colour
+
+			PScript_RunParticleWeather(pos, pos2, dir, cnt, colour, ((type==TEDP_PARTICLESNOW)?"snow":"rain"));
+		}
 		break;
 
 	default:

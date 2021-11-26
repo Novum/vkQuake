@@ -37,7 +37,8 @@ FGetLittleLong
 static int FGetLittleLong (FILE *f)
 {
 	int		v;
-	fread(&v, 1, sizeof(v), f);
+	if (fread(&v, 1, sizeof(v), f) != sizeof(v))
+		return 0;
 	return LittleLong(v);
 }
 
@@ -49,7 +50,8 @@ FGetLittleShort
 static short FGetLittleShort(FILE *f)
 {
 	short	v;
-	fread(&v, 1, sizeof(v), f);
+	if (fread(&v, 1, sizeof(v), f) != sizeof(v))
+		return 0;
 	return LittleShort(v);
 }
 
@@ -224,7 +226,8 @@ int S_WAV_CodecReadStream(snd_stream_t *stream, int bytes, void *buffer)
 	if (bytes > remaining)
 		bytes = remaining;
 	stream->fh.pos += bytes;
-	fread(buffer, 1, bytes, stream->fh.file);
+	if (fread(buffer, 1, bytes, stream->fh.file) != bytes)
+		return 0;
 	if (stream->info.width == 2)
 	{
 		samples = bytes / 2;

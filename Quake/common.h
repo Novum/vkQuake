@@ -81,7 +81,7 @@ void InsertLinkAfter (link_t *l, link_t *after);
 // (type *)STRUCT_FROM_LINK(link_t *link, type, member)
 // ent = STRUCT_FROM_LINK(link,entity_t,order)
 // FIXME: remove this mess!
-#define	STRUCT_FROM_LINK(l,t,m) ((t *)((byte *)l - (intptr_t)&(((t *)0)->m)))
+#define	STRUCT_FROM_LINK(l,t,m) ((t *)((byte *)l - offsetof(t, m)))
 
 //============================================================================
 
@@ -126,6 +126,8 @@ float MSG_ReadAngle (unsigned int flags);
 float MSG_ReadAngle16 (unsigned int flags); //johnfitz
 byte *MSG_ReadData (unsigned int length); // spike
 unsigned int MSG_ReadEntity(unsigned int pext2); //spike
+
+void COM_Effectinfo_Enumerate(int (*cb)(const char *pname));	//spike -- for dp compat
 
 //============================================================================
 

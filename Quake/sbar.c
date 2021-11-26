@@ -327,14 +327,7 @@ Sbar_DrawScrollString -- johnfitz
 */
 void Sbar_DrawScrollString (int x, int y, int width, const char *str)
 {
-	float scale;
-	int len, ofs, left;
-
-	scale = CLAMP (1.0, scr_sbarscale.value, (float)glwidth / 320.0);
-	left = x * scale;
-	if (cl.gametype != GAME_DEATHMATCH)
-		left += (((float)glwidth - 320.0 * scale) / 2);
-
+	int len, ofs;
 	len = strlen(str)*8 + 40;
 	ofs = ((int)(realtime*30))%len;
 	Sbar_DrawString (x - ofs, y, str);

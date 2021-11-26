@@ -18,10 +18,11 @@ Windows/VisualStudio/.vs
 Debug
 Release
 AppImage/AppDir
-AppImage/vkquake*.AppImage
+AppImage/vkquake*
 .settings
 .project
 .cproject
 .DS_Store
 build/
 CMakeLists.txt
+history.txt

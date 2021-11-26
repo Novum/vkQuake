@@ -101,7 +101,7 @@ sys_socket_t WINIPv4_Init (void)
 	char	buff[MAXHOSTNAMELEN];
 
 	if (COM_CheckParm ("-noudp") || COM_CheckParm ("-noudp4"))
-		return -1;
+		return (sys_socket_t)-1;
 
 	if (winsock_initialized == 0)
 	{

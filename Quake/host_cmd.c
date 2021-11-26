@@ -1147,6 +1147,27 @@ static void Host_Savegame_f (void)
 	//it does NOT protect against spawnfunc precache changes - we would need to include makestatics here too (and optionally baselines, or just recalculate those).
 	fprintf(f, "/*\n");
 	fprintf(f, "// QuakeSpasm extended savegame\n");
+	for (i = MAX_LIGHTSTYLES; i < MAX_LIGHTSTYLES; i++)
+	{
+		if (sv.lightstyles[i])
+			fprintf (f, "sv.lightstyles %i \"%s\"\n", i, sv.lightstyles[i]);
+	}
+	for (i = 1; i < MAX_MODELS; i++)
+	{
+		if (sv.model_precache[i])
+			fprintf (f, "sv.model_precache %i \"%s\"\n", i, sv.model_precache[i]);
+	}
+	for (i = 1; i < MAX_SOUNDS; i++)
+	{
+		if (sv.sound_precache[i])
+			fprintf (f, "sv.sound_precache %i \"%s\"\n", i, sv.sound_precache[i]);
+	}
+	for (i = 1; i < MAX_PARTICLETYPES; i++)
+	{
+		if (sv.particle_precache[i])
+			fprintf (f, "sv.particle_precache %i \"%s\"\n", i, sv.particle_precache[i]);
+	}
+
 	fprintf (f, "sv.serverflags %i\n", svs.serverflags);
 	for (i = NUM_BASIC_SPAWN_PARMS ; i < NUM_TOTAL_SPAWN_PARMS ; i++)
 	{
@@ -1269,7 +1290,85 @@ static void Host_Loadgame_f (void)
 	entnum = -1;		// -1 is the globals
 	while (*data)
 	{
-		data = COM_Parse (data);
+		while (*data == ' ' || *data == '\r' || *data == '\n')
+			data++;
+		if (data[0] == '/' && data[1] == '*' && (data[2] == '\r' || data[2] == '\n'))
+		{	//looks like an extended saved game
+			char *end;
+			const char *ext;
+			ext = data+2;
+			while ((end = strchr(ext, '\n')))
+			{
+				*end = 0;
+				ext = COM_Parse(ext);
+				if (!strcmp(com_token, "sv.lightstyles"))
+				{
+					int idx;
+					ext = COM_Parse(ext);
+					idx = atoi(com_token);
+					ext = COM_Parse(ext);
+					if (idx >= 0 && idx < MAX_LIGHTSTYLES)
+					{
+						if (*com_token)
+							sv.lightstyles[idx] = (const char *)Hunk_Strdup (com_token, "lightstyles");
+						else
+							sv.lightstyles[idx] = NULL;
+					}
+				}
+				else if (!strcmp(com_token, "sv.model_precache"))
+				{
+					int idx;
+					ext = COM_Parse(ext);
+					idx = atoi(com_token);
+					ext = COM_Parse(ext);
+					if (idx >= 1 && idx < MAX_MODELS)
+					{
+						sv.model_precache[idx] = (const char *)Hunk_Strdup (com_token, "model_precache");
+						sv.models[idx] = Mod_ForName (sv.model_precache[idx], idx==1);
+						//if (idx == 1)
+						//	sv.worldmodel = sv.models[idx];
+					}
+				}
+				else if (!strcmp(com_token, "sv.sound_precache"))
+				{
+					int idx;
+					ext = COM_Parse(ext);
+					idx = atoi(com_token);
+					ext = COM_Parse(ext);
+					if (idx >= 1 && idx < MAX_MODELS)
+						sv.sound_precache[idx] = (const char *)Hunk_Strdup (com_token, "sound_precache");
+				}
+				else if (!strcmp(com_token, "sv.particle_precache"))
+				{
+					int idx;
+					ext = COM_Parse(ext);
+					idx = atoi(com_token);
+					ext = COM_Parse(ext);
+					if (idx >= 1 && idx < MAX_PARTICLETYPES)
+						sv.particle_precache[idx] = (const char *)Hunk_Strdup (com_token, "particle_precache");
+				}
+				else if (!strcmp(com_token, "sv.serverflags") || !strcmp(com_token, "svs.serverflags"))
+				{
+					int fl;
+					ext = COM_Parse(ext);
+					fl = atoi(com_token);
+					svs.serverflags = fl;
+				}
+				else if (!strcmp(com_token, "spawnparm"))
+				{
+					int idx;
+					ext = COM_Parse(ext);
+					idx = atoi(com_token);
+					ext = COM_Parse(ext);
+					if (idx >= 1 && idx <= NUM_TOTAL_SPAWN_PARMS)
+						spawn_parms[idx-1] = atof(com_token);
+				}
+				*end = '\n';
+				ext = end+1;
+			}
+		}
+
+		data = COM_Parse(data);
 		if (!com_token[0])
 			break;		// end of file
 		if (strcmp(com_token,"{"))

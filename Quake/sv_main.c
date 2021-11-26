@@ -42,7 +42,7 @@ void SV_CalcStats(client_t *client, int *statsi, float *statsf, const char **sta
 	size_t i;
 	edict_t *ent = client->edict;
 	//FIXME: string stats!
-	int items = (int)ent->v.items | ((int)pr_global_struct->serverflags << 28);
+	int items = (int)((uint32_t)ent->v.items | ((uint32_t)pr_global_struct->serverflags << 28));
 
 	memset(statsi, 0, sizeof(*statsi)*MAX_CL_STATS);
 	memset(statsf, 0, sizeof(*statsf)*MAX_CL_STATS);
@@ -577,7 +577,7 @@ static void SVFTE_CalcEntityDeltas(client_t *client)
 	news = snapshot_entstate;
 	newstop = news + snapshot_numents;
 	olds = client->previousentities;
-	oldstop = olds+client->numpreviousentities;
+	oldstop = (olds != NULL) ? (olds+client->numpreviousentities) : NULL;
 
 	//we have two sets of entity state, pvs culled etc already.
 	//figure out which flags changed,
@@ -613,7 +613,7 @@ static void SVFTE_CalcEntityDeltas(client_t *client)
 	//outgoing data can just read off these states too, instead of needing to hit the edicts memory (which may be spread over multiple allocations, yay cache).
 	//to avoid a potentially large memcopy, I'm just going to swap these buffers. 
 	olds = client->previousentities;
-	oldstop = olds + client->maxpreviousentities;
+	oldstop = (olds != NULL) ? (olds + client->maxpreviousentities) : NULL;
 
 	client->previousentities = snapshot_entstate;
 	client->numpreviousentities = snapshot_numents;
@@ -621,7 +621,7 @@ static void SVFTE_CalcEntityDeltas(client_t *client)
 
 	snapshot_entstate = olds;
 	snapshot_numents = 0;
-	snapshot_maxents = oldstop-olds;
+	snapshot_maxents = (olds != NULL) ? (oldstop - olds) : 0;
 }
 static void SVFTE_WriteEntitiesToClient(client_t *client, sizebuf_t *msg, size_t overflowsize)
 {
@@ -1346,8 +1346,8 @@ void SV_SendServerinfo (client_t *client)
 	}
 	if (client->limit_entities > 0x8000 && !(client->protocol_pext2 & PEXT2_REPLACEMENTDELTAS))
 		client->limit_entities = 0x8000;	//pext2 changes the encoding of entities to support 23 bits instead of dpp7's 15bits or vanilla's 16bits, but our writeentity is lazy.
-	if (client->limit_entities > qcvm->max_edicts)
-		client->limit_entities = qcvm->max_edicts;
+	if (client->limit_entities > (unsigned int)qcvm->max_edicts)
+		client->limit_entities = (unsigned int)qcvm->max_edicts;
 
 
 	//unfortunately we can't split this up, so if its oversized, we'll just let the client complain instead of always kicking them
@@ -2316,22 +2316,6 @@ void SV_SendNop (client_t *client)
 qboolean SV_SendPrespawnModelPrecaches(void)
 {
 	return false;
-	size_t maxsize = host_client->message.maxsize;	//we can go quite large
-	unsigned int idx = host_client->signon_models;
-	if (!host_client->protocol_pext2)
-		return false;	//unsupported by this client.
-	for (;idx < host_client->limit_models;idx++)
-	{
-		if (!sv.model_precache[idx])
-			continue;
-		if (host_client->message.cursize + 4+strlen(sv.model_precache[idx]) > maxsize)
-			break;
-		MSG_WriteByte(&host_client->message, svcdp_precache);
-		MSG_WriteShort(&host_client->message, 0x0000 | idx);
-		MSG_WriteString(&host_client->message, sv.model_precache[idx]);
-	}
-	host_client->signon_models = idx;
-	return idx < host_client->limit_models;
 }
 qboolean SV_SendPrespawnSoundPrecaches(void)
 {
@@ -2343,7 +2327,7 @@ qboolean SV_SendPrespawnSoundPrecaches(void)
 	{
 		if (!sv.sound_precache[idx])
 			continue;
-		if (host_client->message.cursize + 4+strlen(sv.sound_precache[idx]) > maxsize)
+		if ((size_t)host_client->message.cursize + 4+strlen(sv.sound_precache[idx]) > maxsize)
 			break;
 		MSG_WriteByte(&host_client->message, svcdp_precache);
 		MSG_WriteShort(&host_client->message, 0x8000 | idx);
@@ -2354,7 +2338,22 @@ qboolean SV_SendPrespawnSoundPrecaches(void)
 }
 int SV_SendPrespawnParticlePrecaches(int idx)
 {
-	return -1;
+	size_t maxsize = host_client->message.maxsize;	//we can go quite large
+	if (!host_client->protocol_pext2)
+		return -1;	//unsupported by this client.
+	for (;;idx++)
+	{
+		if (idx == MAX_PARTICLETYPES)
+			return -1;
+		if (!sv.particle_precache[idx])
+			continue;
+		if (host_client->message.cursize + 4+strlen(sv.particle_precache[idx]) > maxsize)
+			break;
+		MSG_WriteByte(&host_client->message, svcdp_precache);
+		MSG_WriteShort(&host_client->message, 0x4000 | idx);
+		MSG_WriteString(&host_client->message, sv.particle_precache[idx]);
+	}
+	return idx;
 }
 int SV_SendPrespawnStatics(int idx)
 {

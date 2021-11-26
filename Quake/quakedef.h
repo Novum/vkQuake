@@ -42,8 +42,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef	QUAKESPASM_VER_SUFFIX
 #define	QUAKESPASM_VER_SUFFIX		// optional version suffix string literal like "-beta1"
 #endif
-#define	VKQUAKE_VERSION		1.11
-#define	VKQUAKE_VER_PATCH	1	// helper to print a string like 0.92.1
+#define	VKQUAKE_VERSION		1.12
+#define	VKQUAKE_VER_PATCH	0	// helper to print a string like 0.92.1
 #ifndef	VKQUAKE_VER_SUFFIX
 #define	VKQUAKE_VER_SUFFIX ""	// optional version suffix like -beta1
 #endif
@@ -65,6 +65,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 //define	PARANOID			// speed sapping error checking
 
 #define	GAMENAME	"id1"		// directory to look in by default
+
+#define PSET_SCRIPT		//enable the scriptable particle system (poorly ported from FTE)
+#define PSET_SCRIPT_EFFECTINFO	//scripted particle system can load dp's effects
 
 #include "q_stdinc.h"
 
@@ -108,6 +111,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define	MAX_LIGHTSTYLES	64
 #define	MAX_MODELS	2048		// johnfitz -- was 256
 #define	MAX_SOUNDS	2048		// johnfitz -- was 256
+#define	MAX_PARTICLETYPES	2048
 
 #define	SAVEGAME_COMMENT_LENGTH	39
 

@@ -589,6 +589,8 @@ static void CL_EntitiesDeltaed(void)
 		if (model != ent->model)
 		{
 			ent->model = model;
+			InvalidateTraceLineCache();
+
 		// automatic animation (torches, etc) can be either all together
 		// or randomized
 			if (model)
@@ -682,6 +684,7 @@ static void CLFTE_ParseEntitiesUpdate(void)
 			}
 			ent->update_type = false; //no longer valid
 			ent->model = NULL;
+			InvalidateTraceLineCache();
 			continue;
 		}
 		else if (ent->update_type)
@@ -1095,6 +1098,12 @@ static void CL_ParseServerInfo (void)
 	cl.ackframes_count = 0;
 	if (cl.protocol_pext2 & PEXT2_REPLACEMENTDELTAS)
 		cl.ackframes[cl.ackframes_count++] = -1;
+#ifdef PSET_SCRIPT
+		//the protocol changing depending upon files found on the client's computer is of course a really shit way to design things
+		//especially when users have a nasty habit of changing config files.
+		if (cl.protocol_pext2 || (cl.protocol_pext1&PEXT1_CSQC))
+			cl.protocol_particles = true;	//doesn't have a pext flag of its own, but at least we know what it is.
+#endif
 }
 
 /*
@@ -1289,6 +1298,7 @@ static void CL_ParseUpdate (int bits)
 	if (model != ent->model)
 	{
 		ent->model = model;
+		InvalidateTraceLineCache();
 	// automatic animation (torches, etc) can be either all together
 	// or randomized
 		if (model)
@@ -1537,6 +1547,8 @@ static void CL_ParseStatic (int version) //johnfitz -- added a parameter
 	VectorCopy (ent->baseline.angles, ent->angles);
 	if (ent->model)
 		R_AddEfrags (ent);
+
+	InvalidateTraceLineCache();
 }
 
 /*
@@ -1613,6 +1625,92 @@ static void CL_ParsePrecache(void)
 		break;
 	}
 }
+#ifdef PSET_SCRIPT
+int CL_GenerateRandomParticlePrecache(const char *pname);
+//small function for simpler reuse
+static void CL_ForceProtocolParticles(void)
+{
+	cl.protocol_particles = true;
+	PScript_FindParticleType("effectinfo.");	//make sure this is implicitly loaded.
+	COM_Effectinfo_Enumerate(CL_GenerateRandomParticlePrecache);
+	Con_Warning("Received svcdp_pointparticles1 but extension not active");
+}
+
+/*
+CL_RegisterParticles
+called when the particle system has changed, and any cached indexes are now probably stale.
+*/
+void CL_RegisterParticles(void)
+{
+	extern qmodel_t	mod_known[];
+	extern int		mod_numknown;
+	int i;
+
+	//make sure the precaches know the right effects
+	for (i = 0; i < MAX_PARTICLETYPES; i++)
+	{
+		if (cl.particle_precache[i].name)
+			cl.particle_precache[i].index = PScript_FindParticleType(cl.particle_precache[i].name);
+		else
+			cl.particle_precache[i].index = -1;
+	}
+
+	//and make sure models get the right effects+trails etc too
+	for (i = 0; i < mod_numknown; i++)
+		PScript_UpdateModelEffects(&mod_known[i]);
+}
+
+/*
+CL_ParseParticles
+
+spike -- this handles the various ssqc builtins (the ones that were based on csqc)
+*/
+static void CL_ParseParticles(int type)
+{
+	vec3_t org, vel;
+	if (type < 0)
+	{	//trail
+		entity_t *ent;
+		int entity = MSG_ReadShort();
+		int efnum = MSG_ReadShort();
+		org[0] = MSG_ReadCoord(cl.protocolflags);
+		org[1] = MSG_ReadCoord(cl.protocolflags);
+		org[2] = MSG_ReadCoord(cl.protocolflags);
+		vel[0] = MSG_ReadCoord(cl.protocolflags);
+		vel[1] = MSG_ReadCoord(cl.protocolflags);
+		vel[2] = MSG_ReadCoord(cl.protocolflags);
+
+		ent = CL_EntityNum(entity);
+
+		if (efnum < MAX_PARTICLETYPES && cl.particle_precache[efnum].name)
+			PScript_ParticleTrail(org, vel, cl.particle_precache[efnum].index, 1, 0, NULL, &ent->trailstate);
+	}
+	else
+	{	//point
+		int efnum = MSG_ReadShort();
+		int count;
+		org[0] = MSG_ReadCoord(cl.protocolflags);
+		org[1] = MSG_ReadCoord(cl.protocolflags);
+		org[2] = MSG_ReadCoord(cl.protocolflags);
+		if (type)
+		{
+			vel[0] = vel[1] = vel[2] = 0;
+			count = 1;
+		}
+		else
+		{
+			vel[0] = MSG_ReadCoord(cl.protocolflags);
+			vel[1] = MSG_ReadCoord(cl.protocolflags);
+			vel[2] = MSG_ReadCoord(cl.protocolflags);
+			count = MSG_ReadShort();
+		}
+		if (efnum < MAX_PARTICLETYPES && cl.particle_precache[efnum].name)
+		{
+			PScript_RunParticleEffectState (org, vel, count, cl.particle_precache[efnum].index, NULL);
+		}
+	}
+}
+#endif
 
 #define SHOWNET(x) if(cl_shownet.value==2)Con_Printf ("%3i:%s\n", msg_readcount-1, x);
 
@@ -1690,7 +1788,7 @@ void CL_ParseServerMessage (void)
 			if (cl.items != cl.stats[STAT_ITEMS])
 			{
 				for (i = 0; i < 32; i++)
-					if ( (cl.stats[STAT_ITEMS] & (1<<i)) && !(cl.items & (1<<i)))
+					if ( ((uint32_t)cl.stats[STAT_ITEMS] & (1u<<i)) && !((uint32_t)cl.items & (1u<<i)))
 						cl.item_gettime[i] = cl.time;
 				cl.items = cl.stats[STAT_ITEMS];
 			}
@@ -1977,6 +2075,23 @@ void CL_ParseServerMessage (void)
 			str = MSG_ReadString();
 			Con_DPrintf("Ignoring svc_achievement (%s)\n", str);
 			break;
+#ifdef PSET_SCRIPT
+		case svcdp_trailparticles:
+			if (!cl.protocol_particles)
+				CL_ForceProtocolParticles();
+			CL_ParseParticles(-1);
+			break;
+		case svcdp_pointparticles:
+			if (!cl.protocol_particles)
+				CL_ForceProtocolParticles();
+			CL_ParseParticles(0);
+			break;
+		case svcdp_pointparticles1:
+			if (!cl.protocol_particles)
+				CL_ForceProtocolParticles();
+			CL_ParseParticles(1);
+			break;
+#endif
 
 		//spike -- for particles more than anything else
 		case svcdp_precache:

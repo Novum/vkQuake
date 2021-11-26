@@ -628,7 +628,7 @@ static void GL_InitInstance( void )
 	}
 
 	vulkan_globals.vulkan_1_1_available = false;
-	fpGetInstanceProcAddr = SDL_Vulkan_GetVkGetInstanceProcAddr();
+	fpGetInstanceProcAddr = (PFN_vkGetInstanceProcAddr)SDL_Vulkan_GetVkGetInstanceProcAddr();
 	GET_INSTANCE_PROC_ADDR(EnumerateInstanceVersion);
 	if (fpEnumerateInstanceVersion)
 	{
@@ -732,6 +732,10 @@ static void GL_InitDevice( void )
 	int argIndex;
 	int deviceIndex = 0;
 
+#if defined(VK_EXT_subgroup_size_control)
+	qboolean subgroup_size_control = false;
+#endif
+
 	uint32_t physical_device_count;
 	err = vkEnumeratePhysicalDevices(vulkan_instance, &physical_device_count, NULL);
 	if (err != VK_SUCCESS || physical_device_count == 0)
@@ -778,7 +782,6 @@ static void GL_InitDevice( void )
 	uint32_t device_extension_count;
 	err = vkEnumerateDeviceExtensionProperties(vulkan_physical_device, NULL, &device_extension_count, NULL);
 
-	qboolean subgroup_size_control = false;
 	if (err == VK_SUCCESS || device_extension_count > 0)
 	{
 		VkExtensionProperties *device_extensions = (VkExtensionProperties *) malloc(sizeof(VkExtensionProperties) * device_extension_count);
@@ -850,8 +853,11 @@ static void GL_InitDevice( void )
 
 #if defined(VK_EXT_subgroup_size_control)
 	VkPhysicalDeviceSubgroupProperties physical_device_subgroup_properties;
+	memset(&physical_device_subgroup_properties, 0, sizeof(physical_device_subgroup_properties));
 	VkPhysicalDeviceSubgroupSizeControlPropertiesEXT physical_device_subgroup_size_control_properties;
+	memset(&physical_device_subgroup_size_control_properties, 0, sizeof(physical_device_subgroup_size_control_properties));
 	VkPhysicalDeviceSubgroupSizeControlFeaturesEXT subgroup_size_control_features;
+	memset(&subgroup_size_control_features, 0, sizeof(subgroup_size_control_features));
 	if (vulkan_globals.vulkan_1_1_available && subgroup_size_control)
 	{
 		memset(&physical_device_subgroup_size_control_properties, 0, sizeof(physical_device_subgroup_size_control_properties));
@@ -2756,6 +2762,9 @@ enum {
 	VID_OPT_ANISOTROPY,
 	VID_OPT_UNDERWATER,
 	VID_OPT_PARTICLES,
+#ifdef PSET_SCRIPT
+	VID_OPT_FTE_PARTICLES,
+#endif
 	VID_OPT_TEST,
 	VID_OPT_APPLY,
 	VIDEO_OPTIONS_ITEMS

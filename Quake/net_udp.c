@@ -346,9 +346,10 @@ int UDP_Write (sys_socket_t socketid, byte *buf, int len, struct qsockaddr *addr
 {
 	int	ret;
 	socklen_t addrsize;
-	if (addr->qsa_family == AF_INET)
+	struct qsockaddr_hdr* hdr = (struct qsockaddr_hdr*)addr;
+	if (hdr->qsa_family == AF_INET)
 		addrsize = sizeof(struct sockaddr_in);
-	else if (addr->qsa_family == AF_INET6)
+	else if (hdr->qsa_family == AF_INET6)
 		addrsize = sizeof(struct sockaddr_in6);
 	else
 	{
@@ -357,7 +358,7 @@ int UDP_Write (sys_socket_t socketid, byte *buf, int len, struct qsockaddr *addr
 	}
 
 	ret = sendto (socketid, buf, len, 0, (struct sockaddr *)addr, addrsize);
-	if (!addr->qsa_family)
+	if (!hdr->qsa_family)
 		Con_SafePrintf ("UDP_Write: family was cleared\n");
 	if (ret == SOCKET_ERROR)
 	{

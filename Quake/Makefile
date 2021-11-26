@@ -47,7 +47,8 @@ STRIP ?= strip
 
 CPUFLAGS=
 DFLAGS ?=
-CFLAGS ?= -Wall -Wno-trigraphs -std=gnu99
+CFLAGS ?=
+CFLAGS += -Wall -Wno-trigraphs -Werror -std=gnu99
 CFLAGS += $(CPUFLAGS)
 ifneq ($(DEBUG),0)
 DFLAGS += -D_DEBUG
@@ -55,7 +56,7 @@ CFLAGS += -g
 do_strip=
 else
 DFLAGS += -DNDEBUG
-CFLAGS += -O2
+CFLAGS += -O3
 CFLAGS += $(call check_gcc,-fweb,)
 CFLAGS += $(call check_gcc,-frename-registers,)
 cmd_strip=$(STRIP) $(1)
@@ -236,6 +237,7 @@ GLOBJS = \
 	gl_fog.o \
 	gl_rmisc.o \
 	r_part.o \
+	r_part_fte.o \
 	r_world.o \
 	gl_screen.o \
 	gl_sky.o \

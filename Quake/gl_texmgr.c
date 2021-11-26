@@ -133,32 +133,6 @@ static void TexMgr_Imagelist_f (void)
 }
 
 /*
-===============
-TexMgr_FrameUsage -- report texture memory usage for this frame
-===============
-*/
-float TexMgr_FrameUsage (void)
-{
-	float mb;
-	float texels = 0;
-	gltexture_t	*glt;
-
-	for (glt = active_gltextures; glt; glt = glt->next)
-	{
-		if (glt->visframe == r_framecount)
-		{
-			if (glt->flags & TEXPREF_MIPMAP)
-				texels += glt->width * glt->height * 4.0f / 3.0f;
-			else
-				texels += (glt->width * glt->height);
-		}
-	}
-
-	mb = (texels * 4) / 0x100000;
-	return mb;
-}
-
-/*
 ================================================================================
 
 	TEXTURE MANAGER
@@ -326,7 +300,8 @@ void TexMgr_LoadPalette (void)
 
 	mark = Hunk_LowMark ();
 	pal = (byte *) Hunk_Alloc (768);
-	fread (pal, 1, 768, f);
+	if (fread (pal, 1, 768, f) != 768)
+		Sys_Error ("Couldn't load gfx/palette.lmp");
 	fclose(f);
 
 	//standard palette, 255 is transparent
@@ -775,6 +750,23 @@ static int TexMgr_DeriveStagingSize(int width, int height)
 	return size;
 }
 
+static byte *TexMgr_PreMultiply32(byte *in, size_t width, size_t height)
+{
+	size_t pixels = width * height;
+	byte *out = (byte *) Hunk_Alloc(pixels*4);
+	byte *result = out;
+	while (pixels --> 0)
+	{
+		out[0] = (in[0]*in[3])>>8;
+		out[1] = (in[1]*in[3])>>8;
+		out[2] = (in[2]*in[3])>>8;
+		out[3] = in[3];
+		in += 4;
+		out += 4;
+	}
+	return result;
+}
+
 /*
 ================
 TexMgr_LoadImage32 -- handles 32bit source data
@@ -783,6 +775,10 @@ TexMgr_LoadImage32 -- handles 32bit source data
 static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 {
 	GL_DeleteTexture(glt);
+
+	//do this before any rescaling
+	if (glt->flags & TEXPREF_PREMULTIPLY)
+		data = (unsigned*)TexMgr_PreMultiply32((byte*)data, glt->width, glt->height);
 
 	// mipmap down
 	int picmip = (glt->flags & TEXPREF_NOPICMIP) ? 0 : q_max((int)gl_picmip.value, 0);
@@ -1228,7 +1224,8 @@ void TexMgr_ReloadImage (gltexture_t *glt, int shirt, int pants)
 			size *= lightmap_bytes;
 		}
 		data = (byte *) Hunk_Alloc (size);
-		fread (data, 1, size, f);
+		if (fread (data, 1, size, f) != size)
+			goto invalid;
 		fclose (f);
 	}
 	else if (glt->source_file[0] && !glt->source_offset) {

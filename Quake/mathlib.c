@@ -88,6 +88,61 @@ void PerpendicularVector( vec3_t dst, const vec3_t src )
 
 //johnfitz -- removed RotatePointAroundVector() becuase it's no longer used and my compiler fucked it up anyway
 
+//spike -- readded, because it is useful, and my version of gcc has never had a problem with it.
+void RotatePointAroundVector( vec3_t dst, const vec3_t dir, const vec3_t point, float degrees )
+{
+	float	m[3][3];
+	float	im[3][3];
+	float	zrot[3][3];
+	float	tmpmat[3][3];
+	float	rot[3][3];
+	int	i;
+	vec3_t vr, vu, vf;
+
+	vf[0] = dir[0];
+	vf[1] = dir[1];
+	vf[2] = dir[2];
+
+	PerpendicularVector( vr, dir );
+	CrossProduct( vr, vf, vu );
+
+	m[0][0] = vr[0];
+	m[1][0] = vr[1];
+	m[2][0] = vr[2];
+
+	m[0][1] = vu[0];
+	m[1][1] = vu[1];
+	m[2][1] = vu[2];
+
+	m[0][2] = vf[0];
+	m[1][2] = vf[1];
+	m[2][2] = vf[2];
+
+	memcpy( im, m, sizeof( im ) );
+
+	im[0][1] = m[1][0];
+	im[0][2] = m[2][0];
+	im[1][0] = m[0][1];
+	im[1][2] = m[2][1];
+	im[2][0] = m[0][2];
+	im[2][1] = m[1][2];
+
+	memset( zrot, 0, sizeof( zrot ) );
+	zrot[0][0] = zrot[1][1] = zrot[2][2] = 1.0F;
+
+	zrot[0][0] = cos( DEG2RAD( degrees ) );
+	zrot[0][1] = sin( DEG2RAD( degrees ) );
+	zrot[1][0] = -sin( DEG2RAD( degrees ) );
+	zrot[1][1] = cos( DEG2RAD( degrees ) );
+
+	R_ConcatRotations( m, zrot, tmpmat );
+	R_ConcatRotations( tmpmat, im, rot );
+
+	for ( i = 0; i < 3; i++ )
+	{
+		dst[i] = rot[i][0] * point[0] + rot[i][1] * point[1] + rot[i][2] * point[2];
+	}
+}
 /*-----------------------------------------------------------------*/
 
 
@@ -324,7 +379,7 @@ void _VectorCopy (vec3_t in, vec3_t out)
 	out[2] = in[2];
 }
 
-void CrossProduct (vec3_t v1, vec3_t v2, vec3_t cross)
+void CrossProduct (const vec3_t v1, const vec3_t v2, vec3_t cross)
 {
 	cross[0] = v1[1]*v2[2] - v1[2]*v2[1];
 	cross[1] = v1[2]*v2[0] - v1[0]*v2[2];
