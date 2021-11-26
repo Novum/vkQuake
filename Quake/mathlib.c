@@ -724,3 +724,16 @@ void IdentityMatrix(float matrix[16])
 	// Fourth column
 	matrix[3*4 + 3] = 1.0f;
 }
+
+//is angle (in degrees) within an arcsec of a mulitple of 90 degrees (ignoring gimbal lock)
+qboolean IsOrthogonalDeg(vec3_t angle){
+	int remainder[3] = {
+		((int)(angle[0]*3600.f) + 1) % 324000,
+		((int)(angle[1]*3600.f) + 1) % 324000,
+		((int)(angle[2]*3600.f) + 1) % 324000
+	};
+	
+	return (remainder[0] < 3)
+		&& (remainder[1] < 3)
+		&& (remainder[2] < 3);
+}

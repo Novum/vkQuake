@@ -111,6 +111,8 @@ void TranslationMatrix(float matrix[16], float x, float y, float z);
 void ScaleMatrix(float matrix[16], float x, float y, float z);
 void IdentityMatrix(float matrix[16]);
 
+qboolean IsOrthogonalDeg(vec3_t angle);
+
 #define BOX_ON_PLANE_SIDE(emins, emaxs, p)	\
 	(((p)->type < 3)?						\
 	(										\
