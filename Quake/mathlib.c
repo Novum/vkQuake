@@ -31,6 +31,8 @@ vec3_t vec3_origin = {0,0,0};
 
 //#define DEG2RAD( a ) ( a * M_PI ) / 180.0F
 #define DEG2RAD( a ) ( (a) * M_PI_DIV_180 ) //johnfitz
+#define ARCSECS_PER_RIGHT_ANGLE 324000
+#define ARRSECS_PER_DEGREE 3600.f
 
 void ProjectPointOnPlane( vec3_t dst, const vec3_t p, const vec3_t normal )
 {
@@ -723,4 +725,20 @@ void IdentityMatrix(float matrix[16])
 
 	// Fourth column
 	matrix[3*4 + 3] = 1.0f;
+}
+
+qboolean IsOriginWithinMinMax(vec3_t origin, vec3_t mins, vec3_t maxs){
+	return origin[0] > mins[0] && origin[1] > mins[1] && origin[2] > mins[2]
+		&& origin[0] < maxs[0] && origin[1] < maxs[1] && origin[2] < maxs[2];
+}
+
+//is angle (in degrees) within an arcsec of a mulitple of 90 degrees (ignoring gimbal lock)
+qboolean IsAxisAlignedDeg(vec3_t angle){
+	int remainder[3] = {
+		((int)(angle[0]*ARRSECS_PER_DEGREE) + 1) % ARCSECS_PER_RIGHT_ANGLE,
+		((int)(angle[1]*ARRSECS_PER_DEGREE) + 1) % ARCSECS_PER_RIGHT_ANGLE,
+		((int)(angle[2]*ARRSECS_PER_DEGREE) + 1) % ARCSECS_PER_RIGHT_ANGLE
+	};
+	
+	return (remainder[0] <= 2) && (remainder[1] <= 2) && (remainder[2] <= 2);
 }

@@ -111,6 +111,9 @@ void TranslationMatrix(float matrix[16], float x, float y, float z);
 void ScaleMatrix(float matrix[16], float x, float y, float z);
 void IdentityMatrix(float matrix[16]);
 
+qboolean IsAxisAlignedDeg(vec3_t angle);
+qboolean IsOriginWithinMinMax(vec3_t origin, vec3_t mins, vec3_t maxs);
+
 #define BOX_ON_PLANE_SIDE(emins, emaxs, p)	\
 	(((p)->type < 3)?						\
 	(										\
