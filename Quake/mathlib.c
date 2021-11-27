@@ -733,7 +733,7 @@ qboolean IsOriginWithinMinMax(vec3_t origin, vec3_t mins, vec3_t maxs){
 }
 
 //is angle (in degrees) within an arcsec of a mulitple of 90 degrees (ignoring gimbal lock)
-qboolean IsOrthogonalDeg(vec3_t angle){
+qboolean IsAxisAlignedDeg(vec3_t angle){
 	int remainder[3] = {
 		((int)(angle[0]*ARRSECS_PER_DEGREE) + 1) % ARCSECS_PER_RIGHT_ANGLE,
 		((int)(angle[1]*ARRSECS_PER_DEGREE) + 1) % ARCSECS_PER_RIGHT_ANGLE,

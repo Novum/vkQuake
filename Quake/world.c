@@ -435,7 +435,7 @@ void SV_LinkEdict (edict_t *ent, qboolean touch_triggers)
 	if (ent->v.solid == SOLID_BSP
 		&& pr_checkextension.value
 		&& IsOriginWithinMinMax(ent->v.origin, ent->v.mins, ent->v.maxs)
-		&& !IsOrthogonalDeg(ent->v.angles))
+		&& !IsAxisAlignedDeg(ent->v.angles))
 	{	// expand for rotation the lame way. hopefully there's an origin brush in there.
 		int i;
 		float v1,v2;
@@ -969,7 +969,7 @@ trace_t SV_ClipMoveToEntity (edict_t *ent, vec3_t start, vec3_t mins, vec3_t max
 // trace a line through the apropriate clipping hull
 	if (ent->v.solid == SOLID_BSP
 		&& pr_checkextension.value
-		&& !IsOrthogonalDeg(ent->v.angles)
+		&& !IsAxisAlignedDeg(ent->v.angles)
 		&& qcvm->edicts != ent)	//don't rotate the world entity's collisions (its not networked, and some maps are buggy, resulting in screwed collisions)
 	{
 #define DotProductTranspose(v,m,a) ((v)[0]*(m)[0][a] + (v)[1]*(m)[1][a] + (v)[2]*(m)[2][a])
