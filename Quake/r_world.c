@@ -547,12 +547,12 @@ void R_DrawTextureChains_Multitexture (qmodel_t *model, entity_t *ent, texchain_
 	int			i;
 	msurface_t	*s;
 	texture_t	*t;
-	qboolean	bound;
 	qboolean	fullbright_enabled = false;
 	qboolean	alpha_test = false;
 	qboolean	alpha_blend = alpha < 1.0f;
 	qboolean	use_zbias = (gl_zfix.value && model != cl.worldmodel);
 	int		lastlightmap;
+	int		ent_frame = ent != NULL ? ent->frame : 0;
 	gltexture_t	*fullbright = NULL;
 
 	VkDeviceSize offset = 0;
@@ -573,7 +573,7 @@ void R_DrawTextureChains_Multitexture (qmodel_t *model, entity_t *ent, texchain_
 		if (!t || !t->texturechains[chain] || t->texturechains[chain]->flags & (SURF_DRAWTILED | SURF_NOTEXTURE))
 			continue;
 
-		if (gl_fullbrights.value && (fullbright = R_TextureAnimation(t, ent != NULL ? ent->frame : 0)->fullbright) && !r_lightmap_cheatsafe)
+		if (gl_fullbrights.value && (fullbright = R_TextureAnimation(t, ent_frame)->fullbright) && !r_lightmap_cheatsafe)
 		{
 			fullbright_enabled = true;
 			vulkan_globals.vk_cmd_bind_descriptor_sets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 2, 1, &fullbright->descriptor_set, 0, NULL);
@@ -584,23 +584,16 @@ void R_DrawTextureChains_Multitexture (qmodel_t *model, entity_t *ent, texchain_
 		gltexture_t * lightmap_texture = NULL;
 		R_ClearBatch ();
 
-		bound = false;
-		lastlightmap = 0; // avoid compiler warning
+		lastlightmap = -1; // avoid compiler warning
+		alpha_test = (t->texturechains[chain]->flags & SURF_DRAWFENCE) != 0;
+		
+		texture_t * texture = R_TextureAnimation(t, ent_frame);
+		gltexture_t * gl_texture = texture->gltexture;
+		if (!r_lightmap_cheatsafe)
+			vulkan_globals.vk_cmd_bind_descriptor_sets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 0, 1, &gl_texture->descriptor_set, 0, NULL);
+
 		for (s = t->texturechains[chain]; s; s = s->texturechain)
 		{
-			if (!bound) //only bind once we are sure we need this texture
-			{
-				texture_t * texture = R_TextureAnimation(t, ent != NULL ? ent->frame : 0);
-				gltexture_t * gl_texture = texture->gltexture;
-				if (!r_lightmap_cheatsafe)
-					vulkan_globals.vk_cmd_bind_descriptor_sets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 0, 1, &gl_texture->descriptor_set, 0, NULL);
-
-				alpha_test = (t->texturechains[chain]->flags & SURF_DRAWFENCE) != 0;
-				bound = true;
-				lastlightmap = s->lightmaptexturenum;
-				lightmap_texture = lightmaps[s->lightmaptexturenum].texture;
-			}
-
 			if (s->lightmaptexturenum != lastlightmap)
 			{
 				R_FlushBatch (fullbright_enabled, alpha_test, alpha_blend, use_zbias, lightmap_texture);
