@@ -94,7 +94,7 @@ R_BackFaceCullSIMD
 Performs backface culling for 8 planes
 ===============
 */
-int R_BackFaceCullSIMD (soa_plane_t plane)
+byte R_BackFaceCullSIMD (soa_plane_t plane)
 {
 	__m128 pos = _mm_loadu_ps(r_refdef.vieworg);
 
@@ -123,7 +123,7 @@ R_CullBoxSIMD
 Performs frustum culling for 8 bounding boxes
 ===============
 */
-int R_CullBoxSIMD (soa_aabb_t box, int activelanes)
+byte R_CullBoxSIMD (soa_aabb_t box, byte activelanes)
 {
 	int i;
 	for (i = 0; i < 4; i++)
@@ -175,36 +175,36 @@ void R_MarkVisSurfacesSIMD (byte *vis)
 	int			i, j, k;
 	int			numleafs = cl.worldmodel->numleafs;
 	int			numsurfaces = cl.worldmodel->numsurfaces;
+	byte		*surfvis = cl.worldmodel->surfvis;
 	soa_aabb_t	*leafbounds = cl.worldmodel->soa_leafbounds;
 
-	memset(cl.worldmodel->surfvis, 0, (cl.worldmodel->numsurfaces + 7) >> 3);
+	memset(cl.worldmodel->surfvis, 0, (cl.worldmodel->numsurfaces + 7) / 8);
 
 	// iterate through leaves, marking surfaces
 	for (i = 0; i < numleafs; i += 8)
 	{
-		int mask = vis[i>>3];
+		byte mask = vis[i / 8];
 		if (mask == 0)
 			continue;
 
-		mask = R_CullBoxSIMD(leafbounds[i>>3], mask);
+		mask = R_CullBoxSIMD(leafbounds[i / 8], mask);
 		if (mask == 0)
 			continue;
 
-		for (j = 0; j < 8 && i + j < numleafs; j++)
+		for (j = 0; (j < 8) && ((i + j) < numleafs); ++j)
 		{
-			if (!(mask & (1 << j)))
+			if (!(mask & (1u << j)))
 				continue;
 
 			mleaf_t *leaf = &cl.worldmodel->leafs[1 + i + j];
 			if (leaf->contents != CONTENTS_SKY || r_oldskyleaf.value)
 			{
-				byte *surfmask = cl.worldmodel->surfvis;
 				int nummarksurfaces = leaf->nummarksurfaces;
 				int *marksurfaces = leaf->firstmarksurface;
-				for (k = 0; k < nummarksurfaces; k++)
+				for (k = 0; k < nummarksurfaces; ++k)
 				{
 					int index = marksurfaces[k];
-					surfmask[index >> 3] |= 1 << (index & 7);
+					surfvis[index / 8] |= 1u << (index % 8);
 				}
 			}
 
@@ -214,20 +214,19 @@ void R_MarkVisSurfacesSIMD (byte *vis)
 		}
 	}
 
-	vis = cl.worldmodel->surfvis;
 	for (i = 0; i < numsurfaces; i += 8)
 	{
-		int mask = vis[i >> 3];
+		byte mask = surfvis[i / 8];
 		if (mask == 0)
 			continue;
 
-		mask &= R_BackFaceCullSIMD(cl.worldmodel->soa_surfplanes[i >> 3]);
+		mask &= R_BackFaceCullSIMD(cl.worldmodel->soa_surfplanes[i / 8]);
 		if (mask == 0)
 			continue;
 
-		for (j = 0; j < 8; j++)
+		for (j = 0; j < 8; ++j)
 		{
-			if (!(mask & (1 << j)))
+			if (!(mask & (1u << j)))
 				continue;
 
 			surf = &cl.worldmodel->surfaces[i + j];
