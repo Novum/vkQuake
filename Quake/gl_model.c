@@ -2325,16 +2325,85 @@ static void Mod_LoadLeafsExternal(FILE* f)
 
 /*
 =================
+Mod_SetupSubmodels
+set up the submodels (FIXME: this is confusing)
+=================
+*/
+static void Mod_SetupSubmodels (qmodel_t *mod)
+{
+	int i, j;
+	float radius;
+	dmodel_t 	*bm;
+
+	// johnfitz -- okay, so that i stop getting confused every time i look at this loop, here's how it works:
+	// we're looping through the submodels starting at 0.  Submodel 0 is the main model, so we don't have to
+	// worry about clobbering data the first time through, since it's the same data.  At the end of the loop,
+	// we create a new copy of the data to use the next time through.
+	for (i=0 ; i<mod->numsubmodels ; i++)
+	{
+		bm = &mod->submodels[i];
+
+		mod->hulls[0].firstclipnode = bm->headnode[0];
+		for (j=1 ; j<MAX_MAP_HULLS ; j++)
+		{
+			mod->hulls[j].firstclipnode = bm->headnode[j];
+			mod->hulls[j].lastclipnode = mod->numclipnodes-1;
+		}
+
+		mod->firstmodelsurface = bm->firstface;
+		mod->nummodelsurfaces = bm->numfaces;
+
+		VectorCopy (bm->maxs, mod->maxs);
+		VectorCopy (bm->mins, mod->mins);
+
+		//johnfitz -- calculate rotate bounds and yaw bounds
+		radius = RadiusFromBounds (mod->mins, mod->maxs);
+		mod->rmaxs[0] = mod->rmaxs[1] = mod->rmaxs[2] = mod->ymaxs[0] = mod->ymaxs[1] = mod->ymaxs[2] = radius;
+		mod->rmins[0] = mod->rmins[1] = mod->rmins[2] = mod->ymins[0] = mod->ymins[1] = mod->ymins[2] = -radius;
+		//johnfitz
+
+		//johnfitz -- correct physics cullboxes so that outlying clip brushes on doors and stuff are handled right
+		if (i > 0 || strcmp(mod->name, sv.modelname) != 0) //skip submodel 0 of sv.worldmodel, which is the actual world
+		{
+			// start with the hull0 bounds
+			VectorCopy (mod->maxs, mod->clipmaxs);
+			VectorCopy (mod->mins, mod->clipmins);
+
+			// process hull1 (we don't need to process hull2 becuase there's
+			// no such thing as a brush that appears in hull2 but not hull1)
+			//Mod_BoundsFromClipNode (mod, 1, mod->hulls[1].firstclipnode); // (disabled for now becuase it fucks up on rotating models)
+		}
+		//johnfitz
+
+		mod->numleafs = bm->visleafs;
+
+		if (i < mod->numsubmodels-1)
+		{	// duplicate the basic information
+			char	name[12];
+
+			sprintf (name, "*%i", i+1);
+			loadmodel = Mod_FindName (name);
+			*loadmodel = *mod;
+			strcpy (loadmodel->name, name);
+#ifdef PSET_SCRIPT
+			// Need to NULL this otherwise we double delete in PScript_ClearSurfaceParticles
+			loadmodel->skytrimem = NULL;
+#endif
+			mod = loadmodel;
+		}
+	}
+}
+
+/*
+=================
 Mod_LoadBrushModel
 =================
 */
 static void Mod_LoadBrushModel (qmodel_t *mod, void *buffer)
 {
-	int			i, j;
+	int			i;
 	int			bsp2;
 	dheader_t	*header;
-	dmodel_t 	*bm;
-	float		radius; //johnfitz
 
 	loadmodel->type = mod_brush;
 
@@ -2416,68 +2485,7 @@ visdone:
 	mod->numframes = 2;		// regular and alternate animation
 
 	Mod_CheckWaterVis ();
-
-//
-// set up the submodels (FIXME: this is confusing)
-//
-
-	// johnfitz -- okay, so that i stop getting confused every time i look at this loop, here's how it works:
-	// we're looping through the submodels starting at 0.  Submodel 0 is the main model, so we don't have to
-	// worry about clobbering data the first time through, since it's the same data.  At the end of the loop,
-	// we create a new copy of the data to use the next time through.
-	for (i=0 ; i<mod->numsubmodels ; i++)
-	{
-		bm = &mod->submodels[i];
-
-		mod->hulls[0].firstclipnode = bm->headnode[0];
-		for (j=1 ; j<MAX_MAP_HULLS ; j++)
-		{
-			mod->hulls[j].firstclipnode = bm->headnode[j];
-			mod->hulls[j].lastclipnode = mod->numclipnodes-1;
-		}
-
-		mod->firstmodelsurface = bm->firstface;
-		mod->nummodelsurfaces = bm->numfaces;
-
-		VectorCopy (bm->maxs, mod->maxs);
-		VectorCopy (bm->mins, mod->mins);
-
-		//johnfitz -- calculate rotate bounds and yaw bounds
-		radius = RadiusFromBounds (mod->mins, mod->maxs);
-		mod->rmaxs[0] = mod->rmaxs[1] = mod->rmaxs[2] = mod->ymaxs[0] = mod->ymaxs[1] = mod->ymaxs[2] = radius;
-		mod->rmins[0] = mod->rmins[1] = mod->rmins[2] = mod->ymins[0] = mod->ymins[1] = mod->ymins[2] = -radius;
-		//johnfitz
-
-		//johnfitz -- correct physics cullboxes so that outlying clip brushes on doors and stuff are handled right
-		if (i > 0 || strcmp(mod->name, sv.modelname) != 0) //skip submodel 0 of sv.worldmodel, which is the actual world
-		{
-			// start with the hull0 bounds
-			VectorCopy (mod->maxs, mod->clipmaxs);
-			VectorCopy (mod->mins, mod->clipmins);
-
-			// process hull1 (we don't need to process hull2 becuase there's
-			// no such thing as a brush that appears in hull2 but not hull1)
-			//Mod_BoundsFromClipNode (mod, 1, mod->hulls[1].firstclipnode); // (disabled for now becuase it fucks up on rotating models)
-		}
-		//johnfitz
-
-		mod->numleafs = bm->visleafs;
-
-		if (i < mod->numsubmodels-1)
-		{	// duplicate the basic information
-			char	name[12];
-
-			sprintf (name, "*%i", i+1);
-			loadmodel = Mod_FindName (name);
-			*loadmodel = *mod;
-			strcpy (loadmodel->name, name);
-#ifdef PSET_SCRIPT
-			// Need to NULL this otherwise we double delete in PScript_ClearSurfaceParticles
-			loadmodel->skytrimem = NULL;
-#endif
-			mod = loadmodel;
-		}
-	}
+	Mod_SetupSubmodels (mod);
 }
 
 /*
