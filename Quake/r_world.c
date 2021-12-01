@@ -232,7 +232,6 @@ void R_MarkVisSurfacesSIMD (byte *vis)
 
 			surf = &cl.worldmodel->surfaces[i + j];
 			rs_brushpolys++; //count wpolys here
-			surf->visframe = r_visframecount;
 			R_ChainSurface(surf, chain_world);
 			R_RenderDynamicLightmaps(surf);
 			if (surf->texinfo->texture->warpimage)

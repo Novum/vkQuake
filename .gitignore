@@ -13,6 +13,7 @@ Windows/VisualStudio/Id1
 Shaders/Compiled/*spv
 Shaders/bintoc.exe
 Shaders/bintoc.obj
+Shaders/bintoc
 Windows/VisualStudio/.vs
 /Windows/VisualStudio/history.txt
 Debug

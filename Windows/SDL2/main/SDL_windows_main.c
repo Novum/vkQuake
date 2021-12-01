@@ -19,8 +19,6 @@
 #  undef main
 #endif /* main */
 
-#define WIN_WStringToUTF8(S) SDL_iconv_string("UTF-8", "UTF-16LE", (char *)(S), (SDL_wcslen(S)+1)*sizeof(WCHAR))
-
 /* Pop up an out of memory message, returns to Windows */
 static BOOL
 OutOfMemory(void)
@@ -51,16 +49,29 @@ main_getcmdline(void)
         return OutOfMemory();
     }
 
+    /* Note that we need to be careful about how we allocate/free memory here.
+     * If the application calls SDL_SetMemoryFunctions(), we can't rely on
+     * SDL_free() to use the same allocator after SDL_main() returns.
+     */
+
     /* Parse it into argv and argc */
-    argv = (char **)SDL_calloc(argc + 1, sizeof(*argv));
+    argv = (char **)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, (argc + 1) * sizeof(*argv));
     if (!argv) {
         return OutOfMemory();
     }
     for (i = 0; i < argc; ++i) {
-        argv[i] = WIN_WStringToUTF8(argvw[i]);
+        DWORD len;
+        char *arg = WIN_StringToUTF8W(argvw[i]);
+        if (!arg) {
+            return OutOfMemory();
+        }
+        len = (DWORD)SDL_strlen(arg);
+        argv[i] = (char *)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, len + 1);
         if (!argv[i]) {
             return OutOfMemory();
         }
+        CopyMemory(argv[i], arg, len);
+        SDL_free(arg);
     }
     argv[i] = NULL;
     LocalFree(argvw);
@@ -72,9 +83,9 @@ main_getcmdline(void)
 
     /* Free argv, to avoid memory leak */
     for (i = 0; i < argc; ++i) {
-        SDL_free(argv[i]);
+        HeapFree(GetProcessHeap(), 0, argv[i]);
     }
-    SDL_free(argv);
+    HeapFree(GetProcessHeap(), 0, argv);
 
     return result;
 }
