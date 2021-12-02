@@ -8,11 +8,12 @@ RUN wget -qO - https://packages.lunarg.com/lunarg-signing-key-pub.asc | apt-key 
 RUN wget -qO /etc/apt/sources.list.d/lunarg-vulkan-1.2.141-xenial.list https://packages.lunarg.com/vulkan/1.2.141/lunarg-vulkan-1.2.141-xenial.list
 
 RUN apt-get update
-RUN apt-get install -y build-essential libvulkan-dev libvorbis-dev libmad0-dev libx11-xcb-dev fuse vulkan-sdk file
+RUN apt-get install -y build-essential libvulkan-dev libvorbis-dev libmad0-dev libx11-xcb-dev fuse vulkan-sdk file\
+	libasound2-dev libpulse-dev libopenal-dev libsndio-dev libaudiofile-dev libvorbis-dev libusb-dev libdbus-1-dev zlib1g-dev
 
 RUN cd /tmp \
  && wget https://www.libsdl.org/release/SDL2-2.0.16.tar.gz \
- && tar -xvf SDL2-2.0.16.tar.gz \
+ && tar -xzf SDL2-2.0.16.tar.gz \
  && cd /tmp/SDL2-2.0.16 \
  && ./configure \
  && make -j \
