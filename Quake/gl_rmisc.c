@@ -2909,6 +2909,30 @@ void R_TimeRefresh_f (void)
 	Con_Printf ("%f seconds (%f fps)\n", time, 128/time);
 }
 
+void R_AllocateVulkanMemory(vulkan_memory_t * memory, VkMemoryAllocateInfo * memory_allocate_info, vulkan_memory_type_t type)
+{
+	VkResult err = vkAllocateMemory(vulkan_globals.device, memory_allocate_info, NULL, &memory->handle);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkAllocateMemory failed");
+	memory->type = type;
+	memory->size = memory_allocate_info->allocationSize;
+	if (memory->type == VULKAN_MEMORY_TYPE_DEVICE)
+		total_device_vulkan_allocation_size += memory->size;
+	else if (memory->type == VULKAN_MEMORY_TYPE_HOST)
+		total_host_vulkan_allocation_size += memory->size;
+}
+
+void R_FreeVulkanMemory(vulkan_memory_t * memory)
+{
+	if (memory->type == VULKAN_MEMORY_TYPE_DEVICE)
+		total_device_vulkan_allocation_size -= memory->size;
+	else if (memory->type == VULKAN_MEMORY_TYPE_HOST)
+		total_host_vulkan_allocation_size -= memory->size;
+	vkFreeMemory(vulkan_globals.device, memory->handle, NULL);
+	memory->handle = VK_NULL_HANDLE;
+	memory->size = 0;
+}
+
 /*
 ====================
 R_VulkanMemStats_f

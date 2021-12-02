@@ -521,30 +521,6 @@ static inline void R_BindPipeline(VkPipelineBindPoint bind_point, vulkan_pipelin
 	}
 }
 
-static void R_AllocateVulkanMemory(vulkan_memory_t * memory, VkMemoryAllocateInfo * memory_allocate_info, vulkan_memory_type_t type)
-{
-	VkResult err = vkAllocateMemory(vulkan_globals.device, memory_allocate_info, NULL, &memory->handle);
-	if (err != VK_SUCCESS)
-		Sys_Error("vkAllocateMemory failed");
-	memory->type = type;
-	memory->size = memory_allocate_info->allocationSize;
-	if (memory->type == VULKAN_MEMORY_TYPE_DEVICE)
-		total_device_vulkan_allocation_size += memory->size;
-	else if (memory->type == VULKAN_MEMORY_TYPE_HOST)
-		total_host_vulkan_allocation_size += memory->size;
-}
-
-static void R_FreeVulkanMemory(vulkan_memory_t * memory)
-{
-	if (memory->type == VULKAN_MEMORY_TYPE_DEVICE)
-		total_device_vulkan_allocation_size -= memory->size;
-	else if (memory->type == VULKAN_MEMORY_TYPE_HOST)
-		total_host_vulkan_allocation_size -= memory->size;
-	vkFreeMemory(vulkan_globals.device, memory->handle, NULL);
-	memory->handle = VK_NULL_HANDLE;
-	memory->size = 0;
-}
-
 static inline void R_PushConstants(VkShaderStageFlags stage_flags, int offset, int size, const void * data)
 {
 	vulkan_globals.vk_cmd_push_constants(vulkan_globals.command_buffer, vulkan_globals.current_pipeline.layout.handle, stage_flags, offset, size, data);
@@ -562,7 +538,6 @@ static inline void R_BeginDebugUtilsLabel(const char * name)
 #endif
 }
 
-
 static inline void R_EndDebugUtilsLabel()
 {
 #ifdef _DEBUG
@@ -570,6 +545,9 @@ static inline void R_EndDebugUtilsLabel()
 		vulkan_globals.vk_cmd_end_debug_utils_label(vulkan_globals.command_buffer);
 #endif
 }
+
+void R_AllocateVulkanMemory(vulkan_memory_t *, VkMemoryAllocateInfo *, vulkan_memory_type_t);
+void R_FreeVulkanMemory(vulkan_memory_t *);
 
 VkDescriptorSet R_AllocateDescriptorSet(vulkan_desc_set_layout_t * layout);
 void R_FreeDescriptorSet(VkDescriptorSet desc_set, vulkan_desc_set_layout_t * layout);
