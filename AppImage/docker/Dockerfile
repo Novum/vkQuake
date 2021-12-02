@@ -12,9 +12,9 @@ RUN apt-get install -y build-essential libvulkan-dev libvorbis-dev libmad0-dev l
 	libasound2-dev libpulse-dev libopenal-dev libsndio-dev libaudiofile-dev libvorbis-dev libusb-dev libdbus-1-dev zlib1g-dev
 
 RUN cd /tmp \
- && wget https://www.libsdl.org/release/SDL2-2.0.16.tar.gz \
- && tar -xzf SDL2-2.0.16.tar.gz \
- && cd /tmp/SDL2-2.0.16 \
+ && wget https://www.libsdl.org/release/SDL2-2.0.18.tar.gz \
+ && tar -xzf SDL2-2.0.18.tar.gz \
+ && cd /tmp/SDL2-2.0.18 \
  && ./configure \
  && make -j \
  && make install
