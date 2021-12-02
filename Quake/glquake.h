@@ -160,6 +160,17 @@ typedef struct vulkan_desc_set_layout_s {
 	int							num_storage_images;
 } vulkan_desc_set_layout_t;
 
+typedef enum {
+	VULKAN_MEMORY_TYPE_DEVICE,
+	VULKAN_MEMORY_TYPE_HOST,
+} vulkan_memory_type_t;
+
+typedef struct vulkan_memory_s {
+	VkDeviceMemory				handle;
+	size_t						size;
+	vulkan_memory_type_t		type;
+} vulkan_memory_t;
+
 #define WORLD_PIPELINE_COUNT 8
 #define FTE_PARTICLE_PIPELINE_COUNT 16
 
@@ -350,6 +361,9 @@ extern unsigned int rs_brushpolys, rs_aliaspolys, rs_skypolys, rs_particles, rs_
 extern unsigned int rs_dynamiclightmaps, rs_brushpasses, rs_aliaspasses, rs_skypasses;
 extern float rs_megatexels;
 
+extern size_t total_device_vulkan_allocation_size;
+extern size_t total_host_vulkan_allocation_size;
+
 //johnfitz -- track developer statistics that vary every frame
 extern cvar_t devstats;
 typedef struct {
@@ -505,6 +519,30 @@ static inline void R_BindPipeline(VkPipelineBindPoint bind_point, vulkan_pipelin
 			vulkan_globals.vk_cmd_push_constants(vulkan_globals.command_buffer, pipeline.layout.handle, pipeline.layout.push_constant_range.stageFlags, 0, pipeline.layout.push_constant_range.size, zeroes);
 		vulkan_globals.current_pipeline = pipeline;
 	}
+}
+
+static void R_AllocateVulkanMemory(vulkan_memory_t * memory, VkMemoryAllocateInfo * memory_allocate_info, vulkan_memory_type_t type)
+{
+	VkResult err = vkAllocateMemory(vulkan_globals.device, memory_allocate_info, NULL, &memory->handle);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkAllocateMemory failed");
+	memory->type = type;
+	memory->size = memory_allocate_info->allocationSize;
+	if (memory->type == VULKAN_MEMORY_TYPE_DEVICE)
+		total_device_vulkan_allocation_size += memory->size;
+	else if (memory->type == VULKAN_MEMORY_TYPE_HOST)
+		total_host_vulkan_allocation_size += memory->size;
+}
+
+static void R_FreeVulkanMemory(vulkan_memory_t * memory)
+{
+	if (memory->type == VULKAN_MEMORY_TYPE_DEVICE)
+		total_device_vulkan_allocation_size -= memory->size;
+	else if (memory->type == VULKAN_MEMORY_TYPE_HOST)
+		total_host_vulkan_allocation_size -= memory->size;
+	vkFreeMemory(vulkan_globals.device, memory->handle, NULL);
+	memory->handle = VK_NULL_HANDLE;
+	memory->size = 0;
 }
 
 static inline void R_PushConstants(VkShaderStageFlags stage_flags, int offset, int size, const void * data)

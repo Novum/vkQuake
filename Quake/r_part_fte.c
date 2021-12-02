@@ -5515,15 +5515,15 @@ int PScript_ParticleTrail (vec3_t startpos, vec3_t end, int type, float timeinte
 
 static int current_buffer_index = 0;
 static VkBuffer vertex_buffers[2] = {VK_NULL_HANDLE, VK_NULL_HANDLE};
-static VkDeviceMemory vertex_buffers_memory[2] = {VK_NULL_HANDLE, VK_NULL_HANDLE};
+static vulkan_memory_t vertex_buffers_memory[2] = {{VK_NULL_HANDLE, 0, 0}, {VK_NULL_HANDLE, 0, 0}};
 static VkBuffer index_buffers[2] = {VK_NULL_HANDLE, VK_NULL_HANDLE};
-static VkDeviceMemory index_buffers_memory[2] = {VK_NULL_HANDLE, VK_NULL_HANDLE};
+static vulkan_memory_t index_buffers_memory[2] = {{VK_NULL_HANDLE, 0, 0}, {VK_NULL_HANDLE, 0, 0}};
 
 static void ReallocateVertexBuffer()
 {
 	VkResult err;
 
-	const VkDeviceMemory old_memory = vertex_buffers_memory[current_buffer_index];
+	vulkan_memory_t * old_memory = &vertex_buffers_memory[current_buffer_index];
 	const basicvertex_t* old_cl_curstrisvert = cl_curstrisvert;
 	const int old_maxstrisvert = cl_maxstrisvert[current_buffer_index];
 
@@ -5556,28 +5556,25 @@ static void ReallocateVertexBuffer()
 	memory_allocate_info.allocationSize = aligned_size;
 	memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
 
-	err = vkAllocateMemory(vulkan_globals.device, &memory_allocate_info, NULL, &vertex_buffers_memory[current_buffer_index]);
-	if (err != VK_SUCCESS)
-		Sys_Error("vkAllocateMemory failed");
+	R_AllocateVulkanMemory(&vertex_buffers_memory[current_buffer_index], &memory_allocate_info, VULKAN_MEMORY_TYPE_HOST);
+	GL_SetObjectName((uint64_t)vertex_buffers_memory[current_buffer_index].handle, VK_OBJECT_TYPE_DEVICE_MEMORY, "FTE Particle Vertex Buffer");
 
-	GL_SetObjectName((uint64_t)vertex_buffers_memory[current_buffer_index], VK_OBJECT_TYPE_DEVICE_MEMORY, "FTE Particle Vertex Buffer");
-
-	err = vkBindBufferMemory(vulkan_globals.device, vertex_buffers[current_buffer_index], vertex_buffers_memory[current_buffer_index], 0);
+	err = vkBindBufferMemory(vulkan_globals.device, vertex_buffers[current_buffer_index], vertex_buffers_memory[current_buffer_index].handle, 0);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkBindBufferMemory failed");
 
-	err = vkMapMemory(vulkan_globals.device, vertex_buffers_memory[current_buffer_index], 0, new_size, 0, (void**)&cl_curstrisvert);
+	err = vkMapMemory(vulkan_globals.device, vertex_buffers_memory[current_buffer_index].handle, 0, new_size, 0, (void**)&cl_curstrisvert);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkMapMemory failed");
 	cl_strisvert[current_buffer_index] = cl_curstrisvert;
 
-	if (old_memory != VK_NULL_HANDLE)
+	if (old_memory->handle != VK_NULL_HANDLE)
 	{
 		// Copy over data from old buffer
 		memcpy(cl_curstrisvert, old_cl_curstrisvert, old_maxstrisvert * sizeof(basicvertex_t));
 
-		vkUnmapMemory(vulkan_globals.device, old_memory);
-		vkFreeMemory(vulkan_globals.device, old_memory, NULL);
+		vkUnmapMemory(vulkan_globals.device, old_memory->handle);
+		R_FreeVulkanMemory(old_memory);
 	}
 }
 
@@ -5585,7 +5582,7 @@ static void ReallocateIndexBuffer()
 {
 	VkResult err;
 
-	const VkDeviceMemory old_memory = index_buffers_memory[current_buffer_index];
+	vulkan_memory_t * old_memory = &index_buffers_memory[current_buffer_index];
 	const unsigned short * old_cl_curstrisidx = cl_curstrisidx;
 	const int old_maxstrisidx = cl_maxstrisidx[current_buffer_index];
 
@@ -5618,28 +5615,25 @@ static void ReallocateIndexBuffer()
 	memory_allocate_info.allocationSize = aligned_size;
 	memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
 
-	err = vkAllocateMemory(vulkan_globals.device, &memory_allocate_info, NULL, &index_buffers_memory[current_buffer_index]);
-	if (err != VK_SUCCESS)
-		Sys_Error("vkAllocateMemory failed");
+	R_AllocateVulkanMemory(&index_buffers_memory[current_buffer_index], &memory_allocate_info, VULKAN_MEMORY_TYPE_HOST);
+	GL_SetObjectName((uint64_t)index_buffers_memory[current_buffer_index].handle, VK_OBJECT_TYPE_DEVICE_MEMORY, "FTE Particle index Buffer");
 
-	GL_SetObjectName((uint64_t)index_buffers_memory[current_buffer_index], VK_OBJECT_TYPE_DEVICE_MEMORY, "FTE Particle index Buffer");
-
-	err = vkBindBufferMemory(vulkan_globals.device, index_buffers[current_buffer_index], index_buffers_memory[current_buffer_index], 0);
+	err = vkBindBufferMemory(vulkan_globals.device, index_buffers[current_buffer_index], index_buffers_memory[current_buffer_index].handle, 0);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkBindBufferMemory failed");
 
-	err = vkMapMemory(vulkan_globals.device, index_buffers_memory[current_buffer_index], 0, new_size, 0, (void**)&cl_curstrisidx);
+	err = vkMapMemory(vulkan_globals.device, index_buffers_memory[current_buffer_index].handle, 0, new_size, 0, (void**)&cl_curstrisidx);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkMapMemory failed");
 	cl_strisidx[current_buffer_index] = cl_curstrisidx;
 
-	if (old_memory != VK_NULL_HANDLE)
+	if (old_memory->handle != VK_NULL_HANDLE)
 	{
 		// Copy over data from old buffer
 		memcpy(cl_curstrisidx, old_cl_curstrisidx, old_maxstrisidx * sizeof(unsigned short));
 
-		vkUnmapMemory(vulkan_globals.device, old_memory);
-		vkFreeMemory(vulkan_globals.device, old_memory, NULL);
+		vkUnmapMemory(vulkan_globals.device, old_memory->handle);
+		R_FreeVulkanMemory(old_memory);
 	}
 }
 

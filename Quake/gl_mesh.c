@@ -606,9 +606,9 @@ static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 
 		uint32_t memory_type_index = GL_MemoryTypeFromProperties(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
 		VkDeviceSize heap_size = INDEX_HEAP_SIZE_MB * (VkDeviceSize)1024 * (VkDeviceSize)1024;
-		VkDeviceSize aligned_offset = GL_AllocateFromHeaps(&num_index_buffer_heaps, &index_buffer_heaps, heap_size, memory_type_index, memory_requirements.size,
+		VkDeviceSize aligned_offset = GL_AllocateFromHeaps(&num_index_buffer_heaps, &index_buffer_heaps, heap_size, memory_type_index, VULKAN_MEMORY_TYPE_DEVICE, memory_requirements.size,
 			memory_requirements.alignment, &m->index_heap, &m->index_heap_node, &num_vulkan_mesh_allocations, "Index Buffers");
-		err = vkBindBufferMemory(vulkan_globals.device, m->index_buffer, m->index_heap->memory, aligned_offset);
+		err = vkBindBufferMemory(vulkan_globals.device, m->index_buffer, m->index_heap->memory.handle, aligned_offset);
 		if (err != VK_SUCCESS)
 			Sys_Error("vkBindBufferMemory failed");
 
@@ -703,9 +703,10 @@ static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 
 		uint32_t memory_type_index = GL_MemoryTypeFromProperties(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
 		VkDeviceSize heap_size = VERTEX_HEAP_SIZE_MB * (VkDeviceSize)1024 * (VkDeviceSize)1024;
-		VkDeviceSize aligned_offset = GL_AllocateFromHeaps(&num_vertex_buffer_heaps, &vertex_buffer_heaps, heap_size, memory_type_index, memory_requirements.size,
-			memory_requirements.alignment, &m->vertex_heap, &m->vertex_heap_node, &num_vulkan_mesh_allocations, "Vertex Buffers");
-		err = vkBindBufferMemory(vulkan_globals.device, m->vertex_buffer, m->vertex_heap->memory, aligned_offset);
+		VkDeviceSize aligned_offset = GL_AllocateFromHeaps(&num_vertex_buffer_heaps, &vertex_buffer_heaps, heap_size, memory_type_index,
+			VULKAN_MEMORY_TYPE_DEVICE, memory_requirements.size, memory_requirements.alignment, &m->vertex_heap, &m->vertex_heap_node,
+			&num_vulkan_mesh_allocations, "Vertex Buffers");
+		err = vkBindBufferMemory(vulkan_globals.device, m->vertex_buffer, m->vertex_heap->memory.handle, aligned_offset);
 		if (err != VK_SUCCESS)
 			Sys_Error("vkBindBufferMemory failed");
 
