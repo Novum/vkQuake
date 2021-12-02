@@ -24,7 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // r_misc.c
 
 #include "quakedef.h"
-#include "float.h"
+#include <float.h>
 
 #if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
 #include <SDL2/SDL.h>
@@ -2951,6 +2951,6 @@ void R_VulkanMemStats_f(void)
 	Con_Printf(" Dynamic UBOs: %d\n", num_vulkan_ubos_dynamic );
 	Con_Printf(" Input attachments: %d\n", num_vulkan_input_attachments );
 	Con_Printf(" Storage images: %d\n", num_vulkan_storage_images );
-	Con_Printf("Device %zu MiB total\n", total_device_vulkan_allocation_size / 1024ull / 1024ull);
-	Con_Printf("Host %zu MiB total\n", total_host_vulkan_allocation_size / 1024ull / 1024ull);
+	Con_Printf("Device %" SDL_PRIu64 " MiB total\n", (uint64_t)total_device_vulkan_allocation_size / 1024ull / 1024ull);
+	Con_Printf("Host %" SDL_PRIu64 " MiB total\n",  (uint64_t)total_host_vulkan_allocation_size / 1024ull / 1024ull);
 }
