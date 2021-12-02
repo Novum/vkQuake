@@ -2951,6 +2951,6 @@ void R_VulkanMemStats_f(void)
 	Con_Printf(" Dynamic UBOs: %d\n", num_vulkan_ubos_dynamic );
 	Con_Printf(" Input attachments: %d\n", num_vulkan_input_attachments );
 	Con_Printf(" Storage images: %d\n", num_vulkan_storage_images );
-	Con_Printf("Device %" SDL_PRIu64 " MiB total\n", (uint64_t)total_device_vulkan_allocation_size / 1024ull / 1024ull);
-	Con_Printf("Host %" SDL_PRIu64 " MiB total\n",  (uint64_t)total_host_vulkan_allocation_size / 1024ull / 1024ull);
+	Con_Printf("Device %" SDL_PRIu64 " MiB total\n", (uint64_t)total_device_vulkan_allocation_size / 1024 / 1024);
+	Con_Printf("Host %"  SDL_PRIu64 " MiB total\n",  (uint64_t)total_host_vulkan_allocation_size   / 1024 / 1024);
 }
