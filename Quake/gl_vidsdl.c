@@ -1305,7 +1305,7 @@ static void GL_CreateDepthBuffer( void )
 	if (vulkan_globals.dedicated_allocation)
 		memory_allocate_info.pNext = &dedicated_allocation_info;
 
-	assert(depth_buffer_memory == VK_NULL_HANDLE);
+	assert(depth_buffer_memory.handle == VK_NULL_HANDLE);
 	num_vulkan_misc_allocations += 1;
 	R_AllocateVulkanMemory(&depth_buffer_memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_DEVICE);
 	GL_SetObjectName((uint64_t)depth_buffer_memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, "Depth Buffer");
@@ -1388,7 +1388,7 @@ static void GL_CreateColorBuffer( void )
 		if (vulkan_globals.dedicated_allocation)
 			memory_allocate_info.pNext = &dedicated_allocation_info;
 
-		assert(color_buffers_memory[i] == VK_NULL_HANDLE);
+		assert(color_buffers_memory[i].handle == VK_NULL_HANDLE);
 		num_vulkan_misc_allocations += 1;
 		R_AllocateVulkanMemory(&color_buffers_memory[i], &memory_allocate_info, VULKAN_MEMORY_TYPE_DEVICE);
 		GL_SetObjectName((uint64_t)color_buffers_memory[i].handle, VK_OBJECT_TYPE_DEVICE_MEMORY, va("Color Buffer %d", i));
@@ -1490,7 +1490,7 @@ static void GL_CreateColorBuffer( void )
 		if (vulkan_globals.dedicated_allocation)
 			memory_allocate_info.pNext = &dedicated_allocation_info;
 
-		assert(msaa_color_buffer_memory == VK_NULL_HANDLE);
+		assert(msaa_color_buffer_memory.handle == VK_NULL_HANDLE);
 		num_vulkan_misc_allocations += 1;
 		R_AllocateVulkanMemory(&msaa_color_buffer_memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_DEVICE);
 		GL_SetObjectName((uint64_t)msaa_color_buffer_memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, "MSAA Color Buffer");
