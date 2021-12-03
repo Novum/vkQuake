@@ -8,7 +8,7 @@ RUN wget -qO - https://packages.lunarg.com/lunarg-signing-key-pub.asc | apt-key 
 RUN wget -qO /etc/apt/sources.list.d/lunarg-vulkan-1.2.141-xenial.list https://packages.lunarg.com/vulkan/1.2.141/lunarg-vulkan-1.2.141-xenial.list
 
 RUN apt-get update
-RUN apt-get install -y --install-suggests \
+RUN apt-get install -y \
 	build-essential \
 	file \
 	fuse \
