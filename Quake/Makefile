@@ -48,7 +48,7 @@ STRIP ?= strip
 CPUFLAGS=
 DFLAGS ?=
 CFLAGS ?=
-CFLAGS += -Wall -Wno-trigraphs -Werror -std=gnu99
+CFLAGS += -Wall -Wno-trigraphs -Wno-unused-function -Werror -std=gnu99
 CFLAGS += $(CPUFLAGS)
 ifneq ($(DEBUG),0)
 DFLAGS += -D_DEBUG
