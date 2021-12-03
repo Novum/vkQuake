@@ -5523,7 +5523,7 @@ static void ReallocateVertexBuffer()
 {
 	VkResult err;
 
-	vulkan_memory_t * old_memory = &vertex_buffers_memory[current_buffer_index];
+	vulkan_memory_t old_memory = vertex_buffers_memory[current_buffer_index];
 	const basicvertex_t* old_cl_curstrisvert = cl_curstrisvert;
 	const int old_maxstrisvert = cl_maxstrisvert[current_buffer_index];
 
@@ -5568,13 +5568,13 @@ static void ReallocateVertexBuffer()
 		Sys_Error("vkMapMemory failed");
 	cl_strisvert[current_buffer_index] = cl_curstrisvert;
 
-	if (old_memory->handle != VK_NULL_HANDLE)
+	if (old_memory.handle != VK_NULL_HANDLE)
 	{
 		// Copy over data from old buffer
 		memcpy(cl_curstrisvert, old_cl_curstrisvert, old_maxstrisvert * sizeof(basicvertex_t));
 
-		vkUnmapMemory(vulkan_globals.device, old_memory->handle);
-		R_FreeVulkanMemory(old_memory);
+		vkUnmapMemory(vulkan_globals.device, old_memory.handle);
+		R_FreeVulkanMemory(&old_memory);
 	}
 }
 
@@ -5582,7 +5582,7 @@ static void ReallocateIndexBuffer()
 {
 	VkResult err;
 
-	vulkan_memory_t * old_memory = &index_buffers_memory[current_buffer_index];
+	vulkan_memory_t old_memory = index_buffers_memory[current_buffer_index];
 	const unsigned short * old_cl_curstrisidx = cl_curstrisidx;
 	const int old_maxstrisidx = cl_maxstrisidx[current_buffer_index];
 
@@ -5627,13 +5627,13 @@ static void ReallocateIndexBuffer()
 		Sys_Error("vkMapMemory failed");
 	cl_strisidx[current_buffer_index] = cl_curstrisidx;
 
-	if (old_memory->handle != VK_NULL_HANDLE)
+	if (old_memory.handle != VK_NULL_HANDLE)
 	{
 		// Copy over data from old buffer
 		memcpy(cl_curstrisidx, old_cl_curstrisidx, old_maxstrisidx * sizeof(unsigned short));
 
-		vkUnmapMemory(vulkan_globals.device, old_memory->handle);
-		R_FreeVulkanMemory(old_memory);
+		vkUnmapMemory(vulkan_globals.device, old_memory.handle);
+		R_FreeVulkanMemory(&old_memory);
 	}
 }
 
