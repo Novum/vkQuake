@@ -1948,6 +1948,9 @@ static void GL_DestroyRenderResources( void )
 		vkDestroyImage(vulkan_globals.device, msaa_color_buffer, NULL);
 		num_vulkan_misc_allocations -= 1;
 		R_FreeVulkanMemory(&msaa_color_buffer_memory);
+
+		msaa_color_buffer_view = VK_NULL_HANDLE;
+		msaa_color_buffer = VK_NULL_HANDLE;
 	}
 
 	for (i = 0; i < NUM_COLOR_BUFFERS; ++i)
