@@ -520,12 +520,6 @@ void Mod_LoadTextures (lump_t *l)
 		for (j=0 ; j<MIPLEVELS ; j++)
 			mt.offsets[j] = LittleLong (mt.offsets[j]);
 
-		if ( (mt.width & 15) || (mt.height & 15) )
-		{
-			if (loadmodel->bspversion != BSPVERSION_QUAKE64)
-				Sys_Error ("Texture %s is not 16 aligned", mt.name);
-		}
-
 		pixels = mt.width*mt.height/64*85;
 		tx = (texture_t *) Hunk_AllocName (sizeof(texture_t) +pixels, loadname );
 		loadmodel->textures[i] = tx;

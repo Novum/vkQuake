@@ -26,6 +26,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 #include "gl_heap.h"
 
+#define STB_IMAGE_RESIZE_IMPLEMENTATION
+#define STB_IMAGE_RESIZE_STATIC
+#include "stb_image_resize.h"
+
 static cvar_t	gl_max_size = {"gl_max_size", "0", CVAR_NONE};
 static cvar_t	gl_picmip = {"gl_picmip", "0", CVAR_NONE};
 
@@ -51,6 +55,9 @@ unsigned int d_8to24table_pants[256];
 
 static glheap_t ** texmgr_heaps;
 static int num_texmgr_heaps;
+
+static byte *image_resize_buffer;
+static int image_resize_buffer_size;
 
 /*
 ================================================================================
@@ -464,52 +471,23 @@ int TexMgr_PadConditional (int s)
 
 /*
 ================
-TexMgr_MipMapW
+TexMgr_MipMap
 ================
 */
-static unsigned *TexMgr_MipMapW (unsigned *data, int width, int height)
+static unsigned *TexMgr_MipMap (unsigned *data, int width, int height)
 {
-	int	i, size;
-	byte	*out, *in;
+	const int new_width = width >> 1;
+	const int new_height = height >> 1;
+	const int new_mip_size = new_width * new_height * 4;
 
-	out = in = (byte *)data;
-	size = (width*height)>>1;
+	assert(new_width >= 1);
+	assert(new_height >= 1);
 
-	for (i = 0; i < size; i++, out += 4, in += 8)
-	{
-		out[0] = (in[0] + in[4])>>1;
-		out[1] = (in[1] + in[5])>>1;
-		out[2] = (in[2] + in[6])>>1;
-		out[3] = (in[3] + in[7])>>1;
-	}
+	if (new_mip_size > image_resize_buffer_size)
+		image_resize_buffer = realloc(image_resize_buffer, new_mip_size);
 
-	return data;
-}
-
-/*
-================
-TexMgr_MipMapH
-================
-*/
-static unsigned *TexMgr_MipMapH (unsigned *data, int width, int height)
-{
-	int	i, j;
-	byte	*out, *in;
-
-	out = in = (byte *)data;
-	height>>=1;
-	width<<=2;
-
-	for (i = 0; i < height; i++, in += width)
-	{
-		for (j = 0; j < width; j += 4, out += 4, in += 4)
-		{
-			out[0] = (in[0] + in[width+0])>>1;
-			out[1] = (in[1] + in[width+1])>>1;
-			out[2] = (in[2] + in[width+2])>>1;
-			out[3] = (in[3] + in[width+3])>>1;
-		}
-	}
+	stbir_resize_uint8((byte*)data, width, height, 0, (byte*)image_resize_buffer, new_width, new_height, 0, 4);
+	memcpy(data, image_resize_buffer, new_mip_size);
 
 	return data;
 }
@@ -735,7 +713,7 @@ static int TexMgr_DeriveNumMips(int width, int height)
 
 /*
 ================
-TexMgr_DeriveNumMips
+TexMgr_DeriveStagingSize
 ================
 */
 static int TexMgr_DeriveStagingSize(int width, int height)
@@ -784,16 +762,10 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	int picmip = (glt->flags & TEXPREF_NOPICMIP) ? 0 : q_max((int)gl_picmip.value, 0);
 	int mipwidth = TexMgr_SafeTextureSize (glt->width >> picmip);
 	int mipheight = TexMgr_SafeTextureSize (glt->height >> picmip);
-	while ((int) glt->width > mipwidth)
+	while ((int) glt->width > mipwidth || (int) glt->height > mipheight)
 	{
-		TexMgr_MipMapW (data, glt->width, glt->height);
+		TexMgr_MipMap (data, glt->width, glt->height);
 		glt->width >>= 1;
-		if (glt->flags & TEXPREF_ALPHA)
-			TexMgr_AlphaEdgeFix ((byte *)data, glt->width, glt->height);
-	}
-	while ((int) glt->height > mipheight)
-	{
-		TexMgr_MipMapH (data, glt->width, glt->height);
 		glt->height >>= 1;
 		if (glt->flags & TEXPREF_ALPHA)
 			TexMgr_AlphaEdgeFix ((byte *)data, glt->width, glt->height);
@@ -958,8 +930,8 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 			mip_offset += mipwidth * mipheight * 4;
 			num_regions += 1;
 
-			TexMgr_MipMapW(data, mipwidth, mipheight);
-			TexMgr_MipMapH(data, mipwidth, mipheight);
+			if (mipwidth > 1 && mipheight > 1)
+				TexMgr_MipMap(data, mipwidth, mipheight);
 
 			mipwidth /= 2;
 			mipheight /= 2;
