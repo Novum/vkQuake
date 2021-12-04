@@ -1,4 +1,5 @@
 #define MINIZ_EXPORT
+
 /* miniz.c 2.2.0 - public domain deflate/inflate, zlib-subset, ZIP reading/writing/appending, PNG writing
    See "unlicense" statement at the end of this file.
    Rich Geldreich <richgel99@gmail.com>, last updated Oct. 13, 2013
@@ -114,7 +115,7 @@
 #pragma once
 
 
-#if 1 /* QUAKESPASM-SPECIFIC CONFIG: */
+#if 1   /* QUAKESPASM-SPECIFIC CONFIG: */
 
 #if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
 #include <SDL2/SDL.h>
@@ -159,7 +160,7 @@
 
 #define MINIZ_LITTLE_ENDIAN (SDL_BYTEORDER == SDL_LIL_ENDIAN)
 
-#endif /* QUAKESPASM-SPECIFIC */
+#endif   /* QUAKESPASM-SPECIFIC */
 
 #ifdef MINIZ_NO_INFLATE_APIS
 #define MINIZ_NO_ARCHIVE_APIS
@@ -185,11 +186,23 @@
 
 /* Set MINIZ_LITTLE_ENDIAN only if not set */
 #if !defined(MINIZ_LITTLE_ENDIAN)
-#if (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__) || MINIZ_X86_OR_X64_CPU
+#if defined(__BYTE_ORDER__) && defined(__ORDER_LITTLE_ENDIAN__)
+
+#if (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
 /* Set MINIZ_LITTLE_ENDIAN to 1 if the processor is little endian. */
 #define MINIZ_LITTLE_ENDIAN 1
 #else
 #define MINIZ_LITTLE_ENDIAN 0
+#endif
+
+#else
+
+#if MINIZ_X86_OR_X64_CPU
+#define MINIZ_LITTLE_ENDIAN 1
+#else
+#define MINIZ_LITTLE_ENDIAN 0
+#endif
+
 #endif
 #endif
 
