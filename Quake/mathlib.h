@@ -63,12 +63,12 @@ static inline int IS_NAN (float x) {
 #define VectorNormalizeFast(_v)\
 {\
 	union { float f; int i; } _y, _number;\
-	_number.f = DotProduct(_v, _v);\
+	_number.f = DotProduct((_v), (_v));\
 	if (_number.f != 0.0)\
 	{\
 		_y.i = 0x5f3759df - (_number.i >> 1);\
 		_y.f = _y.f * (1.5f - (_number.f * 0.5f * _y.f * _y.f));\
-		VectorScale(_v, _y.f, _v);\
+		VectorScale((_v), _y.f, (_v));\
 	}\
 }
 
