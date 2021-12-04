@@ -433,35 +433,22 @@ void TexMgr_Init (void)
 */
 
 /*
-===============
-TexMgr_SafeTextureSize -- return a size with hardware and user prefs in mind
-===============
-*/
-int TexMgr_SafeTextureSize (int s)
-{
-	s = q_min((int)vulkan_globals.device_properties.limits.maxImageDimension2D, s);
-	return s;
-}
-
-/*
 ================
-TexMgr_MipMap
+TexMgr_Downsample
 ================
 */
-static unsigned *TexMgr_MipMap (unsigned *data, int width, int height)
+static unsigned *TexMgr_Downsample (unsigned *data, int in_width, int in_height, int out_width, int out_height)
 {
-	const int new_width = width >> 1;
-	const int new_height = height >> 1;
-	const int new_mip_size = new_width * new_height * 4;
+	const int out_size_bytes = out_width * out_height * 4;
 
-	assert(new_width >= 1);
-	assert(new_height >= 1);
+	assert((out_width >= 1) && (out_width < in_width));
+	assert((out_height >= 1) && (out_height < in_height));
 
-	if (new_mip_size > image_resize_buffer_size)
-		image_resize_buffer = realloc(image_resize_buffer, new_mip_size);
+	if (out_size_bytes > image_resize_buffer_size)
+		image_resize_buffer = realloc(image_resize_buffer, out_size_bytes);
 
-	stbir_resize_uint8((byte*)data, width, height, 0, (byte*)image_resize_buffer, new_width, new_height, 0, 4);
-	memcpy(data, image_resize_buffer, new_mip_size);
+	stbir_resize_uint8((byte*)data, in_width, in_height, 0, (byte*)image_resize_buffer, out_width, out_height, 0, 4);
+	memcpy(data, image_resize_buffer, out_size_bytes);
 
 	return data;
 }
@@ -602,17 +589,32 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 
 	// mipmap down
 	int picmip = (glt->flags & TEXPREF_NOPICMIP) ? 0 : q_max((int)gl_picmip.value, 0);
-	int mipwidth = TexMgr_SafeTextureSize (glt->width >> picmip);
-	int mipheight = TexMgr_SafeTextureSize (glt->height >> picmip);
-	while ((int) glt->width > mipwidth || (int) glt->height > mipheight)
+	int mipwidth = q_max(glt->width >> picmip, 1);
+	int mipheight = q_max(glt->height >> picmip, 1);
+
+	int maxsize = (int)vulkan_globals.device_properties.limits.maxImageDimension2D;
+	if ((mipwidth > maxsize) || (mipheight > maxsize))
 	{
-		TexMgr_MipMap (data, glt->width, glt->height);
-		glt->width >>= 1;
-		glt->height >>= 1;
+		if (mipwidth >= mipheight)
+		{
+			mipheight = q_max((mipheight * maxsize) / mipwidth, 1);
+			mipwidth = maxsize;
+		}
+		else
+		{
+			mipwidth = q_max((mipwidth * maxsize) / mipheight, 1);
+			mipheight = maxsize;
+		}
+	}
+
+	if ((int)glt->width != mipwidth || (int)glt->height != mipheight)
+	{
+		TexMgr_Downsample (data, glt->width, glt->height, mipwidth, mipheight);
+		glt->width = mipwidth;
+		glt->height = mipheight;
 		if (glt->flags & TEXPREF_ALPHA)
 			TexMgr_AlphaEdgeFix ((byte *)data, glt->width, glt->height);
 	}
-
 	int num_mips = (glt->flags & TEXPREF_MIPMAP) ? TexMgr_DeriveNumMips(glt->width, glt->height) : 1;
 
 	const qboolean warp_image = (glt->flags & TEXPREF_WARPIMAGE);
@@ -773,7 +775,7 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 			num_regions += 1;
 
 			if (mipwidth > 1 && mipheight > 1)
-				TexMgr_MipMap(data, mipwidth, mipheight);
+				TexMgr_Downsample(data, mipwidth, mipheight, mipwidth / 2, mipheight / 2);
 
 			mipwidth /= 2;
 			mipheight /= 2;
