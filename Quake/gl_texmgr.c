@@ -433,19 +433,6 @@ void TexMgr_Init (void)
 */
 
 /*
-================
-TexMgr_Pad -- return smallest power of two greater than or equal to s
-================
-*/
-int TexMgr_Pad (int s)
-{
-	int i;
-	for (i = 1; i < s; i<<=1)
-		;
-	return i;
-}
-
-/*
 ===============
 TexMgr_SafeTextureSize -- return a size with hardware and user prefs in mind
 ===============
@@ -454,19 +441,6 @@ int TexMgr_SafeTextureSize (int s)
 {
 	s = q_min((int)vulkan_globals.device_properties.limits.maxImageDimension2D, s);
 	return s;
-}
-
-/*
-================
-TexMgr_PadConditional -- only pad if a texture of that size would be padded. (used for tex coords)
-================
-*/
-int TexMgr_PadConditional (int s)
-{
-	if (s < TexMgr_SafeTextureSize(s))
-		return TexMgr_Pad(s);
-	else
-		return s;
 }
 
 /*
@@ -545,84 +519,6 @@ static void TexMgr_AlphaEdgeFix (byte *data, int width, int height)
 }
 
 /*
-===============
-TexMgr_PadEdgeFixW -- special case of AlphaEdgeFix for textures that only need it because they were padded
-
-operates in place on 32bit data, and expects unpadded height and width values
-===============
-*/
-static void TexMgr_PadEdgeFixW (byte *data, int width, int height)
-{
-	byte *src, *dst;
-	int i, padw, padh;
-
-	padw = TexMgr_PadConditional(width);
-	padh = TexMgr_PadConditional(height);
-
-	//copy last full column to first empty column, leaving alpha byte at zero
-	src = data + (width - 1) * 4;
-	for (i = 0; i < padh; i++)
-	{
-		src[4] = src[0];
-		src[5] = src[1];
-		src[6] = src[2];
-		src += padw * 4;
-	}
-
-	//copy first full column to last empty column, leaving alpha byte at zero
-	src = data;
-	dst = data + (padw - 1) * 4;
-	for (i = 0; i < padh; i++)
-	{
-		dst[0] = src[0];
-		dst[1] = src[1];
-		dst[2] = src[2];
-		src += padw * 4;
-		dst += padw * 4;
-	}
-}
-
-/*
-===============
-TexMgr_PadEdgeFixH -- special case of AlphaEdgeFix for textures that only need it because they were padded
-
-operates in place on 32bit data, and expects unpadded height and width values
-===============
-*/
-static void TexMgr_PadEdgeFixH (byte *data, int width, int height)
-{
-	byte *src, *dst;
-	int i, padw, padh;
-
-	padw = TexMgr_PadConditional(width);
-	padh = TexMgr_PadConditional(height);
-
-	//copy last full row to first empty row, leaving alpha byte at zero
-	dst = data + height * padw * 4;
-	src = dst - padw * 4;
-	for (i = 0; i < padw; i++)
-	{
-		dst[0] = src[0];
-		dst[1] = src[1];
-		dst[2] = src[2];
-		src += 4;
-		dst += 4;
-	}
-
-	//copy first full row to last empty row, leaving alpha byte at zero
-	dst = data + (padh - 1) * padw * 4;
-	src = data;
-	for (i = 0; i < padw; i++)
-	{
-		dst[0] = src[0];
-		dst[1] = src[1];
-		dst[2] = src[2];
-		src += 4;
-		dst += 4;
-	}
-}
-
-/*
 ================
 TexMgr_8to32
 ================
@@ -636,60 +532,6 @@ static unsigned *TexMgr_8to32 (byte *in, int pixels, unsigned int *usepal)
 
 	for (i = 0; i < pixels; i++)
 		*out++ = usepal[*in++];
-
-	return data;
-}
-
-/*
-================
-TexMgr_PadImageW -- return image with width padded up to power-of-two dimentions
-================
-*/
-static byte *TexMgr_PadImageW (byte *in, int width, int height, byte padbyte)
-{
-	int i, j, outwidth;
-	byte *out, *data;
-
-	if (width == TexMgr_Pad(width))
-		return in;
-
-	outwidth = TexMgr_Pad(width);
-
-	out = data = (byte *) Hunk_Alloc(outwidth*height);
-
-	for (i = 0; i < height; i++)
-	{
-		for (j = 0; j < width; j++)
-			*out++ = *in++;
-		for (  ; j < outwidth; j++)
-			*out++ = padbyte;
-	}
-
-	return data;
-}
-
-/*
-================
-TexMgr_PadImageH -- return image with height padded up to power-of-two dimentions
-================
-*/
-static byte *TexMgr_PadImageH (byte *in, int width, int height, byte padbyte)
-{
-	int i, srcpix, dstpix;
-	byte *data, *out;
-
-	if (height == TexMgr_Pad(height))
-		return in;
-
-	srcpix = width * height;
-	dstpix = width * TexMgr_Pad(height);
-
-	out = data = (byte *) Hunk_Alloc(dstpix);
-
-	for (i = 0; i < srcpix; i++)
-		*out++ = *in++;
-	for (     ; i < dstpix; i++)
-		*out++ = padbyte;
 
 	return data;
 }
@@ -986,8 +828,6 @@ static void TexMgr_LoadImage8 (gltexture_t *glt, byte *data)
 	GL_DeleteTexture(glt);
 
 	extern cvar_t gl_fullbrights;
-	qboolean padw = false, padh = false;
-	byte padbyte;
 	unsigned int *usepal;
 	int i;
 
@@ -1019,7 +859,6 @@ static void TexMgr_LoadImage8 (gltexture_t *glt, byte *data)
 			usepal = d_8to24table_fbright_fence;
 		else
 			usepal = d_8to24table_fbright;
-		padbyte = 0;
 	}
 	else if (glt->flags & TEXPREF_NOBRIGHT && gl_fullbrights.value)
 	{
@@ -1027,34 +866,14 @@ static void TexMgr_LoadImage8 (gltexture_t *glt, byte *data)
 			usepal = d_8to24table_nobright_fence;
 		else
 			usepal = d_8to24table_nobright;
-		padbyte = 0;
 	}
 	else if (glt->flags & TEXPREF_CONCHARS)
 	{
 		usepal = d_8to24table_conchars;
-		padbyte = 0;
 	}
 	else
 	{
 		usepal = d_8to24table;
-		padbyte = 255;
-	}
-
-	// pad each dimention, but only if it's not going to be downsampled later
-	if (glt->flags & TEXPREF_PAD)
-	{
-		if ((int) glt->width < TexMgr_SafeTextureSize(glt->width))
-		{
-			data = TexMgr_PadImageW (data, glt->width, glt->height, padbyte);
-			glt->width = TexMgr_Pad(glt->width);
-			padw = true;
-		}
-		if ((int) glt->height < TexMgr_SafeTextureSize(glt->height))
-		{
-			data = TexMgr_PadImageH (data, glt->width, glt->height, padbyte);
-			glt->height = TexMgr_Pad(glt->height);
-			padh = true;
-		}
 	}
 
 	// convert to 32bit
@@ -1063,13 +882,6 @@ static void TexMgr_LoadImage8 (gltexture_t *glt, byte *data)
 	// fix edges
 	if (glt->flags & TEXPREF_ALPHA)
 		TexMgr_AlphaEdgeFix (data, glt->width, glt->height);
-	else
-	{
-		if (padw)
-			TexMgr_PadEdgeFixW (data, glt->source_width, glt->source_height);
-		if (padh)
-			TexMgr_PadEdgeFixH (data, glt->source_width, glt->source_height);
-	}
 
 	// upload it
 	TexMgr_LoadImage32 (glt, (unsigned *)data);

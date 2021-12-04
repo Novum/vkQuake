@@ -364,14 +364,8 @@ void GL_MakeAliasModelDisplayLists (qmodel_t *m, aliashdr_t *hdr)
 	int		i, j;
 	int			*cmds;
 	trivertx_t	*verts;
-	float	hscale, vscale; //johnfitz -- padded skins
 	int		count; //johnfitz -- precompute texcoords for padded skins
 	int		*loadcmds; //johnfitz
-
-	//johnfitz -- padded skins
-	hscale = (float)hdr->skinwidth/(float)TexMgr_PadConditional(hdr->skinwidth);
-	vscale = (float)hdr->skinheight/(float)TexMgr_PadConditional(hdr->skinheight);
-	//johnfitz
 
 	aliasmodel = m;
 	paliashdr = hdr;	// (aliashdr_t *)Mod_Extradata (m);
@@ -401,8 +395,8 @@ void GL_MakeAliasModelDisplayLists (qmodel_t *m, aliashdr_t *hdr)
 
 		do
 		{
-			*(float *)cmds++ = hscale * (*(float *)loadcmds++);
-			*(float *)cmds++ = vscale * (*(float *)loadcmds++);
+			*(float *)cmds++ = (*(float *)loadcmds++);
+			*(float *)cmds++ = (*(float *)loadcmds++);
 		} while (--count);
 	}
 	//johnfitz
@@ -670,18 +664,12 @@ static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 // fill in the ST coords at the end of the buffer
 	{
 		meshst_t *st;
-		float hscale, vscale;
-
-		//johnfitz -- padded skins
-		hscale = (float)hdr->skinwidth/(float)TexMgr_PadConditional(hdr->skinwidth);
-		vscale = (float)hdr->skinheight/(float)TexMgr_PadConditional(hdr->skinheight);
-		//johnfitz
 
 		st = (meshst_t *) (vbodata + m->vbostofs);
 		for (f = 0; f < hdr->numverts_vbo; f++)
 		{
-			st[f].st[0] = hscale * ((float) desc[f].st[0] + 0.5f) / (float) hdr->skinwidth;
-			st[f].st[1] = vscale * ((float) desc[f].st[1] + 0.5f) / (float) hdr->skinheight;
+			st[f].st[0] = ((float) desc[f].st[0] + 0.5f) / (float) hdr->skinwidth;
+			st[f].st[1] = ((float) desc[f].st[1] + 0.5f) / (float) hdr->skinheight;
 		}
 	}
 
