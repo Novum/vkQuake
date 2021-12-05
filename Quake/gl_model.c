@@ -1327,21 +1327,6 @@ void Mod_LoadFaces (lump_t *l, qboolean bsp2)
 	}
 }
 
-
-/*
-=================
-Mod_SetParent
-=================
-*/
-void Mod_SetParent (mnode_t *node, mnode_t *parent)
-{
-	node->parent = parent;
-	if (node->contents < 0)
-		return;
-	Mod_SetParent (node->children[0], node);
-	Mod_SetParent (node->children[1], node);
-}
-
 /*
 =================
 Mod_LoadNodes
@@ -1515,8 +1500,6 @@ void Mod_LoadNodes (lump_t *l, int bsp2)
 		Mod_LoadNodes_L1(l);
 	else
 		Mod_LoadNodes_S(l);
-
-	Mod_SetParent (loadmodel->nodes, NULL);	// sets nodes and leafs
 }
 
 void Mod_ProcessLeafs_S (byte *in, int filelen)

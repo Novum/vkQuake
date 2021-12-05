@@ -171,12 +171,12 @@ R_MarkVisSurfacesSIMD
 */
 void R_MarkVisSurfacesSIMD (byte *vis)
 {
-	msurface_t	*surf;
-	int			i, j, k;
-	int			numleafs = cl.worldmodel->numleafs;
-	int			numsurfaces = cl.worldmodel->numsurfaces;
-	byte		*surfvis = cl.worldmodel->surfvis;
-	soa_aabb_t	*leafbounds = cl.worldmodel->soa_leafbounds;
+	msurface_t		*surf;
+	unsigned int	i, j, k;
+	unsigned int	numleafs = cl.worldmodel->numleafs;
+	unsigned int	numsurfaces = cl.worldmodel->numsurfaces;
+	byte			*surfvis = cl.worldmodel->surfvis;
+	soa_aabb_t		*leafbounds = cl.worldmodel->soa_leafbounds;
 
 	memset(cl.worldmodel->surfvis, 0, (cl.worldmodel->numsurfaces + 7) / 8);
 
@@ -199,11 +199,11 @@ void R_MarkVisSurfacesSIMD (byte *vis)
 			mleaf_t *leaf = &cl.worldmodel->leafs[1 + i + j];
 			if (leaf->contents != CONTENTS_SKY || r_oldskyleaf.value)
 			{
-				int nummarksurfaces = leaf->nummarksurfaces;
+				unsigned int nummarksurfaces = leaf->nummarksurfaces;
 				int *marksurfaces = leaf->firstmarksurface;
 				for (k = 0; k < nummarksurfaces; ++k)
 				{
-					int index = marksurfaces[k];
+					unsigned int index = marksurfaces[k];
 					surfvis[index / 8] |= 1u << (index % 8);
 				}
 			}
