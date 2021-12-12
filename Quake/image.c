@@ -411,7 +411,7 @@ byte *Image_LoadPCX (FILE *f, int *width, int *height)
 
 	start = ftell (f); //save start of file (since we might be inside a pak file, SEEK_SET might not be the start of the pcx)
 
-	if (fread(&pcx, sizeof(pcx), 1, f) != sizeof(pcx))
+	if (fread(&pcx, sizeof(pcx), 1, f) != 1)
 		Sys_Error ("'%s' is not a valid PCX file", loadfilename);
 
 	pcx.xmin = (unsigned short)LittleShort (pcx.xmin);

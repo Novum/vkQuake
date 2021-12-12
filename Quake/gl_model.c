@@ -2278,7 +2278,7 @@ static byte *Mod_LoadVisibilityExternal(FILE* f)
 	if (filelen <= 0) return NULL;
 	Con_DPrintf("...%d bytes visibility data\n", filelen);
 	visdata = (byte *) Hunk_AllocName(filelen, "EXT_VIS");
-	if (fread(visdata, filelen, 1, f) != filelen)
+	if (fread(visdata, filelen, 1, f) != 1)
 		return NULL;
 	return visdata;
 }
@@ -2295,7 +2295,7 @@ static void Mod_LoadLeafsExternal(FILE* f)
 	if (filelen <= 0) return;
 	Con_DPrintf("...%d bytes leaf data\n", filelen);
 	in = Hunk_AllocName(filelen, "EXT_LEAF");
-	if (fread(in, filelen, 1, f) != filelen)
+	if (fread(in, filelen, 1, f) != 1)
 		return;
 	Mod_ProcessLeafs_S((byte*)in, filelen);
 }
