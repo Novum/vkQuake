@@ -671,6 +671,8 @@ void Draw_SubPic (float x, float y, float w, float h, qpic_t *pic, float s1, flo
 	if (scrap_dirty)
 		Scrap_Upload ();
 	memcpy(&gl, pic->data, sizeof(glpic_t));
+	if (!gl.gltexture)
+		return;
 
 	VkBuffer buffer;
 	VkDeviceSize buffer_offset;
