@@ -26,6 +26,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 #include "gl_heap.h"
 
+#define STB_IMAGE_RESIZE_IMPLEMENTATION
+#define STB_IMAGE_RESIZE_STATIC
+#include "stb_image_resize.h"
+
 static cvar_t	gl_max_size = {"gl_max_size", "0", CVAR_NONE};
 static cvar_t	gl_picmip = {"gl_picmip", "0", CVAR_NONE};
 
@@ -51,6 +55,9 @@ unsigned int d_8to24table_pants[256];
 
 static glheap_t ** texmgr_heaps;
 static int num_texmgr_heaps;
+
+static byte *image_resize_buffer;
+static int image_resize_buffer_size;
 
 /*
 ================================================================================
@@ -427,89 +434,21 @@ void TexMgr_Init (void)
 
 /*
 ================
-TexMgr_Pad -- return smallest power of two greater than or equal to s
+TexMgr_Downsample
 ================
 */
-int TexMgr_Pad (int s)
+static unsigned *TexMgr_Downsample (unsigned *data, int in_width, int in_height, int out_width, int out_height)
 {
-	int i;
-	for (i = 1; i < s; i<<=1)
-		;
-	return i;
-}
+	const int out_size_bytes = out_width * out_height * 4;
 
-/*
-===============
-TexMgr_SafeTextureSize -- return a size with hardware and user prefs in mind
-===============
-*/
-int TexMgr_SafeTextureSize (int s)
-{
-	s = q_min((int)vulkan_globals.device_properties.limits.maxImageDimension2D, s);
-	return s;
-}
+	assert((out_width >= 1) && (out_width < in_width));
+	assert((out_height >= 1) && (out_height < in_height));
 
-/*
-================
-TexMgr_PadConditional -- only pad if a texture of that size would be padded. (used for tex coords)
-================
-*/
-int TexMgr_PadConditional (int s)
-{
-	if (s < TexMgr_SafeTextureSize(s))
-		return TexMgr_Pad(s);
-	else
-		return s;
-}
+	if (out_size_bytes > image_resize_buffer_size)
+		image_resize_buffer = realloc(image_resize_buffer, out_size_bytes);
 
-/*
-================
-TexMgr_MipMapW
-================
-*/
-static unsigned *TexMgr_MipMapW (unsigned *data, int width, int height)
-{
-	int	i, size;
-	byte	*out, *in;
-
-	out = in = (byte *)data;
-	size = (width*height)>>1;
-
-	for (i = 0; i < size; i++, out += 4, in += 8)
-	{
-		out[0] = (in[0] + in[4])>>1;
-		out[1] = (in[1] + in[5])>>1;
-		out[2] = (in[2] + in[6])>>1;
-		out[3] = (in[3] + in[7])>>1;
-	}
-
-	return data;
-}
-
-/*
-================
-TexMgr_MipMapH
-================
-*/
-static unsigned *TexMgr_MipMapH (unsigned *data, int width, int height)
-{
-	int	i, j;
-	byte	*out, *in;
-
-	out = in = (byte *)data;
-	height>>=1;
-	width<<=2;
-
-	for (i = 0; i < height; i++, in += width)
-	{
-		for (j = 0; j < width; j += 4, out += 4, in += 4)
-		{
-			out[0] = (in[0] + in[width+0])>>1;
-			out[1] = (in[1] + in[width+1])>>1;
-			out[2] = (in[2] + in[width+2])>>1;
-			out[3] = (in[3] + in[width+3])>>1;
-		}
-	}
+	stbir_resize_uint8((byte*)data, in_width, in_height, 0, (byte*)image_resize_buffer, out_width, out_height, 0, 4);
+	memcpy(data, image_resize_buffer, out_size_bytes);
 
 	return data;
 }
@@ -567,84 +506,6 @@ static void TexMgr_AlphaEdgeFix (byte *data, int width, int height)
 }
 
 /*
-===============
-TexMgr_PadEdgeFixW -- special case of AlphaEdgeFix for textures that only need it because they were padded
-
-operates in place on 32bit data, and expects unpadded height and width values
-===============
-*/
-static void TexMgr_PadEdgeFixW (byte *data, int width, int height)
-{
-	byte *src, *dst;
-	int i, padw, padh;
-
-	padw = TexMgr_PadConditional(width);
-	padh = TexMgr_PadConditional(height);
-
-	//copy last full column to first empty column, leaving alpha byte at zero
-	src = data + (width - 1) * 4;
-	for (i = 0; i < padh; i++)
-	{
-		src[4] = src[0];
-		src[5] = src[1];
-		src[6] = src[2];
-		src += padw * 4;
-	}
-
-	//copy first full column to last empty column, leaving alpha byte at zero
-	src = data;
-	dst = data + (padw - 1) * 4;
-	for (i = 0; i < padh; i++)
-	{
-		dst[0] = src[0];
-		dst[1] = src[1];
-		dst[2] = src[2];
-		src += padw * 4;
-		dst += padw * 4;
-	}
-}
-
-/*
-===============
-TexMgr_PadEdgeFixH -- special case of AlphaEdgeFix for textures that only need it because they were padded
-
-operates in place on 32bit data, and expects unpadded height and width values
-===============
-*/
-static void TexMgr_PadEdgeFixH (byte *data, int width, int height)
-{
-	byte *src, *dst;
-	int i, padw, padh;
-
-	padw = TexMgr_PadConditional(width);
-	padh = TexMgr_PadConditional(height);
-
-	//copy last full row to first empty row, leaving alpha byte at zero
-	dst = data + height * padw * 4;
-	src = dst - padw * 4;
-	for (i = 0; i < padw; i++)
-	{
-		dst[0] = src[0];
-		dst[1] = src[1];
-		dst[2] = src[2];
-		src += 4;
-		dst += 4;
-	}
-
-	//copy first full row to last empty row, leaving alpha byte at zero
-	dst = data + (padh - 1) * padw * 4;
-	src = data;
-	for (i = 0; i < padw; i++)
-	{
-		dst[0] = src[0];
-		dst[1] = src[1];
-		dst[2] = src[2];
-		src += 4;
-		dst += 4;
-	}
-}
-
-/*
 ================
 TexMgr_8to32
 ================
@@ -658,60 +519,6 @@ static unsigned *TexMgr_8to32 (byte *in, int pixels, unsigned int *usepal)
 
 	for (i = 0; i < pixels; i++)
 		*out++ = usepal[*in++];
-
-	return data;
-}
-
-/*
-================
-TexMgr_PadImageW -- return image with width padded up to power-of-two dimentions
-================
-*/
-static byte *TexMgr_PadImageW (byte *in, int width, int height, byte padbyte)
-{
-	int i, j, outwidth;
-	byte *out, *data;
-
-	if (width == TexMgr_Pad(width))
-		return in;
-
-	outwidth = TexMgr_Pad(width);
-
-	out = data = (byte *) Hunk_Alloc(outwidth*height);
-
-	for (i = 0; i < height; i++)
-	{
-		for (j = 0; j < width; j++)
-			*out++ = *in++;
-		for (  ; j < outwidth; j++)
-			*out++ = padbyte;
-	}
-
-	return data;
-}
-
-/*
-================
-TexMgr_PadImageH -- return image with height padded up to power-of-two dimentions
-================
-*/
-static byte *TexMgr_PadImageH (byte *in, int width, int height, byte padbyte)
-{
-	int i, srcpix, dstpix;
-	byte *data, *out;
-
-	if (height == TexMgr_Pad(height))
-		return in;
-
-	srcpix = width * height;
-	dstpix = width * TexMgr_Pad(height);
-
-	out = data = (byte *) Hunk_Alloc(dstpix);
-
-	for (i = 0; i < srcpix; i++)
-		*out++ = *in++;
-	for (     ; i < dstpix; i++)
-		*out++ = padbyte;
 
 	return data;
 }
@@ -735,7 +542,7 @@ static int TexMgr_DeriveNumMips(int width, int height)
 
 /*
 ================
-TexMgr_DeriveNumMips
+TexMgr_DeriveStagingSize
 ================
 */
 static int TexMgr_DeriveStagingSize(int width, int height)
@@ -782,23 +589,32 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 
 	// mipmap down
 	int picmip = (glt->flags & TEXPREF_NOPICMIP) ? 0 : q_max((int)gl_picmip.value, 0);
-	int mipwidth = TexMgr_SafeTextureSize (glt->width >> picmip);
-	int mipheight = TexMgr_SafeTextureSize (glt->height >> picmip);
-	while ((int) glt->width > mipwidth)
+	int mipwidth = q_max(glt->width >> picmip, 1);
+	int mipheight = q_max(glt->height >> picmip, 1);
+
+	int maxsize = (int)vulkan_globals.device_properties.limits.maxImageDimension2D;
+	if ((mipwidth > maxsize) || (mipheight > maxsize))
 	{
-		TexMgr_MipMapW (data, glt->width, glt->height);
-		glt->width >>= 1;
-		if (glt->flags & TEXPREF_ALPHA)
-			TexMgr_AlphaEdgeFix ((byte *)data, glt->width, glt->height);
-	}
-	while ((int) glt->height > mipheight)
-	{
-		TexMgr_MipMapH (data, glt->width, glt->height);
-		glt->height >>= 1;
-		if (glt->flags & TEXPREF_ALPHA)
-			TexMgr_AlphaEdgeFix ((byte *)data, glt->width, glt->height);
+		if (mipwidth >= mipheight)
+		{
+			mipheight = q_max((mipheight * maxsize) / mipwidth, 1);
+			mipwidth = maxsize;
+		}
+		else
+		{
+			mipwidth = q_max((mipwidth * maxsize) / mipheight, 1);
+			mipheight = maxsize;
+		}
 	}
 
+	if ((int)glt->width != mipwidth || (int)glt->height != mipheight)
+	{
+		TexMgr_Downsample (data, glt->width, glt->height, mipwidth, mipheight);
+		glt->width = mipwidth;
+		glt->height = mipheight;
+		if (glt->flags & TEXPREF_ALPHA)
+			TexMgr_AlphaEdgeFix ((byte *)data, glt->width, glt->height);
+	}
 	int num_mips = (glt->flags & TEXPREF_MIPMAP) ? TexMgr_DeriveNumMips(glt->width, glt->height) : 1;
 
 	const qboolean warp_image = (glt->flags & TEXPREF_WARPIMAGE);
@@ -839,8 +655,9 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 
 	uint32_t memory_type_index = GL_MemoryTypeFromProperties(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
 	VkDeviceSize heap_size = TEXTURE_HEAP_SIZE_MB * (VkDeviceSize)1024 * (VkDeviceSize)1024;
-	VkDeviceSize aligned_offset = GL_AllocateFromHeaps(&num_texmgr_heaps, &texmgr_heaps, heap_size, memory_type_index, memory_requirements.size, memory_requirements.alignment, &glt->heap, &glt->heap_node, &num_vulkan_tex_allocations, "Textures Heap");
-	err = vkBindImageMemory(vulkan_globals.device, glt->image, glt->heap->memory, aligned_offset);
+	VkDeviceSize aligned_offset = GL_AllocateFromHeaps(&num_texmgr_heaps, &texmgr_heaps, heap_size, memory_type_index, VULKAN_MEMORY_TYPE_DEVICE, memory_requirements.size,
+		memory_requirements.alignment, &glt->heap, &glt->heap_node, &num_vulkan_tex_allocations, "Textures Heap");
+	err = vkBindImageMemory(vulkan_globals.device, glt->image, glt->heap->memory.handle, aligned_offset);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkBindImageMemory failed");
 
@@ -957,8 +774,8 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 			mip_offset += mipwidth * mipheight * 4;
 			num_regions += 1;
 
-			TexMgr_MipMapW(data, mipwidth, mipheight);
-			TexMgr_MipMapH(data, mipwidth, mipheight);
+			if (mipwidth > 1 && mipheight > 1)
+				TexMgr_Downsample(data, mipwidth, mipheight, mipwidth / 2, mipheight / 2);
 
 			mipwidth /= 2;
 			mipheight /= 2;
@@ -1013,8 +830,6 @@ static void TexMgr_LoadImage8 (gltexture_t *glt, byte *data)
 	GL_DeleteTexture(glt);
 
 	extern cvar_t gl_fullbrights;
-	qboolean padw = false, padh = false;
-	byte padbyte;
 	unsigned int *usepal;
 	int i;
 
@@ -1046,7 +861,6 @@ static void TexMgr_LoadImage8 (gltexture_t *glt, byte *data)
 			usepal = d_8to24table_fbright_fence;
 		else
 			usepal = d_8to24table_fbright;
-		padbyte = 0;
 	}
 	else if (glt->flags & TEXPREF_NOBRIGHT && gl_fullbrights.value)
 	{
@@ -1054,34 +868,14 @@ static void TexMgr_LoadImage8 (gltexture_t *glt, byte *data)
 			usepal = d_8to24table_nobright_fence;
 		else
 			usepal = d_8to24table_nobright;
-		padbyte = 0;
 	}
 	else if (glt->flags & TEXPREF_CONCHARS)
 	{
 		usepal = d_8to24table_conchars;
-		padbyte = 0;
 	}
 	else
 	{
 		usepal = d_8to24table;
-		padbyte = 255;
-	}
-
-	// pad each dimention, but only if it's not going to be downsampled later
-	if (glt->flags & TEXPREF_PAD)
-	{
-		if ((int) glt->width < TexMgr_SafeTextureSize(glt->width))
-		{
-			data = TexMgr_PadImageW (data, glt->width, glt->height, padbyte);
-			glt->width = TexMgr_Pad(glt->width);
-			padw = true;
-		}
-		if ((int) glt->height < TexMgr_SafeTextureSize(glt->height))
-		{
-			data = TexMgr_PadImageH (data, glt->width, glt->height, padbyte);
-			glt->height = TexMgr_Pad(glt->height);
-			padh = true;
-		}
 	}
 
 	// convert to 32bit
@@ -1090,13 +884,6 @@ static void TexMgr_LoadImage8 (gltexture_t *glt, byte *data)
 	// fix edges
 	if (glt->flags & TEXPREF_ALPHA)
 		TexMgr_AlphaEdgeFix (data, glt->width, glt->height);
-	else
-	{
-		if (padw)
-			TexMgr_PadEdgeFixW (data, glt->source_width, glt->source_height);
-		if (padh)
-			TexMgr_PadEdgeFixH (data, glt->source_width, glt->source_height);
-	}
 
 	// upload it
 	TexMgr_LoadImage32 (glt, (unsigned *)data);

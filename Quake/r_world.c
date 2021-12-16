@@ -94,7 +94,7 @@ R_BackFaceCullSIMD
 Performs backface culling for 8 planes
 ===============
 */
-int R_BackFaceCullSIMD (soa_plane_t plane)
+byte R_BackFaceCullSIMD (soa_plane_t plane)
 {
 	__m128 pos = _mm_loadu_ps(r_refdef.vieworg);
 
@@ -123,7 +123,7 @@ R_CullBoxSIMD
 Performs frustum culling for 8 bounding boxes
 ===============
 */
-int R_CullBoxSIMD (soa_aabb_t box, int activelanes)
+byte R_CullBoxSIMD (soa_aabb_t box, byte activelanes)
 {
 	int i;
 	for (i = 0; i < 4; i++)
@@ -171,40 +171,40 @@ R_MarkVisSurfacesSIMD
 */
 void R_MarkVisSurfacesSIMD (byte *vis)
 {
-	msurface_t	*surf;
-	int			i, j, k;
-	int			numleafs = cl.worldmodel->numleafs;
-	int			numsurfaces = cl.worldmodel->numsurfaces;
-	soa_aabb_t	*leafbounds = cl.worldmodel->soa_leafbounds;
+	msurface_t		*surf;
+	unsigned int	i, j, k;
+	unsigned int	numleafs = cl.worldmodel->numleafs;
+	unsigned int	numsurfaces = cl.worldmodel->numsurfaces;
+	byte			*surfvis = cl.worldmodel->surfvis;
+	soa_aabb_t		*leafbounds = cl.worldmodel->soa_leafbounds;
 
-	memset(cl.worldmodel->surfvis, 0, (cl.worldmodel->numsurfaces + 7) >> 3);
+	memset(cl.worldmodel->surfvis, 0, (cl.worldmodel->numsurfaces + 7) / 8);
 
 	// iterate through leaves, marking surfaces
 	for (i = 0; i < numleafs; i += 8)
 	{
-		int mask = vis[i>>3];
+		byte mask = vis[i / 8];
 		if (mask == 0)
 			continue;
 
-		mask = R_CullBoxSIMD(leafbounds[i>>3], mask);
+		mask = R_CullBoxSIMD(leafbounds[i / 8], mask);
 		if (mask == 0)
 			continue;
 
-		for (j = 0; j < 8 && i + j < numleafs; j++)
+		for (j = 0; (j < 8) && ((i + j) < numleafs); ++j)
 		{
-			if (!(mask & (1 << j)))
+			if (!(mask & (1u << j)))
 				continue;
 
 			mleaf_t *leaf = &cl.worldmodel->leafs[1 + i + j];
 			if (leaf->contents != CONTENTS_SKY || r_oldskyleaf.value)
 			{
-				byte *surfmask = cl.worldmodel->surfvis;
-				int nummarksurfaces = leaf->nummarksurfaces;
+				unsigned int nummarksurfaces = leaf->nummarksurfaces;
 				int *marksurfaces = leaf->firstmarksurface;
-				for (k = 0; k < nummarksurfaces; k++)
+				for (k = 0; k < nummarksurfaces; ++k)
 				{
-					int index = marksurfaces[k];
-					surfmask[index >> 3] |= 1 << (index & 7);
+					unsigned int index = marksurfaces[k];
+					surfvis[index / 8] |= 1u << (index % 8);
 				}
 			}
 
@@ -214,20 +214,19 @@ void R_MarkVisSurfacesSIMD (byte *vis)
 		}
 	}
 
-	vis = cl.worldmodel->surfvis;
 	for (i = 0; i < numsurfaces; i += 8)
 	{
-		int mask = vis[i >> 3];
+		byte mask = surfvis[i / 8];
 		if (mask == 0)
 			continue;
 
-		mask &= R_BackFaceCullSIMD(cl.worldmodel->soa_surfplanes[i >> 3]);
+		mask &= R_BackFaceCullSIMD(cl.worldmodel->soa_surfplanes[i / 8]);
 		if (mask == 0)
 			continue;
 
-		for (j = 0; j < 8; j++)
+		for (j = 0; j < 8; ++j)
 		{
-			if (!(mask & (1 << j)))
+			if (!(mask & (1u << j)))
 				continue;
 
 			surf = &cl.worldmodel->surfaces[i + j];
@@ -359,7 +358,7 @@ static void R_TriangleIndicesForSurf (msurface_t *s, uint32_t *dest)
 	}
 }
 
-#define MAX_BATCH_SIZE 4096
+#define MAX_BATCH_SIZE 65536
 
 static uint32_t vbo_indices[MAX_BATCH_SIZE];
 static unsigned int num_vbo_indices;
@@ -547,12 +546,12 @@ void R_DrawTextureChains_Multitexture (qmodel_t *model, entity_t *ent, texchain_
 	int			i;
 	msurface_t	*s;
 	texture_t	*t;
-	qboolean	bound;
 	qboolean	fullbright_enabled = false;
 	qboolean	alpha_test = false;
 	qboolean	alpha_blend = alpha < 1.0f;
 	qboolean	use_zbias = (gl_zfix.value && model != cl.worldmodel);
 	int		lastlightmap;
+	int		ent_frame = ent != NULL ? ent->frame : 0;
 	gltexture_t	*fullbright = NULL;
 
 	VkDeviceSize offset = 0;
@@ -573,7 +572,7 @@ void R_DrawTextureChains_Multitexture (qmodel_t *model, entity_t *ent, texchain_
 		if (!t || !t->texturechains[chain] || t->texturechains[chain]->flags & (SURF_DRAWTILED | SURF_NOTEXTURE))
 			continue;
 
-		if (gl_fullbrights.value && (fullbright = R_TextureAnimation(t, ent != NULL ? ent->frame : 0)->fullbright) && !r_lightmap_cheatsafe)
+		if (gl_fullbrights.value && (fullbright = R_TextureAnimation(t, ent_frame)->fullbright) && !r_lightmap_cheatsafe)
 		{
 			fullbright_enabled = true;
 			vulkan_globals.vk_cmd_bind_descriptor_sets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 2, 1, &fullbright->descriptor_set, 0, NULL);
@@ -584,23 +583,16 @@ void R_DrawTextureChains_Multitexture (qmodel_t *model, entity_t *ent, texchain_
 		gltexture_t * lightmap_texture = NULL;
 		R_ClearBatch ();
 
-		bound = false;
-		lastlightmap = 0; // avoid compiler warning
+		lastlightmap = -1; // avoid compiler warning
+		alpha_test = (t->texturechains[chain]->flags & SURF_DRAWFENCE) != 0;
+		
+		texture_t * texture = R_TextureAnimation(t, ent_frame);
+		gltexture_t * gl_texture = texture->gltexture;
+		if (!r_lightmap_cheatsafe)
+			vulkan_globals.vk_cmd_bind_descriptor_sets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 0, 1, &gl_texture->descriptor_set, 0, NULL);
+
 		for (s = t->texturechains[chain]; s; s = s->texturechain)
 		{
-			if (!bound) //only bind once we are sure we need this texture
-			{
-				texture_t * texture = R_TextureAnimation(t, ent != NULL ? ent->frame : 0);
-				gltexture_t * gl_texture = texture->gltexture;
-				if (!r_lightmap_cheatsafe)
-					vulkan_globals.vk_cmd_bind_descriptor_sets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 0, 1, &gl_texture->descriptor_set, 0, NULL);
-
-				alpha_test = (t->texturechains[chain]->flags & SURF_DRAWFENCE) != 0;
-				bound = true;
-				lastlightmap = s->lightmaptexturenum;
-				lightmap_texture = lightmaps[s->lightmaptexturenum].texture;
-			}
-
 			if (s->lightmaptexturenum != lastlightmap)
 			{
 				R_FlushBatch (fullbright_enabled, alpha_test, alpha_blend, use_zbias, lightmap_texture);

@@ -24,7 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // r_misc.c
 
 #include "quakedef.h"
-#include "float.h"
+#include <float.h>
 
 #if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
 #include <SDL2/SDL.h>
@@ -69,6 +69,8 @@ int num_vulkan_combined_image_samplers = 0;
 int num_vulkan_ubos_dynamic = 0;
 int num_vulkan_input_attachments = 0;
 int num_vulkan_storage_images = 0;
+size_t total_device_vulkan_allocation_size = 0;
+size_t total_host_vulkan_allocation_size = 0;
 
 qboolean use_simd;
 
@@ -90,7 +92,7 @@ typedef struct
 } stagingbuffer_t;
 
 static VkCommandPool	staging_command_pool;
-static VkDeviceMemory	staging_memory;
+static vulkan_memory_t	staging_memory;
 static stagingbuffer_t	staging_buffers[NUM_STAGING_BUFFERS];
 static int				current_staging_buffer = 0;
 
@@ -116,9 +118,9 @@ typedef struct
 static uint32_t			current_dyn_vertex_buffer_size = INITIAL_DYNAMIC_VERTEX_BUFFER_SIZE_KB * 1024;
 static uint32_t			current_dyn_index_buffer_size = INITIAL_DYNAMIC_INDEX_BUFFER_SIZE_KB * 1024;
 static uint32_t			current_dyn_uniform_buffer_size = INITIAL_DYNAMIC_UNIFORM_BUFFER_SIZE_KB * 1024;
-static VkDeviceMemory	dyn_vertex_buffer_memory;
-static VkDeviceMemory	dyn_index_buffer_memory;
-static VkDeviceMemory	dyn_uniform_buffer_memory;
+static vulkan_memory_t	dyn_vertex_buffer_memory;
+static vulkan_memory_t	dyn_index_buffer_memory;
+static vulkan_memory_t	dyn_uniform_buffer_memory;
 static dynbuffer_t		dyn_vertex_buffers[NUM_DYNAMIC_BUFFERS];
 static dynbuffer_t		dyn_index_buffers[NUM_DYNAMIC_BUFFERS];
 static dynbuffer_t		dyn_uniform_buffers[NUM_DYNAMIC_BUFFERS];
@@ -129,7 +131,7 @@ static int					current_garbage_index = 0;
 static int					num_device_memory_garbage[GARBAGE_FRAME_COUNT];
 static int					num_buffer_garbage[GARBAGE_FRAME_COUNT];
 static int					num_desc_set_garbage[GARBAGE_FRAME_COUNT];
-static VkDeviceMemory *		device_memory_garbage[GARBAGE_FRAME_COUNT];
+static vulkan_memory_t *	device_memory_garbage[GARBAGE_FRAME_COUNT];
 static VkDescriptorSet *	descriptor_set_garbage[GARBAGE_FRAME_COUNT];
 static VkBuffer *			buffer_garbage[GARBAGE_FRAME_COUNT];
 
@@ -369,21 +371,18 @@ static void R_CreateStagingBuffers()
 	memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
 
 	num_vulkan_misc_allocations += 1;
-	err = vkAllocateMemory(vulkan_globals.device, &memory_allocate_info, NULL, &staging_memory);
-	if (err != VK_SUCCESS)
-		Sys_Error("vkAllocateMemory failed");
-
-	GL_SetObjectName((uint64_t)staging_memory, VK_OBJECT_TYPE_DEVICE_MEMORY, "Staging Buffers");
+	R_AllocateVulkanMemory(&staging_memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_HOST);
+	GL_SetObjectName((uint64_t)staging_memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, "Staging Buffers");
 
 	for (i = 0; i < NUM_STAGING_BUFFERS; ++i)
 	{
-		err = vkBindBufferMemory(vulkan_globals.device, staging_buffers[i].buffer, staging_memory, i * aligned_size);
+		err = vkBindBufferMemory(vulkan_globals.device, staging_buffers[i].buffer, staging_memory.handle, i * aligned_size);
 		if (err != VK_SUCCESS)
 			Sys_Error("vkBindBufferMemory failed");
 	}
 
 	void * data;
-	err = vkMapMemory(vulkan_globals.device, staging_memory, 0, NUM_STAGING_BUFFERS * aligned_size, 0, &data);
+	err = vkMapMemory(vulkan_globals.device, staging_memory.handle, 0, NUM_STAGING_BUFFERS * aligned_size, 0, &data);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkMapMemory failed");
 
@@ -400,8 +399,8 @@ static void R_DestroyStagingBuffers()
 {
 	int i;
 
-	vkUnmapMemory(vulkan_globals.device, staging_memory);
-	vkFreeMemory(vulkan_globals.device, staging_memory, NULL);
+	vkUnmapMemory(vulkan_globals.device, staging_memory.handle);
+	R_FreeVulkanMemory(&staging_memory);
 	for (i = 0; i < NUM_STAGING_BUFFERS; ++i) {
 		vkDestroyBuffer(vulkan_globals.device, staging_buffers[i].buffer, NULL);
 	}
@@ -484,7 +483,7 @@ static void R_SubmitStagingBuffer(int index)
 	VkMappedMemoryRange range;
 	memset(&range, 0, sizeof(range));
 	range.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
-	range.memory = staging_memory;
+	range.memory = staging_memory.handle;
 	range.size = VK_WHOLE_SIZE;
 	vkFlushMappedMemoryRanges(vulkan_globals.device, 1, &range);
 
@@ -640,21 +639,18 @@ static void R_InitDynamicVertexBuffers()
 	memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
 
 	num_vulkan_dynbuf_allocations += 1;
-	err = vkAllocateMemory(vulkan_globals.device, &memory_allocate_info, NULL, &dyn_vertex_buffer_memory);
-	if (err != VK_SUCCESS)
-		Sys_Error("vkAllocateMemory failed");
-
-	GL_SetObjectName((uint64_t)dyn_vertex_buffer_memory, VK_OBJECT_TYPE_DEVICE_MEMORY, "Dynamic Vertex Buffers");
+	R_AllocateVulkanMemory(&dyn_vertex_buffer_memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_HOST);
+	GL_SetObjectName((uint64_t)dyn_vertex_buffer_memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, "Dynamic Vertex Buffers");
 
 	for (i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
 	{
-		err = vkBindBufferMemory(vulkan_globals.device, dyn_vertex_buffers[i].buffer, dyn_vertex_buffer_memory, i * aligned_size);
+		err = vkBindBufferMemory(vulkan_globals.device, dyn_vertex_buffers[i].buffer, dyn_vertex_buffer_memory.handle, i * aligned_size);
 		if (err != VK_SUCCESS)
 			Sys_Error("vkBindBufferMemory failed");
 	}
 
 	void * data;
-	err = vkMapMemory(vulkan_globals.device, dyn_vertex_buffer_memory, 0, NUM_DYNAMIC_BUFFERS * aligned_size, 0, &data);
+	err = vkMapMemory(vulkan_globals.device, dyn_vertex_buffer_memory.handle, 0, NUM_DYNAMIC_BUFFERS * aligned_size, 0, &data);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkMapMemory failed");
 
@@ -707,21 +703,18 @@ static void R_InitDynamicIndexBuffers()
 	memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
 
 	num_vulkan_dynbuf_allocations += 1;
-	err = vkAllocateMemory(vulkan_globals.device, &memory_allocate_info, NULL, &dyn_index_buffer_memory);
-	if (err != VK_SUCCESS)
-		Sys_Error("vkAllocateMemory failed");
-
-	GL_SetObjectName((uint64_t)dyn_index_buffer_memory, VK_OBJECT_TYPE_DEVICE_MEMORY, "Dynamic Index Buffers");
+	R_AllocateVulkanMemory(&dyn_index_buffer_memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_HOST);
+	GL_SetObjectName((uint64_t)dyn_index_buffer_memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, "Dynamic Index Buffers");
 
 	for (i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
 	{
-		err = vkBindBufferMemory(vulkan_globals.device, dyn_index_buffers[i].buffer, dyn_index_buffer_memory, i * aligned_size);
+		err = vkBindBufferMemory(vulkan_globals.device, dyn_index_buffers[i].buffer, dyn_index_buffer_memory.handle, i * aligned_size);
 		if (err != VK_SUCCESS)
 			Sys_Error("vkBindBufferMemory failed");
 	}
 
 	void * data;
-	err = vkMapMemory(vulkan_globals.device, dyn_index_buffer_memory, 0, NUM_DYNAMIC_BUFFERS * aligned_size, 0, &data);
+	err = vkMapMemory(vulkan_globals.device, dyn_index_buffer_memory.handle, 0, NUM_DYNAMIC_BUFFERS * aligned_size, 0, &data);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkMapMemory failed");
 
@@ -774,21 +767,18 @@ static void R_InitDynamicUniformBuffers()
 	memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
 
 	num_vulkan_dynbuf_allocations += 1;
-	err = vkAllocateMemory(vulkan_globals.device, &memory_allocate_info, NULL, &dyn_uniform_buffer_memory);
-	if (err != VK_SUCCESS)
-		Sys_Error("vkAllocateMemory failed");
-
-	GL_SetObjectName((uint64_t)dyn_uniform_buffer_memory, VK_OBJECT_TYPE_DEVICE_MEMORY, "Dynamic Uniform Buffers");
+	R_AllocateVulkanMemory(&dyn_uniform_buffer_memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_HOST);
+	GL_SetObjectName((uint64_t)dyn_uniform_buffer_memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, "Dynamic Uniform Buffers");
 
 	for (i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
 	{
-		err = vkBindBufferMemory(vulkan_globals.device, dyn_uniform_buffers[i].buffer, dyn_uniform_buffer_memory, i * aligned_size);
+		err = vkBindBufferMemory(vulkan_globals.device, dyn_uniform_buffers[i].buffer, dyn_uniform_buffer_memory.handle, i * aligned_size);
 		if (err != VK_SUCCESS)
 			Sys_Error("vkBindBufferMemory failed");
 	}
 
 	void * data;
-	err = vkMapMemory(vulkan_globals.device, dyn_uniform_buffer_memory, 0, NUM_DYNAMIC_BUFFERS * aligned_size, 0, &data);
+	err = vkMapMemory(vulkan_globals.device, dyn_uniform_buffer_memory.handle, 0, NUM_DYNAMIC_BUFFERS * aligned_size, 0, &data);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkMapMemory failed");
 
@@ -860,6 +850,7 @@ static void R_InitFanIndexBuffer()
 	memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
 
 	num_vulkan_dynbuf_allocations += 1;
+	total_device_vulkan_allocation_size += memory_requirements.size;
 	err = vkAllocateMemory(vulkan_globals.device, &memory_allocate_info, NULL, &memory);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkAllocateMemory failed");
@@ -914,13 +905,13 @@ void R_FlushDynamicBuffers()
 	VkMappedMemoryRange ranges[3];
 	memset(&ranges, 0, sizeof(ranges));
 	ranges[0].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
-    ranges[0].memory = dyn_vertex_buffer_memory;
+    ranges[0].memory = dyn_vertex_buffer_memory.handle;
     ranges[0].size = VK_WHOLE_SIZE;
 	ranges[1].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
-    ranges[1].memory = dyn_index_buffer_memory;
+    ranges[1].memory = dyn_index_buffer_memory.handle;
     ranges[1].size = VK_WHOLE_SIZE;
 	ranges[2].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
-    ranges[2].memory = dyn_uniform_buffer_memory;
+    ranges[2].memory = dyn_uniform_buffer_memory.handle;
     ranges[2].size = VK_WHOLE_SIZE;
 	vkFlushMappedMemoryRanges(vulkan_globals.device, 3, ranges);
 }
@@ -930,16 +921,16 @@ void R_FlushDynamicBuffers()
 R_AddDynamicBufferGarbage
 ===============
 */
-static void R_AddDynamicBufferGarbage(VkDeviceMemory device_memory, dynbuffer_t * buffers, VkDescriptorSet * descriptor_sets)
+static void R_AddDynamicBufferGarbage(vulkan_memory_t device_memory, dynbuffer_t * buffers, VkDescriptorSet * descriptor_sets)
 {
 	{
 		int * num_garbage = &num_device_memory_garbage[current_garbage_index];
 		int old_num_memory_garbage = *num_garbage;
 		*num_garbage += 1;
 		if (device_memory_garbage[current_garbage_index] == NULL)
-			device_memory_garbage[current_garbage_index] = malloc(sizeof(VkDeviceMemory) * (*num_garbage));
+			device_memory_garbage[current_garbage_index] = malloc(sizeof(vulkan_memory_t) * (*num_garbage));
 		else
-			device_memory_garbage[current_garbage_index] = realloc(device_memory_garbage[current_garbage_index], sizeof(VkDeviceMemory) * (*num_garbage));
+			device_memory_garbage[current_garbage_index] = realloc(device_memory_garbage[current_garbage_index], sizeof(vulkan_memory_t) * (*num_garbage));
 		device_memory_garbage[current_garbage_index][old_num_memory_garbage] = device_memory;
 	}
 
@@ -997,7 +988,7 @@ void R_CollectDynamicBufferGarbage()
 
 	if (num_device_memory_garbage[collect_garbage_index] > 0) {
 		for (int i = 0; i < num_device_memory_garbage[collect_garbage_index]; ++i)
-			vkFreeMemory(vulkan_globals.device, device_memory_garbage[collect_garbage_index][i], NULL);
+			R_FreeVulkanMemory(&device_memory_garbage[collect_garbage_index][i]);
 		free(device_memory_garbage[collect_garbage_index]);
 		device_memory_garbage[collect_garbage_index] = NULL;
 		num_device_memory_garbage[collect_garbage_index] = 0;
@@ -1017,7 +1008,7 @@ byte * R_VertexAllocate(int size, VkBuffer * buffer, VkDeviceSize * buffer_offse
 	{
 		R_AddDynamicBufferGarbage(dyn_vertex_buffer_memory, dyn_vertex_buffers, NULL);
 		current_dyn_vertex_buffer_size = q_max(current_dyn_vertex_buffer_size * 2, (uint32_t)Q_nextPow2(size));
-		vkUnmapMemory(vulkan_globals.device, dyn_vertex_buffer_memory);
+		vkUnmapMemory(vulkan_globals.device, dyn_vertex_buffer_memory.handle);
 		R_InitDynamicVertexBuffers();
 	}
 
@@ -1048,7 +1039,7 @@ byte * R_IndexAllocate(int size, VkBuffer * buffer, VkDeviceSize * buffer_offset
 	{
 		R_AddDynamicBufferGarbage(dyn_index_buffer_memory, dyn_index_buffers, NULL);
 		current_dyn_index_buffer_size = q_max(current_dyn_index_buffer_size * 2, (uint32_t)Q_nextPow2(size));
-		vkUnmapMemory(vulkan_globals.device, dyn_index_buffer_memory);
+		vkUnmapMemory(vulkan_globals.device, dyn_index_buffer_memory.handle);
 		R_InitDynamicIndexBuffers();
 	}
 
@@ -1083,7 +1074,7 @@ byte * R_UniformAllocate(int size, VkBuffer * buffer, uint32_t * buffer_offset, 
 	{
 		R_AddDynamicBufferGarbage(dyn_uniform_buffer_memory, dyn_uniform_buffers, ubo_descriptor_sets);
 		current_dyn_uniform_buffer_size = q_max(current_dyn_uniform_buffer_size * 2, (uint32_t)Q_nextPow2(size));
-		vkUnmapMemory(vulkan_globals.device, dyn_uniform_buffer_memory);
+		vkUnmapMemory(vulkan_globals.device, dyn_uniform_buffer_memory.handle);
 		R_InitDynamicUniformBuffers();
 	}
 
@@ -2918,6 +2909,30 @@ void R_TimeRefresh_f (void)
 	Con_Printf ("%f seconds (%f fps)\n", time, 128/time);
 }
 
+void R_AllocateVulkanMemory(vulkan_memory_t * memory, VkMemoryAllocateInfo * memory_allocate_info, vulkan_memory_type_t type)
+{
+	VkResult err = vkAllocateMemory(vulkan_globals.device, memory_allocate_info, NULL, &memory->handle);
+	if (err != VK_SUCCESS)
+		Sys_Error("vkAllocateMemory failed");
+	memory->type = type;
+	memory->size = memory_allocate_info->allocationSize;
+	if (memory->type == VULKAN_MEMORY_TYPE_DEVICE)
+		total_device_vulkan_allocation_size += memory->size;
+	else if (memory->type == VULKAN_MEMORY_TYPE_HOST)
+		total_host_vulkan_allocation_size += memory->size;
+}
+
+void R_FreeVulkanMemory(vulkan_memory_t * memory)
+{
+	if (memory->type == VULKAN_MEMORY_TYPE_DEVICE)
+		total_device_vulkan_allocation_size -= memory->size;
+	else if (memory->type == VULKAN_MEMORY_TYPE_HOST)
+		total_host_vulkan_allocation_size -= memory->size;
+	vkFreeMemory(vulkan_globals.device, memory->handle, NULL);
+	memory->handle = VK_NULL_HANDLE;
+	memory->size = 0;
+}
+
 /*
 ====================
 R_VulkanMemStats_f
@@ -2936,4 +2951,6 @@ void R_VulkanMemStats_f(void)
 	Con_Printf(" Dynamic UBOs: %d\n", num_vulkan_ubos_dynamic );
 	Con_Printf(" Input attachments: %d\n", num_vulkan_input_attachments );
 	Con_Printf(" Storage images: %d\n", num_vulkan_storage_images );
+	Con_Printf("Device %" SDL_PRIu64 " MiB total\n", (uint64_t)total_device_vulkan_allocation_size / 1024 / 1024);
+	Con_Printf("Host %"  SDL_PRIu64 " MiB total\n",  (uint64_t)total_host_vulkan_allocation_size   / 1024 / 1024);
 }

@@ -2,6 +2,94 @@
 This is a list of major changes in SDL's version history.
 
 ---------------------------------------------------------------------------
+2.0.18:
+---------------------------------------------------------------------------
+
+General:
+* The SDL wiki documentation and development headers are automatically kept in sync
+* Each function has information about in which version of SDL it was introduced
+* SDL-specific CMake options are now prefixed with 'SDL_'. Be sure to update your CMake build scripts accordingly!
+* Added the hint SDL_HINT_APP_NAME to let SDL know the name of your application for various places it might show up in system information
+* Added SDL_RenderGeometry() and SDL_RenderGeometryRaw() to allow rendering of arbitrary shapes using the SDL 2D render API
+* Added SDL_SetTextureUserData() and SDL_GetTextureUserData() to associate application data with an SDL texture
+* Added SDL_RenderWindowToLogical() and SDL_RenderLogicalToWindow() to convert between window coordinates and logical render coordinates
+* Added SDL_RenderSetVSync() to change whether a renderer present is synchronized with vblank at runtime
+* Added SDL_PremultiplyAlpha() to premultiply alpha on a block of SDL_PIXELFORMAT_ARGB8888 pixels
+* Added a window event SDL_WINDOWEVENT_DISPLAY_CHANGED which is sent when a window changes what display it's centered on
+* Added SDL_GetWindowICCProfile() to query a window's ICC profile, and a window event SDL_WINDOWEVENT_ICCPROF_CHANGED that is sent when it changes
+* Added the hint SDL_HINT_VIDEO_EGL_ALLOW_TRANSPARENCY to allow EGL windows to be transparent instead of opaque
+* SDL_WaitEvent() has been redesigned to use less CPU in most cases
+* Added SDL_SetWindowMouseRect() and SDL_GetWindowMouseRect() to confine the mouse cursor to an area of a window
+* You can now read precise mouse wheel motion using 'preciseX' and 'preciseY' event fields
+* Added SDL_GameControllerHasRumble() and SDL_GameControllerHasRumbleTriggers() to query whether a game controller supports rumble
+* Added SDL_JoystickHasRumble() and SDL_JoystickHasRumbleTriggers() to query whether a joystick supports rumble
+* SDL's hidapi implementation is now available as a public API in SDL_hidapi.h
+
+Windows:
+* Improved relative mouse motion over Windows Remote Desktop
+* Added the hint SDL_HINT_IME_SHOW_UI to show native UI components instead of hiding them (defaults off)
+
+Windows/UWP:
+* WGI is used instead of XInput for better controller support in UWP apps
+
+Linux:
+* Added the hint SDL_HINT_SCREENSAVER_INHIBIT_ACTIVITY_NAME to set the activity that's displayed by the system when the screensaver is disabled
+* Added the hint SDL_HINT_LINUX_JOYSTICK_CLASSIC to control whether /dev/input/js* or /dev/input/event* are used as joystick devices
+* Added the hint SDL_HINT_JOYSTICK_DEVICE to allow the user to specify devices that will be opened in addition to the normal joystick detection
+* Added SDL_LinuxSetThreadPriorityAndPolicy() for more control over a thread priority on Linux
+
+Android:
+* Added support for audio output and capture using AAudio on Android 8.1 and newer
+* Steam Controller support is disabled by default, and can be enabled by setting the hint SDL_HINT_JOYSTICK_HIDAPI_STEAM to "1" before calling SDL_Init()
+
+Apple Arcade:
+* Added SDL_GameControllerGetAppleSFSymbolsNameForButton() and SDL_GameControllerGetAppleSFSymbolsNameForAxis() to support Apple Arcade titles
+
+iOS:
+* Added documentation that the UIApplicationSupportsIndirectInputEvents key must be set to true in your application's Info.plist in order to get real Bluetooth mouse events.
+* Steam Controller support is disabled by default, and can be enabled by setting the hint SDL_HINT_JOYSTICK_HIDAPI_STEAM to "1" before calling SDL_Init()
+
+
+---------------------------------------------------------------------------
+2.0.16:
+---------------------------------------------------------------------------
+General:
+* Added SDL_FlashWindow() to get a user's attention
+* Added SDL_GetAudioDeviceSpec() to get the preferred audio format of a device
+* Added SDL_SetWindowAlwaysOnTop() to dynamically change the SDL_WINDOW_ALWAYS_ON_TOP flag for a window
+* Added SDL_SetWindowKeyboardGrab() to support grabbing the keyboard independently of the mouse
+* Added SDL_SoftStretchLinear() to do bilinear scaling between 32-bit software surfaces
+* Added SDL_UpdateNVTexture() to update streaming NV12/21 textures
+* Added SDL_GameControllerSendEffect() and SDL_JoystickSendEffect() to allow sending custom trigger effects to the DualSense controller
+* Added SDL_GameControllerGetSensorDataRate() to get the sensor data rate for PlayStation and Nintendo Switch controllers
+* Added support for the Amazon Luna game controller
+* Added rumble support for the Google Stadia controller using the HIDAPI driver
+* Added SDL_GameControllerType constants for the Amazon Luna and Google Stadia controllers
+* Added analog rumble for Nintendo Switch Pro controllers using the HIDAPI driver
+* Reduced CPU usage when using SDL_WaitEvent() and SDL_WaitEventTimeout()
+
+Windows:
+* Added SDL_SetWindowsMessageHook() to set a function that is called for all Windows messages
+* Added SDL_RenderGetD3D11Device() to get the D3D11 device used by the SDL renderer
+
+Linux:
+* Greatly improved Wayland support
+* Added support for audio output and capture using Pipewire
+* Added the hint SDL_HINT_AUDIO_INCLUDE_MONITORS to control whether PulseAudio recording should include monitor devices
+* Added the hint SDL_HINT_AUDIO_DEVICE_STREAM_ROLE to describe the role of your application for audio control panels
+
+Android:
+* Added SDL_AndroidShowToast() to show a lightweight notification
+
+iOS:
+* Added support for mouse relative mode on iOS 14.1 and newer
+* Added support for the Xbox Series X controller
+
+tvOS:
+* Added support for the Xbox Series X controller
+
+
+---------------------------------------------------------------------------
 2.0.14:
 ---------------------------------------------------------------------------
 General:

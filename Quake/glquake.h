@@ -160,6 +160,17 @@ typedef struct vulkan_desc_set_layout_s {
 	int							num_storage_images;
 } vulkan_desc_set_layout_t;
 
+typedef enum {
+	VULKAN_MEMORY_TYPE_DEVICE,
+	VULKAN_MEMORY_TYPE_HOST,
+} vulkan_memory_type_t;
+
+typedef struct vulkan_memory_s {
+	VkDeviceMemory				handle;
+	size_t						size;
+	vulkan_memory_type_t		type;
+} vulkan_memory_t;
+
 #define WORLD_PIPELINE_COUNT 8
 #define FTE_PARTICLE_PIPELINE_COUNT 16
 
@@ -350,6 +361,9 @@ extern unsigned int rs_brushpolys, rs_aliaspolys, rs_skypolys, rs_particles, rs_
 extern unsigned int rs_dynamiclightmaps, rs_brushpasses, rs_aliaspasses, rs_skypasses;
 extern float rs_megatexels;
 
+extern size_t total_device_vulkan_allocation_size;
+extern size_t total_host_vulkan_allocation_size;
+
 //johnfitz -- track developer statistics that vary every frame
 extern cvar_t devstats;
 typedef struct {
@@ -383,8 +397,8 @@ typedef struct
 //johnfitz -- moved here from r_brush.c
 extern int gl_lightmap_format, lightmap_bytes;
 
-#define LMBLOCK_WIDTH	256	//FIXME: make dynamic. if we have a decent card there's no real reason not to use 4k or 16k (assuming there's no lightstyles/dynamics that need uploading...)
-#define LMBLOCK_HEIGHT	256 //Alternatively, use texture arrays, which would avoid the need to switch textures as often.
+#define LMBLOCK_WIDTH	1024	//FIXME: make dynamic. if we have a decent card there's no real reason not to use 4k or 16k (assuming there's no lightstyles/dynamics that need uploading...)
+#define LMBLOCK_HEIGHT	1024	//Alternatively, use texture arrays, which would avoid the need to switch textures as often.
 
 typedef struct glRect_s {
 	unsigned short l,t,w,h;
@@ -449,7 +463,7 @@ void GL_BuildBModelVertexBuffer (void);
 void GLMesh_LoadVertexBuffers (void);
 void GLMesh_DeleteVertexBuffers (void);
 
-int R_LightPoint (vec3_t p);
+int R_LightPoint (vec3_t p, lightcache_t *cache);
 
 void GL_SubdivideSurface (msurface_t *fa);
 void R_BuildLightMap (msurface_t *surf, byte *dest, int stride);
@@ -524,7 +538,6 @@ static inline void R_BeginDebugUtilsLabel(const char * name)
 #endif
 }
 
-
 static inline void R_EndDebugUtilsLabel()
 {
 #ifdef _DEBUG
@@ -532,6 +545,9 @@ static inline void R_EndDebugUtilsLabel()
 		vulkan_globals.vk_cmd_end_debug_utils_label(vulkan_globals.command_buffer);
 #endif
 }
+
+void R_AllocateVulkanMemory(vulkan_memory_t *, VkMemoryAllocateInfo *, vulkan_memory_type_t);
+void R_FreeVulkanMemory(vulkan_memory_t *);
 
 VkDescriptorSet R_AllocateDescriptorSet(vulkan_desc_set_layout_t * layout);
 void R_FreeDescriptorSet(VkDescriptorSet desc_set, vulkan_desc_set_layout_t * layout);

@@ -364,14 +364,8 @@ void GL_MakeAliasModelDisplayLists (qmodel_t *m, aliashdr_t *hdr)
 	int		i, j;
 	int			*cmds;
 	trivertx_t	*verts;
-	float	hscale, vscale; //johnfitz -- padded skins
 	int		count; //johnfitz -- precompute texcoords for padded skins
 	int		*loadcmds; //johnfitz
-
-	//johnfitz -- padded skins
-	hscale = (float)hdr->skinwidth/(float)TexMgr_PadConditional(hdr->skinwidth);
-	vscale = (float)hdr->skinheight/(float)TexMgr_PadConditional(hdr->skinheight);
-	//johnfitz
 
 	aliasmodel = m;
 	paliashdr = hdr;	// (aliashdr_t *)Mod_Extradata (m);
@@ -401,8 +395,8 @@ void GL_MakeAliasModelDisplayLists (qmodel_t *m, aliashdr_t *hdr)
 
 		do
 		{
-			*(float *)cmds++ = hscale * (*(float *)loadcmds++);
-			*(float *)cmds++ = vscale * (*(float *)loadcmds++);
+			*(float *)cmds++ = (*(float *)loadcmds++);
+			*(float *)cmds++ = (*(float *)loadcmds++);
 		} while (--count);
 	}
 	//johnfitz
@@ -606,9 +600,9 @@ static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 
 		uint32_t memory_type_index = GL_MemoryTypeFromProperties(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
 		VkDeviceSize heap_size = INDEX_HEAP_SIZE_MB * (VkDeviceSize)1024 * (VkDeviceSize)1024;
-		VkDeviceSize aligned_offset = GL_AllocateFromHeaps(&num_index_buffer_heaps, &index_buffer_heaps, heap_size, memory_type_index, memory_requirements.size,
+		VkDeviceSize aligned_offset = GL_AllocateFromHeaps(&num_index_buffer_heaps, &index_buffer_heaps, heap_size, memory_type_index, VULKAN_MEMORY_TYPE_DEVICE, memory_requirements.size,
 			memory_requirements.alignment, &m->index_heap, &m->index_heap_node, &num_vulkan_mesh_allocations, "Index Buffers");
-		err = vkBindBufferMemory(vulkan_globals.device, m->index_buffer, m->index_heap->memory, aligned_offset);
+		err = vkBindBufferMemory(vulkan_globals.device, m->index_buffer, m->index_heap->memory.handle, aligned_offset);
 		if (err != VK_SUCCESS)
 			Sys_Error("vkBindBufferMemory failed");
 
@@ -670,18 +664,12 @@ static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 // fill in the ST coords at the end of the buffer
 	{
 		meshst_t *st;
-		float hscale, vscale;
-
-		//johnfitz -- padded skins
-		hscale = (float)hdr->skinwidth/(float)TexMgr_PadConditional(hdr->skinwidth);
-		vscale = (float)hdr->skinheight/(float)TexMgr_PadConditional(hdr->skinheight);
-		//johnfitz
 
 		st = (meshst_t *) (vbodata + m->vbostofs);
 		for (f = 0; f < hdr->numverts_vbo; f++)
 		{
-			st[f].st[0] = hscale * ((float) desc[f].st[0] + 0.5f) / (float) hdr->skinwidth;
-			st[f].st[1] = vscale * ((float) desc[f].st[1] + 0.5f) / (float) hdr->skinheight;
+			st[f].st[0] = ((float) desc[f].st[0] + 0.5f) / (float) hdr->skinwidth;
+			st[f].st[1] = ((float) desc[f].st[1] + 0.5f) / (float) hdr->skinheight;
 		}
 	}
 
@@ -703,9 +691,10 @@ static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 
 		uint32_t memory_type_index = GL_MemoryTypeFromProperties(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
 		VkDeviceSize heap_size = VERTEX_HEAP_SIZE_MB * (VkDeviceSize)1024 * (VkDeviceSize)1024;
-		VkDeviceSize aligned_offset = GL_AllocateFromHeaps(&num_vertex_buffer_heaps, &vertex_buffer_heaps, heap_size, memory_type_index, memory_requirements.size,
-			memory_requirements.alignment, &m->vertex_heap, &m->vertex_heap_node, &num_vulkan_mesh_allocations, "Vertex Buffers");
-		err = vkBindBufferMemory(vulkan_globals.device, m->vertex_buffer, m->vertex_heap->memory, aligned_offset);
+		VkDeviceSize aligned_offset = GL_AllocateFromHeaps(&num_vertex_buffer_heaps, &vertex_buffer_heaps, heap_size, memory_type_index,
+			VULKAN_MEMORY_TYPE_DEVICE, memory_requirements.size, memory_requirements.alignment, &m->vertex_heap, &m->vertex_heap_node,
+			&num_vulkan_mesh_allocations, "Vertex Buffers");
+		err = vkBindBufferMemory(vulkan_globals.device, m->vertex_buffer, m->vertex_heap->memory.handle, aligned_offset);
 		if (err != VK_SUCCESS)
 			Sys_Error("vkBindBufferMemory failed");
 

@@ -319,7 +319,7 @@ void R_SetupAliasLighting (entity_t	*e)
 	// this helps with models whose origin is below ground level, but are otherwise visible
 	// (e.g. some of the candles in the DOTM start map, which would otherwise appear black)
 	lpos[2] += e->model->maxs[2] * 0.5f;
-	R_LightPoint (lpos);
+	R_LightPoint (lpos, &e->lightcache);
 
 	//add dlights
 	for (i=0 ; i<MAX_DLIGHTS ; i++)

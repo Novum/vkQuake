@@ -129,12 +129,12 @@ static VkFramebuffer				ui_framebuffers[MAX_SWAP_CHAIN_IMAGES];
 static VkImage						swapchain_images[MAX_SWAP_CHAIN_IMAGES];
 static VkImageView					swapchain_images_views[MAX_SWAP_CHAIN_IMAGES];
 static VkImage						depth_buffer;
-static VkDeviceMemory				depth_buffer_memory;
+static vulkan_memory_t				depth_buffer_memory;
 static VkImageView					depth_buffer_view;
-static VkDeviceMemory				color_buffers_memory[NUM_COLOR_BUFFERS];
+static vulkan_memory_t				color_buffers_memory[NUM_COLOR_BUFFERS];
 static VkImageView					color_buffers_view[NUM_COLOR_BUFFERS];
 static VkImage						msaa_color_buffer;
-static VkDeviceMemory				msaa_color_buffer_memory;
+static vulkan_memory_t				msaa_color_buffer_memory;
 static VkImageView					msaa_color_buffer_view;
 static VkDescriptorSet				postprocess_descriptor_set;
 
@@ -1305,15 +1305,12 @@ static void GL_CreateDepthBuffer( void )
 	if (vulkan_globals.dedicated_allocation)
 		memory_allocate_info.pNext = &dedicated_allocation_info;
 
-	assert(depth_buffer_memory == VK_NULL_HANDLE);
+	assert(depth_buffer_memory.handle == VK_NULL_HANDLE);
 	num_vulkan_misc_allocations += 1;
-	err = vkAllocateMemory(vulkan_globals.device, &memory_allocate_info, NULL, &depth_buffer_memory);
-	if (err != VK_SUCCESS)
-		Sys_Error("vkAllocateMemory failed");
+	R_AllocateVulkanMemory(&depth_buffer_memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_DEVICE);
+	GL_SetObjectName((uint64_t)depth_buffer_memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, "Depth Buffer");
 
-	GL_SetObjectName((uint64_t)depth_buffer_memory, VK_OBJECT_TYPE_DEVICE_MEMORY, "Depth Buffer");
-
-	err = vkBindImageMemory(vulkan_globals.device, depth_buffer, depth_buffer_memory, 0);
+	err = vkBindImageMemory(vulkan_globals.device, depth_buffer, depth_buffer_memory.handle, 0);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkBindImageMemory failed");
 
@@ -1391,15 +1388,12 @@ static void GL_CreateColorBuffer( void )
 		if (vulkan_globals.dedicated_allocation)
 			memory_allocate_info.pNext = &dedicated_allocation_info;
 
-		assert(color_buffers_memory[i] == VK_NULL_HANDLE);
+		assert(color_buffers_memory[i].handle == VK_NULL_HANDLE);
 		num_vulkan_misc_allocations += 1;
-		err = vkAllocateMemory(vulkan_globals.device, &memory_allocate_info, NULL, &color_buffers_memory[i]);
-		if (err != VK_SUCCESS)
-			Sys_Error("vkAllocateMemory failed");
+		R_AllocateVulkanMemory(&color_buffers_memory[i], &memory_allocate_info, VULKAN_MEMORY_TYPE_DEVICE);
+		GL_SetObjectName((uint64_t)color_buffers_memory[i].handle, VK_OBJECT_TYPE_DEVICE_MEMORY, va("Color Buffer %d", i));
 
-		GL_SetObjectName((uint64_t)color_buffers_memory[i], VK_OBJECT_TYPE_DEVICE_MEMORY, va("Color Buffer %d", i));
-
-		err = vkBindImageMemory(vulkan_globals.device, vulkan_globals.color_buffers[i], color_buffers_memory[i], 0);
+		err = vkBindImageMemory(vulkan_globals.device, vulkan_globals.color_buffers[i], color_buffers_memory[i].handle, 0);
 		if (err != VK_SUCCESS)
 			Sys_Error("vkBindImageMemory failed");
 
@@ -1496,15 +1490,12 @@ static void GL_CreateColorBuffer( void )
 		if (vulkan_globals.dedicated_allocation)
 			memory_allocate_info.pNext = &dedicated_allocation_info;
 
-		assert(msaa_color_buffer_memory == VK_NULL_HANDLE);
+		assert(msaa_color_buffer_memory.handle == VK_NULL_HANDLE);
 		num_vulkan_misc_allocations += 1;
-		err = vkAllocateMemory(vulkan_globals.device, &memory_allocate_info, NULL, &msaa_color_buffer_memory);
-		if (err != VK_SUCCESS)
-			Sys_Error("vkAllocateMemory failed");
+		R_AllocateVulkanMemory(&msaa_color_buffer_memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_DEVICE);
+		GL_SetObjectName((uint64_t)msaa_color_buffer_memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, "MSAA Color Buffer");
 
-		GL_SetObjectName((uint64_t)msaa_color_buffer_memory, VK_OBJECT_TYPE_DEVICE_MEMORY, "MSAA Color Buffer");
-
-		err = vkBindImageMemory(vulkan_globals.device, msaa_color_buffer, msaa_color_buffer_memory, 0);
+		err = vkBindImageMemory(vulkan_globals.device, msaa_color_buffer, msaa_color_buffer_memory.handle, 0);
 		if (err != VK_SUCCESS)
 			Sys_Error("vkBindImageMemory failed");
 
@@ -1956,11 +1947,10 @@ static void GL_DestroyRenderResources( void )
 		vkDestroyImageView(vulkan_globals.device, msaa_color_buffer_view, NULL);
 		vkDestroyImage(vulkan_globals.device, msaa_color_buffer, NULL);
 		num_vulkan_misc_allocations -= 1;
-		vkFreeMemory(vulkan_globals.device, msaa_color_buffer_memory, NULL);
+		R_FreeVulkanMemory(&msaa_color_buffer_memory);
 
 		msaa_color_buffer_view = VK_NULL_HANDLE;
 		msaa_color_buffer = VK_NULL_HANDLE;
-		msaa_color_buffer_memory = VK_NULL_HANDLE;
 	}
 
 	for (i = 0; i < NUM_COLOR_BUFFERS; ++i)
@@ -1968,21 +1958,19 @@ static void GL_DestroyRenderResources( void )
 		vkDestroyImageView(vulkan_globals.device, color_buffers_view[i], NULL);
 		vkDestroyImage(vulkan_globals.device, vulkan_globals.color_buffers[i], NULL);
 		num_vulkan_misc_allocations -= 1;
-		vkFreeMemory(vulkan_globals.device, color_buffers_memory[i], NULL);
+		R_FreeVulkanMemory(&color_buffers_memory[i]);
 
 		color_buffers_view[i] = VK_NULL_HANDLE;
 		vulkan_globals.color_buffers[i] = VK_NULL_HANDLE;
-		color_buffers_memory[i] = VK_NULL_HANDLE;
 	}
 
 	vkDestroyImageView(vulkan_globals.device, depth_buffer_view, NULL);
 	vkDestroyImage(vulkan_globals.device, depth_buffer, NULL);
 	num_vulkan_misc_allocations -= 1;
-	vkFreeMemory(vulkan_globals.device, depth_buffer_memory, NULL);
+	R_FreeVulkanMemory(&depth_buffer_memory);
 
 	depth_buffer_view = VK_NULL_HANDLE;
 	depth_buffer = VK_NULL_HANDLE;
-	depth_buffer_memory = VK_NULL_HANDLE;
 
 	for (i = 0; i < NUM_COLOR_BUFFERS; ++i)
 	{

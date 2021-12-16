@@ -274,9 +274,9 @@ qpic_t *Draw_PicFromWad2 (const char *name, unsigned int texflags)
 		gl.gltexture = TexMgr_LoadImage (NULL, texturename, p->width, p->height, SRC_INDEXED, p->data, WADFILENAME,
 										  offset, texflags); //johnfitz -- TexMgr
 		gl.sl = 0;
-		gl.sh = (texflags&TEXPREF_PAD)?(float)p->width/(float)TexMgr_PadConditional(p->width):1; //johnfitz
+		gl.sh = 1;
 		gl.tl = 0;
-		gl.th = (texflags&TEXPREF_PAD)?(float)p->height/(float)TexMgr_PadConditional(p->height):1; //johnfitz
+		gl.th = 1;
 	}
 
 	menu_numcachepics++;
@@ -347,9 +347,9 @@ qpic_t	*Draw_TryCachePic (const char *path, unsigned int texflags)
 	gl.gltexture = TexMgr_LoadImage (NULL, path, dat->width, dat->height, SRC_INDEXED, dat->data, path,
 										sizeof(int)*2, texflags | TEXPREF_NOPICMIP); //johnfitz -- TexMgr
 	gl.sl = 0;
-	gl.sh = (texflags&TEXPREF_PAD)?(float)dat->width/(float)TexMgr_PadConditional(dat->width):1; //johnfitz
+	gl.sh = 1;
 	gl.tl = 0;
-	gl.th = (texflags&TEXPREF_PAD)?(float)dat->height/(float)TexMgr_PadConditional(dat->height):1; //johnfitz
+	gl.th = 1;
 
 	memcpy (pic->pic.data, &gl, sizeof(glpic_t));
 
@@ -381,9 +381,9 @@ qpic_t *Draw_MakePic (const char *name, int width, int height, byte *data)
 
 	gl.gltexture = TexMgr_LoadImage (NULL, name, width, height, SRC_INDEXED, data, "", (src_offset_t)data, flags);
 	gl.sl = 0;
-	gl.sh = (float)width/(float)TexMgr_PadConditional(width);
+	gl.sh = 1;
 	gl.tl = 0;
-	gl.th = (float)height/(float)TexMgr_PadConditional(height);
+	gl.th = 1;
 	memcpy (pic->data, &gl, sizeof(glpic_t));
 
 	return pic;
@@ -671,6 +671,8 @@ void Draw_SubPic (float x, float y, float w, float h, qpic_t *pic, float s1, flo
 	if (scrap_dirty)
 		Scrap_Upload ();
 	memcpy(&gl, pic->data, sizeof(glpic_t));
+	if (!gl.gltexture)
+		return;
 
 	VkBuffer buffer;
 	VkDeviceSize buffer_offset;

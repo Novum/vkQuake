@@ -38,7 +38,7 @@ int					allocated[LMBLOCK_WIDTH];
 
 unsigned	blocklights[LMBLOCK_WIDTH*LMBLOCK_HEIGHT*3 + 1]; //johnfitz -- was 18*18, added lit support (*3) and loosened surface extents maximum (LMBLOCK_WIDTH*LMBLOCK_HEIGHT)
 
-static VkDeviceMemory	bmodel_memory;
+static vulkan_memory_t	bmodel_memory;
 VkBuffer				bmodel_vertex_buffer;
 
 extern cvar_t r_showtris;
@@ -610,10 +610,10 @@ void GL_DeleteBModelVertexBuffer (void)
 	if (bmodel_vertex_buffer)
 		vkDestroyBuffer(vulkan_globals.device, bmodel_vertex_buffer, NULL);
 
-	if (bmodel_memory)
+	if (bmodel_memory.handle != VK_NULL_HANDLE)
 	{
 		num_vulkan_bmodel_allocations -= 1;
-		vkFreeMemory(vulkan_globals.device, bmodel_memory, NULL);
+		R_FreeVulkanMemory(&bmodel_memory);
 	}
 }
 
@@ -697,13 +697,10 @@ void GL_BuildBModelVertexBuffer (void)
 	memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
 
 	num_vulkan_bmodel_allocations += 1;
-	err = vkAllocateMemory(vulkan_globals.device, &memory_allocate_info, NULL, &bmodel_memory);
-	if (err != VK_SUCCESS)
-		Sys_Error("vkAllocateMemory failed");
+	R_AllocateVulkanMemory(&bmodel_memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_DEVICE);
+	GL_SetObjectName((uint64_t)bmodel_memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, "Brush Memory");
 
-	GL_SetObjectName((uint64_t)bmodel_memory, VK_OBJECT_TYPE_DEVICE_MEMORY, "Brush Memory");
-
-	err = vkBindBufferMemory(vulkan_globals.device, bmodel_vertex_buffer, bmodel_memory, 0);
+	err = vkBindBufferMemory(vulkan_globals.device, bmodel_vertex_buffer, bmodel_memory.handle, 0);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkBindImageMemory failed");
 

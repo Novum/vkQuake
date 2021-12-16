@@ -35,7 +35,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 GL_CreateHeap
 ===============
 */
-glheap_t * GL_CreateHeap(VkDeviceSize size, uint32_t memory_type_index, const char * name)
+glheap_t * GL_CreateHeap(VkDeviceSize size, uint32_t memory_type_index, vulkan_memory_type_t memory_type, const char * name)
 {
 	glheap_t * heap = (glheap_t*) malloc(sizeof(glheap_t));
 
@@ -45,11 +45,8 @@ glheap_t * GL_CreateHeap(VkDeviceSize size, uint32_t memory_type_index, const ch
 	memory_allocate_info.allocationSize = size;
 	memory_allocate_info.memoryTypeIndex = memory_type_index;
 
-	VkResult err = vkAllocateMemory(vulkan_globals.device, &memory_allocate_info, NULL, &heap->memory);
-	if (err != VK_SUCCESS)
-		Sys_Error("vkAllocateMemory failed");
-
-	GL_SetObjectName((uint64_t)heap->memory, VK_OBJECT_TYPE_DEVICE_MEMORY, name);
+	R_AllocateVulkanMemory(&heap->memory, &memory_allocate_info, memory_type);
+	GL_SetObjectName((uint64_t)heap->memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, name);
 
 	heap->head = (glheapnode_t*) malloc(sizeof(glheapnode_t));
 	heap->head->offset = 0;
@@ -69,7 +66,7 @@ GL_DestroyHeap
 void GL_DestroyHeap(glheap_t * heap)
 {
 	GL_WaitForDeviceIdle();
-	vkFreeMemory(vulkan_globals.device, heap->memory, NULL);
+	R_FreeVulkanMemory(&heap->memory);
 	free(heap->head);
 	free(heap);
 }
@@ -191,7 +188,7 @@ qboolean GL_IsHeapEmpty(glheap_t * heap)
 GL_AllocateFromHeaps
 ================
 */
-VkDeviceSize GL_AllocateFromHeaps(int * num_heaps, glheap_t *** heaps, VkDeviceSize heap_size, uint32_t memory_type_index,
+VkDeviceSize GL_AllocateFromHeaps(int * num_heaps, glheap_t *** heaps, VkDeviceSize heap_size, uint32_t memory_type_index, vulkan_memory_type_t memory_type,
 	VkDeviceSize size, VkDeviceSize alignment, glheap_t ** heap, glheapnode_t ** heap_node, int * num_allocations, const char * heap_name)
 {
 	int i;
@@ -209,7 +206,7 @@ VkDeviceSize GL_AllocateFromHeaps(int * num_heaps, glheap_t *** heaps, VkDeviceS
 		qboolean new_heap = false;
 		if(!(*heaps)[i])
 		{
-			(*heaps)[i] = GL_CreateHeap(heap_size, memory_type_index, heap_name);
+			(*heaps)[i] = GL_CreateHeap(heap_size, memory_type_index, memory_type, heap_name);
 			*num_allocations += 1;
 			new_heap = true;
 		}

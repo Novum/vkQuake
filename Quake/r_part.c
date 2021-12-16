@@ -185,6 +185,7 @@ void R_InitParticleIndexBuffer(void)
 
 	num_vulkan_dynbuf_allocations += 1;
 	VkDeviceMemory particle_index_buffer_memory;
+	total_device_vulkan_allocation_size += memory_requirements.size;
 	err = vkAllocateMemory(vulkan_globals.device, &memory_allocate_info, NULL, &particle_index_buffer_memory);
 	if (err != VK_SUCCESS)
 		Sys_Error("vkAllocateMemory failed");

@@ -3267,6 +3267,7 @@ static int LOC_ParseArg (const char **pstr)
 	// opening brace
 	if (*str != '{')
 		return -1;
+	++str;
 
 	// optional index, defaulting to 0
 	arg = 0;

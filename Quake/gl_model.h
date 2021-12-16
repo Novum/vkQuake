@@ -175,41 +175,28 @@ typedef struct msurface_s
 typedef struct mnode_s
 {
 // common with leaf
-	int			contents;		// 0, to differentiate from leafs
-	int			visframe;		// node needs to be traversed if current
-
-	float		minmaxs[6];		// for bounding box culling
-
-	struct mnode_s	*parent;
+	int				contents;		// 0, to differentiate from leafs
+	float			minmaxs[6];		// for bounding box culling
 
 // node specific
-	mplane_t	*plane;
+	unsigned int	firstsurface;
+	unsigned int	numsurfaces;
+	mplane_t		*plane;
 	struct mnode_s	*children[2];
-
-	unsigned int		firstsurface;
-	unsigned int		numsurfaces;
 } mnode_t;
-
-
 
 typedef struct mleaf_s
 {
 // common with node
 	int			contents;		// wil be a negative contents number
-	int			visframe;		// node needs to be traversed if current
-
 	float		minmaxs[6];		// for bounding box culling
 
-	struct mnode_s	*parent;
-
 // leaf specific
-	byte		*compressed_vis;
-	efrag_t		*efrags;
-
-	int			*firstmarksurface;
 	int			nummarksurfaces;
-	int			key;			// BSP sequence number for leaf's contents
 	byte		ambient_sound_level[NUM_AMBIENTS];
+	byte		*compressed_vis;
+	int			*firstmarksurface;
+	efrag_t		*efrags;
 } mleaf_t;
 
 //johnfitz -- for clipnodes>32k

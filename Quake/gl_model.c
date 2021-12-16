@@ -520,12 +520,6 @@ void Mod_LoadTextures (lump_t *l)
 		for (j=0 ; j<MIPLEVELS ; j++)
 			mt.offsets[j] = LittleLong (mt.offsets[j]);
 
-		if ( (mt.width & 15) || (mt.height & 15) )
-		{
-			if (loadmodel->bspversion != BSPVERSION_QUAKE64)
-				Sys_Error ("Texture %s is not 16 aligned", mt.name);
-		}
-
 		pixels = mt.width*mt.height/64*85;
 		tx = (texture_t *) Hunk_AllocName (sizeof(texture_t) +pixels, loadname );
 		loadmodel->textures[i] = tx;
@@ -1333,21 +1327,6 @@ void Mod_LoadFaces (lump_t *l, qboolean bsp2)
 	}
 }
 
-
-/*
-=================
-Mod_SetParent
-=================
-*/
-void Mod_SetParent (mnode_t *node, mnode_t *parent)
-{
-	node->parent = parent;
-	if (node->contents < 0)
-		return;
-	Mod_SetParent (node->children[0], node);
-	Mod_SetParent (node->children[1], node);
-}
-
 /*
 =================
 Mod_LoadNodes
@@ -1521,8 +1500,6 @@ void Mod_LoadNodes (lump_t *l, int bsp2)
 		Mod_LoadNodes_L1(l);
 	else
 		Mod_LoadNodes_S(l);
-
-	Mod_SetParent (loadmodel->nodes, NULL);	// sets nodes and leafs
 }
 
 void Mod_ProcessLeafs_S (byte *in, int filelen)
@@ -2301,7 +2278,7 @@ static byte *Mod_LoadVisibilityExternal(FILE* f)
 	if (filelen <= 0) return NULL;
 	Con_DPrintf("...%d bytes visibility data\n", filelen);
 	visdata = (byte *) Hunk_AllocName(filelen, "EXT_VIS");
-	if (fread(visdata, filelen, 1, f) != filelen)
+	if (fread(visdata, filelen, 1, f) != 1)
 		return NULL;
 	return visdata;
 }
@@ -2318,9 +2295,80 @@ static void Mod_LoadLeafsExternal(FILE* f)
 	if (filelen <= 0) return;
 	Con_DPrintf("...%d bytes leaf data\n", filelen);
 	in = Hunk_AllocName(filelen, "EXT_LEAF");
-	if (fread(in, filelen, 1, f) != filelen)
+	if (fread(in, filelen, 1, f) != 1)
 		return;
 	Mod_ProcessLeafs_S((byte*)in, filelen);
+}
+
+/*
+=================
+Mod_SetupSubmodels
+set up the submodels (FIXME: this is confusing)
+=================
+*/
+static void Mod_SetupSubmodels (qmodel_t *mod)
+{
+	int i, j;
+	float radius;
+	dmodel_t 	*bm;
+
+	// johnfitz -- okay, so that i stop getting confused every time i look at this loop, here's how it works:
+	// we're looping through the submodels starting at 0.  Submodel 0 is the main model, so we don't have to
+	// worry about clobbering data the first time through, since it's the same data.  At the end of the loop,
+	// we create a new copy of the data to use the next time through.
+	for (i=0 ; i<mod->numsubmodels ; i++)
+	{
+		bm = &mod->submodels[i];
+
+		mod->hulls[0].firstclipnode = bm->headnode[0];
+		for (j=1 ; j<MAX_MAP_HULLS ; j++)
+		{
+			mod->hulls[j].firstclipnode = bm->headnode[j];
+			mod->hulls[j].lastclipnode = mod->numclipnodes-1;
+		}
+
+		mod->firstmodelsurface = bm->firstface;
+		mod->nummodelsurfaces = bm->numfaces;
+
+		VectorCopy (bm->maxs, mod->maxs);
+		VectorCopy (bm->mins, mod->mins);
+
+		//johnfitz -- calculate rotate bounds and yaw bounds
+		radius = RadiusFromBounds (mod->mins, mod->maxs);
+		mod->rmaxs[0] = mod->rmaxs[1] = mod->rmaxs[2] = mod->ymaxs[0] = mod->ymaxs[1] = mod->ymaxs[2] = radius;
+		mod->rmins[0] = mod->rmins[1] = mod->rmins[2] = mod->ymins[0] = mod->ymins[1] = mod->ymins[2] = -radius;
+		//johnfitz
+
+		//johnfitz -- correct physics cullboxes so that outlying clip brushes on doors and stuff are handled right
+		if (i > 0 || strcmp(mod->name, sv.modelname) != 0) //skip submodel 0 of sv.worldmodel, which is the actual world
+		{
+			// start with the hull0 bounds
+			VectorCopy (mod->maxs, mod->clipmaxs);
+			VectorCopy (mod->mins, mod->clipmins);
+
+			// process hull1 (we don't need to process hull2 becuase there's
+			// no such thing as a brush that appears in hull2 but not hull1)
+			//Mod_BoundsFromClipNode (mod, 1, mod->hulls[1].firstclipnode); // (disabled for now becuase it fucks up on rotating models)
+		}
+		//johnfitz
+
+		mod->numleafs = bm->visleafs;
+
+		if (i < mod->numsubmodels-1)
+		{	// duplicate the basic information
+			char	name[12];
+
+			sprintf (name, "*%i", i+1);
+			loadmodel = Mod_FindName (name);
+			*loadmodel = *mod;
+			strcpy (loadmodel->name, name);
+#ifdef PSET_SCRIPT
+			// Need to NULL this otherwise we double delete in PScript_ClearSurfaceParticles
+			loadmodel->skytrimem = NULL;
+#endif
+			mod = loadmodel;
+		}
+	}
 }
 
 /*
@@ -2330,11 +2378,9 @@ Mod_LoadBrushModel
 */
 static void Mod_LoadBrushModel (qmodel_t *mod, void *buffer)
 {
-	int			i, j;
+	int			i;
 	int			bsp2;
 	dheader_t	*header;
-	dmodel_t 	*bm;
-	float		radius; //johnfitz
 
 	loadmodel->type = mod_brush;
 
@@ -2416,68 +2462,7 @@ visdone:
 	mod->numframes = 2;		// regular and alternate animation
 
 	Mod_CheckWaterVis ();
-
-//
-// set up the submodels (FIXME: this is confusing)
-//
-
-	// johnfitz -- okay, so that i stop getting confused every time i look at this loop, here's how it works:
-	// we're looping through the submodels starting at 0.  Submodel 0 is the main model, so we don't have to
-	// worry about clobbering data the first time through, since it's the same data.  At the end of the loop,
-	// we create a new copy of the data to use the next time through.
-	for (i=0 ; i<mod->numsubmodels ; i++)
-	{
-		bm = &mod->submodels[i];
-
-		mod->hulls[0].firstclipnode = bm->headnode[0];
-		for (j=1 ; j<MAX_MAP_HULLS ; j++)
-		{
-			mod->hulls[j].firstclipnode = bm->headnode[j];
-			mod->hulls[j].lastclipnode = mod->numclipnodes-1;
-		}
-
-		mod->firstmodelsurface = bm->firstface;
-		mod->nummodelsurfaces = bm->numfaces;
-
-		VectorCopy (bm->maxs, mod->maxs);
-		VectorCopy (bm->mins, mod->mins);
-
-		//johnfitz -- calculate rotate bounds and yaw bounds
-		radius = RadiusFromBounds (mod->mins, mod->maxs);
-		mod->rmaxs[0] = mod->rmaxs[1] = mod->rmaxs[2] = mod->ymaxs[0] = mod->ymaxs[1] = mod->ymaxs[2] = radius;
-		mod->rmins[0] = mod->rmins[1] = mod->rmins[2] = mod->ymins[0] = mod->ymins[1] = mod->ymins[2] = -radius;
-		//johnfitz
-
-		//johnfitz -- correct physics cullboxes so that outlying clip brushes on doors and stuff are handled right
-		if (i > 0 || strcmp(mod->name, sv.modelname) != 0) //skip submodel 0 of sv.worldmodel, which is the actual world
-		{
-			// start with the hull0 bounds
-			VectorCopy (mod->maxs, mod->clipmaxs);
-			VectorCopy (mod->mins, mod->clipmins);
-
-			// process hull1 (we don't need to process hull2 becuase there's
-			// no such thing as a brush that appears in hull2 but not hull1)
-			//Mod_BoundsFromClipNode (mod, 1, mod->hulls[1].firstclipnode); // (disabled for now becuase it fucks up on rotating models)
-		}
-		//johnfitz
-
-		mod->numleafs = bm->visleafs;
-
-		if (i < mod->numsubmodels-1)
-		{	// duplicate the basic information
-			char	name[12];
-
-			sprintf (name, "*%i", i+1);
-			loadmodel = Mod_FindName (name);
-			*loadmodel = *mod;
-			strcpy (loadmodel->name, name);
-#ifdef PSET_SCRIPT
-			// Need to NULL this otherwise we double delete in PScript_ClearSurfaceParticles
-			loadmodel->skytrimem = NULL;
-#endif
-			mod = loadmodel;
-		}
-	}
+	Mod_SetupSubmodels (mod);
 }
 
 /*
@@ -2709,15 +2694,15 @@ void *Mod_LoadAllSkins (int numskins, byte *pskintype)
 			if (Mod_CheckFullbrights (skin, size))
 			{
 				pheader->gltextures[i][0] = TexMgr_LoadImage (loadmodel, name, pheader->skinwidth, pheader->skinheight,
-					SRC_INDEXED, skin, loadmodel->name, offset, texflags | TEXPREF_NOBRIGHT);
+					SRC_INDEXED, skin, loadmodel->name, offset, texflags | TEXPREF_MIPMAP | TEXPREF_NOBRIGHT);
 				q_snprintf (fbr_mask_name, sizeof(fbr_mask_name), "%s:frame%i_glow", loadmodel->name, i);
 				pheader->fbtextures[i][0] = TexMgr_LoadImage (loadmodel, fbr_mask_name, pheader->skinwidth, pheader->skinheight,
-					SRC_INDEXED, skin, loadmodel->name, offset, texflags | TEXPREF_FULLBRIGHT);
+					SRC_INDEXED, skin, loadmodel->name, offset, texflags | TEXPREF_MIPMAP | TEXPREF_FULLBRIGHT);
 			}
 			else
 			{
 				pheader->gltextures[i][0] = TexMgr_LoadImage (loadmodel, name, pheader->skinwidth, pheader->skinheight,
-					SRC_INDEXED, skin, loadmodel->name, offset, texflags);
+					SRC_INDEXED, skin, loadmodel->name, offset, texflags | TEXPREF_MIPMAP);
 				pheader->fbtextures[i][0] = NULL;
 			}
 
@@ -2750,15 +2735,15 @@ void *Mod_LoadAllSkins (int numskins, byte *pskintype)
 				if (Mod_CheckFullbrights (skin, size))
 				{
 					pheader->gltextures[i][j&3] = TexMgr_LoadImage (loadmodel, name, pheader->skinwidth, pheader->skinheight,
-						SRC_INDEXED, skin, loadmodel->name, offset, texflags | TEXPREF_NOBRIGHT);
+						SRC_INDEXED, skin, loadmodel->name, offset, texflags | TEXPREF_MIPMAP | TEXPREF_NOBRIGHT);
 					q_snprintf (fbr_mask_name, sizeof(fbr_mask_name), "%s:frame%i_%i_glow", loadmodel->name, i,j);
 					pheader->fbtextures[i][j&3] = TexMgr_LoadImage (loadmodel, fbr_mask_name, pheader->skinwidth, pheader->skinheight,
-						SRC_INDEXED, skin, loadmodel->name, offset, texflags | TEXPREF_FULLBRIGHT);
+						SRC_INDEXED, skin, loadmodel->name, offset, texflags | TEXPREF_MIPMAP | TEXPREF_FULLBRIGHT);
 				}
 				else
 				{
 					pheader->gltextures[i][j&3] = TexMgr_LoadImage (loadmodel, name, pheader->skinwidth, pheader->skinheight,
-						SRC_INDEXED, skin, loadmodel->name, offset, texflags);
+						SRC_INDEXED, skin, loadmodel->name, offset, texflags | TEXPREF_MIPMAP);
 					pheader->fbtextures[i][j&3] = NULL;
 				}
 				//johnfitz
@@ -3087,10 +3072,8 @@ void * Mod_LoadSpriteFrame (void * pin, mspriteframe_t **ppframe, int framenum)
 	pspriteframe->left = origin[0];
 	pspriteframe->right = width + origin[0];
 
-	//johnfitz -- image might be padded
-	pspriteframe->smax = (float)width/(float)TexMgr_PadConditional(width);
-	pspriteframe->tmax = (float)height/(float)TexMgr_PadConditional(height);
-	//johnfitz
+	pspriteframe->smax = 1;
+	pspriteframe->tmax = 1;
 
 	q_snprintf (name, sizeof(name), "%s:frame%i", loadmodel->name, framenum);
 	offset = (src_offset_t)(pinframe+1) - (src_offset_t)mod_base; //johnfitz

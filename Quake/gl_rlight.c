@@ -173,12 +173,36 @@ mplane_t		*lightplane;
 vec3_t			lightspot;
 vec3_t			lightcolor; //johnfitz -- lit support via lordhavoc
 
+static void InterpolateLightmap (vec3_t color, msurface_t *surf, int ds, int dt)
+{
+	byte *lightmap;
+	int maps, line3, dsfrac = ds & 15, dtfrac = dt & 15, r00 = 0, g00 = 0, b00 = 0, r01 = 0, g01 = 0, b01 = 0, r10 = 0, g10 = 0, b10 = 0, r11 = 0, g11 = 0, b11 = 0;
+	int scale;
+	line3 = ((surf->extents[0]>>4)+1)*3;
+
+	lightmap = surf->samples + ((dt>>4) * ((surf->extents[0]>>4)+1) + (ds>>4))*3; // LordHavoc: *3 for color
+
+	for (maps = 0;maps < MAXLIGHTMAPS && surf->styles[maps] != 255;maps++)
+	{
+		scale = d_lightstylevalue[surf->styles[maps]];
+		r00 += lightmap[      0] * scale; g00 += lightmap[      1] * scale; b00 += lightmap[      2] * scale;
+		r01 += lightmap[      3] * scale; g01 += lightmap[      4] * scale; b01 += lightmap[      5] * scale;
+		r10 += lightmap[line3+0] * scale; g10 += lightmap[line3+1] * scale; b10 += lightmap[line3+2] * scale;
+		r11 += lightmap[line3+3] * scale; g11 += lightmap[line3+4] * scale; b11 += lightmap[line3+5] * scale;
+		lightmap += ((surf->extents[0]>>4)+1) * ((surf->extents[1]>>4)+1)*3; // LordHavoc: *3 for colored lighting
+	}
+
+	color[0] = ((((((((r11-r10) * dsfrac) >> 4) + r10)-((((r01-r00) * dsfrac) >> 4) + r00)) * dtfrac) >> 4) + ((((r01-r00) * dsfrac) >> 4) + r00)) * (1.f/256.f);
+	color[1] = ((((((((g11-g10) * dsfrac) >> 4) + g10)-((((g01-g00) * dsfrac) >> 4) + g00)) * dtfrac) >> 4) + ((((g01-g00) * dsfrac) >> 4) + g00)) * (1.f/256.f);
+	color[2] = ((((((((b11-b10) * dsfrac) >> 4) + b10)-((((b01-b00) * dsfrac) >> 4) + b00)) * dtfrac) >> 4) + ((((b01-b00) * dsfrac) >> 4) + b00)) * (1.f/256.f);
+}
+
 /*
 =============
 RecursiveLightPoint -- johnfitz -- replaced entire function for lit support via lordhavoc
 =============
 */
-int RecursiveLightPoint (vec3_t color, mnode_t *node, vec3_t rayorg, vec3_t start, vec3_t end, float *maxdist)
+int RecursiveLightPoint (lightcache_t *cache, mnode_t *node, vec3_t rayorg, vec3_t start, vec3_t end, float *maxdist)
 {
 	float		front, back, frac;
 	vec3_t		mid;
@@ -201,7 +225,7 @@ loc0:
 
 	// LordHavoc: optimized recursion
 	if ((back < 0) == (front < 0))
-//		return RecursiveLightPoint (color, node->children[front < 0], rayorg, start, end, maxdist);
+//		return RecursiveLightPoint (cache, node->children[front < 0], rayorg, start, end, maxdist);
 	{
 		node = node->children[front < 0];
 		goto loc0;
@@ -213,7 +237,7 @@ loc0:
 	mid[2] = start[2] + (end[2] - start[2])*frac;
 
 // go down front side
-	if (RecursiveLightPoint (color, node->children[front < 0], rayorg, start, mid, maxdist))
+	if (RecursiveLightPoint (cache, node->children[front < 0], rayorg, start, mid, maxdist))
 		return true;	// hit something
 	else
 	{
@@ -275,33 +299,20 @@ loc0:
 
 			if (dist < *maxdist)
 			{
-				// LordHavoc: enhanced to interpolate lighting
-				byte *lightmap;
-				int maps, line3, dsfrac = ds & 15, dtfrac = dt & 15, r00 = 0, g00 = 0, b00 = 0, r01 = 0, g01 = 0, b01 = 0, r10 = 0, g10 = 0, b10 = 0, r11 = 0, g11 = 0, b11 = 0;
-				float scale;
-				line3 = ((surf->extents[0]>>4)+1)*3;
-
-				lightmap = surf->samples + ((dt>>4) * ((surf->extents[0]>>4)+1) + (ds>>4))*3; // LordHavoc: *3 for color
-
-				for (maps = 0;maps < MAXLIGHTMAPS && surf->styles[maps] != 255;maps++)
-				{
-					scale = (float) d_lightstylevalue[surf->styles[maps]] * 1.0 / 256.0;
-					r00 += (float) lightmap[      0] * scale;g00 += (float) lightmap[      1] * scale;b00 += (float) lightmap[2] * scale;
-					r01 += (float) lightmap[      3] * scale;g01 += (float) lightmap[      4] * scale;b01 += (float) lightmap[5] * scale;
-					r10 += (float) lightmap[line3+0] * scale;g10 += (float) lightmap[line3+1] * scale;b10 += (float) lightmap[line3+2] * scale;
-					r11 += (float) lightmap[line3+3] * scale;g11 += (float) lightmap[line3+4] * scale;b11 += (float) lightmap[line3+5] * scale;
-					lightmap += ((surf->extents[0]>>4)+1) * ((surf->extents[1]>>4)+1)*3; // LordHavoc: *3 for colored lighting
-				}
-
-				color[0] += (float) ((int) ((((((((r11-r10) * dsfrac) >> 4) + r10)-((((r01-r00) * dsfrac) >> 4) + r00)) * dtfrac) >> 4) + ((((r01-r00) * dsfrac) >> 4) + r00)));
-				color[1] += (float) ((int) ((((((((g11-g10) * dsfrac) >> 4) + g10)-((((g01-g00) * dsfrac) >> 4) + g00)) * dtfrac) >> 4) + ((((g01-g00) * dsfrac) >> 4) + g00)));
-				color[2] += (float) ((int) ((((((((b11-b10) * dsfrac) >> 4) + b10)-((((b01-b00) * dsfrac) >> 4) + b00)) * dtfrac) >> 4) + ((((b01-b00) * dsfrac) >> 4) + b00)));
+				cache->surfidx = surf - cl.worldmodel->surfaces + 1;
+				cache->ds = ds;
+				cache->dt = dt;
 			}
+			else
+			{
+				cache->surfidx = -1;
+			}
+
 			return true; // success
 		}
 
 	// go down back side
-		return RecursiveLightPoint (color, node->children[front >= 0], rayorg, mid, end, maxdist);
+		return RecursiveLightPoint (cache, node->children[front >= 0], rayorg, mid, end, maxdist);
 	}
 }
 
@@ -310,7 +321,7 @@ loc0:
 R_LightPoint -- johnfitz -- replaced entire function for lit support via lordhavoc
 =============
 */
-int R_LightPoint (vec3_t p)
+int R_LightPoint (vec3_t p, lightcache_t *cache)
 {
 	vec3_t		end;
 	float		maxdist = 8192.f; //johnfitz -- was 2048
@@ -326,6 +337,20 @@ int R_LightPoint (vec3_t p)
 	end[2] = p[2] - maxdist;
 
 	lightcolor[0] = lightcolor[1] = lightcolor[2] = 0;
-	RecursiveLightPoint (lightcolor, cl.worldmodel->nodes, p, p, end, &maxdist);
+
+	if (!cache || cache->surfidx <= 0 // no cache or pitch black
+		|| cache->surfidx > cl.worldmodel->numsurfaces
+		|| fabsf (cache->pos[0] - p[0]) >= 1.f
+		|| fabsf (cache->pos[1] - p[1]) >= 1.f
+		|| fabsf (cache->pos[2] - p[2]) >= 1.f)
+	{
+		cache->surfidx = 0;
+		VectorCopy (p, cache->pos);
+		RecursiveLightPoint (cache, cl.worldmodel->nodes, p, p, end, &maxdist);
+	}
+
+	if (cache && cache->surfidx > 0)
+		InterpolateLightmap (lightcolor, cl.worldmodel->surfaces + cache->surfidx - 1, cache->ds, cache->dt);
+
 	return ((lightcolor[0] + lightcolor[1] + lightcolor[2]) * (1.0f / 3.0f));
 }

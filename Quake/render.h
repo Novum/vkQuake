@@ -38,6 +38,13 @@ typedef struct efrag_s
 	struct entity_s		*entity;
 } efrag_t;
 
+typedef struct lightcache_s {
+	int					surfidx; // < 0: black surface; == 0: no cache; > 0: 1+index of surface
+	vec3_t				pos;
+	short				ds;
+	short				dt;
+} lightcache_t;
+
 //johnfitz -- for lerping
 #define LERP_MOVESTEP	(1<<0) //this is a MOVETYPE_STEP entity, enable movement lerp
 #define LERP_RESETANIM	(1<<1) //disable anim lerping until next anim frame
@@ -98,6 +105,8 @@ typedef struct entity_s
 	struct trailstate_s		*trailstate;	//spike -- managed by the particle system, so we don't loose our position and spawn the wrong number of particles, and we can track beams etc
 	struct trailstate_s		*emitstate;		//spike -- for effects which are not so static.
 #endif
+
+	lightcache_t			lightcache;		// alias light trace cache
 } entity_t;
 
 // !!! if this is changed, it must be changed in asm_draw.h too !!!
