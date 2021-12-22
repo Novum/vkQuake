@@ -235,18 +235,12 @@ void CL_SignonReply (void)
 	{
 	case 1:
 		MSG_WriteByte (&cls.message, clc_stringcmd);
-		MSG_WriteString (&cls.message, "prespawn");
+		MSG_WriteString (&cls.message, va("name \"%s\"\n", cl_name.string));
 
 		cl.sendprespawn = true;
 		break;
 
 	case 2:
-		MSG_WriteByte (&cls.message, clc_stringcmd);
-		MSG_WriteString (&cls.message, va("name \"%s\"\n", cl_name.string));
-
-		MSG_WriteByte (&cls.message, clc_stringcmd);
-		MSG_WriteString (&cls.message, va("color %i %i\n", ((int)cl_color.value)>>4, ((int)cl_color.value)&15));
-
 		if (*cl.serverinfo)
 			Info_Enumerate(cls.userinfo, CL_SendInitialUserinfo, NULL);
 
