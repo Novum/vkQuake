@@ -63,6 +63,11 @@ int		hipweapons[4] = {HIT_LASER_CANNON_BIT,HIT_MJOLNIR_BIT,4,HIT_PROXIMITY_GUN_B
 //MED 01/04/97 added hipnotic items array
 qpic_t		*hsb_items[2];
 
+//spike -- fix -game hipnotic by autodetecting hud types. the fte protocols will deal with the networking issue, other than demos, anyway
+static int hudtype;
+#define hipnotic (hudtype==1)
+#define rogue (hudtype==2)
+
 void Sbar_MiniDeathmatchOverlay (void);
 void Sbar_DeathmatchOverlay (void);
 void M_DrawPic (int x, int y, qpic_t *pic);
