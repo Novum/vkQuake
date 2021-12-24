@@ -26,9 +26,6 @@
     <Filter Include="Shaders">
       <UniqueIdentifier>{3dfdf89a-a886-4d6a-8620-83b81d0b5763}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Shaders\Compiled">
-      <UniqueIdentifier>{e400bd53-6d5f-424f-9a63-0c01cdb5967d}</UniqueIdentifier>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\Quake\snd_codec.c">
@@ -262,50 +259,8 @@
     <ClCompile Include="..\..\Quake\sv_user.c">
       <Filter>Server</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Shaders\Compiled\basic_frag.c">
-      <Filter>Shaders\Compiled</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Shaders\Compiled\basic_notex_frag.c">
-      <Filter>Shaders\Compiled</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Shaders\Compiled\basic_vert.c">
-      <Filter>Shaders\Compiled</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Shaders\Compiled\world_frag.c">
-      <Filter>Shaders\Compiled</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Shaders\Compiled\world_vert.c">
-      <Filter>Shaders\Compiled</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Shaders\Compiled\basic_alphatest_frag.c">
-      <Filter>Shaders\Compiled</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Shaders\Compiled\alias_vert.c">
-      <Filter>Shaders\Compiled</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Shaders\Compiled\alias_frag.c">
-      <Filter>Shaders\Compiled</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Shaders\Compiled\sky_layer_frag.c">
-      <Filter>Shaders\Compiled</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Shaders\Compiled\sky_layer_vert.c">
-      <Filter>Shaders\Compiled</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Shaders\Compiled\postprocess_frag.c">
-      <Filter>Shaders\Compiled</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Shaders\Compiled\postprocess_vert.c">
-      <Filter>Shaders\Compiled</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\Quake\gl_heap.c">
       <Filter>Renderer</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Shaders\Compiled\alias_alphatest_frag.c">
-      <Filter>Shaders\Compiled</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Shaders\Compiled\cs_tex_warp_comp.c">
-      <Filter>Shaders\Compiled</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Quake\snd_mp3tag.c">
       <Filter>Sound</Filter>
@@ -313,35 +268,77 @@
     <ClCompile Include="..\..\Quake\mdfour.c">
       <Filter>Main</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Shaders\Compiled\showtris_frag.c">
-      <Filter>Shaders\Compiled</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Shaders\Compiled\showtris_vert.c">
-      <Filter>Shaders\Compiled</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\Quake\pr_ext.c">
       <Filter>Main</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Shaders\Compiled\sky_box_frag.c">
-      <Filter>Shaders\Compiled</Filter>
+    <ClCompile Include="..\..\Shaders\Compiled\screen_effects_10bit_scale_sops.comp.c">
+      <Filter>Shaders</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Shaders\Compiled\screen_effects_8bit_comp.c">
-      <Filter>Shaders\Compiled</Filter>
+    <ClCompile Include="..\..\Shaders\Compiled\showtris.frag.c">
+      <Filter>Shaders</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Shaders\Compiled\screen_effects_8bit_scale_comp.c">
-      <Filter>Shaders\Compiled</Filter>
+    <ClCompile Include="..\..\Shaders\Compiled\showtris.vert.c">
+      <Filter>Shaders</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Shaders\Compiled\screen_effects_8bit_scale_sops_comp.c">
-      <Filter>Shaders\Compiled</Filter>
+    <ClCompile Include="..\..\Shaders\Compiled\sky_box.frag.c">
+      <Filter>Shaders</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Shaders\Compiled\screen_effects_10bit_comp.c">
-      <Filter>Shaders\Compiled</Filter>
+    <ClCompile Include="..\..\Shaders\Compiled\sky_layer.frag.c">
+      <Filter>Shaders</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Shaders\Compiled\screen_effects_10bit_scale_comp.c">
-      <Filter>Shaders\Compiled</Filter>
+    <ClCompile Include="..\..\Shaders\Compiled\sky_layer.vert.c">
+      <Filter>Shaders</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Shaders\Compiled\screen_effects_10bit_scale_sops_comp.c">
-      <Filter>Shaders\Compiled</Filter>
+    <ClCompile Include="..\..\Shaders\Compiled\world.frag.c">
+      <Filter>Shaders</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\world.vert.c">
+      <Filter>Shaders</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\alias.frag.c">
+      <Filter>Shaders</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\alias.vert.c">
+      <Filter>Shaders</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\alias_alphatest.frag.c">
+      <Filter>Shaders</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\basic.frag.c">
+      <Filter>Shaders</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\basic.vert.c">
+      <Filter>Shaders</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\basic_alphatest.frag.c">
+      <Filter>Shaders</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\basic_notex.frag.c">
+      <Filter>Shaders</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\cs_tex_warp.comp.c">
+      <Filter>Shaders</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\postprocess.frag.c">
+      <Filter>Shaders</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\postprocess.vert.c">
+      <Filter>Shaders</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\screen_effects_8bit.comp.c">
+      <Filter>Shaders</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\screen_effects_8bit_scale.comp.c">
+      <Filter>Shaders</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\screen_effects_8bit_scale_sops.comp.c">
+      <Filter>Shaders</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\screen_effects_10bit.comp.c">
+      <Filter>Shaders</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\screen_effects_10bit_scale.comp.c">
+      <Filter>Shaders</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -551,82 +548,5 @@
     <ResourceCompile Include="..\vkQuake.rc">
       <Filter>Resource Files</Filter>
     </ResourceCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="..\..\Shaders\basic.frag">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="..\..\Shaders\basic.vert">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="..\..\Shaders\basic_notex.frag">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="..\..\Shaders\world.vert">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="..\..\Shaders\world.frag">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="..\..\Shaders\compile.bat">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="..\..\Shaders\basic_alphatest.frag">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="..\..\Shaders\alias.frag">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="..\..\Shaders\alias.vert">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="..\..\Shaders\sky_layer.frag">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="..\..\Shaders\sky_layer.vert">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="..\..\Shaders\postprocess.vert">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="..\..\Shaders\postprocess.frag">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="..\..\Shaders\alias_alphatest.frag">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="..\..\Shaders\cs_tex_warp.comp">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="..\..\Shaders\showtris.vert">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="..\..\Shaders\showtris.frag">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="..\..\Shaders\sky_box.frag">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="..\..\Shaders\screen_effects.inc">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="..\..\Shaders\screen_effects_8bit.comp">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="..\..\Shaders\screen_effects_8bit_scale.comp">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="..\..\Shaders\screen_effects_8bit_scale_sops.comp">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="..\..\Shaders\screen_effects_10bit.comp">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="..\..\Shaders\screen_effects_10bit_scale.comp">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="..\..\Shaders\screen_effects_10bit_scale_sops.comp">
-      <Filter>Shaders</Filter>
-    </None>
   </ItemGroup>
 </Project>
