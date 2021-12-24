@@ -204,29 +204,29 @@ SYSOBJ_MAIN:= main_sdl.o
 SYSOBJ_RES := vkQuake.res
 
 SHADER_OBJS = \
-	alias_frag.o \
-	alias_alphatest_frag.o \
-	alias_vert.o \
-	basic_alphatest_frag.o \
-	screen_effects_8bit_comp.o \
-	screen_effects_8bit_scale_comp.o \
-	screen_effects_8bit_scale_sops_comp.o \
-	screen_effects_10bit_comp.o \
-	screen_effects_10bit_scale_comp.o \
-	screen_effects_10bit_scale_sops_comp.o \
-	cs_tex_warp_comp.o \
-	basic_frag.o \
-	basic_notex_frag.o \
-	basic_vert.o \
-	sky_layer_frag.o \
-	sky_layer_vert.o \
-	sky_box_frag.o \
-	postprocess_frag.o \
-	postprocess_vert.o \
-	world_frag.o \
-	world_vert.o \
-	showtris_frag.o \
-	showtris_vert.o
+	alias.frag.o \
+	alias_alphatest.frag.o \
+	alias.vert.o \
+	basic_alphatest.frag.o \
+	screen_effects_8bit.comp.o \
+	screen_effects_8bit_scale.comp.o \
+	screen_effects_8bit_scale_sops.comp.o \
+	screen_effects_10bit.comp.o \
+	screen_effects_10bit_scale.comp.o \
+	screen_effects_10bit_scale_sops.comp.o \
+	cs_tex_warp.comp.o \
+	basic.frag.o \
+	basic_notex.frag.o \
+	basic.vert.o \
+	sky_layer.frag.o \
+	sky_layer.vert.o \
+	sky_box.frag.o \
+	postprocess.frag.o \
+	postprocess.vert.o \
+	world.frag.o \
+	world.vert.o \
+	showtris.frag.o \
+	showtris.vert.o
 
 GLOBJS = \
 	$(SHADER_OBJS) \
