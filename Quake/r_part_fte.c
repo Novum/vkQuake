@@ -5523,6 +5523,9 @@ static void ReallocateVertexBuffer()
 {
 	VkResult err;
 
+	if (vertex_buffers[current_buffer_index] != VK_NULL_HANDLE)
+		vkDestroyBuffer(vulkan_globals.device, vertex_buffers[current_buffer_index], NULL);
+
 	vulkan_memory_t old_memory = vertex_buffers_memory[current_buffer_index];
 	const basicvertex_t* old_cl_curstrisvert = cl_curstrisvert;
 	const int old_maxstrisvert = cl_maxstrisvert[current_buffer_index];
@@ -5581,6 +5584,9 @@ static void ReallocateVertexBuffer()
 static void ReallocateIndexBuffer()
 {
 	VkResult err;
+
+	if (index_buffers[current_buffer_index] != VK_NULL_HANDLE)
+		vkDestroyBuffer(vulkan_globals.device, index_buffers[current_buffer_index], NULL);
 
 	vulkan_memory_t old_memory = index_buffers_memory[current_buffer_index];
 	const unsigned short * old_cl_curstrisidx = cl_curstrisidx;
