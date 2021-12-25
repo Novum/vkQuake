@@ -65,18 +65,18 @@
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\screen_effects_10bit_scale_sops.comp">
       <FileType>Document</FileType>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(VULKAN_SDK)\bin\glslangValidator.exe --target-env vulkan1.1 -V %(FullPath) -o $(SolutionDir)..\..\Shaders\Compiled\%(Filename)%(Extension).spv
-$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe $(SolutionDir)..\..\Shaders\Compiled\%(Filename)%(Extension).spv %(Filename)%(Extension)_spv $(SolutionDir)..\..\Shaders\Compiled/%(Filename)%(Extension).c</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(VULKAN_SDK)\bin\glslangValidator.exe --target-env vulkan1.1 -V %(FullPath) -o $(SolutionDir)..\..\Shaders\Compiled\%(Filename)%(Extension).spv
-$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe $(SolutionDir)..\..\Shaders\Compiled\%(Filename)%(Extension).spv %(Filename)%(Extension)_spv $(SolutionDir)..\..\Shaders\Compiled/%(Filename)%(Extension).c</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe --target-env vulkan1.1 -V %(FullPath) -o $(SolutionDir)..\..\Shaders\Compiled\%(Filename)%(Extension).spv
-$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe $(SolutionDir)..\..\Shaders\Compiled\%(Filename)%(Extension).spv %(Filename)%(Extension)_spv $(SolutionDir)..\..\Shaders\Compiled/%(Filename)%(Extension).c</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe --target-env vulkan1.1 -V %(FullPath) -o $(SolutionDir)..\..\Shaders\Compiled\%(Filename)%(Extension).spv
-$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe $(SolutionDir)..\..\Shaders\Compiled\%(Filename)%(Extension).spv %(Filename)%(Extension)_spv $(SolutionDir)..\..\Shaders\Compiled/%(Filename)%(Extension).c</Command>
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(SolutionDir)..\..\Shaders\screen_effects.inc</AdditionalInputs>
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(SolutionDir)..\..\Shaders\screen_effects.inc</AdditionalInputs>
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\screen_effects.inc</AdditionalInputs>
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\screen_effects.inc</AdditionalInputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(VULKAN_SDK)\bin\glslangValidator.exe --target-env vulkan1.1 -g -V %(FullPath) -o $(SolutionDir)..\..\Shaders\Compiled\Debug\%(Filename)%(Extension).spv
+$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe $(SolutionDir)..\..\Shaders\Compiled\Debug\%(Filename)%(Extension).spv %(Filename)%(Extension)_spv $(SolutionDir)..\..\Shaders\Compiled\Debug\%(Filename)%(Extension).c</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe --target-env vulkan1.1 -g -V %(FullPath) -o $(SolutionDir)..\..\Shaders\Compiled\Debug\%(Filename)%(Extension).spv
+$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe $(SolutionDir)..\..\Shaders\Compiled\Debug\%(Filename)%(Extension).spv %(Filename)%(Extension)_spv $(SolutionDir)..\..\Shaders\Compiled\Debug\%(Filename)%(Extension).c</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(VULKAN_SDK)\bin\glslangValidator.exe --target-env vulkan1.1 -V %(FullPath) -o $(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).spv
+$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe $(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).spv %(Filename)%(Extension)_spv $(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).c</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe --target-env vulkan1.1 -V %(FullPath) -o $(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).spv
+$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe $(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).spv %(Filename)%(Extension)_spv $(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).c</Command>
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\screen_effects_8bit.comp">
       <FileType>Document</FileType>
@@ -94,18 +94,18 @@ $(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe $(S
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\screen_effects_8bit_scale_sops.comp">
       <FileType>Document</FileType>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(VULKAN_SDK)\bin\glslangValidator.exe --target-env vulkan1.1 -V %(FullPath) -o $(SolutionDir)..\..\Shaders\Compiled\%(Filename)%(Extension).spv
-$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe $(SolutionDir)..\..\Shaders\Compiled\%(Filename)%(Extension).spv %(Filename)%(Extension)_spv $(SolutionDir)..\..\Shaders\Compiled/%(Filename)%(Extension).c</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(VULKAN_SDK)\bin\glslangValidator.exe --target-env vulkan1.1 -V %(FullPath) -o $(SolutionDir)..\..\Shaders\Compiled\%(Filename)%(Extension).spv
-$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe $(SolutionDir)..\..\Shaders\Compiled\%(Filename)%(Extension).spv %(Filename)%(Extension)_spv $(SolutionDir)..\..\Shaders\Compiled/%(Filename)%(Extension).c</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe --target-env vulkan1.1 -V %(FullPath) -o $(SolutionDir)..\..\Shaders\Compiled\%(Filename)%(Extension).spv
-$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe $(SolutionDir)..\..\Shaders\Compiled\%(Filename)%(Extension).spv %(Filename)%(Extension)_spv $(SolutionDir)..\..\Shaders\Compiled/%(Filename)%(Extension).c</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe --target-env vulkan1.1 -V %(FullPath) -o $(SolutionDir)..\..\Shaders\Compiled\%(Filename)%(Extension).spv
-$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe $(SolutionDir)..\..\Shaders\Compiled\%(Filename)%(Extension).spv %(Filename)%(Extension)_spv $(SolutionDir)..\..\Shaders\Compiled/%(Filename)%(Extension).c</Command>
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(SolutionDir)..\..\Shaders\screen_effects.inc</AdditionalInputs>
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(SolutionDir)..\..\Shaders\screen_effects.inc</AdditionalInputs>
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\screen_effects.inc</AdditionalInputs>
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\screen_effects.inc</AdditionalInputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(VULKAN_SDK)\bin\glslangValidator.exe --target-env vulkan1.1 -g -V %(FullPath) -o $(SolutionDir)..\..\Shaders\Compiled\Debug\%(Filename)%(Extension).spv
+$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe $(SolutionDir)..\..\Shaders\Compiled\Debug\%(Filename)%(Extension).spv %(Filename)%(Extension)_spv $(SolutionDir)..\..\Shaders\Compiled\Debug\%(Filename)%(Extension).c</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe --target-env vulkan1.1 -g -V %(FullPath) -o $(SolutionDir)..\..\Shaders\Compiled\Debug\%(Filename)%(Extension).spv
+$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe $(SolutionDir)..\..\Shaders\Compiled\Debug\%(Filename)%(Extension).spv %(Filename)%(Extension)_spv $(SolutionDir)..\..\Shaders\Compiled\Debug\%(Filename)%(Extension).c</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(VULKAN_SDK)\bin\glslangValidator.exe --target-env vulkan1.1 -V %(FullPath) -o $(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).spv
+$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe $(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).spv %(Filename)%(Extension)_spv $(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).c</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe --target-env vulkan1.1 -V %(FullPath) -o $(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).spv
+$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe $(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).spv %(Filename)%(Extension)_spv $(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).c</Command>
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\showtris.frag">
       <FileType>Document</FileType>
@@ -216,9 +216,9 @@ $(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe $(S
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <CustomBuild>
-      <Command>$(VULKAN_SDK)\bin\glslangValidator.exe -V %(FullPath) -o $(SolutionDir)..\..\Shaders\Compiled\%(Filename)%(Extension).spv
-$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe $(SolutionDir)..\..\Shaders\Compiled\%(Filename)%(Extension).spv %(Filename)%(Extension)_spv $(SolutionDir)..\..\Shaders\Compiled/%(Filename)%(Extension).c</Command>
-      <Outputs>$(SolutionDir)..\..\Shaders\Compiled\%(Filename)%(Extension).c</Outputs>
+      <Command>$(VULKAN_SDK)\bin\glslangValidator.exe -g -V %(FullPath) -o $(SolutionDir)..\..\Shaders\Compiled\Debug\%(Filename)%(Extension).spv
+$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe $(SolutionDir)..\..\Shaders\Compiled\Debug\%(Filename)%(Extension).spv %(Filename)%(Extension)_spv $(SolutionDir)..\..\Shaders\Compiled\Debug\%(Filename)%(Extension).c</Command>
+      <Outputs>$(SolutionDir)..\..\Shaders\Compiled\Debug\%(Filename)%(Extension).c</Outputs>
       <Message>Compiling Shader</Message>
       <BuildInParallel>true</BuildInParallel>
       <LinkObjects>false</LinkObjects>
@@ -240,9 +240,9 @@ $(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe $(S
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <CustomBuild>
-      <Command>$(VULKAN_SDK)\bin\glslangValidator.exe -V %(FullPath) -o $(SolutionDir)..\..\Shaders\Compiled\%(Filename)%(Extension).spv
-$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe $(SolutionDir)..\..\Shaders\Compiled\%(Filename)%(Extension).spv %(Filename)%(Extension)_spv $(SolutionDir)..\..\Shaders\Compiled/%(Filename)%(Extension).c</Command>
-      <Outputs>$(SolutionDir)..\..\Shaders\Compiled\%(Filename)%(Extension).c</Outputs>
+      <Command>$(VULKAN_SDK)\bin\glslangValidator.exe -V %(FullPath) -o $(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).spv
+$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe $(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).spv %(Filename)%(Extension)_spv $(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).c</Command>
+      <Outputs>$(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).c</Outputs>
       <Message>Compiling Shader</Message>
       <BuildInParallel>true</BuildInParallel>
       <LinkObjects>false</LinkObjects>
@@ -260,9 +260,9 @@ $(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe $(S
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <CustomBuild>
-      <Command>$(VULKAN_SDK)\bin\glslangValidator.exe -V %(FullPath) -o $(SolutionDir)..\..\Shaders\Compiled\%(Filename)%(Extension).spv
-$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe $(SolutionDir)..\..\Shaders\Compiled\%(Filename)%(Extension).spv %(Filename)%(Extension)_spv $(SolutionDir)..\..\Shaders\Compiled/%(Filename)%(Extension).c</Command>
-      <Outputs>$(SolutionDir)..\..\Shaders\Compiled\%(Filename)%(Extension).c</Outputs>
+      <Command>$(VULKAN_SDK)\bin\glslangValidator.exe -g -V %(FullPath) -o $(SolutionDir)..\..\Shaders\Compiled\Debug\%(Filename)%(Extension).spv
+$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe $(SolutionDir)..\..\Shaders\Compiled\Debug\%(Filename)%(Extension).spv %(Filename)%(Extension)_spv $(SolutionDir)..\..\Shaders\Compiled\Debug\%(Filename)%(Extension).c</Command>
+      <Outputs>$(SolutionDir)..\..\Shaders\Compiled\Debug\%(Filename)%(Extension).c</Outputs>
       <Message>Compiling Shader</Message>
       <BuildInParallel>true</BuildInParallel>
       <LinkObjects>false</LinkObjects>
@@ -284,9 +284,9 @@ $(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe $(S
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <CustomBuild>
-      <Command>$(VULKAN_SDK)\bin\glslangValidator.exe -V %(FullPath) -o $(SolutionDir)..\..\Shaders\Compiled\%(Filename)%(Extension).spv
-$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe $(SolutionDir)..\..\Shaders\Compiled\%(Filename)%(Extension).spv %(Filename)%(Extension)_spv $(SolutionDir)..\..\Shaders\Compiled/%(Filename)%(Extension).c</Command>
-      <Outputs>$(SolutionDir)..\..\Shaders\Compiled\%(Filename)%(Extension).c</Outputs>
+      <Command>$(VULKAN_SDK)\bin\glslangValidator.exe -V %(FullPath) -o $(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).spv
+$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe $(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).spv %(Filename)%(Extension)_spv $(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).c</Command>
+      <Outputs>$(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).c</Outputs>
       <Message>Compiling Shader</Message>
       <BuildInParallel>true</BuildInParallel>
       <LinkObjects>false</LinkObjects>

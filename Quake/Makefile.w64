@@ -167,8 +167,13 @@ DEFAULT_TARGET := vkQuake.exe
 
 %.o:	%.c
 	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ $<
-%.o:	../Shaders/Compiled/%.c
+ifneq ($(DEBUG),0)
+%.o:	../Shaders/Compiled/Release/%.c
 	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ $^
+else
+%.o:	../Shaders/Compiled/Debug/%.c
+	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ $^
+endif
 %.res:	../Windows/%.rc
 	$(WINDRES) -I../Windows --output-format=coff --target=pe-x86-64 -o $@ $<
 

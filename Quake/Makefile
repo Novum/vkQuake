@@ -176,8 +176,13 @@ DEFAULT_TARGET := vkquake
 
 %.o:	%.c
 	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ $<
-%.o:	../Shaders/Compiled/%.c
+ifneq ($(DEBUG),0)
+%.o:	../Shaders/Compiled/Release/%.c
 	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ $^
+else
+%.o:	../Shaders/Compiled/Debug/%.c
+	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ $^
+endif
 
 # ----------------------------------------------------------------------------
 # objects
