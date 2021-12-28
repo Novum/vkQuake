@@ -1,4 +1,4 @@
-/*
+/**
  * Unreal UMX container support.
  * UPKG parsing partially based on Unreal Media Ripper (UMR) v0.3
  * by Andy Ward <wardwh@swbell.net>, with additional updates
@@ -304,6 +304,9 @@ static int32_t probe_header (fshandle_t *f, struct upkg_hdr *hdr)
 		return -1;
 	}
 
+#if 1 /* no need being overzealous */
+	return 0;
+#else
 	switch (hdr->file_version) {
 	case 35: case 37:	/* Unreal beta - */
 	case 40: case 41:				/* 1998 */
@@ -322,6 +325,7 @@ static int32_t probe_header (fshandle_t *f, struct upkg_hdr *hdr)
 
 	Con_DPrintf("Unknown upkg version %d\n", hdr->file_version);
 	return -1;
+#endif /* #if 0  */
 }
 
 static int process_upkg (fshandle_t *f, int32_t *ofs, int32_t *objsize)
