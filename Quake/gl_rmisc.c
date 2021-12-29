@@ -1276,9 +1276,9 @@ void R_CreateDescriptorPool()
 {
 	VkDescriptorPoolSize pool_sizes[6];
 	pool_sizes[0].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	pool_sizes[0].descriptorCount = (MAX_SANITY_LIGHTMAPS * 5) + (MAX_GLTEXTURES + 1);
+	pool_sizes[0].descriptorCount = (MAX_SANITY_LIGHTMAPS * 2) + (MAX_GLTEXTURES + 1);
 	pool_sizes[1].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
-	pool_sizes[1].descriptorCount = 16 + MAX_SANITY_LIGHTMAPS;
+	pool_sizes[1].descriptorCount = 16 + (MAX_SANITY_LIGHTMAPS * 2);
 	pool_sizes[2].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 	pool_sizes[2].descriptorCount = MAX_SANITY_LIGHTMAPS * 2;
 	pool_sizes[3].type = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
