@@ -1118,6 +1118,7 @@ invalid:	Con_Printf ("TexMgr_ReloadImage: invalid source for %s\n", glt->name);
 		TexMgr_LoadLightmap (glt, data);
 		break;
 	case SRC_RGBA:
+	case SRC_SURF_INDICES:
 		TexMgr_LoadImage32 (glt, (unsigned *)data);
 		break;
 	}

@@ -495,13 +495,11 @@ R_FillLightstyleTexture
 static void R_FillLightstyleTextures(msurface_t* surf, byte** lightstyles, int stride)
 {
 	int			smax, tmax;
-	int			size;
 	byte* lightmap;
 	int			maps;
 
 	smax = (surf->extents[0] >> 4) + 1;
 	tmax = (surf->extents[1] >> 4) + 1;
-	size = smax * tmax;
 	lightmap = surf->samples;
 	stride -= smax * LIGHTMAP_BYTES;
 
