@@ -25,7 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 
-extern cvar_t gl_fullbrights, r_drawflat, r_oldskyleaf, r_showtris, r_simd, gl_zfix; //johnfitz
+extern cvar_t gl_fullbrights, r_drawflat, r_oldskyleaf, r_showtris, r_simd, gl_zfix, r_gpulightmapupdate; //johnfitz
 
 byte *SV_FatPVS (vec3_t org, qmodel_t *worldmodel);
 
@@ -232,7 +232,10 @@ void R_MarkVisSurfacesSIMD (byte *vis)
 			surf = &cl.worldmodel->surfaces[i + j];
 			rs_brushpolys++; //count wpolys here
 			R_ChainSurface(surf, chain_world);
-			R_RenderDynamicLightmaps(surf);
+			if (!r_gpulightmapupdate.value)
+				R_RenderDynamicLightmaps(surf);
+			else
+				lightmaps[surf->lightmaptexturenum].modified = true;
 			if (surf->texinfo->texture->warpimage)
 				surf->texinfo->texture->update_warp = true;
 		}
@@ -271,7 +274,10 @@ void R_MarkVisSurfaces (byte* vis)
 						{
 							rs_brushpolys++; //count wpolys here
 							R_ChainSurface(surf, chain_world);
-							R_RenderDynamicLightmaps(surf);
+							if (!r_gpulightmapupdate.value)
+								R_RenderDynamicLightmaps(surf);
+							else
+								lightmaps[surf->lightmaptexturenum].modified = true;
 							if (surf->texinfo->texture->warpimage)
 								surf->texinfo->texture->update_warp = true;
 						}
@@ -623,7 +629,8 @@ void R_DrawTextureChains (qmodel_t *model, entity_t *ent, texchain_t chain)
 	else
 		entalpha = 1;
 
-	R_UploadLightmaps ();
+	if (!r_gpulightmapupdate.value)
+		R_UploadLightmaps ();
 	R_DrawTextureChains_Multitexture (model, ent, chain, entalpha);
 }
 

@@ -131,6 +131,9 @@ $(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe $(S
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\Shaders\screen_effects.inc" />
+    <CustomBuild Include="..\..\Shaders\update_lightmap.comp">
+      <FileType>Document</FileType>
+    </CustomBuild>
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

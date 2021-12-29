@@ -625,13 +625,18 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	if (num_mips > MAX_MIPS)
 		Sys_Error("Texture has over %d mips", MAX_MIPS);
 
+	const qboolean lightmap = glt->source_format == SRC_LIGHTMAP;
+	const qboolean surface_indices = glt->source_format == SRC_SURF_INDICES;
+
 	VkResult err;
+
+	const VkFormat format = !surface_indices ? VK_FORMAT_R8G8B8A8_UNORM : VK_FORMAT_R32_UINT;
 
 	VkImageCreateInfo image_create_info;
 	memset(&image_create_info, 0, sizeof(image_create_info));
 	image_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
 	image_create_info.imageType = VK_IMAGE_TYPE_2D;
-	image_create_info.format = VK_FORMAT_R8G8B8A8_UNORM;
+	image_create_info.format = format;
 	image_create_info.extent.width = glt->width;
 	image_create_info.extent.height = glt->height;
 	image_create_info.extent.depth = 1;
@@ -639,9 +644,13 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	image_create_info.arrayLayers = 1;
 	image_create_info.samples = VK_SAMPLE_COUNT_1_BIT;
 	image_create_info.tiling = VK_IMAGE_TILING_OPTIMAL;
-	image_create_info.usage = 
-		warp_image ? (VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_STORAGE_BIT)
-		: (VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+	if (warp_image)
+		image_create_info.usage =(VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_STORAGE_BIT);
+	else if (lightmap)
+		image_create_info.usage = (VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT);
+	else
+		image_create_info.usage = (VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+	
 	image_create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 	image_create_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
@@ -666,7 +675,7 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	image_view_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 	image_view_create_info.image = glt->image;
 	image_view_create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
-	image_view_create_info.format = VK_FORMAT_R8G8B8A8_UNORM;
+	image_view_create_info.format = format;
 	image_view_create_info.components.r = VK_COMPONENT_SWIZZLE_R;
 	image_view_create_info.components.g = VK_COMPONENT_SWIZZLE_G;
 	image_view_create_info.components.b = VK_COMPONENT_SWIZZLE_B;
@@ -688,15 +697,22 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 
 	TexMgr_SetFilterModes (glt);
 
-	// Don't upload data for warp image, will be updated by rendering
-	if (warp_image)
+	if (warp_image || lightmap)
 	{
 		image_view_create_info.subresourceRange.levelCount = 1;
 		err = vkCreateImageView(vulkan_globals.device, &image_view_create_info, NULL, &glt->target_image_view);
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateImageView failed");
 		GL_SetObjectName((uint64_t)glt->target_image_view, VK_OBJECT_TYPE_IMAGE_VIEW, va("%s target image view", glt->name));
+	}
+	else
+	{
+		glt->target_image_view = VK_NULL_HANDLE;
+	}
 
+	// Don't upload data for warp image, will be updated by rendering
+	if (warp_image)
+	{
 		VkFramebufferCreateInfo framebuffer_create_info;
 		memset(&framebuffer_create_info, 0, sizeof(framebuffer_create_info));
 		framebuffer_create_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
@@ -710,10 +726,13 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 		if (err != VK_SUCCESS)
 			Sys_Error("vkCreateFramebuffer failed");
 		GL_SetObjectName((uint64_t)glt->frame_buffer, VK_OBJECT_TYPE_FRAMEBUFFER, va("%s framebuffer", glt->name));
+	}
 
+	if (warp_image || lightmap)
+	{
 		// Allocate and update descriptor for this texture
-		glt->warp_write_descriptor_set = R_AllocateDescriptorSet(&vulkan_globals.single_texture_cs_write_set_layout);
-		GL_SetObjectName((uint64_t)glt->warp_write_descriptor_set, VK_OBJECT_TYPE_DESCRIPTOR_SET, va("%s warp write desc set", glt->name));
+		glt->storage_descriptor_set = R_AllocateDescriptorSet(&vulkan_globals.single_texture_cs_write_set_layout);
+		GL_SetObjectName((uint64_t)glt->storage_descriptor_set, VK_OBJECT_TYPE_DESCRIPTOR_SET, va("%s storage desc set", glt->name));
 
 		VkDescriptorImageInfo output_image_info;
 		memset(&output_image_info, 0, sizeof(output_image_info));
@@ -727,17 +746,19 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 		warp_image_write.dstArrayElement = 0;
 		warp_image_write.descriptorCount = 1;
 		warp_image_write.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-		warp_image_write.dstSet = glt->warp_write_descriptor_set;
+		warp_image_write.dstSet = glt->storage_descriptor_set;
 		warp_image_write.pImageInfo = &output_image_info;
 
 		vkUpdateDescriptorSets(vulkan_globals.device, 1, &warp_image_write, 0, NULL);
+	}
+	else
+	{
+		glt->storage_descriptor_set = VK_NULL_HANDLE;
+	}
 
+	// Don't upload data for warp image, will be updated by rendering
+	if (warp_image)
 		return;
-	}
-	else {
-		glt->target_image_view = VK_NULL_HANDLE;
-		glt->warp_write_descriptor_set = VK_NULL_HANDLE;
-	}
 
 	glt->frame_buffer = VK_NULL_HANDLE;
 
@@ -921,7 +942,7 @@ gltexture_t *TexMgr_LoadImage (qmodel_t *owner, const char *name, int width, int
 		crc = CRC_Block(data, width * height);
 		break;
 	case SRC_LIGHTMAP:
-		crc = CRC_Block(data, width * height * lightmap_bytes);
+		crc = CRC_Block(data, width * height * LIGHTMAP_BYTES);
 		break;
 	case SRC_RGBA:
 		crc = CRC_Block(data, width * height * 4);
@@ -964,6 +985,7 @@ gltexture_t *TexMgr_LoadImage (qmodel_t *owner, const char *name, int width, int
 		TexMgr_LoadLightmap (glt, data);
 		break;
 	case SRC_RGBA:
+	case SRC_SURF_INDICES:
 		TexMgr_LoadImage32 (glt, (unsigned *)data);
 		break;
 	}
@@ -1008,7 +1030,7 @@ void TexMgr_ReloadImage (gltexture_t *glt, int shirt, int pants)
 			size *= 4;
 		}
 		else if (glt->source_format == SRC_LIGHTMAP) {
-			size *= lightmap_bytes;
+			size *= LIGHTMAP_BYTES;
 		}
 		data = (byte *) Hunk_Alloc (size);
 		if (fread (data, 1, size, f) != size)
@@ -1132,7 +1154,7 @@ typedef struct
 	VkImageView			image_view;
 	VkFramebuffer		frame_buffer;
 	VkDescriptorSet		descriptor_set;
-	VkDescriptorSet		warp_write_descriptor_set;
+	VkDescriptorSet		storage_descriptor_set;
 	glheap_t *			heap;
 	glheapnode_t *		heap_node;
 } texture_garbage_t;
@@ -1164,7 +1186,7 @@ void TexMgr_CollectGarbage (void)
 		vkDestroyImageView(vulkan_globals.device, garbage->image_view, NULL);
 		vkDestroyImage(vulkan_globals.device, garbage->image, NULL);
 		R_FreeDescriptorSet(garbage->descriptor_set, &vulkan_globals.single_texture_set_layout);
-		if (garbage->warp_write_descriptor_set)
+		if (garbage->storage_descriptor_set)
 			R_FreeDescriptorSet(garbage->descriptor_set, &vulkan_globals.single_texture_cs_write_set_layout);
 
 		GL_FreeFromHeaps(num_texmgr_heaps, texmgr_heaps, garbage->heap, garbage->heap_node, &num_vulkan_tex_allocations);
@@ -1196,7 +1218,7 @@ static void GL_DeleteTexture (gltexture_t *texture)
 		garbage->image_view = texture->image_view;
 		garbage->frame_buffer = texture->frame_buffer;
 		garbage->descriptor_set = texture->descriptor_set;
-		garbage->warp_write_descriptor_set = texture->warp_write_descriptor_set;
+		garbage->storage_descriptor_set = texture->storage_descriptor_set;
 		garbage->heap = texture->heap;
 		garbage->heap_node = texture->heap_node;
 	}
@@ -1211,8 +1233,8 @@ static void GL_DeleteTexture (gltexture_t *texture)
 		vkDestroyImageView(vulkan_globals.device, texture->image_view, NULL);
 		vkDestroyImage(vulkan_globals.device, texture->image, NULL);
 		R_FreeDescriptorSet(texture->descriptor_set, &vulkan_globals.single_texture_set_layout);
-		if (texture->warp_write_descriptor_set)
-			R_FreeDescriptorSet(texture->warp_write_descriptor_set, &vulkan_globals.single_texture_cs_write_set_layout);
+		if (texture->storage_descriptor_set)
+			R_FreeDescriptorSet(texture->storage_descriptor_set, &vulkan_globals.single_texture_cs_write_set_layout);
 
 		GL_FreeFromHeaps(num_texmgr_heaps, texmgr_heaps, texture->heap, texture->heap_node, &num_vulkan_tex_allocations);
 	}

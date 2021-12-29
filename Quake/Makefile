@@ -232,7 +232,8 @@ SHADER_OBJS = \
 	world.frag.o \
 	world.vert.o \
 	showtris.frag.o \
-	showtris.vert.o
+	showtris.vert.o \
+	update_lightmap.comp.o
 
 GLOBJS = \
 	$(SHADER_OBJS) \

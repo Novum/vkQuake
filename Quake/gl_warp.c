@@ -258,7 +258,7 @@ static void R_ComputeWarpTexture(texture_t *tx, float warptess) {
 	//render warp
 	const float time = cl.time;
 	R_BindPipeline(VK_PIPELINE_BIND_POINT_COMPUTE, vulkan_globals.cs_tex_warp_pipeline);
-	VkDescriptorSet sets[2] = { tx->gltexture->descriptor_set, tx->warpimage->warp_write_descriptor_set };
+	VkDescriptorSet sets[2] = { tx->gltexture->descriptor_set, tx->warpimage->storage_descriptor_set };
 	if (r_lightmap_cheatsafe)
 		sets[0] = whitetexture->descriptor_set;
 	vkCmdBindDescriptorSets(vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, vulkan_globals.cs_tex_warp_pipeline.layout.handle, 0, 2, sets, 0, NULL);

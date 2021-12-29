@@ -109,6 +109,8 @@ qboolean r_drawworld_cheatsafe, r_fullbright_cheatsafe, r_lightmap_cheatsafe; //
 
 cvar_t	r_scale = {"r_scale", "1", CVAR_ARCHIVE};
 
+cvar_t	r_gpulightmapupdate = { "r_gpulightmapupdate", "1", CVAR_ARCHIVE };
+
 /*
 =================
 R_CullBox -- johnfitz -- replaced with new function from lordhavoc
@@ -343,8 +345,11 @@ R_SetupView
 void R_SetupView (void)
 {
 	// Need to do those early because we now update dynamic light maps during R_MarkSurfaces
-	R_PushDlights ();
+	if (!r_gpulightmapupdate.value)
+		R_PushDlights ();
 	R_AnimateLight ();
+	if (r_gpulightmapupdate.value)
+		R_UpdateLightmaps ();
 	r_framecount++;
 
 	Fog_SetupFrame (); //johnfitz

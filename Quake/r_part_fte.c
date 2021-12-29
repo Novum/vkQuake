@@ -47,7 +47,6 @@ typedef vec_t	vec2_t[2];
 #define VectorInterpolate(a, bness, b, c) FloatInterpolate((a)[0], bness, (b)[0], (c)[0]),FloatInterpolate((a)[1], bness, (b)[1], (c)[1]),FloatInterpolate((a)[2], bness, (b)[2], (c)[2])
 #define VectorSet(r,x,y,z) do{(r)[0] = x; (r)[1] = y;(r)[2] = z;}while(0)
 #define Vector4Clear(a)			((a)[0]=(a)[1]=(a)[2]=(a)[3]=0)
-#define Vector4Copy(a,b) do{(b)[0]=(a)[0];(b)[1]=(a)[1];(b)[2]=(a)[2];(b)[3]=(a)[3];}while(0)
 #define Vector4Scale(in,scale,out)		((out)[0]=(in)[0]*scale,(out)[1]=(in)[1]*scale,(out)[2]=(in)[2]*scale,(out)[3]=(in)[3]*scale)
 #define FloatToColor(a,b) do { \
 	(b)=(byte)(CLAMP(0.0f, (a), 1.0f) * 255.0f); \

@@ -41,7 +41,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define TEXPREF_WARPIMAGE		0x0800	// resize this texture when warpimagesize changes
 #define TEXPREF_PREMULTIPLY		0x1000	// rgb = rgb*a; a=a;
 
-enum srcformat {SRC_INDEXED, SRC_LIGHTMAP, SRC_RGBA};
+enum srcformat {SRC_INDEXED, SRC_LIGHTMAP, SRC_RGBA, SRC_SURF_INDICES };
 
 typedef uintptr_t src_offset_t;
 struct glheap_s;
@@ -72,7 +72,7 @@ typedef struct gltexture_s {
 	struct glheapnode_s *	heap_node;
 	VkDescriptorSet		descriptor_set;
 	VkFramebuffer		frame_buffer;
-	VkDescriptorSet		warp_write_descriptor_set;
+	VkDescriptorSet		storage_descriptor_set;
 } gltexture_t;
 
 extern gltexture_t *notexture;

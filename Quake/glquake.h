@@ -49,11 +49,14 @@ extern	int glx, gly, glwidth, glheight;
 #define BACKFACE_EPSILON	0.01
 
 #define	MAX_GLTEXTURES	4096
+#define MAX_SANITY_LIGHTMAPS 256
 
 #define NUM_COLOR_BUFFERS 2
 #define INITIAL_STAGING_BUFFER_SIZE_KB	16384
 
 #define FAN_INDEX_BUFFER_SIZE 126
+
+#define LIGHTMAP_BYTES 4
 
 void R_TimeRefresh_f (void);
 void R_ReadPointFile_f (void);
@@ -155,7 +158,9 @@ typedef struct vulkan_pipeline_s {
 typedef struct vulkan_desc_set_layout_s {
 	VkDescriptorSetLayout		handle;
 	int							num_combined_image_samplers;
+	int							num_ubos;
 	int							num_ubos_dynamic;
+	int							num_storage_buffers;
 	int							num_input_attachments;
 	int							num_storage_images;
 } vulkan_desc_set_layout_t;
@@ -255,6 +260,7 @@ typedef struct
 	vulkan_pipeline_t					showbboxes_pipeline;
 	vulkan_pipeline_t					alias_showtris_pipeline;
 	vulkan_pipeline_t					alias_showtris_depth_test_pipeline;
+	vulkan_pipeline_t					update_lightmap_pipeline;
 #ifdef PSET_SCRIPT
 	vulkan_pipeline_t					fte_particle_pipelines[FTE_PARTICLE_PIPELINE_COUNT];
 #endif
@@ -267,6 +273,7 @@ typedef struct
 	VkDescriptorSet						screen_warp_desc_set;
 	vulkan_desc_set_layout_t			screen_warp_set_layout;
 	vulkan_desc_set_layout_t			single_texture_cs_write_set_layout;
+	vulkan_desc_set_layout_t			lightmap_compute_set_layout;
 
 	// Samplers
 	VkSampler							point_sampler;
@@ -395,10 +402,20 @@ typedef struct
 } basicvertex_t;
 
 //johnfitz -- moved here from r_brush.c
-extern int gl_lightmap_format, lightmap_bytes;
+extern int gl_lightmap_format;
 
 #define LMBLOCK_WIDTH	1024	//FIXME: make dynamic. if we have a decent card there's no real reason not to use 4k or 16k (assuming there's no lightstyles/dynamics that need uploading...)
 #define LMBLOCK_HEIGHT	1024	//Alternatively, use texture arrays, which would avoid the need to switch textures as often.
+
+typedef struct lm_compute_workgroup_bounds_s
+{
+	float mins_x;
+	float mins_y;
+	float mins_z;
+	float maxs_x;
+	float maxs_y;
+	float maxs_z;
+} lm_compute_workgroup_bounds_t;
 
 typedef struct glRect_s {
 	unsigned short l,t,w,h;
@@ -406,12 +423,19 @@ typedef struct glRect_s {
 struct lightmap_s
 {
 	gltexture_t *texture;
+	gltexture_t *surface_indices_texture;
+	gltexture_t *lightstyle_textures[MAXLIGHTMAPS];
+	VkDescriptorSet	descriptor_set;
 	qboolean	modified;
 	glRect_t	rectchange;
+	VkBuffer	workgroup_bounds_buffer;
 
 	// the lightmap texture data needs to be kept in
 	// main memory so texsubimage can update properly
 	byte		*data;//[4*LMBLOCK_WIDTH*LMBLOCK_HEIGHT];
+	byte		*lightstyle_data[4];//[4*LMBLOCK_WIDTH*LMBLOCK_HEIGHT];
+	uint32_t	*surface_indices; //[LMBLOCK_WIDTH*LMBLOCK_HEIGHT];
+	lm_compute_workgroup_bounds_t *workgroup_bounds; //[(LMBLOCK_WIDTH/8)*(LMBLOCK_HEIGHT/8)];
 };
 extern struct lightmap_s *lightmaps;
 extern int lightmap_count;	//allocated lightmaps
@@ -434,6 +458,7 @@ void Fog_Init (void);
 void R_NewGame (void);
 
 void R_AnimateLight (void);
+void R_UpdateLightmaps (void);
 void R_MarkSurfaces (void);
 qboolean R_CullBox (vec3_t emins, vec3_t emaxs);
 void R_StoreEfrags (efrag_t **ppefrag);
@@ -514,8 +539,9 @@ static inline void R_BindPipeline(VkPipelineBindPoint bind_point, vulkan_pipelin
 	assert(vulkan_globals.current_pipeline.layout.push_constant_range.size <= MAX_PUSH_CONSTANT_SIZE);
 	if(vulkan_globals.current_pipeline.handle != pipeline.handle) {
 		vulkan_globals.vk_cmd_bind_pipeline(vulkan_globals.command_buffer, bind_point, pipeline.handle);
-		if ((vulkan_globals.current_pipeline.layout.push_constant_range.stageFlags != pipeline.layout.push_constant_range.stageFlags)
-			|| (vulkan_globals.current_pipeline.layout.push_constant_range.size != pipeline.layout.push_constant_range.size))
+		if ((pipeline.layout.push_constant_range.size > 0)
+			&& ((vulkan_globals.current_pipeline.layout.push_constant_range.stageFlags != pipeline.layout.push_constant_range.stageFlags)
+				|| (vulkan_globals.current_pipeline.layout.push_constant_range.size != pipeline.layout.push_constant_range.size)))
 			vulkan_globals.vk_cmd_push_constants(vulkan_globals.command_buffer, pipeline.layout.handle, pipeline.layout.push_constant_range.stageFlags, 0, pipeline.layout.push_constant_range.size, zeroes);
 		vulkan_globals.current_pipeline = pipeline;
 	}
@@ -564,6 +590,8 @@ void R_CollectMeshBufferGarbage();
 byte * R_VertexAllocate(int size, VkBuffer * buffer, VkDeviceSize * buffer_offset);
 byte * R_IndexAllocate(int size, VkBuffer * buffer, VkDeviceSize * buffer_offset);
 byte * R_UniformAllocate(int size, VkBuffer * buffer, uint32_t * buffer_offset, VkDescriptorSet * descriptor_set);
+
+void R_AllocateLightmapComputeBuffers();
 
 void GL_SetObjectName(uint64_t object, VkObjectType object_type, const char * name);
 

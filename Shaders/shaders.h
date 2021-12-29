@@ -21,51 +21,35 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef __SHADERS_H
 #define __SHADERS_H
 
-extern unsigned char basic_vert_spv[];
-extern int basic_vert_spv_size;
-extern unsigned char basic_frag_spv[];
-extern int basic_frag_spv_size;
-extern unsigned char basic_alphatest_frag_spv[];
-extern int basic_alphatest_frag_spv_size;
-extern unsigned char basic_notex_frag_spv[];
-extern int basic_notex_frag_spv_size;
-extern unsigned char world_vert_spv[];
-extern int world_vert_spv_size;
-extern unsigned char world_frag_spv[];
-extern int world_frag_spv_size;
-extern unsigned char alias_vert_spv[];
-extern int alias_vert_spv_size;
-extern unsigned char alias_frag_spv[];
-extern int alias_frag_spv_size;
-extern unsigned char alias_alphatest_frag_spv[];
-extern int alias_alphatest_frag_spv_size;
-extern unsigned char sky_layer_vert_spv[];
-extern int sky_layer_vert_spv_size;
-extern unsigned char sky_layer_frag_spv[];
-extern int sky_layer_frag_spv_size;
-extern unsigned char sky_box_frag_spv[];
-extern int sky_box_frag_spv_size;
-extern unsigned char postprocess_vert_spv[];
-extern int postprocess_vert_spv_size;
-extern unsigned char postprocess_frag_spv[];
-extern int postprocess_frag_spv_size;
-extern unsigned char screen_effects_8bit_comp_spv[];
-extern int screen_effects_8bit_comp_spv_size;
-extern unsigned char screen_effects_8bit_scale_comp_spv[];
-extern int screen_effects_8bit_scale_comp_spv_size;
-extern unsigned char screen_effects_8bit_scale_sops_comp_spv[];
-extern int screen_effects_8bit_scale_sops_comp_spv_size;
-extern unsigned char screen_effects_10bit_comp_spv[];
-extern int screen_effects_10bit_comp_spv_size;
-extern unsigned char screen_effects_10bit_scale_comp_spv[];
-extern int screen_effects_10bit_scale_comp_spv_size;
-extern unsigned char screen_effects_10bit_scale_sops_comp_spv[];
-extern int screen_effects_10bit_scale_sops_comp_spv_size;
-extern unsigned char cs_tex_warp_comp_spv[];
-extern int  cs_tex_warp_comp_spv_size;
-extern unsigned char showtris_vert_spv[];
-extern int showtris_vert_spv_size;
-extern unsigned char showtris_frag_spv[];
-extern int showtris_frag_spv_size;
+#define DECLARE_SHADER_SPV(name) \
+	extern unsigned char name##_spv[]; \
+	extern int name##_spv_size;
+
+DECLARE_SHADER_SPV(basic_vert);
+DECLARE_SHADER_SPV(basic_frag);
+DECLARE_SHADER_SPV(basic_alphatest_frag);
+DECLARE_SHADER_SPV(basic_notex_frag);
+DECLARE_SHADER_SPV(world_vert);
+DECLARE_SHADER_SPV(world_frag);
+DECLARE_SHADER_SPV(alias_vert);
+DECLARE_SHADER_SPV(alias_frag);
+DECLARE_SHADER_SPV(alias_alphatest_frag);
+DECLARE_SHADER_SPV(sky_layer_vert);
+DECLARE_SHADER_SPV(sky_layer_frag);
+DECLARE_SHADER_SPV(sky_box_frag);
+DECLARE_SHADER_SPV(postprocess_vert);
+DECLARE_SHADER_SPV(postprocess_frag);
+DECLARE_SHADER_SPV(screen_effects_8bit_comp);
+DECLARE_SHADER_SPV(screen_effects_8bit_scale_comp);
+DECLARE_SHADER_SPV(screen_effects_8bit_scale_sops_comp);
+DECLARE_SHADER_SPV(screen_effects_10bit_comp);
+DECLARE_SHADER_SPV(screen_effects_10bit_scale_comp);
+DECLARE_SHADER_SPV(screen_effects_10bit_scale_sops_comp);
+DECLARE_SHADER_SPV(cs_tex_warp_comp);
+DECLARE_SHADER_SPV(showtris_vert);
+DECLARE_SHADER_SPV(showtris_frag);
+DECLARE_SHADER_SPV(update_lightmap_comp);
+
+#undef DECLARE_SHADER_SPV
 
 #endif
