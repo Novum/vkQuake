@@ -728,7 +728,7 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 		GL_SetObjectName((uint64_t)glt->frame_buffer, VK_OBJECT_TYPE_FRAMEBUFFER, va("%s framebuffer", glt->name));
 	}
 
-	if (warp_image || lightmap)
+	if (warp_image)
 	{
 		// Allocate and update descriptor for this texture
 		glt->storage_descriptor_set = R_AllocateDescriptorSet(&vulkan_globals.single_texture_cs_write_set_layout);
@@ -739,17 +739,17 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 		output_image_info.imageView = glt->target_image_view;
 		output_image_info.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
 
-		VkWriteDescriptorSet warp_image_write;
-		memset(&warp_image_write, 0, sizeof(warp_image_write));
-		warp_image_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		warp_image_write.dstBinding = 0;
-		warp_image_write.dstArrayElement = 0;
-		warp_image_write.descriptorCount = 1;
-		warp_image_write.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-		warp_image_write.dstSet = glt->storage_descriptor_set;
-		warp_image_write.pImageInfo = &output_image_info;
+		VkWriteDescriptorSet storage_image_write;
+		memset(&storage_image_write, 0, sizeof(storage_image_write));
+		storage_image_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		storage_image_write.dstBinding = 0;
+		storage_image_write.dstArrayElement = 0;
+		storage_image_write.descriptorCount = 1;
+		storage_image_write.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+		storage_image_write.dstSet = glt->storage_descriptor_set;
+		storage_image_write.pImageInfo = &output_image_info;
 
-		vkUpdateDescriptorSets(vulkan_globals.device, 1, &warp_image_write, 0, NULL);
+		vkUpdateDescriptorSets(vulkan_globals.device, 1, &storage_image_write, 0, NULL);
 	}
 	else
 	{
