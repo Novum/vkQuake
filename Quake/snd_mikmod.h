@@ -7,7 +7,6 @@
 
 extern snd_codec_t mikmod_codec;
 
-#endif	/* USE_CODEC_MIKMOD */
+#endif /* USE_CODEC_MIKMOD */
 
-#endif	/* ! _SND_MIKMOD_H_ */
-
+#endif /* ! _SND_MIKMOD_H_ */

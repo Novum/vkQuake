@@ -30,7 +30,7 @@
 #define BUILDING_STATIC
 #endif
 #include <xmp.h>
-#if ((XMP_VERCODE+0) < 0x040200)
+#if ((XMP_VERCODE + 0) < 0x040200)
 #error libxmp version 4.2 or newer is required
 #endif
 
@@ -39,42 +39,42 @@ static qboolean S_XMP_CodecInitialize (void)
 	return true;
 }
 
-static void S_XMP_CodecShutdown (void)
-{
-}
+static void S_XMP_CodecShutdown (void) {}
 
 static qboolean S_XMP_CodecOpenStream (snd_stream_t *stream)
 {
-/* need to load the whole file into memory and pass it to libxmp
- * using xmp_load_module_from_memory() which requires libxmp >= 4.2.
- * libxmp-4.0/4.1 only have xmp_load_module() which accepts a file
- * name which isn't good with files in containers like paks, etc. */
+	/* need to load the whole file into memory and pass it to libxmp
+	 * using xmp_load_module_from_memory() which requires libxmp >= 4.2.
+	 * libxmp-4.0/4.1 only have xmp_load_module() which accepts a file
+	 * name which isn't good with files in containers like paks, etc. */
 	xmp_context c;
-	byte *moddata;
-	long len;
-	int fmt;
-	int mark;
+	byte       *moddata;
+	long        len;
+	int         fmt;
+	int         mark;
 
-	c = xmp_create_context();
+	c = xmp_create_context ();
 	if (c == NULL)
 		return false;
 
 	len = FS_filelength (&stream->fh);
-	mark = Hunk_LowMark();
-	moddata = (byte *) Hunk_Alloc(len);
-	FS_fread(moddata, 1, len, &stream->fh);
-	if (xmp_load_module_from_memory(c, moddata, len) < 0) {
-		Con_DPrintf("Could not load module %s\n", stream->name);
+	mark = Hunk_LowMark ();
+	moddata = (byte *)Hunk_Alloc (len);
+	FS_fread (moddata, 1, len, &stream->fh);
+	if (xmp_load_module_from_memory (c, moddata, len) < 0)
+	{
+		Con_DPrintf ("Could not load module %s\n", stream->name);
 		goto err1;
 	}
-	Hunk_FreeToLowMark(mark); /* free original file data */
+	Hunk_FreeToLowMark (mark); /* free original file data */
 
 	stream->priv = c;
 	if (shm->speed > XMP_MAX_SRATE)
 		stream->info.rate = 44100;
 	else if (shm->speed < XMP_MIN_SRATE)
 		stream->info.rate = 11025;
-	else	stream->info.rate = shm->speed;
+	else
+		stream->info.rate = shm->speed;
 	stream->info.bits = shm->samplebits;
 	stream->info.width = stream->info.bits / 8;
 	stream->info.channels = shm->channels;
@@ -83,17 +83,19 @@ static qboolean S_XMP_CodecOpenStream (snd_stream_t *stream)
 	if (stream->info.channels == 1)
 		fmt |= XMP_FORMAT_MONO;
 	if (stream->info.width == 1)
-		fmt |= XMP_FORMAT_8BIT|XMP_FORMAT_UNSIGNED;
-	if (xmp_start_player(c, stream->info.rate, fmt) < 0)
+		fmt |= XMP_FORMAT_8BIT | XMP_FORMAT_UNSIGNED;
+	if (xmp_start_player (c, stream->info.rate, fmt) < 0)
 		goto err2;
 
 	/* interpolation type, default is XMP_INTERP_LINEAR */
-	xmp_set_player(c, XMP_PLAYER_INTERP, XMP_INTERP_SPLINE);
+	xmp_set_player (c, XMP_PLAYER_INTERP, XMP_INTERP_SPLINE);
 
 	return true;
 
-err2:	xmp_release_module(c);
-err1:	xmp_free_context(c);
+err2:
+	xmp_release_module (c);
+err1:
+	xmp_free_context (c);
 	return false;
 }
 
@@ -105,12 +107,14 @@ static int S_XMP_CodecReadStream (snd_stream_t *stream, int bytes, void *buffer)
 	 * is partial, the rest of the buffer will be zero-filled.
 	 * the last param is the max number that the current sequence
 	 * of song will be looped, or 0 to disable loop checking.  */
-	r = xmp_play_buffer((xmp_context)stream->priv, buffer, bytes, !stream->loop);
-	if (r == 0) {
+	r = xmp_play_buffer ((xmp_context)stream->priv, buffer, bytes, !stream->loop);
+	if (r == 0)
+	{
 		return bytes;
 	}
-	if (r == -XMP_END) {
-		Con_DPrintf("XMP EOF\n");
+	if (r == -XMP_END)
+	{
+		Con_DPrintf ("XMP EOF\n");
 		return 0;
 	}
 	return -1;
@@ -119,29 +123,29 @@ static int S_XMP_CodecReadStream (snd_stream_t *stream, int bytes, void *buffer)
 static void S_XMP_CodecCloseStream (snd_stream_t *stream)
 {
 	xmp_context c = (xmp_context)stream->priv;
-	xmp_end_player(c);
-	xmp_release_module(c);
-	xmp_free_context(c);
-	S_CodecUtilClose(&stream);
+	xmp_end_player (c);
+	xmp_release_module (c);
+	xmp_free_context (c);
+	S_CodecUtilClose (&stream);
 }
 
 static int S_XMP_CodecJumpToOrder (snd_stream_t *stream, int to)
 {
-	return xmp_set_position((xmp_context)stream->priv, to);
+	return xmp_set_position ((xmp_context)stream->priv, to);
 }
 
 static int S_XMP_CodecRewindStream (snd_stream_t *stream)
 {
-	int ret = xmp_seek_time((xmp_context)stream->priv, 0);
-	if (ret < 0) return ret;
-	xmp_play_buffer((xmp_context)stream->priv, NULL, 0, 0); /* reset internal state */
+	int ret = xmp_seek_time ((xmp_context)stream->priv, 0);
+	if (ret < 0)
+		return ret;
+	xmp_play_buffer ((xmp_context)stream->priv, NULL, 0, 0); /* reset internal state */
 	return 0;
 }
 
-snd_codec_t xmp_codec =
-{
+snd_codec_t xmp_codec = {
 	CODECTYPE_MOD,
-	true,	/* always available. */
+	true, /* always available. */
 	"s3m",
 	S_XMP_CodecInitialize,
 	S_XMP_CodecShutdown,
@@ -150,7 +154,6 @@ snd_codec_t xmp_codec =
 	S_XMP_CodecRewindStream,
 	S_XMP_CodecJumpToOrder,
 	S_XMP_CodecCloseStream,
-	NULL
-};
+	NULL};
 
-#endif	/* USE_CODEC_XMP */
+#endif /* USE_CODEC_XMP */

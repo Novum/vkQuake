@@ -23,31 +23,30 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 
-
-int		type_size[8] = {
-	1,					// ev_void
-	1,	// sizeof(string_t) / 4		// ev_string
-	1,					// ev_float
-	3,					// ev_vector
-	1,					// ev_entity
-	1,					// ev_field
-	1,	// sizeof(func_t) / 4		// ev_function
-	1	// sizeof(void *) / 4		// ev_pointer
+int type_size[8] = {
+	1, // ev_void
+	1, // sizeof(string_t) / 4		// ev_string
+	1, // ev_float
+	3, // ev_vector
+	1, // ev_entity
+	1, // ev_field
+	1, // sizeof(func_t) / 4		// ev_function
+	1  // sizeof(void *) / 4		// ev_pointer
 };
 
-static ddef_t	*ED_FieldAtOfs (int ofs);
+static ddef_t *ED_FieldAtOfs (int ofs);
 
-cvar_t	nomonsters = {"nomonsters", "0", CVAR_NONE};
-cvar_t	gamecfg = {"gamecfg", "0", CVAR_NONE};
-cvar_t	scratch1 = {"scratch1", "0", CVAR_NONE};
-cvar_t	scratch2 = {"scratch2", "0", CVAR_NONE};
-cvar_t	scratch3 = {"scratch3", "0", CVAR_NONE};
-cvar_t	scratch4 = {"scratch4", "0", CVAR_NONE};
-cvar_t	savedgamecfg = {"savedgamecfg", "0", CVAR_ARCHIVE};
-cvar_t	saved1 = {"saved1", "0", CVAR_ARCHIVE};
-cvar_t	saved2 = {"saved2", "0", CVAR_ARCHIVE};
-cvar_t	saved3 = {"saved3", "0", CVAR_ARCHIVE};
-cvar_t	saved4 = {"saved4", "0", CVAR_ARCHIVE};
+cvar_t nomonsters = {"nomonsters", "0", CVAR_NONE};
+cvar_t gamecfg = {"gamecfg", "0", CVAR_NONE};
+cvar_t scratch1 = {"scratch1", "0", CVAR_NONE};
+cvar_t scratch2 = {"scratch2", "0", CVAR_NONE};
+cvar_t scratch3 = {"scratch3", "0", CVAR_NONE};
+cvar_t scratch4 = {"scratch4", "0", CVAR_NONE};
+cvar_t savedgamecfg = {"savedgamecfg", "0", CVAR_ARCHIVE};
+cvar_t saved1 = {"saved1", "0", CVAR_ARCHIVE};
+cvar_t saved2 = {"saved2", "0", CVAR_ARCHIVE};
+cvar_t saved3 = {"saved3", "0", CVAR_ARCHIVE};
+cvar_t saved4 = {"saved4", "0", CVAR_ARCHIVE};
 
 /*
 =================
@@ -75,27 +74,29 @@ angles and bad trails.
 */
 edict_t *ED_Alloc (void)
 {
-	int			i;
-	edict_t		*e;
+	int      i;
+	edict_t *e;
 
 	for (i = qcvm->reserved_edicts; i < qcvm->num_edicts; i++)
 	{
-		e = EDICT_NUM(i);
+		e = EDICT_NUM (i);
 		// the first couple seconds of server time can involve a lot of
 		// freeing and allocating, so relax the replacement policy
-		if (e->free && ( e->freetime < 2 || qcvm->time - e->freetime > 0.5 ) )
+		if (e->free && (e->freetime < 2 || qcvm->time - e->freetime > 0.5))
 		{
 			ED_ClearEdict (e);
 			return e;
 		}
 	}
 
-	if (i == qcvm->max_edicts) //johnfitz -- use sv.max_edicts instead of MAX_EDICTS
+	if (i == qcvm->max_edicts) // johnfitz -- use sv.max_edicts instead of MAX_EDICTS
 		Host_Error ("ED_Alloc: no free edicts (max_edicts is %i)", qcvm->max_edicts);
 
 	qcvm->num_edicts++;
-	e = EDICT_NUM(i);
-	memset(e, 0, qcvm->edict_size); // ericw -- switched sv.edicts to malloc(), so we are accessing uninitialized memory and must fully zero it, not just ED_ClearEdict
+	e = EDICT_NUM (i);
+	memset (
+		e, 0,
+		qcvm->edict_size); // ericw -- switched sv.edicts to malloc(), so we are accessing uninitialized memory and must fully zero it, not just ED_ClearEdict
 
 	return e;
 }
@@ -110,7 +111,7 @@ FIXME: walk all entities and NULL out references to this entity
 */
 void ED_Free (edict_t *ed)
 {
-	SV_UnlinkEdict (ed);		// unlink from world bsp
+	SV_UnlinkEdict (ed); // unlink from world bsp
 
 	ed->free = true;
 	ed->v.model = 0;
@@ -123,7 +124,7 @@ void ED_Free (edict_t *ed)
 	VectorCopy (vec3_origin, ed->v.angles);
 	ed->v.nextthink = -1;
 	ed->v.solid = 0;
-	ed->alpha = ENTALPHA_DEFAULT; //johnfitz -- reset alpha for next entity
+	ed->alpha = ENTALPHA_DEFAULT; // johnfitz -- reset alpha for next entity
 
 	ed->freetime = qcvm->time;
 }
@@ -137,8 +138,8 @@ ED_GlobalAtOfs
 */
 static ddef_t *ED_GlobalAtOfs (int ofs)
 {
-	ddef_t		*def;
-	int			i;
+	ddef_t *def;
+	int     i;
 
 	for (i = 0; i < qcvm->progs->numglobaldefs; i++)
 	{
@@ -156,8 +157,8 @@ ED_FieldAtOfs
 */
 static ddef_t *ED_FieldAtOfs (int ofs)
 {
-	ddef_t		*def;
-	int			i;
+	ddef_t *def;
+	int     i;
 
 	for (i = 0; i < qcvm->progs->numfielddefs; i++)
 	{
@@ -175,23 +176,23 @@ ED_FindField
 */
 ddef_t *ED_FindField (const char *name)
 {
-	ddef_t		*def;
-	int			i;
+	ddef_t *def;
+	int     i;
 
 	for (i = 0; i < qcvm->progs->numfielddefs; i++)
 	{
 		def = &qcvm->fielddefs[i];
-		if ( !strcmp(PR_GetString(def->s_name), name) )
+		if (!strcmp (PR_GetString (def->s_name), name))
 			return def;
 	}
 	return NULL;
 }
 
 /*
-*/
+ */
 int ED_FindFieldOffset (const char *name)
 {
-	ddef_t		*def = ED_FindField(name);
+	ddef_t *def = ED_FindField (name);
 	if (!def)
 		return -1;
 	return def->ofs;
@@ -204,18 +205,17 @@ ED_FindGlobal
 */
 ddef_t *ED_FindGlobal (const char *name)
 {
-	ddef_t		*def;
-	int			i;
+	ddef_t *def;
+	int     i;
 
 	for (i = 0; i < qcvm->progs->numglobaldefs; i++)
 	{
 		def = &qcvm->globaldefs[i];
-		if ( !strcmp(PR_GetString(def->s_name), name) )
+		if (!strcmp (PR_GetString (def->s_name), name))
 			return def;
 	}
 	return NULL;
 }
-
 
 /*
 ============
@@ -224,13 +224,13 @@ ED_FindFunction
 */
 dfunction_t *ED_FindFunction (const char *fn_name)
 {
-	dfunction_t		*func;
-	int				i;
+	dfunction_t *func;
+	int          i;
 
 	for (i = 0; i < qcvm->progs->numfunctions; i++)
 	{
 		func = &qcvm->functions[i];
-		if ( !strcmp(PR_GetString(func->s_name), fn_name) )
+		if (!strcmp (PR_GetString (func->s_name), fn_name))
 			return func;
 	}
 	return NULL;
@@ -241,14 +241,13 @@ dfunction_t *ED_FindFunction (const char *fn_name)
 GetEdictFieldValue
 ============
 */
-eval_t *GetEdictFieldValue(edict_t *ed, int fldofs)
+eval_t *GetEdictFieldValue (edict_t *ed, int fldofs)
 {
 	if (fldofs < 0)
 		return NULL;
 
-	return (eval_t *)((char *)&ed->v + fldofs*4);
+	return (eval_t *)((char *)&ed->v + fldofs * 4);
 }
-
 
 /*
 ============
@@ -260,27 +259,27 @@ Returns a string describing *data in a type specific manner
 */
 static const char *PR_ValueString (int type, eval_t *val)
 {
-	static char	line[512];
-	ddef_t		*def;
-	dfunction_t	*f;
+	static char  line[512];
+	ddef_t      *def;
+	dfunction_t *f;
 
 	type &= ~DEF_SAVEGLOBAL;
 
 	switch (type)
 	{
 	case ev_string:
-		sprintf (line, "%s", PR_GetString(val->string));
+		sprintf (line, "%s", PR_GetString (val->string));
 		break;
 	case ev_entity:
-		sprintf (line, "entity %i", NUM_FOR_EDICT(PROG_TO_EDICT(val->edict)) );
+		sprintf (line, "entity %i", NUM_FOR_EDICT (PROG_TO_EDICT (val->edict)));
 		break;
 	case ev_function:
 		f = qcvm->functions + val->function;
-		sprintf (line, "%s()", PR_GetString(f->s_name));
+		sprintf (line, "%s()", PR_GetString (f->s_name));
 		break;
 	case ev_field:
-		def = ED_FieldAtOfs ( val->_int );
-		sprintf (line, ".%s", PR_GetString(def->s_name));
+		def = ED_FieldAtOfs (val->_int);
+		sprintf (line, ".%s", PR_GetString (def->s_name));
 		break;
 	case ev_void:
 		sprintf (line, "void");
@@ -316,42 +315,42 @@ Easier to parse than PR_ValueString
 */
 const char *PR_UglyValueString (int type, eval_t *val)
 {
-	static char	line[1024];
-	ddef_t		*def;
-	dfunction_t	*f;
+	static char  line[1024];
+	ddef_t      *def;
+	dfunction_t *f;
 
 	type &= ~DEF_SAVEGLOBAL;
 
 	switch (type)
 	{
 	case ev_string:
-		q_snprintf (line, sizeof(line), "%s", PR_GetString(val->string));
+		q_snprintf (line, sizeof (line), "%s", PR_GetString (val->string));
 		break;
 	case ev_entity:
-		q_snprintf (line, sizeof(line), "%i", NUM_FOR_EDICT(PROG_TO_EDICT(val->edict)));
+		q_snprintf (line, sizeof (line), "%i", NUM_FOR_EDICT (PROG_TO_EDICT (val->edict)));
 		break;
 	case ev_function:
 		f = qcvm->functions + val->function;
-		q_snprintf (line, sizeof(line), "%s", PR_GetString(f->s_name));
+		q_snprintf (line, sizeof (line), "%s", PR_GetString (f->s_name));
 		break;
 	case ev_field:
-		def = ED_FieldAtOfs ( val->_int );
-		q_snprintf (line, sizeof(line), "%s", PR_GetString(def->s_name));
+		def = ED_FieldAtOfs (val->_int);
+		q_snprintf (line, sizeof (line), "%s", PR_GetString (def->s_name));
 		break;
 	case ev_void:
-		q_snprintf (line, sizeof(line), "void");
+		q_snprintf (line, sizeof (line), "void");
 		break;
 	case ev_float:
-		q_snprintf (line, sizeof(line), "%f", val->_float);
+		q_snprintf (line, sizeof (line), "%f", val->_float);
 		break;
 	case ev_ext_integer:
 		sprintf (line, "%i", val->_int);
 		break;
 	case ev_vector:
-		q_snprintf (line, sizeof(line), "%f %f %f", val->vector[0], val->vector[1], val->vector[2]);
+		q_snprintf (line, sizeof (line), "%f %f %f", val->vector[0], val->vector[1], val->vector[2]);
 		break;
 	default:
-		q_snprintf (line, sizeof(line), "bad type %i", type);
+		q_snprintf (line, sizeof (line), "bad type %i", type);
 		break;
 	}
 
@@ -368,24 +367,24 @@ padded to 20 field width
 */
 const char *PR_GlobalString (int ofs)
 {
-	static char	line[512];
-	const char	*s;
-	int		i;
-	ddef_t		*def;
-	void		*val;
+	static char line[512];
+	const char *s;
+	int         i;
+	ddef_t     *def;
+	void       *val;
 
 	val = (void *)&qcvm->globals[ofs];
-	def = ED_GlobalAtOfs(ofs);
+	def = ED_GlobalAtOfs (ofs);
 	if (!def)
-		sprintf (line,"%i(?)", ofs);
+		sprintf (line, "%i(?)", ofs);
 	else
 	{
 		s = PR_ValueString (def->type, (eval_t *)val);
-		sprintf (line,"%i(%s)%s", ofs, PR_GetString(def->s_name), s);
+		sprintf (line, "%i(%s)%s", ofs, PR_GetString (def->s_name), s);
 	}
 
-	i = strlen(line);
-	for ( ; i < 20; i++)
+	i = strlen (line);
+	for (; i < 20; i++)
 		strcat (line, " ");
 	strcat (line, " ");
 
@@ -394,24 +393,23 @@ const char *PR_GlobalString (int ofs)
 
 const char *PR_GlobalStringNoContents (int ofs)
 {
-	static char	line[512];
-	int		i;
-	ddef_t		*def;
+	static char line[512];
+	int         i;
+	ddef_t     *def;
 
-	def = ED_GlobalAtOfs(ofs);
+	def = ED_GlobalAtOfs (ofs);
 	if (!def)
-		sprintf (line,"%i(?)", ofs);
+		sprintf (line, "%i(?)", ofs);
 	else
-		sprintf (line,"%i(%s)", ofs, PR_GetString(def->s_name));
+		sprintf (line, "%i(%s)", ofs, PR_GetString (def->s_name));
 
-	i = strlen(line);
-	for ( ; i < 20; i++)
+	i = strlen (line);
+	for (; i < 20; i++)
 		strcat (line, " ");
 	strcat (line, " ");
 
 	return line;
 }
-
 
 /*
 =============
@@ -422,11 +420,11 @@ For debugging
 */
 void ED_Print (edict_t *ed)
 {
-	ddef_t	*d;
+	ddef_t     *d;
 	int		*v;
-	int		i, j, l;
-	const char	*name;
-	int		type;
+	int         i, j, l;
+	const char *name;
+	int         type;
 
 	if (ed->free)
 	{
@@ -434,18 +432,18 @@ void ED_Print (edict_t *ed)
 		return;
 	}
 
-	Con_SafePrintf("\nEDICT %i:\n", NUM_FOR_EDICT(ed)); //johnfitz -- was Con_Printf
+	Con_SafePrintf ("\nEDICT %i:\n", NUM_FOR_EDICT (ed)); // johnfitz -- was Con_Printf
 	for (i = 1; i < qcvm->progs->numfielddefs; i++)
 	{
 		d = &qcvm->fielddefs[i];
-		name = PR_GetString(d->s_name);
+		name = PR_GetString (d->s_name);
 		l = strlen (name);
 		if (l > 1 && name[l - 2] == '_')
-			continue;	// skip _x, _y, _z vars
+			continue; // skip _x, _y, _z vars
 
-		v = (int *)((char *)&ed->v + d->ofs*4);
+		v = (int *)((char *)&ed->v + d->ofs * 4);
 
-	// if the value is still all 0, skip the field
+		// if the value is still all 0, skip the field
 		type = d->type & ~DEF_SAVEGLOBAL;
 
 		for (j = 0; j < type_size[type]; j++)
@@ -456,11 +454,11 @@ void ED_Print (edict_t *ed)
 		if (j == type_size[type])
 			continue;
 
-		Con_SafePrintf ("%s", name); //johnfitz -- was Con_Printf
+		Con_SafePrintf ("%s", name); // johnfitz -- was Con_Printf
 		while (l++ < 15)
-			Con_SafePrintf (" "); //johnfitz -- was Con_Printf
+			Con_SafePrintf (" "); // johnfitz -- was Con_Printf
 
-		Con_SafePrintf ("%s\n", PR_ValueString(d->type, (eval_t *)v)); //johnfitz -- was Con_Printf
+		Con_SafePrintf ("%s\n", PR_ValueString (d->type, (eval_t *)v)); // johnfitz -- was Con_Printf
 	}
 }
 
@@ -473,11 +471,11 @@ For savegames
 */
 void ED_Write (FILE *f, edict_t *ed)
 {
-	ddef_t	*d;
+	ddef_t     *d;
 	int		*v;
-	int		i, j;
-	const char	*name;
-	int		type;
+	int         i, j;
+	const char *name;
+	int         type;
 
 	fprintf (f, "{\n");
 
@@ -490,14 +488,14 @@ void ED_Write (FILE *f, edict_t *ed)
 	for (i = 1; i < qcvm->progs->numfielddefs; i++)
 	{
 		d = &qcvm->fielddefs[i];
-		name = PR_GetString(d->s_name);
+		name = PR_GetString (d->s_name);
 		j = strlen (name);
 		if (j > 1 && name[j - 2] == '_')
-			continue;	// skip _x, _y, _z vars
+			continue; // skip _x, _y, _z vars
 
-		v = (int *)((char *)&ed->v + d->ofs*4);
+		v = (int *)((char *)&ed->v + d->ofs * 4);
 
-	// if the value is still all 0, skip the field
+		// if the value is still all 0, skip the field
 		type = d->type & ~DEF_SAVEGLOBAL;
 		for (j = 0; j < type_size[type]; j++)
 		{
@@ -508,20 +506,20 @@ void ED_Write (FILE *f, edict_t *ed)
 			continue;
 
 		fprintf (f, "\"%s\" ", name);
-		fprintf (f, "\"%s\"\n", PR_UglyValueString(d->type, (eval_t *)v));
+		fprintf (f, "\"%s\"\n", PR_UglyValueString (d->type, (eval_t *)v));
 	}
 
-	//johnfitz -- save entity alpha manually when progs.dat doesn't know about alpha
-	if (qcvm->extfields.alpha<0 && ed->alpha != ENTALPHA_DEFAULT)
-		fprintf (f, "\"alpha\" \"%f\"\n", ENTALPHA_TOSAVE(ed->alpha));
-	//johnfitz
+	// johnfitz -- save entity alpha manually when progs.dat doesn't know about alpha
+	if (qcvm->extfields.alpha < 0 && ed->alpha != ENTALPHA_DEFAULT)
+		fprintf (f, "\"alpha\" \"%f\"\n", ENTALPHA_TOSAVE (ed->alpha));
+	// johnfitz
 
 	fprintf (f, "}\n");
 }
 
 void ED_PrintNum (int ent)
 {
-	ED_Print (EDICT_NUM(ent));
+	ED_Print (EDICT_NUM (ent));
 }
 
 /*
@@ -533,16 +531,16 @@ For debugging, prints all the entities in the current server
 */
 void ED_PrintEdicts (void)
 {
-	int		i;
+	int i;
 
 	if (!sv.active)
 		return;
 
-	PR_SwitchQCVM(&sv.qcvm);
+	PR_SwitchQCVM (&sv.qcvm);
 	Con_Printf ("%i entities\n", qcvm->num_edicts);
 	for (i = 0; i < qcvm->num_edicts; i++)
 		ED_PrintNum (i);
-	PR_SwitchQCVM(NULL);
+	PR_SwitchQCVM (NULL);
 }
 
 /*
@@ -554,32 +552,33 @@ For debugging, prints a single edicy
 */
 static void ED_PrintEdict_f (void)
 {
-	int		i;
+	int i;
 
 	if (!sv.active)
 		return;
 
-	i = Q_atoi (Cmd_Argv(1));
-	PR_SwitchQCVM(&sv.qcvm);
+	i = Q_atoi (Cmd_Argv (1));
+	PR_SwitchQCVM (&sv.qcvm);
 	if (i < 0 || i >= qcvm->num_edicts)
-		Con_Printf("Bad edict number\n");
+		Con_Printf ("Bad edict number\n");
 	else
 	{
-		if (Cmd_Argc() == 2 || svs.maxclients != 1)	//edict N
+		if (Cmd_Argc () == 2 || svs.maxclients != 1) // edict N
 			ED_PrintNum (i);
-		else					//edict N FLD ...
+		else // edict N FLD ...
 		{
-			ddef_t *def = ED_FindField(Cmd_Argv(2));
+			ddef_t *def = ED_FindField (Cmd_Argv (2));
 			if (!def)
-				Con_Printf("Field %s not defined\n", Cmd_Argv(2));
-			else if (Cmd_Argc() < 4)
-				Con_Printf("Edict %u.%s==%s\n", i, PR_GetString(def->s_name), PR_UglyValueString(def->type&~DEF_SAVEGLOBAL, (eval_t *)((char *)&EDICT_NUM(i)->v + def->ofs*4)));
+				Con_Printf ("Field %s not defined\n", Cmd_Argv (2));
+			else if (Cmd_Argc () < 4)
+				Con_Printf (
+					"Edict %u.%s==%s\n", i, PR_GetString (def->s_name),
+					PR_UglyValueString (def->type & ~DEF_SAVEGLOBAL, (eval_t *)((char *)&EDICT_NUM (i)->v + def->ofs * 4)));
 			else
-				ED_ParseEpair((void *)&EDICT_NUM(i)->v, def, Cmd_Argv(3), false);
+				ED_ParseEpair ((void *)&EDICT_NUM (i)->v, def, Cmd_Argv (3), false);
 		}
-
 	}
-	PR_SwitchQCVM(NULL);
+	PR_SwitchQCVM (NULL);
 }
 
 /*
@@ -591,17 +590,17 @@ For debugging
 */
 static void ED_Count (void)
 {
-	edict_t	*ent;
-	int	i, active, models, solid, step;
+	edict_t *ent;
+	int      i, active, models, solid, step;
 
 	if (!sv.active)
 		return;
 
-	PR_SwitchQCVM(&sv.qcvm);
+	PR_SwitchQCVM (&sv.qcvm);
 	active = models = solid = step = 0;
 	for (i = 0; i < qcvm->num_edicts; i++)
 	{
-		ent = EDICT_NUM(i);
+		ent = EDICT_NUM (i);
 		if (ent->free)
 			continue;
 		active++;
@@ -618,9 +617,8 @@ static void ED_Count (void)
 	Con_Printf ("view      :%3i\n", models);
 	Con_Printf ("touch     :%3i\n", solid);
 	Con_Printf ("step      :%3i\n", step);
-	PR_SwitchQCVM(NULL);
+	PR_SwitchQCVM (NULL);
 }
-
 
 /*
 ==============================================================================
@@ -638,26 +636,26 @@ ED_WriteGlobals
 */
 void ED_WriteGlobals (FILE *f)
 {
-	ddef_t		*def;
-	int			i;
-	const char		*name;
-	int			type;
+	ddef_t     *def;
+	int         i;
+	const char *name;
+	int         type;
 
 	fprintf (f, "{\n");
 	for (i = 0; i < qcvm->progs->numglobaldefs; i++)
 	{
 		def = &qcvm->globaldefs[i];
 		type = def->type;
-		if ( !(def->type & DEF_SAVEGLOBAL) )
+		if (!(def->type & DEF_SAVEGLOBAL))
 			continue;
 		type &= ~DEF_SAVEGLOBAL;
 
 		if (type != ev_string && type != ev_float && type != ev_ext_integer && type != ev_entity)
 			continue;
 
-		name = PR_GetString(def->s_name);
+		name = PR_GetString (def->s_name);
 		fprintf (f, "\"%s\" ", name);
-		fprintf (f, "\"%s\"\n", PR_UglyValueString(type, (eval_t *)&qcvm->globals[def->ofs]));
+		fprintf (f, "\"%s\"\n", PR_UglyValueString (type, (eval_t *)&qcvm->globals[def->ofs]));
 	}
 	fprintf (f, "}\n");
 }
@@ -669,21 +667,21 @@ ED_ParseGlobals
 */
 const char *ED_ParseGlobals (const char *data)
 {
-	char	keyname[64];
-	ddef_t	*key;
+	char    keyname[64];
+	ddef_t *key;
 
 	while (1)
 	{
-	// parse key
+		// parse key
 		data = COM_Parse (data);
 		if (com_token[0] == '}')
 			break;
 		if (!data)
 			Host_Error ("ED_ParseEntity: EOF without closing brace");
 
-		q_strlcpy (keyname, com_token, sizeof(keyname));
+		q_strlcpy (keyname, com_token, sizeof (keyname));
 
-	// parse value
+		// parse value
 		data = COM_Parse (data);
 		if (!data)
 			Host_Error ("ED_ParseEntity: EOF without closing brace");
@@ -706,7 +704,6 @@ const char *ED_ParseGlobals (const char *data)
 
 //============================================================================
 
-
 /*
 =============
 ED_NewString
@@ -714,16 +711,16 @@ ED_NewString
 */
 static string_t ED_NewString (const char *string)
 {
-	char	*new_p;
-	int		i, l;
-	string_t	num;
+	char    *new_p;
+	int      i, l;
+	string_t num;
 
-	l = strlen(string) + 1;
+	l = strlen (string) + 1;
 	num = PR_AllocString (l, &new_p);
 
 	for (i = 0; i < l; i++)
 	{
-		if (string[i] == '\\' && i < l-1)
+		if (string[i] == '\\' && i < l - 1)
 		{
 			i++;
 			if (string[i] == 'n')
@@ -739,34 +736,35 @@ static string_t ED_NewString (const char *string)
 }
 static void ED_RezoneString (string_t *ref, const char *str)
 {
-	char *buf;
-	size_t len = strlen(str)+1;
+	char  *buf;
+	size_t len = strlen (str) + 1;
 	size_t id;
 
 	if (*ref)
-	{	//if the reference is already a zoned string then free it first.
-		id = -1-*ref;
-		if (id < qcvm->knownzonesize && (qcvm->knownzone[id>>3] & (1u<<(id&7))))
-		{	//okay, it was zoned.
-			qcvm->knownzone[id>>3] &= ~(1u<<(id&7));
-			buf = (char*)PR_GetString(*ref);
-			PR_ClearEngineString(*ref);
-			Z_Free(buf);
+	{ // if the reference is already a zoned string then free it first.
+		id = -1 - *ref;
+		if (id < qcvm->knownzonesize && (qcvm->knownzone[id >> 3] & (1u << (id & 7))))
+		{ // okay, it was zoned.
+			qcvm->knownzone[id >> 3] &= ~(1u << (id & 7));
+			buf = (char *)PR_GetString (*ref);
+			PR_ClearEngineString (*ref);
+			Z_Free (buf);
 		}
-//		else
-//			Con_Warning("ED_RezoneString: string wasn't strzoned\n");	//warnings would trigger from the default cvar value that autocvars are initialised with
+		//		else
+		//			Con_Warning("ED_RezoneString: string wasn't strzoned\n");	//warnings would trigger from the default cvar value that autocvars are
+		// initialised with
 	}
 
-	buf = Z_Malloc(len);
-	memcpy(buf, str, len);
-	id = -1-(*ref = PR_SetEngineString(buf));
-	//make sure its flagged as zoned so we can clean up properly after.
+	buf = Z_Malloc (len);
+	memcpy (buf, str, len);
+	id = -1 - (*ref = PR_SetEngineString (buf));
+	// make sure its flagged as zoned so we can clean up properly after.
 	if (id >= qcvm->knownzonesize)
 	{
-		qcvm->knownzonesize = (id+32)&~7;
-		qcvm->knownzone = Z_Realloc(qcvm->knownzone, (qcvm->knownzonesize+7)>>3);
+		qcvm->knownzonesize = (id + 32) & ~7;
+		qcvm->knownzone = Z_Realloc (qcvm->knownzone, (qcvm->knownzonesize + 7) >> 3);
 	}
-	qcvm->knownzone[id>>3] |= 1u<<(id&7);
+	qcvm->knownzone[id >> 3] |= 1u << (id & 7);
 }
 
 /*
@@ -779,23 +777,23 @@ returns false if error
 */
 qboolean ED_ParseEpair (void *base, ddef_t *key, const char *s, qboolean zoned)
 {
-	int		i;
-	char	string[128];
-	ddef_t	*def;
-	char	*v, *w;
-	char	*end;
-	void	*d;
-	dfunction_t	*func;
+	int          i;
+	char         string[128];
+	ddef_t      *def;
+	char        *v, *w;
+	char        *end;
+	void        *d;
+	dfunction_t *func;
 
 	d = (void *)((int *)base + key->ofs);
 
 	switch (key->type & ~DEF_SAVEGLOBAL)
 	{
 	case ev_string:
-		if (zoned)	//zoned version allows us to change the strings more freely
-			ED_RezoneString((string_t *)d, s);
+		if (zoned) // zoned version allows us to change the strings more freely
+			ED_RezoneString ((string_t *)d, s);
 		else
-			*(string_t *)d = ED_NewString(s);
+			*(string_t *)d = ED_NewString (s);
 		break;
 
 	case ev_float:
@@ -807,46 +805,46 @@ qboolean ED_ParseEpair (void *base, ddef_t *key, const char *s, qboolean zoned)
 		break;
 
 	case ev_vector:
-		q_strlcpy (string, s, sizeof(string));
-		end = (char *)string + strlen(string);
+		q_strlcpy (string, s, sizeof (string));
+		end = (char *)string + strlen (string);
 		v = string;
 		w = string;
 
 		for (i = 0; i < 3 && (w <= end); i++) // ericw -- added (w <= end) check
 		{
-		// set v to the next space (or 0 byte), and change that char to a 0 byte
+			// set v to the next space (or 0 byte), and change that char to a 0 byte
 			while (*v && *v != ' ')
 				v++;
 			*v = 0;
 			((float *)d)[i] = atof (w);
-			w = v = v+1;
+			w = v = v + 1;
 		}
 		// ericw -- fill remaining elements to 0 in case we hit the end of string
 		// before reading 3 floats.
 		if (i < 3)
 		{
-			Con_DWarning ("Avoided reading garbage for \"%s\" \"%s\"\n", PR_GetString(key->s_name), s);
+			Con_DWarning ("Avoided reading garbage for \"%s\" \"%s\"\n", PR_GetString (key->s_name), s);
 			for (; i < 3; i++)
 				((float *)d)[i] = 0.0f;
 		}
 		break;
 
 	case ev_entity:
-		if (!strncmp(s, "entity ", 7))	//Spike: putentityfieldstring/etc should be able to cope with etos's weirdness.
+		if (!strncmp (s, "entity ", 7)) // Spike: putentityfieldstring/etc should be able to cope with etos's weirdness.
 			s += 7;
-		*(int *)d = EDICT_TO_PROG(EDICT_NUM(atoi (s)));
+		*(int *)d = EDICT_TO_PROG (EDICT_NUM (atoi (s)));
 		break;
 
 	case ev_field:
 		def = ED_FindField (s);
 		if (!def)
 		{
-			//johnfitz -- HACK -- suppress error becuase fog/sky fields might not be mentioned in defs.qc
-			if (strncmp(s, "sky", 3) && strcmp(s, "fog"))
+			// johnfitz -- HACK -- suppress error becuase fog/sky fields might not be mentioned in defs.qc
+			if (strncmp (s, "sky", 3) && strcmp (s, "fog"))
 				Con_DPrintf ("Can't find field %s\n", s);
 			return false;
 		}
-		*(int *)d = G_INT(def->ofs);
+		*(int *)d = G_INT (def->ofs);
 		break;
 
 	case ev_function:
@@ -876,15 +874,15 @@ Used for initial level load and for savegames.
 */
 const char *ED_ParseEdict (const char *data, edict_t *ent)
 {
-	ddef_t		*key;
-	char		keyname[256];
-	qboolean	anglehack, init;
-	int		n;
+	ddef_t  *key;
+	char     keyname[256];
+	qboolean anglehack, init;
+	int      n;
 
 	init = false;
 
 	// clear it
-	if (ent != qcvm->edicts)	// hack
+	if (ent != qcvm->edicts) // hack
 		memset (&ent->v, 0, qcvm->progs->entityfields * 4);
 
 	// go through all the dictionary pairs
@@ -899,7 +897,7 @@ const char *ED_ParseEdict (const char *data, edict_t *ent)
 
 		// anglehack is to allow QuakeEd to write single scalar angles
 		// and allow them to be turned into vectors. (FIXME...)
-		if (!strcmp(com_token, "angle"))
+		if (!strcmp (com_token, "angle"))
 		{
 			strcpy (com_token, "angles");
 			anglehack = true;
@@ -908,16 +906,16 @@ const char *ED_ParseEdict (const char *data, edict_t *ent)
 			anglehack = false;
 
 		// FIXME: change light to _light to get rid of this hack
-		if (!strcmp(com_token, "light"))
-			strcpy (com_token, "light_lev");	// hack for single light def
+		if (!strcmp (com_token, "light"))
+			strcpy (com_token, "light_lev"); // hack for single light def
 
-		q_strlcpy (keyname, com_token, sizeof(keyname));
+		q_strlcpy (keyname, com_token, sizeof (keyname));
 
 		// another hack to fix keynames with trailing spaces
-		n = strlen(keyname);
-		while (n && keyname[n-1] == ' ')
+		n = strlen (keyname);
+		while (n && keyname[n - 1] == ' ')
 		{
-			keyname[n-1] = 0;
+			keyname[n - 1] = 0;
 			n--;
 		}
 
@@ -936,37 +934,37 @@ const char *ED_ParseEdict (const char *data, edict_t *ent)
 		if (keyname[0] == '_')
 			continue;
 
-		//johnfitz -- hack to support .alpha even when progs.dat doesn't know about it
-		if (!strcmp(keyname, "alpha"))
-			ent->alpha = ENTALPHA_ENCODE(atof(com_token));
-		//johnfitz
+		// johnfitz -- hack to support .alpha even when progs.dat doesn't know about it
+		if (!strcmp (keyname, "alpha"))
+			ent->alpha = ENTALPHA_ENCODE (atof (com_token));
+		// johnfitz
 
 		key = ED_FindField (keyname);
 		if (!key)
 		{
 #ifdef PSET_SCRIPT
 			eval_t *val;
-			if (!strcmp(keyname, "traileffect") && qcvm == &sv.qcvm && sv.state == ss_loading)
+			if (!strcmp (keyname, "traileffect") && qcvm == &sv.qcvm && sv.state == ss_loading)
 			{
-				if ((val = GetEdictFieldValue(ent, qcvm->extfields.traileffectnum)))
-					val->_float = PF_SV_ForceParticlePrecache(com_token);
+				if ((val = GetEdictFieldValue (ent, qcvm->extfields.traileffectnum)))
+					val->_float = PF_SV_ForceParticlePrecache (com_token);
 			}
-			else if (!strcmp(keyname, "emiteffect") && qcvm == &sv.qcvm && sv.state == ss_loading)
+			else if (!strcmp (keyname, "emiteffect") && qcvm == &sv.qcvm && sv.state == ss_loading)
 			{
-				if ((val = GetEdictFieldValue(ent, qcvm->extfields.emiteffectnum)))
-					val->_float = PF_SV_ForceParticlePrecache(com_token);
+				if ((val = GetEdictFieldValue (ent, qcvm->extfields.emiteffectnum)))
+					val->_float = PF_SV_ForceParticlePrecache (com_token);
 			}
-			//johnfitz -- HACK -- suppress error becuase fog/sky/alpha fields might not be mentioned in defs.qc
+			// johnfitz -- HACK -- suppress error becuase fog/sky/alpha fields might not be mentioned in defs.qc
 			else
 #endif
-			if (strncmp(keyname, "sky", 3) && strcmp(keyname, "fog") && strcmp(keyname, "alpha"))
-				Con_DPrintf ("\"%s\" is not a field\n", keyname); //johnfitz -- was Con_Printf
+				if (strncmp (keyname, "sky", 3) && strcmp (keyname, "fog") && strcmp (keyname, "alpha"))
+				Con_DPrintf ("\"%s\" is not a field\n", keyname); // johnfitz -- was Con_Printf
 			continue;
 		}
 
 		if (anglehack)
 		{
-			char	temp[32];
+			char temp[32];
 			strcpy (temp, com_token);
 			sprintf (com_token, "0 %s 0", temp);
 		}
@@ -980,7 +978,6 @@ const char *ED_ParseEdict (const char *data, edict_t *ent)
 
 	return data;
 }
-
 
 /*
 ================
@@ -999,10 +996,10 @@ to call ED_CallSpawnFunctions () to let the objects initialize themselves.
 */
 void ED_LoadFromFile (const char *data)
 {
-	dfunction_t	*func;
-	edict_t		*ent = NULL;
-	int		inhibit = 0;
-	int usingspawnfunc = 0;
+	dfunction_t *func;
+	edict_t     *ent = NULL;
+	int          inhibit = 0;
+	int          usingspawnfunc = 0;
 
 	pr_global_struct->time = qcvm->time;
 
@@ -1014,10 +1011,10 @@ void ED_LoadFromFile (const char *data)
 		if (!data)
 			break;
 		if (com_token[0] != '{')
-			Host_Error ("ED_LoadFromFile: found %s when expecting {",com_token);
+			Host_Error ("ED_LoadFromFile: found %s when expecting {", com_token);
 
 		if (!ent)
-			ent = EDICT_NUM(0);
+			ent = EDICT_NUM (0);
 		else
 			ent = ED_Alloc ();
 		data = ED_ParseEdict (data, ent);
@@ -1032,162 +1029,162 @@ void ED_LoadFromFile (const char *data)
 				continue;
 			}
 		}
-		else if ((current_skill == 0 && ((int)ent->v.spawnflags & SPAWNFLAG_NOT_EASY))
-				|| (current_skill == 1 && ((int)ent->v.spawnflags & SPAWNFLAG_NOT_MEDIUM))
-				|| (current_skill >= 2 && ((int)ent->v.spawnflags & SPAWNFLAG_NOT_HARD)) )
+		else if (
+			(current_skill == 0 && ((int)ent->v.spawnflags & SPAWNFLAG_NOT_EASY)) || (current_skill == 1 && ((int)ent->v.spawnflags & SPAWNFLAG_NOT_MEDIUM)) ||
+			(current_skill >= 2 && ((int)ent->v.spawnflags & SPAWNFLAG_NOT_HARD)))
 		{
 			ED_Free (ent);
 			inhibit++;
 			continue;
 		}
 
-//
-// immediately call spawn function
-//
+		//
+		// immediately call spawn function
+		//
 		if (!ent->v.classname)
 		{
-			Con_SafePrintf ("No classname for:\n"); //johnfitz -- was Con_Printf
+			Con_SafePrintf ("No classname for:\n"); // johnfitz -- was Con_Printf
 			ED_Print (ent);
 			ED_Free (ent);
 			continue;
 		}
 
-	// look for the spawn function
+		// look for the spawn function
 		//
-		func = ED_FindFunction (va("spawnfunc_%s", PR_GetString(ent->v.classname)));
+		func = ED_FindFunction (va ("spawnfunc_%s", PR_GetString (ent->v.classname)));
 		if (func)
 		{
 			if (!usingspawnfunc++)
 				Con_DPrintf2 ("Using DP_SV_SPAWNFUNC_PREFIX\n");
 		}
 		else
-			func = ED_FindFunction ( PR_GetString(ent->v.classname) );
+			func = ED_FindFunction (PR_GetString (ent->v.classname));
 
 		if (!func)
 		{
-			Con_SafePrintf ("No spawn function for:\n"); //johnfitz -- was Con_Printf
+			Con_SafePrintf ("No spawn function for:\n"); // johnfitz -- was Con_Printf
 			ED_Print (ent);
 			ED_Free (ent);
 			continue;
 		}
 
-		pr_global_struct->self = EDICT_TO_PROG(ent);
+		pr_global_struct->self = EDICT_TO_PROG (ent);
 		PR_ExecuteProgram (func - qcvm->functions);
 	}
 
 	Con_DPrintf ("%i entities inhibited\n", inhibit);
 }
 
-
 #ifndef PR_SwitchQCVM
-qcvm_t *qcvm;
-globalvars_t	*pr_global_struct;
-void PR_SwitchQCVM(qcvm_t *nvm)
+qcvm_t	   *qcvm;
+globalvars_t *pr_global_struct;
+void          PR_SwitchQCVM (qcvm_t *nvm)
 {
 	if (qcvm && nvm)
-		Sys_Error("PR_SwitchQCVM: A qcvm was already active");
+		Sys_Error ("PR_SwitchQCVM: A qcvm was already active");
 	qcvm = nvm;
 	if (qcvm)
-		pr_global_struct = (globalvars_t*)qcvm->globals;
+		pr_global_struct = (globalvars_t *)qcvm->globals;
 	else
 		pr_global_struct = NULL;
 }
 #endif
 
-void PR_ClearProgs(qcvm_t *vm)
+void PR_ClearProgs (qcvm_t *vm)
 {
 	qcvm_t *oldvm = qcvm;
 	if (!vm->progs)
-		return;	//wasn't loaded.
+		return; // wasn't loaded.
 	qcvm = NULL;
-	PR_SwitchQCVM(vm);
-	PR_ShutdownExtensions();
+	PR_SwitchQCVM (vm);
+	PR_ShutdownExtensions ();
 
 	if (qcvm->knownstrings)
 		Z_Free ((void *)qcvm->knownstrings);
-	free(qcvm->edicts); // ericw -- sv.edicts switched to use malloc()
+	free (qcvm->edicts); // ericw -- sv.edicts switched to use malloc()
 	if (qcvm->fielddefs != (ddef_t *)((byte *)qcvm->progs + qcvm->progs->ofs_fielddefs))
-		free(qcvm->fielddefs);
-	free(qcvm->progs);	// spike -- pr_progs switched to use malloc (so menuqc doesn't end up stuck on the early hunk nor wiped on every map change)
-	memset(qcvm, 0, sizeof(*qcvm));
+		free (qcvm->fielddefs);
+	free (qcvm->progs); // spike -- pr_progs switched to use malloc (so menuqc doesn't end up stuck on the early hunk nor wiped on every map change)
+	memset (qcvm, 0, sizeof (*qcvm));
 
 	qcvm = NULL;
-	PR_SwitchQCVM(oldvm);
+	PR_SwitchQCVM (oldvm);
 }
 
-//makes sure extension fields are actually registered so they can be used for mappers without qc changes. eg so scale can be used.
+// makes sure extension fields are actually registered so they can be used for mappers without qc changes. eg so scale can be used.
 static void PR_MergeEngineFieldDefs (void)
 {
-	struct {
+	struct
+	{
 		const char *fname;
-		etype_t type;
-		int newidx;
-	} extrafields[] =
-	{	//table of engine fields to add. we'll be using ED_FindFieldOffset for these later.
-		//this is useful for fields that should be defined for mappers which are not defined by the mod.
-		//future note: mutators will need to edit the mutator's globaldefs table too. remember to handle vectors and their 3 globals too.
-		{"alpha",			ev_float},	//just because we can (though its already handled in a weird hacky way)
-		{"scale",			ev_float},	//hurrah for being able to rescale entities.
-		{"emiteffectnum",	ev_float},	//constantly emitting particles, even without moving.
-		{"traileffectnum",	ev_float},	//custom effect for trails
-		//{"glow_size",		ev_float},	//deprecated particle trail rubbish
-		//{"glow_color",	ev_float},	//deprecated particle trail rubbish
-		{"tag_entity",		ev_float},	//for setattachment to not bug out when omitted.
-		{"tag_index",		ev_float},	//for setattachment to not bug out when omitted.
-		{"modelflags",		ev_float},	//deprecated rubbish to fill the high 8 bits of effects.
-		//{"vw_index",		ev_float},	//modelindex2
-		//{"pflags",		ev_float},	//for rtlights
-		//{"drawflags",		ev_float},	//hexen2 compat
-		//{"abslight",		ev_float},	//hexen2 compat
-		{"colormod",		ev_vector},	//lighting tints
-		//{"glowmod",		ev_vector},	//fullbright tints
-		//{"fatness",		ev_float},	//bloated rendering...
-		//{"gravitydir",	ev_vector},	//says which direction gravity should act for this ent...
+		etype_t     type;
+		int         newidx;
+	} extrafields[] = {
+		// table of engine fields to add. we'll be using ED_FindFieldOffset for these later.
+		// this is useful for fields that should be defined for mappers which are not defined by the mod.
+		// future note: mutators will need to edit the mutator's globaldefs table too. remember to handle vectors and their 3 globals too.
+		{"alpha", ev_float},          // just because we can (though its already handled in a weird hacky way)
+		{"scale", ev_float},          // hurrah for being able to rescale entities.
+		{"emiteffectnum", ev_float},  // constantly emitting particles, even without moving.
+		{"traileffectnum", ev_float}, // custom effect for trails
+	                                  //{"glow_size",		ev_float},	//deprecated particle trail rubbish
+	                                  //{"glow_color",	ev_float},	//deprecated particle trail rubbish
+		{"tag_entity", ev_float},     // for setattachment to not bug out when omitted.
+		{"tag_index", ev_float},      // for setattachment to not bug out when omitted.
+		{"modelflags", ev_float},     // deprecated rubbish to fill the high 8 bits of effects.
+	                                  //{"vw_index",		ev_float},	//modelindex2
+	                                  //{"pflags",		ev_float},	//for rtlights
+	                                  //{"drawflags",		ev_float},	//hexen2 compat
+	                                  //{"abslight",		ev_float},	//hexen2 compat
+		{"colormod", ev_vector},      // lighting tints
+	                                  //{"glowmod",		ev_vector},	//fullbright tints
+	                                  //{"fatness",		ev_float},	//bloated rendering...
+	                                  //{"gravitydir",	ev_vector},	//says which direction gravity should act for this ent...
 
 	};
-	int maxofs = qcvm->progs->entityfields;
-	int maxdefs = qcvm->progs->numfielddefs;
+	int          maxofs = qcvm->progs->entityfields;
+	int          maxdefs = qcvm->progs->numfielddefs;
 	unsigned int j, a;
 
-	//figure out where stuff goes
-	for (j = 0; j < countof(extrafields); j++)
+	// figure out where stuff goes
+	for (j = 0; j < countof (extrafields); j++)
 	{
-		extrafields[j].newidx = ED_FindFieldOffset(extrafields[j].fname);
+		extrafields[j].newidx = ED_FindFieldOffset (extrafields[j].fname);
 		if (extrafields[j].newidx < 0)
 		{
 			extrafields[j].newidx = maxofs;
 			maxdefs++;
 			if (extrafields[j].type == ev_vector)
-				maxdefs+=3;
-			maxofs+=type_size[extrafields[j].type];
+				maxdefs += 3;
+			maxofs += type_size[extrafields[j].type];
 		}
 	}
 
 	if (maxdefs != qcvm->progs->numfielddefs)
-	{	//we now know how many entries we need to add...
+	{ // we now know how many entries we need to add...
 		ddef_t *olddefs = qcvm->fielddefs;
-		qcvm->fielddefs = malloc(maxdefs * sizeof(*qcvm->fielddefs));
-		memcpy(qcvm->fielddefs, olddefs, qcvm->progs->numfielddefs*sizeof(*qcvm->fielddefs));
+		qcvm->fielddefs = malloc (maxdefs * sizeof (*qcvm->fielddefs));
+		memcpy (qcvm->fielddefs, olddefs, qcvm->progs->numfielddefs * sizeof (*qcvm->fielddefs));
 		if (olddefs != (ddef_t *)((byte *)qcvm->progs + qcvm->progs->ofs_fielddefs))
-			free(olddefs);
+			free (olddefs);
 
-		//allocate the extra defs
-		for (j = 0; j < countof(extrafields); j++)
+		// allocate the extra defs
+		for (j = 0; j < countof (extrafields); j++)
 		{
 			if (extrafields[j].newidx >= qcvm->progs->entityfields && extrafields[j].newidx < maxofs)
-			{	//looks like its new. make sure ED_FindField can find it.
+			{ // looks like its new. make sure ED_FindField can find it.
 				qcvm->fielddefs[qcvm->progs->numfielddefs].ofs = extrafields[j].newidx;
 				qcvm->fielddefs[qcvm->progs->numfielddefs].type = extrafields[j].type;
-				qcvm->fielddefs[qcvm->progs->numfielddefs].s_name = ED_NewString(extrafields[j].fname);
+				qcvm->fielddefs[qcvm->progs->numfielddefs].s_name = ED_NewString (extrafields[j].fname);
 				qcvm->progs->numfielddefs++;
 
 				if (extrafields[j].type == ev_vector)
-				{	//vectors are weird and annoying.
+				{ // vectors are weird and annoying.
 					for (a = 0; a < 3; a++)
 					{
-						qcvm->fielddefs[qcvm->progs->numfielddefs].ofs = extrafields[j].newidx+a;
+						qcvm->fielddefs[qcvm->progs->numfielddefs].ofs = extrafields[j].newidx + a;
 						qcvm->fielddefs[qcvm->progs->numfielddefs].type = ev_float;
-						qcvm->fielddefs[qcvm->progs->numfielddefs].s_name = ED_NewString(va("%s_%c", extrafields[j].fname, 'x'+a));
+						qcvm->fielddefs[qcvm->progs->numfielddefs].s_name = ED_NewString (va ("%s_%c", extrafields[j].fname, 'x' + a));
 						qcvm->progs->numfielddefs++;
 					}
 				}
@@ -1226,11 +1223,11 @@ PR_LoadProgs
 */
 qboolean PR_LoadProgs (const char *filename, qboolean fatal, unsigned int needcrc, builtin_t *builtins, size_t numbuiltins)
 {
-	int			i;
+	int i;
 
-	PR_ClearProgs(qcvm);	//just in case.
+	PR_ClearProgs (qcvm); // just in case.
 
-	qcvm->progs = (dprograms_t *)COM_LoadMallocFile(filename, NULL);
+	qcvm->progs = (dprograms_t *)COM_LoadMallocFile (filename, NULL);
 	if (!qcvm->progs)
 		return false;
 
@@ -1238,11 +1235,11 @@ qboolean PR_LoadProgs (const char *filename, qboolean fatal, unsigned int needcr
 	CRC_Init (&qcvm->progscrc);
 	for (i = 0; i < com_filesize; i++)
 		CRC_ProcessByte (&qcvm->progscrc, ((byte *)qcvm->progs)[i]);
-	qcvm->progshash = Com_BlockChecksum(qcvm->progs, com_filesize);
+	qcvm->progshash = Com_BlockChecksum (qcvm->progs, com_filesize);
 
 	// byte swap the header
-	for (i = 0; i < (int) sizeof(*qcvm->progs) / 4; i++)
-		((int *)qcvm->progs)[i] = LittleLong ( ((int *)qcvm->progs)[i] );
+	for (i = 0; i < (int)sizeof (*qcvm->progs) / 4; i++)
+		((int *)qcvm->progs)[i] = LittleLong (((int *)qcvm->progs)[i]);
 
 	if (qcvm->progs->version != PROG_VERSION)
 	{
@@ -1250,7 +1247,7 @@ qboolean PR_LoadProgs (const char *filename, qboolean fatal, unsigned int needcr
 			Host_Error ("%s has wrong version number (%i should be %i)", filename, qcvm->progs->version, PROG_VERSION);
 		else
 		{
-			Con_Printf("%s ABI set not supported\n", filename);
+			Con_Printf ("%s ABI set not supported\n", filename);
 			qcvm->progs = NULL;
 			return false;
 		}
@@ -1261,38 +1258,38 @@ qboolean PR_LoadProgs (const char *filename, qboolean fatal, unsigned int needcr
 			Host_Error ("%s system vars have been modified, progdefs.h is out of date", filename);
 		else
 		{
-			switch(qcvm->progs->crc)
+			switch (qcvm->progs->crc)
 			{
-			case 22390:	//full csqc
-				Con_Printf("%s - full csqc is not supported\n", filename);
+			case 22390: // full csqc
+				Con_Printf ("%s - full csqc is not supported\n", filename);
 				break;
-			case 52195:	//dp csqc
-				Con_Printf("%s - obsolete csqc is not supported\n", filename);
+			case 52195: // dp csqc
+				Con_Printf ("%s - obsolete csqc is not supported\n", filename);
 				break;
-			case 54730:	//quakeworld
-				Con_Printf("%s - quakeworld gamecode is not supported\n", filename);
+			case 54730: // quakeworld
+				Con_Printf ("%s - quakeworld gamecode is not supported\n", filename);
 				break;
-			case 26940:	//prerelease
-				Con_Printf("%s - prerelease gamecode is not supported\n", filename);
+			case 26940: // prerelease
+				Con_Printf ("%s - prerelease gamecode is not supported\n", filename);
 				break;
-			case 32401:	//tenebrae
-				Con_Printf("%s - tenebrae gamecode is not supported\n", filename);
+			case 32401: // tenebrae
+				Con_Printf ("%s - tenebrae gamecode is not supported\n", filename);
 				break;
-			case 38488:	//hexen2 release
-			case 26905:	//hexen2 mission pack
-			case 14046: //hexen2 demo
-				Con_Printf("%s - hexen2 gamecode is not supported\n", filename);
+			case 38488: // hexen2 release
+			case 26905: // hexen2 mission pack
+			case 14046: // hexen2 demo
+				Con_Printf ("%s - hexen2 gamecode is not supported\n", filename);
 				break;
-			//case 5927: //nq PROGHEADER_CRC as above. shouldn't happen, obviously.
+			// case 5927: //nq PROGHEADER_CRC as above. shouldn't happen, obviously.
 			default:
-				Con_Printf("%s system vars are not supported\n", filename);
+				Con_Printf ("%s system vars are not supported\n", filename);
 				break;
 			}
 			qcvm->progs = NULL;
 			return false;
 		}
 	}
-	Con_DPrintf ("%s occupies %iK.\n", filename, com_filesize/1024);
+	Con_DPrintf ("%s occupies %iK.\n", filename, com_filesize / 1024);
 
 	qcvm->functions = (dfunction_t *)((byte *)qcvm->progs + qcvm->progs->ofs_functions);
 	qcvm->strings = (char *)qcvm->progs + qcvm->progs->ofs_strings;
@@ -1304,17 +1301,17 @@ qboolean PR_LoadProgs (const char *filename, qboolean fatal, unsigned int needcr
 	qcvm->statements = (dstatement_t *)((byte *)qcvm->progs + qcvm->progs->ofs_statements);
 
 	qcvm->globals = (float *)((byte *)qcvm->progs + qcvm->progs->ofs_globals);
-	pr_global_struct = (globalvars_t*)qcvm->globals;
+	pr_global_struct = (globalvars_t *)qcvm->globals;
 
 	qcvm->stringssize = qcvm->progs->numstrings;
 
 	// byte swap the lumps
 	for (i = 0; i < qcvm->progs->numstatements; i++)
 	{
-		qcvm->statements[i].op = LittleShort(qcvm->statements[i].op);
-		qcvm->statements[i].a = LittleShort(qcvm->statements[i].a);
-		qcvm->statements[i].b = LittleShort(qcvm->statements[i].b);
-		qcvm->statements[i].c = LittleShort(qcvm->statements[i].c);
+		qcvm->statements[i].op = LittleShort (qcvm->statements[i].op);
+		qcvm->statements[i].a = LittleShort (qcvm->statements[i].a);
+		qcvm->statements[i].b = LittleShort (qcvm->statements[i].b);
+		qcvm->statements[i].c = LittleShort (qcvm->statements[i].c);
 	}
 
 	for (i = 0; i < qcvm->progs->numfunctions; i++)
@@ -1346,31 +1343,30 @@ qboolean PR_LoadProgs (const char *filename, qboolean fatal, unsigned int needcr
 	for (i = 0; i < qcvm->progs->numglobals; i++)
 		((int *)qcvm->globals)[i] = LittleLong (((int *)qcvm->globals)[i]);
 
-	memcpy(qcvm->builtins, builtins, numbuiltins*sizeof(qcvm->builtins[0]));
+	memcpy (qcvm->builtins, builtins, numbuiltins * sizeof (qcvm->builtins[0]));
 	qcvm->numbuiltins = numbuiltins;
 
-	//spike: detect extended fields from progs
-	PR_MergeEngineFieldDefs();
-#define QCEXTFIELD(n,t) qcvm->extfields.n = ED_FindFieldOffset(#n);
+	// spike: detect extended fields from progs
+	PR_MergeEngineFieldDefs ();
+#define QCEXTFIELD(n, t) qcvm->extfields.n = ED_FindFieldOffset (#n);
 	QCEXTFIELDS_ALL
 	QCEXTFIELDS_GAME
 	QCEXTFIELDS_SS
 #undef QCEXTFIELD
 
-	qcvm->edict_size = qcvm->progs->entityfields * 4 + sizeof(edict_t) - sizeof(entvars_t);
+	qcvm->edict_size = qcvm->progs->entityfields * 4 + sizeof (edict_t) - sizeof (entvars_t);
 	// round off to next highest whole word address (esp for Alpha)
 	// this ensures that pointers in the engine data area are always
 	// properly aligned
-	qcvm->edict_size += sizeof(void *) - 1;
-	qcvm->edict_size &= ~(sizeof(void *) - 1);
+	qcvm->edict_size += sizeof (void *) - 1;
+	qcvm->edict_size &= ~(sizeof (void *) - 1);
 
-	PR_SetEngineString("");
-	PR_EnableExtensions(qcvm->globaldefs);
-	PR_PatchRereleaseBuiltins();
+	PR_SetEngineString ("");
+	PR_EnableExtensions (qcvm->globaldefs);
+	PR_PatchRereleaseBuiltins ();
 
 	return true;
 }
-
 
 /*
 ===============
@@ -1396,20 +1392,19 @@ void PR_Init (void)
 	Cvar_RegisterVariable (&saved3);
 	Cvar_RegisterVariable (&saved4);
 
-	PR_InitExtensions();
+	PR_InitExtensions ();
 }
 
-
-edict_t *EDICT_NUM(int n)
+edict_t *EDICT_NUM (int n)
 {
 	if (n < 0 || n >= qcvm->max_edicts)
 		Host_Error ("EDICT_NUM: bad number %i", n);
 	return (edict_t *)((byte *)qcvm->edicts + (n)*qcvm->edict_size);
 }
 
-int NUM_FOR_EDICT(edict_t *e)
+int NUM_FOR_EDICT (edict_t *e)
 {
-	int		b;
+	int b;
 
 	b = (byte *)e - (byte *)qcvm->edicts;
 	b = b / qcvm->edict_size;
@@ -1421,14 +1416,13 @@ int NUM_FOR_EDICT(edict_t *e)
 
 //===========================================================================
 
-
-#define	PR_STRING_ALLOCSLOTS	256
+#define PR_STRING_ALLOCSLOTS 256
 
 static void PR_AllocStringSlots (void)
 {
 	qcvm->maxknownstrings += PR_STRING_ALLOCSLOTS;
-	Con_DPrintf2("PR_AllocStringSlots: realloc'ing for %d slots\n", qcvm->maxknownstrings);
-	qcvm->knownstrings = (const char **) Z_Realloc ((void *)qcvm->knownstrings, qcvm->maxknownstrings * sizeof(char *));
+	Con_DPrintf2 ("PR_AllocStringSlots: realloc'ing for %d slots\n", qcvm->maxknownstrings);
+	qcvm->knownstrings = (const char **)Z_Realloc ((void *)qcvm->knownstrings, qcvm->maxknownstrings * sizeof (char *));
 }
 
 const char *PR_GetString (int num)
@@ -1447,12 +1441,12 @@ const char *PR_GetString (int num)
 	else
 	{
 		return qcvm->strings;
-		Host_Error("PR_GetString: invalid string offset %d\n", num);
+		Host_Error ("PR_GetString: invalid string offset %d\n", num);
 		return "";
 	}
 }
 
-void PR_ClearEngineString(int num)
+void PR_ClearEngineString (int num)
 {
 	if (num < 0 && num >= -qcvm->numknownstrings)
 	{
@@ -1465,11 +1459,11 @@ void PR_ClearEngineString(int num)
 
 int PR_SetEngineString (const char *s)
 {
-	int		i;
+	int i;
 
 	if (!s)
 		return 0;
-#if 0	/* can't: sv.model_precache & sv.sound_precache points to pr_strings */
+#if 0 /* can't: sv.model_precache & sv.sound_precache points to pr_strings */
 	if (s >= qcvm->strings && s <= qcvm->strings + qcvm->stringssize)
 		Host_Error("PR_SetEngineString: \"%s\" in pr_strings area\n", s);
 #else
@@ -1482,8 +1476,8 @@ int PR_SetEngineString (const char *s)
 			return -1 - i;
 	}
 	// new unknown engine string
-	//Con_DPrintf ("PR_SetEngineString: new engine string %p\n", s);
-	for (i = qcvm->freeknownstrings; ; i++)
+	// Con_DPrintf ("PR_SetEngineString: new engine string %p\n", s);
+	for (i = qcvm->freeknownstrings;; i++)
 	{
 		if (i < qcvm->numknownstrings)
 		{
@@ -1493,19 +1487,19 @@ int PR_SetEngineString (const char *s)
 		else
 		{
 			if (i >= qcvm->maxknownstrings)
-				PR_AllocStringSlots();
+				PR_AllocStringSlots ();
 			qcvm->numknownstrings++;
 		}
 		break;
 	}
-	qcvm->freeknownstrings = i+1;
+	qcvm->freeknownstrings = i + 1;
 	qcvm->knownstrings[i] = s;
 	return -1 - i;
 }
 
 int PR_AllocString (int size, char **ptr)
 {
-	int		i;
+	int i;
 
 	if (!size)
 		return 0;
@@ -1514,15 +1508,14 @@ int PR_AllocString (int size, char **ptr)
 		if (!qcvm->knownstrings[i])
 			break;
 	}
-//	if (i >= pr_numknownstrings)
-//	{
-		if (i >= qcvm->maxknownstrings)
-			PR_AllocStringSlots();
-		qcvm->numknownstrings++;
-//	}
-	qcvm->knownstrings[i] = (char *)Hunk_AllocName(size, "string");
+	//	if (i >= pr_numknownstrings)
+	//	{
+	if (i >= qcvm->maxknownstrings)
+		PR_AllocStringSlots ();
+	qcvm->numknownstrings++;
+	//	}
+	qcvm->knownstrings[i] = (char *)Hunk_AllocName (size, "string");
 	if (ptr)
-		*ptr = (char *) qcvm->knownstrings[i];
+		*ptr = (char *)qcvm->knownstrings[i];
 	return -1 - i;
 }
-

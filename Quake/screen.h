@@ -30,28 +30,28 @@ void SCR_LoadPics (void);
 
 void SCR_UpdateScreen (void);
 
-
 void SCR_CenterPrint (const char *str);
 
 void SCR_BeginLoadingPlaque (void);
 void SCR_EndLoadingPlaque (void);
 
-int SCR_ModalMessage (const char *text, float timeout); //johnfitz -- added timeout
+int SCR_ModalMessage (const char *text, float timeout); // johnfitz -- added timeout
 
-extern	float		scr_con_current;
-extern	float		scr_conlines;		// lines of console to display
+extern float scr_con_current;
+extern float scr_conlines; // lines of console to display
 
-extern	int			sb_lines;
+extern int sb_lines;
 
-extern	int			clearnotify;	// set to 0 whenever notify text is drawn
-extern	qboolean	scr_disabled_for_loading;
+extern int      clearnotify; // set to 0 whenever notify text is drawn
+extern qboolean scr_disabled_for_loading;
 
-extern	cvar_t		scr_viewsize;
+extern cvar_t scr_viewsize;
 
-extern	cvar_t		scr_sbaralpha; //johnfitz
+extern cvar_t scr_sbaralpha; // johnfitz
 
-//johnfitz -- stuff for 2d drawing control
-typedef enum {
+// johnfitz -- stuff for 2d drawing control
+typedef enum
+{
 	CANVAS_NONE,
 	CANVAS_DEFAULT,
 	CANVAS_CONSOLE,
@@ -65,15 +65,14 @@ typedef enum {
 	CANVAS_CSQC,
 	CANVAS_INVALID = -1
 } canvastype;
-extern	cvar_t		scr_menuscale;
-extern	cvar_t		scr_sbarscale;
-extern	cvar_t		scr_conwidth;
-extern	cvar_t		scr_conscale;
-extern	cvar_t		scr_scale;
-extern	cvar_t		scr_crosshairscale;
-//johnfitz
+extern cvar_t scr_menuscale;
+extern cvar_t scr_sbarscale;
+extern cvar_t scr_conwidth;
+extern cvar_t scr_conscale;
+extern cvar_t scr_scale;
+extern cvar_t scr_crosshairscale;
+// johnfitz
 
-extern int scr_tileclear_updates; //johnfitz
+extern int scr_tileclear_updates; // johnfitz
 
-#endif	/* _QUAKE_SCREEN_H */
-
+#endif /* _QUAKE_SCREEN_H */

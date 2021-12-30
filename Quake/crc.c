@@ -27,9 +27,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // and the initial and final xor values shown below...  in other words, the
 // CCITT standard CRC used by XMODEM
 
-#define CRC_INIT_VALUE	0xffff
-#define CRC_XOR_VALUE	0x0000
+#define CRC_INIT_VALUE 0xffff
+#define CRC_XOR_VALUE  0x0000
 
+// clang-format off
 static unsigned short crctable[256] =
 {
 	0x0000,	0x1021,	0x2042,	0x3063,	0x4084,	0x50a5,	0x60c6,	0x70e7,
@@ -65,26 +66,27 @@ static unsigned short crctable[256] =
 	0xef1f,	0xff3e,	0xcf5d,	0xdf7c,	0xaf9b,	0xbfba,	0x8fd9,	0x9ff8,
 	0x6e17,	0x7e36,	0x4e55,	0x5e74,	0x2e93,	0x3eb2,	0x0ed1,	0x1ef0
 };
+// clang-format on
 
-void CRC_Init(unsigned short *crcvalue)
+void CRC_Init (unsigned short *crcvalue)
 {
 	*crcvalue = CRC_INIT_VALUE;
 }
 
-void CRC_ProcessByte(unsigned short *crcvalue, byte data)
+void CRC_ProcessByte (unsigned short *crcvalue, byte data)
 {
 	*crcvalue = (*crcvalue << 8) ^ crctable[(*crcvalue >> 8) ^ data];
 }
 
-unsigned short CRC_Value(unsigned short crcvalue)
+unsigned short CRC_Value (unsigned short crcvalue)
 {
 	return crcvalue ^ CRC_XOR_VALUE;
 }
 
-//johnfitz -- texture crc
+// johnfitz -- texture crc
 unsigned short CRC_Block (const byte *start, int count)
 {
-	unsigned short	crc;
+	unsigned short crc;
 
 	CRC_Init (&crc);
 	while (count--)

@@ -7,7 +7,6 @@
 
 extern snd_codec_t flac_codec;
 
-#endif	/* USE_CODEC_FLAC */
+#endif /* USE_CODEC_FLAC */
 
-#endif	/* ! _SND_FLAC_H_ */
-
+#endif /* ! _SND_FLAC_H_ */

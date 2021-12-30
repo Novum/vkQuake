@@ -32,8 +32,7 @@ void IN_Commands (void);
 // oportunity for devices to stick commands on the script buffer
 
 // mouse moved by dx and dy pixels
-void IN_MouseMotion(int dx, int dy);
-
+void IN_MouseMotion (int dx, int dy);
 
 void IN_SendKeyEvents (void);
 // used as a callback for Sys_SendKeyEvents() by some drivers
@@ -53,5 +52,4 @@ void IN_Activate ();
 // called when the app becomes inactive
 void IN_Deactivate (qboolean free_cursor);
 
-#endif	/* _QUAKE_INPUT_H */
-
+#endif /* _QUAKE_INPUT_H */

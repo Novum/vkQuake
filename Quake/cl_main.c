@@ -28,68 +28,68 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // references them even when on a unix system.
 
 // these two are not intended to be set directly
-cvar_t	cl_name = {"_cl_name", "player", CVAR_ARCHIVE};
-cvar_t	cl_color = {"_cl_color", "0", CVAR_ARCHIVE};
+cvar_t cl_name = {"_cl_name", "player", CVAR_ARCHIVE};
+cvar_t cl_color = {"_cl_color", "0", CVAR_ARCHIVE};
 
-cvar_t	cl_shownet = {"cl_shownet","0",CVAR_NONE};	// can be 0, 1, or 2
-cvar_t	cl_nolerp = {"cl_nolerp","0",CVAR_NONE};
+cvar_t cl_shownet = {"cl_shownet", "0", CVAR_NONE}; // can be 0, 1, or 2
+cvar_t cl_nolerp = {"cl_nolerp", "0", CVAR_NONE};
 
-cvar_t	cfg_unbindall = {"cfg_unbindall", "1", CVAR_ARCHIVE};
+cvar_t cfg_unbindall = {"cfg_unbindall", "1", CVAR_ARCHIVE};
 
-cvar_t	lookspring = {"lookspring","0", CVAR_ARCHIVE};
-cvar_t	lookstrafe = {"lookstrafe","0", CVAR_ARCHIVE};
-cvar_t	sensitivity = {"sensitivity","3", CVAR_ARCHIVE};
+cvar_t lookspring = {"lookspring", "0", CVAR_ARCHIVE};
+cvar_t lookstrafe = {"lookstrafe", "0", CVAR_ARCHIVE};
+cvar_t sensitivity = {"sensitivity", "3", CVAR_ARCHIVE};
 
-cvar_t	m_pitch = {"m_pitch","0.022", CVAR_ARCHIVE};
-cvar_t	m_yaw = {"m_yaw","0.022", CVAR_ARCHIVE};
-cvar_t	m_forward = {"m_forward","1", CVAR_ARCHIVE};
-cvar_t	m_side = {"m_side","0.8", CVAR_ARCHIVE};
+cvar_t m_pitch = {"m_pitch", "0.022", CVAR_ARCHIVE};
+cvar_t m_yaw = {"m_yaw", "0.022", CVAR_ARCHIVE};
+cvar_t m_forward = {"m_forward", "1", CVAR_ARCHIVE};
+cvar_t m_side = {"m_side", "0.8", CVAR_ARCHIVE};
 
-cvar_t	cl_maxpitch = {"cl_maxpitch", "90", CVAR_ARCHIVE}; //johnfitz -- variable pitch clamping
-cvar_t	cl_minpitch = {"cl_minpitch", "-90", CVAR_ARCHIVE}; //johnfitz -- variable pitch clamping
+cvar_t cl_maxpitch = {"cl_maxpitch", "90", CVAR_ARCHIVE};  // johnfitz -- variable pitch clamping
+cvar_t cl_minpitch = {"cl_minpitch", "-90", CVAR_ARCHIVE}; // johnfitz -- variable pitch clamping
 
-client_static_t	cls;
-client_state_t	cl;
+client_static_t cls;
+client_state_t  cl;
 // FIXME: put these on hunk?
-lightstyle_t	cl_lightstyle[MAX_LIGHTSTYLES];
-dlight_t		cl_dlights[MAX_DLIGHTS];
+lightstyle_t    cl_lightstyle[MAX_LIGHTSTYLES];
+dlight_t        cl_dlights[MAX_DLIGHTS];
 
-int				cl_numvisedicts;
-int				cl_maxvisedicts;
-entity_t		**cl_visedicts;
+int        cl_numvisedicts;
+int        cl_maxvisedicts;
+entity_t **cl_visedicts;
 
-extern cvar_t	r_lerpmodels, r_lerpmove; //johnfitz
-extern float	host_netinterval;	//Spike
+extern cvar_t r_lerpmodels, r_lerpmove; // johnfitz
+extern float  host_netinterval;         // Spike
 
 #ifdef PSET_SCRIPT
-void CL_ClearTrailStates(void)
+void CL_ClearTrailStates (void)
 {
 	int i;
 	for (i = 0; i < cl.num_statics; i++)
 	{
-		PScript_DelinkTrailstate(&(cl.static_entities[i]->trailstate));
-		PScript_DelinkTrailstate(&(cl.static_entities[i]->emitstate));
+		PScript_DelinkTrailstate (&(cl.static_entities[i]->trailstate));
+		PScript_DelinkTrailstate (&(cl.static_entities[i]->emitstate));
 	}
 	for (i = 0; i < cl.max_edicts; i++)
 	{
-		PScript_DelinkTrailstate(&(cl.entities[i].trailstate));
-		PScript_DelinkTrailstate(&(cl.entities[i].emitstate));
+		PScript_DelinkTrailstate (&(cl.entities[i].trailstate));
+		PScript_DelinkTrailstate (&(cl.entities[i].emitstate));
 	}
 	for (i = 0; i < MAX_BEAMS; i++)
 	{
-		PScript_DelinkTrailstate(&(cl_beams[i].trailstate));
+		PScript_DelinkTrailstate (&(cl_beams[i].trailstate));
 	}
 }
 #endif
 
-void CL_FreeState(void)
+void CL_FreeState (void)
 {
 	int i;
 	for (i = 0; i < MAX_CL_STATS; i++)
-		free(cl.statss[i]);
-	PR_ClearProgs(&cl.qcvm);
-	free(cl.static_entities);
-	memset (&cl, 0, sizeof(cl));
+		free (cl.statss[i]);
+	PR_ClearProgs (&cl.qcvm);
+	free (cl.static_entities);
+	memset (&cl, 0, sizeof (cl));
 }
 
 /*
@@ -103,25 +103,25 @@ void CL_ClearState (void)
 	if (!sv.active)
 		Host_ClearMemory ();
 
-// wipe the entire cl structure
-	CL_FreeState();
+	// wipe the entire cl structure
+	CL_FreeState ();
 
 	SZ_Clear (&cls.message);
 
-// clear other arrays
-	memset (cl_dlights, 0, sizeof(cl_dlights));
-	memset (cl_lightstyle, 0, sizeof(cl_lightstyle));
-	memset (cl_temp_entities, 0, sizeof(cl_temp_entities));
-	memset (cl_beams, 0, sizeof(cl_beams));
+	// clear other arrays
+	memset (cl_dlights, 0, sizeof (cl_dlights));
+	memset (cl_lightstyle, 0, sizeof (cl_lightstyle));
+	memset (cl_temp_entities, 0, sizeof (cl_temp_entities));
+	memset (cl_beams, 0, sizeof (cl_beams));
 
-	//johnfitz -- cl_entities is now dynamically allocated
-	cl.max_edicts = CLAMP (MIN_EDICTS,(int)max_edicts.value,MAX_EDICTS);
-	cl.entities = (entity_t *) Hunk_AllocName (cl.max_edicts*sizeof(entity_t), "cl_entities");
-	//johnfitz
+	// johnfitz -- cl_entities is now dynamically allocated
+	cl.max_edicts = CLAMP (MIN_EDICTS, (int)max_edicts.value, MAX_EDICTS);
+	cl.entities = (entity_t *)Hunk_AllocName (cl.max_edicts * sizeof (entity_t), "cl_entities");
+	// johnfitz
 
-	//Spike -- this stuff needs to get reset to defaults.
+	// Spike -- this stuff needs to get reset to defaults.
 #ifdef PSET_SCRIPT
-	PScript_Shutdown();
+	PScript_Shutdown ();
 #endif
 }
 
@@ -136,14 +136,14 @@ This is also called on Host_Error, so it shouldn't cause any errors
 void CL_Disconnect (void)
 {
 	if (key_dest == key_message)
-		Key_EndChat ();	// don't get stuck in chat mode
+		Key_EndChat (); // don't get stuck in chat mode
 
-// stop sounds (especially looping!)
+	// stop sounds (especially looping!)
 	S_StopAllSounds (true);
-	BGM_Stop();
-	CDAudio_Stop();
+	BGM_Stop ();
+	CDAudio_Stop ();
 
-// if running a local server, shut it down
+	// if running a local server, shut it down
 	if (cls.demoplayback)
 		CL_StopPlayback ();
 	else if (cls.state == ca_connected)
@@ -161,7 +161,7 @@ void CL_Disconnect (void)
 
 		cls.state = ca_disconnected;
 		if (sv.active)
-			Host_ShutdownServer(false);
+			Host_ShutdownServer (false);
 	}
 
 	cls.demoplayback = cls.timedemo = false;
@@ -179,7 +179,6 @@ void CL_Disconnect_f (void)
 	if (sv.active)
 		Host_ShutdownServer (false);
 }
-
 
 /*
 =====================
@@ -203,20 +202,20 @@ void CL_EstablishConnection (const char *host)
 		Host_Error ("CL_Connect: connect failed\n");
 	Con_DPrintf ("CL_EstablishConnection: connected to %s\n", host);
 
-	cls.demonum = -1;			// not in the demo loop now
+	cls.demonum = -1; // not in the demo loop now
 	cls.state = ca_connected;
-	cls.signon = 0;				// need all the signon messages before playing
-	MSG_WriteByte (&cls.message, clc_nop);	// NAT Fix from ProQuake
+	cls.signon = 0;                        // need all the signon messages before playing
+	MSG_WriteByte (&cls.message, clc_nop); // NAT Fix from ProQuake
 }
 
-void CL_SendInitialUserinfo(void *ctx, const char *key, const char *val)
+void CL_SendInitialUserinfo (void *ctx, const char *key, const char *val)
 {
 	if (*key == '*')
-		return;	//servers don't like that sort of userinfo key
-	if (!strcmp(key, "name"))
-		return;	//already unconditionally sent earlier.
+		return; // servers don't like that sort of userinfo key
+	if (!strcmp (key, "name"))
+		return; // already unconditionally sent earlier.
 	MSG_WriteByte (&cls.message, clc_stringcmd);
-	MSG_WriteString (&cls.message, va("setinfo \"%s\" \"%s\"\n", key, val));
+	MSG_WriteString (&cls.message, va ("setinfo \"%s\" \"%s\"\n", key, val));
 }
 /*
 =====================
@@ -227,7 +226,7 @@ An svc_signonnum has been received, perform a client side setup
 */
 void CL_SignonReply (void)
 {
-	char 	str[8192];
+	char str[8192];
 
 	Con_DPrintf ("CL_SignonReply: %i\n", cls.signon);
 
@@ -235,14 +234,14 @@ void CL_SignonReply (void)
 	{
 	case 1:
 		MSG_WriteByte (&cls.message, clc_stringcmd);
-		MSG_WriteString (&cls.message, va("name \"%s\"\n", cl_name.string));
+		MSG_WriteString (&cls.message, va ("name \"%s\"\n", cl_name.string));
 
 		cl.sendprespawn = true;
 		break;
 
 	case 2:
 		if (*cl.serverinfo)
-			Info_Enumerate(cls.userinfo, CL_SendInitialUserinfo, NULL);
+			Info_Enumerate (cls.userinfo, CL_SendInitialUserinfo, NULL);
 
 		MSG_WriteByte (&cls.message, clc_stringcmd);
 		sprintf (str, "spawn %s", cls.spawnparms);
@@ -252,15 +251,14 @@ void CL_SignonReply (void)
 	case 3:
 		MSG_WriteByte (&cls.message, clc_stringcmd);
 		MSG_WriteString (&cls.message, "begin");
-		Cache_Report ();		// print remaining memory
+		Cache_Report (); // print remaining memory
 		break;
 
 	case 4:
-		SCR_EndLoadingPlaque ();		// allow normal screen updates
+		SCR_EndLoadingPlaque (); // allow normal screen updates
 		break;
 	}
 }
-
 
 /*
 =====================
@@ -271,10 +269,10 @@ Called to play the next demo in the demo loop
 */
 void CL_NextDemo (void)
 {
-	char	str[1024];
+	char str[1024];
 
 	if (cls.demonum == -1)
-		return;		// don't play demos
+		return; // don't play demos
 
 	if (!cls.demos[cls.demonum][0] || cls.demonum == MAX_DEMOS)
 	{
@@ -283,14 +281,14 @@ void CL_NextDemo (void)
 		{
 			Con_Printf ("No demos listed with startdemos\n");
 			cls.demonum = -1;
-			CL_Disconnect();
+			CL_Disconnect ();
 			return;
 		}
 	}
 
 	SCR_BeginLoadingPlaque ();
 
-	sprintf (str,"playdemo %s\n", cls.demos[cls.demonum]);
+	sprintf (str, "playdemo %s\n", cls.demos[cls.demonum]);
 	Cbuf_InsertText (str);
 	cls.demonum++;
 }
@@ -302,22 +300,23 @@ CL_PrintEntities_f
 */
 void CL_PrintEntities_f (void)
 {
-	entity_t	*ent;
-	int			i;
+	entity_t *ent;
+	int       i;
 
 	if (cls.state != ca_connected)
 		return;
 
-	for (i=0,ent=cl.entities ; i<cl.num_entities ; i++,ent++)
+	for (i = 0, ent = cl.entities; i < cl.num_entities; i++, ent++)
 	{
-		Con_Printf ("%3i:",i);
+		Con_Printf ("%3i:", i);
 		if (!ent->model)
 		{
 			Con_Printf ("EMPTY\n");
 			continue;
 		}
-		Con_Printf ("%s:%2i  (%5.1f,%5.1f,%5.1f) [%5.1f %5.1f %5.1f]\n"
-		,ent->model->name,ent->frame, ent->origin[0], ent->origin[1], ent->origin[2], ent->angles[0], ent->angles[1], ent->angles[2]);
+		Con_Printf (
+			"%s:%2i  (%5.1f,%5.1f,%5.1f) [%5.1f %5.1f %5.1f]\n", ent->model->name, ent->frame, ent->origin[0], ent->origin[1], ent->origin[2], ent->angles[0],
+			ent->angles[1], ent->angles[2]);
 	}
 }
 
@@ -329,45 +328,44 @@ CL_AllocDlight
 */
 dlight_t *CL_AllocDlight (int key)
 {
-	int		i;
-	dlight_t	*dl;
+	int       i;
+	dlight_t *dl;
 
-// first look for an exact key match
+	// first look for an exact key match
 	if (key)
 	{
 		dl = cl_dlights;
-		for (i=0 ; i<MAX_DLIGHTS ; i++, dl++)
+		for (i = 0; i < MAX_DLIGHTS; i++, dl++)
 		{
 			if (dl->key == key)
 			{
-				memset (dl, 0, sizeof(*dl));
+				memset (dl, 0, sizeof (*dl));
 				dl->key = key;
-				dl->color[0] = dl->color[1] = dl->color[2] = 1; //johnfitz -- lit support via lordhavoc
+				dl->color[0] = dl->color[1] = dl->color[2] = 1; // johnfitz -- lit support via lordhavoc
 				return dl;
 			}
 		}
 	}
 
-// then look for anything else
+	// then look for anything else
 	dl = cl_dlights;
-	for (i=0 ; i<MAX_DLIGHTS ; i++, dl++)
+	for (i = 0; i < MAX_DLIGHTS; i++, dl++)
 	{
 		if (dl->die < cl.time)
 		{
-			memset (dl, 0, sizeof(*dl));
+			memset (dl, 0, sizeof (*dl));
 			dl->key = key;
-			dl->color[0] = dl->color[1] = dl->color[2] = 1; //johnfitz -- lit support via lordhavoc
+			dl->color[0] = dl->color[1] = dl->color[2] = 1; // johnfitz -- lit support via lordhavoc
 			return dl;
 		}
 	}
 
 	dl = &cl_dlights[0];
-	memset (dl, 0, sizeof(*dl));
+	memset (dl, 0, sizeof (*dl));
 	dl->key = key;
-	dl->color[0] = dl->color[1] = dl->color[2] = 1; //johnfitz -- lit support via lordhavoc
+	dl->color[0] = dl->color[1] = dl->color[2] = 1; // johnfitz -- lit support via lordhavoc
 	return dl;
 }
-
 
 /*
 ===============
@@ -377,26 +375,25 @@ CL_DecayLights
 */
 void CL_DecayLights (void)
 {
-	int			i;
-	dlight_t	*dl;
-	float		time;
+	int       i;
+	dlight_t *dl;
+	float     time;
 
 	time = cl.time - cl.oldtime;
 	if (time < 0)
 		return;
 
 	dl = cl_dlights;
-	for (i=0 ; i<MAX_DLIGHTS ; i++, dl++)
+	for (i = 0; i < MAX_DLIGHTS; i++, dl++)
 	{
 		if (dl->die < cl.time || !dl->radius)
 			continue;
 
-		dl->radius -= time*dl->decay;
+		dl->radius -= time * dl->decay;
 		if (dl->radius < 0)
 			dl->radius = 0;
 	}
 }
-
 
 /*
 ===============
@@ -406,9 +403,9 @@ Determines the fraction between the last two messages that the objects
 should be put at.
 ===============
 */
-float	CL_LerpPoint (void)
+float CL_LerpPoint (void)
 {
-	float	f, frac;
+	float f, frac;
 
 	f = cl.mtime[0] - cl.mtime[1];
 
@@ -439,76 +436,76 @@ float	CL_LerpPoint (void)
 		frac = 1;
 	}
 
-	//johnfitz -- better nolerp behavior
+	// johnfitz -- better nolerp behavior
 	if (cl_nolerp.value)
 		return 1;
-	//johnfitz
+	// johnfitz
 
 	return frac;
 }
 
-static qboolean CL_LerpEntity(entity_t *ent, vec3_t org, vec3_t ang, float frac)
+static qboolean CL_LerpEntity (entity_t *ent, vec3_t org, vec3_t ang, float frac)
 {
-	float f, d;
-	int j;
-	vec3_t delta;
+	float    f, d;
+	int      j;
+	vec3_t   delta;
 	qboolean teleported = false;
-	//figure out the pos+angles of the parent
+	// figure out the pos+angles of the parent
 	if (ent->forcelink)
-	{	// the entity was not updated in the last message
+	{ // the entity was not updated in the last message
 		// so move to the final spot
 		VectorCopy (ent->msg_origins[0], org);
 		VectorCopy (ent->msg_angles[0], ang);
 	}
 	else
-	{	// if the delta is large, assume a teleport and don't lerp
+	{ // if the delta is large, assume a teleport and don't lerp
 		f = frac;
-		for (j=0 ; j<3 ; j++)
+		for (j = 0; j < 3; j++)
 		{
 			delta[j] = ent->msg_origins[0][j] - ent->msg_origins[1][j];
 			if (delta[j] > 100 || delta[j] < -100)
 			{
-				f = 1;		// assume a teleportation, not a motion
-				teleported = true;	//johnfitz -- don't lerp teleports
+				f = 1;             // assume a teleportation, not a motion
+				teleported = true; // johnfitz -- don't lerp teleports
 			}
 		}
 
-		//johnfitz -- don't cl_lerp entities that will be r_lerped
+		// johnfitz -- don't cl_lerp entities that will be r_lerped
 		if (r_lerpmove.value && (ent->lerpflags & LERP_MOVESTEP))
 			f = 1;
-		//johnfitz
+		// johnfitz
 
-	// interpolate the origin and angles
-		for (j=0 ; j<3 ; j++)
+		// interpolate the origin and angles
+		for (j = 0; j < 3; j++)
 		{
-			org[j] = ent->msg_origins[1][j] + f*delta[j];
+			org[j] = ent->msg_origins[1][j] + f * delta[j];
 
 			d = ent->msg_angles[0][j] - ent->msg_angles[1][j];
 			if (d > 180)
 				d -= 360;
 			else if (d < -180)
 				d += 360;
-			ang[j] = ent->msg_angles[1][j] + f*d;
+			ang[j] = ent->msg_angles[1][j] + f * d;
 		}
 	}
 	return teleported;
 }
 
-static qboolean CL_AttachEntity(entity_t *ent, float frac)
+static qboolean CL_AttachEntity (entity_t *ent, float frac)
 {
-	entity_t *parent;
-	vec3_t porg, pang;
-	vec3_t paxis[3];
-	vec3_t tmp, fwd, up;
+	entity_t    *parent;
+	vec3_t       porg, pang;
+	vec3_t       paxis[3];
+	vec3_t       tmp, fwd, up;
 	unsigned int tagent = ent->netstate.tagentity;
-	int runaway = 0;
+	int          runaway = 0;
 
-	while(1)
+	while (1)
 	{
 		if (!tagent)
-			return true;	//nothing to do.
-		if (runaway++==10 || tagent >= (unsigned int)cl.num_entities)
-			return false;	//parent isn't valid
+			return true; // nothing to do.
+		if (runaway++ == 10 || tagent >= (unsigned int)cl.num_entities)
+			return false; // parent isn't valid
 		parent = &cl.entities[tagent];
 
 		if (tagent == cl.viewentity)
@@ -516,54 +513,54 @@ static qboolean CL_AttachEntity(entity_t *ent, float frac)
 
 		if (!parent->model)
 			return false;
-		if (0)//tagent < ent-cl_entities)
+		if (0) // tagent < ent-cl_entities)
 		{
 			tagent = parent->netstate.tagentity;
-			VectorCopy(parent->origin, porg);
-			VectorCopy(parent->angles, pang);
+			VectorCopy (parent->origin, porg);
+			VectorCopy (parent->angles, pang);
 		}
 		else
 		{
 			tagent = parent->netstate.tagentity;
-			CL_LerpEntity(parent, porg, pang, frac);
+			CL_LerpEntity (parent, porg, pang, frac);
 		}
 
-		//FIXME: this code needs to know the exact lerp info of the underlaying model.
-		//however for some idiotic reason, someone decided to figure out what should be displayed somewhere far removed from the code that deals with timing
-		//so we have absolutely no way to get a reliable origin
-		//in the meantime, r_lerpmove 0; r_lerpmodels 0
-		//you might be able to work around it by setting the attached entity to movetype_step to match the attachee, and to avoid EF_MUZZLEFLASH.
-		//personally I'm just going to call it a quakespasm bug that I cba to fix.
+		// FIXME: this code needs to know the exact lerp info of the underlaying model.
+		// however for some idiotic reason, someone decided to figure out what should be displayed somewhere far removed from the code that deals with timing
+		// so we have absolutely no way to get a reliable origin
+		// in the meantime, r_lerpmove 0; r_lerpmodels 0
+		// you might be able to work around it by setting the attached entity to movetype_step to match the attachee, and to avoid EF_MUZZLEFLASH.
+		// personally I'm just going to call it a quakespasm bug that I cba to fix.
 
-		//FIXME: update porg+pang according to the tag index (we don't support md3s/iqms, so we don't need to do anything here yet)
+		// FIXME: update porg+pang according to the tag index (we don't support md3s/iqms, so we don't need to do anything here yet)
 
 		if (parent->model && parent->model->type == mod_alias)
 			pang[0] *= -1;
-		AngleVectors(pang, paxis[0], paxis[1], paxis[2]);
+		AngleVectors (pang, paxis[0], paxis[1], paxis[2]);
 
 		if (ent->model && ent->model->type == mod_alias)
 			ent->angles[0] *= -1;
-		AngleVectors(ent->angles, fwd, tmp, up);
+		AngleVectors (ent->angles, fwd, tmp, up);
 
-		//transform the origin
-		VectorMA(parent->origin, ent->origin[0], paxis[0], tmp);
-		VectorMA(tmp, -ent->origin[1], paxis[1], tmp);
-		VectorMA(tmp, ent->origin[2], paxis[2], ent->origin);
+		// transform the origin
+		VectorMA (parent->origin, ent->origin[0], paxis[0], tmp);
+		VectorMA (tmp, -ent->origin[1], paxis[1], tmp);
+		VectorMA (tmp, ent->origin[2], paxis[2], ent->origin);
 
-		//transform the forward vector
-		VectorMA(vec3_origin, fwd[0], paxis[0], tmp);
-		VectorMA(tmp, -fwd[1], paxis[1], tmp);
-		VectorMA(tmp, fwd[2], paxis[2], fwd);
-		//transform the up vector
-		VectorMA(vec3_origin, up[0], paxis[0], tmp);
-		VectorMA(tmp, -up[1], paxis[1], tmp);
-		VectorMA(tmp, up[2], paxis[2], up);
-		//regenerate the new angles.
-		VectorAngles(fwd, up, ent->angles);
+		// transform the forward vector
+		VectorMA (vec3_origin, fwd[0], paxis[0], tmp);
+		VectorMA (tmp, -fwd[1], paxis[1], tmp);
+		VectorMA (tmp, fwd[2], paxis[2], fwd);
+		// transform the up vector
+		VectorMA (vec3_origin, up[0], paxis[0], tmp);
+		VectorMA (tmp, -up[1], paxis[1], tmp);
+		VectorMA (tmp, up[2], paxis[2], up);
+		// regenerate the new angles.
+		VectorAngles (fwd, up, ent->angles);
 		if (ent->model && ent->model->type == mod_alias)
 			ent->angles[0] *= -1;
 
-		ent->eflags |= parent->netstate.eflags & (EFLAGS_VIEWMODEL|EFLAGS_EXTERIORMODEL);
+		ent->eflags |= parent->netstate.eflags & (EFLAGS_VIEWMODEL | EFLAGS_EXTERIORMODEL);
 	}
 }
 
@@ -574,16 +571,16 @@ CL_RelinkEntities
 */
 void CL_RelinkEntities (void)
 {
-	entity_t	*ent;
-	int			i, j;
-	float		frac, d;
-	float		bobjrotate;
-	vec3_t		oldorg;
-	dlight_t	*dl;
-	float		frametime;
-	int			modelflags;
+	entity_t *ent;
+	int       i, j;
+	float     frac, d;
+	float     bobjrotate;
+	vec3_t    oldorg;
+	dlight_t *dl;
+	float     frametime;
+	int       modelflags;
 
-// determine partial update time
+	// determine partial update time
 	frac = CL_LerpPoint ();
 
 	frametime = cl.time - cl.oldtime;
@@ -594,74 +591,73 @@ void CL_RelinkEntities (void)
 
 	if (cl_numvisedicts + 64 > cl_maxvisedicts)
 	{
-		cl_maxvisedicts = cl_maxvisedicts+64;
-		cl_visedicts = realloc(cl_visedicts, sizeof(*cl_visedicts)*cl_maxvisedicts);
+		cl_maxvisedicts = cl_maxvisedicts + 64;
+		cl_visedicts = realloc (cl_visedicts, sizeof (*cl_visedicts) * cl_maxvisedicts);
 	}
 	cl_numvisedicts = 0;
 
-//
-// interpolate player info
-//
-	for (i=0 ; i<3 ; i++)
-		cl.velocity[i] = cl.mvelocity[1][i] +
-			frac * (cl.mvelocity[0][i] - cl.mvelocity[1][i]);
+	//
+	// interpolate player info
+	//
+	for (i = 0; i < 3; i++)
+		cl.velocity[i] = cl.mvelocity[1][i] + frac * (cl.mvelocity[0][i] - cl.mvelocity[1][i]);
 
 	if (cls.demoplayback)
 	{
-	// interpolate the angles
-		for (j=0 ; j<3 ; j++)
+		// interpolate the angles
+		for (j = 0; j < 3; j++)
 		{
 			d = cl.mviewangles[0][j] - cl.mviewangles[1][j];
 			if (d > 180)
 				d -= 360;
 			else if (d < -180)
 				d += 360;
-			cl.viewangles[j] = cl.mviewangles[1][j] + frac*d;
+			cl.viewangles[j] = cl.mviewangles[1][j] + frac * d;
 		}
 	}
 
-	bobjrotate = anglemod(100*cl.time);
+	bobjrotate = anglemod (100 * cl.time);
 
-// start on the entity after the world
+	// start on the entity after the world
 	ent = (cl.entities != NULL) ? (cl.entities + 1) : NULL;
-	for (i=1; i<cl.num_entities ; i++,ent++)
+	for (i = 1; i < cl.num_entities; i++, ent++)
 	{
 		if (!ent->model)
-		{	// empty slot, ish.
-			
+		{ // empty slot, ish.
+
 			// ericw -- efrags are only used for static entities in GLQuake
 			// ent can't be static, so this is a no-op.
-			//if (ent->forcelink)
+			// if (ent->forcelink)
 			//	R_RemoveEfrags (ent);	// just became empty
 			continue;
 		}
 		ent->eflags = ent->netstate.eflags;
 
-// if the object wasn't included in the last packet, remove it
+		// if the object wasn't included in the last packet, remove it
 		if (ent->msgtime != cl.mtime[0])
 		{
 			ent->model = NULL;
-			ent->lerpflags |= LERP_RESETMOVE|LERP_RESETANIM; //johnfitz -- next time this entity slot is reused, the lerp will need to be reset
-			InvalidateTraceLineCache();
+			ent->lerpflags |= LERP_RESETMOVE | LERP_RESETANIM; // johnfitz -- next time this entity slot is reused, the lerp will need to be reset
+			InvalidateTraceLineCache ();
 			continue;
 		}
 
 		VectorCopy (ent->origin, oldorg);
 
-		if (CL_LerpEntity(ent, ent->origin, ent->angles, frac))
+		if (CL_LerpEntity (ent, ent->origin, ent->angles, frac))
 			ent->lerpflags |= LERP_RESETMOVE;
 
 		if (ent->netstate.tagentity)
-		if (!CL_AttachEntity(ent, frac))
-		{
-			//can't draw it if we don't know where its parent is.
-			continue;
-		}
+			if (!CL_AttachEntity (ent, frac))
+			{
+				// can't draw it if we don't know where its parent is.
+				continue;
+			}
 
-		modelflags = (ent->effects>>24)&0xff;
+		modelflags = (ent->effects >> 24) & 0xff;
 		modelflags |= ent->model->flags;
 
-// rotate binary objects locally
+		// rotate binary objects locally
 		if (modelflags & EF_ROTATE)
 			ent->angles[1] = bobjrotate;
 
@@ -670,41 +666,41 @@ void CL_RelinkEntities (void)
 
 		if (ent->effects & EF_MUZZLEFLASH)
 		{
-			vec3_t		fv, rv, uv;
+			vec3_t fv, rv, uv;
 
 			dl = CL_AllocDlight (i);
-			VectorCopy (ent->origin,  dl->origin);
+			VectorCopy (ent->origin, dl->origin);
 			dl->origin[2] += 16;
 			AngleVectors (ent->angles, fv, rv, uv);
 
 			VectorMA (dl->origin, 18, fv, dl->origin);
-			dl->radius = 200 + (rand()&31);
+			dl->radius = 200 + (rand () & 31);
 			dl->minlight = 32;
 			dl->die = cl.time + 0.1;
 
-			//johnfitz -- assume muzzle flash accompanied by muzzle flare, which looks bad when lerped
+			// johnfitz -- assume muzzle flash accompanied by muzzle flare, which looks bad when lerped
 			if (r_lerpmodels.value != 2)
 			{
 				if (ent == &cl.entities[cl.viewentity])
-					cl.viewent.lerpflags |= LERP_RESETANIM|LERP_RESETANIM2; //no lerping for two frames
+					cl.viewent.lerpflags |= LERP_RESETANIM | LERP_RESETANIM2; // no lerping for two frames
 				else
-				ent->lerpflags |= LERP_RESETANIM|LERP_RESETANIM2; //no lerping for two frames
+					ent->lerpflags |= LERP_RESETANIM | LERP_RESETANIM2; // no lerping for two frames
 			}
-			//johnfitz
+			// johnfitz
 		}
 		if (ent->effects & EF_BRIGHTLIGHT)
 		{
 			dl = CL_AllocDlight (i);
-			VectorCopy (ent->origin,  dl->origin);
+			VectorCopy (ent->origin, dl->origin);
 			dl->origin[2] += 16;
-			dl->radius = 400 + (rand()&31);
+			dl->radius = 400 + (rand () & 31);
 			dl->die = cl.time + 0.001;
 		}
 		if (ent->effects & EF_DIMLIGHT)
 		{
 			dl = CL_AllocDlight (i);
-			VectorCopy (ent->origin,  dl->origin);
-			dl->radius = 200 + (rand()&31);
+			VectorCopy (ent->origin, dl->origin);
+			dl->radius = 200 + (rand () & 31);
 			dl->die = cl.time + 0.001;
 		}
 
@@ -714,18 +710,18 @@ void CL_RelinkEntities (void)
 		else if (ent->netstate.traileffectnum > 0 && ent->netstate.traileffectnum < MAX_PARTICLETYPES)
 		{
 			vec3_t axis[3];
-			AngleVectors(ent->angles, axis[0], axis[1], axis[2]);
-			PScript_ParticleTrail(oldorg, ent->origin, cl.particle_precache[ent->netstate.traileffectnum].index, frametime, i, axis, &ent->trailstate);
+			AngleVectors (ent->angles, axis[0], axis[1], axis[2]);
+			PScript_ParticleTrail (oldorg, ent->origin, cl.particle_precache[ent->netstate.traileffectnum].index, frametime, i, axis, &ent->trailstate);
 		}
 		else if (ent->model->traileffect >= 0)
 		{
 			vec3_t axis[3];
-			AngleVectors(ent->angles, axis[0], axis[1], axis[2]);
-			PScript_ParticleTrail(oldorg, ent->origin, ent->model->traileffect, frametime, i, axis, &ent->trailstate);
+			AngleVectors (ent->angles, axis[0], axis[1], axis[2]);
+			PScript_ParticleTrail (oldorg, ent->origin, ent->model->traileffect, frametime, i, axis, &ent->trailstate);
 		}
 		else
 #endif
-		if (ent->model->flags & EF_GIB)
+			if (ent->model->flags & EF_GIB)
 			R_RocketTrail (oldorg, ent->origin, 2);
 		else if (ent->model->flags & EF_ZOMGIB)
 			R_RocketTrail (oldorg, ent->origin, 4);
@@ -752,23 +748,23 @@ void CL_RelinkEntities (void)
 		if (ent->netstate.emiteffectnum > 0)
 		{
 			vec3_t axis[3];
-			AngleVectors(ent->angles, axis[0], axis[1], axis[2]);
+			AngleVectors (ent->angles, axis[0], axis[1], axis[2]);
 			if (ent->model->type == mod_alias)
-				axis[0][2] *= -1;	//stupid vanilla bug
-			PScript_RunParticleEffectState(ent->origin, axis[0], frametime, cl.particle_precache[ent->netstate.emiteffectnum].index, &ent->emitstate);
+				axis[0][2] *= -1; // stupid vanilla bug
+			PScript_RunParticleEffectState (ent->origin, axis[0], frametime, cl.particle_precache[ent->netstate.emiteffectnum].index, &ent->emitstate);
 		}
 		else if (ent->model->emiteffect >= 0)
 		{
 			vec3_t axis[3];
-			AngleVectors(ent->angles, axis[0], axis[1], axis[2]);
+			AngleVectors (ent->angles, axis[0], axis[1], axis[2]);
 			if (ent->model->flags & MOD_EMITFORWARDS)
 			{
 				if (ent->model->type == mod_alias)
-					axis[0][2] *= -1;	//stupid vanilla bug
+					axis[0][2] *= -1; // stupid vanilla bug
 			}
 			else
-				VectorScale(axis[2], -1, axis[0]);
-			PScript_RunParticleEffectState(ent->origin, axis[0], frametime, ent->model->emiteffect, &ent->emitstate);
+				VectorScale (axis[2], -1, axis[0]);
+			PScript_RunParticleEffectState (ent->origin, axis[0], frametime, ent->model->emiteffect, &ent->emitstate);
 			if (ent->model->flags & MOD_EMITREPLACE)
 				continue;
 		}
@@ -784,35 +780,34 @@ void CL_RelinkEntities (void)
 		}
 	}
 
-	//johnfitz -- lerping
-	//ericw -- this was done before the upper 8 bits of cl.stats[STAT_WEAPON] were filled in, breaking on large maps like zendar.bsp
+	// johnfitz -- lerping
+	// ericw -- this was done before the upper 8 bits of cl.stats[STAT_WEAPON] were filled in, breaking on large maps like zendar.bsp
 	if (cl.viewent.model != cl.model_precache[cl.stats[STAT_WEAPON]])
 	{
-		cl.viewent.lerpflags |= LERP_RESETANIM; //don't lerp animation across model changes
+		cl.viewent.lerpflags |= LERP_RESETANIM; // don't lerp animation across model changes
 	}
-	//johnfitz
+	// johnfitz
 }
 
 #ifdef PSET_SCRIPT
-int CL_GenerateRandomParticlePrecache(const char *pname)
-{	//for dpp7 compat
+int CL_GenerateRandomParticlePrecache (const char *pname)
+{ // for dpp7 compat
 	size_t i;
-	pname = va("%s", pname);
+	pname = va ("%s", pname);
 	for (i = 1; i < MAX_PARTICLETYPES; i++)
 	{
 		if (!cl.particle_precache[i].name)
 		{
-			cl.particle_precache[i].name = strcpy(Hunk_Alloc(strlen(pname)+1), pname);
-			cl.particle_precache[i].index = PScript_FindParticleType(cl.particle_precache[i].name);
+			cl.particle_precache[i].name = strcpy (Hunk_Alloc (strlen (pname) + 1), pname);
+			cl.particle_precache[i].index = PScript_FindParticleType (cl.particle_precache[i].name);
 			return i;
 		}
-		if (!strcmp(cl.particle_precache[i].name, pname))
+		if (!strcmp (cl.particle_precache[i].name, pname))
 			return i;
 	}
 	return 0;
 }
 #endif
-
 
 /*
 ===============
@@ -823,14 +818,13 @@ Read all incoming data from the server
 */
 int CL_ReadFromServer (void)
 {
-	int			ret;
-	extern int	num_temp_entities; //johnfitz
-	int			num_beams = 0; //johnfitz
-	int			num_dlights = 0; //johnfitz
-	beam_t		*b; //johnfitz
-	dlight_t	*l; //johnfitz
-	int			i; //johnfitz
-
+	int        ret;
+	extern int num_temp_entities; // johnfitz
+	int        num_beams = 0;     // johnfitz
+	int        num_dlights = 0;   // johnfitz
+	beam_t    *b;                 // johnfitz
+	dlight_t  *l;                 // johnfitz
+	int        i;                 // johnfitz
 
 	cl.oldtime = cl.time;
 	cl.time += host_frametime;
@@ -853,43 +847,43 @@ int CL_ReadFromServer (void)
 	CL_RelinkEntities ();
 	CL_UpdateTEnts ();
 
-//johnfitz -- devstats
+	// johnfitz -- devstats
 
-	//visedicts
+	// visedicts
 	if (cl_numvisedicts > 256 && dev_peakstats.visedicts <= 256)
 		Con_DWarning ("%i visedicts exceeds standard limit of 256.\n", cl_numvisedicts);
 	dev_stats.visedicts = cl_numvisedicts;
-	dev_peakstats.visedicts = q_max(cl_numvisedicts, dev_peakstats.visedicts);
+	dev_peakstats.visedicts = q_max (cl_numvisedicts, dev_peakstats.visedicts);
 
-	//temp entities
+	// temp entities
 	if (num_temp_entities > 64 && dev_peakstats.tempents <= 64)
 		Con_DWarning ("%i tempentities exceeds standard limit of 64 (max = %d).\n", num_temp_entities, MAX_TEMP_ENTITIES);
 	dev_stats.tempents = num_temp_entities;
-	dev_peakstats.tempents = q_max(num_temp_entities, dev_peakstats.tempents);
+	dev_peakstats.tempents = q_max (num_temp_entities, dev_peakstats.tempents);
 
-	//beams
-	for (i=0, b=cl_beams ; i< MAX_BEAMS ; i++, b++)
+	// beams
+	for (i = 0, b = cl_beams; i < MAX_BEAMS; i++, b++)
 		if (b->model && b->endtime >= cl.time)
 			num_beams++;
 	if (num_beams > 24 && dev_peakstats.beams <= 24)
 		Con_DWarning ("%i beams exceeded standard limit of 24 (max = %d).\n", num_beams, MAX_BEAMS);
 	dev_stats.beams = num_beams;
-	dev_peakstats.beams = q_max(num_beams, dev_peakstats.beams);
+	dev_peakstats.beams = q_max (num_beams, dev_peakstats.beams);
 
-	//dlights
-	for (i=0, l=cl_dlights ; i<MAX_DLIGHTS ; i++, l++)
+	// dlights
+	for (i = 0, l = cl_dlights; i < MAX_DLIGHTS; i++, l++)
 		if (l->die >= cl.time && l->radius)
 			num_dlights++;
 	if (num_dlights > 32 && dev_peakstats.dlights <= 32)
 		Con_DWarning ("%i dlights exceeded standard limit of 32 (max = %d).\n", num_dlights, MAX_DLIGHTS);
 	dev_stats.dlights = num_dlights;
-	dev_peakstats.dlights = q_max(num_dlights, dev_peakstats.dlights);
+	dev_peakstats.dlights = q_max (num_dlights, dev_peakstats.dlights);
 
-//johnfitz
+	// johnfitz
 
-//
-// bring the links up to date
-//
+	//
+	// bring the links up to date
+	//
 	return 0;
 }
 
@@ -904,14 +898,14 @@ void CL_AccumulateCmd (void)
 {
 	if (cls.signon == SIGNONS)
 	{
-		//basic keyboard looking
+		// basic keyboard looking
 		CL_AdjustAngles ();
 
-		//accumulate movement from other devices
+		// accumulate movement from other devices
 		IN_Move (&cl.pendingcmd);
 	}
 
-	cl.pendingcmd.seconds		= cl.mtime[0] - cl.pendingcmd.servertime;
+	cl.pendingcmd.seconds = cl.mtime[0] - cl.pendingcmd.servertime;
 }
 
 /*
@@ -921,7 +915,7 @@ CL_SendCmd
 */
 void CL_SendCmd (void)
 {
-	usercmd_t		cmd;
+	usercmd_t cmd;
 
 	if (cls.state != ca_connected)
 		return;
@@ -930,20 +924,20 @@ void CL_SendCmd (void)
 	CL_BaseMove (&cmd);
 
 	// allow mice or other external controllers to add to the move
-	cmd.forwardmove	+= cl.pendingcmd.forwardmove;
-	cmd.sidemove	+= cl.pendingcmd.sidemove;
-	cmd.upmove		+= cl.pendingcmd.upmove;
-	cmd.sequence	= cl.movemessages;
-	cmd.servertime	= cl.time;
-	cmd.seconds		= cmd.servertime - cl.pendingcmd.servertime;
+	cmd.forwardmove += cl.pendingcmd.forwardmove;
+	cmd.sidemove += cl.pendingcmd.sidemove;
+	cmd.upmove += cl.pendingcmd.upmove;
+	cmd.sequence = cl.movemessages;
+	cmd.servertime = cl.time;
+	cmd.seconds = cmd.servertime - cl.pendingcmd.servertime;
 
-	CL_FinishMove(&cmd);
+	CL_FinishMove (&cmd);
 
 	if (cls.signon == SIGNONS)
-		CL_SendMove (&cmd);	// send the unreliable message
+		CL_SendMove (&cmd); // send the unreliable message
 	else
 		CL_SendMove (NULL);
-	memset(&cl.pendingcmd, 0, sizeof(cl.pendingcmd));
+	memset (&cl.pendingcmd, 0, sizeof (cl.pendingcmd));
 	cl.pendingcmd.servertime = cmd.servertime;
 
 	if (cls.demoplayback)
@@ -952,9 +946,9 @@ void CL_SendCmd (void)
 		return;
 	}
 
-// send the reliable message
+	// send the reliable message
 	if (!cls.message.cursize)
-		return;		// no message at all
+		return; // no message at all
 
 	if (!NET_CanSendMessage (cls.netcon))
 	{
@@ -977,15 +971,15 @@ display impact point of trace along VPN
 */
 void CL_Tracepos_f (void)
 {
-	vec3_t	v, w;
+	vec3_t v, w;
 
 	if (cls.state != ca_connected)
 		return;
 
-	VectorMA(r_refdef.vieworg, 8192.0, vpn, v);
-	TraceLine(r_refdef.vieworg, v, w);
+	VectorMA (r_refdef.vieworg, 8192.0, vpn, v);
+	TraceLine (r_refdef.vieworg, v, w);
 
-	if (VectorLength(w) == 0)
+	if (VectorLength (w) == 0)
 		Con_Printf ("Tracepos: trace didn't hit anything\n");
 	else
 		Con_Printf ("Tracepos: (%i %i %i)\n", (int)w[0], (int)w[1], (int)w[2]);
@@ -1012,27 +1006,23 @@ void CL_Viewpos_f (void)
 		(int)r_refdef.viewangles[YAW],
 		(int)r_refdef.viewangles[ROLL]);
 #else
-	//player position
-	Con_Printf ("Viewpos: (%i %i %i) %i %i %i\n",
-		(int)cl.entities[cl.viewentity].origin[0],
-		(int)cl.entities[cl.viewentity].origin[1],
-		(int)cl.entities[cl.viewentity].origin[2],
-		(int)cl.viewangles[PITCH],
-		(int)cl.viewangles[YAW],
-		(int)cl.viewangles[ROLL]);
+	// player position
+	Con_Printf (
+		"Viewpos: (%i %i %i) %i %i %i\n", (int)cl.entities[cl.viewentity].origin[0], (int)cl.entities[cl.viewentity].origin[1],
+		(int)cl.entities[cl.viewentity].origin[2], (int)cl.viewangles[PITCH], (int)cl.viewangles[YAW], (int)cl.viewangles[ROLL]);
 #endif
 }
 
-static void CL_ServerExtension_FullServerinfo_f(void)
+static void CL_ServerExtension_FullServerinfo_f (void)
 {
-	const char *newserverinfo = Cmd_Argv(1);
-	Q_strncpy(cl.serverinfo, newserverinfo, sizeof(cl.serverinfo));	//just replace it
+	const char *newserverinfo = Cmd_Argv (1);
+	Q_strncpy (cl.serverinfo, newserverinfo, sizeof (cl.serverinfo)); // just replace it
 }
-static void CL_ServerExtension_ServerinfoUpdate_f(void)
+static void CL_ServerExtension_ServerinfoUpdate_f (void)
 {
-	const char *newserverkey = Cmd_Argv(1);
-	const char *newservervalue = Cmd_Argv(2);
-	Info_SetKey(cl.serverinfo, sizeof(cl.serverinfo), newserverkey, newservervalue);
+	const char *newserverkey = Cmd_Argv (1);
+	const char *newservervalue = Cmd_Argv (2);
+	Info_SetKey (cl.serverinfo, sizeof (cl.serverinfo), newserverkey, newservervalue);
 }
 
 /*
@@ -1062,7 +1052,7 @@ void CL_Init (void)
 	Cvar_RegisterVariable (&lookspring);
 	Cvar_RegisterVariable (&lookstrafe);
 	Cvar_RegisterVariable (&sensitivity);
-	
+
 	Cvar_RegisterVariable (&cl_alwaysrun);
 
 	Cvar_RegisterVariable (&m_pitch);
@@ -1072,8 +1062,8 @@ void CL_Init (void)
 
 	Cvar_RegisterVariable (&cfg_unbindall);
 
-	Cvar_RegisterVariable (&cl_maxpitch); //johnfitz -- variable pitch clamping
-	Cvar_RegisterVariable (&cl_minpitch); //johnfitz -- variable pitch clamping
+	Cvar_RegisterVariable (&cl_maxpitch); // johnfitz -- variable pitch clamping
+	Cvar_RegisterVariable (&cl_minpitch); // johnfitz -- variable pitch clamping
 
 	Cmd_AddCommand ("entities", CL_PrintEntities_f);
 	Cmd_AddCommand ("disconnect", CL_Disconnect_f);
@@ -1082,11 +1072,10 @@ void CL_Init (void)
 	Cmd_AddCommand ("playdemo", CL_PlayDemo_f);
 	Cmd_AddCommand ("timedemo", CL_TimeDemo_f);
 
-	Cmd_AddCommand ("tracepos", CL_Tracepos_f); //johnfitz
-	Cmd_AddCommand ("viewpos", CL_Viewpos_f); //johnfitz
+	Cmd_AddCommand ("tracepos", CL_Tracepos_f); // johnfitz
+	Cmd_AddCommand ("viewpos", CL_Viewpos_f);   // johnfitz
 
-	//spike -- serverinfo stuff
+	// spike -- serverinfo stuff
 	Cmd_AddCommand_ServerCommand ("fullserverinfo", CL_ServerExtension_FullServerinfo_f);
 	Cmd_AddCommand_ServerCommand ("svi", CL_ServerExtension_ServerinfoUpdate_f);
 }
-

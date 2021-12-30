@@ -25,30 +25,28 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 typedef struct
 {
-	vec3_t	normal;
-	float	dist;
+	vec3_t normal;
+	float  dist;
 } plane_t;
 
 typedef struct
 {
-	qboolean	allsolid;	// if true, plane is not valid
-	qboolean	startsolid;	// if true, the initial point was in a solid area
-	qboolean	inopen, inwater;
-	float	fraction;		// time completed, 1.0 = didn't hit anything
-	vec3_t	endpos;			// final position
-	plane_t	plane;			// surface normal at impact
-	edict_t	*ent;			// entity the surface is on
+	qboolean allsolid;   // if true, plane is not valid
+	qboolean startsolid; // if true, the initial point was in a solid area
+	qboolean inopen, inwater;
+	float    fraction; // time completed, 1.0 = didn't hit anything
+	vec3_t   endpos;   // final position
+	plane_t  plane;    // surface normal at impact
+	edict_t *ent;      // entity the surface is on
 
-	int		contents;		// spike -- the content type(s) that we found.
+	int contents; // spike -- the content type(s) that we found.
 } trace_t;
 
+#define MOVE_NORMAL     0
+#define MOVE_NOMONSTERS 1
+#define MOVE_MISSILE    2
 
-#define	MOVE_NORMAL		0
-#define	MOVE_NOMONSTERS	1
-#define	MOVE_MISSILE	2
-
-#define MOVE_HITALLCONTENTS (1<<9)
-
+#define MOVE_HITALLCONTENTS (1 << 9)
 
 void SV_ClearWorld (void);
 // called after the world model has been loaded, before linking any entities
@@ -64,17 +62,17 @@ void SV_LinkEdict (edict_t *ent, qboolean touch_triggers);
 // sets ent->v.absmin and ent->v.absmax
 // if touchtriggers, calls prog functions for the intersected triggers
 
-int SV_PointContentsAllBsps(vec3_t p, edict_t *forent); //check all SOLID_BSP ents
+int SV_PointContentsAllBsps (vec3_t p, edict_t *forent); // check all SOLID_BSP ents
 int SV_PointContents (vec3_t p);
 int SV_TruePointContents (vec3_t p);
 // returns the CONTENTS_* value from the world at the given point.
 // does not check any entities at all
 // the non-true version remaps the water current contents to content_water
 
-edict_t	*SV_TestEntityPosition (edict_t *ent);
+edict_t *SV_TestEntityPosition (edict_t *ent);
 
-#define CONTENTMASK_FROMQ1(c) (1u<<(-(c)))
-#define CONTENTMASK_ANYSOLID (CONTENTMASK_FROMQ1(CONTENTS_SOLID) | CONTENTMASK_FROMQ1(CONTENTS_CLIP))
+#define CONTENTMASK_FROMQ1(c) (1u << (-(c)))
+#define CONTENTMASK_ANYSOLID  (CONTENTMASK_FROMQ1 (CONTENTS_SOLID) | CONTENTMASK_FROMQ1 (CONTENTS_CLIP))
 trace_t SV_ClipMoveToEntity (edict_t *ent, vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, unsigned int hitcontents);
 trace_t SV_Move (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type, edict_t *passedict);
 // mins and maxs are reletive
@@ -91,5 +89,4 @@ trace_t SV_Move (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type, e
 
 qboolean SV_RecursiveHullCheck (hull_t *hull, vec3_t p1, vec3_t p2, trace_t *trace, unsigned int hitcontents);
 
-#endif	/* _QUAKE_WORLD_H */
-
+#endif /* _QUAKE_WORLD_H */

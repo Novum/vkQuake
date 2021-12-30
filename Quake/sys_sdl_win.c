@@ -40,13 +40,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "SDL.h"
 #endif
 
+qboolean isDedicated;
 
-qboolean		isDedicated;
+static HANDLE hinput, houtput;
 
-static HANDLE		hinput, houtput;
-
-#define	MAX_HANDLES		32	/* johnfitz -- was 10 */
-static FILE		*sys_handles[MAX_HANDLES];
+#define MAX_HANDLES 32 /* johnfitz -- was 10 */
+static FILE *sys_handles[MAX_HANDLES];
 
 static double counter_freq;
 
@@ -65,7 +64,7 @@ static int findhandle (void)
 
 long Sys_filelength (FILE *f)
 {
-	long		pos, end;
+	long pos, end;
 
 	pos = ftell (f);
 	fseek (f, 0, SEEK_END);
@@ -77,11 +76,11 @@ long Sys_filelength (FILE *f)
 
 int Sys_FileOpenRead (const char *path, int *hndl)
 {
-	FILE	*f;
-	int	i, retval;
+	FILE *f;
+	int   i, retval;
 
 	i = findhandle ();
-	f = fopen(path, "rb");
+	f = fopen (path, "rb");
 
 	if (!f)
 	{
@@ -92,7 +91,7 @@ int Sys_FileOpenRead (const char *path, int *hndl)
 	{
 		sys_handles[i] = f;
 		*hndl = i;
-		retval = Sys_filelength(f);
+		retval = Sys_filelength (f);
 	}
 
 	return retval;
@@ -100,14 +99,14 @@ int Sys_FileOpenRead (const char *path, int *hndl)
 
 int Sys_FileOpenWrite (const char *path)
 {
-	FILE	*f;
-	int		i;
+	FILE *f;
+	int   i;
 
 	i = findhandle ();
-	f = fopen(path, "wb");
+	f = fopen (path, "wb");
 
 	if (!f)
-		Sys_Error ("Error opening %s: %s", path, strerror(errno));
+		Sys_Error ("Error opening %s: %s", path, strerror (errno));
 
 	sys_handles[i] = f;
 	return i;
@@ -136,27 +135,27 @@ int Sys_FileWrite (int handle, const void *data, int count)
 
 int Sys_FileTime (const char *path)
 {
-	FILE	*f;
+	FILE *f;
 
-	f = fopen(path, "rb");
+	f = fopen (path, "rb");
 
 	if (f)
 	{
-		fclose(f);
+		fclose (f);
 		return 1;
 	}
 
 	return -1;
 }
 
-static char	cwd[1024];
+static char cwd[1024];
 
 static void Sys_GetBasedir (char *argv0, char *dst, size_t dstsize)
 {
-	char *tmp;
+	char  *tmp;
 	size_t rc;
 
-	rc = GetCurrentDirectory(dstsize, dst);
+	rc = GetCurrentDirectory (dstsize, dst);
 	if (rc == 0 || rc > dstsize)
 		Sys_Error ("Couldn't determine current directory");
 
@@ -171,15 +170,20 @@ static void Sys_GetBasedir (char *argv0, char *dst, size_t dstsize)
 	}
 }
 
-typedef enum { dpi_unaware = 0, dpi_system_aware = 1, dpi_monitor_aware = 2 } dpi_awareness;
-typedef BOOL (WINAPI *SetProcessDPIAwareFunc)();
-typedef HRESULT (WINAPI *SetProcessDPIAwarenessFunc)(dpi_awareness value);
+typedef enum
+{
+	dpi_unaware = 0,
+	dpi_system_aware = 1,
+	dpi_monitor_aware = 2
+} dpi_awareness;
+typedef BOOL (WINAPI *SetProcessDPIAwareFunc) ();
+typedef HRESULT (WINAPI *SetProcessDPIAwarenessFunc) (dpi_awareness value);
 
 static void Sys_SetDPIAware (void)
 {
-	HMODULE hUser32, hShcore;
+	HMODULE                    hUser32, hShcore;
 	SetProcessDPIAwarenessFunc setDPIAwareness;
-	SetProcessDPIAwareFunc setDPIAware;
+	SetProcessDPIAwareFunc     setDPIAware;
 
 	/* Neither SDL 1.2 nor SDL 2.0.3 can handle the OS scaling our window.
 	  (e.g. https://bugzilla.libsdl.org/show_bug.cgi?id=2713)
@@ -188,8 +192,8 @@ static void Sys_SetDPIAware (void)
 
 	hShcore = LoadLibraryA ("Shcore.dll");
 	hUser32 = LoadLibraryA ("user32.dll");
-	setDPIAwareness = (SetProcessDPIAwarenessFunc) (hShcore ? GetProcAddress (hShcore, "SetProcessDpiAwareness") : NULL);
-	setDPIAware = (SetProcessDPIAwareFunc) (hUser32 ? GetProcAddress (hUser32, "SetProcessDPIAware") : NULL);
+	setDPIAwareness = (SetProcessDPIAwarenessFunc)(hShcore ? GetProcAddress (hShcore, "SetProcessDpiAwareness") : NULL);
+	setDPIAware = (SetProcessDPIAwareFunc)(hUser32 ? GetProcAddress (hUser32, "SetProcessDPIAware") : NULL);
 
 	if (setDPIAwareness) /* Windows 8.1+ */
 		setDPIAwareness (dpi_monitor_aware);
@@ -202,7 +206,7 @@ static void Sys_SetDPIAware (void)
 		FreeLibrary (hUser32);
 }
 
-static void Sys_SetTimerResolution(void)
+static void Sys_SetTimerResolution (void)
 {
 	/* Set OS timer resolution to 1ms.
 	   Works around buffer underruns with directsound and SDL2, but also
@@ -217,8 +221,8 @@ void Sys_Init (void)
 	Sys_SetTimerResolution ();
 	Sys_SetDPIAware ();
 
-	memset (cwd, 0, sizeof(cwd));
-	Sys_GetBasedir(NULL, cwd, sizeof(cwd));
+	memset (cwd, 0, sizeof (cwd));
+	Sys_GetBasedir (NULL, cwd, sizeof (cwd));
 	host_parms->basedir = cwd;
 
 	/* userdirs not really necessary for windows guys.
@@ -226,19 +230,19 @@ void Sys_Init (void)
 	host_parms->userdir = host_parms->basedir; /* code elsewhere relies on this ! */
 
 	SYSTEM_INFO info;
-	GetSystemInfo(&info);
+	GetSystemInfo (&info);
 	host_parms->numcpus = info.dwNumberOfProcessors;
 	if (host_parms->numcpus < 1)
 	{
 		host_parms->numcpus = 1;
 	}
-	Sys_Printf("Detected %d CPUs.\n", host_parms->numcpus);
+	Sys_Printf ("Detected %d CPUs.\n", host_parms->numcpus);
 
 	if (isDedicated)
 	{
 		if (!AllocConsole ())
 		{
-			isDedicated = false;	/* so that we have a graphical error dialog */
+			isDedicated = false; /* so that we have a graphical error dialog */
 			Sys_Error ("Couldn't create dedicated server console");
 		}
 
@@ -246,15 +250,15 @@ void Sys_Init (void)
 		houtput = GetStdHandle (STD_OUTPUT_HANDLE);
 	}
 
-	counter_freq = (double)SDL_GetPerformanceFrequency();
+	counter_freq = (double)SDL_GetPerformanceFrequency ();
 }
 
 void Sys_mkdir (const char *path)
 {
-	if (CreateDirectory(path, NULL) != 0)
+	if (CreateDirectory (path, NULL) != 0)
 		return;
-	if (GetLastError() != ERROR_ALREADY_EXISTS)
-		Sys_Error("Unable to create directory %s", path);
+	if (GetLastError () != ERROR_ALREADY_EXISTS)
+		Sys_Error ("Unable to create directory %s", path);
 }
 
 static const char errortxt1[] = "\nERROR-OUT BEGIN\n\n";
@@ -262,20 +266,20 @@ static const char errortxt2[] = "\nQUAKE ERROR: ";
 
 void Sys_Error (const char *error, ...)
 {
-	va_list		argptr;
-	char		text[1024];
-	DWORD		dummy;
+	va_list argptr;
+	char    text[1024];
+	DWORD   dummy;
 
 	host_parms->errstate++;
 
 	va_start (argptr, error);
-	q_vsnprintf (text, sizeof(text), error, argptr);
+	q_vsnprintf (text, sizeof (text), error, argptr);
 	va_end (argptr);
 
-	PR_SwitchQCVM(NULL);
-	
+	PR_SwitchQCVM (NULL);
+
 	if (isDedicated)
-		WriteFile (houtput, errortxt1, strlen(errortxt1), &dummy, NULL);
+		WriteFile (houtput, errortxt1, strlen (errortxt1), &dummy, NULL);
 	/* SDL will put these into its own stderr log,
 	   so print to stderr even in graphical mode. */
 	fputs (errortxt1, stderr);
@@ -284,17 +288,17 @@ void Sys_Error (const char *error, ...)
 	fputs (text, stderr);
 	fputs ("\n\n", stderr);
 	if (!isDedicated)
-		PL_ErrorDialog(text);
+		PL_ErrorDialog (text);
 	else
 	{
-		WriteFile (houtput, errortxt2, strlen(errortxt2), &dummy, NULL);
-		WriteFile (houtput, text,      strlen(text),      &dummy, NULL);
-		WriteFile (houtput, "\r\n",    2,		  &dummy, NULL);
-		SDL_Delay (3000);	/* show the console 3 more seconds */
+		WriteFile (houtput, errortxt2, strlen (errortxt2), &dummy, NULL);
+		WriteFile (houtput, text, strlen (text), &dummy, NULL);
+		WriteFile (houtput, "\r\n", 2, &dummy, NULL);
+		SDL_Delay (3000); /* show the console 3 more seconds */
 	}
 
 #ifdef _DEBUG
-	__debugbreak();
+	__debugbreak ();
 #endif
 
 	exit (1);
@@ -302,30 +306,30 @@ void Sys_Error (const char *error, ...)
 
 void Sys_Printf (const char *fmt, ...)
 {
-	va_list		argptr;
-	char		text[1024];
-	DWORD		dummy;
+	va_list argptr;
+	char    text[1024];
+	DWORD   dummy;
 
-	va_start (argptr,fmt);
-	q_vsnprintf (text, sizeof(text), fmt, argptr);
+	va_start (argptr, fmt);
+	q_vsnprintf (text, sizeof (text), fmt, argptr);
 	va_end (argptr);
 
 	if (isDedicated)
 	{
-		WriteFile(houtput, text, strlen(text), &dummy, NULL);
+		WriteFile (houtput, text, strlen (text), &dummy, NULL);
 	}
 	else
 	{
-	/* SDL will put these into its own stdout log,
-	   so print to stdout even in graphical mode. */
+		/* SDL will put these into its own stdout log,
+		   so print to stdout even in graphical mode. */
 		fputs (text, stdout);
-		OutputDebugStringA(text);
+		OutputDebugStringA (text);
 	}
 }
 
 void Sys_Quit (void)
 {
-	Host_Shutdown();
+	Host_Shutdown ();
 
 	if (isDedicated)
 		FreeConsole ();
@@ -335,26 +339,26 @@ void Sys_Quit (void)
 
 double Sys_DoubleTime (void)
 {
-	return (double)SDL_GetPerformanceCounter() / counter_freq;
+	return (double)SDL_GetPerformanceCounter () / counter_freq;
 }
 
 const char *Sys_ConsoleInput (void)
 {
-	static char	con_text[256];
-	static int	textlen;
-	INPUT_RECORD	recs[1024];
-	int		ch;
-	DWORD		dummy, numread, numevents;
+	static char  con_text[256];
+	static int   textlen;
+	INPUT_RECORD recs[1024];
+	int          ch;
+	DWORD        dummy, numread, numevents;
 
-	for ( ;; )
+	for (;;)
 	{
-		if (GetNumberOfConsoleInputEvents(hinput, &numevents) == 0)
+		if (GetNumberOfConsoleInputEvents (hinput, &numevents) == 0)
 			Sys_Error ("Error getting # of console events");
 
-		if (! numevents)
+		if (!numevents)
 			break;
 
-		if (ReadConsoleInput(hinput, recs, 1, &numread) == 0)
+		if (ReadConsoleInput (hinput, recs, 1, &numread) == 0)
 			Sys_Error ("Error reading console input");
 
 		if (numread != 1)
@@ -362,42 +366,42 @@ const char *Sys_ConsoleInput (void)
 
 		if (recs[0].EventType == KEY_EVENT)
 		{
-		    if (recs[0].Event.KeyEvent.bKeyDown == FALSE)
-		    {
-			ch = recs[0].Event.KeyEvent.uChar.AsciiChar;
-
-			switch (ch)
+			if (recs[0].Event.KeyEvent.bKeyDown == FALSE)
 			{
-			case '\r':
-				WriteFile(houtput, "\r\n", 2, &dummy, NULL);
+				ch = recs[0].Event.KeyEvent.uChar.AsciiChar;
 
-				if (textlen != 0)
+				switch (ch)
 				{
-					con_text[textlen] = 0;
-					textlen = 0;
-					return con_text;
+				case '\r':
+					WriteFile (houtput, "\r\n", 2, &dummy, NULL);
+
+					if (textlen != 0)
+					{
+						con_text[textlen] = 0;
+						textlen = 0;
+						return con_text;
+					}
+
+					break;
+
+				case '\b':
+					WriteFile (houtput, "\b \b", 3, &dummy, NULL);
+					if (textlen != 0)
+						textlen--;
+
+					break;
+
+				default:
+					if (ch >= ' ')
+					{
+						WriteFile (houtput, &ch, 1, &dummy, NULL);
+						con_text[textlen] = ch;
+						textlen = (textlen + 1) & 0xff;
+					}
+
+					break;
 				}
-
-				break;
-
-			case '\b':
-				WriteFile(houtput, "\b \b", 3, &dummy, NULL);
-				if (textlen != 0)
-					textlen--;
-
-				break;
-
-			default:
-				if (ch >= ' ')
-				{
-					WriteFile(houtput, &ch, 1, &dummy, NULL);
-					con_text[textlen] = ch;
-					textlen = (textlen + 1) & 0xff;
-				}
-
-				break;
 			}
-		    }
 		}
 	}
 
@@ -406,13 +410,12 @@ const char *Sys_ConsoleInput (void)
 
 void Sys_Sleep (unsigned long msecs)
 {
-/*	Sleep (msecs);*/
+	/*	Sleep (msecs);*/
 	SDL_Delay (msecs);
 }
 
 void Sys_SendKeyEvents (void)
 {
-	IN_Commands();		//ericw -- allow joysticks to add keys so they can be used to confirm SCR_ModalMessage
-	IN_SendKeyEvents();
+	IN_Commands (); // ericw -- allow joysticks to add keys so they can be used to confirm SCR_ModalMessage
+	IN_SendKeyEvents ();
 }
-

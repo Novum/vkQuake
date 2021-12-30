@@ -24,14 +24,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 /* crc.h */
 
-void CRC_Init(unsigned short *crcvalue);
-void CRC_ProcessByte(unsigned short *crcvalue, byte data);
-unsigned short CRC_Value(unsigned short crcvalue);
-unsigned short CRC_Block (const byte *start, int count); //johnfitz -- texture crc
+void           CRC_Init (unsigned short *crcvalue);
+void           CRC_ProcessByte (unsigned short *crcvalue, byte data);
+unsigned short CRC_Value (unsigned short crcvalue);
+unsigned short CRC_Block (const byte *start, int count); // johnfitz -- texture crc
 
-//additional hash functions...
+// additional hash functions...
 unsigned Com_BlockChecksum (void *buffer, int length);
-void Com_BlockFullChecksum (void *buffer, int len, unsigned char *outbuf);
+void     Com_BlockFullChecksum (void *buffer, int len, unsigned char *outbuf);
 
-#endif	/* _QUAKE_CRC_H */
-
+#endif /* _QUAKE_CRC_H */

@@ -59,11 +59,11 @@ void Cbuf_Execute (void);
 // Do not call inside a command function!
 
 void Cbuf_Waited (void);
-//In vanilla, the 'wait' command is used by both input configs and servers.
-//mods do hacky stuff like syncing waits to StartFrame calls.
-//thankfully, c2s packets and server logic can both happen at the same intervals.
-//so wait sets a flag to inhibit execution of more commands, and we only clear it once we've run a network frame.
-//so this function lets the cbuf know when to clear the flag again (instead of part of cbuf_execute).
+// In vanilla, the 'wait' command is used by both input configs and servers.
+// mods do hacky stuff like syncing waits to StartFrame calls.
+// thankfully, c2s packets and server logic can both happen at the same intervals.
+// so wait sets a flag to inhibit execution of more commands, and we only clear it once we've run a network frame.
+// so this function lets the cbuf know when to clear the flag again (instead of part of cbuf_execute).
 
 //===========================================================================
 
@@ -80,46 +80,46 @@ not apropriate.
 
 typedef enum
 {
-	src_client,		// came in over a net connection as a clc_stringcmd
-					// host_client will be valid during this state.
-	src_command,	// from the command buffer
-	src_server		// from a svc_stufftext
+	src_client,  // came in over a net connection as a clc_stringcmd
+	             // host_client will be valid during this state.
+	src_command, // from the command buffer
+	src_server   // from a svc_stufftext
 } cmd_source_t;
-extern	cmd_source_t	cmd_source;
+extern cmd_source_t cmd_source;
 
 typedef void (*xcommand_t) (void);
 typedef struct cmd_function_s
 {
-	struct cmd_function_s	*next;
-	const char		*name;
-	xcommand_t		function;
-	cmd_source_t	srctype;
-	qboolean		dynamic;
+	struct cmd_function_s *next;
+	const char            *name;
+	xcommand_t             function;
+	cmd_source_t           srctype;
+	qboolean               dynamic;
 } cmd_function_t;
 
-void	Cmd_Init (void);
+void Cmd_Init (void);
 
 cmd_function_t *Cmd_AddCommand2 (const char *cmd_name, xcommand_t function, cmd_source_t srctype);
-void Cmd_RemoveCommand (cmd_function_t *cmd);
+void            Cmd_RemoveCommand (cmd_function_t *cmd);
 // called by the init functions of other parts of the program to
 // register commands and functions to call for them.
 // The cmd_name is referenced later, so it should not be in temp memory
-#define Cmd_AddCommand(cmdname,func) Cmd_AddCommand2(cmdname,func,src_command)				//regular console commands
-#define Cmd_AddCommand_ClientCommand(cmdname,func) Cmd_AddCommand2(cmdname,func,src_client)	//command is meant to be safe for anyone to execute.
-#define Cmd_AddCommand_ServerCommand(cmdname,func) Cmd_AddCommand2(cmdname,func,src_server)	//command came from a server
-#define Cmd_AddCommand_Console Cmd_AddCommand	//to make the disabiguation more obvious
+#define Cmd_AddCommand(cmdname, func)               Cmd_AddCommand2 (cmdname, func, src_command) // regular console commands
+#define Cmd_AddCommand_ClientCommand(cmdname, func) Cmd_AddCommand2 (cmdname, func, src_client)  // command is meant to be safe for anyone to execute.
+#define Cmd_AddCommand_ServerCommand(cmdname, func) Cmd_AddCommand2 (cmdname, func, src_server)  // command came from a server
+#define Cmd_AddCommand_Console                      Cmd_AddCommand                               // to make the disabiguation more obvious
 
 qboolean Cmd_AliasExists (const char *aliasname);
 qboolean Cmd_Exists (const char *cmd_name);
 // used by the cvar code to check for cvar / command name overlap
 
-const char	*Cmd_CompleteCommand (const char *partial);
+const char *Cmd_CompleteCommand (const char *partial);
 // attempts to match a partial command for automatic command line completion
 // returns NULL if nothing fits
 
-int		Cmd_Argc (void);
-const char	*Cmd_Argv (int arg);
-const char	*Cmd_Args (void);
+int         Cmd_Argc (void);
+const char *Cmd_Argv (int arg);
+const char *Cmd_Args (void);
 // The functions that execute commands get their parameters with these
 // functions. Cmd_Argv () will return an empty string, not a NULL
 // if arg > argc, so string operations are allways safe.
@@ -132,18 +132,17 @@ void Cmd_TokenizeString (const char *text);
 // Takes a null terminated string.  Does not need to be /n terminated.
 // breaks the string up into arg tokens.
 
-qboolean	Cmd_ExecuteString (const char *text, cmd_source_t src);
+qboolean Cmd_ExecuteString (const char *text, cmd_source_t src);
 // Parses a single line of text into arguments and tries to execute it.
 // The text can come from the command buffer, a remote client, or stdin.
 
-void	Cmd_ForwardToServer (void);
+void Cmd_ForwardToServer (void);
 // adds the current command line as a clc_stringcmd to the client message.
 // things like godmode, noclip, etc, are commands directed to the server,
 // so when they are typed in at the console, they will need to be forwarded.
 
-void	Cmd_Print (const char *text);
+void Cmd_Print (const char *text);
 // used by command functions to send output to either the graphics console or
 // passed as a print message to the client
 
-#endif	/* _QUAKE_CMD_H */
-
+#endif /* _QUAKE_CMD_H */

@@ -7,7 +7,6 @@
 
 extern snd_codec_t vorbis_codec;
 
-#endif	/* USE_CODEC_VORBIS */
+#endif /* USE_CODEC_VORBIS */
 
-#endif	/* ! _SND_VORBIS_H_ */
-
+#endif /* ! _SND_VORBIS_H_ */

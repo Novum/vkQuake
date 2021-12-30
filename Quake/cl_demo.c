@@ -67,9 +67,9 @@ Dumps the current net message, prefixed by the length and view angles
 */
 static void CL_WriteDemoMessage (void)
 {
-	int	len;
-	int	i;
-	float	f;
+	int   len;
+	int   i;
+	float f;
 
 	len = LittleLong (net_message.cursize);
 	fwrite (&len, 4, 1, cls.demofile);
@@ -84,43 +84,43 @@ static void CL_WriteDemoMessage (void)
 
 static int CL_GetDemoMessage (void)
 {
-	int	r, i;
-	float	f;
+	int   r, i;
+	float f;
 
 	if (cls.demopaused)
 		return 0;
 
 	// decide if it is time to grab the next message
-	if (cls.signon == SIGNONS)	// always grab until fully connected
+	if (cls.signon == SIGNONS) // always grab until fully connected
 	{
 		if (cls.timedemo)
 		{
 			if (host_framecount == cls.td_lastframe)
-				return 0;	// already read this frame's message
+				return 0; // already read this frame's message
 			cls.td_lastframe = host_framecount;
-		// if this is the second frame, grab the real td_starttime
-		// so the bogus time on the first frame doesn't count
+			// if this is the second frame, grab the real td_starttime
+			// so the bogus time on the first frame doesn't count
 			if (host_framecount == cls.td_startframe + 1)
 				cls.td_starttime = realtime;
 		}
 		else if (/* cl.time > 0 && */ cl.time <= cl.mtime[0])
 		{
-			return 0;	// don't need another message yet
+			return 0; // don't need another message yet
 		}
 	}
 
-// get the next message
+	// get the next message
 	if (fread (&net_message.cursize, 4, 1, cls.demofile) != 1)
 	{
-		CL_StopPlayback();
+		CL_StopPlayback ();
 		return 0;
 	}
 	VectorCopy (cl.mviewangles[0], cl.mviewangles[1]);
-	for (i = 0 ; i < 3 ; i++)
+	for (i = 0; i < 3; i++)
 	{
 		if (fread (&f, 4, 1, cls.demofile) != 1)
 		{
-			CL_StopPlayback();
+			CL_StopPlayback ();
 			return 0;
 		}
 		cl.mviewangles[0][i] = LittleFloat (f);
@@ -148,7 +148,7 @@ Handles recording and playback of demos, on top of NET_ code
 */
 int CL_GetMessage (void)
 {
-	int	r;
+	int r;
 
 	if (cls.demoplayback)
 		return CL_GetDemoMessage ();
@@ -160,7 +160,7 @@ int CL_GetMessage (void)
 		if (r != 1 && r != 2)
 			return r;
 
-	// discard nop keepalive message
+		// discard nop keepalive message
 		if (net_message.cursize == 1 && net_message.data[0] == svc_nop)
 			Con_Printf ("<-- server to client keepalive\n");
 		else
@@ -172,7 +172,6 @@ int CL_GetMessage (void)
 
 	return r;
 }
-
 
 /*
 ====================
@@ -192,25 +191,25 @@ void CL_Stop_f (void)
 		return;
 	}
 
-// write a disconnect message to the demo file
+	// write a disconnect message to the demo file
 	SZ_Clear (&net_message);
 	MSG_WriteByte (&net_message, svc_disconnect);
 	CL_WriteDemoMessage ();
 
-// finish up
+	// finish up
 	fclose (cls.demofile);
 	cls.demofile = NULL;
 	cls.demorecording = false;
 	Con_Printf ("Completed demo\n");
-	
-// ericw -- update demo tab-completion list
+
+	// ericw -- update demo tab-completion list
 	DemoList_Rebuild ();
 }
 
-static void CL_Record_Serverdata(void)
+static void CL_Record_Serverdata (void)
 {
 	size_t i;
-	MSG_WriteByte(&net_message, svc_serverinfo);
+	MSG_WriteByte (&net_message, svc_serverinfo);
 	if (cl.protocol_pext2)
 	{
 		MSG_WriteLong (&net_message, PROTOCOL_FTE_PEXT2);
@@ -220,107 +219,107 @@ static void CL_Record_Serverdata(void)
 	if (cl.protocol == PROTOCOL_RMQ)
 		MSG_WriteLong (&net_message, cl.protocolflags);
 	if (cl.protocol_pext2 & PEXT2_PREDINFO)
-		MSG_WriteString(&net_message, COM_SkipPath(com_gamedir));
+		MSG_WriteString (&net_message, COM_SkipPath (com_gamedir));
 	MSG_WriteByte (&net_message, cl.maxclients);
 	MSG_WriteByte (&net_message, cl.gametype);
 	MSG_WriteString (&net_message, cl.levelname);
-	for (i=1; cl.model_precache[i]; i++)
+	for (i = 1; cl.model_precache[i]; i++)
 		MSG_WriteString (&net_message, cl.model_precache[i]->name);
 	MSG_WriteByte (&net_message, 0);
-	for (i=1; cl.sound_precache[i]; i++)	//FIXME: might not send any if nosound is set
+	for (i = 1; cl.sound_precache[i]; i++) // FIXME: might not send any if nosound is set
 		MSG_WriteString (&net_message, cl.sound_precache[i]->name);
 	MSG_WriteByte (&net_message, 0);
-	//FIXME: cd track (current rather than initial?)
-	//FIXME: initial view entity (for clients that don't want to mess up scoreboards)
+	// FIXME: cd track (current rather than initial?)
+	// FIXME: initial view entity (for clients that don't want to mess up scoreboards)
 	MSG_WriteByte (&net_message, svc_signonnum);
 	MSG_WriteByte (&net_message, 1);
-	CL_WriteDemoMessage();
+	CL_WriteDemoMessage ();
 	SZ_Clear (&net_message);
 }
 
-//spins out a baseline(idx>=0) or static entity(idx<0) into net_message
-void CL_Record_Prespawn(void)
+// spins out a baseline(idx>=0) or static entity(idx<0) into net_message
+void CL_Record_Prespawn (void)
 {
 	int idx, i;
 
-	//baselines
+	// baselines
 	for (idx = 0; idx < cl.num_entities; idx++)
 	{
 		entity_state_t *state = &cl.entities[idx].baseline;
-		if (!memcmp(state, &nullentitystate, sizeof(entity_state_t)))
-			continue;	//no need
-		MSG_WriteStaticOrBaseLine(&net_message, idx, state, cl.protocol_pext2, cl.protocol, cl.protocolflags);
+		if (!memcmp (state, &nullentitystate, sizeof (entity_state_t)))
+			continue; // no need
+		MSG_WriteStaticOrBaseLine (&net_message, idx, state, cl.protocol_pext2, cl.protocol, cl.protocolflags);
 
 		if (net_message.cursize > 4096)
-		{	//periodically flush so that large maps don't need larger than vanilla limits
-			CL_WriteDemoMessage();
+		{ // periodically flush so that large maps don't need larger than vanilla limits
+			CL_WriteDemoMessage ();
 			SZ_Clear (&net_message);
 		}
 	}
 
-	//static ents
+	// static ents
 	for (idx = 1; idx < cl.num_statics; idx++)
 	{
-		MSG_WriteStaticOrBaseLine(&net_message, -1, &cl.static_entities[idx]->baseline, cl.protocol_pext2, cl.protocol, cl.protocolflags);
+		MSG_WriteStaticOrBaseLine (&net_message, -1, &cl.static_entities[idx]->baseline, cl.protocol_pext2, cl.protocol, cl.protocolflags);
 
 		if (net_message.cursize > 4096)
-		{	//periodically flush so that large maps don't need larger than vanilla limits
-			CL_WriteDemoMessage();
+		{ // periodically flush so that large maps don't need larger than vanilla limits
+			CL_WriteDemoMessage ();
 			SZ_Clear (&net_message);
 		}
 	}
 
-	//static sounds
+	// static sounds
 	for (i = NUM_AMBIENTS; i < total_channels; i++)
 	{
-		channel_t	*ss = &snd_channels[i];
-		sfxcache_t		*sc;
+		channel_t  *ss = &snd_channels[i];
+		sfxcache_t *sc;
 
 		if (!ss->sfx)
 			continue;
 		if (ss->entnum || ss->entchannel)
-			continue;	//can't have been a static sound
-		sc = S_LoadSound(ss->sfx);
+			continue; // can't have been a static sound
+		sc = S_LoadSound (ss->sfx);
 		if (!sc || sc->loopstart == -1)
-			continue;	//can't have been a (valid) static sound
+			continue; // can't have been a (valid) static sound
 
 		for (idx = 1; idx < MAX_SOUNDS && cl.sound_precache[idx]; idx++)
 			if (cl.sound_precache[idx] == ss->sfx)
 				break;
 		if (idx == MAX_SOUNDS)
-			continue;	//can't figure out which sound it was
+			continue; // can't figure out which sound it was
 
-		MSG_WriteByte(&net_message, (idx > 255)?svc_spawnstaticsound2:svc_spawnstaticsound);
-		MSG_WriteCoord(&net_message, ss->origin[0], cl.protocolflags);
-		MSG_WriteCoord(&net_message, ss->origin[1], cl.protocolflags);
-		MSG_WriteCoord(&net_message, ss->origin[2], cl.protocolflags);
+		MSG_WriteByte (&net_message, (idx > 255) ? svc_spawnstaticsound2 : svc_spawnstaticsound);
+		MSG_WriteCoord (&net_message, ss->origin[0], cl.protocolflags);
+		MSG_WriteCoord (&net_message, ss->origin[1], cl.protocolflags);
+		MSG_WriteCoord (&net_message, ss->origin[2], cl.protocolflags);
 		if (idx > 255)
-			MSG_WriteShort(&net_message, idx);
+			MSG_WriteShort (&net_message, idx);
 		else
-			MSG_WriteByte(&net_message, idx);
-		MSG_WriteByte(&net_message, ss->master_vol);
-		MSG_WriteByte(&net_message, ss->dist_mult*1000*64);
+			MSG_WriteByte (&net_message, idx);
+		MSG_WriteByte (&net_message, ss->master_vol);
+		MSG_WriteByte (&net_message, ss->dist_mult * 1000 * 64);
 
 		if (net_message.cursize > 4096)
-		{	//periodically flush so that large maps don't need larger than vanilla limits
-			CL_WriteDemoMessage();
+		{ // periodically flush so that large maps don't need larger than vanilla limits
+			CL_WriteDemoMessage ();
 			SZ_Clear (&net_message);
 		}
 	}
 
 #ifdef PSET_SCRIPT
-	//particleindexes
+	// particleindexes
 	for (idx = 0; idx < MAX_PARTICLETYPES; idx++)
 	{
 		if (!cl.particle_precache[idx].name)
 			continue;
-		MSG_WriteByte(&net_message, svcdp_precache);
-		MSG_WriteShort(&net_message, 0x4000 | idx);
-		MSG_WriteString(&net_message, cl.particle_precache[idx].name);
+		MSG_WriteByte (&net_message, svcdp_precache);
+		MSG_WriteShort (&net_message, 0x4000 | idx);
+		MSG_WriteString (&net_message, cl.particle_precache[idx].name);
 
 		if (net_message.cursize > 4096)
-		{	//periodically flush so that large maps don't need larger than vanilla limits
-			CL_WriteDemoMessage();
+		{ // periodically flush so that large maps don't need larger than vanilla limits
+			CL_WriteDemoMessage ();
 			SZ_Clear (&net_message);
 		}
 	}
@@ -328,11 +327,11 @@ void CL_Record_Prespawn(void)
 
 	MSG_WriteByte (&net_message, svc_signonnum);
 	MSG_WriteByte (&net_message, 2);
-	CL_WriteDemoMessage();
+	CL_WriteDemoMessage ();
 	SZ_Clear (&net_message);
 }
 
-void CL_Record_Spawn(void)
+void CL_Record_Spawn (void)
 {
 	int i, c;
 
@@ -362,28 +361,29 @@ void CL_Record_Spawn(void)
 		}
 
 		if (net_message.cursize > 4096)
-		{	//periodically flush so that large maps don't need larger than vanilla limits
-			CL_WriteDemoMessage();
+		{ // periodically flush so that large maps don't need larger than vanilla limits
+			CL_WriteDemoMessage ();
 			SZ_Clear (&net_message);
 		}
 	}
 
 	// what about the current CD track... future consideration.
 
-	//stats
+	// stats
 	for (i = 0; i < MAX_CL_STATS; i++)
 	{
 		if (!cl.stats[i] && !cl.statsf[i])
 			continue;
 
 		if (net_message.cursize > 4096)
-		{	//periodically flush so that large maps don't need larger than vanilla limits
-			CL_WriteDemoMessage();
+		{ // periodically flush so that large maps don't need larger than vanilla limits
+			CL_WriteDemoMessage ();
 			SZ_Clear (&net_message);
 		}
 
 		if ((double)cl.stats[i] != cl.statsf[i] && (unsigned int)cl.stats[i] <= 0x00ffffff)
-		{	//if the float representation seems to have more precision then use that, unless its getting huge in which case we're probably getting fpu truncation, so go back to more compatible ints
+		{ // if the float representation seems to have more precision then use that, unless its getting huge in which case we're probably getting fpu
+		  // truncation, so go back to more compatible ints
 			MSG_WriteByte (&net_message, svcfte_updatestatfloat);
 			MSG_WriteByte (&net_message, i);
 			MSG_WriteFloat (&net_message, cl.statsf[i]);
@@ -410,10 +410,10 @@ void CL_Record_Spawn(void)
 	MSG_WriteByte (&net_message, svc_signonnum);
 	MSG_WriteByte (&net_message, 3);
 
-	CL_WriteDemoMessage();
+	CL_WriteDemoMessage ();
 	SZ_Clear (&net_message);
 
-	//ask the server to reset entity deltas. yes this means playback will wait a couple of frames before it actually starts playing but oh well.
+	// ask the server to reset entity deltas. yes this means playback will wait a couple of frames before it actually starts playing but oh well.
 	if (cl.protocol_pext2 & PEXT2_REPLACEMENTDELTAS)
 	{
 		cl.ackframes_count = 0;
@@ -430,9 +430,9 @@ record <demoname> <map> [cd track]
 */
 void CL_Record_f (void)
 {
-	int		c;
-	char	name[MAX_OSPATH];
-	int		track;
+	int  c;
+	char name[MAX_OSPATH];
+	int  track;
 
 	if (cmd_source != src_command)
 		return;
@@ -444,16 +444,16 @@ void CL_Record_f (void)
 	}
 
 	if (cls.demorecording)
-		CL_Stop_f();
+		CL_Stop_f ();
 
-	c = Cmd_Argc();
+	c = Cmd_Argc ();
 	if (c != 2 && c != 3 && c != 4)
 	{
 		Con_Printf ("record <demoname> [<map> [cd track]]\n");
 		return;
 	}
 
-	if (strstr(Cmd_Argv(1), ".."))
+	if (strstr (Cmd_Argv (1), ".."))
 	{
 		Con_Printf ("Relative pathnames are not allowed.\n");
 		return;
@@ -467,25 +467,25 @@ void CL_Record_f (void)
 #endif
 		if (cls.signon < 2)
 		{
-			Con_Printf("Can't record - try again when connected\n");
+			Con_Printf ("Can't record - try again when connected\n");
 			return;
 		}
-		switch(cl.protocol)
+		switch (cl.protocol)
 		{
 		case PROTOCOL_NETQUAKE:
 		case PROTOCOL_FITZQUAKE:
 		case PROTOCOL_RMQ:
 			break;
 		default:
-			Con_Printf("Can not record - protocol not supported for recording mid-map\nClient demo recording must be started before connecting\n");
+			Con_Printf ("Can not record - protocol not supported for recording mid-map\nClient demo recording must be started before connecting\n");
 			return;
 		}
 	}
 
-// write the forced cd track number, or -1
+	// write the forced cd track number, or -1
 	if (c == 4)
 	{
-		track = atoi(Cmd_Argv(3));
+		track = atoi (Cmd_Argv (3));
 		Con_Printf ("Forcing CD track to %i\n", cls.forcetrack);
 	}
 	else
@@ -493,18 +493,18 @@ void CL_Record_f (void)
 		track = -1;
 	}
 
-	q_snprintf (name, sizeof(name), "%s/%s", com_gamedir, Cmd_Argv(1));
+	q_snprintf (name, sizeof (name), "%s/%s", com_gamedir, Cmd_Argv (1));
 
-// start the map up
+	// start the map up
 	if (c > 2)
 	{
-		Cmd_ExecuteString ( va("map %s", Cmd_Argv(2)), src_command);
+		Cmd_ExecuteString (va ("map %s", Cmd_Argv (2)), src_command);
 		if (cls.state != ca_connected)
 			return;
 	}
 
-// open the demo file
-	COM_AddExtension (name, ".dem", sizeof(name));
+	// open the demo file
+	COM_AddExtension (name, ".dem", sizeof (name));
 
 	Con_Printf ("recording to %s.\n", name);
 	cls.demofile = fopen (name, "wb");
@@ -523,22 +523,21 @@ void CL_Record_f (void)
 	if (c == 2 && cls.state == ca_connected)
 	{
 		byte *data = net_message.data;
-		int cursize = net_message.cursize;
-		byte weirdaltbufferthatprobablyisntneeded[NET_MAXMESSAGE];
+		int   cursize = net_message.cursize;
+		byte  weirdaltbufferthatprobablyisntneeded[NET_MAXMESSAGE];
 
 		net_message.data = weirdaltbufferthatprobablyisntneeded;
 		SZ_Clear (&net_message);
 
-		CL_Record_Serverdata();
-		CL_Record_Prespawn();
-		CL_Record_Spawn();
+		CL_Record_Serverdata ();
+		CL_Record_Prespawn ();
+		CL_Record_Spawn ();
 
 		// restore net_message
 		net_message.data = data;
 		net_message.cursize = cursize;
 	}
 }
-
 
 /*
 ====================
@@ -549,25 +548,25 @@ play [demoname]
 */
 void CL_PlayDemo_f (void)
 {
-	char	name[MAX_OSPATH];
-	int	i, c;
+	char     name[MAX_OSPATH];
+	int      i, c;
 	qboolean neg;
 
 	if (cmd_source != src_command)
 		return;
 
-	if (Cmd_Argc() != 2)
+	if (Cmd_Argc () != 2)
 	{
 		Con_Printf ("playdemo <demoname> : plays a demo\n");
 		return;
 	}
 
-// disconnect from server
+	// disconnect from server
 	CL_Disconnect ();
 
-// open the demo file
-	q_strlcpy (name, Cmd_Argv(1), sizeof(name));
-	COM_AddExtension (name, ".dem", sizeof(name));
+	// open the demo file
+	q_strlcpy (name, Cmd_Argv (1), sizeof (name));
+	COM_AddExtension (name, ".dem", sizeof (name));
 
 	Con_Printf ("Playing demo from %s.\n", name);
 
@@ -575,14 +574,14 @@ void CL_PlayDemo_f (void)
 	if (!cls.demofile)
 	{
 		Con_Printf ("ERROR: couldn't open %s\n", name);
-		cls.demonum = -1;	// stop demo loop
+		cls.demonum = -1; // stop demo loop
 		return;
 	}
 
-// ZOID, fscanf is evil
-// O.S.: if a space character e.g. 0x20 (' ') follows '\n',
-// fscanf skips that byte too and screws up further reads.
-//	fscanf (cls.demofile, "%i\n", &cls.forcetrack);
+	// ZOID, fscanf is evil
+	// O.S.: if a space character e.g. 0x20 (' ') follows '\n',
+	// fscanf skips that byte too and screws up further reads.
+	//	fscanf (cls.demofile, "%i\n", &cls.forcetrack);
 	cls.forcetrack = 0;
 	c = 0; /* silence pesky compiler warnings */
 	neg = false;
@@ -590,10 +589,11 @@ void CL_PlayDemo_f (void)
 	// followed by a '\n':
 	for (i = 0; i < 13; i++)
 	{
-		c = getc(cls.demofile);
+		c = getc (cls.demofile);
 		if (c == '\n')
 			break;
-		if (c == '-') {
+		if (c == '-')
+		{
 			neg = true;
 			continue;
 		}
@@ -604,7 +604,7 @@ void CL_PlayDemo_f (void)
 	{
 		fclose (cls.demofile);
 		cls.demofile = NULL;
-		cls.demonum = -1;	// stop demo loop
+		cls.demonum = -1; // stop demo loop
 		Con_Printf ("ERROR: demo \"%s\" is invalid\n", name);
 		return;
 	}
@@ -615,7 +615,7 @@ void CL_PlayDemo_f (void)
 	cls.demopaused = false;
 	cls.state = ca_connected;
 
-// get rid of the menu and/or console
+	// get rid of the menu and/or console
 	key_dest = key_game;
 }
 
@@ -627,17 +627,17 @@ CL_FinishTimeDemo
 */
 static void CL_FinishTimeDemo (void)
 {
-	int	frames;
-	float	time;
+	int   frames;
+	float time;
 
 	cls.timedemo = false;
 
-// the first frame didn't count
+	// the first frame didn't count
 	frames = (host_framecount - cls.td_startframe) - 1;
 	time = realtime - cls.td_starttime;
 	if (!time)
 		time = 1;
-	Con_Printf ("%i frames %5.1f seconds %5.1f fps\n", frames, time, frames/time);
+	Con_Printf ("%i frames %5.1f seconds %5.1f fps\n", frames, time, frames / time);
 }
 
 /*
@@ -652,7 +652,7 @@ void CL_TimeDemo_f (void)
 	if (cmd_source != src_command)
 		return;
 
-	if (Cmd_Argc() != 2)
+	if (Cmd_Argc () != 2)
 	{
 		Con_Printf ("timedemo <demoname> : gets demo speeds\n");
 		return;
@@ -662,11 +662,10 @@ void CL_TimeDemo_f (void)
 	if (!cls.demofile)
 		return;
 
-// cls.td_starttime will be grabbed at the second frame of the demo, so
-// all the loading time doesn't get counted
+	// cls.td_starttime will be grabbed at the second frame of the demo, so
+	// all the loading time doesn't get counted
 
 	cls.timedemo = true;
 	cls.td_startframe = host_framecount;
-	cls.td_lastframe = -1;	// get a new message this frame
+	cls.td_lastframe = -1; // get a new message this frame
 }
-
