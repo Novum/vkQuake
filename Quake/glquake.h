@@ -409,13 +409,10 @@ extern int gl_lightmap_format;
 
 typedef struct lm_compute_workgroup_bounds_s
 {
-	float mins_x;
-	float mins_y;
-	float mins_z;
-	float maxs_x;
-	float maxs_y;
-	float maxs_z;
+	float mins[3];
+	float maxs[3];
 } lm_compute_workgroup_bounds_t;
+COMPILE_TIME_ASSERT(lm_compute_workgroup_bounds_t, sizeof(lm_compute_workgroup_bounds_t) == 24);
 
 typedef struct glRect_s {
 	unsigned short l,t,w,h;

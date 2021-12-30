@@ -44,15 +44,14 @@ extern cvar_t r_simd;
 typedef struct lm_compute_surface_data_s
 {
 	uint32_t packed_lightstyles;
-	float normal_x;
-	float normal_y;
-	float normal_z;
+	vec3_t normal;
 	float dist;
 	uint32_t light_s;
 	uint32_t light_t;
 	uint32_t packed_texturemins;
 	vec4_t vecs[2];
 } lm_compute_surface_data_t;
+COMPILE_TIME_ASSERT(lm_compute_surface_data_t, sizeof(lm_compute_surface_data_t) == 64);
 
 typedef struct lm_compute_light_s
 {
@@ -61,6 +60,7 @@ typedef struct lm_compute_light_s
 	vec3_t color;
 	float minlight;
 } lm_compute_light_t;
+COMPILE_TIME_ASSERT(lm_compute_light_t, sizeof(lm_compute_light_t) == 32);
 
 #define WORKGROUP_BOUNDS_BUFFER_SIZE ((LMBLOCK_WIDTH / 8) * (LMBLOCK_HEIGHT / 8) * sizeof(lm_compute_workgroup_bounds_t))
 
@@ -408,19 +408,18 @@ int AllocBlock (int w, int h, int *x, int *y)
 			lightmaps = (struct lightmap_s *) realloc(lightmaps, sizeof(*lightmaps)*lightmap_count);
 			memset(&lightmaps[texnum], 0, sizeof(lightmaps[texnum]));
 			lightmaps[texnum].data = (byte *) calloc(1, LIGHTMAP_BYTES *LMBLOCK_WIDTH*LMBLOCK_HEIGHT);
-			for (j = 0; j < MAXLIGHTMAPS; ++j)
-				lightmaps[texnum].lightstyle_data[j] = (byte*)calloc(1, LIGHTMAP_BYTES * LMBLOCK_WIDTH * LMBLOCK_HEIGHT);
+			for (i = 0; i < MAXLIGHTMAPS; ++i)
+				lightmaps[texnum].lightstyle_data[i] = (byte*)calloc(1, LIGHTMAP_BYTES * LMBLOCK_WIDTH * LMBLOCK_HEIGHT);
 			lightmaps[texnum].surface_indices = (uint32_t*)malloc(sizeof(uint32_t) * LMBLOCK_WIDTH * LMBLOCK_HEIGHT);
 			memset(lightmaps[texnum].surface_indices, 0xFF, 4 * LMBLOCK_WIDTH * LMBLOCK_HEIGHT);
 			lightmaps[texnum].workgroup_bounds = (lm_compute_workgroup_bounds_t*)calloc(1, WORKGROUP_BOUNDS_BUFFER_SIZE);
 			for (i = 0; i < (LMBLOCK_WIDTH / 8) * (LMBLOCK_HEIGHT / 8); ++i)
 			{
-				lightmaps[texnum].workgroup_bounds[i].mins_x = FLT_MAX;
-				lightmaps[texnum].workgroup_bounds[i].mins_y = FLT_MAX;
-				lightmaps[texnum].workgroup_bounds[i].mins_z = FLT_MAX;
-				lightmaps[texnum].workgroup_bounds[i].maxs_x = -FLT_MAX;
-				lightmaps[texnum].workgroup_bounds[i].maxs_y = -FLT_MAX;
-				lightmaps[texnum].workgroup_bounds[i].maxs_z = -FLT_MAX;
+				for (j = 0; j < 3; ++j)
+				{
+					lightmaps[texnum].workgroup_bounds[i].mins[j] = FLT_MAX;
+					lightmaps[texnum].workgroup_bounds[i].maxs[j] = -FLT_MAX;
+				}
 			}
 			//as we're only tracking one texture, we don't need multiple copies of allocated any more.
 			memset(allocated, 0, sizeof(allocated));  
@@ -537,22 +536,20 @@ static void R_AssignWorkgroupBounds (msurface_t* surf)
 	const int tmax = (surf->extents[1] >> 4) + 1;
 
 	lm_compute_workgroup_bounds_t surf_bounds;
-	surf_bounds.mins_x = FLT_MAX;
-	surf_bounds.mins_y = FLT_MAX;
-	surf_bounds.mins_z = FLT_MAX;
-	surf_bounds.maxs_x = -FLT_MAX;
-	surf_bounds.maxs_y = -FLT_MAX;
-	surf_bounds.maxs_z = -FLT_MAX;
+	for (int i = 0; i < 3; ++i)
+	{
+		surf_bounds.mins[i] = FLT_MAX;
+		surf_bounds.maxs[i] = -FLT_MAX;
+	}
 
 	float* v = surf->polys->verts[0];
 	for (int i = 0; i < surf->polys->numverts; ++i, v += VERTEXSIZE)
 	{
-		if (v[0] < surf_bounds.mins_x) surf_bounds.mins_x = v[0];
-		if (v[1] < surf_bounds.mins_y) surf_bounds.mins_y = v[1];
-		if (v[2] < surf_bounds.mins_z) surf_bounds.mins_z = v[2];
-		if (v[0] > surf_bounds.maxs_x) surf_bounds.maxs_x = v[0];
-		if (v[1] > surf_bounds.maxs_y) surf_bounds.maxs_y = v[1];
-		if (v[2] > surf_bounds.maxs_z) surf_bounds.maxs_z = v[2];
+		for (int j = 0; j < 3; ++j)
+		{
+			if (v[j] < surf_bounds.mins[j]) surf_bounds.mins[j] = v[j];
+			if (v[j] > surf_bounds.maxs[j]) surf_bounds.maxs[j] = v[j];
+		}
 	}
 
 	for (int s = 0; s < smax; ++s)
@@ -562,12 +559,11 @@ static void R_AssignWorkgroupBounds (msurface_t* surf)
 			const int workgroup_x = (surf->light_s + s) / 8;
 			const int workgroup_y = (surf->light_t + t) / 8;
 			lm_compute_workgroup_bounds_t *workgroup_bounds = bounds + workgroup_x + (workgroup_y * (LMBLOCK_WIDTH / 8));
-			if (surf_bounds.mins_x < workgroup_bounds->mins_x) workgroup_bounds->mins_x = surf_bounds.mins_x;
-			if (surf_bounds.mins_y < workgroup_bounds->mins_y) workgroup_bounds->mins_y = surf_bounds.mins_y;
-			if (surf_bounds.mins_z < workgroup_bounds->mins_z) workgroup_bounds->mins_z = surf_bounds.mins_z;
-			if (surf_bounds.maxs_x > workgroup_bounds->maxs_x) workgroup_bounds->maxs_x = surf_bounds.maxs_x;
-			if (surf_bounds.maxs_y > workgroup_bounds->maxs_y) workgroup_bounds->maxs_y = surf_bounds.maxs_y;
-			if (surf_bounds.maxs_z > workgroup_bounds->maxs_z) workgroup_bounds->maxs_z = surf_bounds.maxs_z;
+			for (int i = 0; i < 3; ++i)
+			{
+				if (surf_bounds.mins[i] < workgroup_bounds->mins[i]) workgroup_bounds->mins[i] = surf_bounds.mins[i];
+				if (surf_bounds.maxs[i] > workgroup_bounds->maxs[i]) workgroup_bounds->maxs[i] = surf_bounds.maxs[i];
+			}
 		}
 	}
 }
@@ -933,9 +929,9 @@ void GL_BuildLightmaps (void)
 	last_lightmap_allocated = 0;
 	lightmap_count = 0;
 
-	for (j = 1; j < MAX_MODELS; j++)
+	for (i = 1; i < MAX_MODELS; ++i)
 	{
-		m = cl.model_precache[j];
+		m = cl.model_precache[i];
 		if (!m)
 			break;
 		if (m->name[0] == '*')
@@ -969,9 +965,8 @@ void GL_BuildLightmaps (void)
 				((uint32_t)(surf->styles[1]) << 8) |
 				((uint32_t)(surf->styles[2]) << 16) |
 				((uint32_t)(surf->styles[3]) << 24);
-			surf_data->normal_x = surf->plane->normal[0];
-			surf_data->normal_y = surf->plane->normal[1];
-			surf_data->normal_z = surf->plane->normal[2];
+			for (int k = 0; k < 3; ++k)
+				surf_data->normal[k] = surf->plane->normal[k];
 			surf_data->dist = surf->plane->dist;
 			surf_data->light_s = surf->light_s;
 			surf_data->light_t = surf->light_t;
