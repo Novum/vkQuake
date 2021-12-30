@@ -35,8 +35,6 @@ shared uint group_green[16];
 shared uint group_blue[16];
 #endif
 
-#define groupMemoryBarrierSync() groupMemoryBarrier(); barrier();
-
 #if defined(SCALING) && defined(USE_SUBGROUP_OPS)
 // Vulkan spec states that workgroup size in x dimension must be a multiple of the
 // subgroup size for VK_PIPELINE_SHADER_STAGE_CREATE_REQUIRE_FULL_SUBGROUPS_BIT_EXT
@@ -139,12 +137,12 @@ void main()
 				group_green[local_idx] = 0;
 				group_blue[local_idx] = 0;
 			}
-			groupMemoryBarrierSync();
+			barrier();
 			const uint shared_mem_idx = (local_x / 2) + ((local_y / 2) * (tile_size_x / 2));
 			atomicAdd(group_red[shared_mem_idx], color_int.r);
 			atomicAdd(group_green[shared_mem_idx], color_int.g);
 			atomicAdd(group_blue[shared_mem_idx], color_int.b);
-			groupMemoryBarrierSync();
+			barrier();
 			color_int.r = group_red[shared_mem_idx] / 4;
 			color_int.g = group_green[shared_mem_idx] / 4;
 			color_int.b = group_blue[shared_mem_idx] / 4;
@@ -171,14 +169,14 @@ void main()
 		{
 			if(gl_SubgroupSize < 4)
 #endif
-				groupMemoryBarrierSync();
+				barrier();
 			if ((local_x < 4) && (local_y == 0))
 			{
 				group_red[local_x] = 0;
 				group_green[local_x] = 0;
 				group_blue[local_x] = 0;
 			}
-			groupMemoryBarrierSync();
+			barrier();
 			const uint shared_mem_idx = (local_x / 4) + ((local_y / 4) * (tile_size_x / 4));
 			if (((local_x & 0x1)==0) && ((local_y & 0x1)==0))
 			{
@@ -186,7 +184,7 @@ void main()
 				atomicAdd(group_green[shared_mem_idx], color_int.g);
 				atomicAdd(group_blue[shared_mem_idx], color_int.b);
 			}
-			groupMemoryBarrierSync();
+			barrier();
 			color_int.r = group_red[shared_mem_idx] / 4;
 			color_int.g = group_green[shared_mem_idx] / 4;
 			color_int.b = group_blue[shared_mem_idx] / 4;
@@ -213,21 +211,21 @@ void main()
 		{
 			if(gl_SubgroupSize < 16)
 #endif
-				groupMemoryBarrierSync();
+				barrier();
 			if ((local_x == 0) && (local_y == 0))
 			{
 				group_red[0] = 0;
 				group_green[0] = 0;
 				group_blue[0] = 0;
 			}
-			groupMemoryBarrierSync();
+			barrier();
 			if (((local_x & 0x3)==0) && ((local_y & 0x3)==0))
 			{
 				atomicAdd(group_red[0], color_int.r);
 				atomicAdd(group_green[0], color_int.g);
 				atomicAdd(group_blue[0], color_int.b);
 			}
-			groupMemoryBarrierSync();
+			barrier();
 			color_int.r = group_red[0] / 4;
 			color_int.g = group_green[0] / 4;
 			color_int.b = group_blue[0] / 4;

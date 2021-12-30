@@ -1,4 +1,4 @@
-#version 450
+#version 460
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_ARB_shading_language_420pack : enable
 //#extension GL_EXT_debug_printf : enable
@@ -74,7 +74,6 @@ void main()
 	for (uint mask_index = gl_LocalInvocationIndex; mask_index < LIGHT_MASK_SIZE; mask_index += workgroup_size)
 		light_mask[mask_index] = 0;
 
-	memoryBarrierShared();
 	barrier();
 
 	const uint workgroup_index = gl_WorkGroupID.x + ((push_constants.lightmap_width / 8) * gl_WorkGroupID.y);
@@ -95,7 +94,6 @@ void main()
 		}
 	}
 
-	memoryBarrierShared();
 	barrier();
 
 	const uint surface_index = texelFetch(surface_indices, ivec2(gl_GlobalInvocationID.xy), 0).x;
