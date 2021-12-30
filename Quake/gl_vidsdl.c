@@ -807,7 +807,6 @@ static void GL_InitDevice (void)
 				subgroup_size_control = true;
 #endif
 #if defined(VK_EXT_full_screen_exclusive)
-			// Only enable on NVIDIA for now. Some people report issues with the mouse cursor on AMD hardware.
 			if (strcmp (VK_EXT_FULL_SCREEN_EXCLUSIVE_EXTENSION_NAME, device_extensions[i].extensionName) == 0)
 				vulkan_globals.full_screen_exclusive = true;
 #endif
