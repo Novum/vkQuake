@@ -87,11 +87,7 @@
 #define	Q_MININT	((int)0x80000000)
 #define	Q_MINLONG	((int)0x80000000)
 
-/* Make sure the types really have the right
- * sizes: These macros are from SDL headers.
- */
-#define	COMPILE_TIME_ASSERT(name, x)	\
-	typedef int dummy_ ## name[(x) * 2 - 1]
+#define COMPILE_TIME_ASSERT(name, x) static_assert(x, #name);
 
 COMPILE_TIME_ASSERT(char, sizeof(char) == 1);
 COMPILE_TIME_ASSERT(float, sizeof(float) == 4);
