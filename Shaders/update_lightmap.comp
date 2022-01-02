@@ -49,8 +49,8 @@ shared uint light_mask[LIGHT_MASK_SIZE];
 layout(set = 0, binding = 0, rgba8) uniform writeonly image2D output_image;
 layout(set = 0, binding = 1) uniform usampler2D surface_indices;
 layout(set = 0, binding = 2) uniform sampler2D lightstyles_textures[MAXLIGHTMAPS];
-layout(std430, set = 0, binding = 3) buffer surfaces_buffer { surface_t surfaces[]; };
-layout(std430, set = 0, binding = 4) buffer workgroup_bounds_buffer { bounds_t workgroup_bounds[]; };
+layout(std430, set = 0, binding = 3) restrict readonly buffer surfaces_buffer { surface_t surfaces[]; };
+layout(std430, set = 0, binding = 4) restrict readonly buffer workgroup_bounds_buffer { bounds_t workgroup_bounds[]; };
 layout(std140, set = 0, binding = 5) uniform lightstyle_scales_buffer { vec4 lightstyle_scales[MAX_LIGHTSYTLES / 4]; };
 layout(std140, set = 0, binding = 6) uniform lights_buffer { light_t lights[MAX_DLIGHTS]; };
 
