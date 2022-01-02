@@ -25,7 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 
-extern cvar_t gl_fullbrights, r_drawflat; // johnfitz
+extern cvar_t gl_fullbrights, r_drawflat, r_gpulightmapupdate; // johnfitz
 
 int gl_lightmap_format;
 
@@ -242,7 +242,8 @@ void R_DrawBrushModel (entity_t *e)
 		if (((psurf->flags & SURF_PLANEBACK) && (dot < -BACKFACE_EPSILON)) || (!(psurf->flags & SURF_PLANEBACK) && (dot > BACKFACE_EPSILON)))
 		{
 			R_ChainSurface (psurf, chain_model);
-			R_RenderDynamicLightmaps (psurf);
+			if (!r_gpulightmapupdate.value)
+				R_RenderDynamicLightmaps (psurf);
 			rs_brushpolys++;
 		}
 	}
