@@ -696,6 +696,7 @@ void R_AllocateLightmapComputeBuffers ()
 	VkResult err;
 	{
 		size_t buffer_size = MAX_LIGHTSTYLES * sizeof (float) * 2;
+		COMPILE_TIME_ASSERT (lightstyles_buffer_alignment, ((MAX_LIGHTSTYLES * sizeof (float)) % 256) == 0);
 
 		Sys_Printf ("Allocating lightstyles buffer (%u KB)\n", (int)buffer_size / 1024);
 
@@ -721,7 +722,7 @@ void R_AllocateLightmapComputeBuffers ()
 			GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
 
 		num_vulkan_misc_allocations += 1;
-		R_AllocateVulkanMemory (&lightstyles_scales_buffer_memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_DEVICE);
+		R_AllocateVulkanMemory (&lightstyles_scales_buffer_memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_HOST);
 		GL_SetObjectName ((uint64_t)lightstyles_scales_buffer_memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, "Lightstyles Buffer");
 
 		err = vkBindBufferMemory (vulkan_globals.device, lightstyles_scales_buffer, lightstyles_scales_buffer_memory.handle, 0);
@@ -735,6 +736,7 @@ void R_AllocateLightmapComputeBuffers ()
 
 	{
 		size_t buffer_size = MAX_DLIGHTS * sizeof (lm_compute_light_t) * 2;
+		COMPILE_TIME_ASSERT (light_buffer_alignment, ((MAX_DLIGHTS * sizeof (lm_compute_light_t)) % 256) == 0);
 
 		Sys_Printf ("Allocating lights buffer (%u KB)\n", (int)buffer_size / 1024);
 
@@ -760,7 +762,7 @@ void R_AllocateLightmapComputeBuffers ()
 			GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
 
 		num_vulkan_misc_allocations += 1;
-		R_AllocateVulkanMemory (&lights_buffer_memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_DEVICE);
+		R_AllocateVulkanMemory (&lights_buffer_memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_HOST);
 		GL_SetObjectName ((uint64_t)lights_buffer_memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, "Lights Buffer");
 
 		err = vkBindBufferMemory (vulkan_globals.device, lights_buffer, lights_buffer_memory.handle, 0);
