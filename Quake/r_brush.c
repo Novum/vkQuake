@@ -1277,6 +1277,67 @@ void GL_BuildBModelVertexBuffer (void)
 }
 
 /*
+=================
+SoA_FillBoxLane
+=================
+*/
+void SoA_FillBoxLane (soa_aabb_t *boxes, int index, vec3_t mins, vec3_t maxs)
+{
+	float *dst = boxes[index >> 3];
+	index &= 7;
+	dst[index + 0] = mins[0];
+	dst[index + 8] = maxs[0];
+	dst[index + 16] = mins[1];
+	dst[index + 24] = maxs[1];
+	dst[index + 32] = mins[2];
+	dst[index + 40] = maxs[2];
+}
+
+/*
+=================
+SoA_FillPlaneLane
+=================
+*/
+void SoA_FillPlaneLane (soa_plane_t *planes, int index, mplane_t *src, qboolean flip)
+{
+	float  side = flip ? -1.0f : 1.0f;
+	float *dst = planes[index >> 3];
+	index &= 7;
+	dst[index + 0] = side * src->normal[0];
+	dst[index + 8] = side * src->normal[1];
+	dst[index + 16] = side * src->normal[2];
+	dst[index + 24] = side * src->dist;
+}
+
+/*
+===============
+GL_PrepareSIMDData
+===============
+*/
+void GL_PrepareSIMDData (void)
+{
+#ifdef USE_SIMD
+	int i;
+
+	cl.worldmodel->soa_leafbounds = Hunk_Alloc (6 * sizeof (float) * ((cl.worldmodel->numleafs + 7) & ~7));
+	cl.worldmodel->surfvis = Hunk_Alloc ((cl.worldmodel->numsurfaces + 7) >> 3);
+	cl.worldmodel->soa_surfplanes = Hunk_Alloc (4 * sizeof (float) * ((cl.worldmodel->numsurfaces + 7) & ~7));
+
+	for (i = 0; i < cl.worldmodel->numleafs; ++i)
+	{
+		mleaf_t *leaf = &cl.worldmodel->leafs[i + 1];
+		SoA_FillBoxLane (cl.worldmodel->soa_leafbounds, i, leaf->minmaxs, leaf->minmaxs + 3);
+	}
+
+	for (i = 0; i < cl.worldmodel->numsurfaces; ++i)
+	{
+		msurface_t *surf = &cl.worldmodel->surfaces[i];
+		SoA_FillPlaneLane (cl.worldmodel->soa_surfplanes, i, surf->plane, surf->flags & SURF_PLANEBACK);
+	}
+#endif // def USE_SIMD
+}
+
+/*
 ===============
 R_AddDynamicLights
 ===============

@@ -1757,67 +1757,6 @@ void Mod_CheckWaterVis (void)
 
 /*
 =================
-SoA_FillBoxLane
-=================
-*/
-void SoA_FillBoxLane (soa_aabb_t *boxes, int index, vec3_t mins, vec3_t maxs)
-{
-	float *dst = boxes[index >> 3];
-	index &= 7;
-	dst[index + 0] = mins[0];
-	dst[index + 8] = maxs[0];
-	dst[index + 16] = mins[1];
-	dst[index + 24] = maxs[1];
-	dst[index + 32] = mins[2];
-	dst[index + 40] = maxs[2];
-}
-
-/*
-=================
-SoA_FillPlaneLane
-=================
-*/
-void SoA_FillPlaneLane (soa_plane_t *planes, int index, mplane_t *src, qboolean flip)
-{
-	float  side = flip ? -1.0f : 1.0f;
-	float *dst = planes[index >> 3];
-	index &= 7;
-	dst[index + 0] = side * src->normal[0];
-	dst[index + 8] = side * src->normal[1];
-	dst[index + 16] = side * src->normal[2];
-	dst[index + 24] = side * src->dist;
-}
-
-/*
-=================
-Mod_PrepareSIMDData
-=================
-*/
-void Mod_PrepareSIMDData (void)
-{
-#ifdef USE_SIMD
-	int i;
-
-	loadmodel->soa_leafbounds = Hunk_Alloc (6 * sizeof (float) * ((loadmodel->numleafs + 7) & ~7));
-	loadmodel->surfvis = Hunk_Alloc ((loadmodel->numsurfaces + 7) >> 3);
-	loadmodel->soa_surfplanes = Hunk_Alloc (4 * sizeof (float) * ((loadmodel->numsurfaces + 7) & ~7));
-
-	for (i = 0; i < loadmodel->numleafs; ++i)
-	{
-		mleaf_t *leaf = &loadmodel->leafs[i + 1];
-		SoA_FillBoxLane (loadmodel->soa_leafbounds, i, leaf->minmaxs, leaf->minmaxs + 3);
-	}
-
-	for (i = 0; i < loadmodel->numsurfaces; ++i)
-	{
-		msurface_t *surf = &loadmodel->surfaces[i];
-		SoA_FillPlaneLane (loadmodel->soa_surfplanes, i, surf->plane, surf->flags & SURF_PLANEBACK);
-	}
-#endif // def USE_SIMD
-}
-
-/*
-=================
 Mod_LoadClipnodes
 =================
 */
@@ -2458,7 +2397,6 @@ visdone:
 	Mod_LoadEntities (&header->lumps[LUMP_ENTITIES]);
 	Mod_LoadSubmodels (&header->lumps[LUMP_MODELS]);
 
-	Mod_PrepareSIMDData ();
 	Mod_MakeHull0 ();
 
 	mod->numframes = 2; // regular and alternate animation
