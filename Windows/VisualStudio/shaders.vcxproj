@@ -74,8 +74,12 @@ $(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe $(S
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe --target-env vulkan1.1 -g -V %(FullPath) -o $(SolutionDir)..\..\Shaders\Compiled\Debug\%(Filename)%(Extension).spv
 $(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe $(SolutionDir)..\..\Shaders\Compiled\Debug\%(Filename)%(Extension).spv %(Filename)%(Extension)_spv $(SolutionDir)..\..\Shaders\Compiled\Debug\%(Filename)%(Extension).c</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(VULKAN_SDK)\bin\glslangValidator.exe --target-env vulkan1.1 -V %(FullPath) -o $(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).spv
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os $(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).spv -o $(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).spv
+$(VULKAN_SDK)\bin\spirv-remap.exe -s -i $(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).spv -o $(SolutionDir)..\..\Shaders\Compiled\Release
 $(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe $(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).spv %(Filename)%(Extension)_spv $(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).c</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe --target-env vulkan1.1 -V %(FullPath) -o $(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).spv
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os $(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).spv -o $(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).spv
+$(VULKAN_SDK)\bin\spirv-remap.exe -s -i $(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).spv -o $(SolutionDir)..\..\Shaders\Compiled\Release
 $(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe $(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).spv %(Filename)%(Extension)_spv $(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).c</Command>
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\screen_effects_8bit.comp">
@@ -103,8 +107,12 @@ $(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe $(S
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe --target-env vulkan1.1 -g -V %(FullPath) -o $(SolutionDir)..\..\Shaders\Compiled\Debug\%(Filename)%(Extension).spv
 $(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe $(SolutionDir)..\..\Shaders\Compiled\Debug\%(Filename)%(Extension).spv %(Filename)%(Extension)_spv $(SolutionDir)..\..\Shaders\Compiled\Debug\%(Filename)%(Extension).c</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(VULKAN_SDK)\bin\glslangValidator.exe --target-env vulkan1.1 -V %(FullPath) -o $(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).spv
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os $(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).spv -o $(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).spv
+$(VULKAN_SDK)\bin\spirv-remap.exe -s -i $(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).spv -o $(SolutionDir)..\..\Shaders\Compiled\Release
 $(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe $(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).spv %(Filename)%(Extension)_spv $(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).c</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe --target-env vulkan1.1 -V %(FullPath) -o $(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).spv
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os $(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).spv -o $(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).spv
+$(VULKAN_SDK)\bin\spirv-remap.exe -s -i $(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).spv -o $(SolutionDir)..\..\Shaders\Compiled\Release
 $(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe $(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).spv %(Filename)%(Extension)_spv $(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).c</Command>
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\showtris.frag">
@@ -246,6 +254,8 @@ $(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe $(S
     </Link>
     <CustomBuild>
       <Command>$(VULKAN_SDK)\bin\glslangValidator.exe -V %(FullPath) -o $(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).spv
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os $(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).spv -o $(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).spv
+$(VULKAN_SDK)\bin\spirv-remap.exe -s -i $(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).spv -o $(SolutionDir)..\..\Shaders\Compiled\Release
 $(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe $(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).spv %(Filename)%(Extension)_spv $(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).c</Command>
       <Outputs>$(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).c</Outputs>
       <Message>Compiling Shader</Message>
@@ -292,6 +302,8 @@ $(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe $(S
     </Link>
     <CustomBuild>
       <Command>$(VULKAN_SDK)\bin\glslangValidator.exe -V %(FullPath) -o $(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).spv
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os $(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).spv -o $(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).spv
+$(VULKAN_SDK)\bin\spirv-remap.exe -s -i $(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).spv -o $(SolutionDir)..\..\Shaders\Compiled\Release
 $(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe $(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).spv %(Filename)%(Extension)_spv $(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).c</Command>
       <Outputs>$(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).c</Outputs>
       <Message>Compiling Shader</Message>
