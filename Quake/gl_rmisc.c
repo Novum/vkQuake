@@ -481,9 +481,9 @@ static void R_SubmitStagingBuffer (int index)
 	memset (&memory_barrier, 0, sizeof (memory_barrier));
 	memory_barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
 	memory_barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-	memory_barrier.dstAccessMask = VK_ACCESS_INDEX_READ_BIT | VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
+	memory_barrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT;
 	vkCmdPipelineBarrier (
-		staging_buffers[index].command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, 0, 1, &memory_barrier, 0, NULL, 0, NULL);
+		staging_buffers[index].command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 1, &memory_barrier, 0, NULL, 0, NULL);
 
 	vkEndCommandBuffer (staging_buffers[index].command_buffer);
 
