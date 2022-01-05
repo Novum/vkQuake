@@ -2902,6 +2902,8 @@ void R_DestroyPipelines (void)
 		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.alias_showtris_depth_test_pipeline.handle, NULL);
 		vulkan_globals.alias_showtris_depth_test_pipeline.handle = VK_NULL_HANDLE;
 	}
+	vkDestroyPipeline (vulkan_globals.device, vulkan_globals.update_lightmap_pipeline.handle, NULL);
+	vulkan_globals.update_lightmap_pipeline.handle = VK_NULL_HANDLE;
 }
 
 /*
