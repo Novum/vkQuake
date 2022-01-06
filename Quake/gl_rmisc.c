@@ -2147,49 +2147,6 @@ static void R_CreateFTEParticlesPipelines ()
 
 /*
 ===============
-R_CreateWaterPipelines
-===============
-*/
-static void R_CreateWaterPipelines ()
-{
-	VkResult                err;
-	pipeline_create_infos_t infos;
-	R_InitDefaultStates (&infos);
-
-	infos.depth_stencil_state.depthTestEnable = VK_TRUE;
-	infos.depth_stencil_state.depthWriteEnable = VK_TRUE;
-	infos.depth_stencil_state.depthCompareOp = VK_COMPARE_OP_GREATER_OR_EQUAL;
-	infos.rasterization_state.polygonMode = VK_POLYGON_MODE_FILL;
-	infos.blend_attachment_state.blendEnable = VK_FALSE;
-	infos.blend_attachment_state.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-	infos.blend_attachment_state.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-	infos.blend_attachment_state.colorBlendOp = VK_BLEND_OP_ADD;
-	infos.blend_attachment_state.srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-	infos.blend_attachment_state.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-	infos.blend_attachment_state.alphaBlendOp = VK_BLEND_OP_ADD;
-	infos.rasterization_state.depthBiasEnable = VK_FALSE;
-
-	assert (vulkan_globals.water_pipeline.handle == VK_NULL_HANDLE);
-	err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.water_pipeline.handle);
-	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateGraphicsPipelines failed");
-	vulkan_globals.water_pipeline.layout = vulkan_globals.basic_pipeline_layout;
-
-	GL_SetObjectName ((uint64_t)vulkan_globals.water_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "water");
-
-	infos.depth_stencil_state.depthWriteEnable = VK_FALSE;
-	infos.blend_attachment_state.blendEnable = VK_TRUE;
-
-	assert (vulkan_globals.water_blend_pipeline.handle == VK_NULL_HANDLE);
-	err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.water_blend_pipeline.handle);
-	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateGraphicsPipelines failed");
-	vulkan_globals.water_blend_pipeline.layout = vulkan_globals.basic_pipeline_layout;
-	GL_SetObjectName ((uint64_t)vulkan_globals.water_blend_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "water_blend");
-}
-
-/*
-===============
 R_CreateSpritesPipelines
 ===============
 */
@@ -2798,7 +2755,6 @@ void R_CreatePipelines ()
 	R_CreateWarpPipelines ();
 	R_CreateParticlesPipelines ();
 	R_CreateFTEParticlesPipelines ();
-	R_CreateWaterPipelines ();
 	R_CreateSpritesPipelines ();
 	R_CreateSkyPipelines ();
 	R_CreateShowTrisPipelines ();
@@ -2835,10 +2791,6 @@ void R_DestroyPipelines (void)
 		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.world_pipelines[i].handle, NULL);
 		vulkan_globals.world_pipelines[i].handle = VK_NULL_HANDLE;
 	}
-	vkDestroyPipeline (vulkan_globals.device, vulkan_globals.water_pipeline.handle, NULL);
-	vulkan_globals.water_pipeline.handle = VK_NULL_HANDLE;
-	vkDestroyPipeline (vulkan_globals.device, vulkan_globals.water_blend_pipeline.handle, NULL);
-	vulkan_globals.water_blend_pipeline.handle = VK_NULL_HANDLE;
 	vkDestroyPipeline (vulkan_globals.device, vulkan_globals.raster_tex_warp_pipeline.handle, NULL);
 	vulkan_globals.raster_tex_warp_pipeline.handle = VK_NULL_HANDLE;
 	vkDestroyPipeline (vulkan_globals.device, vulkan_globals.particle_pipeline.handle, NULL);

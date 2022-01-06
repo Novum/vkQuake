@@ -1289,7 +1289,11 @@ void Mod_LoadFaces (lump_t *l, qboolean bsp2)
 		}
 		else if (out->texinfo->texture->name[0] == '*') // warp surface
 		{
-			out->flags |= (SURF_DRAWTURB | SURF_DRAWTILED);
+			out->flags |= SURF_DRAWTURB;
+
+			if (out->texinfo->flags & TEX_SPECIAL)
+				out->flags |= SURF_DRAWTILED; // unlit water
+			out->lightmaptexturenum = -1;
 
 			// detect special liquid types
 			if (!strncmp (out->texinfo->texture->name, "*lava", 5))

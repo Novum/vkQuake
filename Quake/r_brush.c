@@ -584,6 +584,12 @@ static void GL_CreateSurfaceLightmap (msurface_t *surf, uint32_t surface_index)
 	byte     *lightstyles[MAXLIGHTMAPS];
 	uint32_t *surface_indices;
 
+	if (surf->flags & SURF_DRAWTILED)
+	{
+		surf->lightmaptexturenum = -1;
+		return;
+	}
+
 	smax = (surf->extents[0] >> 4) + 1;
 	tmax = (surf->extents[1] >> 4) + 1;
 

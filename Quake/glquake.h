@@ -251,8 +251,6 @@ typedef struct
 	vulkan_pipeline_layout_t basic_pipeline_layout;
 	vulkan_pipeline_t        world_pipelines[WORLD_PIPELINE_COUNT];
 	vulkan_pipeline_layout_t world_pipeline_layout;
-	vulkan_pipeline_t        water_pipeline;
-	vulkan_pipeline_t        water_blend_pipeline;
 	vulkan_pipeline_t        raster_tex_warp_pipeline;
 	vulkan_pipeline_t        particle_pipeline;
 	vulkan_pipeline_t        sprite_pipeline;

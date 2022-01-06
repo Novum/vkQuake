@@ -505,47 +505,70 @@ void R_DrawTextureChains_Water (qmodel_t *model, entity_t *ent, texchain_t chain
 	int         i;
 	msurface_t *s;
 	texture_t  *t;
-	qboolean    bound;
-	float       entalpha;
 
-	float color[3] = {1.0f, 1.0f, 1.0f};
+	VkDeviceSize offset = 0;
+	vulkan_globals.vk_cmd_bind_vertex_buffers (vulkan_globals.command_buffer, 0, 1, &bmodel_vertex_buffer, &offset);
 
-	R_BindPipeline (VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.water_pipeline);
+	vulkan_globals.vk_cmd_bind_descriptor_sets (
+		vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 2, 1, &nulltexture->descriptor_set, 0,
+		NULL);
+	if (r_lightmap_cheatsafe)
+		vulkan_globals.vk_cmd_bind_descriptor_sets (
+			vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 0, 1, &greytexture->descriptor_set, 0,
+			NULL);
 
-	for (i = 0; i < model->numtextures; i++)
+	for (i = 0; i < model->numtextures; ++i)
 	{
 		t = model->textures[i];
+
 		if (!t || !t->texturechains[chain] || !(t->texturechains[chain]->flags & SURF_DRAWTURB))
 			continue;
-		bound = false;
-		entalpha = 1.0f;
+
+		gltexture_t *lightmap_texture = NULL;
+		R_ClearBatch ();
+
+		int   lastlightmap = -2; // avoid compiler warning
+		float last_alpha = 0.0f;
+		float alpha = 0.0f;
+
+		gltexture_t *gl_texture = t->warpimage;
+		if (!r_lightmap_cheatsafe)
+			vulkan_globals.vk_cmd_bind_descriptor_sets (
+				vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 0, 1, &gl_texture->descriptor_set,
+				0, NULL);
+
 		for (s = t->texturechains[chain]; s; s = s->texturechain)
 		{
-			if (!bound) // only bind once we are sure we need this texture
+			if (model != cl.worldmodel)
 			{
-				entalpha = GL_WaterAlphaForEntitySurface (ent, s);
-				if (entalpha < 1.0f)
-					R_BindPipeline (VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.water_blend_pipeline);
-				else
-					R_BindPipeline (VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.water_pipeline);
-
-				vulkan_globals.vk_cmd_bind_descriptor_sets (
-					vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1,
-					&t->warpimage->descriptor_set, 0, NULL);
-
-				if (model != cl.worldmodel)
-				{
-					// ericw -- this is copied from R_DrawSequentialPoly.
-					// If the poly is not part of the world we have to
-					// set this flag
-					t->update_warp = true; // FIXME: one frame too late!
-				}
-
-				bound = true;
+				// ericw -- this is copied from R_DrawSequentialPoly.
+				// If the poly is not part of the world we have to
+				// set this flag
+				t->update_warp = true; // FIXME: one frame too late!
 			}
-			DrawGLPoly (s->polys, color, entalpha);
+
+			alpha = GL_WaterAlphaForEntitySurface (ent, s);
+			const qboolean alpha_blend = alpha < 1.0f;
+
+			if ((s->lightmaptexturenum != lastlightmap) || (last_alpha != alpha))
+			{
+				if (alpha_blend)
+					R_PushConstants (VK_SHADER_STAGE_ALL_GRAPHICS, 20 * sizeof (float), 1 * sizeof (float), &alpha);
+				R_FlushBatch (false, false, alpha_blend, false, lightmap_texture);
+				lightmap_texture = (s->lightmaptexturenum >= 0) ? lightmaps[s->lightmaptexturenum].texture : greytexture;
+				last_alpha = alpha;
+			}
+
+			lastlightmap = s->lightmaptexturenum;
+			R_BatchSurface (s, false, false, alpha_blend, false, lightmap_texture);
+
 			rs_brushpasses++;
 		}
+
+		const qboolean alpha_blend = alpha < 1.0f;
+		if (alpha_blend)
+			R_PushConstants (VK_SHADER_STAGE_ALL_GRAPHICS, 20 * sizeof (float), 1 * sizeof (float), &alpha);
+		R_FlushBatch (false, false, alpha_blend, false, lightmap_texture);
 	}
 }
 
@@ -587,7 +610,7 @@ void R_DrawTextureChains_Multitexture (qmodel_t *model, entity_t *ent, texchain_
 	{
 		t = model->textures[i];
 
-		if (!t || !t->texturechains[chain] || t->texturechains[chain]->flags & (SURF_DRAWTILED | SURF_NOTEXTURE))
+		if (!t || !t->texturechains[chain] || t->texturechains[chain]->flags & (SURF_DRAWTURB | SURF_DRAWTILED | SURF_NOTEXTURE))
 			continue;
 
 		if (gl_fullbrights.value && (fullbright = R_TextureAnimation (t, ent_frame)->fullbright) && !r_lightmap_cheatsafe)
