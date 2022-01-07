@@ -126,6 +126,23 @@ void Sbar_Changed (void)
 	sb_updates = 0; // update next frame
 }
 
+qpic_t *Sbar_CheckPicFromWad (const char *name)
+{
+	extern qpic_t *pic_nul;
+	qpic_t *r;
+	lumpinfo_t *info;
+	if (!hudtype)
+		return pic_nul;	//one already failed, don't waste cpu
+	if (!W_GetLumpName(name, &info))
+		r = pic_nul;
+	else
+		r = Draw_PicFromWad(name);
+	if (r == pic_nul)
+		hudtype = 0;
+	return r;
+}
+
+
 /*
 ===============
 Sbar_LoadPics -- johnfitz -- load all the sbar pics
@@ -215,55 +232,59 @@ void Sbar_LoadPics (void)
 	sb_ibar = Draw_PicFromWad ("ibar");
 	sb_scorebar = Draw_PicFromWad ("scorebar");
 
-	// MED 01/04/97 added new hipnotic weapons
-	if (hipnotic)
-	{
-		hsb_weapons[0][0] = Draw_PicFromWad ("inv_laser");
-		hsb_weapons[0][1] = Draw_PicFromWad ("inv_mjolnir");
-		hsb_weapons[0][2] = Draw_PicFromWad ("inv_gren_prox");
-		hsb_weapons[0][3] = Draw_PicFromWad ("inv_prox_gren");
-		hsb_weapons[0][4] = Draw_PicFromWad ("inv_prox");
+	hudtype = 0;
 
-		hsb_weapons[1][0] = Draw_PicFromWad ("inv2_laser");
-		hsb_weapons[1][1] = Draw_PicFromWad ("inv2_mjolnir");
-		hsb_weapons[1][2] = Draw_PicFromWad ("inv2_gren_prox");
-		hsb_weapons[1][3] = Draw_PicFromWad ("inv2_prox_gren");
-		hsb_weapons[1][4] = Draw_PicFromWad ("inv2_prox");
+//MED 01/04/97 added new hipnotic weapons
+	if (!hudtype)
+	{
+		hudtype = 1;
+		hsb_weapons[0][0] = Sbar_CheckPicFromWad ("inv_laser");
+		hsb_weapons[0][1] = Sbar_CheckPicFromWad ("inv_mjolnir");
+		hsb_weapons[0][2] = Sbar_CheckPicFromWad ("inv_gren_prox");
+		hsb_weapons[0][3] = Sbar_CheckPicFromWad ("inv_prox_gren");
+		hsb_weapons[0][4] = Sbar_CheckPicFromWad ("inv_prox");
+
+		hsb_weapons[1][0] = Sbar_CheckPicFromWad ("inv2_laser");
+		hsb_weapons[1][1] = Sbar_CheckPicFromWad ("inv2_mjolnir");
+		hsb_weapons[1][2] = Sbar_CheckPicFromWad ("inv2_gren_prox");
+		hsb_weapons[1][3] = Sbar_CheckPicFromWad ("inv2_prox_gren");
+		hsb_weapons[1][4] = Sbar_CheckPicFromWad ("inv2_prox");
 
 		for (i = 0; i < 5; i++)
 		{
-			hsb_weapons[2 + i][0] = Draw_PicFromWad (va ("inva%i_laser", i + 1));
-			hsb_weapons[2 + i][1] = Draw_PicFromWad (va ("inva%i_mjolnir", i + 1));
-			hsb_weapons[2 + i][2] = Draw_PicFromWad (va ("inva%i_gren_prox", i + 1));
-			hsb_weapons[2 + i][3] = Draw_PicFromWad (va ("inva%i_prox_gren", i + 1));
-			hsb_weapons[2 + i][4] = Draw_PicFromWad (va ("inva%i_prox", i + 1));
+			hsb_weapons[2+i][0] = Sbar_CheckPicFromWad (va("inva%i_laser",i+1));
+			hsb_weapons[2+i][1] = Sbar_CheckPicFromWad (va("inva%i_mjolnir",i+1));
+			hsb_weapons[2+i][2] = Sbar_CheckPicFromWad (va("inva%i_gren_prox",i+1));
+			hsb_weapons[2+i][3] = Sbar_CheckPicFromWad (va("inva%i_prox_gren",i+1));
+			hsb_weapons[2+i][4] = Sbar_CheckPicFromWad (va("inva%i_prox",i+1));
 		}
 
-		hsb_items[0] = Draw_PicFromWad ("sb_wsuit");
-		hsb_items[1] = Draw_PicFromWad ("sb_eshld");
+		hsb_items[0] = Sbar_CheckPicFromWad ("sb_wsuit");
+		hsb_items[1] = Sbar_CheckPicFromWad ("sb_eshld");
 	}
 
-	if (rogue)
+	if (!hudtype)
 	{
-		rsb_invbar[0] = Draw_PicFromWad ("r_invbar1");
-		rsb_invbar[1] = Draw_PicFromWad ("r_invbar2");
+		hudtype = 2;
+		rsb_invbar[0] = Sbar_CheckPicFromWad ("r_invbar1");
+		rsb_invbar[1] = Sbar_CheckPicFromWad ("r_invbar2");
 
-		rsb_weapons[0] = Draw_PicFromWad ("r_lava");
-		rsb_weapons[1] = Draw_PicFromWad ("r_superlava");
-		rsb_weapons[2] = Draw_PicFromWad ("r_gren");
-		rsb_weapons[3] = Draw_PicFromWad ("r_multirock");
-		rsb_weapons[4] = Draw_PicFromWad ("r_plasma");
+		rsb_weapons[0] = Sbar_CheckPicFromWad ("r_lava");
+		rsb_weapons[1] = Sbar_CheckPicFromWad ("r_superlava");
+		rsb_weapons[2] = Sbar_CheckPicFromWad ("r_gren");
+		rsb_weapons[3] = Sbar_CheckPicFromWad ("r_multirock");
+		rsb_weapons[4] = Sbar_CheckPicFromWad ("r_plasma");
 
-		rsb_items[0] = Draw_PicFromWad ("r_shield1");
-		rsb_items[1] = Draw_PicFromWad ("r_agrav1");
+		rsb_items[0] = Sbar_CheckPicFromWad ("r_shield1");
+		rsb_items[1] = Sbar_CheckPicFromWad ("r_agrav1");
 
-		// PGM 01/19/97 - team color border
-		rsb_teambord = Draw_PicFromWad ("r_teambord");
-		// PGM 01/19/97 - team color border
+// PGM 01/19/97 - team color border
+		rsb_teambord = Sbar_CheckPicFromWad ("r_teambord");
+// PGM 01/19/97 - team color border
 
-		rsb_ammo[0] = Draw_PicFromWad ("r_ammolava");
-		rsb_ammo[1] = Draw_PicFromWad ("r_ammomulti");
-		rsb_ammo[2] = Draw_PicFromWad ("r_ammoplasma");
+		rsb_ammo[0] = Sbar_CheckPicFromWad ("r_ammolava");
+		rsb_ammo[1] = Sbar_CheckPicFromWad ("r_ammomulti");
+		rsb_ammo[2] = Sbar_CheckPicFromWad ("r_ammoplasma");
 	}
 }
 
