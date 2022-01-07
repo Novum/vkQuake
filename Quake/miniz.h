@@ -2,6 +2,8 @@
 #define MINIZ_EXPORT
 #endif
 
+// clang-format off
+
 /* miniz.c 2.2.0 - public domain deflate/inflate, zlib-subset, ZIP reading/writing/appending, PNG writing
    See "unlicense" statement at the end of this file.
    Rich Geldreich <richgel99@gmail.com>, last updated Oct. 13, 2013
@@ -730,3 +732,5 @@ MINIZ_EXPORT mz_bool mz_zip_end(mz_zip_archive *pZip);
 #endif
 
 #endif /* MINIZ_NO_ARCHIVE_APIS */
+
+// clang-format on
