@@ -234,7 +234,7 @@ void R_MarkVisSurfacesSIMD (byte *vis)
 			R_ChainSurface (surf, chain_world);
 			if (!r_gpulightmapupdate.value)
 				R_RenderDynamicLightmaps (surf);
-			else
+			else if (surf->lightmaptexturenum >= 0)
 				lightmaps[surf->lightmaptexturenum].modified = true;
 			if (surf->texinfo->texture->warpimage)
 				surf->texinfo->texture->update_warp = true;
@@ -276,7 +276,7 @@ void R_MarkVisSurfaces (byte *vis)
 							R_ChainSurface (surf, chain_world);
 							if (!r_gpulightmapupdate.value)
 								R_RenderDynamicLightmaps (surf);
-							else
+							else if (surf->lightmaptexturenum >= 0)
 								lightmaps[surf->lightmaptexturenum].modified = true;
 							if (surf->texinfo->texture->warpimage)
 								surf->texinfo->texture->update_warp = true;
