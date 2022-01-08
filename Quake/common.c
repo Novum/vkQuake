@@ -410,6 +410,9 @@ int Q_atoi (const char *str)
 	int sign;
 	int c;
 
+	while (q_isspace (*str))
+		++str;
+
 	if (*str == '-')
 	{
 		sign = -1;
@@ -468,6 +471,9 @@ float Q_atof (const char *str)
 	int    sign;
 	int    c;
 	int    decimal, total;
+
+	while (q_isspace (*str))
+		++str;
 
 	if (*str == '-')
 	{
