@@ -953,24 +953,34 @@ static void PF_findradius (void)
 	edict_t *ent, *chain;
 	float    rad;
 	float   *org;
-	vec3_t   eorg;
-	int      i, j;
+	int      i;
 
 	chain = (edict_t *)qcvm->edicts;
 
 	org = G_VECTOR (OFS_PARM0);
 	rad = G_FLOAT (OFS_PARM1);
+	rad *= rad;
 
 	ent = NEXT_EDICT (qcvm->edicts);
 	for (i = 1; i < qcvm->num_edicts; i++, ent = NEXT_EDICT (ent))
 	{
+		float d, lensq;
 		if (ent->free)
 			continue;
 		if (ent->v.solid == SOLID_NOT)
 			continue;
-		for (j = 0; j < 3; j++)
-			eorg[j] = org[j] - (ent->v.origin[j] + (ent->v.mins[j] + ent->v.maxs[j]) * 0.5);
-		if (VectorLength (eorg) > rad)
+
+		d = org[0] - (ent->v.origin[0] + (ent->v.mins[0] + ent->v.maxs[0]) * 0.5);
+		lensq = d * d;
+		if (lensq > rad)
+			continue;
+		d = org[1] - (ent->v.origin[1] + (ent->v.mins[1] + ent->v.maxs[1]) * 0.5);
+		lensq += d * d;
+		if (lensq > rad)
+			continue;
+		d = org[2] - (ent->v.origin[2] + (ent->v.mins[2] + ent->v.maxs[2]) * 0.5);
+		lensq += d * d;
+		if (lensq > rad)
 			continue;
 
 		ent->v.chain = EDICT_TO_PROG (chain);
