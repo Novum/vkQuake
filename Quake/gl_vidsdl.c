@@ -458,6 +458,7 @@ static qboolean VID_SetMode (int width, int height, int refreshrate, int bpp, qb
 	}
 
 	SDL_ShowWindow (draw_context);
+	SDL_RaiseWindow (draw_context);
 
 	vid.width = VID_GetCurrentWidth ();
 	vid.height = VID_GetCurrentHeight ();
