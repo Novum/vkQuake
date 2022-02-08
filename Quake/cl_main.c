@@ -568,6 +568,27 @@ static qboolean CL_AttachEntity (entity_t *ent, float frac)
 
 /*
 ===============
+CL_RocketTrail
+
+Rate-limiting wrapper over R_RocketTrail
+===============
+*/
+static void CL_RocketTrail (entity_t *ent, int type)
+{
+	if (!(ent->lerpflags & LERP_RESETMOVE) && !ent->forcelink)
+	{
+		ent->traildelay -= cl.time - cl.oldtime;
+		if (ent->traildelay > 0.f)
+			return;
+		R_RocketTrail (ent->trailorg, ent->origin, type);
+	}
+
+	ent->traildelay = q_max (0, ent->traildelay + 1.f / 72.f);
+	VectorCopy (ent->origin, ent->trailorg);
+}
+
+/*
+===============
 CL_RelinkEntities
 ===============
 */
@@ -744,25 +765,25 @@ void CL_RelinkEntities (void)
 		else
 #endif
 			if (ent->model->flags & EF_GIB)
-			R_RocketTrail (oldorg, ent->origin, 2);
+			CL_RocketTrail (ent, 2);
 		else if (ent->model->flags & EF_ZOMGIB)
-			R_RocketTrail (oldorg, ent->origin, 4);
+			CL_RocketTrail (ent, 4);
 		else if (ent->model->flags & EF_TRACER)
-			R_RocketTrail (oldorg, ent->origin, 3);
+			CL_RocketTrail (ent, 3);
 		else if (ent->model->flags & EF_TRACER2)
-			R_RocketTrail (oldorg, ent->origin, 5);
+			CL_RocketTrail (ent, 5);
 		else if (ent->model->flags & EF_ROCKET)
 		{
-			R_RocketTrail (oldorg, ent->origin, 0);
+			CL_RocketTrail (ent, 0);
 			dl = CL_AllocDlight (i);
 			VectorCopy (ent->origin, dl->origin);
 			dl->radius = 200;
 			dl->die = cl.time + 0.01;
 		}
 		else if (ent->model->flags & EF_GRENADE)
-			R_RocketTrail (oldorg, ent->origin, 1);
+			CL_RocketTrail (ent, 1);
 		else if (ent->model->flags & EF_TRACER3)
-			R_RocketTrail (oldorg, ent->origin, 6);
+			CL_RocketTrail (ent, 6);
 
 		ent->forcelink = false;
 
