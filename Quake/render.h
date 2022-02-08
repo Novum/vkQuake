@@ -107,6 +107,8 @@ typedef struct entity_s
 	                                 // can track beams etc
 	struct trailstate_s *emitstate;  // spike -- for effects which are not so static.
 #endif
+	float  traildelay; // time left until next particle trail update
+	vec3_t trailorg;   // previous particle trail point
 
 	lightcache_t lightcache; // alias light trace cache
 } entity_t;
