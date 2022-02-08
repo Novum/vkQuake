@@ -2934,9 +2934,6 @@ void R_Init (void)
 	Cvar_RegisterVariable (&r_gpulightmapupdate);
 
 	R_InitParticles ();
-#ifdef PSET_SCRIPT
-	PScript_InitParticles ();
-#endif
 	SetClearColor (); // johnfitz
 
 	Sky_Init (); // johnfitz
