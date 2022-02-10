@@ -2110,6 +2110,8 @@ static void R_CreateFTEParticlesPipelines ()
 	infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass;
 	infos.blend_attachment_state.blendEnable = VK_TRUE;
 
+	infos.multisample_state.sampleShadingEnable = VK_FALSE;
+
 	for (int i = 0; i < 8; ++i)
 	{
 		infos.input_assembly_state.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
