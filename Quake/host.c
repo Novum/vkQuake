@@ -92,6 +92,7 @@ cvar_t        temp1 = {"temp1", "0", CVAR_NONE};
 cvar_t devstats = {"devstats", "0", CVAR_NONE}; // johnfitz -- track developer statistics that vary every frame
 
 cvar_t campaign = {"campaign", "0", CVAR_NONE}; // for the 2021 rerelease
+cvar_t	horde = {"horde","0",CVAR_NONE}; // for the 2021 rerelease
 
 devstats_t      dev_stats, dev_peakstats;
 overflowtimes_t dev_overflows; // this stores the last time overflow messages were displayed, not the last time overflows occured
@@ -313,6 +314,7 @@ void Host_InitLocal (void)
 	Cvar_RegisterVariable (&deathmatch);
 
 	Cvar_RegisterVariable (&campaign);
+	Cvar_RegisterVariable (&horde);
 
 	Cvar_RegisterVariable (&pausable);
 
