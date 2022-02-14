@@ -70,7 +70,7 @@ cvar_t host_timescale = {"host_timescale", "0", CVAR_NONE}; // johnfitz
 cvar_t max_edicts = {"max_edicts", "8192", CVAR_NONE};      // johnfitz //ericw -- changed from 2048 to 8192, removed CVAR_ARCHIVE
 cvar_t cl_nocsqc = {"cl_nocsqc", "0", CVAR_NONE};           // spike -- blocks the loading of any csqc modules
 
-cvar_t sys_ticrate = {"sys_ticrate", "0.05", CVAR_NONE}; // dedicated server
+cvar_t sys_ticrate = {"sys_ticrate", "0.025", CVAR_NONE}; // dedicated server
 cvar_t serverprofile = {"serverprofile", "0", CVAR_NONE};
 
 cvar_t fraglimit = {"fraglimit", "0", CVAR_NOTIFY | CVAR_SERVERINFO};
@@ -856,7 +856,7 @@ void _Host_Frame (double time)
 	while ((host_netinterval == 0) || (accumtime >= host_netinterval))
 	{
 		float realframetime = host_frametime;
-		if (host_netinterval)
+		if (host_netinterval && isDedicated == 0)
 		{
 			host_frametime = host_netinterval;
 			accumtime -= host_frametime;
@@ -876,7 +876,7 @@ void _Host_Frame (double time)
 		host_frametime = realframetime;
 		Cbuf_Waited ();
 
-		if (host_netinterval == 0)
+		if (host_netinterval == 0 || isDedicated)
 			break;
 	}
 
