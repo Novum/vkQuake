@@ -421,6 +421,8 @@ void Cvar_SetQuick (cvar_t *var, const char *value)
 
 	if (var->callback)
 		var->callback (var);
+	if (var->flags & CVAR_AUTOCVAR)
+		PR_AutoCvarChanged(var);
 }
 
 void Cvar_SetValueQuick (cvar_t *var, const float value)
