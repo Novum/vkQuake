@@ -703,6 +703,26 @@ void CL_RelinkEntities (void)
 			dl->radius = 200 + (rand () & 31);
 			dl->die = cl.time + 0.001;
 		}
+		if (ent->effects & EF_QEX_QUADLIGHT)
+		{
+			dl = CL_AllocDlight (i);
+			VectorCopy (ent->origin,  dl->origin);
+			dl->radius = 200 + (rand()&31);
+			dl->die = cl.time + 0.001;
+			dl->color[0] = 0.25f;
+			dl->color[1] = 0.25f;
+			dl->color[2] = 1.0f;
+		}
+		if (ent->effects & EF_QEX_PENTALIGHT)
+		{
+			dl = CL_AllocDlight (i);
+			VectorCopy (ent->origin,  dl->origin);
+			dl->radius = 200 + (rand()&31);
+			dl->die = cl.time + 0.001;
+			dl->color[0] = 1.0f;
+			dl->color[1] = 0.25f;
+			dl->color[2] = 0.25f;
+		}
 
 #ifdef PSET_SCRIPT
 		if (cl.paused)
