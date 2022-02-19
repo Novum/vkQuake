@@ -4918,6 +4918,7 @@ static struct
 	{"DP_QC_VECTOANGLES_WITH_ROLL"},
 	{"DP_QC_VECTORVECTORS"},
 	{"DP_QC_WHICHPACK"},
+	{"DP_VIEWZOOM"},
 	{"DP_REGISTERCVAR"},
 	{"DP_SV_BOTCLIENT"},
 	{"DP_SV_DROPCLIENT"},
@@ -5535,6 +5536,7 @@ void PR_DumpPlatform_f (void)
 			   "read the visible part of serverflags, whichever is applicable. */\n");
 		fprintf (f, "const float STAT_VIEWHEIGHT = 16;	/* player.view_ofs_z */\n");
 		fprintf (f, "const float STAT_VIEW2 = 20;		/* This stat contains the number of the entity in the server's .view2 field. */\n");
+		fprintf (f, "const float STAT_VIEWZOOM = 21;		/* Scales fov and sensitivity. Part of DP_VIEWZOOM. */\n");
 		fprintf (f, "const float STAT_IDEALPITCH = 25;\n");
 		fprintf (f, "const float STAT_PUNCHANGLE_X = 26;\n");
 		fprintf (f, "const float STAT_PUNCHANGLE_Y = 27;\n");
