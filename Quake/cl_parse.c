@@ -463,14 +463,14 @@ static unsigned int CLFTE_ReadDelta (unsigned int entnum, entity_state_t *news, 
 	if (bits & UF_TRAILEFFECT)
 	{
 		unsigned short v = MSG_ReadShort ();
-		/*news->emiteffectnum = 0;*/
-		/*news->traileffectnum = v & 0x3fff;*/
+		news->emiteffectnum = 0;
+		news->traileffectnum = v & 0x3fff;
 		if (v & 0x8000)
-			/*news->emiteffectnum = */ MSG_ReadShort () /*& 0x3fff*/;
-		/*if (news->traileffectnum >= MAX_PARTICLETYPES)
+			news->emiteffectnum = MSG_ReadShort() & 0x3fff;
+		if (news->traileffectnum >= MAX_PARTICLETYPES)
 		    news->traileffectnum = 0;
 		if (news->emiteffectnum >= MAX_PARTICLETYPES)
-		    news->emiteffectnum = 0;*/
+			news->emiteffectnum = 0;
 	}
 
 	if (bits & UF_COLORMOD)
