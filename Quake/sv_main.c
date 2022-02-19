@@ -1212,7 +1212,8 @@ void SV_StartSound (edict_t *entity, float *origin, int channel, const char *sam
 			continue;
 		if (sound_num >= client->limit_sounds)
 			continue;
-		if ((field_mask & (SND_LARGEENTITY | SND_LARGESOUND)) && (!client->protocol_pext2 || sv.protocol == PROTOCOL_NETQUAKE))
+		//PROTOCOL_NETQUAKE do not support more than 256 sounds and/or 8192 entities.
+		if ((field_mask & (SND_LARGEENTITY | SND_LARGESOUND)) && (sv.protocol == PROTOCOL_NETQUAKE))
 			continue;
 
 		// directed messages go only to the entity the are targeted on
