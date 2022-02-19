@@ -174,6 +174,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define SU_UNUSED30     (1 << 30)
 #define SU_EXTEND3      (1 << 31) // another byte to follow, future expansion
 // johnfitz
+// spike dp
+#define DPSU_VIEWZOOM   (1 << 19) // byte factor (0 = 0.0 (not valid), 255 = 1.0)
+// spike
 
 // a sound with no channel is a local only sound
 #define SND_VOLUME      (1 << 0) // a byte
