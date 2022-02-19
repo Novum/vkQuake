@@ -63,6 +63,12 @@ void SV_CalcStats (client_t *client, int *statsi, float *statsf, const char **st
 	statsf[STAT_ROCKETS] = ent->v.ammo_rockets;
 	statsf[STAT_CELLS] = ent->v.ammo_cells;
 	statsf[STAT_ACTIVEWEAPON] = ent->v.weapon; // sent in a way that does NOT depend upon the current mod...
+	if ((val = GetEdictFieldValue(ent, qcvm->extfields.viewzoom)) && val->_float)
+	{
+		statsf[STAT_VIEWZOOM] = val->_float * 255;
+		if (statsf[STAT_VIEWZOOM] < 1)
+			statsf[STAT_VIEWZOOM] = 1;
+	}
 
 	if (client->protocol_pext2 & PEXT2_PREDINFO)
 	{ // predinfo also kills clc_clientdata
