@@ -246,6 +246,11 @@ float AdaptFovx (float fov_x, float width, float height)
 
 	if (fov_x < 1 || fov_x > 179)
 		Sys_Error ("Bad fov: %f", fov_x);
+	if (cl.statsf[STAT_VIEWZOOM])
+	{
+		fov_x *= cl.statsf[STAT_VIEWZOOM] / 255.0;
+		fov_x = CLAMP (1, fov_x, 179);
+	}
 
 	if (!scr_fov_adapt.value)
 		return fov_x;
