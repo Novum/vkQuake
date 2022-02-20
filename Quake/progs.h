@@ -269,6 +269,7 @@ struct pr_extfields_s
 	QCEXTFIELD (button6, ".float")                                   /*float*/      \
 	QCEXTFIELD (button7, ".float")                                   /*float*/      \
 	QCEXTFIELD (button8, ".float")                                   /*float*/      \
+	QCEXTFIELD (viewzoom, ".float")                                  /*float*/      \
 	QCEXTFIELD (SendEntity, ".float(entity to, float changedflags)") /*function*/   \
 	QCEXTFIELD (SendFlags, ".float")                                 /*float. :( */ \
 																	 // end of list
