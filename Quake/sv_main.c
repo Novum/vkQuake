@@ -191,6 +191,10 @@ static unsigned int MSGFTE_DeltaCalcBits (entity_state_t *from, entity_state_t *
 		bits |= UF_ALPHA;
 	if (to->colormod[0] != from->colormod[0] || to->colormod[1] != from->colormod[1] || to->colormod[2] != from->colormod[2])
 		bits |= UF_COLORMOD;
+    if (to->tagentity != from->tagentity || to->tagindex != from->tagindex)
+		bits |= UF_TAGINFO;
+   if (to->traileffectnum != from->traileffectnum || to->emiteffectnum != from->emiteffectnum)
+		bits |= UF_TRAILEFFECT;
 
 	return bits;
 }
@@ -340,6 +344,23 @@ static void MSGFTE_WriteEntityUpdate (unsigned int bits, entity_state_t *state, 
 		MSG_WriteByte (msg, (state->alpha - 1) & 0xff);
 	if (bits & UF_SCALE)
 		MSG_WriteByte (msg, state->scale);
+
+	if (bits & UF_TAGINFO)
+	{
+		MSG_WriteEntity(msg, state->tagentity, pext2);
+		MSG_WriteByte(msg, state->tagindex);
+	}
+
+	if (bits & UF_TRAILEFFECT)
+	{
+		if (state->emiteffectnum)
+		{	//3 spare bits. so that's nice (this is guarenteed to be 14 bits max due to precaches using the upper two bits).
+			MSG_WriteShort(msg, (state->traileffectnum&0x3fff)|0x8000);
+			MSG_WriteShort(msg, state->emiteffectnum&0x3fff);
+		}
+		else
+			MSG_WriteShort(msg, state->traileffectnum&0x3fff);
+	}
 
 	if (bits & UF_COLORMOD)
 	{
@@ -1215,7 +1236,7 @@ void SV_StartSound (edict_t *entity, float *origin, int channel, const char *sam
 		//PROTOCOL_NETQUAKE do not support more than 256 sounds and/or 8192 entities.
 		if ((field_mask & (SND_LARGEENTITY | SND_LARGESOUND)) && (sv.protocol == PROTOCOL_NETQUAKE))
 			continue;
-
+		
 		// directed messages go only to the entity the are targeted on
 		MSG_WriteByte (&client->datagram, svc_sound);
 		MSG_WriteByte (&client->datagram, field_mask);
