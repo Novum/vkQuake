@@ -129,19 +129,18 @@ void Sbar_Changed (void)
 qpic_t *Sbar_CheckPicFromWad (const char *name)
 {
 	extern qpic_t *pic_nul;
-	qpic_t *r;
-	lumpinfo_t *info;
+	qpic_t        *r;
+	lumpinfo_t    *info;
 	if (!hudtype)
-		return pic_nul;	//one already failed, don't waste cpu
-	if (!W_GetLumpName(name, &info))
+		return pic_nul; // one already failed, don't waste cpu
+	if (!W_GetLumpName (name, &info))
 		r = pic_nul;
 	else
-		r = Draw_PicFromWad(name);
+		r = Draw_PicFromWad (name);
 	if (r == pic_nul)
 		hudtype = 0;
 	return r;
 }
-
 
 /*
 ===============
@@ -234,7 +233,7 @@ void Sbar_LoadPics (void)
 
 	hudtype = 0;
 
-//MED 01/04/97 added new hipnotic weapons
+	// MED 01/04/97 added new hipnotic weapons
 	if (!hudtype)
 	{
 		hudtype = 1;
@@ -252,11 +251,11 @@ void Sbar_LoadPics (void)
 
 		for (i = 0; i < 5; i++)
 		{
-			hsb_weapons[2+i][0] = Sbar_CheckPicFromWad (va("inva%i_laser",i+1));
-			hsb_weapons[2+i][1] = Sbar_CheckPicFromWad (va("inva%i_mjolnir",i+1));
-			hsb_weapons[2+i][2] = Sbar_CheckPicFromWad (va("inva%i_gren_prox",i+1));
-			hsb_weapons[2+i][3] = Sbar_CheckPicFromWad (va("inva%i_prox_gren",i+1));
-			hsb_weapons[2+i][4] = Sbar_CheckPicFromWad (va("inva%i_prox",i+1));
+			hsb_weapons[2 + i][0] = Sbar_CheckPicFromWad (va ("inva%i_laser", i + 1));
+			hsb_weapons[2 + i][1] = Sbar_CheckPicFromWad (va ("inva%i_mjolnir", i + 1));
+			hsb_weapons[2 + i][2] = Sbar_CheckPicFromWad (va ("inva%i_gren_prox", i + 1));
+			hsb_weapons[2 + i][3] = Sbar_CheckPicFromWad (va ("inva%i_prox_gren", i + 1));
+			hsb_weapons[2 + i][4] = Sbar_CheckPicFromWad (va ("inva%i_prox", i + 1));
 		}
 
 		hsb_items[0] = Sbar_CheckPicFromWad ("sb_wsuit");
@@ -278,9 +277,9 @@ void Sbar_LoadPics (void)
 		rsb_items[0] = Sbar_CheckPicFromWad ("r_shield1");
 		rsb_items[1] = Sbar_CheckPicFromWad ("r_agrav1");
 
-// PGM 01/19/97 - team color border
+		// PGM 01/19/97 - team color border
 		rsb_teambord = Sbar_CheckPicFromWad ("r_teambord");
-// PGM 01/19/97 - team color border
+		// PGM 01/19/97 - team color border
 
 		rsb_ammo[0] = Sbar_CheckPicFromWad ("r_ammolava");
 		rsb_ammo[1] = Sbar_CheckPicFromWad ("r_ammomulti");

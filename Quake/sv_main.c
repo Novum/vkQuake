@@ -41,8 +41,8 @@ void SV_CalcStats (client_t *client, int *statsi, float *statsf, const char **st
 	size_t   i;
 	edict_t *ent = client->edict;
 	// FIXME: string stats!
-	int items;
-	eval_t *val = GetEdictFieldValue(ent, qcvm->extfields.items2);
+	int      items;
+	eval_t  *val = GetEdictFieldValue (ent, qcvm->extfields.items2);
 	if (val)
 		items = (int)((uint32_t)ent->v.items | ((uint32_t)val->_float << 23));
 	else
@@ -63,7 +63,7 @@ void SV_CalcStats (client_t *client, int *statsi, float *statsf, const char **st
 	statsf[STAT_ROCKETS] = ent->v.ammo_rockets;
 	statsf[STAT_CELLS] = ent->v.ammo_cells;
 	statsf[STAT_ACTIVEWEAPON] = ent->v.weapon; // sent in a way that does NOT depend upon the current mod...
-	if ((val = GetEdictFieldValue(ent, qcvm->extfields.viewzoom)) && val->_float)
+	if ((val = GetEdictFieldValue (ent, qcvm->extfields.viewzoom)) && val->_float)
 	{
 		statsf[STAT_VIEWZOOM] = val->_float * 255;
 		if (statsf[STAT_VIEWZOOM] < 1)
@@ -197,9 +197,9 @@ static unsigned int MSGFTE_DeltaCalcBits (entity_state_t *from, entity_state_t *
 		bits |= UF_ALPHA;
 	if (to->colormod[0] != from->colormod[0] || to->colormod[1] != from->colormod[1] || to->colormod[2] != from->colormod[2])
 		bits |= UF_COLORMOD;
-    if (to->tagentity != from->tagentity || to->tagindex != from->tagindex)
+	if (to->tagentity != from->tagentity || to->tagindex != from->tagindex)
 		bits |= UF_TAGINFO;
-   if (to->traileffectnum != from->traileffectnum || to->emiteffectnum != from->emiteffectnum)
+	if (to->traileffectnum != from->traileffectnum || to->emiteffectnum != from->emiteffectnum)
 		bits |= UF_TRAILEFFECT;
 
 	return bits;
@@ -353,19 +353,19 @@ static void MSGFTE_WriteEntityUpdate (unsigned int bits, entity_state_t *state, 
 
 	if (bits & UF_TAGINFO)
 	{
-		MSG_WriteEntity(msg, state->tagentity, pext2);
-		MSG_WriteByte(msg, state->tagindex);
+		MSG_WriteEntity (msg, state->tagentity, pext2);
+		MSG_WriteByte (msg, state->tagindex);
 	}
 
 	if (bits & UF_TRAILEFFECT)
 	{
 		if (state->emiteffectnum)
-		{	//3 spare bits. so that's nice (this is guarenteed to be 14 bits max due to precaches using the upper two bits).
-			MSG_WriteShort(msg, (state->traileffectnum&0x3fff)|0x8000);
-			MSG_WriteShort(msg, state->emiteffectnum&0x3fff);
+		{ // 3 spare bits. so that's nice (this is guarenteed to be 14 bits max due to precaches using the upper two bits).
+			MSG_WriteShort (msg, (state->traileffectnum & 0x3fff) | 0x8000);
+			MSG_WriteShort (msg, state->emiteffectnum & 0x3fff);
 		}
 		else
-			MSG_WriteShort(msg, state->traileffectnum&0x3fff);
+			MSG_WriteShort (msg, state->traileffectnum & 0x3fff);
 	}
 
 	if (bits & UF_COLORMOD)
@@ -1239,10 +1239,10 @@ void SV_StartSound (edict_t *entity, float *origin, int channel, const char *sam
 			continue;
 		if (sound_num >= client->limit_sounds)
 			continue;
-		//PROTOCOL_NETQUAKE do not support more than 256 sounds and/or 8192 entities.
+		// PROTOCOL_NETQUAKE do not support more than 256 sounds and/or 8192 entities.
 		if ((field_mask & (SND_LARGEENTITY | SND_LARGESOUND)) && (sv.protocol == PROTOCOL_NETQUAKE))
 			continue;
-		
+
 		// directed messages go only to the entity the are targeted on
 		MSG_WriteByte (&client->datagram, svc_sound);
 		MSG_WriteByte (&client->datagram, field_mask);

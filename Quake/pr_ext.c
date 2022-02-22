@@ -5153,37 +5153,37 @@ static void *PR_FindExtGlobal (int type, const char *name)
 	return NULL;
 }
 
-void PR_AutoCvarChanged(cvar_t *var)
+void PR_AutoCvarChanged (cvar_t *var)
 {
-	char *n;
+	char   *n;
 	ddef_t *glob;
 	qcvm_t *oldqcvm = qcvm;
-	PR_SwitchQCVM(NULL);
+	PR_SwitchQCVM (NULL);
 	if (sv.active)
 	{
-		PR_SwitchQCVM(&sv.qcvm);
-		n = va("autocvar_%s", var->name);
-		glob = ED_FindGlobal(n);
+		PR_SwitchQCVM (&sv.qcvm);
+		n = va ("autocvar_%s", var->name);
+		glob = ED_FindGlobal (n);
 		if (glob)
 		{
 			if (!ED_ParseEpair ((void *)qcvm->globals, glob, var->string, true))
-				Con_Warning("EXT: Unable to configure %s\n", n);
+				Con_Warning ("EXT: Unable to configure %s\n", n);
 		}
-		PR_SwitchQCVM(NULL);
+		PR_SwitchQCVM (NULL);
 	}
 	if (cl.qcvm.globals)
 	{
-		PR_SwitchQCVM(&cl.qcvm);
-		n = va("autocvar_%s", var->name);
-		glob = ED_FindGlobal(n);
+		PR_SwitchQCVM (&cl.qcvm);
+		n = va ("autocvar_%s", var->name);
+		glob = ED_FindGlobal (n);
 		if (glob)
 		{
 			if (!ED_ParseEpair ((void *)qcvm->globals, glob, var->string, true))
-				Con_Warning("EXT: Unable to configure %s\n", n);
+				Con_Warning ("EXT: Unable to configure %s\n", n);
 		}
-		PR_SwitchQCVM(NULL);
+		PR_SwitchQCVM (NULL);
 	}
-	PR_SwitchQCVM(oldqcvm);
+	PR_SwitchQCVM (oldqcvm);
 }
 
 void PR_InitExtensions (void)
@@ -5273,25 +5273,25 @@ void PR_EnableExtensions (ddef_t *pr_globaldefs)
 		}
 	}
 
-	//autocvars
+	// autocvars
 	for (i = 0; i < (unsigned int)qcvm->progs->numglobaldefs; i++)
 	{
-		const char *n = PR_GetString(qcvm->globaldefs[i].s_name);
-		if (!strncmp(n, "autocvar_", 9))
+		const char *n = PR_GetString (qcvm->globaldefs[i].s_name);
+		if (!strncmp (n, "autocvar_", 9))
 		{
-			//really crappy approach
-			cvar_t *var = Cvar_Create(n + 9, PR_UglyValueString (qcvm->globaldefs[i].type, (eval_t*)(qcvm->globals + qcvm->globaldefs[i].ofs)));
+			// really crappy approach
+			cvar_t *var = Cvar_Create (n + 9, PR_UglyValueString (qcvm->globaldefs[i].type, (eval_t *)(qcvm->globals + qcvm->globaldefs[i].ofs)));
 			numautocvars++;
 			if (!var)
-				continue;	//name conflicts with a command?
-	
+				continue; // name conflicts with a command?
+
 			if (!ED_ParseEpair ((void *)qcvm->globals, &pr_globaldefs[i], var->string, true))
-				Con_Warning("EXT: Unable to configure %s\n", n);
+				Con_Warning ("EXT: Unable to configure %s\n", n);
 			var->flags |= CVAR_AUTOCVAR;
 		}
 	}
 	if (numautocvars)
-		Con_DPrintf2("Found %i autocvars\n", numautocvars);
+		Con_DPrintf2 ("Found %i autocvars\n", numautocvars);
 }
 
 void PR_DumpPlatform_f (void)
