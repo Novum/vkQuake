@@ -1830,7 +1830,9 @@ void SV_WriteEntitiesToClient (client_t *client, sizebuf_t *msg)
 
 		// johnfitz -- max size for protocol 15 is 18 bytes, not 16 as originally
 		// assumed here.  And, for protocol 85 the max size is actually 24 bytes.
-		if (msg->cursize + 24 > maxsize)
+		// For float coords and angles the limit is 36. 
+		// FIXME: Use tighter limit according to protocol flags and send bits.
+		if (msg->cursize + 39 > maxsize)
 		{
 			// johnfitz -- less spammy overflow message
 			if (!dev_overflows.packetsize || dev_overflows.packetsize + CONSOLE_RESPAM_TIME < realtime)
@@ -2241,7 +2243,7 @@ qboolean SV_SendClientDatagram (client_t *client)
 
 	msg.allowoverflow = false;
 	msg.data = buf;
-	msg.maxsize = q_min (sizeof (buf), client->limit_unreliable);
+	msg.maxsize = q_min (MAX_DATAGRAM, client->limit_unreliable);
 	msg.cursize = 0;
 
 	host_client = client;
@@ -2291,8 +2293,6 @@ qboolean SV_SendClientDatagram (client_t *client)
 		if (msg.cursize + sv.datagram.cursize < msg.maxsize)
 			SZ_Write (&msg, sv.datagram.data, sv.datagram.cursize);
 	}
-
-	msg.maxsize = q_min (sizeof (buf), client->limit_unreliable);
 
 	// send the datagram
 	if (msg.cursize && NET_SendUnreliableMessage (client->netconnection, &msg) == -1)
