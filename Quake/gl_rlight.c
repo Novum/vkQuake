@@ -26,6 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 int r_dlightframecount;
 
 extern cvar_t r_flatlightstyles; // johnfitz
+extern cvar_t r_lerplightstyles;
 
 /*
 ==================
@@ -34,12 +35,13 @@ R_AnimateLight
 */
 void R_AnimateLight (void)
 {
-	int i, j, k;
+	int i, j, k, n;
+	double f;
 
 	//
 	// light animations
 	// 'm' is normal light, 'a' is no light, 'z' is double bright
-	i = (int)(cl.time * 10);
+	i = f = cl.time * 10;
 	for (j = 0; j < MAX_LIGHTSTYLES; j++)
 	{
 		if (!cl_lightstyle[j].length)
@@ -49,15 +51,17 @@ void R_AnimateLight (void)
 		}
 		// johnfitz -- r_flatlightstyles
 		if (r_flatlightstyles.value == 2)
-			k = cl_lightstyle[j].peak - 'a';
+			k = n = cl_lightstyle[j].peak - 'a';
 		else if (r_flatlightstyles.value == 1)
-			k = cl_lightstyle[j].average - 'a';
+			k = n = cl_lightstyle[j].average - 'a';
 		else
 		{
-			k = i % cl_lightstyle[j].length;
-			k = cl_lightstyle[j].map[k] - 'a';
+			k = cl_lightstyle[j].map[ i    % cl_lightstyle[j].length] - 'a';
+			n = cl_lightstyle[j].map[(i+1) % cl_lightstyle[j].length] - 'a';
 		}
-		d_lightstylevalue[j] = k * 22;
+		if (!r_lerplightstyles.value || r_lerplightstyles.value < 2 && abs(n - k) >= ('m' - 'a') / 2)
+			n = k;
+		d_lightstylevalue[j] = (k + (n - k) * (f - i)) * 22;
 		// johnfitz
 	}
 }
