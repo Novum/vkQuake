@@ -803,7 +803,7 @@ void SV_BuildEntityState (edict_t *ent, entity_state_t *state)
 		state->tagindex = val->_float;
 	else
 		state->tagindex = 0;
-	state->effects = ent->v.effects;
+	state->effects = (int)ent->v.effects & sv.effectsmask;
 	if ((val = GetEdictFieldValue (ent, qcvm->extfields.modelflags)))
 		state->effects |= ((unsigned int)val->_float) << 24;
 	if (!ent->v.movetype || ent->v.movetype == MOVETYPE_STEP)
@@ -1875,7 +1875,7 @@ void SV_WriteEntitiesToClient (client_t *client, sizebuf_t *msg)
 		if (ent->baseline.frame != ent->v.frame)
 			bits |= U_FRAME;
 
-		if (ent->baseline.effects != ent->v.effects)
+		if ((ent->baseline.effects ^ (int)ent->v.effects) & sv.effectsmask)
 			bits |= U_EFFECTS;
 
 		if (ent->baseline.modelindex != ent->v.modelindex)
@@ -1888,7 +1888,7 @@ void SV_WriteEntitiesToClient (client_t *client, sizebuf_t *msg)
 			ent->alpha = ENTALPHA_ENCODE (val->_float);
 
 		// don't send invisible entities unless they have effects
-		if (ent->alpha == ENTALPHA_ZERO && !ent->v.effects)
+		if (ent->alpha == ENTALPHA_ZERO && !((int)ent->v.effects & sv.effectsmask))
 			continue;
 		// johnfitz
 
@@ -1946,7 +1946,7 @@ void SV_WriteEntitiesToClient (client_t *client, sizebuf_t *msg)
 		if (bits & U_SKIN)
 			MSG_WriteByte (msg, ent->v.skin);
 		if (bits & U_EFFECTS)
-			MSG_WriteByte (msg, ent->v.effects);
+			MSG_WriteByte (msg, (int)ent->v.effects & sv.effectsmask);
 		if (bits & U_ORIGIN1)
 			MSG_WriteCoord (msg, ent->v.origin[0], sv.protocolflags);
 		if (bits & U_ANGLE1)

@@ -1218,6 +1218,37 @@ static void PR_PatchRereleaseBuiltins (void)
 
 /*
 ===============
+PR_HasGlobal
+===============
+*/
+static qboolean PR_HasGlobal (const char *name, float value)
+{
+	ddef_t *g = ED_FindGlobal (name);
+	return g && (g->type & ~DEF_SAVEGLOBAL) == ev_float && G_FLOAT (g->ofs) == value;
+}
+
+/*
+===============
+PR_FindSupportedEffects
+
+Disables Quake 2021 release effects flags when not present in progs.dat to avoid conflicts
+(e.g. Arcane Dimensions uses bit 32 for its explosions, same as EF_QEX_PENTALIGHT)
+===============
+*/
+static void PR_FindSupportedEffects (void)
+{
+	if (qcvm == &sv.qcvm)
+	{
+		qboolean isqex =
+			PR_HasGlobal ("EF_QUADLIGHT", EF_QEX_QUADLIGHT) &&
+			(PR_HasGlobal ("EF_PENTLIGHT", EF_QEX_PENTALIGHT) || PR_HasGlobal ("EF_PENTALIGHT", EF_QEX_PENTALIGHT))
+		;
+		sv.effectsmask = isqex ? -1 : -1 & ~(EF_QEX_QUADLIGHT|EF_QEX_PENTALIGHT|EF_QEX_CANDLELIGHT);
+	}
+}
+
+/*
+===============
 PR_LoadProgs
 ===============
 */
@@ -1364,6 +1395,7 @@ qboolean PR_LoadProgs (const char *filename, qboolean fatal, unsigned int needcr
 	PR_SetEngineString ("");
 	PR_EnableExtensions (qcvm->globaldefs);
 	PR_PatchRereleaseBuiltins ();
+	PR_FindSupportedEffects ();
 
 	return true;
 }

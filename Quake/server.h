@@ -101,6 +101,8 @@ typedef struct
 		eval_t *ptr;
 	} customstats[MAX_CL_STATS * 2]; // strings or numeric...
 	size_t numcustomstats;
+
+	int effectsmask; // only enable colored quad/penta dlights in 2021 release
 } server_t;
 
 #define NUM_PING_TIMES        16
