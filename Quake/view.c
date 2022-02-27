@@ -873,6 +873,20 @@ void V_CalcRefdef (void)
 
 /*
 ==================
+V_RestoreAngles
+
+Resets the viewentity angles to the last values received from the server
+(undoing the manual adjustments performed by V_CalcRefdef)
+==================
+*/
+void V_RestoreAngles (void)
+{
+	entity_t *ent = &cl.entities[cl.viewentity];
+	VectorCopy (ent->msg_angles[0], ent->angles);
+}
+
+/*
+==================
 V_RenderView
 
 The player's clipping box goes from (-16 -16 -24) to (16 16 32) from
