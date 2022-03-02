@@ -27,6 +27,7 @@ int r_dlightframecount;
 
 extern cvar_t r_flatlightstyles; // johnfitz
 extern cvar_t r_lerplightstyles;
+extern cvar_t r_gpulightmapupdate;
 
 /*
 ==================
@@ -59,7 +60,7 @@ void R_AnimateLight (void)
 			k = cl_lightstyle[j].map[i % cl_lightstyle[j].length] - 'a';
 			n = cl_lightstyle[j].map[(i + 1) % cl_lightstyle[j].length] - 'a';
 		}
-		if (!r_lerplightstyles.value || (r_lerplightstyles.value < 2 && abs (n - k) >= ('m' - 'a') / 2))
+		if (!r_gpulightmapupdate.value || !r_lerplightstyles.value || (r_lerplightstyles.value < 2 && abs (n - k) >= ('m' - 'a') / 2))
 			n = k;
 		d_lightstylevalue[j] = (k + (n - k) * (f - i)) * 22;
 		// johnfitz
