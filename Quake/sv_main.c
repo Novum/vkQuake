@@ -1830,7 +1830,7 @@ void SV_WriteEntitiesToClient (client_t *client, sizebuf_t *msg)
 
 		// johnfitz -- max size for protocol 15 is 18 bytes, not 16 as originally
 		// assumed here.  And, for protocol 85 the max size is actually 24 bytes.
-		// For float coords and angles the limit is 36. 
+		// For float coords and angles the limit is 36.
 		// FIXME: Use tighter limit according to protocol flags and send bits.
 		if (msg->cursize + 39 > maxsize)
 		{

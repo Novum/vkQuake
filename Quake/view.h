@@ -33,7 +33,7 @@ void  V_RenderView (void);
 void  V_CalcBlend (void);
 void  V_UpdateBlend (void);
 float V_CalcRoll (vec3_t angles, vec3_t velocity);
-void V_RestoreAngles (void);
+void  V_RestoreAngles (void);
 // void V_UpdatePalette (void); //johnfitz
 
 #endif /* _QUAKE_VIEW_H */

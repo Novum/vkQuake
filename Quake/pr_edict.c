@@ -1239,11 +1239,9 @@ static void PR_FindSupportedEffects (void)
 {
 	if (qcvm == &sv.qcvm)
 	{
-		qboolean isqex =
-			PR_HasGlobal ("EF_QUADLIGHT", EF_QEX_QUADLIGHT) &&
-			(PR_HasGlobal ("EF_PENTLIGHT", EF_QEX_PENTALIGHT) || PR_HasGlobal ("EF_PENTALIGHT", EF_QEX_PENTALIGHT))
-		;
-		sv.effectsmask = isqex ? -1 : -1 & ~(EF_QEX_QUADLIGHT|EF_QEX_PENTALIGHT|EF_QEX_CANDLELIGHT);
+		qboolean isqex = PR_HasGlobal ("EF_QUADLIGHT", EF_QEX_QUADLIGHT) &&
+		                 (PR_HasGlobal ("EF_PENTLIGHT", EF_QEX_PENTALIGHT) || PR_HasGlobal ("EF_PENTALIGHT", EF_QEX_PENTALIGHT));
+		sv.effectsmask = isqex ? -1 : -1 & ~(EF_QEX_QUADLIGHT | EF_QEX_PENTALIGHT | EF_QEX_CANDLELIGHT);
 	}
 }
 
