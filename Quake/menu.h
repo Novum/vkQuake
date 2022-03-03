@@ -23,7 +23,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef _QUAKE_MENU_H
 #define _QUAKE_MENU_H
 
-enum m_state_e {
+enum m_state_e
+{
 	m_none,
 	m_main,
 	m_singleplayer,
@@ -51,11 +52,11 @@ extern qboolean m_entersound;
 //
 // menus
 //
-void M_Init (void);
-void M_Keydown (int key);
-void M_Charinput (int key);
+void     M_Init (void);
+void     M_Keydown (int key);
+void     M_Charinput (int key);
 qboolean M_TextEntry (void);
-void M_ToggleMenu_f (void);
+void     M_ToggleMenu_f (void);
 
 void M_Menu_Main_f (void);
 void M_Menu_Options_f (void);
@@ -72,5 +73,4 @@ void M_DrawPic (int x, int y, qpic_t *pic);
 void M_DrawTransPic (int x, int y, qpic_t *pic);
 void M_DrawCheckbox (int x, int y, int on);
 
-#endif	/* _QUAKE_MENU_H */
-
+#endif /* _QUAKE_MENU_H */

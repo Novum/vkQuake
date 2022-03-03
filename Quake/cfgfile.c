@@ -21,8 +21,7 @@
 
 #include "quakedef.h"
 
-
-static fshandle_t		*cfg_file;
+static fshandle_t *cfg_file;
 
 /*
 ===================
@@ -37,22 +36,23 @@ array, otherwise I have nothing against going out of bounds.
 */
 void CFG_ReadCvars (const char **vars, int num_vars)
 {
-	char	buff[1024], *tmp;
-	int			i, j;
+	char buff[1024], *tmp;
+	int  i, j;
 
 	if (!cfg_file || num_vars < 1)
 		return;
 
 	j = 0;
 
-	do {
+	do
+	{
 		i = 0;
-		memset (buff, 0, sizeof(buff));
+		memset (buff, 0, sizeof (buff));
 		// we expect a line in the format that Cvar_WriteVariables
 		// writes to the config file. although I'm trying to be as
 		// much cautious as possible, if the user screws it up by
 		// editing it, it's his fault.
-		if (FS_fgets(buff, sizeof(buff), cfg_file))
+		if (FS_fgets (buff, sizeof (buff), cfg_file))
 		{
 			// remove end-of-line characters
 			while (buff[i])
@@ -87,11 +87,11 @@ void CFG_ReadCvars (const char **vars, int num_vars)
 			for (i = 0; i < num_vars && vars[i]; i++)
 			{
 				// look for the cvar name + one space
-				tmp = strstr(buff, va("%s ",vars[i]));
+				tmp = strstr (buff, va ("%s ", vars[i]));
 				if (tmp != buff)
 					continue;
 				// locate the first quotation mark
-				tmp = strchr(buff, '\"');
+				tmp = strchr (buff, '\"');
 				if (tmp)
 				{
 					Cvar_Set (vars[i], tmp + 1);
@@ -104,7 +104,7 @@ void CFG_ReadCvars (const char **vars, int num_vars)
 		if (j == num_vars)
 			break;
 
-	} while (!FS_feof(cfg_file) && !FS_ferror(cfg_file));
+	} while (!FS_feof (cfg_file) && !FS_ferror (cfg_file));
 
 	FS_rewind (cfg_file);
 }
@@ -120,8 +120,8 @@ the config file.
 */
 void CFG_ReadCvarOverrides (const char **vars, int num_vars)
 {
-	char	buff[64];
-	int		i, j;
+	char buff[64];
+	int  i, j;
 
 	if (num_vars < 1)
 		return;
@@ -130,12 +130,12 @@ void CFG_ReadCvarOverrides (const char **vars, int num_vars)
 
 	for (i = 0; i < num_vars; i++)
 	{
-		q_strlcpy (&buff[1], vars[i], sizeof(buff) - 1);
-		j = COM_CheckParm(buff);
+		q_strlcpy (&buff[1], vars[i], sizeof (buff) - 1);
+		j = COM_CheckParm (buff);
 		if (j != 0 && j < com_argc - 1)
 		{
 			if (com_argv[j + 1][0] != '-' && com_argv[j + 1][0] != '+')
-				Cvar_Set(vars[i], com_argv[j + 1]);
+				Cvar_Set (vars[i], com_argv[j + 1]);
 		}
 	}
 }
@@ -144,32 +144,31 @@ void CFG_CloseConfig (void)
 {
 	if (cfg_file)
 	{
-		FS_fclose(cfg_file);
-		Z_Free(cfg_file);
+		FS_fclose (cfg_file);
+		Z_Free (cfg_file);
 		cfg_file = NULL;
 	}
 }
 
 int CFG_OpenConfig (const char *cfg_name)
 {
-	FILE	*f;
-	long		length;
-	qboolean	pak;
+	FILE    *f;
+	long     length;
+	qboolean pak;
 
 	CFG_CloseConfig ();
 
-	length = (long) COM_FOpenFile (cfg_name, &f, NULL);
+	length = (long)COM_FOpenFile (cfg_name, &f, NULL);
 	pak = file_from_pak;
 	if (length == -1)
 		return -1;
 
-	cfg_file = (fshandle_t *) Z_Malloc(sizeof(fshandle_t));
+	cfg_file = (fshandle_t *)Z_Malloc (sizeof (fshandle_t));
 	cfg_file->file = f;
-	cfg_file->start = ftell(f);
+	cfg_file->start = ftell (f);
 	cfg_file->pos = 0;
 	cfg_file->length = length;
 	cfg_file->pak = pak;
 
 	return 0;
 }
-

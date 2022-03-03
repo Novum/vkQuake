@@ -39,4 +39,4 @@ void CFG_ReadCvarOverrides (const char **vars, int num_vars);
 // the config file. call this after CFG_ReadCvars() and before
 // locking your cvars.
 
-#endif	/* __CFGFILE_H */
+#endif /* __CFGFILE_H */

@@ -24,8 +24,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 /*
 ================================================================================
 
-	DEVICE MEMORY HEAP
-	Dumbest possible allocator for device memory.
+    DEVICE MEMORY HEAP
+    Dumbest possible allocator for device memory.
 
 ================================================================================
 */
@@ -35,20 +35,20 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 GL_CreateHeap
 ===============
 */
-glheap_t * GL_CreateHeap(VkDeviceSize size, uint32_t memory_type_index, vulkan_memory_type_t memory_type, const char * name)
+glheap_t *GL_CreateHeap (VkDeviceSize size, uint32_t memory_type_index, vulkan_memory_type_t memory_type, const char *name)
 {
-	glheap_t * heap = (glheap_t*) malloc(sizeof(glheap_t));
+	glheap_t *heap = (glheap_t *)malloc (sizeof (glheap_t));
 
 	VkMemoryAllocateInfo memory_allocate_info;
-	memset(&memory_allocate_info, 0, sizeof(memory_allocate_info));
+	memset (&memory_allocate_info, 0, sizeof (memory_allocate_info));
 	memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 	memory_allocate_info.allocationSize = size;
 	memory_allocate_info.memoryTypeIndex = memory_type_index;
 
-	R_AllocateVulkanMemory(&heap->memory, &memory_allocate_info, memory_type);
-	GL_SetObjectName((uint64_t)heap->memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, name);
+	R_AllocateVulkanMemory (&heap->memory, &memory_allocate_info, memory_type);
+	GL_SetObjectName ((uint64_t)heap->memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, name);
 
-	heap->head = (glheapnode_t*) malloc(sizeof(glheapnode_t));
+	heap->head = (glheapnode_t *)malloc (sizeof (glheapnode_t));
 	heap->head->offset = 0;
 	heap->head->size = size;
 	heap->head->prev = NULL;
@@ -63,12 +63,12 @@ glheap_t * GL_CreateHeap(VkDeviceSize size, uint32_t memory_type_index, vulkan_m
 GL_DestroyHeap
 ===============
 */
-void GL_DestroyHeap(glheap_t * heap)
+void GL_DestroyHeap (glheap_t *heap)
 {
-	GL_WaitForDeviceIdle();
-	R_FreeVulkanMemory(&heap->memory);
-	free(heap->head);
-	free(heap);
+	GL_WaitForDeviceIdle ();
+	R_FreeVulkanMemory (&heap->memory);
+	free (heap->head);
+	free (heap);
 }
 
 /*
@@ -76,11 +76,11 @@ void GL_DestroyHeap(glheap_t * heap)
 GL_HeapAllocate
 ===============
 */
-glheapnode_t * GL_HeapAllocate(glheap_t * heap, VkDeviceSize size, VkDeviceSize alignment, VkDeviceSize * aligned_offset)
+glheapnode_t *GL_HeapAllocate (glheap_t *heap, VkDeviceSize size, VkDeviceSize alignment, VkDeviceSize *aligned_offset)
 {
-	glheapnode_t * current_node;
-	glheapnode_t * best_fit_node = NULL;
-	VkDeviceSize best_fit_size = UINT64_MAX;
+	glheapnode_t *current_node;
+	glheapnode_t *best_fit_node = NULL;
+	VkDeviceSize  best_fit_size = UINT64_MAX;
 
 	for (current_node = heap->head; current_node != NULL; current_node = current_node->next)
 	{
@@ -88,8 +88,8 @@ glheapnode_t * GL_HeapAllocate(glheap_t * heap, VkDeviceSize size, VkDeviceSize 
 			continue;
 
 		const VkDeviceSize align_mod = current_node->offset % alignment;
-		VkDeviceSize align_padding = (align_mod == 0) ? 0 : (alignment - align_mod);
-		VkDeviceSize aligned_size = size + align_padding;
+		VkDeviceSize       align_padding = (align_mod == 0) ? 0 : (alignment - align_mod);
+		VkDeviceSize       aligned_size = size + align_padding;
 
 		if (current_node->size == aligned_size)
 		{
@@ -107,14 +107,14 @@ glheapnode_t * GL_HeapAllocate(glheap_t * heap, VkDeviceSize size, VkDeviceSize 
 	if (best_fit_node != NULL)
 	{
 		const VkDeviceSize align_mod = best_fit_node->offset % alignment;
-		VkDeviceSize align_padding = (align_mod == 0) ? 0 : (alignment - align_mod);
-		VkDeviceSize aligned_size = size + align_padding;
+		VkDeviceSize       align_padding = (align_mod == 0) ? 0 : (alignment - align_mod);
+		VkDeviceSize       aligned_size = size + align_padding;
 
-		glheapnode_t * new_node = (glheapnode_t*) malloc(sizeof(glheapnode_t));
+		glheapnode_t *new_node = (glheapnode_t *)malloc (sizeof (glheapnode_t));
 		*new_node = *best_fit_node;
 		new_node->prev = best_fit_node->prev;
 		new_node->next = best_fit_node;
-		if(best_fit_node->prev)
+		if (best_fit_node->prev)
 			best_fit_node->prev->next = new_node;
 		best_fit_node->prev = new_node;
 		new_node->free = false;
@@ -139,15 +139,15 @@ glheapnode_t * GL_HeapAllocate(glheap_t * heap, VkDeviceSize size, VkDeviceSize 
 GL_HeapFree
 ===============
 */
-void GL_HeapFree(glheap_t * heap, glheapnode_t * node)
+void GL_HeapFree (glheap_t *heap, glheapnode_t *node)
 {
-	if(node->free)
-		Sys_Error("Trying to free a node that is already freed");
+	if (node->free)
+		Sys_Error ("Trying to free a node that is already freed");
 
 	node->free = true;
-	if(node->prev && node->prev->free)
+	if (node->prev && node->prev->free)
 	{
-		glheapnode_t * prev = node->prev;
+		glheapnode_t *prev = node->prev;
 
 		prev->next = node->next;
 		if (node->next)
@@ -155,21 +155,21 @@ void GL_HeapFree(glheap_t * heap, glheapnode_t * node)
 
 		prev->size += node->size;
 
-		free(node);
+		free (node);
 		node = prev;
 	}
 
-	if(node->next && node->next->free)
+	if (node->next && node->next->free)
 	{
-		glheapnode_t * next = node->next;
+		glheapnode_t *next = node->next;
 
-		if(next->next)
+		if (next->next)
 			next->next->prev = node;
 		node->next = next->next;
 
 		node->size += next->size;
 
-		free(next);
+		free (next);
 	}
 }
 
@@ -178,7 +178,7 @@ void GL_HeapFree(glheap_t * heap, glheapnode_t * node)
 GL_IsHeapEmpty
 ===============
 */
-qboolean GL_IsHeapEmpty(glheap_t * heap)
+qboolean GL_IsHeapEmpty (glheap_t *heap)
 {
 	return heap->head->next == NULL;
 }
@@ -188,41 +188,43 @@ qboolean GL_IsHeapEmpty(glheap_t * heap)
 GL_AllocateFromHeaps
 ================
 */
-VkDeviceSize GL_AllocateFromHeaps(int * num_heaps, glheap_t *** heaps, VkDeviceSize heap_size, uint32_t memory_type_index, vulkan_memory_type_t memory_type,
-	VkDeviceSize size, VkDeviceSize alignment, glheap_t ** heap, glheapnode_t ** heap_node, int * num_allocations, const char * heap_name)
+VkDeviceSize GL_AllocateFromHeaps (
+	int *num_heaps, glheap_t ***heaps, VkDeviceSize heap_size, uint32_t memory_type_index, vulkan_memory_type_t memory_type, VkDeviceSize size,
+	VkDeviceSize alignment, glheap_t **heap, glheapnode_t **heap_node, int *num_allocations, const char *heap_name)
 {
 	int i;
 	int num_heaps_allocated = *num_heaps;
 
-	for(i = 0; i < (num_heaps_allocated + 1); ++i)
+	for (i = 0; i < (num_heaps_allocated + 1); ++i)
 	{
 		if (i == num_heaps_allocated)
 		{
-			*heaps = realloc(*heaps, sizeof(glheap_t*) * (num_heaps_allocated + 1));
+			*heaps = realloc (*heaps, sizeof (glheap_t *) * (num_heaps_allocated + 1));
 			(*heaps)[i] = NULL;
 			*num_heaps = num_heaps_allocated + 1;
 		}
 
 		qboolean new_heap = false;
-		if(!(*heaps)[i])
+		if (!(*heaps)[i])
 		{
-			(*heaps)[i] = GL_CreateHeap(heap_size, memory_type_index, memory_type, heap_name);
+			(*heaps)[i] = GL_CreateHeap (heap_size, memory_type_index, memory_type, heap_name);
 			*num_allocations += 1;
 			new_heap = true;
 		}
 
-		VkDeviceSize aligned_offset;
-		glheapnode_t * node = GL_HeapAllocate((*heaps)[i], size, alignment, &aligned_offset);
-		if(node)
+		VkDeviceSize  aligned_offset;
+		glheapnode_t *node = GL_HeapAllocate ((*heaps)[i], size, alignment, &aligned_offset);
+		if (node)
 		{
 			*heap_node = node;
 			*heap = (*heaps)[i];
 			return aligned_offset;
-		} else if(new_heap)
+		}
+		else if (new_heap)
 			break;
 	}
 
-	Sys_Error("Could not allocate memory in '%s' heap", heap_name);
+	Sys_Error ("Could not allocate memory in '%s' heap", heap_name);
 	return 0;
 }
 
@@ -231,16 +233,16 @@ VkDeviceSize GL_AllocateFromHeaps(int * num_heaps, glheap_t *** heaps, VkDeviceS
 GL_FreeFromHeaps
 ================
 */
-void GL_FreeFromHeaps(int num_heaps, glheap_t ** heaps, glheap_t * heap, glheapnode_t * heap_node, int * num_allocations)
+void GL_FreeFromHeaps (int num_heaps, glheap_t **heaps, glheap_t *heap, glheapnode_t *heap_node, int *num_allocations)
 {
 	int i;
-	GL_HeapFree(heap, heap_node);
-	if(GL_IsHeapEmpty(heap))
+	GL_HeapFree (heap, heap_node);
+	if (GL_IsHeapEmpty (heap))
 	{
 		*num_allocations -= 1;
-		GL_DestroyHeap(heap);
-		for(i = 0; i < num_heaps; ++i)
-			if(heaps[i] == heap)
+		GL_DestroyHeap (heap);
+		for (i = 0; i < num_heaps; ++i)
+			if (heaps[i] == heap)
 				heaps[i] = NULL;
 	}
 }

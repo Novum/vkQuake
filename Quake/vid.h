@@ -26,69 +26,73 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 // vid.h -- video driver defs
 
-#define VID_CBITS	6
-#define VID_GRADES	(1 << VID_CBITS)
+#define VID_CBITS  6
+#define VID_GRADES (1 << VID_CBITS)
 
-#define GAMMA_MAX	3.0
+#define GAMMA_MAX 3.0
 
 // moved here for global use -- kristian
-typedef enum { MS_UNINIT, MS_WINDOWED, MS_FULLSCREEN } modestate_t;
+typedef enum
+{
+	MS_UNINIT,
+	MS_WINDOWED,
+	MS_FULLSCREEN
+} modestate_t;
 
-extern modestate_t	modestate;
+extern modestate_t modestate;
 
 // a pixel can be one, two, or four bytes
 typedef byte pixel_t;
 
 typedef struct vrect_s
 {
-	int	x, y, width, height;
-	struct vrect_s	*pnext;
+	int             x, y, width, height;
+	struct vrect_s *pnext;
 } vrect_t;
 
 typedef struct
 {
-	pixel_t		*buffer;	// invisible buffer
-	pixel_t		*colormap;	// 256 * VID_GRADES size
-	unsigned short	*colormap16;	// 256 * VID_GRADES size
-	int		fullbright;	// index of first fullbright color
-	int		rowbytes;	// may be > width if displayed in a window
-	int		width;
-	int		height;
-	float		aspect;		// width / height -- < 0 is taller than wide
-	int		numpages;
-	int		recalc_refdef;	// if true, recalc vid-based stuff
-	pixel_t		*conbuffer;
-	int		conrowbytes;
-	int		conwidth;
-	int		conheight;
-	qboolean restart_next_frame;
+	pixel_t        *buffer;     // invisible buffer
+	pixel_t        *colormap;   // 256 * VID_GRADES size
+	unsigned short *colormap16; // 256 * VID_GRADES size
+	int             fullbright; // index of first fullbright color
+	int             rowbytes;   // may be > width if displayed in a window
+	int             width;
+	int             height;
+	float           aspect; // width / height -- < 0 is taller than wide
+	int             numpages;
+	int             recalc_refdef; // if true, recalc vid-based stuff
+	pixel_t        *conbuffer;
+	int             conrowbytes;
+	int             conwidth;
+	int             conheight;
+	qboolean        restart_next_frame;
 } viddef_t;
 
-extern	viddef_t	vid;				// global video state
+extern viddef_t vid; // global video state
 
-extern void (*vid_menudrawfn)(void);
-extern void (*vid_menukeyfn)(int key);
-extern void (*vid_menucmdfn)(void); //johnfitz
+extern void (*vid_menudrawfn) (void);
+extern void (*vid_menukeyfn) (int key);
+extern void (*vid_menucmdfn) (void); // johnfitz
 
-void	VID_Init (void); //johnfitz -- removed palette from argument list
+void VID_Init (void); // johnfitz -- removed palette from argument list
 
-void	VID_Shutdown (void);
+void VID_Shutdown (void);
 // Called at shutdown
 
-void	VID_Update (vrect_t *rects);
+void VID_Update (vrect_t *rects);
 // flushes the given rectangles from the view buffer to the screen
 
 void VID_SyncCvars (void);
 
 void VID_Toggle (void);
 
-void *VID_GetWindow (void);
+void    *VID_GetWindow (void);
 qboolean VID_HasMouseOrInputFocus (void);
 qboolean VID_IsMinimized (void);
-void	VID_Lock (void);
+void     VID_Lock (void);
 
 void VID_FocusGained (void);
 void VID_FocusLost (void);
 
-#endif	/* __VID_DEFS_H */
-
+#endif /* __VID_DEFS_H */

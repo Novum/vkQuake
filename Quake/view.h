@@ -23,17 +23,17 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef _QUAKE_VIEW_H
 #define _QUAKE_VIEW_H
 
-extern	cvar_t		vid_gamma;
-extern	cvar_t		vid_contrast;
+extern cvar_t vid_gamma;
+extern cvar_t vid_contrast;
 
 extern float v_blend[4];
 
-void V_Init (void);
-void V_RenderView (void);
-void V_CalcBlend (void);
-void V_UpdateBlend (void);
+void  V_Init (void);
+void  V_RenderView (void);
+void  V_CalcBlend (void);
+void  V_UpdateBlend (void);
 float V_CalcRoll (vec3_t angles, vec3_t velocity);
-//void V_UpdatePalette (void); //johnfitz
+void  V_RestoreAngles (void);
+// void V_UpdatePalette (void); //johnfitz
 
-#endif	/* _QUAKE_VIEW_H */
-
+#endif /* _QUAKE_VIEW_H */

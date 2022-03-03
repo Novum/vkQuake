@@ -1,4 +1,8 @@
+#ifndef MINIZ_EXPORT
 #define MINIZ_EXPORT
+#endif
+
+// clang-format off
 
 /* miniz.c 2.2.0 - public domain deflate/inflate, zlib-subset, ZIP reading/writing/appending, PNG writing
    See "unlicense" statement at the end of this file.
@@ -116,6 +120,10 @@
 
 
 #if 1   /* QUAKESPASM-SPECIFIC CONFIG: */
+
+#ifndef NDEBUG
+#define NDEBUG /* disable assert()s */
+#endif
 
 #if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
 #include <SDL2/SDL.h>
@@ -266,7 +274,6 @@ typedef void *(*mz_realloc_func)(void *opaque, void *address, size_t items, size
 #endif
 
 #include <assert.h>
-#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -276,8 +283,14 @@ typedef signed short mz_int16;
 typedef unsigned short mz_uint16;
 typedef unsigned int mz_uint32;
 typedef unsigned int mz_uint;
+#if defined(_MSC_VER) && (_MSC_VER < 1600)
+typedef signed __int64 mz_int64;
+typedef unsigned __int64 mz_uint64;
+#else
+#include <stdint.h>
 typedef int64_t mz_int64;
 typedef uint64_t mz_uint64;
+#endif
 typedef int mz_bool;
 
 #define MZ_FALSE (0)
@@ -316,7 +329,7 @@ typedef int mz_bool;
 
 #ifdef _MSC_VER
 #define MZ_FORCEINLINE __forceinline
-#elif defined(__GNUC__)
+#elif (defined(__GNUC__) && (__GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 2))) || defined(__clang__)
 #define MZ_FORCEINLINE __inline__ __attribute__((__always_inline__))
 #else
 #define MZ_FORCEINLINE inline
@@ -424,12 +437,6 @@ enum
     TINFL_FAST_LOOKUP_SIZE = 1 << TINFL_FAST_LOOKUP_BITS
 };
 
-typedef struct
-{
-    mz_uint8 m_code_size[TINFL_MAX_HUFF_SYMBOLS_0];
-    mz_int16 m_look_up[TINFL_FAST_LOOKUP_SIZE], m_tree[TINFL_MAX_HUFF_SYMBOLS_0 * 2];
-} tinfl_huff_table;
-
 #if MINIZ_HAS_64BIT_REGISTERS
 #define TINFL_USE_64BIT_BITBUF 1
 #else
@@ -449,7 +456,13 @@ struct tinfl_decompressor_tag
     mz_uint32 m_state, m_num_bits, m_zhdr0, m_zhdr1, m_z_adler32, m_final, m_type, m_check_adler32, m_dist, m_counter, m_num_extra, m_table_sizes[TINFL_MAX_HUFF_TABLES];
     tinfl_bit_buf_t m_bit_buf;
     size_t m_dist_from_out_buf_start;
-    tinfl_huff_table m_tables[TINFL_MAX_HUFF_TABLES];
+    mz_int16 m_look_up[TINFL_MAX_HUFF_TABLES][TINFL_FAST_LOOKUP_SIZE];
+    mz_int16 m_tree_0[TINFL_MAX_HUFF_SYMBOLS_0 * 2];
+    mz_int16 m_tree_1[TINFL_MAX_HUFF_SYMBOLS_1 * 2];
+    mz_int16 m_tree_2[TINFL_MAX_HUFF_SYMBOLS_2 * 2];
+    mz_uint8 m_code_size_0[TINFL_MAX_HUFF_SYMBOLS_0];
+    mz_uint8 m_code_size_1[TINFL_MAX_HUFF_SYMBOLS_1];
+    mz_uint8 m_code_size_2[TINFL_MAX_HUFF_SYMBOLS_2];
     mz_uint8 m_raw_header[4], m_len_codes[TINFL_MAX_HUFF_SYMBOLS_0 + TINFL_MAX_HUFF_SYMBOLS_1 + 137];
 };
 
@@ -706,3 +719,5 @@ MINIZ_EXPORT mz_bool mz_zip_end(mz_zip_archive *pZip);
 #endif
 
 #endif /* MINIZ_NO_ARCHIVE_APIS */
+
+// clang-format on

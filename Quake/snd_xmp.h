@@ -6,7 +6,6 @@
 
 extern snd_codec_t xmp_codec;
 
-#endif	/* USE_CODEC_XMP */
+#endif /* USE_CODEC_XMP */
 
-#endif	/* ! _SND_XMP_H_ */
-
+#endif /* ! _SND_XMP_H_ */

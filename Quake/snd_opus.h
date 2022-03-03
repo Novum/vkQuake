@@ -7,7 +7,6 @@
 
 extern snd_codec_t opus_codec;
 
-#endif	/* USE_CODEC_OPUS */
+#endif /* USE_CODEC_OPUS */
 
-#endif	/* ! _SND_OPUS_H_ */
-
+#endif /* ! _SND_OPUS_H_ */

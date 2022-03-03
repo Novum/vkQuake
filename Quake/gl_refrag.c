@@ -23,15 +23,14 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 
-mnode_t	*r_pefragtopnode;
-
+mnode_t *r_pefragtopnode;
 
 //===========================================================================
 
 /*
 ===============================================================================
 
-					ENTITY FRAGMENT FUNCTIONS
+                    ENTITY FRAGMENT FUNCTIONS
 
 ericw -- GLQuake only uses efrags for static entities, and they're never
 removed, so I trimmed out unused functionality and fields in efrag_t.
@@ -39,19 +38,18 @@ removed, so I trimmed out unused functionality and fields in efrag_t.
 Now, efrags are just a linked list for each leaf of the static
 entities that touch that leaf. The efrags are hunk-allocated so there is no
 fixed limit.
- 
+
 This is inspired by MH's tutorial, and code from RMQEngine.
 http://forums.insideqc.com/viewtopic.php?t=1930
- 
+
 ===============================================================================
 */
 
-vec3_t		r_emins, r_emaxs;
+vec3_t r_emins, r_emaxs;
 
-entity_t	*r_addent;
+entity_t *r_addent;
 
-
-#define EXTRA_EFRAGS	128
+#define EXTRA_EFRAGS 128
 
 // based on RMQEngine
 static efrag_t *R_GetEfrag (void)
@@ -59,28 +57,28 @@ static efrag_t *R_GetEfrag (void)
 	// we could just Hunk_Alloc a single efrag_t and return it, but since
 	// the struct is so small (2 pointers) allocate groups of them
 	// to avoid wasting too much space on the hunk allocation headers.
-	
+
 	if (cl.free_efrags)
 	{
 		efrag_t *ef = cl.free_efrags;
 		cl.free_efrags = ef->leafnext;
 		ef->leafnext = NULL;
-		
+
 		cl.num_efrags++;
-		
+
 		return ef;
 	}
 	else
 	{
 		int i;
-		
-		cl.free_efrags = (efrag_t *) Hunk_AllocName (EXTRA_EFRAGS * sizeof (efrag_t), "efrags");
-		
+
+		cl.free_efrags = (efrag_t *)Hunk_AllocName (EXTRA_EFRAGS * sizeof (efrag_t), "efrags");
+
 		for (i = 0; i < EXTRA_EFRAGS - 1; i++)
 			cl.free_efrags[i].leafnext = &cl.free_efrags[i + 1];
-		
+
 		cl.free_efrags[i].leafnext = NULL;
-		
+
 		// call recursively to get a newly allocated free efrag
 		return R_GetEfrag ();
 	}
@@ -93,50 +91,50 @@ R_SplitEntityOnNode
 */
 void R_SplitEntityOnNode (mnode_t *node)
 {
-	efrag_t		*ef;
-	mplane_t	*splitplane;
-	mleaf_t		*leaf;
-	int			sides;
+	efrag_t  *ef;
+	mplane_t *splitplane;
+	mleaf_t  *leaf;
+	int       sides;
 
 	if (node->contents == CONTENTS_SOLID)
 	{
 		return;
 	}
 
-// add an efrag if the node is a leaf
+	// add an efrag if the node is a leaf
 
-	if ( node->contents < 0)
+	if (node->contents < 0)
 	{
 		if (!r_pefragtopnode)
 			r_pefragtopnode = node;
 
 		leaf = (mleaf_t *)node;
 
-// grab an efrag off the free list
-		ef = R_GetEfrag();
+		// grab an efrag off the free list
+		ef = R_GetEfrag ();
 		ef->entity = r_addent;
 
-// set the leaf links
+		// set the leaf links
 		ef->leafnext = leaf->efrags;
 		leaf->efrags = ef;
 
 		return;
 	}
 
-// NODE_MIXED
+	// NODE_MIXED
 
 	splitplane = node->plane;
-	sides = BOX_ON_PLANE_SIDE(r_emins, r_emaxs, splitplane);
+	sides = BOX_ON_PLANE_SIDE (r_emins, r_emaxs, splitplane);
 
 	if (sides == 3)
 	{
-	// split on this plane
-	// if this is the first splitter of this bmodel, remember it
+		// split on this plane
+		// if this is the first splitter of this bmodel, remember it
 		if (!r_pefragtopnode)
 			r_pefragtopnode = node;
 	}
 
-// recurse down the contacted sides
+	// recurse down the contacted sides
 	if (sides & 1)
 		R_SplitEntityOnNode (node->children[0]);
 
@@ -152,13 +150,13 @@ R_CheckEfrags -- johnfitz -- check for excessive efrag count
 void R_CheckEfrags (void)
 {
 	if (cls.signon < 2)
-		return; //don't spam when still parsing signon packet full of static ents
+		return; // don't spam when still parsing signon packet full of static ents
 
 	if (cl.num_efrags > 640 && dev_peakstats.efrags <= 640)
 		Con_DWarning ("%i efrags exceeds standard limit of 640.\n", cl.num_efrags);
 
 	dev_stats.efrags = cl.num_efrags;
-	dev_peakstats.efrags = q_max(cl.num_efrags, dev_peakstats.efrags);
+	dev_peakstats.efrags = q_max (cl.num_efrags, dev_peakstats.efrags);
 }
 
 /*
@@ -168,8 +166,8 @@ R_AddEfrags
 */
 void R_AddEfrags (entity_t *ent)
 {
-	qmodel_t	*entmodel;
-	int			i;
+	qmodel_t *entmodel;
+	int       i;
 
 	if (!ent->model)
 		return;
@@ -180,7 +178,7 @@ void R_AddEfrags (entity_t *ent)
 
 	entmodel = ent->model;
 
-	for (i=0 ; i<3 ; i++)
+	for (i = 0; i < 3; i++)
 	{
 		r_emins[i] = ent->origin[i] + entmodel->mins[i];
 		r_emaxs[i] = ent->origin[i] + entmodel->maxs[i];
@@ -190,9 +188,8 @@ void R_AddEfrags (entity_t *ent)
 
 	ent->topnode = r_pefragtopnode;
 
-	R_CheckEfrags (); //johnfitz
+	R_CheckEfrags (); // johnfitz
 }
-
 
 /*
 ================
@@ -201,8 +198,8 @@ R_StoreEfrags -- johnfitz -- pointless switch statement removed.
 */
 void R_StoreEfrags (efrag_t **ppefrag)
 {
-	entity_t	*pent;
-	efrag_t		*pefrag;
+	entity_t *pent;
+	efrag_t  *pefrag;
 
 	while ((pefrag = *ppefrag) != NULL)
 	{
@@ -213,28 +210,34 @@ void R_StoreEfrags (efrag_t **ppefrag)
 #ifdef PSET_SCRIPT
 			if (pent->netstate.emiteffectnum > 0)
 			{
-				float t = cl.time-cl.oldtime;
+				float  t = cl.time - cl.oldtime;
 				vec3_t axis[3];
-				if (t < 0) t = 0; else if (t > 0.1) t= 0.1;
-				AngleVectors(pent->angles, axis[0], axis[1], axis[2]);
+				if (t < 0)
+					t = 0;
+				else if (t > 0.1)
+					t = 0.1;
+				AngleVectors (pent->angles, axis[0], axis[1], axis[2]);
 				if (pent->model->type == mod_alias)
-					axis[0][2] *= -1;	//stupid vanilla bug
-				PScript_RunParticleEffectState(pent->origin, axis[0], t, cl.particle_precache[pent->netstate.emiteffectnum].index, &pent->emitstate);
+					axis[0][2] *= -1; // stupid vanilla bug
+				PScript_RunParticleEffectState (pent->origin, axis[0], t, cl.particle_precache[pent->netstate.emiteffectnum].index, &pent->emitstate);
 			}
 			else if (pent->model->emiteffect >= 0)
 			{
-				float t = cl.time-cl.oldtime;
+				float  t = cl.time - cl.oldtime;
 				vec3_t axis[3];
-				if (t < 0) t = 0; else if (t > 0.1) t= 0.1;
-				AngleVectors(pent->angles, axis[0], axis[1], axis[2]);
+				if (t < 0)
+					t = 0;
+				else if (t > 0.1)
+					t = 0.1;
+				AngleVectors (pent->angles, axis[0], axis[1], axis[2]);
 				if (pent->model->flags & MOD_EMITFORWARDS)
 				{
 					if (pent->model->type == mod_alias)
-						axis[0][2] *= -1;	//stupid vanilla bug
+						axis[0][2] *= -1; // stupid vanilla bug
 				}
 				else
-					VectorScale(axis[2], -1, axis[0]);
-				PScript_RunParticleEffectState(pent->origin, axis[0], t, pent->model->emiteffect, &pent->emitstate);
+					VectorScale (axis[2], -1, axis[0]);
+				PScript_RunParticleEffectState (pent->origin, axis[0], t, pent->model->emiteffect, &pent->emitstate);
 				if (pent->model->flags & MOD_EMITREPLACE)
 					continue;
 			}
@@ -246,4 +249,3 @@ void R_StoreEfrags (efrag_t **ppefrag)
 		ppefrag = &pefrag->leafnext;
 	}
 }
-

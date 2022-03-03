@@ -17,7 +17,7 @@
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA.
  */
-
+// clang-format off
 // 0
 	{	1.23, 1.30, 1.47, 1.35, 1.56, 1.71, 1.37, 1.38,
 		1.59, 1.60, 1.79, 1.97, 1.88, 1.92, 1.79, 1.02,

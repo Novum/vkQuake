@@ -28,29 +28,29 @@
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
-    <PlatformToolset>v142</PlatformToolset>
     <CharacterSet>NotSet</CharacterSet>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <SpectreMitigation>false</SpectreMitigation>
+    <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
-    <PlatformToolset>v142</PlatformToolset>
     <CharacterSet>NotSet</CharacterSet>
     <SpectreMitigation>false</SpectreMitigation>
+    <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
-    <PlatformToolset>v142</PlatformToolset>
     <CharacterSet>NotSet</CharacterSet>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <SpectreMitigation>false</SpectreMitigation>
+    <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
-    <PlatformToolset>v142</PlatformToolset>
     <CharacterSet>NotSet</CharacterSet>
     <SpectreMitigation>false</SpectreMitigation>
+    <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -72,28 +72,28 @@
     <_ProjectFileVersion>14.0.25123.0</_ProjectFileVersion>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <OutDir>$(SolutionDir)Build-$(ProjectName)\x86\$(Configuration)\</OutDir>
-    <IntDir>Build-$(ProjectName)\x86\$(Configuration)\</IntDir>
+    <OutDir>$(SolutionDir)Build-$(ProjectName)\$(PlatformShortName)\$(Configuration)\</OutDir>
+    <IntDir>Build-$(ProjectName)\$(PlatformShortName)\$(Configuration)\</IntDir>
     <IncludePath>$(SolutionDir)\..\misc\include;$(IncludePath)</IncludePath>
-    <LibraryPath>$(SolutionDir)\..\misc\x86;$(LibraryPath)</LibraryPath>
+    <LibraryPath>$(SolutionDir)\..\misc\$(PlatformShortName);$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <OutDir>$(SolutionDir)Build-$(ProjectName)\x86\$(Configuration)\</OutDir>
-    <IntDir>Build-$(ProjectName)\x86\$(Configuration)\</IntDir>
+    <OutDir>$(SolutionDir)Build-$(ProjectName)\$(PlatformShortName)\$(Configuration)\</OutDir>
+    <IntDir>Build-$(ProjectName)\$(PlatformShortName)\$(Configuration)\</IntDir>
     <IncludePath>$(SolutionDir)\..\misc\include;$(IncludePath)</IncludePath>
-    <LibraryPath>$(SolutionDir)\..\misc\x86;$(LibraryPath)</LibraryPath>
+    <LibraryPath>$(SolutionDir)\..\misc\$(PlatformShortName);$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <OutDir>$(SolutionDir)Build-$(ProjectName)\$(Platform)\$(Configuration)\</OutDir>
-    <IntDir>Build-$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
+    <OutDir>$(SolutionDir)Build-$(ProjectName)\$(PlatformShortName)\$(Configuration)\</OutDir>
+    <IntDir>Build-$(ProjectName)\$(PlatformShortName)\$(Configuration)\</IntDir>
     <IncludePath>$(SolutionDir)\..\misc\include;$(IncludePath)</IncludePath>
-    <LibraryPath>$(SolutionDir)\..\misc\x64;$(LibraryPath)</LibraryPath>
+    <LibraryPath>$(SolutionDir)\..\misc\$(PlatformShortName);$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <OutDir>$(SolutionDir)Build-$(ProjectName)\$(Platform)\$(Configuration)\</OutDir>
-    <IntDir>Build-$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
+    <OutDir>$(SolutionDir)Build-$(ProjectName)\$(PlatformShortName)\$(Configuration)\</OutDir>
+    <IntDir>Build-$(ProjectName)\$(PlatformShortName)\$(Configuration)\</IntDir>
     <IncludePath>$(SolutionDir)\..\misc\include;$(IncludePath)</IncludePath>
-    <LibraryPath>$(SolutionDir)\..\misc\x64;$(LibraryPath)</LibraryPath>
+    <LibraryPath>$(SolutionDir)\..\misc\$(PlatformShortName);$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -110,6 +110,8 @@
       <TreatWarningAsError>true</TreatWarningAsError>
       <DisableSpecificWarnings>4100;4127;4389;4702;4706</DisableSpecificWarnings>
       <ExceptionHandling>false</ExceptionHandling>
+      <LanguageStandard_C>stdc11</LanguageStandard_C>
+      <UseStandardPreprocessor>false</UseStandardPreprocessor>
     </ClCompile>
     <Link>
       <AdditionalDependencies>libvorbisfile.lib;libvorbis.lib;libopusfile.lib;libopus.lib;libFLAC.lib;libogg.lib;libmad.lib;libmikmod.lib;ws2_32.lib;winmm.lib;SDL2.lib;SDL2main.lib;vulkan-1.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -141,6 +143,8 @@ copy "$(SolutionDir)\..\SDL2\lib\*.dll" "$(TargetDir)"</Command>
       <DisableSpecificWarnings>4100;4127;4389;4702;4706</DisableSpecificWarnings>
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <ExceptionHandling>false</ExceptionHandling>
+      <LanguageStandard_C>stdc11</LanguageStandard_C>
+      <UseStandardPreprocessor>false</UseStandardPreprocessor>
     </ClCompile>
     <Link>
       <AdditionalDependencies>libvorbisfile.lib;libvorbis.lib;libopusfile.lib;libopus.lib;libFLAC.lib;libogg.lib;libmad.lib;libmikmod.lib;ws2_32.lib;winmm.lib;SDL2.lib;SDL2main.lib;vulkan-1.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -174,6 +178,8 @@ copy "$(SolutionDir)\..\SDL2\lib\*.dll" "$(TargetDir)"</Command>
       <ExceptionHandling>false</ExceptionHandling>
       <TreatWarningAsError>true</TreatWarningAsError>
       <DisableSpecificWarnings>4100;4127;4389;4702;4706</DisableSpecificWarnings>
+      <LanguageStandard_C>stdc11</LanguageStandard_C>
+      <UseStandardPreprocessor>false</UseStandardPreprocessor>
     </ClCompile>
     <Link>
       <AdditionalDependencies>libvorbisfile.lib;libvorbis.lib;libopusfile.lib;libopus.lib;libFLAC.lib;libogg.lib;libmad.lib;libmikmod.lib;ws2_32.lib;winmm.lib;SDL2.lib;SDL2main.lib;vulkan-1.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -208,6 +214,8 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
       <TreatWarningAsError>true</TreatWarningAsError>
       <DisableSpecificWarnings>4100;4127;4389;4702;4706</DisableSpecificWarnings>
       <BufferSecurityCheck>false</BufferSecurityCheck>
+      <LanguageStandard_C>stdc11</LanguageStandard_C>
+      <UseStandardPreprocessor>false</UseStandardPreprocessor>
     </ClCompile>
     <Link>
       <AdditionalDependencies>libvorbisfile.lib;libvorbis.lib;libopusfile.lib;libopus.lib;libFLAC.lib;libogg.lib;libmad.lib;libmikmod.lib;ws2_32.lib;winmm.lib;SDL2.lib;SDL2main.lib;vulkan-1.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -305,29 +313,198 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClCompile Include="..\..\Quake\wad.c" />
     <ClCompile Include="..\..\Quake\world.c" />
     <ClCompile Include="..\..\Quake\zone.c" />
-    <ClCompile Include="..\..\Shaders\Compiled\alias_alphatest_frag.c" />
-    <ClCompile Include="..\..\Shaders\Compiled\alias_frag.c" />
-    <ClCompile Include="..\..\Shaders\Compiled\alias_vert.c" />
-    <ClCompile Include="..\..\Shaders\Compiled\basic_alphatest_frag.c" />
-    <ClCompile Include="..\..\Shaders\Compiled\basic_frag.c" />
-    <ClCompile Include="..\..\Shaders\Compiled\basic_notex_frag.c" />
-    <ClCompile Include="..\..\Shaders\Compiled\basic_vert.c" />
-    <ClCompile Include="..\..\Shaders\Compiled\cs_tex_warp_comp.c" />
-    <ClCompile Include="..\..\Shaders\Compiled\postprocess_frag.c" />
-    <ClCompile Include="..\..\Shaders\Compiled\postprocess_vert.c" />
-    <ClCompile Include="..\..\Shaders\Compiled\screen_effects_10bit_comp.c" />
-    <ClCompile Include="..\..\Shaders\Compiled\screen_effects_10bit_scale_comp.c" />
-    <ClCompile Include="..\..\Shaders\Compiled\screen_effects_10bit_scale_sops_comp.c" />
-    <ClCompile Include="..\..\Shaders\Compiled\screen_effects_8bit_comp.c" />
-    <ClCompile Include="..\..\Shaders\Compiled\screen_effects_8bit_scale_comp.c" />
-    <ClCompile Include="..\..\Shaders\Compiled\screen_effects_8bit_scale_sops_comp.c" />
-    <ClCompile Include="..\..\Shaders\Compiled\showtris_frag.c" />
-    <ClCompile Include="..\..\Shaders\Compiled\showtris_vert.c" />
-    <ClCompile Include="..\..\Shaders\Compiled\sky_box_frag.c" />
-    <ClCompile Include="..\..\Shaders\Compiled\sky_layer_frag.c" />
-    <ClCompile Include="..\..\Shaders\Compiled\sky_layer_vert.c" />
-    <ClCompile Include="..\..\Shaders\Compiled\world_frag.c" />
-    <ClCompile Include="..\..\Shaders\Compiled\world_vert.c" />
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\alias.frag.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\alias.vert.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\alias_alphatest.frag.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\basic.frag.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\basic.vert.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\basic_alphatest.frag.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\basic_notex.frag.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\cs_tex_warp.comp.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\postprocess.frag.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\postprocess.vert.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\screen_effects_10bit.comp.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\screen_effects_10bit_scale.comp.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\screen_effects_10bit_scale_sops.comp.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\screen_effects_8bit.comp.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\screen_effects_8bit_scale.comp.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\screen_effects_8bit_scale_sops.comp.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\showtris.frag.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\showtris.vert.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\sky_box.frag.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\sky_layer.frag.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\sky_layer.vert.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\update_lightmap.comp.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\world.frag.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\world.vert.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\alias.frag.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\alias.vert.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\alias_alphatest.frag.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\basic.frag.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\basic.vert.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\basic_alphatest.frag.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\basic_notex.frag.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\cs_tex_warp.comp.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\postprocess.frag.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\postprocess.vert.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\screen_effects_10bit.comp.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\screen_effects_10bit_scale.comp.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\screen_effects_10bit_scale_sops.comp.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\screen_effects_8bit.comp.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\screen_effects_8bit_scale.comp.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\screen_effects_8bit_scale_sops.comp.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\showtris.frag.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\showtris.vert.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\sky_box.frag.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\sky_layer.frag.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\sky_layer.vert.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\update_lightmap.comp.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\world.frag.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\world.vert.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\Quake\anorms.h" />
@@ -400,33 +577,6 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\vkQuake.rc" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="..\..\Shaders\alias.frag" />
-    <None Include="..\..\Shaders\alias.vert" />
-    <None Include="..\..\Shaders\alias_alphatest.frag" />
-    <None Include="..\..\Shaders\basic.frag" />
-    <None Include="..\..\Shaders\basic.vert" />
-    <None Include="..\..\Shaders\basic_alphatest.frag" />
-    <None Include="..\..\Shaders\basic_notex.frag" />
-    <None Include="..\..\Shaders\compile.bat" />
-    <None Include="..\..\Shaders\cs_tex_warp.comp" />
-    <None Include="..\..\Shaders\postprocess.frag" />
-    <None Include="..\..\Shaders\postprocess.vert" />
-    <None Include="..\..\Shaders\screen_effects.inc" />
-    <None Include="..\..\Shaders\screen_effects_10bit.comp" />
-    <None Include="..\..\Shaders\screen_effects_10bit_scale.comp" />
-    <None Include="..\..\Shaders\screen_effects_10bit_scale_sops.comp" />
-    <None Include="..\..\Shaders\screen_effects_8bit.comp" />
-    <None Include="..\..\Shaders\screen_effects_8bit_scale.comp" />
-    <None Include="..\..\Shaders\screen_effects_8bit_scale_sops.comp" />
-    <None Include="..\..\Shaders\showtris.frag" />
-    <None Include="..\..\Shaders\showtris.vert" />
-    <None Include="..\..\Shaders\sky_box.frag" />
-    <None Include="..\..\Shaders\sky_layer.frag" />
-    <None Include="..\..\Shaders\sky_layer.vert" />
-    <None Include="..\..\Shaders\world.frag" />
-    <None Include="..\..\Shaders\world.vert" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

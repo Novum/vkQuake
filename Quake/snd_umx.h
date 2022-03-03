@@ -6,7 +6,6 @@
 
 extern snd_codec_t umx_codec;
 
-#endif	/* USE_CODEC_UMX */
+#endif /* USE_CODEC_UMX */
 
-#endif	/* ! _SND_UMX_H_ */
-
+#endif /* ! _SND_UMX_H_ */

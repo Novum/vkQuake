@@ -33,47 +33,47 @@ ALIAS MODEL DISPLAY LIST GENERATION
 =================================================================
 */
 
-qmodel_t	*aliasmodel;
-aliashdr_t	*paliashdr;
+qmodel_t   *aliasmodel;
+aliashdr_t *paliashdr;
 
-int		used[8192]; // qboolean
+int used[8192]; // qboolean
 
 // the command list holds counts and s/t values that are valid for
 // every frame
-int		commands[8192];
-int		numcommands;
+int commands[8192];
+int numcommands;
 
 // all frames will have their vertexes rearranged and expanded
 // so they are in the order expected by the command list
-int		vertexorder[8192];
-int		numorder;
+int vertexorder[8192];
+int numorder;
 
-int		allverts, alltris;
+int allverts, alltris;
 
-int		stripverts[128];
-int		striptris[128];
-int		stripcount;
+int stripverts[128];
+int striptris[128];
+int stripcount;
 
 // Heap
-#define INDEX_HEAP_SIZE_MB 2
+#define INDEX_HEAP_SIZE_MB  2
 #define VERTEX_HEAP_SIZE_MB 16
 
-static glheap_t ** vertex_buffer_heaps;
-static glheap_t ** index_buffer_heaps;
-static int num_vertex_buffer_heaps;
-static int num_index_buffer_heaps;
+static glheap_t **vertex_buffer_heaps;
+static glheap_t **index_buffer_heaps;
+static int        num_vertex_buffer_heaps;
+static int        num_index_buffer_heaps;
 
 typedef struct
 {
-	VkBuffer		buffer;
-	glheap_t *		heap;
-	glheapnode_t *	heap_node;
-	glheap_t ***	heaps;
-	int *			num_heaps;
+	VkBuffer      buffer;
+	glheap_t     *heap;
+	glheapnode_t *heap_node;
+	glheap_t   ***heaps;
+	int          *num_heaps;
 } buffer_garbage_t;
 
-static int current_garbage_index;
-static int num_garbage_buffers[2];
+static int              current_garbage_index;
+static int              num_garbage_buffers[2];
 static buffer_garbage_t buffer_garbage[MAX_MODELS * 2][2];
 
 /*
@@ -81,10 +81,10 @@ static buffer_garbage_t buffer_garbage[MAX_MODELS * 2][2];
 AddBufferGarbage
 ================
 */
-static void AddBufferGarbage(VkBuffer buffer, glheap_t * heap, glheapnode_t * heap_node, glheap_t *** heaps, int * num_heaps)
+static void AddBufferGarbage (VkBuffer buffer, glheap_t *heap, glheapnode_t *heap_node, glheap_t ***heaps, int *num_heaps)
 {
-	int garbage_index;
-	buffer_garbage_t * garbage;
+	int               garbage_index;
+	buffer_garbage_t *garbage;
 
 	garbage_index = num_garbage_buffers[current_garbage_index]++;
 	garbage = &buffer_garbage[garbage_index][current_garbage_index];
@@ -100,19 +100,19 @@ static void AddBufferGarbage(VkBuffer buffer, glheap_t * heap, glheapnode_t * he
 R_CollectMeshBufferGarbage
 ================
 */
-void R_CollectMeshBufferGarbage()
+void R_CollectMeshBufferGarbage ()
 {
-	int num;
-	int i;
-	buffer_garbage_t * garbage;
+	int               num;
+	int               i;
+	buffer_garbage_t *garbage;
 
 	current_garbage_index = (current_garbage_index + 1) % 2;
 	num = num_garbage_buffers[current_garbage_index];
-	for (i=0; i<num; ++i)
+	for (i = 0; i < num; ++i)
 	{
 		garbage = &buffer_garbage[i][current_garbage_index];
-		vkDestroyBuffer(vulkan_globals.device, garbage->buffer, NULL);
-		GL_FreeFromHeaps(*garbage->num_heaps, *garbage->heaps, garbage->heap, garbage->heap_node, &num_vulkan_mesh_allocations);
+		vkDestroyBuffer (vulkan_globals.device, garbage->buffer, NULL);
+		GL_FreeFromHeaps (*garbage->num_heaps, *garbage->heaps, garbage->heap, garbage->heap_node, &num_vulkan_mesh_allocations);
 	}
 	num_garbage_buffers[current_garbage_index] = 0;
 }
@@ -122,38 +122,38 @@ void R_CollectMeshBufferGarbage()
 StripLength
 ================
 */
-int	StripLength (int starttri, int startv)
+int StripLength (int starttri, int startv)
 {
-	int			m1, m2;
-	int			j;
-	mtriangle_t	*last, *check;
-	int			k;
+	int          m1, m2;
+	int          j;
+	mtriangle_t *last, *check;
+	int          k;
 
 	used[starttri] = 2;
 
 	last = &triangles[starttri];
 
-	stripverts[0] = last->vertindex[(startv)%3];
-	stripverts[1] = last->vertindex[(startv+1)%3];
-	stripverts[2] = last->vertindex[(startv+2)%3];
+	stripverts[0] = last->vertindex[(startv) % 3];
+	stripverts[1] = last->vertindex[(startv + 1) % 3];
+	stripverts[2] = last->vertindex[(startv + 2) % 3];
 
 	striptris[0] = starttri;
 	stripcount = 1;
 
-	m1 = last->vertindex[(startv+2)%3];
-	m2 = last->vertindex[(startv+1)%3];
+	m1 = last->vertindex[(startv + 2) % 3];
+	m2 = last->vertindex[(startv + 1) % 3];
 
 	// look for a matching triangle
 nexttri:
-	for (j=starttri+1, check=&triangles[starttri+1] ; j<pheader->numtris ; j++, check++)
+	for (j = starttri + 1, check = &triangles[starttri + 1]; j < pheader->numtris; j++, check++)
 	{
 		if (check->facesfront != last->facesfront)
 			continue;
-		for (k=0 ; k<3 ; k++)
+		for (k = 0; k < 3; k++)
 		{
 			if (check->vertindex[k] != m1)
 				continue;
-			if (check->vertindex[ (k+1)%3 ] != m2)
+			if (check->vertindex[(k + 1) % 3] != m2)
 				continue;
 
 			// this is the next part of the fan
@@ -164,11 +164,11 @@ nexttri:
 
 			// the new edge
 			if (stripcount & 1)
-				m2 = check->vertindex[ (k+2)%3 ];
+				m2 = check->vertindex[(k + 2) % 3];
 			else
-				m1 = check->vertindex[ (k+2)%3 ];
+				m1 = check->vertindex[(k + 2) % 3];
 
-			stripverts[stripcount+2] = check->vertindex[ (k+2)%3 ];
+			stripverts[stripcount + 2] = check->vertindex[(k + 2) % 3];
 			striptris[stripcount] = j;
 			stripcount++;
 
@@ -179,7 +179,7 @@ nexttri:
 done:
 
 	// clear the temp used flags
-	for (j=starttri+1 ; j<pheader->numtris ; j++)
+	for (j = starttri + 1; j < pheader->numtris; j++)
 		if (used[j] == 2)
 			used[j] = 0;
 
@@ -191,39 +191,38 @@ done:
 FanLength
 ===========
 */
-int	FanLength (int starttri, int startv)
+int FanLength (int starttri, int startv)
 {
-	int		m1, m2;
-	int		j;
-	mtriangle_t	*last, *check;
-	int		k;
+	int          m1, m2;
+	int          j;
+	mtriangle_t *last, *check;
+	int          k;
 
 	used[starttri] = 2;
 
 	last = &triangles[starttri];
 
-	stripverts[0] = last->vertindex[(startv)%3];
-	stripverts[1] = last->vertindex[(startv+1)%3];
-	stripverts[2] = last->vertindex[(startv+2)%3];
+	stripverts[0] = last->vertindex[(startv) % 3];
+	stripverts[1] = last->vertindex[(startv + 1) % 3];
+	stripverts[2] = last->vertindex[(startv + 2) % 3];
 
 	striptris[0] = starttri;
 	stripcount = 1;
 
-	m1 = last->vertindex[(startv+0)%3];
-	m2 = last->vertindex[(startv+2)%3];
-
+	m1 = last->vertindex[(startv + 0) % 3];
+	m2 = last->vertindex[(startv + 2) % 3];
 
 	// look for a matching triangle
 nexttri:
-	for (j=starttri+1, check=&triangles[starttri+1] ; j<pheader->numtris ; j++, check++)
+	for (j = starttri + 1, check = &triangles[starttri + 1]; j < pheader->numtris; j++, check++)
 	{
 		if (check->facesfront != last->facesfront)
 			continue;
-		for (k=0 ; k<3 ; k++)
+		for (k = 0; k < 3; k++)
 		{
 			if (check->vertindex[k] != m1)
 				continue;
-			if (check->vertindex[ (k+1)%3 ] != m2)
+			if (check->vertindex[(k + 1) % 3] != m2)
 				continue;
 
 			// this is the next part of the fan
@@ -233,9 +232,9 @@ nexttri:
 				goto done;
 
 			// the new edge
-			m2 = check->vertindex[ (k+2)%3 ];
+			m2 = check->vertindex[(k + 2) % 3];
 
-			stripverts[stripcount+2] = m2;
+			stripverts[stripcount + 2] = m2;
 			striptris[stripcount] = j;
 			stripcount++;
 
@@ -246,13 +245,12 @@ nexttri:
 done:
 
 	// clear the temp used flags
-	for (j=starttri+1 ; j<pheader->numtris ; j++)
+	for (j = starttri + 1; j < pheader->numtris; j++)
 		if (used[j] == 2)
 			used[j] = 0;
 
 	return stripcount;
 }
-
 
 /*
 ================
@@ -264,20 +262,20 @@ for the model, which holds for all frames
 */
 void BuildTris (void)
 {
-	int		i, j, k;
-	int		startv;
-	float	s, t;
-	int		len, bestlen, besttype;
-	int		bestverts[1024];
-	int		besttris[1024];
-	int		type;
+	int   i, j, k;
+	int   startv;
+	float s, t;
+	int   len, bestlen, besttype;
+	int   bestverts[1024];
+	int   besttris[1024];
+	int   type;
 
 	//
 	// build tristrips
 	//
 	numorder = 0;
 	numcommands = 0;
-	memset (used, 0, sizeof(used));
+	memset (used, 0, sizeof (used));
 	for (i = 0; i < pheader->numtris; i++)
 	{
 		// pick an unused triangle and start the trifan
@@ -286,8 +284,8 @@ void BuildTris (void)
 
 		bestlen = 0;
 		besttype = 0;
-		for (type = 0 ; type < 2 ; type++)
-//	type = 1;
+		for (type = 0; type < 2; type++)
+		//	type = 1;
 		{
 			for (startv = 0; startv < 3; startv++)
 			{
@@ -299,7 +297,7 @@ void BuildTris (void)
 				{
 					besttype = type;
 					bestlen = len;
-					for (j = 0; j < bestlen+2; j++)
+					for (j = 0; j < bestlen + 2; j++)
 						bestverts[j] = stripverts[j];
 					for (j = 0; j < bestlen; j++)
 						besttris[j] = striptris[j];
@@ -312,13 +310,13 @@ void BuildTris (void)
 			used[besttris[j]] = 1;
 
 		if (besttype == 1)
-			commands[numcommands++] = (bestlen+2);
+			commands[numcommands++] = (bestlen + 2);
 		else
-			commands[numcommands++] = -(bestlen+2);
+			commands[numcommands++] = -(bestlen + 2);
 
-		for (j = 0; j < bestlen+2; j++)
+		for (j = 0; j < bestlen + 2; j++)
 		{
-			int		tmp;
+			int tmp;
 
 			// emit a vertex into the reorder buffer
 			k = bestverts[j];
@@ -328,12 +326,12 @@ void BuildTris (void)
 			s = stverts[k].s;
 			t = stverts[k].t;
 			if (!triangles[besttris[0]].facesfront && stverts[k].onseam)
-				s += pheader->skinwidth / 2;	// on back side
+				s += pheader->skinwidth / 2; // on back side
 			s = (s + 0.5) / pheader->skinwidth;
 			t = (t + 0.5) / pheader->skinheight;
 
-		//	*(float *)&commands[numcommands++] = s;
-		//	*(float *)&commands[numcommands++] = t;
+			//	*(float *)&commands[numcommands++] = s;
+			//	*(float *)&commands[numcommands++] = t;
 			// NOTE: 4 == sizeof(int)
 			//	   == sizeof(float)
 			memcpy (&tmp, &s, 4);
@@ -343,7 +341,7 @@ void BuildTris (void)
 		}
 	}
 
-	commands[numcommands++] = 0;		// end of list marker
+	commands[numcommands++] = 0; // end of list marker
 
 	Con_DPrintf2 ("%3i tri %3i vert %3i cmd\n", pheader->numtris, numorder, numcommands);
 
@@ -361,29 +359,29 @@ GL_MakeAliasModelDisplayLists
 */
 void GL_MakeAliasModelDisplayLists (qmodel_t *m, aliashdr_t *hdr)
 {
-	int		i, j;
-	int			*cmds;
-	trivertx_t	*verts;
-	int		count; //johnfitz -- precompute texcoords for padded skins
-	int		*loadcmds; //johnfitz
+	int         i, j;
+	int		*cmds;
+	trivertx_t *verts;
+	int         count;    // johnfitz -- precompute texcoords for padded skins
+	int		*loadcmds; // johnfitz
 
 	aliasmodel = m;
-	paliashdr = hdr;	// (aliashdr_t *)Mod_Extradata (m);
+	paliashdr = hdr; // (aliashdr_t *)Mod_Extradata (m);
 
-//johnfitz -- generate meshes
-	Con_DPrintf2 ("meshing %s...\n",m->name);
+	// johnfitz -- generate meshes
+	Con_DPrintf2 ("meshing %s...\n", m->name);
 	BuildTris ();
 
 	// save the data out
 
 	paliashdr->poseverts = numorder;
 
-	cmds = (int *) Hunk_Alloc (numcommands * 4);
+	cmds = (int *)Hunk_Alloc (numcommands * 4);
 	paliashdr->commands = (byte *)cmds - (byte *)paliashdr;
 
-	//johnfitz -- precompute texcoords for padded skins
+	// johnfitz -- precompute texcoords for padded skins
 	loadcmds = commands;
-	while(1)
+	while (1)
 	{
 		*cmds++ = count = *loadcmds++;
 
@@ -399,12 +397,12 @@ void GL_MakeAliasModelDisplayLists (qmodel_t *m, aliashdr_t *hdr)
 			*(float *)cmds++ = (*(float *)loadcmds++);
 		} while (--count);
 	}
-	//johnfitz
+	// johnfitz
 
-	verts = (trivertx_t *) Hunk_Alloc (paliashdr->numposes * paliashdr->poseverts * sizeof(trivertx_t));
+	verts = (trivertx_t *)Hunk_Alloc (paliashdr->numposes * paliashdr->poseverts * sizeof (trivertx_t));
 	paliashdr->posedata = (byte *)verts - (byte *)paliashdr;
-	for (i=0 ; i<paliashdr->numposes ; i++)
-		for (j=0 ; j<numorder ; j++)
+	for (i = 0; i < paliashdr->numposes; i++)
+		for (j = 0; j < numorder; j++)
 			*verts++ = poseverts[i][vertexorder[j]];
 
 	// ericw
@@ -426,28 +424,28 @@ Original code by MH from RMQEngine
 */
 void GL_MakeAliasModelDisplayLists_VBO (void)
 {
-	int i, j;
-	int maxverts_vbo;
-	trivertx_t *verts;
+	int             i, j;
+	int             maxverts_vbo;
+	trivertx_t     *verts;
 	unsigned short *indexes;
-	aliasmesh_t *desc;
+	aliasmesh_t    *desc;
 
 	// first, copy the verts onto the hunk
-	verts = (trivertx_t *) Hunk_Alloc (paliashdr->numposes * paliashdr->numverts * sizeof(trivertx_t));
+	verts = (trivertx_t *)Hunk_Alloc (paliashdr->numposes * paliashdr->numverts * sizeof (trivertx_t));
 	paliashdr->vertexes = (byte *)verts - (byte *)paliashdr;
-	for (i=0 ; i<paliashdr->numposes ; i++)
-		for (j=0 ; j<paliashdr->numverts ; j++)
-			verts[i*paliashdr->numverts + j] = poseverts[i][j];
+	for (i = 0; i < paliashdr->numposes; i++)
+		for (j = 0; j < paliashdr->numverts; j++)
+			verts[i * paliashdr->numverts + j] = poseverts[i][j];
 
 	// there can never be more than this number of verts and we just put them all on the hunk
 	maxverts_vbo = pheader->numtris * 3;
-	desc = (aliasmesh_t *) Hunk_Alloc (sizeof (aliasmesh_t) * maxverts_vbo);
+	desc = (aliasmesh_t *)Hunk_Alloc (sizeof (aliasmesh_t) * maxverts_vbo);
 
 	// there will always be this number of indexes
-	indexes = (unsigned short *) Hunk_Alloc (sizeof (unsigned short) * maxverts_vbo);
+	indexes = (unsigned short *)Hunk_Alloc (sizeof (unsigned short) * maxverts_vbo);
 
-	pheader->indexes = (intptr_t) indexes - (intptr_t) pheader;
-	pheader->meshdesc = (intptr_t) desc - (intptr_t) pheader;
+	pheader->indexes = (intptr_t)indexes - (intptr_t)pheader;
+	pheader->meshdesc = (intptr_t)desc - (intptr_t)pheader;
 	pheader->numindexes = 0;
 	pheader->numverts_vbo = 0;
 
@@ -465,13 +463,14 @@ void GL_MakeAliasModelDisplayLists_VBO (void)
 			int t = stverts[vertindex].t;
 
 			// check for back side and adjust texcoord s
-			if (!triangles[i].facesfront && stverts[vertindex].onseam) s += pheader->skinwidth / 2;
+			if (!triangles[i].facesfront && stverts[vertindex].onseam)
+				s += pheader->skinwidth / 2;
 
 			// see does this vert already exist
 			for (v = 0; v < pheader->numverts_vbo; v++)
 			{
 				// it could use the same xyz but have different s and t
-				if (desc[v].vertindex == vertindex && (int) desc[v].st[0] == s && (int) desc[v].st[1] == t)
+				if (desc[v].vertindex == vertindex && (int)desc[v].st[0] == s && (int)desc[v].st[1] == t)
 				{
 					// exists; emit an index for it
 					indexes[pheader->numindexes++] = v;
@@ -492,38 +491,38 @@ void GL_MakeAliasModelDisplayLists_VBO (void)
 			}
 		}
 	}
-	
+
 	// upload immediately
 	GLMesh_LoadVertexBuffer (aliasmodel, pheader);
 }
 
-#define NUMVERTEXNORMALS	 162
-extern	float	r_avertexnormals[NUMVERTEXNORMALS][3];
+#define NUMVERTEXNORMALS 162
+extern float r_avertexnormals[NUMVERTEXNORMALS][3];
 
 /*
 ================
 GLMesh_DeleteVertexBuffer
 ================
 */
-static void GLMesh_DeleteVertexBuffer(qmodel_t *m)
+static void GLMesh_DeleteVertexBuffer (qmodel_t *m)
 {
 	if (m->vertex_buffer == VK_NULL_HANDLE)
 		return;
 
 	if (in_update_screen)
 	{
-		AddBufferGarbage(m->vertex_buffer, m->vertex_heap, m->vertex_heap_node, &vertex_buffer_heaps, &num_vertex_buffer_heaps);
-		AddBufferGarbage(m->index_buffer, m->index_heap, m->index_heap_node, &index_buffer_heaps, &num_index_buffer_heaps);
+		AddBufferGarbage (m->vertex_buffer, m->vertex_heap, m->vertex_heap_node, &vertex_buffer_heaps, &num_vertex_buffer_heaps);
+		AddBufferGarbage (m->index_buffer, m->index_heap, m->index_heap_node, &index_buffer_heaps, &num_index_buffer_heaps);
 	}
 	else
 	{
-		GL_WaitForDeviceIdle();
+		GL_WaitForDeviceIdle ();
 
-		vkDestroyBuffer(vulkan_globals.device, m->vertex_buffer, NULL);
-		GL_FreeFromHeaps(num_vertex_buffer_heaps, vertex_buffer_heaps, m->vertex_heap, m->vertex_heap_node, &num_vulkan_mesh_allocations);
+		vkDestroyBuffer (vulkan_globals.device, m->vertex_buffer, NULL);
+		GL_FreeFromHeaps (num_vertex_buffer_heaps, vertex_buffer_heaps, m->vertex_heap, m->vertex_heap_node, &num_vulkan_mesh_allocations);
 
-		vkDestroyBuffer(vulkan_globals.device, m->index_buffer, NULL);
-		GL_FreeFromHeaps(num_index_buffer_heaps, index_buffer_heaps, m->index_heap, m->index_heap_node, &num_vulkan_mesh_allocations);
+		vkDestroyBuffer (vulkan_globals.device, m->index_buffer, NULL);
+		GL_FreeFromHeaps (num_index_buffer_heaps, index_buffer_heaps, m->index_heap, m->index_heap_node, &num_vulkan_mesh_allocations);
 	}
 
 	m->vertex_buffer = VK_NULL_HANDLE;
@@ -545,101 +544,105 @@ Original code by MH from RMQEngine
 */
 static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 {
-	int totalvbosize = 0;
-	int remaining_size;
-	int copy_offset;
+	int                totalvbosize = 0;
+	int                remaining_size;
+	int                copy_offset;
 	const aliasmesh_t *desc;
-	const short *indexes;
-	const trivertx_t *trivertexes;
-	byte *vbodata;
-	int f;
-	VkResult err;
+	const short       *indexes;
+	const trivertx_t  *trivertexes;
+	byte              *vbodata;
+	int                f;
+	VkResult           err;
 
-	GLMesh_DeleteVertexBuffer(m);
+	GLMesh_DeleteVertexBuffer (m);
 
-// count the sizes we need
-	
+	// count the sizes we need
+
 	// ericw -- RMQEngine stored these vbo*ofs values in aliashdr_t, but we must not
 	// mutate Mod_Extradata since it might be reloaded from disk, so I moved them to qmodel_t
 	// (test case: roman1.bsp from arwop, 64mb heap)
 	m->vboindexofs = 0;
-	
+
 	m->vboxyzofs = 0;
 	totalvbosize += (hdr->numposes * hdr->numverts_vbo * sizeof (meshxyz_t)); // ericw -- what RMQEngine called nummeshframes is called numposes in QuakeSpasm
-	
+
 	m->vbostofs = totalvbosize;
 	totalvbosize += (hdr->numverts_vbo * sizeof (meshst_t));
-	
-	if (isDedicated) return;
-	if (!hdr->numindexes) return;
-	if (!totalvbosize) return;
-	
-// grab the pointers to data in the extradata
 
-	desc = (aliasmesh_t *) ((byte *) hdr + hdr->meshdesc);
-	indexes = (short *) ((byte *) hdr + hdr->indexes);
-	trivertexes = (trivertx_t *) ((byte *)hdr + hdr->vertexes);
+	if (isDedicated)
+		return;
+	if (!hdr->numindexes)
+		return;
+	if (!totalvbosize)
+		return;
+
+	// grab the pointers to data in the extradata
+
+	desc = (aliasmesh_t *)((byte *)hdr + hdr->meshdesc);
+	indexes = (short *)((byte *)hdr + hdr->indexes);
+	trivertexes = (trivertx_t *)((byte *)hdr + hdr->vertexes);
 
 	{
 		const int totalindexsize = hdr->numindexes * sizeof (unsigned short);
 
 		// Allocate index buffer & upload to GPU
 		VkBufferCreateInfo buffer_create_info;
-		memset(&buffer_create_info, 0, sizeof(buffer_create_info));
+		memset (&buffer_create_info, 0, sizeof (buffer_create_info));
 		buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 		buffer_create_info.size = totalindexsize;
 		buffer_create_info.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-		err = vkCreateBuffer(vulkan_globals.device, &buffer_create_info, NULL, &m->index_buffer);
+		err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &m->index_buffer);
 		if (err != VK_SUCCESS)
-			Sys_Error("vkCreateBuffer failed");
+			Sys_Error ("vkCreateBuffer failed");
 
-		GL_SetObjectName((uint64_t)m->index_buffer, VK_OBJECT_TYPE_BUFFER, m->name);
+		GL_SetObjectName ((uint64_t)m->index_buffer, VK_OBJECT_TYPE_BUFFER, m->name);
 
 		VkMemoryRequirements memory_requirements;
-		vkGetBufferMemoryRequirements(vulkan_globals.device, m->index_buffer, &memory_requirements);
+		vkGetBufferMemoryRequirements (vulkan_globals.device, m->index_buffer, &memory_requirements);
 
-		uint32_t memory_type_index = GL_MemoryTypeFromProperties(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
+		uint32_t     memory_type_index = GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
 		VkDeviceSize heap_size = INDEX_HEAP_SIZE_MB * (VkDeviceSize)1024 * (VkDeviceSize)1024;
-		VkDeviceSize aligned_offset = GL_AllocateFromHeaps(&num_index_buffer_heaps, &index_buffer_heaps, heap_size, memory_type_index, VULKAN_MEMORY_TYPE_DEVICE, memory_requirements.size,
+		VkDeviceSize aligned_offset = GL_AllocateFromHeaps (
+			&num_index_buffer_heaps, &index_buffer_heaps, heap_size, memory_type_index, VULKAN_MEMORY_TYPE_DEVICE, memory_requirements.size,
 			memory_requirements.alignment, &m->index_heap, &m->index_heap_node, &num_vulkan_mesh_allocations, "Index Buffers");
-		err = vkBindBufferMemory(vulkan_globals.device, m->index_buffer, m->index_heap->memory.handle, aligned_offset);
+		err = vkBindBufferMemory (vulkan_globals.device, m->index_buffer, m->index_heap->memory.handle, aligned_offset);
 		if (err != VK_SUCCESS)
-			Sys_Error("vkBindBufferMemory failed");
+			Sys_Error ("vkBindBufferMemory failed");
 
 		remaining_size = totalindexsize;
 		copy_offset = 0;
 
 		while (remaining_size > 0)
 		{
-			const int size_to_copy = q_min(remaining_size, vulkan_globals.staging_buffer_size);
-			VkBuffer staging_buffer;
+			const int       size_to_copy = q_min (remaining_size, vulkan_globals.staging_buffer_size);
+			VkBuffer        staging_buffer;
 			VkCommandBuffer command_buffer;
-			int staging_offset;
-			unsigned char * staging_memory = R_StagingAllocate(size_to_copy, 1, &command_buffer, &staging_buffer, &staging_offset);
+			int             staging_offset;
+			unsigned char  *staging_memory = R_StagingAllocate (size_to_copy, 1, &command_buffer, &staging_buffer, &staging_offset);
 
-			memcpy(staging_memory, (byte*)indexes + copy_offset, size_to_copy);
+			memcpy (staging_memory, (byte *)indexes + copy_offset, size_to_copy);
 
 			VkBufferCopy region;
 			region.srcOffset = staging_offset;
 			region.dstOffset = copy_offset;
 			region.size = size_to_copy;
-			vkCmdCopyBuffer(command_buffer, staging_buffer, m->index_buffer, 1, &region);
+			vkCmdCopyBuffer (command_buffer, staging_buffer, m->index_buffer, 1, &region);
 
 			copy_offset += size_to_copy;
 			remaining_size -= size_to_copy;
 		}
 	}
 
-// create the vertex buffer (empty)
+	// create the vertex buffer (empty)
 
-	vbodata = (byte *) malloc(totalvbosize);
-	memset(vbodata, 0, totalvbosize);
+	vbodata = (byte *)malloc (totalvbosize);
+	memset (vbodata, 0, totalvbosize);
 
-// fill in the vertices at the start of the buffer
+	// fill in the vertices at the start of the buffer
 	for (f = 0; f < hdr->numposes; f++) // ericw -- what RMQEngine called nummeshframes is called numposes in QuakeSpasm
 	{
-		int v;
-		meshxyz_t *xyz = (meshxyz_t *) (vbodata + (f * hdr->numverts_vbo * sizeof (meshxyz_t)));
+		int               v;
+		meshxyz_t        *xyz = (meshxyz_t *)(vbodata + (f * hdr->numverts_vbo * sizeof (meshxyz_t)));
 		const trivertx_t *tv = trivertexes + (hdr->numverts * f);
 
 		for (v = 0; v < hdr->numverts_vbo; v++)
@@ -649,7 +652,7 @@ static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 			xyz[v].xyz[0] = trivert.v[0];
 			xyz[v].xyz[1] = trivert.v[1];
 			xyz[v].xyz[2] = trivert.v[2];
-			xyz[v].xyz[3] = 1;	// need w 1 for 4 byte vertex compression
+			xyz[v].xyz[3] = 1; // need w 1 for 4 byte vertex compression
 
 			// map the normal coordinates in [-1..1] to [-127..127] and store in an unsigned char.
 			// this introduces some error (less than 0.004), but the normals were very coarse
@@ -657,65 +660,65 @@ static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 			xyz[v].normal[0] = 127 * r_avertexnormals[trivert.lightnormalindex][0];
 			xyz[v].normal[1] = 127 * r_avertexnormals[trivert.lightnormalindex][1];
 			xyz[v].normal[2] = 127 * r_avertexnormals[trivert.lightnormalindex][2];
-			xyz[v].normal[3] = 0;	// unused; for 4-byte alignment
+			xyz[v].normal[3] = 0; // unused; for 4-byte alignment
 		}
 	}
 
-// fill in the ST coords at the end of the buffer
+	// fill in the ST coords at the end of the buffer
 	{
 		meshst_t *st;
 
-		st = (meshst_t *) (vbodata + m->vbostofs);
+		st = (meshst_t *)(vbodata + m->vbostofs);
 		for (f = 0; f < hdr->numverts_vbo; f++)
 		{
-			st[f].st[0] = ((float) desc[f].st[0] + 0.5f) / (float) hdr->skinwidth;
-			st[f].st[1] = ((float) desc[f].st[1] + 0.5f) / (float) hdr->skinheight;
+			st[f].st[0] = ((float)desc[f].st[0] + 0.5f) / (float)hdr->skinwidth;
+			st[f].st[1] = ((float)desc[f].st[1] + 0.5f) / (float)hdr->skinheight;
 		}
 	}
 
 	// Allocate vertex buffer & upload to GPU
 	{
 		VkBufferCreateInfo buffer_create_info;
-		memset(&buffer_create_info, 0, sizeof(buffer_create_info));
+		memset (&buffer_create_info, 0, sizeof (buffer_create_info));
 		buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 		buffer_create_info.size = totalvbosize;
 		buffer_create_info.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-		err = vkCreateBuffer(vulkan_globals.device, &buffer_create_info, NULL, &m->vertex_buffer);
+		err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &m->vertex_buffer);
 		if (err != VK_SUCCESS)
-			Sys_Error("vkCreateBuffer failed");
+			Sys_Error ("vkCreateBuffer failed");
 
-		GL_SetObjectName((uint64_t)m->vertex_buffer, VK_OBJECT_TYPE_BUFFER, m->name);
+		GL_SetObjectName ((uint64_t)m->vertex_buffer, VK_OBJECT_TYPE_BUFFER, m->name);
 
 		VkMemoryRequirements memory_requirements;
-		vkGetBufferMemoryRequirements(vulkan_globals.device, m->vertex_buffer, &memory_requirements);
+		vkGetBufferMemoryRequirements (vulkan_globals.device, m->vertex_buffer, &memory_requirements);
 
-		uint32_t memory_type_index = GL_MemoryTypeFromProperties(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
+		uint32_t     memory_type_index = GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
 		VkDeviceSize heap_size = VERTEX_HEAP_SIZE_MB * (VkDeviceSize)1024 * (VkDeviceSize)1024;
-		VkDeviceSize aligned_offset = GL_AllocateFromHeaps(&num_vertex_buffer_heaps, &vertex_buffer_heaps, heap_size, memory_type_index,
-			VULKAN_MEMORY_TYPE_DEVICE, memory_requirements.size, memory_requirements.alignment, &m->vertex_heap, &m->vertex_heap_node,
-			&num_vulkan_mesh_allocations, "Vertex Buffers");
-		err = vkBindBufferMemory(vulkan_globals.device, m->vertex_buffer, m->vertex_heap->memory.handle, aligned_offset);
+		VkDeviceSize aligned_offset = GL_AllocateFromHeaps (
+			&num_vertex_buffer_heaps, &vertex_buffer_heaps, heap_size, memory_type_index, VULKAN_MEMORY_TYPE_DEVICE, memory_requirements.size,
+			memory_requirements.alignment, &m->vertex_heap, &m->vertex_heap_node, &num_vulkan_mesh_allocations, "Vertex Buffers");
+		err = vkBindBufferMemory (vulkan_globals.device, m->vertex_buffer, m->vertex_heap->memory.handle, aligned_offset);
 		if (err != VK_SUCCESS)
-			Sys_Error("vkBindBufferMemory failed");
+			Sys_Error ("vkBindBufferMemory failed");
 
 		remaining_size = totalvbosize;
 		copy_offset = 0;
 
 		while (remaining_size > 0)
 		{
-			const int size_to_copy = q_min(remaining_size, vulkan_globals.staging_buffer_size);
-			VkBuffer staging_buffer;
+			const int       size_to_copy = q_min (remaining_size, vulkan_globals.staging_buffer_size);
+			VkBuffer        staging_buffer;
 			VkCommandBuffer command_buffer;
-			int staging_offset;
-			unsigned char * staging_memory = R_StagingAllocate(size_to_copy, 1, &command_buffer, &staging_buffer, &staging_offset);
+			int             staging_offset;
+			unsigned char  *staging_memory = R_StagingAllocate (size_to_copy, 1, &command_buffer, &staging_buffer, &staging_offset);
 
-			memcpy(staging_memory, (byte*)vbodata + copy_offset, size_to_copy);
+			memcpy (staging_memory, (byte *)vbodata + copy_offset, size_to_copy);
 
 			VkBufferCopy region;
 			region.srcOffset = staging_offset;
 			region.dstOffset = copy_offset;
 			region.size = size_to_copy;
-			vkCmdCopyBuffer(command_buffer, staging_buffer, m->vertex_buffer, 1, &region);
+			vkCmdCopyBuffer (command_buffer, staging_buffer, m->vertex_buffer, 1, &region);
 
 			copy_offset += size_to_copy;
 			remaining_size -= size_to_copy;
@@ -734,17 +737,19 @@ Loop over all precached alias models, and upload each one to a VBO.
 */
 void GLMesh_LoadVertexBuffers (void)
 {
-	int j;
-	qmodel_t *m;
+	int               j;
+	qmodel_t         *m;
 	const aliashdr_t *hdr;
 
 	for (j = 1; j < MAX_MODELS; j++)
 	{
-		if (!(m = cl.model_precache[j])) break;
-		if (m->type != mod_alias) continue;
+		if (!(m = cl.model_precache[j]))
+			break;
+		if (m->type != mod_alias)
+			continue;
 
-		hdr = (const aliashdr_t *) Mod_Extradata (m);
-		
+		hdr = (const aliashdr_t *)Mod_Extradata (m);
+
 		GLMesh_LoadVertexBuffer (m, hdr);
 	}
 }
@@ -758,14 +763,16 @@ Delete VBOs for all loaded alias models
 */
 void GLMesh_DeleteVertexBuffers (void)
 {
-	int j;
+	int       j;
 	qmodel_t *m;
-	
+
 	for (j = 1; j < MAX_MODELS; j++)
 	{
-		if (!(m = cl.model_precache[j])) break;
-		if (m->type != mod_alias) continue;
+		if (!(m = cl.model_precache[j]))
+			break;
+		if (m->type != mod_alias)
+			continue;
 
-		GLMesh_DeleteVertexBuffer(m);
+		GLMesh_DeleteVertexBuffer (m);
 	}
 }

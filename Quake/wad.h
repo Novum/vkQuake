@@ -27,55 +27,54 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 //   TYPES
 //===============
 
-#define	CMP_NONE		0
-#define	CMP_LZSS		1
+#define CMP_NONE 0
+#define CMP_LZSS 1
 
-#define	TYP_NONE		0
-#define	TYP_LABEL		1
+#define TYP_NONE  0
+#define TYP_LABEL 1
 
-#define	TYP_LUMPY		64				// 64 + grab command number
-#define	TYP_PALETTE		64
-#define	TYP_QTEX		65
-#define	TYP_QPIC		66
-#define	TYP_SOUND		67
-#define	TYP_MIPTEX		68
+#define TYP_LUMPY   64 // 64 + grab command number
+#define TYP_PALETTE 64
+#define TYP_QTEX    65
+#define TYP_QPIC    66
+#define TYP_SOUND   67
+#define TYP_MIPTEX  68
 
-#define	WADFILENAME "gfx.wad" //johnfitz -- filename is now hard-coded for honesty
+#define WADFILENAME "gfx.wad" // johnfitz -- filename is now hard-coded for honesty
 
 typedef struct
 {
-	int			width, height;
-	byte		data[4];			// variably sized
+	int  width, height;
+	byte data[4]; // variably sized
 } qpic_t;
 
 typedef struct
 {
-	char		identification[4];		// should be WAD2 or 2DAW
-	int			numlumps;
-	int			infotableofs;
+	char identification[4]; // should be WAD2 or 2DAW
+	int  numlumps;
+	int  infotableofs;
 } wadinfo_t;
 
 typedef struct
 {
-	int			filepos;
-	int			disksize;
-	int			size;					// uncompressed
-	char		type;
-	char		compression;
-	char		pad1, pad2;
-	char		name[16];				// must be null terminated
+	int  filepos;
+	int  disksize;
+	int  size; // uncompressed
+	char type;
+	char compression;
+	char pad1, pad2;
+	char name[16]; // must be null terminated
 } lumpinfo_t;
 
-extern	int			wad_numlumps;
-extern	lumpinfo_t	*wad_lumps;
-extern	byte		*wad_base;
+extern int         wad_numlumps;
+extern lumpinfo_t *wad_lumps;
+extern byte       *wad_base;
 
-void	W_LoadWadFile (void); //johnfitz -- filename is now hard-coded for honesty
-void	W_CleanupName (const char *in, char *out);
-void	*W_GetLumpName (const char *name, lumpinfo_t **out_info);
-void	*W_GetLumpNum (int num);
+void  W_LoadWadFile (void); // johnfitz -- filename is now hard-coded for honesty
+void  W_CleanupName (const char *in, char *out);
+void *W_GetLumpName (const char *name, lumpinfo_t **out_info);
+void *W_GetLumpNum (int num);
 
 void SwapPic (qpic_t *pic);
 
-#endif	/* _QUAKE_WAD_H */
-
+#endif /* _QUAKE_WAD_H */
