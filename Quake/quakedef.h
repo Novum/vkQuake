@@ -21,48 +21,14 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
-
 #ifndef QUAKEDEFS_H
 #define QUAKEDEFS_H
+
+#include "quakever.h"
 
 // quakedef.h -- primary header for client
 
 #define QUAKE_GAME // as opposed to utilities
-
-#define VERSION			 1.09
-#define GLQUAKE_VERSION	 1.00
-#define D3DQUAKE_VERSION 0.01
-#define WINQUAKE_VERSION 0.996
-#define LINUX_VERSION	 1.31
-#define X11_VERSION		 1.10
-
-#define FITZQUAKE_VERSION	 0.85 // johnfitz
-#define QUAKESPASM_VERSION	 0.96
-#define QUAKESPASM_VER_PATCH 2 // helper to print a string like 0.94.4
-#ifndef QUAKESPASM_VER_SUFFIX
-#define QUAKESPASM_VER_SUFFIX // optional version suffix string literal like "-beta1"
-#endif
-#define VKQUAKE_VERSION	  1.31
-#define VKQUAKE_VER_PATCH 1 // helper to print a string like 0.92.1
-#ifndef VKQUAKE_VER_SUFFIX
-#define VKQUAKE_VER_SUFFIX "" // optional version suffix like -beta1
-#endif
-
-#define QS_STRINGIFY_(x) #x
-#define QS_STRINGIFY(x)	 QS_STRINGIFY_ (x)
-
-// combined version string like "0.92.1-beta1"
-#define QUAKESPASM_VER_STRING QS_STRINGIFY (QUAKESPASM_VERSION) "." QS_STRINGIFY (QUAKESPASM_VER_PATCH) QUAKESPASM_VER_SUFFIX
-#define VKQUAKE_VER_STRING	  QS_STRINGIFY (VKQUAKE_VERSION) "." QS_STRINGIFY (VKQUAKE_VER_PATCH) VKQUAKE_VER_SUFFIX
-
-#ifdef QSS_DATE
-// combined version string like "2020-10-20-beta1"
-#define ENGINE_NAME_AND_VER "vkQuake " QS_STRINGIFY (QSS_DATE) VKQUAKE_VER_SUFFIX
-#else
-#define ENGINE_NAME_AND_VER \
-	"vkQuake"               \
-	" " VKQUAKE_VER_STRING
-#endif
 
 #define CONFIG_NAME "vkQuake.cfg"
 

@@ -229,7 +229,6 @@ typedef ptrdiff_t ssize_t;
 #endif /* _MSC_VER */
 
 /*==========================================================================*/
-
 #if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
 #include <SDL2/SDL.h>
 #else

@@ -918,6 +918,7 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClInclude Include="..\..\Quake\protocol.h" />
     <ClInclude Include="..\..\Quake\pr_comp.h" />
     <ClInclude Include="..\..\Quake\qs_bmp.h" />
+	<ClInclude Include="..\..\Quake\quakever.h" />
     <ClInclude Include="..\..\Quake\quakedef.h" />
     <ClInclude Include="..\..\Quake\q_sound.h" />
     <ClInclude Include="..\..\Quake\q_stdinc.h" />

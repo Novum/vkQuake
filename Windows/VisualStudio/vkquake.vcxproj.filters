@@ -636,6 +636,9 @@
     <ClInclude Include="..\..\Quake\qs_bmp.h">
       <Filter>Main</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\Quake\quakever.h">
+      <Filter>Main</Filter>
+    </ClInclude>
     <ClInclude Include="..\..\Quake\quakedef.h">
       <Filter>Main</Filter>
     </ClInclude>
