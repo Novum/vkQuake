@@ -367,12 +367,21 @@ void S_SetUnderwaterIntensity (float target)
 static void S_UnderwaterFilter (int endtime)
 {
 	int i;
+	if (!underwater.intensity)
+	{
+		if (endtime > 0)
+		{
+			underwater.accum[0] = paintbuffer[endtime-1].left;
+			underwater.accum[1] = paintbuffer[endtime-1].right;
+		}
+		return;
+	}
 	for (i = 0; i < endtime; i++)
 	{
 		underwater.accum[0] += underwater.alpha * (paintbuffer[i].left  - underwater.accum[0]);
 		underwater.accum[1] += underwater.alpha * (paintbuffer[i].right - underwater.accum[1]);
-		paintbuffer[i].left  = (int) (underwater.accum[0] + 0.5f);
-		paintbuffer[i].right = (int) (underwater.accum[1] + 0.5f);
+		paintbuffer[i].left  = (int) underwater.accum[0];
+		paintbuffer[i].right = (int) underwater.accum[1];
 	}
 }
 
