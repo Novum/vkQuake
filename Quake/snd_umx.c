@@ -123,6 +123,7 @@ static int get_objtype (fshandle_t *f, int32_t ofs, int type)
 {
 	char sig[16];
 _retry:
+	memset (sig, 0, sizeof (sig));
 	FS_fseek (f, ofs, SEEK_SET);
 	FS_fread (sig, 16, 1, f);
 	if (type == UMUSIC_IT)
