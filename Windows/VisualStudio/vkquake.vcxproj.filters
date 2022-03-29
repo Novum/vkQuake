@@ -52,6 +52,9 @@
     <ClCompile Include="..\..\Quake\snd_mix.c">
       <Filter>Sound</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Quake\snd_modplug.c">
+      <Filter>Sound</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\Quake\snd_mp3.c">
       <Filter>Sound</Filter>
     </ClCompile>
@@ -421,6 +424,9 @@
     <ClCompile Include="..\..\Shaders\Compiled\Debug\update_lightmap.comp.c">
       <Filter>Shaders\Debug</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Quake\snd_mpg123.c">
+      <Filter>Sound</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\Quake\snd_codec.h">
@@ -433,6 +439,9 @@
       <Filter>Sound</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Quake\snd_mikmod.h">
+      <Filter>Sound</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\snd_modplug.h">
       <Filter>Sound</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Quake\snd_mp3.h">
