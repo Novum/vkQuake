@@ -391,8 +391,9 @@ void Key_Console (int key)
 		}
 
 		key_tabpartial[0] = 0;
-		Q_strcpy (workline, key_lines[history_line]);
-		key_linepos = Q_strlen (workline);
+		len = strlen (key_lines[history_line]);
+		memmove (workline, key_lines[history_line], len + 1);
+		key_linepos = (int)len;
 		return;
 
 	case K_DOWNARROW:
@@ -407,10 +408,16 @@ void Key_Console (int key)
 		} while (history_line != edit_line && !key_lines[history_line][1]);
 
 		if (history_line == edit_line)
-			Q_strcpy (workline, current);
+		{
+			len = strlen (current);
+			memcpy (workline, current, len + 1);
+		}
 		else
-			Q_strcpy (workline, key_lines[history_line]);
-		key_linepos = Q_strlen (workline);
+		{
+			len = strlen (key_lines[history_line]);
+			memmove (workline, key_lines[history_line], len + 1);
+		}
+		key_linepos = (int)len;
 		return;
 
 	case K_INS:
