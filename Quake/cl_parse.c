@@ -679,6 +679,10 @@ static void CLFTE_ParseEntitiesUpdate (void)
 		else if (ent->update_type)
 		{ // simple update
 			CLFTE_ReadDelta (newnum, &ent->netstate, &ent->netstate, &ent->baseline);
+			if (ent->msgtime == cl.mtime[0])
+				// we did get an update for this entity, force processing by CL_EntitiesDeltaed 
+				// even if qcvm time is frozen (sv_freezenonclients support)
+				ent->msgtime = cl.mtime[1];
 		}
 		else
 		{ // we had no previous copy of this entity...

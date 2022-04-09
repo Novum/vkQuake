@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2022 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -92,6 +92,7 @@ extern DECLSPEC void *SDLCALL SDL_Metal_GetLayer(SDL_MetalView view);
  *
  * \param window SDL_Window from which the drawable size should be queried
  * \param w Pointer to variable for storing the width in pixels, may be NULL
+ * \param h Pointer to variable for storing the height in pixels, may be NULL
  *
  * \since This function is available since SDL 2.0.14.
  *

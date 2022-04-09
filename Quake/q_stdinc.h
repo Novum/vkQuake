@@ -87,7 +87,17 @@
 #define Q_MININT   ((int)0x80000000)
 #define Q_MINLONG  ((int)0x80000000)
 
-#define COMPILE_TIME_ASSERT(name, x) static_assert (x, #name);
+/* Make sure the types really have the right
+ * sizes: These macros are from SDL headers.
+ */
+#if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L)
+#define COMPILE_TIME_ASSERT(name, x) _Static_assert(x, #x)
+#elif defined(__cplusplus) && (__cplusplus >= 201103L)
+#define COMPILE_TIME_ASSERT(name, x)  static_assert(x, #x)
+#else /* universal, but may trigger -Wunused-local-typedefs */
+#define COMPILE_TIME_ASSERT(name, x) \
+        typedef int dummy_ ## name[(x) * 2 - 1]
+#endif
 
 COMPILE_TIME_ASSERT (char, sizeof (char) == 1);
 COMPILE_TIME_ASSERT (float, sizeof (float) == 4);
@@ -102,12 +112,14 @@ typedef enum
 } THE_DUMMY_ENUM;
 COMPILE_TIME_ASSERT (enum, sizeof (THE_DUMMY_ENUM) == sizeof (int));
 
+
 /* Provide a substitute for offsetof() if we don't have one.
  * This variant works on most (but not *all*) systems...
  */
 #ifndef offsetof
 #define offsetof(t, m) ((intptr_t) & (((t *)0)->m))
 #endif
+
 
 /*==========================================================================*/
 
@@ -143,6 +155,7 @@ typedef vec_t vec5_t[5];
 typedef int   fixed4_t;
 typedef int   fixed8_t;
 typedef int   fixed16_t;
+
 
 /*==========================================================================*/
 
@@ -191,7 +204,8 @@ typedef ptrdiff_t ssize_t;
 #endif
 
 /* llvm's optnone function attribute started with clang-3.5.0 */
-#if defined(__clang__) && (__clang_major__ > 3 || (__clang_major__ == 3 && __clang_minor__ >= 5))
+#if defined(__clang__) && \
+           (__clang_major__ > 3 || (__clang_major__ == 3 && __clang_minor__ >= 5))
 #define FUNC_NO_OPTIMIZE __attribute__ ((__optnone__))
 /* function optimize attribute is added starting with gcc 4.4.0 */
 #elif defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ > 3))
@@ -228,4 +242,6 @@ typedef ptrdiff_t ssize_t;
 
 /*==========================================================================*/
 
+
 #endif /* __QSTDINC_H */
+

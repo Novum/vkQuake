@@ -294,8 +294,15 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClCompile Include="..\..\Quake\snd_mem.c" />
     <ClCompile Include="..\..\Quake\snd_mikmod.c" />
     <ClCompile Include="..\..\Quake\snd_mix.c" />
+    <ClCompile Include="..\..\Quake\snd_modplug.c" />
     <ClCompile Include="..\..\Quake\snd_mp3.c" />
     <ClCompile Include="..\..\Quake\snd_mp3tag.c" />
+    <ClCompile Include="..\..\Quake\snd_mpg123.c">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="..\..\Quake\snd_opus.c" />
     <ClCompile Include="..\..\Quake\snd_sdl.c" />
     <ClCompile Include="..\..\Quake\snd_umx.c" />
@@ -558,6 +565,7 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClInclude Include="..\..\Quake\snd_codeci.h" />
     <ClInclude Include="..\..\Quake\snd_flac.h" />
     <ClInclude Include="..\..\Quake\snd_mikmod.h" />
+    <ClInclude Include="..\..\Quake\snd_modplug.h" />
     <ClInclude Include="..\..\Quake\snd_mp3.h" />
     <ClInclude Include="..\..\Quake\snd_opus.h" />
     <ClInclude Include="..\..\Quake\snd_umx.h" />

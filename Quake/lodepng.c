@@ -348,7 +348,7 @@ static void lodepng_set32bitInt(unsigned char* buffer, unsigned value) {
 
 #ifdef LODEPNG_COMPILE_DISK
 
-#ifdef LODEPNG_COMPILE_DECODER
+#ifdef LODEPNG_COMPILE_DECODER /**/
 /* returns negative value on error. This should be pure C compatible, so no fstat. */
 static long lodepng_filesize(const char* filename) {
   FILE* file;
@@ -393,7 +393,7 @@ unsigned lodepng_load_file(unsigned char** out, size_t* outsize, const char* fil
 
   return lodepng_buffer_file(*out, (size_t)size, filename);
 }
-#endif /*LODEPNG_COMPILE_DECODER*/
+#endif /**/
 
 /*write given buffer to the file, overwriting the file, it doesn't append to it.*/
 unsigned lodepng_save_file(const unsigned char* buffer, size_t buffersize, const char* filename) {
@@ -688,7 +688,7 @@ static unsigned HuffmanTree_makeTable(HuffmanTree* tree) {
   size = headsize;
   for(i = 0; i < headsize; ++i) {
     unsigned l = maxlens[i];
-    if(l > FIRSTBITS) size += (1ull << (l - FIRSTBITS));
+    if(l > FIRSTBITS) size += (((size_t)1) << (l - FIRSTBITS));
   }
   tree->table_len = (unsigned char*)lodepng_malloc(size * sizeof(*tree->table_len));
   tree->table_value = (unsigned short*)lodepng_malloc(size * sizeof(*tree->table_value));
@@ -707,7 +707,7 @@ static unsigned HuffmanTree_makeTable(HuffmanTree* tree) {
     if(l <= FIRSTBITS) continue;
     tree->table_len[i] = l;
     tree->table_value[i] = pointer;
-    pointer += (1ull << (l - FIRSTBITS));
+    pointer += (((size_t)1) << (l - FIRSTBITS));
   }
   lodepng_free(maxlens);
 
@@ -5466,7 +5466,7 @@ static size_t ilog2i(size_t i) {
   l = ilog2(i);
   /* approximate i*log2(i): l is integer logarithm, ((i - (1u << l)) << 1u)
   linearly approximates the missing fractional part multiplied by i */
-  return i * l + ((i - (1ull << l)) << 1u);
+  return i * l + ((i - (((size_t)1) << l)) << 1u);
 }
 
 static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, unsigned h,
@@ -6301,14 +6301,14 @@ const char* lodepng_error_text(unsigned code) {
 namespace lodepng {
 
 #ifdef LODEPNG_COMPILE_DISK
-#ifdef LODEPNG_COMPILE_DECODER
+#ifdef LODEPNG_COMPILE_DECODER /**/
 unsigned load_file(std::vector<unsigned char>& buffer, const std::string& filename) {
   long size = lodepng_filesize(filename.c_str());
   if(size < 0) return 78;
   buffer.resize((size_t)size);
   return size == 0 ? 0 : lodepng_buffer_file(&buffer[0], (size_t)size, filename.c_str());
 }
-#endif /*LODEPNG_COMPILE_DECODER*/
+#endif /**/
 
 /*write given buffer to the file, overwriting the file, it doesn't append to it.*/
 unsigned save_file(const std::vector<unsigned char>& buffer, const std::string& filename) {
