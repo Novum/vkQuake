@@ -306,6 +306,8 @@ extern cvar_t m_yaw;
 extern cvar_t m_forward;
 extern cvar_t m_side;
 
+extern cvar_t cl_startdemos;
+
 #define MAX_TEMP_ENTITIES 256 // johnfitz -- was 64
 
 extern client_state_t cl;

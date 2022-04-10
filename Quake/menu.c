@@ -277,7 +277,7 @@ void M_Main_Key (int key)
 		key_dest = key_game;
 		m_state = m_none;
 		cls.demonum = m_save_demonum;
-		if (!fitzmode) /* QuakeSpasm customization: */
+		if (!fitzmode && !cl_startdemos.value) /* QuakeSpasm customization: */
 			break;
 		if (cls.demonum != -1 && !cls.demoplayback && cls.state != ca_connected)
 			CL_NextDemo ();

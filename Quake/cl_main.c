@@ -48,6 +48,8 @@ cvar_t m_side = {"m_side", "0.8", CVAR_ARCHIVE};
 cvar_t cl_maxpitch = {"cl_maxpitch", "90", CVAR_ARCHIVE};  // johnfitz -- variable pitch clamping
 cvar_t cl_minpitch = {"cl_minpitch", "-90", CVAR_ARCHIVE}; // johnfitz -- variable pitch clamping
 
+cvar_t cl_startdemos = {"cl_startdemos", "1", CVAR_ARCHIVE};
+
 client_static_t cls;
 client_state_t  cl;
 // FIXME: put these on hunk?
@@ -1084,6 +1086,8 @@ void CL_Init (void)
 
 	Cvar_RegisterVariable (&cl_maxpitch); // johnfitz -- variable pitch clamping
 	Cvar_RegisterVariable (&cl_minpitch); // johnfitz -- variable pitch clamping
+
+	Cvar_RegisterVariable (&cl_startdemos);
 
 	Cmd_AddCommand ("entities", CL_PrintEntities_f);
 	Cmd_AddCommand ("disconnect", CL_Disconnect_f);
