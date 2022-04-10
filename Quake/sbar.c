@@ -502,18 +502,20 @@ void Sbar_SoloScoreboard (cb_context_t *cbx)
 {
 	char str[256];
 	int  minutes, seconds, tens, units;
-	int  len;
+	int  left, right, len;
 
 	q_snprintf (str, sizeof(str), "Kills: %i/%i", cl.stats[STAT_MONSTERS], cl.stats[STAT_TOTALMONSTERS]);
+	left = 8 + strlen (str) * 8;
 	Sbar_DrawString (cbx, 8, 12, str);
 
 	q_snprintf (str, sizeof(str), "Secrets: %i/%i", cl.stats[STAT_SECRETS], cl.stats[STAT_TOTALSECRETS]);
-	Sbar_DrawString (cbx, 312 - strlen (str) * 8, 12, str);
+	right = 312 - strlen (str) * 8;
+	Sbar_DrawString (cbx, right, 12, str);
 
 	if (!fitzmode)
 	{ /* QuakeSpasm customization: */
 		q_snprintf (str, sizeof (str), "skill %i", (int)(skill.value + 0.5));
-		Sbar_DrawString (cbx, 160 - strlen (str) * 4, 12, str);
+		Sbar_DrawString (cbx, (left + right) / 2 - strlen (str) * 4, 12, str);
 
 		q_snprintf (str, sizeof (str), "%s (%s)", cl.levelname, cl.mapname);
 		len = strlen (str);
