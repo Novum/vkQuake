@@ -561,7 +561,7 @@ void IN_JoyMove (usercmd_t *cmd)
 
 void IN_MouseMove (usercmd_t *cmd)
 {
-	int dmx, dmy;
+	float dmx, dmy;
 
 	dmx = total_dx * sensitivity.value;
 	dmy = total_dy * sensitivity.value;
