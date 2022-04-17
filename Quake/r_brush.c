@@ -620,7 +620,7 @@ void BuildSurfaceDisplayList (msurface_t *fa)
 	int       i, lindex, lnumverts;
 	medge_t  *pedges, *r_pedge;
 	float    *vec;
-	float     s, t;
+	float     s, t, s0, t0, sdiv, tdiv;
 	glpoly_t *poly;
 	float    *poly_vert;
 
@@ -636,6 +636,20 @@ void BuildSurfaceDisplayList (msurface_t *fa)
 	fa->polys = poly;
 	poly->numverts = lnumverts;
 
+	if (fa->flags & SURF_DRAWTURB)
+	{
+		// match Mod_PolyForUnlitSurface
+		s0 = t0 = 0.f;
+		sdiv = tdiv = 128.f;
+	}
+	else
+	{
+		s0 = fa->texinfo->vecs[0][3];
+		t0 = fa->texinfo->vecs[1][3];
+		sdiv = fa->texinfo->texture->width;
+		tdiv = fa->texinfo->texture->height;
+	}
+
 	for (i = 0; i < lnumverts; i++)
 	{
 		lindex = currentmodel->surfedges[fa->firstedge + i];
@@ -650,11 +664,11 @@ void BuildSurfaceDisplayList (msurface_t *fa)
 			r_pedge = &pedges[-lindex];
 			vec = r_pcurrentvertbase[r_pedge->v[1]].position;
 		}
-		s = DotProduct (vec, fa->texinfo->vecs[0]) + fa->texinfo->vecs[0][3];
-		s /= fa->texinfo->texture->width;
+		s = DotProduct (vec, fa->texinfo->vecs[0]) + s0;
+		s /= sdiv;
 
-		t = DotProduct (vec, fa->texinfo->vecs[1]) + fa->texinfo->vecs[1][3];
-		t /= fa->texinfo->texture->height;
+		t = DotProduct (vec, fa->texinfo->vecs[1]) + t0;
+		t /= tdiv;
 
 		poly_vert = &poly->verts[0][0] + (i * VERTEXSIZE);
 		VectorCopy (vec, poly_vert);
