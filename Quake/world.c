@@ -647,6 +647,7 @@ reenter:
 		}
 		else
 		{
+			trace->allsolid = false;
 			if (num == CONTENTS_EMPTY)
 				trace->inopen = true;
 			else if (num != CONTENTS_SOLID)
@@ -709,7 +710,6 @@ reenter:
 	rht = Q1BSP_RecursiveHullTrace (ctx, node->children[side], p1f, midf, p1, mid, trace);
 	if (rht != rht_empty && !trace->allsolid)
 		return rht;
-	trace->allsolid = false;
 	rht = Q1BSP_RecursiveHullTrace (ctx, node->children[side ^ 1], midf, p2f, mid, p2, trace);
 	if (rht != rht_solid)
 		return rht;
@@ -900,17 +900,13 @@ qboolean SV_RecursiveHullCheck (hull_t *hull, vec3_t p1, vec3_t p2, trace_t *tra
 	}
 	else
 	{
-		qboolean        ret;
 		struct rhtctx_s ctx;
 		VectorCopy (p1, ctx.start);
 		VectorCopy (p2, ctx.end);
 		ctx.clipnodes = hull->clipnodes;
 		ctx.planes = hull->planes;
 		ctx.hitcontents = hitcontents;
-		ret = Q1BSP_RecursiveHullTrace (&ctx, hull->firstclipnode, 0, 1, p1, p2, trace) != rht_impact;
-		if (!trace->startsolid)
-			trace->allsolid = false;
-		return ret;
+		return Q1BSP_RecursiveHullTrace (&ctx, hull->firstclipnode, 0, 1, p1, p2, trace) != rht_impact;
 	}
 }
 
