@@ -336,7 +336,7 @@ broadcast print to everyone on server
 bprint(value)
 =================
 */
-static void PF_bprint (void)
+void PF_bprint (void)
 {
 	char *s;
 
@@ -353,7 +353,7 @@ single print to a specific client
 sprint(clientent, value)
 =================
 */
-static void PF_sprint (void)
+void PF_sprint (void)
 {
 	char     *s;
 	client_t *client;
@@ -383,7 +383,7 @@ single print to a specific client
 centerprint(clientent, value)
 =================
 */
-static void PF_centerprint (void)
+void PF_centerprint (void)
 {
 	char     *s;
 	client_t *client;
@@ -1698,7 +1698,7 @@ static void PF_sv_changelevel (void)
 PF_sv_finalefinished -- used by 2021 release.
 ==============
 */
-static void PF_sv_finalefinished (void)
+void PF_sv_finalefinished (void)
 {
 	G_FLOAT (OFS_RETURN) = 0;
 }

@@ -26,6 +26,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 #include "q_ctype.h"
 
+extern void PF_bprint (void);
+extern void PF_sprint (void);
+extern void PF_centerprint (void);
+extern void PF_sv_finalefinished (void);
+
 static float PR_GetVMScale (void)
 {
 	// sigh, this is horrible (divides glwidth)
@@ -4832,6 +4837,11 @@ static struct
 	{"getsurfacenumtriangles",		PF_getsurfacenumtriangles,		PF_getsurfacenumtriangles,		628,	"float(entity e, float s)"},
 	{"getsurfacetriangle",			PF_getsurfacetriangle,			PF_getsurfacetriangle,			629,	"vector(entity e, float s, float n)"},
 	{"digest_hex",					PF_digest_hex,					PF_digest_hex,					639,	"string(string digest, string data, ...)"},
+	// Quake 2021 rerelease update 3
+	{"ex_centerprint",				PF_centerprint,					PF_NoCSQC,						0,		"void(entity client, string s, ...)"},
+	{"ex_bprint",					PF_bprint,						PF_NoCSQC,						0,		"void(string s, ...)"},
+	{"ex_sprint",					PF_sprint,						PF_NoCSQC,						0,		"void(entity client, string s, ...)"},
+	{"ex_finalefinished",			PF_sv_finalefinished,			PF_NoCSQC,						0,		"float()"},
 };
 // clang-format on
 
