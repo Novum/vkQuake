@@ -4841,7 +4841,7 @@ static struct
 	{"ex_centerprint",				PF_centerprint,					PF_NoCSQC,						0,		"void(entity client, string s, ...)"},
 	{"ex_bprint",					PF_bprint,						PF_NoCSQC,						0,		"void(string s, ...)"},
 	{"ex_sprint",					PF_sprint,						PF_NoCSQC,						0,		"void(entity client, string s, ...)"},
-	{"ex_finalefinished",			PF_sv_finalefinished,			PF_NoCSQC,						0,		"float()"},
+	{"ex_finaleFinished",			PF_sv_finalefinished,			PF_NoCSQC,						0,		"float()"},
 };
 // clang-format on
 
