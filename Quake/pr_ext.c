@@ -30,6 +30,7 @@ extern void PF_bprint (void);
 extern void PF_sprint (void);
 extern void PF_centerprint (void);
 extern void PF_sv_finalefinished (void);
+extern void PF_sv_CheckPlayerEXFlags (void);
 
 static float PR_GetVMScale (void)
 {
@@ -4842,6 +4843,7 @@ static struct
 	{"ex_bprint",					PF_bprint,						PF_NoCSQC,						0,		"void(string s, ...)"},
 	{"ex_sprint",					PF_sprint,						PF_NoCSQC,						0,		"void(entity client, string s, ...)"},
 	{"ex_finaleFinished",			PF_sv_finalefinished,			PF_NoCSQC,						0,		"float()"},
+	{"ex_CheckPlayerEXFlags",		PF_sv_CheckPlayerEXFlags,		PF_NoCSQC,						0,		"float(entity playerEnt)"},
 };
 // clang-format on
 

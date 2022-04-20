@@ -1703,6 +1703,16 @@ void PF_sv_finalefinished (void)
 	G_FLOAT (OFS_RETURN) = 0;
 }
 
+/*
+==============
+PF_sv_CheckPlayerEXFlags -- used by 2021 release.
+==============
+*/
+void PF_sv_CheckPlayerEXFlags (void)
+{
+	G_FLOAT (OFS_RETURN) = 0;
+}
+
 void PR_spawnfunc_misc_model (edict_t *self)
 {
 	eval_t *val;
