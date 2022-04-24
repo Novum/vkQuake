@@ -1693,26 +1693,6 @@ static void PF_sv_changelevel (void)
 	Cbuf_AddText (va ("changelevel %s\n", s));
 }
 
-/*
-==============
-PF_sv_finalefinished -- used by 2021 release.
-==============
-*/
-void PF_sv_finalefinished (void)
-{
-	G_FLOAT (OFS_RETURN) = 0;
-}
-
-/*
-==============
-PF_sv_CheckPlayerEXFlags -- used by 2021 release.
-==============
-*/
-void PF_sv_CheckPlayerEXFlags (void)
-{
-	G_FLOAT (OFS_RETURN) = 0;
-}
-
 void PR_spawnfunc_misc_model (edict_t *self)
 {
 	eval_t *val;
@@ -1731,6 +1711,24 @@ void PR_spawnfunc_misc_model (edict_t *self)
 	// and lets just call makestatic instead of worrying if it'll interfere with the rest of the qc.
 	G_INT (OFS_PARM0) = EDICT_TO_PROG (self);
 	PF_sv_makestatic ();
+}
+
+/*
+==============
+for 2021 re-release:
+==============
+*/
+void PF_sv_finalefinished (void)
+{
+	G_FLOAT (OFS_RETURN) = 0;
+}
+void PF_sv_CheckPlayerEXFlags (void)
+{
+	G_FLOAT (OFS_RETURN) = 0;
+}
+void PF_sv_walkpathtogoal (void)
+{
+	G_FLOAT(OFS_RETURN) = 0; /* PATH_ERROR */
 }
 
 builtin_t pr_ssqcbuiltins[] = {

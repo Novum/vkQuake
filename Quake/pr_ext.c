@@ -31,6 +31,7 @@ extern void PF_sprint (void);
 extern void PF_centerprint (void);
 extern void PF_sv_finalefinished (void);
 extern void PF_sv_CheckPlayerEXFlags (void);
+extern void PF_sv_walkpathtogoal (void);
 
 static float PR_GetVMScale (void)
 {
@@ -4844,6 +4845,7 @@ static struct
 	{"ex_sprint",					PF_sprint,						PF_NoCSQC,						0,		"void(entity client, string s, ...)"},
 	{"ex_finaleFinished",			PF_sv_finalefinished,			PF_NoCSQC,						0,		"float()"},
 	{"ex_CheckPlayerEXFlags",		PF_sv_CheckPlayerEXFlags,		PF_NoCSQC,						0,		"float(entity playerEnt)"},
+	{"ex_walkpathtogoal",			PF_sv_walkpathtogoal,			PF_NoCSQC,						0,		"float(float movedist, vector goal)"},
 };
 // clang-format on
 
