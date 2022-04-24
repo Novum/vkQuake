@@ -1693,25 +1693,6 @@ static void PF_sv_changelevel (void)
 	Cbuf_AddText (va ("changelevel %s\n", s));
 }
 
-void PR_spawnfunc_misc_model (edict_t *self)
-{
-	eval_t *val;
-	if (!self->v.model && (val = GetEdictFieldValue (self, ED_FindFieldOffset ("mdl"))))
-		self->v.model = val->string;
-	if (!*PR_GetString (self->v.model)) // must have a model, because otherwise various things will assume its not valid at all.
-		self->v.model = PR_SetEngineString ("*null");
-
-	if (self->v.angles[1] < 0) // mimic AD. shame there's no avelocity clientside.
-		self->v.angles[1] = (rand () * (360.0f / (float)RAND_MAX));
-
-	// make sure the model is precached, to avoid errors.
-	G_INT (OFS_PARM0) = self->v.model;
-	PF_sv_precache_model ();
-
-	// and lets just call makestatic instead of worrying if it'll interfere with the rest of the qc.
-	G_INT (OFS_PARM0) = EDICT_TO_PROG (self);
-	PF_sv_makestatic ();
-}
 
 /*
 ==============
@@ -1728,7 +1709,7 @@ void PF_sv_CheckPlayerEXFlags (void)
 }
 void PF_sv_walkpathtogoal (void)
 {
-	G_FLOAT(OFS_RETURN) = 0; /* PATH_ERROR */
+	G_FLOAT (OFS_RETURN) = 0; /* PATH_ERROR */
 }
 
 builtin_t pr_ssqcbuiltins[] = {
