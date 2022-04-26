@@ -244,6 +244,8 @@ void R_DrawBrushModel (entity_t *e)
 			R_ChainSurface (psurf, chain_model);
 			if (!r_gpulightmapupdate.value)
 				R_RenderDynamicLightmaps (psurf);
+			else if (psurf->lightmaptexturenum >= 0)
+				lightmaps[psurf->lightmaptexturenum].modified = true;
 			rs_brushpolys++;
 		}
 	}
