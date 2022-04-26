@@ -35,9 +35,9 @@ RUN apt-get install -y \
 	zlib1g-dev
 
 RUN cd /tmp \
- && wget https://www.libsdl.org/release/SDL2-2.0.20.tar.gz \
- && tar -xzf SDL2-2.0.20.tar.gz \
- && cd /tmp/SDL2-2.0.20 \
+ && wget https://www.libsdl.org/release/SDL2-2.0.22.tar.gz \
+ && tar -xzf SDL2-2.0.22.tar.gz \
+ && cd /tmp/SDL2-2.0.22 \
  && ./configure \
  && make -j \
  && make install
