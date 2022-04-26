@@ -1,7 +1,8 @@
 #include <stdio.h>
 #include <assert.h>
 
-int main(int argc, char** argv) {
+int main(int argc, char** argv)
+{
 	if(argc != 4)
 	return 0;
 
@@ -11,12 +12,18 @@ int main(int argc, char** argv) {
 	char* fnout = argv[3];
 	FILE* fout = fopen(fnout, "w+");
 
+	if ((fin == NULL) || (fout == NULL))
+	{
+		return 1;
+	}
+
 	for (char* c = argv[2]; *c != 0; ++c)
 		if (*c == '.') *c = '_';
 	fprintf(fout, "unsigned char %s[] = {\n", argv[2]);
 	unsigned long n = 0;
 
-	while(!feof(fin)) {
+	while(!feof(fin))
+	{
 		unsigned char c;
 		if(fread(&c, 1, 1, fin) == 0) break;
 		fprintf(fout, "0x%.2X, ", (int)c);
