@@ -568,6 +568,17 @@ static qboolean CL_AttachEntity (entity_t *ent, float frac)
 
 /*
 ===============
+CL_ResetTrail
+===============
+*/
+static void CL_ResetTrail (entity_t *ent)
+{
+	ent->traildelay = 1.f / 72.f;
+	VectorCopy (ent->origin, ent->trailorg);
+}
+
+/*
+===============
 CL_RocketTrail
 
 Rate-limiting wrapper over R_RocketTrail
@@ -575,13 +586,10 @@ Rate-limiting wrapper over R_RocketTrail
 */
 static void CL_RocketTrail (entity_t *ent, int type)
 {
-	if (!(ent->lerpflags & LERP_RESETMOVE) && !ent->forcelink)
-	{
-		ent->traildelay -= cl.time - cl.oldtime;
-		if (ent->traildelay > 0.f)
-			return;
-		R_RocketTrail (ent->trailorg, ent->origin, type);
-	}
+	ent->traildelay -= cl.time - cl.oldtime;
+	if (ent->traildelay > 0.f)
+		return;
+	R_RocketTrail (ent->trailorg, ent->origin, type);
 
 	ent->traildelay = q_max (0, ent->traildelay + 1.f / 72.f);
 	VectorCopy (ent->origin, ent->trailorg);
@@ -679,6 +687,9 @@ void CL_RelinkEntities (void)
 
 		modelflags = (ent->effects >> 24) & 0xff;
 		modelflags |= ent->model->flags;
+
+		if (ent->forcelink || ent->lerpflags & LERP_RESETMOVE)
+			CL_ResetTrail (ent);
 
 		// rotate binary objects locally
 		if (modelflags & EF_ROTATE)
