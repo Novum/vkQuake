@@ -179,11 +179,11 @@ static void Z_CheckHeap (void)
 		if (block->next == &mainzone->blocklist)
 			break; // all blocks have been hit
 		if ((byte *)block + block->size != (byte *)block->next)
-			Sys_Error ("Z_CheckHeap: block size does not touch the next block\n");
+			Sys_Error ("Z_CheckHeap: block size does not touch the next block");
 		if (block->next->prev != block)
-			Sys_Error ("Z_CheckHeap: next block doesn't have proper back link\n");
+			Sys_Error ("Z_CheckHeap: next block doesn't have proper back link");
 		if (!block->tag && !block->next->tag)
-			Sys_Error ("Z_CheckHeap: two consecutive free blocks\n");
+			Sys_Error ("Z_CheckHeap: two consecutive free blocks");
 	}
 }
 

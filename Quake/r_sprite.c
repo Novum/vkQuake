@@ -89,8 +89,6 @@ static void R_CreateSpriteVertices (entity_t *e, mspriteframe_t *frame, basicver
 	float     *s_up, *s_right;
 	float      angle, sr, cr;
 
-	// TODO: frustum cull it?
-
 	psprite = (msprite_t *)currententity->model->cache.data;
 
 	switch (psprite->type)

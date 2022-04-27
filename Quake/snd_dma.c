@@ -264,13 +264,13 @@ static sfx_t *S_FindName (const char *name)
 	if (!name)
 		Sys_Error ("S_FindName: NULL");
 
-	if (Q_strlen (name) >= MAX_QPATH)
+	if (strlen (name) >= MAX_QPATH)
 		Sys_Error ("Sound name too long: %s", name);
 
 	// see if already loaded
 	for (i = 0; i < num_sfx; i++)
 	{
-		if (!Q_strcmp (known_sfx[i].name, name))
+		if (!strcmp (known_sfx[i].name, name))
 		{
 			return &known_sfx[i];
 		}
@@ -959,7 +959,7 @@ static void S_Play (void)
 	while (i < Cmd_Argc ())
 	{
 		q_strlcpy (name, Cmd_Argv (i), sizeof (name));
-		if (!Q_strrchr (Cmd_Argv (i), '.'))
+		if (!strrchr (Cmd_Argv (i), '.'))
 		{
 			q_strlcat (name, ".wav", sizeof (name));
 		}
@@ -981,12 +981,12 @@ static void S_PlayVol (void)
 	while (i < Cmd_Argc ())
 	{
 		q_strlcpy (name, Cmd_Argv (i), sizeof (name));
-		if (!Q_strrchr (Cmd_Argv (i), '.'))
+		if (!strrchr (Cmd_Argv (i), '.'))
 		{
 			q_strlcat (name, ".wav", sizeof (name));
 		}
 		sfx = S_PrecacheSound (name);
-		vol = Q_atof (Cmd_Argv (i + 1));
+		vol = atof (Cmd_Argv (i + 1));
 		S_StartSound (hash++, 0, sfx, listener_origin, vol, 1.0);
 		i += 2;
 	}

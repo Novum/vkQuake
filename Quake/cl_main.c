@@ -201,7 +201,7 @@ void CL_EstablishConnection (const char *host)
 
 	cls.netcon = NET_Connect (host);
 	if (!cls.netcon)
-		Host_Error ("CL_Connect: connect failed\n");
+		Host_Error ("CL_Connect: connect failed");
 	Con_DPrintf ("CL_EstablishConnection: connected to %s\n", host);
 
 	cls.demonum = -1; // not in the demo loop now

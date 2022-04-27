@@ -213,10 +213,10 @@ byte *Image_LoadTGA (FILE *fin, int *width, int *height)
 	targa_header.attributes = fgetc (fin);
 
 	if (targa_header.image_type != 2 && targa_header.image_type != 10)
-		Sys_Error ("Image_LoadTGA: %s is not a type 2 or type 10 targa\n", loadfilename);
+		Sys_Error ("Image_LoadTGA: %s is not a type 2 or type 10 targa", loadfilename);
 
 	if (targa_header.colormap_type != 0 || (targa_header.pixel_size != 32 && targa_header.pixel_size != 24))
-		Sys_Error ("Image_LoadTGA: %s is not a 24bit or 32bit targa\n", loadfilename);
+		Sys_Error ("Image_LoadTGA: %s is not a 24bit or 32bit targa", loadfilename);
 
 	columns = targa_header.width;
 	rows = targa_header.height;
