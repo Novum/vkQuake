@@ -1819,6 +1819,8 @@ builtin_t pr_ssqcbuiltins[] = {
 
 	PF_sv_CheckPlayerEXFlags,
 	PF_sv_walkpathtogoal,
+
+	PF_Fixme,
 };
 int pr_ssqcnumbuiltins = sizeof (pr_ssqcbuiltins) / sizeof (pr_ssqcbuiltins[0]);
 
