@@ -223,20 +223,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define GAME_COOP       0
 #define GAME_DEATHMATCH 1
 
-// 2021 re-release server messages - see:
-// https://steamcommunity.com/sharedfiles/filedetails/?id=2679459726
-#define svc_botchat      38
-#define svc_setviews     45
-#define svc_updateping   46
-#define svc_updatesocial 47
-#define svc_updateplinfo 48
-#define svc_rawprint     49
-#define svc_servervars   50
-#define svc_seq          51
-
-// Note: same value as svcdp_effect!
-#define svc_achievement 52 // [string] id
-
 //
 // server to client
 //
@@ -321,6 +307,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 	54 // [short] precacheindex [string] filename. index&0x8000 = sound, 0x4000 = particle, 0xc000 = reserved (probably to reclaim these bits eventually),
 	   // otherwise model.
 #define svcdp_spawnbaseline2    55
+// Note: svcdp_spawnstatic2 has the same value of svc_localsound from 2021 re-release!
 #define svcdp_spawnstatic2      56
 #define svcdp_entities          57
 #define svcdp_csqcentities      58
