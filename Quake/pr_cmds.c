@@ -1816,11 +1816,6 @@ builtin_t pr_ssqcbuiltins[] = {
 	PF_Fixme,             // void draw_worldtext (string s, vector origin, float size, float lifetime, float depthtest) = #87
 	PF_Fixme,             // void draw_sphere (vector origin, float radius, float colormap, float lifetime, float depthtest) = #88
 	PF_Fixme,             // void draw_cylinder (vector origin, float halfHeight, float radius, float colormap, float lifetime, float depthtest) = #89
-
-	PF_sv_CheckPlayerEXFlags,
-	PF_sv_walkpathtogoal,
-
-	PF_Fixme,
 };
 int pr_ssqcnumbuiltins = sizeof (pr_ssqcbuiltins) / sizeof (pr_ssqcbuiltins[0]);
 

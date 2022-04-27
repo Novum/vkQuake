@@ -32,6 +32,7 @@ extern void PF_centerprint (void);
 extern void PF_sv_finalefinished (void);
 extern void PF_sv_CheckPlayerEXFlags (void);
 extern void PF_sv_walkpathtogoal (void);
+extern void PF_sv_localsound (void);
 
 static float PR_GetVMScale (void)
 {
@@ -4846,6 +4847,18 @@ static struct
 	{"ex_finaleFinished",			PF_sv_finalefinished,			PF_NoCSQC,						0,		"float()"},
 	{"ex_CheckPlayerEXFlags",		PF_sv_CheckPlayerEXFlags,		PF_NoCSQC,						0,		"float(entity playerEnt)"},
 	{"ex_walkpathtogoal",			PF_sv_walkpathtogoal,			PF_NoCSQC,						0,		"float(float movedist, vector goal)"},
+	{"ex_localsound",				PF_sv_localsound,				PF_NoCSQC,						0,		"void(entity client, string sample)"},
+	{"ex_draw_point",				PF_Fixme,						PF_NoCSQC,						0,		"void(vector point, float colormap, float lifetime, float depthtest)"},
+	{"ex_draw_line",				PF_Fixme,						PF_NoCSQC,						0,		"void(vector start, vector end, float colormap, float lifetime, float depthtest)"},
+	{"ex_draw_arrow",				PF_Fixme,						PF_NoCSQC,						0,		"void(vector start, vector end, float colormap, float size, float lifetime, float depthtest)"},
+	{"ex_draw_ray",					PF_Fixme,						PF_NoCSQC,						0,		"void(vector start, vector direction, float length, float colormap, float size, float lifetime, float depthtest)"},
+	{"ex_draw_circle",				PF_Fixme,						PF_NoCSQC,						0,		"void(vector origin, float radius, float colormap, float lifetime, float depthtest)"},
+	{"ex_draw_bounds",				PF_Fixme,						PF_NoCSQC,						0,		"void(vector min, vector max, float colormap, float lifetime, float depthtest)"},
+	{"ex_draw_worldtext",			PF_Fixme,						PF_NoCSQC,						0,		"void(string s, vector origin, float size, float lifetime, float depthtest)"},
+	{"ex_draw_sphere",				PF_Fixme,						PF_NoCSQC,						0,		"void(vector origin, float radius, float colormap, float lifetime, float depthtest)"},
+	{"ex_draw_cylinder",			PF_Fixme,						PF_NoCSQC,						0,		"void(vector origin, float halfHeight, float radius, float colormap, float lifetime, float depthtest)"},
+	{"ex_bot_movetopoint",			PF_Fixme,						PF_NoCSQC,						0,		"float(entity bot, vector point)"},
+	{"ex_bot_followentity",			PF_Fixme,						PF_NoCSQC,						0,		"float(entity bot, entity goal)"},
 };
 // clang-format on
 
