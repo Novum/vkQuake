@@ -299,6 +299,7 @@ void SV_Init (void);
 
 void SV_StartParticle (vec3_t org, vec3_t dir, int color, int count);
 void SV_StartSound (edict_t *entity, float *origin, int channel, const char *sample, int volume, float attenuation);
+void SV_LocalSound (client_t *client, const char *sample); // for 2021 rerelease
 
 void SV_DropClient (qboolean crash);
 

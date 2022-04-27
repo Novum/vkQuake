@@ -223,12 +223,17 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define GAME_COOP       0
 #define GAME_DEATHMATCH 1
 
-//==================
-// note that there are some defs.qc that mirror to these numbers
-// also related to svc_strings[] in cl_parse
-//==================
+// 2021 re-release server messages - see:
+// https://steamcommunity.com/sharedfiles/filedetails/?id=2679459726
+#define svc_botchat      38
+#define svc_setviews     45
+#define svc_updateping   46
+#define svc_updatesocial 47
+#define svc_updateplinfo 48
+#define svc_rawprint     49
+#define svc_servervars   50
+#define svc_seq          51
 
-// used by the 2021 rerelease
 // Note: same value as svcdp_effect!
 #define svc_achievement 52 // [string] id
 
@@ -286,6 +291,23 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define svc_spawnstatic2      43 // support for large modelindex, large framenum, alpha, using flags
 #define svc_spawnstaticsound2 44 // [coord3] [short] samp [byte] vol [byte] aten
 // johnfitz
+
+// 2021 re-release server messages - see:
+// https://steamcommunity.com/sharedfiles/filedetails/?id=2679459726
+#define svc_botchat		38
+#define svc_setviews		45
+#define svc_updateping		46
+#define svc_updatesocial	47
+#define svc_updateplinfo	48
+#define svc_rawprint		49
+#define svc_servervars		50
+#define svc_seq			51
+// Note: svc_achievement has same value as svcdp_effect!
+#define svc_achievement		52	// [string] id
+#define svc_chat		53
+#define svc_levelcompleted	54
+#define svc_backtolobby		55
+#define svc_localsound		56
 
 // spike -- some extensions for particles.
 // some extra stuff for fte's pext2_replacementdeltas, including stats

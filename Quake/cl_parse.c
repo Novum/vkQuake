@@ -69,93 +69,23 @@ const char *svc_strings[128] = {
 	"svc_spawnbaseline2_fitz",    // 42			// support for large modelindex, large framenum, alpha, using flags
 	"svc_spawnstatic2_fitz",      // 43			// support for large modelindex, large framenum, alpha, using flags
 	"svc_spawnstaticsound2_fitz", //	44		// [coord3] [short] samp [byte] vol [byte] aten
-	"45",                         // 45
-	"46",                         // 46
-	"47",                         // 47
-	"48",                         // 48
-	"49",                         // 49
                                   // johnfitz
 
-	// spike -- particle stuff, and padded to 128 to avoid possible crashes.
-	"50 svc_downloaddata_dp",       // 50
-	"51 svc_updatestatbyte",        // 51
-	"52 svc_effect_dp",             // 52
-	"53 svc_effect2_dp",            // 53
-	"54 svc_precache",              // 54	//[short] type+idx [string] name
-	"55 svc_baseline2_dp",          // 55
-	"56 svc_spawnstatic2_dp",       // 56
-	"57 svc_entities_dp",           // 57
-	"58 svc_csqcentities",          // 58
-	"59 svc_spawnstaticsound2_dp",  // 59
-	"60 svc_trailparticles",        // 60
-	"61 svc_pointparticles",        // 61
-	"62 svc_pointparticles1",       // 62
-	"63 svc_particle2_fte",         // 63
-	"64 svc_particle3_fte",         // 64
-	"65 svc_particle4_fte",         // 65
-	"66 svc_spawnbaseline_fte",     // 66
-	"67 svc_customtempent_fte",     // 67
-	"68 svc_selectsplitscreen_fte", // 68
-	"69 svc_showpic_fte",           // 69
-	"70 svc_hidepic_fte",           // 70
-	"71 svc_movepic_fte",           // 71
-	"72 svc_updatepic_fte",         // 72
-	"73",                           // 73
-	"74",                           // 74
-	"75",                           // 75
-	"76 svc_csqcentities_fte",      // 76
-	"77",                           // 77
-	"78 svc_updatestatstring_fte",  // 78
-	"79 svc_updatestatfloat_fte",   // 79
-	"80",                           // 80
-	"81",                           // 81
-	"82",                           // 82
-	"83 svc_cgamepacket_fte",       // 83
-	"84 svc_voicechat_fte",         // 84
-	"85 svc_setangledelta_fte",     // 85
-	"86 svc_updateentities_fte",    // 86
-	"87 svc_brushedit_fte",         // 87
-	"88 svc_updateseats_fte",       // 88
-	"89",                           // 89
-	"90",                           // 90
-	"91",                           // 91
-	"92",                           // 92
-	"93",                           // 93
-	"94",                           // 94
-	"95",                           // 95
-	"96",                           // 96
-	"97",                           // 97
-	"98",                           // 98
-	"99",                           // 99
-	"100",                          // 100
-	"101",                          // 101
-	"102",                          // 102
-	"103",                          // 103
-	"104",                          // 104
-	"105",                          // 105
-	"106",                          // 106
-	"107",                          // 107
-	"108",                          // 108
-	"109",                          // 109
-	"110",                          // 110
-	"111",                          // 111
-	"112",                          // 112
-	"113",                          // 113
-	"114",                          // 114
-	"115",                          // 115
-	"116",                          // 116
-	"117",                          // 117
-	"118",                          // 118
-	"119",                          // 119
-	"120",                          // 120
-	"121",                          // 121
-	"122",                          // 122
-	"123",                          // 123
-	"124",                          // 124
-	"125",                          // 125
-	"126",                          // 126
-	"127",                          // 127
+// 2021 RE-RELEASE:
+	"svc_setviews",       // 45
+	"svc_updateping",     // 46
+	"svc_updatesocial",   // 47
+	"svc_updateplinfo",   // 48
+	"svc_rawprint",       // 49
+	"svc_servervars",     // 50
+	"svc_seq",            // 51
+	"svc_achievement",    // 52
+	"svc_chat",           // 53
+	"svc_levelcompleted", // 54
+	"svc_backtolobby",    // 55
+	"svc_localsound"      // 56
 };
+#define NUM_SVC_STRINGS (sizeof (svc_strings) / sizeof (svc_strings[0]))
 
 qboolean warn_about_nehahra_protocol; // johnfitz
 
@@ -823,6 +753,23 @@ static void CL_ParseStartSoundPacket (void)
 		pos[i] = MSG_ReadCoord (cl.protocolflags);
 
 	S_StartSound (ent, channel, cl.sound_precache[sound_num], pos, volume / 255.0, attenuation);
+}
+
+/*
+==================
+CL_ParseLocalSound - for 2021 rerelease
+==================
+*/
+void CL_ParseLocalSound(void)
+{
+	int field_mask, sound_num;
+
+	field_mask = MSG_ReadByte();
+	sound_num = (field_mask&SND_LARGESOUND) ? MSG_ReadShort() : MSG_ReadByte();
+	if (sound_num >= MAX_SOUNDS)
+		Host_Error ("CL_ParseLocalSound: %i > MAX_SOUNDS", sound_num);
+
+	S_LocalSound (cl.sound_precache[sound_num]->name);
 }
 
 #if 0
@@ -1805,7 +1752,10 @@ void CL_ParseServerMessage (void)
 			continue;
 		}
 
-		SHOWNET (svc_strings[cmd]);
+		if (cmd < (int)NUM_SVC_STRINGS)
+		{
+			SHOWNET (svc_strings[cmd]);
+		}
 
 		// other commands
 		switch (cmd)
@@ -2079,6 +2029,9 @@ void CL_ParseServerMessage (void)
 		case svc_achievement:
 			str = MSG_ReadString ();
 			Con_DPrintf ("Ignoring svc_achievement (%s)\n", str);
+			break;
+		case svc_localsound:
+			CL_ParseLocalSound();
 			break;
 #ifdef PSET_SCRIPT
 		case svcdp_trailparticles:

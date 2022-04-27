@@ -644,16 +644,6 @@ static void PF_sound (void)
 		return;
 	}
 
-	/*	Spike -- these checks are redundant
-	    if (volume < 0 || volume > 255)
-	        Host_Error ("SV_StartSound: volume = %i", volume);
-
-	    if (attenuation < 0 || attenuation > 4)
-	        Host_Error ("SV_StartSound: attenuation = %f", attenuation);
-
-	    if (channel < 0 || channel > 7)
-	        Host_Error ("SV_StartSound: channel = %i", channel);
-	*/
 	SV_StartSound (entity, NULL, channel, sample, volume, attenuation);
 }
 
@@ -1711,6 +1701,19 @@ void PF_sv_walkpathtogoal (void)
 {
 	G_FLOAT (OFS_RETURN) = 0; /* PATH_ERROR */
 }
+void PF_sv_localsound (void)
+{
+	const char	*sample;
+	int		entnum;
+
+	entnum = G_EDICTNUM(OFS_PARM0);
+	sample = G_STRING(OFS_PARM1);
+	if (entnum < 1 || entnum > svs.maxclients) {
+		Con_Printf ("tried to localsound to a non-client\n");
+		return;
+	}
+	SV_LocalSound (&svs.clients[entnum-1], sample);
+}
 
 builtin_t pr_ssqcbuiltins[] = {
 	PF_Fixme,
@@ -1803,7 +1806,7 @@ builtin_t pr_ssqcbuiltins[] = {
 
 	// 2021 release
 	PF_sv_finalefinished, // float() finaleFinished = #79
-	PF_Fixme,             // void localsound (entity client, string sample) = #80
+	PF_sv_localsound,		// void localsound (entity client, string sample) = #80
 	PF_Fixme,             // void draw_point (vector point, float colormap, float lifetime, float depthtest) = #81
 	PF_Fixme,             // void draw_line (vector start, vector end, float colormap, float lifetime, float depthtest) = #82
 	PF_Fixme,             // void draw_arrow (vector start, vector end, float colormap, float size, float lifetime, float depthtest) = #83
@@ -1813,6 +1816,9 @@ builtin_t pr_ssqcbuiltins[] = {
 	PF_Fixme,             // void draw_worldtext (string s, vector origin, float size, float lifetime, float depthtest) = #87
 	PF_Fixme,             // void draw_sphere (vector origin, float radius, float colormap, float lifetime, float depthtest) = #88
 	PF_Fixme,             // void draw_cylinder (vector origin, float halfHeight, float radius, float colormap, float lifetime, float depthtest) = #89
+
+	PF_sv_CheckPlayerEXFlags,
+	PF_sv_walkpathtogoal,
 };
 int pr_ssqcnumbuiltins = sizeof (pr_ssqcbuiltins) / sizeof (pr_ssqcbuiltins[0]);
 
