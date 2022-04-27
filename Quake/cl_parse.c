@@ -1761,7 +1761,7 @@ void CL_ParseServerMessage (void)
 		switch (cmd)
 		{
 		default:
-			Host_Error ("Illegible server message %s, previous was %s", svc_strings[cmd], svc_strings[lastcmd]); // johnfitz -- added svc_strings[lastcmd]
+			Host_Error ("Illegible server message %d, previous was %s", cmd, svc_strings[lastcmd]); // johnfitz -- added svc_strings[lastcmd]
 			break;
 
 		case svc_nop:
