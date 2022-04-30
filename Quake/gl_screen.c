@@ -101,6 +101,13 @@ cvar_t gl_triplebuffer = {"gl_triplebuffer", "1", CVAR_ARCHIVE};
 
 cvar_t cl_gun_fovscale = {"cl_gun_fovscale", "1", CVAR_ARCHIVE}; // Qrack
 
+// All scaling is done relative to resolution with scr_relativescale
+cvar_t scr_relativescale = {"scr_relativescale", "2", CVAR_ARCHIVE};
+cvar_t scr_relmenuscale = {"scr_relmenuscale", "1", CVAR_ARCHIVE};
+cvar_t scr_relsbarscale = {"scr_relsbarscale", "1", CVAR_ARCHIVE};
+cvar_t scr_relcrosshairscale = {"scr_relcrosshairscale", "1", CVAR_ARCHIVE};
+cvar_t scr_relconscale = {"scr_relconscale", "1", CVAR_ARCHIVE};
+
 extern cvar_t crosshair;
 
 qboolean scr_initialized; // ready to draw
@@ -374,13 +381,65 @@ static void SCR_Callback_refdef (cvar_t *var)
 SCR_Conwidth_f -- johnfitz -- called when scr_conwidth or scr_conscale changes
 ==================
 */
-void SCR_Conwidth_f (cvar_t *var)
+static void SCR_Conwidth_f (cvar_t *var)
 {
 	vid.recalc_refdef = 1;
 	vid.conwidth = (scr_conwidth.value > 0) ? (int)scr_conwidth.value : (scr_conscale.value > 0) ? (int)(vid.width / scr_conscale.value) : vid.width;
 	vid.conwidth = CLAMP (320, vid.conwidth, vid.width);
 	vid.conwidth &= 0xFFFFFFF8;
 	vid.conheight = vid.conwidth * vid.height / vid.width;
+}
+
+/*
+==================
+SCR_UpdateRelativeScale
+==================
+*/
+void SCR_UpdateRelativeScale ()
+{
+	if (scr_relativescale.value)
+	{
+		float normalization_scale = 0.0013f; // To make scr_relmenuscale etc. more user friendly
+		float relative_scale = CLAMP (1.0f, scr_relativescale.value, 3.0f) * normalization_scale;
+
+		scr_menuscale.flags &= ~(CVAR_ARCHIVE | CVAR_ROM);
+		Cvar_SetValue ("scr_menuscale", (float)vid.height * scr_relmenuscale.value * relative_scale);
+		scr_menuscale.flags |= CVAR_ROM;
+
+		scr_sbarscale.flags &= ~(CVAR_ARCHIVE | CVAR_ROM);
+		Cvar_SetValue ("scr_sbarscale", (float)vid.height * scr_relsbarscale.value * relative_scale);
+		scr_sbarscale.flags |= CVAR_ROM;
+
+		scr_crosshairscale.flags &= ~(CVAR_ARCHIVE | CVAR_ROM);
+		Cvar_SetValue ("scr_crosshairscale", (float)vid.height * scr_relcrosshairscale.value * relative_scale);
+		scr_crosshairscale.flags |= CVAR_ROM;
+
+		scr_conscale.flags &= ~(CVAR_ARCHIVE | CVAR_ROM);
+		Cvar_SetValue ("scr_conscale", (float)vid.height * scr_relconscale.value * relative_scale);
+		scr_conscale.flags |= CVAR_ROM;
+	}
+	else
+	{
+		scr_menuscale.flags |= CVAR_ARCHIVE;
+		scr_menuscale.flags &= ~CVAR_ROM;
+		scr_sbarscale.flags |= CVAR_ARCHIVE;
+		scr_sbarscale.flags &= ~CVAR_ROM;
+		scr_crosshairscale.flags |= CVAR_ARCHIVE;
+		scr_crosshairscale.flags &= ~CVAR_ROM;
+		scr_conscale.flags |= CVAR_ARCHIVE;
+		scr_conscale.flags &= ~CVAR_ROM;
+	}
+	SCR_Conwidth_f (NULL);
+}
+
+/*
+==================
+SCR_UpdateRelativeScale_f
+==================
+*/
+static void SCR_UpdateRelativeScale_f (cvar_t *var)
+{
+	SCR_UpdateRelativeScale ();
 }
 
 //============================================================================
@@ -432,6 +491,18 @@ void SCR_Init (void)
 	Cvar_RegisterVariable (&scr_printspeed);
 	Cvar_RegisterVariable (&gl_triplebuffer);
 	Cvar_RegisterVariable (&cl_gun_fovscale);
+
+	Cvar_RegisterVariable (&scr_relativescale);
+	Cvar_RegisterVariable (&scr_relmenuscale);
+	Cvar_RegisterVariable (&scr_relsbarscale);
+	Cvar_RegisterVariable (&scr_relcrosshairscale);
+	Cvar_RegisterVariable (&scr_relconscale);
+	Cvar_SetCallback (&scr_relativescale, &SCR_UpdateRelativeScale_f);
+	Cvar_SetCallback (&scr_relmenuscale, &SCR_UpdateRelativeScale_f);
+	Cvar_SetCallback (&scr_relsbarscale, &SCR_UpdateRelativeScale_f);
+	Cvar_SetCallback (&scr_relativescale, &SCR_UpdateRelativeScale_f);
+	Cvar_SetCallback (&scr_relconscale, &SCR_UpdateRelativeScale_f);
+	SCR_UpdateRelativeScale ();
 
 	Cmd_AddCommand ("screenshot", SCR_ScreenShot_f);
 	Cmd_AddCommand ("sizeup", SCR_SizeUp_f);

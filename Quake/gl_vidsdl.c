@@ -480,6 +480,8 @@ static qboolean VID_SetMode (int width, int height, int refreshrate, int bpp, qb
 	// no pending changes
 	vid_changed = false;
 
+	SCR_UpdateRelativeScale ();
+
 	return true;
 }
 
@@ -2649,6 +2651,8 @@ static void VID_Restart (qboolean set_mode)
 	}
 
 	R_InitSamplers ();
+
+	SCR_UpdateRelativeScale ();
 
 	scr_initialized = true;
 }

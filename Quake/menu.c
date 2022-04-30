@@ -1001,15 +1001,28 @@ void M_AdjustSliders (int dir)
 	switch (options_cursor)
 	{
 	case OPT_SCALE: // console and menu scale
-		l = ((vid.width + 31) / 32) / 10.0;
-		f = scr_conscale.value + dir * .1;
-		if (f < 1)
-			f = 1;
-		else if (f > l)
-			f = l;
-		Cvar_SetValue ("scr_conscale", f);
-		Cvar_SetValue ("scr_menuscale", f);
-		Cvar_SetValue ("scr_sbarscale", f);
+		if (scr_relativescale.value)
+		{
+			l = 3.0f;
+			f = scr_relativescale.value + dir * .1;
+			if (f < 1)
+				f = 1;
+			else if (f > l)
+				f = l;
+			Cvar_SetValue ("scr_relativescale", f);
+		}
+		else
+		{
+			l = ((vid.width + 31) / 32) / 10.0;
+			f = scr_conscale.value + dir * .1;
+			if (f < 1)
+				f = 1;
+			else if (f > l)
+				f = l;
+			Cvar_SetValue ("scr_conscale", f);
+			Cvar_SetValue ("scr_menuscale", f);
+			Cvar_SetValue ("scr_sbarscale", f);	
+		}
 		break;
 	case OPT_SCRSIZE: // screen size
 		f = scr_viewsize.value + dir * 10;
@@ -1175,8 +1188,8 @@ void M_Options_Draw (void)
 
 	// OPT_SCALE:
 	M_Print (16, 32 + 8 * OPT_SCALE, "                 Scale");
-	l = (vid.width / 320.0) - 1;
-	r = l > 0 ? (scr_conscale.value - 1) / l : 0;
+	l = scr_relativescale.value ? 2.0f : ((vid.width / 320.0) - 1);
+	r = l > 0 ? ((scr_relativescale.value ? scr_relativescale.value : scr_conscale.value) - 1) / l : 0;
 	M_DrawSlider (220, 32 + 8 * OPT_SCALE, r);
 
 	// OPT_SCRSIZE:
