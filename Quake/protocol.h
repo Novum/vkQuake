@@ -382,6 +382,9 @@ typedef struct entity_state_s
 #define ES_SOLID_BSP   31
 #define ES_SOLID_HULL1 0x80201810
 #define ES_SOLID_HULL2 0x80401820
+#ifdef LERP_BANDAID
+	unsigned short lerp;
+#endif
 } entity_state_t;
 #define EFLAGS_STEP          1
 //#define EFLAGS_GLOWTRAIL		2

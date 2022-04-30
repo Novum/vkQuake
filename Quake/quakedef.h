@@ -71,6 +71,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define PSET_SCRIPT            // enable the scriptable particle system (poorly ported from FTE)
 #define PSET_SCRIPT_EFFECTINFO // scripted particle system can load dp's effects
 
+#define LERP_BANDAID // HACK: send think interval over FTE protocol (loopback only, no demos)
+
 #include "q_stdinc.h"
 
 // !!! if this is changed, it must be changed in d_ifacea.h too !!!
