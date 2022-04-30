@@ -201,6 +201,10 @@ static unsigned int MSGFTE_DeltaCalcBits (entity_state_t *from, entity_state_t *
 		bits |= UF_TAGINFO;
 	if (to->traileffectnum != from->traileffectnum || to->emiteffectnum != from->emiteffectnum)
 		bits |= UF_TRAILEFFECT;
+#ifdef LERP_BANDAID
+	if (to->lerp != from->lerp)
+		bits |= UF_UNUSED2;
+#endif
 
 	return bits;
 }
@@ -235,6 +239,11 @@ static void MSGFTE_WriteEntityUpdate (unsigned int bits, entity_state_t *state, 
 			predbits |= UFP_WEAPONFRAME_OLD;
 		}
 	}
+
+#ifdef LERP_BANDAID
+	if (bits & UF_UNUSED2 && (cls.demorecording || Q_strcmp (NET_QSocketGetTrueAddressString (host_client->netconnection), "LOCAL")))
+		bits &= ~UF_UNUSED2;
+#endif
 
 	bits &= ~UF_BONEDATA;
 
@@ -374,6 +383,11 @@ static void MSGFTE_WriteEntityUpdate (unsigned int bits, entity_state_t *state, 
 		MSG_WriteByte (msg, state->colormod[1]);
 		MSG_WriteByte (msg, state->colormod[2]);
 	}
+
+#ifdef LERP_BANDAID
+	if (bits & UF_UNUSED2)
+		MSG_WriteShort (msg, state->lerp);
+#endif
 }
 
 static struct entity_num_state_s *snapshot_entstate;
@@ -811,6 +825,10 @@ void SV_BuildEntityState (edict_t *ent, entity_state_t *state)
 
 	state->pmovetype = 0;
 	state->velocity[0] = state->velocity[1] = state->velocity[2] = 0;
+
+#ifdef LERP_BANDAID
+	state->lerp = ent->sendinterval ? Q_rint ((ent->v.nextthink - qcvm->time) * 1000) + 1 : 0;
+#endif
 }
 
 byte       *SV_FatPVS (vec3_t org, qmodel_t *worldmodel);

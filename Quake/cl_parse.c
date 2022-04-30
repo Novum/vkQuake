@@ -433,7 +433,11 @@ static unsigned int CLFTE_ReadDelta (unsigned int entnum, entity_state_t *news, 
 	}
 	if (bits & UF_UNUSED2)
 	{
+#ifdef LERP_BANDAID
+		news->lerp = MSG_ReadShort ();
+#else
 		Host_EndGame ("UF_UNUSED2 bit\n");
+#endif
 	}
 	if (bits & UF_UNUSED1)
 	{
@@ -503,6 +507,13 @@ static void CL_EntitiesDeltaed (void)
 
 		ent->alpha = ent->netstate.alpha;
 		ent->lerpflags &= ~LERP_FINISH;
+#ifdef LERP_BANDAID
+		if (ent->netstate.lerp > 0)
+		{
+			ent->lerpfinish = ent->msgtime + (ent->netstate.lerp - 1) / 1000.f; 
+			ent->lerpflags |= LERP_FINISH;
+		}
+#endif
 
 		model = cl.model_precache[ent->netstate.modelindex];
 		if (model != ent->model)
