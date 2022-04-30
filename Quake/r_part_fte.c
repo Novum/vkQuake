@@ -6944,6 +6944,8 @@ static void PScript_DrawParticleTypes (float pframetime)
 			const qboolean draw_lines = ((tris->beflags & BEF_LINES) != 0);
 			if (!vulkan_globals.non_solid_fill && draw_lines)
 				continue; // Can't draw lines
+			if (tris->numidx == 0)
+				continue;
 
 			const vulkan_pipeline_t pipeline = vulkan_globals.fte_particle_pipelines[blend_mode + (draw_lines ? 8 : 0)];
 			R_BindPipeline (VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
