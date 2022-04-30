@@ -679,7 +679,14 @@ void SCR_DrawCrosshair (void)
 		return;
 
 	GL_SetCanvas (CANVAS_CROSSHAIR);
-	Draw_Character (-4, -4, '+'); // 0,0 is center of viewport
+	if (crosshair.value >= 2.0f)
+	{
+		Draw_Character (-4, -4, '.'); // 0,0 is center of viewport
+	}
+	else
+	{
+		Draw_Character (-4, -4, '+'); // 0,0 is center of viewport
+	}
 }
 
 //=============================================================================

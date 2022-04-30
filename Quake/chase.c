@@ -85,7 +85,7 @@ void Chase_UpdateForDrawing (void)
 {
 	int    i;
 	vec3_t forward, up, right;
-	vec3_t ideal, crosshair, temp;
+	vec3_t ideal, crosshair_vec, temp;
 
 	AngleVectors (cl.viewangles, forward, right, up);
 
@@ -105,10 +105,10 @@ void Chase_UpdateForDrawing (void)
 
 	// find the spot the player is looking at
 	VectorMA (cl.viewent.origin, 4096, forward, temp);
-	TraceLine (cl.viewent.origin, temp, crosshair);
+	TraceLine (cl.viewent.origin, temp, crosshair_vec);
 
 	// calculate camera angles to look at the same spot
-	VectorSubtract (crosshair, r_refdef.vieworg, temp);
+	VectorSubtract (crosshair_vec, r_refdef.vieworg, temp);
 	VectorAngles (temp, NULL, r_refdef.viewangles);
 	if (r_refdef.viewangles[PITCH] == 90 || r_refdef.viewangles[PITCH] == -90)
 		r_refdef.viewangles[YAW] = cl.viewangles[YAW];

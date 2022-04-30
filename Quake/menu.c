@@ -963,6 +963,7 @@ enum
 	OPT_ALWAYSMLOOK,
 	OPT_LOOKSPRING,
 	OPT_LOOKSTRAFE,
+	OPT_CROSSHAIR,
 	//#ifdef _WIN32
 	//	OPT_USEMOUSE,
 	//#endif
@@ -1118,6 +1119,11 @@ void M_AdjustSliders (int dir)
 	case OPT_LOOKSTRAFE: // lookstrafe
 		Cvar_Set ("lookstrafe", lookstrafe.value ? "0" : "1");
 		break;
+
+	case OPT_CROSSHAIR: // crosshair
+		Cvar_SetValue ("crosshair", ((int)crosshair.value + 1) % 3);
+		break;
+
 	}
 }
 
@@ -1236,6 +1242,10 @@ void M_Options_Draw (void)
 	// OPT_LOOKSTRAFE:
 	M_Print (16, 32 + 8 * OPT_LOOKSTRAFE, "            Lookstrafe");
 	M_DrawCheckbox (220, 32 + 8 * OPT_LOOKSTRAFE, lookstrafe.value);
+
+	// OPT_CROSSHAIR:
+	M_Print (16, 32 + 8 * OPT_CROSSHAIR, "             Crosshair");
+	M_Print (220, 32 + 8 * OPT_CROSSHAIR, (crosshair.value == 0.0f) ? "off" : ((crosshair.value == 1.0f) ? "cross" : "dot"));
 
 	// OPT_VIDEO:
 	if (vid_menudrawfn)
