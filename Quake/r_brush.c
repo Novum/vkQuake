@@ -1677,7 +1677,7 @@ static void R_UploadLightmap (int lmap, gltexture_t *lightmap_tex)
 R_FlushUpdateLightmaps
 =============
 */
-void R_FlushUpdateLightmaps (int batch_start_index, int num_batch_lightmaps, VkImageMemoryBarrier *pre_barriers, VkImageMemoryBarrier *post_barriers)
+void R_FlushUpdateLightmaps (int num_batch_lightmaps, VkImageMemoryBarrier *pre_barriers, VkImageMemoryBarrier *post_barriers, int *lightmap_indexes)
 {
 	vkCmdPipelineBarrier (
 		vulkan_globals.command_buffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, NULL, 0, NULL, num_batch_lightmaps,
@@ -1688,9 +1688,9 @@ void R_FlushUpdateLightmaps (int batch_start_index, int num_batch_lightmaps, VkI
 		current_compute_lightmap_buffer_index * MAX_LIGHTSTYLES * sizeof (float),
 		current_compute_lightmap_buffer_index * MAX_DLIGHTS * sizeof (lm_compute_light_t)};
 	R_PushConstants (VK_SHADER_STAGE_COMPUTE_BIT, 0, 2 * sizeof (uint32_t), push_constants);
-	for (int j = batch_start_index; j < batch_start_index + num_batch_lightmaps; ++j)
+	for (int j = 0; j < num_batch_lightmaps; ++j)
 	{
-		VkDescriptorSet sets[1] = {lightmaps[j].descriptor_set};
+		VkDescriptorSet sets[1] = {lightmaps[lightmap_indexes[j]].descriptor_set};
 		vkCmdBindDescriptorSets (
 			vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, vulkan_globals.update_lightmap_pipeline.layout.handle, 0, 1, sets, 2, offsets);
 		vkCmdDispatch (vulkan_globals.command_buffer, LMBLOCK_WIDTH / 8, LMBLOCK_HEIGHT / 8, 1);
@@ -1727,10 +1727,10 @@ void R_UpdateLightmaps (void)
 		light->minlight = cl_dlights[i].minlight;
 	}
 
-	int                  batch_start_index = 0;
 	int                  num_batch_lightmaps = 0;
 	VkImageMemoryBarrier pre_lm_image_barriers[UPDATE_LIGHTMAP_BATCH_SIZE];
 	VkImageMemoryBarrier post_lm_image_barriers[UPDATE_LIGHTMAP_BATCH_SIZE];
+	int                  lightmap_indexes[UPDATE_LIGHTMAP_BATCH_SIZE];
 
 	for (int lightmap_index = 0; lightmap_index < lightmap_count; ++lightmap_index)
 	{
@@ -1739,7 +1739,9 @@ void R_UpdateLightmaps (void)
 			continue;
 		lm->modified = false;
 
-		int                   batch_index = num_batch_lightmaps++;
+		int batch_index = num_batch_lightmaps++;
+		lightmap_indexes[batch_index] = lightmap_index;
+
 		VkImageMemoryBarrier *pre_barrier = &pre_lm_image_barriers[batch_index];
 		pre_barrier->sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 		pre_barrier->pNext = NULL;
@@ -1773,11 +1775,14 @@ void R_UpdateLightmaps (void)
 		post_barrier->subresourceRange.layerCount = 1;
 
 		if (num_batch_lightmaps == UPDATE_LIGHTMAP_BATCH_SIZE)
-			R_FlushUpdateLightmaps (batch_start_index, num_batch_lightmaps, pre_lm_image_barriers, post_lm_image_barriers);
+		{
+			R_FlushUpdateLightmaps (num_batch_lightmaps, pre_lm_image_barriers, post_lm_image_barriers, lightmap_indexes);
+			num_batch_lightmaps = 0;
+		}
 	}
 
 	if (num_batch_lightmaps > 0)
-		R_FlushUpdateLightmaps (batch_start_index, num_batch_lightmaps, pre_lm_image_barriers, post_lm_image_barriers);
+		R_FlushUpdateLightmaps (num_batch_lightmaps, pre_lm_image_barriers, post_lm_image_barriers, lightmap_indexes);
 
 	R_EndDebugUtilsLabel ();
 
