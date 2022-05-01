@@ -53,8 +53,8 @@ Prerequisites:
 
 ### Visual Studio
 
-Install [Visual Studio Community](https://www.visualstudio.com/products/free-developer-offers-vs) with Visual C++ component.
-Install [Vulkan SDK](https://vulkan.lunarg.com/sdk/home). Log out and back in after installing so environment variables are set.
+* Install [Visual Studio Community](https://www.visualstudio.com/products/free-developer-offers-vs) with Visual C++ component.
+* Install the latest [Vulkan SDK](https://vulkan.lunarg.com/sdk/home). Log out and back in after installing so environment variables are set.
 
 Open the Visual Studio solution, `Windows\VisualStudio\vkquake.sln`, select the desired configuration and platform, then
 build the solution.
