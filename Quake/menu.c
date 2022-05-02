@@ -1134,9 +1134,8 @@ void M_AdjustSliders (int dir)
 		break;
 
 	case OPT_CROSSHAIR: // crosshair
-		Cvar_SetValue ("crosshair", ((int)crosshair.value + 1) % 3);
+		Cvar_SetValue ("crosshair", ((int)crosshair.value + 3 + dir) % 3);
 		break;
-
 	}
 }
 
