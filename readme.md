@@ -49,12 +49,12 @@ Prerequisites:
 
 * [Git for Windows](https://github.com/git-for-windows/git/releases)
 * A [Vulkan-capable GPU](https://en.wikipedia.org/wiki/Vulkan_(API)#Compatibility) with the appropriate drivers installed
+* Install the latest [Vulkan SDK](https://vulkan.lunarg.com/sdk/home). Log out and back in after installation to make sure environment variables are set.
 
 
 ### Visual Studio
 
 * Install [Visual Studio Community](https://www.visualstudio.com/products/free-developer-offers-vs) with Visual C++ component.
-* Install the latest [Vulkan SDK](https://vulkan.lunarg.com/sdk/home). Log out and back in after installing so environment variables are set.
 
 Open the Visual Studio solution, `Windows\VisualStudio\vkquake.sln`, select the desired configuration and platform, then
 build the solution.
