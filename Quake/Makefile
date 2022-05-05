@@ -47,8 +47,10 @@ LINKER = $(CC)
 STRIP ?= strip
 
 CPUFLAGS=
+LDFLAGS ?=
 DFLAGS ?=
 CFLAGS ?=
+
 CFLAGS += -Wall -Wno-trigraphs -Wno-unused-function -Werror -std=gnu11
 CFLAGS += $(CPUFLAGS)
 ifneq ($(DEBUG),0)

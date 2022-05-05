@@ -4,7 +4,7 @@ ARCHIVE=${FOLDER}.tar.gz
 
 cd /usr/src/vkQuake/AppImage \
   && make -C ../Quake clean \
-  && make -C ../Quake -j \
+  && CFLAGS=-flto LDFLAGS=-flto make -C ../Quake -j \
   && rm -rf AppDir \
   && rm -rf vkquake* \
   && mkdir ${FOLDER} \
