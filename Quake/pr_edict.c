@@ -268,36 +268,36 @@ static const char *PR_ValueString (int type, eval_t *val)
 	switch (type)
 	{
 	case ev_string:
-		q_snprintf (line, sizeof(line), "%s", PR_GetString(val->string));
+		q_snprintf (line, sizeof (line), "%s", PR_GetString (val->string));
 		break;
 	case ev_entity:
-		q_snprintf (line, sizeof(line), "entity %i", NUM_FOR_EDICT(PROG_TO_EDICT(val->edict)) );
+		q_snprintf (line, sizeof (line), "entity %i", NUM_FOR_EDICT (PROG_TO_EDICT (val->edict)));
 		break;
 	case ev_function:
 		f = qcvm->functions + val->function;
-		q_snprintf (line, sizeof(line), "%s()", PR_GetString(f->s_name));
+		q_snprintf (line, sizeof (line), "%s()", PR_GetString (f->s_name));
 		break;
 	case ev_field:
 		def = ED_FieldAtOfs (val->_int);
-		q_snprintf (line, sizeof(line), ".%s", PR_GetString(def->s_name));
+		q_snprintf (line, sizeof (line), ".%s", PR_GetString (def->s_name));
 		break;
 	case ev_void:
-		q_snprintf (line, sizeof(line), "void");
+		q_snprintf (line, sizeof (line), "void");
 		break;
 	case ev_float:
-		q_snprintf (line, sizeof(line), "%5.1f", val->_float);
+		q_snprintf (line, sizeof (line), "%5.1f", val->_float);
 		break;
 	case ev_ext_integer:
 		sprintf (line, "%i", val->_int);
 		break;
 	case ev_vector:
-		q_snprintf (line, sizeof(line), "'%5.1f %5.1f %5.1f'", val->vector[0], val->vector[1], val->vector[2]);
+		q_snprintf (line, sizeof (line), "'%5.1f %5.1f %5.1f'", val->vector[0], val->vector[1], val->vector[2]);
 		break;
 	case ev_pointer:
-		q_snprintf (line, sizeof(line), "pointer");
+		q_snprintf (line, sizeof (line), "pointer");
 		break;
 	default:
-		q_snprintf (line, sizeof(line), "bad type %i", type);
+		q_snprintf (line, sizeof (line), "bad type %i", type);
 		break;
 	}
 
@@ -376,11 +376,11 @@ const char *PR_GlobalString (int ofs)
 	val = (void *)&qcvm->globals[ofs];
 	def = ED_GlobalAtOfs (ofs);
 	if (!def)
-		q_snprintf (line, sizeof(line), "%i(?)", ofs);
+		q_snprintf (line, sizeof (line), "%i(?)", ofs);
 	else
 	{
 		s = PR_ValueString (def->type, (eval_t *)val);
-		q_snprintf (line, sizeof(line), "%i(%s)%s", ofs, PR_GetString(def->s_name), s);
+		q_snprintf (line, sizeof (line), "%i(%s)%s", ofs, PR_GetString (def->s_name), s);
 	}
 
 	i = strlen (line);
@@ -399,9 +399,9 @@ const char *PR_GlobalStringNoContents (int ofs)
 
 	def = ED_GlobalAtOfs (ofs);
 	if (!def)
-		q_snprintf (line, sizeof(line), "%i(?)", ofs);
+		q_snprintf (line, sizeof (line), "%i(?)", ofs);
 	else
-		q_snprintf (line, sizeof(line), "%i(%s)", ofs, PR_GetString(def->s_name));
+		q_snprintf (line, sizeof (line), "%i(%s)", ofs, PR_GetString (def->s_name));
 
 	i = strlen (line);
 	for (; i < 20; i++)
@@ -1240,19 +1240,19 @@ for 2021 re-release
 */
 static const exbuiltin_t exbuiltins[] = {
 	/* Update-1 adds the following builtins with new ids. Patch them to use old indices.
-	 * (https://steamcommunity.com/games/2310/announcements/detail/2943653788150871156) */
-	{ "centerprint", -90, -73 },
-	{ "bprint", -91, -23 },
-	{ "sprint", -92, -24 },
-	{ NULL, 0, 0 }			/* end-of-list. */
+     * (https://steamcommunity.com/games/2310/announcements/detail/2943653788150871156) */
+	{"centerprint", -90, -73},
+	{"bprint", -91, -23},
+	{"sprint", -92, -24},
+	{NULL, 0, 0} /* end-of-list. */
 };
 
 static void PR_PatchRereleaseBuiltins (void)
 {
 	const exbuiltin_t *ex = exbuiltins;
-	dfunction_t *f;
+	dfunction_t       *f;
 
-	for ( ; ex->name != NULL; ++ex)
+	for (; ex->name != NULL; ++ex)
 	{
 		f = ED_FindFunction (ex->name);
 		if (f && f->first_statement == ex->first_statement)

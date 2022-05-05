@@ -86,8 +86,7 @@ char *PF_VarString (int first)
 	{
 		if (!dev_overflows.varstring || dev_overflows.varstring + CONSOLE_RESPAM_TIME < realtime)
 		{
-			Con_DWarning ("PF_VarString: %i characters exceeds standard limit of 255 (max = %d).\n",
-								(int)s, (int)(sizeof (out) - 1));
+			Con_DWarning ("PF_VarString: %i characters exceeds standard limit of 255 (max = %d).\n", (int)s, (int)(sizeof (out) - 1));
 			dev_overflows.varstring = realtime;
 		}
 	}
@@ -1684,7 +1683,6 @@ static void PF_sv_changelevel (void)
 	Cbuf_AddText (va ("changelevel %s\n", s));
 }
 
-
 /*
 ==============
 2021 re-release
@@ -1704,16 +1702,17 @@ void PF_sv_walkpathtogoal (void)
 }
 void PF_sv_localsound (void)
 {
-	const char	*sample;
-	int		entnum;
+	const char *sample;
+	int         entnum;
 
-	entnum = G_EDICTNUM(OFS_PARM0);
-	sample = G_STRING(OFS_PARM1);
-	if (entnum < 1 || entnum > svs.maxclients) {
+	entnum = G_EDICTNUM (OFS_PARM0);
+	sample = G_STRING (OFS_PARM1);
+	if (entnum < 1 || entnum > svs.maxclients)
+	{
 		Con_Printf ("tried to localsound to a non-client\n");
 		return;
 	}
-	SV_LocalSound (&svs.clients[entnum-1], sample);
+	SV_LocalSound (&svs.clients[entnum - 1], sample);
 }
 
 builtin_t pr_ssqcbuiltins[] = {
@@ -1807,7 +1806,7 @@ builtin_t pr_ssqcbuiltins[] = {
 
 	// 2021 release
 	PF_sv_finalefinished, // float() finaleFinished = #79
-	PF_sv_localsound,		// void localsound (entity client, string sample) = #80
+	PF_sv_localsound,     // void localsound (entity client, string sample) = #80
 	PF_Fixme,             // void draw_point (vector point, float colormap, float lifetime, float depthtest) = #81
 	PF_Fixme,             // void draw_line (vector start, vector end, float colormap, float lifetime, float depthtest) = #82
 	PF_Fixme,             // void draw_arrow (vector start, vector end, float colormap, float size, float lifetime, float depthtest) = #83

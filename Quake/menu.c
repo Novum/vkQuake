@@ -1021,7 +1021,7 @@ void M_AdjustSliders (int dir)
 				f = l;
 			Cvar_SetValue ("scr_conscale", f);
 			Cvar_SetValue ("scr_menuscale", f);
-			Cvar_SetValue ("scr_sbarscale", f);	
+			Cvar_SetValue ("scr_sbarscale", f);
 		}
 		break;
 	case OPT_SCRSIZE: // screen size

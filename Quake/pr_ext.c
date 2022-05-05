@@ -4994,7 +4994,7 @@ static void PF_checkextension (void)
 			if (qcextensions[i].checkextsupported)
 			{
 				unsigned int        prot, pext1, pext2;
-				extern int sv_protocol;
+				extern int          sv_protocol;
 				extern unsigned int sv_protocol_pext1;
 				extern unsigned int sv_protocol_pext2;
 				extern cvar_t       cl_nopext;

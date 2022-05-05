@@ -6,7 +6,6 @@
 
 extern snd_codec_t modplug_codec;
 
-#endif	/* USE_CODEC_MODPLUG */
+#endif /* USE_CODEC_MODPLUG */
 
-#endif	/* ! _SND_MODPLUG_H_ */
-
+#endif /* ! _SND_MODPLUG_H_ */

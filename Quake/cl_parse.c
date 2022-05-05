@@ -71,7 +71,7 @@ const char *svc_strings[128] = {
 	"svc_spawnstaticsound2_fitz", //	44		// [coord3] [short] samp [byte] vol [byte] aten
                                   // johnfitz
 
-// 2021 RE-RELEASE:
+	// 2021 RE-RELEASE:
 	"svc_setviews",       // 45
 	"svc_updateping",     // 46
 	"svc_updatesocial",   // 47
@@ -510,7 +510,7 @@ static void CL_EntitiesDeltaed (void)
 #ifdef LERP_BANDAID
 		if (ent->netstate.lerp > 0)
 		{
-			ent->lerpfinish = ent->msgtime + (ent->netstate.lerp - 1) / 1000.f; 
+			ent->lerpfinish = ent->msgtime + (ent->netstate.lerp - 1) / 1000.f;
 			ent->lerpflags |= LERP_FINISH;
 		}
 #endif
@@ -621,7 +621,7 @@ static void CLFTE_ParseEntitiesUpdate (void)
 		{ // simple update
 			CLFTE_ReadDelta (newnum, &ent->netstate, &ent->netstate, &ent->baseline);
 			if (ent->msgtime == cl.mtime[0])
-				// we did get an update for this entity, force processing by CL_EntitiesDeltaed 
+				// we did get an update for this entity, force processing by CL_EntitiesDeltaed
 				// even if qcvm time is frozen (sv_freezenonclients support)
 				ent->msgtime = cl.mtime[1];
 		}
@@ -771,12 +771,12 @@ static void CL_ParseStartSoundPacket (void)
 CL_ParseLocalSound - for 2021 rerelease
 ==================
 */
-void CL_ParseLocalSound(void)
+void CL_ParseLocalSound (void)
 {
 	int field_mask, sound_num;
 
-	field_mask = MSG_ReadByte();
-	sound_num = (field_mask&SND_LARGESOUND) ? MSG_ReadShort() : MSG_ReadByte();
+	field_mask = MSG_ReadByte ();
+	sound_num = (field_mask & SND_LARGESOUND) ? MSG_ReadShort () : MSG_ReadByte ();
 	if (sound_num >= MAX_SOUNDS)
 		Host_Error ("CL_ParseLocalSound: %i > MAX_SOUNDS", sound_num);
 
@@ -2042,7 +2042,7 @@ void CL_ParseServerMessage (void)
 			Con_DPrintf ("Ignoring svc_achievement (%s)\n", str);
 			break;
 		case svc_localsound:
-			CL_ParseLocalSound();
+			CL_ParseLocalSound ();
 			break;
 #ifdef PSET_SCRIPT
 		case svcdp_trailparticles:

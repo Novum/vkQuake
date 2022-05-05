@@ -280,20 +280,20 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 // 2021 re-release server messages - see:
 // https://steamcommunity.com/sharedfiles/filedetails/?id=2679459726
-#define svc_botchat		38
-#define svc_setviews		45
-#define svc_updateping		46
-#define svc_updatesocial	47
-#define svc_updateplinfo	48
-#define svc_rawprint		49
-#define svc_servervars		50
-#define svc_seq			51
+#define svc_botchat        38
+#define svc_setviews       45
+#define svc_updateping     46
+#define svc_updatesocial   47
+#define svc_updateplinfo   48
+#define svc_rawprint       49
+#define svc_servervars     50
+#define svc_seq            51
 // Note: svc_achievement has same value as svcdp_effect!
-#define svc_achievement		52	// [string] id
-#define svc_chat		53
-#define svc_levelcompleted	54
-#define svc_backtolobby		55
-#define svc_localsound		56
+#define svc_achievement    52 // [string] id
+#define svc_chat           53
+#define svc_levelcompleted 54
+#define svc_backtolobby    55
+#define svc_localsound     56
 
 // spike -- some extensions for particles.
 // some extra stuff for fte's pext2_replacementdeltas, including stats

@@ -1306,11 +1306,11 @@ SV_LocalSound - for 2021 rerelease
 */
 void SV_LocalSound (client_t *client, const char *sample)
 {
-	int	sound_num, field_mask;
+	int sound_num, field_mask;
 
 	for (sound_num = 1; sound_num < MAX_SOUNDS && sv.sound_precache[sound_num]; sound_num++)
 	{
-		if (!strcmp(sample, sv.sound_precache[sound_num]))
+		if (!strcmp (sample, sv.sound_precache[sound_num]))
 			break;
 	}
 	if (sound_num == MAX_SOUNDS || !sv.sound_precache[sound_num])

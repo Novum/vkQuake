@@ -66,22 +66,21 @@ static qboolean S_XMP_CodecOpenStream (snd_stream_t *stream)
 	 * if available. */
 	xmp_context c;
 #if (XMP_VERCODE >= 0x040500)
-	struct xmp_callbacks file_callbacks = {
-		xmp_fread, xmp_fseek, xmp_ftell, NULL
-	};
+	struct xmp_callbacks file_callbacks = {xmp_fread, xmp_fseek, xmp_ftell, NULL};
 #else
-	byte       *moddata;
-	long        len;
-	int         mark;
+	byte *moddata;
+	long  len;
+	int   mark;
 #endif
-	int         fmt;
+	int fmt;
 
 	c = xmp_create_context ();
 	if (c == NULL)
 		return false;
 
 #if (XMP_VERCODE >= 0x040500)
-	if (xmp_load_module_from_callbacks (c, &stream->fh, file_callbacks) < 0) {
+	if (xmp_load_module_from_callbacks (c, &stream->fh, file_callbacks) < 0)
+	{
 		Con_DPrintf ("Could not load module %s\n", stream->name);
 		goto err1;
 	}
