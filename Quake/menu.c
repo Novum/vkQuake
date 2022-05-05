@@ -1739,6 +1739,8 @@ void M_LanConfig_Draw (void)
 	basex = (320 - p->width) / 2;
 	M_DrawPic (basex, 4, p);
 
+	basex = 72;
+
 	if (StartingGame)
 		startJoin = "New Game";
 	else
