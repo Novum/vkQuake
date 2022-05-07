@@ -1726,11 +1726,9 @@ void CL_ParseServerMessage (void)
 	else if (cl_shownet.value == 2)
 		Con_Printf ("------------------\n");
 
-	if (!(cl.protocol_pext2 & PEXT2_PREDINFO))
-		cl.onground = false; // unless the server says otherwise
-		                     //
-		                     // parse the message
-		                     //
+	//
+	// parse the message
+	//
 	MSG_BeginReading ();
 
 	lastcmd = 0;
