@@ -137,7 +137,7 @@ int Loop_GetMessage (qsocket_t *sock)
 	if (ret == 2)
 	{ // unreliables have sequences that we (now) care about so that clients can ack them.
 		sock->unreliableReceiveSequence =
-			sock->receiveMessage[4] | (sock->receiveMessage[5] << 8) | (sock->receiveMessage[6] << 16) | (sock->receiveMessage[7] << 16);
+			sock->receiveMessage[4] | (sock->receiveMessage[5] << 8) | (sock->receiveMessage[6] << 16) | (sock->receiveMessage[7] << 24);
 		sock->unreliableReceiveSequence++;
 		SZ_Write (&net_message, &sock->receiveMessage[8], length);
 		length = IntAlign (length + 8);

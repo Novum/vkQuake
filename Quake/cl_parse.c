@@ -171,7 +171,7 @@ static unsigned int CLFTE_ReadDelta (unsigned int entnum, entity_state_t *news, 
 		}
 		else
 			Con_DPrintf ("New entity %i without reset\n", entnum);
-		*news = nullentitystate;
+		*news = *baseline;
 	}
 	else
 		*news = *olds;
