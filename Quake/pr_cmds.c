@@ -525,16 +525,20 @@ static void PF_vectoangles (void)
 =================
 PF_Random
 
-Returns a number from 0 <= num < 1
+Returns a number from 0 < num < 1
 
 random()
 =================
 */
+cvar_t sv_gameplayfix_random = {"sv_gameplayfix_random", "1", CVAR_ARCHIVE};
 static void PF_random (void)
 {
 	float num;
 
-	num = (rand () & 0x7fff) / ((float)0x8000);
+	if (sv_gameplayfix_random.value)
+		num = ((rand() & 0x7fff) + 0.5f) * (1.f / 0x8000);
+	else
+		num = (rand() & 0x7fff) / ((float)0x7fff);
 
 	G_FLOAT (OFS_RETURN) = num;
 }
