@@ -500,7 +500,7 @@ void SCR_Init (void)
 	Cvar_SetCallback (&scr_relativescale, &SCR_UpdateRelativeScale_f);
 	Cvar_SetCallback (&scr_relmenuscale, &SCR_UpdateRelativeScale_f);
 	Cvar_SetCallback (&scr_relsbarscale, &SCR_UpdateRelativeScale_f);
-	Cvar_SetCallback (&scr_relativescale, &SCR_UpdateRelativeScale_f);
+	Cvar_SetCallback (&scr_relcrosshairscale, &SCR_UpdateRelativeScale_f);
 	Cvar_SetCallback (&scr_relconscale, &SCR_UpdateRelativeScale_f);
 	SCR_UpdateRelativeScale ();
 
