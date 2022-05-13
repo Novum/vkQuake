@@ -202,6 +202,13 @@ void Host_Error (const char *error, ...)
 
 	inerror = false;
 
+	if (in_update_screen) // try to recover from CSQC DrawHud errors
+	{
+		R_EndDebugUtilsLabel ();
+		GL_EndRendering (true);
+		in_update_screen = false;
+	}
+
 	longjmp (host_abortserver, 1);
 }
 
