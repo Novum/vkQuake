@@ -25,6 +25,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 
+#include "cfgfile.h"
+
 /*
 
 background clear
@@ -503,6 +505,13 @@ void SCR_Init (void)
 	Cvar_SetCallback (&scr_relcrosshairscale, &SCR_UpdateRelativeScale_f);
 	Cvar_SetCallback (&scr_relconscale, &SCR_UpdateRelativeScale_f);
 	SCR_UpdateRelativeScale ();
+
+	if (CFG_OpenConfig ("config.cfg") == 0)
+	{
+		const char *early_read[] = {"scr_relativescale"};
+		CFG_ReadCvars (early_read, 1);
+		CFG_CloseConfig ();
+	}
 
 	Cmd_AddCommand ("screenshot", SCR_ScreenShot_f);
 	Cmd_AddCommand ("sizeup", SCR_SizeUp_f);
