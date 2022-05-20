@@ -3017,5 +3017,7 @@ void         SV_SpawnServer (const char *server)
 			SV_SendServerinfo (host_client);
 	}
 
+	sv.paused = sv.load_stall = true;
+
 	Con_DPrintf ("Server spawned.\n");
 }

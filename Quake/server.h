@@ -47,6 +47,7 @@ typedef struct
 	qboolean active; // false if only a net client
 
 	qboolean paused;
+	qboolean load_stall; // hack to pause until the client is fully connected on level changes to fix load triggers
 	qboolean loadgame; // handle connections specially
 
 	int    lastcheck; // used by PF_checkclient

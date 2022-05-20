@@ -1778,6 +1778,9 @@ static void Host_Spawn_f (void)
 		return;
 	}
 
+	if (sv.load_stall)
+		sv.paused = sv.load_stall = false;
+
 	host_client->knowntoqc = true;
 	host_client->lastmovetime = qcvm->time;
 	// run the entrance script
