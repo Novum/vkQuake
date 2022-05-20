@@ -63,6 +63,7 @@ jmp_buf host_abortserver;
 
 byte  *host_colormap;
 float  host_netinterval = 1.0 / 72;
+#define MAX_FRAMETIME (0.1 - 4e-7)   // some mods require frame times <0.1s to reliably fire triggers on level load
 cvar_t host_framerate = {"host_framerate", "0", CVAR_NONE}; // set for slow motion
 cvar_t host_speeds = {"host_speeds", "0", CVAR_NONE};       // set for running times
 cvar_t host_maxfps = {"host_maxfps", "200", CVAR_ARCHIVE};  // johnfitz
@@ -660,7 +661,7 @@ qboolean Host_FilterTime (float time)
 	else if (host_framerate.value > 0)
 		host_frametime = host_framerate.value;
 	else if (host_maxfps.value)                               // don't allow really long or short frames
-		host_frametime = CLAMP (0.0001, host_frametime, 0.1); // johnfitz -- use CLAMP
+		host_frametime = CLAMP (0.0001, host_frametime, MAX_FRAMETIME); // johnfitz -- use CLAMP
 
 	return true;
 }
@@ -827,7 +828,7 @@ void _Host_Frame (double time)
 	rand ();
 
 	// decide the simulation time
-	accumtime += host_netinterval ? CLAMP (0, time, 0.2) : 0; // for renderer/server isolation
+	accumtime += host_netinterval ? CLAMP (0, time, MAX_FRAMETIME) : 0; // for renderer/server isolation
 	if (!Host_FilterTime (time))
 		return; // don't run too fast, or packets will flood out
 
@@ -862,7 +863,7 @@ void _Host_Frame (double time)
 	// Run the server+networking (client->server->client), at a different rate from everyt
 	while ((host_netinterval == 0) || (accumtime >= host_netinterval))
 	{
-		float realframetime = host_frametime;
+		double realframetime = host_frametime;
 		if (host_netinterval && isDedicated == 0)
 		{
 			host_frametime = host_netinterval;
