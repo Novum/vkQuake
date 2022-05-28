@@ -679,27 +679,29 @@ void Sky_ProcessEntities (cb_context_t *cbx, float color[3])
 				if (((s->flags & SURF_PLANEBACK) && (dot < -BACKFACE_EPSILON)) || (!(s->flags & SURF_PLANEBACK) && (dot > BACKFACE_EPSILON)))
 				{
 					// copy the polygon and translate manually, since Sky_ProcessPoly needs it to be in world space
-					glpoly_t p;
-					p.numverts = s->polys->numverts;
-					for (k = 0; k < p.numverts; k++)
+					int extra_polys = q_max(0, s->polys->numverts - 4);
+					uint8_t poly_storage[sizeof(glpoly_t) + (VERTEXSIZE * sizeof(float)* extra_polys)];
+					glpoly_t *p = (glpoly_t*)poly_storage;
+					p->numverts = s->polys->numverts;
+					for (k = 0; k < p->numverts; k++)
 					{
 						if (rotated)
 						{
-							p.verts[k][0] =
+							p->verts[k][0] =
 								e->origin[0] + s->polys->verts[k][0] * forward[0] - s->polys->verts[k][1] * right[0] + s->polys->verts[k][2] * up[0];
-							p.verts[k][1] =
+							p->verts[k][1] =
 								e->origin[1] + s->polys->verts[k][0] * forward[1] - s->polys->verts[k][1] * right[1] + s->polys->verts[k][2] * up[1];
-							p.verts[k][2] =
+							p->verts[k][2] =
 								e->origin[2] + s->polys->verts[k][0] * forward[2] - s->polys->verts[k][1] * right[2] + s->polys->verts[k][2] * up[2];
 						}
 						else
 						{
 							s_poly_vert = &s->polys->verts[0][0] + (k * VERTEXSIZE);
-							poly_vert = &p.verts[0][0] + (k * VERTEXSIZE);
+							poly_vert = &p->verts[0][0] + (k * VERTEXSIZE);
 							VectorAdd (s_poly_vert, e->origin, poly_vert);
 						}
 					}
-					Sky_ProcessPoly (cbx, &p, color);
+					Sky_ProcessPoly (cbx, p, color);
 				}
 			}
 		}
