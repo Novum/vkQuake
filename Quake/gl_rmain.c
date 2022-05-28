@@ -674,17 +674,13 @@ void R_ShowTris (cb_context_t *cbx)
 R_DrawWorldTask
 ================
 */
-static void R_DrawWorldTask (int i, void *unused)
+static void R_DrawWorldTask (int index, void *unused)
 {
-	const int     num_textures = cl.worldmodel->numtextures;
-	const int     texture_per_context = (num_textures + NUM_WORLD_CBX - 1) / NUM_WORLD_CBX;
-	const int     cbx_index = i + CBX_WORLD_0;
+	const int     cbx_index = index + CBX_WORLD_0;
 	cb_context_t *cbx = &vulkan_globals.secondary_cb_contexts[cbx_index];
 	R_SetupContext (cbx);
 	Fog_EnableGFog (cbx);
-	const int texstart = i * texture_per_context;
-	const int texend = q_min (texstart + texture_per_context, num_textures);
-	R_DrawWorld (cbx, texstart, texend);
+	R_DrawWorld (cbx, index);
 }
 
 /*
