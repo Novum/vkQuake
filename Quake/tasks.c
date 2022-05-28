@@ -35,6 +35,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define MAX_PAYLOAD_SIZE     32
 #define INDEX_BITS           20
 #define GUTTER_BITS          2
+#define MAX_WORKERS          32
 #define WORKER_HUNK_SIZE     (128 * 1024)
 
 COMPILE_TIME_ASSERT (tasks, MAX_PENDING_TASKS >= MAX_EXECUTABLE_TASKS);
@@ -83,6 +84,7 @@ static task_queue_t   *free_task_queue;
 static task_queue_t   *executable_task_queue;
 static atomic_uint32_t current_task_id;
 static task_counter_t *indexed_task_counters;
+static uint8_t         steal_worker_indices[MAX_WORKERS * 2];
 
 /*
 ====================
@@ -145,7 +147,7 @@ static task_queue_t *CreateTaskQueue (int capacity)
 TaskQueuePush
 ====================
 */
-static void TaskQueuePush (task_queue_t *queue, uint32_t task_index)
+static inline void TaskQueuePush (task_queue_t *queue, uint32_t task_index)
 {
 	SDL_SemWait (queue->push_semaphore);
 	uint64_t state = Atomic_LoadUInt64 (&queue->state);
@@ -176,7 +178,7 @@ static void TaskQueuePush (task_queue_t *queue, uint32_t task_index)
 TaskQueuePop
 ====================
 */
-static uint32_t TaskQueuePop (task_queue_t *queue)
+static inline uint32_t TaskQueuePop (task_queue_t *queue)
 {
 	SDL_SemWait (queue->pop_semaphore);
 	uint64_t state = Atomic_LoadUInt64 (&queue->state);
@@ -208,11 +210,11 @@ static uint32_t TaskQueuePop (task_queue_t *queue)
 Task_ExecuteIndexed
 ====================
 */
-static void Task_ExecuteIndexed (int worker_index, task_t *task, uint32_t task_index)
+static inline void Task_ExecuteIndexed (int worker_index, task_t *task, uint32_t task_index)
 {
 	for (int i = 0; i < num_workers; ++i)
 	{
-		const int       steal_worker_index = (i + worker_index) % num_workers;
+		const int       steal_worker_index = steal_worker_indices[worker_index + i];
 		int             counter_index = IndexedTaskCounterIndex (task_index, steal_worker_index);
 		task_counter_t *counter = &indexed_task_counters[counter_index];
 		uint32_t        index = 0;
@@ -230,8 +232,8 @@ Task_Worker
 */
 static int Task_Worker (void *data)
 {
-	void* worker_hunk = malloc (WORKER_HUNK_SIZE);
-	Memory_InitWorkerHunk(worker_hunk, WORKER_HUNK_SIZE);
+	void *worker_hunk = malloc (WORKER_HUNK_SIZE);
+	Memory_InitWorkerHunk (worker_hunk, WORKER_HUNK_SIZE);
 
 	const int worker_index = (intptr_t)data;
 	while (true)
@@ -270,7 +272,7 @@ Tasks_Init
 */
 void Tasks_Init (void)
 {
-	Atomic_StoreUInt32(&current_task_id, 0);
+	Atomic_StoreUInt32 (&current_task_id, 0);
 
 	free_task_queue = CreateTaskQueue (MAX_PENDING_TASKS);
 	executable_task_queue = CreateTaskQueue (MAX_EXECUTABLE_TASKS);
@@ -286,7 +288,15 @@ void Tasks_Init (void)
 		tasks[task_index].id_condition = SDL_CreateCond ();
 	}
 
-	num_workers = q_max (1, SDL_GetCPUCount ());
+	num_workers = CLAMP (1, SDL_GetCPUCount (), MAX_WORKERS);
+
+	// Fill lookup table to avoid modulo in Task_ExecuteIndexed
+	for (int i = 0; i < num_workers; ++i)
+	{
+		steal_worker_indices[i] = i;
+		steal_worker_indices[i + num_workers] = i;
+	}
+
 	indexed_task_counters = calloc (sizeof (task_counter_t) * num_workers * MAX_PENDING_TASKS, 1);
 	worker_threads = (SDL_Thread **)malloc (sizeof (SDL_Thread *) * num_workers);
 	for (int i = 0; i < num_workers; ++i)
