@@ -793,6 +793,7 @@ void R_DrawTextureChains_Multitexture (cb_context_t *cbx, qmodel_t *model, entit
 		R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 20 * sizeof (float), 1 * sizeof (float), &alpha);
 	}
 
+	uint32_t brushpasses = 0;
 	for (i = texstart; i < texend; ++i)
 	{
 		t = model->textures[i];
@@ -833,10 +834,13 @@ void R_DrawTextureChains_Multitexture (cb_context_t *cbx, qmodel_t *model, entit
 			R_BatchSurface (cbx, s, fullbright_enabled, alpha_test, alpha_blend, use_zbias, lightmap_texture);
 
 			Atomic_IncrementUInt32 (&rs_brushpasses);
+			brushpasses += 1;
 		}
 
 		R_FlushBatch (cbx, fullbright_enabled, alpha_test, alpha_blend, use_zbias, lightmap_texture);
 	}
+
+	Atomic_AddUInt32 (&rs_brushpasses, brushpasses);
 }
 
 /*
