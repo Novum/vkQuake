@@ -774,14 +774,15 @@ void R_RenderView (void)
 		Atomic_StoreUInt32 (&rs_brushpasses, 0u);
 	}
 
+	qboolean      use_tasks = (r_tasks.value && r_gpulightmapupdate.value) && !r_showtris.value && !r_showbboxes.value;
 	cb_context_t *primary_cbx = &vulkan_globals.primary_cb_context;
-	if (r_tasks.value && r_gpulightmapupdate.value)
+	if (use_tasks)
 	{
 		task_handle_t before_mark = Task_AllocateAndAssignFunc (R_SetupViewBeforeMark, NULL, 0);
 		task_handle_t store_efrags = INVALID_TASK_HANDLE;
 		task_handle_t cull_surfaces = INVALID_TASK_HANDLE;
 		task_handle_t chain_surfaces = INVALID_TASK_HANDLE;
-		R_MarkSurfaces (before_mark, &store_efrags, &cull_surfaces, &chain_surfaces);
+		R_MarkSurfaces (use_tasks, before_mark, &store_efrags, &cull_surfaces, &chain_surfaces);
 
 		task_handle_t update_warp_textures = Task_AllocateAndAssignFunc ((task_func_t)R_UpdateWarpTextures, &primary_cbx, sizeof (cb_context_t *));
 		Task_AddDependency (cull_surfaces, update_warp_textures);
@@ -822,7 +823,7 @@ void R_RenderView (void)
 	else
 	{
 		R_SetupViewBeforeMark (NULL);
-		R_MarkSurfaces (INVALID_TASK_HANDLE, NULL, NULL, NULL); // johnfitz -- create texture chains from PVS
+		R_MarkSurfaces (use_tasks, INVALID_TASK_HANDLE, NULL, NULL, NULL); // johnfitz -- create texture chains from PVS
 		R_UpdateWarpTextures (&primary_cbx);
 		for (int i = 0; i < NUM_WORLD_CBX; ++i)
 			R_DrawWorldTask (i, NULL);

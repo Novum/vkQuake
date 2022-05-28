@@ -476,20 +476,20 @@ Mod_LoadTextures
 */
 void Mod_LoadTextures (lump_t *l)
 {
-	int          i, j, pixels, num, maxanim, altmax;
-	miptex_t     mt;
-	texture_t   *tx, *tx2;
-	texture_t   *anims[10];
-	texture_t   *altanims[10];
-	byte        *m;
-	byte        *pixels_p;
-	char         texturename[64];
-	int          nummiptex;
-	int          dataofs;
-	src_offset_t offset;
-	int          mark, fwidth, fheight;
-	char         filename[MAX_OSPATH], filename2[MAX_OSPATH], mapname[MAX_OSPATH];
-	byte        *data;
+	int                       i, j, pixels, num, maxanim, altmax;
+	miptex_t                  mt;
+	texture_t				*tx, *tx2;
+	texture_t				*anims[10];
+	texture_t				*altanims[10];
+	byte					 *m;
+	byte					 *pixels_p;
+	char                      texturename[64];
+	int                       nummiptex;
+	int                       dataofs;
+	src_offset_t              offset;
+	int                       mark, fwidth, fheight;
+	char                      filename[MAX_OSPATH], filename2[MAX_OSPATH], mapname[MAX_OSPATH];
+	byte					 *data;
 	extern THREAD_LOCAL byte *hunk_base;
 
 	// johnfitz -- don't return early if no textures; still need to create dummy texture

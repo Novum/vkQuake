@@ -80,25 +80,26 @@ typedef struct mplane_s
 //          without affecting the world
 typedef enum
 {
-	chain_world = 0,
-	chain_model = 1
+	chain_world,
+	chain_model,
+	chain_num,
 } texchain_t;
 
 typedef struct texture_s
 {
 	char                name[16];
 	unsigned            width, height;
-	unsigned            shift;              // Q64
-	struct gltexture_s *gltexture;          // johnfitz -- pointer to gltexture
-	struct gltexture_s *fullbright;         // johnfitz -- fullbright mask texture
-	struct gltexture_s *warpimage;          // johnfitz -- for water animation
-	qboolean            update_warp;        // johnfitz -- update warp this frame
-	struct msurface_s  *texturechains[2];   // for texture chains
-	int                 anim_total;         // total tenths in sequence ( 0 = no)
-	int                 anim_min, anim_max; // time for this frame min <=time< max
-	struct texture_s   *anim_next;          // in the animation sequence
-	struct texture_s   *alternate_anims;    // bmodels in frmae 1 use these
-	unsigned            offsets[MIPLEVELS]; // four mip maps stored
+	unsigned            shift;                    // Q64
+	struct gltexture_s *gltexture;                // johnfitz -- pointer to gltexture
+	struct gltexture_s *fullbright;               // johnfitz -- fullbright mask texture
+	struct gltexture_s *warpimage;                // johnfitz -- for water animation
+	qboolean            update_warp;              // johnfitz -- update warp this frame
+	struct msurface_s  *texturechains[chain_num]; // for texture chains
+	int                 anim_total;               // total tenths in sequence ( 0 = no)
+	int                 anim_min, anim_max;       // time for this frame min <=time< max
+	struct texture_s   *anim_next;                // in the animation sequence
+	struct texture_s   *alternate_anims;          // bmodels in frmae 1 use these
+	unsigned            offsets[MIPLEVELS];       // four mip maps stored
 } texture_t;
 
 #define SURF_PLANEBACK      2
@@ -154,7 +155,7 @@ typedef struct msurface_s
 	int light_s, light_t; // gl lightmap coordinates
 
 	glpoly_t          *polys; // multiple if warped
-	struct msurface_s *texturechains[2];
+	struct msurface_s *texturechains[chain_num];
 
 	mtexinfo_t *texinfo;
 

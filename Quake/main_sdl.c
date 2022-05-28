@@ -42,7 +42,8 @@ static void Sys_InitSDL (void)
 
 	Sys_Printf ("Found SDL version %i.%i.%i\n", sdl_version->major, sdl_version->minor, sdl_version->patch);
 
-	if (SDL_Init (0) < 0) {
+	if (SDL_Init (0) < 0)
+	{
 		Sys_Error ("Couldn't init SDL: %s", SDL_GetError ());
 	}
 

@@ -471,9 +471,9 @@ static void R_MarkSurfacesPrepare (void *unused)
 R_MarkSurfaces -- johnfitz -- mark surfaces based on PVS and rebuild texture chains
 ===============
 */
-void R_MarkSurfaces (task_handle_t before_mark, task_handle_t *store_efrags, task_handle_t *cull_surfaces, task_handle_t *chain_surfaces)
+void R_MarkSurfaces (qboolean use_tasks, task_handle_t before_mark, task_handle_t *store_efrags, task_handle_t *cull_surfaces, task_handle_t *chain_surfaces)
 {
-	if (r_tasks.value && r_gpulightmapupdate.value)
+	if (use_tasks)
 	{
 		task_handle_t prepare_mark = Task_AllocateAndAssignFunc (R_MarkSurfacesPrepare, NULL, 0);
 		Task_AddDependency (before_mark, prepare_mark);
@@ -833,7 +833,6 @@ void R_DrawTextureChains_Multitexture (cb_context_t *cbx, qmodel_t *model, entit
 			lastlightmap = s->lightmaptexturenum;
 			R_BatchSurface (cbx, s, fullbright_enabled, alpha_test, alpha_blend, use_zbias, lightmap_texture);
 
-			Atomic_IncrementUInt32 (&rs_brushpasses);
 			brushpasses += 1;
 		}
 

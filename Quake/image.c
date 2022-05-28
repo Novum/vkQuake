@@ -214,7 +214,7 @@ byte *Image_LoadTGA (FILE *fin, int *width, int *height, const char *name)
 
 	if (targa_header.image_type == 1)
 	{
-		Con_Warning ("paletted TGA (less compatible): %s\n", name); 
+		Con_Warning ("paletted TGA (less compatible): %s\n", name);
 		if (targa_header.pixel_size != 8 || targa_header.colormap_size != 24 || targa_header.colormap_length > 256)
 			Sys_Error ("Image_LoadTGA: %s has an %ibit palette", loadfilename, targa_header.colormap_type);
 	}
