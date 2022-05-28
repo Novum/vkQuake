@@ -34,12 +34,12 @@ void Sbar_LoadPics (void);
 void Sbar_Changed (void);
 // call whenever any of the client stats represented on the sbar changes
 
-void Sbar_Draw (void);
+void Sbar_Draw (cb_context_t *cbx);
 // called every frame by screen
 
-void Sbar_IntermissionOverlay (void);
+void Sbar_IntermissionOverlay (cb_context_t *cbx);
 // called each frame after the level has been completed
 
-void Sbar_FinaleOverlay (void);
+void Sbar_FinaleOverlay (cb_context_t *cbx);
 
 #endif /* _QUAKE_SBAR_H */

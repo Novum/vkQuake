@@ -69,7 +69,7 @@ typedef struct
 	glheap_t     *heap;
 	glheapnode_t *heap_node;
 	glheap_t   ***heaps;
-	int          *num_heaps;
+	int		  *num_heaps;
 } buffer_garbage_t;
 
 static int              current_garbage_index;
@@ -550,7 +550,7 @@ static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 	const aliasmesh_t *desc;
 	const short       *indexes;
 	const trivertx_t  *trivertexes;
-	byte              *vbodata;
+	byte			  *vbodata;
 	int                f;
 	VkResult           err;
 

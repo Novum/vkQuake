@@ -22,25 +22,22 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // r_main.c
 
 #include "quakedef.h"
+#include "tasks.h"
+#include "atomics.h"
 
 qboolean r_cache_thrash; // compatability
-
-vec3_t    modelorg, r_entorigin;
-entity_t *currententity;
 
 int r_visframecount; // bumped when going to a new PVS
 int r_framecount;    // used for dlight push checking
 
 mplane_t frustum[4];
 
-int      render_pass_index;
 qboolean render_warp;
 int      render_scale;
 
 // johnfitz -- rendering statistics
-unsigned int rs_brushpolys, rs_aliaspolys, rs_skypolys, rs_particles, rs_fogpolys;
-unsigned int rs_dynamiclightmaps, rs_brushpasses, rs_aliaspasses, rs_skypasses;
-float        rs_megatexels;
+atomic_uint32_t rs_brushpolys, rs_aliaspolys, rs_skypolys, rs_particles, rs_fogpolys;
+atomic_uint32_t rs_dynamiclightmaps, rs_brushpasses, rs_aliaspasses, rs_skypasses;
 
 //
 // view origin
@@ -114,6 +111,8 @@ qboolean r_drawworld_cheatsafe, r_fullbright_cheatsafe, r_lightmap_cheatsafe; //
 cvar_t r_scale = {"r_scale", "1", CVAR_ARCHIVE};
 
 cvar_t r_gpulightmapupdate = {"r_gpulightmapupdate", "1", CVAR_ARCHIVE};
+
+cvar_t r_tasks = {"r_tasks", "1", CVAR_NONE};
 
 /*
 =================
@@ -289,13 +288,11 @@ static void GL_FrustumMatrix (float matrix[16], float fovx, float fovy)
 
 /*
 =============
-R_SetupMatrix
+R_SetupMatrices
 =============
 */
-void R_SetupMatrix (void)
+static void R_SetupMatrices ()
 {
-	GL_Viewport (glx + r_refdef.vrect.x, gly + glheight - r_refdef.vrect.y - r_refdef.vrect.height, r_refdef.vrect.width, r_refdef.vrect.height, 0.0f, 1.0f);
-
 	// Projection matrix
 	GL_FrustumMatrix (vulkan_globals.projection_matrix, DEG2RAD (r_fovx), DEG2RAD (r_fovy));
 
@@ -318,41 +315,35 @@ void R_SetupMatrix (void)
 	// View projection matrix
 	memcpy (vulkan_globals.view_projection_matrix, vulkan_globals.projection_matrix, 16 * sizeof (float));
 	MatrixMultiply (vulkan_globals.view_projection_matrix, vulkan_globals.view_matrix);
-
-	R_BindPipeline (VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_blend_pipeline[render_pass_index]);
-	R_PushConstants (VK_SHADER_STAGE_ALL_GRAPHICS, 0, 16 * sizeof (float), vulkan_globals.view_projection_matrix);
 }
 
 /*
-===============
-R_SetupScene
-===============
+=============
+R_SetupContext
+=============
 */
-void R_SetupScene (void)
+static void R_SetupContext (cb_context_t *cbx)
 {
-	render_pass_index = 0;
-	qboolean screen_effects = render_warp || (render_scale >= 2);
-	vkCmdBeginRenderPass (vulkan_globals.command_buffer, &vulkan_globals.main_render_pass_begin_infos[screen_effects ? 1 : 0], VK_SUBPASS_CONTENTS_INLINE);
-
-	R_SetupMatrix ();
+	GL_Viewport (
+		cbx, glx + r_refdef.vrect.x, gly + glheight - r_refdef.vrect.y - r_refdef.vrect.height, r_refdef.vrect.width, r_refdef.vrect.height, 0.0f, 1.0f);
+	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_blend_pipeline[cbx->render_pass_index]);
+	R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 16 * sizeof (float), vulkan_globals.view_projection_matrix);
 }
 
 /*
 ===============
-R_SetupView
+R_SetupViewBeforeMark
 ===============
 */
-void R_SetupView (void)
+static void R_SetupViewBeforeMark (void *unused)
 {
 	// Need to do those early because we now update dynamic light maps during R_MarkSurfaces
 	if (!r_gpulightmapupdate.value)
 		R_PushDlights ();
 	R_AnimateLight ();
 	if (r_gpulightmapupdate.value)
-		R_UpdateLightmaps ();
+		R_UpdateLightmaps (&vulkan_globals.primary_cb_context);
 	r_framecount++;
-
-	Fog_SetupFrame (); // johnfitz
 
 	// build the transformation matrix for the given view angles
 	VectorCopy (r_refdef.vieworg, r_origin);
@@ -392,10 +383,7 @@ void R_SetupView (void)
 	// johnfitz
 
 	R_SetFrustum (r_fovx, r_fovy); // johnfitz -- use r_fov* vars
-
-	R_MarkSurfaces (); // johnfitz -- create texture chains from PVS
-
-	R_UpdateWarpTextures (); // johnfitz -- do this before R_Clear
+	R_SetupMatrices ();
 
 	// johnfitz -- cheat-protect some draw modes
 	r_fullbright_cheatsafe = false;
@@ -429,18 +417,18 @@ void R_SetupView (void)
 R_DrawEntitiesOnList
 =============
 */
-void R_DrawEntitiesOnList (qboolean alphapass) // johnfitz -- added parameter
+void R_DrawEntitiesOnList (cb_context_t *cbx, qboolean alphapass) // johnfitz -- added parameter
 {
 	int i;
 
 	if (!r_drawentities.value)
 		return;
 
-	R_BeginDebugUtilsLabel (alphapass ? "Entities Alpha Pass" : "Entities");
+	R_BeginDebugUtilsLabel (cbx, alphapass ? "Entities Alpha Pass" : "Entities");
 	// johnfitz -- sprites are not a special case
 	for (i = 0; i < cl_numvisedicts; i++)
 	{
-		currententity = cl_visedicts[i];
+		entity_t *currententity = cl_visedicts[i];
 
 		// johnfitz -- if alphapass is true, draw only alpha entites this time
 		// if alphapass is false, draw only nonalpha entities this time
@@ -459,17 +447,17 @@ void R_DrawEntitiesOnList (qboolean alphapass) // johnfitz -- added parameter
 		switch (currententity->model->type)
 		{
 		case mod_alias:
-			R_DrawAliasModel (currententity);
+			R_DrawAliasModel (cbx, currententity);
 			break;
 		case mod_brush:
-			R_DrawBrushModel (currententity);
+			R_DrawBrushModel (cbx, currententity);
 			break;
 		case mod_sprite:
-			R_DrawSpriteModel (currententity);
+			R_DrawSpriteModel (cbx, currententity);
 			break;
 		}
 	}
-	R_EndDebugUtilsLabel ();
+	R_EndDebugUtilsLabel (cbx);
 }
 
 /*
@@ -477,7 +465,7 @@ void R_DrawEntitiesOnList (qboolean alphapass) // johnfitz -- added parameter
 R_DrawViewModel -- johnfitz -- gutted
 =============
 */
-void R_DrawViewModel (void)
+void R_DrawViewModel (cb_context_t *cbx)
 {
 	if (!r_drawviewmodel.value || !r_drawentities.value || chase_active.value)
 		return;
@@ -485,7 +473,7 @@ void R_DrawViewModel (void)
 	if (cl.items & IT_INVISIBILITY || cl.stats[STAT_HEALTH] <= 0)
 		return;
 
-	currententity = &cl.viewent;
+	entity_t *currententity = &cl.viewent;
 	if (!currententity->model)
 		return;
 
@@ -494,16 +482,18 @@ void R_DrawViewModel (void)
 		return;
 	// johnfitz
 
-	R_BeginDebugUtilsLabel ("View Model");
+	R_BeginDebugUtilsLabel (cbx, "View Model");
 
 	// hack the depth range to prevent view model from poking into walls
-	GL_Viewport (glx + r_refdef.vrect.x, gly + glheight - r_refdef.vrect.y - r_refdef.vrect.height, r_refdef.vrect.width, r_refdef.vrect.height, 0.7f, 1.0f);
+	GL_Viewport (
+		cbx, glx + r_refdef.vrect.x, gly + glheight - r_refdef.vrect.y - r_refdef.vrect.height, r_refdef.vrect.width, r_refdef.vrect.height, 0.7f, 1.0f);
 
-	R_DrawAliasModel (currententity);
+	R_DrawAliasModel (cbx, currententity);
 
-	GL_Viewport (glx + r_refdef.vrect.x, gly + glheight - r_refdef.vrect.y - r_refdef.vrect.height, r_refdef.vrect.width, r_refdef.vrect.height, 0.0f, 1.0f);
+	GL_Viewport (
+		cbx, glx + r_refdef.vrect.x, gly + glheight - r_refdef.vrect.y - r_refdef.vrect.height, r_refdef.vrect.width, r_refdef.vrect.height, 0.0f, 1.0f);
 
-	R_EndDebugUtilsLabel ();
+	R_EndDebugUtilsLabel (cbx);
 }
 
 /*
@@ -511,7 +501,7 @@ void R_DrawViewModel (void)
 R_EmitWirePoint -- johnfitz -- draws a wireframe cross shape for point entities
 ================
 */
-void R_EmitWirePoint (vec3_t origin)
+void R_EmitWirePoint (cb_context_t *cbx, vec3_t origin)
 {
 	VkBuffer       vertex_buffer;
 	VkDeviceSize   vertex_buffer_offset;
@@ -537,8 +527,8 @@ void R_EmitWirePoint (vec3_t origin)
 	vertices[5].position[1] = origin[1];
 	vertices[5].position[2] = origin[2] + size;
 
-	vulkan_globals.vk_cmd_bind_vertex_buffers (vulkan_globals.command_buffer, 0, 1, &vertex_buffer, &vertex_buffer_offset);
-	vulkan_globals.vk_cmd_draw (vulkan_globals.command_buffer, 6, 1, 0, 0);
+	vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 1, &vertex_buffer, &vertex_buffer_offset);
+	vulkan_globals.vk_cmd_draw (cbx->cb, 6, 1, 0, 0);
 }
 
 /*
@@ -546,7 +536,7 @@ void R_EmitWirePoint (vec3_t origin)
 R_EmitWireBox -- johnfitz -- draws one axis aligned bounding box
 ================
 */
-void R_EmitWireBox (vec3_t mins, vec3_t maxs, VkBuffer box_index_buffer, VkDeviceSize box_index_buffer_offset)
+void R_EmitWireBox (cb_context_t *cbx, vec3_t mins, vec3_t maxs, VkBuffer box_index_buffer, VkDeviceSize box_index_buffer_offset)
 {
 	VkBuffer       vertex_buffer;
 	VkDeviceSize   vertex_buffer_offset;
@@ -559,9 +549,9 @@ void R_EmitWireBox (vec3_t mins, vec3_t maxs, VkBuffer box_index_buffer, VkDevic
 		vertices[i].position[2] = ((i % 8) < 4) ? mins[2] : maxs[2];
 	}
 
-	vulkan_globals.vk_cmd_bind_index_buffer (vulkan_globals.command_buffer, box_index_buffer, box_index_buffer_offset, VK_INDEX_TYPE_UINT16);
-	vulkan_globals.vk_cmd_bind_vertex_buffers (vulkan_globals.command_buffer, 0, 1, &vertex_buffer, &vertex_buffer_offset);
-	vulkan_globals.vk_cmd_draw_indexed (vulkan_globals.command_buffer, 24, 1, 0, 0, 0);
+	vulkan_globals.vk_cmd_bind_index_buffer (cbx->cb, box_index_buffer, box_index_buffer_offset, VK_INDEX_TYPE_UINT16);
+	vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 1, &vertex_buffer, &vertex_buffer_offset);
+	vulkan_globals.vk_cmd_draw_indexed (cbx->cb, 24, 1, 0, 0, 0);
 }
 
 static uint16_t box_indices[24] = {0, 1, 2, 3, 4, 5, 6, 7, 0, 4, 1, 5, 2, 6, 3, 7, 0, 2, 1, 3, 4, 6, 5, 7};
@@ -573,7 +563,7 @@ R_ShowBoundingBoxes -- johnfitz
 draw bounding boxes -- the server-side boxes, not the renderer cullboxes
 ================
 */
-void R_ShowBoundingBoxes (void)
+void R_ShowBoundingBoxes (cb_context_t *cbx)
 {
 	extern edict_t *sv_player;
 	vec3_t          mins, maxs;
@@ -583,8 +573,8 @@ void R_ShowBoundingBoxes (void)
 	if (!r_showbboxes.value || cl.maxclients > 1 || !r_drawentities.value || !sv.active)
 		return;
 
-	R_BeginDebugUtilsLabel ("show bboxes");
-	R_BindPipeline (VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showbboxes_pipeline);
+	R_BeginDebugUtilsLabel (cbx, "show bboxes");
+	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showbboxes_pipeline);
 
 	VkBuffer     box_index_buffer;
 	VkDeviceSize box_index_buffer_offset;
@@ -600,20 +590,20 @@ void R_ShowBoundingBoxes (void)
 		if (ed->v.mins[0] == ed->v.maxs[0] && ed->v.mins[1] == ed->v.maxs[1] && ed->v.mins[2] == ed->v.maxs[2])
 		{
 			// point entity
-			R_EmitWirePoint (ed->v.origin);
+			R_EmitWirePoint (cbx, ed->v.origin);
 		}
 		else
 		{
 			// box entity
 			VectorAdd (ed->v.mins, ed->v.origin, mins);
 			VectorAdd (ed->v.maxs, ed->v.origin, maxs);
-			R_EmitWireBox (mins, maxs, box_index_buffer, box_index_buffer_offset);
+			R_EmitWireBox (cbx, mins, maxs, box_index_buffer, box_index_buffer_offset);
 		}
 	}
 	PR_SwitchQCVM (NULL);
 
 	Sbar_Changed (); // so we don't get dots collecting on the statusbar
-	R_EndDebugUtilsLabel ();
+	R_EndDebugUtilsLabel (cbx);
 }
 
 /*
@@ -621,7 +611,7 @@ void R_ShowBoundingBoxes (void)
 R_ShowTris -- johnfitz
 ================
 */
-void R_ShowTris (void)
+void R_ShowTris (cb_context_t *cbx)
 {
 	extern cvar_t r_particles;
 	int           i;
@@ -629,15 +619,15 @@ void R_ShowTris (void)
 	if (r_showtris.value < 1 || r_showtris.value > 2 || cl.maxclients > 1 || !vulkan_globals.non_solid_fill)
 		return;
 
-	R_BeginDebugUtilsLabel ("show tris");
+	R_BeginDebugUtilsLabel (cbx, "show tris");
 	if (r_drawworld.value)
-		R_DrawWorld_ShowTris ();
+		R_DrawWorld_ShowTris (cbx);
 
 	if (r_drawentities.value)
 	{
 		for (i = 0; i < cl_numvisedicts; i++)
 		{
-			currententity = cl_visedicts[i];
+			entity_t *currententity = cl_visedicts[i];
 
 			if (currententity == &cl.entities[cl.viewentity]) // chasecam
 				currententity->angles[0] *= 0.3;
@@ -645,13 +635,13 @@ void R_ShowTris (void)
 			switch (currententity->model->type)
 			{
 			case mod_brush:
-				R_DrawBrushModel_ShowTris (currententity);
+				R_DrawBrushModel_ShowTris (cbx, currententity);
 				break;
 			case mod_alias:
-				R_DrawAliasModel_ShowTris (currententity);
+				R_DrawAliasModel_ShowTris (cbx, currententity);
 				break;
 			case mod_sprite:
-				R_DrawSpriteModel_ShowTris (currententity);
+				R_DrawSpriteModel_ShowTris (cbx, currententity);
 				break;
 			default:
 				break;
@@ -659,64 +649,100 @@ void R_ShowTris (void)
 		}
 
 		// viewmodel
-		currententity = &cl.viewent;
+		entity_t *currententity = &cl.viewent;
 		if (r_drawviewmodel.value && !chase_active.value && cl.stats[STAT_HEALTH] > 0 && !(cl.items & IT_INVISIBILITY) && currententity->model &&
 		    currententity->model->type == mod_alias)
 		{
-			R_DrawAliasModel_ShowTris (currententity);
+			R_DrawAliasModel_ShowTris (cbx, currententity);
 		}
 	}
 
 	if (r_particles.value)
 	{
-		R_DrawParticles_ShowTris ();
+		R_DrawParticles_ShowTris (cbx);
 #ifdef PSET_SCRIPT
-		PScript_DrawParticles_ShowTris ();
+		PScript_DrawParticles_ShowTris (cbx);
 #endif
 	}
 
 	Sbar_Changed (); // so we don't get dots collecting on the statusbar
-	R_EndDebugUtilsLabel ();
+	R_EndDebugUtilsLabel (cbx);
 }
 
 /*
 ================
-R_RenderScene
+R_DrawWorldTask
 ================
 */
-void R_RenderScene (void)
+static void R_DrawWorldTask (int i, void *unused)
 {
-	static entity_t r_worldentity; // so we can make sure currententity is valid
-	currententity = &r_worldentity;
-	R_SetupScene (); // johnfitz -- this does everything that should be done once per call to RenderScene
+	const int     num_textures = cl.worldmodel->numtextures;
+	const int     texture_per_context = (num_textures + NUM_WORLD_CBX - 1) / NUM_WORLD_CBX;
+	const int     cbx_index = i + CBX_WORLD_0;
+	cb_context_t *cbx = &vulkan_globals.secondary_cb_contexts[cbx_index];
+	R_SetupContext (cbx);
+	Fog_EnableGFog (cbx);
+	const int texstart = i * texture_per_context;
+	const int texend = q_min (texstart + texture_per_context, num_textures);
+	R_DrawWorld (cbx, texstart, texend);
+}
 
-	Fog_EnableGFog (); // johnfitz
+/*
+================
+R_DrawSkyAndWaterTask
+================
+*/
+static void R_DrawSkyAndWaterTask (void *unused)
+{
+	R_SetupContext (&vulkan_globals.secondary_cb_contexts[CBX_SKY_AND_WATER]);
+	Fog_EnableGFog (&vulkan_globals.secondary_cb_contexts[CBX_SKY_AND_WATER]);
+	Sky_DrawSky (&vulkan_globals.secondary_cb_contexts[CBX_SKY_AND_WATER]);
+	R_DrawWorld_Water (&vulkan_globals.secondary_cb_contexts[CBX_SKY_AND_WATER]);
+}
 
-	R_DrawWorld ();
-	currententity = NULL;
+/*
+================
+R_DrawEntitiesTask
+================
+*/
+static void R_DrawEntitiesTask (void *unused)
+{
+	R_SetupContext (&vulkan_globals.secondary_cb_contexts[CBX_ENTITIES]);
+	Fog_EnableGFog (&vulkan_globals.secondary_cb_contexts[CBX_ENTITIES]);              // johnfitz
+	S_ExtraUpdate ();                                                                  // don't let sound get messed up if going slow
+	R_DrawEntitiesOnList (&vulkan_globals.secondary_cb_contexts[CBX_ENTITIES], false); // johnfitz -- false means this is the pass for nonalpha entities
 
-	S_ExtraUpdate (); // don't let sound get messed up if going slow
+	R_SetupContext (&vulkan_globals.secondary_cb_contexts[CBX_ALPHA_ENTITIES]);
+	Fog_EnableGFog (&vulkan_globals.secondary_cb_contexts[CBX_ALPHA_ENTITIES]);
+	R_DrawEntitiesOnList (&vulkan_globals.secondary_cb_contexts[CBX_ALPHA_ENTITIES], true); // johnfitz -- true means this is the pass for alpha entities
+}
 
-	R_DrawEntitiesOnList (false); // johnfitz -- false means this is the pass for nonalpha entities
-
-	Sky_DrawSky (); // johnfitz
-
-	R_DrawWorld_Water (); // johnfitz -- drawn here since they might have transparency
-
-	R_DrawEntitiesOnList (true); // johnfitz -- true means this is the pass for alpha entities
-
-	R_DrawParticles ();
+/*
+================
+R_DrawParticlesTask
+================
+*/
+static void R_DrawParticlesTask (void *unused)
+{
+	R_SetupContext (&vulkan_globals.secondary_cb_contexts[CBX_PARTICLES]);
+	Fog_EnableGFog (&vulkan_globals.secondary_cb_contexts[CBX_PARTICLES]); // johnfitz
+	R_DrawParticles (&vulkan_globals.secondary_cb_contexts[CBX_PARTICLES]);
 #ifdef PSET_SCRIPT
-	PScript_DrawParticles ();
+	PScript_DrawParticles (&vulkan_globals.secondary_cb_contexts[CBX_PARTICLES]);
 #endif
+}
 
-	Fog_DisableGFog (); // johnfitz
-
-	R_DrawViewModel (); // johnfitz -- moved here from R_RenderView
-
-	R_ShowTris (); // johnfitz
-
-	R_ShowBoundingBoxes (); // johnfitz
+/*
+================
+R_DrawViewModelTask
+================
+*/
+static void R_DrawViewModelTask (void *unused)
+{
+	R_SetupContext (&vulkan_globals.secondary_cb_contexts[CBX_VIEW_MODEL]);
+	R_DrawViewModel (&vulkan_globals.secondary_cb_contexts[CBX_VIEW_MODEL]);     // johnfitz -- moved here from R_RenderView
+	R_ShowTris (&vulkan_globals.secondary_cb_contexts[CBX_VIEW_MODEL]);          // johnfitz
+	R_ShowBoundingBoxes (&vulkan_globals.secondary_cb_contexts[CBX_VIEW_MODEL]); // johnfitz
 }
 
 /*
@@ -737,13 +763,74 @@ void R_RenderView (void)
 		time1 = Sys_DoubleTime ();
 
 		// johnfitz -- rendering statistics
-		rs_brushpolys = rs_aliaspolys = rs_skypolys = rs_particles = rs_fogpolys = rs_megatexels = rs_dynamiclightmaps = rs_aliaspasses = rs_skypasses =
-			rs_brushpasses = 0;
+		Atomic_StoreUInt32 (&rs_brushpolys, 0u);
+		Atomic_StoreUInt32 (&rs_aliaspolys, 0u);
+		Atomic_StoreUInt32 (&rs_skypolys, 0u);
+		Atomic_StoreUInt32 (&rs_particles, 0u);
+		Atomic_StoreUInt32 (&rs_fogpolys, 0u);
+		Atomic_StoreUInt32 (&rs_dynamiclightmaps, 0u);
+		Atomic_StoreUInt32 (&rs_aliaspasses, 0u);
+		Atomic_StoreUInt32 (&rs_skypasses, 0u);
+		Atomic_StoreUInt32 (&rs_brushpasses, 0u);
 	}
 
-	R_SetupView (); // johnfitz -- this does everything that should be done once per frame
+	cb_context_t *primary_cbx = &vulkan_globals.primary_cb_context;
+	if (r_tasks.value && r_gpulightmapupdate.value)
+	{
+		task_handle_t before_mark = Task_AllocateAndAssignFunc (R_SetupViewBeforeMark, NULL, 0);
+		task_handle_t store_efrags = INVALID_TASK_HANDLE;
+		task_handle_t cull_surfaces = INVALID_TASK_HANDLE;
+		task_handle_t chain_surfaces = INVALID_TASK_HANDLE;
+		R_MarkSurfaces (before_mark, &store_efrags, &cull_surfaces, &chain_surfaces);
 
-	R_RenderScene ();
+		task_handle_t update_warp_textures = Task_AllocateAndAssignFunc ((task_func_t)R_UpdateWarpTextures, &primary_cbx, sizeof (cb_context_t *));
+		Task_AddDependency (cull_surfaces, update_warp_textures);
+
+		task_handle_t draw_world_task = Task_AllocateAndAssignIndexedFunc (R_DrawWorldTask, 4, NULL, 0);
+		Task_AddDependency (chain_surfaces, draw_world_task);
+
+		task_handle_t draw_sky_and_water_task = Task_AllocateAndAssignFunc (R_DrawSkyAndWaterTask, NULL, 0);
+		Task_AddDependency (chain_surfaces, draw_sky_and_water_task);
+
+		task_handle_t draw_view_model_task = Task_AllocateAndAssignFunc (R_DrawViewModelTask, NULL, 0);
+		Task_AddDependency (before_mark, draw_view_model_task);
+
+		task_handle_t draw_entities_task = Task_AllocateAndAssignFunc (R_DrawEntitiesTask, NULL, 0);
+		Task_AddDependency (draw_view_model_task, draw_entities_task);
+		Task_AddDependency (store_efrags, draw_entities_task);
+
+		task_handle_t draw_particles_task = Task_AllocateAndAssignFunc (R_DrawParticlesTask, NULL, 0);
+		Task_AddDependency (before_mark, draw_particles_task);
+
+		task_handle_t draw_done_task = Task_Allocate ();
+		Task_AddDependency (draw_world_task, draw_done_task);
+		Task_AddDependency (draw_sky_and_water_task, draw_done_task);
+		Task_AddDependency (draw_entities_task, draw_done_task);
+		Task_AddDependency (draw_particles_task, draw_done_task);
+		Task_AddDependency (update_warp_textures, draw_done_task);
+
+		task_handle_t tasks[] = {before_mark,          store_efrags,       update_warp_textures, draw_world_task, draw_sky_and_water_task,
+		                         draw_view_model_task, draw_entities_task, draw_particles_task,  draw_done_task};
+		Tasks_Submit ((sizeof (tasks) / sizeof (task_handle_t)), tasks);
+		if (store_efrags != cull_surfaces)
+		{
+			Task_Submit (cull_surfaces);
+			Task_Submit (chain_surfaces);
+		}
+		Task_Join (draw_done_task);
+	}
+	else
+	{
+		R_SetupViewBeforeMark (NULL);
+		R_MarkSurfaces (INVALID_TASK_HANDLE, NULL, NULL, NULL); // johnfitz -- create texture chains from PVS
+		R_UpdateWarpTextures (&primary_cbx);
+		for (int i = 0; i < NUM_WORLD_CBX; ++i)
+			R_DrawWorldTask (i, NULL);
+		R_DrawSkyAndWaterTask (NULL);
+		R_DrawEntitiesTask (NULL);
+		R_DrawParticlesTask (NULL);
+		R_DrawViewModelTask (NULL);
+	}
 
 	// johnfitz
 

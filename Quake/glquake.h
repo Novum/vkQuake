@@ -25,11 +25,14 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef GLQUAKE_H
 #define GLQUAKE_H
 
+#include "tasks.h"
+#include "atomics.h"
+
 void     GL_WaitForDeviceIdle (void);
 qboolean GL_BeginRendering (int *x, int *y, int *width, int *height);
 qboolean GL_AcquireNextSwapChainImage (void);
 void     GL_EndRendering (qboolean swapchain_acquired);
-qboolean GL_Set2D (void);
+qboolean GL_Set2D (cb_context_t *cbx);
 
 extern int glx, gly, glwidth, glheight;
 
@@ -62,33 +65,6 @@ void       R_TimeRefresh_f (void);
 void       R_ReadPointFile_f (void);
 texture_t *R_TextureAnimation (texture_t *base, int frame);
 
-typedef struct surfcache_s
-{
-	struct surfcache_s  *next;
-	struct surfcache_s **owner;                  // NULL is an empty chunk of memory
-	int                  lightadj[MAXLIGHTMAPS]; // checked for strobe flush
-	int                  dlight;
-	int                  size; // including header
-	unsigned             width;
-	unsigned             height; // DEBUG only needed for debug
-	float                mipscale;
-	struct texture_s    *texture; // checked for animating textures
-	byte                 data[4]; // width*height elements
-} surfcache_t;
-
-typedef struct
-{
-	pixel_t    *surfdat;  // destination for generated surface
-	int         rowbytes; // destination logical width in bytes
-	msurface_t *surf;     // description for surface to generate
-	fixed8_t    lightadj[MAXLIGHTMAPS];
-	// adjust for lightmap levels for dynamic lighting
-	texture_t  *texture;    // corrected for animating textures
-	int         surfmip;    // mipmapped ratio of surface texels / world pixels
-	int         surfwidth;  // in mipmapped texels
-	int         surfheight; // in mipmapped texels
-} drawsurf_t;
-
 typedef enum
 {
 	pt_static,
@@ -119,8 +95,8 @@ typedef struct particle_s
 #ifdef PSET_SCRIPT
 void PScript_InitParticles (void);
 void PScript_Shutdown (void);
-void PScript_DrawParticles (void);
-void PScript_DrawParticles_ShowTris (void);
+void PScript_DrawParticles (cb_context_t *cbx);
+void PScript_DrawParticles_ShowTris (cb_context_t *cbx);
 struct trailstate_s;
 int  PScript_ParticleTrail (vec3_t startpos, vec3_t end, int type, float timeinterval, int dlkey, vec3_t axis[3], struct trailstate_s **tsk);
 int  PScript_RunParticleEffectState (vec3_t org, vec3_t dir, float count, int typenum, struct trailstate_s **tsk);
@@ -192,6 +168,36 @@ typedef struct vulkan_memory_s
 
 #define WORLD_PIPELINE_COUNT        8
 #define FTE_PARTICLE_PIPELINE_COUNT 16
+#define MAX_BATCH_SIZE              65536
+#define NUM_WORLD_CBX               4
+
+typedef enum
+{
+	CBX_WORLD_0,
+	CBX_WORLD_1,
+	CBX_WORLD_2,
+	CBX_WORLD_3,
+	CBX_ENTITIES,
+	CBX_SKY_AND_WATER,
+	CBX_ALPHA_ENTITIES,
+	CBX_PARTICLES,
+	CBX_VIEW_MODEL,
+	CBX_GUI,
+	CBX_POST_PROCESS,
+	CBX_NUM,
+} secondary_cb_contexts_t;
+
+typedef struct cb_context_s
+{
+	VkCommandBuffer   cb;
+	canvastype        current_canvas;
+	VkRenderPass      render_pass;
+	int               render_pass_index;
+	int               subpass;
+	vulkan_pipeline_t current_pipeline;
+	uint32_t          vbo_indices[MAX_BATCH_SIZE];
+	unsigned int      num_vbo_indices;
+} cb_context_t;
 
 typedef struct
 {
@@ -200,8 +206,8 @@ typedef struct
 	qboolean                         validation;
 	qboolean                         debug_utils;
 	VkQueue                          queue;
-	VkCommandBuffer                  command_buffer;
-	vulkan_pipeline_t                current_pipeline;
+	cb_context_t                     primary_cb_context;
+	cb_context_t                     secondary_cb_contexts[CBX_NUM];
 	VkClearValue                     color_clear_value;
 	VkFormat                         swap_chain_format;
 	qboolean                         want_full_screen_exclusive;
@@ -236,12 +242,7 @@ typedef struct
 	int staging_buffer_size;
 
 	// Render passes
-	VkRenderPass          main_render_pass;
-	VkClearValue          main_clear_values[4];
-	VkRenderPassBeginInfo main_render_pass_begin_infos[2];
-	VkRenderPass          ui_render_pass;
-	VkRenderPassBeginInfo ui_render_pass_begin_info;
-	VkRenderPass          warp_render_pass;
+	VkRenderPass warp_render_pass;
 
 	// Pipelines
 	vulkan_pipeline_t        basic_alphatest_pipeline[2];
@@ -323,17 +324,14 @@ extern vulkanglobals_t vulkan_globals;
 
 //====================================================
 
-extern qboolean  r_cache_thrash; // compatability
-extern vec3_t    modelorg, r_entorigin;
-extern entity_t *currententity;
-extern int       r_visframecount; // ??? what difs?
-extern int       r_framecount;
-extern mplane_t  frustum[4];
-extern int       render_pass_index;
-extern qboolean  render_warp;
-extern qboolean  in_update_screen;
-extern qboolean  use_simd;
-extern int       render_scale;
+extern qboolean r_cache_thrash;  // compatability
+extern int      r_visframecount; // ??? what difs?
+extern int      r_framecount;
+extern mplane_t frustum[4];
+extern qboolean render_warp;
+extern qboolean in_update_screen;
+extern qboolean use_simd;
+extern int      render_scale;
 
 //
 // view origin
@@ -376,9 +374,8 @@ extern cvar_t gl_subdivide_size;
 #define OFFSET_DECAL 1
 
 // johnfitz -- rendering statistics
-extern unsigned int rs_brushpolys, rs_aliaspolys, rs_skypolys, rs_particles, rs_fogpolys;
-extern unsigned int rs_dynamiclightmaps, rs_brushpasses, rs_aliaspasses, rs_skypasses;
-extern float        rs_megatexels;
+extern atomic_uint32_t rs_brushpolys, rs_aliaspolys, rs_skypolys, rs_particles, rs_fogpolys;
+extern atomic_uint32_t rs_dynamiclightmaps, rs_brushpasses, rs_aliaspasses, rs_skypasses;
 
 extern size_t total_device_vulkan_allocation_size;
 extern size_t total_host_vulkan_allocation_size;
@@ -446,9 +443,9 @@ struct lightmap_s
 
 	// the lightmap texture data needs to be kept in
 	// main memory so texsubimage can update properly
-	byte                          *data;               //[4*LMBLOCK_WIDTH*LMBLOCK_HEIGHT];
-	byte                          *lightstyle_data[4]; //[4*LMBLOCK_WIDTH*LMBLOCK_HEIGHT];
-	uint32_t                      *surface_indices;    //[LMBLOCK_WIDTH*LMBLOCK_HEIGHT];
+	byte						  *data;               //[4*LMBLOCK_WIDTH*LMBLOCK_HEIGHT];
+	byte						  *lightstyle_data[4]; //[4*LMBLOCK_WIDTH*LMBLOCK_HEIGHT];
+	uint32_t					  *surface_indices;    //[LMBLOCK_WIDTH*LMBLOCK_HEIGHT];
 	lm_compute_workgroup_bounds_t *workgroup_bounds;   //[(LMBLOCK_WIDTH/8)*(LMBLOCK_HEIGHT/8)];
 };
 extern struct lightmap_s *lightmaps;
@@ -463,17 +460,17 @@ extern float map_fallbackalpha; // spike -- because we might want r_wateralpha t
 void   Fog_ParseServerMessage (void);
 float *Fog_GetColor (void);
 float  Fog_GetDensity (void);
-void   Fog_EnableGFog (void);
-void   Fog_DisableGFog (void);
-void   Fog_SetupFrame (void);
+void   Fog_EnableGFog (cb_context_t *cbx);
+void   Fog_DisableGFog (cb_context_t *cbx);
+void   Fog_SetupFrame (cb_context_t *cbx);
 void   Fog_NewMap (void);
 void   Fog_Init (void);
 
 void R_NewGame (void);
 
 void     R_AnimateLight (void);
-void     R_UpdateLightmaps (void);
-void     R_MarkSurfaces (void);
+void     R_UpdateLightmaps (cb_context_t *cbx);
+void     R_MarkSurfaces (task_handle_t before_mark, task_handle_t *store_efrags, task_handle_t *cull_surfaces, task_handle_t *chain_surfaces);
 qboolean R_CullBox (vec3_t emins, vec3_t emaxs);
 void     R_StoreEfrags (efrag_t **ppefrag);
 qboolean R_CullModelForEntity (entity_t *e);
@@ -481,20 +478,20 @@ void     R_RotateForEntity (float matrix[16], vec3_t origin, vec3_t angles);
 void     R_MarkLights (dlight_t *light, int num, mnode_t *node);
 
 void R_InitParticles (void);
-void R_DrawParticles (void);
+void R_DrawParticles (cb_context_t *cbx);
 void CL_RunParticles (void);
 void R_ClearParticles (void);
 
 void R_TranslatePlayerSkin (int playernum);
 void R_TranslateNewPlayerSkin (int playernum); // johnfitz -- this handles cases when the actual texture changes
-void R_UpdateWarpTextures (void);
+void R_UpdateWarpTextures (cb_context_t **cbx_ptr);
 
-void R_DrawWorld (void);
-void R_DrawAliasModel (entity_t *e);
-void R_DrawBrushModel (entity_t *e);
-void R_DrawSpriteModel (entity_t *e);
+void R_DrawWorld (cb_context_t *cbx, int texstart, int texend);
+void R_DrawAliasModel (cb_context_t *cbx, entity_t *e);
+void R_DrawBrushModel (cb_context_t *cbx, entity_t *e);
+void R_DrawSpriteModel (cb_context_t *cbx, entity_t *e);
 
-void R_DrawTextureChains_Water (qmodel_t *model, entity_t *ent, texchain_t chain);
+void R_DrawTextureChains_Water (cb_context_t *cbx, qmodel_t *model, entity_t *ent, texchain_t chain);
 
 void GL_BuildLightmaps (void);
 void GL_DeleteBModelVertexBuffer (void);
@@ -510,18 +507,18 @@ void R_BuildLightMap (msurface_t *surf, byte *dest, int stride);
 void R_RenderDynamicLightmaps (msurface_t *fa);
 void R_UploadLightmaps (void);
 
-void R_DrawWorld_ShowTris (void);
-void R_DrawBrushModel_ShowTris (entity_t *e);
-void R_DrawAliasModel_ShowTris (entity_t *e);
-void R_DrawParticles_ShowTris (void);
-void R_DrawSpriteModel_ShowTris (entity_t *e);
+void R_DrawWorld_ShowTris (cb_context_t *cbx);
+void R_DrawBrushModel_ShowTris (cb_context_t *cbx, entity_t *e);
+void R_DrawAliasModel_ShowTris (cb_context_t *cbx, entity_t *e);
+void R_DrawParticles_ShowTris (cb_context_t *cbx);
+void R_DrawSpriteModel_ShowTris (cb_context_t *cbx, entity_t *e);
 
-void DrawGLPoly (glpoly_t *p, float color[3], float alpha);
+void DrawGLPoly (cb_context_t *cbx, glpoly_t *p, float color[3], float alpha);
 void GL_MakeAliasModelDisplayLists (qmodel_t *m, aliashdr_t *hdr);
 
 void Sky_Init (void);
 void Sky_ClearAll (void);
-void Sky_DrawSky (void);
+void Sky_DrawSky (cb_context_t *cbx);
 void Sky_NewMap (void);
 void Sky_LoadTexture (texture_t *mt);
 void Sky_LoadTextureQ64 (texture_t *mt);
@@ -529,8 +526,8 @@ void Sky_LoadSkyBox (const char *name);
 
 void R_ClearTextureChains (qmodel_t *mod, texchain_t chain);
 void R_ChainSurface (msurface_t *surf, texchain_t chain);
-void R_DrawTextureChains (qmodel_t *model, entity_t *ent, texchain_t chain);
-void R_DrawWorld_Water (void);
+void R_DrawTextureChains (cb_context_t *cbx, qmodel_t *model, entity_t *ent, texchain_t chain);
+void R_DrawWorld_Water (cb_context_t *cbx);
 
 float GL_WaterAlphaForSurface (msurface_t *fa);
 
@@ -545,31 +542,30 @@ void R_DestroyPipelines ();
 
 #define MAX_PUSH_CONSTANT_SIZE 128 // Vulkan guaranteed minimum maxPushConstantsSize
 
-static inline void R_BindPipeline (VkPipelineBindPoint bind_point, vulkan_pipeline_t pipeline)
+static inline void R_BindPipeline (cb_context_t *cbx, VkPipelineBindPoint bind_point, vulkan_pipeline_t pipeline)
 {
 	static byte zeroes[MAX_PUSH_CONSTANT_SIZE];
 	assert (pipeline.handle != VK_NULL_HANDLE);
 	assert (pipeline.layout.handle != VK_NULL_HANDLE);
-	assert (vulkan_globals.current_pipeline.layout.push_constant_range.size <= MAX_PUSH_CONSTANT_SIZE);
-	if (vulkan_globals.current_pipeline.handle != pipeline.handle)
+	assert (cbx->current_pipeline.layout.push_constant_range.size <= MAX_PUSH_CONSTANT_SIZE);
+	if (cbx->current_pipeline.handle != pipeline.handle)
 	{
-		vulkan_globals.vk_cmd_bind_pipeline (vulkan_globals.command_buffer, bind_point, pipeline.handle);
+		vulkan_globals.vk_cmd_bind_pipeline (cbx->cb, bind_point, pipeline.handle);
 		if ((pipeline.layout.push_constant_range.size > 0) &&
-		    ((vulkan_globals.current_pipeline.layout.push_constant_range.stageFlags != pipeline.layout.push_constant_range.stageFlags) ||
-		     (vulkan_globals.current_pipeline.layout.push_constant_range.size != pipeline.layout.push_constant_range.size)))
+		    ((cbx->current_pipeline.layout.push_constant_range.stageFlags != pipeline.layout.push_constant_range.stageFlags) ||
+		     (cbx->current_pipeline.layout.push_constant_range.size != pipeline.layout.push_constant_range.size)))
 			vulkan_globals.vk_cmd_push_constants (
-				vulkan_globals.command_buffer, pipeline.layout.handle, pipeline.layout.push_constant_range.stageFlags, 0,
-				pipeline.layout.push_constant_range.size, zeroes);
-		vulkan_globals.current_pipeline = pipeline;
+				cbx->cb, pipeline.layout.handle, pipeline.layout.push_constant_range.stageFlags, 0, pipeline.layout.push_constant_range.size, zeroes);
+		cbx->current_pipeline = pipeline;
 	}
 }
 
-static inline void R_PushConstants (VkShaderStageFlags stage_flags, int offset, int size, const void *data)
+static inline void R_PushConstants (cb_context_t *cbx, VkShaderStageFlags stage_flags, int offset, int size, const void *data)
 {
-	vulkan_globals.vk_cmd_push_constants (vulkan_globals.command_buffer, vulkan_globals.current_pipeline.layout.handle, stage_flags, offset, size, data);
+	vulkan_globals.vk_cmd_push_constants (cbx->cb, cbx->current_pipeline.layout.handle, stage_flags, offset, size, data);
 }
 
-static inline void R_BeginDebugUtilsLabel (const char *name)
+static inline void R_BeginDebugUtilsLabel (cb_context_t *cbx, const char *name)
 {
 #ifdef _DEBUG
 	VkDebugUtilsLabelEXT label;
@@ -577,15 +573,15 @@ static inline void R_BeginDebugUtilsLabel (const char *name)
 	label.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
 	label.pLabelName = name;
 	if (vulkan_globals.vk_cmd_begin_debug_utils_label)
-		vulkan_globals.vk_cmd_begin_debug_utils_label (vulkan_globals.command_buffer, &label);
+		vulkan_globals.vk_cmd_begin_debug_utils_label (cbx->cb, &label);
 #endif
 }
 
-static inline void R_EndDebugUtilsLabel ()
+static inline void R_EndDebugUtilsLabel (cb_context_t *cbx)
 {
 #ifdef _DEBUG
 	if (vulkan_globals.vk_cmd_end_debug_utils_label)
-		vulkan_globals.vk_cmd_end_debug_utils_label (vulkan_globals.command_buffer);
+		vulkan_globals.vk_cmd_end_debug_utils_label (cbx->cb);
 #endif
 }
 
@@ -597,7 +593,7 @@ void            R_FreeDescriptorSet (VkDescriptorSet desc_set, vulkan_desc_set_l
 
 void  R_InitStagingBuffers ();
 void  R_SubmitStagingBuffers ();
-byte *R_StagingAllocate (int size, int alignment, VkCommandBuffer *command_buffer, VkBuffer *buffer, int *buffer_offset);
+byte *R_StagingAllocate (int size, int alignment, VkCommandBuffer *cb_context, VkBuffer *buffer, int *buffer_offset);
 
 void  R_InitGPUBuffers ();
 void  R_SwapDynamicBuffers ();

@@ -202,9 +202,9 @@ void R_InitParticleIndexBuffer (void)
 		Sys_Error ("vkBindBufferMemory failed");
 
 	VkBuffer        staging_buffer;
-	VkCommandBuffer command_buffer;
+	VkCommandBuffer cb_context;
 	int             staging_offset;
-	uint16_t       *staging_indices = (uint16_t *)R_StagingAllocate (particle_index_buffer_size, 1, &command_buffer, &staging_buffer, &staging_offset);
+	uint16_t       *staging_indices = (uint16_t *)R_StagingAllocate (particle_index_buffer_size, 1, &cb_context, &staging_buffer, &staging_offset);
 
 	for (int i = 0; i < r_numparticles; ++i)
 	{
@@ -220,7 +220,7 @@ void R_InitParticleIndexBuffer (void)
 	region.srcOffset = staging_offset;
 	region.dstOffset = 0;
 	region.size = particle_index_buffer_size;
-	vkCmdCopyBuffer (command_buffer, staging_buffer, particle_index_buffer, 1, &region);
+	vkCmdCopyBuffer (cb_context, staging_buffer, particle_index_buffer, 1, &region);
 }
 
 /*
@@ -906,7 +906,7 @@ void CL_RunParticles (void)
 R_DrawParticlesFaces
 ===============
 */
-static void R_DrawParticlesFaces (void)
+static void R_DrawParticlesFaces (cb_context_t *cbx)
 {
 	particle_t   *p;
 	float         scale, texcoord_scale;
@@ -1011,17 +1011,17 @@ static void R_DrawParticlesFaces (void)
 		vertices[current_vertex].color[3] = 255;
 		current_vertex++;
 
-		rs_particles++;
+		Atomic_IncrementUInt32 (&rs_particles);
 	}
 
-	vulkan_globals.vk_cmd_bind_vertex_buffers (vulkan_globals.command_buffer, 0, 1, &vertex_buffer, &vertex_buffer_offset);
+	vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 1, &vertex_buffer, &vertex_buffer_offset);
 	if (r_quadparticles.value)
 	{
-		vulkan_globals.vk_cmd_bind_index_buffer (vulkan_globals.command_buffer, particle_index_buffer, 0, VK_INDEX_TYPE_UINT16);
-		vulkan_globals.vk_cmd_draw_indexed (vulkan_globals.command_buffer, num_particles * 6, 1, 0, 0, 0);
+		vulkan_globals.vk_cmd_bind_index_buffer (cbx->cb, particle_index_buffer, 0, VK_INDEX_TYPE_UINT16);
+		vulkan_globals.vk_cmd_draw_indexed (cbx->cb, num_particles * 6, 1, 0, 0, 0);
 	}
 	else
-		vulkan_globals.vk_cmd_draw (vulkan_globals.command_buffer, num_particles * 3, 1, 0, 0);
+		vulkan_globals.vk_cmd_draw (cbx->cb, num_particles * 3, 1, 0, 0);
 }
 
 /*
@@ -1029,16 +1029,15 @@ static void R_DrawParticlesFaces (void)
 R_DrawParticles -- johnfitz -- moved all non-drawing code to CL_RunParticles
 ===============
 */
-void R_DrawParticles (void)
+void R_DrawParticles (cb_context_t *cbx)
 {
-	R_BeginDebugUtilsLabel ("Particles");
-	R_BindPipeline (VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.particle_pipeline);
+	R_BeginDebugUtilsLabel (cbx, "Particles");
+	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.particle_pipeline);
 	vulkan_globals.vk_cmd_bind_descriptor_sets (
-		vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &particletexture->descriptor_set, 0,
-		NULL);
+		cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &particletexture->descriptor_set, 0, NULL);
 
-	R_DrawParticlesFaces ();
-	R_EndDebugUtilsLabel ();
+	R_DrawParticlesFaces (cbx);
+	R_EndDebugUtilsLabel (cbx);
 }
 
 /*
@@ -1046,12 +1045,12 @@ void R_DrawParticles (void)
 R_DrawParticles_ShowTris -- johnfitz
 ===============
 */
-void R_DrawParticles_ShowTris (void)
+void R_DrawParticles_ShowTris (cb_context_t *cbx)
 {
 	if (r_showtris.value == 1)
-		R_BindPipeline (VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_pipeline);
+		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_pipeline);
 	else
-		R_BindPipeline (VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_depth_test_pipeline);
+		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_depth_test_pipeline);
 
-	R_DrawParticlesFaces ();
+	R_DrawParticlesFaces (cbx);
 }

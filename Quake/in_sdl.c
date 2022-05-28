@@ -77,7 +77,7 @@ static int SDLCALL IN_SDL2_FilterMouseEvents (void *userdata, SDL_Event *event)
 static void IN_BeginIgnoringMouseEvents (void)
 {
 	SDL_EventFilter currentFilter = NULL;
-	void           *currentUserdata = NULL;
+	void		   *currentUserdata = NULL;
 	SDL_GetEventFilter (&currentFilter, &currentUserdata);
 
 	if (currentFilter != IN_SDL2_FilterMouseEvents)
@@ -87,7 +87,7 @@ static void IN_BeginIgnoringMouseEvents (void)
 static void IN_EndIgnoringMouseEvents (void)
 {
 	SDL_EventFilter currentFilter;
-	void           *currentUserdata;
+	void		   *currentUserdata;
 	if (SDL_GetEventFilter (&currentFilter, &currentUserdata) == SDL_TRUE)
 		SDL_SetEventFilter (NULL, NULL);
 }

@@ -244,9 +244,8 @@ byte *Mod_NoVisPVS (qmodel_t *model)
 		mod_novis = (byte *)realloc (mod_novis, mod_novis_capacity);
 		if (!mod_novis)
 			Sys_Error ("Mod_NoVisPVS: realloc() failed on %d bytes", mod_novis_capacity);
-
-		memset (mod_novis, 0xff, mod_novis_capacity);
 	}
+	memset (mod_novis, 0xff, mod_novis_capacity);
 	return mod_novis;
 }
 
@@ -2478,7 +2477,7 @@ void *Mod_LoadAliasGroup (void *pin, maliasframedesc_t *frame)
 	daliasgroup_t    *pingroup;
 	int               i, numframes;
 	daliasinterval_t *pin_intervals;
-	void             *ptemp;
+	void			 *ptemp;
 
 	pingroup = (daliasgroup_t *)pin;
 
@@ -3038,8 +3037,8 @@ void *Mod_LoadSpriteGroup (void *pin, mspriteframe_t **ppframe, int framenum)
 	mspritegroup_t    *pspritegroup;
 	int                i, numframes;
 	dspriteinterval_t *pin_intervals;
-	float             *poutintervals;
-	void              *ptemp;
+	float			 *poutintervals;
+	void			  *ptemp;
 
 	pingroup = (dspritegroup_t *)pin;
 

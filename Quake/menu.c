@@ -24,7 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "bgmusic.h"
 
 void (*vid_menucmdfn) (void); // johnfitz
-void (*vid_menudrawfn) (void);
+void (*vid_menudrawfn) (cb_context_t *cbx);
 void (*vid_menukeyfn) (int key);
 
 enum m_state_e m_state;
@@ -46,22 +46,22 @@ void M_Menu_Video_f (void);
 void M_Menu_Help_f (void);
 void M_Menu_Quit_f (void);
 
-void M_Main_Draw (void);
-void M_SinglePlayer_Draw (void);
-void M_Load_Draw (void);
-void M_Save_Draw (void);
-void M_MultiPlayer_Draw (void);
-void M_Setup_Draw (void);
-void M_Net_Draw (void);
-void M_LanConfig_Draw (void);
-void M_GameOptions_Draw (void);
-void M_Search_Draw (void);
-void M_ServerList_Draw (void);
-void M_Options_Draw (void);
-void M_Keys_Draw (void);
-void M_Video_Draw (void);
-void M_Help_Draw (void);
-void M_Quit_Draw (void);
+void M_Main_Draw (cb_context_t *cbx);
+void M_SinglePlayer_Draw (cb_context_t *cbx);
+void M_Load_Draw (cb_context_t *cbx);
+void M_Save_Draw (cb_context_t *cbx);
+void M_MultiPlayer_Draw (cb_context_t *cbx);
+void M_Setup_Draw (cb_context_t *cbx);
+void M_Net_Draw (cb_context_t *cbx);
+void M_LanConfig_Draw (cb_context_t *cbx);
+void M_GameOptions_Draw (cb_context_t *cbx);
+void M_Search_Draw (cb_context_t *cbx);
+void M_ServerList_Draw (cb_context_t *cbx);
+void M_Options_Draw (cb_context_t *cbx);
+void M_Keys_Draw (cb_context_t *cbx);
+void M_Video_Draw (cb_context_t *cbx);
+void M_Help_Draw (cb_context_t *cbx);
+void M_Quit_Draw (cb_context_t *cbx);
 
 void M_Main_Key (int key);
 void M_SinglePlayer_Key (int key);
@@ -102,47 +102,47 @@ M_DrawCharacter
 Draws one solid graphics character
 ================
 */
-void M_DrawCharacter (int cx, int line, int num)
+void M_DrawCharacter (cb_context_t *cbx, int cx, int line, int num)
 {
-	Draw_Character (cx, line, num);
+	Draw_Character (cbx, cx, line, num);
 }
 
-void M_Print (int cx, int cy, const char *str)
+void M_Print (cb_context_t *cbx, int cx, int cy, const char *str)
 {
 	while (*str)
 	{
-		M_DrawCharacter (cx, cy, (*str) + 128);
+		M_DrawCharacter (cbx, cx, cy, (*str) + 128);
 		str++;
 		cx += 8;
 	}
 }
 
-void M_PrintWhite (int cx, int cy, const char *str)
+void M_PrintWhite (cb_context_t *cbx, int cx, int cy, const char *str)
 {
 	while (*str)
 	{
-		M_DrawCharacter (cx, cy, *str);
+		M_DrawCharacter (cbx, cx, cy, *str);
 		str++;
 		cx += 8;
 	}
 }
 
-void M_DrawTransPic (int x, int y, qpic_t *pic)
+void M_DrawTransPic (cb_context_t *cbx, int x, int y, qpic_t *pic)
 {
-	Draw_Pic (x, y, pic, 1.0f, false); // johnfitz -- simplified becuase centering is handled elsewhere
+	Draw_Pic (cbx, x, y, pic, 1.0f, false); // johnfitz -- simplified becuase centering is handled elsewhere
 }
 
-void M_DrawPic (int x, int y, qpic_t *pic)
+void M_DrawPic (cb_context_t *cbx, int x, int y, qpic_t *pic)
 {
-	Draw_Pic (x, y, pic, 1.0f, false); // johnfitz -- simplified becuase centering is handled elsewhere
+	Draw_Pic (cbx, x, y, pic, 1.0f, false); // johnfitz -- simplified becuase centering is handled elsewhere
 }
 
-void M_DrawTransPicTranslate (int x, int y, qpic_t *pic, int top, int bottom) // johnfitz -- more parameters
+void M_DrawTransPicTranslate (cb_context_t *cbx, int x, int y, qpic_t *pic, int top, int bottom) // johnfitz -- more parameters
 {
-	Draw_TransPicTranslate (x, y, pic, top, bottom); // johnfitz -- simplified becuase centering is handled elsewhere
+	Draw_TransPicTranslate (cbx, x, y, pic, top, bottom); // johnfitz -- simplified becuase centering is handled elsewhere
 }
 
-void M_DrawTextBox (int x, int y, int width, int lines)
+void M_DrawTextBox (cb_context_t *cbx, int x, int y, int width, int lines)
 {
 	qpic_t *p;
 	int     cx, cy;
@@ -152,15 +152,15 @@ void M_DrawTextBox (int x, int y, int width, int lines)
 	cx = x;
 	cy = y;
 	p = Draw_CachePic ("gfx/box_tl.lmp");
-	M_DrawTransPic (cx, cy, p);
+	M_DrawTransPic (cbx, cx, cy, p);
 	p = Draw_CachePic ("gfx/box_ml.lmp");
 	for (n = 0; n < lines; n++)
 	{
 		cy += 8;
-		M_DrawTransPic (cx, cy, p);
+		M_DrawTransPic (cbx, cx, cy, p);
 	}
 	p = Draw_CachePic ("gfx/box_bl.lmp");
-	M_DrawTransPic (cx, cy + 8, p);
+	M_DrawTransPic (cbx, cx, cy + 8, p);
 
 	// draw middle
 	cx += 8;
@@ -168,17 +168,17 @@ void M_DrawTextBox (int x, int y, int width, int lines)
 	{
 		cy = y;
 		p = Draw_CachePic ("gfx/box_tm.lmp");
-		M_DrawTransPic (cx, cy, p);
+		M_DrawTransPic (cbx, cx, cy, p);
 		p = Draw_CachePic ("gfx/box_mm.lmp");
 		for (n = 0; n < lines; n++)
 		{
 			cy += 8;
 			if (n == 1)
 				p = Draw_CachePic ("gfx/box_mm2.lmp");
-			M_DrawTransPic (cx, cy, p);
+			M_DrawTransPic (cbx, cx, cy, p);
 		}
 		p = Draw_CachePic ("gfx/box_bm.lmp");
-		M_DrawTransPic (cx, cy + 8, p);
+		M_DrawTransPic (cbx, cx, cy + 8, p);
 		width -= 2;
 		cx += 16;
 	}
@@ -186,15 +186,15 @@ void M_DrawTextBox (int x, int y, int width, int lines)
 	// draw right side
 	cy = y;
 	p = Draw_CachePic ("gfx/box_tr.lmp");
-	M_DrawTransPic (cx, cy, p);
+	M_DrawTransPic (cbx, cx, cy, p);
 	p = Draw_CachePic ("gfx/box_mr.lmp");
 	for (n = 0; n < lines; n++)
 	{
 		cy += 8;
-		M_DrawTransPic (cx, cy, p);
+		M_DrawTransPic (cbx, cx, cy, p);
 	}
 	p = Draw_CachePic ("gfx/box_br.lmp");
-	M_DrawTransPic (cx, cy + 8, p);
+	M_DrawTransPic (cbx, cx, cy + 8, p);
 }
 
 //=============================================================================
@@ -252,19 +252,19 @@ void M_Menu_Main_f (void)
 	m_entersound = true;
 }
 
-void M_Main_Draw (void)
+void M_Main_Draw (cb_context_t *cbx)
 {
 	int     f;
 	qpic_t *p;
 
-	M_DrawTransPic (16, 4, Draw_CachePic ("gfx/qplaque.lmp"));
+	M_DrawTransPic (cbx, 16, 4, Draw_CachePic ("gfx/qplaque.lmp"));
 	p = Draw_CachePic ("gfx/ttl_main.lmp");
-	M_DrawPic ((320 - p->width) / 2, 4, p);
-	M_DrawTransPic (72, 32, Draw_CachePic ("gfx/mainmenu.lmp"));
+	M_DrawPic (cbx, (320 - p->width) / 2, 4, p);
+	M_DrawTransPic (cbx, 72, 32, Draw_CachePic ("gfx/mainmenu.lmp"));
 
 	f = (int)(realtime * 10) % 6;
 
-	M_DrawTransPic (54, 32 + m_main_cursor * 20, Draw_CachePic (va ("gfx/menudot%i.lmp", f + 1)));
+	M_DrawTransPic (cbx, 54, 32 + m_main_cursor * 20, Draw_CachePic (va ("gfx/menudot%i.lmp", f + 1)));
 }
 
 void M_Main_Key (int key)
@@ -339,19 +339,19 @@ void M_Menu_SinglePlayer_f (void)
 	m_entersound = true;
 }
 
-void M_SinglePlayer_Draw (void)
+void M_SinglePlayer_Draw (cb_context_t *cbx)
 {
 	int     f;
 	qpic_t *p;
 
-	M_DrawTransPic (16, 4, Draw_CachePic ("gfx/qplaque.lmp"));
+	M_DrawTransPic (cbx, 16, 4, Draw_CachePic ("gfx/qplaque.lmp"));
 	p = Draw_CachePic ("gfx/ttl_sgl.lmp");
-	M_DrawPic ((320 - p->width) / 2, 4, p);
-	M_DrawTransPic (72, 32, Draw_CachePic ("gfx/sp_menu.lmp"));
+	M_DrawPic (cbx, (320 - p->width) / 2, 4, p);
+	M_DrawTransPic (cbx, 72, 32, Draw_CachePic ("gfx/sp_menu.lmp"));
 
 	f = (int)(realtime * 10) % 6;
 
-	M_DrawTransPic (54, 32 + m_singleplayer_cursor * 20, Draw_CachePic (va ("gfx/menudot%i.lmp", f + 1)));
+	M_DrawTransPic (cbx, 54, 32 + m_singleplayer_cursor * 20, Draw_CachePic (va ("gfx/menudot%i.lmp", f + 1)));
 }
 
 void M_SinglePlayer_Key (int key)
@@ -474,34 +474,34 @@ void M_Menu_Save_f (void)
 	M_ScanSaves ();
 }
 
-void M_Load_Draw (void)
+void M_Load_Draw (cb_context_t *cbx)
 {
 	int     i;
 	qpic_t *p;
 
 	p = Draw_CachePic ("gfx/p_load.lmp");
-	M_DrawPic ((320 - p->width) / 2, 4, p);
+	M_DrawPic (cbx, (320 - p->width) / 2, 4, p);
 
 	for (i = 0; i < MAX_SAVEGAMES; i++)
-		M_Print (16, 32 + 8 * i, m_filenames[i]);
+		M_Print (cbx, 16, 32 + 8 * i, m_filenames[i]);
 
 	// line cursor
-	M_DrawCharacter (8, 32 + load_cursor * 8, 12 + ((int)(realtime * 4) & 1));
+	M_DrawCharacter (cbx, 8, 32 + load_cursor * 8, 12 + ((int)(realtime * 4) & 1));
 }
 
-void M_Save_Draw (void)
+void M_Save_Draw (cb_context_t *cbx)
 {
 	int     i;
 	qpic_t *p;
 
 	p = Draw_CachePic ("gfx/p_save.lmp");
-	M_DrawPic ((320 - p->width) / 2, 4, p);
+	M_DrawPic (cbx, (320 - p->width) / 2, 4, p);
 
 	for (i = 0; i < MAX_SAVEGAMES; i++)
-		M_Print (16, 32 + 8 * i, m_filenames[i]);
+		M_Print (cbx, 16, 32 + 8 * i, m_filenames[i]);
 
 	// line cursor
-	M_DrawCharacter (8, 32 + load_cursor * 8, 12 + ((int)(realtime * 4) & 1));
+	M_DrawCharacter (cbx, 8, 32 + load_cursor * 8, 12 + ((int)(realtime * 4) & 1));
 }
 
 void M_Load_Key (int k)
@@ -599,23 +599,23 @@ void M_Menu_MultiPlayer_f (void)
 	m_entersound = true;
 }
 
-void M_MultiPlayer_Draw (void)
+void M_MultiPlayer_Draw (cb_context_t *cbx)
 {
 	int     f;
 	qpic_t *p;
 
-	M_DrawTransPic (16, 4, Draw_CachePic ("gfx/qplaque.lmp"));
+	M_DrawTransPic (cbx, 16, 4, Draw_CachePic ("gfx/qplaque.lmp"));
 	p = Draw_CachePic ("gfx/p_multi.lmp");
-	M_DrawPic ((320 - p->width) / 2, 4, p);
-	M_DrawTransPic (72, 32, Draw_CachePic ("gfx/mp_menu.lmp"));
+	M_DrawPic (cbx, (320 - p->width) / 2, 4, p);
+	M_DrawTransPic (cbx, 72, 32, Draw_CachePic ("gfx/mp_menu.lmp"));
 
 	f = (int)(realtime * 10) % 6;
 
-	M_DrawTransPic (54, 32 + m_multiplayer_cursor * 20, Draw_CachePic (va ("gfx/menudot%i.lmp", f + 1)));
+	M_DrawTransPic (cbx, 54, 32 + m_multiplayer_cursor * 20, Draw_CachePic (va ("gfx/menudot%i.lmp", f + 1)));
 
 	if (ipxAvailable || ipv4Available || ipv6Available)
 		return;
-	M_PrintWhite ((320 / 2) - ((27 * 8) / 2), 148, "No Communications Available");
+	M_PrintWhite (cbx, (320 / 2) - ((27 * 8) / 2), 148, "No Communications Available");
 }
 
 void M_MultiPlayer_Key (int key)
@@ -689,40 +689,40 @@ void M_Menu_Setup_f (void)
 	setup_bottom = setup_oldbottom = ((int)cl_color.value) & 15;
 }
 
-void M_Setup_Draw (void)
+void M_Setup_Draw (cb_context_t *cbx)
 {
 	qpic_t *p;
 
-	M_DrawTransPic (16, 4, Draw_CachePic ("gfx/qplaque.lmp"));
+	M_DrawTransPic (cbx, 16, 4, Draw_CachePic ("gfx/qplaque.lmp"));
 	p = Draw_CachePic ("gfx/p_multi.lmp");
-	M_DrawPic ((320 - p->width) / 2, 4, p);
+	M_DrawPic (cbx, (320 - p->width) / 2, 4, p);
 
-	M_Print (64, 40, "Hostname");
-	M_DrawTextBox (160, 32, 16, 1);
-	M_Print (168, 40, setup_hostname);
+	M_Print (cbx, 64, 40, "Hostname");
+	M_DrawTextBox (cbx, 160, 32, 16, 1);
+	M_Print (cbx, 168, 40, setup_hostname);
 
-	M_Print (64, 56, "Your name");
-	M_DrawTextBox (160, 48, 16, 1);
-	M_Print (168, 56, setup_myname);
+	M_Print (cbx, 64, 56, "Your name");
+	M_DrawTextBox (cbx, 160, 48, 16, 1);
+	M_Print (cbx, 168, 56, setup_myname);
 
-	M_Print (64, 80, "Shirt color");
-	M_Print (64, 104, "Pants color");
+	M_Print (cbx, 64, 80, "Shirt color");
+	M_Print (cbx, 64, 104, "Pants color");
 
-	M_DrawTextBox (64, 140 - 8, 14, 1);
-	M_Print (72, 140, "Accept Changes");
+	M_DrawTextBox (cbx, 64, 140 - 8, 14, 1);
+	M_Print (cbx, 72, 140, "Accept Changes");
 
 	p = Draw_CachePic ("gfx/bigbox.lmp");
-	M_DrawTransPic (160, 64, p);
+	M_DrawTransPic (cbx, 160, 64, p);
 	p = Draw_CachePic ("gfx/menuplyr.lmp");
-	M_DrawTransPicTranslate (172, 72, p, setup_top, setup_bottom);
+	M_DrawTransPicTranslate (cbx, 172, 72, p, setup_top, setup_bottom);
 
-	M_DrawCharacter (56, setup_cursor_table[setup_cursor], 12 + ((int)(realtime * 4) & 1));
+	M_DrawCharacter (cbx, 56, setup_cursor_table[setup_cursor], 12 + ((int)(realtime * 4) & 1));
 
 	if (setup_cursor == 0)
-		M_DrawCharacter (168 + 8 * strlen (setup_hostname), setup_cursor_table[setup_cursor], 10 + ((int)(realtime * 4) & 1));
+		M_DrawCharacter (cbx, 168 + 8 * strlen (setup_hostname), setup_cursor_table[setup_cursor], 10 + ((int)(realtime * 4) & 1));
 
 	if (setup_cursor == 1)
-		M_DrawCharacter (168 + 8 * strlen (setup_myname), setup_cursor_table[setup_cursor], 10 + ((int)(realtime * 4) & 1));
+		M_DrawCharacter (cbx, 168 + 8 * strlen (setup_myname), setup_cursor_table[setup_cursor], 10 + ((int)(realtime * 4) & 1));
 }
 
 void M_Setup_Key (int k)
@@ -869,14 +869,14 @@ void M_Menu_Net_f (void)
 	M_Net_Key (K_DOWNARROW);
 }
 
-void M_Net_Draw (void)
+void M_Net_Draw (cb_context_t *cbx)
 {
 	int     f;
 	qpic_t *p;
 
-	M_DrawTransPic (16, 4, Draw_CachePic ("gfx/qplaque.lmp"));
+	M_DrawTransPic (cbx, 16, 4, Draw_CachePic ("gfx/qplaque.lmp"));
 	p = Draw_CachePic ("gfx/p_multi.lmp");
-	M_DrawPic ((320 - p->width) / 2, 4, p);
+	M_DrawPic (cbx, (320 - p->width) / 2, 4, p);
 
 	f = 32;
 
@@ -884,25 +884,25 @@ void M_Net_Draw (void)
 		p = Draw_CachePic ("gfx/netmen3.lmp");
 	else
 		p = Draw_CachePic ("gfx/dim_ipx.lmp");
-	M_DrawTransPic (72, f, p);
+	M_DrawTransPic (cbx, 72, f, p);
 
 	f += 19;
 	if (ipv4Available || ipv6Available)
 		p = Draw_CachePic ("gfx/netmen4.lmp");
 	else
 		p = Draw_CachePic ("gfx/dim_tcp.lmp");
-	M_DrawTransPic (72, f, p);
+	M_DrawTransPic (cbx, 72, f, p);
 
 	f = (320 - 26 * 8) / 2;
-	M_DrawTextBox (f, 96, 24, 4);
+	M_DrawTextBox (cbx, f, 96, 24, 4);
 	f += 8;
-	M_Print (f, 104, net_helpMessage[m_net_cursor * 4 + 0]);
-	M_Print (f, 112, net_helpMessage[m_net_cursor * 4 + 1]);
-	M_Print (f, 120, net_helpMessage[m_net_cursor * 4 + 2]);
-	M_Print (f, 128, net_helpMessage[m_net_cursor * 4 + 3]);
+	M_Print (cbx, f, 104, net_helpMessage[m_net_cursor * 4 + 0]);
+	M_Print (cbx, f, 112, net_helpMessage[m_net_cursor * 4 + 1]);
+	M_Print (cbx, f, 120, net_helpMessage[m_net_cursor * 4 + 2]);
+	M_Print (cbx, f, 128, net_helpMessage[m_net_cursor * 4 + 3]);
 
 	f = (int)(realtime * 10) % 6;
-	M_DrawTransPic (54, 32 + m_net_cursor * 20, Draw_CachePic (va ("gfx/menudot%i.lmp", f + 1)));
+	M_DrawTransPic (cbx, 54, 32 + m_net_cursor * 20, Draw_CachePic (va ("gfx/menudot%i.lmp", f + 1)));
 }
 
 void M_Net_Key (int k)
@@ -1139,7 +1139,7 @@ void M_AdjustSliders (int dir)
 	}
 }
 
-void M_DrawSlider (int x, int y, float range)
+void M_DrawSlider (cb_context_t *cbx, int x, int y, float range)
 {
 	int i;
 
@@ -1147,124 +1147,124 @@ void M_DrawSlider (int x, int y, float range)
 		range = 0;
 	if (range > 1)
 		range = 1;
-	M_DrawCharacter (x - 8, y, 128);
+	M_DrawCharacter (cbx, x - 8, y, 128);
 	for (i = 0; i < SLIDER_RANGE; i++)
-		M_DrawCharacter (x + i * 8, y, 129);
-	M_DrawCharacter (x + i * 8, y, 130);
-	M_DrawCharacter (x + (SLIDER_RANGE - 1) * 8 * range, y, 131);
+		M_DrawCharacter (cbx, x + i * 8, y, 129);
+	M_DrawCharacter (cbx, x + i * 8, y, 130);
+	M_DrawCharacter (cbx, x + (SLIDER_RANGE - 1) * 8 * range, y, 131);
 }
 
-void M_DrawCheckbox (int x, int y, int on)
+void M_DrawCheckbox (cb_context_t *cbx, int x, int y, int on)
 {
 #if 0
 	if (on)
-		M_DrawCharacter (x, y, 131);
+		M_DrawCharacter (cbx, x, y, 131);
 	else
-		M_DrawCharacter (x, y, 129);
+		M_DrawCharacter (cbx, x, y, 129);
 #endif
 	if (on)
-		M_Print (x, y, "on");
+		M_Print (cbx, x, y, "on");
 	else
-		M_Print (x, y, "off");
+		M_Print (cbx, x, y, "off");
 }
 
-void M_Options_Draw (void)
+void M_Options_Draw (cb_context_t *cbx)
 {
 	float   r, l;
 	qpic_t *p;
 
-	M_DrawTransPic (16, 4, Draw_CachePic ("gfx/qplaque.lmp"));
+	M_DrawTransPic (cbx, 16, 4, Draw_CachePic ("gfx/qplaque.lmp"));
 	p = Draw_CachePic ("gfx/p_option.lmp");
-	M_DrawPic ((320 - p->width) / 2, 4, p);
+	M_DrawPic (cbx, (320 - p->width) / 2, 4, p);
 
 	// Draw the items in the order of the enum defined above:
 	// OPT_CUSTOMIZE:
-	M_Print (16, 32, "              Controls");
+	M_Print (cbx, 16, 32, "              Controls");
 	// OPT_CONSOLE:
-	M_Print (16, 32 + 8 * OPT_CONSOLE, "          Goto console");
+	M_Print (cbx, 16, 32 + 8 * OPT_CONSOLE, "          Goto console");
 	// OPT_DEFAULTS:
-	M_Print (16, 32 + 8 * OPT_DEFAULTS, "          Reset config");
+	M_Print (cbx, 16, 32 + 8 * OPT_DEFAULTS, "          Reset config");
 
 	// OPT_SCALE:
-	M_Print (16, 32 + 8 * OPT_SCALE, "                 Scale");
+	M_Print (cbx, 16, 32 + 8 * OPT_SCALE, "                 Scale");
 	l = scr_relativescale.value ? 2.0f : ((vid.width / 320.0) - 1);
 	r = l > 0 ? ((scr_relativescale.value ? scr_relativescale.value : scr_conscale.value) - 1) / l : 0;
-	M_DrawSlider (220, 32 + 8 * OPT_SCALE, r);
+	M_DrawSlider (cbx, 220, 32 + 8 * OPT_SCALE, r);
 
 	// OPT_SCRSIZE:
-	M_Print (16, 32 + 8 * OPT_SCRSIZE, "           Screen size");
+	M_Print (cbx, 16, 32 + 8 * OPT_SCRSIZE, "           Screen size");
 	r = (scr_viewsize.value - 30) / (120 - 30);
-	M_DrawSlider (220, 32 + 8 * OPT_SCRSIZE, r);
+	M_DrawSlider (cbx, 220, 32 + 8 * OPT_SCRSIZE, r);
 
 	// OPT_GAMMA:
-	M_Print (16, 32 + 8 * OPT_GAMMA, "            Brightness");
+	M_Print (cbx, 16, 32 + 8 * OPT_GAMMA, "            Brightness");
 	r = (1.0 - vid_gamma.value) / 0.5;
-	M_DrawSlider (220, 32 + 8 * OPT_GAMMA, r);
+	M_DrawSlider (cbx, 220, 32 + 8 * OPT_GAMMA, r);
 
 	// OPT_CONTRAST:
-	M_Print (16, 32 + 8 * OPT_CONTRAST, "              Contrast");
+	M_Print (cbx, 16, 32 + 8 * OPT_CONTRAST, "              Contrast");
 	r = vid_contrast.value - 1.0;
-	M_DrawSlider (220, 32 + 8 * OPT_CONTRAST, r);
+	M_DrawSlider (cbx, 220, 32 + 8 * OPT_CONTRAST, r);
 
 	// OPT_MOUSESPEED:
-	M_Print (16, 32 + 8 * OPT_MOUSESPEED, "           Mouse Speed");
+	M_Print (cbx, 16, 32 + 8 * OPT_MOUSESPEED, "           Mouse Speed");
 	r = (sensitivity.value - 1) / 10;
-	M_DrawSlider (220, 32 + 8 * OPT_MOUSESPEED, r);
+	M_DrawSlider (cbx, 220, 32 + 8 * OPT_MOUSESPEED, r);
 
 	// OPT_SBALPHA:
-	M_Print (16, 32 + 8 * OPT_SBALPHA, "       Statusbar alpha");
+	M_Print (cbx, 16, 32 + 8 * OPT_SBALPHA, "       Statusbar alpha");
 	r = (1.0 - scr_sbaralpha.value); // scr_sbaralpha range is 1.0 to 0.0
-	M_DrawSlider (220, 32 + 8 * OPT_SBALPHA, r);
+	M_DrawSlider (cbx, 220, 32 + 8 * OPT_SBALPHA, r);
 
 	// OPT_SNDVOL:
-	M_Print (16, 32 + 8 * OPT_SNDVOL, "          Sound Volume");
+	M_Print (cbx, 16, 32 + 8 * OPT_SNDVOL, "          Sound Volume");
 	r = sfxvolume.value;
-	M_DrawSlider (220, 32 + 8 * OPT_SNDVOL, r);
+	M_DrawSlider (cbx, 220, 32 + 8 * OPT_SNDVOL, r);
 
 	// OPT_MUSICVOL:
-	M_Print (16, 32 + 8 * OPT_MUSICVOL, "          Music Volume");
+	M_Print (cbx, 16, 32 + 8 * OPT_MUSICVOL, "          Music Volume");
 	r = bgmvolume.value;
-	M_DrawSlider (220, 32 + 8 * OPT_MUSICVOL, r);
+	M_DrawSlider (cbx, 220, 32 + 8 * OPT_MUSICVOL, r);
 
 	// OPT_MUSICEXT:
-	M_Print (16, 32 + 8 * OPT_MUSICEXT, "        External Music");
-	M_DrawCheckbox (220, 32 + 8 * OPT_MUSICEXT, bgm_extmusic.value);
+	M_Print (cbx, 16, 32 + 8 * OPT_MUSICEXT, "        External Music");
+	M_DrawCheckbox (cbx, 220, 32 + 8 * OPT_MUSICEXT, bgm_extmusic.value);
 
 	// OPT_ALWAYRUN:
-	M_Print (16, 32 + 8 * OPT_ALWAYRUN, "            Always Run");
+	M_Print (cbx, 16, 32 + 8 * OPT_ALWAYRUN, "            Always Run");
 	if (cl_alwaysrun.value)
-		M_Print (220, 32 + 8 * OPT_ALWAYRUN, "quakespasm");
+		M_Print (cbx, 220, 32 + 8 * OPT_ALWAYRUN, "quakespasm");
 	else if (cl_forwardspeed.value > 200.0)
-		M_Print (220, 32 + 8 * OPT_ALWAYRUN, "vanilla");
+		M_Print (cbx, 220, 32 + 8 * OPT_ALWAYRUN, "vanilla");
 	else
-		M_Print (220, 32 + 8 * OPT_ALWAYRUN, "off");
+		M_Print (cbx, 220, 32 + 8 * OPT_ALWAYRUN, "off");
 
 	// OPT_INVMOUSE:
-	M_Print (16, 32 + 8 * OPT_INVMOUSE, "          Invert Mouse");
-	M_DrawCheckbox (220, 32 + 8 * OPT_INVMOUSE, m_pitch.value < 0);
+	M_Print (cbx, 16, 32 + 8 * OPT_INVMOUSE, "          Invert Mouse");
+	M_DrawCheckbox (cbx, 220, 32 + 8 * OPT_INVMOUSE, m_pitch.value < 0);
 
 	// OPT_ALWAYSMLOOK:
-	M_Print (16, 32 + 8 * OPT_ALWAYSMLOOK, "            Mouse Look");
-	M_DrawCheckbox (220, 32 + 8 * OPT_ALWAYSMLOOK, in_mlook.state & 1);
+	M_Print (cbx, 16, 32 + 8 * OPT_ALWAYSMLOOK, "            Mouse Look");
+	M_DrawCheckbox (cbx, 220, 32 + 8 * OPT_ALWAYSMLOOK, in_mlook.state & 1);
 
 	// OPT_LOOKSPRING:
-	M_Print (16, 32 + 8 * OPT_LOOKSPRING, "            Lookspring");
-	M_DrawCheckbox (220, 32 + 8 * OPT_LOOKSPRING, lookspring.value);
+	M_Print (cbx, 16, 32 + 8 * OPT_LOOKSPRING, "            Lookspring");
+	M_DrawCheckbox (cbx, 220, 32 + 8 * OPT_LOOKSPRING, lookspring.value);
 
 	// OPT_LOOKSTRAFE:
-	M_Print (16, 32 + 8 * OPT_LOOKSTRAFE, "            Lookstrafe");
-	M_DrawCheckbox (220, 32 + 8 * OPT_LOOKSTRAFE, lookstrafe.value);
+	M_Print (cbx, 16, 32 + 8 * OPT_LOOKSTRAFE, "            Lookstrafe");
+	M_DrawCheckbox (cbx, 220, 32 + 8 * OPT_LOOKSTRAFE, lookstrafe.value);
 
 	// OPT_CROSSHAIR:
-	M_Print (16, 32 + 8 * OPT_CROSSHAIR, "             Crosshair");
-	M_Print (220, 32 + 8 * OPT_CROSSHAIR, (crosshair.value == 0.0f) ? "off" : ((crosshair.value == 1.0f) ? "cross" : "dot"));
+	M_Print (cbx, 16, 32 + 8 * OPT_CROSSHAIR, "             Crosshair");
+	M_Print (cbx, 220, 32 + 8 * OPT_CROSSHAIR, (crosshair.value == 0.0f) ? "off" : ((crosshair.value == 1.0f) ? "cross" : "dot"));
 
 	// OPT_VIDEO:
 	if (vid_menudrawfn)
-		M_Print (16, 32 + 8 * OPT_VIDEO, "         Video Options");
+		M_Print (cbx, 16, 32 + 8 * OPT_VIDEO, "         Video Options");
 
 	// cursor
-	M_DrawCharacter (200, 32 + options_cursor * 8, 12 + ((int)(realtime * 4) & 1));
+	M_DrawCharacter (cbx, 200, 32 + options_cursor * 8, 12 + ((int)(realtime * 4) & 1));
 }
 
 void M_Options_Key (int k)
@@ -1408,7 +1408,7 @@ void M_UnbindCommand (const char *command)
 
 extern qpic_t *pic_up, *pic_down;
 
-void M_Keys_Draw (void)
+void M_Keys_Draw (cb_context_t *cbx)
 {
 	int         i, x, y;
 	int         keys[3];
@@ -1416,50 +1416,50 @@ void M_Keys_Draw (void)
 	qpic_t     *p;
 
 	p = Draw_CachePic ("gfx/ttl_cstm.lmp");
-	M_DrawPic ((320 - p->width) / 2, 4, p);
+	M_DrawPic (cbx, (320 - p->width) / 2, 4, p);
 
 	if (bind_grab)
-		M_Print (12, 32, "Press a key or button for this action");
+		M_Print (cbx, 12, 32, "Press a key or button for this action");
 	else
-		M_Print (18, 32, "Enter to change, backspace to clear");
+		M_Print (cbx, 18, 32, "Enter to change, backspace to clear");
 
 	// search for known bindings
 	for (i = 0; i < (int)NUMCOMMANDS; i++)
 	{
 		y = 48 + 8 * i;
 
-		M_Print (16, y, bindnames[i][1]);
+		M_Print (cbx, 16, y, bindnames[i][1]);
 
 		M_FindKeysForCommand (bindnames[i][0], keys);
 
 		if (keys[0] == -1)
 		{
-			M_Print (140, y, "???");
+			M_Print (cbx, 140, y, "???");
 		}
 		else
 		{
 			name = Key_KeynumToString (keys[0]);
-			M_Print (140, y, name);
+			M_Print (cbx, 140, y, name);
 			x = strlen (name) * 8;
 			if (keys[1] != -1)
 			{
 				name = Key_KeynumToString (keys[1]);
-				M_Print (140 + x + 8, y, "or");
-				M_Print (140 + x + 32, y, name);
+				M_Print (cbx, 140 + x + 8, y, "or");
+				M_Print (cbx, 140 + x + 32, y, name);
 				x = x + 32 + strlen (name) * 8;
 				if (keys[2] != -1)
 				{
-					M_Print (140 + x + 8, y, "or");
-					M_Print (140 + x + 32, y, Key_KeynumToString (keys[2]));
+					M_Print (cbx, 140 + x + 8, y, "or");
+					M_Print (cbx, 140 + x + 32, y, Key_KeynumToString (keys[2]));
 				}
 			}
 		}
 	}
 
 	if (bind_grab)
-		M_DrawCharacter (130, 48 + keys_cursor * 8, '=');
+		M_DrawCharacter (cbx, 130, 48 + keys_cursor * 8, '=');
 	else
-		M_DrawCharacter (130, 48 + keys_cursor * 8, 12 + ((int)(realtime * 4) & 1));
+		M_DrawCharacter (cbx, 130, 48 + keys_cursor * 8, 12 + ((int)(realtime * 4) & 1));
 }
 
 void M_Keys_Key (int k)
@@ -1531,9 +1531,9 @@ void M_Menu_Video_f (void)
 	(*vid_menucmdfn) (); // johnfitz
 }
 
-void M_Video_Draw (void)
+void M_Video_Draw (cb_context_t *cbx)
 {
-	(*vid_menudrawfn) ();
+	(*vid_menudrawfn) (cbx);
 }
 
 void M_Video_Key (int key)
@@ -1556,9 +1556,9 @@ void M_Menu_Help_f (void)
 	help_page = 0;
 }
 
-void M_Help_Draw (void)
+void M_Help_Draw (cb_context_t *cbx)
 {
-	M_DrawPic (0, 0, Draw_CachePic (va ("gfx/help%i.lmp", help_page)));
+	M_DrawPic (cbx, 0, 0, Draw_CachePic (va ("gfx/help%i.lmp", help_page)));
 }
 
 void M_Help_Key (int key)
@@ -1660,7 +1660,7 @@ qboolean M_Quit_TextEntry (void)
 	return true;
 }
 
-void M_Quit_Draw (void) // johnfitz -- modified for new quit message
+void M_Quit_Draw (cb_context_t *cbx) // johnfitz -- modified for new quit message
 {
 	char msg1[40];
 	char msg2[] = "by Axel Gneiting"; /* msg2/msg3 are mostly [40] */
@@ -1671,7 +1671,7 @@ void M_Quit_Draw (void) // johnfitz -- modified for new quit message
 	{
 		m_state = m_quit_prevstate;
 		m_recursiveDraw = true;
-		M_Draw ();
+		M_Draw (cbx);
 		m_state = m_quit;
 	}
 
@@ -1683,12 +1683,12 @@ void M_Quit_Draw (void) // johnfitz -- modified for new quit message
 	boxlen = q_max (strlen (msg1), q_max ((sizeof (msg2) - 1), (sizeof (msg3) - 1))) + 1;
 	if (boxlen & 1)
 		boxlen++;
-	M_DrawTextBox (160 - 4 * (boxlen + 2), 76, boxlen, 4);
+	M_DrawTextBox (cbx, 160 - 4 * (boxlen + 2), 76, boxlen, 4);
 
 	// now do the text
-	M_Print (160 - 4 * strlen (msg1), 88, msg1);
-	M_Print (160 - 4 * (sizeof (msg2) - 1), 96, msg2);
-	M_PrintWhite (160 - 4 * (sizeof (msg3) - 1), 104, msg3);
+	M_Print (cbx, 160 - 4 * strlen (msg1), 88, msg1);
+	M_Print (cbx, 160 - 4 * (sizeof (msg2) - 1), 96, msg2);
+	M_PrintWhite (cbx, 160 - 4 * (sizeof (msg3) - 1), 104, msg3);
 }
 
 //=============================================================================
@@ -1724,7 +1724,7 @@ void M_Menu_LanConfig_f (void)
 	m_return_reason[0] = 0;
 }
 
-void M_LanConfig_Draw (void)
+void M_LanConfig_Draw (cb_context_t *cbx)
 {
 	qpic_t     *p;
 	int         basex;
@@ -1734,10 +1734,10 @@ void M_LanConfig_Draw (void)
 	const char *startJoin;
 	const char *protocol;
 
-	M_DrawTransPic (16, 4, Draw_CachePic ("gfx/qplaque.lmp"));
+	M_DrawTransPic (cbx, 16, 4, Draw_CachePic ("gfx/qplaque.lmp"));
 	p = Draw_CachePic ("gfx/p_multi.lmp");
 	basex = (320 - p->width) / 2;
-	M_DrawPic (basex, 4, p);
+	M_DrawPic (cbx, basex, 4, p);
 
 	basex = 72;
 
@@ -1749,69 +1749,69 @@ void M_LanConfig_Draw (void)
 		protocol = "IPX";
 	else
 		protocol = "TCP/IP";
-	M_Print (basex, 32, va ("%s - %s", startJoin, protocol));
+	M_Print (cbx, basex, 32, va ("%s - %s", startJoin, protocol));
 	basex += 8;
 
 	y = 52;
-	M_Print (basex, y, "Address:");
+	M_Print (cbx, basex, y, "Address:");
 	numaddresses = NET_ListAddresses (addresses, sizeof (addresses) / sizeof (addresses[0]));
 	if (!numaddresses)
 	{
-		M_Print (basex + 9 * 8, y, "NONE KNOWN");
+		M_Print (cbx, basex + 9 * 8, y, "NONE KNOWN");
 		y += 8;
 	}
 	else
 		for (i = 0; i < numaddresses; i++)
 		{
-			M_Print (basex + 9 * 8, y, addresses[i]);
+			M_Print (cbx, basex + 9 * 8, y, addresses[i]);
 			y += 8;
 		}
 
 	y += 8; // for the port's box
-	M_Print (basex, y, "Port");
-	M_DrawTextBox (basex + 8 * 8, y - 8, 6, 1);
-	M_Print (basex + 9 * 8, y, lanConfig_portname);
+	M_Print (cbx, basex, y, "Port");
+	M_DrawTextBox (cbx, basex + 8 * 8, y - 8, 6, 1);
+	M_Print (cbx, basex + 9 * 8, y, lanConfig_portname);
 	if (lanConfig_cursor == 0)
 	{
-		M_DrawCharacter (basex + 9 * 8 + 8 * strlen (lanConfig_portname), y, 10 + ((int)(realtime * 4) & 1));
-		M_DrawCharacter (basex - 8, y, 12 + ((int)(realtime * 4) & 1));
+		M_DrawCharacter (cbx, basex + 9 * 8 + 8 * strlen (lanConfig_portname), y, 10 + ((int)(realtime * 4) & 1));
+		M_DrawCharacter (cbx, basex - 8, y, 12 + ((int)(realtime * 4) & 1));
 	}
 	y += 20;
 
 	if (JoiningGame)
 	{
-		M_Print (basex, y, "Search for local games...");
+		M_Print (cbx, basex, y, "Search for local games...");
 		if (lanConfig_cursor == 1)
-			M_DrawCharacter (basex - 8, y, 12 + ((int)(realtime * 4) & 1));
+			M_DrawCharacter (cbx, basex - 8, y, 12 + ((int)(realtime * 4) & 1));
 		y += 8;
 
-		M_Print (basex, y, "Search for public games...");
+		M_Print (cbx, basex, y, "Search for public games...");
 		if (lanConfig_cursor == 2)
-			M_DrawCharacter (basex - 8, y, 12 + ((int)(realtime * 4) & 1));
+			M_DrawCharacter (cbx, basex - 8, y, 12 + ((int)(realtime * 4) & 1));
 		y += 8;
 
-		M_Print (basex, y, "Join game at:");
+		M_Print (cbx, basex, y, "Join game at:");
 		y += 24;
-		M_DrawTextBox (basex + 8, y - 8, 22, 1);
-		M_Print (basex + 16, y, lanConfig_joinname);
+		M_DrawTextBox (cbx, basex + 8, y - 8, 22, 1);
+		M_Print (cbx, basex + 16, y, lanConfig_joinname);
 		if (lanConfig_cursor == 3)
 		{
-			M_DrawCharacter (basex + 16 + 8 * strlen (lanConfig_joinname), y, 10 + ((int)(realtime * 4) & 1));
-			M_DrawCharacter (basex - 8, y, 12 + ((int)(realtime * 4) & 1));
+			M_DrawCharacter (cbx, basex + 16 + 8 * strlen (lanConfig_joinname), y, 10 + ((int)(realtime * 4) & 1));
+			M_DrawCharacter (cbx, basex - 8, y, 12 + ((int)(realtime * 4) & 1));
 		}
 		y += 16;
 	}
 	else
 	{
-		M_DrawTextBox (basex, y - 8, 2, 1);
-		M_Print (basex + 8, y, "OK");
+		M_DrawTextBox (cbx, basex, y - 8, 2, 1);
+		M_Print (cbx, basex + 8, y, "OK");
 		if (lanConfig_cursor == 1)
-			M_DrawCharacter (basex - 8, y, 12 + ((int)(realtime * 4) & 1));
+			M_DrawCharacter (cbx, basex - 8, y, 12 + ((int)(realtime * 4) & 1));
 		y += 16;
 	}
 
 	if (*m_return_reason)
-		M_PrintWhite (basex, 148, m_return_reason);
+		M_PrintWhite (cbx, basex, 148, m_return_reason);
 }
 
 void M_LanConfig_Key (int key)
@@ -2066,28 +2066,28 @@ int gameoptions_cursor_table[] = {40, 56, 64, 72, 80, 88, 96, 112, 120};
 #define NUM_GAMEOPTIONS 9
 int gameoptions_cursor;
 
-void M_GameOptions_Draw (void)
+void M_GameOptions_Draw (cb_context_t *cbx)
 {
 	qpic_t *p;
 	int     x;
 
-	M_DrawTransPic (16, 4, Draw_CachePic ("gfx/qplaque.lmp"));
+	M_DrawTransPic (cbx, 16, 4, Draw_CachePic ("gfx/qplaque.lmp"));
 	p = Draw_CachePic ("gfx/p_multi.lmp");
-	M_DrawPic ((320 - p->width) / 2, 4, p);
+	M_DrawPic (cbx, (320 - p->width) / 2, 4, p);
 
-	M_DrawTextBox (152, 32, 10, 1);
-	M_Print (160, 40, "begin game");
+	M_DrawTextBox (cbx, 152, 32, 10, 1);
+	M_Print (cbx, 160, 40, "begin game");
 
-	M_Print (0, 56, "      Max players");
-	M_Print (160, 56, va ("%i", maxplayers));
+	M_Print (cbx, 0, 56, "      Max players");
+	M_Print (cbx, 160, 56, va ("%i", maxplayers));
 
-	M_Print (0, 64, "        Game Type");
+	M_Print (cbx, 0, 64, "        Game Type");
 	if (coop.value)
-		M_Print (160, 64, "Cooperative");
+		M_Print (cbx, 160, 64, "Cooperative");
 	else
-		M_Print (160, 64, "Deathmatch");
+		M_Print (cbx, 160, 64, "Deathmatch");
 
-	M_Print (0, 72, "        Teamplay");
+	M_Print (cbx, 0, 72, "        Teamplay");
 	if (rogue)
 	{
 		const char *msg;
@@ -2116,7 +2116,7 @@ void M_GameOptions_Draw (void)
 			msg = "Off";
 			break;
 		}
-		M_Print (160, 72, msg);
+		M_Print (cbx, 160, 72, msg);
 	}
 	else
 	{
@@ -2134,74 +2134,74 @@ void M_GameOptions_Draw (void)
 			msg = "Off";
 			break;
 		}
-		M_Print (160, 72, msg);
+		M_Print (cbx, 160, 72, msg);
 	}
 
-	M_Print (0, 80, "            Skill");
+	M_Print (cbx, 0, 80, "            Skill");
 	if (skill.value == 0)
-		M_Print (160, 80, "Easy difficulty");
+		M_Print (cbx, 160, 80, "Easy difficulty");
 	else if (skill.value == 1)
-		M_Print (160, 80, "Normal difficulty");
+		M_Print (cbx, 160, 80, "Normal difficulty");
 	else if (skill.value == 2)
-		M_Print (160, 80, "Hard difficulty");
+		M_Print (cbx, 160, 80, "Hard difficulty");
 	else
-		M_Print (160, 80, "Nightmare difficulty");
+		M_Print (cbx, 160, 80, "Nightmare difficulty");
 
-	M_Print (0, 88, "       Frag Limit");
+	M_Print (cbx, 0, 88, "       Frag Limit");
 	if (fraglimit.value == 0)
-		M_Print (160, 88, "none");
+		M_Print (cbx, 160, 88, "none");
 	else
-		M_Print (160, 88, va ("%i frags", (int)fraglimit.value));
+		M_Print (cbx, 160, 88, va ("%i frags", (int)fraglimit.value));
 
-	M_Print (0, 96, "       Time Limit");
+	M_Print (cbx, 0, 96, "       Time Limit");
 	if (timelimit.value == 0)
-		M_Print (160, 96, "none");
+		M_Print (cbx, 160, 96, "none");
 	else
-		M_Print (160, 96, va ("%i minutes", (int)timelimit.value));
+		M_Print (cbx, 160, 96, va ("%i minutes", (int)timelimit.value));
 
-	M_Print (0, 112, "         Episode");
+	M_Print (cbx, 0, 112, "         Episode");
 	// MED 01/06/97 added hipnotic episodes
 	if (hipnotic)
-		M_Print (160, 112, hipnoticepisodes[startepisode].description);
+		M_Print (cbx, 160, 112, hipnoticepisodes[startepisode].description);
 	// PGM 01/07/97 added rogue episodes
 	else if (rogue)
-		M_Print (160, 112, rogueepisodes[startepisode].description);
+		M_Print (cbx, 160, 112, rogueepisodes[startepisode].description);
 	else
-		M_Print (160, 112, episodes[startepisode].description);
+		M_Print (cbx, 160, 112, episodes[startepisode].description);
 
-	M_Print (0, 120, "           Level");
+	M_Print (cbx, 0, 120, "           Level");
 	// MED 01/06/97 added hipnotic episodes
 	if (hipnotic)
 	{
-		M_Print (160, 120, hipnoticlevels[hipnoticepisodes[startepisode].firstLevel + startlevel].description);
-		M_Print (160, 128, hipnoticlevels[hipnoticepisodes[startepisode].firstLevel + startlevel].name);
+		M_Print (cbx, 160, 120, hipnoticlevels[hipnoticepisodes[startepisode].firstLevel + startlevel].description);
+		M_Print (cbx, 160, 128, hipnoticlevels[hipnoticepisodes[startepisode].firstLevel + startlevel].name);
 	}
 	// PGM 01/07/97 added rogue episodes
 	else if (rogue)
 	{
-		M_Print (160, 120, roguelevels[rogueepisodes[startepisode].firstLevel + startlevel].description);
-		M_Print (160, 128, roguelevels[rogueepisodes[startepisode].firstLevel + startlevel].name);
+		M_Print (cbx, 160, 120, roguelevels[rogueepisodes[startepisode].firstLevel + startlevel].description);
+		M_Print (cbx, 160, 128, roguelevels[rogueepisodes[startepisode].firstLevel + startlevel].name);
 	}
 	else
 	{
-		M_Print (160, 120, levels[episodes[startepisode].firstLevel + startlevel].description);
-		M_Print (160, 128, levels[episodes[startepisode].firstLevel + startlevel].name);
+		M_Print (cbx, 160, 120, levels[episodes[startepisode].firstLevel + startlevel].description);
+		M_Print (cbx, 160, 128, levels[episodes[startepisode].firstLevel + startlevel].name);
 	}
 
 	// line cursor
-	M_DrawCharacter (144, gameoptions_cursor_table[gameoptions_cursor], 12 + ((int)(realtime * 4) & 1));
+	M_DrawCharacter (cbx, 144, gameoptions_cursor_table[gameoptions_cursor], 12 + ((int)(realtime * 4) & 1));
 
 	if (m_serverInfoMessage)
 	{
 		if ((realtime - m_serverInfoMessageTime) < 5.0)
 		{
 			x = (320 - 26 * 8) / 2;
-			M_DrawTextBox (x, 138, 24, 4);
+			M_DrawTextBox (cbx, x, 138, 24, 4);
 			x += 8;
-			M_Print (x, 146, "  More than 4 players   ");
-			M_Print (x, 154, " requires using command ");
-			M_Print (x, 162, "line parameters; please ");
-			M_Print (x, 170, "   see techinfo.txt.    ");
+			M_Print (cbx, x, 146, "  More than 4 players   ");
+			M_Print (cbx, x, 154, " requires using command ");
+			M_Print (cbx, x, 162, "line parameters; please ");
+			M_Print (cbx, x, 170, "   see techinfo.txt.    ");
 		}
 		else
 		{
@@ -2396,16 +2396,16 @@ void M_Menu_Search_f (enum slistScope_e scope)
 	NET_Slist_f ();
 }
 
-void M_Search_Draw (void)
+void M_Search_Draw (cb_context_t *cbx)
 {
 	qpic_t *p;
 	int     x;
 
 	p = Draw_CachePic ("gfx/p_multi.lmp");
-	M_DrawPic ((320 - p->width) / 2, 4, p);
+	M_DrawPic (cbx, (320 - p->width) / 2, 4, p);
 	x = (320 / 2) - ((12 * 8) / 2) + 4;
-	M_DrawTextBox (x - 8, 32, 12, 1);
-	M_Print (x, 40, "Searching...");
+	M_DrawTextBox (cbx, x - 8, 32, 12, 1);
+	M_Print (cbx, x, 40, "Searching...");
 
 	if (slistInProgress)
 	{
@@ -2425,7 +2425,7 @@ void M_Search_Draw (void)
 		return;
 	}
 
-	M_PrintWhite ((320 / 2) - ((22 * 8) / 2), 64, "No Quake servers found");
+	M_PrintWhite (cbx, (320 / 2) - ((22 * 8) / 2), 64, "No Quake servers found");
 	if ((realtime - searchCompleteTime) < 3.0)
 		return;
 
@@ -2454,7 +2454,7 @@ void M_Menu_ServerList_f (void)
 	slist_sorted = false;
 }
 
-void M_ServerList_Draw (void)
+void M_ServerList_Draw (cb_context_t *cbx)
 {
 	size_t  n, slist_shown;
 	qpic_t *p;
@@ -2474,13 +2474,13 @@ void M_ServerList_Draw (void)
 		slist_first = slist_cursor;
 
 	p = Draw_CachePic ("gfx/p_multi.lmp");
-	M_DrawPic ((320 - p->width) / 2, 4, p);
+	M_DrawPic (cbx, (320 - p->width) / 2, 4, p);
 	for (n = 0; n < slist_shown; n++)
-		M_Print (16, 32 + 8 * n, NET_SlistPrintServer (slist_first + n));
-	M_DrawCharacter (0, 32 + (slist_cursor - slist_first) * 8, 12 + ((int)(realtime * 4) & 1));
+		M_Print (cbx, 16, 32 + 8 * n, NET_SlistPrintServer (slist_first + n));
+	M_DrawCharacter (cbx, 0, 32 + (slist_cursor - slist_first) * 8, 12 + ((int)(realtime * 4) & 1));
 
 	if (*m_return_reason)
-		M_PrintWhite (16, 148, m_return_reason);
+		M_PrintWhite (cbx, 16, 148, m_return_reason);
 }
 
 void M_ServerList_Key (int k)
@@ -2556,7 +2556,7 @@ void M_Init (void)
 	Cmd_AddCommand ("menu_credits", M_Menu_Credits_f); // needed by the 2021 re-release
 }
 
-void M_Draw (void)
+void M_Draw (cb_context_t *cbx)
 {
 	if (m_state == m_none || key_dest != key_menu)
 		return;
@@ -2565,18 +2565,18 @@ void M_Draw (void)
 	{
 		if (scr_con_current)
 		{
-			Draw_ConsoleBackground ();
+			Draw_ConsoleBackground (cbx);
 			S_ExtraUpdate ();
 		}
 
-		Draw_FadeScreen (); // johnfitz -- fade even if console fills screen
+		Draw_FadeScreen (cbx); // johnfitz -- fade even if console fills screen
 	}
 	else
 	{
 		m_recursiveDraw = false;
 	}
 
-	GL_SetCanvas (CANVAS_MENU); // johnfitz
+	GL_SetCanvas (cbx, CANVAS_MENU); // johnfitz
 
 	switch (m_state)
 	{
@@ -2584,47 +2584,47 @@ void M_Draw (void)
 		break;
 
 	case m_main:
-		M_Main_Draw ();
+		M_Main_Draw (cbx);
 		break;
 
 	case m_singleplayer:
-		M_SinglePlayer_Draw ();
+		M_SinglePlayer_Draw (cbx);
 		break;
 
 	case m_load:
-		M_Load_Draw ();
+		M_Load_Draw (cbx);
 		break;
 
 	case m_save:
-		M_Save_Draw ();
+		M_Save_Draw (cbx);
 		break;
 
 	case m_multiplayer:
-		M_MultiPlayer_Draw ();
+		M_MultiPlayer_Draw (cbx);
 		break;
 
 	case m_setup:
-		M_Setup_Draw ();
+		M_Setup_Draw (cbx);
 		break;
 
 	case m_net:
-		M_Net_Draw ();
+		M_Net_Draw (cbx);
 		break;
 
 	case m_options:
-		M_Options_Draw ();
+		M_Options_Draw (cbx);
 		break;
 
 	case m_keys:
-		M_Keys_Draw ();
+		M_Keys_Draw (cbx);
 		break;
 
 	case m_video:
-		M_Video_Draw ();
+		M_Video_Draw (cbx);
 		break;
 
 	case m_help:
-		M_Help_Draw ();
+		M_Help_Draw (cbx);
 		break;
 
 	case m_quit:
@@ -2634,23 +2634,23 @@ void M_Draw (void)
 			key_dest = key_console;
 			Host_Quit_f ();
 		}
-		M_Quit_Draw ();
+		M_Quit_Draw (cbx);
 		break;
 
 	case m_lanconfig:
-		M_LanConfig_Draw ();
+		M_LanConfig_Draw (cbx);
 		break;
 
 	case m_gameoptions:
-		M_GameOptions_Draw ();
+		M_GameOptions_Draw (cbx);
 		break;
 
 	case m_search:
-		M_Search_Draw ();
+		M_Search_Draw (cbx);
 		break;
 
 	case m_slist:
-		M_ServerList_Draw ();
+		M_ServerList_Draw (cbx);
 		break;
 	}
 

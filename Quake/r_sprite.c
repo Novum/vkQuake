@@ -89,7 +89,7 @@ static void R_CreateSpriteVertices (entity_t *e, mspriteframe_t *frame, basicver
 	float     *s_up, *s_right;
 	float      angle, sr, cr;
 
-	psprite = (msprite_t *)currententity->model->cache.data;
+	psprite = (msprite_t *)e->model->cache.data;
 
 	switch (psprite->type)
 	{
@@ -101,7 +101,7 @@ static void R_CreateSpriteVertices (entity_t *e, mspriteframe_t *frame, basicver
 		s_right = vright;
 		break;
 	case SPR_FACING_UPRIGHT: // faces camera origin, up is towards the heavens
-		VectorSubtract (currententity->origin, r_origin, v_forward);
+		VectorSubtract (e->origin, r_origin, v_forward);
 		v_forward[2] = 0;
 		VectorNormalizeFast (v_forward);
 		v_right[0] = v_forward[1];
@@ -118,12 +118,12 @@ static void R_CreateSpriteVertices (entity_t *e, mspriteframe_t *frame, basicver
 		s_right = vright;
 		break;
 	case SPR_ORIENTED: // pitch yaw roll are independent of camera
-		AngleVectors (currententity->angles, v_forward, v_right, v_up);
+		AngleVectors (e->angles, v_forward, v_right, v_up);
 		s_up = v_up;
 		s_right = v_right;
 		break;
 	case SPR_VP_PARALLEL_ORIENTED: // faces view plane, but obeys roll value
-		angle = currententity->angles[ROLL] * M_PI_DIV_180;
+		angle = e->angles[ROLL] * M_PI_DIV_180;
 		sr = sin (angle);
 		cr = cos (angle);
 		v_right[0] = vright[0] * cr + vup[0] * sr;
@@ -179,7 +179,7 @@ static void R_CreateSpriteVertices (entity_t *e, mspriteframe_t *frame, basicver
 R_DrawSpriteModel -- johnfitz -- rewritten: now supports all orientations
 =================
 */
-void R_DrawSpriteModel (entity_t *e)
+void R_DrawSpriteModel (cb_context_t *cbx, entity_t *e)
 {
 	VkBuffer        buffer;
 	VkDeviceSize    buffer_offset;
@@ -189,21 +189,20 @@ void R_DrawSpriteModel (entity_t *e)
 
 	R_CreateSpriteVertices (e, frame, vertices);
 
-	vkCmdBindVertexBuffers (vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
-	vkCmdBindIndexBuffer (vulkan_globals.command_buffer, vulkan_globals.fan_index_buffer, 0, VK_INDEX_TYPE_UINT16);
+	vkCmdBindVertexBuffers (cbx->cb, 0, 1, &buffer, &buffer_offset);
+	vkCmdBindIndexBuffer (cbx->cb, vulkan_globals.fan_index_buffer, 0, VK_INDEX_TYPE_UINT16);
 
-	R_BindPipeline (VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sprite_pipeline);
+	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sprite_pipeline);
 
-	psprite = (msprite_t *)currententity->model->cache.data;
+	psprite = (msprite_t *)e->model->cache.data;
 	if (psprite->type == SPR_ORIENTED)
-		vkCmdSetDepthBias (vulkan_globals.command_buffer, OFFSET_DECAL, 0.0f, 1.0f);
+		vkCmdSetDepthBias (cbx->cb, OFFSET_DECAL, 0.0f, 1.0f);
 	else
-		vkCmdSetDepthBias (vulkan_globals.command_buffer, OFFSET_NONE, 0.0f, 0.0f);
+		vkCmdSetDepthBias (cbx->cb, OFFSET_NONE, 0.0f, 0.0f);
 
 	vkCmdBindDescriptorSets (
-		vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &frame->gltexture->descriptor_set, 0,
-		NULL);
-	vkCmdDrawIndexed (vulkan_globals.command_buffer, 6, 1, 0, 0, 0);
+		cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &frame->gltexture->descriptor_set, 0, NULL);
+	vkCmdDrawIndexed (cbx->cb, 6, 1, 0, 0, 0);
 }
 
 /*
@@ -211,7 +210,7 @@ void R_DrawSpriteModel (entity_t *e)
 R_DrawSpriteModel_ShowTris
 =================
 */
-void R_DrawSpriteModel_ShowTris (entity_t *e)
+void R_DrawSpriteModel_ShowTris (cb_context_t *cbx, entity_t *e)
 {
 	VkBuffer        buffer;
 	VkDeviceSize    buffer_offset;
@@ -220,18 +219,17 @@ void R_DrawSpriteModel_ShowTris (entity_t *e)
 
 	R_CreateSpriteVertices (e, frame, vertices);
 
-	vkCmdBindVertexBuffers (vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
-	vkCmdBindIndexBuffer (vulkan_globals.command_buffer, vulkan_globals.fan_index_buffer, 0, VK_INDEX_TYPE_UINT16);
+	vkCmdBindVertexBuffers (cbx->cb, 0, 1, &buffer, &buffer_offset);
+	vkCmdBindIndexBuffer (cbx->cb, vulkan_globals.fan_index_buffer, 0, VK_INDEX_TYPE_UINT16);
 
-	R_BindPipeline (VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sprite_pipeline);
+	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sprite_pipeline);
 
 	if (r_showtris.value == 1)
-		R_BindPipeline (VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_pipeline);
+		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_pipeline);
 	else
-		R_BindPipeline (VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_depth_test_pipeline);
+		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_depth_test_pipeline);
 
 	vkCmdBindDescriptorSets (
-		vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &frame->gltexture->descriptor_set, 0,
-		NULL);
-	vkCmdDrawIndexed (vulkan_globals.command_buffer, 6, 1, 0, 0, 0);
+		cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &frame->gltexture->descriptor_set, 0, NULL);
+	vkCmdDrawIndexed (cbx->cb, 6, 1, 0, 0, 0);
 }

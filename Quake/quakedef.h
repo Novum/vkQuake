@@ -238,6 +238,23 @@ typedef struct
 	int         errstate;
 } quakeparms_t;
 
+// johnfitz -- stuff for 2d drawing control
+typedef enum
+{
+	CANVAS_NONE,
+	CANVAS_DEFAULT,
+	CANVAS_CONSOLE,
+	CANVAS_MENU,
+	CANVAS_SBAR,
+	CANVAS_WARPIMAGE,
+	CANVAS_CROSSHAIR,
+	CANVAS_BOTTOMLEFT,
+	CANVAS_BOTTOMRIGHT,
+	CANVAS_TOPRIGHT,
+	CANVAS_CSQC,
+	CANVAS_INVALID = -1
+} canvastype;
+
 #include "common.h"
 #include "bspfile.h"
 #include "sys.h"
@@ -336,6 +353,20 @@ void DemoList_Init (void);
 
 void ExtraMaps_NewGame (void);
 void DemoList_Rebuild (void);
+
+#ifdef _WIN32
+static inline int FindFirstBitNonZero (const uint32_t mask)
+{
+	unsigned long result;
+	_BitScanForward (&result, mask);
+	return result;
+}
+#else
+static inline int FindFirstBitNonZero (const uint32_t mask)
+{
+	return __builtin_ctz (mask);
+}
+#endif
 
 extern int current_skill; // skill level for currently loaded level (in case
                           //  the user changes the cvar while the level is

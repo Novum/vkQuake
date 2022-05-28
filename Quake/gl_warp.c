@@ -179,7 +179,7 @@ void GL_SubdivideSurface (msurface_t *fa)
 //  RENDER-TO-FRAMEBUFFER WATER
 //
 //==============================================================================
-static void R_RasterWarpTexture (texture_t *tx, float warptess)
+static void R_RasterWarpTexture (cb_context_t *cbx, texture_t *tx, float warptess)
 {
 	float x, y, x2;
 
@@ -196,19 +196,17 @@ static void R_RasterWarpTexture (texture_t *tx, float warptess)
 	render_pass_begin_info.renderPass = vulkan_globals.warp_render_pass;
 	render_pass_begin_info.framebuffer = tx->warpimage->frame_buffer;
 
-	vkCmdBeginRenderPass (vulkan_globals.command_buffer, &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
+	vkCmdBeginRenderPass (cbx->cb, &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
 
 	// render warp
-	GL_SetCanvas (CANVAS_WARPIMAGE);
-	R_BindPipeline (VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.raster_tex_warp_pipeline);
+	GL_SetCanvas (cbx, CANVAS_WARPIMAGE);
+	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.raster_tex_warp_pipeline);
 	if (!r_lightmap_cheatsafe)
 		vkCmdBindDescriptorSets (
-			vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &tx->gltexture->descriptor_set,
-			0, NULL);
+			cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &tx->gltexture->descriptor_set, 0, NULL);
 	else
 		vkCmdBindDescriptorSets (
-			vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &whitetexture->descriptor_set, 0,
-			NULL);
+			cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &whitetexture->descriptor_set, 0, NULL);
 
 	int num_verts = 0;
 	for (y = 0.0; y < 128.01; y += warptess) // .01 for rounding errors
@@ -246,11 +244,11 @@ static void R_RasterWarpTexture (texture_t *tx, float warptess)
 			i += 1;
 		}
 
-		vkCmdBindVertexBuffers (vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
-		vkCmdDraw (vulkan_globals.command_buffer, num_verts, 1, 0, 0);
+		vkCmdBindVertexBuffers (cbx->cb, 0, 1, &buffer, &buffer_offset);
+		vkCmdDraw (cbx->cb, num_verts, 1, 0, 0);
 	}
 
-	vkCmdEndRenderPass (vulkan_globals.command_buffer);
+	vkCmdEndRenderPass (cbx->cb);
 }
 
 /*
@@ -258,18 +256,17 @@ static void R_RasterWarpTexture (texture_t *tx, float warptess)
 R_ComputeWarpTexture
 =============
 */
-static void R_ComputeWarpTexture (texture_t *tx, float warptess)
+static void R_ComputeWarpTexture (cb_context_t *cbx, texture_t *tx, float warptess)
 {
 	// render warp
 	const float time = cl.time;
-	R_BindPipeline (VK_PIPELINE_BIND_POINT_COMPUTE, vulkan_globals.cs_tex_warp_pipeline);
+	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_COMPUTE, vulkan_globals.cs_tex_warp_pipeline);
 	VkDescriptorSet sets[2] = {tx->gltexture->descriptor_set, tx->warpimage->storage_descriptor_set};
 	if (r_lightmap_cheatsafe)
 		sets[0] = whitetexture->descriptor_set;
-	vkCmdBindDescriptorSets (
-		vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, vulkan_globals.cs_tex_warp_pipeline.layout.handle, 0, 2, sets, 0, NULL);
-	R_PushConstants (VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof (float), &time);
-	vkCmdDispatch (vulkan_globals.command_buffer, WARPIMAGESIZE / 8, WARPIMAGESIZE / 8, 1);
+	vkCmdBindDescriptorSets (cbx->cb, VK_PIPELINE_BIND_POINT_COMPUTE, vulkan_globals.cs_tex_warp_pipeline.layout.handle, 0, 2, sets, 0, NULL);
+	R_PushConstants (cbx, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof (float), &time);
+	vkCmdDispatch (cbx->cb, WARPIMAGESIZE / 8, WARPIMAGESIZE / 8, 1);
 }
 
 /*
@@ -280,9 +277,10 @@ R_UpdateWarpTextures -- johnfitz -- each frame, update warping textures
 static texture_t           *warp_textures[MAX_GLTEXTURES];
 static VkImageMemoryBarrier warp_image_barriers[MAX_GLTEXTURES];
 
-void R_UpdateWarpTextures (void)
+void R_UpdateWarpTextures (cb_context_t **cbx_ptr)
 {
-	GL_SetCanvas (CANVAS_NONE); // Invalidate canvas so push constants get set later
+	cb_context_t *cbx = *cbx_ptr;
+	GL_SetCanvas (cbx, CANVAS_NONE); // Invalidate canvas so push constants get set later
 
 	texture_t *tx;
 	int        i, mip;
@@ -291,7 +289,7 @@ void R_UpdateWarpTextures (void)
 	if (cl.paused)
 		return;
 
-	R_BeginDebugUtilsLabel ("Update Warp Textures");
+	R_BeginDebugUtilsLabel (cbx, "Update Warp Textures");
 
 	warptess = 128.0 / CLAMP (3.0, floor (r_waterquality.value), 64.0);
 
@@ -333,8 +331,7 @@ void R_UpdateWarpTextures (void)
 	// Transfer mips from UNDEFINED to GENERAL layout
 	if (r_waterwarpcompute.value)
 		vkCmdPipelineBarrier (
-			vulkan_globals.command_buffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, NULL, 0, NULL, num_warp_textures,
-			warp_image_barriers);
+			cbx->cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, NULL, 0, NULL, num_warp_textures, warp_image_barriers);
 
 	// Render warp to top mips
 	for (i = 0; i < num_warp_textures; ++i)
@@ -342,9 +339,9 @@ void R_UpdateWarpTextures (void)
 		tx = warp_textures[i];
 
 		if (r_waterwarpcompute.value)
-			R_ComputeWarpTexture (tx, warptess);
+			R_ComputeWarpTexture (cbx, tx, warptess);
 		else
-			R_RasterWarpTexture (tx, warptess);
+			R_RasterWarpTexture (cbx, tx, warptess);
 
 		VkImageMemoryBarrier *image_barrier = &warp_image_barriers[i];
 		image_barrier->sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -372,7 +369,7 @@ void R_UpdateWarpTextures (void)
 
 	// Transfer all other mips from UNDEFINED to GENERAL layout
 	vkCmdPipelineBarrier (
-		vulkan_globals.command_buffer, r_waterwarpcompute.value ? VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT : VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+		cbx->cb, r_waterwarpcompute.value ? VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT : VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
 		VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 1, &memory_barrier, 0, NULL, num_warp_textures, warp_image_barriers);
 
 	// Generate mip chains
@@ -401,16 +398,14 @@ void R_UpdateWarpTextures (void)
 			region.dstSubresource.mipLevel = mip;
 
 			vkCmdBlitImage (
-				vulkan_globals.command_buffer, tx->warpimage->image, VK_IMAGE_LAYOUT_GENERAL, tx->warpimage->image, VK_IMAGE_LAYOUT_GENERAL, 1, &region,
-				VK_FILTER_LINEAR);
+				cbx->cb, tx->warpimage->image, VK_IMAGE_LAYOUT_GENERAL, tx->warpimage->image, VK_IMAGE_LAYOUT_GENERAL, 1, &region, VK_FILTER_LINEAR);
 		}
 
 		if (mip < (WARPIMAGEMIPS - 1))
 		{
 			memory_barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 			memory_barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-			vkCmdPipelineBarrier (
-				vulkan_globals.command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 1, &memory_barrier, 0, NULL, 0, NULL);
+			vkCmdPipelineBarrier (cbx->cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 1, &memory_barrier, 0, NULL, 0, NULL);
 		}
 	}
 
@@ -439,8 +434,7 @@ void R_UpdateWarpTextures (void)
 	}
 
 	vkCmdPipelineBarrier (
-		vulkan_globals.command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL, num_warp_textures,
-		warp_image_barriers);
+		cbx->cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL, num_warp_textures, warp_image_barriers);
 
 	// if warp render went down into sbar territory, we need to be sure to refresh it next frame
 	if (WARPIMAGESIZE + sb_lines > glheight)
@@ -449,5 +443,5 @@ void R_UpdateWarpTextures (void)
 	// if viewsize is less than 100, we need to redraw the frame around the viewport
 	scr_tileclear_updates = 0;
 
-	R_EndDebugUtilsLabel ();
+	R_EndDebugUtilsLabel (cbx);
 }

@@ -55,6 +55,9 @@ extern cvar_t r_nolerp_list;
 extern cvar_t gl_zfix; // QuakeSpasm z-fighting fix
 
 extern cvar_t r_gpulightmapupdate;
+extern cvar_t r_tasks;
+extern cvar_t r_parallelmark;
+extern cvar_t r_usesops;
 
 #if defined(USE_SIMD)
 extern cvar_t r_simd;
@@ -78,6 +81,10 @@ size_t total_device_vulkan_allocation_size = 0;
 size_t total_host_vulkan_allocation_size = 0;
 
 qboolean use_simd;
+
+static SDL_mutex *vertex_allocate_mutex;
+static SDL_mutex *index_allocate_mutex;
+static SDL_mutex *uniform_allocate_mutex;
 
 /*
 ================
@@ -469,6 +476,10 @@ void R_InitStagingBuffers ()
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkBeginCommandBuffer failed");
 	}
+
+	vertex_allocate_mutex = SDL_CreateMutex ();
+	index_allocate_mutex = SDL_CreateMutex ();
+	uniform_allocate_mutex = SDL_CreateMutex ();
 }
 
 /*
@@ -1015,6 +1026,7 @@ R_VertexAllocate
 */
 byte *R_VertexAllocate (int size, VkBuffer *buffer, VkDeviceSize *buffer_offset)
 {
+	SDL_LockMutex (vertex_allocate_mutex);
 	dynbuffer_t *dyn_vb = &dyn_vertex_buffers[current_dyn_buffer_index];
 
 	if ((dyn_vb->current_offset + size) > current_dyn_vertex_buffer_size)
@@ -1030,6 +1042,7 @@ byte *R_VertexAllocate (int size, VkBuffer *buffer, VkDeviceSize *buffer_offset)
 
 	unsigned char *data = dyn_vb->data + dyn_vb->current_offset;
 	dyn_vb->current_offset += size;
+	SDL_UnlockMutex (vertex_allocate_mutex);
 
 	return data;
 }
@@ -1041,6 +1054,7 @@ R_IndexAllocate
 */
 byte *R_IndexAllocate (int size, VkBuffer *buffer, VkDeviceSize *buffer_offset)
 {
+	SDL_LockMutex (index_allocate_mutex);
 	// Align to 4 bytes because we allocate both uint16 and uint32
 	// index buffers and alignment must match index size
 	const int align_mod = size % 4;
@@ -1061,6 +1075,7 @@ byte *R_IndexAllocate (int size, VkBuffer *buffer, VkDeviceSize *buffer_offset)
 
 	unsigned char *data = dyn_ib->data + dyn_ib->current_offset;
 	dyn_ib->current_offset += aligned_size;
+	SDL_UnlockMutex (index_allocate_mutex);
 
 	return data;
 }
@@ -1075,6 +1090,7 @@ This is also the maximum required alignment by the Vulkan spec
 */
 byte *R_UniformAllocate (int size, VkBuffer *buffer, uint32_t *buffer_offset, VkDescriptorSet *descriptor_set)
 {
+	SDL_LockMutex (uniform_allocate_mutex);
 	if (size > MAX_UNIFORM_ALLOC)
 		Sys_Error ("Increase MAX_UNIFORM_ALLOC");
 
@@ -1098,7 +1114,7 @@ byte *R_UniformAllocate (int size, VkBuffer *buffer, uint32_t *buffer_offset, Vk
 	dyn_ub->current_offset += aligned_size;
 
 	*descriptor_set = ubo_descriptor_sets[current_dyn_buffer_index];
-
+	SDL_UnlockMutex (uniform_allocate_mutex);
 	return data;
 }
 
@@ -1680,7 +1696,6 @@ typedef struct pipeline_create_infos_s
 	VkPipelineColorBlendAttachmentState    blend_attachment_state;
 	VkGraphicsPipelineCreateInfo           graphics_pipeline;
 	VkComputePipelineCreateInfo            compute_pipeline;
-
 } pipeline_create_infos_t;
 
 static VkVertexInputAttributeDescription basic_vertex_input_attribute_descriptions[3];
@@ -1896,7 +1911,7 @@ static void R_InitDefaultStates (pipeline_create_infos_t *infos)
 	infos->graphics_pipeline.pColorBlendState = &infos->color_blend_state;
 	infos->graphics_pipeline.pDynamicState = &infos->dynamic_state;
 	infos->graphics_pipeline.layout = vulkan_globals.basic_pipeline_layout.handle;
-	infos->graphics_pipeline.renderPass = vulkan_globals.main_render_pass;
+	infos->graphics_pipeline.renderPass = vulkan_globals.secondary_cb_contexts[CBX_WORLD_0].render_pass;
 }
 
 /*
@@ -1911,12 +1926,15 @@ static void R_CreateBasicPipelines ()
 	pipeline_create_infos_t infos;
 	R_InitDefaultStates (&infos);
 
+	VkRenderPass main_render_pass = vulkan_globals.secondary_cb_contexts[CBX_WORLD_0].render_pass;
+	VkRenderPass ui_render_pass = vulkan_globals.secondary_cb_contexts[CBX_GUI].render_pass;
+
 	infos.depth_stencil_state.depthTestEnable = VK_TRUE;
 	infos.depth_stencil_state.depthWriteEnable = VK_TRUE;
 	infos.shader_stages[1].module = basic_alphatest_frag_module;
 	for (render_pass = 0; render_pass < 2; ++render_pass)
 	{
-		infos.graphics_pipeline.renderPass = (render_pass == 0) ? vulkan_globals.main_render_pass : vulkan_globals.ui_render_pass;
+		infos.graphics_pipeline.renderPass = (render_pass == 0) ? main_render_pass : ui_render_pass;
 		infos.multisample_state.rasterizationSamples = (render_pass == 0) ? vulkan_globals.sample_count : VK_SAMPLE_COUNT_1_BIT;
 
 		assert (vulkan_globals.basic_alphatest_pipeline[render_pass].handle == VK_NULL_HANDLE);
@@ -1935,7 +1953,7 @@ static void R_CreateBasicPipelines ()
 
 	for (render_pass = 0; render_pass < 2; ++render_pass)
 	{
-		infos.graphics_pipeline.renderPass = (render_pass == 0) ? vulkan_globals.main_render_pass : vulkan_globals.ui_render_pass;
+		infos.graphics_pipeline.renderPass = (render_pass == 0) ? main_render_pass : ui_render_pass;
 		infos.multisample_state.rasterizationSamples = (render_pass == 0) ? vulkan_globals.sample_count : VK_SAMPLE_COUNT_1_BIT;
 
 		assert (vulkan_globals.basic_notex_blend_pipeline[render_pass].handle == VK_NULL_HANDLE);
@@ -1947,7 +1965,7 @@ static void R_CreateBasicPipelines ()
 		GL_SetObjectName ((uint64_t)vulkan_globals.basic_notex_blend_pipeline[render_pass].handle, VK_OBJECT_TYPE_PIPELINE, "basic_notex_blend");
 	}
 
-	infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass;
+	infos.graphics_pipeline.renderPass = main_render_pass;
 	infos.graphics_pipeline.subpass = 0;
 	infos.multisample_state.rasterizationSamples = vulkan_globals.sample_count;
 
@@ -1963,7 +1981,7 @@ static void R_CreateBasicPipelines ()
 
 	for (render_pass = 0; render_pass < 2; ++render_pass)
 	{
-		infos.graphics_pipeline.renderPass = (render_pass == 0) ? vulkan_globals.main_render_pass : vulkan_globals.ui_render_pass;
+		infos.graphics_pipeline.renderPass = (render_pass == 0) ? main_render_pass : ui_render_pass;
 		infos.multisample_state.rasterizationSamples = (render_pass == 0) ? vulkan_globals.sample_count : VK_SAMPLE_COUNT_1_BIT;
 
 		assert (vulkan_globals.basic_blend_pipeline[render_pass].handle == VK_NULL_HANDLE);
@@ -2039,7 +2057,7 @@ static void R_CreateParticlesPipelines ()
 	infos.depth_stencil_state.depthTestEnable = VK_TRUE;
 	infos.depth_stencil_state.depthWriteEnable = VK_FALSE;
 
-	infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass;
+	infos.graphics_pipeline.renderPass = vulkan_globals.secondary_cb_contexts[CBX_WORLD_0].render_pass;
 
 	infos.blend_attachment_state.blendEnable = VK_TRUE;
 
@@ -2108,7 +2126,7 @@ static void R_CreateFTEParticlesPipelines ()
 
 	infos.depth_stencil_state.depthTestEnable = VK_TRUE;
 	infos.depth_stencil_state.depthWriteEnable = VK_FALSE;
-	infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass;
+	infos.graphics_pipeline.renderPass = vulkan_globals.secondary_cb_contexts[CBX_WORLD_0].render_pass;
 	infos.blend_attachment_state.blendEnable = VK_TRUE;
 
 	infos.multisample_state.sampleShadingEnable = VK_FALSE;
@@ -2186,7 +2204,7 @@ static void R_CreateSkyPipelines ()
 	pipeline_create_infos_t infos;
 	R_InitDefaultStates (&infos);
 
-	infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass;
+	infos.graphics_pipeline.renderPass = vulkan_globals.secondary_cb_contexts[CBX_WORLD_0].render_pass;
 
 	infos.graphics_pipeline.stageCount = 1;
 	infos.shader_stages[1].module = VK_NULL_HANDLE;
@@ -2576,7 +2594,7 @@ static void R_CreatePostprocessPipelines ()
 
 	infos.shader_stages[0].module = postprocess_vert_module;
 	infos.shader_stages[1].module = postprocess_frag_module;
-	infos.graphics_pipeline.renderPass = vulkan_globals.ui_render_pass;
+	infos.graphics_pipeline.renderPass = vulkan_globals.secondary_cb_contexts[CBX_GUI].render_pass;
 	infos.graphics_pipeline.layout = vulkan_globals.postprocess_pipeline.layout.handle;
 	infos.graphics_pipeline.subpass = 1;
 
@@ -2936,6 +2954,9 @@ void R_Init (void)
 	Cvar_SetCallback (&r_slimealpha, R_SetSlimealpha_f);
 
 	Cvar_RegisterVariable (&r_gpulightmapupdate);
+	Cvar_RegisterVariable (&r_tasks);
+	Cvar_RegisterVariable (&r_parallelmark);
+	Cvar_RegisterVariable (&r_usesops);
 
 	R_InitParticles ();
 	SetClearColor (); // johnfitz
@@ -3024,7 +3045,7 @@ void R_TranslateNewPlayerSkin (int playernum)
 	int         skinnum;
 
 	// get correct texture pixels
-	currententity = &cl.entities[1 + playernum];
+	entity_t *currententity = &cl.entities[1 + playernum];
 
 	if (!currententity->model || currententity->model->type != mod_alias)
 		return;

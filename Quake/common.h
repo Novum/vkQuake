@@ -123,7 +123,7 @@ const char *MSG_ReadString (void);
 float        MSG_ReadCoord (unsigned int flags);
 float        MSG_ReadAngle (unsigned int flags);
 float        MSG_ReadAngle16 (unsigned int flags); // johnfitz
-byte        *MSG_ReadData (unsigned int length);   // spike
+byte		*MSG_ReadData (unsigned int length);   // spike
 unsigned int MSG_ReadEntity (unsigned int pext2);  // spike
 
 void COM_Effectinfo_Enumerate (int (*cb) (const char *pname)); // spike -- for dp compat
@@ -136,7 +136,7 @@ int         Q_memcmp (const void *m1, const void *m2, size_t count);
 void        Q_strcpy (char *dest, const char *src);
 void        Q_strncpy (char *dest, const char *src, int count);
 int         Q_strlen (const char *str);
-char       *Q_strrchr (const char *s, char c);
+char	   *Q_strrchr (const char *s, char c);
 void        Q_strcat (char *dest, const char *src);
 int         Q_strcmp (const char *s1, const char *s2);
 int         Q_strncmp (const char *s1, const char *s2, int count);
@@ -237,7 +237,7 @@ typedef struct searchpath_s
 	                              // Note that <install_dir>/game1 and
 	                              // <userdir>/game1 have the same id.
 	char                 filename[MAX_OSPATH];
-	pack_t              *pack; // only one of filename / pack will be used
+	pack_t			  *pack; // only one of filename / pack will be used
 	struct searchpath_s *next;
 } searchpath_t;
 

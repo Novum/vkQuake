@@ -24,6 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 #include "bgmusic.h"
+#include "tasks.h"
 #include <setjmp.h>
 
 #if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
@@ -204,7 +205,8 @@ void Host_Error (const char *error, ...)
 
 	if (in_update_screen) // try to recover from CSQC DrawHud errors
 	{
-		R_EndDebugUtilsLabel ();
+		// TODO: What context?
+		// R_EndDebugUtilsLabel (&vulkan_globals.cb_context);
 		GL_EndRendering (true);
 		in_update_screen = false;
 	}
@@ -991,6 +993,7 @@ void Host_Init (void)
 	com_argc = host_parms->argc;
 	com_argv = host_parms->argv;
 
+	Tasks_Init ();
 	Memory_Init (host_parms->membase, host_parms->memsize);
 	Cbuf_Init ();
 	Cmd_Init ();

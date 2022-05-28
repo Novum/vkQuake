@@ -72,7 +72,7 @@ static vulkan_memory_t     workgroup_bounds_buffer_memory;
 static VkBuffer            surface_data_buffer;
 static VkBuffer            lightstyles_scales_buffer;
 static VkBuffer            lights_buffer;
-static float              *lightstyles_scales_buffer_mapped;
+static float			  *lightstyles_scales_buffer_mapped;
 static lm_compute_light_t *lights_buffer_mapped;
 
 static int current_compute_lightmap_buffer_index;
@@ -116,7 +116,7 @@ texture_t *R_TextureAnimation (texture_t *base, int frame)
 DrawGLPoly
 ================
 */
-void DrawGLPoly (glpoly_t *p, float color[3], float alpha)
+void DrawGLPoly (cb_context_t *cbx, glpoly_t *p, float color[3], float alpha)
 {
 	const int numverts = p->numverts;
 	const int numtriangles = (numverts - 2);
@@ -159,13 +159,13 @@ void DrawGLPoly (glpoly_t *p, float color[3], float alpha)
 			indices[current_index++] = 1 + i;
 			indices[current_index++] = 2 + i;
 		}
-		vulkan_globals.vk_cmd_bind_index_buffer (vulkan_globals.command_buffer, index_buffer, index_buffer_offset, VK_INDEX_TYPE_UINT16);
+		vulkan_globals.vk_cmd_bind_index_buffer (cbx->cb, index_buffer, index_buffer_offset, VK_INDEX_TYPE_UINT16);
 	}
 	else
-		vulkan_globals.vk_cmd_bind_index_buffer (vulkan_globals.command_buffer, vulkan_globals.fan_index_buffer, 0, VK_INDEX_TYPE_UINT16);
+		vulkan_globals.vk_cmd_bind_index_buffer (cbx->cb, vulkan_globals.fan_index_buffer, 0, VK_INDEX_TYPE_UINT16);
 
-	vulkan_globals.vk_cmd_bind_vertex_buffers (vulkan_globals.command_buffer, 0, 1, &vertex_buffer, &vertex_buffer_offset);
-	vulkan_globals.vk_cmd_draw_indexed (vulkan_globals.command_buffer, numindices, 1, 0, 0, 0);
+	vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 1, &vertex_buffer, &vertex_buffer_offset);
+	vulkan_globals.vk_cmd_draw_indexed (cbx->cb, numindices, 1, 0, 0, 0);
 }
 
 /*
@@ -181,18 +181,18 @@ void DrawGLPoly (glpoly_t *p, float color[3], float alpha)
 R_DrawBrushModel
 =================
 */
-void R_DrawBrushModel (entity_t *e)
+void R_DrawBrushModel (cb_context_t *cbx, entity_t *e)
 {
 	int         i, k;
 	msurface_t *psurf;
 	float       dot;
 	mplane_t   *pplane;
 	qmodel_t   *clmodel;
+	vec3_t      modelorg;
 
 	if (R_CullModelForEntity (e))
 		return;
 
-	currententity = e;
 	clmodel = e->model;
 
 	VectorSubtract (r_refdef.vieworg, e->origin, modelorg);
@@ -223,17 +223,18 @@ void R_DrawBrushModel (entity_t *e)
 		}
 	}
 
-	e->angles[0] = -e->angles[0]; // stupid quake bug
+	vec3_t e_angles;
+	VectorCopy (e->angles, e_angles);
+	e_angles[0] = -e_angles[0]; // stupid quake bug
 	float model_matrix[16];
 	IdentityMatrix (model_matrix);
-	R_RotateForEntity (model_matrix, e->origin, e->angles);
-	e->angles[0] = -e->angles[0]; // stupid quake bug
+	R_RotateForEntity (model_matrix, e->origin, e_angles);
 
 	float mvp[16];
 	memcpy (mvp, vulkan_globals.view_projection_matrix, 16 * sizeof (float));
 	MatrixMultiply (mvp, model_matrix);
 
-	R_PushConstants (VK_SHADER_STAGE_ALL_GRAPHICS, 0, 16 * sizeof (float), mvp);
+	R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 16 * sizeof (float), mvp);
 	R_ClearTextureChains (clmodel, chain_model);
 	for (i = 0; i < clmodel->nummodelsurfaces; i++, psurf++)
 	{
@@ -246,13 +247,13 @@ void R_DrawBrushModel (entity_t *e)
 				R_RenderDynamicLightmaps (psurf);
 			else if (psurf->lightmaptexturenum >= 0)
 				lightmaps[psurf->lightmaptexturenum].modified = true;
-			rs_brushpolys++;
+			Atomic_IncrementUInt32 (&rs_brushpolys);
 		}
 	}
 
-	R_DrawTextureChains (clmodel, e, chain_model);
-	R_DrawTextureChains_Water (clmodel, e, chain_model);
-	R_PushConstants (VK_SHADER_STAGE_ALL_GRAPHICS, 0, 16 * sizeof (float), vulkan_globals.view_projection_matrix);
+	R_DrawTextureChains (cbx, clmodel, e, chain_model);
+	R_DrawTextureChains_Water (cbx, clmodel, e, chain_model);
+	R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 16 * sizeof (float), vulkan_globals.view_projection_matrix);
 }
 
 /*
@@ -260,7 +261,7 @@ void R_DrawBrushModel (entity_t *e)
 R_DrawBrushModel_ShowTris -- johnfitz
 =================
 */
-void R_DrawBrushModel_ShowTris (entity_t *e)
+void R_DrawBrushModel_ShowTris (cb_context_t *cbx, entity_t *e)
 {
 	int         i;
 	msurface_t *psurf;
@@ -269,11 +270,11 @@ void R_DrawBrushModel_ShowTris (entity_t *e)
 	qmodel_t   *clmodel;
 	float       color[] = {1.0f, 1.0f, 1.0f};
 	const float alpha = 1.0f;
+	vec3_t      modelorg;
 
 	if (R_CullModelForEntity (e))
 		return;
 
-	currententity = e;
 	clmodel = e->model;
 
 	VectorSubtract (r_refdef.vieworg, e->origin, modelorg);
@@ -302,10 +303,10 @@ void R_DrawBrushModel_ShowTris (entity_t *e)
 	MatrixMultiply (mvp, model_matrix);
 
 	if (r_showtris.value == 1)
-		R_BindPipeline (VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_pipeline);
+		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_pipeline);
 	else
-		R_BindPipeline (VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_depth_test_pipeline);
-	R_PushConstants (VK_SHADER_STAGE_ALL_GRAPHICS, 0, 16 * sizeof (float), mvp);
+		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_depth_test_pipeline);
+	R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 16 * sizeof (float), mvp);
 
 	//
 	// draw it
@@ -316,11 +317,11 @@ void R_DrawBrushModel_ShowTris (entity_t *e)
 		dot = DotProduct (modelorg, pplane->normal) - pplane->dist;
 		if (((psurf->flags & SURF_PLANEBACK) && (dot < -BACKFACE_EPSILON)) || (!(psurf->flags & SURF_PLANEBACK) && (dot > BACKFACE_EPSILON)))
 		{
-			DrawGLPoly (psurf->polys, color, alpha);
+			DrawGLPoly (cbx, psurf->polys, color, alpha);
 		}
 	}
 
-	R_PushConstants (VK_SHADER_STAGE_ALL_GRAPHICS, 0, 16 * sizeof (float), vulkan_globals.view_projection_matrix);
+	R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 16 * sizeof (float), vulkan_globals.view_projection_matrix);
 }
 
 /*
@@ -932,9 +933,9 @@ void GL_BuildLightmaps (void)
 	int                        num_surfaces = 0;
 	uint32_t                   surface_index = 0;
 	struct lightmap_s         *lm;
-	qmodel_t                  *m;
+	qmodel_t				  *m;
 	lm_compute_surface_data_t *surface_data;
-	msurface_t                *surf;
+	msurface_t				*surf;
 
 	GL_WaitForDeviceIdle ();
 
@@ -1669,7 +1670,7 @@ static void R_UploadLightmap (int lmap, gltexture_t *lightmap_tex)
 	lm->rectchange.h = 0;
 	lm->rectchange.w = 0;
 
-	rs_dynamiclightmaps++;
+	Atomic_IncrementUInt32 (&rs_dynamiclightmaps);
 }
 
 /*
@@ -1677,28 +1678,26 @@ static void R_UploadLightmap (int lmap, gltexture_t *lightmap_tex)
 R_FlushUpdateLightmaps
 =============
 */
-void R_FlushUpdateLightmaps (int num_batch_lightmaps, VkImageMemoryBarrier *pre_barriers, VkImageMemoryBarrier *post_barriers, int *lightmap_indexes)
+void R_FlushUpdateLightmaps (
+	cb_context_t *cbx, int num_batch_lightmaps, VkImageMemoryBarrier *pre_barriers, VkImageMemoryBarrier *post_barriers, int *lightmap_indexes)
 {
 	vkCmdPipelineBarrier (
-		vulkan_globals.command_buffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, NULL, 0, NULL, num_batch_lightmaps,
-		pre_barriers);
-	R_BindPipeline (VK_PIPELINE_BIND_POINT_COMPUTE, vulkan_globals.update_lightmap_pipeline);
+		cbx->cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, NULL, 0, NULL, num_batch_lightmaps, pre_barriers);
+	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_COMPUTE, vulkan_globals.update_lightmap_pipeline);
 	uint32_t push_constants[2] = {MAX_DLIGHTS, LMBLOCK_WIDTH};
 	uint32_t offsets[2] = {
 		current_compute_lightmap_buffer_index * MAX_LIGHTSTYLES * sizeof (float),
 		current_compute_lightmap_buffer_index * MAX_DLIGHTS * sizeof (lm_compute_light_t)};
-	R_PushConstants (VK_SHADER_STAGE_COMPUTE_BIT, 0, 2 * sizeof (uint32_t), push_constants);
+	R_PushConstants (cbx, VK_SHADER_STAGE_COMPUTE_BIT, 0, 2 * sizeof (uint32_t), push_constants);
 	for (int j = 0; j < num_batch_lightmaps; ++j)
 	{
 		VkDescriptorSet sets[1] = {lightmaps[lightmap_indexes[j]].descriptor_set};
-		vkCmdBindDescriptorSets (
-			vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, vulkan_globals.update_lightmap_pipeline.layout.handle, 0, 1, sets, 2, offsets);
-		vkCmdDispatch (vulkan_globals.command_buffer, LMBLOCK_WIDTH / 8, LMBLOCK_HEIGHT / 8, 1);
+		vkCmdBindDescriptorSets (cbx->cb, VK_PIPELINE_BIND_POINT_COMPUTE, vulkan_globals.update_lightmap_pipeline.layout.handle, 0, 1, sets, 2, offsets);
+		vkCmdDispatch (cbx->cb, LMBLOCK_WIDTH / 8, LMBLOCK_HEIGHT / 8, 1);
 	}
 
 	vkCmdPipelineBarrier (
-		vulkan_globals.command_buffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL, num_batch_lightmaps,
-		post_barriers);
+		cbx->cb, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL, num_batch_lightmaps, post_barriers);
 }
 
 /*
@@ -1706,11 +1705,11 @@ void R_FlushUpdateLightmaps (int num_batch_lightmaps, VkImageMemoryBarrier *pre_
 R_UpdateLightmaps
 =============
 */
-void R_UpdateLightmaps (void)
+void R_UpdateLightmaps (cb_context_t *cbx)
 {
 #define UPDATE_LIGHTMAP_BATCH_SIZE 64
 
-	R_BeginDebugUtilsLabel ("Update Lightmaps");
+	R_BeginDebugUtilsLabel (cbx, "Update Lightmaps");
 
 	for (int i = 0; i < MAX_LIGHTSTYLES; ++i)
 	{
@@ -1776,15 +1775,15 @@ void R_UpdateLightmaps (void)
 
 		if (num_batch_lightmaps == UPDATE_LIGHTMAP_BATCH_SIZE)
 		{
-			R_FlushUpdateLightmaps (num_batch_lightmaps, pre_lm_image_barriers, post_lm_image_barriers, lightmap_indexes);
+			R_FlushUpdateLightmaps (cbx, num_batch_lightmaps, pre_lm_image_barriers, post_lm_image_barriers, lightmap_indexes);
 			num_batch_lightmaps = 0;
 		}
 	}
 
 	if (num_batch_lightmaps > 0)
-		R_FlushUpdateLightmaps (num_batch_lightmaps, pre_lm_image_barriers, post_lm_image_barriers, lightmap_indexes);
+		R_FlushUpdateLightmaps (cbx, num_batch_lightmaps, pre_lm_image_barriers, post_lm_image_barriers, lightmap_indexes);
 
-	R_EndDebugUtilsLabel ();
+	R_EndDebugUtilsLabel (cbx);
 
 	current_compute_lightmap_buffer_index = (current_compute_lightmap_buffer_index + 1) % 2;
 }

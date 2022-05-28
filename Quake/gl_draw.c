@@ -27,7 +27,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 
 cvar_t scr_conalpha = {"scr_conalpha", "0.5", CVAR_ARCHIVE}; // johnfitz
-cvar_t r_usesops = {"r_usesops", "1", CVAR_ARCHIVE};         // johnfitz
 
 qpic_t *draw_disc;
 qpic_t *draw_backtile;
@@ -75,8 +74,6 @@ typedef struct
 	gltexture_t *gltexture;
 	float        sl, tl, sh, th;
 } glpic_t;
-
-canvastype currentcanvas = CANVAS_NONE; // johnfitz -- for GL_SetCanvas
 
 //==============================================================================
 //
@@ -428,7 +425,6 @@ Draw_Init -- johnfitz -- rewritten
 void Draw_Init (void)
 {
 	Cvar_RegisterVariable (&scr_conalpha);
-	Cvar_RegisterVariable (&r_usesops);
 
 	// clear scrap and allocate gltextures
 	memset (scrap_allocated, 0, sizeof (scrap_allocated));
@@ -508,7 +504,7 @@ void Draw_FillCharacterQuad (int x, int y, char num, basicvertex_t *output)
 Draw_Character
 ================
 */
-void Draw_Character (int x, int y, int num)
+void Draw_Character (cb_context_t *cbx, int x, int y, int num)
 {
 	if (y <= -8)
 		return; // totally off screen
@@ -524,12 +520,11 @@ void Draw_Character (int x, int y, int num)
 
 	Draw_FillCharacterQuad (x, y, (char)num, vertices);
 
-	vulkan_globals.vk_cmd_bind_vertex_buffers (vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
-	R_BindPipeline (VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_alphatest_pipeline[render_pass_index]);
+	vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 1, &buffer, &buffer_offset);
+	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_alphatest_pipeline[cbx->render_pass_index]);
 	vulkan_globals.vk_cmd_bind_descriptor_sets (
-		vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &char_texture->descriptor_set, 0,
-		NULL);
-	vulkan_globals.vk_cmd_draw (vulkan_globals.command_buffer, 6, 1, 0, 0);
+		cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &char_texture->descriptor_set, 0, NULL);
+	vulkan_globals.vk_cmd_draw (cbx->cb, 6, 1, 0, 0);
 }
 
 /*
@@ -537,7 +532,7 @@ void Draw_Character (int x, int y, int num)
 Draw_String
 ================
 */
-void Draw_String (int x, int y, const char *str)
+void Draw_String (cb_context_t *cbx, int x, int y, const char *str)
 {
 	int         num_verts = 0;
 	int         i;
@@ -564,12 +559,11 @@ void Draw_String (int x, int y, const char *str)
 		x += 8;
 	}
 
-	vulkan_globals.vk_cmd_bind_vertex_buffers (vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
-	R_BindPipeline (VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_alphatest_pipeline[render_pass_index]);
+	vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 1, &buffer, &buffer_offset);
+	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_alphatest_pipeline[cbx->render_pass_index]);
 	vulkan_globals.vk_cmd_bind_descriptor_sets (
-		vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &char_texture->descriptor_set, 0,
-		NULL);
-	vulkan_globals.vk_cmd_draw (vulkan_globals.command_buffer, num_verts, 1, 0, 0);
+		cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &char_texture->descriptor_set, 0, NULL);
+	vulkan_globals.vk_cmd_draw (cbx->cb, num_verts, 1, 0, 0);
 }
 
 /*
@@ -577,7 +571,7 @@ void Draw_String (int x, int y, const char *str)
 Draw_Pic -- johnfitz -- modified
 =============
 */
-void Draw_Pic (int x, int y, qpic_t *pic, float alpha, qboolean alpha_blend)
+void Draw_Pic (cb_context_t *cbx, int x, int y, qpic_t *pic, float alpha, qboolean alpha_blend)
 {
 	glpic_t gl;
 	int     i;
@@ -627,18 +621,17 @@ void Draw_Pic (int x, int y, qpic_t *pic, float alpha, qboolean alpha_blend)
 	vertices[4] = corner_verts[3];
 	vertices[5] = corner_verts[0];
 
-	vkCmdBindVertexBuffers (vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
+	vkCmdBindVertexBuffers (cbx->cb, 0, 1, &buffer, &buffer_offset);
 	if (alpha_blend)
-		R_BindPipeline (VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_blend_pipeline[render_pass_index]);
+		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_blend_pipeline[cbx->render_pass_index]);
 	else
-		R_BindPipeline (VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_alphatest_pipeline[render_pass_index]);
+		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_alphatest_pipeline[cbx->render_pass_index]);
 	vkCmdBindDescriptorSets (
-		vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &gl.gltexture->descriptor_set, 0,
-		NULL);
-	vkCmdDraw (vulkan_globals.command_buffer, 6, 1, 0, 0);
+		cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &gl.gltexture->descriptor_set, 0, NULL);
+	vkCmdDraw (cbx->cb, 6, 1, 0, 0);
 }
 
-void Draw_SubPic (float x, float y, float w, float h, qpic_t *pic, float s1, float t1, float s2, float t2, float *rgb, float alpha)
+void Draw_SubPic (cb_context_t *cbx, float x, float y, float w, float h, qpic_t *pic, float s1, float t1, float s2, float t2, float *rgb, float alpha)
 {
 	glpic_t  gl;
 	qboolean alpha_blend = alpha < 1.0f;
@@ -701,15 +694,14 @@ void Draw_SubPic (float x, float y, float w, float h, qpic_t *pic, float s1, flo
 	vertices[4] = corner_verts[3];
 	vertices[5] = corner_verts[0];
 
-	vkCmdBindVertexBuffers (vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
+	vkCmdBindVertexBuffers (cbx->cb, 0, 1, &buffer, &buffer_offset);
 	if (alpha_blend)
-		R_BindPipeline (VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_blend_pipeline[render_pass_index]);
+		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_blend_pipeline[cbx->render_pass_index]);
 	else
-		R_BindPipeline (VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_alphatest_pipeline[render_pass_index]);
+		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_alphatest_pipeline[cbx->render_pass_index]);
 	vkCmdBindDescriptorSets (
-		vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &gl.gltexture->descriptor_set, 0,
-		NULL);
-	vkCmdDraw (vulkan_globals.command_buffer, 6, 1, 0, 0);
+		cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &gl.gltexture->descriptor_set, 0, NULL);
+	vkCmdDraw (cbx->cb, 6, 1, 0, 0);
 }
 
 /*
@@ -719,7 +711,7 @@ Draw_TransPicTranslate -- johnfitz -- rewritten to use texmgr to do translation
 Only used for the player color selection menu
 =============
 */
-void Draw_TransPicTranslate (int x, int y, qpic_t *pic, int top, int bottom)
+void Draw_TransPicTranslate (cb_context_t *cbx, int x, int y, qpic_t *pic, int top, int bottom)
 {
 	static int oldtop = -2;
 	static int oldbottom = -2;
@@ -733,7 +725,7 @@ void Draw_TransPicTranslate (int x, int y, qpic_t *pic, int top, int bottom)
 		oldbottom = bottom;
 		TexMgr_ReloadImage (glt, top, bottom);
 	}
-	Draw_Pic (x, y, pic, 1.0f, false);
+	Draw_Pic (cbx, x, y, pic, 1.0f, false);
 }
 
 /*
@@ -741,7 +733,7 @@ void Draw_TransPicTranslate (int x, int y, qpic_t *pic, int top, int bottom)
 Draw_ConsoleBackground -- johnfitz -- rewritten
 ================
 */
-void Draw_ConsoleBackground (void)
+void Draw_ConsoleBackground (cb_context_t *cbx)
 {
 	qpic_t *pic;
 	float   alpha;
@@ -752,11 +744,11 @@ void Draw_ConsoleBackground (void)
 
 	alpha = (con_forcedup) ? 1.0 : scr_conalpha.value;
 
-	GL_SetCanvas (CANVAS_CONSOLE); // in case this is called from weird places
+	GL_SetCanvas (cbx, CANVAS_CONSOLE); // in case this is called from weird places
 
 	if (alpha > 0.0)
 	{
-		Draw_Pic (0, 0, pic, alpha, alpha < 1.0f);
+		Draw_Pic (cbx, 0, 0, pic, alpha, alpha < 1.0f);
 	}
 }
 
@@ -768,7 +760,7 @@ This repeats a 64*64 tile graphic to fill the screen around a sized down
 refresh window.
 =============
 */
-void Draw_TileClear (int x, int y, int w, int h)
+void Draw_TileClear (cb_context_t *cbx, int x, int y, int w, int h)
 {
 	glpic_t gl;
 	memcpy (&gl, draw_backtile->data, sizeof (glpic_t));
@@ -811,12 +803,11 @@ void Draw_TileClear (int x, int y, int w, int h)
 	vertices[4] = corner_verts[3];
 	vertices[5] = corner_verts[0];
 
-	R_BindPipeline (VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_blend_pipeline[render_pass_index]);
+	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_blend_pipeline[cbx->render_pass_index]);
 	vkCmdBindDescriptorSets (
-		vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &gl.gltexture->descriptor_set, 0,
-		NULL);
-	vkCmdBindVertexBuffers (vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
-	vkCmdDraw (vulkan_globals.command_buffer, 6, 1, 0, 0);
+		cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &gl.gltexture->descriptor_set, 0, NULL);
+	vkCmdBindVertexBuffers (cbx->cb, 0, 1, &buffer, &buffer_offset);
+	vkCmdDraw (cbx->cb, 6, 1, 0, 0);
 }
 
 /*
@@ -826,7 +817,7 @@ Draw_Fill
 Fills a box of pixels with a single color
 =============
 */
-void Draw_Fill (int x, int y, int w, int h, int c, float alpha) // johnfitz -- added alpha
+void Draw_Fill (cb_context_t *cbx, int x, int y, int w, int h, int c, float alpha) // johnfitz -- added alpha
 {
 	int   i;
 	byte *pal = (byte *)d_8to24table; // johnfitz -- use d_8to24table instead of host_basepal
@@ -865,9 +856,9 @@ void Draw_Fill (int x, int y, int w, int h, int c, float alpha) // johnfitz -- a
 	vertices[4] = corner_verts[3];
 	vertices[5] = corner_verts[0];
 
-	vkCmdBindVertexBuffers (vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
-	R_BindPipeline (VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_notex_blend_pipeline[render_pass_index]);
-	vkCmdDraw (vulkan_globals.command_buffer, 6, 1, 0, 0);
+	vkCmdBindVertexBuffers (cbx->cb, 0, 1, &buffer, &buffer_offset);
+	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_notex_blend_pipeline[cbx->render_pass_index]);
+	vkCmdDraw (cbx->cb, 6, 1, 0, 0);
 }
 
 /*
@@ -875,11 +866,11 @@ void Draw_Fill (int x, int y, int w, int h, int c, float alpha) // johnfitz -- a
 Draw_FadeScreen
 ================
 */
-void Draw_FadeScreen (void)
+void Draw_FadeScreen (cb_context_t *cbx)
 {
 	int i;
 
-	GL_SetCanvas (CANVAS_DEFAULT);
+	GL_SetCanvas (cbx, CANVAS_DEFAULT);
 
 	VkBuffer       buffer;
 	VkDeviceSize   buffer_offset;
@@ -910,9 +901,9 @@ void Draw_FadeScreen (void)
 	vertices[4] = corner_verts[3];
 	vertices[5] = corner_verts[0];
 
-	vkCmdBindVertexBuffers (vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
-	R_BindPipeline (VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_notex_blend_pipeline[render_pass_index]);
-	vkCmdDraw (vulkan_globals.command_buffer, 6, 1, 0, 0);
+	vkCmdBindVertexBuffers (cbx->cb, 0, 1, &buffer, &buffer_offset);
+	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_notex_blend_pipeline[cbx->render_pass_index]);
+	vkCmdDraw (cbx->cb, 6, 1, 0, 0);
 
 	Sbar_Changed ();
 }
@@ -922,7 +913,7 @@ void Draw_FadeScreen (void)
 GL_OrthoMatrix
 ================
 */
-static void GL_OrthoMatrix (float left, float right, float bottom, float top, float n, float f)
+static void GL_OrthoMatrix (cb_context_t *cbx, float left, float right, float bottom, float top, float n, float f)
 {
 	float tx = -(right + left) / (right - left);
 	float ty = (top + bottom) / (top - bottom);
@@ -946,7 +937,7 @@ static void GL_OrthoMatrix (float left, float right, float bottom, float top, fl
 	matrix[3 * 4 + 2] = tz;
 	matrix[3 * 4 + 3] = 1.0f;
 
-	R_PushConstants (VK_SHADER_STAGE_ALL_GRAPHICS, 0, 16 * sizeof (float), matrix);
+	R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 16 * sizeof (float), matrix);
 }
 
 /*
@@ -954,7 +945,7 @@ static void GL_OrthoMatrix (float left, float right, float bottom, float top, fl
 GL_Viewport
 ================
 */
-void GL_Viewport (float x, float y, float width, float height, float min_depth, float max_depth)
+void GL_Viewport (cb_context_t *cbx, float x, float y, float width, float height, float min_depth, float max_depth)
 {
 	VkViewport viewport;
 	viewport.x = x;
@@ -964,7 +955,7 @@ void GL_Viewport (float x, float y, float width, float height, float min_depth, 
 	viewport.minDepth = min_depth;
 	viewport.maxDepth = max_depth;
 
-	vkCmdSetViewport (vulkan_globals.command_buffer, 0, 1, &viewport);
+	vkCmdSetViewport (cbx->cb, 0, 1, &viewport);
 }
 
 /*
@@ -972,219 +963,95 @@ void GL_Viewport (float x, float y, float width, float height, float min_depth, 
 GL_SetCanvas -- johnfitz -- support various canvas types
 ================
 */
-void GL_SetCanvas (canvastype newcanvas)
+void GL_SetCanvas (cb_context_t *cbx, canvastype newcanvas)
 {
-	if (newcanvas == currentcanvas)
+	if (newcanvas == cbx->current_canvas)
 		return;
 
 	extern vrect_t scr_vrect;
 	float          s;
 	int            lines;
 
-	currentcanvas = newcanvas;
+	cbx->current_canvas = newcanvas;
 
 	switch (newcanvas)
 	{
 	case CANVAS_NONE:
 		break;
 	case CANVAS_DEFAULT:
-		GL_OrthoMatrix (0, glwidth, glheight, 0, -99999, 99999);
-		GL_Viewport (glx, gly, glwidth, glheight, 0.0f, 1.0f);
+		GL_OrthoMatrix (cbx, 0, glwidth, glheight, 0, -99999, 99999);
+		GL_Viewport (cbx, glx, gly, glwidth, glheight, 0.0f, 1.0f);
 		break;
 	case CANVAS_CONSOLE:
 		lines = vid.conheight - (scr_con_current * vid.conheight / glheight);
-		GL_OrthoMatrix (0, vid.conwidth, vid.conheight + lines, lines, -99999, 99999);
-		GL_Viewport (glx, gly, glwidth, glheight, 0.0f, 1.0f);
+		GL_OrthoMatrix (cbx, 0, vid.conwidth, vid.conheight + lines, lines, -99999, 99999);
+		GL_Viewport (cbx, glx, gly, glwidth, glheight, 0.0f, 1.0f);
 		break;
 	case CANVAS_MENU:
 		s = q_min ((float)glwidth / 320.0, (float)glheight / 200.0);
 		s = CLAMP (1.0, scr_menuscale.value, s);
-		GL_OrthoMatrix (0, 640, 200, 0, -99999, 99999);
-		GL_Viewport (glx + (glwidth - 320 * s) / 2, gly + (glheight - 200 * s) / 2, 640 * s, 200 * s, 0.0f, 1.0f);
+		GL_OrthoMatrix (cbx, 0, 640, 200, 0, -99999, 99999);
+		GL_Viewport (cbx, glx + (glwidth - 320 * s) / 2, gly + (glheight - 200 * s) / 2, 640 * s, 200 * s, 0.0f, 1.0f);
 		break;
 	case CANVAS_CSQC:
 		s = CLAMP (1.0, scr_sbarscale.value, (float)glwidth / 320.0);
-		GL_OrthoMatrix (0, glwidth / s, glheight / s, 0, -99999, 99999);
-		GL_Viewport (glx, gly, glwidth, glheight, 0.0f, 1.0f);
+		GL_OrthoMatrix (cbx, 0, glwidth / s, glheight / s, 0, -99999, 99999);
+		GL_Viewport (cbx, glx, gly, glwidth, glheight, 0.0f, 1.0f);
 		break;
 	case CANVAS_SBAR:
 		s = CLAMP (1.0, scr_sbarscale.value, (float)glwidth / 320.0);
 		if (cl.gametype == GAME_DEATHMATCH)
 		{
-			GL_OrthoMatrix (0, glwidth / s, 48, 0, -99999, 99999);
-			GL_Viewport (glx, gly, glwidth, 48 * s, 0.0f, 1.0f);
+			GL_OrthoMatrix (cbx, 0, glwidth / s, 48, 0, -99999, 99999);
+			GL_Viewport (cbx, glx, gly, glwidth, 48 * s, 0.0f, 1.0f);
 		}
 		else
 		{
-			GL_OrthoMatrix (0, 320, 48, 0, -99999, 99999);
-			GL_Viewport (glx + (glwidth - 320 * s) / 2, gly, 320 * s, 48 * s, 0.0f, 1.0f);
+			GL_OrthoMatrix (cbx, 0, 320, 48, 0, -99999, 99999);
+			GL_Viewport (cbx, glx + (glwidth - 320 * s) / 2, gly, 320 * s, 48 * s, 0.0f, 1.0f);
 		}
 		break;
 	case CANVAS_WARPIMAGE:
-		GL_OrthoMatrix (0, 128, 0, 128, -99999, 99999);
-		GL_Viewport (glx, gly + glheight - WARPIMAGESIZE, WARPIMAGESIZE, WARPIMAGESIZE, 0.0f, 1.0f);
+		GL_OrthoMatrix (cbx, 0, 128, 0, 128, -99999, 99999);
+		GL_Viewport (cbx, glx, gly + glheight - WARPIMAGESIZE, WARPIMAGESIZE, WARPIMAGESIZE, 0.0f, 1.0f);
 		break;
 	case CANVAS_CROSSHAIR: // 0,0 is center of viewport
 		s = CLAMP (1.0, scr_crosshairscale.value, 10.0);
-		GL_OrthoMatrix (scr_vrect.width / -2 / s, scr_vrect.width / 2 / s, scr_vrect.height / 2 / s, scr_vrect.height / -2 / s, -99999, 99999);
-		GL_Viewport (scr_vrect.x, glheight - scr_vrect.y - scr_vrect.height, scr_vrect.width & ~1, scr_vrect.height & ~1, 0.0f, 1.0f);
+		GL_OrthoMatrix (cbx, scr_vrect.width / -2 / s, scr_vrect.width / 2 / s, scr_vrect.height / 2 / s, scr_vrect.height / -2 / s, -99999, 99999);
+		GL_Viewport (cbx, scr_vrect.x, glheight - scr_vrect.y - scr_vrect.height, scr_vrect.width & ~1, scr_vrect.height & ~1, 0.0f, 1.0f);
 		break;
 	case CANVAS_BOTTOMLEFT:                // used by devstats
 		s = (float)glwidth / vid.conwidth; // use console scale
-		GL_OrthoMatrix (0, 320, 200, 0, -99999, 99999);
-		GL_Viewport (glx, gly, 320 * s, 200 * s, 0.0f, 1.0f);
+		GL_OrthoMatrix (cbx, 0, 320, 200, 0, -99999, 99999);
+		GL_Viewport (cbx, glx, gly, 320 * s, 200 * s, 0.0f, 1.0f);
 		break;
 	case CANVAS_BOTTOMRIGHT:               // used by fps/clock
 		s = (float)glwidth / vid.conwidth; // use console scale
-		GL_OrthoMatrix (0, 320, 200, 0, -99999, 99999);
-		GL_Viewport (glx + glwidth - 320 * s, gly, 320 * s, 200 * s, 0.0f, 1.0f);
+		GL_OrthoMatrix (cbx, 0, 320, 200, 0, -99999, 99999);
+		GL_Viewport (cbx, glx + glwidth - 320 * s, gly, 320 * s, 200 * s, 0.0f, 1.0f);
 		break;
 	case CANVAS_TOPRIGHT: // used by disc
 		s = 1;
-		GL_OrthoMatrix (0, 320, 200, 0, -99999, 99999);
-		GL_Viewport (glx + glwidth - 320 * s, gly + glheight - 200 * s, 320 * s, 200 * s, 0.0f, 1.0f);
+		GL_OrthoMatrix (cbx, 0, 320, 200, 0, -99999, 99999);
+		GL_Viewport (cbx, glx + glwidth - 320 * s, gly + glheight - 200 * s, 320 * s, 200 * s, 0.0f, 1.0f);
 		break;
 	default:
 		Sys_Error ("GL_SetCanvas: bad canvas type");
 	}
 }
 
-typedef struct screen_effect_constants_s
-{
-	uint32_t clamp_size_x;
-	uint32_t clamp_size_y;
-	float    screen_size_rcp_x;
-	float    screen_size_rcp_y;
-	float    aspect_ratio;
-	float    time;
-	uint32_t flags;
-} screen_effect_constants_t;
-
 /*
 ================
 GL_Set2D
 ================
 */
-qboolean GL_Set2D (void)
+qboolean GL_Set2D (cb_context_t *cbx)
 {
-	currentcanvas = CANVAS_INVALID;
-	GL_SetCanvas (CANVAS_DEFAULT);
-
-	vkCmdEndRenderPass (vulkan_globals.command_buffer);
-
-	qboolean screen_effects = render_warp || (render_scale >= 2);
-	if (screen_effects)
-	{
-		R_BeginDebugUtilsLabel ("Screen Effects");
-
-		VkImageMemoryBarrier image_barriers[2];
-		image_barriers[0].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-		image_barriers[0].pNext = NULL;
-		image_barriers[0].srcAccessMask = 0;
-		image_barriers[0].dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-		image_barriers[0].oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		image_barriers[0].newLayout = VK_IMAGE_LAYOUT_GENERAL;
-		image_barriers[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		image_barriers[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		image_barriers[0].image = vulkan_globals.color_buffers[0];
-		image_barriers[0].subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		image_barriers[0].subresourceRange.baseMipLevel = 0;
-		image_barriers[0].subresourceRange.levelCount = 1;
-		image_barriers[0].subresourceRange.baseArrayLayer = 0;
-		image_barriers[0].subresourceRange.layerCount = 1;
-
-		image_barriers[1].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-		image_barriers[1].pNext = NULL;
-		image_barriers[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-		image_barriers[1].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-		image_barriers[1].oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-		image_barriers[1].newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		image_barriers[1].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		image_barriers[1].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		image_barriers[1].image = vulkan_globals.color_buffers[1];
-		image_barriers[1].subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		image_barriers[1].subresourceRange.baseMipLevel = 0;
-		image_barriers[1].subresourceRange.levelCount = 1;
-		image_barriers[1].subresourceRange.baseArrayLayer = 0;
-		image_barriers[1].subresourceRange.layerCount = 1;
-
-		vkCmdPipelineBarrier (
-			vulkan_globals.command_buffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, NULL, 0, NULL, 2,
-			image_barriers);
-
-		GL_SetCanvas (CANVAS_NONE); // Invalidate canvas so push constants get set later
-
-		vulkan_pipeline_t *pipeline = NULL;
-		if (render_scale >= 2)
-		{
-			if (vulkan_globals.screen_effects_sops && r_usesops.value)
-				pipeline = &vulkan_globals.screen_effects_scale_sops_pipeline;
-			else
-				pipeline = &vulkan_globals.screen_effects_scale_pipeline;
-		}
-		else
-			pipeline = &vulkan_globals.screen_effects_pipeline;
-
-		R_BindPipeline (VK_PIPELINE_BIND_POINT_COMPUTE, *pipeline);
-		vkCmdBindDescriptorSets (
-			vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->layout.handle, 0, 1, &vulkan_globals.screen_warp_desc_set, 0, NULL);
-
-		uint32_t screen_effect_flags = 0;
-		if (render_warp)
-			screen_effect_flags |= 0x1;
-		if (render_scale >= 2)
-			screen_effect_flags |= 0x2;
-		if (render_scale >= 4)
-			screen_effect_flags |= 0x4;
-		if (render_scale >= 8)
-			screen_effect_flags |= 0x8;
-		const screen_effect_constants_t push_constants = {
-			vid.width - 1, vid.height - 1,     1.0f / (float)vid.width, 1.0f / (float)vid.height, (float)vid.width / (float)vid.height,
-			cl.time,       screen_effect_flags};
-		R_PushConstants (VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof (screen_effect_constants_t), &push_constants);
-
-		vkCmdDispatch (vulkan_globals.command_buffer, (vid.width + 7) / 8, (vid.height + 7) / 8, 1);
-
-		image_barriers[0].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-		image_barriers[0].pNext = NULL;
-		image_barriers[0].srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-		image_barriers[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-		image_barriers[0].oldLayout = VK_IMAGE_LAYOUT_GENERAL;
-		image_barriers[0].newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-		image_barriers[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		image_barriers[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		image_barriers[0].image = vulkan_globals.color_buffers[0];
-		image_barriers[0].subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		image_barriers[0].subresourceRange.baseMipLevel = 0;
-		image_barriers[0].subresourceRange.levelCount = 1;
-		image_barriers[0].subresourceRange.baseArrayLayer = 0;
-		image_barriers[0].subresourceRange.layerCount = 1;
-
-		vkCmdPipelineBarrier (
-			vulkan_globals.command_buffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, 0, 0, NULL, 0, NULL, 1,
-			image_barriers);
-
-		R_EndDebugUtilsLabel ();
-	}
-	else
-	{
-		VkMemoryBarrier memory_barrier;
-		memory_barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
-		memory_barrier.pNext = NULL;
-		memory_barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-		memory_barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-
-		vkCmdPipelineBarrier (
-			vulkan_globals.command_buffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, 0, 1, &memory_barrier,
-			0, NULL, 0, NULL);
-	}
-
 	if (GL_AcquireNextSwapChainImage () == false)
 		return false;
 
-	vkCmdBeginRenderPass (vulkan_globals.command_buffer, &vulkan_globals.ui_render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
-	render_pass_index = 1;
-	R_BindPipeline (VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_blend_pipeline[render_pass_index]);
+	GL_SetCanvas (cbx, CANVAS_DEFAULT);
+	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_blend_pipeline[cbx->render_pass_index]);
 
 	return true;
 }

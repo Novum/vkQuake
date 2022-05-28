@@ -173,7 +173,7 @@ void SCR_CenterPrint (const char *str) // update centerprint data
 	}
 }
 
-void SCR_DrawCenterString (void) // actually do the drawing
+void SCR_DrawCenterString (cb_context_t *cbx) // actually do the drawing
 {
 	char *start;
 	int   l;
@@ -181,7 +181,7 @@ void SCR_DrawCenterString (void) // actually do the drawing
 	int   x, y;
 	int   remaining;
 
-	GL_SetCanvas (CANVAS_MENU); // johnfitz
+	GL_SetCanvas (cbx, CANVAS_MENU); // johnfitz
 
 	// the finale prints the characters one at a time
 	if (cl.intermission)
@@ -208,7 +208,7 @@ void SCR_DrawCenterString (void) // actually do the drawing
 		x = (320 - l * 8) / 2; // johnfitz -- 320x200 coordinate system
 		for (j = 0; j < l; j++, x += 8)
 		{
-			Draw_Character (x, y, start[j]); // johnfitz -- stretch overlays
+			Draw_Character (cbx, x, y, start[j]); // johnfitz -- stretch overlays
 			if (!remaining--)
 				return;
 		}
@@ -224,7 +224,7 @@ void SCR_DrawCenterString (void) // actually do the drawing
 	} while (1);
 }
 
-void SCR_CheckDrawCenterString (void)
+void SCR_CheckDrawCenterString (cb_context_t *cbx)
 {
 	if (scr_center_lines > scr_erase_lines)
 		scr_erase_lines = scr_center_lines;
@@ -238,7 +238,7 @@ void SCR_CheckDrawCenterString (void)
 	if (cl.paused) // johnfitz -- don't show centerprint during a pause
 		return;
 
-	SCR_DrawCenterString ();
+	SCR_DrawCenterString (cbx);
 }
 
 //=============================================================================
@@ -529,7 +529,7 @@ void SCR_Init (void)
 SCR_DrawFPS -- johnfitz
 ==============
 */
-void SCR_DrawFPS (void)
+void SCR_DrawFPS (cb_context_t *cbx)
 {
 	static double oldtime = 0;
 	static double lastfps = 0;
@@ -563,8 +563,8 @@ void SCR_DrawFPS (void)
 		y = 200 - 8;
 		if (scr_clock.value)
 			y -= 8; // make room for clock
-		GL_SetCanvas (CANVAS_BOTTOMRIGHT);
-		Draw_String (x, y, st);
+		GL_SetCanvas (cbx, CANVAS_BOTTOMRIGHT);
+		Draw_String (cbx, x, y, st);
 		scr_tileclear_updates = 0;
 	}
 }
@@ -574,7 +574,7 @@ void SCR_DrawFPS (void)
 SCR_DrawClock -- johnfitz
 ==============
 */
-void SCR_DrawClock (void)
+void SCR_DrawClock (cb_context_t *cbx)
 {
 	char str[12];
 
@@ -591,8 +591,8 @@ void SCR_DrawClock (void)
 		return;
 
 	// draw it
-	GL_SetCanvas (CANVAS_BOTTOMRIGHT);
-	Draw_String (320 - (strlen (str) << 3), 200 - 8, str);
+	GL_SetCanvas (cbx, CANVAS_BOTTOMRIGHT);
+	Draw_String (cbx, 320 - (strlen (str) << 3), 200 - 8, str);
 
 	scr_tileclear_updates = 0;
 }
@@ -602,7 +602,7 @@ void SCR_DrawClock (void)
 SCR_DrawDevStats
 ==============
 */
-void SCR_DrawDevStats (void)
+void SCR_DrawDevStats (cb_context_t *cbx)
 {
 	char str[40];
 	int  y = 25 - 9; // 9=number of lines to print
@@ -611,36 +611,36 @@ void SCR_DrawDevStats (void)
 	if (!devstats.value)
 		return;
 
-	GL_SetCanvas (CANVAS_BOTTOMLEFT);
+	GL_SetCanvas (cbx, CANVAS_BOTTOMLEFT);
 
-	Draw_Fill (x, y * 8, 19 * 8, 9 * 8, 0, 0.5); // dark rectangle
+	Draw_Fill (cbx, x, y * 8, 19 * 8, 9 * 8, 0, 0.5); // dark rectangle
 
 	sprintf (str, "devstats |Curr Peak");
-	Draw_String (x, (y++) * 8 - x, str);
+	Draw_String (cbx, x, (y++) * 8 - x, str);
 
 	sprintf (str, "---------+---------");
-	Draw_String (x, (y++) * 8 - x, str);
+	Draw_String (cbx, x, (y++) * 8 - x, str);
 
 	sprintf (str, "Edicts   |%4i %4i", dev_stats.edicts, dev_peakstats.edicts);
-	Draw_String (x, (y++) * 8 - x, str);
+	Draw_String (cbx, x, (y++) * 8 - x, str);
 
 	sprintf (str, "Packet   |%4i %4i", dev_stats.packetsize, dev_peakstats.packetsize);
-	Draw_String (x, (y++) * 8 - x, str);
+	Draw_String (cbx, x, (y++) * 8 - x, str);
 
 	sprintf (str, "Visedicts|%4i %4i", dev_stats.visedicts, dev_peakstats.visedicts);
-	Draw_String (x, (y++) * 8 - x, str);
+	Draw_String (cbx, x, (y++) * 8 - x, str);
 
 	sprintf (str, "Efrags   |%4i %4i", dev_stats.efrags, dev_peakstats.efrags);
-	Draw_String (x, (y++) * 8 - x, str);
+	Draw_String (cbx, x, (y++) * 8 - x, str);
 
 	sprintf (str, "Dlights  |%4i %4i", dev_stats.dlights, dev_peakstats.dlights);
-	Draw_String (x, (y++) * 8 - x, str);
+	Draw_String (cbx, x, (y++) * 8 - x, str);
 
 	sprintf (str, "Beams    |%4i %4i", dev_stats.beams, dev_peakstats.beams);
-	Draw_String (x, (y++) * 8 - x, str);
+	Draw_String (cbx, x, (y++) * 8 - x, str);
 
 	sprintf (str, "Tempents |%4i %4i", dev_stats.tempents, dev_peakstats.tempents);
-	Draw_String (x, (y++) * 8 - x, str);
+	Draw_String (cbx, x, (y++) * 8 - x, str);
 }
 
 /*
@@ -648,7 +648,7 @@ void SCR_DrawDevStats (void)
 SCR_DrawRam
 ==============
 */
-void SCR_DrawRam (void)
+void SCR_DrawRam (cb_context_t *cbx)
 {
 	if (!scr_showram.value)
 		return;
@@ -656,9 +656,9 @@ void SCR_DrawRam (void)
 	if (!r_cache_thrash)
 		return;
 
-	GL_SetCanvas (CANVAS_DEFAULT); // johnfitz
+	GL_SetCanvas (cbx, CANVAS_DEFAULT); // johnfitz
 
-	Draw_Pic (scr_vrect.x + 32, scr_vrect.y, scr_ram, 1.0f, false);
+	Draw_Pic (cbx, scr_vrect.x + 32, scr_vrect.y, scr_ram, 1.0f, false);
 }
 
 /*
@@ -666,7 +666,7 @@ void SCR_DrawRam (void)
 SCR_DrawTurtle
 ==============
 */
-void SCR_DrawTurtle (void)
+void SCR_DrawTurtle (cb_context_t *cbx)
 {
 	static int count;
 
@@ -683,9 +683,9 @@ void SCR_DrawTurtle (void)
 	if (count < 3)
 		return;
 
-	GL_SetCanvas (CANVAS_DEFAULT); // johnfitz
+	GL_SetCanvas (cbx, CANVAS_DEFAULT); // johnfitz
 
-	Draw_Pic (scr_vrect.x, scr_vrect.y, scr_turtle, 1.0f, false);
+	Draw_Pic (cbx, scr_vrect.x, scr_vrect.y, scr_turtle, 1.0f, false);
 }
 
 /*
@@ -693,16 +693,16 @@ void SCR_DrawTurtle (void)
 SCR_DrawNet
 ==============
 */
-void SCR_DrawNet (void)
+void SCR_DrawNet (cb_context_t *cbx)
 {
 	if (realtime - cl.last_received_message < 0.3)
 		return;
 	if (cls.demoplayback)
 		return;
 
-	GL_SetCanvas (CANVAS_DEFAULT); // johnfitz
+	GL_SetCanvas (cbx, CANVAS_DEFAULT); // johnfitz
 
-	Draw_Pic (scr_vrect.x + 64, scr_vrect.y, scr_net, 1.0f, false);
+	Draw_Pic (cbx, scr_vrect.x + 64, scr_vrect.y, scr_net, 1.0f, false);
 }
 
 /*
@@ -710,7 +710,7 @@ void SCR_DrawNet (void)
 DrawPause
 ==============
 */
-void SCR_DrawPause (void)
+void SCR_DrawPause (cb_context_t *cbx)
 {
 	qpic_t *pic;
 
@@ -720,10 +720,10 @@ void SCR_DrawPause (void)
 	if (!scr_showpause.value) // turn off for screenshots
 		return;
 
-	GL_SetCanvas (CANVAS_MENU); // johnfitz
+	GL_SetCanvas (cbx, CANVAS_MENU); // johnfitz
 
 	pic = Draw_CachePic ("gfx/pause.lmp");
-	Draw_Pic ((320 - pic->width) / 2, (240 - 48 - pic->height) / 2, pic, 1.0f, false); // johnfitz -- stretched menus
+	Draw_Pic (cbx, (320 - pic->width) / 2, (240 - 48 - pic->height) / 2, pic, 1.0f, false); // johnfitz -- stretched menus
 
 	scr_tileclear_updates = 0; // johnfitz
 }
@@ -733,17 +733,17 @@ void SCR_DrawPause (void)
 SCR_DrawLoading
 ==============
 */
-void SCR_DrawLoading (void)
+void SCR_DrawLoading (cb_context_t *cbx)
 {
 	qpic_t *pic;
 
 	if (!scr_drawloading)
 		return;
 
-	GL_SetCanvas (CANVAS_MENU); // johnfitz
+	GL_SetCanvas (cbx, CANVAS_MENU); // johnfitz
 
 	pic = Draw_CachePic ("gfx/loading.lmp");
-	Draw_Pic ((320 - pic->width) / 2, (240 - 48 - pic->height) / 2, pic, 1.0f, false); // johnfitz -- stretched menus
+	Draw_Pic (cbx, (320 - pic->width) / 2, (240 - 48 - pic->height) / 2, pic, 1.0f, false); // johnfitz -- stretched menus
 
 	scr_tileclear_updates = 0; // johnfitz
 }
@@ -753,19 +753,19 @@ void SCR_DrawLoading (void)
 SCR_DrawCrosshair -- johnfitz
 ==============
 */
-void SCR_DrawCrosshair (void)
+void SCR_DrawCrosshair (cb_context_t *cbx)
 {
 	if (!crosshair.value)
 		return;
 
-	GL_SetCanvas (CANVAS_CROSSHAIR);
+	GL_SetCanvas (cbx, CANVAS_CROSSHAIR);
 	if (crosshair.value >= 2.0f)
 	{
-		Draw_Character (-4, -4, '.'); // 0,0 is center of viewport
+		Draw_Character (cbx, -4, -4, '.'); // 0,0 is center of viewport
 	}
 	else
 	{
-		Draw_Character (-4, -4, '+'); // 0,0 is center of viewport
+		Draw_Character (cbx, -4, -4, '+'); // 0,0 is center of viewport
 	}
 }
 
@@ -830,17 +830,17 @@ void SCR_SetUpToDrawConsole (void)
 SCR_DrawConsole
 ==================
 */
-void SCR_DrawConsole (void)
+void SCR_DrawConsole (cb_context_t *cbx)
 {
 	if (scr_con_current)
 	{
-		Con_DrawConsole (scr_con_current, true);
+		Con_DrawConsole (cbx, scr_con_current, true);
 		clearconsole = 0;
 	}
 	else
 	{
 		if (key_dest == key_game || key_dest == key_message)
-			Con_DrawNotify (); // only draw notify in game
+			Con_DrawNotify (cbx); // only draw notify in game
 	}
 }
 
@@ -892,14 +892,14 @@ void SCR_EndLoadingPlaque (void)
 const char *scr_notifystring;
 qboolean    scr_drawdialog;
 
-void SCR_DrawNotifyString (void)
+void SCR_DrawNotifyString (cb_context_t *cbx)
 {
 	const char *start;
 	int         l;
 	int         j;
 	int         x, y;
 
-	GL_SetCanvas (CANVAS_MENU); // johnfitz
+	GL_SetCanvas (cbx, CANVAS_MENU); // johnfitz
 
 	start = scr_notifystring;
 
@@ -913,7 +913,7 @@ void SCR_DrawNotifyString (void)
 				break;
 		x = (320 - l * 8) / 2; // johnfitz -- stretched overlays
 		for (j = 0; j < l; j++, x += 8)
-			Draw_Character (x, y, start[j]);
+			Draw_Character (cbx, x, y, start[j]);
 
 		y += 8;
 
@@ -988,28 +988,29 @@ johnfitz -- modified to use glwidth/glheight instead of vid.width/vid.height
         also added scr_tileclear_updates
 ==================
 */
-void SCR_TileClear (void)
+void SCR_TileClear (cb_context_t *cbx)
 {
 	scr_tileclear_updates++;
 
 	if (r_refdef.vrect.x > 0 || r_refdef.vrect.y > 0)
-		GL_SetCanvas (CANVAS_DEFAULT);
+		GL_SetCanvas (cbx, CANVAS_DEFAULT);
 
 	if (r_refdef.vrect.x > 0)
 	{
 		// left
-		Draw_TileClear (0, 0, r_refdef.vrect.x, glheight - sb_lines);
+		Draw_TileClear (cbx, 0, 0, r_refdef.vrect.x, glheight - sb_lines);
 		// right
-		Draw_TileClear (r_refdef.vrect.x + r_refdef.vrect.width, 0, glwidth - r_refdef.vrect.x - r_refdef.vrect.width, glheight - sb_lines);
+		Draw_TileClear (cbx, r_refdef.vrect.x + r_refdef.vrect.width, 0, glwidth - r_refdef.vrect.x - r_refdef.vrect.width, glheight - sb_lines);
 	}
 
 	if (r_refdef.vrect.y > 0)
 	{
 		// top
-		Draw_TileClear (r_refdef.vrect.x, 0, r_refdef.vrect.width, r_refdef.vrect.y);
+		Draw_TileClear (cbx, r_refdef.vrect.x, 0, r_refdef.vrect.width, r_refdef.vrect.y);
 		// bottom
 		Draw_TileClear (
-			r_refdef.vrect.x, r_refdef.vrect.y + r_refdef.vrect.height, r_refdef.vrect.width, glheight - r_refdef.vrect.y - r_refdef.vrect.height - sb_lines);
+			cbx, r_refdef.vrect.x, r_refdef.vrect.y + r_refdef.vrect.height, r_refdef.vrect.width,
+			glheight - r_refdef.vrect.y - r_refdef.vrect.height - sb_lines);
 	}
 }
 
@@ -1066,7 +1067,8 @@ void SCR_UpdateScreen (void)
 
 	V_RenderView ();
 
-	if (GL_Set2D () == false)
+	cb_context_t *cbx = &vulkan_globals.secondary_cb_contexts[CBX_GUI];
+	if (GL_Set2D (cbx) == false)
 	{
 		GL_EndRendering (false);
 		in_update_screen = false;
@@ -1074,48 +1076,48 @@ void SCR_UpdateScreen (void)
 	}
 
 	// FIXME: only call this when needed
-	R_BeginDebugUtilsLabel ("2D");
-	SCR_TileClear ();
+	R_BeginDebugUtilsLabel (cbx, "2D");
+	SCR_TileClear (cbx);
 
 	if (scr_drawdialog) // new game confirm
 	{
 		if (con_forcedup)
-			Draw_ConsoleBackground ();
+			Draw_ConsoleBackground (cbx);
 		else
-			Sbar_Draw ();
-		Draw_FadeScreen ();
-		SCR_DrawNotifyString ();
+			Sbar_Draw (cbx);
+		Draw_FadeScreen (cbx);
+		SCR_DrawNotifyString (cbx);
 	}
 	else if (scr_drawloading) // loading
 	{
-		SCR_DrawLoading ();
-		Sbar_Draw ();
+		SCR_DrawLoading (cbx);
+		Sbar_Draw (cbx);
 	}
 	else if (cl.intermission == 1 && key_dest == key_game) // end of level
 	{
-		Sbar_IntermissionOverlay ();
+		Sbar_IntermissionOverlay (cbx);
 	}
 	else if (cl.intermission == 2 && key_dest == key_game) // end of episode
 	{
-		Sbar_FinaleOverlay ();
-		SCR_CheckDrawCenterString ();
+		Sbar_FinaleOverlay (cbx);
+		SCR_CheckDrawCenterString (cbx);
 	}
 	else
 	{
-		SCR_DrawCrosshair (); // johnfitz
-		SCR_DrawRam ();
-		SCR_DrawNet ();
-		SCR_DrawTurtle ();
-		SCR_DrawPause ();
-		SCR_CheckDrawCenterString ();
-		Sbar_Draw ();
-		SCR_DrawDevStats (); // johnfitz
-		SCR_DrawFPS ();      // johnfitz
-		SCR_DrawClock ();    // johnfitz
-		SCR_DrawConsole ();
-		M_Draw ();
+		SCR_DrawCrosshair (cbx); // johnfitz
+		SCR_DrawRam (cbx);
+		SCR_DrawNet (cbx);
+		SCR_DrawTurtle (cbx);
+		SCR_DrawPause (cbx);
+		SCR_CheckDrawCenterString (cbx);
+		Sbar_Draw (cbx);
+		SCR_DrawDevStats (cbx); // johnfitz
+		SCR_DrawFPS (cbx);      // johnfitz
+		SCR_DrawClock (cbx);    // johnfitz
+		SCR_DrawConsole (cbx);
+		M_Draw (cbx);
 	}
-	R_EndDebugUtilsLabel ();
+	R_EndDebugUtilsLabel (cbx);
 
 	V_UpdateBlend (); // johnfitz -- V_UpdatePalette cleaned up and renamed
 

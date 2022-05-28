@@ -26,35 +26,31 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 //
 // console
 //
-extern int      con_totallines;
-extern int      con_backscroll;
-extern qboolean con_forcedup; // because no entities to refresh
-extern qboolean con_initialized;
-extern byte    *con_chars;
+extern int                  con_totallines;
+extern int                  con_backscroll;
+extern qboolean             con_forcedup; // because no entities to refresh
+extern qboolean             con_initialized;
+extern byte				*con_chars;
+typedef struct cb_context_s cb_context_t;
 
 extern char con_lastcenterstring[]; // johnfitz
 
-void Con_DrawCharacter (int cx, int line, int num);
-
 void     Con_CheckResize (void);
 void     Con_Init (void);
-void     Con_DrawConsole (int lines, qboolean drawinput);
+void     Con_DrawConsole (cb_context_t *cbx, int lines, qboolean drawinput);
 void     Con_Printf (const char *fmt, ...) FUNC_PRINTF (1, 2);
 void     Con_DWarning (const char *fmt, ...) FUNC_PRINTF (1, 2); // ericw
 void     Con_Warning (const char *fmt, ...) FUNC_PRINTF (1, 2);  // johnfitz
 void     Con_DPrintf (const char *fmt, ...) FUNC_PRINTF (1, 2);
 void     Con_DPrintf2 (const char *fmt, ...) FUNC_PRINTF (1, 2); // johnfitz
 void     Con_SafePrintf (const char *fmt, ...) FUNC_PRINTF (1, 2);
-void     Con_DrawNotify (void);
+void     Con_DrawNotify (cb_context_t *cbx);
 void     Con_ClearNotify (void);
 void     Con_ToggleConsole_f (void);
 qboolean Con_IsRedirected (void); // returns true if its redirected. this generally means that things are a little more verbose.
 void     Con_Redirect (void (*flush) (const char *text));
 
 void Con_NotifyBox (const char *text); // during startup for sound / cd warnings
-
-void Con_Show (void);
-void Con_Hide (void);
 
 const char *Con_Quakebar (int len);
 void        Con_TabComplete (void);

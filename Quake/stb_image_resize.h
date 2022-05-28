@@ -493,10 +493,10 @@ typedef struct
 	stbir_colorspace colorspace;
 
 	stbir__contributors *horizontal_contributors;
-	float               *horizontal_coefficients;
+	float			   *horizontal_coefficients;
 
 	stbir__contributors *vertical_contributors;
-	float               *vertical_coefficients;
+	float			   *vertical_coefficients;
 
 	int    decode_buffer_pixels;
 	float *decode_buffer;
@@ -663,25 +663,25 @@ static stbir_uint8 stbir__linear_to_srgb_uchar (float in)
 #else
 // sRGB transition values, scaled by 1<<28
 static int       stbir__srgb_offset_to_linear_scaled[256] = {
-    0,         40738,     122216,    203693,    285170,    366648,    448125,    529603,    611080,    692557,    774035,    855852,    942009,    1033024,
-    1128971,   1229926,   1335959,   1447142,   1563542,   1685229,   1812268,   1944725,   2082664,   2226148,   2375238,   2529996,   2690481,   2856753,
-    3028870,   3206888,   3390865,   3580856,   3776916,   3979100,   4187460,   4402049,   4622919,   4850123,   5083710,   5323731,   5570236,   5823273,
-    6082892,   6349140,   6622065,   6901714,   7188133,   7481369,   7781466,   8088471,   8402427,   8723380,   9051372,   9386448,   9728650,   10078021,
-    10434603,  10798439,  11169569,  11548036,  11933879,  12327139,  12727857,  13136073,  13551826,  13975156,  14406100,  14844697,  15290987,  15745007,
-    16206795,  16676389,  17153826,  17639142,  18132374,  18633560,  19142734,  19659934,  20185196,  20718552,  21260042,  21809696,  22367554,  22933648,
-    23508010,  24090680,  24681686,  25281066,  25888850,  26505076,  27129772,  27762974,  28404716,  29055026,  29713942,  30381490,  31057708,  31742624,
-    32436272,  33138682,  33849884,  34569912,  35298800,  36036568,  36783260,  37538896,  38303512,  39077136,  39859796,  40651528,  41452360,  42262316,
-    43081432,  43909732,  44747252,  45594016,  46450052,  47315392,  48190064,  49074096,  49967516,  50870356,  51782636,  52704392,  53635648,  54576432,
-    55526772,  56486700,  57456236,  58435408,  59424248,  60422780,  61431036,  62449032,  63476804,  64514376,  65561776,  66619028,  67686160,  68763192,
-    69850160,  70947088,  72053992,  73170912,  74297864,  75434880,  76581976,  77739184,  78906536,  80084040,  81271736,  82469648,  83677792,  84896192,
-    86124888,  87363888,  88613232,  89872928,  91143016,  92423512,  93714432,  95015816,  96327688,  97650056,  98982952,  100326408, 101680440, 103045072,
-    104420320, 105806224, 107202800, 108610064, 110028048, 111456776, 112896264, 114346544, 115807632, 117279552, 118762328, 120255976, 121760536, 123276016,
-    124802440, 126339832, 127888216, 129447616, 131018048, 132599544, 134192112, 135795792, 137410592, 139036528, 140673648, 142321952, 143981456, 145652208,
-    147334208, 149027488, 150732064, 152447968, 154175200, 155913792, 157663776, 159425168, 161197984, 162982240, 164777968, 166585184, 168403904, 170234160,
-    172075968, 173929344, 175794320, 177670896, 179559120, 181458992, 183370528, 185293776, 187228736, 189175424, 191133888, 193104112, 195086128, 197079968,
-    199085648, 201103184, 203132592, 205173888, 207227120, 209292272, 211369392, 213458480, 215559568, 217672656, 219797792, 221934976, 224084240, 226245600,
-    228419056, 230604656, 232802400, 235012320, 237234432, 239468736, 241715280, 243974080, 246245120, 248528464, 250824112, 253132064, 255452368, 257785040,
-    260130080, 262487520, 264857376, 267239664,
+		  0,         40738,     122216,    203693,    285170,    366648,    448125,    529603,    611080,    692557,    774035,    855852,    942009,    1033024,
+		  1128971,   1229926,   1335959,   1447142,   1563542,   1685229,   1812268,   1944725,   2082664,   2226148,   2375238,   2529996,   2690481,   2856753,
+		  3028870,   3206888,   3390865,   3580856,   3776916,   3979100,   4187460,   4402049,   4622919,   4850123,   5083710,   5323731,   5570236,   5823273,
+		  6082892,   6349140,   6622065,   6901714,   7188133,   7481369,   7781466,   8088471,   8402427,   8723380,   9051372,   9386448,   9728650,   10078021,
+		  10434603,  10798439,  11169569,  11548036,  11933879,  12327139,  12727857,  13136073,  13551826,  13975156,  14406100,  14844697,  15290987,  15745007,
+		  16206795,  16676389,  17153826,  17639142,  18132374,  18633560,  19142734,  19659934,  20185196,  20718552,  21260042,  21809696,  22367554,  22933648,
+		  23508010,  24090680,  24681686,  25281066,  25888850,  26505076,  27129772,  27762974,  28404716,  29055026,  29713942,  30381490,  31057708,  31742624,
+		  32436272,  33138682,  33849884,  34569912,  35298800,  36036568,  36783260,  37538896,  38303512,  39077136,  39859796,  40651528,  41452360,  42262316,
+		  43081432,  43909732,  44747252,  45594016,  46450052,  47315392,  48190064,  49074096,  49967516,  50870356,  51782636,  52704392,  53635648,  54576432,
+		  55526772,  56486700,  57456236,  58435408,  59424248,  60422780,  61431036,  62449032,  63476804,  64514376,  65561776,  66619028,  67686160,  68763192,
+		  69850160,  70947088,  72053992,  73170912,  74297864,  75434880,  76581976,  77739184,  78906536,  80084040,  81271736,  82469648,  83677792,  84896192,
+		  86124888,  87363888,  88613232,  89872928,  91143016,  92423512,  93714432,  95015816,  96327688,  97650056,  98982952,  100326408, 101680440, 103045072,
+		  104420320, 105806224, 107202800, 108610064, 110028048, 111456776, 112896264, 114346544, 115807632, 117279552, 118762328, 120255976, 121760536, 123276016,
+		  124802440, 126339832, 127888216, 129447616, 131018048, 132599544, 134192112, 135795792, 137410592, 139036528, 140673648, 142321952, 143981456, 145652208,
+		  147334208, 149027488, 150732064, 152447968, 154175200, 155913792, 157663776, 159425168, 161197984, 162982240, 164777968, 166585184, 168403904, 170234160,
+		  172075968, 173929344, 175794320, 177670896, 179559120, 181458992, 183370528, 185293776, 187228736, 189175424, 191133888, 193104112, 195086128, 197079968,
+		  199085648, 201103184, 203132592, 205173888, 207227120, 209292272, 211369392, 213458480, 215559568, 217672656, 219797792, 221934976, 224084240, 226245600,
+		  228419056, 230604656, 232802400, 235012320, 237234432, 239468736, 241715280, 243974080, 246245120, 248528464, 250824112, 253132064, 255452368, 257785040,
+		  260130080, 262487520, 264857376, 267239664,
 };
 
 static stbir_uint8 stbir__linear_to_srgb_uchar (float f)
@@ -1440,9 +1440,9 @@ static void stbir__resample_horizontal_upsample (stbir__info *stbir_info, float 
 	int                  x, k;
 	int                  output_w = stbir_info->output_w;
 	int                  channels = stbir_info->channels;
-	float               *decode_buffer = stbir__get_decode_buffer (stbir_info);
+	float			   *decode_buffer = stbir__get_decode_buffer (stbir_info);
 	stbir__contributors *horizontal_contributors = stbir_info->horizontal_contributors;
-	float               *horizontal_coefficients = stbir_info->horizontal_coefficients;
+	float			   *horizontal_coefficients = stbir_info->horizontal_coefficients;
 	int                  coefficient_width = stbir_info->horizontal_coefficient_width;
 
 	for (x = 0; x < output_w; x++)
@@ -1524,9 +1524,9 @@ static void stbir__resample_horizontal_downsample (stbir__info *stbir_info, floa
 	int                  x, k;
 	int                  input_w = stbir_info->input_w;
 	int                  channels = stbir_info->channels;
-	float               *decode_buffer = stbir__get_decode_buffer (stbir_info);
+	float			   *decode_buffer = stbir__get_decode_buffer (stbir_info);
 	stbir__contributors *horizontal_contributors = stbir_info->horizontal_contributors;
-	float               *horizontal_coefficients = stbir_info->horizontal_coefficients;
+	float			   *horizontal_coefficients = stbir_info->horizontal_coefficients;
 	int                  coefficient_width = stbir_info->horizontal_coefficient_width;
 	int                  filter_pixel_margin = stbir_info->horizontal_filter_pixel_margin;
 	int                  max_x = input_w + filter_pixel_margin * 2;
@@ -1867,14 +1867,14 @@ static void stbir__resample_vertical_upsample (stbir__info *stbir_info, int n)
 	int                  x, k;
 	int                  output_w = stbir_info->output_w;
 	stbir__contributors *vertical_contributors = stbir_info->vertical_contributors;
-	float               *vertical_coefficients = stbir_info->vertical_coefficients;
+	float			   *vertical_coefficients = stbir_info->vertical_coefficients;
 	int                  channels = stbir_info->channels;
 	int                  alpha_channel = stbir_info->alpha_channel;
 	int                  type = stbir_info->type;
 	int                  colorspace = stbir_info->colorspace;
 	int                  ring_buffer_entries = stbir_info->ring_buffer_num_entries;
-	void                *output_data = stbir_info->output_data;
-	float               *encode_buffer = stbir_info->encode_buffer;
+	void				*output_data = stbir_info->output_data;
+	float			   *encode_buffer = stbir_info->encode_buffer;
 	int                  decode = STBIR__DECODE (type, colorspace);
 	int                  coefficient_width = stbir_info->vertical_coefficient_width;
 	int                  coefficient_counter;
@@ -1990,10 +1990,10 @@ static void stbir__resample_vertical_downsample (stbir__info *stbir_info, int n)
 	int                  x, k;
 	int                  output_w = stbir_info->output_w;
 	stbir__contributors *vertical_contributors = stbir_info->vertical_contributors;
-	float               *vertical_coefficients = stbir_info->vertical_coefficients;
+	float			   *vertical_coefficients = stbir_info->vertical_coefficients;
 	int                  channels = stbir_info->channels;
 	int                  ring_buffer_entries = stbir_info->ring_buffer_num_entries;
-	float               *horizontal_buffer = stbir_info->horizontal_buffer;
+	float			   *horizontal_buffer = stbir_info->horizontal_buffer;
 	int                  coefficient_width = stbir_info->vertical_coefficient_width;
 	int                  contributor = n + stbir_info->vertical_filter_pixel_margin;
 

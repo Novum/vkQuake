@@ -24,12 +24,33 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // r_world.c: world model rendering
 
 #include "quakedef.h"
+#include "atomics.h"
 
-extern cvar_t gl_fullbrights, r_drawflat, r_oldskyleaf, r_showtris, r_simd, gl_zfix, r_gpulightmapupdate; // johnfitz
+extern cvar_t gl_fullbrights;
+extern cvar_t r_drawflat;
+extern cvar_t r_oldskyleaf;
+extern cvar_t r_showtris;
+extern cvar_t r_simd;
+extern cvar_t gl_zfix;
+extern cvar_t r_gpulightmapupdate;
+extern cvar_t r_tasks;
+
+cvar_t r_parallelmark = {"r_parallelmark", "1", CVAR_NONE};
 
 byte *SV_FatPVS (vec3_t org, qmodel_t *worldmodel);
 
 extern VkBuffer bmodel_vertex_buffer;
+
+/*
+===============
+mark_surfaces_state_t
+===============
+*/
+typedef struct
+{
+	byte *vis;
+} mark_surfaces_state_t;
+mark_surfaces_state_t mark_surfaces_state;
 
 //==============================================================================
 //
@@ -62,7 +83,7 @@ R_ChainSurface -- ericw -- adds the given surface to its texture chain
 */
 void R_ChainSurface (msurface_t *surf, texchain_t chain)
 {
-	surf->texturechain = surf->texinfo->texture->texturechains[chain];
+	surf->texturechains[chain] = surf->texinfo->texture->texturechains[chain];
 	surf->texinfo->texture->texturechains[chain] = surf;
 }
 
@@ -169,10 +190,10 @@ byte R_CullBoxSIMD (soa_aabb_t box, byte activelanes)
 R_MarkVisSurfacesSIMD
 ===============
 */
-void R_MarkVisSurfacesSIMD (byte *vis)
+void R_MarkVisSurfacesSIMD (void *unused)
 {
 	msurface_t  *surf;
-	unsigned int i, j, k;
+	unsigned int i, k;
 	unsigned int numleafs = cl.worldmodel->numleafs;
 	unsigned int numsurfaces = cl.worldmodel->numsurfaces;
 	byte        *surfvis = cl.worldmodel->surfvis;
@@ -183,18 +204,15 @@ void R_MarkVisSurfacesSIMD (byte *vis)
 	// iterate through leaves, marking surfaces
 	for (i = 0; i < numleafs; i += 8)
 	{
-		byte mask = vis[i / 8];
+		byte mask = mark_surfaces_state.vis[i / 8];
 		if (mask == 0)
 			continue;
 
 		mask = R_CullBoxSIMD (leafbounds[i / 8], mask);
-		if (mask == 0)
-			continue;
-
-		for (j = 0; (j < 8) && ((i + j) < numleafs); ++j)
+		while (mask != 0)
 		{
-			if (!(mask & (1u << j)))
-				continue;
+			const int j = FindFirstBitNonZero (mask);
+			mask &= ~(1u << j);
 
 			mleaf_t *leaf = &cl.worldmodel->leafs[1 + i + j];
 			if (leaf->contents != CONTENTS_SKY || r_oldskyleaf.value)
@@ -221,16 +239,13 @@ void R_MarkVisSurfacesSIMD (byte *vis)
 			continue;
 
 		mask &= R_BackFaceCullSIMD (cl.worldmodel->soa_surfplanes[i / 8]);
-		if (mask == 0)
-			continue;
-
-		for (j = 0; j < 8; ++j)
+		while (mask != 0)
 		{
-			if (!(mask & (1u << j)))
-				continue;
+			const int j = FindFirstBitNonZero (mask);
+			mask &= ~(1u << j);
 
 			surf = &cl.worldmodel->surfaces[i + j];
-			rs_brushpolys++; // count wpolys here
+			Atomic_IncrementUInt32 (&rs_brushpolys); // count wpolys here
 			R_ChainSurface (surf, chain_world);
 			if (!r_gpulightmapupdate.value)
 				R_RenderDynamicLightmaps (surf);
@@ -241,6 +256,130 @@ void R_MarkVisSurfacesSIMD (byte *vis)
 		}
 	}
 }
+
+/*
+===============
+R_MarkLeafsSIMD
+===============
+*/
+void R_MarkLeafsSIMD (int index, void *unused)
+{
+	unsigned int    j;
+	unsigned int    first_leaf = index * 8;
+	atomic_uint8_t *surfvis = (atomic_uint8_t *)cl.worldmodel->surfvis;
+	soa_aabb_t     *leafbounds = cl.worldmodel->soa_leafbounds;
+
+	byte *mask = &mark_surfaces_state.vis[index];
+	if (*mask == 0)
+		return;
+
+	*mask = R_CullBoxSIMD (leafbounds[index], *mask);
+
+	uint8_t mask_iter = *mask;
+	while (mask_iter != 0)
+	{
+		const int i = FindFirstBitNonZero (mask_iter);
+
+		mleaf_t *leaf = &cl.worldmodel->leafs[1 + first_leaf + i];
+		if (leaf->contents != CONTENTS_SKY || r_oldskyleaf.value)
+		{
+			unsigned int nummarksurfaces = leaf->nummarksurfaces;
+			int         *marksurfaces = leaf->firstmarksurface;
+			for (j = 0; j < nummarksurfaces; ++j)
+			{
+				unsigned int surf_index = marksurfaces[j];
+				Atomic_OrUInt8 (&surfvis[surf_index / 8], 1u << (surf_index % 8));
+			}
+		}
+		const uint8_t bit_mask = ~(1u << i);
+		if (!leaf->efrags)
+		{
+			*mask &= bit_mask;
+		}
+		mask_iter &= bit_mask;
+	}
+}
+
+/*
+===============
+R_BackfaceCullSurfacesSIMD
+===============
+*/
+void R_BackfaceCullSurfacesSIMD (int index, void *unused)
+{
+	byte       *surfvis = cl.worldmodel->surfvis;
+	msurface_t *surf;
+
+	byte *mask = &surfvis[index];
+	if (*mask == 0)
+		return;
+
+	*mask &= R_BackFaceCullSIMD (cl.worldmodel->soa_surfplanes[index]);
+
+	uint8_t mask_iter = *mask;
+	while (mask_iter != 0)
+	{
+		const int i = FindFirstBitNonZero (mask_iter);
+
+		surf = &cl.worldmodel->surfaces[(index * 8) + i];
+		if (r_gpulightmapupdate.value && surf->lightmaptexturenum >= 0)
+			lightmaps[surf->lightmaptexturenum].modified = true;
+		if (surf->texinfo->texture->warpimage)
+			surf->texinfo->texture->update_warp = true;
+
+		const uint8_t bit_mask = ~(1u << i);
+		mask_iter &= bit_mask;
+	}
+}
+
+/*
+===============
+R_StoreLeafEFrags
+===============
+*/
+void R_StoreLeafEFrags (void *unused)
+{
+	unsigned int i;
+	unsigned int numleafs = cl.worldmodel->numleafs;
+	for (i = 0; i < numleafs; i += 8)
+	{
+		byte mask = mark_surfaces_state.vis[i / 8];
+		while (mask != 0)
+		{
+			const int j = FindFirstBitNonZero (mask);
+			mask &= ~(1u << j);
+			mleaf_t *leaf = &cl.worldmodel->leafs[1 + i + j];
+			R_StoreEfrags (&leaf->efrags);
+		}
+	}
+}
+
+/*
+===============
+R_ChainVisSurfaces
+===============
+*/
+void R_ChainVisSurfaces (void *unused)
+{
+	unsigned int i;
+	msurface_t  *surf;
+	unsigned int numsurfaces = cl.worldmodel->numsurfaces;
+	byte        *surfvis = cl.worldmodel->surfvis;
+	for (i = 0; i < numsurfaces; i += 8)
+	{
+		byte mask = surfvis[i / 8];
+		while (mask != 0)
+		{
+			const int j = FindFirstBitNonZero (mask);
+			mask &= ~(1u << j);
+			surf = &cl.worldmodel->surfaces[i + j];
+			Atomic_IncrementUInt32 (&rs_brushpolys); // count wpolys here
+			if (!r_gpulightmapupdate.value)
+				R_RenderDynamicLightmaps (surf);
+			R_ChainSurface (surf, chain_world);
+		}
+	}
+}
 #endif // defined(USE_SIMD)
 
 /*
@@ -248,7 +387,7 @@ void R_MarkVisSurfacesSIMD (byte *vis)
 R_MarkVisSurfaces
 ===============
 */
-void R_MarkVisSurfaces (byte *vis)
+void R_MarkVisSurfaces (void *unused)
 {
 	int         i, j;
 	msurface_t *surf;
@@ -257,7 +396,7 @@ void R_MarkVisSurfaces (byte *vis)
 	leaf = &cl.worldmodel->leafs[1];
 	for (i = 0; i < cl.worldmodel->numleafs; i++, leaf++)
 	{
-		if (vis[i >> 3] & (1 << (i & 7)))
+		if (mark_surfaces_state.vis[i >> 3] & (1 << (i & 7)))
 		{
 			if (R_CullBox (leaf->minmaxs, leaf->minmaxs + 3))
 				continue;
@@ -272,7 +411,7 @@ void R_MarkVisSurfaces (byte *vis)
 						surf->visframe = r_visframecount;
 						if (!R_BackFaceCull (surf))
 						{
-							rs_brushpolys++; // count wpolys here
+							Atomic_IncrementUInt32 (&rs_brushpolys); // count wpolys here
 							R_ChainSurface (surf, chain_world);
 							if (!r_gpulightmapupdate.value)
 								R_RenderDynamicLightmaps (surf);
@@ -294,12 +433,11 @@ void R_MarkVisSurfaces (byte *vis)
 
 /*
 ===============
-R_MarkSurfaces -- johnfitz -- mark surfaces based on PVS and rebuild texture chains
+R_MarkSurfacesPrepare
 ===============
 */
-void R_MarkSurfaces (void)
+static void R_MarkSurfacesPrepare (void *unused)
 {
-	byte    *vis;
 	int      i;
 	qboolean nearwaterportal;
 
@@ -312,11 +450,11 @@ void R_MarkSurfaces (void)
 
 	// choose vis data
 	if (r_novis.value || r_viewleaf->contents == CONTENTS_SOLID || r_viewleaf->contents == CONTENTS_SKY)
-		vis = Mod_NoVisPVS (cl.worldmodel);
+		mark_surfaces_state.vis = Mod_NoVisPVS (cl.worldmodel);
 	else if (nearwaterportal)
-		vis = SV_FatPVS (r_origin, cl.worldmodel);
+		mark_surfaces_state.vis = SV_FatPVS (r_origin, cl.worldmodel);
 	else
-		vis = Mod_LeafPVS (r_viewleaf, cl.worldmodel);
+		mark_surfaces_state.vis = Mod_LeafPVS (r_viewleaf, cl.worldmodel);
 
 	r_visframecount++;
 
@@ -325,13 +463,73 @@ void R_MarkSurfaces (void)
 		if (cl.worldmodel->textures[i])
 			cl.worldmodel->textures[i]->texturechains[chain_world] = NULL;
 
-			// iterate through leaves, marking surfaces
+	memset (cl.worldmodel->surfvis, 0, (cl.worldmodel->numsurfaces + 7) / 8);
+}
+
+/*
+===============
+R_MarkSurfaces -- johnfitz -- mark surfaces based on PVS and rebuild texture chains
+===============
+*/
+void R_MarkSurfaces (task_handle_t before_mark, task_handle_t *store_efrags, task_handle_t *cull_surfaces, task_handle_t *chain_surfaces)
+{
+	if (r_tasks.value && r_gpulightmapupdate.value)
+	{
+		task_handle_t prepare_mark = Task_AllocateAndAssignFunc (R_MarkSurfacesPrepare, NULL, 0);
+		Task_AddDependency (before_mark, prepare_mark);
+		Task_Submit (prepare_mark);
 #if defined(USE_SIMD)
-	if (use_simd)
-		R_MarkVisSurfacesSIMD (vis);
-	else
+		if (use_simd)
+		{
+			if (r_parallelmark.value)
+			{
+				unsigned int  numleafs = cl.worldmodel->numleafs;
+				task_handle_t mark_surfaces = Task_AllocateAndAssignIndexedFunc (R_MarkLeafsSIMD, (numleafs + 7) / 8, NULL, 0);
+				Task_AddDependency (prepare_mark, mark_surfaces);
+				Task_Submit (mark_surfaces);
+
+				*store_efrags = Task_AllocateAndAssignFunc (R_StoreLeafEFrags, NULL, 0);
+				Task_AddDependency (mark_surfaces, *store_efrags);
+
+				unsigned int numsurfaces = cl.worldmodel->numsurfaces;
+				*cull_surfaces = Task_AllocateAndAssignIndexedFunc (R_BackfaceCullSurfacesSIMD, (numsurfaces + 7) / 8, NULL, 0);
+				Task_AddDependency (mark_surfaces, *cull_surfaces);
+
+				*chain_surfaces = Task_AllocateAndAssignFunc (R_ChainVisSurfaces, NULL, 0);
+				Task_AddDependency (*cull_surfaces, *chain_surfaces);
+			}
+			else
+			{
+				task_handle_t mark_surfaces = Task_AllocateAndAssignFunc (R_MarkVisSurfacesSIMD, NULL, 0);
+				Task_AddDependency (prepare_mark, mark_surfaces);
+				*store_efrags = mark_surfaces;
+				*chain_surfaces = mark_surfaces;
+				*cull_surfaces = mark_surfaces;
+			}
+		}
+		else
 #endif
-		R_MarkVisSurfaces (vis);
+		{
+			task_handle_t mark_surfaces = Task_AllocateAndAssignFunc (R_MarkVisSurfaces, NULL, 0);
+			Task_AddDependency (prepare_mark, mark_surfaces);
+			*store_efrags = mark_surfaces;
+			*chain_surfaces = mark_surfaces;
+			*cull_surfaces = mark_surfaces;
+		}
+	}
+	else
+	{
+		R_MarkSurfacesPrepare (NULL);
+		// iterate through leaves, marking surfaces
+#if defined(USE_SIMD)
+		if (use_simd)
+		{
+			R_MarkVisSurfacesSIMD (NULL);
+		}
+		else
+#endif
+			R_MarkVisSurfaces (NULL);
+	}
 }
 
 //==============================================================================
@@ -364,19 +562,14 @@ static void R_TriangleIndicesForSurf (msurface_t *s, uint32_t *dest)
 	}
 }
 
-#define MAX_BATCH_SIZE 65536
-
-static uint32_t     vbo_indices[MAX_BATCH_SIZE];
-static unsigned int num_vbo_indices;
-
 /*
 ================
 R_ClearBatch
 ================
 */
-static void R_ClearBatch ()
+static void R_ClearBatch (cb_context_t *cbx)
 {
-	num_vbo_indices = 0;
+	cbx->num_vbo_indices = 0;
 }
 
 /*
@@ -386,12 +579,13 @@ R_FlushBatch
 Draw the current batch if non-empty and clears it, ready for more R_BatchSurface calls.
 ================
 */
-static void R_FlushBatch (qboolean fullbright_enabled, qboolean alpha_test, qboolean alpha_blend, qboolean use_zbias, gltexture_t *lightmap_texture)
+static void
+R_FlushBatch (cb_context_t *cbx, qboolean fullbright_enabled, qboolean alpha_test, qboolean alpha_blend, qboolean use_zbias, gltexture_t *lightmap_texture)
 {
-	if (num_vbo_indices > 0)
+	if (cbx->num_vbo_indices > 0)
 	{
 		int pipeline_index = (fullbright_enabled ? 1 : 0) + (alpha_test ? 2 : 0) + (alpha_blend ? 4 : 0);
-		R_BindPipeline (VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipelines[pipeline_index]);
+		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipelines[pipeline_index]);
 
 		float constant_factor = 0.0f, slope_factor = 0.0f;
 		if (use_zbias)
@@ -407,26 +601,24 @@ static void R_FlushBatch (qboolean fullbright_enabled, qboolean alpha_test, qboo
 				slope_factor = -0.25f;
 			}
 		}
-		vkCmdSetDepthBias (vulkan_globals.command_buffer, constant_factor, 0.0f, slope_factor);
+		vkCmdSetDepthBias (cbx->cb, constant_factor, 0.0f, slope_factor);
 
 		if (!r_fullbright_cheatsafe)
 			vulkan_globals.vk_cmd_bind_descriptor_sets (
-				vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 1, 1,
-				&lightmap_texture->descriptor_set, 0, NULL);
+				cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 1, 1, &lightmap_texture->descriptor_set, 0, NULL);
 		else
 			vulkan_globals.vk_cmd_bind_descriptor_sets (
-				vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 1, 1, &greytexture->descriptor_set,
-				0, NULL);
+				cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 1, 1, &greytexture->descriptor_set, 0, NULL);
 
 		VkBuffer     buffer;
 		VkDeviceSize buffer_offset;
-		byte        *indices = R_IndexAllocate (num_vbo_indices * sizeof (uint32_t), &buffer, &buffer_offset);
-		memcpy (indices, vbo_indices, num_vbo_indices * sizeof (uint32_t));
+		byte        *indices = R_IndexAllocate (cbx->num_vbo_indices * sizeof (uint32_t), &buffer, &buffer_offset);
+		memcpy (indices, cbx->vbo_indices, cbx->num_vbo_indices * sizeof (uint32_t));
 
-		vulkan_globals.vk_cmd_bind_index_buffer (vulkan_globals.command_buffer, buffer, buffer_offset, VK_INDEX_TYPE_UINT32);
-		vulkan_globals.vk_cmd_draw_indexed (vulkan_globals.command_buffer, num_vbo_indices, 1, 0, 0, 0);
+		vulkan_globals.vk_cmd_bind_index_buffer (cbx->cb, buffer, buffer_offset, VK_INDEX_TYPE_UINT32);
+		vulkan_globals.vk_cmd_draw_indexed (cbx->cb, cbx->num_vbo_indices, 1, 0, 0, 0);
 
-		num_vbo_indices = 0;
+		cbx->num_vbo_indices = 0;
 	}
 }
 
@@ -438,18 +630,18 @@ Add the surface to the current batch, or just draw it immediately if we're not
 using VBOs.
 ================
 */
-static void
-R_BatchSurface (msurface_t *s, qboolean fullbright_enabled, qboolean alpha_test, qboolean alpha_blend, qboolean use_zbias, gltexture_t *lightmap_texture)
+static void R_BatchSurface (
+	cb_context_t *cbx, msurface_t *s, qboolean fullbright_enabled, qboolean alpha_test, qboolean alpha_blend, qboolean use_zbias, gltexture_t *lightmap_texture)
 {
 	int num_surf_indices;
 
 	num_surf_indices = R_NumTriangleIndicesForSurf (s);
 
-	if (num_vbo_indices + num_surf_indices > MAX_BATCH_SIZE)
-		R_FlushBatch (fullbright_enabled, alpha_test, alpha_blend, use_zbias, lightmap_texture);
+	if (cbx->num_vbo_indices + num_surf_indices > MAX_BATCH_SIZE)
+		R_FlushBatch (cbx, fullbright_enabled, alpha_test, alpha_blend, use_zbias, lightmap_texture);
 
-	R_TriangleIndicesForSurf (s, &vbo_indices[num_vbo_indices]);
-	num_vbo_indices += num_surf_indices;
+	R_TriangleIndicesForSurf (s, &cbx->vbo_indices[cbx->num_vbo_indices]);
+	cbx->num_vbo_indices += num_surf_indices;
 }
 
 /*
@@ -476,7 +668,7 @@ float GL_WaterAlphaForEntitySurface (entity_t *ent, msurface_t *s)
 R_DrawTextureChains_ShowTris -- johnfitz
 ================
 */
-void R_DrawTextureChains_ShowTris (qmodel_t *model, texchain_t chain)
+void R_DrawTextureChains_ShowTris (cb_context_t *cbx, qmodel_t *model, texchain_t chain)
 {
 	int         i;
 	msurface_t *s;
@@ -490,8 +682,8 @@ void R_DrawTextureChains_ShowTris (qmodel_t *model, texchain_t chain)
 		if (!t)
 			continue;
 
-		for (s = t->texturechains[chain]; s; s = s->texturechain)
-			DrawGLPoly (s->polys, color, alpha);
+		for (s = t->texturechains[chain]; s; s = s->texturechains[chain])
+			DrawGLPoly (cbx, s->polys, color, alpha);
 	}
 }
 
@@ -500,22 +692,20 @@ void R_DrawTextureChains_ShowTris (qmodel_t *model, texchain_t chain)
 R_DrawTextureChains_Water -- johnfitz
 ================
 */
-void R_DrawTextureChains_Water (qmodel_t *model, entity_t *ent, texchain_t chain)
+void R_DrawTextureChains_Water (cb_context_t *cbx, qmodel_t *model, entity_t *ent, texchain_t chain)
 {
 	int         i;
 	msurface_t *s;
 	texture_t  *t;
 
 	VkDeviceSize offset = 0;
-	vulkan_globals.vk_cmd_bind_vertex_buffers (vulkan_globals.command_buffer, 0, 1, &bmodel_vertex_buffer, &offset);
+	vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 1, &bmodel_vertex_buffer, &offset);
 
 	vulkan_globals.vk_cmd_bind_descriptor_sets (
-		vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 2, 1, &nulltexture->descriptor_set, 0,
-		NULL);
+		cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 2, 1, &nulltexture->descriptor_set, 0, NULL);
 	if (r_lightmap_cheatsafe)
 		vulkan_globals.vk_cmd_bind_descriptor_sets (
-			vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 0, 1, &greytexture->descriptor_set, 0,
-			NULL);
+			cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 0, 1, &greytexture->descriptor_set, 0, NULL);
 
 	for (i = 0; i < model->numtextures; ++i)
 	{
@@ -525,7 +715,7 @@ void R_DrawTextureChains_Water (qmodel_t *model, entity_t *ent, texchain_t chain
 			continue;
 
 		gltexture_t *lightmap_texture = NULL;
-		R_ClearBatch ();
+		R_ClearBatch (cbx);
 
 		int   lastlightmap = -2; // avoid compiler warning
 		float last_alpha = 0.0f;
@@ -534,10 +724,9 @@ void R_DrawTextureChains_Water (qmodel_t *model, entity_t *ent, texchain_t chain
 		gltexture_t *gl_texture = t->warpimage;
 		if (!r_lightmap_cheatsafe)
 			vulkan_globals.vk_cmd_bind_descriptor_sets (
-				vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 0, 1, &gl_texture->descriptor_set,
-				0, NULL);
+				cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 0, 1, &gl_texture->descriptor_set, 0, NULL);
 
-		for (s = t->texturechains[chain]; s; s = s->texturechain)
+		for (s = t->texturechains[chain]; s; s = s->texturechains[chain])
 		{
 			if (model != cl.worldmodel)
 			{
@@ -553,22 +742,22 @@ void R_DrawTextureChains_Water (qmodel_t *model, entity_t *ent, texchain_t chain
 			if ((s->lightmaptexturenum != lastlightmap) || (last_alpha != alpha))
 			{
 				if (alpha_blend)
-					R_PushConstants (VK_SHADER_STAGE_ALL_GRAPHICS, 20 * sizeof (float), 1 * sizeof (float), &alpha);
-				R_FlushBatch (false, false, alpha_blend, false, lightmap_texture);
+					R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 20 * sizeof (float), 1 * sizeof (float), &alpha);
+				R_FlushBatch (cbx, false, false, alpha_blend, false, lightmap_texture);
 				lightmap_texture = (s->lightmaptexturenum >= 0) ? lightmaps[s->lightmaptexturenum].texture : greytexture;
 				last_alpha = alpha;
 			}
 
 			lastlightmap = s->lightmaptexturenum;
-			R_BatchSurface (s, false, false, alpha_blend, false, lightmap_texture);
+			R_BatchSurface (cbx, s, false, false, alpha_blend, false, lightmap_texture);
 
-			rs_brushpasses++;
+			Atomic_IncrementUInt32 (&rs_brushpasses);
 		}
 
 		const qboolean alpha_blend = alpha < 1.0f;
 		if (alpha_blend)
-			R_PushConstants (VK_SHADER_STAGE_ALL_GRAPHICS, 20 * sizeof (float), 1 * sizeof (float), &alpha);
-		R_FlushBatch (false, false, alpha_blend, false, lightmap_texture);
+			R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 20 * sizeof (float), 1 * sizeof (float), &alpha);
+		R_FlushBatch (cbx, false, false, alpha_blend, false, lightmap_texture);
 	}
 }
 
@@ -577,7 +766,7 @@ void R_DrawTextureChains_Water (qmodel_t *model, entity_t *ent, texchain_t chain
 R_DrawTextureChains_Multitexture
 ================
 */
-void R_DrawTextureChains_Multitexture (qmodel_t *model, entity_t *ent, texchain_t chain, const float alpha)
+void R_DrawTextureChains_Multitexture (cb_context_t *cbx, qmodel_t *model, entity_t *ent, texchain_t chain, const float alpha, int texstart, int texend)
 {
 	int          i;
 	msurface_t  *s;
@@ -591,22 +780,20 @@ void R_DrawTextureChains_Multitexture (qmodel_t *model, entity_t *ent, texchain_
 	gltexture_t *fullbright = NULL;
 
 	VkDeviceSize offset = 0;
-	vulkan_globals.vk_cmd_bind_vertex_buffers (vulkan_globals.command_buffer, 0, 1, &bmodel_vertex_buffer, &offset);
+	vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 1, &bmodel_vertex_buffer, &offset);
 
 	vulkan_globals.vk_cmd_bind_descriptor_sets (
-		vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 2, 1, &nulltexture->descriptor_set, 0,
-		NULL);
+		cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 2, 1, &nulltexture->descriptor_set, 0, NULL);
 	if (r_lightmap_cheatsafe)
 		vulkan_globals.vk_cmd_bind_descriptor_sets (
-			vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 0, 1, &greytexture->descriptor_set, 0,
-			NULL);
+			cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 0, 1, &greytexture->descriptor_set, 0, NULL);
 
 	if (alpha_blend)
 	{
-		R_PushConstants (VK_SHADER_STAGE_ALL_GRAPHICS, 20 * sizeof (float), 1 * sizeof (float), &alpha);
+		R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 20 * sizeof (float), 1 * sizeof (float), &alpha);
 	}
 
-	for (i = 0; i < model->numtextures; ++i)
+	for (i = texstart; i < texend; ++i)
 	{
 		t = model->textures[i];
 
@@ -617,14 +804,13 @@ void R_DrawTextureChains_Multitexture (qmodel_t *model, entity_t *ent, texchain_
 		{
 			fullbright_enabled = true;
 			vulkan_globals.vk_cmd_bind_descriptor_sets (
-				vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 2, 1, &fullbright->descriptor_set,
-				0, NULL);
+				cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 2, 1, &fullbright->descriptor_set, 0, NULL);
 		}
 		else
 			fullbright_enabled = false;
 
 		gltexture_t *lightmap_texture = NULL;
-		R_ClearBatch ();
+		R_ClearBatch (cbx);
 
 		lastlightmap = -1; // avoid compiler warning
 		alpha_test = (t->texturechains[chain]->flags & SURF_DRAWFENCE) != 0;
@@ -633,24 +819,23 @@ void R_DrawTextureChains_Multitexture (qmodel_t *model, entity_t *ent, texchain_
 		gltexture_t *gl_texture = texture->gltexture;
 		if (!r_lightmap_cheatsafe)
 			vulkan_globals.vk_cmd_bind_descriptor_sets (
-				vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 0, 1, &gl_texture->descriptor_set,
-				0, NULL);
+				cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 0, 1, &gl_texture->descriptor_set, 0, NULL);
 
-		for (s = t->texturechains[chain]; s; s = s->texturechain)
+		for (s = t->texturechains[chain]; s; s = s->texturechains[chain])
 		{
 			if (s->lightmaptexturenum != lastlightmap)
 			{
-				R_FlushBatch (fullbright_enabled, alpha_test, alpha_blend, use_zbias, lightmap_texture);
+				R_FlushBatch (cbx, fullbright_enabled, alpha_test, alpha_blend, use_zbias, lightmap_texture);
 				lightmap_texture = lightmaps[s->lightmaptexturenum].texture;
 			}
 
 			lastlightmap = s->lightmaptexturenum;
-			R_BatchSurface (s, fullbright_enabled, alpha_test, alpha_blend, use_zbias, lightmap_texture);
+			R_BatchSurface (cbx, s, fullbright_enabled, alpha_test, alpha_blend, use_zbias, lightmap_texture);
 
-			rs_brushpasses++;
+			Atomic_IncrementUInt32 (&rs_brushpasses);
 		}
 
-		R_FlushBatch (fullbright_enabled, alpha_test, alpha_blend, use_zbias, lightmap_texture);
+		R_FlushBatch (cbx, fullbright_enabled, alpha_test, alpha_blend, use_zbias, lightmap_texture);
 	}
 }
 
@@ -659,7 +844,7 @@ void R_DrawTextureChains_Multitexture (qmodel_t *model, entity_t *ent, texchain_
 R_DrawWorld -- johnfitz -- rewritten
 =============
 */
-void R_DrawTextureChains (qmodel_t *model, entity_t *ent, texchain_t chain)
+void R_DrawTextureChains (cb_context_t *cbx, qmodel_t *model, entity_t *ent, texchain_t chain)
 {
 	float entalpha;
 
@@ -670,7 +855,7 @@ void R_DrawTextureChains (qmodel_t *model, entity_t *ent, texchain_t chain)
 
 	if (!r_gpulightmapupdate.value)
 		R_UploadLightmaps ();
-	R_DrawTextureChains_Multitexture (model, ent, chain, entalpha);
+	R_DrawTextureChains_Multitexture (cbx, model, ent, chain, entalpha, 0, model->numtextures);
 }
 
 /*
@@ -678,14 +863,16 @@ void R_DrawTextureChains (qmodel_t *model, entity_t *ent, texchain_t chain)
 R_DrawWorld -- ericw -- moved from R_DrawTextureChains, which is no longer specific to the world.
 =============
 */
-void R_DrawWorld (void)
+void R_DrawWorld (cb_context_t *cbx, int texstart, int texend)
 {
 	if (!r_drawworld_cheatsafe)
 		return;
 
-	R_BeginDebugUtilsLabel ("World");
-	R_DrawTextureChains (cl.worldmodel, NULL, chain_world);
-	R_EndDebugUtilsLabel ();
+	R_BeginDebugUtilsLabel (cbx, "World");
+	if (!r_gpulightmapupdate.value)
+		R_UploadLightmaps ();
+	R_DrawTextureChains_Multitexture (cbx, cl.worldmodel, NULL, chain_world, 1, texstart, texend);
+	R_EndDebugUtilsLabel (cbx);
 }
 
 /*
@@ -693,14 +880,14 @@ void R_DrawWorld (void)
 R_DrawWorld_Water -- ericw -- moved from R_DrawTextureChains_Water, which is no longer specific to the world.
 =============
 */
-void R_DrawWorld_Water (void)
+void R_DrawWorld_Water (cb_context_t *cbx)
 {
 	if (!r_drawworld_cheatsafe)
 		return;
 
-	R_BeginDebugUtilsLabel ("Water");
-	R_DrawTextureChains_Water (cl.worldmodel, NULL, chain_world);
-	R_EndDebugUtilsLabel ();
+	R_BeginDebugUtilsLabel (cbx, "Water");
+	R_DrawTextureChains_Water (cbx, cl.worldmodel, NULL, chain_world);
+	R_EndDebugUtilsLabel (cbx);
 }
 
 /*
@@ -708,17 +895,17 @@ void R_DrawWorld_Water (void)
 R_DrawWorld_ShowTris -- ericw -- moved from R_DrawTextureChains_ShowTris, which is no longer specific to the world.
 =============
 */
-void R_DrawWorld_ShowTris (void)
+void R_DrawWorld_ShowTris (cb_context_t *cbx)
 {
 	if (r_showtris.value == 1)
-		R_BindPipeline (VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_pipeline);
+		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_pipeline);
 	else
-		R_BindPipeline (VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_depth_test_pipeline);
+		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_depth_test_pipeline);
 
-	vkCmdBindIndexBuffer (vulkan_globals.command_buffer, vulkan_globals.fan_index_buffer, 0, VK_INDEX_TYPE_UINT16);
+	vkCmdBindIndexBuffer (cbx->cb, vulkan_globals.fan_index_buffer, 0, VK_INDEX_TYPE_UINT16);
 
 	if (!r_drawworld_cheatsafe)
 		return;
 
-	R_DrawTextureChains_ShowTris (cl.worldmodel, chain_world);
+	R_DrawTextureChains_ShowTris (cbx, cl.worldmodel, chain_world);
 }

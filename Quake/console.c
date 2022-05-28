@@ -734,7 +734,7 @@ typedef struct cmdalias_s
 {
 	struct cmdalias_s *next;
 	char               name[MAX_ALIAS_NAME];
-	char              *value;
+	char			  *value;
 } cmdalias_t;
 extern cmdalias_t *cmd_alias;
 
@@ -830,7 +830,7 @@ FindCompletion -- stevenaaus
 const char *FindCompletion (const char *partial, filelist_item_t *filelist, int *nummatches_out)
 {
 	static char      matched[32];
-	char            *i_matched, *i_name;
+	char			*i_matched, *i_name;
 	filelist_item_t *file;
 	int              init, match, plen;
 
@@ -1068,14 +1068,14 @@ Con_DrawNotify
 Draws the last few lines of output transparently over the game top
 ================
 */
-void Con_DrawNotify (void)
+void Con_DrawNotify (cb_context_t *cbx)
 {
 	int         i, x, v;
 	const char *text;
 	float       time;
 
-	GL_SetCanvas (CANVAS_CONSOLE); // johnfitz
-	v = vid.conheight;             // johnfitz
+	GL_SetCanvas (cbx, CANVAS_CONSOLE); // johnfitz
+	v = vid.conheight;                  // johnfitz
 
 	for (i = con_current - NUM_CON_TIMES + 1; i <= con_current; i++)
 	{
@@ -1092,7 +1092,7 @@ void Con_DrawNotify (void)
 		clearnotify = 0;
 
 		for (x = 0; x < con_linewidth; x++)
-			Draw_Character ((x + 1) << 3, v, text[x]);
+			Draw_Character (cbx, (x + 1) << 3, v, text[x]);
 
 		v += 8;
 
@@ -1105,12 +1105,12 @@ void Con_DrawNotify (void)
 
 		if (chat_team)
 		{
-			Draw_String (8, v, "say_team:");
+			Draw_String (cbx, 8, v, "say_team:");
 			x = 11;
 		}
 		else
 		{
-			Draw_String (8, v, "say:");
+			Draw_String (cbx, 8, v, "say:");
 			x = 6;
 		}
 
@@ -1121,12 +1121,12 @@ void Con_DrawNotify (void)
 
 		while (*text)
 		{
-			Draw_Character (x << 3, v, *text);
+			Draw_Character (cbx, x << 3, v, *text);
 			x++;
 			text++;
 		}
 
-		Draw_Character (x << 3, v, 10 + ((int)(realtime * con_cursorspeed) & 1));
+		Draw_Character (cbx, x << 3, v, 10 + ((int)(realtime * con_cursorspeed) & 1));
 		v += 8;
 
 		scr_tileclear_updates = 0; // johnfitz
@@ -1142,7 +1142,7 @@ The input line scrolls horizontally if typing goes beyond the right edge
 */
 extern qpic_t *pic_ovr, *pic_ins; // johnfitz -- new cursor handling
 
-void Con_DrawInput (void)
+void Con_DrawInput (cb_context_t *cbx)
 {
 	int i, ofs;
 
@@ -1157,13 +1157,13 @@ void Con_DrawInput (void)
 
 	// draw input string
 	for (i = 0; key_lines[edit_line][i + ofs] && i < con_linewidth; i++)
-		Draw_Character ((i + 1) << 3, vid.conheight - 16, key_lines[edit_line][i + ofs]);
+		Draw_Character (cbx, (i + 1) << 3, vid.conheight - 16, key_lines[edit_line][i + ofs]);
 
 	// johnfitz -- new cursor handling
 	if (!((int)((realtime - key_blinktime) * con_cursorspeed) & 1))
 	{
 		i = key_linepos - ofs;
-		Draw_Pic ((i + 1) << 3, vid.conheight - 16, key_insert ? pic_ins : pic_ovr, 1.0f, false);
+		Draw_Pic (cbx, (i + 1) << 3, vid.conheight - 16, key_insert ? pic_ins : pic_ovr, 1.0f, false);
 	}
 }
 
@@ -1175,7 +1175,7 @@ Draws the console with the solid background
 The typing input line at the bottom should only be drawn if typing is allowed
 ================
 */
-void Con_DrawConsole (int lines, qboolean drawinput)
+void Con_DrawConsole (cb_context_t *cbx, int lines, qboolean drawinput)
 {
 	int         i, x, y, j, sb, rows;
 	const char *text;
@@ -1185,10 +1185,10 @@ void Con_DrawConsole (int lines, qboolean drawinput)
 		return;
 
 	con_vislines = lines * vid.conheight / glheight;
-	GL_SetCanvas (CANVAS_CONSOLE);
+	GL_SetCanvas (cbx, CANVAS_CONSOLE);
 
 	// draw the background
-	Draw_ConsoleBackground ();
+	Draw_ConsoleBackground (cbx);
 
 	// draw the buffer text
 	rows = (con_vislines + 7) / 8;
@@ -1204,7 +1204,7 @@ void Con_DrawConsole (int lines, qboolean drawinput)
 		text = con_text + (j % con_totallines) * con_linewidth;
 
 		for (x = 0; x < con_linewidth; x++)
-			Draw_Character ((x + 1) << 3, y, text[x]);
+			Draw_Character (cbx, (x + 1) << 3, y, text[x]);
 	}
 
 	// draw scrollback arrows
@@ -1212,19 +1212,19 @@ void Con_DrawConsole (int lines, qboolean drawinput)
 	{
 		y += 8; // blank line
 		for (x = 0; x < con_linewidth; x += 4)
-			Draw_Character ((x + 1) << 3, y, '^');
+			Draw_Character (cbx, (x + 1) << 3, y, '^');
 		y += 8;
 	}
 
 	// draw the input prompt, user text, and cursor
 	if (drawinput)
-		Con_DrawInput ();
+		Con_DrawInput (cbx);
 
 	// draw version number in bottom right
 	y += 8;
 	q_snprintf (ver, sizeof (ver), "vkQuake " VKQUAKE_VER_STRING);
 	for (x = 0; x < (int)strlen (ver); x++)
-		Draw_Character ((con_linewidth - strlen (ver) + x + 2) << 3, y, ver[x] /*+ 128*/);
+		Draw_Character (cbx, (con_linewidth - strlen (ver) + x + 2) << 3, y, ver[x] /*+ 128*/);
 }
 
 /*

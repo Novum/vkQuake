@@ -71,7 +71,7 @@ typedef struct
 
 extern viddef_t vid; // global video state
 
-extern void (*vid_menudrawfn) (void);
+extern void (*vid_menudrawfn) (cb_context_t *cbx);
 extern void (*vid_menukeyfn) (int key);
 extern void (*vid_menucmdfn) (void); // johnfitz
 

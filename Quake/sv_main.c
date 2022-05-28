@@ -831,7 +831,7 @@ void SV_BuildEntityState (edict_t *ent, entity_state_t *state)
 #endif
 }
 
-byte       *SV_FatPVS (vec3_t org, qmodel_t *worldmodel);
+byte	   *SV_FatPVS (vec3_t org, qmodel_t *worldmodel);
 static void SVFTE_BuildSnapshotForClient (client_t *client)
 {
 	unsigned int  e, i;

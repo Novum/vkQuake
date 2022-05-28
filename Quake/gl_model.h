@@ -154,7 +154,7 @@ typedef struct msurface_s
 	int light_s, light_t; // gl lightmap coordinates
 
 	glpoly_t          *polys; // multiple if warped
-	struct msurface_s *texturechain;
+	struct msurface_s *texturechains[2];
 
 	mtexinfo_t *texinfo;
 
@@ -258,7 +258,7 @@ typedef struct
 	int                maxheight;
 	int                numframes;
 	float              beamlength; // remove?
-	void              *cachespot;  // remove?
+	void			  *cachespot;  // remove?
 	mspriteframedesc_t frames[1];
 } msprite_t;
 

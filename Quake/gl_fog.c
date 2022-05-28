@@ -269,12 +269,12 @@ Fog_SetupFrame
 called at the beginning of each frame
 =============
 */
-void Fog_SetupFrame (void)
+void Fog_SetupFrame (cb_context_t *cbx)
 {
 	float *fog_color = Fog_GetColor ();
 	float  fog_values[4] = {CLAMP (0.0f, fog_color[0], 1.0f), CLAMP (0.0f, fog_color[1], 1.0f), CLAMP (0.0f, fog_color[2], 1.0f), Fog_GetDensity () / 64.0f};
-	R_BindPipeline (VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipelines[0]);
-	R_PushConstants (VK_SHADER_STAGE_ALL_GRAPHICS, 16 * sizeof (float), 4 * sizeof (float), fog_values);
+	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipelines[0]);
+	R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 16 * sizeof (float), 4 * sizeof (float), fog_values);
 }
 
 /*
@@ -284,11 +284,11 @@ Fog_EnableGFog
 called before drawing stuff that should be fogged
 =============
 */
-void Fog_EnableGFog (void)
+void Fog_EnableGFog (cb_context_t *cbx)
 {
 	float *fog_color = Fog_GetColor ();
 	float  fog_values[4] = {CLAMP (0.0f, fog_color[0], 1.0f), CLAMP (0.0f, fog_color[1], 1.0f), CLAMP (0.0f, fog_color[2], 1.0f), Fog_GetDensity () / 64.0f};
-	R_PushConstants (VK_SHADER_STAGE_ALL_GRAPHICS, 16 * sizeof (float), 4 * sizeof (float), fog_values);
+	R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 16 * sizeof (float), 4 * sizeof (float), fog_values);
 }
 
 /*
@@ -298,11 +298,11 @@ Fog_DisableGFog
 called after drawing stuff that should be fogged
 =============
 */
-void Fog_DisableGFog (void)
+void Fog_DisableGFog (cb_context_t *cbx)
 {
 	float fog_values[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-	assert (vulkan_globals.current_pipeline.layout.handle == vulkan_globals.basic_pipeline_layout.handle);
-	R_PushConstants (VK_SHADER_STAGE_ALL_GRAPHICS, 16 * sizeof (float), 4 * sizeof (float), fog_values);
+	assert (cbx->current_pipeline.layout.handle == vulkan_globals.basic_pipeline_layout.handle);
+	R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 16 * sizeof (float), 4 * sizeof (float), fog_values);
 }
 
 //==============================================================================

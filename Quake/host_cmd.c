@@ -120,7 +120,7 @@ void ExtraMaps_Init (void)
 	WIN32_FIND_DATA fdat;
 	HANDLE          fhnd;
 #else
-	DIR           *dir_p;
+	DIR		   *dir_p;
 	struct dirent *dir_t;
 #endif
 	char          filestring[MAX_OSPATH];

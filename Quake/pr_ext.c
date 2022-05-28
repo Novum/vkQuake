@@ -3724,8 +3724,8 @@ static void PF_uri_escape (void)
 {
 	static const char *hex = "0123456789ABCDEF";
 
-	char                *result = PR_GetTempString ();
-	char                *o = result;
+	char				*result = PR_GetTempString ();
+	char				*o = result;
 	const unsigned char *s = (const unsigned char *)G_STRING (OFS_PARM0);
 	*result = 0;
 	while (*s && o < result + STRINGTEMP_LENGTH - 4)
@@ -3811,7 +3811,7 @@ static void PF_digest_hex (void)
 	const byte        *data = (const byte *)PF_VarString (1);
 	size_t             len = strlen ((const char *)data);
 	static const char *hex = "0123456789ABCDEF";
-	char              *resultbuf;
+	char			  *resultbuf;
 	byte               hashdata[20];
 
 	if (!strcmp (hashtype, "CRC16"))
@@ -3858,7 +3858,7 @@ static void PF_strlennocol (void)
 static void PF_strdecolorize (void)
 {
 	int             l, c;
-	char           *r = PR_GetTempString ();
+	char		   *r = PR_GetTempString ();
 	struct markup_s mu;
 
 	PR_Markup_Begin (&mu, G_STRING (OFS_PARM0), vec3_origin, 1);
@@ -4309,7 +4309,7 @@ static qpic_t *DrawQC_CachePic (const char *picname, unsigned int flags)
 	return qcpics[i].pic;
 }
 extern gltexture_t *char_texture;
-static void         DrawQC_CharacterQuad (float x, float y, int num, float w, float h, float *rgb, float alpha)
+static void         DrawQC_CharacterQuad (cb_context_t *cbx, float x, float y, int num, float w, float h, float *rgb, float alpha)
 {
 	float    size = 0.0625;
 	float    frow = (num >> 4) * size;
@@ -4364,15 +4364,14 @@ static void         DrawQC_CharacterQuad (float x, float y, int num, float w, fl
 	vertices[4] = corner_verts[3];
 	vertices[5] = corner_verts[0];
 
-	vulkan_globals.vk_cmd_bind_vertex_buffers (vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
+	vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 1, &buffer, &buffer_offset);
 	if (alpha_blend)
-		R_BindPipeline (VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_blend_pipeline[render_pass_index]);
+		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_blend_pipeline[cbx->render_pass_index]);
 	else
-		R_BindPipeline (VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_alphatest_pipeline[render_pass_index]);
+		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_alphatest_pipeline[cbx->render_pass_index]);
 	vulkan_globals.vk_cmd_bind_descriptor_sets (
-		vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &char_texture->descriptor_set, 0,
-		NULL);
-	vulkan_globals.vk_cmd_draw (vulkan_globals.command_buffer, 6, 1, 0, 0);
+		cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &char_texture->descriptor_set, 0, NULL);
+	vulkan_globals.vk_cmd_draw (cbx->cb, 6, 1, 0, 0);
 }
 static void PF_cl_drawcharacter (void)
 {
@@ -4387,7 +4386,7 @@ static void PF_cl_drawcharacter (void)
 	if (charcode == 32)
 		return; // don't waste time on spaces
 
-	DrawQC_CharacterQuad (pos[0], pos[1], charcode, size[0], size[1], rgb, alpha);
+	DrawQC_CharacterQuad (&vulkan_globals.secondary_cb_contexts[CBX_GUI], pos[0], pos[1], charcode, size[0], size[1], rgb, alpha);
 }
 
 static void PF_cl_drawrawstring (void)
@@ -4406,7 +4405,7 @@ static void PF_cl_drawrawstring (void)
 
 	while ((c = *text++))
 	{
-		DrawQC_CharacterQuad (x, pos[1], c, size[0], size[1], rgb, alpha);
+		DrawQC_CharacterQuad (&vulkan_globals.secondary_cb_contexts[CBX_GUI], x, pos[1], c, size[0], size[1], rgb, alpha);
 		x += size[0];
 	}
 }
@@ -4429,7 +4428,7 @@ static void PF_cl_drawstring (void)
 
 	while ((c = PR_Markup_Parse (&mu)))
 	{
-		DrawQC_CharacterQuad (x, pos[1], c, size[0], size[1], rgb, alpha);
+		DrawQC_CharacterQuad (&vulkan_globals.secondary_cb_contexts[CBX_GUI], x, pos[1], c, size[0], size[1], rgb, alpha);
 		x += size[0];
 	}
 }
@@ -4471,7 +4470,7 @@ static void PF_cl_drawsetclip (void)
 	render_area.offset.y = y;
 	render_area.extent.width = w;
 	render_area.extent.height = h;
-	vkCmdSetScissor (vulkan_globals.command_buffer, 0, 1, &render_area);
+	vkCmdSetScissor (vulkan_globals.secondary_cb_contexts[CBX_GUI].cb, 0, 1, &render_area);
 }
 static void PF_cl_drawresetclip (void)
 {
@@ -4480,7 +4479,7 @@ static void PF_cl_drawresetclip (void)
 	render_area.offset.y = 0;
 	render_area.extent.width = vid.width;
 	render_area.extent.height = vid.height;
-	vkCmdSetScissor (vulkan_globals.command_buffer, 0, 1, &render_area);
+	vkCmdSetScissor (vulkan_globals.secondary_cb_contexts[CBX_GUI].cb, 0, 1, &render_area);
 }
 
 static void PF_cl_precachepic (void)
@@ -4511,7 +4510,7 @@ static void PF_cl_drawpic (void)
 	float   alpha = G_FLOAT (OFS_PARM4);
 
 	if (pic)
-		Draw_SubPic (pos[0], pos[1], size[0], size[1], pic, 0, 0, 1, 1, rgb, alpha);
+		Draw_SubPic (&vulkan_globals.secondary_cb_contexts[CBX_GUI], pos[0], pos[1], size[0], size[1], pic, 0, 0, 1, 1, rgb, alpha);
 }
 
 static void PF_cl_getimagesize (void)
@@ -4534,7 +4533,8 @@ static void PF_cl_drawsubpic (void)
 	float   alpha = G_FLOAT (OFS_PARM6);
 
 	if (pic)
-		Draw_SubPic (pos[0], pos[1], size[0], size[1], pic, srcpos[0], srcpos[1], srcsize[0], srcsize[1], rgb, alpha);
+		Draw_SubPic (
+			&vulkan_globals.secondary_cb_contexts[CBX_GUI], pos[0], pos[1], size[0], size[1], pic, srcpos[0], srcpos[1], srcsize[0], srcsize[1], rgb, alpha);
 }
 
 static void PF_cl_drawfill (void)
@@ -4583,12 +4583,12 @@ static void PF_cl_drawfill (void)
 	vertices[4] = corner_verts[3];
 	vertices[5] = corner_verts[0];
 
-	vulkan_globals.vk_cmd_bind_vertex_buffers (vulkan_globals.command_buffer, 0, 1, &buffer, &buffer_offset);
-	R_BindPipeline (VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_notex_blend_pipeline[render_pass_index]);
+	cb_context_t *cbx = &vulkan_globals.secondary_cb_contexts[CBX_GUI];
+	vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 1, &buffer, &buffer_offset);
+	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_notex_blend_pipeline[cbx->render_pass_index]);
 	vulkan_globals.vk_cmd_bind_descriptor_sets (
-		vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &char_texture->descriptor_set, 0,
-		NULL);
-	vulkan_globals.vk_cmd_draw (vulkan_globals.command_buffer, 6, 1, 0, 0);
+		cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &char_texture->descriptor_set, 0, NULL);
+	vulkan_globals.vk_cmd_draw (cbx->cb, 6, 1, 0, 0);
 }
 
 static void PF_cl_registercommand (void)

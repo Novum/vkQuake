@@ -25,6 +25,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 
+#if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
+#include <SDL2/SDL.h>
+#else
+#include "SDL.h"
+#endif
+
 extern cvar_t r_drawflat, gl_fullbrights, r_lerpmodels, r_lerpmove, r_showtris; // johnfitz
 extern cvar_t scr_fov, cl_gun_fovscale;
 
@@ -49,10 +55,6 @@ extern vec3_t lightspot;
 
 float *shadedots = r_avertexnormal_dots[0];
 vec3_t shadevector;
-
-float entalpha; // johnfitz
-
-qboolean shading = true; // johnfitz -- if false, disable vertex shading for various reasons (fullbright, r_lightmap, showtris, etc)
 
 // johnfitz -- struct for passing lerp information to drawing functions
 typedef struct
@@ -83,10 +85,10 @@ Returns the offset of the first vertex's meshxyz_t.xyz in the vbo for the given
 model and pose.
 =============
 */
-static VkDeviceSize GLARB_GetXYZOffset (aliashdr_t *hdr, int pose)
+static VkDeviceSize GLARB_GetXYZOffset (entity_t *e, aliashdr_t *hdr, int pose)
 {
 	const int xyzoffs = offsetof (meshxyz_t, xyz);
-	return currententity->model->vboxyzofs + (hdr->numverts_vbo * pose * sizeof (meshxyz_t)) + xyzoffs;
+	return e->model->vboxyzofs + (hdr->numverts_vbo * pose * sizeof (meshxyz_t)) + xyzoffs;
 }
 
 /*
@@ -102,8 +104,9 @@ Supports optional fullbright pixels.
 Based on code by MH from RMQEngine
 =============
 */
-static void
-GL_DrawAliasFrame (aliashdr_t *paliashdr, lerpdata_t lerpdata, gltexture_t *tx, gltexture_t *fb, float model_matrix[16], float entity_alpha, qboolean alphatest)
+static void GL_DrawAliasFrame (
+	cb_context_t *cbx, entity_t *e, aliashdr_t *paliashdr, lerpdata_t lerpdata, gltexture_t *tx, gltexture_t *fb, float model_matrix[16], float entity_alpha,
+	qboolean alphatest)
 {
 	float blend;
 
@@ -128,7 +131,7 @@ GL_DrawAliasFrame (aliashdr_t *paliashdr, lerpdata_t lerpdata, gltexture_t *tx, 
 			pipeline = vulkan_globals.alias_alphatest_blend_pipeline;
 	}
 
-	R_BindPipeline (VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 
 	VkBuffer        uniform_buffer;
 	uint32_t        uniform_offset;
@@ -146,17 +149,17 @@ GL_DrawAliasFrame (aliashdr_t *paliashdr, lerpdata_t lerpdata, gltexture_t *tx, 
 
 	VkDescriptorSet descriptor_sets[3] = {tx->descriptor_set, (fb != NULL) ? fb->descriptor_set : tx->descriptor_set, ubo_set};
 	vulkan_globals.vk_cmd_bind_descriptor_sets (
-		vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.alias_pipeline.layout.handle, 0, 3, descriptor_sets, 1, &uniform_offset);
+		cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.alias_pipeline.layout.handle, 0, 3, descriptor_sets, 1, &uniform_offset);
 
-	VkBuffer     vertex_buffers[3] = {currententity->model->vertex_buffer, currententity->model->vertex_buffer, currententity->model->vertex_buffer};
+	VkBuffer     vertex_buffers[3] = {e->model->vertex_buffer, e->model->vertex_buffer, e->model->vertex_buffer};
 	VkDeviceSize vertex_offsets[3] = {
-		(unsigned)currententity->model->vbostofs, GLARB_GetXYZOffset (paliashdr, lerpdata.pose1), GLARB_GetXYZOffset (paliashdr, lerpdata.pose2)};
-	vulkan_globals.vk_cmd_bind_vertex_buffers (vulkan_globals.command_buffer, 0, 3, vertex_buffers, vertex_offsets);
-	vulkan_globals.vk_cmd_bind_index_buffer (vulkan_globals.command_buffer, currententity->model->index_buffer, 0, VK_INDEX_TYPE_UINT16);
+		(unsigned)e->model->vbostofs, GLARB_GetXYZOffset (e, paliashdr, lerpdata.pose1), GLARB_GetXYZOffset (e, paliashdr, lerpdata.pose2)};
+	vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 3, vertex_buffers, vertex_offsets);
+	vulkan_globals.vk_cmd_bind_index_buffer (cbx->cb, e->model->index_buffer, 0, VK_INDEX_TYPE_UINT16);
 
-	vulkan_globals.vk_cmd_draw_indexed (vulkan_globals.command_buffer, paliashdr->numindexes, 1, 0, 0, 0);
+	vulkan_globals.vk_cmd_draw_indexed (cbx->cb, paliashdr->numindexes, 1, 0, 0, 0);
 
-	rs_aliaspasses += paliashdr->numtris;
+	Atomic_AddUInt32 (&rs_aliaspasses, paliashdr->numtris);
 }
 
 /*
@@ -164,10 +167,9 @@ GL_DrawAliasFrame (aliashdr_t *paliashdr, lerpdata_t lerpdata, gltexture_t *tx, 
 R_SetupAliasFrame -- johnfitz -- rewritten to support lerping
 =================
 */
-void R_SetupAliasFrame (aliashdr_t *paliashdr, int frame, lerpdata_t *lerpdata)
+void R_SetupAliasFrame (entity_t *e, aliashdr_t *paliashdr, int frame, lerpdata_t *lerpdata)
 {
-	entity_t *e = currententity;
-	int       posenum, numposes;
+	int posenum, numposes;
 
 	if ((frame >= paliashdr->numframes) || (frame < 0))
 	{
@@ -331,7 +333,7 @@ void R_SetupAliasLighting (entity_t *e)
 	{
 		if (cl_dlights[i].die >= cl.time)
 		{
-			VectorSubtract (currententity->origin, cl_dlights[i].origin, dist);
+			VectorSubtract (e->origin, cl_dlights[i].origin, dist);
 			add = cl_dlights[i].radius - VectorLength (dist);
 			if (add > 0)
 				VectorMA (lightcolor, add, cl_dlights[i].color, lightcolor);
@@ -351,7 +353,7 @@ void R_SetupAliasLighting (entity_t *e)
 	}
 
 	// minimum light value on players (8)
-	if (currententity > cl.entities && currententity <= cl.entities + cl.maxclients)
+	if (e > cl.entities && e <= cl.entities + cl.maxclients)
 	{
 		add = 24.0f - (lightcolor[0] + lightcolor[1] + lightcolor[2]);
 		if (add > 0.0f)
@@ -387,7 +389,7 @@ void R_SetupAliasLighting (entity_t *e)
 R_DrawAliasModel -- johnfitz -- almost completely rewritten
 =================
 */
-void R_DrawAliasModel (entity_t *e)
+void R_DrawAliasModel (cb_context_t *cbx, entity_t *e)
 {
 	aliashdr_t  *paliashdr;
 	int          i, anim, skinnum;
@@ -399,7 +401,7 @@ void R_DrawAliasModel (entity_t *e)
 	// setup pose/lerp data -- do it first so we don't miss updates due to culling
 	//
 	paliashdr = (aliashdr_t *)Mod_Extradata (e->model);
-	R_SetupAliasFrame (paliashdr, e->frame, &lerpdata);
+	R_SetupAliasFrame (e, paliashdr, e->frame, &lerpdata);
 	R_SetupEntityTransform (e, &lerpdata);
 
 	//
@@ -432,13 +434,9 @@ void R_DrawAliasModel (entity_t *e)
 	MatrixMultiply (model_matrix, scale_matrix);
 
 	//
-	// random stuff
-	//
-	shading = true;
-
-	//
 	// set up for alpha blending
 	//
+	float entalpha;
 	if (r_lightmap_cheatsafe)
 		entalpha = 1;
 	else
@@ -449,7 +447,7 @@ void R_DrawAliasModel (entity_t *e)
 	//
 	// set up lighting
 	//
-	rs_aliaspolys += paliashdr->numtris;
+	Atomic_AddUInt32 (&rs_aliaspolys, paliashdr->numtris);
 	R_SetupAliasLighting (e);
 
 	//
@@ -492,7 +490,7 @@ void R_DrawAliasModel (entity_t *e)
 	//
 	// draw it
 	//
-	GL_DrawAliasFrame (paliashdr, lerpdata, tx, fb, model_matrix, entalpha, alphatest);
+	GL_DrawAliasFrame (cbx, e, paliashdr, lerpdata, tx, fb, model_matrix, entalpha, alphatest);
 }
 
 // johnfitz -- values for shadow matrix
@@ -507,7 +505,7 @@ void R_DrawAliasModel (entity_t *e)
 R_DrawAliasModel_ShowTris -- johnfitz
 =================
 */
-void R_DrawAliasModel_ShowTris (entity_t *e)
+void R_DrawAliasModel_ShowTris (cb_context_t *cbx, entity_t *e)
 {
 	aliashdr_t *paliashdr;
 	lerpdata_t  lerpdata;
@@ -517,7 +515,7 @@ void R_DrawAliasModel_ShowTris (entity_t *e)
 	// setup pose/lerp data -- do it first so we don't miss updates due to culling
 	//
 	paliashdr = (aliashdr_t *)Mod_Extradata (e->model);
-	R_SetupAliasFrame (paliashdr, e->frame, &lerpdata);
+	R_SetupAliasFrame (e, paliashdr, e->frame, &lerpdata);
 	R_SetupEntityTransform (e, &lerpdata);
 
 	//
@@ -550,9 +548,9 @@ void R_DrawAliasModel_ShowTris (entity_t *e)
 	MatrixMultiply (model_matrix, scale_matrix);
 
 	if (r_showtris.value == 1)
-		R_BindPipeline (VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.alias_showtris_pipeline);
+		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.alias_showtris_pipeline);
 	else
-		R_BindPipeline (VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.alias_showtris_depth_test_pipeline);
+		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.alias_showtris_depth_test_pipeline);
 
 	if (lerpdata.pose1 != lerpdata.pose2)
 		blend = lerpdata.blend;
@@ -573,13 +571,13 @@ void R_DrawAliasModel_ShowTris (entity_t *e)
 
 	VkDescriptorSet descriptor_sets[3] = {nulltexture->descriptor_set, nulltexture->descriptor_set, ubo_set};
 	vulkan_globals.vk_cmd_bind_descriptor_sets (
-		vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.alias_pipeline.layout.handle, 0, 3, descriptor_sets, 1, &uniform_offset);
+		cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.alias_pipeline.layout.handle, 0, 3, descriptor_sets, 1, &uniform_offset);
 
-	VkBuffer     vertex_buffers[3] = {currententity->model->vertex_buffer, currententity->model->vertex_buffer, currententity->model->vertex_buffer};
+	VkBuffer     vertex_buffers[3] = {e->model->vertex_buffer, e->model->vertex_buffer, e->model->vertex_buffer};
 	VkDeviceSize vertex_offsets[3] = {
-		(unsigned)currententity->model->vbostofs, GLARB_GetXYZOffset (paliashdr, lerpdata.pose1), GLARB_GetXYZOffset (paliashdr, lerpdata.pose2)};
-	vulkan_globals.vk_cmd_bind_vertex_buffers (vulkan_globals.command_buffer, 0, 3, vertex_buffers, vertex_offsets);
-	vulkan_globals.vk_cmd_bind_index_buffer (vulkan_globals.command_buffer, currententity->model->index_buffer, 0, VK_INDEX_TYPE_UINT16);
+		(unsigned)e->model->vbostofs, GLARB_GetXYZOffset (e, paliashdr, lerpdata.pose1), GLARB_GetXYZOffset (e, paliashdr, lerpdata.pose2)};
+	vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 3, vertex_buffers, vertex_offsets);
+	vulkan_globals.vk_cmd_bind_index_buffer (cbx->cb, e->model->index_buffer, 0, VK_INDEX_TYPE_UINT16);
 
-	vulkan_globals.vk_cmd_draw_indexed (vulkan_globals.command_buffer, paliashdr->numindexes, 1, 0, 0, 0);
+	vulkan_globals.vk_cmd_draw_indexed (cbx->cb, paliashdr->numindexes, 1, 0, 0, 0);
 }

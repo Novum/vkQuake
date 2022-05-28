@@ -49,7 +49,7 @@ static int          sequence[IPXSOCKETS];
 sys_socket_t WIPX_Init (void)
 {
 	int              i, err;
-	char            *colon;
+	char			*colon;
 	char             buff[MAXHOSTNAMELEN];
 	struct qsockaddr addr;
 

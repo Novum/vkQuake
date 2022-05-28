@@ -62,15 +62,15 @@ void M_Menu_Main_f (void);
 void M_Menu_Options_f (void);
 void M_Menu_Quit_f (void);
 
-void M_Print (int cx, int cy, const char *str);
-void M_PrintWhite (int cx, int cy, const char *str);
-void M_DrawSlider (int x, int y, float range);
+void M_Print (cb_context_t *cbx, int cx, int cy, const char *str);
+void M_PrintWhite (cb_context_t *cbx, int cx, int cy, const char *str);
+void M_DrawSlider (cb_context_t *cbx, int x, int y, float range);
 
-void M_Draw (void);
-void M_DrawCharacter (int cx, int line, int num);
+void M_Draw (cb_context_t *cbx);
+void M_DrawCharacter (cb_context_t *cbx, int cx, int line, int num);
 
-void M_DrawPic (int x, int y, qpic_t *pic);
-void M_DrawTransPic (int x, int y, qpic_t *pic);
-void M_DrawCheckbox (int x, int y, int on);
+void M_DrawPic (cb_context_t *cbx, int x, int y, qpic_t *pic);
+void M_DrawTransPic (cb_context_t *cbx, int x, int y, qpic_t *pic);
+void M_DrawCheckbox (cb_context_t *cbx, int x, int y, int on);
 
 #endif /* _QUAKE_MENU_H */

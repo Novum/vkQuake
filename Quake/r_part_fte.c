@@ -3953,7 +3953,7 @@ static void PScript_AddDecals (void *vctx, vec3_t *points, size_t numtris)
 	clippeddecal_t *d;
 	unsigned int    i;
 	vec3_t          vec;
-	byte           *palrgba = (byte *)d_8to24table;
+	byte		   *palrgba = (byte *)d_8to24table;
 	while (numtris-- > 0)
 	{
 		if (!free_decals)
@@ -6203,7 +6203,7 @@ static void R_AddTexturedParticle (scenetris_t *t, particle_t *p, plooks_t *type
 	t->numidx += 6;
 }
 
-static void PScript_DrawParticleTypes (float pframetime)
+static void PScript_DrawParticleTypes (cb_context_t *cbx, float pframetime)
 {
 	void (*bdraw) (scenetris_t * t, beamseg_t * p, plooks_t * type);
 	void (*tdraw) (scenetris_t * t, particle_t * p, plooks_t * type);
@@ -6929,8 +6929,8 @@ static void PScript_DrawParticleTypes (float pframetime)
 	if (!cl_numstris)
 		return;
 
-	R_BeginDebugUtilsLabel ("FTE Particles");
-	Fog_DisableGFog ();
+	R_BeginDebugUtilsLabel (cbx, "FTE Particles");
+	Fog_DisableGFog (cbx);
 
 	for (o = 0; o < 3; o++)
 	{
@@ -6948,19 +6948,18 @@ static void PScript_DrawParticleTypes (float pframetime)
 				continue;
 
 			const vulkan_pipeline_t pipeline = vulkan_globals.fte_particle_pipelines[blend_mode + (draw_lines ? 8 : 0)];
-			R_BindPipeline (VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+			R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 			gltexture_t *tex = (tris->beflags & BEF_LINES) ? whitetexture : tris->texture;
 
 			const int          num_indices = tris->numidx;
 			const VkDeviceSize vertex_buffer_offset = 0;
-			vulkan_globals.vk_cmd_bind_index_buffer (vulkan_globals.command_buffer, index_buffers[current_buffer_index], 0, VK_INDEX_TYPE_UINT16);
-			vulkan_globals.vk_cmd_bind_vertex_buffers (vulkan_globals.command_buffer, 0, 1, &vertex_buffers[current_buffer_index], &vertex_buffer_offset);
-			vulkan_globals.vk_cmd_bind_descriptor_sets (
-				vulkan_globals.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.layout.handle, 0, 1, &tex->descriptor_set, 0, NULL);
-			vulkan_globals.vk_cmd_draw_indexed (vulkan_globals.command_buffer, num_indices, 1, tris->firstidx, tris->firstvert, 0);
+			vulkan_globals.vk_cmd_bind_index_buffer (cbx->cb, index_buffers[current_buffer_index], 0, VK_INDEX_TYPE_UINT16);
+			vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 1, &vertex_buffers[current_buffer_index], &vertex_buffer_offset);
+			vulkan_globals.vk_cmd_bind_descriptor_sets (cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.layout.handle, 0, 1, &tex->descriptor_set, 0, NULL);
+			vulkan_globals.vk_cmd_draw_indexed (cbx->cb, num_indices, 1, tris->firstidx, tris->firstvert, 0);
 		}
 	}
-	R_EndDebugUtilsLabel ();
+	R_EndDebugUtilsLabel (cbx);
 }
 
 /*
@@ -6968,7 +6967,7 @@ static void PScript_DrawParticleTypes (float pframetime)
 PScript_DrawParticles
 ===============
 */
-void PScript_DrawParticles (void)
+void PScript_DrawParticles (cb_context_t *cbx)
 {
 	int          i;
 	entity_t    *ent;
@@ -7009,7 +7008,7 @@ void PScript_DrawParticles (void)
 		}
 	}
 
-	PScript_DrawParticleTypes (pframetime);
+	PScript_DrawParticleTypes (cbx, pframetime);
 }
 
 /*
@@ -7017,21 +7016,21 @@ void PScript_DrawParticles (void)
 R_DrawParticles_ShowTris
 ===============
 */
-void PScript_DrawParticles_ShowTris (void)
+void PScript_DrawParticles_ShowTris (cb_context_t *cbx)
 {
 	if (r_showtris.value == 1)
-		R_BindPipeline (VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_pipeline);
+		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_pipeline);
 	else
-		R_BindPipeline (VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_depth_test_pipeline);
+		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_depth_test_pipeline);
 
 	for (unsigned int i = 0; i < cl_numstris; i++)
 	{
 		scenetris_t       *tris = &cl_stris[i];
 		const int          num_indices = tris->numidx;
 		const VkDeviceSize vertex_buffer_offset = 0;
-		vulkan_globals.vk_cmd_bind_index_buffer (vulkan_globals.command_buffer, index_buffers[current_buffer_index], 0, VK_INDEX_TYPE_UINT16);
-		vulkan_globals.vk_cmd_bind_vertex_buffers (vulkan_globals.command_buffer, 0, 1, &vertex_buffers[current_buffer_index], &vertex_buffer_offset);
-		vulkan_globals.vk_cmd_draw_indexed (vulkan_globals.command_buffer, num_indices, 1, tris->firstidx, tris->firstvert, 0);
+		vulkan_globals.vk_cmd_bind_index_buffer (cbx->cb, index_buffers[current_buffer_index], 0, VK_INDEX_TYPE_UINT16);
+		vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 1, &vertex_buffers[current_buffer_index], &vertex_buffer_offset);
+		vulkan_globals.vk_cmd_draw_indexed (cbx->cb, num_indices, 1, tris->firstidx, tris->firstvert, 0);
 	}
 }
 

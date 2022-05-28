@@ -519,14 +519,14 @@ void V_UpdateBlend (void)
 V_PolyBlend -- johnfitz -- moved here from gl_rmain.c, and rewritten to use glOrtho
 ============
 */
-void V_PolyBlend (void)
+static void V_PolyBlend (cb_context_t *cbx)
 {
 	int i;
 
 	if (!gl_polyblend.value || !v_blend[3])
 		return;
 
-	GL_SetCanvas (CANVAS_DEFAULT);
+	GL_SetCanvas (cbx, CANVAS_DEFAULT);
 
 	VkBuffer       vertex_buffer;
 	VkDeviceSize   vertex_buffer_offset;
@@ -554,10 +554,10 @@ void V_PolyBlend (void)
 		vertices[i].color[3] = v_blend[3] * 255.0f;
 	}
 
-	vkCmdBindVertexBuffers (vulkan_globals.command_buffer, 0, 1, &vertex_buffer, &vertex_buffer_offset);
-	vkCmdBindIndexBuffer (vulkan_globals.command_buffer, vulkan_globals.fan_index_buffer, 0, VK_INDEX_TYPE_UINT16);
-	R_BindPipeline (VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_poly_blend_pipeline);
-	vkCmdDrawIndexed (vulkan_globals.command_buffer, 6, 1, 0, 0, 0);
+	vkCmdBindVertexBuffers (cbx->cb, 0, 1, &vertex_buffer, &vertex_buffer_offset);
+	vkCmdBindIndexBuffer (cbx->cb, vulkan_globals.fan_index_buffer, 0, VK_INDEX_TYPE_UINT16);
+	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_poly_blend_pipeline);
+	vkCmdDrawIndexed (cbx->cb, 6, 1, 0, 0, 0);
 }
 
 /*
@@ -900,9 +900,7 @@ void V_RenderView (void)
 	if (con_forcedup)
 	{
 		render_warp = false;
-		render_pass_index = 0;
 		render_scale = 1;
-		vkCmdBeginRenderPass (vulkan_globals.command_buffer, &vulkan_globals.main_render_pass_begin_infos[0], VK_SUBPASS_CONTENTS_INLINE);
 		return;
 	}
 
@@ -915,7 +913,7 @@ void V_RenderView (void)
 
 	R_RenderView ();
 
-	V_PolyBlend (); // johnfitz -- moved here from R_Renderview ();
+	V_PolyBlend (&vulkan_globals.secondary_cb_contexts[CBX_ENTITIES]); // johnfitz -- moved here from R_Renderview ();
 }
 
 /*

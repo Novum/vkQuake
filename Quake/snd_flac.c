@@ -72,7 +72,7 @@ typedef struct
 	FLAC__StreamDecoder *decoder;
 	fshandle_t          *file;
 	snd_info_t          *info;
-	byte                *buffer;
+	byte				*buffer;
 	int                  size, pos, error;
 } flacfile_t;
 

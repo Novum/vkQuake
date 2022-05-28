@@ -2835,7 +2835,7 @@ void COM_Effectinfo_Enumerate (int (*cb) (const char *pname))
 {
 	int                i;
 	const char        *f, *e;
-	char              *buf;
+	char			  *buf;
 	static const char *dpnames[] = {"TE_GUNSHOT",       "TE_GUNSHOTQUAD",
 	                                "TE_SPIKE",         "TE_SPIKEQUAD",
 	                                "TE_SUPERSPIKE",    "TE_SUPERSPIKEQUAD",

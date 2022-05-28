@@ -316,6 +316,7 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClCompile Include="..\..\Quake\sv_phys.c" />
     <ClCompile Include="..\..\Quake\sv_user.c" />
     <ClCompile Include="..\..\Quake\sys_sdl_win.c" />
+    <ClCompile Include="..\..\Quake\tasks.c" />
     <ClCompile Include="..\..\Quake\view.c" />
     <ClCompile Include="..\..\Quake\wad.c" />
     <ClCompile Include="..\..\Quake\world.c" />
@@ -517,6 +518,7 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClInclude Include="..\..\Quake\anorms.h" />
     <ClInclude Include="..\..\Quake\anorm_dots.h" />
     <ClInclude Include="..\..\Quake\arch_def.h" />
+    <ClInclude Include="..\..\Quake\atomics.h" />
     <ClInclude Include="..\..\Quake\bgmusic.h" />
     <ClInclude Include="..\..\Quake\bspfile.h" />
     <ClInclude Include="..\..\Quake\cdaudio.h" />
@@ -575,6 +577,7 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClInclude Include="..\..\Quake\spritegn.h" />
     <ClInclude Include="..\..\Quake\strl_fn.h" />
     <ClInclude Include="..\..\Quake\sys.h" />
+    <ClInclude Include="..\..\Quake\tasks.h" />
     <ClInclude Include="..\..\Quake\vid.h" />
     <ClInclude Include="..\..\Quake\view.h" />
     <ClInclude Include="..\..\Quake\wad.h" />

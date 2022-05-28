@@ -51,22 +51,6 @@ extern cvar_t scr_viewsize;
 
 extern cvar_t scr_sbaralpha; // johnfitz
 
-// johnfitz -- stuff for 2d drawing control
-typedef enum
-{
-	CANVAS_NONE,
-	CANVAS_DEFAULT,
-	CANVAS_CONSOLE,
-	CANVAS_MENU,
-	CANVAS_SBAR,
-	CANVAS_WARPIMAGE,
-	CANVAS_CROSSHAIR,
-	CANVAS_BOTTOMLEFT,
-	CANVAS_BOTTOMRIGHT,
-	CANVAS_TOPRIGHT,
-	CANVAS_CSQC,
-	CANVAS_INVALID = -1
-} canvastype;
 extern cvar_t scr_menuscale;
 extern cvar_t scr_sbarscale;
 extern cvar_t scr_conwidth;

@@ -191,9 +191,9 @@ Image_LoadTGA
 byte *Image_LoadTGA (FILE *fin, int *width, int *height, const char *name)
 {
 	int             columns, rows, numPixels;
-	byte           *pixbuf;
+	byte		   *pixbuf;
 	int             row, column;
-	byte           *targa_rgba;
+	byte		   *targa_rgba;
 	int             realrow;     // johnfitz -- fix for upside-down targas
 	qboolean        upside_down; // johnfitz -- fix for upside-down targas
 	stdio_buffer_t *buf;
@@ -445,7 +445,7 @@ byte *Image_LoadPCX (FILE *f, int *width, int *height)
 {
 	pcxheader_t     pcx;
 	int             x, y, w, h, readbyte, runlength, start;
-	byte           *p, *data;
+	byte		   *p, *data;
 	byte            palette[768];
 	stdio_buffer_t *buf;
 
@@ -585,7 +585,7 @@ qboolean Image_WritePNG (const char *name, byte *data, int width, int height, in
 {
 	unsigned       error;
 	char           pathname[MAX_OSPATH];
-	byte          *flipped;
+	byte		  *flipped;
 	unsigned char *filters;
 	unsigned char *png;
 	size_t         pngsize;

@@ -23,6 +23,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 
+#if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
+#include <SDL2/SDL.h>
+#else
+#include "SDL.h"
+#endif
+
 mnode_t *r_pefragtopnode;
 
 //===========================================================================
@@ -45,9 +51,8 @@ http://forums.insideqc.com/viewtopic.php?t=1930
 ===============================================================================
 */
 
-vec3_t r_emins, r_emaxs;
-
-entity_t *r_addent;
+static vec3_t    r_emins, r_emaxs;
+static entity_t *r_addent;
 
 #define EXTRA_EFRAGS 128
 
@@ -204,7 +209,6 @@ void R_StoreEfrags (efrag_t **ppefrag)
 	while ((pefrag = *ppefrag) != NULL)
 	{
 		pent = pefrag->entity;
-
 		if ((pent->visframe != r_framecount) && (cl_numvisedicts < cl_maxvisedicts))
 		{
 #ifdef PSET_SCRIPT
@@ -245,7 +249,6 @@ void R_StoreEfrags (efrag_t **ppefrag)
 			cl_visedicts[cl_numvisedicts++] = pent;
 			pent->visframe = r_framecount;
 		}
-
 		ppefrag = &pefrag->leafnext;
 	}
 }
