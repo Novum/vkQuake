@@ -632,7 +632,8 @@ void Sky_ProcessEntities (cb_context_t *cbx, float color[3])
 {
 	entity_t   *e;
 	msurface_t *s;
-	int         i, j, k;
+	glpoly_t   *p;
+	int         i, j, k, mark;
 	float       dot;
 	qboolean    rotated;
 	vec3_t      temp, forward, right, up;
@@ -679,9 +680,8 @@ void Sky_ProcessEntities (cb_context_t *cbx, float color[3])
 				if (((s->flags & SURF_PLANEBACK) && (dot < -BACKFACE_EPSILON)) || (!(s->flags & SURF_PLANEBACK) && (dot > BACKFACE_EPSILON)))
 				{
 					// copy the polygon and translate manually, since Sky_ProcessPoly needs it to be in world space
-					int extra_polys = q_max(0, s->polys->numverts - 4);
-					uint8_t poly_storage[sizeof(glpoly_t) + (VERTEXSIZE * sizeof(float)* extra_polys)];
-					glpoly_t *p = (glpoly_t*)poly_storage;
+					mark = Hunk_LowMark ();
+					p = (glpoly_t *)Hunk_Alloc (sizeof (*s->polys)); // FIXME: don't allocate for each poly
 					p->numverts = s->polys->numverts;
 					for (k = 0; k < p->numverts; k++)
 					{
@@ -702,6 +702,7 @@ void Sky_ProcessEntities (cb_context_t *cbx, float color[3])
 						}
 					}
 					Sky_ProcessPoly (cbx, p, color);
+					Hunk_FreeToLowMark (mark);
 				}
 			}
 		}

@@ -35,6 +35,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define MAX_PAYLOAD_SIZE     32
 #define INDEX_BITS           20
 #define GUTTER_BITS          2
+#define WORKER_HUNK_SIZE     (128 * 1024)
 
 COMPILE_TIME_ASSERT (tasks, MAX_PENDING_TASKS >= MAX_EXECUTABLE_TASKS);
 
@@ -229,6 +230,9 @@ Task_Worker
 */
 static int Task_Worker (void *data)
 {
+	void* worker_hunk = malloc (WORKER_HUNK_SIZE);
+	Memory_InitWorkerHunk(worker_hunk, WORKER_HUNK_SIZE);
+
 	const int worker_index = (intptr_t)data;
 	while (true)
 	{

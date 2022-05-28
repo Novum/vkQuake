@@ -294,14 +294,14 @@ typedef struct
 	char name[HUNKNAME_LEN];
 } hunk_t;
 
-byte *hunk_base;
-int   hunk_size;
+THREAD_LOCAL byte *hunk_base;
+THREAD_LOCAL int   hunk_size;
 
-int hunk_low_used;
-int hunk_high_used;
+THREAD_LOCAL int hunk_low_used;
+THREAD_LOCAL int hunk_high_used;
 
-qboolean hunk_tempactive;
-int      hunk_tempmark;
+THREAD_LOCAL qboolean hunk_tempactive;
+THREAD_LOCAL int      hunk_tempmark;
 
 /*
 ==============
@@ -599,7 +599,7 @@ typedef struct cache_system_s
 
 cache_system_t *Cache_TryAlloc (int size, qboolean nobottom);
 
-cache_system_t cache_head;
+THREAD_LOCAL cache_system_t cache_head;
 
 /*
 ===========
@@ -976,4 +976,19 @@ void Memory_Init (void *buf, int size)
 	Memory_InitZone (mainzone, zonesize);
 
 	Cmd_AddCommand ("hunk_print", Hunk_Print_f); // johnfitz
+}
+
+/*
+========================
+Memory_InitWorkerHunk
+========================
+*/
+void Memory_InitWorkerHunk (void *buf, int size)
+{
+	hunk_base = (byte *)buf;
+	hunk_size = size;
+	hunk_low_used = 0;
+	hunk_high_used = 0;
+
+	Cache_Init ();
 }
