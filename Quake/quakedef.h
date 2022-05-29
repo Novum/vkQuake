@@ -354,7 +354,7 @@ void DemoList_Init (void);
 void ExtraMaps_NewGame (void);
 void DemoList_Rebuild (void);
 
-#ifdef _WIN32
+#ifdef _MSC_VER
 static inline int FindFirstBitNonZero (const uint32_t mask)
 {
 	unsigned long result;

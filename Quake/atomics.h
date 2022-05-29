@@ -21,7 +21,7 @@
 #ifndef __ATOMICS_H
 #define __ATOMICS_H
 
-#ifdef _WIN32
+#ifdef _MSC_VER
 #include <stdint.h>
 #include <windows.h>
 #else
@@ -30,7 +30,7 @@
 
 #include "q_stdinc.h"
 
-#ifdef _WIN32
+#ifdef _MSC_VER
 // Microsoft doesn't implement C11 atomics yet
 typedef struct
 {
