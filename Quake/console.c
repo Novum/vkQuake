@@ -845,7 +845,7 @@ const char *FindCompletion (const char *partial, filelist_item_t *filelist, int 
 			if (init == 0)
 			{
 				init = 1;
-				strncpy (matched, file->name, sizeof (matched) - 1);
+				memcpy (matched, file->name, sizeof (matched));
 				matched[sizeof (matched) - 1] = '\0';
 			}
 			else
