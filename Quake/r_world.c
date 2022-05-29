@@ -114,11 +114,18 @@ qboolean R_BackFaceCull (msurface_t *surf)
 R_SetupWorldCBXTexRanges
 ===============
 */
-void R_SetupWorldCBXTexRanges (void)
+void R_SetupWorldCBXTexRanges (qboolean use_tasks)
 {
 	const int num_textures = cl.worldmodel->numtextures;
+	if (!use_tasks)
+	{
+		world_texstart[0] = 0;
+		world_texend[0] = num_textures;
+		return;
+	}
+
 	int       total_world_textures = 0;
-	for (int i = 0; i < num_textures; i += 8)
+	for (int i = 0; i < num_textures; ++i)
 	{
 		texture_t *t = cl.worldmodel->textures[i];
 		if (!t || !t->texturechains[chain_world] || t->texturechains[chain_world]->flags & (SURF_DRAWTURB | SURF_DRAWTILED | SURF_NOTEXTURE))
@@ -127,31 +134,31 @@ void R_SetupWorldCBXTexRanges (void)
 	}
 
 	const int num_textures_per_cbx = (total_world_textures + NUM_WORLD_CBX - 1) / NUM_WORLD_CBX;
-	total_world_textures = 0;
+	memset(world_texstart, 0, sizeof(world_texstart));
+	memset(world_texend, 0, sizeof(world_texend));
 	int current_cbx = 0;
-	int current_cbx_textures = 0;
-	world_texstart[0] = 0;
-	for (int i = 0; i < num_textures; i += 8)
+	int num_assigned_to_cbx = 0;
+	int num_assigned_total = 0;
+	for (int i = 0; i < num_textures; ++i)
 	{
 		texture_t *t = cl.worldmodel->textures[i];
 		if (!t || !t->texturechains[chain_world] || t->texturechains[chain_world]->flags & (SURF_DRAWTURB | SURF_DRAWTILED | SURF_NOTEXTURE))
 			continue;
-		total_world_textures += 1;
-		current_cbx_textures += 1;
-		if (current_cbx_textures == num_textures_per_cbx)
+		world_texend[current_cbx] = i + 1;
+		num_assigned_to_cbx += 1;
+		num_assigned_total += 1;
+		if ((num_assigned_to_cbx == num_textures_per_cbx) || (current_cbx == (CBX_NUM - 1)))
 		{
-			world_texend[current_cbx] = i;
 			current_cbx += 1;
-			if (current_cbx < NUM_WORLD_CBX)
+			if (current_cbx < CBX_NUM)
 			{
-				world_texstart[current_cbx] = i;
+				world_texstart[current_cbx] = i + 1;
 			}
-			current_cbx_textures = 0;
+			num_assigned_to_cbx = 0;
 		}
 	}
-	world_texend[NUM_WORLD_CBX - 1] = num_textures;
+	assert(num_assigned_total == total_world_textures);
 }
-
 
 #ifdef USE_SSE2
 /*
@@ -236,7 +243,7 @@ byte R_CullBoxSIMD (soa_aabb_t box, byte activelanes)
 R_MarkVisSurfacesSIMD
 ===============
 */
-void R_MarkVisSurfacesSIMD (qboolean *setup_tex_ranges)
+void R_MarkVisSurfacesSIMD (qboolean *use_tasks)
 {
 	msurface_t  *surf;
 	unsigned int i, k;
@@ -302,10 +309,7 @@ void R_MarkVisSurfacesSIMD (qboolean *setup_tex_ranges)
 		}
 	}
 
-	if (*setup_tex_ranges)
-	{
-		R_SetupWorldCBXTexRanges();
-	}
+	R_SetupWorldCBXTexRanges(*use_tasks);
 }
 
 /*
@@ -410,7 +414,7 @@ void R_StoreLeafEFrags (void *unused)
 R_ChainVisSurfaces
 ===============
 */
-void R_ChainVisSurfaces (qboolean *setup_tex_ranges)
+void R_ChainVisSurfaces (qboolean *use_tasks)
 {
 	unsigned int i;
 	msurface_t  *surf;
@@ -431,10 +435,7 @@ void R_ChainVisSurfaces (qboolean *setup_tex_ranges)
 		}
 	}
 
-	if (*setup_tex_ranges)
-	{
-		R_SetupWorldCBXTexRanges();
-	}
+	R_SetupWorldCBXTexRanges(*use_tasks);
 }
 #endif // defined(USE_SIMD)
 
@@ -443,7 +444,7 @@ void R_ChainVisSurfaces (qboolean *setup_tex_ranges)
 R_MarkVisSurfaces
 ===============
 */
-void R_MarkVisSurfaces (qboolean *setup_tex_ranges)
+void R_MarkVisSurfaces (qboolean *use_tasks)
 {
 	int         i, j;
 	msurface_t *surf;
@@ -486,10 +487,7 @@ void R_MarkVisSurfaces (qboolean *setup_tex_ranges)
 		}
 	}
 
-	if (*setup_tex_ranges)
-	{
-		R_SetupWorldCBXTexRanges();
-	}
+	R_SetupWorldCBXTexRanges(*use_tasks);
 }
 
 /*

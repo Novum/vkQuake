@@ -821,8 +821,7 @@ void R_RenderView (void)
 		R_SetupViewBeforeMark (NULL);
 		R_MarkSurfaces (use_tasks, INVALID_TASK_HANDLE, NULL, NULL, NULL); // johnfitz -- create texture chains from PVS
 		R_UpdateWarpTextures (&primary_cbx);
-		for (int i = 0; i < NUM_WORLD_CBX; ++i)
-			R_DrawWorldTask (i, NULL);
+		R_DrawWorldTask (0, NULL);
 		R_DrawSkyAndWaterTask (NULL);
 		R_DrawEntitiesTask (NULL);
 		R_DrawParticlesTask (NULL);
