@@ -287,7 +287,7 @@ static int PartialIPAddress (const char *in, struct qsockaddr *hostaddr)
 	}
 
 	if (*b++ == ':')
-		port = Q_atoi (b);
+		port = atoi (b);
 	else
 		port = net_hostport;
 
@@ -507,11 +507,11 @@ int WINIPv4_GetNameFromAddr (struct qsockaddr *addr, char *name)
 	hostentry = gethostbyaddr ((char *)&((struct sockaddr_in *)addr)->sin_addr, sizeof (struct in_addr), AF_INET);
 	if (hostentry)
 	{
-		Q_strncpy (name, (char *)hostentry->h_name, NET_NAMELEN - 1);
+		strncpy (name, (char *)hostentry->h_name, NET_NAMELEN - 1);
 		return 0;
 	}
 
-	Q_strcpy (name, WINS_AddrToString (addr, false));
+	strcpy (name, WINS_AddrToString (addr, false));
 	return 0;
 }
 

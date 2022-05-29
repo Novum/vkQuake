@@ -120,8 +120,8 @@ static void NET_Ban_f (void)
 	case 1:
 		if (banAddr.s_addr != INADDR_ANY)
 		{
-			Q_strcpy (addrStr, inet_ntoa (banAddr));
-			Q_strcpy (maskStr, inet_ntoa (banMask));
+			strcpy (addrStr, inet_ntoa (banAddr));
+			strcpy (maskStr, inet_ntoa (banMask));
 			print_fn ("Banning %s [%s]\n", addrStr, maskStr);
 		}
 		else
@@ -165,7 +165,7 @@ int Datagram_SendMessage (qsocket_t *sock, sizebuf_t *data)
 		Sys_Error ("SendMessage: called with canSend == false");
 #endif
 
-	Q_memcpy (sock->sendMessage, data->data, data->cursize);
+	memcpy (sock->sendMessage, data->data, data->cursize);
 	sock->sendMessageLength = data->cursize;
 
 	sock->max_datagram = sock->pending_max_datagram; // this can apply only at the start of a reliable, to avoid issues with acks if its resized later.
@@ -184,7 +184,7 @@ int Datagram_SendMessage (qsocket_t *sock, sizebuf_t *data)
 
 	packetBuffer.length = BigLong (packetLen | (NETFLAG_DATA | eom));
 	packetBuffer.sequence = BigLong (sock->sendSequence++);
-	Q_memcpy (packetBuffer.data, sock->sendMessage, dataLen);
+	memcpy (packetBuffer.data, sock->sendMessage, dataLen);
 
 	sock->canSend = false;
 
@@ -216,7 +216,7 @@ static int SendMessageNext (qsocket_t *sock)
 
 	packetBuffer.length = BigLong (packetLen | (NETFLAG_DATA | eom));
 	packetBuffer.sequence = BigLong (sock->sendSequence++);
-	Q_memcpy (packetBuffer.data, sock->sendMessage, dataLen);
+	memcpy (packetBuffer.data, sock->sendMessage, dataLen);
 
 	sock->sendNext = false;
 
@@ -248,7 +248,7 @@ static int ReSendMessage (qsocket_t *sock)
 
 	packetBuffer.length = BigLong (packetLen | (NETFLAG_DATA | eom));
 	packetBuffer.sequence = BigLong (sock->sendSequence - 1);
-	Q_memcpy (packetBuffer.data, sock->sendMessage, dataLen);
+	memcpy (packetBuffer.data, sock->sendMessage, dataLen);
 
 	if (sfunc.Write (sock->socket, (byte *)&packetBuffer, packetLen, &sock->addr) == -1)
 		return -1;
@@ -287,7 +287,7 @@ int Datagram_SendUnreliableMessage (qsocket_t *sock, sizebuf_t *data)
 
 	packetBuffer.length = BigLong (packetLen | NETFLAG_UNRELIABLE);
 	packetBuffer.sequence = BigLong (sock->unreliableSendSequence++);
-	Q_memcpy (packetBuffer.data, data->data, data->cursize);
+	memcpy (packetBuffer.data, data->data, data->cursize);
 
 	if (sfunc.Write (sock->socket, (byte *)&packetBuffer, packetLen, &sock->addr) == -1)
 		return -1;
@@ -417,7 +417,7 @@ qboolean Datagram_ProcessPacket (unsigned int length, qsocket_t *sock)
 			Con_Printf ("Over-sized reliable\n");
 			return -1;
 		}
-		Q_memcpy (sock->receiveMessage + sock->receiveMessageLength, packetBuffer.data, length);
+		memcpy (sock->receiveMessage + sock->receiveMessageLength, packetBuffer.data, length);
 		sock->receiveMessageLength += length;
 		return false; // still watiting for the eom
 	}
@@ -657,7 +657,7 @@ int Datagram_GetMessage (qsocket_t *sock)
 				Con_Printf ("Over-sized reliable\n");
 				return -1;
 			}
-			Q_memcpy (sock->receiveMessage + sock->receiveMessageLength, packetBuffer.data, length);
+			memcpy (sock->receiveMessage + sock->receiveMessageLength, packetBuffer.data, length);
 			sock->receiveMessageLength += length;
 			continue;
 		}
@@ -694,7 +694,7 @@ static void NET_Stats_f (void)
 		Con_Printf ("shortPacketCount           = %i\n", shortPacketCount);
 		Con_Printf ("droppedDatagrams           = %i\n", droppedDatagrams);
 	}
-	else if (Q_strcmp (Cmd_Argv (1), "*") == 0)
+	else if (strcmp (Cmd_Argv (1), "*") == 0)
 	{
 		for (s = net_activeSockets; s; s = s->next)
 			PrintStats (s);
@@ -736,12 +736,12 @@ static const char *Strip_Port (const char *host)
 	if (!host || !*host)
 		return host;
 	q_strlcpy (noport, host, sizeof (noport));
-	if ((p = Q_strrchr (noport, ':')) == NULL)
+	if ((p = strrchr (noport, ':')) == NULL)
 		return host;
 	if (strchr (p, ']'))
 		return host; //[::] should not be considered port 0
 	*p++ = '\0';
-	port = Q_atoi (p);
+	port = atoi (p);
 	if (port > 0 && port < 65536 && port != net_hostport)
 	{
 		net_hostport = port;
@@ -793,11 +793,11 @@ static void Test_Poll (void *unused)
 			Sys_Error ("Unexpected repsonse to Player Info request\n");
 
 		MSG_ReadByte (); /* playerNumber */
-		Q_strcpy (name, MSG_ReadString ());
+		strcpy (name, MSG_ReadString ());
 		colors = MSG_ReadLong ();
 		frags = MSG_ReadLong ();
 		connectTime = MSG_ReadLong ();
-		Q_strcpy (address, MSG_ReadString ());
+		strcpy (address, MSG_ReadString ());
 
 		Con_Printf ("%s\n  frags:%3i  colors:%d %d  time:%d\n  %s\n", name, frags, colors >> 4, colors & 0x0f, connectTime / 60, address);
 	}
@@ -836,7 +836,7 @@ static void Test_f (void)
 					continue;
 				net_landriverlevel = hostcache[n].ldriver;
 				maxusers = hostcache[n].maxusers;
-				Q_memcpy (&sendaddr, &hostcache[n].addr, sizeof (struct qsockaddr));
+				memcpy (&sendaddr, &hostcache[n].addr, sizeof (struct qsockaddr));
 				break;
 			}
 		}
@@ -921,10 +921,10 @@ static void Test2_Poll (void *unused)
 	if (MSG_ReadByte () != CCREP_RULE_INFO)
 		goto Error;
 
-	Q_strcpy (name, MSG_ReadString ());
+	strcpy (name, MSG_ReadString ());
 	if (name[0] == 0)
 		goto Done;
-	Q_strcpy (value, MSG_ReadString ());
+	strcpy (value, MSG_ReadString ());
 
 	Con_Printf ("%-16.16s  %-16.16s\n", name, value);
 
@@ -969,7 +969,7 @@ static void Test2_f (void)
 				if (hostcache[n].driver != myDriverLevel)
 					continue;
 				net_landriverlevel = hostcache[n].ldriver;
-				Q_memcpy (&sendaddr, &hostcache[n].addr, sizeof (struct qsockaddr));
+				memcpy (&sendaddr, &hostcache[n].addr, sizeof (struct qsockaddr));
 				break;
 			}
 		}
@@ -1274,7 +1274,7 @@ static void _Datagram_ServerControlPacket (sys_socket_t acceptsock, struct qsock
 	command = MSG_ReadByte ();
 	if (command == CCREQ_SERVER_INFO)
 	{
-		if (Q_strcmp (MSG_ReadString (), "QUAKE") != 0)
+		if (strcmp (MSG_ReadString (), "QUAKE") != 0)
 			return;
 
 		SZ_Clear (&net_message);
@@ -1400,7 +1400,7 @@ static void _Datagram_ServerControlPacket (sys_socket_t acceptsock, struct qsock
 	if (command != CCREQ_CONNECT)
 		return;
 
-	if (Q_strcmp (MSG_ReadString (), "QUAKE") != 0)
+	if (strcmp (MSG_ReadString (), "QUAKE") != 0)
 		return;
 
 	if (MSG_ReadByte () != NET_PROTOCOL_VERSION)
@@ -1542,8 +1542,8 @@ static void _Datagram_ServerControlPacket (sys_socket_t acceptsock, struct qsock
 	sock->socket = acceptsock;
 	sock->landriver = net_landriverlevel;
 	sock->addr = *clientaddr;
-	Q_strcpy (sock->trueaddress, dfunc.AddrToString (clientaddr, false));
-	Q_strcpy (sock->maskedaddress, dfunc.AddrToString (clientaddr, true));
+	strcpy (sock->trueaddress, dfunc.AddrToString (clientaddr, false));
+	strcpy (sock->maskedaddress, dfunc.AddrToString (clientaddr, true));
 
 	// send him back the info about the server connection he has been allocated
 	SZ_Clear (&net_message);
@@ -1857,11 +1857,11 @@ static qboolean _Datagram_SearchForHosts (qboolean xmit)
 				Info_ReadKey (info, "protocol", tmp, sizeof (tmp));
 				if (atoi (tmp) != NET_PROTOCOL_VERSION)
 				{
-					Q_strcpy (hostcache[n].cname, hostcache[n].name);
-					Q_strcpy (hostcache[n].name, "*");
-					Q_strcat (hostcache[n].name, hostcache[n].cname);
+					strcpy (hostcache[n].cname, hostcache[n].name);
+					strcpy (hostcache[n].name, "*");
+					strcat (hostcache[n].name, hostcache[n].cname);
 				}
-				Q_memcpy (&hostcache[n].addr, &readaddr, sizeof (struct qsockaddr));
+				memcpy (&hostcache[n].addr, &readaddr, sizeof (struct qsockaddr));
 				hostcache[n].driver = net_driverlevel;
 				hostcache[n].ldriver = net_landriverlevel;
 				q_strlcpy (hostcache[n].cname, dfunc.AddrToString (&readaddr, false), sizeof (hostcache[n].cname));
@@ -1878,7 +1878,7 @@ static qboolean _Datagram_SearchForHosts (qboolean xmit)
 					}
 					if (q_strcasecmp (hostcache[n].name, hostcache[i].name) == 0)
 					{
-						i = Q_strlen (hostcache[n].name);
+						i = strlen (hostcache[n].name);
 						if (i < 15 && hostcache[n].name[i - 1] > '8')
 						{
 							hostcache[n].name[i] = '0';
@@ -1938,12 +1938,12 @@ static qboolean _Datagram_SearchForHosts (qboolean xmit)
 		hostcache[n].maxusers = MSG_ReadByte ();
 		if (MSG_ReadByte () != NET_PROTOCOL_VERSION)
 		{
-			Q_strcpy (hostcache[n].cname, hostcache[n].name);
+			strcpy (hostcache[n].cname, hostcache[n].name);
 			hostcache[n].cname[14] = 0;
-			Q_strcpy (hostcache[n].name, "*");
-			Q_strcat (hostcache[n].name, hostcache[n].cname);
+			strcpy (hostcache[n].name, "*");
+			strcat (hostcache[n].name, hostcache[n].cname);
 		}
-		Q_memcpy (&hostcache[n].addr, &readaddr, sizeof (struct qsockaddr));
+		memcpy (&hostcache[n].addr, &readaddr, sizeof (struct qsockaddr));
 		hostcache[n].driver = net_driverlevel;
 		hostcache[n].ldriver = net_landriverlevel;
 		q_strlcpy (hostcache[n].cname, dfunc.AddrToString (&readaddr, false), sizeof (hostcache[n].cname));
@@ -1960,7 +1960,7 @@ static qboolean _Datagram_SearchForHosts (qboolean xmit)
 			}
 			if (q_strcasecmp (hostcache[n].name, hostcache[i].name) == 0)
 			{
-				i = Q_strlen (hostcache[n].name);
+				i = strlen (hostcache[n].name);
 				if (i < 15 && hostcache[n].name[i - 1] > '8')
 				{
 					hostcache[n].name[i] = '0';
@@ -2107,7 +2107,7 @@ static qsocket_t *_Datagram_Connect (struct qsockaddr *serveraddr)
 					}
 					else if (!strcmp (s, "accept"))
 					{
-						Q_memcpy (&sock->addr, serveraddr, sizeof (struct qsockaddr));
+						memcpy (&sock->addr, serveraddr, sizeof (struct qsockaddr));
 						sock->proquake_angle_hack = false;
 						goto dpserveraccepted;
 					}
@@ -2147,7 +2147,7 @@ static qsocket_t *_Datagram_Connect (struct qsockaddr *serveraddr)
 	{
 		reason = "No Response";
 		Con_Printf ("%s\n", reason);
-		Q_strcpy (m_return_reason, reason);
+		strcpy (m_return_reason, reason);
 		goto ErrorReturn;
 	}
 
@@ -2155,7 +2155,7 @@ static qsocket_t *_Datagram_Connect (struct qsockaddr *serveraddr)
 	{
 		reason = "Network Error";
 		Con_Printf ("%s\n", reason);
-		Q_strcpy (m_return_reason, reason);
+		strcpy (m_return_reason, reason);
 		goto ErrorReturn;
 	}
 
@@ -2171,7 +2171,7 @@ static qsocket_t *_Datagram_Connect (struct qsockaddr *serveraddr)
 	if (ret == CCREP_ACCEPT)
 	{
 		int port;
-		Q_memcpy (&sock->addr, serveraddr, sizeof (struct qsockaddr));
+		memcpy (&sock->addr, serveraddr, sizeof (struct qsockaddr));
 		port = MSG_ReadLong ();
 		if (port) // spike --- don't change the remote port if the server doesn't want us to. this allows servers to use port forwarding with less issues,
 		          // assuming the server uses the same port for all clients.
@@ -2181,7 +2181,7 @@ static qsocket_t *_Datagram_Connect (struct qsockaddr *serveraddr)
 	{
 		reason = "Bad Response";
 		Con_Printf ("%s\n", reason);
-		Q_strcpy (m_return_reason, reason);
+		strcpy (m_return_reason, reason);
 		goto ErrorReturn;
 	}
 
@@ -2198,7 +2198,7 @@ static qsocket_t *_Datagram_Connect (struct qsockaddr *serveraddr)
 			{
 				reason = "Server is incompatible";
 				Con_Printf ("%s\n", reason);
-				Q_strcpy (m_return_reason, reason);
+				strcpy (m_return_reason, reason);
 				goto ErrorReturn;
 			}
 			sock->proquake_angle_hack = true;
@@ -2220,7 +2220,7 @@ dpserveraccepted:
 	{
 		reason = "Connect to Game failed";
 		Con_Printf ("%s\n", reason);
-		Q_strcpy (m_return_reason, reason);
+		strcpy (m_return_reason, reason);
 		goto ErrorReturn;
 	}
 

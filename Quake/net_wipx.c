@@ -95,8 +95,8 @@ sys_socket_t WIPX_Init (void)
 	broadcastaddr.sa_socket = htons ((unsigned short)net_hostport);
 
 	WIPX_GetSocketAddr (net_controlsocket, &addr);
-	Q_strcpy (my_ipx_address, WIPX_AddrToString (&addr, false));
-	colon = Q_strrchr (my_ipx_address, ':');
+	strcpy (my_ipx_address, WIPX_AddrToString (&addr, false));
+	colon = strrchr (my_ipx_address, ':');
 	if (colon)
 		*colon = 0;
 
@@ -349,7 +349,7 @@ int WIPX_StringToAddr (const char *string, struct qsockaddr *addr)
 	char buf[3];
 
 	buf[2] = 0;
-	Q_memset (addr, 0, sizeof (struct qsockaddr));
+	memset (addr, 0, sizeof (struct qsockaddr));
 	addr->qsa_family = AF_IPX;
 
 #define DO(src, dest)                              \
@@ -387,7 +387,7 @@ int WIPX_GetSocketAddr (sys_socket_t handle, struct qsockaddr *addr)
 	sys_socket_t socketid = ipxsocket[handle];
 	socklen_t    addrlen = sizeof (struct qsockaddr);
 
-	Q_memset (addr, 0, sizeof (struct qsockaddr));
+	memset (addr, 0, sizeof (struct qsockaddr));
 	if (getsockname (socketid, (struct sockaddr *)addr, &addrlen) != 0)
 	{
 		int err = SOCKETERRNO;
@@ -402,7 +402,7 @@ int WIPX_GetSocketAddr (sys_socket_t handle, struct qsockaddr *addr)
 
 int WIPX_GetNameFromAddr (struct qsockaddr *addr, char *name)
 {
-	Q_strcpy (name, WIPX_AddrToString (addr, false));
+	strcpy (name, WIPX_AddrToString (addr, false));
 	return 0;
 }
 
@@ -413,7 +413,7 @@ int WIPX_GetAddrFromName (const char *name, struct qsockaddr *addr)
 	int  n;
 	char buf[32];
 
-	n = Q_strlen (name);
+	n = strlen (name);
 
 	if (n == 12)
 	{

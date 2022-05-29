@@ -215,7 +215,7 @@ static void FindNextChunk (const char *name)
 		}
 		last_chunk = data_p + ((iff_chunk_len + 1) & ~1);
 		data_p -= 8;
-		if (!Q_strncmp ((char *)data_p, name, 4))
+		if (!strncmp ((char *)data_p, name, 4))
 			return;
 	}
 }
@@ -266,7 +266,7 @@ wavinfo_t GetWavinfo (const char *name, byte *wav, int wavlength)
 
 	// find "RIFF" chunk
 	FindChunk ("RIFF");
-	if (!(data_p && !Q_strncmp ((char *)data_p + 8, "WAVE", 4)))
+	if (!(data_p && !strncmp ((char *)data_p + 8, "WAVE", 4)))
 	{
 		Con_Printf ("%s missing RIFF/WAVE chunks\n", name);
 		return info;

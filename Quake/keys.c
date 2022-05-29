@@ -376,7 +376,7 @@ void Key_Console (int key)
 
 	case K_UPARROW:
 		if (history_line == edit_line)
-			Q_strcpy (current, workline);
+			strcpy (current, workline);
 
 		history_line_last = history_line;
 		do

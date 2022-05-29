@@ -130,18 +130,6 @@ void COM_Effectinfo_Enumerate (int (*cb) (const char *pname)); // spike -- for d
 
 //============================================================================
 
-void        Q_memset (void *dest, int fill, size_t count);
-void        Q_memcpy (void *dest, const void *src, size_t count);
-int         Q_memcmp (const void *m1, const void *m2, size_t count);
-void        Q_strcpy (char *dest, const char *src);
-void        Q_strncpy (char *dest, const char *src, int count);
-int         Q_strlen (const char *str);
-char	   *Q_strrchr (const char *s, char c);
-void        Q_strcat (char *dest, const char *src);
-int         Q_strcmp (const char *s1, const char *s2);
-int         Q_strncmp (const char *s1, const char *s2, int count);
-int         Q_atoi (const char *str);
-float       Q_atof (const char *str);
 void        Q_ftoa (char *str, float in);
 int         wildcmp (const char *wild, const char *string);
 void        Info_RemoveKey (char *info, const char *key);

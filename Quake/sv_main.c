@@ -241,7 +241,7 @@ static void MSGFTE_WriteEntityUpdate (unsigned int bits, entity_state_t *state, 
 	}
 
 #ifdef LERP_BANDAID
-	if (bits & UF_UNUSED2 && (cls.demorecording || Q_strcmp (NET_QSocketGetTrueAddressString (host_client->netconnection), "LOCAL")))
+	if (bits & UF_UNUSED2 && (cls.demorecording || strcmp (NET_QSocketGetTrueAddressString (host_client->netconnection), "LOCAL")))
 		bits &= ~UF_UNUSED2;
 #endif
 
@@ -1423,7 +1423,7 @@ void SV_SendServerinfo (client_t *client)
 		break;
 	}
 
-	if (!Q_strcmp (NET_QSocketGetTrueAddressString (client->netconnection), "LOCAL"))
+	if (!strcmp (NET_QSocketGetTrueAddressString (client->netconnection), "LOCAL"))
 	{ // might as well super-size it. demo playback doesn't care. mostly only affects vanilla. we should trigger other warnings if this limit is exceeded so
 	  // don't worry about testers.
 		client->limit_unreliable = client->limit_reliable;
@@ -1793,7 +1793,7 @@ byte *SV_FatPVS (vec3_t org, qmodel_t *worldmodel) // johnfitz -- added worldmod
 			Sys_Error ("SV_FatPVS: realloc() failed on %d bytes", fatpvs_capacity);
 	}
 
-	Q_memset (fatpvs, 0, fatbytes);
+	memset (fatpvs, 0, fatbytes);
 	SV_AddToFatPVS (org, worldmodel->nodes, worldmodel); // johnfitz -- worldmodel as a parameter
 	return fatpvs;
 }

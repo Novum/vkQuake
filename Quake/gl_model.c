@@ -560,7 +560,7 @@ void Mod_LoadTextures (lump_t *l)
 		// johnfitz -- lots of changes
 		if (!isDedicated) // no texture uploading for dedicated server
 		{
-			if (!q_strncasecmp (tx->name, "sky", 3)) // sky texture //also note -- was Q_strncmp, changed to match qbsp
+			if (!q_strncasecmp (tx->name, "sky", 3)) // sky texture //also note -- was strncmp, changed to match qbsp
 			{
 				if (loadmodel->bspversion == BSPVERSION_QUAKE64)
 					Sky_LoadTextureQ64 (tx);
@@ -1281,7 +1281,7 @@ void Mod_LoadFaces (lump_t *l, qboolean bsp2)
 			out->samples = loadmodel->lightdata + (lofs * 3); // johnfitz -- lit support via lordhavoc (was "+ i")
 
 		// johnfitz -- this section rewritten
-		if (!q_strncasecmp (out->texinfo->texture->name, "sky", 3)) // sky surface //also note -- was Q_strncmp, changed to match qbsp
+		if (!q_strncasecmp (out->texinfo->texture->name, "sky", 3)) // sky surface //also note -- was strncmp, changed to match qbsp
 		{
 			out->flags |= (SURF_DRAWSKY | SURF_DRAWTILED);
 			Mod_PolyForUnlitSurface (out); // no more subdivision

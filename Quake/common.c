@@ -281,268 +281,6 @@ int q_snprintf (char *str, size_t size, const char *format, ...)
 	return ret;
 }
 
-void Q_memset (void *dest, int fill, size_t count)
-{
-	size_t i;
-
-	if ((((uintptr_t)dest | count) & 3) == 0)
-	{
-		count >>= 2;
-		uint32_t fill32 = (uint32_t)fill | ((uint32_t)fill << 8) | ((uint32_t)fill << 16) | ((uint32_t)fill << 24);
-		;
-		for (i = 0; i < count; i++)
-			((uint32_t *)dest)[i] = fill32;
-	}
-	else
-		for (i = 0; i < count; i++)
-			((byte *)dest)[i] = fill;
-}
-
-void Q_memcpy (void *dest, const void *src, size_t count)
-{
-	size_t i;
-
-	if ((((uintptr_t)dest | (uintptr_t)src | count) & 3) == 0)
-	{
-		count >>= 2;
-		for (i = 0; i < count; i++)
-			((int *)dest)[i] = ((int *)src)[i];
-	}
-	else
-		for (i = 0; i < count; i++)
-			((byte *)dest)[i] = ((byte *)src)[i];
-}
-
-int Q_memcmp (const void *m1, const void *m2, size_t count)
-{
-	while (count)
-	{
-		count--;
-		if (((byte *)m1)[count] != ((byte *)m2)[count])
-			return -1;
-	}
-	return 0;
-}
-
-void Q_strcpy (char *dest, const char *src)
-{
-	while (*src)
-	{
-		*dest++ = *src++;
-	}
-	*dest++ = 0;
-}
-
-void Q_strncpy (char *dest, const char *src, int count)
-{
-	while (*src && count--)
-	{
-		*dest++ = *src++;
-	}
-	if (count)
-		*dest++ = 0;
-}
-
-int Q_strlen (const char *str)
-{
-	int count;
-
-	count = 0;
-	while (str[count])
-		count++;
-
-	return count;
-}
-
-char *Q_strrchr (const char *s, char c)
-{
-	int len = Q_strlen (s);
-	s += len;
-	while (len--)
-	{
-		if (*--s == c)
-			return (char *)s;
-	}
-	return NULL;
-}
-
-void Q_strcat (char *dest, const char *src)
-{
-	dest += Q_strlen (dest);
-	Q_strcpy (dest, src);
-}
-
-int Q_strcmp (const char *s1, const char *s2)
-{
-	while (1)
-	{
-		if (*s1 != *s2)
-			return -1; // strings not equal
-		if (!*s1)
-			return 0; // strings are equal
-		s1++;
-		s2++;
-	}
-
-	return -1;
-}
-
-int Q_strncmp (const char *s1, const char *s2, int count)
-{
-	while (1)
-	{
-		if (!count--)
-			return 0;
-		if (*s1 != *s2)
-			return -1; // strings not equal
-		if (!*s1)
-			return 0; // strings are equal
-		s1++;
-		s2++;
-	}
-
-	return -1;
-}
-
-int Q_atoi (const char *str)
-{
-	int val;
-	int sign;
-	int c;
-
-	while (q_isspace (*str))
-		++str;
-
-	if (*str == '-')
-	{
-		sign = -1;
-		str++;
-	}
-	else
-		sign = 1;
-
-	val = 0;
-
-	//
-	// check for hex
-	//
-	if (str[0] == '0' && (str[1] == 'x' || str[1] == 'X'))
-	{
-		str += 2;
-		while (1)
-		{
-			c = *str++;
-			if (c >= '0' && c <= '9')
-				val = (val << 4) + c - '0';
-			else if (c >= 'a' && c <= 'f')
-				val = (val << 4) + c - 'a' + 10;
-			else if (c >= 'A' && c <= 'F')
-				val = (val << 4) + c - 'A' + 10;
-			else
-				return val * sign;
-		}
-	}
-
-	//
-	// check for character
-	//
-	if (str[0] == '\'')
-	{
-		return sign * str[1];
-	}
-
-	//
-	// assume decimal
-	//
-	while (1)
-	{
-		c = *str++;
-		if (c < '0' || c > '9')
-			return val * sign;
-		val = val * 10 + c - '0';
-	}
-
-	return 0;
-}
-
-float Q_atof (const char *str)
-{
-	double val;
-	int    sign;
-	int    c;
-	int    decimal, total;
-
-	while (q_isspace (*str))
-		++str;
-
-	if (*str == '-')
-	{
-		sign = -1;
-		str++;
-	}
-	else
-		sign = 1;
-
-	val = 0;
-
-	//
-	// check for hex
-	//
-	if (str[0] == '0' && (str[1] == 'x' || str[1] == 'X'))
-	{
-		str += 2;
-		while (1)
-		{
-			c = *str++;
-			if (c >= '0' && c <= '9')
-				val = (val * 16) + c - '0';
-			else if (c >= 'a' && c <= 'f')
-				val = (val * 16) + c - 'a' + 10;
-			else if (c >= 'A' && c <= 'F')
-				val = (val * 16) + c - 'A' + 10;
-			else
-				return val * sign;
-		}
-	}
-
-	//
-	// check for character
-	//
-	if (str[0] == '\'')
-	{
-		return sign * str[1];
-	}
-
-	//
-	// assume decimal
-	//
-	decimal = -1;
-	total = 0;
-	while (1)
-	{
-		c = *str++;
-		if (c == '.')
-		{
-			decimal = total;
-			continue;
-		}
-		if (c < '0' || c > '9')
-			break;
-		val = val * 10 + c - '0';
-		total++;
-	}
-
-	if (decimal == -1)
-		return val * sign;
-	while (total > decimal)
-	{
-		val /= 10;
-		total--;
-	}
-
-	return val * sign;
-}
-
 // Q_ftoa: convert IEEE 754 float to a base-10 string with "infinite" decimal places
 void Q_ftoa (char *str, float in)
 {
@@ -932,11 +670,11 @@ void MSG_WriteString (sizebuf_t *sb, const char *s)
 	if (!s)
 		SZ_Write (sb, "", 1);
 	else
-		SZ_Write (sb, s, Q_strlen (s) + 1);
+		SZ_Write (sb, s, strlen (s) + 1);
 }
 void MSG_WriteStringUnterminated (sizebuf_t *sb, const char *s)
 {
-	SZ_Write (sb, s, Q_strlen (s));
+	SZ_Write (sb, s, strlen (s));
 }
 
 // johnfitz -- original behavior, 13.3 fixed point coords, max range +-4096
@@ -1238,20 +976,20 @@ void *SZ_GetSpace (sizebuf_t *buf, int length)
 
 void SZ_Write (sizebuf_t *buf, const void *data, int length)
 {
-	Q_memcpy (SZ_GetSpace (buf, length), data, length);
+	memcpy (SZ_GetSpace (buf, length), data, length);
 }
 
 void SZ_Print (sizebuf_t *buf, const char *data)
 {
-	int len = Q_strlen (data) + 1;
+	int len = strlen (data) + 1;
 
 	if (buf->data[buf->cursize - 1])
 	{ /* no trailing 0 */
-		Q_memcpy ((byte *)SZ_GetSpace (buf, len), data, len);
+		memcpy ((byte *)SZ_GetSpace (buf, len), data, len);
 	}
 	else
 	{ /* write over trailing 0 */
-		Q_memcpy ((byte *)SZ_GetSpace (buf, len - 1) - 1, data, len);
+		memcpy ((byte *)SZ_GetSpace (buf, len - 1) - 1, data, len);
 	}
 }
 
@@ -1521,7 +1259,7 @@ int COM_CheckParmNext (int last, const char *parm)
 	{
 		if (!com_argv[i])
 			continue; // NEXTSTEP sometimes clears appkit vars.
-		if (!Q_strcmp (parm, com_argv[i]))
+		if (!strcmp (parm, com_argv[i]))
 			return i;
 	}
 
@@ -1619,7 +1357,7 @@ void COM_InitArgv (int argc, char **argv)
 	for (com_argc = 0; (com_argc < MAX_NUM_ARGVS) && (com_argc < argc); com_argc++)
 	{
 		largv[com_argc] = argv[com_argc];
-		if (!Q_strcmp ("-safe", argv[com_argc]))
+		if (!strcmp ("-safe", argv[com_argc]))
 			safemode = 1;
 	}
 
@@ -3229,7 +2967,7 @@ const char *LOC_GetRawString (const char *key)
 			return NULL;
 
 		entry = &localization.entries[idx - 1];
-		if (!Q_strcmp (entry->key, key))
+		if (!strcmp (entry->key, key))
 			return entry->value;
 
 		++pos;
@@ -3339,7 +3077,7 @@ size_t LOC_Format (const char *format, const char *(*getarg_fn) (int idx, void *
 
 		insert = getarg_fn (argindex, userdata);
 		space_left = len - written;
-		insert_len = Q_strlen (insert);
+		insert_len = strlen (insert);
 
 		if (insert_len > space_left)
 		{
@@ -3347,7 +3085,7 @@ size_t LOC_Format (const char *format, const char *(*getarg_fn) (int idx, void *
 			insert_len = space_left;
 		}
 
-		Q_memcpy (out + written, insert, insert_len);
+		memcpy (out + written, insert, insert_len);
 		written += insert_len;
 	}
 

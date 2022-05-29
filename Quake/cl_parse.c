@@ -1843,7 +1843,7 @@ void CL_ParseServerMessage (void)
 			if (i >= MAX_LIGHTSTYLES)
 				Sys_Error ("svc_lightstyle > MAX_LIGHTSTYLES");
 			q_strlcpy (cl_lightstyle[i].map, MSG_ReadString (), MAX_STYLESTRING);
-			cl_lightstyle[i].length = Q_strlen (cl_lightstyle[i].map);
+			cl_lightstyle[i].length = strlen (cl_lightstyle[i].map);
 			// johnfitz -- save extra info
 			if (cl_lightstyle[i].length)
 			{

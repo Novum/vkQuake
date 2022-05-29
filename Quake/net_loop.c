@@ -47,21 +47,21 @@ qboolean Loop_SearchForHosts (qboolean xmit)
 		return false;
 
 	hostCacheCount = 1;
-	if (Q_strcmp (hostname.string, "UNNAMED") == 0)
-		Q_strcpy (hostcache[0].name, "local");
+	if (strcmp (hostname.string, "UNNAMED") == 0)
+		strcpy (hostcache[0].name, "local");
 	else
-		Q_strcpy (hostcache[0].name, hostname.string);
-	Q_strcpy (hostcache[0].map, sv.name);
+		strcpy (hostcache[0].name, hostname.string);
+	strcpy (hostcache[0].map, sv.name);
 	hostcache[0].users = net_activeconnections;
 	hostcache[0].maxusers = svs.maxclients;
 	hostcache[0].driver = net_driverlevel;
-	Q_strcpy (hostcache[0].cname, "local");
+	strcpy (hostcache[0].cname, "local");
 	return false;
 }
 
 qsocket_t *Loop_Connect (const char *host)
 {
-	if (Q_strcmp (host, "local") != 0)
+	if (strcmp (host, "local") != 0)
 		return NULL;
 
 	localconnectpending = true;
@@ -73,8 +73,8 @@ qsocket_t *Loop_Connect (const char *host)
 			Con_Printf ("Loop_Connect: no qsocket available\n");
 			return NULL;
 		}
-		Q_strcpy (loop_client->trueaddress, "localhost");
-		Q_strcpy (loop_client->maskedaddress, "localhost");
+		strcpy (loop_client->trueaddress, "localhost");
+		strcpy (loop_client->maskedaddress, "localhost");
 	}
 	loop_client->receiveMessageLength = 0;
 	loop_client->sendMessageLength = 0;
@@ -87,8 +87,8 @@ qsocket_t *Loop_Connect (const char *host)
 			Con_Printf ("Loop_Connect: no qsocket available\n");
 			return NULL;
 		}
-		Q_strcpy (loop_server->trueaddress, "LOCAL");
-		Q_strcpy (loop_server->maskedaddress, "LOCAL");
+		strcpy (loop_server->trueaddress, "LOCAL");
+		strcpy (loop_server->maskedaddress, "LOCAL");
 	}
 	loop_server->receiveMessageLength = 0;
 	loop_server->sendMessageLength = 0;
@@ -195,7 +195,7 @@ int Loop_SendMessage (qsocket_t *sock, sizebuf_t *data)
 	buffer++;
 
 	// message
-	Q_memcpy (buffer, data->data, data->cursize);
+	memcpy (buffer, data->data, data->cursize);
 	*bufferLength = IntAlign (*bufferLength + data->cursize + 4);
 
 	sock->canSend = false;
@@ -234,7 +234,7 @@ int Loop_SendUnreliableMessage (qsocket_t *sock, sizebuf_t *data)
 	*buffer++ = (sequence >> 24) & 0xff;
 
 	// message
-	Q_memcpy (buffer, data->data, data->cursize);
+	memcpy (buffer, data->data, data->cursize);
 	*bufferLength = IntAlign (*bufferLength + data->cursize + 8);
 	return 1;
 }

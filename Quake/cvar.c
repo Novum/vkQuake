@@ -48,7 +48,7 @@ void Cvar_List_f (void)
 	if (Cmd_Argc () > 1)
 	{
 		partial = Cmd_Argv (1);
-		len = Q_strlen (partial);
+		len = strlen (partial);
 	}
 	else
 	{
@@ -59,7 +59,7 @@ void Cvar_List_f (void)
 	count = 0;
 	for (cvar = cvar_vars; cvar; cvar = cvar->next)
 	{
-		if (partial && Q_strncmp (partial, cvar->name, len))
+		if (partial && strncmp (partial, cvar->name, len))
 		{
 			continue;
 		}
@@ -92,7 +92,7 @@ void Cvar_Inc_f (void)
 		Cvar_SetValue (Cmd_Argv (1), Cvar_VariableValue (Cmd_Argv (1)) + 1);
 		break;
 	case 3:
-		Cvar_SetValue (Cmd_Argv (1), Cvar_VariableValue (Cmd_Argv (1)) + Q_atof (Cmd_Argv (2)));
+		Cvar_SetValue (Cmd_Argv (1), Cvar_VariableValue (Cmd_Argv (1)) + atof (Cmd_Argv (2)));
 		break;
 	}
 }
@@ -142,14 +142,14 @@ void Cvar_Cycle_f (void)
 		// zero is assumed to be a string, even though it could actually be zero.  The worst case
 		// is that the first time you call this command, it won't match on zero when it should, but after that,
 		// it will be comparing strings that all had the same source (the user) so it will work.
-		if (Q_atof (Cmd_Argv (i)) == 0)
+		if (atof (Cmd_Argv (i)) == 0)
 		{
 			if (!strcmp (Cmd_Argv (i), Cvar_VariableString (Cmd_Argv (1))))
 				break;
 		}
 		else
 		{
-			if (Q_atof (Cmd_Argv (i)) == Cvar_VariableValue (Cmd_Argv (1)))
+			if (atof (Cmd_Argv (i)) == Cvar_VariableValue (Cmd_Argv (1)))
 				break;
 		}
 	}
@@ -248,7 +248,7 @@ cvar_t *Cvar_FindVar (const char *var_name)
 
 	for (var = cvar_vars; var; var = var->next)
 	{
-		if (!Q_strcmp (var_name, var->name))
+		if (!strcmp (var_name, var->name))
 			return var;
 	}
 
@@ -320,7 +320,7 @@ float Cvar_VariableValue (const char *var_name)
 	var = Cvar_FindVar (var_name);
 	if (!var)
 		return 0;
-	return Q_atof (var->string);
+	return atof (var->string);
 }
 
 /*
@@ -348,14 +348,14 @@ const char *Cvar_CompleteVariable (const char *partial)
 	cvar_t *cvar;
 	int     len;
 
-	len = Q_strlen (partial);
+	len = strlen (partial);
 	if (!len)
 		return NULL;
 
 	// check functions
 	for (cvar = cvar_vars; cvar; cvar = cvar->next)
 	{
-		if (!Q_strncmp (partial, cvar->name, len))
+		if (!strncmp (partial, cvar->name, len))
 			return cvar->name;
 	}
 
@@ -395,8 +395,8 @@ void Cvar_SetQuick (cvar_t *var, const char *value)
 			return; // no change
 
 		var->flags |= CVAR_CHANGED;
-		len = Q_strlen (value);
-		if (len != Q_strlen (var->string))
+		len = strlen (value);
+		if (len != strlen (var->string))
 		{
 			Z_Free ((void *)var->string);
 			var->string = (char *)Z_Malloc (len + 1);
@@ -404,7 +404,7 @@ void Cvar_SetQuick (cvar_t *var, const char *value)
 		memcpy ((char *)var->string, value, len + 1);
 	}
 
-	var->value = Q_atof (var->string);
+	var->value = atof (var->string);
 
 	// johnfitz -- save initial value for "reset" command
 	if (!var->default_string)

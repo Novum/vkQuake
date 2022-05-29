@@ -2740,7 +2740,7 @@ void VID_Init (void)
 		p = COM_CheckParm ("-width");
 		if (p && p < com_argc - 1)
 		{
-			width = Q_atoi (com_argv[p + 1]);
+			width = atoi (com_argv[p + 1]);
 
 			if (!COM_CheckParm ("-height"))
 				height = width * 3 / 4;
@@ -2749,7 +2749,7 @@ void VID_Init (void)
 		p = COM_CheckParm ("-height");
 		if (p && p < com_argc - 1)
 		{
-			height = Q_atoi (com_argv[p + 1]);
+			height = atoi (com_argv[p + 1]);
 
 			if (!COM_CheckParm ("-width"))
 				width = height * 4 / 3;
@@ -2757,11 +2757,11 @@ void VID_Init (void)
 
 		p = COM_CheckParm ("-refreshrate");
 		if (p && p < com_argc - 1)
-			refreshrate = Q_atoi (com_argv[p + 1]);
+			refreshrate = atoi (com_argv[p + 1]);
 
 		p = COM_CheckParm ("-bpp");
 		if (p && p < com_argc - 1)
-			bpp = Q_atoi (com_argv[p + 1]);
+			bpp = atoi (com_argv[p + 1]);
 
 		if (COM_CheckParm ("-window") || COM_CheckParm ("-w"))
 			fullscreen = false;
@@ -3765,14 +3765,14 @@ void SCR_ScreenShot_f (void)
 
 	qboolean bgra = (vulkan_globals.swap_chain_format == VK_FORMAT_B8G8R8A8_UNORM) || (vulkan_globals.swap_chain_format == VK_FORMAT_B8G8R8A8_SRGB);
 
-	Q_strncpy (ext, "png", sizeof (ext));
+	memcpy (ext, "png", sizeof (ext));
 
 	if (Cmd_Argc () >= 2)
 	{
 		const char *requested_ext = Cmd_Argv (1);
 
 		if (!q_strcasecmp ("png", requested_ext) || !q_strcasecmp ("tga", requested_ext) || !q_strcasecmp ("jpg", requested_ext))
-			Q_strncpy (ext, requested_ext, sizeof (ext));
+			memcpy (ext, requested_ext, sizeof (ext));
 		else
 		{
 			SCR_ScreenShot_Usage ();
@@ -3783,7 +3783,7 @@ void SCR_ScreenShot_f (void)
 	// read quality as the 3rd param (only used for JPG)
 	quality = 90;
 	if (Cmd_Argc () >= 3)
-		quality = Q_atoi (Cmd_Argv (2));
+		quality = atoi (Cmd_Argv (2));
 	if (quality < 1 || quality > 100)
 	{
 		SCR_ScreenShot_Usage ();

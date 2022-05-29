@@ -93,7 +93,7 @@ void Cbuf_AddText (const char *text)
 {
 	int l;
 
-	l = Q_strlen (text);
+	l = strlen (text);
 
 	if (cmd_text.cursize + l >= cmd_text.maxsize)
 	{
@@ -133,7 +133,7 @@ void Cbuf_InsertText (const char *text)
 	if (templen)
 	{
 		temp = (char *)Z_Malloc (templen);
-		Q_memcpy (temp, cmd_text.data, templen);
+		memcpy (temp, cmd_text.data, templen);
 		SZ_Clear (&cmd_text);
 	}
 	else
@@ -499,7 +499,7 @@ void Cmd_List_f (void)
 	if (Cmd_Argc () > 1)
 	{
 		partial = Cmd_Argv (1);
-		len = Q_strlen (partial);
+		len = strlen (partial);
 	}
 	else
 	{
@@ -510,7 +510,7 @@ void Cmd_List_f (void)
 	count = 0;
 	for (cmd = cmd_functions; cmd; cmd = cmd->next)
 	{
-		if (partial && Q_strncmp (partial, cmd->name, len))
+		if (partial && strncmp (partial, cmd->name, len))
 		{
 			continue;
 		}
@@ -714,7 +714,7 @@ cmd_function_t *Cmd_AddCommand2 (const char *cmd_name, xcommand_t function, cmd_
 	// fail if the command already exists
 	for (cmd = cmd_functions; cmd; cmd = cmd->next)
 	{
-		if (!Q_strcmp (cmd_name, cmd->name) && cmd->srctype == srctype)
+		if (!strcmp (cmd_name, cmd->name) && cmd->srctype == srctype)
 		{
 			if (cmd->function != function && function)
 				Con_Printf ("Cmd_AddCommand: %s already defined\n", cmd_name);
@@ -787,7 +787,7 @@ qboolean Cmd_Exists (const char *cmd_name)
 
 	for (cmd = cmd_functions; cmd; cmd = cmd->next)
 	{
-		if (!Q_strcmp (cmd_name, cmd->name))
+		if (!strcmp (cmd_name, cmd->name))
 		{
 			if (cmd->srctype != src_command) // these commands only exist in certain situations... so pretend they don't exist here.
 				continue;
@@ -808,14 +808,14 @@ const char *Cmd_CompleteCommand (const char *partial)
 	cmd_function_t *cmd;
 	int             len;
 
-	len = Q_strlen (partial);
+	len = strlen (partial);
 
 	if (!len)
 		return NULL;
 
 	// check functions
 	for (cmd = cmd_functions; cmd; cmd = cmd->next)
-		if (!Q_strncmp (partial, cmd->name, len))
+		if (!strncmp (partial, cmd->name, len))
 			return cmd->name;
 
 	return NULL;

@@ -68,7 +68,7 @@ static void FileList_Add (const char *name, filelist_item_t **list)
 	// ignore duplicate
 	for (item = *list; item; item = item->next)
 	{
-		if (!Q_strcmp (name, item->name))
+		if (!strcmp (name, item->name))
 			return;
 	}
 
@@ -517,7 +517,7 @@ static void Host_God_f (void)
 			SV_ClientPrintf ("godmode ON\n");
 		break;
 	case 2:
-		if (Q_atof (Cmd_Argv (1)))
+		if (atof (Cmd_Argv (1)))
 		{
 			sv_player->v.flags = (int)sv_player->v.flags | FL_GODMODE;
 			SV_ClientPrintf ("godmode ON\n");
@@ -562,7 +562,7 @@ static void Host_Notarget_f (void)
 			SV_ClientPrintf ("notarget ON\n");
 		break;
 	case 2:
-		if (Q_atof (Cmd_Argv (1)))
+		if (atof (Cmd_Argv (1)))
 		{
 			sv_player->v.flags = (int)sv_player->v.flags | FL_NOTARGET;
 			SV_ClientPrintf ("notarget ON\n");
@@ -616,7 +616,7 @@ static void Host_Noclip_f (void)
 		}
 		break;
 	case 2:
-		if (Q_atof (Cmd_Argv (1)))
+		if (atof (Cmd_Argv (1)))
 		{
 			noclip_anglehack = true;
 			sv_player->v.movetype = MOVETYPE_NOCLIP;
@@ -727,7 +727,7 @@ static void Host_Fly_f (void)
 		}
 		break;
 	case 2:
-		if (Q_atof (Cmd_Argv (1)))
+		if (atof (Cmd_Argv (1)))
 		{
 			sv_player->v.movetype = MOVETYPE_FLY;
 			SV_ClientPrintf ("flymode ON\n");
@@ -1442,7 +1442,7 @@ static void Host_Name_f (void)
 
 	if (cmd_source != src_client)
 	{
-		if (Q_strcmp (cl_name.string, newName) == 0)
+		if (strcmp (cl_name.string, newName) == 0)
 			return;
 		Cvar_Set ("_cl_name", newName);
 		if (cls.state == ca_connected)
@@ -1452,10 +1452,10 @@ static void Host_Name_f (void)
 
 	if (host_client->name[0] && strcmp (host_client->name, "unconnected"))
 	{
-		if (Q_strcmp (host_client->name, newName) != 0)
+		if (strcmp (host_client->name, newName) != 0)
 			Con_Printf ("%s renamed to %s\n", host_client->name, newName);
 	}
-	Q_strcpy (host_client->name, newName);
+	strcpy (host_client->name, newName);
 	host_client->edict->v.netname = PR_SetEngineString (host_client->name);
 
 	// send notification to all clients
@@ -1938,9 +1938,9 @@ static void Host_Kick_f (void)
 
 	save = host_client;
 
-	if (Cmd_Argc () > 2 && Q_strcmp (Cmd_Argv (1), "#") == 0)
+	if (Cmd_Argc () > 2 && strcmp (Cmd_Argv (1), "#") == 0)
 	{
-		i = Q_atof (Cmd_Argv (2)) - 1;
+		i = atof (Cmd_Argv (2)) - 1;
 		if (i < 0 || i >= svs.maxclients)
 			return;
 		if (!svs.clients[i].active)

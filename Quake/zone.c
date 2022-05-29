@@ -200,7 +200,7 @@ void *Z_Malloc (int size)
 	buf = Z_TagMalloc (size, 1);
 	if (!buf)
 		Sys_Error ("Z_Malloc: failed on allocation of %i bytes", size);
-	Q_memset (buf, 0, size);
+	memset (buf, 0, size);
 
 	return buf;
 }
@@ -616,9 +616,9 @@ void Cache_Move (cache_system_t *c)
 	{
 		//		Con_Printf ("cache_move ok\n");
 
-		Q_memcpy (new_cs + 1, c + 1, c->size - sizeof (cache_system_t));
+		memcpy (new_cs + 1, c + 1, c->size - sizeof (cache_system_t));
 		new_cs->user = c->user;
-		Q_memcpy (new_cs->name, c->name, sizeof (new_cs->name));
+		memcpy (new_cs->name, c->name, sizeof (new_cs->name));
 		Cache_Free (c->user, false); // johnfitz -- added second argument
 		new_cs->user->data = (void *)(new_cs + 1);
 	}
@@ -968,7 +968,7 @@ void Memory_Init (void *buf, int size)
 	if (p)
 	{
 		if (p < com_argc - 1)
-			zonesize = Q_atoi (com_argv[p + 1]) * 1024;
+			zonesize = atoi (com_argv[p + 1]) * 1024;
 		else
 			Sys_Error ("Memory_Init: you must specify a size in KB after -zone");
 	}

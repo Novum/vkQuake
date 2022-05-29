@@ -141,7 +141,7 @@ Con_Clear_f
 static void Con_Clear_f (void)
 {
 	if (con_text)
-		Q_memset (con_text, ' ', con_buffersize); // johnfitz -- con_buffersize replaces CON_TEXTSIZE
+		memset (con_text, ' ', con_buffersize); // johnfitz -- con_buffersize replaces CON_TEXTSIZE
 	con_backscroll = 0;                           // johnfitz -- if console is empty, being scrolled up is confusing
 }
 
@@ -275,8 +275,8 @@ void Con_CheckResize (void)
 	mark = Hunk_LowMark ();                     // johnfitz
 	tbuf = (char *)Hunk_Alloc (con_buffersize); // johnfitz
 
-	Q_memcpy (tbuf, con_text, con_buffersize); // johnfitz -- con_buffersize replaces CON_TEXTSIZE
-	Q_memset (con_text, ' ', con_buffersize);  // johnfitz -- con_buffersize replaces CON_TEXTSIZE
+	memcpy (tbuf, con_text, con_buffersize); // johnfitz -- con_buffersize replaces CON_TEXTSIZE
+	memset (con_text, ' ', con_buffersize);  // johnfitz -- con_buffersize replaces CON_TEXTSIZE
 
 	for (i = 0; i < numlines; i++)
 	{
@@ -306,13 +306,13 @@ void Con_Init (void)
 	// johnfitz -- user settable console buffer size
 	i = COM_CheckParm ("-consize");
 	if (i && i < com_argc - 1)
-		con_buffersize = q_max (CON_MINSIZE, Q_atoi (com_argv[i + 1]) * 1024);
+		con_buffersize = q_max (CON_MINSIZE, atoi (com_argv[i + 1]) * 1024);
 	else
 		con_buffersize = CON_TEXTSIZE;
 	// johnfitz
 
 	con_text = (char *)Hunk_AllocName (con_buffersize, "context"); // johnfitz -- con_buffersize replaces CON_TEXTSIZE
-	Q_memset (con_text, ' ', con_buffersize);                      // johnfitz -- con_buffersize replaces CON_TEXTSIZE
+	memset (con_text, ' ', con_buffersize);                      // johnfitz -- con_buffersize replaces CON_TEXTSIZE
 	con_linewidth = -1;
 
 	// johnfitz -- no need to run Con_CheckResize here
@@ -351,7 +351,7 @@ static void Con_Linefeed (void)
 
 	con_x = 0;
 	con_current++;
-	Q_memset (&con_text[(con_current % con_totallines) * con_linewidth], ' ', con_linewidth);
+	memset (&con_text[(con_current % con_totallines) * con_linewidth], ' ', con_linewidth);
 }
 
 /*
@@ -898,15 +898,15 @@ void BuildTabList (const char *partial)
 
 	cvar = Cvar_FindVarAfter ("", CVAR_NONE);
 	for (; cvar; cvar = cvar->next)
-		if (!Q_strncmp (partial, cvar->name, len))
+		if (!strncmp (partial, cvar->name, len))
 			AddToTabList (cvar->name, "cvar");
 
 	for (cmd = cmd_functions; cmd; cmd = cmd->next)
-		if (!Q_strncmp (partial, cmd->name, len))
+		if (!strncmp (partial, cmd->name, len))
 			AddToTabList (cmd->name, "command");
 
 	for (alias = cmd_alias; alias; alias = alias->next)
-		if (!Q_strncmp (partial, alias->name, len))
+		if (!strncmp (partial, alias->name, len))
 			AddToTabList (alias->name, "alias");
 }
 
@@ -958,7 +958,7 @@ void Con_TabComplete (void)
 			q_strlcpy (partial, matched_map, MAXCMDLINE);
 			*c = '\0';
 			q_strlcat (key_lines[edit_line], partial, MAXCMDLINE);
-			key_linepos = c - key_lines[edit_line] + Q_strlen (matched_map); // set new cursor position
+			key_linepos = c - key_lines[edit_line] + strlen (matched_map); // set new cursor position
 			if (key_linepos >= MAXCMDLINE)
 				key_linepos = MAXCMDLINE - 1;
 			// if only one match, append a space
@@ -1020,7 +1020,7 @@ void Con_TabComplete (void)
 		match = keydown[K_SHIFT] ? t->prev->name : t->name;
 		do
 		{
-			if (!Q_strcmp (t->name, partial))
+			if (!strcmp (t->name, partial))
 			{
 				match = keydown[K_SHIFT] ? t->prev->name : t->next->name;
 				break;
@@ -1035,7 +1035,7 @@ void Con_TabComplete (void)
 	q_strlcat (partial, key_lines[edit_line] + key_linepos, MAXCMDLINE); // then add chars after cursor
 	*c = '\0';                                                           // now copy all of this into edit line
 	q_strlcat (key_lines[edit_line], partial, MAXCMDLINE);
-	key_linepos = c - key_lines[edit_line] + Q_strlen (match); // set new cursor position
+	key_linepos = c - key_lines[edit_line] + strlen (match); // set new cursor position
 	if (key_linepos >= MAXCMDLINE)
 		key_linepos = MAXCMDLINE - 1;
 

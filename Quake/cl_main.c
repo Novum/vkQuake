@@ -1091,7 +1091,7 @@ void CL_Viewpos_f (void)
 static void CL_ServerExtension_FullServerinfo_f (void)
 {
 	const char *newserverinfo = Cmd_Argv (1);
-	Q_strncpy (cl.serverinfo, newserverinfo, sizeof (cl.serverinfo)); // just replace it
+	memcpy (cl.serverinfo, newserverinfo, sizeof (cl.serverinfo)); // just replace it
 }
 static void CL_ServerExtension_ServerinfoUpdate_f (void)
 {

@@ -877,10 +877,10 @@ static void PF_strncmp (void)
 			aofs = strlen (a);
 		if (bofs < 0 || (bofs && bofs > (int)strlen (b)))
 			bofs = strlen (b);
-		G_FLOAT (OFS_RETURN) = Q_strncmp (a + aofs, b, len);
+		G_FLOAT (OFS_RETURN) = strncmp (a + aofs, b, len);
 	}
 	else
-		G_FLOAT (OFS_RETURN) = Q_strcmp (a, b);
+		G_FLOAT (OFS_RETURN) = strcmp (a, b);
 }
 static void PF_strncasecmp (void)
 {
@@ -2360,7 +2360,7 @@ static void PF_registercvar (void)
 static void PF_WriteString2 (void)
 { // writes a string without the null. a poor-man's strcat.
 	const char *string = G_STRING (OFS_PARM0);
-	SZ_Write (WriteDest (), string, Q_strlen (string));
+	SZ_Write (WriteDest (), string, strlen (string));
 }
 static void PF_WriteFloat (void)
 { // curiously, this was missing in vanilla.

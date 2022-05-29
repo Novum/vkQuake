@@ -261,7 +261,7 @@ void IN_JumpUp (void)
 
 void IN_Impulse (void)
 {
-	in_impulse = Q_atoi (Cmd_Argv (1));
+	in_impulse = atoi (Cmd_Argv (1));
 }
 
 /*
@@ -395,7 +395,7 @@ Send the intended movement message to the server
 */
 void CL_BaseMove (usercmd_t *cmd)
 {
-	Q_memset (cmd, 0, sizeof (*cmd));
+	memset (cmd, 0, sizeof (*cmd));
 
 	VectorCopy (cl.viewangles, cmd->viewangles);
 

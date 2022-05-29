@@ -683,8 +683,8 @@ void M_Menu_Setup_f (void)
 	key_dest = key_menu;
 	m_state = m_setup;
 	m_entersound = true;
-	Q_strcpy (setup_myname, cl_name.string);
-	Q_strcpy (setup_hostname, hostname.string);
+	strcpy (setup_myname, cl_name.string);
+	strcpy (setup_hostname, hostname.string);
 	setup_top = setup_oldtop = ((int)cl_color.value) >> 4;
 	setup_bottom = setup_oldbottom = ((int)cl_color.value) & 15;
 }
@@ -778,9 +778,9 @@ void M_Setup_Key (int k)
 			goto forward;
 
 		// setup_cursor == 4 (OK)
-		if (Q_strcmp (cl_name.string, setup_myname) != 0)
+		if (strcmp (cl_name.string, setup_myname) != 0)
 			Cbuf_AddText (va ("name \"%s\"\n", setup_myname));
-		if (Q_strcmp (hostname.string, setup_hostname) != 0)
+		if (strcmp (hostname.string, setup_hostname) != 0)
 			Cvar_Set ("hostname", setup_hostname);
 		if (setup_top != setup_oldtop || setup_bottom != setup_oldbottom)
 			Cbuf_AddText (va ("color %i %i\n", setup_top, setup_bottom));
@@ -1896,7 +1896,7 @@ void M_LanConfig_Key (int key)
 			lanConfig_cursor = 0;
 	}
 
-	l = Q_atoi (lanConfig_portname);
+	l = atoi (lanConfig_portname);
 	if (l > 65535)
 		l = lanConfig_port;
 	else

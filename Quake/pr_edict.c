@@ -557,7 +557,7 @@ static void ED_PrintEdict_f (void)
 	if (!sv.active)
 		return;
 
-	i = Q_atoi (Cmd_Argv (1));
+	i = atoi (Cmd_Argv (1));
 	PR_SwitchQCVM (&sv.qcvm);
 	if (i < 0 || i >= qcvm->num_edicts)
 		Con_Printf ("Bad edict number\n");
