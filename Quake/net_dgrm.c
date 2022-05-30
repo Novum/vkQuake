@@ -2035,7 +2035,7 @@ static qsocket_t *_Datagram_Connect (struct qsockaddr *serveraddr)
 
 	// send the connection request
 	Con_SafePrintf ("trying...\n");
-	SCR_UpdateScreen ();
+	SCR_UpdateScreen (false);
 	start_time = net_time;
 
 	for (reps = 0; reps < 3; reps++)
@@ -2078,7 +2078,7 @@ static qsocket_t *_Datagram_Connect (struct qsockaddr *serveraddr)
 					Con_SafePrintf ("wrong reply address\n");
 					Con_SafePrintf ("Expected: %s | %s\n", dfunc.AddrToString (serveraddr, false), StrAddr (serveraddr));
 					Con_SafePrintf ("Received: %s | %s\n", dfunc.AddrToString (&readaddr, false), StrAddr (&readaddr));
-					SCR_UpdateScreen ();
+					SCR_UpdateScreen (false);
 					ret = 0;
 					continue;
 				}
@@ -2139,7 +2139,7 @@ static qsocket_t *_Datagram_Connect (struct qsockaddr *serveraddr)
 			break;
 
 		Con_SafePrintf ("still trying...\n");
-		SCR_UpdateScreen ();
+		SCR_UpdateScreen (false);
 		start_time = SetNetTime ();
 	}
 

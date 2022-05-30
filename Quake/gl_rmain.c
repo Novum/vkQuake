@@ -746,7 +746,7 @@ static void R_DrawViewModelTask (void *unused)
 R_RenderView
 ================
 */
-void R_RenderView (void)
+void R_RenderView (qboolean use_tasks)
 {
 	double time1, time2;
 
@@ -770,7 +770,7 @@ void R_RenderView (void)
 		Atomic_StoreUInt32 (&rs_brushpasses, 0u);
 	}
 
-	qboolean      use_tasks = (r_tasks.value && r_gpulightmapupdate.value) && !r_showtris.value && !r_showbboxes.value;
+	use_tasks = use_tasks && (r_tasks.value && r_gpulightmapupdate.value) && !r_showtris.value && !r_showbboxes.value;
 	cb_context_t *primary_cbx = &vulkan_globals.primary_cb_context;
 	if (use_tasks)
 	{

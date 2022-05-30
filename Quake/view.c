@@ -891,7 +891,7 @@ the entity origin, so any view position inside that will be valid
 */
 extern vrect_t scr_vrect;
 
-void V_RenderView (void)
+void V_RenderView (qboolean use_tasks)
 {
 	if (con_forcedup)
 	{
@@ -907,7 +907,7 @@ void V_RenderView (void)
 
 	// johnfitz -- removed lcd code
 
-	R_RenderView ();
+	R_RenderView (use_tasks);
 
 	V_PolyBlend (&vulkan_globals.secondary_cb_contexts[CBX_VIEW_MODEL]); // johnfitz -- moved here from R_Renderview ();
 }

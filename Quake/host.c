@@ -905,7 +905,7 @@ void _Host_Frame (double time)
 	if (host_speeds.value)
 		time1 = Sys_DoubleTime ();
 
-	SCR_UpdateScreen ();
+	SCR_UpdateScreen (true);
 
 	CL_RunParticles (); // johnfitz -- seperated from rendering
 

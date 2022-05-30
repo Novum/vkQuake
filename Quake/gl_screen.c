@@ -868,7 +868,7 @@ void SCR_BeginLoadingPlaque (void)
 
 	scr_drawloading = true;
 	Sbar_Changed ();
-	SCR_UpdateScreen ();
+	SCR_UpdateScreen (false);
 	scr_drawloading = false;
 
 	scr_disabled_for_loading = true;
@@ -946,7 +946,7 @@ int SCR_ModalMessage (const char *text, float timeout) // johnfitz -- timeout
 
 	// draw a fresh screen
 	scr_drawdialog = true;
-	SCR_UpdateScreen ();
+	SCR_UpdateScreen (false);
 	scr_drawdialog = false;
 
 	S_ClearBuffer (); // so dma doesn't loop current sound
@@ -1025,7 +1025,7 @@ WARNING: be very careful calling this from elsewhere, because the refresh
 needs almost the entire 256k of stack space!
 ==================
 */
-void SCR_UpdateScreen (void)
+void SCR_UpdateScreen (qboolean use_tasks)
 {
 	if (!scr_initialized || !con_initialized || in_update_screen)
 		return; // not initialized yet
@@ -1065,7 +1065,7 @@ void SCR_UpdateScreen (void)
 	//
 	SCR_SetUpToDrawConsole ();
 
-	V_RenderView ();
+	V_RenderView (use_tasks);
 
 	cb_context_t *cbx = &vulkan_globals.secondary_cb_contexts[CBX_GUI];
 	if (GL_Set2D (cbx) == false)

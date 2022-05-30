@@ -158,7 +158,7 @@ extern vec3_t   r_origin, vpn, vright, vup;
 void R_Init (void);
 void R_InitTextures (void);
 void R_InitEfrags (void);
-void R_RenderView (void); // must set r_refdef first
+void R_RenderView (qboolean use_tasks); // must set r_refdef first
 void R_ViewChanged (vrect_t *pvrect, int lineadj, float aspect);
 // called whenever r_refdef or vid change
 // void R_InitSky (struct texture_s *mt);	// called at level load

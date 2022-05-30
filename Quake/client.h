@@ -396,7 +396,7 @@ void CL_NewTranslation (int slot);
 void V_StartPitchDrift (void);
 void V_StopPitchDrift (void);
 
-void V_RenderView (void);
+void V_RenderView (qboolean use_tasks);
 void V_ParseDamage (void);
 void V_SetContentsColor (int contents);
 
