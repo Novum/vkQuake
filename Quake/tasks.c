@@ -345,7 +345,8 @@ void Task_AssignFunc (task_handle_t handle, task_func_t func, void *payload, siz
 	task_t *task = &tasks[IndexFromTaskHandle (handle)];
 	task->task_type = TASK_TYPE_SCALAR;
 	task->func = (void *)func;
-	memcpy (&task->payload, payload, payload_size);
+	if (payload)
+		memcpy (&task->payload, payload, payload_size);
 }
 
 /*
@@ -371,7 +372,8 @@ void Task_AssignIndexedFunc (task_handle_t handle, task_indexed_func_t func, uin
 		counter->limit = q_min (index + count_per_worker, limit);
 		index += count_per_worker;
 	}
-	memcpy (&task->payload, payload, payload_size);
+	if (payload)
+		memcpy (&task->payload, payload, payload_size);
 }
 
 /*

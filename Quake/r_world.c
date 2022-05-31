@@ -147,10 +147,10 @@ void R_SetupWorldCBXTexRanges (qboolean use_tasks)
 		world_texend[current_cbx] = i + 1;
 		num_assigned_to_cbx += 1;
 		num_assigned_total += 1;
-		if ((num_assigned_to_cbx == num_textures_per_cbx) || (current_cbx == (CBX_NUM - 1)))
+		if (num_assigned_to_cbx == num_textures_per_cbx)
 		{
 			current_cbx += 1;
-			if (current_cbx < CBX_NUM)
+			if (current_cbx < NUM_WORLD_CBX)
 			{
 				world_texstart[current_cbx] = i + 1;
 			}

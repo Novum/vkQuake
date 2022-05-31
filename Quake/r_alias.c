@@ -392,7 +392,7 @@ R_DrawAliasModel -- johnfitz -- almost completely rewritten
 void R_DrawAliasModel (cb_context_t *cbx, entity_t *e)
 {
 	aliashdr_t  *paliashdr;
-	int          i, anim, skinnum;
+	int          anim, skinnum;
 	gltexture_t *tx, *fb;
 	lerpdata_t   lerpdata;
 	qboolean     alphatest = !!(e->model->flags & MF_HOLEY);
@@ -464,11 +464,8 @@ void R_DrawAliasModel (cb_context_t *cbx, entity_t *e)
 	tx = paliashdr->gltextures[skinnum][anim];
 	fb = paliashdr->fbtextures[skinnum][anim];
 	if (e->colormap != vid.colormap && !gl_nocolors.value)
-	{
-		i = e - cl.entities;
-		if (i >= 1 && i <= cl.maxclients)
-			tx = playertextures[i - 1];
-	}
+		if ((uintptr_t)e >= (uintptr_t)&cl.entities[1] && (uintptr_t)e <= (uintptr_t)&cl.entities[cl.maxclients])
+			tx = playertextures[e - cl.entities - 1];
 	if (!gl_fullbrights.value)
 		fb = NULL;
 
