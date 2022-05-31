@@ -138,7 +138,6 @@ void R_SetupWorldCBXTexRanges (qboolean use_tasks)
 	memset(world_texend, 0, sizeof(world_texend));
 	int current_cbx = 0;
 	int num_assigned_to_cbx = 0;
-	int num_assigned_total = 0;
 	for (int i = 0; i < num_textures; ++i)
 	{
 		texture_t *t = cl.worldmodel->textures[i];
@@ -146,7 +145,6 @@ void R_SetupWorldCBXTexRanges (qboolean use_tasks)
 			continue;
 		world_texend[current_cbx] = i + 1;
 		num_assigned_to_cbx += 1;
-		num_assigned_total += 1;
 		if (num_assigned_to_cbx == num_textures_per_cbx)
 		{
 			current_cbx += 1;
@@ -157,7 +155,6 @@ void R_SetupWorldCBXTexRanges (qboolean use_tasks)
 			num_assigned_to_cbx = 0;
 		}
 	}
-	assert(num_assigned_total == total_world_textures);
 }
 
 #ifdef USE_SSE2
