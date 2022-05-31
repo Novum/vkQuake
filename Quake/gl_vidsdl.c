@@ -2085,7 +2085,8 @@ static void GL_DestroyRenderResources (void)
 	vulkan_swapchain = VK_NULL_HANDLE;
 
 	vkDestroyRenderPass (vulkan_globals.device, vulkan_globals.secondary_cb_contexts[CBX_GUI].render_pass, NULL);
-	vulkan_globals.secondary_cb_contexts[CBX_GUI].render_pass = VK_NULL_HANDLE;
+	for (int cbx_index = CBX_GUI; cbx_index <= CBX_POST_PROCESS; ++cbx_index)
+		vulkan_globals.secondary_cb_contexts[cbx_index].render_pass = VK_NULL_HANDLE;
 	vkDestroyRenderPass (vulkan_globals.device, vulkan_globals.secondary_cb_contexts[CBX_WORLD_0].render_pass, NULL);
 	for (int cbx_index = CBX_WORLD_0; cbx_index <= CBX_VIEW_MODEL; ++cbx_index)
 		vulkan_globals.secondary_cb_contexts[cbx_index].render_pass = VK_NULL_HANDLE;
