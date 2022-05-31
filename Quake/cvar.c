@@ -313,7 +313,7 @@ void Cvar_UnlockAll (void)
 Cvar_VariableValue
 ============
 */
-float Cvar_VariableValue (const char *var_name)
+double Cvar_VariableValue (const char *var_name)
 {
 	cvar_t *var;
 

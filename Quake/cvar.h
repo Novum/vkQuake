@@ -115,7 +115,7 @@ void Cvar_SetValueQuick (cvar_t *var, const float value);
 // but are otherwise identical to the "non-Quick" versions.
 // the cvar MUST be registered.
 
-float Cvar_VariableValue (const char *var_name);
+double Cvar_VariableValue (const char *var_name);
 // returns 0 if not defined or non numeric
 
 const char *Cvar_VariableString (const char *var_name);
