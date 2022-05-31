@@ -249,8 +249,6 @@ void R_MarkVisSurfacesSIMD (qboolean *use_tasks)
 	byte        *surfvis = cl.worldmodel->surfvis;
 	soa_aabb_t  *leafbounds = cl.worldmodel->soa_leafbounds;
 
-	memset (cl.worldmodel->surfvis, 0, (cl.worldmodel->numsurfaces + 7) / 8);
-
 	// iterate through leaves, marking surfaces
 	for (i = 0; i < numleafs; i += 8)
 	{
@@ -496,6 +494,7 @@ static void R_MarkSurfacesPrepare (void *unused)
 {
 	int      i;
 	qboolean nearwaterportal;
+	int      maxleafs = cl.worldmodel->numleafs;
 
 	// check this leaf for water portals
 	// TODO: loop through all water surfs and use distance to leaf cullbox
@@ -511,6 +510,9 @@ static void R_MarkSurfacesPrepare (void *unused)
 		mark_surfaces_state.vis = SV_FatPVS (r_origin, cl.worldmodel);
 	else
 		mark_surfaces_state.vis = Mod_LeafPVS (r_viewleaf, cl.worldmodel);
+
+	if (maxleafs & 7)
+		mark_surfaces_state.vis[maxleafs >> 3] &= (1 << (maxleafs & 7)) - 1;
 
 	r_visframecount++;
 
