@@ -28,6 +28,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "cfgfile.h"
 #include "bgmusic.h"
 #include "resource.h"
+#include "palette.h"
 #include "SDL.h"
 #include "SDL_syswm.h"
 #include "SDL_vulkan.h"
@@ -99,6 +100,7 @@ static cvar_t                   vid_refreshrate = {"vid_refreshrate", "60", CVAR
 static cvar_t                   vid_vsync = {"vid_vsync", "0", CVAR_ARCHIVE};
 static cvar_t                   vid_desktopfullscreen = {"vid_desktopfullscreen", "0", CVAR_ARCHIVE}; // QuakeSpasm
 static cvar_t                   vid_borderless = {"vid_borderless", "0", CVAR_ARCHIVE};               // QuakeSpasm
+static cvar_t                   vid_palettize = {"vid_palettize", "0", CVAR_ARCHIVE};
 cvar_t                          vid_filter = {"vid_filter", "0", CVAR_ARCHIVE};
 cvar_t                          vid_anisotropic = {"vid_anisotropic", "0", CVAR_ARCHIVE};
 cvar_t                          vid_fsaa = {"vid_fsaa", "0", CVAR_ARCHIVE};
@@ -139,6 +141,9 @@ static VkImage         msaa_color_buffer;
 static vulkan_memory_t msaa_color_buffer_memory;
 static VkImageView     msaa_color_buffer_view;
 static VkDescriptorSet postprocess_descriptor_set;
+static VkBuffer        palette_colors_buffer;
+static VkBufferView    palette_buffer_view;
+static VkBuffer        palette_octree_buffer;
 
 static PFN_vkGetInstanceProcAddr                      fpGetInstanceProcAddr;
 static PFN_vkGetDeviceProcAddr                        fpGetDeviceProcAddr;
@@ -1601,10 +1606,10 @@ static void GL_CreateColorBuffer (void)
 
 /*
 ===============
-GL_CreateDescriptorSets
+GL_UpdateDescriptorSets
 ===============
 */
-static void GL_CreateDescriptorSets (void)
+static void GL_UpdateDescriptorSets (void)
 {
 	assert (postprocess_descriptor_set == VK_NULL_HANDLE);
 	postprocess_descriptor_set = R_AllocateDescriptorSet (&vulkan_globals.input_attachment_set_layout);
@@ -1625,8 +1630,8 @@ static void GL_CreateDescriptorSets (void)
 	input_attachment_write.pImageInfo = &image_info;
 	vkUpdateDescriptorSets (vulkan_globals.device, 1, &input_attachment_write, 0, NULL);
 
-	assert (vulkan_globals.screen_warp_desc_set == VK_NULL_HANDLE);
-	vulkan_globals.screen_warp_desc_set = R_AllocateDescriptorSet (&vulkan_globals.screen_warp_set_layout);
+	assert (vulkan_globals.screen_effects_desc_set == VK_NULL_HANDLE);
+	vulkan_globals.screen_effects_desc_set = R_AllocateDescriptorSet (&vulkan_globals.screen_effects_set_layout);
 
 	VkDescriptorImageInfo input_image_info;
 	memset (&input_image_info, 0, sizeof (input_image_info));
@@ -1639,24 +1644,44 @@ static void GL_CreateDescriptorSets (void)
 	output_image_info.imageView = color_buffers_view[0];
 	output_image_info.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
 
-	VkWriteDescriptorSet screen_warp_writes[2];
-	memset (screen_warp_writes, 0, sizeof (screen_warp_writes));
-	screen_warp_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	screen_warp_writes[0].dstBinding = 0;
-	screen_warp_writes[0].dstArrayElement = 0;
-	screen_warp_writes[0].descriptorCount = 1;
-	screen_warp_writes[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	screen_warp_writes[0].dstSet = vulkan_globals.screen_warp_desc_set;
-	screen_warp_writes[0].pImageInfo = &input_image_info;
-	screen_warp_writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	screen_warp_writes[1].dstBinding = 1;
-	screen_warp_writes[1].dstArrayElement = 0;
-	screen_warp_writes[1].descriptorCount = 1;
-	screen_warp_writes[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-	screen_warp_writes[1].dstSet = vulkan_globals.screen_warp_desc_set;
-	screen_warp_writes[1].pImageInfo = &output_image_info;
+	VkDescriptorBufferInfo palette_octree_info;
+	memset (&palette_octree_info, 0, sizeof (palette_octree_info));
+	palette_octree_info.buffer = palette_octree_buffer;
+	palette_octree_info.offset = 0;
+	palette_octree_info.range = VK_WHOLE_SIZE;
 
-	vkUpdateDescriptorSets (vulkan_globals.device, 2, screen_warp_writes, 0, NULL);
+	VkWriteDescriptorSet screen_effects_writes[4];
+	memset (screen_effects_writes, 0, sizeof (screen_effects_writes));
+	screen_effects_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	screen_effects_writes[0].dstBinding = 0;
+	screen_effects_writes[0].dstArrayElement = 0;
+	screen_effects_writes[0].descriptorCount = 1;
+	screen_effects_writes[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	screen_effects_writes[0].dstSet = vulkan_globals.screen_effects_desc_set;
+	screen_effects_writes[0].pImageInfo = &input_image_info;
+	screen_effects_writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	screen_effects_writes[1].dstBinding = 1;
+	screen_effects_writes[1].dstArrayElement = 0;
+	screen_effects_writes[1].descriptorCount = 1;
+	screen_effects_writes[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+	screen_effects_writes[1].dstSet = vulkan_globals.screen_effects_desc_set;
+	screen_effects_writes[1].pImageInfo = &output_image_info;
+	screen_effects_writes[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	screen_effects_writes[2].dstBinding = 2;
+	screen_effects_writes[2].dstArrayElement = 0;
+	screen_effects_writes[2].descriptorCount = 1;
+	screen_effects_writes[2].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER;
+	screen_effects_writes[2].dstSet = vulkan_globals.screen_effects_desc_set;
+	screen_effects_writes[2].pTexelBufferView = &palette_buffer_view;
+	screen_effects_writes[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	screen_effects_writes[3].dstBinding = 3;
+	screen_effects_writes[3].dstArrayElement = 0;
+	screen_effects_writes[3].descriptorCount = 1;
+	screen_effects_writes[3].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	screen_effects_writes[3].dstSet = vulkan_globals.screen_effects_desc_set;
+	screen_effects_writes[3].pBufferInfo = &palette_octree_info;
+
+	vkUpdateDescriptorSets (vulkan_globals.device, 4, screen_effects_writes, 0, NULL);
 }
 
 /*
@@ -2002,7 +2027,7 @@ static void GL_CreateRenderResources (void)
 	GL_CreateRenderPasses ();
 	GL_CreateFrameBuffers ();
 	R_CreatePipelines ();
-	GL_CreateDescriptorSets ();
+	GL_UpdateDescriptorSets ();
 
 	render_resources_created = true;
 }
@@ -2025,8 +2050,8 @@ static void GL_DestroyRenderResources (void)
 	R_FreeDescriptorSet (postprocess_descriptor_set, &vulkan_globals.input_attachment_set_layout);
 	postprocess_descriptor_set = VK_NULL_HANDLE;
 
-	R_FreeDescriptorSet (vulkan_globals.screen_warp_desc_set, &vulkan_globals.screen_warp_set_layout);
-	vulkan_globals.screen_warp_desc_set = VK_NULL_HANDLE;
+	R_FreeDescriptorSet (vulkan_globals.screen_effects_desc_set, &vulkan_globals.screen_effects_set_layout);
+	vulkan_globals.screen_effects_desc_set = VK_NULL_HANDLE;
 
 	if (msaa_color_buffer)
 	{
@@ -2327,7 +2352,7 @@ static void GL_ScreenEffects (cb_context_t *cbx, qboolean enabled)
 			pipeline = &vulkan_globals.screen_effects_pipeline;
 
 		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_COMPUTE, *pipeline);
-		vkCmdBindDescriptorSets (cbx->cb, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->layout.handle, 0, 1, &vulkan_globals.screen_warp_desc_set, 0, NULL);
+		vkCmdBindDescriptorSets (cbx->cb, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->layout.handle, 0, 1, &vulkan_globals.screen_effects_desc_set, 0, NULL);
 
 		uint32_t screen_effect_flags = 0;
 		if (render_warp)
@@ -2338,6 +2363,8 @@ static void GL_ScreenEffects (cb_context_t *cbx, qboolean enabled)
 			screen_effect_flags |= 0x4;
 		if (render_scale >= 8)
 			screen_effect_flags |= 0x8;
+		if (vid_palettize.value)
+			screen_effect_flags |= 0x10;
 		const screen_effect_constants_t push_constants = {
 			vid.width - 1, vid.height - 1,     1.0f / (float)vid.width, 1.0f / (float)vid.height, (float)vid.width / (float)vid.height,
 			cl.time,       screen_effect_flags};
@@ -2430,7 +2457,7 @@ void GL_EndRendering (qboolean swapchain_acquired)
 	clear_values[1] = depth_clear_value;
 	clear_values[2] = vulkan_globals.color_clear_value;
 
-	const qboolean screen_effects = render_warp || (render_scale >= 2);
+	const qboolean screen_effects = render_warp || (render_scale >= 2) || vid_palettize.value;
 	{
 		const qboolean        resolve = (vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT);
 		VkRenderPassBeginInfo render_pass_begin_info;
@@ -2649,6 +2676,118 @@ static void VID_InitModelist (void)
 }
 
 /*
+=================
+R_CreatePaletteOctreeBuffers
+=================
+*/
+static void R_CreatePaletteOctreeBuffers (uint32_t *colors, int num_colors, palette_octree_node_t *nodes, int num_nodes)
+{
+	{
+		const int colors_size = num_colors * sizeof (uint32_t);
+
+		// Allocate palette buffer & upload to GPU
+		VkBufferCreateInfo buffer_create_info;
+		memset (&buffer_create_info, 0, sizeof (buffer_create_info));
+		buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+		buffer_create_info.size = colors_size;
+		buffer_create_info.usage = VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+		VkResult err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &palette_colors_buffer);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreateBuffer failed");
+		GL_SetObjectName ((uint64_t)palette_colors_buffer, VK_OBJECT_TYPE_BUFFER, "Palette colors");
+
+		VkMemoryRequirements memory_requirements;
+		vkGetBufferMemoryRequirements (vulkan_globals.device, palette_colors_buffer, &memory_requirements);
+
+		VkMemoryAllocateInfo memory_allocate_info;
+		memset (&memory_allocate_info, 0, sizeof (memory_allocate_info));
+		memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+		memory_allocate_info.allocationSize = memory_requirements.size;
+		memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
+
+		num_vulkan_misc_allocations += 1;
+		vulkan_memory_t memory;
+		R_AllocateVulkanMemory (&memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_HOST);
+		GL_SetObjectName ((uint64_t)memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, "Palette colors");
+
+		err = vkBindBufferMemory (vulkan_globals.device, palette_colors_buffer, memory.handle, 0);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkBindBufferMemory failed");
+
+		VkBuffer        staging_buffer;
+		VkCommandBuffer command_buffer;
+		int             staging_offset;
+		uint32_t       *staging_memory = (uint32_t *)R_StagingAllocate (colors_size, 1, &command_buffer, &staging_buffer, &staging_offset);
+
+		memcpy (staging_memory, colors, colors_size);
+
+		VkBufferCopy region;
+		region.srcOffset = staging_offset;
+		region.dstOffset = 0;
+		region.size = colors_size;
+		vkCmdCopyBuffer (command_buffer, staging_buffer, palette_colors_buffer, 1, &region);
+
+		VkBufferViewCreateInfo buffer_view_create_info;
+		memset (&buffer_view_create_info, 0, sizeof (buffer_view_create_info));
+		buffer_view_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO;
+		buffer_view_create_info.buffer = palette_colors_buffer;
+		buffer_view_create_info.format = VK_FORMAT_R8G8B8A8_UNORM;
+		buffer_view_create_info.range = VK_WHOLE_SIZE;
+		err = vkCreateBufferView (vulkan_globals.device, &buffer_view_create_info, NULL, &palette_buffer_view);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreateBufferView failed");
+		GL_SetObjectName ((uint64_t)palette_buffer_view, VK_OBJECT_TYPE_BUFFER_VIEW, "Palette colors");
+	}
+
+	{
+		const int nodes_size = num_nodes * sizeof (palette_octree_node_t);
+
+		// Allocate palette buffer & upload to GPU
+		VkBufferCreateInfo buffer_create_info;
+		memset (&buffer_create_info, 0, sizeof (buffer_create_info));
+		buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+		buffer_create_info.size = nodes_size;
+		buffer_create_info.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+		VkResult err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &palette_octree_buffer);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreateBuffer failed");
+
+		GL_SetObjectName ((uint64_t)palette_octree_buffer, VK_OBJECT_TYPE_BUFFER, "Palette octree");
+
+		VkMemoryRequirements memory_requirements;
+		vkGetBufferMemoryRequirements (vulkan_globals.device, palette_octree_buffer, &memory_requirements);
+
+		VkMemoryAllocateInfo memory_allocate_info;
+		memset (&memory_allocate_info, 0, sizeof (memory_allocate_info));
+		memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+		memory_allocate_info.allocationSize = memory_requirements.size;
+		memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
+
+		num_vulkan_misc_allocations += 1;
+		vulkan_memory_t memory;
+		R_AllocateVulkanMemory (&memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_HOST);
+		GL_SetObjectName ((uint64_t)memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, "Palette octree");
+
+		err = vkBindBufferMemory (vulkan_globals.device, palette_octree_buffer, memory.handle, 0);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkBindBufferMemory failed");
+
+		VkBuffer        staging_buffer;
+		VkCommandBuffer command_buffer;
+		int             staging_offset;
+		uint32_t       *staging_memory = (uint32_t *)R_StagingAllocate (nodes_size, 1, &command_buffer, &staging_buffer, &staging_offset);
+
+		memcpy (staging_memory, nodes, nodes_size);
+
+		VkBufferCopy region;
+		region.srcOffset = staging_offset;
+		region.dstOffset = 0;
+		region.size = nodes_size;
+		vkCmdCopyBuffer (command_buffer, staging_buffer, palette_octree_buffer, 1, &region);
+	}
+}
+
+/*
 ===================
 VID_Init
 ===================
@@ -2675,6 +2814,7 @@ void VID_Init (void)
 	Cvar_RegisterVariable (&vid_fsaa);
 	Cvar_RegisterVariable (&vid_desktopfullscreen); // QuakeSpasm
 	Cvar_RegisterVariable (&vid_borderless);        // QuakeSpasm
+	Cvar_RegisterVariable (&vid_palettize);
 	Cvar_SetCallback (&vid_fullscreen, VID_Changed_f);
 	Cvar_SetCallback (&vid_width, VID_Changed_f);
 	Cvar_SetCallback (&vid_height, VID_Changed_f);
@@ -2693,6 +2833,10 @@ void VID_Init (void)
 	Cmd_AddCommand ("vid_test", VID_Test);         // johnfitz
 	Cmd_AddCommand ("vid_describecurrentmode", VID_DescribeCurrentMode_f);
 	Cmd_AddCommand ("vid_describemodes", VID_DescribeModes_f);
+
+#ifdef _DEBUG
+	Cmd_AddCommand ("create_palette_octree", CreatePaletteOctree_f);
+#endif
 
 	putenv (vid_center); /* SDL_putenv is problematic in versions <= 1.2.9 */
 
@@ -2810,7 +2954,7 @@ void VID_Init (void)
 	R_InitGPUBuffers ();
 	R_InitSamplers ();
 	R_CreatePipelineLayouts ();
-
+	R_CreatePaletteOctreeBuffers (palette_octree_colors, NUM_PALETTE_OCTREE_COLORS, palette_octree_nodes, NUM_PALETTE_OCTREE_NODES);
 	GL_CreateRenderResources ();
 
 	// johnfitz -- removed code creating "glquake" subdirectory

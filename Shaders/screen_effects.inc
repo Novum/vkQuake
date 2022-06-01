@@ -1,3 +1,19 @@
+#extension GL_EXT_debug_printf : enable
+
+#define NUM_PALETTE_OCTREE_NODES 184
+
+struct OctreeNode
+{
+	uvec4 children[2];
+};
+
+layout(set = 0, binding = 0) uniform sampler2D input_tex;
+layout (set = 0, binding = 2) uniform samplerBuffer palette_colors;
+layout (set = 0, binding = 3) uniform PaletteOctree
+{
+	OctreeNode nodes[NUM_PALETTE_OCTREE_NODES];
+} palette_octree;
+
 layout(push_constant) uniform PushConsts {
 	uvec2	clamp_size;
 	vec2	screen_size_rcp;
@@ -237,6 +253,45 @@ void main()
 	// Finally convert back to float [0, 1]
 	color.rgb = vec3(color_int) * (1.0f / 16777216.0f);
 #endif
+
+	if ((push_constants.flags & 0x10) != 0)
+	{
+		uvec3 search_color = uvec3(color.rgb * 255.0f);
+		uint current_node_offset = 0;
+		uint current_shift = 7;
+		uvec3 node_coords = uvec3(0u);
+		while (true)
+		{
+			const uvec3 node_offsets = (search_color - node_coords) >> current_shift;
+			const uint child_index = node_offsets.r + node_offsets.g * 2 + node_offsets.b * 4;
+			const uint offset = palette_octree.nodes[current_node_offset].children[child_index / 4][child_index % 4];
+			if ((offset & (1u << 31)) == 0)
+			{
+				node_coords = node_coords + (node_offsets << current_shift);
+				current_shift -= 1;
+				current_node_offset = offset;
+			}
+			else
+			{
+				const uint num_colors = offset & 0xF;
+				const uint colors_offset = (offset >> 4) & 0xFFFF;
+				vec3 best_color = vec3(0.0f);
+				float best_dist_sq = 1e38f;
+				for (int i = 0; i < num_colors; ++i)
+				{
+					vec3 palette_color = texelFetch(palette_colors, int(colors_offset + i)).rgb;
+					float dist_sq = dot(color.rgb - palette_color, color.rgb - palette_color);
+					if (dist_sq < best_dist_sq)
+					{
+						best_color = palette_color;
+						best_dist_sq = dist_sq;
+					}
+				}
+				color.rgb = best_color;
+				break;
+			}
+		}
+	}
 	
 	imageStore(output_image, ivec2(pos_x, pos_y), color);
 }

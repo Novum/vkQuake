@@ -1203,25 +1203,33 @@ void R_CreateDescriptorSetLayouts ()
 	}
 
 	{
-		VkDescriptorSetLayoutBinding screen_warp_layout_bindings[2];
-		memset (&screen_warp_layout_bindings, 0, sizeof (screen_warp_layout_bindings));
-		screen_warp_layout_bindings[0].binding = 0;
-		screen_warp_layout_bindings[0].descriptorCount = 1;
-		screen_warp_layout_bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		screen_warp_layout_bindings[0].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-		screen_warp_layout_bindings[1].binding = 1;
-		screen_warp_layout_bindings[1].descriptorCount = 1;
-		screen_warp_layout_bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-		screen_warp_layout_bindings[1].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+		VkDescriptorSetLayoutBinding screen_effects_layout_bindings[4];
+		memset (&screen_effects_layout_bindings, 0, sizeof (screen_effects_layout_bindings));
+		screen_effects_layout_bindings[0].binding = 0;
+		screen_effects_layout_bindings[0].descriptorCount = 1;
+		screen_effects_layout_bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		screen_effects_layout_bindings[0].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+		screen_effects_layout_bindings[1].binding = 1;
+		screen_effects_layout_bindings[1].descriptorCount = 1;
+		screen_effects_layout_bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+		screen_effects_layout_bindings[1].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+		screen_effects_layout_bindings[2].binding = 2;
+		screen_effects_layout_bindings[2].descriptorCount = 1;
+		screen_effects_layout_bindings[2].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER;
+		screen_effects_layout_bindings[2].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+		screen_effects_layout_bindings[3].binding = 3;
+		screen_effects_layout_bindings[3].descriptorCount = 1;
+		screen_effects_layout_bindings[3].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		screen_effects_layout_bindings[3].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
-		descriptor_set_layout_create_info.bindingCount = 2;
-		descriptor_set_layout_create_info.pBindings = screen_warp_layout_bindings;
+		descriptor_set_layout_create_info.bindingCount = 4;
+		descriptor_set_layout_create_info.pBindings = screen_effects_layout_bindings;
 
-		memset (&vulkan_globals.screen_warp_set_layout, 0, sizeof (vulkan_globals.screen_warp_set_layout));
-		vulkan_globals.screen_warp_set_layout.num_combined_image_samplers = 1;
-		vulkan_globals.screen_warp_set_layout.num_storage_images = 1;
+		memset (&vulkan_globals.screen_effects_set_layout, 0, sizeof (vulkan_globals.screen_effects_set_layout));
+		vulkan_globals.screen_effects_set_layout.num_combined_image_samplers = 1;
+		vulkan_globals.screen_effects_set_layout.num_storage_images = 1;
 
-		err = vkCreateDescriptorSetLayout (vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.screen_warp_set_layout.handle);
+		err = vkCreateDescriptorSetLayout (vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.screen_effects_set_layout.handle);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkCreateDescriptorSetLayout failed");
 	}
@@ -1419,9 +1427,9 @@ void R_CreatePipelineLayouts ()
 	GL_SetObjectName ((uint64_t)vulkan_globals.postprocess_pipeline.layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "postprocess_pipeline_layout");
 	vulkan_globals.postprocess_pipeline.layout.push_constant_range = push_constant_range;
 
-	// Screen warp
-	VkDescriptorSetLayout screen_warp_descriptor_set_layouts[1] = {
-		vulkan_globals.screen_warp_set_layout.handle,
+	// Screen effects
+	VkDescriptorSetLayout screen_effects_descriptor_set_layouts[1] = {
+		vulkan_globals.screen_effects_set_layout.handle,
 	};
 
 	memset (&push_constant_range, 0, sizeof (push_constant_range));
@@ -1430,7 +1438,7 @@ void R_CreatePipelineLayouts ()
 	push_constant_range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
 	pipeline_layout_create_info.setLayoutCount = 1;
-	pipeline_layout_create_info.pSetLayouts = screen_warp_descriptor_set_layouts;
+	pipeline_layout_create_info.pSetLayouts = screen_effects_descriptor_set_layouts;
 	pipeline_layout_create_info.pushConstantRangeCount = 1;
 	pipeline_layout_create_info.pPushConstantRanges = &push_constant_range;
 

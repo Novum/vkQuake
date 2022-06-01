@@ -105,6 +105,7 @@ void         TexMgr_NewGame (void);
 void         TexMgr_Init (void);
 void         TexMgr_DeleteTextureObjects (void);
 void         TexMgr_CollectGarbage (void);
+void         TexMgr_LoadPalette (void);
 
 // IMAGE LOADING
 gltexture_t *TexMgr_LoadImage (

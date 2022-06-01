@@ -283,8 +283,8 @@ typedef struct
 	vulkan_desc_set_layout_t ubo_set_layout;
 	vulkan_desc_set_layout_t single_texture_set_layout;
 	vulkan_desc_set_layout_t input_attachment_set_layout;
-	VkDescriptorSet          screen_warp_desc_set;
-	vulkan_desc_set_layout_t screen_warp_set_layout;
+	VkDescriptorSet          screen_effects_desc_set;
+	vulkan_desc_set_layout_t screen_effects_set_layout;
 	vulkan_desc_set_layout_t single_texture_cs_write_set_layout;
 	vulkan_desc_set_layout_t lightmap_compute_set_layout;
 
