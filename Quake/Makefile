@@ -245,6 +245,7 @@ SHADER_OBJS = \
 
 GLOBJS = \
 	$(SHADER_OBJS) \
+	palette.o \
 	gl_refrag.o \
 	gl_rlight.o \
 	gl_rmain.o \
