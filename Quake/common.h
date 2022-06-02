@@ -41,9 +41,65 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #undef min
 #undef max
-#define q_min(a, b)                (((a) < (b)) ? (a) : (b))
-#define q_max(a, b)                (((a) > (b)) ? (a) : (b))
-#define CLAMP(_minval, x, _maxval) ((x) < (_minval) ? (_minval) : (x) > (_maxval) ? (_maxval) : (x))
+
+// clang-format off
+#define impl_q_min(type, name) \
+static inline type q_min_##name (type a, type b) \
+{ \
+	return (a < b) ? a : b; \
+}
+impl_q_min (char, char)
+impl_q_min (int, int)
+impl_q_min (unsigned int, uint)
+impl_q_min (size_t, size_t)
+impl_q_min (float, float)
+impl_q_min (double, double)
+#define q_min(a, b) _Generic(a, \
+	char: q_min_char, \
+	int: q_min_int, \
+	unsigned int: q_min_uint, \
+	size_t: q_min_size_t, \
+	float: q_min_float, \
+	double: q_min_double)(a, b)
+
+#define impl_q_max(type, name) \
+static inline type q_max_##name (type a, type b) \
+{ \
+	return (a > b) ? a : b; \
+}
+impl_q_max (char, char)
+impl_q_max (int, int)
+impl_q_max (unsigned int, uint)
+impl_q_max (size_t, size_t)
+impl_q_max (float, float)
+impl_q_max (double, double)
+#define q_max(a, b) _Generic(a, \
+	char: q_max_char, \
+	int: q_max_int, \
+	unsigned int: q_max_uint, \
+	size_t: q_max_size_t, \
+	float: q_max_float, \
+	double: q_max_double)(a, b)
+
+#define impl_clamp(type, name) \
+static inline type clamp_##name (type minval, type val, type maxval) \
+{ \
+	return (val < minval) ? minval : ((val > maxval) ? maxval : val); \
+}
+impl_clamp (char, char)
+impl_clamp (int, int)
+impl_clamp (unsigned int, uint)
+impl_clamp (size_t, size_t)
+impl_clamp (float, float)
+impl_clamp (double, double)
+#define CLAMP(minval, val, maxval) _Generic((val), \
+	char: clamp_char, \
+	int: clamp_int, \
+	unsigned int: clamp_uint, \
+	size_t: clamp_size_t, \
+	float: clamp_float, \
+	double: clamp_double)(minval, val, maxval)
+// clang-format on
 
 #define countof(x) (sizeof (x) / sizeof ((x)[0]))
 
