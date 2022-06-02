@@ -43,17 +43,17 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #undef max
 
 // clang-format off
-#define impl_q_min(type, name) \
+#define IMPL_Q_MIN(type, name) \
 static inline type q_min_##name (type a, type b) \
 { \
 	return (a < b) ? a : b; \
 }
-impl_q_min (char, char)
-impl_q_min (int, int)
-impl_q_min (unsigned int, uint)
-impl_q_min (size_t, size_t)
-impl_q_min (float, float)
-impl_q_min (double, double)
+IMPL_Q_MIN (char, char)
+IMPL_Q_MIN (int, int)
+IMPL_Q_MIN (unsigned int, uint)
+IMPL_Q_MIN (size_t, size_t)
+IMPL_Q_MIN (float, float)
+IMPL_Q_MIN (double, double)
 #define q_min(a, b) _Generic(a, \
 	char: q_min_char, \
 	int: q_min_int, \
@@ -62,17 +62,17 @@ impl_q_min (double, double)
 	float: q_min_float, \
 	double: q_min_double)(a, b)
 
-#define impl_q_max(type, name) \
+#define IMPL_Q_MAX(type, name) \
 static inline type q_max_##name (type a, type b) \
 { \
 	return (a > b) ? a : b; \
 }
-impl_q_max (char, char)
-impl_q_max (int, int)
-impl_q_max (unsigned int, uint)
-impl_q_max (size_t, size_t)
-impl_q_max (float, float)
-impl_q_max (double, double)
+IMPL_Q_MAX (char, char)
+IMPL_Q_MAX (int, int)
+IMPL_Q_MAX (unsigned int, uint)
+IMPL_Q_MAX (size_t, size_t)
+IMPL_Q_MAX (float, float)
+IMPL_Q_MAX (double, double)
 #define q_max(a, b) _Generic(a, \
 	char: q_max_char, \
 	int: q_max_int, \
@@ -81,17 +81,17 @@ impl_q_max (double, double)
 	float: q_max_float, \
 	double: q_max_double)(a, b)
 
-#define impl_clamp(type, name) \
+#define IMPL_CLAMP(type, name) \
 static inline type clamp_##name (type minval, type val, type maxval) \
 { \
 	return (val < minval) ? minval : ((val > maxval) ? maxval : val); \
 }
-impl_clamp (char, char)
-impl_clamp (int, int)
-impl_clamp (unsigned int, uint)
-impl_clamp (size_t, size_t)
-impl_clamp (float, float)
-impl_clamp (double, double)
+IMPL_CLAMP (char, char)
+IMPL_CLAMP (int, int)
+IMPL_CLAMP (unsigned int, uint)
+IMPL_CLAMP (size_t, size_t)
+IMPL_CLAMP (float, float)
+IMPL_CLAMP (double, double)
 #define CLAMP(minval, val, maxval) _Generic((val), \
 	char: clamp_char, \
 	int: clamp_int, \

@@ -288,9 +288,7 @@ void Tasks_Init (void)
 		tasks[task_index].id_condition = SDL_CreateCond ();
 	}
 
-	num_workers = SDL_GetCPUCount ();
-	if (num_workers > MAX_WORKERS) num_workers = MAX_WORKERS;
-	else if (num_workers < 1) num_workers = 1;
+	num_workers = CLAMP (1, SDL_GetCPUCount (), MAX_WORKERS);
 
 	// Fill lookup table to avoid modulo in Task_ExecuteIndexed
 	for (int i = 0; i < num_workers; ++i)
