@@ -127,131 +127,87 @@ void main()
 		color = texelFetch(input_tex, ivec2(min(push_constants.clamp_size.x, pos_x), min(push_constants.clamp_size.y, pos_y)), 0);
 
 #if defined(SCALING)
-	// Only integer atomics are supported, so scale up to have enough precision
-	uvec3 color_int = uvec3(color.rgb * 16777216.0f);
 	if ((push_constants.flags & 0x2) != 0)
 	{
 #if defined(USE_SUBGROUP_OPS)
 		if(gl_SubgroupSize >= 4)
 		{
-			uint red = color_int.r + subgroupShuffleXor(color_int.r, 0x01);
-			red += subgroupShuffleXor(red, 0x02);
-			uint green = color_int.g + subgroupShuffleXor(color_int.g, 0x01);
-			green += subgroupShuffleXor(green, 0x02);
-			uint blue = color_int.b + subgroupShuffleXor(color_int.b, 0x01);
-			blue += subgroupShuffleXor(blue, 0x02);
-			color_int.r = red / 4;
-			color_int.g = green / 4;
-			color_int.b = blue / 4;
+			color.r = uintBitsToFloat(subgroupShuffle(floatBitsToUint(color.r), gl_SubgroupInvocationID & ~0x3));
+			color.g = uintBitsToFloat(subgroupShuffle(floatBitsToUint(color.g), gl_SubgroupInvocationID & ~0x3));
+			color.b = uintBitsToFloat(subgroupShuffle(floatBitsToUint(color.b), gl_SubgroupInvocationID & ~0x3));
 		} else
 		{
 #endif
 			const uint local_idx = local_x + (local_y * tile_size_x);
-			if (local_idx < 16)
+			const uint shared_mem_idx = (local_x / 2) + ((local_y / 2) * (tile_size_x / 2));
+			if (((local_x % 2) == 0) && ((local_y % 2) == 0))
 			{
-				group_red[local_idx] = 0;
-				group_green[local_idx] = 0;
-				group_blue[local_idx] = 0;
+				group_red[shared_mem_idx] = floatBitsToUint(color.r);
+				group_green[shared_mem_idx] = floatBitsToUint(color.g);
+				group_blue[shared_mem_idx] = floatBitsToUint(color.b);
 			}
 			barrier();
-			const uint shared_mem_idx = (local_x / 2) + ((local_y / 2) * (tile_size_x / 2));
-			atomicAdd(group_red[shared_mem_idx], color_int.r);
-			atomicAdd(group_green[shared_mem_idx], color_int.g);
-			atomicAdd(group_blue[shared_mem_idx], color_int.b);
-			barrier();
-			color_int.r = group_red[shared_mem_idx] / 4;
-			color_int.g = group_green[shared_mem_idx] / 4;
-			color_int.b = group_blue[shared_mem_idx] / 4;
+			color.r = uintBitsToFloat(group_red[shared_mem_idx]);
+			color.g = uintBitsToFloat(group_green[shared_mem_idx]);
+			color.b = uintBitsToFloat(group_blue[shared_mem_idx]);
 #if defined(USE_SUBGROUP_OPS)
 		}
 #endif
 	}
-
-	if ((push_constants.flags & 0x4) != 0)
+	else if ((push_constants.flags & 0x4) != 0)
 	{
 #if defined(USE_SUBGROUP_OPS)
 		if(gl_SubgroupSize >= 16)
 		{
-			uint red = color_int.r + subgroupShuffleXor(color_int.r, 0x04);
-			red += subgroupShuffleXor(red, 0x08);
-			uint green = color_int.g + subgroupShuffleXor(color_int.g, 0x04);
-			green += subgroupShuffleXor(green, 0x08);
-			uint blue = color_int.b + subgroupShuffleXor(color_int.b, 0x01);
-			blue += subgroupShuffleXor(blue, 0x08);
-			color_int.r = red / 4;
-			color_int.g = green / 4;
-			color_int.b = blue / 4;
+			color.r = uintBitsToFloat(subgroupShuffle(floatBitsToUint(color.r), gl_SubgroupInvocationID & ~0xF));
+			color.g = uintBitsToFloat(subgroupShuffle(floatBitsToUint(color.g), gl_SubgroupInvocationID & ~0xF));
+			color.b = uintBitsToFloat(subgroupShuffle(floatBitsToUint(color.b), gl_SubgroupInvocationID & ~0xF));
 		} else
 		{
-			if(gl_SubgroupSize < 4)
 #endif
-				barrier();
-			if ((local_x < 4) && (local_y == 0))
-			{
-				group_red[local_x] = 0;
-				group_green[local_x] = 0;
-				group_blue[local_x] = 0;
-			}
-			barrier();
+			const uint local_idx = local_x + (local_y * tile_size_x);
 			const uint shared_mem_idx = (local_x / 4) + ((local_y / 4) * (tile_size_x / 4));
-			if (((local_x & 0x1)==0) && ((local_y & 0x1)==0))
+			if (((local_x % 4) == 0) && ((local_y % 4) == 0))
 			{
-				atomicAdd(group_red[shared_mem_idx], color_int.r);
-				atomicAdd(group_green[shared_mem_idx], color_int.g);
-				atomicAdd(group_blue[shared_mem_idx], color_int.b);
+				group_red[shared_mem_idx] = floatBitsToUint(color.r);
+				group_green[shared_mem_idx] = floatBitsToUint(color.g);
+				group_blue[shared_mem_idx] = floatBitsToUint(color.b);
 			}
 			barrier();
-			color_int.r = group_red[shared_mem_idx] / 4;
-			color_int.g = group_green[shared_mem_idx] / 4;
-			color_int.b = group_blue[shared_mem_idx] / 4;
+			color.r = uintBitsToFloat(group_red[shared_mem_idx]);
+			color.g = uintBitsToFloat(group_green[shared_mem_idx]);
+			color.b = uintBitsToFloat(group_blue[shared_mem_idx]);
 #if defined(USE_SUBGROUP_OPS)
 		}
 #endif
 	}
-
-	if ((push_constants.flags & 0x8) != 0)
+	else if ((push_constants.flags & 0x8) != 0)
 	{
 #if defined(USE_SUBGROUP_OPS)
 		if(gl_SubgroupSize >= 64)
 		{
-			uint red = color_int.r + subgroupShuffleXor(color_int.r, 0x10);
-			red += subgroupShuffleXor(red, 0x20);
-			uint green = color_int.g + subgroupShuffleXor(color_int.g, 0x10);
-			green += subgroupShuffleXor(green, 0x20);
-			uint blue = color_int.b + subgroupShuffleXor(color_int.b, 0x10);
-			blue += subgroupShuffleXor(blue, 0x20);
-			color_int.r = red / 4;
-			color_int.g = green / 4;
-			color_int.b = blue / 4;
+			color.r = uintBitsToFloat(subgroupShuffle(floatBitsToUint(color.r), gl_SubgroupInvocationID & ~0x3F));
+			color.g = uintBitsToFloat(subgroupShuffle(floatBitsToUint(color.g), gl_SubgroupInvocationID & ~0x3F));
+			color.b = uintBitsToFloat(subgroupShuffle(floatBitsToUint(color.b), gl_SubgroupInvocationID & ~0x3F));
 		} else
 		{
-			if(gl_SubgroupSize < 16)
 #endif
-				barrier();
-			if ((local_x == 0) && (local_y == 0))
+			const uint local_idx = local_x + (local_y * tile_size_x);
+			const uint shared_mem_idx = (local_x / 8) + ((local_y / 8) * (tile_size_x / 8));
+			if (((local_x % 8) == 0) && ((local_y % 8) == 0))
 			{
-				group_red[0] = 0;
-				group_green[0] = 0;
-				group_blue[0] = 0;
+				group_red[shared_mem_idx] = floatBitsToUint(color.r);
+				group_green[shared_mem_idx] = floatBitsToUint(color.g);
+				group_blue[shared_mem_idx] = floatBitsToUint(color.b);
 			}
 			barrier();
-			if (((local_x & 0x3)==0) && ((local_y & 0x3)==0))
-			{
-				atomicAdd(group_red[0], color_int.r);
-				atomicAdd(group_green[0], color_int.g);
-				atomicAdd(group_blue[0], color_int.b);
-			}
-			barrier();
-			color_int.r = group_red[0] / 4;
-			color_int.g = group_green[0] / 4;
-			color_int.b = group_blue[0] / 4;
+			color.r = uintBitsToFloat(group_red[shared_mem_idx]);
+			color.g = uintBitsToFloat(group_green[shared_mem_idx]);
+			color.b = uintBitsToFloat(group_blue[shared_mem_idx]);
 #if defined(USE_SUBGROUP_OPS)
 		}
 #endif
 	}
-
-	// Finally convert back to float [0, 1]
-	color.rgb = vec3(color_int) * (1.0f / 16777216.0f);
 #endif
 
 	if ((push_constants.flags & 0x10) != 0)

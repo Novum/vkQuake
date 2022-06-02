@@ -1603,12 +1603,12 @@ void R_InitSamplers ()
 				}
 			}
 
-			if (r_scale.value >= 2)
-				lod_bias -= 1.0f;
-			if (r_scale.value >= 4)
-				lod_bias -= 2.0f;
 			if (r_scale.value >= 8)
-				lod_bias -= 4.0f;
+				lod_bias += 3.0f;
+			else if (r_scale.value >= 2)
+				lod_bias += 1.0f;
+			else if (r_scale.value >= 4)
+				lod_bias += 2.0f;
 		}
 
 		Sys_Printf ("Texture lod bias: %f\n", lod_bias);

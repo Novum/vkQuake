@@ -2343,11 +2343,11 @@ static void GL_ScreenEffects (cb_context_t *cbx, qboolean enabled)
 		uint32_t screen_effect_flags = 0;
 		if (render_warp)
 			screen_effect_flags |= 0x1;
-		if (render_scale >= 2)
-			screen_effect_flags |= 0x2;
-		if (render_scale >= 4)
-			screen_effect_flags |= 0x4;
 		if (render_scale >= 8)
+			screen_effect_flags |= 0x2;
+		else if (render_scale >= 4)
+			screen_effect_flags |= 0x4;
+		else if (render_scale >= 2)
 			screen_effect_flags |= 0x8;
 		if (vid_palettize.value)
 			screen_effect_flags |= 0x10;
