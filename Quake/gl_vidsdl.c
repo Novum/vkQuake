@@ -55,7 +55,6 @@ typedef struct
 	int width;
 	int height;
 	int refreshrate;
-	int bpp;
 } vmode_t;
 
 static vmode_t *modelist = NULL;
@@ -95,7 +94,6 @@ extern cvar_t   r_particles, host_maxfps;
 static cvar_t                   vid_fullscreen = {"vid_fullscreen", "0", CVAR_ARCHIVE}; // QuakeSpasm, was "1"
 static cvar_t                   vid_width = {"vid_width", "800", CVAR_ARCHIVE};         // QuakeSpasm, was 640
 static cvar_t                   vid_height = {"vid_height", "600", CVAR_ARCHIVE};       // QuakeSpasm, was 480
-static cvar_t                   vid_bpp = {"vid_bpp", "16", CVAR_ARCHIVE};
 static cvar_t                   vid_refreshrate = {"vid_refreshrate", "60", CVAR_ARCHIVE};
 static cvar_t                   vid_vsync = {"vid_vsync", "0", CVAR_ARCHIVE};
 static cvar_t                   vid_desktopfullscreen = {"vid_desktopfullscreen", "0", CVAR_ARCHIVE}; // QuakeSpasm
@@ -340,7 +338,7 @@ This is passed to SDL_SetWindowDisplayMode to specify a pixel format
 with the requested bpp. If we didn't care about bpp we could just pass NULL.
 ================
 */
-static SDL_DisplayMode *VID_SDL2_GetDisplayMode (int width, int height, int refreshrate, int bpp)
+static SDL_DisplayMode *VID_SDL2_GetDisplayMode (int width, int height, int refreshrate)
 {
 	static SDL_DisplayMode mode;
 	const int              sdlmodes = SDL_GetNumDisplayModes (0);
@@ -351,7 +349,7 @@ static SDL_DisplayMode *VID_SDL2_GetDisplayMode (int width, int height, int refr
 		if (SDL_GetDisplayMode (0, i, &mode) != 0)
 			continue;
 
-		if (mode.w == width && mode.h == height && SDL_BITSPERPIXEL (mode.format) == bpp && mode.refresh_rate == refreshrate)
+		if (mode.w == width && mode.h == height && SDL_BITSPERPIXEL (mode.format) >= 24 && mode.refresh_rate == refreshrate)
 		{
 			return &mode;
 		}
@@ -364,7 +362,7 @@ static SDL_DisplayMode *VID_SDL2_GetDisplayMode (int width, int height, int refr
 VID_ValidMode
 ================
 */
-static qboolean VID_ValidMode (int width, int height, int refreshrate, int bpp, qboolean fullscreen)
+static qboolean VID_ValidMode (int width, int height, int refreshrate, qboolean fullscreen)
 {
 	// ignore width / height / bpp if vid_desktopfullscreen is enabled
 	if (fullscreen && vid_desktopfullscreen.value)
@@ -376,18 +374,8 @@ static qboolean VID_ValidMode (int width, int height, int refreshrate, int bpp, 
 	if (height < 200)
 		return false;
 
-	if (fullscreen && VID_SDL2_GetDisplayMode (width, height, refreshrate, bpp) == NULL)
-		bpp = 0;
-
-	switch (bpp)
-	{
-	case 16:
-	case 24:
-	case 32:
-		break;
-	default:
+	if (fullscreen && VID_SDL2_GetDisplayMode (width, height, refreshrate) == NULL)
 		return false;
-	}
 
 	return true;
 }
@@ -397,7 +385,7 @@ static qboolean VID_ValidMode (int width, int height, int refreshrate, int bpp, 
 VID_SetMode
 ================
 */
-static qboolean VID_SetMode (int width, int height, int refreshrate, int bpp, qboolean fullscreen)
+static qboolean VID_SetMode (int width, int height, int refreshrate, qboolean fullscreen)
 {
 	int    temp;
 	Uint32 flags;
@@ -451,7 +439,7 @@ static qboolean VID_SetMode (int width, int height, int refreshrate, int bpp, qb
 		SDL_SetWindowPosition (draw_context, SDL_WINDOWPOS_CENTERED_DISPLAY (previous_display), SDL_WINDOWPOS_CENTERED_DISPLAY (previous_display));
 	else
 		SDL_SetWindowPosition (draw_context, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
-	SDL_SetWindowDisplayMode (draw_context, VID_SDL2_GetDisplayMode (width, height, refreshrate, bpp));
+	SDL_SetWindowDisplayMode (draw_context, VID_SDL2_GetDisplayMode (width, height, refreshrate));
 	SDL_SetWindowBordered (draw_context, vid_borderless.value ? SDL_FALSE : SDL_TRUE);
 
 	/* Make window fullscreen if needed, and show the window */
@@ -518,7 +506,7 @@ VID_Test -- johnfitz -- like vid_restart, but asks for confirmation after switch
 */
 static void VID_Test (void)
 {
-	int old_width, old_height, old_refreshrate, old_bpp, old_fullscreen;
+	int old_width, old_height, old_refreshrate, old_fullscreen;
 
 	if (vid_locked || !vid_changed)
 		return;
@@ -528,7 +516,6 @@ static void VID_Test (void)
 	old_width = VID_GetCurrentWidth ();
 	old_height = VID_GetCurrentHeight ();
 	old_refreshrate = VID_GetCurrentRefreshRate ();
-	old_bpp = VID_GetCurrentBPP ();
 	old_fullscreen = VID_GetFullscreen () ? (vulkan_globals.swap_chain_full_screen_exclusive ? 2 : 1) : 0;
 	VID_Restart (true);
 
@@ -539,7 +526,6 @@ static void VID_Test (void)
 		Cvar_SetValueQuick (&vid_width, old_width);
 		Cvar_SetValueQuick (&vid_height, old_height);
 		Cvar_SetValueQuick (&vid_refreshrate, old_refreshrate);
-		Cvar_SetValueQuick (&vid_bpp, old_bpp);
 		Cvar_SetValueQuick (&vid_fullscreen, old_fullscreen);
 		VID_Restart (true);
 	}
@@ -2622,20 +2608,19 @@ VID_DescribeModes_f -- johnfitz -- changed formatting, and added refresh rates a
 static void VID_DescribeModes_f (void)
 {
 	int i;
-	int lastwidth, lastheight, lastbpp, count;
+	int lastwidth, lastheight, count;
 
-	lastwidth = lastheight = lastbpp = count = 0;
+	lastwidth = lastheight = count = 0;
 
 	for (i = 0; i < nummodes; i++)
 	{
-		if (lastwidth != modelist[i].width || lastheight != modelist[i].height || lastbpp != modelist[i].bpp)
+		if (lastwidth != modelist[i].width || lastheight != modelist[i].height)
 		{
 			if (count > 0)
 				Con_SafePrintf ("\n");
-			Con_SafePrintf ("   %4i x %4i x %i : %i", modelist[i].width, modelist[i].height, modelist[i].bpp, modelist[i].refreshrate);
+			Con_SafePrintf ("   %4i x %4i : %i", modelist[i].width, modelist[i].height, modelist[i].refreshrate);
 			lastwidth = modelist[i].width;
 			lastheight = modelist[i].height;
-			lastbpp = modelist[i].bpp;
 			count++;
 		}
 	}
@@ -2668,7 +2653,6 @@ static void VID_InitModelist (void)
 		{
 			modelist[nummodes].width = mode.w;
 			modelist[nummodes].height = mode.h;
-			modelist[nummodes].bpp = SDL_BITSPERPIXEL (mode.format);
 			modelist[nummodes].refreshrate = mode.refresh_rate;
 			nummodes++;
 		}
@@ -2795,10 +2779,10 @@ VID_Init
 void VID_Init (void)
 {
 	static char vid_center[] = "SDL_VIDEO_CENTERED=center";
-	int         p, width, height, refreshrate, bpp;
-	int         display_width, display_height, display_refreshrate, display_bpp;
+	int         p, width, height, refreshrate;
+	int         display_width, display_height, display_refreshrate;
 	qboolean    fullscreen;
-	const char *read_vars[] = {"vid_fullscreen",        "vid_width",    "vid_height", "vid_refreshrate", "vid_bpp", "vid_vsync",
+	const char *read_vars[] = {"vid_fullscreen",        "vid_width",    "vid_height", "vid_refreshrate", "vid_vsync",
 	                           "vid_desktopfullscreen", "vid_fsaamode", "vid_fsaa",   "vid_borderless"};
 #define num_readvars (sizeof (read_vars) / sizeof (read_vars[0]))
 
@@ -2806,7 +2790,6 @@ void VID_Init (void)
 	Cvar_RegisterVariable (&vid_width);       // johnfitz
 	Cvar_RegisterVariable (&vid_height);      // johnfitz
 	Cvar_RegisterVariable (&vid_refreshrate); // johnfitz
-	Cvar_RegisterVariable (&vid_bpp);         // johnfitz
 	Cvar_RegisterVariable (&vid_vsync);       // johnfitz
 	Cvar_RegisterVariable (&vid_filter);
 	Cvar_RegisterVariable (&vid_anisotropic);
@@ -2819,7 +2802,6 @@ void VID_Init (void)
 	Cvar_SetCallback (&vid_width, VID_Changed_f);
 	Cvar_SetCallback (&vid_height, VID_Changed_f);
 	Cvar_SetCallback (&vid_refreshrate, VID_Changed_f);
-	Cvar_SetCallback (&vid_bpp, VID_Changed_f);
 	Cvar_SetCallback (&vid_filter, VID_FilterChanged_f);
 	Cvar_SetCallback (&vid_anisotropic, VID_FilterChanged_f);
 	Cvar_SetCallback (&vid_fsaamode, VID_Changed_f);
@@ -2851,10 +2833,7 @@ void VID_Init (void)
 		display_width = mode.w;
 		display_height = mode.h;
 		display_refreshrate = mode.refresh_rate;
-		display_bpp = SDL_BITSPERPIXEL (mode.format);
 	}
-
-	Cvar_SetValueQuick (&vid_bpp, (float)display_bpp);
 
 	if (CFG_OpenConfig ("config.cfg") == 0)
 	{
@@ -2868,7 +2847,6 @@ void VID_Init (void)
 	width = (int)vid_width.value;
 	height = (int)vid_height.value;
 	refreshrate = (int)vid_refreshrate.value;
-	bpp = (int)vid_bpp.value;
 	fullscreen = (int)vid_fullscreen.value;
 	vulkan_globals.want_full_screen_exclusive = vid_fullscreen.value >= 2;
 
@@ -2877,7 +2855,6 @@ void VID_Init (void)
 		width = display_width;
 		height = display_height;
 		refreshrate = display_refreshrate;
-		bpp = display_bpp;
 		fullscreen = true;
 	}
 	else
@@ -2904,31 +2881,25 @@ void VID_Init (void)
 		if (p && p < com_argc - 1)
 			refreshrate = atoi (com_argv[p + 1]);
 
-		p = COM_CheckParm ("-bpp");
-		if (p && p < com_argc - 1)
-			bpp = atoi (com_argv[p + 1]);
-
 		if (COM_CheckParm ("-window") || COM_CheckParm ("-w"))
 			fullscreen = false;
 		else if (COM_CheckParm ("-fullscreen") || COM_CheckParm ("-f"))
 			fullscreen = true;
 	}
 
-	if (!VID_ValidMode (width, height, refreshrate, bpp, fullscreen))
+	if (!VID_ValidMode (width, height, refreshrate, fullscreen))
 	{
 		width = (int)vid_width.value;
 		height = (int)vid_height.value;
 		refreshrate = (int)vid_refreshrate.value;
-		bpp = (int)vid_bpp.value;
 		fullscreen = (int)vid_fullscreen.value;
 	}
 
-	if (!VID_ValidMode (width, height, refreshrate, bpp, fullscreen))
+	if (!VID_ValidMode (width, height, refreshrate, fullscreen))
 	{
 		width = 640;
 		height = 480;
 		refreshrate = display_refreshrate;
-		bpp = display_bpp;
 		fullscreen = false;
 	}
 
@@ -2937,7 +2908,7 @@ void VID_Init (void)
 	vid.colormap = host_colormap;
 	vid.fullbright = 256 - LittleLong (*((int *)vid.colormap + 2048));
 
-	VID_SetMode (width, height, refreshrate, bpp, fullscreen);
+	VID_SetMode (width, height, refreshrate, fullscreen);
 
 	// set window icon
 	PL_SetWindowIcon ();
@@ -2978,22 +2949,21 @@ VID_Restart
 */
 static void VID_Restart (qboolean set_mode)
 {
-	int      width, height, refreshrate, bpp;
+	int      width, height, refreshrate;
 	qboolean fullscreen;
 
 	width = (int)vid_width.value;
 	height = (int)vid_height.value;
 	refreshrate = (int)vid_refreshrate.value;
-	bpp = (int)vid_bpp.value;
 	fullscreen = vid_fullscreen.value ? true : false;
 	vulkan_globals.want_full_screen_exclusive = vid_fullscreen.value >= 2;
 
 	//
 	// validate new mode
 	//
-	if (set_mode && !VID_ValidMode (width, height, refreshrate, bpp, fullscreen))
+	if (set_mode && !VID_ValidMode (width, height, refreshrate, fullscreen))
 	{
-		Con_Printf ("%dx%dx%d %dHz %s is not a valid mode\n", width, height, bpp, refreshrate, fullscreen ? "fullscreen" : "windowed");
+		Con_Printf ("%dx%d %dHz %s is not a valid mode\n", width, height, refreshrate, fullscreen ? "fullscreen" : "windowed");
 		return;
 	}
 
@@ -3006,7 +2976,7 @@ static void VID_Restart (qboolean set_mode)
 	// set new mode
 	//
 	if (set_mode)
-		VID_SetMode (width, height, refreshrate, bpp, fullscreen);
+		VID_SetMode (width, height, refreshrate, fullscreen);
 
 	GL_CreateRenderResources ();
 
@@ -3094,9 +3064,10 @@ typedef struct
 	int host_maxfps;
 	int r_waterwarp;
 	int r_particles;
+	int r_scale;
 	int vid_filter;
 	int vid_anisotropic;
-	int r_scale;
+	int vid_palettize;
 } vid_menu_settings_t;
 
 static vid_menu_settings_t menu_settings;
@@ -3116,18 +3087,18 @@ void VID_SyncCvars (void)
 			Cvar_SetValueQuick (&vid_height, VID_GetCurrentHeight ());
 		}
 		Cvar_SetValueQuick (&vid_refreshrate, VID_GetCurrentRefreshRate ());
-		Cvar_SetValueQuick (&vid_bpp, VID_GetCurrentBPP ());
 		Cvar_SetQuick (&vid_fullscreen, VID_GetFullscreen () ? (vulkan_globals.want_full_screen_exclusive ? "2" : "1") : "0");
 		// don't sync vid_desktopfullscreen, it's a user preference that
 		// should persist even if we are in windowed mode.
 	}
 
+	menu_settings.host_maxfps = CLAMP (0, host_maxfps.value, 1000);
 	menu_settings.r_waterwarp = CLAMP (0, (int)r_waterwarp.value, 2);
 	menu_settings.r_particles = CLAMP (0, (int)r_particles.value, 2);
-	menu_settings.host_maxfps = CLAMP (0, host_maxfps.value, 1000);
+	menu_settings.r_scale = CLAMP (1, (int)r_scale.value, 8);
 	menu_settings.vid_filter = CLAMP (0, (int)vid_filter.value, 1);
 	menu_settings.vid_anisotropic = CLAMP (0, (int)vid_anisotropic.value, 1);
-	menu_settings.r_scale = CLAMP (1, (int)r_scale.value, 8);
+	menu_settings.vid_palettize = CLAMP (0, (int)vid_palettize.value, 1);
 
 	vid_changed = false;
 }
@@ -3172,9 +3143,6 @@ typedef struct
 static vid_menu_mode vid_menu_modes[MAX_MODE_LIST];
 static int           vid_menu_nummodes = 0;
 
-static int vid_menu_bpps[MAX_BPPS_LIST];
-static int vid_menu_numbpps = 0;
-
 static int vid_menu_rates[MAX_RATES_LIST];
 static int vid_menu_numrates = 0;
 
@@ -3209,62 +3177,9 @@ static void VID_Menu_Init (void)
 
 /*
 ================
-VID_Menu_RebuildBppList
-
-regenerates bpp list based on current vid_width and vid_height
-================
-*/
-static void VID_Menu_RebuildBppList (void)
-{
-	int i, j, b;
-
-	vid_menu_numbpps = 0;
-
-	for (i = 0; i < nummodes; i++)
-	{
-		if (vid_menu_numbpps >= MAX_BPPS_LIST)
-			break;
-
-		// bpp list is limited to bpps available with current width/height
-		if (modelist[i].width != vid_width.value || modelist[i].height != vid_height.value)
-			continue;
-
-		b = modelist[i].bpp;
-
-		for (j = 0; j < vid_menu_numbpps; j++)
-		{
-			if (vid_menu_bpps[j] == b)
-				break;
-		}
-
-		if (j == vid_menu_numbpps)
-		{
-			vid_menu_bpps[j] = b;
-			vid_menu_numbpps++;
-		}
-	}
-
-	// if there are no valid fullscreen bpps for this width/height, just pick one
-	if (vid_menu_numbpps == 0)
-	{
-		Cvar_SetValueQuick (&vid_bpp, (float)modelist[0].bpp);
-		return;
-	}
-
-	// if vid_bpp is not in the new list, change vid_bpp
-	for (i = 0; i < vid_menu_numbpps; i++)
-		if (vid_menu_bpps[i] == (int)(vid_bpp.value))
-			break;
-
-	if (i == vid_menu_numbpps)
-		Cvar_SetValueQuick (&vid_bpp, (float)vid_menu_bpps[0]);
-}
-
-/*
-================
 VID_Menu_RebuildRateList
 
-regenerates rate list based on current vid_width, vid_height and vid_bpp
+regenerates rate list based on current vid_width, vid_height
 ================
 */
 static void VID_Menu_RebuildRateList (void)
@@ -3275,8 +3190,8 @@ static void VID_Menu_RebuildRateList (void)
 
 	for (i = 0; i < nummodes; i++)
 	{
-		// rate list is limited to rates available with current width/height/bpp
-		if (modelist[i].width != vid_width.value || modelist[i].height != vid_height.value || modelist[i].bpp != vid_bpp.value)
+		// rate list is limited to rates available with current width/height
+		if (modelist[i].width != vid_width.value || modelist[i].height != vid_height.value)
 			continue;
 
 		r = modelist[i].refreshrate;
@@ -3315,7 +3230,7 @@ static void VID_Menu_RebuildRateList (void)
 VID_Menu_ChooseNextMode
 
 chooses next resolution in order, then updates vid_width and
-vid_height cvars, then updates bpp and refreshrate lists
+vid_height cvars, then updates refreshrate lists
 ================
 */
 static void VID_Menu_ChooseNextMode (int dir)
@@ -3345,7 +3260,6 @@ static void VID_Menu_ChooseNextMode (int dir)
 
 		Cvar_SetValueQuick (&vid_width, (float)vid_menu_modes[i].width);
 		Cvar_SetValueQuick (&vid_height, (float)vid_menu_modes[i].height);
-		VID_Menu_RebuildBppList ();
 		VID_Menu_RebuildRateList ();
 	}
 }
@@ -3353,37 +3267,11 @@ static void VID_Menu_ChooseNextMode (int dir)
 /*
 ================
 VID_Menu_ChooseNextBpp
-
-chooses next bpp in order, then updates vid_bpp cvar
 ================
 */
-static void VID_Menu_ChooseNextBpp (int dir)
+static void VID_Menu_ChooseNextBpp (void)
 {
-	int i;
-
-	if (vid_menu_numbpps)
-	{
-		for (i = 0; i < vid_menu_numbpps; i++)
-		{
-			if (vid_menu_bpps[i] == vid_bpp.value)
-				break;
-		}
-
-		if (i == vid_menu_numbpps) // can't find it in list
-		{
-			i = 0;
-		}
-		else
-		{
-			i += dir;
-			if (i >= vid_menu_numbpps)
-				i = 0;
-			else if (i < 0)
-				i = vid_menu_numbpps - 1;
-		}
-
-		Cvar_SetValueQuick (&vid_bpp, (float)vid_menu_bpps[i]);
-	}
+	menu_settings.vid_palettize = (menu_settings.vid_palettize + 1) % 2;
 }
 
 /*
@@ -3478,6 +3366,7 @@ static void VID_Menu_ChooseNextMaxFPS (int dir)
 {
 	menu_settings.host_maxfps = CLAMP (0, ((menu_settings.host_maxfps + (dir * 10)) / 10) * 10, 1000);
 }
+
 /*
 ================
 VID_Menu_ChooseNextWaterWarp
@@ -3598,7 +3487,7 @@ static void VID_MenuKey (int key)
 			VID_Menu_ChooseNextMode (1);
 			break;
 		case VID_OPT_BPP:
-			VID_Menu_ChooseNextBpp (1);
+			VID_Menu_ChooseNextBpp ();
 			break;
 		case VID_OPT_REFRESHRATE:
 			VID_Menu_ChooseNextRate (1);
@@ -3646,7 +3535,7 @@ static void VID_MenuKey (int key)
 			VID_Menu_ChooseNextMode (-1);
 			break;
 		case VID_OPT_BPP:
-			VID_Menu_ChooseNextBpp (-1);
+			VID_Menu_ChooseNextBpp ();
 			break;
 		case VID_OPT_REFRESHRATE:
 			VID_Menu_ChooseNextRate (-1);
@@ -3695,7 +3584,7 @@ static void VID_MenuKey (int key)
 			VID_Menu_ChooseNextMode (1);
 			break;
 		case VID_OPT_BPP:
-			VID_Menu_ChooseNextBpp (1);
+			VID_Menu_ChooseNextBpp ();
 			break;
 		case VID_OPT_REFRESHRATE:
 			VID_Menu_ChooseNextRate (1);
@@ -3734,9 +3623,10 @@ static void VID_MenuKey (int key)
 			Cvar_SetValueQuick (&host_maxfps, menu_settings.host_maxfps);
 			Cvar_SetValueQuick (&r_particles, menu_settings.r_particles);
 			Cvar_SetValueQuick (&r_waterwarp, menu_settings.r_waterwarp);
+			Cvar_SetValueQuick (&r_scale, menu_settings.r_scale);
 			Cvar_SetValueQuick (&vid_filter, menu_settings.vid_filter);
 			Cvar_SetValueQuick (&vid_anisotropic, menu_settings.vid_anisotropic);
-			Cvar_SetValueQuick (&r_scale, menu_settings.r_scale);
+			Cvar_SetValueQuick (&vid_palettize, menu_settings.vid_palettize);
 			Cbuf_AddText ("vid_restart\n");
 			key_dest = key_game;
 			m_state = m_none;
@@ -3792,7 +3682,7 @@ static void VID_MenuDraw (cb_context_t *cbx)
 			break;
 		case VID_OPT_BPP:
 			M_Print (cbx, 16, y, "       Color depth");
-			M_Print (cbx, 184, y, va ("%i", (int)vid_bpp.value));
+			M_Print (cbx, 184, y, (menu_settings.vid_palettize == 1) ? "classic" : "modern");
 			break;
 		case VID_OPT_REFRESHRATE:
 			M_Print (cbx, 16, y, "      Refresh rate");
@@ -3873,7 +3763,6 @@ static void VID_Menu_f (void)
 	VID_SyncCvars ();
 
 	// set up bpp and rate lists based on current cvars
-	VID_Menu_RebuildBppList ();
 	VID_Menu_RebuildRateList ();
 }
 
