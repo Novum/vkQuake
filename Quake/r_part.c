@@ -807,7 +807,7 @@ void CL_RunParticles (void)
 	float         time1, time2, time3, dvel, frametime, grav;
 	extern cvar_t sv_gravity;
 
-	frametime = q_max (0, cl.time - cl.oldtime);
+	frametime = q_max (0.0, cl.time - cl.oldtime);
 	time3 = frametime * 15;
 	time2 = frametime * 10;
 	time1 = frametime * 5;

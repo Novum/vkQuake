@@ -591,7 +591,7 @@ static void CL_RocketTrail (entity_t *ent, int type)
 		return;
 	R_RocketTrail (ent->trailorg, ent->origin, type);
 
-	ent->traildelay = q_max (0, ent->traildelay + 1.f / 72.f);
+	ent->traildelay = q_max (0.f, ent->traildelay + 1.f / 72.f);
 	VectorCopy (ent->origin, ent->trailorg);
 }
 

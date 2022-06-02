@@ -333,7 +333,7 @@ static void SCR_CalcRefdef (void)
 	else
 		sb_lines = 48 * scale;
 
-	size = q_min (scr_viewsize.value, 100) / 100;
+	size = q_min (scr_viewsize.value, 100.f) / 100;
 	// johnfitz
 
 	// johnfitz -- rewrote this section
