@@ -445,6 +445,94 @@ void TexMgr_Init (void)
 
 /*
 ================
+TexMgr_MipMapW
+================
+*/
+static unsigned *TexMgr_MipMapW (unsigned *data, int width, int height)
+{
+	int   i, size;
+	byte *out, *in;
+
+	out = in = (byte *)data;
+	size = ((width * height) >> 1);
+
+#ifdef USE_SSE2
+	while (size >= 4)
+	{
+		__m128i v0, v1, v2, v3;
+
+		v0 = _mm_loadu_si128 ((const __m128i *)in);
+		v1 = _mm_loadu_si128 ((const __m128i *)in + 1);
+		v0 = _mm_shuffle_epi32 (v0, _MM_SHUFFLE (3, 1, 2, 0));
+		v1 = _mm_shuffle_epi32 (v1, _MM_SHUFFLE (3, 1, 2, 0));
+		v2 = _mm_unpacklo_epi64 (v0, v1);
+		v3 = _mm_unpackhi_epi64 (v0, v1);
+		v0 = _mm_avg_epu8 (v2, v3);
+		_mm_storeu_si128 ((__m128i *)out, v0);
+
+		size -= 4;
+		in += 32;
+		out += 16;
+	}
+#endif
+
+	for (i = 0; i < size; i++, out += 4, in += 8)
+	{
+		out[0] = (in[0] + in[4] + 1) >> 1;
+		out[1] = (in[1] + in[5] + 1) >> 1;
+		out[2] = (in[2] + in[6] + 1) >> 1;
+		out[3] = (in[3] + in[7] + 1) >> 1;
+	}
+
+	return data;
+}
+
+/*
+================
+TexMgr_MipMapH
+================
+*/
+static unsigned *TexMgr_MipMapH (unsigned *data, int width, int height)
+{
+	int   i, j;
+	byte *out, *in;
+
+	out = in = (byte *)data;
+	height >>= 1;
+	width <<= 2;
+
+	for (i = 0; i < height; i++, in += width)
+	{
+		j = 0;
+#ifdef USE_SSE2
+		while (j + 16 <= width)
+		{
+			__m128i v0, v1;
+
+			v0 = _mm_loadu_si128 ((const __m128i *)in);
+			v1 = _mm_loadu_si128 ((const __m128i *)(in + width));
+			v0 = _mm_avg_epu8 (v0, v1);
+			_mm_storeu_si128 ((__m128i *)out, v0);
+
+			j += 16;
+			in += 16;
+			out += 16;
+		}
+#endif
+		for (; j < width; j += 4, out += 4, in += 4)
+		{
+			out[0] = (in[0] + in[width + 0] + 1) >> 1;
+			out[1] = (in[1] + in[width + 1] + 1) >> 1;
+			out[2] = (in[2] + in[width + 2] + 1) >> 1;
+			out[3] = (in[3] + in[width + 3] + 1) >> 1;
+		}
+	}
+
+	return data;
+}
+
+/*
+================
 TexMgr_Downsample
 ================
 */
@@ -864,7 +952,10 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 			num_regions += 1;
 
 			if (mipwidth > 1 && mipheight > 1)
-				TexMgr_Downsample (data, mipwidth, mipheight, mipwidth / 2, mipheight / 2);
+			{
+				TexMgr_MipMapH (data, mipwidth, mipheight);
+				TexMgr_MipMapW (data, mipwidth, mipheight / 2);
+			}
 
 			mipwidth /= 2;
 			mipheight /= 2;
