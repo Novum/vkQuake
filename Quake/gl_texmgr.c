@@ -1086,7 +1086,7 @@ gltexture_t *TexMgr_LoadImage (
 	qmodel_t *owner, const char *name, int width, int height, enum srcformat format, byte *data, const char *source_file, src_offset_t source_offset,
 	unsigned flags)
 {
-	unsigned short crc;
+	unsigned short crc = 0;
 	gltexture_t   *glt;
 	int            mark;
 
@@ -1094,20 +1094,21 @@ gltexture_t *TexMgr_LoadImage (
 		return NULL;
 
 	// cache check
-	switch (format)
-	{
-	case SRC_INDEXED:
-		crc = CRC_Block (data, width * height);
-		break;
-	case SRC_LIGHTMAP:
-		crc = CRC_Block (data, width * height * LIGHTMAP_BYTES);
-		break;
-	case SRC_RGBA:
-		crc = CRC_Block (data, width * height * 4);
-		break;
-	default: /* not reachable but avoids compiler warnings */
-		crc = 0;
-	}
+	if (flags & TEXPREF_OVERWRITE)
+		switch (format)
+		{
+		case SRC_INDEXED:
+			crc = CRC_Block (data, width * height);
+			break;
+		case SRC_LIGHTMAP:
+			crc = CRC_Block (data, width * height * LIGHTMAP_BYTES);
+			break;
+		case SRC_RGBA:
+			crc = CRC_Block (data, width * height * 4);
+			break;
+		default: /* not reachable but avoids compiler warnings */
+			crc = 0;
+		}
 	if ((flags & TEXPREF_OVERWRITE) && (glt = TexMgr_FindTexture (owner, name)))
 	{
 		if (glt->source_crc == crc)
