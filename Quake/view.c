@@ -515,48 +515,6 @@ void V_UpdateBlend (void)
 }
 
 /*
-============
-V_PolyBlend -- johnfitz -- moved here from gl_rmain.c, and rewritten to use glOrtho
-============
-*/
-static void V_PolyBlend (cb_context_t *cbx)
-{
-	int i;
-
-	if (!gl_polyblend.value || !v_blend[3])
-		return;
-
-	GL_SetCanvas (cbx, CANVAS_DEFAULT);
-
-	VkBuffer       vertex_buffer;
-	VkDeviceSize   vertex_buffer_offset;
-	basicvertex_t *vertices = (basicvertex_t *)R_VertexAllocate (3 * sizeof (basicvertex_t), &vertex_buffer, &vertex_buffer_offset);
-
-	memset (vertices, 0, 3 * sizeof (basicvertex_t));
-
-	vertices[0].position[0] = 0.0f;
-	vertices[0].position[1] = 0.0f;
-
-	vertices[1].position[0] = vid.width * 2;
-	vertices[1].position[1] = 0.0f;
-
-	vertices[2].position[0] = 0.0f;
-	vertices[2].position[1] = vid.height * 2;
-
-	for (i = 0; i < 3; ++i)
-	{
-		vertices[i].color[0] = v_blend[0] * 255.0f;
-		vertices[i].color[1] = v_blend[1] * 255.0f;
-		vertices[i].color[2] = v_blend[2] * 255.0f;
-		vertices[i].color[3] = v_blend[3] * 255.0f;
-	}
-
-	vkCmdBindVertexBuffers (cbx->cb, 0, 1, &vertex_buffer, &vertex_buffer_offset);
-	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_poly_blend_pipeline);
-	vkCmdDraw (cbx->cb, 3, 1, 0, 0);
-}
-
-/*
 ==============================================================================
 
     VIEW RENDERING
@@ -908,8 +866,6 @@ void V_RenderView (qboolean use_tasks)
 	// johnfitz -- removed lcd code
 
 	R_RenderView (use_tasks);
-
-	V_PolyBlend (&vulkan_globals.secondary_cb_contexts[CBX_VIEW_MODEL]); // johnfitz -- moved here from R_Renderview ();
 }
 
 /*

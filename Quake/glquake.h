@@ -248,7 +248,6 @@ typedef struct
 	vulkan_pipeline_t        basic_alphatest_pipeline[2];
 	vulkan_pipeline_t        basic_blend_pipeline[2];
 	vulkan_pipeline_t        basic_notex_blend_pipeline[2];
-	vulkan_pipeline_t        basic_poly_blend_pipeline;
 	vulkan_pipeline_layout_t basic_pipeline_layout;
 	vulkan_pipeline_t        world_pipelines[WORLD_PIPELINE_COUNT];
 	vulkan_pipeline_layout_t world_pipeline_layout;

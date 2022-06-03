@@ -1434,7 +1434,7 @@ void R_CreatePipelineLayouts ()
 
 	memset (&push_constant_range, 0, sizeof (push_constant_range));
 	push_constant_range.offset = 0;
-	push_constant_range.size = 3 * sizeof (uint32_t) + 4 * sizeof (float);
+	push_constant_range.size = 3 * sizeof (uint32_t) + 8 * sizeof (float);
 	push_constant_range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
 	pipeline_layout_create_info.setLayoutCount = 1;
@@ -1976,14 +1976,6 @@ static void R_CreateBasicPipelines ()
 	infos.graphics_pipeline.renderPass = main_render_pass;
 	infos.graphics_pipeline.subpass = 0;
 	infos.multisample_state.rasterizationSamples = vulkan_globals.sample_count;
-
-	assert (vulkan_globals.basic_poly_blend_pipeline.handle == VK_NULL_HANDLE);
-	err =
-		vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.basic_poly_blend_pipeline.handle);
-	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateGraphicsPipelines failed");
-	vulkan_globals.basic_poly_blend_pipeline.layout = vulkan_globals.basic_pipeline_layout;
-	GL_SetObjectName ((uint64_t)vulkan_globals.basic_poly_blend_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "basic_poly_blend");
 
 	infos.shader_stages[1].module = basic_frag_module;
 
@@ -2813,8 +2805,6 @@ void R_DestroyPipelines (void)
 		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.basic_notex_blend_pipeline[i].handle, NULL);
 		vulkan_globals.basic_notex_blend_pipeline[i].handle = VK_NULL_HANDLE;
 	}
-	vkDestroyPipeline (vulkan_globals.device, vulkan_globals.basic_poly_blend_pipeline.handle, NULL);
-	vulkan_globals.basic_poly_blend_pipeline.handle = VK_NULL_HANDLE;
 	for (i = 0; i < WORLD_PIPELINE_COUNT; ++i)
 	{
 		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.world_pipelines[i].handle, NULL);

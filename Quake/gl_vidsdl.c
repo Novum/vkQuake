@@ -2277,6 +2277,10 @@ typedef struct screen_effect_constants_s
 	float    aspect_ratio;
 	float    time;
 	uint32_t flags;
+	float    poly_blend_r;
+	float    poly_blend_g;
+	float    poly_blend_b;
+	float    poly_blend_a;
 } screen_effect_constants_t;
 
 /*
@@ -2352,8 +2356,17 @@ static void GL_ScreenEffects (cb_context_t *cbx, qboolean enabled)
 		if (vid_palettize.value)
 			screen_effect_flags |= 0x10;
 		const screen_effect_constants_t push_constants = {
-			vid.width - 1, vid.height - 1,     1.0f / (float)vid.width, 1.0f / (float)vid.height, (float)vid.width / (float)vid.height,
-			cl.time,       screen_effect_flags};
+			vid.width - 1,
+			vid.height - 1,
+			1.0f / (float)vid.width,
+			1.0f / (float)vid.height,
+			(float)vid.width / (float)vid.height,
+			cl.time,
+			screen_effect_flags,
+			v_blend[0],
+			v_blend[1],
+			v_blend[2],
+			v_blend[3]};
 		R_PushConstants (cbx, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof (screen_effect_constants_t), &push_constants);
 
 		vkCmdDispatch (cbx->cb, (vid.width + 7) / 8, (vid.height + 7) / 8, 1);
@@ -2443,7 +2456,7 @@ void GL_EndRendering (qboolean swapchain_acquired)
 	clear_values[1] = depth_clear_value;
 	clear_values[2] = vulkan_globals.color_clear_value;
 
-	const qboolean screen_effects = render_warp || (render_scale >= 2) || vid_palettize.value;
+	const qboolean screen_effects = render_warp || (render_scale >= 2) || vid_palettize.value || (gl_polyblend.value && v_blend[3]);
 	{
 		const qboolean        resolve = (vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT);
 		VkRenderPassBeginInfo render_pass_begin_info;

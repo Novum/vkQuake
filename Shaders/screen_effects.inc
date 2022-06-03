@@ -20,6 +20,10 @@ layout(push_constant) uniform PushConsts {
 	float	aspect_ratio;
 	float	time;
 	uint	flags;
+	float	poly_blend_r;
+	float	poly_blend_g;
+	float	poly_blend_b;
+	float	poly_blend_a;
 } push_constants;
 
 #if defined(USE_SUBGROUP_OPS)
@@ -249,5 +253,7 @@ void main()
 		}
 	}
 	
+	color.rgb = mix(color.rgb, vec3(push_constants.poly_blend_r, push_constants.poly_blend_g, push_constants.poly_blend_b), push_constants.poly_blend_a);
+
 	imageStore(output_image, ivec2(pos_x, pos_y), color);
 }
