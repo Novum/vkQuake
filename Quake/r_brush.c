@@ -29,10 +29,17 @@ extern cvar_t gl_fullbrights, r_drawflat, r_gpulightmapupdate; // johnfitz
 
 int gl_lightmap_format;
 
+#define SHELVES 4
+#define SHELF_HEIGHT (LMBLOCK_HEIGHT / SHELVES)
+
 struct lightmap_s *lightmaps;
 int                lightmap_count;
 int                last_lightmap_allocated;
-int                allocated[LMBLOCK_WIDTH];
+int                used_columns[MAX_SANITY_LIGHTMAPS][SHELVES];
+int                lightmap_idx[18];
+int                shelf_idx[18];
+int                columns[18];
+int                rows[18];
 
 unsigned blocklights[LMBLOCK_WIDTH * LMBLOCK_HEIGHT * 3 + 1]; // johnfitz -- was 18*18, added lit support (*3) and loosened surface extents maximum
                                                               // (LMBLOCK_WIDTH*LMBLOCK_HEIGHT)
@@ -392,17 +399,11 @@ void R_RenderDynamicLightmaps (msurface_t *fa)
 AllocBlock -- returns a texture number and the position inside it
 ========================
 */
-int AllocBlock (int w, int h, int *x, int *y)
+static int AllocBlock (int w, int h, int *x, int *y)
 {
 	int i, j;
-	int best, best2;
 	int texnum;
 
-	// ericw -- rather than searching starting at lightmap 0 every time,
-	// start at the last lightmap we allocated a surface in.
-	// This makes AllocBlock much faster on large levels (can shave off 3+ seconds
-	// of load time on a level with 180 lightmaps), at a cost of not quite packing
-	// lightmaps as tightly vs. not doing this (uses ~5% more lightmaps)
 	for (texnum = last_lightmap_allocated; texnum < MAX_SANITY_LIGHTMAPS; texnum++)
 	{
 		if (texnum == lightmap_count)
@@ -424,37 +425,31 @@ int AllocBlock (int w, int h, int *x, int *y)
 					lightmaps[texnum].workgroup_bounds[i].maxs[j] = -FLT_MAX;
 				}
 			}
-			// as we're only tracking one texture, we don't need multiple copies of allocated any more.
-			memset (allocated, 0, sizeof (allocated));
+			memset (used_columns[texnum], 0, sizeof(used_columns[texnum]));
+			last_lightmap_allocated = texnum;
 		}
-		best = LMBLOCK_HEIGHT;
 
-		for (i = 0; i < LMBLOCK_WIDTH - w; i++)
+		if (columns[w] < 0 || rows[w] + h - shelf_idx[w] * SHELF_HEIGHT > SHELF_HEIGHT) // need another shelf
 		{
-			best2 = 0;
-
-			for (j = 0; j < w; j++)
+			while (used_columns[lightmap_idx[w]][shelf_idx[w]] + w > LMBLOCK_WIDTH)
 			{
-				if (allocated[i + j] >= best)
+				if (++shelf_idx[w] < SHELVES)
+					continue;
+				shelf_idx[w] = 0;
+				if (++lightmap_idx[w] == lightmap_count)
 					break;
-				if (allocated[i + j] > best2)
-					best2 = allocated[i + j];
 			}
-			if (j == w)
-			{ // this is a valid spot
-				*x = i;
-				*y = best = best2;
-			}
+			if (lightmap_idx[w] == lightmap_count) // need another lightmap
+				continue;
+
+			columns[w] = used_columns[lightmap_idx[w]][shelf_idx[w]];
+			used_columns[lightmap_idx[w]][shelf_idx[w]] += w;
+			rows[w] = shelf_idx[w] * SHELF_HEIGHT;
 		}
-
-		if (best + h > LMBLOCK_HEIGHT)
-			continue;
-
-		for (i = 0; i < w; i++)
-			allocated[*x + i] = best + h;
-
-		last_lightmap_allocated = texnum;
-		return texnum;
+		*x = columns[w];
+		*y = rows[w];
+		rows[w] += h; 
+		return lightmap_idx[w];
 	}
 
 	Sys_Error ("AllocBlock: full");
@@ -958,6 +953,9 @@ void GL_BuildLightmaps (void)
 	lightmaps = NULL;
 	last_lightmap_allocated = 0;
 	lightmap_count = 0;
+	memset (columns, -1, sizeof (columns));
+	memset (lightmap_idx, 0, sizeof (lightmap_idx));
+	memset (shelf_idx, 0, sizeof (shelf_idx));
 
 	for (i = 1; i < MAX_MODELS; ++i)
 	{
