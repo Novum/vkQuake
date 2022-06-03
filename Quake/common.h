@@ -58,7 +58,7 @@ IMPL_Q_MIN (int64_t)
 IMPL_Q_MIN (uint64_t)
 IMPL_Q_MIN (float)
 IMPL_Q_MIN (double)
-#define q_min(a, b) _Generic(+(a), \
+#define q_min(a, b) _Generic((a) + (b), \
 	int8_t: q_min_int8_t, \
 	uint8_t: q_min_uint8_t, \
 	int16_t: q_min_int16_t, \
@@ -85,7 +85,7 @@ IMPL_Q_MAX (int64_t)
 IMPL_Q_MAX (uint64_t)
 IMPL_Q_MAX (float)
 IMPL_Q_MAX (double)
-#define q_max(a, b) _Generic(+(a), \
+#define q_max(a, b) _Generic((a) + (b), \
 	int8_t: q_max_int8_t, \
 	uint8_t: q_max_uint8_t, \
 	int16_t: q_max_int16_t, \
@@ -112,7 +112,7 @@ IMPL_CLAMP (int64_t)
 IMPL_CLAMP (uint64_t)
 IMPL_CLAMP (float)
 IMPL_CLAMP (double)
-#define CLAMP(minval, val, maxval) _Generic(+(val), \
+#define CLAMP(minval, val, maxval) _Generic((minval) + (val) + (maxval), \
 	int8_t: clamp_int8_t, \
 	uint8_t: clamp_uint8_t, \
 	int16_t: clamp_int16_t, \
