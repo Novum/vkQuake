@@ -1342,9 +1342,9 @@ void GL_PrepareSIMDData (void)
 #ifdef USE_SIMD
 	int i;
 
-	cl.worldmodel->soa_leafbounds = Hunk_Alloc (6 * sizeof (float) * ((cl.worldmodel->numleafs + 7) & ~7));
-	cl.worldmodel->surfvis = Hunk_Alloc ((cl.worldmodel->numsurfaces + 7) >> 3);
-	cl.worldmodel->soa_surfplanes = Hunk_Alloc (4 * sizeof (float) * ((cl.worldmodel->numsurfaces + 7) & ~7));
+	cl.worldmodel->soa_leafbounds = Hunk_Alloc (6 * sizeof (float) * ((cl.worldmodel->numleafs + 31) & ~7));
+	cl.worldmodel->surfvis = Hunk_Alloc (((cl.worldmodel->numsurfaces + 31) / 8));
+	cl.worldmodel->soa_surfplanes = Hunk_Alloc (4 * sizeof (float) * ((cl.worldmodel->numsurfaces + 31) & ~7));
 
 	for (i = 0; i < cl.worldmodel->numleafs; ++i)
 	{

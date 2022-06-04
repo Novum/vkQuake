@@ -64,6 +64,11 @@ static inline uint32_t Atomic_AddUInt32 (volatile atomic_uint32_t *atomic, uint3
 	return InterlockedAdd ((volatile LONG *)&atomic->value, value) - value;
 }
 
+static inline uint32_t Atomic_OrUInt32 (volatile atomic_uint32_t *atomic, uint32_t val)
+{
+	return InterlockedOr ((volatile LONG *)&atomic->value, val);
+}
+
 static inline uint32_t Atomic_IncrementUInt32 (volatile atomic_uint32_t *atomic)
 {
 	return InterlockedIncrement ((volatile LONG *)&atomic->value) - 1;
@@ -124,6 +129,11 @@ static inline void Atomic_StoreUInt32 (atomic_uint32_t *atomic, uint32_t desired
 static inline uint32_t Atomic_AddUInt32 (atomic_uint32_t *atomic, uint32_t value)
 {
 	return atomic_fetch_add (atomic, value);
+}
+
+static inline uint32_t Atomic_OrUInt32 (atomic_uint32_t *atomic, uint32_t value)
+{
+	return atomic_fetch_or (atomic, value);
 }
 
 static inline uint32_t Atomic_IncrementUInt32 (atomic_uint32_t *atomic)

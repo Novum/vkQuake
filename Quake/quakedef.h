@@ -362,12 +362,14 @@ static inline int FindFirstBitNonZero (const uint32_t mask)
 	return result;
 }
 #define THREAD_LOCAL __declspec(thread)
+#define FORCE_INLINE __forceinline
 #else
 static inline int FindFirstBitNonZero (const uint32_t mask)
 {
 	return __builtin_ctz (mask);
 }
 #define THREAD_LOCAL _Thread_local
+#define FORCE_INLINE __attribute__ ((always_inline)) inline
 #endif
 
 extern int current_skill; // skill level for currently loaded level (in case

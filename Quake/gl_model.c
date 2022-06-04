@@ -172,7 +172,7 @@ byte *Mod_DecompressVis (byte *in, qmodel_t *model)
 	byte *outend;
 	int   row;
 
-	row = (model->numleafs + 7) >> 3;
+	row = (model->numleafs + 31) / 8;
 	if (mod_decompressed == NULL || row > mod_decompressed_capacity)
 	{
 		mod_decompressed_capacity = row;
@@ -237,7 +237,7 @@ byte *Mod_NoVisPVS (qmodel_t *model)
 {
 	int pvsbytes;
 
-	pvsbytes = (model->numleafs + 7) >> 3;
+	pvsbytes = (model->numleafs + 31) / 8;
 	if (mod_novis == NULL || pvsbytes > mod_novis_capacity)
 	{
 		mod_novis_capacity = pvsbytes;

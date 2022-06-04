@@ -50,6 +50,18 @@ mark_surfaces_state_t
 */
 typedef struct
 {
+#if defined(USE_SIMD)
+	__m128 frustum_px[4];
+	__m128 frustum_py[4];
+	__m128 frustum_pz[4];
+	__m128 frustum_pd[4];
+	__m128 vieworg_px;
+	__m128 vieworg_py;
+	__m128 vieworg_pz;
+	int    frustum_ofsx[4];
+	int    frustum_ofsy[4];
+	int    frustum_ofsz[4];
+#endif
 	byte *vis;
 } mark_surfaces_state_t;
 mark_surfaces_state_t mark_surfaces_state;
@@ -94,7 +106,7 @@ void R_ChainSurface (msurface_t *surf, texchain_t chain)
 R_BackFaceCull -- johnfitz -- returns true if the surface is facing away from vieworg
 ================
 */
-qboolean R_BackFaceCull (msurface_t *surf)
+static inline qboolean R_BackFaceCull (msurface_t *surf)
 {
 	double dot;
 
@@ -162,72 +174,73 @@ void R_SetupWorldCBXTexRanges (qboolean use_tasks)
 ===============
 R_BackFaceCullSIMD
 
-Performs backface culling for 8 planes
+Performs backface culling for 32 planes
 ===============
 */
-byte R_BackFaceCullSIMD (soa_plane_t plane)
+static FORCE_INLINE uint32_t R_BackFaceCullSIMD (soa_plane_t *planes)
 {
-	__m128 pos = _mm_loadu_ps (r_refdef.vieworg);
+	__m128 px = mark_surfaces_state.vieworg_px;
+	__m128 py = mark_surfaces_state.vieworg_py;
+	__m128 pz = mark_surfaces_state.vieworg_pz;
 
-	__m128 px = _mm_shuffle_ps (pos, pos, _MM_SHUFFLE (0, 0, 0, 0));
-	__m128 v0 = _mm_mul_ps (_mm_loadu_ps (plane + 0), px);
-	__m128 v1 = _mm_mul_ps (_mm_loadu_ps (plane + 4), px);
+	uint32_t activelanes = 0;
+	for (int plane_index = 0; plane_index < 4; ++plane_index)
+	{
+		soa_plane_t *plane = planes + plane_index;
 
-	__m128 py = _mm_shuffle_ps (pos, pos, _MM_SHUFFLE (1, 1, 1, 1));
-	v0 = _mm_add_ps (v0, _mm_mul_ps (_mm_loadu_ps (plane + 8), py));
-	v1 = _mm_add_ps (v1, _mm_mul_ps (_mm_loadu_ps (plane + 12), py));
+		__m128 v0 = _mm_mul_ps (_mm_loadu_ps ((*plane) + 0), px);
+		__m128 v1 = _mm_mul_ps (_mm_loadu_ps ((*plane) + 4), px);
 
-	__m128 pz = _mm_shuffle_ps (pos, pos, _MM_SHUFFLE (2, 2, 2, 2));
-	v0 = _mm_add_ps (v0, _mm_mul_ps (_mm_loadu_ps (plane + 16), pz));
-	v1 = _mm_add_ps (v1, _mm_mul_ps (_mm_loadu_ps (plane + 20), pz));
+		v0 = _mm_add_ps (v0, _mm_mul_ps (_mm_loadu_ps ((*plane) + 8), py));
+		v1 = _mm_add_ps (v1, _mm_mul_ps (_mm_loadu_ps ((*plane) + 12), py));
 
-	__m128 pd0 = _mm_loadu_ps (plane + 24);
-	__m128 pd1 = _mm_loadu_ps (plane + 28);
+		v0 = _mm_add_ps (v0, _mm_mul_ps (_mm_loadu_ps ((*plane) + 16), pz));
+		v1 = _mm_add_ps (v1, _mm_mul_ps (_mm_loadu_ps ((*plane) + 20), pz));
 
-	return _mm_movemask_ps (_mm_cmplt_ps (pd0, v0)) | (_mm_movemask_ps (_mm_cmplt_ps (pd1, v1)) << 4);
+		__m128 pd0 = _mm_loadu_ps ((*plane) + 24);
+		__m128 pd1 = _mm_loadu_ps ((*plane) + 28);
+
+		uint32_t plane_lanes = (uint32_t)(_mm_movemask_ps (_mm_cmplt_ps (pd0, v0)) | (_mm_movemask_ps (_mm_cmplt_ps (pd1, v1)) << 4));
+		activelanes |= plane_lanes << (plane_index * 8);
+	}
+	return activelanes;
 }
 
 /*
 ===============
 R_CullBoxSIMD
 
-Performs frustum culling for 8 bounding boxes
+Performs frustum culling for 32 bounding boxes
 ===============
 */
-byte R_CullBoxSIMD (soa_aabb_t box, byte activelanes)
+static FORCE_INLINE uint32_t R_CullBoxSIMD (soa_aabb_t *boxes, uint32_t activelanes)
 {
-	int i;
-	for (i = 0; i < 4; i++)
+	for (int frustum_index = 0; frustum_index < 4; ++frustum_index)
 	{
-		mplane_t *p;
-		byte      signbits;
-		int       ofs;
-
 		if (activelanes == 0)
 			break;
 
-		p = frustum + i;
-		signbits = p->signbits;
+		int    ofsx = mark_surfaces_state.frustum_ofsx[frustum_index];
+		int    ofsy = mark_surfaces_state.frustum_ofsy[frustum_index];
+		int    ofsz = mark_surfaces_state.frustum_ofsz[frustum_index];
+		__m128 px = mark_surfaces_state.frustum_px[frustum_index];
+		__m128 py = mark_surfaces_state.frustum_py[frustum_index];
+		__m128 pz = mark_surfaces_state.frustum_pz[frustum_index];
+		__m128 pd = mark_surfaces_state.frustum_pd[frustum_index];
 
-		__m128 vplane = _mm_loadu_ps (p->normal);
-
-		ofs = signbits & 1 ? 0 : 8; // x min/max
-		__m128 px = _mm_shuffle_ps (vplane, vplane, _MM_SHUFFLE (0, 0, 0, 0));
-		__m128 v0 = _mm_mul_ps (_mm_loadu_ps (box + ofs), px);
-		__m128 v1 = _mm_mul_ps (_mm_loadu_ps (box + ofs + 4), px);
-
-		ofs = signbits & 2 ? 16 : 24; // y min/max
-		__m128 py = _mm_shuffle_ps (vplane, vplane, _MM_SHUFFLE (1, 1, 1, 1));
-		v0 = _mm_add_ps (v0, _mm_mul_ps (_mm_loadu_ps (box + ofs), py));
-		v1 = _mm_add_ps (v1, _mm_mul_ps (_mm_loadu_ps (box + ofs + 4), py));
-
-		ofs = signbits & 4 ? 32 : 40; // z min/max
-		__m128 pz = _mm_shuffle_ps (vplane, vplane, _MM_SHUFFLE (2, 2, 2, 2));
-		v0 = _mm_add_ps (v0, _mm_mul_ps (_mm_loadu_ps (box + ofs), pz));
-		v1 = _mm_add_ps (v1, _mm_mul_ps (_mm_loadu_ps (box + ofs + 4), pz));
-
-		__m128 pd = _mm_shuffle_ps (vplane, vplane, _MM_SHUFFLE (3, 3, 3, 3));
-		activelanes &= _mm_movemask_ps (_mm_cmplt_ps (pd, v0)) | (_mm_movemask_ps (_mm_cmplt_ps (pd, v1)) << 4);
+		uint32_t frustum_lanes = 0;
+		for (int boxes_index = 0; boxes_index < 4; ++boxes_index)
+		{
+			soa_aabb_t *box = boxes + boxes_index;
+			__m128      v0 = _mm_mul_ps (_mm_loadu_ps ((*box) + ofsx), px);
+			__m128      v1 = _mm_mul_ps (_mm_loadu_ps ((*box) + ofsx + 4), px);
+			v0 = _mm_add_ps (v0, _mm_mul_ps (_mm_loadu_ps ((*box) + ofsy), py));
+			v1 = _mm_add_ps (v1, _mm_mul_ps (_mm_loadu_ps ((*box) + ofsy + 4), py));
+			v0 = _mm_add_ps (v0, _mm_mul_ps (_mm_loadu_ps ((*box) + ofsz), pz));
+			v1 = _mm_add_ps (v1, _mm_mul_ps (_mm_loadu_ps ((*box) + ofsz + 4), pz));
+			frustum_lanes |= (uint32_t)(_mm_movemask_ps (_mm_cmplt_ps (pd, v0)) | (_mm_movemask_ps (_mm_cmplt_ps (pd, v1)) << 4)) << (boxes_index * 8);
+		}
+		activelanes &= frustum_lanes;
 	}
 
 	return activelanes;
@@ -246,17 +259,18 @@ void R_MarkVisSurfacesSIMD (qboolean *use_tasks)
 	unsigned int i, k;
 	unsigned int numleafs = cl.worldmodel->numleafs;
 	unsigned int numsurfaces = cl.worldmodel->numsurfaces;
-	byte        *surfvis = cl.worldmodel->surfvis;
+	uint32_t    *vis = (uint32_t *)mark_surfaces_state.vis;
+	uint32_t    *surfvis = (uint32_t *)cl.worldmodel->surfvis;
 	soa_aabb_t  *leafbounds = cl.worldmodel->soa_leafbounds;
 
 	// iterate through leaves, marking surfaces
-	for (i = 0; i < numleafs; i += 8)
+	for (i = 0; i < numleafs; i += 32)
 	{
-		byte mask = mark_surfaces_state.vis[i / 8];
+		uint32_t mask = vis[i / 32];
 		if (mask == 0)
 			continue;
 
-		mask = R_CullBoxSIMD (leafbounds[i / 8], mask);
+		mask = R_CullBoxSIMD (&leafbounds[i / 8], mask);
 		while (mask != 0)
 		{
 			const int j = FindFirstBitNonZero (mask);
@@ -270,7 +284,7 @@ void R_MarkVisSurfacesSIMD (qboolean *use_tasks)
 				for (k = 0; k < nummarksurfaces; ++k)
 				{
 					unsigned int index = marksurfaces[k];
-					surfvis[index / 8] |= 1u << (index % 8);
+					surfvis[index / 32] |= 1u << (index % 32);
 				}
 			}
 
@@ -281,13 +295,13 @@ void R_MarkVisSurfacesSIMD (qboolean *use_tasks)
 	}
 
 	uint32_t brushpolys = 0;
-	for (i = 0; i < numsurfaces; i += 8)
+	for (i = 0; i < numsurfaces; i += 32)
 	{
-		byte mask = surfvis[i / 8];
+		uint32_t mask = surfvis[i / 32];
 		if (mask == 0)
 			continue;
 
-		mask &= R_BackFaceCullSIMD (cl.worldmodel->soa_surfplanes[i / 8]);
+		mask &= R_BackFaceCullSIMD (&cl.worldmodel->soa_surfplanes[i / 8]);
 		while (mask != 0)
 		{
 			const int j = FindFirstBitNonZero (mask);
@@ -316,18 +330,19 @@ R_MarkLeafsSIMD
 */
 void R_MarkLeafsSIMD (int index, void *unused)
 {
-	unsigned int    j;
-	unsigned int    first_leaf = index * 8;
-	atomic_uint8_t *surfvis = (atomic_uint8_t *)cl.worldmodel->surfvis;
-	soa_aabb_t     *leafbounds = cl.worldmodel->soa_leafbounds;
+	unsigned int     j;
+	unsigned int     first_leaf = index * 32;
+	atomic_uint32_t *surfvis = (atomic_uint32_t *)cl.worldmodel->surfvis;
+	soa_aabb_t      *leafbounds = cl.worldmodel->soa_leafbounds;
+	uint32_t        *vis = (uint32_t *)mark_surfaces_state.vis;
 
-	byte *mask = &mark_surfaces_state.vis[index];
+	uint32_t *mask = &vis[index];
 	if (*mask == 0)
 		return;
 
-	*mask = R_CullBoxSIMD (leafbounds[index], *mask);
+	*mask = R_CullBoxSIMD (&leafbounds[index * 4], *mask);
 
-	uint8_t mask_iter = *mask;
+	uint32_t mask_iter = *mask;
 	while (mask_iter != 0)
 	{
 		const int i = FindFirstBitNonZero (mask_iter);
@@ -340,10 +355,10 @@ void R_MarkLeafsSIMD (int index, void *unused)
 			for (j = 0; j < nummarksurfaces; ++j)
 			{
 				unsigned int surf_index = marksurfaces[j];
-				Atomic_OrUInt8 (&surfvis[surf_index / 8], 1u << (surf_index % 8));
+				Atomic_OrUInt32 (&surfvis[surf_index / 32], 1u << (surf_index % 32));
 			}
 		}
-		const uint8_t bit_mask = ~(1u << i);
+		const uint32_t bit_mask = ~(1u << i);
 		if (!leaf->efrags)
 		{
 			*mask &= bit_mask;
@@ -359,27 +374,27 @@ R_BackfaceCullSurfacesSIMD
 */
 void R_BackfaceCullSurfacesSIMD (int index, void *unused)
 {
-	byte       *surfvis = cl.worldmodel->surfvis;
+	uint32_t   *surfvis = (uint32_t *)cl.worldmodel->surfvis;
 	msurface_t *surf;
 
-	byte *mask = &surfvis[index];
+	uint32_t *mask = &surfvis[index];
 	if (*mask == 0)
 		return;
 
-	*mask &= R_BackFaceCullSIMD (cl.worldmodel->soa_surfplanes[index]);
+	*mask &= R_BackFaceCullSIMD (&cl.worldmodel->soa_surfplanes[index * 4]);
 
-	uint8_t mask_iter = *mask;
+	uint32_t mask_iter = *mask;
 	while (mask_iter != 0)
 	{
 		const int i = FindFirstBitNonZero (mask_iter);
 
-		surf = &cl.worldmodel->surfaces[(index * 8) + i];
+		surf = &cl.worldmodel->surfaces[(index * 32) + i];
 		if (surf->lightmaptexturenum >= 0)
 			lightmaps[surf->lightmaptexturenum].modified = true;
 		if (surf->texinfo->texture->warpimage)
 			surf->texinfo->texture->update_warp = true;
 
-		const uint8_t bit_mask = ~(1u << i);
+		const uint32_t bit_mask = ~(1u << i);
 		mask_iter &= bit_mask;
 	}
 }
@@ -393,9 +408,10 @@ void R_StoreLeafEFrags (void *unused)
 {
 	unsigned int i;
 	unsigned int numleafs = cl.worldmodel->numleafs;
-	for (i = 0; i < numleafs; i += 8)
+	uint32_t    *vis = (uint32_t *)mark_surfaces_state.vis;
+	for (i = 0; i < numleafs; i += 32)
 	{
-		byte mask = mark_surfaces_state.vis[i / 8];
+		uint32_t mask = vis[i / 32];
 		while (mask != 0)
 		{
 			const int j = FindFirstBitNonZero (mask);
@@ -416,11 +432,11 @@ void R_ChainVisSurfaces (qboolean *use_tasks)
 	unsigned int i;
 	msurface_t  *surf;
 	unsigned int numsurfaces = cl.worldmodel->numsurfaces;
-	byte        *surfvis = cl.worldmodel->surfvis;
+	uint32_t    *surfvis = (uint32_t *)cl.worldmodel->surfvis;
 	uint32_t     brushpolys = 0;
-	for (i = 0; i < numsurfaces; i += 8)
+	for (i = 0; i < numsurfaces; i += 32)
 	{
-		byte mask = surfvis[i / 8];
+		uint32_t mask = surfvis[i / 32];
 		while (mask != 0)
 		{
 			const int j = FindFirstBitNonZero (mask);
@@ -447,11 +463,12 @@ void R_MarkVisSurfaces (qboolean *use_tasks)
 	msurface_t *surf;
 	mleaf_t    *leaf;
 	uint32_t    brushpolys = 0;
+	uint32_t   *vis = (uint32_t *)mark_surfaces_state.vis;
 
 	leaf = &cl.worldmodel->leafs[1];
 	for (i = 0; i < cl.worldmodel->numleafs; i++, leaf++)
 	{
-		if (mark_surfaces_state.vis[i >> 3] & (1 << (i & 7)))
+		if (vis[i / 32] & (1u << (i % 32)))
 		{
 			if (R_CullBox (leaf->minmaxs, leaf->minmaxs + 3))
 				continue;
@@ -498,7 +515,7 @@ static void R_MarkSurfacesPrepare (void *unused)
 {
 	int      i;
 	qboolean nearwaterportal;
-	int      maxleafs = cl.worldmodel->numleafs;
+	int      numleafs = cl.worldmodel->numleafs;
 
 	// check this leaf for water portals
 	// TODO: loop through all water surfs and use distance to leaf cullbox
@@ -515,8 +532,9 @@ static void R_MarkSurfacesPrepare (void *unused)
 	else
 		mark_surfaces_state.vis = Mod_LeafPVS (r_viewleaf, cl.worldmodel);
 
-	if (maxleafs & 7)
-		mark_surfaces_state.vis[maxleafs >> 3] &= (1 << (maxleafs & 7)) - 1;
+	uint32_t *vis = (uint32_t *)mark_surfaces_state.vis;
+	if ((numleafs % 32) != 0)
+		vis[numleafs / 32] &= (1u << (numleafs % 32)) - 1;
 
 	r_visframecount++;
 
@@ -525,7 +543,30 @@ static void R_MarkSurfacesPrepare (void *unused)
 		if (cl.worldmodel->textures[i])
 			cl.worldmodel->textures[i]->texturechains[chain_world] = NULL;
 
-	memset (cl.worldmodel->surfvis, 0, (cl.worldmodel->numsurfaces + 7) / 8);
+	memset (cl.worldmodel->surfvis, 0, (cl.worldmodel->numsurfaces + 31) / 8);
+
+#if defined(USE_SIMD)
+	if (use_simd)
+	{
+		for (int frustum_index = 0; frustum_index < 4; ++frustum_index)
+		{
+			mplane_t *p = frustum + frustum_index;
+			byte      signbits = p->signbits;
+			__m128    vplane = _mm_loadu_ps (p->normal);
+			mark_surfaces_state.frustum_ofsx[frustum_index] = signbits & 1 ? 0 : 8;   // x min/max
+			mark_surfaces_state.frustum_ofsy[frustum_index] = signbits & 2 ? 16 : 24; // y min/max
+			mark_surfaces_state.frustum_ofsz[frustum_index] = signbits & 4 ? 32 : 40; // z min/max
+			mark_surfaces_state.frustum_px[frustum_index] = _mm_shuffle_ps (vplane, vplane, _MM_SHUFFLE (0, 0, 0, 0));
+			mark_surfaces_state.frustum_py[frustum_index] = _mm_shuffle_ps (vplane, vplane, _MM_SHUFFLE (1, 1, 1, 1));
+			mark_surfaces_state.frustum_pz[frustum_index] = _mm_shuffle_ps (vplane, vplane, _MM_SHUFFLE (2, 2, 2, 2));
+			mark_surfaces_state.frustum_pd[frustum_index] = _mm_shuffle_ps (vplane, vplane, _MM_SHUFFLE (3, 3, 3, 3));
+		}
+		__m128 pos = _mm_loadu_ps (r_refdef.vieworg);
+		mark_surfaces_state.vieworg_px = _mm_shuffle_ps (pos, pos, _MM_SHUFFLE (0, 0, 0, 0));
+		mark_surfaces_state.vieworg_py = _mm_shuffle_ps (pos, pos, _MM_SHUFFLE (1, 1, 1, 1));
+		mark_surfaces_state.vieworg_pz = _mm_shuffle_ps (pos, pos, _MM_SHUFFLE (2, 2, 2, 2));
+	}
+#endif
 }
 
 /*
@@ -546,7 +587,7 @@ void R_MarkSurfaces (qboolean use_tasks, task_handle_t before_mark, task_handle_
 			if (r_parallelmark.value)
 			{
 				unsigned int  numleafs = cl.worldmodel->numleafs;
-				task_handle_t mark_surfaces = Task_AllocateAndAssignIndexedFunc (R_MarkLeafsSIMD, (numleafs + 7) / 8, NULL, 0);
+				task_handle_t mark_surfaces = Task_AllocateAndAssignIndexedFunc (R_MarkLeafsSIMD, (numleafs + 31) / 32, NULL, 0);
 				Task_AddDependency (prepare_mark, mark_surfaces);
 				Task_Submit (mark_surfaces);
 
@@ -554,7 +595,7 @@ void R_MarkSurfaces (qboolean use_tasks, task_handle_t before_mark, task_handle_
 				Task_AddDependency (mark_surfaces, *store_efrags);
 
 				unsigned int numsurfaces = cl.worldmodel->numsurfaces;
-				*cull_surfaces = Task_AllocateAndAssignIndexedFunc (R_BackfaceCullSurfacesSIMD, (numsurfaces + 7) / 8, NULL, 0);
+				*cull_surfaces = Task_AllocateAndAssignIndexedFunc (R_BackfaceCullSurfacesSIMD, (numsurfaces + 31) / 32, NULL, 0);
 				Task_AddDependency (mark_surfaces, *cull_surfaces);
 
 				*chain_surfaces = Task_AllocateAndAssignFunc ((task_func_t)R_ChainVisSurfaces, &use_tasks, sizeof (qboolean));
