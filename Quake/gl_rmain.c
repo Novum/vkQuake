@@ -769,7 +769,7 @@ void R_RenderView (qboolean use_tasks)
 		Atomic_StoreUInt32 (&rs_brushpasses, 0u);
 	}
 
-	use_tasks = use_tasks && (r_tasks.value && r_gpulightmapupdate.value) && !r_showtris.value && !r_showbboxes.value;
+	use_tasks = use_tasks && r_tasks.value && r_gpulightmapupdate.value && !r_showtris.value && !r_showbboxes.value;
 	cb_context_t *primary_cbx = &vulkan_globals.primary_cb_context;
 	if (use_tasks)
 	{

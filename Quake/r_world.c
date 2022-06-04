@@ -372,7 +372,7 @@ void R_BackfaceCullSurfacesSIMD (int index, void *unused)
 		const int i = FindFirstBitNonZero (mask_iter);
 
 		surf = &cl.worldmodel->surfaces[(index * 8) + i];
-		if (r_gpulightmapupdate.value && surf->lightmaptexturenum >= 0)
+		if (surf->lightmaptexturenum >= 0)
 			lightmaps[surf->lightmaptexturenum].modified = true;
 		if (surf->texinfo->texture->warpimage)
 			surf->texinfo->texture->update_warp = true;
@@ -424,8 +424,6 @@ void R_ChainVisSurfaces (qboolean *use_tasks)
 			mask &= ~(1u << j);
 			surf = &cl.worldmodel->surfaces[i + j];
 			Atomic_IncrementUInt32 (&rs_brushpolys); // count wpolys here
-			if (!r_gpulightmapupdate.value)
-				R_RenderDynamicLightmaps (surf);
 			R_ChainSurface (surf, chain_world);
 		}
 	}
