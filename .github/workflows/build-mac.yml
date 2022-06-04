@@ -1,0 +1,29 @@
+name: macOS CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: macos-11
+    strategy:
+      fail-fast: false
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install Dependencies
+      run: |
+        brew install libvorbis mad sdl2
+    - name: Install Vulkan SDK
+      uses: humbletim/setup-vulkan-sdk@v1.2.0
+      with:
+        vulkan-query-version: 1.3.204.0
+        vulkan-components: Vulkan-Headers, Vulkan-Loader #, Glslang
+        vulkan-use-cache: true
+    - name: Build vkQuake
+      run: |
+        cd Quake
+        make -j2
+
