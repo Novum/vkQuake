@@ -705,7 +705,6 @@ static void R_DrawEntitiesTask (void *unused)
 {
 	R_SetupContext (&vulkan_globals.secondary_cb_contexts[CBX_ENTITIES]);
 	Fog_EnableGFog (&vulkan_globals.secondary_cb_contexts[CBX_ENTITIES]);              // johnfitz
-	S_ExtraUpdate ();                                                                  // don't let sound get messed up if going slow
 	R_DrawEntitiesOnList (&vulkan_globals.secondary_cb_contexts[CBX_ENTITIES], false); // johnfitz -- false means this is the pass for nonalpha entities
 
 	R_SetupContext (&vulkan_globals.secondary_cb_contexts[CBX_ALPHA_ENTITIES]);
