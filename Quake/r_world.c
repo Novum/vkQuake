@@ -280,6 +280,7 @@ void R_MarkVisSurfacesSIMD (qboolean *use_tasks)
 		}
 	}
 
+	uint32_t brushpolys = 0;
 	for (i = 0; i < numsurfaces; i += 8)
 	{
 		byte mask = surfvis[i / 8];
@@ -293,7 +294,7 @@ void R_MarkVisSurfacesSIMD (qboolean *use_tasks)
 			mask &= ~(1u << j);
 
 			surf = &cl.worldmodel->surfaces[i + j];
-			Atomic_IncrementUInt32 (&rs_brushpolys); // count wpolys here
+			++brushpolys;
 			R_ChainSurface (surf, chain_world);
 			if (!r_gpulightmapupdate.value)
 				R_RenderDynamicLightmaps (surf);
@@ -304,6 +305,7 @@ void R_MarkVisSurfacesSIMD (qboolean *use_tasks)
 		}
 	}
 
+	Atomic_AddUInt32 (&rs_brushpolys, brushpolys); // count wpolys here
 	R_SetupWorldCBXTexRanges(*use_tasks);
 }
 
@@ -415,6 +417,7 @@ void R_ChainVisSurfaces (qboolean *use_tasks)
 	msurface_t  *surf;
 	unsigned int numsurfaces = cl.worldmodel->numsurfaces;
 	byte        *surfvis = cl.worldmodel->surfvis;
+	uint32_t brushpolys = 0;
 	for (i = 0; i < numsurfaces; i += 8)
 	{
 		byte mask = surfvis[i / 8];
@@ -423,11 +426,12 @@ void R_ChainVisSurfaces (qboolean *use_tasks)
 			const int j = FindFirstBitNonZero (mask);
 			mask &= ~(1u << j);
 			surf = &cl.worldmodel->surfaces[i + j];
-			Atomic_IncrementUInt32 (&rs_brushpolys); // count wpolys here
+			++brushpolys;
 			R_ChainSurface (surf, chain_world);
 		}
 	}
 
+	Atomic_AddUInt32 (&rs_brushpolys, brushpolys); // count wpolys here
 	R_SetupWorldCBXTexRanges(*use_tasks);
 }
 #endif // defined(USE_SIMD)
@@ -442,6 +446,7 @@ void R_MarkVisSurfaces (qboolean *use_tasks)
 	int         i, j;
 	msurface_t *surf;
 	mleaf_t    *leaf;
+	uint32_t brushpolys = 0;
 
 	leaf = &cl.worldmodel->leafs[1];
 	for (i = 0; i < cl.worldmodel->numleafs; i++, leaf++)
@@ -461,7 +466,7 @@ void R_MarkVisSurfaces (qboolean *use_tasks)
 						surf->visframe = r_visframecount;
 						if (!R_BackFaceCull (surf))
 						{
-							Atomic_IncrementUInt32 (&rs_brushpolys); // count wpolys here
+							++brushpolys;
 							R_ChainSurface (surf, chain_world);
 							if (!r_gpulightmapupdate.value)
 								R_RenderDynamicLightmaps (surf);
@@ -480,6 +485,7 @@ void R_MarkVisSurfaces (qboolean *use_tasks)
 		}
 	}
 
+	Atomic_AddUInt32 (&rs_brushpolys, brushpolys); // count wpolys here
 	R_SetupWorldCBXTexRanges(*use_tasks);
 }
 
@@ -763,6 +769,7 @@ void R_DrawTextureChains_Water (cb_context_t *cbx, qmodel_t *model, entity_t *en
 		vulkan_globals.vk_cmd_bind_descriptor_sets (
 			cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 0, 1, &greytexture->descriptor_set, 0, NULL);
 
+	uint32_t brushpasses = 0;
 	for (i = 0; i < model->numtextures; ++i)
 	{
 		t = model->textures[i];
@@ -807,7 +814,7 @@ void R_DrawTextureChains_Water (cb_context_t *cbx, qmodel_t *model, entity_t *en
 			lastlightmap = s->lightmaptexturenum;
 			R_BatchSurface (cbx, s, false, false, alpha_blend, false, lightmap_texture);
 
-			Atomic_IncrementUInt32 (&rs_brushpasses);
+			++brushpasses;
 		}
 
 		const qboolean alpha_blend = alpha < 1.0f;
@@ -815,6 +822,8 @@ void R_DrawTextureChains_Water (cb_context_t *cbx, qmodel_t *model, entity_t *en
 			R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 20 * sizeof (float), 1 * sizeof (float), &alpha);
 		R_FlushBatch (cbx, false, false, alpha_blend, false, lightmap_texture);
 	}
+
+	Atomic_AddUInt32 (&rs_brushpasses, brushpasses);
 }
 
 /*
