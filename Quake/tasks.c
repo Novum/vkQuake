@@ -37,6 +37,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define GUTTER_BITS          2
 #define MAX_WORKERS          32
 #define WORKER_HUNK_SIZE     (128 * 1024)
+#define WAIT_SPIN_COUNT		 10000
+#define WAIT_SLEEP_COUNT	 5
 
 COMPILE_TIME_ASSERT (tasks, MAX_PENDING_TASKS >= MAX_EXECUTABLE_TASKS);
 
@@ -128,6 +130,36 @@ static inline task_handle_t CreateTaskHandle (uint32_t index, int id)
 
 /*
 ====================
+SpinWaitSemaphore
+====================
+*/
+static inline void SpinWaitSemaphore(SDL_sem* semaphore)
+{
+	int remaining_sleeps = WAIT_SLEEP_COUNT;
+	int remaining_spins = WAIT_SPIN_COUNT;
+	int result = 0;
+	while ((result = SDL_SemTryWait(semaphore)) != 0)
+	{
+		if (--remaining_spins == 0)
+		{
+			if (--remaining_sleeps == 0)
+				break;
+			else
+				SDL_Delay(0);
+			remaining_spins = WAIT_SPIN_COUNT;
+#ifdef USE_SSE2
+			// Don't have to actually check for SSE2 support, the 
+			// instruction is backwards compatible and executes as a NOP
+			_mm_pause();
+#endif
+		}
+	}
+	if (result != 0)
+		SDL_SemWait(semaphore);
+}
+
+/*
+====================
 CreateTaskQueue
 ====================
 */
@@ -149,7 +181,7 @@ TaskQueuePush
 */
 static inline void TaskQueuePush (task_queue_t *queue, uint32_t task_index)
 {
-	SDL_SemWait (queue->push_semaphore);
+	SpinWaitSemaphore(queue->push_semaphore);
 	uint64_t state = Atomic_LoadUInt64 (&queue->state);
 	uint64_t new_state;
 	uint32_t head;
@@ -180,7 +212,7 @@ TaskQueuePop
 */
 static inline uint32_t TaskQueuePop (task_queue_t *queue)
 {
-	SDL_SemWait (queue->pop_semaphore);
+	SpinWaitSemaphore (queue->pop_semaphore);
 	uint64_t state = Atomic_LoadUInt64 (&queue->state);
 	uint64_t new_state;
 	uint32_t tail;
