@@ -43,86 +43,44 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #undef max
 
 // clang-format off
-#define IMPL_Q_MIN(type) \
-static inline type q_min_##type (type a, type b) \
+#define GENERIC_TYPES(x, separator) \
+	x(int, i) separator \
+	x(unsigned int, u) separator \
+	x(long, l) separator \
+	x(unsigned long, ul) separator \
+	x(long long, ll) separator \
+	x(unsigned long long, ull) separator \
+	x(float, f) separator \
+	x(double, d)
+
+#define COMMA ,
+#define NO_COMMA
+
+#define IMPL_GENERIC_FUNCS(type, suffix) \
+static inline type q_min_##suffix (type a, type b) \
 { \
 	return (a < b) ? a : b; \
-}
-IMPL_Q_MIN (int8_t)
-IMPL_Q_MIN (uint8_t)
-IMPL_Q_MIN (int16_t)
-IMPL_Q_MIN (uint16_t)
-IMPL_Q_MIN (int32_t)
-IMPL_Q_MIN (uint32_t)
-IMPL_Q_MIN (int64_t)
-IMPL_Q_MIN (uint64_t)
-IMPL_Q_MIN (float)
-IMPL_Q_MIN (double)
-#define q_min(a, b) _Generic((a) + (b), \
-	int8_t: q_min_int8_t, \
-	uint8_t: q_min_uint8_t, \
-	int16_t: q_min_int16_t, \
-	uint16_t: q_min_uint16_t, \
-	int32_t: q_min_int32_t, \
-	uint32_t: q_min_uint32_t, \
-	int64_t: q_min_int64_t, \
-	uint64_t: q_min_uint64_t, \
-	float: q_min_float, \
-	double: q_min_double)(a, b)
-
-#define IMPL_Q_MAX(type) \
-static inline type q_max_##type (type a, type b) \
+} \
+static inline type q_max_##suffix (type a, type b) \
 { \
 	return (a > b) ? a : b; \
-}
-IMPL_Q_MAX (int8_t)
-IMPL_Q_MAX (uint8_t)
-IMPL_Q_MAX (int16_t)
-IMPL_Q_MAX (uint16_t)
-IMPL_Q_MAX (int32_t)
-IMPL_Q_MAX (uint32_t)
-IMPL_Q_MAX (int64_t)
-IMPL_Q_MAX (uint64_t)
-IMPL_Q_MAX (float)
-IMPL_Q_MAX (double)
-#define q_max(a, b) _Generic((a) + (b), \
-	int8_t: q_max_int8_t, \
-	uint8_t: q_max_uint8_t, \
-	int16_t: q_max_int16_t, \
-	uint16_t: q_max_uint16_t, \
-	int32_t: q_max_int32_t, \
-	uint32_t: q_max_uint32_t, \
-	int64_t: q_max_int64_t, \
-	uint64_t: q_max_uint64_t, \
-	float: q_max_float, \
-	double: q_max_double)(a, b)
-
-#define IMPL_CLAMP(type) \
-static inline type clamp_##type (type minval, type val, type maxval) \
+} \
+static inline type clamp_##suffix (type minval, type val, type maxval) \
 { \
 	return (val < minval) ? minval : ((val > maxval) ? maxval : val); \
 }
-IMPL_CLAMP (int8_t)
-IMPL_CLAMP (uint8_t)
-IMPL_CLAMP (int16_t)
-IMPL_CLAMP (uint16_t)
-IMPL_CLAMP (int32_t)
-IMPL_CLAMP (uint32_t)
-IMPL_CLAMP (int64_t)
-IMPL_CLAMP (uint64_t)
-IMPL_CLAMP (float)
-IMPL_CLAMP (double)
+
+GENERIC_TYPES (IMPL_GENERIC_FUNCS, NO_COMMA)
+
+#define SELECT_Q_MIN(type, suffix) type: q_min_##suffix
+#define q_min(a, b) _Generic((a) + (b), GENERIC_TYPES (SELECT_Q_MIN, COMMA))(a, b)
+
+#define SELECT_Q_MAX(type, suffix) type: q_max_##suffix
+#define q_max(a, b) _Generic((a) + (b), GENERIC_TYPES (SELECT_Q_MAX, COMMA))(a, b)
+
+#define SELECT_CLAMP(type, suffix) type: clamp_##suffix
 #define CLAMP(minval, val, maxval) _Generic((minval) + (val) + (maxval), \
-	int8_t: clamp_int8_t, \
-	uint8_t: clamp_uint8_t, \
-	int16_t: clamp_int16_t, \
-	uint16_t: clamp_uint16_t, \
-	int32_t: clamp_int32_t, \
-	uint32_t: clamp_uint32_t, \
-	int64_t: clamp_int64_t, \
-	uint64_t: clamp_uint64_t, \
-	float: clamp_float, \
-	double: clamp_double)(minval, val, maxval)
+	GENERIC_TYPES (SELECT_CLAMP, COMMA))(minval, val, maxval)
 // clang-format on
 
 #define countof(x) (sizeof (x) / sizeof ((x)[0]))
