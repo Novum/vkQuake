@@ -26,6 +26,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 
+#if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
+#include <SDL2/SDL.h>
+#else
+#include "SDL.h"
+#endif
+
 qmodel_t *loadmodel;
 char      loadname[32]; // for hunk tags
 
@@ -49,6 +55,8 @@ int      mod_numknown;
 
 texture_t *r_notexture_mip;  // johnfitz -- moved here from r_main.c
 texture_t *r_notexture_mip2; // johnfitz -- used for non-lightmapped surfs with a missing texture
+
+SDL_mutex *cache_mutex;
 
 /*
 ===============
@@ -106,6 +114,8 @@ void Mod_Init (void)
 	strcpy (r_notexture_mip2->name, "notexture2");
 	r_notexture_mip2->height = r_notexture_mip2->width = 32;
 	// johnfitz
+
+	cache_mutex = SDL_CreateMutex();
 }
 
 /*
@@ -117,16 +127,21 @@ Caches the data if needed
 */
 void *Mod_Extradata (qmodel_t *mod)
 {
+	SDL_LockMutex (cache_mutex);
 	void *r;
 
 	r = Cache_Check (&mod->cache);
 	if (r)
+	{
+		SDL_UnlockMutex (cache_mutex);
 		return r;
+	}
 
 	Mod_LoadModel (mod, true);
 
 	if (!mod->cache.data)
 		Sys_Error ("Mod_Extradata: caching failed");
+	SDL_UnlockMutex (cache_mutex);
 	return mod->cache.data;
 }
 
