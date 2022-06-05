@@ -1030,6 +1030,9 @@ void SCR_UpdateScreen (qboolean use_tasks)
 	if (!scr_initialized || !con_initialized || in_update_screen)
 		return; // not initialized yet
 
+	if (Tasks_IsWorker ())
+		return; // not safe
+
 	in_update_screen = true;
 
 	vid.numpages = (gl_triplebuffer.value) ? 3 : 2;

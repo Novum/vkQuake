@@ -21,6 +21,8 @@
 #ifndef __TASKS_H
 #define __TASKS_H
 
+#include "q_stdinc.h"
+
 #include <stdint.h>
 #include <stddef.h>
 
@@ -32,6 +34,7 @@ typedef void (*task_indexed_func_t) (int, void *);
 
 void          Tasks_Init (void);
 int           Tasks_NumWorkers (void);
+qboolean      Tasks_IsWorker (void);
 task_handle_t Task_Allocate (void);
 void          Task_AssignFunc (task_handle_t handle, task_func_t func, void *payload, size_t payload_size);
 void          Task_AssignIndexedFunc (task_handle_t handle, task_indexed_func_t func, uint32_t limit, void *payload, size_t payload_size);

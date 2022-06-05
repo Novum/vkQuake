@@ -79,14 +79,15 @@ typedef struct
 	uint32_t        limit;
 } task_counter_t;
 
-static int             num_workers = 0;
-static SDL_Thread    **worker_threads;
-static task_t          tasks[MAX_PENDING_TASKS];
-static task_queue_t   *free_task_queue;
-static task_queue_t   *executable_task_queue;
-static atomic_uint32_t current_task_id;
-static task_counter_t *indexed_task_counters;
-static uint8_t         steal_worker_indices[MAX_WORKERS * 2];
+static int                   num_workers = 0;
+static SDL_Thread          **worker_threads;
+static task_t                tasks[MAX_PENDING_TASKS];
+static task_queue_t         *free_task_queue;
+static task_queue_t         *executable_task_queue;
+static atomic_uint32_t       current_task_id;
+static task_counter_t       *indexed_task_counters;
+static uint8_t               steal_worker_indices[MAX_WORKERS * 2];
+static THREAD_LOCAL qboolean is_worker = false;
 
 /*
 ====================
@@ -264,6 +265,7 @@ Task_Worker
 */
 static int Task_Worker (void *data)
 {
+	is_worker = true;
 	void *worker_hunk = malloc (WORKER_HUNK_SIZE);
 	Memory_InitWorkerHunk (worker_hunk, WORKER_HUNK_SIZE);
 
@@ -345,6 +347,16 @@ Tasks_NumWorkers
 int Tasks_NumWorkers (void)
 {
 	return num_workers;
+}
+
+/*
+====================
+Tasks_IsWorker
+====================
+*/
+qboolean Tasks_IsWorker (void)
+{
+	return is_worker;
 }
 
 /*
