@@ -550,11 +550,10 @@ static void R_MarkSurfacesPrepare (void *unused)
 		if (cl.worldmodel->textures[i])
 			cl.worldmodel->textures[i]->texturechains[chain_world] = NULL;
 
-	memset (cl.worldmodel->surfvis, 0, (cl.worldmodel->numsurfaces + 31) / 8);
-
 #if defined(USE_SIMD)
 	if (use_simd)
 	{
+		memset (cl.worldmodel->surfvis, 0, (cl.worldmodel->numsurfaces + 31) / 8);
 		for (int frustum_index = 0; frustum_index < 4; ++frustum_index)
 		{
 			mplane_t *p = frustum + frustum_index;
