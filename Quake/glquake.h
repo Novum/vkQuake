@@ -169,8 +169,8 @@ typedef struct vulkan_memory_s
 #define WORLD_PIPELINE_COUNT        8
 #define FTE_PARTICLE_PIPELINE_COUNT 16
 #define MAX_BATCH_SIZE              65536
-#define NUM_WORLD_CBX               4
-#define NUM_ENTITIES_CBX            4
+#define NUM_WORLD_CBX               6
+#define NUM_ENTITIES_CBX            6
 
 typedef enum
 {
@@ -178,10 +178,14 @@ typedef enum
 	CBX_WORLD_1,
 	CBX_WORLD_2,
 	CBX_WORLD_3,
+	CBX_WORLD_4,
+	CBX_WORLD_5,
 	CBX_ENTITIES_0,
 	CBX_ENTITIES_1,
 	CBX_ENTITIES_2,
 	CBX_ENTITIES_3,
+	CBX_ENTITIES_4,
+	CBX_ENTITIES_5,
 	CBX_SKY_AND_WATER,
 	CBX_ALPHA_ENTITIES,
 	CBX_PARTICLES,
