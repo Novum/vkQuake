@@ -271,12 +271,12 @@ typedef struct searchpath_s
 extern searchpath_t *com_searchpaths;
 extern searchpath_t *com_base_searchpaths;
 
-extern int com_filesize;
+extern THREAD_LOCAL int com_filesize;
 struct cache_user_s;
 
-extern char com_basedir[MAX_OSPATH];
-extern char com_gamedir[MAX_OSPATH];
-extern int  file_from_pak; // global indicating that file came from a pak
+extern char             com_basedir[MAX_OSPATH];
+extern char             com_gamedir[MAX_OSPATH];
+extern THREAD_LOCAL int file_from_pak; // global indicating that file came from a pak
 
 const char *COM_GetGameNames (qboolean full);
 qboolean    COM_GameDirMatches (const char *tdirs);

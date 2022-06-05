@@ -23,6 +23,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef _GL_TEXMAN_H
 #define _GL_TEXMAN_H
 
+#include "tasks.h"
+
 // gl_texmgr.h -- fitzquake's texture manager. manages opengl texture images
 
 #define TEXPREF_NONE        0x0000

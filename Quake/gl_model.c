@@ -29,10 +29,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 qmodel_t *loadmodel;
 char      loadname[32]; // for hunk tags
 
-static void      Mod_LoadSpriteModel (qmodel_t *mod, void *buffer);
-static void      Mod_LoadBrushModel (qmodel_t *mod, void *buffer);
-static void      Mod_LoadAliasModel (qmodel_t *mod, void *buffer);
-static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash);
+static void      Mod_LoadSpriteModel (qmodel_t *mod, void *buffer, qboolean load_tasks);
+static void      Mod_LoadBrushModel (qmodel_t *mod, void *buffer, qboolean load_tasks);
+static void      Mod_LoadAliasModel (qmodel_t *mod, void *buffer, qboolean load_tasks);
+static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash, qboolean load_tasks);
 
 cvar_t external_ents = {"external_ents", "1", CVAR_ARCHIVE};
 cvar_t external_vis = {"external_vis", "1", CVAR_ARCHIVE};
@@ -116,7 +116,7 @@ Caches the data if needed
 */
 void *Mod_Extradata (qmodel_t *mod)
 {
-	Mod_LoadModel (mod, true);
+	Mod_LoadModel (mod, true, false);
 	return mod->extradata;
 }
 
@@ -425,7 +425,7 @@ Mod_LoadModel
 Loads a model into the cache
 ==================
 */
-static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
+static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash, qboolean load_tasks)
 {
 	byte *buf;
 	int   mod_type;
@@ -466,15 +466,15 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 	switch (mod_type)
 	{
 	case IDPOLYHEADER:
-		Mod_LoadAliasModel (mod, buf);
+		Mod_LoadAliasModel (mod, buf, load_tasks);
 		break;
 
 	case IDSPRITEHEADER:
-		Mod_LoadSpriteModel (mod, buf);
+		Mod_LoadSpriteModel (mod, buf, load_tasks);
 		break;
 
 	default:
-		Mod_LoadBrushModel (mod, buf);
+		Mod_LoadBrushModel (mod, buf, load_tasks);
 		break;
 	}
 
@@ -489,13 +489,13 @@ Mod_ForName
 Loads in a model for the given name
 ==================
 */
-qmodel_t *Mod_ForName (const char *name, qboolean crash)
+qmodel_t *Mod_ForName (const char *name, qboolean crash, qboolean load_tasks)
 {
 	qmodel_t *mod;
 
 	mod = Mod_FindName (name);
 
-	return Mod_LoadModel (mod, crash);
+	return Mod_LoadModel (mod, crash, load_tasks);
 }
 
 /*
@@ -544,25 +544,140 @@ qboolean Mod_CheckAnimTextureArrayQ64 (texture_t *anims[], int numTex)
 
 /*
 =================
+Mod_LoadTexturesTask
+=================
+*/
+static void Mod_LoadTexturesTask (int i, void *unused)
+{
+	texture_t                *tx = loadmodel->textures[i];
+	if (!tx)
+		return;
+
+	byte                     *pixels_p = (byte *)tx + sizeof (texture_t);
+	int                       pixels = tx->width * tx->height / 64 * 85;
+	char                      texturename[64];
+	src_offset_t              offset;
+	int                       fwidth, fheight;
+	char                      filename[MAX_OSPATH], filename2[MAX_OSPATH], mapname[MAX_OSPATH];
+	byte                     *data = NULL;
+
+	if (!q_strncasecmp (tx->name, "sky", 3)) // sky texture //also note -- was strncmp, changed to match qbsp
+	{
+		if (loadmodel->bspversion == BSPVERSION_QUAKE64)
+			Sky_LoadTextureQ64 (tx);
+		else
+			Sky_LoadTexture (tx);
+	}
+	else if (tx->name[0] == '*') // warping texture
+	{
+		// external textures -- first look in "textures/mapname/" then look in "textures/"
+		COM_StripExtension (loadmodel->name + 5, mapname, sizeof (mapname));
+		q_snprintf (filename, sizeof (filename), "textures/%s/#%s", mapname, tx->name + 1); // this also replaces the '*' with a '#'
+		data = Image_LoadImage (filename, &fwidth, &fheight);
+		if (!data)
+		{
+			q_snprintf (filename, sizeof (filename), "textures/#%s", tx->name + 1);
+			data = Image_LoadImage (filename, &fwidth, &fheight);
+		}
+
+		// now load whatever we found
+		if (data) // load external image
+		{
+			q_strlcpy (texturename, filename, sizeof (texturename));
+			tx->gltexture = TexMgr_LoadImage (loadmodel, texturename, fwidth, fheight, SRC_RGBA, data, filename, 0, TEXPREF_NONE);
+		}
+		else // use the texture from the bsp file
+		{
+			q_snprintf (texturename, sizeof (texturename), "%s:%s", loadmodel->name, tx->name);
+			offset = (src_offset_t)(pixels_p) - (src_offset_t)mod_base;
+			tx->gltexture =
+				TexMgr_LoadImage (loadmodel, texturename, tx->width, tx->height, SRC_INDEXED, (byte *)(tx + 1), loadmodel->name, offset, TEXPREF_NONE);
+		}
+
+		// now create the warpimage, using dummy data from the hunk to create the initial image
+		q_snprintf (texturename, sizeof (texturename), "%s_warp", texturename);
+		tx->warpimage =
+			TexMgr_LoadImage (loadmodel, texturename, WARPIMAGESIZE, WARPIMAGESIZE, SRC_RGBA, NULL, "", 0, TEXPREF_NOPICMIP | TEXPREF_WARPIMAGE);
+		tx->update_warp = true;
+	}
+	else // regular texture
+	{
+		// ericw -- fence textures
+		int extraflags;
+
+		extraflags = 0;
+		if (tx->name[0] == '{')
+			extraflags |= TEXPREF_ALPHA;
+		// ericw
+
+		// external textures -- first look in "textures/mapname/" then look in "textures/"
+		COM_StripExtension (loadmodel->name + 5, mapname, sizeof (mapname));
+		q_snprintf (filename, sizeof (filename), "textures/%s/%s", mapname, tx->name);
+		data = Image_LoadImage (filename, &fwidth, &fheight);
+		if (!data)
+		{
+			q_snprintf (filename, sizeof (filename), "textures/%s", tx->name);
+			data = Image_LoadImage (filename, &fwidth, &fheight);
+		}
+
+		// now load whatever we found
+		if (data) // load external image
+		{
+			tx->gltexture = TexMgr_LoadImage (loadmodel, filename, fwidth, fheight, SRC_RGBA, data, filename, 0, TEXPREF_MIPMAP | extraflags);
+			Mem_Free (data);
+
+			// now try to load glow/luma image from the same place
+			q_snprintf (filename2, sizeof (filename2), "%s_glow", filename);
+			data = Image_LoadImage (filename2, &fwidth, &fheight);
+			if (!data)
+			{
+				q_snprintf (filename2, sizeof (filename2), "%s_luma", filename);
+				data = Image_LoadImage (filename2, &fwidth, &fheight);
+			}
+
+			if (data)
+				tx->fullbright = TexMgr_LoadImage (loadmodel, filename2, fwidth, fheight, SRC_RGBA, data, filename, 0, TEXPREF_MIPMAP | extraflags);
+		}
+		else // use the texture from the bsp file
+		{
+			q_snprintf (texturename, sizeof (texturename), "%s:%s", loadmodel->name, tx->name);
+			offset = (src_offset_t)(pixels_p) - (src_offset_t)mod_base;
+			if (Mod_CheckFullbrights ((byte *)(tx + 1), pixels))
+			{
+				tx->gltexture = TexMgr_LoadImage (
+					loadmodel, texturename, tx->width, tx->height, SRC_INDEXED, (byte *)(tx + 1), loadmodel->name, offset,
+					TEXPREF_MIPMAP | TEXPREF_NOBRIGHT | extraflags);
+				q_snprintf (texturename, sizeof (texturename), "%s:%s_glow", loadmodel->name, tx->name);
+				tx->fullbright = TexMgr_LoadImage (
+					loadmodel, texturename, tx->width, tx->height, SRC_INDEXED, (byte *)(tx + 1), loadmodel->name, offset,
+					TEXPREF_MIPMAP | TEXPREF_FULLBRIGHT | extraflags);
+			}
+			else
+			{
+				tx->gltexture = TexMgr_LoadImage (
+					loadmodel, texturename, tx->width, tx->height, SRC_INDEXED, (byte *)(tx + 1), loadmodel->name, offset, TEXPREF_MIPMAP | extraflags);
+			}
+		}
+	}
+	Mem_Free (data);
+}
+
+/*
+=================
 Mod_LoadTextures
 =================
 */
-void Mod_LoadTextures (lump_t *l)
+static void Mod_LoadTextures (lump_t *l, qboolean load_tasks)
 {
-	int          i, j, pixels, num, maxanim, altmax;
-	miptex_t     mt;
-	texture_t   *tx, *tx2;
-	texture_t   *anims[10];
-	texture_t   *altanims[10];
-	byte        *m;
-	byte        *pixels_p;
-	char         texturename[64];
-	int          nummiptex;
-	int          dataofs;
-	src_offset_t offset;
-	int          fwidth, fheight;
-	char         filename[MAX_OSPATH], filename2[MAX_OSPATH], mapname[MAX_OSPATH];
-	byte        *data = NULL;
+	int        i, j, pixels, num, maxanim, altmax;
+	miptex_t   mt;
+	texture_t *tx, *tx2;
+	texture_t *anims[10];
+	texture_t *altanims[10];
+	byte      *m;
+	byte      *pixels_p;
+	int        nummiptex;
+	int        dataofs;
 
 	// johnfitz -- don't return early if no textures; still need to create dummy texture
 	if (!l->filelen)
@@ -628,110 +743,20 @@ void Mod_LoadTextures (lump_t *l)
 			tx->shift = ReadLongUnaligned (m + dataofs + offsetof (miptex64_t, shift));
 			memcpy (tx + 1, m + dataofs + sizeof (miptex64_t), pixels);
 		}
+	}
 
-		// johnfitz -- lots of changes
-		if (!isDedicated) // no texture uploading for dedicated server
+	if (!isDedicated)
+	{
+		if (load_tasks)
 		{
-			if (!q_strncasecmp (tx->name, "sky", 3)) // sky texture //also note -- was strncmp, changed to match qbsp
-			{
-				if (loadmodel->bspversion == BSPVERSION_QUAKE64)
-					Sky_LoadTextureQ64 (tx);
-				else
-					Sky_LoadTexture (tx);
-			}
-			else if (tx->name[0] == '*') // warping texture
-			{
-				// external textures -- first look in "textures/mapname/" then look in "textures/"
-				COM_StripExtension (loadmodel->name + 5, mapname, sizeof (mapname));
-				q_snprintf (filename, sizeof (filename), "textures/%s/#%s", mapname, tx->name + 1); // this also replaces the '*' with a '#'
-				data = Image_LoadImage (filename, &fwidth, &fheight);
-				if (!data)
-				{
-					q_snprintf (filename, sizeof (filename), "textures/#%s", tx->name + 1);
-					data = Image_LoadImage (filename, &fwidth, &fheight);
-				}
-
-				// now load whatever we found
-				if (data) // load external image
-				{
-					q_strlcpy (texturename, filename, sizeof (texturename));
-					tx->gltexture = TexMgr_LoadImage (loadmodel, texturename, fwidth, fheight, SRC_RGBA, data, filename, 0, TEXPREF_NONE);
-				}
-				else // use the texture from the bsp file
-				{
-					q_snprintf (texturename, sizeof (texturename), "%s:%s", loadmodel->name, tx->name);
-					offset = (src_offset_t)(pixels_p) - (src_offset_t)mod_base;
-					tx->gltexture =
-						TexMgr_LoadImage (loadmodel, texturename, tx->width, tx->height, SRC_INDEXED, (byte *)(tx + 1), loadmodel->name, offset, TEXPREF_NONE);
-				}
-
-				// now create the warpimage, using dummy data from the hunk to create the initial image
-				q_snprintf (texturename, sizeof (texturename), "%s_warp", texturename);
-				tx->warpimage =
-					TexMgr_LoadImage (loadmodel, texturename, WARPIMAGESIZE, WARPIMAGESIZE, SRC_RGBA, NULL, "", 0, TEXPREF_NOPICMIP | TEXPREF_WARPIMAGE);
-				tx->update_warp = true;
-			}
-			else // regular texture
-			{
-				// ericw -- fence textures
-				int extraflags;
-
-				extraflags = 0;
-				if (tx->name[0] == '{')
-					extraflags |= TEXPREF_ALPHA;
-				// ericw
-
-				// external textures -- first look in "textures/mapname/" then look in "textures/"
-				COM_StripExtension (loadmodel->name + 5, mapname, sizeof (mapname));
-				q_snprintf (filename, sizeof (filename), "textures/%s/%s", mapname, tx->name);
-				data = Image_LoadImage (filename, &fwidth, &fheight);
-				if (!data)
-				{
-					q_snprintf (filename, sizeof (filename), "textures/%s", tx->name);
-					data = Image_LoadImage (filename, &fwidth, &fheight);
-				}
-
-				// now load whatever we found
-				if (data) // load external image
-				{
-					tx->gltexture = TexMgr_LoadImage (loadmodel, filename, fwidth, fheight, SRC_RGBA, data, filename, 0, TEXPREF_MIPMAP | extraflags);
-					Mem_Free (data);
-
-					// now try to load glow/luma image from the same place
-					q_snprintf (filename2, sizeof (filename2), "%s_glow", filename);
-					data = Image_LoadImage (filename2, &fwidth, &fheight);
-					if (!data)
-					{
-						q_snprintf (filename2, sizeof (filename2), "%s_luma", filename);
-						data = Image_LoadImage (filename2, &fwidth, &fheight);
-					}
-
-					if (data)
-						tx->fullbright = TexMgr_LoadImage (loadmodel, filename2, fwidth, fheight, SRC_RGBA, data, filename, 0, TEXPREF_MIPMAP | extraflags);
-				}
-				else // use the texture from the bsp file
-				{
-					q_snprintf (texturename, sizeof (texturename), "%s:%s", loadmodel->name, tx->name);
-					offset = (src_offset_t)(pixels_p) - (src_offset_t)mod_base;
-					if (Mod_CheckFullbrights ((byte *)(tx + 1), pixels))
-					{
-						tx->gltexture = TexMgr_LoadImage (
-							loadmodel, texturename, tx->width, tx->height, SRC_INDEXED, (byte *)(tx + 1), loadmodel->name, offset,
-							TEXPREF_MIPMAP | TEXPREF_NOBRIGHT | extraflags);
-						q_snprintf (texturename, sizeof (texturename), "%s:%s_glow", loadmodel->name, tx->name);
-						tx->fullbright = TexMgr_LoadImage (
-							loadmodel, texturename, tx->width, tx->height, SRC_INDEXED, (byte *)(tx + 1), loadmodel->name, offset,
-							TEXPREF_MIPMAP | TEXPREF_FULLBRIGHT | extraflags);
-					}
-					else
-					{
-						tx->gltexture = TexMgr_LoadImage (
-							loadmodel, texturename, tx->width, tx->height, SRC_INDEXED, (byte *)(tx + 1), loadmodel->name, offset, TEXPREF_MIPMAP | extraflags);
-					}
-				}
-			}
+			task_handle_t task = Task_AllocateAssignIndexedFuncAndSubmit (Mod_LoadTexturesTask, nummiptex, NULL, 0);
+			Task_Join (task, SDL_MUTEX_MAXWAIT);
 		}
-		SAFE_FREE (data);
+		else
+		{
+			for (i = 0; i < nummiptex; i++)
+				Mod_LoadTexturesTask (i, NULL);
+		}
 	}
 
 	// johnfitz -- last 2 slots in array should be filled with dummy textures
@@ -2380,7 +2405,7 @@ static void Mod_SetupSubmodels (qmodel_t *mod)
 Mod_LoadBrushModel
 =================
 */
-static void Mod_LoadBrushModel (qmodel_t *mod, void *buffer)
+static void Mod_LoadBrushModel (qmodel_t *mod, void *buffer, qboolean load_tasks)
 {
 	int        i;
 	int        bsp2;
@@ -2422,7 +2447,7 @@ static void Mod_LoadBrushModel (qmodel_t *mod, void *buffer)
 	Mod_LoadVertexes (&header->lumps[LUMP_VERTEXES]);
 	Mod_LoadEdges (&header->lumps[LUMP_EDGES], bsp2);
 	Mod_LoadSurfedges (&header->lumps[LUMP_SURFEDGES]);
-	Mod_LoadTextures (&header->lumps[LUMP_TEXTURES]);
+	Mod_LoadTextures (&header->lumps[LUMP_TEXTURES], load_tasks);
 	Mod_LoadLighting (&header->lumps[LUMP_LIGHTING]);
 	Mod_LoadPlanes (&header->lumps[LUMP_PLANES]);
 	Mod_LoadTexinfo (&header->lumps[LUMP_TEXINFO]);
@@ -2663,7 +2688,7 @@ void Mod_FloodFillSkin (byte *skin, int skinwidth, int skinheight)
 Mod_LoadAllSkins
 ===============
 */
-void *Mod_LoadAllSkins (int numskins, byte *pskintype)
+void *Mod_LoadAllSkins (int numskins, byte *pskintype, qboolean load_tasks)
 {
 	int          i, j, k, size, groupskins;
 	char         name[MAX_QPATH];
@@ -2892,7 +2917,7 @@ void Mod_SetExtraFlags (qmodel_t *mod)
 Mod_LoadAliasModel
 =================
 */
-static void Mod_LoadAliasModel (qmodel_t *mod, void *buffer)
+static void Mod_LoadAliasModel (qmodel_t *mod, void *buffer, qboolean load_tasks)
 {
 	int   i, j;
 	byte *pinstverts;
@@ -2964,7 +2989,7 @@ static void Mod_LoadAliasModel (qmodel_t *mod, void *buffer)
 	// load the skins
 	//
 	pskintype = mod_base + sizeof (mdl_t);
-	pskintype = Mod_LoadAllSkins (pheader->numskins, pskintype);
+	pskintype = Mod_LoadAllSkins (pheader->numskins, pskintype, load_tasks);
 
 	//
 	// load base s and t vertices
@@ -3131,7 +3156,7 @@ void *Mod_LoadSpriteGroup (void *pin, mspriteframe_t **ppframe, int framenum)
 Mod_LoadSpriteModel
 =================
 */
-static void Mod_LoadSpriteModel (qmodel_t *mod, void *buffer)
+static void Mod_LoadSpriteModel (qmodel_t *mod, void *buffer, qboolean load_tasks)
 {
 	int                 i;
 	int                 version;

@@ -315,8 +315,7 @@ qpic_t *Draw_TryCachePic (const char *path, unsigned int texflags)
 	pic->pic.height = dat->height;
 
 	gl.gltexture = TexMgr_LoadImage (
-		NULL, path, dat->width, dat->height, SRC_INDEXED, dat->data, path, sizeof (int) * 2,
-		texflags | TEXPREF_NOPICMIP); // johnfitz -- TexMgr
+		NULL, path, dat->width, dat->height, SRC_INDEXED, dat->data, path, sizeof (int) * 2, texflags | TEXPREF_NOPICMIP); // johnfitz -- TexMgr
 	gl.sl = 0;
 	gl.sh = 1;
 	gl.tl = 0;

@@ -2804,6 +2804,8 @@ static void R_CreatePaletteOctreeBuffers (uint32_t *colors, int num_colors, pale
 		region.size = colors_size;
 		vkCmdCopyBuffer (command_buffer, staging_buffer, palette_colors_buffer, 1, &region);
 
+		R_StagingFinish ();
+
 		VkBufferViewCreateInfo buffer_view_create_info;
 		memset (&buffer_view_create_info, 0, sizeof (buffer_view_create_info));
 		buffer_view_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO;
@@ -2861,6 +2863,8 @@ static void R_CreatePaletteOctreeBuffers (uint32_t *colors, int num_colors, pale
 		region.dstOffset = 0;
 		region.size = nodes_size;
 		vkCmdCopyBuffer (command_buffer, staging_buffer, palette_octree_buffer, 1, &region);
+
+		R_StagingFinish ();
 	}
 }
 

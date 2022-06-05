@@ -630,6 +630,8 @@ static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 
 			copy_offset += size_to_copy;
 			remaining_size -= size_to_copy;
+
+			R_StagingFinish ();
 		}
 	}
 
@@ -722,6 +724,8 @@ static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 
 			copy_offset += size_to_copy;
 			remaining_size -= size_to_copy;
+
+			R_StagingFinish ();
 		}
 	}
 

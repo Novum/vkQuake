@@ -2999,7 +2999,7 @@ void         SV_SpawnServer (const char *server)
 
 	q_strlcpy (sv.name, server, sizeof (sv.name));
 	q_snprintf (sv.modelname, sizeof (sv.modelname), "maps/%s.bsp", server);
-	qcvm->worldmodel = Mod_ForName (sv.modelname, false);
+	qcvm->worldmodel = Mod_ForName (sv.modelname, false, true);
 	if (!qcvm->worldmodel || qcvm->worldmodel->type != mod_brush)
 	{
 		Con_Printf ("Couldn't spawn server %s\n", sv.modelname);
@@ -3026,7 +3026,7 @@ void         SV_SpawnServer (const char *server)
 	for (i = 1; i < qcvm->worldmodel->numsubmodels; i++)
 	{
 		sv.model_precache[1 + i] = localmodels[i];
-		sv.models[i + 1] = Mod_ForName (localmodels[i], false);
+		sv.models[i + 1] = Mod_ForName (localmodels[i], false, false);
 	}
 
 	//

@@ -34,7 +34,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "lodepng.h"
 #include "lodepng.c"
 
-static char loadfilename[MAX_OSPATH]; // file scope so that error messages can use it
+static THREAD_LOCAL char loadfilename[MAX_OSPATH]; // file scope so that error messages can use it
 
 typedef struct stdio_buffer_s
 {

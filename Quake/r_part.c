@@ -221,6 +221,8 @@ void R_InitParticleIndexBuffer (void)
 	region.dstOffset = 0;
 	region.size = particle_index_buffer_size;
 	vkCmdCopyBuffer (cb_context, staging_buffer, particle_index_buffer, 1, &region);
+
+	R_StagingFinish ();
 }
 
 /*

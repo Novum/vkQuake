@@ -857,6 +857,8 @@ static lm_compute_surface_data_t *GL_AllocateSurfaceDataBuffer (int num_surfaces
 	region.size = buffer_size;
 	vkCmdCopyBuffer (command_buffer, staging_buffer, surface_data_buffer, 1, &region);
 
+	R_StagingFinish ();
+
 	return staging_mem;
 }
 
@@ -1037,7 +1039,11 @@ void GL_BuildLightmaps (void)
 		lm->surface_indices_texture = TexMgr_LoadImage (
 			cl.worldmodel, name, LMBLOCK_WIDTH, LMBLOCK_HEIGHT, SRC_SURF_INDICES, (byte *)lm->surface_indices, "", (src_offset_t)lm->surface_indices,
 			TEXPREF_LINEAR | TEXPREF_NOPICMIP);
+	}
 
+	for (i = 0; i < lightmap_count; i++)
+	{
+		lm = &lightmaps[i];
 		lm->descriptor_set = R_AllocateDescriptorSet (&vulkan_globals.lightmap_compute_set_layout);
 		GL_SetObjectName ((uint64_t)lm->descriptor_set, VK_OBJECT_TYPE_DESCRIPTOR_SET, va ("%s compute desc set", name));
 
@@ -1053,6 +1059,8 @@ void GL_BuildLightmaps (void)
 			region.dstOffset = 0;
 			region.size = WORKGROUP_BOUNDS_BUFFER_SIZE;
 			vkCmdCopyBuffer (command_buffer, staging_buffer, lm->workgroup_bounds_buffer, 1, &region);
+
+			R_StagingFinish ();
 		}
 
 		VkDescriptorImageInfo output_image_info;
@@ -1300,6 +1308,8 @@ void GL_BuildBModelVertexBuffer (void)
 
 		copy_offset += size_to_copy;
 		remaining_size -= size_to_copy;
+
+		R_StagingFinish ();
 	}
 
 	Mem_Free (varray);
@@ -1674,6 +1684,7 @@ static void R_UploadLightmap (int lmap, gltexture_t *lightmap_tex)
 	lm->rectchange.h = 0;
 	lm->rectchange.w = 0;
 
+	R_StagingFinish ();
 	Atomic_IncrementUInt32 (&rs_dynamiclightmaps);
 }
 

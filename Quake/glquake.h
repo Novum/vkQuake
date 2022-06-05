@@ -602,6 +602,7 @@ void            R_FreeDescriptorSet (VkDescriptorSet desc_set, vulkan_desc_set_l
 void  R_InitStagingBuffers ();
 void  R_SubmitStagingBuffers ();
 byte *R_StagingAllocate (int size, int alignment, VkCommandBuffer *cb_context, VkBuffer *buffer, int *buffer_offset);
+void  R_StagingFinish();
 
 void  R_InitGPUBuffers ();
 void  R_SwapDynamicBuffers ();

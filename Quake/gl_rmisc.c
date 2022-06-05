@@ -610,8 +610,17 @@ byte *R_StagingAllocate (int size, int alignment, VkCommandBuffer *command_buffe
 	unsigned char *data = staging_buffer->data + staging_buffer->current_offset;
 	staging_buffer->current_offset += size;
 
-	SDL_UnlockMutex (staging_mutex);
 	return data;
+}
+
+/*
+===============
+R_StagingFinish
+===============
+*/
+void R_StagingFinish ()
+{
+	SDL_UnlockMutex (staging_mutex);
 }
 
 /*
@@ -902,6 +911,8 @@ static void R_InitFanIndexBuffer ()
 		region.dstOffset = 0;
 		region.size = bufferSize;
 		vkCmdCopyBuffer (command_buffer, staging_buffer, vulkan_globals.fan_index_buffer, 1, &region);
+
+		R_StagingFinish ();
 	}
 }
 
@@ -2975,6 +2986,8 @@ void R_Init (void)
 	Fog_Init (); // johnfitz
 
 	R_AllocateLightmapComputeBuffers ();
+
+	staging_mutex = SDL_CreateMutex ();
 }
 
 /*
