@@ -95,6 +95,7 @@ typedef struct texture_s
 	struct gltexture_s *warpimage;                // johnfitz -- for water animation
 	qboolean            update_warp;              // johnfitz -- update warp this frame
 	struct msurface_s  *texturechains[chain_num]; // for texture chains
+	uint32_t			chain_size[chain_num];	  // for texture chains
 	int                 anim_total;               // total tenths in sequence ( 0 = no)
 	int                 anim_min, anim_max;       // time for this frame min <=time< max
 	struct texture_s   *anim_next;                // in the animation sequence

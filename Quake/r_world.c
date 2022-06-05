@@ -86,8 +86,13 @@ void R_ClearTextureChains (qmodel_t *mod, texchain_t chain)
 
 	// set all chains to null
 	for (i = 0; i < mod->numtextures; i++)
+	{
 		if (mod->textures[i])
+		{
 			mod->textures[i]->texturechains[chain] = NULL;
+			mod->textures[i]->chain_size[chain] = 0;
+		}
+	}
 }
 
 /*
@@ -99,6 +104,7 @@ void R_ChainSurface (msurface_t *surf, texchain_t chain)
 {
 	surf->texturechains[chain] = surf->texinfo->texture->texturechains[chain];
 	surf->texinfo->texture->texturechains[chain] = surf;
+	surf->texinfo->texture->chain_size[chain] += 1;
 }
 
 /*
@@ -136,16 +142,16 @@ void R_SetupWorldCBXTexRanges (qboolean use_tasks)
 		return;
 	}
 
-	int total_world_textures = 0;
+	int total_world_surfs = 0;
 	for (int i = 0; i < num_textures; ++i)
 	{
 		texture_t *t = cl.worldmodel->textures[i];
 		if (!t || !t->texturechains[chain_world] || t->texturechains[chain_world]->flags & (SURF_DRAWTURB | SURF_DRAWTILED | SURF_NOTEXTURE))
 			continue;
-		total_world_textures += 1;
+		total_world_surfs += t->chain_size[chain_world];
 	}
 
-	const int num_textures_per_cbx = (total_world_textures + NUM_WORLD_CBX - 1) / NUM_WORLD_CBX;
+	const int num_surfs_per_cbx = (total_world_surfs + NUM_WORLD_CBX - 1) / NUM_WORLD_CBX;
 	memset (world_texstart, 0, sizeof (world_texstart));
 	memset (world_texend, 0, sizeof (world_texend));
 	int current_cbx = 0;
@@ -155,9 +161,10 @@ void R_SetupWorldCBXTexRanges (qboolean use_tasks)
 		texture_t *t = cl.worldmodel->textures[i];
 		if (!t || !t->texturechains[chain_world] || t->texturechains[chain_world]->flags & (SURF_DRAWTURB | SURF_DRAWTILED | SURF_NOTEXTURE))
 			continue;
+		assert(current_cbx < NUM_WORLD_CBX);
 		world_texend[current_cbx] = i + 1;
-		num_assigned_to_cbx += 1;
-		if (num_assigned_to_cbx == num_textures_per_cbx)
+		num_assigned_to_cbx += t->chain_size[chain_world];
+		if (num_assigned_to_cbx >= num_surfs_per_cbx)
 		{
 			current_cbx += 1;
 			if (current_cbx < NUM_WORLD_CBX)
