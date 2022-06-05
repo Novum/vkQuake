@@ -417,7 +417,7 @@ static void R_SetupViewBeforeMark (void *unused)
 R_DrawEntitiesOnList
 =============
 */
-void R_DrawEntitiesOnList (cb_context_t *cbx, qboolean alphapass) // johnfitz -- added parameter
+void R_DrawEntitiesOnList (cb_context_t *cbx, qboolean alphapass, int chain, int startedict, int endedict) // johnfitz -- added parameter
 {
 	int i;
 
@@ -426,7 +426,7 @@ void R_DrawEntitiesOnList (cb_context_t *cbx, qboolean alphapass) // johnfitz --
 
 	R_BeginDebugUtilsLabel (cbx, alphapass ? "Entities Alpha Pass" : "Entities");
 	// johnfitz -- sprites are not a special case
-	for (i = 0; i < cl_numvisedicts; i++)
+	for (i = startedict; i < endedict; ++i)
 	{
 		entity_t *currententity = cl_visedicts[i];
 
@@ -450,7 +450,7 @@ void R_DrawEntitiesOnList (cb_context_t *cbx, qboolean alphapass) // johnfitz --
 			R_DrawAliasModel (cbx, currententity);
 			break;
 		case mod_brush:
-			R_DrawBrushModel (cbx, currententity);
+			R_DrawBrushModel (cbx, currententity, chain);
 			break;
 		case mod_sprite:
 			R_DrawSpriteModel (cbx, currententity);
@@ -701,15 +701,30 @@ static void R_DrawSkyAndWaterTask (void *unused)
 R_DrawEntitiesTask
 ================
 */
-static void R_DrawEntitiesTask (void *unused)
+static void R_DrawEntitiesTask (int index, void *unused)
 {
-	R_SetupContext (&vulkan_globals.secondary_cb_contexts[CBX_ENTITIES]);
-	Fog_EnableGFog (&vulkan_globals.secondary_cb_contexts[CBX_ENTITIES]);              // johnfitz
-	R_DrawEntitiesOnList (&vulkan_globals.secondary_cb_contexts[CBX_ENTITIES], false); // johnfitz -- false means this is the pass for nonalpha entities
+	const int cbx_index = index + CBX_ENTITIES_0;
+	R_SetupContext (&vulkan_globals.secondary_cb_contexts[cbx_index]);
+	Fog_EnableGFog (&vulkan_globals.secondary_cb_contexts[cbx_index]); // johnfitz
+	const int num_edicts_per_cb = (cl_numvisedicts + NUM_ENTITIES_CBX - 1) / NUM_ENTITIES_CBX;
+	int startedict = index * num_edicts_per_cb;
+	int endedict = q_min((index + 1) * num_edicts_per_cb, cl_numvisedicts);
+	R_DrawEntitiesOnList (
+		&vulkan_globals.secondary_cb_contexts[cbx_index], false, index + chain_model_0, startedict, endedict);
+}
 
+/*
+================
+R_DrawAlphaEntitiesTask
+================
+*/
+static void R_DrawAlphaEntitiesTask (void *unused)
+{
 	R_SetupContext (&vulkan_globals.secondary_cb_contexts[CBX_ALPHA_ENTITIES]);
 	Fog_EnableGFog (&vulkan_globals.secondary_cb_contexts[CBX_ALPHA_ENTITIES]);
-	R_DrawEntitiesOnList (&vulkan_globals.secondary_cb_contexts[CBX_ALPHA_ENTITIES], true); // johnfitz -- true means this is the pass for alpha entities
+	R_DrawEntitiesOnList (
+		&vulkan_globals.secondary_cb_contexts[CBX_ALPHA_ENTITIES], true, chain_alpha_model, 0,
+		cl_numvisedicts); // johnfitz -- true means this is the pass for alpha entities
 }
 
 /*
@@ -782,7 +797,7 @@ void R_RenderView (qboolean use_tasks)
 		task_handle_t update_warp_textures = Task_AllocateAndAssignFunc ((task_func_t)R_UpdateWarpTextures, &primary_cbx, sizeof (cb_context_t *));
 		Task_AddDependency (cull_surfaces, update_warp_textures);
 
-		task_handle_t draw_world_task = Task_AllocateAndAssignIndexedFunc (R_DrawWorldTask, 4, NULL, 0);
+		task_handle_t draw_world_task = Task_AllocateAndAssignIndexedFunc (R_DrawWorldTask, NUM_WORLD_CBX, NULL, 0);
 		Task_AddDependency (chain_surfaces, draw_world_task);
 
 		task_handle_t draw_sky_and_water_task = Task_AllocateAndAssignFunc (R_DrawSkyAndWaterTask, NULL, 0);
@@ -791,9 +806,11 @@ void R_RenderView (qboolean use_tasks)
 		task_handle_t draw_view_model_task = Task_AllocateAndAssignFunc (R_DrawViewModelTask, NULL, 0);
 		Task_AddDependency (before_mark, draw_view_model_task);
 
-		task_handle_t draw_entities_task = Task_AllocateAndAssignFunc (R_DrawEntitiesTask, NULL, 0);
-		Task_AddDependency (draw_view_model_task, draw_entities_task);
+		task_handle_t draw_entities_task = Task_AllocateAndAssignIndexedFunc (R_DrawEntitiesTask, NUM_ENTITIES_CBX, NULL, 0);
 		Task_AddDependency (store_efrags, draw_entities_task);
+
+		task_handle_t draw_alpha_entities_task = Task_AllocateAndAssignFunc (R_DrawAlphaEntitiesTask, NULL, 0);
+		Task_AddDependency (store_efrags, draw_alpha_entities_task);
 
 		task_handle_t draw_particles_task = Task_AllocateAndAssignFunc (R_DrawParticlesTask, NULL, 0);
 		Task_AddDependency (before_mark, draw_particles_task);
@@ -802,11 +819,12 @@ void R_RenderView (qboolean use_tasks)
 		Task_AddDependency (draw_world_task, draw_done_task);
 		Task_AddDependency (draw_sky_and_water_task, draw_done_task);
 		Task_AddDependency (draw_entities_task, draw_done_task);
+		Task_AddDependency (draw_alpha_entities_task, draw_done_task);
 		Task_AddDependency (draw_particles_task, draw_done_task);
 		Task_AddDependency (update_warp_textures, draw_done_task);
 
-		task_handle_t tasks[] = {before_mark,          store_efrags,       update_warp_textures, draw_world_task, draw_sky_and_water_task,
-		                         draw_view_model_task, draw_entities_task, draw_particles_task,  draw_done_task};
+		task_handle_t tasks[] = {before_mark,          store_efrags,       update_warp_textures,     draw_world_task,     draw_sky_and_water_task,
+		                         draw_view_model_task, draw_entities_task, draw_alpha_entities_task, draw_particles_task, draw_done_task};
 		Tasks_Submit ((sizeof (tasks) / sizeof (task_handle_t)), tasks);
 		if (store_efrags != cull_surfaces)
 		{
@@ -822,7 +840,9 @@ void R_RenderView (qboolean use_tasks)
 		R_UpdateWarpTextures (&primary_cbx);
 		R_DrawWorldTask (0, NULL);
 		R_DrawSkyAndWaterTask (NULL);
-		R_DrawEntitiesTask (NULL);
+		for (int i = 0; i < NUM_ENTITIES_CBX; ++i)
+			R_DrawEntitiesTask (i, NULL);
+		R_DrawAlphaEntitiesTask(NULL);
 		R_DrawParticlesTask (NULL);
 		R_DrawViewModelTask (NULL);
 	}

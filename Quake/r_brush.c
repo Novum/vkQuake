@@ -188,7 +188,7 @@ void DrawGLPoly (cb_context_t *cbx, glpoly_t *p, float color[3], float alpha)
 R_DrawBrushModel
 =================
 */
-void R_DrawBrushModel (cb_context_t *cbx, entity_t *e)
+void R_DrawBrushModel (cb_context_t *cbx, entity_t *e, int chain)
 {
 	int         i, k;
 	msurface_t *psurf;
@@ -242,14 +242,14 @@ void R_DrawBrushModel (cb_context_t *cbx, entity_t *e)
 	MatrixMultiply (mvp, model_matrix);
 
 	R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 16 * sizeof (float), mvp);
-	R_ClearTextureChains (clmodel, chain_model);
+	R_ClearTextureChains (clmodel, chain);
 	for (i = 0; i < clmodel->nummodelsurfaces; i++, psurf++)
 	{
 		pplane = psurf->plane;
 		dot = DotProduct (modelorg, pplane->normal) - pplane->dist;
 		if (((psurf->flags & SURF_PLANEBACK) && (dot < -BACKFACE_EPSILON)) || (!(psurf->flags & SURF_PLANEBACK) && (dot > BACKFACE_EPSILON)))
 		{
-			R_ChainSurface (psurf, chain_model);
+			R_ChainSurface (psurf, chain);
 			if (!r_gpulightmapupdate.value)
 				R_RenderDynamicLightmaps (psurf);
 			else if (psurf->lightmaptexturenum >= 0)
@@ -258,8 +258,8 @@ void R_DrawBrushModel (cb_context_t *cbx, entity_t *e)
 		}
 	}
 
-	R_DrawTextureChains (cbx, clmodel, e, chain_model);
-	R_DrawTextureChains_Water (cbx, clmodel, e, chain_model);
+	R_DrawTextureChains (cbx, clmodel, e, chain);
+	R_DrawTextureChains_Water (cbx, clmodel, e, chain);
 	R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 16 * sizeof (float), vulkan_globals.view_projection_matrix);
 }
 

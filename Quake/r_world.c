@@ -161,7 +161,7 @@ void R_SetupWorldCBXTexRanges (qboolean use_tasks)
 		texture_t *t = cl.worldmodel->textures[i];
 		if (!t || !t->texturechains[chain_world] || t->texturechains[chain_world]->flags & (SURF_DRAWTURB | SURF_DRAWTILED | SURF_NOTEXTURE))
 			continue;
-		assert(current_cbx < NUM_WORLD_CBX);
+		assert (current_cbx < NUM_WORLD_CBX);
 		world_texend[current_cbx] = i + 1;
 		num_assigned_to_cbx += t->chain_size[chain_world];
 		if (num_assigned_to_cbx >= num_surfs_per_cbx)

@@ -170,6 +170,7 @@ typedef struct vulkan_memory_s
 #define FTE_PARTICLE_PIPELINE_COUNT 16
 #define MAX_BATCH_SIZE              65536
 #define NUM_WORLD_CBX               4
+#define NUM_ENTITIES_CBX            4
 
 typedef enum
 {
@@ -177,7 +178,10 @@ typedef enum
 	CBX_WORLD_1,
 	CBX_WORLD_2,
 	CBX_WORLD_3,
-	CBX_ENTITIES,
+	CBX_ENTITIES_0,
+	CBX_ENTITIES_1,
+	CBX_ENTITIES_2,
+	CBX_ENTITIES_3,
 	CBX_SKY_AND_WATER,
 	CBX_ALPHA_ENTITIES,
 	CBX_PARTICLES,
@@ -487,7 +491,7 @@ void R_UpdateWarpTextures (cb_context_t **cbx_ptr);
 
 void R_DrawWorld (cb_context_t *cbx, int index);
 void R_DrawAliasModel (cb_context_t *cbx, entity_t *e);
-void R_DrawBrushModel (cb_context_t *cbx, entity_t *e);
+void R_DrawBrushModel (cb_context_t *cbx, entity_t *e, int chain);
 void R_DrawSpriteModel (cb_context_t *cbx, entity_t *e);
 
 void R_DrawTextureChains_Water (cb_context_t *cbx, qmodel_t *model, entity_t *ent, texchain_t chain);
