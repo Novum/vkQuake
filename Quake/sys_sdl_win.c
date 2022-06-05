@@ -283,7 +283,6 @@ void Sys_Error (const char *error, ...)
 	/* SDL will put these into its own stderr log,
 	   so print to stderr even in graphical mode. */
 	fputs (errortxt1, stderr);
-	Host_Shutdown ();
 	fputs (errortxt2, stderr);
 	fputs (text, stderr);
 	fputs ("\n\n", stderr);
