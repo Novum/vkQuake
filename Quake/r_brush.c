@@ -29,7 +29,7 @@ extern cvar_t gl_fullbrights, r_drawflat, r_gpulightmapupdate; // johnfitz
 
 int gl_lightmap_format;
 
-#define SHELVES 4
+#define SHELVES      4
 #define SHELF_HEIGHT (LMBLOCK_HEIGHT / SHELVES)
 
 struct lightmap_s *lightmaps;
@@ -425,7 +425,7 @@ static int AllocBlock (int w, int h, int *x, int *y)
 					lightmaps[texnum].workgroup_bounds[i].maxs[j] = -FLT_MAX;
 				}
 			}
-			memset (used_columns[texnum], 0, sizeof(used_columns[texnum]));
+			memset (used_columns[texnum], 0, sizeof (used_columns[texnum]));
 			last_lightmap_allocated = texnum;
 		}
 
@@ -448,7 +448,7 @@ static int AllocBlock (int w, int h, int *x, int *y)
 		}
 		*x = columns[w];
 		*y = rows[w];
-		rows[w] += h; 
+		rows[w] += h;
 		return lightmap_idx[w];
 	}
 

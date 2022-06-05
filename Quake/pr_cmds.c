@@ -568,7 +568,7 @@ PF_ambientsound
 static void PF_sv_ambientsound (void)
 {
 	const char            *samp, **check;
-	float                 *pos;
+	float				 *pos;
 	float                  vol, attenuation;
 	int                    soundnum;
 	struct ambientsound_s *st;
@@ -782,7 +782,7 @@ static int PF_newcheckclient (int check)
 	leaf = Mod_PointInLeaf (org, qcvm->worldmodel);
 	pvs = Mod_LeafPVS (leaf, qcvm->worldmodel);
 
-	pvsbytes = (qcvm->worldmodel->numleafs + 7) >> 3;
+	pvsbytes = (qcvm->worldmodel->numleafs + 31) >> 3;
 	if (checkpvs == NULL || pvsbytes > checkpvs_capacity)
 	{
 		checkpvs_capacity = pvsbytes;
@@ -1715,6 +1715,7 @@ void PF_sv_localsound (void)
 	SV_LocalSound (&svs.clients[entnum - 1], sample);
 }
 
+// clang-format off
 builtin_t pr_ssqcbuiltins[] = {
 	PF_Fixme,
 	PF_makevectors,       // void(entity e) makevectors		= #1
@@ -1883,4 +1884,5 @@ builtin_t pr_csqcbuiltins[] = {
 
 	PF_NoCSQC, // PF_setspawnparms
 };
+// clang-format on
 int pr_csqcnumbuiltins = sizeof (pr_csqcbuiltins) / sizeof (pr_csqcbuiltins[0]);

@@ -124,7 +124,7 @@ void R_SetupWorldCBXTexRanges (qboolean use_tasks)
 		return;
 	}
 
-	int       total_world_textures = 0;
+	int total_world_textures = 0;
 	for (int i = 0; i < num_textures; ++i)
 	{
 		texture_t *t = cl.worldmodel->textures[i];
@@ -134,8 +134,8 @@ void R_SetupWorldCBXTexRanges (qboolean use_tasks)
 	}
 
 	const int num_textures_per_cbx = (total_world_textures + NUM_WORLD_CBX - 1) / NUM_WORLD_CBX;
-	memset(world_texstart, 0, sizeof(world_texstart));
-	memset(world_texend, 0, sizeof(world_texend));
+	memset (world_texstart, 0, sizeof (world_texstart));
+	memset (world_texend, 0, sizeof (world_texend));
 	int current_cbx = 0;
 	int num_assigned_to_cbx = 0;
 	for (int i = 0; i < num_textures; ++i)
@@ -306,7 +306,7 @@ void R_MarkVisSurfacesSIMD (qboolean *use_tasks)
 	}
 
 	Atomic_AddUInt32 (&rs_brushpolys, brushpolys); // count wpolys here
-	R_SetupWorldCBXTexRanges(*use_tasks);
+	R_SetupWorldCBXTexRanges (*use_tasks);
 }
 
 /*
@@ -417,7 +417,7 @@ void R_ChainVisSurfaces (qboolean *use_tasks)
 	msurface_t  *surf;
 	unsigned int numsurfaces = cl.worldmodel->numsurfaces;
 	byte        *surfvis = cl.worldmodel->surfvis;
-	uint32_t brushpolys = 0;
+	uint32_t     brushpolys = 0;
 	for (i = 0; i < numsurfaces; i += 8)
 	{
 		byte mask = surfvis[i / 8];
@@ -432,7 +432,7 @@ void R_ChainVisSurfaces (qboolean *use_tasks)
 	}
 
 	Atomic_AddUInt32 (&rs_brushpolys, brushpolys); // count wpolys here
-	R_SetupWorldCBXTexRanges(*use_tasks);
+	R_SetupWorldCBXTexRanges (*use_tasks);
 }
 #endif // defined(USE_SIMD)
 
@@ -446,7 +446,7 @@ void R_MarkVisSurfaces (qboolean *use_tasks)
 	int         i, j;
 	msurface_t *surf;
 	mleaf_t    *leaf;
-	uint32_t brushpolys = 0;
+	uint32_t    brushpolys = 0;
 
 	leaf = &cl.worldmodel->leafs[1];
 	for (i = 0; i < cl.worldmodel->numleafs; i++, leaf++)
@@ -486,7 +486,7 @@ void R_MarkVisSurfaces (qboolean *use_tasks)
 	}
 
 	Atomic_AddUInt32 (&rs_brushpolys, brushpolys); // count wpolys here
-	R_SetupWorldCBXTexRanges(*use_tasks);
+	R_SetupWorldCBXTexRanges (*use_tasks);
 }
 
 /*
@@ -557,12 +557,12 @@ void R_MarkSurfaces (qboolean use_tasks, task_handle_t before_mark, task_handle_
 				*cull_surfaces = Task_AllocateAndAssignIndexedFunc (R_BackfaceCullSurfacesSIMD, (numsurfaces + 7) / 8, NULL, 0);
 				Task_AddDependency (mark_surfaces, *cull_surfaces);
 
-				*chain_surfaces = Task_AllocateAndAssignFunc ((task_func_t)R_ChainVisSurfaces, &use_tasks, sizeof(qboolean));
+				*chain_surfaces = Task_AllocateAndAssignFunc ((task_func_t)R_ChainVisSurfaces, &use_tasks, sizeof (qboolean));
 				Task_AddDependency (*cull_surfaces, *chain_surfaces);
 			}
 			else
 			{
-				task_handle_t mark_surfaces = Task_AllocateAndAssignFunc ((task_func_t)R_MarkVisSurfacesSIMD, &use_tasks, sizeof(qboolean));
+				task_handle_t mark_surfaces = Task_AllocateAndAssignFunc ((task_func_t)R_MarkVisSurfacesSIMD, &use_tasks, sizeof (qboolean));
 				Task_AddDependency (prepare_mark, mark_surfaces);
 				*store_efrags = mark_surfaces;
 				*chain_surfaces = mark_surfaces;
@@ -572,7 +572,7 @@ void R_MarkSurfaces (qboolean use_tasks, task_handle_t before_mark, task_handle_
 		else
 #endif
 		{
-			task_handle_t mark_surfaces = Task_AllocateAndAssignFunc ((task_func_t)R_MarkVisSurfaces, &use_tasks, sizeof(qboolean));
+			task_handle_t mark_surfaces = Task_AllocateAndAssignFunc ((task_func_t)R_MarkVisSurfaces, &use_tasks, sizeof (qboolean));
 			Task_AddDependency (prepare_mark, mark_surfaces);
 			*store_efrags = mark_surfaces;
 			*chain_surfaces = mark_surfaces;
