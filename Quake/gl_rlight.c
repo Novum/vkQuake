@@ -182,10 +182,6 @@ LIGHT SAMPLING
 =============================================================================
 */
 
-mplane_t *lightplane;
-vec3_t    lightspot;
-vec3_t    lightcolor; // johnfitz -- lit support via lordhavoc
-
 static void InterpolateLightmap (vec3_t color, msurface_t *surf, int ds, int dt)
 {
 	byte *lightmap;
@@ -269,9 +265,6 @@ loc0:
 		unsigned int i;
 		int          ds, dt;
 		msurface_t  *surf;
-		// check for impact on this node
-		VectorCopy (mid, lightspot);
-		lightplane = node->plane;
 
 		surf = cl.worldmodel->surfaces + node->firstsurface;
 		for (i = 0; i < node->numsurfaces; i++, surf++)
@@ -346,14 +339,14 @@ loc0:
 R_LightPoint -- johnfitz -- replaced entire function for lit support via lordhavoc
 =============
 */
-int R_LightPoint (vec3_t p, lightcache_t *cache)
+int R_LightPoint (vec3_t p, lightcache_t *cache, vec3_t *lightcolor)
 {
 	vec3_t end;
 	float  maxdist = 8192.f; // johnfitz -- was 2048
 
 	if (!cl.worldmodel->lightdata)
 	{
-		lightcolor[0] = lightcolor[1] = lightcolor[2] = 255;
+		(*lightcolor)[0] = (*lightcolor)[1] = (*lightcolor)[2] = 255;
 		return 255;
 	}
 
@@ -361,7 +354,7 @@ int R_LightPoint (vec3_t p, lightcache_t *cache)
 	end[1] = p[1];
 	end[2] = p[2] - maxdist;
 
-	lightcolor[0] = lightcolor[1] = lightcolor[2] = 0;
+	(*lightcolor)[0] = (*lightcolor)[1] = (*lightcolor)[2] = 0;
 
 	if (!cache || cache->surfidx <= 0 // no cache or pitch black
 	    || cache->surfidx > cl.worldmodel->numsurfaces || fabsf (cache->pos[0] - p[0]) >= 1.f || fabsf (cache->pos[1] - p[1]) >= 1.f ||
@@ -373,7 +366,7 @@ int R_LightPoint (vec3_t p, lightcache_t *cache)
 	}
 
 	if (cache && cache->surfidx > 0)
-		InterpolateLightmap (lightcolor, cl.worldmodel->surfaces + cache->surfidx - 1, cache->ds, cache->dt);
+		InterpolateLightmap (*lightcolor, cl.worldmodel->surfaces + cache->surfidx - 1, cache->ds, cache->dt);
 
-	return ((lightcolor[0] + lightcolor[1] + lightcolor[2]) * (1.0f / 3.0f));
+	return (((*lightcolor)[0] + (*lightcolor)[1] + (*lightcolor)[2]) * (1.0f / 3.0f));
 }

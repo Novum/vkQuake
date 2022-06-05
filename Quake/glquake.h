@@ -499,7 +499,7 @@ void GL_PrepareSIMDData (void);
 void GLMesh_LoadVertexBuffers (void);
 void GLMesh_DeleteVertexBuffers (void);
 
-int R_LightPoint (vec3_t p, lightcache_t *cache);
+int R_LightPoint (vec3_t p, lightcache_t *cache, vec3_t *lightcolor);
 
 void GL_SubdivideSurface (msurface_t *fa);
 void R_BuildLightMap (msurface_t *surf, byte *dest, int stride);

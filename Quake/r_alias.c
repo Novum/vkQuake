@@ -43,18 +43,13 @@ float r_avertexnormals[NUMVERTEXNORMALS][3] = {
 #include "anorms.h"
 };
 
-extern vec3_t lightcolor; // johnfitz -- replaces "float shadelight" for lit support
-
 // precalculated dot products for quantized angles
 #define SHADEDOT_QUANT 16
 float r_avertexnormal_dots[SHADEDOT_QUANT][256] = {
 #include "anorm_dots.h"
 };
 
-extern vec3_t lightspot;
-
 float *shadedots = r_avertexnormal_dots[0];
-vec3_t shadevector;
 
 // johnfitz -- struct for passing lerp information to drawing functions
 typedef struct
@@ -106,7 +101,7 @@ Based on code by MH from RMQEngine
 */
 static void GL_DrawAliasFrame (
 	cb_context_t *cbx, entity_t *e, aliashdr_t *paliashdr, lerpdata_t lerpdata, gltexture_t *tx, gltexture_t *fb, float model_matrix[16], float entity_alpha,
-	qboolean alphatest)
+	qboolean alphatest, vec3_t shadevector, vec3_t lightcolor)
 {
 	float blend;
 
@@ -312,7 +307,7 @@ void R_SetupEntityTransform (entity_t *e, lerpdata_t *lerpdata)
 R_SetupAliasLighting -- johnfitz -- broken out from R_DrawAliasModel and rewritten
 =================
 */
-void R_SetupAliasLighting (entity_t *e)
+static void R_SetupAliasLighting (entity_t *e, vec3_t *shadevector, vec3_t *lightcolor)
 {
 	vec3_t dist;
 	float  add;
@@ -326,7 +321,7 @@ void R_SetupAliasLighting (entity_t *e)
 	// this helps with models whose origin is below ground level, but are otherwise visible
 	// (e.g. some of the candles in the DOTM start map, which would otherwise appear black)
 	lpos[2] += e->model->maxs[2] * 0.5f;
-	R_LightPoint (lpos, &e->lightcache);
+	R_LightPoint (lpos, &e->lightcache, lightcolor);
 
 	// add dlights
 	for (i = 0; i < MAX_DLIGHTS; i++)
@@ -336,52 +331,52 @@ void R_SetupAliasLighting (entity_t *e)
 			VectorSubtract (e->origin, cl_dlights[i].origin, dist);
 			add = cl_dlights[i].radius - VectorLength (dist);
 			if (add > 0)
-				VectorMA (lightcolor, add, cl_dlights[i].color, lightcolor);
+				VectorMA (*lightcolor, add, cl_dlights[i].color, *lightcolor);
 		}
 	}
 
 	// minimum light value on gun (24)
 	if (e == &cl.viewent)
 	{
-		add = 72.0f - (lightcolor[0] + lightcolor[1] + lightcolor[2]);
+		add = 72.0f - ((*lightcolor)[0] + (*lightcolor)[1] + (*lightcolor)[2]);
 		if (add > 0.0f)
 		{
-			lightcolor[0] += add / 3.0f;
-			lightcolor[1] += add / 3.0f;
-			lightcolor[2] += add / 3.0f;
+			(*lightcolor)[0] += add / 3.0f;
+			(*lightcolor)[1] += add / 3.0f;
+			(*lightcolor)[2] += add / 3.0f;
 		}
 	}
 
 	// minimum light value on players (8)
 	if (e > cl.entities && e <= cl.entities + cl.maxclients)
 	{
-		add = 24.0f - (lightcolor[0] + lightcolor[1] + lightcolor[2]);
+		add = 24.0f - ((*lightcolor)[0] + (*lightcolor)[1] + (*lightcolor)[2]);
 		if (add > 0.0f)
 		{
-			lightcolor[0] += add / 3.0f;
-			lightcolor[1] += add / 3.0f;
-			lightcolor[2] += add / 3.0f;
+			(*lightcolor)[0] += add / 3.0f;
+			(*lightcolor)[1] += add / 3.0f;
+			(*lightcolor)[2] += add / 3.0f;
 		}
 	}
 
 	// clamp lighting so it doesn't overbright as much (96)
-	add = 288.0f / (lightcolor[0] + lightcolor[1] + lightcolor[2]);
+	add = 288.0f / ((*lightcolor)[0] + (*lightcolor)[1] + (*lightcolor)[2]);
 	if (add < 1.0f)
-		VectorScale (lightcolor, add, lightcolor);
+		VectorScale ((*lightcolor), add, (*lightcolor));
 
 	quantizedangle = ((int)(e->angles[1] * (SHADEDOT_QUANT / 360.0))) & (SHADEDOT_QUANT - 1);
 
 	// ericw -- shadevector is passed to the shader to compute shadedots inside the
 	// shader, see GLAlias_CreateShaders()
 	radiansangle = (quantizedangle / 16.0) * 2.0 * 3.14159;
-	shadevector[0] = cos (-radiansangle);
-	shadevector[1] = sin (-radiansangle);
-	shadevector[2] = 1;
-	VectorNormalize (shadevector);
+	(*shadevector)[0] = cos (-radiansangle);
+	(*shadevector)[1] = sin (-radiansangle);
+	(*shadevector)[2] = 1;
+	VectorNormalize (*shadevector);
 	// ericw --
 
 	shadedots = r_avertexnormal_dots[quantizedangle];
-	VectorScale (lightcolor, 1.0f / 200.0f, lightcolor);
+	VectorScale ((*lightcolor), 1.0f / 200.0f, (*lightcolor));
 }
 
 /*
@@ -448,7 +443,8 @@ void R_DrawAliasModel (cb_context_t *cbx, entity_t *e)
 	// set up lighting
 	//
 	Atomic_AddUInt32 (&rs_aliaspolys, paliashdr->numtris);
-	R_SetupAliasLighting (e);
+	vec3_t shadevector, lightcolor;
+	R_SetupAliasLighting (e, &shadevector, &lightcolor);
 
 	//
 	// set up textures
@@ -487,7 +483,7 @@ void R_DrawAliasModel (cb_context_t *cbx, entity_t *e)
 	//
 	// draw it
 	//
-	GL_DrawAliasFrame (cbx, e, paliashdr, lerpdata, tx, fb, model_matrix, entalpha, alphatest);
+	GL_DrawAliasFrame (cbx, e, paliashdr, lerpdata, tx, fb, model_matrix, entalpha, alphatest, shadevector, lightcolor);
 }
 
 // johnfitz -- values for shadow matrix
