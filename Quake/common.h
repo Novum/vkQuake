@@ -120,8 +120,6 @@ void InsertLinkAfter (link_t *l, link_t *after);
 
 //============================================================================
 
-extern qboolean host_bigendian;
-
 extern short (*BigShort) (short l);
 extern short (*LittleShort) (short l);
 extern int (*BigLong) (int l);

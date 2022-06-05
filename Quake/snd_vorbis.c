@@ -145,7 +145,7 @@ static int S_VORBIS_CodecReadStream (snd_stream_t *stream, int bytes, void *buff
 		res = ov_read (
 			(OggVorbis_File *)stream->priv, ptr, rem,
 #ifndef VORBIS_USE_TREMOR
-			host_bigendian, VORBIS_SAMPLEWIDTH, VORBIS_SIGNED_DATA,
+			false, VORBIS_SAMPLEWIDTH, VORBIS_SIGNED_DATA,
 #endif
 			&section);
 		if (res <= 0)

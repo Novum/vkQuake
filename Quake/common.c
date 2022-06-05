@@ -525,15 +525,6 @@ void Info_Print (const char *info)
 ============================================================================
 */
 
-qboolean host_bigendian;
-
-short (*BigShort) (short l);
-short (*LittleShort) (short l);
-int (*BigLong) (int l);
-int (*LittleLong) (int l);
-float (*BigFloat) (float l);
-float (*LittleFloat) (float l);
-
 short ShortSwap (short l)
 {
 	byte b1, b2;
@@ -586,6 +577,13 @@ float FloatNoSwap (float f)
 {
 	return f;
 }
+
+short (*BigShort) (short l) = ShortSwap;
+short (*LittleShort) (short l) = ShortNoSwap;
+int (*BigLong) (int l) = LongSwap;
+int (*LittleLong) (int l) = LongNoSwap;
+float (*BigFloat) (float l) = FloatSwap;
+float (*LittleFloat) (float l) = FloatNoSwap;
 
 /*
 ==============================================================================
@@ -1400,7 +1398,10 @@ COM_Init
 */
 void COM_Init (void)
 {
-	int i = 0x12345678;
+	uint32_t uint_value = 0x12345678;
+	uint8_t  bytes[4];
+	memcpy (bytes, &uint_value, sizeof (uint32_t));
+
 	/*    U N I X */
 
 	/*
@@ -1413,31 +1414,8 @@ void COM_Init (void)
 	PDP_ORDER: 34 12 78 56
 	       N  U  X  I
 	*/
-	if (*(char *)&i == 0x12)
-		host_bigendian = true;
-	else if (*(char *)&i == 0x78)
-		host_bigendian = false;
-	else /* if ( *(char *)&i == 0x34 ) */
-		Sys_Error ("Unsupported endianism.");
-
-	if (host_bigendian)
-	{
-		BigShort = ShortNoSwap;
-		LittleShort = ShortSwap;
-		BigLong = LongNoSwap;
-		LittleLong = LongSwap;
-		BigFloat = FloatNoSwap;
-		LittleFloat = FloatSwap;
-	}
-	else /* assumed LITTLE_ENDIAN. */
-	{
-		BigShort = ShortSwap;
-		LittleShort = ShortNoSwap;
-		BigLong = LongSwap;
-		LittleLong = LongNoSwap;
-		BigFloat = FloatSwap;
-		LittleFloat = FloatNoSwap;
-	}
+	if (bytes[0] != 0x78 || bytes[1] != 0x56 || bytes[2] != 0x34 || bytes[3] != 0x12)
+		Sys_Error ("Unsupported endianism. Only little endian is supported");
 
 	if (COM_CheckParm ("-fitz"))
 		fitzmode = true;
