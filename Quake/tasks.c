@@ -37,8 +37,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define GUTTER_BITS          2
 #define MAX_WORKERS          32
 #define WORKER_HUNK_SIZE     (128 * 1024)
-#define WAIT_SPIN_COUNT      10000
-#define WAIT_SLEEP_COUNT     5
+#define WAIT_SPIN_COUNT      1000
+#define WAIT_SLEEP_COUNT     3
 
 COMPILE_TIME_ASSERT (tasks, MAX_PENDING_TASKS >= MAX_EXECUTABLE_TASKS);
 
