@@ -1,0 +1,19 @@
+name: macOS CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: macos-11
+    strategy:
+      fail-fast: false
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install Dependencies
+      run: brew install sdl2 vulkan-headers molten-vk
+    - name: Build vkQuake
+      run: make --directory=Quake
