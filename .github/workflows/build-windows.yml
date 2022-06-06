@@ -1,0 +1,36 @@
+name: Windows CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: windows-2022
+    strategy:
+      fail-fast: false
+      matrix:
+        configuration: [Release, Debug]
+        platform: [x64, Win32]
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install Vulkan SDK
+      uses: humbletim/setup-vulkan-sdk@v1.2.0
+      with:
+        vulkan-query-version: latest
+        vulkan-components: Vulkan-Headers, Vulkan-Loader, Glslang, SPIRV-Tools
+        vulkan-use-cache: true
+    - name: Build vkQuake
+      run: |
+        $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+        $msbuild = & "$vswhere" -latest -requires Microsoft.Component.MSBuild -find MSBuild\**\Bin\MSBuild.exe | select-object -first 1
+        $options = @( `
+          '-property:Configuration=${{ matrix.configuration }}', `
+          '-property:Platform=${{ matrix.platform }}', `
+          '-maxcpucount', `
+          '-verbosity:minimal' `
+        )
+        & $msbuild Windows\VisualStudio\vkquake.sln $options
+        if (-not $?) { throw "Build failed" }
