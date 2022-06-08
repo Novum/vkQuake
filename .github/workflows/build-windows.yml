@@ -33,3 +33,10 @@ jobs:
         )
         & $msbuild Windows\VisualStudio\vkquake.sln $options
         if (-not $?) { throw "Build failed" }
+    - name: Upload vkQuake
+      uses: actions/upload-artifact@v3
+      with:
+        name: vkQuake archive
+        path: |
+            Windows\VisualStudio\Build-vkQuake\**\*.exe
+            Windows\VisualStudio\Build-vkQuake\**\*.dll
