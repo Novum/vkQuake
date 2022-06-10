@@ -30,6 +30,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #endif
 
 extern cvar_t pausable;
+extern cvar_t nomonsters;
 extern cvar_t autoload;
 extern cvar_t autofastload;
 
@@ -1080,6 +1081,12 @@ static void Host_Savegame_f (void)
 		return;
 	}
 
+	if (sv.nomonsters)
+	{
+		Con_Printf ("Can't save when using \"nomonsters\".\n");
+		return;
+	}
+
 	if (cl.intermission)
 	{
 		Con_Printf ("Can't save in intermission.\n");
@@ -1329,6 +1336,12 @@ static void Host_Loadgame_f (void)
 	{
 		Con_Printf ("Relative pathnames are not allowed.\n");
 		return;
+	}
+
+	if (nomonsters.value)
+	{
+		Con_Warning ("\"%s\" disabled automatically.\n", nomonsters.name);
+		Cvar_SetValueQuick (&nomonsters, 0.f);
 	}
 
 	cls.demonum = -1; // stop demo loop in case this fails

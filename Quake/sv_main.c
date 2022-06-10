@@ -37,6 +37,8 @@ unsigned int sv_protocol_pext2 = PEXT2_SUPPORTED_SERVER; // spike
 static cvar_t sv_netsort = {"sv_netsort", "1", CVAR_NONE};
 static cvar_t sv_smoothplatformlerps = {"sv_smoothplatformlerps", "1", CVAR_NONE};
 
+extern cvar_t nomonsters;
+
 /*
 =============
 SV_UsePredThinkPos
@@ -3177,6 +3179,7 @@ void SV_SpawnServer (const char *server)
 
 	sv.state = ss_loading;
 	sv.paused = false;
+	sv.nomonsters = (nomonsters.value != 0.f);
 
 	qcvm->time = 1.0;
 

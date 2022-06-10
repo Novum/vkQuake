@@ -47,8 +47,10 @@ typedef struct
 	qboolean active; // false if only a net client
 
 	qboolean paused;
-	qboolean loadgame; // handle connections specially
-	char	 lastsave[128];
+	qboolean loadgame;	 // handle connections specially
+	qboolean nomonsters; // server started with 'nomonsters' cvar active
+
+	char lastsave[128];
 
 	int	   lastcheck; // used by PF_checkclient
 	double lastchecktime;

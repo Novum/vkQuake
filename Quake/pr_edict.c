@@ -1450,20 +1450,28 @@ void ED_LoadFromFile (const char *data)
 			continue;
 		}
 
+		const char *classname = PR_GetString (ent->v.classname);
+
+		if (sv.nomonsters && !strncmp (classname, "monster_", 8))
+		{
+			ED_Free (ent);
+			inhibit++;
+			continue;
+		}
+
 		// look for the spawn function
 		//
-		func = ED_FindFunction (va ("spawnfunc_%s", PR_GetString (ent->v.classname)));
+		func = ED_FindFunction (va ("spawnfunc_%s", classname));
 		if (func)
 		{
 			if (!usingspawnfunc++)
 				Con_DPrintf2 ("Using DP_SV_SPAWNFUNC_PREFIX\n");
 		}
 		else
-			func = ED_FindFunction (PR_GetString (ent->v.classname));
+			func = ED_FindFunction (classname);
 
 		if (!func)
 		{
-			const char *classname = PR_GetString (ent->v.classname);
 			if (!strcmp (classname, "misc_model"))
 				PR_spawnfunc_misc_model (ent);
 			else
@@ -1866,6 +1874,17 @@ qboolean PR_LoadProgs (const char *filename, qboolean fatal, unsigned int needcr
 
 /*
 ===============
+ED_Nomonsters_f
+===============
+*/
+static void ED_Nomonsters_f (cvar_t *cvar)
+{
+	if (cvar->value)
+		Con_Warning ("\"%s\" can break gameplay.\n", cvar->name);
+}
+
+/*
+===============
 PR_Init
 ===============
 */
@@ -1877,6 +1896,7 @@ void PR_Init (void)
 	Cmd_AddCommand ("profile", PR_Profile_f);
 	Cmd_AddCommand ("pr_dumpplatform", PR_DumpPlatform_f);
 	Cvar_RegisterVariable (&nomonsters);
+	Cvar_SetCallback (&nomonsters, ED_Nomonsters_f);
 	Cvar_RegisterVariable (&gamecfg);
 	Cvar_RegisterVariable (&scratch1);
 	Cvar_RegisterVariable (&scratch2);
