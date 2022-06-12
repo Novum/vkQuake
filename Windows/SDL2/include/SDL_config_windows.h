@@ -38,6 +38,18 @@
 #include <winsdkver.h>
 #endif
 
+/* sdkddkver.h defines more specific SDK version numbers. This is needed because older versions of the
+ * Windows 10 SDK have broken declarations for the C API for DirectX 12. */
+#if !defined(HAVE_SDKDDKVER_H) && defined(__has_include)
+#if __has_include(<sdkddkver.h>)
+#define HAVE_SDKDDKVER_H 1
+#endif
+#endif
+
+#ifdef HAVE_SDKDDKVER_H
+#include <sdkddkver.h>
+#endif
+
 /* This is a set of defines to configure the SDL features */
 
 #if !defined(_STDINT_H_) && (!defined(HAVE_STDINT_H) || !_HAVE_STDINT_H)
@@ -227,7 +239,9 @@ typedef unsigned int uintptr_t;
 #endif
 
 /* Enable various audio drivers */
+#if defined(HAVE_MMDEVICEAPI_H) && defined(HAVE_AUDIOCLIENT_H)
 #define SDL_AUDIO_DRIVER_WASAPI 1
+#endif
 #define SDL_AUDIO_DRIVER_DSOUND 1
 #define SDL_AUDIO_DRIVER_WINMM  1
 #define SDL_AUDIO_DRIVER_DISK   1
@@ -248,7 +262,11 @@ typedef unsigned int uintptr_t;
 #define SDL_HAPTIC_XINPUT   1
 
 /* Enable the sensor driver */
+#ifdef HAVE_SENSORSAPI_H
 #define SDL_SENSOR_WINDOWS  1
+#else
+#define SDL_SENSOR_DUMMY    1
+#endif
 
 /* Enable various shared object loading systems */
 #define SDL_LOADSO_WINDOWS  1
@@ -299,11 +317,6 @@ typedef unsigned int uintptr_t;
 
 /* Enable filesystem support */
 #define SDL_FILESYSTEM_WINDOWS  1
-
-/* Enable assembly routines (Win64 doesn't have inline asm) */
-#ifndef _WIN64
-#define SDL_ASSEMBLY_ROUTINES   1
-#endif
 
 #endif /* SDL_config_windows_h_ */
 
