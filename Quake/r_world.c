@@ -133,6 +133,9 @@ R_SetupWorldCBXTexRanges
 */
 void R_SetupWorldCBXTexRanges (qboolean use_tasks)
 {
+	memset (world_texstart, 0, sizeof (world_texstart));
+	memset (world_texend, 0, sizeof (world_texend));
+
 	const int num_textures = cl.worldmodel->numtextures;
 	if (!use_tasks)
 	{
@@ -151,8 +154,6 @@ void R_SetupWorldCBXTexRanges (qboolean use_tasks)
 	}
 
 	const int num_surfs_per_cbx = (total_world_surfs + NUM_WORLD_CBX - 1) / NUM_WORLD_CBX;
-	memset (world_texstart, 0, sizeof (world_texstart));
-	memset (world_texend, 0, sizeof (world_texend));
 	int current_cbx = 0;
 	int num_assigned_to_cbx = 0;
 	for (int i = 0; i < num_textures; ++i)
@@ -547,7 +548,10 @@ static void R_MarkSurfacesPrepare (void *unused)
 	// set all chains to null
 	for (i = 0; i < cl.worldmodel->numtextures; i++)
 		if (cl.worldmodel->textures[i])
+		{
 			cl.worldmodel->textures[i]->texturechains[chain_world] = NULL;
+			cl.worldmodel->textures[i]->chain_size[chain_world] = 0;
+		}
 
 #if defined(USE_SIMD)
 	if (use_simd)
