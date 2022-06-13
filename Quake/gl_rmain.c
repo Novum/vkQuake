@@ -795,41 +795,41 @@ void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 		task_handle_t update_warp_textures = Task_AllocateAndAssignFunc ((task_func_t)R_UpdateWarpTextures, &primary_cbx, sizeof (cb_context_t *));
 		Task_AddDependency (cull_surfaces, update_warp_textures);
 		Task_AddDependency (begin_rendering_task, update_warp_textures);
+		Task_AddDependency (update_warp_textures, draw_done_task);
 
 		task_handle_t draw_world_task = Task_AllocateAndAssignIndexedFunc (R_DrawWorldTask, NUM_WORLD_CBX, NULL, 0);
 		Task_AddDependency (chain_surfaces, draw_world_task);
 		Task_AddDependency (begin_rendering_task, draw_world_task);
+		Task_AddDependency (draw_world_task, draw_done_task);
 
 		task_handle_t draw_sky_and_water_task = Task_AllocateAndAssignFunc (R_DrawSkyAndWaterTask, NULL, 0);
 		Task_AddDependency (chain_surfaces, draw_sky_and_water_task);
 		Task_AddDependency (begin_rendering_task, draw_sky_and_water_task);
+		Task_AddDependency (draw_sky_and_water_task, draw_done_task);
 
 		task_handle_t draw_view_model_task = Task_AllocateAndAssignFunc (R_DrawViewModelTask, NULL, 0);
 		Task_AddDependency (before_mark, draw_view_model_task);
 		Task_AddDependency (begin_rendering_task, draw_view_model_task);
+		Task_AddDependency (draw_view_model_task, draw_done_task);
 
 		task_handle_t draw_entities_task = Task_AllocateAndAssignIndexedFunc (R_DrawEntitiesTask, NUM_ENTITIES_CBX, NULL, 0);
 		Task_AddDependency (store_efrags, draw_entities_task);
 		Task_AddDependency (begin_rendering_task, draw_entities_task);
+		Task_AddDependency (draw_entities_task, draw_done_task);
 
 		task_handle_t draw_alpha_entities_task = Task_AllocateAndAssignFunc (R_DrawAlphaEntitiesTask, NULL, 0);
 		Task_AddDependency (store_efrags, draw_alpha_entities_task);
 		Task_AddDependency (begin_rendering_task, draw_alpha_entities_task);
+		Task_AddDependency (draw_alpha_entities_task, draw_done_task);
 
 		task_handle_t draw_particles_task = Task_AllocateAndAssignFunc (R_DrawParticlesTask, NULL, 0);
 		Task_AddDependency (before_mark, draw_particles_task);
 		Task_AddDependency (begin_rendering_task, draw_particles_task);
+		Task_AddDependency (draw_particles_task, draw_done_task);
 
 		task_handle_t update_lightmaps_task = Task_AllocateAndAssignFunc (R_UpdateLightmaps, NULL, 0);
 		Task_AddDependency (cull_surfaces, update_lightmaps_task);
 		Task_AddDependency (begin_rendering_task, update_lightmaps_task);
-
-		Task_AddDependency (draw_world_task, draw_done_task);
-		Task_AddDependency (draw_sky_and_water_task, draw_done_task);
-		Task_AddDependency (draw_entities_task, draw_done_task);
-		Task_AddDependency (draw_alpha_entities_task, draw_done_task);
-		Task_AddDependency (draw_particles_task, draw_done_task);
-		Task_AddDependency (update_warp_textures, draw_done_task);
 		Task_AddDependency (update_lightmaps_task, draw_done_task);
 
 		task_handle_t tasks[] = {before_mark,          store_efrags,       update_warp_textures,     draw_world_task,     draw_sky_and_water_task,
