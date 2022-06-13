@@ -284,11 +284,11 @@ static int Task_Worker (void *data)
 		}
 		if (Atomic_DecrementUInt32 (&task->remaining_workers) == 1)
 		{
+			SDL_LockMutex (task->id_mutex);
 			for (int i = 0; i < task->num_dependents; ++i)
 			{
 				Task_Submit (task->dependent_task_handles[i]);
 			}
-			SDL_LockMutex (task->id_mutex);
 			// Invalidate ID by making it older than the task handle
 			task->id -= 1;
 			SDL_CondBroadcast (task->id_condition);
@@ -462,12 +462,20 @@ Task_AddDependency
 void Task_AddDependency (task_handle_t before, task_handle_t after)
 {
 	uint32_t before_task_index = IndexFromTaskHandle (before);
-	uint32_t after_task_index = IndexFromTaskHandle (after);
 	task_t  *before_task = &tasks[before_task_index];
+	const int before_handle_task_id = IdFromTaskHandle (before);
+	SDL_LockMutex (before_task->id_mutex);
+	if (before_task->id != before_handle_task_id)
+	{
+		SDL_UnlockMutex (before_task->id_mutex);
+		return;
+	}
+	uint32_t after_task_index = IndexFromTaskHandle (after);
 	task_t  *after_task = &tasks[after_task_index];
 	assert (before_task->num_dependents < MAX_DEPENDENT_TASKS);
 	before_task->dependent_task_handles[before_task->num_dependents] = after;
 	before_task->num_dependents += 1;
+	SDL_UnlockMutex (before_task->id_mutex);
 	Atomic_IncrementUInt32 (&after_task->remaining_dependencies);
 }
 
