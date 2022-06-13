@@ -223,6 +223,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define WARPIMAGESIZE 512
 #define WARPIMAGEMIPS 5
 
+#define DOUBLE_BUFFERED 2
+
 typedef struct
 {
 	const char *basedir;
@@ -297,6 +299,9 @@ typedef enum
 #include "cdaudio.h"
 #include "glquake.h"
 #include "../Shaders/shaders.h"
+
+#include "tasks.h"
+#include "atomics.h"
 
 //=============================================================================
 

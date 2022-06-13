@@ -99,7 +99,6 @@ cvar_t scr_showram = {"showram", "1", CVAR_NONE};
 cvar_t scr_showturtle = {"showturtle", "0", CVAR_NONE};
 cvar_t scr_showpause = {"showpause", "1", CVAR_NONE};
 cvar_t scr_printspeed = {"scr_printspeed", "8", CVAR_NONE};
-cvar_t gl_triplebuffer = {"gl_triplebuffer", "1", CVAR_ARCHIVE};
 
 cvar_t cl_gun_fovscale = {"cl_gun_fovscale", "1", CVAR_ARCHIVE}; // Qrack
 
@@ -111,6 +110,10 @@ cvar_t scr_relcrosshairscale = {"scr_relcrosshairscale", "1", CVAR_ARCHIVE};
 cvar_t scr_relconscale = {"scr_relconscale", "1", CVAR_ARCHIVE};
 
 extern cvar_t crosshair;
+extern cvar_t r_tasks;
+extern cvar_t r_gpulightmapupdate;
+extern cvar_t r_showtris;
+extern cvar_t r_showbboxes;
 
 qboolean scr_initialized; // ready to draw
 
@@ -491,7 +494,6 @@ void SCR_Init (void)
 	Cvar_RegisterVariable (&scr_showpause);
 	Cvar_RegisterVariable (&scr_centertime);
 	Cvar_RegisterVariable (&scr_printspeed);
-	Cvar_RegisterVariable (&gl_triplebuffer);
 	Cvar_RegisterVariable (&cl_gun_fovscale);
 
 	Cvar_RegisterVariable (&scr_relativescale);
@@ -788,9 +790,6 @@ void SCR_SetUpToDrawConsole (void)
 	if (scr_drawloading)
 		return; // never a console with loading plaque
 
-	// decide on the height of the console
-	con_forcedup = !cl.worldmodel || cls.signon != SIGNONS;
-
 	if (con_forcedup)
 	{
 		scr_conlines = glheight; // full screen //johnfitz -- glheight instead of vid.height
@@ -818,7 +817,7 @@ void SCR_SetUpToDrawConsole (void)
 			scr_con_current = scr_conlines;
 	}
 
-	if (clearconsole++ < vid.numpages)
+	if (clearconsole++ < DOUBLE_BUFFERED)
 		Sbar_Changed ();
 
 	if (!con_forcedup && scr_con_current)
@@ -1016,67 +1015,15 @@ void SCR_TileClear (cb_context_t *cbx)
 
 /*
 ==================
-SCR_UpdateScreen
-
-This is called every frame, and can also be called explicitly to flush
-text to the screen.
-
-WARNING: be very careful calling this from elsewhere, because the refresh
-needs almost the entire 256k of stack space!
+SCR_DrawGUI
 ==================
 */
-void SCR_UpdateScreen (qboolean use_tasks)
+static void SCR_DrawGUI (void *unused)
 {
-	if (!scr_initialized || !con_initialized || in_update_screen)
-		return; // not initialized yet
-
-	if (Tasks_IsWorker ())
-		return; // not safe
-
-	in_update_screen = true;
-
-	vid.numpages = (gl_triplebuffer.value) ? 3 : 2;
-
-	if (scr_disabled_for_loading)
-	{
-		if (realtime - scr_disabled_time > 60)
-		{
-			scr_disabled_for_loading = false;
-			Con_Printf ("load failed.\n");
-		}
-		else
-		{
-			in_update_screen = false;
-			return;
-		}
-	}
-
-	if (!GL_BeginRendering (&glx, &gly, &glwidth, &glheight))
-	{
-		in_update_screen = false;
-		return;
-	}
-
-	//
-	// determine size of refresh window
-	//
-	if (vid.recalc_refdef)
-		SCR_CalcRefdef ();
-
-	//
-	// do 3D refresh drawing, and then update the screen
-	//
-	SCR_SetUpToDrawConsole ();
-
-	V_RenderView (use_tasks);
-
 	cb_context_t *cbx = &vulkan_globals.secondary_cb_contexts[CBX_GUI];
-	if (GL_Set2D (cbx) == false)
-	{
-		GL_EndRendering (false);
-		in_update_screen = false;
-		return;
-	}
+
+	GL_SetCanvas (cbx, CANVAS_DEFAULT);
+	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_blend_pipeline[cbx->render_pass_index]);
 
 	// FIXME: only call this when needed
 	R_BeginDebugUtilsLabel (cbx, "2D");
@@ -1121,9 +1068,101 @@ void SCR_UpdateScreen (qboolean use_tasks)
 		M_Draw (cbx);
 	}
 	R_EndDebugUtilsLabel (cbx);
+}
 
-	V_UpdateBlend (); // johnfitz -- V_UpdatePalette cleaned up and renamed
+/*
+==================
+SCR_SetupFrame
+==================
+*/
+static void SCR_SetupFrame (void *unused)
+{
+	SCR_SetUpToDrawConsole ();
+	V_SetupFrame ();
+}
 
-	GL_EndRendering (true);
+/*
+==================
+SCR_UpdateScreen
+
+This is called every frame, and can also be called explicitly to flush
+text to the screen.
+
+WARNING: be very careful calling this from elsewhere, because the refresh
+needs almost the entire 256k of stack space!
+==================
+*/
+void SCR_UpdateScreen (qboolean use_tasks)
+{
+	if (!scr_initialized || !con_initialized || in_update_screen)
+		return; // not initialized yet
+
+	if (Tasks_IsWorker ())
+		return; // not safe
+
+	in_update_screen = true;
+	use_tasks = use_tasks && (Tasks_NumWorkers () > 1) && r_tasks.value && r_gpulightmapupdate.value && !r_showtris.value && !r_showbboxes.value;
+
+	if (scr_disabled_for_loading)
+	{
+		if (realtime - scr_disabled_time > 60)
+		{
+			scr_disabled_for_loading = false;
+			Con_Printf ("load failed.\n");
+		}
+		else
+		{
+			in_update_screen = false;
+			return;
+		}
+	}
+
+	if (vid.recalc_refdef)
+		SCR_CalcRefdef ();
+
+	// decide on the height of the console
+	con_forcedup = !cl.worldmodel || cls.signon != SIGNONS;
+
+	task_handle_t begin_rendering_task = INVALID_TASK_HANDLE;
+	if (!GL_BeginRendering (use_tasks, &begin_rendering_task, &glx, &gly, &glwidth, &glheight))
+	{
+		in_update_screen = false;
+		return;
+	}
+
+	if (use_tasks)
+	{
+		if (prev_end_rendering_task != INVALID_TASK_HANDLE)
+		{
+			Task_AddDependency (prev_end_rendering_task, begin_rendering_task);
+			prev_end_rendering_task = INVALID_TASK_HANDLE;
+		}
+
+		task_handle_t draw_done_task = Task_Allocate ();
+		task_handle_t setup_frame_task = Task_AllocateAndAssignFunc (SCR_SetupFrame, NULL, 0);
+		V_RenderView (use_tasks, begin_rendering_task, setup_frame_task, draw_done_task);
+		task_handle_t draw_gui_task = Task_AllocateAndAssignFunc (SCR_DrawGUI, NULL, 0);
+		task_handle_t end_rendering_task = GL_EndRendering (use_tasks, true);
+
+		Task_AddDependency (begin_rendering_task, draw_gui_task);
+		Task_AddDependency (draw_gui_task, draw_done_task);
+		Task_AddDependency (draw_done_task, end_rendering_task);
+
+		task_handle_t tasks[] = {begin_rendering_task, setup_frame_task, draw_done_task, draw_gui_task, end_rendering_task};
+		Tasks_Submit (sizeof (tasks) / sizeof (task_handle_t), tasks);
+
+		while (!Task_Join (draw_done_task, 10))
+			S_ExtraUpdate ();
+		prev_end_rendering_task = end_rendering_task;
+	}
+	else
+	{
+		SCR_SetupFrame (NULL);
+		V_RenderView (use_tasks, INVALID_TASK_HANDLE, INVALID_TASK_HANDLE, INVALID_TASK_HANDLE);
+		S_ExtraUpdate ();
+		SCR_DrawGUI (NULL);
+		GL_EndRendering (false, true);
+	}
+
 	in_update_screen = false;
 }

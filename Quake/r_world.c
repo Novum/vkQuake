@@ -33,7 +33,6 @@ extern cvar_t r_showtris;
 extern cvar_t r_simd;
 extern cvar_t gl_zfix;
 extern cvar_t r_gpulightmapupdate;
-extern cvar_t r_tasks;
 
 cvar_t r_parallelmark = {"r_parallelmark", "1", CVAR_NONE};
 

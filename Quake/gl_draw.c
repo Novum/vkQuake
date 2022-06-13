@@ -1039,19 +1039,3 @@ void GL_SetCanvas (cb_context_t *cbx, canvastype newcanvas)
 		Sys_Error ("GL_SetCanvas: bad canvas type");
 	}
 }
-
-/*
-================
-GL_Set2D
-================
-*/
-qboolean GL_Set2D (cb_context_t *cbx)
-{
-	if (GL_AcquireNextSwapChainImage () == false)
-		return false;
-
-	GL_SetCanvas (cbx, CANVAS_DEFAULT);
-	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_blend_pipeline[cbx->render_pass_index]);
-
-	return true;
-}

@@ -42,7 +42,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define MAXWIDTH       10000
 #define MAXHEIGHT      10000
 
-#define DOUBLE_BUFFERED       2
 #define MAX_SWAP_CHAIN_IMAGES 8
 #define REQUIRED_COLOR_BUFFER_FEATURES                                                                                             \
 	(VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT | VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BLEND_BIT | VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT | \
@@ -86,7 +85,7 @@ static void GL_DestroyRenderResources (void);
 viddef_t        vid; // global video state
 modestate_t     modestate = MS_UNINIT;
 extern qboolean scr_initialized;
-extern cvar_t   r_particles, host_maxfps;
+extern cvar_t   r_particles, host_maxfps, r_gpulightmapupdate;
 
 //====================================
 
@@ -178,6 +177,8 @@ VkBool32 VKAPI_PTR DebugMessageCallback (
 
 // Swap chain
 static uint32_t current_swapchain_buffer;
+
+task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
 
 #define GET_INSTANCE_PROC_ADDR(entrypoint)                                                              \
 	{                                                                                                   \
@@ -458,7 +459,6 @@ static qboolean VID_SetMode (int width, int height, int refreshrate, qboolean fu
 	vid.height = VID_GetCurrentHeight ();
 	vid.conwidth = vid.width & 0xFFFFFFF8;
 	vid.conheight = vid.conwidth * vid.height / vid.width;
-	vid.numpages = 2;
 
 	modestate = VID_GetFullscreen () ? MS_FULLSCREEN : MS_WINDOWED;
 
@@ -2105,34 +2105,11 @@ static void GL_DestroyRenderResources (void)
 
 /*
 =================
-GL_BeginRendering
+GL_BeginRenderingTask
 =================
 */
-qboolean GL_BeginRendering (int *x, int *y, int *width, int *height)
+void GL_BeginRenderingTask (void *unused)
 {
-	if (vid.restart_next_frame)
-	{
-		VID_Restart (false);
-		vid.restart_next_frame = false;
-	}
-
-	if (!render_resources_created)
-	{
-		GL_CreateRenderResources ();
-
-		if (!render_resources_created)
-		{
-			return false;
-		}
-	}
-
-	R_SwapDynamicBuffers ();
-
-	vulkan_globals.device_idle = false;
-	*x = *y = 0;
-	*width = vid.width;
-	*height = vid.height;
-
 	VkResult err;
 
 	if (frame_submitted[current_cb_index])
@@ -2182,12 +2159,17 @@ qboolean GL_BeginRendering (int *x, int *y, int *width, int *height)
 		VkCommandBufferBeginInfo command_buffer_begin_info;
 		memset (&command_buffer_begin_info, 0, sizeof (command_buffer_begin_info));
 		command_buffer_begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-		command_buffer_begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT | VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT;
+		command_buffer_begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+		if (cbx_index != CBX_UPDATE_LIGHTMAPS)
+			command_buffer_begin_info.flags |= VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT;
 		command_buffer_begin_info.pInheritanceInfo = &inheritance_info;
 
 		err = vkBeginCommandBuffer (cbx->cb, &command_buffer_begin_info);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkBeginCommandBuffer failed");
+
+		if (cbx_index == CBX_UPDATE_LIGHTMAPS)
+			continue;
 
 		VkRect2D render_area;
 		render_area.offset.x = 0;
@@ -2208,6 +2190,59 @@ qboolean GL_BeginRendering (int *x, int *y, int *width, int *height)
 		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_blend_pipeline[cbx->render_pass_index]);
 		GL_SetCanvas (cbx, CANVAS_NONE);
 	}
+}
+
+/*
+=================
+GL_SynchronizeEndRenderingTask
+=================
+*/
+void GL_SynchronizeEndRenderingTask (void)
+{
+	if (prev_end_rendering_task != INVALID_TASK_HANDLE)
+	{
+		Task_Join (prev_end_rendering_task, SDL_MUTEX_MAXWAIT);
+		prev_end_rendering_task = INVALID_TASK_HANDLE;
+	}
+}
+
+/*
+=================
+GL_BeginRendering
+=================
+*/
+qboolean GL_BeginRendering (qboolean use_tasks, task_handle_t *begin_rendering_task, int *x, int *y, int *width, int *height)
+{
+	if (!use_tasks)
+		GL_SynchronizeEndRenderingTask ();
+
+	if (vid.restart_next_frame)
+	{
+		VID_Restart (false);
+		vid.restart_next_frame = false;
+	}
+
+	if (!render_resources_created)
+	{
+		GL_CreateRenderResources ();
+
+		if (!render_resources_created)
+		{
+			return false;
+		}
+	}
+
+	R_SwapDynamicBuffers ();
+
+	vulkan_globals.device_idle = false;
+	*x = *y = 0;
+	*width = vid.width;
+	*height = vid.height;
+
+	if (use_tasks)
+		*begin_rendering_task = Task_AllocateAndAssignFunc (GL_BeginRenderingTask, NULL, 0);
+	else
+		GL_BeginRenderingTask (NULL);
 
 	return true;
 }
@@ -2283,12 +2318,24 @@ typedef struct screen_effect_constants_s
 	float    poly_blend_a;
 } screen_effect_constants_t;
 
+typedef struct end_rendering_parms_s
+{
+	uint32_t vid_width     : 20;
+	qboolean swapchain     : 1;
+	qboolean render_warp   : 1;
+	qboolean vid_palettize : 1;
+	uint32_t render_scale  : 4;
+	uint32_t vid_height    : 20;
+	float    time;
+	uint8_t  v_blend[4];
+} end_rendering_parms_t;
+
 /*
 ===============
 GL_ScreenEffects
 ===============
 */
-static void GL_ScreenEffects (cb_context_t *cbx, qboolean enabled)
+static void GL_ScreenEffects (cb_context_t *cbx, qboolean enabled, end_rendering_parms_t *parms)
 {
 	if (enabled)
 	{
@@ -2331,7 +2378,7 @@ static void GL_ScreenEffects (cb_context_t *cbx, qboolean enabled)
 		GL_SetCanvas (cbx, CANVAS_NONE); // Invalidate canvas so push constants get set later
 
 		vulkan_pipeline_t *pipeline = NULL;
-		if (render_scale >= 2)
+		if (parms->render_scale >= 2)
 		{
 			if (vulkan_globals.screen_effects_sops && r_usesops.value)
 				pipeline = &vulkan_globals.screen_effects_scale_sops_pipeline;
@@ -2345,31 +2392,31 @@ static void GL_ScreenEffects (cb_context_t *cbx, qboolean enabled)
 		vkCmdBindDescriptorSets (cbx->cb, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->layout.handle, 0, 1, &vulkan_globals.screen_effects_desc_set, 0, NULL);
 
 		uint32_t screen_effect_flags = 0;
-		if (render_warp)
+		if (parms->render_warp)
 			screen_effect_flags |= 0x1;
-		if (render_scale >= 8)
+		if (parms->render_scale >= 8)
 			screen_effect_flags |= 0x8;
-		else if (render_scale >= 4)
+		else if (parms->render_scale >= 4)
 			screen_effect_flags |= 0x4;
-		else if (render_scale >= 2)
+		else if (parms->render_scale >= 2)
 			screen_effect_flags |= 0x2;
-		if (vid_palettize.value)
+		if (parms->vid_palettize)
 			screen_effect_flags |= 0x10;
 		const screen_effect_constants_t push_constants = {
-			vid.width - 1,
-			vid.height - 1,
-			1.0f / (float)vid.width,
-			1.0f / (float)vid.height,
-			(float)vid.width / (float)vid.height,
-			cl.time,
+			parms->vid_width - 1,
+			parms->vid_height - 1,
+			1.0f / (float)parms->vid_width,
+			1.0f / (float)parms->vid_height,
+			(float)parms->vid_width / (float)parms->vid_height,
+			parms->time,
 			screen_effect_flags,
-			v_blend[0],
-			v_blend[1],
-			v_blend[2],
-			v_blend[3]};
+			(float)parms->v_blend[0] / 255.0f,
+			(float)parms->v_blend[1] / 255.0f,
+			(float)parms->v_blend[2] / 255.0f,
+			(float)parms->v_blend[3] / 255.0f};
 		R_PushConstants (cbx, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof (screen_effect_constants_t), &push_constants);
 
-		vkCmdDispatch (cbx->cb, (vid.width + 7) / 8, (vid.height + 7) / 8, 1);
+		vkCmdDispatch (cbx->cb, (parms->vid_width + 7) / 8, (parms->vid_height + 7) / 8, 1);
 
 		image_barriers[0].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 		image_barriers[0].pNext = NULL;
@@ -2406,16 +2453,18 @@ static void GL_ScreenEffects (cb_context_t *cbx, qboolean enabled)
 
 /*
 =================
-GL_EndRendering
+GL_EndRenderingTask
 =================
 */
-void GL_EndRendering (qboolean swapchain_acquired)
+static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 {
 	R_SubmitStagingBuffers ();
 	R_FlushDynamicBuffers ();
 
 	VkResult err;
+	int      cb_index = current_cb_index;
 
+	qboolean swapchain_acquired = parms->swapchain && GL_AcquireNextSwapChainImage ();
 	if (swapchain_acquired == true)
 	{
 		cb_context_t *cbx = &vulkan_globals.secondary_cb_contexts[CBX_POST_PROCESS];
@@ -2444,8 +2493,8 @@ void GL_EndRendering (qboolean swapchain_acquired)
 	VkRect2D render_area;
 	render_area.offset.x = 0;
 	render_area.offset.y = 0;
-	render_area.extent.width = vid.width;
-	render_area.extent.height = vid.height;
+	render_area.extent.width = parms->vid_width;
+	render_area.extent.height = parms->vid_height;
 
 	VkClearValue depth_clear_value;
 	depth_clear_value.depthStencil.depth = 0.0f;
@@ -2456,7 +2505,9 @@ void GL_EndRendering (qboolean swapchain_acquired)
 	clear_values[1] = depth_clear_value;
 	clear_values[2] = vulkan_globals.color_clear_value;
 
-	const qboolean screen_effects = render_warp || (render_scale >= 2) || vid_palettize.value || (gl_polyblend.value && v_blend[3]);
+	vkCmdExecuteCommands (primary_cb, 1, &vulkan_globals.secondary_cb_contexts[CBX_UPDATE_LIGHTMAPS].cb);
+
+	const qboolean screen_effects = parms->render_warp || (parms->render_scale >= 2) || parms->vid_palettize || (gl_polyblend.value && parms->v_blend[3]);
 	{
 		const qboolean        resolve = (vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT);
 		VkRenderPassBeginInfo render_pass_begin_info;
@@ -2473,7 +2524,7 @@ void GL_EndRendering (qboolean swapchain_acquired)
 		vkCmdEndRenderPass (primary_cb);
 	}
 
-	GL_ScreenEffects (&vulkan_globals.primary_cb_context, screen_effects);
+	GL_ScreenEffects (&vulkan_globals.primary_cb_context, screen_effects, parms);
 
 	{
 		VkRenderPassBeginInfo render_pass_begin_info;
@@ -2501,13 +2552,13 @@ void GL_EndRendering (qboolean swapchain_acquired)
 		submit_info.commandBufferCount = 1;
 		submit_info.pCommandBuffers = &primary_cb;
 		submit_info.waitSemaphoreCount = swapchain_acquired ? 1 : 0;
-		submit_info.pWaitSemaphores = &image_aquired_semaphores[current_cb_index];
+		submit_info.pWaitSemaphores = &image_aquired_semaphores[cb_index];
 		submit_info.signalSemaphoreCount = swapchain_acquired ? 1 : 0;
-		submit_info.pSignalSemaphores = &draw_complete_semaphores[current_cb_index];
+		submit_info.pSignalSemaphores = &draw_complete_semaphores[cb_index];
 		VkPipelineStageFlags wait_dst_stage_mask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 		submit_info.pWaitDstStageMask = &wait_dst_stage_mask;
 
-		err = vkQueueSubmit (vulkan_globals.queue, 1, &submit_info, command_buffer_fences[current_cb_index]);
+		err = vkQueueSubmit (vulkan_globals.queue, 1, &submit_info, command_buffer_fences[cb_index]);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkQueueSubmit failed");
 	}
@@ -2522,7 +2573,7 @@ void GL_EndRendering (qboolean swapchain_acquired)
 		present_info.swapchainCount = 1;
 		present_info.pSwapchains = &vulkan_swapchain, present_info.pImageIndices = &current_swapchain_buffer;
 		present_info.waitSemaphoreCount = 1;
-		present_info.pWaitSemaphores = &draw_complete_semaphores[current_cb_index];
+		present_info.pWaitSemaphores = &draw_complete_semaphores[cb_index];
 		err = fpQueuePresentKHR (vulkan_globals.queue, &present_info);
 #if defined(VK_EXT_full_screen_exclusive)
 		if ((err == VK_ERROR_OUT_OF_DATE_KHR) || (err == VK_ERROR_SURFACE_LOST_KHR) || (err == VK_SUBOPTIMAL_KHR) ||
@@ -2540,8 +2591,36 @@ void GL_EndRendering (qboolean swapchain_acquired)
 			num_images_acquired -= 1;
 	}
 
-	frame_submitted[current_cb_index] = true;
+	frame_submitted[cb_index] = true;
 	current_cb_index = (current_cb_index + 1) % DOUBLE_BUFFERED;
+}
+
+/*
+=================
+GL_EndRendering
+=================
+*/
+task_handle_t GL_EndRendering (qboolean use_tasks, qboolean swapchain)
+{
+	end_rendering_parms_t parms = {
+		.swapchain = swapchain,
+		.render_warp = render_warp,
+		.vid_palettize = vid_palettize.value != 0,
+		.render_scale = CLAMP(0, render_scale, 8),
+		.vid_width = vid.width,
+		.vid_height = vid.height,
+		.time = fmod (cl.time, 2.0 * M_PI),
+		.v_blend[0] = v_blend[0],
+		.v_blend[1] = v_blend[1],
+		.v_blend[2] = v_blend[2],
+		.v_blend[3] = v_blend[3],
+	};
+	task_handle_t end_rendering_task = INVALID_TASK_HANDLE;
+	if (use_tasks)
+		end_rendering_task = Task_AllocateAndAssignFunc (GL_EndRenderingTask, &parms, sizeof (parms));
+	else
+		GL_EndRenderingTask (&parms);
+	return end_rendering_task;
 }
 
 /*
@@ -2962,6 +3041,8 @@ VID_Restart
 */
 static void VID_Restart (qboolean set_mode)
 {
+	GL_SynchronizeEndRenderingTask ();
+
 	int      width, height, refreshrate;
 	qboolean fullscreen;
 

@@ -254,7 +254,7 @@ cshift_t cshift_water = {{130, 80, 50}, 128};
 cshift_t cshift_slime = {{0, 25, 5}, 150};
 cshift_t cshift_lava = {{255, 80, 0}, 150};
 
-float v_blend[4]; // rgba 0.0 - 1.0
+uint8_t v_blend[4]; // rgba 0 - 255
 
 // johnfitz -- deleted BuildGammaTable(), V_CheckGamma(), gammatable[], and ramps[][]
 
@@ -461,14 +461,10 @@ void V_CalcBlend (void)
 		b = b * (1 - a2) + cl.cshifts[j].destcolor[2] * a2;
 	}
 
-	v_blend[0] = r / 255.0;
-	v_blend[1] = g / 255.0;
-	v_blend[2] = b / 255.0;
-	v_blend[3] = a;
-	if (v_blend[3] > 1)
-		v_blend[3] = 1;
-	if (v_blend[3] < 0)
-		v_blend[3] = 0;
+	v_blend[0] = CLAMP (0.0f, r, 255.0f);
+	v_blend[1] = CLAMP (0.0f, g, 255.0f);
+	v_blend[2] = CLAMP (0.0f, b, 255.0f);
+	v_blend[3] = CLAMP (0.0f, a * 255.0f, 255.0f);
 }
 
 /*
@@ -476,7 +472,7 @@ void V_CalcBlend (void)
 V_UpdateBlend -- johnfitz -- V_UpdatePalette cleaned up and renamed
 =============
 */
-void V_UpdateBlend (void)
+static void V_UpdateBlend (void)
 {
 	int      i, j;
 	qboolean blend_changed;
@@ -840,6 +836,23 @@ void V_RestoreAngles (void)
 }
 
 /*
+=============
+V_SetupFrame
+=============
+*/
+void V_SetupFrame (void)
+{
+	V_UpdateBlend ();
+	if (!con_forcedup)
+	{
+		if (cl.intermission)
+			V_CalcIntermissionRefdef ();
+		else if (!cl.paused /* && (cl.maxclients > 1 || key_dest == key_game) */)
+			V_CalcRefdef ();
+	}
+}
+
+/*
 ==================
 V_RenderView
 
@@ -849,7 +862,7 @@ the entity origin, so any view position inside that will be valid
 */
 extern vrect_t scr_vrect;
 
-void V_RenderView (qboolean use_tasks)
+void V_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_handle_t setup_frame_task, task_handle_t draw_done_task)
 {
 	if (con_forcedup)
 	{
@@ -858,14 +871,8 @@ void V_RenderView (qboolean use_tasks)
 		return;
 	}
 
-	if (cl.intermission)
-		V_CalcIntermissionRefdef ();
-	else if (!cl.paused /* && (cl.maxclients > 1 || key_dest == key_game) */)
-		V_CalcRefdef ();
-
-	// johnfitz -- removed lcd code
-
-	R_RenderView (use_tasks);
+	R_RenderView (use_tasks, begin_rendering_task, setup_frame_task, draw_done_task);
+	return;
 }
 
 /*

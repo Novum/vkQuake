@@ -26,12 +26,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 extern cvar_t vid_gamma;
 extern cvar_t vid_contrast;
 
-extern float v_blend[4];
+extern uint8_t v_blend[4];
 
 void  V_Init (void);
-void  V_RenderView (qboolean use_tasks);
+void  V_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_handle_t setup_frame_task, task_handle_t draw_done_task);
 void  V_CalcBlend (void);
-void  V_UpdateBlend (void);
+void  V_SetupFrame (void);
 float V_CalcRoll (vec3_t angles, vec3_t velocity);
 void  V_RestoreAngles (void);
 // void V_UpdatePalette (void); //johnfitz

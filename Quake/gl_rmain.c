@@ -341,8 +341,6 @@ static void R_SetupViewBeforeMark (void *unused)
 	if (!r_gpulightmapupdate.value)
 		R_PushDlights ();
 	R_AnimateLight ();
-	if (r_gpulightmapupdate.value)
-		R_UpdateLightmaps (&vulkan_globals.primary_cb_context);
 	r_framecount++;
 
 	// build the transformation matrix for the given view angles
@@ -707,10 +705,9 @@ static void R_DrawEntitiesTask (int index, void *unused)
 	R_SetupContext (&vulkan_globals.secondary_cb_contexts[cbx_index]);
 	Fog_EnableGFog (&vulkan_globals.secondary_cb_contexts[cbx_index]); // johnfitz
 	const int num_edicts_per_cb = (cl_numvisedicts + NUM_ENTITIES_CBX - 1) / NUM_ENTITIES_CBX;
-	int startedict = index * num_edicts_per_cb;
-	int endedict = q_min((index + 1) * num_edicts_per_cb, cl_numvisedicts);
-	R_DrawEntitiesOnList (
-		&vulkan_globals.secondary_cb_contexts[cbx_index], false, index + chain_model_0, startedict, endedict);
+	int       startedict = index * num_edicts_per_cb;
+	int       endedict = q_min ((index + 1) * num_edicts_per_cb, cl_numvisedicts);
+	R_DrawEntitiesOnList (&vulkan_globals.secondary_cb_contexts[cbx_index], false, index + chain_model_0, startedict, endedict);
 }
 
 /*
@@ -760,7 +757,7 @@ static void R_DrawViewModelTask (void *unused)
 R_RenderView
 ================
 */
-void R_RenderView (qboolean use_tasks)
+void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_handle_t setup_frame_task, task_handle_t draw_done_task)
 {
 	double time1, time2;
 
@@ -784,11 +781,12 @@ void R_RenderView (qboolean use_tasks)
 		Atomic_StoreUInt32 (&rs_brushpasses, 0u);
 	}
 
-	use_tasks = use_tasks && (Tasks_NumWorkers() > 1) && r_tasks.value && r_gpulightmapupdate.value && !r_showtris.value && !r_showbboxes.value;
 	cb_context_t *primary_cbx = &vulkan_globals.primary_cb_context;
 	if (use_tasks)
 	{
 		task_handle_t before_mark = Task_AllocateAndAssignFunc (R_SetupViewBeforeMark, NULL, 0);
+		Task_AddDependency (setup_frame_task, before_mark);
+
 		task_handle_t store_efrags = INVALID_TASK_HANDLE;
 		task_handle_t cull_surfaces = INVALID_TASK_HANDLE;
 		task_handle_t chain_surfaces = INVALID_TASK_HANDLE;
@@ -796,42 +794,52 @@ void R_RenderView (qboolean use_tasks)
 
 		task_handle_t update_warp_textures = Task_AllocateAndAssignFunc ((task_func_t)R_UpdateWarpTextures, &primary_cbx, sizeof (cb_context_t *));
 		Task_AddDependency (cull_surfaces, update_warp_textures);
+		Task_AddDependency (begin_rendering_task, update_warp_textures);
 
 		task_handle_t draw_world_task = Task_AllocateAndAssignIndexedFunc (R_DrawWorldTask, NUM_WORLD_CBX, NULL, 0);
 		Task_AddDependency (chain_surfaces, draw_world_task);
+		Task_AddDependency (begin_rendering_task, draw_world_task);
 
 		task_handle_t draw_sky_and_water_task = Task_AllocateAndAssignFunc (R_DrawSkyAndWaterTask, NULL, 0);
 		Task_AddDependency (chain_surfaces, draw_sky_and_water_task);
+		Task_AddDependency (begin_rendering_task, draw_sky_and_water_task);
 
 		task_handle_t draw_view_model_task = Task_AllocateAndAssignFunc (R_DrawViewModelTask, NULL, 0);
 		Task_AddDependency (before_mark, draw_view_model_task);
+		Task_AddDependency (begin_rendering_task, draw_view_model_task);
 
 		task_handle_t draw_entities_task = Task_AllocateAndAssignIndexedFunc (R_DrawEntitiesTask, NUM_ENTITIES_CBX, NULL, 0);
 		Task_AddDependency (store_efrags, draw_entities_task);
+		Task_AddDependency (begin_rendering_task, draw_entities_task);
 
 		task_handle_t draw_alpha_entities_task = Task_AllocateAndAssignFunc (R_DrawAlphaEntitiesTask, NULL, 0);
 		Task_AddDependency (store_efrags, draw_alpha_entities_task);
+		Task_AddDependency (begin_rendering_task, draw_alpha_entities_task);
 
 		task_handle_t draw_particles_task = Task_AllocateAndAssignFunc (R_DrawParticlesTask, NULL, 0);
 		Task_AddDependency (before_mark, draw_particles_task);
+		Task_AddDependency (begin_rendering_task, draw_particles_task);
 
-		task_handle_t draw_done_task = Task_Allocate ();
+		task_handle_t update_lightmaps_task = Task_AllocateAndAssignFunc (R_UpdateLightmaps, NULL, 0);
+		Task_AddDependency (cull_surfaces, update_lightmaps_task);
+		Task_AddDependency (begin_rendering_task, update_lightmaps_task);
+
 		Task_AddDependency (draw_world_task, draw_done_task);
 		Task_AddDependency (draw_sky_and_water_task, draw_done_task);
 		Task_AddDependency (draw_entities_task, draw_done_task);
 		Task_AddDependency (draw_alpha_entities_task, draw_done_task);
 		Task_AddDependency (draw_particles_task, draw_done_task);
 		Task_AddDependency (update_warp_textures, draw_done_task);
+		Task_AddDependency (update_lightmaps_task, draw_done_task);
 
 		task_handle_t tasks[] = {before_mark,          store_efrags,       update_warp_textures,     draw_world_task,     draw_sky_and_water_task,
-		                         draw_view_model_task, draw_entities_task, draw_alpha_entities_task, draw_particles_task, draw_done_task};
+		                         draw_view_model_task, draw_entities_task, draw_alpha_entities_task, draw_particles_task, update_lightmaps_task};
 		Tasks_Submit ((sizeof (tasks) / sizeof (task_handle_t)), tasks);
 		if (store_efrags != cull_surfaces)
 		{
 			Task_Submit (cull_surfaces);
 			Task_Submit (chain_surfaces);
 		}
-		Task_Join (draw_done_task);
 	}
 	else
 	{
@@ -842,9 +850,11 @@ void R_RenderView (qboolean use_tasks)
 		R_DrawSkyAndWaterTask (NULL);
 		for (int i = 0; i < NUM_ENTITIES_CBX; ++i)
 			R_DrawEntitiesTask (i, NULL);
-		R_DrawAlphaEntitiesTask(NULL);
+		R_DrawAlphaEntitiesTask (NULL);
 		R_DrawParticlesTask (NULL);
 		R_DrawViewModelTask (NULL);
+		if (r_gpulightmapupdate.value)
+			R_UpdateLightmaps (NULL);
 	}
 
 	// johnfitz

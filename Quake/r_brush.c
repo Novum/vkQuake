@@ -79,7 +79,7 @@ static vulkan_memory_t     workgroup_bounds_buffer_memory;
 static VkBuffer            surface_data_buffer;
 static VkBuffer            lightstyles_scales_buffer;
 static VkBuffer            lights_buffer;
-static float			  *lightstyles_scales_buffer_mapped;
+static float              *lightstyles_scales_buffer_mapped;
 static lm_compute_light_t *lights_buffer_mapped;
 
 static int current_compute_lightmap_buffer_index;
@@ -928,9 +928,9 @@ void GL_BuildLightmaps (void)
 	int                        num_surfaces = 0;
 	uint32_t                   surface_index = 0;
 	struct lightmap_s         *lm;
-	qmodel_t				  *m;
+	qmodel_t                  *m;
 	lm_compute_surface_data_t *surface_data;
-	msurface_t				*surf;
+	msurface_t                *surf;
 
 	GL_WaitForDeviceIdle ();
 
@@ -1703,10 +1703,11 @@ void R_FlushUpdateLightmaps (
 R_UpdateLightmaps
 =============
 */
-void R_UpdateLightmaps (cb_context_t *cbx)
+void R_UpdateLightmaps (void *unused)
 {
 #define UPDATE_LIGHTMAP_BATCH_SIZE 64
 
+	cb_context_t *cbx = &vulkan_globals.secondary_cb_contexts[CBX_UPDATE_LIGHTMAPS];
 	R_BeginDebugUtilsLabel (cbx, "Update Lightmaps");
 
 	for (int i = 0; i < MAX_LIGHTSTYLES; ++i)

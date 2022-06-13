@@ -23,6 +23,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef _QUAKE_RENDER_H
 #define _QUAKE_RENDER_H
 
+#include "tasks.h"
+
 // refresh.h -- public interface to refresh functions
 
 #define MAXCLIPPLANES 11
@@ -75,7 +77,7 @@ typedef struct entity_s
 	struct efrag_s  *efrag; // linked list of efrags
 	int              frame;
 	float            syncbase; // for client-side animations
-	byte			*colormap;
+	byte            *colormap;
 	int              effects;  // light, particles, etc
 	int              skinnum;  // for Alias models
 	int              visframe; // last frame this entity was
@@ -158,7 +160,8 @@ extern vec3_t   r_origin, vpn, vright, vup;
 void R_Init (void);
 void R_InitTextures (void);
 void R_InitEfrags (void);
-void R_RenderView (qboolean use_tasks); // must set r_refdef first
+void R_RenderView (
+	qboolean use_tasks, task_handle_t begin_rendering_task, task_handle_t setup_frame_task, task_handle_t draw_done_task); // must set r_refdef first
 void R_ViewChanged (vrect_t *pvrect, int lineadj, float aspect);
 // called whenever r_refdef or vid change
 // void R_InitSky (struct texture_s *mt);	// called at level load

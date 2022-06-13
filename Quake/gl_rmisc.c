@@ -527,7 +527,7 @@ R_SubmitStagingBuffers
 */
 void R_SubmitStagingBuffers ()
 {
-	SDL_LockMutex(staging_mutex);
+	SDL_LockMutex (staging_mutex);
 
 	int i;
 	for (i = 0; i < NUM_STAGING_BUFFERS; ++i)
@@ -536,7 +536,7 @@ void R_SubmitStagingBuffers ()
 			R_SubmitStagingBuffer (i);
 	}
 
-	SDL_UnlockMutex(staging_mutex);
+	SDL_UnlockMutex (staging_mutex);
 }
 
 /*
@@ -579,7 +579,7 @@ R_StagingAllocate
 */
 byte *R_StagingAllocate (int size, int alignment, VkCommandBuffer *command_buffer, VkBuffer *buffer, int *buffer_offset)
 {
-	SDL_LockMutex(staging_mutex);
+	SDL_LockMutex (staging_mutex);
 	vulkan_globals.device_idle = false;
 
 	if (size > vulkan_globals.staging_buffer_size)
@@ -616,7 +616,7 @@ byte *R_StagingAllocate (int size, int alignment, VkCommandBuffer *command_buffe
 	unsigned char *data = staging_buffer->data + staging_buffer->current_offset;
 	staging_buffer->current_offset += size;
 
-	SDL_UnlockMutex(staging_mutex);
+	SDL_UnlockMutex (staging_mutex);
 	return data;
 }
 
@@ -3211,13 +3211,15 @@ void R_TimeRefresh_f (void)
 		return;
 	}
 
+	GL_SynchronizeEndRenderingTask ();
+
 	start = Sys_DoubleTime ();
 	for (i = 0; i < 128; i++)
 	{
-		GL_BeginRendering (&glx, &gly, &glwidth, &glheight);
+		GL_BeginRendering (false, NULL, &glx, &gly, &glwidth, &glheight);
 		r_refdef.viewangles[1] = i / 128.0 * 360.0;
-		R_RenderView (false);
-		GL_EndRendering (false);
+		R_RenderView (false, INVALID_TASK_HANDLE, INVALID_TASK_HANDLE, INVALID_TASK_HANDLE);
+		GL_EndRendering (false, false);
 	}
 
 	// glFinish ();

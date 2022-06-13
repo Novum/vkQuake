@@ -41,7 +41,7 @@ void          Task_AssignIndexedFunc (task_handle_t handle, task_indexed_func_t 
 void          Task_Submit (task_handle_t handle);
 void          Tasks_Submit (int num_handles, task_handle_t *handles);
 void          Task_AddDependency (task_handle_t before, task_handle_t after);
-void          Task_Join (task_handle_t handle);
+qboolean      Task_Join (task_handle_t handle, uint32_t timeout);
 
 static inline task_handle_t Task_AllocateAndAssignFunc (task_func_t func, void *payload, size_t payload_size)
 {

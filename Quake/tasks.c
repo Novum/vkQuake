@@ -36,7 +36,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define INDEX_BITS           20
 #define GUTTER_BITS          2
 #define MAX_WORKERS          32
-#define WORKER_HUNK_SIZE     (128 * 1024)
+#define WORKER_HUNK_SIZE     (1 * 1024 * 1024)
 #define WAIT_SPIN_COUNT      1000
 #define WAIT_SLEEP_COUNT     3
 
@@ -57,7 +57,7 @@ typedef struct
 	int             indexed_limit;
 	atomic_uint32_t remaining_workers;
 	atomic_uint32_t remaining_dependencies;
-	void		   *func;
+	void           *func;
 	SDL_mutex      *id_mutex;
 	SDL_cond       *id_condition;
 	uint8_t         payload[MAX_PAYLOAD_SIZE];
@@ -461,8 +461,8 @@ Task_AddDependency
 */
 void Task_AddDependency (task_handle_t before, task_handle_t after)
 {
-	uint32_t before_task_index = IndexFromTaskHandle (before);
-	task_t  *before_task = &tasks[before_task_index];
+	uint32_t  before_task_index = IndexFromTaskHandle (before);
+	task_t   *before_task = &tasks[before_task_index];
 	const int before_handle_task_id = IdFromTaskHandle (before);
 	SDL_LockMutex (before_task->id_mutex);
 	if (before_task->id != before_handle_task_id)
@@ -484,14 +484,19 @@ void Task_AddDependency (task_handle_t before, task_handle_t after)
 Task_Join
 ====================
 */
-void Task_Join (task_handle_t handle)
+qboolean Task_Join (task_handle_t handle, uint32_t timeout)
 {
 	task_t   *task = &tasks[IndexFromTaskHandle (handle)];
 	const int handle_task_id = IdFromTaskHandle (handle);
 	SDL_LockMutex (task->id_mutex);
 	while (task->id == handle_task_id)
 	{
-		SDL_CondWait (task->id_condition, task->id_mutex);
+		if (SDL_CondWaitTimeout (task->id_condition, task->id_mutex, timeout) == SDL_MUTEX_TIMEDOUT)
+		{
+			SDL_UnlockMutex (task->id_mutex);
+			return false;
+		}
 	}
 	SDL_UnlockMutex (task->id_mutex);
+	return true;
 }

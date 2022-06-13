@@ -25,14 +25,14 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef GLQUAKE_H
 #define GLQUAKE_H
 
-#include "tasks.h"
 #include "atomics.h"
+#include "tasks.h"
 
-void     GL_WaitForDeviceIdle (void);
-qboolean GL_BeginRendering (int *x, int *y, int *width, int *height);
-qboolean GL_AcquireNextSwapChainImage (void);
-void     GL_EndRendering (qboolean swapchain_acquired);
-qboolean GL_Set2D (cb_context_t *cbx);
+void          GL_WaitForDeviceIdle (void);
+qboolean      GL_BeginRendering (qboolean use_tasks, task_handle_t *begin_rendering_task, int *x, int *y, int *width, int *height);
+qboolean      GL_AcquireNextSwapChainImage (void);
+task_handle_t GL_EndRendering (qboolean use_tasks, qboolean use_swapchain);
+void          GL_SynchronizeEndRenderingTask (void);
 
 extern int glx, gly, glwidth, glheight;
 
@@ -174,6 +174,7 @@ typedef struct vulkan_memory_s
 
 typedef enum
 {
+	CBX_UPDATE_LIGHTMAPS,
 	CBX_WORLD_0,
 	CBX_WORLD_1,
 	CBX_WORLD_2,
@@ -450,9 +451,9 @@ struct lightmap_s
 
 	// the lightmap texture data needs to be kept in
 	// main memory so texsubimage can update properly
-	byte						  *data;               //[4*LMBLOCK_WIDTH*LMBLOCK_HEIGHT];
-	byte						  *lightstyle_data[4]; //[4*LMBLOCK_WIDTH*LMBLOCK_HEIGHT];
-	uint32_t					  *surface_indices;    //[LMBLOCK_WIDTH*LMBLOCK_HEIGHT];
+	byte                          *data;               //[4*LMBLOCK_WIDTH*LMBLOCK_HEIGHT];
+	byte                          *lightstyle_data[4]; //[4*LMBLOCK_WIDTH*LMBLOCK_HEIGHT];
+	uint32_t                      *surface_indices;    //[LMBLOCK_WIDTH*LMBLOCK_HEIGHT];
 	lm_compute_workgroup_bounds_t *workgroup_bounds;   //[(LMBLOCK_WIDTH/8)*(LMBLOCK_HEIGHT/8)];
 };
 extern struct lightmap_s *lightmaps;
@@ -462,6 +463,8 @@ extern qboolean r_fullbright_cheatsafe, r_lightmap_cheatsafe, r_drawworld_cheats
 
 extern float map_wateralpha, map_lavaalpha, map_telealpha, map_slimealpha; // ericw
 extern float map_fallbackalpha; // spike -- because we might want r_wateralpha to apply to teleporters while water itself wasn't watervised
+
+extern task_handle_t prev_end_rendering_task;
 
 // johnfitz -- fog functions called from outside gl_fog.c
 void   Fog_ParseServerMessage (void);
@@ -476,7 +479,7 @@ void   Fog_Init (void);
 void R_NewGame (void);
 
 void R_AnimateLight (void);
-void R_UpdateLightmaps (cb_context_t *cbx);
+void R_UpdateLightmaps (void *unused);
 void R_MarkSurfaces (qboolean use_tasks, task_handle_t before_mark, task_handle_t *store_efrags, task_handle_t *cull_surfaces, task_handle_t *chain_surfaces);
 qboolean R_CullBox (vec3_t emins, vec3_t emaxs);
 void     R_StoreEfrags (efrag_t **ppefrag);
