@@ -2617,7 +2617,7 @@ task_handle_t GL_EndRendering (qboolean use_tasks, qboolean swapchain)
 	};
 	task_handle_t end_rendering_task = INVALID_TASK_HANDLE;
 	if (use_tasks)
-		end_rendering_task = Task_AllocateAndAssignFunc (GL_EndRenderingTask, &parms, sizeof (parms));
+		end_rendering_task = Task_AllocateAndAssignFunc ((task_func_t)GL_EndRenderingTask, &parms, sizeof (parms));
 	else
 		GL_EndRenderingTask (&parms);
 	return end_rendering_task;
