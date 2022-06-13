@@ -128,15 +128,16 @@ typedef unsigned char byte;
 /* some structures have qboolean members and the x86 asm code expect
  * those members to be 4 bytes long. therefore, qboolean must be 32
  * bits and it can NOT be binary compatible with the 8 bit C++ bool.  */
-typedef int qboolean;
+typedef uint32_t qboolean;
 COMPILE_TIME_ASSERT (falsehood, (0 == false));
 COMPILE_TIME_ASSERT (truth, (1 == true));
 #else
-typedef enum
+enum
 {
 	false = 0,
 	true = 1
-} qboolean;
+};
+typedef uint32_t qboolean;
 COMPILE_TIME_ASSERT (falsehood, ((1 != 1) == false));
 COMPILE_TIME_ASSERT (truth, ((1 == 1) == true));
 #endif

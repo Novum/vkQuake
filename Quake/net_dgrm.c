@@ -340,7 +340,7 @@ qboolean Datagram_ProcessPacket (unsigned int length, qsocket_t *sock)
 		if (length > (unsigned int)net_message.maxsize)
 		{ // is this even possible? maybe it will be in the future! either way, no sys_errors please.
 			Con_Printf ("Over-sized unreliable\n");
-			return -1;
+			return true;
 		}
 		SZ_Clear (&net_message);
 		SZ_Write (&net_message, packetBuffer.data, length);
@@ -401,7 +401,7 @@ qboolean Datagram_ProcessPacket (unsigned int length, qsocket_t *sock)
 			if (sock->receiveMessageLength + length > (unsigned int)net_message.maxsize)
 			{
 				Con_Printf ("Over-sized reliable\n");
-				return -1;
+				return true;
 			}
 			SZ_Clear (&net_message);
 			SZ_Write (&net_message, sock->receiveMessage, sock->receiveMessageLength);
@@ -415,7 +415,7 @@ qboolean Datagram_ProcessPacket (unsigned int length, qsocket_t *sock)
 		if (sock->receiveMessageLength + length > sizeof (sock->receiveMessage))
 		{
 			Con_Printf ("Over-sized reliable\n");
-			return -1;
+			return true;
 		}
 		memcpy (sock->receiveMessage + sock->receiveMessageLength, packetBuffer.data, length);
 		sock->receiveMessageLength += length;
