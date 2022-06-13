@@ -85,6 +85,7 @@ qboolean use_simd;
 static SDL_mutex *vertex_allocate_mutex;
 static SDL_mutex *index_allocate_mutex;
 static SDL_mutex *uniform_allocate_mutex;
+static SDL_mutex *staging_mutex;
 
 /*
 ================
@@ -480,6 +481,7 @@ void R_InitStagingBuffers ()
 	vertex_allocate_mutex = SDL_CreateMutex ();
 	index_allocate_mutex = SDL_CreateMutex ();
 	uniform_allocate_mutex = SDL_CreateMutex ();
+	staging_mutex = SDL_CreateMutex ();
 }
 
 /*
@@ -525,12 +527,16 @@ R_SubmitStagingBuffers
 */
 void R_SubmitStagingBuffers ()
 {
+	SDL_LockMutex(staging_mutex);
+
 	int i;
 	for (i = 0; i < NUM_STAGING_BUFFERS; ++i)
 	{
 		if (!staging_buffers[i].submitted && staging_buffers[i].current_offset > 0)
 			R_SubmitStagingBuffer (i);
 	}
+
+	SDL_UnlockMutex(staging_mutex);
 }
 
 /*
@@ -573,6 +579,7 @@ R_StagingAllocate
 */
 byte *R_StagingAllocate (int size, int alignment, VkCommandBuffer *command_buffer, VkBuffer *buffer, int *buffer_offset)
 {
+	SDL_LockMutex(staging_mutex);
 	vulkan_globals.device_idle = false;
 
 	if (size > vulkan_globals.staging_buffer_size)
@@ -609,6 +616,7 @@ byte *R_StagingAllocate (int size, int alignment, VkCommandBuffer *command_buffe
 	unsigned char *data = staging_buffer->data + staging_buffer->current_offset;
 	staging_buffer->current_offset += size;
 
+	SDL_UnlockMutex(staging_mutex);
 	return data;
 }
 
@@ -910,10 +918,18 @@ R_SwapDynamicBuffers
 */
 void R_SwapDynamicBuffers ()
 {
+	SDL_LockMutex (vertex_allocate_mutex);
+	SDL_LockMutex (index_allocate_mutex);
+	SDL_LockMutex (uniform_allocate_mutex);
+
 	current_dyn_buffer_index = (current_dyn_buffer_index + 1) % NUM_DYNAMIC_BUFFERS;
 	dyn_vertex_buffers[current_dyn_buffer_index].current_offset = 0;
 	dyn_index_buffers[current_dyn_buffer_index].current_offset = 0;
 	dyn_uniform_buffers[current_dyn_buffer_index].current_offset = 0;
+
+	SDL_UnlockMutex (uniform_allocate_mutex);
+	SDL_UnlockMutex (index_allocate_mutex);
+	SDL_UnlockMutex (vertex_allocate_mutex);
 }
 
 /*
