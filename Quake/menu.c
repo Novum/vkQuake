@@ -1647,7 +1647,7 @@ void M_Quit_Char (int key)
 	case 'Y':
 		IN_Deactivate (modestate == MS_WINDOWED);
 		key_dest = key_console;
-		Host_Quit_f ();
+		Cbuf_InsertText ("quit");
 		break;
 
 	default:
@@ -2632,9 +2632,10 @@ void M_Draw (cb_context_t *cbx)
 		{ /* QuakeSpasm customization: */
 			/* Quit now! S.A. */
 			key_dest = key_console;
-			Host_Quit_f ();
+			Cbuf_InsertText ("quit");
 		}
-		M_Quit_Draw (cbx);
+		else
+			M_Quit_Draw (cbx);
 		break;
 
 	case m_lanconfig:
