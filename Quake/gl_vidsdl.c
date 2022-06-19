@@ -600,7 +600,7 @@ static void GL_InitInstance (void)
 	if (!SDL_Vulkan_GetInstanceExtensions (draw_context, &sdl_extension_count, NULL))
 		Sys_Error ("SDL_Vulkan_GetInstanceExtensions failed: %s", SDL_GetError ());
 
-	const char **const instance_extensions = malloc (sizeof (const char *) * (sdl_extension_count + 3));
+	const char **const instance_extensions = Mem_Alloc (sizeof (const char *) * (sdl_extension_count + 3));
 	if (!SDL_Vulkan_GetInstanceExtensions (draw_context, &sdl_extension_count, instance_extensions))
 		Sys_Error ("SDL_Vulkan_GetInstanceExtensions failed: %s", SDL_GetError ());
 
@@ -613,7 +613,7 @@ static void GL_InitInstance (void)
 	vulkan_globals.get_physical_device_properties_2 = false;
 	if (err == VK_SUCCESS || instance_extension_count > 0)
 	{
-		VkExtensionProperties *extension_props = (VkExtensionProperties *)malloc (sizeof (VkExtensionProperties) * instance_extension_count);
+		VkExtensionProperties *extension_props = (VkExtensionProperties *)Mem_Alloc (sizeof (VkExtensionProperties) * instance_extension_count);
 		err = vkEnumerateInstanceExtensionProperties (NULL, &instance_extension_count, extension_props);
 
 		for (i = 0; i < instance_extension_count; ++i)
@@ -628,7 +628,7 @@ static void GL_InitInstance (void)
 #endif
 		}
 
-		free (extension_props);
+		Mem_Free (extension_props);
 	}
 
 	vulkan_globals.vulkan_1_1_available = false;
@@ -721,7 +721,7 @@ static void GL_InitInstance (void)
 	}
 #endif
 
-	free ((void *)instance_extensions);
+	Mem_Free ((void *)instance_extensions);
 }
 
 /*
@@ -752,10 +752,10 @@ static void GL_InitDevice (void)
 		deviceIndex = CLAMP (0, atoi (deviceNum) - 1, (int)physical_device_count - 1);
 	}
 
-	VkPhysicalDevice *physical_devices = (VkPhysicalDevice *)malloc (sizeof (VkPhysicalDevice) * physical_device_count);
+	VkPhysicalDevice *physical_devices = (VkPhysicalDevice *)Mem_Alloc (sizeof (VkPhysicalDevice) * physical_device_count);
 	err = vkEnumeratePhysicalDevices (vulkan_instance, &physical_device_count, physical_devices);
 	vulkan_physical_device = physical_devices[deviceIndex];
-	free (physical_devices);
+	Mem_Free (physical_devices);
 
 	qboolean found_swapchain_extension = false;
 	vulkan_globals.dedicated_allocation = false;
@@ -788,7 +788,7 @@ static void GL_InitDevice (void)
 
 	if (err == VK_SUCCESS || device_extension_count > 0)
 	{
-		VkExtensionProperties *device_extensions = (VkExtensionProperties *)malloc (sizeof (VkExtensionProperties) * device_extension_count);
+		VkExtensionProperties *device_extensions = (VkExtensionProperties *)Mem_Alloc (sizeof (VkExtensionProperties) * device_extension_count);
 		err = vkEnumerateDeviceExtensionProperties (vulkan_physical_device, NULL, &device_extension_count, device_extensions);
 
 		for (i = 0; i < device_extension_count; ++i)
@@ -807,7 +807,7 @@ static void GL_InitDevice (void)
 #endif
 		}
 
-		free (device_extensions);
+		Mem_Free (device_extensions);
 	}
 
 	if (!found_swapchain_extension)
@@ -822,11 +822,11 @@ static void GL_InitDevice (void)
 		Sys_Error ("Couldn't find any Vulkan queues");
 	}
 
-	VkQueueFamilyProperties *queue_family_properties = (VkQueueFamilyProperties *)malloc (vulkan_queue_count * sizeof (VkQueueFamilyProperties));
+	VkQueueFamilyProperties *queue_family_properties = (VkQueueFamilyProperties *)Mem_Alloc (vulkan_queue_count * sizeof (VkQueueFamilyProperties));
 	vkGetPhysicalDeviceQueueFamilyProperties (vulkan_physical_device, &vulkan_queue_count, queue_family_properties);
 
 	// Iterate over each queue to learn whether it supports presenting:
-	VkBool32 *queue_supports_present = (VkBool32 *)malloc (vulkan_queue_count * sizeof (VkBool32));
+	VkBool32 *queue_supports_present = (VkBool32 *)Mem_Alloc (vulkan_queue_count * sizeof (VkBool32));
 	for (i = 0; i < vulkan_queue_count; ++i)
 		fpGetPhysicalDeviceSurfaceSupportKHR (vulkan_physical_device, i, vulkan_surface, &queue_supports_present[i]);
 
@@ -840,8 +840,8 @@ static void GL_InitDevice (void)
 		}
 	}
 
-	free (queue_supports_present);
-	free (queue_family_properties);
+	Mem_Free (queue_supports_present);
+	Mem_Free (queue_family_properties);
 
 	if (!found_graphics_queue)
 		Sys_Error ("Couldn't find graphics queue");
@@ -1749,7 +1749,7 @@ static qboolean GL_CreateSwapChain (void)
 	if (err != VK_SUCCESS)
 		Sys_Error ("Couldn't get surface formats");
 
-	VkSurfaceFormatKHR *surface_formats = (VkSurfaceFormatKHR *)malloc (format_count * sizeof (VkSurfaceFormatKHR));
+	VkSurfaceFormatKHR *surface_formats = (VkSurfaceFormatKHR *)Mem_Alloc (format_count * sizeof (VkSurfaceFormatKHR));
 	err = fpGetPhysicalDeviceSurfaceFormatsKHR (vulkan_physical_device, vulkan_surface, &format_count, surface_formats);
 	if (err != VK_SUCCESS)
 		Sys_Error ("fpGetPhysicalDeviceSurfaceFormatsKHR failed");
@@ -1783,7 +1783,7 @@ static qboolean GL_CreateSwapChain (void)
 	if (err != VK_SUCCESS)
 		Sys_Error ("fpGetPhysicalDeviceSurfacePresentModesKHR failed");
 
-	VkPresentModeKHR *present_modes = (VkPresentModeKHR *)malloc (present_mode_count * sizeof (VkPresentModeKHR));
+	VkPresentModeKHR *present_modes = (VkPresentModeKHR *)Mem_Alloc (present_mode_count * sizeof (VkPresentModeKHR));
 	err = fpGetPhysicalDeviceSurfacePresentModesKHR (vulkan_physical_device, vulkan_surface, &present_mode_count, present_modes);
 	if (err != VK_SUCCESS)
 		Sys_Error ("fpGetPhysicalDeviceSurfacePresentModesKHR failed");
@@ -1808,7 +1808,7 @@ static qboolean GL_CreateSwapChain (void)
 			present_mode = VK_PRESENT_MODE_IMMEDIATE_KHR;
 	}
 
-	free (present_modes);
+	Mem_Free (present_modes);
 
 	switch (present_mode)
 	{
@@ -1860,7 +1860,7 @@ static qboolean GL_CreateSwapChain (void)
 #endif
 
 	vulkan_globals.swap_chain_format = swap_chain_format;
-	free (surface_formats);
+	Mem_Free (surface_formats);
 
 	assert (vulkan_swapchain == VK_NULL_HANDLE);
 	err = fpCreateSwapchainKHR (vulkan_globals.device, &swapchain_create_info, NULL, &vulkan_swapchain);
@@ -2606,7 +2606,7 @@ task_handle_t GL_EndRendering (qboolean use_tasks, qboolean swapchain)
 		.swapchain = swapchain,
 		.render_warp = render_warp,
 		.vid_palettize = vid_palettize.value != 0,
-		.render_scale = CLAMP(0, render_scale, 8),
+		.render_scale = CLAMP (0, render_scale, 8),
 		.vid_width = vid.width,
 		.vid_height = vid.height,
 		.time = fmod (cl.time, 2.0 * M_PI),
@@ -2736,7 +2736,7 @@ static void VID_InitModelist (void)
 	const int sdlmodes = SDL_GetNumDisplayModes (0);
 	int       i;
 
-	modelist = realloc (modelist, sizeof (vmode_t) * sdlmodes);
+	modelist = Mem_Realloc (modelist, sizeof (vmode_t) * sdlmodes);
 	nummodes = 0;
 	for (i = 0; i < sdlmodes; i++)
 	{

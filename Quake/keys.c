@@ -226,7 +226,7 @@ static void PasteToConsole (void)
 	key_linepos += inslen;
 	workline[mvlen + inslen] = '\0';
 done:
-	Z_Free (cbd);
+	Mem_Free (cbd);
 }
 
 /*
@@ -622,13 +622,13 @@ void Key_SetBinding (int keynum, const char *binding)
 	// free old bindings
 	if (keybindings[keynum])
 	{
-		Z_Free (keybindings[keynum]);
+		Mem_Free (keybindings[keynum]);
 		keybindings[keynum] = NULL;
 	}
 
 	// allocate memory for new binding
 	if (binding)
-		keybindings[keynum] = Z_Strdup (binding);
+		keybindings[keynum] = q_strdup (binding);
 }
 
 /*

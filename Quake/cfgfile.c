@@ -145,7 +145,7 @@ void CFG_CloseConfig (void)
 	if (cfg_file)
 	{
 		FS_fclose (cfg_file);
-		Z_Free (cfg_file);
+		Mem_Free (cfg_file);
 		cfg_file = NULL;
 	}
 }
@@ -163,7 +163,7 @@ int CFG_OpenConfig (const char *cfg_name)
 	if (length == -1)
 		return -1;
 
-	cfg_file = (fshandle_t *)Z_Malloc (sizeof (fshandle_t));
+	cfg_file = (fshandle_t *)Mem_Alloc (sizeof (fshandle_t));
 	cfg_file->file = f;
 	cfg_file->start = ftell (f);
 	cfg_file->pos = 0;

@@ -303,7 +303,7 @@ OBJS := strlcat.o \
 	sv_phys.o \
 	sv_user.o \
 	world.o \
-	zone.o \
+	mem.o \
 	tasks.o \
 	$(SYSOBJ_SYS) $(SYSOBJ_MAIN) $(SYSOBJ_RES)
 

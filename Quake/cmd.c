@@ -38,7 +38,7 @@ typedef struct cmdalias_s
 {
 	struct cmdalias_s *next;
 	char               name[MAX_ALIAS_NAME];
-	char			  *value;
+	char              *value;
 } cmdalias_t;
 
 cmdalias_t *cmd_alias;
@@ -132,7 +132,7 @@ void Cbuf_InsertText (const char *text)
 	templen = cmd_text.cursize;
 	if (templen)
 	{
-		temp = (char *)Z_Malloc (templen);
+		temp = (char *)Mem_Alloc (templen);
 		memcpy (temp, cmd_text.data, templen);
 		SZ_Clear (&cmd_text);
 	}
@@ -146,7 +146,7 @@ void Cbuf_InsertText (const char *text)
 	if (templen)
 	{
 		SZ_Write (&cmd_text, temp, templen);
-		Z_Free (temp);
+		Mem_Free (temp);
 	}
 }
 
@@ -276,8 +276,7 @@ Cmd_Exec_f
 */
 void Cmd_Exec_f (void)
 {
-	char *f;
-	int   mark;
+	char *f = NULL;
 
 	if (Cmd_Argc () != 2)
 	{
@@ -285,8 +284,7 @@ void Cmd_Exec_f (void)
 		return;
 	}
 
-	mark = Hunk_LowMark ();
-	f = (char *)COM_LoadHunkFile (Cmd_Argv (1), NULL);
+	f = (char *)COM_LoadFile (Cmd_Argv (1), NULL);
 	if (!f && !strcmp (Cmd_Argv (1), "default.cfg"))
 	{
 		f = default_cfg; /* see above.. */
@@ -302,7 +300,8 @@ void Cmd_Exec_f (void)
 
 	Cbuf_InsertText ("\n"); // just in case there was no trailing \n.
 	Cbuf_InsertText (f);
-	Hunk_FreeToLowMark (mark);
+
+	Mem_Free (f);
 }
 
 /*
@@ -363,14 +362,14 @@ void Cmd_Alias_f (void)
 		{
 			if (!strcmp (s, a->name))
 			{
-				Z_Free (a->value);
+				Mem_Free (a->value);
 				break;
 			}
 		}
 
 		if (!a)
 		{
-			a = (cmdalias_t *)Z_Malloc (sizeof (cmdalias_t));
+			a = (cmdalias_t *)Mem_Alloc (sizeof (cmdalias_t));
 			a->next = cmd_alias;
 			cmd_alias = a;
 		}
@@ -392,7 +391,7 @@ void Cmd_Alias_f (void)
 			cmd[1] = 0;
 		}
 
-		a->value = Z_Strdup (cmd);
+		a->value = q_strdup (cmd);
 		break;
 	}
 }
@@ -423,8 +422,8 @@ void Cmd_Unalias_f (void)
 				else
 					cmd_alias = a->next;
 
-				Z_Free (a->value);
-				Z_Free (a);
+				Mem_Free (a->value);
+				Mem_Free (a);
 				return;
 			}
 			prev = a;
@@ -457,8 +456,8 @@ void Cmd_Unaliasall_f (void)
 	while (cmd_alias)
 	{
 		blah = cmd_alias->next;
-		Z_Free (cmd_alias->value);
-		Z_Free (cmd_alias);
+		Mem_Free (cmd_alias->value);
+		Mem_Free (cmd_alias);
 		cmd_alias = blah;
 	}
 }
@@ -655,7 +654,7 @@ void Cmd_TokenizeString (const char *text)
 
 	// clear the args from the last string
 	for (i = 0; i < cmd_argc; i++)
-		Z_Free (cmd_argv[i]);
+		Mem_Free (cmd_argv[i]);
 
 	cmd_argc = 0;
 	cmd_args = NULL;
@@ -686,7 +685,7 @@ void Cmd_TokenizeString (const char *text)
 
 		if (cmd_argc < MAX_ARGS)
 		{
-			cmd_argv[cmd_argc] = Z_Strdup (com_token);
+			cmd_argv[cmd_argc] = q_strdup (com_token);
 			cmd_argc++;
 		}
 	}
@@ -724,13 +723,13 @@ cmd_function_t *Cmd_AddCommand2 (const char *cmd_name, xcommand_t function, cmd_
 
 	if (host_initialized)
 	{
-		cmd = (cmd_function_t *)malloc (sizeof (*cmd) + strlen (cmd_name) + 1);
+		cmd = (cmd_function_t *)Mem_Alloc (sizeof (*cmd) + strlen (cmd_name) + 1);
 		cmd->name = strcpy ((char *)(cmd + 1), cmd_name);
 		cmd->dynamic = true;
 	}
 	else
 	{
-		cmd = (cmd_function_t *)Hunk_Alloc (sizeof (*cmd));
+		cmd = (cmd_function_t *)Mem_Alloc (sizeof (*cmd));
 		cmd->name = cmd_name;
 		cmd->dynamic = false;
 	}
@@ -769,7 +768,7 @@ void Cmd_RemoveCommand (cmd_function_t *cmd)
 		if (*link == cmd)
 		{
 			*link = cmd->next;
-			free (cmd);
+			Mem_Free (cmd);
 			return;
 		}
 	}

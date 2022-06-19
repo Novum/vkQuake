@@ -69,7 +69,7 @@ typedef struct
 	glheap_t     *heap;
 	glheapnode_t *heap_node;
 	glheap_t   ***heaps;
-	int		  *num_heaps;
+	int          *num_heaps;
 } buffer_garbage_t;
 
 static int              current_garbage_index;
@@ -360,10 +360,10 @@ GL_MakeAliasModelDisplayLists
 void GL_MakeAliasModelDisplayLists (qmodel_t *m, aliashdr_t *hdr)
 {
 	int         i, j;
-	int		*cmds;
+	int        *cmds;
 	trivertx_t *verts;
 	int         count;    // johnfitz -- precompute texcoords for padded skins
-	int		*loadcmds; // johnfitz
+	int        *loadcmds; // johnfitz
 
 	aliasmodel = m;
 	paliashdr = hdr; // (aliashdr_t *)Mod_Extradata (m);
@@ -376,7 +376,7 @@ void GL_MakeAliasModelDisplayLists (qmodel_t *m, aliashdr_t *hdr)
 
 	paliashdr->poseverts = numorder;
 
-	cmds = (int *)Hunk_Alloc (numcommands * 4);
+	cmds = (int *)Mem_Alloc (numcommands * 4);
 	paliashdr->commands = (byte *)cmds - (byte *)paliashdr;
 
 	// johnfitz -- precompute texcoords for padded skins
@@ -399,7 +399,7 @@ void GL_MakeAliasModelDisplayLists (qmodel_t *m, aliashdr_t *hdr)
 	}
 	// johnfitz
 
-	verts = (trivertx_t *)Hunk_Alloc (paliashdr->numposes * paliashdr->poseverts * sizeof (trivertx_t));
+	verts = (trivertx_t *)Mem_Alloc (paliashdr->numposes * paliashdr->poseverts * sizeof (trivertx_t));
 	paliashdr->posedata = (byte *)verts - (byte *)paliashdr;
 	for (i = 0; i < paliashdr->numposes; i++)
 		for (j = 0; j < numorder; j++)
@@ -431,7 +431,7 @@ void GL_MakeAliasModelDisplayLists_VBO (void)
 	aliasmesh_t    *desc;
 
 	// first, copy the verts onto the hunk
-	verts = (trivertx_t *)Hunk_Alloc (paliashdr->numposes * paliashdr->numverts * sizeof (trivertx_t));
+	verts = (trivertx_t *)Mem_Alloc (paliashdr->numposes * paliashdr->numverts * sizeof (trivertx_t));
 	paliashdr->vertexes = (byte *)verts - (byte *)paliashdr;
 	for (i = 0; i < paliashdr->numposes; i++)
 		for (j = 0; j < paliashdr->numverts; j++)
@@ -439,10 +439,10 @@ void GL_MakeAliasModelDisplayLists_VBO (void)
 
 	// there can never be more than this number of verts and we just put them all on the hunk
 	maxverts_vbo = pheader->numtris * 3;
-	desc = (aliasmesh_t *)Hunk_Alloc (sizeof (aliasmesh_t) * maxverts_vbo);
+	desc = (aliasmesh_t *)Mem_Alloc (sizeof (aliasmesh_t) * maxverts_vbo);
 
 	// there will always be this number of indexes
-	indexes = (unsigned short *)Hunk_Alloc (sizeof (unsigned short) * maxverts_vbo);
+	indexes = (unsigned short *)Mem_Alloc (sizeof (unsigned short) * maxverts_vbo);
 
 	pheader->indexes = (intptr_t)indexes - (intptr_t)pheader;
 	pheader->meshdesc = (intptr_t)desc - (intptr_t)pheader;
@@ -550,7 +550,7 @@ static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 	const aliasmesh_t *desc;
 	const short       *indexes;
 	const trivertx_t  *trivertexes;
-	byte			  *vbodata;
+	byte              *vbodata;
 	int                f;
 	VkResult           err;
 
@@ -635,7 +635,7 @@ static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 
 	// create the vertex buffer (empty)
 
-	vbodata = (byte *)malloc (totalvbosize);
+	vbodata = (byte *)Mem_Alloc (totalvbosize);
 	memset (vbodata, 0, totalvbosize);
 
 	// fill in the vertices at the start of the buffer
@@ -725,7 +725,7 @@ static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 		}
 	}
 
-	free (vbodata);
+	Mem_Free (vbodata);
 }
 
 /*

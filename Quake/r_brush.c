@@ -411,14 +411,14 @@ static int AllocBlock (int w, int h, int *x, int *y)
 		if (texnum == lightmap_count)
 		{
 			lightmap_count++;
-			lightmaps = (struct lightmap_s *)realloc (lightmaps, sizeof (*lightmaps) * lightmap_count);
+			lightmaps = (struct lightmap_s *)Mem_Realloc (lightmaps, sizeof (*lightmaps) * lightmap_count);
 			memset (&lightmaps[texnum], 0, sizeof (lightmaps[texnum]));
-			lightmaps[texnum].data = (byte *)calloc (1, LIGHTMAP_BYTES * LMBLOCK_WIDTH * LMBLOCK_HEIGHT);
+			lightmaps[texnum].data = (byte *)Mem_Alloc (LIGHTMAP_BYTES * LMBLOCK_WIDTH * LMBLOCK_HEIGHT);
 			for (i = 0; i < MAXLIGHTMAPS; ++i)
-				lightmaps[texnum].lightstyle_data[i] = (byte *)calloc (1, LIGHTMAP_BYTES * LMBLOCK_WIDTH * LMBLOCK_HEIGHT);
-			lightmaps[texnum].surface_indices = (uint32_t *)malloc (sizeof (uint32_t) * LMBLOCK_WIDTH * LMBLOCK_HEIGHT);
+				lightmaps[texnum].lightstyle_data[i] = (byte *)Mem_Alloc (LIGHTMAP_BYTES * LMBLOCK_WIDTH * LMBLOCK_HEIGHT);
+			lightmaps[texnum].surface_indices = (uint32_t *)Mem_Alloc (sizeof (uint32_t) * LMBLOCK_WIDTH * LMBLOCK_HEIGHT);
 			memset (lightmaps[texnum].surface_indices, 0xFF, 4 * LMBLOCK_WIDTH * LMBLOCK_HEIGHT);
-			lightmaps[texnum].workgroup_bounds = (lm_compute_workgroup_bounds_t *)calloc (1, WORKGROUP_BOUNDS_BUFFER_SIZE);
+			lightmaps[texnum].workgroup_bounds = (lm_compute_workgroup_bounds_t *)Mem_Alloc (WORKGROUP_BOUNDS_BUFFER_SIZE);
 			for (i = 0; i < (LMBLOCK_WIDTH / 8) * (LMBLOCK_HEIGHT / 8); ++i)
 			{
 				for (j = 0; j < 3; ++j)
@@ -635,7 +635,7 @@ void BuildSurfaceDisplayList (msurface_t *fa)
 	//
 	// draw texture
 	//
-	poly = (glpoly_t *)Hunk_Alloc (sizeof (glpoly_t) + (lnumverts - 4) * VERTEXSIZE * sizeof (float));
+	poly = (glpoly_t *)Mem_Alloc (sizeof (glpoly_t) + (lnumverts - 4) * VERTEXSIZE * sizeof (float));
 	poly->next = fa->polys;
 	fa->polys = poly;
 	poly->numverts = lnumverts;
@@ -945,17 +945,17 @@ void GL_BuildLightmaps (void)
 	// Spike -- wipe out all the lightmap data (johnfitz -- the gltexture objects were already freed by Mod_ClearAll)
 	for (i = 0; i < lightmap_count; i++)
 	{
-		free (lightmaps[i].data);
+		Mem_Free (lightmaps[i].data);
 		for (j = 0; j < MAXLIGHTMAPS; ++j)
-			free (lightmaps[i].lightstyle_data[j]);
-		free (lightmaps[i].surface_indices);
+			Mem_Free (lightmaps[i].lightstyle_data[j]);
+		Mem_Free (lightmaps[i].surface_indices);
 		R_FreeDescriptorSet (lightmaps[i].descriptor_set, &vulkan_globals.lightmap_compute_set_layout);
 		if (lightmaps[i].workgroup_bounds_buffer != VK_NULL_HANDLE)
 			vkDestroyBuffer (vulkan_globals.device, lightmaps[i].workgroup_bounds_buffer, NULL);
-		free (lightmaps[i].workgroup_bounds);
+		Mem_Free (lightmaps[i].workgroup_bounds);
 	}
 
-	free (lightmaps);
+	Mem_Free (lightmaps);
 	lightmaps = NULL;
 	last_lightmap_allocated = 0;
 	lightmap_count = 0;
@@ -1225,7 +1225,7 @@ void GL_BuildBModelVertexBuffer (void)
 
 	// build vertex array
 	varray_bytes = VERTEXSIZE * sizeof (float) * numverts;
-	varray = (float *)malloc (varray_bytes);
+	varray = (float *)Mem_Alloc (varray_bytes);
 	varray_index = 0;
 
 	for (j = 1; j < MAX_MODELS; j++)
@@ -1302,7 +1302,7 @@ void GL_BuildBModelVertexBuffer (void)
 		remaining_size -= size_to_copy;
 	}
 
-	free (varray);
+	Mem_Free (varray);
 }
 
 /*
@@ -1348,9 +1348,9 @@ void GL_PrepareSIMDData (void)
 #ifdef USE_SIMD
 	int i;
 
-	cl.worldmodel->soa_leafbounds = Hunk_Alloc (6 * sizeof (float) * ((cl.worldmodel->numleafs + 31) & ~7));
-	cl.worldmodel->surfvis = Hunk_Alloc (((cl.worldmodel->numsurfaces + 31) / 8));
-	cl.worldmodel->soa_surfplanes = Hunk_Alloc (4 * sizeof (float) * ((cl.worldmodel->numsurfaces + 31) & ~7));
+	cl.worldmodel->soa_leafbounds = Mem_Alloc (6 * sizeof (float) * ((cl.worldmodel->numleafs + 31) & ~7));
+	cl.worldmodel->surfvis = Mem_Alloc (((cl.worldmodel->numsurfaces + 31) / 8));
+	cl.worldmodel->soa_surfplanes = Mem_Alloc (4 * sizeof (float) * ((cl.worldmodel->numsurfaces + 31) & ~7));
 
 	for (i = 0; i < cl.worldmodel->numleafs; ++i)
 	{

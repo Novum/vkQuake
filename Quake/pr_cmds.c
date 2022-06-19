@@ -568,7 +568,7 @@ PF_ambientsound
 static void PF_sv_ambientsound (void)
 {
 	const char            *samp, **check;
-	float				 *pos;
+	float                 *pos;
 	float                  vol, attenuation;
 	int                    soundnum;
 	struct ambientsound_s *st;
@@ -595,7 +595,7 @@ static void PF_sv_ambientsound (void)
 	if (sv.num_ambients == sv.max_ambients)
 	{
 		int                    nm = sv.max_ambients + 128;
-		struct ambientsound_s *n = (nm * sizeof (*n) < sv.max_ambients * sizeof (*n)) ? NULL : realloc (sv.ambientsounds, nm * sizeof (*n));
+		struct ambientsound_s *n = (nm * sizeof (*n) < sv.max_ambients * sizeof (*n)) ? NULL : Mem_Realloc (sv.ambientsounds, nm * sizeof (*n));
 		if (!n)
 			PR_RunError ("PF_ambientsound: out of memory"); // shouldn't really happen.
 		sv.ambientsounds = n;
@@ -786,7 +786,7 @@ static int PF_newcheckclient (int check)
 	if (checkpvs == NULL || pvsbytes > checkpvs_capacity)
 	{
 		checkpvs_capacity = pvsbytes;
-		checkpvs = (byte *)realloc (checkpvs, checkpvs_capacity);
+		checkpvs = (byte *)Mem_Realloc (checkpvs, checkpvs_capacity);
 		if (!checkpvs)
 			Sys_Error ("PF_newcheckclient: realloc() failed on %d bytes", checkpvs_capacity);
 	}
@@ -1622,7 +1622,7 @@ static void PF_sv_makestatic (void)
 	if (sv.num_statics == sv.max_statics)
 	{
 		int             nm = sv.max_statics + 128;
-		entity_state_t *n = (nm * sizeof (*n) < sv.max_statics * sizeof (*n)) ? NULL : realloc (sv.static_entities, nm * sizeof (*n));
+		entity_state_t *n = (nm * sizeof (*n) < sv.max_statics * sizeof (*n)) ? NULL : Mem_Realloc (sv.static_entities, nm * sizeof (*n));
 		if (!n)
 			PR_RunError ("PF_makestatic: out of memory"); // shouldn't really happen.
 		sv.static_entities = n;

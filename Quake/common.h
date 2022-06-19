@@ -159,7 +159,7 @@ const char *MSG_ReadString (void);
 float        MSG_ReadCoord (unsigned int flags);
 float        MSG_ReadAngle (unsigned int flags);
 float        MSG_ReadAngle16 (unsigned int flags); // johnfitz
-byte		*MSG_ReadData (unsigned int length);   // spike
+byte        *MSG_ReadData (unsigned int length);   // spike
 unsigned int MSG_ReadEntity (unsigned int pext2);  // spike
 
 void COM_Effectinfo_Enumerate (int (*cb) (const char *pname)); // spike -- for dp compat
@@ -177,19 +177,22 @@ void        Info_Enumerate (const char *info, void (*cb) (void *ctx, const char 
 #include "strl_fn.h"
 
 /* locale-insensitive strcasecmp replacement functions: */
-extern int q_strcasecmp (const char *s1, const char *s2);
-extern int q_strncasecmp (const char *s1, const char *s2, size_t n);
+int q_strcasecmp (const char *s1, const char *s2);
+int q_strncasecmp (const char *s1, const char *s2, size_t n);
 
 /* locale-insensitive case-insensitive alternative to strstr */
-extern char *q_strcasestr (const char *haystack, const char *needle);
+char *q_strcasestr (const char *haystack, const char *needle);
 
 /* locale-insensitive strlwr/upr replacement functions: */
-extern char *q_strlwr (char *str);
-extern char *q_strupr (char *str);
+char *q_strlwr (char *str);
+char *q_strupr (char *str);
+
+// strdup that calls Mem_Alloc
+char *q_strdup (const char *str);
 
 /* snprintf, vsnprintf : always use our versions. */
-extern int q_snprintf (char *str, size_t size, const char *format, ...) FUNC_PRINTF (3, 4);
-extern int q_vsnprintf (char *str, size_t size, const char *format, va_list args) FUNC_PRINTF (3, 0);
+int q_snprintf (char *str, size_t size, const char *format, ...) FUNC_PRINTF (3, 4);
+int q_vsnprintf (char *str, size_t size, const char *format, va_list args) FUNC_PRINTF (3, 0);
 
 //============================================================================
 
@@ -261,7 +264,7 @@ typedef struct searchpath_s
 	                              // Note that <install_dir>/game1 and
 	                              // <userdir>/game1 have the same id.
 	char                 filename[MAX_OSPATH];
-	pack_t			  *pack; // only one of filename / pack will be used
+	pack_t              *pack; // only one of filename / pack will be used
 	struct searchpath_s *next;
 } searchpath_t;
 
@@ -284,23 +287,7 @@ int      COM_FOpenFile (const char *filename, FILE **file, unsigned int *path_id
 qboolean COM_FileExists (const char *filename, unsigned int *path_id);
 void     COM_CloseFile (int h);
 
-// these procedures open a file using COM_FindFile and loads it into a proper
-// buffer. the buffer is allocated with a total size of com_filesize + 1. the
-// procedures differ by their buffer allocation method.
-byte *COM_LoadStackFile (const char *path, void *buffer, int bufsize, unsigned int *path_id);
-// uses the specified stack stack buffer with the specified size
-// of bufsize. if bufsize is too short, uses temp hunk. the bufsize
-// must include the +1
-byte *COM_LoadTempFile (const char *path, unsigned int *path_id);
-// allocates the buffer on the temp hunk.
-byte *COM_LoadHunkFile (const char *path, unsigned int *path_id);
-// allocates the buffer on the hunk.
-byte *COM_LoadZoneFile (const char *path, unsigned int *path_id);
-// allocates the buffer on the zone.
-void  COM_LoadCacheFile (const char *path, struct cache_user_s *cu, unsigned int *path_id);
-// uses cache mem for allocating the buffer.
-byte *COM_LoadMallocFile (const char *path, unsigned int *path_id);
-// allocates the buffer on the system mem (malloc).
+byte *COM_LoadFile (const char *path, unsigned int *path_id);
 
 // Opens the given path directly, ignoring search paths.
 // Returns NULL on failure, or else a '\0'-terminated malloc'ed buffer.

@@ -91,7 +91,7 @@ static qboolean S_MP3_CodecOpenStream (snd_stream_t *stream)
 		return false;
 	}
 
-	stream->priv = Z_Malloc (sizeof (mp3_priv_t));
+	stream->priv = Mem_Alloc (sizeof (mp3_priv_t));
 	priv = (mp3_priv_t *)stream->priv;
 	priv->handle = mpg123_new (NULL, NULL);
 	if (priv->handle == NULL)
@@ -170,7 +170,7 @@ _fail:
 				mpg123_close (priv->handle);
 			mpg123_delete (priv->handle);
 		}
-		Z_Free (stream->priv);
+		Mem_Free (stream->priv);
 	}
 	return false;
 }
@@ -195,7 +195,7 @@ static void S_MP3_CodecCloseStream (snd_stream_t *stream)
 	mp3_priv_t *priv = (mp3_priv_t *)stream->priv;
 	mpg123_close (priv->handle);
 	mpg123_delete (priv->handle);
-	Z_Free (stream->priv);
+	Mem_Free (stream->priv);
 	S_CodecUtilClose (&stream);
 }
 

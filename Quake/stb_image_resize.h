@@ -494,10 +494,10 @@ typedef struct
 	stbir_colorspace colorspace;
 
 	stbir__contributors *horizontal_contributors;
-	float			   *horizontal_coefficients;
+	float               *horizontal_coefficients;
 
 	stbir__contributors *vertical_contributors;
-	float			   *vertical_coefficients;
+	float               *vertical_coefficients;
 
 	int    decode_buffer_pixels;
 	float *decode_buffer;
@@ -1441,9 +1441,9 @@ static void stbir__resample_horizontal_upsample (stbir__info *stbir_info, float 
 	int                  x, k;
 	int                  output_w = stbir_info->output_w;
 	int                  channels = stbir_info->channels;
-	float			   *decode_buffer = stbir__get_decode_buffer (stbir_info);
+	float               *decode_buffer = stbir__get_decode_buffer (stbir_info);
 	stbir__contributors *horizontal_contributors = stbir_info->horizontal_contributors;
-	float			   *horizontal_coefficients = stbir_info->horizontal_coefficients;
+	float               *horizontal_coefficients = stbir_info->horizontal_coefficients;
 	int                  coefficient_width = stbir_info->horizontal_coefficient_width;
 
 	for (x = 0; x < output_w; x++)
@@ -1525,9 +1525,9 @@ static void stbir__resample_horizontal_downsample (stbir__info *stbir_info, floa
 	int                  x, k;
 	int                  input_w = stbir_info->input_w;
 	int                  channels = stbir_info->channels;
-	float			   *decode_buffer = stbir__get_decode_buffer (stbir_info);
+	float               *decode_buffer = stbir__get_decode_buffer (stbir_info);
 	stbir__contributors *horizontal_contributors = stbir_info->horizontal_contributors;
-	float			   *horizontal_coefficients = stbir_info->horizontal_coefficients;
+	float               *horizontal_coefficients = stbir_info->horizontal_coefficients;
 	int                  coefficient_width = stbir_info->horizontal_coefficient_width;
 	int                  filter_pixel_margin = stbir_info->horizontal_filter_pixel_margin;
 	int                  max_x = input_w + filter_pixel_margin * 2;
@@ -1868,14 +1868,14 @@ static void stbir__resample_vertical_upsample (stbir__info *stbir_info, int n)
 	int                  x, k;
 	int                  output_w = stbir_info->output_w;
 	stbir__contributors *vertical_contributors = stbir_info->vertical_contributors;
-	float			   *vertical_coefficients = stbir_info->vertical_coefficients;
+	float               *vertical_coefficients = stbir_info->vertical_coefficients;
 	int                  channels = stbir_info->channels;
 	int                  alpha_channel = stbir_info->alpha_channel;
 	int                  type = stbir_info->type;
 	int                  colorspace = stbir_info->colorspace;
 	int                  ring_buffer_entries = stbir_info->ring_buffer_num_entries;
-	void				*output_data = stbir_info->output_data;
-	float			   *encode_buffer = stbir_info->encode_buffer;
+	void                *output_data = stbir_info->output_data;
+	float               *encode_buffer = stbir_info->encode_buffer;
 	int                  decode = STBIR__DECODE (type, colorspace);
 	int                  coefficient_width = stbir_info->vertical_coefficient_width;
 	int                  coefficient_counter;
@@ -1991,10 +1991,10 @@ static void stbir__resample_vertical_downsample (stbir__info *stbir_info, int n)
 	int                  x, k;
 	int                  output_w = stbir_info->output_w;
 	stbir__contributors *vertical_contributors = stbir_info->vertical_contributors;
-	float			   *vertical_coefficients = stbir_info->vertical_coefficients;
+	float               *vertical_coefficients = stbir_info->vertical_coefficients;
 	int                  channels = stbir_info->channels;
 	int                  ring_buffer_entries = stbir_info->ring_buffer_num_entries;
-	float			   *horizontal_buffer = stbir_info->horizontal_buffer;
+	float               *horizontal_buffer = stbir_info->horizontal_buffer;
 	int                  coefficient_width = stbir_info->vertical_coefficient_width;
 	int                  contributor = n + stbir_info->vertical_filter_pixel_margin;
 

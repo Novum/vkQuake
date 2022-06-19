@@ -65,7 +65,7 @@ static qboolean S_MODPLUG_CodecOpenStream (snd_stream_t *stream)
 
 	len = FS_filelength (&stream->fh);
 	mark = Hunk_LowMark ();
-	moddata = (byte *)Hunk_Alloc (len);
+	moddata = (byte *)Mem_Alloc (len);
 	FS_fread (moddata, 1, len, &stream->fh);
 
 	S_MODPLUG_SetSettings (stream);

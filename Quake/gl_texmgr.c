@@ -305,15 +305,14 @@ TexMgr_LoadPalette -- johnfitz -- was VID_SetPalette, moved here, renamed, rewri
 void TexMgr_LoadPalette (void)
 {
 	byte *pal, *src, *dst;
-	int   i, mark;
+	int   i;
 	FILE *f;
 
 	COM_FOpenFile ("gfx/palette.lmp", &f, NULL);
 	if (!f)
 		Sys_Error ("Couldn't load gfx/palette.lmp");
 
-	mark = Hunk_LowMark ();
-	pal = (byte *)Hunk_Alloc (768);
+	pal = (byte *)Mem_Alloc (768);
 	if (fread (pal, 1, 768, f) != 768)
 		Sys_Error ("Couldn't load gfx/palette.lmp");
 	fclose (f);
@@ -376,7 +375,7 @@ void TexMgr_LoadPalette (void)
 	memcpy (d_8to24table_conchars, d_8to24table, 256 * 4);
 	((byte *)&d_8to24table_conchars[0])[3] = 0;
 
-	Hunk_FreeToLowMark (mark);
+	Mem_Free (pal);
 }
 
 /*
@@ -407,7 +406,7 @@ void TexMgr_Init (void)
 	extern texture_t *r_notexture_mip, *r_notexture_mip2;
 
 	// init texture list
-	free_gltextures = (gltexture_t *)Hunk_AllocName (MAX_GLTEXTURES * sizeof (gltexture_t), "gltextures");
+	free_gltextures = (gltexture_t *)Mem_Alloc (MAX_GLTEXTURES * sizeof (gltexture_t));
 	active_gltextures = NULL;
 	for (i = 0; i < MAX_GLTEXTURES - 1; i++)
 		free_gltextures[i].next = &free_gltextures[i + 1];
@@ -456,7 +455,7 @@ static unsigned *TexMgr_Downsample (unsigned *data, int in_width, int in_height,
 	assert ((out_height >= 1) && (out_height < in_height));
 
 	if (out_size_bytes > image_resize_buffer_size)
-		image_resize_buffer = realloc (image_resize_buffer, out_size_bytes);
+		image_resize_buffer = Mem_Realloc (image_resize_buffer, out_size_bytes);
 
 	stbir_resize_uint8 ((byte *)data, in_width, in_height, 0, (byte *)image_resize_buffer, out_width, out_height, 0, 4);
 	memcpy (data, image_resize_buffer, out_size_bytes);
@@ -580,7 +579,7 @@ static unsigned *TexMgr_8to32 (byte *in, int pixels, unsigned int *usepal)
 	int       i;
 	unsigned *out, *data;
 
-	out = data = (unsigned *)Hunk_Alloc (pixels * 4);
+	out = data = (unsigned *)Mem_Alloc (pixels * 4);
 
 	for (i = 0; i < pixels; i++)
 		*out++ = usepal[*in++];
@@ -622,21 +621,21 @@ static int TexMgr_DeriveStagingSize (int width, int height)
 	return size;
 }
 
-static byte *TexMgr_PreMultiply32 (byte *in, size_t width, size_t height)
+/*
+================
+TexMgr_PreMultiply32
+================
+*/
+static void TexMgr_PreMultiply32 (byte *in, size_t width, size_t height)
 {
 	size_t pixels = width * height;
-	byte  *out = (byte *)Hunk_Alloc (pixels * 4);
-	byte  *result = out;
 	while (pixels-- > 0)
 	{
-		out[0] = (in[0] * in[3]) >> 8;
-		out[1] = (in[1] * in[3]) >> 8;
-		out[2] = (in[2] * in[3]) >> 8;
-		out[3] = in[3];
+		in[0] = ((int)in[0] * (int)in[3]) >> 8;
+		in[1] = ((int)in[1] * (int)in[3]) >> 8;
+		in[2] = ((int)in[2] * (int)in[3]) >> 8;
 		in += 4;
-		out += 4;
 	}
-	return result;
 }
 
 /*
@@ -650,7 +649,7 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 
 	// do this before any rescaling
 	if (glt->flags & TEXPREF_PREMULTIPLY)
-		data = (unsigned *)TexMgr_PreMultiply32 ((byte *)data, glt->width, glt->height);
+		TexMgr_PreMultiply32 ((byte *)data, glt->width, glt->height);
 
 	// mipmap down
 	int picmip = (glt->flags & TEXPREF_NOPICMIP) ? 0 : q_max ((int)gl_picmip.value, 0);
@@ -966,14 +965,16 @@ static void TexMgr_LoadImage8 (gltexture_t *glt, byte *data)
 	}
 
 	// convert to 32bit
-	data = (byte *)TexMgr_8to32 (data, glt->width * glt->height, usepal);
+	byte *converted = (byte *)TexMgr_8to32 (data, glt->width * glt->height, usepal);
 
 	// fix edges
 	if (glt->flags & TEXPREF_ALPHA)
-		TexMgr_AlphaEdgeFix (data, glt->width, glt->height);
+		TexMgr_AlphaEdgeFix (converted, glt->width, glt->height);
 
 	// upload it
-	TexMgr_LoadImage32 (glt, (unsigned *)data);
+	TexMgr_LoadImage32 (glt, (unsigned *)converted);
+
+	Mem_Free (converted);
 }
 
 /*
@@ -997,7 +998,6 @@ gltexture_t *TexMgr_LoadImage (
 {
 	unsigned short crc = 0;
 	gltexture_t   *glt;
-	int            mark;
 
 	if (isDedicated)
 		return NULL;
@@ -1042,8 +1042,6 @@ gltexture_t *TexMgr_LoadImage (
 	glt->source_crc = crc;
 
 	// upload it
-	mark = Hunk_LowMark ();
-
 	switch (glt->source_format)
 	{
 	case SRC_INDEXED:
@@ -1057,8 +1055,6 @@ gltexture_t *TexMgr_LoadImage (
 		TexMgr_LoadImage32 (glt, (unsigned *)data);
 		break;
 	}
-
-	Hunk_FreeToLowMark (mark);
 
 	return glt;
 }
@@ -1079,12 +1075,11 @@ TexMgr_ReloadImage -- reloads a texture, and colormaps it if needed
 void TexMgr_ReloadImage (gltexture_t *glt, int shirt, int pants)
 {
 	byte  translation[256];
-	byte *src, *dst, *data = NULL, *translated;
-	int   mark, size, i;
+	byte *src, *dst, *data = NULL, *allocated = NULL, *translated = NULL;
+	int   size, i;
 	//
 	// get source data
 	//
-	mark = Hunk_LowMark ();
 
 	if (glt->source_file[0] && glt->source_offset)
 	{
@@ -1104,14 +1099,14 @@ void TexMgr_ReloadImage (gltexture_t *glt, int shirt, int pants)
 		{
 			size *= LIGHTMAP_BYTES;
 		}
-		data = (byte *)Hunk_Alloc (size);
+		allocated = data = (byte *)Mem_Alloc (size);
 		if (fread (data, 1, size, f) != size)
 			goto invalid;
 		fclose (f);
 	}
 	else if (glt->source_file[0] && !glt->source_offset)
 	{
-		data = Image_LoadImage (glt->source_file, (int *)&glt->source_width, (int *)&glt->source_height); // simple file
+		allocated = data = Image_LoadImage (glt->source_file, (int *)&glt->source_width, (int *)&glt->source_height); // simple file
 	}
 	else if (!glt->source_file[0] && glt->source_offset)
 	{
@@ -1121,7 +1116,6 @@ void TexMgr_ReloadImage (gltexture_t *glt, int shirt, int pants)
 	{
 	invalid:
 		Con_Printf ("TexMgr_ReloadImage: invalid source for %s\n", glt->name);
-		Hunk_FreeToLowMark (mark);
 		return;
 	}
 
@@ -1174,7 +1168,7 @@ void TexMgr_ReloadImage (gltexture_t *glt, int shirt, int pants)
 
 		// translate texture
 		size = glt->width * glt->height;
-		dst = translated = (byte *)Hunk_Alloc (size);
+		dst = translated = (byte *)Mem_Alloc (size);
 		src = data;
 
 		for (i = 0; i < size; i++)
@@ -1199,7 +1193,8 @@ void TexMgr_ReloadImage (gltexture_t *glt, int shirt, int pants)
 		break;
 	}
 
-	Hunk_FreeToLowMark (mark);
+	Mem_Free (translated);
+	Mem_Free (allocated);
 }
 
 /*

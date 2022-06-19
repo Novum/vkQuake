@@ -1654,7 +1654,7 @@ static void _Datagram_AddPossibleHost (struct qsockaddr *addr, qboolean master)
 	if (hostlist_count == hostlist_max)
 	{
 		hostlist_max = hostlist_count + 16;
-		hostlist = Z_Realloc (hostlist, sizeof (*hostlist) * hostlist_max);
+		hostlist = Mem_Realloc (hostlist, sizeof (*hostlist) * hostlist_max);
 	}
 	hostlist[hostlist_count].addr = *addr;
 	hostlist[hostlist_count].requery = true;

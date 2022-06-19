@@ -238,9 +238,6 @@
     <ClCompile Include="..\..\Quake\world.c">
       <Filter>Main</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Quake\zone.c">
-      <Filter>Main</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\Quake\cl_tent.c">
       <Filter>Client</Filter>
     </ClCompile>
@@ -433,6 +430,9 @@
     <ClCompile Include="..\..\Quake\palette.c">
       <Filter>Main</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Quake\mem.c">
+      <Filter>Main</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\Quake\snd_codec.h">
@@ -612,9 +612,6 @@
     <ClInclude Include="..\..\Quake\wsaerror.h">
       <Filter>Main</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\Quake\zone.h">
-      <Filter>Main</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\Quake\bgmusic.h">
       <Filter>Sound</Filter>
     </ClInclude>
@@ -646,6 +643,9 @@
       <Filter>Main</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Quake\palette.h">
+      <Filter>Main</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\mem.h">
       <Filter>Main</Filter>
     </ClInclude>
   </ItemGroup>

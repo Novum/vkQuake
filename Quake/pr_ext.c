@@ -69,7 +69,6 @@ typedef enum multicast_e
 } multicast_t;
 static void SV_Multicast (multicast_t to, float *org, int msg_entity, unsigned int requireext2);
 
-#define Z_StrDup(s)     strcpy (Z_Malloc (strlen (s) + 1), s)
 #define RETURN_EDICT(e) (((int *)qcvm->globals)[OFS_RETURN] = EDICT_TO_PROG (e))
 
 int PR_MakeTempString (const char *val)
@@ -490,13 +489,16 @@ static void PF_strzone (void)
 	}
 	len++; /*for the null*/
 
-	buf = Z_Malloc (len);
+	buf = Mem_Alloc (len);
 	G_INT (OFS_RETURN) = PR_SetEngineString (buf);
 	id = -1 - G_INT (OFS_RETURN);
 	if (id >= qcvm->knownzonesize)
 	{
+		int old_size = (qcvm->knownzonesize + 7) >> 3;
 		qcvm->knownzonesize = (id + 32) & ~7;
-		qcvm->knownzone = Z_Realloc (qcvm->knownzone, (qcvm->knownzonesize + 7) >> 3);
+		int new_size = (qcvm->knownzonesize + 7) >> 3;
+		qcvm->knownzone = Mem_Realloc (qcvm->knownzone, new_size);
+		memset (qcvm->knownzone + old_size, 0, new_size - old_size);
 	}
 	qcvm->knownzone[id >> 3] |= 1u << (id & 7);
 
@@ -519,7 +521,7 @@ static void PF_strunzone (void)
 	{
 		qcvm->knownzone[id >> 3] &= ~(1u << (id & 7));
 		PR_ClearEngineString (G_INT (OFS_PARM0));
-		Z_Free ((void *)foo);
+		Mem_Free ((void *)foo);
 	}
 	else
 		Con_Warning ("PF_strunzone: string wasn't strzoned\n");
@@ -534,11 +536,11 @@ static void PR_UnzoneAll (void)
 			string_t s = -1 - (int)id;
 			char    *ptr = (char *)PR_GetString (s);
 			PR_ClearEngineString (s);
-			Z_Free (ptr);
+			Mem_Free (ptr);
 		}
 	}
 	if (qcvm->knownzone)
-		Z_Free (qcvm->knownzone);
+		Mem_Free (qcvm->knownzone);
 	qcvm->knownzonesize = 0;
 	qcvm->knownzone = NULL;
 }
@@ -1440,7 +1442,7 @@ static void tokenize_flush (void)
 	while (qctoken_count > 0)
 	{
 		qctoken_count--;
-		free (qctoken[qctoken_count].token);
+		Mem_Free (qctoken[qctoken_count].token);
 	}
 	qctoken_count = 0;
 }
@@ -1457,7 +1459,7 @@ static int tokenizeqc (const char *str, qboolean dpfuckage)
 	while (qctoken_count > 0)
 	{
 		qctoken_count--;
-		free (qctoken[qctoken_count].token);
+		Mem_Free (qctoken[qctoken_count].token);
 	}
 	qctoken_count = 0;
 	while (qctoken_count < MAXQCTOKENS)
@@ -1477,7 +1479,7 @@ static int tokenizeqc (const char *str, qboolean dpfuckage)
 		if (!str)
 			break;
 
-		qctoken[qctoken_count].token = strdup (com_token);
+		qctoken[qctoken_count].token = q_strdup (com_token);
 
 		qctoken[qctoken_count].end = str - start;
 		qctoken_count++;
@@ -1543,7 +1545,7 @@ static void PF_tokenizebyseparator (void)
 			if (found)
 			{
 				tlen = qctoken[qctoken_count].end - qctoken[qctoken_count].start;
-				qctoken[qctoken_count].token = malloc (tlen + 1);
+				qctoken[qctoken_count].token = Mem_Alloc (tlen + 1);
 				memcpy (qctoken[qctoken_count].token, start + qctoken[qctoken_count].start, tlen);
 				qctoken[qctoken_count].token[tlen] = 0;
 
@@ -2831,8 +2833,8 @@ static void PF_buf_shutdown (void)
 			continue;
 
 		for (i = 0; i < strbuflist[bufno].used; i++)
-			Z_Free (strbuflist[bufno].strings[i]);
-		Z_Free (strbuflist[bufno].strings);
+			Mem_Free (strbuflist[bufno].strings[i]);
+		Mem_Free (strbuflist[bufno].strings);
 
 		strbuflist[bufno].owningvm = NULL;
 		strbuflist[bufno].strings = NULL;
@@ -2887,9 +2889,9 @@ static void PF_buf_del (void)
 	for (i = 0; i < strbuflist[bufno].used; i++)
 	{
 		if (strbuflist[bufno].strings[i])
-			Z_Free (strbuflist[bufno].strings[i]);
+			Mem_Free (strbuflist[bufno].strings[i]);
 	}
-	Z_Free (strbuflist[bufno].strings);
+	Mem_Free (strbuflist[bufno].strings);
 
 	strbuflist[bufno].strings = NULL;
 	strbuflist[bufno].used = 0;
@@ -2930,14 +2932,14 @@ static void PF_buf_copy (void)
 	// obliterate any and all existing data.
 	for (i = 0; i < strbuflist[bufto].used; i++)
 		if (strbuflist[bufto].strings[i])
-			Z_Free (strbuflist[bufto].strings[i]);
-	Z_Free (strbuflist[bufto].strings);
+			Mem_Free (strbuflist[bufto].strings[i]);
+	Mem_Free (strbuflist[bufto].strings);
 
 	// copy new data over.
 	strbuflist[bufto].used = strbuflist[bufto].allocated = strbuflist[buffrom].used;
-	strbuflist[bufto].strings = Z_Malloc (strbuflist[buffrom].used * sizeof (char *));
+	strbuflist[bufto].strings = Mem_Alloc (strbuflist[buffrom].used * sizeof (char *));
 	for (i = 0; i < strbuflist[buffrom].used; i++)
-		strbuflist[bufto].strings[i] = strbuflist[buffrom].strings[i] ? Z_StrDup (strbuflist[buffrom].strings[i]) : NULL;
+		strbuflist[bufto].strings[i] = strbuflist[buffrom].strings[i] ? q_strdup (strbuflist[buffrom].strings[i]) : NULL;
 }
 static int PF_buf_sort_sortprefixlen;
 static int PF_buf_sort_ascending (const void *a, const void *b)
@@ -3094,12 +3096,12 @@ static void PF_bufstr_set (void)
 	{
 		oldcount = strbuflist[bufno].allocated;
 		strbuflist[bufno].allocated = (index + 256);
-		strbuflist[bufno].strings = Z_Realloc (strbuflist[bufno].strings, strbuflist[bufno].allocated * sizeof (char *));
+		strbuflist[bufno].strings = Mem_Realloc (strbuflist[bufno].strings, strbuflist[bufno].allocated * sizeof (char *));
 		memset (strbuflist[bufno].strings + oldcount, 0, (strbuflist[bufno].allocated - oldcount) * sizeof (char *));
 	}
 	if (strbuflist[bufno].strings[index])
-		Z_Free (strbuflist[bufno].strings[index]);
-	strbuflist[bufno].strings[index] = Z_Malloc (strlen (string) + 1);
+		Mem_Free (strbuflist[bufno].strings[index]);
+	strbuflist[bufno].strings[index] = Mem_Alloc (strlen (string) + 1);
 	strcpy (strbuflist[bufno].strings[index], string);
 
 	if (index >= strbuflist[bufno].used)
@@ -3128,14 +3130,14 @@ static int PF_bufstr_add_internal (unsigned int bufno, const char *string, int a
 		unsigned int oldcount;
 		oldcount = strbuflist[bufno].allocated;
 		strbuflist[bufno].allocated = (index + 256);
-		strbuflist[bufno].strings = Z_Realloc (strbuflist[bufno].strings, strbuflist[bufno].allocated * sizeof (char *));
+		strbuflist[bufno].strings = Mem_Realloc (strbuflist[bufno].strings, strbuflist[bufno].allocated * sizeof (char *));
 		memset (strbuflist[bufno].strings + oldcount, 0, (strbuflist[bufno].allocated - oldcount) * sizeof (char *));
 	}
 
 	// add in the new string.
 	if (strbuflist[bufno].strings[index])
-		Z_Free (strbuflist[bufno].strings[index]);
-	strbuflist[bufno].strings[index] = Z_Malloc (strlen (string) + 1);
+		Mem_Free (strbuflist[bufno].strings[index]);
+	strbuflist[bufno].strings[index] = Mem_Alloc (strlen (string) + 1);
 	strcpy (strbuflist[bufno].strings[index], string);
 
 	if (index >= strbuflist[bufno].used)
@@ -3173,7 +3175,7 @@ static void PF_bufstr_free (void)
 		return; // not valid anyway.
 
 	if (strbuflist[bufno].strings[index])
-		Z_Free (strbuflist[bufno].strings[index]);
+		Mem_Free (strbuflist[bufno].strings[index]);
 	strbuflist[bufno].strings[index] = NULL;
 }
 
@@ -3195,9 +3197,9 @@ static void PF_buf_cvarlist (void)
 	// obliterate any and all existing data.
 	for (i = 0; i < strbuflist[bufno].used; i++)
 		if (strbuflist[bufno].strings[i])
-			Z_Free (strbuflist[bufno].strings[i]);
+			Mem_Free (strbuflist[bufno].strings[i]);
 	if (strbuflist[bufno].strings)
-		Z_Free (strbuflist[bufno].strings);
+		Mem_Free (strbuflist[bufno].strings);
 	strbuflist[bufno].used = strbuflist[bufno].allocated = 0;
 
 	for (var = Cvar_FindVarAfter ("", CVAR_NONE); var; var = var->next)
@@ -3725,8 +3727,8 @@ static void PF_uri_escape (void)
 {
 	static const char *hex = "0123456789ABCDEF";
 
-	char				*result = PR_GetTempString ();
-	char				*o = result;
+	char                *result = PR_GetTempString ();
+	char                *o = result;
 	const unsigned char *s = (const unsigned char *)G_STRING (OFS_PARM0);
 	*result = 0;
 	while (*s && o < result + STRINGTEMP_LENGTH - 4)
@@ -3812,7 +3814,7 @@ static void PF_digest_hex (void)
 	const byte        *data = (const byte *)PF_VarString (1);
 	size_t             len = strlen ((const char *)data);
 	static const char *hex = "0123456789ABCDEF";
-	char			  *resultbuf;
+	char              *resultbuf;
 	byte               hashdata[20];
 
 	if (!strcmp (hashtype, "CRC16"))
@@ -3859,7 +3861,7 @@ static void PF_strlennocol (void)
 static void PF_strdecolorize (void)
 {
 	int             l, c;
-	char		   *r = PR_GetTempString ();
+	char           *r = PR_GetTempString ();
 	struct markup_s mu;
 
 	PR_Markup_Begin (&mu, G_STRING (OFS_PARM0), vec3_origin, 1);
@@ -3951,6 +3953,12 @@ int PF_SV_ForceParticlePrecache (const char *s)
 	unsigned int i;
 	for (i = 1; i < MAX_PARTICLETYPES; i++)
 	{
+		if (sv.particle_precache[i] && !strcmp (sv.particle_precache[i], s))
+			return i;
+	}
+
+	for (i = 1; i < MAX_PARTICLETYPES; i++)
+	{
 		if (!sv.particle_precache[i])
 		{
 			if (sv.state != ss_loading)
@@ -3961,11 +3969,9 @@ int PF_SV_ForceParticlePrecache (const char *s)
 				SV_Multicast (MULTICAST_ALL_R, NULL, 0, PEXT2_REPLACEMENTDELTAS); // FIXME
 			}
 
-			sv.particle_precache[i] = strcpy (Hunk_Alloc (strlen (s) + 1), s); // weirdness to avoid issues with tempstrings
+			sv.particle_precache[i] = q_strdup (s); // weirdness to avoid issues with tempstrings
 			return i;
 		}
-		if (!strcmp (sv.particle_precache[i], s))
-			return i;
 	}
 	return 0;
 }
@@ -3987,6 +3993,20 @@ static void PF_sv_particleeffectnum (void)
 
 	for (i = 1; i < MAX_PARTICLETYPES; i++)
 	{
+		if (sv.particle_precache[i] && !strcmp (sv.particle_precache[i], s))
+		{
+			if (sv.state != ss_loading && !pr_checkextension.value)
+			{
+				if (pr_ext_warned_particleeffectnum++ < 3)
+					Con_Warning ("PF_sv_particleeffectnum(%s): Precache should only be done in spawn functions\n", s);
+			}
+			G_FLOAT (OFS_RETURN) = i;
+			return;
+		}
+	}
+
+	for (i = 1; i < MAX_PARTICLETYPES; i++)
+	{
 		if (!sv.particle_precache[i])
 		{
 			if (sv.state != ss_loading)
@@ -4000,17 +4020,7 @@ static void PF_sv_particleeffectnum (void)
 				SV_Multicast (MULTICAST_ALL_R, NULL, 0, PEXT2_REPLACEMENTDELTAS);
 			}
 
-			sv.particle_precache[i] = strcpy (Hunk_Alloc (strlen (s) + 1), s); // weirdness to avoid issues with tempstrings
-			G_FLOAT (OFS_RETURN) = i;
-			return;
-		}
-		if (!strcmp (sv.particle_precache[i], s))
-		{
-			if (sv.state != ss_loading && !pr_checkextension.value)
-			{
-				if (pr_ext_warned_particleeffectnum++ < 3)
-					Con_Warning ("PF_sv_particleeffectnum(%s): Precache should only be done in spawn functions\n", s);
-			}
+			sv.particle_precache[i] = q_strdup (s); // weirdness to avoid issues with tempstrings
 			G_FLOAT (OFS_RETURN) = i;
 			return;
 		}
@@ -4107,7 +4117,7 @@ int PF_CL_ForceParticlePrecache (const char *s)
 	{
 		if (!cl.local_particle_precache[i].name)
 		{
-			cl.local_particle_precache[i].name = strcpy (Hunk_Alloc (strlen (s) + 1), s); // weirdness to avoid issues with tempstrings
+			cl.local_particle_precache[i].name = q_strdup (s); // weirdness to avoid issues with tempstrings
 			cl.local_particle_precache[i].index = PScript_FindParticleType (cl.local_particle_precache[i].name);
 			return -i;
 		}
@@ -4245,7 +4255,7 @@ void          PR_ReloadPics (qboolean purge)
 {
 	numqcpics = 0;
 
-	free (qcpics);
+	Mem_Free (qcpics);
 	qcpics = NULL;
 	maxqcpics = 0;
 }
@@ -4278,7 +4288,7 @@ static qpic_t *DrawQC_CachePic (const char *picname, unsigned int flags)
 	if (i + 1 > maxqcpics)
 	{
 		maxqcpics = i + 32;
-		qcpics = realloc (qcpics, maxqcpics * sizeof (*qcpics));
+		qcpics = Mem_Realloc (qcpics, maxqcpics * sizeof (*qcpics));
 	}
 
 	strcpy (qcpics[i].name, picname);

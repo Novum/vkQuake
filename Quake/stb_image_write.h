@@ -205,7 +205,7 @@ STBIWDEF int stbi_write_jpg_to_func(stbi_write_func *func, void *context, int x,
 typedef struct
 {
 	stbi_write_func *func;
-	void			*context;
+	void            *context;
 } stbi__write_context;
 
 // initialize a callback-based context

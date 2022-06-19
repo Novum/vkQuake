@@ -137,7 +137,7 @@ qboolean SNDDMA_Init (dma_t *dma)
 	buffersize = shm->samples * (shm->samplebits / 8);
 	Con_Printf ("SDL audio driver: %s, %d bytes buffer\n", drivername, buffersize);
 
-	shm->buffer = (unsigned char *)calloc (1, buffersize);
+	shm->buffer = (unsigned char *)Mem_Alloc (buffersize);
 	if (!shm->buffer)
 	{
 		SDL_CloseAudio ();
@@ -165,7 +165,7 @@ void SNDDMA_Shutdown (void)
 		SDL_CloseAudio ();
 		SDL_QuitSubSystem (SDL_INIT_AUDIO);
 		if (shm->buffer)
-			free (shm->buffer);
+			Mem_Free (shm->buffer);
 		shm->buffer = NULL;
 		shm = NULL;
 	}

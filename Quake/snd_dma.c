@@ -69,7 +69,7 @@ static sfx_t *ambient_sfx[NUM_AMBIENTS];
 
 static qboolean sound_started = false;
 
-SDL_mutex* snd_mutex;
+SDL_mutex *snd_mutex;
 
 cvar_t bgmvolume = {"bgmvolume", "1", CVAR_ARCHIVE};
 cvar_t sfxvolume = {"volume", "0.7", CVAR_ARCHIVE};
@@ -94,7 +94,6 @@ static cvar_t ambient_fade = {"ambient_fade", "100", CVAR_NONE};
 static cvar_t snd_noextraupdate = {"snd_noextraupdate", "0", CVAR_NONE};
 static cvar_t snd_show = {"snd_show", "0", CVAR_NONE};
 static cvar_t _snd_mixahead = {"_snd_mixahead", "0.1", CVAR_ARCHIVE};
-
 
 static void S_SoundInfo_f (void)
 {
@@ -202,18 +201,12 @@ void S_Init (void)
 		Cvar_SetQuick (&snd_mixspeed, com_argv[i + 1]);
 	}
 
-	if (host_parms->memsize < 0x800000)
-	{
-		Cvar_SetQuick (&loadas8bit, "1");
-		Con_Printf ("loading all sounds as 8bit\n");
-	}
-
 	Cvar_SetCallback (&sfxvolume, SND_Callback_sfxvolume);
 	Cvar_SetCallback (&snd_filterquality, &SND_Callback_snd_filterquality);
 
 	SND_InitScaletable ();
 
-	known_sfx = (sfx_t *)Hunk_AllocName (MAX_SFX * sizeof (sfx_t), "sfx_t");
+	known_sfx = (sfx_t *)Mem_Alloc (MAX_SFX * sizeof (sfx_t));
 	num_sfx = 0;
 
 	snd_initialized = true;
@@ -300,13 +293,9 @@ S_TouchSound
 */
 void S_TouchSound (const char *name)
 {
-	sfx_t *sfx;
-
 	if (!sound_started)
 		return;
-
-	sfx = S_FindName (name);
-	Cache_Check (&sfx->cache);
+	S_FindName (name);
 }
 
 /*
@@ -985,6 +974,27 @@ unlock_mutex:
 
 /*
 ===============================================================================
+S_ClearAll
+===============================================================================
+*/
+void S_ClearAll (void)
+{
+	SDL_LockMutex (snd_mutex);
+
+	for (int i = 0; i < num_sfx; ++i)
+	{
+		if (known_sfx[i].cache)
+		{
+			Mem_Free (known_sfx[i].cache);
+			known_sfx[i].cache = NULL;
+		}
+	}
+
+	SDL_UnlockMutex (snd_mutex);
+}
+
+/*
+===============================================================================
 
 console functions
 
@@ -1045,7 +1055,7 @@ static void S_SoundList (void)
 	total = 0;
 	for (sfx = known_sfx, i = 0; i < num_sfx; i++, sfx++)
 	{
-		sc = (sfxcache_t *)Cache_Check (&sfx->cache);
+		sc = (sfxcache_t *)sfx->cache;
 		if (!sc)
 			continue;
 		size = sc->length * sc->width * (sc->stereo + 1);

@@ -135,7 +135,7 @@ void SubdividePolygon (int numverts, float *verts)
 		return;
 	}
 
-	poly = (glpoly_t *)Hunk_Alloc (sizeof (glpoly_t) + (numverts - 4) * VERTEXSIZE * sizeof (float));
+	poly = (glpoly_t *)Mem_Alloc (sizeof (glpoly_t) + (numverts - 4) * VERTEXSIZE * sizeof (float));
 	poly->next = warpface->polys->next;
 	warpface->polys->next = poly;
 	poly->numverts = numverts;

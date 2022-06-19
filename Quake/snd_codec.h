@@ -56,7 +56,7 @@ typedef struct snd_stream_s
 	stream_status_t status;
 	snd_codec_t    *codec; /* codec handling this stream */
 	qboolean        loop;
-	void		   *priv; /* data private to the codec. */
+	void           *priv; /* data private to the codec. */
 } snd_stream_t;
 
 void S_CodecInit (void);

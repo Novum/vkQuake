@@ -251,7 +251,6 @@ void Con_CheckResize (void)
 {
 	int   i, j, width, oldwidth, oldtotallines, numlines, numchars;
 	char *tbuf; // johnfitz -- tbuf no longer a static array
-	int   mark; // johnfitz
 
 	width = (vid.conwidth >> 3) - 2; // johnfitz -- use vid.conwidth instead of vid.width
 
@@ -272,8 +271,7 @@ void Con_CheckResize (void)
 	if (con_linewidth < numchars)
 		numchars = con_linewidth;
 
-	mark = Hunk_LowMark ();                     // johnfitz
-	tbuf = (char *)Hunk_Alloc (con_buffersize); // johnfitz
+	tbuf = (char *)Mem_Alloc (con_buffersize); // johnfitz
 
 	memcpy (tbuf, con_text, con_buffersize); // johnfitz -- con_buffersize replaces CON_TEXTSIZE
 	memset (con_text, ' ', con_buffersize);  // johnfitz -- con_buffersize replaces CON_TEXTSIZE
@@ -286,9 +284,8 @@ void Con_CheckResize (void)
 		}
 	}
 
-	Hunk_FreeToLowMark (mark); // johnfitz
-
 	Con_ClearNotify ();
+	Mem_Free (tbuf);
 
 	con_backscroll = 0;
 	con_current = con_totallines - 1;
@@ -311,8 +308,8 @@ void Con_Init (void)
 		con_buffersize = CON_TEXTSIZE;
 	// johnfitz
 
-	con_text = (char *)Hunk_AllocName (con_buffersize, "context"); // johnfitz -- con_buffersize replaces CON_TEXTSIZE
-	memset (con_text, ' ', con_buffersize);                        // johnfitz -- con_buffersize replaces CON_TEXTSIZE
+	con_text = (char *)Mem_Alloc (con_buffersize); // johnfitz -- con_buffersize replaces CON_TEXTSIZE
+	memset (con_text, ' ', con_buffersize);        // johnfitz -- con_buffersize replaces CON_TEXTSIZE
 	con_linewidth = -1;
 
 	// johnfitz -- no need to run Con_CheckResize here
@@ -734,7 +731,7 @@ typedef struct cmdalias_s
 {
 	struct cmdalias_s *next;
 	char               name[MAX_ALIAS_NAME];
-	char			  *value;
+	char              *value;
 } cmdalias_t;
 extern cmdalias_t *cmd_alias;
 
@@ -776,7 +773,7 @@ void AddToTabList (const char *name, const char *type)
 		*i_bash = 0;
 	}
 
-	t = (tab_t *)Hunk_Alloc (sizeof (tab_t));
+	t = (tab_t *)Mem_Alloc (sizeof (tab_t));
 	t->name = name;
 	t->type = type;
 
@@ -830,7 +827,7 @@ FindCompletion -- stevenaaus
 const char *FindCompletion (const char *partial, filelist_item_t *filelist, int *nummatches_out)
 {
 	static char      matched[32];
-	char			*i_matched, *i_name;
+	char            *i_matched, *i_name;
 	filelist_item_t *file;
 	int              init, match, plen;
 
@@ -921,7 +918,7 @@ void Con_TabComplete (void)
 	const char  *match;
 	static char *c;
 	tab_t       *t;
-	int          mark, i, j;
+	int          i, j;
 
 	// if editline is empty, return
 	if (key_lines[edit_line][1] == 0)
@@ -982,7 +979,6 @@ void Con_TabComplete (void)
 		partial[i - 1] = 0;
 
 	// find a match
-	mark = Hunk_LowMark ();
 	if (!key_tabpartial[0]) // first time through
 	{
 		q_strlcpy (key_tabpartial, partial, MAXCMDLINE);
@@ -1028,7 +1024,6 @@ void Con_TabComplete (void)
 			t = t->next;
 		} while (t != tablist);
 	}
-	Hunk_FreeToLowMark (mark); // it's okay to free it here because match is a pointer to persistent data
 
 	// insert new match into edit line
 	q_strlcpy (partial, match, MAXCMDLINE);                              // first copy match string

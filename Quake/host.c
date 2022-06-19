@@ -27,12 +27,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "tasks.h"
 #include <setjmp.h>
 
-#if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
-#include <SDL2/SDL.h>
-#else
-#include "SDL.h"
-#endif
-
 /*
 
 A server can allways be started, even if the system started out as a client
@@ -53,8 +47,6 @@ double realtime;    // without any filtering or bounding
 double oldrealtime; // last frame run
 
 int host_framecount;
-
-int host_hunklevel;
 
 int minimum_memory;
 
@@ -249,7 +241,7 @@ void Host_FindMaxClients (void)
 	svs.maxclientslimit = svs.maxclients;
 	if (svs.maxclientslimit < 4)
 		svs.maxclientslimit = 4;
-	svs.clients = (struct client_s *)Hunk_AllocName (svs.maxclientslimit * sizeof (client_t), "clients");
+	svs.clients = (struct client_s *)Mem_Alloc (svs.maxclientslimit * sizeof (client_t));
 
 	if (svs.maxclients > 1)
 		Cvar_SetQuick (&deathmatch, "1");
@@ -595,12 +587,12 @@ void Host_ClearMemory (void)
 	Con_DPrintf ("Clearing memory\n");
 	Mod_ClearAll ();
 	Sky_ClearAll ();
-	/* host_hunklevel MUST be set at this point */
-	Hunk_FreeToLowMark (host_hunklevel);
+	S_ClearAll ();
 	cls.signon = 0;
 	PR_ClearProgs (&sv.qcvm);
-	free (sv.static_entities); // spike -- this is dynamic too, now
-
+	Mem_Free (sv.static_entities); // spike -- this is dynamic too, now
+	for (int i = 1; i < MAX_PARTICLETYPES; ++i)
+		Mem_Free (sv.particle_precache[i]);
 	memset (&sv, 0, sizeof (sv));
 
 	CL_FreeState ();
@@ -749,7 +741,7 @@ static void CL_LoadCSProgs (void)
 		    (PR_LoadProgs ("progs.dat", false, PROGHEADER_CRC, pr_csqcbuiltins, pr_csqcnumbuiltins) && qcvm->extfuncs.CSQC_DrawHud))
 		{
 			qcvm->max_edicts = CLAMP (MIN_EDICTS, (int)max_edicts.value, MAX_EDICTS);
-			qcvm->edicts = (edict_t *)malloc (qcvm->max_edicts * qcvm->edict_size);
+			qcvm->edicts = (edict_t *)Mem_Alloc (qcvm->max_edicts * qcvm->edict_size);
 			qcvm->num_edicts = qcvm->reserved_edicts = 1;
 			memset (qcvm->edicts, 0, qcvm->num_edicts * qcvm->edict_size);
 
@@ -974,22 +966,10 @@ Host_Init
 */
 void Host_Init (void)
 {
-	if (standard_quake)
-		minimum_memory = MINIMUM_MEMORY;
-	else
-		minimum_memory = MINIMUM_MEMORY_LEVELPAK;
-
-	if (COM_CheckParm ("-minmemory"))
-		host_parms->memsize = minimum_memory;
-
-	if (host_parms->memsize < minimum_memory)
-		Sys_Error ("Only %4.1f megs of memory available, can't execute game", host_parms->memsize / (float)0x100000);
-
 	com_argc = host_parms->argc;
 	com_argv = host_parms->argv;
 
 	Tasks_Init ();
-	Memory_Init (host_parms->membase, host_parms->memsize);
 	Cbuf_Init ();
 	Cmd_Init ();
 	LOG_Init (host_parms);
@@ -1009,11 +989,10 @@ void Host_Init (void)
 	SV_Init ();
 
 	Con_Printf ("Exe: " __TIME__ " " __DATE__ "\n");
-	Con_Printf ("%4.1f megabyte heap\n", host_parms->memsize / (1024 * 1024.0));
 
 	if (cls.state != ca_dedicated)
 	{
-		host_colormap = (byte *)COM_LoadHunkFile ("gfx/colormap.lmp", NULL);
+		host_colormap = (byte *)COM_LoadFile ("gfx/colormap.lmp", NULL);
 		if (!host_colormap)
 			Sys_Error ("Couldn't load gfx/colormap.lmp");
 
@@ -1040,9 +1019,6 @@ void Host_Init (void)
 	PScript_InitParticles ();
 #endif
 	LOC_Init (); // for 2021 rerelease support.
-
-	Hunk_AllocName (0, "-HOST_HUNKLEVEL-");
-	host_hunklevel = Hunk_LowMark ();
 
 	host_initialized = true;
 	Con_Printf ("\n========= Quake Initialized =========\n\n");

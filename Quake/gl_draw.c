@@ -300,7 +300,7 @@ qpic_t *Draw_TryCachePic (const char *path, unsigned int texflags)
 	//
 	// load the pic from disk
 	//
-	dat = (qpic_t *)COM_LoadTempFile (path, NULL);
+	dat = (qpic_t *)COM_LoadFile (path, NULL);
 	if (!dat)
 		return NULL;
 	SwapPic (dat);
@@ -324,6 +324,8 @@ qpic_t *Draw_TryCachePic (const char *path, unsigned int texflags)
 
 	memcpy (pic->pic.data, &gl, sizeof (glpic_t));
 
+	Mem_Free (dat);
+
 	return &pic->pic;
 }
 
@@ -346,7 +348,7 @@ qpic_t *Draw_MakePic (const char *name, int width, int height, byte *data)
 	qpic_t *pic;
 	glpic_t gl;
 
-	pic = (qpic_t *)Hunk_Alloc (sizeof (qpic_t) - 4 + sizeof (glpic_t));
+	pic = (qpic_t *)Mem_Alloc (sizeof (qpic_t) - 4 + sizeof (glpic_t));
 	pic->width = width;
 	pic->height = height;
 

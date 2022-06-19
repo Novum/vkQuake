@@ -30,7 +30,7 @@ void PL_SetWindowIcon (void);
 /* platform dependent cleanup */
 void PL_VID_Shutdown (void);
 
-/* retrieve text from the clipboard (returns Z_Malloc()'ed data) */
+/* retrieve text from the clipboard (returns Mem_Alloc()'ed data) */
 char *PL_GetClipboardData (void);
 
 /* show an error dialog */

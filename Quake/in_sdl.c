@@ -22,11 +22,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 #include "quakedef.h"
-#if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
-#include <SDL2/SDL.h>
-#else
-#include "SDL.h"
-#endif
 
 static qboolean textmode;
 
@@ -77,7 +72,7 @@ static int SDLCALL IN_SDL2_FilterMouseEvents (void *userdata, SDL_Event *event)
 static void IN_BeginIgnoringMouseEvents (void)
 {
 	SDL_EventFilter currentFilter = NULL;
-	void		   *currentUserdata = NULL;
+	void           *currentUserdata = NULL;
 	SDL_GetEventFilter (&currentFilter, &currentUserdata);
 
 	if (currentFilter != IN_SDL2_FilterMouseEvents)
@@ -87,7 +82,7 @@ static void IN_BeginIgnoringMouseEvents (void)
 static void IN_EndIgnoringMouseEvents (void)
 {
 	SDL_EventFilter currentFilter;
-	void		   *currentUserdata;
+	void           *currentUserdata;
 	if (SDL_GetEventFilter (&currentFilter, &currentUserdata) == SDL_TRUE)
 		SDL_SetEventFilter (NULL, NULL);
 }

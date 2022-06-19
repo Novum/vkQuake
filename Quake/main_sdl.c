@@ -22,11 +22,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 #include "quakedef.h"
-#if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
-#include <SDL2/SDL.h>
-#else
-#include "SDL.h"
-#endif
 #include <stdio.h>
 
 static void Sys_AtExit (void)
@@ -54,13 +49,10 @@ static void Sys_InitSDL (void)
 	atexit (Sys_AtExit);
 }
 
-#define DEFAULT_MEMORY (384 * 1024 * 1024) // ericw -- was 72MB (64-bit) / 64MB (32-bit)
-
 static quakeparms_t parms;
 
 int main (int argc, char *argv[])
 {
-	int    t;
 	double time, oldtime, newtime;
 
 	host_parms = &parms;
@@ -78,19 +70,6 @@ int main (int argc, char *argv[])
 	Sys_InitSDL ();
 
 	Sys_Init ();
-
-	parms.memsize = DEFAULT_MEMORY;
-	if (COM_CheckParm ("-heapsize"))
-	{
-		t = COM_CheckParm ("-heapsize") + 1;
-		if (t < com_argc)
-			parms.memsize = atoi (com_argv[t]) * 1024;
-	}
-
-	parms.membase = malloc (parms.memsize);
-
-	if (!parms.membase)
-		Sys_Error ("Not enough memory free; check disk space\n");
 
 #if defined(__clang_version__)
 	Sys_Printf ("Built with Clang " __clang_version__ "\n");

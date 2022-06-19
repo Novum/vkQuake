@@ -162,7 +162,7 @@ static task_queue_t *CreateTaskQueue (int capacity)
 {
 	assert (capacity > 0);
 	assert ((capacity & (capacity - 1)) == 0); // Needs to be power of 2
-	task_queue_t *queue = calloc (sizeof (task_queue_t) + (sizeof (atomic_uint32_t) * (capacity - 1)), 1);
+	task_queue_t *queue = Mem_Alloc (sizeof (task_queue_t) + (sizeof (atomic_uint32_t) * (capacity - 1)));
 	queue->capacity_mask = capacity - 1;
 	queue->push_semaphore = SDL_CreateSemaphore (capacity - 1);
 	queue->pop_semaphore = SDL_CreateSemaphore (0);
@@ -260,8 +260,6 @@ Task_Worker
 static int Task_Worker (void *data)
 {
 	is_worker = true;
-	void *worker_hunk = malloc (WORKER_HUNK_SIZE);
-	Memory_InitWorkerHunk (worker_hunk, WORKER_HUNK_SIZE);
 
 	const int worker_index = (intptr_t)data;
 	while (true)
@@ -325,8 +323,8 @@ void Tasks_Init (void)
 		steal_worker_indices[i + num_workers] = i;
 	}
 
-	indexed_task_counters = calloc (sizeof (task_counter_t) * num_workers * MAX_PENDING_TASKS, 1);
-	worker_threads = (SDL_Thread **)malloc (sizeof (SDL_Thread *) * num_workers);
+	indexed_task_counters = Mem_Alloc (sizeof (task_counter_t) * num_workers * MAX_PENDING_TASKS);
+	worker_threads = (SDL_Thread **)Mem_Alloc (sizeof (SDL_Thread *) * num_workers);
 	for (int i = 0; i < num_workers; ++i)
 	{
 		worker_threads[i] = SDL_CreateThread (Task_Worker, "Task_Worker", (void *)(intptr_t)i);
