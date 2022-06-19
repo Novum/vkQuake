@@ -238,4 +238,10 @@ typedef ptrdiff_t ssize_t;
 
 /*==========================================================================*/
 
+#if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
+#include <SDL2/SDL.h>
+#else
+#include "SDL.h"
+#endif
+
 #endif /* __QSTDINC_H */

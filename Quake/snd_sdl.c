@@ -24,12 +24,6 @@
 
 #include "quakedef.h"
 
-#if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
-#include <SDL2/SDL.h>
-#else
-#include "SDL.h"
-#endif
-
 static int buffersize;
 
 static void SDLCALL paint_audio (void *unused, Uint8 *stream, int len)
