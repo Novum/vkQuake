@@ -768,6 +768,8 @@ static inline int IN_SDL2_ScancodeToQuakeKey (SDL_Scancode scancode)
 		return K_SHIFT;
 	case SDL_SCANCODE_RSHIFT:
 		return K_SHIFT;
+	case SDL_SCANCODE_CAPSLOCK:
+		return K_CAPSLOCK;
 
 	case SDL_SCANCODE_F1:
 		return K_F1;

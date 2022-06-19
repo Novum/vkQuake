@@ -64,6 +64,7 @@ keyname_t keynames[] = {
 	{"ALT", K_ALT},
 	{"CTRL", K_CTRL},
 	{"SHIFT", K_SHIFT},
+	{"CAPSLOCK", K_CAPSLOCK},
 
 	//	{"KP_NUMLOCK", K_KP_NUMLOCK},
 	{"KP_SLASH", K_KP_SLASH},
