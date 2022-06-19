@@ -36,11 +36,7 @@ static void ResampleSfx (sfx_t *sfx, int inrate, int inwidth, byte *data)
 	float       stepscale;
 	int         i;
 	int         sample, samplefrac, fracstep;
-	sfxcache_t *sc;
-
-	sc = (sfxcache_t *)Cache_Check (&sfx->cache);
-	if (!sc)
-		return;
+	sfxcache_t *sc = sfx->cache;
 
 	stepscale = (float)inrate / shm->speed; // this is usually 0.5, 1, or 2
 
@@ -95,19 +91,20 @@ S_LoadSound
 sfxcache_t *S_LoadSound (sfx_t *s)
 {
 	char        namebuffer[256];
-	byte       *data;
+	byte       *data = NULL;
 	wavinfo_t   info;
 	int         len;
 	float       stepscale;
 	sfxcache_t *sc = NULL;
-	byte        stackbuf[1 * 1024]; // avoid dirtying the cache heap
 
 	SDL_LockMutex (snd_mutex);
 
 	// see if still in memory
-	sc = (sfxcache_t *)Cache_Check (&s->cache);
-	if (sc)
+	if (s->cache)
+	{
+		sc = s->cache;
 		goto unlock_mutex;
+	}
 
 	//	Con_Printf ("S_LoadSound: %x\n", (int)stackbuf);
 
@@ -117,7 +114,7 @@ sfxcache_t *S_LoadSound (sfx_t *s)
 
 	//	Con_Printf ("loading %s\n",namebuffer);
 
-	data = COM_LoadStackFile (namebuffer, stackbuf, sizeof (stackbuf), NULL);
+	data = COM_LoadFile (namebuffer, NULL);
 
 	if (!data)
 	{
@@ -149,7 +146,7 @@ sfxcache_t *S_LoadSound (sfx_t *s)
 		goto unlock_mutex;
 	}
 
-	sc = (sfxcache_t *)Cache_Alloc (&s->cache, len + sizeof (sfxcache_t), s->name);
+	sc = (sfxcache_t *)Mem_Alloc (len + sizeof (sfxcache_t));
 	if (!sc)
 		goto unlock_mutex;
 	sc->length = info.samples;
@@ -158,9 +155,11 @@ sfxcache_t *S_LoadSound (sfx_t *s)
 	sc->width = info.width;
 	sc->stereo = info.channels;
 
+	s->cache = sc;
 	ResampleSfx (s, sc->speed, sc->width, data + info.dataofs);
 
 unlock_mutex:
+	Mem_Free (data);
 	SDL_UnlockMutex (snd_mutex);
 	return sc;
 }

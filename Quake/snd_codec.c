@@ -305,8 +305,8 @@ snd_stream_t *S_CodecUtilOpen (const char *filename, snd_codec_t *codec, qboolea
 		return NULL;
 	}
 
-	/* Allocate a stream, Z_Malloc zeroes its content */
-	stream = (snd_stream_t *)Z_Malloc (sizeof (snd_stream_t));
+	/* Allocate a stream, Mem_Alloc zeroes its content */
+	stream = (snd_stream_t *)Mem_Alloc (sizeof (snd_stream_t));
 	stream->codec = codec;
 	stream->loop = loop;
 	stream->fh.file = handle;
@@ -322,7 +322,7 @@ snd_stream_t *S_CodecUtilOpen (const char *filename, snd_codec_t *codec, qboolea
 void S_CodecUtilClose (snd_stream_t **stream)
 {
 	fclose ((*stream)->fh.file);
-	Z_Free (*stream);
+	Mem_Free (*stream);
 	*stream = NULL;
 }
 

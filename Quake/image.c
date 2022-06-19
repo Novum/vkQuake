@@ -38,7 +38,7 @@ static char loadfilename[MAX_OSPATH]; // file scope so that error messages can u
 
 typedef struct stdio_buffer_s
 {
-	FILE		 *f;
+	FILE         *f;
 	unsigned char buffer[1024];
 	int           size;
 	int           pos;
@@ -46,14 +46,14 @@ typedef struct stdio_buffer_s
 
 static stdio_buffer_t *Buf_Alloc (FILE *f)
 {
-	stdio_buffer_t *buf = (stdio_buffer_t *)calloc (1, sizeof (stdio_buffer_t));
+	stdio_buffer_t *buf = (stdio_buffer_t *)Mem_Alloc (sizeof (stdio_buffer_t));
 	buf->f = f;
 	return buf;
 }
 
 static void Buf_Free (stdio_buffer_t *buf)
 {
-	free (buf);
+	Mem_Free (buf);
 }
 
 static inline int Buf_GetC (stdio_buffer_t *buf)
@@ -191,9 +191,9 @@ Image_LoadTGA
 byte *Image_LoadTGA (FILE *fin, int *width, int *height, const char *name)
 {
 	int             columns, rows, numPixels;
-	byte		   *pixbuf;
+	byte           *pixbuf;
 	int             row, column;
-	byte		   *targa_rgba;
+	byte           *targa_rgba;
 	int             realrow;     // johnfitz -- fix for upside-down targas
 	qboolean        upside_down; // johnfitz -- fix for upside-down targas
 	stdio_buffer_t *buf;
@@ -232,7 +232,7 @@ byte *Image_LoadTGA (FILE *fin, int *width, int *height, const char *name)
 	numPixels = columns * rows;
 	upside_down = !(targa_header.attributes & 0x20); // johnfitz -- fix for upside-down targas
 
-	targa_rgba = (byte *)Hunk_Alloc (numPixels * 4);
+	targa_rgba = (byte *)Mem_Alloc (numPixels * 4);
 
 	if (targa_header.id_length != 0)
 		fseek (fin, targa_header.id_length, SEEK_CUR); // skip TARGA image comment
@@ -445,7 +445,7 @@ byte *Image_LoadPCX (FILE *f, int *width, int *height)
 {
 	pcxheader_t     pcx;
 	int             x, y, w, h, readbyte, runlength, start;
-	byte		   *p, *data;
+	byte           *p, *data;
 	byte            palette[768];
 	stdio_buffer_t *buf;
 
@@ -472,7 +472,7 @@ byte *Image_LoadPCX (FILE *f, int *width, int *height)
 	w = pcx.xmax - pcx.xmin + 1;
 	h = pcx.ymax - pcx.ymin + 1;
 
-	data = (byte *)Hunk_Alloc ((w * h + 1) * 4); //+1 to allow reading padding byte on last line
+	data = (byte *)Mem_Alloc ((w * h + 1) * 4); //+1 to allow reading padding byte on last line
 
 	// load palette
 	fseek (f, start + com_filesize - 768, SEEK_SET);
@@ -532,7 +532,7 @@ static byte *CopyFlipped (const byte *data, int width, int height, int bpp)
 	byte *flipped;
 
 	rowsize = width * (bpp / 8);
-	flipped = (byte *)malloc (height * rowsize);
+	flipped = (byte *)Mem_Alloc (height * rowsize);
 	if (!flipped)
 		return NULL;
 
@@ -576,7 +576,7 @@ qboolean Image_WriteJPG (const char *name, byte *data, int width, int height, in
 
 	error = stbi_write_jpg (pathname, width, height, bytes_per_pixel, flipped, quality);
 	if (!upsidedown)
-		free (flipped);
+		Mem_Free (flipped);
 
 	return (error != 0);
 }
@@ -585,7 +585,7 @@ qboolean Image_WritePNG (const char *name, byte *data, int width, int height, in
 {
 	unsigned       error;
 	char           pathname[MAX_OSPATH];
-	byte		  *flipped;
+	byte          *flipped;
 	unsigned char *filters;
 	unsigned char *png;
 	size_t         pngsize;
@@ -598,12 +598,12 @@ qboolean Image_WritePNG (const char *name, byte *data, int width, int height, in
 	q_snprintf (pathname, sizeof (pathname), "%s/%s", com_gamedir, name);
 
 	flipped = (!upsidedown) ? CopyFlipped (data, width, height, bpp) : data;
-	filters = (unsigned char *)malloc (height);
+	filters = (unsigned char *)Mem_Alloc (height);
 	if (!filters || !flipped)
 	{
 		if (!upsidedown)
-			free (flipped);
-		free (filters);
+			Mem_Free (flipped);
+		Mem_Free (filters);
 		return false;
 	}
 
@@ -635,10 +635,10 @@ qboolean Image_WritePNG (const char *name, byte *data, int width, int height, in
 #endif
 
 	lodepng_state_cleanup (&state);
-	free (png);
-	free (filters);
+	Mem_Free (png);
+	Mem_Free (filters);
 	if (!upsidedown)
-		free (flipped);
+		Mem_Free (flipped);
 
 	return (error == 0);
 }

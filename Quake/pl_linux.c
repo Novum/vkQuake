@@ -65,10 +65,10 @@ char *PL_GetClipboardData (void)
 		size_t size = strlen (cliptext) + 1;
 		/* this is intended for simple small text copies
 		 * such as an ip address, etc:  do chop the size
-		 * here, otherwise we may experience Z_Malloc()
+		 * here, otherwise we may experience Mem_Alloc()
 		 * failures and all other not-oh-so-fun stuff. */
 		size = q_min (MAX_CLIPBOARDTXT, size);
-		data = (char *)Z_Malloc (size);
+		data = (char *)Mem_Alloc (size);
 		q_strlcpy (data, cliptext, size);
 	}
 

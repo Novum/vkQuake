@@ -80,9 +80,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #define Q_UNUSED(x) (x = x) // for pesky compiler / lint warnings
 
-#define MINIMUM_MEMORY          0x550000
-#define MINIMUM_MEMORY_LEVELPAK (MINIMUM_MEMORY + 0x100000)
-
 #define MAX_NUM_ARGVS 50
 
 // up / down
@@ -234,8 +231,6 @@ typedef struct
 	                     // memory locations, otherwise to the same.
 	int         argc;
 	char      **argv;
-	void       *membase;
-	int         memsize;
 	int         numcpus;
 	int         errstate;
 } quakeparms_t;
@@ -258,9 +253,9 @@ typedef enum
 } canvastype;
 
 #include "common.h"
+#include "mem.h"
 #include "bspfile.h"
 #include "sys.h"
-#include "zone.h"
 #include "mathlib.h"
 #include "cvar.h"
 

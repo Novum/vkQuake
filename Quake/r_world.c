@@ -154,8 +154,8 @@ void R_SetupWorldCBXTexRanges (qboolean use_tasks)
 	}
 
 	const int num_surfs_per_cbx = (total_world_surfs + NUM_WORLD_CBX - 1) / NUM_WORLD_CBX;
-	int current_cbx = 0;
-	int num_assigned_to_cbx = 0;
+	int       current_cbx = 0;
+	int       num_assigned_to_cbx = 0;
 	for (int i = 0; i < num_textures; ++i)
 	{
 		texture_t *t = cl.worldmodel->textures[i];

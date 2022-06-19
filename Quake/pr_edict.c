@@ -748,21 +748,24 @@ static void ED_RezoneString (string_t *ref, const char *str)
 			qcvm->knownzone[id >> 3] &= ~(1u << (id & 7));
 			buf = (char *)PR_GetString (*ref);
 			PR_ClearEngineString (*ref);
-			Z_Free (buf);
+			Mem_Free (buf);
 		}
 		//		else
 		//			Con_Warning("ED_RezoneString: string wasn't strzoned\n");	//warnings would trigger from the default cvar value that autocvars are
 		// initialised with
 	}
 
-	buf = Z_Malloc (len);
+	buf = Mem_Alloc (len);
 	memcpy (buf, str, len);
 	id = -1 - (*ref = PR_SetEngineString (buf));
 	// make sure its flagged as zoned so we can clean up properly after.
 	if (id >= qcvm->knownzonesize)
 	{
+		int old_size = (qcvm->knownzonesize + 7) >> 3;
 		qcvm->knownzonesize = (id + 32) & ~7;
-		qcvm->knownzone = Z_Realloc (qcvm->knownzone, (qcvm->knownzonesize + 7) >> 3);
+		int new_size = (qcvm->knownzonesize + 7) >> 3;
+		qcvm->knownzone = Mem_Realloc (qcvm->knownzone, new_size);
+		memset (qcvm->knownzone + old_size, 0, new_size - old_size);
 	}
 	qcvm->knownzone[id >> 3] |= 1u << (id & 7);
 }
@@ -1100,11 +1103,17 @@ void PR_ClearProgs (qcvm_t *vm)
 	PR_ShutdownExtensions ();
 
 	if (qcvm->knownstrings)
-		Z_Free ((void *)qcvm->knownstrings);
-	free (qcvm->edicts); // ericw -- sv.edicts switched to use malloc()
+	{
+		for (int i = 0; i < qcvm->numknownstrings; ++i)
+			if (qcvm->knownstringsowned[i])
+				Mem_Free (qcvm->knownstrings[i]);
+		Mem_Free ((void *)qcvm->knownstrings);
+		Mem_Free (qcvm->knownstringsowned);
+	}
+	Mem_Free (qcvm->edicts); // ericw -- sv.edicts switched to use malloc()
 	if (qcvm->fielddefs != (ddef_t *)((byte *)qcvm->progs + qcvm->progs->ofs_fielddefs))
-		free (qcvm->fielddefs);
-	free (qcvm->progs); // spike -- pr_progs switched to use malloc (so menuqc doesn't end up stuck on the early hunk nor wiped on every map change)
+		Mem_Free (qcvm->fielddefs);
+	Mem_Free (qcvm->progs); // spike -- pr_progs switched to use malloc (so menuqc doesn't end up stuck on the early hunk nor wiped on every map change)
 	memset (qcvm, 0, sizeof (*qcvm));
 
 	qcvm = NULL;
@@ -1163,10 +1172,10 @@ static void PR_MergeEngineFieldDefs (void)
 	if (maxdefs != qcvm->progs->numfielddefs)
 	{ // we now know how many entries we need to add...
 		ddef_t *olddefs = qcvm->fielddefs;
-		qcvm->fielddefs = malloc (maxdefs * sizeof (*qcvm->fielddefs));
+		qcvm->fielddefs = Mem_Alloc (maxdefs * sizeof (*qcvm->fielddefs));
 		memcpy (qcvm->fielddefs, olddefs, qcvm->progs->numfielddefs * sizeof (*qcvm->fielddefs));
 		if (olddefs != (ddef_t *)((byte *)qcvm->progs + qcvm->progs->ofs_fielddefs))
-			free (olddefs);
+			Mem_Free (olddefs);
 
 		// allocate the extra defs
 		for (j = 0; j < countof (extrafields); j++)
@@ -1271,7 +1280,7 @@ qboolean PR_LoadProgs (const char *filename, qboolean fatal, unsigned int needcr
 
 	PR_ClearProgs (qcvm); // just in case.
 
-	qcvm->progs = (dprograms_t *)COM_LoadMallocFile (filename, NULL);
+	qcvm->progs = (dprograms_t *)COM_LoadFile (filename, NULL);
 	if (!qcvm->progs)
 		return false;
 
@@ -1467,7 +1476,8 @@ static void PR_AllocStringSlots (void)
 {
 	qcvm->maxknownstrings += PR_STRING_ALLOCSLOTS;
 	Con_DPrintf2 ("PR_AllocStringSlots: realloc'ing for %d slots\n", qcvm->maxknownstrings);
-	qcvm->knownstrings = (const char **)Z_Realloc ((void *)qcvm->knownstrings, qcvm->maxknownstrings * sizeof (char *));
+	qcvm->knownstrings = (const char **)Mem_Realloc ((void *)qcvm->knownstrings, qcvm->maxknownstrings * sizeof (char *));
+	qcvm->knownstringsowned = (qboolean *)Mem_Realloc ((void *)qcvm->knownstringsowned, qcvm->maxknownstrings * sizeof (qboolean));
 }
 
 const char *PR_GetString (int num)
@@ -1496,7 +1506,13 @@ void PR_ClearEngineString (int num)
 	if (num < 0 && num >= -qcvm->numknownstrings)
 	{
 		num = -1 - num;
-		qcvm->knownstrings[num] = NULL;
+		if (qcvm->knownstringsowned[num])
+		{
+			SAFE_FREE (qcvm->knownstrings[num]);
+			qcvm->knownstringsowned[num] = false;
+		}
+		else
+			qcvm->knownstrings[num] = NULL;
 		if (qcvm->freeknownstrings > num)
 			qcvm->freeknownstrings = num;
 	}
@@ -1539,6 +1555,7 @@ int PR_SetEngineString (const char *s)
 	}
 	qcvm->freeknownstrings = i + 1;
 	qcvm->knownstrings[i] = s;
+	qcvm->knownstringsowned[i] = false;
 	return -1 - i;
 }
 
@@ -1559,7 +1576,8 @@ int PR_AllocString (int size, char **ptr)
 		PR_AllocStringSlots ();
 	qcvm->numknownstrings++;
 	//	}
-	qcvm->knownstrings[i] = (char *)Hunk_AllocName (size, "string");
+	qcvm->knownstrings[i] = (char *)Mem_Alloc (size);
+	qcvm->knownstringsowned[i] = true;
 	if (ptr)
 		*ptr = (char *)qcvm->knownstrings[i];
 	return -1 - i;

@@ -95,7 +95,7 @@ void Sky_LoadTexture (texture_t *mt)
 	}
 
 	halfwidth = mt->width / 2;
-	back_data = (byte *)Hunk_AllocName (halfwidth * mt->height * 2, "skytex");
+	back_data = (byte *)Mem_Alloc (halfwidth * mt->height * 2);
 	front_data = back_data + halfwidth * mt->height;
 	src = (byte *)(mt + 1);
 
@@ -135,6 +135,8 @@ void Sky_LoadTexture (texture_t *mt)
 	skyflatcolor[0] = (float)r / (count * 255);
 	skyflatcolor[1] = (float)g / (count * 255);
 	skyflatcolor[2] = (float)b / (count * 255);
+
+	Mem_Free (back_data);
 }
 
 /*
@@ -161,7 +163,7 @@ void Sky_LoadTextureQ64 (texture_t *mt)
 	halfheight = mt->height / 2;
 	front = (byte *)(mt + 1);
 	back = (byte *)(mt + 1) + mt->width * halfheight;
-	front_rgba = (byte *)Hunk_AllocName (4 * mt->width * halfheight, "q64_skytex");
+	front_rgba = (byte *)Mem_Alloc (4 * mt->width * halfheight);
 
 	// Normal indexed texture for the back layer
 	q_snprintf (texturename, sizeof (texturename), "%s:%s_back", loadmodel->name, mt->name);
@@ -195,6 +197,8 @@ void Sky_LoadTextureQ64 (texture_t *mt)
 	skyflatcolor[0] = (float)r / (count * 255);
 	skyflatcolor[1] = (float)g / (count * 255);
 	skyflatcolor[2] = (float)b / (count * 255);
+
+	Mem_Free (front_rgba);
 }
 
 /*
@@ -205,7 +209,7 @@ Sky_LoadSkyBox
 const char *suf[6] = {"rt", "bk", "lf", "ft", "up", "dn"};
 void        Sky_LoadSkyBox (const char *name)
 {
-	int      i, mark, width, height;
+	int      i, width, height;
 	char     filename[MAX_OSPATH];
 	byte    *data;
 	qboolean nonefound = true;
@@ -231,20 +235,19 @@ void        Sky_LoadSkyBox (const char *name)
 	// load textures
 	for (i = 0; i < 6; i++)
 	{
-		mark = Hunk_LowMark ();
 		q_snprintf (filename, sizeof (filename), "gfx/env/%s%s", name, suf[i]);
 		data = Image_LoadImage (filename, &width, &height);
 		if (data)
 		{
 			skybox_textures[i] = TexMgr_LoadImage (cl.worldmodel, filename, width, height, SRC_RGBA, data, filename, 0, TEXPREF_NONE);
 			nonefound = false;
+			Mem_Free (data);
 		}
 		else
 		{
 			Con_Printf ("Couldn't load %s\n", filename);
 			skybox_textures[i] = notexture;
 		}
-		Hunk_FreeToLowMark (mark);
 	}
 
 	if (nonefound) // go back to scrolling sky if skybox is totally missing
@@ -633,7 +636,7 @@ void Sky_ProcessEntities (cb_context_t *cbx, float color[3])
 	entity_t   *e;
 	msurface_t *s;
 	glpoly_t   *p;
-	int         i, j, k, mark;
+	int         i, j, k;
 	float       dot;
 	qboolean    rotated;
 	vec3_t      temp, forward, right, up;
@@ -680,8 +683,7 @@ void Sky_ProcessEntities (cb_context_t *cbx, float color[3])
 				if (((s->flags & SURF_PLANEBACK) && (dot < -BACKFACE_EPSILON)) || (!(s->flags & SURF_PLANEBACK) && (dot > BACKFACE_EPSILON)))
 				{
 					// copy the polygon and translate manually, since Sky_ProcessPoly needs it to be in world space
-					mark = Hunk_LowMark ();
-					p = (glpoly_t *)Hunk_Alloc (sizeof (*s->polys)); // FIXME: don't allocate for each poly
+					p = (glpoly_t *)Mem_Alloc (s->polys->numverts * sizeof (*s->polys)); // FIXME: don't allocate for each poly
 					p->numverts = s->polys->numverts;
 					for (k = 0; k < p->numverts; k++)
 					{
@@ -702,7 +704,7 @@ void Sky_ProcessEntities (cb_context_t *cbx, float color[3])
 						}
 					}
 					Sky_ProcessPoly (cbx, p, color);
-					Hunk_FreeToLowMark (mark);
+					Mem_Free (p);
 				}
 			}
 		}

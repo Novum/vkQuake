@@ -268,6 +268,7 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClCompile Include="..\..\Quake\main_sdl.c" />
     <ClCompile Include="..\..\Quake\mathlib.c" />
     <ClCompile Include="..\..\Quake\mdfour.c" />
+    <ClCompile Include="..\..\Quake\mem.c" />
     <ClCompile Include="..\..\Quake\menu.c" />
     <ClCompile Include="..\..\Quake\miniz.c" />
     <ClCompile Include="..\..\Quake\net_dgrm.c" />
@@ -321,7 +322,6 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClCompile Include="..\..\Quake\view.c" />
     <ClCompile Include="..\..\Quake\wad.c" />
     <ClCompile Include="..\..\Quake\world.c" />
-    <ClCompile Include="..\..\Quake\zone.c" />
     <ClCompile Include="..\..\Shaders\Compiled\Debug\alias.frag.c">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
@@ -540,6 +540,7 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClInclude Include="..\..\Quake\input.h" />
     <ClInclude Include="..\..\Quake\keys.h" />
     <ClInclude Include="..\..\Quake\mathlib.h" />
+    <ClInclude Include="..\..\Quake\mem.h" />
     <ClInclude Include="..\..\Quake\menu.h" />
     <ClInclude Include="..\..\Quake\miniz.h" />
     <ClInclude Include="..\..\Quake\modelgen.h" />
@@ -585,7 +586,6 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClInclude Include="..\..\Quake\wad.h" />
     <ClInclude Include="..\..\Quake\world.h" />
     <ClInclude Include="..\..\Quake\wsaerror.h" />
-    <ClInclude Include="..\..\Quake\zone.h" />
     <ClInclude Include="..\..\Shaders\shaders.h" />
   </ItemGroup>
   <ItemGroup>

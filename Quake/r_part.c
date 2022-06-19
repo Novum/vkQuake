@@ -245,7 +245,7 @@ void R_InitParticles (void)
 		r_numparticles = MAX_PARTICLES;
 	}
 
-	particles = (particle_t *)Hunk_AllocName (r_numparticles * sizeof (particle_t), "particles");
+	particles = (particle_t *)Mem_Alloc (r_numparticles * sizeof (particle_t));
 
 	Cvar_RegisterVariable (&r_particles); // johnfitz
 	Cvar_SetCallback (&r_particles, R_SetParticleTexture_f);

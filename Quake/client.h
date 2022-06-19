@@ -224,8 +224,8 @@ typedef struct
 	struct qmodel_s *worldmodel; // cl_entitites[0].model
 	struct efrag_s  *free_efrags;
 	int              num_efrags;
-	//	int			num_entities;	// held in cl_entities array
-	//	int			num_statics;	// held in cl_staticentities array
+	struct efrag_s **efrag_allocs;
+	int              num_efragallocs;
 	entity_t         viewent; // the gun model
 
 	entity_t *entities; // spike -- moved into here

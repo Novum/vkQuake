@@ -72,7 +72,7 @@ static void FileList_Add (const char *name, filelist_item_t **list)
 			return;
 	}
 
-	item = (filelist_item_t *)Z_Malloc (sizeof (filelist_item_t));
+	item = (filelist_item_t *)Mem_Alloc (sizeof (filelist_item_t));
 	q_strlcpy (item->name, name, sizeof (item->name));
 
 	// insert each entry in alphabetical order
@@ -102,7 +102,7 @@ static void FileList_Clear (filelist_item_t **list)
 	while (*list)
 	{
 		blah = (*list)->next;
-		Z_Free (*list);
+		Mem_Free (*list);
 		*list = blah;
 	}
 }
@@ -120,7 +120,7 @@ void ExtraMaps_Init (void)
 	WIN32_FIND_DATA fdat;
 	HANDLE          fhnd;
 #else
-	DIR		   *dir_p;
+	DIR           *dir_p;
 	struct dirent *dir_t;
 #endif
 	char          filestring[MAX_OSPATH];
@@ -1228,7 +1228,7 @@ static void Host_Loadgame_f (void)
 
 	// avoid leaking if the previous Host_Loadgame_f failed with a Host_Error
 	if (start != NULL)
-		free (start);
+		Mem_Free (start);
 
 	start = (char *)COM_LoadMallocFile_TextMode_OSPath (name, NULL);
 	if (start == NULL)
@@ -1241,7 +1241,7 @@ static void Host_Loadgame_f (void)
 	data = COM_ParseIntNewline (data, &version);
 	if (version != SAVEGAME_VERSION)
 	{
-		free (start);
+		Mem_Free (start);
 		start = NULL;
 		Host_Error ("Savegame is version %i, not %i", version, SAVEGAME_VERSION);
 		return;
@@ -1268,7 +1268,7 @@ static void Host_Loadgame_f (void)
 	if (!sv.active)
 	{
 		PR_SwitchQCVM (NULL);
-		free (start);
+		Mem_Free (start);
 		start = NULL;
 		SCR_EndLoadingPlaque ();
 		Con_Printf ("Couldn't load map\n");
@@ -1281,7 +1281,7 @@ static void Host_Loadgame_f (void)
 	for (i = 0; i < MAX_LIGHTSTYLES; i++)
 	{
 		data = COM_ParseStringNewline (data);
-		sv.lightstyles[i] = (const char *)Hunk_Strdup (com_token, "lightstyles");
+		sv.lightstyles[i] = (const char *)q_strdup (com_token);
 	}
 
 	// load the edicts out of the savegame file
@@ -1308,7 +1308,7 @@ static void Host_Loadgame_f (void)
 					if (idx >= 0 && idx < MAX_LIGHTSTYLES)
 					{
 						if (*com_token)
-							sv.lightstyles[idx] = (const char *)Hunk_Strdup (com_token, "lightstyles");
+							sv.lightstyles[idx] = (const char *)q_strdup (com_token);
 						else
 							sv.lightstyles[idx] = NULL;
 					}
@@ -1321,7 +1321,7 @@ static void Host_Loadgame_f (void)
 					ext = COM_Parse (ext);
 					if (idx >= 1 && idx < MAX_MODELS)
 					{
-						sv.model_precache[idx] = (const char *)Hunk_Strdup (com_token, "model_precache");
+						sv.model_precache[idx] = (const char *)q_strdup (com_token);
 						sv.models[idx] = Mod_ForName (sv.model_precache[idx], idx == 1);
 						// if (idx == 1)
 						//	sv.worldmodel = sv.models[idx];
@@ -1334,7 +1334,7 @@ static void Host_Loadgame_f (void)
 					idx = atoi (com_token);
 					ext = COM_Parse (ext);
 					if (idx >= 1 && idx < MAX_MODELS)
-						sv.sound_precache[idx] = (const char *)Hunk_Strdup (com_token, "sound_precache");
+						sv.sound_precache[idx] = (const char *)q_strdup (com_token);
 				}
 				else if (!strcmp (com_token, "sv.particle_precache"))
 				{
@@ -1343,7 +1343,10 @@ static void Host_Loadgame_f (void)
 					idx = atoi (com_token);
 					ext = COM_Parse (ext);
 					if (idx >= 1 && idx < MAX_PARTICLETYPES)
-						sv.particle_precache[idx] = (const char *)Hunk_Strdup (com_token, "particle_precache");
+					{
+						Mem_Free (sv.particle_precache[idx]);
+						sv.particle_precache[idx] = (const char *)q_strdup (com_token);
+					}
 				}
 				else if (!strcmp (com_token, "sv.serverflags") || !strcmp (com_token, "svs.serverflags"))
 				{
@@ -1403,7 +1406,7 @@ static void Host_Loadgame_f (void)
 	qcvm->num_edicts = entnum;
 	qcvm->time = time;
 
-	free (start);
+	Mem_Free (start);
 	start = NULL;
 
 	for (i = 0; i < NUM_TOTAL_SPAWN_PARMS; i++)

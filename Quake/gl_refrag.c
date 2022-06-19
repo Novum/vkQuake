@@ -71,7 +71,11 @@ static efrag_t *R_GetEfrag (void)
 	{
 		int i;
 
-		cl.free_efrags = (efrag_t *)Hunk_AllocName (EXTRA_EFRAGS * sizeof (efrag_t), "efrags");
+		cl.free_efrags = (efrag_t *)Mem_Alloc (EXTRA_EFRAGS * sizeof (efrag_t));
+
+		// Track allocations so we don't leak
+		cl.efrag_allocs = (efrag_t **)Mem_Realloc (cl.efrag_allocs, sizeof (efrag_t **) * (cl.num_efragallocs + 1));
+		cl.efrag_allocs[cl.num_efragallocs++] = cl.free_efrags;
 
 		for (i = 0; i < EXTRA_EFRAGS - 1; i++)
 			cl.free_efrags[i].leafnext = &cl.free_efrags[i + 1];

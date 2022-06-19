@@ -44,7 +44,7 @@ static struct in6_addr myAddrv6;
 
 sys_socket_t UDP4_Init (void)
 {
-	char			*tst;
+	char            *tst;
 	struct qsockaddr addr;
 
 	if (COM_CheckParm ("-noudp") || COM_CheckParm ("-noudp4"))
@@ -476,7 +476,7 @@ int UDP_GetNameFromAddr (struct qsockaddr *addr, char *name)
 int UDP4_GetAddrFromName (const char *name, struct qsockaddr *addr)
 {
 	struct hostent *hostentry;
-	char		   *colon;
+	char           *colon;
 	unsigned short  port = net_hostport;
 
 	if (name[0] >= '0' && name[0] <= '9')
@@ -568,7 +568,7 @@ int UDP_SetSocketPort (struct qsockaddr *addr, int port)
 
 sys_socket_t UDP6_Init (void)
 {
-	char			*colon;
+	char            *colon;
 	struct qsockaddr addr;
 
 	if (COM_CheckParm ("-noudp") || COM_CheckParm ("-noudp6"))
@@ -731,7 +731,7 @@ int UDP6_GetAddrFromName (const char *name, struct qsockaddr *addr)
 	struct addrinfo *pos;
 	struct addrinfo  udp6hint;
 	int              error;
-	char			*port;
+	char            *port;
 	char             dupbase[256];
 	size_t           len;
 	qboolean         success = false;

@@ -154,7 +154,7 @@ ifeq ($(USE_CODEC_UMX),1)
 CFLAGS+= -DUSE_CODEC_UMX
 endif
 
-COMMON_LIBS:= -lm
+COMMON_LIBS:= -lm -lpthread
 
 ifneq ($(HOST_OS),darwin)
 COMMON_LIBS+= -lvulkan
@@ -310,7 +310,7 @@ OBJS := strlcat.o \
 	sv_phys.o \
 	sv_user.o \
 	world.o \
-	zone.o \
+	mem.o \
 	tasks.o \
 	$(SYSOBJ_SYS) $(SYSOBJ_MAIN) $(SYSOBJ_RES)
 

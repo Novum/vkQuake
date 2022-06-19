@@ -88,9 +88,18 @@ void CL_FreeState (void)
 {
 	int i;
 	for (i = 0; i < MAX_CL_STATS; i++)
-		free (cl.statss[i]);
+		Mem_Free (cl.statss[i]);
 	PR_ClearProgs (&cl.qcvm);
-	free (cl.static_entities);
+	Mem_Free (cl.entities);
+	for (i = 0; i < cl.num_statics; i += 64)
+		Mem_Free (cl.static_entities[i]);
+	Mem_Free (cl.static_entities);
+	Mem_Free (cl.scores);
+	for (i = 0; i < MAX_PARTICLETYPES; ++i)
+		Mem_Free (cl.particle_precache[i].name);
+	for (i = 0; i < cl.num_efragallocs; ++i)
+		Mem_Free (cl.efrag_allocs[i]);
+	Mem_Free (cl.efrag_allocs);
 	memset (&cl, 0, sizeof (cl));
 }
 
@@ -118,7 +127,7 @@ void CL_ClearState (void)
 
 	// johnfitz -- cl_entities is now dynamically allocated
 	cl.max_edicts = CLAMP (MIN_EDICTS, (int)max_edicts.value, MAX_EDICTS);
-	cl.entities = (entity_t *)Hunk_AllocName (cl.max_edicts * sizeof (entity_t), "cl_entities");
+	cl.entities = (entity_t *)Mem_Alloc (cl.max_edicts * sizeof (entity_t));
 	// johnfitz
 
 	// Spike -- this stuff needs to get reset to defaults.
@@ -253,7 +262,6 @@ void CL_SignonReply (void)
 	case 3:
 		MSG_WriteByte (&cls.message, clc_stringcmd);
 		MSG_WriteString (&cls.message, "begin");
-		Cache_Report (); // print remaining memory
 		break;
 
 	case 4:
@@ -623,7 +631,7 @@ void CL_RelinkEntities (void)
 	if (cl_numvisedicts + 64 > cl_maxvisedicts)
 	{
 		cl_maxvisedicts = cl_maxvisedicts + 64;
-		cl_visedicts = realloc (cl_visedicts, sizeof (*cl_visedicts) * cl_maxvisedicts);
+		cl_visedicts = Mem_Realloc (cl_visedicts, sizeof (*cl_visedicts) * cl_maxvisedicts);
 	}
 	cl_numvisedicts = 0;
 
@@ -873,7 +881,7 @@ int CL_GenerateRandomParticlePrecache (const char *pname)
 	{
 		if (!cl.particle_precache[i].name)
 		{
-			cl.particle_precache[i].name = strcpy (Hunk_Alloc (strlen (pname) + 1), pname);
+			cl.particle_precache[i].name = q_strdup (pname);
 			cl.particle_precache[i].index = PScript_FindParticleType (cl.particle_precache[i].name);
 			return i;
 		}

@@ -244,6 +244,14 @@ char *q_strupr (char *str)
 	return str;
 }
 
+char *q_strdup (const char *str)
+{
+	size_t len = strlen (str) + 1;
+	char  *newstr = (char *)Mem_Alloc (len);
+	memcpy (newstr, str, len);
+	return newstr;
+}
+
 /* platform dependant (v)snprintf function names: */
 #if defined(_WIN32)
 #define snprintf_func  _snprintf
@@ -930,16 +938,16 @@ void SZ_Alloc (sizebuf_t *buf, int startsize)
 {
 	if (startsize < 256)
 		startsize = 256;
-	buf->data = (byte *)Hunk_AllocName (startsize, "sizebuf");
+	buf->data = (byte *)Mem_Alloc (startsize);
 	buf->maxsize = startsize;
 	buf->cursize = 0;
 }
 
 void SZ_Free (sizebuf_t *buf)
 {
-	//	Z_Free (buf->data);
-	//	buf->data = NULL;
-	//	buf->maxsize = 0;
+	Mem_Free (buf->data);
+	buf->data = NULL;
+	buf->maxsize = 0;
 	buf->cursize = 0;
 }
 
@@ -1752,18 +1760,7 @@ Filename are reletive to the quake directory.
 Allways appends a 0 byte.
 ============
 */
-#define LOADFILE_ZONE     0
-#define LOADFILE_HUNK     1
-#define LOADFILE_TEMPHUNK 2
-#define LOADFILE_CACHE    3
-#define LOADFILE_STACK    4
-#define LOADFILE_MALLOC   5
-
-static byte         *loadbuf;
-static cache_user_t *loadcache;
-static int           loadsize;
-
-byte *COM_LoadFile (const char *path, int usehunk, unsigned int *path_id)
+byte *COM_LoadFile (const char *path, unsigned int *path_id)
 {
 	int   h;
 	byte *buf;
@@ -1780,32 +1777,7 @@ byte *COM_LoadFile (const char *path, int usehunk, unsigned int *path_id)
 	// extract the filename base name for hunk tag
 	COM_FileBase (path, base, sizeof (base));
 
-	switch (usehunk)
-	{
-	case LOADFILE_HUNK:
-		buf = (byte *)Hunk_AllocName (len + 1, base);
-		break;
-	case LOADFILE_TEMPHUNK:
-		buf = (byte *)Hunk_TempAlloc (len + 1);
-		break;
-	case LOADFILE_ZONE:
-		buf = (byte *)Z_Malloc (len + 1);
-		break;
-	case LOADFILE_CACHE:
-		buf = (byte *)Cache_Alloc (loadcache, len + 1, base);
-		break;
-	case LOADFILE_STACK:
-		if (len < loadsize)
-			buf = loadbuf;
-		else
-			buf = (byte *)Hunk_TempAlloc (len + 1);
-		break;
-	case LOADFILE_MALLOC:
-		buf = (byte *)malloc (len + 1);
-		break;
-	default:
-		Sys_Error ("COM_LoadFile: bad usehunk");
-	}
+	buf = (byte *)Mem_Alloc (len + 1);
 
 	if (!buf)
 		Sys_Error ("COM_LoadFile: not enough space for %s", path);
@@ -1816,45 +1788,6 @@ byte *COM_LoadFile (const char *path, int usehunk, unsigned int *path_id)
 	COM_CloseFile (h);
 
 	return buf;
-}
-
-byte *COM_LoadHunkFile (const char *path, unsigned int *path_id)
-{
-	return COM_LoadFile (path, LOADFILE_HUNK, path_id);
-}
-
-byte *COM_LoadZoneFile (const char *path, unsigned int *path_id)
-{
-	return COM_LoadFile (path, LOADFILE_ZONE, path_id);
-}
-
-byte *COM_LoadTempFile (const char *path, unsigned int *path_id)
-{
-	return COM_LoadFile (path, LOADFILE_TEMPHUNK, path_id);
-}
-
-void COM_LoadCacheFile (const char *path, struct cache_user_s *cu, unsigned int *path_id)
-{
-	loadcache = cu;
-	COM_LoadFile (path, LOADFILE_CACHE, path_id);
-}
-
-// uses temp hunk if larger than bufsize
-byte *COM_LoadStackFile (const char *path, void *buffer, int bufsize, unsigned int *path_id)
-{
-	byte *buf;
-
-	loadbuf = (byte *)buffer;
-	loadsize = bufsize;
-	buf = COM_LoadFile (path, LOADFILE_STACK, path_id);
-
-	return buf;
-}
-
-// returns malloc'd memory
-byte *COM_LoadMallocFile (const char *path, unsigned int *path_id)
-{
-	return COM_LoadFile (path, LOADFILE_MALLOC, path_id);
 }
 
 byte *COM_LoadMallocFile_TextMode_OSPath (const char *path, long *len_out)
@@ -1875,7 +1808,7 @@ byte *COM_LoadMallocFile_TextMode_OSPath (const char *path, long *len_out)
 	if (len < 0)
 		return NULL;
 
-	data = (byte *)malloc (len + 1);
+	data = (byte *)Mem_Alloc (len + 1);
 	if (data == NULL)
 		return NULL;
 
@@ -1883,7 +1816,7 @@ byte *COM_LoadMallocFile_TextMode_OSPath (const char *path, long *len_out)
 	actuallen = fread (data, 1, len, f);
 	if (ferror (f))
 	{
-		free (data);
+		Mem_Free (data);
 		return NULL;
 	}
 	data[actuallen] = '\0';
@@ -1964,7 +1897,7 @@ static pack_t *COM_LoadPackFile (const char *packfile)
 	if (numpackfiles != PAK0_COUNT)
 		com_modified = true; // not the original file
 
-	newfiles = (packfile_t *)Z_Malloc (numpackfiles * sizeof (packfile_t));
+	newfiles = (packfile_t *)Mem_Alloc (numpackfiles * sizeof (packfile_t));
 
 	Sys_FileSeek (packhandle, header.dirofs);
 	Sys_FileRead (packhandle, (void *)info, header.dirlen);
@@ -1984,7 +1917,7 @@ static pack_t *COM_LoadPackFile (const char *packfile)
 		newfiles[i].filelen = LittleLong (info[i].filelen);
 	}
 
-	pack = (pack_t *)Z_Malloc (sizeof (pack_t));
+	pack = (pack_t *)Mem_Alloc (sizeof (pack_t));
 	q_strlcpy (pack->filename, packfile, sizeof (pack->filename));
 	pack->handle = packhandle;
 	pack->numfiles = numpackfiles;
@@ -2088,7 +2021,7 @@ static void COM_AddGameDirectory (const char *dir)
 
 _add_path:
 	// add the directory to the search path
-	search = (searchpath_t *)Z_Malloc (sizeof (searchpath_t));
+	search = (searchpath_t *)Mem_Alloc (sizeof (searchpath_t));
 	search->path_id = path_id;
 	q_strlcpy (search->filename, com_gamedir, sizeof (search->filename));
 	search->next = com_searchpaths;
@@ -2112,7 +2045,7 @@ _add_path:
 		}
 		if (pak)
 		{
-			search = (searchpath_t *)Z_Malloc (sizeof (searchpath_t));
+			search = (searchpath_t *)Mem_Alloc (sizeof (searchpath_t));
 			search->path_id = path_id;
 			search->pack = pak;
 			search->next = com_searchpaths;
@@ -2120,7 +2053,7 @@ _add_path:
 		}
 		if (qspak)
 		{
-			search = (searchpath_t *)Z_Malloc (sizeof (searchpath_t));
+			search = (searchpath_t *)Mem_Alloc (sizeof (searchpath_t));
 			search->path_id = path_id;
 			search->pack = qspak;
 			search->next = com_searchpaths;
@@ -2141,8 +2074,8 @@ _add_path:
 
 void COM_ResetGameDirectories (const char *newdirs)
 {
-	char		 *newgamedirs = Z_Strdup (newdirs);
-	char		 *newpath, *path;
+	char         *newgamedirs = q_strdup (newdirs);
+	char         *newpath, *path;
 	searchpath_t *search;
 	// Kill the extra game if it is loaded
 	while (com_searchpaths != com_base_searchpaths)
@@ -2150,11 +2083,11 @@ void COM_ResetGameDirectories (const char *newdirs)
 		if (com_searchpaths->pack)
 		{
 			Sys_FileClose (com_searchpaths->pack->handle);
-			Z_Free (com_searchpaths->pack->files);
-			Z_Free (com_searchpaths->pack);
+			Mem_Free (com_searchpaths->pack->files);
+			Mem_Free (com_searchpaths->pack);
 		}
 		search = com_searchpaths->next;
-		Z_Free (com_searchpaths);
+		Mem_Free (com_searchpaths);
 		com_searchpaths = search;
 	}
 	hipnotic = false;
@@ -2186,7 +2119,7 @@ void COM_ResetGameDirectories (const char *newdirs)
 			COM_AddGameDirectory (newpath);
 		newpath = e;
 	}
-	Z_Free (newgamedirs);
+	Mem_Free (newgamedirs);
 }
 
 //==============================================================================
@@ -2256,7 +2189,6 @@ static void COM_Game_f (void)
 		COM_ResetGameDirectories (paths);
 
 		// clear out and reload appropriate data
-		Cache_Flush ();
 		Mod_ResetAll ();
 		Sky_ClearAll ();
 		if (!isDedicated)
@@ -2267,6 +2199,7 @@ static void COM_Game_f (void)
 		}
 		ExtraMaps_NewGame ();
 		DemoList_Rebuild ();
+		S_ClearAll ();
 
 		Con_Printf ("\"game\" changed to \"%s\"\n", COM_GetGameNames (true));
 
@@ -2551,7 +2484,7 @@ void COM_Effectinfo_Enumerate (int (*cb) (const char *pname))
 {
 	int                i;
 	const char        *f, *e;
-	char			  *buf;
+	char              *buf;
 	static const char *dpnames[] = {"TE_GUNSHOT",       "TE_GUNSHOTQUAD",
 	                                "TE_SPIKE",         "TE_SPIKEQUAD",
 	                                "TE_SUPERSPIKE",    "TE_SUPERSPIKEQUAD",
@@ -2571,7 +2504,7 @@ void COM_Effectinfo_Enumerate (int (*cb) (const char *pname))
 	                                "TR_NEXUIZPLASMA",  "TR_GLOWTRAIL",
 	                                "SVC_PARTICLE",     NULL};
 
-	buf = (char *)COM_LoadMallocFile ("effectinfo.txt", NULL);
+	buf = (char *)COM_LoadFile ("effectinfo.txt", NULL);
 	if (!buf)
 		return;
 
@@ -2589,7 +2522,7 @@ void COM_Effectinfo_Enumerate (int (*cb) (const char *pname))
 		while (e && *e && *e != '\n')
 			e++;
 	}
-	free (buf);
+	Mem_Free (buf);
 }
 #endif
 
@@ -2659,7 +2592,7 @@ void LOC_LoadFile (const char *file)
 	// clear existing data
 	if (localization.text)
 	{
-		free (localization.text);
+		Mem_Free (localization.text);
 		localization.text = NULL;
 	}
 	localization.numentries = 0;
@@ -2705,7 +2638,7 @@ void LOC_LoadFile (const char *file)
 			goto fail;
 		mz_zip_reader_end (&archive);
 		SDL_RWclose (rw);
-		localization.text = (char *)realloc (localization.text, size + 1);
+		localization.text = (char *)Mem_Realloc (localization.text, size + 1);
 		localization.text[size] = 0;
 	}
 	else
@@ -2713,7 +2646,7 @@ void LOC_LoadFile (const char *file)
 		sz = SDL_RWsize (rw);
 		if (sz <= 0)
 			goto fail;
-		localization.text = (char *)calloc (1, sz + 1);
+		localization.text = (char *)Mem_Alloc (sz + 1);
 		if (!localization.text)
 		{
 		fail:
@@ -2848,7 +2781,7 @@ void LOC_LoadFile (const char *file)
 				// grow by 50%
 				localization.maxnumentries += localization.maxnumentries >> 1;
 				localization.maxnumentries = q_max (localization.maxnumentries, 32);
-				localization.entries = (locentry_t *)realloc (localization.entries, sizeof (*localization.entries) * localization.maxnumentries);
+				localization.entries = (locentry_t *)Mem_Realloc (localization.entries, sizeof (*localization.entries) * localization.maxnumentries);
 			}
 
 			entry = &localization.entries[localization.numentries++];
@@ -2869,7 +2802,7 @@ void LOC_LoadFile (const char *file)
 		return;
 	}
 
-	localization.indices = (unsigned *)realloc (localization.indices, localization.numindices * sizeof (*localization.indices));
+	localization.indices = (unsigned *)Mem_Realloc (localization.indices, localization.numindices * sizeof (*localization.indices));
 	memset (localization.indices, 0, localization.numindices * sizeof (*localization.indices));
 
 	for (i = 0; i < localization.numentries; i++)
@@ -2914,9 +2847,9 @@ LOC_Shutdown
 */
 void LOC_Shutdown (void)
 {
-	free (localization.indices);
-	free (localization.entries);
-	free (localization.text);
+	Mem_Free (localization.indices);
+	Mem_Free (localization.entries);
+	Mem_Free (localization.text);
 }
 
 /*

@@ -72,7 +72,7 @@ typedef struct
 	FLAC__StreamDecoder *decoder;
 	fshandle_t          *file;
 	snd_info_t          *info;
-	byte				*buffer;
+	byte                *buffer;
 	int                  size, pos, error;
 } flacfile_t;
 
@@ -139,7 +139,7 @@ flac_write_func (const FLAC__StreamDecoder *decoder, const FLAC__Frame *frame, c
 
 	if (!ff->buffer)
 	{
-		ff->buffer = (byte *)malloc (ff->info->blocksize * ff->info->channels * ff->info->width);
+		ff->buffer = (byte *)Mem_Alloc (ff->info->blocksize * ff->info->channels * ff->info->width);
 		if (!ff->buffer)
 		{
 			ff->error = -1; /* needn't set this here, but... */
@@ -225,7 +225,7 @@ static qboolean S_FLAC_CodecOpenStream (snd_stream_t *stream)
 	flacfile_t *ff;
 	int         rc;
 
-	ff = (flacfile_t *)Z_Malloc (sizeof (flacfile_t));
+	ff = (flacfile_t *)Mem_Alloc (sizeof (flacfile_t));
 
 	ff->decoder = FLAC__stream_decoder_new ();
 	if (ff->decoder == NULL)
@@ -292,7 +292,7 @@ _fail:
 		FLAC__stream_decoder_finish (ff->decoder);
 		FLAC__stream_decoder_delete (ff->decoder);
 	}
-	Z_Free (ff);
+	Mem_Free (ff);
 	return false;
 }
 
@@ -341,8 +341,8 @@ static void S_FLAC_CodecCloseStream (snd_stream_t *stream)
 	FLAC__stream_decoder_delete (ff->decoder);
 
 	if (ff->buffer)
-		free (ff->buffer);
-	Z_Free (ff);
+		Mem_Free (ff->buffer);
+	Mem_Free (ff);
 
 	S_CodecUtilClose (&stream);
 }

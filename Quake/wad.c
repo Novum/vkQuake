@@ -25,7 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 int         wad_numlumps;
 lumpinfo_t *wad_lumps;
-byte	   *wad_base = NULL;
+byte       *wad_base = NULL;
 
 void SwapPic (qpic_t *pic);
 
@@ -76,8 +76,8 @@ void W_LoadWadFile (void) // johnfitz -- filename is now hard-coded for honesty
 	// johnfitz -- modified to use malloc
 	// TODO: use cache_alloc
 	if (wad_base)
-		free (wad_base);
-	wad_base = COM_LoadMallocFile (filename, NULL);
+		Mem_Free (wad_base);
+	wad_base = COM_LoadFile (filename, NULL);
 	if (!wad_base)
 		Sys_Error (
 			"W_LoadWadFile: couldn't load %s\n\n"

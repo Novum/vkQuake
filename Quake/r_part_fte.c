@@ -156,10 +156,6 @@ typedef struct trailstate_s
 entity_t *CL_EntityNum (int num);
 #define BEF_LINES 1
 
-#define Z_Malloc  malloc
-#define Z_Free    free
-#define Z_Realloc realloc
-
 extern int PClassic_PointFile (int c, vec3_t point);
 
 #define PART_VALID(part) ((part) >= 0 && (part) < numparticletypes)
@@ -852,7 +848,7 @@ static void                PScript_AssociateEffect_f (void)
 	}
 	if (!ae)
 	{
-		ae = Z_Malloc (sizeof (*ae));
+		ae = Mem_Alloc (sizeof (*ae));
 		strcpy (ae->mname, modelname);
 		ae->next = associatedeffect;
 		associatedeffect = ae;
@@ -891,7 +887,7 @@ static void P_PartRedirect_f (void)
 				return;
 			}
 			*link = l->next;
-			Z_Free (l);
+			Mem_Free (l);
 			break;
 		}
 	}
@@ -899,7 +895,7 @@ static void P_PartRedirect_f (void)
 	// create a new entry.
 	if (*to && q_strcasecmp (from, to))
 	{
-		l = Z_Malloc (sizeof (*l) + strlen (from) + strlen (to) + 2);
+		l = Mem_Alloc (sizeof (*l) + strlen (from) + strlen (to) + 2);
 		l->from = (char *)(l + 1);
 		strcpy ((char *)l->from, from);
 		l->to = l->from + strlen (l->from) + 1;
@@ -964,7 +960,7 @@ static part_type_t *P_GetParticleType (const char *config, const char *name)
 			if (!q_strcasecmp (ptype->config, config)) // must be an exact match.
 				return ptype;
 	}
-	part_type = Z_Realloc (part_type, sizeof (part_type_t) * (numparticletypes + 1));
+	part_type = Mem_Realloc (part_type, sizeof (part_type_t) * (numparticletypes + 1));
 	ptype = &part_type[numparticletypes++];
 	memset (ptype, 0, sizeof (*ptype));
 	q_strlcpy (ptype->name, name, sizeof (ptype->name));
@@ -1017,12 +1013,12 @@ static void PScript_RetintEffect (part_type_t *to, part_type_t *from, const char
 	// make sure 'to' has its own copy of any lists, so that we don't have issues when freeing this memory again.
 	if (to->sounds)
 	{
-		to->sounds = Z_Malloc (to->numsounds * sizeof (*to->sounds));
+		to->sounds = Mem_Alloc (to->numsounds * sizeof (*to->sounds));
 		memcpy (to->sounds, from->sounds, to->numsounds * sizeof (*to->sounds));
 	}
 	if (to->ramp)
 	{
-		to->ramp = Z_Malloc (to->rampindexes * sizeof (*to->ramp));
+		to->ramp = Mem_Alloc (to->rampindexes * sizeof (*to->ramp));
 		memcpy (to->ramp, from->ramp, to->rampindexes * sizeof (*to->ramp));
 	}
 
@@ -1159,13 +1155,11 @@ static void P_LoadTexture (part_type_t *ptype, qboolean warn)
 		byte *data = NULL;
 		char  filename[MAX_QPATH];
 		int   fwidth = 0, fheight = 0;
-		int   hunkmark;
 		char *texname = va ("%s%s%s", ptype->texname, ptype->looks.premul ? "_premul" : "", ptype->looks.nearest ? "_nearest" : "");
 
 		ptype->looks.texture = TexMgr_FindTexture (NULL, texname);
 		if (!ptype->looks.texture)
 		{
-			hunkmark = Hunk_LowMark ();
 			if (!data)
 			{
 				q_snprintf (filename, sizeof (filename), "textures/%s", ptype->texname);
@@ -1184,7 +1178,6 @@ static void P_LoadTexture (part_type_t *ptype, qboolean warn)
 					(ptype->looks.premul ? TEXPREF_PREMULTIPLY : 0) | (ptype->looks.nearest ? TEXPREF_NEAREST : TEXPREF_LINEAR) | TEXPREF_NOPICMIP |
 						TEXPREF_ALPHA);
 			}
-			Hunk_FreeToLowMark (hunkmark);
 		}
 	}
 	else
@@ -1385,9 +1378,9 @@ static void P_ResetToDefaults (part_type_t *ptype)
 
 	// free uneeded info
 	if (ptype->ramp)
-		Z_Free (ptype->ramp);
+		Mem_Free (ptype->ramp);
 	if (ptype->sounds)
-		Z_Free (ptype->sounds);
+		Mem_Free (ptype->sounds);
 
 	// reset everything we're too lazy to specifically set
 	memset (ptype, 0, sizeof (*ptype));
@@ -1636,7 +1629,7 @@ reparse:
 			if (*buf == '{')
 			{
 				int   nest = 1;
-				char *str = Z_Malloc (3);
+				char *str = Mem_Alloc (3);
 				int   slen = 2;
 				str[0] = '{';
 				str[1] = '\n';
@@ -1655,13 +1648,13 @@ reparse:
 						--nest;
 					if (*buf == '{')
 						nest++;
-					str = Z_Realloc (str, slen + strlen (buf) + 2);
+					str = Mem_Realloc (str, slen + strlen (buf) + 2);
 					strcpy (str + slen, buf);
 					slen += strlen (str + slen);
 					str[slen++] = '\n';
 				}
 				str[slen] = 0;
-				Z_Free (str);
+				Mem_Free (str);
 			}
 			else
 				goto skipread;
@@ -1994,7 +1987,7 @@ reparse:
 		else if (!strcmp (var, "sound"))
 		{
 			const char *e;
-			ptype->sounds = Z_Realloc (ptype->sounds, sizeof (partsounds_t) * (ptype->numsounds + 1));
+			ptype->sounds = Mem_Realloc (ptype->sounds, sizeof (partsounds_t) * (ptype->numsounds + 1));
 			q_strlcpy (ptype->sounds[ptype->numsounds].name, Cmd_Argv (1), sizeof (ptype->sounds[ptype->numsounds].name));
 			if (*ptype->sounds[ptype->numsounds].name)
 				S_PrecacheSound (ptype->sounds[ptype->numsounds].name);
@@ -2429,7 +2422,7 @@ reparse:
 			i = 1;
 			while (i < Cmd_Argc ())
 			{
-				ptype->ramp = Z_Realloc (ptype->ramp, sizeof (ramp_t) * (ptype->rampindexes + 1));
+				ptype->ramp = Mem_Realloc (ptype->ramp, sizeof (ramp_t) * (ptype->rampindexes + 1));
 
 				cidx = atoi (Cmd_Argv (i));
 				ptype->ramp[ptype->rampindexes].alpha = cidx > 255 ? 0.5 : 1;
@@ -2448,7 +2441,7 @@ reparse:
 		else if (!strcmp (var, "rampindex"))
 		{
 			int cidx;
-			ptype->ramp = Z_Realloc (ptype->ramp, sizeof (ramp_t) * (ptype->rampindexes + 1));
+			ptype->ramp = Mem_Realloc (ptype->ramp, sizeof (ramp_t) * (ptype->rampindexes + 1));
 
 			cidx = atoi (value);
 			ptype->ramp[ptype->rampindexes].alpha = cidx > 255 ? 0.5 : 1;
@@ -2470,7 +2463,7 @@ reparse:
 		}
 		else if (!strcmp (var, "ramp"))
 		{
-			ptype->ramp = Z_Realloc (ptype->ramp, sizeof (ramp_t) * (ptype->rampindexes + 1));
+			ptype->ramp = Mem_Realloc (ptype->ramp, sizeof (ramp_t) * (ptype->rampindexes + 1));
 
 			ptype->ramp[ptype->rampindexes].rgb[0] = atof (value) / 255;
 			if (Cmd_Argc () > 3) // seperate rgb
@@ -2838,7 +2831,7 @@ static void P_ImportEffectInfo (const char *config, char *line, qboolean part_pa
 			teximages[i][3] = 1 / 8.0 * (i >> 3);
 		}
 
-		file = (char *)COM_LoadMallocFile ("particles/particlefont.txt", NULL);
+		file = (char *)COM_LoadFile ("particles/particlefont.txt", NULL);
 		if (file)
 		{
 			size_t offset = 0;
@@ -2863,7 +2856,7 @@ static void P_ImportEffectInfo (const char *config, char *line, qboolean part_pa
 					teximages[i][3] = t1;
 				}
 			}
-			free (file);
+			Mem_Free (file);
 		}
 	}
 
@@ -3257,14 +3250,14 @@ static qboolean P_ImportEffectInfo_Name (char *config)
 {
 	char *file;
 
-	file = (char *)COM_LoadMallocFile (va ("%s.txt", config), NULL);
+	file = (char *)COM_LoadFile (va ("%s.txt", config), NULL);
 	if (!file)
 	{
 		Con_Printf ("%s.txt not found\n", config);
 		return false;
 	}
 	P_ImportEffectInfo (config, file, false);
-	free (file);
+	Mem_Free (file);
 	return true;
 }
 #endif
@@ -3309,7 +3302,7 @@ void PScript_ClearSurfaceParticles (qmodel_t *mod)
 	{
 		void *f = mod->skytrimem;
 		mod->skytrimem = mod->skytrimem->next;
-		Z_Free (f);
+		Mem_Free (f);
 	}
 }
 static void PScript_ClearAllSurfaceParticles (void)
@@ -3337,28 +3330,28 @@ void PScript_Shutdown (void)
 		pcfg_t *cfg;
 		cfg = loadedconfigs;
 		loadedconfigs = cfg->next;
-		Z_Free (cfg);
+		Mem_Free (cfg);
 	}
 
 	while (numparticletypes > 0)
 	{
 		numparticletypes--;
 		if (part_type[numparticletypes].sounds)
-			Z_Free (part_type[numparticletypes].sounds);
+			Mem_Free (part_type[numparticletypes].sounds);
 		if (part_type[numparticletypes].ramp)
-			Z_Free (part_type[numparticletypes].ramp);
+			Mem_Free (part_type[numparticletypes].ramp);
 	}
-	Z_Free (part_type);
+	Mem_Free (part_type);
 	part_type = NULL;
 	part_run_list = NULL;
 
-	Z_Free (particles);
+	Mem_Free (particles);
 	particles = NULL;
-	Z_Free (beams);
+	Mem_Free (beams);
 	beams = NULL;
-	Z_Free (decals);
+	Mem_Free (decals);
 	decals = NULL;
-	Z_Free (trailstates);
+	Mem_Free (trailstates);
 	trailstates = NULL;
 
 	free_particles = NULL;
@@ -3396,13 +3389,13 @@ qboolean PScript_Startup (void)
 		r_numbeams = MAX_BEAMSEGS;
 		r_numtrailstates = MAX_TRAILSTATES;
 
-		particles = (particle_t *)Z_Malloc (r_numparticles * sizeof (particle_t));
+		particles = (particle_t *)Mem_Alloc (r_numparticles * sizeof (particle_t));
 
-		beams = (beamseg_t *)Z_Malloc (r_numbeams * sizeof (beamseg_t));
+		beams = (beamseg_t *)Mem_Alloc (r_numbeams * sizeof (beamseg_t));
 
-		decals = (clippeddecal_t *)Z_Malloc (r_numdecals * sizeof (clippeddecal_t));
+		decals = (clippeddecal_t *)Mem_Alloc (r_numdecals * sizeof (clippeddecal_t));
 
-		trailstates = (trailstate_t *)Z_Malloc (r_numtrailstates * sizeof (trailstate_t));
+		trailstates = (trailstate_t *)Mem_Alloc (r_numtrailstates * sizeof (trailstate_t));
 		memset (trailstates, 0, r_numtrailstates * sizeof (trailstate_t));
 		ts_cycle = 0;
 
@@ -3433,7 +3426,7 @@ void PScript_RecalculateSkyTris (void)
 			char        key[128];
 			const char *data = COM_Parse (m->entities);
 			int        *remaps;
-			remaps = malloc (sizeof (*remaps) * m->numtextures);
+			remaps = Mem_Alloc (sizeof (*remaps) * m->numtextures);
 			if (!remaps)
 				break;
 			for (t = 0; t < m->numtextures; t++)
@@ -3491,7 +3484,7 @@ void PScript_RecalculateSkyTris (void)
 					}
 				}
 			}
-			free (remaps);
+			Mem_Free (remaps);
 		}
 	}
 }
@@ -3560,7 +3553,7 @@ static qboolean P_LoadParticleSet (char *name, qboolean implicit, qboolean showw
 		if (!strcmp (cfg->name, name))
 			return false;
 	}
-	cfg = Z_Malloc (sizeof (*cfg) + strlen (name));
+	cfg = Mem_Alloc (sizeof (*cfg) + strlen (name));
 	if (!cfg)
 		return false;
 	strcpy (cfg->name, name);
@@ -3582,13 +3575,13 @@ static qboolean P_LoadParticleSet (char *name, qboolean implicit, qboolean showw
 		return true;
 	}
 
-	file = (char *)COM_LoadMallocFile (va ("particles/%s.cfg", name), NULL);
+	file = (char *)COM_LoadFile (va ("particles/%s.cfg", name), NULL);
 	if (!file)
-		file = (char *)COM_LoadMallocFile (va ("%s.cfg", name), NULL);
+		file = (char *)COM_LoadFile (va ("%s.cfg", name), NULL);
 	if (file)
 	{
 		PScript_ParseParticleEffectFile (name, implicit, file, com_filesize);
-		free (file);
+		Mem_Free (file);
 	}
 	else
 	{
@@ -3619,7 +3612,7 @@ static void R_Particles_KillAllEffects (void)
 		part_type[i].scale = 0;
 		part_type[i].loaded = 0;
 		if (part_type->ramp)
-			Z_Free (part_type->ramp);
+			Mem_Free (part_type->ramp);
 		part_type->ramp = NULL;
 		part_type->rampmode = RAMP_NONE;
 	}
@@ -3628,7 +3621,7 @@ static void R_Particles_KillAllEffects (void)
 	{
 		cfg = loadedconfigs;
 		loadedconfigs = cfg->next;
-		Z_Free (cfg);
+		Mem_Free (cfg);
 	}
 }
 
@@ -3732,7 +3725,7 @@ static void R_Part_SkyTri (qmodel_t *mod, float *v1, float *v2, float *v3, msurf
 	skytriblock_t *mem = mod->skytrimem;
 	if (!mem || mem->count == sizeof (mem->tris) / sizeof (mem->tris[0]))
 	{
-		mod->skytrimem = Z_Malloc (sizeof (*mod->skytrimem));
+		mod->skytrimem = Mem_Alloc (sizeof (*mod->skytrimem));
 		mod->skytrimem->next = mem;
 		mod->skytrimem->count = 0;
 		mem = mod->skytrimem;
@@ -3953,7 +3946,7 @@ static void PScript_AddDecals (void *vctx, vec3_t *points, size_t numtris)
 	clippeddecal_t *d;
 	unsigned int    i;
 	vec3_t          vec;
-	byte		   *palrgba = (byte *)d_8to24table;
+	byte           *palrgba = (byte *)d_8to24table;
 	while (numtris-- > 0)
 	{
 		if (!free_decals)
@@ -6304,7 +6297,7 @@ static void PScript_DrawParticleTypes (cb_context_t *cbx, float pframetime)
 				if (cl_numstris == cl_maxstris)
 				{
 					cl_maxstris += 8;
-					cl_stris = Z_Realloc (cl_stris, sizeof (*cl_stris) * cl_maxstris);
+					cl_stris = Mem_Realloc (cl_stris, sizeof (*cl_stris) * cl_maxstris);
 				}
 				scenetri = &cl_stris[cl_numstris++];
 				scenetri->texture = type->looks.texture;
@@ -6392,7 +6385,7 @@ static void PScript_DrawParticleTypes (cb_context_t *cbx, float pframetime)
 					if (cl_numstris == cl_maxstris)
 					{
 						cl_maxstris += 8;
-						cl_stris = Z_Realloc (cl_stris, sizeof (*cl_stris) * cl_maxstris);
+						cl_stris = Mem_Realloc (cl_stris, sizeof (*cl_stris) * cl_maxstris);
 					}
 					scenetri = &cl_stris[cl_numstris++];
 					scenetri->texture = scenetri[-1].texture;
@@ -6449,7 +6442,7 @@ static void PScript_DrawParticleTypes (cb_context_t *cbx, float pframetime)
 			if (cl_numstris == cl_maxstris)
 			{
 				cl_maxstris += 8;
-				cl_stris = Z_Realloc (cl_stris, sizeof (*cl_stris) * cl_maxstris);
+				cl_stris = Mem_Realloc (cl_stris, sizeof (*cl_stris) * cl_maxstris);
 			}
 			scenetri = &cl_stris[cl_numstris++];
 			scenetri->texture = type->looks.texture;
@@ -6473,7 +6466,7 @@ static void PScript_DrawParticleTypes (cb_context_t *cbx, float pframetime)
 						if (cl_numstris == cl_maxstris)
 						{
 							cl_maxstris += 8;
-							cl_stris = Z_Realloc (cl_stris, sizeof (*cl_stris) * cl_maxstris);
+							cl_stris = Mem_Realloc (cl_stris, sizeof (*cl_stris) * cl_maxstris);
 						}
 						scenetri = &cl_stris[cl_numstris++];
 						scenetri->texture = scenetri[-1].texture;
@@ -6808,7 +6801,7 @@ static void PScript_DrawParticleTypes (cb_context_t *cbx, float pframetime)
 					if (cl_numstris == cl_maxstris)
 					{
 						cl_maxstris += 8;
-						cl_stris = Z_Realloc (cl_stris, sizeof (*cl_stris) * cl_maxstris);
+						cl_stris = Mem_Realloc (cl_stris, sizeof (*cl_stris) * cl_maxstris);
 					}
 					scenetri = &cl_stris[cl_numstris++];
 					scenetri->texture = scenetri[-1].texture;

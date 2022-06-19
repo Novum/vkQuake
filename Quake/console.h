@@ -30,7 +30,7 @@ extern int                  con_totallines;
 extern int                  con_backscroll;
 extern qboolean             con_forcedup; // because no entities to refresh
 extern qboolean             con_initialized;
-extern byte				*con_chars;
+extern byte                *con_chars;
 typedef struct cb_context_s cb_context_t;
 
 extern char con_lastcenterstring[]; // johnfitz

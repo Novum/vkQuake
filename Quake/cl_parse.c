@@ -938,7 +938,7 @@ static void CL_ParseServerInfo (void)
 	{
 		Host_Error ("Bad maxclients (%u) from server", cl.maxclients);
 	}
-	cl.scores = (scoreboard_t *)Hunk_AllocName (cl.maxclients * sizeof (*cl.scores), "scores");
+	cl.scores = (scoreboard_t *)Mem_Alloc (cl.maxclients * sizeof (*cl.scores));
 
 	// parse gametype
 	cl.gametype = MSG_ReadByte ();
@@ -1034,8 +1034,6 @@ static void CL_ParseServerInfo (void)
 	// messages to be duplicates if the map has changed in between
 	con_lastcenterstring[0] = 0;
 	// johnfitz
-
-	Hunk_Check (); // make sure nothing is hurt
 
 	noclip_anglehack = false; // noclip is turned off at start
 
@@ -1473,8 +1471,8 @@ static void CL_ParseStatic (int version) // johnfitz -- added a parameter
 	if (i >= cl.max_static_entities)
 	{
 		int        ec = 64;
-		entity_t **newstatics = realloc (cl.static_entities, sizeof (*newstatics) * (cl.max_static_entities + ec));
-		entity_t  *newents = Hunk_Alloc (sizeof (*newents) * ec);
+		entity_t **newstatics = Mem_Realloc (cl.static_entities, sizeof (*newstatics) * (cl.max_static_entities + ec));
+		entity_t  *newents = Mem_Alloc (sizeof (*newents) * ec);
 		if (!newstatics || !newents)
 			Host_Error ("Too many static entities");
 		cl.static_entities = newstatics;
@@ -1560,12 +1558,12 @@ static void CL_ParsePrecache (void)
 		{
 			if (*name)
 			{
-				cl.particle_precache[index].name = strcpy (Hunk_Alloc (strlen (name) + 1), name);
+				cl.particle_precache[index].name = q_strdup (name);
 				cl.particle_precache[index].index = PScript_FindParticleType (cl.particle_precache[index].name);
 			}
 			else
 			{
-				cl.particle_precache[index].name = NULL;
+				SAFE_FREE (cl.particle_precache[index].name);
 				cl.particle_precache[index].index = -1;
 			}
 		}
@@ -1701,8 +1699,8 @@ static void CL_ParseStatString (int stat, const char *str)
 		Con_DWarning ("svc_updatestat: %i is invalid\n", stat);
 		return;
 	}
-	free (cl.statss[stat]);
-	cl.statss[stat] = strdup (str);
+	Mem_Free (cl.statss[stat]);
+	cl.statss[stat] = q_strdup (str);
 	// hud doesn't know/care about any of these strings so don't bother invalidating anything.
 }
 

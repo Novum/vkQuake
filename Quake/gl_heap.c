@@ -37,7 +37,7 @@ GL_CreateHeap
 */
 glheap_t *GL_CreateHeap (VkDeviceSize size, uint32_t memory_type_index, vulkan_memory_type_t memory_type, const char *name)
 {
-	glheap_t *heap = (glheap_t *)malloc (sizeof (glheap_t));
+	glheap_t *heap = (glheap_t *)Mem_Alloc (sizeof (glheap_t));
 
 	VkMemoryAllocateInfo memory_allocate_info;
 	memset (&memory_allocate_info, 0, sizeof (memory_allocate_info));
@@ -48,7 +48,7 @@ glheap_t *GL_CreateHeap (VkDeviceSize size, uint32_t memory_type_index, vulkan_m
 	R_AllocateVulkanMemory (&heap->memory, &memory_allocate_info, memory_type);
 	GL_SetObjectName ((uint64_t)heap->memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, name);
 
-	heap->head = (glheapnode_t *)malloc (sizeof (glheapnode_t));
+	heap->head = (glheapnode_t *)Mem_Alloc (sizeof (glheapnode_t));
 	heap->head->offset = 0;
 	heap->head->size = size;
 	heap->head->prev = NULL;
@@ -67,8 +67,8 @@ void GL_DestroyHeap (glheap_t *heap)
 {
 	GL_WaitForDeviceIdle ();
 	R_FreeVulkanMemory (&heap->memory);
-	free (heap->head);
-	free (heap);
+	Mem_Free (heap->head);
+	Mem_Free (heap);
 }
 
 /*
@@ -110,7 +110,7 @@ glheapnode_t *GL_HeapAllocate (glheap_t *heap, VkDeviceSize size, VkDeviceSize a
 		VkDeviceSize       align_padding = (align_mod == 0) ? 0 : (alignment - align_mod);
 		VkDeviceSize       aligned_size = size + align_padding;
 
-		glheapnode_t *new_node = (glheapnode_t *)malloc (sizeof (glheapnode_t));
+		glheapnode_t *new_node = (glheapnode_t *)Mem_Alloc (sizeof (glheapnode_t));
 		*new_node = *best_fit_node;
 		new_node->prev = best_fit_node->prev;
 		new_node->next = best_fit_node;
@@ -155,7 +155,7 @@ void GL_HeapFree (glheap_t *heap, glheapnode_t *node)
 
 		prev->size += node->size;
 
-		free (node);
+		Mem_Free (node);
 		node = prev;
 	}
 
@@ -169,7 +169,7 @@ void GL_HeapFree (glheap_t *heap, glheapnode_t *node)
 
 		node->size += next->size;
 
-		free (next);
+		Mem_Free (next);
 	}
 }
 
@@ -199,7 +199,7 @@ VkDeviceSize GL_AllocateFromHeaps (
 	{
 		if (i == num_heaps_allocated)
 		{
-			*heaps = realloc (*heaps, sizeof (glheap_t *) * (num_heaps_allocated + 1));
+			*heaps = Mem_Realloc (*heaps, sizeof (glheap_t *) * (num_heaps_allocated + 1));
 			(*heaps)[i] = NULL;
 			*num_heaps = num_heaps_allocated + 1;
 		}

@@ -26,8 +26,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define PAINTBUFFER_SIZE 2048
 portable_samplepair_t paintbuffer[PAINTBUFFER_SIZE];
 int                   snd_scaletable[32][256];
-int				  *snd_p, snd_linear_count;
-short				*snd_out;
+int                  *snd_p, snd_linear_count;
+short                *snd_out;
 
 static int snd_vol;
 
@@ -208,9 +208,9 @@ static void S_UpdateFilter (filter_t *filter, int M, float f_c)
 	if (filter->f_c != f_c || filter->M != M)
 	{
 		if (filter->memory != NULL)
-			free (filter->memory);
+			Mem_Free (filter->memory);
 		if (filter->kernel != NULL)
-			free (filter->kernel);
+			Mem_Free (filter->kernel);
 
 		filter->M = M;
 		filter->f_c = f_c;
@@ -218,8 +218,8 @@ static void S_UpdateFilter (filter_t *filter, int M, float f_c)
 		filter->parity = 0;
 		// M + 1 rounded up to the next multiple of 16
 		filter->kernelsize = (M + 1) + 16 - ((M + 1) % 16);
-		filter->memory = (float *)calloc (filter->kernelsize, sizeof (float));
-		filter->kernel = (float *)calloc (filter->kernelsize, sizeof (float));
+		filter->memory = (float *)Mem_Alloc (filter->kernelsize * sizeof (float));
+		filter->kernel = (float *)Mem_Alloc (filter->kernelsize * sizeof (float));
 
 		S_MakeBlackmanWindowKernel (filter->kernel, M, f_c);
 	}
@@ -245,7 +245,7 @@ static void S_ApplyFilter (filter_t *filter, int *data, int stride, int count)
 	const float *kernel = filter->kernel;
 	int          parity;
 
-	input = (float *)malloc (sizeof (float) * (filter->kernelsize + count));
+	input = (float *)Mem_Alloc (sizeof (float) * (filter->kernelsize + count));
 
 	// set up the input buffer
 	// memory holds the previous filter->kernelsize samples of input.
@@ -284,7 +284,7 @@ static void S_ApplyFilter (filter_t *filter, int *data, int stride, int count)
 
 	filter->parity = parity;
 
-	free (input);
+	Mem_Free (input);
 }
 
 /*
@@ -481,7 +481,7 @@ void SND_InitScaletable (void)
 static void SND_PaintChannelFrom8 (channel_t *ch, sfxcache_t *sc, int count, int paintbufferstart)
 {
 	int            data;
-	int		   *lscale, *rscale;
+	int           *lscale, *rscale;
 	unsigned char *sfx;
 	int            i;
 

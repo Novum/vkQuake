@@ -125,11 +125,7 @@
 #define NDEBUG /* disable assert()s */
 #endif
 
-#if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
-#include <SDL2/SDL.h>
-#else
-#include "SDL.h"
-#endif
+#include "mem.h"
 
 /* Defines to completely disable specific portions of miniz.c: 
    If all macros here are defined the only functionality remaining will be CRC-32 and adler-32. */
@@ -307,9 +303,9 @@ typedef int mz_bool;
 
 #define MZ_ASSERT(x) assert(x)
 
-#define MZ_MALLOC(x) malloc(x)
-#define MZ_FREE(x) free(x)
-#define MZ_REALLOC(p, x) realloc(p, x)
+#define MZ_MALLOC(x) Mem_Alloc(x)
+#define MZ_FREE(x) Mem_Free(x)
+#define MZ_REALLOC(p, x) Mem_Realloc(p, x)
 
 #define MZ_MAX(a, b) (((a) > (b)) ? (a) : (b))
 #define MZ_MIN(a, b) (((a) < (b)) ? (a) : (b))

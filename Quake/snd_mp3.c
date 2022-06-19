@@ -384,7 +384,7 @@ static qboolean S_MP3_CodecOpenStream (snd_stream_t *stream)
 		return false;
 	}
 
-	stream->priv = calloc (1, sizeof (mp3_priv_t));
+	stream->priv = Mem_Alloc (sizeof (mp3_priv_t));
 	if (!stream->priv)
 	{
 		Con_Printf ("Insufficient memory for MP3 audio\n");
@@ -403,7 +403,7 @@ static qboolean S_MP3_CodecOpenStream (snd_stream_t *stream)
 	{
 		return true;
 	}
-	free (stream->priv);
+	Mem_Free (stream->priv);
 	return false;
 }
 
@@ -416,7 +416,7 @@ static int S_MP3_CodecReadStream (snd_stream_t *stream, int bytes, void *buffer)
 static void S_MP3_CodecCloseStream (snd_stream_t *stream)
 {
 	mp3_stopread (stream);
-	free (stream->priv);
+	Mem_Free (stream->priv);
 	S_CodecUtilClose (&stream);
 }
 

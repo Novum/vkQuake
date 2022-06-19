@@ -24,10 +24,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 #include <windows.h>
 #if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
-#include <SDL2/SDL.h>
 #include <SDL2/SDL_syswm.h>
 #else
-#include "SDL.h"
 #include "SDL_syswm.h"
 #endif
 
@@ -81,10 +79,10 @@ char *PL_GetClipboardData (void)
 				size_t size = GlobalSize (hClipboardData) + 1;
 				/* this is intended for simple small text copies
 				 * such as an ip address, etc:  do chop the size
-				 * here, otherwise we may experience Z_Malloc()
+				 * here, otherwise we may experience Mem_Alloc()
 				 * failures and all other not-oh-so-fun stuff. */
 				size = q_min (MAX_CLIPBOARDTXT, size);
-				data = (char *)Z_Malloc (size);
+				data = (char *)Mem_Alloc (size);
 				q_strlcpy (data, cliptext, size);
 				GlobalUnlock (hClipboardData);
 			}

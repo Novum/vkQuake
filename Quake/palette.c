@@ -1056,7 +1056,7 @@ CreatePaletteOctree_f
 */
 void CreatePaletteOctree_f (void)
 {
-	unsigned int *colors_lut = malloc (sizeof (unsigned int) * 256ull * 256ull * 256ull);
+	unsigned int *colors_lut = Mem_Alloc (sizeof (unsigned int) * 256ull * 256ull * 256ull);
 
 	TexMgr_LoadPalette ();
 	MakeColorsLUT (colors_lut);
@@ -1094,5 +1094,5 @@ void CreatePaletteOctree_f (void)
 	}
 	Sys_Printf ("};");
 
-	free (colors_lut);
+	Mem_Free (colors_lut);
 }

@@ -266,7 +266,7 @@ typedef struct
 	int                maxheight;
 	int                numframes;
 	float              beamlength; // remove?
-	void			  *cachespot;  // remove?
+	void              *cachespot;  // remove?
 	mspriteframedesc_t frames[1];
 } msprite_t;
 
@@ -517,7 +517,7 @@ typedef struct qmodel_s
 	//
 	// additional model data
 	//
-	cache_user_t cache; // only access through Mod_Extradata
+	byte *extradata; // only access through Mod_Extradata
 
 } qmodel_t;
 

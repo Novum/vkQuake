@@ -134,7 +134,7 @@ static qboolean S_MIKMOD_CodecOpenStream (snd_stream_t *stream)
 {
 	mik_priv_t *priv;
 
-	stream->priv = Z_Malloc (sizeof (mik_priv_t));
+	stream->priv = Mem_Alloc (sizeof (mik_priv_t));
 	priv = (mik_priv_t *)stream->priv;
 	priv->Seek = MIK_Seek;
 	priv->Tell = MIK_Tell;
@@ -147,7 +147,7 @@ static qboolean S_MIKMOD_CodecOpenStream (snd_stream_t *stream)
 	if (!priv->module)
 	{
 		Con_DPrintf ("Could not load module: %s\n", MikMod_strerror (MikMod_errno));
-		Z_Free (stream->priv);
+		Mem_Free (stream->priv);
 		return false;
 	}
 
@@ -187,7 +187,7 @@ static void S_MIKMOD_CodecCloseStream (snd_stream_t *stream)
 {
 	Player_Stop ();
 	Player_Free (((mik_priv_t *)stream->priv)->module);
-	Z_Free (stream->priv);
+	Mem_Free (stream->priv);
 	S_CodecUtilClose (&stream);
 }
 

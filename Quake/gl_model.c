@@ -26,19 +26,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 
-#if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
-#include <SDL2/SDL.h>
-#else
-#include "SDL.h"
-#endif
-
 qmodel_t *loadmodel;
 char      loadname[32]; // for hunk tags
 
-static void Mod_LoadSpriteModel (qmodel_t *mod, void *buffer);
-static void Mod_LoadBrushModel (qmodel_t *mod, void *buffer);
-static void Mod_LoadAliasModel (qmodel_t *mod, void *buffer);
-qmodel_t   *Mod_LoadModel (qmodel_t *mod, qboolean crash);
+static void      Mod_LoadSpriteModel (qmodel_t *mod, void *buffer);
+static void      Mod_LoadBrushModel (qmodel_t *mod, void *buffer);
+static void      Mod_LoadAliasModel (qmodel_t *mod, void *buffer);
+static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash);
 
 cvar_t external_ents = {"external_ents", "1", CVAR_ARCHIVE};
 cvar_t external_vis = {"external_vis", "1", CVAR_ARCHIVE};
@@ -55,8 +49,6 @@ int      mod_numknown;
 
 texture_t *r_notexture_mip;  // johnfitz -- moved here from r_main.c
 texture_t *r_notexture_mip2; // johnfitz -- used for non-lightmapped surfs with a missing texture
-
-SDL_mutex *cache_mutex;
 
 /*
 ===============
@@ -106,16 +98,14 @@ void Mod_Init (void)
 	Cvar_RegisterVariable (&external_ents);
 
 	// johnfitz -- create notexture miptex
-	r_notexture_mip = (texture_t *)Hunk_AllocName (sizeof (texture_t), "r_notexture_mip");
+	r_notexture_mip = (texture_t *)Mem_Alloc (sizeof (texture_t));
 	strcpy (r_notexture_mip->name, "notexture");
 	r_notexture_mip->height = r_notexture_mip->width = 32;
 
-	r_notexture_mip2 = (texture_t *)Hunk_AllocName (sizeof (texture_t), "r_notexture_mip2");
+	r_notexture_mip2 = (texture_t *)Mem_Alloc (sizeof (texture_t));
 	strcpy (r_notexture_mip2->name, "notexture2");
 	r_notexture_mip2->height = r_notexture_mip2->width = 32;
 	// johnfitz
-
-	cache_mutex = SDL_CreateMutex();
 }
 
 /*
@@ -127,22 +117,8 @@ Caches the data if needed
 */
 void *Mod_Extradata (qmodel_t *mod)
 {
-	SDL_LockMutex (cache_mutex);
-	void *r;
-
-	r = Cache_Check (&mod->cache);
-	if (r)
-	{
-		SDL_UnlockMutex (cache_mutex);
-		return r;
-	}
-
 	Mod_LoadModel (mod, true);
-
-	if (!mod->cache.data)
-		Sys_Error ("Mod_Extradata: caching failed");
-	SDL_UnlockMutex (cache_mutex);
-	return mod->cache.data;
+	return mod->extradata;
 }
 
 /*
@@ -191,7 +167,7 @@ byte *Mod_DecompressVis (byte *in, qmodel_t *model)
 	if (mod_decompressed == NULL || row > mod_decompressed_capacity)
 	{
 		mod_decompressed_capacity = row;
-		mod_decompressed = (byte *)realloc (mod_decompressed, mod_decompressed_capacity);
+		mod_decompressed = (byte *)Mem_Realloc (mod_decompressed, mod_decompressed_capacity);
 		if (!mod_decompressed)
 			Sys_Error ("Mod_DecompressVis: realloc() failed on %d bytes", mod_decompressed_capacity);
 	}
@@ -241,6 +217,11 @@ byte *Mod_DecompressVis (byte *in, qmodel_t *model)
 	return mod_decompressed;
 }
 
+/*
+===================
+Mod_LeafPVS
+===================
+*/
 byte *Mod_LeafPVS (mleaf_t *leaf, qmodel_t *model)
 {
 	if (leaf == model->leafs)
@@ -248,6 +229,11 @@ byte *Mod_LeafPVS (mleaf_t *leaf, qmodel_t *model)
 	return Mod_DecompressVis (leaf->compressed_vis, model);
 }
 
+/*
+===================
+Mod_NoVisPVS
+===================
+*/
 byte *Mod_NoVisPVS (qmodel_t *model)
 {
 	int pvsbytes;
@@ -256,12 +242,89 @@ byte *Mod_NoVisPVS (qmodel_t *model)
 	if (mod_novis == NULL || pvsbytes > mod_novis_capacity)
 	{
 		mod_novis_capacity = pvsbytes;
-		mod_novis = (byte *)realloc (mod_novis, mod_novis_capacity);
+		mod_novis = (byte *)Mem_Realloc (mod_novis, mod_novis_capacity);
 		if (!mod_novis)
 			Sys_Error ("Mod_NoVisPVS: realloc() failed on %d bytes", mod_novis_capacity);
 	}
 	memset (mod_novis, 0xff, mod_novis_capacity);
 	return mod_novis;
+}
+
+/*
+===================
+Mod_FreeSpriteMemory
+===================
+*/
+static void Mod_FreeSpriteMemory (msprite_t *psprite)
+{
+	for (int i = 0; i < psprite->numframes; ++i)
+	{
+		if (psprite->frames[i].type == SPR_SINGLE)
+		{
+			Mem_Free (psprite->frames[i].frameptr);
+		}
+		else
+		{
+			mspritegroup_t *group = (mspritegroup_t *)psprite->frames[i].frameptr;
+			for (int j = 0; j < group->numframes; ++j)
+			{
+				Mem_Free (group->frames[i]);
+			}
+			Mem_Free (psprite->frames[i].frameptr);
+		}
+	}
+}
+
+/*
+===================
+Mod_FreeModelMemory
+===================
+*/
+static void Mod_FreeModelMemory (qmodel_t *mod)
+{
+	if (mod->name[0] != '*')
+	{
+		if ((mod->type == mod_sprite) && (mod->extradata))
+			Mod_FreeSpriteMemory ((msprite_t *)mod->extradata);
+		// Last two ones are dummy textures
+		for (int i = 0; i < mod->numtextures - 2; ++i)
+			SAFE_FREE (mod->textures[i]);
+		for (int i = 0; i < mod->numsurfaces; ++i)
+			SAFE_FREE (mod->surfaces[i].polys);
+		SAFE_FREE (mod->hulls[0].clipnodes);
+		SAFE_FREE (mod->submodels);
+		mod->numsubmodels = 0;
+		SAFE_FREE (mod->planes);
+		mod->numplanes = 0;
+		SAFE_FREE (mod->leafs);
+		mod->numleafs = 0;
+		SAFE_FREE (mod->vertexes);
+		mod->numvertexes = 0;
+		SAFE_FREE (mod->edges);
+		mod->numedges = 0;
+		SAFE_FREE (mod->nodes);
+		mod->numnodes = 0;
+		SAFE_FREE (mod->texinfo);
+		mod->numtexinfo = 0;
+		SAFE_FREE (mod->surfaces);
+		mod->numsurfaces = 0;
+		SAFE_FREE (mod->surfedges);
+		mod->numsurfedges = 0;
+		SAFE_FREE (mod->clipnodes);
+		mod->numclipnodes = 0;
+		SAFE_FREE (mod->marksurfaces);
+		mod->nummarksurfaces = 0;
+		SAFE_FREE (mod->soa_leafbounds);
+		SAFE_FREE (mod->surfvis);
+		SAFE_FREE (mod->soa_surfplanes);
+		SAFE_FREE (mod->textures);
+		mod->numtextures = 0;
+		SAFE_FREE (mod->visdata);
+		SAFE_FREE (mod->lightdata);
+		SAFE_FREE (mod->entities);
+		SAFE_FREE (mod->extradata);
+	}
+	TexMgr_FreeTexturesForOwner (mod);
 }
 
 /*
@@ -275,15 +338,22 @@ void Mod_ClearAll (void)
 	qmodel_t *mod;
 
 	for (i = 0, mod = mod_known; i < mod_numknown; i++, mod++)
+	{
 		if (mod->type != mod_alias)
 		{
 			mod->needload = true;
-			TexMgr_FreeTexturesForOwner (mod); // johnfitz
+			Mod_FreeModelMemory (mod); // johnfitz
 		}
+	}
 
 	InvalidateTraceLineCache ();
 }
 
+/*
+===================
+Mod_ResetAll
+===================
+*/
 void Mod_ResetAll (void)
 {
 	int       i;
@@ -295,10 +365,13 @@ void Mod_ResetAll (void)
 	for (i = 0, mod = mod_known; i < mod_numknown; i++, mod++)
 	{
 		if (!mod->needload) // otherwise Mod_ClearAll() did it already
-			TexMgr_FreeTexturesForOwner (mod);
+			Mod_FreeModelMemory (mod);
+
 		memset (mod, 0, sizeof (qmodel_t));
 	}
 	mod_numknown = 0;
+
+	InvalidateTraceLineCache ();
 }
 
 /*
@@ -343,15 +416,7 @@ Mod_TouchModel
 */
 void Mod_TouchModel (const char *name)
 {
-	qmodel_t *mod;
-
-	mod = Mod_FindName (name);
-
-	if (!mod->needload)
-	{
-		if (mod->type == mod_alias)
-			Cache_Check (&mod->cache);
-	}
+	Mod_FindName (name);
 }
 
 /*
@@ -361,21 +426,14 @@ Mod_LoadModel
 Loads a model into the cache
 ==================
 */
-qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
+static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 {
 	byte *buf;
-	byte  stackbuf[1024]; // avoid dirtying the cache heap
 	int   mod_type;
 
 	if (!mod->needload)
 	{
-		if (mod->type == mod_alias)
-		{
-			if (Cache_Check (&mod->cache))
-				return mod;
-		}
-		else
-			return mod; // not cached at all
+		return mod;
 	}
 
 	InvalidateTraceLineCache ();
@@ -383,7 +441,7 @@ qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 	//
 	// load the file
 	//
-	buf = COM_LoadStackFile (mod->name, stackbuf, sizeof (stackbuf), &mod->path_id);
+	buf = COM_LoadFile (mod->name, &mod->path_id);
 	if (!buf)
 	{
 		if (crash)
@@ -421,6 +479,7 @@ qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 		break;
 	}
 
+	Mem_Free (buf);
 	return mod;
 }
 
@@ -491,21 +550,20 @@ Mod_LoadTextures
 */
 void Mod_LoadTextures (lump_t *l)
 {
-	int                       i, j, pixels, num, maxanim, altmax;
-	miptex_t                  mt;
-	texture_t				*tx, *tx2;
-	texture_t				*anims[10];
-	texture_t				*altanims[10];
-	byte					 *m;
-	byte					 *pixels_p;
-	char                      texturename[64];
-	int                       nummiptex;
-	int                       dataofs;
-	src_offset_t              offset;
-	int                       mark, fwidth, fheight;
-	char                      filename[MAX_OSPATH], filename2[MAX_OSPATH], mapname[MAX_OSPATH];
-	byte					 *data;
-	extern THREAD_LOCAL byte *hunk_base;
+	int          i, j, pixels, num, maxanim, altmax;
+	miptex_t     mt;
+	texture_t   *tx, *tx2;
+	texture_t   *anims[10];
+	texture_t   *altanims[10];
+	byte        *m;
+	byte        *pixels_p;
+	char         texturename[64];
+	int          nummiptex;
+	int          dataofs;
+	src_offset_t offset;
+	int          fwidth, fheight;
+	char         filename[MAX_OSPATH], filename2[MAX_OSPATH], mapname[MAX_OSPATH];
+	byte        *data = NULL;
 
 	// johnfitz -- don't return early if no textures; still need to create dummy texture
 	if (!l->filelen)
@@ -522,7 +580,7 @@ void Mod_LoadTextures (lump_t *l)
 	// johnfitz
 
 	loadmodel->numtextures = nummiptex + 2; // johnfitz -- need 2 dummy texture chains for missing textures
-	loadmodel->textures = (texture_t **)Hunk_AllocName (loadmodel->numtextures * sizeof (*loadmodel->textures), loadname);
+	loadmodel->textures = (texture_t **)Mem_Alloc (loadmodel->numtextures * sizeof (*loadmodel->textures));
 
 	for (i = 0; i < nummiptex; i++)
 	{
@@ -536,7 +594,7 @@ void Mod_LoadTextures (lump_t *l)
 			mt.offsets[j] = LittleLong (mt.offsets[j]);
 
 		pixels = mt.width * mt.height / 64 * 85;
-		tx = (texture_t *)Hunk_AllocName (sizeof (texture_t) + pixels, loadname);
+		tx = (texture_t *)Mem_Alloc (sizeof (texture_t) + pixels);
 		loadmodel->textures[i] = tx;
 
 		memcpy (tx->name, mt.name, sizeof (tx->name));
@@ -585,7 +643,6 @@ void Mod_LoadTextures (lump_t *l)
 			else if (tx->name[0] == '*') // warping texture
 			{
 				// external textures -- first look in "textures/mapname/" then look in "textures/"
-				mark = Hunk_LowMark ();
 				COM_StripExtension (loadmodel->name + 5, mapname, sizeof (mapname));
 				q_snprintf (filename, sizeof (filename), "textures/%s/#%s", mapname, tx->name + 1); // this also replaces the '*' with a '#'
 				data = Image_LoadImage (filename, &fwidth, &fheight);
@@ -610,12 +667,9 @@ void Mod_LoadTextures (lump_t *l)
 				}
 
 				// now create the warpimage, using dummy data from the hunk to create the initial image
-				Hunk_Alloc (WARPIMAGESIZE * WARPIMAGESIZE * 4); // make sure hunk is big enough so we don't reach an illegal address
-				Hunk_FreeToLowMark (mark);
 				q_snprintf (texturename, sizeof (texturename), "%s_warp", texturename);
-				tx->warpimage = TexMgr_LoadImage (
-					loadmodel, texturename, WARPIMAGESIZE, WARPIMAGESIZE, SRC_RGBA, hunk_base, "", (src_offset_t)hunk_base,
-					TEXPREF_NOPICMIP | TEXPREF_WARPIMAGE);
+				tx->warpimage =
+					TexMgr_LoadImage (loadmodel, texturename, WARPIMAGESIZE, WARPIMAGESIZE, SRC_RGBA, NULL, "", 0, TEXPREF_NOPICMIP | TEXPREF_WARPIMAGE);
 				tx->update_warp = true;
 			}
 			else // regular texture
@@ -629,7 +683,6 @@ void Mod_LoadTextures (lump_t *l)
 				// ericw
 
 				// external textures -- first look in "textures/mapname/" then look in "textures/"
-				mark = Hunk_LowMark ();
 				COM_StripExtension (loadmodel->name + 5, mapname, sizeof (mapname));
 				q_snprintf (filename, sizeof (filename), "textures/%s/%s", mapname, tx->name);
 				data = Image_LoadImage (filename, &fwidth, &fheight);
@@ -643,9 +696,9 @@ void Mod_LoadTextures (lump_t *l)
 				if (data) // load external image
 				{
 					tx->gltexture = TexMgr_LoadImage (loadmodel, filename, fwidth, fheight, SRC_RGBA, data, filename, 0, TEXPREF_MIPMAP | extraflags);
+					Mem_Free (data);
 
 					// now try to load glow/luma image from the same place
-					Hunk_FreeToLowMark (mark);
 					q_snprintf (filename2, sizeof (filename2), "%s_glow", filename);
 					data = Image_LoadImage (filename2, &fwidth, &fheight);
 					if (!data)
@@ -677,10 +730,9 @@ void Mod_LoadTextures (lump_t *l)
 							loadmodel, texturename, tx->width, tx->height, SRC_INDEXED, (byte *)(tx + 1), loadmodel->name, offset, TEXPREF_MIPMAP | extraflags);
 					}
 				}
-				Hunk_FreeToLowMark (mark);
 			}
 		}
-		// johnfitz
+		SAFE_FREE (data);
 	}
 
 	// johnfitz -- last 2 slots in array should be filled with dummy textures
@@ -791,7 +843,7 @@ Mod_LoadLighting -- johnfitz -- replaced with lit support code via lordhavoc
 */
 void Mod_LoadLighting (lump_t *l)
 {
-	int          i, mark;
+	int          i;
 	byte        *in, *out, *data;
 	byte         d, q64_b0, q64_b1;
 	char         litfilename[MAX_OSPATH];
@@ -802,15 +854,13 @@ void Mod_LoadLighting (lump_t *l)
 	q_strlcpy (litfilename, loadmodel->name, sizeof (litfilename));
 	COM_StripExtension (litfilename, litfilename, sizeof (litfilename));
 	q_strlcat (litfilename, ".lit", sizeof (litfilename));
-	mark = Hunk_LowMark ();
-	data = (byte *)COM_LoadHunkFile (litfilename, &path_id);
+	data = (byte *)COM_LoadFile (litfilename, &path_id);
 	if (data)
 	{
 		// use lit file only from the same gamedir as the map
 		// itself or from a searchpath with higher priority.
 		if (path_id < loadmodel->path_id)
 		{
-			Hunk_FreeToLowMark (mark);
 			Con_DPrintf ("ignored %s from a gamedir with lower priority\n", litfilename);
 		}
 		else if (data[0] == 'Q' && data[1] == 'L' && data[2] == 'I' && data[3] == 'T')
@@ -821,23 +871,24 @@ void Mod_LoadLighting (lump_t *l)
 				if (8 + l->filelen * 3 == com_filesize)
 				{
 					Con_DPrintf2 ("%s loaded\n", litfilename);
-					loadmodel->lightdata = data + 8;
+					loadmodel->lightdata = (byte *)Mem_Alloc (l->filelen * 3);
+					memcpy (loadmodel->lightdata, data + 8, (l->filelen * 3) - 8);
+					Mem_Free (data);
 					return;
 				}
-				Hunk_FreeToLowMark (mark);
 				Con_Printf ("Outdated .lit file (%s should be %u bytes, not %u)\n", litfilename, 8 + l->filelen * 3, com_filesize);
 			}
 			else
 			{
-				Hunk_FreeToLowMark (mark);
 				Con_Printf ("Unknown .lit file version (%d)\n", i);
 			}
 		}
 		else
 		{
-			Hunk_FreeToLowMark (mark);
 			Con_Printf ("Corrupt .lit file (old version?), ignoring\n");
 		}
+
+		Mem_Free (data);
 	}
 	// LordHavoc: no .lit found, expand the white lighting data to color
 	if (!l->filelen)
@@ -849,7 +900,7 @@ void Mod_LoadLighting (lump_t *l)
 		// RGB lightmap samples are packed in 16bits.
 		// RRRRR GGGGG BBBBBB
 
-		loadmodel->lightdata = (byte *)Hunk_AllocName ((l->filelen / 2) * 3, litfilename);
+		loadmodel->lightdata = (byte *)Mem_Alloc ((l->filelen / 2) * 3);
 		in = mod_base + l->fileofs;
 		out = loadmodel->lightdata;
 
@@ -865,7 +916,7 @@ void Mod_LoadLighting (lump_t *l)
 		return;
 	}
 
-	loadmodel->lightdata = (byte *)Hunk_AllocName (l->filelen * 3, litfilename);
+	loadmodel->lightdata = (byte *)Mem_Alloc (l->filelen * 3);
 	in = loadmodel->lightdata + l->filelen * 2; // place the file at the end, so it will not be overwritten until the very last write
 	out = loadmodel->lightdata;
 	memcpy (in, mod_base + l->fileofs, l->filelen);
@@ -891,7 +942,7 @@ void Mod_LoadVisibility (lump_t *l)
 		loadmodel->visdata = NULL;
 		return;
 	}
-	loadmodel->visdata = (byte *)Hunk_AllocName (l->filelen, loadname);
+	loadmodel->visdata = (byte *)Mem_Alloc (l->filelen);
 	memcpy (loadmodel->visdata, mod_base + l->fileofs, l->filelen);
 }
 
@@ -904,15 +955,13 @@ void Mod_LoadEntities (lump_t *l)
 {
 	char         basemapname[MAX_QPATH];
 	char         entfilename[MAX_QPATH];
-	char        *ents;
-	int          mark;
+	char        *ents = NULL;
 	unsigned int path_id;
 	unsigned int crc = 0;
 
 	if (!external_ents.value)
 		goto _load_embedded;
 
-	mark = Hunk_LowMark ();
 	if (l->filelen > 0)
 	{
 		crc = CRC_Block (mod_base + l->fileofs, l->filelen - 1);
@@ -923,13 +972,13 @@ void Mod_LoadEntities (lump_t *l)
 
 	q_snprintf (entfilename, sizeof (entfilename), "%s@%04x.ent", basemapname, crc);
 	Con_DPrintf2 ("trying to load %s\n", entfilename);
-	ents = (char *)COM_LoadHunkFile (entfilename, &path_id);
+	ents = (char *)COM_LoadFile (entfilename, &path_id);
 
 	if (!ents)
 	{
 		q_snprintf (entfilename, sizeof (entfilename), "%s.ent", basemapname);
 		Con_DPrintf2 ("trying to load %s\n", entfilename);
-		ents = (char *)COM_LoadHunkFile (entfilename, &path_id);
+		ents = (char *)COM_LoadFile (entfilename, &path_id);
 	}
 
 	if (ents)
@@ -938,7 +987,6 @@ void Mod_LoadEntities (lump_t *l)
 		// itself or from a searchpath with higher priority.
 		if (path_id < loadmodel->path_id)
 		{
-			Hunk_FreeToLowMark (mark);
 			Con_DPrintf ("ignored %s from a gamedir with lower priority\n", entfilename);
 		}
 		else
@@ -952,11 +1000,13 @@ void Mod_LoadEntities (lump_t *l)
 _load_embedded:
 	if (!l->filelen)
 	{
+		Mem_Free (loadmodel->entities);
 		loadmodel->entities = NULL;
 		return;
 	}
-	loadmodel->entities = (char *)Hunk_AllocName (l->filelen, loadname);
+	loadmodel->entities = (char *)Mem_Alloc (l->filelen);
 	memcpy (loadmodel->entities, mod_base + l->fileofs, l->filelen);
+	Mem_Free (ents);
 }
 
 /*
@@ -974,7 +1024,7 @@ void Mod_LoadVertexes (lump_t *l)
 	if (l->filelen % sizeof (dvertex_t))
 		Sys_Error ("MOD_LoadBmodel: funny lump size in %s", loadmodel->name);
 	count = l->filelen / sizeof (dvertex_t);
-	out = (mvertex_t *)Hunk_AllocName (count * sizeof (*out), loadname);
+	out = (mvertex_t *)Mem_Alloc (count * sizeof (*out));
 
 	loadmodel->vertexes = out;
 	loadmodel->numvertexes = count;
@@ -1005,7 +1055,7 @@ void Mod_LoadEdges (lump_t *l, int bsp2)
 			Sys_Error ("MOD_LoadBmodel: funny lump size in %s", loadmodel->name);
 
 		count = l->filelen / sizeof (dledge_t);
-		out = (medge_t *)Hunk_AllocName ((count + 1) * sizeof (*out), loadname);
+		out = (medge_t *)Mem_Alloc ((count + 1) * sizeof (*out));
 
 		loadmodel->edges = out;
 		loadmodel->numedges = count;
@@ -1024,7 +1074,7 @@ void Mod_LoadEdges (lump_t *l, int bsp2)
 			Sys_Error ("MOD_LoadBmodel: funny lump size in %s", loadmodel->name);
 
 		count = l->filelen / sizeof (dsedge_t);
-		out = (medge_t *)Hunk_AllocName ((count + 1) * sizeof (*out), loadname);
+		out = (medge_t *)Mem_Alloc ((count + 1) * sizeof (*out));
 
 		loadmodel->edges = out;
 		loadmodel->numedges = count;
@@ -1053,7 +1103,7 @@ void Mod_LoadTexinfo (lump_t *l)
 	if (l->filelen % sizeof (texinfo_t))
 		Sys_Error ("MOD_LoadBmodel: funny lump size in %s", loadmodel->name);
 	count = l->filelen / sizeof (texinfo_t);
-	out = (mtexinfo_t *)Hunk_AllocName (count * sizeof (*out), loadname);
+	out = (mtexinfo_t *)Mem_Alloc (count * sizeof (*out));
 
 	loadmodel->texinfo = out;
 	loadmodel->numtexinfo = count;
@@ -1196,7 +1246,7 @@ void Mod_PolyForUnlitSurface (msurface_t *fa)
 	}
 
 	// create the poly
-	poly = (glpoly_t *)Hunk_Alloc (sizeof (glpoly_t) + (numverts - 4) * VERTEXSIZE * sizeof (float));
+	poly = (glpoly_t *)Mem_Alloc (sizeof (glpoly_t) + (numverts - 4) * VERTEXSIZE * sizeof (float));
 	poly->next = NULL;
 	fa->polys = poly;
 	poly->numverts = numverts;
@@ -1238,7 +1288,7 @@ void Mod_LoadFaces (lump_t *l, qboolean bsp2)
 			Sys_Error ("MOD_LoadBmodel: funny lump size in %s", loadmodel->name);
 		count = l->filelen / sizeof (dsface_t);
 	}
-	out = (msurface_t *)Hunk_AllocName (count * sizeof (*out), loadname);
+	out = (msurface_t *)Mem_Alloc (count * sizeof (*out));
 
 	// johnfitz -- warn mappers about exceeding old limits
 	if (count > 32767 && !bsp2)
@@ -1357,7 +1407,7 @@ void Mod_LoadNodes_S (lump_t *l)
 	if (l->filelen % sizeof (dsnode_t))
 		Sys_Error ("MOD_LoadBmodel: funny lump size in %s", loadmodel->name);
 	count = l->filelen / sizeof (dsnode_t);
-	out = (mnode_t *)Hunk_AllocName (count * sizeof (*out), loadname);
+	out = (mnode_t *)Mem_Alloc (count * sizeof (*out));
 
 	// johnfitz -- warn mappers about exceeding old limits
 	if (count > 32767)
@@ -1414,7 +1464,7 @@ void Mod_LoadNodes_L1 (lump_t *l)
 		Sys_Error ("Mod_LoadNodes: funny lump size in %s", loadmodel->name);
 
 	count = l->filelen / sizeof (dl1node_t);
-	out = (mnode_t *)Hunk_AllocName (count * sizeof (*out), loadname);
+	out = (mnode_t *)Mem_Alloc (count * sizeof (*out));
 
 	loadmodel->nodes = out;
 	loadmodel->numnodes = count;
@@ -1466,7 +1516,7 @@ void Mod_LoadNodes_L2 (lump_t *l)
 		Sys_Error ("Mod_LoadNodes: funny lump size in %s", loadmodel->name);
 
 	count = l->filelen / sizeof (dl2node_t);
-	out = (mnode_t *)Hunk_AllocName (count * sizeof (*out), loadname);
+	out = (mnode_t *)Mem_Alloc (count * sizeof (*out));
 
 	loadmodel->nodes = out;
 	loadmodel->numnodes = count;
@@ -1525,7 +1575,7 @@ void Mod_ProcessLeafs_S (byte *in, int filelen)
 	if (filelen % sizeof (dsleaf_t))
 		Sys_Error ("Mod_ProcessLeafs: funny lump size in %s", loadmodel->name);
 	count = filelen / sizeof (dsleaf_t);
-	out = (mleaf_t *)Hunk_AllocName (count * sizeof (*out), loadname);
+	out = (mleaf_t *)Mem_Alloc (count * sizeof (*out));
 
 	// johnfitz
 	if (count > 32767)
@@ -1574,7 +1624,7 @@ void Mod_ProcessLeafs_L1 (byte *in, int filelen)
 
 	count = filelen / sizeof (dl1leaf_t);
 
-	out = (mleaf_t *)Hunk_AllocName (count * sizeof (*out), loadname);
+	out = (mleaf_t *)Mem_Alloc (count * sizeof (*out));
 
 	loadmodel->leafs = out;
 	loadmodel->numleafs = count;
@@ -1617,7 +1667,7 @@ void Mod_ProcessLeafs_L2 (byte *in, int filelen)
 
 	count = filelen / sizeof (dl2leaf_t);
 
-	out = (mleaf_t *)Hunk_AllocName (count * sizeof (*out), loadname);
+	out = (mleaf_t *)Mem_Alloc (count * sizeof (*out));
 
 	loadmodel->leafs = out;
 	loadmodel->numleafs = count;
@@ -1805,7 +1855,7 @@ void Mod_LoadClipnodes (lump_t *l, qboolean bsp2)
 
 		count = l->filelen / sizeof (dsclipnode_t);
 	}
-	out = (mclipnode_t *)Hunk_AllocName (count * sizeof (*out), loadname);
+	out = (mclipnode_t *)Mem_Alloc (count * sizeof (*out));
 
 	// johnfitz -- warn about exceeding old limits
 	if (count > 32767 && !bsp2)
@@ -1897,7 +1947,7 @@ void Mod_MakeHull0 (void)
 
 	in = loadmodel->nodes;
 	count = loadmodel->numnodes;
-	out = (mclipnode_t *)Hunk_AllocName (count * sizeof (*out), loadname);
+	out = (mclipnode_t *)Mem_Alloc (count * sizeof (*out));
 
 	hull->clipnodes = out;
 	hull->firstclipnode = 0;
@@ -1935,7 +1985,7 @@ void Mod_LoadMarksurfaces (lump_t *l, int bsp2)
 			Host_Error ("Mod_LoadMarksurfaces: funny lump size in %s", loadmodel->name);
 
 		count = l->filelen / sizeof (unsigned int);
-		out = (int *)Hunk_AllocName (count * sizeof (*out), loadname);
+		out = (int *)Mem_Alloc (count * sizeof (*out));
 
 		loadmodel->marksurfaces = out;
 		loadmodel->nummarksurfaces = count;
@@ -1956,7 +2006,7 @@ void Mod_LoadMarksurfaces (lump_t *l, int bsp2)
 			Host_Error ("Mod_LoadMarksurfaces: funny lump size in %s", loadmodel->name);
 
 		count = l->filelen / sizeof (short);
-		out = (int *)Hunk_AllocName (count * sizeof (*out), loadname);
+		out = (int *)Mem_Alloc (count * sizeof (*out));
 
 		loadmodel->marksurfaces = out;
 		loadmodel->nummarksurfaces = count;
@@ -1991,7 +2041,7 @@ void Mod_LoadSurfedges (lump_t *l)
 	if (l->filelen % sizeof (int))
 		Sys_Error ("MOD_LoadBmodel: funny lump size in %s", loadmodel->name);
 	count = l->filelen / sizeof (int);
-	out = (int *)Hunk_AllocName (count * sizeof (int), loadname);
+	out = (int *)Mem_Alloc (count * sizeof (int));
 
 	loadmodel->surfedges = out;
 	loadmodel->numsurfedges = count;
@@ -2019,7 +2069,7 @@ void Mod_LoadPlanes (lump_t *l)
 	if (l->filelen % sizeof (dplane_t))
 		Sys_Error ("MOD_LoadBmodel: funny lump size in %s", loadmodel->name);
 	count = l->filelen / sizeof (dplane_t);
-	out = (mplane_t *)Hunk_AllocName (count * 2 * sizeof (*out), loadname);
+	out = (mplane_t *)Mem_Alloc (count * 2 * sizeof (*out));
 
 	loadmodel->planes = out;
 	loadmodel->numplanes = count;
@@ -2073,7 +2123,7 @@ void Mod_LoadSubmodels (lump_t *l)
 	if (l->filelen % sizeof (dmodel_t))
 		Sys_Error ("MOD_LoadBmodel: funny lump size in %s", loadmodel->name);
 	count = l->filelen / sizeof (dmodel_t);
-	out = (dmodel_t *)Hunk_AllocName (count * sizeof (*out), loadname);
+	out = (dmodel_t *)Mem_Alloc (count * sizeof (*out));
 
 	loadmodel->submodels = out;
 	loadmodel->numsubmodels = count;
@@ -2232,7 +2282,7 @@ static byte *Mod_LoadVisibilityExternal (FILE *f)
 	if (filelen <= 0)
 		return NULL;
 	Con_DPrintf ("...%d bytes visibility data\n", filelen);
-	visdata = (byte *)Hunk_AllocName (filelen, "EXT_VIS");
+	visdata = (byte *)Mem_Alloc (filelen);
 	if (fread (visdata, filelen, 1, f) != 1)
 		return NULL;
 	return visdata;
@@ -2250,7 +2300,7 @@ static void Mod_LoadLeafsExternal (FILE *f)
 	if (filelen <= 0)
 		return;
 	Con_DPrintf ("...%d bytes leaf data\n", filelen);
-	in = Hunk_AllocName (filelen, "EXT_LEAF");
+	in = Mem_Alloc (filelen);
 	if (fread (in, filelen, 1, f) != 1)
 		return;
 	Mod_ProcessLeafs_S ((byte *)in, filelen);
@@ -2388,7 +2438,6 @@ static void Mod_LoadBrushModel (qmodel_t *mod, void *buffer)
 		fvis = Mod_FindVisibilityExternal ();
 		if (fvis)
 		{
-			int mark = Hunk_LowMark ();
 			loadmodel->leafs = NULL;
 			loadmodel->numleafs = 0;
 			Con_DPrintf ("found valid external .vis file for map\n");
@@ -2402,7 +2451,6 @@ static void Mod_LoadBrushModel (qmodel_t *mod, void *buffer)
 			{
 				goto visdone;
 			}
-			Hunk_FreeToLowMark (mark);
 			Con_DPrintf ("External VIS data failed, using standard vis.\n");
 		}
 	}
@@ -2492,7 +2540,7 @@ void *Mod_LoadAliasGroup (void *pin, maliasframedesc_t *frame)
 	daliasgroup_t    *pingroup;
 	int               i, numframes;
 	daliasinterval_t *pin_intervals;
-	void			 *ptemp;
+	void             *ptemp;
 
 	pingroup = (daliasgroup_t *)pin;
 
@@ -2644,7 +2692,7 @@ void *Mod_LoadAllSkins (int numskins, byte *pskintype)
 			Mod_FloodFillSkin (skin, pheader->skinwidth, pheader->skinheight);
 
 			// save 8 bit texels for the player model to remap
-			texels = (byte *)Hunk_AllocName (size, loadname);
+			texels = (byte *)Mem_Alloc (size);
 			pheader->texels[i] = texels - (byte *)pheader;
 			memcpy (texels, skin, size);
 
@@ -2687,7 +2735,7 @@ void *Mod_LoadAllSkins (int numskins, byte *pskintype)
 				Mod_FloodFillSkin (skin, pheader->skinwidth, pheader->skinheight);
 				if (j == 0)
 				{
-					texels = (byte *)Hunk_AllocName (size, loadname);
+					texels = (byte *)Mem_Alloc (size);
 					pheader->texels[i] = texels - (byte *)pheader;
 					memcpy (texels, skin, size);
 				}
@@ -2855,9 +2903,6 @@ static void Mod_LoadAliasModel (qmodel_t *mod, void *buffer)
 	int   size;
 	byte *pframetype;
 	byte *pskintype;
-	int   start, end, total;
-
-	start = Hunk_LowMark ();
 
 	mod_base = (byte *)buffer; // johnfitz
 
@@ -2870,7 +2915,7 @@ static void Mod_LoadAliasModel (qmodel_t *mod, void *buffer)
 	// skin and group info
 	//
 	size = sizeof (aliashdr_t) + (ReadLongUnaligned (mod_base + offsetof (mdl_t, numframes)) - 1) * sizeof (pheader->frames[0]);
-	pheader = (aliashdr_t *)Hunk_AllocName (size, loadname);
+	pheader = (aliashdr_t *)Mem_Alloc (size);
 
 	mod->flags = ReadLongUnaligned (mod_base + offsetof (mdl_t, flags));
 
@@ -2984,15 +3029,7 @@ static void Mod_LoadAliasModel (qmodel_t *mod, void *buffer)
 	//
 	// move the complete, relocatable alias model to the cache
 	//
-	end = Hunk_LowMark ();
-	total = end - start;
-
-	Cache_Alloc (&mod->cache, total, loadname);
-	if (!mod->cache.data)
-		return;
-	memcpy (mod->cache.data, pheader, total);
-
-	Hunk_FreeToLowMark (start);
+	mod->extradata = (byte *)pheader;
 }
 
 //=============================================================================
@@ -3016,7 +3053,7 @@ void *Mod_LoadSpriteFrame (void *pin, mspriteframe_t **ppframe, int framenum)
 	height = LittleLong (pinframe->height);
 	size = width * height;
 
-	pspriteframe = (mspriteframe_t *)Hunk_AllocName (sizeof (mspriteframe_t), loadname);
+	pspriteframe = (mspriteframe_t *)Mem_Alloc (sizeof (mspriteframe_t));
 	*ppframe = pspriteframe;
 
 	pspriteframe->width = width;
@@ -3052,14 +3089,14 @@ void *Mod_LoadSpriteGroup (void *pin, mspriteframe_t **ppframe, int framenum)
 	mspritegroup_t    *pspritegroup;
 	int                i, numframes;
 	dspriteinterval_t *pin_intervals;
-	float			 *poutintervals;
-	void			  *ptemp;
+	float             *poutintervals;
+	void              *ptemp;
 
 	pingroup = (dspritegroup_t *)pin;
 
 	numframes = LittleLong (pingroup->numframes);
 
-	pspritegroup = (mspritegroup_t *)Hunk_AllocName (sizeof (mspritegroup_t) + (numframes - 1) * sizeof (pspritegroup->frames[0]), loadname);
+	pspritegroup = (mspritegroup_t *)Mem_Alloc (sizeof (mspritegroup_t) + (numframes - 1) * sizeof (pspritegroup->frames[0]));
 
 	pspritegroup->numframes = numframes;
 
@@ -3067,7 +3104,7 @@ void *Mod_LoadSpriteGroup (void *pin, mspriteframe_t **ppframe, int framenum)
 
 	pin_intervals = (dspriteinterval_t *)(pingroup + 1);
 
-	poutintervals = (float *)Hunk_AllocName (numframes * sizeof (float), loadname);
+	poutintervals = (float *)Mem_Alloc (numframes * sizeof (float));
 
 	pspritegroup->intervals = poutintervals;
 
@@ -3120,9 +3157,9 @@ static void Mod_LoadSpriteModel (qmodel_t *mod, void *buffer)
 
 	size = sizeof (msprite_t) + (numframes - 1) * sizeof (psprite->frames);
 
-	psprite = (msprite_t *)Hunk_AllocName (size, loadname);
+	psprite = (msprite_t *)Mem_Alloc (size);
 
-	mod->cache.data = psprite;
+	mod->extradata = (byte *)psprite;
 
 	psprite->type = LittleLong (pin->type);
 	psprite->maxwidth = LittleLong (pin->width);
@@ -3181,7 +3218,7 @@ void Mod_Print (void)
 	Con_SafePrintf ("Cached models:\n"); // johnfitz -- safeprint instead of print
 	for (i = 0, mod = mod_known; i < mod_numknown; i++, mod++)
 	{
-		Con_SafePrintf ("%8p : %s\n", mod->cache.data, mod->name); // johnfitz -- safeprint instead of print
+		Con_SafePrintf ("%8p : %s\n", mod->extradata, mod->name); // johnfitz -- safeprint instead of print
 	}
 	Con_Printf ("%i models\n", mod_numknown); // johnfitz -- print the total too
 }

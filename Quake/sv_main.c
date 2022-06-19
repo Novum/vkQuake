@@ -401,27 +401,27 @@ void SVFTE_DestroyFrames (client_t *client)
 	{
 		if (!client->oldstats_s[i])
 			continue;
-		free (client->oldstats_s[i]);
+		Mem_Free (client->oldstats_s[i]);
 		client->oldstats_s[i] = 0;
 	}
 	if (client->previousentities)
-		free (client->previousentities);
+		Mem_Free (client->previousentities);
 	client->previousentities = NULL;
 	client->numpreviousentities = 0;
 	client->maxpreviousentities = 0;
 
 	if (client->pendingentities_bits)
-		free (client->pendingentities_bits);
+		Mem_Free (client->pendingentities_bits);
 	client->pendingentities_bits = NULL;
 	client->numpendingentities = 0;
 
 	while (client->numframes > 0)
 	{
 		client->numframes--;
-		free (client->frames[client->numframes].ents);
+		Mem_Free (client->frames[client->numframes].ents);
 	}
 	if (client->frames)
-		free (client->frames);
+		Mem_Free (client->frames);
 	client->frames = NULL;
 
 	client->lastacksequence = 0;
@@ -443,14 +443,14 @@ static void SVFTE_SetupFrames (client_t *client)
 	}
 
 	client->numframes = 64; // must be power-of-two
-	client->frames = malloc (sizeof (*client->frames) * client->numframes);
+	client->frames = Mem_Alloc (sizeof (*client->frames) * client->numframes);
 	client->lastacksequence = (int)0x80000000;
 	memset (client->frames, 0, sizeof (*client->frames) * client->numframes);
 	for (fr = 0; fr < client->numframes; fr++)
 		client->frames[fr].sequence = client->lastacksequence;
 
 	client->numpendingentities = qcvm->num_edicts;
-	client->pendingentities_bits = calloc (client->numpendingentities, sizeof (*client->pendingentities_bits));
+	client->pendingentities_bits = Mem_Alloc (client->numpendingentities * sizeof (*client->pendingentities_bits));
 
 	client->pendingentities_bits[0] = UF_REMOVE;
 }
@@ -552,8 +552,8 @@ static void SVFTE_WriteStats (client_t *client, sizebuf_t *msg)
 			if (strcmp (os, ns))
 			{
 				client->resendstatsstr[i / 32] |= 1u << (i & 31);
-				free (client->oldstats_s[i]);
-				client->oldstats_s[i] = strdup (ns);
+				Mem_Free (client->oldstats_s[i]);
+				client->oldstats_s[i] = q_strdup (ns);
 			}
 		}
 
@@ -607,7 +607,7 @@ static void SVFTE_CalcEntityDeltas (client_t *client)
 	if ((int)client->numpendingentities < qcvm->num_edicts)
 	{
 		int newmax = qcvm->num_edicts + 64;
-		client->pendingentities_bits = realloc (client->pendingentities_bits, sizeof (*client->pendingentities_bits) * newmax);
+		client->pendingentities_bits = Mem_Realloc (client->pendingentities_bits, sizeof (*client->pendingentities_bits) * newmax);
 		memset (client->pendingentities_bits + client->numpendingentities, 0, sizeof (*client->pendingentities_bits) * (newmax - client->numpendingentities));
 		client->numpendingentities = newmax;
 	}
@@ -757,7 +757,7 @@ static void SVFTE_WriteEntitiesToClient (client_t *client, sizebuf_t *msg, size_
 		if (frame->numents == frame->maxents)
 		{
 			frame->maxents += 64;
-			frame->ents = realloc (frame->ents, sizeof (*frame->ents) * frame->maxents);
+			frame->ents = Mem_Realloc (frame->ents, sizeof (*frame->ents) * frame->maxents);
 		}
 		frame->ents[frame->numents].num = entnum;
 		frame->ents[frame->numents].ebits = logbits;
@@ -831,7 +831,7 @@ void SV_BuildEntityState (edict_t *ent, entity_state_t *state)
 #endif
 }
 
-byte	   *SV_FatPVS (vec3_t org, qmodel_t *worldmodel);
+byte       *SV_FatPVS (vec3_t org, qmodel_t *worldmodel);
 static void SVFTE_BuildSnapshotForClient (client_t *client)
 {
 	unsigned int  e, i;
@@ -895,7 +895,7 @@ static void SVFTE_BuildSnapshotForClient (client_t *client)
 		if (numents == maxents)
 		{
 			maxents += 64;
-			ents = realloc (ents, maxents * sizeof (*ents));
+			ents = Mem_Realloc (ents, maxents * sizeof (*ents));
 		}
 
 		ents[numents].num = e;
@@ -1788,7 +1788,7 @@ byte *SV_FatPVS (vec3_t org, qmodel_t *worldmodel) // johnfitz -- added worldmod
 	if (fatpvs == NULL || fatbytes > fatpvs_capacity)
 	{
 		fatpvs_capacity = fatbytes;
-		fatpvs = (byte *)realloc (fatpvs, fatpvs_capacity);
+		fatpvs = (byte *)Mem_Realloc (fatpvs, fatpvs_capacity);
 		if (!fatpvs)
 			Sys_Error ("SV_FatPVS: realloc() failed on %d bytes", fatpvs_capacity);
 	}
@@ -2901,8 +2901,8 @@ void         SV_SpawnServer (const char *server)
 
 	// allocate server memory
 	/* Host_ClearMemory() called above already cleared the whole sv structure */
-	qcvm->max_edicts = CLAMP (MIN_EDICTS, (int)max_edicts.value, MAX_EDICTS); // johnfitz -- max_edicts cvar
-	qcvm->edicts = (edict_t *)malloc (qcvm->max_edicts * qcvm->edict_size);   // ericw -- sv.edicts switched to use malloc()
+	qcvm->max_edicts = CLAMP (MIN_EDICTS, (int)max_edicts.value, MAX_EDICTS);  // johnfitz -- max_edicts cvar
+	qcvm->edicts = (edict_t *)Mem_Alloc (qcvm->max_edicts * qcvm->edict_size); // ericw -- sv.edicts switched to use malloc()
 
 	sv.datagram.maxsize = sizeof (sv.datagram_buf);
 	sv.datagram.cursize = 0;

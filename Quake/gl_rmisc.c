@@ -26,12 +26,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 #include <float.h>
 
-#if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
-#include <SDL2/SDL.h>
-#else
-#include "SDL.h"
-#endif
-
 cvar_t r_lodbias = {"r_lodbias", "1", CVAR_ARCHIVE};
 
 // johnfitz -- new cvars
@@ -965,9 +959,10 @@ static void R_AddDynamicBufferGarbage (vulkan_memory_t device_memory, dynbuffer_
 		int  old_num_memory_garbage = *num_garbage;
 		*num_garbage += 1;
 		if (device_memory_garbage[current_garbage_index] == NULL)
-			device_memory_garbage[current_garbage_index] = malloc (sizeof (vulkan_memory_t) * (*num_garbage));
+			device_memory_garbage[current_garbage_index] = Mem_Alloc (sizeof (vulkan_memory_t) * (*num_garbage));
 		else
-			device_memory_garbage[current_garbage_index] = realloc (device_memory_garbage[current_garbage_index], sizeof (vulkan_memory_t) * (*num_garbage));
+			device_memory_garbage[current_garbage_index] =
+				Mem_Realloc (device_memory_garbage[current_garbage_index], sizeof (vulkan_memory_t) * (*num_garbage));
 		device_memory_garbage[current_garbage_index][old_num_memory_garbage] = device_memory;
 	}
 
@@ -976,9 +971,9 @@ static void R_AddDynamicBufferGarbage (vulkan_memory_t device_memory, dynbuffer_
 		int  old_num_buffer_garbage = *num_garbage;
 		*num_garbage += NUM_DYNAMIC_BUFFERS;
 		if (buffer_garbage[current_garbage_index] == NULL)
-			buffer_garbage[current_garbage_index] = malloc (sizeof (VkBuffer) * (*num_garbage));
+			buffer_garbage[current_garbage_index] = Mem_Alloc (sizeof (VkBuffer) * (*num_garbage));
 		else
-			buffer_garbage[current_garbage_index] = realloc (buffer_garbage[current_garbage_index], sizeof (VkBuffer) * (*num_garbage));
+			buffer_garbage[current_garbage_index] = Mem_Realloc (buffer_garbage[current_garbage_index], sizeof (VkBuffer) * (*num_garbage));
 		for (int i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
 			buffer_garbage[current_garbage_index][old_num_buffer_garbage + i] = buffers[i].buffer;
 	}
@@ -989,9 +984,10 @@ static void R_AddDynamicBufferGarbage (vulkan_memory_t device_memory, dynbuffer_
 		int  old_num_desc_set_garbage = *num_garbage;
 		*num_garbage += 2;
 		if (descriptor_set_garbage[current_garbage_index] == NULL)
-			descriptor_set_garbage[current_garbage_index] = malloc (sizeof (VkDescriptorSet) * (*num_garbage));
+			descriptor_set_garbage[current_garbage_index] = Mem_Alloc (sizeof (VkDescriptorSet) * (*num_garbage));
 		else
-			descriptor_set_garbage[current_garbage_index] = realloc (descriptor_set_garbage[current_garbage_index], sizeof (VkDescriptorSet) * (*num_garbage));
+			descriptor_set_garbage[current_garbage_index] =
+				Mem_Realloc (descriptor_set_garbage[current_garbage_index], sizeof (VkDescriptorSet) * (*num_garbage));
 		for (int i = 0; i < 2; ++i)
 			descriptor_set_garbage[current_garbage_index][old_num_desc_set_garbage + i] = descriptor_sets[i];
 	}
@@ -1011,7 +1007,7 @@ void R_CollectDynamicBufferGarbage ()
 	{
 		for (int i = 0; i < num_desc_set_garbage[collect_garbage_index]; ++i)
 			R_FreeDescriptorSet (descriptor_set_garbage[collect_garbage_index][i], &vulkan_globals.ubo_set_layout);
-		free (descriptor_set_garbage[collect_garbage_index]);
+		Mem_Free (descriptor_set_garbage[collect_garbage_index]);
 		descriptor_set_garbage[collect_garbage_index] = NULL;
 		num_desc_set_garbage[collect_garbage_index] = 0;
 	}
@@ -1020,7 +1016,7 @@ void R_CollectDynamicBufferGarbage ()
 	{
 		for (int i = 0; i < num_buffer_garbage[collect_garbage_index]; ++i)
 			vkDestroyBuffer (vulkan_globals.device, buffer_garbage[collect_garbage_index][i], NULL);
-		free (buffer_garbage[collect_garbage_index]);
+		Mem_Free (buffer_garbage[collect_garbage_index]);
 		buffer_garbage[collect_garbage_index] = NULL;
 		num_buffer_garbage[collect_garbage_index] = 0;
 	}
@@ -1029,7 +1025,7 @@ void R_CollectDynamicBufferGarbage ()
 	{
 		for (int i = 0; i < num_device_memory_garbage[collect_garbage_index]; ++i)
 			R_FreeVulkanMemory (&device_memory_garbage[collect_garbage_index][i]);
-		free (device_memory_garbage[collect_garbage_index]);
+		Mem_Free (device_memory_garbage[collect_garbage_index]);
 		device_memory_garbage[collect_garbage_index] = NULL;
 		num_device_memory_garbage[collect_garbage_index] = 0;
 	}

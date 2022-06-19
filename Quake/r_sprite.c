@@ -39,7 +39,7 @@ static mspriteframe_t *R_GetSpriteFrame (entity_t *currentent)
 	int             i, numframes, frame;
 	float		  *pintervals, fullinterval, targettime, time;
 
-	psprite = (msprite_t *)currentent->model->cache.data;
+	psprite = (msprite_t *)currentent->model->extradata;
 	frame = currentent->frame;
 
 	if ((frame >= psprite->numframes) || (frame < 0))
@@ -89,7 +89,7 @@ static void R_CreateSpriteVertices (entity_t *e, mspriteframe_t *frame, basicver
 	float     *s_up, *s_right;
 	float      angle, sr, cr;
 
-	psprite = (msprite_t *)e->model->cache.data;
+	psprite = (msprite_t *)e->model->extradata;
 
 	switch (psprite->type)
 	{
@@ -194,7 +194,7 @@ void R_DrawSpriteModel (cb_context_t *cbx, entity_t *e)
 
 	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sprite_pipeline);
 
-	psprite = (msprite_t *)e->model->cache.data;
+	psprite = (msprite_t *)e->model->extradata;
 	if (psprite->type == SPR_ORIENTED)
 		vkCmdSetDepthBias (cbx->cb, OFFSET_DECAL, 0.0f, 1.0f);
 	else
