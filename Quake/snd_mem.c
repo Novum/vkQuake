@@ -22,6 +22,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 
+extern SDL_mutex *snd_mutex;
+
 /*
 ================
 ResampleSfx
@@ -97,13 +99,15 @@ sfxcache_t *S_LoadSound (sfx_t *s)
 	wavinfo_t   info;
 	int         len;
 	float       stepscale;
-	sfxcache_t *sc;
+	sfxcache_t *sc = NULL;
 	byte        stackbuf[1 * 1024]; // avoid dirtying the cache heap
+
+	SDL_LockMutex (snd_mutex);
 
 	// see if still in memory
 	sc = (sfxcache_t *)Cache_Check (&s->cache);
 	if (sc)
-		return sc;
+		goto unlock_mutex;
 
 	//	Con_Printf ("S_LoadSound: %x\n", (int)stackbuf);
 
@@ -118,20 +122,20 @@ sfxcache_t *S_LoadSound (sfx_t *s)
 	if (!data)
 	{
 		Con_Printf ("Couldn't load %s\n", namebuffer);
-		return NULL;
+		goto unlock_mutex;
 	}
 
 	info = GetWavinfo (s->name, data, com_filesize);
 	if (info.channels != 1)
 	{
 		Con_Printf ("%s is a stereo sample\n", s->name);
-		return NULL;
+		goto unlock_mutex;
 	}
 
 	if (info.width != 1 && info.width != 2)
 	{
 		Con_Printf ("%s is not 8 or 16 bit\n", s->name);
-		return NULL;
+		goto unlock_mutex;
 	}
 
 	stepscale = (float)info.rate / shm->speed;
@@ -142,13 +146,12 @@ sfxcache_t *S_LoadSound (sfx_t *s)
 	if (info.samples == 0 || len == 0)
 	{
 		Con_Printf ("%s has zero samples\n", s->name);
-		return NULL;
+		goto unlock_mutex;
 	}
 
 	sc = (sfxcache_t *)Cache_Alloc (&s->cache, len + sizeof (sfxcache_t), s->name);
 	if (!sc)
-		return NULL;
-
+		goto unlock_mutex;
 	sc->length = info.samples;
 	sc->loopstart = info.loopstart;
 	sc->speed = info.rate;
@@ -157,6 +160,8 @@ sfxcache_t *S_LoadSound (sfx_t *s)
 
 	ResampleSfx (s, sc->speed, sc->width, data + info.dataofs);
 
+unlock_mutex:
+	SDL_UnlockMutex (snd_mutex);
 	return sc;
 }
 
