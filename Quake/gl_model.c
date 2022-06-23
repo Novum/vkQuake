@@ -93,7 +93,6 @@ Mod_Init
 */
 void Mod_Init (void)
 {
-	Cvar_RegisterVariable (&gl_subdivide_size);
 	Cvar_RegisterVariable (&external_vis);
 	Cvar_RegisterVariable (&external_ents);
 
@@ -1370,7 +1369,6 @@ void Mod_LoadFaces (lump_t *l, qboolean bsp2)
 				out->flags |= SURF_DRAWWATER;
 
 			Mod_PolyForUnlitSurface (out);
-			GL_SubdivideSurface (out);
 		}
 		else if (out->texinfo->texture->name[0] == '{') // ericw -- fence textures
 		{
