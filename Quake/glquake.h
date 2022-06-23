@@ -375,8 +375,6 @@ extern cvar_t r_scale;
 extern cvar_t gl_polyblend;
 extern cvar_t gl_nocolors;
 
-extern cvar_t gl_subdivide_size;
-
 // johnfitz -- polygon offset
 #define OFFSET_NONE  0
 #define OFFSET_DECAL 1
