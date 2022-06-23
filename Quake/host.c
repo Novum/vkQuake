@@ -812,7 +812,7 @@ void _Host_Frame (double time)
 	static double time1 = 0;
 	static double time2 = 0;
 	static double time3 = 0;
-	int           pass1, pass2, pass3;
+	double        pass1, pass2, pass3;
 
 	if (setjmp (host_abortserver))
 		return; // something bad happened, or the server disconnected
@@ -824,6 +824,9 @@ void _Host_Frame (double time)
 	accumtime += host_netinterval ? CLAMP (0, time, 0.2) : 0; // for renderer/server isolation
 	if (!Host_FilterTime (time))
 		return; // don't run too fast, or packets will flood out
+
+	if (host_speeds.value)
+		time3 = Sys_DoubleTime ();
 
 	// get new key events
 	Key_UpdateForDest ();
@@ -922,7 +925,7 @@ void _Host_Frame (double time)
 		time3 = Sys_DoubleTime ();
 		pass2 = (time2 - time1) * 1000;
 		pass3 = (time3 - time2) * 1000;
-		Con_Printf ("%3i tot %3i server %3i gfx %3i snd\n", pass1 + pass2 + pass3, pass1, pass2, pass3);
+		Con_Printf ("%5.2f tot %5.2f server %5.2f gfx %5.2f snd\n", pass1 + pass2 + pass3, pass1, pass2, pass3);
 	}
 
 	host_framecount++;
