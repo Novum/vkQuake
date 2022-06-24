@@ -60,6 +60,9 @@ struct qsockaddr
 #error "NET_MAXMESSAGE must fit within NETFLAG_LENGTH_MASK"
 #endif
 
+#define NET_LOOPBACKBUFFERS 5
+#define NET_LOOPBACKHEADERSIZE 4
+
 #define NET_PROTOCOL_VERSION 3
 
 /**
@@ -164,7 +167,7 @@ typedef struct qsocket_s
 	unsigned int receiveSequence;
 	unsigned int unreliableReceiveSequence;
 	int          receiveMessageLength;
-	byte         receiveMessage[NET_MAXMESSAGE];
+	byte         receiveMessage[NET_MAXMESSAGE * NET_LOOPBACKBUFFERS + NET_LOOPBACKHEADERSIZE];
 
 	struct qsockaddr addr;
 	char             trueaddress[NET_NAMELEN];   // lazy address string
