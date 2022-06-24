@@ -252,6 +252,24 @@ typedef enum
 	CANVAS_INVALID = -1
 } canvastype;
 
+#ifdef _MSC_VER
+static inline int FindFirstBitNonZero (const uint32_t mask)
+{
+	unsigned long result;
+	_BitScanForward (&result, mask);
+	return result;
+}
+#define THREAD_LOCAL __declspec(thread)
+#define FORCE_INLINE __forceinline
+#else
+static inline int FindFirstBitNonZero (const uint32_t mask)
+{
+	return __builtin_ctz (mask);
+}
+#define THREAD_LOCAL _Thread_local
+#define FORCE_INLINE __attribute__ ((always_inline)) inline
+#endif
+
 #include "common.h"
 #include "mem.h"
 #include "bspfile.h"
@@ -353,24 +371,6 @@ void DemoList_Init (void);
 
 void ExtraMaps_NewGame (void);
 void DemoList_Rebuild (void);
-
-#ifdef _MSC_VER
-static inline int FindFirstBitNonZero (const uint32_t mask)
-{
-	unsigned long result;
-	_BitScanForward (&result, mask);
-	return result;
-}
-#define THREAD_LOCAL __declspec(thread)
-#define FORCE_INLINE __forceinline
-#else
-static inline int FindFirstBitNonZero (const uint32_t mask)
-{
-	return __builtin_ctz (mask);
-}
-#define THREAD_LOCAL _Thread_local
-#define FORCE_INLINE __attribute__ ((always_inline)) inline
-#endif
 
 extern int current_skill; // skill level for currently loaded level (in case
                           //  the user changes the cvar while the level is

@@ -21,6 +21,7 @@
 #ifndef __MEM_H
 #define __MEM_H
 
+#include <quakedef.h>
 #include <stddef.h>
 
 // Mem_Alloc will always return zero initialized memory
@@ -36,5 +37,30 @@ void  Mem_Free (const void *ptr);
 		Mem_Free (ptr); \
 		ptr = NULL;     \
 	} while (false)
-
 #endif
+
+#define MAX_THREAD_STACK_ALLOC_SIZE (128 * 1024)
+extern THREAD_LOCAL int thread_stack_alloc_size;
+
+#define TEMP_ALLOC(type, var, size)                                                        \
+	qboolean     temp_alloc_##var##_on_heap = false;                                       \
+	const size_t temp_alloc_##var##_size = sizeof (type) * (size);                         \
+	if ((thread_stack_alloc_size + temp_alloc_##var##_size) > MAX_THREAD_STACK_ALLOC_SIZE) \
+	{                                                                                      \
+		var = (type *)Mem_Alloc (temp_alloc_##var##_size);                                 \
+		temp_alloc_##var##_on_heap = true;                                                 \
+	}                                                                                      \
+	else                                                                                   \
+	{                                                                                      \
+		var = (type *)alloca (temp_alloc_##var##_size);                                    \
+		thread_stack_alloc_size += temp_alloc_##var##_size;                                \
+	}
+#define TEMP_FREE(var)                                      \
+	if (temp_alloc_##var##_on_heap)                         \
+	{                                                       \
+		Mem_Free (var);                                     \
+	}                                                       \
+	else                                                    \
+	{                                                       \
+		thread_stack_alloc_size -= temp_alloc_##var##_size; \
+	}

@@ -467,8 +467,8 @@ void SV_PushMove (edict_t *pusher, float movetime)
 	SV_LinkEdict (pusher, false);
 
 	// johnfitz -- dynamically allocate
-	moved_edict = (edict_t **)Mem_Alloc (qcvm->num_edicts * sizeof (edict_t *));
-	moved_from = (vec3_t *)Mem_Alloc (qcvm->num_edicts * sizeof (vec3_t));
+	TEMP_ALLOC (edict_t*, moved_edict, qcvm->num_edicts);
+	TEMP_ALLOC (vec3_t, moved_from, qcvm->num_edicts);
 	// johnfitz
 
 	// see if any solid entities are inside the final position
@@ -571,8 +571,8 @@ void SV_PushMove (edict_t *pusher, float movetime)
 		}
 	}
 cleanup:
-	Mem_Free (moved_from);
-	Mem_Free (moved_edict);
+	TEMP_FREE (moved_from);
+	TEMP_FREE (moved_edict);
 }
 
 /*

@@ -313,7 +313,7 @@ void SV_TouchLinks (edict_t *ent)
 	int       old_self, old_other;
 	int       i, listcount;
 
-	list = (edict_t **)Mem_Alloc (qcvm->num_edicts * sizeof (edict_t *));
+	TEMP_ALLOC (edict_t *, list, qcvm->num_edicts);
 
 	listcount = 0;
 	SV_AreaTriggerEdicts (ent, qcvm->areanodes, list, &listcount, qcvm->num_edicts);
@@ -342,7 +342,7 @@ void SV_TouchLinks (edict_t *ent)
 		pr_global_struct->other = old_other;
 	}
 
-	Mem_Free (list);
+	TEMP_FREE (list);
 }
 
 /*

@@ -32,6 +32,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <stdlib.h>
 #endif
 
+THREAD_LOCAL int thread_stack_alloc_size = 0;
+
 /*
 ====================
 Mem_Alloc

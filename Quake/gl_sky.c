@@ -628,6 +628,36 @@ void Sky_ProcessTextureChains (cb_context_t *cbx, float color[3])
 
 /*
 ================
+Sky_DrawSkySurface
+================
+*/
+static void Sky_DrawSkySurface (cb_context_t *cbx, float color[3], entity_t *e, msurface_t *s, qboolean rotated, vec3_t forward, vec3_t right, vec3_t up)
+{
+	// copy the polygon and translate manually, since Sky_ProcessPoly needs it to be in world space
+	glpoly_t *p;
+	TEMP_ALLOC (glpoly_t, p, s->polys->numverts);
+	p->numverts = s->polys->numverts;
+	for (int k = 0; k < p->numverts; k++)
+	{
+		if (rotated)
+		{
+			p->verts[k][0] = e->origin[0] + s->polys->verts[k][0] * forward[0] - s->polys->verts[k][1] * right[0] + s->polys->verts[k][2] * up[0];
+			p->verts[k][1] = e->origin[1] + s->polys->verts[k][0] * forward[1] - s->polys->verts[k][1] * right[1] + s->polys->verts[k][2] * up[1];
+			p->verts[k][2] = e->origin[2] + s->polys->verts[k][0] * forward[2] - s->polys->verts[k][1] * right[2] + s->polys->verts[k][2] * up[2];
+		}
+		else
+		{
+			float *s_poly_vert = &s->polys->verts[0][0] + (k * VERTEXSIZE);
+			float *poly_vert = &p->verts[0][0] + (k * VERTEXSIZE);
+			VectorAdd (s_poly_vert, e->origin, poly_vert);
+		}
+	}
+	Sky_ProcessPoly (cbx, p, color);
+	TEMP_FREE (p);
+}
+
+/*
+================
 Sky_ProcessEntities -- handles sky polys on brush models
 ================
 */
@@ -635,13 +665,10 @@ void Sky_ProcessEntities (cb_context_t *cbx, float color[3])
 {
 	entity_t   *e;
 	msurface_t *s;
-	glpoly_t   *p;
-	int         i, j, k;
+	int         i, j;
 	float       dot;
 	qboolean    rotated;
 	vec3_t      temp, forward, right, up;
-	float      *s_poly_vert;
-	float      *poly_vert;
 	vec3_t      modelorg;
 
 	if (!r_drawentities.value)
@@ -681,31 +708,7 @@ void Sky_ProcessEntities (cb_context_t *cbx, float color[3])
 			{
 				dot = DotProduct (modelorg, s->plane->normal) - s->plane->dist;
 				if (((s->flags & SURF_PLANEBACK) && (dot < -BACKFACE_EPSILON)) || (!(s->flags & SURF_PLANEBACK) && (dot > BACKFACE_EPSILON)))
-				{
-					// copy the polygon and translate manually, since Sky_ProcessPoly needs it to be in world space
-					p = (glpoly_t *)Mem_Alloc (s->polys->numverts * sizeof (*s->polys)); // FIXME: don't allocate for each poly
-					p->numverts = s->polys->numverts;
-					for (k = 0; k < p->numverts; k++)
-					{
-						if (rotated)
-						{
-							p->verts[k][0] =
-								e->origin[0] + s->polys->verts[k][0] * forward[0] - s->polys->verts[k][1] * right[0] + s->polys->verts[k][2] * up[0];
-							p->verts[k][1] =
-								e->origin[1] + s->polys->verts[k][0] * forward[1] - s->polys->verts[k][1] * right[1] + s->polys->verts[k][2] * up[1];
-							p->verts[k][2] =
-								e->origin[2] + s->polys->verts[k][0] * forward[2] - s->polys->verts[k][1] * right[2] + s->polys->verts[k][2] * up[2];
-						}
-						else
-						{
-							s_poly_vert = &s->polys->verts[0][0] + (k * VERTEXSIZE);
-							poly_vert = &p->verts[0][0] + (k * VERTEXSIZE);
-							VectorAdd (s_poly_vert, e->origin, poly_vert);
-						}
-					}
-					Sky_ProcessPoly (cbx, p, color);
-					Mem_Free (p);
-				}
+					Sky_DrawSkySurface (cbx, color, e, s, rotated, forward, right, up);
 			}
 		}
 	}

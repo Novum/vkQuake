@@ -245,7 +245,7 @@ static void S_ApplyFilter (filter_t *filter, int *data, int stride, int count)
 	const float *kernel = filter->kernel;
 	int          parity;
 
-	input = (float *)Mem_Alloc (sizeof (float) * (filter->kernelsize + count));
+	TEMP_ALLOC (float, input, filter->kernelsize + count);
 
 	// set up the input buffer
 	// memory holds the previous filter->kernelsize samples of input.
@@ -284,7 +284,7 @@ static void S_ApplyFilter (filter_t *filter, int *data, int stride, int count)
 
 	filter->parity = parity;
 
-	Mem_Free (input);
+	TEMP_FREE (input);
 }
 
 /*
