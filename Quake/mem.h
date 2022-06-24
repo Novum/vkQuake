@@ -38,7 +38,7 @@ void  Mem_Free (const void *ptr);
 	} while (false)
 #endif
 
-#define MAX_THREAD_STACK_ALLOC_SIZE (128 * 1024)
+#define MAX_THREAD_STACK_ALLOC_SIZE (320 * 1024)
 extern THREAD_LOCAL int thread_stack_alloc_size;
 
 #define TEMP_ALLOC(type, var, size)                                                        \

@@ -574,17 +574,10 @@ static void TexMgr_AlphaEdgeFix (byte *data, int width, int height)
 TexMgr_8to32
 ================
 */
-static unsigned *TexMgr_8to32 (byte *in, int pixels, unsigned int *usepal)
+static void TexMgr_8to32 (byte *in, unsigned *out, int pixels, unsigned int *usepal)
 {
-	int       i;
-	unsigned *out, *data;
-
-	out = data = (unsigned *)Mem_Alloc (pixels * 4);
-
-	for (i = 0; i < pixels; i++)
+	for (int i = 0; i < pixels; i++)
 		*out++ = usepal[*in++];
-
-	return data;
 }
 
 /*
@@ -965,16 +958,18 @@ static void TexMgr_LoadImage8 (gltexture_t *glt, byte *data)
 	}
 
 	// convert to 32bit
-	byte *converted = (byte *)TexMgr_8to32 (data, glt->width * glt->height, usepal);
+	unsigned *converted;
+	TEMP_ALLOC (unsigned, converted, glt->width * glt->height);
+	TexMgr_8to32 (data, converted, glt->width * glt->height, usepal);
 
 	// fix edges
 	if (glt->flags & TEXPREF_ALPHA)
-		TexMgr_AlphaEdgeFix (converted, glt->width, glt->height);
+		TexMgr_AlphaEdgeFix ((byte *)converted, glt->width, glt->height);
 
 	// upload it
 	TexMgr_LoadImage32 (glt, (unsigned *)converted);
 
-	Mem_Free (converted);
+	TEMP_FREE (converted);
 }
 
 /*
