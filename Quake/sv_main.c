@@ -1159,7 +1159,7 @@ void SV_StartParticle (vec3_t org, vec3_t dir, int color, int count)
 {
 	int i, v;
 
-	if (sv.datagram.cursize > MAX_DATAGRAM - 16)
+	if (sv.datagram.cursize > sv.datagram.maxsize - 18)
 		return;
 	MSG_WriteByte (&sv.datagram, svc_particle);
 	MSG_WriteCoord (&sv.datagram, org[0], sv.protocolflags);
@@ -1216,9 +1216,6 @@ void SV_StartSound (edict_t *entity, float *origin, int channel, const char *sam
 	else if (channel > 7)
 		Con_DPrintf ("SV_StartSound: channel = %i\n", channel);
 
-	if (sv.datagram.cursize > MAX_DATAGRAM - 16)
-		return;
-
 	// find precache number for sound
 	for (sound_num = 1; sound_num < MAX_SOUNDS && sv.sound_precache[sound_num]; sound_num++)
 	{
@@ -1259,6 +1256,9 @@ void SV_StartSound (edict_t *entity, float *origin, int channel, const char *sam
 			continue;
 		// PROTOCOL_NETQUAKE do not support more than 256 sounds and/or 8192 entities.
 		if ((field_mask & (SND_LARGEENTITY | SND_LARGESOUND)) && (sv.protocol == PROTOCOL_NETQUAKE))
+			continue;
+
+		if (client->datagram.cursize > client->datagram.maxsize - 22)
 			continue;
 
 		// directed messages go only to the entity the are targeted on
