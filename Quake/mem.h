@@ -21,8 +21,7 @@
 #ifndef __MEM_H
 #define __MEM_H
 
-#include <quakedef.h>
-#include <stddef.h>
+#include "quakedef.h"
 
 // Mem_Alloc will always return zero initialized memory
 // A lot of old code was assuming this and overhead is negligible
