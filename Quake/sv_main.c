@@ -1443,6 +1443,8 @@ void SV_SendServerinfo (client_t *client)
 	client->message.maxsize = sizeof (client->msgbuf);
 	if (client->message.maxsize > (int)client->limit_reliable)
 		client->message.maxsize = client->limit_reliable;
+	if (client->datagram.maxsize > (int)client->limit_unreliable)
+		client->datagram.maxsize = client->limit_unreliable;
 
 	NET_QSocketSetMSS (client->netconnection, client->limit_unreliable);
 
@@ -2278,6 +2280,29 @@ void SV_PresendClientDatagram (client_t *client)
 	client->snapshotresume = 0;
 }
 
+
+/*
+=======================
+SV_ParticleSize
+
+If the start of buf contains a svc_particle, returns its size. Otherwise returns 0.
+=======================
+*/
+static int SV_ParticleSize (byte *buf)
+{
+	if (buf[0] == svc_particle)
+	{
+		int coord_size = 2;
+		if (sv.protocolflags & PRFL_24BITCOORD)
+			coord_size = 3;
+		else if (sv.protocolflags & (PRFL_FLOATCOORD | PRFL_INT32COORD))
+			coord_size = 4;
+		return 6 + 3 * coord_size;
+	}
+	else
+		return 0;
+}
+
 /*
 =======================
 SV_SendClientDatagram
@@ -2339,13 +2364,51 @@ qboolean SV_SendClientDatagram (client_t *client)
 		}
 
 		// copy the private datagram if there is space
-		if (msg.cursize + client->datagram.cursize < msg.maxsize && !client->datagram.overflowed)
-			SZ_Write (&msg, client->datagram.data, client->datagram.cursize);
-		client->datagram.overflowed = false;
+		if (client->datagram.cursize && !client->datagram.overflowed)
+		{
+			if (msg.cursize + client->datagram.cursize < msg.maxsize)
+				SZ_Write (&msg, client->datagram.data, client->datagram.cursize);
+			else if (client->protocol_pext2 & PEXT2_REPLACEMENTDELTAS && client->datagram.cursize < msg.maxsize)
+			{
+				// delta protocol: send private datagram in another packet
+				NET_SendUnreliableMessage (client->netconnection, &msg);
+				SZ_Clear (&msg);
+				SZ_Write (&msg, client->datagram.data, client->datagram.cursize);
+			}
+		}
 		SZ_Clear (&client->datagram);
+
 		// copy the server datagram if there is space
 		if (msg.cursize + sv.datagram.cursize < msg.maxsize)
 			SZ_Write (&msg, sv.datagram.data, sv.datagram.cursize);
+		else if (sv.datagram.cursize && client->protocol_pext2 & PEXT2_REPLACEMENTDELTAS)
+		{
+			// if the server datagram starts with particles, split them across multiple packets
+			int position = 0;
+			int size;
+			while (sv.datagram.cursize > position && (size = SV_ParticleSize (&sv.datagram.data[position])))
+			{
+				if (msg.cursize + size < msg.maxsize)
+				{
+					SZ_Write (&msg, &sv.datagram.data[position], size);
+					position += size;
+				}
+				else
+				{
+					NET_SendUnreliableMessage (client->netconnection, &msg);
+					SZ_Clear (&msg);
+				}
+			}
+			int remaining = sv.datagram.cursize - position;
+			if (msg.cursize + remaining < msg.maxsize)
+				SZ_Write (&msg, &sv.datagram.data[position], remaining);
+			else if (remaining < msg.maxsize)
+			{
+				NET_SendUnreliableMessage (client->netconnection, &msg);
+				SZ_Clear (&msg);
+				SZ_Write (&msg, &sv.datagram.data[position], remaining);
+			}
+		}
 	}
 
 	// send the datagram
