@@ -197,18 +197,18 @@ areanode_t *SV_CreateAreaNode (int depth, vec3_t mins, vec3_t maxs)
 	ClearLink (&anode->trigger_edicts);
 	ClearLink (&anode->solid_edicts);
 
-	if (depth == AREA_DEPTH)
-	{
-		anode->axis = -1;
-		anode->children[0] = anode->children[1] = NULL;
-		return anode;
-	}
-
 	VectorSubtract (maxs, mins, size);
 	if (size[0] > size[1])
 		anode->axis = 0;
 	else
 		anode->axis = 1;
+
+	if (depth == MAX_AREA_DEPTH || size[anode->axis] < 500)
+	{
+		anode->axis = -1;
+		anode->children[0] = anode->children[1] = NULL;
+		return anode;
+	}
 
 	anode->dist = 0.5 * (maxs[anode->axis] + mins[anode->axis]);
 	VectorCopy (mins, mins1);

@@ -295,8 +295,8 @@ typedef struct areanode_s
 	link_t             trigger_edicts;
 	link_t             solid_edicts;
 } areanode_t;
-#define AREA_DEPTH 4
-#define AREA_NODES 32
+#define MAX_AREA_DEPTH 9
+#define AREA_NODES (2<<MAX_AREA_DEPTH)
 
 struct qcvm_s
 {
