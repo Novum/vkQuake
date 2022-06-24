@@ -1446,8 +1446,8 @@ FIXME: make this buffer size safe someday
 
 static char *get_va_buffer (void)
 {
-	static char va_buffers[VA_NUM_BUFFS][VA_BUFFERLEN];
-	static int  buffer_idx = 0;
+	static THREAD_LOCAL char va_buffers[VA_NUM_BUFFS][VA_BUFFERLEN];
+	static THREAD_LOCAL int  buffer_idx = 0;
 	buffer_idx = (buffer_idx + 1) & (VA_NUM_BUFFS - 1);
 	return va_buffers[buffer_idx];
 }
