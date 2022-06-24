@@ -473,7 +473,7 @@ void Cmd_Unaliasall_f (void)
 #define MAX_ARGS 80
 
 static int         cmd_argc;
-static char       *cmd_argv[MAX_ARGS];
+static char        cmd_argv[MAX_ARGS][1024];
 static char        cmd_null_string[] = "";
 static const char *cmd_args = NULL;
 
@@ -654,7 +654,7 @@ void Cmd_TokenizeString (const char *text)
 
 	// clear the args from the last string
 	for (i = 0; i < cmd_argc; i++)
-		Mem_Free (cmd_argv[i]);
+		cmd_argv[i][0] = 0;
 
 	cmd_argc = 0;
 	cmd_args = NULL;
@@ -685,7 +685,7 @@ void Cmd_TokenizeString (const char *text)
 
 		if (cmd_argc < MAX_ARGS)
 		{
-			cmd_argv[cmd_argc] = q_strdup (com_token);
+			strcpy (cmd_argv[cmd_argc], com_token);
 			cmd_argc++;
 		}
 	}
