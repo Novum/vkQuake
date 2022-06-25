@@ -70,7 +70,6 @@ static qboolean S_XMP_CodecOpenStream (snd_stream_t *stream)
 #else
 	byte *moddata;
 	long  len;
-	int   mark;
 #endif
 	int fmt;
 
@@ -86,7 +85,6 @@ static qboolean S_XMP_CodecOpenStream (snd_stream_t *stream)
 	}
 #else
 	len = FS_filelength (&stream->fh);
-	mark = Hunk_LowMark ();
 	moddata = (byte *)Mem_Alloc (len);
 	FS_fread (moddata, 1, len, &stream->fh);
 	if (xmp_load_module_from_memory (c, moddata, len) < 0)
@@ -94,7 +92,7 @@ static qboolean S_XMP_CodecOpenStream (snd_stream_t *stream)
 		Con_DPrintf ("Could not load module %s\n", stream->name);
 		goto err1;
 	}
-	Hunk_FreeToLowMark (mark); /* free original file data */
+	Mem_Free (moddata); /* free original file data */
 #endif
 
 	stream->priv = c;
