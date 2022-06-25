@@ -1157,6 +1157,7 @@ void SCR_UpdateScreen (qboolean use_tasks)
 	}
 	else
 	{
+		GL_SynchronizeEndRenderingTask ();
 		SCR_SetupFrame (NULL);
 		V_RenderView (use_tasks, INVALID_TASK_HANDLE, INVALID_TASK_HANDLE, INVALID_TASK_HANDLE);
 		S_ExtraUpdate ();
