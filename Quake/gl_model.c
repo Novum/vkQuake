@@ -1763,7 +1763,7 @@ void Mod_CheckWaterVis (void)
 
 	// pvs is 1-based. leaf 0 sees all (the solid leaf).
 	// leaf 0 has no pvs, and does not appear in other leafs either, so watch out for the biases.
-	for (i = 0, leaf = loadmodel->leafs + 1; i < numclusters; i++, leaf++)
+	for (i = 0, leaf = loadmodel->leafs + 1; i < numclusters - 1; i++, leaf++)
 	{
 		byte *vis;
 		if (leaf->contents < 0) // err... wtf?
