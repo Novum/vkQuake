@@ -260,18 +260,19 @@ static void Mod_FreeSpriteMemory (msprite_t *psprite)
 	{
 		if (psprite->frames[i].type == SPR_SINGLE)
 		{
-			Mem_Free (psprite->frames[i].frameptr);
+			SAFE_FREE (psprite->frames[i].frameptr);
 		}
 		else
 		{
 			mspritegroup_t *group = (mspritegroup_t *)psprite->frames[i].frameptr;
 			for (int j = 0; j < group->numframes; ++j)
 			{
-				Mem_Free (group->frames[i]);
+				SAFE_FREE (group->frames[i]);
 			}
-			Mem_Free (psprite->frames[i].frameptr);
+			SAFE_FREE (psprite->frames[i].frameptr);
 		}
 	}
+	psprite->numframes = 0;
 }
 
 /*
