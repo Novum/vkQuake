@@ -2711,7 +2711,7 @@ static void Mod_LoadSkinTask (int i, byte ***ppskintypes)
 
 		// save 8 bit texels for the player model to remap
 		texels = (byte *)Mem_Alloc (size);
-		pheader->texels[i] = texels - (byte *)pheader;
+		pheader->texels[i] = texels;
 		memcpy (texels, skin, size);
 
 		// johnfitz -- rewritten
@@ -2752,7 +2752,7 @@ static void Mod_LoadSkinTask (int i, byte ***ppskintypes)
 			if (j == 0)
 			{
 				texels = (byte *)Mem_Alloc (size);
-				pheader->texels[i] = texels - (byte *)pheader;
+				pheader->texels[i] = texels;
 				memcpy (texels, skin, size);
 			}
 

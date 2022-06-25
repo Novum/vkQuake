@@ -3118,7 +3118,7 @@ void R_TranslateNewPlayerSkin (int playernum)
 		skinnum = 0;
 	}
 
-	pixels = (byte *)paliashdr + paliashdr->texels[skinnum]; // This is not a persistent place!
+	pixels = (byte *)paliashdr->texels[skinnum];
 
 	// upload new image
 	q_snprintf (name, sizeof (name), "player_%i", playernum);
