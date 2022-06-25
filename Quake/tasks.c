@@ -23,12 +23,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "atomics.h"
 #include "quakedef.h"
 
-#define MAX_PENDING_TASKS    1024
+#define NUM_INDEX_BITS		 10
+#define MAX_PENDING_TASKS    (1u << NUM_INDEX_BITS)
 #define MAX_EXECUTABLE_TASKS 256
 #define MAX_DEPENDENT_TASKS  16
 #define MAX_PAYLOAD_SIZE     32
-#define INDEX_BITS           20
-#define GUTTER_BITS          2
 #define MAX_WORKERS          32
 #define WORKER_HUNK_SIZE     (1 * 1024 * 1024)
 #define WAIT_SPIN_COUNT      1000
@@ -46,11 +45,11 @@ typedef enum
 typedef struct
 {
 	task_type_t     task_type;
-	uint32_t        id;
 	int             num_dependents;
 	int             indexed_limit;
 	atomic_uint32_t remaining_workers;
 	atomic_uint32_t remaining_dependencies;
+	uint64_t        id;
 	void           *func;
 	SDL_mutex      *id_mutex;
 	SDL_cond       *id_condition;
@@ -100,7 +99,7 @@ IndexFromTaskHandle
 */
 static inline uint32_t IndexFromTaskHandle (task_handle_t handle)
 {
-	return handle & 0xFFFFFFFFull;
+	return handle & (MAX_PENDING_TASKS - 1);
 }
 
 /*
@@ -108,9 +107,9 @@ static inline uint32_t IndexFromTaskHandle (task_handle_t handle)
 IdFromTaskHandle
 ====================
 */
-static inline int IdFromTaskHandle (task_handle_t handle)
+static inline uint64_t IdFromTaskHandle (task_handle_t handle)
 {
-	return handle >> 32;
+	return handle >> NUM_INDEX_BITS;
 }
 
 /*
@@ -120,7 +119,7 @@ CreateTaskHandle
 */
 static inline task_handle_t CreateTaskHandle (uint32_t index, int id)
 {
-	return (task_handle_t)index | ((task_handle_t)id << 32);
+	return (task_handle_t)index | ((task_handle_t)id << NUM_INDEX_BITS);
 }
 
 /*
