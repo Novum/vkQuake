@@ -79,7 +79,6 @@ qboolean use_simd;
 static SDL_mutex *vertex_allocate_mutex;
 static SDL_mutex *index_allocate_mutex;
 static SDL_mutex *uniform_allocate_mutex;
-static SDL_mutex *staging_mutex;
 
 /*
 ================
@@ -102,7 +101,10 @@ static VkCommandPool   staging_command_pool;
 static vulkan_memory_t staging_memory;
 static stagingbuffer_t staging_buffers[NUM_STAGING_BUFFERS];
 static int             current_staging_buffer = 0;
-
+static int             num_stagings_in_flight = 0;
+static qboolean        staging_submitting = false;
+static SDL_mutex      *staging_mutex;
+static SDL_cond       *staging_cond;
 /*
 ================
 Dynamic vertex/index & uniform buffer
@@ -476,6 +478,7 @@ void R_InitStagingBuffers ()
 	index_allocate_mutex = SDL_CreateMutex ();
 	uniform_allocate_mutex = SDL_CreateMutex ();
 	staging_mutex = SDL_CreateMutex ();
+	staging_cond = SDL_CreateCond ();
 }
 
 /*
@@ -485,6 +488,12 @@ R_SubmitStagingBuffer
 */
 static void R_SubmitStagingBuffer (int index)
 {
+	staging_submitting = true;
+	while (num_stagings_in_flight > 0)
+		SDL_CondWait (staging_cond, staging_mutex);
+	staging_submitting = false;
+	SDL_CondBroadcast (staging_cond);
+
 	VkMemoryBarrier memory_barrier;
 	memset (&memory_barrier, 0, sizeof (memory_barrier));
 	memory_barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
@@ -522,6 +531,11 @@ R_SubmitStagingBuffers
 void R_SubmitStagingBuffers ()
 {
 	SDL_LockMutex (staging_mutex);
+	if (staging_submitting)
+	{
+		while (staging_submitting || (num_stagings_in_flight > 0))
+			SDL_CondWait (staging_cond, staging_mutex);
+	}
 
 	int i;
 	for (i = 0; i < NUM_STAGING_BUFFERS; ++i)
@@ -535,10 +549,10 @@ void R_SubmitStagingBuffers ()
 
 /*
 ===============
-R_FlushStagingBuffer
+R_FlushStagingCommandBuffer
 ===============
 */
-static void R_FlushStagingBuffer (stagingbuffer_t *staging_buffer)
+static void R_FlushStagingCommandBuffer (stagingbuffer_t *staging_buffer)
 {
 	VkResult err;
 
@@ -574,6 +588,12 @@ R_StagingAllocate
 byte *R_StagingAllocate (int size, int alignment, VkCommandBuffer *command_buffer, VkBuffer *buffer, int *buffer_offset)
 {
 	SDL_LockMutex (staging_mutex);
+	if (staging_submitting)
+	{
+		while (staging_submitting || (num_stagings_in_flight > 0))
+			SDL_CondWait (staging_cond, staging_mutex);
+	}
+
 	vulkan_globals.device_idle = false;
 
 	if (size > vulkan_globals.staging_buffer_size)
@@ -581,7 +601,7 @@ byte *R_StagingAllocate (int size, int alignment, VkCommandBuffer *command_buffe
 		R_SubmitStagingBuffers ();
 
 		for (int i = 0; i < NUM_STAGING_BUFFERS; ++i)
-			R_FlushStagingBuffer (&staging_buffers[i]);
+			R_FlushStagingCommandBuffer (&staging_buffers[i]);
 
 		vulkan_globals.staging_buffer_size = size;
 
@@ -598,7 +618,7 @@ byte *R_StagingAllocate (int size, int alignment, VkCommandBuffer *command_buffe
 		R_SubmitStagingBuffer (current_staging_buffer);
 
 	staging_buffer = &staging_buffers[current_staging_buffer];
-	R_FlushStagingBuffer (staging_buffer);
+	R_FlushStagingCommandBuffer (staging_buffer);
 
 	if (command_buffer)
 		*command_buffer = staging_buffer->command_buffer;
@@ -609,17 +629,31 @@ byte *R_StagingAllocate (int size, int alignment, VkCommandBuffer *command_buffe
 
 	unsigned char *data = staging_buffer->data + staging_buffer->current_offset;
 	staging_buffer->current_offset += size;
+	num_stagings_in_flight += 1;
 
 	return data;
 }
 
 /*
 ===============
-R_StagingFinish
+R_StagingBeginCopy
 ===============
 */
-void R_StagingFinish ()
+void R_StagingBeginCopy ()
 {
+	SDL_UnlockMutex (staging_mutex);
+}
+
+/*
+===============
+R_StagingEndCopy
+===============
+*/
+void R_StagingEndCopy ()
+{
+	SDL_LockMutex (staging_mutex);
+	num_stagings_in_flight -= 1;
+	SDL_CondBroadcast (staging_cond);
 	SDL_UnlockMutex (staging_mutex);
 }
 
@@ -899,20 +933,20 @@ static void R_InitFanIndexBuffer ()
 		int             i;
 		uint16_t       *staging_mem = (uint16_t *)R_StagingAllocate (bufferSize, 1, &command_buffer, &staging_buffer, &staging_offset);
 
-		for (i = 0; i < FAN_INDEX_BUFFER_SIZE / 3; ++i)
-		{
-			staging_mem[current_index++] = 0;
-			staging_mem[current_index++] = 1 + i;
-			staging_mem[current_index++] = 2 + i;
-		}
-
 		VkBufferCopy region;
 		region.srcOffset = staging_offset;
 		region.dstOffset = 0;
 		region.size = bufferSize;
 		vkCmdCopyBuffer (command_buffer, staging_buffer, vulkan_globals.fan_index_buffer, 1, &region);
 
-		R_StagingFinish ();
+		R_StagingBeginCopy ();
+		for (i = 0; i < FAN_INDEX_BUFFER_SIZE / 3; ++i)
+		{
+			staging_mem[current_index++] = 0;
+			staging_mem[current_index++] = 1 + i;
+			staging_mem[current_index++] = 2 + i;
+		}
+		R_StagingEndCopy ();
 	}
 }
 

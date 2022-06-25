@@ -857,8 +857,6 @@ static lm_compute_surface_data_t *GL_AllocateSurfaceDataBuffer (int num_surfaces
 	region.size = buffer_size;
 	vkCmdCopyBuffer (command_buffer, staging_buffer, surface_data_buffer, 1, &region);
 
-	R_StagingFinish ();
-
 	return staging_mem;
 }
 
@@ -977,6 +975,7 @@ void GL_BuildLightmaps (void)
 
 	surface_data = GL_AllocateSurfaceDataBuffer (num_surfaces);
 
+	R_StagingBeginCopy ();
 	for (j = 1; j < MAX_MODELS; j++)
 	{
 		m = cl.model_precache[j];
@@ -1010,6 +1009,8 @@ void GL_BuildLightmaps (void)
 			surface_index += 1;
 		}
 	}
+
+	R_StagingEndCopy ();
 
 	GL_AllocateWorkgroupBoundsBuffers ();
 
@@ -1052,7 +1053,6 @@ void GL_BuildLightmaps (void)
 			VkBuffer        staging_buffer;
 			int             staging_offset;
 			byte           *bounds_staging = R_StagingAllocate (WORKGROUP_BOUNDS_BUFFER_SIZE, 1, &command_buffer, &staging_buffer, &staging_offset);
-			memcpy (bounds_staging, lm->workgroup_bounds, WORKGROUP_BOUNDS_BUFFER_SIZE);
 
 			VkBufferCopy region;
 			region.srcOffset = staging_offset;
@@ -1060,7 +1060,9 @@ void GL_BuildLightmaps (void)
 			region.size = WORKGROUP_BOUNDS_BUFFER_SIZE;
 			vkCmdCopyBuffer (command_buffer, staging_buffer, lm->workgroup_bounds_buffer, 1, &region);
 
-			R_StagingFinish ();
+			R_StagingBeginCopy ();
+			memcpy (bounds_staging, lm->workgroup_bounds, WORKGROUP_BOUNDS_BUFFER_SIZE);
+			R_StagingEndCopy ();
 		}
 
 		VkDescriptorImageInfo output_image_info;
@@ -1298,18 +1300,18 @@ void GL_BuildBModelVertexBuffer (void)
 		int             staging_offset;
 		unsigned char  *staging_memory = R_StagingAllocate (size_to_copy, 1, &command_buffer, &staging_buffer, &staging_offset);
 
-		memcpy (staging_memory, (byte *)varray + copy_offset, size_to_copy);
-
 		VkBufferCopy region;
 		region.srcOffset = staging_offset;
 		region.dstOffset = copy_offset;
 		region.size = size_to_copy;
 		vkCmdCopyBuffer (command_buffer, staging_buffer, bmodel_vertex_buffer, 1, &region);
 
+		R_StagingBeginCopy ();
+		memcpy (staging_memory, (byte *)varray + copy_offset, size_to_copy);
+		R_StagingEndCopy ();
+
 		copy_offset += size_to_copy;
 		remaining_size -= size_to_copy;
-
-		R_StagingFinish ();
 	}
 
 	Mem_Free (varray);
@@ -1637,9 +1639,6 @@ static void R_UploadLightmap (int lmap, gltexture_t *lightmap_tex)
 	int             staging_offset;
 	unsigned char  *staging_memory = R_StagingAllocate (staging_size, 4, &command_buffer, &staging_buffer, &staging_offset);
 
-	byte *data = lm->data + lm->rectchange.t * LMBLOCK_WIDTH * LIGHTMAP_BYTES;
-	memcpy (staging_memory, data, staging_size);
-
 	VkBufferImageCopy region;
 	memset (&region, 0, sizeof (region));
 	region.bufferOffset = staging_offset;
@@ -1684,7 +1683,11 @@ static void R_UploadLightmap (int lmap, gltexture_t *lightmap_tex)
 	lm->rectchange.h = 0;
 	lm->rectchange.w = 0;
 
-	R_StagingFinish ();
+	R_StagingBeginCopy ();
+	byte *data = lm->data + lm->rectchange.t * LMBLOCK_WIDTH * LIGHTMAP_BYTES;
+	memcpy (staging_memory, data, staging_size);
+	R_StagingEndCopy ();
+
 	Atomic_IncrementUInt32 (&rs_dynamiclightmaps);
 }
 

@@ -620,18 +620,18 @@ static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 			int             staging_offset;
 			unsigned char  *staging_memory = R_StagingAllocate (size_to_copy, 1, &command_buffer, &staging_buffer, &staging_offset);
 
-			memcpy (staging_memory, (byte *)indexes + copy_offset, size_to_copy);
-
 			VkBufferCopy region;
 			region.srcOffset = staging_offset;
 			region.dstOffset = copy_offset;
 			region.size = size_to_copy;
 			vkCmdCopyBuffer (command_buffer, staging_buffer, m->index_buffer, 1, &region);
 
+			R_StagingBeginCopy ();
+			memcpy (staging_memory, (byte *)indexes + copy_offset, size_to_copy);
+			R_StagingEndCopy ();
+
 			copy_offset += size_to_copy;
 			remaining_size -= size_to_copy;
-
-			R_StagingFinish ();
 		}
 	}
 
@@ -714,18 +714,18 @@ static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 			int             staging_offset;
 			unsigned char  *staging_memory = R_StagingAllocate (size_to_copy, 1, &command_buffer, &staging_buffer, &staging_offset);
 
-			memcpy (staging_memory, (byte *)vbodata + copy_offset, size_to_copy);
-
 			VkBufferCopy region;
 			region.srcOffset = staging_offset;
 			region.dstOffset = copy_offset;
 			region.size = size_to_copy;
 			vkCmdCopyBuffer (command_buffer, staging_buffer, m->vertex_buffer, 1, &region);
 
+			R_StagingBeginCopy ();
+			memcpy (staging_memory, (byte *)vbodata + copy_offset, size_to_copy);
+			R_StagingEndCopy ();
+
 			copy_offset += size_to_copy;
 			remaining_size -= size_to_copy;
-
-			R_StagingFinish ();
 		}
 	}
 

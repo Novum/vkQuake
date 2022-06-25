@@ -69,9 +69,6 @@ unsigned int d_8to24table_pants[256];
 static glheap_t **texmgr_heaps;
 static int        num_texmgr_heaps;
 
-static byte *image_resize_buffer;
-static int   image_resize_buffer_size;
-
 SDL_mutex *texmgr_mutex;
 
 /*
@@ -476,11 +473,11 @@ static unsigned *TexMgr_Downsample (unsigned *data, int in_width, int in_height,
 	assert ((out_width >= 1) && (out_width < in_width));
 	assert ((out_height >= 1) && (out_height < in_height));
 
-	if (out_size_bytes > image_resize_buffer_size)
-		image_resize_buffer = Mem_Realloc (image_resize_buffer, out_size_bytes);
-
-	stbir_resize_uint8 ((byte *)data, in_width, in_height, 0, (byte *)image_resize_buffer, out_width, out_height, 0, 4);
+	byte *image_resize_buffer;
+	TEMP_ALLOC (byte, image_resize_buffer, out_size_bytes);
+	stbir_resize_uint8 ((byte *)data, in_width, in_height, 0, image_resize_buffer, out_width, out_height, 0, 4);
 	memcpy (data, image_resize_buffer, out_size_bytes);
+	TEMP_FREE (image_resize_buffer);
 
 	return data;
 }
@@ -858,17 +855,16 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	int             staging_offset;
 	unsigned char  *staging_memory = R_StagingAllocate (staging_size, 4, &command_buffer, &staging_buffer, &staging_offset);
 
-	int num_regions = 0;
-	int mip_offset = 0;
+	int num_regions = 0;	
 
 	if (glt->flags & TEXPREF_MIPMAP)
 	{
+		int mip_offset = 0;
 		mipwidth = glt->width;
 		mipheight = glt->height;
 
 		while (mipwidth >= 1 && mipheight >= 1)
 		{
-			memcpy (staging_memory + mip_offset, data, mipwidth * mipheight * 4);
 			regions[num_regions].bufferOffset = staging_offset + mip_offset;
 			regions[num_regions].imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 			regions[num_regions].imageSubresource.layerCount = 1;
@@ -880,17 +876,13 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 			mip_offset += mipwidth * mipheight * 4;
 			num_regions += 1;
 
-			if (mipwidth > 1 && mipheight > 1)
-				TexMgr_Downsample (data, mipwidth, mipheight, mipwidth / 2, mipheight / 2);
-
 			mipwidth /= 2;
 			mipheight /= 2;
 		}
 	}
 	else
 	{
-		memcpy (staging_memory + mip_offset, data, mipwidth * mipheight * 4);
-		regions[0].bufferOffset = staging_offset + mip_offset;
+		regions[0].bufferOffset = staging_offset;
 		regions[0].imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 		regions[0].imageSubresource.layerCount = 1;
 		regions[0].imageSubresource.mipLevel = 0;
@@ -925,7 +917,32 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	image_memory_barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	vkCmdPipelineBarrier (command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL, 1, &image_memory_barrier);
 
-	R_StagingFinish ();
+	R_StagingBeginCopy ();
+	if (glt->flags & TEXPREF_MIPMAP)
+	{
+		int mip_offset = 0;
+		mipwidth = glt->width;
+		mipheight = glt->height;
+
+		while (mipwidth >= 1 && mipheight >= 1)
+		{
+			memcpy (staging_memory + mip_offset, data, mipwidth * mipheight * 4);
+
+			mip_offset += mipwidth * mipheight * 4;
+			num_regions += 1;
+
+			if (mipwidth > 1 && mipheight > 1)
+				TexMgr_Downsample (data, mipwidth, mipheight, mipwidth / 2, mipheight / 2);
+
+			mipwidth /= 2;
+			mipheight /= 2;
+		}
+	}
+	else
+	{
+		memcpy (staging_memory, data, mipwidth * mipheight * 4);
+	}
+	R_StagingEndCopy ();
 }
 
 /*

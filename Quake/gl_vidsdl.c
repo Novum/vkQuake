@@ -2796,15 +2796,15 @@ static void R_CreatePaletteOctreeBuffers (uint32_t *colors, int num_colors, pale
 		int             staging_offset;
 		uint32_t       *staging_memory = (uint32_t *)R_StagingAllocate (colors_size, 1, &command_buffer, &staging_buffer, &staging_offset);
 
-		memcpy (staging_memory, colors, colors_size);
-
 		VkBufferCopy region;
 		region.srcOffset = staging_offset;
 		region.dstOffset = 0;
 		region.size = colors_size;
 		vkCmdCopyBuffer (command_buffer, staging_buffer, palette_colors_buffer, 1, &region);
 
-		R_StagingFinish ();
+		R_StagingBeginCopy ();
+		memcpy (staging_memory, colors, colors_size);
+		R_StagingEndCopy ();
 
 		VkBufferViewCreateInfo buffer_view_create_info;
 		memset (&buffer_view_create_info, 0, sizeof (buffer_view_create_info));
@@ -2856,15 +2856,15 @@ static void R_CreatePaletteOctreeBuffers (uint32_t *colors, int num_colors, pale
 		int             staging_offset;
 		uint32_t       *staging_memory = (uint32_t *)R_StagingAllocate (nodes_size, 1, &command_buffer, &staging_buffer, &staging_offset);
 
-		memcpy (staging_memory, nodes, nodes_size);
-
 		VkBufferCopy region;
 		region.srcOffset = staging_offset;
 		region.dstOffset = 0;
 		region.size = nodes_size;
 		vkCmdCopyBuffer (command_buffer, staging_buffer, palette_octree_buffer, 1, &region);
 
-		R_StagingFinish ();
+		R_StagingBeginCopy ();
+		memcpy (staging_memory, nodes, nodes_size);
+		R_StagingEndCopy ();
 	}
 }
 

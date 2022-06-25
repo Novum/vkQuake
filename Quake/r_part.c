@@ -206,6 +206,13 @@ void R_InitParticleIndexBuffer (void)
 	int             staging_offset;
 	uint16_t       *staging_indices = (uint16_t *)R_StagingAllocate (particle_index_buffer_size, 1, &cb_context, &staging_buffer, &staging_offset);
 
+	VkBufferCopy region;
+	region.srcOffset = staging_offset;
+	region.dstOffset = 0;
+	region.size = particle_index_buffer_size;
+	vkCmdCopyBuffer (cb_context, staging_buffer, particle_index_buffer, 1, &region);
+
+	R_StagingBeginCopy ();
 	for (int i = 0; i < r_numparticles; ++i)
 	{
 		staging_indices[i * 6 + 0] = i * 4 + 0;
@@ -215,14 +222,7 @@ void R_InitParticleIndexBuffer (void)
 		staging_indices[i * 6 + 4] = i * 4 + 2;
 		staging_indices[i * 6 + 5] = i * 4 + 3;
 	}
-
-	VkBufferCopy region;
-	region.srcOffset = staging_offset;
-	region.dstOffset = 0;
-	region.size = particle_index_buffer_size;
-	vkCmdCopyBuffer (cb_context, staging_buffer, particle_index_buffer, 1, &region);
-
-	R_StagingFinish ();
+	R_StagingEndCopy ();
 }
 
 /*
