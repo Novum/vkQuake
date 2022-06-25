@@ -50,7 +50,7 @@ char *PL_GetClipboardData (void)
 	if (clipboardString != NULL && [clipboardString length] > 0) {
 		size_t sz = [clipboardString length] + 1;
 		sz = q_min(MAX_CLIPBOARDTXT, sz);
-		data = (char *) Z_Malloc(sz);
+		data = (char *) Mem_Alloc(sz);
 		q_strlcpy (data, [clipboardString cStringUsingEncoding: NSASCIIStringEncoding], sz);
 	}
     }
