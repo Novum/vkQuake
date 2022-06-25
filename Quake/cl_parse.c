@@ -1012,7 +1012,7 @@ static void CL_ParseServerInfo (void)
 
 	for (i = 1; i < nummodels; i++)
 	{
-		cl.model_precache[i] = Mod_ForName (model_precache[i], false, false);
+		cl.model_precache[i] = Mod_ForName (model_precache[i], false);
 		if (cl.model_precache[i] == NULL)
 		{
 			Host_Error ("Model %s not found", model_precache[i]);
@@ -1547,7 +1547,7 @@ static void CL_ParsePrecache (void)
 	case 0: // models
 		if (index < MAX_MODELS)
 		{
-			cl.model_precache[index] = Mod_ForName (name, false, false);
+			cl.model_precache[index] = Mod_ForName (name, false);
 			// FIXME: if its a bsp model, generate lightmaps.
 			// FIXME: update static entities with that modelindex
 		}

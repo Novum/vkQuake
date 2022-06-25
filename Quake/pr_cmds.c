@@ -1137,7 +1137,7 @@ int SV_Precache_Model (const char *s)
 			}
 
 			sv.model_precache[i] = s;
-			sv.models[i] = Mod_ForName (s, i == 1, false);
+			sv.models[i] = Mod_ForName (s, i == 1);
 			return i;
 		}
 		if (!strcmp (sv.model_precache[i], s))
@@ -1169,7 +1169,7 @@ static void PF_sv_precache_model (void)
 			}
 
 			sv.model_precache[i] = s;
-			sv.models[i] = Mod_ForName (s, i == 1, false);
+			sv.models[i] = Mod_ForName (s, i == 1);
 			return;
 		}
 		if (!strcmp (sv.model_precache[i], s))

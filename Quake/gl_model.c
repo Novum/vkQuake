@@ -29,10 +29,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 qmodel_t *loadmodel;
 char      loadname[32]; // for hunk tags
 
-static void      Mod_LoadSpriteModel (qmodel_t *mod, void *buffer, qboolean load_tasks);
-static void      Mod_LoadBrushModel (qmodel_t *mod, void *buffer, qboolean load_tasks);
-static void      Mod_LoadAliasModel (qmodel_t *mod, void *buffer, qboolean load_tasks);
-static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash, qboolean load_tasks);
+static void      Mod_LoadSpriteModel (qmodel_t *mod, void *buffer);
+static void      Mod_LoadBrushModel (qmodel_t *mod, void *buffer);
+static void      Mod_LoadAliasModel (qmodel_t *mod, void *buffer);
+static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash);
 
 cvar_t external_ents = {"external_ents", "1", CVAR_ARCHIVE};
 cvar_t external_vis = {"external_vis", "1", CVAR_ARCHIVE};
@@ -116,7 +116,7 @@ Caches the data if needed
 */
 void *Mod_Extradata (qmodel_t *mod)
 {
-	Mod_LoadModel (mod, true, false);
+	Mod_LoadModel (mod, true);
 	return mod->extradata;
 }
 
@@ -425,7 +425,7 @@ Mod_LoadModel
 Loads a model into the cache
 ==================
 */
-static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash, qboolean load_tasks)
+static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 {
 	byte *buf;
 	int   mod_type;
@@ -466,15 +466,15 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash, qboolean load_tas
 	switch (mod_type)
 	{
 	case IDPOLYHEADER:
-		Mod_LoadAliasModel (mod, buf, load_tasks);
+		Mod_LoadAliasModel (mod, buf);
 		break;
 
 	case IDSPRITEHEADER:
-		Mod_LoadSpriteModel (mod, buf, load_tasks);
+		Mod_LoadSpriteModel (mod, buf);
 		break;
 
 	default:
-		Mod_LoadBrushModel (mod, buf, load_tasks);
+		Mod_LoadBrushModel (mod, buf);
 		break;
 	}
 
@@ -489,13 +489,13 @@ Mod_ForName
 Loads in a model for the given name
 ==================
 */
-qmodel_t *Mod_ForName (const char *name, qboolean crash, qboolean load_tasks)
+qmodel_t *Mod_ForName (const char *name, qboolean crash)
 {
 	qmodel_t *mod;
 
 	mod = Mod_FindName (name);
 
-	return Mod_LoadModel (mod, crash, load_tasks);
+	return Mod_LoadModel (mod, crash);
 }
 
 /*
@@ -667,7 +667,7 @@ static void Mod_LoadTexturesTask (int i, void *unused)
 Mod_LoadTextures
 =================
 */
-static void Mod_LoadTextures (lump_t *l, qboolean load_tasks)
+static void Mod_LoadTextures (lump_t *l)
 {
 	int        i, j, pixels, num, maxanim, altmax;
 	miptex_t   mt;
@@ -747,7 +747,7 @@ static void Mod_LoadTextures (lump_t *l, qboolean load_tasks)
 
 	if (!isDedicated)
 	{
-		if (load_tasks)
+		if (!Tasks_IsWorker())
 		{
 			task_handle_t task = Task_AllocateAssignIndexedFuncAndSubmit (Mod_LoadTexturesTask, nummiptex, NULL, 0);
 			Task_Join (task, SDL_MUTEX_MAXWAIT);
@@ -2405,7 +2405,7 @@ static void Mod_SetupSubmodels (qmodel_t *mod)
 Mod_LoadBrushModel
 =================
 */
-static void Mod_LoadBrushModel (qmodel_t *mod, void *buffer, qboolean load_tasks)
+static void Mod_LoadBrushModel (qmodel_t *mod, void *buffer)
 {
 	int        i;
 	int        bsp2;
@@ -2447,7 +2447,7 @@ static void Mod_LoadBrushModel (qmodel_t *mod, void *buffer, qboolean load_tasks
 	Mod_LoadVertexes (&header->lumps[LUMP_VERTEXES]);
 	Mod_LoadEdges (&header->lumps[LUMP_EDGES], bsp2);
 	Mod_LoadSurfedges (&header->lumps[LUMP_SURFEDGES]);
-	Mod_LoadTextures (&header->lumps[LUMP_TEXTURES], load_tasks);
+	Mod_LoadTextures (&header->lumps[LUMP_TEXTURES]);
 	Mod_LoadLighting (&header->lumps[LUMP_LIGHTING]);
 	Mod_LoadPlanes (&header->lumps[LUMP_PLANES]);
 	Mod_LoadTexinfo (&header->lumps[LUMP_TEXINFO]);
@@ -2688,7 +2688,7 @@ void Mod_FloodFillSkin (byte *skin, int skinwidth, int skinheight)
 Mod_LoadAllSkins
 ===============
 */
-void *Mod_LoadAllSkins (int numskins, byte *pskintype, qboolean load_tasks)
+void *Mod_LoadAllSkins (int numskins, byte *pskintype)
 {
 	int          i, j, k, size, groupskins;
 	char         name[MAX_QPATH];
@@ -2917,7 +2917,7 @@ void Mod_SetExtraFlags (qmodel_t *mod)
 Mod_LoadAliasModel
 =================
 */
-static void Mod_LoadAliasModel (qmodel_t *mod, void *buffer, qboolean load_tasks)
+static void Mod_LoadAliasModel (qmodel_t *mod, void *buffer)
 {
 	int   i, j;
 	byte *pinstverts;
@@ -2989,7 +2989,7 @@ static void Mod_LoadAliasModel (qmodel_t *mod, void *buffer, qboolean load_tasks
 	// load the skins
 	//
 	pskintype = mod_base + sizeof (mdl_t);
-	pskintype = Mod_LoadAllSkins (pheader->numskins, pskintype, load_tasks);
+	pskintype = Mod_LoadAllSkins (pheader->numskins, pskintype);
 
 	//
 	// load base s and t vertices
@@ -3156,7 +3156,7 @@ void *Mod_LoadSpriteGroup (void *pin, mspriteframe_t **ppframe, int framenum)
 Mod_LoadSpriteModel
 =================
 */
-static void Mod_LoadSpriteModel (qmodel_t *mod, void *buffer, qboolean load_tasks)
+static void Mod_LoadSpriteModel (qmodel_t *mod, void *buffer)
 {
 	int                 i;
 	int                 version;

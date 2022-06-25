@@ -1322,7 +1322,7 @@ static void Host_Loadgame_f (void)
 					if (idx >= 1 && idx < MAX_MODELS)
 					{
 						sv.model_precache[idx] = (const char *)q_strdup (com_token);
-						sv.models[idx] = Mod_ForName (sv.model_precache[idx], idx == 1, false);
+						sv.models[idx] = Mod_ForName (sv.model_precache[idx], idx == 1);
 						// if (idx == 1)
 						//	sv.worldmodel = sv.models[idx];
 					}
@@ -2287,7 +2287,7 @@ static void Host_Viewmodel_f (void)
 		m = NULL;
 	else
 	{
-		m = Mod_ForName (Cmd_Argv (1), false, false);
+		m = Mod_ForName (Cmd_Argv (1), false);
 		if (!m)
 		{
 			Con_Printf ("Can't load %s\n", Cmd_Argv (1));

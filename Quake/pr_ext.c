@@ -2535,7 +2535,7 @@ static void PF_cl_te_lightning1 (void)
 	float   *start = G_VECTOR (OFS_PARM1);
 	float   *end = G_VECTOR (OFS_PARM2);
 
-	CL_UpdateBeam (Mod_ForName ("progs/bolt.mdl", true, false), "TE_LIGHTNING1", "TE_LIGHTNING1_END", -NUM_FOR_EDICT (ed), start, end);
+	CL_UpdateBeam (Mod_ForName ("progs/bolt.mdl", true), "TE_LIGHTNING1", "TE_LIGHTNING1_END", -NUM_FOR_EDICT (ed), start, end);
 }
 static void PF_sv_te_lightning2 (void)
 {
@@ -2559,7 +2559,7 @@ static void PF_cl_te_lightning2 (void)
 	float   *start = G_VECTOR (OFS_PARM1);
 	float   *end = G_VECTOR (OFS_PARM2);
 
-	CL_UpdateBeam (Mod_ForName ("progs/bolt2.mdl", true, false), "TE_LIGHTNING2", "TE_LIGHTNING2_END", -NUM_FOR_EDICT (ed), start, end);
+	CL_UpdateBeam (Mod_ForName ("progs/bolt2.mdl", true), "TE_LIGHTNING2", "TE_LIGHTNING2_END", -NUM_FOR_EDICT (ed), start, end);
 }
 static void PF_sv_te_wizspike (void)
 {
@@ -2613,7 +2613,7 @@ static void PF_cl_te_lightning3 (void)
 	float   *start = G_VECTOR (OFS_PARM1);
 	float   *end = G_VECTOR (OFS_PARM2);
 
-	CL_UpdateBeam (Mod_ForName ("progs/bolt3.mdl", true, false), "TE_LIGHTNING3", "TE_LIGHTNING3_END", -NUM_FOR_EDICT (ed), start, end);
+	CL_UpdateBeam (Mod_ForName ("progs/bolt3.mdl", true), "TE_LIGHTNING3", "TE_LIGHTNING3_END", -NUM_FOR_EDICT (ed), start, end);
 }
 static void PF_sv_te_lavasplash (void)
 {
@@ -2685,7 +2685,7 @@ static void PF_cl_te_beam (void)
 	float   *start = G_VECTOR (OFS_PARM1);
 	float   *end = G_VECTOR (OFS_PARM2);
 
-	CL_UpdateBeam (Mod_ForName ("progs/beam.mdl", true, false), "TE_BEAM", "TE_BEAM_END", -NUM_FOR_EDICT (ed), start, end);
+	CL_UpdateBeam (Mod_ForName ("progs/beam.mdl", true), "TE_BEAM", "TE_BEAM_END", -NUM_FOR_EDICT (ed), start, end);
 }
 #ifdef PSET_SCRIPT
 static void PF_sv_te_particlerain (void)
