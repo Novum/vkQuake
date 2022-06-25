@@ -77,7 +77,7 @@ static SDL_Thread          **worker_threads;
 static task_t                tasks[MAX_PENDING_TASKS];
 static task_queue_t         *free_task_queue;
 static task_queue_t         *executable_task_queue;
-static atomic_uint32_t       current_task_id;
+static atomic_uint64_t       current_task_id;
 static task_counter_t       *indexed_task_counters;
 static uint8_t               steal_worker_indices[MAX_WORKERS * 2];
 static THREAD_LOCAL qboolean is_worker = false;
@@ -297,7 +297,7 @@ Tasks_Init
 */
 void Tasks_Init (void)
 {
-	Atomic_StoreUInt32 (&current_task_id, 0);
+	Atomic_StoreUInt64 (&current_task_id, 0);
 
 	free_task_queue = CreateTaskQueue (MAX_PENDING_TASKS);
 	executable_task_queue = CreateTaskQueue (MAX_EXECUTABLE_TASKS);
@@ -359,7 +359,7 @@ task_handle_t Task_Allocate (void)
 {
 	uint32_t task_index = TaskQueuePop (free_task_queue);
 	task_t  *task = &tasks[task_index];
-	int      id = Atomic_IncrementUInt32 (&current_task_id);
+	uint64_t id = Atomic_IncrementUInt64 (&current_task_id) & ((1ull << (64 - NUM_INDEX_BITS)) - 1);
 	Atomic_StoreUInt32 (&task->remaining_dependencies, 1);
 	task->task_type = TASK_TYPE_NONE;
 	task->id = id;
