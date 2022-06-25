@@ -907,6 +907,9 @@ static void S_Update_ (void)
 	unsigned int endtime;
 	int          samps;
 
+	if (!snd_initialized)
+		return;
+
 	SDL_LockMutex (snd_mutex);
 
 	if (!sound_started || (snd_blocked > 0))
