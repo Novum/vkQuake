@@ -2818,7 +2818,7 @@ void *Mod_LoadAllSkins (int numskins, byte *pskintype)
 
 	if (!Tasks_IsWorker () && (numskins > 1))
 	{
-		task_handle_t task = Task_AllocateAssignIndexedFuncAndSubmit (Mod_LoadSkinTask, numskins, &ppskintypes, sizeof (byte **));
+		task_handle_t task = Task_AllocateAssignIndexedFuncAndSubmit ((task_indexed_func_t)Mod_LoadSkinTask, numskins, &ppskintypes, sizeof (byte **));
 		Task_Join (task, SDL_MUTEX_MAXWAIT);
 	}
 	else
