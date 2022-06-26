@@ -131,6 +131,7 @@ qboolean scr_drawloading;
 float    scr_disabled_time;
 
 qboolean in_update_screen;
+extern jmp_buf screen_error;
 
 int scr_tileclear_updates = 0; // johnfitz
 
@@ -1028,6 +1029,9 @@ static void SCR_DrawGUI (void *unused)
 	// FIXME: only call this when needed
 	R_BeginDebugUtilsLabel (cbx, "2D");
 	SCR_TileClear (cbx);
+
+	if (cl.qcvm.extfuncs.CSQC_DrawHud && setjmp (screen_error))
+		PR_ClearProgs (&cl.qcvm);
 
 	if (scr_drawdialog) // new game confirm
 	{

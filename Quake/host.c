@@ -53,6 +53,7 @@ int minimum_memory;
 client_t *host_client; // current client
 
 jmp_buf host_abortserver;
+jmp_buf screen_error;
 
 byte  *host_colormap;
 float  host_netinterval = 1.0 / 72;
@@ -182,6 +183,12 @@ void Host_Error (const char *error, ...)
 	q_vsnprintf (string, sizeof (string), error, argptr);
 	va_end (argptr);
 	Con_Printf ("Host_Error: %s\n", string);
+
+	if (cl.qcvm.extfuncs.CSQC_DrawHud && in_update_screen)
+	{
+		inerror = false;
+		longjmp (screen_error, 1);
+	}
 
 	if (sv.active)
 		Host_ShutdownServer (false);
