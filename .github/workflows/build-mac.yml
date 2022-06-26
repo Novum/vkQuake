@@ -14,6 +14,6 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Install Dependencies
-      run: brew install sdl2 vulkan-headers molten-vk
+      run: brew install sdl2 vulkan-headers molten-vk meson
     - name: Build vkQuake
-      run: make --directory=Quake
+      run: meson build && ninja -C build

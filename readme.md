@@ -59,6 +59,60 @@ Prerequisites:
 Open the Visual Studio solution, `Windows\VisualStudio\vkquake.sln`, select the desired configuration and platform, then
 build the solution.
 
+## Linux
+
+Make sure that both your GPU and your GPU driver support [Vulkan](https://en.wikipedia.org/wiki/Vulkan#Support_across_vendors).
+
+To compile vkQuake, first install the build dependencies:
+
+Ubuntu:
+~~~
+apt-get install git meson gcc libsdl2-dev libvulkan-dev libvorbis-dev libmad0-dev libx11-xcb-dev
+~~~
+
+Arch Linux:
+~~~
+pacman -S git meson flac glibc libgl libmad libvorbis libx11 sdl2 vulkan-validation-layers
+~~~
+
+> 📝 **Note**: For vkquake > v0.50, you will need at least v1.0.12.0 of libvulkan-dev (See [#55](https://github.com/Novum/vkQuake/issues/55)).
+
+Then clone the vkQuake repo:
+
+~~~
+git clone https://github.com/Novum/vkQuake.git
+~~~
+
+Now go to the Quake directory and compile the executable:
+
+~~~
+cd vkQuake
+meson build && ninja -C build
+~~~
+
+> 📝 **Note**: vkQuake 0.97 and later requires at least **SDL2 2.0.6 with enabled Vulkan support**. The precompiled versions in some of the distribution repositories (e.g. Ubuntu) do not currently ship with Vulkan support. You will therefore need to compile it from source. Make sure you have libvulkan-dev installed before running configure.
+
+## MacOS
+
+To compile vkQuake, first install the build dependencies with Homebrew:
+
+~~~
+brew install molten-vk vulkan-headers sdl2 libvorbis flac mad meson
+~~~
+
+Then clone the vkQuake repo:
+
+~~~
+git clone https://github.com/Novum/vkQuake.git
+~~~
+
+Now go to the Quake directory and compile the executable:
+
+~~~
+cd vkQuake
+meson build && ninja -C build
+~~~
+
 ### MinGW
 
 Setup your [MinGW-w64](https://sourceforge.net/projects/mingw-w64/) environment, e.g. using [w64devkit](https://github.com/skeeto/w64devkit) or [MSYS2](https://www.msys2.org/).
@@ -78,60 +132,6 @@ make -f Makefile.w64
 ~~~
 
 If you are on Linux and want to cross-compile for Windows, see the `build_cross_win??.sh` scripts.
-
-## Linux
-
-Make sure that both your GPU and your GPU driver support [Vulkan](https://en.wikipedia.org/wiki/Vulkan#Support_across_vendors).
-
-To compile vkQuake, first install the build dependencies:
-
-Ubuntu:
-~~~
-apt-get install git make gcc libsdl2-dev libvulkan-dev libvorbis-dev libmad0-dev libx11-xcb-dev
-~~~
-
-Arch Linux:
-~~~
-pacman -S git flac glibc libgl libmad libvorbis libx11 sdl2 vulkan-validation-layers
-~~~
-
-> 📝 **Note**: For vkquake > v0.50, you will need at least v1.0.12.0 of libvulkan-dev (See [#55](https://github.com/Novum/vkQuake/issues/55)).
-
-Then clone the vkQuake repo:
-
-~~~
-git clone https://github.com/Novum/vkQuake.git
-~~~
-
-Now go to the Quake directory and compile the executable:
-
-~~~
-cd vkQuake/Quake
-make -j
-~~~
-
-> 📝 **Note**: vkQuake 0.97 and later requires at least **SDL2 2.0.6 with enabled Vulkan support**. The precompiled versions in some of the distribution repositories (e.g. Ubuntu) do not currently ship with Vulkan support. You will therefore need to compile it from source. Make sure you have libvulkan-dev installed before running configure.
-
-## MacOS
-
-To compile vkQuake, first install the build dependencies with Homebrew:
-
-~~~
-brew install molten-vk vulkan-headers sdl2 libvorbis flac mad
-~~~
-
-Then clone the vkQuake repo:
-
-~~~
-git clone https://github.com/Novum/vkQuake.git
-~~~
-
-Now go to the Quake directory and compile the executable:
-
-~~~
-cd vkQuake/Quake
-make
-~~~
 
 # Usage
 
