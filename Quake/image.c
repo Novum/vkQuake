@@ -38,7 +38,7 @@ static THREAD_LOCAL char loadfilename[MAX_OSPATH]; // file scope so that error m
 
 typedef struct stdio_buffer_s
 {
-	FILE         *f;
+	FILE		 *f;
 	unsigned char buffer[1024];
 	int           size;
 	int           pos;
@@ -112,8 +112,6 @@ typedef struct targaheader_s
 } targaheader_t;
 
 #define TARGAHEADERSIZE 18 // size on disk
-
-targaheader_t targa_header;
 
 int fgetLittleShort (FILE *f)
 {
@@ -190,6 +188,7 @@ Image_LoadTGA
 */
 byte *Image_LoadTGA (FILE *fin, int *width, int *height, const char *name)
 {
+	targaheader_t   targa_header;
 	int             columns, rows, numPixels;
 	byte           *pixbuf;
 	int             row, column;
