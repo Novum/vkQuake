@@ -2047,8 +2047,6 @@ episode_t rogueepisodes[] = {{"Introduction", 0, 1}, {"Hell's Fortress", 1, 7}, 
 int      startepisode;
 int      startlevel;
 int      maxplayers;
-qboolean m_serverInfoMessage = false;
-double   m_serverInfoMessageTime;
 
 void M_Menu_GameOptions_f (void)
 {
@@ -2059,7 +2057,7 @@ void M_Menu_GameOptions_f (void)
 	if (maxplayers == 0)
 		maxplayers = svs.maxclients;
 	if (maxplayers < 2)
-		maxplayers = svs.maxclientslimit;
+		maxplayers = 4;
 }
 
 int gameoptions_cursor_table[] = {40, 56, 64, 72, 80, 88, 96, 112, 120};
@@ -2069,7 +2067,6 @@ int gameoptions_cursor;
 void M_GameOptions_Draw (cb_context_t *cbx)
 {
 	qpic_t *p;
-	int     x;
 
 	M_DrawTransPic (cbx, 16, 4, Draw_CachePic ("gfx/qplaque.lmp"));
 	p = Draw_CachePic ("gfx/p_multi.lmp");
@@ -2190,24 +2187,6 @@ void M_GameOptions_Draw (cb_context_t *cbx)
 
 	// line cursor
 	M_DrawCharacter (cbx, 144, gameoptions_cursor_table[gameoptions_cursor], 12 + ((int)(realtime * 4) & 1));
-
-	if (m_serverInfoMessage)
-	{
-		if ((realtime - m_serverInfoMessageTime) < 5.0)
-		{
-			x = (320 - 26 * 8) / 2;
-			M_DrawTextBox (cbx, x, 138, 24, 4);
-			x += 8;
-			M_Print (cbx, x, 146, "  More than 4 players   ");
-			M_Print (cbx, x, 154, " requires using command ");
-			M_Print (cbx, x, 162, "line parameters; please ");
-			M_Print (cbx, x, 170, "   see techinfo.txt.    ");
-		}
-		else
-		{
-			m_serverInfoMessage = false;
-		}
-	}
 }
 
 void M_NetStart_Change (int dir)
@@ -2220,11 +2199,7 @@ void M_NetStart_Change (int dir)
 	case 1:
 		maxplayers += dir;
 		if (maxplayers > svs.maxclientslimit)
-		{
 			maxplayers = svs.maxclientslimit;
-			m_serverInfoMessage = true;
-			m_serverInfoMessageTime = realtime;
-		}
 		if (maxplayers < 2)
 			maxplayers = 2;
 		break;

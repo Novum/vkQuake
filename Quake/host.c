@@ -238,9 +238,7 @@ void Host_FindMaxClients (void)
 	else if (svs.maxclients > MAX_SCOREBOARD)
 		svs.maxclients = MAX_SCOREBOARD;
 
-	svs.maxclientslimit = svs.maxclients;
-	if (svs.maxclientslimit < 4)
-		svs.maxclientslimit = 4;
+	svs.maxclientslimit = MAX_SCOREBOARD;
 	svs.clients = (struct client_s *)Mem_Alloc (svs.maxclientslimit * sizeof (client_t));
 
 	if (svs.maxclients > 1)
