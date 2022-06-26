@@ -1,17 +1,17 @@
-# Download base image ubuntu 16.04
 FROM ubuntu:16.04
+ARG DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get update
-RUN apt-get install -y apt-transport-https ca-certificates wget
-
-RUN wget -qO - https://packages.lunarg.com/lunarg-signing-key-pub.asc | apt-key add -
-RUN wget -qO /etc/apt/sources.list.d/lunarg-vulkan-1.2.141-xenial.list https://packages.lunarg.com/vulkan/1.2.141/lunarg-vulkan-1.2.141-xenial.list
-
-RUN apt-get update
-RUN apt-get install -y \
+RUN apt-get update \
+ && apt-get install -y apt-transport-https ca-certificates wget \
+ && wget -qO - https://packages.lunarg.com/lunarg-signing-key-pub.asc | apt-key add - \
+ && wget -qO /etc/apt/sources.list.d/lunarg-vulkan-1.2.141-xenial.list https://packages.lunarg.com/vulkan/1.2.141/lunarg-vulkan-1.2.141-xenial.list \
+ && apt-get update \
+ && apt-get install -y \
 	build-essential \
 	file \
 	fuse \
+	unzip \
+	ninja-build \
 	libasound2-dev \
 	libaudiofile-dev \
 	libdbus-1-dev \
@@ -41,3 +41,14 @@ RUN cd /tmp \
  && ./configure \
  && make -j \
  && make install
+
+RUN cd /tmp \
+ && wget https://github.com/ninja-build/ninja/releases/download/v1.11.0/ninja-linux.zip \
+ && unzip ninja-linux.zip \
+ && cp ninja /usr/bin/ninja
+
+RUN cd /opt \
+ && wget https://github.com/mesonbuild/meson/releases/download/0.63.0rc1/meson-0.63.0rc1.tar.gz \
+ && tar -xzf meson-0.63.0rc1.tar.gz \
+ && mv meson-0.63.0rc1 meson
+ 
