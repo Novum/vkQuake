@@ -350,6 +350,7 @@ typedef struct filelist_item_s
 extern filelist_item_t *modlist;
 extern filelist_item_t *extralevels;
 extern filelist_item_t *demolist;
+extern filelist_item_t *savelist;
 
 void               Host_ClearMemory (void);
 void               Host_ServerFrame (void);
@@ -368,9 +369,11 @@ void               Host_WriteConfiguration (void);
 void ExtraMaps_Init (void);
 void Modlist_Init (void);
 void DemoList_Init (void);
+void SaveList_Init (void);
 
 void ExtraMaps_NewGame (void);
 void DemoList_Rebuild (void);
+void SaveList_Rebuild (void);
 
 extern int current_skill; // skill level for currently loaded level (in case
                           //  the user changes the cvar while the level is

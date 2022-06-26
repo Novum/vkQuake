@@ -306,6 +306,28 @@ void DemoList_Init (void)
 	FileList_Init ("", "dem", 0, &demolist);
 }
 
+//==============================================================================
+// savegame list management
+//==============================================================================
+
+filelist_item_t *savelist;
+
+static void SaveList_Clear (void)
+{
+	FileList_Clear (&savelist);
+}
+
+void SaveList_Rebuild (void)
+{
+	SaveList_Clear ();
+	SaveList_Init ();
+}
+
+void SaveList_Init (void)
+{
+	FileList_Init ("", "sav", 0, &savelist);
+}
+
 /*
 ==================
 Host_Mods_f -- johnfitz
@@ -1116,6 +1138,7 @@ static void Host_Savegame_f (void)
 	fclose (f);
 	Con_Printf ("done.\n");
 	PR_SwitchQCVM (NULL);
+	SaveList_Rebuild ();
 }
 
 /*
