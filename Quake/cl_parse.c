@@ -2119,6 +2119,17 @@ void CL_ParseServerMessage (void)
 			else
 				Host_Error ("CSQC_Parse_Event: Missing or incompatible CSQC\n");
 			break;
+
+		case svcfte_voicechat:
+			if (!(cl.protocol_pext2 & PEXT2_VOICECHAT))
+				Host_Error ("Received svcfte_voicechat but extension not active");
+			/*sender =*/ MSG_ReadByte ();
+			/*gen =*/ MSG_ReadByte ();
+			/*seq =*/ MSG_ReadByte ();
+			int bytes = MSG_ReadShort ();
+			while (bytes-- > 0)
+				MSG_ReadByte ();
+			break;
 		}
 
 		lastcmd = cmd; // johnfitz

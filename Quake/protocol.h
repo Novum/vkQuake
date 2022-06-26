@@ -48,11 +48,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define PEXT1_SUPPORTED_SERVER  (PEXT1_CSQC) // pext1 flags that we accept from clients.
 #define PEXT1_ACCEPTED_CLIENT   (PEXT1_SUPPORTED_CLIENT)
 // PROTOCOL_FTE_PEXT2 flags
+#define PEXT2_PRYDONCURSOR      0x00000001                                 // a mouse cursor exposed to ssqc
+#define PEXT2_VOICECHAT         0x00000002                                 //+voip or cl_voip_send 1; requires opus dll, and others to also have that same dll.
 #define PEXT2_REPLACEMENTDELTAS 0x00000008                                 // more compact entity deltas (can also be split across multiple packets)
 #define PEXT2_PREDINFO          0x00000020                                 // provides input acks and reworks stats such that clc_clientdata becomes redundant.
 #define PEXT2_SUPPORTED_CLIENT  (PEXT2_REPLACEMENTDELTAS | PEXT2_PREDINFO) // pext2 flags that we understand+support
 #define PEXT2_SUPPORTED_SERVER  (PEXT2_REPLACEMENTDELTAS | PEXT2_PREDINFO)
-#define PEXT2_ACCEPTED_CLIENT   (PEXT2_SUPPORTED_CLIENT) // pext2 flags that we can parse, but don't want to advertise
+#define PEXT2_ACCEPTED_CLIENT   (PEXT2_SUPPORTED_CLIENT | PEXT2_PRYDONCURSOR | PEXT2_VOICECHAT) // pext2 flags that we can parse, but don't want to advertise
 
 // if the high bit of the servercmd is set, the low bits are fast update flags:
 #define U_MOREBITS (1 << 0)
