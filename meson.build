@@ -141,8 +141,8 @@ if flac_dep.found()
     cflags += '-DUSE_CODEC_FLAC'
 endif
 
+ogg_dep = dependency('ogg', required : get_option('use_codec_vorbis'))
 if get_option('vorbis_lib') == 'vorbis'
-    ogg_dep = dependency('ogg', required : get_option('use_codec_vorbis'))
     vorbisfile_dep = dependency('vorbisfile', required : get_option('use_codec_vorbis'))
     vorbis_dep = dependency('vorbis', required : get_option('use_codec_vorbis'))
     if ogg_dep.found() and vorbisfile_dep.found() and vorbis_dep.found()
@@ -151,7 +151,6 @@ if get_option('vorbis_lib') == 'vorbis'
         cflags += '-DUSE_CODEC_VORBIS'
     endif
 else
-    ogg_dep = dependency('ogg', required : get_option('use_codec_vorbis'))
     vorbis_dep = dependency('vorbisidec', required : get_option('use_codec_vorbis'))
     if ogg_dep.found() and vorbis_dep.found()
         srcs += 'Quake/snd_vorbis.c'
@@ -162,7 +161,7 @@ endif
 
 opus_dep = dependency('opus', required : get_option('use_codec_opus'))
 opusfile_dep = dependency('opusfile', required : get_option('use_codec_opus'))
-if opus_dep.found()
+if opus_dep.found() and opusfile_dep.found()
     srcs += 'Quake/snd_opus.c'
     deps += [ opus_dep, opusfile_dep ]
     cflags += '-DUSE_CODEC_OPUS'
