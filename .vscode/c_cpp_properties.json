@@ -31,12 +31,7 @@
         {
             "name": "Linux",
             "includePath": [
-                "/usr/include/c++/7",
-                "/usr/include/x86_64-linux-gnu/c++/7",
-                "/usr/include/c++/7/backward",
-                "/usr/lib/gcc/x86_64-linux-gnu/7/include",
                 "/usr/local/include",
-                "/usr/lib/gcc/x86_64-linux-gnu/7/include-fixed",
                 "/usr/include/x86_64-linux-gnu",
                 "/usr/include",
                 "${workspaceRoot}",
@@ -46,12 +41,7 @@
             "intelliSenseMode": "clang-x64",
             "browse": {
                 "path": [
-                    "/usr/include/c++/7",
-                    "/usr/include/x86_64-linux-gnu/c++/7",
-                    "/usr/include/c++/7/backward",
-                    "/usr/lib/gcc/x86_64-linux-gnu/7/include",
                     "/usr/local/include",
-                    "/usr/lib/gcc/x86_64-linux-gnu/7/include-fixed",
                     "/usr/include/x86_64-linux-gnu",
                     "/usr/include",
                     "${workspaceRoot}",
@@ -61,7 +51,8 @@
                 "databaseFilename": ""
             },
             "cStandard": "gnu99",
-            "cppStandard": "c++98"
+            "cppStandard": "c++98",
+            "compileCommands": "${workspaceFolder}/build/release/compile_commands.json"
         },
         {
             "name": "Win32",
