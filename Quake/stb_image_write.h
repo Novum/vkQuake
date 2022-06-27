@@ -404,7 +404,7 @@ static int stbiw__jpg_processDU (
 		int            startpos = i;
 		int            nrzeroes;
 		unsigned short bits[2];
-		for (; DU[i] == 0 && i <= end0pos; ++i)
+		for (; i <= end0pos && DU[i] == 0; ++i)
 		{
 		}
 		nrzeroes = i - startpos;
