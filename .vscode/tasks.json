@@ -6,7 +6,7 @@
         {
             "label": "debug",
             "type": "shell",
-            "command": "meson build/release -Dbuildtype=debug && ninja -C build/release",
+            "command": "meson build/debug -Dbuildtype=debug && ninja -C build/debug",
             "group": "build",
             "presentation": {
                 "reveal": "always",
