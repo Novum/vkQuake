@@ -90,6 +90,13 @@ cd vkQuake
 meson build && ninja -C build
 ~~~
 
+> 📝 **Note**: The Meson version needs to be 0.47.0 or newer. For older distributions you can use make:
+> ~~~
+> cd vkQuake/Quake
+> make -j
+> ~~~
+> Meson is the preferred way to build vkQuake because it automatically checks for out of date file depenencies, is faster and has better error reporting for missing dependencies.
+
 > 📝 **Note**: vkQuake 0.97 and later requires at least **SDL2 2.0.6 with enabled Vulkan support**. The precompiled versions in some of the distribution repositories (e.g. Ubuntu) do not currently ship with Vulkan support. You will therefore need to compile it from source. Make sure you have libvulkan-dev installed before running configure.
 
 ## MacOS
@@ -112,6 +119,8 @@ Now go to the Quake directory and compile the executable:
 cd vkQuake
 meson build && ninja -C build
 ~~~
+
+> 📝 **Note**: The Meson version needs to be 0.47.0 or newer.
 
 ### MinGW
 
