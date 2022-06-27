@@ -31,6 +31,9 @@ RUN apt-get update \
 	libxt-dev \
 	libxv-dev \
 	libxxf86vm-dev \
+	libflac-dev \
+	libopus-dev \
+	libopusfile-dev \
 	vulkan-sdk \
 	zlib1g-dev
 
