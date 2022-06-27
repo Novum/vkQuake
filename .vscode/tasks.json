@@ -6,7 +6,7 @@
         {
             "label": "debug",
             "type": "shell",
-            "command": "make DEBUG=1 -j -C Quake",
+            "command": "meson build/release -Dbuildtype=debug && ninja -C build/release",
             "group": "build",
             "presentation": {
                 "reveal": "always",
@@ -19,7 +19,7 @@
         {
             "label": "release",
             "type": "shell",
-            "command": "make -j -C Quake",
+            "command": "meson build/release -Dbuildtype=release && ninja -C build/release",
             "group": "build",
             "presentation": {
                 "reveal": "always",
@@ -35,7 +35,7 @@
             "command": [ "CC=clang",
                 "CFLAGS=\"-fsanitize=address -fsanitize=undefined\"",
                 "LDFLAGS=\"-fsanitize=address -fsanitize=undefined\"",
-                "make DEBUG=1 -j -C Quake" 
+                "meson build/sanitize -Dbuildtype=debug && ninja -C build/sanitize" 
             ],
             "group": "build",
             "presentation": {
@@ -49,7 +49,7 @@
         {
             "label": "clean",
             "type": "shell",
-            "command": "make clean -C Quake",
+            "command": "rm -rf build",
             "group": "build",
             "presentation": {
                 "reveal": "always",

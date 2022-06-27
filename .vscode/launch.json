@@ -5,12 +5,19 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "vkquake",
-            // The CodeLLDB extension is required for this.
-            // https://marketplace.visualstudio.com/items?itemName=vadimcn.vscode-lldb
+            "name": "release",
             "type": "lldb",
             "request": "launch",
-            "program": "${workspaceFolder}/Quake/vkquake",
+            "program": "${workspaceFolder}/build/release/vkquake",
+            "args": [ "-basedir", "${env:QUAKE_DIR}" ],
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "release"
+        },
+        {
+            "name": "debug",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/debug/vkquake",
             "args": [ "-basedir", "${env:QUAKE_DIR}" ],
             "cwd": "${workspaceFolder}",
             "preLaunchTask": "debug"
