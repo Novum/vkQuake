@@ -10,7 +10,7 @@ Improvements over QuakeSpasm include:
 * Native support for anti aliasing and anisotropic filtering
 * 8-bit color emulation
 * Scaling for pixelated look
-* Mods menu to easily choose a mod to load
+* Mods menu for easy mod loading
 * More modern protocol to avoid certain movement issues (from QSS)
 * Support for custom mod HUDs (from QSS)
 * Support for scriptable particles (from QSS)
