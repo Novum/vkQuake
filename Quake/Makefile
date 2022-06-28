@@ -51,7 +51,7 @@ LDFLAGS ?=
 DFLAGS ?=
 CFLAGS ?=
 
-CFLAGS += -Wall -Wno-trigraphs -Wno-unused-function -Werror -std=gnu11
+CFLAGS += -Wall -Wno-trigraphs -Wno-unused-function -Werror -std=gnu11 -MMD
 CFLAGS += $(CPUFLAGS)
 ifneq ($(DEBUG),0)
 DFLAGS += -D_DEBUG
@@ -170,30 +170,8 @@ endif
 LIBS := $(COMMON_LIBS) $(NET_LIBS) $(CODECLIBS)
 
 # ---------------------------
-# targets
-# ---------------------------
-
-.PHONY:	clean debug release
-
-DEFAULT_TARGET := vkquake
-
-# ---------------------------
-# rules
-# ---------------------------
-
-%.o:	%.c
-	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ $<
-ifeq ($(DEBUG),0)
-%.o:	../Shaders/Compiled/Release/%.c
-	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ $^
-else
-%.o:	../Shaders/Compiled/Debug/%.c
-	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ $^
-endif
-
-# ----------------------------------------------------------------------------
 # objects
-# ----------------------------------------------------------------------------
+# ---------------------------
 
 MUSIC_OBJS:= bgmusic.o \
 	snd_codec.o \
@@ -215,7 +193,6 @@ SYSOBJ_GL_VID:= gl_vidsdl.o
 SYSOBJ_NET := net_bsd.o net_udp.o
 SYSOBJ_SYS := pl_linux.o sys_sdl_unix.o
 SYSOBJ_MAIN:= main_sdl.o
-SYSOBJ_RES :=
 
 SHADER_OBJS = \
 	alias.frag.o \
@@ -312,24 +289,37 @@ OBJS := strlcat.o \
 	world.o \
 	mem.o \
 	tasks.o \
-	$(SYSOBJ_SYS) $(SYSOBJ_MAIN) $(SYSOBJ_RES)
+	$(SYSOBJ_SYS) $(SYSOBJ_MAIN)
 
-# ------------------------
-# Linux build rules
-# ------------------------
+# ---------------------------
+# targets / rules
+# ---------------------------
+
+.PHONY:	clean debug release
+
+DEFAULT_TARGET := vkquake
+all: $(DEFAULT_TARGET)
+
+%.o:	%.c
+	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ $<
+ifeq ($(DEBUG),0)
+%.o:	../Shaders/Compiled/Release/%.c
+	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ $^
+else
+%.o:	../Shaders/Compiled/Debug/%.c
+	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ $^
+endif
 
 vkquake:	$(OBJS)
 	$(LINKER) $(OBJS) $(LDFLAGS) $(LIBS) $(SDL_LIBS) -o $@
 	$(call do_strip,$@)
-
-image.o: lodepng.c lodepng.h stb_image_write.h
 
 release:	vkquake
 debug:
 	$(error Use "make DEBUG=1")
 
 clean:
-	rm -f $(shell find . \( -name '*~' -o -name '#*#' -o -name '*.o' -o -name '*.res' -o -name $(DEFAULT_TARGET) \) -print)
+	$(RM) *.o *.d $(DEFAULT_TARGET)
 
 prefix ?= /usr
 exec_prefix ?= $(prefix)
@@ -340,3 +330,5 @@ INSTALL_PROGRAM ?= $(INSTALL)
 INSTALL_DATA ?= ${INSTALL} -m 644
 install: vkquake
 	$(INSTALL_PROGRAM) $(CURDIR)/vkquake $(DESTDIR)$(bindir)/vkquake
+
+sinclude $(OBJS:.o=.d)

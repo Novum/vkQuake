@@ -51,7 +51,7 @@ CPUFLAGS+=-msse2
 endif
 LDFLAGS = -m32 -mwindows -static-libgcc
 DFLAGS ?=
-CFLAGS ?= -m32 -Wall -Wno-trigraphs -std=gnu11 -D_WIN32_WINNT=0x0501
+CFLAGS ?= -m32 -Wall -Wno-trigraphs -std=gnu11 -D_WIN32_WINNT=0x0501 -MMD
 CFLAGS += $(CPUFLAGS)
 
 ifneq ($(DEBUG),0)
@@ -167,32 +167,8 @@ COMMON_LIBS:= -lwinmm
 LIBS := $(COMMON_LIBS) $(NET_LIBS) $(CODEC_LINK) $(CODECLIBS) $(VULKAN_LINK) $(VULKAN_LIBS)
 
 # ---------------------------
-# targets
-# ---------------------------
-
-.PHONY:	clean debug release
-
-DEFAULT_TARGET := vkQuake.exe
-
-# ---------------------------
-# rules
-# ---------------------------
-
-%.o:	%.c
-	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ $<
-ifeq ($(DEBUG),0)
-%.o:	../Shaders/Compiled/Release/%.c
-	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ $^
-else
-%.o:	../Shaders/Compiled/Debug/%.c
-	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ $^
-endif
-%.res:	../Windows/%.rc
-	$(WINDRES) -I../Windows --output-format=coff --target=pe-i386 -o $@ $<
-
-# ----------------------------------------------------------------------------
 # objects
-# ----------------------------------------------------------------------------
+# ---------------------------
 
 MUSIC_OBJS:= bgmusic.o \
 	snd_codec.o \
@@ -311,17 +287,32 @@ OBJS := strlcat.o \
 	world.o \
 	mem.o \
 	tasks.o \
-	$(SYSOBJ_SYS) $(SYSOBJ_MAIN) $(SYSOBJ_RES)
+	$(SYSOBJ_SYS) $(SYSOBJ_MAIN)
 
-# ------------------------
-# MinGW build rules
-# ------------------------
+# ---------------------------
+# targets / rules
+# ---------------------------
 
-vkQuake.exe:	$(OBJS) dll
-	$(LINKER) $(OBJS) $(LDFLAGS) $(LIBS) $(SDL_LIBS) -o $@
+.PHONY:	clean debug release
+
+DEFAULT_TARGET := vkQuake.exe
+all: $(DEFAULT_TARGET) dll
+
+%.o:	%.c
+	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ $<
+ifeq ($(DEBUG),0)
+%.o:	../Shaders/Compiled/Release/%.c
+	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ $^
+else
+%.o:	../Shaders/Compiled/Debug/%.c
+	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ $^
+endif
+%.res:	../Windows/%.rc
+	$(WINDRES) -I../Windows --output-format=coff --target=pe-i386 -o $@ $<
+
+vkQuake.exe: $(OBJS) $(SYSOBJ_RES)
+	$(LINKER) $(OBJS) $(SYSOBJ_RES) $(LDFLAGS) $(LIBS) $(SDL_LIBS) -o $@
 	$(call do_strip,$@)
-
-image.o: lodepng.c lodepng.h stb_image_write.h
 
 dll:
 	cp ../Windows/codecs/x86/*.dll .
@@ -332,4 +323,6 @@ debug:
 	$(error Use "make DEBUG=1")
 
 clean:
-	rm -f $(shell find . \( -name '*~' -o -name '#*#' -o -name '*.o' -o -name '*.res' -o -name '*.dll' -o -name $(DEFAULT_TARGET) \) -print)
+	$(RM) *.o *.d *.res *.dll $(DEFAULT_TARGET)
+
+sinclude $(OBJS:.o=.d)
