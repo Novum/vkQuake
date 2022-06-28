@@ -371,14 +371,14 @@ static bool mi_os_mem_free(void* addr, size_t size, bool was_committed, mi_stats
     }
   }
   if (errcode != 0) {
-    _mi_warning_message("unable to release OS memory: error code 0x%x, addr: %p, size: %zu\n", errcode, addr, size);
+    _mi_warning_message("unable to release OS memory: error code 0x%x, addr: %p, size: %" MI_PRISZU "\n", errcode, addr, size);
   }
 #elif defined(MI_USE_SBRK) || defined(__wasi__)
   err = false; // sbrk heap cannot be shrunk
 #else
   err = (munmap(addr, size) == -1);
   if (err) {
-    _mi_warning_message("unable to release OS memory: %s, addr: %p, size: %zu\n", strerror(errno), addr, size);
+    _mi_warning_message("unable to release OS memory: %s, addr: %p, size: %" MI_PRISZU "\n", strerror(errno), addr, size);
   }
 #endif
   if (was_committed) { _mi_stat_decrease(&stats->committed, size); }
@@ -403,7 +403,7 @@ static void* mi_win_virtual_allocx(void* addr, size_t size, size_t try_alignment
     if (hint != NULL) {
       void* p = VirtualAlloc(hint, size, flags, PAGE_READWRITE);
       if (p != NULL) return p;
-      _mi_verbose_message("warning: unable to allocate hinted aligned OS memory (%zu bytes, error code: 0x%x, address: %p, alignment: %zu, flags: 0x%x)\n", size, GetLastError(), hint, try_alignment, flags);
+      _mi_verbose_message("warning: unable to allocate hinted aligned OS memory (%" MI_PRISZU " bytes, error code: 0x%x, address: %p, alignment: %" MI_PRISZU ", flags: 0x%x)\n", size, GetLastError(), hint, try_alignment, flags);
       // fall through on error
     }
   } 
@@ -417,7 +417,7 @@ static void* mi_win_virtual_allocx(void* addr, size_t size, size_t try_alignment
     param.Arg.Pointer = &reqs;
     void* p = (*pVirtualAlloc2)(GetCurrentProcess(), addr, size, flags, PAGE_READWRITE, &param, 1);
     if (p != NULL) return p;
-    _mi_warning_message("unable to allocate aligned OS memory (%zu bytes, error code: 0x%x, address: %p, alignment: %zu, flags: 0x%x)\n", size, GetLastError(), addr, try_alignment, flags);
+    _mi_warning_message("unable to allocate aligned OS memory (%" MI_PRISZU " bytes, error code: 0x%x, address: %p, alignment: %" MI_PRISZU ", flags: 0x%x)\n", size, GetLastError(), addr, try_alignment, flags);
     // fall through on error
   }
   // last resort
@@ -454,7 +454,7 @@ static void* mi_win_virtual_alloc(void* addr, size_t size, size_t try_alignment,
     p = mi_win_virtual_allocx(addr, size, try_alignment, flags);
   }
   if (p == NULL) {
-    _mi_warning_message("unable to allocate OS memory (%zu bytes, error code: 0x%x, address: %p, alignment: %zu, flags: 0x%x, large only: %d, allow large: %d)\n", size, GetLastError(), addr, try_alignment, flags, large_only, allow_large);
+    _mi_warning_message("unable to allocate OS memory (%" MI_PRISZU " bytes, error code: 0x%x, address: %p, alignment: %" MI_PRISZU ", flags: 0x%x, large only: %d, allow large: %d)\n", size, GetLastError(), addr, try_alignment, flags, large_only, allow_large);
   }
   return p;
 }
@@ -529,7 +529,7 @@ static void* mi_heap_grow(size_t size, size_t try_alignment) {
     }
   }
   if (p == NULL) {
-    _mi_warning_message("unable to allocate sbrk/wasm_memory_grow OS memory (%zu bytes, %zu alignment)\n", size, try_alignment);    
+    _mi_warning_message("unable to allocate sbrk/wasm_memory_grow OS memory (%" MI_PRISZU " bytes, %" MI_PRISZU " alignment)\n", size, try_alignment);    
     errno = ENOMEM;
     return NULL;
   }
@@ -690,7 +690,7 @@ static void* mi_unix_mmap(void* addr, size_t size, size_t try_alignment, int pro
     }
   }
   if (p == NULL) {
-    _mi_warning_message("unable to allocate OS memory (%zu bytes, error code: %i, address: %p, large only: %d, allow large: %d)\n", size, errno, addr, large_only, allow_large);
+    _mi_warning_message("unable to allocate OS memory (%" MI_PRISZU " bytes, error code: %i, address: %p, large only: %d, allow large: %d)\n", size, errno, addr, large_only, allow_large);
   }
   return p;
 }
@@ -757,7 +757,7 @@ static void* mi_os_mem_alloc_aligned(size_t size, size_t alignment, bool commit,
   // if not aligned, free it, overallocate, and unmap around it
   if (((uintptr_t)p % alignment != 0)) {
     mi_os_mem_free(p, size, commit, stats);
-    _mi_warning_message("unable to allocate aligned OS memory directly, fall back to over-allocation (%zu bytes, address: %p, alignment: %zu, commit: %d)\n", size, p, alignment, commit);
+    _mi_warning_message("unable to allocate aligned OS memory directly, fall back to over-allocation (%" MI_PRISZU " bytes, address: %p, alignment: %" MI_PRISZU ", commit: %d)\n", size, p, alignment, commit);
     if (size >= (SIZE_MAX - alignment)) return NULL; // overflow
     const size_t over_size = size + alignment;
 
@@ -946,7 +946,7 @@ static bool mi_os_commitx(void* addr, size_t size, bool commit, bool conservativ
   }
   #endif
   if (err != 0) {
-    _mi_warning_message("%s error: start: %p, csize: 0x%zx, err: %i\n", commit ? "commit" : "decommit", start, csize, err);
+    _mi_warning_message("%s error: start: %p, csize: 0x%" MI_PRISZX ", err: %i\n", commit ? "commit" : "decommit", start, csize, err);
     mi_mprotect_hint(err);
   }
   mi_assert_internal(err == 0);
@@ -1019,7 +1019,7 @@ static bool mi_os_resetx(void* addr, size_t size, bool reset, mi_stats_t* stats)
   int err = mi_madvise(start, csize, MADV_DONTNEED);
 #endif
   if (err != 0) {
-    _mi_warning_message("madvise reset error: start: %p, csize: 0x%zx, errno: %i\n", start, csize, errno);
+    _mi_warning_message("madvise reset error: start: %p, csize: 0x%" MI_PRISZX ", errno: %i\n", start, csize, errno);
   }
   //mi_assert(err == 0);
   if (err != 0) return false;
@@ -1074,7 +1074,7 @@ static  bool mi_os_protectx(void* addr, size_t size, bool protect) {
   if (err != 0) { err = errno; }
 #endif
   if (err != 0) {
-    _mi_warning_message("mprotect error: start: %p, csize: 0x%zx, err: %i\n", start, csize, err);
+    _mi_warning_message("mprotect error: start: %p, csize: 0x%" MI_PRISZX ", err: %i\n", start, csize, err);
     mi_mprotect_hint(err);
   }
   return (err == 0);
@@ -1259,7 +1259,7 @@ void* _mi_os_alloc_huge_os_pages(size_t pages, int numa_node, mi_msecs_t max_mse
     if (p != addr) {
       // no success, issue a warning and break
       if (p != NULL) {
-        _mi_warning_message("could not allocate contiguous huge page %zu at %p\n", page, addr);
+        _mi_warning_message("could not allocate contiguous huge page %" MI_PRISZU " at %p\n", page, addr);
         _mi_os_free(p, MI_HUGE_OS_PAGE_SIZE, &_mi_stats_main);
       }
       break;
@@ -1427,7 +1427,7 @@ size_t _mi_os_numa_node_count_get(void) {
       if (count == 0) count = 1;
     }    
     mi_atomic_store_release(&_mi_numa_node_count, count); // save it
-    _mi_verbose_message("using %zd numa regions\n", count);
+    _mi_verbose_message("using %" MI_PRISZU " numa regions\n", count);
   }
   return count;
 }
