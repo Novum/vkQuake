@@ -1619,6 +1619,7 @@ void M_Help_Key (int key)
 static int num_mods = 0;
 static int first_mod = 0;
 static int mods_cursor = 0;
+static int mod_loaded_from_menu = 0;
 
 void M_Menu_Mods_f (void)
 {
@@ -1626,6 +1627,7 @@ void M_Menu_Mods_f (void)
 	key_dest = key_menu;
 	m_state = m_mods;
 	m_entersound = true;
+	num_mods = 0;
 	for (filelist_item_t *item = modlist; item; item = item->next)
 		++num_mods;
 	first_mod = 0;
@@ -1673,6 +1675,8 @@ void M_Mods_Key (int key)
 			{
 				Cbuf_AddText ("game ");
 				Cbuf_AddText (item->name);
+				Cbuf_AddText ("\n");
+				mod_loaded_from_menu = 1;
 				m_state = m_main;
 			}
 		break;
@@ -1726,8 +1730,7 @@ void M_Menu_Quit_f (void)
 {
 	if (m_state == m_quit)
 		return;
-	qboolean base_game = COM_GetGameNames (false)[0] == 0;
-	if (base_game)
+	if (!mod_loaded_from_menu)
 	{
 		wasInMenus = (key_dest == key_menu);
 		IN_Deactivate (modestate == MS_WINDOWED);
@@ -1738,7 +1741,10 @@ void M_Menu_Quit_f (void)
 		msgNumber = rand () & 7;
 	}
 	else
-		Cbuf_AddText ("game " GAMENAME);
+	{
+		mod_loaded_from_menu = 0;
+		Cbuf_AddText ("game " GAMENAME "\n");
+	}
 }
 
 void M_Quit_Key (int key)
