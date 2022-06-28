@@ -32,7 +32,29 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <stdlib.h>
 #endif
 
-THREAD_LOCAL int thread_stack_alloc_size = 0;
+#define THREAD_STACK_RESERVATION (128ll * 1024ll)
+#define MAX_STACK_ALLOC_SIZE     (512ll * 1024ll)
+
+THREAD_LOCAL size_t thread_stack_alloc_size = 0;
+THREAD_LOCAL size_t max_thread_stack_alloc_size = 0;
+
+/*
+====================
+Mem_InitThread
+====================
+*/
+void Mem_InitThread ()
+{
+#ifdef _MSC_VER
+	max_thread_stack_alloc_size = MAX_STACK_ALLOC_SIZE;
+#else
+	struct rlimit limit;
+	if (getrlimit (RLIMIT_STACK, &limit) == 0)
+	{
+		max_thread_stack_alloc_size = (size_t)CLAMP (0ll, (int64_t)limit.rlim_cur - THREAD_STACK_RESERVATION, MAX_STACK_ALLOC_SIZE);
+	}
+#endif
+}
 
 /*
 ====================

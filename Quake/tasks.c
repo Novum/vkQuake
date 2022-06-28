@@ -23,7 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "atomics.h"
 #include "quakedef.h"
 
-#define NUM_INDEX_BITS		 10
+#define NUM_INDEX_BITS       10
 #define MAX_PENDING_TASKS    (1u << NUM_INDEX_BITS)
 #define MAX_EXECUTABLE_TASKS 256
 #define MAX_DEPENDENT_TASKS  16
@@ -258,6 +258,7 @@ Task_Worker
 */
 static int Task_Worker (void *data)
 {
+	Mem_InitThread ();
 	is_worker = true;
 
 	const int worker_index = (intptr_t)data;
