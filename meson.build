@@ -1,4 +1,4 @@
-project('vkquake', 'c')
+project('vkquake', 'c', default_options : ['c_std=gnu11'])
 
 cflags = ['-Wall', '-Wno-trigraphs', '-Wno-unused-function', '-Werror']
 
