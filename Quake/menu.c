@@ -1655,6 +1655,8 @@ void M_Mods_Draw (cb_context_t *cbx)
 
 void M_Mods_Key (int key)
 {
+	int prev_mods_cursor = mods_cursor;
+
 	switch (key)
 	{
 	case K_ESCAPE:
@@ -1675,33 +1677,42 @@ void M_Mods_Key (int key)
 			}
 		break;
 
+	case K_HOME:
+		mods_cursor = 0;
+		first_mod = 0;
+		break;
+
+	case K_END:
+		mods_cursor = num_mods - 1;
+		first_mod = num_mods - MAX_MODS_ON_SCREEN;
+		break;
+
+	case K_PGUP:
+		mods_cursor -= MAX_MODS_ON_SCREEN;
+		first_mod = max(0, first_mod - MAX_MODS_ON_SCREEN);
+		break;
+
+	case K_PGDN:
+		mods_cursor += MAX_MODS_ON_SCREEN;
+		first_mod = min(first_mod + MAX_MODS_ON_SCREEN, num_mods - 1 - MAX_MODS_ON_SCREEN);
+		break;
+
 	case K_UPARROW:
-		if (mods_cursor <= 0)
-		{
-			mods_cursor = 0;
-			break;
-		}
-		else
-		{
-			S_LocalSound ("misc/menu1.wav");
-			mods_cursor--;
-		}
-		first_mod = min (mods_cursor, first_mod);
+		--mods_cursor;
 		break;
 
 	case K_DOWNARROW:
-		if (mods_cursor >= (num_mods - 1))
-		{
-			mods_cursor = num_mods - 1;
-		}
-		else
-		{
-			S_LocalSound ("misc/menu1.wav");
-			mods_cursor++;
-		}
-		first_mod = max (mods_cursor - MAX_MODS_ON_SCREEN + 1, first_mod);
+		++mods_cursor;
 		break;
 	}
+
+	mods_cursor = CLAMP(0, mods_cursor, num_mods - 1);
+	if (mods_cursor != prev_mods_cursor)
+	{
+		S_LocalSound ("misc/menu1.wav");
+		prev_mods_cursor = mods_cursor;
+	}
+	first_mod = CLAMP(mods_cursor - MAX_MODS_ON_SCREEN + 1, first_mod, mods_cursor);
 }
 
 //=============================================================================
