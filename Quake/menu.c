@@ -1637,8 +1637,8 @@ void M_Mods_Draw (cb_context_t *cbx)
 	M_DrawTransPic (cbx, 16, 4, Draw_CachePic ("gfx/qplaque.lmp"));
 	qpic_t *p = Draw_CachePic ("gfx/p_mods.lmp");
 	M_DrawPic (cbx, (320 - p->width) / 2, 4, p);
-
 	int mod_index = -first_mod;
+
 	for (filelist_item_t *item = modlist; item; item = item->next)
 	{
 		if (mod_index >= MAX_MODS_ON_SCREEN)
@@ -1656,6 +1656,7 @@ void M_Mods_Draw (cb_context_t *cbx)
 void M_Mods_Key (int key)
 {
 	int prev_mods_cursor = mods_cursor;
+	int mod_index = 0;
 
 	switch (key)
 	{
@@ -1667,7 +1668,6 @@ void M_Mods_Key (int key)
 	case K_ENTER:
 	case K_KP_ENTER:
 	case K_ABUTTON:
-		int mod_index = 0;
 		for (filelist_item_t *item = modlist; item; item = item->next)
 			if (mod_index++ == mods_cursor)
 			{
@@ -1689,12 +1689,12 @@ void M_Mods_Key (int key)
 
 	case K_PGUP:
 		mods_cursor -= MAX_MODS_ON_SCREEN;
-		first_mod = max(0, first_mod - MAX_MODS_ON_SCREEN);
+		first_mod = q_max (0, first_mod - MAX_MODS_ON_SCREEN);
 		break;
 
 	case K_PGDN:
 		mods_cursor += MAX_MODS_ON_SCREEN;
-		first_mod = min(first_mod + MAX_MODS_ON_SCREEN, num_mods - 1 - MAX_MODS_ON_SCREEN);
+		first_mod = q_min (first_mod + MAX_MODS_ON_SCREEN, num_mods - 1 - MAX_MODS_ON_SCREEN);
 		break;
 
 	case K_UPARROW:
@@ -1706,13 +1706,13 @@ void M_Mods_Key (int key)
 		break;
 	}
 
-	mods_cursor = CLAMP(0, mods_cursor, num_mods - 1);
+	mods_cursor = CLAMP (0, mods_cursor, num_mods - 1);
 	if (mods_cursor != prev_mods_cursor)
 	{
 		S_LocalSound ("misc/menu1.wav");
 		prev_mods_cursor = mods_cursor;
 	}
-	first_mod = CLAMP(mods_cursor - MAX_MODS_ON_SCREEN + 1, first_mod, mods_cursor);
+	first_mod = CLAMP (mods_cursor - MAX_MODS_ON_SCREEN + 1, first_mod, mods_cursor);
 }
 
 //=============================================================================
