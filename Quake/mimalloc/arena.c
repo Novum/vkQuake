@@ -251,12 +251,12 @@ void _mi_arena_free(void* p, size_t size, size_t memid, bool all_committed, mi_o
     const size_t blocks = mi_block_count_of_size(size);
     // checks
     if (arena == NULL) {
-      _mi_error_message(EINVAL, "trying to free from non-existent arena: %p, size %zu, memid: 0x%zx\n", p, size, memid);
+      _mi_error_message(EINVAL, "trying to free from non-existent arena: %p, size %" MI_PRISZU ", memid: 0x%" MI_PRISZX "\n", p, size, memid);
       return;
     }
     mi_assert_internal(arena->field_count > mi_bitmap_index_field(bitmap_idx));
     if (arena->field_count <= mi_bitmap_index_field(bitmap_idx)) {
-      _mi_error_message(EINVAL, "trying to free from non-existent arena block: %p, size %zu, memid: 0x%zx\n", p, size, memid);
+      _mi_error_message(EINVAL, "trying to free from non-existent arena block: %p, size %" MI_PRISZU ", memid: 0x%" MI_PRISZX "\n", p, size, memid);
       return;
     }
     // potentially decommit
@@ -271,7 +271,7 @@ void _mi_arena_free(void* p, size_t size, size_t memid, bool all_committed, mi_o
     // and make it available to others again 
     bool all_inuse = _mi_bitmap_unclaim_across(arena->blocks_inuse, arena->field_count, blocks, bitmap_idx);
     if (!all_inuse) {
-      _mi_error_message(EAGAIN, "trying to free an already freed block: %p, size %zu\n", p, size);
+      _mi_error_message(EAGAIN, "trying to free an already freed block: %p, size %" MI_PRISZU "\n", p, size);
       return;
     };
   }
@@ -348,10 +348,10 @@ int mi_reserve_os_memory(size_t size, bool commit, bool allow_large) mi_attr_noe
   if (start==NULL) return ENOMEM;
   if (!mi_manage_os_memory(start, size, (large || commit), large, true, -1)) {
     _mi_os_free_ex(start, size, commit, &_mi_stats_main);
-    _mi_verbose_message("failed to reserve %zu k memory\n", _mi_divide_up(size,1024));
+    _mi_verbose_message("failed to reserve %" MI_PRISZU " k memory\n", _mi_divide_up(size,1024));
     return ENOMEM;
   }
-  _mi_verbose_message("reserved %zu KiB memory%s\n", _mi_divide_up(size,1024), large ? " (in large os pages)" : "");
+  _mi_verbose_message("reserved %" MI_PRISZU " KiB memory%s\n", _mi_divide_up(size,1024), large ? " (in large os pages)" : "");
   return 0;
 }
 
@@ -377,9 +377,9 @@ void mi_debug_show_arenas(void) mi_attr_noexcept {
     mi_arena_t* arena = mi_atomic_load_ptr_relaxed(mi_arena_t, &mi_arenas[i]);
     if (arena == NULL) break;
     size_t inuse_count = 0;
-    _mi_verbose_message("arena %zu: %zu blocks with %zu fields\n", i, arena->block_count, arena->field_count);
+    _mi_verbose_message("arena %" MI_PRISZU ": %" MI_PRISZU " blocks with %" MI_PRISZU " fields\n", i, arena->block_count, arena->field_count);
     inuse_count += mi_debug_show_bitmap("  ", arena->blocks_inuse, arena->field_count);
-    _mi_verbose_message("  blocks in use ('x'): %zu\n", inuse_count);
+    _mi_verbose_message("  blocks in use ('x'): %" MI_PRISZU "\n", inuse_count);
   }
 }
 
@@ -395,10 +395,10 @@ int mi_reserve_huge_os_pages_at(size_t pages, int numa_node, size_t timeout_msec
   size_t pages_reserved = 0;
   void* p = _mi_os_alloc_huge_os_pages(pages, numa_node, timeout_msecs, &pages_reserved, &hsize);
   if (p==NULL || pages_reserved==0) {
-    _mi_warning_message("failed to reserve %zu GiB huge pages\n", pages);
+    _mi_warning_message("failed to reserve %" MI_PRISZU " GiB huge pages\n", pages);
     return ENOMEM;
   }
-  _mi_verbose_message("numa node %i: reserved %zu GiB huge pages (of the %zu GiB requested)\n", numa_node, pages_reserved, pages);
+  _mi_verbose_message("numa node %i: reserved %" MI_PRISZU " GiB huge pages (of the %" MI_PRISZU " GiB requested)\n", numa_node, pages_reserved, pages);
 
   if (!mi_manage_os_memory(p, hsize, true, true, true, numa_node)) {
     _mi_os_free_huge_pages(p, hsize, &_mi_stats_main);

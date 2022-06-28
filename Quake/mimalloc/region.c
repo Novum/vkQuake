@@ -190,7 +190,7 @@ static bool mi_region_try_alloc_os(size_t blocks, bool commit, bool allow_large,
   if (idx >= MI_REGION_MAX) {
     mi_atomic_decrement_acq_rel(&regions_count);
     _mi_arena_free(start, MI_REGION_SIZE, arena_memid, region_commit, tld->stats);
-    _mi_warning_message("maximum regions used: %zu GiB (perhaps recompile with a larger setting for MI_HEAP_REGION_MAX_SIZE)", _mi_divide_up(MI_HEAP_REGION_MAX_SIZE, MI_GiB));
+    _mi_warning_message("maximum regions used: %" MI_PRISZU " GiB (perhaps recompile with a larger setting for MI_HEAP_REGION_MAX_SIZE)", _mi_divide_up(MI_HEAP_REGION_MAX_SIZE, MI_GiB));
     return false;
   }
 
@@ -365,7 +365,7 @@ void* _mi_mem_alloc_aligned(size_t size, size_t alignment, bool* commit, bool* l
   if (blocks <= MI_REGION_MAX_OBJ_BLOCKS && alignment <= MI_SEGMENT_ALIGN) {
     p = mi_region_try_alloc(blocks, commit, large, is_pinned, is_zero, memid, tld);    
     if (p == NULL) {
-      _mi_warning_message("unable to allocate from region: size %zu\n", size);
+      _mi_warning_message("unable to allocate from region: size %" MI_PRISZU "\n", size);
     }
   }
   if (p == NULL) {
