@@ -2,12 +2,15 @@
 vkQuake is a port of id Software's [Quake](https://en.wikipedia.org/wiki/Quake_(video_game)) using Vulkan instead of OpenGL for rendering. It is based on the popular [QuakeSpasm](http://quakespasm.sourceforge.net/) and [QuakeSpasm-Spiked](https://triptohell.info/moodles/qss/) ports and runs all mods compatible with QuakeSpasm like [Arcane Dimensions](http://www.moddb.com/mods/arcane-dimensions). 
 
 Improvements over QuakeSpasm include:
-* Better performance
+* Much better performance with multithreaded rendering and loading
 * The game can run at higher frame rates than 72Hz without breaking physics
 * A software Quake like underwater effect
 * Better color precision reducing banding in dark areas
 * Proper mip mapping for water surfaces to reduce aliasing
 * Native support for anti aliasing and anisotropic filtering
+* 8-bit color emulation
+* Scaling for pixelated look
+* Mods menu to easily choose a mod to load
 * More modern protocol to avoid certain movement issues (from QSS)
 * Support for custom mod HUDs (from QSS)
 * Support for scriptable particles (from QSS)
