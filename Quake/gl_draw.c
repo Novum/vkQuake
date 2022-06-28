@@ -453,7 +453,7 @@ void Draw_Init (void)
 Draw_FillCharacterQuad
 ================
 */
-void Draw_FillCharacterQuad (int x, int y, char num, basicvertex_t *output)
+static void Draw_FillCharacterQuad (int x, int y, char num, basicvertex_t *output, int rotation)
 {
 	int   row, col;
 	float frow, fcol, size;
@@ -468,26 +468,33 @@ void Draw_FillCharacterQuad (int x, int y, char num, basicvertex_t *output)
 	basicvertex_t corner_verts[4];
 	memset (&corner_verts, 255, sizeof (corner_verts));
 
-	corner_verts[0].position[0] = x;
-	corner_verts[0].position[1] = y;
+	float texcoords[4][2] = {
+		{x, y},
+		{x + 8, y},
+		{x + 8, y + 8},
+		{x, y + 8},
+	};
+
+	corner_verts[0].position[0] = texcoords[(rotation + 0) % 4][0];
+	corner_verts[0].position[1] = texcoords[(rotation + 0) % 4][1];
 	corner_verts[0].position[2] = 0.0f;
 	corner_verts[0].texcoord[0] = fcol;
 	corner_verts[0].texcoord[1] = frow;
 
-	corner_verts[1].position[0] = x + 8;
-	corner_verts[1].position[1] = y;
+	corner_verts[1].position[0] = texcoords[(rotation + 1) % 4][0];
+	corner_verts[1].position[1] = texcoords[(rotation + 1) % 4][1];
 	corner_verts[1].position[2] = 0.0f;
 	corner_verts[1].texcoord[0] = fcol + size;
 	corner_verts[1].texcoord[1] = frow;
 
-	corner_verts[2].position[0] = x + 8;
-	corner_verts[2].position[1] = y + 8;
+	corner_verts[2].position[0] = texcoords[(rotation + 2) % 4][0];
+	corner_verts[2].position[1] = texcoords[(rotation + 2) % 4][1];
 	corner_verts[2].position[2] = 0.0f;
 	corner_verts[2].texcoord[0] = fcol + size;
 	corner_verts[2].texcoord[1] = frow + size;
 
-	corner_verts[3].position[0] = x;
-	corner_verts[3].position[1] = y + 8;
+	corner_verts[3].position[0] = texcoords[(rotation + 3) % 4][0];
+	corner_verts[3].position[1] = texcoords[(rotation + 3) % 4][1];
 	corner_verts[3].position[2] = 0.0f;
 	corner_verts[3].texcoord[0] = fcol;
 	corner_verts[3].texcoord[1] = frow + size;
@@ -510,6 +517,7 @@ void Draw_Character (cb_context_t *cbx, int x, int y, int num)
 	if (y <= -8)
 		return; // totally off screen
 
+	const int rotation = (num / 256) % 4;
 	num &= 255;
 
 	if (num == 32)
@@ -519,7 +527,7 @@ void Draw_Character (cb_context_t *cbx, int x, int y, int num)
 	VkDeviceSize   buffer_offset;
 	basicvertex_t *vertices = (basicvertex_t *)R_VertexAllocate (6 * sizeof (basicvertex_t), &buffer, &buffer_offset);
 
-	Draw_FillCharacterQuad (x, y, (char)num, vertices);
+	Draw_FillCharacterQuad (x, y, (char)num, vertices, rotation);
 
 	vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 1, &buffer, &buffer_offset);
 	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_alphatest_pipeline[cbx->render_pass_index]);
@@ -554,7 +562,7 @@ void Draw_String (cb_context_t *cbx, int x, int y, const char *str)
 	{
 		if (*str != 32)
 		{
-			Draw_FillCharacterQuad (x, y, *str, vertices + i * 6);
+			Draw_FillCharacterQuad (x, y, *str, vertices + i * 6, 0);
 			i++;
 		}
 		x += 8;

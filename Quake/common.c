@@ -2196,6 +2196,7 @@ static void COM_Game_f (void)
 			TexMgr_NewGame ();
 			Draw_NewGame ();
 			R_NewGame ();
+			M_NewGame ();
 		}
 		ExtraMaps_NewGame ();
 		DemoList_Rebuild ();

@@ -132,7 +132,7 @@ qboolean scr_disabled_for_loading;
 qboolean scr_drawloading;
 float    scr_disabled_time;
 
-qboolean in_update_screen;
+qboolean       in_update_screen;
 extern jmp_buf screen_error;
 
 int scr_tileclear_updates = 0; // johnfitz

@@ -41,7 +41,8 @@ enum m_state_e
 	m_lanconfig,
 	m_gameoptions,
 	m_search,
-	m_slist
+	m_slist,
+	m_mods,
 };
 
 extern enum m_state_e m_state;
@@ -53,6 +54,7 @@ extern qboolean m_entersound;
 // menus
 //
 void     M_Init (void);
+void     M_NewGame (void);
 void     M_Keydown (int key);
 void     M_Charinput (int key);
 qboolean M_TextEntry (void);

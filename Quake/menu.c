@@ -44,6 +44,7 @@ void M_Menu_Options_f (void);
 void M_Menu_Keys_f (void);
 void M_Menu_Video_f (void);
 void M_Menu_Help_f (void);
+void M_Menu_Mods_f (void);
 void M_Menu_Quit_f (void);
 
 void M_Main_Draw (cb_context_t *cbx);
@@ -58,6 +59,7 @@ void M_GameOptions_Draw (cb_context_t *cbx);
 void M_Search_Draw (cb_context_t *cbx);
 void M_ServerList_Draw (cb_context_t *cbx);
 void M_Options_Draw (cb_context_t *cbx);
+void M_Mods_Draw (cb_context_t *cbx);
 void M_Keys_Draw (cb_context_t *cbx);
 void M_Video_Draw (cb_context_t *cbx);
 void M_Help_Draw (cb_context_t *cbx);
@@ -78,6 +80,7 @@ void M_Options_Key (int key);
 void M_Keys_Key (int key);
 void M_Video_Key (int key);
 void M_Help_Key (int key);
+void M_Mods_Key (int key);
 void M_Quit_Key (int key);
 
 qboolean m_entersound; // play after drawing a frame, so caching
@@ -92,6 +95,8 @@ char           m_return_reason[32];
 #define JoiningGame  (m_multiplayer_cursor == 0)
 #define IPXConfig    (m_net_cursor == 0)
 #define TCPIPConfig  (m_net_cursor == 1)
+
+int m_main_cursor;
 
 void M_ConfigureNetSubsystem (void);
 
@@ -236,7 +241,6 @@ void M_ToggleMenu_f (void)
 //=============================================================================
 /* MAIN MENU */
 
-int m_main_cursor;
 #define MAIN_ITEMS 5
 
 void M_Menu_Main_f (void)
@@ -252,15 +256,24 @@ void M_Menu_Main_f (void)
 	m_entersound = true;
 }
 
+static qpic_t *Get_Menu2 ()
+{
+	qboolean base_game = COM_GetGameNames (false)[0] == 0;
+	// Check if user has actually installed vkquake.pak, otherwise fall back to old menu
+	return base_game ? Draw_TryCachePic ("gfx/mainmenu2.lmp", TEXPREF_ALPHA | TEXPREF_PAD | TEXPREF_NOPICMIP) : NULL;
+}
+
 void M_Main_Draw (cb_context_t *cbx)
 {
 	int     f;
 	qpic_t *p;
+	qpic_t *menu2 = Get_Menu2 ();
 
 	M_DrawTransPic (cbx, 16, 4, Draw_CachePic ("gfx/qplaque.lmp"));
 	p = Draw_CachePic ("gfx/ttl_main.lmp");
 	M_DrawPic (cbx, (320 - p->width) / 2, 4, p);
-	M_DrawTransPic (cbx, 72, 32, Draw_CachePic ("gfx/mainmenu.lmp"));
+
+	M_DrawTransPic (cbx, 72, 32, menu2 ? menu2 : Draw_CachePic ("gfx/mainmenu.lmp"));
 
 	f = (int)(realtime * 10) % 6;
 
@@ -269,6 +282,8 @@ void M_Main_Draw (cb_context_t *cbx)
 
 void M_Main_Key (int key)
 {
+	qpic_t *menu2 = Get_Menu2 ();
+
 	switch (key)
 	{
 	case K_ESCAPE:
@@ -285,14 +300,14 @@ void M_Main_Key (int key)
 
 	case K_DOWNARROW:
 		S_LocalSound ("misc/menu1.wav");
-		if (++m_main_cursor >= MAIN_ITEMS)
+		if (++m_main_cursor >= (MAIN_ITEMS + (menu2 ? 1 : 0)))
 			m_main_cursor = 0;
 		break;
 
 	case K_UPARROW:
 		S_LocalSound ("misc/menu1.wav");
 		if (--m_main_cursor < 0)
-			m_main_cursor = MAIN_ITEMS - 1;
+			m_main_cursor = (MAIN_ITEMS + (menu2 ? 1 : 0)) - 1;
 		break;
 
 	case K_ENTER:
@@ -319,6 +334,12 @@ void M_Main_Key (int key)
 			break;
 
 		case 4:
+			if (menu2)
+				M_Menu_Mods_f ();
+			else
+				M_Menu_Quit_f ();
+			break;
+		case 5:
 			M_Menu_Quit_f ();
 			break;
 		}
@@ -979,9 +1000,9 @@ enum
 	ALWAYSRUN_ITEMS
 };
 
-#define SLIDER_RANGE 10
+#define SLIDER_SIZE 10
 
-int options_cursor;
+static int options_cursor;
 
 void M_Menu_Options_f (void)
 {
@@ -1139,19 +1160,24 @@ void M_AdjustSliders (int dir)
 	}
 }
 
-void M_DrawSlider (cb_context_t *cbx, int x, int y, float range)
+void M_DrawSlider (cb_context_t *cbx, int x, int y, float value)
 {
-	int i;
-
-	if (range < 0)
-		range = 0;
-	if (range > 1)
-		range = 1;
+	value = CLAMP (0.0f, value, 1.0f);
 	M_DrawCharacter (cbx, x - 8, y, 128);
-	for (i = 0; i < SLIDER_RANGE; i++)
+	for (int i = 0; i < SLIDER_SIZE; i++)
 		M_DrawCharacter (cbx, x + i * 8, y, 129);
-	M_DrawCharacter (cbx, x + i * 8, y, 130);
-	M_DrawCharacter (cbx, x + (SLIDER_RANGE - 1) * 8 * range, y, 131);
+	M_DrawCharacter (cbx, x + SLIDER_SIZE * 8, y, 130);
+	M_DrawCharacter (cbx, x + (SLIDER_SIZE - 1) * 8 * value, y, 131);
+}
+
+void M_DrawScrollbar (cb_context_t *cbx, int x, int y, float value, float size)
+{
+	value = CLAMP (0.0f, value, 1.0f);
+	M_DrawCharacter (cbx, x, y - 8, 128 + 256);
+	for (int i = 0; i < size; i++)
+		M_DrawCharacter (cbx, x, y + i * 8, 129 + 256);
+	M_DrawCharacter (cbx, x, y + size * 8, 130 + 256);
+	M_DrawCharacter (cbx, x, y + (size - 1) * 8 * value, 131 + 256);
 }
 
 void M_DrawCheckbox (cb_context_t *cbx, int x, int y, int on)
@@ -1587,6 +1613,98 @@ void M_Help_Key (int key)
 }
 
 //=============================================================================
+/* MODS MENU */
+
+#define MAX_MODS_ON_SCREEN 12
+static int num_mods = 0;
+static int first_mod = 0;
+static int mods_cursor = 0;
+
+void M_Menu_Mods_f (void)
+{
+	IN_Deactivate (modestate == MS_WINDOWED);
+	key_dest = key_menu;
+	m_state = m_mods;
+	m_entersound = true;
+	for (filelist_item_t *item = modlist; item; item = item->next)
+		++num_mods;
+	first_mod = 0;
+	mods_cursor = 0;
+}
+
+void M_Mods_Draw (cb_context_t *cbx)
+{
+	M_DrawTransPic (cbx, 16, 4, Draw_CachePic ("gfx/qplaque.lmp"));
+	qpic_t *p = Draw_CachePic ("gfx/p_mods.lmp");
+	M_DrawPic (cbx, (320 - p->width) / 2, 4, p);
+
+	int mod_index = -first_mod;
+	for (filelist_item_t *item = modlist; item; item = item->next)
+	{
+		if (mod_index >= MAX_MODS_ON_SCREEN)
+			break;
+		if (mod_index >= 0)
+			M_Print (cbx, 105, 32 + mod_index * 8, item->name);
+		++mod_index;
+	}
+
+	M_DrawCharacter (cbx, 90, 32 + (mods_cursor - first_mod) * 8, 12 + ((int)(realtime * 4) & 1));
+	if (num_mods > MAX_MODS_ON_SCREEN)
+		M_DrawScrollbar (cbx, 220, 32 + 8, (float)(first_mod) / (float)(num_mods - MAX_MODS_ON_SCREEN), MAX_MODS_ON_SCREEN - 2);
+}
+
+void M_Mods_Key (int key)
+{
+	switch (key)
+	{
+	case K_ESCAPE:
+	case K_BBUTTON:
+		M_Menu_Main_f ();
+		break;
+
+	case K_ENTER:
+	case K_KP_ENTER:
+	case K_ABUTTON:
+		int mod_index = 0;
+		for (filelist_item_t *item = modlist; item; item = item->next)
+			if (mod_index++ == mods_cursor)
+			{
+				Cbuf_AddText ("game ");
+				Cbuf_AddText (item->name);
+				m_state = m_main;
+			}
+		break;
+
+	case K_UPARROW:
+		if (mods_cursor <= 0)
+		{
+			mods_cursor = 0;
+			break;
+		}
+		else
+		{
+			S_LocalSound ("misc/menu1.wav");
+			mods_cursor--;
+		}
+		first_mod = min (mods_cursor, first_mod);
+		break;
+
+	case K_DOWNARROW:
+		if (mods_cursor >= (num_mods - 1))
+		{
+			mods_cursor = num_mods - 1;
+		}
+		else
+		{
+			S_LocalSound ("misc/menu1.wav");
+			mods_cursor++;
+		}
+		first_mod = max (mods_cursor - MAX_MODS_ON_SCREEN + 1, first_mod);
+		break;
+	}
+}
+
+//=============================================================================
 /* QUIT MENU */
 
 int            msgNumber;
@@ -1597,13 +1715,19 @@ void M_Menu_Quit_f (void)
 {
 	if (m_state == m_quit)
 		return;
-	wasInMenus = (key_dest == key_menu);
-	IN_Deactivate (modestate == MS_WINDOWED);
-	key_dest = key_menu;
-	m_quit_prevstate = m_state;
-	m_state = m_quit;
-	m_entersound = true;
-	msgNumber = rand () & 7;
+	qboolean base_game = COM_GetGameNames (false)[0] == 0;
+	if (base_game)
+	{
+		wasInMenus = (key_dest == key_menu);
+		IN_Deactivate (modestate == MS_WINDOWED);
+		key_dest = key_menu;
+		m_quit_prevstate = m_state;
+		m_state = m_quit;
+		m_entersound = true;
+		msgNumber = rand () & 7;
+	}
+	else
+		Cbuf_AddText ("game " GAMENAME);
 }
 
 void M_Quit_Key (int key)
@@ -2044,9 +2168,9 @@ episode_t hipnoticepisodes[] = {{"Scourge of Armagon", 0, 1}, {"Fortress of the 
 // PGM 03/02/97 added dmatch episode
 episode_t rogueepisodes[] = {{"Introduction", 0, 1}, {"Hell's Fortress", 1, 7}, {"Corridors of Time", 8, 8}, {"Deathmatch Arena", 16, 1}};
 
-int      startepisode;
-int      startlevel;
-int      maxplayers;
+int startepisode;
+int startlevel;
+int maxplayers;
 
 void M_Menu_GameOptions_f (void)
 {
@@ -2531,6 +2655,11 @@ void M_Init (void)
 	Cmd_AddCommand ("menu_credits", M_Menu_Credits_f); // needed by the 2021 re-release
 }
 
+void M_NewGame (void)
+{
+	m_main_cursor = 0;
+}
+
 void M_Draw (cb_context_t *cbx)
 {
 	if (m_state == m_none || key_dest != key_menu)
@@ -2600,6 +2729,10 @@ void M_Draw (cb_context_t *cbx)
 
 	case m_help:
 		M_Help_Draw (cbx);
+		break;
+
+	case m_mods:
+		M_Mods_Draw (cbx);
 		break;
 
 	case m_quit:
@@ -2677,6 +2810,10 @@ void M_Keydown (int key)
 	case m_options:
 		M_Options_Key (key);
 		return;
+
+	case m_mods:
+		M_Mods_Key (key);
+		break;
 
 	case m_keys:
 		M_Keys_Key (key);
