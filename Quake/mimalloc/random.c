@@ -172,7 +172,9 @@ If we cannot get good randomness, we fall back to weak randomness based on a tim
 // We prefer to use BCryptGenRandom instead of (the unofficial) RtlGenRandom but when using 
 // dynamic overriding, we observed it can raise an exception when compiled with C++, and 
 // sometimes deadlocks when also running under the VS debugger.
+#if defined(_MSC_VER)
 #pragma comment (lib,"advapi32.lib")
+#endif
 #define RtlGenRandom  SystemFunction036
 #ifdef __cplusplus
 extern "C" {
@@ -185,7 +187,9 @@ static bool os_random_buf(void* buf, size_t buf_len) {
   return (RtlGenRandom(buf, (ULONG)buf_len) != 0);
 }
 #else
+#if defined(_MSC_VER)
 #pragma comment (lib,"bcrypt.lib")
+#endif
 #include <bcrypt.h>
 static bool os_random_buf(void* buf, size_t buf_len) {
   return (BCryptGenRandom(NULL, (PUCHAR)buf, (ULONG)buf_len, BCRYPT_USE_SYSTEM_PREFERRED_RNG) >= 0);

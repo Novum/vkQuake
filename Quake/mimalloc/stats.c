@@ -458,7 +458,9 @@ mi_msecs_t _mi_clock_end(mi_msecs_t start) {
 #if defined(_WIN32)
 #include <windows.h>
 #include <psapi.h>
+#if defined(_MSC_VER)
 #pragma comment(lib,"psapi.lib")
+#endif
 
 static mi_msecs_t filetime_msecs(const FILETIME* ftime) {
   ULARGE_INTEGER i;
