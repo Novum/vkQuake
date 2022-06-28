@@ -1,6 +1,6 @@
 project('vkquake', 'c')
 
-cflags = []
+cflags = ['-Wall', '-Wno-trigraphs', '-Wno-unused-function', '-Werror']
 
 srcs = [
     'Quake/bgmusic.c',
