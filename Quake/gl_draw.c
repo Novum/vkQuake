@@ -294,8 +294,6 @@ qpic_t *Draw_TryCachePic (const char *path, unsigned int texflags)
 	}
 	if (menu_numcachepics == MAX_CACHED_PICS)
 		Sys_Error ("menu_numcachepics == MAX_CACHED_PICS");
-	menu_numcachepics++;
-	strcpy (pic->name, path);
 
 	//
 	// load the pic from disk
@@ -304,6 +302,9 @@ qpic_t *Draw_TryCachePic (const char *path, unsigned int texflags)
 	if (!dat)
 		return NULL;
 	SwapPic (dat);
+
+	menu_numcachepics++;
+	strcpy (pic->name, path);
 
 	// HACK HACK HACK --- we need to keep the bytes for
 	// the translatable player picture just for the menu
