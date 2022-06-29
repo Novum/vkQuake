@@ -809,6 +809,26 @@ static inline size_t _mi_os_numa_node_count(void) {
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+
+/* These, in order to workaround MinGW gcc-12 -Warray-bound warnings. */
+#if defined(__MINGW32__) && defined(__x86_64__)
+#undef NtCurrentTeb
+#define NtCurrentTeb MINGW_NtCurrentTeb
+static inline struct _TEB* MINGW_NtCurrentTeb(void) {
+  struct _TEB* ret;
+  __asm__ __volatile__ ("movq %%gs:0x30,%0" : "=r" (ret));
+  return ret;
+}
+#elif defined(__MINGW32__) && defined(__i386__)
+#undef NtCurrentTeb
+#define NtCurrentTeb MINGW_NtCurrentTeb
+static inline struct _TEB* MINGW_NtCurrentTeb(void) {
+  struct _TEB* ret;
+  __asm__ __volatile__ ("movl %%fs:0x18,%0" : "=r" (ret));
+  return ret;
+}
+#endif
+
 static inline mi_threadid_t _mi_thread_id(void) mi_attr_noexcept {
   // Windows: works on Intel and ARM in both 32- and 64-bit
   return (uintptr_t)NtCurrentTeb();
