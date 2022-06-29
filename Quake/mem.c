@@ -32,6 +32,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <stdlib.h>
 #endif
 
+#ifndef _MSC_VER
+#include <sys/time.h>
+#include <sys/resource.h>
+#endif
+
 #define THREAD_STACK_RESERVATION (128ll * 1024ll)
 #define MAX_STACK_ALLOC_SIZE     (512ll * 1024ll)
 
