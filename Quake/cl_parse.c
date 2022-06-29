@@ -930,7 +930,6 @@ static void CL_ParseServerInfo (void)
 			gamedirswitchwarning = true;
 		}
 	}
-	(void)gamedirswitchwarning; /* variable set but not used */
 
 	// parse maxclients
 	cl.maxclients = MSG_ReadByte ();
@@ -956,8 +955,9 @@ static void CL_ParseServerInfo (void)
 		q_snprintf (protname, sizeof (protname), "fte%i", cl.protocol);
 	else
 		q_snprintf (protname, sizeof (protname), "%i", cl.protocol);
-	Con_Printf ("Using protocol %s", protname);
-	Con_Printf ("\n");
+	Con_Printf ("Using protocol %s\n", protname);
+	if (gamedirswitchwarning)
+		Con_Warning ("gamedir mismatch: server \"%s\" ours \"%s\"\n", gamedir, COM_GetGameNames (false));
 
 	// first we go through and touch all of the precache data that still
 	// happens to be in the cache, so precaching something else doesn't
