@@ -1,0 +1,44 @@
+name: Build
+
+on: [push, pull_request]
+
+jobs:
+  Build:
+    name: ${{ matrix.platform.name }}
+    runs-on: ${{ matrix.platform.os }}
+
+    defaults:
+      run:
+        shell: ${{ matrix.platform.shell }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+        - { name: Windows (mingw32),  os: windows-latest, shell: 'msys2 {0}', msystem: mingw32, msys-env: mingw-w64-i686, makefile: Makefile.w32 }
+        - { name: Windows (mingw64),  os: windows-latest, shell: 'msys2 {0}', msystem: mingw64, msys-env: mingw-w64-x86_64, makefile: Makefile.w64 }
+
+    steps:
+    - name: Set up MSYS2
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: ${{ matrix.platform.msystem }}
+        install: base-devel
+          ${{ matrix.platform.msys-env }}-gcc
+
+    - uses: actions/checkout@v2
+      with:
+        submodules: recursive
+
+    - name: Build MinGW
+      run: |
+        set -eu
+        parallel="$(getconf _NPROCESSORS_ONLN)"
+        make -j"${parallel}" -C Quake -f ${{ matrix.platform.makefile }}
+    - name: Upload vkQuake
+      uses: actions/upload-artifact@v3
+      with:
+        name: vkQuake archive
+        path: |
+            Quake/*.exe
+            Quake/*.dll
