@@ -167,4 +167,8 @@ if opus_dep.found() and opusfile_dep.found()
     cflags += '-DUSE_CODEC_OPUS'
 endif
 
+if get_option('buildtype').startswith('debug')
+    cflags += '-D_DEBUG'
+endif
+
 executable('vkquake', srcs, dependencies : deps, c_args : cflags)
