@@ -27,6 +27,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #endif
 
 #if defined(USE_MI_MALLOC)
+#undef snprintf
+#define snprintf q_snprintf
+#undef vsnprintf
+#define vsnprintf q_vsnprintf
 #include "mimalloc/static.c"
 #elif defined(USE_CRT_MALLOC)
 #include <stdlib.h>
