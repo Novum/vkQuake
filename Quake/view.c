@@ -74,6 +74,8 @@ extern int in_forward, in_forward2, in_back;
 vec3_t v_punchangles[2];       // johnfitz -- copied from cl.punchangle.  0 is current, 1 is previous value. never the same unless map just loaded
 double v_punchangles_times[2]; // spike -- times, to avoid assumptions...
 
+extern qboolean needs_relink;
+
 /*
 ===============
 V_CalcRoll
@@ -869,6 +871,13 @@ void V_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 		render_warp = false;
 		render_scale = 1;
 		return;
+	}
+
+	if (needs_relink)
+	{
+		if (use_tasks)
+			Sys_Error ("V_RenderView: entities needed relink in main draw");
+		CL_RelinkEntities ();
 	}
 
 	R_RenderView (use_tasks, begin_rendering_task, setup_frame_task, draw_done_task);

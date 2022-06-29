@@ -63,6 +63,8 @@ entity_t **cl_visedicts;
 extern cvar_t r_lerpmodels, r_lerpmove; // johnfitz
 extern float  host_netinterval;         // Spike
 
+qboolean needs_relink;
+
 #ifdef PSET_SCRIPT
 void CL_ClearTrailStates (void)
 {
@@ -912,6 +914,7 @@ int CL_ReadFromServer (void)
 	cl.oldtime = cl.time;
 	cl.time += host_frametime;
 
+	needs_relink = true;
 	do
 	{
 		ret = CL_GetMessage ();
@@ -928,6 +931,7 @@ int CL_ReadFromServer (void)
 		Con_Printf ("\n");
 
 	CL_RelinkEntities ();
+	needs_relink = false;
 	CL_UpdateTEnts ();
 
 	// johnfitz -- devstats

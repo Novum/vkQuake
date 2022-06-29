@@ -330,6 +330,8 @@ extern int          cl_maxvisedicts; // extended if we exceeded it the previous 
 dlight_t *CL_AllocDlight (int key);
 void      CL_DecayLights (void);
 
+void CL_RelinkEntities (void);
+
 void CL_Init (void);
 
 void CL_EstablishConnection (const char *host);
