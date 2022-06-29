@@ -32,7 +32,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <stdlib.h>
 #endif
 
-#ifndef _MSC_VER
+#ifndef _WIN32
 #include <sys/time.h>
 #include <sys/resource.h>
 #endif
@@ -50,9 +50,9 @@ Mem_InitThread
 */
 void Mem_InitThread ()
 {
-#ifdef _MSC_VER
+#ifdef _WIN32
 	max_thread_stack_alloc_size = MAX_STACK_ALLOC_SIZE;
-#else
+#else /* unix: */
 	struct rlimit limit;
 	if (getrlimit (RLIMIT_STACK, &limit) == 0)
 	{
