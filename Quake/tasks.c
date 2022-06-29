@@ -23,7 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "atomics.h"
 #include "quakedef.h"
 
-#define NUM_INDEX_BITS       10
+#define NUM_INDEX_BITS       8
 #define MAX_PENDING_TASKS    (1u << NUM_INDEX_BITS)
 #define MAX_EXECUTABLE_TASKS 256
 #define MAX_DEPENDENT_TASKS  16
@@ -49,10 +49,10 @@ typedef struct
 	int             indexed_limit;
 	atomic_uint32_t remaining_workers;
 	atomic_uint32_t remaining_dependencies;
-	uint64_t        id;
-	void           *func;
-	SDL_mutex      *id_mutex;
-	SDL_cond       *id_condition;
+	uint64_t        epoch;
+	void		   *func;
+	SDL_mutex      *epoch_mutex;
+	SDL_cond       *epoch_condition;
 	uint8_t         payload[MAX_PAYLOAD_SIZE];
 	task_handle_t   dependent_task_handles[MAX_DEPENDENT_TASKS];
 } task_t;
@@ -77,7 +77,6 @@ static SDL_Thread          **worker_threads;
 static task_t                tasks[MAX_PENDING_TASKS];
 static task_queue_t         *free_task_queue;
 static task_queue_t         *executable_task_queue;
-static atomic_uint64_t       current_task_id;
 static task_counter_t       *indexed_task_counters;
 static uint8_t               steal_worker_indices[MAX_WORKERS * 2];
 static THREAD_LOCAL qboolean is_worker = false;
@@ -104,10 +103,10 @@ static inline uint32_t IndexFromTaskHandle (task_handle_t handle)
 
 /*
 ====================
-IdFromTaskHandle
+EpochFromTaskHandle
 ====================
 */
-static inline uint64_t IdFromTaskHandle (task_handle_t handle)
+static inline uint64_t EpochFromTaskHandle (task_handle_t handle)
 {
 	return handle >> NUM_INDEX_BITS;
 }
@@ -117,9 +116,9 @@ static inline uint64_t IdFromTaskHandle (task_handle_t handle)
 CreateTaskHandle
 ====================
 */
-static inline task_handle_t CreateTaskHandle (uint32_t index, int id)
+static inline task_handle_t CreateTaskHandle (uint32_t index, int epoch)
 {
-	return (task_handle_t)index | ((task_handle_t)id << NUM_INDEX_BITS);
+	return (task_handle_t)index | ((task_handle_t)epoch << NUM_INDEX_BITS);
 }
 
 /*
@@ -276,15 +275,14 @@ static int Task_Worker (void *data)
 		}
 		if (Atomic_DecrementUInt32 (&task->remaining_workers) == 1)
 		{
-			SDL_LockMutex (task->id_mutex);
+			SDL_LockMutex (task->epoch_mutex);
 			for (int i = 0; i < task->num_dependents; ++i)
 			{
 				Task_Submit (task->dependent_task_handles[i]);
 			}
-			// Invalidate ID by making it older than the task handle
-			task->id -= 1;
-			SDL_CondBroadcast (task->id_condition);
-			SDL_UnlockMutex (task->id_mutex);
+			task->epoch += 1;
+			SDL_CondBroadcast (task->epoch_condition);
+			SDL_UnlockMutex (task->epoch_mutex);
 			TaskQueuePush (free_task_queue, task_index);
 		}
 	}
@@ -298,8 +296,6 @@ Tasks_Init
 */
 void Tasks_Init (void)
 {
-	Atomic_StoreUInt64 (&current_task_id, 0);
-
 	free_task_queue = CreateTaskQueue (MAX_PENDING_TASKS);
 	executable_task_queue = CreateTaskQueue (MAX_EXECUTABLE_TASKS);
 
@@ -310,8 +306,8 @@ void Tasks_Init (void)
 
 	for (uint32_t task_index = 0; task_index < MAX_PENDING_TASKS; ++task_index)
 	{
-		tasks[task_index].id_mutex = SDL_CreateMutex ();
-		tasks[task_index].id_condition = SDL_CreateCond ();
+		tasks[task_index].epoch_mutex = SDL_CreateMutex ();
+		tasks[task_index].epoch_condition = SDL_CreateCond ();
 	}
 
 	num_workers = CLAMP (1, SDL_GetCPUCount (), MAX_WORKERS);
@@ -360,14 +356,12 @@ task_handle_t Task_Allocate (void)
 {
 	uint32_t task_index = TaskQueuePop (free_task_queue);
 	task_t  *task = &tasks[task_index];
-	uint64_t id = Atomic_IncrementUInt64 (&current_task_id) & ((1ull << (64 - NUM_INDEX_BITS)) - 1);
 	Atomic_StoreUInt32 (&task->remaining_dependencies, 1);
 	task->task_type = TASK_TYPE_NONE;
-	task->id = id;
 	task->num_dependents = 0;
 	task->indexed_limit = 0;
 	task->func = NULL;
-	return CreateTaskHandle (task_index, id);
+	return CreateTaskHandle (task_index, task->epoch);
 }
 
 /*
@@ -421,7 +415,7 @@ void Task_Submit (task_handle_t handle)
 {
 	uint32_t task_index = IndexFromTaskHandle (handle);
 	task_t  *task = &tasks[task_index];
-	assert (task->id == IdFromTaskHandle (handle));
+	assert (task->epoch == EpochFromTaskHandle (handle));
 	if (Atomic_DecrementUInt32 (&task->remaining_dependencies) == 1)
 	{
 		const int num_task_workers = (task->task_type == TASK_TYPE_INDEXED) ? q_min (task->indexed_limit, num_workers) : 1;
@@ -455,11 +449,11 @@ void Task_AddDependency (task_handle_t before, task_handle_t after)
 {
 	uint32_t  before_task_index = IndexFromTaskHandle (before);
 	task_t   *before_task = &tasks[before_task_index];
-	const int before_handle_task_id = IdFromTaskHandle (before);
-	SDL_LockMutex (before_task->id_mutex);
-	if (before_task->id != before_handle_task_id)
+	const int before_handle_task_epoch = EpochFromTaskHandle (before);
+	SDL_LockMutex (before_task->epoch_mutex);
+	if (before_task->epoch != before_handle_task_epoch)
 	{
-		SDL_UnlockMutex (before_task->id_mutex);
+		SDL_UnlockMutex (before_task->epoch_mutex);
 		return;
 	}
 	uint32_t after_task_index = IndexFromTaskHandle (after);
@@ -467,7 +461,7 @@ void Task_AddDependency (task_handle_t before, task_handle_t after)
 	assert (before_task->num_dependents < MAX_DEPENDENT_TASKS);
 	before_task->dependent_task_handles[before_task->num_dependents] = after;
 	before_task->num_dependents += 1;
-	SDL_UnlockMutex (before_task->id_mutex);
+	SDL_UnlockMutex (before_task->epoch_mutex);
 	Atomic_IncrementUInt32 (&after_task->remaining_dependencies);
 }
 
@@ -479,16 +473,16 @@ Task_Join
 qboolean Task_Join (task_handle_t handle, uint32_t timeout)
 {
 	task_t   *task = &tasks[IndexFromTaskHandle (handle)];
-	const int handle_task_id = IdFromTaskHandle (handle);
-	SDL_LockMutex (task->id_mutex);
-	while (task->id == handle_task_id)
+	const int handle_task_epoch = EpochFromTaskHandle (handle);
+	SDL_LockMutex (task->epoch_mutex);
+	while (task->epoch == handle_task_epoch)
 	{
-		if (SDL_CondWaitTimeout (task->id_condition, task->id_mutex, timeout) == SDL_MUTEX_TIMEDOUT)
+		if (SDL_CondWaitTimeout (task->epoch_condition, task->epoch_mutex, timeout) == SDL_MUTEX_TIMEDOUT)
 		{
-			SDL_UnlockMutex (task->id_mutex);
+			SDL_UnlockMutex (task->epoch_mutex);
 			return false;
 		}
 	}
-	SDL_UnlockMutex (task->id_mutex);
+	SDL_UnlockMutex (task->epoch_mutex);
 	return true;
 }
