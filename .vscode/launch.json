@@ -14,6 +14,15 @@
             "preLaunchTask": "release"
         },
         {
+            "name": "debugopt",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/debugopt/vkquake",
+            "args": [ "-basedir", "${env:QUAKE_DIR}" ],
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "debugopt"
+        },
+        {
             "name": "debug",
             "type": "lldb",
             "request": "launch",

@@ -6,7 +6,20 @@
         {
             "label": "debug",
             "type": "shell",
-            "command": "meson build/debug -Dbuildtype=debug && ninja -C build/debug",
+            "command": "meson build/debug --buildtype=debug && ninja -C build/debug",
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "clear": true
+            },
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "label": "debugopt",
+            "type": "shell",
+            "command": "CFLAGS=-O3 meson build/debugopt --buildtype=debugoptimized && ninja -C build/debugopt",
             "group": "build",
             "presentation": {
                 "reveal": "always",
@@ -19,7 +32,7 @@
         {
             "label": "release",
             "type": "shell",
-            "command": "meson build/release -Dbuildtype=release && ninja -C build/release",
+            "command": "meson build/release --buildtype=release && ninja -C build/release",
             "group": "build",
             "presentation": {
                 "reveal": "always",
