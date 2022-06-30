@@ -402,6 +402,8 @@ static void R_SetupViewBeforeMark (void *unused)
 		r_lightmap_cheatsafe = false;
 	}
 	// johnfitz
+
+	CL_RunParticles ();
 }
 
 //==============================================================================
