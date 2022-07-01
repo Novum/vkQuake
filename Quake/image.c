@@ -650,10 +650,11 @@ qboolean Image_WritePNG (const char *name, byte *data, int width, int height, in
 #endif
 
 	lodepng_state_cleanup (&state);
-	Mem_Free (png);
+	lodepng_free (png); /* png was allocated by lodepng */
 	Mem_Free (filters);
-	if (!upsidedown)
+	if (!upsidedown) {
 		Mem_Free (flipped);
+	}
 
 	return (error == 0);
 }
