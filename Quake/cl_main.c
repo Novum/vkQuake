@@ -253,6 +253,9 @@ void CL_SignonReply (void)
 		break;
 
 	case 2:
+		MSG_WriteByte (&cls.message, clc_stringcmd);
+		MSG_WriteString (&cls.message, va ("color %i %i\n", ((int)cl_color.value) >> 4, ((int)cl_color.value) & 0x0f));
+
 		if (*cl.serverinfo)
 			Info_Enumerate (cls.userinfo, CL_SendInitialUserinfo, NULL);
 
