@@ -3727,8 +3727,8 @@ static void PF_uri_escape (void)
 {
 	static const char *hex = "0123456789ABCDEF";
 
-	char                *result = PR_GetTempString ();
-	char                *o = result;
+	char				*result = PR_GetTempString ();
+	char				*o = result;
 	const unsigned char *s = (const unsigned char *)G_STRING (OFS_PARM0);
 	*result = 0;
 	while (*s && o < result + STRINGTEMP_LENGTH - 4)
@@ -3814,7 +3814,7 @@ static void PF_digest_hex (void)
 	const byte        *data = (const byte *)PF_VarString (1);
 	size_t             len = strlen ((const char *)data);
 	static const char *hex = "0123456789ABCDEF";
-	char              *resultbuf;
+	char			  *resultbuf;
 	byte               hashdata[20];
 
 	if (!strcmp (hashtype, "CRC16"))
@@ -3861,7 +3861,7 @@ static void PF_strlennocol (void)
 static void PF_strdecolorize (void)
 {
 	int             l, c;
-	char           *r = PR_GetTempString ();
+	char		   *r = PR_GetTempString ();
 	struct markup_s mu;
 
 	PR_Markup_Begin (&mu, G_STRING (OFS_PARM0), vec3_origin, 1);
@@ -4602,6 +4602,60 @@ static void PF_cl_drawfill (void)
 	vulkan_globals.vk_cmd_draw (cbx->cb, 6, 1, 0, 0);
 }
 
+void PF_cl_playerkey_internal (int player, const char *key, qboolean retfloat)
+{
+	char        buf[1024];
+	const char *ret = buf;
+	extern int  fragsort[MAX_SCOREBOARD];
+	extern int  scoreboardlines;
+	extern int  Sbar_ColorForMap (int m);
+	if (player < 0 && player >= -scoreboardlines)
+		player = fragsort[-1 - player];
+	if (player < 0 || player >= MAX_SCOREBOARD)
+		ret = NULL;
+	else if (!strcmp (key, "viewentity"))
+		q_snprintf (buf, sizeof (buf), "%i", player + 1); // hack for DP compat. always returned even when the slot is empty (so long as its valid).
+	else if (!*cl.scores[player].name)
+		ret = NULL;
+	else if (!strcmp (key, "name"))
+		ret = cl.scores[player].name;
+	else if (!strcmp (key, "frags"))
+		q_snprintf (buf, sizeof (buf), "%i", cl.scores[player].frags);
+	else if (!strcmp (key, "ping"))
+		q_snprintf (buf, sizeof (buf), "%i", cl.scores[player].ping);
+	else if (!strcmp (key, "pl"))
+		ret = NULL; // unknown
+	else if (!strcmp (key, "entertime"))
+		q_snprintf (buf, sizeof (buf), "%g", cl.scores[player].entertime);
+	else if (!strcmp (key, "userid"))
+		ret = NULL; // unknown
+	else
+	{
+		ret = Info_GetKey (cl.scores[player].userinfo, key, buf, sizeof (buf));
+		if (!*ret)
+			ret = NULL;
+	}
+
+	if (retfloat)
+		G_FLOAT (OFS_RETURN) = ret ? atof (ret) : 0;
+	else
+		G_INT (OFS_RETURN) = ret ? PR_MakeTempString (ret) : 0;
+}
+
+static void PF_cl_playerkey_s (void)
+{
+	int         playernum = G_FLOAT (OFS_PARM0);
+	const char *keyname = G_STRING (OFS_PARM1);
+	PF_cl_playerkey_internal (playernum, keyname, false);
+}
+
+static void PF_cl_playerkey_f (void)
+{
+	int         playernum = G_FLOAT (OFS_PARM0);
+	const char *keyname = G_STRING (OFS_PARM1);
+	PF_cl_playerkey_internal (playernum, keyname, true);
+}
+
 static void PF_cl_registercommand (void)
 {
 	const char *cmdname = G_STRING (OFS_PARM0);
@@ -4669,7 +4723,6 @@ static struct
 } extensionbuiltins[] = 
 #define PF_NoSSQC NULL
 #define PF_NoCSQC NULL
-#define PF_NoMenu NULL
 {
 	{"vectoangles2",				PF_ext_vectoangles,				PF_ext_vectoangles,				51,		 D("vector(vector fwd, optional vector up)", "Returns the angles (+x=UP) required to orient an entity to look in the given direction. The 'up' argument is required if you wish to set a roll angle, otherwise it will be limited to just monster-style turning.")},
 	{"sin",							PF_Sin,							PF_Sin,							60,		"float(float angle)"},	//60
@@ -4755,6 +4808,8 @@ static struct
 	{"trailparticles",				PF_sv_trailparticles,			PF_cl_trailparticles,			336,	D("void(float effectnum, entity ent, vector start, vector end)", "Draws the given effect between the two named points. If ent is not world, distances will be cached in the entity in order to avoid framerate dependancies. The entity is not otherwise used.")},// (EXT_CSQC),
 	{"pointparticles",				PF_sv_pointparticles,			PF_cl_pointparticles,			337,	D("void(float effectnum, vector origin, optional vector dir, optional float count)", "Spawn a load of particles from the given effect at the given point traveling or aiming along the direction specified. The number of particles are scaled by the count argument.")},// (EXT_CSQC)
 	{"print",						PF_print,						PF_print,						339,	D("void(string s, ...)", "Unconditionally print on the local system's console, even in ssqc (doesn't care about the value of the developer cvar).")},//(EXT_CSQC)
+	{"getplayerkeyvalue",			NULL,							PF_cl_playerkey_s,				348,	D("string(float playernum, string keyname)", "Look up a player's userinfo, to discover things like their name, topcolor, bottomcolor, skin, team, *ver.\nAlso includes scoreboard info like frags, ping, pl, userid, entertime, as well as voipspeaking and voiploudness.")},// (EXT_CSQC)
+	{"getplayerkeyfloat",			NULL,							PF_cl_playerkey_f,				0,		D("float(float playernum, string keyname, optional float assumevalue)", "Cheaper version of getplayerkeyvalue that avoids the need for so many tempstrings.")},
 	{"registercommand",				NULL,							PF_cl_registercommand,			352,	D("void(string cmdname)", "Register the given console command, for easy console use.\nConsole commands that are later used will invoke CSQC_ConsoleCommand.")},//(EXT_CSQC)
 	{"wasfreed",					PF_WasFreed,					PF_WasFreed,					353,	D("float(entity ent)", "Quickly check to see if the entity is currently free. This function is only valid during the two-second non-reuse window, after that it may give bad results. Try one second to make it more robust.")},//(EXT_CSQC) (should be availabe on server too)
 	{"copyentity",					PF_copyentity,					PF_copyentity,					400,	D("entity(entity from, optional entity to)", "Copies all fields from one entity to another.")},// (DP_QC_COPYENTITY)
