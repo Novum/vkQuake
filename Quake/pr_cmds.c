@@ -890,9 +890,19 @@ localcmd (string)
 */
 static void PF_localcmd (void)
 {
-	const char *str;
+	const char *str, *str2;
 
 	str = G_STRING (OFS_PARM0);
+
+	for (str2 = str; *str2 && *str2 <= ' '; str2++)
+		;
+	if (!strncmp (str2, "restart", strlen ("restart")))
+	{
+		if (svs.changelevel_issued)
+			return;
+		svs.changelevel_issued = true;
+	}
+
 	Cbuf_AddText (str);
 }
 
