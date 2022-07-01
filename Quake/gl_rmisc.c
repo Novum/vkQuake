@@ -957,18 +957,10 @@ R_SwapDynamicBuffers
 */
 void R_SwapDynamicBuffers ()
 {
-	SDL_LockMutex (vertex_allocate_mutex);
-	SDL_LockMutex (index_allocate_mutex);
-	SDL_LockMutex (uniform_allocate_mutex);
-
 	current_dyn_buffer_index = (current_dyn_buffer_index + 1) % NUM_DYNAMIC_BUFFERS;
 	dyn_vertex_buffers[current_dyn_buffer_index].current_offset = 0;
 	dyn_index_buffers[current_dyn_buffer_index].current_offset = 0;
 	dyn_uniform_buffers[current_dyn_buffer_index].current_offset = 0;
-
-	SDL_UnlockMutex (uniform_allocate_mutex);
-	SDL_UnlockMutex (index_allocate_mutex);
-	SDL_UnlockMutex (vertex_allocate_mutex);
 }
 
 /*

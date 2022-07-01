@@ -2190,6 +2190,8 @@ void GL_BeginRenderingTask (void *unused)
 		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_blend_pipeline[cbx->render_pass_index]);
 		GL_SetCanvas (cbx, CANVAS_NONE);
 	}
+
+	R_SwapDynamicBuffers ();
 }
 
 /*
@@ -2231,8 +2233,6 @@ qboolean GL_BeginRendering (qboolean use_tasks, task_handle_t *begin_rendering_t
 			return false;
 		}
 	}
-
-	R_SwapDynamicBuffers ();
 
 	vulkan_globals.device_idle = false;
 	*x = *y = 0;
