@@ -461,8 +461,8 @@ void Task_AddDependency (task_handle_t before, task_handle_t after)
 	assert (before_task->num_dependents < MAX_DEPENDENT_TASKS);
 	before_task->dependent_task_handles[before_task->num_dependents] = after;
 	before_task->num_dependents += 1;
-	SDL_UnlockMutex (before_task->epoch_mutex);
 	Atomic_IncrementUInt32 (&after_task->remaining_dependencies);
+	SDL_UnlockMutex (before_task->epoch_mutex);
 }
 
 /*
