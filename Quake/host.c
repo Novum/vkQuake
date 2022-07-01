@@ -899,6 +899,8 @@ void _Host_Frame (double time)
 
 	SCR_UpdateScreen (true);
 
+	CL_RunParticles (); // johnfitz -- seperated from rendering
+
 	if (host_speeds.value)
 		time2 = Sys_DoubleTime ();
 
