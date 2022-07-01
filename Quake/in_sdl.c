@@ -864,14 +864,28 @@ static void IN_DebugKeyEvent (SDL_Event *event)
 		Sys_DoubleTime ());
 }
 
+#ifdef __LINUX__
+extern SDL_mutex *present_mutex;
+#endif
+
 void IN_SendKeyEvents (void)
 {
 	SDL_Event event;
 	int       key;
 	qboolean  down;
 
-	while (SDL_PollEvent (&event))
+	while (true)
 	{
+#ifdef __LINUX__
+		SDL_LockMutex (present_mutex);
+#endif
+		const int result = SDL_PollEvent (&event);
+#ifdef __LINUX__
+		SDL_UnlockMutex (present_mutex);
+#endif
+		if (result == 0)
+			return;
+
 		switch (event.type)
 		{
 		case SDL_WINDOWEVENT:
