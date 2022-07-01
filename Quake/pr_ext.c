@@ -4608,7 +4608,6 @@ void PF_cl_playerkey_internal (int player, const char *key, qboolean retfloat)
 	const char *ret = buf;
 	extern int  fragsort[MAX_SCOREBOARD];
 	extern int  scoreboardlines;
-	extern int  Sbar_ColorForMap (int m);
 	if (player < 0 && player >= -scoreboardlines)
 		player = fragsort[-1 - player];
 	if (player < 0 || player >= MAX_SCOREBOARD)
