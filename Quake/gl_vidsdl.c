@@ -160,10 +160,6 @@ static PFN_vkAcquireFullScreenExclusiveModeEXT fpAcquireFullScreenExclusiveModeE
 static PFN_vkReleaseFullScreenExclusiveModeEXT fpReleaseFullScreenExclusiveModeEXT;
 #endif
 
-#ifdef __LINUX__
-SDL_mutex *present_mutex;
-#endif
-
 #ifdef _DEBUG
 static PFN_vkCreateDebugUtilsMessengerEXT fpCreateDebugUtilsMessengerEXT;
 PFN_vkSetDebugUtilsObjectNameEXT          fpSetDebugUtilsObjectNameEXT;
@@ -2578,13 +2574,7 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 		present_info.pSwapchains = &vulkan_swapchain, present_info.pImageIndices = &current_swapchain_buffer;
 		present_info.waitSemaphoreCount = 1;
 		present_info.pWaitSemaphores = &draw_complete_semaphores[cb_index];
-#ifdef __LINUX__
-		SDL_LockMutex (present_mutex);
-#endif
 		err = fpQueuePresentKHR (vulkan_globals.queue, &present_info);
-#ifdef __LINUX__
-		SDL_UnlockMutex (present_mutex);
-#endif
 #if defined(VK_EXT_full_screen_exclusive)
 		if ((err == VK_ERROR_OUT_OF_DATE_KHR) || (err == VK_ERROR_SURFACE_LOST_KHR) || (err == VK_SUBOPTIMAL_KHR) ||
 		    (err == VK_ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT))
@@ -2599,8 +2589,6 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 
 		if (err == VK_SUCCESS || err == VK_ERROR_OUT_OF_DATE_KHR || err == VK_ERROR_SURFACE_LOST_KHR)
 			num_images_acquired -= 1;
-
-
 	}
 
 	frame_submitted[cb_index] = true;
@@ -3045,12 +3033,6 @@ void VID_Init (void)
 
 	VID_Gamma_Init (); // johnfitz
 	VID_Menu_Init ();  // johnfitz
-
-#ifdef __LINUX__
-	// There seems to be a bug with the NVIDIA Linux driver that causes GPU hangs
-	// if vkQueuePresentKHR is called concurrently with SDL_PollEvents
-	present_mutex = SDL_CreateMutex ();
-#endif
 
 	// QuakeSpasm: current vid settings should override config file settings.
 	// so we have to lock the vid mode from now until after all config files are read.
