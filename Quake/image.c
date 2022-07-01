@@ -27,12 +27,28 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define STB_IMAGE_WRITE_STATIC
 #include "stb_image_write.h"
 
+#define LODEPNG_NO_COMPILE_ALLOCATORS
 #define LODEPNG_NO_COMPILE_DECODER
 #define LODEPNG_NO_COMPILE_CPP
 #define LODEPNG_NO_COMPILE_ANCILLARY_CHUNKS
 #define LODEPNG_NO_COMPILE_ERROR_TEXT
 #include "lodepng.h"
 #include "lodepng.c"
+
+void *lodepng_malloc (size_t size)
+{
+	return Mem_Alloc (size);
+}
+
+void *lodepng_realloc (void *ptr, size_t new_size)
+{
+	return Mem_Realloc (ptr, new_size);
+}
+
+void lodepng_free (void *ptr)
+{
+	Mem_Free (ptr);
+}
 
 static THREAD_LOCAL char loadfilename[MAX_OSPATH]; // file scope so that error messages can use it
 
@@ -190,9 +206,9 @@ byte *Image_LoadTGA (FILE *fin, int *width, int *height, const char *name)
 {
 	targaheader_t   targa_header;
 	int             columns, rows, numPixels;
-	byte           *pixbuf;
+	byte		   *pixbuf;
 	int             row, column;
-	byte           *targa_rgba;
+	byte		   *targa_rgba;
 	int             realrow;     // johnfitz -- fix for upside-down targas
 	qboolean        upside_down; // johnfitz -- fix for upside-down targas
 	stdio_buffer_t *buf;
@@ -444,7 +460,7 @@ byte *Image_LoadPCX (FILE *f, int *width, int *height)
 {
 	pcxheader_t     pcx;
 	int             x, y, w, h, readbyte, runlength, start;
-	byte           *p, *data;
+	byte		   *p, *data;
 	byte            palette[768];
 	stdio_buffer_t *buf;
 
@@ -584,7 +600,7 @@ qboolean Image_WritePNG (const char *name, byte *data, int width, int height, in
 {
 	unsigned       error;
 	char           pathname[MAX_OSPATH];
-	byte          *flipped;
+	byte		  *flipped;
 	unsigned char *filters;
 	unsigned char *png;
 	size_t         pngsize;
