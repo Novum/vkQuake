@@ -697,8 +697,10 @@ static void GL_InitInstance (void)
 	if (vulkan_globals.get_surface_capabilities_2)
 		GET_INSTANCE_PROC_ADDR (GetPhysicalDeviceSurfaceCapabilities2KHR);
 
+	Con_Printf ("Instance extensions:\n");
 	for (i = 0; i < (sdl_extension_count + additionalExtensionCount); ++i)
-		Con_Printf ("Using %s\n", instance_extensions[i]);
+		Con_Printf (" %s\n", instance_extensions[i]);
+	Con_Printf ("\n");
 
 #ifdef _DEBUG
 	if (vulkan_globals.validation)
@@ -722,6 +724,79 @@ static void GL_InitInstance (void)
 #endif
 
 	Mem_Free ((void *)instance_extensions);
+}
+
+#if defined(VK_KHR_driver_properties)
+/*
+===============
+GetDeviceVendorFromDriverProperties
+===============
+*/
+static const char *GetDeviceVendorFromDriverProperties (VkPhysicalDeviceDriverProperties *driver_properties)
+{
+	switch (driver_properties->driverID)
+	{
+	case VK_DRIVER_ID_AMD_PROPRIETARY:
+	case VK_DRIVER_ID_AMD_OPEN_SOURCE:
+	case VK_DRIVER_ID_MESA_RADV:
+		return "AMD";
+	case VK_DRIVER_ID_NVIDIA_PROPRIETARY:
+		return "NVIDIA";
+	case VK_DRIVER_ID_INTEL_PROPRIETARY_WINDOWS:
+	case VK_DRIVER_ID_INTEL_OPEN_SOURCE_MESA:
+		return "Intel";
+	case VK_DRIVER_ID_IMAGINATION_PROPRIETARY:
+		return "ImgTec";
+	case VK_DRIVER_ID_QUALCOMM_PROPRIETARY:
+	case VK_DRIVER_ID_MESA_TURNIP:
+		return "Qualcomm";
+	case VK_DRIVER_ID_ARM_PROPRIETARY:
+	case VK_DRIVER_ID_MESA_PANVK:
+		return "ARM";
+	case VK_DRIVER_ID_GOOGLE_SWIFTSHADER:
+	case VK_DRIVER_ID_GGP_PROPRIETARY:
+		return "Google";
+	case VK_DRIVER_ID_BROADCOM_PROPRIETARY:
+		return "Broadcom";
+	case VK_DRIVER_ID_MESA_V3DV:
+		return "Raspberry Pi";
+	case VK_DRIVER_ID_MESA_LLVMPIPE:
+	case VK_DRIVER_ID_MESA_VENUS:
+		return "MESA";
+	case VK_DRIVER_ID_MOLTENVK:
+		return "MoltenVK";
+	case VK_DRIVER_ID_SAMSUNG_PROPRIETARY:
+		return "Samsung";
+	default:
+		return NULL;
+	}
+}
+#endif
+
+/*
+===============
+GetDeviceVendorFromDeviceProperties
+===============
+*/
+static const char *GetDeviceVendorFromDeviceProperties (void)
+{
+	switch (vulkan_globals.device_properties.vendorID)
+	{
+	case 0x8086:
+		return "Intel";
+	case 0x10DE:
+		return "NVIDIA";
+	case 0x1002:
+		return "AMD";
+	case 0x1010:
+		return "ImgTec";
+	case 0x13B5:
+		return "ARM";
+	case 0x5143:
+		return "Qualcomm";
+	}
+
+	return NULL;
 }
 
 /*
@@ -766,23 +841,9 @@ static void GL_InitDevice (void)
 	vkGetPhysicalDeviceMemoryProperties (vulkan_physical_device, &vulkan_globals.memory_properties);
 	vkGetPhysicalDeviceProperties (vulkan_physical_device, &vulkan_globals.device_properties);
 
-	switch (vulkan_globals.device_properties.vendorID)
-	{
-	case 0x8086:
-		Con_Printf ("Vendor: Intel\n");
-		break;
-	case 0x10DE:
-		Con_Printf ("Vendor: NVIDIA\n");
-		break;
-	case 0x1002:
-		Con_Printf ("Vendor: AMD\n");
-		break;
-	default:
-		Con_Printf ("Vendor: Unknown (0x%x)\n", vulkan_globals.device_properties.vendorID);
-	}
-
-	Con_Printf ("Device: %s\n", vulkan_globals.device_properties.deviceName);
-
+#if defined(VK_KHR_driver_properties)
+	qboolean driver_properties_available = false;
+#endif
 	uint32_t device_extension_count;
 	err = vkEnumerateDeviceExtensionProperties (vulkan_physical_device, NULL, &device_extension_count, NULL);
 
@@ -797,6 +858,10 @@ static void GL_InitDevice (void)
 				found_swapchain_extension = true;
 			if (strcmp (VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME, device_extensions[i].extensionName) == 0)
 				vulkan_globals.dedicated_allocation = true;
+#if defined(VK_KHR_driver_properties)
+			if (vulkan_globals.get_physical_device_properties_2 && strcmp (VK_KHR_DRIVER_PROPERTIES_EXTENSION_NAME, device_extensions[i].extensionName) == 0)
+				driver_properties_available = true;
+#endif
 #if defined(VK_EXT_subgroup_size_control)
 			if (strcmp (VK_EXT_SUBGROUP_SIZE_CONTROL_EXTENSION_NAME, device_extensions[i].extensionName) == 0)
 				subgroup_size_control = true;
@@ -809,6 +874,39 @@ static void GL_InitDevice (void)
 
 		Mem_Free (device_extensions);
 	}
+
+	const char *vendor = NULL;
+#if defined(VK_KHR_driver_properties)
+	VkPhysicalDeviceDriverProperties driver_properties;
+	if (driver_properties_available)
+	{
+		memset (&driver_properties, 0, sizeof (driver_properties));
+		driver_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES;
+
+		VkPhysicalDeviceProperties2 physical_device_properties_2;
+		memset (&physical_device_properties_2, 0, sizeof (physical_device_properties_2));
+		physical_device_properties_2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+		physical_device_properties_2.pNext = &driver_properties;
+		vkGetPhysicalDeviceProperties2 (vulkan_physical_device, &physical_device_properties_2);
+
+		vendor = GetDeviceVendorFromDriverProperties (&driver_properties);
+	}
+#endif
+
+	if (!vendor)
+		vendor = GetDeviceVendorFromDeviceProperties ();
+
+	if (vendor)
+		Con_Printf ("Vendor: %s\n", vendor);
+	else
+		Con_Printf ("Vendor: Unknown (0x%x)\n", vulkan_globals.device_properties.vendorID);
+
+	Con_Printf ("Device: %s\n", vulkan_globals.device_properties.deviceName);
+
+#if defined(VK_KHR_driver_properties)
+	if (driver_properties_available)
+		Con_Printf ("Driver: %s %s\n", driver_properties.driverName, driver_properties.driverInfo);
+#endif
 
 	if (!found_swapchain_extension)
 		Sys_Error ("Couldn't find %s extension", VK_KHR_SWAPCHAIN_EXTENSION_NAME);
@@ -901,13 +999,16 @@ static void GL_InitDevice (void)
 		Con_Printf ("Using subgroup operations\n");
 #endif
 
-	const char *device_extensions[5] = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+	const char *device_extensions[6] = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 	uint32_t    numEnabledExtensions = 1;
 	if (vulkan_globals.dedicated_allocation)
 	{
 		device_extensions[numEnabledExtensions++] = VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME;
 		device_extensions[numEnabledExtensions++] = VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME;
 	}
+#if defined(VK_KHR_driver_properties)
+	device_extensions[numEnabledExtensions++] = VK_KHR_DRIVER_PROPERTIES_EXTENSION_NAME;
+#endif
 #if defined(VK_EXT_subgroup_size_control)
 	if (vulkan_globals.screen_effects_sops)
 		device_extensions[numEnabledExtensions++] = VK_EXT_SUBGROUP_SIZE_CONTROL_EXTENSION_NAME;
@@ -953,8 +1054,9 @@ static void GL_InitDevice (void)
 	GET_DEVICE_PROC_ADDR (AcquireNextImageKHR);
 	GET_DEVICE_PROC_ADDR (QueuePresentKHR);
 
+	Con_Printf ("Device extensions:\n");
 	for (i = 0; i < numEnabledExtensions; ++i)
-		Con_Printf ("Using %s\n", device_extensions[i]);
+		Con_Printf (" %s\n", device_extensions[i]);
 
 #if defined(VK_EXT_full_screen_exclusive)
 	if (vulkan_globals.full_screen_exclusive)
@@ -1013,6 +1115,8 @@ static void GL_InitDevice (void)
 		// This cannot happen with a compliant Vulkan driver. The spec requires support for one of the formats.
 		Sys_Error ("Cannot find VK_FORMAT_D24_UNORM_S8_UINT or VK_FORMAT_D32_SFLOAT_S8_UINT depth buffer format");
 	}
+
+	Con_Printf ("\n");
 
 	GET_GLOBAL_DEVICE_PROC_ADDR (vk_cmd_bind_pipeline, vkCmdBindPipeline);
 	GET_GLOBAL_DEVICE_PROC_ADDR (vk_cmd_push_constants, vkCmdPushConstants);
