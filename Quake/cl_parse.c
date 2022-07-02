@@ -1811,15 +1811,15 @@ void CL_ParseServerMessage (void)
 			break;
 
 		case svc_stufftext:
-			const char *stuffcmdbuf = MSG_ReadString ();
+			str = MSG_ReadString ();
 			// handle special commands
-			if (strlen (stuffcmdbuf) > 2 && stuffcmdbuf[0] == '/' && stuffcmdbuf[1] == '/')
+			if (strlen (str) > 2 && str[0] == '/' && str[1] == '/')
 			{
-				if (!Cmd_ExecuteString (stuffcmdbuf + 2, src_server))
+				if (!Cmd_ExecuteString (str + 2, src_server))
 					Con_DPrintf ("Server sent unknown command %s\n", Cmd_Argv (0));
 			}
 			else
-				Cbuf_AddText (stuffcmdbuf);
+				Cbuf_AddText (str);
 			break;
 
 		case svc_damage:
