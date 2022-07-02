@@ -301,7 +301,8 @@ void Cmd_Exec_f (void)
 	Cbuf_InsertText ("\n"); // just in case there was no trailing \n.
 	Cbuf_InsertText (f);
 
-	Mem_Free (f);
+	if (f != default_cfg)
+		Mem_Free (f);
 }
 
 /*
