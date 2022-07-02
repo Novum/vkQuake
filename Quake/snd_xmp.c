@@ -89,6 +89,7 @@ static qboolean S_XMP_CodecOpenStream (snd_stream_t *stream)
 	FS_fread (moddata, 1, len, &stream->fh);
 	if (xmp_load_module_from_memory (c, moddata, len) < 0)
 	{
+		Mem_Free (moddata);
 		Con_DPrintf ("Could not load module %s\n", stream->name);
 		goto err1;
 	}
