@@ -37,31 +37,33 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #endif
 
 #ifndef _WIN32
-#include <sys/time.h>
-#include <sys/resource.h>
+#include <pthread.h>
 #endif
 
 #define THREAD_STACK_RESERVATION (128ll * 1024ll)
 #define MAX_STACK_ALLOC_SIZE     (512ll * 1024ll)
 
-THREAD_LOCAL size_t thread_stack_alloc_size = 0;
-THREAD_LOCAL size_t max_thread_stack_alloc_size = 0;
+size_t thread_stack_alloc_size = 0;
+size_t max_thread_stack_alloc_size = 0;
 
 /*
 ====================
-Mem_InitThread
+Mem_Init
 ====================
 */
-void Mem_InitThread ()
+void Mem_Init ()
 {
 #ifdef _WIN32
 	max_thread_stack_alloc_size = MAX_STACK_ALLOC_SIZE;
 #else /* unix: */
-	struct rlimit limit;
-	if (getrlimit (RLIMIT_STACK, &limit) == 0)
-	{
-		max_thread_stack_alloc_size = (size_t)CLAMP (0ll, (int64_t)limit.rlim_cur - THREAD_STACK_RESERVATION, MAX_STACK_ALLOC_SIZE);
-	}
+	pthread_attr_t attr;
+	size_t         stacksize;
+	if (pthread_attr_init (&attr) != 0)
+		return;
+	if (pthread_attr_getstacksize (&attr, &stacksize) != 0)
+		return;
+	max_thread_stack_alloc_size = (size_t)CLAMP (0ll, (int64_t)stacksize - THREAD_STACK_RESERVATION, MAX_STACK_ALLOC_SIZE);
+	pthread_attr_destroy (&attr);
 #endif
 }
 

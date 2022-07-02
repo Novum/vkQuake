@@ -26,7 +26,7 @@
 // Mem_Alloc will always return zero initialized memory
 // A lot of old code was assuming this and overhead is negligible
 
-void  Mem_InitThread ();
+void  Mem_Init ();
 void *Mem_Alloc (const size_t size);
 void *Mem_Realloc (void *ptr, const size_t size);
 void  Mem_Free (const void *ptr);
@@ -39,8 +39,8 @@ void  Mem_Free (const void *ptr);
 	} while (false)
 #endif
 
-extern THREAD_LOCAL size_t thread_stack_alloc_size;
-extern THREAD_LOCAL size_t max_thread_stack_alloc_size;
+extern size_t thread_stack_alloc_size;
+extern size_t max_thread_stack_alloc_size;
 
 #define TEMP_ALLOC(type, var, size)                                                        \
 	qboolean     temp_alloc_##var##_on_heap = false;                                       \

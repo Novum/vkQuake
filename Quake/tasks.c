@@ -257,7 +257,6 @@ Task_Worker
 */
 static int Task_Worker (void *data)
 {
-	Mem_InitThread ();
 	is_worker = true;
 
 	const int worker_index = (intptr_t)data;
