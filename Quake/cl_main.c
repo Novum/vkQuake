@@ -1134,7 +1134,7 @@ static void CL_UserinfoChanged (scoreboard_t *sb)
 }
 static void CL_ServerExtension_FullUserinfo_f (void)
 {
-	size_t      slot = atoi (Cmd_Argv (1));
+	int         slot = atoi (Cmd_Argv (1));
 	const char *newserverinfo = Cmd_Argv (2);
 	if (slot < cl.maxclients)
 	{
@@ -1145,7 +1145,7 @@ static void CL_ServerExtension_FullUserinfo_f (void)
 }
 static void CL_ServerExtension_UserinfoUpdate_f (void)
 {
-	size_t      slot = atoi (Cmd_Argv (1));
+	int         slot = atoi (Cmd_Argv (1));
 	const char *newserverkey = Cmd_Argv (2);
 	const char *newservervalue = Cmd_Argv (3);
 	if (slot < cl.maxclients)
