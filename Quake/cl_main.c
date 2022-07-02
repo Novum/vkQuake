@@ -1139,7 +1139,7 @@ static void CL_ServerExtension_FullUserinfo_f (void)
 	if (slot < cl.maxclients)
 	{
 		scoreboard_t *sb = &cl.scores[slot];
-		strncpy (sb->userinfo, newserverinfo, sizeof (sb->userinfo)); // just replace it
+		strncpy (sb->userinfo, newserverinfo, sizeof (sb->userinfo) - 1); // just replace it
 		CL_UserinfoChanged (sb);
 	}
 }
