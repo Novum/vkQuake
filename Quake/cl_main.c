@@ -1115,6 +1115,47 @@ static void CL_ServerExtension_ServerinfoUpdate_f (void)
 	Info_SetKey (cl.serverinfo, sizeof (cl.serverinfo), newserverkey, newservervalue);
 }
 
+static void CL_UserinfoChanged (scoreboard_t *sb)
+{
+	char tmp[64];
+	int  colors;
+	Info_GetKey (sb->userinfo, "name", sb->name, sizeof (sb->name));
+
+	Info_GetKey (sb->userinfo, "topcolor", tmp, sizeof (tmp));
+	colors = (strtoul (tmp, NULL, 0) & 0xf) << 4;
+	Info_GetKey (sb->userinfo, "bottomcolor", tmp, sizeof (tmp));
+	colors |= strtoul (tmp, NULL, 0) & 0xf;
+
+	if (colors != sb->colors)
+	{
+		sb->colors = colors;
+		R_TranslateNewPlayerSkin (sb - cl.scores);
+	}
+}
+static void CL_ServerExtension_FullUserinfo_f (void)
+{
+	size_t      slot = atoi (Cmd_Argv (1));
+	const char *newserverinfo = Cmd_Argv (2);
+	if (slot < cl.maxclients)
+	{
+		scoreboard_t *sb = &cl.scores[slot];
+		strncpy (sb->userinfo, newserverinfo, sizeof (sb->userinfo)); // just replace it
+		CL_UserinfoChanged (sb);
+	}
+}
+static void CL_ServerExtension_UserinfoUpdate_f (void)
+{
+	size_t      slot = atoi (Cmd_Argv (1));
+	const char *newserverkey = Cmd_Argv (2);
+	const char *newservervalue = Cmd_Argv (3);
+	if (slot < cl.maxclients)
+	{
+		scoreboard_t *sb = &cl.scores[slot];
+		Info_SetKey (sb->userinfo, sizeof (sb->userinfo), newserverkey, newservervalue);
+		CL_UserinfoChanged (sb);
+	}
+}
+
 /*
 =================
 CL_Init
@@ -1170,4 +1211,8 @@ void CL_Init (void)
 	// spike -- serverinfo stuff
 	Cmd_AddCommand_ServerCommand ("fullserverinfo", CL_ServerExtension_FullServerinfo_f);
 	Cmd_AddCommand_ServerCommand ("svi", CL_ServerExtension_ServerinfoUpdate_f);
+
+	// spike -- userinfo stuff
+	Cmd_AddCommand_ServerCommand ("fui", CL_ServerExtension_FullUserinfo_f);
+	Cmd_AddCommand_ServerCommand ("ui", CL_ServerExtension_UserinfoUpdate_f);
 }
