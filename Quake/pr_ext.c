@@ -4626,6 +4626,25 @@ void PF_cl_playerkey_internal (int player, const char *key, qboolean retfloat)
 		ret = NULL; // unknown
 	else if (!strcmp (key, "entertime"))
 		q_snprintf (buf, sizeof (buf), "%g", cl.scores[player].entertime);
+	else if (!strcmp (key, "topcolor_rgb"))
+	{
+		int   color = cl.scores[player].colors >> 4;
+		byte *pal = (byte *)(d_8to24table + (color * 16 + 8));
+		q_snprintf (buf, sizeof (buf), "%g %g %g", pal[0] / 255.0, pal[1] / 255.0, pal[2] / 255.0);
+	}
+	else if (!strcmp (key, "bottomcolor_rgb"))
+	{
+		int   color = cl.scores[player].colors & 0xf;
+		byte *pal = (byte *)(d_8to24table + (color * 16 + 8));
+		q_snprintf (buf, sizeof (buf), "%g %g %g", pal[0] / 255.0, pal[1] / 255.0, pal[2] / 255.0);
+	}
+	else if (!strcmp (key, "topcolor"))
+		ret = va ("%i", cl.scores[player].colors >> 4);
+	else if (!strcmp (key, "bottomcolor"))
+		ret = va ("%i", cl.scores[player].colors & 0xf);
+	else if (!strcmp (key, "team")) // quakeworld uses team infokeys to decide teams (instead of colours). but NQ never did, so that's fun. Lets allow mods to
+	                                // use either so that they can favour QW and let the engine hide differences .
+		q_snprintf (buf, sizeof (buf), "%i", (cl.scores[player].colors & 0xf) + 1);
 	else if (!strcmp (key, "userid"))
 		ret = NULL; // unknown
 	else
