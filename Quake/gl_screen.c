@@ -1144,6 +1144,7 @@ void SCR_UpdateScreen (qboolean use_tasks)
 		task_handle_t end_rendering_task = GL_EndRendering (use_tasks, true);
 
 		Task_AddDependency (begin_rendering_task, draw_gui_task);
+		Task_AddDependency (setup_frame_task, draw_gui_task);
 		Task_AddDependency (draw_gui_task, draw_done_task);
 		Task_AddDependency (draw_done_task, end_rendering_task);
 
