@@ -71,6 +71,7 @@ int main (int argc, char *argv[])
 
 	Sys_Init ();
 
+	Sys_Printf ("Initializing vkQuake v%s\n", VKQUAKE_VER_STRING);
 #if defined(__clang_version__)
 	Sys_Printf ("Built with Clang " __clang_version__ "\n");
 #elif defined(__GNUC__)
@@ -80,14 +81,6 @@ int main (int argc, char *argv[])
 #else
 	Sys_Printf ("Built with unknown compiler\n");
 #endif
-
-	Sys_Printf ("Quake %1.2f (c) id Software\n", VERSION);
-	Sys_Printf ("GLQuake %1.2f (c) id Software\n", GLQUAKE_VERSION);
-	Sys_Printf ("FitzQuake %1.2f (c) John Fitzgibbons\n", FITZQUAKE_VERSION);
-	Sys_Printf ("FitzQuake SDL port (c) SleepwalkR, Baker\n");
-	Sys_Printf ("QuakeSpasm " QUAKESPASM_VER_STRING " (c) Ozkan Sezer, Eric Wasylishen & others\n");
-	Sys_Printf ("QuakeSpasm-Spiked (c) Spike\n");
-	Sys_Printf ("vkQuake " VKQUAKE_VER_STRING " (c) Axel Gneiting & others\n");
 
 	Sys_Printf ("Host_Init\n");
 	Host_Init ();
