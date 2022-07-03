@@ -132,7 +132,7 @@ static void GL_DrawAliasFrame (
 	ubo->blend_factor = blend;
 	memcpy (ubo->light_color, lightcolor, 3 * sizeof (float));
 	ubo->flags = (fb != NULL) ? 0x1 : 0x0;
-	if (r_fullbright_cheatsafe || r_lightmap_cheatsafe)
+	if (r_fullbright_cheatsafe || (r_lightmap_cheatsafe && r_fullbright.value))
 		ubo->flags |= 0x2;
 	ubo->entalpha = entity_alpha;
 
@@ -469,9 +469,12 @@ void R_DrawAliasModel (cb_context_t *cbx, entity_t *e)
 	{
 		tx = whitetexture;
 		fb = NULL;
-		lightcolor[0] = 1.0f;
-		lightcolor[1] = 1.0f;
-		lightcolor[2] = 1.0f;
+		if (r_fullbright.value)
+		{
+			lightcolor[0] = 1.0f;
+			lightcolor[1] = 1.0f;
+			lightcolor[2] = 1.0f;
+		}
 	}
 
 	//
