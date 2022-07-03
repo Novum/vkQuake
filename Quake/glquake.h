@@ -449,9 +449,9 @@ struct lightmap_s
 
 	// the lightmap texture data needs to be kept in
 	// main memory so texsubimage can update properly
-	byte                          *data;               //[4*LMBLOCK_WIDTH*LMBLOCK_HEIGHT];
-	byte                          *lightstyle_data[4]; //[4*LMBLOCK_WIDTH*LMBLOCK_HEIGHT];
-	uint32_t                      *surface_indices;    //[LMBLOCK_WIDTH*LMBLOCK_HEIGHT];
+	byte						  *data;               //[4*LMBLOCK_WIDTH*LMBLOCK_HEIGHT];
+	byte						  *lightstyle_data[4]; //[4*LMBLOCK_WIDTH*LMBLOCK_HEIGHT];
+	uint32_t					  *surface_indices;    //[LMBLOCK_WIDTH*LMBLOCK_HEIGHT];
 	lm_compute_workgroup_bounds_t *workgroup_bounds;   //[(LMBLOCK_WIDTH/8)*(LMBLOCK_HEIGHT/8)];
 };
 extern struct lightmap_s *lightmaps;
@@ -528,8 +528,8 @@ void Sky_Init (void);
 void Sky_ClearAll (void);
 void Sky_DrawSky (cb_context_t *cbx);
 void Sky_NewMap (void);
-void Sky_LoadTexture (texture_t *mt);
-void Sky_LoadTextureQ64 (texture_t *mt);
+void Sky_LoadTexture (qmodel_t *mod, texture_t *mt);
+void Sky_LoadTextureQ64 (qmodel_t *mod, texture_t *mt);
 void Sky_LoadSkyBox (const char *name);
 
 void R_ClearTextureChains (qmodel_t *mod, texchain_t chain);
@@ -602,8 +602,8 @@ void            R_FreeDescriptorSet (VkDescriptorSet desc_set, vulkan_desc_set_l
 void  R_InitStagingBuffers ();
 void  R_SubmitStagingBuffers ();
 byte *R_StagingAllocate (int size, int alignment, VkCommandBuffer *cb_context, VkBuffer *buffer, int *buffer_offset);
-void  R_StagingBeginCopy();
-void  R_StagingEndCopy();
+void  R_StagingBeginCopy ();
+void  R_StagingEndCopy ();
 
 void  R_InitGPUBuffers ();
 void  R_SwapDynamicBuffers ();
