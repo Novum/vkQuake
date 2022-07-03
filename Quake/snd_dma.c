@@ -135,8 +135,6 @@ void S_Startup (void)
 	if (!snd_initialized)
 		return;
 
-	snd_mutex = SDL_CreateMutex ();
-
 	sound_started = SNDDMA_Init (&sn);
 
 	if (!sound_started)
@@ -157,6 +155,7 @@ S_Init
 void S_Init (void)
 {
 	int i;
+	snd_mutex = SDL_CreateMutex ();
 
 	if (snd_initialized)
 	{
