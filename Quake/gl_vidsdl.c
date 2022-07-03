@@ -1032,9 +1032,6 @@ static void GL_InitDevice (void)
 		device_extensions[numEnabledExtensions++] = VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME;
 		device_extensions[numEnabledExtensions++] = VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME;
 	}
-#if defined(VK_KHR_driver_properties)
-	device_extensions[numEnabledExtensions++] = VK_KHR_DRIVER_PROPERTIES_EXTENSION_NAME;
-#endif
 #if defined(VK_EXT_subgroup_size_control)
 	if (vulkan_globals.screen_effects_sops)
 		device_extensions[numEnabledExtensions++] = VK_EXT_SUBGROUP_SIZE_CONTROL_EXTENSION_NAME;
