@@ -600,7 +600,6 @@ void R_ShowBoundingBoxes (cb_context_t *cbx)
 	}
 	PR_SwitchQCVM (NULL);
 
-	Sbar_Changed (); // so we don't get dots collecting on the statusbar
 	R_EndDebugUtilsLabel (cbx);
 }
 
@@ -663,7 +662,6 @@ void R_ShowTris (cb_context_t *cbx)
 #endif
 	}
 
-	Sbar_Changed (); // so we don't get dots collecting on the statusbar
 	R_EndDebugUtilsLabel (cbx);
 }
 

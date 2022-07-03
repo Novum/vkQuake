@@ -1319,8 +1319,6 @@ static void CL_ParseBaseline (entity_t *ent, int version) // johnfitz -- added a
 
 #define CL_SetStati(stat, val) cl.statsf[stat] = (cl.stats[stat] = val)
 #define CL_SetHudStat(stat, val) \
-	if (cl.stats[stat] != val)   \
-		Sbar_Changed ();         \
 	CL_SetStati (stat, val)
 
 /*
@@ -1681,8 +1679,6 @@ static void CL_ParseStatNumeric (int stat, int ival, float fval)
 	cl.statsf[stat] = fval;
 	if (stat == STAT_VIEWZOOM)
 		vid.recalc_refdef = true;
-	// just assume that they all affect the hud
-	Sbar_Changed ();
 }
 static void CL_ParseStatFloat (int stat, float fval)
 {
@@ -1877,7 +1873,6 @@ void CL_ParseServerMessage (void)
 			break;
 
 		case svc_updatename:
-			Sbar_Changed ();
 			i = MSG_ReadByte ();
 			if (i >= cl.maxclients)
 				Host_Error ("CL_ParseServerMessage: svc_updatename > MAX_SCOREBOARD");
@@ -1885,7 +1880,6 @@ void CL_ParseServerMessage (void)
 			break;
 
 		case svc_updatefrags:
-			Sbar_Changed ();
 			i = MSG_ReadByte ();
 			if (i >= cl.maxclients)
 				Host_Error ("CL_ParseServerMessage: svc_updatefrags > MAX_SCOREBOARD");
@@ -1893,7 +1887,6 @@ void CL_ParseServerMessage (void)
 			break;
 
 		case svc_updatecolors:
-			Sbar_Changed ();
 			i = MSG_ReadByte ();
 			if (i >= cl.maxclients)
 				Host_Error ("CL_ParseServerMessage: svc_updatecolors > MAX_SCOREBOARD");

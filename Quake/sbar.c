@@ -23,8 +23,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 
-int sb_updates; // if >= vid.numpages, no update needed
-
 #define STAT_MINUS 10 // num frame for '-' stats digit
 
 qpic_t *sb_nums[2][11];
@@ -99,7 +97,6 @@ void Sbar_ShowScores (void)
 	if (sb_showscores)
 		return;
 	sb_showscores = true;
-	sb_updates = 0;
 }
 
 /*
@@ -113,17 +110,6 @@ void Sbar_DontShowScores (void)
 {
 	Sbar_CSQCCommand ();
 	sb_showscores = false;
-	sb_updates = 0;
-}
-
-/*
-===============
-Sbar_Changed
-===============
-*/
-void Sbar_Changed (void)
-{
-	sb_updates = 0; // update next frame
 }
 
 qpic_t *Sbar_CheckPicFromWad (const char *name)
@@ -607,9 +593,6 @@ void Sbar_DrawInventory (cb_context_t *cbx)
 				flashon = (flashon % 5) + 2;
 
 			Sbar_DrawPic (cbx, i * 24, -16, sb_weapons[flashon][i]);
-
-			if (flashon > 1)
-				sb_updates = 0; // force update to remove flash
 		}
 	}
 
@@ -664,9 +647,6 @@ void Sbar_DrawInventory (cb_context_t *cbx)
 				}
 				else
 					Sbar_DrawPic (cbx, 176 + (i * 24), -16, hsb_weapons[flashon][i]);
-
-				if (flashon > 1)
-					sb_updates = 0; // force update to remove flash
 			}
 		}
 	}
@@ -707,20 +687,12 @@ void Sbar_DrawInventory (cb_context_t *cbx)
 		if (cl.items & (1 << (17 + i)))
 		{
 			time = cl.item_gettime[17 + i];
-			if (time && time > cl.time - 2 && flashon)
-			{ // flash frame
-				sb_updates = 0;
-			}
-			else
+			if (!time || time <= cl.time - 2 || !flashon)
 			{
 				// MED 01/04/97 changed keys
 				if (!hipnotic || (i > 1))
-				{
 					Sbar_DrawPic (cbx, 192 + i * 16, -16, sb_items[i]);
-				}
 			}
-			if (time && time > cl.time - 2)
-				sb_updates = 0;
 		}
 	}
 	// MED 01/04/97 added hipnotic items
@@ -732,16 +704,8 @@ void Sbar_DrawInventory (cb_context_t *cbx)
 			if (cl.items & (1 << (24 + i)))
 			{
 				time = cl.item_gettime[24 + i];
-				if (time && time > cl.time - 2 && flashon)
-				{ // flash frame
-					sb_updates = 0;
-				}
-				else
-				{
+				if (!time || time <= cl.time - 2 || !flashon)
 					Sbar_DrawPic (cbx, 288 + i * 16, -16, hsb_items[i]);
-				}
-				if (time && time > cl.time - 2)
-					sb_updates = 0;
 			}
 		}
 	}
@@ -754,16 +718,8 @@ void Sbar_DrawInventory (cb_context_t *cbx)
 			if (cl.items & (1 << (29 + i)))
 			{
 				time = cl.item_gettime[29 + i];
-				if (time && time > cl.time - 2 && flashon)
-				{ // flash frame
-					sb_updates = 0;
-				}
-				else
-				{
+				if (!time || time <= cl.time - 2 || !flashon)
 					Sbar_DrawPic (cbx, 288 + i * 16, -16, rsb_items[i]);
-				}
-				if (time && time > cl.time - 2)
-					sb_updates = 0;
 			}
 		}
 	}
@@ -775,14 +731,8 @@ void Sbar_DrawInventory (cb_context_t *cbx)
 			if (cl.items & (1u << (28 + i)))
 			{
 				time = cl.item_gettime[28 + i];
-				if (time && time > cl.time - 2 && flashon)
-				{ // flash frame
-					sb_updates = 0;
-				}
-				else
+				if (!time || time <= cl.time - 2 || !flashon)
 					Sbar_DrawPic (cbx, 320 - 32 + i * 8, -16, sb_sigil[i]);
-				if (time && time > cl.time - 2)
-					sb_updates = 0;
 			}
 		}
 	}
@@ -928,7 +878,6 @@ void Sbar_DrawFace (cb_context_t *cbx)
 	if (cl.time <= cl.faceanimtime)
 	{
 		anim = 1;
-		sb_updates = 0; // make sure the anim gets drawn over
 	}
 	else
 		anim = 0;
@@ -951,7 +900,6 @@ void Sbar_Draw (cb_context_t *cbx)
 	{
 		qboolean deathmatchoverlay = false;
 		float    s = CLAMP (1.0, scr_sbarscale.value, (float)glwidth / 320.0);
-		sb_updates++;
 		GL_SetCanvas (cbx, CANVAS_CSQC); // johnfitz
 		PR_SwitchQCVM (&cl.qcvm);
 		pr_global_struct->frametime = host_frametime;
@@ -988,8 +936,6 @@ void Sbar_Draw (cb_context_t *cbx)
 	if (cl.intermission)
 		return; // johnfitz -- never draw sbar during intermission
 
-	sb_updates++;
-
 	GL_SetCanvas (cbx, CANVAS_DEFAULT); // johnfitz
 
 	// johnfitz -- don't waste fillrate by clearing the area behind the sbar
@@ -1021,7 +967,6 @@ void Sbar_Draw (cb_context_t *cbx)
 	{
 		Sbar_DrawPicAlpha (cbx, 0, 0, sb_scorebar, scr_sbaralpha.value); // johnfitz -- scr_sbaralpha
 		Sbar_DrawScoreboard (cbx);
-		sb_updates = 0;
 	}
 	else if (scr_viewsize.value < 120) // johnfitz -- check viewsize instead of sb_lines
 	{

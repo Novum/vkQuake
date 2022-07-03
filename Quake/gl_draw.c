@@ -914,8 +914,6 @@ void Draw_FadeScreen (cb_context_t *cbx)
 	vkCmdBindVertexBuffers (cbx->cb, 0, 1, &buffer, &buffer_offset);
 	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_notex_blend_pipeline[cbx->render_pass_index]);
 	vkCmdDraw (cbx->cb, 6, 1, 0, 0);
-
-	Sbar_Changed ();
 }
 
 /*

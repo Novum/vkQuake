@@ -297,10 +297,6 @@ void R_UpdateWarpTextures (cb_context_t **cbx_ptr)
 	vkCmdPipelineBarrier (
 		cbx->cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL, num_warp_textures, warp_image_barriers);
 
-	// if warp render went down into sbar territory, we need to be sure to refresh it next frame
-	if (WARPIMAGESIZE + sb_lines > glheight)
-		Sbar_Changed ();
-
 	// if viewsize is less than 100, we need to redraw the frame around the viewport
 	scr_tileclear_updates = 0;
 

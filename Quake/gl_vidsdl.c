@@ -3267,8 +3267,6 @@ void VID_Toggle (void)
 	toggleWorked = SDL_SetWindowFullscreen (draw_context, flags) == 0;
 	if (toggleWorked)
 	{
-		Sbar_Changed (); // Sbar seems to need refreshing
-
 		modestate = VID_GetFullscreen () ? MS_FULLSCREEN : MS_WINDOWED;
 
 		VID_SyncCvars ();

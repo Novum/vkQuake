@@ -31,9 +31,6 @@ extern int sb_lines; // scan lines to draw
 void Sbar_Init (void);
 void Sbar_LoadPics (void);
 
-void Sbar_Changed (void);
-// call whenever any of the client stats represented on the sbar changes
-
 void Sbar_Draw (cb_context_t *cbx);
 // called every frame by screen
 
