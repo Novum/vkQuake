@@ -39,11 +39,6 @@ float r_avertexnormals[NUMVERTEXNORMALS][3] = {
 
 // precalculated dot products for quantized angles
 #define SHADEDOT_QUANT 16
-float r_avertexnormal_dots[SHADEDOT_QUANT][256] = {
-#include "anorm_dots.h"
-};
-
-float *shadedots = r_avertexnormal_dots[0];
 
 // johnfitz -- struct for passing lerp information to drawing functions
 typedef struct
@@ -369,7 +364,6 @@ static void R_SetupAliasLighting (entity_t *e, vec3_t *shadevector, vec3_t *ligh
 	VectorNormalize (*shadevector);
 	// ericw --
 
-	shadedots = r_avertexnormal_dots[quantizedangle];
 	VectorScale ((*lightcolor), 1.0f / 200.0f, (*lightcolor));
 }
 
