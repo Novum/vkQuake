@@ -12,11 +12,11 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Build Docker image
-      run: docker build . --file AppImage/docker/Dockerfile --tag build-vkquake
+      run: docker build . --file Packaging/AppImage/docker/Dockerfile --tag build-vkquake
     - name: Build vkQuake
-      run: docker run --rm --privileged -e VERSION=${GITHUB_SHA::8} -v ${PWD}:/usr/src/vkQuake build-vkquake /usr/src/vkQuake/AppImage/run-in-docker.sh
+      run: docker run --rm --privileged -e VERSION=${GITHUB_SHA::8} -v ${PWD}:/usr/src/vkQuake build-vkquake /usr/src/vkQuake/Packaging/AppImage/run-in-docker.sh
     - name: Upload vkQuake
       uses: actions/upload-artifact@v2
       with:
         name: vkQuake archive
-        path: AppImage/*.tar.gz
+        path: AppImage/Packaging/*.tar.gz
