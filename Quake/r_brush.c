@@ -1678,15 +1678,15 @@ static void R_UploadLightmap (int lmap, gltexture_t *lightmap_tex)
 	vulkan_globals.vk_cmd_pipeline_barrier (
 		command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL, 1, &image_memory_barrier);
 
-	lm->rectchange.l = LMBLOCK_WIDTH;
-	lm->rectchange.t = LMBLOCK_HEIGHT;
-	lm->rectchange.h = 0;
-	lm->rectchange.w = 0;
-
 	R_StagingBeginCopy ();
 	byte *data = lm->data + lm->rectchange.t * LMBLOCK_WIDTH * LIGHTMAP_BYTES;
 	memcpy (staging_memory, data, staging_size);
 	R_StagingEndCopy ();
+
+	lm->rectchange.l = LMBLOCK_WIDTH;
+	lm->rectchange.t = LMBLOCK_HEIGHT;
+	lm->rectchange.h = 0;
+	lm->rectchange.w = 0;
 
 	Atomic_IncrementUInt32 (&rs_dynamiclightmaps);
 }
