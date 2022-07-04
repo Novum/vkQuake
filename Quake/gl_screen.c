@@ -135,8 +135,6 @@ float    scr_disabled_time;
 qboolean       in_update_screen;
 extern jmp_buf screen_error;
 
-int scr_tileclear_updates = 0; // johnfitz
-
 void SCR_ScreenShot_f (void);
 
 /*
@@ -306,8 +304,6 @@ Internal use only
 static void SCR_CalcRefdef (void)
 {
 	float size, scale; // johnfitz -- scale
-
-	scr_tileclear_updates = 0; // johnfitz
 
 	// bound viewsize
 	if (scr_viewsize.value < 30)
@@ -567,7 +563,6 @@ void SCR_DrawFPS (cb_context_t *cbx)
 			y -= 8; // make room for clock
 		GL_SetCanvas (cbx, CANVAS_BOTTOMRIGHT);
 		Draw_String (cbx, x, y, st);
-		scr_tileclear_updates = 0;
 	}
 }
 
@@ -595,8 +590,6 @@ void SCR_DrawClock (cb_context_t *cbx)
 	// draw it
 	GL_SetCanvas (cbx, CANVAS_BOTTOMRIGHT);
 	Draw_String (cbx, 320 - (strlen (str) << 3), 200 - 8, str);
-
-	scr_tileclear_updates = 0;
 }
 
 /*
@@ -726,8 +719,6 @@ void SCR_DrawPause (cb_context_t *cbx)
 
 	pic = Draw_CachePic ("gfx/pause.lmp");
 	Draw_Pic (cbx, (320 - pic->width) / 2, (240 - 48 - pic->height) / 2, pic, 1.0f, false); // johnfitz -- stretched menus
-
-	scr_tileclear_updates = 0; // johnfitz
 }
 
 /*
@@ -746,8 +737,6 @@ void SCR_DrawLoading (cb_context_t *cbx)
 
 	pic = Draw_CachePic ("gfx/loading.lmp");
 	Draw_Pic (cbx, (320 - pic->width) / 2, (240 - 48 - pic->height) / 2, pic, 1.0f, false); // johnfitz -- stretched menus
-
-	scr_tileclear_updates = 0; // johnfitz
 }
 
 /*
@@ -816,9 +805,6 @@ void SCR_SetUpToDrawConsole (void)
 		if (scr_conlines < scr_con_current)
 			scr_con_current = scr_conlines;
 	}
-
-	if (!con_forcedup && scr_con_current)
-		scr_tileclear_updates = 0; // johnfitz
 }
 
 /*
@@ -980,13 +966,10 @@ int SCR_ModalMessage (const char *text, float timeout) // johnfitz -- timeout
 SCR_TileClear
 johnfitz -- modified to use glwidth/glheight instead of vid.width/vid.height
         also fixed the dimentions of right and top panels
-        also added scr_tileclear_updates
 ==================
 */
 void SCR_TileClear (cb_context_t *cbx)
 {
-	scr_tileclear_updates++;
-
 	if (r_refdef.vrect.x > 0 || r_refdef.vrect.y > 0)
 		GL_SetCanvas (cbx, CANVAS_DEFAULT);
 

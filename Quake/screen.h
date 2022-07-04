@@ -60,6 +60,4 @@ extern cvar_t scr_scale;
 extern cvar_t scr_crosshairscale;
 // johnfitz
 
-extern int scr_tileclear_updates; // johnfitz
-
 #endif /* _QUAKE_SCREEN_H */
