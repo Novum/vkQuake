@@ -1627,7 +1627,7 @@ assumes lightmap texture is already bound
 static void R_UploadLightmap (int lmap, gltexture_t *lightmap_tex)
 {
 	struct lightmap_s *lm = &lightmaps[lmap];
-	if (!lm->modified)
+	if (!Atomic_LoadUInt32(&lm->modified))
 		return;
 
 	Atomic_StoreUInt32(&lm->modified, false);
