@@ -2192,6 +2192,7 @@ Therefore, the bounding box of the hull can be constructed entirely
 from axial planes found in the clipnodes for that hull.
 =================
 */
+#if 0 /* disabled for now -- see in Mod_SetupSubmodels()  */
 static void Mod_BoundsFromClipNode (qmodel_t *mod, int hull, int nodenum)
 {
 	mplane_t    *plane;
@@ -2231,6 +2232,7 @@ static void Mod_BoundsFromClipNode (qmodel_t *mod, int hull, int nodenum)
 	Mod_BoundsFromClipNode (mod, hull, node->children[0]);
 	Mod_BoundsFromClipNode (mod, hull, node->children[1]);
 }
+#endif /* #if 0 */
 
 /* EXTERNAL VIS FILE SUPPORT:
  */
