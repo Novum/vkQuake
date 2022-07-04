@@ -860,7 +860,7 @@ void _Host_Frame (double time)
 		float realframetime = host_frametime;
 		if (host_netinterval && isDedicated == 0)
 		{
-			host_frametime = host_netinterval;
+			host_frametime = sv.active ? (listening ? q_min (accumtime, 0.017) : host_netinterval) : accumtime;
 			accumtime -= host_frametime;
 			if (host_timescale.value > 0)
 				host_frametime *= host_timescale.value;
