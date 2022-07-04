@@ -25,8 +25,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "tasks.h"
 #include "atomics.h"
 
-qboolean r_cache_thrash; // compatability
-
 int r_visframecount; // bumped when going to a new PVS
 int r_framecount;    // used for dlight push checking
 
@@ -353,8 +351,6 @@ static void R_SetupViewBeforeMark (void *unused)
 
 	V_SetContentsColor (r_viewleaf->contents);
 	V_CalcBlend ();
-
-	r_cache_thrash = false;
 
 	// johnfitz -- calculate r_fovx and r_fovy here
 	r_fovx = r_refdef.fov_x;

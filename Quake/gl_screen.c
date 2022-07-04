@@ -648,9 +648,6 @@ void SCR_DrawRam (cb_context_t *cbx)
 	if (!scr_showram.value)
 		return;
 
-	if (!r_cache_thrash)
-		return;
-
 	GL_SetCanvas (cbx, CANVAS_DEFAULT); // johnfitz
 
 	Draw_Pic (cbx, scr_vrect.x + 32, scr_vrect.y, scr_ram, 1.0f, false);
