@@ -23,7 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "atomics.h"
 #include "quakedef.h"
 
-#if 1
+#if defined(USE_HELGRIND)
 #include "valgrind/helgrind.h"
 #else
 #define ANNOTATE_HAPPENS_BEFORE(x) \
