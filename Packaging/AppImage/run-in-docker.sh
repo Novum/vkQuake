@@ -3,6 +3,7 @@ FOLDER=vkquake-${VERSION}_linux64
 ARCHIVE=${FOLDER}.tar.gz
 
 cd /usr/src/vkQuake \
+  && rm -rf build/appimage \
   && ./Packaging/AppImage/python3.11.0.AppImage /opt/meson/meson.py build/appimage -Dbuildtype=release -Db_lto=true \
   && ninja -C build/appimage \
   && cd Packaging/AppImage \
