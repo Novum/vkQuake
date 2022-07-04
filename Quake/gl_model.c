@@ -503,8 +503,6 @@ qmodel_t *Mod_ForName (const char *name, qboolean crash)
 ===============================================================================
 */
 
-byte *mod_base;
-
 /*
 =================
 Mod_CheckFullbrights -- johnfitz
@@ -539,14 +537,21 @@ qboolean Mod_CheckAnimTextureArrayQ64 (texture_t *anims[], int numTex)
 	return true;
 }
 
+typedef struct load_texture_task_args_s
+{
+	qmodel_t *mod;
+	byte     *mod_base;
+} load_texture_task_args_t;
+
 /*
 =================
 Mod_LoadTextureTask
 =================
 */
-static void Mod_LoadTextureTask (int i, qmodel_t **ppmod)
+static void Mod_LoadTextureTask (int i, load_texture_task_args_t *args)
 {
-	qmodel_t  *mod = *ppmod;
+	qmodel_t  *mod = args->mod;
+	byte      *mod_base = args->mod_base;
 	texture_t *tx = mod->textures[i];
 	if (!tx)
 		return;
@@ -662,7 +667,7 @@ static void Mod_LoadTextureTask (int i, qmodel_t **ppmod)
 Mod_LoadTextures
 =================
 */
-static void Mod_LoadTextures (qmodel_t *mod, lump_t *l)
+static void Mod_LoadTextures (qmodel_t *mod, byte *mod_base, lump_t *l)
 {
 	int        i, j, pixels, num, maxanim, altmax;
 	miptex_t   mt;
@@ -742,15 +747,19 @@ static void Mod_LoadTextures (qmodel_t *mod, lump_t *l)
 
 	if (!isDedicated)
 	{
+		load_texture_task_args_t args = {
+			.mod = mod,
+			.mod_base = mod_base,
+		};
 		if (!Tasks_IsWorker () && (nummiptex > 1))
 		{
-			task_handle_t task = Task_AllocateAssignIndexedFuncAndSubmit ((task_indexed_func_t)Mod_LoadTextureTask, nummiptex, &mod, sizeof (mod));
+			task_handle_t task = Task_AllocateAssignIndexedFuncAndSubmit ((task_indexed_func_t)Mod_LoadTextureTask, nummiptex, &args, sizeof (args));
 			Task_Join (task, SDL_MUTEX_MAXWAIT);
 		}
 		else
 		{
 			for (i = 0; i < nummiptex; i++)
-				Mod_LoadTextureTask (i, &mod);
+				Mod_LoadTextureTask (i, &args);
 		}
 	}
 
@@ -860,7 +869,7 @@ static void Mod_LoadTextures (qmodel_t *mod, lump_t *l)
 Mod_LoadLighting -- johnfitz -- replaced with lit support code via lordhavoc
 =================
 */
-static void Mod_LoadLighting (qmodel_t *mod, lump_t *l)
+static void Mod_LoadLighting (qmodel_t *mod, byte *mod_base, lump_t *l)
 {
 	int          i;
 	byte        *in, *out, *data;
@@ -953,7 +962,7 @@ static void Mod_LoadLighting (qmodel_t *mod, lump_t *l)
 Mod_LoadVisibility
 =================
 */
-static void Mod_LoadVisibility (qmodel_t *mod, lump_t *l)
+static void Mod_LoadVisibility (qmodel_t *mod, byte *mod_base, lump_t *l)
 {
 	mod->viswarn = false;
 	if (!l->filelen)
@@ -970,7 +979,7 @@ static void Mod_LoadVisibility (qmodel_t *mod, lump_t *l)
 Mod_LoadEntities
 =================
 */
-static void Mod_LoadEntities (qmodel_t *mod, lump_t *l)
+static void Mod_LoadEntities (qmodel_t *mod, byte *mod_base, lump_t *l)
 {
 	char         basemapname[MAX_QPATH];
 	char         entfilename[MAX_QPATH];
@@ -1033,7 +1042,7 @@ _load_embedded:
 Mod_LoadVertexes
 =================
 */
-static void Mod_LoadVertexes (qmodel_t *mod, lump_t *l)
+static void Mod_LoadVertexes (qmodel_t *mod, byte *mod_base, lump_t *l)
 {
 	byte      *in;
 	mvertex_t *out;
@@ -1061,7 +1070,7 @@ static void Mod_LoadVertexes (qmodel_t *mod, lump_t *l)
 Mod_LoadEdges
 =================
 */
-static void Mod_LoadEdges (qmodel_t *mod, lump_t *l, int bsp2)
+static void Mod_LoadEdges (qmodel_t *mod, byte *mod_base, lump_t *l, int bsp2)
 {
 	medge_t *out;
 	int      i, count;
@@ -1111,7 +1120,7 @@ static void Mod_LoadEdges (qmodel_t *mod, lump_t *l, int bsp2)
 Mod_LoadTexinfo
 =================
 */
-static void Mod_LoadTexinfo (qmodel_t *mod, lump_t *l)
+static void Mod_LoadTexinfo (qmodel_t *mod, byte *mod_base, lump_t *l)
 {
 	byte       *in;
 	mtexinfo_t *out;
@@ -1283,7 +1292,7 @@ static void Mod_PolyForUnlitSurface (qmodel_t *mod, msurface_t *fa)
 Mod_LoadFaces
 =================
 */
-static void Mod_LoadFaces (qmodel_t *mod, lump_t *l, qboolean bsp2)
+static void Mod_LoadFaces (qmodel_t *mod, byte *mod_base, lump_t *l, qboolean bsp2)
 {
 	byte       *ins;
 	byte       *inl;
@@ -1415,7 +1424,7 @@ static void Mod_LoadFaces (qmodel_t *mod, lump_t *l, qboolean bsp2)
 Mod_LoadNodes
 =================
 */
-static void Mod_LoadNodes_S (qmodel_t *mod, lump_t *l)
+static void Mod_LoadNodes_S (qmodel_t *mod, byte *mod_base, lump_t *l)
 {
 	int      i, j, count, p;
 	byte    *in;
@@ -1471,7 +1480,7 @@ static void Mod_LoadNodes_S (qmodel_t *mod, lump_t *l)
 	}
 }
 
-static void Mod_LoadNodes_L1 (qmodel_t *mod, lump_t *l)
+static void Mod_LoadNodes_L1 (qmodel_t *mod, byte *mod_base, lump_t *l)
 {
 	int      i, j, count, p;
 	byte    *in;
@@ -1523,7 +1532,7 @@ static void Mod_LoadNodes_L1 (qmodel_t *mod, lump_t *l)
 	}
 }
 
-static void Mod_LoadNodes_L2 (qmodel_t *mod, lump_t *l)
+static void Mod_LoadNodes_L2 (qmodel_t *mod, byte *mod_base, lump_t *l)
 {
 	int      i, j, count, p;
 	byte    *in;
@@ -1575,14 +1584,14 @@ static void Mod_LoadNodes_L2 (qmodel_t *mod, lump_t *l)
 	}
 }
 
-static void Mod_LoadNodes (qmodel_t *mod, lump_t *l, int bsp2)
+static void Mod_LoadNodes (qmodel_t *mod, byte *mod_base, lump_t *l, int bsp2)
 {
 	if (bsp2 == 2)
-		Mod_LoadNodes_L2 (mod, l);
+		Mod_LoadNodes_L2 (mod, mod_base, l);
 	else if (bsp2)
-		Mod_LoadNodes_L1 (mod, l);
+		Mod_LoadNodes_L1 (mod, mod_base, l);
 	else
-		Mod_LoadNodes_S (mod, l);
+		Mod_LoadNodes_S (mod, mod_base, l);
 }
 
 static void Mod_ProcessLeafs_S (qmodel_t *mod, byte *in, int filelen)
@@ -1723,7 +1732,7 @@ static void Mod_ProcessLeafs_L2 (qmodel_t *mod, byte *in, int filelen)
 Mod_LoadLeafs
 =================
 */
-static void Mod_LoadLeafs (qmodel_t *mod, lump_t *l, int bsp2)
+static void Mod_LoadLeafs (qmodel_t *mod, byte *mod_base, lump_t *l, int bsp2)
 {
 	void *in = (void *)(mod_base + l->fileofs);
 
@@ -1846,7 +1855,7 @@ static void Mod_CheckWaterVis (qmodel_t *mod)
 Mod_LoadClipnodes
 =================
 */
-static void Mod_LoadClipnodes (qmodel_t *mod, lump_t *l, qboolean bsp2)
+static void Mod_LoadClipnodes (qmodel_t *mod, byte *mod_base, lump_t *l, qboolean bsp2)
 {
 	byte *ins;
 	byte *inl;
@@ -1991,7 +2000,7 @@ static void Mod_MakeHull0 (qmodel_t *mod)
 Mod_LoadMarksurfaces
 =================
 */
-static void Mod_LoadMarksurfaces (qmodel_t *mod, lump_t *l, int bsp2)
+static void Mod_LoadMarksurfaces (qmodel_t *mod, byte *mod_base, lump_t *l, int bsp2)
 {
 	int  i, j, count;
 	int *out;
@@ -2049,7 +2058,7 @@ static void Mod_LoadMarksurfaces (qmodel_t *mod, lump_t *l, int bsp2)
 Mod_LoadSurfedges
 =================
 */
-static void Mod_LoadSurfedges (qmodel_t *mod, lump_t *l)
+static void Mod_LoadSurfedges (qmodel_t *mod, byte *mod_base, lump_t *l)
 {
 	int   i, count;
 	byte *in;
@@ -2075,7 +2084,7 @@ static void Mod_LoadSurfedges (qmodel_t *mod, lump_t *l)
 Mod_LoadPlanes
 =================
 */
-static void Mod_LoadPlanes (qmodel_t *mod, lump_t *l)
+static void Mod_LoadPlanes (qmodel_t *mod, byte *mod_base, lump_t *l)
 {
 	int       i, j;
 	mplane_t *out;
@@ -2131,7 +2140,7 @@ float RadiusFromBounds (vec3_t mins, vec3_t maxs)
 Mod_LoadSubmodels
 =================
 */
-static void Mod_LoadSubmodels (qmodel_t *mod, lump_t *l)
+static void Mod_LoadSubmodels (qmodel_t *mod, byte *mod_base, lump_t *l)
 {
 	byte     *in;
 	dmodel_t *out;
@@ -2432,22 +2441,22 @@ static void Mod_LoadBrushModel (qmodel_t *mod, const char *loadname, void *buffe
 	}
 
 	// swap all the lumps
-	mod_base = (byte *)header;
+	byte *mod_base = (byte *)header;
 
 	for (i = 0; i < (int)sizeof (dheader_t) / 4; i++)
 		((int *)header)[i] = LittleLong (((int *)header)[i]);
 
 	// load into heap
 
-	Mod_LoadVertexes (mod, &header->lumps[LUMP_VERTEXES]);
-	Mod_LoadEdges (mod, &header->lumps[LUMP_EDGES], bsp2);
-	Mod_LoadSurfedges (mod, &header->lumps[LUMP_SURFEDGES]);
-	Mod_LoadTextures (mod, &header->lumps[LUMP_TEXTURES]);
-	Mod_LoadLighting (mod, &header->lumps[LUMP_LIGHTING]);
-	Mod_LoadPlanes (mod, &header->lumps[LUMP_PLANES]);
-	Mod_LoadTexinfo (mod, &header->lumps[LUMP_TEXINFO]);
-	Mod_LoadFaces (mod, &header->lumps[LUMP_FACES], bsp2);
-	Mod_LoadMarksurfaces (mod, &header->lumps[LUMP_MARKSURFACES], bsp2);
+	Mod_LoadVertexes (mod, mod_base, &header->lumps[LUMP_VERTEXES]);
+	Mod_LoadEdges (mod, mod_base, &header->lumps[LUMP_EDGES], bsp2);
+	Mod_LoadSurfedges (mod, mod_base, &header->lumps[LUMP_SURFEDGES]);
+	Mod_LoadTextures (mod, mod_base, &header->lumps[LUMP_TEXTURES]);
+	Mod_LoadLighting (mod, mod_base, &header->lumps[LUMP_LIGHTING]);
+	Mod_LoadPlanes (mod, mod_base, &header->lumps[LUMP_PLANES]);
+	Mod_LoadTexinfo (mod, mod_base, &header->lumps[LUMP_TEXINFO]);
+	Mod_LoadFaces (mod, mod_base, &header->lumps[LUMP_FACES], bsp2);
+	Mod_LoadMarksurfaces (mod, mod_base, &header->lumps[LUMP_MARKSURFACES], bsp2);
 
 	if (mod->bspversion == BSPVERSION && external_vis.value && sv.modelname[0] && !q_strcasecmp (loadname, sv.name))
 	{
@@ -2473,13 +2482,13 @@ static void Mod_LoadBrushModel (qmodel_t *mod, const char *loadname, void *buffe
 		}
 	}
 
-	Mod_LoadVisibility (mod, &header->lumps[LUMP_VISIBILITY]);
-	Mod_LoadLeafs (mod, &header->lumps[LUMP_LEAFS], bsp2);
+	Mod_LoadVisibility (mod, mod_base, &header->lumps[LUMP_VISIBILITY]);
+	Mod_LoadLeafs (mod, mod_base, &header->lumps[LUMP_LEAFS], bsp2);
 visdone:
-	Mod_LoadNodes (mod, &header->lumps[LUMP_NODES], bsp2);
-	Mod_LoadClipnodes (mod, &header->lumps[LUMP_CLIPNODES], bsp2);
-	Mod_LoadEntities (mod, &header->lumps[LUMP_ENTITIES]);
-	Mod_LoadSubmodels (mod, &header->lumps[LUMP_MODELS]);
+	Mod_LoadNodes (mod, mod_base, &header->lumps[LUMP_NODES], bsp2);
+	Mod_LoadClipnodes (mod, mod_base, &header->lumps[LUMP_CLIPNODES], bsp2);
+	Mod_LoadEntities (mod, mod_base, &header->lumps[LUMP_ENTITIES]);
+	Mod_LoadSubmodels (mod, mod_base, &header->lumps[LUMP_MODELS]);
 
 	Mod_MakeHull0 (mod);
 
@@ -2686,6 +2695,7 @@ Mod_LoadSkinTask
 typedef struct load_skin_task_args_s
 {
 	qmodel_t *mod;
+	byte     *mod_base;
 	byte    **ppskintypes;
 } load_skin_task_args_t;
 
@@ -2701,6 +2711,7 @@ static void Mod_LoadSkinTask (int i, load_skin_task_args_t *args)
 	src_offset_t offset;                   // johnfitz
 	unsigned int texflags = TEXPREF_PAD;
 	qmodel_t    *mod = args->mod;
+	byte        *mod_base = args->mod_base;
 
 	size = pheader->skinwidth * pheader->skinheight;
 
@@ -2791,7 +2802,7 @@ static void Mod_LoadSkinTask (int i, load_skin_task_args_t *args)
 Mod_LoadAllSkins
 ===============
 */
-void *Mod_LoadAllSkins (qmodel_t *mod, int numskins, byte *pskintype)
+void *Mod_LoadAllSkins (qmodel_t *mod, byte *mod_base, int numskins, byte *pskintype)
 {
 	if (numskins < 1 || numskins > MAX_SKINS)
 		Sys_Error ("Mod_LoadAliasModel: Invalid # of skins: %d", numskins);
@@ -2819,6 +2830,7 @@ void *Mod_LoadAllSkins (qmodel_t *mod, int numskins, byte *pskintype)
 
 	load_skin_task_args_t args = {
 		.mod = mod,
+		.mod_base = mod_base,
 		.ppskintypes = ppskintypes,
 	};
 	if (!Tasks_IsWorker () && (numskins > 1))
@@ -2967,8 +2979,7 @@ static void Mod_LoadAliasModel (qmodel_t *mod, void *buffer)
 	int   size;
 	byte *pframetype;
 	byte *pskintype;
-
-	mod_base = (byte *)buffer; // johnfitz
+	byte *mod_base = (byte *)buffer; // johnfitz
 
 	version = ReadLongUnaligned (mod_base + offsetof (mdl_t, version));
 	if (version != ALIAS_VERSION)
@@ -3030,7 +3041,7 @@ static void Mod_LoadAliasModel (qmodel_t *mod, void *buffer)
 	// load the skins
 	//
 	pskintype = mod_base + sizeof (mdl_t);
-	pskintype = Mod_LoadAllSkins (mod, pheader->numskins, pskintype);
+	pskintype = Mod_LoadAllSkins (mod, mod_base, pheader->numskins, pskintype);
 
 	//
 	// load base s and t vertices
@@ -3103,7 +3114,7 @@ static void Mod_LoadAliasModel (qmodel_t *mod, void *buffer)
 Mod_LoadSpriteFrame
 =================
 */
-static void *Mod_LoadSpriteFrame (qmodel_t *mod, void *pin, mspriteframe_t **ppframe, int framenum)
+static void *Mod_LoadSpriteFrame (qmodel_t *mod, byte *mod_base, void *pin, mspriteframe_t **ppframe, int framenum)
 {
 	dspriteframe_t *pinframe;
 	mspriteframe_t *pspriteframe;
@@ -3147,7 +3158,7 @@ static void *Mod_LoadSpriteFrame (qmodel_t *mod, void *pin, mspriteframe_t **ppf
 Mod_LoadSpriteGroup
 =================
 */
-static void *Mod_LoadSpriteGroup (qmodel_t *mod, void *pin, mspriteframe_t **ppframe, int framenum)
+static void *Mod_LoadSpriteGroup (qmodel_t *mod, byte *mod_base, void *pin, mspriteframe_t **ppframe, int framenum)
 {
 	dspritegroup_t    *pingroup;
 	mspritegroup_t    *pspritegroup;
@@ -3186,7 +3197,7 @@ static void *Mod_LoadSpriteGroup (qmodel_t *mod, void *pin, mspriteframe_t **ppf
 
 	for (i = 0; i < numframes; i++)
 	{
-		ptemp = Mod_LoadSpriteFrame (mod, ptemp, &pspritegroup->frames[i], framenum * 100 + i);
+		ptemp = Mod_LoadSpriteFrame (mod, mod_base, ptemp, &pspritegroup->frames[i], framenum * 100 + i);
 	}
 
 	return ptemp;
@@ -3208,7 +3219,7 @@ static void Mod_LoadSpriteModel (qmodel_t *mod, void *buffer)
 	dspriteframetype_t *pframetype;
 
 	pin = (dsprite_t *)buffer;
-	mod_base = (byte *)buffer; // johnfitz
+	byte *mod_base = (byte *)buffer; // johnfitz
 
 	version = LittleLong (pin->version);
 	if (version != SPRITE_VERSION)
@@ -3256,11 +3267,11 @@ static void Mod_LoadSpriteModel (qmodel_t *mod, void *buffer)
 
 		if (frametype == SPR_SINGLE)
 		{
-			pframetype = (dspriteframetype_t *)Mod_LoadSpriteFrame (mod, pframetype + 1, &psprite->frames[i].frameptr, i);
+			pframetype = (dspriteframetype_t *)Mod_LoadSpriteFrame (mod, mod_base, pframetype + 1, &psprite->frames[i].frameptr, i);
 		}
 		else
 		{
-			pframetype = (dspriteframetype_t *)Mod_LoadSpriteGroup (mod, pframetype + 1, &psprite->frames[i].frameptr, i);
+			pframetype = (dspriteframetype_t *)Mod_LoadSpriteGroup (mod, mod_base, pframetype + 1, &psprite->frames[i].frameptr, i);
 		}
 	}
 
