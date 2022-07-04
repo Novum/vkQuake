@@ -320,7 +320,7 @@ void R_MarkVisSurfacesSIMD (qboolean *use_tasks)
 			if (!r_gpulightmapupdate.value)
 				R_RenderDynamicLightmaps (surf);
 			else if (surf->lightmaptexturenum >= 0)
-				lightmaps[surf->lightmaptexturenum].modified = true;
+				Atomic_StoreUInt32(&lightmaps[surf->lightmaptexturenum].modified, true);
 			if (surf->texinfo->texture->warpimage)
 				surf->texinfo->texture->update_warp = true;
 		}
@@ -397,7 +397,7 @@ void R_BackfaceCullSurfacesSIMD (int index, void *unused)
 
 		surf = &cl.worldmodel->surfaces[(index * 32) + i];
 		if (surf->lightmaptexturenum >= 0)
-			lightmaps[surf->lightmaptexturenum].modified = true;
+			Atomic_StoreUInt32(&lightmaps[surf->lightmaptexturenum].modified, true);
 		if (surf->texinfo->texture->warpimage)
 			surf->texinfo->texture->update_warp = true;
 
@@ -495,7 +495,7 @@ void R_MarkVisSurfaces (qboolean *use_tasks)
 							if (!r_gpulightmapupdate.value)
 								R_RenderDynamicLightmaps (surf);
 							else if (surf->lightmaptexturenum >= 0)
-								lightmaps[surf->lightmaptexturenum].modified = true;
+								Atomic_StoreUInt32(&lightmaps[surf->lightmaptexturenum].modified, true);
 							if (surf->texinfo->texture->warpimage)
 								surf->texinfo->texture->update_warp = true;
 						}

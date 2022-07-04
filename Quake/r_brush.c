@@ -255,7 +255,7 @@ void R_DrawBrushModel (cb_context_t *cbx, entity_t *e, int chain)
 			if (!r_gpulightmapupdate.value)
 				R_RenderDynamicLightmaps (psurf);
 			else if (psurf->lightmaptexturenum >= 0)
-				lightmaps[psurf->lightmaptexturenum].modified = true;
+				Atomic_StoreUInt32(&lightmaps[psurf->lightmaptexturenum].modified, true);
 			Atomic_IncrementUInt32 (&rs_brushpolys);
 		}
 	}
@@ -369,7 +369,7 @@ void R_RenderDynamicLightmaps (msurface_t *fa)
 		if (r_dynamic.value)
 		{
 			struct lightmap_s *lm = &lightmaps[fa->lightmaptexturenum];
-			lm->modified = true;
+			Atomic_StoreUInt32(&lm->modified, true);
 			theRect = &lm->rectchange;
 			if (fa->light_t < theRect->t)
 			{
@@ -1020,7 +1020,7 @@ void GL_BuildLightmaps (void)
 	for (i = 0; i < lightmap_count; i++)
 	{
 		lm = &lightmaps[i];
-		lm->modified = false;
+		Atomic_StoreUInt32(&lm->modified, false);
 		lm->rectchange.l = LMBLOCK_WIDTH;
 		lm->rectchange.t = LMBLOCK_HEIGHT;
 		lm->rectchange.w = 0;
@@ -1630,7 +1630,7 @@ static void R_UploadLightmap (int lmap, gltexture_t *lightmap_tex)
 	if (!lm->modified)
 		return;
 
-	lm->modified = false;
+	Atomic_StoreUInt32(&lm->modified, false);
 
 	const int staging_size = LMBLOCK_WIDTH * lm->rectchange.h * 4;
 
@@ -1753,9 +1753,9 @@ void R_UpdateLightmaps (void *unused)
 	for (int lightmap_index = 0; lightmap_index < lightmap_count; ++lightmap_index)
 	{
 		struct lightmap_s *lm = &lightmaps[lightmap_index];
-		if (!lm->modified)
+		if (!Atomic_LoadUInt32(&lm->modified))
 			continue;
-		lm->modified = false;
+		Atomic_StoreUInt32(&lm->modified, false);
 
 		int batch_index = num_batch_lightmaps++;
 		lightmap_indexes[batch_index] = lightmap_index;
@@ -1813,7 +1813,7 @@ void R_UploadLightmaps (void)
 
 	for (lmap = 0; lmap < lightmap_count; lmap++)
 	{
-		if (!lightmaps[lmap].modified)
+		if (!Atomic_LoadUInt32(&lightmaps[lmap].modified))
 			continue;
 
 		R_UploadLightmap (lmap, lightmaps[lmap].texture);

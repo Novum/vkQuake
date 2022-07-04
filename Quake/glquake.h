@@ -443,7 +443,7 @@ struct lightmap_s
 	gltexture_t    *surface_indices_texture;
 	gltexture_t    *lightstyle_textures[MAXLIGHTMAPS];
 	VkDescriptorSet descriptor_set;
-	qboolean        modified;
+	atomic_uint32_t modified;
 	glRect_t        rectchange;
 	VkBuffer        workgroup_bounds_buffer;
 
