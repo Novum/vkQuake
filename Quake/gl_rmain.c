@@ -797,6 +797,7 @@ void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 		Task_AddDependency (draw_world_task, draw_done_task);
 
 		task_handle_t draw_sky_and_water_task = Task_AllocateAndAssignFunc (R_DrawSkyAndWaterTask, NULL, 0);
+		Task_AddDependency (store_efrags, draw_sky_and_water_task);
 		Task_AddDependency (chain_surfaces, draw_sky_and_water_task);
 		Task_AddDependency (begin_rendering_task, draw_sky_and_water_task);
 		Task_AddDependency (draw_sky_and_water_task, draw_done_task);
