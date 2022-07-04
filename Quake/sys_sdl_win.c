@@ -359,9 +359,17 @@ const char *Sys_ConsoleInput (void)
 
 		if (recs[0].EventType == KEY_EVENT)
 		{
-			if (recs[0].Event.KeyEvent.bKeyDown == FALSE)
+			if (recs[0].Event.KeyEvent.bKeyDown == TRUE)
 			{
 				ch = recs[0].Event.KeyEvent.uChar.AsciiChar;
+				if (ch && recs[0].Event.KeyEvent.dwControlKeyState & SHIFT_PRESSED)
+				{
+					BYTE keyboard[256] = {0};
+					WORD   output;
+					keyboard[SHIFT_PRESSED] = 0x80;
+					if (ToAscii (VkKeyScan (ch), 0, keyboard, &output, 0) == 1)
+						ch = output;
+				}
 
 				switch (ch)
 				{
