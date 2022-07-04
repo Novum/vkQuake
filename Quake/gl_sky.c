@@ -1021,7 +1021,7 @@ void Sky_DrawSky (cb_context_t *cbx)
 	//
 	Fog_DisableGFog (cbx);
 
-	float color[3];
+	float color[4];
 	if (Fog_GetDensity () > 0)
 		Fog_GetColor (color);
 	else
@@ -1036,7 +1036,7 @@ void Sky_DrawSky (cb_context_t *cbx)
 	if (slow_sky)
 	{
 		float fog_density = (Fog_GetDensity () > 0) ? skyfog : 0.0f;
-		float fog_color[3];
+		float fog_color[4];
 		Fog_GetColor (fog_color);
 		float fog_values[4] = {CLAMP (0.0f, fog_color[0], 1.0f), CLAMP (0.0f, fog_color[1], 1.0f), CLAMP (0.0f, fog_color[2], 1.0f), fog_density};
 		R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 16 * sizeof (float), 4 * sizeof (float), fog_values);
