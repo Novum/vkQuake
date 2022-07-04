@@ -1472,7 +1472,7 @@ static void CL_ParseStatic (int version) // johnfitz -- added a parameter
 		entity_t  *newents = Mem_Alloc (sizeof (*newents) * ec);
 		if (!newstatics || !newents)
 			Host_Error ("Too many static entities");
-		for (int i = 0; i < ec; ++i)
+		for (i = 0; i < ec; ++i)
 			newents[i].lightcache.mutex = SDL_CreateMutex ();
 		cl.static_entities = newstatics;
 		while (ec--)

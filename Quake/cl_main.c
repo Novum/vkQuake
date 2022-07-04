@@ -92,7 +92,7 @@ void CL_FreeState (void)
 	for (i = 0; i < MAX_CL_STATS; i++)
 		Mem_Free (cl.statss[i]);
 	PR_ClearProgs (&cl.qcvm);
-	for (int i = 0; i < cl.max_edicts; ++i)
+	for (i = 0; i < cl.max_edicts; ++i)
 		SDL_DestroyMutex (cl.entities[i].lightcache.mutex);
 	Mem_Free (cl.entities);
 	for (i = 0; i < cl.num_statics; ++i)
