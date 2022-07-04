@@ -30,8 +30,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define MAX_PAYLOAD_SIZE     32
 #define MAX_WORKERS          32
 #define WORKER_HUNK_SIZE     (1 * 1024 * 1024)
-#define WAIT_SPIN_COUNT      1000
-#define WAIT_SLEEP_COUNT     3
+#define WAIT_SPIN_COUNT      100
 
 COMPILE_TIME_ASSERT (tasks, MAX_PENDING_TASKS >= MAX_EXECUTABLE_TASKS);
 
@@ -128,7 +127,6 @@ SpinWaitSemaphore
 */
 static inline void SpinWaitSemaphore (SDL_sem *semaphore)
 {
-	int remaining_sleeps = WAIT_SLEEP_COUNT;
 	int remaining_spins = WAIT_SPIN_COUNT;
 	int result = 0;
 	while ((result = SDL_SemTryWait (semaphore)) != 0)
@@ -140,11 +138,7 @@ static inline void SpinWaitSemaphore (SDL_sem *semaphore)
 #endif
 		if (--remaining_spins == 0)
 		{
-			if (--remaining_sleeps == 0)
-				break;
-			else
-				SDL_Delay (0);
-			remaining_spins = WAIT_SPIN_COUNT;
+			break;
 		}
 	}
 	if (result != 0)
