@@ -155,13 +155,14 @@ S_Init
 void S_Init (void)
 {
 	int i;
-	snd_mutex = SDL_CreateMutex ();
 
 	if (snd_initialized)
 	{
 		Con_Printf ("Sound is already initialized\n");
 		return;
 	}
+
+	snd_mutex = SDL_CreateMutex ();
 
 	Cvar_RegisterVariable (&nosound);
 	Cvar_RegisterVariable (&sfxvolume);
@@ -513,6 +514,9 @@ unlock_mutex:
 void S_StopAllSounds (qboolean clear)
 {
 	int i;
+
+	if (!snd_initialized)
+		return;
 
 	SDL_LockMutex (snd_mutex);
 	if (!sound_started)

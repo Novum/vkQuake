@@ -449,8 +449,6 @@ void TexMgr_Init (void)
 
 	// have to assign these here becuase Mod_Init is called before TexMgr_Init
 	r_notexture_mip->gltexture = r_notexture_mip2->gltexture = notexture;
-
-	texmgr_mutex = SDL_CreateMutex ();
 }
 
 /*

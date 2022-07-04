@@ -325,7 +325,8 @@ static void Mod_FreeModelMemory (qmodel_t *mod)
 		SAFE_FREE (mod->entities);
 		SAFE_FREE (mod->extradata);
 	}
-	TexMgr_FreeTexturesForOwner (mod);
+	if (!isDedicated)
+		TexMgr_FreeTexturesForOwner (mod);
 }
 
 /*

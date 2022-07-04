@@ -592,7 +592,8 @@ void Host_ClearMemory (void)
 	Con_DPrintf ("Clearing memory\n");
 	Mod_ClearAll ();
 	Sky_ClearAll ();
-	S_ClearAll ();
+	if (!isDedicated)
+		S_ClearAll ();
 	cls.signon = 0;
 	PR_ClearProgs (&sv.qcvm);
 	Mem_Free (sv.static_entities); // spike -- this is dynamic too, now
@@ -911,7 +912,7 @@ void _Host_Frame (double time)
 		S_Update (r_origin, vpn, vright, vup);
 		CL_DecayLights ();
 	}
-	else
+	else if (!isDedicated)
 		S_Update (vec3_origin, vec3_origin, vec3_origin, vec3_origin);
 
 	CDAudio_Update ();
