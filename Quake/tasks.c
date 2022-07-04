@@ -322,8 +322,10 @@ void Tasks_Init (void)
 
 	for (uint32_t task_index = 0; task_index < (MAX_PENDING_TASKS - 1); ++task_index)
 	{
+#if defined (USE_HELGRIND)
 		task_t  *task = &tasks[task_index];
 		ANNOTATE_HAPPENS_BEFORE(task);
+#endif
 		TaskQueuePush (free_task_queue, task_index);
 	}
 
