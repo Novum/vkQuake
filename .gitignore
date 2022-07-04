@@ -16,8 +16,9 @@ Shaders/*.obj
 Shaders/bintoc
 Windows/VisualStudio/.vs
 Windows/VisualStudio/Build-*
-AppImage/AppDir
-AppImage/vkquake*
+Packaging/AppImage/AppDir
+Packaging/AppImage/vkquake*
+build/
 .settings
 .project
 .cproject
