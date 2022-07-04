@@ -553,6 +553,8 @@ static void R_MarkSurfacesPrepare (void *unused)
 			cl.worldmodel->textures[i]->chain_size[chain_world] = 0;
 		}
 
+	VALGRIND_HG_CLEAN_MEMORY (cl.worldmodel->surfvis, ((cl.worldmodel->numsurfaces + 31) / 8) * sizeof (uint32_t));
+
 #if defined(USE_SIMD)
 	if (use_simd)
 	{
@@ -682,6 +684,7 @@ R_ClearBatch
 static void R_ClearBatch (cb_context_t *cbx)
 {
 	cbx->num_vbo_indices = 0;
+	VALGRIND_HG_CLEAN_MEMORY (cbx->vbo_indices, MAX_BATCH_SIZE * sizeof (uint32_t));
 }
 
 /*
@@ -731,7 +734,7 @@ static void R_FlushBatch (
 		vulkan_globals.vk_cmd_bind_index_buffer (cbx->cb, buffer, buffer_offset, VK_INDEX_TYPE_UINT32);
 		vulkan_globals.vk_cmd_draw_indexed (cbx->cb, cbx->num_vbo_indices, 1, 0, 0, 0);
 
-		cbx->num_vbo_indices = 0;
+		R_ClearBatch (cbx);
 		++(*brushpasses);
 	}
 }

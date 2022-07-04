@@ -1091,6 +1091,8 @@ byte *R_VertexAllocate (int size, VkBuffer *buffer, VkDeviceSize *buffer_offset)
 
 	unsigned char *data = dyn_vb->data + dyn_vb->current_offset;
 	dyn_vb->current_offset += size;
+	VALGRIND_HG_CLEAN_MEMORY (data, size);
+
 	SDL_UnlockMutex (vertex_allocate_mutex);
 
 	return data;
@@ -1124,6 +1126,8 @@ byte *R_IndexAllocate (int size, VkBuffer *buffer, VkDeviceSize *buffer_offset)
 
 	unsigned char *data = dyn_ib->data + dyn_ib->current_offset;
 	dyn_ib->current_offset += aligned_size;
+	VALGRIND_HG_CLEAN_MEMORY (data, aligned_size);
+
 	SDL_UnlockMutex (index_allocate_mutex);
 
 	return data;
@@ -1161,6 +1165,7 @@ byte *R_UniformAllocate (int size, VkBuffer *buffer, uint32_t *buffer_offset, Vk
 
 	unsigned char *data = dyn_ub->data + dyn_ub->current_offset;
 	dyn_ub->current_offset += aligned_size;
+	VALGRIND_HG_CLEAN_MEMORY (data, aligned_size);
 
 	*descriptor_set = ubo_descriptor_sets[current_dyn_buffer_index];
 	SDL_UnlockMutex (uniform_allocate_mutex);

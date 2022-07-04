@@ -23,23 +23,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "atomics.h"
 #include "quakedef.h"
 
-#if defined(USE_HELGRIND)
-#include "valgrind/helgrind.h"
-#else
-#define ANNOTATE_HAPPENS_BEFORE(x) \
-	do                             \
-	{                              \
-	} while (false)
-#define ANNOTATE_HAPPENS_AFTER(x) \
-	do                            \
-	{                             \
-	} while (false)
-#define ANNOTATE_HAPPENS_BEFORE_FORGET_ALL(x) \
-	do                                        \
-	{                                         \
-	} while (false)
-#endif
-
 #define NUM_INDEX_BITS       8
 #define MAX_PENDING_TASKS    (1u << NUM_INDEX_BITS)
 #define MAX_EXECUTABLE_TASKS 256
@@ -282,8 +265,7 @@ static int Task_Worker (void *data)
 	{
 		uint32_t task_index = TaskQueuePop (executable_task_queue);
 		task_t  *task = &tasks[task_index];
-		ANNOTATE_HAPPENS_AFTER (task);
-		ANNOTATE_HAPPENS_BEFORE_FORGET_ALL (task);
+		ANNOTATE_HAPPENS_AFTER (&task->remaining_dependencies);
 		if (task->task_type == TASK_TYPE_SCALAR)
 		{
 			((task_func_t)task->func) (task->payload);
@@ -292,7 +274,6 @@ static int Task_Worker (void *data)
 		{
 			Task_ExecuteIndexed (worker_index, task, task_index);
 		}
-		ANNOTATE_HAPPENS_BEFORE(task);
 		if (Atomic_DecrementUInt32 (&task->remaining_workers) == 1)
 		{
 			SDL_LockMutex (task->epoch_mutex);
@@ -300,10 +281,10 @@ static int Task_Worker (void *data)
 			{
 				Task_Submit (task->dependent_task_handles[i]);
 			}
+			ANNOTATE_HAPPENS_BEFORE (&task->epoch);
 			task->epoch += 1;
 			SDL_CondBroadcast (task->epoch_condition);
 			SDL_UnlockMutex (task->epoch_mutex);
-			ANNOTATE_HAPPENS_BEFORE(task);
 			TaskQueuePush (free_task_queue, task_index);
 		}
 	}
@@ -322,10 +303,6 @@ void Tasks_Init (void)
 
 	for (uint32_t task_index = 0; task_index < (MAX_PENDING_TASKS - 1); ++task_index)
 	{
-#if defined (USE_HELGRIND)
-		task_t  *task = &tasks[task_index];
-		ANNOTATE_HAPPENS_BEFORE(task);
-#endif
 		TaskQueuePush (free_task_queue, task_index);
 	}
 
@@ -381,14 +358,12 @@ task_handle_t Task_Allocate (void)
 {
 	uint32_t task_index = TaskQueuePop (free_task_queue);
 	task_t  *task = &tasks[task_index];
-	ANNOTATE_HAPPENS_AFTER (task);
-	ANNOTATE_HAPPENS_BEFORE_FORGET_ALL (task);
+	VALGRIND_HG_CLEAN_MEMORY (task->payload, MAX_PAYLOAD_SIZE);
 	Atomic_StoreUInt32 (&task->remaining_dependencies, 1);
 	task->task_type = TASK_TYPE_NONE;
 	task->num_dependents = 0;
 	task->indexed_limit = 0;
 	task->func = NULL;
-	ANNOTATE_HAPPENS_BEFORE (task);
 	return CreateTaskHandle (task_index, task->epoch);
 }
 
@@ -405,7 +380,6 @@ void Task_AssignFunc (task_handle_t handle, task_func_t func, void *payload, siz
 	task->func = (void *)func;
 	if (payload)
 		memcpy (&task->payload, payload, payload_size);
-	ANNOTATE_HAPPENS_BEFORE (task);
 }
 
 /*
@@ -433,7 +407,6 @@ void Task_AssignIndexedFunc (task_handle_t handle, task_indexed_func_t func, uin
 	}
 	if (payload)
 		memcpy (&task->payload, payload, payload_size);
-	ANNOTATE_HAPPENS_BEFORE (task);
 }
 
 /*
@@ -446,14 +419,14 @@ void Task_Submit (task_handle_t handle)
 	uint32_t task_index = IndexFromTaskHandle (handle);
 	task_t  *task = &tasks[task_index];
 	assert (task->epoch == EpochFromTaskHandle (handle));
-	ANNOTATE_HAPPENS_BEFORE (task);
+	ANNOTATE_HAPPENS_BEFORE (&task->remaining_dependencies);
 	if (Atomic_DecrementUInt32 (&task->remaining_dependencies) == 1)
 	{
 		const int num_task_workers = (task->task_type == TASK_TYPE_INDEXED) ? q_min (task->indexed_limit, num_workers) : 1;
 		Atomic_StoreUInt32 (&task->remaining_workers, num_task_workers);
 		for (int i = 0; i < num_task_workers; ++i)
 		{
-			ANNOTATE_HAPPENS_BEFORE (task);
+			ANNOTATE_HAPPENS_BEFORE (&task->remaining_dependencies);
 			TaskQueuePush (executable_task_queue, task_index);
 		}
 	}
@@ -485,11 +458,13 @@ void Task_AddDependency (task_handle_t before, task_handle_t after)
 	SDL_LockMutex (before_task->epoch_mutex);
 	if (before_task->epoch != before_handle_task_epoch)
 	{
+		ANNOTATE_HAPPENS_AFTER (&before_task->epoch);
 		SDL_UnlockMutex (before_task->epoch_mutex);
 		return;
 	}
 	uint32_t after_task_index = IndexFromTaskHandle (after);
 	task_t  *after_task = &tasks[after_task_index];
+	ANNOTATE_HAPPENS_BEFORE (&after_task->remaining_dependencies);
 	assert (before_task->num_dependents < MAX_DEPENDENT_TASKS);
 	before_task->dependent_task_handles[before_task->num_dependents] = after;
 	before_task->num_dependents += 1;
@@ -516,7 +491,6 @@ qboolean Task_Join (task_handle_t handle, uint32_t timeout)
 		}
 	}
 	SDL_UnlockMutex (task->epoch_mutex);
-	ANNOTATE_HAPPENS_AFTER (task);
-	ANNOTATE_HAPPENS_BEFORE_FORGET_ALL (task);
+	ANNOTATE_HAPPENS_AFTER (&task->epoch);
 	return true;
 }
