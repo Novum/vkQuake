@@ -213,11 +213,10 @@ Fog_GetColor
 calculates fog color for this frame, taking into account fade times
 =============
 */
-float *Fog_GetColor (void)
+void Fog_GetColor (float *c)
 {
-	static float c[4];
-	float        f;
-	int          i;
+	float f;
+	int   i;
 
 	if (fade_done > cl.time)
 	{
@@ -238,8 +237,6 @@ float *Fog_GetColor (void)
 	// find closest 24-bit RGB value, so solid-colored sky can match the fog perfectly
 	for (i = 0; i < 3; i++)
 		c[i] = (float)(Q_rint (c[i] * 255)) / 255.0f;
-
-	return c;
 }
 
 /*
@@ -271,8 +268,9 @@ called at the beginning of each frame
 */
 void Fog_SetupFrame (cb_context_t *cbx)
 {
-	float *fog_color = Fog_GetColor ();
-	float  fog_values[4] = {CLAMP (0.0f, fog_color[0], 1.0f), CLAMP (0.0f, fog_color[1], 1.0f), CLAMP (0.0f, fog_color[2], 1.0f), Fog_GetDensity () / 64.0f};
+	float fog_color[3];
+	Fog_GetColor (fog_color);
+	float fog_values[4] = {CLAMP (0.0f, fog_color[0], 1.0f), CLAMP (0.0f, fog_color[1], 1.0f), CLAMP (0.0f, fog_color[2], 1.0f), Fog_GetDensity () / 64.0f};
 	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipelines[0]);
 	R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 16 * sizeof (float), 4 * sizeof (float), fog_values);
 }
@@ -286,8 +284,9 @@ called before drawing stuff that should be fogged
 */
 void Fog_EnableGFog (cb_context_t *cbx)
 {
-	float *fog_color = Fog_GetColor ();
-	float  fog_values[4] = {CLAMP (0.0f, fog_color[0], 1.0f), CLAMP (0.0f, fog_color[1], 1.0f), CLAMP (0.0f, fog_color[2], 1.0f), Fog_GetDensity () / 64.0f};
+	float fog_color[3];
+	Fog_GetColor (fog_color);
+	float fog_values[4] = {CLAMP (0.0f, fog_color[0], 1.0f), CLAMP (0.0f, fog_color[1], 1.0f), CLAMP (0.0f, fog_color[2], 1.0f), Fog_GetDensity () / 64.0f};
 	R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 16 * sizeof (float), 4 * sizeof (float), fog_values);
 }
 

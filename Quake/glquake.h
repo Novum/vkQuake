@@ -465,14 +465,14 @@ extern float map_fallbackalpha; // spike -- because we might want r_wateralpha t
 extern task_handle_t prev_end_rendering_task;
 
 // johnfitz -- fog functions called from outside gl_fog.c
-void   Fog_ParseServerMessage (void);
-float *Fog_GetColor (void);
-float  Fog_GetDensity (void);
-void   Fog_EnableGFog (cb_context_t *cbx);
-void   Fog_DisableGFog (cb_context_t *cbx);
-void   Fog_SetupFrame (cb_context_t *cbx);
-void   Fog_NewMap (void);
-void   Fog_Init (void);
+void  Fog_ParseServerMessage (void);
+void  Fog_GetColor (float *c);
+float Fog_GetDensity (void);
+void  Fog_EnableGFog (cb_context_t *cbx);
+void  Fog_DisableGFog (cb_context_t *cbx);
+void  Fog_SetupFrame (cb_context_t *cbx);
+void  Fog_NewMap (void);
+void  Fog_Init (void);
 
 void R_NewGame (void);
 

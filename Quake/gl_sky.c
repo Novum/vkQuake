@@ -27,8 +27,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #define MAX_CLIP_VERTS 64
 
-float  Fog_GetDensity (void);
-float *Fog_GetColor (void);
+float Fog_GetDensity (void);
+void  Fog_GetColor (float *c);
 
 extern atomic_uint32_t rs_skypolys;  // for r_speeds readout
 extern atomic_uint32_t rs_skypasses; // for r_speeds readout
@@ -1021,11 +1021,11 @@ void Sky_DrawSky (cb_context_t *cbx)
 	//
 	Fog_DisableGFog (cbx);
 
-	float *color;
+	float color[3];
 	if (Fog_GetDensity () > 0)
-		color = Fog_GetColor ();
+		Fog_GetColor (color);
 	else
-		color = skyflatcolor;
+		memcpy (color, skyflatcolor, 3 * sizeof (float));
 
 	Sky_ProcessTextureChains (cbx, color);
 	Sky_ProcessEntities (cbx, color);
@@ -1035,9 +1035,10 @@ void Sky_DrawSky (cb_context_t *cbx)
 	//
 	if (slow_sky)
 	{
-		float  fog_density = (Fog_GetDensity () > 0) ? skyfog : 0.0f;
-		float *fog_color = Fog_GetColor ();
-		float  fog_values[4] = {CLAMP (0.0f, fog_color[0], 1.0f), CLAMP (0.0f, fog_color[1], 1.0f), CLAMP (0.0f, fog_color[2], 1.0f), fog_density};
+		float fog_density = (Fog_GetDensity () > 0) ? skyfog : 0.0f;
+		float fog_color[3];
+		Fog_GetColor (fog_color);
+		float fog_values[4] = {CLAMP (0.0f, fog_color[0], 1.0f), CLAMP (0.0f, fog_color[1], 1.0f), CLAMP (0.0f, fog_color[2], 1.0f), fog_density};
 		R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 16 * sizeof (float), 4 * sizeof (float), fog_values);
 
 		if (skybox_name[0])
