@@ -599,7 +599,7 @@ static void Mod_LoadTextureTask (int i, load_texture_task_args_t *args)
 		// now create the warpimage, using dummy data from the hunk to create the initial image
 		q_snprintf (texturename, sizeof (texturename), "%s_warp", texturename);
 		tx->warpimage = TexMgr_LoadImage (mod, texturename, WARPIMAGESIZE, WARPIMAGESIZE, SRC_RGBA, NULL, "", 0, TEXPREF_NOPICMIP | TEXPREF_WARPIMAGE);
-		tx->update_warp = true;
+		Atomic_StoreUInt32 (&tx->update_warp, true);
 	}
 	else // regular texture
 	{
@@ -729,10 +729,10 @@ static void Mod_LoadTextures (qmodel_t *mod, byte *mod_base, lump_t *l)
 			pixels = q_max (0, (mod_base + l->fileofs + l->filelen) - pixels_p);
 		}
 
-		tx->update_warp = false; // johnfitz
-		tx->warpimage = NULL;    // johnfitz
-		tx->fullbright = NULL;   // johnfitz
-		tx->shift = 0;           // Q64 only
+		Atomic_StoreUInt32 (&tx->update_warp, false); // johnfitz
+		tx->warpimage = NULL;                         // johnfitz
+		tx->fullbright = NULL;                        // johnfitz
+		tx->shift = 0;                                // Q64 only
 
 		if (mod->bspversion != BSPVERSION_QUAKE64)
 		{

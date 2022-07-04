@@ -163,7 +163,7 @@ void R_UpdateWarpTextures (cb_context_t **cbx_ptr)
 		if (!(tx = cl.worldmodel->textures[i]))
 			continue;
 
-		if (!tx->update_warp)
+		if (!Atomic_LoadUInt32 (&tx->update_warp))
 			continue;
 
 		if (r_waterwarpcompute.value)
@@ -291,7 +291,7 @@ void R_UpdateWarpTextures (cb_context_t **cbx_ptr)
 		image_barrier->subresourceRange.baseArrayLayer = 0;
 		image_barrier->subresourceRange.layerCount = 1;
 
-		tx->update_warp = false;
+		Atomic_StoreUInt32 (&tx->update_warp, false);
 	}
 
 	vkCmdPipelineBarrier (

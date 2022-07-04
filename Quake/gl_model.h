@@ -26,6 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "modelgen.h"
 #include "spritegn.h"
+#include "atomics.h"
 
 /*
 
@@ -99,7 +100,7 @@ typedef struct texture_s
 	struct gltexture_s *gltexture;                // johnfitz -- pointer to gltexture
 	struct gltexture_s *fullbright;               // johnfitz -- fullbright mask texture
 	struct gltexture_s *warpimage;                // johnfitz -- for water animation
-	qboolean            update_warp;              // johnfitz -- update warp this frame
+	atomic_uint32_t     update_warp;              // johnfitz -- update warp this frame
 	struct msurface_s  *texturechains[chain_num]; // for texture chains
 	uint32_t            chain_size[chain_num];    // for texture chains
 	int                 anim_total;               // total tenths in sequence ( 0 = no)
@@ -266,7 +267,7 @@ typedef struct
 	int                maxheight;
 	int                numframes;
 	float              beamlength; // remove?
-	void              *cachespot;  // remove?
+	void			  *cachespot;  // remove?
 	mspriteframedesc_t frames[1];
 } msprite_t;
 
@@ -364,7 +365,7 @@ typedef struct
 	int                 commands;                 // gl command list with embedded s/t
 	struct gltexture_s *gltextures[MAX_SKINS][4]; // johnfitz
 	struct gltexture_s *fbtextures[MAX_SKINS][4]; // johnfitz
-	byte               *texels[MAX_SKINS];        // only for player skins
+	byte			   *texels[MAX_SKINS];        // only for player skins
 	maliasframedesc_t   frames[1];                // variable sized
 } aliashdr_t;
 

@@ -320,9 +320,9 @@ void R_MarkVisSurfacesSIMD (qboolean *use_tasks)
 			if (!r_gpulightmapupdate.value)
 				R_RenderDynamicLightmaps (surf);
 			else if (surf->lightmaptexturenum >= 0)
-				Atomic_StoreUInt32(&lightmaps[surf->lightmaptexturenum].modified, true);
+				Atomic_StoreUInt32 (&lightmaps[surf->lightmaptexturenum].modified, true);
 			if (surf->texinfo->texture->warpimage)
-				surf->texinfo->texture->update_warp = true;
+				Atomic_StoreUInt32 (&surf->texinfo->texture->update_warp, true);
 		}
 	}
 
@@ -397,9 +397,9 @@ void R_BackfaceCullSurfacesSIMD (int index, void *unused)
 
 		surf = &cl.worldmodel->surfaces[(index * 32) + i];
 		if (surf->lightmaptexturenum >= 0)
-			Atomic_StoreUInt32(&lightmaps[surf->lightmaptexturenum].modified, true);
+			Atomic_StoreUInt32 (&lightmaps[surf->lightmaptexturenum].modified, true);
 		if (surf->texinfo->texture->warpimage)
-			surf->texinfo->texture->update_warp = true;
+			Atomic_StoreUInt32 (&surf->texinfo->texture->update_warp, true);
 
 		const uint32_t bit_mask = ~(1u << i);
 		mask_iter &= bit_mask;
@@ -495,9 +495,9 @@ void R_MarkVisSurfaces (qboolean *use_tasks)
 							if (!r_gpulightmapupdate.value)
 								R_RenderDynamicLightmaps (surf);
 							else if (surf->lightmaptexturenum >= 0)
-								Atomic_StoreUInt32(&lightmaps[surf->lightmaptexturenum].modified, true);
+								Atomic_StoreUInt32 (&lightmaps[surf->lightmaptexturenum].modified, true);
 							if (surf->texinfo->texture->warpimage)
-								surf->texinfo->texture->update_warp = true;
+								Atomic_StoreUInt32 (&surf->texinfo->texture->update_warp, true);
 						}
 					}
 				}
@@ -849,7 +849,7 @@ void R_DrawTextureChains_Water (cb_context_t *cbx, qmodel_t *model, entity_t *en
 				// ericw -- this is copied from R_DrawSequentialPoly.
 				// If the poly is not part of the world we have to
 				// set this flag
-				t->update_warp = true; // FIXME: one frame too late!
+				Atomic_StoreUInt32 (&t->update_warp, true); // FIXME: one frame too late!
 			}
 
 			alpha = GL_WaterAlphaForEntitySurface (ent, s);
