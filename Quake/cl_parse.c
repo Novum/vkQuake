@@ -1317,9 +1317,8 @@ static void CL_ParseBaseline (entity_t *ent, int version) // johnfitz -- added a
 	ent->baseline.alpha = (bits & B_ALPHA) ? MSG_ReadByte () : ENTALPHA_DEFAULT; // johnfitz -- PROTOCOL_FITZQUAKE
 }
 
-#define CL_SetStati(stat, val) cl.statsf[stat] = (cl.stats[stat] = val)
-#define CL_SetHudStat(stat, val) \
-	CL_SetStati (stat, val)
+#define CL_SetStati(stat, val)   cl.statsf[stat] = (cl.stats[stat] = val)
+#define CL_SetHudStat(stat, val) CL_SetStati (stat, val)
 
 /*
 ==================
@@ -1473,6 +1472,8 @@ static void CL_ParseStatic (int version) // johnfitz -- added a parameter
 		entity_t  *newents = Mem_Alloc (sizeof (*newents) * ec);
 		if (!newstatics || !newents)
 			Host_Error ("Too many static entities");
+		for (int i = 0; i < ec; ++i)
+			newents[i].lightcache.mutex = SDL_CreateMutex ();
 		cl.static_entities = newstatics;
 		while (ec--)
 			cl.static_entities[cl.max_static_entities++] = newents++;
@@ -2124,9 +2125,9 @@ void CL_ParseServerMessage (void)
 		case svcfte_voicechat:
 			if (!(cl.protocol_pext2 & PEXT2_VOICECHAT))
 				Host_Error ("Received svcfte_voicechat but extension not active");
-			/*sender =*/ MSG_ReadByte ();
-			/*gen =*/ MSG_ReadByte ();
-			/*seq =*/ MSG_ReadByte ();
+			/*sender =*/MSG_ReadByte ();
+			/*gen =*/MSG_ReadByte ();
+			/*seq =*/MSG_ReadByte ();
 			int bytes = MSG_ReadShort ();
 			while (bytes-- > 0)
 				MSG_ReadByte ();

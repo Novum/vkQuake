@@ -42,10 +42,11 @@ typedef struct efrag_s
 
 typedef struct lightcache_s
 {
-	int    surfidx; // < 0: black surface; == 0: no cache; > 0: 1+index of surface
-	vec3_t pos;
-	short  ds;
-	short  dt;
+	int        surfidx; // < 0: black surface; == 0: no cache; > 0: 1+index of surface
+	vec3_t     pos;
+	short      ds;
+	short      dt;
+	SDL_mutex *mutex;
 } lightcache_t;
 
 struct SDL_mutex;
@@ -77,7 +78,7 @@ typedef struct entity_s
 	struct efrag_s  *efrag; // linked list of efrags
 	int              frame;
 	float            syncbase; // for client-side animations
-	byte            *colormap;
+	byte			*colormap;
 	int              effects;  // light, particles, etc
 	int              skinnum;  // for Alias models
 	int              visframe; // last frame this entity was
@@ -186,7 +187,7 @@ void R_PushDlights (void);
 //
 // surface cache related
 //
-extern int      reinit_surfcache; // if 1, surface cache is currently empty and
+extern int reinit_surfcache; // if 1, surface cache is currently empty and
 
 int  D_SurfaceCacheForRes (int width, int height);
 void D_DeleteSurfaceCache (void);
