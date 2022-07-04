@@ -62,6 +62,8 @@ DFLAGS += -DNDEBUG
 CFLAGS += -O3
 CFLAGS += $(call check_gcc,-fweb,)
 CFLAGS += $(call check_gcc,-frename-registers,)
+CFLAGS += $(call check_gcc,-fno-asynchronous-unwind-tables,)
+CFLAGS += $(call check_gcc,-fno-ident,)
 cmd_strip=$(STRIP) $(1)
 define do_strip
 	$(call cmd_strip,$(1));
