@@ -2757,9 +2757,9 @@ GL_WaitForDeviceIdle
 */
 void GL_WaitForDeviceIdle (void)
 {
+	GL_SynchronizeEndRenderingTask ();
 	if (!vulkan_globals.device_idle)
-	{
-		GL_SynchronizeEndRenderingTask ();
+	{	
 		R_SubmitStagingBuffers ();
 		vkDeviceWaitIdle (vulkan_globals.device);
 	}
