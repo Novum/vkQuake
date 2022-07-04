@@ -133,6 +133,11 @@ static inline void SpinWaitSemaphore (SDL_sem *semaphore)
 	int result = 0;
 	while ((result = SDL_SemTryWait (semaphore)) != 0)
 	{
+#ifdef USE_SSE2
+		// Don't have to actually check for SSE2 support, the
+		// instruction is backwards compatible and executes as a NOP
+		_mm_pause ();
+#endif
 		if (--remaining_spins == 0)
 		{
 			if (--remaining_sleeps == 0)
@@ -140,11 +145,6 @@ static inline void SpinWaitSemaphore (SDL_sem *semaphore)
 			else
 				SDL_Delay (0);
 			remaining_spins = WAIT_SPIN_COUNT;
-#ifdef USE_SSE2
-			// Don't have to actually check for SSE2 support, the
-			// instruction is backwards compatible and executes as a NOP
-			_mm_pause ();
-#endif
 		}
 	}
 	if (result != 0)
