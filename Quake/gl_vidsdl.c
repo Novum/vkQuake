@@ -2361,7 +2361,6 @@ qboolean GL_BeginRendering (qboolean use_tasks, task_handle_t *begin_rendering_t
 		}
 	}
 
-	vulkan_globals.device_idle = false;
 	*x = *y = 0;
 	*width = vid.width;
 	*height = vid.height;
