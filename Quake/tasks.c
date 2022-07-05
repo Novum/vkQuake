@@ -23,6 +23,23 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "atomics.h"
 #include "quakedef.h"
 
+#if defined(USE_HELGRIND)
+#include "valgrind/helgrind.h"
+#else
+#define ANNOTATE_HAPPENS_BEFORE(x) \
+	do                             \
+	{                              \
+	} while (false)
+#define ANNOTATE_HAPPENS_AFTER(x) \
+	do                            \
+	{                             \
+	} while (false)
+#define ANNOTATE_HAPPENS_BEFORE_FORGET_ALL(x) \
+	do                                        \
+	{                                         \
+	} while (false)
+#endif
+
 #define NUM_INDEX_BITS       8
 #define MAX_PENDING_TASKS    (1u << NUM_INDEX_BITS)
 #define MAX_EXECUTABLE_TASKS 256
@@ -49,7 +66,7 @@ typedef struct
 	atomic_uint32_t remaining_workers;
 	atomic_uint32_t remaining_dependencies;
 	uint64_t        epoch;
-	void		   *func;
+	void           *func;
 	SDL_mutex      *epoch_mutex;
 	SDL_cond       *epoch_condition;
 	uint8_t         payload[MAX_PAYLOAD_SIZE];
@@ -188,6 +205,7 @@ static inline void TaskQueuePush (task_queue_t *queue, uint32_t task_index)
 		cas_successful = Atomic_CompareExchangeUInt64 (&queue->state, &state, new_state);
 	} while (!cas_successful);
 
+	ANNOTATE_HAPPENS_BEFORE (&queue->task_indices[head]);
 	Atomic_StoreUInt32 (&queue->task_indices[head], task_index + 1u);
 	SDL_SemPost (queue->pop_semaphore);
 }
@@ -221,6 +239,7 @@ static inline uint32_t TaskQueuePop (task_queue_t *queue)
 	const uint32_t val = Atomic_LoadUInt32 (&queue->task_indices[tail]);
 	Atomic_StoreUInt32 (&queue->task_indices[tail], 0u);
 	SDL_SemPost (queue->push_semaphore);
+	ANNOTATE_HAPPENS_AFTER (&queue->task_indices[tail]);
 
 	return val - 1;
 }
@@ -259,7 +278,8 @@ static int Task_Worker (void *data)
 	{
 		uint32_t task_index = TaskQueuePop (executable_task_queue);
 		task_t  *task = &tasks[task_index];
-		ANNOTATE_HAPPENS_AFTER (&task->remaining_dependencies);
+		ANNOTATE_HAPPENS_AFTER (task);
+
 		if (task->task_type == TASK_TYPE_SCALAR)
 		{
 			((task_func_t)task->func) (task->payload);
@@ -268,19 +288,39 @@ static int Task_Worker (void *data)
 		{
 			Task_ExecuteIndexed (worker_index, task, task_index);
 		}
+
+#if defined(USE_HELGRIND)
+		ANNOTATE_HAPPENS_BEFORE (task);
+		qboolean indexed_task = task->task_type == TASK_TYPE_INDEXED;
+		if (indexed_task)
+		{
+			// Helgrind needs to know about all threads
+			// that participated in an indexed execution
+			SDL_LockMutex (task->epoch_mutex);
+			for (int i = 0; i < task->num_dependents; ++i)
+			{
+				const int task_index = IndexFromTaskHandle (task->dependent_task_handles[i]);
+				task_t   *dep_task = &tasks[task_index];
+				ANNOTATE_HAPPENS_BEFORE (dep_task);
+			}
+		}
+#endif
+
 		if (Atomic_DecrementUInt32 (&task->remaining_workers) == 1)
 		{
 			SDL_LockMutex (task->epoch_mutex);
 			for (int i = 0; i < task->num_dependents; ++i)
-			{
 				Task_Submit (task->dependent_task_handles[i]);
-			}
-			ANNOTATE_HAPPENS_BEFORE (&task->epoch);
 			task->epoch += 1;
 			SDL_CondBroadcast (task->epoch_condition);
-			SDL_UnlockMutex (task->epoch_mutex);
 			TaskQueuePush (free_task_queue, task_index);
+			SDL_UnlockMutex (task->epoch_mutex);
 		}
+
+#if defined(USE_HELGRIND)
+		if (indexed_task)
+			SDL_UnlockMutex (task->epoch_mutex);
+#endif
 	}
 	return 0;
 }
@@ -352,7 +392,6 @@ task_handle_t Task_Allocate (void)
 {
 	uint32_t task_index = TaskQueuePop (free_task_queue);
 	task_t  *task = &tasks[task_index];
-	VALGRIND_HG_CLEAN_MEMORY (task->payload, MAX_PAYLOAD_SIZE);
 	Atomic_StoreUInt32 (&task->remaining_dependencies, 1);
 	task->task_type = TASK_TYPE_NONE;
 	task->num_dependents = 0;
@@ -413,14 +452,13 @@ void Task_Submit (task_handle_t handle)
 	uint32_t task_index = IndexFromTaskHandle (handle);
 	task_t  *task = &tasks[task_index];
 	assert (task->epoch == EpochFromTaskHandle (handle));
-	ANNOTATE_HAPPENS_BEFORE (&task->remaining_dependencies);
+	ANNOTATE_HAPPENS_BEFORE (task);
 	if (Atomic_DecrementUInt32 (&task->remaining_dependencies) == 1)
 	{
 		const int num_task_workers = (task->task_type == TASK_TYPE_INDEXED) ? q_min (task->indexed_limit, num_workers) : 1;
 		Atomic_StoreUInt32 (&task->remaining_workers, num_task_workers);
 		for (int i = 0; i < num_task_workers; ++i)
 		{
-			ANNOTATE_HAPPENS_BEFORE (&task->remaining_dependencies);
 			TaskQueuePush (executable_task_queue, task_index);
 		}
 	}
@@ -452,13 +490,12 @@ void Task_AddDependency (task_handle_t before, task_handle_t after)
 	SDL_LockMutex (before_task->epoch_mutex);
 	if (before_task->epoch != before_handle_task_epoch)
 	{
-		ANNOTATE_HAPPENS_AFTER (&before_task->epoch);
+		ANNOTATE_HAPPENS_AFTER (before_task);
 		SDL_UnlockMutex (before_task->epoch_mutex);
 		return;
 	}
 	uint32_t after_task_index = IndexFromTaskHandle (after);
 	task_t  *after_task = &tasks[after_task_index];
-	ANNOTATE_HAPPENS_BEFORE (&after_task->remaining_dependencies);
 	assert (before_task->num_dependents < MAX_DEPENDENT_TASKS);
 	before_task->dependent_task_handles[before_task->num_dependents] = after;
 	before_task->num_dependents += 1;
@@ -485,6 +522,6 @@ qboolean Task_Join (task_handle_t handle, uint32_t timeout)
 		}
 	}
 	SDL_UnlockMutex (task->epoch_mutex);
-	ANNOTATE_HAPPENS_AFTER (&task->epoch);
+	ANNOTATE_HAPPENS_AFTER (task);
 	return true;
 }
