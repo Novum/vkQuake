@@ -313,8 +313,8 @@ static int Task_Worker (void *data)
 				Task_Submit (task->dependent_task_handles[i]);
 			task->epoch += 1;
 			SDL_CondBroadcast (task->epoch_condition);
-			TaskQueuePush (free_task_queue, task_index);
 			SDL_UnlockMutex (task->epoch_mutex);
+			TaskQueuePush (free_task_queue, task_index);
 		}
 
 #if defined(USE_HELGRIND)
