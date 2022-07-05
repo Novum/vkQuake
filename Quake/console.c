@@ -66,6 +66,8 @@ qboolean con_debuglog = false;
 
 qboolean con_initialized;
 
+SDL_mutex *con_mutex;
+
 /*
 ================
 Con_Quakebar -- johnfitz -- returns a bar of the desired length, but never wider than the console
@@ -257,6 +259,8 @@ void Con_CheckResize (void)
 	if (width == con_linewidth)
 		return;
 
+	SDL_LockMutex (con_mutex);
+
 	oldwidth = con_linewidth;
 	con_linewidth = width;
 	oldtotallines = con_totallines;
@@ -289,6 +293,8 @@ void Con_CheckResize (void)
 
 	con_backscroll = 0;
 	con_current = con_totallines - 1;
+
+	SDL_UnlockMutex (con_mutex);
 }
 
 /*
@@ -299,6 +305,8 @@ Con_Init
 void Con_Init (void)
 {
 	int i;
+
+	con_mutex = SDL_CreateMutex ();
 
 	// johnfitz -- user settable console buffer size
 	i = COM_CheckParm ("-consize");
@@ -367,6 +375,8 @@ static void Con_Print (const char *txt)
 	static int cr;
 	int        mask;
 	qboolean   boundary;
+
+	SDL_LockMutex (con_mutex);
 
 	// con_backscroll = 0; //johnfitz -- better console scrolling
 
@@ -442,6 +452,7 @@ static void Con_Print (const char *txt)
 			break;
 		}
 	}
+	SDL_UnlockMutex (con_mutex);
 }
 
 // borrowed from uhexen2 by S.A. for new procs, LOG_Init, LOG_Close
@@ -619,10 +630,12 @@ void Con_SafePrintf (const char *fmt, ...)
 	q_vsnprintf (msg, sizeof (msg), fmt, argptr);
 	va_end (argptr);
 
+	SDL_LockMutex (con_mutex);
 	temp = scr_disabled_for_loading;
 	scr_disabled_for_loading = true;
 	Con_Printf ("%s", msg);
 	scr_disabled_for_loading = temp;
+	SDL_UnlockMutex (con_mutex);
 }
 
 /*
