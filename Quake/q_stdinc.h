@@ -244,25 +244,4 @@ typedef ptrdiff_t ssize_t;
 #include "SDL.h"
 #endif
 
-#if defined(USE_HELGRIND)
-#include "valgrind/helgrind.h"
-#else
-#define ANNOTATE_HAPPENS_BEFORE(x) \
-	do                             \
-	{                              \
-	} while (false)
-#define ANNOTATE_HAPPENS_AFTER(x) \
-	do                            \
-	{                             \
-	} while (false)
-#define ANNOTATE_HAPPENS_BEFORE_FORGET_ALL(x) \
-	do                                        \
-	{                                         \
-	} while (false)
-#define VALGRIND_HG_CLEAN_MEMORY(x, y) \
-	do                                 \
-	{                                  \
-	} while (false)
-#endif
-
 #endif /* __QSTDINC_H */

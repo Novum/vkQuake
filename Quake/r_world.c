@@ -553,8 +553,6 @@ static void R_MarkSurfacesPrepare (void *unused)
 			cl.worldmodel->textures[i]->chain_size[chain_world] = 0;
 		}
 
-	VALGRIND_HG_CLEAN_MEMORY (cl.worldmodel->surfvis, ((cl.worldmodel->numsurfaces + 31) / 8) * sizeof (uint32_t));
-
 #if defined(USE_SIMD)
 	if (use_simd)
 	{
@@ -684,7 +682,6 @@ R_ClearBatch
 static void R_ClearBatch (cb_context_t *cbx)
 {
 	cbx->num_vbo_indices = 0;
-	VALGRIND_HG_CLEAN_MEMORY (cbx->vbo_indices, MAX_BATCH_SIZE * sizeof (uint32_t));
 }
 
 /*
