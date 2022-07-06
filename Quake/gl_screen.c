@@ -1042,6 +1042,16 @@ static void SCR_SetupFrame (void *unused)
 
 /*
 ==================
+SCR_DrawDone
+==================
+*/
+static void SCR_DrawDone (void *unused)
+{
+	r_framecount++;
+}
+
+/*
+==================
 SCR_UpdateScreen
 
 This is called every frame, and can also be called explicitly to flush
@@ -1097,7 +1107,7 @@ void SCR_UpdateScreen (qboolean use_tasks)
 			prev_end_rendering_task = INVALID_TASK_HANDLE;
 		}
 
-		task_handle_t draw_done_task = Task_Allocate ();
+		task_handle_t draw_done_task = Task_AllocateAndAssignFunc (SCR_DrawDone, NULL, 0);
 		task_handle_t setup_frame_task = Task_AllocateAndAssignFunc (SCR_SetupFrame, NULL, 0);
 		V_RenderView (use_tasks, begin_rendering_task, setup_frame_task, draw_done_task);
 		task_handle_t draw_gui_task = Task_AllocateAndAssignFunc (SCR_DrawGUI, NULL, 0);
@@ -1122,6 +1132,7 @@ void SCR_UpdateScreen (qboolean use_tasks)
 		V_RenderView (use_tasks, INVALID_TASK_HANDLE, INVALID_TASK_HANDLE, INVALID_TASK_HANDLE);
 		S_ExtraUpdate ();
 		SCR_DrawGUI (NULL);
+		SCR_DrawDone(NULL);
 		GL_EndRendering (false, true);
 	}
 
