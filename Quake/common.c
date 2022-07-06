@@ -2181,6 +2181,7 @@ static void COM_Game_f (void)
 
 		// Kill the server
 		CL_Disconnect ();
+		cls.demonum = -1;
 		Host_ShutdownServer (true);
 
 		// Write config file
