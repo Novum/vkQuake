@@ -60,6 +60,19 @@
             ],
         },
         {
+            "label": "helgrind",
+            "type": "shell",
+            "command": "CFLAGS=-DUSE_HELGRIND meson build/helgrind --buildtype=debugoptimized && ninja -C build/helgrind",
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "clear": true
+            },
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
             "label": "clean",
             "type": "shell",
             "command": "rm -rf build",
@@ -71,6 +84,17 @@
             "problemMatcher": [
                 "$gcc"
             ]
-        }        
+        },
+        {
+            "label": "run-helgrind",
+            "type": "shell",
+            "command": "/usr/bin/valgrind --tool=helgrind ${workspaceFolder}/build/helgrind/vkquake -basedir ${env:QUAKE_DIR}",
+            "group": "build",
+            "dependsOn": "helgrind",
+            "presentation": {
+                "reveal": "always",
+                "clear": true
+            }
+        }     
     ]
 }
