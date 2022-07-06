@@ -2756,6 +2756,7 @@ GL_WaitForDeviceIdle
 */
 void GL_WaitForDeviceIdle (void)
 {
+	assert(!Tasks_IsWorker());
 	GL_SynchronizeEndRenderingTask ();
 	if (!vulkan_globals.device_idle)
 	{	
