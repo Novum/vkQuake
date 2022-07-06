@@ -572,9 +572,9 @@ static void Mod_LoadTextureTask (int i, load_texture_task_args_t *args)
 	if (!q_strncasecmp (tx->name, "sky", 3)) // sky texture //also note -- was strncmp, changed to match qbsp
 	{
 		if (mod->bspversion == BSPVERSION_QUAKE64)
-			Sky_LoadTextureQ64 (mod, tx);
+			Sky_LoadTextureQ64 (mod, tx, i);
 		else
-			Sky_LoadTexture (mod, tx);
+			Sky_LoadTexture (mod, tx, i);
 	}
 	else if (tx->name[0] == '*') // warping texture
 	{

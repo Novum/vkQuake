@@ -59,6 +59,9 @@ int vec_to_st[6][3] = {{-2, 3, 1}, {2, 3, -1}, {1, 3, 2}, {-1, 3, -2}, {-2, -1, 
 
 float skyfog; // ericw
 
+static SDL_mutex *load_skytexture_mutex;
+static int max_skytexture_index = -1;
+
 typedef struct
 {
 	float position[3];
@@ -80,7 +83,7 @@ Sky_LoadTexture
 A sky texture is 256*128, with the left side being a masked overlay
 ==============
 */
-void Sky_LoadTexture (qmodel_t *mod, texture_t *mt)
+void Sky_LoadTexture (qmodel_t *mod, texture_t *mt, int tex_index)
 {
 	char     texturename[64];
 	unsigned x, y, p, r, g, b, count, halfwidth, *rgba;
@@ -128,12 +131,22 @@ void Sky_LoadTexture (qmodel_t *mod, texture_t *mt)
 
 	front_data = back_data + halfwidth * mt->height;
 	q_snprintf (texturename, sizeof (texturename), "%s:%s_front", mod->name, mt->name);
-	alphaskytexture = TexMgr_LoadImage (mod, texturename, halfwidth, mt->height, SRC_INDEXED, front_data, "", (src_offset_t)front_data, TEXPREF_ALPHA);
 
-	// calculate r_fastsky color based on average of all opaque foreground colors
-	skyflatcolor[0] = (float)r / (count * 255);
-	skyflatcolor[1] = (float)g / (count * 255);
-	skyflatcolor[2] = (float)b / (count * 255);
+	// This is horrible but it matches the non-threaded behavior. Does this even make sense?
+	SDL_LockMutex (load_skytexture_mutex);
+	if (tex_index > max_skytexture_index)
+	{
+		max_skytexture_index = tex_index;
+		if (alphaskytexture)
+			TexMgr_FreeTexture (alphaskytexture);
+		alphaskytexture = TexMgr_LoadImage (mod, texturename, halfwidth, mt->height, SRC_INDEXED, front_data, "", (src_offset_t)front_data, TEXPREF_ALPHA);
+
+		// calculate r_fastsky color based on average of all opaque foreground colors
+		skyflatcolor[0] = (float)r / (count * 255);
+		skyflatcolor[1] = (float)g / (count * 255);
+		skyflatcolor[2] = (float)b / (count * 255);
+	}
+	SDL_UnlockMutex (load_skytexture_mutex);
 
 	Mem_Free (back_data);
 }
@@ -145,7 +158,7 @@ Sky_LoadTextureQ64
 Quake64 sky textures are 32*64
 ==============
 */
-void Sky_LoadTextureQ64 (qmodel_t *mod, texture_t *mt)
+void Sky_LoadTextureQ64 (qmodel_t *mod, texture_t *mt, int tex_index)
 {
 	char     texturename[64];
 	unsigned i, p, r, g, b, count, halfheight, *rgba;
@@ -190,12 +203,21 @@ void Sky_LoadTextureQ64 (qmodel_t *mod, texture_t *mt)
 	}
 
 	q_snprintf (texturename, sizeof (texturename), "%s:%s_front", mod->name, mt->name);
-	alphaskytexture = TexMgr_LoadImage (mod, texturename, mt->width, halfheight, SRC_RGBA, front_rgba, "", (src_offset_t)front_rgba, TEXPREF_ALPHA);
+	// This is horrible but it matches the non-threaded behavior. Does this even make sense?
+	SDL_LockMutex (load_skytexture_mutex);
+	if (tex_index > max_skytexture_index)
+	{
+		max_skytexture_index = tex_index;
+		if (alphaskytexture)
+			TexMgr_FreeTexture (alphaskytexture);
 
-	// calculate r_fastsky color based on average of all opaque foreground colors
-	skyflatcolor[0] = (float)r / (count * 255);
-	skyflatcolor[1] = (float)g / (count * 255);
-	skyflatcolor[2] = (float)b / (count * 255);
+		alphaskytexture = TexMgr_LoadImage (mod, texturename, mt->width, halfheight, SRC_RGBA, front_rgba, "", (src_offset_t)front_rgba, TEXPREF_ALPHA);
+		// calculate r_fastsky color based on average of all opaque foreground colors
+		skyflatcolor[0] = (float)r / (count * 255);
+		skyflatcolor[1] = (float)g / (count * 255);
+		skyflatcolor[2] = (float)b / (count * 255);
+	}
+	SDL_UnlockMutex (load_skytexture_mutex);
 
 	Mem_Free (front_rgba);
 }
@@ -280,6 +302,7 @@ void Sky_ClearAll (void)
 		skybox_textures[i] = NULL;
 	solidskytexture = NULL;
 	alphaskytexture = NULL;
+	max_skytexture_index = -1;
 }
 
 /*
@@ -391,6 +414,8 @@ void Sky_Init (void)
 	skybox_name[0] = 0;
 	for (i = 0; i < 6; i++)
 		skybox_textures[i] = NULL;
+
+	load_skytexture_mutex = SDL_CreateMutex ();
 }
 
 //==============================================================================

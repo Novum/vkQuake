@@ -527,8 +527,8 @@ void Sky_Init (void);
 void Sky_ClearAll (void);
 void Sky_DrawSky (cb_context_t *cbx);
 void Sky_NewMap (void);
-void Sky_LoadTexture (qmodel_t *mod, texture_t *mt);
-void Sky_LoadTextureQ64 (qmodel_t *mod, texture_t *mt);
+void Sky_LoadTexture (qmodel_t *mod, texture_t *mt, int tex_index);
+void Sky_LoadTextureQ64 (qmodel_t *mod, texture_t *mt, int tex_index);
 void Sky_LoadSkyBox (const char *name);
 
 void R_ClearTextureChains (qmodel_t *mod, texchain_t chain);
