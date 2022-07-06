@@ -6,7 +6,7 @@
     "configurations": [
         {
             "name": "release",
-            "type": "lldb",
+            "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build/release/vkquake",
             "args": [ "-basedir", "${env:QUAKE_DIR}" ],
@@ -15,7 +15,7 @@
         },
         {
             "name": "debugopt",
-            "type": "lldb",
+            "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build/debugopt/vkquake",
             "args": [ "-basedir", "${env:QUAKE_DIR}" ],
@@ -24,7 +24,7 @@
         },
         {
             "name": "debug",
-            "type": "lldb",
+            "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build/debug/vkquake",
             "args": [ "-basedir", "${env:QUAKE_DIR}" ],
