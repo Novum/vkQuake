@@ -1175,7 +1175,7 @@ static void P_LoadTexture (part_type_t *ptype, qboolean warn)
 			{
 				ptype->looks.texture = TexMgr_LoadImage (
 					NULL, texname, fwidth, fheight, SRC_RGBA, data, filename, 0,
-					(ptype->looks.premul ? TEXPREF_PREMULTIPLY : 0) | (ptype->looks.nearest ? TEXPREF_NEAREST : TEXPREF_LINEAR) | TEXPREF_NOPICMIP |
+					(ptype->looks.premul ? TEXPREF_PREMULTIPLY : 0) | (ptype->looks.nearest ? TEXPREF_NEAREST : 0) | TEXPREF_NOPICMIP |
 						TEXPREF_ALPHA);
 			}
 		}
@@ -1201,7 +1201,7 @@ static void P_LoadTexture (part_type_t *ptype, qboolean warn)
 				static byte data[4 * 4 * 4];
 				memset (data, 0xff, sizeof (data));
 				thetex = TexMgr_LoadImage (
-					NULL, "particles/white", 4, 4, SRC_RGBA, data, "", (src_offset_t)data, TEXPREF_PERSIST | TEXPREF_NOPICMIP | TEXPREF_LINEAR | TEXPREF_ALPHA);
+					NULL, "particles/white", 4, 4, SRC_RGBA, data, "", (src_offset_t)data, TEXPREF_PERSIST | TEXPREF_NOPICMIP | TEXPREF_ALPHA);
 			}
 			ptype->looks.texture = thetex;
 		}
@@ -1227,7 +1227,7 @@ static void P_LoadTexture (part_type_t *ptype, qboolean warn)
 				}
 				thetex = TexMgr_LoadImage (
 					NULL, "particles/beamtexture", PARTICLETEXTURESIZE, PARTICLETEXTURESIZE, SRC_RGBA, data, "", (src_offset_t)data,
-					TEXPREF_PERSIST | TEXPREF_NOPICMIP | TEXPREF_LINEAR | TEXPREF_ALPHA);
+					TEXPREF_PERSIST | TEXPREF_NOPICMIP | TEXPREF_ALPHA);
 			}
 			ptype->looks.texture = thetex;
 		}
@@ -1256,7 +1256,7 @@ static void P_LoadTexture (part_type_t *ptype, qboolean warn)
 				}
 				thetex = TexMgr_LoadImage (
 					NULL, "particles/ptritexture", PARTICLETEXTURESIZE, PARTICLETEXTURESIZE, SRC_RGBA, data, "", (src_offset_t)data,
-					TEXPREF_PERSIST | TEXPREF_NOPICMIP | TEXPREF_LINEAR | TEXPREF_ALPHA);
+					TEXPREF_PERSIST | TEXPREF_NOPICMIP | TEXPREF_ALPHA);
 			}
 			ptype->looks.texture = thetex;
 		}
@@ -1291,7 +1291,7 @@ static void P_LoadTexture (part_type_t *ptype, qboolean warn)
 				}
 				thetex = TexMgr_LoadImage (
 					NULL, "particles/balltexture", PARTICLETEXTURESIZE, PARTICLETEXTURESIZE, SRC_RGBA, data, "", (src_offset_t)data,
-					TEXPREF_PERSIST | TEXPREF_NOPICMIP | TEXPREF_LINEAR | TEXPREF_ALPHA);
+					TEXPREF_PERSIST | TEXPREF_NOPICMIP | TEXPREF_ALPHA);
 			}
 			ptype->looks.texture = thetex;
 		}
@@ -1324,7 +1324,7 @@ static void P_LoadTexture (part_type_t *ptype, qboolean warn)
 				}
 				thetex = TexMgr_LoadImage (
 					NULL, "particles/fuzzyparticle", 16, 16, SRC_RGBA, data, "", (src_offset_t)data,
-					TEXPREF_PERSIST | TEXPREF_NOPICMIP | TEXPREF_LINEAR | TEXPREF_ALPHA);
+					TEXPREF_PERSIST | TEXPREF_NOPICMIP | TEXPREF_ALPHA);
 			}
 			ptype->looks.texture = thetex;
 		}
