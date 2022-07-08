@@ -4,7 +4,7 @@
 #extension GL_GOOGLE_include_directive : enable
 #extension GL_KHR_shader_subgroup_shuffle : enable
 
-layout(set = 0, binding = 2, rgba8) uniform writeonly image2D output_image;
+layout (set = 0, binding = 2, rgba8) uniform writeonly image2D output_image;
 
 #define SCALING
 #define USE_SUBGROUP_OPS

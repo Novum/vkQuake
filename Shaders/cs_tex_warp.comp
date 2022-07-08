@@ -2,37 +2,39 @@
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_ARB_shading_language_420pack : enable
 
-layout(push_constant) uniform PushConsts {
+layout (push_constant) uniform PushConsts
+{
 	float time;
-} push_constants;
+}
+push_constants;
 
-layout(set = 0, binding = 0) uniform sampler2D input_tex;
-layout(set = 1, binding = 0, rgba8) uniform writeonly image2D output_image;
+layout (set = 0, binding = 0) uniform sampler2D input_tex;
+layout (set = 1, binding = 0, rgba8) uniform writeonly image2D output_image;
 
 // This matches the turbsin lookup table (gl_warp_sin.h)
-float turbsin(float t)
+float turbsin (float t)
 {
-	return 8.0f * sin(t * (3.14159f/128.0f));
+	return 8.0f * sin (t * (3.14159f / 128.0f));
 }
 
 // Copied from gl_warp.c WARPCALC
-float warp_calc(float s, float t)
+float warp_calc (float s, float t)
 {
-	float a = mod(((t * 2.0f) + (push_constants.time * (128.0 / 3.14159f))), 256.0f);
-	return ((s + turbsin(a)) * (1.0f/64.0f));
+	float a = mod (((t * 2.0f) + (push_constants.time * (128.0 / 3.14159f))), 256.0f);
+	return ((s + turbsin (a)) * (1.0f / 64.0f));
 }
 
 layout (local_size_x = 8, local_size_y = 8) in;
-void main() 
+void main ()
 {
 	const float WARPIMAGESIZE_RCP = 1.0f / 512.0f;
 
-	const float posX = float(gl_GlobalInvocationID.x) * WARPIMAGESIZE_RCP;
-	const float posY = 1.0f - (float(gl_GlobalInvocationID.y) * WARPIMAGESIZE_RCP);
+	const float posX = float (gl_GlobalInvocationID.x) * WARPIMAGESIZE_RCP;
+	const float posY = 1.0f - (float (gl_GlobalInvocationID.y) * WARPIMAGESIZE_RCP);
 
-	const float texX = warp_calc(posX * 128.0f, posY * 128.0f);
-	const float texY = 1.0f - warp_calc(posY * 128.0f, posX * 128.0f);
+	const float texX = warp_calc (posX * 128.0f, posY * 128.0f);
+	const float texY = 1.0f - warp_calc (posY * 128.0f, posX * 128.0f);
 
-	vec4 value = texture(input_tex, vec2(texX, texY));
-	imageStore(output_image, ivec2(gl_GlobalInvocationID.xy), value);
+	vec4 value = texture (input_tex, vec2 (texX, texY));
+	imageStore (output_image, ivec2 (gl_GlobalInvocationID.xy), value);
 }

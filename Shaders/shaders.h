@@ -21,34 +21,34 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef __SHADERS_H
 #define __SHADERS_H
 
-#define DECLARE_SHADER_SPV(name) \
+#define DECLARE_SHADER_SPV(name)       \
 	extern unsigned char name##_spv[]; \
-	extern int name##_spv_size;
+	extern int           name##_spv_size;
 
-DECLARE_SHADER_SPV(basic_vert);
-DECLARE_SHADER_SPV(basic_frag);
-DECLARE_SHADER_SPV(basic_alphatest_frag);
-DECLARE_SHADER_SPV(basic_notex_frag);
-DECLARE_SHADER_SPV(world_vert);
-DECLARE_SHADER_SPV(world_frag);
-DECLARE_SHADER_SPV(alias_vert);
-DECLARE_SHADER_SPV(alias_frag);
-DECLARE_SHADER_SPV(alias_alphatest_frag);
-DECLARE_SHADER_SPV(sky_layer_vert);
-DECLARE_SHADER_SPV(sky_layer_frag);
-DECLARE_SHADER_SPV(sky_box_frag);
-DECLARE_SHADER_SPV(postprocess_vert);
-DECLARE_SHADER_SPV(postprocess_frag);
-DECLARE_SHADER_SPV(screen_effects_8bit_comp);
-DECLARE_SHADER_SPV(screen_effects_8bit_scale_comp);
-DECLARE_SHADER_SPV(screen_effects_8bit_scale_sops_comp);
-DECLARE_SHADER_SPV(screen_effects_10bit_comp);
-DECLARE_SHADER_SPV(screen_effects_10bit_scale_comp);
-DECLARE_SHADER_SPV(screen_effects_10bit_scale_sops_comp);
-DECLARE_SHADER_SPV(cs_tex_warp_comp);
-DECLARE_SHADER_SPV(showtris_vert);
-DECLARE_SHADER_SPV(showtris_frag);
-DECLARE_SHADER_SPV(update_lightmap_comp);
+DECLARE_SHADER_SPV (basic_vert);
+DECLARE_SHADER_SPV (basic_frag);
+DECLARE_SHADER_SPV (basic_alphatest_frag);
+DECLARE_SHADER_SPV (basic_notex_frag);
+DECLARE_SHADER_SPV (world_vert);
+DECLARE_SHADER_SPV (world_frag);
+DECLARE_SHADER_SPV (alias_vert);
+DECLARE_SHADER_SPV (alias_frag);
+DECLARE_SHADER_SPV (alias_alphatest_frag);
+DECLARE_SHADER_SPV (sky_layer_vert);
+DECLARE_SHADER_SPV (sky_layer_frag);
+DECLARE_SHADER_SPV (sky_box_frag);
+DECLARE_SHADER_SPV (postprocess_vert);
+DECLARE_SHADER_SPV (postprocess_frag);
+DECLARE_SHADER_SPV (screen_effects_8bit_comp);
+DECLARE_SHADER_SPV (screen_effects_8bit_scale_comp);
+DECLARE_SHADER_SPV (screen_effects_8bit_scale_sops_comp);
+DECLARE_SHADER_SPV (screen_effects_10bit_comp);
+DECLARE_SHADER_SPV (screen_effects_10bit_scale_comp);
+DECLARE_SHADER_SPV (screen_effects_10bit_scale_sops_comp);
+DECLARE_SHADER_SPV (cs_tex_warp_comp);
+DECLARE_SHADER_SPV (showtris_vert);
+DECLARE_SHADER_SPV (showtris_frag);
+DECLARE_SHADER_SPV (update_lightmap_comp);
 
 #undef DECLARE_SHADER_SPV
 
