@@ -162,7 +162,7 @@ void main ()
 				const uint num_colors = offset & 0xF;
 				const uint colors_offset = (offset >> 4) & 0xFFFF;
 				vec3       best_color = texelFetch (palette_colors, int (colors_offset)).rgb;
-				vec3       second_best_color = vec3 (0.0f);
+				vec3       second_best_color = best_color;
 				float      best_dist_sq = dot (color.rgb - best_color, color.rgb - best_color);
 				float      second_best_dist_sq = 1e38f;
 				for (int i = 1; i < num_colors; ++i)
