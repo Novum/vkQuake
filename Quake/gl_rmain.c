@@ -140,9 +140,9 @@ qboolean R_CullBox (vec3_t emins, vec3_t emaxs)
 	{
 		p = frustum + i;
 		signbits = p->signbits;
-		vec[0] = ((signbits % 2) < 1) ? emaxs[0] : emins[0];
-		vec[1] = ((signbits % 4) < 2) ? emaxs[1] : emins[1];
-		vec[2] = ((signbits % 8) < 4) ? emaxs[2] : emins[2];
+		vec[0] = ((signbits & 1) ? emins : emaxs)[0];
+		vec[1] = ((signbits & 2) ? emins : emaxs)[1];
+		vec[2] = ((signbits & 4) ? emins : emaxs)[2];
 		if (p->normal[0] * vec[0] + p->normal[1] * vec[1] + p->normal[2] * vec[2] < p->dist)
 			return true;
 	}
