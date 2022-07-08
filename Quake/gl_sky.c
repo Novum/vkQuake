@@ -137,8 +137,6 @@ void Sky_LoadTexture (qmodel_t *mod, texture_t *mt, int tex_index)
 	if (tex_index > max_skytexture_index)
 	{
 		max_skytexture_index = tex_index;
-		if (alphaskytexture)
-			TexMgr_FreeTexture (alphaskytexture);
 		alphaskytexture = TexMgr_LoadImage (mod, texturename, halfwidth, mt->height, SRC_INDEXED, front_data, "", (src_offset_t)front_data, TEXPREF_ALPHA);
 
 		// calculate r_fastsky color based on average of all opaque foreground colors
