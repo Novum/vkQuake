@@ -1254,7 +1254,7 @@ void R_CreateDescriptorSetLayouts ()
 	}
 
 	{
-		VkDescriptorSetLayoutBinding screen_effects_layout_bindings[4];
+		VkDescriptorSetLayoutBinding screen_effects_layout_bindings[5];
 		memset (&screen_effects_layout_bindings, 0, sizeof (screen_effects_layout_bindings));
 		screen_effects_layout_bindings[0].binding = 0;
 		screen_effects_layout_bindings[0].descriptorCount = 1;
@@ -1262,22 +1262,27 @@ void R_CreateDescriptorSetLayouts ()
 		screen_effects_layout_bindings[0].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 		screen_effects_layout_bindings[1].binding = 1;
 		screen_effects_layout_bindings[1].descriptorCount = 1;
-		screen_effects_layout_bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+		screen_effects_layout_bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 		screen_effects_layout_bindings[1].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 		screen_effects_layout_bindings[2].binding = 2;
 		screen_effects_layout_bindings[2].descriptorCount = 1;
-		screen_effects_layout_bindings[2].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER;
+		screen_effects_layout_bindings[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
 		screen_effects_layout_bindings[2].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 		screen_effects_layout_bindings[3].binding = 3;
 		screen_effects_layout_bindings[3].descriptorCount = 1;
-		screen_effects_layout_bindings[3].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		screen_effects_layout_bindings[3].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER;
 		screen_effects_layout_bindings[3].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+		screen_effects_layout_bindings[4].binding = 4;
+		screen_effects_layout_bindings[4].descriptorCount = 1;
+		screen_effects_layout_bindings[4].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		screen_effects_layout_bindings[4].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
-		descriptor_set_layout_create_info.bindingCount = 4;
+
+		descriptor_set_layout_create_info.bindingCount = 5;
 		descriptor_set_layout_create_info.pBindings = screen_effects_layout_bindings;
 
 		memset (&vulkan_globals.screen_effects_set_layout, 0, sizeof (vulkan_globals.screen_effects_set_layout));
-		vulkan_globals.screen_effects_set_layout.num_combined_image_samplers = 1;
+		vulkan_globals.screen_effects_set_layout.num_combined_image_samplers = 2;
 		vulkan_globals.screen_effects_set_layout.num_storage_images = 1;
 
 		err = vkCreateDescriptorSetLayout (vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.screen_effects_set_layout.handle);

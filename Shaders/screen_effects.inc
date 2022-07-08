@@ -7,9 +7,10 @@ struct OctreeNode
 	uvec4 children[2];
 };
 
-layout(set = 0, binding = 0) uniform sampler2D input_tex;
-layout (set = 0, binding = 2) uniform samplerBuffer palette_colors;
-layout (set = 0, binding = 3) uniform PaletteOctree
+layout (set = 0, binding = 0) uniform sampler2D input_tex;
+layout (set = 0, binding = 1) uniform sampler2D blue_noise_tex;
+layout (set = 0, binding = 3) uniform samplerBuffer palette_colors;
+layout (set = 0, binding = 4) uniform PaletteOctree
 {
 	OctreeNode nodes[NUM_PALETTE_OCTREE_NODES];
 } palette_octree;
@@ -47,6 +48,11 @@ uint DecodeMorton2Y(uint code)
 	return Compact1By1(code >> 1);
 }
 #endif
+
+float blue_noise(ivec2 u)
+{
+    return texelFetch(blue_noise_tex, ivec2(uint(u.x) % 64, uint(u.y) % 64), 0).r;
+}
 
 #if defined(SCALING)
 // Vulkan guarantees 16384 bytes of shared memory, so host doesn't need to check
@@ -129,6 +135,76 @@ void main()
 	}
 	else
 		color = texelFetch(input_tex, ivec2(min(push_constants.clamp_size.x, pos_x), min(push_constants.clamp_size.y, pos_y)), 0);
+
+	if ((push_constants.flags & 0x10) != 0)
+	{
+		const float noise = blue_noise(ivec2(pos_x, pos_y));
+		uvec3 search_color = uvec3(color.rgb * 255.0f);
+		uint current_node_offset = 0;
+		uint current_shift = 7;
+		uvec3 node_coords = uvec3(0u);
+		while (true)
+		{
+			const uvec3 node_offsets = (search_color - node_coords) >> current_shift;
+			const uint child_index = node_offsets.r + node_offsets.g * 2 + node_offsets.b * 4;
+			const uint offset = palette_octree.nodes[current_node_offset].children[child_index / 4][child_index % 4];
+			if ((offset & (1u << 31)) == 0)
+			{
+				node_coords = node_coords + (node_offsets << current_shift);
+				current_shift -= 1;
+				current_node_offset = offset;
+			}
+			else
+			{
+				const uint num_colors = offset & 0xF;
+				const uint colors_offset = (offset >> 4) & 0xFFFF;
+				vec3 best_color = texelFetch(palette_colors, int(colors_offset)).rgb;
+				vec3 second_best_color = vec3(0.0f);
+				float best_dist_sq = dot(color.rgb - best_color, color.rgb - best_color);
+				float second_best_dist_sq = 1e38f;
+				for (int i = 1; i < num_colors; ++i)
+				{
+					vec3 palette_color = texelFetch(palette_colors, int(colors_offset + i)).rgb;
+					float dist_sq = dot(color.rgb - palette_color, color.rgb - palette_color);
+					if (dist_sq < best_dist_sq)
+					{
+						second_best_dist_sq = best_dist_sq;
+						second_best_color = best_color;
+						best_color = palette_color;
+						best_dist_sq = dist_sq;
+					}
+					else if ((dist_sq > best_dist_sq) && (dist_sq < second_best_dist_sq))
+					{
+						second_best_color = palette_color;
+						second_best_dist_sq = dist_sq;
+					}
+				}
+
+				float luma[3][3];
+				for (int y = -1; y <= 1; ++y)
+				{
+					for (int x = -1; x <= 1; ++x)
+					{
+						vec3 l = texelFetch(input_tex, ivec2(min(push_constants.clamp_size.x, int(pos_x) + x), min(push_constants.clamp_size.y, int(pos_y) + y)), 0).rgb;
+						luma[x + 1][y + 1] = (l.r + l.g + l.b) / 3.0f;
+					}
+				}
+
+				// Run a sobel filter because we don't want to apply too much dithering to very smooth screen areas.
+				float s[2] = { 1.0f, 2.0f };
+				vec2 sobel_xy = vec2((s[0] * luma[0][0]) - (s[0] * luma[2][0]) + (s[1] * luma[0][1]) - (s[1] * luma[2][1]) + (s[0] * luma[0][2]) - (s[0] * luma[2][2]),
+							         (s[0] * luma[0][0]) - (s[0] * luma[0][2]) + (s[1] * luma[1][0]) - (s[1] * luma[1][2]) + (s[0] * luma[2][0]) - (s[0] * luma[2][2]));
+				float sobel = dot(sobel_xy, sobel_xy);
+
+				float p = clamp((5.0f - (sobel * 1e4f)), 1.0f, 5.0f);
+				float a = pow(best_dist_sq, p);
+				float b = pow(second_best_dist_sq, p);
+				float ratio = a / (a + b);
+				color.rgb = (ratio < pow(noise, 1.0f)) ? best_color : second_best_color;
+				break;
+			}
+		}
+	}
 
 #if defined(SCALING)
 	if ((push_constants.flags & 0x2) != 0)
@@ -214,45 +290,6 @@ void main()
 	}
 #endif
 
-	if ((push_constants.flags & 0x10) != 0)
-	{
-		uvec3 search_color = uvec3(color.rgb * 255.0f);
-		uint current_node_offset = 0;
-		uint current_shift = 7;
-		uvec3 node_coords = uvec3(0u);
-		while (true)
-		{
-			const uvec3 node_offsets = (search_color - node_coords) >> current_shift;
-			const uint child_index = node_offsets.r + node_offsets.g * 2 + node_offsets.b * 4;
-			const uint offset = palette_octree.nodes[current_node_offset].children[child_index / 4][child_index % 4];
-			if ((offset & (1u << 31)) == 0)
-			{
-				node_coords = node_coords + (node_offsets << current_shift);
-				current_shift -= 1;
-				current_node_offset = offset;
-			}
-			else
-			{
-				const uint num_colors = offset & 0xF;
-				const uint colors_offset = (offset >> 4) & 0xFFFF;
-				vec3 best_color = vec3(0.0f);
-				float best_dist_sq = 1e38f;
-				for (int i = 0; i < num_colors; ++i)
-				{
-					vec3 palette_color = texelFetch(palette_colors, int(colors_offset + i)).rgb;
-					float dist_sq = dot(color.rgb - palette_color, color.rgb - palette_color);
-					if (dist_sq < best_dist_sq)
-					{
-						best_color = palette_color;
-						best_dist_sq = dist_sq;
-					}
-				}
-				color.rgb = best_color;
-				break;
-			}
-		}
-	}
-	
 	color.rgb = mix(color.rgb, vec3(push_constants.poly_blend_r, push_constants.poly_blend_g, push_constants.poly_blend_b), push_constants.poly_blend_a);
 
 	imageStore(output_image, ivec2(pos_x, pos_y), color);

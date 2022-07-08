@@ -3,7 +3,7 @@
 #extension GL_ARB_shading_language_420pack : enable
 #extension GL_GOOGLE_include_directive : enable
 
-layout(set = 0, binding = 1, rgb10_a2) uniform writeonly image2D output_image;
+layout(set = 0, binding = 2, rgb10_a2) uniform writeonly image2D output_image;
 
 #define SCALING
 #include "screen_effects.inc"

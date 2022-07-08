@@ -1763,7 +1763,13 @@ static void GL_UpdateDescriptorSets (void)
 	palette_octree_info.offset = 0;
 	palette_octree_info.range = VK_WHOLE_SIZE;
 
-	VkWriteDescriptorSet screen_effects_writes[4];
+	VkDescriptorImageInfo blue_noise_image_info;
+	memset (&blue_noise_image_info, 0, sizeof (blue_noise_image_info));
+	blue_noise_image_info.imageView = bluenoisetexture->image_view;
+	blue_noise_image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	blue_noise_image_info.sampler = vulkan_globals.linear_sampler;
+
+	VkWriteDescriptorSet screen_effects_writes[5];
 	memset (screen_effects_writes, 0, sizeof (screen_effects_writes));
 	screen_effects_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 	screen_effects_writes[0].dstBinding = 0;
@@ -1772,29 +1778,40 @@ static void GL_UpdateDescriptorSets (void)
 	screen_effects_writes[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	screen_effects_writes[0].dstSet = vulkan_globals.screen_effects_desc_set;
 	screen_effects_writes[0].pImageInfo = &input_image_info;
+
 	screen_effects_writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 	screen_effects_writes[1].dstBinding = 1;
 	screen_effects_writes[1].dstArrayElement = 0;
 	screen_effects_writes[1].descriptorCount = 1;
-	screen_effects_writes[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+	screen_effects_writes[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	screen_effects_writes[1].dstSet = vulkan_globals.screen_effects_desc_set;
-	screen_effects_writes[1].pImageInfo = &output_image_info;
+	screen_effects_writes[1].pImageInfo = &blue_noise_image_info;
+
 	screen_effects_writes[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 	screen_effects_writes[2].dstBinding = 2;
 	screen_effects_writes[2].dstArrayElement = 0;
 	screen_effects_writes[2].descriptorCount = 1;
-	screen_effects_writes[2].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER;
+	screen_effects_writes[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
 	screen_effects_writes[2].dstSet = vulkan_globals.screen_effects_desc_set;
-	screen_effects_writes[2].pTexelBufferView = &palette_buffer_view;
+	screen_effects_writes[2].pImageInfo = &output_image_info;
+
 	screen_effects_writes[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 	screen_effects_writes[3].dstBinding = 3;
 	screen_effects_writes[3].dstArrayElement = 0;
 	screen_effects_writes[3].descriptorCount = 1;
-	screen_effects_writes[3].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	screen_effects_writes[3].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER;
 	screen_effects_writes[3].dstSet = vulkan_globals.screen_effects_desc_set;
-	screen_effects_writes[3].pBufferInfo = &palette_octree_info;
+	screen_effects_writes[3].pTexelBufferView = &palette_buffer_view;
 
-	vkUpdateDescriptorSets (vulkan_globals.device, 4, screen_effects_writes, 0, NULL);
+	screen_effects_writes[4].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	screen_effects_writes[4].dstBinding = 4;
+	screen_effects_writes[4].dstArrayElement = 0;
+	screen_effects_writes[4].descriptorCount = 1;
+	screen_effects_writes[4].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	screen_effects_writes[4].dstSet = vulkan_globals.screen_effects_desc_set;
+	screen_effects_writes[4].pBufferInfo = &palette_octree_info;
+
+	vkUpdateDescriptorSets (vulkan_globals.device, 5, screen_effects_writes, 0, NULL);
 }
 
 /*
@@ -3150,7 +3167,7 @@ void VID_Init (void)
 	R_InitSamplers ();
 	R_CreatePipelineLayouts ();
 	R_CreatePaletteOctreeBuffers (palette_octree_colors, NUM_PALETTE_OCTREE_COLORS, palette_octree_nodes, NUM_PALETTE_OCTREE_NODES);
-	GL_CreateRenderResources ();
+	//GL_CreateRenderResources ();
 
 	// johnfitz -- removed code creating "glquake" subdirectory
 
