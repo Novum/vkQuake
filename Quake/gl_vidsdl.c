@@ -2473,6 +2473,13 @@ typedef struct end_rendering_parms_s
 	uint8_t  v_blend[4];
 } end_rendering_parms_t;
 
+#define SCREEN_EFFECT_FLAG_SCALE_MASK 0x3
+#define SCREEN_EFFECT_FLAG_SCALE_2X 0x1
+#define SCREEN_EFFECT_FLAG_SCALE_4X 0x2
+#define SCREEN_EFFECT_FLAG_SCALE_8X 0x3
+#define SCREEN_EFFECT_FLAG_WATER_WARP 0x4
+#define SCREEN_EFFECT_FLAG_PALETTIZE 0x8
+
 /*
 ===============
 GL_ScreenEffects
@@ -2536,15 +2543,15 @@ static void GL_ScreenEffects (cb_context_t *cbx, qboolean enabled, end_rendering
 
 		uint32_t screen_effect_flags = 0;
 		if (parms->render_warp)
-			screen_effect_flags |= 0x1;
+			screen_effect_flags |= SCREEN_EFFECT_FLAG_WATER_WARP;
 		if (parms->render_scale >= 8)
-			screen_effect_flags |= 0x8;
+			screen_effect_flags |= SCREEN_EFFECT_FLAG_SCALE_8X;
 		else if (parms->render_scale >= 4)
-			screen_effect_flags |= 0x4;
+			screen_effect_flags |= SCREEN_EFFECT_FLAG_SCALE_4X;
 		else if (parms->render_scale >= 2)
-			screen_effect_flags |= 0x2;
+			screen_effect_flags |= SCREEN_EFFECT_FLAG_SCALE_2X;
 		if (parms->vid_palettize)
-			screen_effect_flags |= 0x10;
+			screen_effect_flags |= SCREEN_EFFECT_FLAG_PALETTIZE;
 		const screen_effect_constants_t push_constants = {
 			parms->vid_width - 1,
 			parms->vid_height - 1,

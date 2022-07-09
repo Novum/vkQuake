@@ -1,4 +1,4 @@
-#extension GL_EXT_debug_printf : enable
+#extension GL_EXT_control_flow_attributes : enable
 
 #define NUM_PALETTE_OCTREE_NODES 184
 
@@ -56,6 +56,13 @@ float blue_noise (ivec2 u)
 {
 	return texelFetch (blue_noise_tex, ivec2 (uint (u.x) % 64, uint (u.y) % 64), 0).r;
 }
+
+#define SCREEN_EFFECT_FLAG_SCALE_MASK 0x3
+#define SCREEN_EFFECT_FLAG_SCALE_2X   0x1
+#define SCREEN_EFFECT_FLAG_SCALE_4X   0x2
+#define SCREEN_EFFECT_FLAG_SCALE_8X   0x3
+#define SCREEN_EFFECT_FLAG_WATER_WARP 0x4
+#define SCREEN_EFFECT_FLAG_PALETTIZE  0x8
 
 #if defined(SCALING)
 // Vulkan guarantees 16384 bytes of shared memory, so host doesn't need to check
@@ -121,7 +128,7 @@ void main ()
 
 	vec4 color = vec4 (0.0f, 0.0f, 0.0f, 0.0f);
 
-	if ((push_constants.flags & 0x1) != 0)
+	[[branch]] if ((push_constants.flags & SCREEN_EFFECT_FLAG_WATER_WARP) != 0)
 	{
 		const float cycle_x = 3.14159f * 5.0f;
 		const float cycle_y = cycle_x * push_constants.aspect_ratio;
@@ -136,22 +143,20 @@ void main ()
 
 		color = texture (input_tex, vec2 (tex_x, tex_y));
 	}
-	else
-		color = texelFetch (input_tex, ivec2 (min (push_constants.clamp_size.x, pos_x), min (push_constants.clamp_size.y, pos_y)), 0);
+	else color = texelFetch (input_tex, ivec2 (min (push_constants.clamp_size.x, pos_x), min (push_constants.clamp_size.y, pos_y)), 0);
 
-	if ((push_constants.flags & 0x10) != 0)
+	[[branch]] if ((push_constants.flags & SCREEN_EFFECT_FLAG_PALETTIZE) != 0)
 	{
-		const float noise = blue_noise (ivec2 (pos_x, pos_y));
-		uvec3       search_color = uvec3 (color.rgb * 255.0f);
-		uint        current_node_offset = 0;
-		uint        current_shift = 7;
-		uvec3       node_coords = uvec3 (0u);
-		while (true)
+		uvec3 search_color = uvec3 (color.rgb * 255.0f);
+		uint  current_node_offset = 0;
+		uint  current_shift = 7;
+		uvec3 node_coords = uvec3 (0u);
+		[[loop]] while (true)
 		{
 			const uvec3 node_offsets = (search_color - node_coords) >> current_shift;
 			const uint  child_index = node_offsets.r + node_offsets.g * 2 + node_offsets.b * 4;
 			const uint  offset = palette_octree.nodes[current_node_offset].children[child_index / 4][child_index % 4];
-			if ((offset & (1u << 31)) == 0)
+			[[branch]] if ((offset & (1u << 31)) == 0)
 			{
 				node_coords = node_coords + (node_offsets << current_shift);
 				current_shift -= 1;
@@ -165,11 +170,11 @@ void main ()
 				vec3       second_best_color = best_color;
 				float      best_dist_sq = dot (color.rgb - best_color, color.rgb - best_color);
 				float      second_best_dist_sq = 1e38f;
-				for (int i = 1; i < num_colors; ++i)
+				[[loop]] for (int i = 1; i < num_colors; ++i)
 				{
 					vec3  palette_color = texelFetch (palette_colors, int (colors_offset + i)).rgb;
 					float dist_sq = dot (color.rgb - palette_color, color.rgb - palette_color);
-					if (dist_sq < best_dist_sq)
+					[[flatten]] if (dist_sq < best_dist_sq)
 					{
 						second_best_dist_sq = best_dist_sq;
 						second_best_color = best_color;
@@ -184,15 +189,14 @@ void main ()
 				}
 
 				float luma[3][3];
-				for (int y = -1; y <= 1; ++y)
+				[[unroll]] for (int y = -1; y <= 1; ++y)
 				{
-					for (int x = -1; x <= 1; ++x)
+					[[unroll]] for (int x = -1; x <= 1; ++x)
 					{
-						vec3 l =
-							texelFetch (
-								input_tex, ivec2 (min (push_constants.clamp_size.x, int (pos_x) + x), min (push_constants.clamp_size.y, int (pos_y) + y)), 0)
-								.rgb;
-						luma[x + 1][y + 1] = (l.r + l.g + l.b) / 3.0f;
+						uint sample_x = min (push_constants.clamp_size.x, int (pos_x) + x);
+						uint sample_y = min (push_constants.clamp_size.y, int (pos_y) + y);
+						vec3 rgb = texelFetch (input_tex, ivec2 (sample_x, sample_y), 0).rgb;
+						luma[x + 1][y + 1] = (rgb.r + rgb.g + rgb.b) / 3.0f;
 					}
 				}
 
@@ -207,14 +211,20 @@ void main ()
 				float a = pow (best_dist_sq, p);
 				float b = pow (second_best_dist_sq, p);
 				float ratio = a / (a + b);
-				color.rgb = (ratio < pow (noise, 1.0f)) ? best_color : second_best_color;
+#if defined(SCALING)
+				uint noise_shift = push_constants.flags & SCREEN_EFFECT_FLAG_SCALE_MASK;
+#else
+				uint noise_shift = 0;
+#endif
+				const float noise = blue_noise (ivec2 (pos_x >> noise_shift, pos_y >> noise_shift));
+				color.rgb = (ratio < noise) ? best_color : second_best_color;
 				break;
 			}
 		}
 	}
 
 #if defined(SCALING)
-	if ((push_constants.flags & 0x2) != 0)
+	[[branch]] if ((push_constants.flags & SCREEN_EFFECT_FLAG_SCALE_MASK) == SCREEN_EFFECT_FLAG_SCALE_2X)
 	{
 #if defined(USE_SUBGROUP_OPS)
 		if (gl_SubgroupSize >= 4)
@@ -242,7 +252,7 @@ void main ()
 		}
 #endif
 	}
-	else if ((push_constants.flags & 0x4) != 0)
+	else if ((push_constants.flags & SCREEN_EFFECT_FLAG_SCALE_MASK) == SCREEN_EFFECT_FLAG_SCALE_4X)
 	{
 #if defined(USE_SUBGROUP_OPS)
 		if (gl_SubgroupSize >= 16)
@@ -270,7 +280,7 @@ void main ()
 		}
 #endif
 	}
-	else if ((push_constants.flags & 0x8) != 0)
+	else if ((push_constants.flags & SCREEN_EFFECT_FLAG_SCALE_MASK) == SCREEN_EFFECT_FLAG_SCALE_8X)
 	{
 #if defined(USE_SUBGROUP_OPS)
 		if (gl_SubgroupSize >= 64)
