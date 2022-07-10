@@ -2041,6 +2041,12 @@ _add_path:
 				base = host_parms->userdir;
 			q_snprintf (pakfile, sizeof (pakfile), "%s/vkquake.pak", base);
 			qspak = COM_LoadPackFile (pakfile);
+			if (qspak == NULL)
+			{
+				const char *base_path = SDL_GetBasePath ();
+				q_snprintf (pakfile, sizeof (pakfile), "%s/vkquake.pak", base_path);
+				qspak = COM_LoadPackFile (pakfile);
+			}
 			com_modified = old;
 		}
 		if (pak)
