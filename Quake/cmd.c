@@ -272,7 +272,7 @@ Cmd_Exec_f
 */
 void Cmd_Exec_f (void)
 {
-	char *f = NULL;
+	char *buf = NULL;
 
 	if (Cmd_Argc () != 2)
 	{
@@ -280,18 +280,35 @@ void Cmd_Exec_f (void)
 		return;
 	}
 
-	f = (char *)COM_LoadFile (Cmd_Argv (1), NULL);
-	if (!f)
+	char *pref_path = SDL_GetPrefPath ("", "vkQuake");
+	FILE *f = fopen (va ("%s/%s", pref_path, Cmd_Argv (1)), "rb");
+	if (f)
 	{
-		if (cmd_warncmd.value)
-			Con_Printf ("couldn't exec %s\n", Cmd_Argv (1));
-		return;
+		fseek (f, 0, SEEK_END);
+		long length = ftell (f);
+		fseek (f, 0, SEEK_SET);
+		buf = Mem_Alloc(length + 1);
+		fread (buf, length, 1, f);
+		buf[length] = 0;
+		fclose (f);
+	}
+	else
+	{
+		buf = (char *)COM_LoadFile (Cmd_Argv (1), NULL);
+		if (!buf)
+		{
+			if (cmd_warncmd.value)
+				Con_Printf ("couldn't exec %s\n", Cmd_Argv (1));
+			return;
+		}
 	}
 	if (cmd_warncmd.value)
 		Con_Printf ("execing %s\n", Cmd_Argv (1));
 
 	Cbuf_InsertText ("\n"); // just in case there was no trailing \n.
-	Cbuf_InsertText (f);
+	Cbuf_InsertText (buf);
+
+	Mem_Free (buf);
 }
 
 /*
