@@ -222,7 +222,20 @@ filelist_item_t *modlist;
 
 static void Modlist_Add (const char *name)
 {
-	FileList_Add (name, &modlist);
+	if ((strlen (name) == 3) && (tolower(name[0]) == 'i') && (tolower(name[1]) == 'd') && (name[2] == '1'))
+		return;
+	char pak_path[MAX_OSPATH];
+	char progs_path[MAX_OSPATH];
+	q_snprintf (pak_path, sizeof (pak_path), "%s/%s/pak0.pak", com_basedir, name);
+	q_snprintf (progs_path, sizeof (progs_path), "%s/%s/progs.dat", com_basedir, name);
+	FILE *pak_file = fopen (pak_path, "rb");
+	FILE *progs_file = fopen (progs_path, "rb");
+	if (pak_file || progs_file)
+		FileList_Add (name, &modlist);
+	if (pak_file)
+		fclose (pak_file);
+	if (progs_file)
+		fclose (progs_file);
 }
 
 #ifdef _WIN32
@@ -246,7 +259,6 @@ void Modlist_Init (void)
 		attribs = GetFileAttributes (mod_string);
 		if (attribs != INVALID_FILE_ATTRIBUTES && (attribs & FILE_ATTRIBUTE_DIRECTORY))
 		{
-			/* don't bother testing for pak files / progs.dat */
 			Modlist_Add (fdat.cFileName);
 		}
 	} while (FindNextFile (fhnd, &fdat));
@@ -275,7 +287,6 @@ void Modlist_Init (void)
 		mod_dir_p = opendir (mod_string);
 		if (mod_dir_p == NULL)
 			continue;
-		/* don't bother testing for pak files / progs.dat */
 		Modlist_Add (dir_t->d_name);
 		closedir (mod_dir_p);
 	}
