@@ -282,17 +282,23 @@ void Cmd_Exec_f (void)
 
 	char *pref_path = SDL_GetPrefPath ("", "vkQuake");
 	FILE *f = fopen (va ("%s/%s", pref_path, Cmd_Argv (1)), "rb");
+	qboolean read_from_pref_path = false;
 	if (f)
 	{
 		fseek (f, 0, SEEK_END);
 		long length = ftell (f);
 		fseek (f, 0, SEEK_SET);
 		buf = Mem_Alloc(length + 1);
-		fread (buf, length, 1, f);
-		buf[length] = 0;
+		if (fread (buf, 1, length, f) != length)
+			Mem_Free (buf);
+		else
+		{
+			buf[length] = 0;
+			read_from_pref_path = true;
+		}
 		fclose (f);
 	}
-	else
+	if (!read_from_pref_path)
 	{
 		buf = (char *)COM_LoadFile (Cmd_Argv (1), NULL);
 		if (!buf)
