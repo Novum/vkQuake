@@ -24,3 +24,4 @@ build/
 .cproject
 .DS_Store
 history.txt
+Packaging/Windows/vkQuake-Installer-*.exe
