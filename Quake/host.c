@@ -336,10 +336,12 @@ void Host_WriteConfiguration (void)
 	// config.cfg cvars
 	if (host_initialized && !isDedicated && !host_parms->errstate)
 	{
-		f = fopen (va ("%s/config.cfg", com_gamedir), "w");
+		char *pref_path = SDL_GetPrefPath ("", "vkQuake");
+		f = fopen (va ("%s/config.cfg", pref_path), "w");
 		if (!f)
 		{
 			Con_Printf ("Couldn't write config.cfg.\n");
+			SDL_free (pref_path);
 			return;
 		}
 
@@ -355,6 +357,7 @@ void Host_WriteConfiguration (void)
 		// johnfitz
 
 		fclose (f);
+		SDL_free (pref_path);
 	}
 }
 
