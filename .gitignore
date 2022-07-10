@@ -18,6 +18,7 @@ Windows/VisualStudio/.vs
 Windows/VisualStudio/Build-*
 Packaging/AppImage/AppDir
 Packaging/AppImage/vkquake*
+Misc/vq_pak/mkpak
 build/
 .settings
 .project

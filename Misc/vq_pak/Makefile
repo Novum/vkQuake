@@ -12,9 +12,10 @@ INPUT := gfx/conback.lmp \
 OUTPUT := vkquake.pak
 
 $(OUTPUT): $(INPUT)
-	./mkpak.sh $(INPUT) > $(OUTPUT)
+	cc mkpak.c -o mkpak --std=gnu11 -g && ./mkpak $(OUTPUT) $(INPUT)
 
 .PHONY: clean
 clean:
 	rm -f $(OUTPUT)
+	rm -f mkpak
 
