@@ -123,7 +123,8 @@
     </Link>
     <PostBuildEvent>
       <Command>copy "$(SolutionDir)\..\codecs\x86\*.dll" "$(TargetDir)"
-copy "$(SolutionDir)\..\SDL2\lib\*.dll" "$(TargetDir)"</Command>
+copy "$(SolutionDir)\..\SDL2\lib\*.dll" "$(TargetDir)"
+copy "$(SolutionDir)\..\..\Quake\vkquake.pak" "$(TargetDir)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -157,7 +158,8 @@ copy "$(SolutionDir)\..\SDL2\lib\*.dll" "$(TargetDir)"</Command>
     </Link>
     <PostBuildEvent>
       <Command>copy "$(SolutionDir)\..\codecs\x86\*.dll" "$(TargetDir)"
-copy "$(SolutionDir)\..\SDL2\lib\*.dll" "$(TargetDir)"</Command>
+copy "$(SolutionDir)\..\SDL2\lib\*.dll" "$(TargetDir)"
+copy "$(SolutionDir)\..\..\Quake\vkquake.pak" "$(TargetDir)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -191,7 +193,8 @@ copy "$(SolutionDir)\..\SDL2\lib\*.dll" "$(TargetDir)"</Command>
     </Link>
     <PostBuildEvent>
       <Command>copy "$(SolutionDir)\..\codecs\x64\*.dll" "$(TargetDir)"
-copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
+copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"
+copy "$(SolutionDir)\..\..\Quake\vkquake.pak" "$(TargetDir)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -228,7 +231,8 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     </Link>
     <PostBuildEvent>
       <Command>copy "$(SolutionDir)\..\codecs\x64\*.dll" "$(TargetDir)"
-copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
+copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"
+copy "$(SolutionDir)\..\..\Quake\vkquake.pak" "$(TargetDir)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
