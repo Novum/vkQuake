@@ -257,8 +257,8 @@ void Key_Console (int key)
 
 		// If the last two lines are identical, skip storing this line in history
 		// by not incrementing edit_line
-		if (strcmp (workline, key_lines[(edit_line - 1) & 31]))
-			edit_line = (edit_line + 1) & 31;
+		if (strcmp (workline, key_lines[(edit_line - 1) % CMDLINES]))
+			edit_line = (edit_line + 1) % CMDLINES;
 
 		history_line = edit_line;
 		key_lines[edit_line][0] = ']';
