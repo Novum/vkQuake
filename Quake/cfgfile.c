@@ -165,7 +165,6 @@ int CFG_OpenConfig (const char *cfg_name)
 		fseek (f, 0, SEEK_END);
 		length = ftell (f);
 		fseek (f, 0, SEEK_SET);
-		SDL_free (pref_path);
 	}
 	else
 	{
@@ -174,6 +173,7 @@ int CFG_OpenConfig (const char *cfg_name)
 		if (length == -1)
 			return -1;
 	}
+	SDL_free (pref_path);
 
 	cfg_file = (fshandle_t *)Mem_Alloc (sizeof (fshandle_t));
 	cfg_file->file = f;

@@ -265,10 +265,6 @@ void Cmd_StuffCmds_f (void)
 	Cbuf_InsertText (cmds);
 }
 
-/* id1/pak0.pak from 2021 re-release doesn't have a default.cfg
- * embedding Quakespasm's customized default.cfg for that...  */
-#include "default_cfg.h"
-
 /*
 ===============
 Cmd_Exec_f
@@ -285,10 +281,6 @@ void Cmd_Exec_f (void)
 	}
 
 	f = (char *)COM_LoadFile (Cmd_Argv (1), NULL);
-	if (!f && !strcmp (Cmd_Argv (1), "default.cfg"))
-	{
-		f = default_cfg; /* see above.. */
-	}
 	if (!f)
 	{
 		if (cmd_warncmd.value)
@@ -300,9 +292,6 @@ void Cmd_Exec_f (void)
 
 	Cbuf_InsertText ("\n"); // just in case there was no trailing \n.
 	Cbuf_InsertText (f);
-
-	if (f != default_cfg)
-		Mem_Free (f);
 }
 
 /*
