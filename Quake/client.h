@@ -391,6 +391,7 @@ void CL_Stop_f (void);
 void CL_Record_f (void);
 void CL_PlayDemo_f (void);
 void CL_TimeDemo_f (void);
+void CL_Resume_Record (void);
 
 //
 // cl_parse.c

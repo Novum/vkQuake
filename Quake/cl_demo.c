@@ -23,6 +23,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 static void CL_FinishTimeDemo (void);
 
+char        name[MAX_OSPATH];
+
 /*
 ==============================================================================
 
@@ -507,7 +509,6 @@ record <demoname> <map> [cd track]
 void CL_Record_f (void)
 {
 	int  c;
-	char name[MAX_OSPATH];
 	int  track;
 
 	if (cmd_source != src_command)
@@ -617,6 +618,27 @@ void CL_Record_f (void)
 
 /*
 ====================
+CL_Resume_Record
+
+Keep recording demo after loading a savegame
+====================
+*/
+void CL_Resume_Record (void)
+{
+	cls.demofile = fopen (name, "r+b");
+	if (!cls.demofile)
+	{
+		Con_Printf ("ERROR: couldn't append to %s - recording stopped\n", name);
+		return;
+	}
+	// overwrite svc_disconnect
+	fseek (cls.demofile, -17, SEEK_END);
+	Con_Printf ("Demo recording resumed\n");
+	cls.demorecording = true;
+}
+
+/*
+====================
 CL_PlayDemo_f
 
 play [demoname]
@@ -624,8 +646,6 @@ play [demoname]
 */
 void CL_PlayDemo_f (void)
 {
-	char name[MAX_OSPATH];
-
 	if (cmd_source != src_command)
 		return;
 

@@ -1170,6 +1170,7 @@ static void Host_Loadgame_f (void)
 	int         entnum;
 	int         version;
 	float       spawn_parms[NUM_TOTAL_SPAWN_PARMS];
+	qboolean    was_recording = cls.demorecording;
 
 	if (cmd_source != src_command)
 		return;
@@ -1247,6 +1248,9 @@ static void Host_Loadgame_f (void)
 	}
 	sv.paused = true; // pause until all clients connect
 	sv.loadgame = true;
+
+	if (was_recording)
+		CL_Resume_Record ();
 
 	// load the light styles
 	for (i = 0; i < MAX_LIGHTSTYLES; i++)
