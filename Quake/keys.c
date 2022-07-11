@@ -1052,19 +1052,22 @@ void Key_Event (int key, qboolean down)
 			sprintf (cmd, "seek +%s\n", seektime);
 		else if (key == K_DOWNARROW)
 		{
-			cls.demospeed /= 2.f;
-			if (cls.demospeed < 0.5f)
+			if (!cls.demopaused)
 			{
-				cls.demospeed = 0.f;
-				if (!cls.demopaused)
+				cls.demospeed /= 2.f;
+				if (cls.demospeed < 0.5f)
+				{
+					cls.demospeed = 0.f;
 					sprintf (cmd, "pause\n");
+				}
 			}
 		}
 		else if (key == K_UPARROW)
 		{
 			if (cls.demospeed == 0.f && cls.demopaused)
 				sprintf (cmd, "pause\n");
-			cls.demospeed = CLAMP (0.5f, cls.demospeed * 2.f, 16.f);
+			if (cls.demospeed == 0.f || !cls.demopaused)
+				cls.demospeed = CLAMP (0.5f, cls.demospeed * 2.f, 16.f);
 		}
 		else if (key != K_SHIFT)
 			M_ToggleMenu_f ();

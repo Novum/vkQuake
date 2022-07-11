@@ -163,7 +163,7 @@ CL_Seek_f
 extern float scr_centertime_off;
 void CL_Seek_f (void)
 {
-	if (!cls.demoplayback || cmd_source != src_command)
+	if (cmd_source != src_command)
 		return;
 
 	if (Cmd_Argc () != 2)
@@ -171,6 +171,16 @@ void CL_Seek_f (void)
 		Con_Printf ("seek [+/-]<offset> : [relative] seek in demo\n");
 		return;
 	}
+
+	if (!cls.demoplayback)
+	{
+		Con_Printf ("Not playing a demo.\n");
+		return;
+	}
+
+	cls.demopaused = cl.paused = false;
+	if (cls.demospeed == 0.f)
+		cls.demospeed = 0.5f; 
 
 	float offset = atof (Cmd_Argv (1));
 	qboolean relative = offset < 0 || Cmd_Argv (1) [0] == '+';
@@ -180,7 +190,7 @@ void CL_Seek_f (void)
 	if ((offset < 0 || (!relative && offset < cl.time)) && cls.demo_prespawn_end)
 	{
 		fseek (cls.demofile, cls.demo_prespawn_end, SEEK_SET);
-		cl.mtime[0] = 0;
+		cl.mtime[0] = cl.time = 0;
 		cls.demoseeking = true;
 
 		memset (cl_dlights, 0, sizeof (cl_dlights));
@@ -199,6 +209,7 @@ void CL_Seek_f (void)
 
 		// replay last signon for stats and lightstyles
 		cls.signon = (SIGNONS - 2);
+		S_StopAllSounds (true);
 	}
 	else
 		cl.time = cls.seektime;

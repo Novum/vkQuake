@@ -1674,6 +1674,8 @@ static void Host_Pause_f (void)
 	{
 		cls.demopaused = !cls.demopaused;
 		cl.paused = cls.demopaused;
+		if (cls.demospeed == 0.f && !cls.demopaused)
+			cls.demospeed = 1.f; 
 		return;
 	}
 

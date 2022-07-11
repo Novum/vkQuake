@@ -235,7 +235,7 @@ void SCR_CheckDrawCenterString (cb_context_t *cbx)
 		return;
 	if (key_dest != key_game)
 		return;
-	if (cl.paused) // johnfitz -- don't show centerprint during a pause
+	if (cl.paused && (!cls.demoplayback || cls.demospeed > 0.f)) // johnfitz -- don't show centerprint during a pause
 		return;
 
 	SCR_DrawCenterString (cbx);
