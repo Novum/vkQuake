@@ -239,6 +239,16 @@ Interactive line editing and console scrollback
 extern char *con_text, key_tabpartial[MAXCMDLINE];
 extern int   con_current, con_linewidth, con_vislines;
 
+static int GetHistoryPrevLine(int line)
+{
+	return (line + (CMDLINES - 1)) % CMDLINES;
+}
+
+static int GetHistoryNextLine(int line)
+{
+	return (line + 1) % CMDLINES;
+}
+
 void Key_Console (int key)
 {
 	static char current[MAXCMDLINE] = "";
@@ -257,8 +267,8 @@ void Key_Console (int key)
 
 		// If the last two lines are identical, skip storing this line in history
 		// by not incrementing edit_line
-		if (strcmp (workline, key_lines[(edit_line - 1) % CMDLINES]))
-			edit_line = (edit_line + 1) % CMDLINES;
+		if (strcmp (workline, key_lines[GetHistoryPrevLine (edit_line)]))
+			edit_line = GetHistoryNextLine (edit_line);
 
 		history_line = edit_line;
 		key_lines[edit_line][0] = ']';
@@ -360,11 +370,11 @@ void Key_Console (int key)
 		len = strlen (workline);
 		if ((int)len == key_linepos)
 		{
-			len = strlen (key_lines[(edit_line + 31) & 31]);
+			len = strlen (key_lines[GetHistoryPrevLine (edit_line)]);
 			if ((int)len <= key_linepos)
 				return; // no character to get
 			workline += key_linepos;
-			*workline = key_lines[(edit_line + 31) & 31][key_linepos];
+			*workline = key_lines[GetHistoryPrevLine (edit_line)][key_linepos];
 			workline[1] = 0;
 			key_linepos++;
 		}
@@ -382,7 +392,7 @@ void Key_Console (int key)
 		history_line_last = history_line;
 		do
 		{
-			history_line = (history_line - 1) & 31;
+			history_line = GetHistoryPrevLine (history_line);
 		} while (history_line != edit_line && !key_lines[history_line][1]);
 
 		if (history_line == edit_line)
@@ -405,7 +415,7 @@ void Key_Console (int key)
 
 		do
 		{
-			history_line = (history_line + 1) & 31;
+			history_line = GetHistoryNextLine (history_line);
 		} while (history_line != edit_line && !key_lines[history_line][1]);
 
 		if (history_line == edit_line)
@@ -778,7 +788,7 @@ void History_Init (void)
 				key_lines[edit_line][i++] = c;
 			} while (c != '\r' && c != '\n' && c != EOF && i < MAXCMDLINE);
 			key_lines[edit_line][i - 1] = 0;
-			edit_line = (edit_line + 1) & (CMDLINES - 1);
+			edit_line = GetHistoryNextLine (edit_line);
 			/* for people using a windows-generated history file on unix: */
 			if (c == '\r' || c == '\n')
 			{
@@ -793,7 +803,7 @@ void History_Init (void)
 		} while (c != EOF && edit_line < CMDLINES);
 		fclose (hf);
 
-		history_line = edit_line = (edit_line - 1) & (CMDLINES - 1);
+		history_line = edit_line = GetHistoryPrevLine (edit_line);
 		key_lines[edit_line][0] = ']';
 		key_lines[edit_line][1] = 0;
 	}
@@ -810,13 +820,13 @@ void History_Shutdown (void)
 		i = edit_line;
 		do
 		{
-			i = (i + 1) & (CMDLINES - 1);
+			i = GetHistoryNextLine (i);
 		} while (i != edit_line && !key_lines[i][1]);
 
 		while (i != edit_line && key_lines[i][1])
 		{
 			fprintf (hf, "%s\n", key_lines[i] + 1);
-			i = (i + 1) & (CMDLINES - 1);
+			i = GetHistoryNextLine (i);
 		}
 		fclose (hf);
 	}
