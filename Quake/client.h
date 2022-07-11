@@ -124,6 +124,11 @@ typedef struct
 	// did the user pause demo playback? (separate from cl.paused because we don't
 	// want a svc_setpause inside the demo to actually pause demo playback).
 	qboolean demopaused;
+	qboolean demoseeking;
+	float    seektime;
+	
+	// demo file position where the current level starts (after singon packets)
+	size_t demo_prespawn_end;
 
 	qboolean timedemo;
 	int      forcetrack; // -1 = use normal cd track
@@ -379,6 +384,7 @@ void CL_ClearTrailStates (void);
 //
 void CL_StopPlayback (void);
 int  CL_GetMessage (void);
+void CL_Seek_f (void);
 
 void CL_Stop_f (void);
 void CL_Record_f (void);

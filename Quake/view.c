@@ -286,6 +286,9 @@ void V_ParseDamage (void)
 
 	cl.faceanimtime = cl.time + 0.2; // but sbar face into pain frame
 
+	if (cls.demoseeking)
+		return;
+
 	cl.cshifts[CSHIFT_DAMAGE].percent += 3 * count;
 	if (cl.cshifts[CSHIFT_DAMAGE].percent < 0)
 		cl.cshifts[CSHIFT_DAMAGE].percent = 0;

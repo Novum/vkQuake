@@ -50,9 +50,11 @@ void CL_StopPlayback (void)
 
 	fclose (cls.demofile);
 	cls.demoplayback = false;
+	cls.demoseeking = false;
 	cls.demopaused = false;
 	cls.demofile = NULL;
 	cls.state = ca_disconnected;
+	cls.demo_prespawn_end = 0;
 
 	if (cls.timedemo)
 		CL_FinishTimeDemo ();
@@ -90,8 +92,10 @@ static int CL_GetDemoMessage (void)
 	if (cls.demopaused)
 		return 0;
 
+	if (cls.signon == (SIGNONS - 2))
+		cls.demo_prespawn_end = ftell (cls.demofile);
 	// decide if it is time to grab the next message
-	if (cls.signon == SIGNONS) // always grab until fully connected
+	else if (cls.signon == SIGNONS) // always grab until fully connected
 	{
 		if (cls.timedemo)
 		{
@@ -103,11 +107,23 @@ static int CL_GetDemoMessage (void)
 			if (host_framecount == cls.td_startframe + 1)
 				cls.td_starttime = realtime;
 		}
+		else if (cls.demoseeking)
+		{
+			// feed a reasonable cl.time value for effects / centerprints
+			cl.time = cl.mtime[0];
+			if (cl.mtime[0] > cls.seektime)
+			{
+				cls.demoseeking = false;
+				return 0;
+			}
+		}
 		else if (/* cl.time > 0 && */ cl.time <= cl.mtime[0])
 		{
 			return 0; // don't need another message yet
 		}
 	}
+	else if (cls.signon < (SIGNONS - 2))
+		cls.demo_prespawn_end = 0;
 
 	// get the next message
 	if (fread (&net_message.cursize, 4, 1, cls.demofile) != 1)
@@ -137,6 +153,55 @@ static int CL_GetDemoMessage (void)
 	}
 
 	return 1;
+}
+
+/*
+====================
+CL_Seek_f
+====================
+*/
+extern float scr_centertime_off;
+void CL_Seek_f (void)
+{
+	if (!cls.demoplayback || cmd_source != src_command)
+		return;
+
+	if (Cmd_Argc () != 2)
+	{
+		Con_Printf ("seek [+/-]<offset> : [relative] seek in demo\n");
+		return;
+	}
+
+	float offset = atof (Cmd_Argv (1));
+	qboolean relative = offset < 0 || Cmd_Argv (1) [0] == '+';
+	cls.seektime = relative ? cl.time + offset : offset;
+
+	// large positive offsets could benefit from demoseeking, but we'd lose prints etc
+	if ((offset < 0 || (!relative && offset < cl.time)) && cls.demo_prespawn_end)
+	{
+		fseek (cls.demofile, cls.demo_prespawn_end, SEEK_SET);
+		cl.mtime[0] = 0;
+		cls.demoseeking = true;
+
+		memset (cl_dlights, 0, sizeof (cl_dlights));
+		memset (cl_temp_entities, 0, sizeof (cl_temp_entities));
+		memset (cl_beams, 0, sizeof (cl_beams));
+		Fog_NewMap ();
+		Sky_NewMap ();
+		R_ClearParticles ();
+#ifdef PSET_SCRIPT
+		PScript_ClearParticles ();
+#endif
+		scr_centertime_off = 0;
+		cl.intermission = 0;
+		memset (cl.stats, 0, sizeof (cl.stats));
+		memset (cl.statsf, 0, sizeof (cl.statsf));
+
+		// replay last signon for stats and lightstyles
+		cls.signon = (SIGNONS - 2);
+	}
+	else
+		cl.time = cls.seektime;
 }
 
 /*

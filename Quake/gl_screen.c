@@ -161,7 +161,7 @@ for a few moments
 void SCR_CenterPrint (const char *str) // update centerprint data
 {
 	strncpy (scr_centerstring, str, sizeof (scr_centerstring) - 1);
-	scr_centertime_off = scr_centertime.value;
+	scr_centertime_off = cl.time + scr_centertime.value;
 	scr_centertime_start = cl.time;
 
 	// count the number of lines for centering
@@ -231,9 +231,7 @@ void SCR_CheckDrawCenterString (cb_context_t *cbx)
 	if (scr_center_lines > scr_erase_lines)
 		scr_erase_lines = scr_center_lines;
 
-	scr_centertime_off -= host_frametime;
-
-	if (scr_centertime_off <= 0 && !cl.intermission)
+	if (scr_centertime_off <= cl.time && !cl.intermission)
 		return;
 	if (key_dest != key_game)
 		return;

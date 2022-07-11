@@ -687,6 +687,9 @@ Con_LogCenterPrint -- johnfitz -- echo centerprint message to the console
 */
 void Con_LogCenterPrint (const char *str)
 {
+	if (cls.demoseeking)
+		return;
+
 	if (!strcmp (str, con_lastcenterstring))
 		return; // ignore duplicates
 

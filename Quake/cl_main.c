@@ -1210,6 +1210,7 @@ void CL_Init (void)
 	Cmd_AddCommand ("stop", CL_Stop_f);
 	Cmd_AddCommand ("playdemo", CL_PlayDemo_f);
 	Cmd_AddCommand ("timedemo", CL_TimeDemo_f);
+	Cmd_AddCommand ("seek", CL_Seek_f);
 
 	Cmd_AddCommand ("tracepos", CL_Tracepos_f); // johnfitz
 	Cmd_AddCommand ("viewpos", CL_Viewpos_f);   // johnfitz

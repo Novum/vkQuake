@@ -1751,6 +1751,9 @@ void CL_ParseServerMessage (void)
 		// if the high bit of the command byte is set, it is a fast update
 		if (cmd & U_SIGNAL) // johnfitz -- was 128, changed for clarity
 		{
+			// for netquake demos, just parse the last 10 seconds to keep effects in order
+			if (cls.demoseeking && cls.seektime > cl.mtime[0] + 10)
+				return;
 			SHOWNET ("fast update");
 			CL_ParseUpdate (cmd & 127);
 			continue;
@@ -1796,7 +1799,9 @@ void CL_ParseServerMessage (void)
 			Host_EndGame ("Server disconnected\n");
 
 		case svc_print:
-			Con_Printf ("%s", MSG_ReadString ());
+			str = MSG_ReadString ();
+			if (!cls.demoseeking)
+				Con_Printf ("%s", str);
 			break;
 
 		case svc_centerprint:
