@@ -656,6 +656,7 @@ void CL_PlayDemo_f (void)
 
 	cls.demoplayback = true;
 	cls.demopaused = false;
+	cls.demospeed = 1.f;
 	cls.state = ca_connected;
 
 	// get rid of the menu and/or console

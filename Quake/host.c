@@ -648,8 +648,10 @@ qboolean Host_FilterTime (float time)
 	host_frametime = delta_since_last_frame;
 	oldrealtime = realtime;
 
+	if (cls.demoplayback && cls.demospeed != 1.f && cls.demospeed > 0.f)
+		host_frametime *= cls.demospeed;
 	// johnfitz -- host_timescale is more intuitive than host_framerate
-	if (host_timescale.value > 0)
+	else if (host_timescale.value > 0)
 		host_frametime *= host_timescale.value;
 	// johnfitz
 	else if (host_framerate.value > 0)

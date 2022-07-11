@@ -126,6 +126,7 @@ typedef struct
 	qboolean demopaused;
 	qboolean demoseeking;
 	float    seektime;
+	float    demospeed;
 	
 	// demo file position where the current level starts (after singon packets)
 	size_t demo_prespawn_end;

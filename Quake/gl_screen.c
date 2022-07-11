@@ -691,6 +691,9 @@ void SCR_DrawPause (cb_context_t *cbx)
 	if (!scr_showpause.value) // turn off for screenshots
 		return;
 
+	if (cls.demoplayback && cls.demospeed == 0.f)
+		return;
+
 	GL_SetCanvas (cbx, CANVAS_MENU); // johnfitz
 
 	pic = Draw_CachePic ("gfx/pause.lmp");

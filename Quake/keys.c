@@ -1043,7 +1043,33 @@ void Key_Event (int key, qboolean down)
 	// during demo playback, most keys bring up the main menu
 	if (cls.demoplayback && down && consolekeys[key] && key_dest == key_game && key != K_TAB)
 	{
-		M_ToggleMenu_f ();
+		cmd[0] = 0;
+		char *seektime = keydown[K_SHIFT] ? "30" : "10";
+
+		if (key == K_LEFTARROW)
+			sprintf (cmd, "seek -%s\n", seektime);
+		else if (key == K_RIGHTARROW)
+			sprintf (cmd, "seek +%s\n", seektime);
+		else if (key == K_DOWNARROW)
+		{
+			cls.demospeed /= 2.f;
+			if (cls.demospeed < 0.5f)
+			{
+				cls.demospeed = 0.f;
+				if (!cls.demopaused)
+					sprintf (cmd, "pause\n");
+			}
+		}
+		else if (key == K_UPARROW)
+		{
+			if (cls.demospeed == 0.f && cls.demopaused)
+				sprintf (cmd, "pause\n");
+			cls.demospeed = CLAMP (0.5f, cls.demospeed * 2.f, 16.f);
+		}
+		else if (key != K_SHIFT)
+			M_ToggleMenu_f ();
+
+		Cbuf_AddText (cmd);
 		return;
 	}
 
