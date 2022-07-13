@@ -162,7 +162,7 @@ static int CL_GetDemoMessage (void)
 CL_Seek_f
 ====================
 */
-extern float scr_centertime_off;
+extern float scr_centertime_off, scr_clock_off;
 void CL_Seek_f (void)
 {
 	if (cmd_source != src_command)
@@ -182,11 +182,14 @@ void CL_Seek_f (void)
 
 	cls.demopaused = cl.paused = false;
 	if (cls.demospeed == 0.f)
-		cls.demospeed = 0.5f; 
+		cls.demospeed = 1.f;
 
-	float offset = atof (Cmd_Argv (1));
+	float offset = 0, offset_seconds;
+	if (sscanf (Cmd_Argv (1), "%f:%f", &offset, &offset_seconds) == 2)
+		offset = offset * 60 + (offset > 0 ? offset_seconds : -offset_seconds);
 	qboolean relative = offset < 0 || Cmd_Argv (1) [0] == '+';
 	cls.seektime = relative ? cl.time + offset : offset;
+	scr_clock_off = 2.5f; // show clock for a few seconds after a seek
 
 	// large positive offsets could benefit from demoseeking, but we'd lose prints etc
 	if ((offset < 0 || (!relative && offset < cl.time)) && cls.demo_prespawn_end)
@@ -688,6 +691,7 @@ void CL_PlayDemo_f (void)
 	cls.demoplayback = true;
 	cls.demopaused = false;
 	cls.demospeed = 1.f;
+	scr_clock_off = 0;
 	cls.state = ca_connected;
 
 	// get rid of the menu and/or console

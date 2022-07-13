@@ -1077,7 +1077,7 @@ void Key_Event (int key, qboolean down)
 			if (cls.demospeed == 0.f && cls.demopaused)
 				sprintf (cmd, "pause\n");
 			if (cls.demospeed == 0.f || !cls.demopaused)
-				cls.demospeed = CLAMP (0.5f, cls.demospeed * 2.f, 16.f);
+				cls.demospeed = CLAMP (0.5f, cls.demospeed * 2.f, 64.f);
 		}
 		else if (key != K_SHIFT)
 			M_ToggleMenu_f ();

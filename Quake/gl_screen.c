@@ -553,8 +553,6 @@ void SCR_DrawFPS (cb_context_t *cbx)
 		sprintf (st, "%4.0f fps", lastfps);
 		x = 320 - (strlen (st) << 3);
 		y = 200 - 8;
-		if (scr_clock.value)
-			y -= 8; // make room for clock
 		GL_SetCanvas (cbx, CANVAS_BOTTOMRIGHT);
 		Draw_String (cbx, x, y, st);
 	}
@@ -565,25 +563,58 @@ void SCR_DrawFPS (cb_context_t *cbx)
 SCR_DrawClock -- johnfitz
 ==============
 */
+float scr_clock_off;
+
 void SCR_DrawClock (cb_context_t *cbx)
 {
 	char str[12];
+	int  y = 200 - 8;
+	static qboolean shown_pause;
 
-	if (scr_clock.value == 1)
+	if (cls.demoplayback && cls.demospeed != 1 && cls.demospeed != 0) // always show if playback speed is modified
 	{
-		int minutes, seconds;
-
-		minutes = cl.time / 60;
-		seconds = ((int)cl.time) % 60;
-
-		sprintf (str, "%i:%i%i", minutes, seconds / 10, seconds % 10);
+		scr_clock_off = 2.0f;
+		shown_pause = false;
 	}
-	else
+
+	if (cls.demoplayback && cls.demospeed == 0 && !shown_pause) // show for a bit if paused
+	{
+		scr_clock_off = 1.5f;
+		shown_pause = true;
+	}
+
+	if (scr_clock.value == 0 && scr_clock_off <= 0)
 		return;
 
-	// draw it
+	scr_clock_off -= host_frametime / (cls.demospeed ? cls.demospeed : 1.f);
+
 	GL_SetCanvas (cbx, CANVAS_BOTTOMRIGHT);
-	Draw_String (cbx, 320 - (strlen (str) << 3), 200 - 8, str);
+
+	if (scr_showfps.value)
+		y -= 8; // make room for fps counter
+
+	if (scr_clock.value >= 2)
+	{
+		sprintf (str, "%i/%i", cl.stats[STAT_MONSTERS], cl.stats[STAT_TOTALMONSTERS]);
+		Draw_String (cbx, 320 - (strlen (str) << 3), y, str);
+		y -= 8;
+		sprintf (str, "%i/%i", cl.stats[STAT_SECRETS], cl.stats[STAT_TOTALSECRETS]);
+		Draw_String (cbx, 320 - (strlen (str) << 3), y, str);
+		y -= 8;
+	}
+
+	sprintf (str, "%i:%02i", (int)cl.time / 60, (int)cl.time % 60);
+	Draw_String (cbx, 320 - (strlen (str) << 3), y, str);
+
+	// show playback rate
+	if (cls.demoplayback && cls.demospeed != 1)
+	{
+		y -= 8;
+		sprintf (str, "[%gx]", cls.demospeed);
+		if (cls.demospeed == 0)
+			sprintf (str, "[paused]");
+		Draw_String (cbx, 320 - (strlen (str) << 3), y, str);
+	}
 }
 
 /*
@@ -824,7 +855,7 @@ void SCR_BeginLoadingPlaque (void)
 
 	// redraw with no console and the loading plaque
 	Con_ClearNotify ();
-	scr_centertime_off = 0;
+	scr_centertime_off = scr_clock_off = 0;
 	scr_con_current = 0;
 
 	scr_drawloading = true;
