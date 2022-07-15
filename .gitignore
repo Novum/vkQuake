@@ -18,6 +18,8 @@ Windows/VisualStudio/.vs
 Windows/VisualStudio/Build-*
 Packaging/AppImage/AppDir
 Packaging/AppImage/vkquake*
+Packaging/Windows/vkQuake-Installer-*.exe
+Packaging/Windows/vkQuake*.zip
 Misc/vq_pak/mkpak
 build/
 .settings
@@ -25,4 +27,3 @@ build/
 .cproject
 .DS_Store
 history.txt
-Packaging/Windows/vkQuake-Installer-*.exe

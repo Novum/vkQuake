@@ -18,7 +18,7 @@ Name "vkQuake"
 ManifestDPIAware true
 Unicode True
 SetCompressor lzma
-OutFile vkQuake-Installer-${PLATFORM}.exe
+OutFile vkQuake-Installer-${PLATFORM}-${VERSION}.exe
 ShowInstDetails show
 
 Var NextButton
