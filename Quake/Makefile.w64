@@ -57,7 +57,10 @@ DFLAGS += -DNDEBUG
 CFLAGS += -O2
 CFLAGS += $(call check_gcc,-fweb,)
 CFLAGS += $(call check_gcc,-frename-registers,)
-#CFLAGS += $(call check_gcc,-fno-asynchronous-unwind-tables,)
+# with SEH toolchains, -fno-asynchronous-unwind-tables needs mingw-w64
+# v7.0 or newer crt and headers for setjmp/longjmp() to work correctly.
+# v5.x and v6.x git branches have backported fixes as of July 15 2022.
+CFLAGS += $(call check_gcc,-fno-asynchronous-unwind-tables,)
 CFLAGS += $(call check_gcc,-fno-ident,)
 cmd_strip=$(STRIP) $(1)
 define do_strip
