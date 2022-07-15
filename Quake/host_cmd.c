@@ -1072,7 +1072,8 @@ static void Host_Savegame_f (void)
 		}
 	}
 
-	q_snprintf (name, sizeof (name), "%s/%s", com_gamedir, Cmd_Argv (1));
+	char *save_path = SDL_GetPrefPath ("vkQuake", COM_GetGameNames (true));
+	q_snprintf (name, sizeof (name), "%s%s", save_path, Cmd_Argv (1));
 	COM_AddExtension (name, ".sav", sizeof (name));
 
 	Con_Printf ("Saving game to %s...\n", name);
@@ -1189,25 +1190,38 @@ static void Host_Loadgame_f (void)
 
 	cls.demonum = -1; // stop demo loop in case this fails
 
-	q_snprintf (name, sizeof (name), "%s/%s", com_gamedir, Cmd_Argv (1));
-	COM_AddExtension (name, ".sav", sizeof (name));
+	char *save_path = SDL_GetPrefPath ("vkQuake", COM_GetGameNames (true));
+	qboolean loadable = false;
+	for (int j = 0; j < 2; ++j)
+	{
+		if (j == 0)
+			q_snprintf (name, sizeof (name), "%s%s", save_path, Cmd_Argv (1));
+		else
+			q_snprintf (name, sizeof (name), "%s/%s", com_gamedir, Cmd_Argv (1));
+		COM_AddExtension (name, ".sav", sizeof (name));
+
+		// avoid leaking if the previous Host_Loadgame_f failed with a Host_Error
+		if (start != NULL)
+			Mem_Free (start);
+
+		start = (char *)COM_LoadMallocFile_TextMode_OSPath (name, NULL);
+		if (start)
+		{
+			loadable = true;
+			break;
+		}
+	}
+	if (!loadable)
+	{
+		Con_Printf ("ERROR: couldn't open.\n");
+		return;
+	}
 
 	// we can't call SCR_BeginLoadingPlaque, because too much stack space has
 	// been used.  The menu calls it before stuffing loadgame command
 	//	SCR_BeginLoadingPlaque ();
 
 	Con_Printf ("Loading game from %s...\n", name);
-
-	// avoid leaking if the previous Host_Loadgame_f failed with a Host_Error
-	if (start != NULL)
-		Mem_Free (start);
-
-	start = (char *)COM_LoadMallocFile_TextMode_OSPath (name, NULL);
-	if (start == NULL)
-	{
-		Con_Printf ("ERROR: couldn't open.\n");
-		return;
-	}
 
 	data = start;
 	data = COM_ParseIntNewline (data, &version);

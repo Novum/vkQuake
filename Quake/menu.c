@@ -439,33 +439,41 @@ int  loadable[MAX_SAVEGAMES];
 
 void M_ScanSaves (void)
 {
-	int   i, j;
+	int   i, j, k;
 	char  name[MAX_OSPATH];
 	FILE *f;
 	int   version;
+	char *save_path = SDL_GetPrefPath ("vkQuake", COM_GetGameNames (true));
 
 	for (i = 0; i < MAX_SAVEGAMES; i++)
 	{
 		strcpy (m_filenames[i], "--- UNUSED SLOT ---");
 		loadable[i] = false;
-		q_snprintf (name, sizeof (name), "%s/s%i.sav", com_gamedir, i);
-		f = fopen (name, "r");
-		if (!f)
-			continue;
-		if (fscanf (f, "%i\n", &version) != 1)
-			continue;
-		if (fscanf (f, "%79s\n", name) != 1)
-			continue;
-		q_strlcpy (m_filenames[i], name, SAVEGAME_COMMENT_LENGTH + 1);
-
-		// change _ back to space
-		for (j = 0; j < SAVEGAME_COMMENT_LENGTH; j++)
+		for (j = 0; j < 2; ++j)
 		{
-			if (m_filenames[i][j] == '_')
-				m_filenames[i][j] = ' ';
+			if (j == 0)
+				q_snprintf (name, sizeof (name), "%ss%i.sav", save_path, i);
+			else
+				q_snprintf (name, sizeof (name), "%s/s%i.sav", com_gamedir, i);
+			f = fopen (name, "r");
+			if (!f)
+				continue;
+			if (fscanf (f, "%i\n", &version) != 1)
+				continue;
+			if (fscanf (f, "%79s\n", name) != 1)
+				continue;
+			q_strlcpy (m_filenames[i], name, SAVEGAME_COMMENT_LENGTH + 1);
+
+			// change _ back to space
+			for (k = 0; k < SAVEGAME_COMMENT_LENGTH; k++)
+			{
+				if (m_filenames[i][k] == '_')
+					m_filenames[i][k] = ' ';
+			}
+			loadable[i] = true;
+			fclose (f);
+			break;
 		}
-		loadable[i] = true;
-		fclose (f);
 	}
 }
 
