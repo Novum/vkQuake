@@ -1180,7 +1180,7 @@ static void _Datagram_ServerControlPacket (sys_socket_t acceptsock, struct qsock
 
 			SZ_Clear (&net_message);
 			MSG_WriteLong (&net_message, -1);
-			MSG_WriteString (&net_message, full ? "statusResponse" : "infoResponse\n");
+			MSG_WriteString(&net_message, full?"statusResponse\n":"infoResponse\n");
 			net_message.cursize--;
 			COM_Parse (com_protocolname.string);
 			if (*com_token) // the master server needs this. This tells the master which game we should be listed as.
