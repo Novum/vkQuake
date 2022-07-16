@@ -567,7 +567,7 @@ float scr_clock_off;
 
 void SCR_DrawClock (cb_context_t *cbx)
 {
-	char str[12];
+	char str[32];
 	int  y = 200 - 8;
 	static qboolean shown_pause;
 
