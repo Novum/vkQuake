@@ -199,11 +199,6 @@ Section "Uninstall"
 	Call un.Clean
 SectionEnd
 
-Section -post
-	; Create uninstaller
-	WriteUninstaller "$INSTDIR\Uninstall.exe"
-SectionEnd
-
 Function .onInstFailed
 	Call Clean
 FunctionEnd
