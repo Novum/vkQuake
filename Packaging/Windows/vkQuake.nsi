@@ -150,7 +150,6 @@ Section "Game" GAME
     File "${SRCDIR}\*.exe"
 	File "${SRCDIR}\*.dll"
 	File "..\..\LICENSE.txt"
-	File "..\..\Quake\vkquake.pak"
 	
 	!insertmacro MUI_STARTMENU_WRITE_BEGIN Application
 		CreateDirectory "$SMPROGRAMS\$StartMenuFolder"

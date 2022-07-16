@@ -13,6 +13,5 @@ cd /usr/src/vkQuake \
   && ./linuxdeploy-x86_64.AppImage -e ../../build/appimage/vkquake --appdir=AppDir --create-desktop-file \
      -i ../../Misc/vkQuake_256.png --icon-filename=vkquake --output appimage \
   && cp vkquake-${VERSION}-x86_64.AppImage ${FOLDER}/vkquake.AppImage \
-  && cp ../../Quake/vkquake.pak ${FOLDER} \
   && cp ../../LICENSE.txt ${FOLDER} \
   && tar -zcvf ${ARCHIVE} ${FOLDER}

@@ -60,6 +60,9 @@ char com_cmdline[CMDLINE_LENGTH];
 
 qboolean standard_quake = true, rogue, hipnotic;
 
+extern unsigned char vkquake_pak[];
+extern int           vkquake_pak_size;
+
 // this graphic needs to be in the pak file to use registered features
 static unsigned short pop[] = {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x6600, 0x0000, 0x0000, 0x0000, 0x6600, 0x0000,
                                0x0000, 0x0066, 0x0000, 0x0000, 0x0000, 0x0000, 0x0067, 0x0000, 0x0000, 0x6665, 0x0000, 0x0000, 0x0000, 0x0000, 0x0065, 0x6600,
@@ -1858,19 +1861,15 @@ Loads the header and directory, adding the files at the beginning
 of the list so they override previous pack files.
 =================
 */
-static pack_t *COM_LoadPackFile (const char *packfile)
+static pack_t *COM_LoadPackFile (const char *packfile, int packhandle)
 {
 	dpackheader_t  header;
 	int            i;
 	packfile_t    *newfiles;
 	int            numpackfiles;
 	pack_t        *pack;
-	int            packhandle;
 	dpackfile_t    info[MAX_FILES_IN_PACK];
 	unsigned short crc;
-
-	if (Sys_FileOpenRead (packfile, &packhandle) == -1)
-		return NULL;
 
 	Sys_FileRead (packhandle, (void *)&header, sizeof (header));
 	if (header.id[0] != 'P' || header.id[1] != 'A' || header.id[2] != 'C' || header.id[3] != 'K')
@@ -1987,10 +1986,10 @@ COM_AddGameDirectory -- johnfitz -- modified based on topaz's tutorial
 static void COM_AddGameDirectory (const char *dir)
 {
 	const char   *base = com_basedir;
-	int           i;
+	int           i, packhandle;
 	unsigned int  path_id;
 	searchpath_t *search;
-	pack_t       *pak, *qspak;
+	pack_t       *pak;
 	char          pakfile[MAX_OSPATH];
 	qboolean      been_here = false;
 
@@ -2027,28 +2026,23 @@ _add_path:
 	search->next = com_searchpaths;
 	com_searchpaths = search;
 
+	{
+		Sys_MemFileOpenRead (vkquake_pak, vkquake_pak_size, &packhandle);
+		pak = COM_LoadPackFile ("vkquake.pak", packhandle);
+		search = (searchpath_t *)Mem_Alloc (sizeof (searchpath_t));
+		search->path_id = path_id;
+		search->pack = pak;
+		search->next = com_searchpaths;
+		com_searchpaths = search;	
+	}
+
 	// add any pak files in the format pak0.pak pak1.pak, ...
 	for (i = 0;; i++)
 	{
 		q_snprintf (pakfile, sizeof (pakfile), "%s/pak%i.pak", com_gamedir, i);
-		pak = COM_LoadPackFile (pakfile);
-		if (i != 0 || path_id != 1 || fitzmode)
-			qspak = NULL;
-		else
-		{
-			qboolean old = com_modified;
-			if (been_here)
-				base = host_parms->userdir;
-			q_snprintf (pakfile, sizeof (pakfile), "%s/vkquake.pak", base);
-			qspak = COM_LoadPackFile (pakfile);
-			if (qspak == NULL)
-			{
-				const char *base_path = SDL_GetBasePath ();
-				q_snprintf (pakfile, sizeof (pakfile), "%s/vkquake.pak", base_path);
-				qspak = COM_LoadPackFile (pakfile);
-			}
-			com_modified = old;
-		}
+		if (Sys_FileOpenRead (pakfile, &packhandle) == -1)
+			break;
+		pak = COM_LoadPackFile (pakfile, packhandle);
 		if (pak)
 		{
 			search = (searchpath_t *)Mem_Alloc (sizeof (searchpath_t));
@@ -2057,15 +2051,7 @@ _add_path:
 			search->next = com_searchpaths;
 			com_searchpaths = search;
 		}
-		if (qspak)
-		{
-			search = (searchpath_t *)Mem_Alloc (sizeof (searchpath_t));
-			search->path_id = path_id;
-			search->pack = qspak;
-			search->next = com_searchpaths;
-			com_searchpaths = search;
-		}
-		if (!pak)
+		else
 			break;
 	}
 

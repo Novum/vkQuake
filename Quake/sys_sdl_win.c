@@ -37,112 +37,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 qboolean isDedicated;
 
 static HANDLE hinput, houtput;
-
-#define MAX_HANDLES 32 /* johnfitz -- was 10 */
-static FILE *sys_handles[MAX_HANDLES];
-
+static char   cwd[1024];
 static double counter_freq;
-
-static int findhandle (void)
-{
-	int i;
-
-	for (i = 1; i < MAX_HANDLES; i++)
-	{
-		if (!sys_handles[i])
-			return i;
-	}
-	Sys_Error ("out of handles");
-	return -1;
-}
-
-long Sys_filelength (FILE *f)
-{
-	long pos, end;
-
-	pos = ftell (f);
-	fseek (f, 0, SEEK_END);
-	end = ftell (f);
-	fseek (f, pos, SEEK_SET);
-
-	return end;
-}
-
-int Sys_FileOpenRead (const char *path, int *hndl)
-{
-	FILE *f;
-	int   i, retval;
-
-	i = findhandle ();
-	f = fopen (path, "rb");
-
-	if (!f)
-	{
-		*hndl = -1;
-		retval = -1;
-	}
-	else
-	{
-		sys_handles[i] = f;
-		*hndl = i;
-		retval = Sys_filelength (f);
-	}
-
-	return retval;
-}
-
-int Sys_FileOpenWrite (const char *path)
-{
-	FILE *f;
-	int   i;
-
-	i = findhandle ();
-	f = fopen (path, "wb");
-
-	if (!f)
-		Sys_Error ("Error opening %s: %s", path, strerror (errno));
-
-	sys_handles[i] = f;
-	return i;
-}
-
-void Sys_FileClose (int handle)
-{
-	fclose (sys_handles[handle]);
-	sys_handles[handle] = NULL;
-}
-
-void Sys_FileSeek (int handle, int position)
-{
-	fseek (sys_handles[handle], position, SEEK_SET);
-}
-
-int Sys_FileRead (int handle, void *dest, int count)
-{
-	return fread (dest, 1, count, sys_handles[handle]);
-}
-
-int Sys_FileWrite (int handle, const void *data, int count)
-{
-	return fwrite (data, 1, count, sys_handles[handle]);
-}
-
-int Sys_FileTime (const char *path)
-{
-	FILE *f;
-
-	f = fopen (path, "rb");
-
-	if (f)
-	{
-		fclose (f);
-		return 1;
-	}
-
-	return -1;
-}
-
-static char cwd[1024];
 
 static void Sys_GetBasedir (char *argv0, char *dst, size_t dstsize)
 {
@@ -365,7 +261,7 @@ const char *Sys_ConsoleInput (void)
 				if (ch && recs[0].Event.KeyEvent.dwControlKeyState & SHIFT_PRESSED)
 				{
 					BYTE keyboard[256] = {0};
-					WORD   output;
+					WORD output;
 					keyboard[SHIFT_PRESSED] = 0x80;
 					if (ToAscii (VkKeyScan (ch), 0, keyboard, &output, 0) == 1)
 						ch = output;

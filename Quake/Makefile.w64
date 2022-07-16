@@ -187,7 +187,7 @@ SYSOBJ_CDA := cd_sdl.o
 SYSOBJ_INPUT := in_sdl.o
 SYSOBJ_GL_VID:= gl_vidsdl.o
 SYSOBJ_NET := net_win.o net_wins.o net_wipx.o
-SYSOBJ_SYS := pl_win.o sys_sdl_win.o
+SYSOBJ_SYS := pl_win.o sys_sdl.o sys_sdl_win.o
 SYSOBJ_MAIN:= main_sdl.o
 SYSOBJ_RES := vkQuake.res
 
@@ -286,6 +286,7 @@ OBJS := strlcat.o \
 	world.o \
 	mem.o \
 	tasks.o \
+	embedded_pak.o \
 	$(SYSOBJ_SYS) $(SYSOBJ_MAIN)
 
 # ---------------------------

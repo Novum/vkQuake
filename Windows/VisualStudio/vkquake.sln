@@ -10,7 +10,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "vkQuake", "vkquake.vcxproj"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "bintoc", "bintoc.vcxproj", "{91D0ED02-D4DB-4CD4-A232-9F0ACC573048}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "shaders", "shaders.vcxproj", "{50420275-BAE3-4FDB-8A26-F2E07737FCD6}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "embedded", "embedded.vcxproj", "{50420275-BAE3-4FDB-8A26-F2E07737FCD6}"
 	ProjectSection(ProjectDependencies) = postProject
 		{91D0ED02-D4DB-4CD4-A232-9F0ACC573048} = {91D0ED02-D4DB-4CD4-A232-9F0ACC573048}
 	EndProjectSection

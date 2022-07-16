@@ -1,0 +1,88 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <CustomBuild Include="..\..\Shaders\alias.frag">
+      <Filter>Shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\alias.vert">
+      <Filter>Shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\alias_alphatest.frag">
+      <Filter>Shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\basic.frag">
+      <Filter>Shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\basic.vert">
+      <Filter>Shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\basic_alphatest.frag">
+      <Filter>Shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\basic_notex.frag">
+      <Filter>Shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\cs_tex_warp.comp">
+      <Filter>Shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\postprocess.frag">
+      <Filter>Shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\postprocess.vert">
+      <Filter>Shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\screen_effects_8bit.comp">
+      <Filter>Shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\screen_effects_8bit_scale.comp">
+      <Filter>Shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\screen_effects_8bit_scale_sops.comp">
+      <Filter>Shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\screen_effects_10bit.comp">
+      <Filter>Shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\screen_effects_10bit_scale.comp">
+      <Filter>Shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\screen_effects_10bit_scale_sops.comp">
+      <Filter>Shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\showtris.frag">
+      <Filter>Shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\showtris.vert">
+      <Filter>Shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\sky_box.frag">
+      <Filter>Shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\sky_layer.frag">
+      <Filter>Shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\sky_layer.vert">
+      <Filter>Shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\update_lightmap.comp">
+      <Filter>Shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\world.frag">
+      <Filter>Shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\world.vert">
+      <Filter>Shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Quake\vkquake.pak" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Shaders">
+      <UniqueIdentifier>{32980c58-2373-4d1f-9ade-c0b474528a7b}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\Shaders\screen_effects.inc">
+      <Filter>Shaders</Filter>
+    </None>
+  </ItemGroup>
+</Project>

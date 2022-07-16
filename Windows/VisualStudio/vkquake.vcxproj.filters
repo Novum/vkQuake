@@ -433,6 +433,12 @@
     <ClCompile Include="..\..\Quake\mem.c">
       <Filter>Main</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Quake\embedded_pak.c">
+      <Filter>Resource Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\sys_sdl.c">
+      <Filter>Main</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\Quake\snd_codec.h">

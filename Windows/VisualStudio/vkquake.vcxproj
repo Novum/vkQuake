@@ -250,6 +250,7 @@ copy "$(SolutionDir)\..\..\Quake\vkquake.pak" "$(TargetDir)"</Command>
     <ClCompile Include="..\..\Quake\console.c" />
     <ClCompile Include="..\..\Quake\crc.c" />
     <ClCompile Include="..\..\Quake\cvar.c" />
+    <ClCompile Include="..\..\Quake\embedded_pak.c" />
     <ClCompile Include="..\..\Quake\gl_draw.c" />
     <ClCompile Include="..\..\Quake\gl_fog.c" />
     <ClCompile Include="..\..\Quake\gl_heap.c" />
@@ -321,6 +322,7 @@ copy "$(SolutionDir)\..\..\Quake\vkquake.pak" "$(TargetDir)"</Command>
     <ClCompile Include="..\..\Quake\sv_move.c" />
     <ClCompile Include="..\..\Quake\sv_phys.c" />
     <ClCompile Include="..\..\Quake\sv_user.c" />
+    <ClCompile Include="..\..\Quake\sys_sdl.c" />
     <ClCompile Include="..\..\Quake\sys_sdl_win.c" />
     <ClCompile Include="..\..\Quake\tasks.c" />
     <ClCompile Include="..\..\Quake\view.c" />
