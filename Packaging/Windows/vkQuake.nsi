@@ -156,9 +156,13 @@ Section "Game" GAME
 		${If} $RereleaseDir != ""
 			CreateShortCut "$SMPROGRAMS\$StartMenuFolder\vkQuake (rerelease).lnk" $OUTDIR\vkQuake.exe '-basedir "$RereleaseDir"' \
 				"$OUTDIR\vkQuake.exe" "" "" "" ""
+			CreateShortCut "$INSTDIR\vkQuake (rerelease).lnk" $OUTDIR\vkQuake.exe '-basedir "$RereleaseDir"' \
+				"$OUTDIR\vkQuake.exe" "" "" "" ""
 		${Endif}
 		${If} $ClassicDir != ""
 			CreateShortCut "$SMPROGRAMS\$StartMenuFolder\vkQuake (classic).lnk" $OUTDIR\vkQuake.exe '-basedir "$ClassicDir"' \
+				"$OUTDIR\vkQuake.exe" "" "" "" ""
+			CreateShortCut "$INSTDIR\vkQuake (classic).lnk" $OUTDIR\vkQuake.exe '-basedir "$ClassicDir"' \
 				"$OUTDIR\vkQuake.exe" "" "" "" ""
 		${Endif}
 	!insertmacro MUI_STARTMENU_WRITE_END
