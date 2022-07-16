@@ -166,7 +166,7 @@ typedef struct vulkan_memory_s
 	vulkan_memory_type_t type;
 } vulkan_memory_t;
 
-#define WORLD_PIPELINE_COUNT        8
+#define WORLD_PIPELINE_COUNT        16
 #define FTE_PARTICLE_PIPELINE_COUNT 16
 #define MAX_BATCH_SIZE              65536
 #define NUM_WORLD_CBX               6
@@ -420,6 +420,7 @@ typedef struct
 // johnfitz -- moved here from r_brush.c
 extern int gl_lightmap_format;
 
+// keep in sync with world.frag
 #define LMBLOCK_WIDTH \
 	1024 // FIXME: make dynamic. if we have a decent card there's no real reason not to use 4k or 16k (assuming there's no lightstyles/dynamics that need
 	     // uploading...)
