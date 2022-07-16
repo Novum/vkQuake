@@ -154,15 +154,15 @@ Section "Game" GAME
 	!insertmacro MUI_STARTMENU_WRITE_BEGIN Application
 		CreateDirectory "$SMPROGRAMS\$StartMenuFolder"
 		${If} $RereleaseDir != ""
-			CreateShortCut "$SMPROGRAMS\$StartMenuFolder\vkQuake (rerelease).lnk" $OUTDIR\vkQuake.exe '-basedir "$RereleaseDir"' \
+			CreateShortCut "$SMPROGRAMS\$StartMenuFolder\vkQuake (rerelease).lnk" $OUTDIR\vkQuake.exe '-multiuser -basedir "$RereleaseDir"' \
 				"$OUTDIR\vkQuake.exe" "" "" "" ""
-			CreateShortCut "$INSTDIR\vkQuake (rerelease).lnk" $OUTDIR\vkQuake.exe '-basedir "$RereleaseDir"' \
+			CreateShortCut "$INSTDIR\vkQuake (rerelease).lnk" $OUTDIR\vkQuake.exe '-multiuser -basedir "$RereleaseDir"' \
 				"$OUTDIR\vkQuake.exe" "" "" "" ""
 		${Endif}
 		${If} $ClassicDir != ""
-			CreateShortCut "$SMPROGRAMS\$StartMenuFolder\vkQuake (classic).lnk" $OUTDIR\vkQuake.exe '-basedir "$ClassicDir"' \
+			CreateShortCut "$SMPROGRAMS\$StartMenuFolder\vkQuake (classic).lnk" $OUTDIR\vkQuake.exe '-multiuser -basedir "$ClassicDir"' \
 				"$OUTDIR\vkQuake.exe" "" "" "" ""
-			CreateShortCut "$INSTDIR\vkQuake (classic).lnk" $OUTDIR\vkQuake.exe '-basedir "$ClassicDir"' \
+			CreateShortCut "$INSTDIR\vkQuake (classic).lnk" $OUTDIR\vkQuake.exe '-multiuser -basedir "$ClassicDir"' \
 				"$OUTDIR\vkQuake.exe" "" "" "" ""
 		${Endif}
 	!insertmacro MUI_STARTMENU_WRITE_END

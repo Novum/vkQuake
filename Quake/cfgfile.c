@@ -152,14 +152,18 @@ void CFG_CloseConfig (void)
 
 int CFG_OpenConfig (const char *cfg_name)
 {
-	FILE    *f;
+	FILE    *f = NULL;
 	long     length;
 	qboolean pak = false;
 
 	CFG_CloseConfig ();
 
-	char *pref_path = SDL_GetPrefPath ("", "vkQuake");
-	f = fopen (va ("%s/config.cfg", pref_path), "rb");
+	if (multiuser)
+	{
+		char *pref_path = SDL_GetPrefPath ("", "vkQuake");
+		f = fopen (va ("%s/config.cfg", pref_path), "rb");
+		SDL_free (pref_path);
+	}
 	if (f)
 	{
 		fseek (f, 0, SEEK_END);
@@ -173,7 +177,6 @@ int CFG_OpenConfig (const char *cfg_name)
 		if (length == -1)
 			return -1;
 	}
-	SDL_free (pref_path);
 
 	cfg_file = (fshandle_t *)Mem_Alloc (sizeof (fshandle_t));
 	cfg_file->file = f;

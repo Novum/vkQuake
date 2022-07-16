@@ -222,7 +222,7 @@ filelist_item_t *modlist;
 
 static void Modlist_Add (const char *name)
 {
-	if ((strlen (name) == 3) && (tolower(name[0]) == 'i') && (tolower(name[1]) == 'd') && (name[2] == '1'))
+	if ((strlen (name) == 3) && (tolower (name[0]) == 'i') && (tolower (name[1]) == 'd') && (name[2] == '1'))
 		return;
 	char pak_path[MAX_OSPATH];
 	char progs_path[MAX_OSPATH];
@@ -1072,8 +1072,14 @@ static void Host_Savegame_f (void)
 		}
 	}
 
-	char *save_path = SDL_GetPrefPath ("vkQuake", COM_GetGameNames (true));
-	q_snprintf (name, sizeof (name), "%s%s", save_path, Cmd_Argv (1));
+	if (multiuser)
+	{
+		char *save_path = SDL_GetPrefPath ("vkQuake", COM_GetGameNames (true));
+		q_snprintf (name, sizeof (name), "%s%s", save_path, Cmd_Argv (1));
+		SDL_free (save_path);
+	}
+	else
+		q_snprintf (name, sizeof (name), "%s/%s", com_gamedir, Cmd_Argv (1));
 	COM_AddExtension (name, ".sav", sizeof (name));
 
 	Con_Printf ("Saving game to %s...\n", name);
@@ -1190,9 +1196,9 @@ static void Host_Loadgame_f (void)
 
 	cls.demonum = -1; // stop demo loop in case this fails
 
-	char *save_path = SDL_GetPrefPath ("vkQuake", COM_GetGameNames (true));
+	char    *save_path = multiuser ? SDL_GetPrefPath ("vkQuake", COM_GetGameNames (true)) : NULL;
 	qboolean loadable = false;
-	for (int j = 0; j < 2; ++j)
+	for (int j = (multiuser ? 0 : 1); j < 2; ++j)
 	{
 		if (j == 0)
 			q_snprintf (name, sizeof (name), "%s%s", save_path, Cmd_Argv (1));
@@ -1211,6 +1217,8 @@ static void Host_Loadgame_f (void)
 			break;
 		}
 	}
+	SDL_free (save_path);
+
 	if (!loadable)
 	{
 		Con_Printf ("ERROR: couldn't open.\n");
@@ -1693,7 +1701,7 @@ static void Host_Pause_f (void)
 		cls.demopaused = !cls.demopaused;
 		cl.paused = cls.demopaused;
 		if (cls.demospeed == 0.f && !cls.demopaused)
-			cls.demospeed = 1.f; 
+			cls.demospeed = 1.f;
 		return;
 	}
 

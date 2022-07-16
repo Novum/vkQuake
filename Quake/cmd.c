@@ -273,6 +273,7 @@ Cmd_Exec_f
 void Cmd_Exec_f (void)
 {
 	char *buf = NULL;
+	FILE *f = NULL;
 
 	if (Cmd_Argc () != 2)
 	{
@@ -280,15 +281,19 @@ void Cmd_Exec_f (void)
 		return;
 	}
 
-	char *pref_path = SDL_GetPrefPath ("", "vkQuake");
-	FILE *f = fopen (va ("%s/%s", pref_path, Cmd_Argv (1)), "rb");
+	if (multiuser)
+	{
+		char *pref_path = SDL_GetPrefPath ("", "vkQuake");
+		f = fopen (va ("%s/%s", pref_path, Cmd_Argv (1)), "rb");
+		SDL_free (pref_path);
+	}
 	qboolean read_from_pref_path = false;
 	if (f)
 	{
 		fseek (f, 0, SEEK_END);
 		long length = ftell (f);
 		fseek (f, 0, SEEK_SET);
-		buf = Mem_Alloc(length + 1);
+		buf = Mem_Alloc (length + 1);
 		if (fread (buf, 1, length, f) != length)
 			Mem_Free (buf);
 		else

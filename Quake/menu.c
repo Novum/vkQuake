@@ -443,13 +443,13 @@ void M_ScanSaves (void)
 	char  name[MAX_OSPATH];
 	FILE *f;
 	int   version;
-	char *save_path = SDL_GetPrefPath ("vkQuake", COM_GetGameNames (true));
+	char *save_path = multiuser ? SDL_GetPrefPath ("vkQuake", COM_GetGameNames (true)) : NULL;
 
 	for (i = 0; i < MAX_SAVEGAMES; i++)
 	{
 		strcpy (m_filenames[i], "--- UNUSED SLOT ---");
 		loadable[i] = false;
-		for (j = 0; j < 2; ++j)
+		for (j = (multiuser ? 0 : 1); j < 2; ++j)
 		{
 			if (j == 0)
 				q_snprintf (name, sizeof (name), "%ss%i.sav", save_path, i);
@@ -475,6 +475,8 @@ void M_ScanSaves (void)
 			break;
 		}
 	}
+
+	SDL_free (save_path);
 }
 
 void M_Menu_Load_f (void)

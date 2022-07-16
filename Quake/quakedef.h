@@ -393,4 +393,6 @@ extern int num_vulkan_ubos_dynamic;
 extern int num_vulkan_input_attachments;
 extern int num_vulkan_storage_images;
 
+extern qboolean multiuser;
+
 #endif /* QUAKEDEFS_H */

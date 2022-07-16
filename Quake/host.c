@@ -330,18 +330,23 @@ Writes key bindings and archived cvars to config.cfg
 */
 void Host_WriteConfiguration (void)
 {
-	FILE *f;
+	FILE *f = NULL;
 
 	// dedicated servers initialize the host but don't parse and set the
 	// config.cfg cvars
 	if (host_initialized && !isDedicated && !host_parms->errstate)
 	{
-		char *pref_path = SDL_GetPrefPath ("", "vkQuake");
-		f = fopen (va ("%s/config.cfg", pref_path), "w");
+		if (multiuser)
+		{
+			char *pref_path = SDL_GetPrefPath ("", "vkQuake");
+			f = fopen (va ("%s/config.cfg", pref_path), "w");
+			SDL_free (pref_path);
+		}
+		else
+			f = fopen (va ("%s/config.cfg", com_gamedir), "w");
 		if (!f)
 		{
 			Con_Printf ("Couldn't write config.cfg.\n");
-			SDL_free (pref_path);
 			return;
 		}
 
@@ -357,7 +362,6 @@ void Host_WriteConfiguration (void)
 		// johnfitz
 
 		fclose (f);
-		SDL_free (pref_path);
 	}
 }
 

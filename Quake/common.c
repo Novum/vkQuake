@@ -39,6 +39,7 @@ cvar_t cmdline = {"cmdline", "", CVAR_ROM /*|CVAR_SERVERINFO*/}; /* sending cmdl
 static qboolean com_modified; // set true if using non-id files
 
 qboolean fitzmode;
+qboolean multiuser;
 
 static void COM_Path_f (void);
 
@@ -1431,6 +1432,12 @@ void COM_Init (void)
 	if (COM_CheckParm ("-fitz"))
 		fitzmode = true;
 
+	if (COM_CheckParm ("-validation"))
+		vulkan_globals.validation = true;
+
+	if (COM_CheckParm ("-multiuser"))
+		multiuser = true;
+
 	COM_SetupNullState ();
 }
 
@@ -2033,7 +2040,7 @@ _add_path:
 		search->path_id = path_id;
 		search->pack = pak;
 		search->next = com_searchpaths;
-		com_searchpaths = search;	
+		com_searchpaths = search;
 	}
 
 	// add any pak files in the format pak0.pak pak1.pak, ...
@@ -2285,9 +2292,6 @@ void COM_InitFilesystem (void) // johnfitz -- modified based on topaz's tutorial
 		if (p != NULL)
 			COM_AddGameDirectory (p);
 	}
-
-	if (COM_CheckParm ("-validation"))
-		vulkan_globals.validation = true;
 
 	COM_CheckRegistered ();
 }
