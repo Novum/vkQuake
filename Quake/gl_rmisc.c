@@ -2441,7 +2441,7 @@ R_CreateWorldPipelines
 static void R_CreateWorldPipelines ()
 {
 	VkResult                err;
-	int                     alpha_blend, alpha_test, fullbright_enabled;
+	int                     alpha_blend, alpha_test, fullbright_enabled, quantize_lm;
 	pipeline_create_infos_t infos;
 	R_InitDefaultStates (&infos);
 
@@ -2458,7 +2458,7 @@ static void R_CreateWorldPipelines ()
 	infos.vertex_input_state.vertexBindingDescriptionCount = 1;
 	infos.vertex_input_state.pVertexBindingDescriptions = &world_vertex_binding_description;
 
-	VkSpecializationMapEntry specialization_entries[3];
+	VkSpecializationMapEntry specialization_entries[4];
 	specialization_entries[0].constantID = 0;
 	specialization_entries[0].offset = 0;
 	specialization_entries[0].size = 4;
@@ -2468,16 +2468,20 @@ static void R_CreateWorldPipelines ()
 	specialization_entries[2].constantID = 2;
 	specialization_entries[2].offset = 8;
 	specialization_entries[2].size = 4;
+	specialization_entries[3].constantID = 3;
+	specialization_entries[3].offset = 12;
+	specialization_entries[3].size = 4;
 
-	uint32_t specialization_data[3];
+	uint32_t specialization_data[4];
 	specialization_data[0] = 0;
 	specialization_data[1] = 0;
 	specialization_data[2] = 0;
+	specialization_data[3] = 0;
 
 	VkSpecializationInfo specialization_info;
-	specialization_info.mapEntryCount = 3;
+	specialization_info.mapEntryCount = 4;
 	specialization_info.pMapEntries = specialization_entries;
-	specialization_info.dataSize = 12;
+	specialization_info.dataSize = 16;
 	specialization_info.pData = specialization_data;
 
 	infos.graphics_pipeline.layout = vulkan_globals.world_pipeline_layout.handle;
@@ -2492,32 +2496,37 @@ static void R_CreateWorldPipelines ()
 		{
 			for (fullbright_enabled = 0; fullbright_enabled < 2; ++fullbright_enabled)
 			{
-				int pipeline_index = fullbright_enabled + (alpha_test * 2) + (alpha_blend * 4);
-
-				specialization_data[0] = fullbright_enabled;
-				specialization_data[1] = alpha_test;
-				specialization_data[2] = alpha_blend;
-
-				infos.blend_attachment_state.blendEnable = alpha_blend ? VK_TRUE : VK_FALSE;
-				infos.depth_stencil_state.depthWriteEnable = alpha_blend ? VK_FALSE : VK_TRUE;
-				if (pipeline_index > 0)
+				for (quantize_lm = 0; quantize_lm < 2; ++quantize_lm)
 				{
-					infos.graphics_pipeline.flags = VK_PIPELINE_CREATE_DERIVATIVE_BIT;
-					infos.graphics_pipeline.basePipelineHandle = vulkan_globals.world_pipelines[0].handle;
-					infos.graphics_pipeline.basePipelineIndex = -1;
-				}
-				else
-				{
-					infos.graphics_pipeline.flags = VK_PIPELINE_CREATE_ALLOW_DERIVATIVES_BIT;
-				}
+					int pipeline_index = fullbright_enabled + (alpha_test * 2) + (alpha_blend * 4) + (quantize_lm * 8);
 
-				assert (vulkan_globals.world_pipelines[pipeline_index].handle == VK_NULL_HANDLE);
-				err = vkCreateGraphicsPipelines (
-					vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.world_pipelines[pipeline_index].handle);
-				if (err != VK_SUCCESS)
-					Sys_Error ("vkCreateGraphicsPipelines failed");
-				GL_SetObjectName ((uint64_t)vulkan_globals.world_pipelines[pipeline_index].handle, VK_OBJECT_TYPE_PIPELINE, va ("world %d", pipeline_index));
-				vulkan_globals.world_pipelines[pipeline_index].layout = vulkan_globals.world_pipeline_layout;
+					specialization_data[0] = fullbright_enabled;
+					specialization_data[1] = alpha_test;
+					specialization_data[2] = alpha_blend;
+					specialization_data[3] = quantize_lm;
+
+					infos.blend_attachment_state.blendEnable = alpha_blend ? VK_TRUE : VK_FALSE;
+					infos.depth_stencil_state.depthWriteEnable = alpha_blend ? VK_FALSE : VK_TRUE;
+					if (pipeline_index > 0)
+					{
+						infos.graphics_pipeline.flags = VK_PIPELINE_CREATE_DERIVATIVE_BIT;
+						infos.graphics_pipeline.basePipelineHandle = vulkan_globals.world_pipelines[0].handle;
+						infos.graphics_pipeline.basePipelineIndex = -1;
+					}
+					else
+					{
+						infos.graphics_pipeline.flags = VK_PIPELINE_CREATE_ALLOW_DERIVATIVES_BIT;
+					}
+
+					assert (vulkan_globals.world_pipelines[pipeline_index].handle == VK_NULL_HANDLE);
+					err = vkCreateGraphicsPipelines (
+						vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.world_pipelines[pipeline_index].handle);
+					if (err != VK_SUCCESS)
+						Sys_Error ("vkCreateGraphicsPipelines failed");
+					GL_SetObjectName (
+						(uint64_t)vulkan_globals.world_pipelines[pipeline_index].handle, VK_OBJECT_TYPE_PIPELINE, va ("world %d", pipeline_index));
+					vulkan_globals.world_pipelines[pipeline_index].layout = vulkan_globals.world_pipeline_layout;
+				}
 			}
 		}
 	}

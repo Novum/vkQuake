@@ -33,6 +33,8 @@ extern cvar_t r_showtris;
 extern cvar_t r_simd;
 extern cvar_t gl_zfix;
 extern cvar_t r_gpulightmapupdate;
+extern cvar_t vid_filter;
+extern cvar_t vid_palettize;
 
 cvar_t r_parallelmark = {"r_parallelmark", "1", CVAR_NONE};
 
@@ -697,7 +699,8 @@ static void R_FlushBatch (
 {
 	if (cbx->num_vbo_indices > 0)
 	{
-		int pipeline_index = (fullbright_enabled ? 1 : 0) + (alpha_test ? 2 : 0) + (alpha_blend ? 4 : 0);
+		int pipeline_index =
+			(fullbright_enabled ? 1 : 0) + (alpha_test ? 2 : 0) + (alpha_blend ? 4 : 0) + (vid_filter.value != 0 && vid_palettize.value != 0 ? 8 : 0);
 		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipelines[pipeline_index]);
 
 		float constant_factor = 0.0f, slope_factor = 0.0f;
