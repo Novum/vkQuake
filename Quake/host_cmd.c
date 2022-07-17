@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 #include "quakedef.h"
+#include <sys/stat.h>
 #ifndef _WIN32
 #include <dirent.h>
 #else
@@ -124,12 +125,23 @@ void FileList_Init (char *path, char *ext, int minsize, filelist_item_t **list)
 	searchpath_t *search;
 	pack_t       *pak;
 	int           i;
+	searchpath_t  multiuser_saves;
+
+	if (multiuser && !strcmp (ext, "sav"))
+	{
+		char *pref_path = SDL_GetPrefPath ("vkQuake", COM_GetGameNames (true));
+		strcpy (multiuser_saves.filename, pref_path);
+		SDL_free (pref_path);
+		multiuser_saves.next = com_searchpaths;
+	}
+	else
+		multiuser_saves.next = NULL;
 
 	// we don't want to list the files in id1 pakfiles,
 	// because these are not "add-on" files
 	q_snprintf (ignorepakdir, sizeof (ignorepakdir), "/%s/", GAMENAME);
 
-	for (search = com_searchpaths; search; search = search->next)
+	for (search = (multiuser_saves.next ? &multiuser_saves : com_searchpaths); search; search = search->next)
 	{
 		if (*search->filename) // directory
 		{
@@ -222,15 +234,18 @@ filelist_item_t *modlist;
 
 static void Modlist_Add (const char *name)
 {
+	struct stat maps_info;
 	if ((strlen (name) == 3) && (tolower (name[0]) == 'i') && (tolower (name[1]) == 'd') && (name[2] == '1'))
 		return;
 	char pak_path[MAX_OSPATH];
 	char progs_path[MAX_OSPATH];
+	char maps_path[MAX_OSPATH];
 	q_snprintf (pak_path, sizeof (pak_path), "%s/%s/pak0.pak", com_basedir, name);
 	q_snprintf (progs_path, sizeof (progs_path), "%s/%s/progs.dat", com_basedir, name);
+	q_snprintf (maps_path, sizeof (maps_path), "%s/%s/maps", com_basedir, name);
 	FILE *pak_file = fopen (pak_path, "rb");
 	FILE *progs_file = fopen (progs_path, "rb");
-	if (pak_file || progs_file)
+	if (pak_file || progs_file || (stat (maps_path, &maps_info) == 0 && maps_info.st_mode & S_IFDIR))
 		FileList_Add (name, &modlist);
 	if (pak_file)
 		fclose (pak_file);
