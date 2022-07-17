@@ -2033,16 +2033,6 @@ _add_path:
 	search->next = com_searchpaths;
 	com_searchpaths = search;
 
-	{
-		Sys_MemFileOpenRead (vkquake_pak, vkquake_pak_size, &packhandle);
-		pak = COM_LoadPackFile ("vkquake.pak", packhandle);
-		search = (searchpath_t *)Mem_Alloc (sizeof (searchpath_t));
-		search->path_id = path_id;
-		search->pack = pak;
-		search->next = com_searchpaths;
-		com_searchpaths = search;
-	}
-
 	// add any pak files in the format pak0.pak pak1.pak, ...
 	for (i = 0;; i++)
 	{
@@ -2058,7 +2048,19 @@ _add_path:
 			search->next = com_searchpaths;
 			com_searchpaths = search;
 		}
-		else
+
+		if ((i == 0) && (path_id == 1) && !fitzmode)
+		{
+			Sys_MemFileOpenRead (vkquake_pak, vkquake_pak_size, &packhandle);
+			pak = COM_LoadPackFile ("vkquake.pak", packhandle);
+			search = (searchpath_t *)Mem_Alloc (sizeof (searchpath_t));
+			search->path_id = path_id;
+			search->pack = pak;
+			search->next = com_searchpaths;
+			com_searchpaths = search;
+		}
+
+		if (!pak)
 			break;
 	}
 
