@@ -91,7 +91,7 @@ extern cvar_t   r_particles, host_maxfps, r_gpulightmapupdate;
 
 // johnfitz -- new cvars
 static cvar_t                   vid_fullscreen = {"vid_fullscreen", "0", CVAR_ARCHIVE}; // QuakeSpasm, was "1"
-static cvar_t                   vid_width = {"vid_width", "1280", CVAR_ARCHIVE};         // QuakeSpasm, was 640
+static cvar_t                   vid_width = {"vid_width", "1280", CVAR_ARCHIVE};        // QuakeSpasm, was 640
 static cvar_t                   vid_height = {"vid_height", "720", CVAR_ARCHIVE};       // QuakeSpasm, was 480
 static cvar_t                   vid_refreshrate = {"vid_refreshrate", "60", CVAR_ARCHIVE};
 static cvar_t                   vid_vsync = {"vid_vsync", "0", CVAR_ARCHIVE};
@@ -104,8 +104,8 @@ cvar_t                          vid_fsaa = {"vid_fsaa", "0", CVAR_ARCHIVE};
 cvar_t                          vid_fsaamode = {"vid_fsaamode", "0", CVAR_ARCHIVE};
 cvar_t                          vid_gamma = {"gamma", "0.9", CVAR_ARCHIVE};       // johnfitz -- moved here from view.c
 cvar_t                          vid_contrast = {"contrast", "1.4", CVAR_ARCHIVE}; // QuakeSpasm, MarkV
-cvar_t                          r_usesops = {"r_usesops", "1", CVAR_ARCHIVE};   // johnfitz
-                                                                                // Vulkan
+cvar_t                          r_usesops = {"r_usesops", "1", CVAR_ARCHIVE};     // johnfitz
+                                                                                  // Vulkan
 static VkInstance               vulkan_instance;
 static VkPhysicalDevice         vulkan_physical_device;
 static VkPhysicalDeviceFeatures vulkan_physical_device_features;
@@ -1974,7 +1974,7 @@ static qboolean GL_CreateSwapChain (void)
 	swapchain_create_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
 	swapchain_create_info.pNext = NULL;
 	swapchain_create_info.surface = vulkan_surface;
-	swapchain_create_info.minImageCount = 2;
+	swapchain_create_info.minImageCount = (vid_vsync.value >= 2) ? 3 : 2;
 	swapchain_create_info.imageFormat = swap_chain_format;
 	swapchain_create_info.imageColorSpace = swap_chain_color_space;
 	swapchain_create_info.imageExtent.width = vid.width;
@@ -2474,11 +2474,11 @@ typedef struct end_rendering_parms_s
 } end_rendering_parms_t;
 
 #define SCREEN_EFFECT_FLAG_SCALE_MASK 0x3
-#define SCREEN_EFFECT_FLAG_SCALE_2X 0x1
-#define SCREEN_EFFECT_FLAG_SCALE_4X 0x2
-#define SCREEN_EFFECT_FLAG_SCALE_8X 0x3
+#define SCREEN_EFFECT_FLAG_SCALE_2X   0x1
+#define SCREEN_EFFECT_FLAG_SCALE_4X   0x2
+#define SCREEN_EFFECT_FLAG_SCALE_8X   0x3
 #define SCREEN_EFFECT_FLAG_WATER_WARP 0x4
-#define SCREEN_EFFECT_FLAG_PALETTIZE 0x8
+#define SCREEN_EFFECT_FLAG_PALETTIZE  0x8
 
 /*
 ===============
@@ -2780,10 +2780,10 @@ GL_WaitForDeviceIdle
 */
 void GL_WaitForDeviceIdle (void)
 {
-	assert(!Tasks_IsWorker());
+	assert (!Tasks_IsWorker ());
 	GL_SynchronizeEndRenderingTask ();
 	if (!vulkan_globals.device_idle)
-	{	
+	{
 		R_SubmitStagingBuffers ();
 		vkDeviceWaitIdle (vulkan_globals.device);
 	}
@@ -3174,7 +3174,7 @@ void VID_Init (void)
 	R_InitSamplers ();
 	R_CreatePipelineLayouts ();
 	R_CreatePaletteOctreeBuffers (palette_octree_colors, NUM_PALETTE_OCTREE_COLORS, palette_octree_nodes, NUM_PALETTE_OCTREE_NODES);
-	//GL_CreateRenderResources ();
+	// GL_CreateRenderResources ();
 
 	// johnfitz -- removed code creating "glquake" subdirectory
 
@@ -3697,6 +3697,16 @@ static void VID_Menu_ChooseNextFullScreenMode (int dir)
 
 /*
 ================
+VID_Menu_ChooseNextVSyncMode
+================
+*/
+static void VID_Menu_ChooseNextVSyncMode(int dir)
+{
+	Cvar_SetValueQuick (&vid_vsync, (float)(((int)vid_vsync.value + 3 + dir) % 3));
+}
+
+/*
+================
 VID_MenuKey
 ================
 */
@@ -3741,7 +3751,7 @@ static void VID_MenuKey (int key)
 			VID_Menu_ChooseNextFullScreenMode (-1);
 			break;
 		case VID_OPT_VSYNC:
-			Cbuf_AddText ("toggle vid_vsync\n"); // kristian
+			VID_Menu_ChooseNextVSyncMode (-1);
 			break;
 		case VID_OPT_MAX_FPS:
 			VID_Menu_ChooseNextMaxFPS (-1);
@@ -3789,7 +3799,7 @@ static void VID_MenuKey (int key)
 			VID_Menu_ChooseNextFullScreenMode (1);
 			break;
 		case VID_OPT_VSYNC:
-			Cbuf_AddText ("toggle vid_vsync\n");
+			VID_Menu_ChooseNextVSyncMode (1);
 			break;
 		case VID_OPT_MAX_FPS:
 			VID_Menu_ChooseNextMaxFPS (1);
@@ -3838,7 +3848,7 @@ static void VID_MenuKey (int key)
 			VID_Menu_ChooseNextFullScreenMode (1);
 			break;
 		case VID_OPT_VSYNC:
-			Cbuf_AddText ("toggle vid_vsync\n");
+			VID_Menu_ChooseNextVSyncMode (1);
 			break;
 		case VID_OPT_ANTIALIASING_SAMPLES:
 			VID_Menu_ChooseNextAASamples (1);
@@ -3939,7 +3949,7 @@ static void VID_MenuDraw (cb_context_t *cbx)
 			break;
 		case VID_OPT_VSYNC:
 			M_Print (cbx, 16, y, "     Vertical sync");
-			M_DrawCheckbox (cbx, 184, y, (int)vid_vsync.value);
+			M_Print (cbx, 184, y, ((int)vid_vsync.value == 0) ? "off" : (((int)vid_vsync.value == 1) ? "on" : "triple buffer"));
 			break;
 		case VID_OPT_MAX_FPS:
 			M_Print (cbx, 16, y, "           Max FPS");
