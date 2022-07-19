@@ -566,7 +566,7 @@ static void Mod_LoadTextureTask (int i, load_texture_task_args_t *args)
 	char         texturename[64];
 	src_offset_t offset;
 	int          fwidth, fheight;
-	char         filename[MAX_OSPATH], filename2[MAX_OSPATH], mapname[MAX_OSPATH];
+	char         filename[MAX_OSPATH], mapname[MAX_OSPATH];
 	byte        *data = NULL;
 
 	if (!q_strncasecmp (tx->name, "sky", 3)) // sky texture //also note -- was strncmp, changed to match qbsp
@@ -629,6 +629,8 @@ static void Mod_LoadTextureTask (int i, load_texture_task_args_t *args)
 		// now load whatever we found
 		if (data) // load external image
 		{
+			char filename2[MAX_OSPATH];
+
 			tx->gltexture = TexMgr_LoadImage (mod, filename, fwidth, fheight, SRC_RGBA, data, filename, 0, TEXPREF_MIPMAP | extraflags);
 			Mem_Free (data);
 
@@ -642,7 +644,7 @@ static void Mod_LoadTextureTask (int i, load_texture_task_args_t *args)
 			}
 
 			if (data)
-				tx->fullbright = TexMgr_LoadImage (mod, filename2, fwidth, fheight, SRC_RGBA, data, filename, 0, TEXPREF_MIPMAP | extraflags);
+				tx->fullbright = TexMgr_LoadImage (mod, filename2, fwidth, fheight, SRC_RGBA, data, filename2, 0, TEXPREF_MIPMAP | extraflags);
 		}
 		else // use the texture from the bsp file
 		{
