@@ -691,9 +691,9 @@ static void R_InitDynamicVertexBuffers ()
 	vkGetBufferMemoryRequirements (vulkan_globals.device, dyn_vertex_buffers[0].buffer, &memory_requirements);
 
 	const int align_mod = memory_requirements.size % memory_requirements.alignment;
-	const int aligned_size = ((memory_requirements.size % memory_requirements.alignment) == 0)
-								 ? memory_requirements.size
-								 : (memory_requirements.size + memory_requirements.alignment - align_mod);
+    const int aligned_size = ((memory_requirements.size % memory_requirements.alignment) == 0)
+                             ? memory_requirements.size
+                             : (memory_requirements.size + memory_requirements.alignment - align_mod);
 
 	VkMemoryAllocateInfo memory_allocate_info;
 	memset (&memory_allocate_info, 0, sizeof (memory_allocate_info));
@@ -757,8 +757,8 @@ static void R_InitDynamicIndexBuffers ()
 
 	const int align_mod = memory_requirements.size % memory_requirements.alignment;
 	const int aligned_size = ((memory_requirements.size % memory_requirements.alignment) == 0)
-								 ? memory_requirements.size
-								 : (memory_requirements.size + memory_requirements.alignment - align_mod);
+                                 ? memory_requirements.size
+                                 : (memory_requirements.size + memory_requirements.alignment - align_mod);
 
 	VkMemoryAllocateInfo memory_allocate_info;
 	memset (&memory_allocate_info, 0, sizeof (memory_allocate_info));
@@ -822,8 +822,8 @@ static void R_InitDynamicUniformBuffers ()
 
 	const int align_mod = memory_requirements.size % memory_requirements.alignment;
 	const int aligned_size = ((memory_requirements.size % memory_requirements.alignment) == 0)
-								 ? memory_requirements.size
-								 : (memory_requirements.size + memory_requirements.alignment - align_mod);
+                                 ? memory_requirements.size
+                                 : (memory_requirements.size + memory_requirements.alignment - align_mod);
 
 	VkMemoryAllocateInfo memory_allocate_info;
 	memset (&memory_allocate_info, 0, sizeof (memory_allocate_info));
