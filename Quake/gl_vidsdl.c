@@ -105,7 +105,7 @@ cvar_t                          vid_fsaamode = {"vid_fsaamode", "0", CVAR_ARCHIV
 cvar_t                          vid_gamma = {"gamma", "0.9", CVAR_ARCHIVE};       // johnfitz -- moved here from view.c
 cvar_t                          vid_contrast = {"contrast", "1.4", CVAR_ARCHIVE}; // QuakeSpasm, MarkV
 cvar_t                          r_usesops = {"r_usesops", "1", CVAR_ARCHIVE};     // johnfitz
-                                                                                                      // Vulkan
+                                                                                  // Vulkan
 static VkInstance               vulkan_instance;
 static VkPhysicalDevice         vulkan_physical_device;
 static VkPhysicalDeviceFeatures vulkan_physical_device_features;
