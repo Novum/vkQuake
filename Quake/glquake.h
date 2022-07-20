@@ -236,12 +236,12 @@ typedef struct
 	qboolean get_surface_capabilities_2;
 	qboolean get_physical_device_properties_2;
 	qboolean vulkan_1_1_available;
-    qboolean portability_enumeration_availible;
+	qboolean portability_enumeration_availible;
 
 	// Device extensions
 	qboolean dedicated_allocation;
 	qboolean full_screen_exclusive;
-    qboolean device_portability_subset;
+	qboolean device_portability_subset;
 
 	// Buffers
 	VkImage color_buffers[NUM_COLOR_BUFFERS];
