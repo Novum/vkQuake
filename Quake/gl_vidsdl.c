@@ -622,6 +622,13 @@ static void GL_InitInstance (void)
 				vulkan_globals.get_surface_capabilities_2 = true;
 			if (strcmp (VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME, extension_props[i].extensionName) == 0)
 				vulkan_globals.get_physical_device_properties_2 = true;
+
+            // Adding define as it appears linux/windows sdk v1.3.216.0 do NOT have this macro enabled in non-beta yet
+            // TODO: Check if latest SDK version moves this out of beta. If so, remove APPLE def
+#ifdef APPLE
+            if (strcmp (VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME, extension_props[i].extensionName) == 0)
+				vulkan_globals.portability_enumeration_availible = true;
+#endif
 #if _DEBUG
 			if (strcmp (VK_EXT_DEBUG_UTILS_EXTENSION_NAME, extension_props[i].extensionName) == 0)
 				vulkan_globals.debug_utils = true;
@@ -664,6 +671,17 @@ static void GL_InitInstance (void)
 		instance_extensions[sdl_extension_count + additionalExtensionCount++] = VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME;
 	if (vulkan_globals.get_physical_device_properties_2)
 		instance_extensions[sdl_extension_count + additionalExtensionCount++] = VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME;
+
+#ifdef APPLE
+    // As of VulkanSDK v1.3.126.0, VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR bit must be set and VK_KHR_PORTABILITY_ENUMERATION_EXTENSION
+    // enabled to for MoltenVK to work properly. If not set, VkInstance will fail to init. Does not appear to be defined
+    // in the windows/linux SDKs in non-beta headers
+    if (vulkan_globals.portability_enumeration_availible)
+    {
+        instance_create_info.flags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+        instance_extensions[sdl_extension_count + additionalExtensionCount++] = VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME;
+    }
+#endif
 
 #ifdef _DEBUG
 	if (vulkan_globals.debug_utils)
@@ -1032,6 +1050,15 @@ static void GL_InitDevice (void)
 		device_extensions[numEnabledExtensions++] = VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME;
 		device_extensions[numEnabledExtensions++] = VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME;
 	}
+
+    // If portability extentions are enabled, then device extension "VK_KHR_portability_subset" must be as well.
+    // As of 1.3.216.0, there is no VK_KHR_PORTABILITY_SUBSET_NAME macro that is not in beta (as far as I know)
+    if (vulkan_globals.device_portability_subset)
+    {
+        device_extensions[numEnabledExtensions++] = "VK_KHR_portability_subset";
+    }
+
+
 #if defined(VK_EXT_subgroup_size_control)
 	if (vulkan_globals.screen_effects_sops)
 		device_extensions[numEnabledExtensions++] = VK_EXT_SUBGROUP_SIZE_CONTROL_EXTENSION_NAME;
