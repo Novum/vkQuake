@@ -1364,27 +1364,31 @@ R_CreateDescriptorPool
 */
 void R_CreateDescriptorPool ()
 {
-	VkDescriptorPoolSize pool_sizes[6];
-	pool_sizes[0].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	pool_sizes[0].descriptorCount = (MAX_SANITY_LIGHTMAPS * 2) + (MAX_GLTEXTURES + 1);
-	pool_sizes[1].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
-	pool_sizes[1].descriptorCount = 16 + (MAX_SANITY_LIGHTMAPS * 2);
-	pool_sizes[2].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-	pool_sizes[2].descriptorCount = MAX_SANITY_LIGHTMAPS * 2;
-	pool_sizes[3].type = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
-	pool_sizes[3].descriptorCount = 2;
-	pool_sizes[4].type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-	pool_sizes[4].descriptorCount = MAX_GLTEXTURES + MAX_SANITY_LIGHTMAPS;
+    VkDescriptorPoolSize pool_sizes[7];
+    pool_sizes[0].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    pool_sizes[0].descriptorCount = (MAX_SANITY_LIGHTMAPS * 2) + (MAX_GLTEXTURES + 1);
+    pool_sizes[1].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+    pool_sizes[1].descriptorCount = 16 + (MAX_SANITY_LIGHTMAPS * 2);
+    pool_sizes[2].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    pool_sizes[2].descriptorCount = MAX_SANITY_LIGHTMAPS * 2;
+    pool_sizes[3].type = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+    pool_sizes[3].descriptorCount = 2;
+    pool_sizes[4].type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    pool_sizes[4].descriptorCount = MAX_GLTEXTURES + MAX_SANITY_LIGHTMAPS;
+    pool_sizes[5].type = VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER;
+    pool_sizes[5].descriptorCount = MAX_GLTEXTURES + MAX_SANITY_LIGHTMAPS;
+    pool_sizes[6].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    pool_sizes[6].descriptorCount = 16 + (MAX_SANITY_LIGHTMAPS * 2);
 
-	VkDescriptorPoolCreateInfo descriptor_pool_create_info;
-	memset (&descriptor_pool_create_info, 0, sizeof (descriptor_pool_create_info));
-	descriptor_pool_create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-	descriptor_pool_create_info.maxSets = MAX_GLTEXTURES + MAX_SANITY_LIGHTMAPS + 32;
-	descriptor_pool_create_info.poolSizeCount = 5;
-	descriptor_pool_create_info.pPoolSizes = pool_sizes;
-	descriptor_pool_create_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+    VkDescriptorPoolCreateInfo descriptor_pool_create_info;
+    memset (&descriptor_pool_create_info, 0, sizeof (descriptor_pool_create_info));
+    descriptor_pool_create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    descriptor_pool_create_info.maxSets = MAX_GLTEXTURES + MAX_SANITY_LIGHTMAPS + 32;
+    descriptor_pool_create_info.poolSizeCount = 7;
+    descriptor_pool_create_info.pPoolSizes = pool_sizes;
+    descriptor_pool_create_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
 
-	vkCreateDescriptorPool (vulkan_globals.device, &descriptor_pool_create_info, NULL, &vulkan_globals.descriptor_pool);
+    vkCreateDescriptorPool (vulkan_globals.device, &descriptor_pool_create_info, NULL, &vulkan_globals.descriptor_pool);
 }
 
 /*
