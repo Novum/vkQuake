@@ -692,8 +692,8 @@ static void R_InitDynamicVertexBuffers ()
 
 	const int align_mod = memory_requirements.size % memory_requirements.alignment;
 	const int aligned_size = ((memory_requirements.size % memory_requirements.alignment) == 0)
-	                         ? memory_requirements.size
-	                         : (memory_requirements.size + memory_requirements.alignment - align_mod);
+	                             ? memory_requirements.size
+	                             : (memory_requirements.size + memory_requirements.alignment - align_mod);
 
 	VkMemoryAllocateInfo memory_allocate_info;
 	memset (&memory_allocate_info, 0, sizeof (memory_allocate_info));
