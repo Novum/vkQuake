@@ -166,7 +166,8 @@ ifeq ($(shell test -d /opt/homebrew && echo true),true)
 COMMON_LIBS+= -L/opt/homebrew/lib
 CFLAGS+= -I/opt/homebrew/include
 endif
-COMMON_LIBS+= -lMoltenVK
+CFLAGS+=-DAPPLE
+COMMON_LIBS+= -lvulkan
 endif
 
 LIBS := $(COMMON_LIBS) $(NET_LIBS) $(CODECLIBS)
