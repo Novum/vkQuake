@@ -123,6 +123,12 @@ cd vkQuake
 meson build && ninja -C build
 ~~~
 
+> 📝 **Note**: On ARM macs the default homebrew installation moved to `/opt/homebrew`. For meson to be able to find homebrew files you need to set the following environment:
+> ```
+> $ export PATH=/opt/homebrew/bin:$PATH
+> $ export LIBRARY_PATH=/opt/homebrew/lib:$LIBRARY_PATH
+> $ export CPATH=/opt/homebrew/include:$CPATH
+> ```
 > 📝 **Note**: The Meson version needs to be 0.47.0 or newer.
 
 ### MinGW
