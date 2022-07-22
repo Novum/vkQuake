@@ -14,6 +14,6 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Install Dependencies
-      run: brew install sdl2 vulkan-headers molten-vk meson
+      run: brew install molten-vk vulkan-headers glslang spirv-tools sdl2 libvorbis flac opus opusfile flac mad meson
     - name: Build vkQuake
       run: meson build && ninja -C build

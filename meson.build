@@ -1,6 +1,57 @@
 project('vkquake', 'c', default_options : ['c_std=gnu11', 'buildtype=release'])
 
-cflags = ['-Wall', '-Wno-trigraphs', '-Wno-unused-function', '-Werror']
+shader_includes = ['Shaders/screen_effects.inc']
+
+shaders = [
+    'Shaders/alias.frag',
+    'Shaders/alias.vert',
+    'Shaders/alias_alphatest.frag',
+    'Shaders/basic.frag',
+    'Shaders/basic.vert',
+    'Shaders/basic_alphatest.frag',
+    'Shaders/basic_notex.frag',
+    'Shaders/cs_tex_warp.comp',
+    'Shaders/postprocess.frag',
+    'Shaders/postprocess.vert',
+    'Shaders/screen_effects_10bit.comp',
+    'Shaders/screen_effects_10bit_scale.comp',
+    'Shaders/screen_effects_10bit_scale_sops.comp',
+    'Shaders/screen_effects_8bit.comp',
+    'Shaders/screen_effects_8bit_scale.comp',
+    'Shaders/screen_effects_8bit_scale_sops.comp',
+    'Shaders/showtris.frag',
+    'Shaders/showtris.vert',
+    'Shaders/sky_box.frag',
+    'Shaders/sky_layer.frag',
+    'Shaders/sky_layer.vert',
+    'Shaders/update_lightmap.comp',
+    'Shaders/world.frag',
+    'Shaders/world.vert',
+]
+
+glslang = find_program('glslangValidator')
+spirv_opt = find_program('spirv-opt')
+spirv_remap = find_program('spirv-remap')
+bintoc = executable('bintoc', ['Shaders/bintoc.c'])
+if (build_machine.system() == 'darwin') or get_option('buildtype').startswith('debug')
+    spirv_opt_command = [] # MoltenVK spirv-cross has a bug that breaks optimized shaders
+else
+    spirv_opt_command = [spirv_opt, '-Os', '@PLAINNAME@.spv', '-o', '@PLAINNAME@.spv', '&&']
+endif
+spirv_remap_command = get_option('buildtype').startswith('debug') ? [] : [spirv_remap, '-s', '-o', '.', '-i', '@PLAINNAME@.spv', '&&']
+bintoc_command = [bintoc, '@PLAINNAME@.spv', '@PLAINNAME@_spv', '@OUTPUT@']
+
+shaders_c = []
+foreach shader : shaders
+    target_env = shader.contains('sops') ? ['--target-env', 'vulkan1.1'] : []
+    debug_flag = get_option('buildtype').startswith('debug') ? ['-g'] : []
+    shaders_c += custom_target(shader.underscorify(),
+                 input: shader,
+                 output: '@PLAINNAME@.c',
+                 depend_files: shader_includes,
+                 command: [glslang, '-V'] + debug_flag + target_env + ['-o', '@PLAINNAME@.spv', '@INPUT@', '&&']
+                           + spirv_opt_command + spirv_remap_command + bintoc_command)
+endforeach
 
 srcs = [
     'Quake/bgmusic.c',
@@ -80,32 +131,9 @@ srcs = [
     'Quake/wad.c',
     'Quake/world.c',
 	'Quake/embedded_pak.c',
-    'Shaders/Compiled/Release/alias_alphatest.frag.c',
-    'Shaders/Compiled/Release/alias.frag.c',
-    'Shaders/Compiled/Release/alias.vert.c',
-    'Shaders/Compiled/Release/basic_alphatest.frag.c',
-    'Shaders/Compiled/Release/basic.frag.c',
-    'Shaders/Compiled/Release/basic_notex.frag.c',
-    'Shaders/Compiled/Release/basic.vert.c',
-    'Shaders/Compiled/Release/cs_tex_warp.comp.c',
-    'Shaders/Compiled/Release/postprocess.frag.c',
-    'Shaders/Compiled/Release/postprocess.vert.c',
-    'Shaders/Compiled/Release/screen_effects_10bit.comp.c',
-    'Shaders/Compiled/Release/screen_effects_10bit_scale.comp.c',
-    'Shaders/Compiled/Release/screen_effects_10bit_scale_sops.comp.c',
-    'Shaders/Compiled/Release/screen_effects_8bit.comp.c',
-    'Shaders/Compiled/Release/screen_effects_8bit_scale.comp.c',
-    'Shaders/Compiled/Release/screen_effects_8bit_scale_sops.comp.c',
-    'Shaders/Compiled/Release/showtris.frag.c',
-    'Shaders/Compiled/Release/showtris.vert.c',
-    'Shaders/Compiled/Release/sky_box.frag.c',
-    'Shaders/Compiled/Release/sky_layer.frag.c',
-    'Shaders/Compiled/Release/sky_layer.vert.c',
-    'Shaders/Compiled/Release/update_lightmap.comp.c',
-    'Shaders/Compiled/Release/world.frag.c',
-    'Shaders/Compiled/Release/world.vert.c',
 ]
 
+cflags = ['-Wall', '-Wno-trigraphs', '-Wno-unused-function', '-Werror']
 cc = meson.get_compiler('c')
 deps = [
     cc.find_library('m', required : false),
@@ -173,4 +201,4 @@ if get_option('buildtype').startswith('debug')
     cflags += '-D_DEBUG'
 endif
 
-executable('vkquake', srcs, dependencies : deps, c_args : cflags)
+executable('vkquake', [srcs, shaders_c], dependencies : deps, c_args : cflags)
