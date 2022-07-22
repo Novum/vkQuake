@@ -1508,7 +1508,7 @@ void M_Keys_Key (int k)
 		S_LocalSound ("misc/menu1.wav");
 		if ((k != K_ESCAPE) && (k != '`'))
 		{
-			sprintf (cmd, "bind \"%s\" \"%s\"\n", Key_KeynumToString (k), bindnames[keys_cursor][0]);
+			q_snprintf (cmd, sizeof(cmd), "bind \"%s\" \"%s\"\n", Key_KeynumToString (k), bindnames[keys_cursor][0]);
 			Cbuf_InsertText (cmd);
 		}
 
@@ -1826,7 +1826,7 @@ void M_Quit_Draw (cb_context_t *cbx) // johnfitz -- modified for new quit messag
 		m_state = m_quit;
 	}
 
-	sprintf (msg1, "vkQuake " VKQUAKE_VER_STRING);
+	q_snprintf (msg1, sizeof(msg1), "vkQuake " VKQUAKE_VER_STRING);
 
 	// okay, this is kind of fucked up.  M_DrawTextBox will always act as if
 	// width is even. Also, the width and lines values are for the interior of the box,
@@ -1869,7 +1869,7 @@ void M_Menu_LanConfig_f (void)
 	if (StartingGame && lanConfig_cursor >= 2)
 		lanConfig_cursor = 1;
 	lanConfig_port = DEFAULTnet_hostport;
-	sprintf (lanConfig_portname, "%u", lanConfig_port);
+	q_snprintf (lanConfig_portname, sizeof(lanConfig_portname), "%u", lanConfig_port);
 
 	m_return_onerror = false;
 	m_return_reason[0] = 0;
@@ -2052,7 +2052,7 @@ void M_LanConfig_Key (int key)
 		l = lanConfig_port;
 	else
 		lanConfig_port = l;
-	sprintf (lanConfig_portname, "%u", lanConfig_port);
+	q_snprintf (lanConfig_portname, sizeof(lanConfig_portname), "%u", lanConfig_port);
 }
 
 void M_LanConfig_Char (int key)

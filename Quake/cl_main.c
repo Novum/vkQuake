@@ -266,7 +266,7 @@ void CL_SignonReply (void)
 			Info_Enumerate (cls.userinfo, CL_SendInitialUserinfo, NULL);
 
 		MSG_WriteByte (&cls.message, clc_stringcmd);
-		sprintf (str, "spawn %s", cls.spawnparms);
+		q_snprintf (str, sizeof(str), "spawn %s", cls.spawnparms);
 		MSG_WriteString (&cls.message, str);
 		break;
 
@@ -309,7 +309,7 @@ void CL_NextDemo (void)
 
 	SCR_BeginLoadingPlaque ();
 
-	sprintf (str, "playdemo %s\n", cls.demos[cls.demonum]);
+	q_snprintf (str, sizeof(str), "playdemo %s\n", cls.demos[cls.demonum]);
 	Cbuf_InsertText (str);
 	cls.demonum++;
 }

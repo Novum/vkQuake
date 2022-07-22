@@ -1008,9 +1008,9 @@ static void PF_ftos (void)
 	v = G_FLOAT (OFS_PARM0);
 	s = PR_GetTempString ();
 	if (v == (int)v)
-		sprintf (s, "%d", (int)v);
+		q_snprintf (s, STRINGTEMP_LENGTH, "%d", (int)v);
 	else
-		sprintf (s, "%5.1f", v); // dodgy path
+		q_snprintf (s, STRINGTEMP_LENGTH, "%5.1f", v); // dodgy path
 	G_INT (OFS_RETURN) = PR_SetEngineString (s);
 }
 
@@ -1026,7 +1026,7 @@ static void PF_vtos (void)
 	char *s;
 
 	s = PR_GetTempString ();
-	sprintf (s, "'%5.1f %5.1f %5.1f'", G_VECTOR (OFS_PARM0)[0], G_VECTOR (OFS_PARM0)[1], G_VECTOR (OFS_PARM0)[2]);
+	q_snprintf (s, STRINGTEMP_LENGTH, "'%5.1f %5.1f %5.1f'", G_VECTOR (OFS_PARM0)[0], G_VECTOR (OFS_PARM0)[1], G_VECTOR (OFS_PARM0)[2]);
 	G_INT (OFS_RETURN) = PR_SetEngineString (s);
 }
 

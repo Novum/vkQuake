@@ -316,8 +316,8 @@ const char *WIPX_AddrToString (struct qsockaddr *addr, qboolean masked)
 
 	if (masked)
 	{
-		sprintf (
-			buf,
+		q_snprintf (
+			buf, sizeof(buf),
 			"%02x%02x%02x%02x:??"
 			"??"
 			"??"
@@ -330,8 +330,9 @@ const char *WIPX_AddrToString (struct qsockaddr *addr, qboolean masked)
 	}
 	else
 	{
-		sprintf (
-			buf, "%02x%02x%02x%02x:%02x%02x%02x%02x%02x%02x:%u", ((struct sockaddr_ipx *)addr)->sa_netnum[0] & 0xff,
+		q_snprintf (
+			buf, sizeof(buf), 
+			"%02x%02x%02x%02x:%02x%02x%02x%02x%02x%02x:%u", ((struct sockaddr_ipx *)addr)->sa_netnum[0] & 0xff,
 			((struct sockaddr_ipx *)addr)->sa_netnum[1] & 0xff, ((struct sockaddr_ipx *)addr)->sa_netnum[2] & 0xff,
 			((struct sockaddr_ipx *)addr)->sa_netnum[3] & 0xff, ((struct sockaddr_ipx *)addr)->sa_nodenum[0] & 0xff,
 			((struct sockaddr_ipx *)addr)->sa_nodenum[1] & 0xff, ((struct sockaddr_ipx *)addr)->sa_nodenum[2] & 0xff,
@@ -417,12 +418,12 @@ int WIPX_GetAddrFromName (const char *name, struct qsockaddr *addr)
 
 	if (n == 12)
 	{
-		sprintf (buf, "00000000:%s:%u", name, net_hostport);
+		q_snprintf (buf, sizeof(buf), "00000000:%s:%u", name, net_hostport);
 		return WIPX_StringToAddr (buf, addr);
 	}
 	if (n == 21)
 	{
-		sprintf (buf, "%s:%u", name, net_hostport);
+		q_snprintf (buf, sizeof(buf), "%s:%u", name, net_hostport);
 		return WIPX_StringToAddr (buf, addr);
 	}
 	if (n > 21 && n <= 27)

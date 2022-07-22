@@ -288,7 +288,7 @@ static const char *PR_ValueString (int type, eval_t *val)
 		q_snprintf (line, sizeof (line), "%5.1f", val->_float);
 		break;
 	case ev_ext_integer:
-		sprintf (line, "%i", val->_int);
+		q_snprintf (line, sizeof (line), "%i", val->_int);
 		break;
 	case ev_vector:
 		q_snprintf (line, sizeof (line), "'%5.1f %5.1f %5.1f'", val->vector[0], val->vector[1], val->vector[2]);
@@ -344,7 +344,7 @@ const char *PR_UglyValueString (int type, eval_t *val)
 		q_snprintf (line, sizeof (line), "%f", val->_float);
 		break;
 	case ev_ext_integer:
-		sprintf (line, "%i", val->_int);
+		q_snprintf (line, sizeof (line), "%i", val->_int);
 		break;
 	case ev_vector:
 		q_snprintf (line, sizeof (line), "%f %f %f", val->vector[0], val->vector[1], val->vector[2]);
@@ -969,7 +969,7 @@ const char *ED_ParseEdict (const char *data, edict_t *ent)
 		{
 			char temp[32];
 			strcpy (temp, com_token);
-			sprintf (com_token, "0 %s 0", temp);
+			q_snprintf (com_token, sizeof(temp), "0 %s 0", temp);
 		}
 
 		if (!ED_ParseEpair ((void *)&ent->v, key, com_token, qcvm != &sv.qcvm))

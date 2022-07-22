@@ -88,7 +88,7 @@ static void WINIPv4_GetLocalAddress (void)
 	myAddrv4 = *(in_addr_t *)local->h_addr_list[0];
 
 	addr = ntohl (myAddrv4);
-	sprintf (my_ipv4_address, "%ld.%ld.%ld.%ld", (addr >> 24) & 0xff, (addr >> 16) & 0xff, (addr >> 8) & 0xff, addr & 0xff);
+	q_snprintf (my_ipv4_address, NET_NAMELEN, "%ld.%ld.%ld.%ld", (addr >> 24) & 0xff, (addr >> 16) & 0xff, (addr >> 8) & 0xff, addr & 0xff);
 }
 
 sys_socket_t WINIPv4_Init (void)
@@ -444,12 +444,12 @@ const char *WINS_AddrToString (struct qsockaddr *addr, qboolean masked)
 		haddr = ntohl (((struct sockaddr_in *)addr)->sin_addr.s_addr);
 		if (masked)
 		{
-			sprintf (buffer, "%d.%d.%d.0/24", (haddr >> 24) & 0xff, (haddr >> 16) & 0xff, (haddr >> 8) & 0xff);
+			q_snprintf (buffer, sizeof (buffer), "%d.%d.%d.0/24", (haddr >> 24) & 0xff, (haddr >> 16) & 0xff, (haddr >> 8) & 0xff);
 		}
 		else
 		{
-			sprintf (
-				buffer, "%d.%d.%d.%d:%d", (haddr >> 24) & 0xff, (haddr >> 16) & 0xff, (haddr >> 8) & 0xff, haddr & 0xff,
+			q_snprintf (
+				buffer, sizeof (buffer), "%d.%d.%d.%d:%d", (haddr >> 24) & 0xff, (haddr >> 16) & 0xff, (haddr >> 8) & 0xff, haddr & 0xff,
 				ntohs (((struct sockaddr_in *)addr)->sin_port));
 		}
 	}

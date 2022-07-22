@@ -2400,7 +2400,7 @@ static void Mod_SetupSubmodels (qmodel_t *mod)
 		{ // duplicate the basic information
 			char name[12];
 
-			sprintf (name, "*%i", i + 1);
+			q_snprintf (name, sizeof(name), "*%i", i + 1);
 			qmodel_t *submodel = Mod_FindName (name);
 			*submodel = *mod;
 			strcpy (submodel->name, name);

@@ -1026,12 +1026,12 @@ void GL_BuildLightmaps (void)
 		lm->rectchange.w = 0;
 		lm->rectchange.h = 0;
 
-		sprintf (name, "lightmap%07i", i);
+		q_snprintf (name, sizeof(name), "lightmap%07i", i);
 		lm->texture = TexMgr_LoadImage (
 			cl.worldmodel, name, LMBLOCK_WIDTH, LMBLOCK_HEIGHT, SRC_LIGHTMAP, lm->data, "", (src_offset_t)lm->data, TEXPREF_LINEAR | TEXPREF_NOPICMIP);
 		for (j = 0; j < MAXLIGHTMAPS; ++j)
 		{
-			sprintf (name, "lightstyle%d%07i", j, i);
+			q_snprintf (name, sizeof(name), "lightstyle%d%07i", j, i);
 			lm->lightstyle_textures[j] = TexMgr_LoadImage (
 				cl.worldmodel, name, LMBLOCK_WIDTH, LMBLOCK_HEIGHT, SRC_RGBA, lm->lightstyle_data[j], "", (src_offset_t)lm->data,
 				TEXPREF_LINEAR | TEXPREF_NOPICMIP);

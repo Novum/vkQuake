@@ -166,7 +166,6 @@ void COM_Effectinfo_Enumerate (int (*cb) (const char *pname)); // spike -- for d
 
 //============================================================================
 
-void        Q_ftoa (char *str, float in);
 int         wildcmp (const char *wild, const char *string);
 void        Info_RemoveKey (char *info, const char *key);
 void        Info_SetKey (char *info, size_t infosize, const char *key, const char *val);

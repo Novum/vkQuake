@@ -167,7 +167,7 @@ void Scrap_Upload (void)
 
 	for (i = 0; i < MAX_SCRAPS; i++)
 	{
-		sprintf (name, "scrap%i", i);
+		q_snprintf (name, sizeof(name), "scrap%i", i);
 		scrap_textures[i] = TexMgr_LoadImage (
 			NULL, name, BLOCK_WIDTH, BLOCK_HEIGHT, SRC_INDEXED, scrap_texels[i], "", (src_offset_t)scrap_texels[i],
 			TEXPREF_ALPHA | TEXPREF_OVERWRITE | TEXPREF_NOPICMIP);

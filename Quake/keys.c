@@ -1044,7 +1044,7 @@ void Key_Event (int key, qboolean down)
 		kb = keybindings[key];
 		if (kb && kb[0] == '+')
 		{
-			sprintf (cmd, "-%s %i\n", kb + 1, key);
+			q_snprintf (cmd, sizeof(cmd), "-%s %i\n", kb + 1, key);
 			Cbuf_AddText (cmd);
 		}
 		return;
@@ -1057,9 +1057,9 @@ void Key_Event (int key, qboolean down)
 		char *seektime = keydown[K_SHIFT] ? "30" : "10";
 
 		if (key == K_LEFTARROW)
-			sprintf (cmd, "seek -%s\n", seektime);
+			q_snprintf (cmd, sizeof(cmd), "seek -%s\n", seektime);
 		else if (key == K_RIGHTARROW)
-			sprintf (cmd, "seek +%s\n", seektime);
+			q_snprintf (cmd, sizeof(cmd), "seek +%s\n", seektime);
 		else if (key == K_DOWNARROW)
 		{
 			if (!cls.demopaused)
@@ -1068,14 +1068,14 @@ void Key_Event (int key, qboolean down)
 				if (cls.demospeed < 0.5f)
 				{
 					cls.demospeed = 0.f;
-					sprintf (cmd, "pause\n");
+					q_snprintf (cmd, sizeof(cmd), "pause\n");
 				}
 			}
 		}
 		else if (key == K_UPARROW)
 		{
 			if (cls.demospeed == 0.f && cls.demopaused)
-				sprintf (cmd, "pause\n");
+				q_snprintf (cmd, sizeof(cmd), "pause\n");
 			if (cls.demospeed == 0.f || !cls.demopaused)
 				cls.demospeed = CLAMP (0.5f, cls.demospeed * 2.f, 64.f);
 		}
@@ -1095,7 +1095,7 @@ void Key_Event (int key, qboolean down)
 		{
 			if (kb[0] == '+')
 			{ // button commands add keynum as a parm
-				sprintf (cmd, "%s %i\n", kb, key);
+				q_snprintf (cmd, sizeof(cmd), "%s %i\n", kb, key);
 				Cbuf_AddText (cmd);
 			}
 			else
