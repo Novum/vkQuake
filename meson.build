@@ -148,6 +148,10 @@ else
     deps += dependency('vulkan')
 endif
 
+if get_option('use_codec_wave').enabled()
+    cflags += '-DUSE_CODEC_WAVE'
+endif
+
 if get_option('mp3_lib') == 'mad'
     mp3_dep = dependency('mad', required : get_option('use_codec_mp3'))
     if mp3_dep.found()
