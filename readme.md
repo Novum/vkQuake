@@ -70,12 +70,12 @@ To compile vkQuake, first install the build dependencies:
 
 Ubuntu:
 ~~~
-apt-get install git meson gcc libsdl2-dev libvulkan-dev libvorbis-dev libmad0-dev libx11-xcb-dev
+apt-get install git meson gcc glslang-tools spirv-tools libsdl2-dev libvulkan-dev libvorbis-dev libmad0-dev libx11-xcb-dev
 ~~~
 
 Arch Linux:
 ~~~
-pacman -S git meson flac glibc libgl libmad libvorbis libx11 sdl2 vulkan-validation-layers
+pacman -S git meson flac glibc libgl libmad libvorbis libx11 sdl2 vulkan-headers glslang-tools spirv-tools
 ~~~
 
 > 📝 **Note**: For vkquake > v0.50, you will need at least v1.0.12.0 of libvulkan-dev (See [#55](https://github.com/Novum/vkQuake/issues/55)).
