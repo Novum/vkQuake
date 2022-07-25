@@ -75,7 +75,7 @@ apt-get install git meson gcc glslang-tools spirv-tools libsdl2-dev libvulkan-de
 
 Arch Linux:
 ~~~
-pacman -S git meson flac glibc libgl libmad libvorbis libx11 sdl2 vulkan-headers glslang-tools spirv-tools
+pacman -S git meson flac glibc libgl libmad libvorbis libx11 sdl2 vulkan-headers glslang spirv-tools
 ~~~
 
 > 📝 **Note**: For vkquake > v0.50, you will need at least v1.0.12.0 of libvulkan-dev (See [#55](https://github.com/Novum/vkQuake/issues/55)).
