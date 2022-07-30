@@ -319,6 +319,12 @@ filelist_item_t *demolist;
 static void DemoList_Clear (void)
 {
 	FileList_Clear (&demolist);
+	// We need to clear the startdemo list on game change, otherwise we'd get
+	// different behavior when starting a game with -ad vs starting with id1
+	// and using 'game ad' in the console (since id1 has startdemos in its
+	// quake.rc file, while ad doesn't).
+	memset (cls.demos, 0, sizeof (cls.demos));
+	cls.demonum = 0;
 }
 
 void DemoList_Rebuild (void)
