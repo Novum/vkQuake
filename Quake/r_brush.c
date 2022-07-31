@@ -255,7 +255,7 @@ void R_DrawBrushModel (cb_context_t *cbx, entity_t *e, int chain)
 			if (!r_gpulightmapupdate.value)
 				R_RenderDynamicLightmaps (psurf);
 			else if (psurf->lightmaptexturenum >= 0)
-				Atomic_StoreUInt32(&lightmaps[psurf->lightmaptexturenum].modified, true);
+				Atomic_StoreUInt32 (&lightmaps[psurf->lightmaptexturenum].modified, true);
 			Atomic_IncrementUInt32 (&rs_brushpolys);
 		}
 	}
@@ -369,7 +369,7 @@ void R_RenderDynamicLightmaps (msurface_t *fa)
 		if (r_dynamic.value)
 		{
 			struct lightmap_s *lm = &lightmaps[fa->lightmaptexturenum];
-			Atomic_StoreUInt32(&lm->modified, true);
+			Atomic_StoreUInt32 (&lm->modified, true);
 			theRect = &lm->rectchange;
 			if (fa->light_t < theRect->t)
 			{
@@ -745,7 +745,7 @@ void R_AllocateLightmapComputeBuffers ()
 		memory_allocate_info.memoryTypeIndex =
 			GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
 
-		num_vulkan_misc_allocations += 1;
+		Atomic_IncrementUInt32 (&num_vulkan_misc_allocations);
 		R_AllocateVulkanMemory (&lightstyles_scales_buffer_memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_HOST);
 		GL_SetObjectName ((uint64_t)lightstyles_scales_buffer_memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, "Lightstyles Buffer");
 
@@ -785,7 +785,7 @@ void R_AllocateLightmapComputeBuffers ()
 		memory_allocate_info.memoryTypeIndex =
 			GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
 
-		num_vulkan_misc_allocations += 1;
+		Atomic_IncrementUInt32 (&num_vulkan_misc_allocations);
 		R_AllocateVulkanMemory (&lights_buffer_memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_HOST);
 		GL_SetObjectName ((uint64_t)lights_buffer_memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, "Lights Buffer");
 
@@ -813,7 +813,7 @@ static lm_compute_surface_data_t *GL_AllocateSurfaceDataBuffer (int num_surfaces
 	{
 		vkDestroyBuffer (vulkan_globals.device, surface_data_buffer, NULL);
 		R_FreeVulkanMemory (&surface_data_buffer_memory);
-		num_vulkan_misc_allocations -= 1;
+		Atomic_DecrementUInt32 (&num_vulkan_misc_allocations);
 	}
 
 	Sys_Printf ("Allocating lightmap compute surface data (%u KB)\n", (int)buffer_size / 1024);
@@ -838,7 +838,7 @@ static lm_compute_surface_data_t *GL_AllocateSurfaceDataBuffer (int num_surfaces
 	memory_allocate_info.allocationSize = memory_requirements.size;
 	memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
 
-	num_vulkan_misc_allocations += 1;
+	Atomic_IncrementUInt32 (&num_vulkan_misc_allocations);
 	R_AllocateVulkanMemory (&surface_data_buffer_memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_DEVICE);
 	GL_SetObjectName ((uint64_t)surface_data_buffer_memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, "Lightmap Compute Surface Data Buffer");
 
@@ -872,7 +872,7 @@ static void GL_AllocateWorkgroupBoundsBuffers ()
 	if (workgroup_bounds_buffer_memory.handle != VK_NULL_HANDLE)
 	{
 		R_FreeVulkanMemory (&workgroup_bounds_buffer_memory);
-		num_vulkan_misc_allocations -= 1;
+		Atomic_DecrementUInt32 (&num_vulkan_misc_allocations);
 	}
 
 	for (int i = 0; i < lightmap_count; i++)
@@ -906,7 +906,7 @@ static void GL_AllocateWorkgroupBoundsBuffers ()
 		memory_allocate_info.allocationSize = lightmap_count * aligned_size;
 		memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
 
-		num_vulkan_misc_allocations += 1;
+		Atomic_IncrementUInt32 (&num_vulkan_misc_allocations);
 		R_AllocateVulkanMemory (&workgroup_bounds_buffer_memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_DEVICE);
 		GL_SetObjectName ((uint64_t)workgroup_bounds_buffer_memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, "Workgroup Bounds Buffer Memory");
 	}
@@ -1020,18 +1020,18 @@ void GL_BuildLightmaps (void)
 	for (i = 0; i < lightmap_count; i++)
 	{
 		lm = &lightmaps[i];
-		Atomic_StoreUInt32(&lm->modified, false);
+		Atomic_StoreUInt32 (&lm->modified, false);
 		lm->rectchange.l = LMBLOCK_WIDTH;
 		lm->rectchange.t = LMBLOCK_HEIGHT;
 		lm->rectchange.w = 0;
 		lm->rectchange.h = 0;
 
-		q_snprintf (name, sizeof(name), "lightmap%07i", i);
+		q_snprintf (name, sizeof (name), "lightmap%07i", i);
 		lm->texture = TexMgr_LoadImage (
 			cl.worldmodel, name, LMBLOCK_WIDTH, LMBLOCK_HEIGHT, SRC_LIGHTMAP, lm->data, "", (src_offset_t)lm->data, TEXPREF_LINEAR | TEXPREF_NOPICMIP);
 		for (j = 0; j < MAXLIGHTMAPS; ++j)
 		{
-			q_snprintf (name, sizeof(name), "lightstyle%d%07i", j, i);
+			q_snprintf (name, sizeof (name), "lightstyle%d%07i", j, i);
 			lm->lightstyle_textures[j] = TexMgr_LoadImage (
 				cl.worldmodel, name, LMBLOCK_WIDTH, LMBLOCK_HEIGHT, SRC_RGBA, lm->lightstyle_data[j], "", (src_offset_t)lm->data,
 				TEXPREF_LINEAR | TEXPREF_NOPICMIP);
@@ -1197,7 +1197,7 @@ void GL_DeleteBModelVertexBuffer (void)
 
 	if (bmodel_memory.handle != VK_NULL_HANDLE)
 	{
-		num_vulkan_bmodel_allocations -= 1;
+		Atomic_DecrementUInt32 (&num_vulkan_bmodel_allocations);
 		R_FreeVulkanMemory (&bmodel_memory);
 	}
 }
@@ -1281,7 +1281,7 @@ void GL_BuildBModelVertexBuffer (void)
 	memory_allocate_info.allocationSize = aligned_size;
 	memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
 
-	num_vulkan_bmodel_allocations += 1;
+	Atomic_IncrementUInt32 (&num_vulkan_bmodel_allocations);
 	R_AllocateVulkanMemory (&bmodel_memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_DEVICE);
 	GL_SetObjectName ((uint64_t)bmodel_memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, "Brush Memory");
 
@@ -1627,10 +1627,10 @@ assumes lightmap texture is already bound
 static void R_UploadLightmap (int lmap, gltexture_t *lightmap_tex)
 {
 	struct lightmap_s *lm = &lightmaps[lmap];
-	if (!Atomic_LoadUInt32(&lm->modified))
+	if (!Atomic_LoadUInt32 (&lm->modified))
 		return;
 
-	Atomic_StoreUInt32(&lm->modified, false);
+	Atomic_StoreUInt32 (&lm->modified, false);
 
 	const int staging_size = LMBLOCK_WIDTH * lm->rectchange.h * 4;
 
@@ -1753,9 +1753,9 @@ void R_UpdateLightmaps (void *unused)
 	for (int lightmap_index = 0; lightmap_index < lightmap_count; ++lightmap_index)
 	{
 		struct lightmap_s *lm = &lightmaps[lightmap_index];
-		if (!Atomic_LoadUInt32(&lm->modified))
+		if (!Atomic_LoadUInt32 (&lm->modified))
 			continue;
-		Atomic_StoreUInt32(&lm->modified, false);
+		Atomic_StoreUInt32 (&lm->modified, false);
 
 		int batch_index = num_batch_lightmaps++;
 		lightmap_indexes[batch_index] = lightmap_index;
@@ -1813,7 +1813,7 @@ void R_UploadLightmaps (void)
 
 	for (lmap = 0; lmap < lightmap_count; lmap++)
 	{
-		if (!Atomic_LoadUInt32(&lightmaps[lmap].modified))
+		if (!Atomic_LoadUInt32 (&lightmaps[lmap].modified))
 			continue;
 
 		R_UploadLightmap (lmap, lightmaps[lmap].texture);

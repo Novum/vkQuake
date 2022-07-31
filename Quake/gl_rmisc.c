@@ -60,19 +60,19 @@ extern gltexture_t *playertextures[MAX_SCOREBOARD]; // johnfitz
 
 vulkanglobals_t vulkan_globals;
 
-int    num_vulkan_tex_allocations = 0;
-int    num_vulkan_bmodel_allocations = 0;
-int    num_vulkan_mesh_allocations = 0;
-int    num_vulkan_misc_allocations = 0;
-int    num_vulkan_dynbuf_allocations = 0;
-int    num_vulkan_combined_image_samplers = 0;
-int    num_vulkan_ubos_dynamic = 0;
-int    num_vulkan_ubos = 0;
-int    num_vulkan_storage_buffers = 0;
-int    num_vulkan_input_attachments = 0;
-int    num_vulkan_storage_images = 0;
-size_t total_device_vulkan_allocation_size = 0;
-size_t total_host_vulkan_allocation_size = 0;
+atomic_uint32_t num_vulkan_tex_allocations;
+atomic_uint32_t num_vulkan_bmodel_allocations;
+atomic_uint32_t num_vulkan_mesh_allocations;
+atomic_uint32_t num_vulkan_misc_allocations;
+atomic_uint32_t num_vulkan_dynbuf_allocations;
+atomic_uint32_t num_vulkan_combined_image_samplers;
+atomic_uint32_t num_vulkan_ubos_dynamic;
+atomic_uint32_t num_vulkan_ubos;
+atomic_uint32_t num_vulkan_storage_buffers;
+atomic_uint32_t num_vulkan_input_attachments;
+atomic_uint32_t num_vulkan_storage_images;
+atomic_uint64_t total_device_vulkan_allocation_size;
+atomic_uint64_t total_host_vulkan_allocation_size;
 
 qboolean use_simd;
 
@@ -381,7 +381,7 @@ static void R_CreateStagingBuffers ()
 	memory_allocate_info.memoryTypeIndex =
 		GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
 
-	num_vulkan_misc_allocations += 1;
+	Atomic_IncrementUInt32 (&num_vulkan_misc_allocations);
 	R_AllocateVulkanMemory (&staging_memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_HOST);
 	GL_SetObjectName ((uint64_t)staging_memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, "Staging Buffers");
 
@@ -704,7 +704,7 @@ static void R_InitDynamicVertexBuffers ()
 	memory_allocate_info.memoryTypeIndex =
 		GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
 
-	num_vulkan_dynbuf_allocations += 1;
+	Atomic_IncrementUInt32 (&num_vulkan_dynbuf_allocations);
 	R_AllocateVulkanMemory (&dyn_vertex_buffer_memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_HOST);
 	GL_SetObjectName ((uint64_t)dyn_vertex_buffer_memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, "Dynamic Vertex Buffers");
 
@@ -769,7 +769,7 @@ static void R_InitDynamicIndexBuffers ()
 	memory_allocate_info.memoryTypeIndex =
 		GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
 
-	num_vulkan_dynbuf_allocations += 1;
+	Atomic_IncrementUInt32 (&num_vulkan_dynbuf_allocations);
 	R_AllocateVulkanMemory (&dyn_index_buffer_memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_HOST);
 	GL_SetObjectName ((uint64_t)dyn_index_buffer_memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, "Dynamic Index Buffers");
 
@@ -834,7 +834,7 @@ static void R_InitDynamicUniformBuffers ()
 	memory_allocate_info.memoryTypeIndex =
 		GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
 
-	num_vulkan_dynbuf_allocations += 1;
+	Atomic_IncrementUInt32 (&num_vulkan_dynbuf_allocations);
 	R_AllocateVulkanMemory (&dyn_uniform_buffer_memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_HOST);
 	GL_SetObjectName ((uint64_t)dyn_uniform_buffer_memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, "Dynamic Uniform Buffers");
 
@@ -917,8 +917,8 @@ static void R_InitFanIndexBuffer ()
 	memory_allocate_info.allocationSize = memory_requirements.size;
 	memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
 
-	num_vulkan_dynbuf_allocations += 1;
-	total_device_vulkan_allocation_size += memory_requirements.size;
+	Atomic_IncrementUInt32 (&num_vulkan_dynbuf_allocations);
+	Atomic_AddUInt64 (&total_device_vulkan_allocation_size, memory_requirements.size);
 	err = vkAllocateMemory (vulkan_globals.device, &memory_allocate_info, NULL, &memory);
 	if (err != VK_SUCCESS)
 		Sys_Error ("vkAllocateMemory failed");
@@ -1282,7 +1282,6 @@ void R_CreateDescriptorSetLayouts ()
 		screen_effects_layout_bindings[4].descriptorCount = 1;
 		screen_effects_layout_bindings[4].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 		screen_effects_layout_bindings[4].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-
 
 		descriptor_set_layout_create_info.bindingCount = 5;
 		descriptor_set_layout_create_info.pBindings = screen_effects_layout_bindings;
@@ -3059,12 +3058,12 @@ VkDescriptorSet R_AllocateDescriptorSet (vulkan_desc_set_layout_t *layout)
 	VkDescriptorSet handle;
 	vkAllocateDescriptorSets (vulkan_globals.device, &descriptor_set_allocate_info, &handle);
 
-	num_vulkan_combined_image_samplers += layout->num_combined_image_samplers;
-	num_vulkan_ubos_dynamic += layout->num_ubos_dynamic;
-	num_vulkan_ubos += layout->num_ubos;
-	num_vulkan_storage_buffers += layout->num_storage_buffers;
-	num_vulkan_input_attachments += layout->num_input_attachments;
-	num_vulkan_storage_images += layout->num_storage_images;
+	Atomic_AddUInt32 (&num_vulkan_combined_image_samplers, layout->num_combined_image_samplers);
+	Atomic_AddUInt32 (&num_vulkan_ubos_dynamic, layout->num_ubos_dynamic);
+	Atomic_AddUInt32 (&num_vulkan_ubos, layout->num_ubos);
+	Atomic_AddUInt32 (&num_vulkan_storage_buffers, layout->num_storage_buffers);
+	Atomic_AddUInt32 (&num_vulkan_input_attachments, layout->num_input_attachments);
+	Atomic_AddUInt32 (&num_vulkan_storage_images, layout->num_storage_images);
 
 	return handle;
 }
@@ -3079,12 +3078,12 @@ void R_FreeDescriptorSet (VkDescriptorSet desc_set, vulkan_desc_set_layout_t *la
 {
 	vkFreeDescriptorSets (vulkan_globals.device, vulkan_globals.descriptor_pool, 1, &desc_set);
 
-	num_vulkan_combined_image_samplers -= layout->num_combined_image_samplers;
-	num_vulkan_ubos_dynamic -= layout->num_ubos_dynamic;
-	num_vulkan_ubos -= layout->num_ubos;
-	num_vulkan_storage_buffers -= layout->num_storage_buffers;
-	num_vulkan_input_attachments -= layout->num_input_attachments;
-	num_vulkan_storage_images -= layout->num_storage_images;
+	Atomic_SubUInt32 (&num_vulkan_combined_image_samplers, layout->num_combined_image_samplers);
+	Atomic_SubUInt32 (&num_vulkan_ubos_dynamic, layout->num_ubos_dynamic);
+	Atomic_SubUInt32 (&num_vulkan_ubos, layout->num_ubos);
+	Atomic_SubUInt32 (&num_vulkan_storage_buffers, layout->num_storage_buffers);
+	Atomic_SubUInt32 (&num_vulkan_input_attachments, layout->num_input_attachments);
+	Atomic_SubUInt32 (&num_vulkan_storage_images, layout->num_storage_images);
 }
 
 /*
@@ -3297,17 +3296,17 @@ void R_AllocateVulkanMemory (vulkan_memory_t *memory, VkMemoryAllocateInfo *memo
 	memory->type = type;
 	memory->size = memory_allocate_info->allocationSize;
 	if (memory->type == VULKAN_MEMORY_TYPE_DEVICE)
-		total_device_vulkan_allocation_size += memory->size;
+		Atomic_AddUInt64 (&total_device_vulkan_allocation_size, memory->size);
 	else if (memory->type == VULKAN_MEMORY_TYPE_HOST)
-		total_host_vulkan_allocation_size += memory->size;
+		Atomic_AddUInt64 (&total_host_vulkan_allocation_size, memory->size);
 }
 
 void R_FreeVulkanMemory (vulkan_memory_t *memory)
 {
 	if (memory->type == VULKAN_MEMORY_TYPE_DEVICE)
-		total_device_vulkan_allocation_size -= memory->size;
+		Atomic_SubUInt64 (&total_device_vulkan_allocation_size, memory->size);
 	else if (memory->type == VULKAN_MEMORY_TYPE_HOST)
-		total_host_vulkan_allocation_size -= memory->size;
+		Atomic_SubUInt64 (&total_host_vulkan_allocation_size, memory->size);
 	vkFreeMemory (vulkan_globals.device, memory->handle, NULL);
 	memory->handle = VK_NULL_HANDLE;
 	memory->size = 0;
@@ -3321,18 +3320,18 @@ R_VulkanMemStats_f
 void R_VulkanMemStats_f (void)
 {
 	Con_Printf ("Vulkan allocations:\n");
-	Con_Printf (" Tex:    %d\n", num_vulkan_tex_allocations);
-	Con_Printf (" BModel: %d\n", num_vulkan_bmodel_allocations);
-	Con_Printf (" Mesh:   %d\n", num_vulkan_mesh_allocations);
-	Con_Printf (" Misc:   %d\n", num_vulkan_misc_allocations);
-	Con_Printf (" DynBuf: %d\n", num_vulkan_dynbuf_allocations);
+	Con_Printf (" Tex:    %" SDL_PRIu32 "\n", Atomic_LoadUInt32 (&num_vulkan_tex_allocations));
+	Con_Printf (" BModel: %" SDL_PRIu32 "\n", Atomic_LoadUInt32 (&num_vulkan_bmodel_allocations));
+	Con_Printf (" Mesh:   %" SDL_PRIu32 "\n", Atomic_LoadUInt32 (&num_vulkan_mesh_allocations));
+	Con_Printf (" Misc:   %" SDL_PRIu32 "\n", Atomic_LoadUInt32 (&num_vulkan_misc_allocations));
+	Con_Printf (" DynBuf: %" SDL_PRIu32 "\n", Atomic_LoadUInt32 (&num_vulkan_dynbuf_allocations));
 	Con_Printf ("Descriptors:\n");
-	Con_Printf (" Combined image samplers: %d\n", num_vulkan_combined_image_samplers);
-	Con_Printf (" Dynamic UBOs: %d\n", num_vulkan_ubos_dynamic);
-	Con_Printf (" UBOs: %d\n", num_vulkan_ubos);
-	Con_Printf (" Storage buffers: %d\n", num_vulkan_ubos_dynamic);
-	Con_Printf (" Input attachments: %d\n", num_vulkan_storage_buffers);
-	Con_Printf (" Storage images: %d\n", num_vulkan_storage_images);
-	Con_Printf ("Device %" SDL_PRIu64 " MiB total\n", (uint64_t)total_device_vulkan_allocation_size / 1024 / 1024);
-	Con_Printf ("Host %" SDL_PRIu64 " MiB total\n", (uint64_t)total_host_vulkan_allocation_size / 1024 / 1024);
+	Con_Printf (" Combined image samplers: %" SDL_PRIu32 "\n", Atomic_LoadUInt32 (&num_vulkan_combined_image_samplers));
+	Con_Printf (" Dynamic UBOs: %" SDL_PRIu32 "\n", Atomic_LoadUInt32 (&num_vulkan_ubos_dynamic));
+	Con_Printf (" UBOs: %" SDL_PRIu32 "\n", Atomic_LoadUInt32 (&num_vulkan_ubos));
+	Con_Printf (" Storage buffers: %" SDL_PRIu32 "\n", Atomic_LoadUInt32 (&num_vulkan_ubos_dynamic));
+	Con_Printf (" Input attachments: %" SDL_PRIu32 "\n", Atomic_LoadUInt32 (&num_vulkan_storage_buffers));
+	Con_Printf (" Storage images: %" SDL_PRIu32 "\n", Atomic_LoadUInt32 (&num_vulkan_storage_images));
+	Con_Printf ("Device %" SDL_PRIu64 " MiB total\n", Atomic_LoadUInt64 (&total_device_vulkan_allocation_size) / 1024 / 1024);
+	Con_Printf ("Host %" SDL_PRIu64 " MiB total\n", Atomic_LoadUInt64 (&total_host_vulkan_allocation_size) / 1024 / 1024);
 }

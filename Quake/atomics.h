@@ -64,6 +64,11 @@ static inline uint32_t Atomic_AddUInt32 (volatile atomic_uint32_t *atomic, uint3
 	return InterlockedAdd ((volatile LONG *)&atomic->value, value) - value;
 }
 
+static inline uint32_t Atomic_SubUInt32 (volatile atomic_uint32_t *atomic, uint32_t value)
+{
+	return InterlockedAdd ((volatile LONG *)&atomic->value, ~value + 1) + value;
+}
+
 static inline uint32_t Atomic_OrUInt32 (volatile atomic_uint32_t *atomic, uint32_t val)
 {
 	return InterlockedOr ((volatile LONG *)&atomic->value, val);
@@ -111,6 +116,16 @@ static inline uint64_t Atomic_IncrementUInt64 (volatile atomic_uint64_t *atomic)
 {
 	return InterlockedIncrement64 ((volatile LONG64 *)&atomic->value) - 1;
 }
+
+static inline uint64_t Atomic_AddUInt64 (volatile atomic_uint64_t *atomic, uint64_t value)
+{
+	return InterlockedAdd64 ((volatile LONG64 *)&atomic->value, value) - value;
+}
+
+static inline uint64_t Atomic_SubUInt64 (volatile atomic_uint64_t *atomic, uint64_t value)
+{
+	return InterlockedAdd64 ((volatile LONG64 *)&atomic->value, (~value) + 1) + value;
+}
 #else
 typedef _Atomic uint8_t atomic_uint8_t;
 
@@ -134,6 +149,11 @@ static inline void Atomic_StoreUInt32 (atomic_uint32_t *atomic, uint32_t desired
 static inline uint32_t Atomic_AddUInt32 (atomic_uint32_t *atomic, uint32_t value)
 {
 	return atomic_fetch_add (atomic, value);
+}
+
+static inline uint32_t Atomic_SubUInt32 (atomic_uint32_t *atomic, uint32_t value)
+{
+	return atomic_fetch_sub (atomic, value);
 }
 
 static inline uint32_t Atomic_OrUInt32 (atomic_uint32_t *atomic, uint32_t value)
@@ -171,6 +191,16 @@ static inline qboolean Atomic_CompareExchangeUInt64 (atomic_uint64_t *atomic, ui
 static inline uint64_t Atomic_IncrementUInt64 (atomic_uint64_t *atomic)
 {
 	return atomic_fetch_add (atomic, 1);
+}
+
+static inline uint64_t Atomic_AddUInt64 (atomic_uint64_t *atomic, const uint64_t value)
+{
+	return atomic_fetch_add (atomic, value);
+}
+
+static inline uint64_t Atomic_SubUInt64 (atomic_uint64_t *atomic, const uint64_t value)
+{
+	return atomic_fetch_sub (atomic, value);
 }
 #endif
 

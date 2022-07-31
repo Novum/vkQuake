@@ -383,15 +383,15 @@ extern qboolean isDedicated;
 
 extern int minimum_memory;
 
-extern int num_vulkan_tex_allocations;
-extern int num_vulkan_bmodel_allocations;
-extern int num_vulkan_mesh_allocations;
-extern int num_vulkan_misc_allocations;
-extern int num_vulkan_dynbuf_allocations;
-extern int num_vulkan_combined_image_samplers;
-extern int num_vulkan_ubos_dynamic;
-extern int num_vulkan_input_attachments;
-extern int num_vulkan_storage_images;
+extern atomic_uint32_t num_vulkan_tex_allocations;
+extern atomic_uint32_t num_vulkan_bmodel_allocations;
+extern atomic_uint32_t num_vulkan_mesh_allocations;
+extern atomic_uint32_t num_vulkan_misc_allocations;
+extern atomic_uint32_t num_vulkan_dynbuf_allocations;
+extern atomic_uint32_t num_vulkan_combined_image_samplers;
+extern atomic_uint32_t num_vulkan_ubos_dynamic;
+extern atomic_uint32_t num_vulkan_input_attachments;
+extern atomic_uint32_t num_vulkan_storage_images;
 
 extern qboolean multiuser;
 

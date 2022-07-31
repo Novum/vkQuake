@@ -382,8 +382,8 @@ extern cvar_t gl_nocolors;
 extern atomic_uint32_t rs_brushpolys, rs_aliaspolys, rs_skypolys, rs_particles, rs_fogpolys;
 extern atomic_uint32_t rs_dynamiclightmaps, rs_brushpasses, rs_aliaspasses, rs_skypasses;
 
-extern size_t total_device_vulkan_allocation_size;
-extern size_t total_host_vulkan_allocation_size;
+extern atomic_uint64_t total_device_vulkan_allocation_size;
+extern atomic_uint64_t total_host_vulkan_allocation_size;
 
 // johnfitz -- track developer statistics that vary every frame
 extern cvar_t devstats;

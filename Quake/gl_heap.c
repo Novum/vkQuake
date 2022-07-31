@@ -190,7 +190,7 @@ GL_AllocateFromHeaps
 */
 VkDeviceSize GL_AllocateFromHeaps (
 	int *num_heaps, glheap_t ***heaps, VkDeviceSize heap_size, uint32_t memory_type_index, vulkan_memory_type_t memory_type, VkDeviceSize size,
-	VkDeviceSize alignment, glheap_t **heap, glheapnode_t **heap_node, int *num_allocations, const char *heap_name)
+	VkDeviceSize alignment, glheap_t **heap, glheapnode_t **heap_node, atomic_uint32_t *num_allocations, const char *heap_name)
 {
 	int i;
 	int num_heaps_allocated = *num_heaps;
@@ -208,7 +208,7 @@ VkDeviceSize GL_AllocateFromHeaps (
 		if (!(*heaps)[i])
 		{
 			(*heaps)[i] = GL_CreateHeap (heap_size, memory_type_index, memory_type, heap_name);
-			*num_allocations += 1;
+			Atomic_IncrementUInt32 (num_allocations);
 			new_heap = true;
 		}
 
@@ -233,13 +233,13 @@ VkDeviceSize GL_AllocateFromHeaps (
 GL_FreeFromHeaps
 ================
 */
-void GL_FreeFromHeaps (int num_heaps, glheap_t **heaps, glheap_t *heap, glheapnode_t *heap_node, int *num_allocations)
+void GL_FreeFromHeaps (int num_heaps, glheap_t **heaps, glheap_t *heap, glheapnode_t *heap_node, atomic_uint32_t *num_allocations)
 {
 	int i;
 	GL_HeapFree (heap, heap_node);
 	if (GL_IsHeapEmpty (heap))
 	{
-		*num_allocations -= 1;
+		Atomic_DecrementUInt32 (num_allocations);
 		GL_DestroyHeap (heap);
 		for (i = 0; i < num_heaps; ++i)
 			if (heaps[i] == heap)

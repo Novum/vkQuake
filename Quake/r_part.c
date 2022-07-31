@@ -188,9 +188,9 @@ void R_InitParticleIndexBuffer (void)
 	memory_allocate_info.allocationSize = aligned_size;
 	memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
 
-	num_vulkan_dynbuf_allocations += 1;
+	Atomic_IncrementUInt32 (&num_vulkan_dynbuf_allocations);
 	VkDeviceMemory particle_index_buffer_memory;
-	total_device_vulkan_allocation_size += memory_requirements.size;
+	Atomic_AddUInt64 (&total_device_vulkan_allocation_size, memory_requirements.size);
 	err = vkAllocateMemory (vulkan_globals.device, &memory_allocate_info, NULL, &particle_index_buffer_memory);
 	if (err != VK_SUCCESS)
 		Sys_Error ("vkAllocateMemory failed");

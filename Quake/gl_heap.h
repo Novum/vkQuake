@@ -38,7 +38,7 @@ typedef struct glheap_s
 
 VkDeviceSize GL_AllocateFromHeaps (
 	int *num_heaps, glheap_t ***heaps, VkDeviceSize heap_size, uint32_t memory_type_index, vulkan_memory_type_t memory_type, VkDeviceSize size,
-	VkDeviceSize alignment, glheap_t **heap, glheapnode_t **heap_node, int *num_allocations, const char *heap_name);
-void GL_FreeFromHeaps (int num_heaps, glheap_t **heaps, glheap_t *heap, glheapnode_t *heap_node, int *num_allocations);
+	VkDeviceSize alignment, glheap_t **heap, glheapnode_t **heap_node, atomic_uint32_t *num_allocations, const char *heap_name);
+void GL_FreeFromHeaps (int num_heaps, glheap_t **heaps, glheap_t *heap, glheapnode_t *heap_node, atomic_uint32_t *num_allocations);
 
 #endif
