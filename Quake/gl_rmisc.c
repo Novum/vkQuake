@@ -410,7 +410,6 @@ static void R_DestroyStagingBuffers ()
 {
 	int i;
 
-	vkUnmapMemory (vulkan_globals.device, staging_memory.handle);
 	R_FreeVulkanMemory (&staging_memory);
 	for (i = 0; i < NUM_STAGING_BUFFERS; ++i)
 	{
@@ -1088,7 +1087,6 @@ byte *R_VertexAllocate (int size, VkBuffer *buffer, VkDeviceSize *buffer_offset)
 	{
 		R_AddDynamicBufferGarbage (dyn_vertex_buffer_memory, dyn_vertex_buffers, NULL);
 		current_dyn_vertex_buffer_size = q_max (current_dyn_vertex_buffer_size * 2, (uint32_t)Q_nextPow2 (size));
-		vkUnmapMemory (vulkan_globals.device, dyn_vertex_buffer_memory.handle);
 		R_InitDynamicVertexBuffers ();
 	}
 
@@ -1122,7 +1120,6 @@ byte *R_IndexAllocate (int size, VkBuffer *buffer, VkDeviceSize *buffer_offset)
 	{
 		R_AddDynamicBufferGarbage (dyn_index_buffer_memory, dyn_index_buffers, NULL);
 		current_dyn_index_buffer_size = q_max (current_dyn_index_buffer_size * 2, (uint32_t)Q_nextPow2 (size));
-		vkUnmapMemory (vulkan_globals.device, dyn_index_buffer_memory.handle);
 		R_InitDynamicIndexBuffers ();
 	}
 
@@ -1160,7 +1157,6 @@ byte *R_UniformAllocate (int size, VkBuffer *buffer, uint32_t *buffer_offset, Vk
 	{
 		R_AddDynamicBufferGarbage (dyn_uniform_buffer_memory, dyn_uniform_buffers, ubo_descriptor_sets);
 		current_dyn_uniform_buffer_size = q_max (current_dyn_uniform_buffer_size * 2, (uint32_t)Q_nextPow2 (size));
-		vkUnmapMemory (vulkan_globals.device, dyn_uniform_buffer_memory.handle);
 		R_InitDynamicUniformBuffers ();
 	}
 
