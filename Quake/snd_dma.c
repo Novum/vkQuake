@@ -82,7 +82,7 @@ cvar_t loadas8bit = {"loadas8bit", "0", CVAR_NONE};
 cvar_t sndspeed = {"sndspeed", "11025", CVAR_NONE};
 cvar_t snd_mixspeed = {"snd_mixspeed", "44100", CVAR_NONE};
 
-cvar_t		snd_waterfx = {"snd_waterfx", "1", CVAR_ARCHIVE};
+cvar_t snd_waterfx = {"snd_waterfx", "1", CVAR_ARCHIVE};
 
 #if defined(_WIN32)
 #define SND_FILTERQUALITY_DEFAULT "5"
@@ -181,7 +181,7 @@ void S_Init (void)
 	Cvar_RegisterVariable (&sndspeed);
 	Cvar_RegisterVariable (&snd_mixspeed);
 	Cvar_RegisterVariable (&snd_filterquality);
-	Cvar_RegisterVariable(&snd_waterfx);
+	Cvar_RegisterVariable (&snd_waterfx);
 
 	if (safemode || COM_CheckParm ("-nosound"))
 		return;
@@ -634,12 +634,12 @@ static float S_UnderwaterIntensityForContents (int contents)
 {
 	switch (contents)
 	{
-		case CONTENTS_WATER:
-		case CONTENTS_SLIME:
-		case CONTENTS_LAVA:
-			return 1.f;
-		default:
-			return 0.f;
+	case CONTENTS_WATER:
+	case CONTENTS_SLIME:
+	case CONTENTS_LAVA:
+		return 1.f;
+	default:
+		return 0.f;
 	}
 }
 
@@ -659,8 +659,10 @@ static void S_UpdateAmbientSounds (void)
 
 	// no ambients when disconnected
 	if (cls.state != ca_connected || cls.signon != SIGNONS)
+	{
 		S_SetUnderwaterIntensity (0.f);
 		goto unlock_mutex;
+	}
 	// calc ambient sound levels
 	if (!cl.worldmodel || cl.worldmodel->needload)
 		goto unlock_mutex;
