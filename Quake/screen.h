@@ -30,6 +30,7 @@ void SCR_LoadPics (void);
 
 void SCR_UpdateScreen (qboolean use_tasks);
 
+void SCR_CenterPrintClear (void);
 void SCR_CenterPrint (const char *str);
 
 void SCR_BeginLoadingPlaque (void);

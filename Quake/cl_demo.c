@@ -162,7 +162,7 @@ static int CL_GetDemoMessage (void)
 CL_Seek_f
 ====================
 */
-extern float scr_centertime_off, scr_clock_off;
+extern float scr_clock_off;
 void CL_Seek_f (void)
 {
 	if (cmd_source != src_command)
@@ -207,7 +207,7 @@ void CL_Seek_f (void)
 #ifdef PSET_SCRIPT
 		PScript_ClearParticles ();
 #endif
-		scr_centertime_off = 0;
+		SCR_CenterPrintClear ();
 		cl.intermission = 0;
 		memset (cl.stats, 0, sizeof (cl.stats));
 		memset (cl.statsf, 0, sizeof (cl.statsf));

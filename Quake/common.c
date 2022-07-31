@@ -2133,6 +2133,8 @@ static void COM_Game_f (void)
 		cls.demonum = -1;
 		Host_ShutdownServer (true);
 
+		SCR_CenterPrintClear ();
+
 		// Write config file
 		Host_WriteConfiguration ();
 
