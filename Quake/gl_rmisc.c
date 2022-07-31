@@ -79,6 +79,7 @@ qboolean use_simd;
 static SDL_mutex *vertex_allocate_mutex;
 static SDL_mutex *index_allocate_mutex;
 static SDL_mutex *uniform_allocate_mutex;
+static SDL_mutex *garbage_mutex;
 
 /*
 ================
@@ -477,6 +478,7 @@ void R_InitStagingBuffers ()
 	vertex_allocate_mutex = SDL_CreateMutex ();
 	index_allocate_mutex = SDL_CreateMutex ();
 	uniform_allocate_mutex = SDL_CreateMutex ();
+	garbage_mutex = SDL_CreateMutex ();
 	staging_mutex = SDL_CreateMutex ();
 	staging_cond = SDL_CreateCond ();
 }
@@ -991,6 +993,8 @@ R_AddDynamicBufferGarbage
 */
 static void R_AddDynamicBufferGarbage (vulkan_memory_t device_memory, dynbuffer_t *buffers, VkDescriptorSet *descriptor_sets)
 {
+	SDL_LockMutex (garbage_mutex);
+
 	{
 		int *num_garbage = &num_device_memory_garbage[current_garbage_index];
 		int  old_num_memory_garbage = *num_garbage;
@@ -1028,6 +1032,8 @@ static void R_AddDynamicBufferGarbage (vulkan_memory_t device_memory, dynbuffer_
 		for (int i = 0; i < 2; ++i)
 			descriptor_set_garbage[current_garbage_index][old_num_desc_set_garbage + i] = descriptor_sets[i];
 	}
+
+	SDL_UnlockMutex (garbage_mutex);
 }
 
 /*
