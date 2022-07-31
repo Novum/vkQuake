@@ -2151,6 +2151,7 @@ static void COM_Game_f (void)
 			M_NewGame ();
 		}
 		ExtraMaps_NewGame ();
+		Host_Resetdemos ();
 		DemoList_Rebuild ();
 		SaveList_Rebuild ();
 		S_ClearAll ();

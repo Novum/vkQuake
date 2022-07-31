@@ -365,6 +365,7 @@ void               Host_Quit_f (void);
 void               Host_ClientCommands (const char *fmt, ...) FUNC_PRINTF (1, 2);
 void               Host_ShutdownServer (qboolean crash);
 void               Host_WriteConfiguration (void);
+void               Host_Resetdemos (void);
 
 void ExtraMaps_Init (void);
 void Modlist_Init (void);
