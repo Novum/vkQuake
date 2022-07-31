@@ -150,6 +150,11 @@ int   scr_center_lines;
 int   scr_erase_lines;
 int   scr_erase_center;
 
+void SCR_CenterPrintClear (void)
+{
+	scr_centertime_off = 0;
+}
+
 /*
 ==============
 SCR_CenterPrint
@@ -855,7 +860,8 @@ void SCR_BeginLoadingPlaque (void)
 
 	// redraw with no console and the loading plaque
 	Con_ClearNotify ();
-	scr_centertime_off = scr_clock_off = 0;
+	SCR_CenterPrintClear ();
+	scr_clock_off = 0;
 	scr_con_current = 0;
 
 	scr_drawloading = true;
