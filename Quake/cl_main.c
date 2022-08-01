@@ -1126,14 +1126,16 @@ static void CL_UserinfoChanged (scoreboard_t *sb)
 {
 	char tmp[64];
 	int  colors;
-	Info_GetKey (sb->userinfo, "name", sb->name, sizeof (sb->name));
+	Info_GetKey (sb->userinfo, "name", tmp, sizeof (tmp));
+	if (tmp[0])
+		strncpy (sb->name, tmp, sizeof (sb->name) - 1);
 
 	Info_GetKey (sb->userinfo, "topcolor", tmp, sizeof (tmp));
 	colors = (strtoul (tmp, NULL, 0) & 0xf) << 4;
 	Info_GetKey (sb->userinfo, "bottomcolor", tmp, sizeof (tmp));
 	colors |= strtoul (tmp, NULL, 0) & 0xf;
 
-	if (colors != sb->colors)
+	if (tmp[0] && colors != sb->colors)
 	{
 		sb->colors = colors;
 		R_TranslateNewPlayerSkin (sb - cl.scores);
