@@ -146,6 +146,7 @@ CENTER PRINTING
 char  scr_centerstring[1024];
 float scr_centertime_start; // for slow victory printing
 float scr_centertime_off;
+float scr_clock_off;
 int   scr_center_lines;
 int   scr_erase_lines;
 int   scr_erase_center;
@@ -153,6 +154,7 @@ int   scr_erase_center;
 void SCR_CenterPrintClear (void)
 {
 	scr_centertime_off = 0;
+	scr_clock_off = 0;
 }
 
 /*
@@ -568,8 +570,6 @@ void SCR_DrawFPS (cb_context_t *cbx)
 SCR_DrawClock -- johnfitz
 ==============
 */
-float scr_clock_off;
-
 void SCR_DrawClock (cb_context_t *cbx)
 {
 	char str[32];
@@ -861,7 +861,6 @@ void SCR_BeginLoadingPlaque (void)
 	// redraw with no console and the loading plaque
 	Con_ClearNotify ();
 	SCR_CenterPrintClear ();
-	scr_clock_off = 0;
 	scr_con_current = 0;
 
 	scr_drawloading = true;

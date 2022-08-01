@@ -2898,8 +2898,7 @@ SV_SpawnServer
 This is called at the start of each level
 ================
 */
-extern float scr_clock_off;
-void         SV_SpawnServer (const char *server)
+void SV_SpawnServer (const char *server)
 {
 	static char dummy[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 	edict_t    *ent;
@@ -2910,7 +2909,6 @@ void         SV_SpawnServer (const char *server)
 	if (hostname.string[0] == 0)
 		Cvar_Set ("hostname", "UNNAMED");
 	SCR_CenterPrintClear ();
-	scr_clock_off = 0;
 
 	Con_DPrintf ("SpawnServer: %s\n", server);
 	svs.changelevel_issued = false; // now safe to issue another

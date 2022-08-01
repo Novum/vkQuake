@@ -185,11 +185,19 @@ void CL_Seek_f (void)
 		cls.demospeed = 1.f;
 
 	float offset = 0, offset_seconds;
-	if (sscanf (Cmd_Argv (1), "%f:%f", &offset, &offset_seconds) == 2)
+	int   ret;
+	if ((ret = sscanf (Cmd_Argv (1), "%f:%f", &offset, &offset_seconds)) == 2)
 		offset = offset * 60 + (offset > 0 ? offset_seconds : -offset_seconds);
+
+	if (!ret)
+	{
+		Con_Printf ("Expected time format is seconds or mm:ss with optional +/- prefix.\n");
+		Con_Printf ("Examples:  12:34  +20  -3:15\n");
+		return;
+	}
+
 	qboolean relative = offset < 0 || Cmd_Argv (1) [0] == '+';
 	cls.seektime = relative ? cl.time + offset : offset;
-	scr_clock_off = 2.5f; // show clock for a few seconds after a seek
 
 	// large positive offsets could benefit from demoseeking, but we'd lose prints etc
 	if ((offset < 0 || (!relative && offset < cl.time)) && cls.demo_prespawn_end)
@@ -218,6 +226,8 @@ void CL_Seek_f (void)
 	}
 	else
 		cl.time = cls.seektime;
+
+	scr_clock_off = 2.5f; // show clock for a few seconds after a seek
 }
 
 /*
@@ -691,7 +701,6 @@ void CL_PlayDemo_f (void)
 	cls.demoplayback = true;
 	cls.demopaused = false;
 	cls.demospeed = 1.f;
-	scr_clock_off = 0;
 	cls.state = ca_connected;
 
 	// get rid of the menu and/or console

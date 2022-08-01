@@ -190,6 +190,7 @@ void CL_Disconnect (void)
 	cl.intermission = 0;
 	cl.worldmodel = NULL;
 	cl.sendprespawn = false;
+	SCR_CenterPrintClear ();
 }
 
 void CL_Disconnect_f (void)
