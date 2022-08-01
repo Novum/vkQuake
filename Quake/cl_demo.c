@@ -424,7 +424,7 @@ void CL_Record_Prespawn (void)
 
 void CL_Record_Spawn (void)
 {
-	int i, c;
+	int i;
 
 	// player names, colors, and frag counts
 	for (i = 0; i < cl.maxclients; i++)
@@ -437,8 +437,7 @@ void CL_Record_Spawn (void)
 		MSG_WriteShort (&net_message, cl.scores[i].frags);
 		MSG_WriteByte (&net_message, svc_updatecolors);
 		MSG_WriteByte (&net_message, i);
-		c = 0;
-		MSG_WriteByte (&net_message, c);
+		MSG_WriteByte (&net_message, cl.scores[i].colors);
 	}
 
 	// send all current light styles
@@ -459,6 +458,8 @@ void CL_Record_Spawn (void)
 	}
 
 	// what about the current CD track... future consideration.
+
+	// also: current dynamic fog, current dynamic sky
 
 	// stats
 	for (i = 0; i < MAX_CL_STATS; i++)
