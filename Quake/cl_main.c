@@ -1128,7 +1128,7 @@ static void CL_UserinfoChanged (scoreboard_t *sb)
 	int  colors;
 	Info_GetKey (sb->userinfo, "name", tmp, sizeof (tmp));
 	if (tmp[0])
-		strncpy (sb->name, tmp, sizeof (sb->name) - 1);
+		q_strlcpy (sb->name, tmp, sizeof (sb->name));
 
 	Info_GetKey (sb->userinfo, "topcolor", tmp, sizeof (tmp));
 	colors = (strtoul (tmp, NULL, 0) & 0xf) << 4;
