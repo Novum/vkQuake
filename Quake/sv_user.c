@@ -462,7 +462,7 @@ void SV_ReadClientMove (usercmd_t *move)
 
 	for (i = 0; i < 3; i++)
 	{
-		if (sv.protocol == PROTOCOL_NETQUAKE && !(host_client->protocol_pext2 & PEXT2_PREDINFO))
+		if (sv.protocol == PROTOCOL_NETQUAKE && !NET_QSocketGetProQuakeAngleHack (cls.netcon) && !(host_client->protocol_pext2 & PEXT2_PREDINFO))
 			angle[i] = MSG_ReadAngle (sv.protocolflags);
 		else
 			angle[i] = MSG_ReadAngle16 (sv.protocolflags); // johnfitz -- 16-bit angles for PROTOCOL_FITZQUAKE
