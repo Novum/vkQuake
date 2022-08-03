@@ -1831,7 +1831,7 @@ SV_WriteEntitiesToClient
 
 =============
 */
-void SV_WriteEntitiesToClient (client_t *client, sizebuf_t *msg)
+void SV_WriteEntitiesToClient (client_t *client, sizebuf_t *msg, size_t overflowsize)
 {
 	edict_t     *clent = client->edict;
 	unsigned int e, i, maxedict = qcvm->num_edicts;
@@ -1841,11 +1841,9 @@ void SV_WriteEntitiesToClient (client_t *client, sizebuf_t *msg)
 	float        miss;
 	edict_t     *ent;
 	eval_t      *val;
-	int          maxsize = msg->maxsize;
+	size_t       rollbacksize, origmaxsize = msg->maxsize;
 
-	// try to avoid sounds getting lost. flickering entities are weird, but missing sounds+particles are just eerie.
-	maxsize -= client->datagram.cursize;
-	maxsize -= sv.datagram.cursize;
+	msg->maxsize = overflowsize;
 
 	if (maxedict > client->limit_entities)
 		maxedict = client->limit_entities;
@@ -1884,21 +1882,7 @@ void SV_WriteEntitiesToClient (client_t *client, sizebuf_t *msg)
 				continue; // not visible
 		}
 
-		// johnfitz -- max size for protocol 15 is 18 bytes, not 16 as originally
-		// assumed here.  And, for protocol 85 the max size is actually 24 bytes.
-		// For float coords and angles the limit is 39.
-		// FIXME: Use tighter limit according to protocol flags and send bits.
-		if (msg->cursize + 39 > maxsize)
-		{
-			// johnfitz -- less spammy overflow message
-			if (!dev_overflows.packetsize || dev_overflows.packetsize + CONSOLE_RESPAM_TIME < realtime)
-			{
-				Con_Printf ("Packet overflow!\n");
-				dev_overflows.packetsize = realtime;
-			}
-			goto stats;
-			// johnfitz
-		}
+		rollbacksize = msg->cursize;
 
 		// send an update
 		bits = 0;
@@ -2026,10 +2010,23 @@ void SV_WriteEntitiesToClient (client_t *client, sizebuf_t *msg)
 		if (bits & U_LERPFINISH)
 			MSG_WriteByte (msg, (byte)(Q_rint ((ent->v.nextthink - qcvm->time) * 255)));
 		// johnfitz
+
+		if ((size_t)msg->cursize > origmaxsize)
+		{
+			msg->cursize = rollbacksize; // roll back
+			// johnfitz -- less spammy overflow message
+			if (!dev_overflows.packetsize || dev_overflows.packetsize + CONSOLE_RESPAM_TIME < realtime)
+			{
+				Con_Printf ("Packet overflow!\n");
+				dev_overflows.packetsize = realtime;
+			}
+			break; // we could keep searching for something else that fits, but ehh
+		}
 	}
 
+	msg->maxsize = origmaxsize;
+
 	// johnfitz -- devstats
-stats:
 	if (msg->cursize > 1024 && dev_peakstats.packetsize <= 1024)
 		Con_DWarning ("%i byte packet exceeds standard limit of 1024 (max = %d).\n", msg->cursize, msg->maxsize);
 	dev_stats.packetsize = msg->cursize;
@@ -2360,7 +2357,7 @@ qboolean SV_SendClientDatagram (client_t *client)
 			SV_WriteDamageToMessage (client->edict, &msg);
 			SV_WriteClientdataToMessage (client, &msg);
 
-			SV_WriteEntitiesToClient (client, &msg);
+			SV_WriteEntitiesToClient (client, &msg, sizeof (buf));
 		}
 
 		// copy the private datagram if there is space
