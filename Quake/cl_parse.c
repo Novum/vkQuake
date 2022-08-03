@@ -1203,6 +1203,8 @@ static void CL_ParseUpdate (int bits)
 			ent->alpha = ent->baseline.alpha;
 		if (bits & U_SCALE)
 			ent->netstate.scale = MSG_ReadByte (); // PROTOCOL_RMQ
+		else
+			ent->netstate.scale = ent->baseline.scale;
 		if (bits & U_FRAME2)
 			ent->frame = (ent->frame & 0x00FF) | (MSG_ReadByte () << 8);
 		if (bits & U_MODEL2)
@@ -1242,7 +1244,10 @@ static void CL_ParseUpdate (int bits)
 			ent->alpha = ent->baseline.alpha;
 	}
 	else
+	{
 		ent->alpha = ent->baseline.alpha;
+		ent->netstate.scale = ent->baseline.scale;
+	}
 	// johnfitz
 
 	// johnfitz -- moved here from above
@@ -1315,6 +1320,7 @@ static void CL_ParseBaseline (entity_t *ent, int version) // johnfitz -- added a
 	}
 
 	ent->baseline.alpha = (bits & B_ALPHA) ? MSG_ReadByte () : ENTALPHA_DEFAULT; // johnfitz -- PROTOCOL_FITZQUAKE
+	ent->baseline.scale = ent->netstate.scale;
 }
 
 #define CL_SetStati(stat, val)   cl.statsf[stat] = (cl.stats[stat] = val)

@@ -145,21 +145,40 @@ R_CullModelForEntity -- johnfitz -- uses correct bounds based on rotation
 qboolean R_CullModelForEntity (entity_t *e)
 {
 	vec3_t mins, maxs;
+	vec3_t minbounds, maxbounds;
 
 	if (e->angles[0] || e->angles[2]) // pitch or roll
 	{
-		VectorAdd (e->origin, e->model->rmins, mins);
-		VectorAdd (e->origin, e->model->rmaxs, maxs);
+		VectorCopy (e->model->rmins, minbounds);
+		VectorCopy (e->model->rmaxs, maxbounds);
 	}
 	else if (e->angles[1]) // yaw
 	{
-		VectorAdd (e->origin, e->model->ymins, mins);
-		VectorAdd (e->origin, e->model->ymaxs, maxs);
+		VectorCopy (e->model->ymins, minbounds);
+		VectorCopy (e->model->ymaxs, maxbounds);
 	}
 	else // no rotation
 	{
-		VectorAdd (e->origin, e->model->mins, mins);
-		VectorAdd (e->origin, e->model->maxs, maxs);
+		VectorCopy (e->model->mins, minbounds);
+		VectorCopy (e->model->maxs, maxbounds);
+	}
+
+	vec_t scalefactor = e->netstate.scale / 16.0f;
+	if (scalefactor < 0.001f)
+		scalefactor = 1.0f;
+
+	if (scalefactor != 1.0f)
+	{
+		vec3_t scaledVec;
+		VectorScale (minbounds, scalefactor, scaledVec);
+		VectorAdd (e->origin, scaledVec, mins);
+		VectorScale (maxbounds, scalefactor, scaledVec);
+		VectorAdd (e->origin, scaledVec, maxs);
+	}
+	else
+	{
+		VectorAdd (e->origin, minbounds, mins);
+		VectorAdd (e->origin, maxbounds, maxs);
 	}
 
 	return R_CullBox (mins, maxs);
