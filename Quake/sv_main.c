@@ -2443,10 +2443,6 @@ qboolean SV_SendClientDatagram (client_t *client)
 			if (client->protocol_pext2 & PEXT2_PREDINFO)
 				MSG_WriteShort (&msg, (client->lastmovemessage & 0xffff));
 
-			// add the client specific data to the datagram
-			SV_WriteDamageToMessage (client->edict, &msg);
-			SV_WriteClientdataToMessage (client, &msg);
-
 			SV_WriteEntitiesToClient (client, &msg, sizeof (buf));
 		}
 
@@ -2455,9 +2451,9 @@ qboolean SV_SendClientDatagram (client_t *client)
 		{
 			if (msg.cursize + client->datagram.cursize < msg.maxsize)
 				SZ_Write (&msg, client->datagram.data, client->datagram.cursize);
-			else if (client->protocol_pext2 & PEXT2_REPLACEMENTDELTAS && client->datagram.cursize < msg.maxsize)
+			else if (client->datagram.cursize < msg.maxsize)
 			{
-				// delta protocol: send private datagram in another packet
+				// send private datagram in another packet
 				NET_SendUnreliableMessage (client->netconnection, &msg);
 				SZ_Clear (&msg);
 				SZ_Write (&msg, client->datagram.data, client->datagram.cursize);
@@ -2468,7 +2464,7 @@ qboolean SV_SendClientDatagram (client_t *client)
 		// copy the server datagram if there is space
 		if (msg.cursize + sv.datagram.cursize < msg.maxsize)
 			SZ_Write (&msg, sv.datagram.data, sv.datagram.cursize);
-		else if (sv.datagram.cursize && client->protocol_pext2 & PEXT2_REPLACEMENTDELTAS)
+		else if (sv.datagram.cursize)
 		{
 			// if the server datagram starts with particles, split them across multiple packets
 			int position = 0;
@@ -2495,6 +2491,22 @@ qboolean SV_SendClientDatagram (client_t *client)
 				SZ_Clear (&msg);
 				SZ_Write (&msg, &sv.datagram.data[position], remaining);
 			}
+		}
+
+		if (!(client->protocol_pext2 & PEXT2_REPLACEMENTDELTAS))
+		{
+			// add the client specific data to the datagram last to play nice with clients which reset onground on every packet
+			// (and to leave a few more bytes for entity updates)
+			// cannibalize client->datagram (cleared above) to get an exact size
+			SV_WriteDamageToMessage (client->edict, &client->datagram);
+			SV_WriteClientdataToMessage (client, &client->datagram);
+			if (msg.cursize + client->datagram.cursize > msg.maxsize)
+			{
+				NET_SendUnreliableMessage (client->netconnection, &msg);
+				SZ_Clear (&msg);
+			}
+			SZ_Write (&msg, client->datagram.data, client->datagram.cursize);
+			SZ_Clear (&client->datagram);
 		}
 	}
 
