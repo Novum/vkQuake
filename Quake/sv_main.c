@@ -34,6 +34,8 @@ int sv_protocol = PROTOCOL_RMQ; // spike -- enough maps need this now that we ca
 unsigned int sv_protocol_pext1 = PEXT1_SUPPORTED_SERVER; // spike
 unsigned int sv_protocol_pext2 = PEXT2_SUPPORTED_SERVER; // spike
 
+static cvar_t sv_netsort = {"sv_netsort", "1", CVAR_NONE};
+
 //============================================================================
 
 void SV_CalcStats (client_t *client, int *statsi, float *statsf, const char **statss)
@@ -1112,6 +1114,7 @@ void SV_Init (void)
 	Cvar_RegisterVariable (&sv_freezenonclients);
 	Cvar_RegisterVariable (&pr_checkextension);
 	Cvar_RegisterVariable (&sv_altnoclip); // johnfitz
+	Cvar_RegisterVariable (&sv_netsort);
 
 	Cmd_AddCommand ("pext", SV_Pext_f);
 	Cmd_AddCommand ("sv_protocol", &SV_Protocol_f); // johnfitz
@@ -1825,6 +1828,13 @@ qboolean SV_VisibleToClient (edict_t *client, edict_t *test, qmodel_t *worldmode
 
 //=============================================================================
 
+#define MAX_NET_EDICTS 65536
+
+static uint16_t net_edicts[MAX_NET_EDICTS];
+static byte     net_edict_dists[MAX_NET_EDICTS];
+static int      net_edict_bins[256];
+static uint16_t net_edicts_sorted[MAX_NET_EDICTS];
+
 /*
 =============
 SV_WriteEntitiesToClient
@@ -1834,14 +1844,19 @@ SV_WriteEntitiesToClient
 void SV_WriteEntitiesToClient (client_t *client, sizebuf_t *msg, size_t overflowsize)
 {
 	edict_t     *clent = client->edict;
-	unsigned int e, i, maxedict = qcvm->num_edicts;
+	unsigned int e, i, maxedict = qcvm->num_edicts, j, numents;
 	int          bits;
 	byte        *pvs;
-	vec3_t       org;
-	float        miss;
+	vec3_t       org, forward, right, up;
+	float        miss, dist, size;
 	edict_t     *ent;
 	eval_t      *val;
 	size_t       rollbacksize, origmaxsize = msg->maxsize;
+	qboolean     sort = sv_netsort.value > 1;
+
+	// with sv_netsort = 1, sort only if (any client) overflowed in the last 10 seconds
+	if (sv_netsort.value == 1 && dev_overflows.packetsize + 10 > realtime)
+		sort = true;
 
 	msg->maxsize = overflowsize;
 
@@ -1852,12 +1867,29 @@ void SV_WriteEntitiesToClient (client_t *client, sizebuf_t *msg, size_t overflow
 	VectorAdd (clent->v.origin, clent->v.view_ofs, org);
 	pvs = SV_FatPVS (org, qcvm->worldmodel);
 
-	// send over all entities (excpet the client) that touch the pvs
+	// find the client's orientation
+	AngleVectors (clent->v.v_angle, forward, right, up);
+
+	// reset sorting bins
+	memset (net_edict_bins, 0, sizeof (net_edict_bins));
+
+	// add clent
+	if (sort)
+	{
+		net_edicts[0] = NUM_FOR_EDICT (clent);
+		net_edict_dists[0] = 0;
+		net_edict_bins[0] = 1;
+	}
+	else
+		net_edicts_sorted[0] = NUM_FOR_EDICT (clent);
+	numents = 1;
+
+	// add all other entities that touch the pvs
 	ent = NEXT_EDICT (qcvm->edicts);
 	for (e = 1; e < maxedict; e++, ent = NEXT_EDICT (ent))
 	{
 
-		if (ent != clent) // clent is ALLWAYS sent
+		if (ent != clent) // clent already added before the loop
 		{
 			// ignore ents without visible models
 			if (!ent->v.modelindex || !PR_GetString (ent->v.model)[0])
@@ -1880,7 +1912,65 @@ void SV_WriteEntitiesToClient (client_t *client, sizebuf_t *msg, size_t overflow
 			// spanning the entire map, or really tall lifts, etc.
 			if (i == ent->num_leafs && ent->num_leafs < MAX_ENT_LEAFS)
 				continue; // not visible
+
+			if (sort)
+			{
+				// compute ent bbox size and distance from org to the closest point in ent's bbox
+				dist = size = 0.f;
+				for (i = 0; i < 3; i++)
+				{
+					float delta = CLAMP (ent->v.absmin[i], org[i], ent->v.absmax[i]) - org[i];
+					dist += delta * delta;
+					delta = ent->v.absmax[i] - ent->v.absmin[i];
+					size += delta * delta;
+				}
+				size = q_max (1.f, size);
+
+				// use scaled square root of (distance/size) as sort key
+				dist = 8.f * sqrt (sqrt (dist / size));
+				net_edict_dists[numents] = (int)q_min (dist, 255.f);
+				net_edicts[numents] = e;
+
+				// compute max distance along forward axis
+				dist = 0.f;
+				for (i = 0; i < 3; i++)
+					dist += ((forward[i] < 0.f ? ent->v.absmin[i] : ent->v.absmax[i]) - org[i]) * forward[i];
+				if (dist < 0.f)
+					net_edict_dists[numents] |= 128; // deprioritize entities behind the client
+
+				net_edict_bins[net_edict_dists[numents]]++;
+			}
+			else
+				net_edicts_sorted[numents] = e;
+
+			if (++numents == MAX_NET_EDICTS)
+				break;
 		}
+		else
+			continue;
+	}
+
+	if (sort)
+	{
+		// compute bin offsets
+		e = 0;
+		for (i = 0; i < countof (net_edict_bins); i++)
+		{
+			int tmp = net_edict_bins[i];
+			net_edict_bins[i] = e;
+			e += tmp;
+		}
+
+		// generate sorted list
+		for (e = 0; e < numents; e++)
+			net_edicts_sorted[net_edict_bins[net_edict_dists[e]]++] = net_edicts[e];
+	}
+
+	// send entities (closest first)
+	for (j = 0; j < numents; j++)
+	{
+		e = net_edicts_sorted[j];
+		ent = EDICT_NUM (e);
 
 		rollbacksize = msg->cursize;
 
