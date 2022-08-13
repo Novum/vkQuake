@@ -334,9 +334,7 @@ entity_t *CL_NewTempEntity (void)
 	cl_visedicts[cl_numvisedicts] = ent;
 	cl_numvisedicts++;
 
-	ent->netstate.scale = 16;
-	ent->netstate.colormod[0] = ent->netstate.colormod[1] = ent->netstate.colormod[2] = 32;
-	ent->netstate.colormap = 0;
+	ent->netstate = nullentitystate;
 	return ent;
 }
 

@@ -237,7 +237,7 @@ void R_DrawBrushModel (cb_context_t *cbx, entity_t *e, int chain)
 	e_angles[0] = -e_angles[0]; // stupid quake bug
 	float model_matrix[16];
 	IdentityMatrix (model_matrix);
-	R_RotateForEntity (model_matrix, e->origin, e_angles);
+	R_RotateForEntity (model_matrix, e->origin, e_angles, e->netstate.scale);
 
 	float mvp[16];
 	memcpy (mvp, vulkan_globals.view_projection_matrix, 16 * sizeof (float));
@@ -304,7 +304,7 @@ void R_DrawBrushModel_ShowTris (cb_context_t *cbx, entity_t *e)
 	e->angles[0] = -e->angles[0]; // stupid quake bug
 	float model_matrix[16];
 	IdentityMatrix (model_matrix);
-	R_RotateForEntity (model_matrix, e->origin, e->angles);
+	R_RotateForEntity (model_matrix, e->origin, e->angles, e->netstate.scale);
 	e->angles[0] = -e->angles[0]; // stupid quake bug
 
 	float mvp[16];

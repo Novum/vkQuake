@@ -204,6 +204,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define B_LARGEMODEL (1 << 0) // modelindex is short instead of byte
 #define B_LARGEFRAME (1 << 1) // frame is short instead of byte
 #define B_ALPHA      (1 << 2) // 1 byte, uses ENTALPHA_ENCODE, not sent if ENTALPHA_DEFAULT
+#define B_SCALE      (1 << 3) // added as part of rmq 999 (NOT valid for 666)
 // johnfitz
 
 // johnfitz -- PROTOCOL_FITZQUAKE -- alpha encoding
@@ -216,6 +217,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 	(((a) == ENTALPHA_DEFAULT) ? 0.0f : (((a) == ENTALPHA_ZERO) ? -1.0f : ((float)(a)-1) / (254))) // server convert to float for
 	                                                                                               // savegame
 // johnfitz
+
+#define ENTSCALE_DEFAULT    16 // 4.4 fixed point
+#define ENTSCALE_ENCODE(f)  ((f) ? CLAMP (1, (int)(ENTSCALE_DEFAULT * (f)), 255) : ENTSCALE_DEFAULT)
+#define ENTSCALE_DECODE(es) ((es) / (float)ENTSCALE_DEFAULT)
 
 // defaults for clientinfo messages
 #define DEFAULT_VIEWHEIGHT 22

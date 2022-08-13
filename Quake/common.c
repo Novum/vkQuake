@@ -1346,9 +1346,11 @@ static void    COM_SetupNullState (void)
 	//	nullentitystate.glowmod[0] = 32;
 	//	nullentitystate.glowmod[1] = 32;
 	//	nullentitystate.glowmod[2] = 32;
-	nullentitystate.alpha = 0; // fte has 255 by default, with 0 for invisible. fitz uses 1 for invisible, 0 default, and 255=full alpha
-	nullentitystate.scale = 16;
+	nullentitystate.colormap = 0;
+	nullentitystate.alpha = ENTALPHA_DEFAULT; // fte has 255 by default, with 0 for invisible. fitz uses 1 for invisible, 0 default, and 255=full alpha
+	nullentitystate.scale = ENTSCALE_DEFAULT;
 	//	nullentitystate.solidsize = 0;//ES_SOLID_BSP;
+	nullentitystate.solidsize = ES_SOLID_NOT;
 }
 
 /*

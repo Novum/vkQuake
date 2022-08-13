@@ -793,10 +793,10 @@ void SV_BuildEntityState (edict_t *ent, entity_state_t *state)
 	state->frame = ent->v.frame;
 	state->colormap = ent->v.colormap;
 	state->skin = ent->v.skin;
-	if ((val = GetEdictFieldValue (ent, qcvm->extfields.scale)) && val->_float)
-		state->scale = val->_float * 16;
+	if (val = GetEdictFieldValue (ent, qcvm->extfields.scale))
+		state->scale = ENTSCALE_ENCODE (val->_float);
 	else
-		state->scale = 16;
+		state->scale = ENTSCALE_DEFAULT;
 	if ((val = GetEdictFieldValue (ent, qcvm->extfields.alpha)))
 		state->alpha = ENTALPHA_ENCODE (val->_float);
 	else
@@ -952,6 +952,10 @@ void MSG_WriteStaticOrBaseLine (sizebuf_t *buf, int idx, entity_state_t *state, 
 					bits |= B_LARGEFRAME;
 				if (state->alpha != ENTALPHA_DEFAULT)
 					bits |= B_ALPHA;
+#ifdef BASE_PROTO_SCALES
+				if (state->scale != ENTSCALE_DEFAULT && protocol == PROTOCOL_RMQ)
+					bits |= B_SCALE;
+#endif
 			}
 			if (idx >= 0)
 			{
@@ -984,6 +988,8 @@ void MSG_WriteStaticOrBaseLine (sizebuf_t *buf, int idx, entity_state_t *state, 
 		}
 		if (bits & B_ALPHA)
 			MSG_WriteByte (buf, state->alpha);
+		if (bits & B_SCALE)
+			MSG_WriteByte (buf, state->scale);
 	}
 }
 static void SV_Pext_f (void);
@@ -1853,6 +1859,7 @@ void SV_WriteEntitiesToClient (client_t *client, sizebuf_t *msg, size_t overflow
 	eval_t      *val;
 	size_t       rollbacksize, origmaxsize = msg->maxsize;
 	qboolean     sort = sv_netsort.value > 1;
+	float        scale = ENTSCALE_DEFAULT;
 
 	// with sv_netsort = 1, sort only if (any client) overflowed in the last 10 seconds
 	if (sv_netsort.value == 1 && dev_overflows.packetsize + 10 > realtime)
@@ -2022,12 +2029,26 @@ void SV_WriteEntitiesToClient (client_t *client, sizebuf_t *msg, size_t overflow
 			continue;
 		// johnfitz
 
+		val = GetEdictFieldValue (ent, qcvm->extfields.scale);
+		if (val)
+			scale = ENTSCALE_ENCODE (val->_float);
+
 		// johnfitz -- PROTOCOL_FITZQUAKE
 		if (sv.protocol != PROTOCOL_NETQUAKE)
 		{
 
 			if (ent->baseline.alpha != ent->alpha)
 				bits |= U_ALPHA;
+#ifdef BASE_PROTO_SCALES
+			if (sv.protocol == PROTOCOL_RMQ)
+			{
+				if (ent->baseline.scale != scale)
+					bits |= U_SCALE;
+			}
+			else
+#endif
+				if (ent->baseline.scale != ENTSCALE_DEFAULT) // for 666, we didn't send the scale in the baseline!
+					bits |= U_SCALE;
 			if (bits & U_FRAME && (int)ent->v.frame & 0xFF00)
 				bits |= U_FRAME2;
 			if (bits & U_MODEL && (int)ent->v.modelindex & 0xFF00)
@@ -2093,6 +2114,8 @@ void SV_WriteEntitiesToClient (client_t *client, sizebuf_t *msg, size_t overflow
 		// johnfitz -- PROTOCOL_FITZQUAKE
 		if (bits & U_ALPHA)
 			MSG_WriteByte (msg, ent->alpha);
+		if (bits & U_SCALE)
+			MSG_WriteByte (msg, scale);
 		if (bits & U_FRAME2)
 			MSG_WriteByte (msg, (int)ent->v.frame >> 8);
 		if (bits & U_MODEL2)
@@ -2897,6 +2920,7 @@ void SV_CreateBaseline (void)
 		//
 		// create entity baseline
 		//
+		svent->baseline = nullentitystate;
 		VectorCopy (svent->v.origin, svent->baseline.origin);
 		VectorCopy (svent->v.angles, svent->baseline.angles);
 		svent->baseline.frame = svent->v.frame;
@@ -2905,7 +2929,6 @@ void SV_CreateBaseline (void)
 		{
 			svent->baseline.colormap = entnum;
 			svent->baseline.modelindex = SV_ModelIndex ("progs/player.mdl");
-			svent->baseline.alpha = ENTALPHA_DEFAULT; // johnfitz -- alpha support
 		}
 		else
 		{
@@ -2916,9 +2939,11 @@ void SV_CreateBaseline (void)
 				svent->baseline.alpha = ENTALPHA_ENCODE (val->_float);
 			else
 				svent->baseline.alpha = svent->alpha; // johnfitz -- alpha support
+			if (val = GetEdictFieldValue (svent, qcvm->extfields.scale))
+				svent->baseline.scale = ENTSCALE_ENCODE (val->_float);
 		}
 
-		// Spike -- baselines are now generated on a per-client basis.
+		// Spike -- baselines are now transmitted on a per-client basis.
 		// FIXME: should merge the above with other edict->entity_state copies (updates, baselines, spawnstatics)
 		// 1) this allows per-client extensions.
 		// 2) this avoids pre-generating a single signon buffer, splitting it over multiple packets.

@@ -88,6 +88,7 @@ static void R_CreateSpriteVertices (entity_t *e, mspriteframe_t *frame, basicver
 	msprite_t *psprite;
 	float     *s_up, *s_right;
 	float      angle, sr, cr;
+	float      scale = ENTSCALE_DECODE (e->netstate.scale);
 
 	psprite = (msprite_t *)e->model->extradata;
 
@@ -141,32 +142,32 @@ static void R_CreateSpriteVertices (entity_t *e, mspriteframe_t *frame, basicver
 
 	memset (vertices, 255, 4 * sizeof (basicvertex_t));
 
-	VectorMA (e->origin, frame->down, s_up, point);
-	VectorMA (point, frame->left, s_right, point);
+	VectorMA (e->origin, frame->down * scale, s_up, point);
+	VectorMA (point, frame->left * scale, s_right, point);
 	vertices[0].position[0] = point[0];
 	vertices[0].position[1] = point[1];
 	vertices[0].position[2] = point[2];
 	vertices[0].texcoord[0] = 0.0f;
 	vertices[0].texcoord[1] = frame->tmax;
 
-	VectorMA (e->origin, frame->up, s_up, point);
-	VectorMA (point, frame->left, s_right, point);
+	VectorMA (e->origin, frame->up * scale, s_up, point);
+	VectorMA (point, frame->left * scale, s_right, point);
 	vertices[1].position[0] = point[0];
 	vertices[1].position[1] = point[1];
 	vertices[1].position[2] = point[2];
 	vertices[1].texcoord[0] = 0.0f;
 	vertices[1].texcoord[1] = 0.0f;
 
-	VectorMA (e->origin, frame->up, s_up, point);
-	VectorMA (point, frame->right, s_right, point);
+	VectorMA (e->origin, frame->up * scale, s_up, point);
+	VectorMA (point, frame->right * scale, s_right, point);
 	vertices[2].position[0] = point[0];
 	vertices[2].position[1] = point[1];
 	vertices[2].position[2] = point[2];
 	vertices[2].texcoord[0] = frame->smax;
 	vertices[2].texcoord[1] = 0.0f;
 
-	VectorMA (e->origin, frame->down, s_up, point);
-	VectorMA (point, frame->right, s_right, point);
+	VectorMA (e->origin, frame->down * scale, s_up, point);
+	VectorMA (point, frame->right * scale, s_right, point);
 	vertices[3].position[0] = point[0];
 	vertices[3].position[1] = point[1];
 	vertices[3].position[2] = point[2];

@@ -1315,6 +1315,7 @@ static void CL_ParseBaseline (entity_t *ent, int version) // johnfitz -- added a
 	}
 
 	ent->baseline.alpha = (bits & B_ALPHA) ? MSG_ReadByte () : ENTALPHA_DEFAULT; // johnfitz -- PROTOCOL_FITZQUAKE
+	ent->baseline.scale = (bits & B_SCALE) ? MSG_ReadByte () : ENTSCALE_DEFAULT;
 }
 
 #define CL_SetStati(stat, val)   cl.statsf[stat] = (cl.stats[stat] = val)

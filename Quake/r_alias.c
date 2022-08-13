@@ -398,7 +398,7 @@ void R_DrawAliasModel (cb_context_t *cbx, entity_t *e)
 	//
 	float model_matrix[16];
 	IdentityMatrix (model_matrix);
-	R_RotateForEntity (model_matrix, lerpdata.origin, lerpdata.angles);
+	R_RotateForEntity (model_matrix, lerpdata.origin, lerpdata.angles, e->netstate.scale);
 
 	float fovscale = 1.0f;
 	if (e == &cl.viewent && scr_fov.value > 90.f && cl_gun_fovscale.value)
@@ -513,7 +513,7 @@ void R_DrawAliasModel_ShowTris (cb_context_t *cbx, entity_t *e)
 	//
 	float model_matrix[16];
 	IdentityMatrix (model_matrix);
-	R_RotateForEntity (model_matrix, lerpdata.origin, lerpdata.angles);
+	R_RotateForEntity (model_matrix, lerpdata.origin, lerpdata.angles, e->netstate.scale);
 
 	float fovscale = 1.0f;
 	if (e == &cl.viewent && scr_fov.value > 90.f)

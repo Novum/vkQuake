@@ -145,21 +145,34 @@ R_CullModelForEntity -- johnfitz -- uses correct bounds based on rotation
 qboolean R_CullModelForEntity (entity_t *e)
 {
 	vec3_t mins, maxs;
+	vec_t  scalefactor, *minbounds, *maxbounds;
 
 	if (e->angles[0] || e->angles[2]) // pitch or roll
 	{
-		VectorAdd (e->origin, e->model->rmins, mins);
-		VectorAdd (e->origin, e->model->rmaxs, maxs);
+		minbounds = e->model->rmins;
+		maxbounds = e->model->rmaxs;
 	}
 	else if (e->angles[1]) // yaw
 	{
-		VectorAdd (e->origin, e->model->ymins, mins);
-		VectorAdd (e->origin, e->model->ymaxs, maxs);
+		minbounds = e->model->ymins;
+		maxbounds = e->model->ymaxs;
 	}
 	else // no rotation
 	{
-		VectorAdd (e->origin, e->model->mins, mins);
-		VectorAdd (e->origin, e->model->maxs, maxs);
+		minbounds = e->model->mins;
+		maxbounds = e->model->maxs;
+	}
+
+	scalefactor = ENTSCALE_DECODE(e->netstate.scale);
+	if (scalefactor != 1.0f)
+	{
+		VectorMA (e->origin, scalefactor, minbounds, mins);
+		VectorMA (e->origin, scalefactor, maxbounds, maxs);
+	}
+	else
+	{
+		VectorAdd (e->origin, minbounds, mins);
+		VectorAdd (e->origin, maxbounds, maxs);
 	}
 
 	return R_CullBox (mins, maxs);
@@ -171,7 +184,7 @@ R_RotateForEntity -- johnfitz -- modified to take origin and angles instead of p
 ===============
 */
 #define DEG2RAD(a) ((a)*M_PI_DIV_180)
-void R_RotateForEntity (float matrix[16], vec3_t origin, vec3_t angles)
+void R_RotateForEntity (float matrix[16], vec3_t origin, vec3_t angles, unsigned char scale)
 {
 	float translation_matrix[16];
 	TranslationMatrix (translation_matrix, origin[0], origin[1], origin[2]);
@@ -184,6 +197,14 @@ void R_RotateForEntity (float matrix[16], vec3_t origin, vec3_t angles)
 	MatrixMultiply (matrix, rotation_matrix);
 	RotationMatrix (rotation_matrix, DEG2RAD (angles[2]), 1, 0, 0);
 	MatrixMultiply (matrix, rotation_matrix);
+
+	float scalefactor = ENTSCALE_DECODE (scale);
+	if (scalefactor != 1.0f)
+	{
+		float mscale_matrix[16];
+		ScaleMatrix (mscale_matrix, scalefactor, scalefactor, scalefactor);
+		MatrixMultiply (matrix, mscale_matrix);
+	}
 }
 
 //==============================================================================

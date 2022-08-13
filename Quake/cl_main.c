@@ -138,6 +138,7 @@ void CL_ClearState (void)
 	for (int i = 0; i < cl.max_edicts; ++i)
 		cl.entities[i].lightcache.mutex = SDL_CreateMutex ();
 
+	cl.viewent.netstate = nullentitystate;
 #ifdef PSET_SCRIPT
 	// Spike -- this stuff needs to get reset to defaults.
 	PScript_Shutdown ();
