@@ -793,7 +793,7 @@ void SV_BuildEntityState (edict_t *ent, entity_state_t *state)
 	state->frame = ent->v.frame;
 	state->colormap = ent->v.colormap;
 	state->skin = ent->v.skin;
-	if (val = GetEdictFieldValue (ent, qcvm->extfields.scale))
+	if ((val = GetEdictFieldValue (ent, qcvm->extfields.scale)))
 		state->scale = ENTSCALE_ENCODE (val->_float);
 	else
 		state->scale = ENTSCALE_DEFAULT;
@@ -2939,7 +2939,7 @@ void SV_CreateBaseline (void)
 				svent->baseline.alpha = ENTALPHA_ENCODE (val->_float);
 			else
 				svent->baseline.alpha = svent->alpha; // johnfitz -- alpha support
-			if (val = GetEdictFieldValue (svent, qcvm->extfields.scale))
+			if ((val = GetEdictFieldValue (svent, qcvm->extfields.scale)))
 				svent->baseline.scale = ENTSCALE_ENCODE (val->_float);
 		}
 
