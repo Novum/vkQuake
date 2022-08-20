@@ -92,11 +92,14 @@ typedef enum
 	chain_num,
 } texchain_t;
 
+typedef uintptr_t src_offset_t;
+
 typedef struct texture_s
 {
 	char                name[16];
 	unsigned            width, height;
 	unsigned            shift;                    // Q64
+	src_offset_t        source_offset;            // offset from start of BSP file for BSP textures
 	struct gltexture_s *gltexture;                // johnfitz -- pointer to gltexture
 	struct gltexture_s *fullbright;               // johnfitz -- fullbright mask texture
 	struct gltexture_s *warpimage;                // johnfitz -- for water animation

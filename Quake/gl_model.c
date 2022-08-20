@@ -542,29 +542,20 @@ qboolean Mod_CheckAnimTextureArrayQ64 (texture_t *anims[], int numTex)
 	return true;
 }
 
-typedef struct load_texture_task_args_s
-{
-	qmodel_t *mod;
-	byte     *mod_base;
-} load_texture_task_args_t;
-
 /*
 =================
 Mod_LoadTextureTask
 =================
 */
-static void Mod_LoadTextureTask (int i, load_texture_task_args_t *args)
+static void Mod_LoadTextureTask (int i, qmodel_t **ppmod)
 {
-	qmodel_t  *mod = args->mod;
-	byte      *mod_base = args->mod_base;
+	qmodel_t  *mod = *ppmod;
 	texture_t *tx = mod->textures[i];
 	if (!tx)
 		return;
 
-	byte        *pixels_p = (byte *)tx + sizeof (texture_t);
 	int          pixels = tx->width * tx->height / 64 * 85;
 	char         texturename[64];
-	src_offset_t offset;
 	int          fwidth, fheight;
 	char         filename[MAX_OSPATH], mapname[MAX_OSPATH];
 	byte        *data = NULL;
@@ -597,8 +588,8 @@ static void Mod_LoadTextureTask (int i, load_texture_task_args_t *args)
 		else // use the texture from the bsp file
 		{
 			q_snprintf (texturename, sizeof (texturename), "%s:%s", mod->name, tx->name);
-			offset = (src_offset_t)(pixels_p) - (src_offset_t)mod_base;
-			tx->gltexture = TexMgr_LoadImage (mod, texturename, tx->width, tx->height, SRC_INDEXED, (byte *)(tx + 1), mod->name, offset, TEXPREF_NONE);
+			tx->gltexture =
+				TexMgr_LoadImage (mod, texturename, tx->width, tx->height, SRC_INDEXED, (byte *)(tx + 1), mod->name, tx->source_offset, TEXPREF_NONE);
 		}
 
 		// now create the warpimage, using dummy data from the hunk to create the initial image
@@ -649,20 +640,20 @@ static void Mod_LoadTextureTask (int i, load_texture_task_args_t *args)
 		else // use the texture from the bsp file
 		{
 			q_snprintf (texturename, sizeof (texturename), "%s:%s", mod->name, tx->name);
-			offset = (src_offset_t)(pixels_p) - (src_offset_t)mod_base;
 			if (Mod_CheckFullbrights ((byte *)(tx + 1), pixels))
 			{
 				tx->gltexture = TexMgr_LoadImage (
-					mod, texturename, tx->width, tx->height, SRC_INDEXED, (byte *)(tx + 1), mod->name, offset, TEXPREF_MIPMAP | TEXPREF_NOBRIGHT | extraflags);
+					mod, texturename, tx->width, tx->height, SRC_INDEXED, (byte *)(tx + 1), mod->name, tx->source_offset,
+					TEXPREF_MIPMAP | TEXPREF_NOBRIGHT | extraflags);
 				q_snprintf (texturename, sizeof (texturename), "%s:%s_glow", mod->name, tx->name);
 				tx->fullbright = TexMgr_LoadImage (
-					mod, texturename, tx->width, tx->height, SRC_INDEXED, (byte *)(tx + 1), mod->name, offset,
+					mod, texturename, tx->width, tx->height, SRC_INDEXED, (byte *)(tx + 1), mod->name, tx->source_offset,
 					TEXPREF_MIPMAP | TEXPREF_FULLBRIGHT | extraflags);
 			}
 			else
 			{
-				tx->gltexture =
-					TexMgr_LoadImage (mod, texturename, tx->width, tx->height, SRC_INDEXED, (byte *)(tx + 1), mod->name, offset, TEXPREF_MIPMAP | extraflags);
+				tx->gltexture = TexMgr_LoadImage (
+					mod, texturename, tx->width, tx->height, SRC_INDEXED, (byte *)(tx + 1), mod->name, tx->source_offset, TEXPREF_MIPMAP | extraflags);
 			}
 		}
 	}
@@ -735,6 +726,7 @@ static void Mod_LoadTextures (qmodel_t *mod, byte *mod_base, lump_t *l)
 			Con_DPrintf ("Texture %s extends past end of lump\n", mt.name);
 			pixels = q_max (0, (mod_base + l->fileofs + l->filelen) - pixels_p);
 		}
+		tx->source_offset = (src_offset_t)(pixels_p) - (src_offset_t)mod_base;
 
 		Atomic_StoreUInt32 (&tx->update_warp, false); // johnfitz
 		tx->warpimage = NULL;                         // johnfitz
@@ -754,19 +746,15 @@ static void Mod_LoadTextures (qmodel_t *mod, byte *mod_base, lump_t *l)
 
 	if (!isDedicated)
 	{
-		load_texture_task_args_t args = {
-			.mod = mod,
-			.mod_base = mod_base,
-		};
 		if (!Tasks_IsWorker () && (nummiptex > 1))
 		{
-			task_handle_t task = Task_AllocateAssignIndexedFuncAndSubmit ((task_indexed_func_t)Mod_LoadTextureTask, nummiptex, &args, sizeof (args));
+			task_handle_t task = Task_AllocateAssignIndexedFuncAndSubmit ((task_indexed_func_t)Mod_LoadTextureTask, nummiptex, &mod, sizeof (mod));
 			Task_Join (task, SDL_MUTEX_MAXWAIT);
 		}
 		else
 		{
 			for (i = 0; i < nummiptex; i++)
-				Mod_LoadTextureTask (i, &args);
+				Mod_LoadTextureTask (i, &mod);
 		}
 	}
 

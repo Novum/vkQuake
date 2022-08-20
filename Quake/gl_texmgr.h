@@ -51,7 +51,6 @@ enum srcformat
 	SRC_SURF_INDICES
 };
 
-typedef uintptr_t src_offset_t;
 struct glheap_s;
 struct glheapnode_s;
 
