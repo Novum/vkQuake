@@ -1406,6 +1406,7 @@ static void Host_Loadgame_f (void)
 			else
 			{
 				memset (ent, 0, qcvm->edict_size);
+				ent->baseline = nullentitystate;
 			}
 			data = ED_ParseEdict (data, ent);
 

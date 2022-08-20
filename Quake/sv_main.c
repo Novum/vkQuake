@@ -1859,7 +1859,7 @@ void SV_WriteEntitiesToClient (client_t *client, sizebuf_t *msg, size_t overflow
 	eval_t      *val;
 	size_t       rollbacksize, origmaxsize = msg->maxsize;
 	qboolean     sort = sv_netsort.value > 1;
-	float        scale = ENTSCALE_DEFAULT;
+	float        scale;
 
 	// with sv_netsort = 1, sort only if (any client) overflowed in the last 10 seconds
 	if (sv_netsort.value == 1 && dev_overflows.packetsize + 10 > realtime)
@@ -2030,8 +2030,7 @@ void SV_WriteEntitiesToClient (client_t *client, sizebuf_t *msg, size_t overflow
 		// johnfitz
 
 		val = GetEdictFieldValue (ent, qcvm->extfields.scale);
-		if (val)
-			scale = ENTSCALE_ENCODE (val->_float);
+		scale = val ? ENTSCALE_ENCODE (val->_float) : ENTSCALE_DEFAULT;
 
 		// johnfitz -- PROTOCOL_FITZQUAKE
 		if (sv.protocol != PROTOCOL_NETQUAKE)
@@ -2047,7 +2046,7 @@ void SV_WriteEntitiesToClient (client_t *client, sizebuf_t *msg, size_t overflow
 			}
 			else
 #endif
-				if (ent->baseline.scale != ENTSCALE_DEFAULT) // for 666, we didn't send the scale in the baseline!
+				if (ENTSCALE_DEFAULT != scale) // for 666, we didn't send the scale in the baseline!
 					bits |= U_SCALE;
 			if (bits & U_FRAME && (int)ent->v.frame & 0xFF00)
 				bits |= U_FRAME2;
