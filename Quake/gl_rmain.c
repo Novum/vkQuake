@@ -768,21 +768,50 @@ static void R_DrawViewModelTask (void *unused)
 
 /*
 ================
+R_PrintStats
+================
+*/
+static void R_PrintStats (double time1)
+{
+	// johnfitz -- modified r_speeds output
+	double time2 = 0;
+	if (r_speeds.value)
+		time2 = Sys_DoubleTime ();
+	if (r_pos.value)
+		Con_Printf (
+			"x %i y %i z %i (pitch %i yaw %i roll %i)\n", (int)cl.entities[cl.viewentity].origin[0], (int)cl.entities[cl.viewentity].origin[1],
+			(int)cl.entities[cl.viewentity].origin[2], (int)cl.viewangles[PITCH], (int)cl.viewangles[YAW], (int)cl.viewangles[ROLL]);
+	else if (r_speeds.value == 2)
+		Con_Printf (
+			"%6.3f ms  %4u/%4u wpoly %4u/%4u epoly %3u lmap %4u/%4u sky\n", (time2 - time1) * 1000.0, rs_brushpolys, rs_brushpasses, rs_aliaspolys,
+			rs_aliaspasses, rs_dynamiclightmaps, rs_skypolys, rs_skypasses);
+	else if (r_speeds.value)
+		Con_Printf ("%3i ms  %4i wpoly %4i epoly %3i lmap\n", (int)((time2 - time1) * 1000), rs_brushpolys, rs_aliaspolys, rs_dynamiclightmaps);
+	// johnfitz
+}
+
+/*
+================
 R_RenderView
 ================
 */
 void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_handle_t setup_frame_task, task_handle_t draw_done_task)
 {
-	double time1, time2;
+	static qboolean stats_ready;
+	double          time1;
 
 	if (!cl.worldmodel)
 		Sys_Error ("R_RenderView: NULL worldmodel");
 
 	time1 = 0; /* avoid compiler warning */
 	if (r_speeds.value)
-	{
 		time1 = Sys_DoubleTime ();
 
+	if (use_tasks && (r_pos.value || stats_ready))
+		R_PrintStats (time1); // time2 will be ~= time1
+
+	if (r_speeds.value)
+	{
 		// johnfitz -- rendering statistics
 		Atomic_StoreUInt32 (&rs_brushpolys, 0u);
 		Atomic_StoreUInt32 (&rs_aliaspolys, 0u);
@@ -793,7 +822,10 @@ void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 		Atomic_StoreUInt32 (&rs_aliaspasses, 0u);
 		Atomic_StoreUInt32 (&rs_skypasses, 0u);
 		Atomic_StoreUInt32 (&rs_brushpasses, 0u);
+		stats_ready = true;
 	}
+	else
+		stats_ready = false;
 
 	cb_context_t *primary_cbx = &vulkan_globals.primary_cb_context;
 	if (use_tasks)
@@ -870,21 +902,6 @@ void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 		R_DrawViewModelTask (NULL);
 		if (r_gpulightmapupdate.value)
 			R_UpdateLightmaps (NULL);
+		R_PrintStats (time1);
 	}
-
-	// johnfitz
-
-	// johnfitz -- modified r_speeds output
-	time2 = Sys_DoubleTime ();
-	if (r_pos.value)
-		Con_Printf (
-			"x %i y %i z %i (pitch %i yaw %i roll %i)\n", (int)cl.entities[cl.viewentity].origin[0], (int)cl.entities[cl.viewentity].origin[1],
-			(int)cl.entities[cl.viewentity].origin[2], (int)cl.viewangles[PITCH], (int)cl.viewangles[YAW], (int)cl.viewangles[ROLL]);
-	else if (r_speeds.value == 2)
-		Con_Printf (
-			"%6.3f ms  %4u/%4u wpoly %4u/%4u epoly %3u lmap %4u/%4u sky\n", (time2 - time1) * 1000.0, rs_brushpolys, rs_brushpasses, rs_aliaspolys,
-			rs_aliaspasses, rs_dynamiclightmaps, rs_skypolys, rs_skypasses);
-	else if (r_speeds.value)
-		Con_Printf ("%3i ms  %4i wpoly %4i epoly %3i lmap\n", (int)((time2 - time1) * 1000), rs_brushpolys, rs_aliaspolys, rs_dynamiclightmaps);
-	// johnfitz
 }
