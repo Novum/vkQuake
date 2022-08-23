@@ -2200,7 +2200,7 @@ static void PF_sv_getlight (void)
 
 	// FIXME: seems like quakespasm doesn't do lits for model lighting, so we won't either.
 	vec3_t lightcolor;
-	G_FLOAT (OFS_RETURN + 0) = G_FLOAT (OFS_RETURN + 1) = G_FLOAT (OFS_RETURN + 2) = R_LightPoint (point, NULL, &lightcolor) / 255.0;
+	G_FLOAT (OFS_RETURN + 0) = G_FLOAT (OFS_RETURN + 1) = G_FLOAT (OFS_RETURN + 2) = R_LightPoint (point, 0.f, NULL, &lightcolor) / 255.0;
 
 	cl.worldmodel = om;
 }
