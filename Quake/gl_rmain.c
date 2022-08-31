@@ -481,7 +481,7 @@ R_DrawViewModel -- johnfitz -- gutted
 */
 void R_DrawViewModel (cb_context_t *cbx)
 {
-	if (!r_drawviewmodel.value || !r_drawentities.value || chase_active.value)
+	if (!r_drawviewmodel.value || !r_drawentities.value || chase_active.value || scr_viewsize.value >= 130)
 		return;
 
 	if (cl.items & IT_INVISIBILITY || cl.stats[STAT_HEALTH] <= 0)
@@ -664,7 +664,7 @@ void R_ShowTris (cb_context_t *cbx)
 		// viewmodel
 		entity_t *currententity = &cl.viewent;
 		if (r_drawviewmodel.value && !chase_active.value && cl.stats[STAT_HEALTH] > 0 && !(cl.items & IT_INVISIBILITY) && currententity->model &&
-		    currententity->model->type == mod_alias)
+		    currententity->model->type == mod_alias && scr_viewsize.value < 130)
 		{
 			R_DrawAliasModel_ShowTris (cbx, currententity);
 		}

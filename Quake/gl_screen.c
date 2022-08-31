@@ -311,8 +311,8 @@ static void SCR_CalcRefdef (void)
 	// bound viewsize
 	if (scr_viewsize.value < 30)
 		Cvar_SetQuick (&scr_viewsize, "30");
-	if (scr_viewsize.value > 120)
-		Cvar_SetQuick (&scr_viewsize, "120");
+	if (scr_viewsize.value > 130)
+		Cvar_SetQuick (&scr_viewsize, "130");
 
 	// bound fov
 	if (scr_fov.value < 10)
@@ -553,7 +553,7 @@ void SCR_DrawFPS (cb_context_t *cbx)
 		oldframecount = r_framecount;
 	}
 
-	if (scr_showfps.value)
+	if (scr_showfps.value && scr_viewsize.value < 130)
 	{
 		char st[16];
 		int  x, y;
@@ -588,7 +588,7 @@ void SCR_DrawClock (cb_context_t *cbx)
 		shown_pause = true;
 	}
 
-	if (scr_clock.value == 0 && scr_clock_off <= 0)
+	if ((scr_clock.value == 0 && scr_clock_off <= 0) || scr_viewsize.value >= 130)
 		return;
 
 	scr_clock_off -= host_frametime / (cls.demospeed ? cls.demospeed : 1.f);
@@ -761,7 +761,7 @@ SCR_DrawCrosshair -- johnfitz
 */
 void SCR_DrawCrosshair (cb_context_t *cbx)
 {
-	if (!crosshair.value)
+	if (!crosshair.value || scr_viewsize.value >= 130)
 		return;
 
 	GL_SetCanvas (cbx, CANVAS_CROSSHAIR);
