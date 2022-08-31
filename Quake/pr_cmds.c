@@ -1194,7 +1194,7 @@ static void PF_sv_precache_model (void)
 
 static void PF_coredump (void)
 {
-	ED_PrintEdicts ();
+	Cbuf_AddText ("edicts\n");
 }
 
 static void PF_traceon (void)
