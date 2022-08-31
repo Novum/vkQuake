@@ -2001,6 +2001,7 @@ _add_path:
 
 		if ((i == 0) && (path_id == 1) && !fitzmode)
 		{
+			qboolean pak0_modified = com_modified;
 			Sys_MemFileOpenRead (vkquake_pak, vkquake_pak_size, &packhandle);
 			pak = COM_LoadPackFile ("vkquake.pak", packhandle);
 			search = (searchpath_t *)Mem_Alloc (sizeof (searchpath_t));
@@ -2008,6 +2009,7 @@ _add_path:
 			search->pack = pak;
 			search->next = com_searchpaths;
 			com_searchpaths = search;
+			com_modified = pak0_modified;
 		}
 
 		if (!pak)
