@@ -1860,6 +1860,7 @@ void SV_WriteEntitiesToClient (client_t *client, sizebuf_t *msg, size_t overflow
 	size_t       rollbacksize, origmaxsize = msg->maxsize;
 	qboolean     sort = sv_netsort.value > 1;
 	float        scale;
+	const char  *model;
 
 	// with sv_netsort = 1, sort only if (any client) overflowed in the last 10 seconds
 	if (sv_netsort.value == 1 && dev_overflows.packetsize + 10 > realtime)
@@ -1899,7 +1900,7 @@ void SV_WriteEntitiesToClient (client_t *client, sizebuf_t *msg, size_t overflow
 		if (ent != clent) // clent already added before the loop
 		{
 			// ignore ents without visible models
-			if (!ent->v.modelindex || !PR_GetString (ent->v.model)[0])
+			if (!ent->v.modelindex || !(model = PR_GetString (ent->v.model))[0])
 				continue;
 
 			// johnfitz -- don't send model>255 entities if protocol is 15
@@ -1932,6 +1933,20 @@ void SV_WriteEntitiesToClient (client_t *client, sizebuf_t *msg, size_t overflow
 					size += delta * delta;
 				}
 				size = q_max (1.f, size);
+
+				// prioritize projectiles
+				if (ent->v.movetype == MOVETYPE_FLYMISSILE)
+				{
+					vec3_t to_self;
+					VectorSubtract (org, ent->v.origin, to_self);
+					float direction = DotProduct (ent->v.velocity, to_self);
+					if (direction > 0) // coming toward us
+						size += (strstr (model, "spike") || strstr (model, "ng")) ? 1728 : 5184; // add a humanoid's worth of size, or a 24-sided cube for spikes
+					else
+						size += (strstr (model, "miss") || strstr (model, "rocket")) ? 3072 : 768; // add a 16-sided cube worth of size, or 32-sided for rockets
+				}
+				else if (ent->v.movetype == MOVETYPE_BOUNCE) // grenades, gibs
+					size += (ent->v.nextthink > 0) ? 3072 : 768; // for static gibs, add a 16-sided cube. for temporary gibs and grenades, 32-sided cube
 
 				// use scaled square root of (distance/size) as sort key
 				dist = 8.f * sqrt (sqrt (dist / size));
