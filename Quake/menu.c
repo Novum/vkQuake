@@ -1726,7 +1726,11 @@ void M_Mods_Key (int key)
 		S_LocalSound ("misc/menu1.wav");
 		prev_mods_cursor = mods_cursor;
 	}
-	first_mod = CLAMP (mods_cursor - MAX_MODS_ON_SCREEN + 1, first_mod, mods_cursor);
+
+	if (num_mods <= MAX_MODS_ON_SCREEN)
+		first_mod = 0;
+	else
+		first_mod = CLAMP (mods_cursor - MAX_MODS_ON_SCREEN + 1, first_mod, mods_cursor);
 }
 
 //=============================================================================
