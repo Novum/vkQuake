@@ -1720,7 +1720,11 @@ void M_Mods_Key (int key)
 		break;
 	}
 
-	mods_cursor = CLAMP (0, mods_cursor, num_mods - 1);
+	if (num_mods == 0)
+		mods_cursor = 0;
+	else
+		mods_cursor = CLAMP (0, mods_cursor, num_mods - 1);
+
 	if (mods_cursor != prev_mods_cursor)
 	{
 		S_LocalSound ("misc/menu1.wav");
