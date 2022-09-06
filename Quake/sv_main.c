@@ -1934,19 +1934,20 @@ void SV_WriteEntitiesToClient (client_t *client, sizebuf_t *msg, size_t overflow
 				}
 				size = q_max (1.f, size);
 
-				// prioritize projectiles
-				if (ent->v.movetype == MOVETYPE_FLYMISSILE)
+				// prioritize point-sized projectiles that do something on impact
+				if (size < 50 && ent->v.touch)
 				{
-					vec3_t to_self;
-					VectorSubtract (org, ent->v.origin, to_self);
-					float direction = DotProduct (ent->v.velocity, to_self);
-					if (direction > 0) // coming toward us
-						size += (strstr (model, "spike") || strstr (model, "ng")) ? 1728 : 5184; // add a humanoid's worth of size, or a 24-sided cube for spikes
-					else
-						size += (strstr (model, "miss") || strstr (model, "rocket")) ? 3072 : 768; // add a 16-sided cube worth of size, or 32-sided for rockets
+					if (ent->v.movetype == MOVETYPE_FLYMISSILE || ent->v.movetype == MOVETYPE_FLY)
+					{
+						vec3_t to_self;
+						VectorSubtract (org, ent->v.origin, to_self);
+						float direction = DotProduct (ent->v.velocity, to_self); // if >0, coming toward us; otherwise rockets always get priority
+						size = (direction > 0 || strstr (model, "miss") || strstr (model, "rocket")) ? 3072 : 768; // set a 32-/16-sided cube's size
+					}
+					else if (ent->v.movetype == MOVETYPE_BOUNCE || (ent->v.movetype == MOVETYPE_TOSS && abs (ent->v.velocity[2])))
+						// for gibs, set size to a 16-sided cube. for grenades / lavaballs, 32-sided cube
+						size = (ent->v.nextthink > 0 && !strstr (model, "gib")) ? 3072 : 768;
 				}
-				else if (ent->v.movetype == MOVETYPE_BOUNCE) // grenades, gibs
-					size += (ent->v.nextthink > 0) ? 3072 : 768; // for static gibs, add a 16-sided cube. for temporary gibs and grenades, 32-sided cube
 
 				// use scaled square root of (distance/size) as sort key
 				dist = 8.f * sqrt (sqrt (dist / size));
