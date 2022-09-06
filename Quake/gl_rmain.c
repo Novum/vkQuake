@@ -183,7 +183,6 @@ qboolean R_CullModelForEntity (entity_t *e)
 R_RotateForEntity -- johnfitz -- modified to take origin and angles instead of pointer to entity
 ===============
 */
-#define DEG2RAD(a) ((a)*M_PI_DIV_180)
 void R_RotateForEntity (float matrix[16], vec3_t origin, vec3_t angles, unsigned char scale)
 {
 	float translation_matrix[16];

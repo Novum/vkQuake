@@ -272,6 +272,9 @@ typedef struct
 
 	qcvm_t qcvm; // for csqc.
 
+	float zoom;
+	float zoomdir;
+
 	char serverinfo[8192]; // \key\value infostring data.
 } client_state_t;
 

@@ -219,6 +219,7 @@ void IN_Shutdown (void)
 
 extern cvar_t cl_maxpitch; /* johnfitz -- variable pitch clamping */
 extern cvar_t cl_minpitch; /* johnfitz -- variable pitch clamping */
+extern cvar_t scr_fov;
 
 void IN_MouseMotion (int dx, int dy)
 {
@@ -557,9 +558,13 @@ void IN_JoyMove (usercmd_t *cmd)
 void IN_MouseMove (usercmd_t *cmd)
 {
 	float dmx, dmy;
+	float sens;
 
-	dmx = total_dx * sensitivity.value;
-	dmy = total_dy * sensitivity.value;
+	sens = tan (DEG2RAD (r_refdef.basefov) * 0.5f) / tan (DEG2RAD (scr_fov.value) * 0.5f);
+	sens *= sensitivity.value;
+
+	dmx = total_dx * sens;
+	dmy = total_dy * sens;
 
 	total_dx = 0;
 	total_dy = 0;

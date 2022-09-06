@@ -28,8 +28,6 @@ vec3_t vec3_origin = {0, 0, 0};
 
 /*-----------------------------------------------------------------*/
 
-//#define DEG2RAD( a ) ( a * M_PI ) / 180.0F
-#define DEG2RAD(a)              ((a)*M_PI_DIV_180) // johnfitz
 #define ARCSECS_PER_RIGHT_ANGLE 324000
 #define ARRSECS_PER_DEGREE      3600.f
 
