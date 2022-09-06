@@ -52,4 +52,7 @@ void IN_Activate ();
 // called when the app becomes inactive
 void IN_Deactivate (qboolean free_cursor);
 
+// called when switching to fullscreen while in menu or console
+void IN_HideCursor ();
+
 #endif /* _QUAKE_INPUT_H */

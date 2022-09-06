@@ -3248,7 +3248,7 @@ static void VID_Restart (qboolean set_mode)
 		if (modestate == MS_WINDOWED)
 			IN_Deactivate (true);
 		else if (modestate == MS_FULLSCREEN)
-			IN_Activate ();
+			IN_HideCursor ();
 	}
 
 	R_InitSamplers ();
@@ -3301,7 +3301,7 @@ void VID_Toggle (void)
 			if (modestate == MS_WINDOWED)
 				IN_Deactivate (true);
 			else if (modestate == MS_FULLSCREEN)
-				IN_Activate ();
+				IN_HideCursor ();
 		}
 	}
 }

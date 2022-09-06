@@ -117,6 +117,17 @@ void IN_Deactivate (qboolean free_cursor)
 	IN_BeginIgnoringMouseEvents ();
 }
 
+void IN_HideCursor ()
+{
+	if (no_mouse)
+		return;
+
+	if (SDL_SetRelativeMouseMode (SDL_TRUE) != 0)
+	{
+		Con_Printf ("WARNING: SDL_SetRelativeMouseMode(SDL_TRUE) failed.\n");
+	}
+}
+
 void IN_StartupJoystick (void)
 {
 	int                 i;
