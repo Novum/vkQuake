@@ -203,7 +203,7 @@ areanode_t *SV_CreateAreaNode (int depth, vec3_t mins, vec3_t maxs)
 	else
 		anode->axis = 1;
 
-	if (depth == MAX_AREA_DEPTH || size[anode->axis] < 500)
+	if (pr_checkextension.value ? depth == MAX_AREA_DEPTH || size[anode->axis] < 500 : depth == VANILLA_AREA_DEPTH)
 	{
 		anode->axis = -1;
 		anode->children[0] = anode->children[1] = NULL;
