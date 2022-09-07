@@ -124,7 +124,6 @@ qpic_t *scr_net;
 qpic_t *scr_turtle;
 
 int clearconsole;
-int clearnotify;
 
 vrect_t scr_vrect;
 
