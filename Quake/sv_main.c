@@ -1944,7 +1944,7 @@ void SV_WriteEntitiesToClient (client_t *client, sizebuf_t *msg, size_t overflow
 						float direction = DotProduct (ent->v.velocity, to_self); // if >0, coming toward us; otherwise rockets always get priority
 						size = (direction > 0 || strstr (model, "miss") || strstr (model, "rocket")) ? 3072 : 768; // set a 32-/16-sided cube's size
 					}
-					else if (ent->v.movetype == MOVETYPE_BOUNCE || (ent->v.movetype == MOVETYPE_TOSS && fabsf (ent->v.velocity[2]) < 1.0f))
+					else if (ent->v.movetype == MOVETYPE_BOUNCE || (ent->v.movetype == MOVETYPE_TOSS && abs ((int)ent->v.velocity[2])))
 						// for gibs, set size to a 16-sided cube. for grenades / lavaballs, 32-sided cube
 						size = (ent->v.nextthink > 0 && !strstr (model, "gib")) ? 3072 : 768;
 				}
