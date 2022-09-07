@@ -4342,20 +4342,20 @@ static void         DrawQC_CharacterQuad (cb_context_t *cbx, float x, float y, i
 	corner_verts[0].texcoord[0] = fcol;
 	corner_verts[0].texcoord[1] = frow;
 
-	corner_verts[1].position[0] = x + 8;
+	corner_verts[1].position[0] = x + w;
 	corner_verts[1].position[1] = y;
 	corner_verts[1].position[2] = 0.0f;
 	corner_verts[1].texcoord[0] = fcol + size;
 	corner_verts[1].texcoord[1] = frow;
 
-	corner_verts[2].position[0] = x + 8;
-	corner_verts[2].position[1] = y + 8;
+	corner_verts[2].position[0] = x + w;
+	corner_verts[2].position[1] = y + h;
 	corner_verts[2].position[2] = 0.0f;
 	corner_verts[2].texcoord[0] = fcol + size;
 	corner_verts[2].texcoord[1] = frow + size;
 
 	corner_verts[3].position[0] = x;
-	corner_verts[3].position[1] = y + 8;
+	corner_verts[3].position[1] = y + h;
 	corner_verts[3].position[2] = 0.0f;
 	corner_verts[3].texcoord[0] = fcol;
 	corner_verts[3].texcoord[1] = frow + size;
