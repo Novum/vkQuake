@@ -239,20 +239,27 @@ static void Modlist_Add (const char *name)
 	struct stat maps_info;
 	if ((strlen (name) == 3) && (tolower (name[0]) == 'i') && (tolower (name[1]) == 'd') && (name[2] == '1'))
 		return;
+	if (COM_ModForbiddenChars (name))
+		return;
 	char pak_path[MAX_OSPATH];
 	char progs_path[MAX_OSPATH];
+	char csprogs_path[MAX_OSPATH];
 	char maps_path[MAX_OSPATH];
 	q_snprintf (pak_path, sizeof (pak_path), "%s/%s/pak0.pak", com_basedir, name);
 	q_snprintf (progs_path, sizeof (progs_path), "%s/%s/progs.dat", com_basedir, name);
+	q_snprintf (csprogs_path, sizeof (csprogs_path), "%s/%s/csprogs.dat", com_basedir, name);
 	q_snprintf (maps_path, sizeof (maps_path), "%s/%s/maps", com_basedir, name);
 	FILE *pak_file = fopen (pak_path, "rb");
 	FILE *progs_file = fopen (progs_path, "rb");
-	if (pak_file || progs_file || (stat (maps_path, &maps_info) == 0 && maps_info.st_mode & S_IFDIR))
+	FILE *csprogs_file = fopen (csprogs_path, "rb");
+	if (pak_file || progs_file || csprogs_file || (stat (maps_path, &maps_info) == 0 && maps_info.st_mode & S_IFDIR))
 		FileList_Add (name, &modlist);
 	if (pak_file)
 		fclose (pak_file);
 	if (progs_file)
 		fclose (progs_file);
+	if (csprogs_file)
+		fclose (csprogs_file);
 }
 
 #ifdef _WIN32

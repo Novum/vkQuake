@@ -1683,9 +1683,9 @@ void M_Mods_Key (int key)
 		for (filelist_item_t *item = modlist; item; item = item->next)
 			if (mod_index++ == mods_cursor)
 			{
-				Cbuf_AddText ("game ");
+				Cbuf_AddText ("game \"");
 				Cbuf_AddText (item->name);
-				Cbuf_AddText ("\n");
+				Cbuf_AddText ("\"\n");
 				mod_loaded_from_menu = 1;
 				m_state = m_main;
 			}

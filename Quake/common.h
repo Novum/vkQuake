@@ -279,6 +279,7 @@ extern THREAD_LOCAL int file_from_pak; // global indicating that file came from 
 
 const char *COM_GetGameNames (qboolean full);
 qboolean    COM_GameDirMatches (const char *tdirs);
+qboolean    COM_ModForbiddenChars (const char *p);
 
 void     COM_WriteFile (const char *filename, const void *data, int len);
 int      COM_OpenFile (const char *filename, int *handle, unsigned int *path_id);

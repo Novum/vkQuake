@@ -2075,6 +2075,11 @@ void COM_ResetGameDirectories (const char *newdirs)
 	Mem_Free (newgamedirs);
 }
 
+qboolean COM_ModForbiddenChars (const char *p)
+{
+	return !*p || !strcmp (p, ".") || strstr (p, "..") || strstr (p, "/") || strstr (p, "\\") || strstr (p, ":") || strstr (p, "\"") || strstr (p, ";");
+}
+
 //==============================================================================
 // johnfitz -- dynamic gamedir stuff -- modified by QuakeSpasm team.
 //==============================================================================
@@ -2109,7 +2114,7 @@ static void COM_Game_f (void)
 				else if (*p == '-')
 					continue;
 
-				if (!*p || !strcmp (p, ".") || strstr (p, "..") || strstr (p, "/") || strstr (p, "\\") || strstr (p, ":"))
+				if (COM_ModForbiddenChars (p))
 				{
 					Con_Printf ("gamedir should be a single directory name, not a path\n");
 					return;
@@ -2209,7 +2214,7 @@ void COM_InitFilesystem (void) // johnfitz -- modified based on topaz's tutorial
 				break;
 
 			p = com_argv[i + 1];
-			if (!*p || !strcmp (p, ".") || strstr (p, "..") || strstr (p, "/") || strstr (p, "\\") || strstr (p, ":"))
+			if (COM_ModForbiddenChars (p))
 				Sys_Error ("gamedir should be a single directory name, not a path\n");
 			if (p != NULL)
 				COM_AddGameDirectory (p);
@@ -2243,7 +2248,7 @@ void COM_InitFilesystem (void) // johnfitz -- modified based on topaz's tutorial
 			break;
 
 		p = com_argv[i + 1];
-		if (!*p || !strcmp (p, ".") || strstr (p, "..") || strstr (p, "/") || strstr (p, "\\") || strstr (p, ":"))
+		if (COM_ModForbiddenChars (p))
 			Sys_Error ("gamedir should be a single directory name, not a path\n");
 		com_modified = true;
 		if (p != NULL)
