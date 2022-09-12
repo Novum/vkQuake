@@ -1766,16 +1766,23 @@ byte *COM_LoadMallocFile_TextMode_OSPath (const char *path, long *len_out)
 
 	len = COM_filelength (f);
 	if (len < 0)
+	{
+		fclose (f);
 		return NULL;
+	}
 
 	data = (byte *)Mem_Alloc (len + 1);
 	if (data == NULL)
+	{
+		fclose (f);
 		return NULL;
+	}
 
 	// (actuallen < len) if CRLF to LF translation was performed
 	actuallen = fread (data, 1, len, f);
 	if (ferror (f))
 	{
+		fclose (f);
 		Mem_Free (data);
 		return NULL;
 	}
@@ -1783,6 +1790,7 @@ byte *COM_LoadMallocFile_TextMode_OSPath (const char *path, long *len_out)
 
 	if (len_out != NULL)
 		*len_out = actuallen;
+	fclose (f);
 	return data;
 }
 
