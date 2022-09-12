@@ -3232,7 +3232,7 @@ void R_NewMap (void)
 	r_viewleaf = NULL;
 	R_ClearParticles ();
 #ifdef PSET_SCRIPT
-	PScript_ClearParticles ();
+	PScript_ClearParticles (true);
 #endif
 	GL_DeleteBModelVertexBuffer ();
 

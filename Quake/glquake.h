@@ -107,7 +107,7 @@ int  PScript_RunParticleEffectTypeString (vec3_t org, vec3_t dir, float count, c
 int  PScript_EntParticleTrail (vec3_t oldorg, entity_t *ent, const char *name);
 int  PScript_RunParticleEffect (vec3_t org, vec3_t dir, int color, int count);
 void PScript_DelinkTrailstate (struct trailstate_s **tsk);
-void PScript_ClearParticles (void);
+void PScript_ClearParticles (qboolean load);
 void PScript_UpdateModelEffects (qmodel_t *mod);
 void PScript_ClearSurfaceParticles (qmodel_t *mod); // model is being unloaded.
 

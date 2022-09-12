@@ -3493,11 +3493,12 @@ void PScript_RecalculateSkyTris (void)
 P_ClearParticles
 ===============
 */
-void PScript_ClearParticles (void)
+void PScript_ClearParticles (qboolean load)
 {
 	int i;
 
-	PScript_Startup ();
+	if (load)
+		PScript_Startup ();
 
 	free_particles = &particles[0];
 	for (i = 0; i < r_numparticles; i++)
@@ -3520,10 +3521,9 @@ void PScript_ClearParticles (void)
 
 	particletime = cl.time;
 
-	for (i = 0; i < numparticletypes; i++)
-	{
-		P_LoadTexture (&part_type[i], false);
-	}
+	if (load)
+		for (i = 0; i < numparticletypes; i++)
+			P_LoadTexture (&part_type[i], false);
 
 	for (i = 0; i < numparticletypes; i++)
 	{
@@ -3533,7 +3533,7 @@ void PScript_ClearParticles (void)
 	}
 
 	PScript_ClearAllSurfaceParticles ();
-	r_plooksdirty = true;
+	r_plooksdirty = load;
 
 	CL_ClearTrailStates ();
 }

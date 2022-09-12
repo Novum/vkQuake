@@ -213,7 +213,7 @@ void CL_Seek_f (void)
 		Sky_NewMap ();
 		R_ClearParticles ();
 #ifdef PSET_SCRIPT
-		PScript_ClearParticles ();
+		PScript_ClearParticles (false);
 #endif
 		SCR_CenterPrintClear ();
 		cl.intermission = 0;
