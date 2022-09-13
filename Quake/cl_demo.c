@@ -329,7 +329,7 @@ static void CL_Record_Serverdata (void)
 }
 
 // spins out a baseline(idx>=0) or static entity(idx<0) into net_message
-void CL_Record_Prespawn (void)
+static void CL_Record_Prespawn (void)
 {
 	int idx, i;
 
@@ -422,7 +422,7 @@ void CL_Record_Prespawn (void)
 	SZ_Clear (&net_message);
 }
 
-void CL_Record_Spawn (void)
+static void CL_Record_Spawn (void)
 {
 	int i;
 
@@ -511,6 +511,24 @@ void CL_Record_Spawn (void)
 		cl.ackframes_count = 0;
 		cl.ackframes[cl.ackframes_count++] = -1;
 	}
+}
+
+static void CL_Record_Signons (void)
+{
+	byte *data = net_message.data;
+	int   cursize = net_message.cursize;
+	byte  weirdaltbufferthatprobablyisntneeded[NET_MAXMESSAGE];
+
+	net_message.data = weirdaltbufferthatprobablyisntneeded;
+	SZ_Clear (&net_message);
+
+	CL_Record_Serverdata ();
+	CL_Record_Prespawn ();
+	CL_Record_Spawn ();
+
+	// restore net_message
+	net_message.data = data;
+	net_message.cursize = cursize;
 }
 
 /*
@@ -612,22 +630,7 @@ void CL_Record_f (void)
 
 	// from ProQuake: initialize the demo file if we're already connected
 	if (c == 2 && cls.state == ca_connected)
-	{
-		byte *data = net_message.data;
-		int   cursize = net_message.cursize;
-		byte  weirdaltbufferthatprobablyisntneeded[NET_MAXMESSAGE];
-
-		net_message.data = weirdaltbufferthatprobablyisntneeded;
-		SZ_Clear (&net_message);
-
-		CL_Record_Serverdata ();
-		CL_Record_Prespawn ();
-		CL_Record_Spawn ();
-
-		// restore net_message
-		net_message.data = data;
-		net_message.cursize = cursize;
-	}
+		CL_Record_Signons ();
 }
 
 /*
@@ -637,7 +640,7 @@ CL_Resume_Record
 Keep recording demo after loading a savegame
 ====================
 */
-void CL_Resume_Record (void)
+void CL_Resume_Record (qboolean recordsignons)
 {
 	cls.demofile = fopen (name, "r+b");
 	if (!cls.demofile)
@@ -649,6 +652,8 @@ void CL_Resume_Record (void)
 	fseek (cls.demofile, -17, SEEK_END);
 	Con_Printf ("Demo recording resumed\n");
 	cls.demorecording = true;
+	if (recordsignons)
+		CL_Record_Signons ();
 }
 
 /*

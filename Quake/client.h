@@ -394,7 +394,7 @@ void CL_Stop_f (void);
 void CL_Record_f (void);
 void CL_PlayDemo_f (void);
 void CL_TimeDemo_f (void);
-void CL_Resume_Record (void);
+void CL_Resume_Record (qboolean recordsignons);
 
 //
 // cl_parse.c

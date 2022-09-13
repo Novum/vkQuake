@@ -1183,6 +1183,81 @@ static void Host_Savegame_f (void)
 	SaveList_Rebuild ();
 }
 
+static void Send_Spawn_Info (client_t *c)
+{
+	int       i;
+	client_t *client;
+	edict_t  *ent;
+
+	// send all current names, colors, and frag counts
+	SZ_Clear (&c->message);
+
+	// send time of update
+	MSG_WriteByte (&c->message, svc_time);
+	MSG_WriteFloat (&c->message, qcvm->time);
+	if (c->protocol_pext2 & PEXT2_PREDINFO)
+		MSG_WriteShort (&c->message, (c->lastmovemessage & 0xffff));
+
+	for (i = 0, client = svs.clients; i < svs.maxclients; i++, client++)
+	{
+		if (!client->knowntoqc)
+			continue;
+
+		MSG_WriteByte (&c->message, svc_updatename);
+		MSG_WriteByte (&c->message, i);
+		MSG_WriteString (&c->message, client->name);
+		MSG_WriteByte (&c->message, svc_updatecolors);
+		MSG_WriteByte (&c->message, i);
+		MSG_WriteByte (&c->message, client->colors);
+
+		MSG_WriteByte (&c->message, svc_updatefrags);
+		MSG_WriteByte (&c->message, i);
+		MSG_WriteShort (&c->message, client->old_frags);
+	}
+
+	// send all current light styles
+	for (i = 0; i < MAX_LIGHTSTYLES; i++)
+	{
+		MSG_WriteByte (&c->message, svc_lightstyle);
+		MSG_WriteByte (&c->message, (char)i);
+		MSG_WriteString (&c->message, sv.lightstyles[i]);
+	}
+
+	//
+	// send some stats
+	//
+	MSG_WriteByte (&c->message, svc_updatestat);
+	MSG_WriteByte (&c->message, STAT_TOTALSECRETS);
+	MSG_WriteLong (&c->message, pr_global_struct->total_secrets);
+
+	MSG_WriteByte (&c->message, svc_updatestat);
+	MSG_WriteByte (&c->message, STAT_TOTALMONSTERS);
+	MSG_WriteLong (&c->message, pr_global_struct->total_monsters);
+
+	MSG_WriteByte (&c->message, svc_updatestat);
+	MSG_WriteByte (&c->message, STAT_SECRETS);
+	MSG_WriteLong (&c->message, pr_global_struct->found_secrets);
+
+	MSG_WriteByte (&c->message, svc_updatestat);
+	MSG_WriteByte (&c->message, STAT_MONSTERS);
+	MSG_WriteLong (&c->message, pr_global_struct->killed_monsters);
+
+	//
+	// send a fixangle
+	// Never send a roll angle, because savegames can catch the server
+	// in a state where it is expecting the client to correct the angle
+	// and it won't happen if the game was just loaded, so you wind up
+	// with a permanent head tilt
+	ent = EDICT_NUM (1 + (c - svs.clients));
+	MSG_WriteByte (&c->message, svc_setangle);
+	for (i = 0; i < 2; i++)
+		MSG_WriteAngle (&c->message, ent->v.angles[i], sv.protocolflags);
+	MSG_WriteAngle (&c->message, 0, sv.protocolflags);
+
+	if (!(c->protocol_pext2 & PEXT2_REPLACEMENTDELTAS))
+		SV_WriteClientdataToMessage (c, &c->message);
+}
+
 /*
 ===============
 Host_Loadgame_f
@@ -1202,13 +1277,15 @@ static void Host_Loadgame_f (void)
 	int         version;
 	float       spawn_parms[NUM_TOTAL_SPAWN_PARMS];
 	qboolean    was_recording = cls.demorecording;
+	int         old_skill = current_skill;
+	qboolean    fastload = !!strstr (Cmd_Argv (0), "fast");
 
 	if (cmd_source != src_command)
 		return;
 
 	if (Cmd_Argc () != 2)
 	{
-		Con_Printf ("load <savename> : load a game\n");
+		Con_Printf ("%s <savename> : load a game\n", Cmd_Argv (0));
 		return;
 	}
 
@@ -1278,10 +1355,31 @@ static void Host_Loadgame_f (void)
 	q_strlcpy (mapname, com_token, sizeof (mapname));
 	data = COM_ParseFloatNewline (data, &time);
 
-	CL_Disconnect_f ();
+	if (fastload && (!sv.active || cls.signon != SIGNONS || svs.maxclients != 1))
+	{
+		Con_Printf ("Not in a local singleplayer game - can't fastload\n");
+		fastload = 0;
+	}
+	if (fastload && (strcmp (mapname, sv.name) || current_skill != old_skill))
+	{
+		Con_Printf ("Can't fastload (%s skill %d vs %s skill %d)\n", mapname, current_skill, sv.name, old_skill);
+		fastload = 0;
+	}
+	if (fastload && cl.intermission)
+	{
+		// we could if we reset cl.intermission and the music, but some mods still struggle
+		Con_Printf ("Can't fastload during an intermission\n");
+		fastload = 0;
+	}
+
+	if (!fastload)
+		CL_Disconnect_f ();
+	else if (cls.demorecording) // demo playback can't deal with backward timestamps, so record a map change
+		CL_Stop_f ();
 
 	PR_SwitchQCVM (&sv.qcvm);
-	SV_SpawnServer (mapname);
+	if (!fastload)
+		SV_SpawnServer (mapname);
 
 	if (!sv.active)
 	{
@@ -1292,11 +1390,16 @@ static void Host_Loadgame_f (void)
 		Con_Printf ("Couldn't load map\n");
 		return;
 	}
-	sv.paused = true; // pause until all clients connect
-	sv.loadgame = true;
+	if (!fastload)
+	{
+		sv.paused = true; // pause until all clients connect
+		sv.loadgame = true;
+	}
+	else
+		S_StopAllSounds (true); // do this before parsing the edicts, since that may take a while
 
 	if (was_recording)
-		CL_Resume_Record ();
+		CL_Resume_Record (fastload);
 
 	// load the light styles
 	for (i = 0; i < MAX_LIGHTSTYLES; i++)
@@ -1425,8 +1528,27 @@ static void Host_Loadgame_f (void)
 		entnum++;
 	}
 
-	qcvm->num_edicts = entnum;
 	qcvm->time = time;
+
+	if (fastload)
+	{
+		sv.lastchecktime = 0.0;
+		for (i = entnum; i < qcvm->num_edicts; i++)
+			ED_Free (EDICT_NUM (i));
+
+		memset (cl_dlights, 0, sizeof (cl_dlights));
+		memset (cl_temp_entities, 0, sizeof (cl_temp_entities));
+		memset (cl_beams, 0, sizeof (cl_beams));
+		R_ClearParticles ();
+#ifdef PSET_SCRIPT
+		PScript_ClearParticles (false);
+#endif
+		SCR_CenterPrintClear ();
+
+		Send_Spawn_Info (svs.clients);
+	}
+
+	qcvm->num_edicts = entnum;
 
 	Mem_Free (start);
 	start = NULL;
@@ -1436,7 +1558,7 @@ static void Host_Loadgame_f (void)
 
 	PR_SwitchQCVM (NULL);
 
-	if (cls.state != ca_dedicated)
+	if (cls.state != ca_dedicated && !fastload)
 	{
 		CL_EstablishConnection ("local");
 		Host_Reconnect_f ();
@@ -1790,7 +1912,6 @@ Host_Spawn_f
 static void Host_Spawn_f (void)
 {
 	int       i;
-	client_t *client;
 	edict_t  *ent;
 
 	if (cmd_source != src_client)
@@ -1846,73 +1967,7 @@ static void Host_Spawn_f (void)
 		PR_ExecuteProgram (pr_global_struct->PutClientInServer);
 	}
 
-	// send all current names, colors, and frag counts
-	SZ_Clear (&host_client->message);
-
-	// send time of update
-	MSG_WriteByte (&host_client->message, svc_time);
-	MSG_WriteFloat (&host_client->message, qcvm->time);
-	if (host_client->protocol_pext2 & PEXT2_PREDINFO)
-		MSG_WriteShort (&host_client->message, (host_client->lastmovemessage & 0xffff));
-
-	for (i = 0, client = svs.clients; i < svs.maxclients; i++, client++)
-	{
-		if (!client->knowntoqc)
-			continue;
-
-		MSG_WriteByte (&host_client->message, svc_updatename);
-		MSG_WriteByte (&host_client->message, i);
-		MSG_WriteString (&host_client->message, client->name);
-		MSG_WriteByte (&host_client->message, svc_updatecolors);
-		MSG_WriteByte (&host_client->message, i);
-		MSG_WriteByte (&host_client->message, client->colors);
-
-		MSG_WriteByte (&host_client->message, svc_updatefrags);
-		MSG_WriteByte (&host_client->message, i);
-		MSG_WriteShort (&host_client->message, client->old_frags);
-	}
-
-	// send all current light styles
-	for (i = 0; i < MAX_LIGHTSTYLES; i++)
-	{
-		MSG_WriteByte (&host_client->message, svc_lightstyle);
-		MSG_WriteByte (&host_client->message, (char)i);
-		MSG_WriteString (&host_client->message, sv.lightstyles[i]);
-	}
-
-	//
-	// send some stats
-	//
-	MSG_WriteByte (&host_client->message, svc_updatestat);
-	MSG_WriteByte (&host_client->message, STAT_TOTALSECRETS);
-	MSG_WriteLong (&host_client->message, pr_global_struct->total_secrets);
-
-	MSG_WriteByte (&host_client->message, svc_updatestat);
-	MSG_WriteByte (&host_client->message, STAT_TOTALMONSTERS);
-	MSG_WriteLong (&host_client->message, pr_global_struct->total_monsters);
-
-	MSG_WriteByte (&host_client->message, svc_updatestat);
-	MSG_WriteByte (&host_client->message, STAT_SECRETS);
-	MSG_WriteLong (&host_client->message, pr_global_struct->found_secrets);
-
-	MSG_WriteByte (&host_client->message, svc_updatestat);
-	MSG_WriteByte (&host_client->message, STAT_MONSTERS);
-	MSG_WriteLong (&host_client->message, pr_global_struct->killed_monsters);
-
-	//
-	// send a fixangle
-	// Never send a roll angle, because savegames can catch the server
-	// in a state where it is expecting the client to correct the angle
-	// and it won't happen if the game was just loaded, so you wind up
-	// with a permanent head tilt
-	ent = EDICT_NUM (1 + (host_client - svs.clients));
-	MSG_WriteByte (&host_client->message, svc_setangle);
-	for (i = 0; i < 2; i++)
-		MSG_WriteAngle (&host_client->message, ent->v.angles[i], sv.protocolflags);
-	MSG_WriteAngle (&host_client->message, 0, sv.protocolflags);
-
-	if (!(host_client->protocol_pext2 & PEXT2_REPLACEMENTDELTAS))
-		SV_WriteClientdataToMessage (host_client, &host_client->message);
+	Send_Spawn_Info (host_client);
 
 	MSG_WriteByte (&host_client->message, svc_signonnum);
 	MSG_WriteByte (&host_client->message, 3);
@@ -2550,6 +2605,7 @@ void Host_InitCommands (void)
 	Cmd_AddCommand ("kick", Host_Kick_f);
 	Cmd_AddCommand ("ping", Host_Ping_f);
 	Cmd_AddCommand ("load", Host_Loadgame_f);
+	Cmd_AddCommand ("fastload", Host_Loadgame_f);
 	Cmd_AddCommand ("save", Host_Savegame_f);
 	Cmd_AddCommand ("give", Host_Give_f);
 
