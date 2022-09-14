@@ -965,6 +965,8 @@ static void Host_Reconnect_f (void)
 	if (cls.demoplayback) // cross-map demo playback fix from Baker
 		return;
 
+	if (key_dest == key_game)
+		IN_Activate ();
 	SCR_BeginLoadingPlaque ();
 	cls.signon = 0; // need new connection messages
 }
