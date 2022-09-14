@@ -1566,17 +1566,23 @@ int PR_AllocString (int size, char **ptr)
 
 	if (!size)
 		return 0;
-	for (i = 0; i < qcvm->numknownstrings; i++)
+
+	for (i = qcvm->freeknownstrings;; i++)
 	{
-		if (!qcvm->knownstrings[i])
-			break;
+		if (i < qcvm->numknownstrings)
+		{
+			if (qcvm->knownstrings[i])
+				continue;
+		}
+		else
+		{
+			if (i >= qcvm->maxknownstrings)
+				PR_AllocStringSlots ();
+			qcvm->numknownstrings++;
+		}
+		break;
 	}
-	//	if (i >= pr_numknownstrings)
-	//	{
-	if (i >= qcvm->maxknownstrings)
-		PR_AllocStringSlots ();
-	qcvm->numknownstrings++;
-	//	}
+	qcvm->freeknownstrings = i + 1;
 	qcvm->knownstrings[i] = (char *)Mem_Alloc (size);
 	qcvm->knownstringsowned[i] = true;
 	if (ptr)
