@@ -25,8 +25,12 @@
 #define _INCLUDED_WINDOWS_H
 
 #if defined(__WIN32__)
-#define WIN32_LEAN_AND_MEAN
-#define STRICT
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN 1
+#endif
+#ifndef STRICT
+#define STRICT 1
+#endif
 #ifndef UNICODE
 #define UNICODE 1
 #endif
