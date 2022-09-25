@@ -205,4 +205,4 @@ if get_option('buildtype').startswith('debug')
     cflags += '-D_DEBUG'
 endif
 
-executable('vkquake', [srcs, shaders_c], dependencies : deps, c_args : cflags)
+executable('vkquake', [srcs, shaders_c], dependencies : deps, c_args : cflags, c_pch: ['Quake/quakedef.h', 'Quake/quakedef.c'])
