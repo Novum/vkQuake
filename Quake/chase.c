@@ -107,6 +107,9 @@ void Chase_UpdateForDrawing (void)
 	VectorMA (cl.viewent.origin, 4096, forward, temp);
 	TraceLine (cl.viewent.origin, temp, crosshair_vec);
 
+	if (VectorLength (crosshair_vec) == 0) // didn't hit anything
+		VectorCopy (temp, crosshair_vec);
+
 	// calculate camera angles to look at the same spot
 	VectorSubtract (crosshair_vec, r_refdef.vieworg, temp);
 	VectorAngles (temp, NULL, r_refdef.viewangles);
