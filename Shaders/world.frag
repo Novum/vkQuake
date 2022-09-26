@@ -28,6 +28,7 @@ layout (constant_id = 0) const bool use_fullbright = false;
 layout (constant_id = 1) const bool use_alpha_test = false;
 layout (constant_id = 2) const bool use_alpha_blend = false;
 layout (constant_id = 3) const bool quantize_lm = false;
+layout (constant_id = 4) const bool scaled_lm = false;
 
 void main ()
 {
@@ -35,16 +36,17 @@ void main ()
 	if (use_alpha_test && diffuse.a < 0.666f)
 		discard;
 
+	float lm_multiplier = scaled_lm ? 8.0f : 2.0f;
 	vec3 light;
 
 	if (quantize_lm)
 	{
 		ivec2 lm_size = ivec2(LMBLOCK_WIDTH, LMBLOCK_HEIGHT);
 		vec2 uv_exp = (floor ((lm_size * 16) * in_texcoords.zw) + 0.5) / (lm_size * 16);
-		light = texture (lightmap_tex, uv_exp).rgb * 2.0f;
+		light = texture (lightmap_tex, uv_exp).rgb * lm_multiplier;
 	}
 	else
-		light = texture (lightmap_tex, in_texcoords.zw).rgb * 2.0f;
+		light = texture (lightmap_tex, in_texcoords.zw).rgb * lm_multiplier;
 
 	out_frag_color.rgb = diffuse.rgb * light.rgb;
 
