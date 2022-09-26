@@ -20,6 +20,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 #include "quakedef.h"
+#include "bgmusic.h"
 
 static void CL_FinishTimeDemo (void);
 
@@ -216,7 +217,11 @@ void CL_Seek_f (void)
 		PScript_ClearParticles (false);
 #endif
 		SCR_CenterPrintClear ();
-		cl.intermission = 0;
+		if (cl.intermission)
+		{
+			cl.intermission = 0;
+			BGM_Stop ();
+		}
 		memset (cl.stats, 0, sizeof (cl.stats));
 		memset (cl.statsf, 0, sizeof (cl.statsf));
 
