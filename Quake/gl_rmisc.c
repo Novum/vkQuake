@@ -2463,7 +2463,7 @@ static void R_CreateWorldPipelines ()
 	infos.vertex_input_state.vertexBindingDescriptionCount = 1;
 	infos.vertex_input_state.pVertexBindingDescriptions = &world_vertex_binding_description;
 
-	VkSpecializationMapEntry specialization_entries[4];
+	VkSpecializationMapEntry specialization_entries[5];
 	specialization_entries[0].constantID = 0;
 	specialization_entries[0].offset = 0;
 	specialization_entries[0].size = 4;
@@ -2476,17 +2476,21 @@ static void R_CreateWorldPipelines ()
 	specialization_entries[3].constantID = 3;
 	specialization_entries[3].offset = 12;
 	specialization_entries[3].size = 4;
+	specialization_entries[4].constantID = 4;
+	specialization_entries[4].offset = 16;
+	specialization_entries[4].size = 4;
 
-	uint32_t specialization_data[4];
+	uint32_t specialization_data[5];
 	specialization_data[0] = 0;
 	specialization_data[1] = 0;
 	specialization_data[2] = 0;
 	specialization_data[3] = 0;
+	specialization_data[4] = vulkan_globals.color_format == VK_FORMAT_A2B10G10R10_UNORM_PACK32; // 10-bit lightmap
 
 	VkSpecializationInfo specialization_info;
-	specialization_info.mapEntryCount = 4;
+	specialization_info.mapEntryCount = 5;
 	specialization_info.pMapEntries = specialization_entries;
-	specialization_info.dataSize = 16;
+	specialization_info.dataSize = 20;
 	specialization_info.pData = specialization_data;
 
 	infos.graphics_pipeline.layout = vulkan_globals.world_pipeline_layout.handle;
@@ -2745,12 +2749,24 @@ static void R_CreateUpdateLightmapPipelines ()
 	pipeline_create_infos_t infos;
 	R_InitDefaultStates (&infos);
 
+	VkSpecializationMapEntry specialization_entry;
+	specialization_entry.constantID = 0;
+	specialization_entry.offset = 0;
+	specialization_entry.size = 4;
+	uint32_t specialization_data = vulkan_globals.color_format == VK_FORMAT_A2B10G10R10_UNORM_PACK32; // 10-bit lightmap
+	VkSpecializationInfo specialization_info;
+	specialization_info.mapEntryCount = 1;
+	specialization_info.pMapEntries = &specialization_entry;
+	specialization_info.dataSize = 4;
+	specialization_info.pData = &specialization_data;
+
 	VkPipelineShaderStageCreateInfo compute_shader_stage;
 	memset (&compute_shader_stage, 0, sizeof (compute_shader_stage));
 	compute_shader_stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 	compute_shader_stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
 	compute_shader_stage.module = update_lightmap_comp_module;
 	compute_shader_stage.pName = "main";
+	compute_shader_stage.pSpecializationInfo = &specialization_info;
 
 	memset (&infos.compute_pipeline, 0, sizeof (infos.compute_pipeline));
 	infos.compute_pipeline.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;

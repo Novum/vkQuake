@@ -1634,6 +1634,9 @@ static void R_UploadLightmap (int lmap, gltexture_t *lightmap_tex)
 
 	const int staging_size = LMBLOCK_WIDTH * lm->rectchange.h * 4;
 
+	if (staging_size == 0) // Empty copies are not valid. This can happen for a single frame when toggling r_gpulightmapupdate from 1 to 0
+		return;
+
 	VkBuffer        staging_buffer;
 	VkCommandBuffer command_buffer;
 	int             staging_offset;
@@ -1680,7 +1683,11 @@ static void R_UploadLightmap (int lmap, gltexture_t *lightmap_tex)
 
 	R_StagingBeginCopy ();
 	byte *data = lm->data + lm->rectchange.t * LMBLOCK_WIDTH * LIGHTMAP_BYTES;
-	memcpy (staging_memory, data, staging_size);
+	if (vulkan_globals.color_format == VK_FORMAT_A2B10G10R10_UNORM_PACK32)
+		for (byte *p = data; p < data + staging_size; p += 4, staging_memory += 4)
+			*(unsigned *)staging_memory = p[0] | p[1] << 10 | p[2] << 20;
+	else
+		memcpy (staging_memory, data, staging_size);
 	R_StagingEndCopy ();
 
 	lm->rectchange.l = LMBLOCK_WIDTH;

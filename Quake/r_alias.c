@@ -459,7 +459,7 @@ void R_DrawAliasModel (cb_context_t *cbx, entity_t *e)
 	}
 	if (r_lightmap_cheatsafe)
 	{
-		tx = whitetexture;
+		tx = greytexture;
 		fb = NULL;
 		if (r_fullbright.value)
 		{

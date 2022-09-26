@@ -68,6 +68,8 @@ layout (std140, set = 0, binding = 6) uniform lights_buffer
 	light_t lights[MAX_DLIGHTS];
 };
 
+layout (constant_id = 0) const bool scaled_lm = false;
+
 bool TestSphereAABB (light_t light, vec3 mins, vec3 maxs)
 {
 	float sq_dist = 0.0f;
@@ -183,5 +185,7 @@ void main ()
 		}
 	}
 
+	if (scaled_lm)
+		light_accumulated *= 0.25f;
 	imageStore (output_image, ivec2 (gl_GlobalInvocationID.xy), vec4 (light_accumulated, 0.0f));
 }

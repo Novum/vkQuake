@@ -52,7 +52,7 @@ extern cvar_t vid_anisotropic;
 #define MAX_MIPS 16
 static int          numgltextures;
 static gltexture_t *active_gltextures, *free_gltextures;
-gltexture_t        *notexture, *nulltexture, *whitetexture, *greytexture, *bluenoisetexture;
+gltexture_t        *notexture, *nulltexture, *whitetexture, *greytexture, *greylightmap, *bluenoisetexture;
 
 unsigned int d_8to24table[256];
 unsigned int d_8to24table_fbright[256];
@@ -608,6 +608,8 @@ void TexMgr_Init (void)
 		NULL, "whitetexture", 2, 2, SRC_RGBA, whitetexture_data, "", (src_offset_t)whitetexture_data, TEXPREF_NEAREST | TEXPREF_PERSIST | TEXPREF_NOPICMIP);
 	greytexture = TexMgr_LoadImage (
 		NULL, "greytexture", 2, 2, SRC_RGBA, greytexture_data, "", (src_offset_t)greytexture_data, TEXPREF_NEAREST | TEXPREF_PERSIST | TEXPREF_NOPICMIP);
+	greylightmap = TexMgr_LoadImage (
+		NULL, "greytexture", 2, 2, SRC_LIGHTMAP, greytexture_data, "", (src_offset_t)greytexture_data, TEXPREF_NEAREST | TEXPREF_PERSIST | TEXPREF_NOPICMIP);
 
 	byte *bluenoise_rgba;
 	TEMP_ALLOC(byte, bluenoise_rgba, sizeof(bluenoise_data) * 4);
@@ -873,10 +875,11 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 
 	const qboolean lightmap = glt->source_format == SRC_LIGHTMAP;
 	const qboolean surface_indices = glt->source_format == SRC_SURF_INDICES;
+	const qboolean ten_bit = lightmap && vulkan_globals.color_format == VK_FORMAT_A2B10G10R10_UNORM_PACK32;
 
 	VkResult err;
 
-	const VkFormat format = !surface_indices ? VK_FORMAT_R8G8B8A8_UNORM : VK_FORMAT_R32_UINT;
+	const VkFormat format = surface_indices ? VK_FORMAT_R32_UINT : ten_bit ? VK_FORMAT_A2B10G10R10_UNORM_PACK32 : VK_FORMAT_R8G8B8A8_UNORM;
 
 	VkImageCreateInfo image_create_info;
 	memset (&image_create_info, 0, sizeof (image_create_info));
@@ -1109,7 +1112,11 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	}
 	else
 	{
-		memcpy (staging_memory, data, mipwidth * mipheight * 4);
+		if (!ten_bit)
+			memcpy (staging_memory, data, staging_size);
+		else
+			for (byte *p = (byte *)data; p < (byte *)data + staging_size; p += 4, staging_memory += 4)
+				*(unsigned *)staging_memory = p[0] | p[1] << 10 | p[2] << 20;
 	}
 	R_StagingEndCopy ();
 }

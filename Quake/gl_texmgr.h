@@ -87,6 +87,7 @@ extern gltexture_t *notexture;
 extern gltexture_t *nulltexture;
 extern gltexture_t *whitetexture;
 extern gltexture_t *greytexture;
+extern gltexture_t *greylightmap;
 extern gltexture_t *bluenoisetexture;
 
 extern unsigned int d_8to24table[256];
