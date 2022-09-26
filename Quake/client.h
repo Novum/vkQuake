@@ -201,6 +201,7 @@ typedef struct
 	qboolean paused; // send over by server
 	qboolean onground;
 	qboolean inwater;
+	double   fixangle_time; // timestamp of last svc_setangle message
 
 	int intermission;   // don't change view angle, full screen, etc
 	int completed_time; // latched at intermission start
@@ -366,14 +367,15 @@ extern kbutton_t in_mlook, in_klook;
 extern kbutton_t in_strafe;
 extern kbutton_t in_speed;
 
-void CL_InitInput (void);
-void CL_AccumulateCmd (void);
-void CL_SendCmd (void);
-void CL_SendMove (const usercmd_t *cmd);
-int  CL_ReadFromServer (void);
-void CL_AdjustAngles (void);
-void CL_BaseMove (usercmd_t *cmd);
-void CL_FinishMove (usercmd_t *cmd);
+void     CL_InitInput (void);
+void     CL_AccumulateCmd (void);
+void     CL_SendCmd (void);
+void     CL_SendMove (const usercmd_t *cmd);
+int      CL_ReadFromServer (void);
+qboolean CL_AngleLocked (void);
+void     CL_AdjustAngles (void);
+void     CL_BaseMove (usercmd_t *cmd);
+void     CL_FinishMove (usercmd_t *cmd);
 
 void CL_UpdateBeam (struct qmodel_s *m, const char *trailname, const char *impactname, int ent, float *start, float *end);
 void CL_ParseTEnt (void);

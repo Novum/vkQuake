@@ -234,6 +234,12 @@ extern cvar_t scr_fov;
 
 void IN_MouseMotion (int dx, int dy)
 {
+	if (cls.state != ca_connected || cls.signon != SIGNONS || key_dest != key_game || CL_AngleLocked ())
+	{
+		total_dx = 0;
+		total_dy = 0;
+		return;
+	}
 	total_dx += dx;
 	total_dy += dy;
 }
@@ -552,6 +558,9 @@ void IN_JoyMove (usercmd_t *cmd)
 
 	cmd->sidemove += (cl_sidespeed.value * speed * moveEased.x);
 	cmd->forwardmove -= (cl_forwardspeed.value * speed * moveEased.y);
+
+	if (CL_AngleLocked ())
+		return;
 
 	cl.viewangles[YAW] -= lookEased.x * joy_sensitivity_yaw.value * host_frametime;
 	cl.viewangles[PITCH] += lookEased.y * joy_sensitivity_pitch.value * (joy_invert.value ? -1.0 : 1.0) * host_frametime;

@@ -1837,6 +1837,7 @@ void CL_ParseServerMessage (void)
 		case svc_setangle:
 			for (i = 0; i < 3; i++)
 				cl.viewangles[i] = MSG_ReadAngle (cl.protocolflags);
+			cl.fixangle_time = cl.mtime[0];
 			break;
 		case svcfte_setangledelta:
 			for (i = 0; i < 3; i++)

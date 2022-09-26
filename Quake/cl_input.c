@@ -335,6 +335,18 @@ cvar_t cl_anglespeedkey = {"cl_anglespeedkey", "1.5", CVAR_NONE};
 cvar_t cl_alwaysrun = {"cl_alwaysrun", "0", CVAR_ARCHIVE}; // QuakeSpasm -- new always run
 
 /*
+==============
+CL_AngleLocked
+
+Returns true if the server sent a fixangle recently
+==============
+*/
+qboolean CL_AngleLocked (void)
+{
+	return cl.fixangle_time == cl.mtime[0] || cl.fixangle_time == cl.mtime[1];
+}
+
+/*
 ================
 CL_AdjustAngles
 
@@ -345,6 +357,9 @@ void CL_AdjustAngles (void)
 {
 	float speed;
 	float up, down;
+
+	if (CL_AngleLocked ())
+		return;
 
 	if ((in_speed.state & 1) ^ (cl_alwaysrun.value != 0.0))
 		speed = host_frametime * cl_anglespeedkey.value;
