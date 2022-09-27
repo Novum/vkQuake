@@ -14,7 +14,7 @@ INPUT := gfx/conback.lmp \
 OUTPUT := vkquake.pak
 
 $(OUTPUT): $(INPUT)
-	cc mkpak.c -o mkpak --std=gnu11 -g && ./mkpak $(OUTPUT) $(INPUT)
+	cc mkpak.c -o mkpak --std=gnu11 -g && ./mkpak $(OUTPUT) $(INPUT) && zopfli --deflate $(OUTPUT)
 
 .PHONY: clean
 clean:
