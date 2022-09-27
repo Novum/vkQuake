@@ -7,6 +7,8 @@ INPUT := gfx/conback.lmp \
 	maps/e2m2@fbfe.ent \
 	maps/e2m3@237a.ent \
 	maps/e2m7@10a8.ent \
+	maps/r2m3@63f4.ent \
+	maps/r2m3@76ec.ent \
 	default.cfg
 
 OUTPUT := vkquake.pak
