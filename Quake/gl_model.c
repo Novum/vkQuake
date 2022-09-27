@@ -981,6 +981,7 @@ static void Mod_LoadEntities (qmodel_t *mod, byte *mod_base, lump_t *l)
 	char        *ents = NULL;
 	unsigned int path_id;
 	unsigned int crc = 0;
+	qboolean     versioned = true;
 
 	if (!external_ents.value)
 		goto _load_embedded;
@@ -1002,13 +1003,15 @@ static void Mod_LoadEntities (qmodel_t *mod, byte *mod_base, lump_t *l)
 		q_snprintf (entfilename, sizeof (entfilename), "%s.ent", basemapname);
 		Con_DPrintf2 ("trying to load %s\n", entfilename);
 		ents = (char *)COM_LoadFile (entfilename, &path_id);
+		versioned = false;
 	}
 
 	if (ents)
 	{
 		// use ent file only from the same gamedir as the map
-		// itself or from a searchpath with higher priority.
-		if (path_id < mod->path_id)
+		// itself or from a searchpath with higher priority
+		// unless we got a CRC match
+		if (versioned == false && path_id < mod->path_id)
 		{
 			Con_DPrintf ("ignored %s from a gamedir with lower priority\n", entfilename);
 		}

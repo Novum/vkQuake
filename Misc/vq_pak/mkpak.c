@@ -63,7 +63,7 @@ int main (int argc, char *argv[])
 		return 1;
 	}
 
-	out = fopen (argv[1], "w+");
+	out = fopen (argv[1], "wb+");
 	if (out == NULL)
 	{
 		fprintf (stderr, "Could not open output file '%s'", argv[1]);
