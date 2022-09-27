@@ -17,6 +17,18 @@ int main (int argc, char **argv)
 		return 1;
 	}
 
+	char fin_deflate[1024];
+	snprintf (fin_deflate, sizeof (fin_deflate), "%s.deflate", argv[1]);
+	FILE *fin_compressed = fopen (fin_deflate, "rb");
+	unsigned long decompressed_length = 0;
+	if (fin_compressed != NULL)
+	{
+		fseek (fin, 0, SEEK_END);
+		decompressed_length = (unsigned long) ftell (fin);
+		fclose (fin);
+		fin = fin_compressed;
+	}
+
 	for (char *c = argv[2]; *c != 0; ++c)
 		if (*c == '.')
 			*c = '_';
@@ -38,6 +50,8 @@ int main (int argc, char **argv)
 	fprintf (fout, "};\n");
 
 	fprintf (fout, "int %s_size = %ld;\n", argv[2], n);
+	if (decompressed_length)
+		fprintf (fout, "int %s_decompressed_size = %ld;\n", argv[2], decompressed_length);
 	fclose (fout);
 	return 0;
 }

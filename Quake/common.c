@@ -63,6 +63,7 @@ qboolean standard_quake = true, rogue, hipnotic;
 
 extern unsigned char vkquake_pak[];
 extern int           vkquake_pak_size;
+extern int           vkquake_pak_decompressed_size;
 
 // this graphic needs to be in the pak file to use registered features
 static unsigned short pop[] = {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x6600, 0x0000, 0x0000, 0x0000, 0x6600, 0x0000,
@@ -1957,6 +1958,7 @@ static void COM_AddGameDirectory (const char *dir)
 	pack_t       *pak;
 	char          pakfile[MAX_OSPATH];
 	qboolean      been_here = false;
+	static byte  *vkquake_pak_extracted;
 
 	if (*com_gamenames)
 		q_strlcat (com_gamenames, ";", sizeof (com_gamenames));
@@ -2009,8 +2011,19 @@ _add_path:
 
 		if ((i == 0) && (path_id == 1) && !fitzmode)
 		{
+			size_t vkquake_pak_size_compressed = vkquake_pak_size, vkquake_pak_size_extracted = vkquake_pak_decompressed_size;
+			if (!vkquake_pak_extracted)
+			{
+				tinfl_decompressor inflator;
+				tinfl_init (&inflator);
+				vkquake_pak_extracted = Mem_Alloc (vkquake_pak_size_extracted);
+				if (TINFL_STATUS_DONE != tinfl_decompress (
+											 &inflator, vkquake_pak, &vkquake_pak_size_compressed, vkquake_pak_extracted, vkquake_pak_extracted,
+											 &vkquake_pak_size_extracted, TINFL_FLAG_USING_NON_WRAPPING_OUTPUT_BUF))
+					Sys_Error ("Error extracting embedded pack");
+			}
 			qboolean pak0_modified = com_modified;
-			Sys_MemFileOpenRead (vkquake_pak, vkquake_pak_size, &packhandle);
+			Sys_MemFileOpenRead (vkquake_pak_extracted, vkquake_pak_size_extracted, &packhandle);
 			pak = COM_LoadPackFile ("vkquake.pak", packhandle);
 			search = (searchpath_t *)Mem_Alloc (sizeof (searchpath_t));
 			search->path_id = path_id;
