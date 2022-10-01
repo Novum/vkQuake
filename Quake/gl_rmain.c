@@ -876,6 +876,8 @@ void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 		task_handle_t update_lightmaps_task = Task_AllocateAndAssignFunc (R_UpdateLightmaps, NULL, 0);
 		Task_AddDependency (cull_surfaces, update_lightmaps_task);
 		Task_AddDependency (begin_rendering_task, update_lightmaps_task);
+		Task_AddDependency (draw_entities_task, update_lightmaps_task);
+		Task_AddDependency (draw_alpha_entities_task, update_lightmaps_task);
 		Task_AddDependency (update_lightmaps_task, draw_done_task);
 
 		task_handle_t tasks[] = {before_mark,          store_efrags,       update_warp_textures,     draw_world_task,     draw_sky_and_water_task,
