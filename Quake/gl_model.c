@@ -705,6 +705,12 @@ static void Mod_LoadTextures (qmodel_t *mod, byte *mod_base, lump_t *l)
 		for (j = 0; j < MIPLEVELS; j++)
 			mt.offsets[j] = LittleLong (mt.offsets[j]);
 
+		if (mt.width == 0 || mt.height == 0)
+		{
+			Con_Warning ("Zero sized texture %s in %s!\n", mt.name, mod->name);
+			continue;
+		}
+
 		pixels = mt.width * mt.height / 64 * 85;
 		tx = (texture_t *)Mem_Alloc (sizeof (texture_t) + pixels);
 		mod->textures[i] = tx;
