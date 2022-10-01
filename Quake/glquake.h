@@ -447,6 +447,11 @@ struct lightmap_s
 	glRect_t        rectchange;
 	VkBuffer        workgroup_bounds_buffer;
 
+	lm_compute_workgroup_bounds_t global_bounds;
+	byte                          active_dlights[MAX_DLIGHTS];
+	byte                          used_lightstyles[MAX_LIGHTSTYLES];
+	int                           cached_light[MAX_LIGHTSTYLES];
+
 	// the lightmap texture data needs to be kept in
 	// main memory so texsubimage can update properly
 	byte						  *data;               //[4*LMBLOCK_WIDTH*LMBLOCK_HEIGHT];

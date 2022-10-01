@@ -427,6 +427,12 @@ static int AllocBlock (int w, int h, int *x, int *y)
 					lightmaps[texnum].workgroup_bounds[i].maxs[j] = -FLT_MAX;
 				}
 			}
+			for (j = 0; j < 3; ++j)
+			{
+				lightmaps[texnum].global_bounds.mins[j] = FLT_MAX;
+				lightmaps[texnum].global_bounds.maxs[j] = -FLT_MAX;
+			}
+			memset (lightmaps[texnum].cached_light, -1, sizeof (lightmaps[texnum].cached_light));
 			memset (used_columns[texnum], 0, sizeof (used_columns[texnum]));
 			last_lightmap_allocated = texnum;
 		}
@@ -507,6 +513,7 @@ static void R_FillLightstyleTextures (msurface_t *surf, byte **lightstyles, int 
 	{
 		for (maps = 0; maps < MAXLIGHTMAPS && surf->styles[maps] != 255; ++maps)
 		{
+			lightmaps[surf->lightmaptexturenum].used_lightstyles[surf->styles[maps]] = true;
 			int height = tmax;
 			while (height-- > 0)
 			{
@@ -527,11 +534,14 @@ static void R_FillLightstyleTextures (msurface_t *surf, byte **lightstyles, int 
 /*
 ===============
 R_AssignWorkgroupBounds
+
+FIXME: This doesn't account for moving bmodels
 ===============
 */
 static void R_AssignWorkgroupBounds (msurface_t *surf)
 {
 	lm_compute_workgroup_bounds_t *bounds = lightmaps[surf->lightmaptexturenum].workgroup_bounds;
+	lm_compute_workgroup_bounds_t *global_bounds = &lightmaps[surf->lightmaptexturenum].global_bounds;
 	const int                      smax = (surf->extents[0] >> 4) + 1;
 	const int                      tmax = (surf->extents[1] >> 4) + 1;
 
@@ -567,6 +577,10 @@ static void R_AssignWorkgroupBounds (msurface_t *surf)
 					workgroup_bounds->mins[i] = surf_bounds.mins[i];
 				if (surf_bounds.maxs[i] > workgroup_bounds->maxs[i])
 					workgroup_bounds->maxs[i] = surf_bounds.maxs[i];
+				if (surf_bounds.mins[i] < global_bounds->mins[i])
+					global_bounds->mins[i] = surf_bounds.mins[i];
+				if (surf_bounds.maxs[i] > global_bounds->maxs[i])
+					global_bounds->maxs[i] = surf_bounds.maxs[i];
 			}
 		}
 	}
@@ -595,7 +609,7 @@ static void GL_CreateSurfaceLightmap (msurface_t *surf, uint32_t surface_index)
 	tmax = (surf->extents[1] >> 4) + 1;
 
 	if (smax > MAX_EXTENT || tmax > MAX_EXTENT)
-		Host_Error ("ligtmap extent %d x %d exceeds %d\n", smax, tmax, MAX_EXTENT);
+		Host_Error ("lightmap extent %d x %d exceeds %d\n", smax, tmax, MAX_EXTENT);
 
 	surf->lightmaptexturenum = AllocBlock (smax, tmax, &surf->light_s, &surf->light_t);
 	base = lightmaps[surf->lightmaptexturenum].data;
@@ -1037,6 +1051,7 @@ void GL_BuildLightmaps (void)
 				TEXPREF_LINEAR | TEXPREF_NOPICMIP);
 		}
 
+		q_snprintf (name, sizeof (name), "surfindices%07i", i);
 		lm->surface_indices_texture = TexMgr_LoadImage (
 			cl.worldmodel, name, LMBLOCK_WIDTH, LMBLOCK_HEIGHT, SRC_SURF_INDICES, (byte *)lm->surface_indices, "", (src_offset_t)lm->surface_indices,
 			TEXPREF_LINEAR | TEXPREF_NOPICMIP);
@@ -1757,6 +1772,51 @@ void R_UpdateLightmaps (void *unused)
 			continue;
 		Atomic_StoreUInt32 (&lm->modified, false);
 
+		qboolean needs_update = false;
+		for (int i = 0; i < MAX_LIGHTSTYLES; i++)
+			if (lm->used_lightstyles[i] && lm->cached_light[i] != d_lightstylevalue[i])
+			{
+				needs_update = true;
+				lm->cached_light[i] = d_lightstylevalue[i];
+			}
+		for (int i = 0; i < MAX_DLIGHTS; i++)
+		{
+			qboolean hit = true;
+
+			if (cl_dlights[i].die <= cl.time || cl_dlights[i].radius <= 0.0f)
+				hit = false;
+			else
+			{
+				float sq_dist = 0.0f;
+				for (int j = 0; j < 3; j++)
+				{
+					float v = cl_dlights[i].origin[j];
+					float mins = lm->global_bounds.mins[j];
+					float maxs = lm->global_bounds.maxs[j];
+
+					if (v < mins)
+						sq_dist += (mins - v) * (mins - v);
+					if (v > maxs)
+						sq_dist += (v - maxs) * (v - maxs);
+				}
+
+				if (sq_dist > cl_dlights[i].radius * cl_dlights[i].radius)
+					hit = false;
+			}
+			if (hit)
+			{
+				needs_update = true;
+				lm->active_dlights[i] = true;
+			}
+			else if (lm->active_dlights[i])
+			{
+				needs_update = true;
+				lm->active_dlights[i] = false;
+			}
+		}
+		if (!needs_update)
+			continue;
+
 		int batch_index = num_batch_lightmaps++;
 		lightmap_indexes[batch_index] = lightmap_index;
 
@@ -1795,12 +1855,16 @@ void R_UpdateLightmaps (void *unused)
 		if (num_batch_lightmaps == UPDATE_LIGHTMAP_BATCH_SIZE)
 		{
 			R_FlushUpdateLightmaps (cbx, num_batch_lightmaps, pre_lm_image_barriers, post_lm_image_barriers, lightmap_indexes);
+			Atomic_AddUInt32 (&rs_dynamiclightmaps, num_batch_lightmaps);
 			num_batch_lightmaps = 0;
 		}
 	}
 
 	if (num_batch_lightmaps > 0)
+	{
 		R_FlushUpdateLightmaps (cbx, num_batch_lightmaps, pre_lm_image_barriers, post_lm_image_barriers, lightmap_indexes);
+		Atomic_AddUInt32 (&rs_dynamiclightmaps, num_batch_lightmaps);
+	}
 
 	R_EndDebugUtilsLabel (cbx);
 
