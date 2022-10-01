@@ -221,7 +221,7 @@ void R_DrawBrushModel (cb_context_t *cbx, entity_t *e, int chain)
 
 	// calculate dynamic lighting for bmodel if it's not an
 	// instanced model
-	if (clmodel->firstmodelsurface != 0)
+	if (!r_gpulightmapupdate.value && clmodel->firstmodelsurface != 0)
 	{
 		for (k = 0; k < MAX_DLIGHTS; k++)
 		{
