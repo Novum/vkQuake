@@ -1331,7 +1331,14 @@ static void Mod_LoadFaces (qmodel_t *mod, byte *mod_base, lump_t *l, qboolean bs
 			side = ReadLongUnaligned (inl + offsetof (dlface_t, side));
 			texinfon = ReadLongUnaligned (inl + offsetof (dlface_t, texinfo));
 			for (i = 0; i < MAXLIGHTMAPS; i++)
+			{
 				out->styles[i] = *(inl + offsetof (dlface_t, styles[i]));
+				if (out->styles[i] >= MAX_LIGHTSTYLES && out->styles[i] != 255)
+				{
+					Con_Warning ("Invalid lightstyle %d\n", out->styles[i]);
+					out->styles[i] = 0;
+				}
+			}
 			lofs = ReadLongUnaligned (inl + offsetof (dlface_t, lightofs));
 			inl += sizeof (dlface_t);
 		}
@@ -1343,7 +1350,14 @@ static void Mod_LoadFaces (qmodel_t *mod, byte *mod_base, lump_t *l, qboolean bs
 			side = ReadShortUnaligned (ins + offsetof (dsface_t, side));
 			texinfon = ReadShortUnaligned (ins + offsetof (dsface_t, texinfo));
 			for (i = 0; i < MAXLIGHTMAPS; i++)
+			{
 				out->styles[i] = *(ins + offsetof (dsface_t, styles[i]));
+				if (out->styles[i] >= MAX_LIGHTSTYLES && out->styles[i] != 255)
+				{
+					Con_Warning ("Invalid lightstyle %d\n", out->styles[i]);
+					out->styles[i] = 0;
+				}
+			}
 			lofs = ReadLongUnaligned (ins + offsetof (dsface_t, lightofs));
 			ins += sizeof (dsface_t);
 		}

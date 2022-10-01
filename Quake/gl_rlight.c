@@ -49,7 +49,7 @@ void R_AnimateLight (void)
 	{
 		if (!cl_lightstyle[j].length)
 		{
-			d_lightstylevalue[j] = 256;
+			d_lightstylevalue[j] = 256; // should be 264 ?
 			continue;
 		}
 		// johnfitz -- r_flatlightstyles

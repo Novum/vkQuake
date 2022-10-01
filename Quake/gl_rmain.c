@@ -54,7 +54,7 @@ refdef_t r_refdef;
 
 mleaf_t *r_viewleaf, *r_oldviewleaf;
 
-int d_lightstylevalue[256]; // 8.8 fraction of base light value
+int d_lightstylevalue[MAX_LIGHTSTYLES]; // 8.8 fraction of base light value
 
 cvar_t r_drawentities = {"r_drawentities", "1", CVAR_NONE};
 cvar_t r_drawviewmodel = {"r_drawviewmodel", "1", CVAR_NONE};

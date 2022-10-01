@@ -3221,7 +3221,7 @@ void R_NewMap (void)
 {
 	int i;
 
-	for (i = 0; i < 256; i++)
+	for (i = 0; i < MAX_LIGHTSTYLES; i++)
 		d_lightstylevalue[i] = 264; // normal light value
 
 	// clear out efrags in case the level hasn't been reloaded
