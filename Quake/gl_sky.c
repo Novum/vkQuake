@@ -30,8 +30,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 float Fog_GetDensity (void);
 void  Fog_GetColor (float *c);
 
-extern atomic_uint32_t rs_skypolys;  // for r_speeds readout
-extern atomic_uint32_t rs_skypasses; // for r_speeds readout
 float                  skyflatcolor[3];
 float                  skymins[2][6], skymaxs[2][6];
 
@@ -608,7 +606,7 @@ void Sky_ProcessPoly (cb_context_t *cbx, glpoly_t *p, float color[3])
 
 	// draw it
 	DrawGLPoly (cbx, p, color, 1.0f);
-	Atomic_IncrementUInt32 (&rs_brushpasses);
+	++thread_counters.rs_brushpasses;
 
 	// update sky bounds
 	if (!r_fastsky.value)
@@ -831,8 +829,8 @@ void Sky_DrawSkyBox (cb_context_t *cbx)
 		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_box_pipeline);
 		vkCmdDrawIndexed (cbx->cb, 6, 1, 0, 0, 0);
 
-		Atomic_IncrementUInt32 (&rs_skypolys);
-		Atomic_IncrementUInt32 (&rs_skypasses);
+		++thread_counters.rs_skypolys;
+		++thread_counters.rs_skypasses;
 	}
 }
 
@@ -923,8 +921,8 @@ void Sky_DrawFaceQuad (cb_context_t *cbx, glpoly_t *p, float alpha)
 	vkCmdBindVertexBuffers (cbx->cb, 0, 1, &vertex_buffer, &vertex_buffer_offset);
 	vkCmdDrawIndexed (cbx->cb, 6, 1, 0, 0, 0);
 
-	Atomic_IncrementUInt32 (&rs_skypolys);
-	Atomic_IncrementUInt32 (&rs_skypasses);
+	++thread_counters.rs_skypolys;
+	++thread_counters.rs_skypasses;
 }
 
 /*

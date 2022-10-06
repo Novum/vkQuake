@@ -378,9 +378,19 @@ extern cvar_t gl_nocolors;
 #define OFFSET_NONE  0
 #define OFFSET_DECAL 1
 
-// johnfitz -- rendering statistics
-extern atomic_uint32_t rs_brushpolys, rs_aliaspolys, rs_skypolys, rs_particles, rs_fogpolys;
-extern atomic_uint32_t rs_dynamiclightmaps, rs_brushpasses, rs_aliaspasses, rs_skypasses;
+typedef struct
+{
+	// johnfitz -- rendering statistics
+	uint32_t rs_brushpolys, rs_aliaspolys, rs_skypolys, rs_particles, rs_fogpolys;
+	uint32_t rs_dynamiclightmaps, rs_brushpasses, rs_aliaspasses, rs_skypasses;
+
+	/* when using GPU lightmap update, bitmap of lightstyles that will be drawn using this lightmap (16..64 OR-folded into bits 16..31) */
+	uint32_t lightmap_modified[MAX_SANITY_LIGHTMAPS]; // must be last for memset clears
+} per_thread_counters;
+
+extern THREAD_LOCAL per_thread_counters thread_counters;
+
+extern per_thread_counters *thread_local_counters[];
 
 extern atomic_uint64_t total_device_vulkan_allocation_size;
 extern atomic_uint64_t total_host_vulkan_allocation_size;
@@ -443,7 +453,6 @@ struct lightmap_s
 	gltexture_t    *surface_indices_texture;
 	gltexture_t    *lightstyle_textures[MAXLIGHTMAPS];
 	VkDescriptorSet descriptor_set;
-	atomic_uint32_t modified; // when using GPU lightmap update, bitmap of lightstyles that will be drawn using this lightmap (16..64 OR-folded into bits 16..31)
 	glRect_t        rectchange;
 	VkBuffer        workgroup_bounds_buffer;
 

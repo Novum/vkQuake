@@ -303,7 +303,6 @@ void R_MarkVisSurfacesSIMD (qboolean *use_tasks)
 		}
 	}
 
-	uint32_t brushpolys = 0;
 	for (i = 0; i < numsurfaces; i += 32)
 	{
 		uint32_t mask = surfvis[i / 32];
@@ -317,18 +316,17 @@ void R_MarkVisSurfacesSIMD (qboolean *use_tasks)
 			mask &= ~(1u << j);
 
 			surf = &cl.worldmodel->surfaces[i + j];
-			++brushpolys;
+			++thread_counters.rs_brushpolys;
 			R_ChainSurface (surf, chain_world);
 			if (!r_gpulightmapupdate.value)
 				R_RenderDynamicLightmaps (surf);
 			else if (surf->lightmaptexturenum >= 0)
-				Atomic_OrUInt32 (&lightmaps[surf->lightmaptexturenum].modified, surf->styles_bitmap);
+				thread_counters.lightmap_modified[surf->lightmaptexturenum] |= surf->styles_bitmap;
 			if (surf->texinfo->texture->warpimage)
 				Atomic_StoreUInt32 (&surf->texinfo->texture->update_warp, true);
 		}
 	}
 
-	Atomic_AddUInt32 (&rs_brushpolys, brushpolys); // count wpolys here
 	R_SetupWorldCBXTexRanges (*use_tasks);
 }
 
@@ -399,7 +397,7 @@ void R_BackfaceCullSurfacesSIMD (int index, void *unused)
 
 		surf = &cl.worldmodel->surfaces[(index * 32) + i];
 		if (surf->lightmaptexturenum >= 0)
-			Atomic_OrUInt32 (&lightmaps[surf->lightmaptexturenum].modified, surf->styles_bitmap);
+			thread_counters.lightmap_modified[surf->lightmaptexturenum] |= surf->styles_bitmap;
 		if (surf->texinfo->texture->warpimage)
 			Atomic_StoreUInt32 (&surf->texinfo->texture->update_warp, true);
 
@@ -442,7 +440,6 @@ void R_ChainVisSurfaces (qboolean *use_tasks)
 	msurface_t  *surf;
 	unsigned int numsurfaces = cl.worldmodel->numsurfaces;
 	uint32_t    *surfvis = (uint32_t *)cl.worldmodel->surfvis;
-	uint32_t     brushpolys = 0;
 	for (i = 0; i < numsurfaces; i += 32)
 	{
 		uint32_t mask = surfvis[i / 32];
@@ -451,12 +448,11 @@ void R_ChainVisSurfaces (qboolean *use_tasks)
 			const int j = FindFirstBitNonZero (mask);
 			mask &= ~(1u << j);
 			surf = &cl.worldmodel->surfaces[i + j];
-			++brushpolys;
+			++thread_counters.rs_brushpolys;
 			R_ChainSurface (surf, chain_world);
 		}
 	}
 
-	Atomic_AddUInt32 (&rs_brushpolys, brushpolys); // count wpolys here
 	R_SetupWorldCBXTexRanges (*use_tasks);
 }
 #endif // defined(USE_SIMD)
@@ -471,7 +467,6 @@ void R_MarkVisSurfaces (qboolean *use_tasks)
 	int         i, j;
 	msurface_t *surf;
 	mleaf_t    *leaf;
-	uint32_t    brushpolys = 0;
 	uint32_t   *vis = (uint32_t *)mark_surfaces_state.vis;
 
 	leaf = &cl.worldmodel->leafs[1];
@@ -492,12 +487,12 @@ void R_MarkVisSurfaces (qboolean *use_tasks)
 						surf->visframe = r_visframecount;
 						if (!R_BackFaceCull (surf))
 						{
-							++brushpolys;
+							++thread_counters.rs_brushpolys;
 							R_ChainSurface (surf, chain_world);
 							if (!r_gpulightmapupdate.value)
 								R_RenderDynamicLightmaps (surf);
 							else if (surf->lightmaptexturenum >= 0)
-								Atomic_OrUInt32 (&lightmaps[surf->lightmaptexturenum].modified, surf->styles_bitmap);
+								thread_counters.lightmap_modified[surf->lightmaptexturenum] |= surf->styles_bitmap;
 							if (surf->texinfo->texture->warpimage)
 								Atomic_StoreUInt32 (&surf->texinfo->texture->update_warp, true);
 						}
@@ -511,7 +506,6 @@ void R_MarkVisSurfaces (qboolean *use_tasks)
 		}
 	}
 
-	Atomic_AddUInt32 (&rs_brushpolys, brushpolys); // count wpolys here
 	R_SetupWorldCBXTexRanges (*use_tasks);
 }
 
@@ -694,8 +688,7 @@ Draw the current batch if non-empty and clears it, ready for more R_BatchSurface
 ================
 */
 static void R_FlushBatch (
-	cb_context_t *cbx, qboolean fullbright_enabled, qboolean alpha_test, qboolean alpha_blend, qboolean use_zbias, gltexture_t *lightmap_texture,
-	uint32_t *brushpasses)
+	cb_context_t *cbx, qboolean fullbright_enabled, qboolean alpha_test, qboolean alpha_blend, qboolean use_zbias, gltexture_t *lightmap_texture)
 {
 	if (cbx->num_vbo_indices > 0)
 	{
@@ -735,7 +728,7 @@ static void R_FlushBatch (
 		vulkan_globals.vk_cmd_draw_indexed (cbx->cb, cbx->num_vbo_indices, 1, 0, 0, 0);
 
 		R_ClearBatch (cbx);
-		++(*brushpasses);
+		++thread_counters.rs_brushpasses;
 	}
 }
 
@@ -748,15 +741,14 @@ using VBOs.
 ================
 */
 static void R_BatchSurface (
-	cb_context_t *cbx, msurface_t *s, qboolean fullbright_enabled, qboolean alpha_test, qboolean alpha_blend, qboolean use_zbias, gltexture_t *lightmap_texture,
-	uint32_t *brushpasses)
+	cb_context_t *cbx, msurface_t *s, qboolean fullbright_enabled, qboolean alpha_test, qboolean alpha_blend, qboolean use_zbias, gltexture_t *lightmap_texture)
 {
 	int num_surf_indices;
 
 	num_surf_indices = R_NumTriangleIndicesForSurf (s);
 
 	if (cbx->num_vbo_indices + num_surf_indices > MAX_BATCH_SIZE)
-		R_FlushBatch (cbx, fullbright_enabled, alpha_test, alpha_blend, use_zbias, lightmap_texture, brushpasses);
+		R_FlushBatch (cbx, fullbright_enabled, alpha_test, alpha_blend, use_zbias, lightmap_texture);
 
 	R_TriangleIndicesForSurf (s, &cbx->vbo_indices[cbx->num_vbo_indices]);
 	cbx->num_vbo_indices += num_surf_indices;
@@ -825,7 +817,6 @@ void R_DrawTextureChains_Water (cb_context_t *cbx, qmodel_t *model, entity_t *en
 		vulkan_globals.vk_cmd_bind_descriptor_sets (
 			cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 0, 1, &greytexture->descriptor_set, 0, NULL);
 
-	uint32_t brushpasses = 0;
 	for (i = 0; i < model->numtextures; ++i)
 	{
 		t = model->textures[i];
@@ -862,22 +853,20 @@ void R_DrawTextureChains_Water (cb_context_t *cbx, qmodel_t *model, entity_t *en
 			{
 				if (alpha_blend)
 					R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 20 * sizeof (float), 1 * sizeof (float), &alpha);
-				R_FlushBatch (cbx, false, false, alpha_blend, false, lightmap_texture, &brushpasses);
+				R_FlushBatch (cbx, false, false, alpha_blend, false, lightmap_texture);
 				lightmap_texture = (s->lightmaptexturenum >= 0) ? lightmaps[s->lightmaptexturenum].texture : greytexture;
 				last_alpha = alpha;
 			}
 
 			lastlightmap = s->lightmaptexturenum;
-			R_BatchSurface (cbx, s, false, false, alpha_blend, false, lightmap_texture, &brushpasses);
+			R_BatchSurface (cbx, s, false, false, alpha_blend, false, lightmap_texture);
 		}
 
 		const qboolean alpha_blend = alpha < 1.0f;
 		if (alpha_blend)
 			R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 20 * sizeof (float), 1 * sizeof (float), &alpha);
-		R_FlushBatch (cbx, false, false, alpha_blend, false, lightmap_texture, &brushpasses);
+		R_FlushBatch (cbx, false, false, alpha_blend, false, lightmap_texture);
 	}
-
-	Atomic_AddUInt32 (&rs_brushpasses, brushpasses);
 }
 
 /*
@@ -912,7 +901,6 @@ void R_DrawTextureChains_Multitexture (cb_context_t *cbx, qmodel_t *model, entit
 		R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 20 * sizeof (float), 1 * sizeof (float), &alpha);
 	}
 
-	uint32_t brushpasses = 0;
 	for (i = texstart; i < texend; ++i)
 	{
 		t = model->textures[i];
@@ -945,18 +933,16 @@ void R_DrawTextureChains_Multitexture (cb_context_t *cbx, qmodel_t *model, entit
 		{
 			if (s->lightmaptexturenum != lastlightmap)
 			{
-				R_FlushBatch (cbx, fullbright_enabled, alpha_test, alpha_blend, use_zbias, lightmap_texture, &brushpasses);
+				R_FlushBatch (cbx, fullbright_enabled, alpha_test, alpha_blend, use_zbias, lightmap_texture);
 				lightmap_texture = lightmaps[s->lightmaptexturenum].texture;
 			}
 
 			lastlightmap = s->lightmaptexturenum;
-			R_BatchSurface (cbx, s, fullbright_enabled, alpha_test, alpha_blend, use_zbias, lightmap_texture, &brushpasses);
+			R_BatchSurface (cbx, s, fullbright_enabled, alpha_test, alpha_blend, use_zbias, lightmap_texture);
 		}
 
-		R_FlushBatch (cbx, fullbright_enabled, alpha_test, alpha_blend, use_zbias, lightmap_texture, &brushpasses);
+		R_FlushBatch (cbx, fullbright_enabled, alpha_test, alpha_blend, use_zbias, lightmap_texture);
 	}
-
-	Atomic_AddUInt32 (&rs_brushpasses, brushpasses);
 }
 
 /*

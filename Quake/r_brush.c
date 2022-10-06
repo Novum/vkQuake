@@ -255,8 +255,8 @@ void R_DrawBrushModel (cb_context_t *cbx, entity_t *e, int chain)
 			if (!r_gpulightmapupdate.value)
 				R_RenderDynamicLightmaps (psurf);
 			else if (psurf->lightmaptexturenum >= 0)
-				Atomic_OrUInt32 (&lightmaps[psurf->lightmaptexturenum].modified, psurf->styles_bitmap);
-			Atomic_IncrementUInt32 (&rs_brushpolys);
+				thread_counters.lightmap_modified[psurf->lightmaptexturenum] |= psurf->styles_bitmap;
+			++thread_counters.rs_brushpolys;
 		}
 	}
 
@@ -369,7 +369,7 @@ void R_RenderDynamicLightmaps (msurface_t *fa)
 		if (r_dynamic.value)
 		{
 			struct lightmap_s *lm = &lightmaps[fa->lightmaptexturenum];
-			Atomic_StoreUInt32 (&lm->modified, true);
+			thread_counters.lightmap_modified[fa->lightmaptexturenum] = true;
 			theRect = &lm->rectchange;
 			if (fa->light_t < theRect->t)
 			{
@@ -1034,7 +1034,7 @@ void GL_BuildLightmaps (void)
 	for (i = 0; i < lightmap_count; i++)
 	{
 		lm = &lightmaps[i];
-		Atomic_StoreUInt32 (&lm->modified, false);
+		thread_counters.lightmap_modified[i] = false;
 		lm->rectchange.l = LMBLOCK_WIDTH;
 		lm->rectchange.t = LMBLOCK_HEIGHT;
 		lm->rectchange.w = 0;
@@ -1642,11 +1642,6 @@ assumes lightmap texture is already bound
 static void R_UploadLightmap (int lmap, gltexture_t *lightmap_tex)
 {
 	struct lightmap_s *lm = &lightmaps[lmap];
-	if (!Atomic_LoadUInt32 (&lm->modified))
-		return;
-
-	Atomic_StoreUInt32 (&lm->modified, false);
-
 	const int staging_size = LMBLOCK_WIDTH * lm->rectchange.h * 4;
 
 	VkBuffer        staging_buffer;
@@ -1703,7 +1698,7 @@ static void R_UploadLightmap (int lmap, gltexture_t *lightmap_tex)
 	lm->rectchange.h = 0;
 	lm->rectchange.w = 0;
 
-	Atomic_IncrementUInt32 (&rs_dynamiclightmaps);
+	++thread_counters.rs_dynamiclightmaps;
 }
 
 /*
@@ -1768,10 +1763,11 @@ void R_UpdateLightmaps (void *unused)
 	for (int lightmap_index = 0; lightmap_index < lightmap_count; ++lightmap_index)
 	{
 		struct lightmap_s *lm = &lightmaps[lightmap_index];
-		uint32_t           modified = Atomic_LoadUInt32 (&lm->modified);
+		uint32_t           modified = thread_counters.lightmap_modified[lightmap_index];
+		for (int i = 0; i < Tasks_NumWorkers (); i++)
+			modified |= thread_local_counters[i]->lightmap_modified[lightmap_index];
 		if (!modified)
 			continue;
-		Atomic_StoreUInt32 (&lm->modified, false);
 
 		qboolean needs_update = false;
 		for (int i = 0; i < MAX_LIGHTSTYLES; i++)
@@ -1859,7 +1855,7 @@ void R_UpdateLightmaps (void *unused)
 		if (num_batch_lightmaps == UPDATE_LIGHTMAP_BATCH_SIZE)
 		{
 			R_FlushUpdateLightmaps (cbx, num_batch_lightmaps, pre_lm_image_barriers, post_lm_image_barriers, lightmap_indexes);
-			Atomic_AddUInt32 (&rs_dynamiclightmaps, num_batch_lightmaps);
+			thread_counters.rs_dynamiclightmaps += num_batch_lightmaps;
 			num_batch_lightmaps = 0;
 		}
 	}
@@ -1867,7 +1863,7 @@ void R_UpdateLightmaps (void *unused)
 	if (num_batch_lightmaps > 0)
 	{
 		R_FlushUpdateLightmaps (cbx, num_batch_lightmaps, pre_lm_image_barriers, post_lm_image_barriers, lightmap_indexes);
-		Atomic_AddUInt32 (&rs_dynamiclightmaps, num_batch_lightmaps);
+		thread_counters.rs_dynamiclightmaps += num_batch_lightmaps;
 	}
 
 	R_EndDebugUtilsLabel (cbx);
@@ -1881,9 +1877,10 @@ void R_UploadLightmaps (void)
 
 	for (lmap = 0; lmap < lightmap_count; lmap++)
 	{
-		if (!Atomic_LoadUInt32 (&lightmaps[lmap].modified))
+		if (!thread_counters.lightmap_modified[lmap])
 			continue;
 
 		R_UploadLightmap (lmap, lightmaps[lmap].texture);
+		thread_counters.lightmap_modified[lmap] = false;
 	}
 }

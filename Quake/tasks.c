@@ -96,6 +96,8 @@ static task_queue_t         *executable_task_queue;
 static task_counter_t       *indexed_task_counters;
 static uint8_t               steal_worker_indices[MAX_WORKERS * 2];
 static THREAD_LOCAL qboolean is_worker = false;
+static SDL_sem              *init_sem;
+per_thread_counters         *thread_local_counters[MAX_WORKERS];
 
 /*
 ====================
@@ -274,6 +276,8 @@ static int Task_Worker (void *data)
 	is_worker = true;
 
 	const int worker_index = (intptr_t)data;
+	thread_local_counters[worker_index] = &thread_counters;
+	SDL_SemPost (init_sem);
 	while (true)
 	{
 		uint32_t task_index = TaskQueuePop (executable_task_queue);
@@ -357,10 +361,16 @@ void Tasks_Init (void)
 
 	indexed_task_counters = Mem_Alloc (sizeof (task_counter_t) * num_workers * MAX_PENDING_TASKS);
 	worker_threads = (SDL_Thread **)Mem_Alloc (sizeof (SDL_Thread *) * num_workers);
+	init_sem = SDL_CreateSemaphore (0);
 	for (int i = 0; i < num_workers; ++i)
 	{
 		worker_threads[i] = SDL_CreateThread (Task_Worker, "Task_Worker", (void *)(intptr_t)i);
 	}
+	for (int i = 0; i < num_workers; ++i)
+	{
+		SDL_SemWait (init_sem);
+	}
+	SDL_DestroySemaphore (init_sem);
 }
 
 /*

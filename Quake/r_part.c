@@ -1013,7 +1013,7 @@ static void R_DrawParticlesFaces (cb_context_t *cbx)
 		vertices[current_vertex].color[3] = 255;
 		current_vertex++;
 
-		Atomic_IncrementUInt32 (&rs_particles);
+		++thread_counters.rs_particles;
 	}
 
 	vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 1, &vertex_buffer, &vertex_buffer_offset);

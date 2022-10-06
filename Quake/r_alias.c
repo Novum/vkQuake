@@ -143,7 +143,7 @@ static void GL_DrawAliasFrame (
 
 	vulkan_globals.vk_cmd_draw_indexed (cbx->cb, paliashdr->numindexes, 1, 0, 0, 0);
 
-	Atomic_AddUInt32 (&rs_aliaspasses, paliashdr->numtris);
+	thread_counters.rs_aliaspasses += paliashdr->numtris;
 }
 
 /*
@@ -428,7 +428,7 @@ void R_DrawAliasModel (cb_context_t *cbx, entity_t *e)
 	//
 	// set up lighting
 	//
-	Atomic_AddUInt32 (&rs_aliaspolys, paliashdr->numtris);
+	thread_counters.rs_aliaspolys += paliashdr->numtris;
 	vec3_t shadevector, lightcolor;
 	R_SetupAliasLighting (e, &shadevector, &lightcolor);
 
