@@ -256,7 +256,7 @@ void R_DrawBrushModel (cb_context_t *cbx, entity_t *e, int chain, int *brushpoly
 			if (!r_gpulightmapupdate.value)
 				R_RenderDynamicLightmaps (psurf);
 			else if (psurf->lightmaptexturenum >= 0)
-				Atomic_OrUInt32 (&lightmaps[psurf->lightmaptexturenum].modified, psurf->styles_bitmap);
+				Atomic_StoreUInt32 (&lightmaps[psurf->lightmaptexturenum].modified, true);
 		}
 	}
 
@@ -1774,17 +1774,16 @@ void R_UpdateLightmaps (void *unused)
 	for (int lightmap_index = 0; lightmap_index < lightmap_count; ++lightmap_index)
 	{
 		struct lightmap_s *lm = &lightmaps[lightmap_index];
-		uint32_t           modified = Atomic_LoadUInt32 (&lm->modified);
-		if (!modified)
+		if (!Atomic_LoadUInt32 (&lm->modified))
 			continue;
 		Atomic_StoreUInt32 (&lm->modified, false);
 
 		qboolean needs_update = false;
 		for (int i = 0; i < MAX_LIGHTSTYLES; i++)
-			if (lm->used_lightstyles[i] && modified & 1 << (i < 16 ? i : i % 16 + 16) && lm->cached_light[i] != d_lightstylevalue[i])
+			if (lm->used_lightstyles[i] && lm->cached_light[i] != d_lightstylevalue[i])
 			{
 				needs_update = true;
-				break;
+				lm->cached_light[i] = d_lightstylevalue[i];
 			}
 		for (int i = 0; i < MAX_DLIGHTS; i++)
 		{
@@ -1823,9 +1822,6 @@ void R_UpdateLightmaps (void *unused)
 		}
 		if (!needs_update)
 			continue;
-		else
-			for (int i = 0; i < MAX_LIGHTSTYLES; i++)
-				lm->cached_light[i] = d_lightstylevalue[i];
 
 		int batch_index = num_batch_lightmaps++;
 		lightmap_indexes[batch_index] = lightmap_index;
