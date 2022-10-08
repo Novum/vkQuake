@@ -35,7 +35,7 @@ int      render_scale;
 
 // johnfitz -- rendering statistics
 atomic_uint32_t rs_brushpolys, rs_aliaspolys, rs_skypolys, rs_particles, rs_fogpolys;
-atomic_uint32_t rs_dynamiclightmaps, rs_brushpasses, rs_aliaspasses, rs_skypasses;
+atomic_uint32_t rs_dynamiclightmaps, rs_brushpasses, rs_aliaspasses;
 
 //
 // view origin
@@ -797,8 +797,8 @@ static void R_PrintStats (double time1)
 			(int)cl.entities[cl.viewentity].origin[2], (int)cl.viewangles[PITCH], (int)cl.viewangles[YAW], (int)cl.viewangles[ROLL]);
 	else if (r_speeds.value == 2)
 		Con_Printf (
-			"%6.3f ms  %4u/%4u wpoly %4u/%4u epoly %3u lmap %4u/%4u sky\n", (time2 - time1) * 1000.0, rs_brushpolys, rs_brushpasses, rs_aliaspolys,
-			rs_aliaspasses, rs_dynamiclightmaps, rs_skypolys, rs_skypasses);
+			"%6.3f ms  %4u/%4u wpoly %4u/%4u epoly %3u lmap %4u skypoly\n", (time2 - time1) * 1000.0, rs_brushpolys, rs_brushpasses, rs_aliaspolys,
+			rs_aliaspasses, rs_dynamiclightmaps, rs_skypolys);
 	else if (r_speeds.value)
 		Con_Printf ("%3i ms  %4i wpoly %4i epoly %3i lmap\n", (int)((time2 - time1) * 1000), rs_brushpolys, rs_aliaspolys, rs_dynamiclightmaps);
 	// johnfitz
@@ -834,7 +834,6 @@ void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 		Atomic_StoreUInt32 (&rs_fogpolys, 0u);
 		Atomic_StoreUInt32 (&rs_dynamiclightmaps, 0u);
 		Atomic_StoreUInt32 (&rs_aliaspasses, 0u);
-		Atomic_StoreUInt32 (&rs_skypasses, 0u);
 		Atomic_StoreUInt32 (&rs_brushpasses, 0u);
 		stats_ready = true;
 	}
