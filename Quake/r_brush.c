@@ -190,7 +190,7 @@ void DrawGLPoly (cb_context_t *cbx, glpoly_t *p, float color[3], float alpha)
 R_DrawBrushModel
 =================
 */
-void R_DrawBrushModel (cb_context_t *cbx, entity_t *e, int chain)
+void R_DrawBrushModel (cb_context_t *cbx, entity_t *e, int chain, int *brushpolys)
 {
 	int         i, k;
 	msurface_t *psurf;
@@ -252,11 +252,11 @@ void R_DrawBrushModel (cb_context_t *cbx, entity_t *e, int chain)
 		if (((psurf->flags & SURF_PLANEBACK) && (dot < -BACKFACE_EPSILON)) || (!(psurf->flags & SURF_PLANEBACK) && (dot > BACKFACE_EPSILON)))
 		{
 			R_ChainSurface (psurf, chain);
+			++(*brushpolys);
 			if (!r_gpulightmapupdate.value)
 				R_RenderDynamicLightmaps (psurf);
 			else if (psurf->lightmaptexturenum >= 0)
 				Atomic_OrUInt32 (&lightmaps[psurf->lightmaptexturenum].modified, psurf->styles_bitmap);
-			Atomic_IncrementUInt32 (&rs_brushpolys);
 		}
 	}
 
@@ -1709,8 +1709,6 @@ static void R_UploadLightmap (int lmap, gltexture_t *lightmap_tex)
 	lm->rectchange.t = LMBLOCK_HEIGHT;
 	lm->rectchange.h = 0;
 	lm->rectchange.w = 0;
-
-	Atomic_IncrementUInt32 (&rs_dynamiclightmaps);
 }
 
 /*
@@ -1767,6 +1765,7 @@ void R_UpdateLightmaps (void *unused)
 		light->minlight = cl_dlights[i].minlight;
 	}
 
+	int                  num_lightmaps = 0;
 	int                  num_batch_lightmaps = 0;
 	VkImageMemoryBarrier pre_lm_image_barriers[UPDATE_LIGHTMAP_BATCH_SIZE];
 	VkImageMemoryBarrier post_lm_image_barriers[UPDATE_LIGHTMAP_BATCH_SIZE];
@@ -1866,7 +1865,7 @@ void R_UpdateLightmaps (void *unused)
 		if (num_batch_lightmaps == UPDATE_LIGHTMAP_BATCH_SIZE)
 		{
 			R_FlushUpdateLightmaps (cbx, num_batch_lightmaps, pre_lm_image_barriers, post_lm_image_barriers, lightmap_indexes);
-			Atomic_AddUInt32 (&rs_dynamiclightmaps, num_batch_lightmaps);
+			num_lightmaps += num_batch_lightmaps;
 			num_batch_lightmaps = 0;
 		}
 	}
@@ -1874,8 +1873,10 @@ void R_UpdateLightmaps (void *unused)
 	if (num_batch_lightmaps > 0)
 	{
 		R_FlushUpdateLightmaps (cbx, num_batch_lightmaps, pre_lm_image_barriers, post_lm_image_barriers, lightmap_indexes);
-		Atomic_AddUInt32 (&rs_dynamiclightmaps, num_batch_lightmaps);
+		num_lightmaps += num_batch_lightmaps;
 	}
+
+	Atomic_AddUInt32 (&rs_dynamiclightmaps, num_lightmaps);
 
 	R_EndDebugUtilsLabel (cbx);
 
@@ -1885,12 +1886,16 @@ void R_UpdateLightmaps (void *unused)
 void R_UploadLightmaps (void)
 {
 	int lmap;
+	int num_uploads = 0;
 
 	for (lmap = 0; lmap < lightmap_count; lmap++)
 	{
 		if (!Atomic_LoadUInt32 (&lightmaps[lmap].modified))
 			continue;
 
+		++num_uploads;
 		R_UploadLightmap (lmap, lightmaps[lmap].texture);
 	}
+
+	Atomic_AddUInt32 (&rs_dynamiclightmaps, num_uploads);
 }

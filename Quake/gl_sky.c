@@ -608,7 +608,6 @@ void Sky_ProcessPoly (cb_context_t *cbx, glpoly_t *p, float color[3])
 
 	// draw it
 	DrawGLPoly (cbx, p, color, 1.0f);
-	Atomic_IncrementUInt32 (&rs_brushpasses);
 
 	// update sky bounds
 	if (!r_fastsky.value)
@@ -627,7 +626,7 @@ void Sky_ProcessPoly (cb_context_t *cbx, glpoly_t *p, float color[3])
 Sky_ProcessTextureChains -- handles sky polys in world model
 ================
 */
-void Sky_ProcessTextureChains (cb_context_t *cbx, float color[3])
+void Sky_ProcessTextureChains (cb_context_t *cbx, float color[3], int *skypolys, int *skypasses)
 {
 	int         i;
 	msurface_t *s;
@@ -644,7 +643,11 @@ void Sky_ProcessTextureChains (cb_context_t *cbx, float color[3])
 			continue;
 
 		for (s = t->texturechains[chain_world]; s; s = s->texturechains[chain_world])
+		{
 			Sky_ProcessPoly (cbx, s->polys, color);
+			++(*skypolys);
+			++(*skypasses);
+		}
 	}
 }
 
@@ -799,7 +802,7 @@ Sky_DrawSkyBox
 FIXME: eliminate cracks by adding an extra vert on tjuncs
 ==============
 */
-void Sky_DrawSkyBox (cb_context_t *cbx)
+void Sky_DrawSkyBox (cb_context_t *cbx, int *skypolys, int *skypasses)
 {
 	int i;
 
@@ -831,8 +834,8 @@ void Sky_DrawSkyBox (cb_context_t *cbx)
 		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_box_pipeline);
 		vkCmdDrawIndexed (cbx->cb, 6, 1, 0, 0, 0);
 
-		Atomic_IncrementUInt32 (&rs_skypolys);
-		Atomic_IncrementUInt32 (&rs_skypasses);
+		++(*skypolys);
+		++(*skypasses);
 	}
 }
 
@@ -922,9 +925,6 @@ void Sky_DrawFaceQuad (cb_context_t *cbx, glpoly_t *p, float alpha)
 
 	vkCmdBindVertexBuffers (cbx->cb, 0, 1, &vertex_buffer, &vertex_buffer_offset);
 	vkCmdDrawIndexed (cbx->cb, 6, 1, 0, 0, 0);
-
-	Atomic_IncrementUInt32 (&rs_skypolys);
-	Atomic_IncrementUInt32 (&rs_skypasses);
 }
 
 /*
@@ -933,7 +933,7 @@ Sky_DrawFace
 ==============
 */
 
-void Sky_DrawFace (cb_context_t *cbx, int axis, float alpha)
+void Sky_DrawFace (cb_context_t *cbx, int axis, float alpha, int *skypolys, int *skypasses)
 {
 	glpoly_t p;
 	vec3_t   verts[4];
@@ -977,6 +977,8 @@ void Sky_DrawFace (cb_context_t *cbx, int axis, float alpha)
 			VectorAdd (p.verts[0], temp, p.verts[3]);
 
 			Sky_DrawFaceQuad (cbx, &p, alpha);
+			++skypolys;
+			++skypasses;
 		}
 	}
 }
@@ -988,7 +990,7 @@ Sky_DrawSkyLayers
 draws the old-style scrolling cloud layers
 ==============
 */
-void Sky_DrawSkyLayers (cb_context_t *cbx)
+void Sky_DrawSkyLayers (cb_context_t *cbx, int *skypolys, int *skypasses)
 {
 	int i;
 	if (!solidskytexture || !alphaskytexture)
@@ -1001,7 +1003,7 @@ void Sky_DrawSkyLayers (cb_context_t *cbx)
 
 	for (i = 0; i < 6; i++)
 		if (skymins[0][i] < skymaxs[0][i] && skymins[1][i] < skymaxs[1][i])
-			Sky_DrawFace (cbx, i, r_skyalpha.value);
+			Sky_DrawFace (cbx, i, r_skyalpha.value, skypolys, skypasses);
 }
 
 /*
@@ -1050,7 +1052,9 @@ void Sky_DrawSky (cb_context_t *cbx)
 	else
 		memcpy (color, skyflatcolor, 3 * sizeof (float));
 
-	Sky_ProcessTextureChains (cbx, color);
+	int skypolys = 0;
+	int skypasses = 0;
+	Sky_ProcessTextureChains (cbx, color, &skypolys, &skypasses);
 	Sky_ProcessEntities (cbx, color);
 
 	//
@@ -1065,10 +1069,13 @@ void Sky_DrawSky (cb_context_t *cbx)
 		R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 16 * sizeof (float), 4 * sizeof (float), fog_values);
 
 		if (skybox_name[0])
-			Sky_DrawSkyBox (cbx);
+			Sky_DrawSkyBox (cbx, &skypolys, &skypasses);
 		else
-			Sky_DrawSkyLayers (cbx);
+			Sky_DrawSkyLayers (cbx, &skypolys, &skypasses);
 	}
+
+	Atomic_AddUInt32(&rs_skypolys, skypolys);
+	Atomic_AddUInt32(&rs_skypasses, skypasses);
 
 	Fog_EnableGFog (cbx);
 

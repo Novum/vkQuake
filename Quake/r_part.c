@@ -940,6 +940,7 @@ static void R_DrawParticlesFaces (cb_context_t *cbx)
 	int num_particles = 0;
 	for (p = active_particles; p; p = p->next)
 		num_particles += 1;
+	Atomic_AddUInt32 (&rs_particles, num_particles);
 
 	VkBuffer       vertex_buffer;
 	VkDeviceSize   vertex_buffer_offset;
@@ -1012,8 +1013,6 @@ static void R_DrawParticlesFaces (cb_context_t *cbx)
 		vertices[current_vertex].color[2] = c[2];
 		vertices[current_vertex].color[3] = 255;
 		current_vertex++;
-
-		Atomic_IncrementUInt32 (&rs_particles);
 	}
 
 	vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 1, &vertex_buffer, &vertex_buffer_offset);

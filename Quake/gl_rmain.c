@@ -437,6 +437,11 @@ void R_DrawEntitiesOnList (cb_context_t *cbx, qboolean alphapass, int chain, int
 	if (!r_drawentities.value)
 		return;
 
+	int brushpolys = 0;
+	int brushpasses = 0;
+	int aliaspolys = 0;
+	int aliaspasses = 0;
+
 	R_BeginDebugUtilsLabel (cbx, alphapass ? "Entities Alpha Pass" : "Entities");
 	// johnfitz -- sprites are not a special case
 	for (i = startedict; i < endedict; ++i)
@@ -460,10 +465,12 @@ void R_DrawEntitiesOnList (cb_context_t *cbx, qboolean alphapass, int chain, int
 		switch (currententity->model->type)
 		{
 		case mod_alias:
-			R_DrawAliasModel (cbx, currententity);
+			R_DrawAliasModel (cbx, currententity, &aliaspolys);
+			++aliaspasses;
 			break;
 		case mod_brush:
-			R_DrawBrushModel (cbx, currententity, chain);
+			R_DrawBrushModel (cbx, currententity, chain, &brushpolys);
+			++brushpasses;
 			break;
 		case mod_sprite:
 			R_DrawSpriteModel (cbx, currententity);
@@ -471,6 +478,11 @@ void R_DrawEntitiesOnList (cb_context_t *cbx, qboolean alphapass, int chain, int
 		}
 	}
 	R_EndDebugUtilsLabel (cbx);
+
+	Atomic_AddUInt32 (&rs_brushpolys, brushpolys);
+	Atomic_AddUInt32 (&rs_brushpasses, brushpasses);
+	Atomic_AddUInt32 (&rs_aliaspolys, aliaspolys);
+	Atomic_AddUInt32 (&rs_aliaspasses, aliaspasses);
 }
 
 /*
@@ -501,7 +513,10 @@ void R_DrawViewModel (cb_context_t *cbx)
 	GL_Viewport (
 		cbx, glx + r_refdef.vrect.x, gly + glheight - r_refdef.vrect.y - r_refdef.vrect.height, r_refdef.vrect.width, r_refdef.vrect.height, 0.7f, 1.0f);
 
-	R_DrawAliasModel (cbx, currententity);
+	int aliaspolys = 0;
+	R_DrawAliasModel (cbx, currententity, &aliaspolys);
+	Atomic_AddUInt32 (&rs_aliaspolys, aliaspolys);
+	Atomic_IncrementUInt32 (&rs_aliaspasses);
 
 	GL_Viewport (
 		cbx, glx + r_refdef.vrect.x, gly + glheight - r_refdef.vrect.y - r_refdef.vrect.height, r_refdef.vrect.width, r_refdef.vrect.height, 0.0f, 1.0f);

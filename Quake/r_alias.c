@@ -142,8 +142,6 @@ static void GL_DrawAliasFrame (
 	vulkan_globals.vk_cmd_bind_index_buffer (cbx->cb, e->model->index_buffer, 0, VK_INDEX_TYPE_UINT16);
 
 	vulkan_globals.vk_cmd_draw_indexed (cbx->cb, paliashdr->numindexes, 1, 0, 0, 0);
-
-	Atomic_AddUInt32 (&rs_aliaspasses, paliashdr->numtris);
 }
 
 /*
@@ -370,7 +368,7 @@ static void R_SetupAliasLighting (entity_t *e, vec3_t *shadevector, vec3_t *ligh
 R_DrawAliasModel -- johnfitz -- almost completely rewritten
 =================
 */
-void R_DrawAliasModel (cb_context_t *cbx, entity_t *e)
+void R_DrawAliasModel (cb_context_t *cbx, entity_t *e, int *aliaspolys)
 {
 	aliashdr_t  *paliashdr;
 	int          anim, skinnum;
@@ -428,7 +426,7 @@ void R_DrawAliasModel (cb_context_t *cbx, entity_t *e)
 	//
 	// set up lighting
 	//
-	Atomic_AddUInt32 (&rs_aliaspolys, paliashdr->numtris);
+	*aliaspolys += paliashdr->numtris;
 	vec3_t shadevector, lightcolor;
 	R_SetupAliasLighting (e, &shadevector, &lightcolor);
 
