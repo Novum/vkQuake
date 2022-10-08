@@ -1834,12 +1834,10 @@ qboolean SV_VisibleToClient (edict_t *client, edict_t *test, qmodel_t *worldmode
 
 //=============================================================================
 
-#define MAX_NET_EDICTS 65536
-
-static uint16_t net_edicts[MAX_NET_EDICTS];
-static byte     net_edict_dists[MAX_NET_EDICTS];
+static uint16_t net_edicts[MAX_EDICTS];
+static byte     net_edict_dists[MAX_EDICTS];
 static int      net_edict_bins[256];
-static uint16_t net_edicts_sorted[MAX_NET_EDICTS];
+static uint16_t net_edicts_sorted[MAX_EDICTS];
 
 /*
 =============
@@ -1944,7 +1942,7 @@ void SV_WriteEntitiesToClient (client_t *client, sizebuf_t *msg, size_t overflow
 						float direction = DotProduct (ent->v.velocity, to_self); // if >0, coming toward us; otherwise rockets always get priority
 						size = (direction > 0 || strstr (model, "miss") || strstr (model, "rocket")) ? 3072 : 768; // set a 32-/16-sided cube's size
 					}
-					else if (ent->v.movetype == MOVETYPE_BOUNCE || (ent->v.movetype == MOVETYPE_TOSS && abs ((int)ent->v.velocity[2])))
+					else if (ent->v.movetype == MOVETYPE_BOUNCE || ent->v.movetype == MOVETYPE_TOSS)
 						// for gibs, set size to a 16-sided cube. for grenades / lavaballs, 32-sided cube
 						size = (ent->v.nextthink > 0 && !strstr (model, "gib")) ? 3072 : 768;
 				}
@@ -1966,8 +1964,7 @@ void SV_WriteEntitiesToClient (client_t *client, sizebuf_t *msg, size_t overflow
 			else
 				net_edicts_sorted[numents] = e;
 
-			if (++numents == MAX_NET_EDICTS)
-				break;
+			++numents;
 		}
 		else
 			continue;
