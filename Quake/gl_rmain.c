@@ -163,7 +163,7 @@ qboolean R_CullModelForEntity (entity_t *e)
 		maxbounds = e->model->maxs;
 	}
 
-	scalefactor = ENTSCALE_DECODE(e->netstate.scale);
+	scalefactor = ENTSCALE_DECODE (e->netstate.scale);
 	if (scalefactor != 1.0f)
 	{
 		VectorMA (e->origin, scalefactor, minbounds, mins);

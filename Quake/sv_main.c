@@ -837,7 +837,7 @@ byte       *SV_FatPVS (vec3_t org, qmodel_t *worldmodel);
 static void SVFTE_BuildSnapshotForClient (client_t *client)
 {
 	unsigned int  e, i;
-	byte		 *pvs;
+	byte         *pvs;
 	vec3_t        org;
 	edict_t      *ent, *parent;
 	unsigned int  maxentities = client->limit_entities;
@@ -1474,7 +1474,7 @@ retry:
 	MSG_WriteByte (&client->message, svc_print);
 	//	q_snprintf (message, "%c\nFITZQUAKE %1.2f SERVER (%i CRC)\n", 2, FITZQUAKE_VERSION, pr_crc); //johnfitz -- include fitzquake version
 	q_snprintf (
-		message, sizeof(message), "%c\n" ENGINE_NAME_AND_VER " Server (%i CRC)\n", 2,
+		message, sizeof (message), "%c\n" ENGINE_NAME_AND_VER " Server (%i CRC)\n", 2,
 		qcvm->progscrc); // spike -- quakespasm has moved on, and has its own server capabilities now. Advertising = good, right?
 	MSG_WriteString (&client->message, message);
 
@@ -2063,7 +2063,7 @@ void SV_WriteEntitiesToClient (client_t *client, sizebuf_t *msg, size_t overflow
 			else
 #endif
 				if (ENTSCALE_DEFAULT != scale) // for 666, we didn't send the scale in the baseline!
-					bits |= U_SCALE;
+				bits |= U_SCALE;
 			if (bits & U_FRAME && (int)ent->v.frame & 0xFF00)
 				bits |= U_FRAME2;
 			if (bits & U_MODEL && (int)ent->v.modelindex & 0xFF00)
@@ -2404,7 +2404,6 @@ void SV_PresendClientDatagram (client_t *client)
 	SVFTE_CalcEntityDeltas (client);
 	client->snapshotresume = 0;
 }
-
 
 /*
 =======================

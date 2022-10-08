@@ -3727,8 +3727,8 @@ static void PF_uri_escape (void)
 {
 	static const char *hex = "0123456789ABCDEF";
 
-	char				*result = PR_GetTempString ();
-	char				*o = result;
+	char                *result = PR_GetTempString ();
+	char                *o = result;
 	const unsigned char *s = (const unsigned char *)G_STRING (OFS_PARM0);
 	*result = 0;
 	while (*s && o < result + STRINGTEMP_LENGTH - 4)
@@ -3749,7 +3749,7 @@ static void PF_uri_escape (void)
 static void PF_uri_unescape (void)
 {
 	const char   *s = G_STRING (OFS_PARM0), *i;
-	char		 *resultbuf = PR_GetTempString (), *o;
+	char         *resultbuf = PR_GetTempString (), *o;
 	unsigned char hex;
 	i = s;
 	o = resultbuf;
@@ -3814,7 +3814,7 @@ static void PF_digest_hex (void)
 	const byte        *data = (const byte *)PF_VarString (1);
 	size_t             len = strlen ((const char *)data);
 	static const char *hex = "0123456789ABCDEF";
-	char			  *resultbuf;
+	char              *resultbuf;
 	byte               hashdata[20];
 
 	if (!strcmp (hashtype, "CRC16"))
@@ -3861,7 +3861,7 @@ static void PF_strlennocol (void)
 static void PF_strdecolorize (void)
 {
 	int             l, c;
-	char		   *r = PR_GetTempString ();
+	char           *r = PR_GetTempString ();
 	struct markup_s mu;
 
 	PR_Markup_Begin (&mu, G_STRING (OFS_PARM0), vec3_origin, 1);

@@ -1029,7 +1029,7 @@ static void Host_SavegameComment (char *text)
 		*p2 = 0;
 
 	memcpy (text, cl.levelname, q_min (strlen (cl.levelname), 22)); // johnfitz -- only copy 22 chars.
-	q_snprintf (kills, sizeof(kills), "kills:%3i/%3i", cl.stats[STAT_MONSTERS], cl.stats[STAT_TOTALMONSTERS]);
+	q_snprintf (kills, sizeof (kills), "kills:%3i/%3i", cl.stats[STAT_MONSTERS], cl.stats[STAT_TOTALMONSTERS]);
 	memcpy (text + 22, kills, strlen (kills));
 	// convert space to _ to make stdio happy
 	for (i = 0; i < SAVEGAME_COMMENT_LENGTH; i++)
@@ -1913,8 +1913,8 @@ Host_Spawn_f
 */
 static void Host_Spawn_f (void)
 {
-	int       i;
-	edict_t  *ent;
+	int      i;
+	edict_t *ent;
 
 	if (cmd_source != src_client)
 	{

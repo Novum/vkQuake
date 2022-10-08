@@ -504,11 +504,11 @@ void Sbar_SoloScoreboard (cb_context_t *cbx)
 	int  minutes, seconds, tens, units;
 	int  left, right, len;
 
-	q_snprintf (str, sizeof(str), "Kills: %i/%i", cl.stats[STAT_MONSTERS], cl.stats[STAT_TOTALMONSTERS]);
+	q_snprintf (str, sizeof (str), "Kills: %i/%i", cl.stats[STAT_MONSTERS], cl.stats[STAT_TOTALMONSTERS]);
 	left = 8 + strlen (str) * 8;
 	Sbar_DrawString (cbx, 8, 12, str);
 
-	q_snprintf (str, sizeof(str), "Secrets: %i/%i", cl.stats[STAT_SECRETS], cl.stats[STAT_TOTALSECRETS]);
+	q_snprintf (str, sizeof (str), "Secrets: %i/%i", cl.stats[STAT_SECRETS], cl.stats[STAT_TOTALSECRETS]);
 	right = 312 - strlen (str) * 8;
 	Sbar_DrawString (cbx, right, 12, str);
 
@@ -529,7 +529,7 @@ void Sbar_SoloScoreboard (cb_context_t *cbx)
 	seconds = cl.time - 60 * minutes;
 	tens = seconds / 10;
 	units = seconds - 10 * tens;
-	q_snprintf (str, sizeof(str), "%i:%i%i", minutes, tens, units);
+	q_snprintf (str, sizeof (str), "%i:%i%i", minutes, tens, units);
 	Sbar_DrawString (cbx, 160 - strlen (str) * 4, 12, str);
 
 	len = strlen (cl.levelname);
@@ -673,7 +673,7 @@ void Sbar_DrawInventory (cb_context_t *cbx)
 	{
 		val = cl.stats[STAT_SHELLS + i];
 		val = (val < 0) ? 0 : q_min (999, val); // johnfitz -- cap displayed value to 999
-		q_snprintf (num, sizeof(num), "%3i", val);
+		q_snprintf (num, sizeof (num), "%3i", val);
 		if (num[0] != ' ')
 			Sbar_DrawCharacter (cbx, (6 * i + 1) * 8 + 2, -24, 18 + num[0] - '0');
 		if (num[1] != ' ')
@@ -775,7 +775,7 @@ void Sbar_DrawFrags (cb_context_t *cbx)
 		Draw_Fill (cbx, x + 10, 5, 28, 3, color, 1);
 
 		// number
-		q_snprintf (num, sizeof(num), "%3i", s->frags);
+		q_snprintf (num, sizeof (num), "%3i", s->frags);
 		Sbar_DrawCharacter (cbx, x + 12, -24, num[0]);
 		Sbar_DrawCharacter (cbx, x + 20, -24, num[1]);
 		Sbar_DrawCharacter (cbx, x + 28, -24, num[2]);
@@ -827,7 +827,7 @@ void Sbar_DrawFace (cb_context_t *cbx)
 
 		// draw number
 		f = s->frags;
-		q_snprintf (num, sizeof(num), "%3i", f);
+		q_snprintf (num, sizeof (num), "%3i", f);
 
 		if (top == 8)
 		{
@@ -1189,7 +1189,7 @@ void Sbar_DeathmatchOverlay (cb_context_t *cbx)
 
 		// draw number
 		f = s->frags;
-		q_snprintf (num, sizeof(num), "%3i", f);
+		q_snprintf (num, sizeof (num), "%3i", f);
 
 		Draw_Character (cbx, x + 8, y, num[0]);  // johnfitz -- stretched overlays
 		Draw_Character (cbx, x + 16, y, num[1]); // johnfitz -- stretched overlays
@@ -1282,7 +1282,7 @@ void Sbar_MiniDeathmatchOverlay (cb_context_t *cbx)
 
 		// number
 		f = s->frags;
-		q_snprintf (num, sizeof(num), "%3i", f);
+		q_snprintf (num, sizeof (num), "%3i", f);
 		Draw_Character (cbx, x + 8, y, num[0]);
 		Draw_Character (cbx, x + 16, y, num[1]);
 		Draw_Character (cbx, x + 24, y, num[2]);

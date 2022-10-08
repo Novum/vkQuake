@@ -60,7 +60,7 @@ int vec_to_st[6][3] = {{-2, 3, 1}, {2, 3, -1}, {1, 3, 2}, {-1, 3, -2}, {-2, -1, 
 float skyfog; // ericw
 
 static SDL_mutex *load_skytexture_mutex;
-static int max_skytexture_index = -1;
+static int        max_skytexture_index = -1;
 
 typedef struct
 {
@@ -1074,8 +1074,8 @@ void Sky_DrawSky (cb_context_t *cbx)
 			Sky_DrawSkyLayers (cbx, &skypolys, &skypasses);
 	}
 
-	Atomic_AddUInt32(&rs_skypolys, skypolys);
-	Atomic_AddUInt32(&rs_skypasses, skypasses);
+	Atomic_AddUInt32 (&rs_skypolys, skypolys);
+	Atomic_AddUInt32 (&rs_skypasses, skypasses);
 
 	Fog_EnableGFog (cbx);
 

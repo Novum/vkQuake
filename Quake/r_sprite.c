@@ -37,7 +37,7 @@ static mspriteframe_t *R_GetSpriteFrame (entity_t *currentent)
 	mspritegroup_t *pspritegroup;
 	mspriteframe_t *pspriteframe;
 	int             i, numframes, frame;
-	float		  *pintervals, fullinterval, targettime, time;
+	float          *pintervals, fullinterval, targettime, time;
 
 	psprite = (msprite_t *)currentent->model->extradata;
 	frame = currentent->frame;

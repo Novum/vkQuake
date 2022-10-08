@@ -554,11 +554,11 @@ static void Mod_LoadTextureTask (int i, qmodel_t **ppmod)
 	if (!tx)
 		return;
 
-	int          pixels = tx->width * tx->height / 64 * 85;
-	char         texturename[64];
-	int          fwidth, fheight;
-	char         filename[MAX_OSPATH], mapname[MAX_OSPATH];
-	byte        *data = NULL;
+	int   pixels = tx->width * tx->height / 64 * 85;
+	char  texturename[64];
+	int   fwidth, fheight;
+	char  filename[MAX_OSPATH], mapname[MAX_OSPATH];
+	byte *data = NULL;
 
 	if (!q_strncasecmp (tx->name, "sky", 3)) // sky texture //also note -- was strncmp, changed to match qbsp
 	{
@@ -2417,7 +2417,7 @@ static void Mod_SetupSubmodels (qmodel_t *mod)
 		{ // duplicate the basic information
 			char name[12];
 
-			q_snprintf (name, sizeof(name), "*%i", i + 1);
+			q_snprintf (name, sizeof (name), "*%i", i + 1);
 			qmodel_t *submodel = Mod_FindName (name);
 			*submodel = *mod;
 			strcpy (submodel->name, name);
@@ -2593,7 +2593,7 @@ void *Mod_LoadAliasGroup (void *pin, maliasframedesc_t *frame)
 	daliasgroup_t    *pingroup;
 	int               i, numframes;
 	daliasinterval_t *pin_intervals;
-	void			 *ptemp;
+	void             *ptemp;
 
 	pingroup = (daliasgroup_t *)pin;
 
@@ -3190,8 +3190,8 @@ static void *Mod_LoadSpriteGroup (qmodel_t *mod, byte *mod_base, void *pin, mspr
 	mspritegroup_t    *pspritegroup;
 	int                i, numframes;
 	dspriteinterval_t *pin_intervals;
-	float			 *poutintervals;
-	void			  *ptemp;
+	float             *poutintervals;
+	void              *ptemp;
 
 	pingroup = (dspritegroup_t *)pin;
 

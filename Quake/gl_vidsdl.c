@@ -3700,7 +3700,7 @@ static void VID_Menu_ChooseNextFullScreenMode (int dir)
 VID_Menu_ChooseNextVSyncMode
 ================
 */
-static void VID_Menu_ChooseNextVSyncMode(int dir)
+static void VID_Menu_ChooseNextVSyncMode (int dir)
 {
 	Cvar_SetValueQuick (&vid_vsync, (float)(((int)vid_vsync.value + 3 + dir) % 3));
 }

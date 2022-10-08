@@ -1175,8 +1175,7 @@ static void P_LoadTexture (part_type_t *ptype, qboolean warn)
 			{
 				ptype->looks.texture = TexMgr_LoadImage (
 					NULL, texname, fwidth, fheight, SRC_RGBA, data, filename, 0,
-					(ptype->looks.premul ? TEXPREF_PREMULTIPLY : 0) | (ptype->looks.nearest ? TEXPREF_NEAREST : 0) | TEXPREF_NOPICMIP |
-						TEXPREF_ALPHA);
+					(ptype->looks.premul ? TEXPREF_PREMULTIPLY : 0) | (ptype->looks.nearest ? TEXPREF_NEAREST : 0) | TEXPREF_NOPICMIP | TEXPREF_ALPHA);
 			}
 		}
 	}
@@ -1323,8 +1322,7 @@ static void P_LoadTexture (part_type_t *ptype, qboolean warn)
 					}
 				}
 				thetex = TexMgr_LoadImage (
-					NULL, "particles/fuzzyparticle", 16, 16, SRC_RGBA, data, "", (src_offset_t)data,
-					TEXPREF_PERSIST | TEXPREF_NOPICMIP | TEXPREF_ALPHA);
+					NULL, "particles/fuzzyparticle", 16, 16, SRC_RGBA, data, "", (src_offset_t)data, TEXPREF_PERSIST | TEXPREF_NOPICMIP | TEXPREF_ALPHA);
 			}
 			ptype->looks.texture = thetex;
 		}
@@ -4317,7 +4315,7 @@ int PScript_RunParticleEffectState (vec3_t org, vec3_t dir, float count, int typ
 
 	float         orgadd, veladd;
 	trailstate_t *ts;
-	byte		 *palrgba = (byte *)d_8to24table;
+	byte         *palrgba = (byte *)d_8to24table;
 
 	if (typenum < 0 || typenum >= numparticletypes)
 		return 1;

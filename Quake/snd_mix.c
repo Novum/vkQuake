@@ -340,10 +340,11 @@ UNDERWATER EFFECT
 ===============================================================================
 */
 
-static struct {
-	float	intensity;
-	float	alpha;
-	float	accum[2];
+static struct
+{
+	float intensity;
+	float alpha;
+	float accum[2];
 } underwater = {0.f, 1.f, {0.f, 0.f}};
 
 extern cvar_t snd_waterfx;
@@ -371,17 +372,17 @@ static void S_UnderwaterFilter (int endtime)
 	{
 		if (endtime > 0)
 		{
-			underwater.accum[0] = paintbuffer[endtime-1].left;
-			underwater.accum[1] = paintbuffer[endtime-1].right;
+			underwater.accum[0] = paintbuffer[endtime - 1].left;
+			underwater.accum[1] = paintbuffer[endtime - 1].right;
 		}
 		return;
 	}
 	for (i = 0; i < endtime; i++)
 	{
-		underwater.accum[0] += underwater.alpha * (paintbuffer[i].left  - underwater.accum[0]);
+		underwater.accum[0] += underwater.alpha * (paintbuffer[i].left - underwater.accum[0]);
 		underwater.accum[1] += underwater.alpha * (paintbuffer[i].right - underwater.accum[1]);
-		paintbuffer[i].left  = (int) underwater.accum[0];
-		paintbuffer[i].right = (int) underwater.accum[1];
+		paintbuffer[i].left = (int)underwater.accum[0];
+		paintbuffer[i].right = (int)underwater.accum[1];
 	}
 }
 

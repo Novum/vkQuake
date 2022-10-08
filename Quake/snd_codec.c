@@ -292,7 +292,7 @@ int S_CodecReadStream (snd_stream_t *stream, int bytes, void *buffer)
 snd_stream_t *S_CodecUtilOpen (const char *filename, snd_codec_t *codec, qboolean loop)
 {
 	snd_stream_t *stream;
-	FILE		 *handle;
+	FILE         *handle;
 	qboolean      pak;
 	long          length;
 

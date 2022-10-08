@@ -24,7 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 static void CL_FinishTimeDemo (void);
 
-char        name[MAX_OSPATH];
+char name[MAX_OSPATH];
 
 /*
 ==============================================================================
@@ -164,7 +164,7 @@ CL_Seek_f
 ====================
 */
 extern float scr_clock_off;
-void CL_Seek_f (void)
+void         CL_Seek_f (void)
 {
 	if (cmd_source != src_command)
 		return;
@@ -197,7 +197,7 @@ void CL_Seek_f (void)
 		return;
 	}
 
-	qboolean relative = offset < 0 || Cmd_Argv (1) [0] == '+';
+	qboolean relative = offset < 0 || Cmd_Argv (1)[0] == '+';
 	cls.seektime = relative ? cl.time + offset : offset;
 
 	// large positive offsets could benefit from demoseeking, but we'd lose prints etc
@@ -545,8 +545,8 @@ record <demoname> <map> [cd track]
 */
 void CL_Record_f (void)
 {
-	int  c;
-	int  track;
+	int c;
+	int track;
 
 	if (cmd_source != src_command)
 		return;

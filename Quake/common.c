@@ -2048,8 +2048,8 @@ _add_path:
 
 void COM_ResetGameDirectories (const char *newdirs)
 {
-	char		 *newgamedirs = q_strdup (newdirs);
-	char		 *newpath, *path;
+	char         *newgamedirs = q_strdup (newdirs);
+	char         *newpath, *path;
 	searchpath_t *search;
 	// Kill the extra game if it is loaded
 	while (com_searchpaths != com_base_searchpaths)

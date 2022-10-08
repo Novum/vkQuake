@@ -630,7 +630,7 @@ void SCR_DrawFPS (cb_context_t *cbx)
 	{
 		char st[16];
 		int  x, y;
-		q_snprintf (st, sizeof(st), "%4.0f fps", lastfps);
+		q_snprintf (st, sizeof (st), "%4.0f fps", lastfps);
 		x = 320 - (strlen (st) << 3);
 		y = 200 - 8;
 		GL_SetCanvas (cbx, CANVAS_BOTTOMRIGHT);
@@ -645,8 +645,8 @@ SCR_DrawClock -- johnfitz
 */
 void SCR_DrawClock (cb_context_t *cbx)
 {
-	char str[32];
-	int  y = 200 - 8;
+	char            str[32];
+	int             y = 200 - 8;
 	static qboolean shown_pause;
 
 	if (cls.demoplayback && cls.demospeed != 1 && cls.demospeed != 0) // always show if playback speed is modified
@@ -673,24 +673,24 @@ void SCR_DrawClock (cb_context_t *cbx)
 
 	if (scr_clock.value >= 2)
 	{
-		q_snprintf (str, sizeof(str), "%i/%i", cl.stats[STAT_MONSTERS], cl.stats[STAT_TOTALMONSTERS]);
+		q_snprintf (str, sizeof (str), "%i/%i", cl.stats[STAT_MONSTERS], cl.stats[STAT_TOTALMONSTERS]);
 		Draw_String (cbx, 320 - (strlen (str) << 3), y, str);
 		y -= 8;
-		q_snprintf (str, sizeof(str), "%i/%i", cl.stats[STAT_SECRETS], cl.stats[STAT_TOTALSECRETS]);
+		q_snprintf (str, sizeof (str), "%i/%i", cl.stats[STAT_SECRETS], cl.stats[STAT_TOTALSECRETS]);
 		Draw_String (cbx, 320 - (strlen (str) << 3), y, str);
 		y -= 8;
 	}
 
-	q_snprintf (str, sizeof(str), "%i:%02i", (int)cl.time / 60, (int)cl.time % 60);
+	q_snprintf (str, sizeof (str), "%i:%02i", (int)cl.time / 60, (int)cl.time % 60);
 	Draw_String (cbx, 320 - (strlen (str) << 3), y, str);
 
 	// show playback rate
 	if (cls.demoplayback && cls.demospeed != 1)
 	{
 		y -= 8;
-		q_snprintf (str, sizeof(str), "[%gx]", cls.demospeed);
+		q_snprintf (str, sizeof (str), "[%gx]", cls.demospeed);
 		if (cls.demospeed == 0)
-			q_snprintf (str, sizeof(str), "[paused]");
+			q_snprintf (str, sizeof (str), "[paused]");
 		Draw_String (cbx, 320 - (strlen (str) << 3), y, str);
 	}
 }
@@ -713,31 +713,31 @@ void SCR_DrawDevStats (cb_context_t *cbx)
 
 	Draw_Fill (cbx, x, y * 8, 19 * 8, 9 * 8, 0, 0.5); // dark rectangle
 
-	q_snprintf (str, sizeof(str), "devstats |Curr Peak");
+	q_snprintf (str, sizeof (str), "devstats |Curr Peak");
 	Draw_String (cbx, x, (y++) * 8 - x, str);
 
-	q_snprintf (str, sizeof(str), "---------+---------");
+	q_snprintf (str, sizeof (str), "---------+---------");
 	Draw_String (cbx, x, (y++) * 8 - x, str);
 
-	q_snprintf (str, sizeof(str), "Edicts   |%4i %4i", dev_stats.edicts, dev_peakstats.edicts);
+	q_snprintf (str, sizeof (str), "Edicts   |%4i %4i", dev_stats.edicts, dev_peakstats.edicts);
 	Draw_String (cbx, x, (y++) * 8 - x, str);
 
-	q_snprintf (str, sizeof(str), "Packet   |%4i %4i", dev_stats.packetsize, dev_peakstats.packetsize);
+	q_snprintf (str, sizeof (str), "Packet   |%4i %4i", dev_stats.packetsize, dev_peakstats.packetsize);
 	Draw_String (cbx, x, (y++) * 8 - x, str);
 
-	q_snprintf (str, sizeof(str), "Visedicts|%4i %4i", dev_stats.visedicts, dev_peakstats.visedicts);
+	q_snprintf (str, sizeof (str), "Visedicts|%4i %4i", dev_stats.visedicts, dev_peakstats.visedicts);
 	Draw_String (cbx, x, (y++) * 8 - x, str);
 
-	q_snprintf (str, sizeof(str), "Efrags   |%4i %4i", dev_stats.efrags, dev_peakstats.efrags);
+	q_snprintf (str, sizeof (str), "Efrags   |%4i %4i", dev_stats.efrags, dev_peakstats.efrags);
 	Draw_String (cbx, x, (y++) * 8 - x, str);
 
-	q_snprintf (str, sizeof(str), "Dlights  |%4i %4i", dev_stats.dlights, dev_peakstats.dlights);
+	q_snprintf (str, sizeof (str), "Dlights  |%4i %4i", dev_stats.dlights, dev_peakstats.dlights);
 	Draw_String (cbx, x, (y++) * 8 - x, str);
 
-	q_snprintf (str, sizeof(str), "Beams    |%4i %4i", dev_stats.beams, dev_peakstats.beams);
+	q_snprintf (str, sizeof (str), "Beams    |%4i %4i", dev_stats.beams, dev_peakstats.beams);
 	Draw_String (cbx, x, (y++) * 8 - x, str);
 
-	q_snprintf (str, sizeof(str), "Tempents |%4i %4i", dev_stats.tempents, dev_peakstats.tempents);
+	q_snprintf (str, sizeof (str), "Tempents |%4i %4i", dev_stats.tempents, dev_peakstats.tempents);
 	Draw_String (cbx, x, (y++) * 8 - x, str);
 }
 
@@ -1242,7 +1242,7 @@ void SCR_UpdateScreen (qboolean use_tasks)
 		V_RenderView (use_tasks, INVALID_TASK_HANDLE, INVALID_TASK_HANDLE, INVALID_TASK_HANDLE);
 		S_ExtraUpdate ();
 		SCR_DrawGUI (NULL);
-		SCR_DrawDone(NULL);
+		SCR_DrawDone (NULL);
 		GL_EndRendering (false, true);
 	}
 

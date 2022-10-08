@@ -71,7 +71,6 @@ static int        num_texmgr_heaps;
 
 SDL_mutex *texmgr_mutex;
 
-
 static byte bluenoise_data[4096] = {
 	0x27, 0x62, 0x08, 0x4C, 0xDE, 0xBA, 0x05, 0xEF, 0x2A, 0xA1, 0xF7, 0x4A, 0x5F, 0x29, 0xE8, 0x34, 0xA9, 0xCB, 0x40, 0x60, 0xD5, 0x87, 0x70, 0xD0, 0x61, 0x8A,
 	0xDF, 0xB2, 0xD8, 0xFA, 0x07, 0x74, 0x31, 0x56, 0x1A, 0x4B, 0xAA, 0x36, 0xD4, 0x16, 0x95, 0x2F, 0x68, 0x8E, 0x77, 0x25, 0x49, 0xE3, 0x12, 0x6C, 0x9F, 0xD7,
@@ -612,13 +611,13 @@ void TexMgr_Init (void)
 		NULL, "greytexture", 2, 2, SRC_LIGHTMAP, greytexture_data, "", (src_offset_t)greytexture_data, TEXPREF_NEAREST | TEXPREF_PERSIST | TEXPREF_NOPICMIP);
 
 	byte *bluenoise_rgba;
-	TEMP_ALLOC(byte, bluenoise_rgba, sizeof(bluenoise_data) * 4);
-	for (i = 0; i < sizeof(bluenoise_data); ++i)
+	TEMP_ALLOC (byte, bluenoise_rgba, sizeof (bluenoise_data) * 4);
+	for (i = 0; i < sizeof (bluenoise_data); ++i)
 		for (int j = 0; j < 3; ++j)
 			bluenoise_rgba[i * 4 + j] = bluenoise_data[i];
 	bluenoisetexture = TexMgr_LoadImage (
 		NULL, "bluenoise", 64, 64, SRC_RGBA, bluenoise_rgba, "", (src_offset_t)greytexture_data, TEXPREF_NEAREST | TEXPREF_PERSIST | TEXPREF_NOPICMIP);
-	TEMP_FREE(bluenoise_rgba);
+	TEMP_FREE (bluenoise_rgba);
 
 	// have to assign these here becuase Mod_Init is called before TexMgr_Init
 	r_notexture_mip->gltexture = r_notexture_mip2->gltexture = notexture;
@@ -1027,7 +1026,7 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	int             staging_offset;
 	unsigned char  *staging_memory = R_StagingAllocate (staging_size, 4, &command_buffer, &staging_buffer, &staging_offset);
 
-	int num_regions = 0;	
+	int num_regions = 0;
 
 	if (glt->flags & TEXPREF_MIPMAP)
 	{

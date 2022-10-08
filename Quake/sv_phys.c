@@ -467,7 +467,7 @@ void SV_PushMove (edict_t *pusher, float movetime)
 	SV_LinkEdict (pusher, false);
 
 	// johnfitz -- dynamically allocate
-	TEMP_ALLOC (edict_t*, moved_edict, qcvm->num_edicts);
+	TEMP_ALLOC (edict_t *, moved_edict, qcvm->num_edicts);
 	TEMP_ALLOC (vec3_t, moved_from, qcvm->num_edicts);
 	// johnfitz
 

@@ -254,7 +254,7 @@ typedef struct mspriteframe_s
 typedef struct
 {
 	int             numframes;
-	float		  *intervals;
+	float          *intervals;
 	mspriteframe_t *frames[1];
 } mspritegroup_t;
 
@@ -271,7 +271,7 @@ typedef struct
 	int                maxheight;
 	int                numframes;
 	float              beamlength; // remove?
-	void			  *cachespot;  // remove?
+	void              *cachespot;  // remove?
 	mspriteframedesc_t frames[1];
 } msprite_t;
 
@@ -369,7 +369,7 @@ typedef struct
 	int                 commands;                 // gl command list with embedded s/t
 	struct gltexture_s *gltextures[MAX_SKINS][4]; // johnfitz
 	struct gltexture_s *fbtextures[MAX_SKINS][4]; // johnfitz
-	byte			   *texels[MAX_SKINS];        // only for player skins
+	byte               *texels[MAX_SKINS];        // only for player skins
 	maliasframedesc_t   frames[1];                // variable sized
 } aliashdr_t;
 
@@ -532,7 +532,7 @@ void      Mod_Init (void);
 void      Mod_ClearAll (void);
 void      Mod_ResetAll (void); // for gamedir changes (Host_Game_f)
 qmodel_t *Mod_ForName (const char *name, qboolean crash);
-void	 *Mod_Extradata (qmodel_t *mod); // handles caching
+void     *Mod_Extradata (qmodel_t *mod); // handles caching
 void      Mod_TouchModel (const char *name);
 
 mleaf_t *Mod_PointInLeaf (float *p, qmodel_t *model);

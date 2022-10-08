@@ -443,9 +443,10 @@ struct lightmap_s
 	gltexture_t    *surface_indices_texture;
 	gltexture_t    *lightstyle_textures[MAXLIGHTMAPS];
 	VkDescriptorSet descriptor_set;
-	atomic_uint32_t modified; // when using GPU lightmap update, bitmap of lightstyles that will be drawn using this lightmap (16..64 OR-folded into bits 16..31)
-	glRect_t        rectchange;
-	VkBuffer        workgroup_bounds_buffer;
+	atomic_uint32_t
+			 modified; // when using GPU lightmap update, bitmap of lightstyles that will be drawn using this lightmap (16..64 OR-folded into bits 16..31)
+	glRect_t rectchange;
+	VkBuffer workgroup_bounds_buffer;
 
 	lm_compute_workgroup_bounds_t global_bounds;
 	byte                          active_dlights[MAX_DLIGHTS];
@@ -454,9 +455,9 @@ struct lightmap_s
 
 	// the lightmap texture data needs to be kept in
 	// main memory so texsubimage can update properly
-	byte						  *data;               //[4*LMBLOCK_WIDTH*LMBLOCK_HEIGHT];
-	byte						  *lightstyle_data[4]; //[4*LMBLOCK_WIDTH*LMBLOCK_HEIGHT];
-	uint32_t					  *surface_indices;    //[LMBLOCK_WIDTH*LMBLOCK_HEIGHT];
+	byte                          *data;               //[4*LMBLOCK_WIDTH*LMBLOCK_HEIGHT];
+	byte                          *lightstyle_data[4]; //[4*LMBLOCK_WIDTH*LMBLOCK_HEIGHT];
+	uint32_t                      *surface_indices;    //[LMBLOCK_WIDTH*LMBLOCK_HEIGHT];
 	lm_compute_workgroup_bounds_t *workgroup_bounds;   //[(LMBLOCK_WIDTH/8)*(LMBLOCK_HEIGHT/8)];
 };
 extern struct lightmap_s *lightmaps;

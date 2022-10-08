@@ -2753,7 +2753,7 @@ static void R_CreateUpdateLightmapPipelines ()
 	specialization_entry.constantID = 0;
 	specialization_entry.offset = 0;
 	specialization_entry.size = 4;
-	uint32_t specialization_data = vulkan_globals.color_format == VK_FORMAT_A2B10G10R10_UNORM_PACK32; // 10-bit lightmap
+	uint32_t             specialization_data = vulkan_globals.color_format == VK_FORMAT_A2B10G10R10_UNORM_PACK32; // 10-bit lightmap
 	VkSpecializationInfo specialization_info;
 	specialization_info.mapEntryCount = 1;
 	specialization_info.pMapEntries = &specialization_entry;

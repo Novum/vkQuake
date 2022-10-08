@@ -146,7 +146,7 @@ __wsaerr_static const char *__WSAE_StrError (int err)
 	default:
 	{
 		static char _err_unknown[64];
-		q_snprintf (_err_unknown, sizeof(_err_unknown), "Unknown WSAE error (%d)", err);
+		q_snprintf (_err_unknown, sizeof (_err_unknown), "Unknown WSAE error (%d)", err);
 		return _err_unknown;
 	}
 	}

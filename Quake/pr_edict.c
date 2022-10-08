@@ -422,7 +422,7 @@ For debugging
 void ED_Print (edict_t *ed)
 {
 	ddef_t     *d;
-	int		*v;
+	int        *v;
 	int         i, j, l;
 	const char *name;
 	int         type;
@@ -473,7 +473,7 @@ For savegames
 void ED_Write (FILE *f, edict_t *ed)
 {
 	ddef_t     *d;
-	int		*v;
+	int        *v;
 	int         i, j;
 	const char *name;
 	int         type;
@@ -970,7 +970,7 @@ const char *ED_ParseEdict (const char *data, edict_t *ent)
 		{
 			char temp[32];
 			strcpy (temp, com_token);
-			q_snprintf (com_token, sizeof(temp), "0 %s 0", temp);
+			q_snprintf (com_token, sizeof (temp), "0 %s 0", temp);
 		}
 
 		if (!ED_ParseEpair ((void *)&ent->v, key, com_token, qcvm != &sv.qcvm))
@@ -1080,7 +1080,7 @@ void ED_LoadFromFile (const char *data)
 }
 
 #ifndef PR_SwitchQCVM
-qcvm_t	   *qcvm;
+qcvm_t       *qcvm;
 globalvars_t *pr_global_struct;
 void          PR_SwitchQCVM (qcvm_t *nvm)
 {

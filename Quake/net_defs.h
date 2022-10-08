@@ -60,7 +60,7 @@ struct qsockaddr
 #error "NET_MAXMESSAGE must fit within NETFLAG_LENGTH_MASK"
 #endif
 
-#define NET_LOOPBACKBUFFERS 5
+#define NET_LOOPBACKBUFFERS    5
 #define NET_LOOPBACKHEADERSIZE 4
 
 #define NET_PROTOCOL_VERSION 3
