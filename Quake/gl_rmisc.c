@@ -1731,14 +1731,14 @@ void R_InitSamplers ()
 R_CreateShaderModule
 ===============
 */
-static VkShaderModule R_CreateShaderModule (byte *code, int size, const char *name)
+static VkShaderModule R_CreateShaderModule (const byte *code, const int size, const char *name)
 {
 	VkShaderModuleCreateInfo module_create_info;
 	memset (&module_create_info, 0, sizeof (module_create_info));
 	module_create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
 	module_create_info.pNext = NULL;
 	module_create_info.codeSize = size;
-	module_create_info.pCode = (uint32_t *)code;
+	module_create_info.pCode = (const uint32_t *)code;
 
 	VkShaderModule module;
 	VkResult       err = vkCreateShaderModule (vulkan_globals.device, &module_create_info, NULL, &module);

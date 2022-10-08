@@ -61,9 +61,9 @@ char com_cmdline[CMDLINE_LENGTH];
 
 qboolean standard_quake = true, rogue, hipnotic;
 
-extern unsigned char vkquake_pak[];
-extern int           vkquake_pak_size;
-extern int           vkquake_pak_decompressed_size;
+extern const unsigned char vkquake_pak[];
+extern const int           vkquake_pak_size;
+extern const int           vkquake_pak_decompressed_size;
 
 // this graphic needs to be in the pak file to use registered features
 static unsigned short pop[] = {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x6600, 0x0000, 0x0000, 0x0000, 0x6600, 0x0000,

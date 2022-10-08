@@ -32,7 +32,7 @@ int main (int argc, char **argv)
 	for (char *c = argv[2]; *c != 0; ++c)
 		if (*c == '.')
 			*c = '_';
-	fprintf (fout, "unsigned char %s[] = {\n", argv[2]);
+	fprintf (fout, "const unsigned char %s[] = {\n", argv[2]);
 	unsigned long n = 0;
 
 	while (!feof (fin))
@@ -49,9 +49,9 @@ int main (int argc, char **argv)
 	fclose (fin);
 	fprintf (fout, "};\n");
 
-	fprintf (fout, "int %s_size = %ld;\n", argv[2], n);
+	fprintf (fout, "const int %s_size = %ld;\n", argv[2], n);
 	if (decompressed_length)
-		fprintf (fout, "int %s_decompressed_size = %ld;\n", argv[2], decompressed_length);
+		fprintf (fout, "const int %s_decompressed_size = %ld;\n", argv[2], decompressed_length);
 	fclose (fout);
 	return 0;
 }
