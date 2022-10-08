@@ -1693,6 +1693,41 @@ static void PF_sv_changelevel (void)
 	Cbuf_AddText (va ("changelevel %s\n", s));
 }
 
+static void PF_cl_sound (void)
+{
+	const char *sample;
+	int         channel;
+	edict_t    *entity;
+	int         volume;
+	float       attenuation;
+	int         entnum;
+
+	entity = G_EDICT (OFS_PARM0);
+	channel = G_FLOAT (OFS_PARM1);
+	sample = G_STRING (OFS_PARM2);
+	volume = G_FLOAT (OFS_PARM3) * 255;
+	attenuation = G_FLOAT (OFS_PARM4);
+
+	entnum = NUM_FOR_EDICT (entity);
+	// fullcsqc fixme: if (entity->v->entnum)
+	entnum *= -1;
+
+	S_StartSound (entnum, channel, S_PrecacheSound (sample), entity->v.origin, volume, attenuation);
+}
+static void PF_cl_ambientsound (void)
+{
+	const char *samp;
+	float      *pos;
+	float       vol, attenuation;
+
+	pos = G_VECTOR (OFS_PARM0);
+	samp = G_STRING (OFS_PARM1);
+	vol = G_FLOAT (OFS_PARM2);
+	attenuation = G_FLOAT (OFS_PARM3);
+
+	S_StaticSound (S_PrecacheSound (samp), pos, vol, attenuation);
+}
+
 /*
 ==============
 2021 re-release
@@ -1841,7 +1876,7 @@ builtin_t pr_csqcbuiltins[] = {
 	PF_Fixme,       // void(entity e, vector min, vector max) setabssize	= #5
 	PF_break,       // void() break				= #6
 	PF_random,      // float() random			= #7
-	PF_Fixme,       // void(entity e, float chan, string samp) sound	= #8
+	PF_cl_sound,    // void(entity e, float chan, string samp) sound	= #8
 	PF_normalize,   // vector(vector v) normalize		= #9
 	PF_error,       // void(string e) error			= #10
 	PF_objerror,    // void(string e) objerror		= #11
@@ -1861,13 +1896,30 @@ builtin_t pr_csqcbuiltins[] = {
 	PF_dprint,      // void(string s) dprint		= #25
 	PF_ftos,        // void(string s) ftos			= #26
 	PF_vtos,        // void(string s) vtos			= #27
-	PF_coredump,    PF_traceon,       PF_traceoff,
+	PF_coredump,
+	PF_traceon,
+	PF_traceoff,
 	PF_eprint,   // void(entity e) debug print an entire entity
 	PF_walkmove, // float(float yaw, float dist) walkmove
 	PF_Fixme,    // float(float yaw, float dist) walkmove
-	PF_droptofloor, PF_Fixme,         PF_rint,          PF_floor, PF_ceil,      PF_Fixme, PF_checkbottom, PF_pointcontents, PF_Fixme, PF_fabs,
+	PF_droptofloor,
+	PF_Fixme,
+	PF_rint,
+	PF_floor,
+	PF_ceil,
+	PF_Fixme,
+	PF_checkbottom,
+	PF_pointcontents,
+	PF_Fixme,
+	PF_fabs,
 	PF_NoCSQC, // PF_aim,
-	PF_cvar,        PF_localcmd,      PF_nextent,       PF_Fixme, PF_changeyaw, PF_Fixme, PF_vectoangles,
+	PF_cvar,
+	PF_localcmd,
+	PF_nextent,
+	PF_Fixme,
+	PF_changeyaw,
+	PF_Fixme,
+	PF_vectoangles,
 
 	PF_NoCSQC, // PF_WriteByte,
 	PF_NoCSQC, // PF_WriteChar,
@@ -1878,9 +1930,17 @@ builtin_t pr_csqcbuiltins[] = {
 	PF_NoCSQC, // PF_WriteString,
 	PF_NoCSQC, // PF_WriteEntity,
 
-	PF_Fixme,       PF_Fixme,         PF_Fixme,         PF_Fixme, PF_Fixme,     PF_Fixme, PF_Fixme,
+	PF_Fixme,
+	PF_Fixme,
+	PF_Fixme,
+	PF_Fixme,
+	PF_Fixme,
+	PF_Fixme,
+	PF_Fixme,
 
-	SV_MoveToGoal,  PF_precache_file, PF_Fixme,
+	SV_MoveToGoal,
+	PF_precache_file,
+	PF_Fixme,
 
 	PF_NoCSQC, // PF_changelevel,
 	PF_Fixme,
@@ -1888,9 +1948,11 @@ builtin_t pr_csqcbuiltins[] = {
 	PF_cvar_set,
 	PF_NoCSQC, // PF_centerprint,
 
-	PF_Fixme,
+	PF_cl_ambientsound,
 
-	PF_Fixme,       PF_Fixme,         PF_precache_file,
+	PF_Fixme,
+	PF_Fixme,
+	PF_precache_file,
 
 	PF_NoCSQC, // PF_setspawnparms
 };

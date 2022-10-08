@@ -2779,6 +2779,28 @@ static void PF_cl_pointsound (void)
 	float       attenuation = G_FLOAT (OFS_PARM3);
 	S_StartSound (0, 0, S_PrecacheSound (sample), origin, volume, attenuation);
 }
+static void PF_cl_soundlength (void)
+{
+	const char *sample = G_STRING (OFS_PARM0);
+	sfx_t      *sfx = S_PrecacheSound (sample);
+	sfxcache_t *sc;
+	G_FLOAT (OFS_RETURN) = 0;
+	if (sfx)
+	{
+		sc = S_LoadSound (sfx);
+		if (sc)
+			G_FLOAT (OFS_RETURN) = (double)sc->length / sc->speed;
+	}
+}
+static void PF_cl_localsound (void)
+{
+	const char *sample = G_STRING (OFS_PARM0);
+	float       channel = (qcvm->argc > 1) ? G_FLOAT (OFS_PARM1) : -1;
+	float       volume = (qcvm->argc > 2) ? G_FLOAT (OFS_PARM2) : 1;
+
+	// FIXME: svc_setview or map changes can break sound replacements here.
+	S_StartSound (cl.viewentity, channel, S_PrecacheSound (sample), vec3_origin, volume, 0);
+}
 // file stuff
 
 static void PF_whichpack (void)
@@ -4742,7 +4764,7 @@ static struct
 #define PF_NoSSQC NULL
 #define PF_NoCSQC NULL
 {
-	{"vectoangles2",				PF_ext_vectoangles,				PF_ext_vectoangles,				51,		 D("vector(vector fwd, optional vector up)", "Returns the angles (+x=UP) required to orient an entity to look in the given direction. The 'up' argument is required if you wish to set a roll angle, otherwise it will be limited to just monster-style turning.")},
+	{"vectoangles2",				PF_ext_vectoangles,				PF_ext_vectoangles,				51,	    D("vector(vector fwd, optional vector up)", "Returns the angles (+x=UP) required to orient an entity to look in the given direction. The 'up' argument is required if you wish to set a roll angle, otherwise it will be limited to just monster-style turning.")},
 	{"sin",							PF_Sin,							PF_Sin,							60,		"float(float angle)"},	//60
 	{"cos",							PF_Cos,							PF_Cos,							61,		"float(float angle)"},	//61
 	{"sqrt",						PF_Sqrt,						PF_Sqrt,						62,		"float(float value)"},	//62
@@ -4775,6 +4797,7 @@ static struct
 	{"strzone",						PF_strzone,						PF_strzone,						118,	D("string(string s, ...)", "Create a semi-permanent copy of a string that only becomes invalid once strunzone is called on the string (instead of when the engine assumes your string has left scope).")},	// (FRIK_FILE)
 	{"strunzone",					PF_strunzone,					PF_strunzone,					119,	D("void(string s)", "Destroys a string that was allocated by strunzone. Further references to the string MAY crash the game.")},	// (FRIK_FILE)
 	{"tokenize_menuqc",				PF_Tokenize,					PF_Tokenize,					0,		"float(string s)"},
+	{"localsound",					PF_NoSSQC,						PF_cl_localsound,				177,	D("void(string soundname, optional float channel, optional float volume)", "Plays a sound... locally... probably best not to call this from ssqc. Also disables reverb.")},//	#177
 	{"bitshift",					PF_bitshift,					PF_bitshift,					218,	"float(float number, float quantity)"},
 	{"te_lightningblood",			PF_sv_te_lightningblood,		NULL,							219,	"void(vector org)"},
 	{"strstrofs",					PF_strstrofs,					PF_strstrofs,					221,	D("float(string s1, string sub, optional float startidx)", "Returns the 0-based offset of sub within the s1 string, or -1 if sub is not in s1.\nIf startidx is set, this builtin will ignore matches before that 0-based offset.")},
@@ -4917,6 +4940,7 @@ static struct
 	{"cvar_description",			PF_cvar_description,			PF_cvar_description,			518,	D("string(string cvarname)", "Retrieves the description of a cvar, which might be useful for tooltips or help files. This may still not be useful.")},
 	{"gettime",						PF_gettime,						PF_gettime,						519,	"float(optional float timetype)"},
 	{"log",							PF_Logarithm,					PF_Logarithm,					532,	D("float(float v, optional float base)", "Determines the logarithm of the input value according to the specified base. This can be used to calculate how much something was shifted by.")},
+	{"soundlength",					PF_NoSSQC,						PF_cl_soundlength,				534,	D("float(string sample)", "Provides a way to query the duration of a sound sample, allowing you to set up a timer to chain samples.")},
 	{"callfunction",				PF_callfunction,				PF_callfunction,				605,	D("void(.../*, string funcname*/)", "Invokes the named function. The function name is always passed as the last parameter and must always be present. The others are passed to the named function as-is")},
 	{"isfunction",					PF_isfunction,					PF_isfunction,					607,	D("float(string s)", "Returns true if the named function exists and can be called with the callfunction builtin.")},
 	{"parseentitydata",				PF_parseentitydata,				PF_parseentitydata,				613,	D("float(entity e, string s, optional float offset)", "Reads a single entity's fields into an already-spawned entity. s should contain field pairs like in a saved game: {\"foo1\" \"bar\" \"foo2\" \"5\"}. Returns <=0 on failure, otherwise returns the offset in the string that was read to.")},
