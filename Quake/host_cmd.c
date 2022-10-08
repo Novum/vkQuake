@@ -1185,7 +1185,7 @@ static void Host_Savegame_f (void)
 	SaveList_Rebuild ();
 }
 
-static void Send_Spawn_Info (client_t *c)
+static void Send_Spawn_Info (client_t *c, qboolean loadgame)
 {
 	int       i;
 	client_t *client;
@@ -1253,7 +1253,10 @@ static void Send_Spawn_Info (client_t *c)
 	ent = EDICT_NUM (1 + (c - svs.clients));
 	MSG_WriteByte (&c->message, svc_setangle);
 	for (i = 0; i < 2; i++)
-		MSG_WriteAngle (&c->message, ent->v.angles[i], sv.protocolflags);
+		if (loadgame)
+			MSG_WriteAngle (&c->message, ent->v.v_angle[i], sv.protocolflags);
+		else
+			MSG_WriteAngle (&c->message, ent->v.angles[i], sv.protocolflags);
 	MSG_WriteAngle (&c->message, 0, sv.protocolflags);
 
 	if (!(c->protocol_pext2 & PEXT2_REPLACEMENTDELTAS))
@@ -1547,7 +1550,7 @@ static void Host_Loadgame_f (void)
 #endif
 		SCR_CenterPrintClear ();
 
-		Send_Spawn_Info (svs.clients);
+		Send_Spawn_Info (svs.clients, true);
 	}
 
 	qcvm->num_edicts = entnum;
@@ -1969,7 +1972,7 @@ static void Host_Spawn_f (void)
 		PR_ExecuteProgram (pr_global_struct->PutClientInServer);
 	}
 
-	Send_Spawn_Info (host_client);
+	Send_Spawn_Info (host_client, sv.loadgame);
 
 	MSG_WriteByte (&host_client->message, svc_signonnum);
 	MSG_WriteByte (&host_client->message, 3);
