@@ -179,6 +179,7 @@ typedef struct msurface_s
 
 	int      lightmaptexturenum;
 	byte     styles[MAXLIGHTMAPS];
+	uint32_t styles_bitmap;              // bitmap of styles used (16..64 OR-folded into bits 16..31)
 	int      cached_light[MAXLIGHTMAPS]; // values currently used in lightmap
 	qboolean cached_dlight;              // true if dynamic light in cache
 	byte    *samples;                    // [numstyles*surfsize]

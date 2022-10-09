@@ -245,6 +245,7 @@ void R_DrawBrushModel (cb_context_t *cbx, entity_t *e, int chain, int *brushpoly
 
 	R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 16 * sizeof (float), mvp);
 	R_ClearTextureChains (clmodel, chain);
+	const int worker_index = Tasks_GetWorkerIndex ();
 	for (i = 0; i < clmodel->nummodelsurfaces; i++, psurf++)
 	{
 		pplane = psurf->plane;
@@ -256,7 +257,7 @@ void R_DrawBrushModel (cb_context_t *cbx, entity_t *e, int chain, int *brushpoly
 			if (!r_gpulightmapupdate.value)
 				R_RenderDynamicLightmaps (psurf);
 			else if (psurf->lightmaptexturenum >= 0)
-				Atomic_StoreUInt32 (&lightmaps[psurf->lightmaptexturenum].modified, true);
+				lightmaps[psurf->lightmaptexturenum].modified[worker_index] |= psurf->styles_bitmap;
 		}
 	}
 
@@ -369,7 +370,7 @@ void R_RenderDynamicLightmaps (msurface_t *fa)
 		if (r_dynamic.value)
 		{
 			struct lightmap_s *lm = &lightmaps[fa->lightmaptexturenum];
-			Atomic_StoreUInt32 (&lm->modified, true);
+			lm->modified[Tasks_GetWorkerIndex()] = true;
 			theRect = &lm->rectchange;
 			if (fa->light_t < theRect->t)
 			{
@@ -1034,7 +1035,8 @@ void GL_BuildLightmaps (void)
 	for (i = 0; i < lightmap_count; i++)
 	{
 		lm = &lightmaps[i];
-		Atomic_StoreUInt32 (&lm->modified, false);
+		for ( j = 0; j < TASKS_MAX_WORKERS; ++j)
+			lm->modified[j] = 0;
 		lm->rectchange.l = LMBLOCK_WIDTH;
 		lm->rectchange.t = LMBLOCK_HEIGHT;
 		lm->rectchange.w = 0;
@@ -1642,10 +1644,15 @@ assumes lightmap texture is already bound
 static void R_UploadLightmap (int lmap, gltexture_t *lightmap_tex)
 {
 	struct lightmap_s *lm = &lightmaps[lmap];
-	if (!Atomic_LoadUInt32 (&lm->modified))
+	qboolean modified = false;
+	for (int i = 0; i < TASKS_MAX_WORKERS; ++i)
+	{
+		if (lm->modified[i])
+			modified = true;
+		lm->modified[i] = 0;
+	}
+	if (!modified)
 		return;
-
-	Atomic_StoreUInt32 (&lm->modified, false);
 
 	const int staging_size = LMBLOCK_WIDTH * lm->rectchange.h * 4;
 
@@ -1774,16 +1781,21 @@ void R_UpdateLightmaps (void *unused)
 	for (int lightmap_index = 0; lightmap_index < lightmap_count; ++lightmap_index)
 	{
 		struct lightmap_s *lm = &lightmaps[lightmap_index];
-		if (!Atomic_LoadUInt32 (&lm->modified))
+		uint32_t modified = 0;
+		for (int i = 0; i < TASKS_MAX_WORKERS; ++i)
+		{
+			modified |= lm->modified[i];
+			lm->modified[i] = 0;
+		}
+		if (modified == 0)
 			continue;
-		Atomic_StoreUInt32 (&lm->modified, false);
 
 		qboolean needs_update = false;
 		for (int i = 0; i < MAX_LIGHTSTYLES; i++)
-			if (lm->used_lightstyles[i] && lm->cached_light[i] != d_lightstylevalue[i])
+			if (lm->used_lightstyles[i] && modified & 1 << (i < 16 ? i : i % 16 + 16) && lm->cached_light[i] != d_lightstylevalue[i])
 			{
 				needs_update = true;
-				lm->cached_light[i] = d_lightstylevalue[i];
+				break;
 			}
 		for (int i = 0; i < MAX_DLIGHTS; i++)
 		{
@@ -1822,6 +1834,9 @@ void R_UpdateLightmaps (void *unused)
 		}
 		if (!needs_update)
 			continue;
+		else
+			for (int i = 0; i < MAX_LIGHTSTYLES; i++)
+				lm->cached_light[i] = d_lightstylevalue[i];
 
 		int batch_index = num_batch_lightmaps++;
 		lightmap_indexes[batch_index] = lightmap_index;
@@ -1886,7 +1901,10 @@ void R_UploadLightmaps (void)
 
 	for (lmap = 0; lmap < lightmap_count; lmap++)
 	{
-		if (!Atomic_LoadUInt32 (&lightmaps[lmap].modified))
+		qboolean modified = false;
+		for (int i = 0; i < TASKS_MAX_WORKERS; ++i)
+			modified = modified || lightmaps[lmap].modified[i];
+		if (!modified)
 			continue;
 
 		++num_uploads;

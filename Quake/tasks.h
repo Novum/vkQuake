@@ -27,6 +27,7 @@
 #include <stddef.h>
 
 #define INVALID_TASK_HANDLE UINT64_MAX
+#define TASKS_MAX_WORKERS         32
 
 typedef uint64_t task_handle_t;
 typedef void (*task_func_t) (void *);
@@ -35,6 +36,7 @@ typedef void (*task_indexed_func_t) (int, void *);
 void          Tasks_Init (void);
 int           Tasks_NumWorkers (void);
 qboolean      Tasks_IsWorker (void);
+int           Tasks_GetWorkerIndex (void);
 task_handle_t Task_Allocate (void);
 void          Task_AssignFunc (task_handle_t handle, task_func_t func, void *payload, size_t payload_size);
 void          Task_AssignIndexedFunc (task_handle_t handle, task_indexed_func_t func, uint32_t limit, void *payload, size_t payload_size);

@@ -45,7 +45,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define MAX_EXECUTABLE_TASKS 256
 #define MAX_DEPENDENT_TASKS  16
 #define MAX_PAYLOAD_SIZE     32
-#define MAX_WORKERS          32
 #define WORKER_HUNK_SIZE     (1 * 1024 * 1024)
 #define WAIT_SPIN_COUNT      100
 
@@ -94,8 +93,9 @@ static task_t                tasks[MAX_PENDING_TASKS];
 static task_queue_t         *free_task_queue;
 static task_queue_t         *executable_task_queue;
 static task_counter_t       *indexed_task_counters;
-static uint8_t               steal_worker_indices[MAX_WORKERS * 2];
+static uint8_t               steal_worker_indices[TASKS_MAX_WORKERS * 2];
 static THREAD_LOCAL qboolean is_worker = false;
+static THREAD_LOCAL int		 tl_worker_index;
 
 /*
 ====================
@@ -274,6 +274,7 @@ static int Task_Worker (void *data)
 	is_worker = true;
 
 	const int worker_index = (intptr_t)data;
+	tl_worker_index = worker_index;
 	while (true)
 	{
 		uint32_t task_index = TaskQueuePop (executable_task_queue);
@@ -346,7 +347,7 @@ void Tasks_Init (void)
 		tasks[task_index].epoch_condition = SDL_CreateCond ();
 	}
 
-	num_workers = CLAMP (1, SDL_GetCPUCount (), MAX_WORKERS);
+	num_workers = CLAMP (1, SDL_GetCPUCount (), TASKS_MAX_WORKERS);
 
 	// Fill lookup table to avoid modulo in Task_ExecuteIndexed
 	for (int i = 0; i < num_workers; ++i)
@@ -381,6 +382,15 @@ Tasks_IsWorker
 qboolean Tasks_IsWorker (void)
 {
 	return is_worker;
+}
+/*
+====================
+Tasks_GetWorkerIndex
+====================
+*/
+int Tasks_GetWorkerIndex (void)
+{
+	return tl_worker_index;
 }
 
 /*
