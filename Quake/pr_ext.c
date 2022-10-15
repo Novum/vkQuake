@@ -2078,6 +2078,7 @@ static void PF_getsurfacenearpoint (void)
 	float      *point;
 	float       distsquare;
 	qboolean    cached = false;
+	qboolean    cacheable;
 
 	vec3_t cpoint = {0, 0, 0};
 	float  bestdist, dist;
@@ -2094,11 +2095,12 @@ static void PF_getsurfacenearpoint (void)
 		return;
 
 	bestdist = NEARSURFACE_MAXDIST;
+	cacheable = ent->v.modelindex == 1;
 
 	// all polies, we can skip parts. special case.
 	surf = model->surfaces + model->firstmodelsurface;
 
-	if (nearsurface_cache_valid)
+	if (cacheable && nearsurface_cache_valid)
 	{
 		vec3_t cache_distance;
 		VectorSubtract (point, nearsurface_cache_point, cache_distance);
@@ -2119,9 +2121,12 @@ static void PF_getsurfacenearpoint (void)
 
 	if (!cached)
 	{
-		nearsurface_cache_valid = true;
-		memcpy (nearsurface_cache_point, point, sizeof (vec3_t));
-		nearsurface_cache_entries = 0;
+		if (cacheable)
+		{
+			nearsurface_cache_valid = true;
+			memcpy (nearsurface_cache_point, point, sizeof (vec3_t));
+			nearsurface_cache_entries = 0;
+		}
 		for (i = 0; i < model->nummodelsurfaces; i++, surf++)
 		{
 			dist = getsurface_clippointpoly (model, surf, point, cpoint, bestdist, &distsquare);
@@ -2130,7 +2135,7 @@ static void PF_getsurfacenearpoint (void)
 				bestdist = dist;
 				bestsurf = i;
 			}
-			if (distsquare < NEARSURFACE_CACHEDIST * NEARSURFACE_CACHEDIST)
+			if (cacheable && distsquare < NEARSURFACE_CACHEDIST * NEARSURFACE_CACHEDIST)
 			{
 				if (nearsurface_cache_entries == NEARSURFACE_CACHESIZE)
 					nearsurface_cache_valid = false;
@@ -2140,7 +2145,7 @@ static void PF_getsurfacenearpoint (void)
 		}
 	}
 #if 0 /* test cache by comparing with uncached exhaustive search */
-	else
+	else if (cacheable)
 	{
 		int   cached_bestsurf = bestsurf;
 		float cached_bestdist = bestdist;
