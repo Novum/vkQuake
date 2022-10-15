@@ -23,8 +23,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 // gl_vidsdl.c -- SDL vid component
 
-#define NO_SDL_VULKAN_TYPEDEFS
 #include "quakedef.h"
+#define NO_SDL_VULKAN_TYPEDEFS
 #include "cfgfile.h"
 #include "bgmusic.h"
 #include "resource.h"

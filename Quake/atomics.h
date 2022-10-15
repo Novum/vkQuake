@@ -23,6 +23,9 @@
 
 #ifdef _MSC_VER
 #include <stdint.h>
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
 #include <windows.h>
 #else
 #include <stdatomic.h>

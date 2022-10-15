@@ -19,8 +19,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 // mem.c -- memory allocator
 
-#include "mem.h"
 #include "quakedef.h"
+#include "mem.h"
 
 #if defined(USE_HELGRIND)
 #define USE_CRT_MALLOC

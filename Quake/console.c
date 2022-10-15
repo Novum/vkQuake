@@ -21,6 +21,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 // console.c
 
+#include "quakedef.h"
+
 #include <sys/types.h>
 #include <time.h>
 #include <sys/stat.h>
@@ -30,7 +32,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #else
 #include <unistd.h>
 #endif
-#include "quakedef.h"
 
 int con_linewidth;
 

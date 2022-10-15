@@ -18,10 +18,10 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
+#include "quakedef.h"
 #include "q_stdinc.h"
 #include "arch_def.h"
 #include "net_sys.h"
-#include "quakedef.h"
 #include "net_defs.h"
 
 // ipv4 defs
