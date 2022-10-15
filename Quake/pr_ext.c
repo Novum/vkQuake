@@ -2007,7 +2007,7 @@ static void PF_getsurfacetexture (void)
 	((n)[0] = ((a)[1] - (b)[1]) * ((c)[2] - (b)[2]) - ((a)[2] - (b)[2]) * ((c)[1] - (b)[1]), \
 	 (n)[1] = ((a)[2] - (b)[2]) * ((c)[0] - (b)[0]) - ((a)[0] - (b)[0]) * ((c)[2] - (b)[2]), \
 	 (n)[2] = ((a)[0] - (b)[0]) * ((c)[1] - (b)[1]) - ((a)[1] - (b)[1]) * ((c)[0] - (b)[0]))
-static float getsurface_clippointpoly (qmodel_t *model, msurface_t *surf, vec3_t point, vec3_t bestcpoint, float bestdist)
+static float getsurface_clippointpoly (qmodel_t *model, msurface_t *surf, vec3_t point, vec3_t bestcpoint, float bestdist, float *distsquare)
 {
 	int        e, edge;
 	vec3_t     edgedir, edgenormal, cpoint, temp;
@@ -2015,7 +2015,9 @@ static float getsurface_clippointpoly (qmodel_t *model, msurface_t *surf, vec3_t
 	float      dist = DotProduct (point, surf->plane->normal) - surf->plane->dist;
 	// don't care about SURF_PLANEBACK, the maths works out the same.
 
-	if (dist * dist < bestdist)
+	*distsquare = dist * dist;
+
+	if (*distsquare < bestdist)
 	{ // within a specific range
 		// make sure it's within the poly
 		VectorMA (point, dist, surf->plane->normal, cpoint);
@@ -2057,6 +2059,15 @@ static float getsurface_clippointpoly (qmodel_t *model, msurface_t *surf, vec3_t
 	return bestdist;
 }
 
+#define NEARSURFACE_MAXDIST             256
+#define NEARSURFACE_CACHEDIST           384
+#define NEARSURFACE_CACHESIZE           65536
+#define NEARSURFACE_CACHEHITDISTSQUARED ((NEARSURFACE_CACHEDIST - NEARSURFACE_MAXDIST) * (NEARSURFACE_CACHEDIST - NEARSURFACE_MAXDIST))
+int      nearsurface_cache[NEARSURFACE_CACHESIZE];
+int      nearsurface_cache_entries;
+vec3_t   nearsurface_cache_point;
+qboolean nearsurface_cache_valid;
+
 // #438 float(entity e, vector p) getsurfacenearpoint (DP_QC_GETSURFACE)
 static void PF_getsurfacenearpoint (void)
 {
@@ -2065,6 +2076,8 @@ static void PF_getsurfacenearpoint (void)
 	msurface_t *surf;
 	int         i;
 	float      *point;
+	float       distsquare;
+	qboolean    cached = false;
 
 	vec3_t cpoint = {0, 0, 0};
 	float  bestdist, dist;
@@ -2080,19 +2093,74 @@ static void PF_getsurfacenearpoint (void)
 	if (!model || model->type != mod_brush || model->needload)
 		return;
 
-	bestdist = 256;
+	bestdist = NEARSURFACE_MAXDIST;
 
 	// all polies, we can skip parts. special case.
 	surf = model->surfaces + model->firstmodelsurface;
-	for (i = 0; i < model->nummodelsurfaces; i++, surf++)
+
+	if (nearsurface_cache_valid)
 	{
-		dist = getsurface_clippointpoly (model, surf, point, cpoint, bestdist);
-		if (dist < bestdist)
+		vec3_t cache_distance;
+		VectorSubtract (point, nearsurface_cache_point, cache_distance);
+		if (DotProduct (cache_distance, cache_distance) < NEARSURFACE_CACHEHITDISTSQUARED) // cached list can be used
 		{
-			bestdist = dist;
-			bestsurf = i;
+			for (i = 0; i < nearsurface_cache_entries; i++)
+			{
+				dist = getsurface_clippointpoly (model, surf + nearsurface_cache[i], point, cpoint, bestdist, &distsquare);
+				if (dist < bestdist)
+				{
+					bestdist = dist;
+					bestsurf = nearsurface_cache[i];
+				}
+			}
+			cached = true;
 		}
 	}
+
+	if (!cached)
+	{
+		nearsurface_cache_valid = true;
+		memcpy (nearsurface_cache_point, point, sizeof (vec3_t));
+		nearsurface_cache_entries = 0;
+		for (i = 0; i < model->nummodelsurfaces; i++, surf++)
+		{
+			dist = getsurface_clippointpoly (model, surf, point, cpoint, bestdist, &distsquare);
+			if (dist < bestdist)
+			{
+				bestdist = dist;
+				bestsurf = i;
+			}
+			if (distsquare < NEARSURFACE_CACHEDIST * NEARSURFACE_CACHEDIST)
+			{
+				if (nearsurface_cache_entries == NEARSURFACE_CACHESIZE)
+					nearsurface_cache_valid = false;
+				else
+					nearsurface_cache[nearsurface_cache_entries++] = i;
+			}
+		}
+	}
+#if 0 /* test cache by comparing with uncached exhaustive search */
+	else
+	{
+		int   cached_bestsurf = bestsurf;
+		float cached_bestdist = bestdist;
+		bestsurf = -1;
+		bestdist = NEARSURFACE_MAXDIST;
+
+		for (i = 0; i < model->nummodelsurfaces; i++, surf++)
+		{
+			dist = getsurface_clippointpoly (model, surf, point, cpoint, bestdist, &distsquare);
+			if (dist < bestdist)
+			{
+				bestdist = dist;
+				bestsurf = i;
+			}
+		}
+		if (bestsurf != cached_bestsurf || bestdist != cached_bestdist)
+			Con_Warning ("CACHE MISMATCH %d != %d, %f != %f\n", bestsurf, cached_bestsurf, bestdist, cached_bestdist);
+	}
+#endif
+
 	G_FLOAT (OFS_RETURN) = bestsurf;
 }
 
@@ -2104,6 +2172,7 @@ static void PF_getsurfaceclippedpoint (void)
 	msurface_t *surf;
 	float      *point;
 	int         surfnum;
+	float       distsquared;
 
 	float *result = G_VECTOR (OFS_RETURN);
 
@@ -2122,7 +2191,7 @@ static void PF_getsurfaceclippedpoint (void)
 
 	// all polies, we can skip parts. special case.
 	surf = model->surfaces + model->firstmodelsurface + surfnum;
-	getsurface_clippointpoly (model, surf, point, result, FLT_MAX);
+	getsurface_clippointpoly (model, surf, point, result, FLT_MAX, &distsquared);
 }
 
 static void PF_getsurfacepointattribute (void)
@@ -5427,6 +5496,8 @@ void PR_EnableExtensions (ddef_t *pr_globaldefs)
 	}
 	if (numautocvars)
 		Con_DPrintf2 ("Found %i autocvars\n", numautocvars);
+
+	nearsurface_cache_valid = false;
 }
 
 void PR_DumpPlatform_f (void)
