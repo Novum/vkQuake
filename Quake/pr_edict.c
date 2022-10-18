@@ -455,11 +455,7 @@ void ED_Print (edict_t *ed)
 		if (j == type_size[type])
 			continue;
 
-		Con_SafePrintf ("%s", name); // johnfitz -- was Con_Printf
-		while (l++ < 15)
-			Con_SafePrintf (" "); // johnfitz -- was Con_Printf
-
-		Con_SafePrintf ("%s\n", PR_ValueString (d->type, (eval_t *)v)); // johnfitz -- was Con_Printf
+		Con_SafePrintf ("%-14s %s\n", name, PR_ValueString (d->type, (eval_t *)v)); // johnfitz -- was Con_Printf
 	}
 }
 
