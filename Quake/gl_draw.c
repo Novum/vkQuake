@@ -1047,3 +1047,96 @@ void GL_SetCanvas (cb_context_t *cbx, canvastype newcanvas)
 		Sys_Error ("GL_SetCanvas: bad canvas type");
 	}
 }
+
+//==============================================================================
+//
+//  3D BILLBOARD DRAWING
+//
+//==============================================================================
+
+/*
+================
+Draw_FillCharacterQuad_3D
+================
+*/
+static void Draw_FillCharacterQuad_3D (vec3_t coords, float xoff, float yoff, float size, char num, basicvertex_t *output)
+{
+	int    row, col;
+	float  frow, fcol, tile_size;
+
+	xoff *= size;
+	yoff *= size;
+
+	row = num >> 4;
+	col = num & 15;
+
+	frow = row * 0.0625;
+	fcol = col * 0.0625;
+	tile_size = 0.0625;
+
+	basicvertex_t corner_verts[4];
+	memset (&corner_verts, 255, sizeof (corner_verts));
+
+	VectorMA (coords, size / 2 - yoff, vup, &corner_verts[0].position[0]);
+	VectorMA (&corner_verts[0].position[0], -size / 2 + xoff, vright, &corner_verts[0].position[0]);
+	corner_verts[0].texcoord[0] = fcol;
+	corner_verts[0].texcoord[1] = frow;
+
+	VectorMA (&corner_verts[0].position[0], size, vright, &corner_verts[1].position[0]);
+	corner_verts[1].texcoord[0] = fcol + tile_size;
+	corner_verts[1].texcoord[1] = frow;
+
+	VectorMA (&corner_verts[1].position[0], -size, vup, &corner_verts[2].position[0]);
+	corner_verts[2].texcoord[0] = fcol + tile_size;
+	corner_verts[2].texcoord[1] = frow + tile_size;
+
+	VectorMA (&corner_verts[2].position[0], -size, vright, &corner_verts[3].position[0]);
+	corner_verts[3].texcoord[0] = fcol;
+	corner_verts[3].texcoord[1] = frow + tile_size;
+
+	output[0] = corner_verts[0];
+	output[1] = corner_verts[1];
+	output[2] = corner_verts[2];
+	output[3] = corner_verts[2];
+	output[4] = corner_verts[3];
+	output[5] = corner_verts[0];
+}
+
+/*
+================
+Draw_String_3D
+================
+*/
+void Draw_String_3D (cb_context_t *cbx, vec3_t coords, float size, const char *str)
+{
+	int         num_verts = 0;
+	int         i;
+	const char *tmp;
+	float       xoff;
+
+	for (tmp = str; *tmp != 0; ++tmp)
+		if (*tmp != 32)
+			num_verts += 6;
+
+	VkBuffer       buffer;
+	VkDeviceSize   buffer_offset;
+	basicvertex_t *vertices = (basicvertex_t *)R_VertexAllocate (num_verts * sizeof (basicvertex_t), &buffer, &buffer_offset);
+
+	xoff = -0.5f * strlen (str) + 0.5f;
+
+	for (i = 0; *str != 0; ++str)
+	{
+		if (*str != 32)
+		{
+			Draw_FillCharacterQuad_3D (coords, xoff, 0, size, *str, vertices + i * 6);
+			i++;
+		}
+		xoff += 1.0f;
+	}
+
+	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_alphatest_pipeline[cbx->render_pass_index]);
+	vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 1, &buffer, &buffer_offset);
+	vulkan_globals.vk_cmd_bind_descriptor_sets (
+		cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &char_texture->descriptor_set, 0, NULL);
+	vulkan_globals.vk_cmd_draw (cbx->cb, num_verts, 1, 0, 0);
+}

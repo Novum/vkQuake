@@ -594,15 +594,16 @@ draw bounding boxes -- the server-side boxes, not the renderer cullboxes
 void R_ShowBoundingBoxes (cb_context_t *cbx)
 {
 	extern edict_t *sv_player;
-	vec3_t          mins, maxs;
+	vec3_t          mins, maxs, center;
 	edict_t        *ed;
-	int             i;
+	int             i, pass;
 
 	if (!r_showbboxes.value || cl.maxclients > 1 || !r_drawentities.value || !sv.active)
 		return;
 
 	R_BeginDebugUtilsLabel (cbx, "show bboxes");
-	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showbboxes_pipeline);
+	if (vulkan_globals.non_solid_fill)
+		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showbboxes_pipeline);
 
 	VkBuffer     box_index_buffer;
 	VkDeviceSize box_index_buffer_offset;
@@ -610,22 +611,55 @@ void R_ShowBoundingBoxes (cb_context_t *cbx)
 	memcpy (indices, box_indices, 24 * sizeof (uint16_t));
 
 	PR_SwitchQCVM (&sv.qcvm);
-	for (i = 0, ed = NEXT_EDICT (qcvm->edicts); i < qcvm->num_edicts; i++, ed = NEXT_EDICT (ed))
+	for (pass = 0; pass < 2; pass++) // two passes (0 = lines, 1 = text) to avoid switching pipelines for every edict and so that the text is on top
 	{
-		if (ed == sv_player)
-			continue; // don't draw player's own bbox
+		if (pass == 0 && !vulkan_globals.non_solid_fill)
+			continue;
+		if (pass == 1 && r_showbboxes.value < 0)
+			continue;
+		for (i = 1, ed = NEXT_EDICT (qcvm->edicts); i < qcvm->num_edicts; i++, ed = NEXT_EDICT (ed))
+		{
+			if (ed == sv_player || ed->free)
+				continue; // don't draw player's own bbox or freed edicts
 
-		if (ed->v.mins[0] == ed->v.maxs[0] && ed->v.mins[1] == ed->v.maxs[1] && ed->v.mins[2] == ed->v.maxs[2])
-		{
-			// point entity
-			R_EmitWirePoint (cbx, ed->v.origin);
-		}
-		else
-		{
-			// box entity
-			VectorAdd (ed->v.mins, ed->v.origin, mins);
-			VectorAdd (ed->v.maxs, ed->v.origin, maxs);
-			R_EmitWireBox (cbx, mins, maxs, box_index_buffer, box_index_buffer_offset);
+			if (ed->v.mins[0] == ed->v.maxs[0] && ed->v.mins[1] == ed->v.maxs[1] && ed->v.mins[2] == ed->v.maxs[2])
+			{
+				// point entity
+				if (pass == 0)
+				{
+					R_EmitWirePoint (cbx, ed->v.origin);
+				}
+				else
+				{
+					VectorCopy (ed->v.origin, center);
+					center[2] += 16; // show a bit above
+				}
+			}
+			else
+			{
+				// box entity
+				VectorAdd (ed->v.mins, ed->v.origin, mins);
+				VectorAdd (ed->v.maxs, ed->v.origin, maxs);
+				if (pass == 0)
+				{
+					R_EmitWireBox (cbx, mins, maxs, box_index_buffer, box_index_buffer_offset);
+				}
+				else
+				{
+					VectorAdd (mins, maxs, center);
+					for (int j = 0; j < 3; j++)
+						center[j] /= 2;
+				}
+			}
+
+			if (pass == 1)
+			{
+				char text[16];
+				q_snprintf (text, sizeof (text), "%i", i);
+				for (char *c = text; *c; c++)
+					*c |= 0x80; // the lines are already white so gold is more legible
+				Draw_String_3D (cbx, center, 8, text);
+			}
 		}
 	}
 	PR_SwitchQCVM (NULL);

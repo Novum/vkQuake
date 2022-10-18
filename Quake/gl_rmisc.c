@@ -1998,8 +1998,6 @@ static void R_CreateBasicPipelines ()
 	VkRenderPass main_render_pass = vulkan_globals.secondary_cb_contexts[CBX_WORLD_0].render_pass;
 	VkRenderPass ui_render_pass = vulkan_globals.secondary_cb_contexts[CBX_GUI].render_pass;
 
-	infos.depth_stencil_state.depthTestEnable = VK_TRUE;
-	infos.depth_stencil_state.depthWriteEnable = VK_TRUE;
 	infos.shader_stages[1].module = basic_alphatest_frag_module;
 	for (render_pass = 0; render_pass < 2; ++render_pass)
 	{
@@ -2016,8 +2014,6 @@ static void R_CreateBasicPipelines ()
 	}
 
 	infos.shader_stages[1].module = basic_notex_frag_module;
-	infos.depth_stencil_state.depthTestEnable = VK_FALSE;
-	infos.depth_stencil_state.depthWriteEnable = VK_FALSE;
 	infos.blend_attachment_state.blendEnable = VK_TRUE;
 
 	for (render_pass = 0; render_pass < 2; ++render_pass)
