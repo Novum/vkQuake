@@ -1801,7 +1801,7 @@ void R_UpdateLightmaps (void *unused)
 		{
 			qboolean hit = true;
 
-			if (cl_dlights[i].die <= cl.time || cl_dlights[i].radius <= 0.0f)
+			if (cl_dlights[i].die < cl.time || cl_dlights[i].radius == 0.0f)
 				hit = false;
 			else
 			{
