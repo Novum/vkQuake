@@ -90,6 +90,7 @@ dfunction_t *ED_FindFunction (const char *fn_name);
 const char *PR_GetString (int num);
 int         PR_SetEngineString (const char *s);
 int         PR_AllocString (int bufferlength, char **ptr);
+void        PR_ClearEdictStrings ();
 void        PR_ClearEngineString (int num);
 
 void PR_Profile_f (void);
@@ -333,6 +334,7 @@ struct qcvm_s
 	qboolean    *knownstringsowned;
 	int          maxknownstrings;
 	int          numknownstrings;
+	int          progsstrings; // allocated by PR_MergeEngineFieldDefs (), not tied to edicts
 	int          freeknownstrings;
 	ddef_t      *globaldefs;
 

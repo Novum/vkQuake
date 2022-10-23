@@ -1413,6 +1413,9 @@ static void Host_Loadgame_f (void)
 		sv.lightstyles[i] = (const char *)q_strdup (com_token);
 	}
 
+	if (fastload) // can be done for normal loads too, but keep the previous behavior
+		PR_ClearEdictStrings ();
+
 	// load the edicts out of the savegame file
 	entnum = -1; // -1 is the globals
 	while (*data)

@@ -1416,6 +1416,7 @@ qboolean PR_LoadProgs (const char *filename, qboolean fatal, unsigned int needcr
 	PR_PatchRereleaseBuiltins ();
 	PR_FindSupportedEffects ();
 
+	qcvm->progsstrings = qcvm->numknownstrings;
 	return true;
 }
 
@@ -1584,4 +1585,19 @@ int PR_AllocString (int size, char **ptr)
 	if (ptr)
 		*ptr = (char *)qcvm->knownstrings[i];
 	return -1 - i;
+}
+
+void PR_ClearEdictStrings ()
+{
+	for (int i = qcvm->progsstrings; i < qcvm->numknownstrings; ++i)
+		if (qcvm->knownstringsowned[i])
+		{
+			SAFE_FREE (qcvm->knownstrings[i]);
+			qcvm->knownstringsowned[i] = false;
+		}
+
+#ifndef _DEBUG
+	// do not reuse slots in debug builds to help catch stale references
+	qcvm->freeknownstrings = qcvm->progsstrings;
+#endif
 }
