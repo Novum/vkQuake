@@ -32,7 +32,7 @@ shaders = [
 glslang = find_program('glslangValidator')
 spirv_opt = find_program('spirv-opt')
 spirv_remap = find_program('spirv-remap')
-bintoc = executable('bintoc', ['Shaders/bintoc.c'])
+bintoc = executable('bintoc', ['Shaders/bintoc.c'], native: true)
 if (build_machine.system() == 'darwin') or get_option('buildtype').startswith('debug')
     spirv_opt_command = [] # MoltenVK spirv-cross has a bug that breaks optimized shaders
 else
