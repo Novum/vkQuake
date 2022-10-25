@@ -608,6 +608,7 @@ static void CLFTE_ParseEntitiesUpdate (void)
 				{
 					CL_EntityNum (newnum)->netstate.pmovetype = 0;
 					CL_EntityNum (newnum)->model = NULL;
+					CL_EntityNum (newnum)->update_type = false;
 				}
 				cl.requestresend = false; // we got it.
 				continue;
