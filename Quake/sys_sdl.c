@@ -146,18 +146,3 @@ int Sys_FileWrite (int handle, const void *data, int count)
 	assert (sys_handles[handle].file);
 	return fwrite (data, 1, count, sys_handles[handle].file);
 }
-
-int Sys_FileTime (const char *path)
-{
-	FILE *f;
-
-	f = fopen (path, "rb");
-
-	if (f)
-	{
-		fclose (f);
-		return 1;
-	}
-
-	return -1;
-}

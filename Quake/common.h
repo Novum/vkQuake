@@ -307,6 +307,11 @@ const char *COM_ParseFloatNewline (const char *buffer, float *value);
 // newline. Returns advanced buffer position.
 const char *COM_ParseStringNewline (const char *buffer);
 
+
+#define FS_ENT_NONE         (0)
+#define FS_ENT_FILE         (1 << 0)
+#define FS_ENT_DIRECTORY    (1 << 1)
+
 /* The following FS_*() stdio replacements are necessary if one is
  * to perform non-sequential reads on files reopened on pak files
  * because we need the bookkeeping about file start/end positions.

@@ -40,8 +40,11 @@ void Sys_FileClose (int handle);
 void Sys_FileSeek (int handle, int position);
 int  Sys_FileRead (int handle, void *dest, int count);
 int  Sys_FileWrite (int handle, const void *data, int count);
-int  Sys_FileTime (const char *path);
 void Sys_mkdir (const char *path);
+
+int  Sys_FileType (const char *path);
+/* returns an FS entity type, i.e. FS_ENT_FILE or FS_ENT_DIRECTORY.
+ * returns FS_ENT_NONE (0) if no such file or directory is present. */
 
 //
 // system IO

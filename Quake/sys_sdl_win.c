@@ -36,6 +36,21 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 qboolean isDedicated;
 
+#ifndef INVALID_FILE_ATTRIBUTES
+#define INVALID_FILE_ATTRIBUTES ((DWORD)-1)
+#endif
+int Sys_FileType (const char *path)
+{
+	DWORD result = GetFileAttributes (path);
+
+	if (result == INVALID_FILE_ATTRIBUTES)
+		return FS_ENT_NONE;
+	if (result & FILE_ATTRIBUTE_DIRECTORY)
+		return FS_ENT_DIRECTORY;
+
+	return FS_ENT_FILE;
+}
+
 static HANDLE hinput, houtput;
 static char   cwd[1024];
 static double counter_freq;
