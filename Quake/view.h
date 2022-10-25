@@ -29,6 +29,7 @@ extern cvar_t vid_contrast;
 extern uint8_t v_blend[4];
 
 void  V_Init (void);
+void  V_ResetBlend (void);
 void  V_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_handle_t setup_frame_task, task_handle_t draw_done_task);
 void  V_CalcBlend (void);
 void  V_SetupFrame (void);

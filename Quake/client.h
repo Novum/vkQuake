@@ -171,6 +171,9 @@ typedef struct
 	float item_gettime[32]; // cl.time of aquiring item, for blinking
 	float faceanimtime;     // use anim frame if cl.time < this
 
+	float v_dmg_time, v_dmg_roll, v_dmg_pitch;
+
+	cshift_t cshift_empty;              // can be modified by V_cshift_f ()
 	cshift_t cshifts[NUM_CSHIFTS];      // color shifts for damage, powerups
 	cshift_t prev_cshifts[NUM_CSHIFTS]; // and content types
 

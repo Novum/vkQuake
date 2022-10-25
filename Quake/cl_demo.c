@@ -210,6 +210,7 @@ void         CL_Seek_f (void)
 		memset (cl_dlights, 0, sizeof (cl_dlights));
 		memset (cl_temp_entities, 0, sizeof (cl_temp_entities));
 		memset (cl_beams, 0, sizeof (cl_beams));
+		V_ResetBlend ();
 		Fog_NewMap ();
 		Sky_NewMap ();
 		R_ClearParticles ();

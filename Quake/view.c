@@ -67,8 +67,6 @@ cvar_t gl_cshiftpercent_powerup = {"gl_cshiftpercent_powerup", "100", CVAR_NONE}
 
 cvar_t r_viewmodel_quake = {"r_viewmodel_quake", "0", CVAR_ARCHIVE};
 
-float v_dmg_time, v_dmg_roll, v_dmg_pitch;
-
 extern int in_forward, in_forward2, in_back;
 
 vec3_t v_punchangles[2];       // johnfitz -- copied from cl.punchangle.  0 is current, 1 is previous value. never the same unless map just loaded
@@ -251,14 +249,25 @@ void V_DriftPitch (void)
 ==============================================================================
 */
 
-cshift_t cshift_empty = {{130, 80, 50}, 0};
-cshift_t cshift_water = {{130, 80, 50}, 128};
-cshift_t cshift_slime = {{0, 25, 5}, 150};
-cshift_t cshift_lava = {{255, 80, 0}, 150};
+const cshift_t cshift_water = {{130, 80, 50}, 128};
+const cshift_t cshift_slime = {{0, 25, 5}, 150};
+const cshift_t cshift_lava = {{255, 80, 0}, 150};
 
 uint8_t v_blend[4]; // rgba 0 - 255
 
 // johnfitz -- deleted BuildGammaTable(), V_CheckGamma(), gammatable[], and ramps[][]
+
+/*
+===============
+V_ResetBlend
+===============
+*/
+void V_ResetBlend (void)
+{
+	memset (&cl.cshift_empty, 0, sizeof (cl.cshift_empty));
+	memset (cl.cshifts, 0, sizeof (cl.cshifts));
+	cl.v_dmg_time = cl.v_dmg_roll = cl.v_dmg_pitch = 0.f;
+}
 
 /*
 ===============
@@ -325,12 +334,12 @@ void V_ParseDamage (void)
 	AngleVectors (ent->angles, forward, right, up);
 
 	side = DotProduct (from, right);
-	v_dmg_roll = count * side * v_kickroll.value;
+	cl.v_dmg_roll = count * side * v_kickroll.value;
 
 	side = DotProduct (from, forward);
-	v_dmg_pitch = count * side * v_kickpitch.value;
+	cl.v_dmg_pitch = count * side * v_kickpitch.value;
 
-	v_dmg_time = v_kicktime.value;
+	cl.v_dmg_time = v_kicktime.value;
 }
 
 /*
@@ -340,10 +349,10 @@ V_cshift_f
 */
 void V_cshift_f (void)
 {
-	cshift_empty.destcolor[0] = atoi (Cmd_Argv (1));
-	cshift_empty.destcolor[1] = atoi (Cmd_Argv (2));
-	cshift_empty.destcolor[2] = atoi (Cmd_Argv (3));
-	cshift_empty.percent = atoi (Cmd_Argv (4));
+	cl.cshift_empty.destcolor[0] = atoi (Cmd_Argv (1));
+	cl.cshift_empty.destcolor[1] = atoi (Cmd_Argv (2));
+	cl.cshift_empty.destcolor[2] = atoi (Cmd_Argv (3));
+	cl.cshift_empty.percent = atoi (Cmd_Argv (4));
 }
 
 /*
@@ -375,7 +384,7 @@ void V_SetContentsColor (int contents)
 	case CONTENTS_EMPTY:
 	case CONTENTS_SOLID:
 	case CONTENTS_SKY: // johnfitz -- no blend in sky
-		cl.cshifts[CSHIFT_CONTENTS] = cshift_empty;
+		cl.cshifts[CSHIFT_CONTENTS] = cl.cshift_empty; // modifiable by server using v_cshift command 
 		break;
 	case CONTENTS_LAVA:
 		cl.cshifts[CSHIFT_CONTENTS] = cshift_lava;
@@ -645,11 +654,11 @@ void V_CalcViewRoll (void)
 	side = V_CalcRoll (cl.entities[cl.viewentity].angles, cl.velocity);
 	r_refdef.viewangles[ROLL] += side;
 
-	if (v_dmg_time > 0)
+	if (cl.v_dmg_time > 0)
 	{
-		r_refdef.viewangles[ROLL] += v_dmg_time / v_kicktime.value * v_dmg_roll;
-		r_refdef.viewangles[PITCH] += v_dmg_time / v_kicktime.value * v_dmg_pitch;
-		v_dmg_time -= host_frametime;
+		r_refdef.viewangles[ROLL] += cl.v_dmg_time / v_kicktime.value * cl.v_dmg_roll;
+		r_refdef.viewangles[PITCH] += cl.v_dmg_time / v_kicktime.value * cl.v_dmg_pitch;
+		cl.v_dmg_time -= host_frametime;
 	}
 
 	if (cl.stats[STAT_HEALTH] <= 0)
