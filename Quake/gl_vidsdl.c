@@ -2669,7 +2669,10 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 		render_pass_begin_info.clearValueCount = resolve ? 3 : 2;
 		render_pass_begin_info.pClearValues = clear_values;
 		vkCmdBeginRenderPass (primary_cb, &render_pass_begin_info, VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
-		for (int cbx_index = CBX_WORLD_0; cbx_index <= CBX_VIEW_MODEL; ++cbx_index)
+		int viewmodel_opaque = ENTALPHA_DECODE (cl.viewent.alpha) == 1.0f;
+		if (viewmodel_opaque)
+			vkCmdExecuteCommands (primary_cb, 1, &vulkan_globals.secondary_cb_contexts[CBX_VIEW_MODEL].cb);
+		for (int cbx_index = CBX_WORLD_0; cbx_index <= CBX_VIEW_MODEL - viewmodel_opaque; ++cbx_index)
 			vkCmdExecuteCommands (primary_cb, 1, &vulkan_globals.secondary_cb_contexts[cbx_index].cb);
 		vkCmdEndRenderPass (primary_cb);
 	}
