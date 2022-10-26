@@ -1377,6 +1377,9 @@ static void Mod_LoadFaces (qmodel_t *mod, byte *mod_base, lump_t *l, qboolean bs
 			ins += sizeof (dsface_t);
 		}
 
+		if (!out->styles_bitmap)
+			out->styles_bitmap = 1;
+
 		out->flags = 0;
 
 		if (side)
