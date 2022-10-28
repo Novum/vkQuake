@@ -408,6 +408,7 @@ void R_BackfaceCullSurfacesSIMD (int index, void *unused)
 		mask_iter &= bit_mask;
 	}
 }
+#endif // defined(USE_SIMD)
 
 /*
 ===============
@@ -460,7 +461,80 @@ void R_ChainVisSurfaces (qboolean *use_tasks)
 	Atomic_AddUInt32 (&rs_brushpolys, brushpolys); // count wpolys here
 	R_SetupWorldCBXTexRanges (*use_tasks);
 }
-#endif // defined(USE_SIMD)
+
+/*
+===============
+R_MarkLeafsParallel
+===============
+*/
+void R_MarkLeafsParallel (int index, void *unused)
+{
+	mleaf_t         *leaf;
+	uint32_t        *mask = (uint32_t *)mark_surfaces_state.vis + index;
+	atomic_uint32_t *surfvis = (atomic_uint32_t *)cl.worldmodel->surfvis;
+	unsigned int     first_leaf = index * 32 + 1;
+
+	uint32_t mask_iter = *mask;
+	while (mask_iter != 0)
+	{
+		const int i = FindFirstBitNonZero (mask_iter);
+		const uint32_t bit_mask = ~(1u << i);
+		mask_iter &= bit_mask;
+		leaf = &cl.worldmodel->leafs[first_leaf + i];
+		if (R_CullBox (leaf->minmaxs, leaf->minmaxs + 3))
+		{
+			*mask &= bit_mask;
+			continue;
+		}
+		if (!leaf->efrags)
+			*mask &= bit_mask;
+		if (r_oldskyleaf.value || leaf->contents != CONTENTS_SKY)
+		{
+			unsigned int nummarksurfaces = leaf->nummarksurfaces;
+			int         *marksurfaces = leaf->firstmarksurface;
+			for (unsigned int j = 0; j < nummarksurfaces; ++j)
+			{
+				unsigned int surf_index = marksurfaces[j];
+				Atomic_OrUInt32 (&surfvis[surf_index / 32], 1u << (surf_index % 32));
+			}
+		}
+	}
+}
+
+/*
+===============
+R_BackfaceCullSurfacesParallel
+===============
+*/
+void R_BackfaceCullSurfacesParallel (int index, void *unused)
+{
+	uint32_t   *surfvis = (uint32_t *)cl.worldmodel->surfvis + index;
+	msurface_t *surf;
+
+	uint32_t mask_iter = *surfvis;
+	if (mask_iter == 0)
+		return;
+
+	const int worker_index = Tasks_GetWorkerIndex ();
+	while (mask_iter != 0)
+	{
+		const int i = FindFirstBitNonZero (mask_iter);
+		const uint32_t bit_mask = ~(1u << i);
+		mask_iter &= bit_mask;
+
+		surf = &cl.worldmodel->surfaces[(index * 32) + i];
+
+		if (R_BackFaceCull (surf))
+			*surfvis &= bit_mask;
+		else
+		{
+			if (surf->lightmaptexturenum >= 0)
+				lightmaps[surf->lightmaptexturenum].modified[worker_index] |= surf->styles_bitmap;
+			if (surf->texinfo->texture->warpimage)
+				Atomic_StoreUInt32 (&surf->texinfo->texture->update_warp, true);
+		}
+	}
+}
 
 /*
 ===============
@@ -578,7 +652,10 @@ static void R_MarkSurfacesPrepare (void *unused)
 		mark_surfaces_state.vieworg_py = _mm_shuffle_ps (pos, pos, _MM_SHUFFLE (1, 1, 1, 1));
 		mark_surfaces_state.vieworg_pz = _mm_shuffle_ps (pos, pos, _MM_SHUFFLE (2, 2, 2, 2));
 	}
+	else
 #endif
+		if (r_parallelmark.value)
+		memset (cl.worldmodel->surfvis, 0, (cl.worldmodel->numsurfaces + 31) / 8);
 }
 
 /*
@@ -593,39 +670,43 @@ void R_MarkSurfaces (qboolean use_tasks, task_handle_t before_mark, task_handle_
 		task_handle_t prepare_mark = Task_AllocateAndAssignFunc (R_MarkSurfacesPrepare, NULL, 0);
 		Task_AddDependency (before_mark, prepare_mark);
 		Task_Submit (prepare_mark);
-#if defined(USE_SIMD)
-		if (use_simd)
+		if (r_parallelmark.value)
 		{
-			if (r_parallelmark.value)
-			{
-				unsigned int  numleafs = cl.worldmodel->numleafs;
-				task_handle_t mark_surfaces = Task_AllocateAndAssignIndexedFunc (R_MarkLeafsSIMD, (numleafs + 31) / 32, NULL, 0);
-				Task_AddDependency (prepare_mark, mark_surfaces);
-				Task_Submit (mark_surfaces);
-
-				*store_efrags = Task_AllocateAndAssignFunc (R_StoreLeafEFrags, NULL, 0);
-				Task_AddDependency (mark_surfaces, *store_efrags);
-
-				unsigned int numsurfaces = cl.worldmodel->numsurfaces;
-				*cull_surfaces = Task_AllocateAndAssignIndexedFunc (R_BackfaceCullSurfacesSIMD, (numsurfaces + 31) / 32, NULL, 0);
-				Task_AddDependency (mark_surfaces, *cull_surfaces);
-
-				*chain_surfaces = Task_AllocateAndAssignFunc ((task_func_t)R_ChainVisSurfaces, &use_tasks, sizeof (qboolean));
-				Task_AddDependency (*cull_surfaces, *chain_surfaces);
-			}
+			unsigned int  numleafs = cl.worldmodel->numleafs;
+			task_handle_t mark_surfaces;
+#if defined(USE_SIMD)
+			if (use_simd)
+				mark_surfaces = Task_AllocateAndAssignIndexedFunc (R_MarkLeafsSIMD, (numleafs + 31) / 32, NULL, 0);
 			else
-			{
-				task_handle_t mark_surfaces = Task_AllocateAndAssignFunc ((task_func_t)R_MarkVisSurfacesSIMD, &use_tasks, sizeof (qboolean));
-				Task_AddDependency (prepare_mark, mark_surfaces);
-				*store_efrags = mark_surfaces;
-				*chain_surfaces = mark_surfaces;
-				*cull_surfaces = mark_surfaces;
-			}
+#endif
+				mark_surfaces = Task_AllocateAndAssignIndexedFunc (R_MarkLeafsParallel, (numleafs + 31) / 32, NULL, 0);
+			Task_AddDependency (prepare_mark, mark_surfaces);
+			Task_Submit (mark_surfaces);
+
+			*store_efrags = Task_AllocateAndAssignFunc (R_StoreLeafEFrags, NULL, 0);
+			Task_AddDependency (mark_surfaces, *store_efrags);
+
+			unsigned int numsurfaces = cl.worldmodel->numsurfaces;
+#if defined(USE_SIMD)
+			if (use_simd)
+				*cull_surfaces = Task_AllocateAndAssignIndexedFunc (R_BackfaceCullSurfacesSIMD, (numsurfaces + 31) / 32, NULL, 0);
+			else
+#endif
+				*cull_surfaces = Task_AllocateAndAssignIndexedFunc (R_BackfaceCullSurfacesParallel, (numsurfaces + 31) / 32, NULL, 0);
+			Task_AddDependency (mark_surfaces, *cull_surfaces);
+
+			*chain_surfaces = Task_AllocateAndAssignFunc ((task_func_t)R_ChainVisSurfaces, &use_tasks, sizeof (qboolean));
+			Task_AddDependency (*cull_surfaces, *chain_surfaces);
 		}
 		else
-#endif
 		{
-			task_handle_t mark_surfaces = Task_AllocateAndAssignFunc ((task_func_t)R_MarkVisSurfaces, &use_tasks, sizeof (qboolean));
+			task_handle_t mark_surfaces;
+#if defined(USE_SIMD)
+			if (use_simd)
+				mark_surfaces = Task_AllocateAndAssignFunc ((task_func_t)R_MarkVisSurfacesSIMD, &use_tasks, sizeof (qboolean));
+			else
+#endif
+				mark_surfaces = Task_AllocateAndAssignFunc ((task_func_t)R_MarkVisSurfaces, &use_tasks, sizeof (qboolean));
 			Task_AddDependency (prepare_mark, mark_surfaces);
 			*store_efrags = mark_surfaces;
 			*chain_surfaces = mark_surfaces;
