@@ -256,9 +256,10 @@ static void TexMgr_SetFilterModes (gltexture_t *glt)
 	memset (&image_info, 0, sizeof (image_info));
 	image_info.imageView = glt->image_view;
 	image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	qboolean enable_anisotropy = vid_anisotropic.value && !(glt->flags & TEXPREF_NOPICMIP);
 
-	VkSampler point_sampler = (vid_anisotropic.value == 1) ? vulkan_globals.point_aniso_sampler_lod_bias : vulkan_globals.point_sampler_lod_bias;
-	VkSampler linear_sampler = (vid_anisotropic.value == 1) ? vulkan_globals.linear_aniso_sampler_lod_bias : vulkan_globals.linear_sampler_lod_bias;
+	VkSampler point_sampler = enable_anisotropy ? vulkan_globals.point_aniso_sampler_lod_bias : vulkan_globals.point_sampler_lod_bias;
+	VkSampler linear_sampler = enable_anisotropy ? vulkan_globals.linear_aniso_sampler_lod_bias : vulkan_globals.linear_sampler_lod_bias;
 
 	if (glt->flags & TEXPREF_NEAREST)
 		image_info.sampler = point_sampler;
