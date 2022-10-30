@@ -37,6 +37,8 @@ DECLARE_SHADER_SPV (alias_alphatest_frag);
 DECLARE_SHADER_SPV (sky_layer_vert);
 DECLARE_SHADER_SPV (sky_layer_frag);
 DECLARE_SHADER_SPV (sky_box_frag);
+DECLARE_SHADER_SPV (sky_cube_vert);
+DECLARE_SHADER_SPV (sky_cube_frag);
 DECLARE_SHADER_SPV (postprocess_vert);
 DECLARE_SHADER_SPV (postprocess_frag);
 DECLARE_SHADER_SPV (screen_effects_8bit_comp);

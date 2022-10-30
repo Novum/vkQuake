@@ -266,6 +266,7 @@ typedef struct
 	vulkan_pipeline_t        sky_stencil_pipeline;
 	vulkan_pipeline_t        sky_color_pipeline;
 	vulkan_pipeline_t        sky_box_pipeline;
+	vulkan_pipeline_t        sky_cube_pipeline;
 	vulkan_pipeline_t        sky_layer_pipeline;
 	vulkan_pipeline_t        alias_pipeline;
 	vulkan_pipeline_t        alias_blend_pipeline;

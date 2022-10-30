@@ -214,6 +214,8 @@ SHADER_OBJS = \
 	sky_layer.frag.o \
 	sky_layer.vert.o \
 	sky_box.frag.o \
+	sky_cube.frag.o \
+	sky_cube.vert.o \
 	postprocess.frag.o \
 	postprocess.vert.o \
 	world.frag.o \

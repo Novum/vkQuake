@@ -22,6 +22,8 @@ shaders = [
     'Shaders/showtris.frag',
     'Shaders/showtris.vert',
     'Shaders/sky_box.frag',
+    'Shaders/sky_cube.frag',
+    'Shaders/sky_cube.vert',
     'Shaders/sky_layer.frag',
     'Shaders/sky_layer.vert',
     'Shaders/update_lightmap.comp',

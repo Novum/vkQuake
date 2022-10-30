@@ -124,6 +124,12 @@ $(VULKAN_SDK)\bin\spirv-remap.exe -s -i "$(SolutionDir)..\..\Shaders\Compiled\Re
     <CustomBuild Include="..\..\Shaders\sky_box.frag">
       <FileType>Document</FileType>
     </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\sky_cube.frag">
+      <FileType>Document</FileType>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\sky_cube.vert">
+      <FileType>Document</FileType>
+    </CustomBuild>
     <CustomBuild Include="..\..\Shaders\sky_layer.frag">
       <FileType>Document</FileType>
     </CustomBuild>
