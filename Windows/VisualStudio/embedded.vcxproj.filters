@@ -58,6 +58,12 @@
     <CustomBuild Include="..\..\Shaders\sky_box.frag">
       <Filter>Shaders</Filter>
     </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\sky_cube.frag">
+      <Filter>Shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\sky_cube.vert">
+      <Filter>Shaders</Filter>
+    </CustomBuild>
     <CustomBuild Include="..\..\Shaders\sky_layer.frag">
       <Filter>Shaders</Filter>
     </CustomBuild>

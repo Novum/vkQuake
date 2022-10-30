@@ -1409,7 +1409,7 @@ void R_CreatePipelineLayouts ()
 	VkPushConstantRange push_constant_range;
 	memset (&push_constant_range, 0, sizeof (push_constant_range));
 	push_constant_range.offset = 0;
-	push_constant_range.size = 21 * sizeof (float);
+	push_constant_range.size = 23 * sizeof (float);
 	push_constant_range.stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS;
 
 	VkPipelineLayoutCreateInfo pipeline_layout_create_info;
@@ -1805,6 +1805,8 @@ DECLARE_SHADER_MODULE (alias_alphatest_frag);
 DECLARE_SHADER_MODULE (sky_layer_vert);
 DECLARE_SHADER_MODULE (sky_layer_frag);
 DECLARE_SHADER_MODULE (sky_box_frag);
+DECLARE_SHADER_MODULE (sky_cube_vert);
+DECLARE_SHADER_MODULE (sky_cube_frag);
 DECLARE_SHADER_MODULE (postprocess_vert);
 DECLARE_SHADER_MODULE (postprocess_frag);
 DECLARE_SHADER_MODULE (screen_effects_8bit_comp);
@@ -2299,6 +2301,15 @@ static void R_CreateSkyPipelines ()
 	vulkan_globals.sky_color_pipeline.layout = vulkan_globals.basic_pipeline_layout;
 	GL_SetObjectName ((uint64_t)vulkan_globals.sky_color_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "sky_color");
 
+	infos.shader_stages[0].module = sky_cube_vert_module;
+	infos.shader_stages[1].module = sky_cube_frag_module;
+	assert (vulkan_globals.sky_cube_pipeline.handle == VK_NULL_HANDLE);
+	err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.sky_cube_pipeline.handle);
+	if (err != VK_SUCCESS)
+		Sys_Error ("vkCreateGraphicsPipelines failed (sky_cube_pipeline)");
+	GL_SetObjectName ((uint64_t)vulkan_globals.sky_cube_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "sky_cube");
+	vulkan_globals.sky_cube_pipeline.layout = vulkan_globals.basic_pipeline_layout;
+
 	infos.depth_stencil_state.depthTestEnable = VK_FALSE;
 	infos.depth_stencil_state.depthWriteEnable = VK_FALSE;
 	infos.depth_stencil_state.stencilTestEnable = VK_TRUE;
@@ -2309,6 +2320,7 @@ static void R_CreateSkyPipelines ()
 	infos.depth_stencil_state.front.compareMask = 0xFF;
 	infos.depth_stencil_state.front.writeMask = 0x0;
 	infos.depth_stencil_state.front.reference = 0x1;
+	infos.shader_stages[0].module = basic_vert_module;
 	infos.shader_stages[1].module = sky_box_frag_module;
 
 	assert (vulkan_globals.sky_box_pipeline.handle == VK_NULL_HANDLE);
@@ -2795,6 +2807,8 @@ static void R_CreateShaderModules ()
 	CREATE_SHADER_MODULE (sky_layer_vert);
 	CREATE_SHADER_MODULE (sky_layer_frag);
 	CREATE_SHADER_MODULE (sky_box_frag);
+	CREATE_SHADER_MODULE (sky_cube_vert);
+	CREATE_SHADER_MODULE (sky_cube_frag);
 	CREATE_SHADER_MODULE (postprocess_vert);
 	CREATE_SHADER_MODULE (postprocess_frag);
 	CREATE_SHADER_MODULE (screen_effects_8bit_comp);
@@ -2828,6 +2842,8 @@ static void R_DestroyShaderModules ()
 	DESTROY_SHADER_MODULE (sky_layer_vert);
 	DESTROY_SHADER_MODULE (sky_layer_frag);
 	DESTROY_SHADER_MODULE (sky_box_frag);
+	DESTROY_SHADER_MODULE (sky_cube_vert);
+	DESTROY_SHADER_MODULE (sky_cube_frag);
 	DESTROY_SHADER_MODULE (postprocess_vert);
 	DESTROY_SHADER_MODULE (postprocess_frag);
 	DESTROY_SHADER_MODULE (screen_effects_8bit_comp);
@@ -2916,6 +2932,8 @@ void R_DestroyPipelines (void)
 	vulkan_globals.sky_color_pipeline.handle = VK_NULL_HANDLE;
 	vkDestroyPipeline (vulkan_globals.device, vulkan_globals.sky_box_pipeline.handle, NULL);
 	vulkan_globals.sky_box_pipeline.handle = VK_NULL_HANDLE;
+	vkDestroyPipeline (vulkan_globals.device, vulkan_globals.sky_cube_pipeline.handle, NULL);
+	vulkan_globals.sky_cube_pipeline.handle = VK_NULL_HANDLE;
 	vkDestroyPipeline (vulkan_globals.device, vulkan_globals.sky_layer_pipeline.handle, NULL);
 	vulkan_globals.sky_layer_pipeline.handle = VK_NULL_HANDLE;
 	vkDestroyPipeline (vulkan_globals.device, vulkan_globals.alias_pipeline.handle, NULL);
