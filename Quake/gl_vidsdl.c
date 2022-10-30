@@ -1305,17 +1305,21 @@ static void GL_CreateRenderPasses ()
 		for (int cbx_index = CBX_WORLD_0; cbx_index <= CBX_VIEW_MODEL; ++cbx_index)
 			assert (vulkan_globals.secondary_cb_contexts[cbx_index].render_pass == VK_NULL_HANDLE);
 
-		VkRenderPass render_pass;
-		err = vkCreateRenderPass (vulkan_globals.device, &render_pass_create_info, NULL, &render_pass);
+		err = vkCreateRenderPass (vulkan_globals.device, &render_pass_create_info, NULL, &vulkan_globals.main_render_pass[0]);
 		if (err != VK_SUCCESS)
 			Sys_Error ("Couldn't create Vulkan render pass");
+		GL_SetObjectName ((uint64_t)vulkan_globals.main_render_pass[0], VK_OBJECT_TYPE_RENDER_PASS, "main");
 
-		GL_SetObjectName ((uint64_t)render_pass, VK_OBJECT_TYPE_RENDER_PASS, "main");
+		attachment_descriptions[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+		err = vkCreateRenderPass (vulkan_globals.device, &render_pass_create_info, NULL, &vulkan_globals.main_render_pass[1]);
+		if (err != VK_SUCCESS)
+			Sys_Error ("Couldn't create Vulkan render pass");
+		GL_SetObjectName ((uint64_t)vulkan_globals.main_render_pass[1], VK_OBJECT_TYPE_RENDER_PASS, "main_no_stencil");
 
 		for (int cbx_index = CBX_WORLD_0; cbx_index <= CBX_VIEW_MODEL; ++cbx_index)
 		{
 			cb_context_t *cbx = &vulkan_globals.secondary_cb_contexts[cbx_index];
-			cbx->render_pass = render_pass;
+			cbx->render_pass = vulkan_globals.main_render_pass[0];
 			cbx->render_pass_index = 0;
 			cbx->subpass = 0;
 		}
@@ -2242,7 +2246,8 @@ static void GL_DestroyRenderResources (void)
 	vkDestroyRenderPass (vulkan_globals.device, vulkan_globals.secondary_cb_contexts[CBX_GUI].render_pass, NULL);
 	for (int cbx_index = CBX_GUI; cbx_index <= CBX_POST_PROCESS; ++cbx_index)
 		vulkan_globals.secondary_cb_contexts[cbx_index].render_pass = VK_NULL_HANDLE;
-	vkDestroyRenderPass (vulkan_globals.device, vulkan_globals.secondary_cb_contexts[CBX_WORLD_0].render_pass, NULL);
+	vkDestroyRenderPass (vulkan_globals.device, vulkan_globals.main_render_pass[0], NULL);
+	vkDestroyRenderPass (vulkan_globals.device, vulkan_globals.main_render_pass[1], NULL);
 	for (int cbx_index = CBX_WORLD_0; cbx_index <= CBX_VIEW_MODEL; ++cbx_index)
 		vulkan_globals.secondary_cb_contexts[cbx_index].render_pass = VK_NULL_HANDLE;
 }
@@ -2293,6 +2298,12 @@ void GL_BeginRenderingTask (void *unused)
 		cbx->cb = secondary_command_buffers[cbx_index][current_cb_index];
 		cbx->current_canvas = CANVAS_INVALID;
 		memset (&cbx->current_pipeline, 0, sizeof (cbx->current_pipeline));
+
+		if (cbx_index <= CBX_VIEW_MODEL)
+		{
+			const int main_render_pass_index = Sky_NeedStencil () ? 0 : 1;
+			cbx->render_pass = vulkan_globals.main_render_pass[main_render_pass_index];
+		}
 
 		VkCommandBufferInheritanceInfo inheritance_info;
 		memset (&inheritance_info, 0, sizeof (inheritance_info));

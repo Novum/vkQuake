@@ -1103,3 +1103,13 @@ void Sky_DrawSky (cb_context_t *cbx)
 
 	R_EndDebugUtilsLabel (cbx);
 }
+
+/*
+==============
+Sky_NeedStencil
+==============
+*/
+qboolean Sky_NeedStencil ()
+{
+	return !skybox_cubemap && !r_fastsky.value && !(Fog_GetDensity () > 0 && skyfog >= 1);
+}

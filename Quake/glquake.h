@@ -251,6 +251,7 @@ typedef struct
 	int staging_buffer_size;
 
 	// Render passes
+	VkRenderPass main_render_pass[2]; // stencil clear, stencil dont_care
 	VkRenderPass warp_render_pass;
 
 	// Pipelines
@@ -533,6 +534,7 @@ void GL_MakeAliasModelDisplayLists (qmodel_t *m, aliashdr_t *hdr);
 void Sky_Init (void);
 void Sky_ClearAll (void);
 void Sky_DrawSky (cb_context_t *cbx);
+qboolean Sky_NeedStencil ();
 void Sky_NewMap (void);
 void Sky_LoadTexture (qmodel_t *mod, texture_t *mt, int tex_index);
 void Sky_LoadTextureQ64 (qmodel_t *mod, texture_t *mt, int tex_index);
