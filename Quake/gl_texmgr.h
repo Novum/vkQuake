@@ -48,7 +48,8 @@ enum srcformat
 	SRC_INDEXED,
 	SRC_LIGHTMAP,
 	SRC_RGBA,
-	SRC_SURF_INDICES
+	SRC_SURF_INDICES,
+	SRC_RGBA_CUBEMAP
 };
 
 struct glheap_s;

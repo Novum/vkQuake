@@ -307,11 +307,17 @@ static void TexMgr_Imagelist_f (void)
 
 	for (glt = active_gltextures; glt; glt = glt->next)
 	{
-		Con_SafePrintf ("   %4i x%4i %s\n", glt->width, glt->height, glt->name);
 		if (glt->flags & TEXPREF_MIPMAP)
 			texels += glt->width * glt->height * 4.0f / 3.0f;
 		else
 			texels += (glt->width * glt->height);
+		if (glt->source_format == SRC_RGBA_CUBEMAP)
+		{
+			Con_SafePrintf ("   %4i CUBE  %s\n", glt->width, glt->name);
+			texels *= 6.0f;
+		}
+		else
+			Con_SafePrintf ("   %4i x%4i %s\n", glt->width, glt->height, glt->name);
 	}
 
 	mb = (texels * 4) / 0x100000;
@@ -844,7 +850,10 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	int mipwidth = q_max (glt->width >> picmip, 1);
 	int mipheight = q_max (glt->height >> picmip, 1);
 
-	int maxsize = (int)vulkan_globals.device_properties.limits.maxImageDimension2D;
+	const qboolean is_cube = glt->source_format == SRC_RGBA_CUBEMAP;
+	int maxsize = (int)(is_cube ? vulkan_globals.device_properties.limits.maxImageDimensionCube : vulkan_globals.device_properties.limits.maxImageDimension2D);
+	if (!(glt->flags & TEXPREF_NOPICMIP) && gl_max_size.value)
+		maxsize = q_min (q_max ((int)gl_max_size.value, 1), maxsize);
 	if ((mipwidth > maxsize) || (mipheight > maxsize))
 	{
 		if (mipwidth >= mipheight)
@@ -861,7 +870,11 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 
 	if ((int)glt->width != mipwidth || (int)glt->height != mipheight)
 	{
-		TexMgr_Downsample (data, glt->width, glt->height, mipwidth, mipheight);
+		if (is_cube)
+			for (int i = 0; i < 6; i++)
+				TexMgr_Downsample ((unsigned int *)((byte **)data)[i], glt->width, glt->height, mipwidth, mipheight);
+		else
+			TexMgr_Downsample (data, glt->width, glt->height, mipwidth, mipheight);
 		glt->width = mipwidth;
 		glt->height = mipheight;
 		if (glt->flags & TEXPREF_ALPHA)
@@ -895,7 +908,7 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	image_create_info.extent.height = glt->height;
 	image_create_info.extent.depth = 1;
 	image_create_info.mipLevels = num_mips;
-	image_create_info.arrayLayers = 1;
+	image_create_info.arrayLayers = is_cube ? 6 : 1;
 	image_create_info.samples = VK_SAMPLE_COUNT_1_BIT;
 	image_create_info.tiling = VK_IMAGE_TILING_OPTIMAL;
 	if (warp_image)
@@ -909,6 +922,8 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 
 	image_create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 	image_create_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	if (is_cube)
+		image_create_info.flags |= VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
 
 	err = vkCreateImage (vulkan_globals.device, &image_create_info, NULL, &glt->image);
 	if (err != VK_SUCCESS)
@@ -931,7 +946,7 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	memset (&image_view_create_info, 0, sizeof (image_view_create_info));
 	image_view_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 	image_view_create_info.image = glt->image;
-	image_view_create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+	image_view_create_info.viewType = is_cube ? VK_IMAGE_VIEW_TYPE_CUBE : VK_IMAGE_VIEW_TYPE_2D;
 	image_view_create_info.format = format;
 	image_view_create_info.components.r = VK_COMPONENT_SWIZZLE_R;
 	image_view_create_info.components.g = VK_COMPONENT_SWIZZLE_G;
@@ -941,7 +956,7 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	image_view_create_info.subresourceRange.baseMipLevel = 0;
 	image_view_create_info.subresourceRange.levelCount = num_mips;
 	image_view_create_info.subresourceRange.baseArrayLayer = 0;
-	image_view_create_info.subresourceRange.layerCount = 1;
+	image_view_create_info.subresourceRange.layerCount = is_cube ? 6 : 1;
 
 	err = vkCreateImageView (vulkan_globals.device, &image_view_create_info, NULL, &glt->image_view);
 	if (err != VK_SUCCESS)
@@ -1026,6 +1041,8 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	memset (&regions, 0, sizeof (regions));
 
 	int staging_size = (glt->flags & TEXPREF_MIPMAP) ? TexMgr_DeriveStagingSize (mipwidth, mipheight) : (mipwidth * mipheight * 4);
+	if (is_cube)
+		staging_size *= 6;
 
 	VkBuffer        staging_buffer;
 	VkCommandBuffer command_buffer;
@@ -1057,6 +1074,20 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 			mipheight /= 2;
 		}
 	}
+	else if (is_cube)
+	{
+		for (int i = 0; i < 6; i++)
+		{
+			regions[i].bufferOffset = staging_offset + (i * mipwidth * mipheight * 4);
+			regions[i].imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+			regions[i].imageSubresource.layerCount = 1;
+			regions[i].imageSubresource.baseArrayLayer = i;
+			regions[i].imageSubresource.mipLevel = 0;
+			regions[i].imageExtent.width = mipwidth;
+			regions[i].imageExtent.height = mipheight;
+			regions[i].imageExtent.depth = 1;
+		}
+	}
 	else
 	{
 		regions[0].bufferOffset = staging_offset;
@@ -1078,7 +1109,7 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	image_memory_barrier.subresourceRange.baseMipLevel = 0;
 	image_memory_barrier.subresourceRange.levelCount = num_mips;
 	image_memory_barrier.subresourceRange.baseArrayLayer = 0;
-	image_memory_barrier.subresourceRange.layerCount = 1;
+	image_memory_barrier.subresourceRange.layerCount = is_cube ? 6 : 1;
 
 	image_memory_barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	image_memory_barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
@@ -1086,7 +1117,7 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	image_memory_barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 	vkCmdPipelineBarrier (command_buffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, NULL, 0, NULL, 1, &image_memory_barrier);
 
-	vkCmdCopyBufferToImage (command_buffer, staging_buffer, glt->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, num_mips, regions);
+	vkCmdCopyBufferToImage (command_buffer, staging_buffer, glt->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, num_mips * (is_cube ? 6 : 1), regions);
 
 	image_memory_barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 	image_memory_barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
@@ -1114,6 +1145,13 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 			mipwidth /= 2;
 			mipheight /= 2;
 		}
+	}
+	else if (is_cube)
+	{
+		const int reorder[] = {3, 1, 4, 5, 0, 2};
+		staging_size /= 6;
+		for (int i = 0; i < 6; i++)
+			memcpy (staging_memory + i * staging_size, ((byte **)data)[reorder[i]], staging_size);
 	}
 	else
 	{
@@ -1272,6 +1310,7 @@ gltexture_t *TexMgr_LoadImage (
 		break;
 	case SRC_RGBA:
 	case SRC_SURF_INDICES:
+	case SRC_RGBA_CUBEMAP:
 		TexMgr_LoadImage32 (glt, (unsigned *)data);
 		break;
 	}
@@ -1409,6 +1448,7 @@ void TexMgr_ReloadImage (gltexture_t *glt, int shirt, int pants)
 		break;
 	case SRC_RGBA:
 	case SRC_SURF_INDICES:
+	case SRC_RGBA_CUBEMAP:
 		TexMgr_LoadImage32 (glt, (unsigned *)data);
 		break;
 	}
