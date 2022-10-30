@@ -37,6 +37,7 @@ float                  skymins[2][6], skymaxs[2][6];
 char skybox_name[1024]; // name of current skybox, or "" if no skybox
 
 gltexture_t *skybox_textures[6];
+gltexture_t *skybox_cubemap;
 gltexture_t *solidskytexture, *alphaskytexture;
 
 extern cvar_t gl_farclip;
@@ -227,10 +228,10 @@ Sky_LoadSkyBox
 const char *suf[6] = {"rt", "bk", "lf", "ft", "up", "dn"};
 void        Sky_LoadSkyBox (const char *name)
 {
-	int      i, width, height;
-	char     filename[MAX_OSPATH];
-	byte    *data;
-	qboolean nonefound = true;
+	int      i, width[6], height[6];
+	char     filename[6][MAX_OSPATH];
+	byte    *data[6];
+	qboolean nonefound = true, cubemap = true;
 
 	if (strcmp (skybox_name, name) == 0)
 		return; // no change
@@ -242,6 +243,9 @@ void        Sky_LoadSkyBox (const char *name)
 			TexMgr_FreeTexture (skybox_textures[i]);
 		skybox_textures[i] = NULL;
 	}
+	if (skybox_cubemap)
+		TexMgr_FreeTexture (skybox_cubemap);
+	skybox_cubemap = NULL;
 
 	// turn off skybox if sky is set to ""
 	if (name[0] == 0)
@@ -253,20 +257,32 @@ void        Sky_LoadSkyBox (const char *name)
 	// load textures
 	for (i = 0; i < 6; i++)
 	{
-		q_snprintf (filename, sizeof (filename), "gfx/env/%s%s", name, suf[i]);
-		data = Image_LoadImage (filename, &width, &height);
-		if (data)
-		{
-			skybox_textures[i] = TexMgr_LoadImage (cl.worldmodel, filename, width, height, SRC_RGBA, data, filename, 0, TEXPREF_NONE);
+		q_snprintf (filename[i], sizeof (filename[i]), "gfx/env/%s%s", name, suf[i]);
+		if ((data[i] = Image_LoadImage (filename[i], &width[i], &height[i])))
 			nonefound = false;
-			Mem_Free (data);
-		}
-		else
-		{
-			Con_Printf ("Couldn't load %s\n", filename);
-			skybox_textures[i] = notexture;
-		}
+		if (!data[i] || width[i] != height[i] || width[i] != width[0])
+			cubemap = false;
 	}
+
+	if (cubemap)
+	{
+		q_snprintf (filename[0], sizeof (filename[0]), "gfx/env/%scube", name);
+		skybox_cubemap = TexMgr_LoadImage (cl.worldmodel, filename[0], width[0], height[0], SRC_RGBA_CUBEMAP, (byte *)data, filename[0], 0, TEXPREF_NONE);
+	}
+	else
+		for (i = 0; i < 6; i++)
+		{
+			if (data[i])
+			{
+				skybox_textures[i] = TexMgr_LoadImage (cl.worldmodel, filename[i], width[i], height[i], SRC_RGBA, data[i], filename[i], 0, TEXPREF_NONE);
+				Mem_Free (data[i]);
+			}
+			else
+			{
+				Con_Printf ("Couldn't load %s\n", filename[i]);
+				skybox_textures[i] = notexture;
+			}
+		}
 
 	if (nonefound) // go back to scrolling sky if skybox is totally missing
 	{
@@ -297,6 +313,7 @@ void Sky_ClearAll (void)
 	skybox_name[0] = 0;
 	for (i = 0; i < 6; i++)
 		skybox_textures[i] = NULL;
+	skybox_cubemap = NULL;
 	solidskytexture = NULL;
 	alphaskytexture = NULL;
 	max_skytexture_index = -1;
@@ -411,6 +428,7 @@ void Sky_Init (void)
 	skybox_name[0] = 0;
 	for (i = 0; i < 6; i++)
 		skybox_textures[i] = NULL;
+	skybox_cubemap = NULL;
 
 	load_skytexture_mutex = SDL_CreateMutex ();
 }
@@ -1029,18 +1047,32 @@ void Sky_DrawSky (cb_context_t *cbx)
 		skymaxs[0][i] = skymaxs[1][i] = -FLT_MAX;
 	}
 
+	float fog_density = (Fog_GetDensity () > 0) ? skyfog : 0.0f;
+	float fog_color[4];
+	Fog_GetColor (fog_color);
+	float constant_values[7] = {CLAMP (0.0f, fog_color[0], 1.0f), CLAMP (0.0f, fog_color[1], 1.0f), CLAMP (0.0f, fog_color[2], 1.0f), fog_density};
+
 	// With slow sky we first write stencil for the part of the screen that is covered by sky geometry and passes the depth test
 	// Sky_DrawSkyBox/Sky_DrawSkyLayers then only fill the parts that had stencil written
-	if (slow_sky)
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_stencil_pipeline);
+	if (!slow_sky)
+		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_color_pipeline);	
+	else if (skybox_cubemap)
+	{
+		memcpy (&constant_values[4], r_refdef.vieworg, sizeof (r_refdef.vieworg));
+
+		R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 16 * sizeof (float), 7 * sizeof (float), constant_values);
+		vkCmdBindDescriptorSets (
+			cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &skybox_cubemap->descriptor_set, 0, NULL);
+
+		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_cube_pipeline);
+	}
 	else
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_color_pipeline);
+		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_stencil_pipeline);
 	vkCmdBindIndexBuffer (cbx->cb, vulkan_globals.fan_index_buffer, 0, VK_INDEX_TYPE_UINT16);
 
 	//
 	// process world and bmodels: draw flat-shaded sky surfs, and update skybounds
 	//
-	Fog_DisableGFog (cbx);
 
 	float color[4];
 	if (Fog_GetDensity () > 0)
@@ -1055,13 +1087,9 @@ void Sky_DrawSky (cb_context_t *cbx)
 	//
 	// render slow sky: cloud layers or skybox
 	//
-	if (slow_sky)
+	if (slow_sky && !skybox_cubemap)
 	{
-		float fog_density = (Fog_GetDensity () > 0) ? skyfog : 0.0f;
-		float fog_color[4];
-		Fog_GetColor (fog_color);
-		float fog_values[4] = {CLAMP (0.0f, fog_color[0], 1.0f), CLAMP (0.0f, fog_color[1], 1.0f), CLAMP (0.0f, fog_color[2], 1.0f), fog_density};
-		R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 16 * sizeof (float), 4 * sizeof (float), fog_values);
+		R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 16 * sizeof (float), 4 * sizeof (float), constant_values);
 
 		if (skybox_name[0])
 			Sky_DrawSkyBox (cbx, &skypolys);
