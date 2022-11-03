@@ -901,7 +901,7 @@ static void Mod_LoadLighting (qmodel_t *mod, byte *mod_base, lump_t *l)
 				{
 					Con_DPrintf2 ("%s loaded\n", litfilename);
 					mod->lightdata = (byte *)Mem_Alloc (l->filelen * 3);
-					memcpy (mod->lightdata, data + 8, (l->filelen * 3) - 8);
+					memcpy (mod->lightdata, data + 8, l->filelen * 3);
 					Mem_Free (data);
 					return;
 				}
