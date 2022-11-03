@@ -961,13 +961,9 @@ void GL_BuildLightmaps (void)
 	for (i = 0; i < lightmap_count; i++)
 	{
 		Mem_Free (lightmaps[i].data);
-		for (j = 0; j < MAXLIGHTMAPS; ++j)
-			Mem_Free (lightmaps[i].lightstyle_data[j]);
-		Mem_Free (lightmaps[i].surface_indices);
 		R_FreeDescriptorSet (lightmaps[i].descriptor_set, &vulkan_globals.lightmap_compute_set_layout);
 		if (lightmaps[i].workgroup_bounds_buffer != VK_NULL_HANDLE)
 			vkDestroyBuffer (vulkan_globals.device, lightmaps[i].workgroup_bounds_buffer, NULL);
-		Mem_Free (lightmaps[i].workgroup_bounds);
 	}
 
 	Mem_Free (lightmaps);
@@ -1051,12 +1047,14 @@ void GL_BuildLightmaps (void)
 			lm->lightstyle_textures[j] = TexMgr_LoadImage (
 				cl.worldmodel, name, LMBLOCK_WIDTH, LMBLOCK_HEIGHT, SRC_RGBA, lm->lightstyle_data[j], "", (src_offset_t)lm->data,
 				TEXPREF_LINEAR | TEXPREF_NOPICMIP);
+			SAFE_FREE (lm->lightstyle_data[j]);
 		}
 
 		q_snprintf (name, sizeof (name), "surfindices%07i", i);
 		lm->surface_indices_texture = TexMgr_LoadImage (
 			cl.worldmodel, name, LMBLOCK_WIDTH, LMBLOCK_HEIGHT, SRC_SURF_INDICES, (byte *)lm->surface_indices, "", (src_offset_t)lm->surface_indices,
 			TEXPREF_LINEAR | TEXPREF_NOPICMIP);
+		SAFE_FREE (lm->surface_indices);
 	}
 
 	for (i = 0; i < lightmap_count; i++)
@@ -1080,6 +1078,7 @@ void GL_BuildLightmaps (void)
 			R_StagingBeginCopy ();
 			memcpy (bounds_staging, lm->workgroup_bounds, WORKGROUP_BOUNDS_BUFFER_SIZE);
 			R_StagingEndCopy ();
+			SAFE_FREE (lm->workgroup_bounds);
 		}
 
 		VkDescriptorImageInfo output_image_info;
