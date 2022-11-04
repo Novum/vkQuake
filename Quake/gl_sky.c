@@ -273,16 +273,17 @@ void        Sky_LoadSkyBox (const char *name)
 		for (i = 0; i < 6; i++)
 		{
 			if (data[i])
-			{
 				skybox_textures[i] = TexMgr_LoadImage (cl.worldmodel, filename[i], width[i], height[i], SRC_RGBA, data[i], filename[i], 0, TEXPREF_NONE);
-				Mem_Free (data[i]);
-			}
 			else
 			{
 				Con_Printf ("Couldn't load %s\n", filename[i]);
 				skybox_textures[i] = notexture;
 			}
 		}
+
+	for (i = 0; i < 6; i++)
+		if (data[i])
+			Mem_Free (data[i]);
 
 	if (nonefound) // go back to scrolling sky if skybox is totally missing
 	{
