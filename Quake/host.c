@@ -345,10 +345,10 @@ void Host_WriteConfiguration (void)
 			SDL_free (pref_path);
 		}
 		else
-			f = fopen (va ("%s/config.cfg", com_gamedir), "w");
+			f = fopen (va ("%s/" CONFIG_NAME, com_gamedir), "w");
 		if (!f)
 		{
-			Con_Printf ("Couldn't write config.cfg.\n");
+			Con_Printf ("Couldn't write " CONFIG_NAME ".\n");
 			return;
 		}
 
