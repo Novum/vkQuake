@@ -1409,7 +1409,7 @@ void R_CreatePipelineLayouts ()
 	VkPushConstantRange push_constant_range;
 	memset (&push_constant_range, 0, sizeof (push_constant_range));
 	push_constant_range.offset = 0;
-	push_constant_range.size = 23 * sizeof (float);
+	push_constant_range.size = 24 * sizeof (float);
 	push_constant_range.stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS;
 
 	VkPipelineLayoutCreateInfo pipeline_layout_create_info;
@@ -2310,6 +2310,15 @@ static void R_CreateSkyPipelines ()
 	GL_SetObjectName ((uint64_t)vulkan_globals.sky_cube_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "sky_cube");
 	vulkan_globals.sky_cube_pipeline.layout = vulkan_globals.basic_pipeline_layout;
 
+	infos.shader_stages[0].module = sky_layer_vert_module;
+	infos.shader_stages[1].module = sky_layer_frag_module;
+	infos.graphics_pipeline.layout = vulkan_globals.sky_layer_pipeline.layout.handle;
+	assert (vulkan_globals.sky_layer_pipeline.handle == VK_NULL_HANDLE);
+	err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.sky_layer_pipeline.handle);
+	if (err != VK_SUCCESS)
+		Sys_Error ("vkCreateGraphicsPipelines failed (sky_layer_pipeline)");
+	GL_SetObjectName ((uint64_t)vulkan_globals.sky_layer_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "sky_layer");
+
 	infos.depth_stencil_state.depthTestEnable = VK_FALSE;
 	infos.depth_stencil_state.depthWriteEnable = VK_FALSE;
 	infos.depth_stencil_state.stencilTestEnable = VK_TRUE;
@@ -2330,46 +2339,6 @@ static void R_CreateSkyPipelines ()
 	GL_SetObjectName ((uint64_t)vulkan_globals.sky_box_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "sky_box");
 
 	vulkan_globals.sky_box_pipeline.layout = vulkan_globals.basic_pipeline_layout;
-
-	VkVertexInputAttributeDescription sky_layer_vertex_input_attribute_descriptions[4];
-	sky_layer_vertex_input_attribute_descriptions[0].binding = 0;
-	sky_layer_vertex_input_attribute_descriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-	sky_layer_vertex_input_attribute_descriptions[0].location = 0;
-	sky_layer_vertex_input_attribute_descriptions[0].offset = 0;
-	sky_layer_vertex_input_attribute_descriptions[1].binding = 0;
-	sky_layer_vertex_input_attribute_descriptions[1].format = VK_FORMAT_R32G32_SFLOAT;
-	sky_layer_vertex_input_attribute_descriptions[1].location = 1;
-	sky_layer_vertex_input_attribute_descriptions[1].offset = 12;
-	sky_layer_vertex_input_attribute_descriptions[2].binding = 0;
-	sky_layer_vertex_input_attribute_descriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
-	sky_layer_vertex_input_attribute_descriptions[2].location = 2;
-	sky_layer_vertex_input_attribute_descriptions[2].offset = 20;
-	sky_layer_vertex_input_attribute_descriptions[3].binding = 0;
-	sky_layer_vertex_input_attribute_descriptions[3].format = VK_FORMAT_R8G8B8A8_UNORM;
-	sky_layer_vertex_input_attribute_descriptions[3].location = 3;
-	sky_layer_vertex_input_attribute_descriptions[3].offset = 28;
-
-	VkVertexInputBindingDescription sky_layer_vertex_binding_description;
-	sky_layer_vertex_binding_description.binding = 0;
-	sky_layer_vertex_binding_description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-	sky_layer_vertex_binding_description.stride = 32;
-
-	infos.vertex_input_state.vertexAttributeDescriptionCount = 4;
-	infos.vertex_input_state.pVertexAttributeDescriptions = sky_layer_vertex_input_attribute_descriptions;
-	infos.vertex_input_state.vertexBindingDescriptionCount = 1;
-	infos.vertex_input_state.pVertexBindingDescriptions = &sky_layer_vertex_binding_description;
-
-	infos.shader_stages[0].module = sky_layer_vert_module;
-	infos.shader_stages[1].module = sky_layer_frag_module;
-	infos.blend_attachment_state.blendEnable = VK_FALSE;
-
-	infos.graphics_pipeline.layout = vulkan_globals.sky_layer_pipeline.layout.handle;
-
-	assert (vulkan_globals.sky_layer_pipeline.handle == VK_NULL_HANDLE);
-	err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.sky_layer_pipeline.handle);
-	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateGraphicsPipelines failed (sky_layer_pipeline)");
-	GL_SetObjectName ((uint64_t)vulkan_globals.sky_layer_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "sky_layer");
 }
 
 /*

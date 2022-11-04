@@ -4,18 +4,16 @@
 
 layout (push_constant) uniform PushConsts
 {
-	mat4 mvp;
+	mat4  mvp;
+	vec3  fog_color;
+	float fog_density;
+	vec3  eye_pos;
 }
 push_constants;
 
 layout (location = 0) in vec3 in_position;
-layout (location = 1) in vec2 in_texcoord1;
-layout (location = 2) in vec2 in_texcoord2;
-layout (location = 3) in vec4 in_color;
 
-layout (location = 0) out vec4 out_texcoord1;
-layout (location = 1) out vec4 out_texcoord2;
-layout (location = 2) out vec4 out_color;
+layout (location = 0) out vec4 out_texcoord;
 
 out gl_PerVertex
 {
@@ -25,7 +23,6 @@ out gl_PerVertex
 void main ()
 {
 	gl_Position = push_constants.mvp * vec4 (in_position, 1.0f);
-	out_texcoord1 = vec4 (in_texcoord1.xy, 0.0f, 0.0f);
-	out_texcoord2 = vec4 (in_texcoord2.xy, 0.0f, 0.0f);
-	out_color = in_color;
+	out_texcoord = vec4(in_position - push_constants.eye_pos, 0.0f);
+	out_texcoord.z *= 3.0; // flatten the sphere
 }

@@ -62,6 +62,8 @@ float skyfog; // ericw
 static SDL_mutex *load_skytexture_mutex;
 static int        max_skytexture_index = -1;
 
+qboolean need_bounds;
+
 typedef struct
 {
 	float position[3];
@@ -628,7 +630,7 @@ void Sky_ProcessPoly (cb_context_t *cbx, glpoly_t *p, float color[3])
 	DrawGLPoly (cbx, p, color, 1.0f);
 
 	// update sky bounds
-	if (!r_fastsky.value)
+	if (need_bounds)
 	{
 		for (i = 0; i < p->numverts; i++)
 		{
@@ -863,166 +865,6 @@ void Sky_DrawSkyBox (cb_context_t *cbx, int *skypolys)
 
 /*
 ==============
-Sky_SetBoxVert
-==============
-*/
-void Sky_SetBoxVert (float s, float t, int axis, vec3_t v)
-{
-	vec3_t b;
-	int    j, k;
-
-	b[0] = s * gl_farclip.value / sqrt (3.0);
-	b[1] = t * gl_farclip.value / sqrt (3.0);
-	b[2] = gl_farclip.value / sqrt (3.0);
-
-	for (j = 0; j < 3; j++)
-	{
-		k = st_to_vec[axis][j];
-		if (k < 0)
-			v[j] = -b[-k - 1];
-		else
-			v[j] = b[k - 1];
-		v[j] += r_origin[j];
-	}
-}
-
-/*
-=============
-Sky_GetTexCoord
-=============
-*/
-void Sky_GetTexCoord (vec3_t v, float speed, float *s, float *t)
-{
-	vec3_t dir;
-	float  length, scroll;
-
-	VectorSubtract (v, r_origin, dir);
-	dir[2] *= 3; // flatten the sphere
-
-	length = dir[0] * dir[0] + dir[1] * dir[1] + dir[2] * dir[2];
-	length = sqrt (length);
-	length = 6 * 63 / length;
-
-	scroll = cl.time * speed;
-	scroll -= (int)scroll & ~127;
-
-	*s = (scroll + dir[0] * length) * (1.0 / 128);
-	*t = (scroll + dir[1] * length) * (1.0 / 128);
-}
-
-/*
-===============
-Sky_DrawFaceQuad
-===============
-*/
-void Sky_DrawFaceQuad (cb_context_t *cbx, glpoly_t *p, float alpha)
-{
-	float *v;
-	int    i;
-
-	VkBuffer          vertex_buffer;
-	VkDeviceSize      vertex_buffer_offset;
-	skylayervertex_t *vertices = (skylayervertex_t *)R_VertexAllocate (4 * sizeof (skylayervertex_t), &vertex_buffer, &vertex_buffer_offset);
-
-	for (i = 0, v = p->verts[0]; i < 4; i++, v += VERTEXSIZE)
-	{
-		vertices[i].position[0] = v[0];
-		vertices[i].position[1] = v[1];
-		vertices[i].position[2] = v[2];
-
-		Sky_GetTexCoord (v, 8, &vertices[i].texcoord1[0], &vertices[i].texcoord1[1]);
-		Sky_GetTexCoord (v, 16, &vertices[i].texcoord2[0], &vertices[i].texcoord2[1]);
-
-		vertices[i].color[0] = 255;
-		vertices[i].color[1] = 255;
-		vertices[i].color[2] = 255;
-		vertices[i].color[3] = alpha * 255.0f;
-	}
-
-	vkCmdBindVertexBuffers (cbx->cb, 0, 1, &vertex_buffer, &vertex_buffer_offset);
-	vkCmdDrawIndexed (cbx->cb, 6, 1, 0, 0, 0);
-}
-
-/*
-==============
-Sky_DrawFace
-==============
-*/
-
-void Sky_DrawFace (cb_context_t *cbx, int axis, float alpha, int *skypolys)
-{
-	glpoly_t p;
-	vec3_t   verts[4];
-	int      i, j;
-	float    di, qi, dj, qj;
-	vec3_t   up, right, temp, temp2;
-
-	Sky_SetBoxVert (-1.0, -1.0, axis, verts[0]);
-	Sky_SetBoxVert (-1.0, 1.0, axis, verts[1]);
-	Sky_SetBoxVert (1.0, 1.0, axis, verts[2]);
-	Sky_SetBoxVert (1.0, -1.0, axis, verts[3]);
-
-	VectorSubtract (verts[2], verts[3], up);
-	VectorSubtract (verts[2], verts[1], right);
-
-	di = q_max ((int)r_sky_quality.value, 1);
-	qi = 1.0 / di;
-	dj = (axis < 4) ? di * 2 : di; // subdivide vertically more than horizontally on skybox sides
-	qj = 1.0 / dj;
-
-	for (i = 0; i < di; i++)
-	{
-		for (j = 0; j < dj; j++)
-		{
-			if (i * qi < skymins[0][axis] / 2 + 0.5 - qi || i * qi > skymaxs[0][axis] / 2 + 0.5 || j * qj < skymins[1][axis] / 2 + 0.5 - qj ||
-			    j * qj > skymaxs[1][axis] / 2 + 0.5)
-				continue;
-
-			// if (i&1 ^ j&1) continue; //checkerboard test
-			VectorScale (right, qi * i, temp);
-			VectorScale (up, qj * j, temp2);
-			VectorAdd (temp, temp2, temp);
-			VectorAdd (verts[0], temp, p.verts[0]);
-
-			VectorScale (up, qj, temp);
-			VectorAdd (p.verts[0], temp, p.verts[1]);
-
-			VectorScale (right, qi, temp);
-			VectorAdd (p.verts[1], temp, p.verts[2]);
-
-			VectorAdd (p.verts[0], temp, p.verts[3]);
-
-			Sky_DrawFaceQuad (cbx, &p, alpha);
-			++skypolys;
-		}
-	}
-}
-
-/*
-==============
-Sky_DrawSkyLayers
-
-draws the old-style scrolling cloud layers
-==============
-*/
-void Sky_DrawSkyLayers (cb_context_t *cbx, int *skypolys)
-{
-	int i;
-	if (!solidskytexture || !alphaskytexture)
-		return;
-
-	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_layer_pipeline);
-
-	VkDescriptorSet descriptor_sets[2] = {solidskytexture->descriptor_set, alphaskytexture->descriptor_set};
-	vkCmdBindDescriptorSets (cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_layer_pipeline.layout.handle, 0, 2, descriptor_sets, 0, NULL);
-
-	for (i = 0; i < 6; i++)
-		if (skymins[0][i] < skymaxs[0][i] && skymins[1][i] < skymaxs[1][i])
-			Sky_DrawFace (cbx, i, r_skyalpha.value, skypolys);
-}
-
-/*
-==============
 Sky_DrawSky
 
 called once per frame before drawing anything else
@@ -1037,7 +879,8 @@ void Sky_DrawSky (cb_context_t *cbx)
 
 	R_BeginDebugUtilsLabel (cbx, "Sky");
 
-	const qboolean slow_sky = !r_fastsky.value && !(Fog_GetDensity () > 0 && skyfog >= 1);
+	const qboolean flat_color = r_fastsky.value || (Fog_GetDensity () > 0 && skyfog >= 1);
+	need_bounds = Sky_NeedStencil ();
 
 	//
 	// reset sky bounds
@@ -1051,12 +894,12 @@ void Sky_DrawSky (cb_context_t *cbx)
 	float fog_density = (Fog_GetDensity () > 0) ? skyfog : 0.0f;
 	float fog_color[4];
 	Fog_GetColor (fog_color);
-	float constant_values[7] = {CLAMP (0.0f, fog_color[0], 1.0f), CLAMP (0.0f, fog_color[1], 1.0f), CLAMP (0.0f, fog_color[2], 1.0f), fog_density};
+	float constant_values[8] = {CLAMP (0.0f, fog_color[0], 1.0f), CLAMP (0.0f, fog_color[1], 1.0f), CLAMP (0.0f, fog_color[2], 1.0f), fog_density};
 
 	// With slow sky we first write stencil for the part of the screen that is covered by sky geometry and passes the depth test
-	// Sky_DrawSkyBox/Sky_DrawSkyLayers then only fill the parts that had stencil written
-	if (!slow_sky)
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_color_pipeline);	
+	// Sky_DrawSkyBox then only fills the parts that had stencil written
+	if (flat_color)
+		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_color_pipeline);
 	else if (skybox_cubemap)
 	{
 		memcpy (&constant_values[4], r_refdef.vieworg, sizeof (r_refdef.vieworg));
@@ -1066,6 +909,20 @@ void Sky_DrawSky (cb_context_t *cbx)
 			cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &skybox_cubemap->descriptor_set, 0, NULL);
 
 		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_cube_pipeline);
+	}
+	else if (!skybox_name[0])
+	{
+		if (!solidskytexture || !alphaskytexture)
+		{
+			R_EndDebugUtilsLabel (cbx);
+			return;
+		}
+		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_layer_pipeline);
+		memcpy (&constant_values[4], r_refdef.vieworg, sizeof (r_refdef.vieworg));
+		constant_values[7] = cl.time - (int)cl.time / 16 * 16;
+		R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 16 * sizeof (float), 8 * sizeof (float), constant_values);
+		VkDescriptorSet descriptor_sets[2] = {solidskytexture->descriptor_set, alphaskytexture->descriptor_set};
+		vkCmdBindDescriptorSets (cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_layer_pipeline.layout.handle, 0, 2, descriptor_sets, 0, NULL);
 	}
 	else
 		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_stencil_pipeline);
@@ -1086,16 +943,12 @@ void Sky_DrawSky (cb_context_t *cbx)
 	Sky_ProcessEntities (cbx, color);
 
 	//
-	// render slow sky: cloud layers or skybox
+	// render slow sky: non-cubemap skybox
 	//
-	if (slow_sky && !skybox_cubemap)
+	if (!flat_color && !skybox_cubemap && skybox_name[0])
 	{
 		R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 16 * sizeof (float), 4 * sizeof (float), constant_values);
-
-		if (skybox_name[0])
-			Sky_DrawSkyBox (cbx, &skypolys);
-		else
-			Sky_DrawSkyLayers (cbx, &skypolys);
+		Sky_DrawSkyBox (cbx, &skypolys);
 	}
 
 	Atomic_AddUInt32 (&rs_skypolys, skypolys);
@@ -1112,5 +965,6 @@ Sky_NeedStencil
 */
 qboolean Sky_NeedStencil ()
 {
-	return !skybox_cubemap && !r_fastsky.value && !(Fog_GetDensity () > 0 && skyfog >= 1);
+	const qboolean flat_color = r_fastsky.value || (Fog_GetDensity () > 0 && skyfog >= 1);
+	return !flat_color && !skybox_cubemap && skybox_name[0];
 }
