@@ -64,6 +64,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 	" " VKQUAKE_VER_STRING
 #endif
 
+#define CONFIG_NAME "vkQuake.cfg"
+
 // define	PARANOID			// speed sapping error checking
 
 #define GAMENAME "id1" // directory to look in by default

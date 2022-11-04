@@ -1564,6 +1564,7 @@ static int COM_FindFile (const char *filename, int *handle, FILE **file, unsigne
 	char          netpath[MAX_OSPATH];
 	pack_t       *pak;
 	int           i;
+	qboolean      is_config = !q_strcasecmp (filename, "config.cfg"), found = false;
 
 	if (file && handle)
 		Sys_Error ("COM_FindFile: both handle and file set");
@@ -1614,9 +1615,19 @@ static int COM_FindFile (const char *filename, int *handle, FILE **file, unsigne
 					continue;
 			}
 
-			q_snprintf (netpath, sizeof (netpath), "%s/%s", search->filename, filename);
-			if (!(Sys_FileType(netpath) & FS_ENT_FILE))
-				continue;
+			if (is_config)
+			{
+				q_snprintf (netpath, sizeof (netpath), "%s/" CONFIG_NAME, search->filename);
+				if (Sys_FileType (netpath) & FS_ENT_FILE)
+					found = true;
+			}
+			
+			if (!found)
+			{
+				q_snprintf (netpath, sizeof (netpath), "%s/%s", search->filename, filename);
+				if (!(Sys_FileType (netpath) & FS_ENT_FILE))
+					continue;
+			}
 
 			if (path_id)
 				*path_id = search->path_id;
