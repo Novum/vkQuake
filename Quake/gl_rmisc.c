@@ -27,6 +27,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <float.h>
 
 cvar_t r_lodbias = {"r_lodbias", "1", CVAR_ARCHIVE};
+cvar_t gl_lodbias = {"gl_lodbias", "0", CVAR_ARCHIVE};
 
 // johnfitz -- new cvars
 extern cvar_t r_clearcolor;
@@ -1672,6 +1673,8 @@ void R_InitSamplers ()
 				lod_bias += 1.0f;
 		}
 
+		lod_bias += gl_lodbias.value;
+
 		Sys_Printf ("Texture lod bias: %f\n", lod_bias);
 
 		VkSamplerCreateInfo sampler_create_info;
@@ -3014,8 +3017,10 @@ void R_Init (void)
 	Cvar_RegisterVariable (&r_slimealpha);
 	Cvar_RegisterVariable (&r_scale);
 	Cvar_RegisterVariable (&r_lodbias);
+	Cvar_RegisterVariable (&gl_lodbias);
 	Cvar_SetCallback (&r_scale, R_ScaleChanged_f);
 	Cvar_SetCallback (&r_lodbias, R_ScaleChanged_f);
+	Cvar_SetCallback (&gl_lodbias, R_ScaleChanged_f);
 	Cvar_SetCallback (&r_lavaalpha, R_SetLavaalpha_f);
 	Cvar_SetCallback (&r_telealpha, R_SetTelealpha_f);
 	Cvar_SetCallback (&r_slimealpha, R_SetSlimealpha_f);
