@@ -14,7 +14,6 @@ Shaders/Compiled/Release/*spv
 Shaders/*.exe
 Shaders/*.obj
 Shaders/bintoc
-Shaders/Compiled
 Windows/VisualStudio/.vs
 Windows/VisualStudio/Build-*
 Packaging/AppImage/AppDir
