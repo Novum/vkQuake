@@ -43,6 +43,7 @@ extern cvar_t r_oldskyleaf;
 extern cvar_t r_drawworld;
 extern cvar_t r_showtris;
 extern cvar_t r_showbboxes;
+extern cvar_t r_showbboxes_filter;
 extern cvar_t r_lerpmodels;
 extern cvar_t r_lerpmove;
 extern cvar_t r_nolerp_list;
@@ -181,6 +182,42 @@ int GL_MemoryTypeFromProperties (uint32_t type_bits, VkFlags requirements_mask, 
 
 	Sys_Error ("Could not find memory type");
 	return 0;
+}
+
+/*
+====================
+R_SetShowbboxesFilter_f
+====================
+*/
+static void R_SetShowbboxesFilter_f (cvar_t *var)
+{
+	extern char *r_showbboxes_filter_strings;
+
+	Mem_Free (r_showbboxes_filter_strings);
+	r_showbboxes_filter_strings = NULL;
+
+	if (*var->string)
+	{
+		char       *filter, *p, *token;
+		const char *delim = ",";
+		int         len = strlen (var->string);
+		int         size = len + 2;
+
+		r_showbboxes_filter_strings = (char *)Mem_Alloc (size);
+		filter = q_strdup (var->string);
+
+		p = r_showbboxes_filter_strings;
+		token = strtok (filter, delim);
+		while (token != NULL)
+		{
+			strcpy (p, token);
+			p += strlen (token) + 1;
+			token = strtok (NULL, delim);
+		}
+		*p = '\0';
+
+		Mem_Free (filter);
+	}
 }
 
 /*
@@ -3002,6 +3039,8 @@ void R_Init (void)
 	Cvar_RegisterVariable (&r_drawworld);
 	Cvar_RegisterVariable (&r_showtris);
 	Cvar_RegisterVariable (&r_showbboxes);
+	Cvar_RegisterVariable (&r_showbboxes_filter);
+	Cvar_SetCallback (&r_showbboxes_filter, R_SetShowbboxesFilter_f);
 	Cvar_RegisterVariable (&gl_farclip);
 	Cvar_RegisterVariable (&gl_fullbrights);
 	Cvar_SetCallback (&gl_fullbrights, GL_Fullbrights_f);

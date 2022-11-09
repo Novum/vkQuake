@@ -84,6 +84,7 @@ cvar_t r_oldskyleaf = {"r_oldskyleaf", "0", CVAR_NONE};
 cvar_t r_drawworld = {"r_drawworld", "1", CVAR_NONE};
 cvar_t r_showtris = {"r_showtris", "0", CVAR_NONE};
 cvar_t r_showbboxes = {"r_showbboxes", "0", CVAR_NONE};
+cvar_t r_showbboxes_filter = {"r_showbboxes_filter", "", CVAR_NONE};
 cvar_t r_lerpmodels = {"r_lerpmodels", "1", CVAR_NONE};
 cvar_t r_lerpmove = {"r_lerpmove", "1", CVAR_NONE};
 cvar_t r_nolerp_list = {
@@ -586,6 +587,38 @@ static uint16_t box_indices[24] = {0, 1, 2, 3, 4, 5, 6, 7, 0, 4, 1, 5, 2, 6, 3, 
 
 /*
 ================
+R_ShowBoundingBoxesFilter
+
+r_showbboxes_filter "artifact,=trigger_secret"
+================
+*/
+char *r_showbboxes_filter_strings = NULL;
+
+static qboolean R_ShowBoundingBoxesFilter (edict_t *ed)
+{
+	if (!r_showbboxes_filter_strings)
+		return true;
+
+	if (ed->v.classname)
+	{
+		const char *classname = PR_GetString (ed->v.classname);
+		char       *str = r_showbboxes_filter_strings;
+		qboolean    is_allowed = false;
+		while (*str && !is_allowed)
+		{
+			if (*str == '=')
+				is_allowed = !strcmp (classname, str + 1);
+			else
+				is_allowed = strstr (classname, str) != NULL;
+			str += strlen (str) + 1;
+		}
+		return is_allowed;
+	}
+	return false;
+}
+
+/*
+================
 R_ShowBoundingBoxes -- johnfitz
 
 draw bounding boxes -- the server-side boxes, not the renderer cullboxes
@@ -621,6 +654,9 @@ void R_ShowBoundingBoxes (cb_context_t *cbx)
 		{
 			if (ed == sv_player || ed->free)
 				continue; // don't draw player's own bbox or freed edicts
+
+			if (!R_ShowBoundingBoxesFilter (ed))
+				continue;
 
 			if (ed->v.mins[0] == ed->v.maxs[0] && ed->v.mins[1] == ed->v.maxs[1] && ed->v.mins[2] == ed->v.maxs[2])
 			{
