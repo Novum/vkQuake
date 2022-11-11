@@ -32,16 +32,35 @@ int gl_lightmap_format;
 #define SHELF_HEIGHT 256
 #define SHELVES      (LMBLOCK_HEIGHT / SHELF_HEIGHT)
 
-#define MAX_EXTENT 18
+#define LM_BIN_E 8
+#define LM_BINS 49
+
+static int SizeToBin (int size)
+{
+	size -= 1;
+	if (size < LM_BIN_E * 2 + 1)
+		return size;
+	int bc = Q_log2 (size / LM_BIN_E);
+	return (size >> bc) + LM_BIN_E * bc + 1;
+}
+
+static int BinToSize (int bin)
+{
+	if (bin < LM_BIN_E * 2 + 1)
+		return bin + 1;
+	bin -= 1;
+	int bc = bin / LM_BIN_E - 1;
+	return (bin % LM_BIN_E + LM_BIN_E + 1) << bc;
+}
 
 struct lightmap_s *lightmaps;
 int                lightmap_count;
 int                last_lightmap_allocated;
 int                used_columns[MAX_SANITY_LIGHTMAPS][SHELVES];
-int                lightmap_idx[MAX_EXTENT];
-int                shelf_idx[MAX_EXTENT];
-int                columns[MAX_EXTENT];
-int                rows[MAX_EXTENT];
+int                lightmap_idx[LM_BINS];
+int                shelf_idx[LM_BINS];
+int                columns[LM_BINS];
+int                rows[LM_BINS];
 
 unsigned blocklights[LMBLOCK_WIDTH * LMBLOCK_HEIGHT * 3 + 1]; // johnfitz -- was 18*18, added lit support (*3) and loosened surface extents maximum
                                                               // (LMBLOCK_WIDTH*LMBLOCK_HEIGHT)
@@ -438,10 +457,10 @@ static int AllocBlock (int w, int h, int *x, int *y)
 			last_lightmap_allocated = texnum;
 		}
 
-		i = w - 1;
+		i = SizeToBin (w);
 		if (columns[i] < 0 || rows[i] + h - shelf_idx[i] * SHELF_HEIGHT > SHELF_HEIGHT) // need another shelf
 		{
-			while (used_columns[lightmap_idx[i]][shelf_idx[i]] + w > LMBLOCK_WIDTH)
+			while (used_columns[lightmap_idx[i]][shelf_idx[i]] + BinToSize (i) > LMBLOCK_WIDTH)
 			{
 				if (++shelf_idx[i] < SHELVES)
 					continue;
@@ -453,7 +472,7 @@ static int AllocBlock (int w, int h, int *x, int *y)
 				continue;
 
 			columns[i] = used_columns[lightmap_idx[i]][shelf_idx[i]];
-			used_columns[lightmap_idx[i]][shelf_idx[i]] += w;
+			used_columns[lightmap_idx[i]][shelf_idx[i]] += BinToSize (i);
 			rows[i] = shelf_idx[i] * SHELF_HEIGHT;
 		}
 		*x = columns[i];
@@ -608,9 +627,6 @@ static void GL_CreateSurfaceLightmap (msurface_t *surf, uint32_t surface_index)
 
 	smax = (surf->extents[0] >> 4) + 1;
 	tmax = (surf->extents[1] >> 4) + 1;
-
-	if (smax > MAX_EXTENT || tmax > MAX_EXTENT)
-		Host_Error ("lightmap extent %d x %d exceeds %d\n", smax, tmax, MAX_EXTENT);
 
 	surf->lightmaptexturenum = AllocBlock (smax, tmax, &surf->light_s, &surf->light_t);
 	base = lightmaps[surf->lightmaptexturenum].data;
