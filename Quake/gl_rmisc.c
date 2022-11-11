@@ -2108,6 +2108,7 @@ static void R_CreateWarpPipelines ()
 	infos.multisample_state.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
 
 	infos.input_assembly_state.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
+	infos.rasterization_state.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
 
 	infos.blend_attachment_state.blendEnable = VK_FALSE;
 

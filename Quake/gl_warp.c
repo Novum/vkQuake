@@ -60,8 +60,9 @@ static void R_RasterWarpTexture (cb_context_t *cbx, texture_t *tx, float warptes
 	vkCmdBeginRenderPass (cbx->cb, &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
 
 	// render warp
-	GL_SetCanvas (cbx, CANVAS_WARPIMAGE);
 	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.raster_tex_warp_pipeline);
+	GL_SetCanvas (cbx, CANVAS_WARPIMAGE);
+	vkCmdSetScissor (cbx->cb, 0, 1, &render_area);
 	if (!r_lightmap_cheatsafe)
 		vkCmdBindDescriptorSets (
 			cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &tx->gltexture->descriptor_set, 0, NULL);
