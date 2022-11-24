@@ -206,6 +206,8 @@ SHADER_OBJS = \
 	screen_effects_10bit_scale.comp.o \
 	screen_effects_10bit_scale_sops.comp.o \
 	cs_tex_warp.comp.o \
+	indirect.comp.o \
+	indirect_clear.comp.o \
 	basic.frag.o \
 	basic_notex.frag.o \
 	basic.vert.o \

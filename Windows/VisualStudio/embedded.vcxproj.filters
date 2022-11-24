@@ -25,6 +25,12 @@
     <CustomBuild Include="..\..\Shaders\cs_tex_warp.comp">
       <Filter>Shaders</Filter>
     </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\indirect.comp">
+      <Filter>Shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\indirect_clear.comp">
+      <Filter>Shaders</Filter>
+    </CustomBuild>
     <CustomBuild Include="..\..\Shaders\postprocess.frag">
       <Filter>Shaders</Filter>
     </CustomBuild>

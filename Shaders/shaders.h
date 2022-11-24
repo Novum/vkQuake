@@ -48,6 +48,8 @@ DECLARE_SHADER_SPV (screen_effects_10bit_comp);
 DECLARE_SHADER_SPV (screen_effects_10bit_scale_comp);
 DECLARE_SHADER_SPV (screen_effects_10bit_scale_sops_comp);
 DECLARE_SHADER_SPV (cs_tex_warp_comp);
+DECLARE_SHADER_SPV (indirect_comp);
+DECLARE_SHADER_SPV (indirect_clear_comp);
 DECLARE_SHADER_SPV (showtris_vert);
 DECLARE_SHADER_SPV (showtris_frag);
 DECLARE_SHADER_SPV (update_lightmap_comp);
