@@ -51,6 +51,7 @@ extern cvar_t r_nolerp_list;
 extern cvar_t gl_zfix; // QuakeSpasm z-fighting fix
 
 extern cvar_t r_gpulightmapupdate;
+extern cvar_t r_indirect;
 extern cvar_t r_tasks;
 extern cvar_t r_parallelmark;
 extern cvar_t r_usesops;
@@ -3204,6 +3205,7 @@ void R_Init (void)
 	Cvar_SetCallback (&r_slimealpha, R_SetSlimealpha_f);
 
 	Cvar_RegisterVariable (&r_gpulightmapupdate);
+	Cvar_RegisterVariable (&r_indirect);
 	Cvar_RegisterVariable (&r_tasks);
 	Cvar_RegisterVariable (&r_parallelmark);
 	Cvar_RegisterVariable (&r_usesops);

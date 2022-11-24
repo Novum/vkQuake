@@ -325,6 +325,7 @@ typedef struct
 	PFN_vkCmdBindVertexBuffers  vk_cmd_bind_vertex_buffers;
 	PFN_vkCmdDraw               vk_cmd_draw;
 	PFN_vkCmdDrawIndexed        vk_cmd_draw_indexed;
+	PFN_vkCmdDrawIndexedIndirect vk_cmd_draw_indexed_indirect;
 	PFN_vkCmdPipelineBarrier    vk_cmd_pipeline_barrier;
 	PFN_vkCmdCopyBufferToImage  vk_cmd_copy_buffer_to_image;
 
@@ -335,6 +336,7 @@ typedef struct
 } vulkanglobals_t;
 
 extern vulkanglobals_t vulkan_globals;
+extern qboolean indirect;
 
 //====================================================
 
@@ -488,7 +490,7 @@ void  Fog_Init (void);
 void R_NewGame (void);
 
 void R_AnimateLight (void);
-void R_UpdateLightmaps (void *unused);
+void R_UpdateLightmapsAndIndirect (void *unused);
 void R_MarkSurfaces (qboolean use_tasks, task_handle_t before_mark, task_handle_t *store_efrags, task_handle_t *cull_surfaces, task_handle_t *chain_surfaces);
 qboolean R_CullBox (vec3_t emins, vec3_t emaxs);
 void     R_StoreEfrags (efrag_t **ppefrag);
@@ -511,6 +513,7 @@ void R_DrawWorld (cb_context_t *cbx, int index);
 void R_DrawAliasModel (cb_context_t *cbx, entity_t *e, int *aliaspolys);
 void R_DrawBrushModel (cb_context_t *cbx, entity_t *e, int chain, int *brushpolys);
 void R_DrawSpriteModel (cb_context_t *cbx, entity_t *e);
+void R_DrawIndirectBrushes (cb_context_t *cbx, qboolean draw_water, qboolean draw_sky, int index);
 
 void R_DrawTextureChains_Water (cb_context_t *cbx, qmodel_t *model, entity_t *ent, texchain_t chain);
 
