@@ -113,6 +113,9 @@ cvar_t r_gpulightmapupdate = {"r_gpulightmapupdate", "1", CVAR_NONE};
 
 cvar_t r_tasks = {"r_tasks", "1", CVAR_NONE};
 
+cvar_t r_indirect = {"r_indirect", "1", CVAR_NONE};
+extern qboolean indirect_ready;
+
 /*
 =================
 R_CullBox -- johnfitz -- replaced with new function from lordhavoc
@@ -770,13 +773,16 @@ void R_ShowTris (cb_context_t *cbx)
 R_DrawWorldTask
 ================
 */
-static void R_DrawWorldTask (int index, void *unused)
+static void R_DrawWorldTask (int index, qboolean *use_tasks)
 {
 	const int     cbx_index = index + CBX_WORLD_0;
 	cb_context_t *cbx = &vulkan_globals.secondary_cb_contexts[cbx_index];
 	R_SetupContext (cbx);
 	Fog_EnableGFog (cbx);
-	R_DrawWorld (cbx, index);
+	if (indirect)
+		R_DrawIndirectBrushes (cbx, false, false, use_tasks ? index : -1);
+	else
+		R_DrawWorld (cbx, index);
 }
 
 /*
@@ -884,6 +890,8 @@ void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 	static qboolean stats_ready;
 	double          time1;
 
+	indirect = r_indirect.value && indirect_ready && r_gpulightmapupdate.value && !r_showtris.value && !r_speeds.value && r_drawworld.value;
+
 	if (!cl.worldmodel)
 		Sys_Error ("R_RenderView: NULL worldmodel");
 
@@ -926,7 +934,7 @@ void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 		Task_AddDependency (begin_rendering_task, update_warp_textures);
 		Task_AddDependency (update_warp_textures, draw_done_task);
 
-		task_handle_t draw_world_task = Task_AllocateAndAssignIndexedFunc (R_DrawWorldTask, NUM_WORLD_CBX, NULL, 0);
+		task_handle_t draw_world_task = Task_AllocateAndAssignIndexedFunc ((task_indexed_func_t)R_DrawWorldTask, NUM_WORLD_CBX, &use_tasks, sizeof (use_tasks));
 		Task_AddDependency (chain_surfaces, draw_world_task);
 		Task_AddDependency (begin_rendering_task, draw_world_task);
 		Task_AddDependency (draw_world_task, draw_done_task);
@@ -957,7 +965,7 @@ void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 		Task_AddDependency (begin_rendering_task, draw_particles_task);
 		Task_AddDependency (draw_particles_task, draw_done_task);
 
-		task_handle_t update_lightmaps_task = Task_AllocateAndAssignFunc (R_UpdateLightmaps, NULL, 0);
+		task_handle_t update_lightmaps_task = Task_AllocateAndAssignFunc (R_UpdateLightmapsAndIndirect, NULL, 0);
 		Task_AddDependency (cull_surfaces, update_lightmaps_task);
 		Task_AddDependency (begin_rendering_task, update_lightmaps_task);
 		Task_AddDependency (draw_entities_task, update_lightmaps_task);
@@ -967,7 +975,7 @@ void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 		task_handle_t tasks[] = {before_mark,          store_efrags,       update_warp_textures,     draw_world_task,     draw_sky_and_water_task,
 		                         draw_view_model_task, draw_entities_task, draw_alpha_entities_task, draw_particles_task, update_lightmaps_task};
 		Tasks_Submit ((sizeof (tasks) / sizeof (task_handle_t)), tasks);
-		if (store_efrags != cull_surfaces)
+		if (cull_surfaces != chain_surfaces)
 		{
 			Task_Submit (cull_surfaces);
 			Task_Submit (chain_surfaces);
@@ -986,7 +994,7 @@ void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 		R_DrawParticlesTask (NULL);
 		R_DrawViewModelTask (NULL);
 		if (r_gpulightmapupdate.value)
-			R_UpdateLightmaps (NULL);
+			R_UpdateLightmapsAndIndirect (NULL);
 		R_PrintStats (time1);
 	}
 }

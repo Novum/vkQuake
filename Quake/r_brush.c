@@ -65,6 +65,7 @@ int                rows[LM_BINS];
 unsigned blocklights[LMBLOCK_WIDTH * LMBLOCK_HEIGHT * 3 + 1]; // johnfitz -- was 18*18, added lit support (*3) and loosened surface extents maximum
                                                               // (LMBLOCK_WIDTH*LMBLOCK_HEIGHT)
 
+qboolean indirect = true;
 qboolean indirect_ready = false;
 
 typedef struct
@@ -82,6 +83,9 @@ static uint32_t       indirect_bmodel_start;
 
 #define INDIRECT_ZBIAS 1 // suport gl_zfix for nontransformed models. Costs extra indirect drawcalls
 extern cvar_t gl_zfix;
+
+extern cvar_t vid_filter;
+extern cvar_t vid_palettize;
 
 static VkDrawIndexedIndirectCommand initial_indirect_buffer[MAX_INDIRECT_DRAWS];
 
@@ -245,7 +249,7 @@ static VkBuffer            lights_buffer;
 static float              *lightstyles_scales_buffer_mapped;
 static lm_compute_light_t *lights_buffer_mapped;
 
-static int current_compute_lightmap_buffer_index;
+static int current_compute_buffer_index;
 
 /*
 ===============
@@ -364,6 +368,29 @@ void R_DrawBrushModel (cb_context_t *cbx, entity_t *e, int chain, int *brushpoly
 		return;
 
 	clmodel = e->model;
+
+	if (indirect && !(e->origin[0] || e->origin[1] || e->origin[2] || e->angles[0] || e->angles[1] || e->angles[2] ||
+	                  ENTSCALE_DECODE (e->netstate.scale) != 1.0f || ENTALPHA_DECODE (e->alpha) != 1.0f || e->frame != 0 || e->model->name[0] != '*'))
+	{
+		// indirect mark
+		int              start = clmodel->firstmodelsurface;
+		int              end = start + clmodel->nummodelsurfaces;
+		int              startword = start / 32;
+		int              endword = end / 32;
+		atomic_uint32_t *surfvis = (atomic_uint32_t *)cl.worldmodel->surfvis;
+		if (startword == endword)
+			Atomic_OrUInt32 (&surfvis[startword], (1u << end % 32) - (1u << start % 32));
+		else
+		{
+			uint32_t supress_warning = (1u << start % 32);
+			Atomic_OrUInt32 (&surfvis[startword], (1ull << 32) - supress_warning);
+			for (i = startword + 1; i < endword; i++)
+				Atomic_StoreUInt32 (&surfvis[i], 0xFFFFFFFF);
+			Atomic_OrUInt32 (&surfvis[endword], (1u << end % 32) - 1);
+		}
+		mark_deps (clmodel->combined_deps, Tasks_GetWorkerIndex ());
+		return;
+	}
 
 	VectorSubtract (r_refdef.vieworg, e->origin, modelorg);
 	if (e->angles[0] || e->angles[1] || e->angles[2])
@@ -493,6 +520,137 @@ void R_DrawBrushModel_ShowTris (cb_context_t *cbx, entity_t *e)
 	}
 
 	R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 16 * sizeof (float), vulkan_globals.view_projection_matrix);
+}
+
+/*
+=============
+R_DrawIndirectBrushes
+=============
+*/
+void R_DrawIndirectBrushes (cb_context_t *cbx, qboolean draw_water, qboolean draw_sky, int index)
+{
+	assert (!draw_water || !draw_sky);
+
+	R_BeginDebugUtilsLabel (cbx, "Indirect Brushes");
+
+	VkDeviceSize offset = 0;
+	vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 1, &bmodel_vertex_buffer, &offset);
+	vulkan_globals.vk_cmd_bind_index_buffer (cbx->cb, indirect_index_buffer, 0, VK_INDEX_TYPE_UINT32);
+
+	if (!draw_sky)
+	{
+		vulkan_globals.vk_cmd_bind_descriptor_sets (
+			cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 2, 1, &nulltexture->descriptor_set, 0, NULL);
+		if (r_lightmap_cheatsafe)
+			vulkan_globals.vk_cmd_bind_descriptor_sets (
+				cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 0, 1, &greytexture->descriptor_set, 0, NULL);
+	}
+
+	gltexture_t *lastfullbright = NULL;
+	gltexture_t *lastlightmap = NULL;
+	gltexture_t *lasttexture = NULL;
+	float        last_alpha = FLT_MAX;
+	float        last_constant_factor = FLT_MAX;
+
+	int part_size = (used_indirect_draws + NUM_WORLD_CBX - 1) / NUM_WORLD_CBX;
+	int start = index < 0 ? 0 : part_size * index;
+	int end = index < 0 ? used_indirect_draws : q_min (part_size * (index + 1), used_indirect_draws);
+
+	for (int i = start; i < end; i++)
+	{
+		texture_t   *t = indirect_draws[i].texture;
+		texture_t   *texture = R_TextureAnimation (t, 0);
+		gltexture_t *gl_texture = draw_water ? texture->warpimage : texture->gltexture;
+
+		if (!draw_sky && !gl_texture)
+			continue;
+		if (draw_water != (texture->name[0] == '*')) // SURF_DRAWTURB is in surfaces only, but it's derived from the texture name
+			continue;
+		if (draw_sky != (!q_strncasecmp (texture->name, "sky", 3))) // SURF_DRAWSKY is in surfaces only, but it's derived from the texture name
+			continue;
+
+		if (!draw_sky && !r_lightmap_cheatsafe && lasttexture != gl_texture)
+		{
+			vulkan_globals.vk_cmd_bind_descriptor_sets (
+				cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 0, 1, &gl_texture->descriptor_set, 0, NULL);
+			lasttexture = gl_texture;
+		}
+
+		qboolean     fullbright_enabled = false;
+		gltexture_t *fullbright;
+		if (!draw_sky && gl_fullbrights.value && (fullbright = R_TextureAnimation (t, 0)->fullbright) && !r_lightmap_cheatsafe)
+		{
+			fullbright_enabled = true;
+			if (lastfullbright != fullbright)
+			{
+				vulkan_globals.vk_cmd_bind_descriptor_sets (
+					cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 2, 1, &fullbright->descriptor_set, 0, NULL);
+				lastfullbright = fullbright;
+			}
+		}
+
+		float alpha = 1.0f;
+		if (draw_water)
+		{
+			if (!(q_strncasecmp (texture->name, "*lava", 5))) // SURF_DRAWLAVA is in surfaces only, but it's derived from the texture name
+				alpha = map_lavaalpha > 0 ? map_lavaalpha : map_fallbackalpha;
+			else if (!(q_strncasecmp (texture->name, "*slime", 6))) // SURF_DRAWSLIME is in surfaces only, but it's derived from the texture name
+				alpha = map_slimealpha > 0 ? map_slimealpha : map_fallbackalpha;
+			else if (!(q_strncasecmp (texture->name, "*tele", 5))) // SURF_DRAWTELE is in surfaces only, but it's derived from the texture name
+				alpha = map_telealpha > 0 ? map_telealpha : map_fallbackalpha;
+			else
+				alpha = map_wateralpha;
+
+			if (alpha != last_alpha)
+			{
+				R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 20 * sizeof (float), 1 * sizeof (float), &alpha);
+				last_alpha = alpha;
+			}
+		}
+
+		if (!draw_sky)
+		{
+			const qboolean alpha_test = texture->name[0] == '{'; // SURF_DRAWFENCE is in surfaces only, but it's derived from the texture name
+			const qboolean alpha_blend = alpha < 1.0f;
+			int            pipeline_index =
+				(fullbright_enabled ? 1 : 0) + (alpha_test ? 2 : 0) + (alpha_blend ? 4 : 0) + (vid_filter.value != 0 && vid_palettize.value != 0 ? 8 : 0);
+			R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipelines[pipeline_index]);
+
+			qboolean use_zbias = INDIRECT_ZBIAS && gl_zfix.value && indirect_draws[i].is_bmodel;
+			float    constant_factor = 0.0f, slope_factor = 0.0f;
+			if (use_zbias)
+			{
+				if (vulkan_globals.depth_format == VK_FORMAT_D32_SFLOAT_S8_UINT || vulkan_globals.depth_format == VK_FORMAT_D32_SFLOAT)
+				{
+					constant_factor = -4.f;
+					slope_factor = -0.125f;
+				}
+				else
+				{
+					constant_factor = -1.f;
+					slope_factor = -0.25f;
+				}
+			}
+			if (last_constant_factor != constant_factor)
+			{
+				vkCmdSetDepthBias (cbx->cb, constant_factor, 0.0f, slope_factor);
+				last_constant_factor = constant_factor;
+			}
+
+			const int    lm_idx = indirect_draws[i].lightmap_idx;
+			gltexture_t *lightmap_texture = (r_fullbright_cheatsafe || lm_idx < 0) ? greylightmap : lightmaps[lm_idx].texture;
+			if (lastlightmap != lightmap_texture)
+			{
+				vulkan_globals.vk_cmd_bind_descriptor_sets (
+					cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 1, 1, &lightmap_texture->descriptor_set, 0, NULL);
+				lastlightmap = lightmap_texture;
+			}
+		}
+
+		vulkan_globals.vk_cmd_draw_indexed_indirect (cbx->cb, indirect_buffer, i * sizeof (VkDrawIndexedIndirectCommand), 1, 0);
+	}
+
+	R_EndDebugUtilsLabel (cbx);
 }
 
 /*
@@ -1306,6 +1464,16 @@ static void R_InitVisibilityBuffers (uint32_t size)
 
 	dyn_visibility_view = (unsigned char *)data;
 	dyn_visibility_offset = size / 2;
+}
+
+/*
+===============
+R_UploadVisibility
+===============
+*/
+static void R_UploadVisibility (byte *data, uint32_t size)
+{
+	memcpy (dyn_visibility_view + current_compute_buffer_index * dyn_visibility_offset, data, size);
 }
 
 /*
@@ -2212,8 +2380,8 @@ void R_FlushUpdateLightmaps (
 	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_COMPUTE, vulkan_globals.update_lightmap_pipeline);
 	uint32_t push_constants[2] = {MAX_DLIGHTS, LMBLOCK_WIDTH};
 	uint32_t offsets[2] = {
-		current_compute_lightmap_buffer_index * MAX_LIGHTSTYLES * sizeof (float),
-		current_compute_lightmap_buffer_index * MAX_DLIGHTS * sizeof (lm_compute_light_t)};
+		current_compute_buffer_index * MAX_LIGHTSTYLES * sizeof (float),
+		current_compute_buffer_index * MAX_DLIGHTS * sizeof (lm_compute_light_t)};
 	R_PushConstants (cbx, VK_SHADER_STAGE_COMPUTE_BIT, 0, 2 * sizeof (uint32_t), push_constants);
 	for (int j = 0; j < num_batch_lightmaps; ++j)
 	{
@@ -2228,10 +2396,58 @@ void R_FlushUpdateLightmaps (
 
 /*
 =============
-R_UpdateLightmaps
+R_IndirectComputeDispatch
 =============
 */
-void R_UpdateLightmaps (void *unused)
+static void R_IndirectComputeDispatch (cb_context_t *cbx)
+{
+	if (!indirect)
+		return;
+
+	R_BeginDebugUtilsLabel (cbx, "Indirect Compute");
+
+	R_UploadVisibility (cl.worldmodel->surfvis, (cl.worldmodel->numsurfaces + 31) / 8);
+
+	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_COMPUTE, vulkan_globals.indirect_clear_pipeline);
+	VkDescriptorSet sets[1] = {vulkan_globals.indirect_compute_desc_set};
+	vkCmdBindDescriptorSets (cbx->cb, VK_PIPELINE_BIND_POINT_COMPUTE, vulkan_globals.indirect_clear_pipeline.layout.handle, 0, 1, sets, 0, NULL);
+	R_PushConstants (cbx, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof (uint32_t), &used_indirect_draws);
+
+	vkCmdDispatch (cbx->cb, (used_indirect_draws + 63) / 64, 1, 1);
+
+	VkMemoryBarrier memory_barrier;
+	memory_barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+	memory_barrier.pNext = NULL;
+	memory_barrier.srcAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT;
+	memory_barrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT;
+	vkCmdPipelineBarrier (cbx->cb, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 1, &memory_barrier, 0, NULL, 0, NULL);
+
+	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_COMPUTE, vulkan_globals.indirect_draw_pipeline);
+	char push_constants[5 * 4];
+	memcpy (push_constants, &cl.model_precache[1]->numsurfaces, sizeof (int));
+	uint32_t offset = current_compute_buffer_index * dyn_visibility_offset / 4;
+	memcpy (push_constants + 4, &offset, sizeof (uint32_t));
+	memcpy (push_constants + 8, r_refdef.vieworg, sizeof (vec3_t));
+	R_PushConstants (cbx, VK_SHADER_STAGE_COMPUTE_BIT, 0, 5 * 4, push_constants);
+	vkCmdDispatch (cbx->cb, (cl.worldmodel->numsurfaces + 63) / 64, 1, 1);
+
+	memory_barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+	memory_barrier.pNext = NULL;
+	memory_barrier.srcAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT;
+	memory_barrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+	vkCmdPipelineBarrier (
+		cbx->cb, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT | VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, 0, 1, &memory_barrier, 0, NULL,
+		0, NULL);
+
+	R_EndDebugUtilsLabel (cbx);
+}
+
+/*
+=============
+R_UpdateLightmapsAndIndirect
+=============
+*/
+void R_UpdateLightmapsAndIndirect (void *unused)
 {
 #define UPDATE_LIGHTMAP_BATCH_SIZE 64
 
@@ -2240,13 +2456,13 @@ void R_UpdateLightmaps (void *unused)
 
 	for (int i = 0; i < MAX_LIGHTSTYLES; ++i)
 	{
-		float *style = lightstyles_scales_buffer_mapped + i + (current_compute_lightmap_buffer_index * MAX_LIGHTSTYLES);
+		float *style = lightstyles_scales_buffer_mapped + i + (current_compute_buffer_index * MAX_LIGHTSTYLES);
 		*style = (float)d_lightstylevalue[i] / 256.0f;
 	}
 
 	for (int i = 0; i < MAX_DLIGHTS; ++i)
 	{
-		lm_compute_light_t *light = lights_buffer_mapped + i + (current_compute_lightmap_buffer_index * MAX_DLIGHTS);
+		lm_compute_light_t *light = lights_buffer_mapped + i + (current_compute_buffer_index * MAX_DLIGHTS);
 		VectorCopy (cl_dlights[i].origin, light->origin);
 		light->radius = (cl_dlights[i].die < cl.time) ? 0.0f : cl_dlights[i].radius;
 		VectorCopy (cl_dlights[i].color, light->color);
@@ -2372,7 +2588,9 @@ void R_UpdateLightmaps (void *unused)
 
 	R_EndDebugUtilsLabel (cbx);
 
-	current_compute_lightmap_buffer_index = (current_compute_lightmap_buffer_index + 1) % 2;
+	R_IndirectComputeDispatch (cbx);
+
+	current_compute_buffer_index = (current_compute_buffer_index + 1) % 2;
 }
 
 void R_UploadLightmaps (void)

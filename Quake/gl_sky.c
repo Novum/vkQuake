@@ -827,6 +827,13 @@ void Sky_DrawSkyBox (cb_context_t *cbx, int *skypolys)
 
 	for (i = 0; i < 6; i++)
 	{
+		if (indirect) // Don't have bounds for the world polys. This type of sky (malformed cube) is very rare, so just draw the entire box (will
+		              // be stencil-culled). Also note tjunctions avoidance below: this only culled entire cube faces in the first place.
+		{
+			skymins[0][i] = skymins[1][i] = -1;
+			skymaxs[0][i] = skymaxs[1][i] = 1;
+		}
+
 		if (skymins[0][i] >= skymaxs[0][i] || skymins[1][i] >= skymaxs[1][i])
 			continue;
 
@@ -899,7 +906,7 @@ void Sky_DrawSky (cb_context_t *cbx)
 	// With slow sky we first write stencil for the part of the screen that is covered by sky geometry and passes the depth test
 	// Sky_DrawSkyBox then only fills the parts that had stencil written
 	if (flat_color)
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_color_pipeline[0]);
+		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_color_pipeline[indirect]);
 	else if (skybox_cubemap)
 	{
 		memcpy (&constant_values[4], r_refdef.vieworg, sizeof (r_refdef.vieworg));
@@ -908,7 +915,7 @@ void Sky_DrawSky (cb_context_t *cbx)
 		vkCmdBindDescriptorSets (
 			cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &skybox_cubemap->descriptor_set, 0, NULL);
 
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_cube_pipeline[0]);
+		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_cube_pipeline[indirect]);
 	}
 	else if (!skybox_name[0])
 	{
@@ -917,15 +924,15 @@ void Sky_DrawSky (cb_context_t *cbx)
 			R_EndDebugUtilsLabel (cbx);
 			return;
 		}
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_layer_pipeline[0]);
+		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_layer_pipeline[indirect]);
 		memcpy (&constant_values[4], r_refdef.vieworg, sizeof (r_refdef.vieworg));
 		constant_values[7] = cl.time - (int)cl.time / 16 * 16;
 		R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 16 * sizeof (float), 8 * sizeof (float), constant_values);
 		VkDescriptorSet descriptor_sets[2] = {solidskytexture->descriptor_set, alphaskytexture->descriptor_set};
-		vkCmdBindDescriptorSets (cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_layer_pipeline[0].layout.handle, 0, 2, descriptor_sets, 0, NULL);
+		vkCmdBindDescriptorSets (cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_layer_pipeline[indirect].layout.handle, 0, 2, descriptor_sets, 0, NULL);
 	}
 	else
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_stencil_pipeline[0]);
+		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_stencil_pipeline[indirect]);
 	vkCmdBindIndexBuffer (cbx->cb, vulkan_globals.fan_index_buffer, 0, VK_INDEX_TYPE_UINT16);
 
 	//
@@ -939,7 +946,24 @@ void Sky_DrawSky (cb_context_t *cbx)
 		memcpy (color, skyflatcolor, 3 * sizeof (float));
 
 	int skypolys = 0;
-	Sky_ProcessTextureChains (cbx, color, &skypolys);
+	if (indirect)
+	{
+		R_DrawIndirectBrushes (cbx, false, true, -1);
+
+		// Entities cannot use the indirect pipelines
+		vkCmdBindIndexBuffer (cbx->cb, vulkan_globals.fan_index_buffer, 0, VK_INDEX_TYPE_UINT16);
+		if (flat_color)
+			R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_color_pipeline[0]);
+		else if (skybox_cubemap)
+			R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_cube_pipeline[0]);
+		else if (!skybox_name[0])
+			R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_layer_pipeline[0]);
+		else
+			R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_stencil_pipeline[0]);
+	}
+	else
+		Sky_ProcessTextureChains (cbx, color, &skypolys);
+
 	Sky_ProcessEntities (cbx, color);
 
 	//
