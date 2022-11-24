@@ -169,6 +169,7 @@ typedef struct msurface_s
 	struct msurface_s *texturechains[chain_num];
 
 	mtexinfo_t *texinfo;
+	int         indirect_idx;
 
 	int vbo_firstvert; // index of this surface's first vert in the VBO
 
