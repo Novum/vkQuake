@@ -207,6 +207,7 @@ typedef struct mleaf_s
 
 	// leaf specific
 	int      nummarksurfaces;
+	int      combined_deps; // contains index into brush_deps_data[] with used warp and lightmap textures
 	byte     ambient_sound_level[NUM_AMBIENTS];
 	byte    *compressed_vis;
 	int     *firstmarksurface;
@@ -506,6 +507,8 @@ typedef struct qmodel_s
 
 	int bspversion;
 	int contentstransparent; // spike -- added this so we can disable glitchy wateralpha where its not supported.
+
+	int combined_deps; // contains index into brush_deps_data[] with used warp and lightmap textures
 
 	//
 	// alias model

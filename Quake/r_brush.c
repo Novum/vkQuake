@@ -84,6 +84,120 @@ static uint32_t       indirect_bmodel_start;
 extern cvar_t gl_zfix;
 
 static VkDrawIndexedIndirectCommand initial_indirect_buffer[MAX_INDIRECT_DRAWS];
+
+typedef union
+{
+	struct                        // 1st element contains this
+	{
+		int water_count;
+		int lm_count;
+	};
+	atomic_uint32_t *update_warp; // next water_count elements contain this
+	struct                        // last lm_count elements contain this
+	{
+		int      lightmap_num;
+		uint32_t lightmap_styles;
+	};
+} combined_brush_deps;
+
+static combined_brush_deps *brush_deps_data;
+static int                  used_deps_data = 0;
+#define INITIAL_BRUSH_DEPS_SIZE 16384
+
+static int alloc_deps_data (combined_brush_deps *items)
+{
+	static int last = 0;
+	int        item_count = items[0].water_count + items[0].lm_count;
+
+	if (last < used_deps_data && !memcmp (items, &brush_deps_data[last], sizeof (combined_brush_deps)) &&
+	    !memcmp (items + 1, &brush_deps_data[last + 1], item_count * sizeof (combined_brush_deps)))
+		return last;
+
+	if (used_deps_data == 0)
+		brush_deps_data = Mem_Alloc (INITIAL_BRUSH_DEPS_SIZE * sizeof (combined_brush_deps));
+
+	for (int i = 0; i <= item_count; i++)
+	{
+		if (used_deps_data >= INITIAL_BRUSH_DEPS_SIZE && !(used_deps_data & (used_deps_data - 1)))
+			brush_deps_data = Mem_Realloc (brush_deps_data, used_deps_data * 2 * sizeof (combined_brush_deps));
+		brush_deps_data[used_deps_data] = items[i];
+		++used_deps_data;
+	}
+	return (last = used_deps_data - item_count - 1);
+}
+
+static void calc_deps (qmodel_t *model, mleaf_t *leaf)
+{
+	combined_brush_deps deps[1 + 256 + MAX_SANITY_LIGHTMAPS];
+	deps[0].water_count = 0;
+	deps[0].lm_count = 0;
+	const int num_surfaces = model ? model->nummodelsurfaces : leaf->nummarksurfaces;
+
+	for (int i = 0; i < num_surfaces; i++)
+	{
+		msurface_t *psurf = model ? &model->surfaces[model->firstmodelsurface] + i : &cl.worldmodel->surfaces[leaf->firstmarksurface[i]];
+		texture_t  *t = psurf->texinfo->texture;
+		if (t->name[0] == '*')
+		{
+			qboolean found = false;
+			for (int j = 1; j < 1 + deps[0].water_count; j++)
+				if (deps[j].update_warp == &t->update_warp)
+				{
+					found = true;
+					break;
+				}
+			if (!found)
+			{
+				++deps[0].water_count;
+				if (deps[0].water_count > 256)
+					Sys_Error ("A single bmodel / world leaf is using more than 256 different water textures");
+				if (sizeof (atomic_uint32_t *) < sizeof (combined_brush_deps)) // make sure the padding is 0 in 32-bit builds
+					memset (&deps[deps[0].water_count], 0, sizeof (combined_brush_deps));
+				deps[deps[0].water_count].update_warp = &t->update_warp;
+			}
+		}
+	}
+
+	for (int i = 0; i < num_surfaces; i++)
+	{
+		msurface_t *psurf = model ? &model->surfaces[model->firstmodelsurface] + i : &cl.worldmodel->surfaces[leaf->firstmarksurface[i]];
+		if (psurf->lightmaptexturenum >= 0)
+		{
+			qboolean found = false;
+			for (int j = 1 + deps[0].water_count; j < 1 + deps[0].water_count + deps[0].lm_count; j++)
+				if (deps[j].lightmap_num == psurf->lightmaptexturenum)
+				{
+					deps[j].lightmap_styles |= psurf->styles_bitmap;
+					found = true;
+					break;
+				}
+			if (!found)
+			{
+				++deps[0].lm_count;
+				deps[deps[0].water_count + deps[0].lm_count].lightmap_num = psurf->lightmaptexturenum;
+				deps[deps[0].water_count + deps[0].lm_count].lightmap_styles = psurf->styles_bitmap;
+			}
+		}
+	}
+
+	if (model)
+		model->combined_deps = alloc_deps_data (deps);
+	else
+		leaf->combined_deps = alloc_deps_data (deps);
+}
+
+void mark_deps (int combined_deps, int worker_index)
+{
+	combined_brush_deps *deps = &brush_deps_data[combined_deps];
+	int                  water_count = deps->water_count;
+	int                  lm_count = deps->lm_count;
+	int                  i;
+	for (i = 0; i < water_count; ++i)
+		Atomic_StoreUInt32 ((++deps)->update_warp, true);
+	for (i = 0, ++deps; i < lm_count; ++i, ++deps)
+		lightmaps[deps->lightmap_num].modified[worker_index] |= deps->lightmap_styles;
+}
+
 static vulkan_memory_t bmodel_memory;
 VkBuffer               bmodel_vertex_buffer;
 
@@ -1236,6 +1350,8 @@ void GL_BuildLightmaps (void)
 	used_indirect_draws = 0;
 	indirect_ready = true;
 	indirect_bmodel_start = INT_MAX;
+	used_deps_data = 0;
+	Mem_Free (brush_deps_data);
 
 	for (i = 1; i < MAX_MODELS; ++i)
 	{
@@ -1377,6 +1493,19 @@ void GL_BuildLightmaps (void)
 		indirect_d[3].pBufferInfo = &index_buffer_info;
 
 		vkUpdateDescriptorSets (vulkan_globals.device, 4, indirect_d, 0, NULL);
+
+		for (i = 0; i < cl.worldmodel->numleafs; i++)
+			calc_deps (NULL, &cl.worldmodel->leafs[i]);
+
+		for (j = 1; j < MAX_MODELS; j++)
+		{
+			m = cl.model_precache[j];
+			if (!m)
+				break;
+			if (m->name[0] != '*')
+				continue;
+			calc_deps (m, NULL);
+		}
 	}
 
 	GL_AllocateWorkgroupBoundsBuffers ();
