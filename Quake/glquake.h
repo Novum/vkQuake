@@ -264,11 +264,11 @@ typedef struct
 	vulkan_pipeline_t        raster_tex_warp_pipeline;
 	vulkan_pipeline_t        particle_pipeline;
 	vulkan_pipeline_t        sprite_pipeline;
-	vulkan_pipeline_t        sky_stencil_pipeline;
-	vulkan_pipeline_t        sky_color_pipeline;
+	vulkan_pipeline_t        sky_stencil_pipeline[2];
+	vulkan_pipeline_t        sky_color_pipeline[2];
 	vulkan_pipeline_t        sky_box_pipeline;
-	vulkan_pipeline_t        sky_cube_pipeline;
-	vulkan_pipeline_t        sky_layer_pipeline;
+	vulkan_pipeline_t        sky_cube_pipeline[2];
+	vulkan_pipeline_t        sky_layer_pipeline[2];
 	vulkan_pipeline_t        alias_pipeline;
 	vulkan_pipeline_t        alias_blend_pipeline;
 	vulkan_pipeline_t        alias_alphatest_pipeline;
@@ -284,6 +284,8 @@ typedef struct
 	vulkan_pipeline_t        alias_showtris_pipeline;
 	vulkan_pipeline_t        alias_showtris_depth_test_pipeline;
 	vulkan_pipeline_t        update_lightmap_pipeline;
+	vulkan_pipeline_t        indirect_draw_pipeline;
+	vulkan_pipeline_t        indirect_clear_pipeline;
 #ifdef PSET_SCRIPT
 	vulkan_pipeline_t fte_particle_pipelines[FTE_PARTICLE_PIPELINE_COUNT];
 #endif
@@ -297,6 +299,8 @@ typedef struct
 	vulkan_desc_set_layout_t screen_effects_set_layout;
 	vulkan_desc_set_layout_t single_texture_cs_write_set_layout;
 	vulkan_desc_set_layout_t lightmap_compute_set_layout;
+	VkDescriptorSet          indirect_compute_desc_set;
+	vulkan_desc_set_layout_t indirect_compute_set_layout;
 
 	// Samplers
 	VkSampler point_sampler;

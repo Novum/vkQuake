@@ -11,6 +11,8 @@ shaders = [
     'Shaders/basic_alphatest.frag',
     'Shaders/basic_notex.frag',
     'Shaders/cs_tex_warp.comp',
+    'Shaders/indirect.comp',
+    'Shaders/indirect_clear.comp',
     'Shaders/postprocess.frag',
     'Shaders/postprocess.vert',
     'Shaders/screen_effects_10bit.comp',

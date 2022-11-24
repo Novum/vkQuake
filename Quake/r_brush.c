@@ -1312,6 +1312,71 @@ void GL_BuildLightmaps (void)
 
 		R_InitIndirectIndexBuffer ((initial_indirect_buffer[used_indirect_draws - 1].firstIndex + indirect_draws[used_indirect_draws - 1].max_indices) * 4);
 		R_InitVisibilityBuffers ((cl.worldmodel->numsurfaces + 31) / 8);
+
+		if (vulkan_globals.indirect_compute_desc_set != VK_NULL_HANDLE)
+			R_FreeDescriptorSet (vulkan_globals.indirect_compute_desc_set, &vulkan_globals.indirect_compute_set_layout);
+		vulkan_globals.indirect_compute_desc_set = R_AllocateDescriptorSet (&vulkan_globals.indirect_compute_set_layout);
+
+		VkDescriptorBufferInfo indirect_draw_buffer_info;
+		memset (&indirect_draw_buffer_info, 0, sizeof (indirect_draw_buffer_info));
+		indirect_draw_buffer_info.buffer = indirect_buffer;
+		indirect_draw_buffer_info.offset = 0;
+		indirect_draw_buffer_info.range = VK_WHOLE_SIZE;
+
+		VkDescriptorBufferInfo surfaces_buffer_info;
+		memset (&surfaces_buffer_info, 0, sizeof (surfaces_buffer_info));
+		surfaces_buffer_info.buffer = surface_data_buffer;
+		surfaces_buffer_info.offset = 0;
+		surfaces_buffer_info.range = num_surfaces * sizeof (lm_compute_surface_data_t);
+
+		VkDescriptorBufferInfo visibility_buffer_info;
+		memset (&visibility_buffer_info, 0, sizeof (visibility_buffer_info));
+		visibility_buffer_info.buffer = dyn_visibility_buffer;
+		visibility_buffer_info.offset = 0;
+		visibility_buffer_info.range = VK_WHOLE_SIZE;
+
+		VkDescriptorBufferInfo index_buffer_info;
+		memset (&index_buffer_info, 0, sizeof (index_buffer_info));
+		index_buffer_info.buffer = indirect_index_buffer;
+		index_buffer_info.offset = 0;
+		index_buffer_info.range = VK_WHOLE_SIZE;
+
+		VkWriteDescriptorSet indirect_d[4];
+		memset (indirect_d, 0, sizeof (indirect_d));
+
+		indirect_d[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		indirect_d[0].dstBinding = 0;
+		indirect_d[0].dstArrayElement = 0;
+		indirect_d[0].descriptorCount = 1;
+		indirect_d[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+		indirect_d[0].dstSet = vulkan_globals.indirect_compute_desc_set;
+		indirect_d[0].pBufferInfo = &indirect_draw_buffer_info;
+
+		indirect_d[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		indirect_d[1].dstBinding = 1;
+		indirect_d[1].dstArrayElement = 0;
+		indirect_d[1].descriptorCount = 1;
+		indirect_d[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+		indirect_d[1].dstSet = vulkan_globals.indirect_compute_desc_set;
+		indirect_d[1].pBufferInfo = &surfaces_buffer_info;
+
+		indirect_d[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		indirect_d[2].dstBinding = 2;
+		indirect_d[2].dstArrayElement = 0;
+		indirect_d[2].descriptorCount = 1;
+		indirect_d[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+		indirect_d[2].dstSet = vulkan_globals.indirect_compute_desc_set;
+		indirect_d[2].pBufferInfo = &visibility_buffer_info;
+
+		indirect_d[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		indirect_d[3].dstBinding = 3;
+		indirect_d[3].dstArrayElement = 0;
+		indirect_d[3].descriptorCount = 1;
+		indirect_d[3].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+		indirect_d[3].dstSet = vulkan_globals.indirect_compute_desc_set;
+		indirect_d[3].pBufferInfo = &index_buffer_info;
+
+		vkUpdateDescriptorSets (vulkan_globals.device, 4, indirect_d, 0, NULL);
 	}
 
 	GL_AllocateWorkgroupBoundsBuffers ();

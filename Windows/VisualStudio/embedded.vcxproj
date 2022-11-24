@@ -43,6 +43,12 @@
     <CustomBuild Include="..\..\Shaders\cs_tex_warp.comp">
       <FileType>Document</FileType>
     </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\indirect.comp">
+      <FileType>Document</FileType>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\indirect_clear.comp">
+      <FileType>Document</FileType>
+    </CustomBuild>
     <CustomBuild Include="..\..\Shaders\postprocess.frag">
       <FileType>Document</FileType>
     </CustomBuild>
