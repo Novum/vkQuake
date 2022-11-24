@@ -65,6 +65,25 @@ int                rows[LM_BINS];
 unsigned blocklights[LMBLOCK_WIDTH * LMBLOCK_HEIGHT * 3 + 1]; // johnfitz -- was 18*18, added lit support (*3) and loosened surface extents maximum
                                                               // (LMBLOCK_WIDTH*LMBLOCK_HEIGHT)
 
+qboolean indirect_ready = false;
+
+typedef struct
+{
+	texture_t *texture;
+	short      lightmap_idx;
+	short      is_bmodel; // for gl_zfix
+	int        max_indices;
+} indirectdraw_t;
+
+#define MAX_INDIRECT_DRAWS 32768
+static indirectdraw_t indirect_draws[MAX_INDIRECT_DRAWS];
+static int            used_indirect_draws = 0;
+static uint32_t       indirect_bmodel_start;
+
+#define INDIRECT_ZBIAS 1 // suport gl_zfix for nontransformed models. Costs extra indirect drawcalls
+extern cvar_t gl_zfix;
+
+static VkDrawIndexedIndirectCommand initial_indirect_buffer[MAX_INDIRECT_DRAWS];
 static vulkan_memory_t bmodel_memory;
 VkBuffer               bmodel_vertex_buffer;
 
@@ -75,8 +94,8 @@ typedef struct lm_compute_surface_data_s
 	uint32_t packed_lightstyles;
 	vec3_t   normal;
 	float    dist;
-	uint32_t light_s;
-	uint32_t light_t;
+	uint32_t packed_light_st_and_tex;
+	uint32_t packed_vbo_offset_and_count;
 	uint32_t packed_texturemins;
 	vec4_t   vecs[2];
 } lm_compute_surface_data_t;
@@ -97,7 +116,16 @@ static vulkan_memory_t     lightstyles_scales_buffer_memory;
 static vulkan_memory_t     lights_buffer_memory;
 static vulkan_memory_t     surface_data_buffer_memory;
 static vulkan_memory_t     workgroup_bounds_buffer_memory;
+static vulkan_memory_t     indirect_buffer_memory;
+static vulkan_memory_t     indirect_index_buffer_memory;
+static vulkan_memory_t     dyn_visibility_buffer_memory;
 static VkBuffer            surface_data_buffer;
+static int                 num_surfaces;
+static VkBuffer            indirect_buffer;
+static VkBuffer            indirect_index_buffer;
+static VkBuffer            dyn_visibility_buffer;
+static uint32_t            dyn_visibility_offset; // for double-buffering
+static unsigned char      *dyn_visibility_view;
 static VkBuffer            lightstyles_scales_buffer;
 static VkBuffer            lights_buffer;
 static float              *lightstyles_scales_buffer_mapped;
@@ -606,6 +634,54 @@ static void R_AssignWorkgroupBounds (msurface_t *surf)
 	}
 }
 
+static void UpdateIndirectStructs (msurface_t *surf, qboolean is_bmodel)
+{
+	static int last;
+	int i;
+	if (last < used_indirect_draws && indirect_draws[last].lightmap_idx == surf->lightmaptexturenum && indirect_draws[last].texture == surf->texinfo->texture &&
+	    indirect_draws[last].is_bmodel == is_bmodel)
+	{
+		surf->indirect_idx = last;
+		indirect_draws[last].max_indices += 3 * (surf->numedges - 2);
+		return;
+	}
+	for (i = 0; i < used_indirect_draws; i++)
+	{
+		if (indirect_draws[i].lightmap_idx == surf->lightmaptexturenum && indirect_draws[i].texture == surf->texinfo->texture &&
+		    indirect_draws[i].is_bmodel == is_bmodel)
+		{
+			surf->indirect_idx = last = i;
+			indirect_draws[i].max_indices += 3 * (surf->numedges - 2);
+			return;
+		}
+	}
+	if (i == MAX_INDIRECT_DRAWS - 1)
+	{
+		Con_Warning ("map exceeds indirect dispatch limits");
+		indirect_ready = false;
+		return;
+	}
+	++used_indirect_draws;
+	surf->indirect_idx = last = i;
+	indirect_draws[i].texture = surf->texinfo->texture;
+	indirect_draws[i].lightmap_idx = surf->lightmaptexturenum;
+	indirect_draws[i].is_bmodel = is_bmodel;
+	indirect_draws[i].max_indices = 3 * (surf->numedges - 2);
+}
+
+static void PrepareIndirectDraws() {
+	int total_indices = 0;
+	for (int i = 0; i < used_indirect_draws; i++)
+	{
+		initial_indirect_buffer[i].indexCount = 0;
+		initial_indirect_buffer[i].instanceCount = 1;
+		initial_indirect_buffer[i].firstIndex = total_indices;
+		initial_indirect_buffer[i].vertexOffset = 0;
+		initial_indirect_buffer[i].firstInstance = 0;
+		total_indices += indirect_draws[i].max_indices;
+	}
+}
+
 /*
 ========================
 GL_CreateSurfaceLightmap
@@ -835,7 +911,7 @@ void R_AllocateLightmapComputeBuffers ()
 GL_AllocateSurfaceDataBuffer
 ==================
 */
-static lm_compute_surface_data_t *GL_AllocateSurfaceDataBuffer (int num_surfaces)
+static lm_compute_surface_data_t *GL_AllocateSurfaceDataBuffer ()
 {
 	VkResult err;
 	size_t   buffer_size = num_surfaces * sizeof (lm_compute_surface_data_t);
@@ -887,6 +963,68 @@ static lm_compute_surface_data_t *GL_AllocateSurfaceDataBuffer (int num_surfaces
 	region.dstOffset = 0;
 	region.size = buffer_size;
 	vkCmdCopyBuffer (command_buffer, staging_buffer, surface_data_buffer, 1, &region);
+
+	return staging_mem;
+}
+
+/*
+==================
+GL_AllocateIndirectBuffer
+==================
+*/
+static VkDrawIndexedIndirectCommand *GL_AllocateIndirectBuffer (int num_used_indirect_draws)
+{
+	VkResult err;
+	size_t   buffer_size = num_used_indirect_draws * sizeof (VkDrawIndexedIndirectCommand);
+
+	if (indirect_buffer != VK_NULL_HANDLE)
+	{
+		vkDestroyBuffer (vulkan_globals.device, indirect_buffer, NULL);
+		R_FreeVulkanMemory (&indirect_buffer_memory);
+		Atomic_DecrementUInt32 (&num_vulkan_misc_allocations);
+	}
+
+	Sys_Printf ("Allocating indirect draw data (%u KB, %d draws)\n", (int)buffer_size / 1024, num_used_indirect_draws);
+
+	VkBufferCreateInfo buffer_create_info;
+	memset (&buffer_create_info, 0, sizeof (buffer_create_info));
+	buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	buffer_create_info.size = buffer_size;
+	buffer_create_info.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
+
+	err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &indirect_buffer);
+	if (err != VK_SUCCESS)
+		Sys_Error ("vkCreateBuffer failed");
+	GL_SetObjectName ((uint64_t)indirect_buffer, VK_OBJECT_TYPE_BUFFER, "Indirect Draw Data Buffer");
+
+	VkMemoryRequirements memory_requirements;
+	vkGetBufferMemoryRequirements (vulkan_globals.device, indirect_buffer, &memory_requirements);
+
+	VkMemoryAllocateInfo memory_allocate_info;
+	memset (&memory_allocate_info, 0, sizeof (memory_allocate_info));
+	memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	memory_allocate_info.allocationSize = memory_requirements.size;
+	memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
+
+	Atomic_IncrementUInt32 (&num_vulkan_misc_allocations);
+	R_AllocateVulkanMemory (&indirect_buffer_memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_DEVICE);
+	GL_SetObjectName ((uint64_t)indirect_buffer_memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, "Indirect Draw Data Buffer");
+
+	err = vkBindBufferMemory (vulkan_globals.device, indirect_buffer, indirect_buffer_memory.handle, 0);
+	if (err != VK_SUCCESS)
+		Sys_Error ("vkBindBufferMemory failed");
+
+	VkCommandBuffer            command_buffer;
+	VkBuffer                   staging_buffer;
+	int                        staging_offset;
+	VkDrawIndexedIndirectCommand *staging_mem =
+		(VkDrawIndexedIndirectCommand *)R_StagingAllocate (buffer_size, 1, &command_buffer, &staging_buffer, &staging_offset);
+
+	VkBufferCopy region;
+	region.srcOffset = staging_offset;
+	region.dstOffset = 0;
+	region.size = buffer_size;
+	vkCmdCopyBuffer (command_buffer, staging_buffer, indirect_buffer, 1, &region);
 
 	return staging_mem;
 }
@@ -951,6 +1089,112 @@ static void GL_AllocateWorkgroupBoundsBuffers ()
 }
 
 /*
+===============
+R_InitIndirectIndexBuffer
+===============
+*/
+static void R_InitIndirectIndexBuffer (uint32_t size)
+{
+	if (indirect_index_buffer != VK_NULL_HANDLE)
+	{
+		vkDestroyBuffer (vulkan_globals.device, indirect_index_buffer, NULL);
+		R_FreeVulkanMemory (&indirect_index_buffer_memory);
+		Atomic_DecrementUInt32 (&num_vulkan_misc_allocations);
+	}
+
+	Sys_Printf ("Allocating indirect IBs (%u KB)\n", size / 1024);
+
+	VkResult err;
+
+	VkBufferCreateInfo buffer_create_info;
+	memset (&buffer_create_info, 0, sizeof (buffer_create_info));
+	buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	buffer_create_info.size = size;
+	buffer_create_info.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+
+	err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &indirect_index_buffer);
+	if (err != VK_SUCCESS)
+		Sys_Error ("vkCreateBuffer failed");
+
+	GL_SetObjectName ((uint64_t)indirect_index_buffer, VK_OBJECT_TYPE_BUFFER, "Indirect Index Buffer");
+
+	VkMemoryRequirements memory_requirements;
+	vkGetBufferMemoryRequirements (vulkan_globals.device, indirect_index_buffer, &memory_requirements);
+
+	VkMemoryAllocateInfo memory_allocate_info;
+	memset (&memory_allocate_info, 0, sizeof (memory_allocate_info));
+	memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	memory_allocate_info.allocationSize = memory_requirements.size;
+	memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
+
+	Atomic_IncrementUInt32 (&num_vulkan_misc_allocations);
+	R_AllocateVulkanMemory (&indirect_index_buffer_memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_DEVICE);
+	GL_SetObjectName ((uint64_t)indirect_index_buffer_memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, "Indirect Index Buffer");
+
+	err = vkBindBufferMemory (vulkan_globals.device, indirect_index_buffer, indirect_index_buffer_memory.handle, 0);
+	if (err != VK_SUCCESS)
+		Sys_Error ("vkBindBufferMemory failed");
+}
+
+/*
+===============
+R_InitVisibilityBuffers (one bit per surface)
+===============
+*/
+static void R_InitVisibilityBuffers (uint32_t size)
+{
+	if (dyn_visibility_buffer != VK_NULL_HANDLE)
+	{
+		vkDestroyBuffer (vulkan_globals.device, dyn_visibility_buffer, NULL);
+		R_FreeVulkanMemory (&dyn_visibility_buffer_memory);
+		Atomic_DecrementUInt32 (&num_vulkan_misc_allocations);
+	}
+
+	size = (size + 255) / 256 * 256 * 2;
+
+	Sys_Printf ("Allocating visibility buffers (%u KB)\n", size / 1024);
+
+	VkResult err;
+
+	VkBufferCreateInfo buffer_create_info;
+	memset (&buffer_create_info, 0, sizeof (buffer_create_info));
+	buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	buffer_create_info.size = size;
+	buffer_create_info.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+
+	err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &dyn_visibility_buffer);
+	if (err != VK_SUCCESS)
+		Sys_Error ("vkCreateBuffer failed");
+
+	GL_SetObjectName ((uint64_t)dyn_visibility_buffer, VK_OBJECT_TYPE_BUFFER, "Dynamic Visibility Buffer");
+
+	VkMemoryRequirements memory_requirements;
+	vkGetBufferMemoryRequirements (vulkan_globals.device, dyn_visibility_buffer, &memory_requirements);
+
+	VkMemoryAllocateInfo memory_allocate_info;
+	memset (&memory_allocate_info, 0, sizeof (memory_allocate_info));
+	memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	memory_allocate_info.allocationSize = memory_requirements.size;
+	memory_allocate_info.memoryTypeIndex =
+		GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
+	Atomic_IncrementUInt32 (&num_vulkan_misc_allocations);
+	R_AllocateVulkanMemory (&dyn_visibility_buffer_memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_HOST);
+	GL_SetObjectName ((uint64_t)dyn_visibility_buffer_memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, "Dynamic Visibility Buffer");
+
+	err = vkBindBufferMemory (vulkan_globals.device, dyn_visibility_buffer, dyn_visibility_buffer_memory.handle, 0);
+	if (err != VK_SUCCESS)
+		Sys_Error ("vkBindBufferMemory failed");
+
+	void *data;
+	err = vkMapMemory (vulkan_globals.device, dyn_visibility_buffer_memory.handle, 0, memory_requirements.size, 0, &data);
+	if (err != VK_SUCCESS)
+		Sys_Error ("vkMapMemory failed");
+
+	dyn_visibility_view = (unsigned char *)data;
+	dyn_visibility_offset = size / 2;
+}
+
+/*
 ==================
 GL_BuildLightmaps -- called at level load time
 
@@ -962,7 +1206,6 @@ void GL_BuildLightmaps (void)
 {
 	char                       name[32];
 	int                        i, j;
-	int                        num_surfaces = 0;
 	uint32_t                   surface_index = 0;
 	struct lightmap_s         *lm;
 	qmodel_t                  *m;
@@ -986,9 +1229,13 @@ void GL_BuildLightmaps (void)
 	lightmaps = NULL;
 	last_lightmap_allocated = 0;
 	lightmap_count = 0;
+	num_surfaces = 0;
 	memset (columns, -1, sizeof (columns));
 	memset (lightmap_idx, 0, sizeof (lightmap_idx));
 	memset (shelf_idx, 0, sizeof (shelf_idx));
+	used_indirect_draws = 0;
+	indirect_ready = true;
+	indirect_bmodel_start = INT_MAX;
 
 	for (i = 1; i < MAX_MODELS; ++i)
 	{
@@ -996,13 +1243,17 @@ void GL_BuildLightmaps (void)
 		if (!m)
 			break;
 		if (m->name[0] == '*')
+		{
+			indirect_bmodel_start = q_min (indirect_bmodel_start, m->firstmodelsurface);
 			continue;
+		}
 		num_surfaces += m->numsurfaces;
 	}
 
-	surface_data = GL_AllocateSurfaceDataBuffer (num_surfaces);
+	surface_data = GL_AllocateSurfaceDataBuffer ();
 
 	R_StagingBeginCopy ();
+	unsigned int varray_index = 0;
 	for (j = 1; j < MAX_MODELS; j++)
 	{
 		m = cl.model_precache[j];
@@ -1015,11 +1266,14 @@ void GL_BuildLightmaps (void)
 		for (i = 0; i < m->numsurfaces; i++)
 		{
 			surf = &m->surfaces[i];
-			if (surf->flags & SURF_DRAWTILED)
-				continue;
-			GL_CreateSurfaceLightmap (surf, surface_index);
-			BuildSurfaceDisplayList (surf);
-			R_AssignWorkgroupBounds (surf);
+			if (!(surf->flags & SURF_DRAWTILED))
+			{
+				GL_CreateSurfaceLightmap (surf, surface_index);
+				BuildSurfaceDisplayList (surf);
+				R_AssignWorkgroupBounds (surf);
+			}
+			if (indirect_ready)
+				UpdateIndirectStructs (surf, INDIRECT_ZBIAS && surface_index >= indirect_bmodel_start);
 
 			lm_compute_surface_data_t *surf_data = &surface_data[surface_index];
 			surf_data->packed_lightstyles = ((uint32_t)(surf->styles[0]) << 0) | ((uint32_t)(surf->styles[1]) << 8) | ((uint32_t)(surf->styles[2]) << 16) |
@@ -1027,8 +1281,17 @@ void GL_BuildLightmaps (void)
 			for (int k = 0; k < 3; ++k)
 				surf_data->normal[k] = surf->plane->normal[k];
 			surf_data->dist = surf->plane->dist;
-			surf_data->light_s = surf->light_s;
-			surf_data->light_t = surf->light_t;
+			surf_data->packed_light_st_and_tex =
+				(((surf->light_s) & 0xFF) << 24) | (((surf->light_t) & 0xFF) << 16) | surf->indirect_idx | !!(surf->flags & SURF_PLANEBACK) << 15;
+			surf->vbo_firstvert = varray_index;
+			surf_data->packed_vbo_offset_and_count = (surf->numedges << 24) | surf->vbo_firstvert;
+			if (indirect_ready && (surf->numedges > 255 || varray_index > (1 << 24) - 1))
+			{
+				Con_Warning ("map exceeds indirect dispatch limits");
+				indirect_ready = false;
+			}
+			varray_index += surf->numedges;
+
 			surf_data->packed_texturemins = (uint32_t)(surf->texturemins[0] + 32768) | ((uint32_t)(surf->texturemins[1] + 32768) << 16);
 			Vector4Copy (surf->texinfo->vecs[0], surf_data->vecs[0]);
 			Vector4Copy (surf->texinfo->vecs[1], surf_data->vecs[1]);
@@ -1038,6 +1301,18 @@ void GL_BuildLightmaps (void)
 	}
 
 	R_StagingEndCopy ();
+
+	if (indirect_ready)
+	{
+		PrepareIndirectDraws ();
+		VkDrawIndexedIndirectCommand *hw_indirect_buffer = GL_AllocateIndirectBuffer (used_indirect_draws);
+		R_StagingBeginCopy ();
+		memcpy (hw_indirect_buffer, initial_indirect_buffer, used_indirect_draws * sizeof (VkDrawIndexedIndirectCommand));
+		R_StagingEndCopy ();
+
+		R_InitIndirectIndexBuffer ((initial_indirect_buffer[used_indirect_draws - 1].firstIndex + indirect_draws[used_indirect_draws - 1].max_indices) * 4);
+		R_InitVisibilityBuffers ((cl.worldmodel->numsurfaces + 31) / 8);
+	}
 
 	GL_AllocateWorkgroupBoundsBuffers ();
 
@@ -1244,7 +1519,7 @@ surfaces from world + all brush models
 */
 void GL_BuildBModelVertexBuffer (void)
 {
-	unsigned int numverts, varray_bytes, varray_index;
+	unsigned int numverts, varray_bytes;
 	int          i, j;
 	qmodel_t    *m;
 	float       *varray;
@@ -1268,7 +1543,6 @@ void GL_BuildBModelVertexBuffer (void)
 	// build vertex array
 	varray_bytes = VERTEXSIZE * sizeof (float) * numverts;
 	varray = (float *)Mem_Alloc (varray_bytes);
-	varray_index = 0;
 
 	for (j = 1; j < MAX_MODELS; j++)
 	{
@@ -1279,9 +1553,7 @@ void GL_BuildBModelVertexBuffer (void)
 		for (i = 0; i < m->numsurfaces; i++)
 		{
 			msurface_t *s = &m->surfaces[i];
-			s->vbo_firstvert = varray_index;
-			memcpy (&varray[VERTEXSIZE * varray_index], s->polys->verts, VERTEXSIZE * sizeof (float) * s->numedges);
-			varray_index += s->numedges;
+			memcpy (&varray[VERTEXSIZE * s->vbo_firstvert], s->polys->verts, VERTEXSIZE * sizeof (float) * s->numedges);
 		}
 	}
 
