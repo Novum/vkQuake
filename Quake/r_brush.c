@@ -370,7 +370,8 @@ void R_DrawBrushModel (cb_context_t *cbx, entity_t *e, int chain, int *brushpoly
 	clmodel = e->model;
 
 	if (indirect && !(e->origin[0] || e->origin[1] || e->origin[2] || e->angles[0] || e->angles[1] || e->angles[2] ||
-	                  ENTSCALE_DECODE (e->netstate.scale) != 1.0f || ENTALPHA_DECODE (e->alpha) != 1.0f || e->frame != 0 || e->model->name[0] != '*'))
+	                  ENTSCALE_DECODE (e->netstate.scale) != 1.0f || ENTALPHA_DECODE (e->alpha) != 1.0f || e->frame != 0 || clmodel->name[0] != '*' ||
+	                  (WATER_FIXED_ORDER && brush_deps_data[clmodel->combined_deps].water_count != 0)))
 	{
 		// indirect mark
 		int              start = clmodel->firstmodelsurface;
@@ -1673,6 +1674,19 @@ void GL_BuildLightmaps (void)
 			if (m->name[0] != '*')
 				continue;
 			calc_deps (m, NULL);
+		}
+
+		if (WATER_FIXED_ORDER)
+		{
+			cl.worldmodel->water_surfs = Mem_Alloc (8192 * sizeof (int));
+			for (i = 0; i < cl.worldmodel->numsurfaces; i++)
+				if (cl.worldmodel->surfaces[i].flags & SURF_DRAWTURB)
+				{
+					if (cl.worldmodel->used_water_surfs >= 8192 && !(cl.worldmodel->used_water_surfs & (cl.worldmodel->used_water_surfs - 1)))
+						cl.worldmodel->water_surfs = Mem_Realloc (cl.worldmodel->water_surfs, cl.worldmodel->used_water_surfs * 2 * sizeof (int));
+					cl.worldmodel->water_surfs[cl.worldmodel->used_water_surfs] = i;
+					++cl.worldmodel->used_water_surfs;
+				}
 		}
 	}
 

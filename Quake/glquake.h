@@ -61,6 +61,8 @@ extern int glx, gly, glwidth, glheight;
 
 #define LIGHTMAP_BYTES 4
 
+#define WATER_FIXED_ORDER 1 // stable draw order for water, draws water surfs using texture chains even in indirect mode
+
 void       R_TimeRefresh_f (void);
 void       R_ReadPointFile_f (void);
 texture_t *R_TextureAnimation (texture_t *base, int frame);

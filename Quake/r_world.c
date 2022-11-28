@@ -471,6 +471,22 @@ void R_ChainVisSurfaces (qboolean *use_tasks)
 
 /*
 ===============
+R_ChainVisSurfaces_Water
+===============
+*/
+static void R_ChainVisSurfaces_Water ()
+{
+	uint32_t *surfvis = (uint32_t *)cl.worldmodel->surfvis;
+	for (int i = 0; i < cl.worldmodel->used_water_surfs; i++)
+	{
+		int j = cl.worldmodel->water_surfs[i];
+		if (surfvis[j / 32] & 1 << j % 32 && !R_BackFaceCull (&cl.worldmodel->surfaces[j]))
+			R_ChainSurface (&cl.worldmodel->surfaces[j], chain_world);
+	}
+}
+
+/*
+===============
 R_MarkLeafsParallel
 ===============
 */
@@ -1118,7 +1134,15 @@ void R_DrawWorld_Water (cb_context_t *cbx)
 
 	R_BeginDebugUtilsLabel (cbx, "Water");
 	if (indirect)
-		R_DrawIndirectBrushes (cbx, true, false, -1);
+	{
+		if (WATER_FIXED_ORDER)
+		{
+			R_ChainVisSurfaces_Water ();
+			R_DrawTextureChains_Water (cbx, cl.worldmodel, NULL, chain_world);
+		}
+		else
+			R_DrawIndirectBrushes (cbx, true, false, -1);
+	}
 	else
 		R_DrawTextureChains_Water (cbx, cl.worldmodel, NULL, chain_world);
 	R_EndDebugUtilsLabel (cbx);
