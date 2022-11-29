@@ -62,8 +62,10 @@ int                shelf_idx[LM_BINS];
 int                columns[LM_BINS];
 int                rows[LM_BINS];
 
-unsigned blocklights[LMBLOCK_WIDTH * LMBLOCK_HEIGHT * 3 + 1]; // johnfitz -- was 18*18, added lit support (*3) and loosened surface extents maximum
-                                                              // (LMBLOCK_WIDTH*LMBLOCK_HEIGHT)
+/* Lightmap extents are usually <= 18 with the default qbsp -subdivide of 240. The check in CalcSurfaceExtents ()
+   limits them to 126 x 126 on load. The lightmap packer and the blocklights array can handle up to 256 x 256. */
+
+unsigned blocklights[256 * 256 * 3 + 1]; // johnfitz -- was 18*18, added lit support (*3) and loosened surface extents maximum
 
 qboolean indirect = true;
 qboolean indirect_ready = false;
