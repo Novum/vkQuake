@@ -325,6 +325,7 @@ static void Mod_FreeModelMemory (qmodel_t *mod)
 		SAFE_FREE (mod->entities);
 		SAFE_FREE (mod->extradata);
 		SAFE_FREE (mod->water_surfs);
+		mod->used_water_surfs = 0;
 	}
 	if (!isDedicated)
 		TexMgr_FreeTexturesForOwner (mod);
