@@ -2389,12 +2389,13 @@ R_FlushUpdateLightmaps
 =============
 */
 void R_FlushUpdateLightmaps (
-	cb_context_t *cbx, int num_batch_lightmaps, VkImageMemoryBarrier *pre_barriers, VkImageMemoryBarrier *post_barriers, int *lightmap_indexes)
+	cb_context_t *cbx, int num_batch_lightmaps, VkImageMemoryBarrier *pre_barriers, VkImageMemoryBarrier *post_barriers, int *lightmap_indexes,
+	int num_used_dlights)
 {
 	vkCmdPipelineBarrier (
 		cbx->cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, NULL, 0, NULL, num_batch_lightmaps, pre_barriers);
 	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_COMPUTE, vulkan_globals.update_lightmap_pipeline);
-	uint32_t push_constants[2] = {MAX_DLIGHTS, LMBLOCK_WIDTH};
+	uint32_t push_constants[2] = {num_used_dlights, LMBLOCK_WIDTH};
 	uint32_t offsets[2] = {
 		current_compute_buffer_index * MAX_LIGHTSTYLES * sizeof (float),
 		current_compute_buffer_index * MAX_DLIGHTS * sizeof (lm_compute_light_t)};
@@ -2490,6 +2491,7 @@ void R_UpdateLightmapsAndIndirect (void *unused)
 	VkImageMemoryBarrier pre_lm_image_barriers[UPDATE_LIGHTMAP_BATCH_SIZE];
 	VkImageMemoryBarrier post_lm_image_barriers[UPDATE_LIGHTMAP_BATCH_SIZE];
 	int                  lightmap_indexes[UPDATE_LIGHTMAP_BATCH_SIZE];
+	int                  num_used_dlights = 0;
 
 	for (int lightmap_index = 0; lightmap_index < lightmap_count; ++lightmap_index)
 	{
@@ -2514,10 +2516,11 @@ void R_UpdateLightmapsAndIndirect (void *unused)
 		{
 			qboolean hit = true;
 
-			if (cl_dlights[i].die < cl.time || cl_dlights[i].radius == 0.0f)
+			if (!r_dynamic.value || cl_dlights[i].die < cl.time || cl_dlights[i].radius == 0.0f)
 				hit = false;
 			else
 			{
+				num_used_dlights = i + 1;
 				float sq_dist = 0.0f;
 				for (int j = 0; j < 3; j++)
 				{
@@ -2588,7 +2591,7 @@ void R_UpdateLightmapsAndIndirect (void *unused)
 
 		if (num_batch_lightmaps == UPDATE_LIGHTMAP_BATCH_SIZE)
 		{
-			R_FlushUpdateLightmaps (cbx, num_batch_lightmaps, pre_lm_image_barriers, post_lm_image_barriers, lightmap_indexes);
+			R_FlushUpdateLightmaps (cbx, num_batch_lightmaps, pre_lm_image_barriers, post_lm_image_barriers, lightmap_indexes, num_used_dlights);
 			num_lightmaps += num_batch_lightmaps;
 			num_batch_lightmaps = 0;
 		}
@@ -2596,7 +2599,7 @@ void R_UpdateLightmapsAndIndirect (void *unused)
 
 	if (num_batch_lightmaps > 0)
 	{
-		R_FlushUpdateLightmaps (cbx, num_batch_lightmaps, pre_lm_image_barriers, post_lm_image_barriers, lightmap_indexes);
+		R_FlushUpdateLightmaps (cbx, num_batch_lightmaps, pre_lm_image_barriers, post_lm_image_barriers, lightmap_indexes, num_used_dlights);
 		num_lightmaps += num_batch_lightmaps;
 	}
 

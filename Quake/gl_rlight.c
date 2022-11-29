@@ -55,7 +55,7 @@ void R_AnimateLight (void)
 		// johnfitz -- r_flatlightstyles
 		if (r_flatlightstyles.value == 2)
 			k = n = cl_lightstyle[j].peak - 'a';
-		else if (r_flatlightstyles.value == 1)
+		else if (r_flatlightstyles.value == 1 || !r_dynamic.value)
 			k = n = cl_lightstyle[j].average - 'a';
 		else
 		{
