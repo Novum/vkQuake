@@ -138,6 +138,7 @@ static void calc_deps (qmodel_t *model, mleaf_t *leaf)
 	deps[0].water_count = 0;
 	deps[0].lm_count = 0;
 	const int num_surfaces = model ? model->nummodelsurfaces : leaf->nummarksurfaces;
+	qboolean  no_sky = true;
 
 	for (int i = 0; i < num_surfaces; i++)
 	{
@@ -162,6 +163,8 @@ static void calc_deps (qmodel_t *model, mleaf_t *leaf)
 				deps[deps[0].water_count].update_warp = &t->update_warp;
 			}
 		}
+		if (model && psurf->flags & SURF_DRAWSKY)
+			no_sky = false;
 	}
 
 	for (int i = 0; i < num_surfaces; i++)
@@ -187,7 +190,10 @@ static void calc_deps (qmodel_t *model, mleaf_t *leaf)
 	}
 
 	if (model)
+	{
 		model->combined_deps = alloc_deps_data (deps);
+		model->no_sky_surfs = no_sky;
+	}
 	else
 		leaf->combined_deps = alloc_deps_data (deps);
 }

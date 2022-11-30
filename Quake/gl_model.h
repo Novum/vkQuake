@@ -509,6 +509,7 @@ typedef struct qmodel_s
 	int contentstransparent; // spike -- added this so we can disable glitchy wateralpha where its not supported.
 
 	int combined_deps; // contains index into brush_deps_data[] with used warp and lightmap textures
+	qboolean no_sky_surfs; // for world submodels only, allows fast skip
 
 	int *water_surfs; // list of surface indices with SURF_DRAWTURB flag (worldmodel only)
 	int  used_water_surfs;
