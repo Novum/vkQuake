@@ -725,9 +725,7 @@ void Sky_ProcessEntities (cb_context_t *cbx, float color[3])
 		if (e->model->type != mod_brush)
 			continue;
 
-		if (e->model->name[0] == '*' &&
-		    (e->model->no_sky_surfs || (indirect && !(e->origin[0] || e->origin[1] || e->origin[2] || e->angles[0] || e->angles[1] || e->angles[2] ||
-		                                              ENTSCALE_DECODE (e->netstate.scale) != 1.0f || ENTALPHA_DECODE (e->alpha) != 1.0f || e->frame != 0))))
+		if (e->model->name[0] == '*' && (!R_HasSky (e) || R_IndirectBrush (e)))
 			continue;
 
 		if (R_CullModelForEntity (e))

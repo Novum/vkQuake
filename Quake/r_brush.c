@@ -95,7 +95,8 @@ typedef union
 {
 	struct                        // 1st element contains this
 	{
-		int water_count;
+		short has_sky;
+		short water_count;
 		int lm_count;
 	};
 	atomic_uint32_t *update_warp; // next water_count elements contain this
@@ -135,10 +136,10 @@ static int alloc_deps_data (combined_brush_deps *items)
 static void calc_deps (qmodel_t *model, mleaf_t *leaf)
 {
 	combined_brush_deps deps[1 + 256 + MAX_SANITY_LIGHTMAPS];
+	deps[0].has_sky = false;
 	deps[0].water_count = 0;
 	deps[0].lm_count = 0;
 	const int num_surfaces = model ? model->nummodelsurfaces : leaf->nummarksurfaces;
-	qboolean  no_sky = true;
 
 	for (int i = 0; i < num_surfaces; i++)
 	{
@@ -164,7 +165,7 @@ static void calc_deps (qmodel_t *model, mleaf_t *leaf)
 			}
 		}
 		if (model && psurf->flags & SURF_DRAWSKY)
-			no_sky = false;
+			deps[0].has_sky = true;
 	}
 
 	for (int i = 0; i < num_surfaces; i++)
@@ -190,10 +191,7 @@ static void calc_deps (qmodel_t *model, mleaf_t *leaf)
 	}
 
 	if (model)
-	{
 		model->combined_deps = alloc_deps_data (deps);
-		model->no_sky_surfs = no_sky;
-	}
 	else
 		leaf->combined_deps = alloc_deps_data (deps);
 }
@@ -360,6 +358,30 @@ void DrawGLPoly (cb_context_t *cbx, glpoly_t *p, float color[3], float alpha)
 
 /*
 =================
+R_HasSky
+=================
+*/
+qboolean R_HasSky (entity_t *e)
+{
+	assert (e->model->type == mod_brush && e->model->name[0] == '*');
+	return brush_deps_data[e->model->combined_deps].has_sky;
+}
+
+/*
+=================
+R_IndirectBrush
+=================
+*/
+qboolean R_IndirectBrush (entity_t *e)
+{
+	assert (e->model->type == mod_brush);
+	return indirect && !(e->origin[0] || e->origin[1] || e->origin[2] || e->angles[0] || e->angles[1] || e->angles[2] ||
+	                     ENTSCALE_DECODE (e->netstate.scale) != 1.0f || ENTALPHA_DECODE (e->alpha) != 1.0f || e->frame != 0 || e->model->name[0] != '*' ||
+	                     (WATER_FIXED_ORDER && brush_deps_data[e->model->combined_deps].water_count != 0));
+}
+
+/*
+=================
 R_DrawBrushModel
 =================
 */
@@ -377,9 +399,7 @@ void R_DrawBrushModel (cb_context_t *cbx, entity_t *e, int chain, int *brushpoly
 
 	clmodel = e->model;
 
-	if (indirect && !(e->origin[0] || e->origin[1] || e->origin[2] || e->angles[0] || e->angles[1] || e->angles[2] ||
-	                  ENTSCALE_DECODE (e->netstate.scale) != 1.0f || ENTALPHA_DECODE (e->alpha) != 1.0f || e->frame != 0 || clmodel->name[0] != '*' ||
-	                  (WATER_FIXED_ORDER && brush_deps_data[clmodel->combined_deps].water_count != 0)))
+	if (R_IndirectBrush (e))
 	{
 		// indirect mark
 		int              start = clmodel->firstmodelsurface;
@@ -1674,16 +1694,6 @@ void GL_BuildLightmaps (void)
 		for (i = 0; i < cl.worldmodel->numleafs; i++)
 			calc_deps (NULL, &cl.worldmodel->leafs[i]);
 
-		for (j = 1; j < MAX_MODELS; j++)
-		{
-			m = cl.model_precache[j];
-			if (!m)
-				break;
-			if (m->name[0] != '*')
-				continue;
-			calc_deps (m, NULL);
-		}
-
 		if (WATER_FIXED_ORDER)
 		{
 			cl.worldmodel->water_surfs = Mem_Alloc (8192 * sizeof (int));
@@ -1696,6 +1706,16 @@ void GL_BuildLightmaps (void)
 					++cl.worldmodel->used_water_surfs;
 				}
 		}
+	}
+
+	for (j = 1; j < MAX_MODELS; j++)
+	{
+		m = cl.model_precache[j];
+		if (!m)
+			break;
+		if (m->name[0] != '*')
+			continue;
+		calc_deps (m, NULL);
 	}
 
 	GL_AllocateWorkgroupBoundsBuffers ();

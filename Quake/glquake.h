@@ -511,6 +511,9 @@ void R_UpdateWarpTextures (cb_context_t **cbx_ptr);
 
 void mark_deps (int combined_deps, int worker_index);
 
+qboolean R_IndirectBrush (entity_t *e);
+qboolean R_HasSky (entity_t *e);
+
 void R_DrawWorld (cb_context_t *cbx, int index);
 void R_DrawAliasModel (cb_context_t *cbx, entity_t *e, int *aliaspolys);
 void R_DrawBrushModel (cb_context_t *cbx, entity_t *e, int chain, int *brushpolys);
