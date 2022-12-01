@@ -958,7 +958,6 @@ static void UpdateIndirectStructs (msurface_t *surf, qboolean is_bmodel)
 	}
 	if (i == MAX_INDIRECT_DRAWS - 1)
 	{
-		Con_Warning ("map exceeds indirect dispatch limits");
 		indirect_ready = false;
 		return;
 	}
@@ -1598,11 +1597,8 @@ void GL_BuildLightmaps (void)
 				(((surf->light_s) & 0xFF) << 24) | (((surf->light_t) & 0xFF) << 16) | surf->indirect_idx | !!(surf->flags & SURF_PLANEBACK) << 15;
 			surf->vbo_firstvert = varray_index;
 			surf_data->packed_vbo_offset_and_count = (surf->numedges << 24) | surf->vbo_firstvert;
-			if (indirect_ready && (surf->numedges > 255 || varray_index > (1 << 24) - 1))
-			{
-				Con_Warning ("map exceeds indirect dispatch limits");
+			if (surf->numedges > 255 || varray_index > (1 << 24) - 1)
 				indirect_ready = false;
-			}
 			varray_index += surf->numedges;
 
 			surf_data->packed_texturemins = (uint32_t)(surf->texturemins[0] + 32768) | ((uint32_t)(surf->texturemins[1] + 32768) << 16);
@@ -1707,6 +1703,8 @@ void GL_BuildLightmaps (void)
 				}
 		}
 	}
+	else
+		Con_Warning ("map exceeds indirect dispatch limits\n");
 
 	for (j = 1; j < MAX_MODELS; j++)
 	{
