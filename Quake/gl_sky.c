@@ -904,14 +904,26 @@ void Sky_DrawSky (cb_context_t *cbx)
 	}
 
 	float fog_density = (Fog_GetDensity () > 0) ? skyfog : 0.0f;
-	float fog_color[4];
-	Fog_GetColor (fog_color);
-	float constant_values[8] = {CLAMP (0.0f, fog_color[0], 1.0f), CLAMP (0.0f, fog_color[1], 1.0f), CLAMP (0.0f, fog_color[2], 1.0f), fog_density};
+
+	float color[4];
+	if (Fog_GetDensity () > 0)
+		Fog_GetColor (color); // color[3] is not used
+	else
+		memcpy (color, skyflatcolor, 3 * sizeof (float));
+
+	float constant_values[8] = {CLAMP (0.0f, color[0], 1.0f), CLAMP (0.0f, color[1], 1.0f), CLAMP (0.0f, color[2], 1.0f), fog_density};
 
 	// With slow sky we first write stencil for the part of the screen that is covered by sky geometry and passes the depth test
 	// Sky_DrawSkyBox then only fills the parts that had stencil written
 	if (flat_color)
+	{
+		if (indirect)
+		{
+			constant_values[3] = 1.0f;
+			R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 16 * sizeof (float), 4 * sizeof (float), constant_values);
+		}
 		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_color_pipeline[indirect]);
+	}
 	else if (skybox_cubemap)
 	{
 		memcpy (&constant_values[4], r_refdef.vieworg, sizeof (r_refdef.vieworg));
@@ -943,13 +955,6 @@ void Sky_DrawSky (cb_context_t *cbx)
 	//
 	// process world and bmodels: draw flat-shaded sky surfs, and update skybounds
 	//
-
-	float color[4];
-	if (Fog_GetDensity () > 0)
-		Fog_GetColor (color);
-	else
-		memcpy (color, skyflatcolor, 3 * sizeof (float));
-
 	int skypolys = 0;
 	if (indirect)
 	{
