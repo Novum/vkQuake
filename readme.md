@@ -107,7 +107,7 @@ meson build && ninja -C build
 To compile vkQuake, first install the build dependencies with Homebrew:
 
 ~~~
-brew install molten-vk vulkan-headers glslang spirv-tools sdl2 libvorbis flac opus opusfile flac mad meson
+brew install molten-vk vulkan-headers glslang spirv-tools sdl2 libvorbis flac opus opusfile flac mad meson pkgconfig
 ~~~
 
 Then clone the vkQuake repo:
