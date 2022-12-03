@@ -148,10 +148,13 @@ static inline void SpinWaitSemaphore (SDL_sem *semaphore)
 	int result = 0;
 	while ((result = SDL_SemTryWait (semaphore)) != 0)
 	{
-#ifdef USE_SSE2
+#if defined(USE_SSE2)
 		// Don't have to actually check for SSE2 support, the
 		// instruction is backwards compatible and executes as a NOP
 		_mm_pause ();
+#elif defined(USE_NEON)
+		// Always available on AArch64
+		asm volatile("isb"::);
 #endif
 		if (--remaining_spins == 0)
 		{

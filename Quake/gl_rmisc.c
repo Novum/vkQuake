@@ -319,6 +319,9 @@ static void R_SIMD_f (cvar_t *var)
 {
 #if defined(USE_SSE2)
 	use_simd = SDL_HasSSE () && SDL_HasSSE2 () && (var->value != 0.0f);
+#elif defined(USE_NEON)
+	// We only enable USE_NEON on AArch64 which always has support for it
+    use_simd = var->value != 0.0f;
 #else
 #error not implemented
 #endif

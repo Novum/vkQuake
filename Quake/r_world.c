@@ -52,6 +52,7 @@ mark_surfaces_state_t
 typedef struct
 {
 #if defined(USE_SIMD)
+#if defined(USE_SSE2)
 	__m128 frustum_px[4];
 	__m128 frustum_py[4];
 	__m128 frustum_pz[4];
@@ -59,9 +60,18 @@ typedef struct
 	__m128 vieworg_px;
 	__m128 vieworg_py;
 	__m128 vieworg_pz;
-	int    frustum_ofsx[4];
-	int    frustum_ofsy[4];
-	int    frustum_ofsz[4];
+#elif defined(USE_NEON)
+	float32x4_t frustum_px[4];
+	float32x4_t frustum_py[4];
+	float32x4_t frustum_pz[4];
+	float32x4_t frustum_pd[4];
+	float32x4_t vieworg_px;
+	float32x4_t vieworg_py;
+	float32x4_t vieworg_pz;
+#endif
+	int frustum_ofsx[4];
+	int frustum_ofsy[4];
+	int frustum_ofsz[4];
 #endif
 	byte *vis;
 } mark_surfaces_state_t;
@@ -178,7 +188,7 @@ void R_SetupWorldCBXTexRanges (qboolean use_tasks)
 	}
 }
 
-#ifdef USE_SSE2
+#if defined(USE_SSE2)
 /*
 ===============
 R_BackFaceCullSIMD
@@ -254,7 +264,89 @@ static FORCE_INLINE uint32_t R_CullBoxSIMD (soa_aabb_t *boxes, uint32_t activela
 
 	return activelanes;
 }
-#endif // defined(USE_SSE2)
+#elif defined(USE_NEON)
+static uint32_t NeonMoveMask(uint32x4_t input)
+{   
+    static const int32x4_t shift = {0, 1, 2, 3};
+    return vaddvq_u32(vshlq_u32(vshrq_n_u32(input, 31), shift));
+}
+
+/*
+===============
+R_BackFaceCullSIMD
+
+Performs backface culling for 32 planes
+===============
+*/
+static FORCE_INLINE uint32_t R_BackFaceCullSIMD (soa_plane_t *planes)
+{
+	float32x4_t px = mark_surfaces_state.vieworg_px;
+	float32x4_t py = mark_surfaces_state.vieworg_py;
+	float32x4_t pz = mark_surfaces_state.vieworg_pz;
+
+	uint32_t activelanes = 0;
+	for (int plane_index = 0; plane_index < 4; ++plane_index)
+	{
+		soa_plane_t *plane = planes + plane_index;
+
+		float32x4_t v0 = vmulq_f32 (vld1q_f32 ((*plane) + 0), px);
+		float32x4_t v1 = vmulq_f32 (vld1q_f32 ((*plane) + 4), px);
+
+		v0 = vmlaq_f32 (v0, vld1q_f32 ((*plane) + 8), py);
+		v1 = vmlaq_f32 (v1, vld1q_f32 ((*plane) + 12), py);
+
+		v0 = vmlaq_f32 (v0, vld1q_f32 ((*plane) + 16), pz);
+		v1 = vmlaq_f32 (v1, vld1q_f32 ((*plane) + 20), pz);
+
+		float32x4_t pd0 = vld1q_f32 ((*plane) + 24);
+		float32x4_t pd1 = vld1q_f32 ((*plane) + 28);
+
+		uint32_t plane_lanes = (uint32_t)(NeonMoveMask (vcltq_f32 (pd0, v0)) | (NeonMoveMask (vcltq_f32 (pd1, v1)) << 4));
+		activelanes |= plane_lanes << (plane_index * 8);
+	}
+	return activelanes;
+}
+
+/*
+===============
+R_CullBoxSIMD
+
+Performs frustum culling for 32 bounding boxes
+===============
+*/
+static FORCE_INLINE uint32_t R_CullBoxSIMD (soa_aabb_t *boxes, uint32_t activelanes)
+{
+	for (int frustum_index = 0; frustum_index < 4; ++frustum_index)
+	{
+		if (activelanes == 0)
+			break;
+
+		int    ofsx = mark_surfaces_state.frustum_ofsx[frustum_index];
+		int    ofsy = mark_surfaces_state.frustum_ofsy[frustum_index];
+		int    ofsz = mark_surfaces_state.frustum_ofsz[frustum_index];
+		float32x4_t px = mark_surfaces_state.frustum_px[frustum_index];
+		float32x4_t py = mark_surfaces_state.frustum_py[frustum_index];
+		float32x4_t pz = mark_surfaces_state.frustum_pz[frustum_index];
+		float32x4_t pd = mark_surfaces_state.frustum_pd[frustum_index];
+
+		uint32_t frustum_lanes = 0;
+		for (int boxes_index = 0; boxes_index < 4; ++boxes_index)
+		{
+			soa_aabb_t *box = boxes + boxes_index;
+			float32x4_t      v0 = vmulq_f32 (vld1q_f32 ((*box) + ofsx), px);
+			float32x4_t      v1 = vmulq_f32 (vld1q_f32 ((*box) + ofsx + 4), px);
+			v0 = vmlaq_f32 (v0, vld1q_f32 ((*box) + ofsy), py);
+			v1 = vmlaq_f32 (v1, vld1q_f32 ((*box) + ofsy + 4), py);
+			v0 = vmlaq_f32 (v0, vld1q_f32 ((*box) + ofsz), pz);
+			v1 = vmlaq_f32 (v1, vld1q_f32 ((*box) + ofsz + 4), pz);
+			frustum_lanes |= (uint32_t)(NeonMoveMask (vcltq_f32 (pd, v0)) | (NeonMoveMask (vcltq_f32 (pd, v1)) << 4)) << (boxes_index * 8);
+		}
+		activelanes &= frustum_lanes;
+	}
+
+	return activelanes;
+}
+#endif
 
 #if defined(USE_SIMD)
 /*
@@ -671,8 +763,9 @@ static void R_MarkSurfacesPrepare (void *unused)
 	if (use_simd)
 	{
 		memset (cl.worldmodel->surfvis, 0, (cl.worldmodel->numsurfaces + 31) / 8);
+#if defined(USE_SSE2)
 		for (int frustum_index = 0; frustum_index < 4; ++frustum_index)
-		{
+		{			
 			mplane_t *p = frustum + frustum_index;
 			byte      signbits = p->signbits;
 			__m128    vplane = _mm_loadu_ps (p->normal);
@@ -688,11 +781,28 @@ static void R_MarkSurfacesPrepare (void *unused)
 		mark_surfaces_state.vieworg_px = _mm_shuffle_ps (pos, pos, _MM_SHUFFLE (0, 0, 0, 0));
 		mark_surfaces_state.vieworg_py = _mm_shuffle_ps (pos, pos, _MM_SHUFFLE (1, 1, 1, 1));
 		mark_surfaces_state.vieworg_pz = _mm_shuffle_ps (pos, pos, _MM_SHUFFLE (2, 2, 2, 2));
+#elif defined(USE_NEON)
+		for (int frustum_index = 0; frustum_index < 4; ++frustum_index)
+		{			
+			mplane_t *p = frustum + frustum_index;
+			byte      signbits = p->signbits;
+			mark_surfaces_state.frustum_ofsx[frustum_index] = signbits & 1 ? 0 : 8;   // x min/max
+			mark_surfaces_state.frustum_ofsy[frustum_index] = signbits & 2 ? 16 : 24; // y min/max
+			mark_surfaces_state.frustum_ofsz[frustum_index] = signbits & 4 ? 32 : 40; // z min/max
+			mark_surfaces_state.frustum_px[frustum_index] = vdupq_n_f32 (p->normal[0]);
+			mark_surfaces_state.frustum_py[frustum_index] = vdupq_n_f32 (p->normal[1]);
+			mark_surfaces_state.frustum_pz[frustum_index] = vdupq_n_f32 (p->normal[2]);
+			mark_surfaces_state.frustum_pd[frustum_index] = vdupq_n_f32 (p->dist);
+		}
+		mark_surfaces_state.vieworg_px = vdupq_n_f32 (r_refdef.vieworg[0]);
+		mark_surfaces_state.vieworg_py = vdupq_n_f32 (r_refdef.vieworg[1]);
+		mark_surfaces_state.vieworg_pz = vdupq_n_f32 (r_refdef.vieworg[2]);
+#endif
 	}
 	else
 #endif
 		if (r_parallelmark.value || indirect)
-		memset (cl.worldmodel->surfvis, 0, (cl.worldmodel->numsurfaces + 31) / 8);
+			memset (cl.worldmodel->surfvis, 0, (cl.worldmodel->numsurfaces + 31) / 8);
 }
 
 /*

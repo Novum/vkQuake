@@ -157,6 +157,9 @@ qboolean IsOriginWithinMinMax (vec3_t origin, vec3_t mins, vec3_t maxs);
 #define USE_SIMD
 #define USE_SSE2
 #include <emmintrin.h>
+#elif defined(__aarch64__) && defined(__ARM_NEON)
+#define USE_SIMD
+#define USE_NEON
 #endif
 
 /*==========================================================================*/
