@@ -1739,14 +1739,14 @@ void GL_BuildLightmaps (void)
 			q_snprintf (name, sizeof (name), "lightstyle%d%07i", j, i);
 			lm->lightstyle_textures[j] = TexMgr_LoadImage (
 				cl.worldmodel, name, LMBLOCK_WIDTH, LMBLOCK_HEIGHT, SRC_RGBA, lm->lightstyle_data[j], "", (src_offset_t)lm->data,
-				TEXPREF_LINEAR | TEXPREF_NOPICMIP);
+				TEXPREF_NEAREST | TEXPREF_NOPICMIP);
 			SAFE_FREE (lm->lightstyle_data[j]);
 		}
 
 		q_snprintf (name, sizeof (name), "surfindices%07i", i);
 		lm->surface_indices_texture = TexMgr_LoadImage (
 			cl.worldmodel, name, LMBLOCK_WIDTH, LMBLOCK_HEIGHT, SRC_SURF_INDICES, (byte *)lm->surface_indices, "", (src_offset_t)lm->surface_indices,
-			TEXPREF_LINEAR | TEXPREF_NOPICMIP);
+			TEXPREF_NEAREST | TEXPREF_NOPICMIP);
 		SAFE_FREE (lm->surface_indices);
 	}
 
@@ -1783,7 +1783,6 @@ void GL_BuildLightmaps (void)
 		memset (&surface_indices_image_info, 0, sizeof (surface_indices_image_info));
 		surface_indices_image_info.imageView = lm->surface_indices_texture->image_view;
 		surface_indices_image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		surface_indices_image_info.sampler = vulkan_globals.point_sampler;
 
 		VkDescriptorImageInfo lightmap_images_infos[MAXLIGHTMAPS];
 		memset (&lightmap_images_infos, 0, sizeof (lightmap_images_infos));
@@ -1791,7 +1790,6 @@ void GL_BuildLightmaps (void)
 		{
 			lightmap_images_infos[j].imageView = lm->lightstyle_textures[j]->image_view;
 			lightmap_images_infos[j].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-			lightmap_images_infos[j].sampler = vulkan_globals.point_sampler;
 		}
 
 		VkDescriptorBufferInfo surfaces_data_buffer_info;
@@ -1833,7 +1831,7 @@ void GL_BuildLightmaps (void)
 		writes[1].dstBinding = 1;
 		writes[1].dstArrayElement = 0;
 		writes[1].descriptorCount = 1;
-		writes[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		writes[1].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
 		writes[1].dstSet = lm->descriptor_set;
 		writes[1].pImageInfo = &surface_indices_image_info;
 
@@ -1841,7 +1839,7 @@ void GL_BuildLightmaps (void)
 		writes[2].dstBinding = 2;
 		writes[2].dstArrayElement = 0;
 		writes[2].descriptorCount = MAXLIGHTMAPS;
-		writes[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		writes[2].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
 		writes[2].dstSet = lm->descriptor_set;
 		writes[2].pImageInfo = lightmap_images_infos;
 

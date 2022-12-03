@@ -74,6 +74,7 @@ atomic_uint32_t num_vulkan_ubos;
 atomic_uint32_t num_vulkan_storage_buffers;
 atomic_uint32_t num_vulkan_input_attachments;
 atomic_uint32_t num_vulkan_storage_images;
+atomic_uint32_t num_vulkan_sampled_images;
 atomic_uint64_t total_device_vulkan_allocation_size;
 atomic_uint64_t total_host_vulkan_allocation_size;
 
@@ -1359,11 +1360,11 @@ void R_CreateDescriptorSetLayouts ()
 		lightmap_compute_layout_bindings[0].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 		lightmap_compute_layout_bindings[1].binding = 1;
 		lightmap_compute_layout_bindings[1].descriptorCount = 1;
-		lightmap_compute_layout_bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		lightmap_compute_layout_bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
 		lightmap_compute_layout_bindings[1].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 		lightmap_compute_layout_bindings[2].binding = 2;
 		lightmap_compute_layout_bindings[2].descriptorCount = MAXLIGHTMAPS;
-		lightmap_compute_layout_bindings[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		lightmap_compute_layout_bindings[2].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
 		lightmap_compute_layout_bindings[2].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 		lightmap_compute_layout_bindings[3].binding = 3;
 		lightmap_compute_layout_bindings[3].descriptorCount = 1;
@@ -1387,7 +1388,7 @@ void R_CreateDescriptorSetLayouts ()
 
 		memset (&vulkan_globals.lightmap_compute_set_layout, 0, sizeof (vulkan_globals.lightmap_compute_set_layout));
 		vulkan_globals.lightmap_compute_set_layout.num_storage_images = 1;
-		vulkan_globals.lightmap_compute_set_layout.num_combined_image_samplers = 1 + MAXLIGHTMAPS;
+		vulkan_globals.lightmap_compute_set_layout.num_sampled_images = 1 + MAXLIGHTMAPS;
 		vulkan_globals.lightmap_compute_set_layout.num_storage_buffers = 2;
 		vulkan_globals.lightmap_compute_set_layout.num_ubos_dynamic = 2;
 
@@ -1435,7 +1436,7 @@ R_CreateDescriptorPool
 */
 void R_CreateDescriptorPool ()
 {
-	VkDescriptorPoolSize pool_sizes[7];
+	VkDescriptorPoolSize pool_sizes[8];
 	pool_sizes[0].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	pool_sizes[0].descriptorCount = 32 + (MAX_SANITY_LIGHTMAPS * 2) + (MAX_GLTEXTURES + 1);
 	pool_sizes[1].type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
@@ -1450,12 +1451,14 @@ void R_CreateDescriptorPool ()
 	pool_sizes[5].descriptorCount = 32 + (MAX_SANITY_LIGHTMAPS * 2);
 	pool_sizes[6].type = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
 	pool_sizes[6].descriptorCount = 32;
+	pool_sizes[7].type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+	pool_sizes[7].descriptorCount = 32;
 
 	VkDescriptorPoolCreateInfo descriptor_pool_create_info;
 	memset (&descriptor_pool_create_info, 0, sizeof (descriptor_pool_create_info));
 	descriptor_pool_create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 	descriptor_pool_create_info.maxSets = MAX_GLTEXTURES + MAX_SANITY_LIGHTMAPS + 32;
-	descriptor_pool_create_info.poolSizeCount = 7;
+	descriptor_pool_create_info.poolSizeCount = sizeof(pool_sizes) / sizeof(pool_sizes[0]);
 	descriptor_pool_create_info.pPoolSizes = pool_sizes;
 	descriptor_pool_create_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
 
@@ -3244,6 +3247,7 @@ VkDescriptorSet R_AllocateDescriptorSet (vulkan_desc_set_layout_t *layout)
 	Atomic_AddUInt32 (&num_vulkan_storage_buffers, layout->num_storage_buffers);
 	Atomic_AddUInt32 (&num_vulkan_input_attachments, layout->num_input_attachments);
 	Atomic_AddUInt32 (&num_vulkan_storage_images, layout->num_storage_images);
+	Atomic_AddUInt32 (&num_vulkan_sampled_images, layout->num_sampled_images);
 
 	return handle;
 }
@@ -3264,6 +3268,7 @@ void R_FreeDescriptorSet (VkDescriptorSet desc_set, vulkan_desc_set_layout_t *la
 	Atomic_SubUInt32 (&num_vulkan_storage_buffers, layout->num_storage_buffers);
 	Atomic_SubUInt32 (&num_vulkan_input_attachments, layout->num_input_attachments);
 	Atomic_SubUInt32 (&num_vulkan_storage_images, layout->num_storage_images);
+	Atomic_SubUInt32 (&num_vulkan_sampled_images, layout->num_sampled_images);
 }
 
 /*
@@ -3512,6 +3517,7 @@ void R_VulkanMemStats_f (void)
 	Con_Printf (" Storage buffers: %" SDL_PRIu32 "\n", Atomic_LoadUInt32 (&num_vulkan_ubos_dynamic));
 	Con_Printf (" Input attachments: %" SDL_PRIu32 "\n", Atomic_LoadUInt32 (&num_vulkan_storage_buffers));
 	Con_Printf (" Storage images: %" SDL_PRIu32 "\n", Atomic_LoadUInt32 (&num_vulkan_storage_images));
+	Con_Printf (" Sampled images: %" SDL_PRIu32 "\n", Atomic_LoadUInt32 (&num_vulkan_sampled_images));
 	Con_Printf ("Device %" SDL_PRIu64 " MiB total\n", Atomic_LoadUInt64 (&total_device_vulkan_allocation_size) / 1024 / 1024);
 	Con_Printf ("Host %" SDL_PRIu64 " MiB total\n", Atomic_LoadUInt64 (&total_host_vulkan_allocation_size) / 1024 / 1024);
 }

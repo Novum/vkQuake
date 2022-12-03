@@ -1,6 +1,7 @@
 #version 460
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_ARB_shading_language_420pack : enable
+#extension GL_EXT_samplerless_texture_functions: enable
 //#extension GL_EXT_debug_printf : enable
 
 #define MAX_LIGHTSYTLES 64
@@ -49,8 +50,8 @@ const uint  LIGHT_MASK_SIZE = (MAX_DLIGHTS + 31) / 32;
 shared uint light_mask[LIGHT_MASK_SIZE];
 
 layout (set = 0, binding = 0, rgba8) uniform writeonly image2D output_image;
-layout (set = 0, binding = 1) uniform usampler2D surface_indices;
-layout (set = 0, binding = 2) uniform sampler2D lightstyles_textures[MAXLIGHTMAPS];
+layout (set = 0, binding = 1) uniform utexture2D surface_indices;
+layout (set = 0, binding = 2) uniform texture2D lightstyles_textures[MAXLIGHTMAPS];
 layout (std430, set = 0, binding = 3) restrict readonly buffer surfaces_buffer
 {
 	surface_t surfaces[];

@@ -153,6 +153,7 @@ typedef struct vulkan_desc_set_layout_s
 	int                   num_storage_buffers;
 	int                   num_input_attachments;
 	int                   num_storage_images;
+	int                   num_sampled_images;
 } vulkan_desc_set_layout_t;
 
 typedef enum
