@@ -265,7 +265,7 @@ static FORCE_INLINE uint32_t R_CullBoxSIMD (soa_aabb_t *boxes, uint32_t activela
 	return activelanes;
 }
 #elif defined(USE_NEON)
-static uint32_t NeonMoveMask(uint32x4_t input)
+static FORCE_INLINE uint32_t NeonMoveMask(uint32x4_t input)
 {   
     static const int32x4_t shift = {0, 1, 2, 3};
     return vaddvq_u32(vshlq_u32(vshrq_n_u32(input, 31), shift));
