@@ -2178,9 +2178,10 @@ void R_AccumulateLightmap (byte *lightmap, unsigned scale, int texels)
 	unsigned *bl = blocklights;
 	int       size = texels * 3;
 
-#ifdef USE_SSE2
+#if defined(USE_SIMD)
 	if (use_simd && size >= 8)
 	{
+#if defined(USE_SSE2)
 		__m128i vscale = _mm_set1_epi16 (scale);
 		__m128i vlo, vhi, vdst, vsrc, v;
 
@@ -2205,8 +2206,27 @@ void R_AccumulateLightmap (byte *lightmap, unsigned scale, int texels)
 			lightmap += 8;
 			size -= 8;
 		}
+#elif defined(USE_NEON)
+		while (size >= 8)
+		{
+			uint8x8_t lm_uint_8x8 = vld1_u8(lightmap);
+			uint16x8_t lm_uint_16x8 = vmovl_s8(lm_uint_8x8);
+			uint16x8_t lm_scaled_16x8 = vmulq_n_u16(lm_uint_16x8, scale);
+
+			uint32x4_t lm_scaled_low_4x32bit = vmovl_u16(vget_low_u16(lm_scaled_16x8));
+			vst1q_u32(bl, lm_scaled_low_4x32bit);
+			bl += 4;
+
+			uint32x4_t lm_scaled_high_4x32bit = vmovl_high_u16(lm_scaled_16x8);
+			vst1q_u32(bl, lm_scaled_high_4x32bit);
+			bl += 4;
+
+			lightmap += 8;
+			size -= 8;
+		}
+#endif
 	}
-#endif // def USE_SSE2
+#endif
 
 	while (size-- > 0)
 		*bl++ += *lightmap++ * scale;
@@ -2225,9 +2245,10 @@ void R_StoreLightmap (byte *dest, int width, int height, int stride)
 {
 	unsigned *src = blocklights;
 
-#ifdef USE_SSE2
+#if defined(USE_SIMD)
 	if (use_simd)
 	{
+#if defined(USE_SSE2)
 		__m128i vzero = _mm_setzero_si128 ();
 
 		while (height-- > 0)
@@ -2243,9 +2264,27 @@ void R_StoreLightmap (byte *dest, int width, int height, int stride)
 			}
 			dest += stride;
 		}
+#elif defined(USE_NEON)
+		while (height-- > 0)
+		{
+			int i;
+			for (i = 0; i < width; i++)
+			{
+				uint32x4_t lm_32x4 = vld1q_u32 (src);
+				uint16x4_t lm_shifted_16x4 = vshrn_n_u32 (lm_32x4, 8);
+				uint16x4_t lm_shifted_16x4_masked = vset_lane_u16(0xFF, lm_shifted_16x4, 3);
+				uint16x8_t lm_shifted_16x8 = vcombine_u16(lm_shifted_16x4_masked, vcreate_u16(0));
+				uint8x8_t lm_shifted_saturated_8x8 = vqmovn_u16(lm_shifted_16x8);
+				uint32x2_t lm_shifted_saturated_32x2 = vreinterpret_s32_u8(lm_shifted_saturated_8x8);
+				((uint32_t *)dest)[i] = vget_lane_u32(lm_shifted_saturated_32x2, 0);
+				src += 3;
+			}
+			dest += stride;
+		}
+#endif
 	}
 	else
-#endif // def USE_SSE2
+#endif	
 	{
 		stride -= width * 4;
 		while (height-- > 0)
