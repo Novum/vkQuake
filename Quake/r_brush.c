@@ -2211,14 +2211,17 @@ void R_AccumulateLightmap (byte *lightmap, unsigned scale, int texels)
 		{
 			uint8x8_t lm_uint_8x8 = vld1_u8(lightmap);
 			uint16x8_t lm_uint_16x8 = vmovl_s8(lm_uint_8x8);
-			uint16x8_t lm_scaled_16x8 = vmulq_n_u16(lm_uint_16x8, scale);
 
-			uint32x4_t lm_scaled_low_4x32bit = vmovl_u16(vget_low_u16(lm_scaled_16x8));
-			vst1q_u32(bl, lm_scaled_low_4x32bit);
+			uint32x4_t lm_old_low_4x32bit = vld1q_u32(bl);
+			uint16x4_t lm_uint_low_16x4 = vget_low_u16(lm_uint_16x8);
+			uint32x4_t lm_scaled_accum_low_4x32bit = vmlal_n_u16(lm_old_low_4x32bit, lm_uint_low_16x4, scale);
+			vst1q_u32(bl, lm_scaled_accum_low_4x32bit);
 			bl += 4;
 
-			uint32x4_t lm_scaled_high_4x32bit = vmovl_high_u16(lm_scaled_16x8);
-			vst1q_u32(bl, lm_scaled_high_4x32bit);
+			uint32x4_t lm_old_high_4x32bit = vld1q_u32(bl);
+			uint16x4_t lm_uint_high_16x4 = vget_high_u16(lm_uint_16x8);
+			uint32x4_t lm_scaled_accum_high_4x32bit = vmlal_n_u16(lm_old_high_4x32bit, lm_uint_high_16x4, scale);
+			vst1q_u32(bl, lm_scaled_accum_high_4x32bit);
 			bl += 4;
 
 			lightmap += 8;
