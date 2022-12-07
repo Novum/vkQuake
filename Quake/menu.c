@@ -1380,10 +1380,13 @@ void M_Options_Key (int k)
 /* KEYS MENU */
 
 const char *bindnames[][2] = {
-	{"+attack", "attack"},        {"impulse 10", "next weapon"}, {"impulse 12", "prev weapon"}, {"+jump", "jump / swim up"}, {"+forward", "walk forward"},
-	{"+back", "backpedal"},       {"+left", "turn left"},        {"+right", "turn right"},      {"+speed", "run"},           {"+moveleft", "step left"},
-	{"+moveright", "step right"}, {"+strafe", "sidestep"},       {"+lookup", "look up"},        {"+lookdown", "look down"},  {"centerview", "center view"},
-	{"+mlook", "mouse look"},     {"+klook", "keyboard look"},   {"+zoom", "Quick zoom"},       {"+moveup", "swim up"},      {"+movedown", "swim down"}};
+	{"+attack", "attack"},           {"impulse 10", "next weapon"},  {"impulse 12", "prev weapon"},  {"+jump", "jump / swim up"}, {"+forward", "walk forward"},
+	{"+back", "backpedal"},          {"+left", "turn left"},         {"+right", "turn right"},       {"+speed", "run"},           {"+moveleft", "step left"},
+	{"+moveright", "step right"},    {"+strafe", "sidestep"},        {"+lookup", "look up"},         {"+lookdown", "look down"},  {"centerview", "center view"},
+	{"+mlook", "mouse look"},        {"+klook", "keyboard look"},    {"+zoom", "Quick zoom"},        {"+moveup", "swim up"},      {"+movedown", "swim down"},        
+	{"impulse 1", "Axe"},            {"impulse 2", "Shotgun"},       {"impulse 3", "Super Shotgun"}, {"impulse 4", "Nailgun"},    {"impulse 5", "Super Nailgun"},
+	{"impulse 6", "Grenade Lnchr."}, {"impulse 7", "Rocket Lnchr."}, {"impulse 8", "Thunderbolt"},
+};
 
 #define NUMCOMMANDS (sizeof (bindnames) / sizeof (bindnames[0]))
 
@@ -1402,11 +1405,9 @@ void M_FindKeysForCommand (const char *command, int *threekeys)
 {
 	int   count;
 	int   j;
-	int   l;
 	char *b;
 
 	threekeys[0] = threekeys[1] = threekeys[2] = -1;
-	l = strlen (command);
 	count = 0;
 
 	for (j = 0; j < MAX_KEYS; j++)
@@ -1414,7 +1415,7 @@ void M_FindKeysForCommand (const char *command, int *threekeys)
 		b = keybindings[j];
 		if (!b)
 			continue;
-		if (!strncmp (b, command, l))
+		if (!strcmp (b, command))
 		{
 			threekeys[count] = j;
 			count++;
@@ -1427,22 +1428,21 @@ void M_FindKeysForCommand (const char *command, int *threekeys)
 void M_UnbindCommand (const char *command)
 {
 	int   j;
-	int   l;
 	char *b;
-
-	l = strlen (command);
 
 	for (j = 0; j < MAX_KEYS; j++)
 	{
 		b = keybindings[j];
 		if (!b)
 			continue;
-		if (!strncmp (b, command, l))
+		if (!strcmp (b, command))
 			Key_SetBinding (j, NULL);
 	}
 }
 
 extern qpic_t *pic_up, *pic_down;
+
+#define BINDS_PER_PAGE 19
 
 void M_Keys_Draw (cb_context_t *cbx)
 {
@@ -1450,6 +1450,12 @@ void M_Keys_Draw (cb_context_t *cbx)
 	int         keys[3];
 	const char *name;
 	qpic_t     *p;
+	static int  pos;
+
+	if (keys_cursor < pos)
+		pos = keys_cursor;
+	else if (keys_cursor >= pos + BINDS_PER_PAGE)
+		pos = keys_cursor - BINDS_PER_PAGE + 1;
 
 	p = Draw_CachePic ("gfx/ttl_cstm.lmp");
 	M_DrawPic (cbx, (320 - p->width) / 2, 4, p);
@@ -1460,13 +1466,13 @@ void M_Keys_Draw (cb_context_t *cbx)
 		M_Print (cbx, 18, 32, "Enter to change, backspace to clear");
 
 	// search for known bindings
-	for (i = 0; i < (int)NUMCOMMANDS; i++)
+	for (i = 0; i < BINDS_PER_PAGE && i < (int)NUMCOMMANDS; i++)
 	{
 		y = 48 + 8 * i;
 
-		M_Print (cbx, 16, y, bindnames[i][1]);
+		M_Print (cbx, 16, y, bindnames[i + pos][1]);
 
-		M_FindKeysForCommand (bindnames[i][0], keys);
+		M_FindKeysForCommand (bindnames[i + pos][0], keys);
 
 		if (keys[0] == -1)
 		{
@@ -1492,10 +1498,13 @@ void M_Keys_Draw (cb_context_t *cbx)
 		}
 	}
 
+	if (NUMCOMMANDS > BINDS_PER_PAGE)
+		M_DrawScrollbar (cbx, 0, 56, (float)(pos) / (NUMCOMMANDS - BINDS_PER_PAGE), BINDS_PER_PAGE - 2);
+
 	if (bind_grab)
-		M_DrawCharacter (cbx, 130, 48 + keys_cursor * 8, '=');
+		M_DrawCharacter (cbx, 130, 48 + (keys_cursor - pos) * 8, '=');
 	else
-		M_DrawCharacter (cbx, 130, 48 + keys_cursor * 8, 12 + ((int)(realtime * 4) & 1));
+		M_DrawCharacter (cbx, 130, 48 + (keys_cursor - pos) * 8, 12 + ((int)(realtime * 4) & 1));
 }
 
 void M_Keys_Key (int k)
