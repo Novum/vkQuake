@@ -238,6 +238,70 @@ void M_ToggleMenu_f (void)
 	}
 }
 
+/*
+================
+M_HandleScrollBarKeys
+================
+*/
+static void M_HandleScrollBarKeys (const int key, int *cursor, int *first_drawn, const int num_total, const int max_on_screen)
+{
+	const int prev_cursor = *cursor;
+
+	if (num_total == 0)
+	{
+		*cursor = 0;
+		*first_drawn = 0;
+		return;
+	}
+
+	switch (key)
+	{
+		case K_HOME:
+			*cursor = 0;
+			*first_drawn = 0;
+			break;
+
+		case K_END:
+			*cursor = num_total - 1;
+			*first_drawn = num_total - max_on_screen;
+			break;
+
+		case K_PGUP:
+			*cursor = q_max(0, *cursor - max_on_screen);
+			*first_drawn = q_max (0, *first_drawn - max_on_screen);
+			break;
+
+		case K_PGDN:
+			*cursor = q_min(num_total - 1, *cursor + max_on_screen);
+			*first_drawn = q_min (*first_drawn + max_on_screen, num_total - 1 - max_on_screen);
+			break;
+
+		case K_UPARROW:
+		case K_LEFTARROW:
+			if (*cursor == 0)
+				*cursor = num_total - 1;
+			else
+				--*cursor;
+			break;
+
+		case K_DOWNARROW:
+		case K_RIGHTARROW:
+			if (*cursor == num_total - 1)
+				*cursor = 0;
+			else
+				++*cursor;
+			break;
+	}
+
+	if (*cursor != prev_cursor)
+		S_LocalSound ("misc/menu1.wav");
+
+	if (num_total <= max_on_screen)
+		*first_drawn = 0;
+	else
+		*first_drawn = CLAMP (*cursor - max_on_screen + 1, *first_drawn, *cursor);
+}
+
 //=============================================================================
 /* MAIN MENU */
 
@@ -1380,17 +1444,22 @@ void M_Options_Key (int k)
 /* KEYS MENU */
 
 const char *bindnames[][2] = {
-	{"+attack", "attack"},           {"impulse 10", "next weapon"},  {"impulse 12", "prev weapon"},  {"+jump", "jump / swim up"}, {"+forward", "walk forward"},
-	{"+back", "backpedal"},          {"+left", "turn left"},         {"+right", "turn right"},       {"+speed", "run"},           {"+moveleft", "step left"},
-	{"+moveright", "step right"},    {"+strafe", "sidestep"},        {"+lookup", "look up"},         {"+lookdown", "look down"},  {"centerview", "center view"},
-	{"+mlook", "mouse look"},        {"+klook", "keyboard look"},    {"+zoom", "Quick zoom"},        {"+moveup", "swim up"},      {"+movedown", "swim down"},        
-	{"impulse 1", "Axe"},            {"impulse 2", "Shotgun"},       {"impulse 3", "Super Shotgun"}, {"impulse 4", "Nailgun"},    {"impulse 5", "Super Nailgun"},
-	{"impulse 6", "Grenade Lnchr."}, {"impulse 7", "Rocket Lnchr."}, {"impulse 8", "Thunderbolt"},
+	{"+attack", "attack"},          {"impulse 10", "next weapon"},   {"impulse 12", "prev weapon"},
+	{"+jump", "jump / swim up"},    {"+forward", "walk forward"},    {"+back", "backpedal"},
+	{"+left", "turn left"},         {"+right", "turn right"},        {"+speed", "run"},
+	{"+moveleft", "step left"},     {"+moveright", "step right"},    {"+strafe", "sidestep"},
+	{"+lookup", "look up"},         {"+lookdown", "look down"},      {"centerview", "center view"},
+	{"+mlook", "mouse look"},       {"+klook", "keyboard look"},     {"+zoom", "Quick zoom"},
+	{"+moveup", "swim up"},         {"+movedown", "swim down"},      {"impulse 1", "Axe"},
+	{"impulse 2", "Shotgun"},       {"impulse 3", "Super Shotgun"},  {"impulse 4", "Nailgun"},
+	{"impulse 5", "Super Nailgun"}, {"impulse 6", "Grenade Lnchr."}, {"impulse 7", "Rocket Lnchr."},
+	{"impulse 8", "Thunderbolt"},
 };
 
 #define NUMCOMMANDS (sizeof (bindnames) / sizeof (bindnames[0]))
 
 static int      keys_cursor;
+static int      prev_keys_cursor;
 static qboolean bind_grab;
 
 void M_Menu_Keys_f (void)
@@ -1444,18 +1513,14 @@ extern qpic_t *pic_up, *pic_down;
 
 #define BINDS_PER_PAGE 19
 
+static int  first_key;
+
 void M_Keys_Draw (cb_context_t *cbx)
 {
 	int         i, x, y;
 	int         keys[3];
 	const char *name;
 	qpic_t     *p;
-	static int  pos;
-
-	if (keys_cursor < pos)
-		pos = keys_cursor;
-	else if (keys_cursor >= pos + BINDS_PER_PAGE)
-		pos = keys_cursor - BINDS_PER_PAGE + 1;
 
 	p = Draw_CachePic ("gfx/ttl_cstm.lmp");
 	M_DrawPic (cbx, (320 - p->width) / 2, 4, p);
@@ -1470,9 +1535,9 @@ void M_Keys_Draw (cb_context_t *cbx)
 	{
 		y = 48 + 8 * i;
 
-		M_Print (cbx, 16, y, bindnames[i + pos][1]);
+		M_Print (cbx, 16, y, bindnames[i + first_key][1]);
 
-		M_FindKeysForCommand (bindnames[i + pos][0], keys);
+		M_FindKeysForCommand (bindnames[i + first_key][0], keys);
 
 		if (keys[0] == -1)
 		{
@@ -1499,12 +1564,12 @@ void M_Keys_Draw (cb_context_t *cbx)
 	}
 
 	if (NUMCOMMANDS > BINDS_PER_PAGE)
-		M_DrawScrollbar (cbx, 0, 56, (float)(pos) / (NUMCOMMANDS - BINDS_PER_PAGE), BINDS_PER_PAGE - 2);
+		M_DrawScrollbar (cbx, 0, 56, (float)(first_key) / (NUMCOMMANDS - BINDS_PER_PAGE), BINDS_PER_PAGE - 2);
 
 	if (bind_grab)
-		M_DrawCharacter (cbx, 130, 48 + (keys_cursor - pos) * 8, '=');
+		M_DrawCharacter (cbx, 130, 48 + (keys_cursor - first_key) * 8, '=');
 	else
-		M_DrawCharacter (cbx, 130, 48 + (keys_cursor - pos) * 8, 12 + ((int)(realtime * 4) & 1));
+		M_DrawCharacter (cbx, 130, 48 + (keys_cursor - first_key) * 8, 12 + ((int)(realtime * 4) & 1));
 }
 
 void M_Keys_Key (int k)
@@ -1533,22 +1598,6 @@ void M_Keys_Key (int k)
 		M_Menu_Options_f ();
 		break;
 
-	case K_LEFTARROW:
-	case K_UPARROW:
-		S_LocalSound ("misc/menu1.wav");
-		keys_cursor--;
-		if (keys_cursor < 0)
-			keys_cursor = NUMCOMMANDS - 1;
-		break;
-
-	case K_DOWNARROW:
-	case K_RIGHTARROW:
-		S_LocalSound ("misc/menu1.wav");
-		keys_cursor++;
-		if (keys_cursor >= (int)NUMCOMMANDS)
-			keys_cursor = 0;
-		break;
-
 	case K_ENTER: // go into bind mode
 	case K_KP_ENTER:
 	case K_ABUTTON:
@@ -1566,6 +1615,8 @@ void M_Keys_Key (int k)
 		M_UnbindCommand (bindnames[keys_cursor][0]);
 		break;
 	}
+
+	M_HandleScrollBarKeys(k, &keys_cursor, &first_key, (int)NUMCOMMANDS, BINDS_PER_PAGE);
 }
 
 //=============================================================================
@@ -1676,7 +1727,6 @@ void M_Mods_Draw (cb_context_t *cbx)
 
 void M_Mods_Key (int key)
 {
-	int prev_mods_cursor = mods_cursor;
 	int mod_index = 0;
 
 	switch (key)
@@ -1699,51 +1749,9 @@ void M_Mods_Key (int key)
 				m_state = m_main;
 			}
 		break;
-
-	case K_HOME:
-		mods_cursor = 0;
-		first_mod = 0;
-		break;
-
-	case K_END:
-		mods_cursor = num_mods - 1;
-		first_mod = num_mods - MAX_MODS_ON_SCREEN;
-		break;
-
-	case K_PGUP:
-		mods_cursor -= MAX_MODS_ON_SCREEN;
-		first_mod = q_max (0, first_mod - MAX_MODS_ON_SCREEN);
-		break;
-
-	case K_PGDN:
-		mods_cursor += MAX_MODS_ON_SCREEN;
-		first_mod = q_min (first_mod + MAX_MODS_ON_SCREEN, num_mods - 1 - MAX_MODS_ON_SCREEN);
-		break;
-
-	case K_UPARROW:
-		--mods_cursor;
-		break;
-
-	case K_DOWNARROW:
-		++mods_cursor;
-		break;
 	}
 
-	if (num_mods == 0)
-		mods_cursor = 0;
-	else
-		mods_cursor = CLAMP (0, mods_cursor, num_mods - 1);
-
-	if (mods_cursor != prev_mods_cursor)
-	{
-		S_LocalSound ("misc/menu1.wav");
-		prev_mods_cursor = mods_cursor;
-	}
-
-	if (num_mods <= MAX_MODS_ON_SCREEN)
-		first_mod = 0;
-	else
-		first_mod = CLAMP (mods_cursor - MAX_MODS_ON_SCREEN + 1, first_mod, mods_cursor);
+	M_HandleScrollBarKeys(key, &mods_cursor, &first_mod, num_mods, MAX_MODS_ON_SCREEN);
 }
 
 //=============================================================================
