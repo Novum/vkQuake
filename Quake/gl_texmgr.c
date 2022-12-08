@@ -55,9 +55,9 @@ extern cvar_t vid_filter;
 extern cvar_t vid_anisotropic;
 
 #define MAX_MIPS 16
-static int          numgltextures;
+static int			numgltextures;
 static gltexture_t *active_gltextures, *free_gltextures;
-gltexture_t        *notexture, *nulltexture, *whitetexture, *greytexture, *greylightmap, *bluenoisetexture;
+gltexture_t		   *notexture, *nulltexture, *whitetexture, *greytexture, *greylightmap, *bluenoisetexture;
 
 unsigned int d_8to24table[256];
 unsigned int d_8to24table_fbright[256];
@@ -72,7 +72,7 @@ unsigned int d_8to24table_pants[256];
 #define TEXTURE_HEAP_SIZE_MB 32
 
 static glheap_t **texmgr_heaps;
-static int        num_texmgr_heaps;
+static int		  num_texmgr_heaps;
 
 SDL_mutex *texmgr_mutex;
 
@@ -240,7 +240,7 @@ static byte bluenoise_data[4096] = {
 /*
 ================================================================================
 
-    COMMANDS
+	COMMANDS
 
 ================================================================================
 */
@@ -301,8 +301,8 @@ TexMgr_Imagelist_f -- report loaded textures
 */
 static void TexMgr_Imagelist_f (void)
 {
-	float        mb;
-	float        texels = 0;
+	float		 mb;
+	float		 texels = 0;
 	gltexture_t *glt;
 
 	for (glt = active_gltextures; glt; glt = glt->next)
@@ -327,7 +327,7 @@ static void TexMgr_Imagelist_f (void)
 /*
 ================================================================================
 
-    TEXTURE MANAGER
+	TEXTURE MANAGER
 
 ================================================================================
 */
@@ -482,7 +482,7 @@ void TexMgr_DeleteTextureObjects (void)
 /*
 ================================================================================
 
-    INIT
+	INIT
 
 ================================================================================
 */
@@ -495,7 +495,7 @@ TexMgr_LoadPalette -- johnfitz -- was VID_SetPalette, moved here, renamed, rewri
 void TexMgr_LoadPalette (void)
 {
 	byte *src, *dst;
-	int   i;
+	int	  i;
 	FILE *f;
 
 	COM_FOpenFile ("gfx/palette.lmp", &f, NULL);
@@ -586,11 +586,11 @@ must be called before any texture loading
 */
 void TexMgr_Init (void)
 {
-	int               i;
-	static byte       notexture_data[16] = {159, 91, 83, 255, 0, 0, 0, 255, 0, 0, 0, 255, 159, 91, 83, 255};                    // black and pink checker
-	static byte       nulltexture_data[16] = {127, 191, 255, 255, 0, 0, 0, 255, 0, 0, 0, 255, 127, 191, 255, 255};              // black and blue checker
-	static byte       whitetexture_data[16] = {255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255}; // white
-	static byte       greytexture_data[16] = {127, 127, 127, 255, 127, 127, 127, 255, 127, 127, 127, 255, 127, 127, 127, 255};  // 50% grey
+	int				  i;
+	static byte		  notexture_data[16] = {159, 91, 83, 255, 0, 0, 0, 255, 0, 0, 0, 255, 159, 91, 83, 255};					// black and pink checker
+	static byte		  nulltexture_data[16] = {127, 191, 255, 255, 0, 0, 0, 255, 0, 0, 0, 255, 127, 191, 255, 255};				// black and blue checker
+	static byte		  whitetexture_data[16] = {255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255}; // white
+	static byte		  greytexture_data[16] = {127, 127, 127, 255, 127, 127, 127, 255, 127, 127, 127, 255, 127, 127, 127, 255};	// 50% grey
 	extern texture_t *r_notexture_mip, *r_notexture_mip2;
 
 	texmgr_mutex = SDL_CreateMutex ();
@@ -638,7 +638,7 @@ void TexMgr_Init (void)
 /*
 ================================================================================
 
-    IMAGE LOADING
+	IMAGE LOADING
 
 ================================================================================
 */
@@ -674,7 +674,7 @@ operates in place on 32bit data
 */
 static void TexMgr_AlphaEdgeFix (byte *data, int width, int height)
 {
-	int   i, j, n = 0, b, c[3] = {0, 0, 0}, lastrow, thisrow, nextrow, lastpix, thispix, nextpix;
+	int	  i, j, n = 0, b, c[3] = {0, 0, 0}, lastrow, thisrow, nextrow, lastpix, thispix, nextpix;
 	byte *dest = data;
 
 	for (i = 0; i < height; i++)
@@ -914,7 +914,7 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	if (warp_image)
 		image_create_info.usage =
 			(VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT |
-		     VK_IMAGE_USAGE_STORAGE_BIT);
+			 VK_IMAGE_USAGE_STORAGE_BIT);
 	else if (lightmap)
 		image_create_info.usage = (VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT);
 	else
@@ -933,7 +933,7 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	VkMemoryRequirements memory_requirements;
 	vkGetImageMemoryRequirements (vulkan_globals.device, glt->image, &memory_requirements);
 
-	uint32_t     memory_type_index = GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
+	uint32_t	 memory_type_index = GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
 	VkDeviceSize heap_size = q_max (TEXTURE_HEAP_SIZE_MB * (VkDeviceSize)1024 * (VkDeviceSize)1024, memory_requirements.size);
 	VkDeviceSize aligned_offset = GL_AllocateFromHeaps (
 		&num_texmgr_heaps, &texmgr_heaps, heap_size, memory_type_index, VULKAN_MEMORY_TYPE_DEVICE, memory_requirements.size, memory_requirements.alignment,
@@ -1044,9 +1044,9 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	if (is_cube)
 		staging_size *= 6;
 
-	VkBuffer        staging_buffer;
+	VkBuffer		staging_buffer;
 	VkCommandBuffer command_buffer;
-	int             staging_offset;
+	int				staging_offset;
 	unsigned char  *staging_memory = R_StagingAllocate (staging_size, 4, &command_buffer, &staging_buffer, &staging_offset);
 
 	int num_regions = 0;
@@ -1175,7 +1175,7 @@ static void TexMgr_LoadImage8 (gltexture_t *glt, byte *data)
 
 	extern cvar_t gl_fullbrights;
 	unsigned int *usepal;
-	int           i;
+	int			  i;
 
 	// HACK HACK HACK -- taken from tomazquake
 	if (strstr (glt->name, "shot1sid") && glt->width == 32 && glt->height == 32 && CRC_Block (data, 1024) == 65393)
@@ -1255,7 +1255,7 @@ gltexture_t *TexMgr_LoadImage (
 	unsigned flags)
 {
 	unsigned short crc = 0;
-	gltexture_t   *glt;
+	gltexture_t	  *glt;
 
 	if (isDedicated)
 		return NULL;
@@ -1321,7 +1321,7 @@ gltexture_t *TexMgr_LoadImage (
 /*
 ================================================================================
 
-    COLORMAPPING AND TEXTURE RELOADING
+	COLORMAPPING AND TEXTURE RELOADING
 
 ================================================================================
 */
@@ -1335,7 +1335,7 @@ void TexMgr_ReloadImage (gltexture_t *glt, int shirt, int pants)
 {
 	byte  translation[256];
 	byte *src, *dst, *data = NULL, *allocated = NULL, *translated = NULL;
-	int   size, i;
+	int	  size, i;
 	//
 	// get source data
 	//
@@ -1474,25 +1474,25 @@ void TexMgr_ReloadNobrightImages (void)
 /*
 ================================================================================
 
-    TEXTURE BINDING / TEXTURE UNIT SWITCHING
+	TEXTURE BINDING / TEXTURE UNIT SWITCHING
 
 ================================================================================
 */
 
 typedef struct
 {
-	VkImage         image;
-	VkImageView     target_image_view;
-	VkImageView     image_view;
-	VkFramebuffer   frame_buffer;
+	VkImage			image;
+	VkImageView		target_image_view;
+	VkImageView		image_view;
+	VkFramebuffer	frame_buffer;
 	VkDescriptorSet descriptor_set;
 	VkDescriptorSet storage_descriptor_set;
-	glheap_t       *heap;
+	glheap_t	   *heap;
 	glheapnode_t   *heap_node;
 } texture_garbage_t;
 
-static int               current_garbage_index;
-static int               num_garbage_textures[2];
+static int				 current_garbage_index;
+static int				 num_garbage_textures[2];
 static texture_garbage_t texture_garbage[MAX_GLTEXTURES][2];
 
 /*
@@ -1504,8 +1504,8 @@ void TexMgr_CollectGarbage (void)
 {
 	SDL_LockMutex (texmgr_mutex);
 
-	int                num;
-	int                i;
+	int				   num;
+	int				   i;
 	texture_garbage_t *garbage;
 
 	current_garbage_index = (current_garbage_index + 1) % 2;
@@ -1539,7 +1539,7 @@ static void GL_DeleteTexture (gltexture_t *texture)
 {
 	SDL_LockMutex (texmgr_mutex);
 
-	int                garbage_index;
+	int				   garbage_index;
 	texture_garbage_t *garbage;
 
 	if (texture->image_view == VK_NULL_HANDLE)

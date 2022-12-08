@@ -44,20 +44,20 @@ static mad_timer_t const mad_timer_zero_stub = {0, 0};
 /* MAD returns values with MAD_F_FRACBITS (28) bits of precision, though it's
    not certain that all of them are meaningful. Default to 16 bits to
    align with most users expectation of output file should be 16 bits. */
-#define MP3_MAD_SAMPLEBITS  16
+#define MP3_MAD_SAMPLEBITS	16
 #define MP3_MAD_SAMPLEWIDTH 2
-#define MP3_BUFFER_SIZE     (5 * 8192)
+#define MP3_BUFFER_SIZE		(5 * 8192)
 
 /* Private data */
 typedef struct _mp3_priv_t
 {
-	unsigned char     mp3_buffer[MP3_BUFFER_SIZE];
+	unsigned char	  mp3_buffer[MP3_BUFFER_SIZE];
 	struct mad_stream Stream;
 	struct mad_frame  Frame;
 	struct mad_synth  Synth;
-	mad_timer_t       Timer;
-	ptrdiff_t         cursamp;
-	size_t            FrameCount;
+	mad_timer_t		  Timer;
+	ptrdiff_t		  cursamp;
+	size_t			  FrameCount;
 } mp3_priv_t;
 
 /* (Re)fill the stream buffer that is to be decoded.  If any data
@@ -66,8 +66,8 @@ typedef struct _mp3_priv_t
 static int mp3_inputdata (snd_stream_t *stream)
 {
 	mp3_priv_t *p = (mp3_priv_t *)stream->priv;
-	size_t      bytes_read;
-	size_t      remaining;
+	size_t		bytes_read;
+	size_t		remaining;
 
 	remaining = p->Stream.bufend - p->Stream.next_frame;
 
@@ -96,7 +96,7 @@ static int mp3_inputdata (snd_stream_t *stream)
 static int mp3_startread (snd_stream_t *stream)
 {
 	mp3_priv_t *p = (mp3_priv_t *)stream->priv;
-	size_t      ReadSize;
+	size_t		ReadSize;
 
 	mad_stream_init (&p->Stream);
 	mad_frame_init (&p->Frame);
@@ -174,9 +174,9 @@ static int mp3_startread (snd_stream_t *stream)
 static int mp3_decode (snd_stream_t *stream, byte *buf, int len)
 {
 	mp3_priv_t *p = (mp3_priv_t *)stream->priv;
-	int         donow, i, done = 0;
+	int			donow, i, done = 0;
 	mad_fixed_t sample;
-	int         chan, x;
+	int			chan, x;
 
 	do
 	{
@@ -263,11 +263,11 @@ static int mp3_stopread (snd_stream_t *stream)
 
 static int mp3_madseek (snd_stream_t *stream, unsigned long offset)
 {
-	mp3_priv_t   *p = (mp3_priv_t *)stream->priv;
-	size_t        initial_bitrate = p->Frame.header.bitrate;
-	size_t        consumed = 0;
-	int           vbr = 0; /* Variable Bit Rate, bool */
-	qboolean      depadded = false;
+	mp3_priv_t	 *p = (mp3_priv_t *)stream->priv;
+	size_t		  initial_bitrate = p->Frame.header.bitrate;
+	size_t		  consumed = 0;
+	int			  vbr = 0; /* Variable Bit Rate, bool */
+	qboolean	  depadded = false;
 	unsigned long to_skip_samples = 0;
 
 	/* Reset all */
@@ -289,7 +289,7 @@ static int mp3_madseek (snd_stream_t *stream, unsigned long offset)
 
 	while (1) /* Read data from the MP3 file */
 	{
-		int    bytes_read, padding = 0;
+		int	   bytes_read, padding = 0;
 		size_t leftover = p->Stream.bufend - p->Stream.next_frame;
 
 		memcpy (p->mp3_buffer, p->Stream.this_frame, leftover);

@@ -23,9 +23,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 
-int      num_temp_entities;
+int		 num_temp_entities;
 entity_t cl_temp_entities[MAX_TEMP_ENTITIES];
-beam_t   cl_beams[MAX_BEAMS];
+beam_t	 cl_beams[MAX_BEAMS];
 
 static sfx_t *cl_sfx_wizhit;
 static sfx_t *cl_sfx_knighthit;
@@ -59,7 +59,7 @@ CL_ParseBeam
 void CL_UpdateBeam (qmodel_t *m, const char *trailname, const char *impactname, int ent, float *start, float *end)
 {
 	beam_t *b;
-	int     i;
+	int		i;
 
 #ifdef PSET_SCRIPT
 	{
@@ -109,7 +109,7 @@ void CL_UpdateBeam (qmodel_t *m, const char *trailname, const char *impactname, 
 
 static void CL_ParseBeam (qmodel_t *m, const char *trailname, const char *impactname)
 {
-	int    ent;
+	int	   ent;
 	vec3_t start, end;
 
 	ent = MSG_ReadEntity (cl.protocol_pext2);
@@ -132,11 +132,11 @@ CL_ParseTEnt
 */
 void CL_ParseTEnt (void)
 {
-	int       type;
-	vec3_t    pos;
+	int		  type;
+	vec3_t	  pos;
 	dlight_t *dl;
-	int       rnd;
-	int       colorStart, colorLength;
+	int		  rnd;
+	int		  colorStart, colorLength;
 
 	type = MSG_ReadByte ();
 	switch (type)
@@ -286,7 +286,7 @@ void CL_ParseTEnt (void)
 	case TEDP_PARTICLESNOW:
 	{
 		vec3_t dir, pos2;
-		int    cnt, colour;
+		int	   cnt, colour;
 
 		// min
 		pos[0] = MSG_ReadCoord (cl.protocolflags);
@@ -304,7 +304,7 @@ void CL_ParseTEnt (void)
 		dir[2] = MSG_ReadCoord (cl.protocolflags);
 
 		cnt = (unsigned short)MSG_ReadShort (); // count
-		colour = MSG_ReadByte ();               // colour
+		colour = MSG_ReadByte ();				// colour
 
 		PScript_RunParticleWeather (pos, pos2, dir, cnt, colour, ((type == TEDP_PARTICLESNOW) ? "snow" : "rain"));
 	}
@@ -345,13 +345,13 @@ CL_UpdateTEnts
 */
 void CL_UpdateTEnts (void)
 {
-	int       i, j; // johnfitz -- use j instead of using i twice, so we don't corrupt memory
-	beam_t   *b;
-	vec3_t    dist, org;
-	float     d;
+	int		  i, j; // johnfitz -- use j instead of using i twice, so we don't corrupt memory
+	beam_t	 *b;
+	vec3_t	  dist, org;
+	float	  d;
 	entity_t *ent;
-	float     yaw, pitch;
-	float     forward;
+	float	  yaw, pitch;
+	float	  forward;
 
 	num_temp_entities = 0;
 

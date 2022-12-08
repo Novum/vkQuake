@@ -37,10 +37,10 @@ m*_t structures are in-memory
 
 // entity effects
 
-#define EF_BRIGHTFIELD     1
-#define EF_MUZZLEFLASH     2
-#define EF_BRIGHTLIGHT     4
-#define EF_DIMLIGHT        8
+#define EF_BRIGHTFIELD	   1
+#define EF_MUZZLEFLASH	   2
+#define EF_BRIGHTLIGHT	   4
+#define EF_DIMLIGHT		   8
 #define EF_QEX_QUADLIGHT   16 // 2021 rerelease
 #define EF_QEX_PENTALIGHT  32 // 2021 rerelease
 #define EF_QEX_CANDLELIGHT 64 // 2021 rerelease
@@ -64,7 +64,7 @@ typedef struct
 
 #define SIDE_FRONT 0
 #define SIDE_BACK  1
-#define SIDE_ON    2
+#define SIDE_ON	   2
 
 // plane_t structure
 // !!! if this is changed, it must be changed in asm_i386.h too !!!
@@ -72,7 +72,7 @@ typedef struct mplane_s
 {
 	vec3_t normal;
 	float  dist;
-	byte   type;     // for texture axis selection and fast side tests
+	byte   type;	 // for texture axis selection and fast side tests
 	byte   signbits; // signx + signy<<1 + signz<<1
 	byte   pad[2];
 } mplane_t;
@@ -96,36 +96,36 @@ typedef uintptr_t src_offset_t;
 
 typedef struct texture_s
 {
-	char                name[16];
-	unsigned            width, height;
-	unsigned            shift;                    // Q64
-	src_offset_t        source_offset;            // offset from start of BSP file for BSP textures
-	struct gltexture_s *gltexture;                // johnfitz -- pointer to gltexture
-	struct gltexture_s *fullbright;               // johnfitz -- fullbright mask texture
-	struct gltexture_s *warpimage;                // johnfitz -- for water animation
-	atomic_uint32_t     update_warp;              // johnfitz -- update warp this frame
+	char				name[16];
+	unsigned			width, height;
+	unsigned			shift;					  // Q64
+	src_offset_t		source_offset;			  // offset from start of BSP file for BSP textures
+	struct gltexture_s *gltexture;				  // johnfitz -- pointer to gltexture
+	struct gltexture_s *fullbright;				  // johnfitz -- fullbright mask texture
+	struct gltexture_s *warpimage;				  // johnfitz -- for water animation
+	atomic_uint32_t		update_warp;			  // johnfitz -- update warp this frame
 	struct msurface_s  *texturechains[chain_num]; // for texture chains
-	uint32_t            chain_size[chain_num];    // for texture chains
-	int                 anim_total;               // total tenths in sequence ( 0 = no)
-	int                 anim_min, anim_max;       // time for this frame min <=time< max
-	struct texture_s   *anim_next;                // in the animation sequence
-	struct texture_s   *alternate_anims;          // bmodels in frmae 1 use these
-	unsigned            offsets[MIPLEVELS];       // four mip maps stored
+	uint32_t			chain_size[chain_num];	  // for texture chains
+	int					anim_total;				  // total tenths in sequence ( 0 = no)
+	int					anim_min, anim_max;		  // time for this frame min <=time< max
+	struct texture_s   *anim_next;				  // in the animation sequence
+	struct texture_s   *alternate_anims;		  // bmodels in frmae 1 use these
+	unsigned			offsets[MIPLEVELS];		  // four mip maps stored
 } texture_t;
 
-#define SURF_PLANEBACK      2
-#define SURF_DRAWSKY        4
-#define SURF_DRAWSPRITE     8
-#define SURF_DRAWTURB       0x10
-#define SURF_DRAWTILED      0x20
+#define SURF_PLANEBACK		2
+#define SURF_DRAWSKY		4
+#define SURF_DRAWSPRITE		8
+#define SURF_DRAWTURB		0x10
+#define SURF_DRAWTILED		0x20
 #define SURF_DRAWBACKGROUND 0x40
-#define SURF_UNDERWATER     0x80
-#define SURF_NOTEXTURE      0x100 // johnfitz
-#define SURF_DRAWFENCE      0x200
-#define SURF_DRAWLAVA       0x400
-#define SURF_DRAWSLIME      0x800
-#define SURF_DRAWTELE       0x1000
-#define SURF_DRAWWATER      0x2000
+#define SURF_UNDERWATER		0x80
+#define SURF_NOTEXTURE		0x100 // johnfitz
+#define SURF_DRAWFENCE		0x200
+#define SURF_DRAWLAVA		0x400
+#define SURF_DRAWSLIME		0x800
+#define SURF_DRAWTELE		0x1000
+#define SURF_DRAWWATER		0x2000
 
 // !!! if this is changed, it must be changed in asm_draw.h too !!!
 typedef struct
@@ -136,9 +136,9 @@ typedef struct
 
 typedef struct
 {
-	float      vecs[2][4];
+	float	   vecs[2][4];
 	texture_t *texture;
-	int        flags;
+	int		   flags;
 } mtexinfo_t;
 
 #define VERTEXSIZE 7
@@ -146,8 +146,8 @@ typedef struct
 typedef struct glpoly_s
 {
 	struct glpoly_s *next;
-	int              numverts;
-	float            verts[4][VERTEXSIZE]; // variable sized (xyz s1t1 s2t2)
+	int				 numverts;
+	float			 verts[4][VERTEXSIZE]; // variable sized (xyz s1t1 s2t2)
 } glpoly_t;
 
 typedef struct msurface_s
@@ -155,7 +155,7 @@ typedef struct msurface_s
 	int visframe; // should be drawn when node is crossed
 
 	mplane_t *plane;
-	int       flags;
+	int		  flags;
 
 	int firstedge; // look up in model->surfedges[], negative numbers
 	int numedges;  // are backwards edges
@@ -165,52 +165,52 @@ typedef struct msurface_s
 
 	int light_s, light_t; // gl lightmap coordinates
 
-	glpoly_t          *polys; // multiple if warped
+	glpoly_t		  *polys; // multiple if warped
 	struct msurface_s *texturechains[chain_num];
 
 	mtexinfo_t *texinfo;
-	int         indirect_idx;
+	int			indirect_idx;
 
 	int vbo_firstvert; // index of this surface's first vert in the VBO
 
 	// lighting info
-	int          dlightframe;
+	int			 dlightframe;
 	unsigned int dlightbits[(MAX_DLIGHTS + 31) >> 5];
 	// int is 32 bits, need an array for MAX_DLIGHTS > 32
 
-	int      lightmaptexturenum;
-	byte     styles[MAXLIGHTMAPS];
-	uint32_t styles_bitmap;              // bitmap of styles used (16..64 OR-folded into bits 16..31)
-	int      cached_light[MAXLIGHTMAPS]; // values currently used in lightmap
-	qboolean cached_dlight;              // true if dynamic light in cache
-	byte    *samples;                    // [numstyles*surfsize]
+	int		 lightmaptexturenum;
+	byte	 styles[MAXLIGHTMAPS];
+	uint32_t styles_bitmap;				 // bitmap of styles used (16..64 OR-folded into bits 16..31)
+	int		 cached_light[MAXLIGHTMAPS]; // values currently used in lightmap
+	qboolean cached_dlight;				 // true if dynamic light in cache
+	byte	*samples;					 // [numstyles*surfsize]
 } msurface_t;
 
 typedef struct mnode_s
 {
 	// common with leaf
-	int   contents;   // 0, to differentiate from leafs
+	int	  contents;	  // 0, to differentiate from leafs
 	float minmaxs[6]; // for bounding box culling
 
 	// node specific
-	unsigned int    firstsurface;
-	unsigned int    numsurfaces;
-	mplane_t       *plane;
+	unsigned int	firstsurface;
+	unsigned int	numsurfaces;
+	mplane_t	   *plane;
 	struct mnode_s *children[2];
 } mnode_t;
 
 typedef struct mleaf_s
 {
 	// common with node
-	int   contents;   // wil be a negative contents number
+	int	  contents;	  // wil be a negative contents number
 	float minmaxs[6]; // for bounding box culling
 
 	// leaf specific
-	int      nummarksurfaces;
-	int      combined_deps; // contains index into brush_deps_data[] with used warp and lightmap textures
-	byte     ambient_sound_level[NUM_AMBIENTS];
-	byte    *compressed_vis;
-	int     *firstmarksurface;
+	int		 nummarksurfaces;
+	int		 combined_deps; // contains index into brush_deps_data[] with used warp and lightmap textures
+	byte	 ambient_sound_level[NUM_AMBIENTS];
+	byte	*compressed_vis;
+	int		*firstmarksurface;
 	efrag_t *efrags;
 } mleaf_t;
 
@@ -226,15 +226,15 @@ typedef struct mclipnode_s
 typedef struct
 {
 	mclipnode_t *clipnodes; // johnfitz -- was dclipnode_t
-	mplane_t    *planes;
-	int          firstclipnode;
-	int          lastclipnode;
-	vec3_t       clip_mins;
-	vec3_t       clip_maxs;
+	mplane_t	*planes;
+	int			 firstclipnode;
+	int			 lastclipnode;
+	vec3_t		 clip_mins;
+	vec3_t		 clip_maxs;
 } hull_t;
 
 typedef float soa_aabb_t[2 * 3 * 8]; // 8 AABB's in SoA form
-typedef float soa_plane_t[4 * 8];    // 8 planes in SoA form
+typedef float soa_plane_t[4 * 8];	 // 8 planes in SoA form
 
 /*
 ==============================================================================
@@ -247,33 +247,33 @@ SPRITE MODELS
 // FIXME: shorten these?
 typedef struct mspriteframe_s
 {
-	int                 width, height;
-	float               up, down, left, right;
-	float               smax, tmax; // johnfitz -- image might be padded
+	int					width, height;
+	float				up, down, left, right;
+	float				smax, tmax; // johnfitz -- image might be padded
 	struct gltexture_s *gltexture;
 } mspriteframe_t;
 
 typedef struct
 {
-	int             numframes;
-	float          *intervals;
+	int				numframes;
+	float		   *intervals;
 	mspriteframe_t *frames[1];
 } mspritegroup_t;
 
 typedef struct
 {
 	spriteframetype_t type;
-	mspriteframe_t   *frameptr;
+	mspriteframe_t	 *frameptr;
 } mspriteframedesc_t;
 
 typedef struct
 {
-	int                type;
-	int                maxwidth;
-	int                maxheight;
-	int                numframes;
-	float              beamlength; // remove?
-	void              *cachespot;  // remove?
+	int				   type;
+	int				   maxwidth;
+	int				   maxheight;
+	int				   numframes;
+	float			   beamlength; // remove?
+	void			  *cachespot;  // remove?
 	mspriteframedesc_t frames[1];
 } msprite_t;
 
@@ -290,13 +290,13 @@ Alias models are position independent, so the cache manager can move them.
 // split out to keep vertex sizes down
 typedef struct aliasmesh_s
 {
-	float          st[2];
+	float		   st[2];
 	unsigned short vertindex;
 } aliasmesh_t;
 
 typedef struct meshxyz_s
 {
-	byte        xyz[4];
+	byte		xyz[4];
 	signed char normal[4];
 } meshxyz_t;
 
@@ -308,26 +308,26 @@ typedef struct meshst_s
 
 typedef struct
 {
-	int        firstpose;
-	int        numposes;
-	float      interval;
+	int		   firstpose;
+	int		   numposes;
+	float	   interval;
 	trivertx_t bboxmin;
 	trivertx_t bboxmax;
-	int        frame;
-	char       name[16];
+	int		   frame;
+	char	   name[16];
 } maliasframedesc_t;
 
 typedef struct
 {
 	trivertx_t bboxmin;
 	trivertx_t bboxmax;
-	int        frame;
+	int		   frame;
 } maliasgroupframedesc_t;
 
 typedef struct
 {
-	int                    numframes;
-	int                    intervals;
+	int					   numframes;
+	int					   intervals;
 	maliasgroupframedesc_t frames[1];
 } maliasgroup_t;
 
@@ -341,45 +341,45 @@ typedef struct mtriangle_s
 #define MAX_SKINS 32
 typedef struct
 {
-	int        ident;
-	int        version;
-	vec3_t     scale;
-	vec3_t     scale_origin;
-	float      boundingradius;
-	vec3_t     eyeposition;
-	int        numskins;
-	int        skinwidth;
-	int        skinheight;
-	int        numverts;
-	int        numtris;
-	int        numframes;
+	int		   ident;
+	int		   version;
+	vec3_t	   scale;
+	vec3_t	   scale_origin;
+	float	   boundingradius;
+	vec3_t	   eyeposition;
+	int		   numskins;
+	int		   skinwidth;
+	int		   skinheight;
+	int		   numverts;
+	int		   numtris;
+	int		   numframes;
 	synctype_t synctype;
-	int        flags;
-	float      size;
+	int		   flags;
+	float	   size;
 
 	// ericw -- used to populate vbo
-	int      numverts_vbo; // number of verts with unique x,y,z,s,t
-	intptr_t meshdesc;     // offset into extradata: numverts_vbo aliasmesh_t
-	int      numindexes;
+	int		 numverts_vbo; // number of verts with unique x,y,z,s,t
+	intptr_t meshdesc;	   // offset into extradata: numverts_vbo aliasmesh_t
+	int		 numindexes;
 	intptr_t indexes;  // offset into extradata: numindexes unsigned shorts
 	intptr_t vertexes; // offset into extradata: numposes*vertsperframe trivertx_t
 	// ericw --
 
-	int                 numposes;
-	int                 poseverts;
-	int                 posedata;                 // numposes*poseverts trivert_t
-	int                 commands;                 // gl command list with embedded s/t
+	int					numposes;
+	int					poseverts;
+	int					posedata;				  // numposes*poseverts trivert_t
+	int					commands;				  // gl command list with embedded s/t
 	struct gltexture_s *gltextures[MAX_SKINS][4]; // johnfitz
 	struct gltexture_s *fbtextures[MAX_SKINS][4]; // johnfitz
-	byte               *texels[MAX_SKINS];        // only for player skins
-	maliasframedesc_t   frames[1];                // variable sized
+	byte			   *texels[MAX_SKINS];		  // only for player skins
+	maliasframedesc_t	frames[1];				  // variable sized
 } aliashdr_t;
 
 #define MAXALIASVERTS  2000 // johnfitz -- was 1024
 #define MAXALIASFRAMES 1024 // spike -- was 256
 #define MAXALIASTRIS   4096 // ericw -- was 2048
 extern aliashdr_t *pheader;
-extern stvert_t    stverts[MAXALIASVERTS];
+extern stvert_t	   stverts[MAXALIASVERTS];
 extern mtriangle_t triangles[MAXALIASTRIS];
 extern trivertx_t *poseverts[MAXALIASFRAMES];
 
@@ -396,22 +396,22 @@ typedef enum
 	mod_alias
 } modtype_t;
 
-#define EF_ROCKET  1          // leave a trail
-#define EF_GRENADE 2          // leave a trail
-#define EF_GIB     4          // leave a trail
-#define EF_ROTATE  8          // rotate (bonus items)
-#define EF_TRACER  16         // green split trail
-#define EF_ZOMGIB  32         // small blood trail
-#define EF_TRACER2 64         // orange split trail + rotate
-#define EF_TRACER3 128        // purple trail
+#define EF_ROCKET  1		  // leave a trail
+#define EF_GRENADE 2		  // leave a trail
+#define EF_GIB	   4		  // leave a trail
+#define EF_ROTATE  8		  // rotate (bonus items)
+#define EF_TRACER  16		  // green split trail
+#define EF_ZOMGIB  32		  // small blood trail
+#define EF_TRACER2 64		  // orange split trail + rotate
+#define EF_TRACER3 128		  // purple trail
 #define MF_HOLEY   (1u << 14) // MarkV/QSS -- make index 255 transparent on mdl's
 
 // johnfitz -- extra flags for rendering
-#define MOD_NOLERP       256  // don't lerp when animating
-#define MOD_FBRIGHTHACK  1024 // when fullbrights are disabled, use a hack to render this model brighter
+#define MOD_NOLERP		 256  // don't lerp when animating
+#define MOD_FBRIGHTHACK	 1024 // when fullbrights are disabled, use a hack to render this model brighter
 // johnfitz
 // spike -- added this for particle stuff
-#define MOD_EMITREPLACE  2048 // particle effect completely replaces the model (for flames or whatever).
+#define MOD_EMITREPLACE	 2048 // particle effect completely replaces the model (for flames or whatever).
 #define MOD_EMITFORWARDS 4096 // particle effect is emitted forwards, rather than downwards. why down? good question.
 // spike
 
@@ -420,23 +420,23 @@ struct glheapnode_s;
 
 typedef struct qmodel_s
 {
-	char         name[MAX_QPATH];
+	char		 name[MAX_QPATH];
 	unsigned int path_id;  // path id of the game directory
-	                       // that this model came from
-	qboolean     needload; // bmodels and sprites don't cache normally
+						   // that this model came from
+	qboolean	 needload; // bmodels and sprites don't cache normally
 
 	modtype_t  type;
-	int        numframes;
+	int		   numframes;
 	synctype_t synctype;
 
 	int flags;
 
 #ifdef PSET_SCRIPT
-	int                   emiteffect;  // spike -- this effect is emitted per-frame by entities with this model
-	int                   traileffect; // spike -- this effect is used when entities move
-	struct skytris_s     *skytris;     // spike -- surface-based particle emission for this model
+	int					  emiteffect;  // spike -- this effect is emitted per-frame by entities with this model
+	int					  traileffect; // spike -- this effect is used when entities move
+	struct skytris_s	 *skytris;	   // spike -- surface-based particle emission for this model
 	struct skytriblock_s *skytrimem;   // spike -- surface-based particle emission for this model (for better cache performance+less allocs)
-	double                skytime;     // doesn't really cope with multiples. oh well...
+	double				  skytime;	   // doesn't really cope with multiples. oh well...
 #endif
 	//
 	// volume occupied by the model graphics
@@ -450,53 +450,53 @@ typedef struct qmodel_s
 	// solid volume for clipping
 	//
 	qboolean clipbox;
-	vec3_t   clipmins, clipmaxs;
+	vec3_t	 clipmins, clipmaxs;
 
 	//
 	// brush model
 	//
 	int firstmodelsurface, nummodelsurfaces;
 
-	int       numsubmodels;
+	int		  numsubmodels;
 	dmodel_t *submodels;
 
-	int       numplanes;
+	int		  numplanes;
 	mplane_t *planes;
 
-	int      numleafs; // number of visible leafs, not counting 0
+	int		 numleafs; // number of visible leafs, not counting 0
 	mleaf_t *leafs;
 
-	int        numvertexes;
+	int		   numvertexes;
 	mvertex_t *vertexes;
 
-	int      numedges;
+	int		 numedges;
 	medge_t *edges;
 
-	int      numnodes;
+	int		 numnodes;
 	mnode_t *nodes;
 
-	int         numtexinfo;
+	int			numtexinfo;
 	mtexinfo_t *texinfo;
 
-	int         numsurfaces;
+	int			numsurfaces;
 	msurface_t *surfaces;
 
-	int  numsurfedges;
+	int	 numsurfedges;
 	int *surfedges;
 
-	int          numclipnodes;
+	int			 numclipnodes;
 	mclipnode_t *clipnodes; // johnfitz -- was dclipnode_t
 
-	int  nummarksurfaces;
+	int	 nummarksurfaces;
 	int *marksurfaces;
 
-	soa_aabb_t  *soa_leafbounds;
-	byte        *surfvis;
+	soa_aabb_t	*soa_leafbounds;
+	byte		*surfvis;
 	soa_plane_t *soa_surfplanes;
 
 	hull_t hulls[MAX_MAP_HULLS];
 
-	int         numtextures;
+	int			numtextures;
 	texture_t **textures;
 
 	byte *visdata;
@@ -511,20 +511,20 @@ typedef struct qmodel_s
 	int combined_deps; // contains index into brush_deps_data[] with used warp and lightmap textures
 
 	int *water_surfs; // list of surface indices with SURF_DRAWTURB flag (worldmodel only)
-	int  used_water_surfs;
+	int	 used_water_surfs;
 
 	//
 	// alias model
 	//
-	VkBuffer             vertex_buffer;
-	struct glheap_s     *vertex_heap;
+	VkBuffer			 vertex_buffer;
+	struct glheap_s		*vertex_heap;
 	struct glheapnode_s *vertex_heap_node;
-	VkBuffer             index_buffer;
-	struct glheap_s     *index_heap;
+	VkBuffer			 index_buffer;
+	struct glheap_s		*index_heap;
 	struct glheapnode_s *index_heap_node;
-	int                  vboindexofs; // offset in vbo of the hdr->numindexes unsigned shorts
-	int                  vboxyzofs;   // offset in vbo of hdr->numposes*hdr->numverts_vbo meshxyz_t
-	int                  vbostofs;    // offset in vbo of hdr->numverts_vbo meshst_t
+	int					 vboindexofs; // offset in vbo of the hdr->numindexes unsigned shorts
+	int					 vboxyzofs;	  // offset in vbo of hdr->numposes*hdr->numverts_vbo meshxyz_t
+	int					 vbostofs;	  // offset in vbo of hdr->numverts_vbo meshst_t
 
 	//
 	// additional model data
@@ -535,16 +535,16 @@ typedef struct qmodel_s
 
 //============================================================================
 
-void      Mod_Init (void);
-void      Mod_ClearAll (void);
-void      Mod_ResetAll (void); // for gamedir changes (Host_Game_f)
+void	  Mod_Init (void);
+void	  Mod_ClearAll (void);
+void	  Mod_ResetAll (void); // for gamedir changes (Host_Game_f)
 qmodel_t *Mod_ForName (const char *name, qboolean crash);
-void     *Mod_Extradata (qmodel_t *mod); // handles caching
-void      Mod_TouchModel (const char *name);
+void	 *Mod_Extradata (qmodel_t *mod); // handles caching
+void	  Mod_TouchModel (const char *name);
 
 mleaf_t *Mod_PointInLeaf (float *p, qmodel_t *model);
-byte    *Mod_LeafPVS (mleaf_t *leaf, qmodel_t *model);
-byte    *Mod_NoVisPVS (qmodel_t *model);
+byte	*Mod_LeafPVS (mleaf_t *leaf, qmodel_t *model);
+byte	*Mod_NoVisPVS (qmodel_t *model);
 
 void Mod_SetExtraFlags (qmodel_t *mod);
 

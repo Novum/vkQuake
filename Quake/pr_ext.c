@@ -49,10 +49,10 @@ static float PR_GetVMScale (void)
 
 extern cvar_t sv_gameplayfix_setmodelrealbox, r_fteparticles;
 cvar_t pr_checkextension = {"pr_checkextension", "1", CVAR_NONE}; // spike - enables qc extensions. if 0 then they're ALL BLOCKED! MWAHAHAHA! *cough* *splutter*
-static int pr_ext_warned_particleeffectnum;                       // so these only spam once per map
+static int pr_ext_warned_particleeffectnum;						  // so these only spam once per map
 
 static void *PR_FindExtGlobal (int type, const char *name);
-void         SV_CheckVelocity (edict_t *ent);
+void		 SV_CheckVelocity (edict_t *ent);
 
 typedef enum multicast_e
 {
@@ -93,9 +93,9 @@ static int dehex (char c)
 struct markup_s
 {
 	const unsigned char *txt;
-	vec4_t               tint;   // predefined colour that applies to the entire string
-	vec4_t               colour; // colour for the specific glyph in question
-	unsigned char        mask;
+	vec4_t				 tint;	 // predefined colour that applies to the entire string
+	vec4_t				 colour; // colour for the specific glyph in question
+	unsigned char		 mask;
 };
 void PR_Markup_Begin (struct markup_s *mu, const char *text, float *rgb, float alpha)
 {
@@ -115,10 +115,10 @@ void PR_Markup_Begin (struct markup_s *mu, const char *text, float *rgb, float a
 int PR_Markup_Parse (struct markup_s *mu)
 {
 	static const vec4_t q3rgb[10] = {{0.00, 0.00, 0.00, 1.0}, {1.00, 0.33, 0.33, 1.0}, {0.00, 1.00, 0.33, 1.0}, {1.00, 1.00, 0.33, 1.0},
-	                                 {0.33, 0.33, 1.00, 1.0}, {0.33, 1.00, 1.00, 1.0}, {1.00, 0.33, 1.00, 1.0}, {1.00, 1.00, 1.00, 1.0},
-	                                 {1.00, 1.00, 1.00, 0.5}, {0.50, 0.50, 0.50, 1.0}};
-	unsigned int        c;
-	const float        *f;
+									 {0.33, 0.33, 1.00, 1.0}, {0.33, 1.00, 1.00, 1.0}, {1.00, 0.33, 1.00, 1.0}, {1.00, 1.00, 1.00, 1.0},
+									 {1.00, 1.00, 1.00, 0.5}, {0.50, 0.50, 0.50, 1.0}};
+	unsigned int		c;
+	const float		   *f;
 	while ((c = *mu->txt))
 	{
 		if (c == '^' && pr_checkextension.value)
@@ -178,8 +178,8 @@ int PR_Markup_Parse (struct markup_s *mu)
 			case '[':  // start fte's ^[text\key\value\key\value^] links
 			case ']':  // end link
 				break; // fixme... skip the keys, recolour properly, etc
-				       //				txt+=2;
-				       //				continue;
+					   //				txt+=2;
+					   //				continue;
 			case '&':
 				if ((ishex (mu->txt[2]) || mu->txt[2] == '-') && (ishex (mu->txt[3]) || mu->txt[3] == '-'))
 				{ // ignore fte's fore/back ansi colours
@@ -243,7 +243,7 @@ int PR_Markup_Parse (struct markup_s *mu)
 
 #define D(typestr, desc) typestr, desc
 
-//#define fixme
+// #define fixme
 
 // maths stuff
 static void PF_Sin (void)
@@ -310,7 +310,7 @@ static void PF_mod (void)
 static void PF_min (void)
 {
 	float r = G_FLOAT (OFS_PARM0);
-	int   i;
+	int	  i;
 	for (i = 1; i < qcvm->argc; i++)
 	{
 		if (r > G_FLOAT (OFS_PARM0 + i * 3))
@@ -321,7 +321,7 @@ static void PF_min (void)
 static void PF_max (void)
 {
 	float r = G_FLOAT (OFS_PARM0);
-	int   i;
+	int	  i;
 	for (i = 1; i < qcvm->argc; i++)
 	{
 		if (r < G_FLOAT (OFS_PARM0 + i * 3))
@@ -408,7 +408,7 @@ static void PF_strlen (void)
 }
 static void PF_strcat (void)
 {
-	int    i;
+	int	   i;
 	char  *out = PR_GetTempString ();
 	size_t s;
 
@@ -428,9 +428,9 @@ static void PF_strcat (void)
 }
 static void PF_substring (void)
 {
-	int         start, length, slen;
+	int			start, length, slen;
 	const char *s;
-	char       *string;
+	char	   *string;
 
 	s = G_STRING (OFS_PARM0);
 	start = G_FLOAT (OFS_PARM1);
@@ -474,12 +474,12 @@ static void PF_substring (void)
 /*our zoned strings implementation is somewhat specific to quakespasm, so good luck porting*/
 static void PF_strzone (void)
 {
-	char       *buf;
-	size_t      len = 0;
+	char	   *buf;
+	size_t		len = 0;
 	const char *s[8];
-	size_t      l[8];
-	int         i;
-	size_t      id;
+	size_t		l[8];
+	int			i;
+	size_t		id;
 
 	for (i = 0; i < qcvm->argc; i++)
 	{
@@ -511,7 +511,7 @@ static void PF_strzone (void)
 }
 static void PF_strunzone (void)
 {
-	size_t      id;
+	size_t		id;
 	const char *foo = G_STRING (OFS_PARM0);
 
 	if (!G_INT (OFS_PARM0))
@@ -534,7 +534,7 @@ static void PR_UnzoneAll (void)
 		if (qcvm->knownzone[id >> 3] & (1u << (id & 7)))
 		{
 			string_t s = -1 - (int)id;
-			char    *ptr = (char *)PR_GetString (s);
+			char	*ptr = (char *)PR_GetString (s);
 			PR_ClearEngineString (s);
 			Mem_Free (ptr);
 		}
@@ -553,7 +553,7 @@ static qboolean qc_isascii (unsigned int u)
 static void PF_str2chr (void)
 {
 	const char *instr = G_STRING (OFS_PARM0);
-	int         ofs = (qcvm->argc > 1) ? G_FLOAT (OFS_PARM1) : 0;
+	int			ofs = (qcvm->argc > 1) ? G_FLOAT (OFS_PARM1) : 0;
 
 	if (ofs < 0)
 		ofs = strlen (instr) + ofs;
@@ -566,7 +566,7 @@ static void PF_str2chr (void)
 static void PF_chr2str (void)
 {
 	char *ret = PR_GetTempString (), *out;
-	int   i;
+	int	  i;
 	for (i = 0, out = ret; out - ret < STRINGTEMP_LENGTH - 6 && i < qcvm->argc; i++)
 	{
 		unsigned int u = G_FLOAT (OFS_PARM0 + i * 3);
@@ -666,14 +666,14 @@ static int chrchar_alpha (int i, int basec, int baset, int convc, int convt, int
 // bulk convert a string. change case or colouring.
 static void PF_strconv (void)
 {
-	int                  ccase = G_FLOAT (OFS_PARM0);    // 0 same, 1 lower, 2 upper
-	int                  redalpha = G_FLOAT (OFS_PARM1); // 0 same, 1 white, 2 red,  5 alternate, 6 alternate-alternate
-	int                  rednum = G_FLOAT (OFS_PARM2);   // 0 same, 1 white, 2 red, 3 redspecial, 4 whitespecial, 5 alternate, 6 alternate-alternate
+	int					 ccase = G_FLOAT (OFS_PARM0);	 // 0 same, 1 lower, 2 upper
+	int					 redalpha = G_FLOAT (OFS_PARM1); // 0 same, 1 white, 2 red,  5 alternate, 6 alternate-alternate
+	int					 rednum = G_FLOAT (OFS_PARM2);	 // 0 same, 1 white, 2 red, 3 redspecial, 4 whitespecial, 5 alternate, 6 alternate-alternate
 	const unsigned char *string = (const unsigned char *)PF_VarString (3);
-	int                  len = strlen ((const char *)string);
-	int                  i;
-	unsigned char       *resbuf = (unsigned char *)PR_GetTempString ();
-	unsigned char       *result = resbuf;
+	int					 len = strlen ((const char *)string);
+	int					 i;
+	unsigned char		*resbuf = (unsigned char *)PR_GetTempString ();
+	unsigned char		*result = resbuf;
 
 	// UTF-8-FIXME: cope with utf+^U etc
 
@@ -713,9 +713,9 @@ static void PF_strconv (void)
 }
 static void PF_strpad (void)
 {
-	char       *destbuf = PR_GetTempString ();
-	char       *dest = destbuf;
-	int         pad = G_FLOAT (OFS_PARM0);
+	char	   *destbuf = PR_GetTempString ();
+	char	   *dest = destbuf;
+	int			pad = G_FLOAT (OFS_PARM0);
 	const char *src = PF_VarString (1);
 
 	// UTF-8-FIXME: pad is chars not bytes...
@@ -757,7 +757,7 @@ static void PF_infoadd (void)
 	const char *info = G_STRING (OFS_PARM0);
 	const char *key = G_STRING (OFS_PARM1);
 	const char *value = PF_VarString (2);
-	char       *destbuf = PR_GetTempString (), *o = destbuf, *e = destbuf + STRINGTEMP_LENGTH - 1;
+	char	   *destbuf = PR_GetTempString (), *o = destbuf, *e = destbuf + STRINGTEMP_LENGTH - 1;
 
 	size_t keylen = strlen (key);
 	size_t valuelen = strlen (value);
@@ -828,7 +828,7 @@ static void PF_infoget (void)
 {
 	const char *info = G_STRING (OFS_PARM0);
 	const char *key = G_STRING (OFS_PARM1);
-	size_t      keylen = strlen (key);
+	size_t		keylen = strlen (key);
 	while (*info)
 	{
 		if (*info++ != '\\')
@@ -907,7 +907,7 @@ static void PF_strstrofs (void)
 {
 	const char *instr = G_STRING (OFS_PARM0);
 	const char *match = G_STRING (OFS_PARM1);
-	int         firstofs = (qcvm->argc > 2) ? G_FLOAT (OFS_PARM2) : 0;
+	int			firstofs = (qcvm->argc > 2) ? G_FLOAT (OFS_PARM2) : 0;
 
 	if (firstofs && (firstofs < 0 || firstofs > (int)strlen (instr)))
 	{
@@ -925,8 +925,8 @@ static void PF_strtrim (void)
 {
 	const char *str = G_STRING (OFS_PARM0);
 	const char *end;
-	char       *news;
-	size_t      len;
+	char	   *news;
+	size_t		len;
 
 	// figure out the new start
 	while (*str == ' ' || *str == '\t' || *str == '\n' || *str == '\r')
@@ -950,13 +950,13 @@ static void PF_strtrim (void)
 }
 static void PF_strreplace (void)
 {
-	char       *resultbuf = PR_GetTempString ();
-	char       *result = resultbuf;
+	char	   *resultbuf = PR_GetTempString ();
+	char	   *result = resultbuf;
 	const char *search = G_STRING (OFS_PARM0);
 	const char *replace = G_STRING (OFS_PARM1);
 	const char *subject = G_STRING (OFS_PARM2);
-	int         searchlen = strlen (search);
-	int         replacelen = strlen (replace);
+	int			searchlen = strlen (search);
+	int			replacelen = strlen (replace);
 
 	if (searchlen)
 	{
@@ -979,13 +979,13 @@ static void PF_strreplace (void)
 }
 static void PF_strireplace (void)
 {
-	char       *resultbuf = PR_GetTempString ();
-	char       *result = resultbuf;
+	char	   *resultbuf = PR_GetTempString ();
+	char	   *result = resultbuf;
 	const char *search = G_STRING (OFS_PARM0);
 	const char *replace = G_STRING (OFS_PARM1);
 	const char *subject = G_STRING (OFS_PARM2);
-	int         searchlen = strlen (search);
-	int         replacelen = strlen (replace);
+	int			searchlen = strlen (search);
+	int			replacelen = strlen (replace);
 
 	if (searchlen)
 	{
@@ -1010,29 +1010,29 @@ static void PF_strireplace (void)
 
 static void PF_sprintf_internal (const char *s, int firstarg, char *outbuf, int outbuflen)
 {
-	const char  *s0;
-	char        *o = outbuf, *end = outbuf + outbuflen, *err;
-	int          width, precision, thisarg, flags;
-	char         formatbuf[16];
-	char        *f;
-	int          argpos = firstarg;
-	int          isfloat;
-	static int   dummyivec[3] = {0, 0, 0};
+	const char	*s0;
+	char		*o = outbuf, *end = outbuf + outbuflen, *err;
+	int			 width, precision, thisarg, flags;
+	char		 formatbuf[16];
+	char		*f;
+	int			 argpos = firstarg;
+	int			 isfloat;
+	static int	 dummyivec[3] = {0, 0, 0};
 	static float dummyvec[3] = {0, 0, 0};
 
-#define PRINTF_ALTERNATE     1
-#define PRINTF_ZEROPAD       2
-#define PRINTF_LEFT          4
+#define PRINTF_ALTERNATE	 1
+#define PRINTF_ZEROPAD		 2
+#define PRINTF_LEFT			 4
 #define PRINTF_SPACEPOSITIVE 8
-#define PRINTF_SIGNPOSITIVE  16
+#define PRINTF_SIGNPOSITIVE	 16
 
 	formatbuf[0] = '%';
 
-#define GETARG_FLOAT(a)     (((a) >= firstarg && (a) < qcvm->argc) ? (G_FLOAT (OFS_PARM0 + 3 * (a))) : 0)
-#define GETARG_VECTOR(a)    (((a) >= firstarg && (a) < qcvm->argc) ? (G_VECTOR (OFS_PARM0 + 3 * (a))) : dummyvec)
-#define GETARG_INT(a)       (((a) >= firstarg && (a) < qcvm->argc) ? (G_INT (OFS_PARM0 + 3 * (a))) : 0)
+#define GETARG_FLOAT(a)		(((a) >= firstarg && (a) < qcvm->argc) ? (G_FLOAT (OFS_PARM0 + 3 * (a))) : 0)
+#define GETARG_VECTOR(a)	(((a) >= firstarg && (a) < qcvm->argc) ? (G_VECTOR (OFS_PARM0 + 3 * (a))) : dummyvec)
+#define GETARG_INT(a)		(((a) >= firstarg && (a) < qcvm->argc) ? (G_INT (OFS_PARM0 + 3 * (a))) : 0)
 #define GETARG_INTVECTOR(a) (((a) >= firstarg && (a) < qcvm->argc) ? ((int *)G_VECTOR (OFS_PARM0 + 3 * (a))) : dummyivec)
-#define GETARG_STRING(a)    (((a) >= firstarg && (a) < qcvm->argc) ? (G_STRING (OFS_PARM0 + 3 * (a))) : "")
+#define GETARG_STRING(a)	(((a) >= firstarg && (a) < qcvm->argc) ? (G_STRING (OFS_PARM0 + 3 * (a))) : "")
 
 	for (;;)
 	{
@@ -1335,16 +1335,11 @@ static void PF_sprintf_internal (const char *s, int firstarg, char *outbuf, int 
 						o += strlen (o);
 					}
 					/*							else
-					                            {
-					                                unsigned int c = (isfloat ? (unsigned int) GETARG_FLOAT(thisarg) : (unsigned int) GETARG_INT(thisarg));
-					                                char charbuf16[16];
-					                                const char *buf = u8_encodech(c, NULL, charbuf16);
-					                                if(!buf)
-					                                    buf = "";
-					                                if(precision < 0) // not set
-					                                    precision = end - o - 1;
-					                                o += u8_strpad(o, end - o, buf, (flags & PRINTF_LEFT) != 0, width, precision);
-					                            }
+												{
+													unsigned int c = (isfloat ? (unsigned int) GETARG_FLOAT(thisarg) : (unsigned int)
+					   GETARG_INT(thisarg)); char charbuf16[16]; const char *buf = u8_encodech(c, NULL, charbuf16); if(!buf) buf = ""; if(precision < 0)
+					   // not set precision = end - o - 1; o += u8_strpad(o, end - o, buf, (flags & PRINTF_LEFT) != 0, width, precision);
+												}
 					*/
 					break;
 				case 'S':
@@ -1394,11 +1389,11 @@ case 's':
 		o += strlen (o);
 	}
 	/*							else
-					            {
-					                if(precision < 0) // not set
-					                    precision = end - o - 1;
-					                o += u8_strpad(o, end - o, GETARG_STRING(thisarg), (flags & PRINTF_LEFT) != 0, width, precision);
-					            }
+								{
+									if(precision < 0) // not set
+										precision = end - o - 1;
+									o += u8_strpad(o, end - o, GETARG_STRING(thisarg), (flags & PRINTF_LEFT) != 0, width, precision);
+								}
 	*/
 	break;
 default:
@@ -1411,7 +1406,7 @@ default:
 		default:
 		verbatim:
 			if (o < end - 1)
-				*o++ = *s;
+*o++ = *s;
 			s++;
 			break;
 		}
@@ -1431,7 +1426,7 @@ static void PF_sprintf (void)
 #define MAXQCTOKENS 64
 static struct
 {
-	char        *token;
+	char		*token;
 	unsigned int start;
 	unsigned int end;
 } qctoken[MAXQCTOKENS];
@@ -1502,11 +1497,11 @@ static void PF_tokenizebyseparator (void)
 {
 	const char *str = G_STRING (OFS_PARM0);
 	const char *sep[7];
-	int         seplen[7];
-	int         seps = 0, s;
+	int			seplen[7];
+	int			seps = 0, s;
 	const char *start = str;
-	int         tlen;
-	qboolean    found = true;
+	int			tlen;
+	qboolean	found = true;
 
 	while (seps < qcvm->argc - 1 && seps < 7)
 	{
@@ -1525,36 +1520,36 @@ static void PF_tokenizebyseparator (void)
 			/*see if its a separator*/
 			if (!*str)
 			{
-				qctoken[qctoken_count].end = str - start;
-				found = true;
+qctoken[qctoken_count].end = str - start;
+found = true;
 			}
 			else
 			{
-				for (s = 0; s < seps; s++)
-				{
-					if (!strncmp (str, sep[s], seplen[s]))
-					{
-						qctoken[qctoken_count].end = str - start;
-						str += seplen[s];
-						found = true;
-						break;
-					}
-				}
+for (s = 0; s < seps; s++)
+{
+	if (!strncmp (str, sep[s], seplen[s]))
+	{
+		qctoken[qctoken_count].end = str - start;
+		str += seplen[s];
+		found = true;
+		break;
+	}
+}
 			}
 			/*it was, split it out*/
 			if (found)
 			{
-				tlen = qctoken[qctoken_count].end - qctoken[qctoken_count].start;
-				qctoken[qctoken_count].token = Mem_Alloc (tlen + 1);
-				memcpy (qctoken[qctoken_count].token, start + qctoken[qctoken_count].start, tlen);
-				qctoken[qctoken_count].token[tlen] = 0;
+tlen = qctoken[qctoken_count].end - qctoken[qctoken_count].start;
+qctoken[qctoken_count].token = Mem_Alloc (tlen + 1);
+memcpy (qctoken[qctoken_count].token, start + qctoken[qctoken_count].start, tlen);
+qctoken[qctoken_count].token[tlen] = 0;
 
-				qctoken_count++;
+qctoken_count++;
 
-				if (*str && qctoken_count < MAXQCTOKENS)
-					qctoken[qctoken_count].start = str - start;
-				else
-					break;
+if (*str && qctoken_count < MAXQCTOKENS)
+	qctoken[qctoken_count].start = str - start;
+else
+	break;
 			}
 			str++;
 		}
@@ -1611,7 +1606,7 @@ static void PF_ArgV (void)
 static void PF_strtoupper (void)
 {
 	const char *in = G_STRING (OFS_PARM0);
-	char       *out, *result = PR_GetTempString ();
+	char	   *out, *result = PR_GetTempString ();
 	for (out = result; *in && out < result + STRINGTEMP_LENGTH - 1;)
 		*out++ = q_toupper (*in++);
 	*out = 0;
@@ -1620,7 +1615,7 @@ static void PF_strtoupper (void)
 static void PF_strtolower (void)
 {
 	const char *in = G_STRING (OFS_PARM0);
-	char       *out, *result = PR_GetTempString ();
+	char	   *out, *result = PR_GetTempString ();
 	for (out = result; *in && out < result + STRINGTEMP_LENGTH - 1;)
 		*out++ = q_tolower (*in++);
 	*out = 0;
@@ -1630,9 +1625,9 @@ static void PF_strtolower (void)
 static void PF_strftime (void)
 {
 	const char *in = G_STRING (OFS_PARM1);
-	char       *result = PR_GetTempString ();
+	char	   *result = PR_GetTempString ();
 
-	time_t     curtime;
+	time_t	   curtime;
 	struct tm *tm;
 
 	curtime = time (NULL);
@@ -1706,9 +1701,9 @@ static void PF_itof (void)
 // collision stuff
 static void PF_tracebox (void)
 { // alternative version of traceline that just passes on two extra args. trivial really.
-	float   *v1, *mins, *maxs, *v2;
-	trace_t  trace;
-	int      nomonsters;
+	float	*v1, *mins, *maxs, *v2;
+	trace_t	 trace;
+	int		 nomonsters;
 	edict_t *ent;
 
 	v1 = G_VECTOR (OFS_PARM0);
@@ -1750,11 +1745,11 @@ static void PF_tracebox (void)
 static void PF_TraceToss (void)
 {
 	extern cvar_t sv_maxvelocity, sv_gravity;
-	int           i;
-	float         gravity;
-	vec3_t        move, end;
-	trace_t       trace;
-	eval_t       *val;
+	int			  i;
+	float		  gravity;
+	vec3_t		  move, end;
+	trace_t		  trace;
+	eval_t		 *val;
 
 	vec3_t origin, velocity;
 
@@ -1812,12 +1807,12 @@ static void PF_TraceToss (void)
 }
 
 // model stuff
-void        SetMinMaxSize (edict_t *e, float *minvec, float *maxvec, qboolean rotate);
+void		SetMinMaxSize (edict_t *e, float *minvec, float *maxvec, qboolean rotate);
 static void PF_sv_setmodelindex (void)
 {
-	edict_t     *e = G_EDICT (OFS_PARM0);
+	edict_t		*e = G_EDICT (OFS_PARM0);
 	unsigned int newidx = G_FLOAT (OFS_PARM1);
-	qmodel_t    *mod = qcvm->GetModel (newidx);
+	qmodel_t	*mod = qcvm->GetModel (newidx);
 	e->v.model = (newidx < MAX_MODELS) ? PR_SetEngineString (sv.model_precache[newidx]) : 0;
 	e->v.modelindex = newidx;
 
@@ -1835,8 +1830,8 @@ static void PF_sv_setmodelindex (void)
 }
 static void PF_cl_setmodelindex (void)
 {
-	edict_t  *e = G_EDICT (OFS_PARM0);
-	int       newidx = G_FLOAT (OFS_PARM1);
+	edict_t	 *e = G_EDICT (OFS_PARM0);
+	int		  newidx = G_FLOAT (OFS_PARM1);
 	qmodel_t *mod = qcvm->GetModel (newidx);
 	e->v.model = mod ? PR_SetEngineString (mod->name) : 0; // FIXME: is this going to cause issues with vid_restart?
 	e->v.modelindex = newidx;
@@ -1857,9 +1852,9 @@ static void PF_cl_setmodelindex (void)
 static void PF_frameforname (void)
 {
 	unsigned int modelindex = G_FLOAT (OFS_PARM0);
-	const char  *framename = G_STRING (OFS_PARM1);
-	qmodel_t    *mod = qcvm->GetModel (modelindex);
-	aliashdr_t  *alias;
+	const char	*framename = G_STRING (OFS_PARM1);
+	qmodel_t	*mod = qcvm->GetModel (modelindex);
+	aliashdr_t	*alias;
 
 	G_FLOAT (OFS_RETURN) = -1;
 	if (mod && mod->type == mod_alias && (alias = Mod_Extradata (mod)))
@@ -1869,8 +1864,8 @@ static void PF_frameforname (void)
 		{
 			if (!strcmp (alias->frames[i].name, framename))
 			{
-				G_FLOAT (OFS_RETURN) = i;
-				break;
+G_FLOAT (OFS_RETURN) = i;
+break;
 			}
 		}
 	}
@@ -1879,8 +1874,8 @@ static void PF_frametoname (void)
 {
 	unsigned int modelindex = G_FLOAT (OFS_PARM0);
 	unsigned int framenum = G_FLOAT (OFS_PARM1);
-	qmodel_t    *mod = qcvm->GetModel (modelindex);
-	aliashdr_t  *alias;
+	qmodel_t	*mod = qcvm->GetModel (modelindex);
+	aliashdr_t	*alias;
 
 	if (mod && mod->type == mod_alias && (alias = Mod_Extradata (mod)) && framenum < (unsigned int)alias->numframes)
 		G_INT (OFS_RETURN) = PR_SetEngineString (alias->frames[framenum].name);
@@ -1891,18 +1886,18 @@ static void PF_frameduration (void)
 {
 	unsigned int modelindex = G_FLOAT (OFS_PARM0);
 	unsigned int framenum = G_FLOAT (OFS_PARM1);
-	qmodel_t    *mod = qcvm->GetModel (modelindex);
-	aliashdr_t  *alias;
+	qmodel_t	*mod = qcvm->GetModel (modelindex);
+	aliashdr_t	*alias;
 
 	if (mod && mod->type == mod_alias && (alias = Mod_Extradata (mod)) && framenum < (unsigned int)alias->numframes)
 		G_FLOAT (OFS_RETURN) = alias->frames[framenum].numposes * alias->frames[framenum].interval;
 }
 static void PF_getsurfacenumpoints (void)
 {
-	edict_t     *ed = G_EDICT (OFS_PARM0);
+	edict_t		*ed = G_EDICT (OFS_PARM0);
 	unsigned int surfidx = G_FLOAT (OFS_PARM1);
 	unsigned int modelindex = ed->v.modelindex;
-	qmodel_t    *mod = qcvm->GetModel (modelindex);
+	qmodel_t	*mod = qcvm->GetModel (modelindex);
 
 	if (mod && mod->type == mod_brush && !mod->needload && surfidx < (unsigned int)mod->nummodelsurfaces)
 	{
@@ -1922,13 +1917,13 @@ static mvertex_t *PF_getsurfacevertex (qmodel_t *mod, msurface_t *surf, unsigned
 }
 static void PF_getsurfacepoint (void)
 {
-	edict_t     *ed = G_EDICT (OFS_PARM0);
+	edict_t		*ed = G_EDICT (OFS_PARM0);
 	unsigned int surfidx = G_FLOAT (OFS_PARM1);
 	unsigned int point = G_FLOAT (OFS_PARM2);
-	qmodel_t    *mod = qcvm->GetModel (ed->v.modelindex);
+	qmodel_t	*mod = qcvm->GetModel (ed->v.modelindex);
 
 	if (mod && mod->type == mod_brush && !mod->needload && surfidx < (unsigned int)mod->nummodelsurfaces &&
-	    point < (unsigned int)mod->surfaces[surfidx].numedges)
+		point < (unsigned int)mod->surfaces[surfidx].numedges)
 	{
 		mvertex_t *v = PF_getsurfacevertex (mod, &mod->surfaces[surfidx + mod->firstmodelsurface], point);
 		VectorCopy (v->position, G_VECTOR (OFS_RETURN));
@@ -1942,9 +1937,9 @@ static void PF_getsurfacepoint (void)
 }
 static void PF_getsurfacenumtriangles (void)
 { // for q3bsp compat (which this engine doesn't support, so its fairly simple)
-	edict_t     *ed = G_EDICT (OFS_PARM0);
+	edict_t		*ed = G_EDICT (OFS_PARM0);
 	unsigned int surfidx = G_FLOAT (OFS_PARM1);
-	qmodel_t    *mod = qcvm->GetModel (ed->v.modelindex);
+	qmodel_t	*mod = qcvm->GetModel (ed->v.modelindex);
 
 	if (mod && mod->type == mod_brush && !mod->needload && surfidx < (unsigned int)mod->nummodelsurfaces)
 		G_FLOAT (OFS_RETURN) = (mod->surfaces[surfidx + mod->firstmodelsurface].numedges - 2); // q1bsp is only triangle fans
@@ -1953,13 +1948,13 @@ static void PF_getsurfacenumtriangles (void)
 }
 static void PF_getsurfacetriangle (void)
 { // for q3bsp compat (which this engine doesn't support, so its fairly simple)
-	edict_t     *ed = G_EDICT (OFS_PARM0);
+	edict_t		*ed = G_EDICT (OFS_PARM0);
 	unsigned int surfidx = G_FLOAT (OFS_PARM1);
 	unsigned int triangleidx = G_FLOAT (OFS_PARM2);
-	qmodel_t    *mod = qcvm->GetModel (ed->v.modelindex);
+	qmodel_t	*mod = qcvm->GetModel (ed->v.modelindex);
 
 	if (mod && mod->type == mod_brush && !mod->needload && surfidx < (unsigned int)mod->nummodelsurfaces &&
-	    triangleidx < (unsigned int)mod->surfaces[surfidx].numedges - 2)
+		triangleidx < (unsigned int)mod->surfaces[surfidx].numedges - 2)
 	{
 		G_FLOAT (OFS_RETURN + 0) = 0;
 		G_FLOAT (OFS_RETURN + 1) = triangleidx + 1;
@@ -1974,9 +1969,9 @@ static void PF_getsurfacetriangle (void)
 }
 static void PF_getsurfacenormal (void)
 {
-	edict_t     *ed = G_EDICT (OFS_PARM0);
+	edict_t		*ed = G_EDICT (OFS_PARM0);
 	unsigned int surfidx = G_FLOAT (OFS_PARM1);
-	qmodel_t    *mod = qcvm->GetModel (ed->v.modelindex);
+	qmodel_t	*mod = qcvm->GetModel (ed->v.modelindex);
 
 	if (mod && mod->type == mod_brush && !mod->needload && surfidx < (unsigned int)mod->nummodelsurfaces)
 	{
@@ -1990,9 +1985,9 @@ static void PF_getsurfacenormal (void)
 }
 static void PF_getsurfacetexture (void)
 {
-	edict_t     *ed = G_EDICT (OFS_PARM0);
+	edict_t		*ed = G_EDICT (OFS_PARM0);
 	unsigned int surfidx = G_FLOAT (OFS_PARM1);
-	qmodel_t    *mod = qcvm->GetModel (ed->v.modelindex);
+	qmodel_t	*mod = qcvm->GetModel (ed->v.modelindex);
 
 	if (mod && mod->type == mod_brush && !mod->needload && surfidx < (unsigned int)mod->nummodelsurfaces)
 	{
@@ -2009,10 +2004,10 @@ static void PF_getsurfacetexture (void)
 	 (n)[2] = ((a)[0] - (b)[0]) * ((c)[1] - (b)[1]) - ((a)[1] - (b)[1]) * ((c)[0] - (b)[0]))
 static float getsurface_clippointpoly (qmodel_t *model, msurface_t *surf, vec3_t point, vec3_t bestcpoint, float bestdist, float *distsquare)
 {
-	int        e, edge;
-	vec3_t     edgedir, edgenormal, cpoint, temp;
+	int		   e, edge;
+	vec3_t	   edgedir, edgenormal, cpoint, temp;
 	mvertex_t *v1, *v2;
-	float      dist = DotProduct (point, surf->plane->normal) - surf->plane->dist;
+	float	   dist = DotProduct (point, surf->plane->normal) - surf->plane->dist;
 	// don't care about SURF_PLANEBACK, the maths works out the same.
 
 	*distsquare = dist * dist;
@@ -2026,26 +2021,26 @@ static float getsurface_clippointpoly (qmodel_t *model, msurface_t *surf, vec3_t
 			edge = model->surfedges[--e];
 			if (edge < 0)
 			{
-				v1 = &model->vertexes[model->edges[-edge].v[0]];
-				v2 = &model->vertexes[model->edges[-edge].v[1]];
+v1 = &model->vertexes[model->edges[-edge].v[0]];
+v2 = &model->vertexes[model->edges[-edge].v[1]];
 			}
 			else
 			{
-				v2 = &model->vertexes[model->edges[edge].v[0]];
-				v1 = &model->vertexes[model->edges[edge].v[1]];
+v2 = &model->vertexes[model->edges[edge].v[0]];
+v1 = &model->vertexes[model->edges[edge].v[1]];
 			}
 
 			VectorSubtract (v1->position, v2->position, edgedir);
 			CrossProduct (edgedir, surf->plane->normal, edgenormal);
 			if (!(surf->flags & SURF_PLANEBACK))
 			{
-				VectorSubtract (vec3_origin, edgenormal, edgenormal);
+VectorSubtract (vec3_origin, edgenormal, edgenormal);
 			}
 			VectorNormalize (edgenormal);
 
 			dist = DotProduct (v1->position, edgenormal) - DotProduct (cpoint, edgenormal);
 			if (dist < 0)
-				VectorMA (cpoint, dist, edgenormal, cpoint);
+VectorMA (cpoint, dist, edgenormal, cpoint);
 		}
 
 		VectorSubtract (cpoint, point, temp);
@@ -2059,30 +2054,30 @@ static float getsurface_clippointpoly (qmodel_t *model, msurface_t *surf, vec3_t
 	return bestdist;
 }
 
-#define NEARSURFACE_MAXDIST             256
-#define NEARSURFACE_CACHEDIST           384
-#define NEARSURFACE_CACHESIZE           65536
+#define NEARSURFACE_MAXDIST				256
+#define NEARSURFACE_CACHEDIST			384
+#define NEARSURFACE_CACHESIZE			65536
 #define NEARSURFACE_CACHEHITDISTSQUARED ((NEARSURFACE_CACHEDIST - NEARSURFACE_MAXDIST) * (NEARSURFACE_CACHEDIST - NEARSURFACE_MAXDIST))
-int      nearsurface_cache[NEARSURFACE_CACHESIZE];
-int      nearsurface_cache_entries;
-vec3_t   nearsurface_cache_point;
+int		 nearsurface_cache[NEARSURFACE_CACHESIZE];
+int		 nearsurface_cache_entries;
+vec3_t	 nearsurface_cache_point;
 qboolean nearsurface_cache_valid;
 
 // #438 float(entity e, vector p) getsurfacenearpoint (DP_QC_GETSURFACE)
 static void PF_getsurfacenearpoint (void)
 {
 	qmodel_t   *model;
-	edict_t    *ent;
+	edict_t	   *ent;
 	msurface_t *surf;
-	int         i;
-	float      *point;
-	float       distsquare;
-	qboolean    cached = false;
-	qboolean    cacheable;
+	int			i;
+	float	   *point;
+	float		distsquare;
+	qboolean	cached = false;
+	qboolean	cacheable;
 
 	vec3_t cpoint = {0, 0, 0};
 	float  bestdist, dist;
-	int    bestsurf = -1;
+	int	   bestsurf = -1;
 
 	ent = G_EDICT (OFS_PARM0);
 	point = G_VECTOR (OFS_PARM1);
@@ -2108,12 +2103,12 @@ static void PF_getsurfacenearpoint (void)
 		{
 			for (i = 0; i < nearsurface_cache_entries; i++)
 			{
-				dist = getsurface_clippointpoly (model, surf + nearsurface_cache[i], point, cpoint, bestdist, &distsquare);
-				if (dist < bestdist)
-				{
-					bestdist = dist;
-					bestsurf = nearsurface_cache[i];
-				}
+dist = getsurface_clippointpoly (model, surf + nearsurface_cache[i], point, cpoint, bestdist, &distsquare);
+if (dist < bestdist)
+{
+	bestdist = dist;
+	bestsurf = nearsurface_cache[i];
+}
 			}
 			cached = true;
 		}
@@ -2132,15 +2127,15 @@ static void PF_getsurfacenearpoint (void)
 			dist = getsurface_clippointpoly (model, surf, point, cpoint, bestdist, &distsquare);
 			if (dist < bestdist)
 			{
-				bestdist = dist;
-				bestsurf = i;
+bestdist = dist;
+bestsurf = i;
 			}
 			if (cacheable && distsquare < NEARSURFACE_CACHEDIST * NEARSURFACE_CACHEDIST)
 			{
-				if (nearsurface_cache_entries == NEARSURFACE_CACHESIZE)
-					nearsurface_cache_valid = false;
-				else
-					nearsurface_cache[nearsurface_cache_entries++] = i;
+if (nearsurface_cache_entries == NEARSURFACE_CACHESIZE)
+	nearsurface_cache_valid = false;
+else
+	nearsurface_cache[nearsurface_cache_entries++] = i;
 			}
 		}
 	}
@@ -2173,11 +2168,11 @@ static void PF_getsurfacenearpoint (void)
 static void PF_getsurfaceclippedpoint (void)
 {
 	qmodel_t   *model;
-	edict_t    *ent;
+	edict_t	   *ent;
 	msurface_t *surf;
-	float      *point;
-	int         surfnum;
-	float       distsquared;
+	float	   *point;
+	int			surfnum;
+	float		distsquared;
 
 	float *result = G_VECTOR (OFS_RETURN);
 
@@ -2201,7 +2196,7 @@ static void PF_getsurfaceclippedpoint (void)
 
 static void PF_getsurfacepointattribute (void)
 {
-	edict_t     *ed = G_EDICT (OFS_PARM0);
+	edict_t		*ed = G_EDICT (OFS_PARM0);
 	unsigned int surfidx = G_FLOAT (OFS_PARM1);
 	unsigned int point = G_FLOAT (OFS_PARM2);
 	unsigned int attribute = G_FLOAT (OFS_PARM3);
@@ -2209,7 +2204,7 @@ static void PF_getsurfacepointattribute (void)
 	qmodel_t *mod = qcvm->GetModel (ed->v.modelindex);
 
 	if (mod && mod->type == mod_brush && !mod->needload && surfidx < (unsigned int)mod->nummodelsurfaces &&
-	    point < (unsigned int)mod->surfaces[mod->firstmodelsurface + surfidx].numedges)
+		point < (unsigned int)mod->surfaces[mod->firstmodelsurface + surfidx].numedges)
 	{
 		msurface_t *fa = &mod->surfaces[surfidx + mod->firstmodelsurface];
 		mvertex_t  *v = PF_getsurfacevertex (mod, fa, point);
@@ -2236,7 +2231,7 @@ static void PF_getsurfacepointattribute (void)
 		case 3: // normal
 			VectorCopy (fa->plane->normal, G_VECTOR (OFS_RETURN));
 			if (fa->flags & SURF_PLANEBACK)
-				VectorInverse (G_VECTOR (OFS_RETURN));
+VectorInverse (G_VECTOR (OFS_RETURN));
 			break;
 		case 4: // st coord
 			G_FLOAT (OFS_RETURN + 0) = (DotProduct (v->position, fa->texinfo->vecs[0]) + fa->texinfo->vecs[0][3]) / fa->texinfo->texture->width;
@@ -2267,10 +2262,10 @@ static void PF_getsurfacepointattribute (void)
 static void PF_sv_getlight (void)
 {
 	qmodel_t *om = cl.worldmodel;
-	float    *point = G_VECTOR (OFS_PARM0);
+	float	 *point = G_VECTOR (OFS_PARM0);
 
 	cl.worldmodel = qcvm->worldmodel; // R_LightPoint is really clientside, so if its called from ssqc then try to make things work regardless
-	                                  // FIXME: d_lightstylevalue isn't set on dedicated servers
+									  // FIXME: d_lightstylevalue isn't set on dedicated servers
 
 	// FIXME: seems like quakespasm doesn't do lits for model lighting, so we won't either.
 	vec3_t lightcolor;
@@ -2295,8 +2290,8 @@ static void PF_checkcommand (void)
 }
 static void PF_clientcommand (void)
 {
-	edict_t     *ed = G_EDICT (OFS_PARM0);
-	const char  *str = G_STRING (OFS_PARM1);
+	edict_t		*ed = G_EDICT (OFS_PARM0);
+	const char	*str = G_STRING (OFS_PARM1);
 	unsigned int i = NUM_FOR_EDICT (ed) - 1;
 	if (i < (unsigned int)svs.maxclients && svs.clients[i].active)
 	{
@@ -2310,7 +2305,7 @@ static void PF_clientcommand (void)
 }
 static void PF_clienttype (void)
 {
-	edict_t     *ed = G_EDICT (OFS_PARM0);
+	edict_t		*ed = G_EDICT (OFS_PARM0);
 	unsigned int i = NUM_FOR_EDICT (ed) - 1;
 	if (i >= (unsigned int)svs.maxclients)
 	{
@@ -2329,30 +2324,30 @@ static void PF_clienttype (void)
 }
 static void PF_spawnclient (void)
 {
-	edict_t     *ent;
+	edict_t		*ent;
 	unsigned int i;
 	if (svs.maxclients)
 		for (i = svs.maxclients; i-- > 0;)
 		{
 			if (!svs.clients[i].active)
 			{
-				svs.clients[i].netconnection = NULL; // botclients have no net connection, obviously.
-				SV_ConnectClient (i);
-				svs.clients[i].spawned = true;
-				ent = svs.clients[i].edict;
-				memset (&ent->v, 0, qcvm->progs->entityfields * 4);
-				ent->v.colormap = NUM_FOR_EDICT (ent);
-				ent->v.team = (svs.clients[i].colors & 15) + 1;
-				ent->v.netname = PR_SetEngineString (svs.clients[i].name);
-				RETURN_EDICT (ent);
-				return;
+svs.clients[i].netconnection = NULL; // botclients have no net connection, obviously.
+SV_ConnectClient (i);
+svs.clients[i].spawned = true;
+ent = svs.clients[i].edict;
+memset (&ent->v, 0, qcvm->progs->entityfields * 4);
+ent->v.colormap = NUM_FOR_EDICT (ent);
+ent->v.team = (svs.clients[i].colors & 15) + 1;
+ent->v.netname = PR_SetEngineString (svs.clients[i].name);
+RETURN_EDICT (ent);
+return;
 			}
 		}
 	RETURN_EDICT (qcvm->edicts);
 }
 static void PF_dropclient (void)
 {
-	edict_t     *ed = G_EDICT (OFS_PARM0);
+	edict_t		*ed = G_EDICT (OFS_PARM0);
 	unsigned int i = NUM_FOR_EDICT (ed) - 1;
 	if (i < (unsigned int)svs.maxclients && svs.clients[i].active)
 	{ // FIXME: should really set a flag or something, to avoid recursion issues.
@@ -2373,7 +2368,7 @@ static void PF_print (void)
 static void PF_cvar_string (void)
 {
 	const char *name = G_STRING (OFS_PARM0);
-	cvar_t     *var = Cvar_FindVar (name);
+	cvar_t	   *var = Cvar_FindVar (name);
 	if (var && var->string)
 	{
 		// cvars can easily change values.
@@ -2395,7 +2390,7 @@ static void PF_cvar_string (void)
 static void PF_cvar_defstring (void)
 {
 	const char *name = G_STRING (OFS_PARM0);
-	cvar_t     *var = Cvar_FindVar (name);
+	cvar_t	   *var = Cvar_FindVar (name);
 	if (var && var->default_string)
 		G_INT (OFS_RETURN) = PR_SetEngineString (var->default_string);
 	else
@@ -2404,8 +2399,8 @@ static void PF_cvar_defstring (void)
 static void PF_cvar_type (void)
 {
 	const char *str = G_STRING (OFS_PARM0);
-	int         ret = 0;
-	cvar_t     *v;
+	int			ret = 0;
+	cvar_t	   *v;
 
 	v = Cvar_FindVar (str);
 	if (v)
@@ -2413,12 +2408,12 @@ static void PF_cvar_type (void)
 		ret |= 1; // CVAR_EXISTS
 		if (v->flags & CVAR_ARCHIVE)
 			ret |= 2; // CVAR_TYPE_SAVED
-			          //		if(v->flags & CVAR_NOTFROMSERVER)
-			          //			ret |= 4; // CVAR_TYPE_PRIVATE
+					  //		if(v->flags & CVAR_NOTFROMSERVER)
+					  //			ret |= 4; // CVAR_TYPE_PRIVATE
 		if (!(v->flags & CVAR_USERDEFINED))
 			ret |= 8; // CVAR_TYPE_ENGINE
-			          //		if (v->description)
-			          //			ret |= 16; // CVAR_TYPE_HASDESCRIPTION
+					  //		if (v->description)
+					  //			ret |= 16; // CVAR_TYPE_HASDESCRIPTION
 	}
 	G_FLOAT (OFS_RETURN) = ret;
 }
@@ -2590,8 +2585,8 @@ static void PF_cl_te_tarexplosion (void)
 static void PF_sv_te_lightning1 (void)
 {
 	edict_t *ed = G_EDICT (OFS_PARM0);
-	float   *start = G_VECTOR (OFS_PARM1);
-	float   *end = G_VECTOR (OFS_PARM2);
+	float	*start = G_VECTOR (OFS_PARM1);
+	float	*end = G_VECTOR (OFS_PARM2);
 	MSG_WriteByte (&sv.datagram, svc_temp_entity);
 	MSG_WriteByte (&sv.datagram, TE_LIGHTNING1);
 	MSG_WriteShort (&sv.datagram, NUM_FOR_EDICT (ed));
@@ -2606,16 +2601,16 @@ static void PF_sv_te_lightning1 (void)
 static void PF_cl_te_lightning1 (void)
 {
 	edict_t *ed = G_EDICT (OFS_PARM0);
-	float   *start = G_VECTOR (OFS_PARM1);
-	float   *end = G_VECTOR (OFS_PARM2);
+	float	*start = G_VECTOR (OFS_PARM1);
+	float	*end = G_VECTOR (OFS_PARM2);
 
 	CL_UpdateBeam (Mod_ForName ("progs/bolt.mdl", true), "TE_LIGHTNING1", "TE_LIGHTNING1_END", -NUM_FOR_EDICT (ed), start, end);
 }
 static void PF_sv_te_lightning2 (void)
 {
 	edict_t *ed = G_EDICT (OFS_PARM0);
-	float   *start = G_VECTOR (OFS_PARM1);
-	float   *end = G_VECTOR (OFS_PARM2);
+	float	*start = G_VECTOR (OFS_PARM1);
+	float	*end = G_VECTOR (OFS_PARM2);
 	MSG_WriteByte (&sv.datagram, svc_temp_entity);
 	MSG_WriteByte (&sv.datagram, TE_LIGHTNING2);
 	MSG_WriteShort (&sv.datagram, NUM_FOR_EDICT (ed));
@@ -2630,8 +2625,8 @@ static void PF_sv_te_lightning2 (void)
 static void PF_cl_te_lightning2 (void)
 {
 	edict_t *ed = G_EDICT (OFS_PARM0);
-	float   *start = G_VECTOR (OFS_PARM1);
-	float   *end = G_VECTOR (OFS_PARM2);
+	float	*start = G_VECTOR (OFS_PARM1);
+	float	*end = G_VECTOR (OFS_PARM2);
 
 	CL_UpdateBeam (Mod_ForName ("progs/bolt2.mdl", true), "TE_LIGHTNING2", "TE_LIGHTNING2_END", -NUM_FOR_EDICT (ed), start, end);
 }
@@ -2668,8 +2663,8 @@ static void PF_cl_te_knightspike (void)
 static void PF_sv_te_lightning3 (void)
 {
 	edict_t *ed = G_EDICT (OFS_PARM0);
-	float   *start = G_VECTOR (OFS_PARM1);
-	float   *end = G_VECTOR (OFS_PARM2);
+	float	*start = G_VECTOR (OFS_PARM1);
+	float	*end = G_VECTOR (OFS_PARM2);
 	MSG_WriteByte (&sv.datagram, svc_temp_entity);
 	MSG_WriteByte (&sv.datagram, TE_LIGHTNING3);
 	MSG_WriteShort (&sv.datagram, NUM_FOR_EDICT (ed));
@@ -2684,8 +2679,8 @@ static void PF_sv_te_lightning3 (void)
 static void PF_cl_te_lightning3 (void)
 {
 	edict_t *ed = G_EDICT (OFS_PARM0);
-	float   *start = G_VECTOR (OFS_PARM1);
-	float   *end = G_VECTOR (OFS_PARM2);
+	float	*start = G_VECTOR (OFS_PARM1);
+	float	*end = G_VECTOR (OFS_PARM2);
 
 	CL_UpdateBeam (Mod_ForName ("progs/bolt3.mdl", true), "TE_LIGHTNING3", "TE_LIGHTNING3_END", -NUM_FOR_EDICT (ed), start, end);
 }
@@ -2714,8 +2709,8 @@ static void PF_cl_te_teleport (void) {}
 static void PF_sv_te_explosion2 (void)
 {
 	float *org = G_VECTOR (OFS_PARM0);
-	int    palstart = G_FLOAT (OFS_PARM1);
-	int    palcount = G_FLOAT (OFS_PARM1);
+	int	   palstart = G_FLOAT (OFS_PARM1);
+	int	   palcount = G_FLOAT (OFS_PARM1);
 	MSG_WriteByte (&sv.multicast, svc_temp_entity);
 	MSG_WriteByte (&sv.multicast, TE_EXPLOSION2);
 	MSG_WriteCoord (&sv.multicast, org[0], sv.protocolflags);
@@ -2727,7 +2722,7 @@ static void PF_sv_te_explosion2 (void)
 }
 static void PF_cl_te_explosion2 (void)
 {
-	float    *pos = G_VECTOR (OFS_PARM0);
+	float	 *pos = G_VECTOR (OFS_PARM0);
 	dlight_t *dl;
 
 	dl = CL_AllocDlight (0);
@@ -2740,8 +2735,8 @@ static void PF_cl_te_explosion2 (void)
 static void PF_sv_te_beam (void)
 {
 	edict_t *ed = G_EDICT (OFS_PARM0);
-	float   *start = G_VECTOR (OFS_PARM1);
-	float   *end = G_VECTOR (OFS_PARM2);
+	float	*start = G_VECTOR (OFS_PARM1);
+	float	*end = G_VECTOR (OFS_PARM2);
 	MSG_WriteByte (&sv.multicast, svc_temp_entity);
 	MSG_WriteByte (&sv.multicast, TE_BEAM);
 	MSG_WriteShort (&sv.multicast, NUM_FOR_EDICT (ed));
@@ -2756,8 +2751,8 @@ static void PF_sv_te_beam (void)
 static void PF_cl_te_beam (void)
 {
 	edict_t *ed = G_EDICT (OFS_PARM0);
-	float   *start = G_VECTOR (OFS_PARM1);
-	float   *end = G_VECTOR (OFS_PARM2);
+	float	*start = G_VECTOR (OFS_PARM1);
+	float	*end = G_VECTOR (OFS_PARM2);
 
 	CL_UpdateBeam (Mod_ForName ("progs/beam.mdl", true), "TE_BEAM", "TE_BEAM_END", -NUM_FOR_EDICT (ed), start, end);
 }
@@ -2824,39 +2819,39 @@ static void PF_sv_te_particlesnow (void)
 #define PF_sv_te_particlerain PF_void_stub
 #define PF_sv_te_particlesnow PF_void_stub
 #endif
-#define PF_sv_te_bloodshower    PF_void_stub
-#define PF_sv_te_explosionrgb   PF_void_stub
-#define PF_sv_te_particlecube   PF_void_stub
-#define PF_sv_te_spark          PF_void_stub
-#define PF_sv_te_gunshotquad    PF_sv_te_gunshot
-#define PF_sv_te_spikequad      PF_sv_te_spike
+#define PF_sv_te_bloodshower	PF_void_stub
+#define PF_sv_te_explosionrgb	PF_void_stub
+#define PF_sv_te_particlecube	PF_void_stub
+#define PF_sv_te_spark			PF_void_stub
+#define PF_sv_te_gunshotquad	PF_sv_te_gunshot
+#define PF_sv_te_spikequad		PF_sv_te_spike
 #define PF_sv_te_superspikequad PF_sv_te_superspike
-#define PF_sv_te_explosionquad  PF_sv_te_explosion
-#define PF_sv_te_smallflash     PF_void_stub
-#define PF_sv_te_customflash    PF_void_stub
-#define PF_sv_te_plasmaburn     PF_sv_te_tarexplosion
-#define PF_sv_effect            PF_void_stub
+#define PF_sv_te_explosionquad	PF_sv_te_explosion
+#define PF_sv_te_smallflash		PF_void_stub
+#define PF_sv_te_customflash	PF_void_stub
+#define PF_sv_te_plasmaburn		PF_sv_te_tarexplosion
+#define PF_sv_effect			PF_void_stub
 
 static void PF_sv_pointsound (void)
 {
-	float      *origin = G_VECTOR (OFS_PARM0);
+	float	   *origin = G_VECTOR (OFS_PARM0);
 	const char *sample = G_STRING (OFS_PARM1);
-	float       volume = G_FLOAT (OFS_PARM2);
-	float       attenuation = G_FLOAT (OFS_PARM3);
+	float		volume = G_FLOAT (OFS_PARM2);
+	float		attenuation = G_FLOAT (OFS_PARM3);
 	SV_StartSound (qcvm->edicts, origin, 0, sample, volume, attenuation);
 }
 static void PF_cl_pointsound (void)
 {
-	float      *origin = G_VECTOR (OFS_PARM0);
+	float	   *origin = G_VECTOR (OFS_PARM0);
 	const char *sample = G_STRING (OFS_PARM1);
-	float       volume = G_FLOAT (OFS_PARM2);
-	float       attenuation = G_FLOAT (OFS_PARM3);
+	float		volume = G_FLOAT (OFS_PARM2);
+	float		attenuation = G_FLOAT (OFS_PARM3);
 	S_StartSound (0, 0, S_PrecacheSound (sample), origin, volume, attenuation);
 }
 static void PF_cl_soundlength (void)
 {
 	const char *sample = G_STRING (OFS_PARM0);
-	sfx_t      *sfx = S_PrecacheSound (sample);
+	sfx_t	   *sfx = S_PrecacheSound (sample);
 	sfxcache_t *sc;
 	G_FLOAT (OFS_RETURN) = 0;
 	if (sfx)
@@ -2869,8 +2864,8 @@ static void PF_cl_soundlength (void)
 static void PF_cl_localsound (void)
 {
 	const char *sample = G_STRING (OFS_PARM0);
-	float       channel = (qcvm->argc > 1) ? G_FLOAT (OFS_PARM1) : -1;
-	float       volume = (qcvm->argc > 2) ? G_FLOAT (OFS_PARM2) : 1;
+	float		channel = (qcvm->argc > 1) ? G_FLOAT (OFS_PARM1) : -1;
+	float		volume = (qcvm->argc > 2) ? G_FLOAT (OFS_PARM2) : 1;
 
 	// FIXME: svc_setview or map changes can break sound replacements here.
 	S_StartSound (cl.viewentity, channel, S_PrecacheSound (sample), vec3_origin, volume, 0);
@@ -2879,7 +2874,7 @@ static void PF_cl_localsound (void)
 
 static void PF_whichpack (void)
 {
-	const char  *fname = G_STRING (OFS_PARM0); // uses native paths, as this isn't actually reading anything.
+	const char	*fname = G_STRING (OFS_PARM0); // uses native paths, as this isn't actually reading anything.
 	unsigned int path_id;
 	if (COM_FileExists (fname, &path_id))
 	{
@@ -2889,7 +2884,7 @@ static void PF_whichpack (void)
 		searchpath_t *path;
 		for (path = com_searchpaths; path; path = path->next)
 			if (!path->pack && path->path_id == path_id)
-				break; // okay, this one looks like one we can report
+break; // okay, this one looks like one we can report
 
 		// sandbox it by stripping the basedir
 		fname = path->filename;
@@ -2909,13 +2904,13 @@ static void PF_whichpack (void)
 
 struct strbuf
 {
-	qcvm_t      *owningvm;
-	char       **strings;
+	qcvm_t		*owningvm;
+	char	   **strings;
 	unsigned int used;
 	unsigned int allocated;
 };
 
-#define BUFSTRBASE    1
+#define BUFSTRBASE	  1
 #define NUMSTRINGBUFS 64u
 static struct strbuf strbuflist[NUMSTRINGBUFS];
 
@@ -3049,11 +3044,11 @@ static int PF_buf_sort_descending (const void *b, const void *a)
 // #444 void(float bufhandle, float sortprefixlen, float backward) buf_sort (DP_QC_STRINGBUFFERS)
 static void PF_buf_sort (void)
 {
-	int          bufno = G_FLOAT (OFS_PARM0) - BUFSTRBASE;
-	int          sortprefixlen = G_FLOAT (OFS_PARM1);
-	int          backwards = G_FLOAT (OFS_PARM2);
+	int			 bufno = G_FLOAT (OFS_PARM0) - BUFSTRBASE;
+	int			 sortprefixlen = G_FLOAT (OFS_PARM1);
+	int			 backwards = G_FLOAT (OFS_PARM2);
 	unsigned int s, d;
-	char       **strings;
+	char	   **strings;
 
 	if ((unsigned int)bufno >= NUMSTRINGBUFS)
 		return;
@@ -3077,7 +3072,7 @@ static void PF_buf_sort (void)
 
 	// no nulls now, sort it.
 	PF_buf_sort_sortprefixlen = sortprefixlen; // eww, a global. burn in hell.
-	if (backwards)                             // z first
+	if (backwards)							   // z first
 		qsort (strings, strbuflist[bufno].used, sizeof (char *), PF_buf_sort_descending);
 	else // a first
 		qsort (strings, strbuflist[bufno].used, sizeof (char *), PF_buf_sort_ascending);
@@ -3085,12 +3080,12 @@ static void PF_buf_sort (void)
 // #445 string(float bufhandle, string glue) buf_implode (DP_QC_STRINGBUFFERS)
 static void PF_buf_implode (void)
 {
-	int          bufno = G_FLOAT (OFS_PARM0) - BUFSTRBASE;
-	const char  *glue = G_STRING (OFS_PARM1);
+	int			 bufno = G_FLOAT (OFS_PARM0) - BUFSTRBASE;
+	const char	*glue = G_STRING (OFS_PARM1);
 	unsigned int gluelen = strlen (glue);
 	unsigned int retlen, l, i;
-	char       **strings;
-	char        *ret;
+	char	   **strings;
+	char		*ret;
 
 	if ((unsigned int)bufno >= NUMSTRINGBUFS)
 		return;
@@ -3102,12 +3097,12 @@ static void PF_buf_implode (void)
 	/*
 	for (i = 0, retlen = 0; i < strbuflist[bufno].used; i++)
 	{
-	    if (strings[i])
-	    {
-	        if (retlen)
-	            retlen += gluelen;
-	        retlen += strlen(strings[i]);
-	    }
+		if (strings[i])
+		{
+			if (retlen)
+				retlen += gluelen;
+			retlen += strlen(strings[i]);
+		}
 	}
 	ret = malloc(retlen+1);*/
 
@@ -3119,19 +3114,19 @@ static void PF_buf_implode (void)
 		{
 			if (retlen)
 			{
-				if (retlen + gluelen + 1 > STRINGTEMP_LENGTH)
-				{
-					Con_Printf ("PF_buf_implode: tempstring overflow\n");
-					break;
-				}
-				memcpy (ret + retlen, glue, gluelen);
-				retlen += gluelen;
+if (retlen + gluelen + 1 > STRINGTEMP_LENGTH)
+{
+	Con_Printf ("PF_buf_implode: tempstring overflow\n");
+	break;
+}
+memcpy (ret + retlen, glue, gluelen);
+retlen += gluelen;
 			}
 			l = strlen (strings[i]);
 			if (retlen + l + 1 > STRINGTEMP_LENGTH)
 			{
-				Con_Printf ("PF_buf_implode: tempstring overflow\n");
-				break;
+Con_Printf ("PF_buf_implode: tempstring overflow\n");
+break;
 			}
 			memcpy (ret + retlen, strings[i], l);
 			retlen += l;
@@ -3147,7 +3142,7 @@ static void PF_bufstr_get (void)
 {
 	unsigned int bufno = G_FLOAT (OFS_PARM0) - BUFSTRBASE;
 	unsigned int index = G_FLOAT (OFS_PARM1);
-	char        *ret;
+	char		*ret;
 
 	if (bufno >= NUMSTRINGBUFS)
 	{
@@ -3180,7 +3175,7 @@ static void PF_bufstr_set (void)
 {
 	unsigned int bufno = G_FLOAT (OFS_PARM0) - BUFSTRBASE;
 	unsigned int index = G_FLOAT (OFS_PARM1);
-	const char  *string = G_STRING (OFS_PARM2);
+	const char	*string = G_STRING (OFS_PARM2);
 	unsigned int oldcount;
 
 	if ((unsigned int)bufno >= NUMSTRINGBUFS)
@@ -3217,7 +3212,7 @@ static int PF_bufstr_add_internal (unsigned int bufno, const char *string, int a
 		// find a hole
 		for (index = 0; index < strbuflist[bufno].used; index++)
 			if (!strbuflist[bufno].strings[index])
-				break;
+break;
 	}
 
 	// expand it if needed
@@ -3245,9 +3240,9 @@ static int PF_bufstr_add_internal (unsigned int bufno, const char *string, int a
 // #448 float(float bufhandle, string str, float order) bufstr_add (DP_QC_STRINGBUFFERS)
 static void PF_bufstr_add (void)
 {
-	size_t      bufno = G_FLOAT (OFS_PARM0) - BUFSTRBASE;
+	size_t		bufno = G_FLOAT (OFS_PARM0) - BUFSTRBASE;
 	const char *string = G_STRING (OFS_PARM1);
-	qboolean    ordered = G_FLOAT (OFS_PARM2);
+	qboolean	ordered = G_FLOAT (OFS_PARM2);
 
 	if ((unsigned int)bufno >= NUMSTRINGBUFS)
 		return;
@@ -3277,13 +3272,13 @@ static void PF_bufstr_free (void)
 
 static void PF_buf_cvarlist (void)
 {
-	size_t       bufno = G_FLOAT (OFS_PARM0) - BUFSTRBASE;
-	const char  *pattern = G_STRING (OFS_PARM1);
-	const char  *antipattern = G_STRING (OFS_PARM2);
+	size_t		 bufno = G_FLOAT (OFS_PARM0) - BUFSTRBASE;
+	const char	*pattern = G_STRING (OFS_PARM1);
+	const char	*antipattern = G_STRING (OFS_PARM2);
 	unsigned int i;
-	cvar_t      *var;
-	int          plen = strlen (pattern), alen = strlen (antipattern);
-	qboolean     pwc = strchr (pattern, '*') || strchr (pattern, '?'), awc = strchr (antipattern, '*') || strchr (antipattern, '?');
+	cvar_t		*var;
+	int			 plen = strlen (pattern), alen = strlen (antipattern);
+	qboolean	 pwc = strchr (pattern, '*') || strchr (pattern, '?'), awc = strchr (antipattern, '*') || strchr (antipattern, '?');
 
 	if ((unsigned int)bufno >= NUMSTRINGBUFS)
 		return;
@@ -3340,10 +3335,10 @@ static void PF_num_for_edict (void)
 }
 static void PF_findchain (void)
 {
-	edict_t    *ent, *chain;
-	int         i, f;
+	edict_t	   *ent, *chain;
+	int			i, f;
 	const char *s, *t;
-	int         cfld;
+	int			cfld;
 
 	chain = (edict_t *)qcvm->edicts;
 
@@ -3370,9 +3365,9 @@ static void PF_findchain (void)
 }
 static void PF_findfloat (void)
 {
-	int      e;
-	int      f;
-	float    s, t;
+	int		 e;
+	int		 f;
+	float	 s, t;
 	edict_t *ed;
 
 	e = G_EDICTNUM (OFS_PARM0);
@@ -3397,9 +3392,9 @@ static void PF_findfloat (void)
 static void PF_findchainfloat (void)
 {
 	edict_t *ent, *chain;
-	int      i, f;
-	float    s, t;
-	int      cfld;
+	int		 i, f;
+	float	 s, t;
+	int		 cfld;
 
 	chain = (edict_t *)qcvm->edicts;
 
@@ -3426,9 +3421,9 @@ static void PF_findchainfloat (void)
 }
 static void PF_findflags (void)
 {
-	int      e;
-	int      f;
-	int      s, t;
+	int		 e;
+	int		 f;
+	int		 s, t;
 	edict_t *ed;
 
 	e = G_EDICTNUM (OFS_PARM0);
@@ -3453,9 +3448,9 @@ static void PF_findflags (void)
 static void PF_findchainflags (void)
 {
 	edict_t *ent, *chain;
-	int      i, f;
-	int      s, t;
-	int      cfld;
+	int		 i, f;
+	int		 s, t;
+	int		 cfld;
 
 	chain = (edict_t *)qcvm->edicts;
 	ent = NEXT_EDICT (qcvm->edicts);
@@ -3519,10 +3514,10 @@ static void PF_entityfieldtype (void)
 static void PF_getentfldstr (void)
 {
 	unsigned int fldidx = G_FLOAT (OFS_PARM0);
-	edict_t     *ent = G_EDICT (OFS_PARM1);
+	edict_t		*ent = G_EDICT (OFS_PARM1);
 	if (fldidx < (unsigned int)qcvm->progs->numfielddefs)
 	{
-		char       *ret = PR_GetTempString ();
+		char	   *ret = PR_GetTempString ();
 		const char *val = PR_UglyValueString (qcvm->fielddefs[fldidx].type, (eval_t *)((float *)&ent->v + qcvm->fielddefs[fldidx].ofs));
 		q_strlcpy (ret, val, STRINGTEMP_LENGTH);
 		G_INT (OFS_RETURN) = PR_SetEngineString (ret);
@@ -3533,8 +3528,8 @@ static void PF_getentfldstr (void)
 static void PF_putentfldstr (void)
 {
 	unsigned int fldidx = G_FLOAT (OFS_PARM0);
-	edict_t     *ent = G_EDICT (OFS_PARM1);
-	const char  *value = G_STRING (OFS_PARM2);
+	edict_t		*ent = G_EDICT (OFS_PARM1);
+	const char	*value = G_STRING (OFS_PARM2);
 	if (fldidx < (unsigned int)qcvm->progs->numfielddefs)
 		G_FLOAT (OFS_RETURN) = ED_ParseEpair ((void *)&ent->v, qcvm->fielddefs + fldidx, value, true);
 	else
@@ -3543,8 +3538,8 @@ static void PF_putentfldstr (void)
 
 static void PF_parseentitydata (void)
 {
-	edict_t     *ed = G_EDICT (OFS_PARM0);
-	const char  *data = G_STRING (OFS_PARM1), *end;
+	edict_t		*ed = G_EDICT (OFS_PARM0);
+	const char	*data = G_STRING (OFS_PARM1), *end;
 	unsigned int offset = (qcvm->argc > 2) ? G_FLOAT (OFS_PARM2) : 0;
 	if (offset)
 	{
@@ -3570,7 +3565,7 @@ static void PF_parseentitydata (void)
 static void PF_callfunction (void)
 {
 	dfunction_t *fnc;
-	const char  *fname;
+	const char	*fname;
 	if (!qcvm->argc)
 		return;
 	qcvm->argc--;
@@ -3612,9 +3607,9 @@ static void PF_gettime (void)
 static void PF_infokey_internal (qboolean returnfloat)
 {
 	unsigned int ent = G_EDICTNUM (OFS_PARM0);
-	const char  *key = G_STRING (OFS_PARM1);
-	const char  *r;
-	char         buf[1024];
+	const char	*key = G_STRING (OFS_PARM1);
+	const char	*r;
+	char		 buf[1024];
 	if (!ent)
 	{
 		if (!strcmp (key, "*version"))
@@ -3633,10 +3628,10 @@ static void PF_infokey_internal (qboolean returnfloat)
 			r = NET_QSocketGetTrueAddressString (client->netconnection);
 		else if (!strcmp (key, "ping"))
 		{
-			float        total = 0;
+			float		 total = 0;
 			unsigned int j;
 			for (j = 0; j < NUM_PING_TIMES; j++)
-				total += client->ping_times[j];
+total += client->ping_times[j];
 			total /= NUM_PING_TIMES;
 			q_snprintf (buf, sizeof (buf), "%f", total);
 		}
@@ -3645,17 +3640,17 @@ static void PF_infokey_internal (qboolean returnfloat)
 			switch (sv.protocol)
 			{
 			case PROTOCOL_NETQUAKE:
-				r = "quake";
-				break;
+r = "quake";
+break;
 			case PROTOCOL_FITZQUAKE:
-				r = "fitz666";
-				break;
+r = "fitz666";
+break;
 			case PROTOCOL_RMQ:
-				r = "rmq999";
-				break;
+r = "rmq999";
+break;
 			default:
-				r = "";
-				break;
+r = "";
+break;
 			}
 		}
 		else if (!strcmp (key, "name"))
@@ -3709,8 +3704,8 @@ static void PF_infokey_f (void)
 static void PF_multicast_internal (qboolean reliable, byte *pvs, unsigned int requireext2)
 {
 	unsigned int i;
-	int          cluster;
-	mleaf_t     *playerleaf;
+	int			 cluster;
+	mleaf_t		*playerleaf;
 	if (!pvs)
 	{
 		if (!requireext2)
@@ -3719,11 +3714,11 @@ static void PF_multicast_internal (qboolean reliable, byte *pvs, unsigned int re
 		{
 			for (i = 0; i < (unsigned int)svs.maxclients; i++)
 			{
-				if (!svs.clients[i].active)
-					continue;
-				if (!(svs.clients[i].protocol_pext2 & requireext2))
-					continue;
-				SZ_Write ((reliable ? &svs.clients[i].message : &svs.clients[i].datagram), sv.multicast.data, sv.multicast.cursize);
+if (!svs.clients[i].active)
+	continue;
+if (!(svs.clients[i].protocol_pext2 & requireext2))
+	continue;
+SZ_Write ((reliable ? &svs.clients[i].message : &svs.clients[i].datagram), sv.multicast.data, sv.multicast.cursize);
 			}
 		}
 	}
@@ -3732,10 +3727,10 @@ static void PF_multicast_internal (qboolean reliable, byte *pvs, unsigned int re
 		for (i = 0; i < (unsigned int)svs.maxclients; i++)
 		{
 			if (!svs.clients[i].active)
-				continue;
+continue;
 
 			if (requireext2 && !(svs.clients[i].protocol_pext2 & requireext2))
-				continue;
+continue;
 
 			// figure out which cluster (read: pvs index) to use.
 			playerleaf = Mod_PointInLeaf (svs.clients[i].edict->v.origin, qcvm->worldmodel);
@@ -3743,11 +3738,11 @@ static void PF_multicast_internal (qboolean reliable, byte *pvs, unsigned int re
 			cluster--; // pvs is 1-based, leaf 0 is discarded.
 			if (cluster < 0 || (pvs[cluster >> 3] & (1 << (cluster & 7))))
 			{
-				// they can see it. add it in to whichever buffer is appropriate.
-				if (reliable)
-					SZ_Write (&svs.clients[i].message, sv.multicast.data, sv.multicast.cursize);
-				else
-					SZ_Write (&svs.clients[i].datagram, sv.multicast.data, sv.multicast.cursize);
+// they can see it. add it in to whichever buffer is appropriate.
+if (reliable)
+	SZ_Write (&svs.clients[i].message, sv.multicast.data, sv.multicast.cursize);
+else
+	SZ_Write (&svs.clients[i].datagram, sv.multicast.data, sv.multicast.cursize);
 			}
 		}
 	}
@@ -3800,7 +3795,7 @@ static void SV_Multicast (multicast_t to, float *org, int msg_entity, unsigned i
 }
 static void PF_multicast (void)
 {
-	float      *org = G_VECTOR (OFS_PARM0);
+	float	   *org = G_VECTOR (OFS_PARM0);
 	multicast_t to = G_FLOAT (OFS_PARM1);
 	SV_Multicast (to, org, NUM_FOR_EDICT (PROG_TO_EDICT (pr_global_struct->msg_entity)), 0);
 }
@@ -3823,8 +3818,8 @@ static void PF_uri_escape (void)
 {
 	static const char *hex = "0123456789ABCDEF";
 
-	char                *result = PR_GetTempString ();
-	char                *o = result;
+	char				*result = PR_GetTempString ();
+	char				*o = result;
 	const unsigned char *s = (const unsigned char *)G_STRING (OFS_PARM0);
 	*result = 0;
 	while (*s && o < result + STRINGTEMP_LENGTH - 4)
@@ -3844,8 +3839,8 @@ static void PF_uri_escape (void)
 }
 static void PF_uri_unescape (void)
 {
-	const char   *s = G_STRING (OFS_PARM0), *i;
-	char         *resultbuf = PR_GetTempString (), *o;
+	const char	 *s = G_STRING (OFS_PARM0), *i;
+	char		 *resultbuf = PR_GetTempString (), *o;
 	unsigned char hex;
 	i = s;
 	o = resultbuf;
@@ -3855,27 +3850,27 @@ static void PF_uri_unescape (void)
 		{
 			hex = 0;
 			if (i[1] >= 'A' && i[1] <= 'F')
-				hex += i[1] - 'A' + 10;
+hex += i[1] - 'A' + 10;
 			else if (i[1] >= 'a' && i[1] <= 'f')
-				hex += i[1] - 'a' + 10;
+hex += i[1] - 'a' + 10;
 			else if (i[1] >= '0' && i[1] <= '9')
-				hex += i[1] - '0';
+hex += i[1] - '0';
 			else
 			{
-				*o++ = *i++;
-				continue;
+*o++ = *i++;
+continue;
 			}
 			hex <<= 4;
 			if (i[2] >= 'A' && i[2] <= 'F')
-				hex += i[2] - 'A' + 10;
+hex += i[2] - 'A' + 10;
 			else if (i[2] >= 'a' && i[2] <= 'f')
-				hex += i[2] - 'a' + 10;
+hex += i[2] - 'a' + 10;
 			else if (i[2] >= '0' && i[2] <= '9')
-				hex += i[2] - '0';
+hex += i[2] - '0';
 			else
 			{
-				*o++ = *i++;
-				continue;
+*o++ = *i++;
+continue;
 			}
 			*o++ = hex;
 			i += 3;
@@ -3888,9 +3883,9 @@ static void PF_uri_unescape (void)
 }
 static void PF_crc16 (void)
 {
-	qboolean    insens = G_FLOAT (OFS_PARM0);
+	qboolean	insens = G_FLOAT (OFS_PARM0);
 	const char *str = PF_VarString (1);
-	size_t      len = strlen (str);
+	size_t		len = strlen (str);
 
 	if (insens)
 	{
@@ -3906,12 +3901,12 @@ static void PF_crc16 (void)
 }
 static void PF_digest_hex (void)
 {
-	const char        *hashtype = G_STRING (OFS_PARM0);
-	const byte        *data = (const byte *)PF_VarString (1);
-	size_t             len = strlen ((const char *)data);
+	const char		  *hashtype = G_STRING (OFS_PARM0);
+	const byte		  *data = (const byte *)PF_VarString (1);
+	size_t			   len = strlen ((const char *)data);
 	static const char *hex = "0123456789ABCDEF";
-	char              *resultbuf;
-	byte               hashdata[20];
+	char			  *resultbuf;
+	byte			   hashdata[20];
 
 	if (!strcmp (hashtype, "CRC16"))
 	{
@@ -3946,7 +3941,7 @@ static void PF_digest_hex (void)
 
 static void PF_strlennocol (void)
 {
-	int             r = 0;
+	int				r = 0;
 	struct markup_s mu;
 
 	PR_Markup_Begin (&mu, G_STRING (OFS_PARM0), vec3_origin, 1);
@@ -3956,8 +3951,8 @@ static void PF_strlennocol (void)
 }
 static void PF_strdecolorize (void)
 {
-	int             l, c;
-	char           *r = PR_GetTempString ();
+	int				l, c;
+	char		   *r = PR_GetTempString ();
 	struct markup_s mu;
 
 	PR_Markup_Begin (&mu, G_STRING (OFS_PARM0), vec3_origin, 1);
@@ -3974,10 +3969,10 @@ static void PF_strdecolorize (void)
 }
 static void PF_setattachment (void)
 {
-	edict_t    *ent = G_EDICT (OFS_PARM0);
-	edict_t    *tagent = G_EDICT (OFS_PARM1);
+	edict_t	   *ent = G_EDICT (OFS_PARM0);
+	edict_t	   *tagent = G_EDICT (OFS_PARM1);
 	const char *tagname = G_STRING (OFS_PARM2);
-	eval_t     *val;
+	eval_t	   *val;
 
 	if (*tagname)
 	{
@@ -4022,9 +4017,9 @@ static struct svcustomstat_s *PR_CustomStat (int idx, int type)
 }
 static void PF_clientstat (void)
 {
-	int                    idx = G_FLOAT (OFS_PARM0);
-	int                    type = G_FLOAT (OFS_PARM1);
-	int                    fldofs = G_INT (OFS_PARM2);
+	int					   idx = G_FLOAT (OFS_PARM0);
+	int					   type = G_FLOAT (OFS_PARM1);
+	int					   fldofs = G_INT (OFS_PARM2);
 	struct svcustomstat_s *stat = PR_CustomStat (idx, type);
 	if (!stat)
 		return;
@@ -4059,10 +4054,10 @@ int PF_SV_ForceParticlePrecache (const char *s)
 		{
 			if (sv.state != ss_loading)
 			{
-				MSG_WriteByte (&sv.multicast, svcdp_precache);
-				MSG_WriteShort (&sv.multicast, i | 0x4000);
-				MSG_WriteString (&sv.multicast, s);
-				SV_Multicast (MULTICAST_ALL_R, NULL, 0, PEXT2_REPLACEMENTDELTAS); // FIXME
+MSG_WriteByte (&sv.multicast, svcdp_precache);
+MSG_WriteShort (&sv.multicast, i | 0x4000);
+MSG_WriteString (&sv.multicast, s);
+SV_Multicast (MULTICAST_ALL_R, NULL, 0, PEXT2_REPLACEMENTDELTAS); // FIXME
 			}
 
 			sv.particle_precache[i] = q_strdup (s); // weirdness to avoid issues with tempstrings
@@ -4073,7 +4068,7 @@ int PF_SV_ForceParticlePrecache (const char *s)
 }
 static void PF_sv_particleeffectnum (void)
 {
-	const char   *s;
+	const char	 *s;
 	unsigned int  i;
 	extern cvar_t r_particledesc;
 
@@ -4093,8 +4088,8 @@ static void PF_sv_particleeffectnum (void)
 		{
 			if (sv.state != ss_loading && !pr_checkextension.value)
 			{
-				if (pr_ext_warned_particleeffectnum++ < 3)
-					Con_Warning ("PF_sv_particleeffectnum(%s): Precache should only be done in spawn functions\n", s);
+if (pr_ext_warned_particleeffectnum++ < 3)
+	Con_Warning ("PF_sv_particleeffectnum(%s): Precache should only be done in spawn functions\n", s);
 			}
 			G_FLOAT (OFS_RETURN) = i;
 			return;
@@ -4107,13 +4102,13 @@ static void PF_sv_particleeffectnum (void)
 		{
 			if (sv.state != ss_loading)
 			{
-				if (pr_ext_warned_particleeffectnum++ < 3)
-					Con_Warning ("PF_sv_particleeffectnum(%s): Precache should only be done in spawn functions\n", s);
+if (pr_ext_warned_particleeffectnum++ < 3)
+	Con_Warning ("PF_sv_particleeffectnum(%s): Precache should only be done in spawn functions\n", s);
 
-				MSG_WriteByte (&sv.multicast, svcdp_precache);
-				MSG_WriteShort (&sv.multicast, i | 0x4000);
-				MSG_WriteString (&sv.multicast, s);
-				SV_Multicast (MULTICAST_ALL_R, NULL, 0, PEXT2_REPLACEMENTDELTAS);
+MSG_WriteByte (&sv.multicast, svcdp_precache);
+MSG_WriteShort (&sv.multicast, i | 0x4000);
+MSG_WriteString (&sv.multicast, s);
+SV_Multicast (MULTICAST_ALL_R, NULL, 0, PEXT2_REPLACEMENTDELTAS);
 			}
 
 			sv.particle_precache[i] = q_strdup (s); // weirdness to avoid issues with tempstrings
@@ -4125,8 +4120,8 @@ static void PF_sv_particleeffectnum (void)
 }
 static void PF_sv_trailparticles (void)
 {
-	int    efnum;
-	int    ednum;
+	int	   efnum;
+	int	   ednum;
 	float *start = G_VECTOR (OFS_PARM2);
 	float *end = G_VECTOR (OFS_PARM3);
 
@@ -4159,10 +4154,10 @@ static void PF_sv_trailparticles (void)
 }
 static void PF_sv_pointparticles (void)
 {
-	int    efnum = G_FLOAT (OFS_PARM0);
+	int	   efnum = G_FLOAT (OFS_PARM0);
 	float *org = G_VECTOR (OFS_PARM1);
 	float *vel = (qcvm->argc < 3) ? vec3_origin : G_VECTOR (OFS_PARM2);
-	int    count = (qcvm->argc < 4) ? 1 : G_FLOAT (OFS_PARM3);
+	int	   count = (qcvm->argc < 4) ? 1 : G_FLOAT (OFS_PARM3);
 
 	if (efnum <= 0)
 		return;
@@ -4260,10 +4255,10 @@ static void PF_cl_particleeffectnum (void)
 }
 static void PF_cl_trailparticles (void)
 {
-	int      efnum;
+	int		 efnum;
 	edict_t *ent;
-	float   *start = G_VECTOR (OFS_PARM2);
-	float   *end = G_VECTOR (OFS_PARM3);
+	float	*start = G_VECTOR (OFS_PARM2);
+	float	*end = G_VECTOR (OFS_PARM3);
 
 	if ((unsigned int)G_INT (OFS_PARM1) >= MAX_EDICTS * (unsigned int)qcvm->edict_size)
 	{ /*DP gets this wrong, lets try to be compatible*/
@@ -4283,10 +4278,10 @@ static void PF_cl_trailparticles (void)
 }
 static void PF_cl_pointparticles (void)
 {
-	int    efnum = G_FLOAT (OFS_PARM0);
+	int	   efnum = G_FLOAT (OFS_PARM0);
 	float *org = G_VECTOR (OFS_PARM1);
 	float *vel = (qcvm->argc < 3) ? vec3_origin : G_VECTOR (OFS_PARM2);
-	int    count = (qcvm->argc < 4) ? 1 : G_FLOAT (OFS_PARM3);
+	int	   count = (qcvm->argc < 4) ? 1 : G_FLOAT (OFS_PARM3);
 
 	if (efnum <= 0)
 		return;
@@ -4297,11 +4292,11 @@ static void PF_cl_pointparticles (void)
 }
 #else
 #define PF_sv_particleeffectnum PF_void_stub
-#define PF_sv_trailparticles    PF_void_stub
-#define PF_sv_pointparticles    PF_void_stub
+#define PF_sv_trailparticles	PF_void_stub
+#define PF_sv_pointparticles	PF_void_stub
 #define PF_cl_particleeffectnum PF_void_stub
-#define PF_cl_trailparticles    PF_void_stub
-#define PF_cl_pointparticles    PF_void_stub
+#define PF_cl_trailparticles	PF_void_stub
+#define PF_cl_pointparticles	PF_void_stub
 #endif
 
 static void PF_cl_getstat_int (void)
@@ -4341,13 +4336,13 @@ static void PF_cl_getstat_string (void)
 
 static struct
 {
-	char         name[MAX_QPATH];
+	char		 name[MAX_QPATH];
 	unsigned int flags;
-	qpic_t      *pic;
-} * qcpics;
+	qpic_t		*pic;
+}			 *qcpics;
 static size_t numqcpics;
 static size_t maxqcpics;
-void          PR_ReloadPics (qboolean purge)
+void		  PR_ReloadPics (qboolean purge)
 {
 	numqcpics = 0;
 
@@ -4355,22 +4350,22 @@ void          PR_ReloadPics (qboolean purge)
 	qcpics = NULL;
 	maxqcpics = 0;
 }
-#define PICFLAG_AUTO   0         // value used when no flags known
-#define PICFLAG_WAD    (1u << 0) // name matches that of a wad lump
+#define PICFLAG_AUTO   0		 // value used when no flags known
+#define PICFLAG_WAD	   (1u << 0) // name matches that of a wad lump
 #define PICFLAG_WRAP   (1u << 2) // make sure npot stuff doesn't break wrapping.
 #define PICFLAG_MIPMAP (1u << 3) // disable use of scrap...
 #define PICFLAG_BLOCK  (1u << 9) // wait until the texture is fully loaded.
 #define PICFLAG_NOLOAD (1u << 31)
 static qpic_t *DrawQC_CachePic (const char *picname, unsigned int flags)
 { // okay, so this is silly. we've ended up with 3 different cache levels. qcpics, pics, and images.
-	size_t       i;
+	size_t		 i;
 	unsigned int texflags;
 	for (i = 0; i < numqcpics; i++)
 	{ // binary search? something more sane?
 		if (!strcmp (picname, qcpics[i].name))
 		{
 			if (qcpics[i].pic)
-				return qcpics[i].pic;
+return qcpics[i].pic;
 			break;
 		}
 	}
@@ -4393,8 +4388,8 @@ static qpic_t *DrawQC_CachePic (const char *picname, unsigned int flags)
 
 	texflags = TEXPREF_ALPHA | TEXPREF_PAD | TEXPREF_NOPICMIP;
 	if (flags & PICFLAG_WRAP)
-		texflags &= ~TEXPREF_PAD; // don't allow padding if its going to need to wrap (even if we don't enable clamp-to-edge normally). I just hope we have npot
-		                          // support.
+		texflags &= ~TEXPREF_PAD; // don't allow padding if its going to need to wrap (even if we don't enable clamp-to-edge normally). I just hope we have
+								  // npot support.
 	if (flags & PICFLAG_MIPMAP)
 		texflags |= TEXPREF_MIPMAP;
 
@@ -4416,16 +4411,16 @@ static qpic_t *DrawQC_CachePic (const char *picname, unsigned int flags)
 	return qcpics[i].pic;
 }
 extern gltexture_t *char_texture;
-static void         DrawQC_CharacterQuad (cb_context_t *cbx, float x, float y, int num, float w, float h, float *rgb, float alpha)
+static void			DrawQC_CharacterQuad (cb_context_t *cbx, float x, float y, int num, float w, float h, float *rgb, float alpha)
 {
-	float    size = 0.0625;
-	float    frow = (num >> 4) * size;
-	float    fcol = (num & 15) * size;
-	int      i;
+	float	 size = 0.0625;
+	float	 frow = (num >> 4) * size;
+	float	 fcol = (num & 15) * size;
+	int		 i;
 	qboolean alpha_blend = alpha < 1.0f;
 	size = 0.0624; // avoid rounding errors...
 
-	VkBuffer       buffer;
+	VkBuffer	   buffer;
 	VkDeviceSize   buffer_offset;
 	basicvertex_t *vertices = (basicvertex_t *)R_VertexAllocate (6 * sizeof (basicvertex_t), &buffer, &buffer_offset);
 
@@ -4485,7 +4480,7 @@ static void PF_cl_drawcharacter (void)
 	extern gltexture_t *char_texture;
 
 	float *pos = G_VECTOR (OFS_PARM0);
-	int    charcode = (int)G_FLOAT (OFS_PARM1) & 0xff;
+	int	   charcode = (int)G_FLOAT (OFS_PARM1) & 0xff;
 	float *size = G_VECTOR (OFS_PARM2);
 	float *rgb = G_VECTOR (OFS_PARM3);
 	float  alpha = G_FLOAT (OFS_PARM4);
@@ -4498,14 +4493,14 @@ static void PF_cl_drawcharacter (void)
 
 static void PF_cl_drawrawstring (void)
 {
-	float      *pos = G_VECTOR (OFS_PARM0);
+	float	   *pos = G_VECTOR (OFS_PARM0);
 	const char *text = G_STRING (OFS_PARM1);
-	float      *size = G_VECTOR (OFS_PARM2);
-	float      *rgb = G_VECTOR (OFS_PARM3);
-	float       alpha = G_FLOAT (OFS_PARM4);
+	float	   *size = G_VECTOR (OFS_PARM2);
+	float	   *rgb = G_VECTOR (OFS_PARM3);
+	float		alpha = G_FLOAT (OFS_PARM4);
 
 	float x = pos[0];
-	int   c;
+	int	  c;
 
 	if (!*text)
 		return; // don't waste time on spaces
@@ -4518,15 +4513,15 @@ static void PF_cl_drawrawstring (void)
 }
 static void PF_cl_drawstring (void)
 {
-	float      *pos = G_VECTOR (OFS_PARM0);
+	float	   *pos = G_VECTOR (OFS_PARM0);
 	const char *text = G_STRING (OFS_PARM1);
-	float      *size = G_VECTOR (OFS_PARM2);
-	float      *rgb = G_VECTOR (OFS_PARM3);
-	float       alpha = G_FLOAT (OFS_PARM4);
+	float	   *size = G_VECTOR (OFS_PARM2);
+	float	   *rgb = G_VECTOR (OFS_PARM3);
+	float		alpha = G_FLOAT (OFS_PARM4);
 
-	float           x = pos[0];
+	float			x = pos[0];
 	struct markup_s mu;
-	int             c;
+	int				c;
 
 	if (!*text)
 		return; // don't waste time on spaces
@@ -4542,11 +4537,11 @@ static void PF_cl_drawstring (void)
 static void PF_cl_stringwidth (void)
 {
 	static const float defaultfontsize[] = {8, 8};
-	const char        *text = G_STRING (OFS_PARM0);
-	qboolean           usecolours = G_FLOAT (OFS_PARM1);
-	const float       *fontsize = (qcvm->argc > 2) ? G_VECTOR (OFS_PARM2) : defaultfontsize;
-	struct markup_s    mu;
-	int                r = 0;
+	const char		  *text = G_STRING (OFS_PARM0);
+	qboolean		   usecolours = G_FLOAT (OFS_PARM1);
+	const float		  *fontsize = (qcvm->argc > 2) ? G_VECTOR (OFS_PARM2) : defaultfontsize;
+	struct markup_s	   mu;
+	int				   r = 0;
 
 	if (!usecolours)
 		r = strlen (text);
@@ -4591,7 +4586,7 @@ static void PF_cl_drawresetclip (void)
 
 static void PF_cl_precachepic (void)
 {
-	const char  *name = G_STRING (OFS_PARM0);
+	const char	*name = G_STRING (OFS_PARM0);
 	unsigned int flags = G_FLOAT (OFS_PARM1);
 
 	G_INT (OFS_RETURN) = G_INT (OFS_PARM0); // return input string, for convienience
@@ -4614,7 +4609,7 @@ static void PF_cl_drawpic (void)
 	qpic_t *pic = DrawQC_CachePic (G_STRING (OFS_PARM1), PICFLAG_AUTO);
 	float  *size = G_VECTOR (OFS_PARM2);
 	float  *rgb = G_VECTOR (OFS_PARM3);
-	float   alpha = G_FLOAT (OFS_PARM4);
+	float	alpha = G_FLOAT (OFS_PARM4);
 
 	if (pic)
 		Draw_SubPic (&vulkan_globals.secondary_cb_contexts[CBX_GUI], pos[0], pos[1], size[0], size[1], pic, 0, 0, 1, 1, rgb, alpha);
@@ -4637,7 +4632,7 @@ static void PF_cl_drawsubpic (void)
 	float  *srcpos = G_VECTOR (OFS_PARM3);
 	float  *srcsize = G_VECTOR (OFS_PARM4);
 	float  *rgb = G_VECTOR (OFS_PARM5);
-	float   alpha = G_FLOAT (OFS_PARM6);
+	float	alpha = G_FLOAT (OFS_PARM6);
 
 	if (pic)
 		Draw_SubPic (
@@ -4646,13 +4641,13 @@ static void PF_cl_drawsubpic (void)
 
 static void PF_cl_drawfill (void)
 {
-	int    i;
+	int	   i;
 	float *pos = G_VECTOR (OFS_PARM0);
 	float *size = G_VECTOR (OFS_PARM1);
 	float *rgb = G_VECTOR (OFS_PARM2);
 	float  alpha = G_FLOAT (OFS_PARM3);
 
-	VkBuffer       buffer;
+	VkBuffer	   buffer;
 	VkDeviceSize   buffer_offset;
 	basicvertex_t *vertices = (basicvertex_t *)R_VertexAllocate (6 * sizeof (basicvertex_t), &buffer, &buffer_offset);
 
@@ -4700,10 +4695,10 @@ static void PF_cl_drawfill (void)
 
 void PF_cl_playerkey_internal (int player, const char *key, qboolean retfloat)
 {
-	char        buf[1024];
+	char		buf[1024];
 	const char *ret = buf;
-	extern int  fragsort[MAX_SCOREBOARD];
-	extern int  scoreboardlines;
+	extern int	fragsort[MAX_SCOREBOARD];
+	extern int	scoreboardlines;
 	if (player < 0 && player >= -scoreboardlines)
 		player = fragsort[-1 - player];
 	if (player < 0 || player >= MAX_SCOREBOARD)
@@ -4724,13 +4719,13 @@ void PF_cl_playerkey_internal (int player, const char *key, qboolean retfloat)
 		q_snprintf (buf, sizeof (buf), "%g", cl.scores[player].entertime);
 	else if (!strcmp (key, "topcolor_rgb"))
 	{
-		int   color = cl.scores[player].colors >> 4;
+		int	  color = cl.scores[player].colors >> 4;
 		byte *pal = (byte *)(d_8to24table + (color * 16 + 8));
 		q_snprintf (buf, sizeof (buf), "%g %g %g", pal[0] / 255.0, pal[1] / 255.0, pal[2] / 255.0);
 	}
 	else if (!strcmp (key, "bottomcolor_rgb"))
 	{
-		int   color = cl.scores[player].colors & 0xf;
+		int	  color = cl.scores[player].colors & 0xf;
 		byte *pal = (byte *)(d_8to24table + (color * 16 + 8));
 		q_snprintf (buf, sizeof (buf), "%g %g %g", pal[0] / 255.0, pal[1] / 255.0, pal[2] / 255.0);
 	}
@@ -4739,7 +4734,7 @@ void PF_cl_playerkey_internal (int player, const char *key, qboolean retfloat)
 	else if (!strcmp (key, "bottomcolor"))
 		ret = va ("%i", cl.scores[player].colors & 0xf);
 	else if (!strcmp (key, "team")) // quakeworld uses team infokeys to decide teams (instead of colours). but NQ never did, so that's fun. Lets allow mods to
-	                                // use either so that they can favour QW and let the engine hide differences .
+									// use either so that they can favour QW and let the engine hide differences .
 		q_snprintf (buf, sizeof (buf), "%i", (cl.scores[player].colors & 0xf) + 1);
 	else if (!strcmp (key, "userid"))
 		ret = NULL; // unknown
@@ -4758,14 +4753,14 @@ void PF_cl_playerkey_internal (int player, const char *key, qboolean retfloat)
 
 static void PF_cl_playerkey_s (void)
 {
-	int         playernum = G_FLOAT (OFS_PARM0);
+	int			playernum = G_FLOAT (OFS_PARM0);
 	const char *keyname = G_STRING (OFS_PARM1);
 	PF_cl_playerkey_internal (playernum, keyname, false);
 }
 
 static void PF_cl_playerkey_f (void)
 {
-	int         playernum = G_FLOAT (OFS_PARM0);
+	int			playernum = G_FLOAT (OFS_PARM0);
 	const char *keyname = G_STRING (OFS_PARM1);
 	PF_cl_playerkey_internal (playernum, keyname, true);
 }
@@ -4783,7 +4778,7 @@ static void PF_uri_get (void)
 static void PF_touchtriggers (void)
 {
 	edict_t *e;
-	float   *org;
+	float	*org;
 
 	e = (qcvm->argc > 0) ? G_EDICT (OFS_PARM0) : G_EDICT (pr_global_struct->self);
 	if (qcvm->argc > 1)
@@ -4796,11 +4791,11 @@ static void PF_touchtriggers (void)
 
 static void PF_checkpvs (void)
 {
-	float   *org = G_VECTOR (OFS_PARM0);
+	float	*org = G_VECTOR (OFS_PARM0);
 	edict_t *ed = G_EDICT (OFS_PARM1);
 
-	mleaf_t     *leaf = Mod_PointInLeaf (org, qcvm->worldmodel);
-	byte        *pvs = Mod_LeafPVS (leaf, qcvm->worldmodel); // johnfitz -- worldmodel as a parameter
+	mleaf_t		*leaf = Mod_PointInLeaf (org, qcvm->worldmodel);
+	byte		*pvs = Mod_LeafPVS (leaf, qcvm->worldmodel); // johnfitz -- worldmodel as a parameter
 	unsigned int i;
 
 	for (i = 0; i < ed->num_leafs; i++)
@@ -5141,8 +5136,8 @@ static struct
 #endif
 	{"DP_TE_STANDARDEFFECTBUILTINS"},
 	{"EXT_BITSHIFT"},
-	{"FTE_ENT_SKIN_CONTENTS"}, // SOLID_BSP&&skin==CONTENTS_FOO changes CONTENTS_SOLID to CONTENTS_FOO, allowing you to swim in moving ents without qc hacks, as
-                               // well as correcting view cshifts etc.
+	{"FTE_ENT_SKIN_CONTENTS"}, // SOLID_BSP&&skin==CONTENTS_FOO changes CONTENTS_SOLID to CONTENTS_FOO, allowing you to swim in moving ents without qc hacks,
+							   // as well as correcting view cshifts etc.
 #ifdef PSET_SCRIPT
 	{"FTE_PART_SCRIPT"},
 	{"FTE_PART_NAMESPACES"},
@@ -5165,66 +5160,66 @@ static struct
 
 static void PF_checkextension (void)
 {
-	const char  *extname = G_STRING (OFS_PARM0);
+	const char	*extname = G_STRING (OFS_PARM0);
 	unsigned int i;
-	cvar_t      *v;
-	char        *cvn;
+	cvar_t		*v;
+	char		*cvn;
 	for (i = 0; i < countof (qcextensions); i++)
 	{
 		if (!strcmp (extname, qcextensions[i].name))
 		{
 			if (qcextensions[i].checkextsupported)
 			{
-				unsigned int        prot, pext1, pext2;
-				extern int          sv_protocol;
-				extern unsigned int sv_protocol_pext1;
-				extern unsigned int sv_protocol_pext2;
-				extern cvar_t       cl_nopext;
-				if (sv.active || qcvm == &sv.qcvm)
-				{ // server or client+server
-					prot = sv_protocol;
-					pext1 = sv_protocol_pext1;
-					pext2 = sv_protocol_pext2;
+unsigned int		prot, pext1, pext2;
+extern int			sv_protocol;
+extern unsigned int sv_protocol_pext1;
+extern unsigned int sv_protocol_pext2;
+extern cvar_t		cl_nopext;
+if (sv.active || qcvm == &sv.qcvm)
+{ // server or client+server
+	prot = sv_protocol;
+	pext1 = sv_protocol_pext1;
+	pext2 = sv_protocol_pext2;
 
-					// if the server seems to be set up for singleplayer then filter by client settings. otherwise just assume the best.
-					if (!isDedicated && svs.maxclients == 1 && cl_nopext.value)
-						pext1 = pext2 = 0;
-				}
-				else if (cls.state == ca_connected)
-				{ // client only (or demo)
-					prot = cl.protocol;
-					pext1 = cl.protocol_pext1;
-					pext2 = cl.protocol_pext2;
-				}
-				else
-				{ // menuqc? ooer
-					prot = 0;
-					pext1 = 0;
-					pext2 = 0;
-				}
-				if (!qcextensions[i].checkextsupported (prot, pext1, pext2))
-				{
-					if (!pr_checkextension.value)
-						Con_Printf ("Mod queried extension %s, but not enabled\n", extname);
-					G_FLOAT (OFS_RETURN) = false;
-					return;
-				}
+	// if the server seems to be set up for singleplayer then filter by client settings. otherwise just assume the best.
+	if (!isDedicated && svs.maxclients == 1 && cl_nopext.value)
+		pext1 = pext2 = 0;
+}
+else if (cls.state == ca_connected)
+{ // client only (or demo)
+	prot = cl.protocol;
+	pext1 = cl.protocol_pext1;
+	pext2 = cl.protocol_pext2;
+}
+else
+{ // menuqc? ooer
+	prot = 0;
+	pext1 = 0;
+	pext2 = 0;
+}
+if (!qcextensions[i].checkextsupported (prot, pext1, pext2))
+{
+	if (!pr_checkextension.value)
+		Con_Printf ("Mod queried extension %s, but not enabled\n", extname);
+	G_FLOAT (OFS_RETURN) = false;
+	return;
+}
 			}
 
 			cvn = va ("pr_ext_%s", qcextensions[i].name);
 			for (i = 0; cvn[i]; i++)
-				if (cvn[i] >= 'A' && cvn[i] <= 'Z')
-					cvn[i] = 'a' + (cvn[i] - 'A');
+if (cvn[i] >= 'A' && cvn[i] <= 'Z')
+	cvn[i] = 'a' + (cvn[i] - 'A');
 			v = Cvar_Create (cvn, "1");
 			if (v && !v->value)
 			{
-				if (!pr_checkextension.value)
-					Con_Printf ("Mod queried extension %s, but blocked by cvar\n", extname);
-				G_FLOAT (OFS_RETURN) = false;
-				return;
+if (!pr_checkextension.value)
+	Con_Printf ("Mod queried extension %s, but blocked by cvar\n", extname);
+G_FLOAT (OFS_RETURN) = false;
+return;
 			}
 			if (!pr_checkextension.value)
-				Con_Printf ("Mod found extension %s\n", extname);
+Con_Printf ("Mod found extension %s\n", extname);
 			G_FLOAT (OFS_RETURN) = true;
 			return;
 		}
@@ -5236,7 +5231,7 @@ static void PF_checkextension (void)
 
 static void PF_builtinsupported (void)
 {
-	const char  *biname = G_STRING (OFS_PARM0);
+	const char	*biname = G_STRING (OFS_PARM0);
 	unsigned int i;
 	for (i = 0; i < sizeof (extensionbuiltins) / sizeof (extensionbuiltins[0]); i++)
 	{
@@ -5255,7 +5250,7 @@ static void PF_checkbuiltin (void)
 	{
 		dfunction_t *fnc = &qcvm->functions[(unsigned int)funcref];
 		//		const char *funcname = PR_GetString(fnc->s_name);
-		int          binum = -fnc->first_statement;
+		int			 binum = -fnc->first_statement;
 		unsigned int i;
 
 		// qc defines the function at least. nothing weird there...
@@ -5263,26 +5258,26 @@ static void PF_checkbuiltin (void)
 		{
 			if (qcvm->builtins[binum] == PF_Fixme)
 			{
-				G_FLOAT (OFS_RETURN) = false; // the builtin with that number isn't defined.
-				for (i = 0; i < sizeof (extensionbuiltins) / sizeof (extensionbuiltins[0]); i++)
-				{
-					if (extensionbuiltins[i].number == binum)
-					{ // but it will be defined if its actually executed.
-						if (extensionbuiltins[i].desc && !strncmp (extensionbuiltins[i].desc, "stub.", 5))
-							G_FLOAT (OFS_RETURN) = false; // pretend it won't work if it probably won't be useful
-						else if ((qcvm == &cl.qcvm && !extensionbuiltins[i].csqcfunc) || (qcvm == &sv.qcvm && !extensionbuiltins[i].ssqcfunc))
-							G_FLOAT (OFS_RETURN) = false; // works, but not in this module
-						else
-							G_FLOAT (OFS_RETURN) = true;
-						break;
-					}
-				}
+G_FLOAT (OFS_RETURN) = false; // the builtin with that number isn't defined.
+for (i = 0; i < sizeof (extensionbuiltins) / sizeof (extensionbuiltins[0]); i++)
+{
+	if (extensionbuiltins[i].number == binum)
+	{ // but it will be defined if its actually executed.
+		if (extensionbuiltins[i].desc && !strncmp (extensionbuiltins[i].desc, "stub.", 5))
+			G_FLOAT (OFS_RETURN) = false; // pretend it won't work if it probably won't be useful
+		else if ((qcvm == &cl.qcvm && !extensionbuiltins[i].csqcfunc) || (qcvm == &sv.qcvm && !extensionbuiltins[i].ssqcfunc))
+			G_FLOAT (OFS_RETURN) = false; // works, but not in this module
+		else
+			G_FLOAT (OFS_RETURN) = true;
+		break;
+	}
+}
 			}
 			else
 			{
-				G_FLOAT (OFS_RETURN) = true; // its defined, within the sane range, mapped, everything. all looks good.
-				// we should probably go through the available builtins and validate that the qc's name matches what would be expected
-				// this is really intended more for builtins defined as #0 though, in such cases, mismatched assumptions are impossible.
+G_FLOAT (OFS_RETURN) = true; // its defined, within the sane range, mapped, everything. all looks good.
+							 // we should probably go through the available builtins and validate that the qc's name matches what would be expected
+							 // this is really intended more for builtins defined as #0 though, in such cases, mismatched assumptions are impossible.
 			}
 		}
 		else
@@ -5298,38 +5293,38 @@ void PF_Fixme (void)
 {
 	// interrogate the vm to try to figure out exactly which builtin they just tried to execute.
 	dstatement_t *st = &qcvm->statements[qcvm->xstatement];
-	eval_t       *glob = (eval_t *)&qcvm->globals[st->a];
+	eval_t		 *glob = (eval_t *)&qcvm->globals[st->a];
 	if ((unsigned int)glob->function < (unsigned int)qcvm->progs->numfunctions)
 	{
 		dfunction_t *fnc = &qcvm->functions[(unsigned int)glob->function];
-		const char  *funcname = PR_GetString (fnc->s_name);
-		int          binum = -fnc->first_statement;
+		const char	*funcname = PR_GetString (fnc->s_name);
+		int			 binum = -fnc->first_statement;
 		unsigned int i;
 		if (binum >= 0)
 		{
 			// find an extension with the matching number
 			for (i = 0; i < sizeof (extensionbuiltins) / sizeof (extensionbuiltins[0]); i++)
 			{
-				int num = extensionbuiltins[i].number;
-				if (num == binum)
-				{ // set it up so we're faster next time
-					builtin_t bi = NULL;
-					if (qcvm == &sv.qcvm)
-						bi = extensionbuiltins[i].ssqcfunc;
-					else if (qcvm == &cl.qcvm)
-						bi = extensionbuiltins[i].csqcfunc;
-					if (!bi)
-						continue;
+int num = extensionbuiltins[i].number;
+if (num == binum)
+{ // set it up so we're faster next time
+	builtin_t bi = NULL;
+	if (qcvm == &sv.qcvm)
+		bi = extensionbuiltins[i].ssqcfunc;
+	else if (qcvm == &cl.qcvm)
+		bi = extensionbuiltins[i].csqcfunc;
+	if (!bi)
+		continue;
 
-					num = extensionbuiltins[i].documentednumber;
-					if (!pr_checkextension.value || (extensionbuiltins[i].desc && !strncmp (extensionbuiltins[i].desc, "stub.", 5)))
-						Con_Warning ("Mod is using builtin #%u - %s\n", num, extensionbuiltins[i].name);
-					else
-						Con_DPrintf2 ("Mod uses builtin #%u - %s\n", num, extensionbuiltins[i].name);
-					qcvm->builtins[binum] = bi;
-					qcvm->builtins[binum]();
-					return;
-				}
+	num = extensionbuiltins[i].documentednumber;
+	if (!pr_checkextension.value || (extensionbuiltins[i].desc && !strncmp (extensionbuiltins[i].desc, "stub.", 5)))
+		Con_Warning ("Mod is using builtin #%u - %s\n", num, extensionbuiltins[i].name);
+	else
+		Con_DPrintf2 ("Mod uses builtin #%u - %s\n", num, extensionbuiltins[i].name);
+	qcvm->builtins[binum] = bi;
+	qcvm->builtins[binum]();
+	return;
+}
 			}
 
 			PR_RunError ("unimplemented builtin #%i - %s", binum, funcname);
@@ -5376,7 +5371,7 @@ void PR_AutoCvarChanged (cvar_t *var)
 		if (glob)
 		{
 			if (!ED_ParseEpair ((void *)qcvm->globals, glob, var->string, true))
-				Con_Warning ("EXT: Unable to configure %s\n", n);
+Con_Warning ("EXT: Unable to configure %s\n", n);
 		}
 		PR_SwitchQCVM (NULL);
 	}
@@ -5388,7 +5383,7 @@ void PR_AutoCvarChanged (cvar_t *var)
 		if (glob)
 		{
 			if (!ED_ParseEpair ((void *)qcvm->globals, glob, var->string, true))
-				Con_Warning ("EXT: Unable to configure %s\n", n);
+Con_Warning ("EXT: Unable to configure %s\n", n);
 		}
 		PR_SwitchQCVM (NULL);
 	}
@@ -5435,7 +5430,7 @@ void PR_EnableExtensions (ddef_t *pr_globaldefs)
 		{
 			int num = (extensionbuiltins[i].documentednumber);
 			if (num && extensionbuiltins[i].csqcfunc && qcvm->builtins[num] != PF_Fixme)
-				qcvm->builtins[num] = extensionbuiltins[i].csqcfunc;
+qcvm->builtins[num] = extensionbuiltins[i].csqcfunc;
 		}
 
 		QCEXTFUNCS_GAME
@@ -5447,7 +5442,7 @@ void PR_EnableExtensions (ddef_t *pr_globaldefs)
 		{
 			int num = (extensionbuiltins[i].documentednumber);
 			if (num && extensionbuiltins[i].ssqcfunc && qcvm->builtins[num] != PF_Fixme)
-				qcvm->builtins[num] = extensionbuiltins[i].ssqcfunc;
+qcvm->builtins[num] = extensionbuiltins[i].ssqcfunc;
 		}
 
 		QCEXTFUNCS_GAME
@@ -5456,7 +5451,7 @@ void PR_EnableExtensions (ddef_t *pr_globaldefs)
 #undef QCEXTFUNC
 
 #define QCEXTGLOBAL_FLOAT(n)  qcvm->extglobals.n = PR_FindExtGlobal (ev_float, #n);
-#define QCEXTGLOBAL_INT(n)    qcvm->extglobals.n = PR_FindExtGlobal (ev_ext_integer, #n);
+#define QCEXTGLOBAL_INT(n)	  qcvm->extglobals.n = PR_FindExtGlobal (ev_ext_integer, #n);
 #define QCEXTGLOBAL_VECTOR(n) qcvm->extglobals.n = PR_FindExtGlobal (ev_vector, #n);
 	QCEXTGLOBALS_COMMON
 	QCEXTGLOBALS_GAME
@@ -5473,11 +5468,11 @@ void PR_EnableExtensions (ddef_t *pr_globaldefs)
 			const char *name = PR_GetString (qcvm->functions[i].s_name);
 			for (j = 0; j < sizeof (extensionbuiltins) / sizeof (extensionbuiltins[0]); j++)
 			{
-				if (!strcmp (extensionbuiltins[j].name, name))
-				{ // okay, map it
-					qcvm->functions[i].first_statement = -extensionbuiltins[j].number;
-					break;
-				}
+if (!strcmp (extensionbuiltins[j].name, name))
+{ // okay, map it
+	qcvm->functions[i].first_statement = -extensionbuiltins[j].number;
+	break;
+}
 			}
 		}
 	}
@@ -5492,10 +5487,10 @@ void PR_EnableExtensions (ddef_t *pr_globaldefs)
 			cvar_t *var = Cvar_Create (n + 9, PR_UglyValueString (qcvm->globaldefs[i].type, (eval_t *)(qcvm->globals + qcvm->globaldefs[i].ofs)));
 			numautocvars++;
 			if (!var)
-				continue; // name conflicts with a command?
+continue; // name conflicts with a command?
 
 			if (!ED_ParseEpair ((void *)qcvm->globals, &pr_globaldefs[i], var->string, true))
-				Con_Warning ("EXT: Unable to configure %s\n", n);
+Con_Warning ("EXT: Unable to configure %s\n", n);
 			var->flags |= CVAR_AUTOCVAR;
 		}
 	}
@@ -5507,9 +5502,9 @@ void PR_EnableExtensions (ddef_t *pr_globaldefs)
 
 void PR_DumpPlatform_f (void)
 {
-	char         name[MAX_OSPATH];
-	FILE        *f;
-	const char  *outname = NULL;
+	char		 name[MAX_OSPATH];
+	FILE		*f;
+	const char	*outname = NULL;
 	unsigned int i, j;
 	enum
 	{
@@ -5524,9 +5519,9 @@ void PR_DumpPlatform_f (void)
 		if (!strncmp (arg, "-O", 2))
 		{
 			if (arg[2])
-				outname = arg + 2;
+outname = arg + 2;
 			else
-				outname = Cmd_Argv (i++);
+outname = Cmd_Argv (i++);
 		}
 		else if (!q_strcasecmp (arg, "-Tcs"))
 			targs |= CS;
@@ -5610,7 +5605,7 @@ void PR_DumpPlatform_f (void)
 	fprintf (f, "#pragma noref 1\n");
 
 	if (targs & (SS | CS)) // qss uses the same system defs for both ssqc and csqc, as a simplification.
-	{                      // I really hope that fteqcc's unused variable logic is up to scratch
+	{					   // I really hope that fteqcc's unused variable logic is up to scratch
 		fprintf (f, "#if defined(CSQC_SIMPLE) || defined(SSQC)\n");
 		fprintf (f, "entity		self,other,world;\n");
 		fprintf (f, "float		time,frametime,force_retouch;\n");
@@ -5707,7 +5702,7 @@ void PR_DumpPlatform_f (void)
 	}
 #undef QCEXTFUNC
 
-#define QCEXTGLOBAL_INT(n)    fprintf (f, "int " #n ";\n");
+#define QCEXTGLOBAL_INT(n)	  fprintf (f, "int " #n ";\n");
 #define QCEXTGLOBAL_FLOAT(n)  fprintf (f, "float " #n ";\n");
 #define QCEXTGLOBAL_VECTOR(n) fprintf (f, "vector " #n ";\n");
 	QCEXTGLOBALS_COMMON
@@ -5860,7 +5855,7 @@ void PR_DumpPlatform_f (void)
 
 	if (targs & SS)
 	{
-		fprintf (f, ".float style;\n");     // not used by the engine, but is used by tools etc.
+		fprintf (f, ".float style;\n");		// not used by the engine, but is used by tools etc.
 		fprintf (f, ".float light_lev;\n"); // ditto.
 
 		// extra constants
@@ -6024,37 +6019,37 @@ void PR_DumpPlatform_f (void)
 		for (i = 0; i < sizeof (extensionbuiltins) / sizeof (extensionbuiltins[0]); i++)
 		{
 			if ((targs & CS) && extensionbuiltins[i].csqcfunc)
-				;
+;
 			else if ((targs & SS) && extensionbuiltins[i].ssqcfunc)
-				;
+;
 			else
-				continue;
+continue;
 
 			if (j != (extensionbuiltins[i].desc ? !strncmp (extensionbuiltins[i].desc, "stub.", 5) : 0))
-				continue;
+continue;
 			fprintf (f, "%s %s = #%i;", extensionbuiltins[i].typestr, extensionbuiltins[i].name, extensionbuiltins[i].documentednumber);
 			if (extensionbuiltins[i].desc && !j)
 			{
-				const char *line = extensionbuiltins[i].desc;
-				const char *term;
-				fprintf (f, " /*");
-				while (*line)
-				{
-					fprintf (f, "\n\t\t");
-					term = line;
-					while (*term && *term != '\n')
-						term++;
-					fwrite (line, 1, term - line, f);
-					if (*term == '\n')
-					{
-						term++;
-					}
-					line = term;
-				}
-				fprintf (f, " */\n\n");
+const char *line = extensionbuiltins[i].desc;
+const char *term;
+fprintf (f, " /*");
+while (*line)
+{
+	fprintf (f, "\n\t\t");
+	term = line;
+	while (*term && *term != '\n')
+		term++;
+	fwrite (line, 1, term - line, f);
+	if (*term == '\n')
+	{
+		term++;
+	}
+	line = term;
+}
+fprintf (f, " */\n\n");
 			}
 			else
-				fprintf (f, "\n");
+fprintf (f, "\n");
 		}
 		if (j)
 			fprintf (f, "*/\n");

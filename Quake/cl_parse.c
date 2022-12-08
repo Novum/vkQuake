@@ -28,27 +28,27 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 const char *svc_strings[128] = {
 	"svc_bad", "svc_nop", "svc_disconnect", "svc_updatestat",
-	"svc_version",   // [long] server version
-	"svc_setview",   // [short] entity number
-	"svc_sound",     // <see code>
-	"svc_time",      // [float] server time
-	"svc_print",     // [string] null terminated string
+	"svc_version",	 // [long] server version
+	"svc_setview",	 // [short] entity number
+	"svc_sound",	 // <see code>
+	"svc_time",		 // [float] server time
+	"svc_print",	 // [string] null terminated string
 	"svc_stufftext", // [string] stuffed into client's console buffer
-                     // the string should be \n terminated
-	"svc_setangle",  // [vec3] set the view angle to this absolute value
+					 // the string should be \n terminated
+	"svc_setangle",	 // [vec3] set the view angle to this absolute value
 
-	"svc_serverinfo",   // [long] version
-                        // [string] signon string
-                        // [string]..[0]model cache [string]...[0]sounds cache
-                        // [string]..[0]item cache
-	"svc_lightstyle",   // [byte] [string]
-	"svc_updatename",   // [byte] [string]
-	"svc_updatefrags",  // [byte] [short]
-	"svc_clientdata",   // <shortbits + data>
-	"svc_stopsound",    // <see code>
+	"svc_serverinfo",	// [long] version
+						// [string] signon string
+						// [string]..[0]model cache [string]...[0]sounds cache
+						// [string]..[0]item cache
+	"svc_lightstyle",	// [byte] [string]
+	"svc_updatename",	// [byte] [string]
+	"svc_updatefrags",	// [byte] [short]
+	"svc_clientdata",	// <shortbits + data>
+	"svc_stopsound",	// <see code>
 	"svc_updatecolors", // [byte] [byte]
-	"svc_particle",     // [vec3] <variable>
-	"svc_damage",       // [byte] impact [byte] blood [vec3] from
+	"svc_particle",		// [vec3] <variable>
+	"svc_damage",		// [byte] impact [byte] blood [vec3] from
 
 	"svc_spawnstatic",
 	/*"OBSOLETE svc_spawnbinary"*/ "21 svc_spawnstatic_fte", "svc_spawnbaseline",
@@ -59,37 +59,37 @@ const char *svc_strings[128] = {
 	"svc_cdtrack", // [byte] track [byte] looptrack
 	"svc_sellscreen", "svc_cutscene",
 	// johnfitz -- new server messages
-	"svc_showpic_dp",             // 35
-	"svc_hidepic_dp",             // 36
-	"svc_skybox_fitz",            // 37					// [string] skyname
-	"38",                         // 38
-	"39",                         // 39
-	"svc_bf_fitz",                // 40						// no data
-	"svc_fog_fitz",               // 41					// [byte] density [byte] red [byte] green [byte] blue [float] time
-	"svc_spawnbaseline2_fitz",    // 42			// support for large modelindex, large framenum, alpha, using flags
-	"svc_spawnstatic2_fitz",      // 43			// support for large modelindex, large framenum, alpha, using flags
+	"svc_showpic_dp",			  // 35
+	"svc_hidepic_dp",			  // 36
+	"svc_skybox_fitz",			  // 37					// [string] skyname
+	"38",						  // 38
+	"39",						  // 39
+	"svc_bf_fitz",				  // 40						// no data
+	"svc_fog_fitz",				  // 41					// [byte] density [byte] red [byte] green [byte] blue [float] time
+	"svc_spawnbaseline2_fitz",	  // 42			// support for large modelindex, large framenum, alpha, using flags
+	"svc_spawnstatic2_fitz",	  // 43			// support for large modelindex, large framenum, alpha, using flags
 	"svc_spawnstaticsound2_fitz", //	44		// [coord3] [short] samp [byte] vol [byte] aten
-                                  // johnfitz
+								  // johnfitz
 
 	// 2021 RE-RELEASE:
-	"svc_setviews",       // 45
-	"svc_updateping",     // 46
-	"svc_updatesocial",   // 47
-	"svc_updateplinfo",   // 48
-	"svc_rawprint",       // 49
-	"svc_servervars",     // 50
-	"svc_seq",            // 51
-	"svc_achievement",    // 52
-	"svc_chat",           // 53
+	"svc_setviews",		  // 45
+	"svc_updateping",	  // 46
+	"svc_updatesocial",	  // 47
+	"svc_updateplinfo",	  // 48
+	"svc_rawprint",		  // 49
+	"svc_servervars",	  // 50
+	"svc_seq",			  // 51
+	"svc_achievement",	  // 52
+	"svc_chat",			  // 53
 	"svc_levelcompleted", // 54
-	"svc_backtolobby",    // 55
-	"svc_localsound"      // 56
+	"svc_backtolobby",	  // 55
+	"svc_localsound"	  // 56
 };
 #define NUM_SVC_STRINGS (sizeof (svc_strings) / sizeof (svc_strings[0]))
 
 qboolean warn_about_nehahra_protocol; // johnfitz
 
-extern vec3_t v_punchangles[2];       // johnfitz
+extern vec3_t v_punchangles[2];		  // johnfitz
 extern double v_punchangles_times[2]; // spike -- don't assume 10fps...
 
 //=============================================================================
@@ -296,11 +296,11 @@ static unsigned int CLFTE_ReadDelta (unsigned int entnum, entity_state_t *news, 
 	if (!(predbits & UFP_VIEWANGLE) || !(cl.protocol_pext2 & PEXT2_PREDINFO))
 	{ /*
 		 if (bits & UF_ANGLESXZ)
-		     news->vangle[0] = ANGLE2SHORT(news->angles[0] * ((bits & UF_PREDINFO)?-3:-1));
+			 news->vangle[0] = ANGLE2SHORT(news->angles[0] * ((bits & UF_PREDINFO)?-3:-1));
 		 if (bits & UF_ANGLESY)
-		     news->vangle[1] = ANGLE2SHORT(news->angles[1]);
+			 news->vangle[1] = ANGLE2SHORT(news->angles[1]);
 		 if (bits & UF_ANGLESXZ)
-		     news->vangle[2] = ANGLE2SHORT(news->angles[2]);
+			 news->vangle[2] = ANGLE2SHORT(news->angles[2]);
 		 */
 	}
 
@@ -340,8 +340,8 @@ static unsigned int CLFTE_ReadDelta (unsigned int entnum, entity_state_t *news, 
 			int i;
 			int bonecount = MSG_ReadByte ();
 			// short *bonedata = AllocateBoneSpace(newp, bonecount, &news->boneoffset);
-			for (i = 0; i < bonecount * 7; i++)
-				/*bonedata[i] =*/MSG_ReadShort ();
+			for (i = 0; i < bonecount * 7; i++) /*bonedata[i] =*/
+				MSG_ReadShort ();
 			// news->bonecount = bonecount;
 		}
 		// else
@@ -353,8 +353,8 @@ static unsigned int CLFTE_ReadDelta (unsigned int entnum, entity_state_t *news, 
 		}
 		/*else
 		{
-		    news->basebone = 0;
-		    news->baseframe = 0;
+			news->basebone = 0;
+			news->baseframe = 0;
 		}*/
 
 		// fixme: basebone, baseframe, etc.
@@ -453,11 +453,11 @@ static void CLFTE_ParseBaseline (entity_state_t *es)
 // called with both fte+dp deltas
 static void CL_EntitiesDeltaed (void)
 {
-	int       newnum;
+	int		  newnum;
 	qmodel_t *model;
 	qboolean  forcelink;
 	entity_t *ent;
-	int       skin;
+	int		  skin;
 
 	for (newnum = 1; newnum < cl.num_entities; newnum++)
 	{
@@ -556,10 +556,10 @@ static void CL_EntitiesDeltaed (void)
 
 static void CLFTE_ParseEntitiesUpdate (void)
 {
-	int       newnum;
+	int		  newnum;
 	qboolean  removeflag;
 	entity_t *ent;
-	float     newtime;
+	float	  newtime;
 
 	// so the server can know when we got it, and guess which frames we didn't get
 	if (cls.netcon && cl.ackframes_count < sizeof (cl.ackframes) / sizeof (cl.ackframes[0]))
@@ -688,12 +688,12 @@ CL_ParseStartSoundPacket
 static void CL_ParseStartSoundPacket (void)
 {
 	vec3_t pos;
-	int    channel, ent;
-	int    sound_num;
-	int    volume;
-	int    field_mask;
+	int	   channel, ent;
+	int	   sound_num;
+	int	   volume;
+	int	   field_mask;
 	float  attenuation;
-	int    i;
+	int	   i;
 
 	field_mask = MSG_ReadByte ();
 	if (field_mask & SND_FTE_MOREFLAGS)
@@ -857,13 +857,13 @@ CL_ParseServerInfo
 static void CL_ParseServerInfo (void)
 {
 	const char *str;
-	int         i;
-	qboolean    gamedirswitchwarning = false;
-	char        gamedir[1024];
-	char        protname[64];
-	int         nummodels, numsounds;
-	char        model_precache[MAX_MODELS][MAX_QPATH];
-	char        sound_precache[MAX_SOUNDS][MAX_QPATH];
+	int			i;
+	qboolean	gamedirswitchwarning = false;
+	char		gamedir[1024];
+	char		protname[64];
+	int			nummodels, numsounds;
+	char		model_precache[MAX_MODELS][MAX_QPATH];
+	char		sound_precache[MAX_SOUNDS][MAX_QPATH];
 
 	Con_DPrintf ("Serverinfo packet received.\n");
 
@@ -1071,13 +1071,13 @@ relinked.  Other attributes can change without relinking.
 */
 static void CL_ParseUpdate (int bits)
 {
-	int          i;
-	qmodel_t    *model;
+	int			 i;
+	qmodel_t	*model;
 	unsigned int modnum;
-	qboolean     forcelink;
-	entity_t    *ent;
-	int          num;
-	int          skin;
+	qboolean	 forcelink;
+	entity_t	*ent;
+	int			 num;
+	int			 skin;
 
 	if (cls.signon == SIGNONS - 1)
 	{ // first update is the final signon stage
@@ -1322,7 +1322,7 @@ static void CL_ParseBaseline (entity_t *ent, int version) // johnfitz -- added a
 	ent->baseline.scale = (bits & B_SCALE) ? MSG_ReadByte () : ENTSCALE_DEFAULT;
 }
 
-#define CL_SetStati(stat, val)   cl.statsf[stat] = (cl.stats[stat] = val)
+#define CL_SetStati(stat, val)	 cl.statsf[stat] = (cl.stats[stat] = val)
 #define CL_SetHudStat(stat, val) CL_SetStati (stat, val)
 
 /*
@@ -1393,7 +1393,7 @@ static void CL_ParseClientdata (void)
 		unsigned short armourval = 0;
 		unsigned short weaponmodel = 0;
 		unsigned int   activeweapon;
-		short          health;
+		short		   health;
 		unsigned short ammo;
 		unsigned short ammovals[4];
 
@@ -1467,12 +1467,12 @@ CL_ParseStatic
 static void CL_ParseStatic (int version) // johnfitz -- added a parameter
 {
 	entity_t *ent;
-	int       i;
+	int		  i;
 
 	i = cl.num_statics;
 	if (i >= cl.max_static_entities)
 	{
-		int        ec = 64;
+		int		   ec = 64;
 		entity_t **newstatics = Mem_Realloc (cl.static_entities, sizeof (*newstatics) * (cl.max_static_entities + ec));
 		entity_t  *newents = Mem_Alloc (sizeof (*newents) * ec);
 		if (!newstatics || !newents)
@@ -1517,8 +1517,8 @@ CL_ParseStaticSound
 static void CL_ParseStaticSound (int version) // johnfitz -- added argument
 {
 	vec3_t org;
-	int    sound_num, vol, atten;
-	int    i;
+	int	   sound_num, vol, atten;
+	int	   i;
 
 	for (i = 0; i < 3; i++)
 		org[i] = MSG_ReadCoord (cl.protocolflags);
@@ -1545,7 +1545,7 @@ static void CL_ParsePrecache (void)
 {
 	unsigned short code = MSG_ReadShort ();
 	unsigned int   index = code & 0x3fff;
-	const char    *name = MSG_ReadString ();
+	const char	  *name = MSG_ReadString ();
 	switch ((code >> 14) & 0x3)
 	{
 	case 0: // models
@@ -1584,7 +1584,7 @@ static void CL_ParsePrecache (void)
 	}
 }
 #ifdef PSET_SCRIPT
-int         CL_GenerateRandomParticlePrecache (const char *pname);
+int			CL_GenerateRandomParticlePrecache (const char *pname);
 // small function for simpler reuse
 static void CL_ForceProtocolParticles (void)
 {
@@ -1601,8 +1601,8 @@ called when the particle system has changed, and any cached indexes are now prob
 void CL_RegisterParticles (void)
 {
 	extern qmodel_t mod_known[];
-	extern int      mod_numknown;
-	int             i;
+	extern int		mod_numknown;
+	int				i;
 
 	// make sure the precaches know the right effects
 	for (i = 0; i < MAX_PARTICLETYPES; i++)
@@ -1629,8 +1629,8 @@ static void CL_ParseParticles (int type)
 	if (type < 0)
 	{ // trail
 		entity_t *ent;
-		int       entity = MSG_ReadShort ();
-		int       efnum = MSG_ReadShort ();
+		int		  entity = MSG_ReadShort ();
+		int		  efnum = MSG_ReadShort ();
 		org[0] = MSG_ReadCoord (cl.protocolflags);
 		org[1] = MSG_ReadCoord (cl.protocolflags);
 		org[2] = MSG_ReadCoord (cl.protocolflags);
@@ -1713,10 +1713,10 @@ CL_ParseServerMessage
 */
 void CL_ParseServerMessage (void)
 {
-	int         cmd;
-	int         i;
-	const char *str;               // johnfitz
-	int         total, j, lastcmd; // johnfitz
+	int			cmd;
+	int			i;
+	const char *str;			   // johnfitz
+	int			total, j, lastcmd; // johnfitz
 
 	//
 	// if recording demos, copy the message out
@@ -2081,8 +2081,8 @@ void CL_ParseServerMessage (void)
 			CL_ParsePrecache ();
 			break;
 		// spike -- new deltas (including new fields etc)
-		// stats also changed, and are sent unreliably using the same ack mechanism (which means they're not blocked until the reliables are acked, preventing
-		// the need to spam them in every packet).
+		// stats also changed, and are sent unreliably using the same ack mechanism (which means they're not blocked until the reliables are acked,
+		// preventing the need to spam them in every packet).
 		case svcdp_updatestatbyte:
 			if (!(cl.protocol_pext2 & PEXT2_REPLACEMENTDELTAS))
 				Host_Error ("Received svcdp_updatestatbyte but extension not active");
@@ -2101,8 +2101,8 @@ void CL_ParseServerMessage (void)
 			i = MSG_ReadByte ();
 			CL_ParseStatFloat (i, MSG_ReadFloat ());
 			break;
-		// static ents get all the new fields too, even if the client will probably ignore most of them, the option is at least there to fix it without updating
-		// protocols separately.
+		// static ents get all the new fields too, even if the client will probably ignore most of them, the option is at least there to fix it without
+		// updating protocols separately.
 		case svcfte_spawnstatic2:
 			if (!(cl.protocol_pext2 & PEXT2_REPLACEMENTDELTAS))
 				Host_Error ("Received svcfte_spawnstatic2 but extension not active");

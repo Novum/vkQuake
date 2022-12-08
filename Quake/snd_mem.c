@@ -31,11 +31,11 @@ ResampleSfx
 */
 static void ResampleSfx (sfx_t *sfx, int inrate, int inwidth, byte *data)
 {
-	int         outcount;
-	int         srcsample;
-	float       stepscale;
-	int         i;
-	int         sample, samplefrac, fracstep;
+	int			outcount;
+	int			srcsample;
+	float		stepscale;
+	int			i;
+	int			sample, samplefrac, fracstep;
 	sfxcache_t *sc = sfx->cache;
 
 	stepscale = (float)inrate / shm->speed; // this is usually 0.5, 1, or 2
@@ -90,11 +90,11 @@ S_LoadSound
 */
 sfxcache_t *S_LoadSound (sfx_t *s)
 {
-	char        namebuffer[256];
-	byte       *data = NULL;
-	wavinfo_t   info;
-	int         len;
-	float       stepscale;
+	char		namebuffer[256];
+	byte	   *data = NULL;
+	wavinfo_t	info;
+	int			len;
+	float		stepscale;
 	sfxcache_t *sc = NULL;
 
 	SDL_LockMutex (snd_mutex);
@@ -176,7 +176,7 @@ static byte *data_p;
 static byte *iff_end;
 static byte *last_chunk;
 static byte *iff_data;
-static int   iff_chunk_len;
+static int	 iff_chunk_len;
 
 static short GetLittleShort (void)
 {
@@ -256,9 +256,9 @@ GetWavinfo
 wavinfo_t GetWavinfo (const char *name, byte *wav, int wavlength)
 {
 	wavinfo_t info;
-	int       i;
-	int       format;
-	int       samples;
+	int		  i;
+	int		  format;
+	int		  samples;
 
 	memset (&info, 0, sizeof (info));
 

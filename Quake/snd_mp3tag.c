@@ -99,7 +99,7 @@ static qboolean is_apetag (const unsigned char *data, size_t length)
 static long get_ape_len (const unsigned char *data)
 {
 	unsigned int flags, version;
-	long         size = (long)((data[15] << 24) | (data[14] << 16) | (data[13] << 8) | data[12]);
+	long		 size = (long)((data[15] << 24) | (data[14] << 16) | (data[13] << 8) | data[12]);
 	version = (unsigned)((data[11] << 24) | (data[10] << 16) | (data[9] << 8) | data[8]);
 	flags = (unsigned)((data[23] << 24) | (data[22] << 16) | (data[21] << 8) | data[20]);
 	if (version == 2000U && (flags & (1U << 31)))
@@ -121,8 +121,8 @@ static inline int is_lyrics3tag (const unsigned char *data, long length)
 static long get_lyrics3v1_len (snd_stream_t *stream)
 {
 	const char *p;
-	long        i, len;
-	char        buf[5104];
+	long		i, len;
+	char		buf[5104];
 	/* needs manual search:  http://id3.org/Lyrics3 */
 	if (stream->fh.length < 20)
 		return -1;
@@ -161,26 +161,26 @@ static qboolean is_musicmatch (const unsigned char *data, long length)
 	/* From docs/musicmatch.txt in id3lib: https://sourceforge.net/projects/id3lib/
 	   Overall tag structure:
 
-	    +-----------------------------+
-	    |           Header            |
-	    |    (256 bytes, OPTIONAL)    |
-	    +-----------------------------+
-	    |  Image extension (4 bytes)  |
-	    +-----------------------------+
-	    |        Image binary         |
-	    |  (var. length >= 4 bytes)   |
-	    +-----------------------------+
-	    |      Unused (4 bytes)       |
-	    +-----------------------------+
-	    |  Version info (256 bytes)   |
-	    +-----------------------------+
-	    |       Audio meta-data       |
-	    | (var. length >= 7868 bytes) |
-	    +-----------------------------+
-	    |   Data offsets (20 bytes)   |
-	    +-----------------------------+
-	    |      Footer (48 bytes)      |
-	    +-----------------------------+
+		+-----------------------------+
+		|           Header            |
+		|    (256 bytes, OPTIONAL)    |
+		+-----------------------------+
+		|  Image extension (4 bytes)  |
+		+-----------------------------+
+		|        Image binary         |
+		|  (var. length >= 4 bytes)   |
+		+-----------------------------+
+		|      Unused (4 bytes)       |
+		+-----------------------------+
+		|  Version info (256 bytes)   |
+		+-----------------------------+
+		|       Audio meta-data       |
+		| (var. length >= 7868 bytes) |
+		+-----------------------------+
+		|   Data offsets (20 bytes)   |
+		+-----------------------------+
+		|      Footer (48 bytes)      |
+		+-----------------------------+
 	   */
 	if (length < 48)
 		return false;
@@ -206,11 +206,11 @@ static qboolean is_musicmatch (const unsigned char *data, long length)
 }
 static long get_musicmatch_len (snd_stream_t *stream)
 {
-	const int           metasizes[4] = {7868, 7936, 8004, 8132};
+	const int			metasizes[4] = {7868, 7936, 8004, 8132};
 	const unsigned char syncstr[10] = {'1', '8', '2', '7', '3', '6', '4', '5', 0, 0};
-	unsigned char       buf[256];
-	int                 i, j, imgext_ofs, version_ofs;
-	long                len;
+	unsigned char		buf[256];
+	int					i, j, imgext_ofs, version_ofs;
+	long				len;
 
 	FS_fseek (&stream->fh, -68, SEEK_END);
 	FS_fread (buf, 1, 20, &stream->fh);
@@ -397,13 +397,13 @@ static int probe_lyrics3 (snd_stream_t *stream, unsigned char *buf)
 int mp3_skiptags (snd_stream_t *stream)
 {
 	unsigned char buf[128];
-	long          len;
-	size_t        readsize;
-	int           c_id3, c_ape, c_lyr, c_mm;
-	int           rc = -1;
+	long		  len;
+	size_t		  readsize;
+	int			  c_id3, c_ape, c_lyr, c_mm;
+	int			  rc = -1;
 	/* failsafe */
-	long          oldlength = stream->fh.length;
-	long          oldstart = stream->fh.start;
+	long		  oldlength = stream->fh.length;
+	long		  oldstart = stream->fh.start;
 
 	/* MP3 standard has no metadata format, so everyone invented
 	 * their own thing, even with extensions, until ID3v2 became

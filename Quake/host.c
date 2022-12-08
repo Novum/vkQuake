@@ -43,7 +43,7 @@ quakeparms_t *host_parms;
 qboolean host_initialized; // true if into command execution
 
 double host_frametime;
-double realtime;    // without any filtering or bounding
+double realtime;	// without any filtering or bounding
 double oldrealtime; // last frame run
 
 int host_framecount;
@@ -58,11 +58,11 @@ jmp_buf screen_error;
 byte  *host_colormap;
 float  host_netinterval = 1.0 / 72;
 cvar_t host_framerate = {"host_framerate", "0", CVAR_NONE}; // set for slow motion
-cvar_t host_speeds = {"host_speeds", "0", CVAR_NONE};       // set for running times
-cvar_t host_maxfps = {"host_maxfps", "200", CVAR_ARCHIVE};  // johnfitz
+cvar_t host_speeds = {"host_speeds", "0", CVAR_NONE};		// set for running times
+cvar_t host_maxfps = {"host_maxfps", "200", CVAR_ARCHIVE};	// johnfitz
 cvar_t host_timescale = {"host_timescale", "0", CVAR_NONE}; // johnfitz
-cvar_t max_edicts = {"max_edicts", "8192", CVAR_NONE};      // johnfitz //ericw -- changed from 2048 to 8192, removed CVAR_ARCHIVE
-cvar_t cl_nocsqc = {"cl_nocsqc", "0", CVAR_NONE};           // spike -- blocks the loading of any csqc modules
+cvar_t max_edicts = {"max_edicts", "8192", CVAR_NONE};		// johnfitz //ericw -- changed from 2048 to 8192, removed CVAR_ARCHIVE
+cvar_t cl_nocsqc = {"cl_nocsqc", "0", CVAR_NONE};			// spike -- blocks the loading of any csqc modules
 
 cvar_t sys_ticrate = {"sys_ticrate", "0.025", CVAR_NONE}; // dedicated server
 cvar_t serverprofile = {"serverprofile", "0", CVAR_NONE};
@@ -72,24 +72,24 @@ cvar_t timelimit = {"timelimit", "0", CVAR_NOTIFY | CVAR_SERVERINFO};
 cvar_t teamplay = {"teamplay", "0", CVAR_NOTIFY | CVAR_SERVERINFO};
 cvar_t samelevel = {"samelevel", "0", CVAR_NONE};
 cvar_t noexit = {"noexit", "0", CVAR_NOTIFY | CVAR_SERVERINFO};
-cvar_t skill = {"skill", "1", CVAR_NONE};           // 0 - 3
+cvar_t skill = {"skill", "1", CVAR_NONE};			// 0 - 3
 cvar_t deathmatch = {"deathmatch", "0", CVAR_NONE}; // 0, 1, or 2
-cvar_t coop = {"coop", "0", CVAR_NONE};             // 0 or 1
+cvar_t coop = {"coop", "0", CVAR_NONE};				// 0 or 1
 
 cvar_t pausable = {"pausable", "1", CVAR_NONE};
 
 cvar_t developer = {"developer", "0", CVAR_NONE};
 
 static cvar_t pr_engine = {"pr_engine", ENGINE_NAME_AND_VER, CVAR_NONE};
-cvar_t        temp1 = {"temp1", "0", CVAR_NONE};
+cvar_t		  temp1 = {"temp1", "0", CVAR_NONE};
 
 cvar_t devstats = {"devstats", "0", CVAR_NONE}; // johnfitz -- track developer statistics that vary every frame
 
-cvar_t campaign = {"campaign", "0", CVAR_NONE};   // for the 2021 rerelease
-cvar_t horde = {"horde", "0", CVAR_NONE};         // for the 2021 rerelease
+cvar_t campaign = {"campaign", "0", CVAR_NONE};	  // for the 2021 rerelease
+cvar_t horde = {"horde", "0", CVAR_NONE};		  // for the 2021 rerelease
 cvar_t sv_cheats = {"sv_cheats", "0", CVAR_NONE}; // for the 2021 rerelease
 
-devstats_t      dev_stats, dev_peakstats;
+devstats_t		dev_stats, dev_peakstats;
 overflowtimes_t dev_overflows; // this stores the last time overflow messages were displayed, not the last time overflows occured
 
 /*
@@ -136,7 +136,7 @@ Host_EndGame
 void Host_EndGame (const char *message, ...)
 {
 	va_list argptr;
-	char    string[1024];
+	char	string[1024];
 
 	va_start (argptr, message);
 	q_vsnprintf (string, sizeof (string), message, argptr);
@@ -168,8 +168,8 @@ This shuts down both the client and server
 */
 void Host_Error (const char *error, ...)
 {
-	va_list         argptr;
-	char            string[1024];
+	va_list			argptr;
+	char			string[1024];
 	static qboolean inerror = false;
 
 	if (inerror)
@@ -261,8 +261,8 @@ void Host_Version_f (void)
 	Con_Printf ("QuakeSpasm Version " QUAKESPASM_VER_STRING "\n");
 	Con_Printf ("vkQuake Version " VKQUAKE_VER_STRING "\n");
 	Con_Printf ("Exe: "__TIME__
-	            " "__DATE__
-	            "\n");
+				" "__DATE__
+				"\n");
 }
 
 /* cvar callback functions : */
@@ -290,7 +290,7 @@ void Host_InitLocal (void)
 	Cvar_SetCallback (&host_maxfps, Max_Fps_f);
 	Cvar_RegisterVariable (&host_timescale); // johnfitz
 
-	Cvar_RegisterVariable (&cl_nocsqc);  // spike
+	Cvar_RegisterVariable (&cl_nocsqc);	 // spike
 	Cvar_RegisterVariable (&max_edicts); // johnfitz
 	Cvar_SetCallback (&max_edicts, Max_Edicts_f);
 	Cvar_RegisterVariable (&devstats); // johnfitz
@@ -378,7 +378,7 @@ FIXME: make this just a stuffed echo?
 void SV_ClientPrintf (const char *fmt, ...)
 {
 	va_list argptr;
-	char    string[1024];
+	char	string[1024];
 
 	va_start (argptr, fmt);
 	q_vsnprintf (string, sizeof (string), fmt, argptr);
@@ -398,8 +398,8 @@ Sends text to all active clients
 void SV_BroadcastPrintf (const char *fmt, ...)
 {
 	va_list argptr;
-	char    string[1024];
-	int     i;
+	char	string[1024];
+	int		i;
 
 	va_start (argptr, fmt);
 	q_vsnprintf (string, sizeof (string), fmt, argptr);
@@ -425,7 +425,7 @@ Send text over to the client to be executed
 void Host_ClientCommands (const char *fmt, ...)
 {
 	va_list argptr;
-	char    string[1024];
+	char	string[1024];
 
 	va_start (argptr, fmt);
 	q_vsnprintf (string, sizeof (string), fmt, argptr);
@@ -445,8 +445,8 @@ if (crash = true), don't bother sending signofs
 */
 void SV_DropClient (qboolean crash)
 {
-	int       saveSelf;
-	int       i;
+	int		  saveSelf;
+	int		  i;
 	client_t *client;
 
 	if (!crash)
@@ -516,11 +516,11 @@ This only happens at the end of a game, not between levels
 */
 void Host_ShutdownServer (qboolean crash)
 {
-	int       i;
-	int       count;
+	int		  i;
+	int		  count;
 	sizebuf_t buf;
-	byte      message[4];
-	double    start;
+	byte	  message[4];
+	double	  start;
 
 	if (!sv.active)
 		return;
@@ -648,7 +648,7 @@ qboolean Host_FilterTime (float time)
 
 		if (!cls.timedemo && (delta_since_last_frame < min_frame_time))
 			return false; // framerate is too high
-			              // johnfitz
+						  // johnfitz
 	}
 
 	host_frametime = delta_since_last_frame;
@@ -662,7 +662,7 @@ qboolean Host_FilterTime (float time)
 	// johnfitz
 	else if (host_framerate.value > 0)
 		host_frametime = host_framerate.value;
-	else if (host_maxfps.value)                               // don't allow really long or short frames
+	else if (host_maxfps.value)								  // don't allow really long or short frames
 		host_frametime = CLAMP (0.0001, host_frametime, 0.1); // johnfitz -- use CLAMP
 
 	return true;
@@ -698,8 +698,8 @@ Host_ServerFrame
 */
 void Host_ServerFrame (void)
 {
-	int      i, active; // johnfitz
-	edict_t *ent;       // johnfitz
+	int		 i, active; // johnfitz
+	edict_t *ent;		// johnfitz
 
 	// run the world state
 	pr_global_struct->frametime = host_frametime;
@@ -743,7 +743,7 @@ static void CL_LoadCSProgs (void)
 	PR_ClearProgs (&cl.qcvm);
 	if (pr_checkextension.value && !cl_nocsqc.value)
 	{ // only try to use csqc if qc extensions are enabled.
-		char         versionedname[MAX_QPATH];
+		char		 versionedname[MAX_QPATH];
 		unsigned int csqchash;
 		PR_SwitchQCVM (&cl.qcvm);
 		csqchash = strtoul (Info_GetKey (cl.serverinfo, "*csprogs", versionedname, sizeof (versionedname)), NULL, 0);
@@ -754,8 +754,8 @@ static void CL_LoadCSProgs (void)
 		// we only care about it if it actually contains a CSQC_DrawHud, otherwise its either just a (misnamed) ssqc progs or a full csqc progs that would just
 		// crash us on 3d stuff.
 		if ((PR_LoadProgs (versionedname, false, PROGHEADER_CRC, pr_csqcbuiltins, pr_csqcnumbuiltins) && qcvm->extfuncs.CSQC_DrawHud) ||
-		    (PR_LoadProgs ("csprogs.dat", false, PROGHEADER_CRC, pr_csqcbuiltins, pr_csqcnumbuiltins) && qcvm->extfuncs.CSQC_DrawHud) ||
-		    (PR_LoadProgs ("progs.dat", false, PROGHEADER_CRC, pr_csqcbuiltins, pr_csqcnumbuiltins) && qcvm->extfuncs.CSQC_DrawHud))
+			(PR_LoadProgs ("csprogs.dat", false, PROGHEADER_CRC, pr_csqcbuiltins, pr_csqcnumbuiltins) && qcvm->extfuncs.CSQC_DrawHud) ||
+			(PR_LoadProgs ("progs.dat", false, PROGHEADER_CRC, pr_csqcbuiltins, pr_csqcnumbuiltins) && qcvm->extfuncs.CSQC_DrawHud))
 		{
 			qcvm->max_edicts = CLAMP (MIN_EDICTS, (int)max_edicts.value, MAX_EDICTS);
 			qcvm->edicts = (edict_t *)Mem_Alloc (qcvm->max_edicts * qcvm->edict_size);
@@ -821,7 +821,7 @@ void _Host_Frame (double time)
 	static double time1 = 0;
 	static double time2 = 0;
 	static double time3 = 0;
-	double        pass1, pass2, pass3;
+	double		  pass1, pass2, pass3;
 
 	if (setjmp (host_abortserver))
 		return; // something bad happened, or the server disconnected
@@ -942,10 +942,10 @@ void _Host_Frame (double time)
 
 void Host_Frame (double time)
 {
-	double        time1, time2;
+	double		  time1, time2;
 	static double timetotal;
-	static int    timecount;
-	int           i, c, m;
+	static int	  timecount;
+	int			  i, c, m;
 
 	if (!serverprofile.value)
 	{

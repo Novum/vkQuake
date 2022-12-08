@@ -94,22 +94,22 @@ Staging
 
 typedef struct
 {
-	VkBuffer        buffer;
+	VkBuffer		buffer;
 	VkCommandBuffer command_buffer;
-	VkFence         fence;
-	int             current_offset;
-	qboolean        submitted;
+	VkFence			fence;
+	int				current_offset;
+	qboolean		submitted;
 	unsigned char  *data;
 } stagingbuffer_t;
 
 static VkCommandPool   staging_command_pool;
 static vulkan_memory_t staging_memory;
 static stagingbuffer_t staging_buffers[NUM_STAGING_BUFFERS];
-static int             current_staging_buffer = 0;
-static int             num_stagings_in_flight = 0;
-static qboolean        staging_submitting = false;
-static SDL_mutex      *staging_mutex;
-static SDL_cond       *staging_cond;
+static int			   current_staging_buffer = 0;
+static int			   num_stagings_in_flight = 0;
+static qboolean		   staging_submitting = false;
+static SDL_mutex	  *staging_mutex;
+static SDL_cond		  *staging_cond;
 /*
 ================
 Dynamic vertex/index & uniform buffer
@@ -118,36 +118,36 @@ Dynamic vertex/index & uniform buffer
 #define INITIAL_DYNAMIC_VERTEX_BUFFER_SIZE_KB  256
 #define INITIAL_DYNAMIC_INDEX_BUFFER_SIZE_KB   1024
 #define INITIAL_DYNAMIC_UNIFORM_BUFFER_SIZE_KB 256
-#define NUM_DYNAMIC_BUFFERS                    2
-#define GARBAGE_FRAME_COUNT                    3
-#define MAX_UNIFORM_ALLOC                      2048
+#define NUM_DYNAMIC_BUFFERS					   2
+#define GARBAGE_FRAME_COUNT					   3
+#define MAX_UNIFORM_ALLOC					   2048
 
 typedef struct
 {
-	VkBuffer       buffer;
-	uint32_t       current_offset;
+	VkBuffer	   buffer;
+	uint32_t	   current_offset;
 	unsigned char *data;
 } dynbuffer_t;
 
-static uint32_t        current_dyn_vertex_buffer_size = INITIAL_DYNAMIC_VERTEX_BUFFER_SIZE_KB * 1024;
-static uint32_t        current_dyn_index_buffer_size = INITIAL_DYNAMIC_INDEX_BUFFER_SIZE_KB * 1024;
-static uint32_t        current_dyn_uniform_buffer_size = INITIAL_DYNAMIC_UNIFORM_BUFFER_SIZE_KB * 1024;
+static uint32_t		   current_dyn_vertex_buffer_size = INITIAL_DYNAMIC_VERTEX_BUFFER_SIZE_KB * 1024;
+static uint32_t		   current_dyn_index_buffer_size = INITIAL_DYNAMIC_INDEX_BUFFER_SIZE_KB * 1024;
+static uint32_t		   current_dyn_uniform_buffer_size = INITIAL_DYNAMIC_UNIFORM_BUFFER_SIZE_KB * 1024;
 static vulkan_memory_t dyn_vertex_buffer_memory;
 static vulkan_memory_t dyn_index_buffer_memory;
 static vulkan_memory_t dyn_uniform_buffer_memory;
-static dynbuffer_t     dyn_vertex_buffers[NUM_DYNAMIC_BUFFERS];
-static dynbuffer_t     dyn_index_buffers[NUM_DYNAMIC_BUFFERS];
-static dynbuffer_t     dyn_uniform_buffers[NUM_DYNAMIC_BUFFERS];
-static int             current_dyn_buffer_index = 0;
+static dynbuffer_t	   dyn_vertex_buffers[NUM_DYNAMIC_BUFFERS];
+static dynbuffer_t	   dyn_index_buffers[NUM_DYNAMIC_BUFFERS];
+static dynbuffer_t	   dyn_uniform_buffers[NUM_DYNAMIC_BUFFERS];
+static int			   current_dyn_buffer_index = 0;
 static VkDescriptorSet ubo_descriptor_sets[2];
 
-static int              current_garbage_index = 0;
-static int              num_device_memory_garbage[GARBAGE_FRAME_COUNT];
-static int              num_buffer_garbage[GARBAGE_FRAME_COUNT];
-static int              num_desc_set_garbage[GARBAGE_FRAME_COUNT];
+static int				current_garbage_index = 0;
+static int				num_device_memory_garbage[GARBAGE_FRAME_COUNT];
+static int				num_buffer_garbage[GARBAGE_FRAME_COUNT];
+static int				num_desc_set_garbage[GARBAGE_FRAME_COUNT];
 static vulkan_memory_t *device_memory_garbage[GARBAGE_FRAME_COUNT];
 static VkDescriptorSet *descriptor_set_garbage[GARBAGE_FRAME_COUNT];
-static VkBuffer        *buffer_garbage[GARBAGE_FRAME_COUNT];
+static VkBuffer		   *buffer_garbage[GARBAGE_FRAME_COUNT];
 
 void R_VulkanMemStats_f (void);
 
@@ -200,10 +200,10 @@ static void R_SetShowbboxesFilter_f (cvar_t *var)
 
 	if (*var->string)
 	{
-		char       *filter, *p, *token;
+		char	   *filter, *p, *token;
 		const char *delim = ",";
-		int         len = strlen (var->string);
-		int         size = len + 2;
+		int			len = strlen (var->string);
+		int			size = len + 2;
 
 		r_showbboxes_filter_strings = (char *)Mem_Alloc (size);
 		filter = q_strdup (var->string);
@@ -240,7 +240,7 @@ SetClearColor
 static void SetClearColor ()
 {
 	byte *rgb;
-	int   s;
+	int	  s;
 
 	if (r_fastclear.value != 0.0f)
 	{
@@ -321,7 +321,7 @@ static void R_SIMD_f (cvar_t *var)
 	use_simd = SDL_HasSSE () && SDL_HasSSE2 () && (var->value != 0.0f);
 #elif defined(USE_NEON)
 	// We only enable USE_NEON on AArch64 which always has support for it
-    use_simd = var->value != 0.0f;
+	use_simd = var->value != 0.0f;
 #else
 #error not implemented
 #endif
@@ -388,7 +388,7 @@ R_CreateStagingBuffers
 */
 static void R_CreateStagingBuffers ()
 {
-	int      i;
+	int		 i;
 	VkResult err;
 
 	VkBufferCreateInfo buffer_create_info;
@@ -414,8 +414,8 @@ static void R_CreateStagingBuffers ()
 
 	const int align_mod = memory_requirements.size % memory_requirements.alignment;
 	const int aligned_size = ((memory_requirements.size % memory_requirements.alignment) == 0)
-	                             ? memory_requirements.size
-	                             : (memory_requirements.size + memory_requirements.alignment - align_mod);
+								 ? memory_requirements.size
+								 : (memory_requirements.size + memory_requirements.alignment - align_mod);
 
 	VkMemoryAllocateInfo memory_allocate_info;
 	memset (&memory_allocate_info, 0, sizeof (memory_allocate_info));
@@ -467,7 +467,7 @@ R_InitStagingBuffers
 */
 void R_InitStagingBuffers ()
 {
-	int      i;
+	int		 i;
 	VkResult err;
 
 	Con_Printf ("Initializing staging\n");
@@ -654,7 +654,7 @@ byte *R_StagingAllocate (int size, int alignment, VkCommandBuffer *command_buffe
 	}
 
 	stagingbuffer_t *staging_buffer = &staging_buffers[current_staging_buffer];
-	const int        align_mod = staging_buffer->current_offset % alignment;
+	const int		 align_mod = staging_buffer->current_offset % alignment;
 	staging_buffer->current_offset =
 		((staging_buffer->current_offset % alignment) == 0) ? staging_buffer->current_offset : (staging_buffer->current_offset + alignment - align_mod);
 
@@ -736,8 +736,8 @@ static void R_InitDynamicVertexBuffers ()
 
 	const int align_mod = memory_requirements.size % memory_requirements.alignment;
 	const int aligned_size = ((memory_requirements.size % memory_requirements.alignment) == 0)
-	                             ? memory_requirements.size
-	                             : (memory_requirements.size + memory_requirements.alignment - align_mod);
+								 ? memory_requirements.size
+								 : (memory_requirements.size + memory_requirements.alignment - align_mod);
 
 	VkMemoryAllocateInfo memory_allocate_info;
 	memset (&memory_allocate_info, 0, sizeof (memory_allocate_info));
@@ -801,8 +801,8 @@ static void R_InitDynamicIndexBuffers ()
 
 	const int align_mod = memory_requirements.size % memory_requirements.alignment;
 	const int aligned_size = ((memory_requirements.size % memory_requirements.alignment) == 0)
-	                             ? memory_requirements.size
-	                             : (memory_requirements.size + memory_requirements.alignment - align_mod);
+								 ? memory_requirements.size
+								 : (memory_requirements.size + memory_requirements.alignment - align_mod);
 
 	VkMemoryAllocateInfo memory_allocate_info;
 	memset (&memory_allocate_info, 0, sizeof (memory_allocate_info));
@@ -866,8 +866,8 @@ static void R_InitDynamicUniformBuffers ()
 
 	const int align_mod = memory_requirements.size % memory_requirements.alignment;
 	const int aligned_size = ((memory_requirements.size % memory_requirements.alignment) == 0)
-	                             ? memory_requirements.size
-	                             : (memory_requirements.size + memory_requirements.alignment - align_mod);
+								 ? memory_requirements.size
+								 : (memory_requirements.size + memory_requirements.alignment - align_mod);
 
 	VkMemoryAllocateInfo memory_allocate_info;
 	memset (&memory_allocate_info, 0, sizeof (memory_allocate_info));
@@ -934,9 +934,9 @@ R_InitFanIndexBuffer
 */
 static void R_InitFanIndexBuffer ()
 {
-	VkResult       err;
+	VkResult	   err;
 	VkDeviceMemory memory;
-	const int      bufferSize = sizeof (uint16_t) * FAN_INDEX_BUFFER_SIZE;
+	const int	   bufferSize = sizeof (uint16_t) * FAN_INDEX_BUFFER_SIZE;
 
 	VkBufferCreateInfo buffer_create_info;
 	memset (&buffer_create_info, 0, sizeof (buffer_create_info));
@@ -970,12 +970,12 @@ static void R_InitFanIndexBuffer ()
 		Sys_Error ("vkBindBufferMemory failed");
 
 	{
-		VkBuffer        staging_buffer;
+		VkBuffer		staging_buffer;
 		VkCommandBuffer command_buffer;
-		int             staging_offset;
-		int             current_index = 0;
-		int             i;
-		uint16_t       *staging_mem = (uint16_t *)R_StagingAllocate (bufferSize, 1, &command_buffer, &staging_buffer, &staging_offset);
+		int				staging_offset;
+		int				current_index = 0;
+		int				i;
+		uint16_t	   *staging_mem = (uint16_t *)R_StagingAllocate (bufferSize, 1, &command_buffer, &staging_buffer, &staging_offset);
 
 		VkBufferCopy region;
 		region.srcOffset = staging_offset;
@@ -1039,7 +1039,7 @@ static void R_AddDynamicBufferGarbage (vulkan_memory_t device_memory, dynbuffer_
 
 	{
 		int *num_garbage = &num_device_memory_garbage[current_garbage_index];
-		int  old_num_memory_garbage = *num_garbage;
+		int	 old_num_memory_garbage = *num_garbage;
 		*num_garbage += 1;
 		if (device_memory_garbage[current_garbage_index] == NULL)
 			device_memory_garbage[current_garbage_index] = Mem_Alloc (sizeof (vulkan_memory_t) * (*num_garbage));
@@ -1051,7 +1051,7 @@ static void R_AddDynamicBufferGarbage (vulkan_memory_t device_memory, dynbuffer_
 
 	{
 		int *num_garbage = &num_buffer_garbage[current_garbage_index];
-		int  old_num_buffer_garbage = *num_garbage;
+		int	 old_num_buffer_garbage = *num_garbage;
 		*num_garbage += NUM_DYNAMIC_BUFFERS;
 		if (buffer_garbage[current_garbage_index] == NULL)
 			buffer_garbage[current_garbage_index] = Mem_Alloc (sizeof (VkBuffer) * (*num_garbage));
@@ -1064,7 +1064,7 @@ static void R_AddDynamicBufferGarbage (vulkan_memory_t device_memory, dynbuffer_
 	if (descriptor_sets)
 	{
 		int *num_garbage = &num_desc_set_garbage[current_garbage_index];
-		int  old_num_desc_set_garbage = *num_garbage;
+		int	 old_num_desc_set_garbage = *num_garbage;
 		*num_garbage += 2;
 		if (descriptor_set_garbage[current_garbage_index] == NULL)
 			descriptor_set_garbage[current_garbage_index] = Mem_Alloc (sizeof (VkDescriptorSet) * (*num_garbage));
@@ -1236,7 +1236,7 @@ void R_CreateDescriptorSetLayouts ()
 {
 	Sys_Printf ("Creating descriptor set layouts\n");
 
-	VkResult                        err;
+	VkResult						err;
 	VkDescriptorSetLayoutCreateInfo descriptor_set_layout_create_info;
 	memset (&descriptor_set_layout_create_info, 0, sizeof (descriptor_set_layout_create_info));
 	descriptor_set_layout_create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -1461,7 +1461,7 @@ void R_CreateDescriptorPool ()
 	memset (&descriptor_pool_create_info, 0, sizeof (descriptor_pool_create_info));
 	descriptor_pool_create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 	descriptor_pool_create_info.maxSets = MAX_GLTEXTURES + MAX_SANITY_LIGHTMAPS + 32;
-	descriptor_pool_create_info.poolSizeCount = sizeof(pool_sizes) / sizeof(pool_sizes[0]);
+	descriptor_pool_create_info.poolSizeCount = sizeof (pool_sizes) / sizeof (pool_sizes[0]);
 	descriptor_pool_create_info.pPoolSizes = pool_sizes;
 	descriptor_pool_create_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
 
@@ -1852,7 +1852,7 @@ static VkShaderModule R_CreateShaderModule (const byte *code, const int size, co
 	module_create_info.pCode = (const uint32_t *)code;
 
 	VkShaderModule module;
-	VkResult       err = vkCreateShaderModule (vulkan_globals.device, &module_create_info, NULL, &module);
+	VkResult	   err = vkCreateShaderModule (vulkan_globals.device, &module_create_info, NULL, &module);
 	if (err != VK_SUCCESS)
 		Sys_Error ("vkCreateShaderModule failed");
 
@@ -1863,27 +1863,27 @@ static VkShaderModule R_CreateShaderModule (const byte *code, const int size, co
 
 typedef struct pipeline_create_infos_s
 {
-	VkPipelineShaderStageCreateInfo        shader_stages[2];
-	VkPipelineDynamicStateCreateInfo       dynamic_state;
-	VkDynamicState                         dynamic_states[3];
+	VkPipelineShaderStageCreateInfo		   shader_stages[2];
+	VkPipelineDynamicStateCreateInfo	   dynamic_state;
+	VkDynamicState						   dynamic_states[3];
 	VkPipelineVertexInputStateCreateInfo   vertex_input_state;
 	VkPipelineInputAssemblyStateCreateInfo input_assembly_state;
-	VkPipelineViewportStateCreateInfo      viewport_state;
+	VkPipelineViewportStateCreateInfo	   viewport_state;
 	VkPipelineRasterizationStateCreateInfo rasterization_state;
 	VkPipelineMultisampleStateCreateInfo   multisample_state;
 	VkPipelineDepthStencilStateCreateInfo  depth_stencil_state;
-	VkPipelineColorBlendStateCreateInfo    color_blend_state;
-	VkPipelineColorBlendAttachmentState    blend_attachment_state;
-	VkGraphicsPipelineCreateInfo           graphics_pipeline;
-	VkComputePipelineCreateInfo            compute_pipeline;
+	VkPipelineColorBlendStateCreateInfo	   color_blend_state;
+	VkPipelineColorBlendAttachmentState	   blend_attachment_state;
+	VkGraphicsPipelineCreateInfo		   graphics_pipeline;
+	VkComputePipelineCreateInfo			   compute_pipeline;
 } pipeline_create_infos_t;
 
 static VkVertexInputAttributeDescription basic_vertex_input_attribute_descriptions[3];
-static VkVertexInputBindingDescription   basic_vertex_binding_description;
+static VkVertexInputBindingDescription	 basic_vertex_binding_description;
 static VkVertexInputAttributeDescription world_vertex_input_attribute_descriptions[3];
-static VkVertexInputBindingDescription   world_vertex_binding_description;
+static VkVertexInputBindingDescription	 world_vertex_binding_description;
 static VkVertexInputAttributeDescription alias_vertex_input_attribute_descriptions[5];
-static VkVertexInputBindingDescription   alias_vertex_binding_descriptions[3];
+static VkVertexInputBindingDescription	 alias_vertex_binding_descriptions[3];
 
 #define DECLARE_SHADER_MODULE(name) static VkShaderModule name##_module
 #define CREATE_SHADER_MODULE(name)                                                 \
@@ -2105,8 +2105,8 @@ R_CreateBasicPipelines
 */
 static void R_CreateBasicPipelines ()
 {
-	int                     render_pass;
-	VkResult                err;
+	int						render_pass;
+	VkResult				err;
 	pipeline_create_infos_t infos;
 	R_InitDefaultStates (&infos);
 
@@ -2174,7 +2174,7 @@ R_CreateWarpPipelines
 */
 static void R_CreateWarpPipelines ()
 {
-	VkResult                err;
+	VkResult				err;
 	pipeline_create_infos_t infos;
 	R_InitDefaultStates (&infos);
 
@@ -2223,7 +2223,7 @@ R_CreateParticlesPipelines
 */
 static void R_CreateParticlesPipelines ()
 {
-	VkResult                err;
+	VkResult				err;
 	pipeline_create_infos_t infos;
 	R_InitDefaultStates (&infos);
 
@@ -2250,7 +2250,7 @@ R_CreateFTEParticlesPipelines
 static void R_CreateFTEParticlesPipelines ()
 {
 #ifdef PSET_SCRIPT
-	VkResult                err;
+	VkResult				err;
 	pipeline_create_infos_t infos;
 	R_InitDefaultStates (&infos);
 
@@ -2260,37 +2260,37 @@ static void R_CreateFTEParticlesPipelines ()
 		VK_BLEND_FACTOR_SRC_ALPHA, // BM_ADDA
 		VK_BLEND_FACTOR_SRC_COLOR, // BM_ADDC
 		VK_BLEND_FACTOR_SRC_ALPHA, // BM_SUBTRACT
-		VK_BLEND_FACTOR_ZERO,      // BM_INVMODA
-		VK_BLEND_FACTOR_ZERO,      // BM_INVMODC
-		VK_BLEND_FACTOR_ONE        // BM_PREMUL
+		VK_BLEND_FACTOR_ZERO,	   // BM_INVMODA
+		VK_BLEND_FACTOR_ZERO,	   // BM_INVMODC
+		VK_BLEND_FACTOR_ONE		   // BM_PREMUL
 	};
 	static const VkBlendFactor dest_blend_factors[8] = {
 		VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA, // BM_BLEND
 		VK_BLEND_FACTOR_ONE_MINUS_SRC_COLOR, // BM_BLENDCOLOUR
-		VK_BLEND_FACTOR_ONE,                 // BM_ADDA
-		VK_BLEND_FACTOR_ONE,                 // BM_ADDC
+		VK_BLEND_FACTOR_ONE,				 // BM_ADDA
+		VK_BLEND_FACTOR_ONE,				 // BM_ADDC
 		VK_BLEND_FACTOR_ONE_MINUS_SRC_COLOR, // BM_SUBTRACT
 		VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA, // BM_INVMODA
 		VK_BLEND_FACTOR_ONE_MINUS_SRC_COLOR, // BM_INVMODC
-		VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA  // BM_PREMUL
+		VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA	 // BM_PREMUL
 	};
 
 	static const char *fte_particle_pipeline_names[16] = {"fte_particles_blend_tris",
-	                                                      "fte_particles_blend_color_tris",
-	                                                      "fte_particles_add_color_tris",
-	                                                      "fte_particles_add_alpha_tris",
-	                                                      "fte_particles_subtract_tris",
-	                                                      "fte_particles_inv_modulate_alpha_tris",
-	                                                      "fte_particles_inv_modulate_color_tris",
-	                                                      "fte_particles_premultiplied_tris",
-	                                                      "fte_particles_blend_lines",
-	                                                      "fte_particles_blend_color_lines",
-	                                                      "fte_particles_add_color_lines",
-	                                                      "fte_particles_add_alpha_lines",
-	                                                      "fte_particles_subtract_lines",
-	                                                      "fte_particles_inv_modulate_alpha_lines",
-	                                                      "fte_particles_inv_modulate_color_lines",
-	                                                      "fte_particles_premultiplied_lines"};
+														  "fte_particles_blend_color_tris",
+														  "fte_particles_add_color_tris",
+														  "fte_particles_add_alpha_tris",
+														  "fte_particles_subtract_tris",
+														  "fte_particles_inv_modulate_alpha_tris",
+														  "fte_particles_inv_modulate_color_tris",
+														  "fte_particles_premultiplied_tris",
+														  "fte_particles_blend_lines",
+														  "fte_particles_blend_color_lines",
+														  "fte_particles_add_color_lines",
+														  "fte_particles_add_alpha_lines",
+														  "fte_particles_subtract_lines",
+														  "fte_particles_inv_modulate_alpha_lines",
+														  "fte_particles_inv_modulate_color_lines",
+														  "fte_particles_premultiplied_lines"};
 
 	infos.rasterization_state.cullMode = VK_CULL_MODE_NONE;
 	infos.rasterization_state.depthBiasEnable = VK_TRUE;
@@ -2346,7 +2346,7 @@ R_CreateSpritesPipelines
 */
 static void R_CreateSpritesPipelines ()
 {
-	VkResult                err;
+	VkResult				err;
 	pipeline_create_infos_t infos;
 	R_InitDefaultStates (&infos);
 
@@ -2375,102 +2375,100 @@ static void R_CreateSkyPipelines ()
 {
 	for (int i = 0; i < 2; i++)
 	{
-	VkResult                err;
-	pipeline_create_infos_t infos;
-	R_InitDefaultStates (&infos);
+		VkResult				err;
+		pipeline_create_infos_t infos;
+		R_InitDefaultStates (&infos);
 
-	if (i) // indirect vertex buffer has stride 28 (world) instead of 24 (basic)
-	{
-		infos.vertex_input_state.vertexAttributeDescriptionCount = 3;
-		infos.vertex_input_state.pVertexAttributeDescriptions = world_vertex_input_attribute_descriptions;
-		infos.vertex_input_state.vertexBindingDescriptionCount = 1;
-		infos.vertex_input_state.pVertexBindingDescriptions = &world_vertex_binding_description;
-	}
+		if (i) // indirect vertex buffer has stride 28 (world) instead of 24 (basic)
+		{
+			infos.vertex_input_state.vertexAttributeDescriptionCount = 3;
+			infos.vertex_input_state.pVertexAttributeDescriptions = world_vertex_input_attribute_descriptions;
+			infos.vertex_input_state.vertexBindingDescriptionCount = 1;
+			infos.vertex_input_state.pVertexBindingDescriptions = &world_vertex_binding_description;
+		}
 
-	infos.graphics_pipeline.renderPass = vulkan_globals.secondary_cb_contexts[CBX_WORLD_0].render_pass;
+		infos.graphics_pipeline.renderPass = vulkan_globals.secondary_cb_contexts[CBX_WORLD_0].render_pass;
 
-	infos.graphics_pipeline.stageCount = 1;
-	infos.shader_stages[1].module = VK_NULL_HANDLE;
+		infos.graphics_pipeline.stageCount = 1;
+		infos.shader_stages[1].module = VK_NULL_HANDLE;
 
-	infos.depth_stencil_state.depthTestEnable = VK_TRUE;
-	infos.depth_stencil_state.depthWriteEnable = VK_TRUE;
-	infos.depth_stencil_state.depthCompareOp = VK_COMPARE_OP_GREATER_OR_EQUAL;
-	infos.depth_stencil_state.stencilTestEnable = VK_TRUE;
-	infos.depth_stencil_state.front.compareOp = VK_COMPARE_OP_ALWAYS;
-	infos.depth_stencil_state.front.failOp = VK_STENCIL_OP_KEEP;
-	infos.depth_stencil_state.front.depthFailOp = VK_STENCIL_OP_KEEP;
-	infos.depth_stencil_state.front.passOp = VK_STENCIL_OP_REPLACE;
-	infos.depth_stencil_state.front.compareMask = 0xFF;
-	infos.depth_stencil_state.front.writeMask = 0xFF;
-	infos.depth_stencil_state.front.reference = 0x1;
-	infos.blend_attachment_state.colorWriteMask = 0; // We only want to write stencil
+		infos.depth_stencil_state.depthTestEnable = VK_TRUE;
+		infos.depth_stencil_state.depthWriteEnable = VK_TRUE;
+		infos.depth_stencil_state.depthCompareOp = VK_COMPARE_OP_GREATER_OR_EQUAL;
+		infos.depth_stencil_state.stencilTestEnable = VK_TRUE;
+		infos.depth_stencil_state.front.compareOp = VK_COMPARE_OP_ALWAYS;
+		infos.depth_stencil_state.front.failOp = VK_STENCIL_OP_KEEP;
+		infos.depth_stencil_state.front.depthFailOp = VK_STENCIL_OP_KEEP;
+		infos.depth_stencil_state.front.passOp = VK_STENCIL_OP_REPLACE;
+		infos.depth_stencil_state.front.compareMask = 0xFF;
+		infos.depth_stencil_state.front.writeMask = 0xFF;
+		infos.depth_stencil_state.front.reference = 0x1;
+		infos.blend_attachment_state.colorWriteMask = 0; // We only want to write stencil
 
-	assert (vulkan_globals.sky_stencil_pipeline[i].handle == VK_NULL_HANDLE);
-	err = vkCreateGraphicsPipelines (
-		vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.sky_stencil_pipeline[i].handle);
-	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateGraphicsPipelines failed (sky_stencil_pipeline)");
-	vulkan_globals.sky_stencil_pipeline[i].layout = vulkan_globals.basic_pipeline_layout;
-	GL_SetObjectName ((uint64_t)vulkan_globals.sky_stencil_pipeline[i].handle, VK_OBJECT_TYPE_PIPELINE, i ? "sky_stencil_indirect" : "sky_stencil");
+		assert (vulkan_globals.sky_stencil_pipeline[i].handle == VK_NULL_HANDLE);
+		err = vkCreateGraphicsPipelines (
+			vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.sky_stencil_pipeline[i].handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreateGraphicsPipelines failed (sky_stencil_pipeline)");
+		vulkan_globals.sky_stencil_pipeline[i].layout = vulkan_globals.basic_pipeline_layout;
+		GL_SetObjectName ((uint64_t)vulkan_globals.sky_stencil_pipeline[i].handle, VK_OBJECT_TYPE_PIPELINE, i ? "sky_stencil_indirect" : "sky_stencil");
 
-	infos.depth_stencil_state.stencilTestEnable = VK_FALSE;
-	infos.blend_attachment_state.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-	infos.graphics_pipeline.stageCount = 2;
+		infos.depth_stencil_state.stencilTestEnable = VK_FALSE;
+		infos.blend_attachment_state.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+		infos.graphics_pipeline.stageCount = 2;
 
-	infos.shader_stages[1].module = basic_notex_frag_module;
+		infos.shader_stages[1].module = basic_notex_frag_module;
 
-	assert (vulkan_globals.sky_color_pipeline[i].handle == VK_NULL_HANDLE);
-	err = vkCreateGraphicsPipelines (
-		vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.sky_color_pipeline[i].handle);
-	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateGraphicsPipelines failed (sky_color_pipeline)");
-	vulkan_globals.sky_color_pipeline[i].layout = vulkan_globals.basic_pipeline_layout;
-	GL_SetObjectName ((uint64_t)vulkan_globals.sky_color_pipeline[i].handle, VK_OBJECT_TYPE_PIPELINE, i ? "sky_color_indirect" : "sky_color");
+		assert (vulkan_globals.sky_color_pipeline[i].handle == VK_NULL_HANDLE);
+		err =
+			vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.sky_color_pipeline[i].handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreateGraphicsPipelines failed (sky_color_pipeline)");
+		vulkan_globals.sky_color_pipeline[i].layout = vulkan_globals.basic_pipeline_layout;
+		GL_SetObjectName ((uint64_t)vulkan_globals.sky_color_pipeline[i].handle, VK_OBJECT_TYPE_PIPELINE, i ? "sky_color_indirect" : "sky_color");
 
-	infos.shader_stages[0].module = sky_cube_vert_module;
-	infos.shader_stages[1].module = sky_cube_frag_module;
-	assert (vulkan_globals.sky_cube_pipeline[i].handle == VK_NULL_HANDLE);
-	err = vkCreateGraphicsPipelines (
-		vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.sky_cube_pipeline[i].handle);
-	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateGraphicsPipelines failed (sky_cube_pipeline)");
-	GL_SetObjectName ((uint64_t)vulkan_globals.sky_cube_pipeline[i].handle, VK_OBJECT_TYPE_PIPELINE, i ? "sky_cube_indirect" : "sky_cube");
-	vulkan_globals.sky_cube_pipeline[i].layout = vulkan_globals.basic_pipeline_layout;
+		infos.shader_stages[0].module = sky_cube_vert_module;
+		infos.shader_stages[1].module = sky_cube_frag_module;
+		assert (vulkan_globals.sky_cube_pipeline[i].handle == VK_NULL_HANDLE);
+		err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.sky_cube_pipeline[i].handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreateGraphicsPipelines failed (sky_cube_pipeline)");
+		GL_SetObjectName ((uint64_t)vulkan_globals.sky_cube_pipeline[i].handle, VK_OBJECT_TYPE_PIPELINE, i ? "sky_cube_indirect" : "sky_cube");
+		vulkan_globals.sky_cube_pipeline[i].layout = vulkan_globals.basic_pipeline_layout;
 
-	infos.shader_stages[0].module = sky_layer_vert_module;
-	infos.shader_stages[1].module = sky_layer_frag_module;
-	infos.graphics_pipeline.layout = vulkan_globals.sky_layer_pipeline[i].layout.handle;
-	assert (vulkan_globals.sky_layer_pipeline[i].handle == VK_NULL_HANDLE);
-	err = vkCreateGraphicsPipelines (
-		vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.sky_layer_pipeline[i].handle);
-	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateGraphicsPipelines failed (sky_layer_pipeline)");
-	GL_SetObjectName ((uint64_t)vulkan_globals.sky_layer_pipeline[i].handle, VK_OBJECT_TYPE_PIPELINE, i ? "sky_layer_indirect" : "sky_layer");
+		infos.shader_stages[0].module = sky_layer_vert_module;
+		infos.shader_stages[1].module = sky_layer_frag_module;
+		infos.graphics_pipeline.layout = vulkan_globals.sky_layer_pipeline[i].layout.handle;
+		assert (vulkan_globals.sky_layer_pipeline[i].handle == VK_NULL_HANDLE);
+		err =
+			vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.sky_layer_pipeline[i].handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreateGraphicsPipelines failed (sky_layer_pipeline)");
+		GL_SetObjectName ((uint64_t)vulkan_globals.sky_layer_pipeline[i].handle, VK_OBJECT_TYPE_PIPELINE, i ? "sky_layer_indirect" : "sky_layer");
 
-	if (i > 0)
-		break;
+		if (i > 0)
+			break;
 
-	infos.depth_stencil_state.depthTestEnable = VK_FALSE;
-	infos.depth_stencil_state.depthWriteEnable = VK_FALSE;
-	infos.depth_stencil_state.stencilTestEnable = VK_TRUE;
-	infos.depth_stencil_state.front.compareOp = VK_COMPARE_OP_EQUAL;
-	infos.depth_stencil_state.front.failOp = VK_STENCIL_OP_KEEP;
-	infos.depth_stencil_state.front.depthFailOp = VK_STENCIL_OP_KEEP;
-	infos.depth_stencil_state.front.passOp = VK_STENCIL_OP_KEEP;
-	infos.depth_stencil_state.front.compareMask = 0xFF;
-	infos.depth_stencil_state.front.writeMask = 0x0;
-	infos.depth_stencil_state.front.reference = 0x1;
-	infos.shader_stages[0].module = basic_vert_module;
-	infos.shader_stages[1].module = sky_box_frag_module;
+		infos.depth_stencil_state.depthTestEnable = VK_FALSE;
+		infos.depth_stencil_state.depthWriteEnable = VK_FALSE;
+		infos.depth_stencil_state.stencilTestEnable = VK_TRUE;
+		infos.depth_stencil_state.front.compareOp = VK_COMPARE_OP_EQUAL;
+		infos.depth_stencil_state.front.failOp = VK_STENCIL_OP_KEEP;
+		infos.depth_stencil_state.front.depthFailOp = VK_STENCIL_OP_KEEP;
+		infos.depth_stencil_state.front.passOp = VK_STENCIL_OP_KEEP;
+		infos.depth_stencil_state.front.compareMask = 0xFF;
+		infos.depth_stencil_state.front.writeMask = 0x0;
+		infos.depth_stencil_state.front.reference = 0x1;
+		infos.shader_stages[0].module = basic_vert_module;
+		infos.shader_stages[1].module = sky_box_frag_module;
 
-	assert (vulkan_globals.sky_box_pipeline.handle == VK_NULL_HANDLE);
-	err =
-		vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.sky_box_pipeline.handle);
-	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateGraphicsPipelines failed (sky_box_pipeline)");
-	GL_SetObjectName ((uint64_t)vulkan_globals.sky_box_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "sky_box");
+		assert (vulkan_globals.sky_box_pipeline.handle == VK_NULL_HANDLE);
+		err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.sky_box_pipeline.handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreateGraphicsPipelines failed (sky_box_pipeline)");
+		GL_SetObjectName ((uint64_t)vulkan_globals.sky_box_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "sky_box");
 
-	vulkan_globals.sky_box_pipeline.layout = vulkan_globals.basic_pipeline_layout;
+		vulkan_globals.sky_box_pipeline.layout = vulkan_globals.basic_pipeline_layout;
 	}
 }
 
@@ -2481,7 +2479,7 @@ R_CreateShowTrisPipelines
 */
 static void R_CreateShowTrisPipelines ()
 {
-	VkResult                err;
+	VkResult				err;
 	pipeline_create_infos_t infos;
 	R_InitDefaultStates (&infos);
 
@@ -2555,8 +2553,8 @@ R_CreateWorldPipelines
 */
 static void R_CreateWorldPipelines ()
 {
-	VkResult                err;
-	int                     alpha_blend, alpha_test, fullbright_enabled, quantize_lm;
+	VkResult				err;
+	int						alpha_blend, alpha_test, fullbright_enabled, quantize_lm;
 	pipeline_create_infos_t infos;
 	R_InitDefaultStates (&infos);
 
@@ -2658,7 +2656,7 @@ R_CreateAliasPipelines
 */
 static void R_CreateAliasPipelines ()
 {
-	VkResult                err;
+	VkResult				err;
 	pipeline_create_infos_t infos;
 	R_InitDefaultStates (&infos);
 
@@ -2758,7 +2756,7 @@ R_CreatePostprocessPipelines
 */
 static void R_CreatePostprocessPipelines ()
 {
-	VkResult                err;
+	VkResult				err;
 	pipeline_create_infos_t infos;
 	R_InitDefaultStates (&infos);
 
@@ -2796,7 +2794,7 @@ R_CreateScreenEffectsPipelines
 */
 static void R_CreateScreenEffectsPipelines ()
 {
-	VkResult                err;
+	VkResult				err;
 	pipeline_create_infos_t infos;
 	R_InitDefaultStates (&infos);
 
@@ -2833,7 +2831,7 @@ static void R_CreateScreenEffectsPipelines ()
 	if (vulkan_globals.screen_effects_sops)
 	{
 		compute_shader_stage.module = (vulkan_globals.color_format == VK_FORMAT_A2B10G10R10_UNORM_PACK32) ? screen_effects_10bit_scale_sops_comp_module
-		                                                                                                  : screen_effects_8bit_scale_sops_comp_module;
+																										  : screen_effects_8bit_scale_sops_comp_module;
 		compute_shader_stage.flags =
 			VK_PIPELINE_SHADER_STAGE_CREATE_ALLOW_VARYING_SUBGROUP_SIZE_BIT_EXT | VK_PIPELINE_SHADER_STAGE_CREATE_REQUIRE_FULL_SUBGROUPS_BIT_EXT;
 		infos.compute_pipeline.stage = compute_shader_stage;
@@ -2855,7 +2853,7 @@ R_CreateUpdateLightmapPipelines
 */
 static void R_CreateUpdateLightmapPipelines ()
 {
-	VkResult                err;
+	VkResult				err;
 	pipeline_create_infos_t infos;
 	R_InitDefaultStates (&infos);
 
@@ -2863,7 +2861,7 @@ static void R_CreateUpdateLightmapPipelines ()
 	specialization_entry.constantID = 0;
 	specialization_entry.offset = 0;
 	specialization_entry.size = 4;
-	uint32_t             specialization_data = vulkan_globals.color_format == VK_FORMAT_A2B10G10R10_UNORM_PACK32; // 10-bit lightmap
+	uint32_t			 specialization_data = vulkan_globals.color_format == VK_FORMAT_A2B10G10R10_UNORM_PACK32; // 10-bit lightmap
 	VkSpecializationInfo specialization_info;
 	specialization_info.mapEntryCount = 1;
 	specialization_info.pMapEntries = &specialization_entry;
@@ -2897,7 +2895,7 @@ R_CreateIndirectComputePipelines
 */
 static void R_CreateIndirectComputePipelines ()
 {
-	VkResult                err;
+	VkResult				err;
 	pipeline_create_infos_t infos;
 	R_InitDefaultStates (&infos);
 
@@ -3301,10 +3299,10 @@ added bug fix from bengt jardup
 */
 void R_TranslateNewPlayerSkin (int playernum)
 {
-	char        name[64];
-	byte       *pixels;
+	char		name[64];
+	byte	   *pixels;
 	aliashdr_t *paliashdr;
-	int         skinnum;
+	int			skinnum;
 
 	// get correct texture pixels
 	entity_t *currententity = &cl.entities[1 + playernum];
@@ -3358,7 +3356,7 @@ called at map load
 */
 static void R_ParseWorldspawn (void)
 {
-	char        key[128], value[4096];
+	char		key[128], value[4096];
 	const char *data;
 
 	map_fallbackalpha = r_wateralpha.value;
@@ -3433,11 +3431,11 @@ void R_NewMap (void)
 	GL_PrepareSIMDAndParallelData ();
 	// ericw -- no longer load alias models into a VBO here, it's done in Mod_LoadAliasModel
 
-	r_framecount = 0;    // johnfitz -- paranoid?
+	r_framecount = 0;	 // johnfitz -- paranoid?
 	r_visframecount = 0; // johnfitz -- paranoid?
 
-	Sky_NewMap ();        // johnfitz -- skybox in worldspawn
-	Fog_NewMap ();        // johnfitz -- global fog in worldspawn
+	Sky_NewMap ();		  // johnfitz -- skybox in worldspawn
+	Fog_NewMap ();		  // johnfitz -- global fog in worldspawn
 	R_ParseWorldspawn (); // ericw -- wateralpha, lavaalpha, telealpha, slimealpha in worldspawn
 }
 
@@ -3450,7 +3448,7 @@ For program optimization
 */
 void R_TimeRefresh_f (void)
 {
-	int   i;
+	int	  i;
 	float start, stop, time;
 
 	if (cls.state != ca_connected)

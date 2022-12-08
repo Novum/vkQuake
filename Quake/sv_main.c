@@ -24,13 +24,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 
-server_t        sv;
+server_t		sv;
 server_static_t svs;
 
 static char localmodels[MAX_MODELS][8]; // inline model names for precache
 
 int sv_protocol = PROTOCOL_RMQ; // spike -- enough maps need this now that we can probably afford incompatibility with engines that still don't support 999
-                                // (vanilla was already broken) -- PROTOCOL_FITZQUAKE; //johnfitz
+								// (vanilla was already broken) -- PROTOCOL_FITZQUAKE; //johnfitz
 unsigned int sv_protocol_pext1 = PEXT1_SUPPORTED_SERVER; // spike
 unsigned int sv_protocol_pext2 = PEXT2_SUPPORTED_SERVER; // spike
 
@@ -40,11 +40,11 @@ static cvar_t sv_netsort = {"sv_netsort", "1", CVAR_NONE};
 
 void SV_CalcStats (client_t *client, int *statsi, float *statsf, const char **statss)
 {
-	size_t   i;
+	size_t	 i;
 	edict_t *ent = client->edict;
 	// FIXME: string stats!
-	int      items;
-	eval_t  *val = GetEdictFieldValue (ent, qcvm->extfields.items2);
+	int		 items;
+	eval_t	*val = GetEdictFieldValue (ent, qcvm->extfields.items2);
 	if (val)
 		items = (int)((uint32_t)ent->v.items | ((uint32_t)val->_float << 23));
 	else
@@ -107,8 +107,8 @@ void SV_CalcStats (client_t *client, int *statsi, float *statsf, const char **st
 		case ev_string: // not supported in this build... send with svcfte_updatestatstring on change, which is annoying.
 			statss[sv.customstats[i].idx] = PR_GetString (eval->string);
 			break;
-		case ev_void:     // nothing...
-		case ev_field:    // panic! everyone panic!
+		case ev_void:	  // nothing...
+		case ev_field:	  // panic! everyone panic!
 		case ev_function: // doesn't make much sense
 		case ev_pointer:  // doesn't make sense
 		default:
@@ -118,12 +118,12 @@ void SV_CalcStats (client_t *client, int *statsi, float *statsf, const char **st
 }
 
 /*server-side-only flags that re-use encoding bits*/
-#define UF_REMOVE          UF_16BIT    /*says we removed the entity in this frame*/
-#define UF_MOVETYPE        UF_EFFECTS2 /*this flag isn't present in the header itself*/
-#define UF_RESET2          UF_EXTEND1  /*so new ents are reset multiple times to avoid weird baselines*/
-//#define UF_UNUSED		UF_EXTEND2	/**/
+#define UF_REMOVE		   UF_16BIT	   /*says we removed the entity in this frame*/
+#define UF_MOVETYPE		   UF_EFFECTS2 /*this flag isn't present in the header itself*/
+#define UF_RESET2		   UF_EXTEND1  /*so new ents are reset multiple times to avoid weird baselines*/
+// #define UF_UNUSED		UF_EXTEND2	/**/
 #define UF_WEAPONFRAME_OLD UF_EXTEND2
-#define UF_VIEWANGLES      UF_EXTEND3 /**/
+#define UF_VIEWANGLES	   UF_EXTEND3 /**/
 
 static unsigned int SVFTE_DeltaPredCalcBits (entity_state_t *from, entity_state_t *to)
 {
@@ -393,8 +393,8 @@ static void MSGFTE_WriteEntityUpdate (unsigned int bits, entity_state_t *state, 
 }
 
 static struct entity_num_state_s *snapshot_entstate;
-static size_t                     snapshot_numents;
-static size_t                     snapshot_maxents;
+static size_t					  snapshot_numents;
+static size_t					  snapshot_maxents;
 
 void SVFTE_DestroyFrames (client_t *client)
 {
@@ -458,7 +458,7 @@ static void SVFTE_SetupFrames (client_t *client)
 }
 static void SVFTE_DroppedFrame (client_t *client, int sequence)
 {
-	int                  i;
+	int					 i;
 	struct deltaframe_s *frame = &client->frames[sequence & (client->numframes - 1)];
 	if (frame->sequence != sequence)
 		return; // this frame was stale... client is running too far behind. we'll probably be spamming resends as a result.
@@ -479,7 +479,7 @@ static void SVFTE_DroppedFrame (client_t *client, int sequence)
 void SVFTE_Ack (client_t *client, int sequence)
 { // any gaps in the sequence need to considered dropped
 	struct deltaframe_s *frame;
-	int                  dropseq = client->lastacksequence + 1;
+	int					 dropseq = client->lastacksequence + 1;
 	if (!client->numframes)
 		return; // client shouldn't be using this.
 	if (sequence == -1)
@@ -506,13 +506,13 @@ void SVFTE_Ack (client_t *client, int sequence)
 }
 static void SVFTE_WriteStats (client_t *client, sizebuf_t *msg)
 {
-	int                  statsi[MAX_CL_STATS];
-	float                statsf[MAX_CL_STATS];
-	const char          *statss[MAX_CL_STATS];
-	int                  i;
+	int					 statsi[MAX_CL_STATS];
+	float				 statsf[MAX_CL_STATS];
+	const char			*statss[MAX_CL_STATS];
+	int					 i;
 	struct deltaframe_s *frame;
-	int                  sequence = NET_QSocketGetSequenceOut (client->netconnection);
-	int                  maxstats;
+	int					 sequence = NET_QSocketGetSequenceOut (client->netconnection);
+	int					 maxstats;
 
 	if (client->protocol_pext2 & PEXT2_REPLACEMENTDELTAS)
 		maxstats = MAX_CL_STATS;
@@ -673,12 +673,12 @@ static void SVFTE_CalcEntityDeltas (client_t *client)
 static void SVFTE_WriteEntitiesToClient (client_t *client, sizebuf_t *msg, size_t overflowsize)
 {
 	struct entity_num_state_s *state, *stateend;
-	unsigned int               entbits, logbits, netbits;
-	size_t                     entnum;
-	int                        sequence = NET_QSocketGetSequenceOut (client->netconnection);
-	size_t                     origmaxsize = msg->maxsize;
-	size_t                     rollbacksize; // I'm too lazy to figure out sizes (especially if someone updates this for bone states or whatever)
-	struct deltaframe_s       *frame = &client->frames[sequence & (client->numframes - 1)];
+	unsigned int			   entbits, logbits, netbits;
+	size_t					   entnum;
+	int						   sequence = NET_QSocketGetSequenceOut (client->netconnection);
+	size_t					   origmaxsize = msg->maxsize;
+	size_t					   rollbacksize; // I'm too lazy to figure out sizes (especially if someone updates this for bone states or whatever)
+	struct deltaframe_s		  *frame = &client->frames[sequence & (client->numframes - 1)];
 	frame->sequence = sequence; // so we know that it wasn't stale later.
 	frame->timestamp = qcvm->time;
 
@@ -752,7 +752,7 @@ static void SVFTE_WriteEntitiesToClient (client_t *client, sizebuf_t *msg, size_
 
 		if ((size_t)msg->cursize + 2 > origmaxsize)
 		{
-			msg->cursize = rollbacksize;                    // roll back
+			msg->cursize = rollbacksize;					// roll back
 			client->pendingentities_bits[entnum] = entbits; // make sure those bits get re-applied later.
 			break;
 		}
@@ -833,20 +833,20 @@ void SV_BuildEntityState (edict_t *ent, entity_state_t *state)
 #endif
 }
 
-byte       *SV_FatPVS (vec3_t org, qmodel_t *worldmodel);
+byte	   *SV_FatPVS (vec3_t org, qmodel_t *worldmodel);
 static void SVFTE_BuildSnapshotForClient (client_t *client)
 {
 	unsigned int  e, i;
-	byte         *pvs;
-	vec3_t        org;
-	edict_t      *ent, *parent;
+	byte		 *pvs;
+	vec3_t		  org;
+	edict_t		 *ent, *parent;
 	unsigned int  maxentities = client->limit_entities;
-	edict_t      *clent = client->edict;
+	edict_t		 *clent = client->edict;
 	unsigned char eflags;
 
 	struct entity_num_state_s *ents = snapshot_entstate;
-	size_t                     numents = 0;
-	size_t                     maxents = snapshot_maxents;
+	size_t					   numents = 0;
+	size_t					   maxents = snapshot_maxents;
 
 	// find the client's PVS
 	VectorAdd (clent->v.origin, clent->v.view_ofs, org);
@@ -1001,9 +1001,9 @@ SV_Protocol_f
 */
 static void SV_Protocol_f (void)
 {
-	int         i;
+	int			i;
 	const char *s;
-	int         prot, pext1, pext2;
+	int			prot, pext1, pext2;
 
 	prot = sv_protocol;
 	pext1 = sv_protocol_pext1;
@@ -1089,8 +1089,8 @@ SV_Init
 */
 void SV_Init (void)
 {
-	int           i;
-	const char   *p;
+	int			  i;
+	const char	 *p;
 	extern cvar_t sv_maxvelocity;
 	extern cvar_t sv_gravity;
 	extern cvar_t sv_nostep;
@@ -1205,9 +1205,9 @@ Larger attenuations will drop off.  (max 4 attenuation)
 void SV_StartSound (edict_t *entity, float *origin, int channel, const char *sample, int volume, float attenuation)
 {
 	unsigned int sound_num, ent;
-	int          i, field_mask;
-	int          p;
-	client_t    *client;
+	int			 i, field_mask;
+	int			 p;
+	client_t	*client;
 
 	if (volume < 0)
 		Host_Error ("SV_StartSound: volume = %i", volume);
@@ -1363,10 +1363,10 @@ This will be sent on the initial connection and upon each server load.
 void SV_SendServerinfo (client_t *client)
 {
 	const char **s;
-	char         message[2048];
+	char		 message[2048];
 	unsigned int i; // johnfitz
-	qboolean     cantruncate;
-	qboolean     truncated = false;
+	qboolean	 cantruncate;
+	qboolean	 truncated = false;
 
 	client->spawned = false; // need prespawn, spawn, etc
 
@@ -1402,12 +1402,12 @@ void SV_SendServerinfo (client_t *client)
 		client->limit_unreliable = 1024;
 		client->limit_reliable = 8192;
 		if (sv_protocol_pext2 && NET_QSocketGetProQuakeAngleHack (client->netconnection))
-			client->limit_entities = 2048; // proquake supports more so assume we can use that limit if angles are also available (but only if we're not being
-			                               // strict about protocols)
+			client->limit_entities = 2048; // proquake supports more so assume we can use that limit if angles are also available (but only if we're not
+										   // being strict about protocols)
 		else
 			client->limit_entities = 600; // vanilla sucks.
-		client->limit_models = 256;       // single byte
-		client->limit_sounds = 256;       // single byte
+		client->limit_models = 256;		  // single byte
+		client->limit_sounds = 256;		  // single byte
 		break;
 	case PROTOCOL_FITZQUAKE: // fitzquake didn't get abused quite as much as later engines did.
 		client->limit_unreliable = 32000;
@@ -1423,12 +1423,12 @@ void SV_SendServerinfo (client_t *client)
 		client->limit_models = 2048;
 		client->limit_sounds = 2048;
 		break;
-	case PROTOCOL_FTE_PEXT2:                       // not a real protocol in itself, used to indicate QSS's full limits. FTE will match or allow higher.
+	case PROTOCOL_FTE_PEXT2:					   // not a real protocol in itself, used to indicate QSS's full limits. FTE will match or allow higher.
 		client->limit_unreliable = NET_MAXMESSAGE; // some safe ethernet limit. these clients should accept pretty much anything, but any routers will not.
 		client->limit_reliable = NET_MAXMESSAGE;   // adhere to fitzquake's limits if we're recording a demoquite large, ip allows 16 bits
-		client->limit_entities = MAX_EDICTS;       // we don't really know, 8k is probably a save guess but could be 32k, 65k, or even more...
-		client->limit_models = MAX_MODELS;         // not really sure, client's problem until >14bits
-		client->limit_sounds = MAX_SOUNDS;         // not really sure, client's problem until >14bits
+		client->limit_entities = MAX_EDICTS;	   // we don't really know, 8k is probably a save guess but could be 32k, 65k, or even more...
+		client->limit_models = MAX_MODELS;		   // not really sure, client's problem until >14bits
+		client->limit_sounds = MAX_SOUNDS;		   // not really sure, client's problem until >14bits
 		break;
 	}
 
@@ -1627,12 +1627,12 @@ once for a player each game, not once for each level change.
 */
 void SV_ConnectClient (int clientnum)
 {
-	edict_t          *ent;
-	client_t         *client;
-	int               edictnum;
+	edict_t			 *ent;
+	client_t		 *client;
+	int				  edictnum;
 	struct qsocket_s *netconnection;
-	int               i;
-	float             spawn_parms[NUM_TOTAL_SPAWN_PARMS];
+	int				  i;
+	float			  spawn_parms[NUM_TOTAL_SPAWN_PARMS];
 
 	client = svs.clients + clientnum;
 
@@ -1691,7 +1691,7 @@ SV_CheckForNewClients
 void SV_CheckForNewClients (void)
 {
 	struct qsocket_s *ret;
-	int               i;
+	int				  i;
 
 	//
 	// check for new connections
@@ -1746,17 +1746,17 @@ crosses a waterline.
 =============================================================================
 */
 
-static int      fatbytes;
-static byte    *fatpvs;
-static int      fatpvs_capacity;
+static int		fatbytes;
+static byte	   *fatpvs;
+static int		fatpvs_capacity;
 static qboolean fatpvs_any;
 
 void SV_AddToFatPVS (vec3_t org, mnode_t *node, qmodel_t *worldmodel) // johnfitz -- added worldmodel as a parameter
 {
-	int       i;
-	byte     *pvs;
+	int		  i;
+	byte	 *pvs;
 	mplane_t *plane;
-	float     d;
+	float	  d;
 
 	while (1)
 	{
@@ -1780,7 +1780,7 @@ void SV_AddToFatPVS (vec3_t org, mnode_t *node, qmodel_t *worldmodel) // johnfit
 		else if (d < -8)
 			node = node->children[1];
 		else
-		{                                                        // go down both
+		{														 // go down both
 			SV_AddToFatPVS (org, node->children[0], worldmodel); // johnfitz -- worldmodel as a parameter
 			node = node->children[1];
 		}
@@ -1823,8 +1823,8 @@ PVS test encapsulated in a nice function
 */
 qboolean SV_VisibleToClient (edict_t *client, edict_t *test, qmodel_t *worldmodel)
 {
-	byte        *pvs;
-	vec3_t       org;
+	byte		*pvs;
+	vec3_t		 org;
 	unsigned int i;
 
 	VectorAdd (client->v.origin, client->v.view_ofs, org);
@@ -1840,8 +1840,8 @@ qboolean SV_VisibleToClient (edict_t *client, edict_t *test, qmodel_t *worldmode
 //=============================================================================
 
 static uint16_t net_edicts[MAX_EDICTS];
-static byte     net_edict_dists[MAX_EDICTS];
-static int      net_edict_bins[256];
+static byte		net_edict_dists[MAX_EDICTS];
+static int		net_edict_bins[256];
 static uint16_t net_edicts_sorted[MAX_EDICTS];
 
 /*
@@ -1852,18 +1852,18 @@ SV_WriteEntitiesToClient
 */
 void SV_WriteEntitiesToClient (client_t *client, sizebuf_t *msg, size_t overflowsize)
 {
-	edict_t     *clent = client->edict;
+	edict_t		*clent = client->edict;
 	unsigned int e, i, maxedict = qcvm->num_edicts, j, numents;
-	int          bits;
-	byte        *pvs;
-	vec3_t       org, forward, right, up;
-	float        miss, dist, size;
-	edict_t     *ent;
-	eval_t      *val;
-	size_t       rollbacksize, origmaxsize = msg->maxsize;
-	qboolean     sort = sv_netsort.value > 1;
-	float        scale;
-	const char  *model;
+	int			 bits;
+	byte		*pvs;
+	vec3_t		 org, forward, right, up;
+	float		 miss, dist, size;
+	edict_t		*ent;
+	eval_t		*val;
+	size_t		 rollbacksize, origmaxsize = msg->maxsize;
+	qboolean	 sort = sv_netsort.value > 1;
+	float		 scale;
+	const char	*model;
 
 	// with sv_netsort = 1, sort only if (any client) overflowed in the last 10 seconds
 	if (sv_netsort.value == 1 && dev_overflows.packetsize + 10 > realtime)
@@ -1899,7 +1899,6 @@ void SV_WriteEntitiesToClient (client_t *client, sizebuf_t *msg, size_t overflow
 	ent = NEXT_EDICT (qcvm->edicts);
 	for (e = 1; e < maxedict; e++, ent = NEXT_EDICT (ent))
 	{
-
 		if (ent != clent) // clent already added before the loop
 		{
 			// ignore ents without visible models
@@ -2053,7 +2052,6 @@ void SV_WriteEntitiesToClient (client_t *client, sizebuf_t *msg, size_t overflow
 		// johnfitz -- PROTOCOL_FITZQUAKE
 		if (sv.protocol != PROTOCOL_NETQUAKE)
 		{
-
 			if (ent->baseline.alpha != ent->alpha)
 				bits |= U_ALPHA;
 #ifdef BASE_PROTO_SCALES
@@ -2172,7 +2170,7 @@ SV_CleanupEnts
 */
 void SV_CleanupEnts (void)
 {
-	int      e;
+	int		 e;
 	edict_t *ent;
 
 	ent = NEXT_EDICT (qcvm->edicts);
@@ -2192,7 +2190,7 @@ SV_WriteDamageToMessage
 void SV_WriteDamageToMessage (edict_t *ent, sizebuf_t *msg)
 {
 	edict_t *other;
-	int      i;
+	int		 i;
 
 	//
 	// send a damage message
@@ -2233,11 +2231,11 @@ SV_WriteClientdataToMessage
 */
 void SV_WriteClientdataToMessage (client_t *client, sizebuf_t *msg)
 {
-	edict_t     *ent = client->edict;
-	int          bits;
-	int          i;
-	int          items;
-	eval_t      *val;
+	edict_t		*ent = client->edict;
+	int			 bits;
+	int			 i;
+	int			 items;
+	eval_t		*val;
 	unsigned int weaponmodelindex = SV_ModelIndex (PR_GetString (ent->v.weaponmodel));
 
 	if (weaponmodelindex >= client->limit_models)
@@ -2391,7 +2389,7 @@ void SV_WriteClientdataToMessage (client_t *client, sizebuf_t *msg)
 		MSG_WriteByte (msg, (int)ent->v.weaponframe >> 8);
 	if (bits & SU_WEAPONALPHA)
 		MSG_WriteByte (msg, ent->alpha); // for now, weaponalpha = client entity alpha
-		                                 // johnfitz
+										 // johnfitz
 }
 
 void SV_PresendClientDatagram (client_t *client)
@@ -2436,7 +2434,7 @@ SV_SendClientDatagram
 */
 qboolean SV_SendClientDatagram (client_t *client)
 {
-	byte      buf[MAX_DATAGRAM + 1000];
+	byte	  buf[MAX_DATAGRAM + 1000];
 	sizebuf_t msg;
 
 	if (!client->netconnection)
@@ -2566,7 +2564,7 @@ SV_UpdateToReliableMessages
 */
 void SV_UpdateToReliableMessages (void)
 {
-	int       i, j;
+	int		  i, j;
 	client_t *client;
 
 	// check for changes to be sent over the reliable streams
@@ -2608,7 +2606,7 @@ message buffer
 void SV_SendNop (client_t *client)
 {
 	sizebuf_t msg;
-	byte      buf[4];
+	byte	  buf[4];
 
 	msg.data = buf;
 	msg.maxsize = sizeof (buf);
@@ -2628,7 +2626,7 @@ qboolean SV_SendPrespawnModelPrecaches (void)
 qboolean SV_SendPrespawnSoundPrecaches (void)
 {
 	unsigned int idx = host_client->signon_sounds;
-	size_t       maxsize = host_client->message.maxsize; // we can go quite large
+	size_t		 maxsize = host_client->message.maxsize; // we can go quite large
 	if (!host_client->protocol_pext2)
 		return false; // unsupported by this client...
 	for (; idx < host_client->limit_sounds; idx++)
@@ -2666,7 +2664,7 @@ int SV_SendPrespawnParticlePrecaches (int idx)
 int SV_SendPrespawnStatics (int idx)
 {
 	entity_state_t *svent;
-	int             maxsize = host_client->message.maxsize - 128; // we can go quite large
+	int				maxsize = host_client->message.maxsize - 128; // we can go quite large
 
 	while (1)
 	{
@@ -2688,9 +2686,9 @@ int SV_SendPrespawnStatics (int idx)
 int SV_SendAmbientSounds (int idx)
 {
 	struct ambientsound_s *snd;
-	int                    maxsize = host_client->message.maxsize - 128; // we can go quite large
-	qboolean               large;
-	size_t                 i;
+	int					   maxsize = host_client->message.maxsize - 128; // we can go quite large
+	qboolean			   large;
+	size_t				   i;
 
 	while (1)
 	{
@@ -2724,7 +2722,7 @@ int SV_SendAmbientSounds (int idx)
 int SV_SendPrespawnBaselines (int idx)
 {
 	edict_t *svent;
-	int      maxsize = host_client->message.maxsize - 128; // we can go quite large
+	int		 maxsize = host_client->message.maxsize - 128; // we can go quite large
 
 	while (1)
 	{
@@ -2921,8 +2919,8 @@ SV_CreateBaseline
 void SV_CreateBaseline (void)
 {
 	edict_t *svent;
-	int      entnum;
-	eval_t  *val;
+	int		 entnum;
+	eval_t	*val;
 
 	for (entnum = 0; entnum < qcvm->num_edicts; entnum++)
 	{
@@ -2976,7 +2974,7 @@ Tell all the clients that the server is changing levels
 */
 void SV_SendReconnect (void)
 {
-	byte      data[128];
+	byte	  data[128];
 	sizebuf_t msg;
 
 	msg.data = data;
@@ -3041,9 +3039,9 @@ This is called at the start of each level
 void SV_SpawnServer (const char *server)
 {
 	static char dummy[8] = {0, 0, 0, 0, 0, 0, 0, 0};
-	edict_t    *ent;
-	int         i;
-	qcvm_t     *vm = qcvm;
+	edict_t	   *ent;
+	int			i;
+	qcvm_t	   *vm = qcvm;
 
 	// let's not have any servers with no name
 	if (hostname.string[0] == 0)
@@ -3091,7 +3089,7 @@ void SV_SpawnServer (const char *server)
 		if (sv_protocol_pext2) // spike: I don't really want to step on anyone's toes, but floats have the exact same precision as qc does.
 			sv.protocolflags = PRFL_FLOATCOORD | PRFL_SHORTANGLE;
 		else // spike: purists might want to preserve the inprecision and just extend the range though. This matches vanilla QS. should compress a bit better
-		     // too.
+			 // too.
 			sv.protocolflags = PRFL_INT32COORD | PRFL_SHORTANGLE;
 	}
 	else

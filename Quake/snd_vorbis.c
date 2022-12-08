@@ -71,9 +71,9 @@ static void S_VORBIS_CodecShutdown (void) {}
 static qboolean S_VORBIS_CodecOpenStream (snd_stream_t *stream)
 {
 	OggVorbis_File *ovFile;
-	vorbis_info    *ovf_info;
-	long            numstreams;
-	int             res;
+	vorbis_info	   *ovf_info;
+	long			numstreams;
+	int				res;
 
 	ovFile = (OggVorbis_File *)Mem_Alloc (sizeof (OggVorbis_File));
 	stream->priv = ovFile;
@@ -126,8 +126,8 @@ _fail:
 
 static int S_VORBIS_CodecReadStream (snd_stream_t *stream, int bytes, void *buffer)
 {
-	int   section; /* FIXME: handle section changes */
-	int   cnt, res, rem;
+	int	  section; /* FIXME: handle section changes */
+	int	  cnt, res, rem;
 	char *ptr;
 
 	cnt = 0;

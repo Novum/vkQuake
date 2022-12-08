@@ -26,10 +26,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #define MAX_PARTICLES \
 	16384 // default max # of particles at one
-	      //  time
+		  //  time
 #define ABSOLUTE_MIN_PARTICLES \
 	512 // no fewer than this no matter what's
-	    //  on the command line
+		//  on the command line
 
 int ramp1[8] = {0x6f, 0x6d, 0x6b, 0x69, 0x67, 0x65, 0x63, 0x61};
 int ramp2[8] = {0x6f, 0x6e, 0x6d, 0x6c, 0x6b, 0x6a, 0x68, 0x66};
@@ -42,9 +42,9 @@ vec3_t r_pright, r_pup, r_ppn;
 int r_numparticles;
 
 gltexture_t *particletexture, *particletexture1, *particletexture2, *particletexture3, *particletexture4; // johnfitz
-float        texturescalefactor; // johnfitz -- compensate for apparent size of different particle textures
+float		 texturescalefactor; // johnfitz -- compensate for apparent size of different particle textures
 
-cvar_t r_particles = {"r_particles", "1", CVAR_ARCHIVE};         // johnfitz
+cvar_t r_particles = {"r_particles", "1", CVAR_ARCHIVE};		 // johnfitz
 cvar_t r_quadparticles = {"r_quadparticles", "1", CVAR_ARCHIVE}; // johnfitz
 
 extern cvar_t r_showtris;
@@ -77,11 +77,11 @@ R_InitParticleTextures -- johnfitz -- rewritten
 */
 void R_InitParticleTextures (void)
 {
-	int         x, y;
+	int			x, y;
 	static byte particle1_data[64 * 64 * 4];
 	static byte particle2_data[2 * 2 * 4];
 	static byte particle3_data[64 * 64 * 4];
-	byte       *dst;
+	byte	   *dst;
 
 	// particle texture 1 -- circle
 	dst = particle1_data;
@@ -179,8 +179,8 @@ void R_InitParticleIndexBuffer (void)
 
 	const int align_mod = memory_requirements.size % memory_requirements.alignment;
 	const int aligned_size = ((memory_requirements.size % memory_requirements.alignment) == 0)
-	                             ? memory_requirements.size
-	                             : (memory_requirements.size + memory_requirements.alignment - align_mod);
+								 ? memory_requirements.size
+								 : (memory_requirements.size + memory_requirements.alignment - align_mod);
 
 	VkMemoryAllocateInfo memory_allocate_info;
 	memset (&memory_allocate_info, 0, sizeof (memory_allocate_info));
@@ -201,10 +201,10 @@ void R_InitParticleIndexBuffer (void)
 	if (err != VK_SUCCESS)
 		Sys_Error ("vkBindBufferMemory failed");
 
-	VkBuffer        staging_buffer;
+	VkBuffer		staging_buffer;
 	VkCommandBuffer cb_context;
-	int             staging_offset;
-	uint16_t       *staging_indices = (uint16_t *)R_StagingAllocate (particle_index_buffer_size, 1, &cb_context, &staging_buffer, &staging_offset);
+	int				staging_offset;
+	uint16_t	   *staging_indices = (uint16_t *)R_StagingAllocate (particle_index_buffer_size, 1, &cb_context, &staging_buffer, &staging_offset);
 
 	VkBufferCopy region;
 	region.srcOffset = staging_offset;
@@ -264,22 +264,22 @@ R_EntityParticles
 */
 #define NUMVERTEXNORMALS 162
 extern float r_avertexnormals[NUMVERTEXNORMALS][3];
-vec3_t       avelocities[NUMVERTEXNORMALS];
-float        beamlength = 16;
-vec3_t       avelocity = {23, 7, 3};
-float        partstep = 0.01;
-float        timescale = 0.01;
+vec3_t		 avelocities[NUMVERTEXNORMALS];
+float		 beamlength = 16;
+vec3_t		 avelocity = {23, 7, 3};
+float		 partstep = 0.01;
+float		 timescale = 0.01;
 
 void R_EntityParticles (entity_t *ent)
 {
-	int         i;
+	int			i;
 	particle_t *p;
-	float       angle;
-	float       sp, sy, cp, cy;
+	float		angle;
+	float		sp, sy, cp, cy;
 	//	float		sr, cr;
 	//	int		count;
-	vec3_t      forward;
-	float       dist;
+	vec3_t		forward;
+	float		dist;
 
 	dist = 64;
 	//	count = 50;
@@ -351,12 +351,12 @@ R_ReadPointFile_f
 */
 void R_ReadPointFile_f (void)
 {
-	FILE       *f;
-	vec3_t      org;
-	int         r;
-	int         c;
+	FILE	   *f;
+	vec3_t		org;
+	int			r;
+	int			c;
 	particle_t *p;
-	char        name[MAX_QPATH];
+	char		name[MAX_QPATH];
 
 	if (cls.state != ca_connected)
 		return; // need an active map.
@@ -411,7 +411,7 @@ Parse an effect out of the server message
 void R_ParseParticleEffect (void)
 {
 	vec3_t org, dir;
-	int    i, count, msgcount, color;
+	int	   i, count, msgcount, color;
 
 	for (i = 0; i < 3; i++)
 		org[i] = MSG_ReadCoord (cl.protocolflags);
@@ -435,7 +435,7 @@ R_ParticleExplosion
 */
 void R_ParticleExplosion (vec3_t org)
 {
-	int         i, j;
+	int			i, j;
 	particle_t *p;
 
 	for (i = 0; i < 1024; i++)
@@ -478,9 +478,9 @@ R_ParticleExplosion2
 */
 void R_ParticleExplosion2 (vec3_t org, int colorStart, int colorLength)
 {
-	int         i, j;
+	int			i, j;
 	particle_t *p;
-	int         colorMod = 0;
+	int			colorMod = 0;
 
 	for (i = 0; i < 512; i++)
 	{
@@ -511,7 +511,7 @@ R_BlobExplosion
 */
 void R_BlobExplosion (vec3_t org)
 {
-	int         i, j;
+	int			i, j;
 	particle_t *p;
 
 	for (i = 0; i < 1024; i++)
@@ -555,7 +555,7 @@ R_RunParticleEffect
 */
 void R_RunParticleEffect (vec3_t org, vec3_t dir, int color, int count)
 {
-	int         i, j;
+	int			i, j;
 	particle_t *p;
 
 	for (i = 0; i < count; i++)
@@ -612,10 +612,10 @@ R_LavaSplash
 */
 void R_LavaSplash (vec3_t org)
 {
-	int         i, j, k;
+	int			i, j, k;
 	particle_t *p;
-	float       vel;
-	vec3_t      dir;
+	float		vel;
+	vec3_t		dir;
 
 	for (i = -16; i < 16; i++)
 		for (j = -16; j < 16; j++)
@@ -653,10 +653,10 @@ R_TeleportSplash
 */
 void R_TeleportSplash (vec3_t org)
 {
-	int         i, j, k;
+	int			i, j, k;
 	particle_t *p;
-	float       vel;
-	vec3_t      dir;
+	float		vel;
+	vec3_t		dir;
 
 	for (i = -16; i < 16; i += 4)
 		for (j = -16; j < 16; j += 4)
@@ -696,12 +696,12 @@ FIXME -- rename function and use #defined types instead of numbers
 */
 void R_RocketTrail (vec3_t start, vec3_t end, int type)
 {
-	vec3_t      vec;
-	float       len;
-	int         j;
+	vec3_t		vec;
+	float		len;
+	int			j;
 	particle_t *p;
-	int         dec;
-	static int  tracercount;
+	int			dec;
+	static int	tracercount;
 
 	VectorSubtract (end, start, vec);
 	len = VectorNormalize (vec);
@@ -804,9 +804,9 @@ CL_RunParticles -- johnfitz -- all the particle behavior, separated from R_DrawP
 */
 void CL_RunParticles (void)
 {
-	particle_t   *p, *kill;
-	int           i;
-	float         time1, time2, time3, dvel, frametime, grav;
+	particle_t	 *p, *kill;
+	int			  i;
+	float		  time1, time2, time3, dvel, frametime, grav;
 	extern cvar_t sv_gravity;
 
 	frametime = q_max (0.0, cl.time - cl.oldtime);
@@ -910,9 +910,9 @@ R_DrawParticlesFaces
 */
 static void R_DrawParticlesFaces (cb_context_t *cbx)
 {
-	particle_t   *p;
-	float         scale, texcoord_scale;
-	vec3_t        up, right, up_right, p_up, p_right, p_up_right;
+	particle_t	 *p;
+	float		  scale, texcoord_scale;
+	vec3_t		  up, right, up_right, p_up, p_right, p_up_right;
 	extern cvar_t r_particles; // johnfitz
 
 	if (!r_particles.value)
@@ -942,7 +942,7 @@ static void R_DrawParticlesFaces (cb_context_t *cbx)
 		num_particles += 1;
 	Atomic_AddUInt32 (&rs_particles, num_particles);
 
-	VkBuffer       vertex_buffer;
+	VkBuffer	   vertex_buffer;
 	VkDeviceSize   vertex_buffer_offset;
 	basicvertex_t *vertices;
 	if (r_quadparticles.value)

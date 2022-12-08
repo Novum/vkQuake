@@ -37,12 +37,12 @@ static qboolean playing = false;
 static qboolean wasPlaying = false;
 static qboolean enabled = true;
 static qboolean playLooping = false;
-static byte     remap[100];
-static byte     playTrack;
-static double   endOfTrack = -1.0, pausetime = -1.0;
+static byte		remap[100];
+static byte		playTrack;
+static double	endOfTrack = -1.0, pausetime = -1.0;
 static SDL_CD  *cd_handle;
-static int      cd_dev = -1;
-static float    old_cdvolume;
+static int		cd_dev = -1;
+static float	old_cdvolume;
 static qboolean hw_vol_works = true;
 
 static void CDAudio_Eject (void)
@@ -207,7 +207,7 @@ static int get_first_audiotrk (void)
 static void CD_f (void)
 {
 	const char *command;
-	int         ret, n;
+	int			ret, n;
 
 	if (Cmd_Argc () < 2)
 	{
@@ -566,7 +566,7 @@ void CDAudio_Shutdown (void)
 	if (hw_vol_works)
 		CD_SetVolume (NULL); /* no SDL support at present. */
 #ifdef __linux__
-	SDL_CDStop (cd_handle);  /* see CDAudio_Stop() */
+	SDL_CDStop (cd_handle);	 /* see CDAudio_Stop() */
 #endif
 	SDL_CDClose (cd_handle);
 	cd_handle = NULL;

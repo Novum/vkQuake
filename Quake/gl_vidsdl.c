@@ -39,8 +39,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define MAX_MODE_LIST  600 // johnfitz -- was 30
 #define MAX_BPPS_LIST  5
 #define MAX_RATES_LIST 20
-#define MAXWIDTH       10000
-#define MAXHEIGHT      10000
+#define MAXWIDTH	   10000
+#define MAXHEIGHT	   10000
 
 #define MAX_SWAP_CHAIN_IMAGES 8
 #define REQUIRED_COLOR_BUFFER_FEATURES                                                                                             \
@@ -57,20 +57,20 @@ typedef struct
 } vmode_t;
 
 static vmode_t *modelist = NULL;
-static int      nummodes;
+static int		nummodes;
 
 static qboolean vid_initialized = false;
 static qboolean has_focus = true;
 static uint32_t num_images_acquired = 0;
 
-static SDL_Window   *draw_context;
+static SDL_Window	*draw_context;
 static SDL_SysWMinfo sys_wm_info;
 
 static qboolean vid_locked = false; // johnfitz
 static qboolean vid_changed = false;
 
 static void VID_Menu_Init (void); // johnfitz
-static void VID_Menu_f (void);    // johnfitz
+static void VID_Menu_f (void);	  // johnfitz
 static void VID_MenuDraw (cb_context_t *cbx);
 static void VID_MenuKey (int key);
 static void VID_Restart (qboolean set_mode);
@@ -82,79 +82,79 @@ static void GL_InitDevice (void);
 static void GL_CreateFrameBuffers (void);
 static void GL_DestroyRenderResources (void);
 
-viddef_t        vid; // global video state
-modestate_t     modestate = MS_UNINIT;
+viddef_t		vid; // global video state
+modestate_t		modestate = MS_UNINIT;
 extern qboolean scr_initialized;
-extern cvar_t   r_particles, host_maxfps, r_gpulightmapupdate, r_showtris, r_showbboxes;
+extern cvar_t	r_particles, host_maxfps, r_gpulightmapupdate, r_showtris, r_showbboxes;
 
 //====================================
 
 // johnfitz -- new cvars
-static cvar_t                   vid_fullscreen = {"vid_fullscreen", "0", CVAR_ARCHIVE}; // QuakeSpasm, was "1"
-static cvar_t                   vid_width = {"vid_width", "1280", CVAR_ARCHIVE};        // QuakeSpasm, was 640
-static cvar_t                   vid_height = {"vid_height", "720", CVAR_ARCHIVE};       // QuakeSpasm, was 480
-static cvar_t                   vid_refreshrate = {"vid_refreshrate", "60", CVAR_ARCHIVE};
-static cvar_t                   vid_vsync = {"vid_vsync", "0", CVAR_ARCHIVE};
-static cvar_t                   vid_desktopfullscreen = {"vid_desktopfullscreen", "0", CVAR_ARCHIVE}; // QuakeSpasm
-static cvar_t                   vid_borderless = {"vid_borderless", "0", CVAR_ARCHIVE};               // QuakeSpasm
-cvar_t                          vid_palettize = {"vid_palettize", "0", CVAR_ARCHIVE};
-cvar_t                          vid_filter = {"vid_filter", "0", CVAR_ARCHIVE};
-cvar_t                          vid_anisotropic = {"vid_anisotropic", "0", CVAR_ARCHIVE};
-cvar_t                          vid_fsaa = {"vid_fsaa", "0", CVAR_ARCHIVE};
-cvar_t                          vid_fsaamode = {"vid_fsaamode", "0", CVAR_ARCHIVE};
-cvar_t                          vid_gamma = {"gamma", "0.9", CVAR_ARCHIVE};       // johnfitz -- moved here from view.c
-cvar_t                          vid_contrast = {"contrast", "1.4", CVAR_ARCHIVE}; // QuakeSpasm, MarkV
-cvar_t                          r_usesops = {"r_usesops", "1", CVAR_ARCHIVE};     // johnfitz
-                                                                                  // Vulkan
-static VkInstance               vulkan_instance;
-static VkPhysicalDevice         vulkan_physical_device;
+static cvar_t					vid_fullscreen = {"vid_fullscreen", "0", CVAR_ARCHIVE}; // QuakeSpasm, was "1"
+static cvar_t					vid_width = {"vid_width", "1280", CVAR_ARCHIVE};		// QuakeSpasm, was 640
+static cvar_t					vid_height = {"vid_height", "720", CVAR_ARCHIVE};		// QuakeSpasm, was 480
+static cvar_t					vid_refreshrate = {"vid_refreshrate", "60", CVAR_ARCHIVE};
+static cvar_t					vid_vsync = {"vid_vsync", "0", CVAR_ARCHIVE};
+static cvar_t					vid_desktopfullscreen = {"vid_desktopfullscreen", "0", CVAR_ARCHIVE}; // QuakeSpasm
+static cvar_t					vid_borderless = {"vid_borderless", "0", CVAR_ARCHIVE};				  // QuakeSpasm
+cvar_t							vid_palettize = {"vid_palettize", "0", CVAR_ARCHIVE};
+cvar_t							vid_filter = {"vid_filter", "0", CVAR_ARCHIVE};
+cvar_t							vid_anisotropic = {"vid_anisotropic", "0", CVAR_ARCHIVE};
+cvar_t							vid_fsaa = {"vid_fsaa", "0", CVAR_ARCHIVE};
+cvar_t							vid_fsaamode = {"vid_fsaamode", "0", CVAR_ARCHIVE};
+cvar_t							vid_gamma = {"gamma", "0.9", CVAR_ARCHIVE};		  // johnfitz -- moved here from view.c
+cvar_t							vid_contrast = {"contrast", "1.4", CVAR_ARCHIVE}; // QuakeSpasm, MarkV
+cvar_t							r_usesops = {"r_usesops", "1", CVAR_ARCHIVE};	  // johnfitz
+																				  // Vulkan
+static VkInstance				vulkan_instance;
+static VkPhysicalDevice			vulkan_physical_device;
 static VkPhysicalDeviceFeatures vulkan_physical_device_features;
-static VkSurfaceKHR             vulkan_surface;
+static VkSurfaceKHR				vulkan_surface;
 static VkSurfaceCapabilitiesKHR vulkan_surface_capabilities;
-static VkSwapchainKHR           vulkan_swapchain;
+static VkSwapchainKHR			vulkan_swapchain;
 
-static uint32_t        num_swap_chain_images;
-static qboolean        render_resources_created = false;
-static uint32_t        current_cb_index;
+static uint32_t		   num_swap_chain_images;
+static qboolean		   render_resources_created = false;
+static uint32_t		   current_cb_index;
 static VkCommandPool   primary_command_pool;
 static VkCommandPool   secondary_command_pools[CBX_NUM];
 static VkCommandPool   transient_command_pool;
 static VkCommandBuffer primary_command_buffers[DOUBLE_BUFFERED];
 static VkCommandBuffer secondary_command_buffers[CBX_NUM][DOUBLE_BUFFERED];
-static VkFence         command_buffer_fences[DOUBLE_BUFFERED];
-static qboolean        frame_submitted[DOUBLE_BUFFERED];
+static VkFence		   command_buffer_fences[DOUBLE_BUFFERED];
+static qboolean		   frame_submitted[DOUBLE_BUFFERED];
 static VkFramebuffer   main_framebuffers[NUM_COLOR_BUFFERS];
-static VkSemaphore     image_aquired_semaphores[DOUBLE_BUFFERED];
-static VkSemaphore     draw_complete_semaphores[DOUBLE_BUFFERED];
+static VkSemaphore	   image_aquired_semaphores[DOUBLE_BUFFERED];
+static VkSemaphore	   draw_complete_semaphores[DOUBLE_BUFFERED];
 static VkFramebuffer   ui_framebuffers[MAX_SWAP_CHAIN_IMAGES];
-static VkImage         swapchain_images[MAX_SWAP_CHAIN_IMAGES];
-static VkImageView     swapchain_images_views[MAX_SWAP_CHAIN_IMAGES];
-static VkImage         depth_buffer;
+static VkImage		   swapchain_images[MAX_SWAP_CHAIN_IMAGES];
+static VkImageView	   swapchain_images_views[MAX_SWAP_CHAIN_IMAGES];
+static VkImage		   depth_buffer;
 static vulkan_memory_t depth_buffer_memory;
-static VkImageView     depth_buffer_view;
+static VkImageView	   depth_buffer_view;
 static vulkan_memory_t color_buffers_memory[NUM_COLOR_BUFFERS];
-static VkImageView     color_buffers_view[NUM_COLOR_BUFFERS];
-static VkImage         msaa_color_buffer;
+static VkImageView	   color_buffers_view[NUM_COLOR_BUFFERS];
+static VkImage		   msaa_color_buffer;
 static vulkan_memory_t msaa_color_buffer_memory;
-static VkImageView     msaa_color_buffer_view;
+static VkImageView	   msaa_color_buffer_view;
 static VkDescriptorSet postprocess_descriptor_set;
-static VkBuffer        palette_colors_buffer;
-static VkBufferView    palette_buffer_view;
-static VkBuffer        palette_octree_buffer;
+static VkBuffer		   palette_colors_buffer;
+static VkBufferView	   palette_buffer_view;
+static VkBuffer		   palette_octree_buffer;
 
-static PFN_vkGetInstanceProcAddr                      fpGetInstanceProcAddr;
-static PFN_vkGetDeviceProcAddr                        fpGetDeviceProcAddr;
-static PFN_vkGetPhysicalDeviceSurfaceSupportKHR       fpGetPhysicalDeviceSurfaceSupportKHR;
+static PFN_vkGetInstanceProcAddr					  fpGetInstanceProcAddr;
+static PFN_vkGetDeviceProcAddr						  fpGetDeviceProcAddr;
+static PFN_vkGetPhysicalDeviceSurfaceSupportKHR		  fpGetPhysicalDeviceSurfaceSupportKHR;
 static PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR  fpGetPhysicalDeviceSurfaceCapabilitiesKHR;
 static PFN_vkGetPhysicalDeviceSurfaceCapabilities2KHR fpGetPhysicalDeviceSurfaceCapabilities2KHR;
-static PFN_vkGetPhysicalDeviceSurfaceFormatsKHR       fpGetPhysicalDeviceSurfaceFormatsKHR;
+static PFN_vkGetPhysicalDeviceSurfaceFormatsKHR		  fpGetPhysicalDeviceSurfaceFormatsKHR;
 static PFN_vkGetPhysicalDeviceSurfacePresentModesKHR  fpGetPhysicalDeviceSurfacePresentModesKHR;
-static PFN_vkCreateSwapchainKHR                       fpCreateSwapchainKHR;
-static PFN_vkDestroySwapchainKHR                      fpDestroySwapchainKHR;
-static PFN_vkGetSwapchainImagesKHR                    fpGetSwapchainImagesKHR;
-static PFN_vkAcquireNextImageKHR                      fpAcquireNextImageKHR;
-static PFN_vkQueuePresentKHR                          fpQueuePresentKHR;
-static PFN_vkEnumerateInstanceVersion                 fpEnumerateInstanceVersion;
+static PFN_vkCreateSwapchainKHR						  fpCreateSwapchainKHR;
+static PFN_vkDestroySwapchainKHR					  fpDestroySwapchainKHR;
+static PFN_vkGetSwapchainImagesKHR					  fpGetSwapchainImagesKHR;
+static PFN_vkAcquireNextImageKHR					  fpAcquireNextImageKHR;
+static PFN_vkQueuePresentKHR						  fpQueuePresentKHR;
+static PFN_vkEnumerateInstanceVersion				  fpEnumerateInstanceVersion;
 #if defined(VK_EXT_full_screen_exclusive)
 static PFN_vkAcquireFullScreenExclusiveModeEXT fpAcquireFullScreenExclusiveModeEXT;
 static PFN_vkReleaseFullScreenExclusiveModeEXT fpReleaseFullScreenExclusiveModeEXT;
@@ -162,7 +162,7 @@ static PFN_vkReleaseFullScreenExclusiveModeEXT fpReleaseFullScreenExclusiveModeE
 
 #ifdef _DEBUG
 static PFN_vkCreateDebugUtilsMessengerEXT fpCreateDebugUtilsMessengerEXT;
-PFN_vkSetDebugUtilsObjectNameEXT          fpSetDebugUtilsObjectNameEXT;
+PFN_vkSetDebugUtilsObjectNameEXT		  fpSetDebugUtilsObjectNameEXT;
 
 VkDebugUtilsMessengerEXT debug_utils_messenger;
 
@@ -250,7 +250,7 @@ VID_GetCurrentRefreshRate
 static int VID_GetCurrentRefreshRate (void)
 {
 	SDL_DisplayMode mode;
-	int             current_display;
+	int				current_display;
 
 	current_display = SDL_GetWindowDisplayIndex (draw_context);
 
@@ -342,8 +342,8 @@ with the requested bpp. If we didn't care about bpp we could just pass NULL.
 static SDL_DisplayMode *VID_SDL2_GetDisplayMode (int width, int height, int refreshrate)
 {
 	static SDL_DisplayMode mode;
-	const int              sdlmodes = SDL_GetNumDisplayModes (0);
-	int                    i;
+	const int			   sdlmodes = SDL_GetNumDisplayModes (0);
+	int					   i;
 
 	for (i = 0; i < sdlmodes; i++)
 	{
@@ -388,10 +388,10 @@ VID_SetMode
 */
 static qboolean VID_SetMode (int width, int height, int refreshrate, qboolean fullscreen)
 {
-	int    temp;
+	int	   temp;
 	Uint32 flags;
 	char   caption[50];
-	int    previous_display;
+	int	   previous_display;
 
 	// so Con_Printfs don't mess us up by forcing vid and snd updates
 	temp = scr_disabled_for_loading;
@@ -592,8 +592,8 @@ GL_InitInstance
 */
 static void GL_InitInstance (void)
 {
-	VkResult     err;
-	uint32_t     i;
+	VkResult	 err;
+	uint32_t	 i;
 	unsigned int sdl_extension_count;
 	vulkan_globals.debug_utils = false;
 
@@ -834,8 +834,8 @@ static void GL_InitDevice (void)
 {
 	VkResult err;
 	uint32_t i;
-	int      argIndex;
-	int      deviceIndex = 0;
+	int		 argIndex;
+	int		 deviceIndex = 0;
 
 #if defined(VK_EXT_subgroup_size_control)
 	qboolean subgroup_size_control = false;
@@ -970,7 +970,7 @@ static void GL_InitDevice (void)
 	if (!found_graphics_queue)
 		Sys_Error ("Couldn't find graphics queue");
 
-	float                   queue_priorities[] = {0.0};
+	float					queue_priorities[] = {0.0};
 	VkDeviceQueueCreateInfo queue_create_info;
 	memset (&queue_create_info, 0, sizeof (queue_create_info));
 	queue_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
@@ -1018,7 +1018,7 @@ static void GL_InitDevice (void)
 		subgroup_size_control_features.computeFullSubgroups && ((physical_device_subgroup_properties.supportedStages & VK_SHADER_STAGE_COMPUTE_BIT) != 0) &&
 		((physical_device_subgroup_properties.supportedOperations & VK_SUBGROUP_FEATURE_SHUFFLE_BIT) != 0)
 		// Shader only supports subgroup sizes from 4 to 64. 128 can't be supported because Vulkan spec states that workgroup size
-	    // in x dimension must be a multiple of the subgroup size for VK_PIPELINE_SHADER_STAGE_CREATE_REQUIRE_FULL_SUBGROUPS_BIT_EXT.
+		// in x dimension must be a multiple of the subgroup size for VK_PIPELINE_SHADER_STAGE_CREATE_REQUIRE_FULL_SUBGROUPS_BIT_EXT.
 		&& (physical_device_subgroup_size_control_properties.minSubgroupSize >= 4) && (physical_device_subgroup_size_control_properties.maxSubgroupSize <= 64);
 
 	if (vulkan_globals.screen_effects_sops)
@@ -1026,7 +1026,7 @@ static void GL_InitDevice (void)
 #endif
 
 	const char *device_extensions[6] = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
-	uint32_t    numEnabledExtensions = 1;
+	uint32_t	numEnabledExtensions = 1;
 	if (vulkan_globals.dedicated_allocation)
 	{
 		device_extensions[numEnabledExtensions++] = VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME;
@@ -1541,7 +1541,7 @@ GL_CreateColorBuffer
 static void GL_CreateColorBuffer (void)
 {
 	VkResult err;
-	int      i;
+	int		 i;
 
 	Sys_Printf ("Creating color buffer\n");
 
@@ -1833,13 +1833,13 @@ static qboolean GL_CreateSwapChain (void)
 	qboolean use_exclusive_full_screen = false;
 	qboolean try_use_exclusive_full_screen =
 		vulkan_globals.full_screen_exclusive && vulkan_globals.want_full_screen_exclusive && has_focus && VID_GetFullscreen ();
-	VkSurfaceFullScreenExclusiveInfoEXT      full_screen_exclusive_info;
+	VkSurfaceFullScreenExclusiveInfoEXT		 full_screen_exclusive_info;
 	VkSurfaceFullScreenExclusiveWin32InfoEXT full_screen_exclusive_win32_info;
 	if (try_use_exclusive_full_screen)
 	{
 		SDL_SysWMinfo wmInfo;
-		HWND          hwnd;
-		HMONITOR      monitor;
+		HWND		  hwnd;
+		HMONITOR	  monitor;
 
 		SDL_VERSION (&wmInfo.version);
 		SDL_GetWindowWMInfo (draw_context, &wmInfo);
@@ -1888,7 +1888,7 @@ static qboolean GL_CreateSwapChain (void)
 	}
 
 	if ((vulkan_surface_capabilities.currentExtent.width != 0xFFFFFFFF || vulkan_surface_capabilities.currentExtent.height != 0xFFFFFFFF) &&
-	    (vulkan_surface_capabilities.currentExtent.width != vid.width || vulkan_surface_capabilities.currentExtent.height != vid.height))
+		(vulkan_surface_capabilities.currentExtent.width != vid.width || vulkan_surface_capabilities.currentExtent.height != vid.height))
 	{
 		return false;
 	}
@@ -1903,7 +1903,7 @@ static qboolean GL_CreateSwapChain (void)
 	if (err != VK_SUCCESS)
 		Sys_Error ("fpGetPhysicalDeviceSurfaceFormatsKHR failed");
 
-	VkFormat        swap_chain_format = VK_FORMAT_B8G8R8A8_UNORM;
+	VkFormat		swap_chain_format = VK_FORMAT_B8G8R8A8_UNORM;
 	VkColorSpaceKHR swap_chain_color_space = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
 
 	if (surface_formats[0].format != VK_FORMAT_UNDEFINED || format_count > 1)
@@ -2418,7 +2418,7 @@ qboolean GL_AcquireNextSwapChainImage (void)
 
 #if defined(VK_EXT_full_screen_exclusive)
 	if (VID_GetFullscreen () && vulkan_globals.want_full_screen_exclusive && vulkan_globals.swap_chain_full_screen_exclusive &&
-	    !vulkan_globals.swap_chain_full_screen_acquired)
+		!vulkan_globals.swap_chain_full_screen_acquired)
 	{
 		const VkResult result = fpAcquireFullScreenExclusiveModeEXT (vulkan_globals.device, vulkan_swapchain);
 		if (result == VK_SUCCESS)
@@ -2464,33 +2464,33 @@ typedef struct screen_effect_constants_s
 {
 	uint32_t clamp_size_x;
 	uint32_t clamp_size_y;
-	float    screen_size_rcp_x;
-	float    screen_size_rcp_y;
-	float    aspect_ratio;
-	float    time;
+	float	 screen_size_rcp_x;
+	float	 screen_size_rcp_y;
+	float	 aspect_ratio;
+	float	 time;
 	uint32_t flags;
-	float    poly_blend_r;
-	float    poly_blend_g;
-	float    poly_blend_b;
-	float    poly_blend_a;
+	float	 poly_blend_r;
+	float	 poly_blend_g;
+	float	 poly_blend_b;
+	float	 poly_blend_a;
 } screen_effect_constants_t;
 
 typedef struct end_rendering_parms_s
 {
-	uint32_t vid_width     : 20;
-	qboolean swapchain     : 1;
+	uint32_t vid_width	   : 20;
+	qboolean swapchain	   : 1;
 	qboolean render_warp   : 1;
 	qboolean vid_palettize : 1;
 	uint32_t render_scale  : 4;
-	uint32_t vid_height    : 20;
-	float    time;
-	uint8_t  v_blend[4];
+	uint32_t vid_height	   : 20;
+	float	 time;
+	uint8_t	 v_blend[4];
 } end_rendering_parms_t;
 
 #define SCREEN_EFFECT_FLAG_SCALE_MASK 0x3
-#define SCREEN_EFFECT_FLAG_SCALE_2X   0x1
-#define SCREEN_EFFECT_FLAG_SCALE_4X   0x2
-#define SCREEN_EFFECT_FLAG_SCALE_8X   0x3
+#define SCREEN_EFFECT_FLAG_SCALE_2X	  0x1
+#define SCREEN_EFFECT_FLAG_SCALE_4X	  0x2
+#define SCREEN_EFFECT_FLAG_SCALE_8X	  0x3
 #define SCREEN_EFFECT_FLAG_WATER_WARP 0x4
 #define SCREEN_EFFECT_FLAG_PALETTIZE  0x8
 
@@ -2626,7 +2626,7 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 	R_FlushDynamicBuffers ();
 
 	VkResult err;
-	int      cb_index = current_cb_index;
+	int		 cb_index = current_cb_index;
 
 	qboolean swapchain_acquired = parms->swapchain && GL_AcquireNextSwapChainImage ();
 	if (swapchain_acquired == true)
@@ -2673,7 +2673,7 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 
 	const qboolean screen_effects = parms->render_warp || (parms->render_scale >= 2) || parms->vid_palettize || (gl_polyblend.value && parms->v_blend[3]);
 	{
-		const qboolean        resolve = (vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT);
+		const qboolean		  resolve = (vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT);
 		VkRenderPassBeginInfo render_pass_begin_info;
 		memset (&render_pass_begin_info, 0, sizeof (render_pass_begin_info));
 		render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -2744,7 +2744,7 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 		err = fpQueuePresentKHR (vulkan_globals.queue, &present_info);
 #if defined(VK_EXT_full_screen_exclusive)
 		if ((err == VK_ERROR_OUT_OF_DATE_KHR) || (err == VK_ERROR_SURFACE_LOST_KHR) || (err == VK_SUBOPTIMAL_KHR) ||
-		    (err == VK_ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT))
+			(err == VK_ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT))
 #else
 		if ((err == VK_ERROR_OUT_OF_DATE_KHR) || (err == VK_ERROR_SURFACE_LOST_KHR) || (err == VK_SUBOPTIMAL_KHR))
 #endif
@@ -2902,7 +2902,7 @@ VID_InitModelist
 static void VID_InitModelist (void)
 {
 	const int sdlmodes = SDL_GetNumDisplayModes (0);
-	int       i;
+	int		  i;
 
 	modelist = Mem_Realloc (modelist, sizeof (vmode_t) * sdlmodes);
 	nummodes = 0;
@@ -2959,10 +2959,10 @@ static void R_CreatePaletteOctreeBuffers (uint32_t *colors, int num_colors, pale
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkBindBufferMemory failed");
 
-		VkBuffer        staging_buffer;
+		VkBuffer		staging_buffer;
 		VkCommandBuffer command_buffer;
-		int             staging_offset;
-		uint32_t       *staging_memory = (uint32_t *)R_StagingAllocate (colors_size, 1, &command_buffer, &staging_buffer, &staging_offset);
+		int				staging_offset;
+		uint32_t	   *staging_memory = (uint32_t *)R_StagingAllocate (colors_size, 1, &command_buffer, &staging_buffer, &staging_offset);
 
 		VkBufferCopy region;
 		region.srcOffset = staging_offset;
@@ -3019,10 +3019,10 @@ static void R_CreatePaletteOctreeBuffers (uint32_t *colors, int num_colors, pale
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkBindBufferMemory failed");
 
-		VkBuffer        staging_buffer;
+		VkBuffer		staging_buffer;
 		VkCommandBuffer command_buffer;
-		int             staging_offset;
-		uint32_t       *staging_memory = (uint32_t *)R_StagingAllocate (nodes_size, 1, &command_buffer, &staging_buffer, &staging_offset);
+		int				staging_offset;
+		uint32_t	   *staging_memory = (uint32_t *)R_StagingAllocate (nodes_size, 1, &command_buffer, &staging_buffer, &staging_offset);
 
 		VkBufferCopy region;
 		region.srcOffset = staging_offset;
@@ -3044,24 +3044,24 @@ VID_Init
 void VID_Init (void)
 {
 	static char vid_center[] = "SDL_VIDEO_CENTERED=center";
-	int         p, width, height, refreshrate;
-	int         display_width, display_height, display_refreshrate;
-	qboolean    fullscreen;
-	const char *read_vars[] = {"vid_fullscreen",        "vid_width",    "vid_height", "vid_refreshrate", "vid_vsync",
-	                           "vid_desktopfullscreen", "vid_fsaamode", "vid_fsaa",   "vid_borderless"};
+	int			p, width, height, refreshrate;
+	int			display_width, display_height, display_refreshrate;
+	qboolean	fullscreen;
+	const char *read_vars[] = {"vid_fullscreen",		"vid_width",	"vid_height", "vid_refreshrate", "vid_vsync",
+							   "vid_desktopfullscreen", "vid_fsaamode", "vid_fsaa",	  "vid_borderless"};
 #define num_readvars (sizeof (read_vars) / sizeof (read_vars[0]))
 
 	Cvar_RegisterVariable (&vid_fullscreen);  // johnfitz
-	Cvar_RegisterVariable (&vid_width);       // johnfitz
-	Cvar_RegisterVariable (&vid_height);      // johnfitz
+	Cvar_RegisterVariable (&vid_width);		  // johnfitz
+	Cvar_RegisterVariable (&vid_height);	  // johnfitz
 	Cvar_RegisterVariable (&vid_refreshrate); // johnfitz
-	Cvar_RegisterVariable (&vid_vsync);       // johnfitz
+	Cvar_RegisterVariable (&vid_vsync);		  // johnfitz
 	Cvar_RegisterVariable (&vid_filter);
 	Cvar_RegisterVariable (&vid_anisotropic);
 	Cvar_RegisterVariable (&vid_fsaamode);
 	Cvar_RegisterVariable (&vid_fsaa);
 	Cvar_RegisterVariable (&vid_desktopfullscreen); // QuakeSpasm
-	Cvar_RegisterVariable (&vid_borderless);        // QuakeSpasm
+	Cvar_RegisterVariable (&vid_borderless);		// QuakeSpasm
 	Cvar_RegisterVariable (&vid_palettize);
 	Cvar_SetCallback (&vid_fullscreen, VID_Changed_f);
 	Cvar_SetCallback (&vid_width, VID_Changed_f);
@@ -3075,9 +3075,9 @@ void VID_Init (void)
 	Cvar_SetCallback (&vid_desktopfullscreen, VID_Changed_f);
 	Cvar_SetCallback (&vid_borderless, VID_Changed_f);
 
-	Cmd_AddCommand ("vid_unlock", VID_Unlock);     // johnfitz
+	Cmd_AddCommand ("vid_unlock", VID_Unlock);	   // johnfitz
 	Cmd_AddCommand ("vid_restart", VID_Restart_f); // johnfitz
-	Cmd_AddCommand ("vid_test", VID_Test);         // johnfitz
+	Cmd_AddCommand ("vid_test", VID_Test);		   // johnfitz
 	Cmd_AddCommand ("vid_describecurrentmode", VID_DescribeCurrentMode_f);
 	Cmd_AddCommand ("vid_describemodes", VID_DescribeModes_f);
 
@@ -3216,7 +3216,7 @@ static void VID_Restart (qboolean set_mode)
 {
 	GL_SynchronizeEndRenderingTask ();
 
-	int      width, height, refreshrate;
+	int		 width, height, refreshrate;
 	qboolean fullscreen;
 
 	width = (int)vid_width.value;
@@ -3296,7 +3296,7 @@ new proc by S.A., called by alt-return key binding.
 void VID_Toggle (void)
 {
 	qboolean toggleWorked;
-	Uint32   flags = 0;
+	Uint32	 flags = 0;
 
 	S_ClearBuffer ();
 
@@ -3403,7 +3403,7 @@ typedef struct
 
 // TODO: replace these fixed-length arrays with hunk_allocated buffers
 static vid_menu_mode vid_menu_modes[MAX_MODE_LIST];
-static int           vid_menu_nummodes = 0;
+static int			 vid_menu_nummodes = 0;
 
 static int vid_menu_rates[MAX_RATES_LIST];
 static int vid_menu_numrates = 0;
@@ -3921,8 +3921,8 @@ VID_MenuDraw
 */
 static void VID_MenuDraw (cb_context_t *cbx)
 {
-	int         i, y;
-	qpic_t     *p;
+	int			i, y;
+	qpic_t	   *p;
 	const char *title;
 
 	y = 4;
@@ -4063,10 +4063,10 @@ void SCR_ScreenShot_f (void)
 {
 	VkBuffer buffer;
 	VkResult err;
-	char     ext[4];
-	char     imagename[16]; // johnfitz -- was [80]
-	char     checkname[MAX_OSPATH];
-	int      i, quality;
+	char	 ext[4];
+	char	 imagename[16]; // johnfitz -- was [80]
+	char	 checkname[MAX_OSPATH];
+	int		 i, quality;
 	qboolean ok;
 
 	qboolean bgra = (vulkan_globals.swap_chain_format == VK_FORMAT_B8G8R8A8_UNORM) || (vulkan_globals.swap_chain_format == VK_FORMAT_B8G8R8A8_SRGB);
@@ -4097,7 +4097,7 @@ void SCR_ScreenShot_f (void)
 	}
 
 	if ((vulkan_globals.swap_chain_format != VK_FORMAT_B8G8R8A8_UNORM) && (vulkan_globals.swap_chain_format != VK_FORMAT_B8G8R8A8_SRGB) &&
-	    (vulkan_globals.swap_chain_format != VK_FORMAT_R8G8B8A8_UNORM) && (vulkan_globals.swap_chain_format != VK_FORMAT_R8G8B8A8_SRGB))
+		(vulkan_globals.swap_chain_format != VK_FORMAT_R8G8B8A8_UNORM) && (vulkan_globals.swap_chain_format != VK_FORMAT_R8G8B8A8_SRGB))
 	{
 		Con_Printf ("SCR_ScreenShot_f: Unsupported surface format\n");
 		return;
@@ -4223,7 +4223,7 @@ void SCR_ScreenShot_f (void)
 
 	if (bgra)
 	{
-		byte     *data = (byte *)buffer_ptr;
+		byte	 *data = (byte *)buffer_ptr;
 		const int size = glwidth * glheight * 4;
 		for (i = 0; i < size; i += 4)
 		{

@@ -26,7 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "net_defs.h"
 #include "net_loop.h"
 
-static qboolean   localconnectpending = false;
+static qboolean	  localconnectpending = false;
 static qsocket_t *loop_client = NULL;
 static qsocket_t *loop_server = NULL;
 
@@ -172,7 +172,7 @@ qsocket_t *Loop_GetAnyMessage (void)
 int Loop_SendMessage (qsocket_t *sock, sizebuf_t *data)
 {
 	byte *buffer;
-	int  *bufferLength;
+	int	 *bufferLength;
 
 	if (!sock->driverdata)
 		return -1;
@@ -205,8 +205,8 @@ int Loop_SendMessage (qsocket_t *sock, sizebuf_t *data)
 int Loop_SendUnreliableMessage (qsocket_t *sock, sizebuf_t *data)
 {
 	byte *buffer;
-	int  *bufferLength;
-	int   sequence = sock->unreliableSendSequence++;
+	int	 *bufferLength;
+	int	  sequence = sock->unreliableSendSequence++;
 
 	if (!sock->driverdata)
 		return -1;

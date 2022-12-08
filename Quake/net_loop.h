@@ -23,19 +23,19 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define __NET_LOOP_H
 
 // net_loop.h
-int  Loop_Init (void);
+int	 Loop_Init (void);
 void Loop_Listen (qboolean state);
 #define Loop_QueryAddresses NULL
 qboolean   Loop_SearchForHosts (qboolean xmit);
 qsocket_t *Loop_Connect (const char *host);
 qsocket_t *Loop_CheckNewConnections (void);
 qsocket_t *Loop_GetAnyMessage (void);
-int        Loop_GetMessage (qsocket_t *sock);
-int        Loop_SendMessage (qsocket_t *sock, sizebuf_t *data);
-int        Loop_SendUnreliableMessage (qsocket_t *sock, sizebuf_t *data);
+int		   Loop_GetMessage (qsocket_t *sock);
+int		   Loop_SendMessage (qsocket_t *sock, sizebuf_t *data);
+int		   Loop_SendUnreliableMessage (qsocket_t *sock, sizebuf_t *data);
 qboolean   Loop_CanSendMessage (qsocket_t *sock);
 qboolean   Loop_CanSendUnreliableMessage (qsocket_t *sock);
-void       Loop_Close (qsocket_t *sock);
-void       Loop_Shutdown (void);
+void	   Loop_Close (qsocket_t *sock);
+void	   Loop_Shutdown (void);
 
 #endif /* __NET_LOOP_H */

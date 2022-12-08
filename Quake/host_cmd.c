@@ -114,17 +114,17 @@ void FileList_Init (char *path, char *ext, int minsize, filelist_item_t **list)
 {
 #ifdef _WIN32
 	WIN32_FIND_DATA fdat;
-	HANDLE          fhnd;
+	HANDLE			fhnd;
 #else
-	DIR           *dir_p;
+	DIR			  *dir_p;
 	struct dirent *dir_t;
 #endif
-	char          filestring[MAX_OSPATH];
-	char          filename[32];
-	char          ignorepakdir[32];
+	char		  filestring[MAX_OSPATH];
+	char		  filename[32];
+	char		  ignorepakdir[32];
 	searchpath_t *search;
-	pack_t       *pak;
-	int           i;
+	pack_t		 *pak;
+	int			  i;
 	searchpath_t  multiuser_saves;
 
 	if (multiuser && !strcmp (ext, "sav"))
@@ -216,7 +216,7 @@ Host_Maps_f
 */
 static void Host_Maps_f (void)
 {
-	int              i;
+	int				 i;
 	filelist_item_t *level;
 
 	for (level = extralevels, i = 0; level; level = level->next, i++)
@@ -266,9 +266,9 @@ static void Modlist_Add (const char *name)
 void Modlist_Init (void)
 {
 	WIN32_FIND_DATA fdat;
-	HANDLE          fhnd;
-	DWORD           attribs;
-	char            dir_string[MAX_OSPATH], mod_string[MAX_OSPATH];
+	HANDLE			fhnd;
+	DWORD			attribs;
+	char			dir_string[MAX_OSPATH], mod_string[MAX_OSPATH];
 
 	q_snprintf (dir_string, sizeof (dir_string), "%s/*", com_basedir);
 	fhnd = FindFirstFile (dir_string, &fdat);
@@ -372,7 +372,7 @@ list all potential mod directories (contain either a pak file or a progs.dat)
 */
 static void Host_Mods_f (void)
 {
-	int              i;
+	int				 i;
 	filelist_item_t *mod;
 
 	for (mod = modlist, i = 0; mod; mod = mod->next, i++)
@@ -417,13 +417,13 @@ static void Host_Status_f (void)
 {
 	void (*print_fn) (const char *fmt, ...) FUNCP_PRINTF (1, 2);
 	client_t *client;
-	int       seconds;
-	int       minutes;
-	int       hours = 0;
-	int       j, i;
+	int		  seconds;
+	int		  minutes;
+	int		  hours = 0;
+	int		  j, i;
 
 	qhostaddr_t addresses[32];
-	int         numaddresses;
+	int			numaddresses;
 
 	if (cmd_source != src_client)
 	{
@@ -747,8 +747,8 @@ Host_Ping_f
 */
 static void Host_Ping_f (void)
 {
-	int       i, j;
-	float     total;
+	int		  i, j;
+	float	  total;
 	client_t *client;
 
 	if (cmd_source != src_client)
@@ -789,7 +789,7 @@ command from the console.  Active clients are kicked off.
 */
 static void Host_Map_f (void)
 {
-	int  i;
+	int	 i;
 	char name[MAX_QPATH], *p;
 
 	if (Cmd_Argc () < 2) // no map name given
@@ -859,7 +859,7 @@ Loads a random map from the "maps" list.
 */
 static void Host_Randmap_f (void)
 {
-	int              i, randlevel, numlevels;
+	int				 i, randlevel, numlevels;
 	filelist_item_t *level;
 
 	if (cmd_source != src_command)
@@ -916,7 +916,7 @@ static void Host_Changelevel_f (void)
 	// johnfitz
 
 	if (cls.state != ca_dedicated)
-		IN_Activate ();  // -- S.A.
+		IN_Activate ();	 // -- S.A.
 	key_dest = key_game; // remove console or menu
 	PR_SwitchQCVM (&sv.qcvm);
 	SV_SaveSpawnparms ();
@@ -1012,7 +1012,7 @@ Writes a SAVEGAME_COMMENT_LENGTH character comment describing the current
 */
 static void Host_SavegameComment (char *text)
 {
-	int   i;
+	int	  i;
 	char  kills[20];
 	char *p1, *p2;
 
@@ -1053,7 +1053,7 @@ static void Host_Savegame_f (void)
 {
 	char  name[MAX_OSPATH];
 	FILE *f;
-	int   i;
+	int	  i;
 	char  comment[SAVEGAME_COMMENT_LENGTH + 1];
 
 	if (cmd_source != src_command)
@@ -1187,9 +1187,9 @@ static void Host_Savegame_f (void)
 
 static void Send_Spawn_Info (client_t *c, qboolean loadgame)
 {
-	int       i;
+	int		  i;
 	client_t *client;
-	edict_t  *ent;
+	edict_t	 *ent;
 
 	// send all current names, colors, and frag counts
 	SZ_Clear (&c->message);
@@ -1272,18 +1272,18 @@ static void Host_Loadgame_f (void)
 {
 	static char *start;
 
-	char        name[MAX_OSPATH];
-	char        mapname[MAX_QPATH];
-	float       time, tfloat;
+	char		name[MAX_OSPATH];
+	char		mapname[MAX_QPATH];
+	float		time, tfloat;
 	const char *data;
-	int         i;
-	edict_t    *ent;
-	int         entnum;
-	int         version;
-	float       spawn_parms[NUM_TOTAL_SPAWN_PARMS];
-	qboolean    was_recording = cls.demorecording;
-	int         old_skill = current_skill;
-	qboolean    fastload = !!strstr (Cmd_Argv (0), "fast");
+	int			i;
+	edict_t	   *ent;
+	int			entnum;
+	int			version;
+	float		spawn_parms[NUM_TOTAL_SPAWN_PARMS];
+	qboolean	was_recording = cls.demorecording;
+	int			old_skill = current_skill;
+	qboolean	fastload = !!strstr (Cmd_Argv (0), "fast");
 
 	if (cmd_source != src_command)
 		return;
@@ -1302,7 +1302,7 @@ static void Host_Loadgame_f (void)
 
 	cls.demonum = -1; // stop demo loop in case this fails
 
-	char    *save_path = multiuser ? SDL_GetPrefPath ("vkQuake", COM_GetGameNames (true)) : NULL;
+	char	*save_path = multiuser ? SDL_GetPrefPath ("vkQuake", COM_GetGameNames (true)) : NULL;
 	qboolean loadable = false;
 	for (int j = (multiuser ? 0 : 1); j < 2; ++j)
 	{
@@ -1424,7 +1424,7 @@ static void Host_Loadgame_f (void)
 			data++;
 		if (data[0] == '/' && data[1] == '*' && (data[2] == '\r' || data[2] == '\n'))
 		{ // looks like an extended saved game
-			char       *end;
+			char	   *end;
 			const char *ext;
 			ext = data + 2;
 			while ((end = strchr (ext, '\n')))
@@ -1622,13 +1622,13 @@ static void Host_Name_f (void)
 
 static void Host_Say (qboolean teamonly)
 {
-	int         j;
+	int			j;
 	client_t   *client;
 	client_t   *save;
 	const char *p;
-	char        text[MAXCMDLINE], *p2;
-	qboolean    quoted;
-	qboolean    fromServer = false;
+	char		text[MAXCMDLINE], *p2;
+	qboolean	quoted;
+	qboolean	fromServer = false;
 
 	if (cmd_source == src_command)
 	{
@@ -1708,12 +1708,12 @@ static void Host_Say_Team_f (void)
 
 static void Host_Tell_f (void)
 {
-	int         j;
+	int			j;
 	client_t   *client;
 	client_t   *save;
 	const char *p;
-	char        text[MAXCMDLINE], *p2;
-	qboolean    quoted;
+	char		text[MAXCMDLINE], *p2;
+	qboolean	quoted;
 
 	if (cmd_source != src_client)
 	{
@@ -1920,7 +1920,7 @@ Host_Spawn_f
 */
 static void Host_Spawn_f (void)
 {
-	int      i;
+	int		 i;
 	edict_t *ent;
 
 	if (cmd_source != src_client)
@@ -2013,8 +2013,8 @@ static void Host_Kick_f (void)
 	const char *who;
 	const char *message = NULL;
 	client_t   *save;
-	int         i;
-	qboolean    byNumber = false;
+	int			i;
+	qboolean	byNumber = false;
 
 	if (cmd_source != src_client)
 	{
@@ -2069,7 +2069,7 @@ static void Host_Kick_f (void)
 			message = COM_Parse (Cmd_Args ());
 			if (byNumber)
 			{
-				message++;              // skip the #
+				message++;				// skip the #
 				while (*message == ' ') // skip white space
 					message++;
 				message += strlen (Cmd_Argv (2)); // skip the number
@@ -2103,8 +2103,8 @@ Host_Give_f
 static void Host_Give_f (void)
 {
 	const char *t;
-	int         v;
-	eval_t     *val;
+	int			v;
+	eval_t	   *val;
 
 	if (cmd_source != src_client)
 	{
@@ -2321,7 +2321,7 @@ static void Host_Give_f (void)
 
 static edict_t *FindViewthing (void)
 {
-	int      i;
+	int		 i;
 	edict_t *e = NULL;
 
 	PR_SwitchQCVM (&sv.qcvm);
@@ -2364,7 +2364,7 @@ Host_Viewmodel_f
 */
 static void Host_Viewmodel_f (void)
 {
-	edict_t  *e;
+	edict_t	 *e;
 	qmodel_t *m;
 
 	e = FindViewthing ();
@@ -2397,8 +2397,8 @@ Host_Viewframe_f
 */
 static void Host_Viewframe_f (void)
 {
-	edict_t  *e;
-	int       f;
+	edict_t	 *e;
+	int		  f;
 	qmodel_t *m;
 
 	e = FindViewthing ();
@@ -2417,7 +2417,7 @@ static void Host_Viewframe_f (void)
 
 static void PrintFrameName (qmodel_t *m, int frame)
 {
-	aliashdr_t        *hdr;
+	aliashdr_t		  *hdr;
 	maliasframedesc_t *pframedesc;
 
 	hdr = (aliashdr_t *)Mod_Extradata (m);
@@ -2435,7 +2435,7 @@ Host_Viewnext_f
 */
 static void Host_Viewnext_f (void)
 {
-	edict_t  *e;
+	edict_t	 *e;
 	qmodel_t *m;
 
 	e = FindViewthing ();
@@ -2459,7 +2459,7 @@ Host_Viewprev_f
 */
 static void Host_Viewprev_f (void)
 {
-	edict_t  *e;
+	edict_t	 *e;
 	qmodel_t *m;
 
 	e = FindViewthing ();
@@ -2582,9 +2582,9 @@ Host_InitCommands
 */
 void Host_InitCommands (void)
 {
-	Cmd_AddCommand ("maps", Host_Maps_f);       // johnfitz
-	Cmd_AddCommand ("mods", Host_Mods_f);       // johnfitz
-	Cmd_AddCommand ("games", Host_Mods_f);      // as an alias to "mods" -- S.A. / QuakeSpasm
+	Cmd_AddCommand ("maps", Host_Maps_f);		// johnfitz
+	Cmd_AddCommand ("mods", Host_Mods_f);		// johnfitz
+	Cmd_AddCommand ("games", Host_Mods_f);		// as an alias to "mods" -- S.A. / QuakeSpasm
 	Cmd_AddCommand ("mapname", Host_Mapname_f); // johnfitz
 	Cmd_AddCommand ("randmap", Host_Randmap_f); // ericw
 

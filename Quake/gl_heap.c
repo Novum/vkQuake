@@ -24,8 +24,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 /*
 ================================================================================
 
-    DEVICE MEMORY HEAP
-    Dumbest possible allocator for device memory.
+	DEVICE MEMORY HEAP
+	Dumbest possible allocator for device memory.
 
 ================================================================================
 */
@@ -88,8 +88,8 @@ glheapnode_t *GL_HeapAllocate (glheap_t *heap, VkDeviceSize size, VkDeviceSize a
 			continue;
 
 		const VkDeviceSize align_mod = current_node->offset % alignment;
-		VkDeviceSize       align_padding = (align_mod == 0) ? 0 : (alignment - align_mod);
-		VkDeviceSize       aligned_size = size + align_padding;
+		VkDeviceSize	   align_padding = (align_mod == 0) ? 0 : (alignment - align_mod);
+		VkDeviceSize	   aligned_size = size + align_padding;
 
 		if (current_node->size == aligned_size)
 		{
@@ -107,8 +107,8 @@ glheapnode_t *GL_HeapAllocate (glheap_t *heap, VkDeviceSize size, VkDeviceSize a
 	if (best_fit_node != NULL)
 	{
 		const VkDeviceSize align_mod = best_fit_node->offset % alignment;
-		VkDeviceSize       align_padding = (align_mod == 0) ? 0 : (alignment - align_mod);
-		VkDeviceSize       aligned_size = size + align_padding;
+		VkDeviceSize	   align_padding = (align_mod == 0) ? 0 : (alignment - align_mod);
+		VkDeviceSize	   aligned_size = size + align_padding;
 
 		glheapnode_t *new_node = (glheapnode_t *)Mem_Alloc (sizeof (glheapnode_t));
 		*new_node = *best_fit_node;

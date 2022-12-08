@@ -29,7 +29,7 @@ vec3_t vec3_origin = {0, 0, 0};
 /*-----------------------------------------------------------------*/
 
 #define ARCSECS_PER_RIGHT_ANGLE 324000
-#define ARRSECS_PER_DEGREE      3600.f
+#define ARRSECS_PER_DEGREE		3600.f
 
 void ProjectPointOnPlane (vec3_t dst, const vec3_t p, const vec3_t normal)
 {
@@ -55,8 +55,8 @@ void ProjectPointOnPlane (vec3_t dst, const vec3_t p, const vec3_t normal)
 */
 void PerpendicularVector (vec3_t dst, const vec3_t src)
 {
-	int    pos;
-	int    i;
+	int	   pos;
+	int	   i;
 	float  minelem = 1.0F;
 	vec3_t tempvec;
 
@@ -95,7 +95,7 @@ void RotatePointAroundVector (vec3_t dst, const vec3_t dir, const vec3_t point, 
 	float  zrot[3][3];
 	float  tmpmat[3][3];
 	float  rot[3][3];
-	int    i;
+	int	   i;
 	vec3_t vr, vu, vf;
 
 	vf[0] = dir[0];
@@ -166,10 +166,10 @@ Returns 1, 2, or 1 + 2
 int BoxOnPlaneSide (vec3_t emins, vec3_t emaxs, mplane_t *p)
 {
 	float dist1, dist2;
-	int   sides;
+	int	  sides;
 
 #if 0 // this is done by the BOX_ON_PLANE_SIDE macro before calling this
-      // function
+	  // function
 // fast axial cases
 	if (p->type < 3)
 	{
@@ -490,7 +490,7 @@ quotient must fit in 32 bits.
 
 void FloorDivMod (double numer, double denom, int *quotient, int *rem)
 {
-	int    q, r;
+	int	   q, r;
 	double x;
 
 #ifndef PARANOID
@@ -504,7 +504,6 @@ void FloorDivMod (double numer, double denom, int *quotient, int *rem)
 
 	if (numer >= 0.0)
 	{
-
 		x = floor (numer / denom);
 		q = (int)x;
 		r = (int)floor (numer - (x * denom));
@@ -573,7 +572,7 @@ MatrixMultiply
 void MatrixMultiply (float left[16], float right[16])
 {
 	float temp[16];
-	int   column, row, i;
+	int	  column, row, i;
 
 	memcpy (temp, left, 16 * sizeof (float));
 	for (row = 0; row < 4; ++row)

@@ -51,17 +51,17 @@ cvar_t cl_minpitch = {"cl_minpitch", "-90", CVAR_ARCHIVE}; // johnfitz -- variab
 cvar_t cl_startdemos = {"cl_startdemos", "1", CVAR_ARCHIVE};
 
 client_static_t cls;
-client_state_t  cl;
+client_state_t	cl;
 // FIXME: put these on hunk?
-lightstyle_t    cl_lightstyle[MAX_LIGHTSTYLES];
-dlight_t        cl_dlights[MAX_DLIGHTS];
+lightstyle_t	cl_lightstyle[MAX_LIGHTSTYLES];
+dlight_t		cl_dlights[MAX_DLIGHTS];
 
-int        cl_numvisedicts;
-int        cl_maxvisedicts;
+int		   cl_numvisedicts;
+int		   cl_maxvisedicts;
 entity_t **cl_visedicts;
 
 extern cvar_t r_lerpmodels, r_lerpmove; // johnfitz
-extern float  host_netinterval;         // Spike
+extern float  host_netinterval;			// Spike
 
 qboolean needs_relink;
 
@@ -225,7 +225,7 @@ void CL_EstablishConnection (const char *host)
 
 	cls.demonum = -1; // not in the demo loop now
 	cls.state = ca_connected;
-	cls.signon = 0;                        // need all the signon messages before playing
+	cls.signon = 0;						   // need all the signon messages before playing
 	MSG_WriteByte (&cls.message, clc_nop); // NAT Fix from ProQuake
 }
 
@@ -324,7 +324,7 @@ CL_PrintEntities_f
 void CL_PrintEntities_f (void)
 {
 	entity_t *ent;
-	int       i;
+	int		  i;
 
 	if (cls.state != ca_connected)
 		return;
@@ -351,7 +351,7 @@ CL_AllocDlight
 */
 dlight_t *CL_AllocDlight (int key)
 {
-	int       i;
+	int		  i;
 	dlight_t *dl;
 
 	// first look for an exact key match
@@ -398,9 +398,9 @@ CL_DecayLights
 */
 void CL_DecayLights (void)
 {
-	int       i;
+	int		  i;
 	dlight_t *dl;
-	float     time;
+	float	  time;
 
 	time = cl.time - cl.oldtime;
 	if (time < 0)
@@ -469,9 +469,9 @@ float CL_LerpPoint (void)
 
 static qboolean CL_LerpEntity (entity_t *ent, vec3_t org, vec3_t ang, float frac)
 {
-	float    f, d;
-	int      j;
-	vec3_t   delta;
+	float	 f, d;
+	int		 j;
+	vec3_t	 delta;
 	qboolean teleported = false;
 	// figure out the pos+angles of the parent
 	if (ent->forcelink)
@@ -488,7 +488,7 @@ static qboolean CL_LerpEntity (entity_t *ent, vec3_t org, vec3_t ang, float frac
 			delta[j] = ent->msg_origins[0][j] - ent->msg_origins[1][j];
 			if (delta[j] > 100 || delta[j] < -100)
 			{
-				f = 1;             // assume a teleportation, not a motion
+				f = 1;			   // assume a teleportation, not a motion
 				teleported = true; // johnfitz -- don't lerp teleports
 			}
 		}
@@ -516,12 +516,12 @@ static qboolean CL_LerpEntity (entity_t *ent, vec3_t org, vec3_t ang, float frac
 
 static qboolean CL_AttachEntity (entity_t *ent, float frac)
 {
-	entity_t    *parent;
-	vec3_t       porg, pang;
-	vec3_t       paxis[3];
-	vec3_t       tmp, fwd, up;
+	entity_t	*parent;
+	vec3_t		 porg, pang;
+	vec3_t		 paxis[3];
+	vec3_t		 tmp, fwd, up;
 	unsigned int tagent = ent->netstate.tagentity;
-	int          runaway = 0;
+	int			 runaway = 0;
 
 	while (1)
 	{
@@ -624,13 +624,13 @@ CL_RelinkEntities
 void CL_RelinkEntities (void)
 {
 	entity_t *ent;
-	int       i, j;
-	float     frac, d;
-	float     bobjrotate;
-	vec3_t    oldorg;
+	int		  i, j;
+	float	  frac, d;
+	float	  bobjrotate;
+	vec3_t	  oldorg;
 	dlight_t *dl;
-	float     frametime;
-	int       modelflags;
+	float	  frametime;
+	int		  modelflags;
 
 	// determine partial update time
 	frac = CL_LerpPoint ();
@@ -916,13 +916,13 @@ Read all incoming data from the server
 */
 int CL_ReadFromServer (void)
 {
-	int        ret;
+	int		   ret;
 	extern int num_temp_entities; // johnfitz
-	int        num_beams = 0;     // johnfitz
-	int        num_dlights = 0;   // johnfitz
-	beam_t    *b;                 // johnfitz
-	dlight_t  *l;                 // johnfitz
-	int        i;                 // johnfitz
+	int		   num_beams = 0;	  // johnfitz
+	int		   num_dlights = 0;	  // johnfitz
+	beam_t	  *b;				  // johnfitz
+	dlight_t  *l;				  // johnfitz
+	int		   i;				  // johnfitz
 
 	cl.oldtime = cl.time;
 	cl.time += host_frametime;
@@ -1128,7 +1128,7 @@ static void CL_ServerExtension_ServerinfoUpdate_f (void)
 static void CL_UserinfoChanged (scoreboard_t *sb)
 {
 	char tmp[64];
-	int  colors;
+	int	 colors;
 	Info_GetKey (sb->userinfo, "name", sb->name, sizeof (sb->name));
 
 	Info_GetKey (sb->userinfo, "topcolor", tmp, sizeof (tmp));
@@ -1144,7 +1144,7 @@ static void CL_UserinfoChanged (scoreboard_t *sb)
 }
 static void CL_ServerExtension_FullUserinfo_f (void)
 {
-	int         slot = atoi (Cmd_Argv (1));
+	int			slot = atoi (Cmd_Argv (1));
 	const char *newserverinfo = Cmd_Argv (2);
 	if (slot < cl.maxclients)
 	{
@@ -1155,7 +1155,7 @@ static void CL_ServerExtension_FullUserinfo_f (void)
 }
 static void CL_ServerExtension_UserinfoUpdate_f (void)
 {
-	int         slot = atoi (Cmd_Argv (1));
+	int			slot = atoi (Cmd_Argv (1));
 	const char *newserverkey = Cmd_Argv (2);
 	const char *newservervalue = Cmd_Argv (3);
 	if (slot < cl.maxclients)
@@ -1217,7 +1217,7 @@ void CL_Init (void)
 	Cmd_AddCommand ("seek", CL_Seek_f);
 
 	Cmd_AddCommand ("tracepos", CL_Tracepos_f); // johnfitz
-	Cmd_AddCommand ("viewpos", CL_Viewpos_f);   // johnfitz
+	Cmd_AddCommand ("viewpos", CL_Viewpos_f);	// johnfitz
 
 	// spike -- serverinfo stuff
 	Cmd_AddCommand_ServerCommand ("fullserverinfo", CL_ServerExtension_FullServerinfo_f);

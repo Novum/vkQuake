@@ -59,7 +59,7 @@ SV_CheckAllEnts
 */
 void SV_CheckAllEnts (void)
 {
-	int      e;
+	int		 e;
 	edict_t *check;
 
 	// see if any solid entities are inside the final position
@@ -121,7 +121,7 @@ qboolean SV_RunThink (edict_t *ent)
 {
 	float thinktime;
 	float oldframe; // johnfitz
-	int   i;        // johnfitz
+	int	  i;		// johnfitz
 
 	thinktime = ent->v.nextthink;
 	if (thinktime <= 0 || thinktime > qcvm->time + host_frametime)
@@ -129,8 +129,8 @@ qboolean SV_RunThink (edict_t *ent)
 
 	if (thinktime < qcvm->time)
 		thinktime = qcvm->time; // don't let things stay in the past.
-		                        // it is possible to start that way
-		                        // by a trigger with a local time.
+								// it is possible to start that way
+								// by a trigger with a local time.
 
 	oldframe = ent->v.frame; // johnfitz
 
@@ -202,7 +202,7 @@ int ClipVelocity (vec3_t in, vec3_t normal, vec3_t out, float overbounce)
 {
 	float backoff;
 	float change;
-	int   i, blocked;
+	int	  i, blocked;
 
 	blocked = 0;
 	if (normal[2] > 0)
@@ -238,17 +238,17 @@ If steptrace is not NULL, the trace of any vertical wall hit will be stored
 #define MAX_CLIP_PLANES 5
 int SV_FlyMove (edict_t *ent, float time, trace_t *steptrace)
 {
-	int     bumpcount, numbumps;
-	vec3_t  dir;
-	float   d;
-	int     numplanes;
-	vec3_t  planes[MAX_CLIP_PLANES];
-	vec3_t  primal_velocity, original_velocity, new_velocity;
-	int     i, j;
+	int		bumpcount, numbumps;
+	vec3_t	dir;
+	float	d;
+	int		numplanes;
+	vec3_t	planes[MAX_CLIP_PLANES];
+	vec3_t	primal_velocity, original_velocity, new_velocity;
+	int		i, j;
 	trace_t trace;
-	vec3_t  end;
-	float   time_left;
-	int     blocked;
+	vec3_t	end;
+	float	time_left;
+	int		blocked;
 
 	numbumps = 4;
 
@@ -378,7 +378,7 @@ SV_AddGravity
 */
 void SV_AddGravity (edict_t *ent)
 {
-	float   ent_gravity;
+	float	ent_gravity;
 	eval_t *val;
 
 	val = GetEdictFieldValue (ent, ED_FindFieldOffset ("gravity"));
@@ -408,7 +408,7 @@ Does not change the entities velocity at all
 trace_t SV_PushEntity (edict_t *ent, vec3_t push)
 {
 	trace_t trace;
-	vec3_t  end;
+	vec3_t	end;
 
 	VectorAdd (ent->v.origin, push, end);
 
@@ -436,14 +436,14 @@ SV_PushMove
 */
 void SV_PushMove (edict_t *pusher, float movetime)
 {
-	int       i, e;
-	edict_t  *check, *block;
-	vec3_t    mins, maxs, move;
-	vec3_t    entorig, pushorig;
-	int       num_moved;
+	int		  i, e;
+	edict_t	 *check, *block;
+	vec3_t	  mins, maxs, move;
+	vec3_t	  entorig, pushorig;
+	int		  num_moved;
 	edict_t **moved_edict; // johnfitz -- dynamically allocate
-	vec3_t   *moved_from;  // johnfitz -- dynamically allocate
-	float     solid_backup;
+	vec3_t	 *moved_from;  // johnfitz -- dynamically allocate
+	float	  solid_backup;
 
 	if (!pusher->v.velocity[0] && !pusher->v.velocity[1] && !pusher->v.velocity[2])
 	{
@@ -485,7 +485,7 @@ void SV_PushMove (edict_t *pusher, float movetime)
 		if (!(((int)check->v.flags & FL_ONGROUND) && PROG_TO_EDICT (check->v.groundentity) == pusher))
 		{
 			if (check->v.absmin[0] >= maxs[0] || check->v.absmin[1] >= maxs[1] || check->v.absmin[2] >= maxs[2] || check->v.absmax[0] <= mins[0] ||
-			    check->v.absmax[1] <= mins[1] || check->v.absmax[2] <= mins[2])
+				check->v.absmax[1] <= mins[1] || check->v.absmax[2] <= mins[2])
 				continue;
 
 			// see if the ent's bbox is inside the pusher's final position
@@ -512,9 +512,9 @@ void SV_PushMove (edict_t *pusher, float movetime)
 
 		// QIP fix for end.bsp
 		solid_backup = pusher->v.solid;
-		if (solid_backup == SOLID_BSP          // everything that blocks: bsp models = map brushes = doors, plats, etc.
-		    || solid_backup == SOLID_BBOX      // normally boxes
-		    || solid_backup == SOLID_SLIDEBOX) // normally monsters
+		if (solid_backup == SOLID_BSP		   // everything that blocks: bsp models = map brushes = doors, plats, etc.
+			|| solid_backup == SOLID_BBOX	   // normally boxes
+			|| solid_backup == SOLID_SLIDEBOX) // normally monsters
 		{
 			// try moving the contacted entity
 			pusher->v.solid = SOLID_NOT;
@@ -634,8 +634,8 @@ clipping hull.
 */
 void SV_CheckStuck (edict_t *ent)
 {
-	int    i, j;
-	int    z;
+	int	   i, j;
+	int	   z;
 	vec3_t org;
 
 	if (!SV_TestEntityPosition (ent))
@@ -680,7 +680,7 @@ SV_CheckWater
 qboolean SV_CheckWater (edict_t *ent)
 {
 	vec3_t point;
-	int    cont;
+	int	   cont;
 
 	point[0] = ent->v.origin[0];
 	point[1] = ent->v.origin[1];
@@ -750,10 +750,10 @@ This is a hack, but in the interest of good gameplay...
 */
 int SV_TryUnstick (edict_t *ent, vec3_t oldvel)
 {
-	int     i;
-	vec3_t  oldorg;
-	vec3_t  dir;
-	int     clip;
+	int		i;
+	vec3_t	oldorg;
+	vec3_t	dir;
+	int		clip;
 	trace_t steptrace;
 
 	VectorCopy (ent->v.origin, oldorg);
@@ -830,11 +830,11 @@ Only used by players
 #define STEPSIZE 18
 void SV_WalkMove (edict_t *ent)
 {
-	vec3_t  upmove, downmove;
-	vec3_t  oldorg, oldvel;
-	vec3_t  nosteporg, nostepvel;
-	int     clip;
-	int     oldonground;
+	vec3_t	upmove, downmove;
+	vec3_t	oldorg, oldvel;
+	vec3_t	nosteporg, nostepvel;
+	int		clip;
+	int		oldonground;
 	trace_t steptrace, downtrace;
 
 	//
@@ -1086,8 +1086,8 @@ Toss, bounce, and fly movement.  When onground, do nothing.
 void SV_Physics_Toss (edict_t *ent)
 {
 	trace_t trace;
-	vec3_t  move;
-	float   backoff;
+	vec3_t	move;
+	float	backoff;
 
 	// regular thinking
 	if (!SV_RunThink (ent))
@@ -1196,8 +1196,8 @@ SV_Physics
 */
 void SV_Physics (void)
 {
-	int      i;
-	int      entity_cap; // For sv_freezenonclients
+	int		 i;
+	int		 entity_cap; // For sv_freezenonclients
 	edict_t *ent;
 
 	int physics_mode;
@@ -1205,7 +1205,7 @@ void SV_Physics (void)
 		physics_mode = *qcvm->extglobals.physics_mode;
 	else
 		physics_mode = (qcvm == &cl.qcvm) ? 0 : 2; // csqc doesn't run thinks by default. it was meant to simplify implementations, but we just force fields to
-		                                           // match ssqc so its not that large a burden.
+												   // match ssqc so its not that large a burden.
 
 	if (!physics_mode)
 	{

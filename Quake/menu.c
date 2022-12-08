@@ -84,17 +84,17 @@ void M_Mods_Key (int key);
 void M_Quit_Key (int key);
 
 qboolean m_entersound; // play after drawing a frame, so caching
-                       // won't disrupt the sound
+					   // won't disrupt the sound
 qboolean m_recursiveDraw;
 
 enum m_state_e m_return_state;
-qboolean       m_return_onerror;
-char           m_return_reason[32];
+qboolean	   m_return_onerror;
+char		   m_return_reason[32];
 
 #define StartingGame (m_multiplayer_cursor == 1)
-#define JoiningGame  (m_multiplayer_cursor == 0)
-#define IPXConfig    (m_net_cursor == 0)
-#define TCPIPConfig  (m_net_cursor == 1)
+#define JoiningGame	 (m_multiplayer_cursor == 0)
+#define IPXConfig	 (m_net_cursor == 0)
+#define TCPIPConfig	 (m_net_cursor == 1)
 
 int m_main_cursor;
 
@@ -150,8 +150,8 @@ void M_DrawTransPicTranslate (cb_context_t *cbx, int x, int y, qpic_t *pic, int 
 void M_DrawTextBox (cb_context_t *cbx, int x, int y, int width, int lines)
 {
 	qpic_t *p;
-	int     cx, cy;
-	int     n;
+	int		cx, cy;
+	int		n;
 
 	// draw left side
 	cx = x;
@@ -329,7 +329,7 @@ static qpic_t *Get_Menu2 ()
 
 void M_Main_Draw (cb_context_t *cbx)
 {
-	int     f;
+	int		f;
 	qpic_t *p;
 	qpic_t *menu2 = Get_Menu2 ();
 
@@ -426,7 +426,7 @@ void M_Menu_SinglePlayer_f (void)
 
 void M_SinglePlayer_Draw (cb_context_t *cbx)
 {
-	int     f;
+	int		f;
 	qpic_t *p;
 
 	M_DrawTransPic (cbx, 16, 4, Draw_CachePic ("gfx/qplaque.lmp"));
@@ -477,7 +477,7 @@ void M_SinglePlayer_Key (int key)
 				Cbuf_AddText ("disconnect\n");
 			Cbuf_AddText ("maxplayers 1\n");
 			Cbuf_AddText ("deathmatch 0\n"); // johnfitz
-			Cbuf_AddText ("coop 0\n");       // johnfitz
+			Cbuf_AddText ("coop 0\n");		 // johnfitz
 			Cbuf_AddText ("map start\n");
 			break;
 
@@ -499,14 +499,14 @@ int load_cursor; // 0 < load_cursor < MAX_SAVEGAMES
 
 #define MAX_SAVEGAMES 20 /* johnfitz -- increased from 12 */
 char m_filenames[MAX_SAVEGAMES][SAVEGAME_COMMENT_LENGTH + 1];
-int  loadable[MAX_SAVEGAMES];
+int	 loadable[MAX_SAVEGAMES];
 
 void M_ScanSaves (void)
 {
-	int   i, j, k;
+	int	  i, j, k;
 	char  name[MAX_OSPATH];
 	FILE *f;
-	int   version;
+	int	  version;
 	char *save_path = multiuser ? SDL_GetPrefPath ("vkQuake", COM_GetGameNames (true)) : NULL;
 
 	for (i = 0; i < MAX_SAVEGAMES; i++)
@@ -571,7 +571,7 @@ void M_Menu_Save_f (void)
 
 void M_Load_Draw (cb_context_t *cbx)
 {
-	int     i;
+	int		i;
 	qpic_t *p;
 
 	p = Draw_CachePic ("gfx/p_load.lmp");
@@ -586,7 +586,7 @@ void M_Load_Draw (cb_context_t *cbx)
 
 void M_Save_Draw (cb_context_t *cbx)
 {
-	int     i;
+	int		i;
 	qpic_t *p;
 
 	p = Draw_CachePic ("gfx/p_save.lmp");
@@ -696,7 +696,7 @@ void M_Menu_MultiPlayer_f (void)
 
 void M_MultiPlayer_Draw (cb_context_t *cbx)
 {
-	int     f;
+	int		f;
 	qpic_t *p;
 
 	M_DrawTransPic (cbx, 16, 4, Draw_CachePic ("gfx/qplaque.lmp"));
@@ -765,10 +765,10 @@ int setup_cursor_table[] = {40, 56, 80, 104, 140};
 
 char setup_hostname[16];
 char setup_myname[16];
-int  setup_oldtop;
-int  setup_oldbottom;
-int  setup_top;
-int  setup_bottom;
+int	 setup_oldtop;
+int	 setup_oldbottom;
+int	 setup_top;
+int	 setup_bottom;
 
 #define NUM_SETUP_CMDS 5
 
@@ -966,7 +966,7 @@ void M_Menu_Net_f (void)
 
 void M_Net_Draw (cb_context_t *cbx)
 {
-	int     f;
+	int		f;
 	qpic_t *p;
 
 	M_DrawTransPic (cbx, 16, 4, Draw_CachePic ("gfx/qplaque.lmp"));
@@ -1085,7 +1085,7 @@ void M_Menu_Options_f (void)
 
 void M_AdjustSliders (int dir)
 {
-	int   curr_alwaysrun, target_alwaysrun;
+	int	  curr_alwaysrun, target_alwaysrun;
 	float f, l;
 
 	S_LocalSound ("misc/menu3.wav");
@@ -1267,7 +1267,7 @@ void M_DrawCheckbox (cb_context_t *cbx, int x, int y, int on)
 
 void M_Options_Draw (cb_context_t *cbx)
 {
-	float   r, l;
+	float	r, l;
 	qpic_t *p;
 
 	M_DrawTransPic (cbx, 16, 4, Draw_CachePic ("gfx/qplaque.lmp"));
@@ -1442,21 +1442,21 @@ void M_Options_Key (int k)
 /* KEYS MENU */
 
 const char *bindnames[][2] = {
-	{"+attack", "attack"},          {"impulse 10", "next weapon"},   {"impulse 12", "prev weapon"},
-	{"+jump", "jump / swim up"},    {"+forward", "walk forward"},    {"+back", "backpedal"},
-	{"+left", "turn left"},         {"+right", "turn right"},        {"+speed", "run"},
-	{"+moveleft", "step left"},     {"+moveright", "step right"},    {"+strafe", "sidestep"},
-	{"+lookup", "look up"},         {"+lookdown", "look down"},      {"centerview", "center view"},
-	{"+mlook", "mouse look"},       {"+klook", "keyboard look"},     {"+zoom", "Quick zoom"},
-	{"+moveup", "swim up"},         {"+movedown", "swim down"},      {"impulse 1", "Axe"},
-	{"impulse 2", "Shotgun"},       {"impulse 3", "Super Shotgun"},  {"impulse 4", "Nailgun"},
+	{"+attack", "attack"},			{"impulse 10", "next weapon"},	 {"impulse 12", "prev weapon"},
+	{"+jump", "jump / swim up"},	{"+forward", "walk forward"},	 {"+back", "backpedal"},
+	{"+left", "turn left"},			{"+right", "turn right"},		 {"+speed", "run"},
+	{"+moveleft", "step left"},		{"+moveright", "step right"},	 {"+strafe", "sidestep"},
+	{"+lookup", "look up"},			{"+lookdown", "look down"},		 {"centerview", "center view"},
+	{"+mlook", "mouse look"},		{"+klook", "keyboard look"},	 {"+zoom", "Quick zoom"},
+	{"+moveup", "swim up"},			{"+movedown", "swim down"},		 {"impulse 1", "Axe"},
+	{"impulse 2", "Shotgun"},		{"impulse 3", "Super Shotgun"},	 {"impulse 4", "Nailgun"},
 	{"impulse 5", "Super Nailgun"}, {"impulse 6", "Grenade Lnchr."}, {"impulse 7", "Rocket Lnchr."},
 	{"impulse 8", "Thunderbolt"},
 };
 
 #define NUMCOMMANDS (sizeof (bindnames) / sizeof (bindnames[0]))
 
-static int      keys_cursor;
+static int		keys_cursor;
 static qboolean bind_grab;
 
 void M_Menu_Keys_f (void)
@@ -1469,8 +1469,8 @@ void M_Menu_Keys_f (void)
 
 void M_FindKeysForCommand (const char *command, int *threekeys)
 {
-	int   count;
-	int   j;
+	int	  count;
+	int	  j;
 	char *b;
 
 	threekeys[0] = threekeys[1] = threekeys[2] = -1;
@@ -1493,7 +1493,7 @@ void M_FindKeysForCommand (const char *command, int *threekeys)
 
 void M_UnbindCommand (const char *command)
 {
-	int   j;
+	int	  j;
 	char *b;
 
 	for (j = 0; j < MAX_KEYS; j++)
@@ -1514,10 +1514,10 @@ static int first_key;
 
 void M_Keys_Draw (cb_context_t *cbx)
 {
-	int         i, x, y;
-	int         keys[3];
+	int			i, x, y;
+	int			keys[3];
 	const char *name;
-	qpic_t     *p;
+	qpic_t	   *p;
 
 	p = Draw_CachePic ("gfx/ttl_cstm.lmp");
 	M_DrawPic (cbx, (320 - p->width) / 2, 4, p);
@@ -1572,7 +1572,7 @@ void M_Keys_Draw (cb_context_t *cbx)
 void M_Keys_Key (int k)
 {
 	char cmd[80];
-	int  keys[3];
+	int	 keys[3];
 
 	if (bind_grab)
 	{ // defining a key
@@ -1754,9 +1754,9 @@ void M_Mods_Key (int key)
 //=============================================================================
 /* QUIT MENU */
 
-int            msgNumber;
+int			   msgNumber;
 enum m_state_e m_quit_prevstate;
-qboolean       wasInMenus;
+qboolean	   wasInMenus;
 
 void M_Menu_Quit_f (void)
 {
@@ -1838,7 +1838,7 @@ void M_Quit_Draw (cb_context_t *cbx) // johnfitz -- modified for new quit messag
 	char msg1[40];
 	char msg2[] = "by Axel Gneiting"; /* msg2/msg3 are mostly [40] */
 	char msg3[] = "Press y to quit";
-	int  boxlen;
+	int	 boxlen;
 
 	if (wasInMenus)
 	{
@@ -1871,7 +1871,7 @@ int lanConfig_cursor = -1;
 int lanConfig_cursor_table[] = {72, 92, 124};
 #define NUM_LANCONFIG_CMDS 4
 
-int  lanConfig_port;
+int	 lanConfig_port;
 char lanConfig_portname[6];
 char lanConfig_joinname[22];
 
@@ -1899,10 +1899,10 @@ void M_Menu_LanConfig_f (void)
 
 void M_LanConfig_Draw (cb_context_t *cbx)
 {
-	qpic_t     *p;
-	int         basex;
-	int         y;
-	int         numaddresses, i;
+	qpic_t	   *p;
+	int			basex;
+	int			y;
+	int			numaddresses, i;
 	qhostaddr_t addresses[16];
 	const char *startJoin;
 	const char *protocol;
@@ -2193,25 +2193,25 @@ level_t hipnoticlevels[] = {
 
 // PGM 01/07/97 added rogue levels
 // PGM 03/02/97 added dmatch level
-level_t roguelevels[] = {{"start", "Split Decision"},   {"r1m1", "Deviant's Domain"}, {"r1m2", "Dread Portal"},      {"r1m3", "Judgement Call"},
-                         {"r1m4", "Cave of Death"},     {"r1m5", "Towers of Wrath"},  {"r1m6", "Temple of Pain"},    {"r1m7", "Tomb of the Overlord"},
-                         {"r2m1", "Tempus Fugit"},      {"r2m2", "Elemental Fury I"}, {"r2m3", "Elemental Fury II"}, {"r2m4", "Curse of Osiris"},
-                         {"r2m5", "Wizard's Keep"},     {"r2m6", "Blood Sacrifice"},  {"r2m7", "Last Bastion"},      {"r2m8", "Source of Evil"},
-                         {"ctf1", "Division of Change"}};
+level_t roguelevels[] = {{"start", "Split Decision"},	{"r1m1", "Deviant's Domain"}, {"r1m2", "Dread Portal"},		 {"r1m3", "Judgement Call"},
+						 {"r1m4", "Cave of Death"},		{"r1m5", "Towers of Wrath"},  {"r1m6", "Temple of Pain"},	 {"r1m7", "Tomb of the Overlord"},
+						 {"r2m1", "Tempus Fugit"},		{"r2m2", "Elemental Fury I"}, {"r2m3", "Elemental Fury II"}, {"r2m4", "Curse of Osiris"},
+						 {"r2m5", "Wizard's Keep"},		{"r2m6", "Blood Sacrifice"},  {"r2m7", "Last Bastion"},		 {"r2m8", "Source of Evil"},
+						 {"ctf1", "Division of Change"}};
 
 typedef struct
 {
 	const char *description;
-	int         firstLevel;
-	int         levels;
+	int			firstLevel;
+	int			levels;
 } episode_t;
 
 episode_t episodes[] = {{"Welcome to Quake", 0, 1}, {"Doomed Dimension", 1, 8}, {"Realm of Black Magic", 9, 7}, {"Netherworld", 16, 7},
-                        {"The Elder World", 23, 8}, {"Final Level", 31, 1},     {"Deathmatch Arena", 32, 6}};
+						{"The Elder World", 23, 8}, {"Final Level", 31, 1},		{"Deathmatch Arena", 32, 6}};
 
 // MED 01/06/97  added hipnotic episodes
 episode_t hipnoticepisodes[] = {{"Scourge of Armagon", 0, 1}, {"Fortress of the Dead", 1, 5}, {"Dominion of Darkness", 6, 6},
-                                {"The Rift", 12, 4},          {"Final Level", 16, 1},         {"Deathmatch Arena", 17, 1}};
+								{"The Rift", 12, 4},		  {"Final Level", 16, 1},		  {"Deathmatch Arena", 17, 1}};
 
 // PGM 01/07/97 added rogue episodes
 // PGM 03/02/97 added dmatch episode
@@ -2364,7 +2364,7 @@ void M_GameOptions_Draw (cb_context_t *cbx)
 
 void M_NetStart_Change (int dir)
 {
-	int   count;
+	int	  count;
 	float f;
 
 	switch (gameoptions_cursor)
@@ -2528,8 +2528,8 @@ void M_GameOptions_Key (int key)
 //=============================================================================
 /* SEARCH MENU */
 
-qboolean          searchComplete = false;
-double            searchCompleteTime;
+qboolean		  searchComplete = false;
+double			  searchCompleteTime;
 enum slistScope_e searchLastScope = SLIST_LAN;
 
 void M_Menu_Search_f (enum slistScope_e scope)
@@ -2547,7 +2547,7 @@ void M_Menu_Search_f (enum slistScope_e scope)
 void M_Search_Draw (cb_context_t *cbx)
 {
 	qpic_t *p;
-	int     x;
+	int		x;
 
 	p = Draw_CachePic ("gfx/p_multi.lmp");
 	M_DrawPic (cbx, (320 - p->width) / 2, 4, p);
@@ -2585,8 +2585,8 @@ void M_Search_Key (int key) {}
 //=============================================================================
 /* SLIST MENU */
 
-size_t   slist_cursor;
-size_t   slist_first;
+size_t	 slist_cursor;
+size_t	 slist_first;
 qboolean slist_sorted;
 
 void M_Menu_ServerList_f (void)
@@ -2604,7 +2604,7 @@ void M_Menu_ServerList_f (void)
 
 void M_ServerList_Draw (cb_context_t *cbx)
 {
-	size_t  n, slist_shown;
+	size_t	n, slist_shown;
 	qpic_t *p;
 
 	if (!slist_sorted)

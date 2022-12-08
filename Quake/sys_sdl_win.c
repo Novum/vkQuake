@@ -52,7 +52,7 @@ int Sys_FileType (const char *path)
 }
 
 static HANDLE hinput, houtput;
-static char   cwd[1024];
+static char	  cwd[1024];
 static double counter_freq;
 
 static void Sys_GetBasedir (char *argv0, char *dst, size_t dstsize)
@@ -86,9 +86,9 @@ typedef HRESULT (WINAPI *SetProcessDPIAwarenessFunc) (dpi_awareness value);
 
 static void Sys_SetDPIAware (void)
 {
-	HMODULE                    hUser32, hShcore;
+	HMODULE					   hUser32, hShcore;
 	SetProcessDPIAwarenessFunc setDPIAwareness;
-	SetProcessDPIAwareFunc     setDPIAware;
+	SetProcessDPIAwareFunc	   setDPIAware;
 
 	/* Neither SDL 1.2 nor SDL 2.0.3 can handle the OS scaling our window.
 	  (e.g. https://bugzilla.libsdl.org/show_bug.cgi?id=2713)
@@ -172,8 +172,8 @@ static const char errortxt2[] = "\nQUAKE ERROR: ";
 void Sys_Error (const char *error, ...)
 {
 	va_list argptr;
-	char    text[1024];
-	DWORD   dummy;
+	char	text[1024];
+	DWORD	dummy;
 
 	host_parms->errstate++;
 
@@ -211,8 +211,8 @@ void Sys_Error (const char *error, ...)
 void Sys_Printf (const char *fmt, ...)
 {
 	va_list argptr;
-	char    text[1024];
-	DWORD   dummy;
+	char	text[1024];
+	DWORD	dummy;
 
 	va_start (argptr, fmt);
 	q_vsnprintf (text, sizeof (text), fmt, argptr);
@@ -248,11 +248,11 @@ double Sys_DoubleTime (void)
 
 const char *Sys_ConsoleInput (void)
 {
-	static char  con_text[256];
-	static int   textlen;
+	static char	 con_text[256];
+	static int	 textlen;
 	INPUT_RECORD recs[1024];
-	int          ch;
-	DWORD        dummy, numread, numevents;
+	int			 ch;
+	DWORD		 dummy, numread, numevents;
 
 	for (;;)
 	{

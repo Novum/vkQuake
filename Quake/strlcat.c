@@ -31,10 +31,10 @@
 
 size_t q_strlcat (char *dst, const char *src, size_t siz)
 {
-	char       *d = dst;
+	char	   *d = dst;
 	const char *s = src;
-	size_t      n = siz;
-	size_t      dlen;
+	size_t		n = siz;
+	size_t		dlen;
 
 	/* Find the end of dst and adjust bytes left but don't go past end */
 	while (n-- != 0 && *d != '\0')

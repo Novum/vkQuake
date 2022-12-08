@@ -24,10 +24,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 
-cvar_t cl_nopext = {"cl_nopext", "0", CVAR_NONE};    // Spike -- prevent autodetection of protocol extensions, so that servers fall back to only their base
-                                                     // protocol (without needing to reconfigure the server. Requires reconnect.
+cvar_t cl_nopext = {"cl_nopext", "0", CVAR_NONE};	 // Spike -- prevent autodetection of protocol extensions, so that servers fall back to only their base
+													 // protocol (without needing to reconfigure the server. Requires reconnect.
 cvar_t cmd_warncmd = {"cl_warncmd", "1", CVAR_NONE}; // Spike -- prevent autodetection of protocol extensions, so that servers fall back to only their base
-                                                     // protocol (without needing to reconfigure the server. Requires reconnect.
+													 // protocol (without needing to reconfigure the server. Requires reconnect.
 void   Cmd_ForwardToServer (void);
 
 #define MAX_ALIAS_NAME 32
@@ -37,8 +37,8 @@ void   Cmd_ForwardToServer (void);
 typedef struct cmdalias_s
 {
 	struct cmdalias_s *next;
-	char               name[MAX_ALIAS_NAME];
-	char              *value;
+	char			   name[MAX_ALIAS_NAME];
+	char			  *value;
 } cmdalias_t;
 
 cmdalias_t *cmd_alias;
@@ -64,7 +64,7 @@ void Cmd_Wait_f (void)
 /*
 =============================================================================
 
-                        COMMAND BUFFER
+						COMMAND BUFFER
 
 =============================================================================
 */
@@ -78,8 +78,8 @@ Cbuf_Init
 */
 void Cbuf_Init (void)
 {
-	SZ_Alloc (&cmd_text, 1 << 18); // space for commands and script files. spike -- was 8192, but modern configs can be _HUGE_, at least if they contain lots of
-	                               // comments/docs for things.
+	SZ_Alloc (&cmd_text, 1 << 18); // space for commands and script files. spike -- was 8192, but modern configs can be _HUGE_, at least if they contain lots
+								   // of comments/docs for things.
 }
 
 /*
@@ -126,7 +126,7 @@ FIXME: actually change the command buffer to do less copying
 void Cbuf_InsertText (const char *text)
 {
 	char *temp;
-	int   templen;
+	int	  templen;
 
 	// copy off any commands still remaining in the exec buffer
 	templen = cmd_text.cursize;
@@ -165,10 +165,10 @@ Spike: reworked 'wait' for renderer/server rate independance
 */
 void Cbuf_Execute (void)
 {
-	int   i;
+	int	  i;
 	char *text;
 	char  line[1024];
-	int   quotes, comment;
+	int	  quotes, comment;
 
 	while (cmd_text.cursize && !cmd_wait)
 	{
@@ -221,7 +221,7 @@ void Cbuf_Execute (void)
 /*
 ==============================================================================
 
-                        SCRIPT COMMANDS
+						SCRIPT COMMANDS
 
 ==============================================================================
 */
@@ -239,8 +239,8 @@ quake -nosound +cmd amlev1
 void Cmd_StuffCmds_f (void)
 {
 	extern cvar_t cmdline;
-	char          cmds[CMDLINE_LENGTH];
-	int           i, j, plus;
+	char		  cmds[CMDLINE_LENGTH];
+	int			  i, j, plus;
 
 	plus = false; // On Unix, argv[0] is command name
 
@@ -348,8 +348,8 @@ Creates a new command that executes a command string (possibly ; seperated)
 void Cmd_Alias_f (void)
 {
 	cmdalias_t *a;
-	char        cmd[1024];
-	int         i, c;
+	char		cmd[1024];
+	int			i, c;
 	const char *s;
 
 	switch (Cmd_Argc ())
@@ -483,16 +483,16 @@ void Cmd_Unaliasall_f (void)
 /*
 =============================================================================
 
-                    COMMAND EXECUTION
+					COMMAND EXECUTION
 
 =============================================================================
 */
 
 #define MAX_ARGS 80
 
-static int         cmd_argc;
-static char        cmd_argv[MAX_ARGS][1024];
-static char        cmd_null_string[] = "";
+static int		   cmd_argc;
+static char		   cmd_argv[MAX_ARGS][1024];
+static char		   cmd_null_string[] = "";
 static const char *cmd_args = NULL;
 
 cmd_source_t cmd_source;
@@ -510,8 +510,8 @@ Cmd_List_f -- johnfitz
 void Cmd_List_f (void)
 {
 	cmd_function_t *cmd;
-	const char     *partial;
-	int             len, count;
+	const char	   *partial;
+	int				len, count;
 
 	if (Cmd_Argc () > 1)
 	{
@@ -545,7 +545,7 @@ void Cmd_List_f (void)
 
 static char *Cmd_TintSubstring (const char *in, const char *substr, char *out, size_t outsize)
 {
-	int   l;
+	int	  l;
 	char *m;
 	q_strlcpy (out, in, outsize);
 	while ((m = q_strcasestr (out, substr)))
@@ -569,11 +569,11 @@ command.
 */
 void Cmd_Apropos_f (void)
 {
-	char            tmpbuf[256];
-	int             hits = 0;
+	char			tmpbuf[256];
+	int				hits = 0;
 	cmd_function_t *cmd;
-	cvar_t         *var;
-	const char     *substr = Cmd_Argv (1);
+	cvar_t		   *var;
+	const char	   *substr = Cmd_Argv (1);
 	if (!*substr)
 	{
 		Con_SafePrintf ("%s <substring> : search through commands and cvars for the given substring\n", Cmd_Argv (0));
@@ -607,8 +607,8 @@ Cmd_Init
 */
 void Cmd_Init (void)
 {
-	Cmd_AddCommand ("cmdlist", Cmd_List_f);          // johnfitz
-	Cmd_AddCommand ("unalias", Cmd_Unalias_f);       // johnfitz
+	Cmd_AddCommand ("cmdlist", Cmd_List_f);			 // johnfitz
+	Cmd_AddCommand ("unalias", Cmd_Unalias_f);		 // johnfitz
 	Cmd_AddCommand ("unaliasall", Cmd_Unaliasall_f); // johnfitz
 
 	Cmd_AddCommand ("stuffcmds", Cmd_StuffCmds_f);
@@ -823,7 +823,7 @@ Cmd_CompleteCommand
 const char *Cmd_CompleteCommand (const char *partial)
 {
 	cmd_function_t *cmd;
-	int             len;
+	int				len;
 
 	len = strlen (partial);
 
@@ -849,7 +849,7 @@ FIXME: lookupnoadd the token to speed search?
 qboolean Cmd_ExecuteString (const char *text, cmd_source_t src)
 {
 	cmd_function_t *cmd;
-	cmdalias_t     *a;
+	cmdalias_t	   *a;
 
 	cmd_source = src;
 	Cmd_TokenizeString (text);
@@ -869,7 +869,7 @@ qboolean Cmd_ExecuteString (const char *text, cmd_source_t src)
 				continue; // src_command can execute anything but server commands (which it ignores, allowing for alternative behaviour)
 			else if (src == src_server && cmd->srctype != src_server)
 				continue; // src_server may only execute server commands (such commands must be safe to parse within the context of a network message, so no
-				          // disconnect/connect/playdemo/etc)
+						  // disconnect/connect/playdemo/etc)
 			cmd->function ();
 			return true;
 		}
@@ -940,9 +940,9 @@ void Cmd_ForwardToServer (void)
 		{ // server asked us for a key+value list of the extensions+attributes we support
 			SZ_Print (
 				&cls.message, va ("pext"
-			                      " %#x %#x"
-			                      " %#x %#x",
-			                      PROTOCOL_FTE_PEXT1, PEXT1_SUPPORTED_CLIENT, PROTOCOL_FTE_PEXT2, PEXT2_SUPPORTED_CLIENT));
+								  " %#x %#x"
+								  " %#x %#x",
+								  PROTOCOL_FTE_PEXT1, PEXT1_SUPPORTED_CLIENT, PROTOCOL_FTE_PEXT2, PEXT2_SUPPORTED_CLIENT));
 			return;
 		}
 	}

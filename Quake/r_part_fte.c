@@ -63,7 +63,7 @@ typedef vec_t vec2_t[2];
 		(r)[1] = y;           \
 		(r)[2] = z;           \
 	} while (0)
-#define Vector4Clear(a)              ((a)[0] = (a)[1] = (a)[2] = (a)[3] = 0)
+#define Vector4Clear(a)				 ((a)[0] = (a)[1] = (a)[2] = (a)[3] = 0)
 #define Vector4Scale(in, scale, out) ((out)[0] = (in)[0] * scale, (out)[1] = (in)[1] * scale, (out)[2] = (in)[2] * scale, (out)[3] = (in)[3] * scale)
 #define FloatToColor(a, b)                              \
 	do                                                  \
@@ -138,12 +138,12 @@ typedef enum
 } blendmode_t;
 typedef struct trailstate_s
 {
-	struct trailstate_s **key;      // key to check if ts has been overwriten
-	struct trailstate_s  *assoc;    // assoc linked trail
-	struct beamseg_s     *lastbeam; // last beam pointer (flagged with BS_LASTSEG)
+	struct trailstate_s **key;		// key to check if ts has been overwriten
+	struct trailstate_s	 *assoc;	// assoc linked trail
+	struct beamseg_s	 *lastbeam; // last beam pointer (flagged with BS_LASTSEG)
 	union
 	{
-		float lastdist;  // last distance used with particle effect
+		float lastdist;	 // last distance used with particle effect
 		float statetime; // time to emit effect again (used by spawntime field)
 	} state1;
 	union
@@ -171,10 +171,10 @@ static float pcostable[SINTABLE_ENTRIES];
 
 int r_trace_line_cache_counter;
 
-int             PScript_RunParticleEffectState (vec3_t org, vec3_t dir, float count, int typenum, trailstate_t **tsk);
-int             PScript_ParticleTrail (vec3_t startpos, vec3_t end, int type, float timeinterval, int dlkey, vec3_t axis[3], trailstate_t **tsk);
+int				PScript_RunParticleEffectState (vec3_t org, vec3_t dir, float count, int typenum, trailstate_t **tsk);
+int				PScript_ParticleTrail (vec3_t startpos, vec3_t end, int type, float timeinterval, int dlkey, vec3_t axis[3], trailstate_t **tsk);
 static qboolean P_LoadParticleSet (char *name, qboolean implicit, qboolean showwarning);
-static void     R_Particles_KillAllEffects (void);
+static void		R_Particles_KillAllEffects (void);
 
 static void buildsintable (void)
 {
@@ -191,7 +191,7 @@ static void buildsintable (void)
 typedef struct particle_s
 {
 	struct particle_s *next;
-	float              die;
+	float			   die;
 
 	// driver-usable fields
 	vec3_t org;
@@ -200,11 +200,11 @@ typedef struct particle_s
 	float  s1, t1, s2, t2;
 
 	vec3_t oldorg; // to throttle traces
-	vec3_t vel;    // renderer uses for sparks
+	vec3_t vel;	   // renderer uses for sparks
 	float  angle;
 	union
 	{
-		float         nextemit;
+		float		  nextemit;
 		trailstate_t *trailstate;
 	} state;
 	// drivers never touch the following fields
@@ -214,9 +214,9 @@ typedef struct particle_s
 typedef struct clippeddecal_s
 {
 	struct clippeddecal_s *next;
-	float                  die;
+	float				   die;
 
-	int       entity; //>0 is a lerpentity, <0 is a csqc ent. 0 is world. woot.
+	int		  entity; //>0 is a lerpentity, <0 is a csqc ent. 0 is world. woot.
 	qmodel_t *model;  // just for paranoia
 
 	vec3_t vertex[3];
@@ -227,7 +227,7 @@ typedef struct clippeddecal_s
 } clippeddecal_t;
 
 #define BS_LASTSEG 0x1 // no draw to next, no delete
-#define BS_DEAD    0x2 // segment is dead
+#define BS_DEAD	   0x2 // segment is dead
 #define BS_NODRAW  0x4 // only used for lerp switching
 
 typedef struct beamseg_s
@@ -235,8 +235,8 @@ typedef struct beamseg_s
 	struct beamseg_s *next; // next in beamseg list
 
 	particle_t *p;
-	int         flags; // flags for beamseg
-	vec3_t      dir;
+	int			flags; // flags for beamseg
+	vec3_t		dir;
 
 	float texture_s;
 } beamseg_t;
@@ -244,20 +244,20 @@ typedef struct beamseg_s
 typedef struct skytris_s
 {
 	struct skytris_s  *next;
-	vec3_t             org;
-	vec3_t             x;
-	vec3_t             y;
-	float              area;
-	double             nexttime;
-	int                ptype;
+	vec3_t			   org;
+	vec3_t			   x;
+	vec3_t			   y;
+	float			   area;
+	double			   nexttime;
+	int				   ptype;
 	struct msurface_s *face;
 } skytris_t;
 
 typedef struct skytriblock_s
 {
 	struct skytriblock_s *next;
-	unsigned int          count;
-	skytris_t             tris[1024];
+	unsigned int		  count;
+	skytris_t			  tris[1024];
 } skytriblock_t;
 
 // this is the required render state for each particle
@@ -276,15 +276,15 @@ typedef struct
 		PT_INVISIBLE
 	} type;
 
-	blendmode_t  blendmode;
+	blendmode_t	 blendmode;
 	gltexture_t *texture;
-	qboolean     nearest;
+	qboolean	 nearest;
 
 	float scalefactor;
 	float invscalefactor;
 	float stretch;
 	float minstretch; // limits the particle's length to a multiple of its width.
-	int   premul;     // 0: direct rgba. 1: rgb*a,a (blend). 2: rgb*a,0 (add).
+	int	  premul;	  // 0: direct rgba. 1: rgb*a,a (blend). 2: rgb*a,0 (add).
 } plooks_t;
 
 // these could be deltas or absolutes depending on ramping mode.
@@ -311,7 +311,7 @@ typedef struct part_type_s
 	char config[MAX_QPATH];
 	char texname[MAX_QPATH];
 
-	int           numsounds;
+	int			  numsounds;
 	partsounds_t *sounds;
 
 	vec3_t rgb; // initial colour
@@ -320,28 +320,28 @@ typedef struct part_type_s
 	float  alphachange;
 	vec3_t rgbrand; // random rgb colour to start with
 	float  alpharand;
-	int    colorindex;             // get colour from a palette
-	int    colorrand;              // and add up to this amount
-	float  rgbchangetime;          // colour stops changing at this time
-	vec3_t rgbrandsync;            // like rgbrand, but a single random value instead of separate (can mix)
-	float  scale;                  // initial scale
-	float  scalerand;              // with up to this much extra
-	float  die, randdie;           // how long it lasts (plus some rand)
+	int	   colorindex;			   // get colour from a palette
+	int	   colorrand;			   // and add up to this amount
+	float  rgbchangetime;		   // colour stops changing at this time
+	vec3_t rgbrandsync;			   // like rgbrand, but a single random value instead of separate (can mix)
+	float  scale;				   // initial scale
+	float  scalerand;			   // with up to this much extra
+	float  die, randdie;		   // how long it lasts (plus some rand)
 	float  veladd, randomveladd;   // scale the incoming velocity by this much
 	float  orgadd, randomorgadd;   // spawn the particle this far along its velocity direction
 	float  spawnvel, spawnvelvert; // spawn the particle with a velocity based upon its spawn type (generally so it flies outwards)
-	vec3_t orgbias;                // static 3d world-coord bias
+	vec3_t orgbias;				   // static 3d world-coord bias
 	vec3_t velbias;
 	vec3_t orgwrand; // 3d world-coord randomisation without relation to spawn mode
 	vec3_t velwrand; // 3d world-coord randomisation without relation to spawn mode
 	float  viewspacefrac;
 	float  flurry;
-	int    surfflagmatch; // this decal only spawns on these surfaces
-	int    surfflagmask;  // this decal only spawns on these surfaces
+	int	   surfflagmatch; // this decal only spawns on these surfaces
+	int	   surfflagmask;  // this decal only spawns on these surfaces
 
 	float s1, t1, s2, t2; // texture coords
-	float texsstride;     // addition for s for each random slot.
-	int   randsmax;       // max times the stride can be added
+	float texsstride;	  // addition for s for each random slot.
+	int	  randsmax;		  // max times the stride can be added
 
 	plooks_t *slooks; // shared looks, so state switches don't apply between particles so much.
 	plooks_t  looks;  //
@@ -356,15 +356,15 @@ typedef struct part_type_s
 	float countextra;
 	float count;
 	float countrand;
-	float countspacing;  // for trails.
+	float countspacing;	 // for trails.
 	float countoverflow; // for badly-designed effects, instead of depending on trail state.
 	float rainfrequency; // surface emitter multiplier
 
-	int   assoc;
-	int   cliptype;
-	int   inwater;
+	int	  assoc;
+	int	  cliptype;
+	int	  inwater;
 	float clipcount;
-	int   emit;
+	int	  emit;
 	float emittime;
 	float emitrand;
 	float emitstart;
@@ -378,15 +378,15 @@ typedef struct part_type_s
 
 	enum
 	{
-		SM_BOX,        // box = even spread within the area
-		SM_CIRCLE,     // circle = around edge of a circle
-		SM_BALL,       // ball = filled sphere
-		SM_SPIRAL,     // spiral = spiral trail
-		SM_TRACER,     // tracer = tracer trail
-		SM_TELEBOX,    // telebox = q1-style telebox
+		SM_BOX,		   // box = even spread within the area
+		SM_CIRCLE,	   // circle = around edge of a circle
+		SM_BALL,	   // ball = filled sphere
+		SM_SPIRAL,	   // spiral = spiral trail
+		SM_TRACER,	   // tracer = tracer trail
+		SM_TELEBOX,	   // telebox = q1-style telebox
 		SM_LAVASPLASH, // lavasplash = q1-style lavasplash
 		SM_UNICIRCLE,  // unicircle = uniform circle
-		SM_FIELD,      // field = synced field (brightfield, etc)
+		SM_FIELD,	   // field = synced field (brightfield, etc)
 		SM_DISTBALL,   // uneven distributed ball
 		SM_MESHSURFACE // distributed roughly evenly over the surface of the mesh
 	} spawnmode;
@@ -404,7 +404,7 @@ typedef struct part_type_s
 	float  dl_corona_scale;
 	vec3_t dl_scales;
 	// PT_NODLSHADOW
-	int    dl_cubemapnum;
+	int	   dl_cubemapnum;
 
 	enum
 	{
@@ -413,28 +413,28 @@ typedef struct part_type_s
 		RAMP_NEAREST,
 		RAMP_LERP
 	} rampmode;
-	int     rampindexes;
+	int		rampindexes;
 	ramp_t *ramp;
 
-	int                 loaded; // 0 if not loaded, 1 if automatically loaded, 2 if user loaded
-	particle_t         *particles;
-	clippeddecal_t     *clippeddecals;
-	beamseg_t          *beams;
+	int					loaded; // 0 if not loaded, 1 if automatically loaded, 2 if user loaded
+	particle_t		   *particles;
+	clippeddecal_t	   *clippeddecals;
+	beamseg_t		   *beams;
 	struct part_type_s *nexttorun;
 
 	unsigned int flags;
-#define PT_VELOCITY       0x0001 // has velocity modifiers
-#define PT_FRICTION       0x0002 // has friction modifiers
+#define PT_VELOCITY		  0x0001 // has velocity modifiers
+#define PT_FRICTION		  0x0002 // has friction modifiers
 #define PT_CHANGESCOLOUR  0x0004
-#define PT_CITRACER       0x0008 // Q1-style tracer behavior for colorindex
-#define PT_INVFRAMETIME   0x0010 // apply inverse frametime to count (causes emits to be per frame)
-#define PT_AVERAGETRAIL   0x0020 // average trail points from start to end, useful with t_lightning, etc
-#define PT_NOSTATE        0x0040 // don't use trailstate for this emitter (careful with assoc...)
+#define PT_CITRACER		  0x0008 // Q1-style tracer behavior for colorindex
+#define PT_INVFRAMETIME	  0x0010 // apply inverse frametime to count (causes emits to be per frame)
+#define PT_AVERAGETRAIL	  0x0020 // average trail points from start to end, useful with t_lightning, etc
+#define PT_NOSTATE		  0x0040 // don't use trailstate for this emitter (careful with assoc...)
 #define PT_NOSPREADFIRST  0x0080 // don't randomize org/vel for first generated particle
-#define PT_NOSPREADLAST   0x0100 // don't randomize org/vel for last generated particle
-#define PT_TROVERWATER    0x0200 // don't spawn if underwater
-#define PT_TRUNDERWATER   0x0400 // don't spawn if overwater
-#define PT_NODLSHADOW     0x0800 // dlights from this effect don't cast shadows.
+#define PT_NOSPREADLAST	  0x0100 // don't randomize org/vel for last generated particle
+#define PT_TROVERWATER	  0x0200 // don't spawn if underwater
+#define PT_TRUNDERWATER	  0x0400 // don't spawn if overwater
+#define PT_NODLSHADOW	  0x0800 // dlights from this effect don't cast shadows.
 #define PT_WORLDSPACERAND 0x1000 // effect has orgwrand or velwrand properties
 	unsigned int fluidmask;
 
@@ -445,7 +445,7 @@ typedef struct part_type_s
 typedef struct pcfg_s
 {
 	struct pcfg_s *next;
-	char           name[1];
+	char		   name[1];
 } pcfg_t;
 static pcfg_t *loadedconfigs;
 
@@ -453,38 +453,38 @@ static pcfg_t *loadedconfigs;
 
 #define crand() (rand () % 32767 / 16383.5f - 1)
 
-#define MAX_BEAMSEGS    (1 << 11) // default max # of beam segments
-#define MAX_PARTICLES   (1 << 18) // max # of particles at one time
-#define MAX_DECALS      (1 << 18) // max # of decal fragments at one time
+#define MAX_BEAMSEGS	(1 << 11) // default max # of beam segments
+#define MAX_PARTICLES	(1 << 18) // max # of particles at one time
+#define MAX_DECALS		(1 << 18) // max # of decal fragments at one time
 #define MAX_TRAILSTATES (1 << 10) // default max # of trailstates
 
 static particle_t *free_particles;
 static particle_t *particles; // contains the initial list of alloced particles.
-static int         r_numparticles;
-static int         r_particlerecycle;
+static int		   r_numparticles;
+static int		   r_particlerecycle;
 
 static beamseg_t *free_beams;
 static beamseg_t *beams;
-static int        r_numbeams;
+static int		  r_numbeams;
 
 static clippeddecal_t *free_decals;
 static clippeddecal_t *decals;
-static int             r_numdecals;
-static int             r_decalrecycle;
+static int			   r_numdecals;
+static int			   r_decalrecycle;
 
 static trailstate_t *trailstates;
-static int           ts_cycle; // current cyclic index of trailstates
-static int           r_numtrailstates;
+static int			 ts_cycle; // current cyclic index of trailstates
+static int			 r_numtrailstates;
 
 static qboolean r_plooksdirty; // a particle effect was changed, reevaluate shared looks.
 
 static void FinishParticleType (part_type_t *ptype);
 
-static void   R_ParticleDesc_Callback (struct cvar_s *var);
+static void	  R_ParticleDesc_Callback (struct cvar_s *var);
 static cvar_t r_bouncysparks = {"r_bouncysparks", "1"};
 static cvar_t r_part_rain = {"r_part_rain", "1"};
 static cvar_t r_decal_noperpendicular = {"r_decal_noperpendicular", "1"};
-cvar_t        r_particledesc = {"r_particledesc", "classic"};
+cvar_t		  r_particledesc = {"r_particledesc", "classic"};
 static cvar_t r_part_rain_quantity = {"r_part_rain_quantity", "1"};
 static cvar_t r_particle_tracelimit = {"r_particle_tracelimit", "16777216"};
 static cvar_t r_part_sparks = {"r_part_sparks", "1"};
@@ -509,25 +509,25 @@ typedef struct
 	int numvert;
 
 	gltexture_t *texture;
-	blendmode_t  blendmode;
-	int          beflags;
+	blendmode_t	 blendmode;
+	int			 beflags;
 } scenetris_t;
 
-#define MAX_INDICES          0xffff
+#define MAX_INDICES			 0xffff
 #define INITIAL_NUM_VERTICES 100000
-#define INITIAL_NUM_INDICES  150000
+#define INITIAL_NUM_INDICES	 150000
 
-static scenetris_t    *cl_stris;
-static unsigned int    cl_numstris;
-static unsigned int    cl_maxstris;
+static scenetris_t	  *cl_stris;
+static unsigned int	   cl_numstris;
+static unsigned int	   cl_maxstris;
 static basicvertex_t  *cl_strisvert[2];
 static basicvertex_t  *cl_curstrisvert;
-static unsigned int    cl_numstrisvert;
-static unsigned int    cl_maxstrisvert[2];
+static unsigned int	   cl_numstrisvert;
+static unsigned int	   cl_maxstrisvert[2];
 static unsigned short *cl_strisidx[2];
 static unsigned short *cl_curstrisidx;
-static unsigned int    cl_numstrisidx;
-static unsigned int    cl_maxstrisidx[2];
+static unsigned int	   cl_numstrisidx;
+static unsigned int	   cl_maxstrisidx[2];
 
 /*
 Q1BSP_RecursiveHullTrace
@@ -542,19 +542,19 @@ enum
 };
 struct rhtctx_s
 {
-	vec3_t       start, end;
+	vec3_t		 start, end;
 	mclipnode_t *clipnodes;
-	mplane_t    *planes;
+	mplane_t	*planes;
 };
 static int Q1BSP_RecursiveHullTrace (struct rhtctx_s *ctx, int num, float p1f, float p2f, vec3_t p1, vec3_t p2, trace_t *trace)
 {
 	mclipnode_t *node;
-	mplane_t    *plane;
-	float        t1, t2;
-	vec3_t       mid;
-	int          side;
-	float        midf;
-	int          rht;
+	mplane_t	*plane;
+	float		 t1, t2;
+	vec3_t		 mid;
+	int			 side;
+	float		 midf;
+	int			 rht;
 
 reenter:
 
@@ -676,11 +676,11 @@ static qboolean Q1BSP_RecursiveHullCheck (hull_t *hull, int num, float p1f, floa
 
 float CL_TraceLine (vec3_t start, vec3_t end, vec3_t impact, vec3_t normal, int *entnum)
 { // FIXME: not sure what to do about startsolid.
-	int       i;
-	trace_t   trace;
-	float     frac = 1;
+	int		  i;
+	trace_t	  trace;
+	float	  frac = 1;
 	entity_t *ent;
-	vec3_t    relstart, relend;
+	vec3_t	  relstart, relend;
 	VectorCopy (end, impact);
 	VectorSet (normal, 0, 0, 1);
 
@@ -732,16 +732,16 @@ float CL_TraceLine (vec3_t start, vec3_t end, vec3_t impact, vec3_t normal, int 
 }
 
 // these are not the actual values, but they'll do
-#define FTECONTENTS_EMPTY      0
-#define FTECONTENTS_SOLID      1
-#define FTECONTENTS_WATER      2
-#define FTECONTENTS_SLIME      4
-#define FTECONTENTS_LAVA       8
-#define FTECONTENTS_SKY        16
-#define FTECONTENTS_FLUID      (FTECONTENTS_WATER | FTECONTENTS_SLIME | FTECONTENTS_LAVA | FTECONTENTS_SKY)
+#define FTECONTENTS_EMPTY	   0
+#define FTECONTENTS_SOLID	   1
+#define FTECONTENTS_WATER	   2
+#define FTECONTENTS_SLIME	   4
+#define FTECONTENTS_LAVA	   8
+#define FTECONTENTS_SKY		   16
+#define FTECONTENTS_FLUID	   (FTECONTENTS_WATER | FTECONTENTS_SLIME | FTECONTENTS_LAVA | FTECONTENTS_SKY)
 #define FTECONTENTS_PLAYERCLIP 0
 
-int                 SV_HullPointContents (hull_t *hull, int num, vec3_t p);
+int					SV_HullPointContents (hull_t *hull, int num, vec3_t p);
 static unsigned int CL_PointContentsMask (vec3_t p)
 {
 	static const unsigned int cont_qtof[] = {
@@ -762,7 +762,7 @@ static unsigned int CL_PointContentsMask (vec3_t p)
 		return cont_qtof[-(CONTENTS_WATER)]; // assume water
 }
 
-static int          numparticletypes;
+static int			numparticletypes;
 static part_type_t *part_type;
 static part_type_t *part_run_list;
 
@@ -783,15 +783,15 @@ static struct
 static struct partalias_s
 {
 	struct partalias_s *next;
-	const char         *from;
-	const char         *to;
-} * partaliaslist;
+	const char		   *from;
+	const char		   *to;
+} *partaliaslist;
 typedef struct associatedeffect_s
 {
 	struct associatedeffect_s *next;
-	char                       mname[MAX_QPATH];
-	char                       pname[MAX_QPATH];
-	unsigned int               flags;
+	char					   mname[MAX_QPATH];
+	char					   pname[MAX_QPATH];
+	unsigned int			   flags;
 	enum
 	{
 		AE_TRAIL,
@@ -799,14 +799,14 @@ typedef struct associatedeffect_s
 	} type;
 } associatedeffect_t;
 static associatedeffect_t *associatedeffect;
-static void                PScript_AssociateEffect_f (void)
+static void				   PScript_AssociateEffect_f (void)
 {
-	const char         *modelname = Cmd_Argv (1);
-	const char         *effectname = Cmd_Argv (2);
-	unsigned int        flags = 0;
-	int                 type;
+	const char		   *modelname = Cmd_Argv (1);
+	const char		   *effectname = Cmd_Argv (2);
+	unsigned int		flags = 0;
+	int					type;
 	associatedeffect_t *ae;
-	int                 i;
+	int					i;
 
 	if (!strcmp (Cmd_Argv (0), "r_trail"))
 		type = AE_TRAIL;
@@ -828,7 +828,7 @@ static void                PScript_AssociateEffect_f (void)
 	}
 
 	if (strstr (modelname, "player") || strstr (modelname, "eyes") || strstr (modelname, "flag") || strstr (modelname, "tf_stan") ||
-	    strstr (modelname, ".bsp") || strstr (modelname, "turr"))
+		strstr (modelname, ".bsp") || strstr (modelname, "turr"))
 	{
 		// there is a very real possibility of attaching 'large' effects to models so that they become more visible (eg: a stream of particles passing through
 		// walls showing you the entity that they're eminating from)
@@ -862,8 +862,8 @@ static void                PScript_AssociateEffect_f (void)
 static void P_PartRedirect_f (void)
 {
 	struct partalias_s **link, *l;
-	const char          *from = Cmd_Argv (1);
-	const char          *to = Cmd_Argv (2);
+	const char			*from = Cmd_Argv (1);
+	const char			*to = Cmd_Argv (2);
 
 	// user wants to list all
 	if (!*from)
@@ -932,11 +932,11 @@ void PScript_UpdateModelEffects (qmodel_t *mod)
 
 static part_type_t *P_GetParticleType (const char *config, const char *name)
 {
-	int          i;
+	int			 i;
 	part_type_t *ptype;
 	part_type_t *oldlist = part_type;
-	char         cfgbuf[MAX_QPATH];
-	char        *dot = strchr (name, '.');
+	char		 cfgbuf[MAX_QPATH];
+	char		*dot = strchr (name, '.');
 	if (dot && (dot - name) < MAX_QPATH - 1)
 	{
 		config = cfgbuf;
@@ -1039,15 +1039,15 @@ static void PScript_RetintEffect (part_type_t *to, part_type_t *from, const char
 // public interface. get without creating.
 int PScript_FindParticleType (const char *fullname)
 {
-	int          i;
+	int			 i;
 	part_type_t *ptype = NULL;
-	char         cfg[MAX_QPATH];
-	char        *dot;
-	const char  *name = fullname;
+	char		 cfg[MAX_QPATH];
+	char		*dot;
+	const char	*name = fullname;
 
 	// check particle aliases, mostly for tex_sky1 -> weather.te_rain for example, or whatever
 	struct partalias_s *l;
-	int                 recurselimit = 5;
+	int					recurselimit = 5;
 	for (l = partaliaslist; l;)
 	{
 		if (!q_strcasecmp (l->from, name))
@@ -1154,7 +1154,7 @@ static void P_LoadTexture (part_type_t *ptype, qboolean warn)
 	{
 		byte *data = NULL;
 		char  filename[MAX_QPATH];
-		int   fwidth = 0, fheight = 0;
+		int	  fwidth = 0, fheight = 0;
 		char *texname = va ("%s%s%s", ptype->texname, ptype->looks.premul ? "_premul" : "", ptype->looks.nearest ? "_nearest" : "");
 
 		ptype->looks.texture = TexMgr_FindTexture (NULL, texname);
@@ -1209,8 +1209,8 @@ static void P_LoadTexture (part_type_t *ptype, qboolean warn)
 			static gltexture_t *thetex;
 			if (!thetex)
 			{
-				int         y, x;
-				float       dy, d;
+				int			y, x;
+				float		dy, d;
 				static byte data[PARTICLETEXTURESIZE * PARTICLETEXTURESIZE * 4];
 				memset (data, 0xff, sizeof (data));
 				for (y = 0; y < PARTICLETEXTURESIZE; y++)
@@ -1235,8 +1235,8 @@ static void P_LoadTexture (part_type_t *ptype, qboolean warn)
 			static gltexture_t *thetex;
 			if (!thetex)
 			{
-				int         y, x;
-				float       dy, dx, d;
+				int			y, x;
+				float		dy, dx, d;
 				static byte data[PARTICLETEXTURESIZE * PARTICLETEXTURESIZE * 4];
 				for (y = 0; y < PARTICLETEXTURESIZE; y++)
 				{
@@ -1267,13 +1267,13 @@ static void P_LoadTexture (part_type_t *ptype, qboolean warn)
 			ptype->t2 = 0.5;
 		}
 		else if (strstr (ptype->texname, "glow") || strstr (ptype->texname, "ball") || ptype->looks.type == PT_TEXTUREDSPARK) // sparks and special names get a
-		                                                                                                                      // nice circular texture.
+																															  // nice circular texture.
 		{
 			static gltexture_t *thetex;
 			if (!thetex)
 			{
-				int         y, x;
-				float       dy, dx, d;
+				int			y, x;
+				float		dy, dx, d;
 				static byte data[PARTICLETEXTURESIZE * PARTICLETEXTURESIZE * 4];
 				memset (data, 0xff, sizeof (data));
 				for (y = 0; y < PARTICLETEXTURESIZE; y++)
@@ -1299,7 +1299,7 @@ static void P_LoadTexture (part_type_t *ptype, qboolean warn)
 			static gltexture_t *thetex;
 			if (!thetex)
 			{
-				int         y, x;
+				int			y, x;
 				static byte exptexture[16][16] = {
 					{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0},
 					{0, 0, 0, 1, 1, 1, 1, 1, 3, 1, 1, 2, 1, 0, 0, 0}, {0, 0, 0, 1, 1, 1, 1, 4, 4, 4, 5, 4, 2, 1, 1, 0},
@@ -1331,10 +1331,10 @@ static void P_LoadTexture (part_type_t *ptype, qboolean warn)
 
 static void P_ResetToDefaults (part_type_t *ptype)
 {
-	particle_t  *parts;
+	particle_t	*parts;
 	part_type_t *torun;
-	char         tnamebuf[sizeof (ptype->name)];
-	char         tconfbuf[sizeof (ptype->config)];
+	char		 tnamebuf[sizeof (ptype->name)];
+	char		 tconfbuf[sizeof (ptype->config)];
 
 	// go with a lazy clear of list.. mark everything as DEAD and let
 	// the beam rendering handle removing nodes
@@ -1442,15 +1442,15 @@ char *PScript_ReadLine (char *buffer, size_t buffersize, const char *filedata, s
 void PScript_ParseParticleEffectFile (const char *config, qboolean part_parseweak, char *context, size_t filesize)
 {
 	const char *var, *value;
-	char       *buf;
-	qboolean    settype;
-	qboolean    setalphadelta;
-	qboolean    setbeamlen;
+	char	   *buf;
+	qboolean	settype;
+	qboolean	setalphadelta;
+	qboolean	setbeamlen;
 
 	part_type_t *ptype;
-	int          pnum, assoc;
-	char         line[512];
-	char         part_parsenamespace[MAX_QPATH];
+	int			 pnum, assoc;
+	char		 line[512];
+	char		 part_parsenamespace[MAX_QPATH];
 
 	byte  *palrgba = (byte *)d_8to24table;
 	size_t offset = 0;
@@ -1547,7 +1547,7 @@ reparse:
 	{
 		if (ptype->loaded)
 		{
-			int  i, parenttype;
+			int	 i, parenttype;
 			char newname[256];
 			for (i = 0; i < 64; i++)
 			{
@@ -1626,9 +1626,9 @@ reparse:
 				buf++; // no leading whitespace please.
 			if (*buf == '{')
 			{
-				int   nest = 1;
+				int	  nest = 1;
 				char *str = Mem_Alloc (3);
-				int   slen = 2;
+				int	  slen = 2;
 				str[0] = '{';
 				str[1] = '\n';
 				str[2] = 0;
@@ -1845,7 +1845,7 @@ reparse:
 				ptype->velbias[2] = atof (Cmd_Argv (2));
 				ptype->velwrand[2] = atof (Cmd_Argv (3));
 				ptype->velwrand[2] -= ptype->velbias[2]; /*make vert be the total range*/
-				ptype->velwrand[2] /= 2;                 /*vert is actually +/- 1, not 0 to 1, so rescale it*/
+				ptype->velwrand[2] /= 2;				 /*vert is actually +/- 1, not 0 to 1, so rescale it*/
 				ptype->velbias[2] += ptype->velwrand[2]; /*and bias must be centered to the range*/
 			}
 			else if (Cmd_Argc () > 2)
@@ -2382,7 +2382,7 @@ reparse:
 			Con_DPrintf ("%s.%s: 'spawnparam2' is deprecated, use 'spawnmode foo X Y'\n", ptype->config, ptype->name);
 		}
 		/*		else if (!strcmp(var, "spawnparam3"))
-		            ptype->spawnparam3 = atof(value); */
+					ptype->spawnparam3 = atof(value); */
 		else if (!strcmp (var, "up"))
 		{
 			ptype->orgbias[2] = atof (value);
@@ -2599,7 +2599,7 @@ reparse:
 static void P_BeamInfo_f (void)
 {
 	beamseg_t *bs;
-	int        i, j, k, l, m;
+	int		   i, j, k, l, m;
 
 	i = 0;
 
@@ -2632,10 +2632,10 @@ static void P_BeamInfo_f (void)
 
 static void P_PartInfo_f (void)
 {
-	particle_t     *p;
+	particle_t	   *p;
 	clippeddecal_t *d;
-	part_type_t    *ptype;
-	int             totalp = 0, totald = 0, freep, freed, runningp = 0, runningd = 0, runninge = 0, runningt = 0;
+	part_type_t	   *ptype;
+	int				totalp = 0, totald = 0, freep, freed, runningp = 0, runningd = 0, runninge = 0, runningt = 0;
 
 	int i, j, k;
 
@@ -2712,7 +2712,7 @@ static void FinishParticleType (part_type_t *ptype)
 {
 	// if there is a chance that it moves
 	if (ptype->gravity || ptype->veladd || ptype->spawnvel || ptype->spawnvelvert || DotProduct (ptype->velwrand, ptype->velwrand) ||
-	    DotProduct (ptype->velbias, ptype->velbias) || ptype->flurry)
+		DotProduct (ptype->velbias, ptype->velbias) || ptype->flurry)
 		ptype->flags |= PT_VELOCITY;
 	if (DotProduct (ptype->velbias, ptype->velbias) || DotProduct (ptype->velwrand, ptype->velwrand) || DotProduct (ptype->orgwrand, ptype->orgwrand))
 		ptype->flags |= PT_WORLDSPACERAND;
@@ -2808,18 +2808,18 @@ static void FinishEffectinfoParticleType (part_type_t *ptype, qboolean blooddeca
 static void P_ImportEffectInfo (const char *config, char *line, qboolean part_parseweak)
 {
 	part_type_t *ptype = NULL;
-	int          parenttype;
-	char         arg[8][1024];
+	int			 parenttype;
+	char		 arg[8][1024];
 	unsigned int args = 0;
-	qboolean     blooddecalonimpact = false; // tracked separately because it needs to override another field
+	qboolean	 blooddecalonimpact = false; // tracked separately because it needs to override another field
 
 	float teximages[256][4];
 
 	{
-		int         i;
-		char       *file;
+		int			i;
+		char	   *file;
 		const char *font_line;
-		char        linebuf[1024];
+		char		linebuf[1024];
 		// default assumes 8*8 grid, but we allow more
 		for (i = 0; i < 256; i++)
 		{
@@ -2901,7 +2901,7 @@ static void P_ImportEffectInfo (const char *config, char *line, qboolean part_pa
 		if (!strcmp (arg[0], "effect"))
 		{
 			char newname[64];
-			int  i;
+			int	 i;
 
 			if (ptype)
 				FinishEffectinfoParticleType (ptype, blooddecalonimpact);
@@ -3063,7 +3063,7 @@ static void P_ImportEffectInfo (const char *config, char *line, qboolean part_pa
 		else if (!strcmp (arg[0], "color") && args == 3)
 		{
 			unsigned int rgb1 = strtoul (arg[1], NULL, 0), rgb2 = strtoul (arg[2], NULL, 0);
-			int          i;
+			int			 i;
 			for (i = 0; i < 3; i++)
 			{
 				ptype->rgb[i] = ((rgb1 >> (16 - i * 8)) & 0xff) / 255.0;
@@ -3286,10 +3286,10 @@ void PScript_InitParticles (void)
 
 	Cmd_AddCommand ("r_partredirect", P_PartRedirect_f);
 
-	//#if _DEBUG
+	// #if _DEBUG
 	Cmd_AddCommand ("r_partinfo", P_PartInfo_f);
 	Cmd_AddCommand ("r_beaminfo", P_BeamInfo_f);
-	//#endif
+	// #endif
 }
 
 void PScript_ClearSurfaceParticles (qmodel_t *mod)
@@ -3306,8 +3306,8 @@ void PScript_ClearSurfaceParticles (qmodel_t *mod)
 static void PScript_ClearAllSurfaceParticles (void)
 { // make sure we hit all models, even ones from the previous map. maybe this is overkill
 	extern qmodel_t mod_known[];
-	extern int      mod_numknown;
-	int             i;
+	extern int		mod_numknown;
+	int				i;
 	for (i = 0; i < mod_numknown; i++)
 		PScript_ClearSurfaceParticles (&mod_known[i]);
 }
@@ -3407,7 +3407,7 @@ qboolean PScript_Startup (void)
 void PScript_RecalculateSkyTris (void)
 {
 	qmodel_t *m = cl.worldmodel;
-	size_t    modidx;
+	size_t	  modidx;
 
 	PScript_ClearAllSurfaceParticles ();
 
@@ -3417,13 +3417,13 @@ void PScript_RecalculateSkyTris (void)
 
 		if (m && !m->needload && m->type == mod_brush)
 		{
-			int         t;
-			int         i;
-			int         ptype;
+			int			t;
+			int			i;
+			int			ptype;
 			msurface_t *surf;
-			char        key[128];
+			char		key[128];
 			const char *data = COM_Parse (m->entities);
-			int        *remaps;
+			int		   *remaps;
 			remaps = Mem_Alloc (sizeof (*remaps) * m->numtextures);
 			if (!remaps)
 				break;
@@ -3601,7 +3601,7 @@ static qboolean P_LoadParticleSet (char *name, qboolean implicit, qboolean showw
 
 static void R_Particles_KillAllEffects (void)
 {
-	int     i;
+	int		i;
 	pcfg_t *cfg;
 
 	for (i = 0; i < numparticletypes; i++)
@@ -3650,8 +3650,8 @@ static void R_ParticleDesc_Callback (struct cvar_s *var)
 
 static void P_AddRainParticles (qmodel_t *mod, vec3_t axis[3], vec3_t eorg, float contribution)
 {
-	float        x;
-	float        y;
+	float		 x;
+	float		 y;
 	part_type_t *type;
 
 	vec3_t org, vdist, worg, wnorm;
@@ -3758,11 +3758,11 @@ static void R_Part_SkyTri (qmodel_t *mod, float *v1, float *v2, float *v3, msurf
 void PScript_EmitSkyEffectTris (qmodel_t *mod, msurface_t *fa, int ptype)
 {
 	vec3_t verts[64];
-	int    v1;
-	int    v2;
-	int    v3;
-	int    numverts;
-	int    i, lindex;
+	int	   v1;
+	int	   v2;
+	int	   v3;
+	int	   numverts;
+	int	   i, lindex;
 	float *vec;
 
 	if (ptype < 0 || ptype >= numparticletypes)
@@ -3822,13 +3822,13 @@ void PScript_DelinkTrailstate (trailstate_t **tsk)
 	if (*tsk == NULL)
 		return; // not linked to a trailstate
 
-	ts = *tsk;   // store old pointer
+	ts = *tsk;	 // store old pointer
 	*tsk = NULL; // clear pointer
 
 	if (ts->key != tsk)
 		return; // prevent overwrite
 
-	assoc = ts->assoc;      // store assoc
+	assoc = ts->assoc;		// store assoc
 	P_CleanTrailstate (ts); // clean directly linked trailstate
 
 	// clean trailstates assoc linked
@@ -3875,12 +3875,12 @@ static void PScript_EffectSpawned (part_type_t *ptype, vec3_t org, vec3_t axis[3
 {
 	if (ptype->dl_radius[0] || ptype->dl_radius[1]) // && r_rocketlight.value)
 	{
-		float     radius;
+		float	  radius;
 		dlight_t *dl;
 
 		static int flickertime;
 		static int flicker;
-		int        i = realtime * 20;
+		int		   i = realtime * 20;
 		if (flickertime != i)
 		{
 			flickertime = i;
@@ -3898,7 +3898,7 @@ static void PScript_EffectSpawned (part_type_t *ptype, vec3_t org, vec3_t axis[3
 	}
 	if (ptype->numsounds)
 	{
-		int   i;
+		int	  i;
 		float w, tw;
 		for (i = 0, tw = 0; i < ptype->numsounds; i++)
 			tw += ptype->sounds[i].weight;
@@ -3923,12 +3923,12 @@ static void PScript_EffectSpawned (part_type_t *ptype, vec3_t org, vec3_t axis[3
 typedef struct
 {
 	part_type_t *ptype;
-	int          entity;
-	qmodel_t    *model;
-	vec3_t       center;
-	vec3_t       normal;
-	vec3_t       tangent1;
-	vec3_t       tangent2;
+	int			 entity;
+	qmodel_t	*model;
+	vec3_t		 center;
+	vec3_t		 normal;
+	vec3_t		 tangent1;
+	vec3_t		 tangent2;
 
 	float scale0;
 	float scale1;
@@ -3939,12 +3939,12 @@ typedef struct
 } decalctx_t;
 static void PScript_AddDecals (void *vctx, vec3_t *points, size_t numtris)
 {
-	decalctx_t     *ctx = vctx;
-	part_type_t    *ptype = ctx->ptype;
+	decalctx_t	   *ctx = vctx;
+	part_type_t	   *ptype = ctx->ptype;
 	clippeddecal_t *d;
-	unsigned int    i;
-	vec3_t          vec;
-	byte           *palrgba = (byte *)d_8to24table;
+	unsigned int	i;
+	vec3_t			vec;
+	byte		   *palrgba = (byte *)d_8to24table;
 	while (numtris-- > 0)
 	{
 		if (!free_decals)
@@ -4026,7 +4026,7 @@ static void PScript_AddDecals (void *vctx, vec3_t *points, size_t numtris)
 }
 
 typedef struct fragmentdecal_s fragmentdecal_t;
-static void                    Mod_ClipDecal (
+static void					   Mod_ClipDecal (
 					   qmodel_t *mod, vec3_t center, vec3_t normal, vec3_t tangent1, vec3_t tangent2, float size, unsigned int surfflagmask, unsigned int surfflagmatch,
 					   void (*callback) (void *ctx, vec3_t *points, size_t numpoints), void *ctx);
 
@@ -4040,7 +4040,7 @@ struct fragmentdecal_s
 	vec3_t normal;
 	vec3_t planenorm[6];
 	float  planedist[6];
-	int    numplanes;
+	int	   numplanes;
 
 	vec_t radius;
 
@@ -4055,12 +4055,12 @@ static int Fragment_ClipPolyToPlane (vec3_t *inverts, vec3_t *outverts, int inco
 {
 	float dotv[MAXFRAGMENTVERTS + 1];
 	char  keep[MAXFRAGMENTVERTS + 1];
-#define KEEP_KILL   0
-#define KEEP_KEEP   1
+#define KEEP_KILL	0
+#define KEEP_KEEP	1
 #define KEEP_BORDER 2
-	int    i;
-	int    outcount = 0;
-	int    clippedcount = 0;
+	int	   i;
+	int	   outcount = 0;
+	int	   clippedcount = 0;
 	float  d;
 	float *p1, *p2;
 	float *out;
@@ -4120,10 +4120,10 @@ static int Fragment_ClipPolyToPlane (vec3_t *inverts, vec3_t *outverts, int inco
 static void Fragment_ClipPoly (fragmentdecal_t *dec, int numverts, vec3_t *inverts)
 {
 	// emit the triangle, and clip it's fragments.
-	int    p;
+	int	   p;
 	vec3_t verts[2][MAXFRAGMENTVERTS];
 	vec3_t decalfragmentverts[MAXFRAGMENTVERTS];
-	int    flip;
+	int	   flip;
 	vec3_t d1, d2, n;
 	size_t numtris;
 
@@ -4187,10 +4187,10 @@ static void Fragment_ClipPoly (fragmentdecal_t *dec, int numverts, vec3_t *inver
 // this could be inlined, but I'm lazy.
 static void Q1BSP_Fragment_Surface (fragmentdecal_t *dec, msurface_t *surf)
 {
-	int       i;
-	vec3_t    verts[MAXFRAGMENTVERTS];
+	int		  i;
+	vec3_t	  verts[MAXFRAGMENTVERTS];
 	glpoly_t *poly;
-	float    *poly_vert;
+	float	 *poly_vert;
 
 	// water and sky should not get decals.
 	if (surf->flags & (SURF_DRAWSKY | SURF_DRAWTURB))
@@ -4211,9 +4211,9 @@ static void Q1BSP_Fragment_Surface (fragmentdecal_t *dec, msurface_t *surf)
 }
 static void Q1BSP_ClipDecalToNodes (qmodel_t *mod, fragmentdecal_t *dec, mnode_t *node)
 {
-	mplane_t    *splitplane;
-	float        dist;
-	msurface_t  *surf;
+	mplane_t	*splitplane;
+	float		 dist;
+	msurface_t	*surf;
 	unsigned int i;
 
 	if (node->contents < 0)
@@ -4266,8 +4266,8 @@ static void Mod_ClipDecal (
 	qmodel_t *mod, vec3_t center, vec3_t normal, vec3_t tangent1, vec3_t tangent2, float size, unsigned int surfflagmask, unsigned int surfflagmatch,
 	void (*callback) (void *ctx, vec3_t *points, size_t numpoints), void *ctx)
 { // quad marks a full, independant quad
-	int             p;
-	float           r;
+	int				p;
+	float			r;
 	fragmentdecal_t dec;
 
 	VectorCopy (center, dec.center);
@@ -4305,17 +4305,17 @@ void PerpendicularVector (vec3_t dst, const vec3_t src);
 int PScript_RunParticleEffectState (vec3_t org, vec3_t dir, float count, int typenum, trailstate_t **tsk)
 {
 	part_type_t *ptype = &part_type[typenum];
-	int          i, j, k, l, spawnspc;
-	float        m, pcount; //, orgadd, veladd;
-	vec3_t       axis[3] = {{1, 0, 0}, {0, 1, 0}, {0, 0, -1}};
-	particle_t  *p;
-	beamseg_t   *b, *bfirst;
-	vec3_t       ofsvec, arsvec; // offsetspread vec, areaspread vec
-	vec3_t       bestdir;
+	int			 i, j, k, l, spawnspc;
+	float		 m, pcount; //, orgadd, veladd;
+	vec3_t		 axis[3] = {{1, 0, 0}, {0, 1, 0}, {0, 0, -1}};
+	particle_t	*p;
+	beamseg_t	*b, *bfirst;
+	vec3_t		 ofsvec, arsvec; // offsetspread vec, areaspread vec
+	vec3_t		 bestdir;
 
-	float         orgadd, veladd;
+	float		  orgadd, veladd;
 	trailstate_t *ts;
-	byte         *palrgba = (byte *)d_8to24table;
+	byte		 *palrgba = (byte *)d_8to24table;
 
 	if (typenum < 0 || typenum >= numparticletypes)
 		return 1;
@@ -4391,10 +4391,10 @@ int PScript_RunParticleEffectState (vec3_t org, vec3_t dir, float count, int typ
 		if (ptype->looks.type == PT_CDECAL)
 		{
 #ifdef USE_DECALS
-			vec3_t     vec = {0.5, 0.5, 0.5};
-			int        n;
+			vec3_t	   vec = {0.5, 0.5, 0.5};
+			int		   n;
 			decalctx_t ctx;
-			vec3_t     start, end;
+			vec3_t	   start, end;
 
 			if (!free_decals)
 				return 0;
@@ -4407,7 +4407,7 @@ int PScript_RunParticleEffectState (vec3_t org, vec3_t dir, float count, int typ
 				float  bestfrac = 1;
 				float  frac;
 				vec3_t impact, normal;
-				int    what;
+				int	   what;
 				bestdir[0] = 0;
 				bestdir[1] = 0.73;
 				bestdir[2] = 0.73;
@@ -4932,7 +4932,7 @@ int PScript_EntParticleTrail (vec3_t oldorg, entity_t *ent, const char *name)
 		return 1;
 	float  timeinterval = cl.time - cl.oldtime;
 	vec3_t axis[3];
-	int    type = PScript_FindParticleType (name);
+	int	   type = PScript_FindParticleType (name);
 	if (type < 0)
 		return 1;
 
@@ -4981,7 +4981,7 @@ int PScript_RunParticleEffect (vec3_t org, vec3_t dir, int color, int count)
 void PScript_RunParticleWeather (vec3_t minb, vec3_t maxb, vec3_t dir, float count, int colour, const char *efname)
 {
 	vec3_t org;
-	int    i, j;
+	int	   i, j;
 	float  num;
 	float  invcount;
 
@@ -5015,14 +5015,14 @@ void PScript_RunParticleWeather (vec3_t minb, vec3_t maxb, vec3_t dir, float cou
 
 static void PScript_ParticleTrailSpawn (vec3_t startpos, vec3_t end, part_type_t *ptype, float timeinterval, trailstate_t **tsk, int dlkey, vec3_t dlaxis[3])
 {
-	vec3_t        vec, vstep, right, up, start;
-	float         len;
-	int           tcount;
-	particle_t   *p;
-	beamseg_t    *b;
-	beamseg_t    *bfirst;
+	vec3_t		  vec, vstep, right, up, start;
+	float		  len;
+	int			  tcount;
+	particle_t	 *p;
+	beamseg_t	 *b;
+	beamseg_t	 *bfirst;
 	trailstate_t *ts;
-	float         count;
+	float		  count;
 
 	float veladd = -ptype->veladd;
 	float step;
@@ -5089,7 +5089,7 @@ static void PScript_ParticleTrailSpawn (vec3_t startpos, vec3_t end, part_type_t
 			return; // timelimit still in effect
 
 		ts->state1.statetime = particletime + ptype->spawntime; // record old time
-		ts = NULL;                                              // clear trailstate so we don't save length/lastseg
+		ts = NULL;												// clear trailstate so we don't save length/lastseg
 	}
 
 	// random chance for trails
@@ -5105,7 +5105,7 @@ static void PScript_ParticleTrailSpawn (vec3_t startpos, vec3_t end, part_type_t
 	// use ptype step to calc step vector and step size
 	if (ptype->countspacing)
 	{
-		step = ptype->countspacing;   // particles per qu
+		step = ptype->countspacing;	  // particles per qu
 		step /= r_part_density.value; // scaled...
 
 		if (ptype->countextra)
@@ -5570,10 +5570,10 @@ int PScript_ParticleTrail (vec3_t startpos, vec3_t end, int type, float timeinte
 	return 0;
 }
 
-static int             current_buffer_index = 0;
-static VkBuffer        vertex_buffers[2] = {VK_NULL_HANDLE, VK_NULL_HANDLE};
+static int			   current_buffer_index = 0;
+static VkBuffer		   vertex_buffers[2] = {VK_NULL_HANDLE, VK_NULL_HANDLE};
 static vulkan_memory_t vertex_buffers_memory[2] = {{VK_NULL_HANDLE, 0, 0}, {VK_NULL_HANDLE, 0, 0}};
-static VkBuffer        index_buffers[2] = {VK_NULL_HANDLE, VK_NULL_HANDLE};
+static VkBuffer		   index_buffers[2] = {VK_NULL_HANDLE, VK_NULL_HANDLE};
 static vulkan_memory_t index_buffers_memory[2] = {{VK_NULL_HANDLE, 0, 0}, {VK_NULL_HANDLE, 0, 0}};
 
 static void ReallocateVertexBuffer ()
@@ -5583,9 +5583,9 @@ static void ReallocateVertexBuffer ()
 	if (vertex_buffers[current_buffer_index] != VK_NULL_HANDLE)
 		vkDestroyBuffer (vulkan_globals.device, vertex_buffers[current_buffer_index], NULL);
 
-	vulkan_memory_t      old_memory = vertex_buffers_memory[current_buffer_index];
+	vulkan_memory_t		 old_memory = vertex_buffers_memory[current_buffer_index];
 	const basicvertex_t *old_cl_curstrisvert = cl_curstrisvert;
-	const int            old_maxstrisvert = cl_maxstrisvert[current_buffer_index];
+	const int			 old_maxstrisvert = cl_maxstrisvert[current_buffer_index];
 
 	cl_maxstrisvert[current_buffer_index] = q_max (cl_maxstrisvert[current_buffer_index] * 2, INITIAL_NUM_VERTICES);
 	const VkDeviceSize new_size = cl_maxstrisvert[current_buffer_index] * sizeof (basicvertex_t);
@@ -5607,8 +5607,8 @@ static void ReallocateVertexBuffer ()
 
 	const int align_mod = memory_requirements.size % memory_requirements.alignment;
 	const int aligned_size = ((memory_requirements.size % memory_requirements.alignment) == 0)
-	                             ? memory_requirements.size
-	                             : (memory_requirements.size + memory_requirements.alignment - align_mod);
+								 ? memory_requirements.size
+								 : (memory_requirements.size + memory_requirements.alignment - align_mod);
 
 	VkMemoryAllocateInfo memory_allocate_info;
 	memset (&memory_allocate_info, 0, sizeof (memory_allocate_info));
@@ -5646,9 +5646,9 @@ static void ReallocateIndexBuffer ()
 	if (index_buffers[current_buffer_index] != VK_NULL_HANDLE)
 		vkDestroyBuffer (vulkan_globals.device, index_buffers[current_buffer_index], NULL);
 
-	vulkan_memory_t       old_memory = index_buffers_memory[current_buffer_index];
+	vulkan_memory_t		  old_memory = index_buffers_memory[current_buffer_index];
 	const unsigned short *old_cl_curstrisidx = cl_curstrisidx;
-	const int             old_maxstrisidx = cl_maxstrisidx[current_buffer_index];
+	const int			  old_maxstrisidx = cl_maxstrisidx[current_buffer_index];
 
 	cl_maxstrisidx[current_buffer_index] = q_max (cl_maxstrisidx[current_buffer_index] * 2, INITIAL_NUM_INDICES);
 	const VkDeviceSize new_size = cl_maxstrisidx[current_buffer_index] * sizeof (unsigned short);
@@ -5670,8 +5670,8 @@ static void ReallocateIndexBuffer ()
 
 	const int align_mod = memory_requirements.size % memory_requirements.alignment;
 	const int aligned_size = ((memory_requirements.size % memory_requirements.alignment) == 0)
-	                             ? memory_requirements.size
-	                             : (memory_requirements.size + memory_requirements.alignment - align_mod);
+								 ? memory_requirements.size
+								 : (memory_requirements.size + memory_requirements.alignment - align_mod);
 
 	VkMemoryAllocateInfo memory_allocate_info;
 	memset (&memory_allocate_info, 0, sizeof (memory_allocate_info));
@@ -5892,12 +5892,12 @@ static void R_AddTSparkParticle (scenetris_t *t, particle_t *p, plooks_t *type)
 
 static void R_DrawParticleBeam (scenetris_t *t, beamseg_t *b, plooks_t *type)
 {
-	vec3_t      v;
-	vec3_t      cr;
+	vec3_t		v;
+	vec3_t		cr;
 	beamseg_t  *c;
 	particle_t *p;
 	particle_t *q;
-	float       ts;
+	float		ts;
 
 	c = b->next;
 
@@ -6199,26 +6199,26 @@ static void PScript_DrawParticleTypes (cb_context_t *cbx, float pframetime)
 	void (*bdraw) (scenetris_t * t, beamseg_t * p, plooks_t * type);
 	void (*tdraw) (scenetris_t * t, particle_t * p, plooks_t * type);
 
-	vec3_t          oldorg;
-	vec3_t          stop, normal;
-	part_type_t    *type, *lastvalidtype;
-	particle_t     *p, *kill;
+	vec3_t			oldorg;
+	vec3_t			stop, normal;
+	part_type_t	   *type, *lastvalidtype;
+	particle_t	   *p, *kill;
 	clippeddecal_t *d, *dkill;
-	ramp_t         *ramp;
-	float           grav;
-	vec3_t          friction;
-	scenetris_t    *scenetri;
-	float           dist;
-	particle_t     *kill_list, *kill_first; // the kill list is to stop particles from being freed and reused whilst still in this loop
-	                                        // which is bad because beams need to find out when particles died. Reuse can do wierd things.
-	                                        // remember that they're not drawn instantly either.
-	beamseg_t      *b, *bkill;
+	ramp_t		   *ramp;
+	float			grav;
+	vec3_t			friction;
+	scenetris_t	   *scenetri;
+	float			dist;
+	particle_t	   *kill_list, *kill_first; // the kill list is to stop particles from being freed and reused whilst still in this loop
+											// which is bad because beams need to find out when particles died. Reuse can do wierd things.
+											// remember that they're not drawn instantly either.
+	beamseg_t	   *b, *bkill;
 
-	int          traces = r_particle_tracelimit.value;
-	int          rampind;
+	int			 traces = r_particle_tracelimit.value;
+	int			 rampind;
 	static float flurrytime;
-	qboolean     doflurry;
-	int          batchflags;
+	qboolean	 doflurry;
+	int			 batchflags;
 	unsigned int i, o;
 
 	if (r_plooksdirty)
@@ -6288,7 +6288,7 @@ static void PScript_DrawParticleTypes (cb_context_t *cbx, float pframetime)
 		if (type->clippeddecals)
 		{
 			if (cl_numstris && cl_stris[cl_numstris - 1].texture == type->looks.texture && cl_stris[cl_numstris - 1].blendmode == type->looks.blendmode &&
-			    cl_stris[cl_numstris - 1].beflags == 0)
+				cl_stris[cl_numstris - 1].beflags == 0)
 				scenetri = &cl_stris[cl_numstris - 1];
 			else
 			{
@@ -6349,7 +6349,7 @@ static void PScript_DrawParticleTypes (cb_context_t *cbx, float pframetime)
 					case RAMP_LERP:
 					{
 						float frac = (type->rampindexes * (type->die - (d->die - particletime)) / type->die);
-						int   s1, s2;
+						int	  s1, s2;
 						s1 = frac;
 						s2 = s1 + 1;
 						if (s1 > type->rampindexes - 1)
@@ -6433,7 +6433,7 @@ static void PScript_DrawParticleTypes (cb_context_t *cbx, float pframetime)
 		}
 
 		if (cl_numstris && cl_stris[cl_numstris - 1].texture == type->looks.texture && cl_stris[cl_numstris - 1].blendmode == type->looks.blendmode &&
-		    cl_stris[cl_numstris - 1].beflags == batchflags)
+			cl_stris[cl_numstris - 1].beflags == batchflags)
 			scenetri = &cl_stris[cl_numstris - 1];
 		else
 		{
@@ -6652,7 +6652,7 @@ static void PScript_DrawParticleTypes (cb_context_t *cbx, float pframetime)
 			case RAMP_LERP:
 			{
 				float frac = (type->rampindexes * (type->die - (p->die - particletime)) / type->die);
-				int   s1, s2;
+				int	  s1, s2;
 				s1 = frac;
 				s2 = s1 + 1;
 				if (s1 > type->rampindexes - 1)
@@ -6711,8 +6711,8 @@ static void PScript_DrawParticleTypes (cb_context_t *cbx, float pframetime)
 							if (type->clipbounce == -2)
 							{ // this type of particle splatters itself as a decal when it hits a wall.
 								decalctx_t ctx;
-								float      m;
-								vec3_t     vec = {0.5, 0.5, 0.431};
+								float	   m;
+								vec3_t	   vec = {0.5, 0.5, 0.431};
 								qmodel_t  *model;
 
 								ctx.entity = e;
@@ -6761,7 +6761,7 @@ static void PScript_DrawParticleTypes (cb_context_t *cbx, float pframetime)
 							continue;
 						}
 						else if (part_type + type->cliptype == type)
-						{                                       // bounce
+						{										// bounce
 							dist = DotProduct (p->vel, normal); // * (-1-(rand()/(float)0x7fff)/2);
 							dist *= -type->clipbounce;
 							VectorMA (p->vel, dist, normal, p->vel);
@@ -6929,7 +6929,7 @@ static void PScript_DrawParticleTypes (cb_context_t *cbx, float pframetime)
 		for (i = 0; i < cl_numstris; i++)
 		{
 			scenetris_t *tris = &cl_stris[i];
-			const int    blend_mode = tris->blendmode;
+			const int	 blend_mode = tris->blendmode;
 			if (blend_modes_order[blend_mode] != o)
 				continue;
 			const qboolean draw_lines = ((tris->beflags & BEF_LINES) != 0);
@@ -6942,7 +6942,7 @@ static void PScript_DrawParticleTypes (cb_context_t *cbx, float pframetime)
 			R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 			gltexture_t *tex = (tris->beflags & BEF_LINES) ? whitetexture : tris->texture;
 
-			const int          num_indices = tris->numidx;
+			const int		   num_indices = tris->numidx;
 			const VkDeviceSize vertex_buffer_offset = 0;
 			vulkan_globals.vk_cmd_bind_index_buffer (cbx->cb, index_buffers[current_buffer_index], 0, VK_INDEX_TYPE_UINT16);
 			vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 1, &vertex_buffers[current_buffer_index], &vertex_buffer_offset);
@@ -6960,10 +6960,10 @@ PScript_DrawParticles
 */
 void PScript_DrawParticles (cb_context_t *cbx)
 {
-	int          i;
-	entity_t    *ent;
-	vec3_t       axis[3];
-	float        pframetime;
+	int			 i;
+	entity_t	*ent;
+	vec3_t		 axis[3];
+	float		 pframetime;
 	static float oldtime;
 
 	pframetime = cl.time - oldtime;
@@ -7016,8 +7016,8 @@ void PScript_DrawParticles_ShowTris (cb_context_t *cbx)
 
 	for (unsigned int i = 0; i < cl_numstris; i++)
 	{
-		scenetris_t       *tris = &cl_stris[i];
-		const int          num_indices = tris->numidx;
+		scenetris_t		  *tris = &cl_stris[i];
+		const int		   num_indices = tris->numidx;
 		const VkDeviceSize vertex_buffer_offset = 0;
 		vulkan_globals.vk_cmd_bind_index_buffer (cbx->cb, index_buffers[current_buffer_index], 0, VK_INDEX_TYPE_UINT16);
 		vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 1, &vertex_buffers[current_buffer_index], &vertex_buffer_offset);

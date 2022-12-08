@@ -79,10 +79,10 @@ static void S_OPUS_CodecShutdown (void) {}
 
 static qboolean S_OPUS_CodecOpenStream (snd_stream_t *stream)
 {
-	OggOpusFile    *opFile;
+	OggOpusFile	   *opFile;
 	const OpusHead *op_info;
-	long            numstreams;
-	int             res;
+	long			numstreams;
+	int				res;
 
 	opFile = op_open_callbacks (&stream->fh, &opc_qfs, NULL, 0, &res);
 	if (!opFile)
@@ -139,8 +139,8 @@ _fail:
 
 static int S_OPUS_CodecReadStream (snd_stream_t *stream, int bytes, void *buffer)
 {
-	int         section; /* FIXME: handle section changes */
-	int         cnt, res, rem;
+	int			section; /* FIXME: handle section changes */
+	int			cnt, res, rem;
 	opus_int16 *ptr;
 
 	rem = bytes / stream->info.width;

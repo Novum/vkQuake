@@ -32,7 +32,7 @@ static void S_Play (void);
 static void S_PlayVol (void);
 static void S_SoundList (void);
 static void S_Update_ (void);
-void        S_StopAllSounds (qboolean clear);
+void		S_StopAllSounds (qboolean clear);
 static void S_StopAllSoundsC (void);
 
 void S_SetUnderwaterIntensity (float intensity);
@@ -42,12 +42,12 @@ void S_SetUnderwaterIntensity (float intensity);
 // =======================================================================
 
 channel_t snd_channels[MAX_CHANNELS];
-int       total_channels;
+int		  total_channels;
 
-static int      snd_blocked = 0;
+static int		snd_blocked = 0;
 static qboolean snd_initialized = false;
 
-static dma_t    sn;
+static dma_t	sn;
 volatile dma_t *shm = NULL;
 
 vec3_t listener_origin;
@@ -57,15 +57,15 @@ vec3_t listener_up;
 
 #define sound_nominal_clip_dist 1000.0
 
-int soundtime;   // sample PAIRS
+int soundtime;	 // sample PAIRS
 int paintedtime; // sample PAIRS
 
-int                   s_rawend;
+int					  s_rawend;
 portable_samplepair_t s_rawsamples[MAX_RAW_SAMPLES];
 
 #define MAX_SFX 1024
 static sfx_t *known_sfx = NULL; // hunk allocated [MAX_SFX]
-static int    num_sfx;
+static int	  num_sfx;
 
 static sfx_t *ambient_sfx[NUM_AMBIENTS];
 
@@ -261,7 +261,7 @@ S_FindName
 */
 static sfx_t *S_FindName (const char *name)
 {
-	int    i;
+	int	   i;
 	sfx_t *sfx;
 
 	if (!name)
@@ -346,7 +346,7 @@ channel_t *SND_PickChannel (int entnum, int entchannel)
 	for (ch_idx = NUM_AMBIENTS; ch_idx < NUM_AMBIENTS + MAX_DYNAMIC_CHANNELS; ch_idx++)
 	{
 		if (entchannel != 0 // channel 0 never overrides
-		    && snd_channels[ch_idx].entnum == entnum && (snd_channels[ch_idx].entchannel == entchannel || entchannel == -1))
+			&& snd_channels[ch_idx].entnum == entnum && (snd_channels[ch_idx].entchannel == entchannel || entchannel == -1))
 		{ // always override sound from same entity
 			first_to_die = ch_idx;
 			break;
@@ -430,8 +430,8 @@ void S_StartSound (int entnum, int entchannel, sfx_t *sfx, vec3_t origin, float 
 {
 	channel_t  *target_chan, *check;
 	sfxcache_t *sc;
-	int         ch_idx;
-	int         skip;
+	int			ch_idx;
+	int			skip;
 
 	SDL_LockMutex (snd_mutex);
 	if (!sound_started || !sfx || nosound.value)
@@ -478,7 +478,7 @@ void S_StartSound (int entnum, int entchannel, sfx_t *sfx, vec3_t origin, float 
 			/*
 			skip = rand () % (int)(0.1 * shm->speed);
 			if (skip >= target_chan->end)
-			    skip = target_chan->end - 1;
+				skip = target_chan->end - 1;
 			*/
 			/* LordHavoc: fixed skip calculations */
 			skip = 0.1 * shm->speed; /* 0.1 * sc->speed */
@@ -650,9 +650,9 @@ S_UpdateAmbientSounds
 */
 static void S_UpdateAmbientSounds (void)
 {
-	mleaf_t     *l;
-	int          ambient_channel;
-	channel_t   *chan;
+	mleaf_t		*l;
+	int			 ambient_channel;
+	channel_t	*chan;
 	static float vol, levels[NUM_AMBIENTS]; // Spike: fixing ambient levels not changing at high enough framerates due to integer precison.
 
 	SDL_LockMutex (snd_mutex);
@@ -718,10 +718,10 @@ Expects data in signed 16 bit, or unsigned
 */
 void S_RawSamples (int samples, int rate, int width, int channels, byte *data, float volume)
 {
-	int   i;
-	int   src, dst;
+	int	  i;
+	int	  src, dst;
 	float scale;
-	int   intVolume;
+	int	  intVolume;
 
 	if (s_rawend < paintedtime)
 		s_rawend = paintedtime;
@@ -800,8 +800,8 @@ Called once each time through the main loop
 */
 void S_Update (vec3_t origin, vec3_t forward, vec3_t right, vec3_t up)
 {
-	int        i, j;
-	int        total;
+	int		   i, j;
+	int		   total;
 	channel_t *ch;
 	channel_t *combine;
 
@@ -898,10 +898,10 @@ unlock_mutex:
 
 static void GetSoundtime (void)
 {
-	int        samplepos;
+	int		   samplepos;
 	static int buffers;
 	static int oldsamplepos;
-	int        fullsamples;
+	int		   fullsamples;
 
 	fullsamples = shm->samples / shm->channels;
 
@@ -935,7 +935,7 @@ void S_ExtraUpdate (void)
 static void S_Update_ (void)
 {
 	unsigned int endtime;
-	int          samps;
+	int			 samps;
 
 	if (!snd_initialized)
 		return;
@@ -1037,9 +1037,9 @@ console functions
 static void S_Play (void)
 {
 	static int hash = 345;
-	int        i;
-	char       name[256];
-	sfx_t     *sfx;
+	int		   i;
+	char	   name[256];
+	sfx_t	  *sfx;
 
 	i = 1;
 	while (i < Cmd_Argc ())
@@ -1058,10 +1058,10 @@ static void S_Play (void)
 static void S_PlayVol (void)
 {
 	static int hash = 543;
-	int        i;
-	float      vol;
-	char       name[256];
-	sfx_t     *sfx;
+	int		   i;
+	float	   vol;
+	char	   name[256];
+	sfx_t	  *sfx;
 
 	i = 1;
 	while (i < Cmd_Argc ())
@@ -1080,10 +1080,10 @@ static void S_PlayVol (void)
 
 static void S_SoundList (void)
 {
-	int         i;
-	sfx_t      *sfx;
+	int			i;
+	sfx_t	   *sfx;
 	sfxcache_t *sc;
-	int         size, total;
+	int			size, total;
 
 	total = 0;
 	for (sfx = known_sfx, i = 0; i < num_sfx; i++, sfx++)
@@ -1096,7 +1096,7 @@ static void S_SoundList (void)
 		if (sc->loopstart >= 0)
 			Con_SafePrintf ("L"); // johnfitz -- was Con_Printf
 		else
-			Con_SafePrintf (" ");                                             // johnfitz -- was Con_Printf
+			Con_SafePrintf (" ");											  // johnfitz -- was Con_Printf
 		Con_SafePrintf ("(%2db) %6i : %s\n", sc->width * 8, size, sfx->name); // johnfitz -- was Con_Printf
 	}
 	Con_Printf ("%i sounds, %i bytes\n", num_sfx, total); // johnfitz -- added count

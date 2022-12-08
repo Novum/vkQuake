@@ -36,7 +36,7 @@
 typedef struct _mp3_priv_t
 {
 	mpg123_handle *handle;
-	int            handle_open;
+	int			   handle_open;
 } mp3_priv_t;
 
 /* CALLBACKS: libmpg123 expects POSIX read/lseek() behavior! */
@@ -81,8 +81,8 @@ static void S_MP3_CodecShutdown (void)
 
 static qboolean S_MP3_CodecOpenStream (snd_stream_t *stream)
 {
-	long        rate = 0;
-	int         encoding = 0, channels = 0;
+	long		rate = 0;
+	int			encoding = 0, channels = 0;
 	mp3_priv_t *priv = NULL;
 
 	if (mp3_skiptags (stream) < 0)
@@ -178,8 +178,8 @@ _fail:
 static int S_MP3_CodecReadStream (snd_stream_t *stream, int bytes, void *buffer)
 {
 	mp3_priv_t *priv = (mp3_priv_t *)stream->priv;
-	size_t      bytes_read = 0;
-	int         res = mpg123_read (priv->handle, (unsigned char *)buffer, (size_t)bytes, &bytes_read);
+	size_t		bytes_read = 0;
+	int			res = mpg123_read (priv->handle, (unsigned char *)buffer, (size_t)bytes, &bytes_read);
 	switch (res)
 	{
 	case MPG123_DONE:
@@ -202,14 +202,14 @@ static void S_MP3_CodecCloseStream (snd_stream_t *stream)
 static int S_MP3_CodecRewindStream (snd_stream_t *stream)
 {
 	mp3_priv_t *priv = (mp3_priv_t *)stream->priv;
-	off_t       res = mpg123_seek (priv->handle, 0, SEEK_SET);
+	off_t		res = mpg123_seek (priv->handle, 0, SEEK_SET);
 	if (res >= 0)
 		return 0;
 	return res;
 }
 
-snd_codec_t mp3_codec = {CODECTYPE_MP3,           false, "mp3", S_MP3_CodecInitialize, S_MP3_CodecShutdown, S_MP3_CodecOpenStream, S_MP3_CodecReadStream,
-                         S_MP3_CodecRewindStream, NULL, /* jump */
-                         S_MP3_CodecCloseStream,  NULL};
+snd_codec_t mp3_codec = {CODECTYPE_MP3,			  false, "mp3", S_MP3_CodecInitialize, S_MP3_CodecShutdown, S_MP3_CodecOpenStream, S_MP3_CodecReadStream,
+						 S_MP3_CodecRewindStream, NULL, /* jump */
+						 S_MP3_CodecCloseStream,  NULL};
 
 #endif /* USE_CODEC_MP3 */

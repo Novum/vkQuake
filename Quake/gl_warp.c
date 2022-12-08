@@ -76,7 +76,7 @@ static void R_RasterWarpTexture (cb_context_t *cbx, texture_t *tx, float warptes
 
 	for (x = 0.0; x < 128.0; x = x2)
 	{
-		VkBuffer       buffer;
+		VkBuffer	   buffer;
 		VkDeviceSize   buffer_offset;
 		basicvertex_t *vertices = (basicvertex_t *)R_VertexAllocate (num_verts * sizeof (basicvertex_t), &buffer, &buffer_offset);
 
@@ -136,7 +136,7 @@ static void R_ComputeWarpTexture (cb_context_t *cbx, texture_t *tx, float warpte
 R_UpdateWarpTextures -- johnfitz -- each frame, update warping textures
 =============
 */
-static texture_t           *warp_textures[MAX_GLTEXTURES];
+static texture_t		   *warp_textures[MAX_GLTEXTURES];
 static VkImageMemoryBarrier warp_image_barriers[MAX_GLTEXTURES];
 
 void R_UpdateWarpTextures (cb_context_t **cbx_ptr)
@@ -145,8 +145,8 @@ void R_UpdateWarpTextures (cb_context_t **cbx_ptr)
 	GL_SetCanvas (cbx, CANVAS_NONE); // Invalidate canvas so push constants get set later
 
 	texture_t *tx;
-	int        i, mip;
-	float      warptess;
+	int		   i, mip;
+	float	   warptess;
 
 	if (cl.paused)
 		return;

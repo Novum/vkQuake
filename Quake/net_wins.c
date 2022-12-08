@@ -25,19 +25,19 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "net_defs.h"
 
 // ipv4 defs
-static sys_socket_t       netv4_acceptsocket = INVALID_SOCKET; // socket for fielding new connections
-static sys_socket_t       netv4_controlsocket;
-static sys_socket_t       netv4_broadcastsocket = INVALID_SOCKET;
+static sys_socket_t		  netv4_acceptsocket = INVALID_SOCKET; // socket for fielding new connections
+static sys_socket_t		  netv4_controlsocket;
+static sys_socket_t		  netv4_broadcastsocket = INVALID_SOCKET;
 static struct sockaddr_in broadcastaddrv4;
-static in_addr_t          myAddrv4, bindAddrv4; // spike --keeping separate bind and detected values.
+static in_addr_t		  myAddrv4, bindAddrv4; // spike --keeping separate bind and detected values.
 
 // ipv6 defs
 #ifdef IPPROTO_IPV6
-typedef struct in_addr6    in_addr6_t;
-static sys_socket_t        netv6_acceptsocket = INVALID_SOCKET; // socket for fielding new connections
-static sys_socket_t        netv6_controlsocket;
+typedef struct in_addr6	   in_addr6_t;
+static sys_socket_t		   netv6_acceptsocket = INVALID_SOCKET; // socket for fielding new connections
+static sys_socket_t		   netv6_controlsocket;
 static struct sockaddr_in6 broadcastaddrv6;
-static in_addr6_t          myAddrv6, bindAddrv6;
+static in_addr6_t		   myAddrv6, bindAddrv6;
 #ifndef IPV6_V6ONLY
 #define IPV6_V6ONLY 27
 #endif
@@ -51,7 +51,7 @@ void (WSAAPI *qfreeaddrinfo) (const struct addrinfo *ai);
 
 #include "net_wins.h"
 
-int     winsock_initialized = 0;
+int		winsock_initialized = 0;
 WSADATA winsockdata;
 #define __wsaerr_static /* not static: used by net_wipx.c too */
 #include "wsaerror.h"
@@ -61,9 +61,9 @@ WSADATA winsockdata;
 static void WINIPv4_GetLocalAddress (void)
 {
 	struct hostent *local = NULL;
-	char            buff[MAXHOSTNAMELEN];
-	in_addr_t       addr;
-	int             err;
+	char			buff[MAXHOSTNAMELEN];
+	in_addr_t		addr;
+	int				err;
 
 	if (myAddrv4 != INADDR_ANY)
 		return;
@@ -93,7 +93,7 @@ static void WINIPv4_GetLocalAddress (void)
 
 sys_socket_t WINIPv4_Init (void)
 {
-	int  i, err;
+	int	 i, err;
 	char buff[MAXHOSTNAMELEN];
 
 	if (COM_CheckParm ("-noudp") || COM_CheckParm ("-noudp4"))
@@ -197,10 +197,10 @@ sys_socket_t WINIPv4_Listen (qboolean state)
 
 sys_socket_t WINIPv4_OpenSocket (int port)
 {
-	sys_socket_t       newsocket;
+	sys_socket_t	   newsocket;
 	struct sockaddr_in address;
-	u_long             _true = 1;
-	int                err;
+	u_long			   _true = 1;
+	int				   err;
 
 	if ((newsocket = socket (PF_INET, SOCK_DGRAM, IPPROTO_UDP)) == INVALID_SOCKET)
 	{
@@ -257,7 +257,7 @@ static int PartialIPAddress (const char *in, struct qsockaddr *hostaddr)
 {
 	char  buff[256];
 	char *b;
-	int   addr, mask, num, port, run;
+	int	  addr, mask, num, port, run;
 
 	buff[0] = '.';
 	b = buff;
@@ -326,7 +326,7 @@ sys_socket_t WINIPv4_CheckNewConnections (void)
 int WINS_Read (sys_socket_t socketid, byte *buf, int len, struct qsockaddr *addr)
 {
 	socklen_t addrlen = sizeof (struct qsockaddr);
-	int       ret;
+	int		  ret;
 
 	ret = recvfrom (socketid, (char *)buf, len, 0, (struct sockaddr *)addr, &addrlen);
 	if (ret == SOCKET_ERROR)
@@ -410,7 +410,7 @@ unsigned short ntohs_v6word (struct qsockaddr *addr, int wordnum)
 const char *WINS_AddrToString (struct qsockaddr *addr, qboolean masked)
 {
 	static char buffer[64];
-	int         haddr;
+	int			haddr;
 
 #ifdef IPPROTO_IPV6
 	if (addr->qsa_family == AF_INET6)
@@ -517,7 +517,7 @@ int WINIPv4_GetNameFromAddr (struct qsockaddr *addr, char *name)
 
 int WINIPv4_GetAddresses (qhostaddr_t *addresses, int maxaddresses)
 {
-	int             result = 0, b;
+	int				result = 0, b;
 	struct hostent *h;
 
 	if (bindAddrv4 == INADDR_ANY)
@@ -551,9 +551,9 @@ int WINIPv6_GetAddresses (qhostaddr_t *addresses, int maxaddresses)
 	{
 		// on windows, we can just do a dns lookup on our own hostname and expect an ipv4 result
 		struct addrinfo hints, *addrlist, *itr;
-		char            buf[64];
+		char			buf[64];
 		memset (&hints, 0, sizeof (struct addrinfo));
-		hints.ai_family = AF_INET6;     /* Allow IPv4 or IPv6 */
+		hints.ai_family = AF_INET6;		/* Allow IPv4 or IPv6 */
 		hints.ai_socktype = SOCK_DGRAM; /* Datagram socket */
 		hints.ai_flags = 0;
 		hints.ai_protocol = 0; /* Any protocol */
@@ -580,8 +580,8 @@ int WINIPv6_GetAddresses (qhostaddr_t *addresses, int maxaddresses)
 int WINIPv4_GetAddrFromName (const char *name, struct qsockaddr *addr)
 {
 	struct hostent *hostentry;
-	char           *colon;
-	unsigned short  port = net_hostport;
+	char		   *colon;
+	unsigned short	port = net_hostport;
 
 	if (name[0] >= '0' && name[0] <= '9')
 		return PartialIPAddress (name, addr);
@@ -595,8 +595,8 @@ int WINIPv4_GetAddrFromName (const char *name, struct qsockaddr *addr)
 		memcpy (dupe, name, colon - name);
 		dupe[colon - name] = 0;
 		if (strchr (dupe, ':'))
-			return -1; // don't resolve a name to an ipv4 address if it has multiple colons in it. its probably an ipx or ipv6 address, and I'd rather not block
-			           // on any screwed dns resolves
+			return -1; // don't resolve a name to an ipv4 address if it has multiple colons in it. its probably an ipx or ipv6 address, and I'd rather not
+					   // block on any screwed dns resolves
 		hostentry = gethostbyname (dupe);
 		port = strtoul (colon + 1, NULL, 10);
 	}
@@ -628,8 +628,8 @@ int WINS_AddrCompare (struct qsockaddr *addr1, struct qsockaddr *addr2)
 		if (((struct sockaddr_in6 *)addr1)->sin6_port != ((struct sockaddr_in6 *)addr2)->sin6_port)
 			return 1;
 		if (((struct sockaddr_in6 *)addr1)->sin6_scope_id && ((struct sockaddr_in6 *)addr2)->sin6_scope_id &&
-		    ((struct sockaddr_in6 *)addr1)->sin6_scope_id !=
-		        ((struct sockaddr_in6 *)addr2)->sin6_scope_id) // the ipv6 scope id is for use with link-local addresses, to identify the specific interface.
+			((struct sockaddr_in6 *)addr1)->sin6_scope_id !=
+				((struct sockaddr_in6 *)addr2)->sin6_scope_id) // the ipv6 scope id is for use with link-local addresses, to identify the specific interface.
 			return 1;
 	}
 	else
@@ -676,8 +676,8 @@ int WINS_SetSocketPort (struct qsockaddr *addr, int port)
 
 static void WINIPv6_GetLocalAddress (void)
 {
-	char            buff[MAXHOSTNAMELEN];
-	int             err;
+	char			buff[MAXHOSTNAMELEN];
+	int				err;
 	struct addrinfo hints, *local = NULL;
 
 	//	if (myAddrv6 != IN6ADDR_ANY)
@@ -715,7 +715,7 @@ static void WINIPv6_GetLocalAddress (void)
 
 sys_socket_t WINIPv6_Init (void)
 {
-	int  i;
+	int	 i;
 	char buff[MAXHOSTNAMELEN];
 
 	if (COM_CheckParm ("-noudp") || COM_CheckParm ("-noudp6"))
@@ -828,10 +828,10 @@ void WINIPv6_Shutdown (void)
 }
 sys_socket_t WINIPv6_OpenSocket (int port)
 {
-	sys_socket_t        newsocket;
+	sys_socket_t		newsocket;
 	struct sockaddr_in6 address;
-	u_long              _true = 1;
-	int                 err;
+	u_long				_true = 1;
+	int					err;
 
 	if ((newsocket = socket (PF_INET6, SOCK_DGRAM, IPPROTO_UDP)) == INVALID_SOCKET)
 	{
@@ -908,12 +908,12 @@ int WINIPv6_GetAddrFromName (const char *name, struct qsockaddr *addr)
 	// but will fail to resolve as ipv4.
 	struct addrinfo *addrinfo = NULL;
 	struct addrinfo *pos;
-	struct addrinfo  udp6hint;
-	int              error;
-	char            *port;
-	char             dupbase[256];
-	size_t           len;
-	qboolean         success = false;
+	struct addrinfo	 udp6hint;
+	int				 error;
+	char			*port;
+	char			 dupbase[256];
+	size_t			 len;
+	qboolean		 success = false;
 
 	memset (&udp6hint, 0, sizeof (udp6hint));
 	udp6hint.ai_family = 0; // Any... we check for AF_INET6 or 4
@@ -952,7 +952,7 @@ int WINIPv6_GetAddrFromName (const char *name, struct qsockaddr *addr)
 			error = EAI_NONAME;
 		if (error) // failed, try string with no port.
 			error = qgetaddrinfo ? qgetaddrinfo (name, NULL, &udp6hint, &addrinfo)
-			                     : EAI_NONAME; // remember, this func will return any address family that could be using the udp protocol... (ip4 or ip6)
+								 : EAI_NONAME; // remember, this func will return any address family that could be using the udp protocol... (ip4 or ip6)
 	}
 
 	if (!error)

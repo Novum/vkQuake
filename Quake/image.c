@@ -54,10 +54,10 @@ static THREAD_LOCAL char loadfilename[MAX_OSPATH]; // file scope so that error m
 
 typedef struct stdio_buffer_s
 {
-	FILE         *f;
+	FILE		 *f;
 	unsigned char buffer[1024];
-	int           size;
-	int           pos;
+	int			  size;
+	int			  pos;
 } stdio_buffer_t;
 
 static stdio_buffer_t *Buf_Alloc (FILE *f)
@@ -160,7 +160,7 @@ returns true if successful
 */
 qboolean Image_WriteTGA (const char *name, byte *data, int width, int height, int bpp, qboolean upsidedown)
 {
-	int  handle, i, size, temp, bytes;
+	int	 handle, i, size, temp, bytes;
 	char pathname[MAX_OSPATH];
 	byte header[TARGAHEADERSIZE];
 
@@ -204,13 +204,13 @@ Image_LoadTGA
 */
 byte *Image_LoadTGA (FILE *fin, int *width, int *height, const char *name)
 {
-	targaheader_t   targa_header;
-	int             columns, rows, numPixels;
-	byte           *pixbuf;
-	int             row, column;
-	byte           *targa_rgba;
-	int             realrow;     // johnfitz -- fix for upside-down targas
-	qboolean        upside_down; // johnfitz -- fix for upside-down targas
+	targaheader_t	targa_header;
+	int				columns, rows, numPixels;
+	byte		   *pixbuf;
+	int				row, column;
+	byte		   *targa_rgba;
+	int				realrow;	 // johnfitz -- fix for upside-down targas
+	qboolean		upside_down; // johnfitz -- fix for upside-down targas
 	stdio_buffer_t *buf;
 
 	targa_header.id_length = fgetc (fin);
@@ -257,7 +257,7 @@ byte *Image_LoadTGA (FILE *fin, int *width, int *height, const char *name)
 	if (targa_header.image_type == 1) // Uncompressed, paletted images
 	{
 		byte palette[256 * 4];
-		int  i;
+		int	 i;
 		// palette data comes first
 		for (i = 0; i < targa_header.colormap_length; i++)
 		{ // this palette data is bgr.
@@ -437,18 +437,18 @@ byte *Image_LoadTGA (FILE *fin, int *width, int *height, const char *name)
 
 typedef struct
 {
-	char           signature;
-	char           version;
-	char           encoding;
-	char           bits_per_pixel;
+	char		   signature;
+	char		   version;
+	char		   encoding;
+	char		   bits_per_pixel;
 	unsigned short xmin, ymin, xmax, ymax;
 	unsigned short hdpi, vdpi;
-	byte           colortable[48];
-	char           reserved;
-	char           color_planes;
+	byte		   colortable[48];
+	char		   reserved;
+	char		   color_planes;
 	unsigned short bytes_per_line;
 	unsigned short palette_type;
-	char           filler[58];
+	char		   filler[58];
 } pcxheader_t;
 
 /*
@@ -458,10 +458,10 @@ Image_LoadPCX
 */
 byte *Image_LoadPCX (FILE *f, int *width, int *height)
 {
-	pcxheader_t     pcx;
-	int             x, y, w, h, readbyte, runlength, start;
-	byte           *p, *data;
-	byte            palette[768];
+	pcxheader_t		pcx;
+	int				x, y, w, h, readbyte, runlength, start;
+	byte		   *p, *data;
+	byte			palette[768];
 	stdio_buffer_t *buf;
 
 	start = ftell (f); // save start of file (since we might be inside a pak file, SEEK_SET might not be the start of the pcx)
@@ -543,7 +543,7 @@ byte *Image_LoadPCX (FILE *f, int *width, int *height)
 
 static byte *CopyFlipped (const byte *data, int width, int height, int bpp)
 {
-	int   y, rowsize;
+	int	  y, rowsize;
 	byte *flipped;
 
 	rowsize = width * (bpp / 8);
@@ -568,9 +568,9 @@ returns true if successful
 qboolean Image_WriteJPG (const char *name, byte *data, int width, int height, int bpp, int quality, qboolean upsidedown)
 {
 	unsigned error;
-	char     pathname[MAX_OSPATH];
-	byte    *flipped;
-	int      bytes_per_pixel;
+	char	 pathname[MAX_OSPATH];
+	byte	*flipped;
+	int		 bytes_per_pixel;
 
 	if (!(bpp == 32 || bpp == 24))
 		Sys_Error ("bpp not 24 or 32");
@@ -598,12 +598,12 @@ qboolean Image_WriteJPG (const char *name, byte *data, int width, int height, in
 
 qboolean Image_WritePNG (const char *name, byte *data, int width, int height, int bpp, qboolean upsidedown)
 {
-	unsigned       error;
-	char           pathname[MAX_OSPATH];
-	byte          *flipped;
+	unsigned	   error;
+	char		   pathname[MAX_OSPATH];
+	byte		  *flipped;
 	unsigned char *filters;
 	unsigned char *png;
-	size_t         pngsize;
+	size_t		   pngsize;
 	LodePNGState   state;
 
 	if (!(bpp == 32 || bpp == 24))

@@ -46,26 +46,26 @@ typedef byte pixel_t;
 
 typedef struct vrect_s
 {
-	int             x, y, width, height;
+	int				x, y, width, height;
 	struct vrect_s *pnext;
 } vrect_t;
 
 typedef struct
 {
-	pixel_t        *buffer;     // invisible buffer
-	pixel_t        *colormap;   // 256 * VID_GRADES size
+	pixel_t		   *buffer;		// invisible buffer
+	pixel_t		   *colormap;	// 256 * VID_GRADES size
 	unsigned short *colormap16; // 256 * VID_GRADES size
-	int             fullbright; // index of first fullbright color
-	int             rowbytes;   // may be > width if displayed in a window
-	int             width;
-	int             height;
-	float           aspect;        // width / height -- < 0 is taller than wide
-	int             recalc_refdef; // if true, recalc vid-based stuff
-	pixel_t        *conbuffer;
-	int             conrowbytes;
-	int             conwidth;
-	int             conheight;
-	qboolean        restart_next_frame;
+	int				fullbright; // index of first fullbright color
+	int				rowbytes;	// may be > width if displayed in a window
+	int				width;
+	int				height;
+	float			aspect;		   // width / height -- < 0 is taller than wide
+	int				recalc_refdef; // if true, recalc vid-based stuff
+	pixel_t		   *conbuffer;
+	int				conrowbytes;
+	int				conwidth;
+	int				conheight;
+	qboolean		restart_next_frame;
 } viddef_t;
 
 extern viddef_t vid; // global video state
@@ -86,10 +86,10 @@ void VID_SyncCvars (void);
 
 void VID_Toggle (void);
 
-void    *VID_GetWindow (void);
+void	*VID_GetWindow (void);
 qboolean VID_HasMouseOrInputFocus (void);
 qboolean VID_IsMinimized (void);
-void     VID_Lock (void);
+void	 VID_Lock (void);
 
 void VID_FocusGained (void);
 void VID_FocusLost (void);

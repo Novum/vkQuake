@@ -30,8 +30,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 char key_lines[CMDLINES][MAXCMDLINE];
 
-int    key_linepos;
-int    key_insert;    // johnfitz -- insert key toggle (for editing)
+int	   key_linepos;
+int	   key_insert;	  // johnfitz -- insert key toggle (for editing)
 double key_blinktime; // johnfitz -- fudge cursor blinking to make it easier to spot in certain cases
 
 int edit_line = 0;
@@ -39,15 +39,15 @@ int history_line = 0;
 
 keydest_t key_dest;
 
-char    *keybindings[MAX_KEYS];
+char	*keybindings[MAX_KEYS];
 qboolean consolekeys[MAX_KEYS]; // if true, can't be rebound while in console
-qboolean menubound[MAX_KEYS];   // if true, can't be rebound while in menu
+qboolean menubound[MAX_KEYS];	// if true, can't be rebound while in menu
 qboolean keydown[MAX_KEYS];
 
 typedef struct
 {
 	const char *name;
-	int         keynum;
+	int			keynum;
 } keyname_t;
 
 keyname_t keynames[] = {
@@ -157,7 +157,7 @@ keyname_t keynames[] = {
 	{"SEMICOLON", ';'}, // because a raw semicolon seperates commands
 
 	{"BACKQUOTE", '`'}, // because a raw backquote may toggle the console
-	{"TILDE", '~'},     // because a raw tilde may toggle the console
+	{"TILDE", '~'},		// because a raw tilde may toggle the console
 
 	{"LTHUMB", K_LTHUMB},
 	{"RTHUMB", K_RTHUMB},
@@ -175,7 +175,7 @@ keyname_t keynames[] = {
 /*
 ==============================================================================
 
-            LINE TYPING INTO THE CONSOLE
+			LINE TYPING INTO THE CONSOLE
 
 ==============================================================================
 */
@@ -183,7 +183,7 @@ keyname_t keynames[] = {
 static void PasteToConsole (void)
 {
 	char *cbd, *p, *workline;
-	int   mvlen, inslen;
+	int	  mvlen, inslen;
 
 	if (key_linepos == MAXCMDLINE - 1)
 		return;
@@ -236,7 +236,7 @@ Interactive line editing and console scrollback
 ====================
 */
 extern char *con_text, key_tabpartial[MAXCMDLINE];
-extern int   con_current, con_linewidth, con_vislines;
+extern int	 con_current, con_linewidth, con_vislines;
 
 static int GetHistoryPrevLine (int line)
 {
@@ -251,9 +251,9 @@ static int GetHistoryNextLine (int line)
 void Key_Console (int key)
 {
 	static char current[MAXCMDLINE] = "";
-	int         history_line_last;
-	size_t      len;
-	char       *workline = key_lines[edit_line];
+	int			history_line_last;
+	size_t		len;
+	char	   *workline = key_lines[edit_line];
 
 	switch (key)
 	{
@@ -316,7 +316,7 @@ void Key_Console (int key)
 		if (keydown[K_CTRL])
 		{
 			// skip initial empty lines
-			int   i, x;
+			int	  i, x;
 			char *line;
 
 			for (i = con_current - con_totallines + 1; i <= con_current; i++)
@@ -501,9 +501,9 @@ void Char_Console (int key)
 
 //============================================================================
 
-qboolean    chat_team = false;
+qboolean	chat_team = false;
 static char chat_buffer[MAXCMDLINE];
-static int  chat_bufferlen = 0;
+static int	chat_bufferlen = 0;
 
 const char *Key_GetChatBuffer (void)
 {
@@ -704,7 +704,7 @@ Key_Bind_f
 */
 void Key_Bind_f (void)
 {
-	int  i, c, b;
+	int	 i, c, b;
 	char cmd[1024];
 
 	c = Cmd_Argc ();
@@ -765,7 +765,7 @@ void Key_WriteBindings (FILE *f)
 
 void History_Init (void)
 {
-	int   i, c;
+	int	  i, c;
 	FILE *hf;
 
 	for (i = 0; i < CMDLINES; i++)
@@ -810,7 +810,7 @@ void History_Init (void)
 
 void History_Shutdown (void)
 {
-	int   i;
+	int	  i;
 	FILE *hf;
 
 	hf = fopen (va ("%s/%s", host_parms->userdir, HISTORY_FILE_NAME), "wt");
@@ -909,8 +909,8 @@ void Key_Init (void)
 static struct
 {
 	qboolean active;
-	int      lastkey;
-	int      lastchar;
+	int		 lastkey;
+	int		 lastchar;
 } key_inputgrab = {false, -1, -1};
 
 /*
@@ -1087,7 +1087,7 @@ void Key_Event (int key, qboolean down)
 
 	// if not a consolekey, send to the interpreter no matter what mode is
 	if ((key_dest == key_menu && menubound[key]) || (key_dest == key_console && !consolekeys[key]) ||
-	    (key_dest == key_game && (!con_forcedup || !consolekeys[key])))
+		(key_dest == key_game && (!con_forcedup || !consolekeys[key])))
 	{
 		kb = keybindings[key];
 		if (kb)

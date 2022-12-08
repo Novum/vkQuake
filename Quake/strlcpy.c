@@ -29,9 +29,9 @@
 
 size_t q_strlcpy (char *dst, const char *src, size_t siz)
 {
-	char       *d = dst;
+	char	   *d = dst;
 	const char *s = src;
-	size_t      n = siz;
+	size_t		n = siz;
 
 	/* Copy as many bytes as will fit */
 	if (n != 0)

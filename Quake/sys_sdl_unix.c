@@ -57,12 +57,12 @@ static int Sys_NumCPUs (void)
 #elif defined(PLATFORM_OSX)
 #include <sys/sysctl.h>
 #if !defined(HW_AVAILCPU) /* using an ancient SDK? */
-#define HW_AVAILCPU 25    /* needs >= 10.2 */
+#define HW_AVAILCPU 25	  /* needs >= 10.2 */
 #endif
 static int Sys_NumCPUs (void)
 {
-	int    numcpus;
-	int    mib[2];
+	int	   numcpus;
+	int	   mib[2];
 	size_t len;
 
 #if defined(_SC_NPROCESSORS_ONLN) /* needs >= 10.5 */
@@ -96,8 +96,8 @@ static int Sys_NumCPUs (void)
 #include <sys/sysctl.h>
 static int Sys_NumCPUs (void)
 {
-	int    numcpus;
-	int    mib[2];
+	int	   numcpus;
+	int	   mib[2];
 	size_t len;
 
 #if defined(_SC_NPROCESSORS_ONLN)
@@ -134,7 +134,7 @@ int Sys_FileType (const char *path)
 	if (access (path, R_OK) == -1)
 		return 0;
 	*/
-	struct stat	st;
+	struct stat st;
 
 	if (stat (path, &st) != 0)
 		return FS_ENT_NONE;
@@ -157,8 +157,8 @@ static char userdir[MAX_OSPATH];
 
 static void Sys_GetUserdir (char *dst, size_t dstsize)
 {
-	size_t         n;
-	const char    *home_dir = NULL;
+	size_t		   n;
+	const char	  *home_dir = NULL;
 	struct passwd *pwent;
 
 	pwent = getpwuid (getuid ());
@@ -286,7 +286,7 @@ static const char errortxt2[] = "\nQUAKE ERROR: ";
 void Sys_Error (const char *error, ...)
 {
 	va_list argptr;
-	char    text[1024];
+	char	text[1024];
 
 	PR_SwitchQCVM (NULL);
 	host_parms->errstate++;
@@ -329,10 +329,10 @@ double Sys_DoubleTime (void)
 
 const char *Sys_ConsoleInput (void)
 {
-	static char    con_text[256];
-	static int     textlen;
-	char           c;
-	fd_set         set;
+	static char	   con_text[256];
+	static int	   textlen;
+	char		   c;
+	fd_set		   set;
 	struct timeval timeout;
 
 	FD_ZERO (&set);

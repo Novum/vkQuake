@@ -54,7 +54,7 @@ typedef struct _mik_priv
 	long iobase, prev_iobase;
 
 	fshandle_t *fh;
-	MODULE     *module;
+	MODULE	   *module;
 } mik_priv_t;
 
 static int MIK_Seek (MREADER *r, long ofs, int whence)

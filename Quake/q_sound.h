@@ -35,46 +35,46 @@ typedef struct
 /* !!! if this is changed, it must be changed in asm_i386.h too !!! */
 typedef struct
 {
-	int  length;
-	int  loopstart;
-	int  speed;
-	int  width;
-	int  stereo;
+	int	 length;
+	int	 loopstart;
+	int	 speed;
+	int	 width;
+	int	 stereo;
 	byte data[1]; /* variable sized	*/
 } sfxcache_t;
 
 typedef struct sfx_s
 {
-	char        name[MAX_QPATH];
+	char		name[MAX_QPATH];
 	sfxcache_t *cache;
 } sfx_t;
 
 typedef struct
 {
-	int            channels;
-	int            samples;          /* mono samples in buffer			*/
-	int            submission_chunk; /* don't mix less than this #			*/
-	int            samplepos;        /* in mono samples				*/
-	int            samplebits;
-	int            signed8; /* device opened for S8 format? (e.g. Amiga AHI) */
-	int            speed;
+	int			   channels;
+	int			   samples;			 /* mono samples in buffer			*/
+	int			   submission_chunk; /* don't mix less than this #			*/
+	int			   samplepos;		 /* in mono samples				*/
+	int			   samplebits;
+	int			   signed8; /* device opened for S8 format? (e.g. Amiga AHI) */
+	int			   speed;
 	unsigned char *buffer;
 } dma_t;
 
 /* !!! if this is changed, it must be changed in asm_i386.h too !!! */
 typedef struct
 {
-	sfx_t *sfx;      /* sfx number					*/
-	int    leftvol;  /* 0-255 volume					*/
-	int    rightvol; /* 0-255 volume					*/
-	int    end;      /* end time in global paintsamples		*/
-	int    pos;      /* sample position in sfx			*/
-	int    looping;  /* where to loop, -1 = no looping		*/
-	int    entnum;   /* to allow overriding a specific sound		*/
-	int    entchannel;
-	vec3_t origin;     /* origin of sound effect			*/
+	sfx_t *sfx;		 /* sfx number					*/
+	int	   leftvol;	 /* 0-255 volume					*/
+	int	   rightvol; /* 0-255 volume					*/
+	int	   end;		 /* end time in global paintsamples		*/
+	int	   pos;		 /* sample position in sfx			*/
+	int	   looping;	 /* where to loop, -1 = no looping		*/
+	int	   entnum;	 /* to allow overriding a specific sound		*/
+	int	   entchannel;
+	vec3_t origin;	   /* origin of sound effect			*/
 	vec_t  dist_mult;  /* distance multiplier (attenuation/clipK)	*/
-	int    master_vol; /* 0-255 master volume				*/
+	int	   master_vol; /* 0-255 master volume				*/
 } channel_t;
 
 #define WAV_FORMAT_PCM 1
@@ -148,7 +148,7 @@ void SNDDMA_UnblockSound (void);
  * ====================================================================
  */
 
-#define MAX_CHANNELS         1024 // ericw -- was 512 /* johnfitz -- was 128 */
+#define MAX_CHANNELS		 1024 // ericw -- was 512 /* johnfitz -- was 128 */
 #define MAX_DYNAMIC_CHANNELS 128  /* johnfitz -- was 8   */
 
 extern channel_t snd_channels[MAX_CHANNELS];
@@ -180,7 +180,7 @@ extern portable_samplepair_t s_rawsamples[MAX_RAW_SAMPLES];
 
 extern cvar_t bgmvolume;
 
-void        S_LocalSound (const char *name);
+void		S_LocalSound (const char *name);
 sfxcache_t *S_LoadSound (sfx_t *s);
 
 wavinfo_t GetWavinfo (const char *name, byte *wav, int wavlength);

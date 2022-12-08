@@ -1,6 +1,8 @@
+BasedOnStyle: LLVM
 TabWidth: 4
 IndentWidth: 4
-UseTab: AlignWithSpaces
+ContinuationIndentWidth: 4
+UseTab: Always
 Language: Cpp
 AllowShortFunctionsOnASingleLine: Empty
 BreakBeforeBraces: Allman
@@ -11,10 +13,11 @@ AlignConsecutiveBitFields: AcrossComments
 AlignConsecutiveMacros: AcrossComments
 AlignConsecutiveDeclarations: AcrossComments
 AlignEscapedNewlines: Left
+AlignTrailingComments: true
+AlignAfterOpenBracket: AlwaysBreak
+AlignOperands: false
 PointerAlignment: Right
 AlignOperands: Align
 AllowShortIfStatementsOnASingleLine: Never
 SpaceBeforeParens: Always
 SortIncludes: Never
-AlignTrailingComments: true
-AlignAfterOpenBracket: AlwaysBreak

@@ -30,10 +30,10 @@ extern cvar_t gl_fullbrights, r_drawflat, r_gpulightmapupdate; // johnfitz
 int gl_lightmap_format;
 
 #define SHELF_HEIGHT 256
-#define SHELVES      (LMBLOCK_HEIGHT / SHELF_HEIGHT)
+#define SHELVES		 (LMBLOCK_HEIGHT / SHELF_HEIGHT)
 
 #define LM_BIN_E 8
-#define LM_BINS 49
+#define LM_BINS	 49
 
 static int SizeToBin (int size)
 {
@@ -54,13 +54,13 @@ static int BinToSize (int bin)
 }
 
 struct lightmap_s *lightmaps;
-int                lightmap_count;
-int                last_lightmap_allocated;
-int                used_columns[MAX_SANITY_LIGHTMAPS][SHELVES];
-int                lightmap_idx[LM_BINS];
-int                shelf_idx[LM_BINS];
-int                columns[LM_BINS];
-int                rows[LM_BINS];
+int				   lightmap_count;
+int				   last_lightmap_allocated;
+int				   used_columns[MAX_SANITY_LIGHTMAPS][SHELVES];
+int				   lightmap_idx[LM_BINS];
+int				   shelf_idx[LM_BINS];
+int				   columns[LM_BINS];
+int				   rows[LM_BINS];
 
 /* Lightmap extents are usually <= 18 with the default qbsp -subdivide of 240. The check in CalcSurfaceExtents ()
    limits them to 126 x 126 on load. The lightmap packer and the blocklights array can handle up to 256 x 256. */
@@ -73,15 +73,15 @@ qboolean indirect_ready = false;
 typedef struct
 {
 	texture_t *texture;
-	short      lightmap_idx;
-	short      is_bmodel; // for gl_zfix
-	int        max_indices;
+	short	   lightmap_idx;
+	short	   is_bmodel; // for gl_zfix
+	int		   max_indices;
 } indirectdraw_t;
 
 #define MAX_INDIRECT_DRAWS 32768
 static indirectdraw_t indirect_draws[MAX_INDIRECT_DRAWS];
-static int            used_indirect_draws = 0;
-static uint32_t       indirect_bmodel_start;
+static int			  used_indirect_draws = 0;
+static uint32_t		  indirect_bmodel_start;
 
 #define INDIRECT_ZBIAS 1 // suport gl_zfix for nontransformed models. Costs extra indirect drawcalls
 extern cvar_t gl_zfix;
@@ -93,31 +93,31 @@ static VkDrawIndexedIndirectCommand initial_indirect_buffer[MAX_INDIRECT_DRAWS];
 
 typedef union
 {
-	struct                        // 1st element contains this
+	struct // 1st element contains this
 	{
 		short has_sky;
 		short water_count;
-		int lm_count;
+		int	  lm_count;
 	};
 	atomic_uint32_t *update_warp; // next water_count elements contain this
-	struct                        // last lm_count elements contain this
+	struct						  // last lm_count elements contain this
 	{
-		int      lightmap_num;
+		int		 lightmap_num;
 		uint32_t lightmap_styles;
 	};
 } combined_brush_deps;
 
 static combined_brush_deps *brush_deps_data;
-static int                  used_deps_data = 0;
+static int					used_deps_data = 0;
 #define INITIAL_BRUSH_DEPS_SIZE 16384
 
 static int alloc_deps_data (combined_brush_deps *items)
 {
 	static int last = 0;
-	int        item_count = items[0].water_count + items[0].lm_count;
+	int		   item_count = items[0].water_count + items[0].lm_count;
 
 	if (last < used_deps_data && !memcmp (items, &brush_deps_data[last], sizeof (combined_brush_deps)) &&
-	    !memcmp (items + 1, &brush_deps_data[last + 1], item_count * sizeof (combined_brush_deps)))
+		!memcmp (items + 1, &brush_deps_data[last + 1], item_count * sizeof (combined_brush_deps)))
 		return last;
 
 	if (used_deps_data == 0)
@@ -199,9 +199,9 @@ static void calc_deps (qmodel_t *model, mleaf_t *leaf)
 void mark_deps (int combined_deps, int worker_index)
 {
 	combined_brush_deps *deps = &brush_deps_data[combined_deps];
-	int                  water_count = deps->water_count;
-	int                  lm_count = deps->lm_count;
-	int                  i;
+	int					 water_count = deps->water_count;
+	int					 lm_count = deps->lm_count;
+	int					 i;
 	for (i = 0; i < water_count; ++i)
 		Atomic_StoreUInt32 ((++deps)->update_warp, true);
 	for (i = 0, ++deps; i < lm_count; ++i, ++deps)
@@ -209,19 +209,19 @@ void mark_deps (int combined_deps, int worker_index)
 }
 
 static vulkan_memory_t bmodel_memory;
-VkBuffer               bmodel_vertex_buffer;
+VkBuffer			   bmodel_vertex_buffer;
 
 extern cvar_t r_showtris;
 extern cvar_t r_simd;
 typedef struct lm_compute_surface_data_s
 {
 	uint32_t packed_lightstyles;
-	vec3_t   normal;
-	float    dist;
+	vec3_t	 normal;
+	float	 dist;
 	uint32_t packed_light_st_and_tex;
 	uint32_t packed_vbo_offset_and_count;
 	uint32_t packed_texturemins;
-	vec4_t   vecs[2];
+	vec4_t	 vecs[2];
 } lm_compute_surface_data_t;
 COMPILE_TIME_ASSERT (lm_compute_surface_data_t, sizeof (lm_compute_surface_data_t) == 64);
 
@@ -236,23 +236,23 @@ COMPILE_TIME_ASSERT (lm_compute_light_t, sizeof (lm_compute_light_t) == 32);
 
 #define WORKGROUP_BOUNDS_BUFFER_SIZE ((LMBLOCK_WIDTH / 8) * (LMBLOCK_HEIGHT / 8) * sizeof (lm_compute_workgroup_bounds_t))
 
-static vulkan_memory_t     lightstyles_scales_buffer_memory;
-static vulkan_memory_t     lights_buffer_memory;
-static vulkan_memory_t     surface_data_buffer_memory;
-static vulkan_memory_t     workgroup_bounds_buffer_memory;
-static vulkan_memory_t     indirect_buffer_memory;
-static vulkan_memory_t     indirect_index_buffer_memory;
-static vulkan_memory_t     dyn_visibility_buffer_memory;
-static VkBuffer            surface_data_buffer;
-static int                 num_surfaces;
-static VkBuffer            indirect_buffer;
-static VkBuffer            indirect_index_buffer;
-static VkBuffer            dyn_visibility_buffer;
-static uint32_t            dyn_visibility_offset; // for double-buffering
-static unsigned char      *dyn_visibility_view;
-static VkBuffer            lightstyles_scales_buffer;
-static VkBuffer            lights_buffer;
-static float              *lightstyles_scales_buffer_mapped;
+static vulkan_memory_t	   lightstyles_scales_buffer_memory;
+static vulkan_memory_t	   lights_buffer_memory;
+static vulkan_memory_t	   surface_data_buffer_memory;
+static vulkan_memory_t	   workgroup_bounds_buffer_memory;
+static vulkan_memory_t	   indirect_buffer_memory;
+static vulkan_memory_t	   indirect_index_buffer_memory;
+static vulkan_memory_t	   dyn_visibility_buffer_memory;
+static VkBuffer			   surface_data_buffer;
+static int				   num_surfaces;
+static VkBuffer			   indirect_buffer;
+static VkBuffer			   indirect_index_buffer;
+static VkBuffer			   dyn_visibility_buffer;
+static uint32_t			   dyn_visibility_offset; // for double-buffering
+static unsigned char	  *dyn_visibility_view;
+static VkBuffer			   lightstyles_scales_buffer;
+static VkBuffer			   lights_buffer;
+static float			  *lightstyles_scales_buffer_mapped;
 static lm_compute_light_t *lights_buffer_mapped;
 
 static int current_compute_buffer_index;
@@ -302,14 +302,14 @@ void DrawGLPoly (cb_context_t *cbx, glpoly_t *p, float color[3], float alpha)
 	const int numtriangles = (numverts - 2);
 	const int numindices = numtriangles * 3;
 
-	VkBuffer     vertex_buffer;
+	VkBuffer	 vertex_buffer;
 	VkDeviceSize vertex_buffer_offset;
 
 	basicvertex_t *vertices = (basicvertex_t *)R_VertexAllocate (numverts * sizeof (basicvertex_t), &vertex_buffer, &vertex_buffer_offset);
 
 	float *v;
-	int    i;
-	int    current_index = 0;
+	int	   i;
+	int	   current_index = 0;
 
 	v = p->verts[0];
 	for (i = 0; i < numverts; ++i, v += VERTEXSIZE)
@@ -329,7 +329,7 @@ void DrawGLPoly (cb_context_t *cbx, glpoly_t *p, float color[3], float alpha)
 	// TODO: Find out if it's necessary
 	if (numindices > FAN_INDEX_BUFFER_SIZE)
 	{
-		VkBuffer     index_buffer;
+		VkBuffer	 index_buffer;
 		VkDeviceSize index_buffer_offset;
 
 		uint16_t *indices = (uint16_t *)R_IndexAllocate (numindices * sizeof (uint16_t), &index_buffer, &index_buffer_offset);
@@ -351,7 +351,7 @@ void DrawGLPoly (cb_context_t *cbx, glpoly_t *p, float color[3], float alpha)
 /*
 =============================================================
 
-    BRUSH MODELS
+	BRUSH MODELS
 
 =============================================================
 */
@@ -376,8 +376,8 @@ qboolean R_IndirectBrush (entity_t *e)
 {
 	assert (e->model->type == mod_brush);
 	return indirect && !(e->origin[0] || e->origin[1] || e->origin[2] || e->angles[0] || e->angles[1] || e->angles[2] ||
-	                     ENTSCALE_DECODE (e->netstate.scale) != 1.0f || ENTALPHA_DECODE (e->alpha) != 1.0f || e->frame != 0 || e->model->name[0] != '*' ||
-	                     (WATER_FIXED_ORDER && brush_deps_data[e->model->combined_deps].water_count != 0));
+						 ENTSCALE_DECODE (e->netstate.scale) != 1.0f || ENTALPHA_DECODE (e->alpha) != 1.0f || e->frame != 0 || e->model->name[0] != '*' ||
+						 (WATER_FIXED_ORDER && brush_deps_data[e->model->combined_deps].water_count != 0));
 }
 
 /*
@@ -387,12 +387,12 @@ R_DrawBrushModel
 */
 void R_DrawBrushModel (cb_context_t *cbx, entity_t *e, int chain, int *brushpolys)
 {
-	int         i, k;
+	int			i, k;
 	msurface_t *psurf;
-	float       dot;
+	float		dot;
 	mplane_t   *pplane;
 	qmodel_t   *clmodel;
-	vec3_t      modelorg;
+	vec3_t		modelorg;
 
 	if (R_CullModelForEntity (e))
 		return;
@@ -402,10 +402,10 @@ void R_DrawBrushModel (cb_context_t *cbx, entity_t *e, int chain, int *brushpoly
 	if (R_IndirectBrush (e))
 	{
 		// indirect mark
-		int              start = clmodel->firstmodelsurface;
-		int              end = start + clmodel->nummodelsurfaces;
-		int              startword = start / 32;
-		int              endword = end / 32;
+		int				 start = clmodel->firstmodelsurface;
+		int				 end = start + clmodel->nummodelsurfaces;
+		int				 startword = start / 32;
+		int				 endword = end / 32;
 		atomic_uint32_t *surfvis = (atomic_uint32_t *)cl.worldmodel->surfvis;
 		if (startword == endword)
 			Atomic_OrUInt32 (&surfvis[startword], (1u << end % 32) - (1u << start % 32));
@@ -490,14 +490,14 @@ R_DrawBrushModel_ShowTris -- johnfitz
 */
 void R_DrawBrushModel_ShowTris (cb_context_t *cbx, entity_t *e)
 {
-	int         i;
+	int			i;
 	msurface_t *psurf;
-	float       dot;
+	float		dot;
 	mplane_t   *pplane;
 	qmodel_t   *clmodel;
-	float       color[] = {1.0f, 1.0f, 1.0f};
+	float		color[] = {1.0f, 1.0f, 1.0f};
 	const float alpha = 1.0f;
-	vec3_t      modelorg;
+	vec3_t		modelorg;
 
 	if (R_CullModelForEntity (e))
 		return;
@@ -578,8 +578,8 @@ void R_DrawIndirectBrushes (cb_context_t *cbx, qboolean draw_water, qboolean dra
 	gltexture_t *lastfullbright = NULL;
 	gltexture_t *lastlightmap = NULL;
 	gltexture_t *lasttexture = NULL;
-	float        last_alpha = FLT_MAX;
-	float        last_constant_factor = FLT_MAX;
+	float		 last_alpha = FLT_MAX;
+	float		 last_constant_factor = FLT_MAX;
 
 	int part_size = (used_indirect_draws + NUM_WORLD_CBX - 1) / NUM_WORLD_CBX;
 	int start = index < 0 ? 0 : part_size * index;
@@ -587,8 +587,8 @@ void R_DrawIndirectBrushes (cb_context_t *cbx, qboolean draw_water, qboolean dra
 
 	for (int i = start; i < end; i++)
 	{
-		texture_t   *t = indirect_draws[i].texture;
-		texture_t   *texture = R_TextureAnimation (t, 0);
+		texture_t	*t = indirect_draws[i].texture;
+		texture_t	*texture = R_TextureAnimation (t, 0);
 		gltexture_t *gl_texture = draw_water ? texture->warpimage : texture->gltexture;
 
 		if (!draw_sky && !gl_texture)
@@ -605,7 +605,7 @@ void R_DrawIndirectBrushes (cb_context_t *cbx, qboolean draw_water, qboolean dra
 			lasttexture = gl_texture;
 		}
 
-		qboolean     fullbright_enabled = false;
+		qboolean	 fullbright_enabled = false;
 		gltexture_t *fullbright;
 		if (!draw_sky && gl_fullbrights.value && (fullbright = R_TextureAnimation (t, 0)->fullbright) && !r_lightmap_cheatsafe)
 		{
@@ -641,12 +641,12 @@ void R_DrawIndirectBrushes (cb_context_t *cbx, qboolean draw_water, qboolean dra
 		{
 			const qboolean alpha_test = texture->name[0] == '{'; // SURF_DRAWFENCE is in surfaces only, but it's derived from the texture name
 			const qboolean alpha_blend = alpha < 1.0f;
-			int            pipeline_index =
+			int			   pipeline_index =
 				(fullbright_enabled ? 1 : 0) + (alpha_test ? 2 : 0) + (alpha_blend ? 4 : 0) + (vid_filter.value != 0 && vid_palettize.value != 0 ? 8 : 0);
 			R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipelines[pipeline_index]);
 
 			qboolean use_zbias = INDIRECT_ZBIAS && gl_zfix.value && indirect_draws[i].is_bmodel;
-			float    constant_factor = 0.0f, slope_factor = 0.0f;
+			float	 constant_factor = 0.0f, slope_factor = 0.0f;
 			if (use_zbias)
 			{
 				if (vulkan_globals.depth_format == VK_FORMAT_D32_SFLOAT_S8_UINT || vulkan_globals.depth_format == VK_FORMAT_D32_SFLOAT)
@@ -666,7 +666,7 @@ void R_DrawIndirectBrushes (cb_context_t *cbx, qboolean draw_water, qboolean dra
 				last_constant_factor = constant_factor;
 			}
 
-			const int    lm_idx = indirect_draws[i].lightmap_idx;
+			const int	 lm_idx = indirect_draws[i].lightmap_idx;
 			gltexture_t *lightmap_texture = (r_fullbright_cheatsafe || lm_idx < 0) ? greylightmap : lightmaps[lm_idx].texture;
 			if (lastlightmap != lightmap_texture)
 			{
@@ -685,7 +685,7 @@ void R_DrawIndirectBrushes (cb_context_t *cbx, qboolean draw_water, qboolean dra
 /*
 =============================================================
 
-    LIGHTMAPS
+	LIGHTMAPS
 
 =============================================================
 */
@@ -698,10 +698,10 @@ called during rendering
 */
 void R_RenderDynamicLightmaps (msurface_t *fa)
 {
-	byte     *base;
-	int       maps;
+	byte	 *base;
+	int		  maps;
 	glRect_t *theRect;
-	int       smax, tmax;
+	int		  smax, tmax;
 
 	if (fa->flags & SURF_DRAWTILED) // johnfitz -- not a lightmapped surface
 		return;
@@ -712,13 +712,13 @@ void R_RenderDynamicLightmaps (msurface_t *fa)
 			goto dynamic;
 
 	if (fa->dlightframe == r_framecount // dynamic this frame
-	    || fa->cached_dlight)           // dynamic previously
+		|| fa->cached_dlight)			// dynamic previously
 	{
 	dynamic:
 		if (r_dynamic.value)
 		{
 			struct lightmap_s *lm = &lightmaps[fa->lightmaptexturenum];
-			lm->modified[Tasks_GetWorkerIndex()] = true;
+			lm->modified[Tasks_GetWorkerIndex ()] = true;
 			theRect = &lm->rectchange;
 			if (fa->light_t < theRect->t)
 			{
@@ -848,9 +848,9 @@ R_FillLightstyleTexture
 */
 static void R_FillLightstyleTextures (msurface_t *surf, byte **lightstyles, int stride)
 {
-	int   smax, tmax;
+	int	  smax, tmax;
 	byte *lightmap;
-	int   maps;
+	int	  maps;
 
 	smax = (surf->extents[0] >> 4) + 1;
 	tmax = (surf->extents[1] >> 4) + 1;
@@ -891,8 +891,8 @@ static void R_AssignWorkgroupBounds (msurface_t *surf)
 {
 	lm_compute_workgroup_bounds_t *bounds = lightmaps[surf->lightmaptexturenum].workgroup_bounds;
 	lm_compute_workgroup_bounds_t *global_bounds = &lightmaps[surf->lightmaptexturenum].global_bounds;
-	const int                      smax = (surf->extents[0] >> 4) + 1;
-	const int                      tmax = (surf->extents[1] >> 4) + 1;
+	const int					   smax = (surf->extents[0] >> 4) + 1;
+	const int					   tmax = (surf->extents[1] >> 4) + 1;
 
 	lm_compute_workgroup_bounds_t surf_bounds;
 	for (int i = 0; i < 3; ++i)
@@ -917,8 +917,8 @@ static void R_AssignWorkgroupBounds (msurface_t *surf)
 	{
 		for (int t = 0; t < tmax; ++t)
 		{
-			const int                      workgroup_x = (surf->light_s + s) / 8;
-			const int                      workgroup_y = (surf->light_t + t) / 8;
+			const int					   workgroup_x = (surf->light_s + s) / 8;
+			const int					   workgroup_y = (surf->light_t + t) / 8;
 			lm_compute_workgroup_bounds_t *workgroup_bounds = bounds + workgroup_x + (workgroup_y * (LMBLOCK_WIDTH / 8));
 			for (int i = 0; i < 3; ++i)
 			{
@@ -938,9 +938,9 @@ static void R_AssignWorkgroupBounds (msurface_t *surf)
 static void UpdateIndirectStructs (msurface_t *surf, qboolean is_bmodel)
 {
 	static int last;
-	int i;
+	int		   i;
 	if (last < used_indirect_draws && indirect_draws[last].lightmap_idx == surf->lightmaptexturenum && indirect_draws[last].texture == surf->texinfo->texture &&
-	    indirect_draws[last].is_bmodel == is_bmodel)
+		indirect_draws[last].is_bmodel == is_bmodel)
 	{
 		surf->indirect_idx = last;
 		indirect_draws[last].max_indices += 3 * (surf->numedges - 2);
@@ -949,7 +949,7 @@ static void UpdateIndirectStructs (msurface_t *surf, qboolean is_bmodel)
 	for (i = 0; i < used_indirect_draws; i++)
 	{
 		if (indirect_draws[i].lightmap_idx == surf->lightmaptexturenum && indirect_draws[i].texture == surf->texinfo->texture &&
-		    indirect_draws[i].is_bmodel == is_bmodel)
+			indirect_draws[i].is_bmodel == is_bmodel)
 		{
 			surf->indirect_idx = last = i;
 			indirect_draws[i].max_indices += 3 * (surf->numedges - 2);
@@ -969,7 +969,8 @@ static void UpdateIndirectStructs (msurface_t *surf, qboolean is_bmodel)
 	indirect_draws[i].max_indices = 3 * (surf->numedges - 2);
 }
 
-static void PrepareIndirectDraws() {
+static void PrepareIndirectDraws ()
+{
 	int total_indices = 0;
 	for (int i = 0; i < used_indirect_draws; i++)
 	{
@@ -989,10 +990,10 @@ GL_CreateSurfaceLightmap
 */
 static void GL_CreateSurfaceLightmap (msurface_t *surf, uint32_t surface_index)
 {
-	int       i;
-	int       smax, tmax;
-	byte     *base;
-	byte     *lightstyles[MAXLIGHTMAPS];
+	int		  i;
+	int		  smax, tmax;
+	byte	 *base;
+	byte	 *lightstyles[MAXLIGHTMAPS];
 	uint32_t *surface_indices;
 
 	if (surf->flags & SURF_DRAWTILED)
@@ -1028,12 +1029,12 @@ BuildSurfaceDisplayList -- called at level load time
 */
 void BuildSurfaceDisplayList (msurface_t *fa)
 {
-	int       i, lindex, lnumverts;
-	medge_t  *pedges, *r_pedge;
-	float    *vec;
-	float     s, t, s0, t0, sdiv, tdiv;
+	int		  i, lindex, lnumverts;
+	medge_t	 *pedges, *r_pedge;
+	float	 *vec;
+	float	  s, t, s0, t0, sdiv, tdiv;
 	glpoly_t *poly;
-	float    *poly_vert;
+	float	 *poly_vert;
 
 	// reconstruct the polygon
 	pedges = currentmodel->edges;
@@ -1214,7 +1215,7 @@ GL_AllocateSurfaceDataBuffer
 static lm_compute_surface_data_t *GL_AllocateSurfaceDataBuffer ()
 {
 	VkResult err;
-	size_t   buffer_size = num_surfaces * sizeof (lm_compute_surface_data_t);
+	size_t	 buffer_size = num_surfaces * sizeof (lm_compute_surface_data_t);
 
 	if (surface_data_buffer != VK_NULL_HANDLE)
 	{
@@ -1253,9 +1254,9 @@ static lm_compute_surface_data_t *GL_AllocateSurfaceDataBuffer ()
 	if (err != VK_SUCCESS)
 		Sys_Error ("vkBindBufferMemory failed");
 
-	VkCommandBuffer            command_buffer;
-	VkBuffer                   staging_buffer;
-	int                        staging_offset;
+	VkCommandBuffer			   command_buffer;
+	VkBuffer				   staging_buffer;
+	int						   staging_offset;
 	lm_compute_surface_data_t *staging_mem = (lm_compute_surface_data_t *)R_StagingAllocate (buffer_size, 1, &command_buffer, &staging_buffer, &staging_offset);
 
 	VkBufferCopy region;
@@ -1275,7 +1276,7 @@ GL_AllocateIndirectBuffer
 static VkDrawIndexedIndirectCommand *GL_AllocateIndirectBuffer (int num_used_indirect_draws)
 {
 	VkResult err;
-	size_t   buffer_size = num_used_indirect_draws * sizeof (VkDrawIndexedIndirectCommand);
+	size_t	 buffer_size = num_used_indirect_draws * sizeof (VkDrawIndexedIndirectCommand);
 
 	if (indirect_buffer != VK_NULL_HANDLE)
 	{
@@ -1314,9 +1315,9 @@ static VkDrawIndexedIndirectCommand *GL_AllocateIndirectBuffer (int num_used_ind
 	if (err != VK_SUCCESS)
 		Sys_Error ("vkBindBufferMemory failed");
 
-	VkCommandBuffer            command_buffer;
-	VkBuffer                   staging_buffer;
-	int                        staging_offset;
+	VkCommandBuffer				  command_buffer;
+	VkBuffer					  staging_buffer;
+	int							  staging_offset;
 	VkDrawIndexedIndirectCommand *staging_mem =
 		(VkDrawIndexedIndirectCommand *)R_StagingAllocate (buffer_size, 1, &command_buffer, &staging_buffer, &staging_offset);
 
@@ -1366,8 +1367,8 @@ static void GL_AllocateWorkgroupBoundsBuffers ()
 
 		const int align_mod = memory_requirements.size % memory_requirements.alignment;
 		aligned_size = ((memory_requirements.size % memory_requirements.alignment) == 0)
-		                   ? memory_requirements.size
-		                   : (memory_requirements.size + memory_requirements.alignment - align_mod);
+						   ? memory_requirements.size
+						   : (memory_requirements.size + memory_requirements.alignment - align_mod);
 
 		VkMemoryAllocateInfo memory_allocate_info;
 		memset (&memory_allocate_info, 0, sizeof (memory_allocate_info));
@@ -1514,13 +1515,13 @@ with all the surfaces from all brush models
 */
 void GL_BuildLightmaps (void)
 {
-	char                       name[32];
-	int                        i, j;
-	uint32_t                   surface_index = 0;
-	struct lightmap_s         *lm;
-	qmodel_t                  *m;
+	char					   name[32];
+	int						   i, j;
+	uint32_t				   surface_index = 0;
+	struct lightmap_s		  *lm;
+	qmodel_t				  *m;
 	lm_compute_surface_data_t *surface_data;
-	msurface_t                *surf;
+	msurface_t				  *surf;
 
 	GL_WaitForDeviceIdle ();
 
@@ -1589,7 +1590,7 @@ void GL_BuildLightmaps (void)
 
 			lm_compute_surface_data_t *surf_data = &surface_data[surface_index];
 			surf_data->packed_lightstyles = ((uint32_t)(surf->styles[0]) << 0) | ((uint32_t)(surf->styles[1]) << 8) | ((uint32_t)(surf->styles[2]) << 16) |
-			                                ((uint32_t)(surf->styles[3]) << 24);
+											((uint32_t)(surf->styles[3]) << 24);
 			for (int k = 0; k < 3; ++k)
 				surf_data->normal[k] = surf->plane->normal[k];
 			surf_data->dist = surf->plane->dist;
@@ -1724,7 +1725,7 @@ void GL_BuildLightmaps (void)
 	for (i = 0; i < lightmap_count; i++)
 	{
 		lm = &lightmaps[i];
-		for ( j = 0; j < TASKS_MAX_WORKERS; ++j)
+		for (j = 0; j < TASKS_MAX_WORKERS; ++j)
 			lm->modified[j] = 0;
 		lm->rectchange.l = LMBLOCK_WIDTH;
 		lm->rectchange.t = LMBLOCK_HEIGHT;
@@ -1758,9 +1759,9 @@ void GL_BuildLightmaps (void)
 
 		{
 			VkCommandBuffer command_buffer;
-			VkBuffer        staging_buffer;
-			int             staging_offset;
-			byte           *bounds_staging = R_StagingAllocate (WORKGROUP_BOUNDS_BUFFER_SIZE, 1, &command_buffer, &staging_buffer, &staging_offset);
+			VkBuffer		staging_buffer;
+			int				staging_offset;
+			byte		   *bounds_staging = R_StagingAllocate (WORKGROUP_BOUNDS_BUFFER_SIZE, 1, &command_buffer, &staging_buffer, &staging_offset);
 
 			VkBufferCopy region;
 			region.srcOffset = staging_offset;
@@ -1890,7 +1891,7 @@ void GL_BuildLightmaps (void)
 /*
 =============================================================
 
-    VBO support
+	VBO support
 
 =============================================================
 */
@@ -1920,11 +1921,11 @@ surfaces from world + all brush models
 void GL_BuildBModelVertexBuffer (void)
 {
 	unsigned int numverts, varray_bytes;
-	int          i, j;
-	qmodel_t    *m;
-	float       *varray;
-	int          remaining_size;
-	int          copy_offset;
+	int			 i, j;
+	qmodel_t	*m;
+	float		*varray;
+	int			 remaining_size;
+	int			 copy_offset;
 
 	// count all verts in all models
 	numverts = 0;
@@ -1976,8 +1977,8 @@ void GL_BuildBModelVertexBuffer (void)
 
 	const int align_mod = memory_requirements.size % memory_requirements.alignment;
 	const int aligned_size = ((memory_requirements.size % memory_requirements.alignment) == 0)
-	                             ? memory_requirements.size
-	                             : (memory_requirements.size + memory_requirements.alignment - align_mod);
+								 ? memory_requirements.size
+								 : (memory_requirements.size + memory_requirements.alignment - align_mod);
 
 	VkMemoryAllocateInfo memory_allocate_info;
 	memset (&memory_allocate_info, 0, sizeof (memory_allocate_info));
@@ -1998,10 +1999,10 @@ void GL_BuildBModelVertexBuffer (void)
 
 	while (remaining_size > 0)
 	{
-		const int       size_to_copy = q_min (remaining_size, vulkan_globals.staging_buffer_size);
-		VkBuffer        staging_buffer;
+		const int		size_to_copy = q_min (remaining_size, vulkan_globals.staging_buffer_size);
+		VkBuffer		staging_buffer;
 		VkCommandBuffer command_buffer;
-		int             staging_offset;
+		int				staging_offset;
 		unsigned char  *staging_memory = R_StagingAllocate (size_to_copy, 1, &command_buffer, &staging_buffer, &staging_offset);
 
 		VkBufferCopy region;
@@ -2089,16 +2090,16 @@ R_AddDynamicLights
 */
 void R_AddDynamicLights (msurface_t *surf)
 {
-	int         lnum;
-	int         sd, td;
-	float       dist, rad, minlight;
-	vec3_t      impact, local;
-	int         s, t;
-	int         i;
-	int         smax, tmax;
+	int			lnum;
+	int			sd, td;
+	float		dist, rad, minlight;
+	vec3_t		impact, local;
+	int			s, t;
+	int			i;
+	int			smax, tmax;
 	mtexinfo_t *tex;
 	// johnfitz -- lit support via lordhavoc
-	float       cred, cgreen, cblue, brightness;
+	float		cred, cgreen, cblue, brightness;
 	unsigned   *bl;
 	// johnfitz
 
@@ -2176,7 +2177,7 @@ the result in the 'blocklights' array (RGB32)
 void R_AccumulateLightmap (byte *lightmap, unsigned scale, int texels)
 {
 	unsigned *bl = blocklights;
-	int       size = texels * 3;
+	int		  size = texels * 3;
 
 #if defined(USE_SIMD)
 	if (use_simd && size >= 8)
@@ -2209,19 +2210,19 @@ void R_AccumulateLightmap (byte *lightmap, unsigned scale, int texels)
 #elif defined(USE_NEON)
 		while (size >= 8)
 		{
-			uint8x8_t lm_uint_8x8 = vld1_u8(lightmap);
-			uint16x8_t lm_uint_16x8 = vmovl_s8(lm_uint_8x8);
+			uint8x8_t  lm_uint_8x8 = vld1_u8 (lightmap);
+			uint16x8_t lm_uint_16x8 = vmovl_s8 (lm_uint_8x8);
 
-			uint32x4_t lm_old_low_4x32bit = vld1q_u32(bl);
-			uint16x4_t lm_uint_low_16x4 = vget_low_u16(lm_uint_16x8);
-			uint32x4_t lm_scaled_accum_low_4x32bit = vmlal_n_u16(lm_old_low_4x32bit, lm_uint_low_16x4, scale);
-			vst1q_u32(bl, lm_scaled_accum_low_4x32bit);
+			uint32x4_t lm_old_low_4x32bit = vld1q_u32 (bl);
+			uint16x4_t lm_uint_low_16x4 = vget_low_u16 (lm_uint_16x8);
+			uint32x4_t lm_scaled_accum_low_4x32bit = vmlal_n_u16 (lm_old_low_4x32bit, lm_uint_low_16x4, scale);
+			vst1q_u32 (bl, lm_scaled_accum_low_4x32bit);
 			bl += 4;
 
-			uint32x4_t lm_old_high_4x32bit = vld1q_u32(bl);
-			uint16x4_t lm_uint_high_16x4 = vget_high_u16(lm_uint_16x8);
-			uint32x4_t lm_scaled_accum_high_4x32bit = vmlal_n_u16(lm_old_high_4x32bit, lm_uint_high_16x4, scale);
-			vst1q_u32(bl, lm_scaled_accum_high_4x32bit);
+			uint32x4_t lm_old_high_4x32bit = vld1q_u32 (bl);
+			uint16x4_t lm_uint_high_16x4 = vget_high_u16 (lm_uint_16x8);
+			uint32x4_t lm_scaled_accum_high_4x32bit = vmlal_n_u16 (lm_old_high_4x32bit, lm_uint_high_16x4, scale);
+			vst1q_u32 (bl, lm_scaled_accum_high_4x32bit);
 			bl += 4;
 
 			lightmap += 8;
@@ -2275,11 +2276,11 @@ void R_StoreLightmap (byte *dest, int width, int height, int stride)
 			{
 				uint32x4_t lm_32x4 = vld1q_u32 (src);
 				uint16x4_t lm_shifted_16x4 = vshrn_n_u32 (lm_32x4, 8);
-				uint16x4_t lm_shifted_16x4_masked = vset_lane_u16(0xFF, lm_shifted_16x4, 3);
-				uint16x8_t lm_shifted_16x8 = vcombine_u16(lm_shifted_16x4_masked, vcreate_u16(0));
-				uint8x8_t lm_shifted_saturated_8x8 = vqmovn_u16(lm_shifted_16x8);
-				uint32x2_t lm_shifted_saturated_32x2 = vreinterpret_s32_u8(lm_shifted_saturated_8x8);
-				((uint32_t *)dest)[i] = vget_lane_u32(lm_shifted_saturated_32x2, 0);
+				uint16x4_t lm_shifted_16x4_masked = vset_lane_u16 (0xFF, lm_shifted_16x4, 3);
+				uint16x8_t lm_shifted_16x8 = vcombine_u16 (lm_shifted_16x4_masked, vcreate_u16 (0));
+				uint8x8_t  lm_shifted_saturated_8x8 = vqmovn_u16 (lm_shifted_16x8);
+				uint32x2_t lm_shifted_saturated_32x2 = vreinterpret_s32_u8 (lm_shifted_saturated_8x8);
+				((uint32_t *)dest)[i] = vget_lane_u32 (lm_shifted_saturated_32x2, 0);
 				src += 3;
 			}
 			dest += stride;
@@ -2287,7 +2288,7 @@ void R_StoreLightmap (byte *dest, int width, int height, int stride)
 #endif
 	}
 	else
-#endif	
+#endif
 	{
 		stride -= width * 4;
 		while (height-- > 0)
@@ -2318,11 +2319,11 @@ Combine and scale multiple lightmaps into the 8.8 format in blocklights
 */
 void R_BuildLightMap (msurface_t *surf, byte *dest, int stride)
 {
-	int      smax, tmax;
-	int      size;
-	byte    *lightmap;
+	int		 smax, tmax;
+	int		 size;
+	byte	*lightmap;
 	unsigned scale;
-	int      maps;
+	int		 maps;
 
 	surf->cached_dlight = (surf->dlightframe == r_framecount);
 
@@ -2373,7 +2374,7 @@ assumes lightmap texture is already bound
 static void R_UploadLightmap (int lmap, gltexture_t *lightmap_tex)
 {
 	struct lightmap_s *lm = &lightmaps[lmap];
-	qboolean modified = false;
+	qboolean		   modified = false;
 	for (int i = 0; i < TASKS_MAX_WORKERS; ++i)
 	{
 		if (lm->modified[i])
@@ -2388,9 +2389,9 @@ static void R_UploadLightmap (int lmap, gltexture_t *lightmap_tex)
 	if (staging_size == 0) // Empty copies are not valid. This can happen for a single frame when toggling r_gpulightmapupdate from 1 to 0
 		return;
 
-	VkBuffer        staging_buffer;
+	VkBuffer		staging_buffer;
 	VkCommandBuffer command_buffer;
-	int             staging_offset;
+	int				staging_offset;
 	unsigned char  *staging_memory = R_StagingAllocate (staging_size, 4, &command_buffer, &staging_buffer, &staging_offset);
 
 	VkBufferImageCopy region;
@@ -2461,8 +2462,7 @@ void R_FlushUpdateLightmaps (
 	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_COMPUTE, vulkan_globals.update_lightmap_pipeline);
 	uint32_t push_constants[2] = {num_used_dlights, LMBLOCK_WIDTH};
 	uint32_t offsets[2] = {
-		current_compute_buffer_index * MAX_LIGHTSTYLES * sizeof (float),
-		current_compute_buffer_index * MAX_DLIGHTS * sizeof (lm_compute_light_t)};
+		current_compute_buffer_index * MAX_LIGHTSTYLES * sizeof (float), current_compute_buffer_index * MAX_DLIGHTS * sizeof (lm_compute_light_t)};
 	R_PushConstants (cbx, VK_SHADER_STAGE_COMPUTE_BIT, 0, 2 * sizeof (uint32_t), push_constants);
 	for (int j = 0; j < num_batch_lightmaps; ++j)
 	{
@@ -2550,17 +2550,17 @@ void R_UpdateLightmapsAndIndirect (void *unused)
 		light->minlight = cl_dlights[i].minlight;
 	}
 
-	int                  num_lightmaps = 0;
-	int                  num_batch_lightmaps = 0;
+	int					 num_lightmaps = 0;
+	int					 num_batch_lightmaps = 0;
 	VkImageMemoryBarrier pre_lm_image_barriers[UPDATE_LIGHTMAP_BATCH_SIZE];
 	VkImageMemoryBarrier post_lm_image_barriers[UPDATE_LIGHTMAP_BATCH_SIZE];
-	int                  lightmap_indexes[UPDATE_LIGHTMAP_BATCH_SIZE];
-	int                  num_used_dlights = 0;
+	int					 lightmap_indexes[UPDATE_LIGHTMAP_BATCH_SIZE];
+	int					 num_used_dlights = 0;
 
 	for (int lightmap_index = 0; lightmap_index < lightmap_count; ++lightmap_index)
 	{
 		struct lightmap_s *lm = &lightmaps[lightmap_index];
-		uint32_t modified = 0;
+		uint32_t		   modified = 0;
 		for (int i = 0; i < TASKS_MAX_WORKERS; ++i)
 		{
 			modified |= lm->modified[i];

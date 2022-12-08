@@ -22,10 +22,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 /*
-    net.h
-    quake's interface to the networking layer
-    network functions and data, common to the
-    whole engine
+	net.h
+	quake's interface to the networking layer
+	network functions and data, common to the
+	whole engine
 */
 
 #ifndef _QUAKE_NET_H
@@ -40,10 +40,10 @@ extern int net_hostport;
 
 extern cvar_t hostname;
 
-extern double    net_time;
+extern double	 net_time;
 extern sizebuf_t net_message;
-extern int       net_activeconnections;
-extern qboolean  listening;
+extern int		 net_activeconnections;
+extern qboolean	 listening;
 
 typedef char qhostaddr_t[NET_NAMELEN];
 
@@ -56,13 +56,13 @@ struct qsocket_s *NET_CheckNewConnections (void);
 struct qsocket_s *NET_Connect (const char *host);
 // called by client to connect to a host.  Returns -1 if not able to
 
-double      NET_QSocketGetTime (const struct qsocket_s *sock);
+double		NET_QSocketGetTime (const struct qsocket_s *sock);
 const char *NET_QSocketGetTrueAddressString (const struct qsocket_s *sock);
 const char *NET_QSocketGetMaskedAddressString (const struct qsocket_s *sock);
-qboolean    NET_QSocketGetProQuakeAngleHack (const struct qsocket_s *sock);
-int         NET_QSocketGetSequenceIn (const struct qsocket_s *sock);
-int         NET_QSocketGetSequenceOut (const struct qsocket_s *sock);
-void        NET_QSocketSetMSS (struct qsocket_s *s, int mss);
+qboolean	NET_QSocketGetProQuakeAngleHack (const struct qsocket_s *sock);
+int			NET_QSocketGetSequenceIn (const struct qsocket_s *sock);
+int			NET_QSocketGetSequenceOut (const struct qsocket_s *sock);
+void		NET_QSocketSetMSS (struct qsocket_s *s, int mss);
 
 qboolean NET_CanSendMessage (struct qsocket_s *sock);
 // Returns true or false if the given qsocket can currently accept a
@@ -109,8 +109,8 @@ extern enum slistScope_e { SLIST_LOOP, SLIST_LAN, SLIST_INTERNET } slistScope;
 
 extern size_t hostCacheCount;
 
-void        NET_Slist_f (void);
-void        NET_SlistSort (void);
+void		NET_Slist_f (void);
+void		NET_SlistSort (void);
 const char *NET_SlistPrintServer (size_t n);
 const char *NET_SlistPrintServerName (size_t n);
 
@@ -119,8 +119,8 @@ const char *NET_SlistPrintServerName (size_t n);
 extern qboolean ipxAvailable;
 extern qboolean ipv4Available;
 extern qboolean ipv6Available;
-extern char     my_ipx_address[NET_NAMELEN];
-extern char     my_ipv4_address[NET_NAMELEN];
-extern char     my_ipv6_address[NET_NAMELEN];
+extern char		my_ipx_address[NET_NAMELEN];
+extern char		my_ipv4_address[NET_NAMELEN];
+extern char		my_ipv6_address[NET_NAMELEN];
 
 #endif /* _QUAKE_NET_H */

@@ -29,13 +29,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifdef _MSC_VER
 #pragma warning(disable : 4244)
 /* 'argument'	: conversion from 'type1' to 'type2',
-          possible loss of data */
+		  possible loss of data */
 #pragma warning(disable : 4305)
 /* 'identifier'	: truncation from 'type1' to 'type2' */
 /*  in our case, truncation from 'double' to 'float' */
 #pragma warning(disable : 4267)
 /* 'var'	: conversion from 'size_t' to 'type',
-          possible loss of data (/Wp64 warning) */
+		  possible loss of data (/Wp64 warning) */
 #endif /* _MSC_VER */
 #endif /* _WIN32 */
 
@@ -88,10 +88,10 @@ GENERIC_TYPES (IMPL_GENERIC_FUNCS, NO_COMMA)
 typedef struct sizebuf_s
 {
 	qboolean allowoverflow; // if false, do a Sys_Error
-	qboolean overflowed;    // set to true if the buffer size failed
-	byte    *data;
-	int      maxsize;
-	int      cursize;
+	qboolean overflowed;	// set to true if the buffer size failed
+	byte	*data;
+	int		 maxsize;
+	int		 cursize;
 } sizebuf_t;
 
 void  SZ_Alloc (sizebuf_t *buf, int startsize);
@@ -138,40 +138,40 @@ void MSG_WriteStringUnterminated (sizebuf_t *sb, const char *s);
 void MSG_WriteString (sizebuf_t *sb, const char *s);
 void MSG_WriteCoord (sizebuf_t *sb, float f, unsigned int flags);
 void MSG_WriteAngle (sizebuf_t *sb, float f, unsigned int flags);
-void MSG_WriteAngle16 (sizebuf_t *sb, float f, unsigned int flags);           // johnfitz
+void MSG_WriteAngle16 (sizebuf_t *sb, float f, unsigned int flags);			  // johnfitz
 void MSG_WriteEntity (sizebuf_t *sb, unsigned int index, unsigned int pext2); // spike
 struct entity_state_s;
 void MSG_WriteStaticOrBaseLine (
 	sizebuf_t *buf, int idx, struct entity_state_s *state, unsigned int protocol_pext2, unsigned int protocol,
 	unsigned int protocolflags); // spike
 
-extern int      msg_readcount;
+extern int		msg_readcount;
 extern qboolean msg_badread; // set if a read goes beyond end of message
 
-void        MSG_BeginReading (void);
-int         MSG_ReadChar (void);
-int         MSG_ReadByte (void);
-int         MSG_ReadShort (void);
-int         MSG_ReadLong (void);
-float       MSG_ReadFloat (void);
+void		MSG_BeginReading (void);
+int			MSG_ReadChar (void);
+int			MSG_ReadByte (void);
+int			MSG_ReadShort (void);
+int			MSG_ReadLong (void);
+float		MSG_ReadFloat (void);
 const char *MSG_ReadString (void);
 
-float        MSG_ReadCoord (unsigned int flags);
-float        MSG_ReadAngle (unsigned int flags);
-float        MSG_ReadAngle16 (unsigned int flags); // johnfitz
-byte        *MSG_ReadData (unsigned int length);   // spike
+float		 MSG_ReadCoord (unsigned int flags);
+float		 MSG_ReadAngle (unsigned int flags);
+float		 MSG_ReadAngle16 (unsigned int flags); // johnfitz
+byte		*MSG_ReadData (unsigned int length);   // spike
 unsigned int MSG_ReadEntity (unsigned int pext2);  // spike
 
 void COM_Effectinfo_Enumerate (int (*cb) (const char *pname)); // spike -- for dp compat
 
 //============================================================================
 
-int         wildcmp (const char *wild, const char *string);
-void        Info_RemoveKey (char *info, const char *key);
-void        Info_SetKey (char *info, size_t infosize, const char *key, const char *val);
+int			wildcmp (const char *wild, const char *string);
+void		Info_RemoveKey (char *info, const char *key);
+void		Info_SetKey (char *info, size_t infosize, const char *key, const char *val);
 const char *Info_GetKey (const char *info, const char *key, char *out, size_t outsize);
-void        Info_Print (const char *info);
-void        Info_Enumerate (const char *info, void (*cb) (void *ctx, const char *key, const char *value), void *cbctx);
+void		Info_Print (const char *info);
+void		Info_Enumerate (const char *info, void (*cb) (void *ctx, const char *key, const char *value), void *cbctx);
 
 #include "strl_fn.h"
 
@@ -195,12 +195,12 @@ int q_vsnprintf (char *str, size_t size, const char *format, va_list args) FUNC_
 
 //============================================================================
 
-extern char     com_token[1024];
+extern char		com_token[1024];
 extern qboolean com_eof;
 
 const char *COM_Parse (const char *data);
 
-extern int    com_argc;
+extern int	  com_argc;
 extern char **com_argv;
 
 extern int safemode;
@@ -217,15 +217,15 @@ void COM_InitArgv (int argc, char **argv);
 void COM_InitFilesystem (void);
 
 const char *COM_SkipPath (const char *pathname);
-void        COM_StripExtension (const char *in, char *out, size_t outsize);
-void        COM_FileBase (const char *in, char *out, size_t outsize);
-void        COM_AddExtension (char *path, const char *extension, size_t len);
+void		COM_StripExtension (const char *in, char *out, size_t outsize);
+void		COM_FileBase (const char *in, char *out, size_t outsize);
+void		COM_AddExtension (char *path, const char *extension, size_t len);
 #if 0 /* COM_DefaultExtension can be dangerous */
 void COM_DefaultExtension (char *path, const char *extension, size_t len);
 #endif
 const char *COM_FileGetExtension (const char *in); /* doesn't return NULL */
-void        COM_ExtractExtension (const char *in, char *out, size_t outsize);
-void        COM_CreatePath (char *path);
+void		COM_ExtractExtension (const char *in, char *out, size_t outsize);
+void		COM_CreatePath (char *path);
 
 char *va (const char *format, ...) FUNC_PRINTF (1, 2);
 // does a varargs printf into a temp buffer
@@ -233,12 +233,12 @@ char *va (const char *format, ...) FUNC_PRINTF (1, 2);
 unsigned COM_HashString (const char *str);
 
 // localization support for 2021 rerelease version:
-void        LOC_Init (void);
-void        LOC_Shutdown (void);
+void		LOC_Init (void);
+void		LOC_Shutdown (void);
 const char *LOC_GetRawString (const char *key);
 const char *LOC_GetString (const char *key);
-qboolean    LOC_HasPlaceholders (const char *str);
-size_t      LOC_Format (const char *format, const char *(*getarg_fn) (int idx, void *userdata), void *userdata, char *out, size_t len);
+qboolean	LOC_HasPlaceholders (const char *str);
+size_t		LOC_Format (const char *format, const char *(*getarg_fn) (int idx, void *userdata), void *userdata, char *out, size_t len);
 
 //============================================================================
 
@@ -246,24 +246,24 @@ size_t      LOC_Format (const char *format, const char *(*getarg_fn) (int idx, v
 typedef struct
 {
 	char name[MAX_QPATH];
-	int  filepos, filelen;
+	int	 filepos, filelen;
 } packfile_t;
 
 typedef struct pack_s
 {
-	char        filename[MAX_OSPATH];
-	int         handle;
-	int         numfiles;
+	char		filename[MAX_OSPATH];
+	int			handle;
+	int			numfiles;
 	packfile_t *files;
 } pack_t;
 
 typedef struct searchpath_s
 {
-	unsigned int         path_id; // identifier assigned to the game directory
-	                              // Note that <install_dir>/game1 and
-	                              // <userdir>/game1 have the same id.
-	char                 filename[MAX_OSPATH];
-	pack_t              *pack; // only one of filename / pack will be used
+	unsigned int		 path_id; // identifier assigned to the game directory
+								  // Note that <install_dir>/game1 and
+								  // <userdir>/game1 have the same id.
+	char				 filename[MAX_OSPATH];
+	pack_t				*pack; // only one of filename / pack will be used
 	struct searchpath_s *next;
 } searchpath_t;
 
@@ -273,19 +273,19 @@ extern searchpath_t *com_base_searchpaths;
 extern THREAD_LOCAL int com_filesize;
 struct cache_user_s;
 
-extern char             com_basedir[MAX_OSPATH];
-extern char             com_gamedir[MAX_OSPATH];
+extern char				com_basedir[MAX_OSPATH];
+extern char				com_gamedir[MAX_OSPATH];
 extern THREAD_LOCAL int file_from_pak; // global indicating that file came from a pak
 
 const char *COM_GetGameNames (qboolean full);
-qboolean    COM_GameDirMatches (const char *tdirs);
-qboolean    COM_ModForbiddenChars (const char *p);
+qboolean	COM_GameDirMatches (const char *tdirs);
+qboolean	COM_ModForbiddenChars (const char *p);
 
-void     COM_WriteFile (const char *filename, const void *data, int len);
-int      COM_OpenFile (const char *filename, int *handle, unsigned int *path_id);
-int      COM_FOpenFile (const char *filename, FILE **file, unsigned int *path_id);
+void	 COM_WriteFile (const char *filename, const void *data, int len);
+int		 COM_OpenFile (const char *filename, int *handle, unsigned int *path_id);
+int		 COM_FOpenFile (const char *filename, FILE **file, unsigned int *path_id);
 qboolean COM_FileExists (const char *filename, unsigned int *path_id);
-void     COM_CloseFile (int h);
+void	 COM_CloseFile (int h);
 
 byte *COM_LoadFile (const char *path, unsigned int *path_id);
 
@@ -307,10 +307,9 @@ const char *COM_ParseFloatNewline (const char *buffer, float *value);
 // newline. Returns advanced buffer position.
 const char *COM_ParseStringNewline (const char *buffer);
 
-
-#define FS_ENT_NONE         (0)
-#define FS_ENT_FILE         (1 << 0)
-#define FS_ENT_DIRECTORY    (1 << 1)
+#define FS_ENT_NONE		 (0)
+#define FS_ENT_FILE		 (1 << 0)
+#define FS_ENT_DIRECTORY (1 << 1)
 
 /* The following FS_*() stdio replacements are necessary if one is
  * to perform non-sequential reads on files reopened on pak files
@@ -320,27 +319,27 @@ const char *COM_ParseStringNewline (const char *buffer);
 
 typedef struct _fshandle_t
 {
-	FILE    *file;
-	qboolean pak;    /* is the file read from a pak */
-	long     start;  /* file or data start position */
-	long     length; /* file or data size */
-	long     pos;    /* current position relative to start */
+	FILE	*file;
+	qboolean pak;	 /* is the file read from a pak */
+	long	 start;	 /* file or data start position */
+	long	 length; /* file or data size */
+	long	 pos;	 /* current position relative to start */
 } fshandle_t;
 
 size_t FS_fread (void *ptr, size_t size, size_t nmemb, fshandle_t *fh);
-int    FS_fseek (fshandle_t *fh, long offset, int whence);
+int	   FS_fseek (fshandle_t *fh, long offset, int whence);
 long   FS_ftell (fshandle_t *fh);
 void   FS_rewind (fshandle_t *fh);
-int    FS_feof (fshandle_t *fh);
-int    FS_ferror (fshandle_t *fh);
-int    FS_fclose (fshandle_t *fh);
-int    FS_fgetc (fshandle_t *fh);
+int	   FS_feof (fshandle_t *fh);
+int	   FS_ferror (fshandle_t *fh);
+int	   FS_fclose (fshandle_t *fh);
+int	   FS_fgetc (fshandle_t *fh);
 char  *FS_fgets (char *s, int size, fshandle_t *fh);
 long   FS_filelength (fshandle_t *fh);
 
 extern struct cvar_s registered;
-extern qboolean      standard_quake, rogue, hipnotic;
-extern qboolean      fitzmode;
+extern qboolean		 standard_quake, rogue, hipnotic;
+extern qboolean		 fitzmode;
 /* if true, run in fitzquake mode disabling custom quakespasm hacks */
 
 #endif /* _Q_COMMON_H */

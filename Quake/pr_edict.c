@@ -74,7 +74,7 @@ angles and bad trails.
 */
 edict_t *ED_Alloc (void)
 {
-	int      i;
+	int		 i;
 	edict_t *e;
 
 	for (i = qcvm->reserved_edicts; i < qcvm->num_edicts; i++)
@@ -140,7 +140,7 @@ ED_GlobalAtOfs
 static ddef_t *ED_GlobalAtOfs (int ofs)
 {
 	ddef_t *def;
-	int     i;
+	int		i;
 
 	for (i = 0; i < qcvm->progs->numglobaldefs; i++)
 	{
@@ -159,7 +159,7 @@ ED_FieldAtOfs
 static ddef_t *ED_FieldAtOfs (int ofs)
 {
 	ddef_t *def;
-	int     i;
+	int		i;
 
 	for (i = 0; i < qcvm->progs->numfielddefs; i++)
 	{
@@ -178,7 +178,7 @@ ED_FindField
 ddef_t *ED_FindField (const char *name)
 {
 	ddef_t *def;
-	int     i;
+	int		i;
 
 	for (i = 0; i < qcvm->progs->numfielddefs; i++)
 	{
@@ -207,7 +207,7 @@ ED_FindGlobal
 ddef_t *ED_FindGlobal (const char *name)
 {
 	ddef_t *def;
-	int     i;
+	int		i;
 
 	for (i = 0; i < qcvm->progs->numglobaldefs; i++)
 	{
@@ -226,7 +226,7 @@ ED_FindFunction
 dfunction_t *ED_FindFunction (const char *fn_name)
 {
 	dfunction_t *func;
-	int          i;
+	int			 i;
 
 	for (i = 0; i < qcvm->progs->numfunctions; i++)
 	{
@@ -260,8 +260,8 @@ Returns a string describing *data in a type specific manner
 */
 static const char *PR_ValueString (int type, eval_t *val)
 {
-	static char  line[512];
-	ddef_t      *def;
+	static char	 line[512];
+	ddef_t		*def;
 	dfunction_t *f;
 
 	type &= ~DEF_SAVEGLOBAL;
@@ -316,8 +316,8 @@ Easier to parse than PR_ValueString
 */
 const char *PR_UglyValueString (int type, eval_t *val)
 {
-	static char  line[1024];
-	ddef_t      *def;
+	static char	 line[1024];
+	ddef_t		*def;
 	dfunction_t *f;
 
 	type &= ~DEF_SAVEGLOBAL;
@@ -370,9 +370,9 @@ const char *PR_GlobalString (int ofs)
 {
 	static char line[512];
 	const char *s;
-	int         i;
-	ddef_t     *def;
-	void       *val;
+	int			i;
+	ddef_t	   *def;
+	void	   *val;
 
 	val = (void *)&qcvm->globals[ofs];
 	def = ED_GlobalAtOfs (ofs);
@@ -395,8 +395,8 @@ const char *PR_GlobalString (int ofs)
 const char *PR_GlobalStringNoContents (int ofs)
 {
 	static char line[512];
-	int         i;
-	ddef_t     *def;
+	int			i;
+	ddef_t	   *def;
 
 	def = ED_GlobalAtOfs (ofs);
 	if (!def)
@@ -421,11 +421,11 @@ For debugging
 */
 void ED_Print (edict_t *ed)
 {
-	ddef_t     *d;
-	int        *v;
-	int         i, j, l;
+	ddef_t	   *d;
+	int		   *v;
+	int			i, j, l;
 	const char *name;
-	int         type;
+	int			type;
 
 	if (ed->free)
 	{
@@ -468,11 +468,11 @@ For savegames
 */
 void ED_Write (FILE *f, edict_t *ed)
 {
-	ddef_t     *d;
-	int        *v;
-	int         i, j;
+	ddef_t	   *d;
+	int		   *v;
+	int			i, j;
 	const char *name;
-	int         type;
+	int			type;
 
 	fprintf (f, "{\n");
 
@@ -588,7 +588,7 @@ For debugging
 static void ED_Count (void)
 {
 	edict_t *ent;
-	int      i, active, models, solid, step;
+	int		 i, active, models, solid, step;
 
 	if (!sv.active)
 		return;
@@ -633,10 +633,10 @@ ED_WriteGlobals
 */
 void ED_WriteGlobals (FILE *f)
 {
-	ddef_t     *def;
-	int         i;
+	ddef_t	   *def;
+	int			i;
 	const char *name;
-	int         type;
+	int			type;
 
 	fprintf (f, "{\n");
 	for (i = 0; i < qcvm->progs->numglobaldefs; i++)
@@ -664,7 +664,7 @@ ED_ParseGlobals
 */
 const char *ED_ParseGlobals (const char *data)
 {
-	char    keyname[64];
+	char	keyname[64];
 	ddef_t *key;
 
 	while (1)
@@ -708,8 +708,8 @@ ED_NewString
 */
 static string_t ED_NewString (const char *string)
 {
-	char    *new_p;
-	int      i, l;
+	char	*new_p;
+	int		 i, l;
 	string_t num;
 
 	l = strlen (string) + 1;
@@ -777,12 +777,12 @@ returns false if error
 */
 qboolean ED_ParseEpair (void *base, ddef_t *key, const char *s, qboolean zoned)
 {
-	int          i;
-	char         string[128];
-	ddef_t      *def;
-	char        *v, *w;
-	char        *end;
-	void        *d;
+	int			 i;
+	char		 string[128];
+	ddef_t		*def;
+	char		*v, *w;
+	char		*end;
+	void		*d;
 	dfunction_t *func;
 
 	d = (void *)((int *)base + key->ofs);
@@ -874,10 +874,10 @@ Used for initial level load and for savegames.
 */
 const char *ED_ParseEdict (const char *data, edict_t *ent)
 {
-	ddef_t  *key;
-	char     keyname[256];
+	ddef_t	*key;
+	char	 keyname[256];
 	qboolean anglehack, init;
-	int      n;
+	int		 n;
 
 	init = false;
 
@@ -997,9 +997,9 @@ to call ED_CallSpawnFunctions () to let the objects initialize themselves.
 void ED_LoadFromFile (const char *data)
 {
 	dfunction_t *func;
-	edict_t     *ent = NULL;
-	int          inhibit = 0;
-	int          usingspawnfunc = 0;
+	edict_t		*ent = NULL;
+	int			 inhibit = 0;
+	int			 usingspawnfunc = 0;
 
 	pr_global_struct->time = qcvm->time;
 
@@ -1076,9 +1076,9 @@ void ED_LoadFromFile (const char *data)
 }
 
 #ifndef PR_SwitchQCVM
-qcvm_t       *qcvm;
+qcvm_t		 *qcvm;
 globalvars_t *pr_global_struct;
-void          PR_SwitchQCVM (qcvm_t *nvm)
+void		  PR_SwitchQCVM (qcvm_t *nvm)
 {
 	if (qcvm && nvm)
 		Sys_Error ("PR_SwitchQCVM: A qcvm was already active");
@@ -1123,33 +1123,33 @@ static void PR_MergeEngineFieldDefs (void)
 	struct
 	{
 		const char *fname;
-		etype_t     type;
-		int         newidx;
+		etype_t		type;
+		int			newidx;
 	} extrafields[] = {
 		// table of engine fields to add. we'll be using ED_FindFieldOffset for these later.
 		// this is useful for fields that should be defined for mappers which are not defined by the mod.
 		// future note: mutators will need to edit the mutator's globaldefs table too. remember to handle vectors and their 3 globals too.
-		{"alpha", ev_float},          // just because we can (though its already handled in a weird hacky way)
-		{"scale", ev_float},          // hurrah for being able to rescale entities.
+		{"alpha", ev_float},		  // just because we can (though its already handled in a weird hacky way)
+		{"scale", ev_float},		  // hurrah for being able to rescale entities.
 		{"emiteffectnum", ev_float},  // constantly emitting particles, even without moving.
 		{"traileffectnum", ev_float}, // custom effect for trails
-	                                  //{"glow_size",		ev_float},	//deprecated particle trail rubbish
-	                                  //{"glow_color",	ev_float},	//deprecated particle trail rubbish
-		{"tag_entity", ev_float},     // for setattachment to not bug out when omitted.
-		{"tag_index", ev_float},      // for setattachment to not bug out when omitted.
-		{"modelflags", ev_float},     // deprecated rubbish to fill the high 8 bits of effects.
-	                                  //{"vw_index",		ev_float},	//modelindex2
-	                                  //{"pflags",		ev_float},	//for rtlights
-	                                  //{"drawflags",		ev_float},	//hexen2 compat
-	                                  //{"abslight",		ev_float},	//hexen2 compat
-		{"colormod", ev_vector},      // lighting tints
-	                                  //{"glowmod",		ev_vector},	//fullbright tints
-	                                  //{"fatness",		ev_float},	//bloated rendering...
-	                                  //{"gravitydir",	ev_vector},	//says which direction gravity should act for this ent...
+									  //{"glow_size",		ev_float},	//deprecated particle trail rubbish
+									  //{"glow_color",	ev_float},	//deprecated particle trail rubbish
+		{"tag_entity", ev_float},	  // for setattachment to not bug out when omitted.
+		{"tag_index", ev_float},	  // for setattachment to not bug out when omitted.
+		{"modelflags", ev_float},	  // deprecated rubbish to fill the high 8 bits of effects.
+									  //{"vw_index",		ev_float},	//modelindex2
+									  //{"pflags",		ev_float},	//for rtlights
+									  //{"drawflags",		ev_float},	//hexen2 compat
+									  //{"abslight",		ev_float},	//hexen2 compat
+		{"colormod", ev_vector},	  // lighting tints
+									  //{"glowmod",		ev_vector},	//fullbright tints
+									  //{"fatness",		ev_float},	//bloated rendering...
+									  //{"gravitydir",	ev_vector},	//says which direction gravity should act for this ent...
 
 	};
-	int          maxofs = qcvm->progs->entityfields;
-	int          maxdefs = qcvm->progs->numfielddefs;
+	int			 maxofs = qcvm->progs->entityfields;
+	int			 maxdefs = qcvm->progs->numfielddefs;
 	unsigned int j, a;
 
 	// figure out where stuff goes
@@ -1224,7 +1224,7 @@ static void PR_FindSupportedEffects (void)
 	if (qcvm == &sv.qcvm)
 	{
 		qboolean isqex = PR_HasGlobal ("EF_QUADLIGHT", EF_QEX_QUADLIGHT) &&
-		                 (PR_HasGlobal ("EF_PENTLIGHT", EF_QEX_PENTALIGHT) || PR_HasGlobal ("EF_PENTALIGHT", EF_QEX_PENTALIGHT));
+						 (PR_HasGlobal ("EF_PENTLIGHT", EF_QEX_PENTALIGHT) || PR_HasGlobal ("EF_PENTALIGHT", EF_QEX_PENTALIGHT));
 		sv.effectsmask = isqex ? -1 : -1 & ~(EF_QEX_QUADLIGHT | EF_QEX_PENTALIGHT | EF_QEX_CANDLELIGHT);
 	}
 }
@@ -1233,8 +1233,8 @@ static void PR_FindSupportedEffects (void)
 typedef struct
 {
 	const char *name;
-	int         first_statement;
-	int         patch_statement;
+	int			first_statement;
+	int			patch_statement;
 } exbuiltin_t;
 
 /*
@@ -1246,7 +1246,7 @@ for 2021 re-release
 */
 static const exbuiltin_t exbuiltins[] = {
 	/* Update-1 adds the following builtins with new ids. Patch them to use old indices.
-     * (https://steamcommunity.com/games/2310/announcements/detail/2943653788150871156) */
+	 * (https://steamcommunity.com/games/2310/announcements/detail/2943653788150871156) */
 	{"centerprint", -90, -73},
 	{"bprint", -91, -23},
 	{"sprint", -92, -24},
@@ -1256,7 +1256,7 @@ static const exbuiltin_t exbuiltins[] = {
 static void PR_PatchRereleaseBuiltins (void)
 {
 	const exbuiltin_t *ex = exbuiltins;
-	dfunction_t       *f;
+	dfunction_t		  *f;
 
 	for (; ex->name != NULL; ++ex)
 	{

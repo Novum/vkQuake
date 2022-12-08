@@ -51,7 +51,7 @@
    For this, we need stdint.h (or inttypes.h)
    FIXME: On some platforms, only inttypes.h is available.
    FIXME: Properly replace certain short and int usage
-      with int16_t and int32_t.
+	  with int16_t and int32_t.
  */
 #if defined(_MSC_VER) && (_MSC_VER < 1600)
 /* MS Visual Studio provides stdint.h only starting with
@@ -91,7 +91,7 @@
  * sizes: These macros are from SDL headers.
  */
 #if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L)
-#define COMPILE_TIME_ASSERT(name, x) _Static_assert(x, #x)
+#define COMPILE_TIME_ASSERT(name, x) _Static_assert (x, #x)
 #elif defined(__cplusplus) && (__cplusplus >= 201103L)
 #define COMPILE_TIME_ASSERT(name, x) static_assert (x, #x)
 #else /* universal, but may trigger -Wunused-local-typedefs */
@@ -150,9 +150,9 @@ typedef float vec_t;
 typedef vec_t vec3_t[3];
 typedef vec_t vec4_t[4];
 typedef vec_t vec5_t[5];
-typedef int   fixed4_t;
-typedef int   fixed8_t;
-typedef int   fixed16_t;
+typedef int	  fixed4_t;
+typedef int	  fixed8_t;
+typedef int	  fixed16_t;
 
 /*==========================================================================*/
 
@@ -213,7 +213,7 @@ typedef ptrdiff_t ssize_t;
 #if defined(__GNUC__)
 #define FUNC_NORETURN __attribute__ ((__noreturn__))
 #elif defined(_MSC_VER) && (_MSC_VER >= 1200)
-#define FUNC_NORETURN __declspec(noreturn)
+#define FUNC_NORETURN __declspec (noreturn)
 #else
 #define FUNC_NORETURN
 #endif
@@ -221,7 +221,7 @@ typedef ptrdiff_t ssize_t;
 #if defined(__GNUC__) && ((__GNUC__ > 3) || (__GNUC__ == 3 && __GNUC_MINOR__ >= 1))
 #define FUNC_NOINLINE __attribute__ ((__noinline__))
 #elif defined(_MSC_VER) && (_MSC_VER >= 1300)
-#define FUNC_NOINLINE __declspec(noinline)
+#define FUNC_NOINLINE __declspec (noinline)
 #else
 #define FUNC_NOINLINE
 #endif

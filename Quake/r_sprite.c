@@ -33,11 +33,11 @@ R_GetSpriteFrame
 */
 static mspriteframe_t *R_GetSpriteFrame (entity_t *currentent)
 {
-	msprite_t      *psprite;
+	msprite_t	   *psprite;
 	mspritegroup_t *pspritegroup;
 	mspriteframe_t *pspriteframe;
-	int             i, numframes, frame;
-	float          *pintervals, fullinterval, targettime, time;
+	int				i, numframes, frame;
+	float		   *pintervals, fullinterval, targettime, time;
 
 	psprite = (msprite_t *)currentent->model->extradata;
 	frame = currentent->frame;
@@ -84,11 +84,11 @@ R_CreateSpriteVertices
 */
 static void R_CreateSpriteVertices (entity_t *e, mspriteframe_t *frame, basicvertex_t *vertices)
 {
-	vec3_t     point, v_forward, v_right, v_up;
+	vec3_t	   point, v_forward, v_right, v_up;
 	msprite_t *psprite;
-	float     *s_up, *s_right;
-	float      angle, sr, cr;
-	float      scale = ENTSCALE_DECODE (e->netstate.scale);
+	float	  *s_up, *s_right;
+	float	   angle, sr, cr;
+	float	   scale = ENTSCALE_DECODE (e->netstate.scale);
 
 	psprite = (msprite_t *)e->model->extradata;
 
@@ -182,10 +182,10 @@ R_DrawSpriteModel -- johnfitz -- rewritten: now supports all orientations
 */
 void R_DrawSpriteModel (cb_context_t *cbx, entity_t *e)
 {
-	VkBuffer        buffer;
-	VkDeviceSize    buffer_offset;
+	VkBuffer		buffer;
+	VkDeviceSize	buffer_offset;
 	basicvertex_t  *vertices = (basicvertex_t *)R_VertexAllocate (4 * sizeof (basicvertex_t), &buffer, &buffer_offset);
-	msprite_t      *psprite;
+	msprite_t	   *psprite;
 	mspriteframe_t *frame = R_GetSpriteFrame (e);
 
 	R_CreateSpriteVertices (e, frame, vertices);
@@ -213,8 +213,8 @@ R_DrawSpriteModel_ShowTris
 */
 void R_DrawSpriteModel_ShowTris (cb_context_t *cbx, entity_t *e)
 {
-	VkBuffer        buffer;
-	VkDeviceSize    buffer_offset;
+	VkBuffer		buffer;
+	VkDeviceSize	buffer_offset;
 	basicvertex_t  *vertices = (basicvertex_t *)R_VertexAllocate (4 * sizeof (basicvertex_t), &buffer, &buffer_offset);
 	mspriteframe_t *frame = R_GetSpriteFrame (e);
 

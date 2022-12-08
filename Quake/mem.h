@@ -40,10 +40,10 @@ void  Mem_Free (const void *ptr);
 #endif
 
 extern THREAD_LOCAL size_t thread_stack_alloc_size;
-extern size_t              max_thread_stack_alloc_size;
+extern size_t			   max_thread_stack_alloc_size;
 
 #define TEMP_ALLOC(type, var, size)                                                        \
-	qboolean     temp_alloc_##var##_on_heap = false;                                       \
+	qboolean	 temp_alloc_##var##_on_heap = false;                                       \
 	const size_t temp_alloc_##var##_size = sizeof (type) * (size);                         \
 	if ((thread_stack_alloc_size + temp_alloc_##var##_size) > max_thread_stack_alloc_size) \
 	{                                                                                      \

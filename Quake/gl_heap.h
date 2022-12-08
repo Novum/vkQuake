@@ -23,11 +23,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 typedef struct glheapnode_s
 {
-	VkDeviceSize         offset;
-	VkDeviceSize         size;
+	VkDeviceSize		 offset;
+	VkDeviceSize		 size;
 	struct glheapnode_s *prev;
 	struct glheapnode_s *next;
-	qboolean             free;
+	qboolean			 free;
 } glheapnode_t;
 
 typedef struct glheap_s

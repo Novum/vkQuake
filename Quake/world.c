@@ -34,14 +34,14 @@ line of sight checks trace->crosscontent, but bullets don't
 
 typedef struct
 {
-	vec3_t       boxmins, boxmaxs; // enclose the test object along entire move
-	float       *mins, *maxs;      // size of the moving object
-	vec3_t       mins2, maxs2;     // size when clipping against mosnters
-	float       *start, *end;
-	trace_t      trace;
-	int          type;
+	vec3_t		 boxmins, boxmaxs; // enclose the test object along entire move
+	float		*mins, *maxs;	   // size of the moving object
+	vec3_t		 mins2, maxs2;	   // size when clipping against mosnters
+	float		*start, *end;
+	trace_t		 trace;
+	int			 type;
 	unsigned int hitcontents; // content types to impact upon... (1<<-CONTENTS_FOO) bitmask
-	edict_t     *passedict;
+	edict_t		*passedict;
 } moveclip_t;
 
 int SV_HullPointContents (hull_t *hull, int num, vec3_t p);
@@ -54,9 +54,9 @@ HULL BOXES
 ===============================================================================
 */
 
-static hull_t      box_hull;
+static hull_t	   box_hull;
 static mclipnode_t box_clipnodes[6]; // johnfitz -- was dclipnode_t
-static mplane_t    box_planes[6];
+static mplane_t	   box_planes[6];
 
 /*
 ===================
@@ -126,9 +126,9 @@ testing object's origin to get a point to use with the returned hull.
 hull_t *SV_HullForEntity (edict_t *ent, vec3_t mins, vec3_t maxs, vec3_t offset)
 {
 	qmodel_t *model;
-	vec3_t    size;
-	vec3_t    hullmins, hullmaxs;
-	hull_t   *hull;
+	vec3_t	  size;
+	vec3_t	  hullmins, hullmaxs;
+	hull_t	 *hull;
 
 	// decide which clipping hull to use, based on the size
 	if (ent->v.solid == SOLID_BSP)
@@ -188,8 +188,8 @@ SV_CreateAreaNode
 areanode_t *SV_CreateAreaNode (int depth, vec3_t mins, vec3_t maxs)
 {
 	areanode_t *anode;
-	vec3_t      size;
-	vec3_t      mins1, maxs1, mins2, maxs2;
+	vec3_t		size;
+	vec3_t		mins1, maxs1, mins2, maxs2;
 
 	anode = &qcvm->areanodes[qcvm->numareanodes];
 	qcvm->numareanodes++;
@@ -263,7 +263,7 @@ them and risking the list getting corrupt.
 */
 static void SV_AreaTriggerEdicts (edict_t *ent, areanode_t *node, edict_t **list, int *listcount, const int listspace)
 {
-	link_t  *l, *next;
+	link_t	*l, *next;
 	edict_t *touch;
 
 	// touch linked edicts
@@ -276,7 +276,7 @@ static void SV_AreaTriggerEdicts (edict_t *ent, areanode_t *node, edict_t **list
 		if (!touch->v.touch || touch->v.solid != SOLID_TRIGGER)
 			continue;
 		if (ent->v.absmin[0] > touch->v.absmax[0] || ent->v.absmin[1] > touch->v.absmax[1] || ent->v.absmin[2] > touch->v.absmax[2] ||
-		    ent->v.absmax[0] < touch->v.absmin[0] || ent->v.absmax[1] < touch->v.absmin[1] || ent->v.absmax[2] < touch->v.absmin[2])
+			ent->v.absmax[0] < touch->v.absmin[0] || ent->v.absmax[1] < touch->v.absmin[1] || ent->v.absmax[2] < touch->v.absmin[2])
 			continue;
 
 		if (*listcount == listspace)
@@ -309,9 +309,9 @@ Based on code from Spike.
 void SV_TouchLinks (edict_t *ent)
 {
 	edict_t **list;
-	edict_t  *touch;
-	int       old_self, old_other;
-	int       i, listcount;
+	edict_t	 *touch;
+	int		  old_self, old_other;
+	int		  i, listcount;
 
 	TEMP_ALLOC (edict_t *, list, qcvm->num_edicts);
 
@@ -328,7 +328,7 @@ void SV_TouchLinks (edict_t *ent)
 		if (!touch->v.touch || touch->v.solid != SOLID_TRIGGER)
 			continue;
 		if (ent->v.absmin[0] > touch->v.absmax[0] || ent->v.absmin[1] > touch->v.absmax[1] || ent->v.absmin[2] > touch->v.absmax[2] ||
-		    ent->v.absmax[0] < touch->v.absmin[0] || ent->v.absmax[1] < touch->v.absmin[1] || ent->v.absmax[2] < touch->v.absmin[2])
+			ent->v.absmax[0] < touch->v.absmin[0] || ent->v.absmax[1] < touch->v.absmin[1] || ent->v.absmax[2] < touch->v.absmin[2])
 			continue;
 		old_self = pr_global_struct->self;
 		old_other = pr_global_struct->other;
@@ -354,9 +354,9 @@ SV_FindTouchedLeafs
 void SV_FindTouchedLeafs (edict_t *ent, mnode_t *node)
 {
 	mplane_t *splitplane;
-	mleaf_t  *leaf;
-	int       sides;
-	int       leafnum;
+	mleaf_t	 *leaf;
+	int		  sides;
+	int		  leafnum;
 
 	if (node->contents == CONTENTS_SOLID)
 		return;
@@ -410,9 +410,9 @@ void SV_LinkEdict (edict_t *ent, qboolean touch_triggers)
 
 	// set the abs box
 	if (ent->v.solid == SOLID_BSP && pr_checkextension.value && IsOriginWithinMinMax (ent->v.origin, ent->v.mins, ent->v.maxs) &&
-	    !IsAxisAlignedDeg (ent->v.angles))
+		!IsAxisAlignedDeg (ent->v.angles))
 	{ // expand for rotation the lame way. hopefully there's an origin brush in there.
-		int    i;
+		int	   i;
 		float  v1, v2;
 		vec3_t max;
 		// q2 method
@@ -507,9 +507,9 @@ SV_HullPointContents
 */
 int SV_HullPointContents (hull_t *hull, int num, vec3_t p)
 {
-	float        d;
+	float		 d;
 	mclipnode_t *node; // johnfitz -- was dclipnode_t
-	mplane_t    *plane;
+	mplane_t	*plane;
 
 	while (num >= 0)
 	{
@@ -599,11 +599,11 @@ enum
 struct rhtctx_s
 {
 	unsigned int hitcontents;
-	vec3_t       start, end;
+	vec3_t		 start, end;
 	mclipnode_t *clipnodes;
-	mplane_t    *planes;
+	mplane_t	*planes;
 };
-#define VectorNegate(a, b)               ((b)[0] = -(a)[0], (b)[1] = -(a)[1], (b)[2] = -(a)[2])
+#define VectorNegate(a, b)				 ((b)[0] = -(a)[0], (b)[1] = -(a)[1], (b)[2] = -(a)[2])
 #define FloatInterpolate(a, bness, b, c) ((c) = (a) + (b - a) * bness)
 #define VectorInterpolate(a, bness, b, c) \
 	FloatInterpolate ((a)[0], bness, (b)[0], (c)[0]), FloatInterpolate ((a)[1], bness, (b)[1], (c)[1]), FloatInterpolate ((a)[2], bness, (b)[2], (c)[2])
@@ -623,12 +623,12 @@ with allsolid). ezQuake also has a version of this logic, but I trust mine more.
 static int Q1BSP_RecursiveHullTrace (struct rhtctx_s *ctx, int num, float p1f, float p2f, vec3_t p1, vec3_t p2, trace_t *trace)
 {
 	mclipnode_t *node;
-	mplane_t    *plane;
-	float        t1, t2;
-	vec3_t       mid;
-	int          side;
-	float        midf;
-	int          rht;
+	mplane_t	*plane;
+	float		 t1, t2;
+	vec3_t		 mid;
+	int			 side;
+	float		 midf;
+	int			 rht;
 
 reenter:
 
@@ -741,13 +741,13 @@ reenter:
 qboolean SV_SlowRecursiveHullCheck (hull_t *hull, int num, float p1f, float p2f, vec3_t p1, vec3_t p2, trace_t *trace)
 {
 	mclipnode_t *node; // johnfitz -- was dclipnode_t
-	mplane_t    *plane;
-	float        t1, t2;
-	float        frac;
-	int          i;
-	vec3_t       mid;
-	int          side;
-	float        midf;
+	mplane_t	*plane;
+	float		 t1, t2;
+	float		 frac;
+	int			 i;
+	vec3_t		 mid;
+	int			 side;
+	float		 midf;
 
 	// check for empty
 	if (num < 0)
@@ -918,8 +918,8 @@ eventually rotation) of the end points
 trace_t SV_ClipMoveToEntity (edict_t *ent, vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, unsigned int hitcontents)
 {
 	trace_t trace;
-	vec3_t  offset;
-	vec3_t  start_l, end_l;
+	vec3_t	offset;
+	vec3_t	start_l, end_l;
 	hull_t *hull;
 
 	// fill in a default trace
@@ -936,7 +936,7 @@ trace_t SV_ClipMoveToEntity (edict_t *ent, vec3_t start, vec3_t mins, vec3_t max
 
 	// trace a line through the apropriate clipping hull
 	if (ent->v.solid == SOLID_BSP && pr_checkextension.value && !IsAxisAlignedDeg (ent->v.angles) &&
-	    qcvm->edicts != ent) // don't rotate the world entity's collisions (its not networked, and some maps are buggy, resulting in screwed collisions)
+		qcvm->edicts != ent) // don't rotate the world entity's collisions (its not networked, and some maps are buggy, resulting in screwed collisions)
 	{
 #define DotProductTranspose(v, m, a) ((v)[0] * (m)[0][a] + (v)[1] * (m)[1][a] + (v)[2] * (m)[2][a])
 		vec3_t axis[3], start_r, end_r, tmp;
@@ -983,9 +983,9 @@ Mins and maxs enclose the entire area swept by the move
 */
 static void SV_ClipToLinks (areanode_t *node, moveclip_t *clip)
 {
-	link_t  *l, *next;
+	link_t	*l, *next;
 	edict_t *touch;
-	trace_t  trace;
+	trace_t	 trace;
 
 	// touch linked edicts
 	for (l = node->solid_edicts.next; l != &node->solid_edicts; l = next)
@@ -1003,7 +1003,7 @@ static void SV_ClipToLinks (areanode_t *node, moveclip_t *clip)
 			continue;
 
 		if (clip->boxmins[0] > touch->v.absmax[0] || clip->boxmins[1] > touch->v.absmax[1] || clip->boxmins[2] > touch->v.absmax[2] ||
-		    clip->boxmaxs[0] < touch->v.absmin[0] || clip->boxmaxs[1] < touch->v.absmin[1] || clip->boxmaxs[2] < touch->v.absmin[2])
+			clip->boxmaxs[0] < touch->v.absmin[0] || clip->boxmaxs[1] < touch->v.absmin[1] || clip->boxmaxs[2] < touch->v.absmin[2])
 			continue;
 
 		if (clip->passedict && clip->passedict->v.size[0] && !touch->v.size[0])
@@ -1067,8 +1067,8 @@ static void SV_ClipToLinks (areanode_t *node, moveclip_t *clip)
 static void World_ClipToNetwork (moveclip_t *clip)
 {
 	entity_t *touch;
-	trace_t   trace;
-	int       i;
+	trace_t	  trace;
+	int		  i;
 
 	for (i = 1, touch = cl.entities + 1; i < cl.num_entities; i++, touch++)
 	{
@@ -1084,30 +1084,30 @@ static void World_ClipToNetwork (moveclip_t *clip)
 			continue;
 
 		/*		if (clip->boxmins[0] > touch->v.absmax[0]
-		        || clip->boxmins[1] > touch->v.absmax[1]
-		        || clip->boxmins[2] > touch->v.absmax[2]
-		        || clip->boxmaxs[0] < touch->v.absmin[0]
-		        || clip->boxmaxs[1] < touch->v.absmin[1]
-		        || clip->boxmaxs[2] < touch->v.absmin[2] )
-		            continue;
+				|| clip->boxmins[1] > touch->v.absmax[1]
+				|| clip->boxmins[2] > touch->v.absmax[2]
+				|| clip->boxmaxs[0] < touch->v.absmin[0]
+				|| clip->boxmaxs[1] < touch->v.absmin[1]
+				|| clip->boxmaxs[2] < touch->v.absmin[2] )
+					continue;
 		*/
 
 		// might intersect, so do an exact clip
 		if (clip->trace.allsolid)
 			return;
 		/*		if (clip->passedict)
-		        {
-		            if (PROG_TO_EDICT(touch->v.owner) == clip->passedict)
-		                continue;	// don't clip against own missiles
-		            if (PROG_TO_EDICT(clip->passedict->v.owner) == touch)
-		                continue;	// don't clip against owner
-		        }
+				{
+					if (PROG_TO_EDICT(touch->v.owner) == clip->passedict)
+						continue;	// don't clip against own missiles
+					if (PROG_TO_EDICT(clip->passedict->v.owner) == touch)
+						continue;	// don't clip against owner
+				}
 		*/
 
 		//:: trace = SV_ClipMoveToEntity (touch, clip->start, clip->mins, clip->maxs, clip->end);
 		{
-			vec3_t  offset;
-			vec3_t  start_l, end_l;
+			vec3_t	offset;
+			vec3_t	start_l, end_l;
 			hull_t *hull;
 
 			// fill in a default trace
@@ -1157,8 +1157,8 @@ static void World_ClipToNetwork (moveclip_t *clip)
 
 			// trace a line through the apropriate clipping hull
 			if (touch->netstate.solidsize == ES_SOLID_BSP && (touch->angles[0] || touch->angles[1] || touch->angles[2]) &&
-			    pr_checkextension
-			        .value) // don't rotate the world entity's collisions (its not networked, and some maps are buggy, resulting in screwed collisions)
+				pr_checkextension
+					.value) // don't rotate the world entity's collisions (its not networked, and some maps are buggy, resulting in screwed collisions)
 			{
 #define DotProductTranspose(v, m, a) ((v)[0] * (m)[0][a] + (v)[1] * (m)[1][a] + (v)[2] * (m)[2][a])
 				vec3_t axis[3], start_r, end_r, tmp;
@@ -1251,7 +1251,7 @@ SV_Move
 trace_t SV_Move (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type, edict_t *passedict)
 {
 	moveclip_t clip;
-	int        i;
+	int		   i;
 
 	memset (&clip, 0, sizeof (moveclip_t));
 

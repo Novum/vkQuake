@@ -60,7 +60,7 @@ int in_impulse;
 
 void KeyDown (kbutton_t *b)
 {
-	int         k;
+	int			k;
 	const char *c;
 
 	c = Cmd_Argv (1);
@@ -83,13 +83,13 @@ void KeyDown (kbutton_t *b)
 	}
 
 	if (b->state & 1)
-		return;        // still down
+		return;		   // still down
 	b->state |= 1 + 2; // down + impulse down
 }
 
 void KeyUp (kbutton_t *b)
 {
-	int         k;
+	int			k;
 	const char *c;
 
 	c = Cmd_Argv (1);
@@ -112,9 +112,9 @@ void KeyUp (kbutton_t *b)
 		return; // some other key is still holding it down
 
 	if (!(b->state & 1))
-		return;     // still up (this should not happen)
+		return;		// still up (this should not happen)
 	b->state &= ~1; // now up
-	b->state |= 4;  // impulse up
+	b->state |= 4;	// impulse up
 }
 
 void IN_KLookDown (void)
@@ -276,7 +276,7 @@ Returns 0.25 if a key was pressed and released during the frame,
 */
 float CL_KeyState (kbutton_t *key)
 {
-	float    val;
+	float	 val;
 	qboolean impulsedown, impulseup, down;
 
 	impulsedown = key->state & 2;
@@ -480,8 +480,8 @@ CL_SendMove
 void CL_SendMove (const usercmd_t *cmd)
 {
 	unsigned int i;
-	sizebuf_t    buf;
-	byte         data[1024];
+	sizebuf_t	 buf;
+	byte		 data[1024];
 
 	buf.maxsize = sizeof (data);
 	buf.cursize = 0;
@@ -496,7 +496,7 @@ void CL_SendMove (const usercmd_t *cmd)
 
 	if (cmd)
 	{
-		int          dump = buf.cursize;
+		int			 dump = buf.cursize;
 		unsigned int bits = cmd->buttons;
 
 		//
@@ -507,7 +507,7 @@ void CL_SendMove (const usercmd_t *cmd)
 		if (cl.protocol_pext2 & PEXT2_PREDINFO)
 		{
 			MSG_WriteShort (&buf, cl.movemessages & 0xffff); // server will ack this once it has been applied to the player's entity state
-			MSG_WriteFloat (&buf, cmd->servertime);          // so server can get cmd timing (pings will be calculated by entframe acks).
+			MSG_WriteFloat (&buf, cmd->servertime);			 // so server can get cmd timing (pings will be calculated by entframe acks).
 		}
 		else
 			MSG_WriteFloat (&buf, cl.mtime[0]); // so server can get ping times

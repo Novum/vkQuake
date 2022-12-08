@@ -27,7 +27,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 qsocket_t *net_activeSockets = NULL;
 qsocket_t *net_freeSockets = NULL;
-int        net_numsockets = 0;
+int		   net_numsockets = 0;
 
 qboolean ipxAvailable = false;
 qboolean ipv4Available = false;
@@ -42,20 +42,20 @@ char my_ipv6_address[NET_NAMELEN];
 
 qboolean listening = false;
 
-qboolean          slistInProgress = false;
-qboolean          slistSilent = false;
+qboolean		  slistInProgress = false;
+qboolean		  slistSilent = false;
 enum slistScope_e slistScope = SLIST_LOOP;
-static double     slistStartTime;
-static double     slistActiveTime;
-static int        slistLastShown;
+static double	  slistStartTime;
+static double	  slistActiveTime;
+static int		  slistLastShown;
 
-static void          Slist_Send (void *);
-static void          Slist_Poll (void *);
+static void			 Slist_Send (void *);
+static void			 Slist_Poll (void *);
 static PollProcedure slistSendProcedure = {NULL, 0.0, Slist_Send};
 static PollProcedure slistPollProcedure = {NULL, 0.0, Slist_Poll};
 
 sizebuf_t net_message;
-int       net_activeconnections = 0;
+int		  net_activeconnections = 0;
 
 int messagesSent = 0;
 int messagesReceived = 0;
@@ -328,7 +328,7 @@ void NET_SlistSort (void)
 {
 	if (hostCacheCount > 1)
 	{
-		size_t      i, j;
+		size_t		i, j;
 		hostcache_t temp;
 		for (i = 0; i < hostCacheCount; i++)
 		{
@@ -421,14 +421,14 @@ NET_Connect
 ===================
 */
 
-size_t      hostCacheCount = 0;
+size_t		hostCacheCount = 0;
 hostcache_t hostcache[HOSTCACHESIZE];
 
 qsocket_t *NET_Connect (const char *host)
 {
 	qsocket_t *ret;
-	size_t     n;
-	int        numdrivers = net_numdrivers;
+	size_t	   n;
+	int		   numdrivers = net_numdrivers;
 
 	SetNetTime ();
 
@@ -650,7 +650,7 @@ NET_SendMessage
 
 Try to send a complete length+message unit over the reliable stream.
 returns 0 if the message cannot be delivered reliably, but the connection
-        is still considered valid
+		is still considered valid
 returns 1 if the message was sent properly
 returns -1 if the connection died
 ==================
@@ -720,9 +720,9 @@ qboolean NET_CanSendMessage (qsocket_t *sock)
 
 int NET_SendToAll (sizebuf_t *data, double blocktime)
 {
-	double   start;
-	int      i;
-	int      count = 0;
+	double	 start;
+	int		 i;
+	int		 count = 0;
 	qboolean msg_init[MAX_SCOREBOARD]; /* did we write the message to the client's connection	*/
 	qboolean msg_sent[MAX_SCOREBOARD]; /* did the msg arrive its destination (canSend state).	*/
 
@@ -730,7 +730,7 @@ int NET_SendToAll (sizebuf_t *data, double blocktime)
 	{
 		/*
 		if (!host_client->netconnection)
-		    continue;
+			continue;
 		if (host_client->active)
 		*/
 		if (host_client->netconnection && host_client->active)
@@ -804,7 +804,7 @@ NET_Init
 
 void NET_Init (void)
 {
-	int        i;
+	int		   i;
 	qsocket_t *s;
 
 	i = COM_CheckParm ("-port");

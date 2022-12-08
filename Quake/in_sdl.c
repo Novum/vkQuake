@@ -38,14 +38,14 @@ cvar_t joy_exponent_move = {"joy_exponent_move", "3", CVAR_ARCHIVE};
 cvar_t joy_swapmovelook = {"joy_swapmovelook", "0", CVAR_ARCHIVE};
 cvar_t joy_enable = {"joy_enable", "1", CVAR_ARCHIVE};
 
-static SDL_JoystickID      joy_active_instaceid = -1;
+static SDL_JoystickID	   joy_active_instaceid = -1;
 static SDL_GameController *joy_active_controller = NULL;
 
 static qboolean no_mouse = false;
 
 static int buttonremap[] = {
 	K_MOUSE1, K_MOUSE3, /* right button		*/
-	K_MOUSE2,           /* middle button	*/
+	K_MOUSE2,			/* middle button	*/
 	K_MOUSE4, K_MOUSE5};
 
 /* total accumulated mouse movement since last frame */
@@ -72,7 +72,7 @@ static int SDLCALL IN_SDL2_FilterMouseEvents (void *userdata, SDL_Event *event)
 static void IN_BeginIgnoringMouseEvents (void)
 {
 	SDL_EventFilter currentFilter = NULL;
-	void           *currentUserdata = NULL;
+	void		   *currentUserdata = NULL;
 	SDL_GetEventFilter (&currentFilter, &currentUserdata);
 
 	if (currentFilter != IN_SDL2_FilterMouseEvents)
@@ -82,7 +82,7 @@ static void IN_BeginIgnoringMouseEvents (void)
 static void IN_EndIgnoringMouseEvents (void)
 {
 	SDL_EventFilter currentFilter;
-	void           *currentUserdata;
+	void		   *currentUserdata;
 	if (SDL_GetEventFilter (&currentFilter, &currentUserdata) == SDL_TRUE)
 		SDL_SetEventFilter (NULL, NULL);
 }
@@ -130,9 +130,9 @@ void IN_HideCursor ()
 
 void IN_StartupJoystick (void)
 {
-	int                 i;
-	int                 nummappings;
-	char                controllerdb[MAX_OSPATH];
+	int					i;
+	int					nummappings;
+	char				controllerdb[MAX_OSPATH];
 	SDL_GameController *gamecontroller;
 
 	if (COM_CheckParm ("-nojoy"))
@@ -261,7 +261,7 @@ typedef struct axisstate_s
 } joyaxisstate_t;
 
 static joybuttonstate_t joy_buttonstate;
-static joyaxisstate_t   joy_axisstate;
+static joyaxisstate_t	joy_axisstate;
 
 static double joy_buttontimer[SDL_CONTROLLER_BUTTON_MAX];
 static double joy_emulatedkeytimer[10];
@@ -290,8 +290,8 @@ Raises the axis values to the given exponent, keeping signs.
 static joyaxis_t IN_ApplyEasing (joyaxis_t axis, float exponent)
 {
 	joyaxis_t result = {0};
-	vec_t     eased_magnitude;
-	vec_t     magnitude = IN_AxisMagnitude (axis);
+	vec_t	  eased_magnitude;
+	vec_t	  magnitude = IN_AxisMagnitude (axis);
 
 	if (magnitude == 0)
 		return result;
@@ -317,7 +317,7 @@ by sv_maxspeed).
 */
 static joyaxis_t IN_ApplyMoveEasing (joyaxis_t axis, float exponent)
 {
-	joyaxis_t   result = IN_ApplyEasing (axis, exponent);
+	joyaxis_t	result = IN_ApplyEasing (axis, exponent);
 	const float v = sqrtf (2.0f);
 
 	result.x *= v;
@@ -332,7 +332,7 @@ IN_ApplyDeadzone
 
 in: raw joystick axis values converted to floats in +-1
 out: applies a circular deadzone and clamps the magnitude at 1
-     (my 360 controller is slightly non-circular and the stick travels further on the diagonals)
+	 (my 360 controller is slightly non-circular and the stick travels further on the diagonals)
 
 deadzone is expected to satisfy 0 < deadzone < 1
 
@@ -343,7 +343,7 @@ and adapted from http://www.third-helix.com/2013/04/12/doing-thumbstick-dead-zon
 static joyaxis_t IN_ApplyDeadzone (joyaxis_t axis, float deadzone)
 {
 	joyaxis_t result = {0};
-	vec_t     magnitude = IN_AxisMagnitude (axis);
+	vec_t	  magnitude = IN_AxisMagnitude (axis);
 
 	if (magnitude > deadzone)
 	{
@@ -449,9 +449,9 @@ Emit key events for game controller buttons, including emulated buttons for anal
 void IN_Commands (void)
 {
 	joyaxisstate_t newaxisstate;
-	int            i;
-	const float    stickthreshold = 0.9;
-	const float    triggerthreshold = joy_deadzone_trigger.value;
+	int			   i;
+	const float	   stickthreshold = 0.9;
+	const float	   triggerthreshold = joy_deadzone_trigger.value;
 
 	if (!joy_enable.value)
 		return;
@@ -523,7 +523,7 @@ IN_JoyMove
 */
 void IN_JoyMove (usercmd_t *cmd)
 {
-	float     speed;
+	float	  speed;
 	joyaxis_t moveRaw, moveDeadzone, moveEased;
 	joyaxis_t lookRaw, lookDeadzone, lookEased;
 
@@ -890,7 +890,7 @@ static void IN_DebugKeyEvent (SDL_Event *event)
 void IN_SendKeyEvents (void)
 {
 	SDL_Event event;
-	int       key;
+	int		  key;
 	qboolean  down;
 
 	while (SDL_PollEvent (&event))

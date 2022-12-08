@@ -29,11 +29,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "miniz.h"
 
 static char *largv[MAX_NUM_ARGVS + 1];
-static char  argvdummy[] = " ";
+static char	 argvdummy[] = " ";
 
 int safemode;
 
-cvar_t registered = {"registered", "1", CVAR_ROM};               /* set to correct value in COM_CheckRegistered() */
+cvar_t registered = {"registered", "1", CVAR_ROM};				 /* set to correct value in COM_CheckRegistered() */
 cvar_t cmdline = {"cmdline", "", CVAR_ROM /*|CVAR_SERVERINFO*/}; /* sending cmdline upon CCREQ_RULE_INFO is evil */
 
 static qboolean com_modified; // set true if using non-id files
@@ -44,16 +44,16 @@ qboolean multiuser;
 static void COM_Path_f (void);
 
 // if a packfile directory differs from this, it is assumed to be hacked
-#define PAK0_COUNT      339   /* id1/pak0.pak - v1.0x */
-#define PAK0_CRC_V100   13900 /* id1/pak0.pak - v1.00 */
-#define PAK0_CRC_V101   62751 /* id1/pak0.pak - v1.01 */
-#define PAK0_CRC_V106   32981 /* id1/pak0.pak - v1.06 */
-#define PAK0_CRC        (PAK0_CRC_V106)
-#define PAK0_COUNT_V091 308   /* id1/pak0.pak - v0.91/0.92, not supported */
-#define PAK0_CRC_V091   28804 /* id1/pak0.pak - v0.91/0.92, not supported */
+#define PAK0_COUNT		339	  /* id1/pak0.pak - v1.0x */
+#define PAK0_CRC_V100	13900 /* id1/pak0.pak - v1.00 */
+#define PAK0_CRC_V101	62751 /* id1/pak0.pak - v1.01 */
+#define PAK0_CRC_V106	32981 /* id1/pak0.pak - v1.06 */
+#define PAK0_CRC		(PAK0_CRC_V106)
+#define PAK0_COUNT_V091 308	  /* id1/pak0.pak - v0.91/0.92, not supported */
+#define PAK0_CRC_V091	28804 /* id1/pak0.pak - v0.91/0.92, not supported */
 
 char   com_token[1024];
-int    com_argc;
+int	   com_argc;
 char **com_argv;
 
 #define CMDLINE_LENGTH 256 /* johnfitz -- mirrored in cmd.c */
@@ -62,18 +62,18 @@ char com_cmdline[CMDLINE_LENGTH];
 qboolean standard_quake = true, rogue, hipnotic;
 
 extern const unsigned char vkquake_pak[];
-extern const int           vkquake_pak_size;
-extern const int           vkquake_pak_decompressed_size;
+extern const int		   vkquake_pak_size;
+extern const int		   vkquake_pak_decompressed_size;
 
 // this graphic needs to be in the pak file to use registered features
 static unsigned short pop[] = {0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x6600, 0x0000, 0x0000, 0x0000, 0x6600, 0x0000,
-                               0x0000, 0x0066, 0x0000, 0x0000, 0x0000, 0x0000, 0x0067, 0x0000, 0x0000, 0x6665, 0x0000, 0x0000, 0x0000, 0x0000, 0x0065, 0x6600,
-                               0x0063, 0x6561, 0x0000, 0x0000, 0x0000, 0x0000, 0x0061, 0x6563, 0x0064, 0x6561, 0x0000, 0x0000, 0x0000, 0x0000, 0x0061, 0x6564,
-                               0x0064, 0x6564, 0x0000, 0x6469, 0x6969, 0x6400, 0x0064, 0x6564, 0x0063, 0x6568, 0x6200, 0x0064, 0x6864, 0x0000, 0x6268, 0x6563,
-                               0x0000, 0x6567, 0x6963, 0x0064, 0x6764, 0x0063, 0x6967, 0x6500, 0x0000, 0x6266, 0x6769, 0x6a68, 0x6768, 0x6a69, 0x6766, 0x6200,
-                               0x0000, 0x0062, 0x6566, 0x6666, 0x6666, 0x6666, 0x6562, 0x0000, 0x0000, 0x0000, 0x0062, 0x6364, 0x6664, 0x6362, 0x0000, 0x0000,
-                               0x0000, 0x0000, 0x0000, 0x0062, 0x6662, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0061, 0x6661, 0x0000, 0x0000, 0x0000,
-                               0x0000, 0x0000, 0x0000, 0x0000, 0x6500, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x6400, 0x0000, 0x0000, 0x0000};
+							   0x0000, 0x0066, 0x0000, 0x0000, 0x0000, 0x0000, 0x0067, 0x0000, 0x0000, 0x6665, 0x0000, 0x0000, 0x0000, 0x0000, 0x0065, 0x6600,
+							   0x0063, 0x6561, 0x0000, 0x0000, 0x0000, 0x0000, 0x0061, 0x6563, 0x0064, 0x6561, 0x0000, 0x0000, 0x0000, 0x0000, 0x0061, 0x6564,
+							   0x0064, 0x6564, 0x0000, 0x6469, 0x6969, 0x6400, 0x0064, 0x6564, 0x0063, 0x6568, 0x6200, 0x0064, 0x6864, 0x0000, 0x6268, 0x6563,
+							   0x0000, 0x6567, 0x6963, 0x0064, 0x6764, 0x0063, 0x6967, 0x6500, 0x0000, 0x6266, 0x6769, 0x6a68, 0x6768, 0x6a69, 0x6766, 0x6200,
+							   0x0000, 0x0062, 0x6566, 0x6666, 0x6666, 0x6666, 0x6562, 0x0000, 0x0000, 0x0000, 0x0062, 0x6364, 0x6664, 0x6362, 0x0000, 0x0000,
+							   0x0000, 0x0000, 0x0000, 0x0062, 0x6662, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0061, 0x6661, 0x0000, 0x0000, 0x0000,
+							   0x0000, 0x0000, 0x0000, 0x0000, 0x6500, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x6400, 0x0000, 0x0000, 0x0000};
 
 /*
 
@@ -140,7 +140,7 @@ void InsertLinkAfter (link_t *l, link_t *after)
 /*
 ============================================================================
 
-                    LIBRARY REPLACEMENT FUNCTIONS
+					LIBRARY REPLACEMENT FUNCTIONS
 
 ============================================================================
 */
@@ -149,7 +149,7 @@ int q_strcasecmp (const char *s1, const char *s2)
 {
 	const char *p1 = s1;
 	const char *p2 = s2;
-	char        c1, c2;
+	char		c1, c2;
 
 	if (p1 == p2)
 		return 0;
@@ -169,7 +169,7 @@ int q_strncasecmp (const char *s1, const char *s2, size_t n)
 {
 	const char *p1 = s1;
 	const char *p2 = s2;
-	char        c1, c2;
+	char		c1, c2;
 
 	if (p1 == p2 || n == 0)
 		return 0;
@@ -214,7 +214,7 @@ char *q_strcasestr (const char *haystack, const char *needle)
 					c2 -= ('a' - 'A');
 				if (!c2)
 					return (char *)haystack; // end of needle means we found a complete match
-				if (!c1)                     // end of haystack means we can't possibly find needle in it any more
+				if (!c1)					 // end of haystack means we can't possibly find needle in it any more
 					return NULL;
 				if (c1 != c2) // mismatch means no match starting at haystack[0]
 					break;
@@ -284,7 +284,7 @@ int q_vsnprintf (char *str, size_t size, const char *format, va_list args)
 
 int q_snprintf (char *str, size_t size, const char *format, ...)
 {
-	int     ret;
+	int		ret;
 	va_list argptr;
 
 	va_start (argptr, format);
@@ -399,7 +399,7 @@ void Info_SetKey (char *info, size_t infosize, const char *key, const char *val)
 const char *Info_GetKey (const char *info, const char *key, char *out, size_t outsize)
 {
 	const char *r = out;
-	size_t      keylen = strlen (key);
+	size_t		keylen = strlen (key);
 
 	outsize--;
 
@@ -481,7 +481,7 @@ void Info_Print (const char *info)
 /*
 ============================================================================
 
-                    BYTE ORDER FUNCTIONS
+					BYTE ORDER FUNCTIONS
 
 ============================================================================
 */
@@ -549,7 +549,7 @@ float (*LittleFloat) (float l) = FloatNoSwap;
 /*
 ==============================================================================
 
-            MESSAGE IO FUNCTIONS
+			MESSAGE IO FUNCTIONS
 
 Handles byte ordering and avoids alignment errors
 ==============================================================================
@@ -615,7 +615,7 @@ void MSG_WriteFloat (sizebuf_t *sb, float f)
 	union
 	{
 		float f;
-		int   l;
+		int	  l;
 	} dat;
 
 	dat.f = f;
@@ -703,7 +703,7 @@ void MSG_WriteEntity (sizebuf_t *sb, unsigned int entnum, unsigned int pext2)
 //
 // reading functions
 //
-int      msg_readcount;
+int		 msg_readcount;
 qboolean msg_badread;
 
 void MSG_BeginReading (void)
@@ -773,7 +773,7 @@ int MSG_ReadLong (void)
 	}
 
 	c = (uint32_t)net_message.data[msg_readcount] + ((uint32_t)(net_message.data[msg_readcount + 1]) << 8) +
-	    ((uint32_t)(net_message.data[msg_readcount + 2]) << 16) + ((uint32_t)(net_message.data[msg_readcount + 3]) << 24);
+		((uint32_t)(net_message.data[msg_readcount + 2]) << 16) + ((uint32_t)(net_message.data[msg_readcount + 3]) << 24);
 
 	msg_readcount += 4;
 
@@ -786,7 +786,7 @@ float MSG_ReadFloat (void)
 	{
 		byte  b[4];
 		float f;
-		int   l;
+		int	  l;
 	} dat;
 
 	dat.b[0] = net_message.data[msg_readcount];
@@ -803,8 +803,8 @@ float MSG_ReadFloat (void)
 const char *MSG_ReadString (void)
 {
 	static char string[2048];
-	int         c;
-	size_t      l;
+	int			c;
+	size_t		l;
 
 	l = 0;
 	do
@@ -1008,7 +1008,7 @@ COM_FileGetExtension - doesn't return NULL
 const char *COM_FileGetExtension (const char *in)
 {
 	const char *src;
-	size_t      len;
+	size_t		len;
 
 	len = strlen (in);
 	if (len < 2) /* nothing meaningful */
@@ -1241,9 +1241,9 @@ being registered.
 */
 static void COM_CheckRegistered (void)
 {
-	int            h;
+	int			   h;
 	unsigned short check[128];
-	int            i;
+	int			   i;
 
 	COM_OpenFile ("gfx/pop.lmp", &h, NULL);
 
@@ -1337,7 +1337,7 @@ void COM_InitArgv (int argc, char **argv)
 }
 
 entity_state_t nullentitystate;
-static void    COM_SetupNullState (void)
+static void	   COM_SetupNullState (void)
 {
 	// the null state has some specific default values
 	//	nullentitystate.drawflags = /*SCALE_ORIGIN_ORIGIN*/96;
@@ -1362,20 +1362,20 @@ COM_Init
 void COM_Init (void)
 {
 	uint32_t uint_value = 0x12345678;
-	uint8_t  bytes[4];
+	uint8_t	 bytes[4];
 	memcpy (bytes, &uint_value, sizeof (uint32_t));
 
 	/*    U N I X */
 
 	/*
 	BE_ORDER:  12 34 56 78
-	       U  N  I  X
+		   U  N  I  X
 
 	LE_ORDER:  78 56 34 12
-	       X  I  N  U
+		   X  I  N  U
 
 	PDP_ORDER: 34 12 78 56
-	       N  U  X  I
+		   N  U  X  I
 	*/
 	if (bytes[0] != 0x78 || bytes[1] != 0x56 || bytes[2] != 0x34 || bytes[3] != 0x12)
 		Sys_Error ("Unsupported endianism. Only little endian is supported");
@@ -1408,7 +1408,7 @@ FIXME: make this buffer size safe someday
 static char *get_va_buffer (void)
 {
 	static THREAD_LOCAL char va_buffers[VA_NUM_BUFFS][VA_BUFFERLEN];
-	static THREAD_LOCAL int  buffer_idx = 0;
+	static THREAD_LOCAL int	 buffer_idx = 0;
 	buffer_idx = (buffer_idx + 1) & (VA_NUM_BUFFS - 1);
 	return va_buffers[buffer_idx];
 }
@@ -1442,21 +1442,21 @@ THREAD_LOCAL int com_filesize;
 typedef struct
 {
 	char name[56];
-	int  filepos, filelen;
+	int	 filepos, filelen;
 } dpackfile_t;
 
 typedef struct
 {
 	char id[4];
-	int  dirofs;
-	int  dirlen;
+	int	 dirofs;
+	int	 dirlen;
 } dpackheader_t;
 
 #define MAX_FILES_IN_PACK 2048
 
-char             com_gamenames[1024]; // eg: "hipnotic;quoth;warp" ... no id1
-char             com_gamedir[MAX_OSPATH];
-char             com_basedir[MAX_OSPATH];
+char			 com_gamenames[1024]; // eg: "hipnotic;quoth;warp" ... no id1
+char			 com_gamedir[MAX_OSPATH];
+char			 com_basedir[MAX_OSPATH];
 THREAD_LOCAL int file_from_pak; // ZOID: global indicating that file came from a pak
 
 searchpath_t *com_searchpaths;
@@ -1492,7 +1492,7 @@ The filename will be prefixed by the current game directory
 */
 void COM_WriteFile (const char *filename, const void *data, int len)
 {
-	int  handle;
+	int	 handle;
 	char name[MAX_OSPATH];
 
 	Sys_mkdir (com_gamedir); // johnfitz -- if we've switched to a nonexistant gamedir, create it now so we don't crash
@@ -1561,10 +1561,10 @@ can be used for detecting a file's presence.
 static int COM_FindFile (const char *filename, int *handle, FILE **file, unsigned int *path_id)
 {
 	searchpath_t *search;
-	char          netpath[MAX_OSPATH];
-	pack_t       *pak;
-	int           i;
-	qboolean      is_config = !q_strcasecmp (filename, "config.cfg"), found = false;
+	char		  netpath[MAX_OSPATH];
+	pack_t		 *pak;
+	int			  i;
+	qboolean	  is_config = !q_strcasecmp (filename, "config.cfg"), found = false;
 
 	if (file && handle)
 		Sys_Error ("COM_FindFile: both handle and file set");
@@ -1621,7 +1621,7 @@ static int COM_FindFile (const char *filename, int *handle, FILE **file, unsigne
 				if (Sys_FileType (netpath) & FS_ENT_FILE)
 					found = true;
 			}
-			
+
 			if (!found)
 			{
 				q_snprintf (netpath, sizeof (netpath), "%s/%s", search->filename, filename);
@@ -1651,8 +1651,8 @@ static int COM_FindFile (const char *filename, int *handle, FILE **file, unsigne
 	}
 
 	if (strcmp (COM_FileGetExtension (filename), "pcx") != 0 && strcmp (COM_FileGetExtension (filename), "tga") != 0 &&
-	    strcmp (COM_FileGetExtension (filename), "lit") != 0 && strcmp (COM_FileGetExtension (filename), "vis") != 0 &&
-	    strcmp (COM_FileGetExtension (filename), "ent") != 0)
+		strcmp (COM_FileGetExtension (filename), "lit") != 0 && strcmp (COM_FileGetExtension (filename), "vis") != 0 &&
+		strcmp (COM_FileGetExtension (filename), "ent") != 0)
 		Con_DPrintf ("FindFile: can't find %s\n", filename);
 	else
 		Con_DPrintf2 ("FindFile: can't find %s\n", filename);
@@ -1733,10 +1733,10 @@ Allways appends a 0 byte.
 */
 byte *COM_LoadFile (const char *path, unsigned int *path_id)
 {
-	int   h;
+	int	  h;
 	byte *buf;
 	char  base[32];
-	int   len;
+	int	  len;
 
 	buf = NULL; // quiet compiler warning
 
@@ -1840,11 +1840,11 @@ of the list so they override previous pack files.
 static pack_t *COM_LoadPackFile (const char *packfile, int packhandle)
 {
 	dpackheader_t  header;
-	int            i;
-	packfile_t    *newfiles;
-	int            numpackfiles;
-	pack_t        *pack;
-	dpackfile_t    info[MAX_FILES_IN_PACK];
+	int			   i;
+	packfile_t	  *newfiles;
+	int			   numpackfiles;
+	pack_t		  *pack;
+	dpackfile_t	   info[MAX_FILES_IN_PACK];
 	unsigned short crc;
 
 	Sys_FileRead (packhandle, (void *)&header, sizeof (header));
@@ -1918,7 +1918,7 @@ const char *COM_GetGameNames (qboolean full)
 // if either contain id1 then that gets ignored
 qboolean COM_GameDirMatches (const char *tdirs)
 {
-	int         gnl = strlen (GAMENAME);
+	int			gnl = strlen (GAMENAME);
 	const char *odirs = COM_GetGameNames (false);
 
 	// ignore any core paths.
@@ -1961,14 +1961,14 @@ COM_AddGameDirectory -- johnfitz -- modified based on topaz's tutorial
 */
 static void COM_AddGameDirectory (const char *dir)
 {
-	const char   *base = com_basedir;
-	int           i, packhandle;
+	const char	 *base = com_basedir;
+	int			  i, packhandle;
 	unsigned int  path_id;
 	searchpath_t *search;
-	pack_t       *pak;
-	char          pakfile[MAX_OSPATH];
-	qboolean      been_here = false;
-	static byte  *vkquake_pak_extracted;
+	pack_t		 *pak;
+	char		  pakfile[MAX_OSPATH];
+	qboolean	  been_here = false;
+	static byte	 *vkquake_pak_extracted;
 
 	if (*com_gamenames)
 		q_strlcat (com_gamenames, ";", sizeof (com_gamenames));
@@ -2058,8 +2058,8 @@ _add_path:
 
 void COM_ResetGameDirectories (const char *newdirs)
 {
-	char         *newgamedirs = q_strdup (newdirs);
-	char         *newpath, *path;
+	char		 *newgamedirs = q_strdup (newdirs);
+	char		 *newpath, *path;
 	searchpath_t *search;
 	// Kill the extra game if it is loaded
 	while (com_searchpaths != com_base_searchpaths)
@@ -2118,7 +2118,7 @@ static void COM_Game_f (void)
 {
 	if (Cmd_Argc () > 1)
 	{
-		int  i, pri;
+		int	 i, pri;
 		char paths[1024];
 
 		if (!registered.value) // disable shareware quake
@@ -2213,7 +2213,7 @@ COM_InitFilesystem
 */
 void COM_InitFilesystem (void) // johnfitz -- modified based on topaz's tutorial
 {
-	int         i, j;
+	int			i, j;
 	const char *p;
 
 	Cvar_RegisterVariable (&registered);
@@ -2474,27 +2474,27 @@ long FS_filelength (fshandle_t *fh)
 // for compat with dpp7 protocols, and mods that cba to precache things.
 void COM_Effectinfo_Enumerate (int (*cb) (const char *pname))
 {
-	int                i;
-	const char        *f, *e;
-	char              *buf;
-	static const char *dpnames[] = {"TE_GUNSHOT",       "TE_GUNSHOTQUAD",
-	                                "TE_SPIKE",         "TE_SPIKEQUAD",
-	                                "TE_SUPERSPIKE",    "TE_SUPERSPIKEQUAD",
-	                                "TE_WIZSPIKE",      "TE_KNIGHTSPIKE",
-	                                "TE_EXPLOSION",     "TE_EXPLOSIONQUAD",
-	                                "TE_TAREXPLOSION",  "TE_TELEPORT",
-	                                "TE_LAVASPLASH",    "TE_SMALLFLASH",
-	                                "TE_FLAMEJET",      "EF_FLAME",
-	                                "TE_BLOOD",         "TE_SPARK",
-	                                "TE_PLASMABURN",    "TE_TEI_G3",
-	                                "TE_TEI_SMOKE",     "TE_TEI_BIGEXPLOSION",
-	                                "TE_TEI_PLASMAHIT", "EF_STARDUST",
-	                                "TR_ROCKET",        "TR_GRENADE",
-	                                "TR_BLOOD",         "TR_WIZSPIKE",
-	                                "TR_SLIGHTBLOOD",   "TR_KNIGHTSPIKE",
-	                                "TR_VORESPIKE",     "TR_NEHAHRASMOKE",
-	                                "TR_NEXUIZPLASMA",  "TR_GLOWTRAIL",
-	                                "SVC_PARTICLE",     NULL};
+	int				   i;
+	const char		  *f, *e;
+	char			  *buf;
+	static const char *dpnames[] = {"TE_GUNSHOT",		"TE_GUNSHOTQUAD",
+									"TE_SPIKE",			"TE_SPIKEQUAD",
+									"TE_SUPERSPIKE",	"TE_SUPERSPIKEQUAD",
+									"TE_WIZSPIKE",		"TE_KNIGHTSPIKE",
+									"TE_EXPLOSION",		"TE_EXPLOSIONQUAD",
+									"TE_TAREXPLOSION",	"TE_TELEPORT",
+									"TE_LAVASPLASH",	"TE_SMALLFLASH",
+									"TE_FLAMEJET",		"EF_FLAME",
+									"TE_BLOOD",			"TE_SPARK",
+									"TE_PLASMABURN",	"TE_TEI_G3",
+									"TE_TEI_SMOKE",		"TE_TEI_BIGEXPLOSION",
+									"TE_TEI_PLASMAHIT", "EF_STARDUST",
+									"TR_ROCKET",		"TR_GRENADE",
+									"TR_BLOOD",			"TR_WIZSPIKE",
+									"TR_SLIGHTBLOOD",	"TR_KNIGHTSPIKE",
+									"TR_VORESPIKE",		"TR_NEHAHRASMOKE",
+									"TR_NEXUIZPLASMA",	"TR_GLOWTRAIL",
+									"SVC_PARTICLE",		NULL};
 
 	buf = (char *)COM_LoadFile ("effectinfo.txt", NULL);
 	if (!buf)
@@ -2520,7 +2520,7 @@ void COM_Effectinfo_Enumerate (int (*cb) (const char *pname))
 
 /*
 ============================================================================
-                                LOCALIZATION
+								LOCALIZATION
 ============================================================================
 */
 typedef struct
@@ -2531,12 +2531,12 @@ typedef struct
 
 typedef struct
 {
-	int         numentries;
-	int         maxnumentries;
-	int         numindices;
+	int			numentries;
+	int			maxnumentries;
+	int			numindices;
 	unsigned   *indices;
 	locentry_t *entries;
-	char       *text;
+	char	   *text;
 } localization_t;
 
 static localization_t localization;
@@ -2573,13 +2573,13 @@ LOC_LoadFile
 void LOC_LoadFile (const char *file)
 {
 	char  path[1024];
-	int   i, lineno;
+	int	  i, lineno;
 	char *cursor;
 
-	SDL_RWops     *rw = NULL;
-	Sint64         sz;
+	SDL_RWops	  *rw = NULL;
+	Sint64		   sz;
 	mz_zip_archive archive;
-	size_t         size = 0;
+	size_t		   size = 0;
 
 	// clear existing data
 	if (localization.text)
@@ -2686,13 +2686,13 @@ void LOC_LoadFile (const char *file)
 		}
 		else if (equals)
 		{
-			char       *key_end = equals;
-			qboolean    leading_quote;
-			qboolean    trailing_quote;
+			char	   *key_end = equals;
+			qboolean	leading_quote;
+			qboolean	trailing_quote;
 			locentry_t *entry;
-			char       *value_src;
-			char       *value_dst;
-			char       *value;
+			char	   *value_src;
+			char	   *value_dst;
+			char	   *value;
 
 			// trim whitespace before equals sign
 			while (key_end != line && q_isspace (key_end[-1]))
@@ -2800,7 +2800,7 @@ void LOC_LoadFile (const char *file)
 	for (i = 0; i < localization.numentries; i++)
 	{
 		locentry_t *entry = &localization.entries[i];
-		unsigned    pos = COM_HashString (entry->key) % localization.numindices, end = pos;
+		unsigned	pos = COM_HashString (entry->key) % localization.numindices, end = pos;
 
 		for (;;)
 		{
@@ -2864,7 +2864,7 @@ const char *LOC_GetRawString (const char *key)
 
 	do
 	{
-		unsigned    idx = localization.indices[pos];
+		unsigned	idx = localization.indices[pos];
 		locentry_t *entry;
 		if (!idx)
 			return NULL;
@@ -2904,7 +2904,7 @@ otherwise returns a negative value and leaves the pointer unchanged
 */
 static int LOC_ParseArg (const char **pstr)
 {
-	int         arg;
+	int			arg;
 	const char *str = *pstr;
 
 	// opening brace
@@ -2956,7 +2956,7 @@ If len > 0, output is always NUL-terminated
 size_t LOC_Format (const char *format, const char *(*getarg_fn) (int idx, void *userdata), void *userdata, char *out, size_t len)
 {
 	size_t written = 0;
-	int    numargs = 0;
+	int	   numargs = 0;
 
 	if (!len)
 	{
@@ -2968,9 +2968,9 @@ size_t LOC_Format (const char *format, const char *(*getarg_fn) (int idx, void *
 	while (*format && written < len)
 	{
 		const char *insert;
-		size_t      space_left;
-		size_t      insert_len;
-		int         argindex = LOC_ParseArg (&format);
+		size_t		space_left;
+		size_t		insert_len;
+		int			argindex = LOC_ParseArg (&format);
 
 		if (argindex < 0)
 		{

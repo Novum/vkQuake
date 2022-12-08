@@ -22,19 +22,19 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef __NET_DATAGRAM_H
 #define __NET_DATAGRAM_H
 
-int        Datagram_Init (void);
-void       Datagram_Listen (qboolean state);
-int        Datagram_QueryAddresses (qhostaddr_t *addresses, int maxaddresses);
+int		   Datagram_Init (void);
+void	   Datagram_Listen (qboolean state);
+int		   Datagram_QueryAddresses (qhostaddr_t *addresses, int maxaddresses);
 qboolean   Datagram_SearchForHosts (qboolean xmit);
 qsocket_t *Datagram_Connect (const char *host);
 qsocket_t *Datagram_CheckNewConnections (void);
 qsocket_t *Datagram_GetAnyMessage (void);
-int        Datagram_GetMessage (qsocket_t *sock);
-int        Datagram_SendMessage (qsocket_t *sock, sizebuf_t *data);
-int        Datagram_SendUnreliableMessage (qsocket_t *sock, sizebuf_t *data);
+int		   Datagram_GetMessage (qsocket_t *sock);
+int		   Datagram_SendMessage (qsocket_t *sock, sizebuf_t *data);
+int		   Datagram_SendUnreliableMessage (qsocket_t *sock, sizebuf_t *data);
 qboolean   Datagram_CanSendMessage (qsocket_t *sock);
 qboolean   Datagram_CanSendUnreliableMessage (qsocket_t *sock);
-void       Datagram_Close (qsocket_t *sock);
-void       Datagram_Shutdown (void);
+void	   Datagram_Close (qsocket_t *sock);
+void	   Datagram_Shutdown (void);
 
 #endif /* __NET_DATAGRAM_H */

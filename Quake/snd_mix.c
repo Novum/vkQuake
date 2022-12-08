@@ -25,9 +25,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #define PAINTBUFFER_SIZE 2048
 portable_samplepair_t paintbuffer[PAINTBUFFER_SIZE];
-int                   snd_scaletable[32][256];
-int                  *snd_p, snd_linear_count;
-short                *snd_out;
+int					  snd_scaletable[32][256];
+int					 *snd_p, snd_linear_count;
+short				 *snd_out;
 
 static int snd_vol;
 
@@ -87,8 +87,8 @@ static void S_TransferStereo16 (int endtime)
 
 static void S_TransferPaintBuffer (int endtime)
 {
-	int  out_idx, out_mask;
-	int  count, step, val;
+	int	 out_idx, out_mask;
+	int	 count, step, val;
 	int *p;
 
 	if (shm->samplebits == 16 && shm->channels == 2)
@@ -174,7 +174,7 @@ static void S_MakeBlackmanWindowKernel (float *kernel, int M, float f_c)
 		else
 		{
 			kernel[i] = (sin (2 * M_PI * f_c * (i - M / 2.0)) / (i - (M / 2.0))) *
-			            (0.42 - 0.5 * cos (2 * M_PI * i / (double)M) + 0.08 * cos (4 * M_PI * i / (double)M));
+						(0.42 - 0.5 * cos (2 * M_PI * i / (double)M) + 0.08 * cos (4 * M_PI * i / (double)M));
 		}
 	}
 
@@ -195,12 +195,12 @@ static void S_MakeBlackmanWindowKernel (float *kernel, int M, float f_c)
 
 typedef struct
 {
-	float *memory;     // kernelsize floats
-	float *kernel;     // kernelsize floats
-	int    kernelsize; // M+1, rounded up to be a multiple of 16
-	int    M;          // M value used to make kernel, even
-	int    parity;     // 0-3
-	float  f_c;        // cutoff frequency, [0..1], fraction of sample rate
+	float *memory;	   // kernelsize floats
+	float *kernel;	   // kernelsize floats
+	int	   kernelsize; // M+1, rounded up to be a multiple of 16
+	int	   M;		   // M value used to make kernel, even
+	int	   parity;	   // 0-3
+	float  f_c;		   // cutoff frequency, [0..1], fraction of sample rate
 } filter_t;
 
 static void S_UpdateFilter (filter_t *filter, int M, float f_c)
@@ -239,11 +239,11 @@ known to be 0 and skip 3/4 of the filter kernel.
 */
 static void S_ApplyFilter (filter_t *filter, int *data, int stride, int count)
 {
-	int          i, j;
-	float       *input;
-	const int    kernelsize = filter->kernelsize;
+	int			 i, j;
+	float		*input;
+	const int	 kernelsize = filter->kernelsize;
 	const float *kernel = filter->kernel;
-	int          parity;
+	int			 parity;
 
 	TEMP_ALLOC (float, input, filter->kernelsize + count);
 
@@ -265,7 +265,7 @@ static void S_ApplyFilter (filter_t *filter, int *data, int stride, int count)
 	for (i = 0; i < count; i++)
 	{
 		const float *input_plus_i = input + i;
-		float        val[4] = {0, 0, 0, 0};
+		float		 val[4] = {0, 0, 0, 0};
 
 		for (j = (4 - parity) % 4; j < kernelsize; j += 16)
 		{
@@ -298,7 +298,7 @@ memory should be a zero-filled filter_t struct
 */
 static void S_LowpassFilter (int *data, int stride, int count, filter_t *memory)
 {
-	int   M;
+	int	  M;
 	float bw, f_c;
 
 	switch ((int)snd_filterquality.value)
@@ -399,8 +399,8 @@ static void SND_PaintChannelFrom16 (channel_t *ch, sfxcache_t *sc, int endtime, 
 
 void S_PaintChannels (int endtime)
 {
-	int         i;
-	int         end, ltime, count;
+	int			i;
+	int			end, ltime, count;
 	channel_t  *ch;
 	sfxcache_t *sc;
 
@@ -536,10 +536,10 @@ void SND_InitScaletable (void)
 
 static void SND_PaintChannelFrom8 (channel_t *ch, sfxcache_t *sc, int count, int paintbufferstart)
 {
-	int            data;
-	int           *lscale, *rscale;
+	int			   data;
+	int			  *lscale, *rscale;
 	unsigned char *sfx;
-	int            i;
+	int			   i;
 
 	if (ch->leftvol > 255)
 		ch->leftvol = 255;
@@ -562,11 +562,11 @@ static void SND_PaintChannelFrom8 (channel_t *ch, sfxcache_t *sc, int count, int
 
 static void SND_PaintChannelFrom16 (channel_t *ch, sfxcache_t *sc, int count, int paintbufferstart)
 {
-	int           data;
-	int           left, right;
-	int           leftvol, rightvol;
+	int			  data;
+	int			  left, right;
+	int			  leftvol, rightvol;
 	signed short *sfx;
-	int           i;
+	int			  i;
 
 	leftvol = ch->leftvol * snd_vol;
 	rightvol = ch->rightvol * snd_vol;

@@ -78,21 +78,21 @@ typedef enum
 // TODO: shorten these?
 typedef struct
 {
-	int        ident;
-	int        version;
-	int        type;
-	float      boundingradius;
-	int        width;
-	int        height;
-	int        numframes;
-	float      beamlength;
+	int		   ident;
+	int		   version;
+	int		   type;
+	float	   boundingradius;
+	int		   width;
+	int		   height;
+	int		   numframes;
+	float	   beamlength;
 	synctype_t synctype;
 } dsprite_t;
 
-#define SPR_VP_PARALLEL_UPRIGHT  0
-#define SPR_FACING_UPRIGHT       1
-#define SPR_VP_PARALLEL          2
-#define SPR_ORIENTED             3
+#define SPR_VP_PARALLEL_UPRIGHT	 0
+#define SPR_FACING_UPRIGHT		 1
+#define SPR_VP_PARALLEL			 2
+#define SPR_ORIENTED			 3
 #define SPR_VP_PARALLEL_ORIENTED 4
 
 typedef struct

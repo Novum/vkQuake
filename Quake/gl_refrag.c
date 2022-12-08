@@ -30,7 +30,7 @@ mnode_t *r_pefragtopnode;
 /*
 ===============================================================================
 
-                    ENTITY FRAGMENT FUNCTIONS
+					ENTITY FRAGMENT FUNCTIONS
 
 ericw -- GLQuake only uses efrags for static entities, and they're never
 removed, so I trimmed out unused functionality and fields in efrag_t.
@@ -45,7 +45,7 @@ http://forums.insideqc.com/viewtopic.php?t=1930
 ===============================================================================
 */
 
-static vec3_t    r_emins, r_emaxs;
+static vec3_t	 r_emins, r_emaxs;
 static entity_t *r_addent;
 
 #define EXTRA_EFRAGS 128
@@ -94,10 +94,10 @@ R_SplitEntityOnNode
 */
 void R_SplitEntityOnNode (mnode_t *node)
 {
-	efrag_t  *ef;
+	efrag_t	 *ef;
 	mplane_t *splitplane;
-	mleaf_t  *leaf;
-	int       sides;
+	mleaf_t	 *leaf;
+	int		  sides;
 
 	if (node->contents == CONTENTS_SOLID)
 	{
@@ -170,7 +170,7 @@ R_AddEfrags
 void R_AddEfrags (entity_t *ent)
 {
 	qmodel_t *entmodel;
-	vec_t     scalefactor;
+	vec_t	  scalefactor;
 
 	if (!ent->model)
 		return;
@@ -208,7 +208,7 @@ R_StoreEfrags -- johnfitz -- pointless switch statement removed.
 void R_StoreEfrags (efrag_t **ppefrag)
 {
 	entity_t *pent;
-	efrag_t  *pefrag;
+	efrag_t	 *pefrag;
 
 	while ((pefrag = *ppefrag) != NULL)
 	{

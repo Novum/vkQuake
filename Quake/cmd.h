@@ -80,10 +80,9 @@ not apropriate.
 
 typedef enum
 {
-	src_client,  // came in over a net connection as a clc_stringcmd
-	             // host_client will be valid during this state.
+	src_client,	 // came in over a net connection as a clc_stringcmd. host_client will be valid during this state.
 	src_command, // from the command buffer
-	src_server   // from a svc_stufftext
+	src_server	 // from a svc_stufftext
 } cmd_source_t;
 extern cmd_source_t cmd_source;
 
@@ -91,23 +90,23 @@ typedef void (*xcommand_t) (void);
 typedef struct cmd_function_s
 {
 	struct cmd_function_s *next;
-	const char            *name;
-	xcommand_t             function;
-	cmd_source_t           srctype;
-	qboolean               dynamic;
+	const char			  *name;
+	xcommand_t			   function;
+	cmd_source_t		   srctype;
+	qboolean			   dynamic;
 } cmd_function_t;
 
 void Cmd_Init (void);
 
 cmd_function_t *Cmd_AddCommand2 (const char *cmd_name, xcommand_t function, cmd_source_t srctype);
-void            Cmd_RemoveCommand (cmd_function_t *cmd);
+void			Cmd_RemoveCommand (cmd_function_t *cmd);
 // called by the init functions of other parts of the program to
 // register commands and functions to call for them.
 // The cmd_name is referenced later, so it should not be in temp memory
-#define Cmd_AddCommand(cmdname, func)               Cmd_AddCommand2 (cmdname, func, src_command) // regular console commands
-#define Cmd_AddCommand_ClientCommand(cmdname, func) Cmd_AddCommand2 (cmdname, func, src_client)  // command is meant to be safe for anyone to execute.
-#define Cmd_AddCommand_ServerCommand(cmdname, func) Cmd_AddCommand2 (cmdname, func, src_server)  // command came from a server
-#define Cmd_AddCommand_Console                      Cmd_AddCommand                               // to make the disabiguation more obvious
+#define Cmd_AddCommand(cmdname, func)				Cmd_AddCommand2 (cmdname, func, src_command) // regular console commands
+#define Cmd_AddCommand_ClientCommand(cmdname, func) Cmd_AddCommand2 (cmdname, func, src_client)	 // command is meant to be safe for anyone to execute.
+#define Cmd_AddCommand_ServerCommand(cmdname, func) Cmd_AddCommand2 (cmdname, func, src_server)	 // command came from a server
+#define Cmd_AddCommand_Console						Cmd_AddCommand								 // to make the disabiguation more obvious
 
 qboolean Cmd_AliasExists (const char *aliasname);
 qboolean Cmd_Exists (const char *cmd_name);
@@ -117,7 +116,7 @@ const char *Cmd_CompleteCommand (const char *partial);
 // attempts to match a partial command for automatic command line completion
 // returns NULL if nothing fits
 
-int         Cmd_Argc (void);
+int			Cmd_Argc (void);
 const char *Cmd_Argv (int arg);
 const char *Cmd_Args (void);
 // The functions that execute commands get their parameters with these

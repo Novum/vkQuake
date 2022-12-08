@@ -38,28 +38,28 @@ int con_linewidth;
 float con_cursorspeed = 4;
 
 #define CON_TEXTSIZE (1024 * 1024) // ericw -- was 65536. johnfitz -- new default size
-#define CON_MINSIZE  16384         // johnfitz -- old default, now the minimum size
+#define CON_MINSIZE	 16384		   // johnfitz -- old default, now the minimum size
 
 int con_buffersize; // johnfitz -- user can now override default
 
 qboolean con_forcedup; // because no entities to refresh
 
-int   con_totallines; // total lines in console scrollback
-int   con_backscroll; // lines up from bottom to display
-int   con_current;    // where next message will be printed
-int   con_x;          // offset in current line for next print
+int	  con_totallines; // total lines in console scrollback
+int	  con_backscroll; // lines up from bottom to display
+int	  con_current;	  // where next message will be printed
+int	  con_x;		  // offset in current line for next print
 char *con_text = NULL;
 
-cvar_t con_notifytime = {"con_notifytime", "3", CVAR_NONE};         // seconds
+cvar_t con_notifytime = {"con_notifytime", "3", CVAR_NONE};			// seconds
 cvar_t con_logcenterprint = {"con_logcenterprint", "1", CVAR_NONE}; // johnfitz
 
-char con_lastcenterstring[1024];                 // johnfitz
+char con_lastcenterstring[1024];				 // johnfitz
 void (*con_redirect_flush) (const char *buffer); // call this to flush the redirection buffer (for rcon)
 char con_redirect_buffer[8192];
 
 #define NUM_CON_TIMES 4
 float con_times[NUM_CON_TIMES]; // realtime time the line was generated
-                                // for transparent notify lines
+								// for transparent notify lines
 
 int con_vislines;
 
@@ -79,7 +79,7 @@ includes a newline, unless len >= con_linewidth.
 const char *Con_Quakebar (int len)
 {
 	static char bar[42];
-	int         i;
+	int			i;
 
 	len = q_min (len, (int)sizeof (bar) - 2);
 	len = q_min (len, con_linewidth);
@@ -113,7 +113,7 @@ void Con_ToggleConsole_f (void)
 	{
 		key_lines[edit_line][1] = 0; // clear any typing
 		key_linepos = 1;
-		con_backscroll = 0;       // johnfitz -- toggleconsole should return you to the bottom of the scrollback
+		con_backscroll = 0;		  // johnfitz -- toggleconsole should return you to the bottom of the scrollback
 		history_line = edit_line; // johnfitz -- it should also return you to the bottom of the command history
 
 		if (cls.state == ca_connected)
@@ -145,7 +145,7 @@ static void Con_Clear_f (void)
 {
 	if (con_text)
 		memset (con_text, ' ', con_buffersize); // johnfitz -- con_buffersize replaces CON_TEXTSIZE
-	con_backscroll = 0;                         // johnfitz -- if console is empty, being scrolled up is confusing
+	con_backscroll = 0;							// johnfitz -- if console is empty, being scrolled up is confusing
 }
 
 /*
@@ -155,11 +155,11 @@ Con_Dump_f -- johnfitz -- adapted from quake2 source
 */
 static void Con_Dump_f (void)
 {
-	int         l, x;
+	int			l, x;
 	const char *line;
-	FILE       *f;
-	char        buffer[1024];
-	char        name[MAX_OSPATH];
+	FILE	   *f;
+	char		buffer[1024];
+	char		name[MAX_OSPATH];
 
 	q_snprintf (name, sizeof (name), "%s/%s", com_gamedir, Cmd_Argc () >= 2 ? Cmd_Argv (1) : "condump.txt");
 	COM_CreatePath (name);
@@ -252,7 +252,7 @@ If the line width has changed, reformat the buffer.
 */
 void Con_CheckResize (void)
 {
-	int   i, j, width, oldwidth, oldtotallines, numlines, numchars;
+	int	  i, j, width, oldwidth, oldtotallines, numlines, numchars;
 	char *tbuf; // johnfitz -- tbuf no longer a static array
 
 	width = (vid.conwidth >> 3) - 2; // johnfitz -- use vid.conwidth instead of vid.width
@@ -279,7 +279,7 @@ void Con_CheckResize (void)
 	tbuf = (char *)Mem_Alloc (con_buffersize); // johnfitz
 
 	memcpy (tbuf, con_text, con_buffersize); // johnfitz -- con_buffersize replaces CON_TEXTSIZE
-	memset (con_text, ' ', con_buffersize);  // johnfitz -- con_buffersize replaces CON_TEXTSIZE
+	memset (con_text, ' ', con_buffersize);	 // johnfitz -- con_buffersize replaces CON_TEXTSIZE
 
 	for (i = 0; i < numlines; i++)
 	{
@@ -318,7 +318,7 @@ void Con_Init (void)
 	// johnfitz
 
 	con_text = (char *)Mem_Alloc (con_buffersize); // johnfitz -- con_buffersize replaces CON_TEXTSIZE
-	memset (con_text, ' ', con_buffersize);        // johnfitz -- con_buffersize replaces CON_TEXTSIZE
+	memset (con_text, ' ', con_buffersize);		   // johnfitz -- con_buffersize replaces CON_TEXTSIZE
 	con_linewidth = -1;
 
 	// johnfitz -- no need to run Con_CheckResize here
@@ -371,10 +371,10 @@ If no console is visible, the notify window will pop up.
 */
 static void Con_Print (const char *txt)
 {
-	int        y;
-	int        c, l;
+	int		   y;
+	int		   c, l;
 	static int cr;
-	int        mask;
+	int		   mask;
 	qboolean   boundary;
 
 	SDL_LockMutex (con_mutex);
@@ -383,7 +383,7 @@ static void Con_Print (const char *txt)
 
 	if (txt[0] == 1)
 	{
-		mask = 128;                     // go to colored text
+		mask = 128;						// go to colored text
 		S_LocalSound ("misc/talk.wav"); // play talk wav
 		txt++;
 	}
@@ -459,7 +459,7 @@ static void Con_Print (const char *txt)
 // borrowed from uhexen2 by S.A. for new procs, LOG_Init, LOG_Close
 
 static char logfilename[MAX_OSPATH]; // current logfile name
-static int  log_fd = -1;             // log file descriptor
+static int	log_fd = -1;			 // log file descriptor
 
 /*
 ================
@@ -486,8 +486,8 @@ Handles cursor positioning, line wrapping, etc
 #define MAXPRINTMSG 4096
 void Con_Printf (const char *fmt, ...)
 {
-	va_list         argptr;
-	char            msg[MAXPRINTMSG];
+	va_list			argptr;
+	char			msg[MAXPRINTMSG];
 	static qboolean inupdate;
 
 	va_start (argptr, fmt);
@@ -538,7 +538,7 @@ targetting vanilla engines
 void Con_DWarning (const char *fmt, ...)
 {
 	va_list argptr;
-	char    msg[MAXPRINTMSG];
+	char	msg[MAXPRINTMSG];
 
 	if (developer.value >= 2)
 	{ // don't confuse non-developers with techie stuff...
@@ -561,7 +561,7 @@ Con_Warning -- johnfitz -- prints a warning to the console
 void Con_Warning (const char *fmt, ...)
 {
 	va_list argptr;
-	char    msg[MAXPRINTMSG];
+	char	msg[MAXPRINTMSG];
 
 	va_start (argptr, fmt);
 	q_vsnprintf (msg, sizeof (msg), fmt, argptr);
@@ -581,7 +581,7 @@ A Con_Printf that only shows up if the "developer" cvar is set
 void Con_DPrintf (const char *fmt, ...)
 {
 	va_list argptr;
-	char    msg[MAXPRINTMSG];
+	char	msg[MAXPRINTMSG];
 
 	if (!developer.value)
 		return; // don't confuse non-developers with techie stuff...
@@ -603,7 +603,7 @@ currently not used
 void Con_DPrintf2 (const char *fmt, ...)
 {
 	va_list argptr;
-	char    msg[MAXPRINTMSG];
+	char	msg[MAXPRINTMSG];
 
 	if (developer.value >= 2)
 	{
@@ -624,8 +624,8 @@ Okay to call even when the screen can't be updated
 void Con_SafePrintf (const char *fmt, ...)
 {
 	va_list argptr;
-	char    msg[1024];
-	int     temp;
+	char	msg[1024];
+	int		temp;
 
 	va_start (argptr, fmt);
 	q_vsnprintf (msg, sizeof (msg), fmt, argptr);
@@ -648,11 +648,11 @@ void Con_CenterPrintf (int linewidth, const char *fmt, ...) FUNC_PRINTF (2, 3);
 void Con_CenterPrintf (int linewidth, const char *fmt, ...)
 {
 	va_list argptr;
-	char    msg[MAXPRINTMSG];  // the original message
-	char    line[MAXPRINTMSG]; // one line from the message
-	char    spaces[21];        // buffer for spaces
+	char	msg[MAXPRINTMSG];  // the original message
+	char	line[MAXPRINTMSG]; // one line from the message
+	char	spaces[21];		   // buffer for spaces
 	char   *src, *dst;
-	int     len, s;
+	int		len, s;
 
 	va_start (argptr, fmt);
 	q_vsnprintf (msg, sizeof (msg), fmt, argptr);
@@ -723,7 +723,7 @@ void Con_Redirect (void (*flush) (const char *))
 /*
 ==============================================================================
 
-    TAB COMPLETION
+	TAB COMPLETION
 
 ==============================================================================
 */
@@ -733,22 +733,22 @@ void Con_Redirect (void (*flush) (const char *))
 char key_tabpartial[MAXCMDLINE];
 typedef struct tab_s
 {
-	const char   *name;
-	const char   *type;
+	const char	 *name;
+	const char	 *type;
 	struct tab_s *next;
 	struct tab_s *prev;
 } tab_t;
 tab_t *tablist;
 
 // defs from elsewhere
-extern qboolean        keydown[256];
+extern qboolean		   keydown[256];
 extern cmd_function_t *cmd_functions;
 #define MAX_ALIAS_NAME 32
 typedef struct cmdalias_s
 {
 	struct cmdalias_s *next;
-	char               name[MAX_ALIAS_NAME];
-	char              *value;
+	char			   name[MAX_ALIAS_NAME];
+	char			  *value;
 } cmdalias_t;
 extern cmdalias_t *cmd_alias;
 
@@ -762,13 +762,13 @@ tablist is a doubly-linked loop, alphabetized by name
 
 // bash_partial is the string that can be expanded,
 // aka Linux Bash shell. -- S.A.
-static char     bash_partial[80];
+static char		bash_partial[80];
 static qboolean bash_singlematch;
 
 void AddToTabList (const char *name, const char *type)
 {
-	tab_t      *t, *insert;
-	char       *i_bash;
+	tab_t	   *t, *insert;
+	char	   *i_bash;
 	const char *i_name;
 
 	if (!*bash_partial)
@@ -827,13 +827,13 @@ void AddToTabList (const char *name, const char *type)
 
 typedef struct arg_completion_type_s
 {
-	const char       *command;
+	const char		 *command;
 	filelist_item_t **filelist;
 } arg_completion_type_t;
 
 static const arg_completion_type_t arg_completion_types[] = {{"map ", &extralevels}, {"changelevel ", &extralevels}, {"game ", &modlist},
-                                                             {"record ", &demolist}, {"playdemo ", &demolist},       {"timedemo ", &demolist},
-                                                             {"save ", &savelist},   {"load ", &savelist},           {"fastload ", &savelist}};
+															 {"record ", &demolist}, {"playdemo ", &demolist},		 {"timedemo ", &demolist},
+															 {"save ", &savelist},	 {"load ", &savelist},			 {"fastload ", &savelist}};
 
 static const int num_arg_completion_types = sizeof (arg_completion_types) / sizeof (arg_completion_types[0]);
 
@@ -844,10 +844,10 @@ FindCompletion -- stevenaaus
 */
 const char *FindCompletion (const char *partial, filelist_item_t *filelist, int *nummatches_out)
 {
-	static char      matched[32];
-	char            *i_matched, *i_name;
+	static char		 matched[32];
+	char			*i_matched, *i_name;
 	filelist_item_t *file;
-	int              init, match, plen;
+	int				 init, match, plen;
 
 	memset (matched, 0, sizeof (matched));
 	plen = strlen (partial);
@@ -900,10 +900,10 @@ BuildTabList -- johnfitz
 */
 void BuildTabList (const char *partial)
 {
-	cmdalias_t     *alias;
-	cvar_t         *cvar;
+	cmdalias_t	   *alias;
+	cvar_t		   *cvar;
 	cmd_function_t *cmd;
-	int             len;
+	int				len;
 
 	tablist = NULL;
 	len = strlen (partial);
@@ -932,11 +932,11 @@ Con_TabComplete -- johnfitz
 */
 void Con_TabComplete (void)
 {
-	char         partial[MAXCMDLINE];
-	const char  *match;
+	char		 partial[MAXCMDLINE];
+	const char	*match;
 	static char *c;
-	tab_t       *t;
-	int          i, j;
+	tab_t		*t;
+	int			 i, j;
 
 	// if editline is empty, return
 	if (key_lines[edit_line][1] == 0)
@@ -962,11 +962,11 @@ void Con_TabComplete (void)
 		// arg_completion contains a command we can complete the arguments
 		// for (like "map ") and a list of all the maps.
 		arg_completion_type_t arg_completion = arg_completion_types[j];
-		const char           *command_name = arg_completion.command;
+		const char			 *command_name = arg_completion.command;
 
 		if (!strncmp (key_lines[edit_line] + 1, command_name, strlen (command_name)))
 		{
-			int         nummatches = 0;
+			int			nummatches = 0;
 			const char *matched_map = FindCompletion (partial, *arg_completion.filelist, &nummatches);
 			if (!*matched_map)
 				return;
@@ -1044,9 +1044,9 @@ void Con_TabComplete (void)
 	}
 
 	// insert new match into edit line
-	q_strlcpy (partial, match, MAXCMDLINE);                              // first copy match string
+	q_strlcpy (partial, match, MAXCMDLINE);								 // first copy match string
 	q_strlcat (partial, key_lines[edit_line] + key_linepos, MAXCMDLINE); // then add chars after cursor
-	*c = '\0';                                                           // now copy all of this into edit line
+	*c = '\0';															 // now copy all of this into edit line
 	q_strlcat (key_lines[edit_line], partial, MAXCMDLINE);
 	key_linepos = c - key_lines[edit_line] + strlen (match); // set new cursor position
 	if (key_linepos >= MAXCMDLINE)
@@ -1083,12 +1083,12 @@ Draws the last few lines of output transparently over the game top
 */
 void Con_DrawNotify (cb_context_t *cbx)
 {
-	int         i, x, v;
+	int			i, x, v;
 	const char *text;
-	float       time;
+	float		time;
 
 	GL_SetCanvas (cbx, CANVAS_CONSOLE); // johnfitz
-	v = vid.conheight;                  // johnfitz
+	v = vid.conheight;					// johnfitz
 
 	if (scr_viewsize.value < 130)
 	{
@@ -1185,9 +1185,9 @@ The typing input line at the bottom should only be drawn if typing is allowed
 */
 void Con_DrawConsole (cb_context_t *cbx, int lines, qboolean drawinput)
 {
-	int         i, x, y, j, sb, rows;
+	int			i, x, y, j, sb, rows;
 	const char *text;
-	char        ver[32];
+	char		ver[32];
 
 	if (lines <= 0)
 		return;
@@ -1243,7 +1243,7 @@ Con_NotifyBox
 void Con_NotifyBox (const char *text)
 {
 	double t1, t2;
-	int    lastkey, lastchar;
+	int	   lastkey, lastchar;
 
 	// during startup for sound / cd warnings
 	Con_Printf ("\n\n%s", Con_Quakebar (40)); // johnfitz

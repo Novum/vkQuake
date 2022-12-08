@@ -26,25 +26,25 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 
-static void      Mod_LoadSpriteModel (qmodel_t *mod, void *buffer);
-static void      Mod_LoadBrushModel (qmodel_t *mod, const char *loadname, void *buffer);
-static void      Mod_LoadAliasModel (qmodel_t *mod, void *buffer);
+static void		 Mod_LoadSpriteModel (qmodel_t *mod, void *buffer);
+static void		 Mod_LoadBrushModel (qmodel_t *mod, const char *loadname, void *buffer);
+static void		 Mod_LoadAliasModel (qmodel_t *mod, void *buffer);
 static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash);
 
 cvar_t external_ents = {"external_ents", "1", CVAR_ARCHIVE};
 cvar_t external_vis = {"external_vis", "1", CVAR_ARCHIVE};
 
 static byte *mod_novis;
-static int   mod_novis_capacity;
+static int	 mod_novis_capacity;
 
 static byte *mod_decompressed;
-static int   mod_decompressed_capacity;
+static int	 mod_decompressed_capacity;
 
 #define MAX_MOD_KNOWN 2048 /*johnfitz -- was 512 */
 qmodel_t mod_known[MAX_MOD_KNOWN];
-int      mod_numknown;
+int		 mod_numknown;
 
-texture_t *r_notexture_mip;  // johnfitz -- moved here from r_main.c
+texture_t *r_notexture_mip;	 // johnfitz -- moved here from r_main.c
 texture_t *r_notexture_mip2; // johnfitz -- used for non-lightmapped surfs with a missing texture
 
 SDL_mutex *lightcache_mutex;
@@ -128,8 +128,8 @@ Mod_PointInLeaf
 */
 mleaf_t *Mod_PointInLeaf (float *p, qmodel_t *model)
 {
-	mnode_t  *node;
-	float     d;
+	mnode_t	 *node;
+	float	  d;
 	mplane_t *plane;
 
 	if (!model || !model->nodes)
@@ -158,10 +158,10 @@ Mod_DecompressVis
 */
 byte *Mod_DecompressVis (byte *in, qmodel_t *model)
 {
-	int   c;
+	int	  c;
 	byte *out;
 	byte *outend;
-	int   row;
+	int	  row;
 
 	row = (model->numleafs + 31) / 8;
 	if (mod_decompressed == NULL || row > mod_decompressed_capacity)
@@ -196,8 +196,8 @@ byte *Mod_DecompressVis (byte *in, qmodel_t *model)
 		in += 2;
 		if (c > row - (out - mod_decompressed))
 			c = row -
-			    (out -
-			     mod_decompressed); // now that we're dynamically allocating pvs buffers, we have to be more careful to avoid heap overflows with buggy maps.
+				(out -
+				 mod_decompressed); // now that we're dynamically allocating pvs buffers, we have to be more careful to avoid heap overflows with buggy maps.
 		while (c)
 		{
 			if (out == outend)
@@ -338,7 +338,7 @@ Mod_ClearAll
 */
 void Mod_ClearAll (void)
 {
-	int       i;
+	int		  i;
 	qmodel_t *mod;
 
 	for (i = 0, mod = mod_known; i < mod_numknown; i++, mod++)
@@ -360,7 +360,7 @@ Mod_ResetAll
 */
 void Mod_ResetAll (void)
 {
-	int       i;
+	int		  i;
 	qmodel_t *mod;
 
 	// ericw -- free alias model VBOs
@@ -386,7 +386,7 @@ Mod_FindName
 */
 qmodel_t *Mod_FindName (const char *name)
 {
-	int       i;
+	int		  i;
 	qmodel_t *mod;
 
 	if (!name[0])
@@ -433,7 +433,7 @@ Loads a model into the cache
 static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 {
 	byte *buf;
-	int   mod_type;
+	int	  mod_type;
 
 	if (!mod->needload)
 	{
@@ -505,7 +505,7 @@ qmodel_t *Mod_ForName (const char *name, qboolean crash)
 /*
 ===============================================================================
 
-                    BRUSHMODEL LOADING
+					BRUSHMODEL LOADING
 
 ===============================================================================
 */
@@ -556,9 +556,9 @@ static void Mod_LoadTextureTask (int i, qmodel_t **ppmod)
 	if (!tx)
 		return;
 
-	int   pixels = tx->width * tx->height / 64 * 85;
+	int	  pixels = tx->width * tx->height / 64 * 85;
 	char  texturename[64];
-	int   fwidth, fheight;
+	int	  fwidth, fheight;
 	char  filename[MAX_OSPATH], mapname[MAX_OSPATH];
 	byte *data = NULL;
 
@@ -669,15 +669,15 @@ Mod_LoadTextures
 */
 static void Mod_LoadTextures (qmodel_t *mod, byte *mod_base, lump_t *l)
 {
-	int        i, j, pixels, num, maxanim, altmax;
+	int		   i, j, pixels, num, maxanim, altmax;
 	miptex_t   mt;
 	texture_t *tx, *tx2;
 	texture_t *anims[10];
 	texture_t *altanims[10];
-	byte      *m;
-	byte      *pixels_p;
-	int        nummiptex;
-	int        dataofs;
+	byte	  *m;
+	byte	  *pixels_p;
+	int		   nummiptex;
+	int		   dataofs;
 
 	// johnfitz -- don't return early if no textures; still need to create dummy texture
 	if (!l->filelen)
@@ -737,9 +737,9 @@ static void Mod_LoadTextures (qmodel_t *mod, byte *mod_base, lump_t *l)
 		tx->source_offset = (src_offset_t)(pixels_p) - (src_offset_t)mod_base;
 
 		Atomic_StoreUInt32 (&tx->update_warp, false); // johnfitz
-		tx->warpimage = NULL;                         // johnfitz
-		tx->fullbright = NULL;                        // johnfitz
-		tx->shift = 0;                                // Q64 only
+		tx->warpimage = NULL;						  // johnfitz
+		tx->fullbright = NULL;						  // johnfitz
+		tx->shift = 0;								  // Q64 only
 
 		if (mod->bspversion != BSPVERSION_QUAKE64)
 		{
@@ -767,7 +767,7 @@ static void Mod_LoadTextures (qmodel_t *mod, byte *mod_base, lump_t *l)
 	}
 
 	// johnfitz -- last 2 slots in array should be filled with dummy textures
-	mod->textures[mod->numtextures - 2] = r_notexture_mip;  // for lightmapped surfs
+	mod->textures[mod->numtextures - 2] = r_notexture_mip;	// for lightmapped surfs
 	mod->textures[mod->numtextures - 1] = r_notexture_mip2; // for SURF_DRAWTILED surfs
 
 	//
@@ -874,10 +874,10 @@ Mod_LoadLighting -- johnfitz -- replaced with lit support code via lordhavoc
 */
 static void Mod_LoadLighting (qmodel_t *mod, byte *mod_base, lump_t *l)
 {
-	int          i;
-	byte        *in, *out, *data;
-	byte         d, q64_b0, q64_b1;
-	char         litfilename[MAX_OSPATH];
+	int			 i;
+	byte		*in, *out, *data;
+	byte		 d, q64_b0, q64_b1;
+	char		 litfilename[MAX_OSPATH];
 	unsigned int path_id;
 
 	mod->lightdata = NULL;
@@ -940,9 +940,9 @@ static void Mod_LoadLighting (qmodel_t *mod, byte *mod_base, lump_t *l)
 			q64_b0 = *in++;
 			q64_b1 = *in++;
 
-			*out++ = q64_b0 & 0xf8;                                   /* 0b11111000 */
+			*out++ = q64_b0 & 0xf8;									  /* 0b11111000 */
 			*out++ = ((q64_b0 & 0x07) << 5) + ((q64_b1 & 0xc0) >> 5); /* 0b00000111, 0b11000000 */
-			*out++ = (q64_b1 & 0x3f) << 2;                            /* 0b00111111 */
+			*out++ = (q64_b1 & 0x3f) << 2;							  /* 0b00111111 */
 		}
 		return;
 	}
@@ -984,12 +984,12 @@ Mod_LoadEntities
 */
 static void Mod_LoadEntities (qmodel_t *mod, byte *mod_base, lump_t *l)
 {
-	char         basemapname[MAX_QPATH];
-	char         entfilename[MAX_QPATH];
-	char        *ents = NULL;
+	char		 basemapname[MAX_QPATH];
+	char		 entfilename[MAX_QPATH];
+	char		*ents = NULL;
 	unsigned int path_id;
 	unsigned int crc = 0;
-	qboolean     versioned = true;
+	qboolean	 versioned = true;
 
 	if (!external_ents.value)
 		goto _load_embedded;
@@ -1050,9 +1050,9 @@ Mod_LoadVertexes
 */
 static void Mod_LoadVertexes (qmodel_t *mod, byte *mod_base, lump_t *l)
 {
-	byte      *in;
+	byte	  *in;
 	mvertex_t *out;
-	int        i, count;
+	int		   i, count;
 
 	in = mod_base + l->fileofs;
 	if (l->filelen % sizeof (dvertex_t))
@@ -1079,7 +1079,7 @@ Mod_LoadEdges
 static void Mod_LoadEdges (qmodel_t *mod, byte *mod_base, lump_t *l, int bsp2)
 {
 	medge_t *out;
-	int      i, count;
+	int		 i, count;
 
 	if (bsp2)
 	{
@@ -1128,10 +1128,10 @@ Mod_LoadTexinfo
 */
 static void Mod_LoadTexinfo (qmodel_t *mod, byte *mod_base, lump_t *l)
 {
-	byte       *in;
+	byte	   *in;
 	mtexinfo_t *out;
-	int         i, j, count, miptex;
-	int         missing = 0; // johnfitz
+	int			i, j, count, miptex;
+	int			missing = 0; // johnfitz
 
 	in = mod_base + l->fileofs;
 	if (l->filelen % sizeof (texinfo_t))
@@ -1185,11 +1185,11 @@ Fills in s->texturemins[] and s->extents[]
 */
 static void CalcSurfaceExtents (qmodel_t *mod, msurface_t *s)
 {
-	float       mins[2], maxs[2], val;
-	int         i, j, e;
+	float		mins[2], maxs[2], val;
+	int			i, j, e;
 	mvertex_t  *v;
 	mtexinfo_t *tex;
-	int         bmins[2], bmaxs[2];
+	int			bmins[2], bmaxs[2];
 
 	mins[0] = mins[1] = FLT_MAX;
 	maxs[0] = maxs[1] = -FLT_MAX;
@@ -1222,7 +1222,7 @@ static void CalcSurfaceExtents (qmodel_t *mod, msurface_t *s)
 			 * is the hallway at the beginning of mfxsp17.  -- ericw
 			 */
 			val = ((double)v->position[0] * (double)tex->vecs[j][0]) + ((double)v->position[1] * (double)tex->vecs[j][1]) +
-			      ((double)v->position[2] * (double)tex->vecs[j][2]) + (double)tex->vecs[j][3];
+				  ((double)v->position[2] * (double)tex->vecs[j][2]) + (double)tex->vecs[j][3];
 
 			if (val < mins[j])
 				mins[j] = val;
@@ -1253,12 +1253,12 @@ TODO: merge this into BuildSurfaceDisplayList?
 */
 static void Mod_PolyForUnlitSurface (qmodel_t *mod, msurface_t *fa)
 {
-	vec3_t    verts[64];
-	int       numverts, i, lindex;
-	float    *vec;
+	vec3_t	  verts[64];
+	int		  numverts, i, lindex;
+	float	 *vec;
 	glpoly_t *poly;
-	float    *poly_vert;
-	float     texscale;
+	float	 *poly_vert;
+	float	  texscale;
 
 	if (fa->flags & (SURF_DRAWTURB | SURF_DRAWSKY))
 		texscale = (1.0 / 128.0); // warp animation repeats every 128
@@ -1300,11 +1300,11 @@ Mod_LoadFaces
 */
 static void Mod_LoadFaces (qmodel_t *mod, byte *mod_base, lump_t *l, qboolean bsp2)
 {
-	byte       *ins;
-	byte       *inl;
+	byte	   *ins;
+	byte	   *inl;
 	msurface_t *out;
-	int         i, count, surfnum, lofs;
-	int         planenum, side, texinfon;
+	int			i, count, surfnum, lofs;
+	int			planenum, side, texinfon;
 
 	if (bsp2)
 	{
@@ -1455,8 +1455,8 @@ Mod_LoadNodes
 */
 static void Mod_LoadNodes_S (qmodel_t *mod, byte *mod_base, lump_t *l)
 {
-	int      i, j, count, p;
-	byte    *in;
+	int		 i, j, count, p;
+	byte	*in;
 	mnode_t *out;
 
 	in = mod_base + l->fileofs;
@@ -1485,7 +1485,7 @@ static void Mod_LoadNodes_S (qmodel_t *mod, byte *mod_base, lump_t *l)
 		out->plane = mod->planes + p;
 
 		out->firstsurface = (unsigned short)ReadShortUnaligned (in + offsetof (dsnode_t, firstface)); // johnfitz -- explicit cast as unsigned short
-		out->numsurfaces = (unsigned short)ReadShortUnaligned (in + offsetof (dsnode_t, numfaces));   // johnfitz -- explicit cast as unsigned short
+		out->numsurfaces = (unsigned short)ReadShortUnaligned (in + offsetof (dsnode_t, numfaces));	  // johnfitz -- explicit cast as unsigned short
 
 		for (j = 0; j < 2; j++)
 		{
@@ -1511,8 +1511,8 @@ static void Mod_LoadNodes_S (qmodel_t *mod, byte *mod_base, lump_t *l)
 
 static void Mod_LoadNodes_L1 (qmodel_t *mod, byte *mod_base, lump_t *l)
 {
-	int      i, j, count, p;
-	byte    *in;
+	int		 i, j, count, p;
+	byte	*in;
 	mnode_t *out;
 
 	in = mod_base + l->fileofs;
@@ -1537,7 +1537,7 @@ static void Mod_LoadNodes_L1 (qmodel_t *mod, byte *mod_base, lump_t *l)
 		out->plane = mod->planes + p;
 
 		out->firstsurface = ReadLongUnaligned (in + offsetof (dl1node_t, firstface)); // johnfitz -- explicit cast as unsigned short
-		out->numsurfaces = ReadLongUnaligned (in + offsetof (dl1node_t, numfaces));   // johnfitz -- explicit cast as unsigned short
+		out->numsurfaces = ReadLongUnaligned (in + offsetof (dl1node_t, numfaces));	  // johnfitz -- explicit cast as unsigned short
 
 		for (j = 0; j < 2; j++)
 		{
@@ -1563,8 +1563,8 @@ static void Mod_LoadNodes_L1 (qmodel_t *mod, byte *mod_base, lump_t *l)
 
 static void Mod_LoadNodes_L2 (qmodel_t *mod, byte *mod_base, lump_t *l)
 {
-	int      i, j, count, p;
-	byte    *in;
+	int		 i, j, count, p;
+	byte	*in;
 	mnode_t *out;
 
 	in = mod_base + l->fileofs;
@@ -1589,7 +1589,7 @@ static void Mod_LoadNodes_L2 (qmodel_t *mod, byte *mod_base, lump_t *l)
 		out->plane = mod->planes + p;
 
 		out->firstsurface = ReadLongUnaligned (in + offsetof (dl2node_t, firstface)); // johnfitz -- explicit cast as unsigned short
-		out->numsurfaces = ReadLongUnaligned (in + offsetof (dl2node_t, numfaces));   // johnfitz -- explicit cast as unsigned short
+		out->numsurfaces = ReadLongUnaligned (in + offsetof (dl2node_t, numfaces));	  // johnfitz -- explicit cast as unsigned short
 
 		for (j = 0; j < 2; j++)
 		{
@@ -1626,7 +1626,7 @@ static void Mod_LoadNodes (qmodel_t *mod, byte *mod_base, lump_t *l, int bsp2)
 static void Mod_ProcessLeafs_S (qmodel_t *mod, byte *in, int filelen)
 {
 	mleaf_t *out;
-	int      i, j, count, p;
+	int		 i, j, count, p;
 
 	if (filelen % sizeof (dsleaf_t))
 		Sys_Error ("Mod_ProcessLeafs: funny lump size in %s", mod->name);
@@ -1654,7 +1654,7 @@ static void Mod_ProcessLeafs_S (qmodel_t *mod, byte *in, int filelen)
 
 		out->firstmarksurface =
 			mod->marksurfaces + (unsigned short)ReadShortUnaligned (in + offsetof (dsleaf_t, firstmarksurface)); // johnfitz -- unsigned short
-		out->nummarksurfaces = (unsigned short)ReadShortUnaligned (in + offsetof (dsleaf_t, nummarksurfaces));   // johnfitz -- unsigned short
+		out->nummarksurfaces = (unsigned short)ReadShortUnaligned (in + offsetof (dsleaf_t, nummarksurfaces));	 // johnfitz -- unsigned short
 
 		p = ReadLongUnaligned (in + offsetof (dsleaf_t, visofs));
 		if (p == -1)
@@ -1673,7 +1673,7 @@ static void Mod_ProcessLeafs_S (qmodel_t *mod, byte *in, int filelen)
 static void Mod_ProcessLeafs_L1 (qmodel_t *mod, byte *in, int filelen)
 {
 	mleaf_t *out;
-	int      i, j, count, p;
+	int		 i, j, count, p;
 
 	if (filelen % sizeof (dl1leaf_t))
 		Sys_Error ("Mod_ProcessLeafs: funny lump size in %s", mod->name);
@@ -1697,7 +1697,7 @@ static void Mod_ProcessLeafs_L1 (qmodel_t *mod, byte *in, int filelen)
 		out->contents = p;
 
 		out->firstmarksurface = mod->marksurfaces + ReadLongUnaligned (in + offsetof (dl1leaf_t, firstmarksurface)); // johnfitz -- unsigned short
-		out->nummarksurfaces = ReadLongUnaligned (in + offsetof (dl1leaf_t, nummarksurfaces));                       // johnfitz -- unsigned short
+		out->nummarksurfaces = ReadLongUnaligned (in + offsetof (dl1leaf_t, nummarksurfaces));						 // johnfitz -- unsigned short
 
 		p = ReadLongUnaligned (in + offsetof (dl1leaf_t, visofs));
 		if (p == -1)
@@ -1716,7 +1716,7 @@ static void Mod_ProcessLeafs_L1 (qmodel_t *mod, byte *in, int filelen)
 static void Mod_ProcessLeafs_L2 (qmodel_t *mod, byte *in, int filelen)
 {
 	mleaf_t *out;
-	int      i, j, count, p;
+	int		 i, j, count, p;
 
 	if (filelen % sizeof (dl2leaf_t))
 		Sys_Error ("Mod_ProcessLeafs: funny lump size in %s", mod->name);
@@ -1740,7 +1740,7 @@ static void Mod_ProcessLeafs_L2 (qmodel_t *mod, byte *in, int filelen)
 		out->contents = p;
 
 		out->firstmarksurface = mod->marksurfaces + ReadLongUnaligned (in + offsetof (dl2leaf_t, firstmarksurface)); // johnfitz -- unsigned short
-		out->nummarksurfaces = ReadLongUnaligned (in + offsetof (dl2leaf_t, nummarksurfaces));                       // johnfitz -- unsigned short
+		out->nummarksurfaces = ReadLongUnaligned (in + offsetof (dl2leaf_t, nummarksurfaces));						 // johnfitz -- unsigned short
 
 		p = ReadLongUnaligned (in + offsetof (dl2leaf_t, visofs));
 		if (p == -1)
@@ -1780,14 +1780,14 @@ Mod_CheckWaterVis
 */
 static void Mod_CheckWaterVis (qmodel_t *mod)
 {
-	mleaf_t    *leaf, *other;
+	mleaf_t	   *leaf, *other;
 	msurface_t *surf;
-	int         i, j, k;
-	int         numclusters = mod->submodels[0].visleafs;
-	int         contentfound = 0;
-	int         contenttransparent = 0;
-	int         contenttype;
-	unsigned    hascontents = 0;
+	int			i, j, k;
+	int			numclusters = mod->submodels[0].visleafs;
+	int			contentfound = 0;
+	int			contenttransparent = 0;
+	int			contenttype;
+	unsigned	hascontents = 0;
 
 	if (r_novis.value)
 	{ // all can be
@@ -1890,8 +1890,8 @@ static void Mod_LoadClipnodes (qmodel_t *mod, byte *mod_base, lump_t *l, qboolea
 	byte *inl;
 
 	mclipnode_t *out; // johnfitz -- was dclipnode_t
-	int          i, count;
-	hull_t      *hull;
+	int			 i, count;
+	hull_t		*hull;
 
 	if (bsp2)
 	{
@@ -1994,10 +1994,10 @@ Duplicate the drawing hull structure as a clipping hull
 */
 static void Mod_MakeHull0 (qmodel_t *mod)
 {
-	mnode_t     *in, *child;
+	mnode_t		*in, *child;
 	mclipnode_t *out; // johnfitz -- was dclipnode_t
-	int          i, j, count;
-	hull_t      *hull;
+	int			 i, j, count;
+	hull_t		*hull;
 
 	hull = &mod->hulls[0];
 
@@ -2031,7 +2031,7 @@ Mod_LoadMarksurfaces
 */
 static void Mod_LoadMarksurfaces (qmodel_t *mod, byte *mod_base, lump_t *l, int bsp2)
 {
-	int  i, j, count;
+	int	 i, j, count;
 	int *out;
 	if (bsp2)
 	{
@@ -2089,9 +2089,9 @@ Mod_LoadSurfedges
 */
 static void Mod_LoadSurfedges (qmodel_t *mod, byte *mod_base, lump_t *l)
 {
-	int   i, count;
+	int	  i, count;
 	byte *in;
-	int  *out;
+	int	 *out;
 
 	in = mod_base + l->fileofs;
 	if (l->filelen % sizeof (int))
@@ -2115,11 +2115,11 @@ Mod_LoadPlanes
 */
 static void Mod_LoadPlanes (qmodel_t *mod, byte *mod_base, lump_t *l)
 {
-	int       i, j;
+	int		  i, j;
 	mplane_t *out;
-	byte     *in;
-	int       count;
-	int       bits;
+	byte	 *in;
+	int		  count;
+	int		  bits;
 
 	in = mod_base + l->fileofs;
 	if (l->filelen % sizeof (dplane_t))
@@ -2153,7 +2153,7 @@ RadiusFromBounds
 */
 float RadiusFromBounds (vec3_t mins, vec3_t maxs)
 {
-	int    i;
+	int	   i;
 	vec3_t corner;
 
 	for (i = 0; i < 3; i++)
@@ -2171,9 +2171,9 @@ Mod_LoadSubmodels
 */
 static void Mod_LoadSubmodels (qmodel_t *mod, byte *mod_base, lump_t *l)
 {
-	byte     *in;
+	byte	 *in;
 	dmodel_t *out;
-	int       i, j, count;
+	int		  i, j, count;
 
 	in = mod_base + l->fileofs;
 	if (l->filelen % sizeof (dmodel_t))
@@ -2268,19 +2268,19 @@ static void Mod_BoundsFromClipNode (qmodel_t *mod, int hull, int nodenum)
 typedef struct vispatch_s
 {
 	char mapname[32];
-	int  filelen; // length of data after header (VIS+Leafs)
+	int	 filelen; // length of data after header (VIS+Leafs)
 } vispatch_t;
 #define VISPATCH_HEADER_LEN 36
 
 static FILE *Mod_FindVisibilityExternal (qmodel_t *mod, const char *loadname)
 {
-	vispatch_t   header;
-	char         visfilename[MAX_QPATH];
-	const char  *shortname;
+	vispatch_t	 header;
+	char		 visfilename[MAX_QPATH];
+	const char	*shortname;
 	unsigned int path_id;
-	FILE        *f;
-	long         pos;
-	size_t       r;
+	FILE		*f;
+	long		 pos;
+	size_t		 r;
 
 	q_snprintf (visfilename, sizeof (visfilename), "maps/%s.vis", loadname);
 	if (COM_FOpenFile (visfilename, &f, &path_id) < 0)
@@ -2330,7 +2330,7 @@ static FILE *Mod_FindVisibilityExternal (qmodel_t *mod, const char *loadname)
 
 static byte *Mod_LoadVisibilityExternal (FILE *f)
 {
-	int   filelen;
+	int	  filelen;
 	byte *visdata;
 
 	filelen = 0;
@@ -2348,7 +2348,7 @@ static byte *Mod_LoadVisibilityExternal (FILE *f)
 
 static void Mod_LoadLeafsExternal (qmodel_t *mod, FILE *f)
 {
-	int   filelen;
+	int	  filelen;
 	void *in;
 
 	filelen = 0;
@@ -2372,8 +2372,8 @@ set up the submodels (FIXME: this is confusing)
 */
 static void Mod_SetupSubmodels (qmodel_t *mod)
 {
-	int       i, j;
-	float     radius;
+	int		  i, j;
+	float	  radius;
 	dmodel_t *bm;
 
 	// johnfitz -- okay, so that i stop getting confused every time i look at this loop, here's how it works:
@@ -2442,8 +2442,8 @@ Mod_LoadBrushModel
 */
 static void Mod_LoadBrushModel (qmodel_t *mod, const char *loadname, void *buffer)
 {
-	int        i;
-	int        bsp2;
+	int		   i;
+	int		   bsp2;
 	dheader_t *header;
 
 	mod->type = mod_brush;
@@ -2539,13 +2539,13 @@ ALIAS MODELS
 
 aliashdr_t *pheader;
 
-stvert_t    stverts[MAXALIASVERTS];
+stvert_t	stverts[MAXALIASVERTS];
 mtriangle_t triangles[MAXALIASTRIS];
 
 // a pose is a single set of vertexes.  a frame may be
 // an animating sequence of poses
 trivertx_t *poseverts[MAXALIASFRAMES];
-int         posenum;
+int			posenum;
 
 byte **player_8bit_texels_tbl;
 byte  *player_8bit_texels;
@@ -2557,8 +2557,8 @@ Mod_LoadAliasFrame
 */
 void *Mod_LoadAliasFrame (void *pin, maliasframedesc_t *frame)
 {
-	trivertx_t    *pinframe;
-	int            i;
+	trivertx_t	  *pinframe;
+	int			   i;
 	daliasframe_t *pdaliasframe;
 
 	if (posenum >= MAXALIASFRAMES)
@@ -2595,10 +2595,10 @@ Mod_LoadAliasGroup
 */
 void *Mod_LoadAliasGroup (void *pin, maliasframedesc_t *frame)
 {
-	daliasgroup_t    *pingroup;
-	int               i, numframes;
+	daliasgroup_t	 *pingroup;
+	int				  i, numframes;
 	daliasinterval_t *pin_intervals;
-	void             *ptemp;
+	void			 *ptemp;
 
 	pingroup = (daliasgroup_t *)pin;
 
@@ -2670,11 +2670,11 @@ typedef struct
 
 void Mod_FloodFillSkin (byte *skin, int skinwidth, int skinheight)
 {
-	byte        fillcolor = *skin; // assume this is the pixel to fill
+	byte		fillcolor = *skin; // assume this is the pixel to fill
 	floodfill_t fifo[FLOODFILL_FIFO_SIZE];
-	int         inpt = 0, outpt = 0;
-	int         filledcolor = -1;
-	int         i;
+	int			inpt = 0, outpt = 0;
+	int			filledcolor = -1;
+	int			i;
 
 	if (filledcolor == -1)
 	{
@@ -2700,8 +2700,8 @@ void Mod_FloodFillSkin (byte *skin, int skinwidth, int skinheight)
 
 	while (outpt != inpt)
 	{
-		int   x = fifo[outpt].x, y = fifo[outpt].y;
-		int   fdc = filledcolor;
+		int	  x = fifo[outpt].x, y = fifo[outpt].y;
+		int	  fdc = filledcolor;
 		byte *pos = &skin[x + skinwidth * y];
 
 		outpt = (outpt + 1) & FLOODFILL_FIFO_MASK;
@@ -2726,23 +2726,23 @@ Mod_LoadSkinTask
 typedef struct load_skin_task_args_s
 {
 	qmodel_t *mod;
-	byte     *mod_base;
-	byte    **ppskintypes;
+	byte	 *mod_base;
+	byte	**ppskintypes;
 } load_skin_task_args_t;
 
 static void Mod_LoadSkinTask (int i, load_skin_task_args_t *args)
 {
-	int          j, k, size, groupskins;
-	char         name[MAX_QPATH];
-	byte        *skin, *texels;
-	byte        *pskintype = args->ppskintypes[i];
-	byte        *pinskingroup;
-	byte        *pinskinintervals;
-	char         fbr_mask_name[MAX_QPATH]; // johnfitz -- added for fullbright support
-	src_offset_t offset;                   // johnfitz
+	int			 j, k, size, groupskins;
+	char		 name[MAX_QPATH];
+	byte		*skin, *texels;
+	byte		*pskintype = args->ppskintypes[i];
+	byte		*pinskingroup;
+	byte		*pinskinintervals;
+	char		 fbr_mask_name[MAX_QPATH]; // johnfitz -- added for fullbright support
+	src_offset_t offset;				   // johnfitz
 	unsigned int texflags = TEXPREF_PAD;
-	qmodel_t    *mod = args->mod;
-	byte        *mod_base = args->mod_base;
+	qmodel_t	*mod = args->mod;
+	byte		*mod_base = args->mod_base;
 
 	size = pheader->skinwidth * pheader->skinheight;
 
@@ -2852,7 +2852,7 @@ void *Mod_LoadAllSkins (qmodel_t *mod, byte *mod_base, int numskins, byte *pskin
 		{
 			// animating skin group.  yuck.
 			byte *pinskingroup = pskintype + sizeof (daliasskintype_t);
-			int   groupskins = ReadLongUnaligned (pinskingroup + offsetof (daliasskingroup_t, numskins));
+			int	  groupskins = ReadLongUnaligned (pinskingroup + offsetof (daliasskingroup_t, numskins));
 			byte *pinskinintervals = pinskingroup + sizeof (daliasskingroup_t);
 			byte *skin = pinskinintervals + (groupskins * sizeof (daliasskininterval_t));
 			pskintype = skin + (groupskins * size);
@@ -2890,7 +2890,7 @@ Mod_CalcAliasBounds -- johnfitz -- calculate bounds of alias model for nonrotate
 */
 static void Mod_CalcAliasBounds (qmodel_t *mod, aliashdr_t *a)
 {
-	int    i, j, k;
+	int	   i, j, k;
 	float  dist, yawradius, radius;
 	vec3_t v;
 
@@ -2938,8 +2938,8 @@ static void Mod_CalcAliasBounds (qmodel_t *mod, aliashdr_t *a)
 static qboolean nameInList (const char *list, const char *name)
 {
 	const char *s;
-	char        tmp[MAX_QPATH];
-	int         i;
+	char		tmp[MAX_QPATH];
+	int			i;
 
 	s = list;
 
@@ -3003,11 +3003,11 @@ Mod_LoadAliasModel
 */
 static void Mod_LoadAliasModel (qmodel_t *mod, void *buffer)
 {
-	int   i, j;
+	int	  i, j;
 	byte *pinstverts;
 	byte *pintriangles;
-	int   version, numframes;
-	int   size;
+	int	  version, numframes;
+	int	  size;
 	byte *pframetype;
 	byte *pskintype;
 	byte *mod_base = (byte *)buffer; // johnfitz
@@ -3149,9 +3149,9 @@ static void *Mod_LoadSpriteFrame (qmodel_t *mod, byte *mod_base, void *pin, mspr
 {
 	dspriteframe_t *pinframe;
 	mspriteframe_t *pspriteframe;
-	int             width, height, size, origin[2];
-	char            name[64];
-	src_offset_t    offset; // johnfitz
+	int				width, height, size, origin[2];
+	char			name[64];
+	src_offset_t	offset; // johnfitz
 
 	pinframe = (dspriteframe_t *)pin;
 
@@ -3191,12 +3191,12 @@ Mod_LoadSpriteGroup
 */
 static void *Mod_LoadSpriteGroup (qmodel_t *mod, byte *mod_base, void *pin, mspriteframe_t **ppframe, int framenum)
 {
-	dspritegroup_t    *pingroup;
-	mspritegroup_t    *pspritegroup;
-	int                i, numframes;
+	dspritegroup_t	  *pingroup;
+	mspritegroup_t	  *pspritegroup;
+	int				   i, numframes;
 	dspriteinterval_t *pin_intervals;
-	float             *poutintervals;
-	void              *ptemp;
+	float			  *poutintervals;
+	void			  *ptemp;
 
 	pingroup = (dspritegroup_t *)pin;
 
@@ -3241,12 +3241,12 @@ Mod_LoadSpriteModel
 */
 static void Mod_LoadSpriteModel (qmodel_t *mod, void *buffer)
 {
-	int                 i;
-	int                 version;
-	dsprite_t          *pin;
-	msprite_t          *psprite;
-	int                 numframes;
-	int                 size;
+	int					i;
+	int					version;
+	dsprite_t		   *pin;
+	msprite_t		   *psprite;
+	int					numframes;
+	int					size;
 	dspriteframetype_t *pframetype;
 
 	pin = (dsprite_t *)buffer;
@@ -3318,7 +3318,7 @@ Mod_Print
 */
 void Mod_Print (void)
 {
-	int       i;
+	int		  i;
 	qmodel_t *mod;
 
 	Con_SafePrintf ("Cached models:\n"); // johnfitz -- safeprint instead of print

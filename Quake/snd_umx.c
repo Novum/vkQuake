@@ -42,23 +42,23 @@ struct _genhist
 struct upkg_hdr
 {
 	uint32_t tag; /* UPKG_HDR_TAG */
-	int32_t  file_version;
+	int32_t	 file_version;
 	uint32_t pkg_flags;
-	int32_t  name_count;    /* number of names in name table (>= 0) */
-	int32_t  name_offset;   /* offset to name table  (>= 0) */
-	int32_t  export_count;  /* num. exports in export table  (>= 0) */
-	int32_t  export_offset; /* offset to export table (>= 0) */
-	int32_t  import_count;  /* num. imports in export table  (>= 0) */
-	int32_t  import_offset; /* offset to import table (>= 0) */
+	int32_t	 name_count;	/* number of names in name table (>= 0) */
+	int32_t	 name_offset;	/* offset to name table  (>= 0) */
+	int32_t	 export_count;	/* num. exports in export table  (>= 0) */
+	int32_t	 export_offset; /* offset to export table (>= 0) */
+	int32_t	 import_count;	/* num. imports in export table  (>= 0) */
+	int32_t	 import_offset; /* offset to import table (>= 0) */
 
 	/* number of GUIDs in heritage table (>= 1) and table's offset:
 	 * only with versions < 68. */
-	int32_t  heritage_count;
-	int32_t  heritage_offset;
+	int32_t	 heritage_count;
+	int32_t	 heritage_offset;
 	/* with versions >= 68:  a GUID, a dword for generation count
 	 * and export_count and name_count dwords for each generation: */
 	uint32_t guid[4];
-	int32_t  generation_count;
+	int32_t	 generation_count;
 #define UPKG_HDR_SIZE 64 /* 64 bytes up until here */
 	struct _genhist *gen;
 };
@@ -82,7 +82,7 @@ static const char *mustype[] = {"IT", "S3M", "XM", "MOD", "WAV", "MP2", NULL};
 static fci_t get_fci (const char *in, int *pos)
 {
 	int32_t a;
-	int     size;
+	int		size;
 
 	size = 1;
 	a = in[0] & 0x3f;
@@ -147,7 +147,7 @@ _retry:
 	if (type == UMUSIC_MP2)
 	{
 		unsigned char *p = (unsigned char *)sig;
-		uint16_t       u = ((p[0] << 8) | p[1]) & 0xFFFE;
+		uint16_t	   u = ((p[0] << 8) | p[1]) & 0xFFFE;
 		if (u == 0xFFFC || u == 0xFFF4)
 			return UMUSIC_MP2;
 		return -1;
@@ -187,7 +187,7 @@ _retry:
 static int read_export (fshandle_t *f, const struct upkg_hdr *hdr, int32_t *ofs, int32_t *objsize)
 {
 	char buf[40];
-	int  idx = 0, t;
+	int	 idx = 0, t;
 
 	FS_fseek (f, *ofs, SEEK_SET);
 	if (FS_fread (buf, 4, 10, f) < 10)
@@ -196,8 +196,8 @@ static int read_export (fshandle_t *f, const struct upkg_hdr *hdr, int32_t *ofs,
 	if (hdr->file_version < 40)
 		idx += 8; /* 00 00 00 00 00 00 00 00 */
 	if (hdr->file_version < 60)
-		idx += 16;                 /* 81 00 00 00 00 00 FF FF FF FF FF FF FF FF 00 00 */
-	get_fci (&buf[idx], &idx);     /* skip junk */
+		idx += 16;				   /* 81 00 00 00 00 00 FF FF FF FF FF FF FF FF 00 00 */
+	get_fci (&buf[idx], &idx);	   /* skip junk */
 	t = get_fci (&buf[idx], &idx); /* type_name */
 	if (hdr->file_version > 61)
 		idx += 4; /* skip export size */
@@ -209,7 +209,7 @@ static int read_export (fshandle_t *f, const struct upkg_hdr *hdr, int32_t *ofs,
 
 static int read_typname (fshandle_t *f, const struct upkg_hdr *hdr, int idx, char *out)
 {
-	int  i, s;
+	int	 i, s;
 	long l;
 	char buf[64];
 
@@ -242,10 +242,10 @@ static int read_typname (fshandle_t *f, const struct upkg_hdr *hdr, int idx, cha
 
 static int probe_umx (fshandle_t *f, const struct upkg_hdr *hdr, int32_t *ofs, int32_t *objsize)
 {
-	int     i, idx, t;
+	int		i, idx, t;
 	int32_t s, pos;
-	long    fsiz;
-	char    buf[64];
+	long	fsiz;
+	char	buf[64];
 
 	idx = 0;
 	fsiz = FS_filelength (f);
@@ -269,9 +269,9 @@ static int probe_umx (fshandle_t *f, const struct upkg_hdr *hdr, int32_t *ofs, i
 	get_fci (&buf[idx], &idx); /* skip class_index */
 	get_fci (&buf[idx], &idx); /* skip super_index */
 	if (hdr->file_version >= 60)
-		idx += 4;              /* skip int32 package_index */
+		idx += 4;			   /* skip int32 package_index */
 	get_fci (&buf[idx], &idx); /* skip object_name */
-	idx += 4;                  /* skip int32 object_flags */
+	idx += 4;				   /* skip int32 object_flags */
 
 	s = get_fci (&buf[idx], &idx); /* get serial_size */
 	if (s <= 0)
@@ -378,7 +378,7 @@ static void S_UMX_CodecShutdown (void) {}
 
 static qboolean S_UMX_CodecOpenStream (snd_stream_t *stream)
 {
-	int     type;
+	int		type;
 	int32_t ofs = 0, size = 0;
 
 	type = process_upkg (&stream->fh, &ofs, &size);

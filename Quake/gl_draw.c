@@ -31,20 +31,20 @@ cvar_t scr_conalpha = {"scr_conalpha", "0.5", CVAR_ARCHIVE}; // johnfitz
 qpic_t *draw_disc;
 qpic_t *draw_backtile;
 
-gltexture_t *char_texture;      // johnfitz
-qpic_t      *pic_ovr, *pic_ins; // johnfitz -- new cursor handling
-qpic_t      *pic_nul;           // johnfitz -- for missing gfx, don't crash
+gltexture_t *char_texture;		// johnfitz
+qpic_t		*pic_ovr, *pic_ins; // johnfitz -- new cursor handling
+qpic_t		*pic_nul;			// johnfitz -- for missing gfx, don't crash
 
 // johnfitz -- new pics
 byte pic_ovr_data[8][8] = {
 	{255, 255, 255, 255, 255, 255, 255, 255}, {255, 15, 15, 15, 15, 15, 15, 255}, {255, 15, 15, 15, 15, 15, 15, 2}, {255, 15, 15, 15, 15, 15, 15, 2},
-	{255, 15, 15, 15, 15, 15, 15, 2},         {255, 15, 15, 15, 15, 15, 15, 2},   {255, 15, 15, 15, 15, 15, 15, 2}, {255, 255, 2, 2, 2, 2, 2, 2},
+	{255, 15, 15, 15, 15, 15, 15, 2},		  {255, 15, 15, 15, 15, 15, 15, 2},	  {255, 15, 15, 15, 15, 15, 15, 2}, {255, 255, 2, 2, 2, 2, 2, 2},
 };
 
 byte pic_ins_data[9][8] = {
 	{15, 15, 255, 255, 255, 255, 255, 255}, {15, 15, 2, 255, 255, 255, 255, 255}, {15, 15, 2, 255, 255, 255, 255, 255},
-	{15, 15, 2, 255, 255, 255, 255, 255},   {15, 15, 2, 255, 255, 255, 255, 255}, {15, 15, 2, 255, 255, 255, 255, 255},
-	{15, 15, 2, 255, 255, 255, 255, 255},   {15, 15, 2, 255, 255, 255, 255, 255}, {255, 2, 2, 255, 255, 255, 255, 255},
+	{15, 15, 2, 255, 255, 255, 255, 255},	{15, 15, 2, 255, 255, 255, 255, 255}, {15, 15, 2, 255, 255, 255, 255, 255},
+	{15, 15, 2, 255, 255, 255, 255, 255},	{15, 15, 2, 255, 255, 255, 255, 255}, {255, 2, 2, 255, 255, 255, 255, 255},
 };
 
 byte pic_nul_data[8][8] = {
@@ -72,7 +72,7 @@ byte pic_crosshair_data[8][8] = {
 typedef struct
 {
 	gltexture_t *gltexture;
-	float        sl, tl, sh, th;
+	float		 sl, tl, sh, th;
 } glpic_t;
 
 //==============================================================================
@@ -90,7 +90,7 @@ typedef struct cachepic_s
 
 #define MAX_CACHED_PICS 512 // Spike -- increased to avoid csqc issues.
 cachepic_t menu_cachepics[MAX_CACHED_PICS];
-int        menu_numcachepics;
+int		   menu_numcachepics;
 
 byte menuplyr_pixels[4096];
 
@@ -98,13 +98,13 @@ byte menuplyr_pixels[4096];
 //  Allocate all the little status bar obejcts into a single texture
 //  to crutch up stupid hardware / drivers
 
-#define MAX_SCRAPS   2
-#define BLOCK_WIDTH  256
+#define MAX_SCRAPS	 2
+#define BLOCK_WIDTH	 256
 #define BLOCK_HEIGHT 256
 
-int          scrap_allocated[MAX_SCRAPS][BLOCK_WIDTH];
-byte         scrap_texels[MAX_SCRAPS][BLOCK_WIDTH * BLOCK_HEIGHT]; // johnfitz -- removed *4 after BLOCK_HEIGHT
-qboolean     scrap_dirty;
+int			 scrap_allocated[MAX_SCRAPS][BLOCK_WIDTH];
+byte		 scrap_texels[MAX_SCRAPS][BLOCK_WIDTH * BLOCK_HEIGHT]; // johnfitz -- removed *4 after BLOCK_HEIGHT
+qboolean	 scrap_dirty;
 gltexture_t *scrap_textures[MAX_SCRAPS]; // johnfitz
 
 /*
@@ -163,7 +163,7 @@ Scrap_Upload -- johnfitz -- now uses TexMgr
 void Scrap_Upload (void)
 {
 	char name[8];
-	int  i;
+	int	 i;
 
 	for (i = 0; i < MAX_SCRAPS; i++)
 	{
@@ -183,12 +183,12 @@ Draw_PicFromWad
 */
 qpic_t *Draw_PicFromWad2 (const char *name, unsigned int texflags)
 {
-	int          i;
-	cachepic_t  *pic;
-	qpic_t      *p;
-	glpic_t      gl;
+	int			 i;
+	cachepic_t	*pic;
+	qpic_t		*p;
+	glpic_t		 gl;
 	src_offset_t offset; // johnfitz
-	lumpinfo_t  *info;
+	lumpinfo_t	*info;
 
 	// Spike -- added cachepic stuff here, to avoid glitches if the function is called multiple times with the same image.
 	for (pic = menu_cachepics, i = 0; i < menu_numcachepics; pic++, i++)
@@ -215,9 +215,9 @@ qpic_t *Draw_PicFromWad2 (const char *name, unsigned int texflags)
 	// load little ones into the scrap
 	if (p->width < 64 && p->height < 64)
 	{
-		int   x = 0, y = 0;
-		int   j, k;
-		int   texnum;
+		int	  x = 0, y = 0;
+		int	  j, k;
+		int	  texnum;
 		byte *data = p->data;
 
 		texnum = Scrap_AllocBlock (p->width, p->height, &x, &y);
@@ -237,7 +237,7 @@ qpic_t *Draw_PicFromWad2 (const char *name, unsigned int texflags)
 	}
 	else
 	{
-		char texturename[64];                                                       // johnfitz
+		char texturename[64];														// johnfitz
 		q_snprintf (texturename, sizeof (texturename), "%s:%s", WADFILENAME, name); // johnfitz
 
 		offset = (src_offset_t)p - (src_offset_t)wad_base + sizeof (int) * 2; // johnfitz
@@ -265,7 +265,7 @@ qpic_t *Draw_PicFromWad (const char *name)
 qpic_t *Draw_GetCachedPic (const char *path)
 {
 	cachepic_t *pic;
-	int         i;
+	int			i;
 
 	for (pic = menu_cachepics, i = 0; i < menu_numcachepics; pic++, i++)
 	{
@@ -283,9 +283,9 @@ Draw_CachePic
 qpic_t *Draw_TryCachePic (const char *path, unsigned int texflags)
 {
 	cachepic_t *pic;
-	int         i;
-	qpic_t     *dat;
-	glpic_t     gl;
+	int			i;
+	qpic_t	   *dat;
+	glpic_t		gl;
 
 	for (pic = menu_cachepics, i = 0; i < menu_numcachepics; pic++, i++)
 	{
@@ -344,7 +344,7 @@ Draw_MakePic -- johnfitz -- generate pics from internal data
 */
 qpic_t *Draw_MakePic (const char *name, int width, int height, byte *data)
 {
-	int     flags = TEXPREF_NEAREST | TEXPREF_ALPHA | TEXPREF_PERSIST | TEXPREF_NOPICMIP | TEXPREF_PAD;
+	int		flags = TEXPREF_NEAREST | TEXPREF_ALPHA | TEXPREF_PERSIST | TEXPREF_NOPICMIP | TEXPREF_PAD;
 	qpic_t *pic;
 	glpic_t gl;
 
@@ -375,9 +375,9 @@ Draw_LoadPics -- johnfitz
 */
 void Draw_LoadPics (void)
 {
-	byte        *data;
+	byte		*data;
 	src_offset_t offset;
-	lumpinfo_t  *info;
+	lumpinfo_t	*info;
 
 	data = (byte *)W_GetLumpName ("conchars", &info);
 	if (!data)
@@ -398,7 +398,7 @@ Draw_NewGame -- johnfitz
 void Draw_NewGame (void)
 {
 	cachepic_t *pic;
-	int         i;
+	int			i;
 
 	// empty scrap and reallocate gltextures
 	memset (scrap_allocated, 0, sizeof (scrap_allocated));
@@ -456,7 +456,7 @@ Draw_FillCharacterQuad
 */
 static void Draw_FillCharacterQuad (int x, int y, char num, basicvertex_t *output, int rotation)
 {
-	int   row, col;
+	int	  row, col;
 	float frow, fcol, size;
 
 	row = num >> 4;
@@ -524,7 +524,7 @@ void Draw_Character (cb_context_t *cbx, int x, int y, int num)
 	if (num == 32)
 		return; // don't waste verts on spaces
 
-	VkBuffer       buffer;
+	VkBuffer	   buffer;
 	VkDeviceSize   buffer_offset;
 	basicvertex_t *vertices = (basicvertex_t *)R_VertexAllocate (6 * sizeof (basicvertex_t), &buffer, &buffer_offset);
 
@@ -544,8 +544,8 @@ Draw_String
 */
 void Draw_String (cb_context_t *cbx, int x, int y, const char *str)
 {
-	int         num_verts = 0;
-	int         i;
+	int			num_verts = 0;
+	int			i;
 	const char *tmp;
 
 	if (y <= -8)
@@ -555,7 +555,7 @@ void Draw_String (cb_context_t *cbx, int x, int y, const char *str)
 		if (*tmp != 32)
 			num_verts += 6;
 
-	VkBuffer       buffer;
+	VkBuffer	   buffer;
 	VkDeviceSize   buffer_offset;
 	basicvertex_t *vertices = (basicvertex_t *)R_VertexAllocate (num_verts * sizeof (basicvertex_t), &buffer, &buffer_offset);
 
@@ -584,13 +584,13 @@ Draw_Pic -- johnfitz -- modified
 void Draw_Pic (cb_context_t *cbx, int x, int y, qpic_t *pic, float alpha, qboolean alpha_blend)
 {
 	glpic_t gl;
-	int     i;
+	int		i;
 
 	if (scrap_dirty)
 		Scrap_Upload ();
 	memcpy (&gl, pic->data, sizeof (glpic_t));
 
-	VkBuffer       buffer;
+	VkBuffer	   buffer;
 	VkDeviceSize   buffer_offset;
 	basicvertex_t *vertices = (basicvertex_t *)R_VertexAllocate (6 * sizeof (basicvertex_t), &buffer, &buffer_offset);
 
@@ -643,9 +643,9 @@ void Draw_Pic (cb_context_t *cbx, int x, int y, qpic_t *pic, float alpha, qboole
 
 void Draw_SubPic (cb_context_t *cbx, float x, float y, float w, float h, qpic_t *pic, float s1, float t1, float s2, float t2, float *rgb, float alpha)
 {
-	glpic_t  gl;
+	glpic_t	 gl;
 	qboolean alpha_blend = alpha < 1.0f;
-	int      i;
+	int		 i;
 	if (alpha <= 0.0f)
 		return;
 
@@ -658,7 +658,7 @@ void Draw_SubPic (cb_context_t *cbx, float x, float y, float w, float h, qpic_t 
 	if (!gl.gltexture)
 		return;
 
-	VkBuffer       buffer;
+	VkBuffer	   buffer;
 	VkDeviceSize   buffer_offset;
 	basicvertex_t *vertices = (basicvertex_t *)R_VertexAllocate (6 * sizeof (basicvertex_t), &buffer, &buffer_offset);
 
@@ -746,7 +746,7 @@ Draw_ConsoleBackground -- johnfitz -- rewritten
 void Draw_ConsoleBackground (cb_context_t *cbx)
 {
 	qpic_t *pic;
-	float   alpha;
+	float	alpha;
 
 	pic = Draw_CachePic ("gfx/conback.lmp");
 	pic->width = vid.conwidth;
@@ -775,7 +775,7 @@ void Draw_TileClear (cb_context_t *cbx, int x, int y, int w, int h)
 	glpic_t gl;
 	memcpy (&gl, draw_backtile->data, sizeof (glpic_t));
 
-	VkBuffer       buffer;
+	VkBuffer	   buffer;
 	VkDeviceSize   buffer_offset;
 	basicvertex_t *vertices = (basicvertex_t *)R_VertexAllocate (6 * sizeof (basicvertex_t), &buffer, &buffer_offset);
 
@@ -829,10 +829,10 @@ Fills a box of pixels with a single color
 */
 void Draw_Fill (cb_context_t *cbx, int x, int y, int w, int h, int c, float alpha) // johnfitz -- added alpha
 {
-	int   i;
+	int	  i;
 	byte *pal = (byte *)d_8to24table; // johnfitz -- use d_8to24table instead of host_basepal
 
-	VkBuffer       buffer;
+	VkBuffer	   buffer;
 	VkDeviceSize   buffer_offset;
 	basicvertex_t *vertices = (basicvertex_t *)R_VertexAllocate (6 * sizeof (basicvertex_t), &buffer, &buffer_offset);
 
@@ -882,7 +882,7 @@ void Draw_FadeScreen (cb_context_t *cbx)
 
 	GL_SetCanvas (cbx, CANVAS_DEFAULT);
 
-	VkBuffer       buffer;
+	VkBuffer	   buffer;
 	VkDeviceSize   buffer_offset;
 	basicvertex_t *vertices = (basicvertex_t *)R_VertexAllocate (6 * sizeof (basicvertex_t), &buffer, &buffer_offset);
 
@@ -977,8 +977,8 @@ void GL_SetCanvas (cb_context_t *cbx, canvastype newcanvas)
 		return;
 
 	extern vrect_t scr_vrect;
-	float          s;
-	int            lines;
+	float		   s;
+	int			   lines;
 
 	cbx->current_canvas = newcanvas;
 
@@ -1028,12 +1028,12 @@ void GL_SetCanvas (cb_context_t *cbx, canvastype newcanvas)
 		GL_OrthoMatrix (cbx, scr_vrect.width / -2 / s, scr_vrect.width / 2 / s, scr_vrect.height / 2 / s, scr_vrect.height / -2 / s, -99999, 99999);
 		GL_Viewport (cbx, scr_vrect.x, glheight - scr_vrect.y - scr_vrect.height, scr_vrect.width & ~1, scr_vrect.height & ~1, 0.0f, 1.0f);
 		break;
-	case CANVAS_BOTTOMLEFT:                // used by devstats
+	case CANVAS_BOTTOMLEFT:				   // used by devstats
 		s = (float)glwidth / vid.conwidth; // use console scale
 		GL_OrthoMatrix (cbx, 0, 320, 200, 0, -99999, 99999);
 		GL_Viewport (cbx, glx, gly, 320 * s, 200 * s, 0.0f, 1.0f);
 		break;
-	case CANVAS_BOTTOMRIGHT:               // used by fps/clock
+	case CANVAS_BOTTOMRIGHT:			   // used by fps/clock
 		s = (float)glwidth / vid.conwidth; // use console scale
 		GL_OrthoMatrix (cbx, 0, 320, 200, 0, -99999, 99999);
 		GL_Viewport (cbx, glx + glwidth - 320 * s, gly, 320 * s, 200 * s, 0.0f, 1.0f);
@@ -1061,8 +1061,8 @@ Draw_FillCharacterQuad_3D
 */
 static void Draw_FillCharacterQuad_3D (vec3_t coords, float xoff, float yoff, float size, char num, basicvertex_t *output)
 {
-	int    row, col;
-	float  frow, fcol, tile_size;
+	int	  row, col;
+	float frow, fcol, tile_size;
 
 	xoff *= size;
 	yoff *= size;
@@ -1109,16 +1109,16 @@ Draw_String_3D
 */
 void Draw_String_3D (cb_context_t *cbx, vec3_t coords, float size, const char *str)
 {
-	int         num_verts = 0;
-	int         i;
+	int			num_verts = 0;
+	int			i;
 	const char *tmp;
-	float       xoff;
+	float		xoff;
 
 	for (tmp = str; *tmp != 0; ++tmp)
 		if (*tmp != 32)
 			num_verts += 6;
 
-	VkBuffer       buffer;
+	VkBuffer	   buffer;
 	VkDeviceSize   buffer_offset;
 	basicvertex_t *vertices = (basicvertex_t *)R_VertexAllocate (num_verts * sizeof (basicvertex_t), &buffer, &buffer_offset);
 

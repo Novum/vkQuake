@@ -28,10 +28,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 typedef struct file_handle_s
 {
-	FILE       *file;
+	FILE	   *file;
 	const byte *memory;
-	int         pos;
-	int         size;
+	int			pos;
+	int			size;
 } file_handle_t;
 
 #define MAX_HANDLES 32 /* johnfitz -- was 10 */
@@ -65,7 +65,7 @@ static long Sys_filelength (FILE *f)
 int Sys_FileOpenRead (const char *path, int *hndl)
 {
 	FILE *f;
-	int   i, retval;
+	int	  i, retval;
 
 	i = findhandle ();
 	f = fopen (path, "rb");
@@ -98,7 +98,7 @@ void Sys_MemFileOpenRead (const byte *memory, int size, int *hndl)
 int Sys_FileOpenWrite (const char *path)
 {
 	FILE *f;
-	int   i;
+	int	  i;
 
 	i = findhandle ();
 	f = fopen (path, "wb");

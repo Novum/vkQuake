@@ -30,7 +30,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 //==============================================================================
 
 #define DEFAULT_DENSITY 0.0
-#define DEFAULT_GRAY    0.3
+#define DEFAULT_GRAY	0.3
 
 float fog_density;
 float fog_red;
@@ -159,7 +159,7 @@ called at map load
 */
 void Fog_ParseWorldspawn (void)
 {
-	char        key[128], value[4096];
+	char		key[128], value[4096];
 	const char *data;
 
 	// initially no fog
@@ -216,7 +216,7 @@ calculates fog color for this frame, taking into account fade times
 void Fog_GetColor (float *c)
 {
 	float f;
-	int   i;
+	int	  i;
 
 	if (fade_done > cl.time)
 	{
@@ -331,7 +331,7 @@ called whenever a map is loaded
 void Fog_NewMap (void)
 {
 	Fog_ParseWorldspawn (); // for global fog
-	Fog_MarkModels ();      // for volumetric fog
+	Fog_MarkModels ();		// for volumetric fog
 }
 
 /*

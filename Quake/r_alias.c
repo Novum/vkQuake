@@ -53,11 +53,11 @@ typedef struct
 
 typedef struct
 {
-	float        model_matrix[16];
-	float        shade_vector[3];
-	float        blend_factor;
-	float        light_color[3];
-	float        entalpha;
+	float		 model_matrix[16];
+	float		 shade_vector[3];
+	float		 blend_factor;
+	float		 light_color[3];
+	float		 entalpha;
 	unsigned int flags;
 } aliasubo_t;
 
@@ -117,10 +117,10 @@ static void GL_DrawAliasFrame (
 
 	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 
-	VkBuffer        uniform_buffer;
-	uint32_t        uniform_offset;
+	VkBuffer		uniform_buffer;
+	uint32_t		uniform_offset;
 	VkDescriptorSet ubo_set;
-	aliasubo_t     *ubo = (aliasubo_t *)R_UniformAllocate (sizeof (aliasubo_t), &uniform_buffer, &uniform_offset, &ubo_set);
+	aliasubo_t	   *ubo = (aliasubo_t *)R_UniformAllocate (sizeof (aliasubo_t), &uniform_buffer, &uniform_offset, &ubo_set);
 
 	memcpy (ubo->model_matrix, model_matrix, 16 * sizeof (float));
 	memcpy (ubo->shade_vector, shadevector, 3 * sizeof (float));
@@ -135,7 +135,7 @@ static void GL_DrawAliasFrame (
 	vulkan_globals.vk_cmd_bind_descriptor_sets (
 		cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.alias_pipeline.layout.handle, 0, 3, descriptor_sets, 1, &uniform_offset);
 
-	VkBuffer     vertex_buffers[3] = {e->model->vertex_buffer, e->model->vertex_buffer, e->model->vertex_buffer};
+	VkBuffer	 vertex_buffers[3] = {e->model->vertex_buffer, e->model->vertex_buffer, e->model->vertex_buffer};
 	VkDeviceSize vertex_offsets[3] = {
 		(unsigned)e->model->vbostofs, GLARB_GetXYZOffset (e, paliashdr, lerpdata.pose1), GLARB_GetXYZOffset (e, paliashdr, lerpdata.pose2)};
 	vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 3, vertex_buffers, vertex_offsets);
@@ -234,7 +234,7 @@ void R_SetupEntityTransform (entity_t *e, lerpdata_t *lerpdata)
 {
 	float  blend;
 	vec3_t d;
-	int    i;
+	int	   i;
 
 	// if LERP_RESETMOVE, kill any lerps in progress
 	if (e->lerpflags & LERP_RESETMOVE)
@@ -298,8 +298,8 @@ static void R_SetupAliasLighting (entity_t *e, vec3_t *shadevector, vec3_t *ligh
 {
 	vec3_t dist;
 	float  add;
-	int    i;
-	int    quantizedangle;
+	int	   i;
+	int	   quantizedangle;
 	float  radiansangle;
 
 	// if the initial trace is completely black, try again from above
@@ -370,11 +370,11 @@ R_DrawAliasModel -- johnfitz -- almost completely rewritten
 */
 void R_DrawAliasModel (cb_context_t *cbx, entity_t *e, int *aliaspolys)
 {
-	aliashdr_t  *paliashdr;
-	int          anim, skinnum;
+	aliashdr_t	*paliashdr;
+	int			 anim, skinnum;
 	gltexture_t *tx, *fb;
-	lerpdata_t   lerpdata;
-	qboolean     alphatest = !!(e->model->flags & MF_HOLEY);
+	lerpdata_t	 lerpdata;
+	qboolean	 alphatest = !!(e->model->flags & MF_HOLEY);
 
 	//
 	// setup pose/lerp data -- do it first so we don't miss updates due to culling
@@ -475,8 +475,8 @@ void R_DrawAliasModel (cb_context_t *cbx, entity_t *e, int *aliaspolys)
 
 // johnfitz -- values for shadow matrix
 #define SHADOW_SKEW_X -0.7 // skew along x axis. -0.7 to mimic glquake shadows
-#define SHADOW_SKEW_Y 0    // skew along y axis. 0 to mimic glquake shadows
-#define SHADOW_VSCALE 0    // 0=completely flat
+#define SHADOW_SKEW_Y 0	   // skew along y axis. 0 to mimic glquake shadows
+#define SHADOW_VSCALE 0	   // 0=completely flat
 #define SHADOW_HEIGHT 0.1  // how far above the floor to render the shadow
 // johnfitz
 
@@ -488,8 +488,8 @@ R_DrawAliasModel_ShowTris -- johnfitz
 void R_DrawAliasModel_ShowTris (cb_context_t *cbx, entity_t *e)
 {
 	aliashdr_t *paliashdr;
-	lerpdata_t  lerpdata;
-	float       blend;
+	lerpdata_t	lerpdata;
+	float		blend;
 
 	//
 	// setup pose/lerp data -- do it first so we don't miss updates due to culling
@@ -537,10 +537,10 @@ void R_DrawAliasModel_ShowTris (cb_context_t *cbx, entity_t *e)
 	else // poses the same means either 1. the entity has paused its animation, or 2. r_lerpmodels is disabled
 		blend = 0;
 
-	VkBuffer        uniform_buffer;
-	uint32_t        uniform_offset;
+	VkBuffer		uniform_buffer;
+	uint32_t		uniform_offset;
 	VkDescriptorSet ubo_set;
-	aliasubo_t     *ubo = (aliasubo_t *)R_UniformAllocate (sizeof (aliasubo_t), &uniform_buffer, &uniform_offset, &ubo_set);
+	aliasubo_t	   *ubo = (aliasubo_t *)R_UniformAllocate (sizeof (aliasubo_t), &uniform_buffer, &uniform_offset, &ubo_set);
 
 	memcpy (ubo->model_matrix, model_matrix, 16 * sizeof (float));
 	memset (ubo->shade_vector, 0, 3 * sizeof (float));
@@ -553,7 +553,7 @@ void R_DrawAliasModel_ShowTris (cb_context_t *cbx, entity_t *e)
 	vulkan_globals.vk_cmd_bind_descriptor_sets (
 		cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.alias_pipeline.layout.handle, 0, 3, descriptor_sets, 1, &uniform_offset);
 
-	VkBuffer     vertex_buffers[3] = {e->model->vertex_buffer, e->model->vertex_buffer, e->model->vertex_buffer};
+	VkBuffer	 vertex_buffers[3] = {e->model->vertex_buffer, e->model->vertex_buffer, e->model->vertex_buffer};
 	VkDeviceSize vertex_offsets[3] = {
 		(unsigned)e->model->vbostofs, GLARB_GetXYZOffset (e, paliashdr, lerpdata.pose1), GLARB_GetXYZOffset (e, paliashdr, lerpdata.pose2)};
 	vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 3, vertex_buffers, vertex_offsets);

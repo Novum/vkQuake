@@ -38,7 +38,7 @@ R_AnimateLight
 */
 void R_AnimateLight (void)
 {
-	int    i, j, k, n;
+	int	   i, j, k, n;
 	double f;
 
 	//
@@ -84,12 +84,12 @@ R_MarkLights -- johnfitz -- rewritten to use LordHavoc's lighting speedup
 */
 void R_MarkLights (dlight_t *light, int num, mnode_t *node)
 {
-	mplane_t    *splitplane;
-	msurface_t  *surf;
-	vec3_t       impact;
-	float        dist, l, maxdist;
+	mplane_t	*splitplane;
+	msurface_t	*surf;
+	vec3_t		 impact;
+	float		 dist, l, maxdist;
 	unsigned int i;
-	int          j, s, t;
+	int			 j, s, t;
 
 start:
 
@@ -161,7 +161,7 @@ R_PushDlights
 */
 void R_PushDlights (void)
 {
-	int       i;
+	int		  i;
 	dlight_t *l;
 
 	r_dlightframecount = r_framecount;
@@ -187,7 +187,7 @@ LIGHT SAMPLING
 static void InterpolateLightmap (vec3_t color, msurface_t *surf, int ds, int dt)
 {
 	byte *lightmap;
-	int   maps, line3, dsfrac = ds & 15, dtfrac = dt & 15, r00 = 0, g00 = 0, b00 = 0, r01 = 0, g01 = 0, b01 = 0, r10 = 0, g10 = 0, b10 = 0, r11 = 0, g11 = 0,
+	int	  maps, line3, dsfrac = ds & 15, dtfrac = dt & 15, r00 = 0, g00 = 0, b00 = 0, r01 = 0, g01 = 0, b01 = 0, r10 = 0, g10 = 0, b10 = 0, r11 = 0, g11 = 0,
 					 b11 = 0;
 	int scale;
 	line3 = ((surf->extents[0] >> 4) + 1) * 3;
@@ -213,11 +213,11 @@ static void InterpolateLightmap (vec3_t color, msurface_t *surf, int ds, int dt)
 	}
 
 	color[0] = ((((((((r11 - r10) * dsfrac) >> 4) + r10) - ((((r01 - r00) * dsfrac) >> 4) + r00)) * dtfrac) >> 4) + ((((r01 - r00) * dsfrac) >> 4) + r00)) *
-	           (1.f / 256.f);
+			   (1.f / 256.f);
 	color[1] = ((((((((g11 - g10) * dsfrac) >> 4) + g10) - ((((g01 - g00) * dsfrac) >> 4) + g00)) * dtfrac) >> 4) + ((((g01 - g00) * dsfrac) >> 4) + g00)) *
-	           (1.f / 256.f);
+			   (1.f / 256.f);
 	color[2] = ((((((((b11 - b10) * dsfrac) >> 4) + b10) - ((((b01 - b00) * dsfrac) >> 4) + b00)) * dtfrac) >> 4) + ((((b01 - b00) * dsfrac) >> 4) + b00)) *
-	           (1.f / 256.f);
+			   (1.f / 256.f);
 }
 
 /*
@@ -265,8 +265,8 @@ loc0:
 	else
 	{
 		unsigned int i;
-		int          ds, dt;
-		msurface_t  *surf;
+		int			 ds, dt;
+		msurface_t	*surf;
 
 		surf = cl.worldmodel->surfaces + node->firstsurface;
 		for (i = 0; i < node->numsurfaces; i++, surf++)
@@ -364,8 +364,8 @@ int R_LightPoint (vec3_t p, float ofs, lightcache_t *cache, vec3_t *lightcolor)
 	SDL_mutex *mtx = cache->mutex ? cache->mutex : lightcache_mutex;
 	SDL_LockMutex (mtx);
 	if (!cache || cache->surfidx <= 0 // no cache or pitch black
-	    || cache->surfidx > cl.worldmodel->numsurfaces || fabsf (cache->pos[0] - p[0]) >= 1.f || fabsf (cache->pos[1] - p[1]) >= 1.f ||
-	    fabsf (cache->pos[2] - p[2]) >= 1.f)
+		|| cache->surfidx > cl.worldmodel->numsurfaces || fabsf (cache->pos[0] - p[0]) >= 1.f || fabsf (cache->pos[1] - p[1]) >= 1.f ||
+		fabsf (cache->pos[2] - p[2]) >= 1.f)
 	{
 		cache->surfidx = 0;
 		VectorCopy (p, cache->pos);

@@ -38,30 +38,30 @@
 #endif
 
 #ifdef LEGACY_FLAC
-#define FLAC__StreamDecoder             FLAC__SeekableStreamDecoder
-#define FLAC__StreamDecoderReadStatus   FLAC__SeekableStreamDecoderReadStatus
-#define FLAC__StreamDecoderSeekStatus   FLAC__SeekableStreamDecoderSeekStatus
-#define FLAC__StreamDecoderTellStatus   FLAC__SeekableStreamDecoderTellStatus
+#define FLAC__StreamDecoder				FLAC__SeekableStreamDecoder
+#define FLAC__StreamDecoderReadStatus	FLAC__SeekableStreamDecoderReadStatus
+#define FLAC__StreamDecoderSeekStatus	FLAC__SeekableStreamDecoderSeekStatus
+#define FLAC__StreamDecoderTellStatus	FLAC__SeekableStreamDecoderTellStatus
 #define FLAC__StreamDecoderLengthStatus FLAC__SeekableStreamDecoderLengthStatus
 
-#define FLAC__stream_decoder_new                           FLAC__seekable_stream_decoder_new
-#define FLAC__stream_decoder_finish                        FLAC__seekable_stream_decoder_finish
-#define FLAC__stream_decoder_delete                        FLAC__seekable_stream_decoder_delete
-#define FLAC__stream_decoder_process_single                FLAC__seekable_stream_decoder_process_single
-#define FLAC__stream_decoder_seek_absolute                 FLAC__seekable_stream_decoder_seek_absolute
+#define FLAC__stream_decoder_new						   FLAC__seekable_stream_decoder_new
+#define FLAC__stream_decoder_finish						   FLAC__seekable_stream_decoder_finish
+#define FLAC__stream_decoder_delete						   FLAC__seekable_stream_decoder_delete
+#define FLAC__stream_decoder_process_single				   FLAC__seekable_stream_decoder_process_single
+#define FLAC__stream_decoder_seek_absolute				   FLAC__seekable_stream_decoder_seek_absolute
 #define FLAC__stream_decoder_process_until_end_of_metadata FLAC__seekable_stream_decoder_process_until_end_of_metadata
-#define FLAC__stream_decoder_get_state                     FLAC__seekable_stream_decoder_get_state
+#define FLAC__stream_decoder_get_state					   FLAC__seekable_stream_decoder_get_state
 
-#define FLAC__STREAM_DECODER_INIT_STATUS_OK            FLAC__SEEKABLE_STREAM_DECODER_OK
-#define FLAC__STREAM_DECODER_READ_STATUS_CONTINUE      FLAC__SEEKABLE_STREAM_DECODER_READ_STATUS_OK
-#define FLAC__STREAM_DECODER_READ_STATUS_ABORT         FLAC__SEEKABLE_STREAM_DECODER_READ_STATUS_ERROR
+#define FLAC__STREAM_DECODER_INIT_STATUS_OK			   FLAC__SEEKABLE_STREAM_DECODER_OK
+#define FLAC__STREAM_DECODER_READ_STATUS_CONTINUE	   FLAC__SEEKABLE_STREAM_DECODER_READ_STATUS_OK
+#define FLAC__STREAM_DECODER_READ_STATUS_ABORT		   FLAC__SEEKABLE_STREAM_DECODER_READ_STATUS_ERROR
 #define FLAC__STREAM_DECODER_READ_STATUS_END_OF_STREAM FLAC__SEEKABLE_STREAM_DECODER_READ_STATUS_OK /* !!! */
-#define FLAC__STREAM_DECODER_WRITE_STATUS_ABORT        FLAC__STREAM_DECODER_WRITE_STATUS_ABORT
-#define FLAC__STREAM_DECODER_SEEK_STATUS_OK            FLAC__SEEKABLE_STREAM_DECODER_SEEK_STATUS_OK
-#define FLAC__STREAM_DECODER_SEEK_STATUS_ERROR         FLAC__SEEKABLE_STREAM_DECODER_SEEK_STATUS_ERROR
-#define FLAC__STREAM_DECODER_TELL_STATUS_OK            FLAC__SEEKABLE_STREAM_DECODER_TELL_STATUS_OK
-#define FLAC__STREAM_DECODER_TELL_STATUS_ERROR         FLAC__SEEKABLE_STREAM_DECODER_TELL_STATUS_ERROR
-#define FLAC__STREAM_DECODER_LENGTH_STATUS_OK          FLAC__SEEKABLE_STREAM_DECODER_LENGTH_STATUS_OK
+#define FLAC__STREAM_DECODER_WRITE_STATUS_ABORT		   FLAC__STREAM_DECODER_WRITE_STATUS_ABORT
+#define FLAC__STREAM_DECODER_SEEK_STATUS_OK			   FLAC__SEEKABLE_STREAM_DECODER_SEEK_STATUS_OK
+#define FLAC__STREAM_DECODER_SEEK_STATUS_ERROR		   FLAC__SEEKABLE_STREAM_DECODER_SEEK_STATUS_ERROR
+#define FLAC__STREAM_DECODER_TELL_STATUS_OK			   FLAC__SEEKABLE_STREAM_DECODER_TELL_STATUS_OK
+#define FLAC__STREAM_DECODER_TELL_STATUS_ERROR		   FLAC__SEEKABLE_STREAM_DECODER_TELL_STATUS_ERROR
+#define FLAC__STREAM_DECODER_LENGTH_STATUS_OK		   FLAC__SEEKABLE_STREAM_DECODER_LENGTH_STATUS_OK
 typedef unsigned FLAC_SIZE_T;
 #else
 typedef size_t FLAC_SIZE_T;
@@ -70,10 +70,10 @@ typedef size_t FLAC_SIZE_T;
 typedef struct
 {
 	FLAC__StreamDecoder *decoder;
-	fshandle_t          *file;
-	snd_info_t          *info;
-	byte                *buffer;
-	int                  size, pos, error;
+	fshandle_t			*file;
+	snd_info_t			*info;
+	byte				*buffer;
+	int					 size, pos, error;
 } flacfile_t;
 
 /* CALLBACK FUNCTIONS: */
@@ -110,7 +110,7 @@ static FLAC__StreamDecoderSeekStatus flac_seek_func (const FLAC__StreamDecoder *
 static FLAC__StreamDecoderTellStatus flac_tell_func (const FLAC__StreamDecoder *decoder, FLAC__uint64 *absolute_byte_offset, void *client_data)
 {
 	flacfile_t *ff = (flacfile_t *)client_data;
-	long        pos = FS_ftell (ff->file);
+	long		pos = FS_ftell (ff->file);
 	if (pos < 0)
 		return FLAC__STREAM_DECODER_TELL_STATUS_ERROR;
 	*absolute_byte_offset = (FLAC__uint64)pos;
@@ -150,7 +150,7 @@ flac_write_func (const FLAC__StreamDecoder *decoder, const FLAC__Frame *frame, c
 
 	if (ff->info->channels == 1)
 	{
-		unsigned           i;
+		unsigned		   i;
 		const FLAC__int32 *in = buffer[0];
 
 		if (ff->info->bits == 8)
@@ -168,7 +168,7 @@ flac_write_func (const FLAC__StreamDecoder *decoder, const FLAC__Frame *frame, c
 	}
 	else
 	{
-		unsigned           i;
+		unsigned		   i;
 		const FLAC__int32 *li = buffer[0];
 		const FLAC__int32 *ri = buffer[1];
 
@@ -223,7 +223,7 @@ static void S_FLAC_CodecShutdown (void) {}
 static qboolean S_FLAC_CodecOpenStream (snd_stream_t *stream)
 {
 	flacfile_t *ff;
-	int         rc;
+	int			rc;
 
 	ff = (flacfile_t *)Mem_Alloc (sizeof (flacfile_t));
 
@@ -299,8 +299,8 @@ _fail:
 static int S_FLAC_CodecReadStream (snd_stream_t *stream, int len, void *buffer)
 {
 	flacfile_t *ff = (flacfile_t *)stream->priv;
-	byte       *buf = (byte *)buffer;
-	int         count = 0;
+	byte	   *buf = (byte *)buffer;
+	int			count = 0;
 
 	while (len)
 	{

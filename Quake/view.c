@@ -61,15 +61,15 @@ cvar_t crosshair = {"crosshair", "1", CVAR_ARCHIVE};
 
 cvar_t gl_cshiftpercent = {"gl_cshiftpercent", "100", CVAR_NONE};
 cvar_t gl_cshiftpercent_contents = {"gl_cshiftpercent_contents", "100", CVAR_NONE}; // QuakeSpasm
-cvar_t gl_cshiftpercent_damage = {"gl_cshiftpercent_damage", "100", CVAR_NONE};     // QuakeSpasm
-cvar_t gl_cshiftpercent_bonus = {"gl_cshiftpercent_bonus", "100", CVAR_NONE};       // QuakeSpasm
-cvar_t gl_cshiftpercent_powerup = {"gl_cshiftpercent_powerup", "100", CVAR_NONE};   // QuakeSpasm
+cvar_t gl_cshiftpercent_damage = {"gl_cshiftpercent_damage", "100", CVAR_NONE};		// QuakeSpasm
+cvar_t gl_cshiftpercent_bonus = {"gl_cshiftpercent_bonus", "100", CVAR_NONE};		// QuakeSpasm
+cvar_t gl_cshiftpercent_powerup = {"gl_cshiftpercent_powerup", "100", CVAR_NONE};	// QuakeSpasm
 
 cvar_t r_viewmodel_quake = {"r_viewmodel_quake", "0", CVAR_ARCHIVE};
 
 extern int in_forward, in_forward2, in_back;
 
-vec3_t v_punchangles[2];       // johnfitz -- copied from cl.punchangle.  0 is current, 1 is previous value. never the same unless map just loaded
+vec3_t v_punchangles[2];	   // johnfitz -- copied from cl.punchangle.  0 is current, 1 is previous value. never the same unless map just loaded
 double v_punchangles_times[2]; // spike -- times, to avoid assumptions...
 
 extern qboolean needs_relink;
@@ -244,7 +244,7 @@ void V_DriftPitch (void)
 /*
 ==============================================================================
 
-    VIEW BLENDING
+	VIEW BLENDING
 
 ==============================================================================
 */
@@ -276,13 +276,13 @@ V_ParseDamage
 */
 void V_ParseDamage (void)
 {
-	int       armor, blood;
-	vec3_t    from;
-	int       i;
-	vec3_t    forward, right, up;
+	int		  armor, blood;
+	vec3_t	  from;
+	int		  i;
+	vec3_t	  forward, right, up;
 	entity_t *ent;
-	float     side;
-	float     count;
+	float	  side;
+	float	  count;
 
 	armor = MSG_ReadByte ();
 	blood = MSG_ReadByte ();
@@ -383,8 +383,8 @@ void V_SetContentsColor (int contents)
 	{
 	case CONTENTS_EMPTY:
 	case CONTENTS_SOLID:
-	case CONTENTS_SKY: // johnfitz -- no blend in sky
-		cl.cshifts[CSHIFT_CONTENTS] = cl.cshift_empty; // modifiable by server using v_cshift command 
+	case CONTENTS_SKY:								   // johnfitz -- no blend in sky
+		cl.cshifts[CSHIFT_CONTENTS] = cl.cshift_empty; // modifiable by server using v_cshift command
 		break;
 	case CONTENTS_LAVA:
 		cl.cshifts[CSHIFT_CONTENTS] = cshift_lava;
@@ -443,8 +443,8 @@ V_CalcBlend
 */
 void V_CalcBlend (void)
 {
-	float   r, g, b, a, a2;
-	int     j;
+	float	r, g, b, a, a2;
+	int		j;
 	cvar_t *cshiftpercent_cvars[NUM_CSHIFTS] = {&gl_cshiftpercent_contents, &gl_cshiftpercent_damage, &gl_cshiftpercent_bonus, &gl_cshiftpercent_powerup};
 
 	r = 0;
@@ -488,7 +488,7 @@ V_UpdateBlend -- johnfitz -- V_UpdatePalette cleaned up and renamed
 */
 static void V_UpdateBlend (void)
 {
-	int      i, j;
+	int		 i, j;
 	qboolean blend_changed;
 
 	V_CalcPowerupCshift ();
@@ -527,7 +527,7 @@ static void V_UpdateBlend (void)
 /*
 ==============================================================================
 
-    VIEW RENDERING
+	VIEW RENDERING
 
 ==============================================================================
 */
@@ -547,7 +547,7 @@ CalcGunAngle
 */
 void CalcGunAngle (void)
 {
-	float        yaw, pitch, move;
+	float		 yaw, pitch, move;
 	static float oldyaw = 0;
 	static float oldpitch = 0;
 
@@ -677,7 +677,7 @@ V_CalcIntermissionRefdef
 void V_CalcIntermissionRefdef (void)
 {
 	entity_t *ent, *view;
-	float     old;
+	float	  old;
 
 	// ent is the player model (visible when out of body)
 	ent = &cl.entities[cl.viewentity];
@@ -703,14 +703,14 @@ V_CalcRefdef
 */
 void V_CalcRefdef (void)
 {
-	entity_t     *ent, *view;
-	int           i;
-	vec3_t        forward, right, up;
-	vec3_t        angles;
-	float         bob;
+	entity_t	 *ent, *view;
+	int			  i;
+	vec3_t		  forward, right, up;
+	vec3_t		  angles;
+	float		  bob;
 	static float  oldz = 0;
 	static vec3_t punch = {0, 0, 0}; // johnfitz -- v_gunkick
-	float         delta;             // johnfitz -- v_gunkick
+	float		  delta;			 // johnfitz -- v_gunkick
 
 	V_DriftPitch ();
 
@@ -721,7 +721,7 @@ void V_CalcRefdef (void)
 
 	// transform the view offset by the model's matrix to get the offset from
 	// model origin for the view
-	ent->angles[YAW] = cl.viewangles[YAW];      // the model should face the view dir
+	ent->angles[YAW] = cl.viewangles[YAW];		// the model should face the view dir
 	ent->angles[PITCH] = -cl.viewangles[PITCH]; // the model should face the view dir
 
 	bob = V_CalcBob ();
@@ -899,7 +899,7 @@ void V_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 /*
 ==============================================================================
 
-    INIT
+	INIT
 
 ==============================================================================
 */
@@ -929,9 +929,9 @@ void V_Init (void)
 	Cvar_RegisterVariable (&crosshair);
 	Cvar_RegisterVariable (&gl_cshiftpercent);
 	Cvar_RegisterVariable (&gl_cshiftpercent_contents); // QuakeSpasm
-	Cvar_RegisterVariable (&gl_cshiftpercent_damage);   // QuakeSpasm
-	Cvar_RegisterVariable (&gl_cshiftpercent_bonus);    // QuakeSpasm
-	Cvar_RegisterVariable (&gl_cshiftpercent_powerup);  // QuakeSpasm
+	Cvar_RegisterVariable (&gl_cshiftpercent_damage);	// QuakeSpasm
+	Cvar_RegisterVariable (&gl_cshiftpercent_bonus);	// QuakeSpasm
+	Cvar_RegisterVariable (&gl_cshiftpercent_powerup);	// QuakeSpasm
 
 	Cvar_RegisterVariable (&scr_ofsx);
 	Cvar_RegisterVariable (&scr_ofsy);

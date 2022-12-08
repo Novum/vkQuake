@@ -33,9 +33,9 @@ static HICON icon;
 
 void PL_SetWindowIcon (void)
 {
-	HINSTANCE     handle;
+	HINSTANCE	  handle;
 	SDL_SysWMinfo wminfo;
-	HWND          hwnd;
+	HWND		  hwnd;
 
 	handle = GetModuleHandle (NULL);
 	icon = LoadIcon (handle, "icon");

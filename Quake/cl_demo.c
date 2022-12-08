@@ -72,8 +72,8 @@ Dumps the current net message, prefixed by the length and view angles
 */
 static void CL_WriteDemoMessage (void)
 {
-	int   len;
-	int   i;
+	int	  len;
+	int	  i;
 	float f;
 
 	len = LittleLong (net_message.cursize);
@@ -89,7 +89,7 @@ static void CL_WriteDemoMessage (void)
 
 static int CL_GetDemoMessage (void)
 {
-	int   r, i;
+	int	  r, i;
 	float f;
 
 	if (cls.demopaused)
@@ -164,7 +164,7 @@ CL_Seek_f
 ====================
 */
 extern float scr_clock_off;
-void         CL_Seek_f (void)
+void		 CL_Seek_f (void)
 {
 	if (cmd_source != src_command)
 		return;
@@ -186,7 +186,7 @@ void         CL_Seek_f (void)
 		cls.demospeed = 1.f;
 
 	float offset = 0, offset_seconds;
-	int   ret;
+	int	  ret;
 	if ((ret = sscanf (Cmd_Argv (1), "%f:%f", &offset, &offset_seconds)) == 2)
 		offset = offset * 60 + (offset > 0 ? offset_seconds : -offset_seconds);
 
@@ -522,7 +522,7 @@ static void CL_Record_Spawn (void)
 static void CL_Record_Signons (void)
 {
 	byte *data = net_message.data;
-	int   cursize = net_message.cursize;
+	int	  cursize = net_message.cursize;
 	byte  weirdaltbufferthatprobablyisntneeded[NET_MAXMESSAGE];
 
 	net_message.data = weirdaltbufferthatprobablyisntneeded;
@@ -727,7 +727,7 @@ CL_FinishTimeDemo
 */
 static void CL_FinishTimeDemo (void)
 {
-	int   frames;
+	int	  frames;
 	float time;
 
 	cls.timedemo = false;

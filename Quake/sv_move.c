@@ -38,10 +38,10 @@ int c_yes, c_no;
 
 qboolean SV_CheckBottom (edict_t *ent)
 {
-	vec3_t  mins, maxs, start, stop;
+	vec3_t	mins, maxs, start, stop;
 	trace_t trace;
-	int     x, y;
-	float   mid, bottom;
+	int		x, y;
+	float	mid, bottom;
 
 	VectorAdd (ent->v.origin, ent->v.mins, mins);
 	VectorAdd (ent->v.origin, ent->v.maxs, maxs);
@@ -110,10 +110,10 @@ pr_global_struct->trace_normal is set to the normal of the blocking wall
 */
 qboolean SV_movestep (edict_t *ent, vec3_t move, qboolean relink)
 {
-	float    dz;
-	vec3_t   oldorg, neworg, end;
-	trace_t  trace;
-	int      i;
+	float	 dz;
+	vec3_t	 oldorg, neworg, end;
+	trace_t	 trace;
+	int		 i;
 	edict_t *enemy;
 
 	// try the move
@@ -229,7 +229,7 @@ facing it.
 
 ======================
 */
-void     PF_changeyaw (void);
+void	 PF_changeyaw (void);
 qboolean SV_StepDirection (edict_t *ent, float yaw, float dist)
 {
 	vec3_t move, oldorigin;
@@ -388,7 +388,7 @@ SV_MoveToGoal
 void SV_MoveToGoal (void)
 {
 	edict_t *ent, *goal;
-	float    dist;
+	float	 dist;
 
 	ent = PROG_TO_EDICT (pr_global_struct->self);
 	goal = PROG_TO_EDICT (ent->v.goalentity);

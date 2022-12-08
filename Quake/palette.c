@@ -950,7 +950,7 @@ uint32_t palette_octree_colors[NUM_PALETTE_OCTREE_COLORS] =
 
 #define MAX_PALETTE_OCTREE_COLORS 8192
 #define MAX_PALETTE_OCTREE_NODES  512
-#define MAX_COLORS_IN_LEAF        8
+#define MAX_COLORS_IN_LEAF		  8
 
 extern unsigned int d_8to24table[256];
 
@@ -973,7 +973,7 @@ static uint32_t CreatePaletteOctreeRec (
 			for (int r = 0; r < current_size; ++r)
 			{
 				unsigned int color = colors_lut[(x + r) + ((y + g) * 256ull) + ((z + b) * 256ull * 256ull)];
-				qboolean     found = false;
+				qboolean	 found = false;
 				for (int i = 0; i < num_colors_in_leaf; ++i)
 				{
 					if (leaf_colors[first_leaf_color + i] == color)
@@ -1032,10 +1032,10 @@ static void MakeColorsLUT (unsigned int *colors)
 			for (int r = 0; r < 256; ++r)
 			{
 				unsigned best_color = 0;
-				int      best_dist_sq = INT_MAX;
+				int		 best_dist_sq = INT_MAX;
 				for (int i = 0; i < 256; ++i)
 				{
-					byte     *c = (byte *)(&d_8to24table[i]);
+					byte	 *c = (byte *)(&d_8to24table[i]);
 					const int dist_sq = (((int)c[0] - r) * ((int)c[0] - r)) + (((int)c[1] - g) * ((int)c[1] - g)) + (((int)c[2] - b) * ((int)c[2] - b));
 					if (dist_sq < best_dist_sq)
 					{
@@ -1061,10 +1061,10 @@ void CreatePaletteOctree_f (void)
 	TexMgr_LoadPalette ();
 	MakeColorsLUT (colors_lut);
 
-	int                   num_nodes = 0;
-	int                   num_colors = 0;
+	int					  num_nodes = 0;
+	int					  num_colors = 0;
 	palette_octree_node_t nodes[MAX_PALETTE_OCTREE_NODES];
-	uint32_t              colors[MAX_PALETTE_OCTREE_COLORS];
+	uint32_t			  colors[MAX_PALETTE_OCTREE_COLORS];
 	CreatePaletteOctreeRec (256, colors_lut, 0, 0, 0, &num_nodes, nodes, &num_colors, colors);
 
 	Sys_Printf ("#define NUM_PALETTE_OCTREE_NODES %d\n", num_nodes);

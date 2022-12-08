@@ -31,26 +31,26 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 extern cvar_t hostname;
 
-static sys_socket_t        net_acceptsocket = INVALID_SOCKET; // socket for fielding new connections
-static sys_socket_t        net_controlsocket;
+static sys_socket_t		   net_acceptsocket = INVALID_SOCKET; // socket for fielding new connections
+static sys_socket_t		   net_controlsocket;
 static struct sockaddr_ipx broadcastaddr;
 
 /* externs from net_wins.c: */
-extern qboolean    winsock_initialized;
-extern WSADATA     winsockdata;
+extern qboolean	   winsock_initialized;
+extern WSADATA	   winsockdata;
 extern const char *__WSAE_StrError (int);
 
 #define IPXSOCKETS 18
 static sys_socket_t ipxsocket[IPXSOCKETS];
-static int          sequence[IPXSOCKETS];
+static int			sequence[IPXSOCKETS];
 
 //=============================================================================
 
 sys_socket_t WIPX_Init (void)
 {
-	int              i, err;
-	char            *colon;
-	char             buff[MAXHOSTNAMELEN];
+	int				 i, err;
+	char			*colon;
+	char			 buff[MAXHOSTNAMELEN];
 	struct qsockaddr addr;
 
 	if (COM_CheckParm ("-noipx"))
@@ -153,10 +153,10 @@ sys_socket_t WIPX_Listen (qboolean state)
 
 sys_socket_t WIPX_OpenSocket (int port)
 {
-	int                 err;
-	sys_socket_t        handle, newsocket;
+	int					err;
+	sys_socket_t		handle, newsocket;
 	struct sockaddr_ipx address;
-	u_long              _true = 1;
+	u_long				_true = 1;
 
 	for (handle = 0; handle < IPXSOCKETS; handle++)
 	{
@@ -214,7 +214,7 @@ ErrorReturn:
 int WIPX_CloseSocket (sys_socket_t handle)
 {
 	sys_socket_t socketid = ipxsocket[handle];
-	int          ret;
+	int			 ret;
 
 	ret = closesocket (socketid);
 	ipxsocket[handle] = 0;
@@ -253,9 +253,9 @@ static byte netpacketBuffer[NET_DATAGRAMSIZE + 4];
 
 int WIPX_Read (sys_socket_t handle, byte *buf, int len, struct qsockaddr *addr)
 {
-	socklen_t    addrlen = sizeof (struct qsockaddr);
+	socklen_t	 addrlen = sizeof (struct qsockaddr);
 	sys_socket_t socketid = ipxsocket[handle];
-	int          ret;
+	int			 ret;
 
 	ret = recvfrom (socketid, (char *)netpacketBuffer, len + 4, 0, (struct sockaddr *)addr, &addrlen);
 	if (ret == SOCKET_ERROR)
@@ -288,7 +288,7 @@ int WIPX_Broadcast (sys_socket_t handle, byte *buf, int len)
 int WIPX_Write (sys_socket_t handle, byte *buf, int len, struct qsockaddr *addr)
 {
 	sys_socket_t socketid = ipxsocket[handle];
-	int          ret;
+	int			 ret;
 
 	// build packet with sequence number
 	memcpy (&netpacketBuffer[0], &sequence[handle], 4);
@@ -345,7 +345,7 @@ const char *WIPX_AddrToString (struct qsockaddr *addr, qboolean masked)
 
 int WIPX_StringToAddr (const char *string, struct qsockaddr *addr)
 {
-	int  val;
+	int	 val;
 	char buf[3];
 
 	buf[2] = 0;
@@ -385,7 +385,7 @@ int WIPX_StringToAddr (const char *string, struct qsockaddr *addr)
 int WIPX_GetSocketAddr (sys_socket_t handle, struct qsockaddr *addr)
 {
 	sys_socket_t socketid = ipxsocket[handle];
-	socklen_t    addrlen = sizeof (struct qsockaddr);
+	socklen_t	 addrlen = sizeof (struct qsockaddr);
 
 	memset (addr, 0, sizeof (struct qsockaddr));
 	if (getsockname (socketid, (struct sockaddr *)addr, &addrlen) != 0)
@@ -410,7 +410,7 @@ int WIPX_GetNameFromAddr (struct qsockaddr *addr, char *name)
 
 int WIPX_GetAddrFromName (const char *name, struct qsockaddr *addr)
 {
-	int  n;
+	int	 n;
 	char buf[32];
 
 	n = strlen (name);

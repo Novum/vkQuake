@@ -23,9 +23,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 
-int         wad_numlumps;
+int			wad_numlumps;
 lumpinfo_t *wad_lumps;
-byte       *wad_base = NULL;
+byte	   *wad_base = NULL;
 
 void SwapPic (qpic_t *pic);
 
@@ -69,8 +69,8 @@ void W_LoadWadFile (void) // johnfitz -- filename is now hard-coded for honesty
 {
 	lumpinfo_t *lump_p;
 	wadinfo_t  *header;
-	int         i;
-	int         infotableofs;
+	int			i;
+	int			infotableofs;
 	const char *filename = WADFILENAME;
 
 	// johnfitz -- modified to use malloc
@@ -141,9 +141,9 @@ W_GetLumpinfo
 */
 static lumpinfo_t *W_GetLumpinfo (const char *name)
 {
-	int         i;
+	int			i;
 	lumpinfo_t *lump_p;
-	char        clean[16];
+	char		clean[16];
 
 	W_CleanupName (name, clean);
 

@@ -23,43 +23,43 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 static const char *pr_opnames[] = {"DONE",
 
-                                   "MUL_F",    "MUL_V",    "MUL_FV",   "MUL_VF",
+								   "MUL_F",	   "MUL_V",	   "MUL_FV",   "MUL_VF",
 
-                                   "DIV",
+								   "DIV",
 
-                                   "ADD_F",    "ADD_V",
+								   "ADD_F",	   "ADD_V",
 
-                                   "SUB_F",    "SUB_V",
+								   "SUB_F",	   "SUB_V",
 
-                                   "EQ_F",     "EQ_V",     "EQ_S",     "EQ_E",       "EQ_FNC",
+								   "EQ_F",	   "EQ_V",	   "EQ_S",	   "EQ_E",		 "EQ_FNC",
 
-                                   "NE_F",     "NE_V",     "NE_S",     "NE_E",       "NE_FNC",
+								   "NE_F",	   "NE_V",	   "NE_S",	   "NE_E",		 "NE_FNC",
 
-                                   "LE",       "GE",       "LT",       "GT",
+								   "LE",	   "GE",	   "LT",	   "GT",
 
-                                   "INDIRECT", "INDIRECT", "INDIRECT", "INDIRECT",   "INDIRECT",   "INDIRECT",
+								   "INDIRECT", "INDIRECT", "INDIRECT", "INDIRECT",	 "INDIRECT",   "INDIRECT",
 
-                                   "ADDRESS",
+								   "ADDRESS",
 
-                                   "STORE_F",  "STORE_V",  "STORE_S",  "STORE_ENT",  "STORE_FLD",  "STORE_FNC",
+								   "STORE_F",  "STORE_V",  "STORE_S",  "STORE_ENT",	 "STORE_FLD",  "STORE_FNC",
 
-                                   "STOREP_F", "STOREP_V", "STOREP_S", "STOREP_ENT", "STOREP_FLD", "STOREP_FNC",
+								   "STOREP_F", "STOREP_V", "STOREP_S", "STOREP_ENT", "STOREP_FLD", "STOREP_FNC",
 
-                                   "RETURN",
+								   "RETURN",
 
-                                   "NOT_F",    "NOT_V",    "NOT_S",    "NOT_ENT",    "NOT_FNC",
+								   "NOT_F",	   "NOT_V",	   "NOT_S",	   "NOT_ENT",	 "NOT_FNC",
 
-                                   "IF",       "IFNOT",
+								   "IF",	   "IFNOT",
 
-                                   "CALL0",    "CALL1",    "CALL2",    "CALL3",      "CALL4",      "CALL5",      "CALL6", "CALL7", "CALL8",
+								   "CALL0",	   "CALL1",	   "CALL2",	   "CALL3",		 "CALL4",	   "CALL5",		 "CALL6", "CALL7", "CALL8",
 
-                                   "STATE",
+								   "STATE",
 
-                                   "GOTO",
+								   "GOTO",
 
-                                   "AND",      "OR",
+								   "AND",	   "OR",
 
-                                   "BITAND",   "BITOR"};
+								   "BITAND",   "BITOR"};
 
 const char *PR_GlobalString (int ofs);
 const char *PR_GlobalStringNoContents (int ofs);
@@ -113,7 +113,7 @@ PR_StackTrace
 */
 static void PR_StackTrace (void)
 {
-	int          i;
+	int			 i;
 	dfunction_t *f;
 
 	if (qcvm->depth == 0)
@@ -145,8 +145,8 @@ PR_Profile_f
 */
 void PR_Profile_f (void)
 {
-	int          i, num;
-	int          pmax;
+	int			 i, num;
+	int			 pmax;
 	dfunction_t *f, *best;
 
 	if (!sv.active)
@@ -190,7 +190,7 @@ Aborts the currently executing function
 void PR_RunError (const char *error, ...)
 {
 	va_list argptr;
-	char    string[1024];
+	char	string[1024];
 
 	va_start (argptr, error);
 	q_vsnprintf (string, sizeof (string), error, argptr);
@@ -209,7 +209,7 @@ void PR_RunError (const char *error, ...)
 void PR_RunWarning (const char *error, ...)
 {
 	va_list argptr;
-	char    string[1024];
+	char	string[1024];
 
 	va_start (argptr, error);
 	q_vsnprintf (string, sizeof (string), error, argptr);
@@ -302,12 +302,12 @@ The interpretation main loop
 
 void PR_ExecuteProgram (func_t fnum)
 {
-	eval_t       *ptr;
+	eval_t		 *ptr;
 	dstatement_t *st;
-	dfunction_t  *f, *newf;
-	int           profile, startprofile;
-	edict_t      *ed;
-	int           exitdepth;
+	dfunction_t	 *f, *newf;
+	int			  profile, startprofile;
+	edict_t		 *ed;
+	int			  exitdepth;
 
 	if (!fnum || fnum >= (func_t)qcvm->progs->numfunctions)
 	{

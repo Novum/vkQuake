@@ -22,8 +22,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 
-//#define	STRINGTEMP_BUFFERS		16
-//#define	STRINGTEMP_LENGTH		1024
+// #define	STRINGTEMP_BUFFERS		16
+// #define	STRINGTEMP_LENGTH		1024
 static char pr_string_temp[STRINGTEMP_BUFFERS][STRINGTEMP_LENGTH];
 static byte pr_string_tempindex = 0;
 
@@ -37,7 +37,7 @@ char *PR_GetTempString (void)
 /*
 ===============================================================================
 
-    BUILT-IN FUNCTIONS
+	BUILT-IN FUNCTIONS
 
 ===============================================================================
 */
@@ -53,10 +53,10 @@ static const char *PF_GetStringArg (int idx, void *userdata)
 
 char *PF_VarString (int first)
 {
-	int         i;
+	int			i;
 	static char out[1024];
 	const char *format;
-	size_t      s;
+	size_t		s;
 
 	out[0] = 0;
 	s = 0;
@@ -105,7 +105,7 @@ error(value)
 */
 static void PF_error (void)
 {
-	char    *s;
+	char	*s;
 	edict_t *ed;
 
 	s = PF_VarString (0);
@@ -128,7 +128,7 @@ objerror(value)
 */
 static void PF_objerror (void)
 {
-	char    *s;
+	char	*s;
 	edict_t *ed;
 
 	s = PF_VarString (0);
@@ -170,7 +170,7 @@ setorigin (entity, origin)
 static void PF_setorigin (void)
 {
 	edict_t *e;
-	float   *org;
+	float	*org;
 
 	e = G_EDICT (OFS_PARM0);
 	org = G_VECTOR (OFS_PARM1);
@@ -186,7 +186,7 @@ void SetMinMaxSize (edict_t *e, float *minvec, float *maxvec, qboolean rotate)
 	float  xvector[2], yvector[2];
 	float  a;
 	vec3_t base, transformed;
-	int    i, j, k, l;
+	int	   i, j, k, l;
 
 	for (i = 0; i < 3; i++)
 		if (minvec[i] > maxvec[i])
@@ -264,7 +264,7 @@ setsize (entity, minvector, maxvector)
 static void PF_setsize (void)
 {
 	edict_t *e;
-	float   *minvec, *maxvec;
+	float	*minvec, *maxvec;
 
 	e = G_EDICT (OFS_PARM0);
 	minvec = G_VECTOR (OFS_PARM1);
@@ -279,13 +279,13 @@ PF_setmodel
 setmodel(entity, model)
 =================
 */
-cvar_t      sv_gameplayfix_setmodelrealbox = {"sv_gameplayfix_setmodelrealbox", "1"};
+cvar_t		sv_gameplayfix_setmodelrealbox = {"sv_gameplayfix_setmodelrealbox", "1"};
 static void PF_sv_setmodel (void)
 {
-	int         i;
+	int			i;
 	const char *m, **check;
 	qmodel_t   *mod;
-	edict_t    *e;
+	edict_t	   *e;
 
 	e = G_EDICT (OFS_PARM0);
 	m = G_STRING (OFS_PARM1);
@@ -355,9 +355,9 @@ sprint(clientent, value)
 */
 void PF_sprint (void)
 {
-	char     *s;
+	char	 *s;
 	client_t *client;
-	int       entnum;
+	int		  entnum;
 
 	entnum = G_EDICTNUM (OFS_PARM0);
 	s = PF_VarString (1);
@@ -385,9 +385,9 @@ centerprint(clientent, value)
 */
 void PF_centerprint (void)
 {
-	char     *s;
+	char	 *s;
 	client_t *client;
-	int       entnum;
+	int		  entnum;
 
 	entnum = G_EDICTNUM (OFS_PARM0);
 	s = PF_VarString (1);
@@ -567,10 +567,10 @@ PF_ambientsound
 */
 static void PF_sv_ambientsound (void)
 {
-	const char            *samp, **check;
-	float                 *pos;
-	float                  vol, attenuation;
-	int                    soundnum;
+	const char			  *samp, **check;
+	float				  *pos;
+	float				   vol, attenuation;
+	int					   soundnum;
 	struct ambientsound_s *st;
 
 	pos = G_VECTOR (OFS_PARM0);
@@ -594,7 +594,7 @@ static void PF_sv_ambientsound (void)
 	// generate data to splurge on a per-client basis in SV_SendAmbientSounds
 	if (sv.num_ambients == sv.max_ambients)
 	{
-		int                    nm = sv.max_ambients + 128;
+		int					   nm = sv.max_ambients + 128;
 		struct ambientsound_s *n = (nm * sizeof (*n) < sv.max_ambients * sizeof (*n)) ? NULL : Mem_Realloc (sv.ambientsounds, nm * sizeof (*n));
 		if (!n)
 			PR_RunError ("PF_ambientsound: out of memory"); // shouldn't really happen.
@@ -627,10 +627,10 @@ Larger attenuations will drop off.
 static void PF_sound (void)
 {
 	const char *sample;
-	int         channel;
-	edict_t    *entity;
-	int         volume;
-	float       attenuation;
+	int			channel;
+	edict_t	   *entity;
+	int			volume;
+	float		attenuation;
 
 	entity = G_EDICT (OFS_PARM0);
 	channel = G_FLOAT (OFS_PARM1);
@@ -658,7 +658,7 @@ static void PF_break (void)
 {
 	Con_Printf ("break statement\n");
 	*(int *)-4 = 0; // dump to debugger
-	                //	PR_RunError ("break statement");
+					//	PR_RunError ("break statement");
 }
 
 /*
@@ -674,9 +674,9 @@ traceline (vector1, vector2, tryents)
 */
 static void PF_traceline (void)
 {
-	float   *v1, *v2;
-	trace_t  trace;
-	int      nomonsters;
+	float	*v1, *v2;
+	trace_t	 trace;
+	int		 nomonsters;
 	edict_t *ent;
 
 	v1 = G_VECTOR (OFS_PARM0);
@@ -733,16 +733,16 @@ static void PF_checkpos (void)
 //============================================================================
 
 static byte *checkpvs; // ericw -- changed to malloc
-static int   checkpvs_capacity;
+static int	 checkpvs_capacity;
 
 static int PF_newcheckclient (int check)
 {
-	int      i;
-	byte    *pvs;
+	int		 i;
+	byte	*pvs;
 	edict_t *ent;
 	mleaf_t *leaf;
-	vec3_t   org;
-	int      pvsbytes;
+	vec3_t	 org;
+	int		 pvsbytes;
 
 	// cycle to the next one
 
@@ -811,13 +811,13 @@ name checkclient ()
 =================
 */
 #define MAX_CHECK 16
-static int  c_invis, c_notvis;
+static int	c_invis, c_notvis;
 static void PF_sv_checkclient (void)
 {
 	edict_t *ent, *self;
 	mleaf_t *leaf;
-	int      l;
-	vec3_t   view;
+	int		 l;
+	vec3_t	 view;
 
 	// find a new check if on a new frame
 	if (qcvm->time - sv.lastchecktime >= 0.1)
@@ -864,7 +864,7 @@ stuffcmd (clientent, value)
 */
 static void PF_stuffcmd (void)
 {
-	int         entnum;
+	int			entnum;
 	const char *str;
 	client_t   *old;
 
@@ -951,9 +951,9 @@ findradius (origin, radius)
 static void PF_findradius (void)
 {
 	edict_t *ent, *chain;
-	float    rad;
-	float   *org;
-	int      i;
+	float	 rad;
+	float	*org;
+	int		 i;
 
 	chain = (edict_t *)qcvm->edicts;
 
@@ -1050,10 +1050,10 @@ static void PF_Remove (void)
 // entity (entity start, .string field, string match) find = #5;
 static void PF_Find (void)
 {
-	int         e;
-	int         f;
+	int			e;
+	int			f;
 	const char *s, *t;
-	edict_t    *ed;
+	edict_t	   *ed;
 
 	e = G_EDICTNUM (OFS_PARM0);
 	f = G_INT (OFS_PARM1);
@@ -1159,7 +1159,7 @@ int SV_Precache_Model (const char *s)
 static void PF_sv_precache_model (void)
 {
 	const char *s;
-	int         i;
+	int			i;
 
 	s = G_STRING (OFS_PARM0);
 	G_INT (OFS_RETURN) = G_INT (OFS_PARM0);
@@ -1221,11 +1221,11 @@ float(float yaw, float dist) walkmove
 */
 static void PF_walkmove (void)
 {
-	edict_t     *ent;
-	float        yaw, dist;
-	vec3_t       move;
+	edict_t		*ent;
+	float		 yaw, dist;
+	vec3_t		 move;
 	dfunction_t *oldf;
-	int          oldself;
+	int			 oldself;
 
 	ent = PROG_TO_EDICT (pr_global_struct->self);
 	yaw = G_FLOAT (OFS_PARM0);
@@ -1264,8 +1264,8 @@ void() droptofloor
 static void PF_droptofloor (void)
 {
 	edict_t *ent;
-	vec3_t   end;
-	trace_t  trace;
+	vec3_t	 end;
+	trace_t	 trace;
 
 	ent = PROG_TO_EDICT (pr_global_struct->self);
 
@@ -1295,10 +1295,10 @@ void(float style, string value) lightstyle
 */
 static void PF_sv_lightstyle (void)
 {
-	int         style;
+	int			style;
 	const char *val;
 	client_t   *client;
-	int         j;
+	int			j;
 
 	style = G_FLOAT (OFS_PARM0);
 	val = G_STRING (OFS_PARM1);
@@ -1393,7 +1393,7 @@ entity nextent(entity)
 */
 static void PF_nextent (void)
 {
-	int      i;
+	int		 i;
 	edict_t *ent;
 
 	i = G_EDICTNUM (OFS_PARM0);
@@ -1422,15 +1422,15 @@ Pick a vector for the player to shoot along
 vector aim(entity, missilespeed)
 =============
 */
-cvar_t      sv_aim = {"sv_aim", "1", CVAR_NONE}; // ericw -- turn autoaim off by default. was 0.93
+cvar_t		sv_aim = {"sv_aim", "1", CVAR_NONE}; // ericw -- turn autoaim off by default. was 0.93
 static void PF_aim (void)
 {
 	edict_t *ent, *check, *bestent;
-	vec3_t   start, dir, end, bestdir;
-	int      i, j;
-	trace_t  tr;
-	float    dist, bestdist;
-	float    speed;
+	vec3_t	 start, dir, end, bestdir;
+	int		 i, j;
+	trace_t	 tr;
+	float	 dist, bestdist;
+	float	 speed;
 
 	ent = G_EDICT (OFS_PARM0);
 	speed = G_FLOAT (OFS_PARM1);
@@ -1503,7 +1503,7 @@ This was a major timewaster in progs, so it was converted to C
 void PF_changeyaw (void)
 {
 	edict_t *ent;
-	float    ideal, current, move, speed;
+	float	 ideal, current, move, speed;
 
 	ent = PROG_TO_EDICT (pr_global_struct->self);
 	current = anglemod (ent->v.angles[1]);
@@ -1547,8 +1547,8 @@ MESSAGE WRITING
 
 sizebuf_t *WriteDest (void)
 {
-	int      entnum;
-	int      dest;
+	int		 entnum;
+	int		 dest;
 	edict_t *ent;
 
 	dest = G_FLOAT (OFS_PARM0);
@@ -1616,7 +1616,7 @@ static void PF_sv_WriteString (void)
 static void PF_sv_WriteEntity (void)
 {
 	extern unsigned int sv_protocol_pext2; // spike -- this ought to be client-specific, but we can't cope with that, so just live with the problems when
-	                                       // ents>32768 (which QS doesn't support anyway)
+										   // ents>32768 (which QS doesn't support anyway)
 	MSG_WriteEntity (WriteDest (), G_EDICTNUM (OFS_PARM1), sv_protocol_pext2);
 }
 
@@ -1625,13 +1625,13 @@ static void PF_sv_WriteEntity (void)
 static void PF_sv_makestatic (void)
 {
 	entity_state_t *st;
-	edict_t        *ent;
+	edict_t		   *ent;
 
 	ent = G_EDICT (OFS_PARM0);
 
 	if (sv.num_statics == sv.max_statics)
 	{
-		int             nm = sv.max_statics + 128;
+		int				nm = sv.max_statics + 128;
 		entity_state_t *n = (nm * sizeof (*n) < sv.max_statics * sizeof (*n)) ? NULL : Mem_Realloc (sv.static_entities, nm * sizeof (*n));
 		if (!n)
 			PR_RunError ("PF_makestatic: out of memory"); // shouldn't really happen.
@@ -1659,8 +1659,8 @@ PF_setspawnparms
 */
 static void PF_sv_setspawnparms (void)
 {
-	edict_t  *ent;
-	int       i;
+	edict_t	 *ent;
+	int		  i;
 	client_t *client;
 
 	ent = G_EDICT (OFS_PARM0);
@@ -1696,11 +1696,11 @@ static void PF_sv_changelevel (void)
 static void PF_cl_sound (void)
 {
 	const char *sample;
-	int         channel;
-	edict_t    *entity;
-	int         volume;
-	float       attenuation;
-	int         entnum;
+	int			channel;
+	edict_t	   *entity;
+	int			volume;
+	float		attenuation;
+	int			entnum;
 
 	entity = G_EDICT (OFS_PARM0);
 	channel = G_FLOAT (OFS_PARM1);
@@ -1717,8 +1717,8 @@ static void PF_cl_sound (void)
 static void PF_cl_ambientsound (void)
 {
 	const char *samp;
-	float      *pos;
-	float       vol, attenuation;
+	float	   *pos;
+	float		vol, attenuation;
 
 	pos = G_VECTOR (OFS_PARM0);
 	samp = G_STRING (OFS_PARM1);
@@ -1748,7 +1748,7 @@ void PF_sv_walkpathtogoal (void)
 void PF_sv_localsound (void)
 {
 	const char *sample;
-	int         entnum;
+	int			entnum;
 
 	entnum = G_EDICTNUM (OFS_PARM0);
 	sample = G_STRING (OFS_PARM1);

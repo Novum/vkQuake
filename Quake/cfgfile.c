@@ -37,7 +37,7 @@ array, otherwise I have nothing against going out of bounds.
 void CFG_ReadCvars (const char **vars, int num_vars)
 {
 	char buff[1024], *tmp;
-	int  i, j;
+	int	 i, j;
 
 	if (!cfg_file || num_vars < 1)
 		return;
@@ -121,7 +121,7 @@ the config file.
 void CFG_ReadCvarOverrides (const char **vars, int num_vars)
 {
 	char buff[64];
-	int  i, j;
+	int	 i, j;
 
 	if (num_vars < 1)
 		return;
@@ -152,8 +152,8 @@ void CFG_CloseConfig (void)
 
 int CFG_OpenConfig (const char *cfg_name)
 {
-	FILE    *f = NULL;
-	long     length;
+	FILE	*f = NULL;
+	long	 length;
 	qboolean pak = false;
 
 	CFG_CloseConfig ();

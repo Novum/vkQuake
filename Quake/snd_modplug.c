@@ -37,7 +37,7 @@ static void S_MODPLUG_SetSettings (snd_stream_t *stream)
 	settings.mBits = shm->samplebits;
 	settings.mFrequency = shm->speed;
 	settings.mResamplingMode = MODPLUG_RESAMPLE_SPLINE; /*MODPLUG_RESAMPLE_FIR*/
-	settings.mLoopCount = -1;                           /* to enable module internal loops */
+	settings.mLoopCount = -1;							/* to enable module internal loops */
 	ModPlug_SetSettings (&settings);
 
 	if (stream)

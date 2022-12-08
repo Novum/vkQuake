@@ -29,10 +29,10 @@
 #define MUSIC_DIRNAME "music"
 
 qboolean bgmloop;
-cvar_t   bgm_extmusic = {"bgm_extmusic", "1", CVAR_ARCHIVE};
+cvar_t	 bgm_extmusic = {"bgm_extmusic", "1", CVAR_ARCHIVE};
 
 static qboolean no_extmusic = false;
-static float    old_volume = -1.0f;
+static float	old_volume = -1.0f;
 
 typedef enum _bgm_player
 {
@@ -43,11 +43,11 @@ typedef enum _bgm_player
 
 typedef struct music_handler_s
 {
-	unsigned int            type;         /* 1U << n (see snd_codec.h)	*/
-	bgm_player_t            player;       /* Enumerated bgm player type	*/
-	int                     is_available; /* -1 means not present		*/
-	const char             *ext;          /* Expected file extension	*/
-	const char             *dir;          /* Where to look for music file */
+	unsigned int			type;		  /* 1U << n (see snd_codec.h)	*/
+	bgm_player_t			player;		  /* Enumerated bgm player type	*/
+	int						is_available; /* -1 means not present		*/
+	const char			   *ext;		  /* Expected file extension	*/
+	const char			   *dir;		  /* Where to look for music file */
 	struct music_handler_s *next;
 } music_handler_t;
 
@@ -67,7 +67,7 @@ static music_handler_t wanted_handlers[] = {
 static music_handler_t *music_handlers = NULL;
 
 #define ANY_CODECTYPE 0xFFFFFFFF
-#define CDRIP_TYPES   (CODECTYPE_VORBIS | CODECTYPE_MP3 | CODECTYPE_FLAC | CODECTYPE_WAV | CODECTYPE_OPUS)
+#define CDRIP_TYPES	  (CODECTYPE_VORBIS | CODECTYPE_MP3 | CODECTYPE_FLAC | CODECTYPE_WAV | CODECTYPE_OPUS)
 #define CDRIPTYPE(x)  (((x)&CDRIP_TYPES) != 0)
 
 static snd_stream_t *bgmstream = NULL;
@@ -135,7 +135,7 @@ static void BGM_Jump_f (void)
 qboolean BGM_Init (void)
 {
 	music_handler_t *handlers = NULL;
-	int              i;
+	int				 i;
 
 	Cvar_RegisterVariable (&bgm_extmusic);
 	Cmd_AddCommand ("music", BGM_Play_f);
@@ -192,7 +192,7 @@ void BGM_Shutdown (void)
 
 static void BGM_Play_noext (const char *filename, unsigned int allowed_types)
 {
-	char             tmp[MAX_QPATH];
+	char			 tmp[MAX_QPATH];
 	music_handler_t *handler;
 
 	handler = music_handlers;
@@ -231,8 +231,8 @@ static void BGM_Play_noext (const char *filename, unsigned int allowed_types)
 
 void BGM_Play (const char *filename)
 {
-	char             tmp[MAX_QPATH];
-	const char      *ext;
+	char			 tmp[MAX_QPATH];
+	const char		*ext;
 	music_handler_t *handler;
 
 	BGM_Stop ();
@@ -293,9 +293,9 @@ void BGM_PlayCDtrack (byte track, qboolean looping)
 	 * is below *.ogg in the music_handler order, the mp3 will still
 	 * have priority over track02.ogg from, say, id1.
 	 */
-	char             tmp[MAX_QPATH];
-	const char      *ext;
-	unsigned int     path_id, prev_id, type;
+	char			 tmp[MAX_QPATH];
+	const char		*ext;
+	unsigned int	 path_id, prev_id, type;
 	music_handler_t *handler;
 
 	BGM_Stop ();
@@ -373,11 +373,11 @@ void BGM_Resume (void)
 static void BGM_UpdateStream (void)
 {
 	qboolean did_rewind = false;
-	int      res; /* Number of bytes read. */
-	int      bufferSamples;
-	int      fileSamples;
-	int      fileBytes;
-	byte     raw[16384];
+	int		 res; /* Number of bytes read. */
+	int		 bufferSamples;
+	int		 fileSamples;
+	int		 fileBytes;
+	byte	 raw[16384];
 
 	if (bgmstream->status != STREAM_PLAY)
 		return;

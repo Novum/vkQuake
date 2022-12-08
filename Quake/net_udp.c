@@ -26,9 +26,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 #include "net_defs.h"
 
-static sys_socket_t       net_acceptsocket4 = INVALID_SOCKET; // socket for fielding new connections
-static sys_socket_t       net_controlsocket4;
-static sys_socket_t       net_broadcastsocket4 = INVALID_SOCKET;
+static sys_socket_t		  net_acceptsocket4 = INVALID_SOCKET; // socket for fielding new connections
+static sys_socket_t		  net_controlsocket4;
+static sys_socket_t		  net_broadcastsocket4 = INVALID_SOCKET;
 static struct sockaddr_in broadcastaddr4;
 
 static in_addr_t myAddr4;
@@ -44,7 +44,7 @@ static struct in6_addr myAddrv6;
 
 sys_socket_t UDP4_Init (void)
 {
-	char            *tst;
+	char			*tst;
 	struct qsockaddr addr;
 
 	if (COM_CheckParm ("-noudp") || COM_CheckParm ("-noudp4"))
@@ -59,8 +59,8 @@ sys_socket_t UDP4_Init (void)
 #else
 	{
 		// determine my name & address
-		int             err;
-		char            buff[MAXHOSTNAMELEN];
+		int				err;
+		char			buff[MAXHOSTNAMELEN];
 		struct hostent *local;
 		if (gethostname (buff, MAXHOSTNAMELEN) != 0)
 		{
@@ -156,10 +156,10 @@ sys_socket_t UDP4_Listen (qboolean state)
 
 sys_socket_t UDP4_OpenSocket (int port)
 {
-	sys_socket_t       newsocket;
+	sys_socket_t	   newsocket;
 	struct sockaddr_in address;
-	int                _true = 1;
-	int                err;
+	int				   _true = 1;
+	int				   err;
 
 	if ((newsocket = socket (PF_INET, SOCK_DGRAM, IPPROTO_UDP)) == INVALID_SOCKET)
 	{
@@ -208,7 +208,7 @@ static int PartialIPAddress (const char *in, struct qsockaddr *hostaddr)
 {
 	char  buff[256];
 	char *b;
-	int   addr, mask, num, port, run;
+	int	  addr, mask, num, port, run;
 
 	buff[0] = '.';
 	b = buff;
@@ -260,10 +260,10 @@ int UDP_Connect (sys_socket_t socketid, struct qsockaddr *addr)
 
 sys_socket_t UDP4_CheckNewConnections (void)
 {
-	int                available;
+	int				   available;
 	struct sockaddr_in from;
-	socklen_t          fromlen;
-	char               buff[1];
+	socklen_t		   fromlen;
+	char			   buff[1];
 
 	if (net_acceptsocket4 == INVALID_SOCKET)
 		return INVALID_SOCKET;
@@ -285,7 +285,7 @@ sys_socket_t UDP4_CheckNewConnections (void)
 int UDP_Read (sys_socket_t socketid, byte *buf, int len, struct qsockaddr *addr)
 {
 	socklen_t addrlen = sizeof (struct qsockaddr);
-	int       ret;
+	int		  ret;
 
 	ret = recvfrom (socketid, buf, len, 0, (struct sockaddr *)addr, &addrlen);
 	if (ret == SOCKET_ERROR)
@@ -341,8 +341,8 @@ int UDP4_Broadcast (sys_socket_t socketid, byte *buf, int len)
 
 int UDP_Write (sys_socket_t socketid, byte *buf, int len, struct qsockaddr *addr)
 {
-	int                   ret;
-	socklen_t             addrsize;
+	int					  ret;
+	socklen_t			  addrsize;
 	struct qsockaddr_hdr *hdr = (struct qsockaddr_hdr *)addr;
 	if (hdr->qsa_family == AF_INET)
 		addrsize = sizeof (struct sockaddr_in);
@@ -476,8 +476,8 @@ int UDP_GetNameFromAddr (struct qsockaddr *addr, char *name)
 int UDP4_GetAddrFromName (const char *name, struct qsockaddr *addr)
 {
 	struct hostent *hostentry;
-	char           *colon;
-	unsigned short  port = net_hostport;
+	char		   *colon;
+	unsigned short	port = net_hostport;
 
 	if (name[0] >= '0' && name[0] <= '9')
 		return PartialIPAddress (name, addr);
@@ -531,8 +531,8 @@ int UDP_AddrCompare (struct qsockaddr *addr1, struct qsockaddr *addr2)
 			return 1;
 
 		if (((struct sockaddr_in6 *)addr1)->sin6_scope_id && ((struct sockaddr_in6 *)addr2)->sin6_scope_id &&
-		    ((struct sockaddr_in6 *)addr1)->sin6_scope_id !=
-		        ((struct sockaddr_in6 *)addr2)->sin6_scope_id) // the ipv6 scope id is for use with link-local addresses, to identify the specific interface.
+			((struct sockaddr_in6 *)addr1)->sin6_scope_id !=
+				((struct sockaddr_in6 *)addr2)->sin6_scope_id) // the ipv6 scope id is for use with link-local addresses, to identify the specific interface.
 			return 1;
 
 		return 0;
@@ -568,7 +568,7 @@ int UDP_SetSocketPort (struct qsockaddr *addr, int port)
 
 sys_socket_t UDP6_Init (void)
 {
-	char            *colon;
+	char			*colon;
 	struct qsockaddr addr;
 
 	if (COM_CheckParm ("-noudp") || COM_CheckParm ("-noudp6"))
@@ -631,10 +631,10 @@ sys_socket_t UDP6_Listen (qboolean state)
 
 sys_socket_t UDP6_OpenSocket (int port)
 {
-	sys_socket_t        newsocket;
+	sys_socket_t		newsocket;
 	struct sockaddr_in6 address;
-	int                 _true = 1;
-	int                 err;
+	int					_true = 1;
+	int					err;
 
 	if ((newsocket = socket (PF_INET6, SOCK_DGRAM, IPPROTO_UDP)) == INVALID_SOCKET)
 	{
@@ -677,10 +677,10 @@ ErrorReturn:
 
 sys_socket_t UDP6_CheckNewConnections (void)
 {
-	int                available;
+	int				   available;
 	struct sockaddr_in from;
-	socklen_t          fromlen;
-	char               buff[1];
+	socklen_t		   fromlen;
+	char			   buff[1];
 
 	if (net_acceptsocket6 == INVALID_SOCKET)
 		return INVALID_SOCKET;
@@ -729,12 +729,12 @@ int UDP6_GetAddrFromName (const char *name, struct qsockaddr *addr)
 {
 	struct addrinfo *addrinfo = NULL;
 	struct addrinfo *pos;
-	struct addrinfo  udp6hint;
-	int              error;
-	char            *port;
-	char             dupbase[256];
-	size_t           len;
-	qboolean         success = false;
+	struct addrinfo	 udp6hint;
+	int				 error;
+	char			*port;
+	char			 dupbase[256];
+	size_t			 len;
+	qboolean		 success = false;
 
 	memset (&udp6hint, 0, sizeof (udp6hint));
 	udp6hint.ai_family = 0; // Any... we check for AF_INET6 or 4
@@ -819,13 +819,13 @@ int UDP6_GetAddrFromName (const char *name, struct qsockaddr *addr)
 #ifdef __linux__ // sadly there is no posix standard for querying all ipv4+ipv6 addresses.
 #include <ifaddrs.h>
 static struct ifaddrs *iflist;
-static double          iftime; // requery sometimes.
-static int             UDP_GetAddresses (qhostaddr_t *addresses, int maxaddresses, int fam)
+static double		   iftime; // requery sometimes.
+static int			   UDP_GetAddresses (qhostaddr_t *addresses, int maxaddresses, int fam)
 {
 	struct ifaddrs *ifa;
-	int             result = 0;
-	double          time = Sys_DoubleTime ();
-	size_t          l;
+	int				result = 0;
+	double			time = Sys_DoubleTime ();
+	size_t			l;
 	if (time - iftime > 1 && iflist)
 	{
 		freeifaddrs (iflist);

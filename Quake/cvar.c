@@ -24,7 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 
 static cvar_t *cvar_vars;
-static char    cvar_null_string[] = "";
+static char	   cvar_null_string[] = "";
 
 //==============================================================================
 //
@@ -41,9 +41,9 @@ Cvar_List_f -- johnfitz
 */
 void Cvar_List_f (void)
 {
-	cvar_t     *cvar;
+	cvar_t	   *cvar;
 	const char *partial;
-	int         len, count;
+	int			len, count;
 
 	if (Cmd_Argc () > 1)
 	{
@@ -346,7 +346,7 @@ Cvar_CompleteVariable
 const char *Cvar_CompleteVariable (const char *partial)
 {
 	cvar_t *cvar;
-	int     len;
+	int		len;
 
 	len = strlen (partial);
 	if (!len)
@@ -528,9 +528,9 @@ Adds a freestanding variable to the variable list.
 */
 void Cvar_RegisterVariable (cvar_t *variable)
 {
-	char     value[512];
+	char	 value[512];
 	qboolean set_rom;
-	cvar_t  *cursor, *prev; // johnfitz -- sorted list insert
+	cvar_t	*cursor, *prev; // johnfitz -- sorted list insert
 
 	// first check to see if it has already been defined
 	if (Cvar_FindVar (variable->name))

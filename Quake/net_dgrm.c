@@ -20,7 +20,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 // This is enables a simple IP banning mechanism
-//#define BAN_TEST
+// #define BAN_TEST
 
 #include "quakedef.h"
 #include "q_stdinc.h"
@@ -60,7 +60,7 @@ cvar_t net_masters[] = {
 	{"net_masterextra2", "dpmaster.deathmask.net:27950"},
 	{"net_masterextra3", "dpmaster.tchr.no:27950"},
 	{NULL}};
-cvar_t        rcon_password = {"rcon_password", ""};
+cvar_t		  rcon_password = {"rcon_password", ""};
 extern cvar_t net_messagetimeout;
 extern cvar_t net_connecttimeout;
 
@@ -68,20 +68,20 @@ static struct
 {
 	unsigned int length;
 	unsigned int sequence;
-	byte         data[MAX_DATAGRAM];
+	byte		 data[MAX_DATAGRAM];
 } packetBuffer;
 
 static int myDriverLevel;
 
 extern qboolean m_return_onerror;
-extern char     m_return_reason[32];
-static double   heartbeat_time; // when this is reached, send a heartbeat to all masters.
+extern char		m_return_reason[32];
+static double	heartbeat_time; // when this is reached, send a heartbeat to all masters.
 
 static char *StrAddr (struct qsockaddr *addr)
 {
 	static char buf[34];
-	byte       *p = (byte *)addr;
-	int         n;
+	byte	   *p = (byte *)addr;
+	int			n;
 
 	for (n = 0; n < 16; n++)
 		q_snprintf (buf + n * 2, sizeof (buf) - (n * 2), "%02x", *p++);
@@ -428,9 +428,9 @@ qboolean Datagram_ProcessPacket (unsigned int length, qsocket_t *sock)
 
 qsocket_t *Datagram_GetAnyMessage (void)
 {
-	qsocket_t       *s;
+	qsocket_t		*s;
 	struct qsockaddr addr;
-	int              length;
+	int				 length;
 	for (net_landriverlevel = 0; net_landriverlevel < net_numlandrivers; net_landriverlevel++)
 	{
 		sys_socket_t sock;
@@ -513,12 +513,12 @@ qsocket_t *Datagram_GetAnyMessage (void)
 
 int Datagram_GetMessage (qsocket_t *sock)
 {
-	unsigned int     length;
-	unsigned int     flags;
-	int              ret = 0;
+	unsigned int	 length;
+	unsigned int	 flags;
+	int				 ret = 0;
 	struct qsockaddr readaddr;
-	unsigned int     sequence;
-	unsigned int     count;
+	unsigned int	 sequence;
+	unsigned int	 count;
 
 	if (!sock->canSend)
 		if ((net_time - sock->lastSendTime) > 1.0)
@@ -730,8 +730,8 @@ static const char *Strip_Port (const char *host)
 {
 	static char noport[MAX_QPATH];
 	/* array size as in Host_Connect_f() */
-	char       *p;
-	int         port;
+	char	   *p;
+	int			port;
 
 	if (!host || !*host)
 		return host;
@@ -750,24 +750,24 @@ static const char *Strip_Port (const char *host)
 	return noport;
 }
 
-static qboolean     testInProgress = false;
-static int          testPollCount;
-static int          testDriver;
+static qboolean		testInProgress = false;
+static int			testPollCount;
+static int			testDriver;
 static sys_socket_t testSocket;
 
-static void          Test_Poll (void *);
+static void			 Test_Poll (void *);
 static PollProcedure testPollProcedure = {NULL, 0.0, Test_Poll};
 
 static void Test_Poll (void *unused)
 {
 	struct qsockaddr clientaddr;
-	int              control;
-	int              len;
-	char             name[32];
-	char             address[64];
-	int              colors;
-	int              frags;
-	int              connectTime;
+	int				 control;
+	int				 len;
+	char			 name[32];
+	char			 address[64];
+	int				 colors;
+	int				 frags;
+	int				 connectTime;
 
 	net_landriverlevel = testDriver;
 
@@ -816,9 +816,9 @@ static void Test_Poll (void *unused)
 
 static void Test_f (void)
 {
-	const char      *host;
-	size_t           n;
-	size_t           maxusers = MAX_SCOREBOARD;
+	const char		*host;
+	size_t			 n;
+	size_t			 maxusers = MAX_SCOREBOARD;
 	struct qsockaddr sendaddr;
 
 	if (testInProgress)
@@ -884,20 +884,20 @@ JustDoIt:
 	SchedulePollProcedure (&testPollProcedure, 0.1);
 }
 
-static qboolean     test2InProgress = false;
-static int          test2Driver;
+static qboolean		test2InProgress = false;
+static int			test2Driver;
 static sys_socket_t test2Socket;
 
-static void          Test2_Poll (void *);
+static void			 Test2_Poll (void *);
 static PollProcedure test2PollProcedure = {NULL, 0.0, Test2_Poll};
 
 static void Test2_Poll (void *unused)
 {
 	struct qsockaddr clientaddr;
-	int              control;
-	int              len;
-	char             name[256];
-	char             value[256];
+	int				 control;
+	int				 len;
+	char			 name[256];
+	char			 value[256];
 
 	net_landriverlevel = test2Driver;
 	name[0] = 0;
@@ -951,8 +951,8 @@ Done:
 
 static void Test2_f (void)
 {
-	const char      *host;
-	size_t           n;
+	const char		*host;
+	size_t			 n;
 	struct qsockaddr sendaddr;
 
 	if (test2InProgress)
@@ -1015,7 +1015,7 @@ JustDoIt:
 
 int Datagram_Init (void)
 {
-	int          i, num_inited;
+	int			 i, num_inited;
 	sys_socket_t csock;
 
 #ifdef BAN_TEST
@@ -1083,7 +1083,7 @@ void Datagram_Close (qsocket_t *sock)
 void Datagram_Listen (qboolean state)
 {
 	qsocket_t *s;
-	int        i;
+	int		   i;
 	qboolean   islistening = false;
 
 	heartbeat_time = 0; // reset it
@@ -1115,12 +1115,12 @@ void Datagram_Listen (qboolean state)
 }
 
 static struct qsockaddr rcon_response_address;
-static sys_socket_t     rcon_response_socket;
-static sys_socket_t     rcon_response_landriver;
-void                    Datagram_Rcon_Flush (const char *text)
+static sys_socket_t		rcon_response_socket;
+static sys_socket_t		rcon_response_landriver;
+void					Datagram_Rcon_Flush (const char *text)
 {
 	sizebuf_t msg;
-	byte      buffer[8192];
+	byte	  buffer[8192];
 	msg.data = buffer;
 	msg.maxsize = sizeof (buffer);
 	msg.allowoverflow = true;
@@ -1138,13 +1138,13 @@ void                    Datagram_Rcon_Flush (const char *text)
 static void _Datagram_ServerControlPacket (sys_socket_t acceptsock, struct qsockaddr *clientaddr, byte *data, unsigned int length)
 {
 	struct qsockaddr newaddr;
-	qsocket_t       *sock;
-	qsocket_t       *s;
-	int              command;
-	int              control;
-	int              ret;
-	int              plnum;
-	int              mod; //, mod_ver, mod_flags, mod_passwd;	//proquake extensions
+	qsocket_t		*sock;
+	qsocket_t		*s;
+	int				 command;
+	int				 control;
+	int				 ret;
+	int				 plnum;
+	int				 mod; //, mod_ver, mod_flags, mod_passwd;	//proquake extensions
 
 	control = BigLong (*((int *)data));
 	if (control == -1)
@@ -1157,13 +1157,13 @@ static void _Datagram_ServerControlPacket (sys_socket_t acceptsock, struct qsock
 		{
 			// master, as well as other clients, may send us one of these two packets to get our serverinfo data
 			// masters only really need gamename and player counts. actual clients might want player names too.
-			qboolean     full = !strcmp (Cmd_Argv (0), "getstatus");
-			char         cookie[128];
-			const char  *str = Cmd_Args ();
-			const char  *gamedir = COM_GetGameNames (false);
+			qboolean	 full = !strcmp (Cmd_Argv (0), "getstatus");
+			char		 cookie[128];
+			const char	*str = Cmd_Args ();
+			const char	*gamedir = COM_GetGameNames (false);
 			unsigned int numclients = 0, numbots = 0;
-			int          i;
-			size_t       j;
+			int			 i;
+			size_t		 j;
 			if (!str)
 				str = "";
 			q_strlcpy (cookie, str, sizeof (cookie));
@@ -1248,7 +1248,7 @@ static void _Datagram_ServerControlPacket (sys_socket_t acceptsock, struct qsock
 
 						MSG_WriteString (
 							&net_message, va ("\n%i %i %i_%i \"%s\"", svs.clients[i].old_frags, (int)total, svs.clients[i].colors & 15,
-						                      svs.clients[i].colors >> 4, svs.clients[i].name));
+											  svs.clients[i].colors >> 4, svs.clients[i].name));
 						net_message.cursize--;
 					}
 				}
@@ -1296,9 +1296,9 @@ static void _Datagram_ServerControlPacket (sys_socket_t acceptsock, struct qsock
 
 	if (command == CCREQ_PLAYER_INFO)
 	{
-		int       playerNumber;
-		int       activeNumber;
-		int       clientNumber;
+		int		  playerNumber;
+		int		  activeNumber;
+		int		  clientNumber;
 		client_t *client;
 
 		playerNumber = MSG_ReadByte ();
@@ -1345,7 +1345,7 @@ static void _Datagram_ServerControlPacket (sys_socket_t acceptsock, struct qsock
 	if (command == CCREQ_RULE_INFO)
 	{
 		const char *prevCvarName;
-		cvar_t     *var;
+		cvar_t	   *var;
 
 		// find the search start location
 		prevCvarName = MSG_ReadString ();
@@ -1579,8 +1579,8 @@ qsocket_t *Datagram_CheckNewConnections (void)
 		{
 			// darkplaces here refers to the master server protocol, rather than the game protocol
 			//(specifies that the server responds to infoRequest packets from the master)
-			char             str[] = "\377\377\377\377heartbeat DarkPlaces\n";
-			size_t           k;
+			char			 str[] = "\377\377\377\377heartbeat DarkPlaces\n";
+			size_t			 k;
 			struct qsockaddr addr;
 			heartbeat_time = Sys_DoubleTime () + 300;
 
@@ -1634,13 +1634,13 @@ static void _Datagram_SendServerQuery (struct qsockaddr *addr, qboolean master)
 }
 static struct
 {
-	int              driver;
-	qboolean         requery;
-	qboolean         master;
+	int				 driver;
+	qboolean		 requery;
+	qboolean		 master;
 	struct qsockaddr addr;
-} * hostlist;
-size_t      hostlist_count;
-size_t      hostlist_max;
+}		   *hostlist;
+size_t		hostlist_count;
+size_t		hostlist_max;
 static void _Datagram_AddPossibleHost (struct qsockaddr *addr, qboolean master)
 {
 	size_t u;
@@ -1704,13 +1704,13 @@ static void Info_ReadKey (const char *info, const char *key, char *out, size_t o
 
 static qboolean _Datagram_SearchForHosts (qboolean xmit)
 {
-	int              ret;
-	size_t           n;
-	size_t           i;
+	int				 ret;
+	size_t			 n;
+	size_t			 i;
 	struct qsockaddr readaddr;
 	struct qsockaddr myaddr;
-	int              control;
-	qboolean         sentsomething = false;
+	int				 control;
+	qboolean		 sentsomething = false;
 
 	dfunc.GetSocketAddr (dfunc.controlSock, &myaddr);
 	if (xmit)
@@ -1731,8 +1731,8 @@ static qboolean _Datagram_SearchForHosts (qboolean xmit)
 		if (slistScope == SLIST_INTERNET)
 		{
 			struct qsockaddr masteraddr;
-			char            *str;
-			size_t           m;
+			char			*str;
+			size_t			 m;
 			for (m = 0; net_masters[m].string; m++)
 			{
 				if (!*net_masters[m].string)
@@ -1784,7 +1784,7 @@ static qboolean _Datagram_SearchForHosts (qboolean xmit)
 			if (msg_readcount + 19 <= net_message.cursize && !strncmp ((char *)net_message.data + msg_readcount, "getserversResponse", 18))
 			{
 				struct qsockaddr addr;
-				int              j;
+				int				 j;
 				msg_readcount += 18;
 				for (;;)
 				{
@@ -1823,7 +1823,7 @@ static qboolean _Datagram_SearchForHosts (qboolean xmit)
 			}
 			else if (msg_readcount + 13 <= net_message.cursize && !strncmp ((char *)net_message.data + msg_readcount, "infoResponse\n", 13))
 			{ // response from a dpp7 server (or possibly 15, no idea really)
-				char        tmp[1024];
+				char		tmp[1024];
 				const char *info = MSG_ReadString () + 13;
 
 				// search the cache for this server
@@ -1905,11 +1905,11 @@ static qboolean _Datagram_SearchForHosts (qboolean xmit)
 		// dfunc.GetAddrFromName(MSG_ReadString(), &peeraddr);
 		/*if (dfunc.AddrCompare(&readaddr, &peeraddr) != 0)
 		{
-		    char read[NET_NAMELEN];
-		    char peer[NET_NAMELEN];
-		    q_strlcpy(read, dfunc.AddrToString(&readaddr), sizeof(read));
-		    q_strlcpy(peer, dfunc.AddrToString(&peeraddr), sizeof(peer));
-		    Con_SafePrintf("Server at %s claimed to be at %s\n", read, peer);
+			char read[NET_NAMELEN];
+			char peer[NET_NAMELEN];
+			q_strlcpy(read, dfunc.AddrToString(&readaddr), sizeof(read));
+			q_strlcpy(peer, dfunc.AddrToString(&peeraddr), sizeof(peer));
+			Con_SafePrintf("Server at %s claimed to be at %s\n", read, peer);
 		}*/
 
 		// search the cache for this server
@@ -2009,13 +2009,13 @@ qboolean Datagram_SearchForHosts (qboolean xmit)
 static qsocket_t *_Datagram_Connect (struct qsockaddr *serveraddr)
 {
 	struct qsockaddr readaddr;
-	qsocket_t       *sock;
-	sys_socket_t     newsock;
-	int              ret;
-	int              reps;
-	double           start_time;
-	int              control;
-	const char      *reason;
+	qsocket_t		*sock;
+	sys_socket_t	 newsock;
+	int				 ret;
+	int				 reps;
+	double			 start_time;
+	int				 control;
+	const char		*reason;
 
 	newsock = dfunc.Open_Socket (0);
 	if (newsock == INVALID_SOCKET)
@@ -2113,10 +2113,10 @@ static qsocket_t *_Datagram_Connect (struct qsockaddr *serveraddr)
 					}
 					/*else if (!strcmp(s, "reject"))
 					{
-					    reason = MSG_ReadString();
-					    Con_Printf("%s\n", reason);
-					    q_strlcpy(m_return_reason, reason, sizeof(m_return_reason));
-					    goto ErrorReturn;
+						reason = MSG_ReadString();
+						Con_Printf("%s\n", reason);
+						q_strlcpy(m_return_reason, reason, sizeof(m_return_reason));
+						goto ErrorReturn;
 					}*/
 
 					ret = 0;
@@ -2174,7 +2174,7 @@ static qsocket_t *_Datagram_Connect (struct qsockaddr *serveraddr)
 		memcpy (&sock->addr, serveraddr, sizeof (struct qsockaddr));
 		port = MSG_ReadLong ();
 		if (port) // spike --- don't change the remote port if the server doesn't want us to. this allows servers to use port forwarding with less issues,
-		          // assuming the server uses the same port for all clients.
+				  // assuming the server uses the same port for all clients.
 			dfunc.SetSocketPort (&sock->addr, port);
 	}
 	else
@@ -2234,7 +2234,7 @@ dpserveraccepted:
 	Normally we won't send ANYTHING until we get that packet.
 	Which will never happen because the NAT will never let it through.
 	So, if we want to get away without fixing everyone else's server (which is also quite messy),
-	    the easy way around this dilema is to just send some (small) useless packet to what we believe to be the server's data port.
+		the easy way around this dilema is to just send some (small) useless packet to what we believe to be the server's data port.
 	A single unreliable clc_nop should do it. There's unlikely to be much packetloss on our local lan (so long as our host buffers outgoing packets on a
 	per-socket basis or something), so we don't normally need to resend. We don't really care if the server can even read it properly, but its best to avoid
 	warning prints. With that small outgoing packet, our local nat will think we initiated the request. HOPEFULLY it'll reuse the same public port+address. Most
@@ -2267,8 +2267,8 @@ ErrorReturn2:
 
 qsocket_t *Datagram_Connect (const char *host)
 {
-	qsocket_t       *ret = NULL;
-	qboolean         resolved = false;
+	qsocket_t		*ret = NULL;
+	qboolean		 resolved = false;
 	struct qsockaddr addr;
 
 	host = Strip_Port (host);

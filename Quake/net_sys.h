@@ -37,7 +37,7 @@
  * provide a struct sockaddr doesn't hurt either (see down below for the
  * compile time asserts.) */
 /* FIXME : GET RID OF THIS ABOMINATION !!! */
-#define HAVE_SA_LEN   1
+#define HAVE_SA_LEN	  1
 #define SA_FAM_OFFSET 1
 #else
 #undef HAVE_SA_LEN
@@ -66,15 +66,15 @@ typedef int sys_socket_t;
 #if defined(__APPLE__) && defined(SO_NKE) && !defined(SO_NOADDRERR)
 /* ancient Mac OS X SDKs 10.2 and older are missing socklen_t */
 typedef int socklen_t; /* defining as signed int to match the old api */
-#endif                 /* ancient OSX SDKs */
+#endif				   /* ancient OSX SDKs */
 
-#define SOCKETERRNO   errno
-#define ioctlsocket   ioctl
-#define closesocket   close
+#define SOCKETERRNO	  errno
+#define ioctlsocket	  ioctl
+#define closesocket	  close
 #define selectsocket  select
 #define IOCTLARG_P(x) /* (char *) */ x
 
-#define NET_EWOULDBLOCK  EWOULDBLOCK
+#define NET_EWOULDBLOCK	 EWOULDBLOCK
 #define NET_ECONNREFUSED ECONNREFUSED
 
 #define socketerror(x) strerror ((x))
@@ -112,17 +112,17 @@ typedef unsigned int in_addr_t; /* u_int32_t */
 #endif
 #endif
 
-#define SOCKETERRNO                      Errno ()
-#define ioctlsocket                      IoctlSocket
-#define closesocket                      CloseSocket
+#define SOCKETERRNO						 Errno ()
+#define ioctlsocket						 IoctlSocket
+#define closesocket						 CloseSocket
 #define selectsocket(_N, _R, _W, _E, _T) WaitSelect ((_N), (_R), (_W), (_E), (_T), NULL)
-#define IOCTLARG_P(x)                    (char *)x
+#define IOCTLARG_P(x)					 (char *)x
 #if defined(__amigaos4__) || defined(PLATFORM_AMIGAOS3)
 #define inet_ntoa(x) Inet_NtoA (x.s_addr) /* Inet_NtoA(*(ULONG*)&x) */
-#define h_errno      Errno ()
+#define h_errno		 Errno ()
 #endif
 
-#define NET_EWOULDBLOCK  EWOULDBLOCK
+#define NET_EWOULDBLOCK	 EWOULDBLOCK
 #define NET_ECONNREFUSED ECONNREFUSED
 
 #define socketerror(x) strerror ((x))
@@ -155,11 +155,11 @@ typedef SOCKET sys_socket_t;
 #define selectsocket  select
 #define IOCTLARG_P(x) /* (u_long *) */ x
 
-#define SOCKETERRNO      WSAGetLastError ()
-#define NET_EWOULDBLOCK  WSAEWOULDBLOCK
+#define SOCKETERRNO		 WSAGetLastError ()
+#define NET_EWOULDBLOCK	 WSAEWOULDBLOCK
 #define NET_ECONNREFUSED WSAECONNREFUSED
 /* must #include "wsaerror.h" for this : */
-#define socketerror(x)   __WSAE_StrError ((x))
+#define socketerror(x)	 __WSAE_StrError ((x))
 
 /* Verify that we defined HAVE_SA_LEN correctly: */
 COMPILE_TIME_ASSERT (sockaddr, offsetof (struct sockaddr, sa_family) == SA_FAM_OFFSET);
@@ -174,7 +174,7 @@ COMPILE_TIME_ASSERT (sockaddr, offsetof (struct sockaddr, sa_family) == SA_FAM_O
 
 #if !defined(INADDR_LOOPBACK)
 #define INADDR_LOOPBACK ((in_addr_t)0x7f000001) /* 127.0.0.1	*/
-#endif                                          /* INADDR_LOOPBACK */
+#endif											/* INADDR_LOOPBACK */
 
 #if !defined(MAXHOSTNAMELEN)
 /* SUSv2 guarantees that `Host names are limited to 255 bytes'.

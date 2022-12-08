@@ -40,13 +40,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 	} while (false)
 #endif
 
-#define NUM_INDEX_BITS       8
-#define MAX_PENDING_TASKS    (1u << NUM_INDEX_BITS)
+#define NUM_INDEX_BITS		 8
+#define MAX_PENDING_TASKS	 (1u << NUM_INDEX_BITS)
 #define MAX_EXECUTABLE_TASKS 256
-#define MAX_DEPENDENT_TASKS  16
-#define MAX_PAYLOAD_SIZE     32
-#define WORKER_HUNK_SIZE     (1 * 1024 * 1024)
-#define WAIT_SPIN_COUNT      100
+#define MAX_DEPENDENT_TASKS	 16
+#define MAX_PAYLOAD_SIZE	 32
+#define WORKER_HUNK_SIZE	 (1 * 1024 * 1024)
+#define WAIT_SPIN_COUNT		 100
 
 COMPILE_TIME_ASSERT (tasks, MAX_PENDING_TASKS >= MAX_EXECUTABLE_TASKS);
 
@@ -59,41 +59,41 @@ typedef enum
 
 typedef struct
 {
-	task_type_t     task_type;
-	int             num_dependents;
-	int             indexed_limit;
+	task_type_t		task_type;
+	int				num_dependents;
+	int				indexed_limit;
 	atomic_uint32_t remaining_workers;
 	atomic_uint32_t remaining_dependencies;
-	uint64_t        epoch;
-	void           *func;
-	SDL_mutex      *epoch_mutex;
-	SDL_cond       *epoch_condition;
-	uint8_t         payload[MAX_PAYLOAD_SIZE];
-	task_handle_t   dependent_task_handles[MAX_DEPENDENT_TASKS];
+	uint64_t		epoch;
+	void		   *func;
+	SDL_mutex	   *epoch_mutex;
+	SDL_cond	   *epoch_condition;
+	uint8_t			payload[MAX_PAYLOAD_SIZE];
+	task_handle_t	dependent_task_handles[MAX_DEPENDENT_TASKS];
 } task_t;
 
 typedef struct
 {
-	uint32_t        capacity_mask;
+	uint32_t		capacity_mask;
 	atomic_uint64_t state;
-	SDL_sem        *push_semaphore;
-	SDL_sem        *pop_semaphore;
+	SDL_sem		   *push_semaphore;
+	SDL_sem		   *pop_semaphore;
 	atomic_uint32_t task_indices[1];
 } task_queue_t;
 
 typedef struct
 {
 	atomic_uint32_t index;
-	uint32_t        limit;
+	uint32_t		limit;
 } task_counter_t;
 
-static int                   num_workers = 0;
-static SDL_Thread          **worker_threads;
-static task_t                tasks[MAX_PENDING_TASKS];
-static task_queue_t         *free_task_queue;
-static task_queue_t         *executable_task_queue;
-static task_counter_t       *indexed_task_counters;
-static uint8_t               steal_worker_indices[TASKS_MAX_WORKERS * 2];
+static int					 num_workers = 0;
+static SDL_Thread		   **worker_threads;
+static task_t				 tasks[MAX_PENDING_TASKS];
+static task_queue_t			*free_task_queue;
+static task_queue_t			*executable_task_queue;
+static task_counter_t		*indexed_task_counters;
+static uint8_t				 steal_worker_indices[TASKS_MAX_WORKERS * 2];
 static THREAD_LOCAL qboolean is_worker = false;
 static THREAD_LOCAL int		 tl_worker_index;
 
@@ -154,7 +154,7 @@ static inline void SpinWaitSemaphore (SDL_sem *semaphore)
 		_mm_pause ();
 #elif defined(USE_NEON)
 		// Always available on AArch64
-		asm volatile("isb"::);
+		asm volatile ("isb" ::);
 #endif
 		if (--remaining_spins == 0)
 		{
@@ -256,10 +256,10 @@ static inline void Task_ExecuteIndexed (int worker_index, task_t *task, uint32_t
 {
 	for (int i = 0; i < num_workers; ++i)
 	{
-		const int       steal_worker_index = steal_worker_indices[worker_index + i];
-		int             counter_index = IndexedTaskCounterIndex (task_index, steal_worker_index);
+		const int		steal_worker_index = steal_worker_indices[worker_index + i];
+		int				counter_index = IndexedTaskCounterIndex (task_index, steal_worker_index);
 		task_counter_t *counter = &indexed_task_counters[counter_index];
-		uint32_t        index = 0;
+		uint32_t		index = 0;
 		while ((index = Atomic_IncrementUInt32 (&counter->index)) < counter->limit)
 		{
 			((task_indexed_func_t)task->func) (index, task->payload);
@@ -281,7 +281,7 @@ static int Task_Worker (void *data)
 	while (true)
 	{
 		uint32_t task_index = TaskQueuePop (executable_task_queue);
-		task_t  *task = &tasks[task_index];
+		task_t	*task = &tasks[task_index];
 		ANNOTATE_HAPPENS_AFTER (task);
 
 		if (task->task_type == TASK_TYPE_SCALAR)
@@ -304,7 +304,7 @@ static int Task_Worker (void *data)
 			for (int i = 0; i < task->num_dependents; ++i)
 			{
 				const int task_index = IndexFromTaskHandle (task->dependent_task_handles[i]);
-				task_t   *dep_task = &tasks[task_index];
+				task_t	 *dep_task = &tasks[task_index];
 				ANNOTATE_HAPPENS_BEFORE (dep_task);
 			}
 		}
@@ -404,7 +404,7 @@ Task_Allocate
 task_handle_t Task_Allocate (void)
 {
 	uint32_t task_index = TaskQueuePop (free_task_queue);
-	task_t  *task = &tasks[task_index];
+	task_t	*task = &tasks[task_index];
 	Atomic_StoreUInt32 (&task->remaining_dependencies, 1);
 	task->task_type = TASK_TYPE_NONE;
 	task->num_dependents = 0;
@@ -437,7 +437,7 @@ void Task_AssignIndexedFunc (task_handle_t handle, task_indexed_func_t func, uin
 {
 	assert (payload_size <= MAX_PAYLOAD_SIZE);
 	uint32_t task_index = IndexFromTaskHandle (handle);
-	task_t  *task = &tasks[task_index];
+	task_t	*task = &tasks[task_index];
 	task->task_type = TASK_TYPE_INDEXED;
 	task->func = (void *)func;
 	task->indexed_limit = limit;
@@ -445,7 +445,7 @@ void Task_AssignIndexedFunc (task_handle_t handle, task_indexed_func_t func, uin
 	uint32_t count_per_worker = (limit + num_workers - 1) / num_workers;
 	for (int worker_index = 0; worker_index < num_workers; ++worker_index)
 	{
-		const int       task_counter_index = IndexedTaskCounterIndex (task_index, worker_index);
+		const int		task_counter_index = IndexedTaskCounterIndex (task_index, worker_index);
 		task_counter_t *counter = &indexed_task_counters[task_counter_index];
 		Atomic_StoreUInt32 (&counter->index, index);
 		counter->limit = q_min (index + count_per_worker, limit);
@@ -463,7 +463,7 @@ Task_Submit
 void Task_Submit (task_handle_t handle)
 {
 	uint32_t task_index = IndexFromTaskHandle (handle);
-	task_t  *task = &tasks[task_index];
+	task_t	*task = &tasks[task_index];
 	assert (task->epoch == EpochFromTaskHandle (handle));
 	ANNOTATE_HAPPENS_BEFORE (task);
 	if (Atomic_DecrementUInt32 (&task->remaining_dependencies) == 1)
@@ -498,7 +498,7 @@ Task_AddDependency
 void Task_AddDependency (task_handle_t before, task_handle_t after)
 {
 	uint32_t  before_task_index = IndexFromTaskHandle (before);
-	task_t   *before_task = &tasks[before_task_index];
+	task_t	 *before_task = &tasks[before_task_index];
 	const int before_handle_task_epoch = EpochFromTaskHandle (before);
 	SDL_LockMutex (before_task->epoch_mutex);
 	if (before_task->epoch != before_handle_task_epoch)
@@ -508,7 +508,7 @@ void Task_AddDependency (task_handle_t before, task_handle_t after)
 		return;
 	}
 	uint32_t after_task_index = IndexFromTaskHandle (after);
-	task_t  *after_task = &tasks[after_task_index];
+	task_t	*after_task = &tasks[after_task_index];
 	assert (before_task->num_dependents < MAX_DEPENDENT_TASKS);
 	before_task->dependent_task_handles[before_task->num_dependents] = after;
 	before_task->num_dependents += 1;
@@ -523,7 +523,7 @@ Task_Join
 */
 qboolean Task_Join (task_handle_t handle, uint32_t timeout)
 {
-	task_t   *task = &tasks[IndexFromTaskHandle (handle)];
+	task_t	 *task = &tasks[IndexFromTaskHandle (handle)];
 	const int handle_task_epoch = EpochFromTaskHandle (handle);
 	SDL_LockMutex (task->epoch_mutex);
 	while (task->epoch == handle_task_epoch)

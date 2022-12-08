@@ -55,25 +55,25 @@ int striptris[128];
 int stripcount;
 
 // Heap
-#define INDEX_HEAP_SIZE_MB  2
+#define INDEX_HEAP_SIZE_MB	2
 #define VERTEX_HEAP_SIZE_MB 16
 
 static glheap_t **vertex_buffer_heaps;
 static glheap_t **index_buffer_heaps;
-static int        num_vertex_buffer_heaps;
-static int        num_index_buffer_heaps;
+static int		  num_vertex_buffer_heaps;
+static int		  num_index_buffer_heaps;
 
 typedef struct
 {
-	VkBuffer      buffer;
-	glheap_t     *heap;
+	VkBuffer	  buffer;
+	glheap_t	 *heap;
 	glheapnode_t *heap_node;
 	glheap_t   ***heaps;
-	int          *num_heaps;
+	int			 *num_heaps;
 } buffer_garbage_t;
 
-static int              current_garbage_index;
-static int              num_garbage_buffers[2];
+static int				current_garbage_index;
+static int				num_garbage_buffers[2];
 static buffer_garbage_t buffer_garbage[MAX_MODELS * 2][2];
 
 /*
@@ -83,7 +83,7 @@ AddBufferGarbage
 */
 static void AddBufferGarbage (VkBuffer buffer, glheap_t *heap, glheapnode_t *heap_node, glheap_t ***heaps, int *num_heaps)
 {
-	int               garbage_index;
+	int				  garbage_index;
 	buffer_garbage_t *garbage;
 
 	garbage_index = num_garbage_buffers[current_garbage_index]++;
@@ -102,8 +102,8 @@ R_CollectMeshBufferGarbage
 */
 void R_CollectMeshBufferGarbage ()
 {
-	int               num;
-	int               i;
+	int				  num;
+	int				  i;
 	buffer_garbage_t *garbage;
 
 	current_garbage_index = (current_garbage_index + 1) % 2;
@@ -124,10 +124,10 @@ StripLength
 */
 int StripLength (int starttri, int startv)
 {
-	int          m1, m2;
-	int          j;
+	int			 m1, m2;
+	int			 j;
 	mtriangle_t *last, *check;
-	int          k;
+	int			 k;
 
 	used[starttri] = 2;
 
@@ -193,10 +193,10 @@ FanLength
 */
 int FanLength (int starttri, int startv)
 {
-	int          m1, m2;
-	int          j;
+	int			 m1, m2;
+	int			 j;
 	mtriangle_t *last, *check;
-	int          k;
+	int			 k;
 
 	used[starttri] = 2;
 
@@ -262,13 +262,13 @@ for the model, which holds for all frames
 */
 void BuildTris (void)
 {
-	int   i, j, k;
-	int   startv;
+	int	  i, j, k;
+	int	  startv;
 	float s, t;
-	int   len, bestlen, besttype;
-	int   bestverts[1024];
-	int   besttris[1024];
-	int   type;
+	int	  len, bestlen, besttype;
+	int	  bestverts[1024];
+	int	  besttris[1024];
+	int	  type;
 
 	//
 	// build tristrips
@@ -359,11 +359,11 @@ GL_MakeAliasModelDisplayLists
 */
 void GL_MakeAliasModelDisplayLists (qmodel_t *m, aliashdr_t *hdr)
 {
-	int         i, j;
-	int        *cmds;
+	int			i, j;
+	int		   *cmds;
 	trivertx_t *verts;
-	int         count;    // johnfitz -- precompute texcoords for padded skins
-	int        *loadcmds; // johnfitz
+	int			count;	  // johnfitz -- precompute texcoords for padded skins
+	int		   *loadcmds; // johnfitz
 
 	aliasmodel = m;
 	paliashdr = hdr; // (aliashdr_t *)Mod_Extradata (m);
@@ -424,11 +424,11 @@ Original code by MH from RMQEngine
 */
 void GL_MakeAliasModelDisplayLists_VBO (void)
 {
-	int             i, j;
-	int             maxverts_vbo;
-	trivertx_t     *verts;
+	int				i, j;
+	int				maxverts_vbo;
+	trivertx_t	   *verts;
 	unsigned short *indexes;
-	aliasmesh_t    *desc;
+	aliasmesh_t	   *desc;
 
 	// first, copy the verts onto the hunk
 	verts = (trivertx_t *)Mem_Alloc (paliashdr->numposes * paliashdr->numverts * sizeof (trivertx_t));
@@ -544,15 +544,15 @@ Original code by MH from RMQEngine
 */
 static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 {
-	int                totalvbosize = 0;
-	int                remaining_size;
-	int                copy_offset;
+	int				   totalvbosize = 0;
+	int				   remaining_size;
+	int				   copy_offset;
 	const aliasmesh_t *desc;
-	const short       *indexes;
+	const short		  *indexes;
 	const trivertx_t  *trivertexes;
-	byte              *vbodata;
-	int                f;
-	VkResult           err;
+	byte			  *vbodata;
+	int				   f;
+	VkResult		   err;
 
 	GLMesh_DeleteVertexBuffer (m);
 
@@ -600,7 +600,7 @@ static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 		VkMemoryRequirements memory_requirements;
 		vkGetBufferMemoryRequirements (vulkan_globals.device, m->index_buffer, &memory_requirements);
 
-		uint32_t     memory_type_index = GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
+		uint32_t	 memory_type_index = GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
 		VkDeviceSize heap_size = INDEX_HEAP_SIZE_MB * (VkDeviceSize)1024 * (VkDeviceSize)1024;
 		VkDeviceSize aligned_offset = GL_AllocateFromHeaps (
 			&num_index_buffer_heaps, &index_buffer_heaps, heap_size, memory_type_index, VULKAN_MEMORY_TYPE_DEVICE, memory_requirements.size,
@@ -614,10 +614,10 @@ static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 
 		while (remaining_size > 0)
 		{
-			const int       size_to_copy = q_min (remaining_size, vulkan_globals.staging_buffer_size);
-			VkBuffer        staging_buffer;
+			const int		size_to_copy = q_min (remaining_size, vulkan_globals.staging_buffer_size);
+			VkBuffer		staging_buffer;
 			VkCommandBuffer command_buffer;
-			int             staging_offset;
+			int				staging_offset;
 			unsigned char  *staging_memory = R_StagingAllocate (size_to_copy, 1, &command_buffer, &staging_buffer, &staging_offset);
 
 			VkBufferCopy region;
@@ -643,8 +643,8 @@ static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 	// fill in the vertices at the start of the buffer
 	for (f = 0; f < hdr->numposes; f++) // ericw -- what RMQEngine called nummeshframes is called numposes in QuakeSpasm
 	{
-		int               v;
-		meshxyz_t        *xyz = (meshxyz_t *)(vbodata + (f * hdr->numverts_vbo * sizeof (meshxyz_t)));
+		int				  v;
+		meshxyz_t		 *xyz = (meshxyz_t *)(vbodata + (f * hdr->numverts_vbo * sizeof (meshxyz_t)));
 		const trivertx_t *tv = trivertexes + (hdr->numverts * f);
 
 		for (v = 0; v < hdr->numverts_vbo; v++)
@@ -694,7 +694,7 @@ static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 		VkMemoryRequirements memory_requirements;
 		vkGetBufferMemoryRequirements (vulkan_globals.device, m->vertex_buffer, &memory_requirements);
 
-		uint32_t     memory_type_index = GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
+		uint32_t	 memory_type_index = GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
 		VkDeviceSize heap_size = VERTEX_HEAP_SIZE_MB * (VkDeviceSize)1024 * (VkDeviceSize)1024;
 		VkDeviceSize aligned_offset = GL_AllocateFromHeaps (
 			&num_vertex_buffer_heaps, &vertex_buffer_heaps, heap_size, memory_type_index, VULKAN_MEMORY_TYPE_DEVICE, memory_requirements.size,
@@ -708,10 +708,10 @@ static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 
 		while (remaining_size > 0)
 		{
-			const int       size_to_copy = q_min (remaining_size, vulkan_globals.staging_buffer_size);
-			VkBuffer        staging_buffer;
+			const int		size_to_copy = q_min (remaining_size, vulkan_globals.staging_buffer_size);
+			VkBuffer		staging_buffer;
 			VkCommandBuffer command_buffer;
-			int             staging_offset;
+			int				staging_offset;
 			unsigned char  *staging_memory = R_StagingAllocate (size_to_copy, 1, &command_buffer, &staging_buffer, &staging_offset);
 
 			VkBufferCopy region;
@@ -741,8 +741,8 @@ Loop over all precached alias models, and upload each one to a VBO.
 */
 void GLMesh_LoadVertexBuffers (void)
 {
-	int               j;
-	qmodel_t         *m;
+	int				  j;
+	qmodel_t		 *m;
 	const aliashdr_t *hdr;
 
 	for (j = 1; j < MAX_MODELS; j++)
@@ -767,7 +767,7 @@ Delete VBOs for all loaded alias models
 */
 void GLMesh_DeleteVertexBuffers (void)
 {
-	int       j;
+	int		  j;
 	qmodel_t *m;
 
 	for (j = 1; j < MAX_MODELS; j++)

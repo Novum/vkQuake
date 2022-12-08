@@ -43,10 +43,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #endif
 
 #define THREAD_STACK_RESERVATION (128ll * 1024ll)
-#define MAX_STACK_ALLOC_SIZE     (512ll * 1024ll)
+#define MAX_STACK_ALLOC_SIZE	 (512ll * 1024ll)
 
 size_t THREAD_LOCAL thread_stack_alloc_size = 0;
-size_t              max_thread_stack_alloc_size = 0;
+size_t				max_thread_stack_alloc_size = 0;
 
 /*
 ====================
@@ -59,7 +59,7 @@ void Mem_Init ()
 	max_thread_stack_alloc_size = MAX_STACK_ALLOC_SIZE;
 #else /* unix: */
 	pthread_attr_t attr;
-	size_t         stacksize;
+	size_t		   stacksize;
 	if (pthread_attr_init (&attr) != 0)
 		return;
 	if (pthread_attr_getstacksize (&attr, &stacksize) != 0)

@@ -31,7 +31,7 @@ static void Sys_AtExit (void)
 
 static void Sys_InitSDL (void)
 {
-	SDL_version  v;
+	SDL_version	 v;
 	SDL_version *sdl_version = &v;
 	SDL_GetVersion (&v);
 

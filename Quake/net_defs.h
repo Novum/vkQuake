@@ -44,23 +44,23 @@ struct qsockaddr
 	unsigned char qsa_data[62];
 };
 
-#define NET_HEADERSIZE   (2 * sizeof (unsigned int))
+#define NET_HEADERSIZE	 (2 * sizeof (unsigned int))
 #define NET_DATAGRAMSIZE (MAX_DATAGRAM + NET_HEADERSIZE)
 
 // NetHeader flags
 #define NETFLAG_LENGTH_MASK 0x0000ffff
-#define NETFLAG_DATA        0x00010000
-#define NETFLAG_ACK         0x00020000
-#define NETFLAG_NAK         0x00040000
-#define NETFLAG_EOM         0x00080000
-#define NETFLAG_UNRELIABLE  0x00100000
-#define NETFLAG_CTL         0x80000000
+#define NETFLAG_DATA		0x00010000
+#define NETFLAG_ACK			0x00020000
+#define NETFLAG_NAK			0x00040000
+#define NETFLAG_EOM			0x00080000
+#define NETFLAG_UNRELIABLE	0x00100000
+#define NETFLAG_CTL			0x80000000
 
 #if (NETFLAG_LENGTH_MASK & NET_MAXMESSAGE) != NET_MAXMESSAGE
 #error "NET_MAXMESSAGE must fit within NETFLAG_LENGTH_MASK"
 #endif
 
-#define NET_LOOPBACKBUFFERS    5
+#define NET_LOOPBACKBUFFERS	   5
 #define NET_LOOPBACKHEADERSIZE 4
 
 #define NET_PROTOCOL_VERSION 3
@@ -73,119 +73,119 @@ Quake game protocol (documented elsewhere) is used.
 
 
 General notes:
-    game_name is currently always "QUAKE", but is there so this same protocol
-        can be used for future games as well; can you say Quake2?
+	game_name is currently always "QUAKE", but is there so this same protocol
+		can be used for future games as well; can you say Quake2?
 
 CCREQ_CONNECT
-        string	game_name		"QUAKE"
-        byte	net_protocol_version	NET_PROTOCOL_VERSION
+		string	game_name		"QUAKE"
+		byte	net_protocol_version	NET_PROTOCOL_VERSION
 
 CCREQ_SERVER_INFO
-        string	game_name		"QUAKE"
-        byte	net_protocol_version	NET_PROTOCOL_VERSION
+		string	game_name		"QUAKE"
+		byte	net_protocol_version	NET_PROTOCOL_VERSION
 
 CCREQ_PLAYER_INFO
-        byte	player_number
+		byte	player_number
 
 CCREQ_RULE_INFO
-        string	rule
+		string	rule
 
 CCREP_ACCEPT
-        long	port
+		long	port
 
 CCREP_REJECT
-        string	reason
+		string	reason
 
 CCREP_SERVER_INFO
-        string	server_address
-        string	host_name
-        string	level_name
-        byte	current_players
-        byte	max_players
-        byte	protocol_version	NET_PROTOCOL_VERSION
+		string	server_address
+		string	host_name
+		string	level_name
+		byte	current_players
+		byte	max_players
+		byte	protocol_version	NET_PROTOCOL_VERSION
 
 CCREP_PLAYER_INFO
-        byte	player_number
-        string	name
-        long	colors
-        long	frags
-        long	connect_time
-        string	address
+		byte	player_number
+		string	name
+		long	colors
+		long	frags
+		long	connect_time
+		string	address
 
 CCREP_RULE_INFO
-        string	rule
-        string	value
+		string	rule
+		string	value
 
-    note:
-        There are two address forms used above.  The short form is just a
-        port number.  The address that goes along with the port is defined as
-        "whatever address you receive this reponse from".  This lets us use
-        the host OS to solve the problem of multiple host addresses (possibly
-        with no routing between them); the host will use the right address
-        when we reply to the inbound connection request.  The long from is
-        a full address and port in a string.  It is used for returning the
-        address of a server that is not running locally.
+	note:
+		There are two address forms used above.  The short form is just a
+		port number.  The address that goes along with the port is defined as
+		"whatever address you receive this reponse from".  This lets us use
+		the host OS to solve the problem of multiple host addresses (possibly
+		with no routing between them); the host will use the right address
+		when we reply to the inbound connection request.  The long from is
+		a full address and port in a string.  It is used for returning the
+		address of a server that is not running locally.
 
 **/
 
-#define CCREQ_CONNECT     0x01
+#define CCREQ_CONNECT	  0x01
 #define CCREQ_SERVER_INFO 0x02
 #define CCREQ_PLAYER_INFO 0x03
-#define CCREQ_RULE_INFO   0x04
-#define CCREQ_RCON        0x05
+#define CCREQ_RULE_INFO	  0x04
+#define CCREQ_RCON		  0x05
 
-#define CCREP_ACCEPT      0x81
-#define CCREP_REJECT      0x82
+#define CCREP_ACCEPT	  0x81
+#define CCREP_REJECT	  0x82
 #define CCREP_SERVER_INFO 0x83
 #define CCREP_PLAYER_INFO 0x84
-#define CCREP_RULE_INFO   0x85
-#define CCREP_RCON        0x86
+#define CCREP_RULE_INFO	  0x85
+#define CCREP_RCON		  0x86
 
 typedef struct qsocket_s
 {
 	struct qsocket_s *next;
-	double            connecttime;
-	double            lastMessageTime;
-	double            lastSendTime;
+	double			  connecttime;
+	double			  lastMessageTime;
+	double			  lastSendTime;
 
 	qboolean isvirtual; // qsocket is emulated by the network layer (closing will not close any system sockets).
 	qboolean disconnected;
 	qboolean canSend;
 	qboolean sendNext;
 
-	int          driver;
-	int          landriver;
+	int			 driver;
+	int			 landriver;
 	sys_socket_t socket;
-	void        *driverdata;
+	void		*driverdata;
 
 	unsigned int ackSequence;
 	unsigned int sendSequence;
 	unsigned int unreliableSendSequence;
-	int          sendMessageLength;
-	byte         sendMessage[NET_MAXMESSAGE];
+	int			 sendMessageLength;
+	byte		 sendMessage[NET_MAXMESSAGE];
 
 	unsigned int receiveSequence;
 	unsigned int unreliableReceiveSequence;
-	int          receiveMessageLength;
-	byte         receiveMessage[NET_MAXMESSAGE * NET_LOOPBACKBUFFERS + NET_LOOPBACKHEADERSIZE];
+	int			 receiveMessageLength;
+	byte		 receiveMessage[NET_MAXMESSAGE * NET_LOOPBACKBUFFERS + NET_LOOPBACKHEADERSIZE];
 
 	struct qsockaddr addr;
-	char             trueaddress[NET_NAMELEN];   // lazy address string
-	char             maskedaddress[NET_NAMELEN]; // addresses for this player that may be displayed publically
+	char			 trueaddress[NET_NAMELEN];	 // lazy address string
+	char			 maskedaddress[NET_NAMELEN]; // addresses for this player that may be displayed publically
 
 	qboolean proquake_angle_hack;  // 1 if we're trying, 2 if the server acked.
-	int      max_datagram;         // 32000 for local, 1442 for 666, 1024 for 15. this is for reliable fragments.
-	int      pending_max_datagram; // don't change the mtu if we're resending, as that would confuse the peer.
+	int		 max_datagram;		   // 32000 for local, 1442 for 666, 1024 for 15. this is for reliable fragments.
+	int		 pending_max_datagram; // don't change the mtu if we're resending, as that would confuse the peer.
 } qsocket_t;
 
 extern qsocket_t *net_activeSockets;
 extern qsocket_t *net_freeSockets;
-extern int        net_numsockets;
+extern int		  net_numsockets;
 
 typedef struct
 {
-	const char  *name;
-	qboolean     initialized;
+	const char	*name;
+	qboolean	 initialized;
 	sys_socket_t controlSock;
 	sys_socket_t (*Init) (void);
 	void (*Shutdown) (void);
@@ -212,12 +212,12 @@ typedef struct
 
 #define MAX_NET_DRIVERS 8
 extern net_landriver_t net_landrivers[];
-extern const int       net_numlandrivers;
+extern const int	   net_numlandrivers;
 
 typedef struct
 {
 	const char *name;
-	qboolean    initialized;
+	qboolean	initialized;
 	int (*Init) (void);
 	void (*Listen) (qboolean state);
 	int (*QueryAddresses) (qhostaddr_t *addresses, int maxaddresses);
@@ -235,7 +235,7 @@ typedef struct
 } net_driver_t;
 
 extern net_driver_t net_drivers[];
-extern const int    net_numdrivers;
+extern const int	net_numdrivers;
 
 /* Loop driver must always be registered the first */
 #define IS_LOOP_DRIVER(p) ((p) == 0)
@@ -248,31 +248,31 @@ extern int unreliableMessagesSent;
 extern int unreliableMessagesReceived;
 
 qsocket_t *NET_NewQSocket (void);
-void       NET_FreeQSocket (qsocket_t *);
-double     SetNetTime (void);
+void	   NET_FreeQSocket (qsocket_t *);
+double	   SetNetTime (void);
 
 #define HOSTCACHESIZE 128 // fixme: make dynamic.
 
 typedef struct
 {
-	char             name[64];
-	char             map[16];
-	char             gamedir[16];
-	char             cname[NET_NAMELEN];
-	int              users;
-	int              maxusers;
-	int              driver;
-	int              ldriver;
+	char			 name[64];
+	char			 map[16];
+	char			 gamedir[16];
+	char			 cname[NET_NAMELEN];
+	int				 users;
+	int				 maxusers;
+	int				 driver;
+	int				 ldriver;
 	struct qsockaddr addr;
 } hostcache_t;
 
-extern size_t      hostCacheCount;
+extern size_t	   hostCacheCount;
 extern hostcache_t hostcache[HOSTCACHESIZE];
 
 typedef struct _PollProcedure
 {
 	struct _PollProcedure *next;
-	double                 nextTime;
+	double				   nextTime;
 	void (*procedure) (void *);
 	void *arg;
 } PollProcedure;

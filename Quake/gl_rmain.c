@@ -26,12 +26,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "atomics.h"
 
 int r_visframecount; // bumped when going to a new PVS
-int r_framecount;    // used for dlight push checking
+int r_framecount;	 // used for dlight push checking
 
 mplane_t frustum[4];
 
 qboolean render_warp;
-int      render_scale;
+int		 render_scale;
 
 // johnfitz -- rendering statistics
 atomic_uint32_t rs_brushpolys, rs_aliaspolys, rs_skypolys, rs_particles, rs_fogpolys;
@@ -113,7 +113,7 @@ cvar_t r_gpulightmapupdate = {"r_gpulightmapupdate", "1", CVAR_NONE};
 
 cvar_t r_tasks = {"r_tasks", "1", CVAR_NONE};
 
-cvar_t r_indirect = {"r_indirect", "1", CVAR_NONE};
+cvar_t			r_indirect = {"r_indirect", "1", CVAR_NONE};
 extern qboolean indirect_ready;
 
 /*
@@ -125,10 +125,10 @@ Returns true if the box is completely outside the frustum
 */
 qboolean R_CullBox (vec3_t emins, vec3_t emaxs)
 {
-	int       i;
+	int		  i;
 	mplane_t *p;
-	byte      signbits;
-	float     vec[3];
+	byte	  signbits;
+	float	  vec[3];
 	for (i = 0; i < 4; i++)
 	{
 		p = frustum + i;
@@ -265,8 +265,8 @@ void R_SetFrustum (float fovx, float fovy)
 
 	TurnVector (frustum[0].normal, vpn, vright, fovx / 2 - 90); // right plane
 	TurnVector (frustum[1].normal, vpn, vright, 90 - fovx / 2); // left plane
-	TurnVector (frustum[2].normal, vpn, vup, 90 - fovy / 2);    // bottom plane
-	TurnVector (frustum[3].normal, vpn, vup, fovy / 2 - 90);    // top plane
+	TurnVector (frustum[2].normal, vpn, vup, 90 - fovy / 2);	// bottom plane
+	TurnVector (frustum[3].normal, vpn, vup, fovy / 2 - 90);	// top plane
 
 	for (i = 0; i < 4; i++)
 	{
@@ -535,10 +535,10 @@ R_EmitWirePoint -- johnfitz -- draws a wireframe cross shape for point entities
 */
 void R_EmitWirePoint (cb_context_t *cbx, vec3_t origin)
 {
-	VkBuffer       vertex_buffer;
+	VkBuffer	   vertex_buffer;
 	VkDeviceSize   vertex_buffer_offset;
 	basicvertex_t *vertices = (basicvertex_t *)R_VertexAllocate (6 * sizeof (basicvertex_t), &vertex_buffer, &vertex_buffer_offset);
-	int            size = 8;
+	int			   size = 8;
 
 	vertices[0].position[0] = origin[0] - size;
 	vertices[0].position[1] = origin[1];
@@ -570,7 +570,7 @@ R_EmitWireBox -- johnfitz -- draws one axis aligned bounding box
 */
 void R_EmitWireBox (cb_context_t *cbx, vec3_t mins, vec3_t maxs, VkBuffer box_index_buffer, VkDeviceSize box_index_buffer_offset)
 {
-	VkBuffer       vertex_buffer;
+	VkBuffer	   vertex_buffer;
 	VkDeviceSize   vertex_buffer_offset;
 	basicvertex_t *vertices = (basicvertex_t *)R_VertexAllocate (8 * sizeof (basicvertex_t), &vertex_buffer, &vertex_buffer_offset);
 
@@ -605,8 +605,8 @@ static qboolean R_ShowBoundingBoxesFilter (edict_t *ed)
 	if (ed->v.classname)
 	{
 		const char *classname = PR_GetString (ed->v.classname);
-		char       *str = r_showbboxes_filter_strings;
-		qboolean    is_allowed = false;
+		char	   *str = r_showbboxes_filter_strings;
+		qboolean	is_allowed = false;
 		while (*str && !is_allowed)
 		{
 			if (*str == '=')
@@ -630,9 +630,9 @@ draw bounding boxes -- the server-side boxes, not the renderer cullboxes
 void R_ShowBoundingBoxes (cb_context_t *cbx)
 {
 	extern edict_t *sv_player;
-	vec3_t          mins, maxs, center;
-	edict_t        *ed;
-	int             i, pass;
+	vec3_t			mins, maxs, center;
+	edict_t		   *ed;
+	int				i, pass;
 
 	if (!r_showbboxes.value || cl.maxclients > 1 || !r_drawentities.value || !sv.active)
 		return;
@@ -641,9 +641,9 @@ void R_ShowBoundingBoxes (cb_context_t *cbx)
 	if (vulkan_globals.non_solid_fill)
 		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showbboxes_pipeline);
 
-	VkBuffer     box_index_buffer;
+	VkBuffer	 box_index_buffer;
 	VkDeviceSize box_index_buffer_offset;
-	uint16_t    *indices = (uint16_t *)R_IndexAllocate (24 * sizeof (uint16_t), &box_index_buffer, &box_index_buffer_offset);
+	uint16_t	*indices = (uint16_t *)R_IndexAllocate (24 * sizeof (uint16_t), &box_index_buffer, &box_index_buffer_offset);
 	memcpy (indices, box_indices, 24 * sizeof (uint16_t));
 
 	PR_SwitchQCVM (&sv.qcvm);
@@ -714,7 +714,7 @@ R_ShowTris -- johnfitz
 void R_ShowTris (cb_context_t *cbx)
 {
 	extern cvar_t r_particles;
-	int           i;
+	int			  i;
 
 	if (r_showtris.value < 1 || r_showtris.value > 2 || cl.maxclients > 1 || !vulkan_globals.non_solid_fill)
 		return;
@@ -751,7 +751,7 @@ void R_ShowTris (cb_context_t *cbx)
 		// viewmodel
 		entity_t *currententity = &cl.viewent;
 		if (r_drawviewmodel.value && !chase_active.value && cl.stats[STAT_HEALTH] > 0 && !(cl.items & IT_INVISIBILITY) && currententity->model &&
-		    currententity->model->type == mod_alias && scr_viewsize.value < 130)
+			currententity->model->type == mod_alias && scr_viewsize.value < 130)
 		{
 			R_DrawAliasModel_ShowTris (cbx, currententity);
 		}
@@ -775,7 +775,7 @@ R_DrawWorldTask
 */
 static void R_DrawWorldTask (int index, qboolean *use_tasks)
 {
-	const int     cbx_index = index + CBX_WORLD_0;
+	const int	  cbx_index = index + CBX_WORLD_0;
 	cb_context_t *cbx = &vulkan_globals.secondary_cb_contexts[cbx_index];
 	R_SetupContext (cbx);
 	Fog_EnableGFog (cbx);
@@ -809,8 +809,8 @@ static void R_DrawEntitiesTask (int index, void *unused)
 	R_SetupContext (&vulkan_globals.secondary_cb_contexts[cbx_index]);
 	Fog_EnableGFog (&vulkan_globals.secondary_cb_contexts[cbx_index]); // johnfitz
 	const int num_edicts_per_cb = (cl_numvisedicts + NUM_ENTITIES_CBX - 1) / NUM_ENTITIES_CBX;
-	int       startedict = index * num_edicts_per_cb;
-	int       endedict = q_min ((index + 1) * num_edicts_per_cb, cl_numvisedicts);
+	int		  startedict = index * num_edicts_per_cb;
+	int		  endedict = q_min ((index + 1) * num_edicts_per_cb, cl_numvisedicts);
 	R_DrawEntitiesOnList (&vulkan_globals.secondary_cb_contexts[cbx_index], false, index + chain_model_0, startedict, endedict);
 }
 
@@ -851,8 +851,8 @@ R_DrawViewModelTask
 static void R_DrawViewModelTask (void *unused)
 {
 	R_SetupContext (&vulkan_globals.secondary_cb_contexts[CBX_VIEW_MODEL]);
-	R_DrawViewModel (&vulkan_globals.secondary_cb_contexts[CBX_VIEW_MODEL]);     // johnfitz -- moved here from R_RenderView
-	R_ShowTris (&vulkan_globals.secondary_cb_contexts[CBX_VIEW_MODEL]);          // johnfitz
+	R_DrawViewModel (&vulkan_globals.secondary_cb_contexts[CBX_VIEW_MODEL]);	 // johnfitz -- moved here from R_RenderView
+	R_ShowTris (&vulkan_globals.secondary_cb_contexts[CBX_VIEW_MODEL]);			 // johnfitz
 	R_ShowBoundingBoxes (&vulkan_globals.secondary_cb_contexts[CBX_VIEW_MODEL]); // johnfitz
 }
 
@@ -888,7 +888,7 @@ R_RenderView
 void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_handle_t setup_frame_task, task_handle_t draw_done_task)
 {
 	static qboolean stats_ready;
-	double          time1;
+	double			time1;
 
 	indirect = r_indirect.value && indirect_ready && r_gpulightmapupdate.value && !r_showtris.value && !r_speeds.value && r_drawworld.value;
 
@@ -972,8 +972,8 @@ void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 		Task_AddDependency (draw_alpha_entities_task, update_lightmaps_task);
 		Task_AddDependency (update_lightmaps_task, draw_done_task);
 
-		task_handle_t tasks[] = {before_mark,          store_efrags,       update_warp_textures,     draw_world_task,     draw_sky_and_water_task,
-		                         draw_view_model_task, draw_entities_task, draw_alpha_entities_task, draw_particles_task, update_lightmaps_task};
+		task_handle_t tasks[] = {before_mark,		   store_efrags,	   update_warp_textures,	 draw_world_task,	  draw_sky_and_water_task,
+								 draw_view_model_task, draw_entities_task, draw_alpha_entities_task, draw_particles_task, update_lightmaps_task};
 		Tasks_Submit ((sizeof (tasks) / sizeof (task_handle_t)), tasks);
 		if (cull_surfaces != chain_surfaces)
 		{

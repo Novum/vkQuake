@@ -38,7 +38,7 @@ qpic_t *sb_armor[3];
 qpic_t *sb_items[32];
 
 qpic_t *sb_faces[7][2]; // 0 is gibbed, 1 is dead, 2-6 are alive
-                        // 0 is static, 1 is temporary animation
+						// 0 is static, 1 is temporary animation
 qpic_t *sb_face_invis;
 qpic_t *sb_face_quad;
 qpic_t *sb_face_invuln;
@@ -57,14 +57,14 @@ qpic_t *rsb_teambord; // PGM 01/19/97 - team color border
 // MED 01/04/97 added two more weapons + 3 alternates for grenade launcher
 qpic_t *hsb_weapons[7][5]; // 0 is active, 1 is owned, 2-5 are flashes
 // MED 01/04/97 added array to simplify weapon parsing
-int     hipweapons[4] = {HIT_LASER_CANNON_BIT, HIT_MJOLNIR_BIT, 4, HIT_PROXIMITY_GUN_BIT};
+int		hipweapons[4] = {HIT_LASER_CANNON_BIT, HIT_MJOLNIR_BIT, 4, HIT_PROXIMITY_GUN_BIT};
 // MED 01/04/97 added hipnotic items array
 qpic_t *hsb_items[2];
 
 // spike -- fix -game hipnotic by autodetecting hud types. the fte protocols will deal with the networking issue, other than demos, anyway
 static int hudtype;
 #define hipnotic (hudtype == 1)
-#define rogue    (hudtype == 2)
+#define rogue	 (hudtype == 2)
 
 void Sbar_MiniDeathmatchOverlay (cb_context_t *cbx);
 void Sbar_DeathmatchOverlay (cb_context_t *cbx);
@@ -115,8 +115,8 @@ void Sbar_DontShowScores (void)
 qpic_t *Sbar_CheckPicFromWad (const char *name)
 {
 	extern qpic_t *pic_nul;
-	qpic_t        *r;
-	lumpinfo_t    *info;
+	qpic_t		  *r;
+	lumpinfo_t	  *info;
 	if (!hudtype)
 		return pic_nul; // one already failed, don't waste cpu
 	if (!W_GetLumpName (name, &info))
@@ -355,8 +355,8 @@ Sbar_itoa
 int Sbar_itoa (int num, char *buf)
 {
 	char *str;
-	int   pow10;
-	int   dig;
+	int	  pow10;
+	int	  dig;
 
 	str = buf;
 
@@ -391,7 +391,7 @@ void Sbar_DrawNum (cb_context_t *cbx, int x, int y, int num, int digits, int col
 {
 	char  str[12];
 	char *ptr;
-	int   l, frame;
+	int	  l, frame;
 
 	num = q_min (999, num); // johnfitz -- cap high values rather than truncating number
 
@@ -420,10 +420,10 @@ void Sbar_DrawNum (cb_context_t *cbx, int x, int y, int num, int digits, int col
 int fragsort[MAX_SCOREBOARD];
 
 char scoreboardtext[MAX_SCOREBOARD][20];
-int  scoreboardtop[MAX_SCOREBOARD];
-int  scoreboardbottom[MAX_SCOREBOARD];
-int  scoreboardcount[MAX_SCOREBOARD];
-int  scoreboardlines;
+int	 scoreboardtop[MAX_SCOREBOARD];
+int	 scoreboardbottom[MAX_SCOREBOARD];
+int	 scoreboardcount[MAX_SCOREBOARD];
+int	 scoreboardlines;
 
 /*
 ===============
@@ -471,8 +471,8 @@ Sbar_UpdateScoreboard
 */
 void Sbar_UpdateScoreboard (void)
 {
-	int           i, k;
-	int           top, bottom;
+	int			  i, k;
+	int			  top, bottom;
 	scoreboard_t *s;
 
 	Sbar_SortFrags ();
@@ -501,8 +501,8 @@ Sbar_SoloScoreboard -- johnfitz -- new layout
 void Sbar_SoloScoreboard (cb_context_t *cbx)
 {
 	char str[256];
-	int  minutes, seconds, tens, units;
-	int  left, right, len;
+	int	 minutes, seconds, tens, units;
+	int	 left, right, len;
 
 	q_snprintf (str, sizeof (str), "Kills: %i/%i", cl.stats[STAT_MONSTERS], cl.stats[STAT_TOTALMONSTERS]);
 	left = 8 + strlen (str) * 8;
@@ -560,10 +560,10 @@ Sbar_DrawInventory
 */
 void Sbar_DrawInventory (cb_context_t *cbx)
 {
-	int   i, val;
+	int	  i, val;
 	char  num[6];
 	float time;
-	int   flashon;
+	int	  flashon;
 
 	if (rogue)
 	{
@@ -749,8 +749,8 @@ Sbar_DrawFrags -- johnfitz -- heavy revision
 */
 void Sbar_DrawFrags (cb_context_t *cbx)
 {
-	int           numscores, i, x, color;
-	char          num[12];
+	int			  numscores, i, x, color;
+	char		  num[12];
 	scoreboard_t *s;
 
 	Sbar_SortFrags ();
@@ -804,9 +804,9 @@ void Sbar_DrawFace (cb_context_t *cbx)
 	// PGM 03/02/97 - fixed so color swatch only appears in CTF modes
 	if (rogue && (cl.maxclients != 1) && (teamplay.value > 3) && (teamplay.value < 7))
 	{
-		int           top, bottom;
-		int           xofs;
-		char          num[12];
+		int			  top, bottom;
+		int			  xofs;
+		char		  num[12];
 		scoreboard_t *s;
 
 		s = &cl.scores[cl.viewentity - 1];
@@ -822,7 +822,7 @@ void Sbar_DrawFace (cb_context_t *cbx)
 			xofs = ((vid.width - 320) >> 1) + 113;
 
 		Sbar_DrawPic (cbx, 112, 0, rsb_teambord);
-		Draw_Fill (cbx, xofs, /*vid.height-*/ 24 + 3, 22, 9, top, 1);     // johnfitz -- sbar coords are now relative
+		Draw_Fill (cbx, xofs, /*vid.height-*/ 24 + 3, 22, 9, top, 1);	  // johnfitz -- sbar coords are now relative
 		Draw_Fill (cbx, xofs, /*vid.height-*/ 24 + 12, 22, 9, bottom, 1); // johnfitz -- sbar coords are now relative
 
 		// draw number
@@ -901,7 +901,7 @@ void Sbar_Draw (cb_context_t *cbx)
 	if (cl.qcvm.extfuncs.CSQC_DrawHud && !qcvm)
 	{
 		qboolean deathmatchoverlay = false;
-		float    s = CLAMP (1.0, scr_sbarscale.value, (float)glwidth / 320.0);
+		float	 s = CLAMP (1.0, scr_sbarscale.value, (float)glwidth / 320.0);
 		GL_SetCanvas (cbx, CANVAS_CSQC); // johnfitz
 		PR_SwitchQCVM (&cl.qcvm);
 		pr_global_struct->frametime = host_frametime;
@@ -1071,7 +1071,7 @@ void Sbar_IntermissionNumber (cb_context_t *cbx, int x, int y, int num, int digi
 {
 	char  str[12];
 	char *ptr;
-	int   l, frame;
+	int	  l, frame;
 
 	l = Sbar_itoa (num, str);
 	ptr = str;
@@ -1151,11 +1151,11 @@ Sbar_DeathmatchOverlay
 */
 void Sbar_DeathmatchOverlay (cb_context_t *cbx)
 {
-	qpic_t       *pic;
-	int           i, k, l;
-	int           top, bottom;
-	int           x, y, f;
-	char          num[12];
+	qpic_t		 *pic;
+	int			  i, k, l;
+	int			  top, bottom;
+	int			  x, y, f;
+	char		  num[12];
 	scoreboard_t *s;
 
 	GL_SetCanvas (cbx, CANVAS_MENU); // johnfitz
@@ -1184,14 +1184,14 @@ void Sbar_DeathmatchOverlay (cb_context_t *cbx)
 		top = Sbar_ColorForMap (top);
 		bottom = Sbar_ColorForMap (bottom);
 
-		Draw_Fill (cbx, x, y, 40, 4, top, 1);        // johnfitz -- stretched overlays
+		Draw_Fill (cbx, x, y, 40, 4, top, 1);		 // johnfitz -- stretched overlays
 		Draw_Fill (cbx, x, y + 4, 40, 4, bottom, 1); // johnfitz -- stretched overlays
 
 		// draw number
 		f = s->frags;
 		q_snprintf (num, sizeof (num), "%3i", f);
 
-		Draw_Character (cbx, x + 8, y, num[0]);  // johnfitz -- stretched overlays
+		Draw_Character (cbx, x + 8, y, num[0]);	 // johnfitz -- stretched overlays
 		Draw_Character (cbx, x + 16, y, num[1]); // johnfitz -- stretched overlays
 		Draw_Character (cbx, x + 24, y, num[2]); // johnfitz -- stretched overlays
 
@@ -1232,9 +1232,9 @@ Sbar_MiniDeathmatchOverlay
 */
 void Sbar_MiniDeathmatchOverlay (cb_context_t *cbx)
 {
-	int           i, k, top, bottom, x, y, f, numlines;
-	char          num[12];
-	float         scale; // johnfitz
+	int			  i, k, top, bottom, x, y, f, numlines;
+	char		  num[12];
+	float		  scale; // johnfitz
 	scoreboard_t *s;
 
 	scale = CLAMP (1.0, scr_sbarscale.value, (float)glwidth / 320.0); // johnfitz
@@ -1263,7 +1263,7 @@ void Sbar_MiniDeathmatchOverlay (cb_context_t *cbx)
 		i = 0;
 
 	x = 324;
-	y = (scr_viewsize.value >= 110) ? 24 : 0;           // johnfitz -- start at the right place
+	y = (scr_viewsize.value >= 110) ? 24 : 0;			// johnfitz -- start at the right place
 	for (; i < scoreboardlines && y <= 48; i++, y += 8) // johnfitz -- change y init, test, inc
 	{
 		k = fragsort[i];
@@ -1307,11 +1307,11 @@ Sbar_IntermissionOverlay
 void Sbar_IntermissionOverlay (cb_context_t *cbx)
 {
 	qpic_t *pic;
-	char    time[32];
-	char    secrets[32];
-	char    monsters[32];
-	int     ltime, lsecrets, lmonsters;
-	int     total;
+	char	time[32];
+	char	secrets[32];
+	char	monsters[32];
+	int		ltime, lsecrets, lmonsters;
+	int		total;
 
 	if (cl.qcvm.extfuncs.CSQC_DrawScores && !qcvm)
 	{

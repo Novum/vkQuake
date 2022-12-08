@@ -90,7 +90,7 @@ Returns the length of the data in the chunk, or -1 if not found
 static int WAV_FindRIFFChunk (FILE *f, const char *chunk)
 {
 	char name[5];
-	int  len;
+	int	 len;
 
 	while ((len = WAV_ReadChunkInfo (f, name)) >= 0)
 	{
@@ -114,8 +114,8 @@ WAV_ReadRIFFHeader
 static qboolean WAV_ReadRIFFHeader (const char *name, FILE *file, snd_info_t *info)
 {
 	char dump[16];
-	int  wav_format;
-	int  fmtlen = 0;
+	int	 wav_format;
+	int	 fmtlen = 0;
 
 	if (fread (dump, 1, 12, file) < 12 || strncmp (dump, "RIFF", 4) != 0 || strncmp (&dump[8], "WAVE", 4) != 0)
 	{

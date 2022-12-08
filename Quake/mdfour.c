@@ -1,30 +1,30 @@
 /*
-    mdfour.c
+	mdfour.c
 
-    An implementation of MD4 designed for use in the samba SMB
-    authentication protocol
+	An implementation of MD4 designed for use in the samba SMB
+	authentication protocol
 
-    Copyright (C) 1997-1998  Andrew Tridgell
+	Copyright (C) 1997-1998  Andrew Tridgell
 
-    This program is free software; you can redistribute it and/or
-    modify it under the terms of the GNU General Public License
-    as published by the Free Software Foundation; either version 2
-    of the License, or (at your option) any later version.
+	This program is free software; you can redistribute it and/or
+	modify it under the terms of the GNU General Public License
+	as published by the Free Software Foundation; either version 2
+	of the License, or (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
-    See the GNU General Public License for more details.
+	See the GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to:
+	You should have received a copy of the GNU General Public License
+	along with this program; if not, write to:
 
-        Free Software Foundation, Inc.
-        59 Temple Place - Suite 330
-        Boston, MA  02111-1307, USA
+		Free Software Foundation, Inc.
+		59 Temple Place - Suite 330
+		Boston, MA  02111-1307, USA
 
-    $Id: mdfour.c 2557 2007-08-01 14:55:28Z acceptthis $
+	$Id: mdfour.c 2557 2007-08-01 14:55:28Z acceptthis $
 */
 
 #include <string.h> /* XoXus: needed for memset call */
@@ -50,9 +50,9 @@ struct mdfour
 	uint32 totalN;
 };
 
-static void mdfour_begin (struct mdfour *md);                            // old: MD4Init
+static void mdfour_begin (struct mdfour *md);							 // old: MD4Init
 static void mdfour_update (struct mdfour *md, unsigned char *in, int n); // old: MD4Update
-static void mdfour_result (struct mdfour *md, unsigned char *out);       // old: MD4Final
+static void mdfour_result (struct mdfour *md, unsigned char *out);		 // old: MD4Final
 static void mdfour (unsigned char *out, unsigned char *in, int n);
 
 #endif // _MDFOUR_H
@@ -78,7 +78,7 @@ static void mdfour (unsigned char *out, unsigned char *in, int n);
 /* this applies md4 to 64 byte chunks */
 static void mdfour64 (struct mdfour *m, uint32 *M)
 {
-	int    j;
+	int	   j;
 	uint32 AA, BB, CC, DD;
 	uint32 X[16];
 	uint32 A, B, C, D;
@@ -195,8 +195,8 @@ static void mdfour_begin (struct mdfour *md)
 static void mdfour_tail (struct mdfour *m, unsigned char *in, int n)
 {
 	unsigned char buf[128];
-	uint32        M[16];
-	uint32        b;
+	uint32		  M[16];
+	uint32		  b;
 
 	m->totalN += n;
 
@@ -267,7 +267,7 @@ static void mdfour (unsigned char *out, unsigned char *in, int n)
 
 unsigned Com_BlockChecksum (void *buffer, int length)
 {
-	int      digest[4];
+	int		 digest[4];
 	unsigned val;
 
 	mdfour ((unsigned char *)digest, (unsigned char *)buffer, length);

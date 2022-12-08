@@ -69,9 +69,9 @@ the refresh is allways rendered, unless the console is full screen
 
 
 console is:
-    notify lines
-    half
-    full
+	notify lines
+	half
+	full
 
 */
 
@@ -129,9 +129,9 @@ vrect_t scr_vrect;
 
 qboolean scr_disabled_for_loading;
 qboolean scr_drawloading;
-float    scr_disabled_time;
+float	 scr_disabled_time;
 
-qboolean       in_update_screen;
+qboolean	   in_update_screen;
 extern jmp_buf screen_error;
 
 void SCR_ScreenShot_f (void);
@@ -148,9 +148,9 @@ char  scr_centerstring[1024];
 float scr_centertime_start; // for slow victory printing
 float scr_centertime_off;
 float scr_clock_off;
-int   scr_center_lines;
-int   scr_erase_lines;
-int   scr_erase_center;
+int	  scr_center_lines;
+int	  scr_erase_lines;
+int	  scr_erase_center;
 
 void SCR_CenterPrintClear (void)
 {
@@ -186,10 +186,10 @@ void SCR_CenterPrint (const char *str) // update centerprint data
 void SCR_DrawCenterString (cb_context_t *cbx) // actually do the drawing
 {
 	char *start;
-	int   l;
-	int   j;
-	int   x, y;
-	int   remaining;
+	int	  l;
+	int	  j;
+	int	  x, y;
+	int	  remaining;
 
 	GL_SetCanvas (cbx, CANVAS_MENU); // johnfitz
 
@@ -390,8 +390,8 @@ static void SCR_CalcRefdef (void)
 	scale = CLAMP (1.0, scr_sbarscale.value, (float)glwidth / 320.0);
 
 	if (size >= 120 || cl.intermission ||
-	    (scr_sbaralpha.value < 1 ||
-	     cl.qcvm.extfuncs.CSQC_DrawHud)) // johnfitz -- scr_sbaralpha.value. Spike -- simple csqc assumes fullscreen video the same way.
+		(scr_sbaralpha.value < 1 ||
+		 cl.qcvm.extfuncs.CSQC_DrawHud)) // johnfitz -- scr_sbaralpha.value. Spike -- simple csqc assumes fullscreen video the same way.
 		sb_lines = 0;
 	else if (size >= 110)
 		sb_lines = 24 * scale;
@@ -402,7 +402,7 @@ static void SCR_CalcRefdef (void)
 	// johnfitz
 
 	// johnfitz -- rewrote this section
-	r_refdef.vrect.width = q_max (glwidth * size, 96);                    // no smaller than 96, for icons
+	r_refdef.vrect.width = q_max (glwidth * size, 96);					  // no smaller than 96, for icons
 	r_refdef.vrect.height = q_min (glheight * size, glheight - sb_lines); // make room for sbar
 	r_refdef.vrect.x = (glwidth - r_refdef.vrect.width) / 2;
 	r_refdef.vrect.y = (glheight - sb_lines - r_refdef.vrect.height) / 2;
@@ -605,9 +605,9 @@ void SCR_DrawFPS (cb_context_t *cbx)
 {
 	static double oldtime = 0;
 	static double lastfps = 0;
-	static int    oldframecount = 0;
-	double        elapsed_time;
-	int           frames;
+	static int	  oldframecount = 0;
+	double		  elapsed_time;
+	int			  frames;
 
 	elapsed_time = realtime - oldtime;
 	frames = r_framecount - oldframecount;
@@ -629,7 +629,7 @@ void SCR_DrawFPS (cb_context_t *cbx)
 	if (scr_showfps.value && scr_viewsize.value < 130)
 	{
 		char st[16];
-		int  x, y;
+		int	 x, y;
 		q_snprintf (st, sizeof (st), "%4.0f fps", lastfps);
 		x = 320 - (strlen (st) << 3);
 		y = 200 - 8;
@@ -645,8 +645,8 @@ SCR_DrawClock -- johnfitz
 */
 void SCR_DrawClock (cb_context_t *cbx)
 {
-	char            str[32];
-	int             y = 200 - 8;
+	char			str[32];
+	int				y = 200 - 8;
 	static qboolean shown_pause;
 
 	if (cls.demoplayback && cls.demospeed != 1 && cls.demospeed != 0) // always show if playback speed is modified
@@ -703,8 +703,8 @@ SCR_DrawDevStats
 void SCR_DrawDevStats (cb_context_t *cbx)
 {
 	char str[40];
-	int  y = 25 - 9; // 9=number of lines to print
-	int  x = 0;      // margin
+	int	 y = 25 - 9; // 9=number of lines to print
+	int	 x = 0;		 // margin
 
 	if (!devstats.value)
 		return;
@@ -859,7 +859,7 @@ void SCR_SetUpToDrawConsole (void)
 {
 	// johnfitz -- let's hack away the problem of slow console when host_timescale is <0
 	extern cvar_t host_timescale;
-	float         timescale;
+	float		  timescale;
 	// johnfitz
 
 	Con_CheckResize ();
@@ -959,14 +959,14 @@ void SCR_EndLoadingPlaque (void)
 //=============================================================================
 
 const char *scr_notifystring;
-qboolean    scr_drawdialog;
+qboolean	scr_drawdialog;
 
 void SCR_DrawNotifyString (cb_context_t *cbx)
 {
 	const char *start;
-	int         l;
-	int         j;
-	int         x, y;
+	int			l;
+	int			j;
+	int			x, y;
 
 	GL_SetCanvas (cbx, CANVAS_MENU); // johnfitz
 
@@ -1006,7 +1006,7 @@ keypress.
 int SCR_ModalMessage (const char *text, float timeout) // johnfitz -- timeout
 {
 	double time1, time2; // johnfitz -- timeout
-	int    lastkey, lastchar;
+	int	   lastkey, lastchar;
 
 	if (cls.state == ca_dedicated)
 		return true;
@@ -1021,7 +1021,7 @@ int SCR_ModalMessage (const char *text, float timeout) // johnfitz -- timeout
 	S_ClearBuffer (); // so dma doesn't loop current sound
 
 	time1 = Sys_DoubleTime () + timeout; // johnfitz -- timeout
-	time2 = 0.0f;                        // johnfitz -- timeout
+	time2 = 0.0f;						 // johnfitz -- timeout
 
 	Key_BeginInputGrab ();
 	do
@@ -1032,7 +1032,7 @@ int SCR_ModalMessage (const char *text, float timeout) // johnfitz -- timeout
 		if (timeout)
 			time2 = Sys_DoubleTime (); // johnfitz -- zero timeout means wait forever.
 	} while (lastchar != 'y' && lastchar != 'Y' && lastchar != 'n' && lastchar != 'N' && lastkey != K_ESCAPE && lastkey != K_ABUTTON && lastkey != K_BBUTTON &&
-	         time2 <= time1);
+			 time2 <= time1);
 	Key_EndInputGrab ();
 
 	//	SCR_UpdateScreen (); //johnfitz -- commented out
@@ -1053,7 +1053,7 @@ int SCR_ModalMessage (const char *text, float timeout) // johnfitz -- timeout
 ==================
 SCR_TileClear
 johnfitz -- modified to use glwidth/glheight instead of vid.width/vid.height
-        also fixed the dimentions of right and top panels
+		also fixed the dimentions of right and top panels
 ==================
 */
 void SCR_TileClear (cb_context_t *cbx)
@@ -1131,8 +1131,8 @@ static void SCR_DrawGUI (void *unused)
 		SCR_CheckDrawCenterString (cbx);
 		Sbar_Draw (cbx);
 		SCR_DrawDevStats (cbx); // johnfitz
-		SCR_DrawFPS (cbx);      // johnfitz
-		SCR_DrawClock (cbx);    // johnfitz
+		SCR_DrawFPS (cbx);		// johnfitz
+		SCR_DrawClock (cbx);	// johnfitz
 		SCR_DrawConsole (cbx);
 		M_Draw (cbx);
 	}

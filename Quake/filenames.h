@@ -33,10 +33,10 @@
 #if defined(__MSDOS__) || defined(__DOS__) || defined(__DJGPP__) || defined(_MSDOS) || defined(__OS2__) || defined(__EMX__) || defined(_WIN32) || \
 	defined(_Windows) || defined(__WINDOWS__) || defined(__NT__) || defined(__CYGWIN__)
 
-#define HAVE_DOS_BASED_FILE_SYSTEM        1
+#define HAVE_DOS_BASED_FILE_SYSTEM		  1
 #define HAVE_CASE_INSENSITIVE_FILE_SYSTEM 1
 
-#define HAS_DRIVE_SPEC(f)   ((f)[0] && ((f)[1] == ':'))
+#define HAS_DRIVE_SPEC(f)	((f)[0] && ((f)[1] == ':'))
 #define STRIP_DRIVE_SPEC(f) ((f) + 2)
 #define IS_DIR_SEPARATOR(c) ((c) == '/' || (c) == '\\')
 /* both '/' and '\\' work as dir separator.  djgpp likes changing
@@ -129,12 +129,12 @@ static inline char *FIND_LAST_DIRSEP (const char *_the_path)
 #elif defined(__MORPHOS__) || defined(__AROS__) || defined(AMIGAOS) || defined(__amigaos__) || defined(__amigaos4__) || defined(__amigados__) || \
 	defined(AMIGA) || defined(_AMIGA) || defined(__AMIGA__)
 
-#define HAS_DRIVE_SPEC(f)                 (0) /* */
-#define STRIP_DRIVE_SPEC(f)               (f) /* */
-#define IS_DIR_SEPARATOR(c)               ((c) == '/' || (c) == ':')
-#define DIR_SEPARATOR_CHAR                '/'
-#define DIR_SEPARATOR_STR                 "/"
-#define IS_ABSOLUTE_PATH(f)               (IS_DIR_SEPARATOR ((f)[0]) || (strchr ((f), ':')))
+#define HAS_DRIVE_SPEC(f)				  (0) /* */
+#define STRIP_DRIVE_SPEC(f)				  (f) /* */
+#define IS_DIR_SEPARATOR(c)				  ((c) == '/' || (c) == ':')
+#define DIR_SEPARATOR_CHAR				  '/'
+#define DIR_SEPARATOR_STR				  "/"
+#define IS_ABSOLUTE_PATH(f)				  (IS_DIR_SEPARATOR ((f)[0]) || (strchr ((f), ':')))
 #define HAVE_CASE_INSENSITIVE_FILE_SYSTEM 1
 
 #ifdef __cplusplus
@@ -187,10 +187,10 @@ static inline char *FIND_LAST_DIRSEP (const char *_the_path)
 #else  /* */
 
 #define IS_DIR_SEPARATOR(c) ((c) == '/')
-#define DIR_SEPARATOR_CHAR  '/'
-#define DIR_SEPARATOR_STR   "/"
+#define DIR_SEPARATOR_CHAR	'/'
+#define DIR_SEPARATOR_STR	"/"
 #define IS_ABSOLUTE_PATH(f) (IS_DIR_SEPARATOR ((f)[0]))
-#define HAS_DRIVE_SPEC(f)   (0)
+#define HAS_DRIVE_SPEC(f)	(0)
 #define STRIP_DRIVE_SPEC(f) (f)
 
 #ifdef __cplusplus

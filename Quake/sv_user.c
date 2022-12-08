@@ -26,7 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 edict_t *sv_player;
 
 extern cvar_t sv_friction;
-cvar_t        sv_edgefriction = {"edgefriction", "2", CVAR_NONE};
+cvar_t		  sv_edgefriction = {"edgefriction", "2", CVAR_NONE};
 extern cvar_t sv_stopspeed;
 
 static vec3_t forward, right, up;
@@ -51,12 +51,12 @@ SV_SetIdealPitch
 #define MAX_FORWARD 6
 void SV_SetIdealPitch (void)
 {
-	float   angleval, sinval, cosval;
+	float	angleval, sinval, cosval;
 	trace_t tr;
-	vec3_t  top, bottom;
-	float   z[MAX_FORWARD];
-	int     i, j;
-	int     step, dir, steps;
+	vec3_t	top, bottom;
+	float	z[MAX_FORWARD];
+	int		i, j;
+	int		step, dir, steps;
 
 	if (!((int)sv_player->v.flags & FL_ONGROUND))
 		return;
@@ -120,9 +120,9 @@ SV_UserFriction
 void SV_UserFriction (void)
 {
 	float  *vel;
-	float   speed, newspeed, control;
-	vec3_t  start, stop;
-	float   friction;
+	float	speed, newspeed, control;
+	vec3_t	start, stop;
+	float	friction;
 	trace_t trace;
 
 	vel = velocity;
@@ -166,7 +166,7 @@ cvar_t sv_maxspeed = {"sv_maxspeed", "320", CVAR_NOTIFY | CVAR_SERVERINFO};
 cvar_t sv_accelerate = {"sv_accelerate", "10", CVAR_NONE};
 void   SV_Accelerate (float wishspeed, const vec3_t wishdir)
 {
-	int   i;
+	int	  i;
 	float addspeed, accelspeed, currentspeed;
 
 	currentspeed = DotProduct (velocity, wishdir);
@@ -183,7 +183,7 @@ void   SV_Accelerate (float wishspeed, const vec3_t wishdir)
 
 void SV_AirAccelerate (float wishspeed, vec3_t wishveloc)
 {
-	int   i;
+	int	  i;
 	float addspeed, wishspd, accelspeed, currentspeed;
 
 	wishspd = VectorNormalize (wishveloc);
@@ -222,7 +222,7 @@ SV_WaterMove
 */
 void SV_WaterMove (void)
 {
-	int    i;
+	int	   i;
 	vec3_t wishvel;
 	float  speed, newspeed, wishspeed, addspeed, accelspeed;
 
@@ -321,7 +321,7 @@ SV_AirMove
 */
 void SV_AirMove (void)
 {
-	int    i;
+	int	   i;
 	vec3_t wishvel, wishdir;
 	float  wishspeed;
 	float  fmove, smove;
@@ -433,13 +433,13 @@ SV_ReadClientMove
 */
 void SV_ReadClientMove (usercmd_t *move)
 {
-	int      i;
-	vec3_t   angle;
-	int      buttonbits;
-	int      newimpulse;
+	int		 i;
+	vec3_t	 angle;
+	int		 buttonbits;
+	int		 newimpulse;
 	qboolean drop = false;
-	vec3_t   movevalues;
-	int      sequence;
+	vec3_t	 movevalues;
+	int		 sequence;
 
 	if (host_client->protocol_pext2 & PEXT2_PREDINFO)
 	{
@@ -503,7 +503,7 @@ Returns false if the client should be killed
 */
 qboolean SV_ReadClientMessage (void)
 {
-	int         ccmd;
+	int			ccmd;
 	const char *s;
 
 	MSG_BeginReading ();
@@ -538,8 +538,8 @@ qboolean SV_ReadClientMessage (void)
 			s = MSG_ReadString ();
 			if (q_strncasecmp (s, "spawn", 5) && q_strncasecmp (s, "begin", 5) && q_strncasecmp (s, "prespawn", 8) && qcvm->extfuncs.SV_ParseClientCommand)
 			{ // the spawn/begin/prespawn are because of numerous mods that disobey the rules.
-				// at a minimum, we must be able to join the server, so that we can see any sprints/bprints (because dprint sucks, yes there's proper ways to
-				// deal with this, but moders don't always know them).
+				// at a minimum, we must be able to join the server, so that we can see any sprints/bprints (because dprint sucks, yes there's proper ways
+				// to deal with this, but moders don't always know them).
 				client_t *ohc = host_client;
 				G_INT (OFS_PARM0) = PR_SetEngineString (s);
 				pr_global_struct->time = qcvm->time;
@@ -557,8 +557,8 @@ qboolean SV_ReadClientMessage (void)
 
 		case clc_move:
 			if (!host_client->spawned)
-				return true; // this is to suck up any stale moves on map changes, so we don't get confused (quite so easily) when protocols are changed between
-				             // maps
+				return true; // this is to suck up any stale moves on map changes, so we don't get confused (quite so easily) when protocols are changed
+							 // between maps
 			SV_ReadClientMove (&host_client->cmd);
 			break;
 		case clcdp_ackframe:
