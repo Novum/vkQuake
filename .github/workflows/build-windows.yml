@@ -1,4 +1,4 @@
-name: Windows CI
+name: Windows CI (msvc)
 
 on:
   push:
@@ -7,7 +7,8 @@ on:
     branches: [ master ]
 
 jobs:
-  build:
+  build-windows:
+    name: Build Windows
     runs-on: windows-2022
     strategy:
       fail-fast: false
