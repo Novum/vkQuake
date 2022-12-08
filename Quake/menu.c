@@ -256,41 +256,41 @@ static void M_HandleScrollBarKeys (const int key, int *cursor, int *first_drawn,
 
 	switch (key)
 	{
-		case K_HOME:
-			*cursor = 0;
-			*first_drawn = 0;
-			break;
+	case K_HOME:
+		*cursor = 0;
+		*first_drawn = 0;
+		break;
 
-		case K_END:
+	case K_END:
+		*cursor = num_total - 1;
+		*first_drawn = num_total - max_on_screen;
+		break;
+
+	case K_PGUP:
+		*cursor = q_max (0, *cursor - max_on_screen);
+		*first_drawn = q_max (0, *first_drawn - max_on_screen);
+		break;
+
+	case K_PGDN:
+		*cursor = q_min (num_total - 1, *cursor + max_on_screen);
+		*first_drawn = q_min (*first_drawn + max_on_screen, num_total - 1 - max_on_screen);
+		break;
+
+	case K_UPARROW:
+	case K_LEFTARROW:
+		if (*cursor == 0)
 			*cursor = num_total - 1;
-			*first_drawn = num_total - max_on_screen;
-			break;
+		else
+			--*cursor;
+		break;
 
-		case K_PGUP:
-			*cursor = q_max(0, *cursor - max_on_screen);
-			*first_drawn = q_max (0, *first_drawn - max_on_screen);
-			break;
-
-		case K_PGDN:
-			*cursor = q_min(num_total - 1, *cursor + max_on_screen);
-			*first_drawn = q_min (*first_drawn + max_on_screen, num_total - 1 - max_on_screen);
-			break;
-
-		case K_UPARROW:
-		case K_LEFTARROW:
-			if (*cursor == 0)
-				*cursor = num_total - 1;
-			else
-				--*cursor;
-			break;
-
-		case K_DOWNARROW:
-		case K_RIGHTARROW:
-			if (*cursor == num_total - 1)
-				*cursor = 0;
-			else
-				++*cursor;
-			break;
+	case K_DOWNARROW:
+	case K_RIGHTARROW:
+		if (*cursor == num_total - 1)
+			*cursor = 0;
+		else
+			++*cursor;
+		break;
 	}
 
 	if (*cursor != prev_cursor)
@@ -1510,7 +1510,7 @@ extern qpic_t *pic_up, *pic_down;
 
 #define BINDS_PER_PAGE 19
 
-static int  first_key;
+static int first_key;
 
 void M_Keys_Draw (cb_context_t *cbx)
 {
@@ -1613,7 +1613,7 @@ void M_Keys_Key (int k)
 		break;
 	}
 
-	M_HandleScrollBarKeys(k, &keys_cursor, &first_key, (int)NUMCOMMANDS, BINDS_PER_PAGE);
+	M_HandleScrollBarKeys (k, &keys_cursor, &first_key, (int)NUMCOMMANDS, BINDS_PER_PAGE);
 }
 
 //=============================================================================
@@ -1748,7 +1748,7 @@ void M_Mods_Key (int key)
 		break;
 	}
 
-	M_HandleScrollBarKeys(key, &mods_cursor, &first_mod, num_mods, MAX_MODS_ON_SCREEN);
+	M_HandleScrollBarKeys (key, &mods_cursor, &first_mod, num_mods, MAX_MODS_ON_SCREEN);
 }
 
 //=============================================================================
