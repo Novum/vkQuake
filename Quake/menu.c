@@ -1457,7 +1457,6 @@ const char *bindnames[][2] = {
 #define NUMCOMMANDS (sizeof (bindnames) / sizeof (bindnames[0]))
 
 static int      keys_cursor;
-static int      prev_keys_cursor;
 static qboolean bind_grab;
 
 void M_Menu_Keys_f (void)
