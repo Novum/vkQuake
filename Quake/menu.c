@@ -1042,8 +1042,7 @@ again:
 enum
 {
 	OPT_CUSTOMIZE = 0,
-	OPT_CONSOLE,  // 1
-	OPT_DEFAULTS, // 2
+	OPT_VIDEO,
 	OPT_SCALE,
 	OPT_SCRSIZE,
 	OPT_GAMMA,
@@ -1059,10 +1058,8 @@ enum
 	OPT_LOOKSPRING,
 	OPT_LOOKSTRAFE,
 	OPT_CROSSHAIR,
-	//#ifdef _WIN32
-	//	OPT_USEMOUSE,
-	//#endif
-	OPT_VIDEO, // This is the last before OPTIONS_ITEMS
+	OPT_CONSOLE,
+	OPT_DEFAULTS,
 	OPTIONS_ITEMS
 };
 
@@ -1280,10 +1277,10 @@ void M_Options_Draw (cb_context_t *cbx)
 	// Draw the items in the order of the enum defined above:
 	// OPT_CUSTOMIZE:
 	M_Print (cbx, 16, 32, "              Controls");
-	// OPT_CONSOLE:
-	M_Print (cbx, 16, 32 + 8 * OPT_CONSOLE, "          Goto console");
-	// OPT_DEFAULTS:
-	M_Print (cbx, 16, 32 + 8 * OPT_DEFAULTS, "          Reset config");
+
+	// OPT_VIDEO:
+	if (vid_menudrawfn)
+		M_Print (cbx, 16, 32 + 8 * OPT_VIDEO, "         Video Options");
 
 	// OPT_SCALE:
 	M_Print (cbx, 16, 32 + 8 * OPT_SCALE, "                 Scale");
@@ -1359,9 +1356,10 @@ void M_Options_Draw (cb_context_t *cbx)
 	M_Print (cbx, 16, 32 + 8 * OPT_CROSSHAIR, "             Crosshair");
 	M_Print (cbx, 220, 32 + 8 * OPT_CROSSHAIR, (crosshair.value == 0.0f) ? "off" : ((crosshair.value == 1.0f) ? "cross" : "dot"));
 
-	// OPT_VIDEO:
-	if (vid_menudrawfn)
-		M_Print (cbx, 16, 32 + 8 * OPT_VIDEO, "         Video Options");
+	// OPT_CONSOLE:
+	M_Print (cbx, 16, 32 + 8 * OPT_CONSOLE, "          Goto console");
+	// OPT_DEFAULTS:
+	M_Print (cbx, 16, 32 + 8 * OPT_DEFAULTS, "          Reset config");
 
 	// cursor
 	M_DrawCharacter (cbx, 200, 32 + options_cursor * 8, 12 + ((int)(realtime * 4) & 1));
