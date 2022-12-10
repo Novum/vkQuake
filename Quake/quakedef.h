@@ -233,7 +233,6 @@ typedef struct
 						 // memory locations, otherwise to the same.
 	int			argc;
 	char	  **argv;
-	int			numcpus;
 	int			errstate;
 } quakeparms_t;
 
