@@ -134,15 +134,6 @@ void Sys_Init (void)
 	 * can be done if necessary, though... */
 	host_parms->userdir = host_parms->basedir; /* code elsewhere relies on this ! */
 
-	SYSTEM_INFO info;
-	GetSystemInfo (&info);
-	host_parms->numcpus = info.dwNumberOfProcessors;
-	if (host_parms->numcpus < 1)
-	{
-		host_parms->numcpus = 1;
-	}
-	Sys_Printf ("Detected %d CPUs.\n", host_parms->numcpus);
-
 	if (isDedicated)
 	{
 		if (!AllocConsole ())

@@ -47,87 +47,6 @@ qboolean isDedicated;
 
 static double counter_freq;
 
-#if defined(__linux__) || defined(__sun) || defined(sun) || defined(_AIX)
-static int Sys_NumCPUs (void)
-{
-	int numcpus = sysconf (_SC_NPROCESSORS_ONLN);
-	return (numcpus < 1) ? 1 : numcpus;
-}
-
-#elif defined(PLATFORM_OSX)
-#include <sys/sysctl.h>
-#if !defined(HW_AVAILCPU) /* using an ancient SDK? */
-#define HW_AVAILCPU 25	  /* needs >= 10.2 */
-#endif
-static int Sys_NumCPUs (void)
-{
-	int	   numcpus;
-	int	   mib[2];
-	size_t len;
-
-#if defined(_SC_NPROCESSORS_ONLN) /* needs >= 10.5 */
-	numcpus = sysconf (_SC_NPROCESSORS_ONLN);
-	if (numcpus != -1)
-		return (numcpus < 1) ? 1 : numcpus;
-#endif
-	len = sizeof (numcpus);
-	mib[0] = CTL_HW;
-	mib[1] = HW_AVAILCPU;
-	sysctl (mib, 2, &numcpus, &len, NULL, 0);
-	if (sysctl (mib, 2, &numcpus, &len, NULL, 0) == -1)
-	{
-		mib[1] = HW_NCPU;
-		if (sysctl (mib, 2, &numcpus, &len, NULL, 0) == -1)
-			return 1;
-	}
-	return (numcpus < 1) ? 1 : numcpus;
-}
-
-#elif defined(__sgi) || defined(sgi) || defined(__sgi__) /* IRIX */
-static int Sys_NumCPUs (void)
-{
-	int numcpus = sysconf (_SC_NPROC_ONLN);
-	if (numcpus < 1)
-		numcpus = 1;
-	return numcpus;
-}
-
-#elif defined(PLATFORM_BSD)
-#include <sys/sysctl.h>
-static int Sys_NumCPUs (void)
-{
-	int	   numcpus;
-	int	   mib[2];
-	size_t len;
-
-#if defined(_SC_NPROCESSORS_ONLN)
-	numcpus = sysconf (_SC_NPROCESSORS_ONLN);
-	if (numcpus != -1)
-		return (numcpus < 1) ? 1 : numcpus;
-#endif
-	len = sizeof (numcpus);
-	mib[0] = CTL_HW;
-	mib[1] = HW_NCPU;
-	if (sysctl (mib, 2, &numcpus, &len, NULL, 0) == -1)
-		return 1;
-	return (numcpus < 1) ? 1 : numcpus;
-}
-
-#elif defined(__hpux) || defined(__hpux__) || defined(_hpux)
-#include <sys/mpctl.h>
-static int Sys_NumCPUs (void)
-{
-	int numcpus = mpctl (MPC_GETNUMSPUS, NULL, NULL);
-	return numcpus;
-}
-
-#else /* unknown OS */
-static int Sys_NumCPUs (void)
-{
-	return -2;
-}
-#endif
-
 int Sys_FileType (const char *path)
 {
 	/*
@@ -258,8 +177,6 @@ void Sys_Init (void)
 	Sys_mkdir (userdir);
 	host_parms->userdir = userdir;
 #endif
-	host_parms->numcpus = Sys_NumCPUs ();
-	Sys_Printf ("Detected %d CPUs.\n", host_parms->numcpus);
 
 	counter_freq = (double)SDL_GetPerformanceFrequency ();
 }
