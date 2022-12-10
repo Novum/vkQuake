@@ -32,6 +32,7 @@ int main (int argc, char **argv)
 	for (char *c = argv[2]; *c != 0; ++c)
 		if (*c == '.')
 			*c = '_';
+	fprintf (fout, "// clang-format off\n");
 	fprintf (fout, "const unsigned char %s[] = {\n", argv[2]);
 	unsigned long n = 0;
 
