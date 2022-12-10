@@ -29,12 +29,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "tasks.h"
 
 void		  GL_WaitForDeviceIdle (void);
-qboolean	  GL_BeginRendering (qboolean use_tasks, task_handle_t *begin_rendering_task, int *x, int *y, int *width, int *height);
+qboolean	  GL_BeginRendering (qboolean use_tasks, task_handle_t *begin_rendering_task, int *width, int *height);
 qboolean	  GL_AcquireNextSwapChainImage (void);
 task_handle_t GL_EndRendering (qboolean use_tasks, qboolean use_swapchain);
 void		  GL_SynchronizeEndRenderingTask (void);
 
-extern int glx, gly, glwidth, glheight;
+extern int glwidth, glheight;
 
 // r_local.h -- private refresh defs
 

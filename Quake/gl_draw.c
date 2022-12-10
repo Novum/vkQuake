@@ -988,40 +988,40 @@ void GL_SetCanvas (cb_context_t *cbx, canvastype newcanvas)
 		break;
 	case CANVAS_DEFAULT:
 		GL_OrthoMatrix (cbx, 0, glwidth, glheight, 0, -99999, 99999);
-		GL_Viewport (cbx, glx, gly, glwidth, glheight, 0.0f, 1.0f);
+		GL_Viewport (cbx, 0, 0, glwidth, glheight, 0.0f, 1.0f);
 		break;
 	case CANVAS_CONSOLE:
 		lines = vid.conheight - (scr_con_current * vid.conheight / glheight);
 		GL_OrthoMatrix (cbx, 0, vid.conwidth, vid.conheight + lines, lines, -99999, 99999);
-		GL_Viewport (cbx, glx, gly, glwidth, glheight, 0.0f, 1.0f);
+		GL_Viewport (cbx, 0, 0, glwidth, glheight, 0.0f, 1.0f);
 		break;
 	case CANVAS_MENU:
 		s = q_min ((float)glwidth / 320.0, (float)glheight / 200.0);
 		s = CLAMP (1.0, scr_menuscale.value, s);
 		GL_OrthoMatrix (cbx, 0, 640, 200, 0, -99999, 99999);
-		GL_Viewport (cbx, glx + (glwidth - 320 * s) / 2, gly + (glheight - 200 * s) / 2, 640 * s, 200 * s, 0.0f, 1.0f);
+		GL_Viewport (cbx, (glwidth - 320 * s) / 2, (glheight - 200 * s) / 2, 640 * s, 200 * s, 0.0f, 1.0f);
 		break;
 	case CANVAS_CSQC:
 		s = CLAMP (1.0, scr_sbarscale.value, (float)glwidth / 320.0);
 		GL_OrthoMatrix (cbx, 0, glwidth / s, glheight / s, 0, -99999, 99999);
-		GL_Viewport (cbx, glx, gly, glwidth, glheight, 0.0f, 1.0f);
+		GL_Viewport (cbx, 0, 0, glwidth, glheight, 0.0f, 1.0f);
 		break;
 	case CANVAS_SBAR:
 		s = CLAMP (1.0, scr_sbarscale.value, (float)glwidth / 320.0);
 		if (cl.gametype == GAME_DEATHMATCH)
 		{
 			GL_OrthoMatrix (cbx, 0, glwidth / s, 48, 0, -99999, 99999);
-			GL_Viewport (cbx, glx, gly, glwidth, 48 * s, 0.0f, 1.0f);
+			GL_Viewport (cbx, 0, 0, glwidth, 48 * s, 0.0f, 1.0f);
 		}
 		else
 		{
 			GL_OrthoMatrix (cbx, 0, 320, 48, 0, -99999, 99999);
-			GL_Viewport (cbx, glx + (glwidth - 320 * s) / 2, gly, 320 * s, 48 * s, 0.0f, 1.0f);
+			GL_Viewport (cbx, (glwidth - 320 * s) / 2, 0, 320 * s, 48 * s, 0.0f, 1.0f);
 		}
 		break;
 	case CANVAS_WARPIMAGE:
 		GL_OrthoMatrix (cbx, 0, 128, 0, 128, -99999, 99999);
-		GL_Viewport (cbx, glx, gly + glheight - WARPIMAGESIZE, WARPIMAGESIZE, WARPIMAGESIZE, 0.0f, 1.0f);
+		GL_Viewport (cbx, 0, glheight - WARPIMAGESIZE, WARPIMAGESIZE, WARPIMAGESIZE, 0.0f, 1.0f);
 		break;
 	case CANVAS_CROSSHAIR: // 0,0 is center of viewport
 		s = CLAMP (1.0, scr_crosshairscale.value, 10.0);
@@ -1031,17 +1031,17 @@ void GL_SetCanvas (cb_context_t *cbx, canvastype newcanvas)
 	case CANVAS_BOTTOMLEFT:				   // used by devstats
 		s = (float)glwidth / vid.conwidth; // use console scale
 		GL_OrthoMatrix (cbx, 0, 320, 200, 0, -99999, 99999);
-		GL_Viewport (cbx, glx, gly, 320 * s, 200 * s, 0.0f, 1.0f);
+		GL_Viewport (cbx, 0, 0, 320 * s, 200 * s, 0.0f, 1.0f);
 		break;
 	case CANVAS_BOTTOMRIGHT:			   // used by fps/clock
 		s = (float)glwidth / vid.conwidth; // use console scale
 		GL_OrthoMatrix (cbx, 0, 320, 200, 0, -99999, 99999);
-		GL_Viewport (cbx, glx + glwidth - 320 * s, gly, 320 * s, 200 * s, 0.0f, 1.0f);
+		GL_Viewport (cbx, glwidth - 320 * s, 0, 320 * s, 200 * s, 0.0f, 1.0f);
 		break;
 	case CANVAS_TOPRIGHT: // used by disc
 		s = 1;
 		GL_OrthoMatrix (cbx, 0, 320, 200, 0, -99999, 99999);
-		GL_Viewport (cbx, glx + glwidth - 320 * s, gly + glheight - 200 * s, 320 * s, 200 * s, 0.0f, 1.0f);
+		GL_Viewport (cbx, glwidth - 320 * s, glheight - 200 * s, 320 * s, 200 * s, 0.0f, 1.0f);
 		break;
 	default:
 		Sys_Error ("GL_SetCanvas: bad canvas type");

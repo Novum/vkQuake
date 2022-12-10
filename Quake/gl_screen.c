@@ -75,7 +75,7 @@ console is:
 
 */
 
-int glx, gly, glwidth, glheight;
+int glwidth, glheight;
 
 float scr_con_current;
 float scr_conlines; // lines of console to display
@@ -1032,7 +1032,7 @@ int SCR_ModalMessage (const char *text, float timeout) // johnfitz -- timeout
 		if (timeout)
 			time2 = Sys_DoubleTime (); // johnfitz -- zero timeout means wait forever.
 	} while (lastchar != 'y' && lastchar != 'Y' && lastchar != 'n' && lastchar != 'N' && lastkey != K_ESCAPE && lastkey != K_ABUTTON && lastkey != K_BBUTTON &&
-			 time2 <= time1);
+			 lastkey != K_MOUSE2 && time2 <= time1);
 	Key_EndInputGrab ();
 
 	//	SCR_UpdateScreen (); //johnfitz -- commented out
@@ -1203,7 +1203,7 @@ void SCR_UpdateScreen (qboolean use_tasks)
 	con_forcedup = !cl.worldmodel || cls.signon != SIGNONS;
 
 	task_handle_t begin_rendering_task = INVALID_TASK_HANDLE;
-	if (!GL_BeginRendering (use_tasks, &begin_rendering_task, &glx, &gly, &glwidth, &glheight))
+	if (!GL_BeginRendering (use_tasks, &begin_rendering_task, &glwidth, &glheight))
 	{
 		in_update_screen = false;
 		return;

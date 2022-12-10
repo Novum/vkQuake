@@ -180,6 +180,10 @@ static uint32_t current_swapchain_buffer;
 
 task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
 
+extern qboolean m_mouse_moved;
+extern int		m_mouse_x;
+extern int		m_mouse_y;
+
 #define GET_INSTANCE_PROC_ADDR(entrypoint)                                                              \
 	{                                                                                                   \
 		fp##entrypoint = (PFN_vk##entrypoint)fpGetInstanceProcAddr (vulkan_instance, "vk" #entrypoint); \
@@ -2371,7 +2375,7 @@ void GL_SynchronizeEndRenderingTask (void)
 GL_BeginRendering
 =================
 */
-qboolean GL_BeginRendering (qboolean use_tasks, task_handle_t *begin_rendering_task, int *x, int *y, int *width, int *height)
+qboolean GL_BeginRendering (qboolean use_tasks, task_handle_t *begin_rendering_task, int *width, int *height)
 {
 	if (!use_tasks)
 		GL_SynchronizeEndRenderingTask ();
@@ -2392,7 +2396,6 @@ qboolean GL_BeginRendering (qboolean use_tasks, task_handle_t *begin_rendering_t
 		}
 	}
 
-	*x = *y = 0;
 	*width = vid.width;
 	*height = vid.height;
 
@@ -3560,7 +3563,9 @@ static void VID_Menu_ChooseNextAASamples (int dir)
 
 	if (dir > 0)
 	{
-		if (value >= 8)
+		if (value >= 16)
+			value = 0;
+		else if (value >= 8)
 			value = 16;
 		else if (value >= 4)
 			value = 8;
@@ -3571,7 +3576,9 @@ static void VID_Menu_ChooseNextAASamples (int dir)
 	}
 	else
 	{
-		if (value <= 2)
+		if (value <= 0)
+			value = 16;
+		else if (value <= 2)
 			value = 0;
 		else if (value <= 4)
 			value = 2;
@@ -3597,7 +3604,9 @@ static void VID_Menu_ChooseNextRenderScale (int dir)
 
 	if (dir > 0)
 	{
-		if (value >= 4)
+		if (value >= 8)
+			value = 0;
+		else if (value >= 4)
 			value = 8;
 		else if (value >= 2)
 			value = 4;
@@ -3606,7 +3615,9 @@ static void VID_Menu_ChooseNextRenderScale (int dir)
 	}
 	else
 	{
-		if (value <= 2)
+		if (value <= 0)
+			value = 8;
+		else if (value <= 2)
 			value = 0;
 		else if (value <= 4)
 			value = 2;
@@ -3731,6 +3742,7 @@ static void VID_MenuKey (int key)
 {
 	switch (key)
 	{
+	case K_MOUSE2:
 	case K_ESCAPE:
 		VID_SyncCvars (); // sync cvars before leaving menu. FIXME: there are other ways to leave menu
 		S_LocalSound ("misc/menu1.wav");
@@ -3847,25 +3859,29 @@ static void VID_MenuKey (int key)
 		}
 		break;
 
+	case K_MOUSE1:
 	case K_ENTER:
 	case K_KP_ENTER:
 		m_entersound = true;
 		switch (video_options_cursor)
 		{
 		case VID_OPT_MODE:
-			VID_Menu_ChooseNextMode (1);
+			VID_Menu_ChooseNextMode (-1);
 			break;
 		case VID_OPT_BPP:
 			VID_Menu_ChooseNextBpp ();
 			break;
 		case VID_OPT_REFRESHRATE:
-			VID_Menu_ChooseNextRate (1);
+			VID_Menu_ChooseNextRate (-1);
 			break;
 		case VID_OPT_FULLSCREEN:
 			VID_Menu_ChooseNextFullScreenMode (1);
 			break;
 		case VID_OPT_VSYNC:
 			VID_Menu_ChooseNextVSyncMode (1);
+			break;
+		case VID_OPT_MAX_FPS:
+			VID_Menu_ChooseNextMaxFPS (1);
 			break;
 		case VID_OPT_ANTIALIASING_SAMPLES:
 			VID_Menu_ChooseNextAASamples (1);
@@ -4017,6 +4033,9 @@ static void VID_MenuDraw (cb_context_t *cbx)
 
 		y += 8;
 	}
+
+	if (m_mouse_moved && (m_mouse_x >= 12) && (m_mouse_x <= 400) && (m_mouse_y >= 48) && (m_mouse_y <= (48 + 8 * VIDEO_OPTIONS_ITEMS)))
+		video_options_cursor = CLAMP (0, (m_mouse_y - 48) / 8, VIDEO_OPTIONS_ITEMS - 1);
 }
 
 /*

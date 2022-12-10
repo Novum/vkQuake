@@ -3462,7 +3462,7 @@ void R_TimeRefresh_f (void)
 	start = Sys_DoubleTime ();
 	for (i = 0; i < 128; i++)
 	{
-		GL_BeginRendering (false, NULL, &glx, &gly, &glwidth, &glheight);
+		GL_BeginRendering (false, NULL, &glwidth, &glheight);
 		r_refdef.viewangles[1] = i / 128.0 * 360.0;
 		R_RenderView (false, INVALID_TASK_HANDLE, INVALID_TASK_HANDLE, INVALID_TASK_HANDLE);
 		GL_EndRendering (false, false);
