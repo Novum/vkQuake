@@ -1663,7 +1663,9 @@ static void GL_CreateColorBuffer (void)
 
 	if (vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT)
 	{
+#ifndef __APPLE__ // MoltenVK lies about this
 		vulkan_globals.supersampling = (vulkan_physical_device_features.sampleRateShading && vid_fsaamode.value >= 1) ? true : false;
+#endif
 
 		if (vulkan_globals.supersampling)
 			Sys_Printf ("Supersampling enabled\n");
@@ -3546,10 +3548,8 @@ VID_Menu_ChooseNextAAMode
 */
 static void VID_Menu_ChooseNextAAMode (int dir)
 {
-	if (vulkan_physical_device_features.sampleRateShading)
-	{
+	if (vulkan_globals.supersampling)
 		Cvar_SetValueQuick (&vid_fsaamode, (float)(((int)vid_fsaamode.value + 2 + dir) % 2));
-	}
 }
 
 /*
