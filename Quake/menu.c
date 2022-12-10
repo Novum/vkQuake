@@ -96,9 +96,27 @@ char		   m_return_reason[32];
 #define IPXConfig	 (m_net_cursor == 0)
 #define TCPIPConfig	 (m_net_cursor == 1)
 
-int m_main_cursor;
+static int m_main_cursor;
+qboolean   m_mouse_moved;
+int		   m_mouse_x;
+int		   m_mouse_y;
+static int m_mouse_x_pixels;
+static int m_mouse_y_pixels;
 
 void M_ConfigureNetSubsystem (void);
+
+/*
+================
+M_PixelToMenuCanvasCoord
+================
+*/
+static void M_PixelToMenuCanvasCoord (int *x, int *y)
+{
+	float s = q_min ((float)glwidth / 320.0, (float)glheight / 200.0);
+	s = CLAMP (1.0, scr_menuscale.value, s);
+	*x = (*x - (glwidth - 320 * s) / 2) / s;
+	*y = (*y - (glheight - 200 * s) / 2) / s;
+}
 
 /*
 ================
@@ -273,7 +291,7 @@ static void M_HandleScrollBarKeys (const int key, int *cursor, int *first_drawn,
 
 	case K_PGDN:
 		*cursor = q_min (num_total - 1, *cursor + max_on_screen);
-		*first_drawn = q_min (*first_drawn + max_on_screen, num_total - 1 - max_on_screen);
+		*first_drawn = q_min (*first_drawn + max_on_screen, num_total - max_on_screen);
 		break;
 
 	case K_UPARROW:
@@ -291,6 +309,16 @@ static void M_HandleScrollBarKeys (const int key, int *cursor, int *first_drawn,
 		else
 			++*cursor;
 		break;
+
+	case K_MWHEELUP:
+		*first_drawn = q_max (0, *first_drawn - 1);
+		*cursor = q_min (*cursor, *first_drawn + max_on_screen - 1);
+		break;
+
+	case K_MWHEELDOWN:
+		*first_drawn = q_min (*first_drawn + 1, num_total - max_on_screen);
+		*cursor = q_max (*cursor, *first_drawn);
+		break;
 	}
 
 	if (*cursor != prev_cursor)
@@ -300,6 +328,28 @@ static void M_HandleScrollBarKeys (const int key, int *cursor, int *first_drawn,
 		*first_drawn = 0;
 	else
 		*first_drawn = CLAMP (*cursor - max_on_screen + 1, *first_drawn, *cursor);
+}
+
+/*
+================
+M_UpdateCursorForList
+================
+*/
+static void M_Mouse_UpdateListCursor (int *cursor, int left, int right, int top, int item_height, int num_items, int scroll_offset)
+{
+	if (m_mouse_moved && (num_items > 0) && (m_mouse_x >= left) && (m_mouse_x <= right) && (m_mouse_y >= top) && (m_mouse_y <= (top + item_height * num_items)))
+		*cursor = scroll_offset + CLAMP (0, (m_mouse_y - top) / item_height, num_items - 1);
+}
+
+/*
+================
+M_Mouse_UpdateCursor
+================
+*/
+static void M_Mouse_UpdateCursor (int *cursor, int left, int right, int top, int item_height, int index)
+{
+	if (m_mouse_moved && (m_mouse_x >= left) && (m_mouse_x <= right) && (m_mouse_y >= top) && (m_mouse_y <= (top + item_height)))
+		*cursor = index;
 }
 
 //=============================================================================
@@ -332,6 +382,7 @@ void M_Main_Draw (cb_context_t *cbx)
 	int		f;
 	qpic_t *p;
 	qpic_t *menu2 = Get_Menu2 ();
+	int		main_items = MAIN_ITEMS + (menu2 ? 1 : 0);
 
 	M_DrawTransPic (cbx, 16, 4, Draw_CachePic ("gfx/qplaque.lmp"));
 	p = Draw_CachePic ("gfx/ttl_main.lmp");
@@ -341,6 +392,7 @@ void M_Main_Draw (cb_context_t *cbx)
 
 	f = (int)(realtime * 10) % 6;
 
+	M_Mouse_UpdateListCursor (&m_main_cursor, 70, 320, 32, 20, main_items, 0);
 	M_DrawTransPic (cbx, 54, 32 + m_main_cursor * 20, Draw_CachePic (va ("gfx/menudot%i.lmp", f + 1)));
 }
 
@@ -350,6 +402,7 @@ void M_Main_Key (int key)
 
 	switch (key)
 	{
+	case K_MOUSE2:
 	case K_ESCAPE:
 	case K_BBUTTON:
 		IN_Activate ();
@@ -377,6 +430,7 @@ void M_Main_Key (int key)
 	case K_ENTER:
 	case K_KP_ENTER:
 	case K_ABUTTON:
+	case K_MOUSE1:
 		m_entersound = true;
 
 		switch (m_main_cursor)
@@ -436,6 +490,7 @@ void M_SinglePlayer_Draw (cb_context_t *cbx)
 
 	f = (int)(realtime * 10) % 6;
 
+	M_Mouse_UpdateListCursor (&m_singleplayer_cursor, 70, 320, 32, 20, SINGLEPLAYER_ITEMS, 0);
 	M_DrawTransPic (cbx, 54, 32 + m_singleplayer_cursor * 20, Draw_CachePic (va ("gfx/menudot%i.lmp", f + 1)));
 }
 
@@ -443,6 +498,7 @@ void M_SinglePlayer_Key (int key)
 {
 	switch (key)
 	{
+	case K_MOUSE2:
 	case K_ESCAPE:
 	case K_BBUTTON:
 		M_Menu_Main_f ();
@@ -460,6 +516,7 @@ void M_SinglePlayer_Key (int key)
 			m_singleplayer_cursor = SINGLEPLAYER_ITEMS - 1;
 		break;
 
+	case K_MOUSE1:
 	case K_ENTER:
 	case K_KP_ENTER:
 	case K_ABUTTON:
@@ -469,7 +526,7 @@ void M_SinglePlayer_Key (int key)
 		{
 		case 0:
 			if (sv.active)
-				if (!SCR_ModalMessage ("Are you sure you want to\nstart a new game?\n", 0.0f))
+				if (!SCR_ModalMessage ("Are you sure you want to\nstart a new game? (y/n)\n", 0.0f))
 					break;
 			IN_Activate ();
 			key_dest = key_game;
@@ -581,6 +638,7 @@ void M_Load_Draw (cb_context_t *cbx)
 		M_Print (cbx, 16, 32 + 8 * i, m_filenames[i]);
 
 	// line cursor
+	M_Mouse_UpdateListCursor (&load_cursor, 16, 320, 32, 8, MAX_SAVEGAMES, 0);
 	M_DrawCharacter (cbx, 8, 32 + load_cursor * 8, 12 + ((int)(realtime * 4) & 1));
 }
 
@@ -596,6 +654,7 @@ void M_Save_Draw (cb_context_t *cbx)
 		M_Print (cbx, 16, 32 + 8 * i, m_filenames[i]);
 
 	// line cursor
+	M_Mouse_UpdateListCursor (&load_cursor, 16, 320, 32, 8, MAX_SAVEGAMES, 0);
 	M_DrawCharacter (cbx, 8, 32 + load_cursor * 8, 12 + ((int)(realtime * 4) & 1));
 }
 
@@ -603,11 +662,13 @@ void M_Load_Key (int k)
 {
 	switch (k)
 	{
+	case K_MOUSE2:
 	case K_ESCAPE:
 	case K_BBUTTON:
 		M_Menu_SinglePlayer_f ();
 		break;
 
+	case K_MOUSE1:
 	case K_ENTER:
 	case K_KP_ENTER:
 	case K_ABUTTON:
@@ -648,11 +709,13 @@ void M_Save_Key (int k)
 {
 	switch (k)
 	{
+	case K_MOUSE2:
 	case K_ESCAPE:
 	case K_BBUTTON:
 		M_Menu_SinglePlayer_f ();
 		break;
 
+	case K_MOUSE1:
 	case K_ENTER:
 	case K_KP_ENTER:
 	case K_ABUTTON:
@@ -706,6 +769,7 @@ void M_MultiPlayer_Draw (cb_context_t *cbx)
 
 	f = (int)(realtime * 10) % 6;
 
+	M_Mouse_UpdateListCursor (&m_multiplayer_cursor, 70, 320, 32, 20, MULTIPLAYER_ITEMS, 0);
 	M_DrawTransPic (cbx, 54, 32 + m_multiplayer_cursor * 20, Draw_CachePic (va ("gfx/menudot%i.lmp", f + 1)));
 
 	if (ipxAvailable || ipv4Available || ipv6Available)
@@ -717,6 +781,7 @@ void M_MultiPlayer_Key (int key)
 {
 	switch (key)
 	{
+	case K_MOUSE2:
 	case K_ESCAPE:
 	case K_BBUTTON:
 		M_Menu_Main_f ();
@@ -734,6 +799,7 @@ void M_MultiPlayer_Key (int key)
 			m_multiplayer_cursor = MULTIPLAYER_ITEMS - 1;
 		break;
 
+	case K_MOUSE1:
 	case K_ENTER:
 	case K_KP_ENTER:
 	case K_ABUTTON:
@@ -811,6 +877,8 @@ void M_Setup_Draw (cb_context_t *cbx)
 	p = Draw_CachePic ("gfx/menuplyr.lmp");
 	M_DrawTransPicTranslate (cbx, 172, 72, p, setup_top, setup_bottom);
 
+	for (int i = 0; i < 5; ++i)
+		M_Mouse_UpdateCursor (&setup_cursor, 0, 400, setup_cursor_table[i], 8, i);
 	M_DrawCharacter (cbx, 56, setup_cursor_table[setup_cursor], 12 + ((int)(realtime * 4) & 1));
 
 	if (setup_cursor == 0)
@@ -824,6 +892,7 @@ void M_Setup_Key (int k)
 {
 	switch (k)
 	{
+	case K_MOUSE2:
 	case K_ESCAPE:
 	case K_BBUTTON:
 		M_Menu_MultiPlayer_f ();
@@ -863,6 +932,7 @@ void M_Setup_Key (int k)
 			setup_bottom = setup_bottom + 1;
 		break;
 
+	case K_MOUSE1:
 	case K_ENTER:
 	case K_KP_ENTER:
 	case K_ABUTTON:
@@ -942,6 +1012,7 @@ qboolean M_Setup_TextEntry (void)
 /* NET MENU */
 
 int m_net_cursor;
+int m_first_net_item;
 int m_net_items;
 
 const char *net_helpMessage[] = {
@@ -956,12 +1027,18 @@ void M_Menu_Net_f (void)
 	key_dest = key_menu;
 	m_state = m_net;
 	m_entersound = true;
-	m_net_items = 2;
 
-	if (m_net_cursor >= m_net_items)
-		m_net_cursor = 0;
-	m_net_cursor--;
-	M_Net_Key (K_DOWNARROW);
+	m_net_items = 2;
+	m_first_net_item = 0;
+	if (!ipxAvailable)
+	{
+		m_net_items -= 1;
+		m_first_net_item += 1;
+	}
+	if (!ipv4Available && !ipv6Available)
+		m_net_items -= 1;
+
+	m_net_cursor = CLAMP (m_first_net_item, m_net_cursor, m_first_net_item + m_net_items);
 }
 
 void M_Net_Draw (cb_context_t *cbx)
@@ -997,14 +1074,15 @@ void M_Net_Draw (cb_context_t *cbx)
 	M_Print (cbx, f, 128, net_helpMessage[m_net_cursor * 4 + 3]);
 
 	f = (int)(realtime * 10) % 6;
+	M_Mouse_UpdateListCursor (&m_net_cursor, 70, 320, 32, 20, m_net_items, m_first_net_item);
 	M_DrawTransPic (cbx, 54, 32 + m_net_cursor * 20, Draw_CachePic (va ("gfx/menudot%i.lmp", f + 1)));
 }
 
 void M_Net_Key (int k)
 {
-again:
 	switch (k)
 	{
+	case K_MOUSE2:
 	case K_ESCAPE:
 	case K_BBUTTON:
 		M_Menu_MultiPlayer_f ();
@@ -1018,10 +1096,11 @@ again:
 
 	case K_UPARROW:
 		S_LocalSound ("misc/menu1.wav");
-		if (--m_net_cursor < 0)
+		if (--m_net_cursor < m_first_net_item)
 			m_net_cursor = m_net_items - 1;
 		break;
 
+	case K_MOUSE1:
 	case K_ENTER:
 	case K_KP_ENTER:
 	case K_ABUTTON:
@@ -1029,11 +1108,6 @@ again:
 		M_Menu_LanConfig_f ();
 		break;
 	}
-
-	if (m_net_cursor == 0 && !ipxAvailable)
-		goto again;
-	if (m_net_cursor == 1 && !ipv4Available && !ipv6Available)
-		goto again;
 }
 
 //=============================================================================
@@ -1362,6 +1436,7 @@ void M_Options_Draw (cb_context_t *cbx)
 	M_Print (cbx, 16, 32 + 8 * OPT_DEFAULTS, "          Reset config");
 
 	// cursor
+	M_Mouse_UpdateListCursor (&options_cursor, 70, 320, 32, 8, OPTIONS_ITEMS, 0);
 	M_DrawCharacter (cbx, 200, 32 + options_cursor * 8, 12 + ((int)(realtime * 4) & 1));
 }
 
@@ -1369,11 +1444,13 @@ void M_Options_Key (int k)
 {
 	switch (k)
 	{
+	case K_MOUSE2:
 	case K_ESCAPE:
 	case K_BBUTTON:
 		M_Menu_Main_f ();
 		break;
 
+	case K_MOUSE1:
 	case K_ENTER:
 	case K_KP_ENTER:
 	case K_ABUTTON:
@@ -1518,6 +1595,7 @@ void M_Keys_Draw (cb_context_t *cbx)
 	int			keys[3];
 	const char *name;
 	qpic_t	   *p;
+	int			keys_height = q_min (BINDS_PER_PAGE, NUMCOMMANDS - first_key);
 
 	p = Draw_CachePic ("gfx/ttl_cstm.lmp");
 	M_DrawPic (cbx, (320 - p->width) / 2, 4, p);
@@ -1566,7 +1644,10 @@ void M_Keys_Draw (cb_context_t *cbx)
 	if (bind_grab)
 		M_DrawCharacter (cbx, 130, 48 + (keys_cursor - first_key) * 8, '=');
 	else
+	{
+		M_Mouse_UpdateListCursor (&keys_cursor, 12, 400, 48, 8, keys_height, first_key);
 		M_DrawCharacter (cbx, 130, 48 + (keys_cursor - first_key) * 8, 12 + ((int)(realtime * 4) & 1));
+	}
 }
 
 void M_Keys_Key (int k)
@@ -1590,11 +1671,13 @@ void M_Keys_Key (int k)
 
 	switch (k)
 	{
+	case K_MOUSE2:
 	case K_ESCAPE:
 	case K_BBUTTON:
 		M_Menu_Options_f ();
 		break;
 
+	case K_MOUSE1:
 	case K_ENTER: // go into bind mode
 	case K_KP_ENTER:
 	case K_ABUTTON:
@@ -1658,11 +1741,13 @@ void M_Help_Key (int key)
 {
 	switch (key)
 	{
+	case K_MOUSE2:
 	case K_ESCAPE:
 	case K_BBUTTON:
 		M_Menu_Main_f ();
 		break;
 
+	case K_MWHEELDOWN:
 	case K_UPARROW:
 	case K_RIGHTARROW:
 		m_entersound = true;
@@ -1670,6 +1755,7 @@ void M_Help_Key (int key)
 			help_page = 0;
 		break;
 
+	case K_MWHEELUP:
 	case K_DOWNARROW:
 	case K_LEFTARROW:
 		m_entersound = true;
@@ -1707,6 +1793,7 @@ void M_Mods_Draw (cb_context_t *cbx)
 	qpic_t *p = Draw_CachePic ("gfx/p_mods.lmp");
 	M_DrawPic (cbx, (320 - p->width) / 2, 4, p);
 	int mod_index = -first_mod;
+	int mods_height = q_min (MAX_MODS_ON_SCREEN, num_mods - first_mod);
 
 	for (filelist_item_t *item = modlist; item; item = item->next)
 	{
@@ -1717,6 +1804,7 @@ void M_Mods_Draw (cb_context_t *cbx)
 		++mod_index;
 	}
 
+	M_Mouse_UpdateListCursor (&mods_cursor, 12, 400, 32, 8, mods_height, first_mod);
 	M_DrawCharacter (cbx, 90, 32 + (mods_cursor - first_mod) * 8, 12 + ((int)(realtime * 4) & 1));
 	if (num_mods > MAX_MODS_ON_SCREEN)
 		M_DrawScrollbar (cbx, 220, 32 + 8, (float)(first_mod) / (float)(num_mods - MAX_MODS_ON_SCREEN), MAX_MODS_ON_SCREEN - 2);
@@ -1728,11 +1816,13 @@ void M_Mods_Key (int key)
 
 	switch (key)
 	{
+	case K_MOUSE2:
 	case K_ESCAPE:
 	case K_BBUTTON:
 		M_Menu_Main_f ();
 		break;
 
+	case K_MOUSE1:
 	case K_ENTER:
 	case K_KP_ENTER:
 	case K_ABUTTON:
@@ -1944,6 +2034,7 @@ void M_LanConfig_Draw (cb_context_t *cbx)
 	M_Print (cbx, basex, y, "Port");
 	M_DrawTextBox (cbx, basex + 8 * 8, y - 8, 6, 1);
 	M_Print (cbx, basex + 9 * 8, y, lanConfig_portname);
+	M_Mouse_UpdateCursor (&lanConfig_cursor, basex, 320, y, 8, 0);
 	if (lanConfig_cursor == 0)
 	{
 		M_DrawCharacter (cbx, basex + 9 * 8 + 8 * strlen (lanConfig_portname), y, 10 + ((int)(realtime * 4) & 1));
@@ -1954,11 +2045,13 @@ void M_LanConfig_Draw (cb_context_t *cbx)
 	if (JoiningGame)
 	{
 		M_Print (cbx, basex, y, "Search for local games...");
+		M_Mouse_UpdateCursor (&lanConfig_cursor, basex, 320, y, 8, 1);
 		if (lanConfig_cursor == 1)
 			M_DrawCharacter (cbx, basex - 8, y, 12 + ((int)(realtime * 4) & 1));
 		y += 8;
 
 		M_Print (cbx, basex, y, "Search for public games...");
+		M_Mouse_UpdateCursor (&lanConfig_cursor, basex, 320, y, 8, 2);
 		if (lanConfig_cursor == 2)
 			M_DrawCharacter (cbx, basex - 8, y, 12 + ((int)(realtime * 4) & 1));
 		y += 8;
@@ -1967,6 +2060,7 @@ void M_LanConfig_Draw (cb_context_t *cbx)
 		y += 24;
 		M_DrawTextBox (cbx, basex + 8, y - 8, 22, 1);
 		M_Print (cbx, basex + 16, y, lanConfig_joinname);
+		M_Mouse_UpdateCursor (&lanConfig_cursor, basex, 320, y, 8, 3);
 		if (lanConfig_cursor == 3)
 		{
 			M_DrawCharacter (cbx, basex + 16 + 8 * strlen (lanConfig_joinname), y, 10 + ((int)(realtime * 4) & 1));
@@ -1978,6 +2072,7 @@ void M_LanConfig_Draw (cb_context_t *cbx)
 	{
 		M_DrawTextBox (cbx, basex, y - 8, 2, 1);
 		M_Print (cbx, basex + 8, y, "OK");
+		M_Mouse_UpdateCursor (&lanConfig_cursor, basex, 320, y, 8, 1);
 		if (lanConfig_cursor == 1)
 			M_DrawCharacter (cbx, basex - 8, y, 12 + ((int)(realtime * 4) & 1));
 		y += 16;
@@ -1993,6 +2088,7 @@ void M_LanConfig_Key (int key)
 
 	switch (key)
 	{
+	case K_MOUSE2:
 	case K_ESCAPE:
 	case K_BBUTTON:
 		M_Menu_Net_f ();
@@ -2012,6 +2108,7 @@ void M_LanConfig_Key (int key)
 			lanConfig_cursor = 0;
 		break;
 
+	case K_MOUSE1:
 	case K_ENTER:
 	case K_KP_ENTER:
 	case K_ABUTTON:
@@ -2359,6 +2456,8 @@ void M_GameOptions_Draw (cb_context_t *cbx)
 	}
 
 	// line cursor
+	for (int i = 0; i < NUM_GAMEOPTIONS; ++i)
+		M_Mouse_UpdateCursor (&gameoptions_cursor, 0, 400, gameoptions_cursor_table[i], 8, i);
 	M_DrawCharacter (cbx, 144, gameoptions_cursor_table[gameoptions_cursor], 12 + ((int)(realtime * 4) & 1));
 }
 
@@ -2465,6 +2564,7 @@ void M_GameOptions_Key (int key)
 {
 	switch (key)
 	{
+	case K_MOUSE2:
 	case K_ESCAPE:
 	case K_BBUTTON:
 		M_Menu_Net_f ();
@@ -2498,6 +2598,7 @@ void M_GameOptions_Key (int key)
 		M_NetStart_Change (1);
 		break;
 
+	case K_MOUSE1:
 	case K_ENTER:
 	case K_KP_ENTER:
 	case K_ABUTTON:
@@ -2585,9 +2686,10 @@ void M_Search_Key (int key) {}
 //=============================================================================
 /* SLIST MENU */
 
-size_t	 slist_cursor;
-size_t	 slist_first;
+int		 slist_cursor;
+int		 slist_first;
 qboolean slist_sorted;
+#define SERVER_LIST_MAX_ON_SCREEN 21
 
 void M_Menu_ServerList_f (void)
 {
@@ -2604,7 +2706,7 @@ void M_Menu_ServerList_f (void)
 
 void M_ServerList_Draw (cb_context_t *cbx)
 {
-	size_t	n, slist_shown;
+	size_t	n;
 	qpic_t *p;
 
 	if (!slist_sorted)
@@ -2613,19 +2715,15 @@ void M_ServerList_Draw (cb_context_t *cbx)
 		NET_SlistSort ();
 	}
 
-	slist_shown = hostCacheCount;
-	if (slist_shown > (200 - 32) / 8)
-		slist_shown = (200 - 32) / 8;
-	if (slist_first + slist_shown - 1 < slist_cursor)
-		slist_first = slist_cursor - (slist_shown - 1);
-	if (slist_first > slist_cursor)
-		slist_first = slist_cursor;
+	if (hostCacheCount > SERVER_LIST_MAX_ON_SCREEN)
+		M_DrawScrollbar (cbx, 0, 40, (float)(slist_first) / (hostCacheCount - SERVER_LIST_MAX_ON_SCREEN), SERVER_LIST_MAX_ON_SCREEN - 2);
+	M_Mouse_UpdateListCursor (&slist_cursor, 12, 400, 32, 8, SERVER_LIST_MAX_ON_SCREEN, slist_first);
 
 	p = Draw_CachePic ("gfx/p_multi.lmp");
 	M_DrawPic (cbx, (320 - p->width) / 2, 4, p);
-	for (n = 0; n < slist_shown; n++)
-		M_Print (cbx, 16, 32 + 8 * n, NET_SlistPrintServer (slist_first + n));
-	M_DrawCharacter (cbx, 0, 32 + (slist_cursor - slist_first) * 8, 12 + ((int)(realtime * 4) & 1));
+	for (n = 0; n < SERVER_LIST_MAX_ON_SCREEN && n < hostCacheCount; n++)
+		M_Print (cbx, 28, 32 + 8 * n, NET_SlistPrintServer (slist_first + n));
+	M_DrawCharacter (cbx, 16, 32 + (slist_cursor - slist_first) * 8, 12 + ((int)(realtime * 4) & 1));
 
 	if (*m_return_reason)
 		M_PrintWhite (cbx, 16, 148, m_return_reason);
@@ -2635,6 +2733,7 @@ void M_ServerList_Key (int k)
 {
 	switch (k)
 	{
+	case K_MOUSE2:
 	case K_ESCAPE:
 	case K_BBUTTON:
 		M_Menu_LanConfig_f ();
@@ -2644,22 +2743,7 @@ void M_ServerList_Key (int k)
 		M_Menu_Search_f (searchLastScope);
 		break;
 
-	case K_UPARROW:
-	case K_LEFTARROW:
-		S_LocalSound ("misc/menu1.wav");
-		slist_cursor--;
-		if (slist_cursor >= hostCacheCount)
-			slist_cursor = hostCacheCount - 1;
-		break;
-
-	case K_DOWNARROW:
-	case K_RIGHTARROW:
-		S_LocalSound ("misc/menu1.wav");
-		slist_cursor++;
-		if (slist_cursor >= hostCacheCount)
-			slist_cursor = 0;
-		break;
-
+	case K_MOUSE1:
 	case K_ENTER:
 	case K_KP_ENTER:
 	case K_ABUTTON:
@@ -2676,6 +2760,8 @@ void M_ServerList_Key (int k)
 	default:
 		break;
 	}
+
+	M_HandleScrollBarKeys (k, &slist_cursor, &slist_first, hostCacheCount, SERVER_LIST_MAX_ON_SCREEN);
 }
 
 //=============================================================================
@@ -2709,8 +2795,24 @@ void M_NewGame (void)
 	m_main_cursor = 0;
 }
 
+static void M_UpdateMouse (void)
+{
+	int new_mouse_x;
+	int new_mouse_y;
+	SDL_GetMouseState (&new_mouse_x, &new_mouse_y);
+	m_mouse_moved = (m_mouse_x_pixels != new_mouse_x) || (m_mouse_y_pixels != new_mouse_y);
+	m_mouse_x_pixels = new_mouse_x;
+	m_mouse_y_pixels = new_mouse_y;
+
+	m_mouse_x = new_mouse_x;
+	m_mouse_y = new_mouse_y;
+	M_PixelToMenuCanvasCoord (&m_mouse_x, &m_mouse_y);
+}
+
 void M_Draw (cb_context_t *cbx)
 {
+	M_UpdateMouse ();
+
 	if (m_state == m_none || key_dest != key_menu)
 		return;
 

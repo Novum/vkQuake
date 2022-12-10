@@ -889,6 +889,9 @@ void Key_Init (void)
 #endif
 	consolekeys[K_MWHEELUP] = true;
 	consolekeys[K_MWHEELDOWN] = true;
+	consolekeys[K_MOUSE1] = true;
+	consolekeys[K_MOUSE2] = true;
+	consolekeys[K_MOUSE3] = true;
 
 	//
 	// initialize menubound[]
