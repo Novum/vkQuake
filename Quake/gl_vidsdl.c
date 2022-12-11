@@ -3268,7 +3268,7 @@ static void VID_Restart (qboolean set_mode)
 	if (key_dest == key_console || key_dest == key_menu)
 	{
 		if (modestate == MS_WINDOWED)
-			IN_Deactivate (true);
+			IN_Deactivate (false);
 		else if (modestate == MS_FULLSCREEN)
 			IN_HideCursor ();
 	}
@@ -3321,7 +3321,7 @@ void VID_Toggle (void)
 		if (key_dest == key_console || key_dest == key_menu)
 		{
 			if (modestate == MS_WINDOWED)
-				IN_Deactivate (true);
+				IN_Deactivate (false);
 			else if (modestate == MS_FULLSCREEN)
 				IN_HideCursor ();
 		}

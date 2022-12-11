@@ -364,7 +364,7 @@ void M_Menu_Main_f (void)
 		m_save_demonum = cls.demonum;
 		cls.demonum = -1;
 	}
-	IN_Deactivate (modestate == MS_WINDOWED);
+	IN_Deactivate (false);
 	key_dest = key_menu;
 	m_state = m_main;
 	m_entersound = true;
@@ -472,7 +472,7 @@ int m_singleplayer_cursor;
 
 void M_Menu_SinglePlayer_f (void)
 {
-	IN_Deactivate (modestate == MS_WINDOWED);
+	IN_Deactivate (false);
 	key_dest = key_menu;
 	m_state = m_singleplayer;
 	m_entersound = true;
@@ -605,7 +605,7 @@ void M_Menu_Load_f (void)
 	m_entersound = true;
 	m_state = m_load;
 
-	IN_Deactivate (modestate == MS_WINDOWED);
+	IN_Deactivate (false);
 	key_dest = key_menu;
 	M_ScanSaves ();
 }
@@ -621,7 +621,7 @@ void M_Menu_Save_f (void)
 	m_entersound = true;
 	m_state = m_save;
 
-	IN_Deactivate (modestate == MS_WINDOWED);
+	IN_Deactivate (false);
 	key_dest = key_menu;
 	M_ScanSaves ();
 }
@@ -751,7 +751,7 @@ int m_multiplayer_cursor;
 
 void M_Menu_MultiPlayer_f (void)
 {
-	IN_Deactivate (modestate == MS_WINDOWED);
+	IN_Deactivate (false);
 	key_dest = key_menu;
 	m_state = m_multiplayer;
 	m_entersound = true;
@@ -840,7 +840,7 @@ int	 setup_bottom;
 
 void M_Menu_Setup_f (void)
 {
-	IN_Deactivate (modestate == MS_WINDOWED);
+	IN_Deactivate (false);
 	key_dest = key_menu;
 	m_state = m_setup;
 	m_entersound = true;
@@ -1023,7 +1023,7 @@ const char *net_helpMessage[] = {
 
 void M_Menu_Net_f (void)
 {
-	IN_Deactivate (modestate == MS_WINDOWED);
+	IN_Deactivate (false);
 	key_dest = key_menu;
 	m_state = m_net;
 	m_entersound = true;
@@ -1151,7 +1151,7 @@ static int options_cursor;
 
 void M_Menu_Options_f (void)
 {
-	IN_Deactivate (modestate == MS_WINDOWED);
+	IN_Deactivate (false);
 	key_dest = key_menu;
 	m_state = m_options;
 	m_entersound = true;
@@ -1538,7 +1538,7 @@ static qboolean bind_grab;
 
 void M_Menu_Keys_f (void)
 {
-	IN_Deactivate (modestate == MS_WINDOWED);
+	IN_Deactivate (false);
 	key_dest = key_menu;
 	m_state = m_keys;
 	m_entersound = true;
@@ -1665,7 +1665,7 @@ void M_Keys_Key (int k)
 		}
 
 		bind_grab = false;
-		IN_Deactivate (modestate == MS_WINDOWED); // deactivate because we're returning to the menu
+		IN_Deactivate (false); // deactivate because we're returning to the menu
 		return;
 	}
 
@@ -1725,7 +1725,7 @@ int help_page;
 
 void M_Menu_Help_f (void)
 {
-	IN_Deactivate (modestate == MS_WINDOWED);
+	IN_Deactivate (false);
 	key_dest = key_menu;
 	m_state = m_help;
 	m_entersound = true;
@@ -1776,7 +1776,7 @@ static int mod_loaded_from_menu = 0;
 
 void M_Menu_Mods_f (void)
 {
-	IN_Deactivate (modestate == MS_WINDOWED);
+	IN_Deactivate (false);
 	key_dest = key_menu;
 	m_state = m_mods;
 	m_entersound = true;
@@ -1855,7 +1855,7 @@ void M_Menu_Quit_f (void)
 	if (!mod_loaded_from_menu)
 	{
 		wasInMenus = (key_dest == key_menu);
-		IN_Deactivate (modestate == MS_WINDOWED);
+		IN_Deactivate (false);
 		key_dest = key_menu;
 		m_quit_prevstate = m_state;
 		m_state = m_quit;
@@ -1908,7 +1908,7 @@ void M_Quit_Char (int key)
 
 	case 'y':
 	case 'Y':
-		IN_Deactivate (modestate == MS_WINDOWED);
+		IN_Deactivate (false);
 		key_dest = key_console;
 		Cbuf_InsertText ("quit");
 		break;
@@ -1967,7 +1967,7 @@ char lanConfig_joinname[22];
 
 void M_Menu_LanConfig_f (void)
 {
-	IN_Deactivate (modestate == MS_WINDOWED);
+	IN_Deactivate (false);
 	key_dest = key_menu;
 	m_state = m_lanconfig;
 	m_entersound = true;
@@ -2320,7 +2320,7 @@ int maxplayers;
 
 void M_Menu_GameOptions_f (void)
 {
-	IN_Deactivate (modestate == MS_WINDOWED);
+	IN_Deactivate (false);
 	key_dest = key_menu;
 	m_state = m_gameoptions;
 	m_entersound = true;
@@ -2635,7 +2635,7 @@ enum slistScope_e searchLastScope = SLIST_LAN;
 
 void M_Menu_Search_f (enum slistScope_e scope)
 {
-	IN_Deactivate (modestate == MS_WINDOWED);
+	IN_Deactivate (false);
 	key_dest = key_menu;
 	m_state = m_search;
 	m_entersound = false;
@@ -2693,7 +2693,7 @@ qboolean slist_sorted;
 
 void M_Menu_ServerList_f (void)
 {
-	IN_Deactivate (modestate == MS_WINDOWED);
+	IN_Deactivate (false);
 	key_dest = key_menu;
 	m_state = m_slist;
 	m_entersound = true;
@@ -2913,6 +2913,8 @@ void M_Draw (cb_context_t *cbx)
 		M_ServerList_Draw (cbx);
 		break;
 	}
+
+	M_DrawCharacter(cbx, m_mouse_x - 4, m_mouse_y - 4, '+');
 
 	if (m_entersound)
 	{
