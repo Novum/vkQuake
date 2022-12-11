@@ -180,10 +180,6 @@ static uint32_t current_swapchain_buffer;
 
 task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
 
-extern qboolean m_mouse_moved;
-extern int		m_mouse_x;
-extern int		m_mouse_y;
-
 #define GET_INSTANCE_PROC_ADDR(entrypoint)                                                              \
 	{                                                                                                   \
 		fp##entrypoint = (PFN_vk##entrypoint)fpGetInstanceProcAddr (vulkan_instance, "vk" #entrypoint); \
@@ -4028,14 +4024,12 @@ static void VID_MenuDraw (cb_context_t *cbx)
 			break;
 		}
 
+		M_Mouse_UpdateCursor (&video_options_cursor, 12, 400, y, 8, i);
 		if (video_options_cursor == i)
 			M_DrawCharacter (cbx, 168, y, 12 + ((int)(realtime * 4) & 1));
 
 		y += 8;
 	}
-
-	if (m_mouse_moved && (m_mouse_x >= 12) && (m_mouse_x <= 400) && (m_mouse_y >= 48) && (m_mouse_y <= (48 + 8 * VIDEO_OPTIONS_ITEMS)))
-		video_options_cursor = CLAMP (0, (m_mouse_y - 48) / 8, VIDEO_OPTIONS_ITEMS - 1);
 }
 
 /*

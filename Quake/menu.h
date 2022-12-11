@@ -75,4 +75,7 @@ void M_DrawPic (cb_context_t *cbx, int x, int y, qpic_t *pic);
 void M_DrawTransPic (cb_context_t *cbx, int x, int y, qpic_t *pic);
 void M_DrawCheckbox (cb_context_t *cbx, int x, int y, int on);
 
+void M_Mouse_UpdateListCursor (int *cursor, int left, int right, int top, int item_height, int num_items, int scroll_offset);
+void M_Mouse_UpdateCursor (int *cursor, int left, int right, int top, int item_height, int index);
+
 #endif /* _QUAKE_MENU_H */
