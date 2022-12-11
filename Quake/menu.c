@@ -96,12 +96,12 @@ char		   m_return_reason[32];
 #define IPXConfig	 (m_net_cursor == 0)
 #define TCPIPConfig	 (m_net_cursor == 1)
 
-static int m_main_cursor;
-qboolean   m_mouse_moved;
-int		   m_mouse_x;
-int		   m_mouse_y;
-static int m_mouse_x_pixels;
-static int m_mouse_y_pixels;
+static int		m_main_cursor;
+static qboolean m_mouse_moved;
+static int		m_mouse_x;
+static int		m_mouse_y;
+static int		m_mouse_x_pixels;
+static int		m_mouse_y_pixels;
 
 void M_ConfigureNetSubsystem (void);
 
@@ -335,7 +335,7 @@ static void M_HandleScrollBarKeys (const int key, int *cursor, int *first_drawn,
 M_UpdateCursorForList
 ================
 */
-static void M_Mouse_UpdateListCursor (int *cursor, int left, int right, int top, int item_height, int num_items, int scroll_offset)
+void M_Mouse_UpdateListCursor (int *cursor, int left, int right, int top, int item_height, int num_items, int scroll_offset)
 {
 	if (m_mouse_moved && (num_items > 0) && (m_mouse_x >= left) && (m_mouse_x <= right) && (m_mouse_y >= top) && (m_mouse_y <= (top + item_height * num_items)))
 		*cursor = scroll_offset + CLAMP (0, (m_mouse_y - top) / item_height, num_items - 1);
@@ -346,7 +346,7 @@ static void M_Mouse_UpdateListCursor (int *cursor, int left, int right, int top,
 M_Mouse_UpdateCursor
 ================
 */
-static void M_Mouse_UpdateCursor (int *cursor, int left, int right, int top, int item_height, int index)
+void M_Mouse_UpdateCursor (int *cursor, int left, int right, int top, int item_height, int index)
 {
 	if (m_mouse_moved && (m_mouse_x >= left) && (m_mouse_x <= right) && (m_mouse_y >= top) && (m_mouse_y <= (top + item_height)))
 		*cursor = index;
@@ -2914,7 +2914,7 @@ void M_Draw (cb_context_t *cbx)
 		break;
 	}
 
-	M_DrawCharacter(cbx, m_mouse_x - 4, m_mouse_y - 4, '+');
+	M_DrawCharacter (cbx, m_mouse_x - 4, m_mouse_y - 4, '+');
 
 	if (m_entersound)
 	{
