@@ -2295,6 +2295,8 @@ void GL_BeginRenderingTask (void *unused)
 		err = vkBeginCommandBuffer (cbx->cb, &command_buffer_begin_info);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkBeginCommandBuffer failed");
+
+		R_BeginDebugUtilsLabel (cbx, "Primary CB");
 	}
 
 	for (int cbx_index = 0; cbx_index < CBX_NUM; ++cbx_index)
@@ -2327,6 +2329,8 @@ void GL_BeginRenderingTask (void *unused)
 		err = vkBeginCommandBuffer (cbx->cb, &command_buffer_begin_info);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkBeginCommandBuffer failed");
+
+		R_BeginDebugUtilsLabel (cbx, va ("CBX %d", cbx_index));
 
 		if (cbx_index == CBX_UPDATE_LIGHTMAPS)
 			continue;
@@ -2648,6 +2652,7 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 	for (int cbx_index = 0; cbx_index < CBX_NUM; ++cbx_index)
 	{
 		cb_context_t *cbx = &vulkan_globals.secondary_cb_contexts[cbx_index];
+		R_EndDebugUtilsLabel (cbx);
 		err = vkEndCommandBuffer (cbx->cb);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkEndCommandBuffer failed");
@@ -2710,6 +2715,7 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 	}
 
 	{
+		R_EndDebugUtilsLabel (&vulkan_globals.primary_cb_context);
 		VkSubmitInfo submit_info;
 		err = vkEndCommandBuffer (primary_cb);
 		if (err != VK_SUCCESS)
