@@ -1244,7 +1244,7 @@ void Key_UpdateForDest (void)
 		if (cls.state != ca_connected)
 		{
 			forced = true;
-			IN_Deactivate (false);
+			IN_Deactivate (modestate == MS_WINDOWED);
 			key_dest = key_console;
 			break;
 		}
