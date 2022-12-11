@@ -977,7 +977,7 @@ void GL_SetCanvas (cb_context_t *cbx, canvastype newcanvas)
 		return;
 
 	extern vrect_t scr_vrect;
-	float		   s;
+	float		   s, u, v;
 	int			   lines;
 
 	cbx->current_canvas = newcanvas;
@@ -998,8 +998,10 @@ void GL_SetCanvas (cb_context_t *cbx, canvastype newcanvas)
 	case CANVAS_MENU:
 		s = q_min ((float)glwidth / 320.0, (float)glheight / 200.0);
 		s = CLAMP (1.0, scr_menuscale.value, s);
-		GL_OrthoMatrix (cbx, 0, 640, 200, 0, -99999, 99999);
-		GL_Viewport (cbx, (glwidth - 320 * s) / 2, (glheight - 200 * s) / 2, 640 * s, 200 * s, 0.0f, 1.0f);
+		u = (glwidth - (320.0f * s)) / (2.0f * s);
+		v = (glheight - (200.0f * s)) / (2.0f * s);
+		GL_OrthoMatrix (cbx, -u, 320.0f + u, 200.0f + v, -v, -99999, 99999);
+		GL_Viewport (cbx, 0, 0, glwidth, glheight, 0.0f, 1.0f);
 		break;
 	case CANVAS_CSQC:
 		s = CLAMP (1.0, scr_sbarscale.value, (float)glwidth / 320.0);
