@@ -80,9 +80,9 @@
 # include <ctype.h>
 #endif
 #ifdef HAVE_MATH_H
-# if defined(__WINRT__)
+# if defined(_MSC_VER)
 /* Defining _USE_MATH_DEFINES is required to get M_PI to be defined on
-   WinRT.  See http://msdn.microsoft.com/en-us/library/4hwaceh6.aspx
+   Visual Studio.  See http://msdn.microsoft.com/en-us/library/4hwaceh6.aspx
    for more information.
 */
 #  define _USE_MATH_DEFINES
@@ -113,6 +113,12 @@ void *alloca(unsigned);
 # else
 char *alloca();
 # endif
+#endif
+
+#ifdef SIZE_MAX
+# define SDL_SIZE_MAX SIZE_MAX
+#else
+# define SDL_SIZE_MAX ((size_t) -1)
 #endif
 
 /**
@@ -253,7 +259,7 @@ typedef uint64_t Uint64;
 #ifndef SDL_PRIs64
 #ifdef PRIs64
 #define SDL_PRIs64 PRIs64
-#elif defined(__WIN32__)
+#elif defined(__WIN32__) || defined(__GDK__)
 #define SDL_PRIs64 "I64d"
 #elif defined(__LINUX__) && defined(__LP64__)
 #define SDL_PRIs64 "ld"
@@ -264,7 +270,7 @@ typedef uint64_t Uint64;
 #ifndef SDL_PRIu64
 #ifdef PRIu64
 #define SDL_PRIu64 PRIu64
-#elif defined(__WIN32__)
+#elif defined(__WIN32__) || defined(__GDK__)
 #define SDL_PRIu64 "I64u"
 #elif defined(__LINUX__) && defined(__LP64__)
 #define SDL_PRIu64 "lu"
@@ -275,7 +281,7 @@ typedef uint64_t Uint64;
 #ifndef SDL_PRIx64
 #ifdef PRIx64
 #define SDL_PRIx64 PRIx64
-#elif defined(__WIN32__)
+#elif defined(__WIN32__) || defined(__GDK__)
 #define SDL_PRIx64 "I64x"
 #elif defined(__LINUX__) && defined(__LP64__)
 #define SDL_PRIx64 "lx"
@@ -286,7 +292,7 @@ typedef uint64_t Uint64;
 #ifndef SDL_PRIX64
 #ifdef PRIX64
 #define SDL_PRIX64 PRIX64
-#elif defined(__WIN32__)
+#elif defined(__WIN32__) || defined(__GDK__)
 #define SDL_PRIX64 "I64X"
 #elif defined(__LINUX__) && defined(__LP64__)
 #define SDL_PRIX64 "lX"
@@ -404,7 +410,7 @@ SDL_COMPILE_TIME_ASSERT(sint64, sizeof(Sint64) == 8);
 
 /** \cond */
 #ifndef DOXYGEN_SHOULD_IGNORE_THIS
-#if !defined(__ANDROID__) && !defined(__VITA__)
+#if !defined(__ANDROID__) && !defined(__VITA__) && !defined(__3DS__)
    /* TODO: include/SDL_stdinc.h:174: error: size of array 'SDL_dummy_enum' is negative */
 typedef enum
 {
@@ -441,6 +447,16 @@ typedef void *(SDLCALL *SDL_realloc_func)(void *mem, size_t size);
 typedef void (SDLCALL *SDL_free_func)(void *mem);
 
 /**
+ * Get the original set of SDL memory functions
+ *
+ * \since This function is available since SDL 2.24.0.
+ */
+extern DECLSPEC void SDLCALL SDL_GetOriginalMemoryFunctions(SDL_malloc_func *malloc_func,
+                                                            SDL_calloc_func *calloc_func,
+                                                            SDL_realloc_func *realloc_func,
+                                                            SDL_free_func *free_func);
+
+/**
  * Get the current set of SDL memory functions
  *
  * \since This function is available since SDL 2.0.7.
@@ -471,6 +487,7 @@ extern DECLSPEC char *SDLCALL SDL_getenv(const char *name);
 extern DECLSPEC int SDLCALL SDL_setenv(const char *name, const char *value, int overwrite);
 
 extern DECLSPEC void SDLCALL SDL_qsort(void *base, size_t nmemb, size_t size, int (SDLCALL *compare) (const void *, const void *));
+extern DECLSPEC void * SDLCALL SDL_bsearch(const void *key, const void *base, size_t nmemb, size_t size, int (SDLCALL *compare) (const void *, const void *));
 
 extern DECLSPEC int SDLCALL SDL_abs(int x);
 
@@ -494,6 +511,7 @@ extern DECLSPEC int SDLCALL SDL_isgraph(int x);
 extern DECLSPEC int SDLCALL SDL_toupper(int x);
 extern DECLSPEC int SDLCALL SDL_tolower(int x);
 
+extern DECLSPEC Uint16 SDLCALL SDL_crc16(Uint16 crc, const void *data, size_t len);
 extern DECLSPEC Uint32 SDLCALL SDL_crc32(Uint32 crc, const void *data, size_t len);
 
 extern DECLSPEC void *SDLCALL SDL_memset(SDL_OUT_BYTECAP(len) void *dst, int c, size_t len);
@@ -501,6 +519,11 @@ extern DECLSPEC void *SDLCALL SDL_memset(SDL_OUT_BYTECAP(len) void *dst, int c, 
 #define SDL_zero(x) SDL_memset(&(x), 0, sizeof((x)))
 #define SDL_zerop(x) SDL_memset((x), 0, sizeof(*(x)))
 #define SDL_zeroa(x) SDL_memset((x), 0, sizeof((x)))
+
+#define SDL_copyp(dst, src)                                                                 \
+    { SDL_COMPILE_TIME_ASSERT(SDL_copyp, sizeof (*(dst)) == sizeof (*(src))); }             \
+    SDL_memcpy((dst), (src), sizeof (*(src)))
+
 
 /* Note that memset() is a byte assignment and this is a 32-bit assignment, so they're not directly equivalent. */
 SDL_FORCE_INLINE void SDL_memset4(void *dst, Uint32 val, size_t dwords)
@@ -560,8 +583,10 @@ extern DECLSPEC char *SDLCALL SDL_strlwr(char *str);
 extern DECLSPEC char *SDLCALL SDL_strchr(const char *str, int c);
 extern DECLSPEC char *SDLCALL SDL_strrchr(const char *str, int c);
 extern DECLSPEC char *SDLCALL SDL_strstr(const char *haystack, const char *needle);
+extern DECLSPEC char *SDLCALL SDL_strcasestr(const char *haystack, const char *needle);
 extern DECLSPEC char *SDLCALL SDL_strtokr(char *s1, const char *s2, char **saveptr);
 extern DECLSPEC size_t SDLCALL SDL_utf8strlen(const char *str);
+extern DECLSPEC size_t SDLCALL SDL_utf8strnlen(const char *str, size_t bytes);
 
 extern DECLSPEC char *SDLCALL SDL_itoa(int value, char *str, int radix);
 extern DECLSPEC char *SDLCALL SDL_uitoa(unsigned int value, char *str, int radix);
@@ -734,6 +759,65 @@ SDL_FORCE_INLINE void *SDL_memcpy4(SDL_OUT_BYTECAP(dwords*4) void *dst, SDL_IN_B
 {
     return SDL_memcpy(dst, src, dwords * 4);
 }
+
+/**
+ * If a * b would overflow, return -1. Otherwise store a * b via ret
+ * and return 0.
+ *
+ * \since This function is available since SDL 2.24.0.
+ */
+SDL_FORCE_INLINE int SDL_size_mul_overflow (size_t a,
+                                            size_t b,
+                                            size_t *ret)
+{
+    if (a != 0 && b > SDL_SIZE_MAX / a) {
+        return -1;
+    }
+    *ret = a * b;
+    return 0;
+}
+
+#if _SDL_HAS_BUILTIN(__builtin_mul_overflow)
+/* This needs to be wrapped in an inline rather than being a direct #define,
+ * because __builtin_mul_overflow() is type-generic, but we want to be
+ * consistent about interpreting a and b as size_t. */
+SDL_FORCE_INLINE int _SDL_size_mul_overflow_builtin (size_t a,
+                                                     size_t b,
+                                                     size_t *ret)
+{
+    return __builtin_mul_overflow(a, b, ret) == 0 ? 0 : -1;
+}
+#define SDL_size_mul_overflow(a, b, ret) (_SDL_size_mul_overflow_builtin(a, b, ret))
+#endif
+
+/**
+ * If a + b would overflow, return -1. Otherwise store a + b via ret
+ * and return 0.
+ *
+ * \since This function is available since SDL 2.24.0.
+ */
+SDL_FORCE_INLINE int SDL_size_add_overflow (size_t a,
+                                            size_t b,
+                                            size_t *ret)
+{
+    if (b > SDL_SIZE_MAX - a) {
+        return -1;
+    }
+    *ret = a + b;
+    return 0;
+}
+
+#if _SDL_HAS_BUILTIN(__builtin_add_overflow)
+/* This needs to be wrapped in an inline rather than being a direct #define,
+ * the same as the call to __builtin_mul_overflow() above. */
+SDL_FORCE_INLINE int _SDL_size_add_overflow_builtin (size_t a,
+                                                     size_t b,
+                                                     size_t *ret)
+{
+    return __builtin_add_overflow(a, b, ret) == 0 ? 0 : -1;
+}
+#define SDL_size_add_overflow(a, b, ret) (_SDL_size_add_overflow_builtin(a, b, ret))
+#endif
 
 /* Ends C function definitions when using C++ */
 #ifdef __cplusplus

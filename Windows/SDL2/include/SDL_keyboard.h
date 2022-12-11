@@ -90,8 +90,20 @@ extern DECLSPEC SDL_Window * SDLCALL SDL_GetKeyboardFocus(void);
  * \since This function is available since SDL 2.0.0.
  *
  * \sa SDL_PumpEvents
+ * \sa SDL_ResetKeyboard
  */
 extern DECLSPEC const Uint8 *SDLCALL SDL_GetKeyboardState(int *numkeys);
+
+/**
+ * Clear the state of the keyboard
+ *
+ * This function will generate key up events for all pressed keys.
+ *
+ * \since This function is available since SDL 2.24.0.
+ *
+ * \sa SDL_GetKeyboardState
+ */
+extern DECLSPEC void SDLCALL SDL_ResetKeyboard(void);
 
 /**
  * Get the current key modifier state for the keyboard.
@@ -288,7 +300,11 @@ extern DECLSPEC SDL_bool SDLCALL SDL_IsTextInputShown(void);
 /**
  * Set the rectangle used to type Unicode text inputs.
  *
- * Note: If you want use system native IME window, try to set hint
+ * To start text input in a given location, this function is intended to be
+ * called before SDL_StartTextInput, although some platforms support moving
+ * the rectangle even while text input (and a composition) is active.
+ *
+ * Note: If you want to use the system native IME window, try setting hint
  * **SDL_HINT_IME_SHOW_UI** to **1**, otherwise this function won't give you
  * any feedback.
  *
@@ -299,7 +315,7 @@ extern DECLSPEC SDL_bool SDLCALL SDL_IsTextInputShown(void);
  *
  * \sa SDL_StartTextInput
  */
-extern DECLSPEC void SDLCALL SDL_SetTextInputRect(SDL_Rect *rect);
+extern DECLSPEC void SDLCALL SDL_SetTextInputRect(const SDL_Rect *rect);
 
 /**
  * Check whether the platform has screen keyboard support.

@@ -39,7 +39,7 @@
 static __inline__ void __attribute__((__always_inline__, __nodebug__))
 _m_prefetch(void *__P)
 {
-  __builtin_prefetch (__P, 0, 3 /* _MM_HINT_T0 */);
+  __builtin_prefetch(__P, 0, 3 /* _MM_HINT_T0 */);
 }
 #endif /* __PRFCHWINTRIN_H */
 #endif /* __clang__ */
@@ -59,7 +59,7 @@ _m_prefetch(void *__P)
 #ifdef __linux__
 #include <endian.h>
 #define SDL_BYTEORDER  __BYTE_ORDER
-#elif defined(__OpenBSD__)
+#elif defined(__OpenBSD__) || defined(__DragonFly__)
 #include <endian.h>
 #define SDL_BYTEORDER  BYTE_ORDER
 #elif defined(__FreeBSD__) || defined(__NetBSD__)
@@ -78,7 +78,7 @@ _m_prefetch(void *__P)
 #if defined(__hppa__) || \
     defined(__m68k__) || defined(mc68000) || defined(_M_M68K) || \
     (defined(__MIPS__) && defined(__MIPSEB__)) || \
-    defined(__ppc__) || defined(__POWERPC__) || defined(_M_PPC) || \
+    defined(__ppc__) || defined(__POWERPC__) || defined(__powerpc__) || defined(__PPC__) || \
     defined(__sparc__)
 #define SDL_BYTEORDER   SDL_BIG_ENDIAN
 #else
