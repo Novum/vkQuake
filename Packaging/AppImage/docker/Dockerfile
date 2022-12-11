@@ -38,20 +38,20 @@ RUN apt-get update \
 	zlib1g-dev
 
 RUN cd /tmp \
- && wget https://www.libsdl.org/release/SDL2-2.0.22.tar.gz \
- && tar -xzf SDL2-2.0.22.tar.gz \
- && cd /tmp/SDL2-2.0.22 \
+ && wget https://www.libsdl.org/release/SDL2-2.26.1.tar.gz \
+ && tar -xzf SDL2-2.26.1.tar.gz \
+ && cd /tmp/SDL2-2.26.1 \
  && ./configure \
  && make -j \
  && make install
 
 RUN cd /tmp \
- && wget https://github.com/ninja-build/ninja/releases/download/v1.11.0/ninja-linux.zip \
+ && wget https://github.com/ninja-build/ninja/releases/download/v1.11.1/ninja-linux.zip \
  && unzip ninja-linux.zip \
  && cp ninja /usr/bin/ninja
 
 RUN cd /opt \
- && wget https://github.com/mesonbuild/meson/releases/download/0.63.0rc1/meson-0.63.0rc1.tar.gz \
- && tar -xzf meson-0.63.0rc1.tar.gz \
- && mv meson-0.63.0rc1 meson
+ && wget https://github.com/mesonbuild/meson/releases/download/0.64.1/meson-0.64.1.tar.gz \
+ && tar -xzf meson-0.64.1.tar.gz \
+ && mv meson-0.64.1 meson
  
