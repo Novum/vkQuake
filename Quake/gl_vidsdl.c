@@ -2682,7 +2682,7 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 	vkCmdExecuteCommands (primary_cb, 1, &vulkan_globals.secondary_cb_contexts[CBX_UPDATE_LIGHTMAPS].cb);
 
 	const qboolean screen_effects =
-		parms->render_warp || (parms->render_scale >= 2) || parms->vid_palettize || (gl_polyblend.value && parms->v_blend[3] || parms->menu);
+		parms->render_warp || (parms->render_scale >= 2) || parms->vid_palettize || (gl_polyblend.value && parms->v_blend[3]) || parms->menu;
 	{
 		const qboolean		  resolve = (vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT);
 		VkRenderPassBeginInfo render_pass_begin_info;
