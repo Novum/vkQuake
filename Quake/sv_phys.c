@@ -436,14 +436,12 @@ SV_PushMove
 */
 void SV_PushMove (edict_t *pusher, float movetime)
 {
-	int		  i, e;
-	edict_t	 *check, *block;
-	vec3_t	  mins, maxs, move;
-	vec3_t	  entorig, pushorig;
-	int		  num_moved;
-	edict_t **moved_edict; // johnfitz -- dynamically allocate
-	vec3_t	 *moved_from;  // johnfitz -- dynamically allocate
-	float	  solid_backup;
+	int		 i, e;
+	edict_t *check, *block;
+	vec3_t	 mins, maxs, move;
+	vec3_t	 entorig, pushorig;
+	int		 num_moved;
+	float	 solid_backup;
 
 	if (!pusher->v.velocity[0] && !pusher->v.velocity[1] && !pusher->v.velocity[2])
 	{

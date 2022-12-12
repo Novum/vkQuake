@@ -25,7 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 
-extern cvar_t gl_fullbrights, r_drawflat, r_gpulightmapupdate; // johnfitz
+extern cvar_t gl_fullbrights, r_drawflat, r_gpulightmapupdate, r_rtshadows;
 
 int gl_lightmap_format;
 
@@ -93,8 +93,23 @@ static combined_brush_deps *brush_deps_data;
 static int					used_deps_data = 0;
 #define INITIAL_BRUSH_DEPS_SIZE 16384
 
-static vulkan_memory_t bmodel_memory;
-VkBuffer			   bmodel_vertex_buffer;
+static vulkan_memory_t					   bmodel_memory;
+VkBuffer								   bmodel_vertex_buffer;
+uint32_t								   bmodel_numverts;
+VkDeviceAddress							   bmodel_vertex_buffer_device_address;
+VkAccelerationStructureKHR				   bmodel_tlas = VK_NULL_HANDLE;
+static VkBuffer							   bmodel_tlas_buffer;
+static size_t							   bmodel_tlas_size;
+static VkBuffer							   bmodel_indices_buffer;
+static VkDeviceAddress					   bmodel_indices_device_address;
+static VkBuffer							   bmodel_scratch_buffer;
+static VkDeviceAddress					   bmodel_scratch_address;
+static VkBuffer							   bmodel_instances_buffer;
+static VkDeviceAddress					   bmodel_instances_addresses[2];
+static VkAccelerationStructureInstanceKHR *bmodel_instances[2];
+static int								   bmodel_current_instance_buffer = 0;
+static vulkan_memory_t					   bmodel_as_device_memory;
+static vulkan_memory_t					   bmodel_instances_memory;
 
 extern cvar_t r_showtris;
 extern cvar_t r_simd;
@@ -1200,13 +1215,13 @@ void R_AllocateLightmapComputeBuffers ()
 	Sys_Printf ("Allocating lights buffer (%u KB)\n", (int)lights_buffer_size / 1024);
 
 	buffer_create_info_t buffer_create_infos[2] = {
-		{&lightstyles_scales_buffer, lightstyles_buffer_size, 0, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, (void **)&lightstyles_scales_buffer_mapped,
+		{&lightstyles_scales_buffer, lightstyles_buffer_size, 0, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, (void **)&lightstyles_scales_buffer_mapped, NULL,
 		 "Lightstyle scales"},
-		{&lights_buffer, lights_buffer_size, 0, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, (void **)&lights_buffer_mapped, "Lights"},
+		{&lights_buffer, lights_buffer_size, 0, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, (void **)&lights_buffer_mapped, NULL, "Lights"},
 	};
 	R_CreateBuffers (
 		countof (buffer_create_infos), buffer_create_infos, &lights_buffer_memory, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
-		&num_vulkan_misc_allocations, "Lights");
+		&num_vulkan_bmodel_allocations, "Lights");
 }
 
 /*
@@ -1218,12 +1233,12 @@ static lm_compute_surface_data_t *GL_AllocateSurfaceDataBuffer ()
 {
 	size_t buffer_size = num_surfaces * sizeof (lm_compute_surface_data_t);
 
-	R_FreeBuffer (surface_data_buffer, &surface_data_buffer_memory, &num_vulkan_misc_allocations);
+	R_FreeBuffer (surface_data_buffer, &surface_data_buffer_memory, &num_vulkan_bmodel_allocations);
 
 	Sys_Printf ("Allocating lightmap compute surface data (%u KB)\n", (int)buffer_size / 1024);
 	R_CreateBuffer (
 		&surface_data_buffer, &surface_data_buffer_memory, buffer_size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, &num_vulkan_misc_allocations, "Lightmap compute surface data");
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, &num_vulkan_bmodel_allocations, NULL, "Lightmap compute surface data");
 
 	VkCommandBuffer			   command_buffer;
 	VkBuffer				   staging_buffer;
@@ -1248,13 +1263,13 @@ static VkDrawIndexedIndirectCommand *GL_AllocateIndirectBuffer (int num_used_ind
 {
 	size_t buffer_size = num_used_indirect_draws * sizeof (VkDrawIndexedIndirectCommand);
 
-	R_FreeBuffer (indirect_buffer, &indirect_buffer_memory, &num_vulkan_misc_allocations);
+	R_FreeBuffer (indirect_buffer, &indirect_buffer_memory, &num_vulkan_bmodel_allocations);
 
 	Sys_Printf ("Allocating indirect draw data (%u KB, %d draws)\n", (int)buffer_size / 1024, num_used_indirect_draws);
 	R_CreateBuffer (
 		&indirect_buffer, &indirect_buffer_memory, buffer_size,
 		VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0,
-		&num_vulkan_misc_allocations, "Indirect draw data");
+		&num_vulkan_bmodel_allocations, NULL, "Indirect draw data");
 
 	VkCommandBuffer				  command_buffer;
 	VkBuffer					  staging_buffer;
@@ -1283,7 +1298,7 @@ static void GL_AllocateWorkgroupBoundsBuffers ()
 	if (workgroup_bounds_buffer_memory.handle != VK_NULL_HANDLE)
 	{
 		R_FreeVulkanMemory (&workgroup_bounds_buffer_memory);
-		Atomic_DecrementUInt32 (&num_vulkan_misc_allocations);
+		Atomic_DecrementUInt32 (&num_vulkan_bmodel_allocations);
 	}
 
 	for (int i = 0; i < lightmap_count; i++)
@@ -1312,7 +1327,7 @@ static void GL_AllocateWorkgroupBoundsBuffers ()
 		memory_allocate_info.allocationSize = lightmap_count * aligned_size;
 		memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
 
-		Atomic_IncrementUInt32 (&num_vulkan_misc_allocations);
+		Atomic_IncrementUInt32 (&num_vulkan_bmodel_allocations);
 		R_AllocateVulkanMemory (&workgroup_bounds_buffer_memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_DEVICE);
 		GL_SetObjectName ((uint64_t)workgroup_bounds_buffer_memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, "Workgroup bounds memory");
 	}
@@ -1332,12 +1347,12 @@ R_InitIndirectIndexBuffer
 */
 static void R_InitIndirectIndexBuffer (uint32_t size)
 {
-	R_FreeBuffer (indirect_index_buffer, &indirect_index_buffer_memory, &num_vulkan_misc_allocations);
+	R_FreeBuffer (indirect_index_buffer, &indirect_index_buffer_memory, &num_vulkan_bmodel_allocations);
 
 	Sys_Printf ("Allocating indirect IBs (%u KB)\n", size / 1024);
 	R_CreateBuffer (
 		&indirect_index_buffer, &indirect_index_buffer_memory, size, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, &num_vulkan_misc_allocations, "Indirect indices");
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, &num_vulkan_bmodel_allocations, NULL, "Indirect indices");
 }
 
 /*
@@ -1347,14 +1362,14 @@ R_InitVisibilityBuffers (one bit per surface)
 */
 static void R_InitVisibilityBuffers (uint32_t size)
 {
-	R_FreeBuffer (dyn_visibility_buffer, &dyn_visibility_buffer_memory, &num_vulkan_misc_allocations);
+	R_FreeBuffer (dyn_visibility_buffer, &dyn_visibility_buffer_memory, &num_vulkan_bmodel_allocations);
 
 	size = (size + 255) / 256 * 256 * 2;
 
 	Sys_Printf ("Allocating visibility buffers (%u KB)\n", size / 1024);
 	R_CreateBuffer (
 		&dyn_visibility_buffer, &dyn_visibility_buffer_memory, size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-		VK_MEMORY_PROPERTY_HOST_CACHED_BIT, &num_vulkan_misc_allocations, "Dynamic visibility");
+		VK_MEMORY_PROPERTY_HOST_CACHED_BIT, &num_vulkan_bmodel_allocations, NULL, "Dynamic visibility");
 
 	void	*data;
 	VkResult err = vkMapMemory (vulkan_globals.device, dyn_visibility_buffer_memory.handle, 0, size, 0, &data);
@@ -1407,7 +1422,6 @@ static void GL_SortSurfaces (void)
 	int			i;
 	unsigned	j;
 	msurface_t *surf;
-	surf_sort  *surfs;
 	TEMP_ALLOC (surf_sort, surfs, num_surfaces * 2);
 	int used_surfs = 0;
 	int sort_bins[4][256];
@@ -1709,6 +1723,151 @@ void GL_SetupIndirectDraws ()
 
 /*
 ==================
+GL_UpdateLightmapDescriptorSets
+==================
+*/
+void GL_UpdateLightmapDescriptorSets (void)
+{
+	GL_WaitForDeviceIdle ();
+
+	const qboolean			  rt = vulkan_globals.ray_query && r_rtshadows.value && (bmodel_tlas != VK_NULL_HANDLE);
+	vulkan_desc_set_layout_t *set_layout = rt ? &vulkan_globals.lightmap_compute_rt_set_layout : &vulkan_globals.lightmap_compute_set_layout;
+
+	for (int i = 0; i < lightmap_count; i++)
+	{
+		struct lightmap_s *lm = &lightmaps[i];
+		if (lm->descriptor_set)
+			R_FreeDescriptorSet (lm->descriptor_set, set_layout);
+		lm->descriptor_set = R_AllocateDescriptorSet (set_layout);
+		GL_SetObjectName ((uint64_t)lm->descriptor_set, VK_OBJECT_TYPE_DESCRIPTOR_SET, va ("lightmap%07i compute desc set", i));
+
+		ZEROED_STRUCT (VkDescriptorImageInfo, output_image_info);
+		output_image_info.imageView = lm->texture->target_image_view;
+		output_image_info.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+
+		ZEROED_STRUCT (VkDescriptorImageInfo, surface_indices_image_info);
+		surface_indices_image_info.imageView = lm->surface_indices_texture->image_view;
+		surface_indices_image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+		ZEROED_STRUCT_ARRAY (VkDescriptorImageInfo, lightmap_images_infos, MAXLIGHTMAPS * 3 / 4);
+		for (int j = 0; j < MAXLIGHTMAPS * 3 / 4; ++j)
+		{
+			lightmap_images_infos[j].imageView = lm->lightstyle_textures[j]->image_view;
+			lightmap_images_infos[j].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		}
+
+		ZEROED_STRUCT (VkDescriptorBufferInfo, surfaces_data_buffer_info);
+		surfaces_data_buffer_info.buffer = surface_data_buffer;
+		surfaces_data_buffer_info.offset = 0;
+		surfaces_data_buffer_info.range = num_surfaces * sizeof (lm_compute_surface_data_t);
+
+		ZEROED_STRUCT (VkDescriptorBufferInfo, workgroup_bounds_buffer_info);
+		workgroup_bounds_buffer_info.buffer = lm->workgroup_bounds_buffer;
+		workgroup_bounds_buffer_info.offset = 0;
+		workgroup_bounds_buffer_info.range = (LMBLOCK_WIDTH / 8) * (LMBLOCK_HEIGHT / 8) * sizeof (lm_compute_workgroup_bounds_t);
+
+		ZEROED_STRUCT (VkDescriptorBufferInfo, lightstyle_scales_buffer_info);
+		lightstyle_scales_buffer_info.buffer = lightstyles_scales_buffer;
+		lightstyle_scales_buffer_info.offset = 0;
+		lightstyle_scales_buffer_info.range = MAX_LIGHTSTYLES * sizeof (float);
+
+		ZEROED_STRUCT (VkDescriptorBufferInfo, lights_buffer_info);
+		lights_buffer_info.buffer = lights_buffer;
+		lights_buffer_info.offset = 0;
+		lights_buffer_info.range = MAX_DLIGHTS * sizeof (lm_compute_light_t);
+
+		ZEROED_STRUCT (VkDescriptorBufferInfo, world_vertex_buffer_info);
+		world_vertex_buffer_info.buffer = bmodel_vertex_buffer;
+		world_vertex_buffer_info.offset = 0;
+		world_vertex_buffer_info.range = VK_WHOLE_SIZE;
+
+		int num_writes = 0;
+		ZEROED_STRUCT_ARRAY (VkWriteDescriptorSet, writes, 9);
+		writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		writes[0].dstBinding = num_writes++;
+		writes[0].dstArrayElement = 0;
+		writes[0].descriptorCount = 1;
+		writes[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+		writes[0].dstSet = lm->descriptor_set;
+		writes[0].pImageInfo = &output_image_info;
+
+		writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		writes[1].dstBinding = num_writes++;
+		writes[1].dstArrayElement = 0;
+		writes[1].descriptorCount = 1;
+		writes[1].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+		writes[1].dstSet = lm->descriptor_set;
+		writes[1].pImageInfo = &surface_indices_image_info;
+
+		writes[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		writes[2].dstBinding = num_writes++;
+		writes[2].dstArrayElement = 0;
+		writes[2].descriptorCount = MAXLIGHTMAPS * 3 / 4;
+		writes[2].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+		writes[2].dstSet = lm->descriptor_set;
+		writes[2].pImageInfo = lightmap_images_infos;
+
+		writes[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		writes[3].dstBinding = num_writes++;
+		writes[3].dstArrayElement = 0;
+		writes[3].descriptorCount = 1;
+		writes[3].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+		writes[3].dstSet = lm->descriptor_set;
+		writes[3].pBufferInfo = &surfaces_data_buffer_info;
+
+		writes[4].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		writes[4].dstBinding = num_writes++;
+		writes[4].dstArrayElement = 0;
+		writes[4].descriptorCount = 1;
+		writes[4].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+		writes[4].dstSet = lm->descriptor_set;
+		writes[4].pBufferInfo = &workgroup_bounds_buffer_info;
+
+		writes[5].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		writes[5].dstBinding = num_writes++;
+		writes[5].dstArrayElement = 0;
+		writes[5].descriptorCount = 1;
+		writes[5].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+		writes[5].dstSet = lm->descriptor_set;
+		writes[5].pBufferInfo = &lightstyle_scales_buffer_info;
+
+		writes[6].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		writes[6].dstBinding = num_writes++;
+		writes[6].dstArrayElement = 0;
+		writes[6].descriptorCount = 1;
+		writes[6].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+		writes[6].dstSet = lm->descriptor_set;
+		writes[6].pBufferInfo = &lights_buffer_info;
+
+		writes[7].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		writes[7].dstBinding = num_writes++;
+		writes[7].dstArrayElement = 0;
+		writes[7].descriptorCount = 1;
+		writes[7].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+		writes[7].dstSet = lm->descriptor_set;
+		writes[7].pBufferInfo = &world_vertex_buffer_info;
+
+		ZEROED_STRUCT (VkWriteDescriptorSetAccelerationStructureKHR, acceleration_structure_write);
+		if (rt)
+		{
+			acceleration_structure_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR;
+			acceleration_structure_write.accelerationStructureCount = 1;
+			acceleration_structure_write.pAccelerationStructures = &bmodel_tlas;
+			writes[8].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+			writes[8].pNext = &acceleration_structure_write;
+			writes[8].dstBinding = num_writes++;
+			writes[8].dstArrayElement = 0;
+			writes[8].descriptorCount = 1;
+			writes[8].descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
+			writes[8].dstSet = lm->descriptor_set;
+		}
+
+		vkUpdateDescriptorSets (vulkan_globals.device, num_writes, writes, 0, NULL);
+	}
+}
+
+/*
+==================
 GL_SetupLightmapCompute
 ==================
 */
@@ -1771,133 +1930,22 @@ void GL_SetupLightmapCompute (void)
 	for (int i = 0; i < lightmap_count; i++)
 	{
 		struct lightmap_s *lm = &lightmaps[i];
-		lm->descriptor_set = R_AllocateDescriptorSet (&vulkan_globals.lightmap_compute_set_layout);
-		GL_SetObjectName ((uint64_t)lm->descriptor_set, VK_OBJECT_TYPE_DESCRIPTOR_SET, va ("lightmap%07i compute desc set", i));
 
-		{
-			VkCommandBuffer command_buffer;
-			VkBuffer		staging_buffer;
-			int				staging_offset;
-			byte		   *bounds_staging = R_StagingAllocate (WORKGROUP_BOUNDS_BUFFER_SIZE, 1, &command_buffer, &staging_buffer, &staging_offset);
+		VkCommandBuffer command_buffer;
+		VkBuffer		staging_buffer;
+		int				staging_offset;
+		byte		   *bounds_staging = R_StagingAllocate (WORKGROUP_BOUNDS_BUFFER_SIZE, 1, &command_buffer, &staging_buffer, &staging_offset);
 
-			VkBufferCopy region;
-			region.srcOffset = staging_offset;
-			region.dstOffset = 0;
-			region.size = WORKGROUP_BOUNDS_BUFFER_SIZE;
-			vkCmdCopyBuffer (command_buffer, staging_buffer, lm->workgroup_bounds_buffer, 1, &region);
+		VkBufferCopy region;
+		region.srcOffset = staging_offset;
+		region.dstOffset = 0;
+		region.size = WORKGROUP_BOUNDS_BUFFER_SIZE;
+		vkCmdCopyBuffer (command_buffer, staging_buffer, lm->workgroup_bounds_buffer, 1, &region);
 
-			R_StagingBeginCopy ();
-			memcpy (bounds_staging, lm->workgroup_bounds, WORKGROUP_BOUNDS_BUFFER_SIZE);
-			R_StagingEndCopy ();
-			SAFE_FREE (lm->workgroup_bounds);
-		}
-
-		ZEROED_STRUCT (VkDescriptorImageInfo, output_image_info);
-		output_image_info.imageView = lm->texture->target_image_view;
-		output_image_info.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-
-		ZEROED_STRUCT (VkDescriptorImageInfo, surface_indices_image_info);
-		surface_indices_image_info.imageView = lm->surface_indices_texture->image_view;
-		surface_indices_image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-
-		ZEROED_STRUCT_ARRAY (VkDescriptorImageInfo, lightmap_images_infos, MAXLIGHTMAPS * 3 / 4);
-		for (int j = 0; j < MAXLIGHTMAPS * 3 / 4; ++j)
-		{
-			lightmap_images_infos[j].imageView = lm->lightstyle_textures[j]->image_view;
-			lightmap_images_infos[j].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		}
-
-		ZEROED_STRUCT (VkDescriptorBufferInfo, surfaces_data_buffer_info);
-		surfaces_data_buffer_info.buffer = surface_data_buffer;
-		surfaces_data_buffer_info.offset = 0;
-		surfaces_data_buffer_info.range = num_surfaces * sizeof (lm_compute_surface_data_t);
-
-		ZEROED_STRUCT (VkDescriptorBufferInfo, workgroup_bounds_buffer_info);
-		workgroup_bounds_buffer_info.buffer = lm->workgroup_bounds_buffer;
-		workgroup_bounds_buffer_info.offset = 0;
-		workgroup_bounds_buffer_info.range = (LMBLOCK_WIDTH / 8) * (LMBLOCK_HEIGHT / 8) * sizeof (lm_compute_workgroup_bounds_t);
-
-		ZEROED_STRUCT (VkDescriptorBufferInfo, lightstyle_scales_buffer_info);
-		lightstyle_scales_buffer_info.buffer = lightstyles_scales_buffer;
-		lightstyle_scales_buffer_info.offset = 0;
-		lightstyle_scales_buffer_info.range = MAX_LIGHTSTYLES * sizeof (float);
-
-		ZEROED_STRUCT (VkDescriptorBufferInfo, lights_buffer_info);
-		lights_buffer_info.buffer = lights_buffer;
-		lights_buffer_info.offset = 0;
-		lights_buffer_info.range = MAX_DLIGHTS * sizeof (lm_compute_light_t);
-
-		ZEROED_STRUCT (VkDescriptorBufferInfo, world_vertex_buffer_info);
-		world_vertex_buffer_info.buffer = bmodel_vertex_buffer;
-		world_vertex_buffer_info.offset = 0;
-		world_vertex_buffer_info.range = VK_WHOLE_SIZE;
-
-		ZEROED_STRUCT_ARRAY (VkWriteDescriptorSet, writes, 8);
-		writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		writes[0].dstBinding = 0;
-		writes[0].dstArrayElement = 0;
-		writes[0].descriptorCount = 1;
-		writes[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-		writes[0].dstSet = lm->descriptor_set;
-		writes[0].pImageInfo = &output_image_info;
-
-		writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		writes[1].dstBinding = 1;
-		writes[1].dstArrayElement = 0;
-		writes[1].descriptorCount = 1;
-		writes[1].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-		writes[1].dstSet = lm->descriptor_set;
-		writes[1].pImageInfo = &surface_indices_image_info;
-
-		writes[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		writes[2].dstBinding = 2;
-		writes[2].dstArrayElement = 0;
-		writes[2].descriptorCount = MAXLIGHTMAPS * 3 / 4;
-		writes[2].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-		writes[2].dstSet = lm->descriptor_set;
-		writes[2].pImageInfo = lightmap_images_infos;
-
-		writes[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		writes[3].dstBinding = 3;
-		writes[3].dstArrayElement = 0;
-		writes[3].descriptorCount = 1;
-		writes[3].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-		writes[3].dstSet = lm->descriptor_set;
-		writes[3].pBufferInfo = &surfaces_data_buffer_info;
-
-		writes[4].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		writes[4].dstBinding = 4;
-		writes[4].dstArrayElement = 0;
-		writes[4].descriptorCount = 1;
-		writes[4].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-		writes[4].dstSet = lm->descriptor_set;
-		writes[4].pBufferInfo = &workgroup_bounds_buffer_info;
-
-		writes[5].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		writes[5].dstBinding = 5;
-		writes[5].dstArrayElement = 0;
-		writes[5].descriptorCount = 1;
-		writes[5].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
-		writes[5].dstSet = lm->descriptor_set;
-		writes[5].pBufferInfo = &lightstyle_scales_buffer_info;
-
-		writes[6].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		writes[6].dstBinding = 6;
-		writes[6].dstArrayElement = 0;
-		writes[6].descriptorCount = 1;
-		writes[6].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
-		writes[6].dstSet = lm->descriptor_set;
-		writes[6].pBufferInfo = &lights_buffer_info;
-
-		writes[7].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		writes[7].dstBinding = 7;
-		writes[7].dstArrayElement = 0;
-		writes[7].descriptorCount = 1;
-		writes[7].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-		writes[7].dstSet = lm->descriptor_set;
-		writes[7].pBufferInfo = &world_vertex_buffer_info;
-
-		vkUpdateDescriptorSets (vulkan_globals.device, countof (writes), writes, 0, NULL);
+		R_StagingBeginCopy ();
+		memcpy (bounds_staging, lm->workgroup_bounds, WORKGROUP_BOUNDS_BUFFER_SIZE);
+		R_StagingEndCopy ();
+		SAFE_FREE (lm->workgroup_bounds);
 	}
 
 	// johnfitz -- warn about exceeding old limits
@@ -1930,6 +1978,57 @@ void GL_DeleteBModelVertexBuffer (void)
 
 /*
 ==================
+GL_DeleteBModelAccelerationStructures
+==================
+*/
+void GL_DeleteBModelAccelerationStructures (void)
+{
+	if (bmodel_tlas == VK_NULL_HANDLE)
+		return;
+
+	GL_WaitForDeviceIdle ();
+	TEMP_ALLOC (VkBuffer, buffers, 3 + MAX_MODELS);
+	int num_buffers = 0;
+	buffers[num_buffers++] = bmodel_scratch_buffer;
+	buffers[num_buffers++] = bmodel_indices_buffer;
+	buffers[num_buffers++] = bmodel_tlas_buffer;
+	for (int i = 0; i < MAX_MODELS; ++i)
+	{
+		qmodel_t *m = cl.model_precache[i];
+		if (!m)
+			continue;
+		if (m->blas != VK_NULL_HANDLE)
+		{
+			vulkan_globals.vk_destroy_acceleration_structure (vulkan_globals.device, cl.model_precache[i]->blas, NULL);
+			buffers[num_buffers++] = m->blas_buffer;
+			m->blas = VK_NULL_HANDLE;
+			m->blas_buffer = VK_NULL_HANDLE;
+			m->blas_address = 0;
+		}
+		assert (m->blas_buffer == VK_NULL_HANDLE);
+		assert (m->blas_address == 0);
+	}
+	R_FreeBuffer (bmodel_instances_buffer, &bmodel_instances_memory, &num_vulkan_bmodel_allocations);
+	R_FreeBuffers (num_buffers, buffers, &bmodel_as_device_memory, &num_vulkan_bmodel_allocations);
+	bmodel_tlas = VK_NULL_HANDLE;
+	bmodel_tlas_buffer = VK_NULL_HANDLE;
+	bmodel_tlas_size = 0;
+	bmodel_indices_buffer = VK_NULL_HANDLE;
+	bmodel_indices_device_address = 0;
+	bmodel_scratch_buffer = VK_NULL_HANDLE;
+	bmodel_scratch_address = 0;
+	bmodel_instances_buffer = VK_NULL_HANDLE;
+	for (int i = 0; i < 2; ++i)
+	{
+		bmodel_instances_addresses[0] = 0;
+		bmodel_instances[0] = NULL;
+	}
+	bmodel_current_instance_buffer = 0;
+	TEMP_FREE (buffers);
+}
+
+/*
+==================
 GL_BuildBModelVertexBuffer
 
 Deletes gl_bmodel_vbo if it already exists, then rebuilds it with all
@@ -1938,7 +2037,7 @@ surfaces from world + all brush models
 */
 void GL_BuildBModelVertexBuffer (void)
 {
-	unsigned int numverts, varray_bytes;
+	unsigned int varray_bytes;
 	int			 i, j;
 	qmodel_t	*m;
 	float		*varray;
@@ -1946,7 +2045,7 @@ void GL_BuildBModelVertexBuffer (void)
 	int			 copy_offset;
 
 	// count all verts in all models
-	numverts = 0;
+	bmodel_numverts = 0;
 	for (j = 1; j < MAX_MODELS; j++)
 	{
 		m = cl.model_precache[j];
@@ -1955,12 +2054,12 @@ void GL_BuildBModelVertexBuffer (void)
 
 		for (i = 0; i < m->numsurfaces; i++)
 		{
-			numverts += m->surfaces[i].numedges;
+			bmodel_numverts += m->surfaces[i].numedges;
 		}
 	}
 
 	// build vertex array
-	varray_bytes = VERTEXSIZE * sizeof (float) * numverts;
+	varray_bytes = VERTEXSIZE * sizeof (float) * bmodel_numverts;
 	varray = (float *)Mem_Alloc (varray_bytes);
 
 	for (j = 1; j < MAX_MODELS; j++)
@@ -1976,11 +2075,14 @@ void GL_BuildBModelVertexBuffer (void)
 		}
 	}
 
+	VkImageUsageFlags usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+	if (vulkan_globals.ray_query)
+		usage |= VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
+
 	// Allocate & upload to GPU
 	R_CreateBuffer (
-		&bmodel_vertex_buffer, &bmodel_memory, varray_bytes,
-		VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0,
-		&num_vulkan_bmodel_allocations, "BModel vertices");
+		&bmodel_vertex_buffer, &bmodel_memory, varray_bytes, usage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, &num_vulkan_bmodel_allocations,
+		&bmodel_vertex_buffer_device_address, "BModel vertices");
 
 	remaining_size = varray_bytes;
 	copy_offset = 0;
@@ -2008,6 +2110,353 @@ void GL_BuildBModelVertexBuffer (void)
 	}
 
 	Mem_Free (varray);
+}
+
+/*
+==================
+GL_BuildBModelAccelerationStructures
+==================
+*/
+void GL_BuildBModelAccelerationStructures (void)
+{
+	VkResult err;
+
+	if (!vulkan_globals.ray_query || !r_rtshadows.value || (bmodel_tlas != VK_NULL_HANDLE))
+		return;
+
+	// count all tris in all models
+	uint32_t total_num_triangles = 0;
+	TEMP_ALLOC_ZEROED (uint32_t, blas_num_tris, MAX_MODELS);
+	TEMP_ALLOC_ZEROED (VkAccelerationStructureGeometryKHR, blas_geometries, MAX_MODELS);
+	TEMP_ALLOC_ZEROED (VkAccelerationStructureBuildGeometryInfoKHR, blas_geometry_infos, MAX_MODELS);
+	TEMP_ALLOC_ZEROED (VkAccelerationStructureBuildSizesInfoKHR, blas_sizes_infos, MAX_MODELS);
+	TEMP_ALLOC_ZEROED (qmodel_t *, blas_models, MAX_MODELS);
+	TEMP_ALLOC_ZEROED (buffer_create_info_t, buffer_create_infos, 3 + MAX_MODELS);
+
+	size_t scratch_buffer_size = 0;
+	int	   num_blas = 0;
+	for (int j = 1; j < MAX_MODELS; j++)
+	{
+		qmodel_t *m = cl.model_precache[j];
+		if (!m || m->type != mod_brush)
+			continue;
+		if (m->flags & MF_HOLEY)
+			continue;
+
+		for (int i = m->firstmodelsurface; i < m->firstmodelsurface + m->nummodelsurfaces; i++)
+		{
+			msurface_t *s = &m->surfaces[i];
+			if ((s->flags & ~SURF_PLANEBACK) != 0)
+				continue;
+			total_num_triangles += m->surfaces[i].numedges - 2;
+			blas_num_tris[num_blas] += m->surfaces[i].numedges - 2;
+		}
+
+		blas_models[num_blas] = m;
+
+		VkAccelerationStructureGeometryKHR *blas_geometry = &blas_geometries[num_blas];
+		blas_geometry->sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
+		blas_geometry->geometryType = VK_GEOMETRY_TYPE_TRIANGLES_KHR;
+		blas_geometry->geometry.triangles.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR;
+		blas_geometry->geometry.triangles.vertexFormat = VK_FORMAT_R32G32B32_SFLOAT;
+		blas_geometry->geometry.triangles.vertexStride = 28;
+		blas_geometry->geometry.triangles.maxVertex = bmodel_numverts;
+		blas_geometry->geometry.triangles.indexType = VK_INDEX_TYPE_UINT32;
+
+		VkAccelerationStructureBuildGeometryInfoKHR *blas_geometry_info = &blas_geometry_infos[num_blas];
+		blas_geometry_info->sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
+		blas_geometry_info->type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
+		blas_geometry_info->flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
+		blas_geometry_info->mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
+		blas_geometry_info->geometryCount = 1;
+		blas_geometry_info->pGeometries = blas_geometry;
+
+		VkAccelerationStructureBuildSizesInfoKHR *blas_build_sizes_info = &blas_sizes_infos[num_blas];
+		blas_build_sizes_info->sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
+		vulkan_globals.vk_get_acceleration_structure_build_sizes (
+			vulkan_globals.device, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, blas_geometry_info, &blas_num_tris[num_blas], blas_build_sizes_info);
+
+		scratch_buffer_size = q_max (scratch_buffer_size, blas_build_sizes_info->buildScratchSize);
+		++num_blas;
+	}
+
+	ZEROED_STRUCT (VkAccelerationStructureGeometryKHR, tlas_geometry);
+	ZEROED_STRUCT (VkAccelerationStructureBuildGeometryInfoKHR, tlas_geometry_info);
+	ZEROED_STRUCT (VkAccelerationStructureBuildSizesInfoKHR, tlas_build_sizes_info);
+	{
+		const uint32_t num_instances = MAX_MODELS;
+
+		tlas_geometry.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
+		tlas_geometry.geometryType = VK_GEOMETRY_TYPE_INSTANCES_KHR;
+		tlas_geometry.geometry.instances.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR;
+
+		tlas_geometry_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
+		tlas_geometry_info.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
+		tlas_geometry_info.flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
+		tlas_geometry_info.mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
+		tlas_geometry_info.geometryCount = 1;
+		tlas_geometry_info.pGeometries = &tlas_geometry;
+
+		tlas_build_sizes_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
+		vulkan_globals.vk_get_acceleration_structure_build_sizes (
+			vulkan_globals.device, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &tlas_geometry_info, &num_instances, &tlas_build_sizes_info);
+
+		scratch_buffer_size = q_max (scratch_buffer_size, tlas_build_sizes_info.buildScratchSize);
+		bmodel_tlas_size = tlas_build_sizes_info.accelerationStructureSize;
+	}
+
+	const size_t indices_size = total_num_triangles * 3 * sizeof (uint32_t);
+
+	buffer_create_infos[0].buffer = &bmodel_indices_buffer;
+	buffer_create_infos[0].size = indices_size;
+	buffer_create_infos[0].usage = VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+	buffer_create_infos[0].address = &bmodel_indices_device_address;
+	buffer_create_infos[0].name = "BModel indices";
+
+	buffer_create_infos[1].buffer = &bmodel_tlas_buffer;
+	buffer_create_infos[1].size = tlas_build_sizes_info.accelerationStructureSize;
+	buffer_create_infos[1].usage = VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR;
+	buffer_create_infos[1].name = "BModel TLAS";
+
+	buffer_create_infos[2].buffer = &bmodel_scratch_buffer;
+	buffer_create_infos[2].size = scratch_buffer_size;
+	buffer_create_infos[2].usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+	buffer_create_infos[2].address = &bmodel_scratch_address;
+	buffer_create_infos[2].alignment = vulkan_globals.physical_device_acceleration_structure_properties.minAccelerationStructureScratchOffsetAlignment;
+	buffer_create_infos[2].name = "BModel AS build scratch";
+
+	for (int i = 0; i < num_blas; ++i)
+	{
+		buffer_create_info_t *create_info = &buffer_create_infos[3 + i];
+		create_info->buffer = &blas_models[i]->blas_buffer;
+		create_info->size = blas_sizes_infos[i].accelerationStructureSize;
+		create_info->usage = VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR;
+		create_info->address = &blas_models[i]->blas_address;
+		create_info->name = "BModel BLAS";
+	}
+
+	const size_t total_as_device_size = R_CreateBuffers (
+		3 + num_blas, buffer_create_infos, &bmodel_as_device_memory, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, &num_vulkan_bmodel_allocations, "BModel AS");
+
+	Sys_Printf ("Allocating acceleration structure data (%u KB)\n", (int)(total_as_device_size / 1024ull));
+
+	R_CreateBuffer (
+		&bmodel_instances_buffer, &bmodel_instances_memory, sizeof (VkAccelerationStructureInstanceKHR) * MAX_MODELS * 2,
+		VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
+		&num_vulkan_bmodel_allocations, &bmodel_instances_addresses[0], "AS instances");
+	bmodel_instances_addresses[1] = bmodel_instances_addresses[0] + sizeof (VkAccelerationStructureInstanceKHR) * MAX_MODELS;
+
+	{
+		ZEROED_STRUCT (VkAccelerationStructureCreateInfoKHR, acceleration_structure_create_info);
+		acceleration_structure_create_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR;
+		acceleration_structure_create_info.buffer = bmodel_tlas_buffer;
+		acceleration_structure_create_info.size = bmodel_tlas_size;
+		acceleration_structure_create_info.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
+		err = vulkan_globals.vk_create_acceleration_structure (vulkan_globals.device, &acceleration_structure_create_info, NULL, &bmodel_tlas);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreateAccelerationStructure failed");
+	}
+
+	err = vkMapMemory (vulkan_globals.device, bmodel_instances_memory.handle, 0, VK_WHOLE_SIZE, 0, (void **)&bmodel_instances[0]);
+	if (err != VK_SUCCESS)
+		Sys_Error ("vkMapMemory failed");
+	bmodel_instances[1] = bmodel_instances[0] + MAX_MODELS;
+
+	VkBuffer		staging_buffer;
+	VkCommandBuffer command_buffer;
+	int				staging_offset;
+	unsigned char  *staging_memory = R_StagingAllocate (indices_size, 1, &command_buffer, &staging_buffer, &staging_offset);
+
+	{
+		ZEROED_STRUCT (VkBufferCopy, region);
+		region.srcOffset = staging_offset;
+		region.dstOffset = 0;
+		region.size = indices_size;
+		vkCmdCopyBuffer (command_buffer, staging_buffer, bmodel_indices_buffer, 1, &region);
+
+		ZEROED_STRUCT (VkMemoryBarrier, memory_barrier);
+		memory_barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+		memory_barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+		memory_barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+		vulkan_globals.vk_cmd_pipeline_barrier (
+			command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR, 0, 1, &memory_barrier, 0, NULL, 0, NULL);
+	}
+
+	size_t scratch_offset = 0;
+	size_t indices_offsets = 0;
+	for (int i = 0; i < num_blas; ++i)
+	{
+		scratch_offset =
+			q_align (scratch_offset, vulkan_globals.physical_device_acceleration_structure_properties.minAccelerationStructureScratchOffsetAlignment);
+
+		if ((scratch_offset + blas_sizes_infos[i].buildScratchSize) > scratch_buffer_size)
+		{
+			ZEROED_STRUCT (VkMemoryBarrier, memory_barrier);
+			memory_barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+			memory_barrier.srcAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR | VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR;
+			memory_barrier.dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR | VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR;
+			vulkan_globals.vk_cmd_pipeline_barrier (
+				command_buffer, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR, 0, 1,
+				&memory_barrier, 0, NULL, 0, NULL);
+			scratch_offset = 0;
+		}
+
+		ZEROED_STRUCT (VkAccelerationStructureCreateInfoKHR, acceleration_structure_create_info);
+		acceleration_structure_create_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR;
+		acceleration_structure_create_info.buffer = blas_models[i]->blas_buffer;
+		acceleration_structure_create_info.size = blas_sizes_infos[i].accelerationStructureSize;
+		acceleration_structure_create_info.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
+		err = vulkan_globals.vk_create_acceleration_structure (vulkan_globals.device, &acceleration_structure_create_info, NULL, &blas_models[i]->blas);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreateAccelerationStructure failed");
+
+		ZEROED_STRUCT (VkAccelerationStructureBuildRangeInfoKHR, build_range_info);
+		build_range_info.primitiveCount = blas_num_tris[i];
+		VkAccelerationStructureBuildGeometryInfoKHR *blas_geometry_info = &blas_geometry_infos[i];
+		blas_geometry_info->dstAccelerationStructure = blas_models[i]->blas;
+		blas_geometry_info->scratchData.deviceAddress = bmodel_scratch_address + scratch_offset;
+		VkAccelerationStructureGeometryKHR *blas_geometry = &blas_geometries[i];
+		blas_geometry->geometry.triangles.vertexData.deviceAddress = bmodel_vertex_buffer_device_address;
+		blas_geometry->geometry.triangles.indexData.deviceAddress = bmodel_indices_device_address + indices_offsets;
+		const VkAccelerationStructureBuildRangeInfoKHR *build_range_info_ptr = &build_range_info;
+		vulkan_globals.vk_cmd_build_acceleration_structures (command_buffer, 1, blas_geometry_info, &build_range_info_ptr);
+
+		scratch_offset += blas_sizes_infos[i].buildScratchSize;
+		indices_offsets += blas_num_tris[i] * 3 * sizeof (uint32_t);
+	}
+
+	{
+		ZEROED_STRUCT (VkMemoryBarrier, memory_barrier);
+		memory_barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+		memory_barrier.srcAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR;
+		memory_barrier.dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR;
+		vulkan_globals.vk_cmd_pipeline_barrier (
+			command_buffer, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR, 0, 1,
+			&memory_barrier, 0, NULL, 0, NULL);
+	}
+
+	TEMP_FREE (blas_num_tris);
+	TEMP_FREE (blas_geometries);
+	TEMP_FREE (blas_geometry_infos);
+	TEMP_FREE (blas_sizes_infos);
+	TEMP_FREE (blas_models);
+	TEMP_FREE (buffer_create_infos);
+
+	uint32_t *indices = (uint32_t *)staging_memory;
+	uint32_t  current_index = 0;
+	R_StagingBeginCopy ();
+
+	for (int j = 1; j < MAX_MODELS; j++)
+	{
+		qmodel_t *m = cl.model_precache[j];
+		if (!m || m->type != mod_brush)
+			continue;
+		if (m->flags & MF_HOLEY)
+			continue;
+		for (int i = m->firstmodelsurface; i < m->firstmodelsurface + m->nummodelsurfaces; i++)
+		{
+			msurface_t *s = &m->surfaces[i];
+			if ((s->flags & ~SURF_PLANEBACK) != 0)
+				continue;
+
+			for (int k = 2; k < s->numedges; ++k)
+			{
+				indices[current_index++] = s->vbo_firstvert;
+				indices[current_index++] = s->vbo_firstvert + k - 1;
+				indices[current_index++] = s->vbo_firstvert + k;
+			}
+		}
+	}
+	R_StagingEndCopy ();
+}
+
+/*
+=============
+R_BuildTopLevelAccelerationStructure
+=============
+*/
+static void R_BuildTopLevelAccelerationStructure (cb_context_t *cbx)
+{
+	if (bmodel_tlas == VK_NULL_HANDLE)
+		return;
+
+	int									num_instances = 0;
+	VkAccelerationStructureInstanceKHR *instances = bmodel_instances[bmodel_current_instance_buffer];
+	for (int i = 0; i < cl.num_entities; ++i)
+	{
+		entity_t *e = &cl.entities[i];
+		if (!e->model || (e->model->needload) || (e->model->type != mod_brush) || (e->model->blas == VK_NULL_HANDLE) ||
+			((e->alpha != ENTALPHA_DEFAULT) && (ENTALPHA_DECODE (e->alpha) < 1.0f)))
+			continue;
+
+		vec3_t e_angles;
+		VectorCopy (e->angles, e_angles);
+		e_angles[0] = -e_angles[0]; // stupid quake bug
+		float model_matrix[16];
+		IdentityMatrix (model_matrix);
+		if (e->model != cl.worldmodel)
+			R_RotateForEntity (model_matrix, e->origin, e_angles, e->netstate.scale);
+
+		VkAccelerationStructureInstanceKHR *instance = &instances[num_instances];
+		instance->transform.matrix[0][0] = model_matrix[0];
+		instance->transform.matrix[0][1] = model_matrix[4];
+		instance->transform.matrix[0][2] = model_matrix[8];
+		instance->transform.matrix[0][3] = model_matrix[12];
+		instance->transform.matrix[1][0] = model_matrix[1];
+		instance->transform.matrix[1][1] = model_matrix[5];
+		instance->transform.matrix[1][2] = model_matrix[9];
+		instance->transform.matrix[1][3] = model_matrix[13];
+		instance->transform.matrix[2][0] = model_matrix[2];
+		instance->transform.matrix[2][1] = model_matrix[6];
+		instance->transform.matrix[2][2] = model_matrix[10];
+		instance->transform.matrix[2][3] = model_matrix[14];
+		instance->instanceCustomIndex = 0;
+		instance->mask = 0xFF;
+		instance->instanceShaderBindingTableRecordOffset = 0;
+		instance->flags = VK_GEOMETRY_INSTANCE_FORCE_OPAQUE_BIT_KHR | VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR;
+		instance->accelerationStructureReference = e->model->blas_address;
+
+		++num_instances;
+		assert (num_instances < MAX_MODELS);
+		if (num_instances >= MAX_MODELS)
+			break;
+	}
+
+	ZEROED_STRUCT (VkMappedMemoryRange, range);
+	range.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+	range.memory = bmodel_instances_memory.handle;
+	range.size = VK_WHOLE_SIZE;
+	vkFlushMappedMemoryRanges (vulkan_globals.device, 1, &range);
+
+	ZEROED_STRUCT (VkAccelerationStructureGeometryKHR, tlas_geometry);
+	tlas_geometry.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
+	tlas_geometry.geometryType = VK_GEOMETRY_TYPE_INSTANCES_KHR;
+	tlas_geometry.geometry.instances.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR;
+	tlas_geometry.geometry.instances.data.deviceAddress = bmodel_instances_addresses[bmodel_current_instance_buffer];
+
+	ZEROED_STRUCT (VkAccelerationStructureBuildGeometryInfoKHR, tlas_geometry_info);
+	tlas_geometry_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
+	tlas_geometry_info.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
+	tlas_geometry_info.flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
+	tlas_geometry_info.mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
+	tlas_geometry_info.geometryCount = 1;
+	tlas_geometry_info.pGeometries = &tlas_geometry;
+	tlas_geometry_info.dstAccelerationStructure = bmodel_tlas;
+	tlas_geometry_info.scratchData.deviceAddress = bmodel_scratch_address;
+
+	ZEROED_STRUCT (VkAccelerationStructureBuildRangeInfoKHR, build_range_info);
+	build_range_info.primitiveCount = num_instances;
+	const VkAccelerationStructureBuildRangeInfoKHR *build_range_info_ptr = &build_range_info;
+	vulkan_globals.vk_cmd_build_acceleration_structures (cbx->cb, 1, &tlas_geometry_info, &build_range_info_ptr);
+
+	ZEROED_STRUCT (VkMemoryBarrier, memory_barrier);
+	memory_barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+	memory_barrier.srcAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR;
+	memory_barrier.dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR;
+	vulkan_globals.vk_cmd_pipeline_barrier (
+		cbx->cb, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 1, &memory_barrier, 0, NULL, 0, NULL);
+
+	bmodel_current_instance_buffer = (bmodel_current_instance_buffer + 1) % 2;
 }
 
 /*
@@ -2444,9 +2893,12 @@ void R_FlushUpdateLightmaps (
 	cb_context_t *cbx, int num_batch_lightmaps, VkImageMemoryBarrier *pre_barriers, VkImageMemoryBarrier *post_barriers, int *lightmap_indexes,
 	int num_used_dlights, byte lightmap_regions[UPDATE_LIGHTMAP_BATCH_SIZE][LMBLOCK_HEIGHT / LM_CULL_BLOCK_H][LMBLOCK_WIDTH / LM_CULL_BLOCK_W])
 {
+	vulkan_pipeline_t *pipeline =
+		(r_rtshadows.value && (bmodel_tlas != VK_NULL_HANDLE)) ? &vulkan_globals.update_lightmap_rt_pipeline : &vulkan_globals.update_lightmap_pipeline;
+
 	vkCmdPipelineBarrier (
 		cbx->cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, NULL, 0, NULL, num_batch_lightmaps, pre_barriers);
-	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_COMPUTE, vulkan_globals.update_lightmap_pipeline);
+	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_COMPUTE, *pipeline);
 	uint32_t push_constants[2] = {num_used_dlights, LMBLOCK_WIDTH};
 	uint32_t offsets[2] = {
 		current_compute_buffer_index * MAX_LIGHTSTYLES * sizeof (float), current_compute_buffer_index * MAX_DLIGHTS * sizeof (lm_compute_light_t)};
@@ -2454,7 +2906,7 @@ void R_FlushUpdateLightmaps (
 	for (int j = 0; j < num_batch_lightmaps; ++j)
 	{
 		VkDescriptorSet sets[1] = {lightmaps[lightmap_indexes[j]].descriptor_set};
-		vkCmdBindDescriptorSets (cbx->cb, VK_PIPELINE_BIND_POINT_COMPUTE, vulkan_globals.update_lightmap_pipeline.layout.handle, 0, 1, sets, 2, offsets);
+		vkCmdBindDescriptorSets (cbx->cb, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->layout.handle, 0, 1, sets, 2, offsets);
 		for (int y = 0; y < LMBLOCK_HEIGHT / LM_CULL_BLOCK_H; y++)
 			for (int x = 0; x < LMBLOCK_WIDTH / LM_CULL_BLOCK_W; x++)
 				if (lightmap_regions[j][y][x])
@@ -2553,6 +3005,7 @@ void R_UpdateLightmapsAndIndirect (void *unused)
 {
 	cb_context_t *cbx = &vulkan_globals.secondary_cb_contexts[CBX_UPDATE_LIGHTMAPS];
 	R_BeginDebugUtilsLabel (cbx, "Update Lightmaps");
+	R_BuildTopLevelAccelerationStructure (cbx);
 
 	for (int i = 0; i < MAX_LIGHTSTYLES; ++i)
 	{

@@ -85,6 +85,12 @@
     <CustomBuild Include="..\..\Shaders\world.vert">
       <Filter>Shaders</Filter>
     </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\update_lightmap_rt.comp">
+      <Filter>Shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\ray_debug.comp">
+      <Filter>Shaders</Filter>
+    </CustomBuild>
     <CustomBuild Include="..\..\Quake\vkquake.pak" />
   </ItemGroup>
   <ItemGroup>
@@ -94,6 +100,12 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\Shaders\screen_effects.inc">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\..\Shaders\update_lightmap.inc">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="..\..\Shaders\globals.inc">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>

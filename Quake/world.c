@@ -308,10 +308,9 @@ Based on code from Spike.
 */
 void SV_TouchLinks (edict_t *ent)
 {
-	edict_t **list;
-	edict_t	 *touch;
-	int		  old_self, old_other;
-	int		  i, listcount;
+	edict_t *touch;
+	int		 old_self, old_other;
+	int		 i, listcount;
 
 	TEMP_ALLOC (edict_t *, list, qcvm->num_edicts);
 

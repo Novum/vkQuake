@@ -57,24 +57,24 @@
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\screen_effects_10bit.comp">
       <FileType>Document</FileType>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(SolutionDir)..\..\Shaders\screen_effects.inc</AdditionalInputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(SolutionDir)..\..\Shaders\screen_effects.inc</AdditionalInputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\screen_effects.inc</AdditionalInputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\screen_effects.inc</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(SolutionDir)..\..\Shaders\screen_effects.inc;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(SolutionDir)..\..\Shaders\screen_effects.inc;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\screen_effects.inc;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\screen_effects.inc;%(AdditionalInputs)</AdditionalInputs>
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\screen_effects_10bit_scale.comp">
       <FileType>Document</FileType>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(SolutionDir)..\..\Shaders\screen_effects.inc</AdditionalInputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(SolutionDir)..\..\Shaders\screen_effects.inc</AdditionalInputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\screen_effects.inc</AdditionalInputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\screen_effects.inc</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(SolutionDir)..\..\Shaders\screen_effects.inc;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(SolutionDir)..\..\Shaders\screen_effects.inc;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\screen_effects.inc;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\screen_effects.inc;%(AdditionalInputs)</AdditionalInputs>
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\screen_effects_10bit_scale_sops.comp">
       <FileType>Document</FileType>
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(SolutionDir)..\..\Shaders\screen_effects.inc</AdditionalInputs>
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(SolutionDir)..\..\Shaders\screen_effects.inc</AdditionalInputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\screen_effects.inc</AdditionalInputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\screen_effects.inc</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\screen_effects.inc;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\screen_effects.inc;%(AdditionalInputs)</AdditionalInputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(VULKAN_SDK)\bin\glslangValidator.exe --target-env vulkan1.1 -g -V "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\%(Filename)%(Extension).spv"
 "$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\%(Filename)%(Extension).spv" %(Filename)%(Extension)_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\%(Filename)%(Extension).c"</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe --target-env vulkan1.1 -g -V "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\%(Filename)%(Extension).spv"
@@ -90,24 +90,24 @@ $(VULKAN_SDK)\bin\spirv-remap.exe -s -i "$(SolutionDir)..\..\Shaders\Compiled\Re
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\screen_effects_8bit.comp">
       <FileType>Document</FileType>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(SolutionDir)..\..\Shaders\screen_effects.inc</AdditionalInputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(SolutionDir)..\..\Shaders\screen_effects.inc</AdditionalInputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\screen_effects.inc</AdditionalInputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\screen_effects.inc</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(SolutionDir)..\..\Shaders\screen_effects.inc;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(SolutionDir)..\..\Shaders\screen_effects.inc;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\screen_effects.inc;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\screen_effects.inc;%(AdditionalInputs)</AdditionalInputs>
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\screen_effects_8bit_scale.comp">
       <FileType>Document</FileType>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(SolutionDir)..\..\Shaders\screen_effects.inc</AdditionalInputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(SolutionDir)..\..\Shaders\screen_effects.inc</AdditionalInputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\screen_effects.inc</AdditionalInputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\screen_effects.inc</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(SolutionDir)..\..\Shaders\screen_effects.inc;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(SolutionDir)..\..\Shaders\screen_effects.inc;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\screen_effects.inc;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\screen_effects.inc;%(AdditionalInputs)</AdditionalInputs>
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\screen_effects_8bit_scale_sops.comp">
       <FileType>Document</FileType>
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(SolutionDir)..\..\Shaders\screen_effects.inc</AdditionalInputs>
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(SolutionDir)..\..\Shaders\screen_effects.inc</AdditionalInputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\screen_effects.inc</AdditionalInputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\screen_effects.inc</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\screen_effects.inc;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\screen_effects.inc;%(AdditionalInputs)</AdditionalInputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(VULKAN_SDK)\bin\glslangValidator.exe --target-env vulkan1.1 -g -V "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\%(Filename)%(Extension).spv"
 "$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\%(Filename)%(Extension).spv" %(Filename)%(Extension)_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\%(Filename)%(Extension).c"</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe --target-env vulkan1.1 -g -V "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\%(Filename)%(Extension).spv"
@@ -148,6 +148,26 @@ $(VULKAN_SDK)\bin\spirv-remap.exe -s -i "$(SolutionDir)..\..\Shaders\Compiled\Re
     <CustomBuild Include="..\..\Shaders\world.vert">
       <FileType>Document</FileType>
     </CustomBuild>
+    <None Include="..\..\Shaders\screen_effects.inc" />
+    <None Include="..\..\Shaders\update_lightmap.inc" />
+    <None Include="..\..\Shaders\globals.inc" />
+    <CustomBuild Include="..\..\Shaders\update_lightmap.comp">
+      <FileType>Document</FileType>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(SolutionDir)..\..\Shaders\update_lightmap.inc;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(SolutionDir)..\..\Shaders\update_lightmap.inc;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\update_lightmap.inc;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\update_lightmap.inc;%(AdditionalInputs)</AdditionalInputs>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\update_lightmap_rt.comp">
+      <FileType>Document</FileType>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(SolutionDir)..\..\Shaders\update_lightmap.inc;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(SolutionDir)..\..\Shaders\update_lightmap.inc;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\update_lightmap.inc;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\update_lightmap.inc;%(AdditionalInputs)</AdditionalInputs>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\ray_debug.comp">
+      <FileType>Document</FileType>
+    </CustomBuild>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="..\..\Quake\vkquake.pak">
@@ -161,10 +181,7 @@ $(VULKAN_SDK)\bin\spirv-remap.exe -s -i "$(SolutionDir)..\..\Shaders\Compiled\Re
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Quake\vkquake.pak" vkquake_pak "$(SolutionDir)..\..\Quake\embedded_pak.c"</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Quake\vkquake.pak" vkquake_pak "$(SolutionDir)..\..\Quake\embedded_pak.c"</Command>
     </CustomBuild>
-    <None Include="..\..\Shaders\screen_effects.inc" />
-    <CustomBuild Include="..\..\Shaders\update_lightmap.comp">
-      <FileType>Document</FileType>
-    </CustomBuild>
+
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
@@ -258,6 +275,7 @@ $(VULKAN_SDK)\bin\spirv-remap.exe -s -i "$(SolutionDir)..\..\Shaders\Compiled\Re
       <Message>Compiling Shader</Message>
       <BuildInParallel>true</BuildInParallel>
       <LinkObjects>false</LinkObjects>
+      <AdditionalInputs>$(SolutionDir)..\..\Shaders\globals.inc</AdditionalInputs>
     </CustomBuild>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -285,6 +303,7 @@ $(VULKAN_SDK)\bin\spirv-remap.exe -s -i "$(SolutionDir)..\..\Shaders\Compiled\Re
       <Message>Compiling Shader</Message>
       <BuildInParallel>true</BuildInParallel>
       <LinkObjects>false</LinkObjects>
+      <AdditionalInputs>$(SolutionDir)..\..\Shaders\globals.inc</AdditionalInputs>
     </CustomBuild>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -306,6 +325,7 @@ $(VULKAN_SDK)\bin\spirv-remap.exe -s -i "$(SolutionDir)..\..\Shaders\Compiled\Re
       <Message>Compiling Shader</Message>
       <BuildInParallel>true</BuildInParallel>
       <LinkObjects>false</LinkObjects>
+      <AdditionalInputs>$(SolutionDir)..\..\Shaders\globals.inc</AdditionalInputs>
     </CustomBuild>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -333,6 +353,7 @@ $(VULKAN_SDK)\bin\spirv-remap.exe -s -i "$(SolutionDir)..\..\Shaders\Compiled\Re
       <Message>Compiling Shader</Message>
       <BuildInParallel>true</BuildInParallel>
       <LinkObjects>false</LinkObjects>
+      <AdditionalInputs>$(SolutionDir)..\..\Shaders\globals.inc</AdditionalInputs>
     </CustomBuild>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

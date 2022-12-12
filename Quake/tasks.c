@@ -44,7 +44,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define MAX_PENDING_TASKS	 (1u << NUM_INDEX_BITS)
 #define MAX_EXECUTABLE_TASKS 256
 #define MAX_DEPENDENT_TASKS	 16
-#define MAX_PAYLOAD_SIZE	 32
+#define MAX_PAYLOAD_SIZE	 128
 #define WORKER_HUNK_SIZE	 (1 * 1024 * 1024)
 #define WAIT_SPIN_COUNT		 100
 

@@ -85,27 +85,33 @@ static void GL_DestroyRenderResources (void);
 viddef_t		vid; // global video state
 modestate_t		modestate = MS_UNINIT;
 extern qboolean scr_initialized;
-extern cvar_t	r_particles, host_maxfps, r_gpulightmapupdate, r_showtris, r_showbboxes;
+extern cvar_t	r_particles, host_maxfps, r_gpulightmapupdate, r_showtris, r_showbboxes, r_rtshadows;
+
+extern VkAccelerationStructureKHR bmodel_tlas;
 
 //====================================
 
 // johnfitz -- new cvars
-static cvar_t					vid_fullscreen = {"vid_fullscreen", "0", CVAR_ARCHIVE}; // QuakeSpasm, was "1"
-static cvar_t					vid_width = {"vid_width", "1280", CVAR_ARCHIVE};		// QuakeSpasm, was 640
-static cvar_t					vid_height = {"vid_height", "720", CVAR_ARCHIVE};		// QuakeSpasm, was 480
-static cvar_t					vid_refreshrate = {"vid_refreshrate", "60", CVAR_ARCHIVE};
-static cvar_t					vid_vsync = {"vid_vsync", "0", CVAR_ARCHIVE};
-static cvar_t					vid_desktopfullscreen = {"vid_desktopfullscreen", "0", CVAR_ARCHIVE}; // QuakeSpasm
-static cvar_t					vid_borderless = {"vid_borderless", "0", CVAR_ARCHIVE};				  // QuakeSpasm
-cvar_t							vid_palettize = {"vid_palettize", "0", CVAR_ARCHIVE};
-cvar_t							vid_filter = {"vid_filter", "0", CVAR_ARCHIVE};
-cvar_t							vid_anisotropic = {"vid_anisotropic", "0", CVAR_ARCHIVE};
-cvar_t							vid_fsaa = {"vid_fsaa", "0", CVAR_ARCHIVE};
-cvar_t							vid_fsaamode = {"vid_fsaamode", "0", CVAR_ARCHIVE};
-cvar_t							vid_gamma = {"gamma", "0.9", CVAR_ARCHIVE};		  // johnfitz -- moved here from view.c
-cvar_t							vid_contrast = {"contrast", "1.4", CVAR_ARCHIVE}; // QuakeSpasm, MarkV
-cvar_t							r_usesops = {"r_usesops", "1", CVAR_ARCHIVE};	  // johnfitz
-																				  // Vulkan
+static cvar_t vid_fullscreen = {"vid_fullscreen", "0", CVAR_ARCHIVE}; // QuakeSpasm, was "1"
+static cvar_t vid_width = {"vid_width", "1280", CVAR_ARCHIVE};		  // QuakeSpasm, was 640
+static cvar_t vid_height = {"vid_height", "720", CVAR_ARCHIVE};		  // QuakeSpasm, was 480
+static cvar_t vid_refreshrate = {"vid_refreshrate", "60", CVAR_ARCHIVE};
+static cvar_t vid_vsync = {"vid_vsync", "0", CVAR_ARCHIVE};
+static cvar_t vid_desktopfullscreen = {"vid_desktopfullscreen", "0", CVAR_ARCHIVE}; // QuakeSpasm
+static cvar_t vid_borderless = {"vid_borderless", "0", CVAR_ARCHIVE};				// QuakeSpasm
+cvar_t		  vid_palettize = {"vid_palettize", "0", CVAR_ARCHIVE};
+cvar_t		  vid_filter = {"vid_filter", "0", CVAR_ARCHIVE};
+cvar_t		  vid_anisotropic = {"vid_anisotropic", "0", CVAR_ARCHIVE};
+cvar_t		  vid_fsaa = {"vid_fsaa", "0", CVAR_ARCHIVE};
+cvar_t		  vid_fsaamode = {"vid_fsaamode", "0", CVAR_ARCHIVE};
+cvar_t		  vid_gamma = {"gamma", "0.9", CVAR_ARCHIVE};		// johnfitz -- moved here from view.c
+cvar_t		  vid_contrast = {"contrast", "1.4", CVAR_ARCHIVE}; // QuakeSpasm, MarkV
+cvar_t		  r_usesops = {"r_usesops", "1", CVAR_ARCHIVE};		// johnfitz
+#if defined(_DEBUG)
+static cvar_t r_raydebug = {"r_raydebug", "0", 0};
+#endif
+extern cvar_t r_rtshadows;
+
 static VkInstance				vulkan_instance;
 static VkPhysicalDevice			vulkan_physical_device;
 static VkPhysicalDeviceFeatures vulkan_physical_device_features;
@@ -731,7 +737,6 @@ static void GL_InitInstance (void)
 	Mem_Free ((void *)instance_extensions);
 }
 
-#if defined(VK_KHR_driver_properties)
 enum
 {
 	DRIVER_ID_AMD_PROPRIETARY = 1,
@@ -802,7 +807,6 @@ static const char *GetDeviceVendorFromDriverProperties (VkPhysicalDeviceDriverPr
 		return NULL;
 	}
 }
-#endif
 
 /*
 ===============
@@ -842,9 +846,7 @@ static void GL_InitDevice (void)
 	int		 arg_index;
 	int		 device_index = 0;
 
-#if defined(VK_EXT_subgroup_size_control)
 	qboolean subgroup_size_control = false;
-#endif
 
 	uint32_t physical_device_count;
 	err = vkEnumeratePhysicalDevices (vulkan_instance, &physical_device_count, NULL);
@@ -882,13 +884,12 @@ static void GL_InitDevice (void)
 	vulkan_globals.full_screen_exclusive = false;
 	vulkan_globals.swap_chain_full_screen_acquired = false;
 	vulkan_globals.screen_effects_sops = false;
+	vulkan_globals.ray_query = false;
 
 	vkGetPhysicalDeviceMemoryProperties (vulkan_physical_device, &vulkan_globals.memory_properties);
 	vkGetPhysicalDeviceProperties (vulkan_physical_device, &vulkan_globals.device_properties);
 
-#if defined(VK_KHR_driver_properties)
 	qboolean driver_properties_available = false;
-#endif
 	uint32_t device_extension_count;
 	err = vkEnumerateDeviceExtensionProperties (vulkan_physical_device, NULL, &device_extension_count, NULL);
 
@@ -903,25 +904,22 @@ static void GL_InitDevice (void)
 				found_swapchain_extension = true;
 			if (strcmp (VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME, device_extensions[i].extensionName) == 0)
 				vulkan_globals.dedicated_allocation = true;
-#if defined(VK_KHR_driver_properties)
 			if (vulkan_globals.get_physical_device_properties_2 && strcmp (VK_KHR_DRIVER_PROPERTIES_EXTENSION_NAME, device_extensions[i].extensionName) == 0)
 				driver_properties_available = true;
-#endif
-#if defined(VK_EXT_subgroup_size_control)
 			if (strcmp (VK_EXT_SUBGROUP_SIZE_CONTROL_EXTENSION_NAME, device_extensions[i].extensionName) == 0)
 				subgroup_size_control = true;
-#endif
 #if defined(VK_EXT_full_screen_exclusive)
 			if (strcmp (VK_EXT_FULL_SCREEN_EXCLUSIVE_EXTENSION_NAME, device_extensions[i].extensionName) == 0)
 				vulkan_globals.full_screen_exclusive = true;
 #endif
+			if (strcmp (VK_KHR_RAY_QUERY_EXTENSION_NAME, device_extensions[i].extensionName) == 0)
+				vulkan_globals.ray_query = true;
 		}
 
 		Mem_Free (device_extensions);
 	}
 
 	const char *vendor = NULL;
-#if defined(VK_KHR_driver_properties)
 	ZEROED_STRUCT (VkPhysicalDeviceDriverProperties, driver_properties);
 	if (driver_properties_available)
 	{
@@ -934,7 +932,6 @@ static void GL_InitDevice (void)
 
 		vendor = GetDeviceVendorFromDriverProperties (&driver_properties);
 	}
-#endif
 
 	if (!vendor)
 		vendor = GetDeviceVendorFromDeviceProperties ();
@@ -946,10 +943,8 @@ static void GL_InitDevice (void)
 
 	Con_Printf ("Device: %s\n", vulkan_globals.device_properties.deviceName);
 
-#if defined(VK_KHR_driver_properties)
 	if (driver_properties_available)
 		Con_Printf ("Driver: %s %s\n", driver_properties.driverName, driver_properties.driverInfo);
-#endif
 
 	if (!found_swapchain_extension)
 		Sys_Error ("Couldn't find %s extension", VK_KHR_SWAPCHAIN_EXTENSION_NAME);
@@ -994,13 +989,16 @@ static void GL_InitDevice (void)
 	queue_create_info.queueCount = 1;
 	queue_create_info.pQueuePriorities = queue_priorities;
 
-#if defined(VK_EXT_subgroup_size_control)
 	ZEROED_STRUCT (VkPhysicalDeviceSubgroupProperties, physical_device_subgroup_properties);
 	ZEROED_STRUCT (VkPhysicalDeviceSubgroupSizeControlPropertiesEXT, physical_device_subgroup_size_control_properties);
 	ZEROED_STRUCT (VkPhysicalDeviceSubgroupSizeControlFeaturesEXT, subgroup_size_control_features);
-	if (vulkan_globals.vulkan_1_1_available && subgroup_size_control)
+	ZEROED_STRUCT (VkPhysicalDeviceBufferDeviceAddressFeaturesKHR, buffer_device_address_features);
+	ZEROED_STRUCT (VkPhysicalDeviceAccelerationStructureFeaturesKHR, acceleration_structure_features);
+	ZEROED_STRUCT (VkPhysicalDeviceRayQueryFeaturesKHR, ray_query_features);
+	memset (&vulkan_globals.physical_device_acceleration_structure_properties, 0, sizeof (vulkan_globals.physical_device_acceleration_structure_properties));
+	if (vulkan_globals.vulkan_1_1_available)
 	{
-		ZEROED_STRUCT (VkPhysicalDeviceProperties2, physical_device_properties_2);
+		ZEROED_STRUCT (VkPhysicalDeviceProperties2KHR, physical_device_properties_2);
 		physical_device_properties_2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
 		void **device_properties_next = &physical_device_properties_2.pNext;
 
@@ -1010,6 +1008,11 @@ static void GL_InitDevice (void)
 			CHAIN_PNEXT (device_properties_next, physical_device_subgroup_size_control_properties);
 			physical_device_subgroup_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_PROPERTIES;
 			CHAIN_PNEXT (device_properties_next, physical_device_subgroup_properties);
+		}
+		if (vulkan_globals.ray_query)
+		{
+			vulkan_globals.physical_device_acceleration_structure_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR;
+			CHAIN_PNEXT (device_properties_next, vulkan_globals.physical_device_acceleration_structure_properties);
 		}
 
 		fpGetPhysicalDeviceProperties2 (vulkan_physical_device, &physical_device_properties_2);
@@ -1023,20 +1026,26 @@ static void GL_InitDevice (void)
 			subgroup_size_control_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_FEATURES_EXT;
 			CHAIN_PNEXT (device_features_next, subgroup_size_control_features);
 		}
+		if (vulkan_globals.ray_query)
+		{
+			buffer_device_address_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES_KHR;
+			CHAIN_PNEXT (device_features_next, buffer_device_address_features);
+			acceleration_structure_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
+			CHAIN_PNEXT (device_features_next, acceleration_structure_features);
+			ray_query_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR;
+			CHAIN_PNEXT (device_features_next, ray_query_features);
+		}
 
 		fpGetPhysicalDeviceFeatures2 (vulkan_physical_device, &physical_device_features_2);
-
 		vulkan_physical_device_features = physical_device_features_2.features;
 	}
 	else
-#endif
 		vkGetPhysicalDeviceFeatures (vulkan_physical_device, &vulkan_physical_device_features);
 
 #ifdef __APPLE__ // MoltenVK lies about this
 	vulkan_physical_device_features.sampleRateShading = false;
 #endif
 
-#if defined(VK_EXT_subgroup_size_control)
 	vulkan_globals.screen_effects_sops =
 		vulkan_globals.vulkan_1_1_available && subgroup_size_control && subgroup_size_control_features.subgroupSizeControl &&
 		subgroup_size_control_features.computeFullSubgroups && ((physical_device_subgroup_properties.supportedStages & VK_SHADER_STAGE_COMPUTE_BIT) != 0) &&
@@ -1044,28 +1053,38 @@ static void GL_InitDevice (void)
 		// Shader only supports subgroup sizes from 4 to 64. 128 can't be supported because Vulkan spec states that workgroup size
 		// in x dimension must be a multiple of the subgroup size for VK_PIPELINE_SHADER_STAGE_CREATE_REQUIRE_FULL_SUBGROUPS_BIT_EXT.
 		&& (physical_device_subgroup_size_control_properties.minSubgroupSize >= 4) && (physical_device_subgroup_size_control_properties.maxSubgroupSize <= 64);
-
 	if (vulkan_globals.screen_effects_sops)
 		Con_Printf ("Using subgroup operations\n");
-#endif
 
-	const char *device_extensions[6] = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+	vulkan_globals.ray_query = vulkan_globals.ray_query && acceleration_structure_features.accelerationStructure && ray_query_features.rayQuery &&
+							   buffer_device_address_features.bufferDeviceAddress;
+	if (vulkan_globals.ray_query)
+		Con_Printf ("Using ray queries\n");
+
+	const char *device_extensions[32] = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 	uint32_t	numEnabledExtensions = 1;
 	if (vulkan_globals.dedicated_allocation)
 	{
 		device_extensions[numEnabledExtensions++] = VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME;
 		device_extensions[numEnabledExtensions++] = VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME;
 	}
-#if defined(VK_EXT_subgroup_size_control)
 	if (vulkan_globals.screen_effects_sops)
 		device_extensions[numEnabledExtensions++] = VK_EXT_SUBGROUP_SIZE_CONTROL_EXTENSION_NAME;
-#endif
 #if defined(VK_EXT_full_screen_exclusive)
 	if (vulkan_globals.full_screen_exclusive)
-	{
 		device_extensions[numEnabledExtensions++] = VK_EXT_FULL_SCREEN_EXCLUSIVE_EXTENSION_NAME;
-	}
 #endif
+	if (vulkan_globals.ray_query)
+	{
+		device_extensions[numEnabledExtensions++] = VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME;
+		device_extensions[numEnabledExtensions++] = VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME;
+		device_extensions[numEnabledExtensions++] = VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME;
+		device_extensions[numEnabledExtensions++] = VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME;
+		device_extensions[numEnabledExtensions++] = VK_KHR_SHADER_FLOAT_CONTROLS_EXTENSION_NAME;
+		device_extensions[numEnabledExtensions++] = VK_KHR_SPIRV_1_4_EXTENSION_NAME;
+		device_extensions[numEnabledExtensions++] = VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME;
+		device_extensions[numEnabledExtensions++] = VK_KHR_RAY_QUERY_EXTENSION_NAME;
+	}
 
 	const VkBool32 extended_format_support = vulkan_physical_device_features.shaderStorageImageExtendedFormats;
 	const VkBool32 sampler_anisotropic = vulkan_physical_device_features.samplerAnisotropy;
@@ -1082,11 +1101,15 @@ static void GL_InitDevice (void)
 
 	ZEROED_STRUCT (VkDeviceCreateInfo, device_create_info);
 	device_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-#if defined(VK_EXT_subgroup_size_control)
 	void **device_create_info_next = (void **)&device_create_info.pNext;
 	if (vulkan_globals.screen_effects_sops)
 		CHAIN_PNEXT (device_create_info_next, subgroup_size_control_features);
-#endif
+	if (vulkan_globals.ray_query)
+	{
+		CHAIN_PNEXT (device_create_info_next, buffer_device_address_features);
+		CHAIN_PNEXT (device_create_info_next, acceleration_structure_features);
+		CHAIN_PNEXT (device_create_info_next, ray_query_features);
+	}
 	device_create_info.queueCreateInfoCount = 1;
 	device_create_info.pQueueCreateInfos = &queue_create_info;
 	device_create_info.enabledExtensionCount = numEnabledExtensions;
@@ -1114,6 +1137,14 @@ static void GL_InitDevice (void)
 		GET_DEVICE_PROC_ADDR (ReleaseFullScreenExclusiveModeEXT);
 	}
 #endif
+	if (vulkan_globals.ray_query)
+	{
+		GET_GLOBAL_DEVICE_PROC_ADDR (vk_get_buffer_device_address, vkGetBufferDeviceAddressKHR);
+		GET_GLOBAL_DEVICE_PROC_ADDR (vk_get_acceleration_structure_build_sizes, vkGetAccelerationStructureBuildSizesKHR);
+		GET_GLOBAL_DEVICE_PROC_ADDR (vk_create_acceleration_structure, vkCreateAccelerationStructureKHR);
+		GET_GLOBAL_DEVICE_PROC_ADDR (vk_destroy_acceleration_structure, vkDestroyAccelerationStructureKHR);
+		GET_GLOBAL_DEVICE_PROC_ADDR (vk_cmd_build_acceleration_structures, vkCmdBuildAccelerationStructuresKHR);
+	}
 #ifdef _DEBUG
 	if (vulkan_globals.debug_utils)
 	{
@@ -1726,9 +1757,12 @@ static void GL_CreateColorBuffer (void)
 GL_UpdateDescriptorSets
 ===============
 */
-static void GL_UpdateDescriptorSets (void)
+void GL_UpdateDescriptorSets (void)
 {
-	assert (postprocess_descriptor_set == VK_NULL_HANDLE);
+	GL_WaitForDeviceIdle ();
+
+	if (postprocess_descriptor_set != VK_NULL_HANDLE)
+		R_FreeDescriptorSet (postprocess_descriptor_set, &vulkan_globals.input_attachment_set_layout);
 	postprocess_descriptor_set = R_AllocateDescriptorSet (&vulkan_globals.input_attachment_set_layout);
 
 	ZEROED_STRUCT (VkDescriptorImageInfo, image_info);
@@ -1745,7 +1779,8 @@ static void GL_UpdateDescriptorSets (void)
 	input_attachment_write.pImageInfo = &image_info;
 	vkUpdateDescriptorSets (vulkan_globals.device, 1, &input_attachment_write, 0, NULL);
 
-	assert (vulkan_globals.screen_effects_desc_set == VK_NULL_HANDLE);
+	if (vulkan_globals.screen_effects_desc_set != VK_NULL_HANDLE)
+		R_FreeDescriptorSet (vulkan_globals.screen_effects_desc_set, &vulkan_globals.input_attachment_set_layout);
 	vulkan_globals.screen_effects_desc_set = R_AllocateDescriptorSet (&vulkan_globals.screen_effects_set_layout);
 
 	ZEROED_STRUCT (VkDescriptorImageInfo, input_image_info);
@@ -1809,6 +1844,39 @@ static void GL_UpdateDescriptorSets (void)
 	screen_effects_writes[4].pBufferInfo = &palette_octree_info;
 
 	vkUpdateDescriptorSets (vulkan_globals.device, countof (screen_effects_writes), screen_effects_writes, 0, NULL);
+
+#if defined(_DEBUG)
+	if (vulkan_globals.ray_query)
+	{
+		if (vulkan_globals.ray_debug_desc_set != VK_NULL_HANDLE)
+			R_FreeDescriptorSet (vulkan_globals.ray_debug_desc_set, &vulkan_globals.ray_debug_set_layout);
+		vulkan_globals.ray_debug_desc_set = R_AllocateDescriptorSet (&vulkan_globals.ray_debug_set_layout);
+
+		ZEROED_STRUCT_ARRAY (VkWriteDescriptorSet, ray_debug_writes, 2);
+
+		ray_debug_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		ray_debug_writes[0].dstBinding = 0;
+		ray_debug_writes[0].dstArrayElement = 0;
+		ray_debug_writes[0].descriptorCount = 1;
+		ray_debug_writes[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+		ray_debug_writes[0].dstSet = vulkan_globals.ray_debug_desc_set;
+		ray_debug_writes[0].pImageInfo = &output_image_info;
+
+		ZEROED_STRUCT (VkWriteDescriptorSetAccelerationStructureKHR, acceleration_structure_write);
+		acceleration_structure_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR;
+		acceleration_structure_write.accelerationStructureCount = 1;
+		acceleration_structure_write.pAccelerationStructures = &bmodel_tlas;
+		ray_debug_writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		ray_debug_writes[1].pNext = &acceleration_structure_write;
+		ray_debug_writes[1].dstBinding = 1;
+		ray_debug_writes[1].dstArrayElement = 0;
+		ray_debug_writes[1].descriptorCount = 1;
+		ray_debug_writes[1].descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
+		ray_debug_writes[1].dstSet = vulkan_globals.ray_debug_desc_set;
+
+		vkUpdateDescriptorSets (vulkan_globals.device, countof (ray_debug_writes), ray_debug_writes, 0, NULL);
+	}
+#endif
 }
 
 /*
@@ -2458,6 +2526,25 @@ typedef struct screen_effect_constants_s
 	float	 poly_blend_a;
 } screen_effect_constants_t;
 
+typedef struct ray_debug_constants_s
+{
+	float screen_size_rcp_x;
+	float screen_size_rcp_y;
+	float aspect_ratio;
+	float origin_x;
+	float origin_y;
+	float origin_z;
+	float forward_x;
+	float forward_y;
+	float forward_z;
+	float right_x;
+	float right_y;
+	float right_z;
+	float down_x;
+	float down_y;
+	float down_z;
+} ray_debug_constants_t;
+
 typedef struct end_rendering_parms_s
 {
 	uint32_t vid_width	   : 20;
@@ -2465,10 +2552,15 @@ typedef struct end_rendering_parms_s
 	qboolean render_warp   : 1;
 	qboolean vid_palettize : 1;
 	qboolean menu		   : 1;
+	qboolean ray_debug	   : 1;
 	uint32_t render_scale  : 4;
 	uint32_t vid_height	   : 20;
 	float	 time;
 	uint8_t	 v_blend[4];
+	vec3_t	 origin;
+	vec3_t	 forward;
+	vec3_t	 right;
+	vec3_t	 down;
 } end_rendering_parms_t;
 
 #define SCREEN_EFFECT_FLAG_SCALE_MASK 0x3
@@ -2527,7 +2619,14 @@ static void GL_ScreenEffects (cb_context_t *cbx, qboolean enabled, end_rendering
 		GL_SetCanvas (cbx, CANVAS_NONE); // Invalidate canvas so push constants get set later
 
 		vulkan_pipeline_t *pipeline = NULL;
-		if (parms->render_scale >= 2)
+#if defined(_DEBUG)
+		if (parms->ray_debug)
+		{
+			pipeline = &vulkan_globals.ray_debug_pipeline;
+		}
+		else
+#endif
+			if (parms->render_scale >= 2)
 		{
 			if (vulkan_globals.screen_effects_sops && r_usesops.value)
 				pipeline = &vulkan_globals.screen_effects_scale_sops_pipeline;
@@ -2538,34 +2637,67 @@ static void GL_ScreenEffects (cb_context_t *cbx, qboolean enabled, end_rendering
 			pipeline = &vulkan_globals.screen_effects_pipeline;
 
 		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_COMPUTE, *pipeline);
-		vkCmdBindDescriptorSets (cbx->cb, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->layout.handle, 0, 1, &vulkan_globals.screen_effects_desc_set, 0, NULL);
 
-		uint32_t screen_effect_flags = 0;
-		if (parms->render_warp)
-			screen_effect_flags |= SCREEN_EFFECT_FLAG_WATER_WARP;
-		if (parms->render_scale >= 8)
-			screen_effect_flags |= SCREEN_EFFECT_FLAG_SCALE_8X;
-		else if (parms->render_scale >= 4)
-			screen_effect_flags |= SCREEN_EFFECT_FLAG_SCALE_4X;
-		else if (parms->render_scale >= 2)
-			screen_effect_flags |= SCREEN_EFFECT_FLAG_SCALE_2X;
-		if (parms->vid_palettize)
-			screen_effect_flags |= SCREEN_EFFECT_FLAG_PALETTIZE;
-		if (parms->menu)
-			screen_effect_flags |= SCREEN_EFFECT_FLAG_MENU;
-		const screen_effect_constants_t push_constants = {
-			parms->vid_width - 1,
-			parms->vid_height - 1,
-			1.0f / (float)parms->vid_width,
-			1.0f / (float)parms->vid_height,
-			(float)parms->vid_width / (float)parms->vid_height,
-			parms->time,
-			screen_effect_flags,
-			(float)parms->v_blend[0] / 255.0f,
-			(float)parms->v_blend[1] / 255.0f,
-			(float)parms->v_blend[2] / 255.0f,
-			(float)parms->v_blend[3] / 255.0f};
-		R_PushConstants (cbx, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof (screen_effect_constants_t), &push_constants);
+#if defined(_DEBUG)
+		if (!parms->ray_debug || !bmodel_tlas)
+#endif
+		{
+			vkCmdBindDescriptorSets (cbx->cb, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->layout.handle, 0, 1, &vulkan_globals.screen_effects_desc_set, 0, NULL);
+
+			uint32_t screen_effect_flags = 0;
+			if (parms->render_warp)
+				screen_effect_flags |= SCREEN_EFFECT_FLAG_WATER_WARP;
+			if (parms->render_scale >= 8)
+				screen_effect_flags |= SCREEN_EFFECT_FLAG_SCALE_8X;
+			else if (parms->render_scale >= 4)
+				screen_effect_flags |= SCREEN_EFFECT_FLAG_SCALE_4X;
+			else if (parms->render_scale >= 2)
+				screen_effect_flags |= SCREEN_EFFECT_FLAG_SCALE_2X;
+			if (parms->vid_palettize)
+				screen_effect_flags |= SCREEN_EFFECT_FLAG_PALETTIZE;
+			if (parms->menu)
+				screen_effect_flags |= SCREEN_EFFECT_FLAG_MENU;
+
+			const screen_effect_constants_t push_constants = {
+				parms->vid_width - 1,
+				parms->vid_height - 1,
+				1.0f / (float)parms->vid_width,
+				1.0f / (float)parms->vid_height,
+				(float)parms->vid_width / (float)parms->vid_height,
+				parms->time,
+				screen_effect_flags,
+				(float)parms->v_blend[0] / 255.0f,
+				(float)parms->v_blend[1] / 255.0f,
+				(float)parms->v_blend[2] / 255.0f,
+				(float)parms->v_blend[3] / 255.0f,
+			};
+			R_PushConstants (cbx, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof (push_constants), &push_constants);
+		}
+#if defined(_DEBUG)
+		else
+		{
+			vkCmdBindDescriptorSets (cbx->cb, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->layout.handle, 0, 1, &vulkan_globals.ray_debug_desc_set, 0, NULL);
+
+			const ray_debug_constants_t push_constants = {
+				1.0f / (float)parms->vid_width,
+				1.0f / (float)parms->vid_height,
+				(float)parms->vid_width / (float)parms->vid_height,
+				parms->origin[0],
+				parms->origin[1],
+				parms->origin[2],
+				parms->forward[0],
+				parms->forward[1],
+				parms->forward[2],
+				parms->right[0],
+				parms->right[1],
+				parms->right[2],
+				parms->down[0],
+				parms->down[1],
+				parms->down[2],
+			};
+			R_PushConstants (cbx, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof (push_constants), &push_constants);
+		}
+#endif
 
 		vkCmdDispatch (cbx->cb, (parms->vid_width + 7) / 8, (parms->vid_height + 7) / 8, 1);
 
@@ -2659,8 +2791,8 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 
 	vkCmdExecuteCommands (primary_cb, 1, &vulkan_globals.secondary_cb_contexts[CBX_UPDATE_LIGHTMAPS].cb);
 
-	const qboolean screen_effects =
-		parms->render_warp || (parms->render_scale >= 2) || parms->vid_palettize || (gl_polyblend.value && parms->v_blend[3]) || parms->menu;
+	const qboolean screen_effects = parms->render_warp || (parms->render_scale >= 2) || parms->vid_palettize || (gl_polyblend.value && parms->v_blend[3]) ||
+									parms->menu || parms->ray_debug;
 	{
 		const qboolean resolve = (vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT);
 		ZEROED_STRUCT (VkRenderPassBeginInfo, render_pass_begin_info);
@@ -2760,6 +2892,9 @@ task_handle_t GL_EndRendering (qboolean use_tasks, qboolean swapchain)
 		.render_warp = render_warp,
 		.vid_palettize = vid_palettize.value != 0,
 		.menu = key_dest == key_menu,
+#if defined(_DEBUG)
+		.ray_debug = r_raydebug.value && (bmodel_tlas != VK_NULL_HANDLE),
+#endif
 		.render_scale = CLAMP (0, render_scale, 8),
 		.vid_width = vid.width,
 		.vid_height = vid.height,
@@ -2768,6 +2903,30 @@ task_handle_t GL_EndRendering (qboolean use_tasks, qboolean swapchain)
 		.v_blend[1] = v_blend[1],
 		.v_blend[2] = v_blend[2],
 		.v_blend[3] = v_blend[3],
+		.origin =
+			{
+				r_refdef.vieworg[0],
+				r_refdef.vieworg[1],
+				r_refdef.vieworg[2],
+			},
+		.forward =
+			{
+				-vulkan_globals.view_matrix[2],
+				-vulkan_globals.view_matrix[6],
+				-vulkan_globals.view_matrix[10],
+			},
+		.right =
+			{
+				vulkan_globals.view_matrix[0],
+				vulkan_globals.view_matrix[4],
+				vulkan_globals.view_matrix[8],
+			},
+		.down =
+			{
+				-vulkan_globals.view_matrix[1],
+				-vulkan_globals.view_matrix[5],
+				-vulkan_globals.view_matrix[9],
+			},
 	};
 	task_handle_t end_rendering_task = INVALID_TASK_HANDLE;
 	if (use_tasks)
@@ -2918,8 +3077,8 @@ static void R_CreatePaletteOctreeBuffers (uint32_t *colors, int num_colors, pale
 	const int nodes_size = num_nodes * sizeof (palette_octree_node_t);
 
 	buffer_create_info_t buffer_create_infos[2] = {
-		{&palette_colors_buffer, colors_size, 0, VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, NULL, "Palette colors"},
-		{&palette_octree_buffer, nodes_size, 0, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, NULL, "Palette octree"},
+		{&palette_colors_buffer, colors_size, 0, VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, NULL, NULL, "Palette colors"},
+		{&palette_octree_buffer, nodes_size, 0, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, NULL, NULL, "Palette octree"},
 	};
 
 	vulkan_memory_t memory;
@@ -2998,6 +3157,9 @@ void VID_Init (void)
 	Cvar_RegisterVariable (&vid_desktopfullscreen); // QuakeSpasm
 	Cvar_RegisterVariable (&vid_borderless);		// QuakeSpasm
 	Cvar_RegisterVariable (&vid_palettize);
+#if defined(_DEBUG)
+	Cvar_RegisterVariable (&r_raydebug);
+#endif
 	Cvar_SetCallback (&vid_fullscreen, VID_Changed_f);
 	Cvar_SetCallback (&vid_width, VID_Changed_f);
 	Cvar_SetCallback (&vid_height, VID_Changed_f);
@@ -3265,6 +3427,7 @@ typedef struct
 	int r_waterwarp;
 	int r_particles;
 	int r_scale;
+	int r_rtshadows;
 	int vid_filter;
 	int vid_anisotropic;
 	int vid_palettize;
@@ -3295,6 +3458,7 @@ void VID_SyncCvars (void)
 	menu_settings.host_maxfps = CLAMP (0, host_maxfps.value, 1000);
 	menu_settings.r_waterwarp = CLAMP (0, (int)r_waterwarp.value, 2);
 	menu_settings.r_particles = CLAMP (0, (int)r_particles.value, 2);
+	menu_settings.r_rtshadows = CLAMP (0, (int)r_rtshadows.value, 1);
 	menu_settings.r_scale = CLAMP (1, (int)r_scale.value, 8);
 	menu_settings.vid_filter = CLAMP (0, (int)vid_filter.value, 1);
 	menu_settings.vid_anisotropic = CLAMP (0, (int)vid_anisotropic.value, 1);
@@ -3324,6 +3488,7 @@ enum
 	VID_OPT_ANISOTROPY,
 	VID_OPT_UNDERWATER,
 	VID_OPT_PARTICLES,
+	VID_OPT_SHADOWS,
 	VID_OPT_TEST,
 	VID_OPT_APPLY,
 	VIDEO_OPTIONS_ITEMS
@@ -3609,6 +3774,16 @@ static void VID_Menu_ChooseNextParticles (int dir)
 
 /*
 ================
+VID_Menu_ChooseNextShadows
+================
+*/
+static void VID_Menu_ChooseNextShadows (int dir)
+{
+	menu_settings.r_rtshadows = (menu_settings.r_rtshadows + 2 + dir) % 2;
+}
+
+/*
+================
 VID_Menu_ChooseNextRate
 
 chooses next refresh rate in order, then updates vid_refreshrate cvar
@@ -3683,6 +3858,8 @@ static void VID_MenuKey (int key)
 	case K_UPARROW:
 		S_LocalSound ("misc/menu1.wav");
 		video_options_cursor--;
+		if (!vulkan_globals.ray_query && (video_options_cursor == VID_OPT_SHADOWS))
+			video_options_cursor--;
 		if (video_options_cursor < 0)
 			video_options_cursor = VIDEO_OPTIONS_ITEMS - 1;
 		break;
@@ -3690,6 +3867,8 @@ static void VID_MenuKey (int key)
 	case K_DOWNARROW:
 		S_LocalSound ("misc/menu1.wav");
 		video_options_cursor++;
+		if (!vulkan_globals.ray_query && (video_options_cursor == VID_OPT_SHADOWS))
+			video_options_cursor++;
 		if (video_options_cursor >= VIDEO_OPTIONS_ITEMS)
 			video_options_cursor = 0;
 		break;
@@ -3736,6 +3915,9 @@ static void VID_MenuKey (int key)
 			break;
 		case VID_OPT_PARTICLES:
 			VID_Menu_ChooseNextParticles (-1);
+			break;
+		case VID_OPT_SHADOWS:
+			VID_Menu_ChooseNextShadows (-1);
 			break;
 		default:
 			break;
@@ -3784,6 +3966,9 @@ static void VID_MenuKey (int key)
 			break;
 		case VID_OPT_PARTICLES:
 			VID_Menu_ChooseNextParticles (1);
+			break;
+		case VID_OPT_SHADOWS:
+			VID_Menu_ChooseNextShadows (1);
 			break;
 		default:
 			break;
@@ -3836,12 +4021,16 @@ static void VID_MenuKey (int key)
 		case VID_OPT_PARTICLES:
 			VID_Menu_ChooseNextParticles (1);
 			break;
+		case VID_OPT_SHADOWS:
+			VID_Menu_ChooseNextShadows (1);
+			break;
 		case VID_OPT_TEST:
 			Cbuf_AddText ("vid_test\n");
 			break;
 		case VID_OPT_APPLY:
 			Cvar_SetValueQuick (&host_maxfps, menu_settings.host_maxfps);
 			Cvar_SetValueQuick (&r_particles, menu_settings.r_particles);
+			Cvar_SetValueQuick (&r_rtshadows, menu_settings.r_rtshadows);
 			Cvar_SetValueQuick (&r_waterwarp, menu_settings.r_waterwarp);
 			Cvar_SetValueQuick (&r_scale, menu_settings.r_scale);
 			Cvar_SetValueQuick (&vid_filter, menu_settings.vid_filter);
@@ -3894,6 +4083,9 @@ static void VID_MenuDraw (cb_context_t *cbx)
 	// options
 	for (i = 0; i < VIDEO_OPTIONS_ITEMS; i++)
 	{
+		if (!vulkan_globals.ray_query && (i == VID_OPT_SHADOWS))
+			continue;
+
 		switch (i)
 		{
 		case VID_OPT_MODE:
@@ -3950,6 +4142,10 @@ static void VID_MenuDraw (cb_context_t *cbx)
 		case VID_OPT_PARTICLES:
 			M_Print (cbx, 16, y, "         Particles");
 			M_Print (cbx, 184, y, (menu_settings.r_particles == 0) ? "off" : ((menu_settings.r_particles == 2) ? "Classic" : "glQuake"));
+			break;
+		case VID_OPT_SHADOWS:
+			M_Print (cbx, 16, y, "          Shadows");
+			M_Print (cbx, 184, y, (vulkan_globals.ray_query && menu_settings.r_rtshadows) ? "on" : "off");
 			break;
 		case VID_OPT_TEST:
 			y += 8; // separate the test and apply items
@@ -4070,7 +4266,7 @@ void SCR_ScreenShot_f (void)
 	vulkan_memory_t memory;
 	R_CreateBuffer (
 		&buffer, &memory, glwidth * glheight * 4, VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
-		NULL, "Screenshot");
+		NULL, NULL, "Screenshot");
 
 	VkCommandBuffer command_buffer;
 

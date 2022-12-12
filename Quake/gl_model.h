@@ -531,6 +531,10 @@ typedef struct qmodel_s
 	//
 	byte *extradata; // only access through Mod_Extradata
 
+	// Ray tracing
+	VkAccelerationStructureKHR blas;
+	VkBuffer				   blas_buffer;
+	VkDeviceAddress			   blas_address;
 } qmodel_t;
 
 //============================================================================

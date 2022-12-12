@@ -27,8 +27,10 @@ shaders = [
     'Shaders/sky_layer.frag',
     'Shaders/sky_layer.vert',
     'Shaders/update_lightmap.comp',
+    'Shaders/update_lightmap_rt.comp',
     'Shaders/world.frag',
     'Shaders/world.vert',
+    'Shaders/ray_debug.comp',
 ]
 
 glslang = find_program('glslangValidator')

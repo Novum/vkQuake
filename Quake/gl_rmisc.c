@@ -51,6 +51,7 @@ extern cvar_t r_nolerp_list;
 extern cvar_t gl_zfix; // QuakeSpasm z-fighting fix
 
 extern cvar_t r_gpulightmapupdate;
+extern cvar_t r_rtshadows;
 extern cvar_t r_indirect;
 extern cvar_t r_tasks;
 extern cvar_t r_parallelmark;
@@ -75,6 +76,7 @@ atomic_uint32_t num_vulkan_storage_buffers;
 atomic_uint32_t num_vulkan_input_attachments;
 atomic_uint32_t num_vulkan_storage_images;
 atomic_uint32_t num_vulkan_sampled_images;
+atomic_uint32_t num_acceleration_structures;
 atomic_uint64_t total_device_vulkan_allocation_size;
 atomic_uint64_t total_host_vulkan_allocation_size;
 
@@ -363,6 +365,20 @@ static void R_SetSlimealpha_f (cvar_t *var)
 	if (cls.signon == SIGNONS && cl.worldmodel && !(cl.worldmodel->contentstransparent & SURF_DRAWSLIME) && var->value && var->value < 1)
 		Con_Warning ("Map does not appear to be slime-vised\n");
 	map_slimealpha = var->value;
+}
+
+/*
+====================
+R_SetRTShadows_f
+====================
+*/
+static void R_SetRTShadows_f (cvar_t *var)
+{
+	if (var->value)
+		GL_BuildBModelAccelerationStructures ();
+	else
+		GL_DeleteBModelAccelerationStructures ();
+	GL_UpdateLightmapDescriptorSets ();
 }
 
 /*
@@ -1285,7 +1301,7 @@ void R_CreateDescriptorSetLayouts ()
 		screen_effects_layout_bindings[4].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 		screen_effects_layout_bindings[4].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
-		descriptor_set_layout_create_info.bindingCount = 5;
+		descriptor_set_layout_create_info.bindingCount = countof (screen_effects_layout_bindings);
 		descriptor_set_layout_create_info.pBindings = screen_effects_layout_bindings;
 
 		memset (&vulkan_globals.screen_effects_set_layout, 0, sizeof (vulkan_globals.screen_effects_set_layout));
@@ -1319,41 +1335,42 @@ void R_CreateDescriptorSetLayouts ()
 	}
 
 	{
-		ZEROED_STRUCT_ARRAY (VkDescriptorSetLayoutBinding, lightmap_compute_layout_bindings, 8);
-		lightmap_compute_layout_bindings[0].binding = 0;
+		int num_descriptors = 0;
+		ZEROED_STRUCT_ARRAY (VkDescriptorSetLayoutBinding, lightmap_compute_layout_bindings, 9);
+		lightmap_compute_layout_bindings[0].binding = num_descriptors++;
 		lightmap_compute_layout_bindings[0].descriptorCount = 1;
 		lightmap_compute_layout_bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
 		lightmap_compute_layout_bindings[0].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-		lightmap_compute_layout_bindings[1].binding = 1;
+		lightmap_compute_layout_bindings[1].binding = num_descriptors++;
 		lightmap_compute_layout_bindings[1].descriptorCount = 1;
 		lightmap_compute_layout_bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
 		lightmap_compute_layout_bindings[1].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-		lightmap_compute_layout_bindings[2].binding = 2;
+		lightmap_compute_layout_bindings[2].binding = num_descriptors++;
 		lightmap_compute_layout_bindings[2].descriptorCount = MAXLIGHTMAPS * 3 / 4;
 		lightmap_compute_layout_bindings[2].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
 		lightmap_compute_layout_bindings[2].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-		lightmap_compute_layout_bindings[3].binding = 3;
+		lightmap_compute_layout_bindings[3].binding = num_descriptors++;
 		lightmap_compute_layout_bindings[3].descriptorCount = 1;
 		lightmap_compute_layout_bindings[3].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 		lightmap_compute_layout_bindings[3].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-		lightmap_compute_layout_bindings[4].binding = 4;
+		lightmap_compute_layout_bindings[4].binding = num_descriptors++;
 		lightmap_compute_layout_bindings[4].descriptorCount = 1;
 		lightmap_compute_layout_bindings[4].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 		lightmap_compute_layout_bindings[4].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-		lightmap_compute_layout_bindings[5].binding = 5;
+		lightmap_compute_layout_bindings[5].binding = num_descriptors++;
 		lightmap_compute_layout_bindings[5].descriptorCount = 1;
 		lightmap_compute_layout_bindings[5].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
 		lightmap_compute_layout_bindings[5].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-		lightmap_compute_layout_bindings[6].binding = 6;
+		lightmap_compute_layout_bindings[6].binding = num_descriptors++;
 		lightmap_compute_layout_bindings[6].descriptorCount = 1;
 		lightmap_compute_layout_bindings[6].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
 		lightmap_compute_layout_bindings[6].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-		lightmap_compute_layout_bindings[7].binding = 7;
+		lightmap_compute_layout_bindings[7].binding = num_descriptors++;
 		lightmap_compute_layout_bindings[7].descriptorCount = 1;
 		lightmap_compute_layout_bindings[7].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 		lightmap_compute_layout_bindings[7].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
-		descriptor_set_layout_create_info.bindingCount = countof (lightmap_compute_layout_bindings);
+		descriptor_set_layout_create_info.bindingCount = num_descriptors;
 		descriptor_set_layout_create_info.pBindings = lightmap_compute_layout_bindings;
 
 		memset (&vulkan_globals.lightmap_compute_set_layout, 0, sizeof (vulkan_globals.lightmap_compute_set_layout));
@@ -1366,6 +1383,27 @@ void R_CreateDescriptorSetLayouts ()
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkCreateDescriptorSetLayout failed");
 		GL_SetObjectName ((uint64_t)vulkan_globals.lightmap_compute_set_layout.handle, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT, "lightmap compute");
+
+		if (vulkan_globals.ray_query)
+		{
+			lightmap_compute_layout_bindings[8].binding = num_descriptors++;
+			lightmap_compute_layout_bindings[8].descriptorCount = 1;
+			lightmap_compute_layout_bindings[8].descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
+			lightmap_compute_layout_bindings[8].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+			descriptor_set_layout_create_info.bindingCount = num_descriptors;
+
+			vulkan_globals.lightmap_compute_rt_set_layout.num_storage_images = 1;
+			vulkan_globals.lightmap_compute_rt_set_layout.num_sampled_images = 1 + MAXLIGHTMAPS * 3 / 4;
+			vulkan_globals.lightmap_compute_rt_set_layout.num_storage_buffers = 3;
+			vulkan_globals.lightmap_compute_rt_set_layout.num_ubos_dynamic = 2;
+			vulkan_globals.lightmap_compute_rt_set_layout.num_acceleration_structures = 1;
+
+			err = vkCreateDescriptorSetLayout (
+				vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.lightmap_compute_rt_set_layout.handle);
+			if (err != VK_SUCCESS)
+				Sys_Error ("vkCreateDescriptorSetLayout failed");
+			GL_SetObjectName ((uint64_t)vulkan_globals.lightmap_compute_rt_set_layout.handle, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT, "lightmap compute rt");
+		}
 	}
 
 	{
@@ -1398,6 +1436,32 @@ void R_CreateDescriptorSetLayouts ()
 			Sys_Error ("vkCreateDescriptorSetLayout failed");
 		GL_SetObjectName ((uint64_t)vulkan_globals.indirect_compute_set_layout.handle, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT, "indirect compute");
 	}
+
+#if defined(_DEBUG)
+	if (vulkan_globals.ray_query)
+	{
+		ZEROED_STRUCT_ARRAY (VkDescriptorSetLayoutBinding, ray_debug_layout_bindings, 2);
+		ray_debug_layout_bindings[0].binding = 0;
+		ray_debug_layout_bindings[0].descriptorCount = 1;
+		ray_debug_layout_bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+		ray_debug_layout_bindings[0].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+		ray_debug_layout_bindings[1].binding = 1;
+		ray_debug_layout_bindings[1].descriptorCount = 1;
+		ray_debug_layout_bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
+		ray_debug_layout_bindings[1].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
+		descriptor_set_layout_create_info.bindingCount = countof (ray_debug_layout_bindings);
+		descriptor_set_layout_create_info.pBindings = ray_debug_layout_bindings;
+
+		memset (&vulkan_globals.ray_debug_set_layout, 0, sizeof (vulkan_globals.ray_debug_set_layout));
+		vulkan_globals.ray_debug_set_layout.num_storage_images = 1;
+
+		err = vkCreateDescriptorSetLayout (vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.ray_debug_set_layout.handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreateDescriptorSetLayout failed");
+		GL_SetObjectName ((uint64_t)vulkan_globals.screen_effects_set_layout.handle, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT, "ray debug");
+	}
+#endif
 }
 
 /*
@@ -1407,7 +1471,7 @@ R_CreateDescriptorPool
 */
 void R_CreateDescriptorPool ()
 {
-	VkDescriptorPoolSize pool_sizes[8];
+	ZEROED_STRUCT_ARRAY (VkDescriptorPoolSize, pool_sizes, 9);
 	pool_sizes[0].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	pool_sizes[0].descriptorCount = 32 + (MAX_SANITY_LIGHTMAPS * 2) + (MAX_GLTEXTURES + 1);
 	pool_sizes[1].type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
@@ -1424,11 +1488,18 @@ void R_CreateDescriptorPool ()
 	pool_sizes[6].descriptorCount = 32;
 	pool_sizes[7].type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
 	pool_sizes[7].descriptorCount = 32;
+	int num_sizes = 8;
+	if (vulkan_globals.ray_query)
+	{
+		pool_sizes[8].type = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
+		pool_sizes[8].descriptorCount = 32 + MAX_SANITY_LIGHTMAPS;
+		num_sizes = 9;
+	}
 
 	ZEROED_STRUCT (VkDescriptorPoolCreateInfo, descriptor_pool_create_info);
 	descriptor_pool_create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-	descriptor_pool_create_info.maxSets = MAX_GLTEXTURES + MAX_SANITY_LIGHTMAPS + 32;
-	descriptor_pool_create_info.poolSizeCount = countof (pool_sizes);
+	descriptor_pool_create_info.maxSets = MAX_GLTEXTURES + MAX_SANITY_LIGHTMAPS + 128;
+	descriptor_pool_create_info.poolSizeCount = num_sizes;
 	descriptor_pool_create_info.pPoolSizes = pool_sizes;
 	descriptor_pool_create_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
 
@@ -1446,200 +1517,315 @@ void R_CreatePipelineLayouts ()
 
 	VkResult err;
 
-	// Basic
-	VkDescriptorSetLayout basic_descriptor_set_layouts[1] = {vulkan_globals.single_texture_set_layout.handle};
+	{
+		// Basic
+		VkDescriptorSetLayout basic_descriptor_set_layouts[1] = {vulkan_globals.single_texture_set_layout.handle};
 
-	ZEROED_STRUCT (VkPushConstantRange, push_constant_range);
-	push_constant_range.offset = 0;
-	push_constant_range.size = 24 * sizeof (float);
-	push_constant_range.stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS;
+		ZEROED_STRUCT (VkPushConstantRange, push_constant_range);
+		push_constant_range.offset = 0;
+		push_constant_range.size = 24 * sizeof (float);
+		push_constant_range.stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS;
 
-	ZEROED_STRUCT (VkPipelineLayoutCreateInfo, pipeline_layout_create_info);
-	pipeline_layout_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	pipeline_layout_create_info.setLayoutCount = 1;
-	pipeline_layout_create_info.pSetLayouts = basic_descriptor_set_layouts;
-	pipeline_layout_create_info.pushConstantRangeCount = 1;
-	pipeline_layout_create_info.pPushConstantRanges = &push_constant_range;
+		ZEROED_STRUCT (VkPipelineLayoutCreateInfo, pipeline_layout_create_info);
+		pipeline_layout_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+		pipeline_layout_create_info.setLayoutCount = 1;
+		pipeline_layout_create_info.pSetLayouts = basic_descriptor_set_layouts;
+		pipeline_layout_create_info.pushConstantRangeCount = 1;
+		pipeline_layout_create_info.pPushConstantRanges = &push_constant_range;
 
-	err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.basic_pipeline_layout.handle);
-	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreatePipelineLayout failed");
-	GL_SetObjectName ((uint64_t)vulkan_globals.basic_pipeline_layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "basic_pipeline_layout");
-	vulkan_globals.basic_pipeline_layout.push_constant_range = push_constant_range;
+		err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.basic_pipeline_layout.handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreatePipelineLayout failed");
+		GL_SetObjectName ((uint64_t)vulkan_globals.basic_pipeline_layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "basic_pipeline_layout");
+		vulkan_globals.basic_pipeline_layout.push_constant_range = push_constant_range;
+	}
 
-	// World
-	VkDescriptorSetLayout world_descriptor_set_layouts[3] = {
-		vulkan_globals.single_texture_set_layout.handle, vulkan_globals.single_texture_set_layout.handle, vulkan_globals.single_texture_set_layout.handle};
+	{
+		// World
+		VkDescriptorSetLayout world_descriptor_set_layouts[3] = {
+			vulkan_globals.single_texture_set_layout.handle, vulkan_globals.single_texture_set_layout.handle, vulkan_globals.single_texture_set_layout.handle};
 
-	pipeline_layout_create_info.setLayoutCount = 3;
-	pipeline_layout_create_info.pSetLayouts = world_descriptor_set_layouts;
+		ZEROED_STRUCT (VkPushConstantRange, push_constant_range);
+		push_constant_range.offset = 0;
+		push_constant_range.size = 24 * sizeof (float);
+		push_constant_range.stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS;
 
-	err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.world_pipeline_layout.handle);
-	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreatePipelineLayout failed");
-	GL_SetObjectName ((uint64_t)vulkan_globals.world_pipeline_layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "world_pipeline_layout");
-	vulkan_globals.world_pipeline_layout.push_constant_range = push_constant_range;
+		ZEROED_STRUCT (VkPipelineLayoutCreateInfo, pipeline_layout_create_info);
+		pipeline_layout_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+		pipeline_layout_create_info.setLayoutCount = 3;
+		pipeline_layout_create_info.pSetLayouts = world_descriptor_set_layouts;
+		pipeline_layout_create_info.pushConstantRangeCount = 1;
+		pipeline_layout_create_info.pPushConstantRanges = &push_constant_range;
 
-	// Alias
-	VkDescriptorSetLayout alias_descriptor_set_layouts[3] = {
-		vulkan_globals.single_texture_set_layout.handle, vulkan_globals.single_texture_set_layout.handle, vulkan_globals.ubo_set_layout.handle};
+		err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.world_pipeline_layout.handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreatePipelineLayout failed");
+		GL_SetObjectName ((uint64_t)vulkan_globals.world_pipeline_layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "world_pipeline_layout");
+		vulkan_globals.world_pipeline_layout.push_constant_range = push_constant_range;
+	}
 
-	pipeline_layout_create_info.setLayoutCount = 3;
-	pipeline_layout_create_info.pSetLayouts = alias_descriptor_set_layouts;
+	{
+		// Alias
+		VkDescriptorSetLayout alias_descriptor_set_layouts[3] = {
+			vulkan_globals.single_texture_set_layout.handle, vulkan_globals.single_texture_set_layout.handle, vulkan_globals.ubo_set_layout.handle};
 
-	err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.alias_pipeline.layout.handle);
-	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreatePipelineLayout failed");
-	GL_SetObjectName ((uint64_t)vulkan_globals.alias_pipeline.layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "alias_pipeline_layout");
-	vulkan_globals.alias_pipeline.layout.push_constant_range = push_constant_range;
+		ZEROED_STRUCT (VkPushConstantRange, push_constant_range);
+		push_constant_range.offset = 0;
+		push_constant_range.size = 24 * sizeof (float);
+		push_constant_range.stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS;
 
-	// Sky
-	VkDescriptorSetLayout sky_layer_descriptor_set_layouts[2] = {
-		vulkan_globals.single_texture_set_layout.handle,
-		vulkan_globals.single_texture_set_layout.handle,
-	};
+		ZEROED_STRUCT (VkPipelineLayoutCreateInfo, pipeline_layout_create_info);
+		pipeline_layout_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+		pipeline_layout_create_info.setLayoutCount = 3;
+		pipeline_layout_create_info.pSetLayouts = alias_descriptor_set_layouts;
+		pipeline_layout_create_info.pushConstantRangeCount = 1;
+		pipeline_layout_create_info.pPushConstantRanges = &push_constant_range;
 
-	pipeline_layout_create_info.setLayoutCount = 2;
-	pipeline_layout_create_info.pSetLayouts = sky_layer_descriptor_set_layouts;
+		err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.alias_pipeline.layout.handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreatePipelineLayout failed");
+		GL_SetObjectName ((uint64_t)vulkan_globals.alias_pipeline.layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "alias_pipeline_layout");
+		vulkan_globals.alias_pipeline.layout.push_constant_range = push_constant_range;
+	}
 
-	err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.sky_layer_pipeline[0].layout.handle);
-	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreatePipelineLayout failed");
-	GL_SetObjectName ((uint64_t)vulkan_globals.sky_layer_pipeline[0].layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "sky_layer_pipeline_layout");
-	vulkan_globals.sky_layer_pipeline[0].layout.push_constant_range = push_constant_range;
+	{
+		// Sky
+		VkDescriptorSetLayout sky_layer_descriptor_set_layouts[2] = {
+			vulkan_globals.single_texture_set_layout.handle,
+			vulkan_globals.single_texture_set_layout.handle,
+		};
 
-	err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.sky_layer_pipeline[1].layout.handle);
-	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreatePipelineLayout failed");
-	GL_SetObjectName ((uint64_t)vulkan_globals.sky_layer_pipeline[1].layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "sky_layer_indirect_pipeline_layout");
-	vulkan_globals.sky_layer_pipeline[1].layout.push_constant_range = push_constant_range;
+		ZEROED_STRUCT (VkPushConstantRange, push_constant_range);
+		push_constant_range.offset = 0;
+		push_constant_range.size = 24 * sizeof (float);
+		push_constant_range.stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS;
 
-	// Postprocess
-	VkDescriptorSetLayout postprocess_descriptor_set_layouts[1] = {
-		vulkan_globals.input_attachment_set_layout.handle,
-	};
+		ZEROED_STRUCT (VkPipelineLayoutCreateInfo, pipeline_layout_create_info);
+		pipeline_layout_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+		pipeline_layout_create_info.setLayoutCount = 2;
+		pipeline_layout_create_info.pSetLayouts = sky_layer_descriptor_set_layouts;
+		pipeline_layout_create_info.pushConstantRangeCount = 1;
+		pipeline_layout_create_info.pPushConstantRanges = &push_constant_range;
 
-	memset (&push_constant_range, 0, sizeof (push_constant_range));
-	push_constant_range.offset = 0;
-	push_constant_range.size = 2 * sizeof (float);
-	push_constant_range.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+		err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.sky_layer_pipeline[0].layout.handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreatePipelineLayout failed");
+		GL_SetObjectName ((uint64_t)vulkan_globals.sky_layer_pipeline[0].layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "sky_layer_pipeline_layout");
+		vulkan_globals.sky_layer_pipeline[0].layout.push_constant_range = push_constant_range;
 
-	pipeline_layout_create_info.setLayoutCount = 1;
-	pipeline_layout_create_info.pSetLayouts = postprocess_descriptor_set_layouts;
-	pipeline_layout_create_info.pushConstantRangeCount = 1;
-	pipeline_layout_create_info.pPushConstantRanges = &push_constant_range;
+		err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.sky_layer_pipeline[1].layout.handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreatePipelineLayout failed");
+		GL_SetObjectName ((uint64_t)vulkan_globals.sky_layer_pipeline[1].layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "sky_layer_indirect_pipeline_layout");
+		vulkan_globals.sky_layer_pipeline[1].layout.push_constant_range = push_constant_range;
+	}
 
-	err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.postprocess_pipeline.layout.handle);
-	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreatePipelineLayout failed");
-	GL_SetObjectName ((uint64_t)vulkan_globals.postprocess_pipeline.layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "postprocess_pipeline_layout");
-	vulkan_globals.postprocess_pipeline.layout.push_constant_range = push_constant_range;
+	{
+		// Postprocess
+		VkDescriptorSetLayout postprocess_descriptor_set_layouts[1] = {
+			vulkan_globals.input_attachment_set_layout.handle,
+		};
 
-	// Screen effects
-	VkDescriptorSetLayout screen_effects_descriptor_set_layouts[1] = {
-		vulkan_globals.screen_effects_set_layout.handle,
-	};
+		ZEROED_STRUCT (VkPushConstantRange, push_constant_range);
+		push_constant_range.offset = 0;
+		push_constant_range.size = 2 * sizeof (float);
+		push_constant_range.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-	memset (&push_constant_range, 0, sizeof (push_constant_range));
-	push_constant_range.offset = 0;
-	push_constant_range.size = 3 * sizeof (uint32_t) + 8 * sizeof (float);
-	push_constant_range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+		ZEROED_STRUCT (VkPipelineLayoutCreateInfo, pipeline_layout_create_info);
+		pipeline_layout_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+		pipeline_layout_create_info.setLayoutCount = 1;
+		pipeline_layout_create_info.pSetLayouts = postprocess_descriptor_set_layouts;
+		pipeline_layout_create_info.pushConstantRangeCount = 1;
+		pipeline_layout_create_info.pPushConstantRanges = &push_constant_range;
 
-	pipeline_layout_create_info.setLayoutCount = 1;
-	pipeline_layout_create_info.pSetLayouts = screen_effects_descriptor_set_layouts;
-	pipeline_layout_create_info.pushConstantRangeCount = 1;
-	pipeline_layout_create_info.pPushConstantRanges = &push_constant_range;
+		err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.postprocess_pipeline.layout.handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreatePipelineLayout failed");
+		GL_SetObjectName ((uint64_t)vulkan_globals.postprocess_pipeline.layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "postprocess_pipeline_layout");
+		vulkan_globals.postprocess_pipeline.layout.push_constant_range = push_constant_range;
+	}
 
-	err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.screen_effects_pipeline.layout.handle);
-	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreatePipelineLayout failed");
-	GL_SetObjectName ((uint64_t)vulkan_globals.screen_effects_pipeline.layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "screen_effects_pipeline_layout");
-	vulkan_globals.screen_effects_pipeline.layout.push_constant_range = push_constant_range;
+	{
+		// Screen effects
+		VkDescriptorSetLayout screen_effects_descriptor_set_layouts[1] = {
+			vulkan_globals.screen_effects_set_layout.handle,
+		};
 
-	vulkan_globals.screen_effects_scale_pipeline.layout.handle = vulkan_globals.screen_effects_pipeline.layout.handle;
-	vulkan_globals.screen_effects_scale_pipeline.layout.push_constant_range = push_constant_range;
-	vulkan_globals.screen_effects_scale_sops_pipeline.layout.handle = vulkan_globals.screen_effects_pipeline.layout.handle;
-	vulkan_globals.screen_effects_scale_sops_pipeline.layout.push_constant_range = push_constant_range;
+		ZEROED_STRUCT (VkPushConstantRange, push_constant_range);
+		push_constant_range.offset = 0;
+		push_constant_range.size = 3 * sizeof (uint32_t) + 8 * sizeof (float);
+		push_constant_range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
-	// Texture warp
-	VkDescriptorSetLayout tex_warp_descriptor_set_layouts[2] = {
-		vulkan_globals.single_texture_set_layout.handle,
-		vulkan_globals.single_texture_cs_write_set_layout.handle,
-	};
+		ZEROED_STRUCT (VkPipelineLayoutCreateInfo, pipeline_layout_create_info);
+		pipeline_layout_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+		pipeline_layout_create_info.setLayoutCount = 1;
+		pipeline_layout_create_info.pSetLayouts = screen_effects_descriptor_set_layouts;
+		pipeline_layout_create_info.pushConstantRangeCount = 1;
+		pipeline_layout_create_info.pPushConstantRanges = &push_constant_range;
 
-	memset (&push_constant_range, 0, sizeof (push_constant_range));
-	push_constant_range.offset = 0;
-	push_constant_range.size = 1 * sizeof (float);
-	push_constant_range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+		err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.screen_effects_pipeline.layout.handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreatePipelineLayout failed");
+		GL_SetObjectName ((uint64_t)vulkan_globals.screen_effects_pipeline.layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "screen_effects_pipeline_layout");
+		vulkan_globals.screen_effects_pipeline.layout.push_constant_range = push_constant_range;
+		vulkan_globals.screen_effects_scale_pipeline.layout.handle = vulkan_globals.screen_effects_pipeline.layout.handle;
+		vulkan_globals.screen_effects_scale_pipeline.layout.push_constant_range = push_constant_range;
+		vulkan_globals.screen_effects_scale_sops_pipeline.layout.handle = vulkan_globals.screen_effects_pipeline.layout.handle;
+		vulkan_globals.screen_effects_scale_sops_pipeline.layout.push_constant_range = push_constant_range;
+	}
 
-	pipeline_layout_create_info.setLayoutCount = 2;
-	pipeline_layout_create_info.pSetLayouts = tex_warp_descriptor_set_layouts;
-	pipeline_layout_create_info.pushConstantRangeCount = 1;
-	pipeline_layout_create_info.pPushConstantRanges = &push_constant_range;
+	{
+		// Texture warp
+		VkDescriptorSetLayout tex_warp_descriptor_set_layouts[2] = {
+			vulkan_globals.single_texture_set_layout.handle,
+			vulkan_globals.single_texture_cs_write_set_layout.handle,
+		};
 
-	err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.cs_tex_warp_pipeline.layout.handle);
-	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreatePipelineLayout failed");
-	GL_SetObjectName ((uint64_t)vulkan_globals.cs_tex_warp_pipeline.layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "cs_tex_warp_pipeline_layout");
-	vulkan_globals.cs_tex_warp_pipeline.layout.push_constant_range = push_constant_range;
+		ZEROED_STRUCT (VkPushConstantRange, push_constant_range);
+		push_constant_range.offset = 0;
+		push_constant_range.size = 1 * sizeof (float);
+		push_constant_range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
-	// Show triangles
-	pipeline_layout_create_info.setLayoutCount = 0;
-	pipeline_layout_create_info.pushConstantRangeCount = 0;
+		ZEROED_STRUCT (VkPipelineLayoutCreateInfo, pipeline_layout_create_info);
+		pipeline_layout_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+		pipeline_layout_create_info.setLayoutCount = 2;
+		pipeline_layout_create_info.pSetLayouts = tex_warp_descriptor_set_layouts;
+		pipeline_layout_create_info.pushConstantRangeCount = 1;
+		pipeline_layout_create_info.pPushConstantRanges = &push_constant_range;
 
-	err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.showtris_pipeline.layout.handle);
-	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreatePipelineLayout failed");
-	GL_SetObjectName ((uint64_t)vulkan_globals.showtris_pipeline.layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "showtris_pipeline_layout");
-	vulkan_globals.showtris_pipeline.layout.push_constant_range = push_constant_range;
+		err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.cs_tex_warp_pipeline.layout.handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreatePipelineLayout failed");
+		GL_SetObjectName ((uint64_t)vulkan_globals.cs_tex_warp_pipeline.layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "cs_tex_warp_pipeline_layout");
+		vulkan_globals.cs_tex_warp_pipeline.layout.push_constant_range = push_constant_range;
+	}
 
-	// Update lightmaps
-	VkDescriptorSetLayout update_lightmap_descriptor_set_layouts[1] = {
-		vulkan_globals.lightmap_compute_set_layout.handle,
-	};
+	{
+		// Show triangles
+		ZEROED_STRUCT (VkPushConstantRange, push_constant_range);
 
-	memset (&push_constant_range, 0, sizeof (push_constant_range));
-	push_constant_range.offset = 0;
-	push_constant_range.size = 4 * sizeof (uint32_t);
-	push_constant_range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+		ZEROED_STRUCT (VkPipelineLayoutCreateInfo, pipeline_layout_create_info);
+		pipeline_layout_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+		pipeline_layout_create_info.setLayoutCount = 0;
+		pipeline_layout_create_info.pushConstantRangeCount = 0;
 
-	pipeline_layout_create_info.setLayoutCount = 1;
-	pipeline_layout_create_info.pSetLayouts = update_lightmap_descriptor_set_layouts;
-	pipeline_layout_create_info.pushConstantRangeCount = 1;
-	pipeline_layout_create_info.pPushConstantRanges = &push_constant_range;
+		err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.showtris_pipeline.layout.handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreatePipelineLayout failed");
+		GL_SetObjectName ((uint64_t)vulkan_globals.showtris_pipeline.layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "showtris_pipeline_layout");
+		vulkan_globals.showtris_pipeline.layout.push_constant_range = push_constant_range;
+	}
 
-	err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.update_lightmap_pipeline.layout.handle);
-	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreatePipelineLayout failed");
-	GL_SetObjectName ((uint64_t)vulkan_globals.update_lightmap_pipeline.layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "update_lightmap_pipeline_layout");
-	vulkan_globals.update_lightmap_pipeline.layout.push_constant_range = push_constant_range;
+	{
+		// Update lightmaps
+		VkDescriptorSetLayout update_lightmap_descriptor_set_layouts[1] = {
+			vulkan_globals.lightmap_compute_set_layout.handle,
+		};
 
-	// Indirect draw
-	VkDescriptorSetLayout indirect_draw_descriptor_set_layouts[1] = {
-		vulkan_globals.indirect_compute_set_layout.handle,
-	};
+		ZEROED_STRUCT (VkPushConstantRange, push_constant_range);
+		push_constant_range.offset = 0;
+		push_constant_range.size = 4 * sizeof (uint32_t);
+		push_constant_range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
-	memset (&push_constant_range, 0, sizeof (push_constant_range));
-	push_constant_range.offset = 0;
-	push_constant_range.size = 5 * sizeof (uint32_t);
-	push_constant_range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+		ZEROED_STRUCT (VkPipelineLayoutCreateInfo, pipeline_layout_create_info);
+		pipeline_layout_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+		pipeline_layout_create_info.setLayoutCount = 1;
+		pipeline_layout_create_info.pSetLayouts = update_lightmap_descriptor_set_layouts;
+		pipeline_layout_create_info.pushConstantRangeCount = 1;
+		pipeline_layout_create_info.pPushConstantRanges = &push_constant_range;
 
-	pipeline_layout_create_info.setLayoutCount = 1;
-	pipeline_layout_create_info.pSetLayouts = indirect_draw_descriptor_set_layouts;
-	pipeline_layout_create_info.pushConstantRangeCount = 1;
-	pipeline_layout_create_info.pPushConstantRanges = &push_constant_range;
+		err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.update_lightmap_pipeline.layout.handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreatePipelineLayout failed");
+		GL_SetObjectName ((uint64_t)vulkan_globals.update_lightmap_pipeline.layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "update_lightmap_pipeline_layout");
+		vulkan_globals.update_lightmap_pipeline.layout.push_constant_range = push_constant_range;
+	}
 
-	err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.indirect_draw_pipeline.layout.handle);
-	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreatePipelineLayout failed");
-	GL_SetObjectName ((uint64_t)vulkan_globals.indirect_draw_pipeline.layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "indirect_draw_pipeline_layout");
-	vulkan_globals.indirect_draw_pipeline.layout.push_constant_range = push_constant_range;
+	if (vulkan_globals.ray_query)
+	{
+		// Update lightmaps RT
+		VkDescriptorSetLayout update_lightmap_rt_descriptor_set_layouts[1] = {
+			vulkan_globals.lightmap_compute_rt_set_layout.handle,
+		};
 
-	err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.indirect_clear_pipeline.layout.handle);
-	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreatePipelineLayout failed");
-	GL_SetObjectName ((uint64_t)vulkan_globals.indirect_clear_pipeline.layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "indirect_clear_pipeline_layout");
-	vulkan_globals.indirect_clear_pipeline.layout.push_constant_range = push_constant_range;
+		ZEROED_STRUCT (VkPushConstantRange, push_constant_range);
+		push_constant_range.offset = 0;
+		push_constant_range.size = 4 * sizeof (uint32_t);
+		push_constant_range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
+		ZEROED_STRUCT (VkPipelineLayoutCreateInfo, pipeline_layout_create_info);
+		pipeline_layout_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+		pipeline_layout_create_info.setLayoutCount = 1;
+		pipeline_layout_create_info.pSetLayouts = update_lightmap_rt_descriptor_set_layouts;
+		pipeline_layout_create_info.pushConstantRangeCount = 1;
+		pipeline_layout_create_info.pPushConstantRanges = &push_constant_range;
+
+		err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.update_lightmap_rt_pipeline.layout.handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreatePipelineLayout failed");
+		GL_SetObjectName (
+			(uint64_t)vulkan_globals.update_lightmap_rt_pipeline.layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "update_lightmap_rt_pipeline_layout");
+		vulkan_globals.update_lightmap_rt_pipeline.layout.push_constant_range = push_constant_range;
+	}
+
+	{
+		// Indirect draw
+		VkDescriptorSetLayout indirect_draw_descriptor_set_layouts[1] = {
+			vulkan_globals.indirect_compute_set_layout.handle,
+		};
+
+		ZEROED_STRUCT (VkPushConstantRange, push_constant_range);
+		push_constant_range.offset = 0;
+		push_constant_range.size = 5 * sizeof (uint32_t);
+		push_constant_range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
+		ZEROED_STRUCT (VkPipelineLayoutCreateInfo, pipeline_layout_create_info);
+		pipeline_layout_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+		pipeline_layout_create_info.setLayoutCount = 1;
+		pipeline_layout_create_info.pSetLayouts = indirect_draw_descriptor_set_layouts;
+		pipeline_layout_create_info.pushConstantRangeCount = 1;
+		pipeline_layout_create_info.pPushConstantRanges = &push_constant_range;
+
+		err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.indirect_draw_pipeline.layout.handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreatePipelineLayout failed");
+		GL_SetObjectName ((uint64_t)vulkan_globals.indirect_draw_pipeline.layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "indirect_draw_pipeline_layout");
+		vulkan_globals.indirect_draw_pipeline.layout.push_constant_range = push_constant_range;
+
+		err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.indirect_clear_pipeline.layout.handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreatePipelineLayout failed");
+		GL_SetObjectName ((uint64_t)vulkan_globals.indirect_clear_pipeline.layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "indirect_clear_pipeline_layout");
+		vulkan_globals.indirect_clear_pipeline.layout.push_constant_range = push_constant_range;
+	}
+
+#if defined(_DEBUG)
+	if (vulkan_globals.ray_query)
+	{
+		// Ray debug
+		VkDescriptorSetLayout ray_debug_descriptor_set_layouts[1] = {
+			vulkan_globals.ray_debug_set_layout.handle,
+		};
+
+		ZEROED_STRUCT (VkPushConstantRange, push_constant_range);
+		push_constant_range.offset = 0;
+		push_constant_range.size = 15 * sizeof (float);
+		push_constant_range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
+		ZEROED_STRUCT (VkPipelineLayoutCreateInfo, pipeline_layout_create_info);
+		pipeline_layout_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+		pipeline_layout_create_info.setLayoutCount = 1;
+		pipeline_layout_create_info.pSetLayouts = ray_debug_descriptor_set_layouts;
+		pipeline_layout_create_info.pushConstantRangeCount = 1;
+		pipeline_layout_create_info.pPushConstantRanges = &push_constant_range;
+
+		err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.ray_debug_pipeline.layout.handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreatePipelineLayout failed");
+		GL_SetObjectName ((uint64_t)vulkan_globals.ray_debug_pipeline.layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "ray_debug_pipeline_layout");
+		vulkan_globals.ray_debug_pipeline.layout.push_constant_range = push_constant_range;
+	}
+#endif
 }
 
 /*
@@ -1894,6 +2080,8 @@ DECLARE_SHADER_MODULE (indirect_clear_comp);
 DECLARE_SHADER_MODULE (showtris_vert);
 DECLARE_SHADER_MODULE (showtris_frag);
 DECLARE_SHADER_MODULE (update_lightmap_comp);
+DECLARE_SHADER_MODULE (update_lightmap_rt_comp);
+DECLARE_SHADER_MODULE (ray_debug_comp);
 
 /*
 ===============
@@ -2201,6 +2389,40 @@ static void R_CreateParticlesPipelines ()
 		Sys_Error ("vkCreateGraphicsPipelines failed");
 	vulkan_globals.particle_pipeline.layout = vulkan_globals.basic_pipeline_layout;
 	GL_SetObjectName ((uint64_t)vulkan_globals.particle_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "particles");
+}
+
+/*
+===============
+R_CreateRayDebugPipelines
+===============
+*/
+static void R_CreateRayDebugPipelines ()
+{
+#if defined(_DEBUG)
+	if (!vulkan_globals.ray_query)
+		return;
+
+	VkResult				err;
+	pipeline_create_infos_t infos;
+	R_InitDefaultStates (&infos);
+
+	ZEROED_STRUCT (VkPipelineShaderStageCreateInfo, compute_shader_stage);
+	compute_shader_stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	compute_shader_stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+	compute_shader_stage.module = ray_debug_comp_module;
+	compute_shader_stage.pName = "main";
+
+	memset (&infos.compute_pipeline, 0, sizeof (infos.compute_pipeline));
+	infos.compute_pipeline.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+	infos.compute_pipeline.stage = compute_shader_stage;
+	infos.compute_pipeline.layout = vulkan_globals.ray_debug_pipeline.layout.handle;
+
+	assert (vulkan_globals.ray_debug_pipeline.handle == VK_NULL_HANDLE);
+	err = vkCreateComputePipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.compute_pipeline, NULL, &vulkan_globals.ray_debug_pipeline.handle);
+	if (err != VK_SUCCESS)
+		Sys_Error ("vkCreateComputePipelines failed (ray_debug_pipeline)");
+	GL_SetObjectName ((uint64_t)vulkan_globals.ray_debug_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "ray_debug_pipeline");
+#endif
 }
 
 /*
@@ -2812,7 +3034,6 @@ static void R_CreateScreenEffectsPipelines ()
 		Sys_Error ("vkCreateComputePipelines failed (screen_effects_scale_pipeline)");
 	GL_SetObjectName ((uint64_t)vulkan_globals.screen_effects_scale_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "screen_effects_scale");
 
-#if defined(VK_EXT_subgroup_size_control)
 	if (vulkan_globals.screen_effects_sops)
 	{
 		compute_shader_stage.module = (vulkan_globals.color_format == VK_FORMAT_A2B10G10R10_UNORM_PACK32) ? screen_effects_10bit_scale_sops_comp_module
@@ -2828,7 +3049,6 @@ static void R_CreateScreenEffectsPipelines ()
 		GL_SetObjectName ((uint64_t)vulkan_globals.screen_effects_scale_sops_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "screen_effects_scale_sops");
 		compute_shader_stage.flags = 0;
 	}
-#endif
 }
 
 /*
@@ -2870,6 +3090,19 @@ static void R_CreateUpdateLightmapPipelines ()
 	if (err != VK_SUCCESS)
 		Sys_Error ("vkCreateComputePipelines failed (update_lightmap_pipeline)");
 	GL_SetObjectName ((uint64_t)vulkan_globals.update_lightmap_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "update_lightmap");
+
+	if (vulkan_globals.ray_query)
+	{
+		compute_shader_stage.module = update_lightmap_rt_comp_module;
+		infos.compute_pipeline.stage = compute_shader_stage;
+		infos.compute_pipeline.layout = vulkan_globals.update_lightmap_rt_pipeline.layout.handle;
+		assert (vulkan_globals.update_lightmap_rt_pipeline.handle == VK_NULL_HANDLE);
+		err = vkCreateComputePipelines (
+			vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.compute_pipeline, NULL, &vulkan_globals.update_lightmap_rt_pipeline.handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreateComputePipelines failed (update_lightmap_rt_pipeline)");
+		GL_SetObjectName ((uint64_t)vulkan_globals.update_lightmap_rt_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "update_lightmap_rt");
+	}
 }
 
 /*
@@ -2945,6 +3178,10 @@ static void R_CreateShaderModules ()
 	CREATE_SHADER_MODULE (showtris_vert);
 	CREATE_SHADER_MODULE (showtris_frag);
 	CREATE_SHADER_MODULE (update_lightmap_comp);
+	CREATE_SHADER_MODULE_COND (update_lightmap_rt_comp, vulkan_globals.ray_query);
+#ifdef _DEBUG
+	CREATE_SHADER_MODULE_COND (ray_debug_comp, vulkan_globals.ray_query);
+#endif
 }
 
 /*
@@ -2982,6 +3219,8 @@ static void R_DestroyShaderModules ()
 	DESTROY_SHADER_MODULE (showtris_vert);
 	DESTROY_SHADER_MODULE (showtris_frag);
 	DESTROY_SHADER_MODULE (update_lightmap_comp);
+	DESTROY_SHADER_MODULE (update_lightmap_rt_comp);
+	DESTROY_SHADER_MODULE (ray_debug_comp);
 }
 
 /*
@@ -3009,6 +3248,7 @@ void R_CreatePipelines ()
 	R_CreateScreenEffectsPipelines ();
 	R_CreateUpdateLightmapPipelines ();
 	R_CreateIndirectComputePipelines ();
+	R_CreateRayDebugPipelines ();
 
 	R_DestroyShaderModules ();
 }
@@ -3111,6 +3351,16 @@ void R_DestroyPipelines (void)
 	}
 	vkDestroyPipeline (vulkan_globals.device, vulkan_globals.update_lightmap_pipeline.handle, NULL);
 	vulkan_globals.update_lightmap_pipeline.handle = VK_NULL_HANDLE;
+	if (vulkan_globals.update_lightmap_rt_pipeline.handle != VK_NULL_HANDLE)
+	{
+		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.update_lightmap_rt_pipeline.handle, NULL);
+		vulkan_globals.update_lightmap_rt_pipeline.handle = VK_NULL_HANDLE;
+	}
+	if (vulkan_globals.ray_debug_pipeline.handle != VK_NULL_HANDLE)
+	{
+		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.ray_debug_pipeline.handle, NULL);
+		vulkan_globals.ray_debug_pipeline.handle = VK_NULL_HANDLE;
+	}
 	vkDestroyPipeline (vulkan_globals.device, vulkan_globals.indirect_draw_pipeline.handle, NULL);
 	vulkan_globals.indirect_draw_pipeline.handle = VK_NULL_HANDLE;
 	vkDestroyPipeline (vulkan_globals.device, vulkan_globals.indirect_clear_pipeline.handle, NULL);
@@ -3196,6 +3446,8 @@ void R_Init (void)
 	Cvar_SetCallback (&r_slimealpha, R_SetSlimealpha_f);
 
 	Cvar_RegisterVariable (&r_gpulightmapupdate);
+	Cvar_RegisterVariable (&r_rtshadows);
+	Cvar_SetCallback (&r_rtshadows, R_SetRTShadows_f);
 	Cvar_RegisterVariable (&r_indirect);
 	Cvar_RegisterVariable (&r_tasks);
 	Cvar_RegisterVariable (&r_parallelmark);
@@ -3235,6 +3487,7 @@ VkDescriptorSet R_AllocateDescriptorSet (vulkan_desc_set_layout_t *layout)
 	Atomic_AddUInt32 (&num_vulkan_input_attachments, layout->num_input_attachments);
 	Atomic_AddUInt32 (&num_vulkan_storage_images, layout->num_storage_images);
 	Atomic_AddUInt32 (&num_vulkan_sampled_images, layout->num_sampled_images);
+	Atomic_AddUInt32 (&num_acceleration_structures, layout->num_acceleration_structures);
 
 	return handle;
 }
@@ -3256,6 +3509,7 @@ void R_FreeDescriptorSet (VkDescriptorSet desc_set, vulkan_desc_set_layout_t *la
 	Atomic_SubUInt32 (&num_vulkan_input_attachments, layout->num_input_attachments);
 	Atomic_SubUInt32 (&num_vulkan_storage_images, layout->num_storage_images);
 	Atomic_SubUInt32 (&num_vulkan_sampled_images, layout->num_sampled_images);
+	Atomic_SubUInt32 (&num_acceleration_structures, layout->num_acceleration_structures);
 }
 
 /*
@@ -3414,9 +3668,11 @@ void R_NewMap (void)
 
 	GL_BuildLightmaps ();
 	GL_BuildBModelVertexBuffer ();
+	GL_BuildBModelAccelerationStructures ();
 	GL_PrepareSIMDAndParallelData ();
 	GL_SetupIndirectDraws ();
 	GL_SetupLightmapCompute ();
+	GL_UpdateLightmapDescriptorSets ();
 	// ericw -- no longer load alias models into a VBO here, it's done in Mod_LoadAliasModel
 
 	r_framecount = 0;	 // johnfitz -- paranoid?
@@ -3425,6 +3681,8 @@ void R_NewMap (void)
 	Sky_NewMap ();		  // johnfitz -- skybox in worldspawn
 	Fog_NewMap ();		  // johnfitz -- global fog in worldspawn
 	R_ParseWorldspawn (); // ericw -- wateralpha, lavaalpha, telealpha, slimealpha in worldspawn
+
+	GL_UpdateDescriptorSets ();
 }
 
 /*
@@ -3503,9 +3761,13 @@ R_CreateBuffer
 */
 void R_CreateBuffer (
 	VkBuffer *buffer, vulkan_memory_t *memory, const size_t size, VkBufferUsageFlags usage, const VkFlags mem_requirements_mask,
-	const VkFlags mem_preferred_mask, atomic_uint32_t *num_allocations, const char *name)
+	const VkFlags mem_preferred_mask, atomic_uint32_t *num_allocations, VkDeviceAddress *device_address, const char *name)
 {
 	VkResult err;
+	qboolean get_device_address = vulkan_globals.vk_get_buffer_device_address && device_address;
+
+	if (get_device_address)
+		usage |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT_KHR;
 
 	VkBufferCreateInfo buffer_create_info;
 	memset (&buffer_create_info, 0, sizeof (buffer_create_info));
@@ -3521,8 +3783,16 @@ void R_CreateBuffer (
 	VkMemoryRequirements memory_requirements;
 	vkGetBufferMemoryRequirements (vulkan_globals.device, *buffer, &memory_requirements);
 
+	ZEROED_STRUCT (VkMemoryAllocateFlagsInfo, memory_allocate_flags_info);
+	if (get_device_address)
+	{
+		memory_allocate_flags_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO_KHR;
+		memory_allocate_flags_info.flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT;
+	}
+
 	ZEROED_STRUCT (VkMemoryAllocateInfo, memory_allocate_info);
 	memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	memory_allocate_info.pNext = get_device_address ? &memory_allocate_flags_info : NULL;
 	memory_allocate_info.allocationSize = memory_requirements.size;
 	memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, mem_requirements_mask, mem_preferred_mask);
 
@@ -3535,6 +3805,15 @@ void R_CreateBuffer (
 
 	if (num_allocations)
 		Atomic_IncrementUInt32 (num_allocations);
+
+	if (get_device_address)
+	{
+		VkBufferDeviceAddressInfoKHR buffer_device_address_info;
+		memset (&buffer_device_address_info, 0, sizeof (buffer_device_address_info));
+		buffer_device_address_info.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO_KHR;
+		buffer_device_address_info.buffer = *buffer;
+		*device_address = vulkan_globals.vk_get_buffer_device_address (vulkan_globals.device, &buffer_device_address_info);
+	}
 }
 
 /*
@@ -3565,6 +3844,20 @@ size_t R_CreateBuffers (
 	VkResult		   err;
 	VkBufferUsageFlags usage_union = 0;
 
+	qboolean get_device_address = false;
+	if (vulkan_globals.vk_get_buffer_device_address)
+	{
+		for (int i = 0; i < num_buffers; ++i)
+		{
+			if (create_infos[i].address)
+			{
+				get_device_address = true;
+				create_infos[i].usage |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT_KHR;
+			}
+			usage_union |= create_infos[i].usage;
+		}
+	}
+
 	qboolean map_memory = false;
 	size_t	 total_size = 0;
 	for (int i = 0; i < num_buffers; ++i)
@@ -3585,7 +3878,13 @@ size_t R_CreateBuffers (
 		total_size = q_align (total_size, alignment);
 		total_size += memory_requirements.size;
 		map_memory = map_memory || create_infos[i].mapped;
-		usage_union |= create_infos[i].usage;
+	}
+
+	ZEROED_STRUCT (VkMemoryAllocateFlagsInfo, memory_allocate_flags_info);
+	if (get_device_address)
+	{
+		memory_allocate_flags_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO_KHR;
+		memory_allocate_flags_info.flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT;
 	}
 
 	uint32_t memory_type_bits = 0;
@@ -3611,6 +3910,7 @@ size_t R_CreateBuffers (
 
 	ZEROED_STRUCT (VkMemoryAllocateInfo, memory_allocate_info);
 	memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	memory_allocate_info.pNext = get_device_address ? &memory_allocate_flags_info : NULL;
 	memory_allocate_info.allocationSize = total_size;
 	memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties (memory_type_bits, mem_requirements_mask, mem_preferred_mask);
 
@@ -3641,6 +3941,15 @@ size_t R_CreateBuffers (
 			*create_infos[i].mapped = mapped_base + current_offset;
 
 		current_offset += memory_requirements.size;
+
+		if (get_device_address && create_infos[i].address)
+		{
+			VkBufferDeviceAddressInfoKHR buffer_device_address_info;
+			memset (&buffer_device_address_info, 0, sizeof (buffer_device_address_info));
+			buffer_device_address_info.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO_KHR;
+			buffer_device_address_info.buffer = *create_infos[i].buffer;
+			*create_infos[i].address = vulkan_globals.vk_get_buffer_device_address (vulkan_globals.device, &buffer_device_address_info);
+		}
 	}
 
 	if (num_allocations)
@@ -3673,12 +3982,21 @@ R_VulkanMemStats_f
 */
 void R_VulkanMemStats_f (void)
 {
-	Con_Printf ("Vulkan allocations:\n");
-	Con_Printf (" Tex:    %" SDL_PRIu32 "\n", Atomic_LoadUInt32 (&num_vulkan_tex_allocations));
-	Con_Printf (" BModel: %" SDL_PRIu32 "\n", Atomic_LoadUInt32 (&num_vulkan_bmodel_allocations));
-	Con_Printf (" Mesh:   %" SDL_PRIu32 "\n", Atomic_LoadUInt32 (&num_vulkan_mesh_allocations));
-	Con_Printf (" Misc:   %" SDL_PRIu32 "\n", Atomic_LoadUInt32 (&num_vulkan_misc_allocations));
-	Con_Printf (" DynBuf: %" SDL_PRIu32 "\n", Atomic_LoadUInt32 (&num_vulkan_dynbuf_allocations));
+	const uint32_t num_tex_allocations = Atomic_LoadUInt32 (&num_vulkan_tex_allocations);
+	const uint32_t num_bmodel_allocations = Atomic_LoadUInt32 (&num_vulkan_bmodel_allocations);
+	const uint32_t num_mesh_allocations = Atomic_LoadUInt32 (&num_vulkan_mesh_allocations);
+	const uint32_t num_misc_allocations = Atomic_LoadUInt32 (&num_vulkan_misc_allocations);
+	const uint32_t num_dynbuf_allocations = Atomic_LoadUInt32 (&num_vulkan_dynbuf_allocations);
+
+	Con_Printf (
+		"Vulkan allocations: %" SDL_PRIu32 "\n",
+		num_tex_allocations + num_bmodel_allocations + num_mesh_allocations + num_misc_allocations + num_dynbuf_allocations);
+	Con_Printf (" Tex:    %" SDL_PRIu32 "\n", num_tex_allocations);
+	Con_Printf (" BModel: %" SDL_PRIu32 "\n", num_bmodel_allocations);
+	Con_Printf (" Mesh:   %" SDL_PRIu32 "\n", num_mesh_allocations);
+	Con_Printf (" Misc:   %" SDL_PRIu32 "\n", num_misc_allocations);
+	Con_Printf (" DynBuf: %" SDL_PRIu32 "\n", num_dynbuf_allocations);
+
 	Con_Printf ("Descriptors:\n");
 	Con_Printf (" Combined image samplers: %" SDL_PRIu32 "\n", Atomic_LoadUInt32 (&num_vulkan_combined_image_samplers));
 	Con_Printf (" Dynamic UBOs: %" SDL_PRIu32 "\n", Atomic_LoadUInt32 (&num_vulkan_ubos_dynamic));
@@ -3687,6 +4005,7 @@ void R_VulkanMemStats_f (void)
 	Con_Printf (" Input attachments: %" SDL_PRIu32 "\n", Atomic_LoadUInt32 (&num_vulkan_storage_buffers));
 	Con_Printf (" Storage images: %" SDL_PRIu32 "\n", Atomic_LoadUInt32 (&num_vulkan_storage_images));
 	Con_Printf (" Sampled images: %" SDL_PRIu32 "\n", Atomic_LoadUInt32 (&num_vulkan_sampled_images));
+	Con_Printf (" Acceleration structures: %" SDL_PRIu32 "\n", Atomic_LoadUInt32 (&num_acceleration_structures));
 	Con_Printf ("Device %" SDL_PRIu64 " MiB total\n", Atomic_LoadUInt64 (&total_device_vulkan_allocation_size) / 1024 / 1024);
 	Con_Printf ("Host %" SDL_PRIu64 " MiB total\n", Atomic_LoadUInt64 (&total_host_vulkan_allocation_size) / 1024 / 1024);
 }
