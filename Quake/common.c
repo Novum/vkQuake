@@ -1231,8 +1231,8 @@ being registered.
 */
 static void COM_CheckRegistered (void)
 {
-	int			   h;
-	int			   i;
+	int h;
+	int i;
 
 	COM_OpenFile ("gfx/pop.lmp", &h, NULL);
 
