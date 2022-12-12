@@ -103,6 +103,10 @@ static int		m_mouse_y;
 static int		m_mouse_x_pixels;
 static int		m_mouse_y_pixels;
 
+static int scrollbar_x;
+static int scrollbar_y;
+static int scrollbar_size;
+
 void M_ConfigureNetSubsystem (void);
 
 extern cvar_t scr_fov;
@@ -263,19 +267,34 @@ void M_ToggleMenu_f (void)
 M_HandleScrollBarKeys
 ================
 */
-static void M_HandleScrollBarKeys (const int key, int *cursor, int *first_drawn, const int num_total, const int max_on_screen)
+static qboolean M_HandleScrollBarKeys (const int key, int *cursor, int *first_drawn, const int num_total, const int max_on_screen)
 {
 	const int prev_cursor = *cursor;
+	qboolean  handled_mouse = false;
 
 	if (num_total == 0)
 	{
 		*cursor = 0;
 		*first_drawn = 0;
-		return;
+		return false;
 	}
 
 	switch (key)
 	{
+	case K_MOUSE1:
+		if (m_mouse_x >= scrollbar_x && m_mouse_x <= scrollbar_x + 8 && m_mouse_y >= scrollbar_y && m_mouse_y <= scrollbar_y + scrollbar_size &&
+			num_total - max_on_screen > 0)
+		{
+			handled_mouse = true;
+			int clamped_mouse = CLAMP (scrollbar_y + 8, m_mouse_y, scrollbar_y + scrollbar_size - 8);
+			*first_drawn = ((float)clamped_mouse - scrollbar_y - 8) / (scrollbar_size - 16) * (num_total - max_on_screen) + 0.5f;
+			if (*cursor < *first_drawn)
+				*cursor = *first_drawn;
+			else if (*cursor >= *first_drawn + max_on_screen)
+				*cursor = *first_drawn + max_on_screen - 1;
+		}
+		break;
+
 	case K_HOME:
 		*cursor = 0;
 		*first_drawn = 0;
@@ -330,6 +349,8 @@ static void M_HandleScrollBarKeys (const int key, int *cursor, int *first_drawn,
 		*first_drawn = 0;
 	else
 		*first_drawn = CLAMP (*cursor - max_on_screen + 1, *first_drawn, *cursor);
+
+	return handled_mouse;
 }
 
 /*
@@ -1322,6 +1343,9 @@ void M_DrawSlider (cb_context_t *cbx, int x, int y, float value)
 
 void M_DrawScrollbar (cb_context_t *cbx, int x, int y, float value, float size)
 {
+	scrollbar_x = x;
+	scrollbar_y = y - 8;
+	scrollbar_size = (size + 2) * 8;
 	value = CLAMP (0.0f, value, 1.0f);
 	M_DrawCharacter (cbx, x, y - 8, 128 + 256);
 	for (int i = 0; i < size; i++)
@@ -1679,6 +1703,9 @@ void M_Keys_Key (int k)
 		return;
 	}
 
+	if (M_HandleScrollBarKeys (k, &keys_cursor, &first_key, (int)NUMCOMMANDS, BINDS_PER_PAGE))
+		return;
+
 	switch (k)
 	{
 	case K_MOUSE2:
@@ -1705,8 +1732,6 @@ void M_Keys_Key (int k)
 		M_UnbindCommand (bindnames[keys_cursor][0]);
 		break;
 	}
-
-	M_HandleScrollBarKeys (k, &keys_cursor, &first_key, (int)NUMCOMMANDS, BINDS_PER_PAGE);
 }
 
 //=============================================================================
@@ -1825,6 +1850,9 @@ void M_Mods_Key (int key)
 {
 	int mod_index = 0;
 
+	if (M_HandleScrollBarKeys (key, &mods_cursor, &first_mod, num_mods, MAX_MODS_ON_SCREEN))
+		return;
+
 	switch (key)
 	{
 	case K_MOUSE2:
@@ -1848,8 +1876,6 @@ void M_Mods_Key (int key)
 			}
 		break;
 	}
-
-	M_HandleScrollBarKeys (key, &mods_cursor, &first_mod, num_mods, MAX_MODS_ON_SCREEN);
 }
 
 //=============================================================================
@@ -2742,6 +2768,9 @@ void M_ServerList_Draw (cb_context_t *cbx)
 
 void M_ServerList_Key (int k)
 {
+	if (M_HandleScrollBarKeys (k, &slist_cursor, &slist_first, hostCacheCount, SERVER_LIST_MAX_ON_SCREEN))
+		return;
+
 	switch (k)
 	{
 	case K_MOUSE2:
@@ -2771,8 +2800,6 @@ void M_ServerList_Key (int k)
 	default:
 		break;
 	}
-
-	M_HandleScrollBarKeys (k, &slist_cursor, &slist_first, hostCacheCount, SERVER_LIST_MAX_ON_SCREEN);
 }
 
 //=============================================================================
