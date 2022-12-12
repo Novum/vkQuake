@@ -58,11 +58,12 @@ float blue_noise (ivec2 u)
 }
 
 #define SCREEN_EFFECT_FLAG_SCALE_MASK 0x3
-#define SCREEN_EFFECT_FLAG_SCALE_2X   0x1
-#define SCREEN_EFFECT_FLAG_SCALE_4X   0x2
-#define SCREEN_EFFECT_FLAG_SCALE_8X   0x3
+#define SCREEN_EFFECT_FLAG_SCALE_2X	  0x1
+#define SCREEN_EFFECT_FLAG_SCALE_4X	  0x2
+#define SCREEN_EFFECT_FLAG_SCALE_8X	  0x3
 #define SCREEN_EFFECT_FLAG_WATER_WARP 0x4
 #define SCREEN_EFFECT_FLAG_PALETTIZE  0x8
+#define SCREEN_EFFECT_FLAG_MENU		  0x10
 
 #if defined(SCALING)
 // Vulkan guarantees 16384 bytes of shared memory, so host doesn't need to check
@@ -143,7 +144,8 @@ void main ()
 
 		color = texture (input_tex, vec2 (tex_x, tex_y));
 	}
-	else color = texelFetch (input_tex, ivec2 (min (push_constants.clamp_size.x, pos_x), min (push_constants.clamp_size.y, pos_y)), 0);
+	else
+		color = texelFetch (input_tex, ivec2 (min (push_constants.clamp_size.x, pos_x), min (push_constants.clamp_size.y, pos_y)), 0);
 
 	[[branch]] if ((push_constants.flags & SCREEN_EFFECT_FLAG_PALETTIZE) != 0)
 	{
@@ -154,8 +156,8 @@ void main ()
 		[[loop]] while (true)
 		{
 			const uvec3 node_offsets = (search_color - node_coords) >> current_shift;
-			const uint  child_index = node_offsets.r + node_offsets.g * 2 + node_offsets.b * 4;
-			const uint  offset = palette_octree.nodes[current_node_offset].children[child_index / 4][child_index % 4];
+			const uint	child_index = node_offsets.r + node_offsets.g * 2 + node_offsets.b * 4;
+			const uint	offset = palette_octree.nodes[current_node_offset].children[child_index / 4][child_index % 4];
 			[[branch]] if ((offset & (1u << 31)) == 0)
 			{
 				node_coords = node_coords + (node_offsets << current_shift);
@@ -166,10 +168,10 @@ void main ()
 			{
 				const uint num_colors = offset & 0xF;
 				const uint colors_offset = (offset >> 4) & 0xFFFF;
-				vec3       best_color = texelFetch (palette_colors, int (colors_offset)).rgb;
-				vec3       second_best_color = best_color;
-				float      best_dist_sq = dot (color.rgb - best_color, color.rgb - best_color);
-				float      second_best_dist_sq = 1e38f;
+				vec3	   best_color = texelFetch (palette_colors, int (colors_offset)).rgb;
+				vec3	   second_best_color = best_color;
+				float	   best_dist_sq = dot (color.rgb - best_color, color.rgb - best_color);
+				float	   second_best_dist_sq = 1e38f;
 				[[loop]] for (int i = 1; i < num_colors; ++i)
 				{
 					vec3  palette_color = texelFetch (palette_colors, int (colors_offset + i)).rgb;
@@ -311,6 +313,8 @@ void main ()
 #endif
 
 	color.rgb = mix (color.rgb, vec3 (push_constants.poly_blend_r, push_constants.poly_blend_g, push_constants.poly_blend_b), push_constants.poly_blend_a);
+	[[branch]] if ((push_constants.flags & SCREEN_EFFECT_FLAG_MENU) != 0)
+		color.rgb = mix(color.rgb, vec3 (color.r * 0.3f + color.g * 0.59f + color.b * 0.11f), 0.5f) * 0.9f;
 
 	imageStore (output_image, ivec2 (pos_x, pos_y), color);
 }

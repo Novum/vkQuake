@@ -2486,6 +2486,7 @@ typedef struct end_rendering_parms_s
 	qboolean swapchain	   : 1;
 	qboolean render_warp   : 1;
 	qboolean vid_palettize : 1;
+	qboolean menu		   : 1;
 	uint32_t render_scale  : 4;
 	uint32_t vid_height	   : 20;
 	float	 time;
@@ -2498,6 +2499,7 @@ typedef struct end_rendering_parms_s
 #define SCREEN_EFFECT_FLAG_SCALE_8X	  0x3
 #define SCREEN_EFFECT_FLAG_WATER_WARP 0x4
 #define SCREEN_EFFECT_FLAG_PALETTIZE  0x8
+#define SCREEN_EFFECT_FLAG_MENU		  0x10
 
 /*
 ===============
@@ -2571,6 +2573,8 @@ static void GL_ScreenEffects (cb_context_t *cbx, qboolean enabled, end_rendering
 			screen_effect_flags |= SCREEN_EFFECT_FLAG_SCALE_2X;
 		if (parms->vid_palettize)
 			screen_effect_flags |= SCREEN_EFFECT_FLAG_PALETTIZE;
+		if (parms->menu)
+			screen_effect_flags |= SCREEN_EFFECT_FLAG_MENU;
 		const screen_effect_constants_t push_constants = {
 			parms->vid_width - 1,
 			parms->vid_height - 1,
@@ -2677,7 +2681,8 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 
 	vkCmdExecuteCommands (primary_cb, 1, &vulkan_globals.secondary_cb_contexts[CBX_UPDATE_LIGHTMAPS].cb);
 
-	const qboolean screen_effects = parms->render_warp || (parms->render_scale >= 2) || parms->vid_palettize || (gl_polyblend.value && parms->v_blend[3]);
+	const qboolean screen_effects =
+		parms->render_warp || (parms->render_scale >= 2) || parms->vid_palettize || (gl_polyblend.value && parms->v_blend[3] || parms->menu);
 	{
 		const qboolean		  resolve = (vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT);
 		VkRenderPassBeginInfo render_pass_begin_info;
@@ -2780,6 +2785,7 @@ task_handle_t GL_EndRendering (qboolean use_tasks, qboolean swapchain)
 		.swapchain = swapchain,
 		.render_warp = render_warp,
 		.vid_palettize = vid_palettize.value != 0,
+		.menu = key_dest == key_menu,
 		.render_scale = CLAMP (0, render_scale, 8),
 		.vid_width = vid.width,
 		.vid_height = vid.height,
