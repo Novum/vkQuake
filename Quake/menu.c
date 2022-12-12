@@ -105,6 +105,8 @@ static int		m_mouse_y_pixels;
 
 void M_ConfigureNetSubsystem (void);
 
+extern cvar_t scr_fov;
+
 /*
 ================
 M_PixelToMenuCanvasCoord
@@ -1117,6 +1119,7 @@ enum
 {
 	OPT_CUSTOMIZE = 0,
 	OPT_VIDEO,
+	OPT_FOV,
 	OPT_SCALE,
 	OPT_SCRSIZE,
 	OPT_GAMMA,
@@ -1166,6 +1169,14 @@ void M_AdjustSliders (int dir)
 
 	switch (options_cursor)
 	{
+	case OPT_FOV:
+		f = scr_fov.value + dir * 5;
+		if (f < 80)
+			f = 80;
+		else if (f > 130)
+			f = 130;
+		Cvar_SetValue ("fov", f);
+		break;
 	case OPT_SCALE: // console and menu scale
 		if (scr_relativescale.value)
 		{
@@ -1356,14 +1367,19 @@ void M_Options_Draw (cb_context_t *cbx)
 	if (vid_menudrawfn)
 		M_Print (cbx, 16, 32 + 8 * OPT_VIDEO, "         Video Options");
 
+	// OPT_FOV:
+	M_Print (cbx, 16, 32 + 8 * OPT_FOV, "         Field Of View");
+	r = (scr_fov.value - 80) / (130 - 80);
+	M_DrawSlider (cbx, 220, 32 + 8 * OPT_FOV, r);
+
 	// OPT_SCALE:
-	M_Print (cbx, 16, 32 + 8 * OPT_SCALE, "                 Scale");
+	M_Print (cbx, 16, 32 + 8 * OPT_SCALE, "       Interface Scale");
 	l = scr_relativescale.value ? 2.0f : ((vid.width / 320.0) - 1);
 	r = l > 0 ? ((scr_relativescale.value ? scr_relativescale.value : scr_conscale.value) - 1) / l : 0;
 	M_DrawSlider (cbx, 220, 32 + 8 * OPT_SCALE, r);
 
 	// OPT_SCRSIZE:
-	M_Print (cbx, 16, 32 + 8 * OPT_SCRSIZE, "           Screen size");
+	M_Print (cbx, 16, 32 + 8 * OPT_SCRSIZE, "           Screen Size");
 	r = (scr_viewsize.value - 30) / (130 - 30);
 	M_DrawSlider (cbx, 220, 32 + 8 * OPT_SCRSIZE, r);
 
