@@ -1001,6 +1001,11 @@ void IN_SendKeyEvents (void)
 			Con_DPrintf ("Ignoring SDL_CONTROLLERDEVICEREMAPPED\n");
 			break;
 
+		case SDL_DROPFILE:
+			COM_RunPath (event.drop.file);
+			SDL_free (event.drop.file);
+			break;
+
 		case SDL_QUIT:
 			CL_Disconnect ();
 			Sys_Quit ();
