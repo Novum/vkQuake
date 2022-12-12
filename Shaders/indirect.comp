@@ -1,6 +1,9 @@
 #version 460
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_ARB_shading_language_420pack : enable
+#extension GL_GOOGLE_include_directive : enable
+
+#include "globals.inc"
 
 layout (push_constant) uniform PushConsts
 {
@@ -12,31 +15,9 @@ layout (push_constant) uniform PushConsts
 }
 push_constants;
 
-struct surface_t
-{
-	uint  packed_lightstyles;
-	float normal_x;
-	float normal_y;
-	float normal_z;
-	float dist;
-	uint  packed_light_st;
-	uint  packed_tex_edgecount;
-	uint  vbo_offset;
-	vec4  vecs[2];
-};
-
-struct VkDrawIndexedIndirectCommand_t
-{
-	uint indexCount;
-	uint instanceCount;
-	uint firstIndex;
-	int	 vertexOffset;
-	uint firstInstance;
-};
-
 layout (std430, set = 0, binding = 0) restrict buffer indirect_draw_buffer
 {
-	VkDrawIndexedIndirectCommand_t indirect_draw_data[];
+	draw_indirect_command_t indirect_draw_data[];
 };
 layout (std430, set = 0, binding = 1) restrict readonly buffer surfaces_buffer
 {

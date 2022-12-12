@@ -110,6 +110,7 @@ qboolean r_drawworld_cheatsafe, r_fullbright_cheatsafe, r_lightmap_cheatsafe; //
 cvar_t r_scale = {"r_scale", "1", CVAR_ARCHIVE};
 
 cvar_t r_gpulightmapupdate = {"r_gpulightmapupdate", "1", CVAR_NONE};
+cvar_t r_rtshadows = {"r_rtshadows", "1", CVAR_NONE};
 
 cvar_t r_tasks = {"r_tasks", "1", CVAR_NONE};
 

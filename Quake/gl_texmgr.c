@@ -620,7 +620,6 @@ void TexMgr_Init (void)
 	greylightmap = TexMgr_LoadImage (
 		NULL, "greytexture", 2, 2, SRC_LIGHTMAP, greytexture_data, "", (src_offset_t)greytexture_data, TEXPREF_NEAREST | TEXPREF_PERSIST | TEXPREF_NOPICMIP);
 
-	byte *bluenoise_rgba;
 	TEMP_ALLOC (byte, bluenoise_rgba, sizeof (bluenoise_data) * 4);
 	for (i = 0; i < sizeof (bluenoise_data); ++i)
 		for (int j = 0; j < 3; ++j)
@@ -653,7 +652,6 @@ static unsigned *TexMgr_Downsample (unsigned *data, int in_width, int in_height,
 	assert ((out_width >= 1) && (out_width < in_width));
 	assert ((out_height >= 1) && (out_height < in_height));
 
-	byte *image_resize_buffer;
 	TEMP_ALLOC (byte, image_resize_buffer, out_size_bytes);
 	stbir_resize_uint8 ((byte *)data, in_width, in_height, 0, image_resize_buffer, out_width, out_height, 0, 4);
 	memcpy (data, image_resize_buffer, out_size_bytes);
@@ -1212,7 +1210,6 @@ static void TexMgr_LoadImage8 (gltexture_t *glt, byte *data)
 	}
 
 	// convert to 32bit
-	unsigned *converted;
 	TEMP_ALLOC (unsigned, converted, glt->width * glt->height);
 	TexMgr_8to32 (data, converted, glt->width * glt->height, usepal);
 

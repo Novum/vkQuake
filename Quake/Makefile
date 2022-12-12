@@ -224,7 +224,9 @@ SHADER_OBJS = \
 	world.vert.o \
 	showtris.frag.o \
 	showtris.vert.o \
-	update_lightmap.comp.o
+	update_lightmap.comp.o \
+	update_lightmap_rt.comp.o \
+	ray_debug.comp.o
 
 GLOBJS = \
 	$(SHADER_OBJS) \

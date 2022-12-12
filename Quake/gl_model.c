@@ -340,6 +340,7 @@ void Mod_ClearAll (void)
 {
 	int		  i;
 	qmodel_t *mod;
+	GL_DeleteBModelAccelerationStructures ();
 
 	for (i = 0, mod = mod_known; i < mod_numknown; i++, mod++)
 	{
@@ -365,6 +366,7 @@ void Mod_ResetAll (void)
 
 	// ericw -- free alias model VBOs
 	GLMesh_DeleteVertexBuffers ();
+	GL_DeleteBModelAccelerationStructures ();
 
 	for (i = 0, mod = mod_known; i < mod_numknown; i++, mod++)
 	{
@@ -2838,7 +2840,6 @@ void *Mod_LoadAllSkins (qmodel_t *mod, byte *mod_base, int numskins, byte *pskin
 	if (numskins < 1 || numskins > MAX_SKINS)
 		Sys_Error ("Mod_LoadAliasModel: Invalid # of skins: %d", numskins);
 
-	byte **ppskintypes;
 	TEMP_ALLOC (byte *, ppskintypes, numskins);
 	int size = pheader->skinwidth * pheader->skinheight;
 	for (int i = 0; i < numskins; i++)

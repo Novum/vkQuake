@@ -240,7 +240,6 @@ known to be 0 and skip 3/4 of the filter kernel.
 static void S_ApplyFilter (filter_t *filter, int *data, int stride, int count)
 {
 	int			 i, j;
-	float		*input;
 	const int	 kernelsize = filter->kernelsize;
 	const float *kernel = filter->kernel;
 	int			 parity;

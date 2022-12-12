@@ -290,6 +290,9 @@ static inline int FindFirstBitNonZero (const uint32_t mask)
 #include "platform.h"
 
 #include <vulkan/vulkan_core.h>
+#if VK_HEADER_VERSION < 162
+#error Vulkan SDK too old
+#endif
 
 #include "console.h"
 #include "wad.h"

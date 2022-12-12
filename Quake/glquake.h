@@ -33,6 +33,7 @@ qboolean	  GL_BeginRendering (qboolean use_tasks, task_handle_t *begin_rendering
 qboolean	  GL_AcquireNextSwapChainImage (void);
 task_handle_t GL_EndRendering (qboolean use_tasks, qboolean use_swapchain);
 void		  GL_SynchronizeEndRenderingTask (void);
+void		  GL_UpdateDescriptorSets (void);
 
 extern int glwidth, glheight;
 
@@ -154,6 +155,7 @@ typedef struct vulkan_desc_set_layout_s
 	int					  num_input_attachments;
 	int					  num_storage_images;
 	int					  num_sampled_images;
+	int					  num_acceleration_structures;
 } vulkan_desc_set_layout_t;
 
 typedef enum
@@ -244,6 +246,7 @@ typedef struct
 	// Device extensions
 	qboolean dedicated_allocation;
 	qboolean full_screen_exclusive;
+	qboolean ray_query;
 
 	// Buffers
 	VkImage color_buffers[NUM_COLOR_BUFFERS];
@@ -290,8 +293,10 @@ typedef struct
 	vulkan_pipeline_t		 alias_showtris_pipeline;
 	vulkan_pipeline_t		 alias_showtris_depth_test_pipeline;
 	vulkan_pipeline_t		 update_lightmap_pipeline;
+	vulkan_pipeline_t		 update_lightmap_rt_pipeline;
 	vulkan_pipeline_t		 indirect_draw_pipeline;
 	vulkan_pipeline_t		 indirect_clear_pipeline;
+	vulkan_pipeline_t		 ray_debug_pipeline;
 #ifdef PSET_SCRIPT
 	vulkan_pipeline_t fte_particle_pipelines[FTE_PARTICLE_PIPELINE_COUNT];
 #endif
@@ -307,6 +312,9 @@ typedef struct
 	vulkan_desc_set_layout_t lightmap_compute_set_layout;
 	VkDescriptorSet			 indirect_compute_desc_set;
 	vulkan_desc_set_layout_t indirect_compute_set_layout;
+	vulkan_desc_set_layout_t lightmap_compute_rt_set_layout;
+	VkDescriptorSet			 ray_debug_desc_set;
+	vulkan_desc_set_layout_t ray_debug_set_layout;
 
 	// Samplers
 	VkSampler point_sampler;
@@ -324,16 +332,23 @@ typedef struct
 	float view_projection_matrix[16];
 
 	// Dispatch table
-	PFN_vkCmdBindPipeline		 vk_cmd_bind_pipeline;
-	PFN_vkCmdPushConstants		 vk_cmd_push_constants;
-	PFN_vkCmdBindDescriptorSets	 vk_cmd_bind_descriptor_sets;
-	PFN_vkCmdBindIndexBuffer	 vk_cmd_bind_index_buffer;
-	PFN_vkCmdBindVertexBuffers	 vk_cmd_bind_vertex_buffers;
-	PFN_vkCmdDraw				 vk_cmd_draw;
-	PFN_vkCmdDrawIndexed		 vk_cmd_draw_indexed;
-	PFN_vkCmdDrawIndexedIndirect vk_cmd_draw_indexed_indirect;
-	PFN_vkCmdPipelineBarrier	 vk_cmd_pipeline_barrier;
-	PFN_vkCmdCopyBufferToImage	 vk_cmd_copy_buffer_to_image;
+	PFN_vkCmdBindPipeline			vk_cmd_bind_pipeline;
+	PFN_vkCmdPushConstants			vk_cmd_push_constants;
+	PFN_vkCmdBindDescriptorSets		vk_cmd_bind_descriptor_sets;
+	PFN_vkCmdBindIndexBuffer		vk_cmd_bind_index_buffer;
+	PFN_vkCmdBindVertexBuffers		vk_cmd_bind_vertex_buffers;
+	PFN_vkCmdDraw					vk_cmd_draw;
+	PFN_vkCmdDrawIndexed			vk_cmd_draw_indexed;
+	PFN_vkCmdDrawIndexedIndirect	vk_cmd_draw_indexed_indirect;
+	PFN_vkCmdPipelineBarrier		vk_cmd_pipeline_barrier;
+	PFN_vkCmdCopyBufferToImage		vk_cmd_copy_buffer_to_image;
+	PFN_vkGetBufferDeviceAddressKHR vk_get_buffer_device_address;
+
+	PFN_vkGetAccelerationStructureBuildSizesKHR		   vk_get_acceleration_structure_build_sizes;
+	PFN_vkCreateAccelerationStructureKHR			   vk_create_acceleration_structure;
+	PFN_vkDestroyAccelerationStructureKHR			   vk_destroy_acceleration_structure;
+	PFN_vkCmdBuildAccelerationStructuresKHR			   vk_cmd_build_acceleration_structures;
+	VkPhysicalDeviceAccelerationStructurePropertiesKHR physical_device_acceleration_structure_properties;
 
 #ifdef _DEBUG
 	PFN_vkCmdBeginDebugUtilsLabelEXT vk_cmd_begin_debug_utils_label;
@@ -542,8 +557,11 @@ void R_DrawTextureChains_Water (cb_context_t *cbx, qmodel_t *model, entity_t *en
 void GL_BuildLightmaps (void);
 void GL_SetupIndirectDraws (void);
 void GL_SetupLightmapCompute (void);
+void GL_UpdateLightmapDescriptorSets (void);
 void GL_DeleteBModelVertexBuffer (void);
+void GL_DeleteBModelAccelerationStructures (void);
 void GL_BuildBModelVertexBuffer (void);
+void GL_BuildBModelAccelerationStructures (void);
 void GL_PrepareSIMDAndParallelData (void);
 void GLMesh_LoadVertexBuffers (void);
 void GLMesh_DeleteVertexBuffers (void);
@@ -640,7 +658,7 @@ void R_FreeVulkanMemory (vulkan_memory_t *memory);
 
 void R_CreateBuffer (
 	VkBuffer *buffer, vulkan_memory_t *memory, const size_t size, VkBufferUsageFlags usage, const VkFlags mem_requirements_mask,
-	const VkFlags mem_preferred_mask, atomic_uint32_t *num_allocations, const char *name);
+	const VkFlags mem_preferred_mask, atomic_uint32_t *num_allocations, VkDeviceAddress *device_address, const char *name);
 void R_FreeBuffer (const VkBuffer buffer, vulkan_memory_t *memory, atomic_uint32_t *num_allocations);
 
 typedef struct buffer_create_info_s
@@ -650,6 +668,7 @@ typedef struct buffer_create_info_s
 	size_t			   alignment;
 	VkBufferUsageFlags usage;
 	void			 **mapped;
+	VkDeviceAddress	  *address;
 	const char		  *name;
 } buffer_create_info_t;
 size_t R_CreateBuffers (

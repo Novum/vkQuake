@@ -27,3 +27,4 @@ build/
 .cproject
 .DS_Store
 history.txt
+.vscode/settings.json

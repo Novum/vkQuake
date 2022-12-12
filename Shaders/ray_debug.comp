@@ -1,0 +1,59 @@
+#version 460
+#extension GL_ARB_separate_shader_objects : enable
+#extension GL_ARB_shading_language_420pack : enable
+#extension GL_EXT_ray_query : enable
+
+layout (set = 0, binding = 0, rgb10_a2) uniform writeonly image2D output_image;
+layout (set = 0, binding = 1) uniform accelerationStructureEXT tlas;
+
+layout (push_constant) uniform PushConsts
+{
+	vec2  screen_size_rcp;
+	float aspect_ratio;
+	float origin_x;
+	float origin_y;
+	float origin_z;
+	float forward_x;
+	float forward_y;
+	float forward_z;
+	float right_x;
+	float right_y;
+	float right_z;
+	float down_x;
+	float down_y;
+	float down_z;
+}
+push_constants;
+
+layout (local_size_x = 8, local_size_y = 8) in;
+void main ()
+{
+	vec4 color = vec4 (0.0f, 0.0f, 0.0f, 0.0f);
+
+	const uint	pos_x = gl_GlobalInvocationID.x;
+	const uint	pos_y = gl_GlobalInvocationID.y;
+	const float pos_x_unit = ((float (pos_x) * push_constants.screen_size_rcp.x) * 2.0f) - 1.0f;
+	const float pos_y_unit = ((float (pos_y) * push_constants.screen_size_rcp.y) * 2.0f) - 1.0f;
+	const vec3	origin = vec3 (push_constants.origin_x, push_constants.origin_y, push_constants.origin_z);
+	const vec3	forward = vec3 (push_constants.forward_x, push_constants.forward_y, push_constants.forward_z);
+	const vec3	right = vec3 (push_constants.right_x, push_constants.right_y, push_constants.right_z) * push_constants.aspect_ratio;
+	const vec3	down = vec3 (push_constants.down_x, push_constants.down_y, push_constants.down_z);
+	const vec3	direction = normalize (forward + (right * pos_x_unit) + (down * pos_y_unit));
+
+	float		depth = 1e30f;
+	rayQueryEXT ray_query;
+	rayQueryInitializeEXT (ray_query, tlas, gl_RayFlagsOpaqueEXT, 0xFF, origin, 1e-3f, direction, 1e30f);
+
+	while (rayQueryProceedEXT (ray_query))
+	{
+	}
+	if (rayQueryGetIntersectionTypeEXT (ray_query, true) == gl_RayQueryCommittedIntersectionTriangleEXT)
+	{
+		depth = rayQueryGetIntersectionTEXT (ray_query, true);
+		color.rgb = vec3 (pow (depth, 0.3f) / 50.0f);
+	}
+	else
+		color.rgb = vec3 (0.0f, 0.0f, 1.0f);
+
+	imageStore (output_image, ivec2 (pos_x, pos_y), color);
+}

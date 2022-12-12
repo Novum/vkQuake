@@ -716,7 +716,6 @@ Sky_DrawSkySurface
 static void Sky_DrawSkySurface (cb_context_t *cbx, float color[3], entity_t *e, msurface_t *s, qboolean rotated, vec3_t forward, vec3_t right, vec3_t up)
 {
 	// copy the polygon and translate manually, since Sky_ProcessPoly needs it to be in world space
-	glpoly_t *p;
 	TEMP_ALLOC (glpoly_t, p, s->polys->numverts);
 	p->numverts = s->polys->numverts;
 	for (int k = 0; k < p->numverts; k++)
