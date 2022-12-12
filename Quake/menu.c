@@ -1148,7 +1148,11 @@ enum
 	ALWAYSRUN_ITEMS
 };
 
-#define SLIDER_SIZE 10
+#define SLIDER_SIZE	  10
+#define SLIDER_XPOS	  220
+#define SLIDER_EXTENT ((SLIDER_SIZE - 1) * 8)
+#define SLIDER_START  (SLIDER_XPOS + 4)
+#define SLIDER_END	  (SLIDER_START + SLIDER_EXTENT)
 
 static int options_cursor;
 
@@ -1160,104 +1164,94 @@ void M_Menu_Options_f (void)
 	m_entersound = true;
 }
 
-void M_AdjustSliders (int dir)
+static float
+M_GetSliderPos (float low, float high, float current, qboolean backward, qboolean mouse, float clamped_mouse, int dir, float step, float snap_start)
+{
+	float f;
+
+	if (mouse)
+	{
+		if (backward)
+			f = high + (low - high) * (clamped_mouse - SLIDER_START) / SLIDER_EXTENT;
+		else
+			f = low + (high - low) * (clamped_mouse - SLIDER_START) / SLIDER_EXTENT;
+	}
+	else
+	{
+		if (backward)
+			f = current - dir * step;
+		else
+			f = current + dir * step;
+	}
+	if (!mouse || f > snap_start)
+		f = (int)(f / step + 0.5f) * step;
+	if (f < low)
+		f = low;
+	else if (f > high)
+		f = high;
+
+	return f;
+}
+
+void M_AdjustSliders (int dir, qboolean mouse)
 {
 	int	  curr_alwaysrun, target_alwaysrun;
-	float f, l;
+	float f, clamped_mouse = CLAMP (SLIDER_START, (float)m_mouse_x, SLIDER_END);
+
+	if (fabsf (clamped_mouse - (float)m_mouse_x) > 12.0f)
+		mouse = false;
 
 	S_LocalSound ("misc/menu3.wav");
 
 	switch (options_cursor)
 	{
 	case OPT_FOV:
-		f = scr_fov.value + dir * 5;
-		if (f < 80)
-			f = 80;
-		else if (f > 130)
-			f = 130;
+		f = M_GetSliderPos (80, 130, scr_fov.value, false, mouse, clamped_mouse, dir, 5, 999);
 		Cvar_SetValue ("fov", f);
 		break;
 	case OPT_SCALE: // console and menu scale
 		if (scr_relativescale.value)
 		{
-			l = 3.0f;
-			f = scr_relativescale.value + dir * .1;
-			if (f < 1)
-				f = 1;
-			else if (f > l)
-				f = l;
+			f = M_GetSliderPos (1, 3.0f, scr_relativescale.value, false, mouse, clamped_mouse, dir, 0.1, 999);
 			Cvar_SetValue ("scr_relativescale", f);
 		}
 		else
 		{
-			l = ((vid.width + 31) / 32) / 10.0;
-			f = scr_conscale.value + dir * .1;
-			if (f < 1)
-				f = 1;
-			else if (f > l)
-				f = l;
+			f = M_GetSliderPos (1, ((vid.width + 31) / 32) / 10.0, scr_conscale.value, false, mouse, clamped_mouse, dir, 0.1, 999);
 			Cvar_SetValue ("scr_conscale", f);
 			Cvar_SetValue ("scr_menuscale", f);
 			Cvar_SetValue ("scr_sbarscale", f);
 		}
 		break;
 	case OPT_SCRSIZE: // screen size
-		f = scr_viewsize.value + dir * 10;
-		if (f > 130)
-			f = 130;
-		else if (f < 30)
-			f = 30;
+		f = M_GetSliderPos (30, 130, scr_viewsize.value, false, mouse, clamped_mouse, dir, 10, 100);
 		Cvar_SetValue ("viewsize", f);
 		break;
 	case OPT_GAMMA: // gamma
-		f = vid_gamma.value - dir * 0.05;
-		if (f < 0.5)
-			f = 0.5;
-		else if (f > 1)
-			f = 1;
+		f = M_GetSliderPos (0.5, 1, vid_gamma.value, true, mouse, clamped_mouse, dir, 0.05, 999);
 		Cvar_SetValue ("gamma", f);
 		break;
 	case OPT_CONTRAST: // contrast
-		f = vid_contrast.value + dir * 0.1;
-		if (f < 1)
-			f = 1;
-		else if (f > 2)
-			f = 2;
+		f = M_GetSliderPos (1, 2, vid_contrast.value, false, mouse, clamped_mouse, dir, 0.1, 999);
 		Cvar_SetValue ("contrast", f);
 		break;
 	case OPT_MOUSESPEED: // mouse speed
-		f = sensitivity.value + dir * 0.5;
-		if (f > 11)
-			f = 11;
-		else if (f < 1)
-			f = 1;
+		f = M_GetSliderPos (1, 11, sensitivity.value, false, mouse, clamped_mouse, dir, 0.5, 999);
 		Cvar_SetValue ("sensitivity", f);
 		break;
 	case OPT_SBALPHA: // statusbar alpha
-		f = scr_sbaralpha.value - dir * 0.05;
-		if (f < 0)
-			f = 0;
-		else if (f > 1)
-			f = 1;
+		f = M_GetSliderPos (0, 1, scr_sbaralpha.value, true, mouse, clamped_mouse, dir, 0.05, 999);
 		Cvar_SetValue ("scr_sbaralpha", f);
 		break;
 	case OPT_MUSICVOL: // music volume
-		f = bgmvolume.value + dir * 0.1;
-		if (f < 0)
-			f = 0;
-		else if (f > 1)
-			f = 1;
+		f = M_GetSliderPos (0, 1, bgmvolume.value, false, mouse, clamped_mouse, dir, 0.1, 999);
 		Cvar_SetValue ("bgmvolume", f);
 		break;
 	case OPT_MUSICEXT: // enable external music vs cdaudio
 		Cvar_Set ("bgm_extmusic", bgm_extmusic.value ? "0" : "1");
 		break;
 	case OPT_SNDVOL: // sfx volume
-		f = sfxvolume.value + dir * 0.1;
-		if (f < 0)
-			f = 0;
-		else if (f > 1)
-			f = 1;
+		f = M_GetSliderPos (0, 1, sfxvolume.value, false, mouse, clamped_mouse, dir, 0.1, 999);
 		Cvar_SetValue ("volume", f);
 		break;
 
@@ -1370,48 +1364,48 @@ void M_Options_Draw (cb_context_t *cbx)
 	// OPT_FOV:
 	M_Print (cbx, 16, 32 + 8 * OPT_FOV, "         Field Of View");
 	r = (scr_fov.value - 80) / (130 - 80);
-	M_DrawSlider (cbx, 220, 32 + 8 * OPT_FOV, r);
+	M_DrawSlider (cbx, SLIDER_XPOS, 32 + 8 * OPT_FOV, r);
 
 	// OPT_SCALE:
 	M_Print (cbx, 16, 32 + 8 * OPT_SCALE, "       Interface Scale");
 	l = scr_relativescale.value ? 2.0f : ((vid.width / 320.0) - 1);
 	r = l > 0 ? ((scr_relativescale.value ? scr_relativescale.value : scr_conscale.value) - 1) / l : 0;
-	M_DrawSlider (cbx, 220, 32 + 8 * OPT_SCALE, r);
+	M_DrawSlider (cbx, SLIDER_XPOS, 32 + 8 * OPT_SCALE, r);
 
 	// OPT_SCRSIZE:
 	M_Print (cbx, 16, 32 + 8 * OPT_SCRSIZE, "           Screen Size");
 	r = (scr_viewsize.value - 30) / (130 - 30);
-	M_DrawSlider (cbx, 220, 32 + 8 * OPT_SCRSIZE, r);
+	M_DrawSlider (cbx, SLIDER_XPOS, 32 + 8 * OPT_SCRSIZE, r);
 
 	// OPT_GAMMA:
 	M_Print (cbx, 16, 32 + 8 * OPT_GAMMA, "            Brightness");
 	r = (1.0 - vid_gamma.value) / 0.5;
-	M_DrawSlider (cbx, 220, 32 + 8 * OPT_GAMMA, r);
+	M_DrawSlider (cbx, SLIDER_XPOS, 32 + 8 * OPT_GAMMA, r);
 
 	// OPT_CONTRAST:
 	M_Print (cbx, 16, 32 + 8 * OPT_CONTRAST, "              Contrast");
 	r = vid_contrast.value - 1.0;
-	M_DrawSlider (cbx, 220, 32 + 8 * OPT_CONTRAST, r);
+	M_DrawSlider (cbx, SLIDER_XPOS, 32 + 8 * OPT_CONTRAST, r);
 
 	// OPT_MOUSESPEED:
 	M_Print (cbx, 16, 32 + 8 * OPT_MOUSESPEED, "           Mouse Speed");
 	r = (sensitivity.value - 1) / 10;
-	M_DrawSlider (cbx, 220, 32 + 8 * OPT_MOUSESPEED, r);
+	M_DrawSlider (cbx, SLIDER_XPOS, 32 + 8 * OPT_MOUSESPEED, r);
 
 	// OPT_SBALPHA:
 	M_Print (cbx, 16, 32 + 8 * OPT_SBALPHA, "       Statusbar alpha");
 	r = (1.0 - scr_sbaralpha.value); // scr_sbaralpha range is 1.0 to 0.0
-	M_DrawSlider (cbx, 220, 32 + 8 * OPT_SBALPHA, r);
+	M_DrawSlider (cbx, SLIDER_XPOS, 32 + 8 * OPT_SBALPHA, r);
 
 	// OPT_SNDVOL:
 	M_Print (cbx, 16, 32 + 8 * OPT_SNDVOL, "          Sound Volume");
 	r = sfxvolume.value;
-	M_DrawSlider (cbx, 220, 32 + 8 * OPT_SNDVOL, r);
+	M_DrawSlider (cbx, SLIDER_XPOS, 32 + 8 * OPT_SNDVOL, r);
 
 	// OPT_MUSICVOL:
 	M_Print (cbx, 16, 32 + 8 * OPT_MUSICVOL, "          Music Volume");
 	r = bgmvolume.value;
-	M_DrawSlider (cbx, 220, 32 + 8 * OPT_MUSICVOL, r);
+	M_DrawSlider (cbx, SLIDER_XPOS, 32 + 8 * OPT_MUSICVOL, r);
 
 	// OPT_MUSICEXT:
 	M_Print (cbx, 16, 32 + 8 * OPT_MUSICEXT, "        External Music");
@@ -1494,7 +1488,7 @@ void M_Options_Key (int k)
 			M_Menu_Video_f ();
 			break;
 		default:
-			M_AdjustSliders (1);
+			M_AdjustSliders (1, k == K_MOUSE1);
 			break;
 		}
 		return;
@@ -1514,11 +1508,11 @@ void M_Options_Key (int k)
 		break;
 
 	case K_LEFTARROW:
-		M_AdjustSliders (-1);
+		M_AdjustSliders (-1, false);
 		break;
 
 	case K_RIGHTARROW:
-		M_AdjustSliders (1);
+		M_AdjustSliders (1, false);
 		break;
 	}
 
@@ -1763,6 +1757,7 @@ void M_Help_Key (int key)
 		M_Menu_Main_f ();
 		break;
 
+	case K_MOUSE1:
 	case K_MWHEELDOWN:
 	case K_UPARROW:
 	case K_RIGHTARROW:
