@@ -2211,7 +2211,7 @@ void R_AccumulateLightmap (byte *lightmap, unsigned scale, int texels)
 		while (size >= 8)
 		{
 			uint8x8_t  lm_uint_8x8 = vld1_u8 (lightmap);
-			uint16x8_t lm_uint_16x8 = vmovl_s8 (lm_uint_8x8);
+			uint16x8_t lm_uint_16x8 = vmovl_u8 (lm_uint_8x8);
 
 			uint32x4_t lm_old_low_4x32bit = vld1q_u32 (bl);
 			uint16x4_t lm_uint_low_16x4 = vget_low_u16 (lm_uint_16x8);
@@ -2279,7 +2279,7 @@ void R_StoreLightmap (byte *dest, int width, int height, int stride)
 				uint16x4_t lm_shifted_16x4_masked = vset_lane_u16 (0xFF, lm_shifted_16x4, 3);
 				uint16x8_t lm_shifted_16x8 = vcombine_u16 (lm_shifted_16x4_masked, vcreate_u16 (0));
 				uint8x8_t  lm_shifted_saturated_8x8 = vqmovn_u16 (lm_shifted_16x8);
-				uint32x2_t lm_shifted_saturated_32x2 = vreinterpret_s32_u8 (lm_shifted_saturated_8x8);
+				uint32x2_t lm_shifted_saturated_32x2 = vreinterpret_u32_u8 (lm_shifted_saturated_8x8);
 				((uint32_t *)dest)[i] = vget_lane_u32 (lm_shifted_saturated_32x2, 0);
 				src += 3;
 			}
