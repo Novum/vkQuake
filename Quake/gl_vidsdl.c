@@ -1012,6 +1012,10 @@ static void GL_InitDevice (void)
 #endif
 		vkGetPhysicalDeviceFeatures (vulkan_physical_device, &vulkan_physical_device_features);
 
+#ifdef __APPLE__ // MoltenVK lies about this
+	vulkan_physical_device_features.sampleRateShading = false;
+#endif
+
 #if defined(VK_EXT_subgroup_size_control)
 	vulkan_globals.screen_effects_sops =
 		vulkan_globals.vulkan_1_1_available && subgroup_size_control && subgroup_size_control_features.subgroupSizeControl &&
@@ -1659,9 +1663,7 @@ static void GL_CreateColorBuffer (void)
 
 	if (vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT)
 	{
-#ifndef __APPLE__ // MoltenVK lies about this
 		vulkan_globals.supersampling = (vulkan_physical_device_features.sampleRateShading && vid_fsaamode.value >= 1) ? true : false;
-#endif
 
 		if (vulkan_globals.supersampling)
 			Sys_Printf ("Supersampling enabled\n");
@@ -3556,7 +3558,7 @@ VID_Menu_ChooseNextAAMode
 */
 static void VID_Menu_ChooseNextAAMode (int dir)
 {
-	if (vulkan_globals.supersampling)
+	if (vulkan_physical_device_features.sampleRateShading)
 		Cvar_SetValueQuick (&vid_fsaamode, (float)(((int)vid_fsaamode.value + 2 + dir) % 2));
 }
 
@@ -4005,7 +4007,7 @@ static void VID_MenuDraw (cb_context_t *cbx)
 			break;
 		case VID_OPT_ANTIALIASING_MODE:
 			M_Print (cbx, 16, y, "           AA Mode");
-			M_Print (cbx, 184, y, ((int)vid_fsaamode.value == 0) ? "Multisample" : "Supersample");
+			M_Print (cbx, 184, y, (((int)vid_fsaamode.value == 0) || !vulkan_physical_device_features.sampleRateShading) ? "Multisample" : "Supersample");
 			break;
 		case VID_OPT_RENDER_SCALE:
 			M_Print (cbx, 16, y, "      Render Scale");
