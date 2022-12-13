@@ -48,6 +48,7 @@ typedef struct
 
 	qboolean paused;
 	qboolean loadgame; // handle connections specially
+	char	 lastsave[128];
 
 	int	   lastcheck; // used by PF_checkclient
 	double lastchecktime;

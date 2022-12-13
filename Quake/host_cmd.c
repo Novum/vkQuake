@@ -30,6 +30,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #endif
 
 extern cvar_t pausable;
+extern cvar_t autoload;
 
 int current_skill;
 
@@ -944,6 +945,14 @@ static void Host_Restart_f (void)
 
 	if (cmd_source != src_command)
 		return;
+
+	if (autoload.value && sv.lastsave[0] && q_strcasecmp (Cmd_Argv (1), "noload") && q_strcasecmp (Cmd_Argv (1), "force"))
+	{
+		Cbuf_AddText (va ("%sload \"%s\"\n", autoload.value >= 2 ? "fast" : "", sv.lastsave));
+		svs.changelevel_issued = false;
+		return;
+	}
+
 	q_strlcpy (mapname, sv.name, sizeof (mapname)); // mapname gets cleared in spawnserver
 	PR_SwitchQCVM (&sv.qcvm);
 	SV_SpawnServer (mapname);
@@ -1183,6 +1192,9 @@ static void Host_Savegame_f (void)
 	Con_Printf ("done.\n");
 	PR_SwitchQCVM (NULL);
 	SaveList_Rebuild ();
+
+	if (strlen (Cmd_Argv (1)) < sizeof (sv.lastsave) - 1)
+		strcpy (sv.lastsave, Cmd_Argv (1));
 }
 
 static void Send_Spawn_Info (client_t *c, qboolean loadgame)
@@ -1572,6 +1584,9 @@ static void Host_Loadgame_f (void)
 		CL_EstablishConnection ("local");
 		Host_Reconnect_f ();
 	}
+
+	if (strlen (Cmd_Argv (1)) < sizeof (sv.lastsave) - 1)
+		strcpy (sv.lastsave, Cmd_Argv (1));
 }
 
 //============================================================================
