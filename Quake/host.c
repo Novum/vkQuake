@@ -873,6 +873,7 @@ void _Host_Frame (double time)
 	}
 
 	CL_AccumulateCmd ();
+	M_UpdateMouse ();
 
 	// Run the server+networking (client->server->client), at a different rate from everyt
 	while ((host_netinterval == 0) || (accumtime >= host_netinterval))

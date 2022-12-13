@@ -59,6 +59,8 @@ void	 M_Keydown (int key);
 void	 M_Charinput (int key);
 qboolean M_TextEntry (void);
 void	 M_ToggleMenu_f (void);
+float	 M_GetScale ();
+void	 M_UpdateMouse ();
 
 void M_Menu_Main_f (void);
 void M_Menu_Options_f (void);
