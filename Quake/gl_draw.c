@@ -997,7 +997,7 @@ void GL_SetCanvas (cb_context_t *cbx, canvastype newcanvas)
 		break;
 	case CANVAS_MENU:
 		s = q_min ((float)glwidth / 320.0, (float)glheight / 200.0);
-		s = CLAMP (1.0, scr_menuscale.value, s);
+		s = CLAMP (1.0, M_GetScale (), s);
 		u = (glwidth - (320.0f * s)) / (2.0f * s);
 		v = (glheight - (200.0f * s)) / (2.0f * s);
 		GL_OrthoMatrix (cbx, -u, 320.0f + u, 200.0f + v, -v, -99999, 99999);

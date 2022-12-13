@@ -109,7 +109,23 @@ static int scrollbar_size;
 
 void M_ConfigureNetSubsystem (void);
 
-extern cvar_t scr_fov;
+extern qboolean keydown[256];
+extern cvar_t	scr_fov;
+
+static qboolean slider_grab;
+
+/*
+================
+M_GetScale
+================
+*/
+float M_GetScale ()
+{
+	static float latched_menuscale;
+	if (!slider_grab)
+		latched_menuscale = scr_menuscale.value;
+	return latched_menuscale;
+}
 
 /*
 ================
@@ -119,7 +135,7 @@ M_PixelToMenuCanvasCoord
 static void M_PixelToMenuCanvasCoord (int *x, int *y)
 {
 	float s = q_min ((float)glwidth / 320.0, (float)glheight / 200.0);
-	s = CLAMP (1.0, scr_menuscale.value, s);
+	s = CLAMP (1.0, M_GetScale (), s);
 	*x = (*x - (glwidth - 320 * s) / 2) / s;
 	*y = (*y - (glheight - 200 * s) / 2) / s;
 }
@@ -262,6 +278,12 @@ void M_ToggleMenu_f (void)
 	}
 }
 
+static qboolean M_InScrollbar ()
+{
+	return scrollbar_size &&
+		   (slider_grab || (m_mouse_x >= scrollbar_x && m_mouse_x <= scrollbar_x + 8 && m_mouse_y >= scrollbar_y && m_mouse_y <= scrollbar_y + scrollbar_size));
+}
+
 /*
 ================
 M_HandleScrollBarKeys
@@ -282,10 +304,10 @@ static qboolean M_HandleScrollBarKeys (const int key, int *cursor, int *first_dr
 	switch (key)
 	{
 	case K_MOUSE1:
-		if (m_mouse_x >= scrollbar_x && m_mouse_x <= scrollbar_x + 8 && m_mouse_y >= scrollbar_y && m_mouse_y <= scrollbar_y + scrollbar_size &&
-			num_total - max_on_screen > 0)
+		if (M_InScrollbar () && num_total - max_on_screen > 0)
 		{
 			handled_mouse = true;
+			slider_grab = true;
 			int clamped_mouse = CLAMP (scrollbar_y + 8, m_mouse_y, scrollbar_y + scrollbar_size - 8);
 			*first_drawn = ((float)clamped_mouse - scrollbar_y - 8) / (scrollbar_size - 16) * (num_total - max_on_screen) + 0.5f;
 			if (*cursor < *first_drawn)
@@ -360,7 +382,8 @@ M_UpdateCursorForList
 */
 void M_Mouse_UpdateListCursor (int *cursor, int left, int right, int top, int item_height, int num_items, int scroll_offset)
 {
-	if (m_mouse_moved && (num_items > 0) && (m_mouse_x >= left) && (m_mouse_x <= right) && (m_mouse_y >= top) && (m_mouse_y <= (top + item_height * num_items)))
+	if (!slider_grab && m_mouse_moved && (num_items > 0) && (m_mouse_x >= left) && (m_mouse_x <= right) && (m_mouse_y >= top) &&
+		(m_mouse_y <= (top + item_height * num_items)))
 		*cursor = scroll_offset + CLAMP (0, (m_mouse_y - top) / item_height, num_items - 1);
 }
 
@@ -1222,7 +1245,11 @@ void M_AdjustSliders (int dir, qboolean mouse)
 	if (fabsf (clamped_mouse - (float)m_mouse_x) > 12.0f)
 		mouse = false;
 
-	S_LocalSound ("misc/menu3.wav");
+	if (dir)
+		S_LocalSound ("misc/menu3.wav");
+
+	if (mouse)
+		slider_grab = true;
 
 	switch (options_cursor)
 	{
@@ -2833,7 +2860,7 @@ void M_NewGame (void)
 	m_main_cursor = 0;
 }
 
-static void M_UpdateMouse (void)
+void M_UpdateMouse (void)
 {
 	int new_mouse_x;
 	int new_mouse_y;
@@ -2845,12 +2872,19 @@ static void M_UpdateMouse (void)
 	m_mouse_x = new_mouse_x;
 	m_mouse_y = new_mouse_y;
 	M_PixelToMenuCanvasCoord (&m_mouse_x, &m_mouse_y);
+
+	if (keydown[K_MOUSE1] && slider_grab && m_state == m_options && options_cursor >= OPT_FOV && options_cursor <= OPT_MUSICVOL)
+		M_AdjustSliders (0, true);
+	else if (keydown[K_MOUSE1] && slider_grab && M_InScrollbar ())
+		M_Keydown (K_MOUSE1);
+	else
+		slider_grab = false;
+
+	scrollbar_size = 0;
 }
 
 void M_Draw (cb_context_t *cbx)
 {
-	M_UpdateMouse ();
-
 	if (m_state == m_none || key_dest != key_menu)
 		return;
 
