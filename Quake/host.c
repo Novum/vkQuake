@@ -843,13 +843,16 @@ void _Host_Frame (double time)
 	if (host_speeds.value)
 		time3 = Sys_DoubleTime ();
 
-	// get new key events
-	Key_UpdateForDest ();
-	IN_UpdateInputMode ();
-	Sys_SendKeyEvents ();
+	if (!isDedicated)
+	{
+		// get new key events
+		Key_UpdateForDest ();
+		IN_UpdateInputMode ();
+		Sys_SendKeyEvents ();
 
-	// allow mice or other external controllers to add commands
-	IN_Commands ();
+		// allow mice or other external controllers to add commands
+		IN_Commands ();
+	}
 
 	// check the stdin for commands (dedicated servers)
 	Host_GetConsoleCommands ();
