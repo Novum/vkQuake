@@ -111,6 +111,7 @@ void M_ConfigureNetSubsystem (void);
 
 extern qboolean keydown[256];
 extern cvar_t	scr_fov;
+extern cvar_t	autoload;
 
 static qboolean slider_grab;
 
@@ -1173,6 +1174,7 @@ enum
 	OPT_SNDVOL,
 	OPT_MUSICVOL,
 	OPT_MUSICEXT,
+	OPT_AUTOLOAD,
 	OPT_ALWAYRUN,
 	OPT_INVMOUSE,
 	OPT_ALWAYSMLOOK,
@@ -1301,6 +1303,10 @@ void M_AdjustSliders (int dir, qboolean mouse)
 	case OPT_SNDVOL: // sfx volume
 		f = M_GetSliderPos (0, 1, sfxvolume.value, false, mouse, clamped_mouse, dir, 0.1, 999);
 		Cvar_SetValue ("volume", f);
+		break;
+
+	case OPT_AUTOLOAD: // load last save on death
+		Cvar_SetValue ("autoload", ((int)autoload.value + 3 + dir) % 3);
 		break;
 
 	case OPT_ALWAYRUN: // always run
@@ -1461,6 +1467,15 @@ void M_Options_Draw (cb_context_t *cbx)
 	// OPT_MUSICEXT:
 	M_Print (cbx, 16, 32 + 8 * OPT_MUSICEXT, "        External Music");
 	M_DrawCheckbox (cbx, 220, 32 + 8 * OPT_MUSICEXT, bgm_extmusic.value);
+
+	// OPT_AUTOLOAD:
+	M_Print (cbx, 16, 32 + 8 * OPT_AUTOLOAD, "        Load last save");
+	if (autoload.value >= 2)
+		M_Print (cbx, 220, 32 + 8 * OPT_AUTOLOAD, "fast");
+	else if (autoload.value)
+		M_Print (cbx, 220, 32 + 8 * OPT_AUTOLOAD, "on");
+	else
+		M_Print (cbx, 220, 32 + 8 * OPT_AUTOLOAD, "off");
 
 	// OPT_ALWAYRUN:
 	M_Print (cbx, 16, 32 + 8 * OPT_ALWAYRUN, "            Always Run");
