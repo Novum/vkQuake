@@ -911,7 +911,8 @@ static void Host_Changelevel_f (void)
 		return;
 	}
 
-	if (autoload.value && !q_strcasecmp (sv.name, Cmd_Argv (1)) && current_skill == (int)(skill.value + 0.5))
+	if (autoload.value && sv.lastsave[0] && !q_strcasecmp (sv.name, Cmd_Argv (1)) && current_skill == (int)(skill.value + 0.5) && svs.maxclients == 1 &&
+		!cl.intermission && svs.clients[0].active && (svs.clients[0].edict->v.health <= 0))
 	{
 		Cbuf_AddText ("\nrestart\n");
 		return;
