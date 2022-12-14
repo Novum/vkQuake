@@ -911,6 +911,12 @@ static void Host_Changelevel_f (void)
 		return;
 	}
 
+	if (autoload.value && !q_strcasecmp (sv.name, Cmd_Argv (1)) && current_skill == (int)(skill.value + 0.5))
+	{
+		Cbuf_AddText ("\nrestart\n");
+		return;
+	}
+
 	// johnfitz -- check for client having map before anything else
 	q_snprintf (level, sizeof (level), "maps/%s.bsp", Cmd_Argv (1));
 	if (!COM_FileExists (level, NULL))
