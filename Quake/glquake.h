@@ -233,6 +233,7 @@ typedef struct
 	VkSampleCountFlagBits			 sample_count;
 	qboolean						 supersampling;
 	qboolean						 non_solid_fill;
+	qboolean						 multi_draw_indirect;
 	qboolean						 screen_effects_sops;
 
 	// Instance extensions

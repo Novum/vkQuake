@@ -1056,8 +1056,10 @@ static void GL_InitDevice (void)
 	device_features.samplerAnisotropy = sampler_anisotropic;
 	device_features.sampleRateShading = vulkan_physical_device_features.sampleRateShading;
 	device_features.fillModeNonSolid = vulkan_physical_device_features.fillModeNonSolid;
+	device_features.multiDrawIndirect = vulkan_physical_device_features.multiDrawIndirect;
 
 	vulkan_globals.non_solid_fill = (device_features.fillModeNonSolid == VK_TRUE) ? true : false;
+	vulkan_globals.multi_draw_indirect = (device_features.multiDrawIndirect == VK_TRUE) ? true : false;
 
 	VkDeviceCreateInfo device_create_info;
 	memset (&device_create_info, 0, sizeof (device_create_info));

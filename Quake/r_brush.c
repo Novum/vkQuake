@@ -697,8 +697,11 @@ void R_DrawIndirectBrushes_ShowTris (cb_context_t *cbx)
 	vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 1, &bmodel_vertex_buffer, &offset);
 	vulkan_globals.vk_cmd_bind_index_buffer (cbx->cb, indirect_index_buffer, 0, VK_INDEX_TYPE_UINT32);
 
-	for (int i = 0; i < used_indirect_draws; i++)
-		vulkan_globals.vk_cmd_draw_indexed_indirect (cbx->cb, indirect_buffer, i * sizeof (VkDrawIndexedIndirectCommand), 1, 0);
+	if (vulkan_globals.multi_draw_indirect)
+		vulkan_globals.vk_cmd_draw_indexed_indirect (cbx->cb, indirect_buffer, 0, used_indirect_draws, sizeof (VkDrawIndexedIndirectCommand));
+	else
+		for (int i = 0; i < used_indirect_draws; i++)
+			vulkan_globals.vk_cmd_draw_indexed_indirect (cbx->cb, indirect_buffer, i * sizeof (VkDrawIndexedIndirectCommand), 1, 0);
 }
 
 /*
