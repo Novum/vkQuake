@@ -2543,6 +2543,31 @@ static void R_CreateShowTrisPipelines ()
 		vulkan_globals.showbboxes_pipeline.layout = vulkan_globals.basic_pipeline_layout;
 
 		GL_SetObjectName ((uint64_t)vulkan_globals.showbboxes_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "showbboxes");
+
+		infos.input_assembly_state.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+		infos.vertex_input_state.vertexAttributeDescriptionCount = 3;
+		infos.vertex_input_state.pVertexAttributeDescriptions = world_vertex_input_attribute_descriptions;
+		infos.vertex_input_state.vertexBindingDescriptionCount = 1;
+		infos.vertex_input_state.pVertexBindingDescriptions = &world_vertex_binding_description;
+
+		assert (vulkan_globals.showtris_indirect_pipeline.handle == VK_NULL_HANDLE);
+		err = vkCreateGraphicsPipelines (
+			vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.showtris_indirect_pipeline.handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreateGraphicsPipelines failed (showtris_indirect_pipeline)");
+		vulkan_globals.showtris_indirect_pipeline.layout = vulkan_globals.basic_pipeline_layout;
+		GL_SetObjectName ((uint64_t)vulkan_globals.showtris_indirect_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "showtris_indirect");
+
+		infos.depth_stencil_state.depthTestEnable = VK_TRUE;
+		infos.rasterization_state.depthBiasEnable = VK_TRUE;
+
+		assert (vulkan_globals.showtris_indirect_depth_test_pipeline.handle == VK_NULL_HANDLE);
+		err = vkCreateGraphicsPipelines (
+			vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.showtris_indirect_depth_test_pipeline.handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreateGraphicsPipelines failed (showtris_indirect_depth_test_pipeline)");
+		vulkan_globals.showtris_indirect_depth_test_pipeline.layout = vulkan_globals.basic_pipeline_layout;
+		GL_SetObjectName ((uint64_t)vulkan_globals.showtris_indirect_depth_test_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "showtris_indirect_depth_test");
 	}
 }
 
@@ -3110,8 +3135,12 @@ void R_DestroyPipelines (void)
 	{
 		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.showtris_pipeline.handle, NULL);
 		vulkan_globals.showtris_pipeline.handle = VK_NULL_HANDLE;
+		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.showtris_indirect_pipeline.handle, NULL);
+		vulkan_globals.showtris_indirect_pipeline.handle = VK_NULL_HANDLE;
 		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.showtris_depth_test_pipeline.handle, NULL);
 		vulkan_globals.showtris_depth_test_pipeline.handle = VK_NULL_HANDLE;
+		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.showtris_indirect_depth_test_pipeline.handle, NULL);
+		vulkan_globals.showtris_indirect_depth_test_pipeline.handle = VK_NULL_HANDLE;
 		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.showbboxes_pipeline.handle, NULL);
 		vulkan_globals.showbboxes_pipeline.handle = VK_NULL_HANDLE;
 	}

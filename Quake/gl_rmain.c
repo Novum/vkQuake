@@ -718,7 +718,12 @@ void R_ShowTris (cb_context_t *cbx)
 
 	R_BeginDebugUtilsLabel (cbx, "show tris");
 	if (r_drawworld.value)
-		R_DrawWorld_ShowTris (cbx);
+	{
+		if (indirect)
+			R_DrawIndirectBrushes_ShowTris (cbx);
+		else
+			R_DrawWorld_ShowTris (cbx);
+	}
 
 	if (r_drawentities.value)
 	{
@@ -887,7 +892,7 @@ void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 	static qboolean stats_ready;
 	double			time1;
 
-	indirect = r_indirect.value && indirect_ready && r_gpulightmapupdate.value && !r_showtris.value && !r_speeds.value && r_drawworld.value;
+	indirect = r_indirect.value && indirect_ready && r_gpulightmapupdate.value && !r_speeds.value && r_drawworld.value;
 
 	if (!cl.worldmodel)
 		Sys_Error ("R_RenderView: NULL worldmodel");

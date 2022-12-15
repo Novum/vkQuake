@@ -499,7 +499,7 @@ void R_DrawBrushModel_ShowTris (cb_context_t *cbx, entity_t *e)
 	const float alpha = 1.0f;
 	vec3_t		modelorg;
 
-	if (R_CullModelForEntity (e))
+	if (R_CullModelForEntity (e) || R_IndirectBrush (e))
 		return;
 
 	clmodel = e->model;
@@ -680,6 +680,25 @@ void R_DrawIndirectBrushes (cb_context_t *cbx, qboolean draw_water, qboolean dra
 	}
 
 	R_EndDebugUtilsLabel (cbx);
+}
+
+/*
+=============
+R_DrawIndirectBrushes_ShowTris
+=============
+*/
+void R_DrawIndirectBrushes_ShowTris (cb_context_t *cbx)
+{
+	R_BindPipeline (
+		cbx, VK_PIPELINE_BIND_POINT_GRAPHICS,
+		r_showtris.value == 1 ? vulkan_globals.showtris_indirect_pipeline : vulkan_globals.showtris_indirect_depth_test_pipeline);
+
+	VkDeviceSize offset = 0;
+	vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 1, &bmodel_vertex_buffer, &offset);
+	vulkan_globals.vk_cmd_bind_index_buffer (cbx->cb, indirect_index_buffer, 0, VK_INDEX_TYPE_UINT32);
+
+	for (int i = 0; i < used_indirect_draws; i++)
+		vulkan_globals.vk_cmd_draw_indexed_indirect (cbx->cb, indirect_buffer, i * sizeof (VkDrawIndexedIndirectCommand), 1, 0);
 }
 
 /*

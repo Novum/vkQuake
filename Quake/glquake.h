@@ -282,7 +282,9 @@ typedef struct
 	vulkan_pipeline_t		 screen_effects_scale_sops_pipeline;
 	vulkan_pipeline_t		 cs_tex_warp_pipeline;
 	vulkan_pipeline_t		 showtris_pipeline;
+	vulkan_pipeline_t		 showtris_indirect_pipeline;
 	vulkan_pipeline_t		 showtris_depth_test_pipeline;
+	vulkan_pipeline_t		 showtris_indirect_depth_test_pipeline;
 	vulkan_pipeline_t		 showbboxes_pipeline;
 	vulkan_pipeline_t		 alias_showtris_pipeline;
 	vulkan_pipeline_t		 alias_showtris_depth_test_pipeline;
@@ -521,6 +523,7 @@ void R_DrawAliasModel (cb_context_t *cbx, entity_t *e, int *aliaspolys);
 void R_DrawBrushModel (cb_context_t *cbx, entity_t *e, int chain, int *brushpolys);
 void R_DrawSpriteModel (cb_context_t *cbx, entity_t *e);
 void R_DrawIndirectBrushes (cb_context_t *cbx, qboolean draw_water, qboolean draw_sky, int index);
+void R_DrawIndirectBrushes_ShowTris (cb_context_t *cbx);
 
 void R_DrawTextureChains_Water (cb_context_t *cbx, qmodel_t *model, entity_t *ent, texchain_t chain);
 
