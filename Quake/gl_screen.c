@@ -133,6 +133,7 @@ float	 scr_disabled_time;
 
 qboolean	   in_update_screen;
 extern jmp_buf screen_error;
+SDL_mutex	  *draw_qcvm_mutex;
 
 void SCR_ScreenShot_f (void);
 
@@ -590,6 +591,8 @@ void SCR_Init (void)
 	Cmd_AddCommand ("-zoom", SCR_ZoomUp_f);
 
 	SCR_LoadPics (); // johnfitz
+
+	draw_qcvm_mutex = SDL_CreateMutex ();
 
 	scr_initialized = true;
 }
@@ -1096,6 +1099,11 @@ static void SCR_DrawGUI (void *unused)
 	R_BeginDebugUtilsLabel (cbx, "2D");
 	SCR_TileClear (cbx);
 
+	qboolean use_mutex = r_showbboxes.value && cl.qcvm.extfuncs.CSQC_DrawHud;
+
+	if (use_mutex)
+		SDL_LockMutex (draw_qcvm_mutex);
+
 	if (cl.qcvm.extfuncs.CSQC_DrawHud && setjmp (screen_error))
 		PR_ClearProgs (&cl.qcvm);
 
@@ -1136,6 +1144,10 @@ static void SCR_DrawGUI (void *unused)
 		SCR_DrawConsole (cbx);
 		M_Draw (cbx);
 	}
+
+	if (use_mutex)
+		SDL_UnlockMutex (draw_qcvm_mutex);
+
 	R_EndDebugUtilsLabel (cbx);
 }
 
@@ -1180,7 +1192,7 @@ void SCR_UpdateScreen (qboolean use_tasks)
 		return; // not safe
 
 	in_update_screen = true;
-	use_tasks = use_tasks && (Tasks_NumWorkers () > 1) && r_tasks.value && r_gpulightmapupdate.value && !r_showtris.value && !r_showbboxes.value;
+	use_tasks = use_tasks && (Tasks_NumWorkers () > 1) && r_tasks.value && r_gpulightmapupdate.value;
 
 	if (scr_disabled_for_loading)
 	{

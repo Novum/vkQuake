@@ -116,6 +116,8 @@ cvar_t r_tasks = {"r_tasks", "1", CVAR_NONE};
 cvar_t			r_indirect = {"r_indirect", "1", CVAR_NONE};
 extern qboolean indirect_ready;
 
+extern SDL_mutex *draw_qcvm_mutex;
+
 /*
 =================
 R_CullBox -- johnfitz -- replaced with new function from lordhavoc
@@ -624,7 +626,7 @@ R_ShowBoundingBoxes -- johnfitz
 draw bounding boxes -- the server-side boxes, not the renderer cullboxes
 ================
 */
-void R_ShowBoundingBoxes (cb_context_t *cbx)
+static void R_ShowBoundingBoxes (cb_context_t *cbx)
 {
 	extern edict_t *sv_player;
 	vec3_t			mins, maxs, center;
@@ -643,6 +645,7 @@ void R_ShowBoundingBoxes (cb_context_t *cbx)
 	uint16_t	*indices = (uint16_t *)R_IndexAllocate (24 * sizeof (uint16_t), &box_index_buffer, &box_index_buffer_offset);
 	memcpy (indices, box_indices, 24 * sizeof (uint16_t));
 
+	SDL_LockMutex (draw_qcvm_mutex);
 	PR_SwitchQCVM (&sv.qcvm);
 	for (pass = 0; pass < 2; pass++) // two passes (0 = lines, 1 = text) to avoid switching pipelines for every edict and so that the text is on top
 	{
@@ -699,6 +702,7 @@ void R_ShowBoundingBoxes (cb_context_t *cbx)
 		}
 	}
 	PR_SwitchQCVM (NULL);
+	SDL_UnlockMutex (draw_qcvm_mutex);
 
 	R_EndDebugUtilsLabel (cbx);
 }
@@ -973,6 +977,19 @@ void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 		Task_AddDependency (draw_entities_task, update_lightmaps_task);
 		Task_AddDependency (draw_alpha_entities_task, update_lightmaps_task);
 		Task_AddDependency (update_lightmaps_task, draw_done_task);
+
+		if (r_showtris.value)
+		{
+			if (!indirect)
+				Task_AddDependency (chain_surfaces, draw_view_model_task);
+
+			Task_AddDependency (draw_entities_task, draw_view_model_task);		 // not dependent, but mutually exclusive
+			Task_AddDependency (draw_alpha_entities_task, draw_view_model_task); // not dependent, but mutually exclusive
+
+#ifdef PSET_SCRIPT
+			Task_AddDependency (draw_particles_task, draw_view_model_task); // only scriptable particles are dependent
+#endif
+		}
 
 		task_handle_t tasks[] = {before_mark,		   store_efrags,	   update_warp_textures,	 draw_world_task,	  draw_sky_and_water_task,
 								 draw_view_model_task, draw_entities_task, draw_alpha_entities_task, draw_particles_task, update_lightmaps_task};
