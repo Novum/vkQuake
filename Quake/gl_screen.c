@@ -726,7 +726,7 @@ void SCR_DrawSpeed (cb_context_t *cbx)
 	char st[4];
 	float speed = VectorLength (cl.velocity);
 	sprintf (st, "%-3d", (int)speed);
-	int speedWidth = (int)(MIN(1.f, speed / maxSpeedFillWidth) * width);
+	int speedWidth = (int)(fmin(1.f, speed / maxSpeedFillWidth) * width);
 
 	static int bgColor = -1;
 	static int fillColor = -1;
