@@ -110,6 +110,7 @@ void		 TexMgr_Init (void);
 void		 TexMgr_DeleteTextureObjects (void);
 void		 TexMgr_CollectGarbage (void);
 void		 TexMgr_LoadPalette (void);
+int          TexMgr_NearestColor (int r, int g, int b);
 
 // IMAGE LOADING
 gltexture_t *TexMgr_LoadImage (

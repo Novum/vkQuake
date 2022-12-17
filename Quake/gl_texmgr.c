@@ -568,6 +568,33 @@ void TexMgr_LoadPalette (void)
 
 /*
 ================
+TexMgr_NearestColor
+================
+*/
+int TexMgr_NearestColor (int r, int g, int b)
+{
+	byte *curColor = (byte *)d_8to24table;
+	int nearestColor = 0;
+	int nearestDist = INT_MAX;
+	int cursor = 0;
+
+	while (curColor[3] != 0) // last color is transparent
+	{
+		int colorDist = (r - curColor[0]) * (r - curColor[0]) + (g - curColor[1]) * (g - curColor[1]) + (b - curColor[2]) * (b - curColor[2]);
+		if (colorDist < nearestDist)
+		{
+			nearestColor = cursor;
+			nearestDist = colorDist;
+		}
+		curColor += 4;
+		cursor += 1;
+	}
+
+	return nearestColor;
+}
+
+/*
+================
 TexMgr_NewGame
 ================
 */

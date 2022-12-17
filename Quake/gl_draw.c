@@ -454,7 +454,7 @@ void Draw_Init (void)
 Draw_FillCharacterQuad
 ================
 */
-static void Draw_FillCharacterQuad (int x, int y, char num, basicvertex_t *output, int rotation)
+static void Draw_FillCharacterQuad_WithSize (int x, int y, char num, basicvertex_t *output, int rotation, float textSize)
 {
 	int	  row, col;
 	float frow, fcol, size;
@@ -471,9 +471,9 @@ static void Draw_FillCharacterQuad (int x, int y, char num, basicvertex_t *outpu
 
 	float texcoords[4][2] = {
 		{x, y},
-		{x + 8, y},
-		{x + 8, y + 8},
-		{x, y + 8},
+		{x + textSize, y},
+		{x + textSize, y + textSize},
+		{x, y + textSize},
 	};
 
 	corner_verts[0].position[0] = texcoords[(rotation + 0) % 4][0];
@@ -506,6 +506,12 @@ static void Draw_FillCharacterQuad (int x, int y, char num, basicvertex_t *outpu
 	output[3] = corner_verts[2];
 	output[4] = corner_verts[3];
 	output[5] = corner_verts[0];
+}
+
+
+static void Draw_FillCharacterQuad (int x, int y, char num, basicvertex_t *output, int rotation)
+{
+	Draw_FillCharacterQuad_WithSize (x, y, num, output, rotation, 8.f);
 }
 
 /*
@@ -542,13 +548,13 @@ void Draw_Character (cb_context_t *cbx, int x, int y, int num)
 Draw_String
 ================
 */
-void Draw_String (cb_context_t *cbx, int x, int y, const char *str)
+void Draw_String_WithSize (cb_context_t *cbx, int x, int y, const char *str, float size)
 {
 	int			num_verts = 0;
 	int			i;
 	const char *tmp;
 
-	if (y <= -8)
+	if (y <= -size)
 		return; // totally off screen
 
 	for (tmp = str; *tmp != 0; ++tmp)
@@ -563,10 +569,10 @@ void Draw_String (cb_context_t *cbx, int x, int y, const char *str)
 	{
 		if (*str != 32)
 		{
-			Draw_FillCharacterQuad (x, y, *str, vertices + i * 6, 0);
+			Draw_FillCharacterQuad_WithSize (x, y, *str, vertices + i * 6, 0, size);
 			i++;
 		}
-		x += 8;
+		x += size;
 	}
 
 	vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 1, &buffer, &buffer_offset);
@@ -574,6 +580,11 @@ void Draw_String (cb_context_t *cbx, int x, int y, const char *str)
 	vulkan_globals.vk_cmd_bind_descriptor_sets (
 		cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &char_texture->descriptor_set, 0, NULL);
 	vulkan_globals.vk_cmd_draw (cbx->cb, num_verts, 1, 0, 0);
+}
+
+void Draw_String (cb_context_t *cbx, int x, int y, const char *str)
+{
+	Draw_String_WithSize (cbx, x, y, str, 8.f);
 }
 
 /*
