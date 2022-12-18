@@ -508,7 +508,6 @@ static void Draw_FillCharacterQuad_WithSize (int x, int y, char num, basicvertex
 	output[5] = corner_verts[0];
 }
 
-
 static void Draw_FillCharacterQuad (int x, int y, char num, basicvertex_t *output, int rotation)
 {
 	Draw_FillCharacterQuad_WithSize (x, y, num, output, rotation, 8.f);

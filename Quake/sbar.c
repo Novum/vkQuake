@@ -1385,7 +1385,6 @@ void Sbar_FinaleOverlay (cb_context_t *cbx)
 	Draw_Pic (cbx, (320 - pic->width) / 2, 16, pic, 1.0f, false); // johnfitz -- stretched menus
 }
 
-
 /*
 ==================
 Sbar_HudHeight

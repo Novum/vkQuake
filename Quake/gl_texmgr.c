@@ -574,9 +574,9 @@ TexMgr_NearestColor
 int TexMgr_NearestColor (int r, int g, int b)
 {
 	byte *curColor = (byte *)d_8to24table;
-	int nearestColor = 0;
-	int nearestDist = INT_MAX;
-	int cursor = 0;
+	int	  nearestColor = 0;
+	int	  nearestDist = INT_MAX;
+	int	  cursor = 0;
 
 	while (curColor[3] != 0) // last color is transparent
 	{
