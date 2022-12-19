@@ -65,7 +65,6 @@ GL_DestroyHeap
 */
 void GL_DestroyHeap (glheap_t *heap)
 {
-	GL_WaitForDeviceIdle ();
 	R_FreeVulkanMemory (&heap->memory);
 	Mem_Free (heap->head);
 	Mem_Free (heap);
