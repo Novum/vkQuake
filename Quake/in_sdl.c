@@ -420,13 +420,13 @@ static void IN_JoyKeyEvent (qboolean wasdown, qboolean isdown, int key, double *
 			if (currenttime >= *timer)
 			{
 				*timer = currenttime + 0.1;
-				Key_Event (key, true);
+				Key_Event (key, true, 0);
 			}
 		}
 		else
 		{
 			*timer = 0;
-			Key_Event (key, false);
+			Key_Event (key, false, 0);
 		}
 	}
 	else
@@ -434,7 +434,7 @@ static void IN_JoyKeyEvent (qboolean wasdown, qboolean isdown, int key, double *
 		if (isdown)
 		{
 			*timer = currenttime + 0.5;
-			Key_Event (key, true);
+			Key_Event (key, true, 0);
 		}
 	}
 }
@@ -941,7 +941,7 @@ void IN_SendKeyEvents (void)
 			// are based on key position, not the label on the key cap.
 			key = IN_SDL2_ScancodeToQuakeKey (event.key.keysym.scancode);
 
-			Key_Event (key, down);
+			Key_Event (key, down, 0);
 			break;
 
 		case SDL_MOUSEBUTTONDOWN:
@@ -951,19 +951,19 @@ void IN_SendKeyEvents (void)
 				Con_Printf ("Ignored event for mouse button %d\n", event.button.button);
 				break;
 			}
-			Key_Event (buttonremap[event.button.button - 1], event.button.state == SDL_PRESSED);
+			Key_Event (buttonremap[event.button.button - 1], event.button.state == SDL_PRESSED, 0);
 			break;
 
 		case SDL_MOUSEWHEEL:
 			if (event.wheel.y > 0)
 			{
-				Key_Event (K_MWHEELUP, true);
-				Key_Event (K_MWHEELUP, false);
+				Key_Event (K_MWHEELUP, true, 0);
+				Key_Event (K_MWHEELUP, false, 0);
 			}
 			else if (event.wheel.y < 0)
 			{
-				Key_Event (K_MWHEELDOWN, true);
-				Key_Event (K_MWHEELDOWN, false);
+				Key_Event (K_MWHEELDOWN, true, 0);
+				Key_Event (K_MWHEELDOWN, false, 0);
 			}
 			break;
 
