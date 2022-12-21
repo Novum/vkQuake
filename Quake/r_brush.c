@@ -1587,6 +1587,13 @@ void GL_SortFurfaces (void)
 	{
 		surf = surfs[i].surf;
 		surf->lightmaptexturenum = AllocBlock ((surf->extents[0] >> 4) + 1, (surf->extents[1] >> 4) + 1, &surf->light_s, &surf->light_t);
+		for (j = 0; j < surfs[i].used_lightstyles + 1; j++)
+		{
+			unsigned short *w = &lightmaps[surf->lightmaptexturenum].lightstyle_rectused[j].w;
+			unsigned short *h = &lightmaps[surf->lightmaptexturenum].lightstyle_rectused[j].h;
+			*w = q_max (*w, (surf->extents[0] >> 4) + 1 + surf->light_s);
+			*h = q_max (*h, (surf->extents[1] >> 4) + 1 + surf->light_t);
+		}
 	}
 	TEMP_FREE (surfs);
 }
@@ -1825,16 +1832,34 @@ void GL_BuildLightmaps (void)
 			cl.worldmodel, name, LMBLOCK_WIDTH, LMBLOCK_HEIGHT, SRC_LIGHTMAP, lm->data, "", (src_offset_t)lm->data, TEXPREF_LINEAR | TEXPREF_NOPICMIP);
 		for (j = 0; j < MAXLIGHTMAPS * 3 / 4; ++j)
 		{
-			lm->lightstyle_textures[j] = TexMgr_LoadImage (
-				cl.worldmodel, name, LMBLOCK_WIDTH, LMBLOCK_HEIGHT, SRC_RGBA, lm->lightstyle_data[j], "", (src_offset_t)lm->data,
-				TEXPREF_NEAREST | TEXPREF_NOPICMIP);
 			q_snprintf (name, sizeof (name), "lightstyle%d_%07i", j, i);
+			int size_w = lightmaps[i].lightstyle_rectused[j + 1].w;
+			int size_h = lightmaps[i].lightstyle_rectused[j + 1].h;
+			if (LMBLOCK_WIDTH - size_w < 16) // don't bother
+				size_w = LMBLOCK_WIDTH;
+			if (size_h == 0)
+				lm->lightstyle_textures[j] = nulltexture;
+			else
+			{
+				if (size_w < LMBLOCK_WIDTH) // this is not common and is easier than handling variable strides in TexMgr_LoadImage
+					for (int row = 1; row < size_h; row++)
+						memmove (lm->lightstyle_data[j] + size_w * row * 4, lm->lightstyle_data[j] + LMBLOCK_WIDTH * row * 4, size_w * 4);
+				lm->lightstyle_textures[j] = TexMgr_LoadImage (
+					cl.worldmodel, name, size_w, size_h, SRC_RGBA, lm->lightstyle_data[j], "", (src_offset_t)lm->data, TEXPREF_NEAREST | TEXPREF_NOPICMIP);
+			}
 			SAFE_FREE (lm->lightstyle_data[j]);
 		}
 
+		unsigned short *size_w = &lightmaps[i].lightstyle_rectused[0].w;
+		unsigned short *size_h = &lightmaps[i].lightstyle_rectused[0].h;
+		*size_w = (*size_w + 7) / 8 * 8;
+		*size_h = (*size_h + 7) / 8 * 8;
+		if (*size_w < LMBLOCK_WIDTH) // this is not common and is easier than handling variable strides in TexMgr_LoadImage
+			for (int row = 1; row < *size_h; row++)
+				memmove (lm->surface_indices + *size_w * row, lm->surface_indices + LMBLOCK_WIDTH * row, *size_w * 4);
 		q_snprintf (name, sizeof (name), "surfindices_%07i", i);
 		lm->surface_indices_texture = TexMgr_LoadImage (
-			cl.worldmodel, name, LMBLOCK_WIDTH, LMBLOCK_HEIGHT, SRC_SURF_INDICES, (byte *)lm->surface_indices, "", (src_offset_t)lm->surface_indices,
+			cl.worldmodel, name, *size_w, *size_h, SRC_SURF_INDICES, (byte *)lm->surface_indices, "", (src_offset_t)lm->surface_indices,
 			TEXPREF_NEAREST | TEXPREF_NOPICMIP);
 		SAFE_FREE (lm->surface_indices);
 	}
@@ -2556,7 +2581,7 @@ void R_FlushUpdateLightmaps (
 	{
 		VkDescriptorSet sets[1] = {lightmaps[lightmap_indexes[j]].descriptor_set};
 		vkCmdBindDescriptorSets (cbx->cb, VK_PIPELINE_BIND_POINT_COMPUTE, vulkan_globals.update_lightmap_pipeline.layout.handle, 0, 1, sets, 2, offsets);
-		vkCmdDispatch (cbx->cb, LMBLOCK_WIDTH / 8, LMBLOCK_HEIGHT / 8, 1);
+		vkCmdDispatch (cbx->cb, lightmaps[lightmap_indexes[j]].lightstyle_rectused[0].w / 8, lightmaps[lightmap_indexes[j]].lightstyle_rectused[0].h / 8, 1);
 	}
 
 	vkCmdPipelineBarrier (

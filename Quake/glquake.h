@@ -451,16 +451,21 @@ typedef struct glRect_s
 {
 	unsigned short l, t, w, h;
 } glRect_t;
+typedef struct glMaxUsed_s
+{
+	unsigned short w, h;
+} glMaxUsed_t;
 struct lightmap_s
 {
 	gltexture_t	   *texture;
 	gltexture_t	   *surface_indices_texture;
 	gltexture_t	   *lightstyle_textures[MAXLIGHTMAPS * 3 / 4];
 	VkDescriptorSet descriptor_set;
-	uint32_t modified[TASKS_MAX_WORKERS]; // when using GPU lightmap update, bitmap of lightstyles that will be drawn using this lightmap (16..64 OR-folded
-										  // into bits 16..31)
-	glRect_t rectchange;
-	VkBuffer workgroup_bounds_buffer;
+	uint32_t	modified[TASKS_MAX_WORKERS]; // when using GPU lightmap update, bitmap of lightstyles that will be drawn using this lightmap (16..64 OR-folded
+											 // into bits 16..31)
+	VkBuffer	workgroup_bounds_buffer;
+	glRect_t	rectchange;
+	glMaxUsed_t lightstyle_rectused[1 + MAXLIGHTMAPS * 3 / 4]; // [0]: surface_indices; [1,2,3]: lightstyle_textures[0,1,2]
 
 	lm_compute_workgroup_bounds_t global_bounds;
 	byte						  active_dlights[MAX_DLIGHTS];
