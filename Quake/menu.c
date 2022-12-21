@@ -1623,39 +1623,49 @@ void M_Menu_Keys_f (void)
 void M_FindKeysForCommand (const char *command, int *threekeys)
 {
 	int	  count;
+	int	  i;
 	int	  j;
 	char *b;
 
 	threekeys[0] = threekeys[1] = threekeys[2] = -1;
 	count = 0;
 
-	for (j = 0; j < MAX_KEYS; j++)
+	for (i = 0; i < MAX_MODIFIERS; i++)
 	{
-		b = keybindings[j];
-		if (!b)
-			continue;
-		if (!strcmp (b, command))
+		for (j = 0; j < MAX_KEYS; j++)
 		{
-			threekeys[count] = j;
-			count++;
-			if (count == 3)
-				break;
+			int keyIdx = i * MAX_KEYS + j;
+			b = keybindings[keyIdx];
+			if (!b)
+				continue;
+			if (!strcmp (b, command))
+			{
+				threekeys[count] = keyIdx;
+				count++;
+				if (count == 3)
+					break;
+			}
 		}
 	}
 }
 
 void M_UnbindCommand (const char *command)
 {
+	int	  i;
 	int	  j;
 	char *b;
 
-	for (j = 0; j < MAX_KEYS; j++)
+	for (i = 0; i < MAX_MODIFIERS; i++)
 	{
-		b = keybindings[j];
-		if (!b)
-			continue;
-		if (!strcmp (b, command))
-			Key_SetBinding (j, NULL);
+		for (j = 0; j < MAX_KEYS; j++)
+		{
+			int keyIdx = i * MAX_KEYS + j;
+			b = keybindings[keyIdx];
+			if (!b)
+				continue;
+			if (!strcmp (b, command))
+				Key_SetBinding (keyIdx, NULL);
+		}
 	}
 }
 

@@ -39,7 +39,7 @@ int history_line = 0;
 
 keydest_t key_dest;
 
-char	*keybindings[MAX_KEYS];
+char	*keybindings[MAX_MODIFIERS * MAX_KEYS];
 qboolean consolekeys[MAX_KEYS]; // if true, can't be rebound while in console
 qboolean menubound[MAX_KEYS];	// if true, can't be rebound while in menu
 qboolean keydown[MAX_KEYS];
@@ -49,6 +49,15 @@ typedef struct
 	const char *name;
 	int			keynum;
 } keyname_t;
+
+typedef struct
+{
+	const char *name;
+	int			keynum;
+	int			modifier;
+} keymodifier_t;
+
+keymodifier_t keymodifiernames[] = {{"SHIFT+", K_SHIFT, 1}, {"", '\0', 0}};
 
 keyname_t keynames[] = {
 	{"TAB", K_TAB},
@@ -571,17 +580,26 @@ the K_* names are matched up.
 */
 int Key_StringToKeynum (const char *str)
 {
-	keyname_t *kn;
+	keymodifier_t *km;
+	keyname_t	  *kn;
 
 	if (!str || !str[0])
 		return -1;
 	if (!str[1])
 		return str[0];
 
-	for (kn = keynames; kn->name; kn++)
+	for (km = keymodifiernames; km->name; km++)
 	{
-		if (!q_strcasecmp (str, kn->name))
-			return kn->keynum;
+		int kmLen = strlen (km->name);
+		if (!q_strcasecmp (str, "SHIFT+F6"))
+		{
+			kmLen = 6;
+		}
+		for (kn = keynames; kn->name; kn++)
+		{
+			if (!q_strncasecmp (str, km->name, kmLen) && !q_strcasecmp (str + kmLen, kn->name))
+				return (km->modifier * MAX_KEYS + kn->keynum);
+		}
 	}
 	return -1;
 }
@@ -668,11 +686,16 @@ void Key_Unbind_f (void)
 void Key_Unbindall_f (void)
 {
 	int i;
+	int j;
 
-	for (i = 0; i < MAX_KEYS; i++)
+	for (i = 0; i < MAX_MODIFIERS; i++)
 	{
-		if (keybindings[i])
-			Key_SetBinding (i, NULL);
+		for (j = 0; j < MAX_KEYS; j++)
+		{
+			int keyIdx = i * MAX_KEYS + j;
+			if (keybindings[keyIdx])
+				Key_SetBinding (keyIdx, NULL);
+		}
 	}
 }
 
@@ -683,15 +706,19 @@ Key_Bindlist_f -- johnfitz
 */
 void Key_Bindlist_f (void)
 {
-	int i, count;
+	int i, j, count;
 
 	count = 0;
-	for (i = 0; i < MAX_KEYS; i++)
+	for (i = 0; i < MAX_MODIFIERS; i++)
 	{
-		if (keybindings[i] && *keybindings[i])
+		for (j = 0; j < MAX_KEYS; j++)
 		{
-			Con_SafePrintf ("   %s \"%s\"\n", Key_KeynumToString (i), keybindings[i]);
-			count++;
+			int keyIdx = i * MAX_KEYS + j;
+			if (keybindings[keyIdx] && *keybindings[keyIdx])
+			{
+				Con_SafePrintf ("   %s \"%s\"\n", Key_KeynumToString (keyIdx), keybindings[keyIdx]);
+				count++;
+			}
 		}
 	}
 	Con_SafePrintf ("%i bindings\n", count);
@@ -752,14 +779,20 @@ Writes lines containing "bind key value"
 void Key_WriteBindings (FILE *f)
 {
 	int i;
+	int j;
 
 	// unbindall before loading stored bindings:
 	if (cfg_unbindall.value)
 		fprintf (f, "unbindall\n");
-	for (i = 0; i < MAX_KEYS; i++)
+
+	for (i = 0; i < MAX_MODIFIERS; i++)
 	{
-		if (keybindings[i] && *keybindings[i])
-			fprintf (f, "bind \"%s\" \"%s\"\n", Key_KeynumToString (i), keybindings[i]);
+		for (j = 0; j < MAX_KEYS; j++)
+		{
+			int keyIdx = i * MAX_KEYS + j;
+			if (keybindings[keyIdx] && *keybindings[keyIdx])
+				fprintf (f, "bind \"%s\" \"%s\"\n", Key_KeynumToString (keyIdx), keybindings[keyIdx]);
+		}
 	}
 }
 
@@ -967,8 +1000,9 @@ Called by the system between frames for both key up and key down events
 Should NOT be called during an interrupt!
 ===================
 */
-void Key_Event (int key, qboolean down)
+void Key_Event (int key, qboolean down, int keyModifiers)
 {
+	// FIXME: Include modifier arg
 	char *kb;
 	char  cmd[1024];
 
@@ -982,6 +1016,10 @@ void Key_Event (int key, qboolean down)
 		return;
 	}
 
+	if (keydown[K_SHIFT])
+		keyModifiers = 1;
+	int keyBindIdx = keyModifiers * MAX_KEYS + key;
+
 	// handle autorepeats and stray key up events
 	if (down)
 	{
@@ -990,7 +1028,7 @@ void Key_Event (int key, qboolean down)
 			if (key_dest == key_game && !con_forcedup)
 				return; // ignore autorepeats in game mode
 		}
-		else if (key >= 200 && !keybindings[key])
+		else if (key >= 200 && !keybindings[keyBindIdx])
 			Con_Printf ("%s is unbound, hit F4 to set.\n", Key_KeynumToString (key));
 	}
 	else if (!keydown[key])
@@ -1043,10 +1081,11 @@ void Key_Event (int key, qboolean down)
 	// downs can be matched with ups
 	if (!down)
 	{
-		kb = keybindings[key];
+		// FIXME: Shift? Check shift+key keybind first, if null then fallback to key  (since shift may be used for running atm)
+		kb = keybindings[keyBindIdx];
 		if (kb && kb[0] == '+')
 		{
-			q_snprintf (cmd, sizeof (cmd), "-%s %i\n", kb + 1, key);
+			q_snprintf (cmd, sizeof (cmd), "-%s %i\n", kb + 1, keyBindIdx);
 			Cbuf_AddText (cmd);
 		}
 		return;
@@ -1092,7 +1131,7 @@ void Key_Event (int key, qboolean down)
 	if ((key_dest == key_menu && menubound[key]) || (key_dest == key_console && !consolekeys[key]) ||
 		(key_dest == key_game && (!con_forcedup || !consolekeys[key])))
 	{
-		kb = keybindings[key];
+		kb = keybindings[keyBindIdx]; // check for shift+ modifier here
 		if (kb)
 		{
 			if (kb[0] == '+')
@@ -1209,12 +1248,16 @@ Key_ClearStates
 */
 void Key_ClearStates (void)
 {
+	int j;
 	int i;
 
-	for (i = 0; i < MAX_KEYS; i++)
+	for (i = 0; i < MAX_MODIFIERS; i++)
 	{
-		if (keydown[i])
-			Key_Event (i, false);
+		for (j = 0; j < MAX_KEYS; j++)
+		{
+			if (keydown[j])
+				Key_Event (j, false, i);
+		}
 	}
 }
 

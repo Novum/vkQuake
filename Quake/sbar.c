@@ -1384,3 +1384,19 @@ void Sbar_FinaleOverlay (cb_context_t *cbx)
 	pic = Draw_CachePic ("gfx/finale.lmp");
 	Draw_Pic (cbx, (320 - pic->width) / 2, 16, pic, 1.0f, false); // johnfitz -- stretched menus
 }
+
+/*
+==================
+Sbar_HudHeight
+==================
+*/
+int Sbar_HudHeight (void)
+{
+	int height = 0;
+	if (scr_viewsize.value <= 110 && sb_sbar)
+		height += sb_sbar->height;
+	if (scr_viewsize.value <= 100 && sb_ibar)
+		height += sb_ibar->height;
+
+	return height;
+}

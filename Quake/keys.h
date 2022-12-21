@@ -155,6 +155,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define K_RTRIGGER	252
 
 #define MAX_KEYS 256
+#define MAX_MODIFIERS 2
 
 #define MAXCMDLINE 256
 
@@ -167,7 +168,7 @@ typedef enum
 } keydest_t;
 
 extern keydest_t key_dest;
-extern char		*keybindings[MAX_KEYS];
+extern char		*keybindings[MAX_KEYS * MAX_MODIFIERS];
 
 #define CMDLINES 64
 
@@ -187,7 +188,7 @@ void Key_BeginInputGrab (void);
 void Key_EndInputGrab (void);
 void Key_GetGrabbedInput (int *lastkey, int *lastchar);
 
-void	 Key_Event (int key, qboolean down);
+void	 Key_Event (int key, qboolean down, int keyModifiers);
 void	 Char_Event (int key);
 qboolean Key_TextEntry (void);
 

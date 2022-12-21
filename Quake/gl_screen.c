@@ -89,6 +89,7 @@ cvar_t scr_conscale = {"scr_conscale", "1", CVAR_ARCHIVE};
 cvar_t scr_crosshairscale = {"scr_crosshairscale", "1", CVAR_ARCHIVE};
 cvar_t scr_showfps = {"scr_showfps", "0", CVAR_NONE};
 cvar_t scr_clock = {"scr_clock", "0", CVAR_NONE};
+cvar_t scr_showspeed = {"scr_showspeed", "1", CVAR_NONE};
 // johnfitz
 cvar_t scr_usekfont = {"scr_usekfont", "0", CVAR_NONE}; // 2021 re-release
 
@@ -545,6 +546,7 @@ void SCR_Init (void)
 	Cvar_RegisterVariable (&scr_crosshairscale);
 	Cvar_RegisterVariable (&scr_showfps);
 	Cvar_RegisterVariable (&scr_clock);
+	Cvar_RegisterVariable (&scr_showspeed);
 	// johnfitz
 	Cvar_RegisterVariable (&scr_usekfont); // 2021 re-release
 	Cvar_SetCallback (&scr_fov, SCR_Callback_refdef);
@@ -696,6 +698,47 @@ void SCR_DrawClock (cb_context_t *cbx)
 			q_snprintf (str, sizeof (str), "[paused]");
 		Draw_String (cbx, 320 - (strlen (str) << 3), y, str);
 	}
+}
+
+/*
+==============
+SCR_DrawSpeed
+==============
+*/
+void SCR_DrawSpeed (cb_context_t *cbx)
+{
+	if (cl.intermission || !scr_showspeed.value)
+		return;
+
+	float maxSpeedFillWidth = 600; // if speed >= val, then speedometer is completely filled
+	float scale = scr_sbarscale.value;
+	float width = 140.f * scale;
+	float height = 12.f * scale;
+	float x = ((float)vid.width / 2.f) - (width / 2.f);
+	float y = (float)vid.height - height - ((float)Sbar_HudHeight () * scale);
+
+	float textLeftOffset = 10.f * scale;
+	float textHeight = 8.f * scale;
+	float textY = y + (height / 2) - (textHeight / 2);
+	float textX = x + textLeftOffset;
+
+	char  st[4];
+	float speed = VectorLength (cl.velocity);
+	sprintf (st, "%-3d", (int)speed);
+	int speedWidth = (int)(fmin (1.f, speed / maxSpeedFillWidth) * width);
+
+	static int bgColor = -1;
+	static int fillColor = -1;
+	if (bgColor == -1)
+	{
+		bgColor = TexMgr_NearestColor (20, 20, 0);
+		fillColor = TexMgr_NearestColor (40, 30, 15);
+	}
+
+	GL_SetCanvas (cbx, CANVAS_DEFAULT);
+	Draw_Fill (cbx, x, y, width, height, bgColor, 1.f);		   // entire speedometer
+	Draw_Fill (cbx, x, y, speedWidth, height, fillColor, 1.f); // speed fill on speedometer
+	Draw_String_WithSize (cbx, textX, textY, st, textHeight);
 }
 
 /*
@@ -1142,6 +1185,7 @@ static void SCR_DrawGUI (void *unused)
 		SCR_DrawFPS (cbx);		// johnfitz
 		SCR_DrawClock (cbx);	// johnfitz
 		SCR_DrawConsole (cbx);
+		SCR_DrawSpeed (cbx);
 		M_Draw (cbx);
 	}
 
