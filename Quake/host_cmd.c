@@ -1568,6 +1568,7 @@ static void Host_Loadgame_f (void)
 		memset (cl_temp_entities, 0, sizeof (cl_temp_entities));
 		memset (cl_beams, 0, sizeof (cl_beams));
 		V_ResetBlend ();
+		Fog_ResetFade ();
 		R_ClearParticles ();
 #ifdef PSET_SCRIPT
 		PScript_ClearParticles (false);

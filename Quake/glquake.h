@@ -488,6 +488,7 @@ extern task_handle_t prev_end_rendering_task;
 void  Fog_ParseServerMessage (void);
 void  Fog_GetColor (float *c);
 float Fog_GetDensity (void);
+void  Fog_ResetFade (void);
 void  Fog_EnableGFog (cb_context_t *cbx);
 void  Fog_DisableGFog (cb_context_t *cbx);
 void  Fog_SetupFrame (cb_context_t *cbx);

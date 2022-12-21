@@ -261,6 +261,18 @@ float Fog_GetDensity (void)
 
 /*
 =============
+Fog_ResetFade
+
+called when client time may jump
+=============
+*/
+void Fog_ResetFade (void)
+{
+	fade_done = 0.0;
+}
+
+/*
+=============
 Fog_SetupFrame
 
 called at the beginning of each frame
