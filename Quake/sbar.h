@@ -39,4 +39,6 @@ void Sbar_IntermissionOverlay (cb_context_t *cbx);
 
 void Sbar_FinaleOverlay (cb_context_t *cbx);
 
+int Sbar_HudHeight (void);
+
 #endif /* _QUAKE_SBAR_H */
