@@ -1026,21 +1026,12 @@ GL_CreateSurfaceLightmap
 static void GL_CreateSurfaceLightmap (msurface_t *surf, uint32_t surface_index)
 {
 	int		  i;
-	int		  smax, tmax;
 	byte	 *base;
 	byte	 *lightstyles[MAXLIGHTMAPS * 3 / 4];
 	uint32_t *surface_indices;
 
-	if (surf->flags & SURF_DRAWTILED)
-	{
-		surf->lightmaptexturenum = -1;
-		return;
-	}
+	assert (!(surf->flags & SURF_DRAWTILED));
 
-	smax = (surf->extents[0] >> 4) + 1;
-	tmax = (surf->extents[1] >> 4) + 1;
-
-	surf->lightmaptexturenum = AllocBlock (smax, tmax, &surf->light_s, &surf->light_t);
 	base = lightmaps[surf->lightmaptexturenum].data;
 	base += (surf->light_t * LMBLOCK_WIDTH + surf->light_s) * LIGHTMAP_BYTES;
 	R_BuildLightMap (surf, base, LMBLOCK_WIDTH * LIGHTMAP_BYTES);
@@ -1541,6 +1532,66 @@ static void R_UploadVisibility (byte *data, uint32_t size)
 }
 
 /*
+===============
+GL_SortFurfaces
+
+Sorts surfs by number of used lightstyles, then allocates lm blocks in that order and sets image bounds
+===============
+*/
+typedef struct
+{
+	msurface_t *surf;
+	int			used_lightstyles;
+} surf_sort;
+
+void GL_SortFurfaces (void)
+{
+	int			i, j;
+	msurface_t *surf;
+	surf_sort  *surfs;
+	TEMP_ALLOC (surf_sort, surfs, num_surfaces * 2);
+	int used_surfs = 0;
+	int sort_bins[4];
+	memset (sort_bins, 0, sizeof (sort_bins));
+	for (j = 1; j < MAX_MODELS; j++)
+	{
+		qmodel_t *m = cl.model_precache[j];
+		if (!m)
+			break;
+		if (m->name[0] == '*')
+			continue;
+		for (i = 0; i < m->numsurfaces; i++)
+		{
+			surf = &m->surfaces[i];
+			if (!(surf->flags & SURF_DRAWTILED))
+			{
+				unsigned last_lightstyle;
+				for (last_lightstyle = 0; last_lightstyle < 3; last_lightstyle++) // saturate at 3, not 4
+					if (surf->styles[last_lightstyle] == 0xFF)
+						break;
+				surfs[num_surfaces + used_surfs].surf = surf;
+				surfs[num_surfaces + used_surfs++].used_lightstyles = last_lightstyle;
+				sort_bins[last_lightstyle] += 1;
+			}
+		}
+	}
+	for (i = 3 - 1; i >= 0; --i)
+		sort_bins[i] += sort_bins[i + 1];
+	for (i = used_surfs - 1; i >= 0; --i)
+	{
+		int key = surfs[num_surfaces + i].used_lightstyles;
+		sort_bins[key] -= 1;
+		surfs[sort_bins[key]] = surfs[num_surfaces + i];
+	}
+	for (i = 0; i < used_surfs; ++i)
+	{
+		surf = surfs[i].surf;
+		surf->lightmaptexturenum = AllocBlock ((surf->extents[0] >> 4) + 1, (surf->extents[1] >> 4) + 1, &surf->light_s, &surf->light_t);
+	}
+	TEMP_FREE (surfs);
+}
+
+/*
 ==================
 GL_BuildLightmaps -- called at level load time
 
@@ -1595,8 +1646,10 @@ void GL_BuildLightmaps (void)
 			indirect_bmodel_start = q_min (indirect_bmodel_start, m->firstmodelsurface);
 			continue;
 		}
-		num_surfaces += m->numsurfaces;
+		num_surfaces += m->numsurfaces; // note: allocates unused space for SURF_DRAWTILED surfs
 	}
+
+	GL_SortFurfaces ();
 
 	surface_data = GL_AllocateSurfaceDataBuffer ();
 
