@@ -1784,7 +1784,7 @@ void GL_BuildLightmaps (void)
 		vkUpdateDescriptorSets (vulkan_globals.device, 4, indirect_d, 0, NULL);
 
 		for (i = 0; i < cl.worldmodel->numleafs; i++)
-			calc_deps (NULL, &cl.worldmodel->leafs[i]);
+			calc_deps (NULL, &cl.worldmodel->leafs[i + 1]); // worldmodel->leafs is 1-based
 
 		if (WATER_FIXED_ORDER)
 		{
