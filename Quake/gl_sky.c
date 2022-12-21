@@ -440,6 +440,16 @@ static void R_SetSkyfog_f (cvar_t *var)
 }
 
 /*
+====================
+Sky_SetSkyfog
+====================
+*/
+void Sky_SetSkyfog (float value)
+{
+	skyfog = value;
+}
+
+/*
 =============
 Sky_Init
 =============

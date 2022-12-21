@@ -485,6 +485,7 @@ extern float map_fallbackalpha; // spike -- because we might want r_wateralpha t
 extern task_handle_t prev_end_rendering_task;
 
 // johnfitz -- fog functions called from outside gl_fog.c
+void		Fog_Update (float density, float red, float green, float blue, float time);
 void		Fog_ParseServerMessage (void);
 void		Fog_GetColor (float *c);
 float		Fog_GetDensity (void);
@@ -562,6 +563,7 @@ void		Sky_LoadTexture (qmodel_t *mod, texture_t *mt, int tex_index);
 void		Sky_LoadTextureQ64 (qmodel_t *mod, texture_t *mt, int tex_index);
 void		Sky_LoadSkyBox (const char *name);
 const char *Sky_GetSkyCommand (qboolean always);
+void		Sky_SetSkyfog (float value);
 
 void R_ClearTextureChains (qmodel_t *mod, texchain_t chain);
 void R_ChainSurface (msurface_t *surf, texchain_t chain);

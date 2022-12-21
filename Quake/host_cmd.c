@@ -1194,6 +1194,14 @@ static void Host_Savegame_f (void)
 			fprintf (f, "spawnparm %i \"%f\"\n", i + 1, svs.clients->spawn_parms[i]);
 	}
 
+	const char *fog_cmd = Fog_GetFogCommand (true);
+	if (fog_cmd)
+		fprintf (f, "%s", &fog_cmd[1]);
+
+	const char *sky_cmd = Sky_GetSkyCommand (true);
+	if (sky_cmd)
+		fprintf (f, "%s", &sky_cmd[1]);
+
 	fprintf (f, "*/\n");
 
 	fclose (f);
@@ -1515,6 +1523,29 @@ static void Host_Loadgame_f (void)
 					ext = COM_Parse (ext);
 					if (idx >= 1 && idx <= NUM_TOTAL_SPAWN_PARMS)
 						spawn_parms[idx - 1] = atof (com_token);
+				}
+				else if (!strcmp (com_token, "fog") && fastload)
+				{
+					float d, r, g, b;
+					ext = COM_Parse (ext);
+					d = atof (com_token);
+					ext = COM_Parse (ext);
+					r = atof (com_token);
+					ext = COM_Parse (ext);
+					g = atof (com_token);
+					ext = COM_Parse (ext);
+					b = atof (com_token);
+					Fog_Update (d, r, g, b, 0.0f);
+				}
+				else if (!strcmp (com_token, "sky") && fastload)
+				{
+					ext = COM_Parse (ext);
+					Sky_LoadSkyBox (com_token);
+				}
+				else if (!strcmp (com_token, "skyfog") && fastload)
+				{
+					ext = COM_Parse (ext);
+					Sky_SetSkyfog (atof (com_token));
 				}
 				*end = '\n';
 				ext = end + 1;
