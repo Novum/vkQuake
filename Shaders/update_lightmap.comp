@@ -51,7 +51,7 @@ shared uint light_mask[LIGHT_MASK_SIZE];
 
 layout (set = 0, binding = 0, rgba8) uniform writeonly image2D output_image;
 layout (set = 0, binding = 1) uniform utexture2D surface_indices;
-layout (set = 0, binding = 2) uniform texture2D lightstyles_textures[MAXLIGHTMAPS];
+layout (set = 0, binding = 2) uniform texture2D lightstyles_textures[MAXLIGHTMAPS * 3 / 4];
 layout (std430, set = 0, binding = 3) restrict readonly buffer surfaces_buffer
 {
 	surface_t surfaces[];
@@ -129,13 +129,21 @@ void main ()
 		(packed_lighstyles >> 0) & 0xFF, (packed_lighstyles >> 8) & 0xFF, (packed_lighstyles >> 16) & 0xFF, (packed_lighstyles >> 24) & 0xFF};
 
 	vec3 light_accumulated = vec3 (0.0f, 0.0f, 0.0f);
+	vec3 fourth_lightmap;
 	for (int i = 0; i < MAXLIGHTMAPS; ++i)
 	{
 		const uint style = lightstyles[i];
 		if (style == 255)
 			break;
 		const float scale = lightstyle_scales[style / 4][style % 4];
-		light_accumulated += scale * texelFetch (lightstyles_textures[i], ivec2 (gl_GlobalInvocationID.xy), 0).xyz;
+		if (i < 3)
+		{
+			const vec4 sample_tex = texelFetch (lightstyles_textures[i], ivec2 (gl_GlobalInvocationID.xy), 0);
+			light_accumulated += scale * sample_tex.xyz;
+			fourth_lightmap[i] = sample_tex.w;
+		}
+		else
+			light_accumulated += scale * fourth_lightmap;
 	}
 
 	for (uint light_mask_index = 0; light_mask_index < LIGHT_MASK_SIZE; ++light_mask_index)

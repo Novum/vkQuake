@@ -785,7 +785,7 @@ static int AllocBlock (int w, int h, int *x, int *y)
 			lightmaps = (struct lightmap_s *)Mem_Realloc (lightmaps, sizeof (*lightmaps) * lightmap_count);
 			memset (&lightmaps[texnum], 0, sizeof (lightmaps[texnum]));
 			lightmaps[texnum].data = (byte *)Mem_Alloc (LIGHTMAP_BYTES * LMBLOCK_WIDTH * LMBLOCK_HEIGHT);
-			for (i = 0; i < MAXLIGHTMAPS; ++i)
+			for (i = 0; i < MAXLIGHTMAPS * 3 / 4; ++i)
 				lightmaps[texnum].lightstyle_data[i] = (byte *)Mem_Alloc (LIGHTMAP_BYTES * LMBLOCK_WIDTH * LMBLOCK_HEIGHT);
 			lightmaps[texnum].surface_indices = (uint32_t *)Mem_Alloc (sizeof (uint32_t) * LMBLOCK_WIDTH * LMBLOCK_HEIGHT);
 			memset (lightmaps[texnum].surface_indices, 0xFF, 4 * LMBLOCK_WIDTH * LMBLOCK_HEIGHT);
@@ -877,7 +877,6 @@ static void R_FillLightstyleTextures (msurface_t *surf, byte **lightstyles, int 
 	smax = (surf->extents[0] >> 4) + 1;
 	tmax = (surf->extents[1] >> 4) + 1;
 	lightmap = surf->samples;
-	stride -= smax * LIGHTMAP_BYTES;
 
 	// add all the lightmaps
 	if (lightmap)
@@ -885,18 +884,32 @@ static void R_FillLightstyleTextures (msurface_t *surf, byte **lightstyles, int 
 		for (maps = 0; maps < MAXLIGHTMAPS && surf->styles[maps] != 255; ++maps)
 		{
 			lightmaps[surf->lightmaptexturenum].used_lightstyles[surf->styles[maps]] = true;
-			int height = tmax;
-			while (height-- > 0)
+			if (maps % 4 != 3)
 			{
-				int i;
-				for (i = 0; i < smax; i++)
+				byte *outptr = lightstyles[maps / 4 * 3 + maps % 4];
+				int	  height = tmax;
+				while (height-- > 0)
 				{
-					*lightstyles[maps]++ = *lightmap++;
-					*lightstyles[maps]++ = *lightmap++;
-					*lightstyles[maps]++ = *lightmap++;
-					*lightstyles[maps]++ = 0;
+					int i;
+					for (i = 0; i < smax; i++)
+					{
+						*outptr++ = *lightmap++;
+						*outptr++ = *lightmap++;
+						*outptr++ = *lightmap++;
+						*outptr++ = 0;
+					}
+					outptr += stride - smax * LIGHTMAP_BYTES;
 				}
-				lightstyles[maps] += stride;
+			}
+			else
+			{
+				for (int height = 0; height < tmax; ++height)
+					for (int i = 0; i < smax; i++)
+					{
+						lightstyles[maps / 4 + 0][i * 4 + 3 + stride * height] = *lightmap++;
+						lightstyles[maps / 4 + 1][i * 4 + 3 + stride * height] = *lightmap++;
+						lightstyles[maps / 4 + 2][i * 4 + 3 + stride * height] = *lightmap++;
+					}
 			}
 		}
 	}
@@ -1015,7 +1028,7 @@ static void GL_CreateSurfaceLightmap (msurface_t *surf, uint32_t surface_index)
 	int		  i;
 	int		  smax, tmax;
 	byte	 *base;
-	byte	 *lightstyles[MAXLIGHTMAPS];
+	byte	 *lightstyles[MAXLIGHTMAPS * 3 / 4];
 	uint32_t *surface_indices;
 
 	if (surf->flags & SURF_DRAWTILED)
@@ -1036,7 +1049,7 @@ static void GL_CreateSurfaceLightmap (msurface_t *surf, uint32_t surface_index)
 	surface_indices += (surf->light_t * LMBLOCK_WIDTH + surf->light_s);
 	R_AssignSurfaceIndex (surf, surface_index, surface_indices, LMBLOCK_WIDTH);
 
-	for (i = 0; i < MAXLIGHTMAPS; ++i)
+	for (i = 0; i < MAXLIGHTMAPS * 3 / 4; ++i)
 	{
 		lightstyles[i] = lightmaps[surf->lightmaptexturenum].lightstyle_data[i];
 		lightstyles[i] += (surf->light_t * LMBLOCK_WIDTH + surf->light_s) * LIGHTMAP_BYTES;
@@ -1754,19 +1767,19 @@ void GL_BuildLightmaps (void)
 		lm->rectchange.w = 0;
 		lm->rectchange.h = 0;
 
-		q_snprintf (name, sizeof (name), "lightmap%07i", i);
+		q_snprintf (name, sizeof (name), "lightmap_%07i", i);
 		lm->texture = TexMgr_LoadImage (
 			cl.worldmodel, name, LMBLOCK_WIDTH, LMBLOCK_HEIGHT, SRC_LIGHTMAP, lm->data, "", (src_offset_t)lm->data, TEXPREF_LINEAR | TEXPREF_NOPICMIP);
-		for (j = 0; j < MAXLIGHTMAPS; ++j)
+		for (j = 0; j < MAXLIGHTMAPS * 3 / 4; ++j)
 		{
-			q_snprintf (name, sizeof (name), "lightstyle%d%07i", j, i);
 			lm->lightstyle_textures[j] = TexMgr_LoadImage (
 				cl.worldmodel, name, LMBLOCK_WIDTH, LMBLOCK_HEIGHT, SRC_RGBA, lm->lightstyle_data[j], "", (src_offset_t)lm->data,
 				TEXPREF_NEAREST | TEXPREF_NOPICMIP);
+			q_snprintf (name, sizeof (name), "lightstyle%d_%07i", j, i);
 			SAFE_FREE (lm->lightstyle_data[j]);
 		}
 
-		q_snprintf (name, sizeof (name), "surfindices%07i", i);
+		q_snprintf (name, sizeof (name), "surfindices_%07i", i);
 		lm->surface_indices_texture = TexMgr_LoadImage (
 			cl.worldmodel, name, LMBLOCK_WIDTH, LMBLOCK_HEIGHT, SRC_SURF_INDICES, (byte *)lm->surface_indices, "", (src_offset_t)lm->surface_indices,
 			TEXPREF_NEAREST | TEXPREF_NOPICMIP);
@@ -1807,9 +1820,9 @@ void GL_BuildLightmaps (void)
 		surface_indices_image_info.imageView = lm->surface_indices_texture->image_view;
 		surface_indices_image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
-		VkDescriptorImageInfo lightmap_images_infos[MAXLIGHTMAPS];
+		VkDescriptorImageInfo lightmap_images_infos[MAXLIGHTMAPS * 3 / 4];
 		memset (&lightmap_images_infos, 0, sizeof (lightmap_images_infos));
-		for (j = 0; j < MAXLIGHTMAPS; ++j)
+		for (j = 0; j < MAXLIGHTMAPS * 3 / 4; ++j)
 		{
 			lightmap_images_infos[j].imageView = lm->lightstyle_textures[j]->image_view;
 			lightmap_images_infos[j].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -1861,7 +1874,7 @@ void GL_BuildLightmaps (void)
 		writes[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		writes[2].dstBinding = 2;
 		writes[2].dstArrayElement = 0;
-		writes[2].descriptorCount = MAXLIGHTMAPS;
+		writes[2].descriptorCount = MAXLIGHTMAPS * 3 / 4;
 		writes[2].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
 		writes[2].dstSet = lm->descriptor_set;
 		writes[2].pImageInfo = lightmap_images_infos;

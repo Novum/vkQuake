@@ -455,7 +455,7 @@ struct lightmap_s
 {
 	gltexture_t	   *texture;
 	gltexture_t	   *surface_indices_texture;
-	gltexture_t	   *lightstyle_textures[MAXLIGHTMAPS];
+	gltexture_t	   *lightstyle_textures[MAXLIGHTMAPS * 3 / 4];
 	VkDescriptorSet descriptor_set;
 	uint32_t modified[TASKS_MAX_WORKERS]; // when using GPU lightmap update, bitmap of lightstyles that will be drawn using this lightmap (16..64 OR-folded
 										  // into bits 16..31)

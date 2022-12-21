@@ -1366,7 +1366,7 @@ void R_CreateDescriptorSetLayouts ()
 		lightmap_compute_layout_bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
 		lightmap_compute_layout_bindings[1].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 		lightmap_compute_layout_bindings[2].binding = 2;
-		lightmap_compute_layout_bindings[2].descriptorCount = MAXLIGHTMAPS;
+		lightmap_compute_layout_bindings[2].descriptorCount = MAXLIGHTMAPS * 3 / 4;
 		lightmap_compute_layout_bindings[2].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
 		lightmap_compute_layout_bindings[2].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 		lightmap_compute_layout_bindings[3].binding = 3;
@@ -1391,7 +1391,7 @@ void R_CreateDescriptorSetLayouts ()
 
 		memset (&vulkan_globals.lightmap_compute_set_layout, 0, sizeof (vulkan_globals.lightmap_compute_set_layout));
 		vulkan_globals.lightmap_compute_set_layout.num_storage_images = 1;
-		vulkan_globals.lightmap_compute_set_layout.num_sampled_images = 1 + MAXLIGHTMAPS;
+		vulkan_globals.lightmap_compute_set_layout.num_sampled_images = 1 + MAXLIGHTMAPS * 3 / 4;
 		vulkan_globals.lightmap_compute_set_layout.num_storage_buffers = 2;
 		vulkan_globals.lightmap_compute_set_layout.num_ubos_dynamic = 2;
 
