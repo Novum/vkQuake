@@ -465,7 +465,19 @@ static void CL_Record_Spawn (void)
 
 	// what about the current CD track... future consideration.
 
-	// also: current dynamic fog, current dynamic sky
+	const char *fog_cmd = Fog_GetFogCommand (false);
+	if (fog_cmd)
+	{
+		MSG_WriteByte (&net_message, svc_stufftext);
+		MSG_WriteString (&net_message, fog_cmd);
+	}
+
+	const char *sky_cmd = Sky_GetSkyCommand (false);
+	if (sky_cmd)
+	{
+		MSG_WriteByte (&net_message, svc_stufftext);
+		MSG_WriteString (&net_message, sky_cmd);
+	}
 
 	// stats
 	for (i = 0; i < MAX_CL_STATS; i++)

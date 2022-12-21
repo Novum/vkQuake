@@ -485,15 +485,16 @@ extern float map_fallbackalpha; // spike -- because we might want r_wateralpha t
 extern task_handle_t prev_end_rendering_task;
 
 // johnfitz -- fog functions called from outside gl_fog.c
-void  Fog_ParseServerMessage (void);
-void  Fog_GetColor (float *c);
-float Fog_GetDensity (void);
-void  Fog_ResetFade (void);
-void  Fog_EnableGFog (cb_context_t *cbx);
-void  Fog_DisableGFog (cb_context_t *cbx);
-void  Fog_SetupFrame (cb_context_t *cbx);
-void  Fog_NewMap (void);
-void  Fog_Init (void);
+void		Fog_ParseServerMessage (void);
+void		Fog_GetColor (float *c);
+float		Fog_GetDensity (void);
+void		Fog_ResetFade (void);
+const char *Fog_GetFogCommand (qboolean always);
+void		Fog_EnableGFog (cb_context_t *cbx);
+void		Fog_DisableGFog (cb_context_t *cbx);
+void		Fog_SetupFrame (cb_context_t *cbx);
+void		Fog_NewMap (void);
+void		Fog_Init (void);
 
 void R_NewGame (void);
 
@@ -552,14 +553,15 @@ void R_DrawSpriteModel_ShowTris (cb_context_t *cbx, entity_t *e);
 void DrawGLPoly (cb_context_t *cbx, glpoly_t *p, float color[3], float alpha);
 void GL_MakeAliasModelDisplayLists (qmodel_t *m, aliashdr_t *hdr);
 
-void	 Sky_Init (void);
-void	 Sky_ClearAll (void);
-void	 Sky_DrawSky (cb_context_t *cbx);
-qboolean Sky_NeedStencil ();
-void	 Sky_NewMap (void);
-void	 Sky_LoadTexture (qmodel_t *mod, texture_t *mt, int tex_index);
-void	 Sky_LoadTextureQ64 (qmodel_t *mod, texture_t *mt, int tex_index);
-void	 Sky_LoadSkyBox (const char *name);
+void		Sky_Init (void);
+void		Sky_ClearAll (void);
+void		Sky_DrawSky (cb_context_t *cbx);
+qboolean	Sky_NeedStencil ();
+void		Sky_NewMap (void);
+void		Sky_LoadTexture (qmodel_t *mod, texture_t *mt, int tex_index);
+void		Sky_LoadTextureQ64 (qmodel_t *mod, texture_t *mt, int tex_index);
+void		Sky_LoadSkyBox (const char *name);
+const char *Sky_GetSkyCommand (qboolean always);
 
 void R_ClearTextureChains (qmodel_t *mod, texchain_t chain);
 void R_ChainSurface (msurface_t *surf, texchain_t chain);

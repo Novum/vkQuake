@@ -59,6 +59,8 @@ int vec_to_st[6][3] = {{-2, 3, 1}, {2, 3, -1}, {1, 3, 2}, {-1, 3, -2}, {-2, -1, 
 
 float skyfog; // ericw
 
+char skybox_name_worldspawn[1024];
+
 static SDL_mutex *load_skytexture_mutex;
 static int		  max_skytexture_index = -1;
 
@@ -304,6 +306,30 @@ void		Sky_LoadSkyBox (const char *name)
 
 /*
 =================
+Sky_GetSkyCommand
+
+To preserve dynamic skies in demos and savegames
+=================
+*/
+const char *Sky_GetSkyCommand (qboolean always)
+{
+	qboolean need_sky = always || strcmp (skybox_name, skybox_name_worldspawn);
+	qboolean need_skyfog = always; // no safe way to record skyfog in demos; r_skyfog is user pref
+
+	if (need_sky || need_skyfog)
+	{
+		char sky[128];
+		char fog[128];
+		q_strlcpy (sky, va ("sky \"%s\"", skybox_name), sizeof (sky));
+		q_strlcpy (fog, va ("skyfog %g", skyfog), sizeof (fog));
+		return va ("\n%s%s%s\n", need_sky ? sky : "", need_sky && need_skyfog ? "\n" : "", need_skyfog ? fog : "");
+	}
+
+	return NULL;
+}
+
+/*
+=================
 Sky_ClearAll
 
 Called on map unload/game change to avoid keeping pointers to freed data
@@ -378,6 +404,8 @@ void Sky_NewMap (void)
 			Sky_LoadSkyBox (value);
 #endif
 	}
+
+	q_strlcpy (skybox_name_worldspawn, skybox_name, sizeof (skybox_name_worldspawn));
 }
 
 /*

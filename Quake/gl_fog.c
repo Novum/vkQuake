@@ -58,7 +58,7 @@ void Fog_Update (float density, float red, float green, float blue, float time)
 	if (time > 0)
 	{
 		// check for a fade in progress
-		if (fade_done > cl.time)
+		if (fade_done > cl.time && fade_time != 0.0f)
 		{
 			float f;
 
@@ -218,7 +218,7 @@ void Fog_GetColor (float *c)
 	float f;
 	int	  i;
 
-	if (fade_done > cl.time)
+	if (fade_done > cl.time && fade_time != 0.0f)
 	{
 		f = (fade_done - cl.time) / fade_time;
 		c[0] = f * old_red + (1.0 - f) * fog_red;
@@ -250,7 +250,7 @@ float Fog_GetDensity (void)
 {
 	float f;
 
-	if (fade_done > cl.time)
+	if (fade_done > cl.time && fade_time != 0.0f)
 	{
 		f = (fade_done - cl.time) / fade_time;
 		return f * old_density + (1.0 - f) * fog_density;
@@ -269,6 +269,20 @@ called when client time may jump
 void Fog_ResetFade (void)
 {
 	fade_done = 0.0;
+}
+
+/*
+=============
+Fog_GetFogCommand
+
+so fog is preserved when starting a demo recording or in savegames
+=============
+*/
+const char *Fog_GetFogCommand (qboolean always)
+{
+	if (fade_done || always)
+		return va ("\nfog %g %g %g %g\n", fog_density, fog_red, fog_green, fog_blue);
+	return NULL;
 }
 
 /*
