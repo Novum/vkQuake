@@ -21,7 +21,7 @@ layout (location = 0) out vec4 out_frag_color;
 
 void main ()
 {
-	vec2 uv = normalize(in_texcoord).xy * (189.0 / 64.0);
+	vec2 uv = normalize (in_texcoord).xy * (189.0 / 64.0);
 
 	vec4 solid_layer = texture (solid_tex, uv + push_constants.time / 16.0f);
 	vec4 alpha_layer = texture (alpha_tex, uv + push_constants.time / 8.0f);

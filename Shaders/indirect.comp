@@ -4,8 +4,8 @@
 
 layout (push_constant) uniform PushConsts
 {
-	int num_draws;
-	uint visibility_offset;
+	int	  num_draws;
+	uint  visibility_offset;
 	float vieworg_x;
 	float vieworg_y;
 	float vieworg_z;
@@ -25,12 +25,13 @@ struct surface_t
 	vec4  vecs[2];
 };
 
-struct VkDrawIndexedIndirectCommand_t {
-    uint    indexCount;
-    uint    instanceCount;
-    uint    firstIndex;
-    int     vertexOffset;
-    uint    firstInstance;
+struct VkDrawIndexedIndirectCommand_t
+{
+	uint indexCount;
+	uint instanceCount;
+	uint firstIndex;
+	int	 vertexOffset;
+	uint firstInstance;
 };
 
 layout (std430, set = 0, binding = 0) restrict buffer indirect_draw_buffer
@@ -78,11 +79,11 @@ void main ()
 	if ((vis_word & vis_mask) == 0)
 		return;
 
-	const vec3  surf_normal = vec3 (surfaces[surf].normal_x, surfaces[surf].normal_y, surfaces[surf].normal_z);
-	const vec3  vieworg = vec3 (push_constants.vieworg_x, push_constants.vieworg_y, push_constants.vieworg_z);
+	const vec3	surf_normal = vec3 (surfaces[surf].normal_x, surfaces[surf].normal_y, surfaces[surf].normal_z);
+	const vec3	vieworg = vec3 (push_constants.vieworg_x, push_constants.vieworg_y, push_constants.vieworg_z);
 	const float dist = surfaces[surf].dist;
-	const float dp = dot (surf_normal, vieworg); 
-	const bool  backface = (surfaces[surf].packed_light_tex & 0x8000) != 0;
+	const float dp = dot (surf_normal, vieworg);
+	const bool	backface = (surfaces[surf].packed_light_tex & 0x8000) != 0;
 	if (backface && dp > dist || !backface && dp < dist)
 		return;
 

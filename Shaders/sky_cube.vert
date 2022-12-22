@@ -24,5 +24,5 @@ void main ()
 {
 	gl_Position = push_constants.mvp * vec4 (in_position, 1.0f);
 	vec3 texcoord = in_position - push_constants.eye_pos;
-	out_texcoord = vec4(-texcoord.y, texcoord.z, texcoord.x, 0.0f);
+	out_texcoord = vec4 (-texcoord.y, texcoord.z, texcoord.x, 0.0f);
 }

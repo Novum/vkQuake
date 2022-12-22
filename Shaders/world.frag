@@ -3,7 +3,7 @@
 #extension GL_ARB_shading_language_420pack : enable
 
 // keep in sync with glquake.h
-#define LMBLOCK_WIDTH 1024
+#define LMBLOCK_WIDTH  1024
 #define LMBLOCK_HEIGHT 1024
 
 layout (push_constant) uniform PushConsts
@@ -37,12 +37,12 @@ void main ()
 		discard;
 
 	float lm_multiplier = scaled_lm ? 8.0f : 2.0f;
-	vec3 light;
+	vec3  light;
 
 	if (quantize_lm)
 	{
-		ivec2 lm_size = ivec2(LMBLOCK_WIDTH, LMBLOCK_HEIGHT);
-		vec2 uv_exp = (floor ((lm_size * 16) * in_texcoords.zw) + 0.5) / (lm_size * 16);
+		ivec2 lm_size = ivec2 (LMBLOCK_WIDTH, LMBLOCK_HEIGHT);
+		vec2  uv_exp = (floor ((lm_size * 16) * in_texcoords.zw) + 0.5) / (lm_size * 16);
 		light = texture (lightmap_tex, uv_exp).rgb * lm_multiplier;
 	}
 	else

@@ -21,9 +21,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef __SHADERS_H
 #define __SHADERS_H
 
-#define DECLARE_SHADER_SPV(name)       \
+#define DECLARE_SHADER_SPV(name)             \
 	extern const unsigned char name##_spv[]; \
-	extern const int           name##_spv_size;
+	extern const int		   name##_spv_size;
 
 DECLARE_SHADER_SPV (basic_vert);
 DECLARE_SHADER_SPV (basic_frag);

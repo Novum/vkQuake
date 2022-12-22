@@ -23,6 +23,6 @@ out gl_PerVertex
 void main ()
 {
 	gl_Position = push_constants.mvp * vec4 (in_position, 1.0f);
-	out_texcoord = vec4(in_position - push_constants.eye_pos, 0.0f);
+	out_texcoord = vec4 (in_position - push_constants.eye_pos, 0.0f);
 	out_texcoord.z *= 3.0; // flatten the sphere
 }

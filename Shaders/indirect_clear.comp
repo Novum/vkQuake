@@ -8,12 +8,13 @@ layout (push_constant) uniform PushConsts
 }
 push_constants;
 
-struct VkDrawIndexedIndirectCommand_t {
-    uint    indexCount;
-    uint    instanceCount;
-    uint    firstIndex;
-    int     vertexOffset;
-    uint    firstInstance;
+struct VkDrawIndexedIndirectCommand_t
+{
+	uint indexCount;
+	uint instanceCount;
+	uint firstIndex;
+	int	 vertexOffset;
+	uint firstInstance;
 };
 
 layout (std430, set = 0, binding = 0) restrict buffer indirect_draw_buffer

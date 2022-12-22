@@ -19,12 +19,12 @@ int main (int argc, char **argv)
 
 	char fin_deflate[1024];
 	snprintf (fin_deflate, sizeof (fin_deflate), "%s.deflate", argv[1]);
-	FILE *fin_compressed = fopen (fin_deflate, "rb");
+	FILE		 *fin_compressed = fopen (fin_deflate, "rb");
 	unsigned long decompressed_length = 0;
 	if (fin_compressed != NULL)
 	{
 		fseek (fin, 0, SEEK_END);
-		decompressed_length = (unsigned long) ftell (fin);
+		decompressed_length = (unsigned long)ftell (fin);
 		fclose (fin);
 		fin = fin_compressed;
 	}
