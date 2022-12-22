@@ -89,6 +89,7 @@ cvar_t scr_conscale = {"scr_conscale", "1", CVAR_ARCHIVE};
 cvar_t scr_crosshairscale = {"scr_crosshairscale", "1", CVAR_ARCHIVE};
 cvar_t scr_showfps = {"scr_showfps", "0", CVAR_NONE};
 cvar_t scr_clock = {"scr_clock", "0", CVAR_NONE};
+cvar_t scr_autoclock = {"scr_autoclock", "1", CVAR_ARCHIVE};
 // johnfitz
 cvar_t scr_usekfont = {"scr_usekfont", "0", CVAR_NONE}; // 2021 re-release
 
@@ -545,6 +546,7 @@ void SCR_Init (void)
 	Cvar_RegisterVariable (&scr_crosshairscale);
 	Cvar_RegisterVariable (&scr_showfps);
 	Cvar_RegisterVariable (&scr_clock);
+	Cvar_RegisterVariable (&scr_autoclock);
 	// johnfitz
 	Cvar_RegisterVariable (&scr_usekfont); // 2021 re-release
 	Cvar_SetCallback (&scr_fov, SCR_Callback_refdef);
@@ -651,6 +653,7 @@ void SCR_DrawClock (cb_context_t *cbx)
 	char			str[32];
 	int				y = 200 - 8;
 	static qboolean shown_pause;
+	extern qboolean sb_showscores;
 
 	if (cls.demoplayback && cls.demospeed != 1 && cls.demospeed != 0) // always show if playback speed is modified
 	{
@@ -664,7 +667,7 @@ void SCR_DrawClock (cb_context_t *cbx)
 		shown_pause = true;
 	}
 
-	if ((scr_clock.value == 0 && scr_clock_off <= 0) || scr_viewsize.value >= 130)
+	if ((scr_clock.value == 0 && scr_clock_off <= 0 && !(sb_showscores && !fitzmode && scr_autoclock.value)) || scr_viewsize.value >= 130)
 		return;
 
 	scr_clock_off -= host_frametime / (cls.demospeed ? cls.demospeed : 1.f);
