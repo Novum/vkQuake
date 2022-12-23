@@ -19,9 +19,9 @@ struct surface_t
 	float normal_y;
 	float normal_z;
 	float dist;
-	uint  packed_light_st_and_tex;
+	uint  packed_light_st;
+	uint  packed_light_tex;
 	uint  packed_vbo_offset_and_count;
-	uint  packed_texturemins;
 	vec4  vecs[2];
 };
 
@@ -82,11 +82,11 @@ void main ()
 	const vec3  vieworg = vec3 (push_constants.vieworg_x, push_constants.vieworg_y, push_constants.vieworg_z);
 	const float dist = surfaces[surf].dist;
 	const float dp = dot (surf_normal, vieworg); 
-	const bool  backface = (surfaces[surf].packed_light_st_and_tex & 0x8000) != 0;
+	const bool  backface = (surfaces[surf].packed_light_tex & 0x8000) != 0;
 	if (backface && dp > dist || !backface && dp < dist)
 		return;
 
-	const uint tex_idx = surfaces[surf].packed_light_st_and_tex & 0x7FFF;
+	const uint tex_idx = surfaces[surf].packed_light_tex & 0x7FFF;
 	const uint firstvert = surfaces[surf].packed_vbo_offset_and_count & 0xFFFFFF;
 	const uint numedges = surfaces[surf].packed_vbo_offset_and_count >> 24;
 	const uint indexcount = R_NumTriangleIndicesForSurf (numedges);

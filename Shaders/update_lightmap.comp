@@ -22,9 +22,9 @@ struct surface_t
 	float normal_y;
 	float normal_z;
 	float dist;
-	uint  packed_light_st_and_tex;
+	uint  packed_light_st;
+	uint  packed_light_tex;
 	uint  packed_vbo_offset_and_count;
-	uint  packed_texturemins;
 	vec4  vecs[2];
 };
 
@@ -168,15 +168,10 @@ void main ()
 			minlight = rad - minlight;
 
 			const vec3  impact = light.origin - (surf_normal * dist);
-			const float texturemins_x = float ((surf.packed_texturemins >> 0) & 0xFFFF) - 32768.0f;
-			const float texturemins_y = float ((surf.packed_texturemins >> 16) & 0xFFFF) - 32768.0f;
 			const vec2  local =
-				vec2 ((dot (impact, surf.vecs[0].xyz) + surf.vecs[0][3]) - texturemins_x, (dot (impact, surf.vecs[1].xyz) + surf.vecs[1][3]) - texturemins_y);
-			const uint packed_light_st = surf.packed_light_st_and_tex;
-			const uint s_mod = (packed_light_st >> 24) & 0xFF;
-			const uint t_mod = (packed_light_st >> 16) & 0xFF;
-			const uint s = ((gl_GlobalInvocationID.x & 0xFF) - s_mod) & 0xFF;
-			const uint t = ((gl_GlobalInvocationID.y & 0xFF) - t_mod) & 0xFF;
+				vec2 (dot (impact, surf.vecs[0].xyz) + surf.vecs[0][3], dot (impact, surf.vecs[1].xyz) + surf.vecs[1][3]);
+			const uint s = gl_GlobalInvocationID.x - (surf.packed_light_st & 0xFFFF);
+			const uint t = gl_GlobalInvocationID.y - ((surf.packed_light_st >> 16) & 0xFFFF);
 
 			int td = int (local.y) - int (t * 16);
 			if (td < 0)

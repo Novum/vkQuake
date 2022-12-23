@@ -218,9 +218,9 @@ typedef struct lm_compute_surface_data_s
 	uint32_t packed_lightstyles;
 	vec3_t	 normal;
 	float	 dist;
-	uint32_t packed_light_st_and_tex;
+	uint32_t packed_light_st;
+	uint32_t packed_light_tex;
 	uint32_t packed_vbo_offset_and_count;
-	uint32_t packed_texturemins;
 	vec4_t	 vecs[2];
 } lm_compute_surface_data_t;
 COMPILE_TIME_ASSERT (lm_compute_surface_data_t, sizeof (lm_compute_surface_data_t) == 64);
@@ -1689,17 +1689,18 @@ void GL_BuildLightmaps (void)
 			for (int k = 0; k < 3; ++k)
 				surf_data->normal[k] = surf->plane->normal[k];
 			surf_data->dist = surf->plane->dist;
-			surf_data->packed_light_st_and_tex =
-				(((surf->light_s) & 0xFF) << 24) | (((surf->light_t) & 0xFF) << 16) | surf->indirect_idx | !!(surf->flags & SURF_PLANEBACK) << 15;
+			surf_data->packed_light_st = ((surf->light_s) & 0xFFFF) | (((surf->light_t) & 0xFFFF) << 16);
+			surf_data->packed_light_tex = surf->indirect_idx | !!(surf->flags & SURF_PLANEBACK) << 15;
 			surf->vbo_firstvert = varray_index;
 			surf_data->packed_vbo_offset_and_count = (surf->numedges << 24) | surf->vbo_firstvert;
 			if (surf->numedges > 255 || varray_index > (1 << 24) - 1)
 				indirect_ready = false;
 			varray_index += surf->numedges;
 
-			surf_data->packed_texturemins = (uint32_t)(surf->texturemins[0] + 32768) | ((uint32_t)(surf->texturemins[1] + 32768) << 16);
 			Vector4Copy (surf->texinfo->vecs[0], surf_data->vecs[0]);
 			Vector4Copy (surf->texinfo->vecs[1], surf_data->vecs[1]);
+			surf_data->vecs[0][3] -= surf->texturemins[0];
+			surf_data->vecs[1][3] -= surf->texturemins[1];
 
 			surface_index += 1;
 		}
