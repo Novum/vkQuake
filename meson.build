@@ -209,4 +209,8 @@ if get_option('buildtype').startswith('debug')
     cflags += '-D_DEBUG'
 endif
 
+if get_option('do_userdirs').enabled()
+    cflags += '-DDO_USERDIRS=1'
+endif
+
 executable('vkquake', [srcs, shaders_c], dependencies : deps, c_args : cflags, c_pch: ['Quake/quakedef.h', 'Quake/quakedef.c'])
