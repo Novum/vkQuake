@@ -4043,33 +4043,10 @@ void SCR_ScreenShot_f (void)
 	}
 
 	// get data
-	ZEROED_STRUCT (VkBufferCreateInfo, buffer_create_info);
-	buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	buffer_create_info.size = glwidth * glheight * 4;
-	buffer_create_info.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-	err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &buffer);
-	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateBuffer failed");
-
-	VkMemoryRequirements memory_requirements;
-	vkGetBufferMemoryRequirements (vulkan_globals.device, buffer, &memory_requirements);
-
-	uint32_t memory_type_index = GL_MemoryTypeFromProperties (
-		memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
-
-	ZEROED_STRUCT (VkMemoryAllocateInfo, memory_allocate_info);
-	memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	memory_allocate_info.allocationSize = memory_requirements.size;
-	memory_allocate_info.memoryTypeIndex = memory_type_index;
-
-	VkDeviceMemory memory;
-	err = vkAllocateMemory (vulkan_globals.device, &memory_allocate_info, NULL, &memory);
-	if (err != VK_SUCCESS)
-		Sys_Error ("vkAllocateMemory failed");
-
-	err = vkBindBufferMemory (vulkan_globals.device, buffer, memory, 0);
-	if (err != VK_SUCCESS)
-		Sys_Error ("vkBindBufferMemory failed");
+	vulkan_memory_t memory;
+	R_CreateBuffer (
+		&buffer, &memory, glwidth * glheight * 4, VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
+		NULL, "Screenshot");
 
 	VkCommandBuffer command_buffer;
 
@@ -4089,24 +4066,25 @@ void SCR_ScreenShot_f (void)
 	if (err != VK_SUCCESS)
 		Sys_Error ("vkBeginCommandBuffer failed");
 
-	VkImageMemoryBarrier image_barrier;
-	image_barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-	image_barrier.pNext = NULL;
-	image_barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-	image_barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-	image_barrier.oldLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-	image_barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-	image_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	image_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	image_barrier.image = swapchain_images[current_cb_index];
-	image_barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	image_barrier.subresourceRange.baseMipLevel = 0;
-	image_barrier.subresourceRange.levelCount = 1;
-	image_barrier.subresourceRange.baseArrayLayer = 0;
-	image_barrier.subresourceRange.layerCount = 1;
+	{
+		ZEROED_STRUCT (VkImageMemoryBarrier, image_barrier);
+		image_barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+		image_barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+		image_barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+		image_barrier.oldLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+		image_barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+		image_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		image_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		image_barrier.image = swapchain_images[current_cb_index];
+		image_barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		image_barrier.subresourceRange.baseMipLevel = 0;
+		image_barrier.subresourceRange.levelCount = 1;
+		image_barrier.subresourceRange.baseArrayLayer = 0;
+		image_barrier.subresourceRange.layerCount = 1;
 
-	vkCmdPipelineBarrier (
-		command_buffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, NULL, 0, NULL, 1, &image_barrier);
+		vkCmdPipelineBarrier (
+			command_buffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, NULL, 0, NULL, 1, &image_barrier);
+	}
 
 	ZEROED_STRUCT (VkBufferImageCopy, image_copy);
 	image_copy.bufferOffset = 0;
@@ -4119,6 +4097,25 @@ void SCR_ScreenShot_f (void)
 	image_copy.imageExtent.depth = 1;
 
 	vkCmdCopyImageToBuffer (command_buffer, swapchain_images[current_cb_index], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, buffer, 1, &image_copy);
+
+	{
+		ZEROED_STRUCT (VkImageMemoryBarrier, image_barrier);
+		image_barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+		image_barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+		image_barrier.dstAccessMask = 0;
+		image_barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+		image_barrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+		image_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		image_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		image_barrier.image = swapchain_images[current_cb_index];
+		image_barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		image_barrier.subresourceRange.baseMipLevel = 0;
+		image_barrier.subresourceRange.levelCount = 1;
+		image_barrier.subresourceRange.baseArrayLayer = 0;
+		image_barrier.subresourceRange.layerCount = 1;
+
+		vkCmdPipelineBarrier (command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, NULL, 0, NULL, 1, &image_barrier);
+	}
 
 	err = vkEndCommandBuffer (command_buffer);
 	if (err != VK_SUCCESS)
@@ -4138,7 +4135,13 @@ void SCR_ScreenShot_f (void)
 		Sys_Error ("vkDeviceWaitIdle failed");
 
 	void *buffer_ptr;
-	vkMapMemory (vulkan_globals.device, memory, 0, glwidth * glheight * 4, 0, &buffer_ptr);
+	vkMapMemory (vulkan_globals.device, memory.handle, 0, glwidth * glheight * 4, 0, &buffer_ptr);
+
+	ZEROED_STRUCT (VkMappedMemoryRange, range);
+	range.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+	range.memory = memory.handle;
+	range.size = VK_WHOLE_SIZE;
+	vkInvalidateMappedMemoryRanges (vulkan_globals.device, 1, &range);
 
 	if (bgra)
 	{
@@ -4166,9 +4169,7 @@ void SCR_ScreenShot_f (void)
 	else
 		Con_Printf ("SCR_ScreenShot_f: Couldn't create %s\n", imagename);
 
-	vkUnmapMemory (vulkan_globals.device, memory);
-	vkFreeMemory (vulkan_globals.device, memory, NULL);
-	vkDestroyBuffer (vulkan_globals.device, buffer, NULL);
+	R_FreeBuffer (buffer, &memory, NULL);
 	vkFreeCommandBuffers (vulkan_globals.device, transient_command_pool, 1, &command_buffer);
 }
 
