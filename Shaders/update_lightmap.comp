@@ -23,8 +23,8 @@ struct surface_t
 	float normal_z;
 	float dist;
 	uint  packed_light_st;
-	uint  packed_light_tex;
-	uint  packed_vbo_offset_and_count;
+	uint  packed_tex_edgecount;
+	uint  vbo_offset;
 	vec4  vecs[2];
 };
 

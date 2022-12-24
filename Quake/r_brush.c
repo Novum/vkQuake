@@ -104,8 +104,8 @@ typedef struct lm_compute_surface_data_s
 	vec3_t	 normal;
 	float	 dist;
 	uint32_t packed_light_st;
-	uint32_t packed_light_tex;
-	uint32_t packed_vbo_offset_and_count;
+	uint32_t packed_tex_edgecount;
+	uint32_t vbo_offset;
 	vec4_t	 vecs[2];
 } lm_compute_surface_data_t;
 COMPILE_TIME_ASSERT (lm_compute_surface_data_t, sizeof (lm_compute_surface_data_t) == 64);
@@ -1531,10 +1531,10 @@ void GL_BuildLightmaps (void)
 				surf_data->normal[k] = surf->plane->normal[k];
 			surf_data->dist = surf->plane->dist;
 			surf_data->packed_light_st = ((surf->light_s) & 0xFFFF) | (((surf->light_t) & 0xFFFF) << 16);
-			surf_data->packed_light_tex = surf->indirect_idx | !!(surf->flags & SURF_PLANEBACK) << 15;
+			surf_data->packed_tex_edgecount = surf->indirect_idx | !!(surf->flags & SURF_PLANEBACK) << 15 | surf->numedges << 16;
 			surf->vbo_firstvert = varray_index;
-			surf_data->packed_vbo_offset_and_count = (surf->numedges << 24) | surf->vbo_firstvert;
-			if (surf->numedges > 255 || varray_index > (1 << 24) - 1)
+			surf_data->vbo_offset = surf->vbo_firstvert;
+			if (surf->numedges > 65535)
 				indirect_ready = false;
 			varray_index += surf->numedges;
 
