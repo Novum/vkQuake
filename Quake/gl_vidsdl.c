@@ -2892,36 +2892,19 @@ R_CreatePaletteOctreeBuffers
 */
 static void R_CreatePaletteOctreeBuffers (uint32_t *colors, int num_colors, palette_octree_node_t *nodes, int num_nodes)
 {
+	const int colors_size = num_colors * sizeof (uint32_t);
+	const int nodes_size = num_nodes * sizeof (palette_octree_node_t);
+
+	buffer_create_info_t buffer_create_infos[2] = {
+		{&palette_colors_buffer, colors_size, 0, VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, NULL, "Palette colors"},
+		{&palette_octree_buffer, nodes_size, 0, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, NULL, "Palette octree"},
+	};
+
+	vulkan_memory_t memory;
+	R_CreateBuffers (
+		countof (buffer_create_infos), buffer_create_infos, &memory, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, &num_vulkan_misc_allocations, "Palette");
+
 	{
-		const int colors_size = num_colors * sizeof (uint32_t);
-
-		// Allocate palette buffer & upload to GPU
-		ZEROED_STRUCT (VkBufferCreateInfo, buffer_create_info);
-		buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-		buffer_create_info.size = colors_size;
-		buffer_create_info.usage = VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-		VkResult err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &palette_colors_buffer);
-		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateBuffer failed");
-		GL_SetObjectName ((uint64_t)palette_colors_buffer, VK_OBJECT_TYPE_BUFFER, "Palette colors");
-
-		VkMemoryRequirements memory_requirements;
-		vkGetBufferMemoryRequirements (vulkan_globals.device, palette_colors_buffer, &memory_requirements);
-
-		ZEROED_STRUCT (VkMemoryAllocateInfo, memory_allocate_info);
-		memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-		memory_allocate_info.allocationSize = memory_requirements.size;
-		memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
-
-		Atomic_IncrementUInt32 (&num_vulkan_misc_allocations);
-		vulkan_memory_t memory;
-		R_AllocateVulkanMemory (&memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_HOST);
-		GL_SetObjectName ((uint64_t)memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, "Palette colors");
-
-		err = vkBindBufferMemory (vulkan_globals.device, palette_colors_buffer, memory.handle, 0);
-		if (err != VK_SUCCESS)
-			Sys_Error ("vkBindBufferMemory failed");
-
 		VkBuffer		staging_buffer;
 		VkCommandBuffer command_buffer;
 		int				staging_offset;
@@ -2942,43 +2925,13 @@ static void R_CreatePaletteOctreeBuffers (uint32_t *colors, int num_colors, pale
 		buffer_view_create_info.buffer = palette_colors_buffer;
 		buffer_view_create_info.format = VK_FORMAT_R8G8B8A8_UNORM;
 		buffer_view_create_info.range = VK_WHOLE_SIZE;
-		err = vkCreateBufferView (vulkan_globals.device, &buffer_view_create_info, NULL, &palette_buffer_view);
+		VkResult err = vkCreateBufferView (vulkan_globals.device, &buffer_view_create_info, NULL, &palette_buffer_view);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkCreateBufferView failed");
 		GL_SetObjectName ((uint64_t)palette_buffer_view, VK_OBJECT_TYPE_BUFFER_VIEW, "Palette colors");
 	}
 
 	{
-		const int nodes_size = num_nodes * sizeof (palette_octree_node_t);
-
-		// Allocate palette buffer & upload to GPU
-		ZEROED_STRUCT (VkBufferCreateInfo, buffer_create_info);
-		buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-		buffer_create_info.size = nodes_size;
-		buffer_create_info.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-		VkResult err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &palette_octree_buffer);
-		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateBuffer failed");
-
-		GL_SetObjectName ((uint64_t)palette_octree_buffer, VK_OBJECT_TYPE_BUFFER, "Palette octree");
-
-		VkMemoryRequirements memory_requirements;
-		vkGetBufferMemoryRequirements (vulkan_globals.device, palette_octree_buffer, &memory_requirements);
-
-		ZEROED_STRUCT (VkMemoryAllocateInfo, memory_allocate_info);
-		memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-		memory_allocate_info.allocationSize = memory_requirements.size;
-		memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
-
-		Atomic_IncrementUInt32 (&num_vulkan_misc_allocations);
-		vulkan_memory_t memory;
-		R_AllocateVulkanMemory (&memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_HOST);
-		GL_SetObjectName ((uint64_t)memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, "Palette octree");
-
-		err = vkBindBufferMemory (vulkan_globals.device, palette_octree_buffer, memory.handle, 0);
-		if (err != VK_SUCCESS)
-			Sys_Error ("vkBindBufferMemory failed");
-
 		VkBuffer		staging_buffer;
 		VkCommandBuffer command_buffer;
 		int				staging_offset;
