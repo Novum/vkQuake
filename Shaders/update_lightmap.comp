@@ -170,14 +170,10 @@ void main ()
 			const vec3 impact = light.origin - (surf_normal * dist);
 			const vec2 local = vec2 (dot (impact, surf.vecs[0].xyz) + surf.vecs[0][3], dot (impact, surf.vecs[1].xyz) + surf.vecs[1][3]);
 			const uint s = gl_GlobalInvocationID.x - (surf.packed_light_st & 0xFFFF);
-			const uint t = gl_GlobalInvocationID.y - ((surf.packed_light_st >> 16) & 0xFFFF);
+			const uint t = gl_GlobalInvocationID.y - (surf.packed_light_st >> 16);
 
-			int td = int (local.y) - int (t * 16);
-			if (td < 0)
-				td = -td;
-			int sd = int (local.x) - int (s * 16);
-			if (sd < 0)
-				sd = -sd;
+			int td = abs (int (local.y) - int (t * 16));
+			int sd = abs (int (local.x) - int (s * 16));
 			if (sd > td)
 				dist = sd + (td >> 1);
 			else
