@@ -614,8 +614,7 @@ static inline void R_PushConstants (cb_context_t *cbx, VkShaderStageFlags stage_
 static inline void R_BeginDebugUtilsLabel (cb_context_t *cbx, const char *name)
 {
 #ifdef _DEBUG
-	VkDebugUtilsLabelEXT label;
-	memset (&label, 0, sizeof (label));
+	ZEROED_STRUCT (VkDebugUtilsLabelEXT, label);
 	label.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
 	label.pLabelName = name;
 	if (vulkan_globals.vk_cmd_begin_debug_utils_label)

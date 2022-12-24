@@ -81,9 +81,42 @@ GENERIC_TYPES (IMPL_GENERIC_FUNCS, NO_COMMA)
 #define SELECT_CLAMP(type, suffix) type: clamp_##suffix
 #define CLAMP(minval, val, maxval) _Generic((minval) + (val) + (maxval), \
 	GENERIC_TYPES (SELECT_CLAMP, COMMA))(minval, val, maxval)
+
+#define GENERIC_INT_TYPES(x, separator) \
+	x(int, i) separator \
+	x(unsigned int, u) separator \
+	x(long, l) separator \
+	x(unsigned long, ul) separator \
+	x(long long, ll) separator \
+	x(unsigned long long, ull)
+
+#define IMPL_GENERIC_INT_FUNCS(type, suffix) \
+static inline type q_align_##suffix (type size, type alignment) \
+{ \
+	return ((size % alignment) == 0) ? size : (size + alignment - (size % alignment)); \
+}
+
+GENERIC_INT_TYPES (IMPL_GENERIC_INT_FUNCS, NO_COMMA)
+
+#define SELECT_ALIGN(type, suffix) type: q_align_##suffix
+#define q_align(size, alignment) _Generic((size) + (alignment), \
+	GENERIC_INT_TYPES (SELECT_ALIGN, COMMA))(size, alignment)
 // clang-format on
 
 #define countof(x) (sizeof (x) / sizeof ((x)[0]))
+
+#define ZEROED_STRUCT(type, name) \
+	type name;                    \
+	memset (&name, 0, sizeof (type));
+#define ZEROED_STRUCT_ARRAY(type, name, count) \
+	type name[count];                          \
+	memset (name, 0, sizeof (type) * count);
+
+#define CHAIN_PNEXT(next_ptr, chained) \
+	{                                  \
+		*next_ptr = &chained;          \
+		next_ptr = &chained.pNext;     \
+	}
 
 typedef struct sizebuf_s
 {

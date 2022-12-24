@@ -162,8 +162,7 @@ void R_InitParticleIndexBuffer (void)
 
 	VkResult err;
 
-	VkBufferCreateInfo buffer_create_info;
-	memset (&buffer_create_info, 0, sizeof (buffer_create_info));
+	ZEROED_STRUCT (VkBufferCreateInfo, buffer_create_info);
 	buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 	buffer_create_info.size = particle_index_buffer_size;
 	buffer_create_info.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
@@ -177,13 +176,9 @@ void R_InitParticleIndexBuffer (void)
 	VkMemoryRequirements memory_requirements;
 	vkGetBufferMemoryRequirements (vulkan_globals.device, particle_index_buffer, &memory_requirements);
 
-	const int align_mod = memory_requirements.size % memory_requirements.alignment;
-	const int aligned_size = ((memory_requirements.size % memory_requirements.alignment) == 0)
-								 ? memory_requirements.size
-								 : (memory_requirements.size + memory_requirements.alignment - align_mod);
+	const int aligned_size = q_align (memory_requirements.size, memory_requirements.alignment);
 
-	VkMemoryAllocateInfo memory_allocate_info;
-	memset (&memory_allocate_info, 0, sizeof (memory_allocate_info));
+	ZEROED_STRUCT (VkMemoryAllocateInfo, memory_allocate_info);
 	memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 	memory_allocate_info.allocationSize = aligned_size;
 	memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);

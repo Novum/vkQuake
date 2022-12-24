@@ -207,6 +207,7 @@ task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
 		if (vulkan_globals._var == NULL)                                                                  \
 			Sys_Error ("vkGetDeviceProcAddr failed to find " #entrypoint);                                \
 	}
+
 /*
 ================
 VID_Gamma_Init -- call on init
@@ -574,8 +575,7 @@ void GL_SetObjectName (uint64_t object, VkObjectType object_type, const char *na
 #ifdef _DEBUG
 	if (fpSetDebugUtilsObjectNameEXT && name)
 	{
-		VkDebugUtilsObjectNameInfoEXT nameInfo;
-		memset (&nameInfo, 0, sizeof (nameInfo));
+		ZEROED_STRUCT (VkDebugUtilsObjectNameInfoEXT, nameInfo);
 		nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
 		nameInfo.objectType = object_type;
 		nameInfo.objectHandle = object;
@@ -645,8 +645,7 @@ static void GL_InitInstance (void)
 		}
 	}
 
-	VkApplicationInfo application_info;
-	memset (&application_info, 0, sizeof (application_info));
+	ZEROED_STRUCT (VkApplicationInfo, application_info);
 	application_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
 	application_info.pApplicationName = "vkQuake";
 	application_info.applicationVersion = 1;
@@ -654,8 +653,7 @@ static void GL_InitInstance (void)
 	application_info.engineVersion = 1;
 	application_info.apiVersion = vulkan_globals.vulkan_1_1_available ? VK_MAKE_VERSION (1, 1, 0) : VK_MAKE_VERSION (1, 0, 0);
 
-	VkInstanceCreateInfo instance_create_info;
-	memset (&instance_create_info, 0, sizeof (instance_create_info));
+	ZEROED_STRUCT (VkInstanceCreateInfo, instance_create_info);
 	instance_create_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
 	instance_create_info.pApplicationInfo = &application_info;
 	instance_create_info.ppEnabledExtensionNames = instance_extensions;
@@ -709,8 +707,7 @@ static void GL_InitInstance (void)
 		GET_INSTANCE_PROC_ADDR (CreateDebugUtilsMessengerEXT);
 		if (fpCreateDebugUtilsMessengerEXT)
 		{
-			VkDebugUtilsMessengerCreateInfoEXT debug_utils_messenger_create_info;
-			memset (&debug_utils_messenger_create_info, 0, sizeof (debug_utils_messenger_create_info));
+			ZEROED_STRUCT (VkDebugUtilsMessengerCreateInfoEXT, debug_utils_messenger_create_info);
 			debug_utils_messenger_create_info.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
 			debug_utils_messenger_create_info.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT;
 			debug_utils_messenger_create_info.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT;
@@ -903,14 +900,12 @@ static void GL_InitDevice (void)
 
 	const char *vendor = NULL;
 #if defined(VK_KHR_driver_properties)
-	VkPhysicalDeviceDriverProperties driver_properties;
+	ZEROED_STRUCT (VkPhysicalDeviceDriverProperties, driver_properties);
 	if (driver_properties_available)
 	{
-		memset (&driver_properties, 0, sizeof (driver_properties));
 		driver_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES;
 
-		VkPhysicalDeviceProperties2 physical_device_properties_2;
-		memset (&physical_device_properties_2, 0, sizeof (physical_device_properties_2));
+		ZEROED_STRUCT (VkPhysicalDeviceProperties2, physical_device_properties_2);
 		physical_device_properties_2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
 		physical_device_properties_2.pNext = &driver_properties;
 		vkGetPhysicalDeviceProperties2 (vulkan_physical_device, &physical_device_properties_2);
@@ -970,40 +965,43 @@ static void GL_InitDevice (void)
 	if (!found_graphics_queue)
 		Sys_Error ("Couldn't find graphics queue");
 
-	float					queue_priorities[] = {0.0};
-	VkDeviceQueueCreateInfo queue_create_info;
-	memset (&queue_create_info, 0, sizeof (queue_create_info));
+	float queue_priorities[] = {0.0};
+	ZEROED_STRUCT (VkDeviceQueueCreateInfo, queue_create_info);
 	queue_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
 	queue_create_info.queueFamilyIndex = vulkan_globals.gfx_queue_family_index;
 	queue_create_info.queueCount = 1;
 	queue_create_info.pQueuePriorities = queue_priorities;
 
 #if defined(VK_EXT_subgroup_size_control)
-	VkPhysicalDeviceSubgroupProperties physical_device_subgroup_properties;
-	memset (&physical_device_subgroup_properties, 0, sizeof (physical_device_subgroup_properties));
-	VkPhysicalDeviceSubgroupSizeControlPropertiesEXT physical_device_subgroup_size_control_properties;
-	memset (&physical_device_subgroup_size_control_properties, 0, sizeof (physical_device_subgroup_size_control_properties));
-	VkPhysicalDeviceSubgroupSizeControlFeaturesEXT subgroup_size_control_features;
-	memset (&subgroup_size_control_features, 0, sizeof (subgroup_size_control_features));
+	ZEROED_STRUCT (VkPhysicalDeviceSubgroupProperties, physical_device_subgroup_properties);
+	ZEROED_STRUCT (VkPhysicalDeviceSubgroupSizeControlPropertiesEXT, physical_device_subgroup_size_control_properties);
+	ZEROED_STRUCT (VkPhysicalDeviceSubgroupSizeControlFeaturesEXT, subgroup_size_control_features);
 	if (vulkan_globals.vulkan_1_1_available && subgroup_size_control)
 	{
-		memset (&physical_device_subgroup_size_control_properties, 0, sizeof (physical_device_subgroup_size_control_properties));
-		physical_device_subgroup_size_control_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_PROPERTIES_EXT;
-		memset (&physical_device_subgroup_properties, 0, sizeof (physical_device_subgroup_properties));
-		physical_device_subgroup_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_PROPERTIES;
-		physical_device_subgroup_properties.pNext = &physical_device_subgroup_size_control_properties;
-		VkPhysicalDeviceProperties2 physical_device_properties_2;
-		memset (&physical_device_properties_2, 0, sizeof (physical_device_properties_2));
+		ZEROED_STRUCT (VkPhysicalDeviceProperties2, physical_device_properties_2);
 		physical_device_properties_2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
-		physical_device_properties_2.pNext = &physical_device_subgroup_properties;
+		void **device_properties_next = &physical_device_properties_2.pNext;
+
+		if (subgroup_size_control)
+		{
+			physical_device_subgroup_size_control_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_PROPERTIES_EXT;
+			CHAIN_PNEXT (device_properties_next, physical_device_subgroup_size_control_properties);
+			physical_device_subgroup_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_PROPERTIES;
+			CHAIN_PNEXT (device_properties_next, physical_device_subgroup_properties);
+		}
+
 		vkGetPhysicalDeviceProperties2 (vulkan_physical_device, &physical_device_properties_2);
 
-		memset (&subgroup_size_control_features, 0, sizeof (subgroup_size_control_features));
-		subgroup_size_control_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_FEATURES_EXT;
-		VkPhysicalDeviceFeatures2 physical_device_features_2;
-		memset (&physical_device_features_2, 0, sizeof (physical_device_features_2));
+		ZEROED_STRUCT (VkPhysicalDeviceFeatures2, physical_device_features_2);
 		physical_device_features_2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-		physical_device_features_2.pNext = &subgroup_size_control_features;
+		void **device_features_next = &physical_device_features_2.pNext;
+
+		if (subgroup_size_control)
+		{
+			subgroup_size_control_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_FEATURES_EXT;
+			CHAIN_PNEXT (device_features_next, subgroup_size_control_features);
+		}
+
 		vkGetPhysicalDeviceFeatures2 (vulkan_physical_device, &physical_device_features_2);
 
 		vulkan_physical_device_features = physical_device_features_2.features;
@@ -1050,8 +1048,7 @@ static void GL_InitDevice (void)
 	const VkBool32 extended_format_support = vulkan_physical_device_features.shaderStorageImageExtendedFormats;
 	const VkBool32 sampler_anisotropic = vulkan_physical_device_features.samplerAnisotropy;
 
-	VkPhysicalDeviceFeatures device_features;
-	memset (&device_features, 0, sizeof (device_features));
+	ZEROED_STRUCT (VkPhysicalDeviceFeatures, device_features);
 	device_features.shaderStorageImageExtendedFormats = extended_format_support;
 	device_features.samplerAnisotropy = sampler_anisotropic;
 	device_features.sampleRateShading = vulkan_physical_device_features.sampleRateShading;
@@ -1061,11 +1058,12 @@ static void GL_InitDevice (void)
 	vulkan_globals.non_solid_fill = (device_features.fillModeNonSolid == VK_TRUE) ? true : false;
 	vulkan_globals.multi_draw_indirect = (device_features.multiDrawIndirect == VK_TRUE) ? true : false;
 
-	VkDeviceCreateInfo device_create_info;
-	memset (&device_create_info, 0, sizeof (device_create_info));
+	ZEROED_STRUCT (VkDeviceCreateInfo, device_create_info);
 	device_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 #if defined(VK_EXT_subgroup_size_control)
-	device_create_info.pNext = vulkan_globals.screen_effects_sops ? &subgroup_size_control_features : NULL;
+	void **device_create_info_next = (void **)&device_create_info.pNext;
+	if (vulkan_globals.screen_effects_sops)
+		CHAIN_PNEXT (device_create_info_next, subgroup_size_control_features);
 #endif
 	device_create_info.queueCreateInfoCount = 1;
 	device_create_info.pQueueCreateInfos = &queue_create_info;
@@ -1171,8 +1169,7 @@ static void GL_InitCommandBuffers (void)
 	VkResult err;
 
 	{
-		VkCommandPoolCreateInfo command_pool_create_info;
-		memset (&command_pool_create_info, 0, sizeof (command_pool_create_info));
+		ZEROED_STRUCT (VkCommandPoolCreateInfo, command_pool_create_info);
 		command_pool_create_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 		command_pool_create_info.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
 		command_pool_create_info.queueFamilyIndex = vulkan_globals.gfx_queue_family_index;
@@ -1181,8 +1178,7 @@ static void GL_InitCommandBuffers (void)
 			Sys_Error ("vkCreateCommandPool failed");
 	}
 
-	VkCommandPoolCreateInfo command_pool_create_info;
-	memset (&command_pool_create_info, 0, sizeof (command_pool_create_info));
+	ZEROED_STRUCT (VkCommandPoolCreateInfo, command_pool_create_info);
 	command_pool_create_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 	command_pool_create_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 	command_pool_create_info.queueFamilyIndex = vulkan_globals.gfx_queue_family_index;
@@ -1192,8 +1188,7 @@ static void GL_InitCommandBuffers (void)
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkCreateCommandPool failed");
 
-		VkCommandBufferAllocateInfo command_buffer_allocate_info;
-		memset (&command_buffer_allocate_info, 0, sizeof (command_buffer_allocate_info));
+		ZEROED_STRUCT (VkCommandBufferAllocateInfo, command_buffer_allocate_info);
 		command_buffer_allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
 		command_buffer_allocate_info.commandPool = primary_command_pool;
 		command_buffer_allocate_info.commandBufferCount = DOUBLE_BUFFERED;
@@ -1209,8 +1204,7 @@ static void GL_InitCommandBuffers (void)
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkCreateCommandPool failed");
 
-		VkCommandBufferAllocateInfo command_buffer_allocate_info;
-		memset (&command_buffer_allocate_info, 0, sizeof (command_buffer_allocate_info));
+		ZEROED_STRUCT (VkCommandBufferAllocateInfo, command_buffer_allocate_info);
 		command_buffer_allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
 		command_buffer_allocate_info.commandPool = secondary_command_pools[cbx_index];
 		command_buffer_allocate_info.commandBufferCount = DOUBLE_BUFFERED;
@@ -1221,8 +1215,7 @@ static void GL_InitCommandBuffers (void)
 			Sys_Error ("vkAllocateCommandBuffers failed");
 	}
 
-	VkFenceCreateInfo fence_create_info;
-	memset (&fence_create_info, 0, sizeof (fence_create_info));
+	ZEROED_STRUCT (VkFenceCreateInfo, fence_create_info);
 	fence_create_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
 
 	for (int i = 0; i < DOUBLE_BUFFERED; ++i)
@@ -1231,8 +1224,7 @@ static void GL_InitCommandBuffers (void)
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkCreateFence failed");
 
-		VkSemaphoreCreateInfo semaphore_create_info;
-		memset (&semaphore_create_info, 0, sizeof (semaphore_create_info));
+		ZEROED_STRUCT (VkSemaphoreCreateInfo, semaphore_create_info);
 		semaphore_create_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 		err = vkCreateSemaphore (vulkan_globals.device, &semaphore_create_info, NULL, &draw_complete_semaphores[i]);
 	}
@@ -1251,8 +1243,7 @@ static void GL_CreateRenderPasses ()
 
 	{
 		// Main render pass
-		VkAttachmentDescription attachment_descriptions[3];
-		memset (&attachment_descriptions, 0, sizeof (attachment_descriptions));
+		ZEROED_STRUCT_ARRAY (VkAttachmentDescription, attachment_descriptions, 3);
 
 		const qboolean resolve = (vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT);
 
@@ -1291,9 +1282,7 @@ static void GL_CreateRenderPasses ()
 		resolve_attachment_reference.attachment = 0;
 		resolve_attachment_reference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-		VkSubpassDescription subpass_description;
-		memset (&subpass_description, 0, sizeof (subpass_description));
-
+		ZEROED_STRUCT (VkSubpassDescription, subpass_description);
 		subpass_description.colorAttachmentCount = 1;
 		subpass_description.pColorAttachments = &scene_color_attachment_reference;
 		subpass_description.pDepthStencilAttachment = &depth_attachment_reference;
@@ -1301,8 +1290,7 @@ static void GL_CreateRenderPasses ()
 		if (resolve)
 			subpass_description.pResolveAttachments = &resolve_attachment_reference;
 
-		VkRenderPassCreateInfo render_pass_create_info;
-		memset (&render_pass_create_info, 0, sizeof (render_pass_create_info));
+		ZEROED_STRUCT (VkRenderPassCreateInfo, render_pass_create_info);
 		render_pass_create_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
 		render_pass_create_info.attachmentCount = resolve ? 3 : 2;
 		render_pass_create_info.pAttachments = attachment_descriptions;
@@ -1334,8 +1322,7 @@ static void GL_CreateRenderPasses ()
 
 	{
 		// UI Render Pass
-		VkAttachmentDescription attachment_descriptions[2];
-		memset (&attachment_descriptions, 0, sizeof (attachment_descriptions));
+		ZEROED_STRUCT_ARRAY (VkAttachmentDescription, attachment_descriptions, 2);
 
 		attachment_descriptions[0].initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 		attachment_descriptions[0].finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -1363,8 +1350,7 @@ static void GL_CreateRenderPasses ()
 		swap_chain_attachment_reference.attachment = 1;
 		swap_chain_attachment_reference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-		VkSubpassDescription subpass_descriptions[2];
-		memset (&subpass_descriptions, 0, sizeof (subpass_descriptions));
+		ZEROED_STRUCT_ARRAY (VkSubpassDescription, subpass_descriptions, 2);
 		subpass_descriptions[0].colorAttachmentCount = 1;
 		subpass_descriptions[0].pColorAttachments = &ui_color_attachment_reference;
 		subpass_descriptions[0].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
@@ -1384,8 +1370,7 @@ static void GL_CreateRenderPasses ()
 		subpass_dependencies[0].dstAccessMask = VK_ACCESS_INPUT_ATTACHMENT_READ_BIT;
 		subpass_dependencies[0].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
 
-		VkRenderPassCreateInfo render_pass_create_info;
-		memset (&render_pass_create_info, 0, sizeof (render_pass_create_info));
+		ZEROED_STRUCT (VkRenderPassCreateInfo, render_pass_create_info);
 		render_pass_create_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
 		render_pass_create_info.attachmentCount = 2;
 		render_pass_create_info.pAttachments = attachment_descriptions;
@@ -1416,8 +1401,7 @@ static void GL_CreateRenderPasses ()
 
 	if (vulkan_globals.warp_render_pass == VK_NULL_HANDLE)
 	{
-		VkAttachmentDescription attachment_description;
-		memset (&attachment_description, 0, sizeof (attachment_description));
+		ZEROED_STRUCT (VkAttachmentDescription, attachment_description);
 
 		// Warp rendering
 		attachment_description.format = VK_FORMAT_R8G8B8A8_UNORM;
@@ -1431,15 +1415,13 @@ static void GL_CreateRenderPasses ()
 		scene_color_attachment_reference.attachment = 0;
 		scene_color_attachment_reference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-		VkSubpassDescription subpass_description;
-		memset (&subpass_description, 0, sizeof (subpass_description));
+		ZEROED_STRUCT (VkSubpassDescription, subpass_description);
 		subpass_description.colorAttachmentCount = 1;
 		subpass_description.pColorAttachments = &scene_color_attachment_reference;
 		subpass_description.pDepthStencilAttachment = NULL;
 		subpass_description.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 
-		VkRenderPassCreateInfo render_pass_create_info;
-		memset (&render_pass_create_info, 0, sizeof (render_pass_create_info));
+		ZEROED_STRUCT (VkRenderPassCreateInfo, render_pass_create_info);
 		render_pass_create_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
 		render_pass_create_info.pAttachments = &attachment_description;
 		render_pass_create_info.subpassCount = 1;
@@ -1470,8 +1452,7 @@ static void GL_CreateDepthBuffer (void)
 
 	VkResult err;
 
-	VkImageCreateInfo image_create_info;
-	memset (&image_create_info, 0, sizeof (image_create_info));
+	ZEROED_STRUCT (VkImageCreateInfo, image_create_info);
 	image_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
 	image_create_info.pNext = NULL;
 	image_create_info.imageType = VK_IMAGE_TYPE_2D;
@@ -1495,13 +1476,11 @@ static void GL_CreateDepthBuffer (void)
 	VkMemoryRequirements memory_requirements;
 	vkGetImageMemoryRequirements (vulkan_globals.device, depth_buffer, &memory_requirements);
 
-	VkMemoryDedicatedAllocateInfoKHR dedicated_allocation_info;
-	memset (&dedicated_allocation_info, 0, sizeof (dedicated_allocation_info));
+	ZEROED_STRUCT (VkMemoryDedicatedAllocateInfoKHR, dedicated_allocation_info);
 	dedicated_allocation_info.sType = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO_KHR;
 	dedicated_allocation_info.image = depth_buffer;
 
-	VkMemoryAllocateInfo memory_allocate_info;
-	memset (&memory_allocate_info, 0, sizeof (memory_allocate_info));
+	ZEROED_STRUCT (VkMemoryAllocateInfo, memory_allocate_info);
 	memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 	memory_allocate_info.allocationSize = memory_requirements.size;
 	memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
@@ -1518,8 +1497,7 @@ static void GL_CreateDepthBuffer (void)
 	if (err != VK_SUCCESS)
 		Sys_Error ("vkBindImageMemory failed");
 
-	VkImageViewCreateInfo image_view_create_info;
-	memset (&image_view_create_info, 0, sizeof (image_view_create_info));
+	ZEROED_STRUCT (VkImageViewCreateInfo, image_view_create_info);
 	image_view_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 	image_view_create_info.format = vulkan_globals.depth_format;
 	image_view_create_info.image = depth_buffer;
@@ -1551,8 +1529,7 @@ static void GL_CreateColorBuffer (void)
 
 	Sys_Printf ("Creating color buffer\n");
 
-	VkImageCreateInfo image_create_info;
-	memset (&image_create_info, 0, sizeof (image_create_info));
+	ZEROED_STRUCT (VkImageCreateInfo, image_create_info);
 	image_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
 	image_create_info.pNext = NULL;
 	image_create_info.imageType = VK_IMAGE_TYPE_2D;
@@ -1579,13 +1556,11 @@ static void GL_CreateColorBuffer (void)
 		VkMemoryRequirements memory_requirements;
 		vkGetImageMemoryRequirements (vulkan_globals.device, vulkan_globals.color_buffers[i], &memory_requirements);
 
-		VkMemoryDedicatedAllocateInfoKHR dedicated_allocation_info;
-		memset (&dedicated_allocation_info, 0, sizeof (dedicated_allocation_info));
+		ZEROED_STRUCT (VkMemoryDedicatedAllocateInfoKHR, dedicated_allocation_info);
 		dedicated_allocation_info.sType = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO_KHR;
 		dedicated_allocation_info.image = vulkan_globals.color_buffers[i];
 
-		VkMemoryAllocateInfo memory_allocate_info;
-		memset (&memory_allocate_info, 0, sizeof (memory_allocate_info));
+		ZEROED_STRUCT (VkMemoryAllocateInfo, memory_allocate_info);
 		memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 		memory_allocate_info.allocationSize = memory_requirements.size;
 		memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
@@ -1602,8 +1577,7 @@ static void GL_CreateColorBuffer (void)
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkBindImageMemory failed");
 
-		VkImageViewCreateInfo image_view_create_info;
-		memset (&image_view_create_info, 0, sizeof (image_view_create_info));
+		ZEROED_STRUCT (VkImageViewCreateInfo, image_view_create_info);
 		image_view_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 		image_view_create_info.format = vulkan_globals.color_format;
 		image_view_create_info.image = vulkan_globals.color_buffers[i];
@@ -1683,13 +1657,11 @@ static void GL_CreateColorBuffer (void)
 		VkMemoryRequirements memory_requirements;
 		vkGetImageMemoryRequirements (vulkan_globals.device, msaa_color_buffer, &memory_requirements);
 
-		VkMemoryDedicatedAllocateInfoKHR dedicated_allocation_info;
-		memset (&dedicated_allocation_info, 0, sizeof (dedicated_allocation_info));
+		ZEROED_STRUCT (VkMemoryDedicatedAllocateInfoKHR, dedicated_allocation_info);
 		dedicated_allocation_info.sType = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO_KHR;
 		dedicated_allocation_info.image = msaa_color_buffer;
 
-		VkMemoryAllocateInfo memory_allocate_info;
-		memset (&memory_allocate_info, 0, sizeof (memory_allocate_info));
+		ZEROED_STRUCT (VkMemoryAllocateInfo, memory_allocate_info);
 		memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 		memory_allocate_info.allocationSize = memory_requirements.size;
 		memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
@@ -1706,8 +1678,7 @@ static void GL_CreateColorBuffer (void)
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkBindImageMemory failed");
 
-		VkImageViewCreateInfo image_view_create_info;
-		memset (&image_view_create_info, 0, sizeof (image_view_create_info));
+		ZEROED_STRUCT (VkImageViewCreateInfo, image_view_create_info);
 		image_view_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 		image_view_create_info.format = vulkan_globals.color_format;
 		image_view_create_info.image = msaa_color_buffer;
@@ -1738,13 +1709,11 @@ static void GL_UpdateDescriptorSets (void)
 	assert (postprocess_descriptor_set == VK_NULL_HANDLE);
 	postprocess_descriptor_set = R_AllocateDescriptorSet (&vulkan_globals.input_attachment_set_layout);
 
-	VkDescriptorImageInfo image_info;
-	memset (&image_info, 0, sizeof (image_info));
+	ZEROED_STRUCT (VkDescriptorImageInfo, image_info);
 	image_info.imageView = color_buffers_view[0];
 	image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
-	VkWriteDescriptorSet input_attachment_write;
-	memset (&input_attachment_write, 0, sizeof (input_attachment_write));
+	ZEROED_STRUCT (VkWriteDescriptorSet, input_attachment_write);
 	input_attachment_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 	input_attachment_write.dstBinding = 0;
 	input_attachment_write.dstArrayElement = 0;
@@ -1757,31 +1726,26 @@ static void GL_UpdateDescriptorSets (void)
 	assert (vulkan_globals.screen_effects_desc_set == VK_NULL_HANDLE);
 	vulkan_globals.screen_effects_desc_set = R_AllocateDescriptorSet (&vulkan_globals.screen_effects_set_layout);
 
-	VkDescriptorImageInfo input_image_info;
-	memset (&input_image_info, 0, sizeof (input_image_info));
+	ZEROED_STRUCT (VkDescriptorImageInfo, input_image_info);
 	input_image_info.imageView = color_buffers_view[1];
 	input_image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	input_image_info.sampler = vulkan_globals.linear_sampler;
 
-	VkDescriptorImageInfo output_image_info;
-	memset (&output_image_info, 0, sizeof (output_image_info));
+	ZEROED_STRUCT (VkDescriptorImageInfo, output_image_info);
 	output_image_info.imageView = color_buffers_view[0];
 	output_image_info.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
 
-	VkDescriptorBufferInfo palette_octree_info;
-	memset (&palette_octree_info, 0, sizeof (palette_octree_info));
+	ZEROED_STRUCT (VkDescriptorBufferInfo, palette_octree_info);
 	palette_octree_info.buffer = palette_octree_buffer;
 	palette_octree_info.offset = 0;
 	palette_octree_info.range = VK_WHOLE_SIZE;
 
-	VkDescriptorImageInfo blue_noise_image_info;
-	memset (&blue_noise_image_info, 0, sizeof (blue_noise_image_info));
+	ZEROED_STRUCT (VkDescriptorImageInfo, blue_noise_image_info);
 	blue_noise_image_info.imageView = bluenoisetexture->image_view;
 	blue_noise_image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	blue_noise_image_info.sampler = vulkan_globals.linear_sampler;
 
-	VkWriteDescriptorSet screen_effects_writes[5];
-	memset (screen_effects_writes, 0, sizeof (screen_effects_writes));
+	ZEROED_STRUCT_ARRAY (VkWriteDescriptorSet, screen_effects_writes, 5);
 	screen_effects_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 	screen_effects_writes[0].dstBinding = 0;
 	screen_effects_writes[0].dstArrayElement = 0;
@@ -1822,7 +1786,7 @@ static void GL_UpdateDescriptorSets (void)
 	screen_effects_writes[4].dstSet = vulkan_globals.screen_effects_desc_set;
 	screen_effects_writes[4].pBufferInfo = &palette_octree_info;
 
-	vkUpdateDescriptorSets (vulkan_globals.device, 5, screen_effects_writes, 0, NULL);
+	vkUpdateDescriptorSets (vulkan_globals.device, countof (screen_effects_writes), screen_effects_writes, 0, NULL);
 }
 
 /*
@@ -1839,8 +1803,8 @@ static qboolean GL_CreateSwapChain (void)
 	qboolean use_exclusive_full_screen = false;
 	qboolean try_use_exclusive_full_screen =
 		vulkan_globals.full_screen_exclusive && vulkan_globals.want_full_screen_exclusive && has_focus && VID_GetFullscreen ();
-	VkSurfaceFullScreenExclusiveInfoEXT		 full_screen_exclusive_info;
-	VkSurfaceFullScreenExclusiveWin32InfoEXT full_screen_exclusive_win32_info;
+	ZEROED_STRUCT (VkSurfaceFullScreenExclusiveInfoEXT, full_screen_exclusive_info);
+	ZEROED_STRUCT (VkSurfaceFullScreenExclusiveWin32InfoEXT, full_screen_exclusive_win32_info);
 	if (try_use_exclusive_full_screen)
 	{
 		SDL_SysWMinfo wmInfo;
@@ -1853,24 +1817,20 @@ static qboolean GL_CreateSwapChain (void)
 
 		monitor = MonitorFromWindow (hwnd, MONITOR_DEFAULTTOPRIMARY);
 
-		memset (&full_screen_exclusive_win32_info, 0, sizeof (full_screen_exclusive_win32_info));
 		full_screen_exclusive_win32_info.sType = VK_STRUCTURE_TYPE_SURFACE_FULL_SCREEN_EXCLUSIVE_WIN32_INFO_EXT;
 		full_screen_exclusive_win32_info.pNext = NULL;
 		full_screen_exclusive_win32_info.hmonitor = monitor;
 
-		memset (&full_screen_exclusive_info, 0, sizeof (full_screen_exclusive_info));
 		full_screen_exclusive_info.sType = VK_STRUCTURE_TYPE_SURFACE_FULL_SCREEN_EXCLUSIVE_INFO_EXT;
 		full_screen_exclusive_info.pNext = &full_screen_exclusive_win32_info;
 		full_screen_exclusive_info.fullScreenExclusive = VK_FULL_SCREEN_EXCLUSIVE_APPLICATION_CONTROLLED_EXT;
 
-		VkPhysicalDeviceSurfaceInfo2KHR surface_info_2;
-		memset (&surface_info_2, 0, sizeof (surface_info_2));
+		ZEROED_STRUCT (VkPhysicalDeviceSurfaceInfo2KHR, surface_info_2);
 		surface_info_2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SURFACE_INFO_2_KHR;
 		surface_info_2.pNext = &full_screen_exclusive_info;
 		surface_info_2.surface = vulkan_surface;
 
-		VkSurfaceCapabilitiesFullScreenExclusiveEXT surface_capabilities_full_screen_exclusive;
-		memset (&surface_capabilities_full_screen_exclusive, 0, sizeof (surface_capabilities_full_screen_exclusive));
+		ZEROED_STRUCT (VkSurfaceCapabilitiesFullScreenExclusiveEXT, surface_capabilities_full_screen_exclusive);
 		surface_capabilities_full_screen_exclusive.sType = VK_STRUCTURE_TYPE_SURFACE_CAPABILITIES_FULL_SCREEN_EXCLUSIVE_EXT;
 		surface_capabilities_full_screen_exclusive.fullScreenExclusiveSupported = VK_FALSE;
 
@@ -1980,8 +1940,7 @@ static qboolean GL_CreateSwapChain (void)
 		break;
 	}
 
-	VkSwapchainCreateInfoKHR swapchain_create_info;
-	memset (&swapchain_create_info, 0, sizeof (swapchain_create_info));
+	ZEROED_STRUCT (VkSwapchainCreateInfoKHR, swapchain_create_info);
 	swapchain_create_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
 	swapchain_create_info.pNext = NULL;
 	swapchain_create_info.surface = vulkan_surface;
@@ -2046,8 +2005,7 @@ static qboolean GL_CreateSwapChain (void)
 
 	fpGetSwapchainImagesKHR (vulkan_globals.device, vulkan_swapchain, &num_swap_chain_images, swapchain_images);
 
-	VkImageViewCreateInfo image_view_create_info;
-	memset (&image_view_create_info, 0, sizeof (image_view_create_info));
+	ZEROED_STRUCT (VkImageViewCreateInfo, image_view_create_info);
 	image_view_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 	image_view_create_info.format = vulkan_globals.swap_chain_format;
 	image_view_create_info.components.r = VK_COMPONENT_SWIZZLE_R;
@@ -2062,8 +2020,7 @@ static qboolean GL_CreateSwapChain (void)
 	image_view_create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
 	image_view_create_info.flags = 0;
 
-	VkSemaphoreCreateInfo semaphore_create_info;
-	memset (&semaphore_create_info, 0, sizeof (semaphore_create_info));
+	ZEROED_STRUCT (VkSemaphoreCreateInfo, semaphore_create_info);
 	semaphore_create_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
 	for (i = 0; i < num_swap_chain_images; ++i)
@@ -2107,8 +2064,7 @@ static void GL_CreateFrameBuffers (void)
 
 	for (i = 0; i < NUM_COLOR_BUFFERS; ++i)
 	{
-		VkFramebufferCreateInfo framebuffer_create_info;
-		memset (&framebuffer_create_info, 0, sizeof (framebuffer_create_info));
+		ZEROED_STRUCT (VkFramebufferCreateInfo, framebuffer_create_info);
 		framebuffer_create_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
 		framebuffer_create_info.renderPass = vulkan_globals.secondary_cb_contexts[CBX_WORLD_0].render_pass;
 		framebuffer_create_info.attachmentCount = resolve ? 3 : 2;
@@ -2129,8 +2085,7 @@ static void GL_CreateFrameBuffers (void)
 
 	for (i = 0; i < num_swap_chain_images; ++i)
 	{
-		VkFramebufferCreateInfo framebuffer_create_info;
-		memset (&framebuffer_create_info, 0, sizeof (framebuffer_create_info));
+		ZEROED_STRUCT (VkFramebufferCreateInfo, framebuffer_create_info);
 		framebuffer_create_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
 		framebuffer_create_info.renderPass = vulkan_globals.secondary_cb_contexts[CBX_GUI].render_pass;
 		framebuffer_create_info.attachmentCount = 2;
@@ -2291,8 +2246,7 @@ void GL_BeginRenderingTask (void *unused)
 		cbx->current_canvas = CANVAS_INVALID;
 		memset (&cbx->current_pipeline, 0, sizeof (cbx->current_pipeline));
 
-		VkCommandBufferBeginInfo command_buffer_begin_info;
-		memset (&command_buffer_begin_info, 0, sizeof (command_buffer_begin_info));
+		ZEROED_STRUCT (VkCommandBufferBeginInfo, command_buffer_begin_info);
 		command_buffer_begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 		command_buffer_begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
@@ -2316,14 +2270,12 @@ void GL_BeginRenderingTask (void *unused)
 			cbx->render_pass = vulkan_globals.main_render_pass[main_render_pass_index];
 		}
 
-		VkCommandBufferInheritanceInfo inheritance_info;
-		memset (&inheritance_info, 0, sizeof (inheritance_info));
+		ZEROED_STRUCT (VkCommandBufferInheritanceInfo, inheritance_info);
 		inheritance_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO;
 		inheritance_info.renderPass = cbx->render_pass;
 		inheritance_info.subpass = cbx->subpass;
 
-		VkCommandBufferBeginInfo command_buffer_begin_info;
-		memset (&command_buffer_begin_info, 0, sizeof (command_buffer_begin_info));
+		ZEROED_STRUCT (VkCommandBufferBeginInfo, command_buffer_begin_info);
 		command_buffer_begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 		command_buffer_begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 		if (cbx_index != CBX_UPDATE_LIGHTMAPS)
@@ -2688,9 +2640,8 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 	const qboolean screen_effects =
 		parms->render_warp || (parms->render_scale >= 2) || parms->vid_palettize || (gl_polyblend.value && parms->v_blend[3]) || parms->menu;
 	{
-		const qboolean		  resolve = (vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT);
-		VkRenderPassBeginInfo render_pass_begin_info;
-		memset (&render_pass_begin_info, 0, sizeof (render_pass_begin_info));
+		const qboolean resolve = (vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT);
+		ZEROED_STRUCT (VkRenderPassBeginInfo, render_pass_begin_info);
 		render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 		render_pass_begin_info.renderPass = vulkan_globals.secondary_cb_contexts[CBX_WORLD_0].render_pass;
 		render_pass_begin_info.framebuffer = main_framebuffers[screen_effects ? 1 : 0];
@@ -2709,8 +2660,7 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 	GL_ScreenEffects (&vulkan_globals.primary_cb_context, screen_effects, parms);
 
 	{
-		VkRenderPassBeginInfo render_pass_begin_info;
-		memset (&render_pass_begin_info, 0, sizeof (render_pass_begin_info));
+		ZEROED_STRUCT (VkRenderPassBeginInfo, render_pass_begin_info);
 		render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 		render_pass_begin_info.renderPass = vulkan_globals.secondary_cb_contexts[CBX_GUI].render_pass;
 		render_pass_begin_info.framebuffer = ui_framebuffers[current_swapchain_buffer];
@@ -2725,12 +2675,11 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 
 	{
 		R_EndDebugUtilsLabel (&vulkan_globals.primary_cb_context);
-		VkSubmitInfo submit_info;
 		err = vkEndCommandBuffer (primary_cb);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkEndCommandBuffer failed");
 
-		memset (&submit_info, 0, sizeof (VkSubmitInfo));
+		ZEROED_STRUCT (VkSubmitInfo, submit_info);
 		submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 		submit_info.commandBufferCount = 1;
 		submit_info.pCommandBuffers = &primary_cb;
@@ -2750,8 +2699,7 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 
 	if (swapchain_acquired == true)
 	{
-		VkPresentInfoKHR present_info;
-		memset (&present_info, 0, sizeof (present_info));
+		ZEROED_STRUCT (VkPresentInfoKHR, present_info);
 		present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 		present_info.swapchainCount = 1;
 		present_info.pSwapchains = &vulkan_swapchain, present_info.pImageIndices = &current_swapchain_buffer;
@@ -2948,8 +2896,7 @@ static void R_CreatePaletteOctreeBuffers (uint32_t *colors, int num_colors, pale
 		const int colors_size = num_colors * sizeof (uint32_t);
 
 		// Allocate palette buffer & upload to GPU
-		VkBufferCreateInfo buffer_create_info;
-		memset (&buffer_create_info, 0, sizeof (buffer_create_info));
+		ZEROED_STRUCT (VkBufferCreateInfo, buffer_create_info);
 		buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 		buffer_create_info.size = colors_size;
 		buffer_create_info.usage = VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
@@ -2961,8 +2908,7 @@ static void R_CreatePaletteOctreeBuffers (uint32_t *colors, int num_colors, pale
 		VkMemoryRequirements memory_requirements;
 		vkGetBufferMemoryRequirements (vulkan_globals.device, palette_colors_buffer, &memory_requirements);
 
-		VkMemoryAllocateInfo memory_allocate_info;
-		memset (&memory_allocate_info, 0, sizeof (memory_allocate_info));
+		ZEROED_STRUCT (VkMemoryAllocateInfo, memory_allocate_info);
 		memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 		memory_allocate_info.allocationSize = memory_requirements.size;
 		memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
@@ -2991,8 +2937,7 @@ static void R_CreatePaletteOctreeBuffers (uint32_t *colors, int num_colors, pale
 		memcpy (staging_memory, colors, colors_size);
 		R_StagingEndCopy ();
 
-		VkBufferViewCreateInfo buffer_view_create_info;
-		memset (&buffer_view_create_info, 0, sizeof (buffer_view_create_info));
+		ZEROED_STRUCT (VkBufferViewCreateInfo, buffer_view_create_info);
 		buffer_view_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO;
 		buffer_view_create_info.buffer = palette_colors_buffer;
 		buffer_view_create_info.format = VK_FORMAT_R8G8B8A8_UNORM;
@@ -3007,8 +2952,7 @@ static void R_CreatePaletteOctreeBuffers (uint32_t *colors, int num_colors, pale
 		const int nodes_size = num_nodes * sizeof (palette_octree_node_t);
 
 		// Allocate palette buffer & upload to GPU
-		VkBufferCreateInfo buffer_create_info;
-		memset (&buffer_create_info, 0, sizeof (buffer_create_info));
+		ZEROED_STRUCT (VkBufferCreateInfo, buffer_create_info);
 		buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 		buffer_create_info.size = nodes_size;
 		buffer_create_info.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
@@ -3021,8 +2965,7 @@ static void R_CreatePaletteOctreeBuffers (uint32_t *colors, int num_colors, pale
 		VkMemoryRequirements memory_requirements;
 		vkGetBufferMemoryRequirements (vulkan_globals.device, palette_octree_buffer, &memory_requirements);
 
-		VkMemoryAllocateInfo memory_allocate_info;
-		memset (&memory_allocate_info, 0, sizeof (memory_allocate_info));
+		ZEROED_STRUCT (VkMemoryAllocateInfo, memory_allocate_info);
 		memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 		memory_allocate_info.allocationSize = memory_requirements.size;
 		memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
@@ -4147,8 +4090,7 @@ void SCR_ScreenShot_f (void)
 	}
 
 	// get data
-	VkBufferCreateInfo buffer_create_info;
-	memset (&buffer_create_info, 0, sizeof (buffer_create_info));
+	ZEROED_STRUCT (VkBufferCreateInfo, buffer_create_info);
 	buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 	buffer_create_info.size = glwidth * glheight * 4;
 	buffer_create_info.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT;
@@ -4162,8 +4104,7 @@ void SCR_ScreenShot_f (void)
 	uint32_t memory_type_index = GL_MemoryTypeFromProperties (
 		memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
 
-	VkMemoryAllocateInfo memory_allocate_info;
-	memset (&memory_allocate_info, 0, sizeof (memory_allocate_info));
+	ZEROED_STRUCT (VkMemoryAllocateInfo, memory_allocate_info);
 	memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 	memory_allocate_info.allocationSize = memory_requirements.size;
 	memory_allocate_info.memoryTypeIndex = memory_type_index;
@@ -4179,8 +4120,7 @@ void SCR_ScreenShot_f (void)
 
 	VkCommandBuffer command_buffer;
 
-	VkCommandBufferAllocateInfo command_buffer_allocate_info;
-	memset (&command_buffer_allocate_info, 0, sizeof (command_buffer_allocate_info));
+	ZEROED_STRUCT (VkCommandBufferAllocateInfo, command_buffer_allocate_info);
 	command_buffer_allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
 	command_buffer_allocate_info.commandPool = transient_command_pool;
 	command_buffer_allocate_info.commandBufferCount = 1;
@@ -4188,8 +4128,7 @@ void SCR_ScreenShot_f (void)
 	if (err != VK_SUCCESS)
 		Sys_Error ("vkAllocateCommandBuffers failed");
 
-	VkCommandBufferBeginInfo command_buffer_begin_info;
-	memset (&command_buffer_begin_info, 0, sizeof (command_buffer_begin_info));
+	ZEROED_STRUCT (VkCommandBufferBeginInfo, command_buffer_begin_info);
 	command_buffer_begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 	command_buffer_begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
@@ -4216,8 +4155,7 @@ void SCR_ScreenShot_f (void)
 	vkCmdPipelineBarrier (
 		command_buffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, NULL, 0, NULL, 1, &image_barrier);
 
-	VkBufferImageCopy image_copy;
-	memset (&image_copy, 0, sizeof (image_copy));
+	ZEROED_STRUCT (VkBufferImageCopy, image_copy);
 	image_copy.bufferOffset = 0;
 	image_copy.bufferRowLength = glwidth;
 	image_copy.bufferImageHeight = glheight;
@@ -4233,8 +4171,7 @@ void SCR_ScreenShot_f (void)
 	if (err != VK_SUCCESS)
 		Sys_Error ("vkEndCommandBuffer failed");
 
-	VkSubmitInfo submit_info;
-	memset (&submit_info, 0, sizeof (submit_info));
+	ZEROED_STRUCT (VkSubmitInfo, submit_info);
 	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 	submit_info.commandBufferCount = 1;
 	submit_info.pCommandBuffers = &command_buffer;

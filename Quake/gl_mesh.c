@@ -586,8 +586,7 @@ static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 		const int totalindexsize = hdr->numindexes * sizeof (unsigned short);
 
 		// Allocate index buffer & upload to GPU
-		VkBufferCreateInfo buffer_create_info;
-		memset (&buffer_create_info, 0, sizeof (buffer_create_info));
+		ZEROED_STRUCT (VkBufferCreateInfo, buffer_create_info);
 		buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 		buffer_create_info.size = totalindexsize;
 		buffer_create_info.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
@@ -680,8 +679,7 @@ static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 
 	// Allocate vertex buffer & upload to GPU
 	{
-		VkBufferCreateInfo buffer_create_info;
-		memset (&buffer_create_info, 0, sizeof (buffer_create_info));
+		ZEROED_STRUCT (VkBufferCreateInfo, buffer_create_info);
 		buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 		buffer_create_info.size = totalvbosize;
 		buffer_create_info.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;

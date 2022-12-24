@@ -39,8 +39,7 @@ glheap_t *GL_CreateHeap (VkDeviceSize size, uint32_t memory_type_index, vulkan_m
 {
 	glheap_t *heap = (glheap_t *)Mem_Alloc (sizeof (glheap_t));
 
-	VkMemoryAllocateInfo memory_allocate_info;
-	memset (&memory_allocate_info, 0, sizeof (memory_allocate_info));
+	ZEROED_STRUCT (VkMemoryAllocateInfo, memory_allocate_info);
 	memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 	memory_allocate_info.allocationSize = size;
 	memory_allocate_info.memoryTypeIndex = memory_type_index;

@@ -50,8 +50,7 @@ static void R_RasterWarpTexture (cb_context_t *cbx, texture_t *tx, float warptes
 	render_area.extent.width = WARPIMAGESIZE;
 	render_area.extent.height = WARPIMAGESIZE;
 
-	VkRenderPassBeginInfo render_pass_begin_info;
-	memset (&render_pass_begin_info, 0, sizeof (render_pass_begin_info));
+	ZEROED_STRUCT (VkRenderPassBeginInfo, render_pass_begin_info);
 	render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 	render_pass_begin_info.renderArea = render_area;
 	render_pass_begin_info.renderPass = vulkan_globals.warp_render_pass;

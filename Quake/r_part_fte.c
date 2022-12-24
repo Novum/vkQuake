@@ -5591,8 +5591,7 @@ static void ReallocateVertexBuffer ()
 	const VkDeviceSize new_size = cl_maxstrisvert[current_buffer_index] * sizeof (basicvertex_t);
 	Sys_Printf ("Reallocating FTE particle vertex buffer (%u KB)\n", (int)(new_size / 1024));
 
-	VkBufferCreateInfo buffer_create_info;
-	memset (&buffer_create_info, 0, sizeof (buffer_create_info));
+	ZEROED_STRUCT (VkBufferCreateInfo, buffer_create_info);
 	buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 	buffer_create_info.size = new_size;
 	buffer_create_info.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
@@ -5605,13 +5604,9 @@ static void ReallocateVertexBuffer ()
 	VkMemoryRequirements memory_requirements;
 	vkGetBufferMemoryRequirements (vulkan_globals.device, vertex_buffers[current_buffer_index], &memory_requirements);
 
-	const int align_mod = memory_requirements.size % memory_requirements.alignment;
-	const int aligned_size = ((memory_requirements.size % memory_requirements.alignment) == 0)
-								 ? memory_requirements.size
-								 : (memory_requirements.size + memory_requirements.alignment - align_mod);
+	const int aligned_size = q_align (memory_requirements.size, memory_requirements.alignment);
 
-	VkMemoryAllocateInfo memory_allocate_info;
-	memset (&memory_allocate_info, 0, sizeof (memory_allocate_info));
+	ZEROED_STRUCT (VkMemoryAllocateInfo, memory_allocate_info);
 	memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 	memory_allocate_info.allocationSize = aligned_size;
 	memory_allocate_info.memoryTypeIndex =
@@ -5654,8 +5649,7 @@ static void ReallocateIndexBuffer ()
 	const VkDeviceSize new_size = cl_maxstrisidx[current_buffer_index] * sizeof (unsigned short);
 	Sys_Printf ("Reallocating FTE particle index buffer (%u KB)\n", (int)(new_size / 1024));
 
-	VkBufferCreateInfo buffer_create_info;
-	memset (&buffer_create_info, 0, sizeof (buffer_create_info));
+	ZEROED_STRUCT (VkBufferCreateInfo, buffer_create_info);
 	buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 	buffer_create_info.size = new_size;
 	buffer_create_info.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
@@ -5668,13 +5662,9 @@ static void ReallocateIndexBuffer ()
 	VkMemoryRequirements memory_requirements;
 	vkGetBufferMemoryRequirements (vulkan_globals.device, index_buffers[current_buffer_index], &memory_requirements);
 
-	const int align_mod = memory_requirements.size % memory_requirements.alignment;
-	const int aligned_size = ((memory_requirements.size % memory_requirements.alignment) == 0)
-								 ? memory_requirements.size
-								 : (memory_requirements.size + memory_requirements.alignment - align_mod);
+	const int aligned_size = q_align (memory_requirements.size, memory_requirements.alignment);
 
-	VkMemoryAllocateInfo memory_allocate_info;
-	memset (&memory_allocate_info, 0, sizeof (memory_allocate_info));
+	ZEROED_STRUCT (VkMemoryAllocateInfo, memory_allocate_info);
 	memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 	memory_allocate_info.allocationSize = aligned_size;
 	memory_allocate_info.memoryTypeIndex =

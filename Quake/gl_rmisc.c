@@ -391,8 +391,7 @@ static void R_CreateStagingBuffers ()
 	int		 i;
 	VkResult err;
 
-	VkBufferCreateInfo buffer_create_info;
-	memset (&buffer_create_info, 0, sizeof (buffer_create_info));
+	ZEROED_STRUCT (VkBufferCreateInfo, buffer_create_info);
 	buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 	buffer_create_info.size = vulkan_globals.staging_buffer_size;
 	buffer_create_info.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
@@ -411,14 +410,9 @@ static void R_CreateStagingBuffers ()
 
 	VkMemoryRequirements memory_requirements;
 	vkGetBufferMemoryRequirements (vulkan_globals.device, staging_buffers[0].buffer, &memory_requirements);
+	const size_t aligned_size = q_align (memory_requirements.size, memory_requirements.alignment);
 
-	const int align_mod = memory_requirements.size % memory_requirements.alignment;
-	const int aligned_size = ((memory_requirements.size % memory_requirements.alignment) == 0)
-								 ? memory_requirements.size
-								 : (memory_requirements.size + memory_requirements.alignment - align_mod);
-
-	VkMemoryAllocateInfo memory_allocate_info;
-	memset (&memory_allocate_info, 0, sizeof (memory_allocate_info));
+	ZEROED_STRUCT (VkMemoryAllocateInfo, memory_allocate_info);
 	memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 	memory_allocate_info.allocationSize = NUM_STAGING_BUFFERS * aligned_size;
 	memory_allocate_info.memoryTypeIndex =
@@ -474,8 +468,7 @@ void R_InitStagingBuffers ()
 
 	R_CreateStagingBuffers ();
 
-	VkCommandPoolCreateInfo command_pool_create_info;
-	memset (&command_pool_create_info, 0, sizeof (command_pool_create_info));
+	ZEROED_STRUCT (VkCommandPoolCreateInfo, command_pool_create_info);
 	command_pool_create_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 	command_pool_create_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 	command_pool_create_info.queueFamilyIndex = vulkan_globals.gfx_queue_family_index;
@@ -484,8 +477,7 @@ void R_InitStagingBuffers ()
 	if (err != VK_SUCCESS)
 		Sys_Error ("vkCreateCommandPool failed");
 
-	VkCommandBufferAllocateInfo command_buffer_allocate_info;
-	memset (&command_buffer_allocate_info, 0, sizeof (command_buffer_allocate_info));
+	ZEROED_STRUCT (VkCommandBufferAllocateInfo, command_buffer_allocate_info);
 	command_buffer_allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
 	command_buffer_allocate_info.commandPool = staging_command_pool;
 	command_buffer_allocate_info.commandBufferCount = NUM_STAGING_BUFFERS;
@@ -495,12 +487,10 @@ void R_InitStagingBuffers ()
 	if (err != VK_SUCCESS)
 		Sys_Error ("vkAllocateCommandBuffers failed");
 
-	VkFenceCreateInfo fence_create_info;
-	memset (&fence_create_info, 0, sizeof (fence_create_info));
+	ZEROED_STRUCT (VkFenceCreateInfo, fence_create_info);
 	fence_create_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
 
-	VkCommandBufferBeginInfo command_buffer_begin_info;
-	memset (&command_buffer_begin_info, 0, sizeof (command_buffer_begin_info));
+	ZEROED_STRUCT (VkCommandBufferBeginInfo, command_buffer_begin_info);
 	command_buffer_begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 	command_buffer_begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
@@ -538,8 +528,7 @@ static void R_SubmitStagingBuffer (int index)
 	staging_submitting = false;
 	SDL_CondBroadcast (staging_cond);
 
-	VkMemoryBarrier memory_barrier;
-	memset (&memory_barrier, 0, sizeof (memory_barrier));
+	ZEROED_STRUCT (VkMemoryBarrier, memory_barrier);
 	memory_barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
 	memory_barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 	memory_barrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT;
@@ -548,15 +537,13 @@ static void R_SubmitStagingBuffer (int index)
 
 	vkEndCommandBuffer (staging_buffers[index].command_buffer);
 
-	VkMappedMemoryRange range;
-	memset (&range, 0, sizeof (range));
+	ZEROED_STRUCT (VkMappedMemoryRange, range);
 	range.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
 	range.memory = staging_memory.handle;
 	range.size = VK_WHOLE_SIZE;
 	vkFlushMappedMemoryRanges (vulkan_globals.device, 1, &range);
 
-	VkSubmitInfo submit_info;
-	memset (&submit_info, 0, sizeof (submit_info));
+	ZEROED_STRUCT (VkSubmitInfo, submit_info);
 	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 	submit_info.commandBufferCount = 1;
 	submit_info.pCommandBuffers = &staging_buffers[index].command_buffer;
@@ -614,8 +601,7 @@ static void R_FlushStagingCommandBuffer (stagingbuffer_t *staging_buffer)
 	staging_buffer->current_offset = 0;
 	staging_buffer->submitted = false;
 
-	VkCommandBufferBeginInfo command_buffer_begin_info;
-	memset (&command_buffer_begin_info, 0, sizeof (command_buffer_begin_info));
+	ZEROED_STRUCT (VkCommandBufferBeginInfo, command_buffer_begin_info);
 	command_buffer_begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 	command_buffer_begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
@@ -654,9 +640,7 @@ byte *R_StagingAllocate (int size, int alignment, VkCommandBuffer *command_buffe
 	}
 
 	stagingbuffer_t *staging_buffer = &staging_buffers[current_staging_buffer];
-	const int		 align_mod = staging_buffer->current_offset % alignment;
-	staging_buffer->current_offset =
-		((staging_buffer->current_offset % alignment) == 0) ? staging_buffer->current_offset : (staging_buffer->current_offset + alignment - align_mod);
+	staging_buffer->current_offset = q_align (staging_buffer->current_offset, alignment);
 
 	if ((staging_buffer->current_offset + size) >= vulkan_globals.staging_buffer_size && !staging_buffer->submitted)
 		R_SubmitStagingBuffer (current_staging_buffer);
@@ -714,8 +698,7 @@ static void R_InitDynamicVertexBuffers ()
 
 	VkResult err;
 
-	VkBufferCreateInfo buffer_create_info;
-	memset (&buffer_create_info, 0, sizeof (buffer_create_info));
+	ZEROED_STRUCT (VkBufferCreateInfo, buffer_create_info);
 	buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 	buffer_create_info.size = current_dyn_vertex_buffer_size;
 	buffer_create_info.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
@@ -734,13 +717,9 @@ static void R_InitDynamicVertexBuffers ()
 	VkMemoryRequirements memory_requirements;
 	vkGetBufferMemoryRequirements (vulkan_globals.device, dyn_vertex_buffers[0].buffer, &memory_requirements);
 
-	const int align_mod = memory_requirements.size % memory_requirements.alignment;
-	const int aligned_size = ((memory_requirements.size % memory_requirements.alignment) == 0)
-								 ? memory_requirements.size
-								 : (memory_requirements.size + memory_requirements.alignment - align_mod);
+	const size_t aligned_size = q_align (memory_requirements.size, memory_requirements.alignment);
 
-	VkMemoryAllocateInfo memory_allocate_info;
-	memset (&memory_allocate_info, 0, sizeof (memory_allocate_info));
+	ZEROED_STRUCT (VkMemoryAllocateInfo, memory_allocate_info);
 	memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 	memory_allocate_info.allocationSize = NUM_DYNAMIC_BUFFERS * aligned_size;
 	memory_allocate_info.memoryTypeIndex =
@@ -779,8 +758,7 @@ static void R_InitDynamicIndexBuffers ()
 
 	VkResult err;
 
-	VkBufferCreateInfo buffer_create_info;
-	memset (&buffer_create_info, 0, sizeof (buffer_create_info));
+	ZEROED_STRUCT (VkBufferCreateInfo, buffer_create_info);
 	buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 	buffer_create_info.size = current_dyn_index_buffer_size;
 	buffer_create_info.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
@@ -799,13 +777,9 @@ static void R_InitDynamicIndexBuffers ()
 	VkMemoryRequirements memory_requirements;
 	vkGetBufferMemoryRequirements (vulkan_globals.device, dyn_index_buffers[0].buffer, &memory_requirements);
 
-	const int align_mod = memory_requirements.size % memory_requirements.alignment;
-	const int aligned_size = ((memory_requirements.size % memory_requirements.alignment) == 0)
-								 ? memory_requirements.size
-								 : (memory_requirements.size + memory_requirements.alignment - align_mod);
+	const size_t aligned_size = q_align (memory_requirements.size, memory_requirements.alignment);
 
-	VkMemoryAllocateInfo memory_allocate_info;
-	memset (&memory_allocate_info, 0, sizeof (memory_allocate_info));
+	ZEROED_STRUCT (VkMemoryAllocateInfo, memory_allocate_info);
 	memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 	memory_allocate_info.allocationSize = NUM_DYNAMIC_BUFFERS * aligned_size;
 	memory_allocate_info.memoryTypeIndex =
@@ -844,8 +818,7 @@ static void R_InitDynamicUniformBuffers ()
 
 	VkResult err;
 
-	VkBufferCreateInfo buffer_create_info;
-	memset (&buffer_create_info, 0, sizeof (buffer_create_info));
+	ZEROED_STRUCT (VkBufferCreateInfo, buffer_create_info);
 	buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 	buffer_create_info.size = current_dyn_uniform_buffer_size;
 	buffer_create_info.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
@@ -864,13 +837,9 @@ static void R_InitDynamicUniformBuffers ()
 	VkMemoryRequirements memory_requirements;
 	vkGetBufferMemoryRequirements (vulkan_globals.device, dyn_uniform_buffers[0].buffer, &memory_requirements);
 
-	const int align_mod = memory_requirements.size % memory_requirements.alignment;
-	const int aligned_size = ((memory_requirements.size % memory_requirements.alignment) == 0)
-								 ? memory_requirements.size
-								 : (memory_requirements.size + memory_requirements.alignment - align_mod);
+	const size_t aligned_size = q_align (memory_requirements.size, memory_requirements.alignment);
 
-	VkMemoryAllocateInfo memory_allocate_info;
-	memset (&memory_allocate_info, 0, sizeof (memory_allocate_info));
+	ZEROED_STRUCT (VkMemoryAllocateInfo, memory_allocate_info);
 	memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 	memory_allocate_info.allocationSize = NUM_DYNAMIC_BUFFERS * aligned_size;
 	memory_allocate_info.memoryTypeIndex =
@@ -895,8 +864,7 @@ static void R_InitDynamicUniformBuffers ()
 	for (i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
 		dyn_uniform_buffers[i].data = (unsigned char *)data + (i * aligned_size);
 
-	VkDescriptorSetAllocateInfo descriptor_set_allocate_info;
-	memset (&descriptor_set_allocate_info, 0, sizeof (descriptor_set_allocate_info));
+	ZEROED_STRUCT (VkDescriptorSetAllocateInfo, descriptor_set_allocate_info);
 	descriptor_set_allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
 	descriptor_set_allocate_info.descriptorPool = vulkan_globals.descriptor_pool;
 	descriptor_set_allocate_info.descriptorSetCount = 1;
@@ -905,13 +873,11 @@ static void R_InitDynamicUniformBuffers ()
 	ubo_descriptor_sets[0] = R_AllocateDescriptorSet (&vulkan_globals.ubo_set_layout);
 	ubo_descriptor_sets[1] = R_AllocateDescriptorSet (&vulkan_globals.ubo_set_layout);
 
-	VkDescriptorBufferInfo buffer_info;
-	memset (&buffer_info, 0, sizeof (buffer_info));
+	ZEROED_STRUCT (VkDescriptorBufferInfo, buffer_info);
 	buffer_info.offset = 0;
 	buffer_info.range = MAX_UNIFORM_ALLOC;
 
-	VkWriteDescriptorSet ubo_write;
-	memset (&ubo_write, 0, sizeof (ubo_write));
+	ZEROED_STRUCT (VkWriteDescriptorSet, ubo_write);
 	ubo_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 	ubo_write.dstBinding = 0;
 	ubo_write.dstArrayElement = 0;
@@ -938,8 +904,7 @@ static void R_InitFanIndexBuffer ()
 	VkDeviceMemory memory;
 	const int	   bufferSize = sizeof (uint16_t) * FAN_INDEX_BUFFER_SIZE;
 
-	VkBufferCreateInfo buffer_create_info;
-	memset (&buffer_create_info, 0, sizeof (buffer_create_info));
+	ZEROED_STRUCT (VkBufferCreateInfo, buffer_create_info);
 	buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 	buffer_create_info.size = bufferSize;
 	buffer_create_info.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
@@ -953,8 +918,7 @@ static void R_InitFanIndexBuffer ()
 	VkMemoryRequirements memory_requirements;
 	vkGetBufferMemoryRequirements (vulkan_globals.device, vulkan_globals.fan_index_buffer, &memory_requirements);
 
-	VkMemoryAllocateInfo memory_allocate_info;
-	memset (&memory_allocate_info, 0, sizeof (memory_allocate_info));
+	ZEROED_STRUCT (VkMemoryAllocateInfo, memory_allocate_info);
 	memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 	memory_allocate_info.allocationSize = memory_requirements.size;
 	memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
@@ -1014,8 +978,7 @@ R_FlushDynamicBuffers
 */
 void R_FlushDynamicBuffers ()
 {
-	VkMappedMemoryRange ranges[3];
-	memset (&ranges, 0, sizeof (ranges));
+	ZEROED_STRUCT_ARRAY (VkMappedMemoryRange, ranges, 3);
 	ranges[0].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
 	ranges[0].memory = dyn_vertex_buffer_memory.handle;
 	ranges[0].size = VK_WHOLE_SIZE;
@@ -1154,8 +1117,7 @@ byte *R_IndexAllocate (int size, VkBuffer *buffer, VkDeviceSize *buffer_offset)
 	SDL_LockMutex (index_allocate_mutex);
 	// Align to 4 bytes because we allocate both uint16 and uint32
 	// index buffers and alignment must match index size
-	const int align_mod = size % 4;
-	const int aligned_size = ((size % 4) == 0) ? size : (size + 4 - align_mod);
+	const int aligned_size = q_align (size, 4);
 
 	dynbuffer_t *dyn_ib = &dyn_index_buffers[current_dyn_buffer_index];
 
@@ -1191,8 +1153,7 @@ byte *R_UniformAllocate (int size, VkBuffer *buffer, uint32_t *buffer_offset, Vk
 	if (size > MAX_UNIFORM_ALLOC)
 		Sys_Error ("Increase MAX_UNIFORM_ALLOC");
 
-	const int align_mod = size % 256;
-	const int aligned_size = ((size % 256) == 0) ? size : (size + 256 - align_mod);
+	const int aligned_size = q_align (size, 256);
 
 	dynbuffer_t *dyn_ub = &dyn_uniform_buffers[current_dyn_buffer_index];
 
@@ -1236,14 +1197,12 @@ void R_CreateDescriptorSetLayouts ()
 {
 	Sys_Printf ("Creating descriptor set layouts\n");
 
-	VkResult						err;
-	VkDescriptorSetLayoutCreateInfo descriptor_set_layout_create_info;
-	memset (&descriptor_set_layout_create_info, 0, sizeof (descriptor_set_layout_create_info));
+	VkResult err;
+	ZEROED_STRUCT (VkDescriptorSetLayoutCreateInfo, descriptor_set_layout_create_info);
 	descriptor_set_layout_create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 
 	{
-		VkDescriptorSetLayoutBinding single_texture_layout_binding;
-		memset (&single_texture_layout_binding, 0, sizeof (single_texture_layout_binding));
+		ZEROED_STRUCT (VkDescriptorSetLayoutBinding, single_texture_layout_binding);
 		single_texture_layout_binding.binding = 0;
 		single_texture_layout_binding.descriptorCount = 1;
 		single_texture_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -1258,18 +1217,18 @@ void R_CreateDescriptorSetLayouts ()
 		err = vkCreateDescriptorSetLayout (vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.single_texture_set_layout.handle);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkCreateDescriptorSetLayout failed");
+		GL_SetObjectName ((uint64_t)vulkan_globals.single_texture_set_layout.handle, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT, "single texture");
 	}
 
 	{
-		VkDescriptorSetLayoutBinding ubo_sampler_layout_bindings;
-		memset (&ubo_sampler_layout_bindings, 0, sizeof (ubo_sampler_layout_bindings));
-		ubo_sampler_layout_bindings.binding = 0;
-		ubo_sampler_layout_bindings.descriptorCount = 1;
-		ubo_sampler_layout_bindings.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
-		ubo_sampler_layout_bindings.stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS;
+		ZEROED_STRUCT (VkDescriptorSetLayoutBinding, ubo_layout_bindings);
+		ubo_layout_bindings.binding = 0;
+		ubo_layout_bindings.descriptorCount = 1;
+		ubo_layout_bindings.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+		ubo_layout_bindings.stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS;
 
 		descriptor_set_layout_create_info.bindingCount = 1;
-		descriptor_set_layout_create_info.pBindings = &ubo_sampler_layout_bindings;
+		descriptor_set_layout_create_info.pBindings = &ubo_layout_bindings;
 
 		memset (&vulkan_globals.ubo_set_layout, 0, sizeof (vulkan_globals.ubo_set_layout));
 		vulkan_globals.ubo_set_layout.num_ubos_dynamic = 1;
@@ -1277,11 +1236,11 @@ void R_CreateDescriptorSetLayouts ()
 		err = vkCreateDescriptorSetLayout (vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.ubo_set_layout.handle);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkCreateDescriptorSetLayout failed");
+		GL_SetObjectName ((uint64_t)vulkan_globals.ubo_set_layout.handle, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT, "single dynamic UBO");
 	}
 
 	{
-		VkDescriptorSetLayoutBinding input_attachment_layout_bindings;
-		memset (&input_attachment_layout_bindings, 0, sizeof (input_attachment_layout_bindings));
+		ZEROED_STRUCT (VkDescriptorSetLayoutBinding, input_attachment_layout_bindings);
 		input_attachment_layout_bindings.binding = 0;
 		input_attachment_layout_bindings.descriptorCount = 1;
 		input_attachment_layout_bindings.descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
@@ -1296,11 +1255,11 @@ void R_CreateDescriptorSetLayouts ()
 		err = vkCreateDescriptorSetLayout (vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.input_attachment_set_layout.handle);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkCreateDescriptorSetLayout failed");
+		GL_SetObjectName ((uint64_t)vulkan_globals.input_attachment_set_layout.handle, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT, "input attachment");
 	}
 
 	{
-		VkDescriptorSetLayoutBinding screen_effects_layout_bindings[5];
-		memset (&screen_effects_layout_bindings, 0, sizeof (screen_effects_layout_bindings));
+		ZEROED_STRUCT_ARRAY (VkDescriptorSetLayoutBinding, screen_effects_layout_bindings, 5);
 		screen_effects_layout_bindings[0].binding = 0;
 		screen_effects_layout_bindings[0].descriptorCount = 1;
 		screen_effects_layout_bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -1332,11 +1291,11 @@ void R_CreateDescriptorSetLayouts ()
 		err = vkCreateDescriptorSetLayout (vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.screen_effects_set_layout.handle);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkCreateDescriptorSetLayout failed");
+		GL_SetObjectName ((uint64_t)vulkan_globals.screen_effects_set_layout.handle, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT, "screen effects");
 	}
 
 	{
-		VkDescriptorSetLayoutBinding single_texture_cs_write_layout_binding;
-		memset (&single_texture_cs_write_layout_binding, 0, sizeof (single_texture_cs_write_layout_binding));
+		ZEROED_STRUCT (VkDescriptorSetLayoutBinding, single_texture_cs_write_layout_binding);
 		single_texture_cs_write_layout_binding.binding = 0;
 		single_texture_cs_write_layout_binding.descriptorCount = 1;
 		single_texture_cs_write_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
@@ -1352,11 +1311,11 @@ void R_CreateDescriptorSetLayouts ()
 			vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.single_texture_cs_write_set_layout.handle);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkCreateDescriptorSetLayout failed");
+		GL_SetObjectName ((uint64_t)vulkan_globals.single_texture_cs_write_set_layout.handle, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT, "single storage image");
 	}
 
 	{
-		VkDescriptorSetLayoutBinding lightmap_compute_layout_bindings[7];
-		memset (&lightmap_compute_layout_bindings, 0, sizeof (lightmap_compute_layout_bindings));
+		ZEROED_STRUCT_ARRAY (VkDescriptorSetLayoutBinding, lightmap_compute_layout_bindings, 7);
 		lightmap_compute_layout_bindings[0].binding = 0;
 		lightmap_compute_layout_bindings[0].descriptorCount = 1;
 		lightmap_compute_layout_bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
@@ -1386,7 +1345,7 @@ void R_CreateDescriptorSetLayouts ()
 		lightmap_compute_layout_bindings[6].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
 		lightmap_compute_layout_bindings[6].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
-		descriptor_set_layout_create_info.bindingCount = 7;
+		descriptor_set_layout_create_info.bindingCount = countof (lightmap_compute_layout_bindings);
 		descriptor_set_layout_create_info.pBindings = lightmap_compute_layout_bindings;
 
 		memset (&vulkan_globals.lightmap_compute_set_layout, 0, sizeof (vulkan_globals.lightmap_compute_set_layout));
@@ -1398,11 +1357,11 @@ void R_CreateDescriptorSetLayouts ()
 		err = vkCreateDescriptorSetLayout (vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.lightmap_compute_set_layout.handle);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkCreateDescriptorSetLayout failed");
+		GL_SetObjectName ((uint64_t)vulkan_globals.lightmap_compute_set_layout.handle, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT, "lightmap compute");
 	}
 
 	{
-		VkDescriptorSetLayoutBinding indirect_compute_layout_bindings[4];
-		memset (&indirect_compute_layout_bindings, 0, sizeof (indirect_compute_layout_bindings));
+		ZEROED_STRUCT_ARRAY (VkDescriptorSetLayoutBinding, indirect_compute_layout_bindings, 4);
 		indirect_compute_layout_bindings[0].binding = 0;
 		indirect_compute_layout_bindings[0].descriptorCount = 1;
 		indirect_compute_layout_bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
@@ -1420,7 +1379,7 @@ void R_CreateDescriptorSetLayouts ()
 		indirect_compute_layout_bindings[3].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 		indirect_compute_layout_bindings[3].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
-		descriptor_set_layout_create_info.bindingCount = 4;
+		descriptor_set_layout_create_info.bindingCount = countof (indirect_compute_layout_bindings);
 		descriptor_set_layout_create_info.pBindings = indirect_compute_layout_bindings;
 
 		memset (&vulkan_globals.indirect_compute_set_layout, 0, sizeof (vulkan_globals.indirect_compute_set_layout));
@@ -1429,6 +1388,7 @@ void R_CreateDescriptorSetLayouts ()
 		err = vkCreateDescriptorSetLayout (vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.indirect_compute_set_layout.handle);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkCreateDescriptorSetLayout failed");
+		GL_SetObjectName ((uint64_t)vulkan_globals.indirect_compute_set_layout.handle, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT, "indirect compute");
 	}
 }
 
@@ -1457,11 +1417,10 @@ void R_CreateDescriptorPool ()
 	pool_sizes[7].type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
 	pool_sizes[7].descriptorCount = 32;
 
-	VkDescriptorPoolCreateInfo descriptor_pool_create_info;
-	memset (&descriptor_pool_create_info, 0, sizeof (descriptor_pool_create_info));
+	ZEROED_STRUCT (VkDescriptorPoolCreateInfo, descriptor_pool_create_info);
 	descriptor_pool_create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 	descriptor_pool_create_info.maxSets = MAX_GLTEXTURES + MAX_SANITY_LIGHTMAPS + 32;
-	descriptor_pool_create_info.poolSizeCount = sizeof (pool_sizes) / sizeof (pool_sizes[0]);
+	descriptor_pool_create_info.poolSizeCount = countof (pool_sizes);
 	descriptor_pool_create_info.pPoolSizes = pool_sizes;
 	descriptor_pool_create_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
 
@@ -1482,14 +1441,12 @@ void R_CreatePipelineLayouts ()
 	// Basic
 	VkDescriptorSetLayout basic_descriptor_set_layouts[1] = {vulkan_globals.single_texture_set_layout.handle};
 
-	VkPushConstantRange push_constant_range;
-	memset (&push_constant_range, 0, sizeof (push_constant_range));
+	ZEROED_STRUCT (VkPushConstantRange, push_constant_range);
 	push_constant_range.offset = 0;
 	push_constant_range.size = 24 * sizeof (float);
 	push_constant_range.stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS;
 
-	VkPipelineLayoutCreateInfo pipeline_layout_create_info;
-	memset (&pipeline_layout_create_info, 0, sizeof (pipeline_layout_create_info));
+	ZEROED_STRUCT (VkPipelineLayoutCreateInfo, pipeline_layout_create_info);
 	pipeline_layout_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 	pipeline_layout_create_info.setLayoutCount = 1;
 	pipeline_layout_create_info.pSetLayouts = basic_descriptor_set_layouts;
@@ -1691,8 +1648,7 @@ void R_InitSamplers ()
 
 	if (vulkan_globals.point_sampler == VK_NULL_HANDLE)
 	{
-		VkSamplerCreateInfo sampler_create_info;
-		memset (&sampler_create_info, 0, sizeof (sampler_create_info));
+		ZEROED_STRUCT (VkSamplerCreateInfo, sampler_create_info);
 		sampler_create_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
 		sampler_create_info.magFilter = VK_FILTER_NEAREST;
 		sampler_create_info.minFilter = VK_FILTER_NEAREST;
@@ -1785,8 +1741,7 @@ void R_InitSamplers ()
 
 		Sys_Printf ("Texture lod bias: %f\n", lod_bias);
 
-		VkSamplerCreateInfo sampler_create_info;
-		memset (&sampler_create_info, 0, sizeof (sampler_create_info));
+		ZEROED_STRUCT (VkSamplerCreateInfo, sampler_create_info);
 		sampler_create_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
 		sampler_create_info.magFilter = VK_FILTER_NEAREST;
 		sampler_create_info.minFilter = VK_FILTER_NEAREST;
@@ -1844,8 +1799,7 @@ R_CreateShaderModule
 */
 static VkShaderModule R_CreateShaderModule (const byte *code, const int size, const char *name)
 {
-	VkShaderModuleCreateInfo module_create_info;
-	memset (&module_create_info, 0, sizeof (module_create_info));
+	ZEROED_STRUCT (VkShaderModuleCreateInfo, module_create_info);
 	module_create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
 	module_create_info.pNext = NULL;
 	module_create_info.codeSize = size;
@@ -2197,8 +2151,7 @@ static void R_CreateWarpPipelines ()
 	vulkan_globals.raster_tex_warp_pipeline.layout = vulkan_globals.basic_pipeline_layout;
 	GL_SetObjectName ((uint64_t)vulkan_globals.raster_tex_warp_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "warp");
 
-	VkPipelineShaderStageCreateInfo compute_shader_stage;
-	memset (&compute_shader_stage, 0, sizeof (compute_shader_stage));
+	ZEROED_STRUCT (VkPipelineShaderStageCreateInfo, compute_shader_stage);
 	compute_shader_stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 	compute_shader_stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
 	compute_shader_stage.module = cs_tex_warp_comp_module;
@@ -2823,8 +2776,7 @@ static void R_CreateScreenEffectsPipelines ()
 	pipeline_create_infos_t infos;
 	R_InitDefaultStates (&infos);
 
-	VkPipelineShaderStageCreateInfo compute_shader_stage;
-	memset (&compute_shader_stage, 0, sizeof (compute_shader_stage));
+	ZEROED_STRUCT (VkPipelineShaderStageCreateInfo, compute_shader_stage);
 	compute_shader_stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 	compute_shader_stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
 	compute_shader_stage.module =
@@ -2893,8 +2845,7 @@ static void R_CreateUpdateLightmapPipelines ()
 	specialization_info.dataSize = 4;
 	specialization_info.pData = &specialization_data;
 
-	VkPipelineShaderStageCreateInfo compute_shader_stage;
-	memset (&compute_shader_stage, 0, sizeof (compute_shader_stage));
+	ZEROED_STRUCT (VkPipelineShaderStageCreateInfo, compute_shader_stage);
 	compute_shader_stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 	compute_shader_stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
 	compute_shader_stage.module = update_lightmap_comp_module;
@@ -2924,8 +2875,7 @@ static void R_CreateIndirectComputePipelines ()
 	pipeline_create_infos_t infos;
 	R_InitDefaultStates (&infos);
 
-	VkPipelineShaderStageCreateInfo compute_shader_stage;
-	memset (&compute_shader_stage, 0, sizeof (compute_shader_stage));
+	ZEROED_STRUCT (VkPipelineShaderStageCreateInfo, compute_shader_stage);
 	compute_shader_stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 	compute_shader_stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
 	compute_shader_stage.module = indirect_comp_module;
@@ -3261,8 +3211,7 @@ R_AllocateDescriptorSet
 */
 VkDescriptorSet R_AllocateDescriptorSet (vulkan_desc_set_layout_t *layout)
 {
-	VkDescriptorSetAllocateInfo descriptor_set_allocate_info;
-	memset (&descriptor_set_allocate_info, 0, sizeof (descriptor_set_allocate_info));
+	ZEROED_STRUCT (VkDescriptorSetAllocateInfo, descriptor_set_allocate_info);
 	descriptor_set_allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
 	descriptor_set_allocate_info.descriptorPool = vulkan_globals.descriptor_pool;
 	descriptor_set_allocate_info.descriptorSetCount = 1;

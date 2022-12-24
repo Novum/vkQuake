@@ -199,7 +199,7 @@ static int R_AllocDepsData (combined_brush_deps *items)
 
 /*
 ================
-R_MarkDeps
+R_CalcDeps
 ================
 */
 static void R_CalcDeps (qmodel_t *model, mleaf_t *leaf)
@@ -1193,8 +1193,7 @@ void R_AllocateLightmapComputeBuffers ()
 
 		Sys_Printf ("Allocating lightstyles buffer (%u KB)\n", (int)buffer_size / 1024);
 
-		VkBufferCreateInfo buffer_create_info;
-		memset (&buffer_create_info, 0, sizeof (buffer_create_info));
+		ZEROED_STRUCT (VkBufferCreateInfo, buffer_create_info);
 		buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 		buffer_create_info.size = buffer_size;
 		buffer_create_info.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
@@ -1207,8 +1206,7 @@ void R_AllocateLightmapComputeBuffers ()
 		VkMemoryRequirements memory_requirements;
 		vkGetBufferMemoryRequirements (vulkan_globals.device, lightstyles_scales_buffer, &memory_requirements);
 
-		VkMemoryAllocateInfo memory_allocate_info;
-		memset (&memory_allocate_info, 0, sizeof (memory_allocate_info));
+		ZEROED_STRUCT (VkMemoryAllocateInfo, memory_allocate_info);
 		memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 		memory_allocate_info.allocationSize = memory_requirements.size;
 		memory_allocate_info.memoryTypeIndex =
@@ -1233,8 +1231,7 @@ void R_AllocateLightmapComputeBuffers ()
 
 		Sys_Printf ("Allocating lights buffer (%u KB)\n", (int)buffer_size / 1024);
 
-		VkBufferCreateInfo buffer_create_info;
-		memset (&buffer_create_info, 0, sizeof (buffer_create_info));
+		ZEROED_STRUCT (VkBufferCreateInfo, buffer_create_info);
 		buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 		buffer_create_info.size = buffer_size;
 		buffer_create_info.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
@@ -1247,8 +1244,7 @@ void R_AllocateLightmapComputeBuffers ()
 		VkMemoryRequirements memory_requirements;
 		vkGetBufferMemoryRequirements (vulkan_globals.device, lights_buffer, &memory_requirements);
 
-		VkMemoryAllocateInfo memory_allocate_info;
-		memset (&memory_allocate_info, 0, sizeof (memory_allocate_info));
+		ZEROED_STRUCT (VkMemoryAllocateInfo, memory_allocate_info);
 		memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 		memory_allocate_info.allocationSize = memory_requirements.size;
 		memory_allocate_info.memoryTypeIndex =
@@ -1287,8 +1283,7 @@ static lm_compute_surface_data_t *GL_AllocateSurfaceDataBuffer ()
 
 	Sys_Printf ("Allocating lightmap compute surface data (%u KB)\n", (int)buffer_size / 1024);
 
-	VkBufferCreateInfo buffer_create_info;
-	memset (&buffer_create_info, 0, sizeof (buffer_create_info));
+	ZEROED_STRUCT (VkBufferCreateInfo, buffer_create_info);
 	buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 	buffer_create_info.size = buffer_size;
 	buffer_create_info.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
@@ -1301,8 +1296,7 @@ static lm_compute_surface_data_t *GL_AllocateSurfaceDataBuffer ()
 	VkMemoryRequirements memory_requirements;
 	vkGetBufferMemoryRequirements (vulkan_globals.device, surface_data_buffer, &memory_requirements);
 
-	VkMemoryAllocateInfo memory_allocate_info;
-	memset (&memory_allocate_info, 0, sizeof (memory_allocate_info));
+	ZEROED_STRUCT (VkMemoryAllocateInfo, memory_allocate_info);
 	memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 	memory_allocate_info.allocationSize = memory_requirements.size;
 	memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
@@ -1348,8 +1342,7 @@ static VkDrawIndexedIndirectCommand *GL_AllocateIndirectBuffer (int num_used_ind
 
 	Sys_Printf ("Allocating indirect draw data (%u KB, %d draws)\n", (int)buffer_size / 1024, num_used_indirect_draws);
 
-	VkBufferCreateInfo buffer_create_info;
-	memset (&buffer_create_info, 0, sizeof (buffer_create_info));
+	ZEROED_STRUCT (VkBufferCreateInfo, buffer_create_info);
 	buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 	buffer_create_info.size = buffer_size;
 	buffer_create_info.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
@@ -1362,8 +1355,7 @@ static VkDrawIndexedIndirectCommand *GL_AllocateIndirectBuffer (int num_used_ind
 	VkMemoryRequirements memory_requirements;
 	vkGetBufferMemoryRequirements (vulkan_globals.device, indirect_buffer, &memory_requirements);
 
-	VkMemoryAllocateInfo memory_allocate_info;
-	memset (&memory_allocate_info, 0, sizeof (memory_allocate_info));
+	ZEROED_STRUCT (VkMemoryAllocateInfo, memory_allocate_info);
 	memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 	memory_allocate_info.allocationSize = memory_requirements.size;
 	memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
@@ -1408,8 +1400,7 @@ static void GL_AllocateWorkgroupBoundsBuffers ()
 
 	for (int i = 0; i < lightmap_count; i++)
 	{
-		VkBufferCreateInfo buffer_create_info;
-		memset (&buffer_create_info, 0, sizeof (buffer_create_info));
+		ZEROED_STRUCT (VkBufferCreateInfo, buffer_create_info);
 		buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 		buffer_create_info.size = WORKGROUP_BOUNDS_BUFFER_SIZE;
 		buffer_create_info.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
@@ -1417,7 +1408,7 @@ static void GL_AllocateWorkgroupBoundsBuffers ()
 		err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &lightmaps[i].workgroup_bounds_buffer);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkCreateBuffer failed");
-		GL_SetObjectName ((uint64_t)lightmaps[i].workgroup_bounds_buffer, VK_OBJECT_TYPE_BUFFER, "Workgroup Bounds Buffer");
+		GL_SetObjectName ((uint64_t)lightmaps[i].workgroup_bounds_buffer, VK_OBJECT_TYPE_BUFFER, "Workgroup bounds buffer");
 	}
 
 	int aligned_size = 0;
@@ -1426,20 +1417,16 @@ static void GL_AllocateWorkgroupBoundsBuffers ()
 		VkMemoryRequirements memory_requirements;
 		vkGetBufferMemoryRequirements (vulkan_globals.device, lightmaps[0].workgroup_bounds_buffer, &memory_requirements);
 
-		const int align_mod = memory_requirements.size % memory_requirements.alignment;
-		aligned_size = ((memory_requirements.size % memory_requirements.alignment) == 0)
-						   ? memory_requirements.size
-						   : (memory_requirements.size + memory_requirements.alignment - align_mod);
+		aligned_size = q_align (memory_requirements.size, memory_requirements.alignment);
 
-		VkMemoryAllocateInfo memory_allocate_info;
-		memset (&memory_allocate_info, 0, sizeof (memory_allocate_info));
+		ZEROED_STRUCT (VkMemoryAllocateInfo, memory_allocate_info);
 		memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 		memory_allocate_info.allocationSize = lightmap_count * aligned_size;
 		memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
 
 		Atomic_IncrementUInt32 (&num_vulkan_misc_allocations);
 		R_AllocateVulkanMemory (&workgroup_bounds_buffer_memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_DEVICE);
-		GL_SetObjectName ((uint64_t)workgroup_bounds_buffer_memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, "Workgroup Bounds Buffer Memory");
+		GL_SetObjectName ((uint64_t)workgroup_bounds_buffer_memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, "Workgroup bounds memory");
 	}
 
 	for (int i = 0; i < lightmap_count; i++)
@@ -1468,8 +1455,7 @@ static void R_InitIndirectIndexBuffer (uint32_t size)
 
 	VkResult err;
 
-	VkBufferCreateInfo buffer_create_info;
-	memset (&buffer_create_info, 0, sizeof (buffer_create_info));
+	ZEROED_STRUCT (VkBufferCreateInfo, buffer_create_info);
 	buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 	buffer_create_info.size = size;
 	buffer_create_info.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
@@ -1483,8 +1469,7 @@ static void R_InitIndirectIndexBuffer (uint32_t size)
 	VkMemoryRequirements memory_requirements;
 	vkGetBufferMemoryRequirements (vulkan_globals.device, indirect_index_buffer, &memory_requirements);
 
-	VkMemoryAllocateInfo memory_allocate_info;
-	memset (&memory_allocate_info, 0, sizeof (memory_allocate_info));
+	ZEROED_STRUCT (VkMemoryAllocateInfo, memory_allocate_info);
 	memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 	memory_allocate_info.allocationSize = memory_requirements.size;
 	memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
@@ -1518,8 +1503,7 @@ static void R_InitVisibilityBuffers (uint32_t size)
 
 	VkResult err;
 
-	VkBufferCreateInfo buffer_create_info;
-	memset (&buffer_create_info, 0, sizeof (buffer_create_info));
+	ZEROED_STRUCT (VkBufferCreateInfo, buffer_create_info);
 	buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 	buffer_create_info.size = size;
 	buffer_create_info.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
@@ -1533,8 +1517,7 @@ static void R_InitVisibilityBuffers (uint32_t size)
 	VkMemoryRequirements memory_requirements;
 	vkGetBufferMemoryRequirements (vulkan_globals.device, dyn_visibility_buffer, &memory_requirements);
 
-	VkMemoryAllocateInfo memory_allocate_info;
-	memset (&memory_allocate_info, 0, sizeof (memory_allocate_info));
+	ZEROED_STRUCT (VkMemoryAllocateInfo, memory_allocate_info);
 	memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 	memory_allocate_info.allocationSize = memory_requirements.size;
 	memory_allocate_info.memoryTypeIndex =
@@ -1758,32 +1741,27 @@ void GL_BuildLightmaps (void)
 			R_FreeDescriptorSet (vulkan_globals.indirect_compute_desc_set, &vulkan_globals.indirect_compute_set_layout);
 		vulkan_globals.indirect_compute_desc_set = R_AllocateDescriptorSet (&vulkan_globals.indirect_compute_set_layout);
 
-		VkDescriptorBufferInfo indirect_draw_buffer_info;
-		memset (&indirect_draw_buffer_info, 0, sizeof (indirect_draw_buffer_info));
+		ZEROED_STRUCT (VkDescriptorBufferInfo, indirect_draw_buffer_info);
 		indirect_draw_buffer_info.buffer = indirect_buffer;
 		indirect_draw_buffer_info.offset = 0;
 		indirect_draw_buffer_info.range = VK_WHOLE_SIZE;
 
-		VkDescriptorBufferInfo surfaces_buffer_info;
-		memset (&surfaces_buffer_info, 0, sizeof (surfaces_buffer_info));
+		ZEROED_STRUCT (VkDescriptorBufferInfo, surfaces_buffer_info);
 		surfaces_buffer_info.buffer = surface_data_buffer;
 		surfaces_buffer_info.offset = 0;
 		surfaces_buffer_info.range = num_surfaces * sizeof (lm_compute_surface_data_t);
 
-		VkDescriptorBufferInfo visibility_buffer_info;
-		memset (&visibility_buffer_info, 0, sizeof (visibility_buffer_info));
+		ZEROED_STRUCT (VkDescriptorBufferInfo, visibility_buffer_info);
 		visibility_buffer_info.buffer = dyn_visibility_buffer;
 		visibility_buffer_info.offset = 0;
 		visibility_buffer_info.range = VK_WHOLE_SIZE;
 
-		VkDescriptorBufferInfo index_buffer_info;
-		memset (&index_buffer_info, 0, sizeof (index_buffer_info));
+		ZEROED_STRUCT (VkDescriptorBufferInfo, index_buffer_info);
 		index_buffer_info.buffer = indirect_index_buffer;
 		index_buffer_info.offset = 0;
 		index_buffer_info.range = VK_WHOLE_SIZE;
 
-		VkWriteDescriptorSet indirect_d[4];
-		memset (indirect_d, 0, sizeof (indirect_d));
+		ZEROED_STRUCT_ARRAY (VkWriteDescriptorSet, indirect_d, 4);
 
 		indirect_d[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		indirect_d[0].dstBinding = 0;
@@ -1817,7 +1795,7 @@ void GL_BuildLightmaps (void)
 		indirect_d[3].dstSet = vulkan_globals.indirect_compute_desc_set;
 		indirect_d[3].pBufferInfo = &index_buffer_info;
 
-		vkUpdateDescriptorSets (vulkan_globals.device, 4, indirect_d, 0, NULL);
+		vkUpdateDescriptorSets (vulkan_globals.device, countof (indirect_d), indirect_d, 0, NULL);
 
 		for (i = 0; i < cl.worldmodel->numleafs; i++)
 			R_CalcDeps (NULL, &cl.worldmodel->leafs[i + 1]); // worldmodel->leafs is 1-based
@@ -1924,51 +1902,42 @@ void GL_BuildLightmaps (void)
 			SAFE_FREE (lm->workgroup_bounds);
 		}
 
-		VkDescriptorImageInfo output_image_info;
-		memset (&output_image_info, 0, sizeof (output_image_info));
+		ZEROED_STRUCT (VkDescriptorImageInfo, output_image_info);
 		output_image_info.imageView = lm->texture->target_image_view;
 		output_image_info.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
 
-		VkDescriptorImageInfo surface_indices_image_info;
-		memset (&surface_indices_image_info, 0, sizeof (surface_indices_image_info));
+		ZEROED_STRUCT (VkDescriptorImageInfo, surface_indices_image_info);
 		surface_indices_image_info.imageView = lm->surface_indices_texture->image_view;
 		surface_indices_image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
-		VkDescriptorImageInfo lightmap_images_infos[MAXLIGHTMAPS * 3 / 4];
-		memset (&lightmap_images_infos, 0, sizeof (lightmap_images_infos));
+		ZEROED_STRUCT_ARRAY (VkDescriptorImageInfo, lightmap_images_infos, MAXLIGHTMAPS * 3 / 4);
 		for (j = 0; j < MAXLIGHTMAPS * 3 / 4; ++j)
 		{
 			lightmap_images_infos[j].imageView = lm->lightstyle_textures[j]->image_view;
 			lightmap_images_infos[j].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 		}
 
-		VkDescriptorBufferInfo surfaces_data_buffer_info;
-		memset (&surfaces_data_buffer_info, 0, sizeof (surfaces_data_buffer_info));
+		ZEROED_STRUCT (VkDescriptorBufferInfo, surfaces_data_buffer_info);
 		surfaces_data_buffer_info.buffer = surface_data_buffer;
 		surfaces_data_buffer_info.offset = 0;
 		surfaces_data_buffer_info.range = num_surfaces * sizeof (lm_compute_surface_data_t);
 
-		VkDescriptorBufferInfo workgroup_bounds_buffer_info;
-		memset (&workgroup_bounds_buffer_info, 0, sizeof (workgroup_bounds_buffer_info));
+		ZEROED_STRUCT (VkDescriptorBufferInfo, workgroup_bounds_buffer_info);
 		workgroup_bounds_buffer_info.buffer = lm->workgroup_bounds_buffer;
 		workgroup_bounds_buffer_info.offset = 0;
 		workgroup_bounds_buffer_info.range = (LMBLOCK_WIDTH / 8) * (LMBLOCK_HEIGHT / 8) * sizeof (lm_compute_workgroup_bounds_t);
 
-		VkDescriptorBufferInfo lightstyle_scales_buffer_info;
-		memset (&lightstyle_scales_buffer_info, 0, sizeof (lightstyle_scales_buffer_info));
+		ZEROED_STRUCT (VkDescriptorBufferInfo, lightstyle_scales_buffer_info);
 		lightstyle_scales_buffer_info.buffer = lightstyles_scales_buffer;
 		lightstyle_scales_buffer_info.offset = 0;
 		lightstyle_scales_buffer_info.range = MAX_LIGHTSTYLES * sizeof (float);
 
-		VkDescriptorBufferInfo lights_buffer_info;
-		memset (&lights_buffer_info, 0, sizeof (lights_buffer_info));
+		ZEROED_STRUCT (VkDescriptorBufferInfo, lights_buffer_info);
 		lights_buffer_info.buffer = lights_buffer;
 		lights_buffer_info.offset = 0;
 		lights_buffer_info.range = MAX_DLIGHTS * sizeof (lm_compute_light_t);
 
-		VkWriteDescriptorSet writes[7];
-		memset (&writes, 0, sizeof (writes));
-
+		ZEROED_STRUCT_ARRAY (VkWriteDescriptorSet, writes, 8);
 		writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		writes[0].dstBinding = 0;
 		writes[0].dstArrayElement = 0;
@@ -2110,8 +2079,7 @@ void GL_BuildBModelVertexBuffer (void)
 	// Allocate & upload to GPU
 	VkResult err;
 
-	VkBufferCreateInfo buffer_create_info;
-	memset (&buffer_create_info, 0, sizeof (buffer_create_info));
+	ZEROED_STRUCT (VkBufferCreateInfo, buffer_create_info);
 	buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 	buffer_create_info.size = varray_bytes;
 	buffer_create_info.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
@@ -2124,13 +2092,9 @@ void GL_BuildBModelVertexBuffer (void)
 	VkMemoryRequirements memory_requirements;
 	vkGetBufferMemoryRequirements (vulkan_globals.device, bmodel_vertex_buffer, &memory_requirements);
 
-	const int align_mod = memory_requirements.size % memory_requirements.alignment;
-	const int aligned_size = ((memory_requirements.size % memory_requirements.alignment) == 0)
-								 ? memory_requirements.size
-								 : (memory_requirements.size + memory_requirements.alignment - align_mod);
+	const int aligned_size = q_align (memory_requirements.size, memory_requirements.alignment);
 
-	VkMemoryAllocateInfo memory_allocate_info;
-	memset (&memory_allocate_info, 0, sizeof (memory_allocate_info));
+	ZEROED_STRUCT (VkMemoryAllocateInfo, memory_allocate_info);
 	memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 	memory_allocate_info.allocationSize = aligned_size;
 	memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
@@ -2543,8 +2507,7 @@ static void R_UploadLightmap (int lmap, gltexture_t *lightmap_tex)
 	int				staging_offset;
 	unsigned char  *staging_memory = R_StagingAllocate (staging_size, 4, &command_buffer, &staging_buffer, &staging_offset);
 
-	VkBufferImageCopy region;
-	memset (&region, 0, sizeof (region));
+	ZEROED_STRUCT (VkBufferImageCopy, region);
 	region.bufferOffset = staging_offset;
 	region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 	region.imageSubresource.layerCount = 1;
@@ -2554,8 +2517,7 @@ static void R_UploadLightmap (int lmap, gltexture_t *lightmap_tex)
 	region.imageExtent.depth = 1;
 	region.imageOffset.y = lm->rectchange.t;
 
-	VkImageMemoryBarrier image_memory_barrier;
-	memset (&image_memory_barrier, 0, sizeof (image_memory_barrier));
+	ZEROED_STRUCT (VkImageMemoryBarrier, image_memory_barrier);
 	image_memory_barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 	image_memory_barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
 	image_memory_barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;

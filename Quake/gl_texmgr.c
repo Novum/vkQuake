@@ -252,8 +252,7 @@ TexMgr_SetFilterModes
 */
 static void TexMgr_SetFilterModes (gltexture_t *glt)
 {
-	VkDescriptorImageInfo image_info;
-	memset (&image_info, 0, sizeof (image_info));
+	ZEROED_STRUCT (VkDescriptorImageInfo, image_info);
 	image_info.imageView = glt->image_view;
 	image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	qboolean enable_anisotropy = vid_anisotropic.value && !(glt->flags & TEXPREF_NOPICMIP);
@@ -268,8 +267,7 @@ static void TexMgr_SetFilterModes (gltexture_t *glt)
 	else
 		image_info.sampler = (vid_filter.value == 1) ? point_sampler : linear_sampler;
 
-	VkWriteDescriptorSet texture_write;
-	memset (&texture_write, 0, sizeof (texture_write));
+	ZEROED_STRUCT (VkWriteDescriptorSet, texture_write);
 	texture_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 	texture_write.dstSet = glt->descriptor_set;
 	texture_write.dstBinding = 0;
@@ -899,8 +897,7 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 
 	const VkFormat format = surface_indices ? VK_FORMAT_R32_UINT : ten_bit ? VK_FORMAT_A2B10G10R10_UNORM_PACK32 : VK_FORMAT_R8G8B8A8_UNORM;
 
-	VkImageCreateInfo image_create_info;
-	memset (&image_create_info, 0, sizeof (image_create_info));
+	ZEROED_STRUCT (VkImageCreateInfo, image_create_info);
 	image_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
 	image_create_info.imageType = VK_IMAGE_TYPE_2D;
 	image_create_info.format = format;
@@ -942,8 +939,7 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	if (err != VK_SUCCESS)
 		Sys_Error ("vkBindImageMemory failed");
 
-	VkImageViewCreateInfo image_view_create_info;
-	memset (&image_view_create_info, 0, sizeof (image_view_create_info));
+	ZEROED_STRUCT (VkImageViewCreateInfo, image_view_create_info);
 	image_view_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 	image_view_create_info.image = glt->image;
 	image_view_create_info.viewType = is_cube ? VK_IMAGE_VIEW_TYPE_CUBE : VK_IMAGE_VIEW_TYPE_2D;
@@ -985,8 +981,7 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	// Don't upload data for warp image, will be updated by rendering
 	if (warp_image)
 	{
-		VkFramebufferCreateInfo framebuffer_create_info;
-		memset (&framebuffer_create_info, 0, sizeof (framebuffer_create_info));
+		ZEROED_STRUCT (VkFramebufferCreateInfo, framebuffer_create_info);
 		framebuffer_create_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
 		framebuffer_create_info.renderPass = vulkan_globals.warp_render_pass;
 		framebuffer_create_info.attachmentCount = 1;
@@ -1006,13 +1001,11 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 		glt->storage_descriptor_set = R_AllocateDescriptorSet (&vulkan_globals.single_texture_cs_write_set_layout);
 		GL_SetObjectName ((uint64_t)glt->storage_descriptor_set, VK_OBJECT_TYPE_DESCRIPTOR_SET, va ("%s storage desc set", glt->name));
 
-		VkDescriptorImageInfo output_image_info;
-		memset (&output_image_info, 0, sizeof (output_image_info));
+		ZEROED_STRUCT (VkDescriptorImageInfo, output_image_info);
 		output_image_info.imageView = glt->target_image_view;
 		output_image_info.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
 
-		VkWriteDescriptorSet storage_image_write;
-		memset (&storage_image_write, 0, sizeof (storage_image_write));
+		ZEROED_STRUCT (VkWriteDescriptorSet, storage_image_write);
 		storage_image_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		storage_image_write.dstBinding = 0;
 		storage_image_write.dstArrayElement = 0;
@@ -1037,8 +1030,7 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	glt->frame_buffer = VK_NULL_HANDLE;
 
 	// Upload
-	VkBufferImageCopy regions[MAX_MIPS];
-	memset (&regions, 0, sizeof (regions));
+	ZEROED_STRUCT_ARRAY (VkBufferImageCopy, regions, MAX_MIPS);
 
 	int staging_size = (glt->flags & TEXPREF_MIPMAP) ? TexMgr_DeriveStagingSize (mipwidth, mipheight) : (mipwidth * mipheight * 4);
 	if (is_cube)
@@ -1099,8 +1091,7 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 		regions[0].imageExtent.depth = 1;
 	}
 
-	VkImageMemoryBarrier image_memory_barrier;
-	memset (&image_memory_barrier, 0, sizeof (image_memory_barrier));
+	ZEROED_STRUCT (VkImageMemoryBarrier, image_memory_barrier);
 	image_memory_barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 	image_memory_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 	image_memory_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
