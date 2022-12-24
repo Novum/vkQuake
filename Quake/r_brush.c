@@ -1374,7 +1374,7 @@ static void R_UploadVisibility (byte *data, uint32_t size)
 
 /*
 ===============
-GL_SortFurfaces
+GL_SortSurfaces
 
 Sorts surfs by number of used lightstyles, then allocates lm blocks in that order and sets image bounds
 ===============
@@ -1385,7 +1385,7 @@ typedef struct
 	int			used_lightstyles;
 } surf_sort;
 
-void GL_SortFurfaces (void)
+void GL_SortSurfaces (void)
 {
 	int			i, j;
 	msurface_t *surf;
@@ -1497,7 +1497,7 @@ void GL_BuildLightmaps (void)
 		num_surfaces += m->numsurfaces; // note: allocates unused space for SURF_DRAWTILED surfs
 	}
 
-	GL_SortFurfaces ();
+	GL_SortSurfaces ();
 
 	surface_data = GL_AllocateSurfaceDataBuffer ();
 
