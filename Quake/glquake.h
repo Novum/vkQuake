@@ -630,8 +630,27 @@ static inline void R_EndDebugUtilsLabel (cb_context_t *cbx)
 #endif
 }
 
-void R_AllocateVulkanMemory (vulkan_memory_t *, VkMemoryAllocateInfo *, vulkan_memory_type_t);
-void R_FreeVulkanMemory (vulkan_memory_t *);
+void R_AllocateVulkanMemory (vulkan_memory_t *memory, VkMemoryAllocateInfo *memory_allocate_info, vulkan_memory_type_t type);
+void R_FreeVulkanMemory (vulkan_memory_t *memory);
+
+void R_CreateBuffer (
+	VkBuffer *buffer, vulkan_memory_t *memory, const size_t size, VkBufferUsageFlags usage, const VkFlags mem_requirements_mask,
+	const VkFlags mem_preferred_mask, atomic_uint32_t *num_allocations, const char *name);
+void R_FreeBuffer (const VkBuffer buffer, vulkan_memory_t *memory, atomic_uint32_t *num_allocations);
+
+typedef struct buffer_create_info_s
+{
+	VkBuffer		  *buffer;
+	size_t			   size;
+	size_t			   alignment;
+	VkBufferUsageFlags usage;
+	void			 **mapped;
+	const char		  *name;
+} buffer_create_info_t;
+size_t R_CreateBuffers (
+	const int num_buffers, buffer_create_info_t *create_infos, vulkan_memory_t *memory, const VkFlags mem_requirements_mask, const VkFlags mem_preferred_mask,
+	atomic_uint32_t *num_allocations, const char *memory_name);
+void R_FreeBuffers (const int num_buffers, VkBuffer *buffers, vulkan_memory_t *memory, atomic_uint32_t *num_allocations);
 
 VkDescriptorSet R_AllocateDescriptorSet (vulkan_desc_set_layout_t *layout);
 void			R_FreeDescriptorSet (VkDescriptorSet desc_set, vulkan_desc_set_layout_t *layout);

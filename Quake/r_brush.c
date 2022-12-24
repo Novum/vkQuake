@@ -121,7 +121,6 @@ COMPILE_TIME_ASSERT (lm_compute_light_t, sizeof (lm_compute_light_t) == 32);
 
 #define WORKGROUP_BOUNDS_BUFFER_SIZE ((LMBLOCK_WIDTH / 8) * (LMBLOCK_HEIGHT / 8) * sizeof (lm_compute_workgroup_bounds_t))
 
-vulkan_memory_t			   lightstyles_scales_buffer_memory;
 vulkan_memory_t			   lights_buffer_memory;
 static vulkan_memory_t	   surface_data_buffer_memory;
 static vulkan_memory_t	   workgroup_bounds_buffer_memory;
@@ -1186,82 +1185,20 @@ R_AllocateLightmapComputeBuffers
 */
 void R_AllocateLightmapComputeBuffers ()
 {
-	VkResult err;
-	{
-		size_t buffer_size = MAX_LIGHTSTYLES * sizeof (float) * 2;
-		COMPILE_TIME_ASSERT (lightstyles_buffer_alignment, ((MAX_LIGHTSTYLES * sizeof (float)) % 256) == 0);
+	size_t lightstyles_buffer_size = MAX_LIGHTSTYLES * sizeof (float) * 2;
+	size_t lights_buffer_size = MAX_DLIGHTS * sizeof (lm_compute_light_t) * 2;
 
-		Sys_Printf ("Allocating lightstyles buffer (%u KB)\n", (int)buffer_size / 1024);
+	Sys_Printf ("Allocating lightstyles buffer (%u KB)\n", (int)lightstyles_buffer_size / 1024);
+	Sys_Printf ("Allocating lights buffer (%u KB)\n", (int)lights_buffer_size / 1024);
 
-		ZEROED_STRUCT (VkBufferCreateInfo, buffer_create_info);
-		buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-		buffer_create_info.size = buffer_size;
-		buffer_create_info.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
-
-		err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &lightstyles_scales_buffer);
-		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateBuffer failed");
-		GL_SetObjectName ((uint64_t)lightstyles_scales_buffer, VK_OBJECT_TYPE_BUFFER, "Lightstyles Buffer");
-
-		VkMemoryRequirements memory_requirements;
-		vkGetBufferMemoryRequirements (vulkan_globals.device, lightstyles_scales_buffer, &memory_requirements);
-
-		ZEROED_STRUCT (VkMemoryAllocateInfo, memory_allocate_info);
-		memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-		memory_allocate_info.allocationSize = memory_requirements.size;
-		memory_allocate_info.memoryTypeIndex =
-			GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
-
-		Atomic_IncrementUInt32 (&num_vulkan_misc_allocations);
-		R_AllocateVulkanMemory (&lightstyles_scales_buffer_memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_HOST);
-		GL_SetObjectName ((uint64_t)lightstyles_scales_buffer_memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, "Lightstyles Buffer");
-
-		err = vkBindBufferMemory (vulkan_globals.device, lightstyles_scales_buffer, lightstyles_scales_buffer_memory.handle, 0);
-		if (err != VK_SUCCESS)
-			Sys_Error ("vkBindBufferMemory failed");
-
-		err = vkMapMemory (vulkan_globals.device, lightstyles_scales_buffer_memory.handle, 0, buffer_size, 0, (void **)&lightstyles_scales_buffer_mapped);
-		if (err != VK_SUCCESS)
-			Sys_Error ("vkMapMemory failed");
-	}
-
-	{
-		size_t buffer_size = MAX_DLIGHTS * sizeof (lm_compute_light_t) * 2;
-		COMPILE_TIME_ASSERT (light_buffer_alignment, ((MAX_DLIGHTS * sizeof (lm_compute_light_t)) % 256) == 0);
-
-		Sys_Printf ("Allocating lights buffer (%u KB)\n", (int)buffer_size / 1024);
-
-		ZEROED_STRUCT (VkBufferCreateInfo, buffer_create_info);
-		buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-		buffer_create_info.size = buffer_size;
-		buffer_create_info.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
-
-		err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &lights_buffer);
-		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateBuffer failed");
-		GL_SetObjectName ((uint64_t)lights_buffer, VK_OBJECT_TYPE_BUFFER, "Lights Buffer");
-
-		VkMemoryRequirements memory_requirements;
-		vkGetBufferMemoryRequirements (vulkan_globals.device, lights_buffer, &memory_requirements);
-
-		ZEROED_STRUCT (VkMemoryAllocateInfo, memory_allocate_info);
-		memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-		memory_allocate_info.allocationSize = memory_requirements.size;
-		memory_allocate_info.memoryTypeIndex =
-			GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
-
-		Atomic_IncrementUInt32 (&num_vulkan_misc_allocations);
-		R_AllocateVulkanMemory (&lights_buffer_memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_HOST);
-		GL_SetObjectName ((uint64_t)lights_buffer_memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, "Lights Buffer");
-
-		err = vkBindBufferMemory (vulkan_globals.device, lights_buffer, lights_buffer_memory.handle, 0);
-		if (err != VK_SUCCESS)
-			Sys_Error ("vkBindBufferMemory failed");
-
-		err = vkMapMemory (vulkan_globals.device, lights_buffer_memory.handle, 0, buffer_size, 0, (void **)&lights_buffer_mapped);
-		if (err != VK_SUCCESS)
-			Sys_Error ("vkMapMemory failed");
-	}
+	buffer_create_info_t buffer_create_infos[2] = {
+		{&lightstyles_scales_buffer, lightstyles_buffer_size, 0, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, (void **)&lightstyles_scales_buffer_mapped,
+		 "Lightstyle scales"},
+		{&lights_buffer, lights_buffer_size, 0, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, (void **)&lights_buffer_mapped, "Lights"},
+	};
+	R_CreateBuffers (
+		countof (buffer_create_infos), buffer_create_infos, &lights_buffer_memory, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
+		&num_vulkan_misc_allocations, "Lights");
 }
 
 /*
@@ -1271,43 +1208,14 @@ GL_AllocateSurfaceDataBuffer
 */
 static lm_compute_surface_data_t *GL_AllocateSurfaceDataBuffer ()
 {
-	VkResult err;
-	size_t	 buffer_size = num_surfaces * sizeof (lm_compute_surface_data_t);
+	size_t buffer_size = num_surfaces * sizeof (lm_compute_surface_data_t);
 
-	if (surface_data_buffer != VK_NULL_HANDLE)
-	{
-		vkDestroyBuffer (vulkan_globals.device, surface_data_buffer, NULL);
-		R_FreeVulkanMemory (&surface_data_buffer_memory);
-		Atomic_DecrementUInt32 (&num_vulkan_misc_allocations);
-	}
+	R_FreeBuffer (surface_data_buffer, &surface_data_buffer_memory, &num_vulkan_misc_allocations);
 
 	Sys_Printf ("Allocating lightmap compute surface data (%u KB)\n", (int)buffer_size / 1024);
-
-	ZEROED_STRUCT (VkBufferCreateInfo, buffer_create_info);
-	buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	buffer_create_info.size = buffer_size;
-	buffer_create_info.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-
-	err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &surface_data_buffer);
-	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateBuffer failed");
-	GL_SetObjectName ((uint64_t)surface_data_buffer, VK_OBJECT_TYPE_BUFFER, "Lightmap Compute Surface Data Buffer");
-
-	VkMemoryRequirements memory_requirements;
-	vkGetBufferMemoryRequirements (vulkan_globals.device, surface_data_buffer, &memory_requirements);
-
-	ZEROED_STRUCT (VkMemoryAllocateInfo, memory_allocate_info);
-	memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	memory_allocate_info.allocationSize = memory_requirements.size;
-	memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
-
-	Atomic_IncrementUInt32 (&num_vulkan_misc_allocations);
-	R_AllocateVulkanMemory (&surface_data_buffer_memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_DEVICE);
-	GL_SetObjectName ((uint64_t)surface_data_buffer_memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, "Lightmap Compute Surface Data Buffer");
-
-	err = vkBindBufferMemory (vulkan_globals.device, surface_data_buffer, surface_data_buffer_memory.handle, 0);
-	if (err != VK_SUCCESS)
-		Sys_Error ("vkBindBufferMemory failed");
+	R_CreateBuffer (
+		&surface_data_buffer, &surface_data_buffer_memory, buffer_size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, &num_vulkan_misc_allocations, "Lightmap compute surface data");
 
 	VkCommandBuffer			   command_buffer;
 	VkBuffer				   staging_buffer;
@@ -1330,43 +1238,15 @@ GL_AllocateIndirectBuffer
 */
 static VkDrawIndexedIndirectCommand *GL_AllocateIndirectBuffer (int num_used_indirect_draws)
 {
-	VkResult err;
-	size_t	 buffer_size = num_used_indirect_draws * sizeof (VkDrawIndexedIndirectCommand);
+	size_t buffer_size = num_used_indirect_draws * sizeof (VkDrawIndexedIndirectCommand);
 
-	if (indirect_buffer != VK_NULL_HANDLE)
-	{
-		vkDestroyBuffer (vulkan_globals.device, indirect_buffer, NULL);
-		R_FreeVulkanMemory (&indirect_buffer_memory);
-		Atomic_DecrementUInt32 (&num_vulkan_misc_allocations);
-	}
+	R_FreeBuffer (indirect_buffer, &indirect_buffer_memory, &num_vulkan_misc_allocations);
 
 	Sys_Printf ("Allocating indirect draw data (%u KB, %d draws)\n", (int)buffer_size / 1024, num_used_indirect_draws);
-
-	ZEROED_STRUCT (VkBufferCreateInfo, buffer_create_info);
-	buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	buffer_create_info.size = buffer_size;
-	buffer_create_info.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
-
-	err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &indirect_buffer);
-	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateBuffer failed");
-	GL_SetObjectName ((uint64_t)indirect_buffer, VK_OBJECT_TYPE_BUFFER, "Indirect Draw Data Buffer");
-
-	VkMemoryRequirements memory_requirements;
-	vkGetBufferMemoryRequirements (vulkan_globals.device, indirect_buffer, &memory_requirements);
-
-	ZEROED_STRUCT (VkMemoryAllocateInfo, memory_allocate_info);
-	memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	memory_allocate_info.allocationSize = memory_requirements.size;
-	memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
-
-	Atomic_IncrementUInt32 (&num_vulkan_misc_allocations);
-	R_AllocateVulkanMemory (&indirect_buffer_memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_DEVICE);
-	GL_SetObjectName ((uint64_t)indirect_buffer_memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, "Indirect Draw Data Buffer");
-
-	err = vkBindBufferMemory (vulkan_globals.device, indirect_buffer, indirect_buffer_memory.handle, 0);
-	if (err != VK_SUCCESS)
-		Sys_Error ("vkBindBufferMemory failed");
+	R_CreateBuffer (
+		&indirect_buffer, &indirect_buffer_memory, buffer_size,
+		VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0,
+		&num_vulkan_misc_allocations, "Indirect draw data");
 
 	VkCommandBuffer				  command_buffer;
 	VkBuffer					  staging_buffer;
@@ -1444,43 +1324,12 @@ R_InitIndirectIndexBuffer
 */
 static void R_InitIndirectIndexBuffer (uint32_t size)
 {
-	if (indirect_index_buffer != VK_NULL_HANDLE)
-	{
-		vkDestroyBuffer (vulkan_globals.device, indirect_index_buffer, NULL);
-		R_FreeVulkanMemory (&indirect_index_buffer_memory);
-		Atomic_DecrementUInt32 (&num_vulkan_misc_allocations);
-	}
+	R_FreeBuffer (indirect_index_buffer, &indirect_index_buffer_memory, &num_vulkan_misc_allocations);
 
 	Sys_Printf ("Allocating indirect IBs (%u KB)\n", size / 1024);
-
-	VkResult err;
-
-	ZEROED_STRUCT (VkBufferCreateInfo, buffer_create_info);
-	buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	buffer_create_info.size = size;
-	buffer_create_info.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
-
-	err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &indirect_index_buffer);
-	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateBuffer failed");
-
-	GL_SetObjectName ((uint64_t)indirect_index_buffer, VK_OBJECT_TYPE_BUFFER, "Indirect Index Buffer");
-
-	VkMemoryRequirements memory_requirements;
-	vkGetBufferMemoryRequirements (vulkan_globals.device, indirect_index_buffer, &memory_requirements);
-
-	ZEROED_STRUCT (VkMemoryAllocateInfo, memory_allocate_info);
-	memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	memory_allocate_info.allocationSize = memory_requirements.size;
-	memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
-
-	Atomic_IncrementUInt32 (&num_vulkan_misc_allocations);
-	R_AllocateVulkanMemory (&indirect_index_buffer_memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_DEVICE);
-	GL_SetObjectName ((uint64_t)indirect_index_buffer_memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, "Indirect Index Buffer");
-
-	err = vkBindBufferMemory (vulkan_globals.device, indirect_index_buffer, indirect_index_buffer_memory.handle, 0);
-	if (err != VK_SUCCESS)
-		Sys_Error ("vkBindBufferMemory failed");
+	R_CreateBuffer (
+		&indirect_index_buffer, &indirect_index_buffer_memory, size, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, &num_vulkan_misc_allocations, "Indirect indices");
 }
 
 /*
@@ -1490,48 +1339,17 @@ R_InitVisibilityBuffers (one bit per surface)
 */
 static void R_InitVisibilityBuffers (uint32_t size)
 {
-	if (dyn_visibility_buffer != VK_NULL_HANDLE)
-	{
-		vkDestroyBuffer (vulkan_globals.device, dyn_visibility_buffer, NULL);
-		R_FreeVulkanMemory (&dyn_visibility_buffer_memory);
-		Atomic_DecrementUInt32 (&num_vulkan_misc_allocations);
-	}
+	R_FreeBuffer (dyn_visibility_buffer, &dyn_visibility_buffer_memory, &num_vulkan_misc_allocations);
 
 	size = (size + 255) / 256 * 256 * 2;
 
 	Sys_Printf ("Allocating visibility buffers (%u KB)\n", size / 1024);
+	R_CreateBuffer (
+		&dyn_visibility_buffer, &dyn_visibility_buffer_memory, size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+		VK_MEMORY_PROPERTY_HOST_CACHED_BIT, &num_vulkan_misc_allocations, "Dynamic visibility");
 
-	VkResult err;
-
-	ZEROED_STRUCT (VkBufferCreateInfo, buffer_create_info);
-	buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	buffer_create_info.size = size;
-	buffer_create_info.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
-
-	err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &dyn_visibility_buffer);
-	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateBuffer failed");
-
-	GL_SetObjectName ((uint64_t)dyn_visibility_buffer, VK_OBJECT_TYPE_BUFFER, "Dynamic Visibility Buffer");
-
-	VkMemoryRequirements memory_requirements;
-	vkGetBufferMemoryRequirements (vulkan_globals.device, dyn_visibility_buffer, &memory_requirements);
-
-	ZEROED_STRUCT (VkMemoryAllocateInfo, memory_allocate_info);
-	memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	memory_allocate_info.allocationSize = memory_requirements.size;
-	memory_allocate_info.memoryTypeIndex =
-		GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
-	Atomic_IncrementUInt32 (&num_vulkan_misc_allocations);
-	R_AllocateVulkanMemory (&dyn_visibility_buffer_memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_HOST);
-	GL_SetObjectName ((uint64_t)dyn_visibility_buffer_memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, "Dynamic Visibility Buffer");
-
-	err = vkBindBufferMemory (vulkan_globals.device, dyn_visibility_buffer, dyn_visibility_buffer_memory.handle, 0);
-	if (err != VK_SUCCESS)
-		Sys_Error ("vkBindBufferMemory failed");
-
-	void *data;
-	err = vkMapMemory (vulkan_globals.device, dyn_visibility_buffer_memory.handle, 0, memory_requirements.size, 0, &data);
+	void	*data;
+	VkResult err = vkMapMemory (vulkan_globals.device, dyn_visibility_buffer_memory.handle, 0, size, 0, &data);
 	if (err != VK_SUCCESS)
 		Sys_Error ("vkMapMemory failed");
 
@@ -2022,15 +1840,7 @@ void GL_BuildLightmaps (void)
 void GL_DeleteBModelVertexBuffer (void)
 {
 	GL_WaitForDeviceIdle ();
-
-	if (bmodel_vertex_buffer)
-		vkDestroyBuffer (vulkan_globals.device, bmodel_vertex_buffer, NULL);
-
-	if (bmodel_memory.handle != VK_NULL_HANDLE)
-	{
-		Atomic_DecrementUInt32 (&num_vulkan_bmodel_allocations);
-		R_FreeVulkanMemory (&bmodel_memory);
-	}
+	R_FreeBuffer (bmodel_vertex_buffer, &bmodel_memory, &num_vulkan_bmodel_allocations);
 }
 
 /*

@@ -135,7 +135,6 @@ static uint32_t		   current_dyn_uniform_buffer_size = INITIAL_DYNAMIC_UNIFORM_BU
 static vulkan_memory_t dyn_vertex_buffer_memory;
 static vulkan_memory_t dyn_index_buffer_memory;
 static vulkan_memory_t dyn_uniform_buffer_memory;
-extern vulkan_memory_t lightstyles_scales_buffer_memory;
 extern vulkan_memory_t lights_buffer_memory;
 static dynbuffer_t	   dyn_vertex_buffers[NUM_DYNAMIC_BUFFERS];
 static dynbuffer_t	   dyn_index_buffers[NUM_DYNAMIC_BUFFERS];
@@ -980,7 +979,7 @@ R_FlushDynamicBuffers
 */
 void R_FlushDynamicBuffers ()
 {
-	ZEROED_STRUCT_ARRAY (VkMappedMemoryRange, ranges, 5);
+	ZEROED_STRUCT_ARRAY (VkMappedMemoryRange, ranges, 4);
 	ranges[0].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
 	ranges[0].memory = dyn_vertex_buffer_memory.handle;
 	ranges[0].size = VK_WHOLE_SIZE;
@@ -991,12 +990,9 @@ void R_FlushDynamicBuffers ()
 	ranges[2].memory = dyn_uniform_buffer_memory.handle;
 	ranges[2].size = VK_WHOLE_SIZE;
 	ranges[3].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
-	ranges[3].memory = lightstyles_scales_buffer_memory.handle;
+	ranges[3].memory = lights_buffer_memory.handle;
 	ranges[3].size = VK_WHOLE_SIZE;
-	ranges[4].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
-	ranges[4].memory = lights_buffer_memory.handle;
-	ranges[4].size = VK_WHOLE_SIZE;
-	vkFlushMappedMemoryRanges (vulkan_globals.device, 5, ranges);
+	vkFlushMappedMemoryRanges (vulkan_globals.device, countof (ranges), ranges);
 }
 
 /*
@@ -3460,6 +3456,11 @@ void R_TimeRefresh_f (void)
 	Con_Printf ("%f seconds (%f fps)\n", time, 128 / time);
 }
 
+/*
+====================
+R_AllocateVulkanMemory
+====================
+*/
 void R_AllocateVulkanMemory (vulkan_memory_t *memory, VkMemoryAllocateInfo *memory_allocate_info, vulkan_memory_type_t type)
 {
 	VkResult err = vkAllocateMemory (vulkan_globals.device, memory_allocate_info, NULL, &memory->handle);
@@ -3473,6 +3474,11 @@ void R_AllocateVulkanMemory (vulkan_memory_t *memory, VkMemoryAllocateInfo *memo
 		Atomic_AddUInt64 (&total_host_vulkan_allocation_size, memory->size);
 }
 
+/*
+====================
+R_FreeVulkanMemory
+====================
+*/
 void R_FreeVulkanMemory (vulkan_memory_t *memory)
 {
 	if (memory->type == VULKAN_MEMORY_TYPE_DEVICE)
@@ -3482,6 +3488,176 @@ void R_FreeVulkanMemory (vulkan_memory_t *memory)
 	vkFreeMemory (vulkan_globals.device, memory->handle, NULL);
 	memory->handle = VK_NULL_HANDLE;
 	memory->size = 0;
+}
+
+/*
+====================
+R_CreateBuffer
+====================
+*/
+void R_CreateBuffer (
+	VkBuffer *buffer, vulkan_memory_t *memory, const size_t size, VkBufferUsageFlags usage, const VkFlags mem_requirements_mask,
+	const VkFlags mem_preferred_mask, atomic_uint32_t *num_allocations, const char *name)
+{
+	VkResult err;
+
+	VkBufferCreateInfo buffer_create_info;
+	memset (&buffer_create_info, 0, sizeof (buffer_create_info));
+	buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	buffer_create_info.size = size;
+	buffer_create_info.usage = usage;
+	err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, buffer);
+	if (err != VK_SUCCESS)
+		Sys_Error ("vkCreateBuffer failed");
+
+	GL_SetObjectName ((uint64_t)*buffer, VK_OBJECT_TYPE_BUFFER, va ("%s buffer", name));
+
+	VkMemoryRequirements memory_requirements;
+	vkGetBufferMemoryRequirements (vulkan_globals.device, *buffer, &memory_requirements);
+
+	ZEROED_STRUCT (VkMemoryAllocateInfo, memory_allocate_info);
+	memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	memory_allocate_info.allocationSize = memory_requirements.size;
+	memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, mem_requirements_mask, mem_preferred_mask);
+
+	R_AllocateVulkanMemory (memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_DEVICE);
+	GL_SetObjectName ((uint64_t)memory->handle, VK_OBJECT_TYPE_DEVICE_MEMORY, va ("%s memory", name));
+
+	err = vkBindBufferMemory (vulkan_globals.device, *buffer, memory->handle, 0);
+	if (err != VK_SUCCESS)
+		Sys_Error ("vkBindImageMemory failed");
+
+	if (num_allocations)
+		Atomic_IncrementUInt32 (num_allocations);
+}
+
+/*
+====================
+R_FreeBuffer
+====================
+*/
+void R_FreeBuffer (const VkBuffer buffer, vulkan_memory_t *memory, atomic_uint32_t *num_allocations)
+{
+	if (buffer != VK_NULL_HANDLE)
+	{
+		vkDestroyBuffer (vulkan_globals.device, buffer, NULL);
+		R_FreeVulkanMemory (memory);
+		if (num_allocations)
+			Atomic_DecrementUInt32 (num_allocations);
+	}
+}
+
+/*
+====================
+R_CreateBuffers
+====================
+*/
+size_t R_CreateBuffers (
+	const int num_buffers, buffer_create_info_t *create_infos, vulkan_memory_t *memory, const VkFlags mem_requirements_mask, const VkFlags mem_preferred_mask,
+	atomic_uint32_t *num_allocations, const char *memory_name)
+{
+	VkResult		   err;
+	VkBufferUsageFlags usage_union = 0;
+
+	qboolean map_memory = false;
+	size_t	 total_size = 0;
+	for (int i = 0; i < num_buffers; ++i)
+	{
+		ZEROED_STRUCT (VkBufferCreateInfo, buffer_create_info);
+		buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+		buffer_create_info.size = create_infos[i].size;
+		buffer_create_info.usage = create_infos[i].usage;
+		err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, create_infos[i].buffer);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreateBuffer failed");
+
+		GL_SetObjectName ((uint64_t)*create_infos[i].buffer, VK_OBJECT_TYPE_BUFFER, va ("%s buffer", create_infos[i].name));
+
+		VkMemoryRequirements memory_requirements;
+		vkGetBufferMemoryRequirements (vulkan_globals.device, *create_infos[i].buffer, &memory_requirements);
+		const size_t alignment = q_max (memory_requirements.alignment, create_infos[i].alignment);
+		total_size = q_align (total_size, alignment);
+		total_size += memory_requirements.size;
+		map_memory = map_memory || create_infos[i].mapped;
+		usage_union |= create_infos[i].usage;
+	}
+
+	uint32_t memory_type_bits = 0;
+	{
+		ZEROED_STRUCT (VkBufferCreateInfo, buffer_create_info);
+		buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+		buffer_create_info.size = total_size;
+		buffer_create_info.usage = usage_union;
+		VkBuffer dummy_buffer;
+		err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &dummy_buffer);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreateBuffer failed");
+		VkMemoryRequirements memory_requirements;
+		// Vulkan spec:
+		// The memoryTypeBits member is identical for all VkBuffer objects created with the same value for the flags and usage members in the VkBufferCreateInfo
+		// structure passed to vkCreateBuffer. Further, if usage1 and usage2 of type VkBufferUsageFlags are such that the bits set in usage2 are a subset of the
+		// bits set in usage1, then the bits set in memoryTypeBits returned for usage1 must be a subset of the bits set in memoryTypeBits returned for usage2,
+		// for all values of flags.
+		vkGetBufferMemoryRequirements (vulkan_globals.device, dummy_buffer, &memory_requirements);
+		memory_type_bits = memory_requirements.memoryTypeBits;
+		vkDestroyBuffer (vulkan_globals.device, dummy_buffer, NULL);
+	}
+
+	ZEROED_STRUCT (VkMemoryAllocateInfo, memory_allocate_info);
+	memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	memory_allocate_info.allocationSize = total_size;
+	memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties (memory_type_bits, mem_requirements_mask, mem_preferred_mask);
+
+	R_AllocateVulkanMemory (memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_DEVICE);
+	GL_SetObjectName ((uint64_t)memory->handle, VK_OBJECT_TYPE_DEVICE_MEMORY, memory_name);
+
+	byte *mapped_base = NULL;
+	if (map_memory)
+	{
+		err = vkMapMemory (vulkan_globals.device, memory->handle, 0, total_size, 0, (void **)&mapped_base);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkMapMemory failed");
+	}
+
+	size_t current_offset = 0;
+	for (int i = 0; i < num_buffers; ++i)
+	{
+		VkMemoryRequirements memory_requirements;
+		vkGetBufferMemoryRequirements (vulkan_globals.device, *create_infos[i].buffer, &memory_requirements);
+		const size_t alignment = q_max (memory_requirements.alignment, create_infos[i].alignment);
+		current_offset = q_align (current_offset, alignment);
+
+		err = vkBindBufferMemory (vulkan_globals.device, *create_infos[i].buffer, memory->handle, current_offset);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkBindImageMemory failed");
+
+		if (create_infos[i].mapped)
+			*create_infos[i].mapped = mapped_base + current_offset;
+
+		current_offset += memory_requirements.size;
+	}
+
+	if (num_allocations)
+		Atomic_IncrementUInt32 (num_allocations);
+
+	return total_size;
+}
+
+/*
+====================
+R_FreeBuffers
+====================
+*/
+void R_FreeBuffers (const int num_buffers, VkBuffer *buffers, vulkan_memory_t *memory, atomic_uint32_t *num_allocations)
+{
+	for (int i = 0; i < num_buffers; ++i)
+	{
+		if (buffers[i] != VK_NULL_HANDLE)
+			vkDestroyBuffer (vulkan_globals.device, buffers[i], NULL);
+	}
+	R_FreeVulkanMemory (memory);
+	if (num_allocations)
+		Atomic_DecrementUInt32 (num_allocations);
 }
 
 /*
