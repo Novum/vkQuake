@@ -9,7 +9,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build/release/vkquake",
-            "args": [ "-basedir", "${env:QUAKE_DIR}" ],
+            "args": [ "-basedir", "${env:QUAKE_DIR}", "-multiuser" ],
             "cwd": "${workspaceFolder}",
             "preLaunchTask": "release"
         },
@@ -18,7 +18,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build/debugopt/vkquake",
-            "args": [ "-basedir", "${env:QUAKE_DIR}" ],
+            "args": [ "-basedir", "${env:QUAKE_DIR}", "-multiuser" ],
             "cwd": "${workspaceFolder}",
             "preLaunchTask": "debugopt"
         },
@@ -27,7 +27,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build/debug/vkquake",
-            "args": [ "-basedir", "${env:QUAKE_DIR}" ],
+            "args": [ "-basedir", "${env:QUAKE_DIR}", "-multiuser", "-validation" ],
             "cwd": "${workspaceFolder}",
             "preLaunchTask": "debug"
         }
