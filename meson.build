@@ -1,7 +1,5 @@
 project('vkquake', 'c', default_options : ['c_std=gnu11', 'buildtype=release'])
 
-shader_includes = ['Shaders/screen_effects.inc']
-
 shaders = [
     'Shaders/alias.frag',
     'Shaders/alias.vert',
@@ -49,12 +47,15 @@ shaders_c = []
 foreach shader : shaders
     target_env = shader.contains('sops') ? ['--target-env', 'vulkan1.1'] : []
     debug_flag = get_option('buildtype').startswith('debug') ? ['-g'] : []
+    glslang_command = [glslang, '-V'] + debug_flag + target_env + ['-o', '@PLAINNAME@.spv', '@INPUT@', '--depfile', '@PLAINNAME@.deps', '&&']
     shaders_c += custom_target(shader.underscorify(),
                  input: shader,
                  output: '@PLAINNAME@.c',
-                 depend_files: shader_includes,
-                 command: [glslang, '-V'] + debug_flag + target_env + ['-o', '@PLAINNAME@.spv', '@INPUT@', '&&']
-                           + spirv_opt_command + spirv_remap_command + bintoc_command)
+                 depfile: '@PLAINNAME@.deps',
+                 command: glslang_command
+                          + spirv_opt_command
+                          + spirv_remap_command
+                          + bintoc_command)
 endforeach
 
 srcs = [
