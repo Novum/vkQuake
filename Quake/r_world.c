@@ -388,7 +388,7 @@ void R_MarkVisSurfacesSIMD (qboolean *use_tasks)
 					surfvis[index / 32] |= 1u << (index % 32);
 				}
 				if (indirect)
-					mark_deps (leaf->combined_deps, 0);
+					R_MarkDeps (leaf->combined_deps, 0);
 			}
 
 			// add static models
@@ -464,7 +464,7 @@ void R_MarkLeafsSIMD (int index, void *unused)
 				Atomic_OrUInt32 (&surfvis[surf_index / 32], 1u << (surf_index % 32));
 			}
 			if (indirect)
-				mark_deps (leaf->combined_deps, Tasks_GetWorkerIndex ());
+				R_MarkDeps (leaf->combined_deps, Tasks_GetWorkerIndex ());
 		}
 		const uint32_t bit_mask = ~(1u << i);
 		if (!leaf->efrags)
@@ -613,7 +613,7 @@ void R_MarkLeafsParallel (int index, void *unused)
 				Atomic_OrUInt32 (&surfvis[surf_index / 32], 1u << (surf_index % 32));
 			}
 			if (indirect)
-				mark_deps (leaf->combined_deps, Tasks_GetWorkerIndex ());
+				R_MarkDeps (leaf->combined_deps, Tasks_GetWorkerIndex ());
 		}
 	}
 }
@@ -678,7 +678,7 @@ void R_MarkVisSurfaces (qboolean *use_tasks)
 			if (r_oldskyleaf.value || leaf->contents != CONTENTS_SKY)
 			{
 				if (indirect)
-					mark_deps (leaf->combined_deps, 0);
+					R_MarkDeps (leaf->combined_deps, 0);
 				for (j = 0; j < leaf->nummarksurfaces; j++)
 				{
 					if (indirect)

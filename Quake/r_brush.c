@@ -35,24 +35,6 @@ int gl_lightmap_format;
 #define LM_BIN_E 8
 #define LM_BINS	 49
 
-static int SizeToBin (int size)
-{
-	size -= 1;
-	if (size < LM_BIN_E * 2 + 1)
-		return size;
-	int bc = Q_log2 (size / LM_BIN_E);
-	return (size >> bc) + LM_BIN_E * bc + 1;
-}
-
-static int BinToSize (int bin)
-{
-	if (bin < LM_BIN_E * 2 + 1)
-		return bin + 1;
-	bin -= 1;
-	int bc = bin / LM_BIN_E - 1;
-	return (bin % LM_BIN_E + LM_BIN_E + 1) << bc;
-}
-
 struct lightmap_s *lightmaps;
 int				   lightmap_count;
 int				   last_lightmap_allocated;
@@ -111,7 +93,89 @@ static combined_brush_deps *brush_deps_data;
 static int					used_deps_data = 0;
 #define INITIAL_BRUSH_DEPS_SIZE 16384
 
-static int alloc_deps_data (combined_brush_deps *items)
+static vulkan_memory_t bmodel_memory;
+VkBuffer			   bmodel_vertex_buffer;
+
+extern cvar_t r_showtris;
+extern cvar_t r_simd;
+typedef struct lm_compute_surface_data_s
+{
+	uint32_t packed_lightstyles;
+	vec3_t	 normal;
+	float	 dist;
+	uint32_t packed_light_st;
+	uint32_t packed_light_tex;
+	uint32_t packed_vbo_offset_and_count;
+	vec4_t	 vecs[2];
+} lm_compute_surface_data_t;
+COMPILE_TIME_ASSERT (lm_compute_surface_data_t, sizeof (lm_compute_surface_data_t) == 64);
+
+typedef struct lm_compute_light_s
+{
+	vec3_t origin;
+	float  radius;
+	vec3_t color;
+	float  minlight;
+} lm_compute_light_t;
+COMPILE_TIME_ASSERT (lm_compute_light_t, sizeof (lm_compute_light_t) == 32);
+
+#define WORKGROUP_BOUNDS_BUFFER_SIZE ((LMBLOCK_WIDTH / 8) * (LMBLOCK_HEIGHT / 8) * sizeof (lm_compute_workgroup_bounds_t))
+
+static vulkan_memory_t	   lightstyles_scales_buffer_memory;
+static vulkan_memory_t	   lights_buffer_memory;
+static vulkan_memory_t	   surface_data_buffer_memory;
+static vulkan_memory_t	   workgroup_bounds_buffer_memory;
+static vulkan_memory_t	   indirect_buffer_memory;
+static vulkan_memory_t	   indirect_index_buffer_memory;
+static vulkan_memory_t	   dyn_visibility_buffer_memory;
+static VkBuffer			   surface_data_buffer;
+static int				   num_surfaces;
+static VkBuffer			   indirect_buffer;
+static VkBuffer			   indirect_index_buffer;
+static VkBuffer			   dyn_visibility_buffer;
+static uint32_t			   dyn_visibility_offset; // for double-buffering
+static unsigned char	  *dyn_visibility_view;
+static VkBuffer			   lightstyles_scales_buffer;
+static VkBuffer			   lights_buffer;
+static float			  *lightstyles_scales_buffer_mapped;
+static lm_compute_light_t *lights_buffer_mapped;
+
+static int current_compute_buffer_index;
+
+/*
+================
+SizeToBin
+================
+*/
+static int SizeToBin (int size)
+{
+	size -= 1;
+	if (size < LM_BIN_E * 2 + 1)
+		return size;
+	int bc = Q_log2 (size / LM_BIN_E);
+	return (size >> bc) + LM_BIN_E * bc + 1;
+}
+
+/*
+================
+BinToSize
+================
+*/
+static int BinToSize (int bin)
+{
+	if (bin < LM_BIN_E * 2 + 1)
+		return bin + 1;
+	bin -= 1;
+	int bc = bin / LM_BIN_E - 1;
+	return (bin % LM_BIN_E + LM_BIN_E + 1) << bc;
+}
+
+/*
+================
+R_AllocDepsData
+================
+*/
+static int R_AllocDepsData (combined_brush_deps *items)
 {
 	static int last = 0;
 	int		   item_count = items[0].water_count + items[0].lm_count;
@@ -133,7 +197,12 @@ static int alloc_deps_data (combined_brush_deps *items)
 	return (last = used_deps_data - item_count - 1);
 }
 
-static void calc_deps (qmodel_t *model, mleaf_t *leaf)
+/*
+================
+R_MarkDeps
+================
+*/
+static void R_CalcDeps (qmodel_t *model, mleaf_t *leaf)
 {
 	combined_brush_deps deps[1 + 256 + MAX_SANITY_LIGHTMAPS];
 	deps[0].has_sky = false;
@@ -191,12 +260,17 @@ static void calc_deps (qmodel_t *model, mleaf_t *leaf)
 	}
 
 	if (model)
-		model->combined_deps = alloc_deps_data (deps);
+		model->combined_deps = R_AllocDepsData (deps);
 	else
-		leaf->combined_deps = alloc_deps_data (deps);
+		leaf->combined_deps = R_AllocDepsData (deps);
 }
 
-void mark_deps (int combined_deps, int worker_index)
+/*
+================
+R_MarkDeps
+================
+*/
+void R_MarkDeps (int combined_deps, int worker_index)
 {
 	combined_brush_deps *deps = &brush_deps_data[combined_deps];
 	int					 water_count = deps->water_count;
@@ -207,55 +281,6 @@ void mark_deps (int combined_deps, int worker_index)
 	for (i = 0, ++deps; i < lm_count; ++i, ++deps)
 		lightmaps[deps->lightmap_num].modified[worker_index] |= deps->lightmap_styles;
 }
-
-static vulkan_memory_t bmodel_memory;
-VkBuffer			   bmodel_vertex_buffer;
-
-extern cvar_t r_showtris;
-extern cvar_t r_simd;
-typedef struct lm_compute_surface_data_s
-{
-	uint32_t packed_lightstyles;
-	vec3_t	 normal;
-	float	 dist;
-	uint32_t packed_light_st;
-	uint32_t packed_light_tex;
-	uint32_t packed_vbo_offset_and_count;
-	vec4_t	 vecs[2];
-} lm_compute_surface_data_t;
-COMPILE_TIME_ASSERT (lm_compute_surface_data_t, sizeof (lm_compute_surface_data_t) == 64);
-
-typedef struct lm_compute_light_s
-{
-	vec3_t origin;
-	float  radius;
-	vec3_t color;
-	float  minlight;
-} lm_compute_light_t;
-COMPILE_TIME_ASSERT (lm_compute_light_t, sizeof (lm_compute_light_t) == 32);
-
-#define WORKGROUP_BOUNDS_BUFFER_SIZE ((LMBLOCK_WIDTH / 8) * (LMBLOCK_HEIGHT / 8) * sizeof (lm_compute_workgroup_bounds_t))
-
-static vulkan_memory_t	   lightstyles_scales_buffer_memory;
-static vulkan_memory_t	   lights_buffer_memory;
-static vulkan_memory_t	   surface_data_buffer_memory;
-static vulkan_memory_t	   workgroup_bounds_buffer_memory;
-static vulkan_memory_t	   indirect_buffer_memory;
-static vulkan_memory_t	   indirect_index_buffer_memory;
-static vulkan_memory_t	   dyn_visibility_buffer_memory;
-static VkBuffer			   surface_data_buffer;
-static int				   num_surfaces;
-static VkBuffer			   indirect_buffer;
-static VkBuffer			   indirect_index_buffer;
-static VkBuffer			   dyn_visibility_buffer;
-static uint32_t			   dyn_visibility_offset; // for double-buffering
-static unsigned char	  *dyn_visibility_view;
-static VkBuffer			   lightstyles_scales_buffer;
-static VkBuffer			   lights_buffer;
-static float			  *lightstyles_scales_buffer_mapped;
-static lm_compute_light_t *lights_buffer_mapped;
-
-static int current_compute_buffer_index;
 
 /*
 ===============
@@ -417,7 +442,7 @@ void R_DrawBrushModel (cb_context_t *cbx, entity_t *e, int chain, int *brushpoly
 				Atomic_StoreUInt32 (&surfvis[i], 0xFFFFFFFF);
 			Atomic_OrUInt32 (&surfvis[endword], (1u << end % 32) - 1);
 		}
-		mark_deps (clmodel->combined_deps, Tasks_GetWorkerIndex ());
+		R_MarkDeps (clmodel->combined_deps, Tasks_GetWorkerIndex ());
 		return;
 	}
 
@@ -970,6 +995,11 @@ static void R_AssignWorkgroupBounds (msurface_t *surf)
 	}
 }
 
+/*
+================
+UpdateIndirectStructs
+================
+*/
 static void UpdateIndirectStructs (msurface_t *surf, qboolean is_bmodel)
 {
 	static int last;
@@ -1004,6 +1034,11 @@ static void UpdateIndirectStructs (msurface_t *surf, qboolean is_bmodel)
 	indirect_draws[i].max_indices = 3 * (surf->numedges - 2);
 }
 
+/*
+================
+PrepareIndirectDraws
+================
+*/
 static void PrepareIndirectDraws ()
 {
 	int total_indices = 0;
@@ -1785,7 +1820,7 @@ void GL_BuildLightmaps (void)
 		vkUpdateDescriptorSets (vulkan_globals.device, 4, indirect_d, 0, NULL);
 
 		for (i = 0; i < cl.worldmodel->numleafs; i++)
-			calc_deps (NULL, &cl.worldmodel->leafs[i + 1]); // worldmodel->leafs is 1-based
+			R_CalcDeps (NULL, &cl.worldmodel->leafs[i + 1]); // worldmodel->leafs is 1-based
 
 		if (WATER_FIXED_ORDER)
 		{
@@ -1810,7 +1845,7 @@ void GL_BuildLightmaps (void)
 			break;
 		if (m->name[0] != '*')
 			continue;
-		calc_deps (m, NULL);
+		R_CalcDeps (m, NULL);
 	}
 
 	GL_AllocateWorkgroupBoundsBuffers ();

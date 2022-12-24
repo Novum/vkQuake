@@ -522,7 +522,7 @@ void R_TranslatePlayerSkin (int playernum);
 void R_TranslateNewPlayerSkin (int playernum); // johnfitz -- this handles cases when the actual texture changes
 void R_UpdateWarpTextures (cb_context_t **cbx_ptr);
 
-void mark_deps (int combined_deps, int worker_index);
+void R_MarkDeps (int combined_deps, int worker_index);
 
 qboolean R_IndirectBrush (entity_t *e);
 qboolean R_HasSky (entity_t *e);
