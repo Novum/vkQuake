@@ -135,6 +135,8 @@ static uint32_t		   current_dyn_uniform_buffer_size = INITIAL_DYNAMIC_UNIFORM_BU
 static vulkan_memory_t dyn_vertex_buffer_memory;
 static vulkan_memory_t dyn_index_buffer_memory;
 static vulkan_memory_t dyn_uniform_buffer_memory;
+extern vulkan_memory_t lightstyles_scales_buffer_memory;
+extern vulkan_memory_t lights_buffer_memory;
 static dynbuffer_t	   dyn_vertex_buffers[NUM_DYNAMIC_BUFFERS];
 static dynbuffer_t	   dyn_index_buffers[NUM_DYNAMIC_BUFFERS];
 static dynbuffer_t	   dyn_uniform_buffers[NUM_DYNAMIC_BUFFERS];
@@ -978,7 +980,7 @@ R_FlushDynamicBuffers
 */
 void R_FlushDynamicBuffers ()
 {
-	ZEROED_STRUCT_ARRAY (VkMappedMemoryRange, ranges, 3);
+	ZEROED_STRUCT_ARRAY (VkMappedMemoryRange, ranges, 5);
 	ranges[0].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
 	ranges[0].memory = dyn_vertex_buffer_memory.handle;
 	ranges[0].size = VK_WHOLE_SIZE;
@@ -988,7 +990,13 @@ void R_FlushDynamicBuffers ()
 	ranges[2].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
 	ranges[2].memory = dyn_uniform_buffer_memory.handle;
 	ranges[2].size = VK_WHOLE_SIZE;
-	vkFlushMappedMemoryRanges (vulkan_globals.device, 3, ranges);
+	ranges[3].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+	ranges[3].memory = lightstyles_scales_buffer_memory.handle;
+	ranges[3].size = VK_WHOLE_SIZE;
+	ranges[4].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+	ranges[4].memory = lights_buffer_memory.handle;
+	ranges[4].size = VK_WHOLE_SIZE;
+	vkFlushMappedMemoryRanges (vulkan_globals.device, 5, ranges);
 }
 
 /*

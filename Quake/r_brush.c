@@ -121,8 +121,8 @@ COMPILE_TIME_ASSERT (lm_compute_light_t, sizeof (lm_compute_light_t) == 32);
 
 #define WORKGROUP_BOUNDS_BUFFER_SIZE ((LMBLOCK_WIDTH / 8) * (LMBLOCK_HEIGHT / 8) * sizeof (lm_compute_workgroup_bounds_t))
 
-static vulkan_memory_t	   lightstyles_scales_buffer_memory;
-static vulkan_memory_t	   lights_buffer_memory;
+vulkan_memory_t			   lightstyles_scales_buffer_memory;
+vulkan_memory_t			   lights_buffer_memory;
 static vulkan_memory_t	   surface_data_buffer_memory;
 static vulkan_memory_t	   workgroup_bounds_buffer_memory;
 static vulkan_memory_t	   indirect_buffer_memory;
@@ -1547,6 +1547,11 @@ R_UploadVisibility
 static void R_UploadVisibility (byte *data, uint32_t size)
 {
 	memcpy (dyn_visibility_view + current_compute_buffer_index * dyn_visibility_offset, data, size);
+	ZEROED_STRUCT (VkMappedMemoryRange, range);
+	range.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+	range.memory = dyn_visibility_buffer_memory.handle;
+	range.size = VK_WHOLE_SIZE;
+	vkFlushMappedMemoryRanges (vulkan_globals.device, 1, &range);
 }
 
 /*
