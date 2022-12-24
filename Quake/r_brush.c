@@ -208,9 +208,9 @@ static void R_CalcDeps (qmodel_t *model, mleaf_t *leaf)
 	deps[0].has_sky = false;
 	deps[0].water_count = 0;
 	deps[0].lm_count = 0;
-	const int num_surfaces = model ? model->nummodelsurfaces : leaf->nummarksurfaces;
+	const int num_surfs = model ? model->nummodelsurfaces : leaf->nummarksurfaces;
 
-	for (int i = 0; i < num_surfaces; i++)
+	for (int i = 0; i < num_surfs; i++)
 	{
 		msurface_t *psurf = model ? &model->surfaces[model->firstmodelsurface] + i : &cl.worldmodel->surfaces[leaf->firstmarksurface[i]];
 		texture_t  *t = psurf->texinfo->texture;
