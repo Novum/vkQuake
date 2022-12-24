@@ -236,7 +236,7 @@ static void R_CalcDeps (qmodel_t *model, mleaf_t *leaf)
 			deps[0].has_sky = true;
 	}
 
-	for (int i = 0; i < num_surfaces; i++)
+	for (int i = 0; i < num_surfs; i++)
 	{
 		msurface_t *psurf = model ? &model->surfaces[model->firstmodelsurface] + i : &cl.worldmodel->surfaces[leaf->firstmarksurface[i]];
 		if (psurf->lightmaptexturenum >= 0)
