@@ -1892,35 +1892,9 @@ void GL_BuildBModelVertexBuffer (void)
 	}
 
 	// Allocate & upload to GPU
-	VkResult err;
-
-	ZEROED_STRUCT (VkBufferCreateInfo, buffer_create_info);
-	buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	buffer_create_info.size = varray_bytes;
-	buffer_create_info.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-	err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &bmodel_vertex_buffer);
-	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateBuffer failed");
-
-	GL_SetObjectName ((uint64_t)bmodel_vertex_buffer, VK_OBJECT_TYPE_BUFFER, "Brush Vertex Buffer");
-
-	VkMemoryRequirements memory_requirements;
-	vkGetBufferMemoryRequirements (vulkan_globals.device, bmodel_vertex_buffer, &memory_requirements);
-
-	const int aligned_size = q_align (memory_requirements.size, memory_requirements.alignment);
-
-	ZEROED_STRUCT (VkMemoryAllocateInfo, memory_allocate_info);
-	memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	memory_allocate_info.allocationSize = aligned_size;
-	memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
-
-	Atomic_IncrementUInt32 (&num_vulkan_bmodel_allocations);
-	R_AllocateVulkanMemory (&bmodel_memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_DEVICE);
-	GL_SetObjectName ((uint64_t)bmodel_memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, "Brush Memory");
-
-	err = vkBindBufferMemory (vulkan_globals.device, bmodel_vertex_buffer, bmodel_memory.handle, 0);
-	if (err != VK_SUCCESS)
-		Sys_Error ("vkBindImageMemory failed");
+	R_CreateBuffer (
+		&bmodel_vertex_buffer, &bmodel_memory, varray_bytes, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, &num_vulkan_bmodel_allocations, "BModel vertices");
 
 	remaining_size = varray_bytes;
 	copy_offset = 0;
