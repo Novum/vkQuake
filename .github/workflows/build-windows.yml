@@ -37,7 +37,7 @@ jobs:
     - name: Upload vkQuake
       uses: actions/upload-artifact@v3
       with:
-        name: vkQuake archive
+        name: vkQuake archive (${{ matrix.configuration }}, ${{ matrix.platform }})
         path: |
             Windows\VisualStudio\Build-vkQuake\**\*.exe
             Windows\VisualStudio\Build-vkQuake\**\*.dll
