@@ -16,7 +16,7 @@ jobs:
         configuration: [Release, Debug]
         platform: [x64, Win32]
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Install Vulkan SDK
       uses: humbletim/install-vulkan-sdk@v1.1.1
       with:

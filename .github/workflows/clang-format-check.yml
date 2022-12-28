@@ -13,7 +13,7 @@ jobs:
             exclude: 'Compiled|compile'
     steps:
     - uses: actions/checkout@v3
-    - name: Run clang-format style check for C/C++/Protobuf programs.
+    - name: Run clang-format style check for C/GLSL
       uses: jidicula/clang-format-action@v4.9.0
       with:
         clang-format-version: '15'
