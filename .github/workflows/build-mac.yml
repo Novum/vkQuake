@@ -19,7 +19,7 @@ jobs:
     - name: Build vkQuake
       run: meson build && ninja -C build
     - name: Upload vkQuake
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: vkQuake archive
         path: build/vkquake
