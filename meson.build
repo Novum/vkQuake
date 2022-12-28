@@ -148,7 +148,7 @@ deps = [
 ]
 
 if build_machine.system() == 'darwin'
-    deps += cc.find_library('MoltenVK', required : true)
+    deps += cc.find_library('MoltenVK', required : true, dirs : ['/opt/homebrew/lib'])
 else
     deps += dependency('vulkan')
 endif
