@@ -3652,6 +3652,7 @@ static void VID_MenuKey (int key)
 	{
 	case K_MOUSE2:
 	case K_ESCAPE:
+	case K_BBUTTON:
 		VID_SyncCvars (); // sync cvars before leaving menu. FIXME: there are other ways to leave menu
 		S_LocalSound ("misc/menu1.wav");
 		M_Menu_Options_f ();
@@ -3770,6 +3771,7 @@ static void VID_MenuKey (int key)
 	case K_MOUSE1:
 	case K_ENTER:
 	case K_KP_ENTER:
+	case K_ABUTTON:
 		m_entersound = true;
 		switch (video_options_cursor)
 		{
