@@ -155,6 +155,8 @@ static PFN_vkGetSwapchainImagesKHR					  fpGetSwapchainImagesKHR;
 static PFN_vkAcquireNextImageKHR					  fpAcquireNextImageKHR;
 static PFN_vkQueuePresentKHR						  fpQueuePresentKHR;
 static PFN_vkEnumerateInstanceVersion				  fpEnumerateInstanceVersion;
+static PFN_vkGetPhysicalDeviceFeatures2				  fpGetPhysicalDeviceFeatures2;
+static PFN_vkGetPhysicalDeviceProperties2			  fpGetPhysicalDeviceProperties2;
 #if defined(VK_EXT_full_screen_exclusive)
 static PFN_vkAcquireFullScreenExclusiveModeEXT fpAcquireFullScreenExclusiveModeEXT;
 static PFN_vkReleaseFullScreenExclusiveModeEXT fpReleaseFullScreenExclusiveModeEXT;
@@ -692,6 +694,12 @@ static void GL_InitInstance (void)
 	GET_INSTANCE_PROC_ADDR (GetPhysicalDeviceSurfacePresentModesKHR);
 	GET_INSTANCE_PROC_ADDR (GetSwapchainImagesKHR);
 
+	if (vulkan_globals.get_physical_device_properties_2)
+	{
+		GET_INSTANCE_PROC_ADDR (GetPhysicalDeviceProperties2);
+		GET_INSTANCE_PROC_ADDR (GetPhysicalDeviceFeatures2);
+	}
+
 	if (vulkan_globals.get_surface_capabilities_2)
 		GET_INSTANCE_PROC_ADDR (GetPhysicalDeviceSurfaceCapabilities2KHR);
 
@@ -908,7 +916,7 @@ static void GL_InitDevice (void)
 		ZEROED_STRUCT (VkPhysicalDeviceProperties2, physical_device_properties_2);
 		physical_device_properties_2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
 		physical_device_properties_2.pNext = &driver_properties;
-		vkGetPhysicalDeviceProperties2 (vulkan_physical_device, &physical_device_properties_2);
+		fpGetPhysicalDeviceProperties2 (vulkan_physical_device, &physical_device_properties_2);
 
 		vendor = GetDeviceVendorFromDriverProperties (&driver_properties);
 	}
@@ -990,7 +998,7 @@ static void GL_InitDevice (void)
 			CHAIN_PNEXT (device_properties_next, physical_device_subgroup_properties);
 		}
 
-		vkGetPhysicalDeviceProperties2 (vulkan_physical_device, &physical_device_properties_2);
+		fpGetPhysicalDeviceProperties2 (vulkan_physical_device, &physical_device_properties_2);
 
 		ZEROED_STRUCT (VkPhysicalDeviceFeatures2, physical_device_features_2);
 		physical_device_features_2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
@@ -1002,7 +1010,7 @@ static void GL_InitDevice (void)
 			CHAIN_PNEXT (device_features_next, subgroup_size_control_features);
 		}
 
-		vkGetPhysicalDeviceFeatures2 (vulkan_physical_device, &physical_device_features_2);
+		fpGetPhysicalDeviceFeatures2 (vulkan_physical_device, &physical_device_features_2);
 
 		vulkan_physical_device_features = physical_device_features_2.features;
 	}
