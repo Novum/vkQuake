@@ -839,8 +839,8 @@ static void GL_InitDevice (void)
 {
 	VkResult err;
 	uint32_t i;
-	int		 argIndex;
-	int		 deviceIndex = 0;
+	int		 arg_index;
+	int		 device_index = 0;
 
 #if defined(VK_EXT_subgroup_size_control)
 	qboolean subgroup_size_control = false;
@@ -851,16 +851,30 @@ static void GL_InitDevice (void)
 	if (err != VK_SUCCESS || physical_device_count == 0)
 		Sys_Error ("Couldn't find any Vulkan devices");
 
-	argIndex = COM_CheckParm ("-device");
-	if (argIndex && argIndex < com_argc - 1)
+	arg_index = COM_CheckParm ("-device");
+	if (arg_index && (arg_index < (com_argc - 1)))
 	{
-		const char *deviceNum = com_argv[argIndex + 1];
-		deviceIndex = CLAMP (0, atoi (deviceNum) - 1, (int)physical_device_count - 1);
+		const char *device_num = com_argv[arg_index + 1];
+		device_index = CLAMP (0, atoi (device_num) - 1, (int)physical_device_count - 1);
 	}
 
 	VkPhysicalDevice *physical_devices = (VkPhysicalDevice *)Mem_Alloc (sizeof (VkPhysicalDevice) * physical_device_count);
-	err = vkEnumeratePhysicalDevices (vulkan_instance, &physical_device_count, physical_devices);
-	vulkan_physical_device = physical_devices[deviceIndex];
+	vkEnumeratePhysicalDevices (vulkan_instance, &physical_device_count, physical_devices);
+	if (!arg_index)
+	{
+		// If no device was specified by command line pick first discrete GPU
+		for (int i = 0; i < physical_device_count; ++i)
+		{
+			VkPhysicalDeviceProperties device_properties;
+			vkGetPhysicalDeviceProperties (physical_devices[i], &device_properties);
+			if (device_properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
+			{
+				device_index = i;
+				break;
+			}
+		}
+	}
+	vulkan_physical_device = physical_devices[device_index];
 	Mem_Free (physical_devices);
 
 	qboolean found_swapchain_extension = false;
