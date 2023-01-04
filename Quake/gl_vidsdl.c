@@ -863,13 +863,13 @@ static void GL_InitDevice (void)
 	if (!arg_index)
 	{
 		// If no device was specified by command line pick first discrete GPU
-		for (int i = 0; i < physical_device_count; ++i)
+		for (i = 0; i < physical_device_count; ++i)
 		{
 			VkPhysicalDeviceProperties device_properties;
 			vkGetPhysicalDeviceProperties (physical_devices[i], &device_properties);
 			if (device_properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
 			{
-				device_index = i;
+				device_index = (int)i;
 				break;
 			}
 		}
