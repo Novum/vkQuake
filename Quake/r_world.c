@@ -160,7 +160,7 @@ void R_SetupWorldCBXTexRanges (qboolean use_tasks)
 	for (int i = 0; i < num_textures; ++i)
 	{
 		texture_t *t = cl.worldmodel->textures[i];
-		if (!t || !t->texturechains[chain_world] || t->texturechains[chain_world]->flags & (SURF_DRAWTURB | SURF_DRAWTILED | SURF_NOTEXTURE))
+		if (!t || !t->texturechains[chain_world] || t->texturechains[chain_world]->flags & (SURF_DRAWTURB | SURF_DRAWTILED))
 			continue;
 		total_world_surfs += t->chain_size[chain_world];
 	}
@@ -171,7 +171,7 @@ void R_SetupWorldCBXTexRanges (qboolean use_tasks)
 	for (int i = 0; i < num_textures; ++i)
 	{
 		texture_t *t = cl.worldmodel->textures[i];
-		if (!t || !t->texturechains[chain_world] || t->texturechains[chain_world]->flags & (SURF_DRAWTURB | SURF_DRAWTILED | SURF_NOTEXTURE))
+		if (!t || !t->texturechains[chain_world] || t->texturechains[chain_world]->flags & (SURF_DRAWTURB | SURF_DRAWTILED))
 			continue;
 		assert (current_cbx < NUM_WORLD_CBX);
 		world_texend[current_cbx] = i + 1;
@@ -1154,7 +1154,7 @@ void R_DrawTextureChains_Multitexture (cb_context_t *cbx, qmodel_t *model, entit
 	{
 		t = model->textures[i];
 
-		if (!t || !t->texturechains[chain] || t->texturechains[chain]->flags & (SURF_DRAWTURB | SURF_DRAWTILED | SURF_NOTEXTURE))
+		if (!t || !t->texturechains[chain] || t->texturechains[chain]->flags & (SURF_DRAWTURB | SURF_DRAWTILED))
 			continue;
 
 		if (gl_fullbrights.value && (fullbright = R_TextureAnimation (t, ent_frame)->fullbright) && !r_lightmap_cheatsafe)
