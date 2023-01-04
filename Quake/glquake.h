@@ -537,6 +537,8 @@ void R_DrawIndirectBrushes_ShowTris (cb_context_t *cbx);
 void R_DrawTextureChains_Water (cb_context_t *cbx, qmodel_t *model, entity_t *ent, texchain_t chain);
 
 void GL_BuildLightmaps (void);
+void GL_SetupIndirectDraws (void);
+void GL_SetupLightmapCompute (void);
 void GL_DeleteBModelVertexBuffer (void);
 void GL_BuildBModelVertexBuffer (void);
 void GL_PrepareSIMDAndParallelData (void);

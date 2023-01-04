@@ -1319,7 +1319,7 @@ void R_CreateDescriptorSetLayouts ()
 	}
 
 	{
-		ZEROED_STRUCT_ARRAY (VkDescriptorSetLayoutBinding, lightmap_compute_layout_bindings, 7);
+		ZEROED_STRUCT_ARRAY (VkDescriptorSetLayoutBinding, lightmap_compute_layout_bindings, 8);
 		lightmap_compute_layout_bindings[0].binding = 0;
 		lightmap_compute_layout_bindings[0].descriptorCount = 1;
 		lightmap_compute_layout_bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
@@ -1348,6 +1348,10 @@ void R_CreateDescriptorSetLayouts ()
 		lightmap_compute_layout_bindings[6].descriptorCount = 1;
 		lightmap_compute_layout_bindings[6].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
 		lightmap_compute_layout_bindings[6].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+		lightmap_compute_layout_bindings[7].binding = 7;
+		lightmap_compute_layout_bindings[7].descriptorCount = 1;
+		lightmap_compute_layout_bindings[7].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+		lightmap_compute_layout_bindings[7].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
 		descriptor_set_layout_create_info.bindingCount = countof (lightmap_compute_layout_bindings);
 		descriptor_set_layout_create_info.pBindings = lightmap_compute_layout_bindings;
@@ -1355,7 +1359,7 @@ void R_CreateDescriptorSetLayouts ()
 		memset (&vulkan_globals.lightmap_compute_set_layout, 0, sizeof (vulkan_globals.lightmap_compute_set_layout));
 		vulkan_globals.lightmap_compute_set_layout.num_storage_images = 1;
 		vulkan_globals.lightmap_compute_set_layout.num_sampled_images = 1 + MAXLIGHTMAPS * 3 / 4;
-		vulkan_globals.lightmap_compute_set_layout.num_storage_buffers = 2;
+		vulkan_globals.lightmap_compute_set_layout.num_storage_buffers = 3;
 		vulkan_globals.lightmap_compute_set_layout.num_ubos_dynamic = 2;
 
 		err = vkCreateDescriptorSetLayout (vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.lightmap_compute_set_layout.handle);
@@ -3411,6 +3415,8 @@ void R_NewMap (void)
 	GL_BuildLightmaps ();
 	GL_BuildBModelVertexBuffer ();
 	GL_PrepareSIMDAndParallelData ();
+	GL_SetupIndirectDraws ();
+	GL_SetupLightmapCompute ();
 	// ericw -- no longer load alias models into a VBO here, it's done in Mod_LoadAliasModel
 
 	r_framecount = 0;	 // johnfitz -- paranoid?

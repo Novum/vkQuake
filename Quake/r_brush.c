@@ -1087,7 +1087,7 @@ static void GL_CreateSurfaceLightmap (msurface_t *surf, uint32_t surface_index)
 BuildSurfaceDisplayList -- called at level load time
 ================
 */
-void BuildSurfaceDisplayList (msurface_t *fa)
+static void BuildSurfaceDisplayList (msurface_t *fa)
 {
 	int		  i, lindex, lnumverts;
 	medge_t	 *pedges, *r_pedge;
@@ -1449,11 +1449,8 @@ with all the surfaces from all brush models
 */
 void GL_BuildLightmaps (void)
 {
-	char					   name[32];
 	int						   i, j;
 	uint32_t				   surface_index = 0;
-	struct lightmap_s		  *lm;
-	qmodel_t				  *m;
 	lm_compute_surface_data_t *surface_data;
 	msurface_t				  *surf;
 
@@ -1486,7 +1483,7 @@ void GL_BuildLightmaps (void)
 
 	for (i = 1; i < MAX_MODELS; ++i)
 	{
-		m = cl.model_precache[i];
+		qmodel_t *m = cl.model_precache[i];
 		if (!m)
 			break;
 		if (m->name[0] == '*')
@@ -1505,7 +1502,7 @@ void GL_BuildLightmaps (void)
 	unsigned int varray_index = 0;
 	for (j = 1; j < MAX_MODELS; j++)
 	{
-		m = cl.model_precache[j];
+		qmodel_t *m = cl.model_precache[j];
 		if (!m)
 			break;
 		if (m->name[0] == '*')
@@ -1548,126 +1545,146 @@ void GL_BuildLightmaps (void)
 	}
 
 	R_StagingEndCopy ();
+}
 
-	if (indirect_ready)
+/*
+==================
+GL_SetupIndirectDraws
+==================
+*/
+void GL_SetupIndirectDraws ()
+{
+
+	if (!indirect_ready)
 	{
-		PrepareIndirectDraws ();
-		VkDrawIndexedIndirectCommand *hw_indirect_buffer = GL_AllocateIndirectBuffer (used_indirect_draws);
-		R_StagingBeginCopy ();
-		memcpy (hw_indirect_buffer, initial_indirect_buffer, used_indirect_draws * sizeof (VkDrawIndexedIndirectCommand));
-		R_StagingEndCopy ();
-
-		R_InitIndirectIndexBuffer ((initial_indirect_buffer[used_indirect_draws - 1].firstIndex + indirect_draws[used_indirect_draws - 1].max_indices) * 4);
-		R_InitVisibilityBuffers ((cl.worldmodel->numsurfaces + 31) / 8);
-
-		if (vulkan_globals.indirect_compute_desc_set != VK_NULL_HANDLE)
-			R_FreeDescriptorSet (vulkan_globals.indirect_compute_desc_set, &vulkan_globals.indirect_compute_set_layout);
-		vulkan_globals.indirect_compute_desc_set = R_AllocateDescriptorSet (&vulkan_globals.indirect_compute_set_layout);
-
-		ZEROED_STRUCT (VkDescriptorBufferInfo, indirect_draw_buffer_info);
-		indirect_draw_buffer_info.buffer = indirect_buffer;
-		indirect_draw_buffer_info.offset = 0;
-		indirect_draw_buffer_info.range = VK_WHOLE_SIZE;
-
-		ZEROED_STRUCT (VkDescriptorBufferInfo, surfaces_buffer_info);
-		surfaces_buffer_info.buffer = surface_data_buffer;
-		surfaces_buffer_info.offset = 0;
-		surfaces_buffer_info.range = num_surfaces * sizeof (lm_compute_surface_data_t);
-
-		ZEROED_STRUCT (VkDescriptorBufferInfo, visibility_buffer_info);
-		visibility_buffer_info.buffer = dyn_visibility_buffer;
-		visibility_buffer_info.offset = 0;
-		visibility_buffer_info.range = VK_WHOLE_SIZE;
-
-		ZEROED_STRUCT (VkDescriptorBufferInfo, index_buffer_info);
-		index_buffer_info.buffer = indirect_index_buffer;
-		index_buffer_info.offset = 0;
-		index_buffer_info.range = VK_WHOLE_SIZE;
-
-		ZEROED_STRUCT_ARRAY (VkWriteDescriptorSet, indirect_d, 4);
-
-		indirect_d[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		indirect_d[0].dstBinding = 0;
-		indirect_d[0].dstArrayElement = 0;
-		indirect_d[0].descriptorCount = 1;
-		indirect_d[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-		indirect_d[0].dstSet = vulkan_globals.indirect_compute_desc_set;
-		indirect_d[0].pBufferInfo = &indirect_draw_buffer_info;
-
-		indirect_d[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		indirect_d[1].dstBinding = 1;
-		indirect_d[1].dstArrayElement = 0;
-		indirect_d[1].descriptorCount = 1;
-		indirect_d[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-		indirect_d[1].dstSet = vulkan_globals.indirect_compute_desc_set;
-		indirect_d[1].pBufferInfo = &surfaces_buffer_info;
-
-		indirect_d[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		indirect_d[2].dstBinding = 2;
-		indirect_d[2].dstArrayElement = 0;
-		indirect_d[2].descriptorCount = 1;
-		indirect_d[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-		indirect_d[2].dstSet = vulkan_globals.indirect_compute_desc_set;
-		indirect_d[2].pBufferInfo = &visibility_buffer_info;
-
-		indirect_d[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		indirect_d[3].dstBinding = 3;
-		indirect_d[3].dstArrayElement = 0;
-		indirect_d[3].descriptorCount = 1;
-		indirect_d[3].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-		indirect_d[3].dstSet = vulkan_globals.indirect_compute_desc_set;
-		indirect_d[3].pBufferInfo = &index_buffer_info;
-
-		vkUpdateDescriptorSets (vulkan_globals.device, countof (indirect_d), indirect_d, 0, NULL);
-
-		for (i = 0; i < cl.worldmodel->numleafs; i++)
-			R_CalcDeps (NULL, &cl.worldmodel->leafs[i + 1]); // worldmodel->leafs is 1-based
-
-		if (WATER_FIXED_ORDER)
-		{
-			cl.worldmodel->water_surfs = Mem_Alloc (8192 * sizeof (int));
-			for (i = 0; i < cl.worldmodel->numsurfaces; i++)
-				if (cl.worldmodel->surfaces[i].flags & SURF_DRAWTURB)
-				{
-					if (cl.worldmodel->used_water_surfs >= 8192 && !(cl.worldmodel->used_water_surfs & (cl.worldmodel->used_water_surfs - 1)))
-						cl.worldmodel->water_surfs = Mem_Realloc (cl.worldmodel->water_surfs, cl.worldmodel->used_water_surfs * 2 * sizeof (int));
-					cl.worldmodel->water_surfs[cl.worldmodel->used_water_surfs] = i;
-					++cl.worldmodel->used_water_surfs;
-				}
-		}
-	}
-	else
 		Con_Warning ("map exceeds indirect dispatch limits\n");
+		return;
+	}
 
-	for (j = 1; j < MAX_MODELS; j++)
+	PrepareIndirectDraws ();
+	VkDrawIndexedIndirectCommand *hw_indirect_buffer = GL_AllocateIndirectBuffer (used_indirect_draws);
+	R_StagingBeginCopy ();
+	memcpy (hw_indirect_buffer, initial_indirect_buffer, used_indirect_draws * sizeof (VkDrawIndexedIndirectCommand));
+	R_StagingEndCopy ();
+
+	R_InitIndirectIndexBuffer ((initial_indirect_buffer[used_indirect_draws - 1].firstIndex + indirect_draws[used_indirect_draws - 1].max_indices) * 4);
+	R_InitVisibilityBuffers ((cl.worldmodel->numsurfaces + 31) / 8);
+
+	if (vulkan_globals.indirect_compute_desc_set != VK_NULL_HANDLE)
+		R_FreeDescriptorSet (vulkan_globals.indirect_compute_desc_set, &vulkan_globals.indirect_compute_set_layout);
+	vulkan_globals.indirect_compute_desc_set = R_AllocateDescriptorSet (&vulkan_globals.indirect_compute_set_layout);
+
+	ZEROED_STRUCT (VkDescriptorBufferInfo, indirect_draw_buffer_info);
+	indirect_draw_buffer_info.buffer = indirect_buffer;
+	indirect_draw_buffer_info.offset = 0;
+	indirect_draw_buffer_info.range = VK_WHOLE_SIZE;
+
+	ZEROED_STRUCT (VkDescriptorBufferInfo, surfaces_buffer_info);
+	surfaces_buffer_info.buffer = surface_data_buffer;
+	surfaces_buffer_info.offset = 0;
+	surfaces_buffer_info.range = num_surfaces * sizeof (lm_compute_surface_data_t);
+
+	ZEROED_STRUCT (VkDescriptorBufferInfo, visibility_buffer_info);
+	visibility_buffer_info.buffer = dyn_visibility_buffer;
+	visibility_buffer_info.offset = 0;
+	visibility_buffer_info.range = VK_WHOLE_SIZE;
+
+	ZEROED_STRUCT (VkDescriptorBufferInfo, index_buffer_info);
+	index_buffer_info.buffer = indirect_index_buffer;
+	index_buffer_info.offset = 0;
+	index_buffer_info.range = VK_WHOLE_SIZE;
+
+	ZEROED_STRUCT_ARRAY (VkWriteDescriptorSet, indirect_d, 4);
+
+	indirect_d[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	indirect_d[0].dstBinding = 0;
+	indirect_d[0].dstArrayElement = 0;
+	indirect_d[0].descriptorCount = 1;
+	indirect_d[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	indirect_d[0].dstSet = vulkan_globals.indirect_compute_desc_set;
+	indirect_d[0].pBufferInfo = &indirect_draw_buffer_info;
+
+	indirect_d[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	indirect_d[1].dstBinding = 1;
+	indirect_d[1].dstArrayElement = 0;
+	indirect_d[1].descriptorCount = 1;
+	indirect_d[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	indirect_d[1].dstSet = vulkan_globals.indirect_compute_desc_set;
+	indirect_d[1].pBufferInfo = &surfaces_buffer_info;
+
+	indirect_d[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	indirect_d[2].dstBinding = 2;
+	indirect_d[2].dstArrayElement = 0;
+	indirect_d[2].descriptorCount = 1;
+	indirect_d[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	indirect_d[2].dstSet = vulkan_globals.indirect_compute_desc_set;
+	indirect_d[2].pBufferInfo = &visibility_buffer_info;
+
+	indirect_d[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	indirect_d[3].dstBinding = 3;
+	indirect_d[3].dstArrayElement = 0;
+	indirect_d[3].descriptorCount = 1;
+	indirect_d[3].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	indirect_d[3].dstSet = vulkan_globals.indirect_compute_desc_set;
+	indirect_d[3].pBufferInfo = &index_buffer_info;
+
+	vkUpdateDescriptorSets (vulkan_globals.device, countof (indirect_d), indirect_d, 0, NULL);
+
+	for (int i = 0; i < cl.worldmodel->numleafs; i++)
+		R_CalcDeps (NULL, &cl.worldmodel->leafs[i + 1]); // worldmodel->leafs is 1-based
+
+	if (WATER_FIXED_ORDER)
 	{
-		m = cl.model_precache[j];
+		cl.worldmodel->water_surfs = Mem_Alloc (8192 * sizeof (int));
+		for (int i = 0; i < cl.worldmodel->numsurfaces; i++)
+			if (cl.worldmodel->surfaces[i].flags & SURF_DRAWTURB)
+			{
+				if (cl.worldmodel->used_water_surfs >= 8192 && !(cl.worldmodel->used_water_surfs & (cl.worldmodel->used_water_surfs - 1)))
+					cl.worldmodel->water_surfs = Mem_Realloc (cl.worldmodel->water_surfs, cl.worldmodel->used_water_surfs * 2 * sizeof (int));
+				cl.worldmodel->water_surfs[cl.worldmodel->used_water_surfs] = i;
+				++cl.worldmodel->used_water_surfs;
+			}
+	}
+
+	for (int j = 1; j < MAX_MODELS; j++)
+	{
+		qmodel_t *m = cl.model_precache[j];
 		if (!m)
 			break;
 		if (m->name[0] != '*')
 			continue;
 		R_CalcDeps (m, NULL);
 	}
+}
 
+/*
+==================
+GL_SetupLightmapCompute
+==================
+*/
+void GL_SetupLightmapCompute (void)
+{
 	GL_AllocateWorkgroupBoundsBuffers ();
 
 	//
 	// upload all lightmaps that were filled
 	//
-	for (i = 0; i < lightmap_count; i++)
+	for (int i = 0; i < lightmap_count; i++)
 	{
-		lm = &lightmaps[i];
-		for (j = 0; j < TASKS_MAX_WORKERS; ++j)
+		struct lightmap_s *lm = &lightmaps[i];
+		for (int j = 0; j < TASKS_MAX_WORKERS; ++j)
 			lm->modified[j] = 0;
 		lm->rectchange.l = LMBLOCK_WIDTH;
 		lm->rectchange.t = LMBLOCK_HEIGHT;
 		lm->rectchange.w = 0;
 		lm->rectchange.h = 0;
 
+		char name[32];
 		q_snprintf (name, sizeof (name), "lightmap_%07i", i);
+
 		lm->texture = TexMgr_LoadImage (
 			cl.worldmodel, name, LMBLOCK_WIDTH, LMBLOCK_HEIGHT, SRC_LIGHTMAP, lm->data, "", (src_offset_t)lm->data, TEXPREF_LINEAR | TEXPREF_NOPICMIP);
-		for (j = 0; j < MAXLIGHTMAPS * 3 / 4; ++j)
+		for (int j = 0; j < MAXLIGHTMAPS * 3 / 4; ++j)
 		{
 			q_snprintf (name, sizeof (name), "lightstyle%d_%07i", j, i);
 			int size_w = lightmaps[i].lightstyle_rectused[j + 1].w;
@@ -1701,11 +1718,11 @@ void GL_BuildLightmaps (void)
 		SAFE_FREE (lm->surface_indices);
 	}
 
-	for (i = 0; i < lightmap_count; i++)
+	for (int i = 0; i < lightmap_count; i++)
 	{
-		lm = &lightmaps[i];
+		struct lightmap_s *lm = &lightmaps[i];
 		lm->descriptor_set = R_AllocateDescriptorSet (&vulkan_globals.lightmap_compute_set_layout);
-		GL_SetObjectName ((uint64_t)lm->descriptor_set, VK_OBJECT_TYPE_DESCRIPTOR_SET, va ("%s compute desc set", name));
+		GL_SetObjectName ((uint64_t)lm->descriptor_set, VK_OBJECT_TYPE_DESCRIPTOR_SET, va ("lightmap%07i compute desc set", i));
 
 		{
 			VkCommandBuffer command_buffer;
@@ -1734,7 +1751,7 @@ void GL_BuildLightmaps (void)
 		surface_indices_image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
 		ZEROED_STRUCT_ARRAY (VkDescriptorImageInfo, lightmap_images_infos, MAXLIGHTMAPS * 3 / 4);
-		for (j = 0; j < MAXLIGHTMAPS * 3 / 4; ++j)
+		for (int j = 0; j < MAXLIGHTMAPS * 3 / 4; ++j)
 		{
 			lightmap_images_infos[j].imageView = lm->lightstyle_textures[j]->image_view;
 			lightmap_images_infos[j].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -1759,6 +1776,11 @@ void GL_BuildLightmaps (void)
 		lights_buffer_info.buffer = lights_buffer;
 		lights_buffer_info.offset = 0;
 		lights_buffer_info.range = MAX_DLIGHTS * sizeof (lm_compute_light_t);
+
+		ZEROED_STRUCT (VkDescriptorBufferInfo, world_vertex_buffer_info);
+		world_vertex_buffer_info.buffer = bmodel_vertex_buffer;
+		world_vertex_buffer_info.offset = 0;
+		world_vertex_buffer_info.range = VK_WHOLE_SIZE;
 
 		ZEROED_STRUCT_ARRAY (VkWriteDescriptorSet, writes, 8);
 		writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -1817,13 +1839,21 @@ void GL_BuildLightmaps (void)
 		writes[6].dstSet = lm->descriptor_set;
 		writes[6].pBufferInfo = &lights_buffer_info;
 
-		vkUpdateDescriptorSets (vulkan_globals.device, 7, writes, 0, NULL);
+		writes[7].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		writes[7].dstBinding = 7;
+		writes[7].dstArrayElement = 0;
+		writes[7].descriptorCount = 1;
+		writes[7].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+		writes[7].dstSet = lm->descriptor_set;
+		writes[7].pBufferInfo = &world_vertex_buffer_info;
+
+		vkUpdateDescriptorSets (vulkan_globals.device, countof (writes), writes, 0, NULL);
 	}
 
 	// johnfitz -- warn about exceeding old limits
 	// GLQuake limit was 64 textures of 128x128. Estimate how many 128x128 textures we would need
 	// given that we are using lightmap_count of LMBLOCK_WIDTH x LMBLOCK_HEIGHT
-	i = lightmap_count * ((LMBLOCK_WIDTH / 128) * (LMBLOCK_HEIGHT / 128));
+	int i = lightmap_count * ((LMBLOCK_WIDTH / 128) * (LMBLOCK_HEIGHT / 128));
 	if (i > 64)
 		Con_DWarning ("%i lightmaps exceeds standard limit of 64.\n", i);
 	// johnfitz
@@ -1837,6 +1867,11 @@ void GL_BuildLightmaps (void)
 =============================================================
 */
 
+/*
+==================
+GL_DeleteBModelVertexBuffer
+==================
+*/
 void GL_DeleteBModelVertexBuffer (void)
 {
 	GL_WaitForDeviceIdle ();
@@ -1893,8 +1928,9 @@ void GL_BuildBModelVertexBuffer (void)
 
 	// Allocate & upload to GPU
 	R_CreateBuffer (
-		&bmodel_vertex_buffer, &bmodel_memory, varray_bytes, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, &num_vulkan_bmodel_allocations, "BModel vertices");
+		&bmodel_vertex_buffer, &bmodel_memory, varray_bytes,
+		VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0,
+		&num_vulkan_bmodel_allocations, "BModel vertices");
 
 	remaining_size = varray_bytes;
 	copy_offset = 0;
@@ -2480,7 +2516,7 @@ void R_UpdateLightmapsAndIndirect (void *unused)
 		{
 			qboolean hit = true;
 
-			if (!r_dynamic.value || cl_dlights[i].die < cl.time || cl_dlights[i].radius == 0.0f)
+			if (!r_dynamic.value || cl_dlights[i].die < cl.time || cl_dlights[i].radius == 0.0f || (cl_dlights[i].radius < cl_dlights[i].minlight))
 				hit = false;
 			else
 			{

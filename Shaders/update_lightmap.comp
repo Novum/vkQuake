@@ -46,6 +46,17 @@ struct light_t
 	float minlight;
 };
 
+struct world_vert_t
+{
+	float x;
+	float y;
+	float z;
+	float u;
+	float v;
+	float s;
+	float t;
+};
+
 const uint	LIGHT_MASK_SIZE = (MAX_DLIGHTS + 31) / 32;
 shared uint light_mask[LIGHT_MASK_SIZE];
 
@@ -68,6 +79,10 @@ layout (std140, set = 0, binding = 6) uniform lights_buffer
 {
 	light_t lights[MAX_DLIGHTS];
 };
+layout (std430, set = 0, binding = 7) readonly restrict buffer world_verts_buffer
+{
+	world_vert_t world_verts[];
+};
 
 layout (constant_id = 0) const bool scaled_lm = false;
 
@@ -84,6 +99,31 @@ bool TestSphereAABB (light_t light, vec3 mins, vec3 maxs)
 			sq_dist += (v - maxs[i]) * (v - maxs[i]);
 	}
 	return sq_dist <= light.radius * light.radius;
+}
+
+vec3 CalculateWorldPos (const surface_t surf, const float s, const float t)
+{
+	const vec3 normal = vec3 (surf.normal_x, surf.normal_y, surf.normal_z);
+	const vec3 pos_edge1 = (abs (normal.x) > abs (normal.z)) ? vec3 (-normal.y, normal.x, 0.0f) : vec3 (0.0f, -normal.z, normal.y);
+	const vec3 pos_edge2 = cross (normal, pos_edge1);
+
+	const vec2 st_edge1 = vec2 (dot (pos_edge1, surf.vecs[0].xyz), dot (pos_edge1, surf.vecs[1].xyz));
+	const vec2 st_edge2 = vec2 (dot (pos_edge2, surf.vecs[0].xyz), dot (pos_edge2, surf.vecs[1].xyz));
+
+	const float scale = 16.0f / ((st_edge1.x * st_edge2.y) - (st_edge2.x * st_edge1.y));
+	const vec3	tangent = scale * vec3 (
+									  (st_edge2.y * pos_edge1.x) + (-st_edge1.y * pos_edge2.x), (st_edge2.y * pos_edge1.y) + (-st_edge1.y * pos_edge2.y),
+									  (st_edge2.y * pos_edge1.z) + (-st_edge1.y * pos_edge2.z));
+	const vec3 bitangent = scale * vec3 (
+									   (-st_edge2.x * pos_edge1.x) + (st_edge1.x * pos_edge2.x), (-st_edge2.x * pos_edge1.y) + (st_edge1.x * pos_edge2.y),
+									   (-st_edge2.x * pos_edge1.z) + (st_edge1.x * pos_edge2.z));
+
+	const world_vert_t vert = world_verts[surf.vbo_offset];
+	const vec3		   vert1_pos = vec3 (vert.x, vert.y, vert.z);
+	const float		   vert1_offset_s = -(dot (vert1_pos, surf.vecs[0].xyz) + surf.vecs[0].w) / 16.0f;
+	const float		   vert1_offset_t = -(dot (vert1_pos, surf.vecs[1].xyz) + surf.vecs[1].w) / 16.0f;
+
+	return vert1_pos + ((s + vert1_offset_s) * tangent) + ((t + vert1_offset_t) * bitangent);
 }
 
 layout (local_size_x = 8, local_size_y = 8) in;
@@ -156,30 +196,15 @@ void main ()
 			const uint light_index = (light_mask_index * 32) + light_offset;
 
 			const light_t light = lights[light_index];
-			const vec3	  surf_normal = vec3 (surf.normal_x, surf.normal_y, surf.normal_z);
+			const float	  s = float (gl_GlobalInvocationID.x - (surf.packed_light_st & 0xFFFF));
+			const float	  t = float (gl_GlobalInvocationID.y - (surf.packed_light_st >> 16));
+			const vec3	  world_pos = CalculateWorldPos (surf, s, t);
+			const float	  dist = length (world_pos - light.origin);
 
-			// Replicating the CPU code in R_AddDynamicLights
 			float rad = light.radius;
-			float dist = dot (light.origin, surf_normal) - surf.dist;
-			rad -= abs (dist);
 			float minlight = light.minlight;
-			if (rad <= minlight)
-				continue;
-			minlight = rad - minlight;
 
-			const vec3 impact = light.origin - (surf_normal * dist);
-			const vec2 local = vec2 (dot (impact, surf.vecs[0].xyz) + surf.vecs[0][3], dot (impact, surf.vecs[1].xyz) + surf.vecs[1][3]);
-			const uint s = gl_GlobalInvocationID.x - (surf.packed_light_st & 0xFFFF);
-			const uint t = gl_GlobalInvocationID.y - (surf.packed_light_st >> 16);
-
-			int td = abs (int (local.y) - int (t * 16));
-			int sd = abs (int (local.x) - int (s * 16));
-			if (sd > td)
-				dist = sd + (td >> 1);
-			else
-				dist = td + (sd >> 1);
-
-			if (dist < minlight)
+			if (dist < (rad - minlight))
 			{
 				float brightness = (rad - dist) / 256.0f;
 				light_accumulated.xyz += brightness * light.color;
