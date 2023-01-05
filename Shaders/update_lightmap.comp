@@ -186,37 +186,37 @@ void main ()
 			light_accumulated += scale * fourth_lightmap;
 	}
 
-	bool need_world_pos = false;
-	vec3 world_pos;
+	bool dlights = false;
 	for (uint light_mask_index = 0; light_mask_index < LIGHT_MASK_SIZE; ++light_mask_index)
 		if (light_mask[light_mask_index] != 0)
-			need_world_pos = true;
-	if (need_world_pos)
+			dlights = true;
+
+	if (dlights)
 	{
 		const float s = float (gl_GlobalInvocationID.x - (surf.packed_light_st & 0xFFFF));
 		const float t = float (gl_GlobalInvocationID.y - (surf.packed_light_st >> 16));
-		world_pos = CalculateWorldPos (surf, s, t);
-	}
+		const vec3	world_pos = CalculateWorldPos (surf, s, t);
 
-	for (uint light_mask_index = 0; light_mask_index < LIGHT_MASK_SIZE; ++light_mask_index)
-	{
-		uint mask = light_mask[light_mask_index];
-		while (mask != 0)
+		for (uint light_mask_index = 0; light_mask_index < LIGHT_MASK_SIZE; ++light_mask_index)
 		{
-			const uint light_offset = findLSB (mask);
-			mask &= ~(1u << light_offset);
-			const uint light_index = (light_mask_index * 32) + light_offset;
-
-			const light_t light = lights[light_index];
-			const float	  dist = length (world_pos - light.origin);
-
-			float rad = light.radius;
-			float minlight = light.minlight;
-
-			if (dist < (rad - minlight))
+			uint mask = light_mask[light_mask_index];
+			while (mask != 0)
 			{
-				float brightness = (rad - dist) / 256.0f;
-				light_accumulated.xyz += brightness * light.color;
+				const uint light_offset = findLSB (mask);
+				mask &= ~(1u << light_offset);
+				const uint light_index = (light_mask_index * 32) + light_offset;
+
+				const light_t light = lights[light_index];
+				const float	  dist = length (world_pos - light.origin);
+
+				float rad = light.radius;
+				float minlight = light.minlight;
+
+				if (dist < (rad - minlight))
+				{
+					float brightness = (rad - dist) / 256.0f;
+					light_accumulated.xyz += brightness * light.color;
+				}
 			}
 		}
 	}
