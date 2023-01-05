@@ -186,6 +186,10 @@ void main ()
 			light_accumulated += scale * fourth_lightmap;
 	}
 
+	const float s = float (gl_GlobalInvocationID.x - (surf.packed_light_st & 0xFFFF));
+	const float t = float (gl_GlobalInvocationID.y - (surf.packed_light_st >> 16));
+	const vec3	world_pos = CalculateWorldPos (surf, s, t);
+
 	for (uint light_mask_index = 0; light_mask_index < LIGHT_MASK_SIZE; ++light_mask_index)
 	{
 		uint mask = light_mask[light_mask_index];
@@ -196,9 +200,6 @@ void main ()
 			const uint light_index = (light_mask_index * 32) + light_offset;
 
 			const light_t light = lights[light_index];
-			const float	  s = float (gl_GlobalInvocationID.x - (surf.packed_light_st & 0xFFFF));
-			const float	  t = float (gl_GlobalInvocationID.y - (surf.packed_light_st >> 16));
-			const vec3	  world_pos = CalculateWorldPos (surf, s, t);
 			const float	  dist = length (world_pos - light.origin);
 
 			float rad = light.radius;
