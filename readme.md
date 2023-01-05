@@ -25,7 +25,8 @@ Copy all files inside the `vkquake-<version>_win64` or `vkquake-<version>_win32`
 ## Linux
 Copy all files inside the `vkquake-<version>-linux64` folder in the tar archive to the Quake base directory. Overwrite any existing files. Run `vkquake.AppImage`.
 
-> 📝 **Note**: Make sure all data files are lowercase, e.g. "id1", not "ID1" and "pak0.pak", not "PAK0.PAK". Some distributions of the game have upper case file names, e.g. from GOG.com.
+> **Note**\
+> Make sure all data files are lowercase, e.g. "id1", not "ID1" and "pak0.pak", not "PAK0.PAK". Some distributions of the game have upper case file names, e.g. from GOG.com.
 
 ## OpenBSD
 
@@ -80,7 +81,8 @@ Arch Linux:
 pacman -S git meson flac glibc libgl libmad libvorbis libx11 sdl2 vulkan-headers glslang spirv-tools
 ~~~
 
-> 📝 **Note**: For vkquake > v0.50, you will need at least v1.0.12.0 of libvulkan-dev (See [#55](https://github.com/Novum/vkQuake/issues/55)).
+> **Note**\
+> For vkquake > v0.50, you will need at least v1.0.12.0 of libvulkan-dev (See [#55](https://github.com/Novum/vkQuake/issues/55)).
 
 Then clone the vkQuake repo:
 
@@ -95,14 +97,16 @@ cd vkQuake
 meson build && ninja -C build
 ~~~
 
-> 📝 **Note**: The Meson version needs to be 0.47.0 or newer. For older distributions you can use make:
+> **Note**\
+> The Meson version needs to be 0.47.0 or newer. For older distributions you can use make:
 > ~~~
 > cd vkQuake/Quake
 > make -j
 > ~~~
 > Meson is the preferred way to build vkQuake because it automatically checks for out of date file depenencies, is faster and has better error reporting for missing dependencies.
 
-> 📝 **Note**: vkQuake 0.97 and later requires at least **SDL2 2.0.6 with enabled Vulkan support**. The precompiled versions in some of the distribution repositories (e.g. Ubuntu) do not currently ship with Vulkan support. You will therefore need to compile it from source. Make sure you have libvulkan-dev installed before running configure.
+> **Note**\
+> vkQuake 0.97 and later requires at least **SDL2 2.0.6 with enabled Vulkan support**. The precompiled versions in some of the distribution repositories (e.g. Ubuntu) do not currently ship with Vulkan support. You will therefore need to compile it from source. Make sure you have libvulkan-dev installed before running configure.
 
 ## MacOS
 
@@ -125,7 +129,8 @@ cd vkQuake
 meson build && ninja -C build
 ~~~
 
-> 📝 **Note**: The Meson version needs to be 0.47.0 or newer.
+> **Note**\
+> The Meson version needs to be 0.47.0 or newer.
 
 ### MinGW
 
@@ -168,7 +173,8 @@ Then vkQuake is ready to play.
 
 # Optional - Music / Soundtrack
 
-> 📝 **Note**: This section only applies to older releases. For the 2021 re-release music will work out of the box.
+> **Note**\
+> This section only applies to older releases. For the 2021 re-release music will work out of the box.
 
 The original Quake had a great soundtrack by Nine Inch Nails. Unfortunately, the Steam version does not come with the soundtrack files. The GOG-provided files need to be converted before they are ready for use. In general, you'll just need to move a "music" folder to the correct location within your vkQuake installation (.e.g `/usr/share/quake/id1/music`). Most Quake engines play nicest with soundtracks placed in the `id1/music` subfolder vs. `sound\cdtracks`
 
