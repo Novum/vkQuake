@@ -440,6 +440,9 @@ extern int gl_lightmap_format;
 		 // uploading...)
 #define LMBLOCK_HEIGHT 1024 // Alternatively, use texture arrays, which would avoid the need to switch textures as often.
 
+#define LM_CULL_BLOCK_W 128
+#define LM_CULL_BLOCK_H 256
+
 typedef struct lm_compute_workgroup_bounds_s
 {
 	float mins[3];
@@ -467,9 +470,9 @@ struct lightmap_s
 	glRect_t	rectchange;
 	glMaxUsed_t lightstyle_rectused[1 + MAXLIGHTMAPS * 3 / 4]; // [0]: surface_indices; [1,2,3]: lightstyle_textures[0,1,2]
 
-	lm_compute_workgroup_bounds_t global_bounds;
-	byte						  active_dlights[MAX_DLIGHTS];
-	byte						  used_lightstyles[MAX_LIGHTSTYLES];
+	lm_compute_workgroup_bounds_t global_bounds[LMBLOCK_HEIGHT / LM_CULL_BLOCK_H][LMBLOCK_WIDTH / LM_CULL_BLOCK_W];
+	byte						  active_dlights[LMBLOCK_HEIGHT / LM_CULL_BLOCK_H][LMBLOCK_WIDTH / LM_CULL_BLOCK_W][MAX_DLIGHTS];
+	byte						  used_lightstyles[LMBLOCK_HEIGHT / LM_CULL_BLOCK_H][LMBLOCK_WIDTH / LM_CULL_BLOCK_W][MAX_LIGHTSTYLES];
 	int							  cached_light[MAX_LIGHTSTYLES];
 
 	// the lightmap texture data needs to be kept in

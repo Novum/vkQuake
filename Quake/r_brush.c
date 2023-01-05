@@ -798,7 +798,7 @@ AllocBlock -- returns a texture number and the position inside it
 */
 static int AllocBlock (int w, int h, int *x, int *y)
 {
-	int i, j;
+	int i, j, k, l;
 	int texnum;
 
 	for (texnum = last_lightmap_allocated; texnum < MAX_SANITY_LIGHTMAPS; texnum++)
@@ -822,11 +822,13 @@ static int AllocBlock (int w, int h, int *x, int *y)
 					lightmaps[texnum].workgroup_bounds[i].maxs[j] = -FLT_MAX;
 				}
 			}
-			for (j = 0; j < 3; ++j)
-			{
-				lightmaps[texnum].global_bounds.mins[j] = FLT_MAX;
-				lightmaps[texnum].global_bounds.maxs[j] = -FLT_MAX;
-			}
+			for (l = 0; l < LMBLOCK_HEIGHT / LM_CULL_BLOCK_H; l++)
+				for (k = 0; l < LMBLOCK_WIDTH / LM_CULL_BLOCK_W; l++)
+					for (j = 0; j < 3; ++j)
+					{
+						lightmaps[texnum].global_bounds[l][k].mins[j] = FLT_MAX;
+						lightmaps[texnum].global_bounds[l][k].maxs[j] = -FLT_MAX;
+					}
 			memset (lightmaps[texnum].cached_light, -1, sizeof (lightmaps[texnum].cached_light));
 			memset (used_columns[texnum], 0, sizeof (used_columns[texnum]));
 			last_lightmap_allocated = texnum;
@@ -907,7 +909,10 @@ static void R_FillLightstyleTextures (msurface_t *surf, byte **lightstyles, int 
 	{
 		for (maps = 0; maps < MAXLIGHTMAPS && surf->styles[maps] != 255; ++maps)
 		{
-			lightmaps[surf->lightmaptexturenum].used_lightstyles[surf->styles[maps]] = true;
+			for (int s = 0; s < smax; s += CLAMP (1, smax - s - 1, 8))
+				for (int t = 0; t < tmax; t += CLAMP (1, tmax - t - 1, 8))
+					lightmaps[surf->lightmaptexturenum]
+						.used_lightstyles[(surf->light_t + t) / LM_CULL_BLOCK_H][(surf->light_s + s) / LM_CULL_BLOCK_W][surf->styles[maps]] = true;
 			if (maps % 4 != 3)
 			{
 				byte *outptr = lightstyles[maps / 4 * 3 + maps % 4];
@@ -949,7 +954,7 @@ FIXME: This doesn't account for moving bmodels
 static void R_AssignWorkgroupBounds (msurface_t *surf)
 {
 	lm_compute_workgroup_bounds_t *bounds = lightmaps[surf->lightmaptexturenum].workgroup_bounds;
-	lm_compute_workgroup_bounds_t *global_bounds = &lightmaps[surf->lightmaptexturenum].global_bounds;
+	lm_compute_workgroup_bounds_t *global = &lightmaps[surf->lightmaptexturenum].global_bounds[0][0];
 	const int					   smax = (surf->extents[0] >> 4) + 1;
 	const int					   tmax = (surf->extents[1] >> 4) + 1;
 
@@ -972,13 +977,16 @@ static void R_AssignWorkgroupBounds (msurface_t *surf)
 		}
 	}
 
-	for (int s = 0; s < smax; ++s)
+	for (int s = 0; s < smax; s += CLAMP (1, smax - s - 1, 8))
 	{
-		for (int t = 0; t < tmax; ++t)
+		for (int t = 0; t < tmax; t += CLAMP (1, tmax - t - 1, 8))
 		{
 			const int					   workgroup_x = (surf->light_s + s) / 8;
 			const int					   workgroup_y = (surf->light_t + t) / 8;
 			lm_compute_workgroup_bounds_t *workgroup_bounds = bounds + workgroup_x + (workgroup_y * (LMBLOCK_WIDTH / 8));
+			const int					   cullblock_x = (surf->light_s + s) / LM_CULL_BLOCK_W;
+			const int					   cullblock_y = (surf->light_t + t) / LM_CULL_BLOCK_H;
+			lm_compute_workgroup_bounds_t *global_bounds = global + cullblock_x + (cullblock_y * (LMBLOCK_WIDTH / LM_CULL_BLOCK_W));
 			for (int i = 0; i < 3; ++i)
 			{
 				if (surf_bounds.mins[i] < workgroup_bounds->mins[i])
@@ -2389,9 +2397,10 @@ static void R_UploadLightmap (int lmap, gltexture_t *lightmap_tex)
 R_FlushUpdateLightmaps
 =============
 */
+#define UPDATE_LIGHTMAP_BATCH_SIZE 64
 void R_FlushUpdateLightmaps (
 	cb_context_t *cbx, int num_batch_lightmaps, VkImageMemoryBarrier *pre_barriers, VkImageMemoryBarrier *post_barriers, int *lightmap_indexes,
-	int num_used_dlights)
+	int num_used_dlights, byte lightmap_regions[UPDATE_LIGHTMAP_BATCH_SIZE][LMBLOCK_HEIGHT / LM_CULL_BLOCK_H][LMBLOCK_WIDTH / LM_CULL_BLOCK_W])
 {
 	vkCmdPipelineBarrier (
 		cbx->cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, NULL, 0, NULL, num_batch_lightmaps, pre_barriers);
@@ -2404,7 +2413,41 @@ void R_FlushUpdateLightmaps (
 	{
 		VkDescriptorSet sets[1] = {lightmaps[lightmap_indexes[j]].descriptor_set};
 		vkCmdBindDescriptorSets (cbx->cb, VK_PIPELINE_BIND_POINT_COMPUTE, vulkan_globals.update_lightmap_pipeline.layout.handle, 0, 1, sets, 2, offsets);
-		vkCmdDispatch (cbx->cb, lightmaps[lightmap_indexes[j]].lightstyle_rectused[0].w / 8, lightmaps[lightmap_indexes[j]].lightstyle_rectused[0].h / 8, 1);
+		for (int y = 0; y < LMBLOCK_HEIGHT / LM_CULL_BLOCK_H; y++)
+			for (int x = 0; x < LMBLOCK_WIDTH / LM_CULL_BLOCK_W; x++)
+				if (lightmap_regions[j][y][x])
+				{
+					int w = 1;
+					int h = 1;
+					while (x + w < LMBLOCK_WIDTH / LM_CULL_BLOCK_W && lightmap_regions[j][y][x + w])
+					{
+						lightmap_regions[j][y][x + w] = false;
+						w += 1;
+					}
+					while (y + h < LMBLOCK_HEIGHT / LM_CULL_BLOCK_H && lightmap_regions[j][y + h][x])
+					{
+						qboolean ok = true;
+						for (int i = x + 1; i < x + w; i++)
+							if (!lightmap_regions[j][y + h][i])
+							{
+								ok = false;
+								break;
+							}
+						if (!ok)
+							break;
+						if (x > 0 && lightmap_regions[j][y + h][x - 1] && x + w < LMBLOCK_WIDTH / LM_CULL_BLOCK_W && lightmap_regions[j][y + h][x + w])
+							break; // don't split if it continues both sides, (locally) turns 2 rectangles into 3
+						for (int i = x; i < x + w; i++)
+							lightmap_regions[j][y + h][i] = false;
+						h += 1;
+					}
+					push_constants[0] = x * LM_CULL_BLOCK_W / 8;
+					push_constants[1] = y * LM_CULL_BLOCK_H / 8;
+					R_PushConstants (cbx, VK_SHADER_STAGE_COMPUTE_BIT, 2 * sizeof (uint32_t), 2 * sizeof (uint32_t), push_constants);
+					w = q_min (lightmaps[lightmap_indexes[j]].lightstyle_rectused[0].w / 8 - push_constants[0], w * LM_CULL_BLOCK_W / 8);
+					h = q_min (lightmaps[lightmap_indexes[j]].lightstyle_rectused[0].h / 8 - push_constants[1], h * LM_CULL_BLOCK_H / 8);
+					vkCmdDispatch (cbx->cb, w, h, 1);
+				}
 	}
 
 	vkCmdPipelineBarrier (
@@ -2466,8 +2509,6 @@ R_UpdateLightmapsAndIndirect
 */
 void R_UpdateLightmapsAndIndirect (void *unused)
 {
-#define UPDATE_LIGHTMAP_BATCH_SIZE 64
-
 	cb_context_t *cbx = &vulkan_globals.secondary_cb_contexts[CBX_UPDATE_LIGHTMAPS];
 	R_BeginDebugUtilsLabel (cbx, "Update Lightmaps");
 
@@ -2491,12 +2532,15 @@ void R_UpdateLightmapsAndIndirect (void *unused)
 	VkImageMemoryBarrier pre_lm_image_barriers[UPDATE_LIGHTMAP_BATCH_SIZE];
 	VkImageMemoryBarrier post_lm_image_barriers[UPDATE_LIGHTMAP_BATCH_SIZE];
 	int					 lightmap_indexes[UPDATE_LIGHTMAP_BATCH_SIZE];
+	byte				 lightmap_regions[UPDATE_LIGHTMAP_BATCH_SIZE][LMBLOCK_HEIGHT / LM_CULL_BLOCK_H][LMBLOCK_WIDTH / LM_CULL_BLOCK_W];
 	int					 num_used_dlights = 0;
 
 	for (int lightmap_index = 0; lightmap_index < lightmap_count; ++lightmap_index)
 	{
 		struct lightmap_s *lm = &lightmaps[lightmap_index];
 		uint32_t		   modified = 0;
+		byte			   regions[LMBLOCK_HEIGHT / LM_CULL_BLOCK_H][LMBLOCK_WIDTH / LM_CULL_BLOCK_W];
+		memset (regions, 0, sizeof (regions));
 		for (int i = 0; i < TASKS_MAX_WORKERS; ++i)
 		{
 			modified |= lm->modified[i];
@@ -2505,50 +2549,60 @@ void R_UpdateLightmapsAndIndirect (void *unused)
 		if (modified == 0)
 			continue;
 
-		qboolean needs_update = false;
-		for (int i = 0; i < MAX_LIGHTSTYLES; i++)
-			if (lm->used_lightstyles[i] && modified & 1 << (i < 16 ? i : i % 16 + 16) && lm->cached_light[i] != d_lightstylevalue[i])
+		qboolean any_needs_update = false;
+		for (int y = 0; y < LMBLOCK_HEIGHT / LM_CULL_BLOCK_H; y++)
+			for (int x = 0; x < LMBLOCK_WIDTH / LM_CULL_BLOCK_W; x++)
 			{
-				needs_update = true;
-				break;
-			}
-		for (int i = 0; i < MAX_DLIGHTS; i++)
-		{
-			qboolean hit = true;
-
-			if (!r_dynamic.value || cl_dlights[i].die < cl.time || cl_dlights[i].radius == 0.0f || (cl_dlights[i].radius < cl_dlights[i].minlight))
-				hit = false;
-			else
-			{
-				num_used_dlights = i + 1;
-				float sq_dist = 0.0f;
-				for (int j = 0; j < 3; j++)
+				qboolean needs_update = false;
+				for (int i = 0; i < MAX_LIGHTSTYLES; i++)
+					if (lm->used_lightstyles[y][x][i] && modified & 1 << (i < 16 ? i : i % 16 + 16) && lm->cached_light[i] != d_lightstylevalue[i])
+					{
+						needs_update = true;
+						break;
+					}
+				for (int i = 0; i < MAX_DLIGHTS; i++)
 				{
-					float v = cl_dlights[i].origin[j];
-					float mins = lm->global_bounds.mins[j];
-					float maxs = lm->global_bounds.maxs[j];
+					qboolean hit = true;
 
-					if (v < mins)
-						sq_dist += (mins - v) * (mins - v);
-					if (v > maxs)
-						sq_dist += (v - maxs) * (v - maxs);
+					if (!r_dynamic.value || cl_dlights[i].die < cl.time || cl_dlights[i].radius == 0.0f || (cl_dlights[i].radius < cl_dlights[i].minlight))
+						hit = false;
+					else
+					{
+						num_used_dlights = i + 1;
+						float sq_dist = 0.0f;
+						for (int j = 0; j < 3; j++)
+						{
+							float v = cl_dlights[i].origin[j];
+							float mins = lm->global_bounds[y][x].mins[j];
+							float maxs = lm->global_bounds[y][x].maxs[j];
+
+							if (v < mins)
+								sq_dist += (mins - v) * (mins - v);
+							if (v > maxs)
+								sq_dist += (v - maxs) * (v - maxs);
+						}
+
+						if (sq_dist > cl_dlights[i].radius * cl_dlights[i].radius)
+							hit = false;
+					}
+					if (hit)
+					{
+						needs_update = true;
+						lm->active_dlights[y][x][i] = true;
+					}
+					else if (lm->active_dlights[y][x][i])
+					{
+						needs_update = true;
+						lm->active_dlights[y][x][i] = false;
+					}
 				}
-
-				if (sq_dist > cl_dlights[i].radius * cl_dlights[i].radius)
-					hit = false;
+				if (needs_update)
+				{
+					any_needs_update = true;
+					regions[y][x] = true;
+				}
 			}
-			if (hit)
-			{
-				needs_update = true;
-				lm->active_dlights[i] = true;
-			}
-			else if (lm->active_dlights[i])
-			{
-				needs_update = true;
-				lm->active_dlights[i] = false;
-			}
-		}
-		if (!needs_update)
+		if (!any_needs_update)
 			continue;
 		else
 			for (int i = 0; i < MAX_LIGHTSTYLES; i++)
@@ -2556,13 +2610,14 @@ void R_UpdateLightmapsAndIndirect (void *unused)
 
 		int batch_index = num_batch_lightmaps++;
 		lightmap_indexes[batch_index] = lightmap_index;
+		memcpy (lightmap_regions[batch_index], regions, sizeof (regions));
 
 		VkImageMemoryBarrier *pre_barrier = &pre_lm_image_barriers[batch_index];
 		pre_barrier->sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 		pre_barrier->pNext = NULL;
 		pre_barrier->srcAccessMask = 0;
 		pre_barrier->dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-		pre_barrier->oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		pre_barrier->oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 		pre_barrier->newLayout = VK_IMAGE_LAYOUT_GENERAL;
 		pre_barrier->srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 		pre_barrier->dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
@@ -2591,7 +2646,8 @@ void R_UpdateLightmapsAndIndirect (void *unused)
 
 		if (num_batch_lightmaps == UPDATE_LIGHTMAP_BATCH_SIZE)
 		{
-			R_FlushUpdateLightmaps (cbx, num_batch_lightmaps, pre_lm_image_barriers, post_lm_image_barriers, lightmap_indexes, num_used_dlights);
+			R_FlushUpdateLightmaps (
+				cbx, num_batch_lightmaps, pre_lm_image_barriers, post_lm_image_barriers, lightmap_indexes, num_used_dlights, lightmap_regions);
 			num_lightmaps += num_batch_lightmaps;
 			num_batch_lightmaps = 0;
 		}
@@ -2599,7 +2655,7 @@ void R_UpdateLightmapsAndIndirect (void *unused)
 
 	if (num_batch_lightmaps > 0)
 	{
-		R_FlushUpdateLightmaps (cbx, num_batch_lightmaps, pre_lm_image_barriers, post_lm_image_barriers, lightmap_indexes, num_used_dlights);
+		R_FlushUpdateLightmaps (cbx, num_batch_lightmaps, pre_lm_image_barriers, post_lm_image_barriers, lightmap_indexes, num_used_dlights, lightmap_regions);
 		num_lightmaps += num_batch_lightmaps;
 	}
 

@@ -12,6 +12,8 @@ layout (push_constant) uniform PushConsts
 {
 	uint num_dlights;
 	uint lightmap_width;
+	uint x_workgroup_offset;
+	uint y_workgroup_offset;
 }
 push_constants;
 
@@ -135,7 +137,8 @@ void main ()
 
 	barrier ();
 
-	const uint workgroup_index = gl_WorkGroupID.x + ((push_constants.lightmap_width / 8) * gl_WorkGroupID.y);
+	const uint workgroup_index =
+		gl_WorkGroupID.x + push_constants.x_workgroup_offset + ((push_constants.lightmap_width / 8) * (gl_WorkGroupID.y + push_constants.y_workgroup_offset));
 	const uint num_cull_iterations = (MAX_DLIGHTS + workgroup_size - 1) / workgroup_size;
 	for (uint iter = 0; iter < num_cull_iterations; ++iter)
 	{
@@ -156,7 +159,9 @@ void main ()
 
 	barrier ();
 
-	const uint surface_index = texelFetch (surface_indices, ivec2 (gl_GlobalInvocationID.xy), 0).x;
+	const ivec2 coords =
+		ivec2 (gl_GlobalInvocationID.x + push_constants.x_workgroup_offset * 8, gl_GlobalInvocationID.y + push_constants.y_workgroup_offset * 8);
+	const uint surface_index = texelFetch (surface_indices, coords, 0).x;
 
 	// Early out if no surface for lightmap texel
 	if (surface_index == 0xFFFFFFFF)
@@ -178,7 +183,7 @@ void main ()
 		const float scale = lightstyle_scales[style / 4][style % 4];
 		if (i < 3)
 		{
-			const vec4 sample_tex = texelFetch (lightstyles_textures[i], ivec2 (gl_GlobalInvocationID.xy), 0);
+			const vec4 sample_tex = texelFetch (lightstyles_textures[i], coords, 0);
 			light_accumulated += scale * sample_tex.xyz;
 			fourth_lightmap[i] = sample_tex.w;
 		}
@@ -193,8 +198,8 @@ void main ()
 
 	if (dlights)
 	{
-		const float s = float (gl_GlobalInvocationID.x - (surf.packed_light_st & 0xFFFF));
-		const float t = float (gl_GlobalInvocationID.y - (surf.packed_light_st >> 16));
+		const float s = float (coords.x - (surf.packed_light_st & 0xFFFF));
+		const float t = float (coords.y - (surf.packed_light_st >> 16));
 		const vec3	world_pos = CalculateWorldPos (surf, s, t);
 
 		for (uint light_mask_index = 0; light_mask_index < LIGHT_MASK_SIZE; ++light_mask_index)
@@ -223,5 +228,5 @@ void main ()
 
 	if (scaled_lm)
 		light_accumulated *= 0.25f;
-	imageStore (output_image, ivec2 (gl_GlobalInvocationID.xy), vec4 (light_accumulated, 0.0f));
+	imageStore (output_image, coords, vec4 (light_accumulated, 0.0f));
 }
