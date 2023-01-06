@@ -823,7 +823,7 @@ static int AllocBlock (int w, int h, int *x, int *y)
 				}
 			}
 			for (l = 0; l < LMBLOCK_HEIGHT / LM_CULL_BLOCK_H; l++)
-				for (k = 0; l < LMBLOCK_WIDTH / LM_CULL_BLOCK_W; l++)
+				for (k = 0; k < LMBLOCK_WIDTH / LM_CULL_BLOCK_W; k++)
 					for (j = 0; j < 3; ++j)
 					{
 						lightmaps[texnum].global_bounds[l][k].mins[j] = FLT_MAX;
