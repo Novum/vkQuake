@@ -1384,24 +1384,37 @@ static void R_UploadVisibility (byte *data, uint32_t size)
 ===============
 GL_SortSurfaces
 
-Sorts surfs by number of used lightstyles, then allocates lm blocks in that order and sets image bounds
+Sorts surfs by number of used lightstyles and 3D position, then allocates lm blocks in that order and sets image bounds
 ===============
 */
 typedef struct
 {
 	msurface_t *surf;
-	int			used_lightstyles;
+	unsigned	sortkey;
 } surf_sort;
 
-void GL_SortSurfaces (void)
+static int prepare_3d_interleave (int x) // bin x..xabcdefghij --> 0000a00b00c00d00e00f00g00h00i00j
 {
-	int			i, j;
+	x = (x | (x << 16)) & 0x030000FF;
+	x = (x | (x << 8)) & 0x0300F00F;
+	x = (x | (x << 4)) & 0x030C30C3;
+	x = (x | (x << 2)) & 0x09249249;
+	return x;
+}
+
+static void GL_SortSurfaces (void)
+{
+	int			i;
+	unsigned	j;
 	msurface_t *surf;
 	surf_sort  *surfs;
 	TEMP_ALLOC (surf_sort, surfs, num_surfaces * 2);
 	int used_surfs = 0;
-	int sort_bins[4];
+	int sort_bins[4][256];
 	memset (sort_bins, 0, sizeof (sort_bins));
+	float scale_x = 500.0f / q_max (1.0f, q_max (fabsf (cl.worldmodel->mins[0]), fabsf (cl.worldmodel->maxs[0])));
+	float scale_y = 500.0f / q_max (1.0f, q_max (fabsf (cl.worldmodel->mins[1]), fabsf (cl.worldmodel->maxs[1])));
+	float scale_z = 500.0f / q_max (1.0f, q_max (fabsf (cl.worldmodel->mins[2]), fabsf (cl.worldmodel->maxs[2])));
 	for (j = 1; j < MAX_MODELS; j++)
 	{
 		qmodel_t *m = cl.model_precache[j];
@@ -1414,29 +1427,58 @@ void GL_SortSurfaces (void)
 			surf = &m->surfaces[i];
 			if (!(surf->flags & SURF_DRAWTILED))
 			{
+				int		 lindex = m->surfedges[surf->firstedge];
+				float	*vec;
+				medge_t *pedges, *r_pedge;
+				pedges = m->edges;
+
+				if (lindex > 0)
+				{
+					r_pedge = &pedges[lindex];
+					vec = m->vertexes[r_pedge->v[0]].position;
+				}
+				else
+				{
+					r_pedge = &pedges[-lindex];
+					vec = m->vertexes[r_pedge->v[1]].position;
+				}
+
+				int x = prepare_3d_interleave (((int)(vec[0] * scale_x)) + (1 << 9));
+				int y = prepare_3d_interleave (((int)(vec[1] * scale_y)) + (1 << 9));
+				int z = prepare_3d_interleave (((int)(vec[2] * scale_z)) + (1 << 9));
+
 				unsigned last_lightstyle;
 				for (last_lightstyle = 0; last_lightstyle < 3; last_lightstyle++) // saturate at 3, not 4
 					if (surf->styles[last_lightstyle] == 0xFF)
 						break;
-				surfs[num_surfaces + used_surfs].surf = surf;
-				surfs[num_surfaces + used_surfs++].used_lightstyles = last_lightstyle;
-				sort_bins[last_lightstyle] += 1;
+				surfs[used_surfs].surf = surf;
+				unsigned sortkey = (3 - last_lightstyle) << 30 | z | y << 1 | x << 2;
+				surfs[used_surfs++].sortkey = sortkey;
+				sort_bins[3][(sortkey >> 24) % 256] += 1;
+				sort_bins[2][(sortkey >> 16) % 256] += 1;
+				sort_bins[1][(sortkey >> 8) % 256] += 1;
+				sort_bins[0][(sortkey >> 0) % 256] += 1;
 			}
 		}
 	}
-	for (i = 3 - 1; i >= 0; --i)
-		sort_bins[i] += sort_bins[i + 1];
-	for (i = used_surfs - 1; i >= 0; --i)
+	for (int pass = 0; pass < 4; ++pass)
 	{
-		int key = surfs[num_surfaces + i].used_lightstyles;
-		sort_bins[key] -= 1;
-		surfs[sort_bins[key]] = surfs[num_surfaces + i];
+		surf_sort *from = pass % 2 ? surfs + num_surfaces : surfs;
+		surf_sort *to = pass % 2 ? surfs : surfs + num_surfaces;
+		for (i = 1; i < 256; ++i)
+			sort_bins[pass][i] += sort_bins[pass][i - 1];
+		for (i = used_surfs - 1; i >= 0; --i)
+		{
+			int key = (from[i].sortkey >> 8 * pass) % 256;
+			sort_bins[pass][key] -= 1;
+			to[sort_bins[pass][key]] = from[i];
+		}
 	}
 	for (i = 0; i < used_surfs; ++i)
 	{
 		surf = surfs[i].surf;
 		surf->lightmaptexturenum = AllocBlock ((surf->extents[0] >> 4) + 1, (surf->extents[1] >> 4) + 1, &surf->light_s, &surf->light_t);
-		for (j = 0; j < surfs[i].used_lightstyles + 1; j++)
+		for (j = 0; j < (3 - (surfs[i].sortkey >> 30)) + 1; j++)
 		{
 			unsigned short *w = &lightmaps[surf->lightmaptexturenum].lightstyle_rectused[j].w;
 			unsigned short *h = &lightmaps[surf->lightmaptexturenum].lightstyle_rectused[j].h;
