@@ -2600,6 +2600,7 @@ void R_UpdateLightmapsAndIndirect (void *unused)
 				{
 					any_needs_update = true;
 					regions[y][x] = true;
+					num_lightmaps += 1;
 				}
 			}
 		if (!any_needs_update)
@@ -2648,16 +2649,12 @@ void R_UpdateLightmapsAndIndirect (void *unused)
 		{
 			R_FlushUpdateLightmaps (
 				cbx, num_batch_lightmaps, pre_lm_image_barriers, post_lm_image_barriers, lightmap_indexes, num_used_dlights, lightmap_regions);
-			num_lightmaps += num_batch_lightmaps;
 			num_batch_lightmaps = 0;
 		}
 	}
 
 	if (num_batch_lightmaps > 0)
-	{
 		R_FlushUpdateLightmaps (cbx, num_batch_lightmaps, pre_lm_image_barriers, post_lm_image_barriers, lightmap_indexes, num_used_dlights, lightmap_regions);
-		num_lightmaps += num_batch_lightmaps;
-	}
 
 	Atomic_AddUInt32 (&rs_dynamiclightmaps, num_lightmaps);
 

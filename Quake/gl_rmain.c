@@ -871,6 +871,9 @@ static void R_PrintStats (double time1)
 {
 	// johnfitz -- modified r_speeds output
 	double time2 = 0;
+	double lms = r_gpulightmapupdate.value
+					 ? (double)Atomic_LoadUInt32 (&rs_dynamiclightmaps) / (LMBLOCK_HEIGHT / LM_CULL_BLOCK_H * LMBLOCK_WIDTH / LM_CULL_BLOCK_W)
+					 : Atomic_LoadUInt32 (&rs_dynamiclightmaps);
 	if (r_speeds.value)
 		time2 = Sys_DoubleTime ();
 	if (r_pos.value)
@@ -879,10 +882,10 @@ static void R_PrintStats (double time1)
 			(int)cl.entities[cl.viewentity].origin[2], (int)cl.viewangles[PITCH], (int)cl.viewangles[YAW], (int)cl.viewangles[ROLL]);
 	else if (r_speeds.value == 2)
 		Con_Printf (
-			"%6.3f ms  %4u/%4u wpoly %4u/%4u epoly %3u lmap %4u skypoly\n", (time2 - time1) * 1000.0, rs_brushpolys, rs_brushpasses, rs_aliaspolys,
-			rs_aliaspasses, rs_dynamiclightmaps, rs_skypolys);
+			"%6.3f ms  %4u/%4u wpoly %4u/%4u epoly %5.3g lmap %4u skypoly\n", (time2 - time1) * 1000.0, rs_brushpolys, rs_brushpasses, rs_aliaspolys,
+			rs_aliaspasses, lms, rs_skypolys);
 	else if (r_speeds.value)
-		Con_Printf ("%3i ms  %4i wpoly %4i epoly %3i lmap\n", (int)((time2 - time1) * 1000), rs_brushpolys, rs_aliaspolys, rs_dynamiclightmaps);
+		Con_Printf ("%3i ms  %4i wpoly %4i epoly %5.3g lmap\n", (int)((time2 - time1) * 1000), rs_brushpolys, rs_aliaspolys, lms);
 	// johnfitz
 }
 
