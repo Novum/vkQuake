@@ -46,6 +46,8 @@ vkQuake has initial support for playing the 2021 re-release content. Follow inst
 vkQuake shows basic usage of the API. For example it demonstrates render passes & sub passes, pipeline barriers & synchronization, compute shaders, push & specialization constants, CPU/GPU parallelism and memory pooling.
 
 # Building
+> **Note**\
+> You will need at least Vulkan SDK version 1.2.162 or newer. When building for Linux this is not always the case for the SDK provided by the distribution. Install the latest LunarG SDK if necessary.
 
 ## Windows
 
@@ -56,7 +58,6 @@ Prerequisites:
 * [Git for Windows](https://github.com/git-for-windows/git/releases)
 * A [Vulkan-capable GPU](https://en.wikipedia.org/wiki/Vulkan_(API)#Compatibility) with the appropriate drivers installed
 * Install the latest [Vulkan SDK](https://vulkan.lunarg.com/sdk/home). Log out and back in after installation to make sure environment variables are set.
-
 
 ### Visual Studio
 
@@ -80,9 +81,6 @@ Arch Linux:
 ~~~
 pacman -S git meson flac glibc libgl libmad libvorbis libx11 sdl2 vulkan-headers glslang spirv-tools
 ~~~
-
-> **Note**\
-> For vkquake > v0.50, you will need at least v1.0.12.0 of libvulkan-dev (See [#55](https://github.com/Novum/vkQuake/issues/55)).
 
 Then clone the vkQuake repo:
 
