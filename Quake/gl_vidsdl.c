@@ -3427,7 +3427,7 @@ typedef struct
 	int r_waterwarp;
 	int r_particles;
 	int r_scale;
-	int r_rtshadows;
+	int dyn_lights;
 	int vid_filter;
 	int vid_anisotropic;
 	int vid_palettize;
@@ -3458,7 +3458,7 @@ void VID_SyncCvars (void)
 	menu_settings.host_maxfps = CLAMP (0, host_maxfps.value, 1000);
 	menu_settings.r_waterwarp = CLAMP (0, (int)r_waterwarp.value, 2);
 	menu_settings.r_particles = CLAMP (0, (int)r_particles.value, 2);
-	menu_settings.r_rtshadows = CLAMP (0, (int)r_rtshadows.value, 1);
+	menu_settings.dyn_lights = r_dynamic.value ? (r_rtshadows.value && vulkan_globals.ray_query ? 2 : 1) : 0;
 	menu_settings.r_scale = CLAMP (1, (int)r_scale.value, 8);
 	menu_settings.vid_filter = CLAMP (0, (int)vid_filter.value, 1);
 	menu_settings.vid_anisotropic = CLAMP (0, (int)vid_anisotropic.value, 1);
@@ -3779,7 +3779,9 @@ VID_Menu_ChooseNextShadows
 */
 static void VID_Menu_ChooseNextShadows (int dir)
 {
-	menu_settings.r_rtshadows = (menu_settings.r_rtshadows + 2 + dir) % 2;
+	menu_settings.dyn_lights = (menu_settings.dyn_lights + 3 + dir) % 3;
+	if (!vulkan_globals.ray_query && menu_settings.dyn_lights == 2)
+		VID_Menu_ChooseNextShadows (dir);
 }
 
 /*
@@ -3858,8 +3860,6 @@ static void VID_MenuKey (int key)
 	case K_UPARROW:
 		S_LocalSound ("misc/menu1.wav");
 		video_options_cursor--;
-		if (!vulkan_globals.ray_query && (video_options_cursor == VID_OPT_SHADOWS))
-			video_options_cursor--;
 		if (video_options_cursor < 0)
 			video_options_cursor = VIDEO_OPTIONS_ITEMS - 1;
 		break;
@@ -3867,8 +3867,6 @@ static void VID_MenuKey (int key)
 	case K_DOWNARROW:
 		S_LocalSound ("misc/menu1.wav");
 		video_options_cursor++;
-		if (!vulkan_globals.ray_query && (video_options_cursor == VID_OPT_SHADOWS))
-			video_options_cursor++;
 		if (video_options_cursor >= VIDEO_OPTIONS_ITEMS)
 			video_options_cursor = 0;
 		break;
@@ -4030,7 +4028,9 @@ static void VID_MenuKey (int key)
 		case VID_OPT_APPLY:
 			Cvar_SetValueQuick (&host_maxfps, menu_settings.host_maxfps);
 			Cvar_SetValueQuick (&r_particles, menu_settings.r_particles);
-			Cvar_SetValueQuick (&r_rtshadows, menu_settings.r_rtshadows);
+			Cvar_SetValueQuick (&r_dynamic, menu_settings.dyn_lights > 0);
+			if (vulkan_globals.ray_query) // don't clobber the cvar if it's not supported
+				Cvar_SetValueQuick (&r_rtshadows, menu_settings.dyn_lights == 2);
 			Cvar_SetValueQuick (&r_waterwarp, menu_settings.r_waterwarp);
 			Cvar_SetValueQuick (&r_scale, menu_settings.r_scale);
 			Cvar_SetValueQuick (&vid_filter, menu_settings.vid_filter);
@@ -4083,9 +4083,6 @@ static void VID_MenuDraw (cb_context_t *cbx)
 	// options
 	for (i = 0; i < VIDEO_OPTIONS_ITEMS; i++)
 	{
-		if (!vulkan_globals.ray_query && (i == VID_OPT_SHADOWS))
-			continue;
-
 		switch (i)
 		{
 		case VID_OPT_MODE:
@@ -4144,8 +4141,8 @@ static void VID_MenuDraw (cb_context_t *cbx)
 			M_Print (cbx, 184, y, (menu_settings.r_particles == 0) ? "off" : ((menu_settings.r_particles == 2) ? "Classic" : "glQuake"));
 			break;
 		case VID_OPT_SHADOWS:
-			M_Print (cbx, 16, y, "           Shadows");
-			M_Print (cbx, 184, y, (vulkan_globals.ray_query && menu_settings.r_rtshadows) ? "on" : "off");
+			M_Print (cbx, 16, y, "    Dynamic Lights");
+			M_Print (cbx, 184, y, (menu_settings.dyn_lights == 0) ? "off" : (menu_settings.dyn_lights == 1) ? "on" : "shadowed");
 			break;
 		case VID_OPT_TEST:
 			y += 8; // separate the test and apply items
