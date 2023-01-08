@@ -2151,6 +2151,8 @@ void GL_BuildBModelAccelerationStructures (void)
 			total_num_triangles += m->surfaces[i].numedges - 2;
 			blas_num_tris[num_blas] += m->surfaces[i].numedges - 2;
 		}
+		if (blas_num_tris[num_blas] == 0)
+			continue;
 
 		blas_models[num_blas] = m;
 
@@ -2353,6 +2355,7 @@ void GL_BuildBModelAccelerationStructures (void)
 			continue;
 		if (m->flags & MF_HOLEY)
 			continue;
+
 		for (int i = m->firstmodelsurface; i < m->firstmodelsurface + m->nummodelsurfaces; i++)
 		{
 			msurface_t *s = &m->surfaces[i];
