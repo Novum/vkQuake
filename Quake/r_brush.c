@@ -2243,10 +2243,10 @@ void GL_BuildBModelAccelerationStructures (void)
 	Sys_Printf ("Allocating acceleration structure data (%u KB)\n", (int)(total_as_device_size / 1024ull));
 
 	R_CreateBuffer (
-		&bmodel_instances_buffer, &bmodel_instances_memory, sizeof (VkAccelerationStructureInstanceKHR) * MAX_MODELS * 2,
+		&bmodel_instances_buffer, &bmodel_instances_memory, sizeof (VkAccelerationStructureInstanceKHR) * MAX_EDICTS * 2,
 		VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
 		&num_vulkan_bmodel_allocations, &bmodel_instances_addresses[0], "AS instances");
-	bmodel_instances_addresses[1] = bmodel_instances_addresses[0] + sizeof (VkAccelerationStructureInstanceKHR) * MAX_MODELS;
+	bmodel_instances_addresses[1] = bmodel_instances_addresses[0] + sizeof (VkAccelerationStructureInstanceKHR) * MAX_EDICTS;
 
 	{
 		ZEROED_STRUCT (VkAccelerationStructureCreateInfoKHR, acceleration_structure_create_info);
@@ -2262,7 +2262,7 @@ void GL_BuildBModelAccelerationStructures (void)
 	err = vkMapMemory (vulkan_globals.device, bmodel_instances_memory.handle, 0, VK_WHOLE_SIZE, 0, (void **)&bmodel_instances[0]);
 	if (err != VK_SUCCESS)
 		Sys_Error ("vkMapMemory failed");
-	bmodel_instances[1] = bmodel_instances[0] + MAX_MODELS;
+	bmodel_instances[1] = bmodel_instances[0] + MAX_EDICTS;
 
 	VkBuffer		staging_buffer;
 	VkCommandBuffer command_buffer;
@@ -2420,8 +2420,8 @@ static void R_BuildTopLevelAccelerationStructure (cb_context_t *cbx)
 		instance->accelerationStructureReference = e->model->blas_address;
 
 		++num_instances;
-		assert (num_instances < MAX_MODELS);
-		if (num_instances >= MAX_MODELS)
+		assert (num_instances < MAX_EDICTS);
+		if (num_instances >= MAX_EDICTS)
 			break;
 	}
 
