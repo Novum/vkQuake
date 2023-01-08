@@ -10,6 +10,8 @@ layout (push_constant) uniform PushConsts
 	uint lightmap_width;
 	uint x_workgroup_offset;
 	uint y_workgroup_offset;
+	bool dlights_only;
+	uint num_cached_dlights;
 }
 push_constants;
 
@@ -33,6 +35,7 @@ struct light_t
 
 const uint	LIGHT_MASK_SIZE = (MAX_DLIGHTS + 31) / 32;
 shared uint light_mask[LIGHT_MASK_SIZE];
+shared uint was_lit;
 
 layout (set = 0, binding = 0, rgba8) uniform writeonly image2D output_image;
 layout (set = 0, binding = 1) uniform utexture2D surface_indices;
@@ -52,6 +55,7 @@ layout (std140, set = 0, binding = 5) uniform lightstyle_scales_buffer
 layout (std140, set = 0, binding = 6) uniform lights_buffer
 {
 	light_t lights[MAX_DLIGHTS];
+	light_t cached_lights[MAX_DLIGHTS];
 };
 layout (std430, set = 0, binding = 7) readonly restrict buffer world_verts_buffer
 {
@@ -114,12 +118,25 @@ vec3 CalculateWorldPos (const surface_t surf, const float s, const float t, inou
 	return vert1_pos + ((s + vert1_offset_s) * tangent) + ((t + vert1_offset_t) * bitangent);
 }
 
+bool LightIntersects (const light_t light, const uint workgroup_index)
+{
+	if (light.radius == 0.0f)
+		return false;
+	const bounds_t bounds = workgroup_bounds[workgroup_index];
+	const vec3	   mins = vec3 (bounds.mins_x, bounds.mins_y, bounds.mins_z);
+	const vec3	   maxs = vec3 (bounds.maxs_x, bounds.maxs_y, bounds.maxs_z);
+	return TestSphereAABB (light, mins, maxs);
+}
+
 layout (local_size_x = 8, local_size_y = 8) in;
 void main ()
 {
 	const uint workgroup_size = gl_WorkGroupSize.x * gl_WorkGroupSize.y;
 	for (uint mask_index = gl_LocalInvocationIndex; mask_index < LIGHT_MASK_SIZE; mask_index += workgroup_size)
 		light_mask[mask_index] = 0;
+
+	if (gl_LocalInvocationIndex == (LIGHT_MASK_SIZE < workgroup_size ? LIGHT_MASK_SIZE : workgroup_size - 1))
+		was_lit = 0;
 
 	barrier ();
 
@@ -132,18 +149,34 @@ void main ()
 		if (light_index < push_constants.num_dlights)
 		{
 			const light_t light = lights[light_index];
-			if (light.radius == 0.0f)
-				continue;
-			const bounds_t bounds = workgroup_bounds[workgroup_index];
-			const vec3	   mins = vec3 (bounds.mins_x, bounds.mins_y, bounds.mins_z);
-			const vec3	   maxs = vec3 (bounds.maxs_x, bounds.maxs_y, bounds.maxs_z);
-			const bool	   light_intersects = TestSphereAABB (light, mins, maxs);
-			if (light_intersects)
+			if (LightIntersects (light, workgroup_index))
 				atomicOr (light_mask[light_index / 32], 1u << (light_index % 32));
 		}
 	}
 
 	barrier ();
+
+	bool dlights = false;
+	for (uint light_mask_index = 0; light_mask_index < LIGHT_MASK_SIZE; ++light_mask_index)
+		if (light_mask[light_mask_index] != 0)
+			dlights = true;
+
+	if (push_constants.dlights_only && !dlights)
+	{
+		for (uint iter = 0; iter < num_cull_iterations; ++iter)
+		{
+			const uint light_index = (iter * workgroup_size) + gl_LocalInvocationIndex;
+			if (light_index < push_constants.num_cached_dlights)
+			{
+				const light_t light = cached_lights[light_index];
+				if (LightIntersects (light, workgroup_index))
+					atomicOr (was_lit, 1);
+			}
+		}
+		barrier ();
+		if (was_lit == 0)
+			return;
+	}
 
 	const ivec2 coords =
 		ivec2 (gl_GlobalInvocationID.x + push_constants.x_workgroup_offset * 8, gl_GlobalInvocationID.y + push_constants.y_workgroup_offset * 8);
@@ -176,11 +209,6 @@ void main ()
 		else
 			light_accumulated += scale * fourth_lightmap;
 	}
-
-	bool dlights = false;
-	for (uint light_mask_index = 0; light_mask_index < LIGHT_MASK_SIZE; ++light_mask_index)
-		if (light_mask[light_mask_index] != 0)
-			dlights = true;
 
 	if (dlights)
 	{

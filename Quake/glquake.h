@@ -486,9 +486,11 @@ struct lightmap_s
 	glMaxUsed_t lightstyle_rectused[1 + MAXLIGHTMAPS * 3 / 4]; // [0]: surface_indices; [1,2,3]: lightstyle_textures[0,1,2]
 
 	lm_compute_workgroup_bounds_t global_bounds[LMBLOCK_HEIGHT / LM_CULL_BLOCK_H][LMBLOCK_WIDTH / LM_CULL_BLOCK_W];
-	byte						  active_dlights[LMBLOCK_HEIGHT / LM_CULL_BLOCK_H][LMBLOCK_WIDTH / LM_CULL_BLOCK_W][MAX_DLIGHTS];
+	byte						  active_dlights[LMBLOCK_HEIGHT / LM_CULL_BLOCK_H][LMBLOCK_WIDTH / LM_CULL_BLOCK_W];
 	byte						  used_lightstyles[LMBLOCK_HEIGHT / LM_CULL_BLOCK_H][LMBLOCK_WIDTH / LM_CULL_BLOCK_W][MAX_LIGHTSTYLES];
 	int							  cached_light[MAX_LIGHTSTYLES];
+	int							  cached_framecount;
+	int							  highest_used_dlight[2];
 
 	// the lightmap texture data needs to be kept in
 	// main memory so texsubimage can update properly

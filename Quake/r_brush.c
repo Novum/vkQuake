@@ -1209,7 +1209,7 @@ R_AllocateLightmapComputeBuffers
 void R_AllocateLightmapComputeBuffers ()
 {
 	size_t lightstyles_buffer_size = MAX_LIGHTSTYLES * sizeof (float) * 2;
-	size_t lights_buffer_size = MAX_DLIGHTS * sizeof (lm_compute_light_t) * 2;
+	size_t lights_buffer_size = MAX_DLIGHTS * 2 * sizeof (lm_compute_light_t) * 2;
 
 	Sys_Printf ("Allocating lightstyles buffer (%u KB)\n", (int)lightstyles_buffer_size / 1024);
 	Sys_Printf ("Allocating lights buffer (%u KB)\n", (int)lights_buffer_size / 1024);
@@ -1774,7 +1774,7 @@ void GL_UpdateLightmapDescriptorSets (void)
 		ZEROED_STRUCT (VkDescriptorBufferInfo, lights_buffer_info);
 		lights_buffer_info.buffer = lights_buffer;
 		lights_buffer_info.offset = 0;
-		lights_buffer_info.range = MAX_DLIGHTS * sizeof (lm_compute_light_t);
+		lights_buffer_info.range = MAX_DLIGHTS * 2 * sizeof (lm_compute_light_t);
 
 		ZEROED_STRUCT (VkDescriptorBufferInfo, world_vertex_buffer_info);
 		world_vertex_buffer_info.buffer = bmodel_vertex_buffer;
@@ -2894,7 +2894,7 @@ R_FlushUpdateLightmaps
 #define UPDATE_LIGHTMAP_BATCH_SIZE 64
 void R_FlushUpdateLightmaps (
 	cb_context_t *cbx, int num_batch_lightmaps, VkImageMemoryBarrier *pre_barriers, VkImageMemoryBarrier *post_barriers, int *lightmap_indexes,
-	int num_used_dlights, byte lightmap_regions[UPDATE_LIGHTMAP_BATCH_SIZE][LMBLOCK_HEIGHT / LM_CULL_BLOCK_H][LMBLOCK_WIDTH / LM_CULL_BLOCK_W])
+	byte lightmap_regions[UPDATE_LIGHTMAP_BATCH_SIZE][LMBLOCK_HEIGHT / LM_CULL_BLOCK_H][LMBLOCK_WIDTH / LM_CULL_BLOCK_W])
 {
 	vulkan_pipeline_t *pipeline =
 		(r_rtshadows.value && (bmodel_tlas != VK_NULL_HANDLE)) ? &vulkan_globals.update_lightmap_rt_pipeline : &vulkan_globals.update_lightmap_pipeline;
@@ -2902,10 +2902,8 @@ void R_FlushUpdateLightmaps (
 	vkCmdPipelineBarrier (
 		cbx->cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, NULL, 0, NULL, num_batch_lightmaps, pre_barriers);
 	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_COMPUTE, *pipeline);
-	uint32_t push_constants[2] = {num_used_dlights, LMBLOCK_WIDTH};
 	uint32_t offsets[2] = {
-		current_compute_buffer_index * MAX_LIGHTSTYLES * sizeof (float), current_compute_buffer_index * MAX_DLIGHTS * sizeof (lm_compute_light_t)};
-	R_PushConstants (cbx, VK_SHADER_STAGE_COMPUTE_BIT, 0, 2 * sizeof (uint32_t), push_constants);
+		current_compute_buffer_index * MAX_LIGHTSTYLES * sizeof (float), current_compute_buffer_index * MAX_DLIGHTS * 2 * sizeof (lm_compute_light_t)};
 	for (int j = 0; j < num_batch_lightmaps; ++j)
 	{
 		VkDescriptorSet sets[1] = {lightmaps[lightmap_indexes[j]].descriptor_set};
@@ -2916,12 +2914,13 @@ void R_FlushUpdateLightmaps (
 				{
 					int w = 1;
 					int h = 1;
-					while (x + w < LMBLOCK_WIDTH / LM_CULL_BLOCK_W && lightmap_regions[j][y][x + w])
+					int type = lightmap_regions[j][y][x];
+					while (x + w < LMBLOCK_WIDTH / LM_CULL_BLOCK_W && lightmap_regions[j][y][x + w] == type)
 					{
 						lightmap_regions[j][y][x + w] = false;
 						w += 1;
 					}
-					while (y + h < LMBLOCK_HEIGHT / LM_CULL_BLOCK_H && lightmap_regions[j][y + h][x])
+					while (y + h < LMBLOCK_HEIGHT / LM_CULL_BLOCK_H && lightmap_regions[j][y + h][x] == type)
 					{
 						qboolean ok = true;
 						for (int i = x + 1; i < x + w; i++)
@@ -2932,17 +2931,19 @@ void R_FlushUpdateLightmaps (
 							}
 						if (!ok)
 							break;
-						if (x > 0 && lightmap_regions[j][y + h][x - 1] && x + w < LMBLOCK_WIDTH / LM_CULL_BLOCK_W && lightmap_regions[j][y + h][x + w])
+						if (x > 0 && lightmap_regions[j][y + h][x - 1] == type && x + w < LMBLOCK_WIDTH / LM_CULL_BLOCK_W &&
+							lightmap_regions[j][y + h][x + w] == type)
 							break; // don't split if it continues both sides, (locally) turns 2 rectangles into 3
 						for (int i = x; i < x + w; i++)
 							lightmap_regions[j][y + h][i] = false;
 						h += 1;
 					}
-					push_constants[0] = x * LM_CULL_BLOCK_W / 8;
-					push_constants[1] = y * LM_CULL_BLOCK_H / 8;
-					R_PushConstants (cbx, VK_SHADER_STAGE_COMPUTE_BIT, 2 * sizeof (uint32_t), 2 * sizeof (uint32_t), push_constants);
-					w = q_min (lightmaps[lightmap_indexes[j]].lightstyle_rectused[0].w / 8 - push_constants[0], w * LM_CULL_BLOCK_W / 8);
-					h = q_min (lightmaps[lightmap_indexes[j]].lightstyle_rectused[0].h / 8 - push_constants[1], h * LM_CULL_BLOCK_H / 8);
+					uint32_t push_constants[6] = {
+						lightmaps[lightmap_indexes[j]].highest_used_dlight[0], LMBLOCK_WIDTH, x * LM_CULL_BLOCK_W / 8, y * LM_CULL_BLOCK_H / 8, type == 1,
+						lightmaps[lightmap_indexes[j]].highest_used_dlight[1]};
+					R_PushConstants (cbx, VK_SHADER_STAGE_COMPUTE_BIT, 0, 6 * sizeof (uint32_t), push_constants);
+					w = q_min (lightmaps[lightmap_indexes[j]].lightstyle_rectused[0].w / 8 - push_constants[0], w = w * LM_CULL_BLOCK_W / 8);
+					h = q_min (lightmaps[lightmap_indexes[j]].lightstyle_rectused[0].h / 8 - push_constants[1], h = h * LM_CULL_BLOCK_H / 8);
 					vkCmdDispatch (cbx->cb, w, h, 1);
 				}
 	}
@@ -3009,6 +3010,8 @@ void R_UpdateLightmapsAndIndirect (void *unused)
 	cb_context_t *cbx = &vulkan_globals.secondary_cb_contexts[CBX_UPDATE_LIGHTMAPS];
 	R_BeginDebugUtilsLabel (cbx, "Update Lightmaps");
 	R_BuildTopLevelAccelerationStructure (cbx);
+	static dlight_t prev_dlights[MAX_DLIGHTS];
+	static double	prev_time;
 
 	for (int i = 0; i < MAX_LIGHTSTYLES; ++i)
 	{
@@ -3016,14 +3019,18 @@ void R_UpdateLightmapsAndIndirect (void *unused)
 		*style = (float)d_lightstylevalue[i] / 256.0f;
 	}
 
-	for (int i = 0; i < MAX_DLIGHTS; ++i)
+	for (int i = 0; i < MAX_DLIGHTS * 2; ++i)
 	{
-		lm_compute_light_t *light = lights_buffer_mapped + i + (current_compute_buffer_index * MAX_DLIGHTS);
-		VectorCopy (cl_dlights[i].origin, light->origin);
-		light->radius = (cl_dlights[i].die < cl.time) ? 0.0f : cl_dlights[i].radius;
-		VectorCopy (cl_dlights[i].color, light->color);
-		light->minlight = cl_dlights[i].minlight;
+		lm_compute_light_t *light = lights_buffer_mapped + i + (current_compute_buffer_index * MAX_DLIGHTS * 2);
+		dlight_t		   *source = i < MAX_DLIGHTS ? &cl_dlights[i] : &prev_dlights[i - MAX_DLIGHTS];
+		double				time = i < MAX_DLIGHTS ? cl.time : prev_time;
+		VectorCopy (source->origin, light->origin);
+		light->radius = (source->die < time) ? 0.0f : source->radius;
+		VectorCopy (source->color, light->color);
+		light->minlight = source->minlight;
 	}
+	memcpy (prev_dlights, cl_dlights, sizeof (prev_dlights));
+	prev_time = cl.time;
 
 	int					 num_lightmaps = 0;
 	int					 num_batch_lightmaps = 0;
@@ -3031,13 +3038,12 @@ void R_UpdateLightmapsAndIndirect (void *unused)
 	VkImageMemoryBarrier post_lm_image_barriers[UPDATE_LIGHTMAP_BATCH_SIZE];
 	int					 lightmap_indexes[UPDATE_LIGHTMAP_BATCH_SIZE];
 	byte				 lightmap_regions[UPDATE_LIGHTMAP_BATCH_SIZE][LMBLOCK_HEIGHT / LM_CULL_BLOCK_H][LMBLOCK_WIDTH / LM_CULL_BLOCK_W];
-	int					 num_used_dlights = 0;
 
 	for (int lightmap_index = 0; lightmap_index < lightmap_count; ++lightmap_index)
 	{
 		struct lightmap_s *lm = &lightmaps[lightmap_index];
 		uint32_t		   modified = 0;
-		byte			   regions[LMBLOCK_HEIGHT / LM_CULL_BLOCK_H][LMBLOCK_WIDTH / LM_CULL_BLOCK_W];
+		byte			   regions[LMBLOCK_HEIGHT / LM_CULL_BLOCK_H][LMBLOCK_WIDTH / LM_CULL_BLOCK_W]; // 1: dlights update only; 2: unconditional update
 		memset (regions, 0, sizeof (regions));
 		for (int i = 0; i < TASKS_MAX_WORKERS; ++i)
 		{
@@ -3047,26 +3053,17 @@ void R_UpdateLightmapsAndIndirect (void *unused)
 		if (modified == 0)
 			continue;
 
+		int		 highest_used_dlight = 0;
 		qboolean any_needs_update = false;
 		for (int y = 0; y < LMBLOCK_HEIGHT / LM_CULL_BLOCK_H; y++)
 			for (int x = 0; x < LMBLOCK_WIDTH / LM_CULL_BLOCK_W; x++)
 			{
 				qboolean needs_update = false;
-				for (int i = 0; i < MAX_LIGHTSTYLES; i++)
-					if (lm->used_lightstyles[y][x][i] && modified & 1 << (i < 16 ? i : i % 16 + 16) && lm->cached_light[i] != d_lightstylevalue[i])
-					{
-						needs_update = true;
-						break;
-					}
 				for (int i = 0; i < MAX_DLIGHTS; i++)
 				{
-					qboolean hit = true;
-
-					if (!r_dynamic.value || cl_dlights[i].die < cl.time || cl_dlights[i].radius == 0.0f || (cl_dlights[i].radius < cl_dlights[i].minlight))
-						hit = false;
-					else
+					if (r_dynamic.value && cl_dlights[i].die >= cl.time && cl_dlights[i].radius != 0.0f && (cl_dlights[i].radius >= cl_dlights[i].minlight))
 					{
-						num_used_dlights = i + 1;
+						highest_used_dlight = i + 1;
 						float sq_dist = 0.0f;
 						for (int j = 0; j < 3; j++)
 						{
@@ -3080,32 +3077,46 @@ void R_UpdateLightmapsAndIndirect (void *unused)
 								sq_dist += (v - maxs) * (v - maxs);
 						}
 
-						if (sq_dist > cl_dlights[i].radius * cl_dlights[i].radius)
-							hit = false;
+						if (sq_dist <= cl_dlights[i].radius * cl_dlights[i].radius)
+						{
+							lm->active_dlights[y][x] = true;
+							needs_update = true;
+						}
 					}
-					if (hit)
-					{
-						needs_update = true;
-						lm->active_dlights[y][x][i] = true;
-					}
-					else if (lm->active_dlights[y][x][i])
-					{
-						needs_update = true;
-						lm->active_dlights[y][x][i] = false;
-					}
+				}
+				if (!needs_update && lm->active_dlights[y][x])
+				{
+					lm->active_dlights[y][x] = false;
+					needs_update = true;
 				}
 				if (needs_update)
 				{
 					any_needs_update = true;
-					regions[y][x] = true;
+					if (lm->cached_framecount == r_framecount - 1)
+						regions[y][x] = 1;
+					else
+						regions[y][x] = 2;
 					num_lightmaps += 1;
 				}
+				if (regions[y][x] != 2)
+					for (int i = 0; i < MAX_LIGHTSTYLES; i++)
+						if (lm->used_lightstyles[y][x][i] && modified & 1 << (i < 16 ? i : i % 16 + 16) && lm->cached_light[i] != d_lightstylevalue[i])
+						{
+							any_needs_update = true;
+							regions[y][x] = 2;
+							break;
+						}
 			}
 		if (!any_needs_update)
 			continue;
 		else
+		{
 			for (int i = 0; i < MAX_LIGHTSTYLES; i++)
 				lm->cached_light[i] = d_lightstylevalue[i];
+			lm->cached_framecount = r_framecount;
+			lm->highest_used_dlight[1] = lm->highest_used_dlight[0];
+			lm->highest_used_dlight[0] = highest_used_dlight;
+		}
 
 		int batch_index = num_batch_lightmaps++;
 		lightmap_indexes[batch_index] = lightmap_index;
@@ -3145,14 +3156,13 @@ void R_UpdateLightmapsAndIndirect (void *unused)
 
 		if (num_batch_lightmaps == UPDATE_LIGHTMAP_BATCH_SIZE)
 		{
-			R_FlushUpdateLightmaps (
-				cbx, num_batch_lightmaps, pre_lm_image_barriers, post_lm_image_barriers, lightmap_indexes, num_used_dlights, lightmap_regions);
+			R_FlushUpdateLightmaps (cbx, num_batch_lightmaps, pre_lm_image_barriers, post_lm_image_barriers, lightmap_indexes, lightmap_regions);
 			num_batch_lightmaps = 0;
 		}
 	}
 
 	if (num_batch_lightmaps > 0)
-		R_FlushUpdateLightmaps (cbx, num_batch_lightmaps, pre_lm_image_barriers, post_lm_image_barriers, lightmap_indexes, num_used_dlights, lightmap_regions);
+		R_FlushUpdateLightmaps (cbx, num_batch_lightmaps, pre_lm_image_barriers, post_lm_image_barriers, lightmap_indexes, lightmap_regions);
 
 	Atomic_AddUInt32 (&rs_dynamiclightmaps, num_lightmaps);
 
