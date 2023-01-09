@@ -10,7 +10,9 @@ Quake/*.exe
 Quake/*.res
 Windows/VisualStudio/Id1
 Shaders/Compiled/Debug/*spv
+Shaders/Compiled/Debug/*c
 Shaders/Compiled/Release/*spv
+Shaders/Compiled/Release/*c
 Shaders/*.exe
 Shaders/*.obj
 Shaders/bintoc

@@ -43,7 +43,7 @@ DEBUG   ?= 0
 
 CC ?= gcc
 LINKER = $(CC)
-
+GLSLANG = glslangValidator
 STRIP ?= strip
 
 CPUFLAGS=
@@ -73,6 +73,14 @@ endif
 ifneq ($(VULKAN_SDK),)
 LDFLAGS += -L$(VULKAN_SDK)/lib
 CFLAGS += -I$(VULKAN_SDK)/include
+endif
+
+ifeq ($(DEBUG),0)
+GLSLANG_FLAGS = -V
+GLSLANG_OUT_FOLDER = Release
+else
+GLSLANG_FLAGS = -g -V
+GLSLANG_OUT_FOLDER = Debug
 endif
 
 ifeq ($(DO_USERDIRS),1)
@@ -197,36 +205,36 @@ SYSOBJ_SYS := pl_linux.o sys_sdl.o sys_sdl_unix.o
 SYSOBJ_MAIN:= main_sdl.o
 
 SHADER_OBJS = \
-	alias.frag.o \
-	alias_alphatest.frag.o \
-	alias.vert.o \
-	basic_alphatest.frag.o \
-	screen_effects_8bit.comp.o \
-	screen_effects_8bit_scale.comp.o \
-	screen_effects_8bit_scale_sops.comp.o \
-	screen_effects_10bit.comp.o \
-	screen_effects_10bit_scale.comp.o \
-	screen_effects_10bit_scale_sops.comp.o \
-	cs_tex_warp.comp.o \
-	indirect.comp.o \
-	indirect_clear.comp.o \
-	basic.frag.o \
-	basic_notex.frag.o \
-	basic.vert.o \
-	sky_layer.frag.o \
-	sky_layer.vert.o \
-	sky_box.frag.o \
-	sky_cube.frag.o \
-	sky_cube.vert.o \
-	postprocess.frag.o \
-	postprocess.vert.o \
-	world.frag.o \
-	world.vert.o \
-	showtris.frag.o \
-	showtris.vert.o \
-	update_lightmap.comp.o \
-	update_lightmap_rt.comp.o \
-	ray_debug.comp.o
+	alias_frag.o \
+	alias_alphatest_frag.o \
+	alias_vert.o \
+	basic_alphatest_frag.o \
+	screen_effects_8bit_comp.o \
+	screen_effects_8bit_scale_comp.o \
+	screen_effects_8bit_scale_sops_comp.o \
+	screen_effects_10bit_comp.o \
+	screen_effects_10bit_scale_comp.o \
+	screen_effects_10bit_scale_sops_comp.o \
+	cs_tex_warp_comp.o \
+	indirect_comp.o \
+	indirect_clear_comp.o \
+	basic_frag.o \
+	basic_notex_frag.o \
+	basic_vert.o \
+	sky_layer_frag.o \
+	sky_layer_vert.o \
+	sky_box_frag.o \
+	sky_cube_frag.o \
+	sky_cube_vert.o \
+	postprocess_frag.o \
+	postprocess_vert.o \
+	world_frag.o \
+	world_vert.o \
+	showtris_frag.o \
+	showtris_vert.o \
+	update_lightmap_comp.o \
+	update_lightmap_rt_comp.o \
+	ray_debug_comp.o
 
 GLOBJS = \
 	$(SHADER_OBJS) \
@@ -309,15 +317,27 @@ OBJS := strlcat.o \
 DEFAULT_TARGET := vkquake
 all: $(DEFAULT_TARGET)
 
+../Shaders/bintoc: ../Shaders/bintoc.c
+	$(CC) $(CFLAGS) -o $@ $<
+
 %.o:	%.c
 	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ $<
-ifeq ($(DEBUG),0)
-%.o:	../Shaders/Compiled/Release/%.c
-	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ $^
-else
-%.o:	../Shaders/Compiled/Debug/%.c
-	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ $^
-endif
+%_frag.o:	../Shaders/%.frag ../Shaders/bintoc
+	$(GLSLANG) $(GLSLANG_FLAGS) $< -o ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_frag.spv
+	../Shaders/bintoc ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_frag.spv $*_frag_spv ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_frag.c
+	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_frag.c
+%_vert.o:	../Shaders/%.vert ../Shaders/bintoc
+	$(GLSLANG) $(GLSLANG_FLAGS) $< -o ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_vert.spv
+	../Shaders/bintoc ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_vert.spv $*_vert_spv ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_vert.c
+	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_vert.c
+%_sops_comp.o:	../Shaders/%_sops.comp ../Shaders/bintoc
+	$(GLSLANG) $(GLSLANG_FLAGS) --target-env vulkan1.1 $< -o ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_sops_comp.spv
+	../Shaders/bintoc ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_sops_comp.spv $*_sops_comp_spv ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_sops_comp.c
+	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_sops_comp.c
+%_comp.o:	../Shaders/%.comp ../Shaders/bintoc
+	$(GLSLANG) $(GLSLANG_FLAGS) $< -o ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_comp.spv
+	../Shaders/bintoc ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_comp.spv $*_comp_spv ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_comp.c
+	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_comp.c
 
 vkquake:	$(OBJS)
 	$(LINKER) $(OBJS) $(LDFLAGS) $(LIBS) $(SDL_LIBS) -o $@
