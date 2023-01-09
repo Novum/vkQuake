@@ -25,6 +25,7 @@ jobs:
         msystem: ${{ matrix.platform.msystem }}
         install: base-devel
           ${{ matrix.platform.msys-env }}-gcc
+          ${{ matrix.platform.msys-env }}-glslang
 
     - uses: actions/checkout@v3
       with:
