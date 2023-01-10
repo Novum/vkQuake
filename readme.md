@@ -8,7 +8,6 @@ Improvements over QuakeSpasm include:
 * The game can run at higher frame rates than 72Hz without breaking physics
 * A software Quake like underwater effect
 * Better color precision reducing banding in dark areas
-* Proper mip mapping for water surfaces to reduce aliasing
 * Native support for anti aliasing and anisotropic filtering
 * 8-bit color emulation
 * Scaling for pixelated look
