@@ -237,7 +237,6 @@ SHADER_OBJS = \
 	ray_debug_comp.o
 
 GLOBJS = \
-	$(SHADER_OBJS) \
 	palette.o \
 	gl_refrag.o \
 	gl_rlight.o \
@@ -322,25 +321,37 @@ all: $(DEFAULT_TARGET)
 
 %.o:	%.c
 	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ $<
-%_frag.o:	../Shaders/%.frag ../Shaders/bintoc
-	$(GLSLANG) $(GLSLANG_FLAGS) $< -o ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_frag.spv
-	../Shaders/bintoc ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_frag.spv $*_frag_spv ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_frag.c
+
+.SECONDARY:
+../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/%_frag.spv: ../Shaders/%.frag
+	$(GLSLANG) $(GLSLANG_FLAGS) $< -o $@ --depfile ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_frag.d
+%_frag.o: ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/%_frag.spv ../Shaders/bintoc
+	../Shaders/bintoc $< $*_frag_spv ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_frag.c
 	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_frag.c
-%_vert.o:	../Shaders/%.vert ../Shaders/bintoc
-	$(GLSLANG) $(GLSLANG_FLAGS) $< -o ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_vert.spv
-	../Shaders/bintoc ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_vert.spv $*_vert_spv ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_vert.c
+
+.SECONDARY:
+../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/%_vert.spv: ../Shaders/%.vert
+	$(GLSLANG) $(GLSLANG_FLAGS) $< -o $@ --depfile ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_vert.d
+%_vert.o: ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/%_vert.spv ../Shaders/bintoc
+	../Shaders/bintoc $< $*_vert_spv ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_vert.c
 	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_vert.c
-%_sops_comp.o:	../Shaders/%_sops.comp ../Shaders/bintoc
-	$(GLSLANG) $(GLSLANG_FLAGS) --target-env vulkan1.1 $< -o ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_sops_comp.spv
-	../Shaders/bintoc ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_sops_comp.spv $*_sops_comp_spv ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_sops_comp.c
+
+.SECONDARY:
+../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/%_sops_comp.spv: ../Shaders/%_sops.comp
+	$(GLSLANG) $(GLSLANG_FLAGS) --target-env vulkan1.1 $< -o $@ --depfile ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_sops_comp.d
+%_sops_comp.o: ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/%_sops_comp.spv ../Shaders/bintoc
+	../Shaders/bintoc $< $*_sops_comp_spv ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_sops_comp.c
 	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_sops_comp.c
-%_comp.o:	../Shaders/%.comp ../Shaders/bintoc
-	$(GLSLANG) $(GLSLANG_FLAGS) $< -o ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_comp.spv
-	../Shaders/bintoc ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_comp.spv $*_comp_spv ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_comp.c
+
+.SECONDARY:
+../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/%_comp.spv: ../Shaders/%.comp
+	$(GLSLANG) $(GLSLANG_FLAGS) $< -o $@ --depfile ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_comp.d
+%_comp.o: ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/%_comp.spv ../Shaders/bintoc
+	../Shaders/bintoc $< $*_comp_spv ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_comp.c
 	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_comp.c
 
-vkquake:	$(OBJS)
-	$(LINKER) $(OBJS) $(LDFLAGS) $(LIBS) $(SDL_LIBS) -o $@
+vkquake:	$(SHADER_OBJS) $(OBJS)
+	$(LINKER) $(SHADER_OBJS) $(OBJS) $(LDFLAGS) $(LIBS) $(SDL_LIBS) -o $@
 	$(call do_strip,$@)
 
 release:	vkquake
@@ -348,7 +359,7 @@ debug:
 	$(error Use "make DEBUG=1")
 
 clean:
-	$(RM) *.o *.d $(DEFAULT_TARGET)
+	$(RM) *.o *.d ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/*.c ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/*.spv ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/*.d $(DEFAULT_TARGET)
 
 prefix ?= /usr
 exec_prefix ?= $(prefix)
@@ -361,3 +372,4 @@ install: vkquake
 	$(INSTALL_PROGRAM) $(CURDIR)/vkquake $(DESTDIR)$(bindir)/vkquake
 
 sinclude $(OBJS:.o=.d)
+sinclude $(SHADER_OBJS:%.o=../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/%.d)

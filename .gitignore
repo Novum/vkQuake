@@ -9,10 +9,12 @@ Quake/vkquake
 Quake/*.exe
 Quake/*.res
 Windows/VisualStudio/Id1
-Shaders/Compiled/Debug/*spv
-Shaders/Compiled/Debug/*c
-Shaders/Compiled/Release/*spv
-Shaders/Compiled/Release/*c
+Shaders/Compiled/Debug/*.spv
+Shaders/Compiled/Debug/*.c
+Shaders/Compiled/Debug/*.d
+Shaders/Compiled/Release/*.spv
+Shaders/Compiled/Release/*.c
+Shaders/Compiled/Release/*.d
 Shaders/*.exe
 Shaders/*.obj
 Shaders/bintoc
