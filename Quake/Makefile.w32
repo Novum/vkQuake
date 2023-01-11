@@ -1,371 +1,97 @@
-# GNU Makefile for compiling Win32 vkQuake.exe using MinGW or MinGW-w64.
-# Usage: "make -f Makefile.w32"
-# To cross-compile on Linux hosts, see the 'build_cross_win32.sh' script.
+# GNU Makefile for compiling Win64 vkQuake.exe using MinGW-w64.
+# Usage: "make -f Makefile.w64"
+# To cross-compile on Linux hosts, see the 'build_cross_win64.sh' script.
 # "make VK_SDK_PATH=/path/to/vksdk" to specify the Vulkan SDK root
 # "make DEBUG=1" to build a debug client.
 # "make SDL_CONFIG=/path/to/sdl2-config" to override the locally included SDL2 version.
 
-### Enable SSE2 optimizations
-USE_SSE2=1
-
 ### Enable/disable codecs for streaming music support
-USE_CODEC_WAVE=1
-USE_CODEC_FLAC=1
-USE_CODEC_MP3=1
-USE_CODEC_VORBIS=1
-USE_CODEC_OPUS=1
+USE_CODEC_WAVE = 1
+USE_CODEC_FLAC = 1
+USE_CODEC_MP3 = 1
+USE_CODEC_VORBIS = 1
+USE_CODEC_OPUS = 1
 # either xmp or mikmod (or modplug)
-USE_CODEC_MIKMOD=0
-USE_CODEC_XMP=1
-USE_CODEC_MODPLUG=0
-USE_CODEC_UMX=1
+USE_CODEC_MIKMOD = 0
+USE_CODEC_XMP = 1
+USE_CODEC_MODPLUG = 0
+USE_CODEC_UMX = 1
 
 # which library to use for mp3 decoding: mad or mpg123
-MP3LIB=mad
+MP3LIB = mad
 # which library to use for ogg decoding: vorbis or tremor
-VORBISLIB=vorbis
-
-# ---------------------------
-# Helper functions
-# ---------------------------
-
-check_gcc = $(shell if echo | $(CC) $(1) -Werror -S -o /dev/null -xc - > /dev/null 2>&1; then echo "$(1)"; else echo "$(2)"; fi;)
-
-# ---------------------------
-
-DEBUG   ?= 0
+VORBISLIB = vorbis
 
 # ---------------------------
 # build variables
 # ---------------------------
-
-CC = gcc
-LINKER = $(CC)
-GLSLANG = glslangValidator
-WINDRES = windres
-
-STRIP = strip
-
-CPUFLAGS=
-ifeq ($(USE_SSE2),1)
-CPUFLAGS+=-msse2
-endif
+CPUFLAGS =
 LDFLAGS = -m32 -mwindows -static-libgcc
 DFLAGS ?=
 CFLAGS ?= -m32 -Wall -Wno-trigraphs -std=gnu11 -D_WIN32_WINNT=0x0501 -MMD
 CFLAGS += $(CPUFLAGS)
 
-ifneq ($(DEBUG),0)
-DFLAGS += -D_DEBUG
-CFLAGS += -g
-do_strip=
-else
-DFLAGS += -DNDEBUG
-CFLAGS += -O2
-CFLAGS += $(call check_gcc,-fweb,)
-CFLAGS += $(call check_gcc,-frename-registers,)
-CFLAGS += $(call check_gcc,-fno-asynchronous-unwind-tables,)
-CFLAGS += $(call check_gcc,-fno-ident,)
-cmd_strip=$(STRIP) $(1)
-define do_strip
-	$(call cmd_strip,$(1));
-endef
-endif
+# ---------------------------
+# objects
+# ---------------------------
+SYSOBJ_NET := net_win.o net_wins.o net_wipx.o
+SYSOBJ_SYS := pl_win.o sys_sdl.o sys_sdl_win.o
+DEFAULT_TARGET := vkQuake.exe
 
-ifeq ($(DEBUG),0)
-GLSLANG_FLAGS = -V
-GLSLANG_OUT_FOLDER = Release
-else
-GLSLANG_FLAGS = -g -V
-GLSLANG_OUT_FOLDER = Debug
-endif
+# ---------------------------
+# common
+# ---------------------------
+include common.make
 
+# ---------------------------
+# libraries
+# --------------------------- 
 # default to our local SDL2 for build
 SDL_CONFIG ?=../Windows/SDL2/bin/sdl2-config --prefix=../Windows/SDL2
 SDL_CFLAGS := $(shell $(SDL_CONFIG) --cflags)
-SDL_LIBS   := $(shell $(SDL_CONFIG) --libs)
+SDL_LIBS := $(shell $(SDL_CONFIG) --libs)
 
-LIBWINSOCK := -lws2_32
-
-NET_LIBS   := $(LIBWINSOCK)
-
-ifneq ($(VORBISLIB),vorbis)
-ifneq ($(VORBISLIB),tremor)
-$(error Invalid VORBISLIB setting)
-endif
-endif
-ifneq ($(MP3LIB),mpg123)
-ifneq ($(MP3LIB),mad)
-$(error Invalid MP3LIB setting)
-endif
-endif
-ifeq ($(MP3LIB),mad)
-mp3_obj=snd_mp3
-lib_mp3dec=-lmad
-endif
-ifeq ($(MP3LIB),mpg123)
-mp3_obj=snd_mpg123
-lib_mp3dec=-lmpg123
-endif
-ifeq ($(VORBISLIB),vorbis)
-cpp_vorbisdec=
-lib_vorbisdec=-lvorbisfile -lvorbis -logg
-endif
-ifeq ($(VORBISLIB),tremor)
-cpp_vorbisdec=-DVORBIS_USE_TREMOR
-lib_vorbisdec=-lvorbisidec -logg
-endif
-
-CODECLIBS  :=
-ifeq ($(USE_CODEC_WAVE),1)
-CFLAGS+= -DUSE_CODEC_WAVE
-endif
-ifeq ($(USE_CODEC_FLAC),1)
-CFLAGS+= -DUSE_CODEC_FLAC
-CODEC_INC = -I../Windows/codecs/include
-CODEC_LINK= -L../Windows/codecs/x86
-CODECLIBS+= -lFLAC
-endif
 ifeq ($(USE_CODEC_OPUS),1)
-CFLAGS+= -DUSE_CODEC_OPUS
-CODEC_INC = -I../Windows/codecs/include
-CODEC_LINK= -L../Windows/codecs/x86
-CODECLIBS+= -lopusfile -lopus -logg
+CODECLIBS += -lopusfile -lopus -logg
 endif
-ifeq ($(USE_CODEC_VORBIS),1)
-CFLAGS+= -DUSE_CODEC_VORBIS $(cpp_vorbisdec)
-CODEC_INC = -I../Windows/codecs/include
-CODEC_LINK= -L../Windows/codecs/x86
-CODECLIBS+= $(lib_vorbisdec)
-endif
-ifeq ($(USE_CODEC_MP3),1)
-CFLAGS+= -DUSE_CODEC_MP3
-CODEC_INC = -I../Windows/codecs/include
-CODEC_LINK= -L../Windows/codecs/x86
-CODECLIBS+= $(lib_mp3dec)
-endif
-ifeq ($(USE_CODEC_MIKMOD),1)
-CFLAGS+= -DUSE_CODEC_MIKMOD
-CODEC_INC = -I../Windows/codecs/include
-CODEC_LINK= -L../Windows/codecs/x86
-CODECLIBS+= -lmikmod
-endif
-ifeq ($(USE_CODEC_XMP),1)
-CFLAGS+= -DUSE_CODEC_XMP
-CODEC_INC = -I../Windows/codecs/include
-CODEC_LINK= -L../Windows/codecs/x86
-CODECLIBS+= -lxmp
-endif
-ifeq ($(USE_CODEC_MODPLUG),1)
-CFLAGS+= -DUSE_CODEC_MODPLUG
-CODEC_INC = -I../Windows/codecs/include
-CODEC_LINK= -L../Windows/codecs/x86
-CODECLIBS+= -lmodplug
-endif
-ifeq ($(USE_CODEC_UMX),1)
-CFLAGS+= -DUSE_CODEC_UMX
-endif
-CFLAGS+= $(CODEC_INC)
+
+NET_LIBS := -lws2_32
+
+CFLAGS += -I../Windows/codecs/include
+CODEC_LINK = -L../Windows/codecs/x86
 
 VK_SDK_PATH ?= ../Windows/misc
 VULKAN_INC = -I$(VK_SDK_PATH)/include
-VULKAN_LINK= -L../Windows/misc/x86 # -L$(VK_SDK_PATH)/lib32
+VULKAN_LINK= -L../Windows/misc/x86 # -L$(VK_SDK_PATH)/lib
 VULKAN_LIBS= -lvulkan-1
-CFLAGS+= $(VULKAN_INC)
+CFLAGS += $(VULKAN_INC)
 
 COMMON_LIBS:= -lwinmm -lpsapi -lbcrypt
 
 LIBS := $(COMMON_LIBS) $(NET_LIBS) $(CODEC_LINK) $(CODECLIBS) $(VULKAN_LINK) $(VULKAN_LIBS)
 
 # ---------------------------
-# objects
-# ---------------------------
-
-MUSIC_OBJS:= bgmusic.o \
-	snd_codec.o \
-	snd_flac.o \
-	snd_wave.o \
-	snd_vorbis.o \
-	snd_opus.o \
-	$(mp3_obj).o \
-	snd_mp3tag.o \
-	snd_mikmod.o \
-	snd_modplug.o \
-	snd_xmp.o \
-	snd_umx.o
-COMOBJ_SND := snd_dma.o snd_mix.o snd_mem.o $(MUSIC_OBJS)
-SYSOBJ_SND := snd_sdl.o
-SYSOBJ_CDA := cd_sdl.o
-SYSOBJ_INPUT := in_sdl.o
-SYSOBJ_GL_VID:= gl_vidsdl.o
-SYSOBJ_NET := net_win.o net_wins.o net_wipx.o
-SYSOBJ_SYS := pl_win.o sys_sdl.o sys_sdl_win.o
-SYSOBJ_MAIN:= main_sdl.o
-SYSOBJ_RES := vkQuake.res
-
-SHADER_OBJS = \
-	alias_frag.o \
-	alias_alphatest_frag.o \
-	alias_vert.o \
-	basic_alphatest_frag.o \
-	screen_effects_8bit_comp.o \
-	screen_effects_8bit_scale_comp.o \
-	screen_effects_8bit_scale_sops_comp.o \
-	screen_effects_10bit_comp.o \
-	screen_effects_10bit_scale_comp.o \
-	screen_effects_10bit_scale_sops_comp.o \
-	cs_tex_warp_comp.o \
-	indirect_comp.o \
-	indirect_clear_comp.o \
-	basic_frag.o \
-	basic_notex_frag.o \
-	basic_vert.o \
-	sky_layer_frag.o \
-	sky_layer_vert.o \
-	sky_box_frag.o \
-	sky_cube_frag.o \
-	sky_cube_vert.o \
-	postprocess_frag.o \
-	postprocess_vert.o \
-	world_frag.o \
-	world_vert.o \
-	showtris_frag.o \
-	showtris_vert.o \
-	update_lightmap_comp.o \
-	update_lightmap_rt_comp.o \
-	ray_debug_comp.o
-
-GLOBJS = \
-	palette.o \
-	gl_refrag.o \
-	gl_rlight.o \
-	gl_rmain.o \
-	gl_fog.o \
-	gl_rmisc.o \
-	r_part.o \
-	r_part_fte.o \
-	r_world.o \
-	gl_screen.o \
-	gl_sky.o \
-	gl_warp.o \
-	$(SYSOBJ_GL_VID) \
-	gl_draw.o \
-	image.o \
-	gl_texmgr.o \
-	gl_mesh.o \
-	gl_heap.o \
-	r_sprite.o \
-	r_alias.o \
-	r_brush.o \
-	gl_model.o
-
-OBJS := strlcat.o \
-	strlcpy.o \
-	$(GLOBJS) \
-	$(SYSOBJ_INPUT) \
-	$(COMOBJ_SND) \
-	$(SYSOBJ_SND) \
-	$(SYSOBJ_CDA) \
-	$(SYSOBJ_NET) \
-	net_dgrm.o \
-	net_loop.o \
-	net_main.o \
-	chase.o \
-	cl_demo.o \
-	cl_input.o \
-	cl_main.o \
-	cl_parse.o \
-	cl_tent.o \
-	console.o \
-	keys.o \
-	menu.o \
-	sbar.o \
-	view.o \
-	wad.o \
-	cmd.o \
-	common.o \
-	miniz.o \
-	mdfour.o \
-	crc.o \
-	cvar.o \
-	cfgfile.o \
-	host.o \
-	host_cmd.o \
-	mathlib.o \
-	pr_cmds.o \
-	pr_ext.o \
-	pr_edict.o \
-	pr_exec.o \
-	sv_main.o \
-	sv_move.o \
-	sv_phys.o \
-	sv_user.o \
-	world.o \
-	mem.o \
-	tasks.o \
-	embedded_pak.o \
-	$(SYSOBJ_SYS) $(SYSOBJ_MAIN)
-
-# ---------------------------
 # targets / rules
 # ---------------------------
-
-.PHONY:	clean debug release
-
-DEFAULT_TARGET := vkQuake.exe
 all: $(DEFAULT_TARGET) dll
 
-../Shaders/bintoc: ../Shaders/bintoc.c
-	$(CC) $(CFLAGS) -o $@ $<
-
-%.o:	%.c
-	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ $<
-
-.SECONDARY:
-../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/%_frag.spv: ../Shaders/%.frag
-	$(GLSLANG) $(GLSLANG_FLAGS) $< -o $@ --depfile ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_frag.d
-%_frag.o: ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/%_frag.spv ../Shaders/bintoc
-	../Shaders/bintoc $< $*_frag_spv ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_frag.c
-	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_frag.c
-
-.SECONDARY:
-../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/%_vert.spv: ../Shaders/%.vert
-	$(GLSLANG) $(GLSLANG_FLAGS) $< -o $@ --depfile ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_vert.d
-%_vert.o: ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/%_vert.spv ../Shaders/bintoc
-	../Shaders/bintoc $< $*_vert_spv ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_vert.c
-	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_vert.c
-
-.SECONDARY:
-../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/%_sops_comp.spv: ../Shaders/%_sops.comp
-	$(GLSLANG) $(GLSLANG_FLAGS) --target-env vulkan1.1 $< -o $@ --depfile ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_sops_comp.d
-%_sops_comp.o: ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/%_sops_comp.spv ../Shaders/bintoc
-	../Shaders/bintoc $< $*_sops_comp_spv ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_sops_comp.c
-	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_sops_comp.c
-
-.SECONDARY:
-../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/%_comp.spv: ../Shaders/%.comp
-	$(GLSLANG) $(GLSLANG_FLAGS) $< -o $@ --depfile ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_comp.d
-%_comp.o: ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/%_comp.spv ../Shaders/bintoc
-	../Shaders/bintoc $< $*_comp_spv ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_comp.c
-	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_comp.c
-
-%.res:	../Windows/%.rc
+%.res: ../Windows/%.rc
 	$(WINDRES) -I../Windows --output-format=coff --target=pe-i386 -o $@ $<
 
 vkQuake.exe: $(SHADER_OBJS) $(OBJS) $(SYSOBJ_RES)
 	$(LINKER) $(SHADER_OBJS) $(OBJS) $(SYSOBJ_RES) $(LDFLAGS) $(LIBS) $(SDL_LIBS) -o $@
-	$(call do_strip,$@)
+	$(call DO_STRIP,$@)
 
 dll:
-	cp ../Windows/codecs/x86/*.dll .
-	cp ../Windows/SDL2/lib/*.dll .
+	cp ../Windows/codecs/x64/*.dll .
+	cp ../Windows/SDL2/lib64/*.dll .
 
-release:	vkQuake.exe
+release: vkQuake.exe
 debug:
 	$(error Use "make DEBUG=1")
 
 clean:
-	$(RM) *.o *.d *.res *.dll ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/*.c ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/*.spv ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/*.d $(DEFAULT_TARGET)
-
-sinclude $(OBJS:.o=.d)
-sinclude $(SHADER_OBJS:%.o=../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/%.d)
+	$(RM) *.o *.d *.res *.dll $(DEFAULT_TARGET) \
+	../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/*.c \
+	../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/*.spv \
+	../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/*.d
