@@ -4144,7 +4144,7 @@ static void VID_MenuDraw (cb_context_t *cbx)
 			M_Print (cbx, 184, y, (menu_settings.r_particles == 0) ? "off" : ((menu_settings.r_particles == 2) ? "Classic" : "glQuake"));
 			break;
 		case VID_OPT_SHADOWS:
-			M_Print (cbx, 16, y, "          Shadows");
+			M_Print (cbx, 16, y, "           Shadows");
 			M_Print (cbx, 184, y, (vulkan_globals.ray_query && menu_settings.r_rtshadows) ? "on" : "off");
 			break;
 		case VID_OPT_TEST:
