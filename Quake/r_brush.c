@@ -1925,6 +1925,12 @@ void GL_SetupLightmapCompute (void)
 			cl.worldmodel, name, *size_w, *size_h, SRC_SURF_INDICES, (byte *)lm->surface_indices, "", (src_offset_t)lm->surface_indices,
 			TEXPREF_NEAREST | TEXPREF_NOPICMIP);
 		SAFE_FREE (lm->surface_indices);
+
+		for (int y = 0; y < LMBLOCK_HEIGHT / LM_CULL_BLOCK_H; y++)
+			for (int x = 0; x < LMBLOCK_WIDTH / LM_CULL_BLOCK_W; x++)
+				for (int l = 0; l < MAX_LIGHTSTYLES; l++)
+					if (lightmaps[i].used_lightstyles[y][x][l])
+						lightmaps[i].used_lightstyles[y][x][lightmaps[i].num_used_lightstyles[y][x]++] = l;
 	}
 
 	for (int i = 0; i < lightmap_count; i++)
@@ -3105,8 +3111,10 @@ void R_UpdateLightmapsAndIndirect (void *unused)
 					num_lightmaps += 1;
 				}
 				if (regions[y][x] != 2)
-					for (int i = 0; i < MAX_LIGHTSTYLES; i++)
-						if (lm->used_lightstyles[y][x][i] && modified & 1 << (i < 16 ? i : i % 16 + 16) && lm->cached_light[i] != d_lightstylevalue[i])
+					for (int i = 0; i < lm->num_used_lightstyles[y][x]; i++)
+					{
+						int l = lm->used_lightstyles[y][x][i];
+						if (modified & 1 << (l < 16 ? l : l % 16 + 16) && lm->cached_light[l] != d_lightstylevalue[l])
 						{
 							any_needs_update = true;
 							if (regions[y][x] == 0)
@@ -3114,6 +3122,7 @@ void R_UpdateLightmapsAndIndirect (void *unused)
 							regions[y][x] = 2;
 							break;
 						}
+					}
 			}
 		if (!any_needs_update)
 			continue;
