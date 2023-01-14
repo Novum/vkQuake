@@ -141,6 +141,24 @@ static void M_PixelToMenuCanvasCoord (int *x, int *y)
 	*y = (*y - (glheight - 200 * s) / 2) / s;
 }
 
+#define MENU_LABEL_MAX_CHARACTERS 20
+#define MENU_OPTION_STRING		  (str)
+
+/*
+================
+M_MenuLabel
+================
+*/
+char *M_MenuLabel (const char *name)
+{
+	static char menu_label_str[MENU_LABEL_MAX_CHARACTERS + 1];
+	memset (menu_label_str, ' ', MENU_LABEL_MAX_CHARACTERS);
+	const int name_length = strlen (name);
+	assert (name_length <= MENU_LABEL_MAX_CHARACTERS);
+	memcpy (menu_label_str + MENU_LABEL_MAX_CHARACTERS - name_length, name, name_length);
+	return menu_label_str;
+}
+
 /*
 ================
 M_DrawCharacter
@@ -1195,7 +1213,7 @@ enum
 };
 
 #define SLIDER_SIZE	  10
-#define SLIDER_XPOS	  220
+#define SLIDER_XPOS	  (MENU_VALUE_X + 6)
 #define SLIDER_EXTENT ((SLIDER_SIZE - 1) * 8)
 #define SLIDER_START  (SLIDER_XPOS + 4)
 #define SLIDER_END	  (SLIDER_START + SLIDER_EXTENT)
@@ -1412,108 +1430,108 @@ void M_Options_Draw (cb_context_t *cbx)
 
 	// Draw the items in the order of the enum defined above:
 	// OPT_CUSTOMIZE:
-	M_Print (cbx, 16, 32, "              Controls");
+	M_Print (cbx, MENU_LABEL_X, 32, M_MenuLabel ("Controls"));
 
 	// OPT_VIDEO:
 	if (vid_menudrawfn)
-		M_Print (cbx, 16, 32 + 8 * OPT_VIDEO, "         Video Options");
+		M_Print (cbx, MENU_LABEL_X, 32 + 8 * OPT_VIDEO, M_MenuLabel ("Video Options"));
 
 	// OPT_FOV:
-	M_Print (cbx, 16, 32 + 8 * OPT_FOV, "         Field Of View");
+	M_Print (cbx, MENU_LABEL_X, 32 + 8 * OPT_FOV, M_MenuLabel ("Field Of View"));
 	r = (scr_fov.value - 80) / (130 - 80);
 	M_DrawSlider (cbx, SLIDER_XPOS, 32 + 8 * OPT_FOV, r);
 
 	// OPT_SCALE:
-	M_Print (cbx, 16, 32 + 8 * OPT_SCALE, "       Interface Scale");
+	M_Print (cbx, MENU_LABEL_X, 32 + 8 * OPT_SCALE, M_MenuLabel ("Interface Scale"));
 	l = scr_relativescale.value ? 2.0f : ((vid.width / 320.0) - 1);
 	r = l > 0 ? ((scr_relativescale.value ? scr_relativescale.value : scr_conscale.value) - 1) / l : 0;
 	M_DrawSlider (cbx, SLIDER_XPOS, 32 + 8 * OPT_SCALE, r);
 
 	// OPT_SCRSIZE:
-	M_Print (cbx, 16, 32 + 8 * OPT_SCRSIZE, "           Screen Size");
+	M_Print (cbx, MENU_LABEL_X, 32 + 8 * OPT_SCRSIZE, M_MenuLabel ("Screen Size"));
 	r = (scr_viewsize.value - 30) / (130 - 30);
 	M_DrawSlider (cbx, SLIDER_XPOS, 32 + 8 * OPT_SCRSIZE, r);
 
 	// OPT_GAMMA:
-	M_Print (cbx, 16, 32 + 8 * OPT_GAMMA, "            Brightness");
+	M_Print (cbx, MENU_LABEL_X, 32 + 8 * OPT_GAMMA, M_MenuLabel ("Brightness"));
 	r = (1.0 - vid_gamma.value) / 0.5;
 	M_DrawSlider (cbx, SLIDER_XPOS, 32 + 8 * OPT_GAMMA, r);
 
 	// OPT_CONTRAST:
-	M_Print (cbx, 16, 32 + 8 * OPT_CONTRAST, "              Contrast");
+	M_Print (cbx, MENU_LABEL_X, 32 + 8 * OPT_CONTRAST, M_MenuLabel ("Contrast"));
 	r = vid_contrast.value - 1.0;
 	M_DrawSlider (cbx, SLIDER_XPOS, 32 + 8 * OPT_CONTRAST, r);
 
 	// OPT_MOUSESPEED:
-	M_Print (cbx, 16, 32 + 8 * OPT_MOUSESPEED, "           Mouse Speed");
+	M_Print (cbx, MENU_LABEL_X, 32 + 8 * OPT_MOUSESPEED, M_MenuLabel ("Mouse Speed"));
 	r = (sensitivity.value - 1) / 10;
 	M_DrawSlider (cbx, SLIDER_XPOS, 32 + 8 * OPT_MOUSESPEED, r);
 
 	// OPT_SBALPHA:
-	M_Print (cbx, 16, 32 + 8 * OPT_SBALPHA, "       Statusbar alpha");
+	M_Print (cbx, MENU_LABEL_X, 32 + 8 * OPT_SBALPHA, M_MenuLabel ("Statusbar alpha"));
 	r = (1.0 - scr_sbaralpha.value); // scr_sbaralpha range is 1.0 to 0.0
 	M_DrawSlider (cbx, SLIDER_XPOS, 32 + 8 * OPT_SBALPHA, r);
 
 	// OPT_SNDVOL:
-	M_Print (cbx, 16, 32 + 8 * OPT_SNDVOL, "          Sound Volume");
+	M_Print (cbx, MENU_LABEL_X, 32 + 8 * OPT_SNDVOL, M_MenuLabel ("Sound Volume"));
 	r = sfxvolume.value;
 	M_DrawSlider (cbx, SLIDER_XPOS, 32 + 8 * OPT_SNDVOL, r);
 
 	// OPT_MUSICVOL:
-	M_Print (cbx, 16, 32 + 8 * OPT_MUSICVOL, "          Music Volume");
+	M_Print (cbx, MENU_LABEL_X, 32 + 8 * OPT_MUSICVOL, M_MenuLabel ("Music Volume"));
 	r = bgmvolume.value;
 	M_DrawSlider (cbx, SLIDER_XPOS, 32 + 8 * OPT_MUSICVOL, r);
 
 	// OPT_MUSICEXT:
-	M_Print (cbx, 16, 32 + 8 * OPT_MUSICEXT, "        External Music");
-	M_DrawCheckbox (cbx, 220, 32 + 8 * OPT_MUSICEXT, bgm_extmusic.value);
+	M_Print (cbx, MENU_LABEL_X, 32 + 8 * OPT_MUSICEXT, M_MenuLabel ("External Music"));
+	M_DrawCheckbox (cbx, MENU_VALUE_X, 32 + 8 * OPT_MUSICEXT, bgm_extmusic.value);
 
 	// OPT_AUTOLOAD:
-	M_Print (cbx, 16, 32 + 8 * OPT_AUTOLOAD, "        Load last save");
+	M_Print (cbx, MENU_LABEL_X, 32 + 8 * OPT_AUTOLOAD, M_MenuLabel ("Load last save"));
 	if (autoload.value >= 2)
-		M_Print (cbx, 220, 32 + 8 * OPT_AUTOLOAD, "fast");
+		M_Print (cbx, MENU_VALUE_X, 32 + 8 * OPT_AUTOLOAD, "fast");
 	else if (autoload.value)
-		M_Print (cbx, 220, 32 + 8 * OPT_AUTOLOAD, "on");
+		M_Print (cbx, MENU_VALUE_X, 32 + 8 * OPT_AUTOLOAD, "on");
 	else
-		M_Print (cbx, 220, 32 + 8 * OPT_AUTOLOAD, "off");
+		M_Print (cbx, MENU_VALUE_X, 32 + 8 * OPT_AUTOLOAD, "off");
 
 	// OPT_ALWAYRUN:
-	M_Print (cbx, 16, 32 + 8 * OPT_ALWAYRUN, "            Always Run");
+	M_Print (cbx, MENU_LABEL_X, 32 + 8 * OPT_ALWAYRUN, M_MenuLabel ("Always Run"));
 	if (cl_alwaysrun.value)
-		M_Print (cbx, 220, 32 + 8 * OPT_ALWAYRUN, "quakespasm");
+		M_Print (cbx, MENU_VALUE_X, 32 + 8 * OPT_ALWAYRUN, "quakespasm");
 	else if (cl_forwardspeed.value > 200.0)
-		M_Print (cbx, 220, 32 + 8 * OPT_ALWAYRUN, "vanilla");
+		M_Print (cbx, MENU_VALUE_X, 32 + 8 * OPT_ALWAYRUN, "vanilla");
 	else
-		M_Print (cbx, 220, 32 + 8 * OPT_ALWAYRUN, "off");
+		M_Print (cbx, MENU_VALUE_X, 32 + 8 * OPT_ALWAYRUN, "off");
 
 	// OPT_INVMOUSE:
-	M_Print (cbx, 16, 32 + 8 * OPT_INVMOUSE, "          Invert Mouse");
-	M_DrawCheckbox (cbx, 220, 32 + 8 * OPT_INVMOUSE, m_pitch.value < 0);
+	M_Print (cbx, MENU_LABEL_X, 32 + 8 * OPT_INVMOUSE, M_MenuLabel ("Invert Mouse"));
+	M_DrawCheckbox (cbx, MENU_VALUE_X, 32 + 8 * OPT_INVMOUSE, m_pitch.value < 0);
 
 	// OPT_ALWAYSMLOOK:
-	M_Print (cbx, 16, 32 + 8 * OPT_ALWAYSMLOOK, "            Mouse Look");
-	M_DrawCheckbox (cbx, 220, 32 + 8 * OPT_ALWAYSMLOOK, in_mlook.state & 1);
+	M_Print (cbx, MENU_LABEL_X, 32 + 8 * OPT_ALWAYSMLOOK, M_MenuLabel ("Mouse Look"));
+	M_DrawCheckbox (cbx, MENU_VALUE_X, 32 + 8 * OPT_ALWAYSMLOOK, in_mlook.state & 1);
 
 	// OPT_LOOKSPRING:
-	M_Print (cbx, 16, 32 + 8 * OPT_LOOKSPRING, "            Lookspring");
-	M_DrawCheckbox (cbx, 220, 32 + 8 * OPT_LOOKSPRING, lookspring.value);
+	M_Print (cbx, MENU_LABEL_X, 32 + 8 * OPT_LOOKSPRING, M_MenuLabel ("Lookspring"));
+	M_DrawCheckbox (cbx, MENU_VALUE_X, 32 + 8 * OPT_LOOKSPRING, lookspring.value);
 
 	// OPT_LOOKSTRAFE:
-	M_Print (cbx, 16, 32 + 8 * OPT_LOOKSTRAFE, "            Lookstrafe");
-	M_DrawCheckbox (cbx, 220, 32 + 8 * OPT_LOOKSTRAFE, lookstrafe.value);
+	M_Print (cbx, MENU_LABEL_X, 32 + 8 * OPT_LOOKSTRAFE, M_MenuLabel ("Lookstrafe"));
+	M_DrawCheckbox (cbx, MENU_VALUE_X, 32 + 8 * OPT_LOOKSTRAFE, lookstrafe.value);
 
 	// OPT_CROSSHAIR:
-	M_Print (cbx, 16, 32 + 8 * OPT_CROSSHAIR, "             Crosshair");
-	M_Print (cbx, 220, 32 + 8 * OPT_CROSSHAIR, (crosshair.value == 0.0f) ? "off" : ((crosshair.value == 1.0f) ? "cross" : "dot"));
+	M_Print (cbx, MENU_LABEL_X, 32 + 8 * OPT_CROSSHAIR, M_MenuLabel ("Crosshair"));
+	M_Print (cbx, MENU_VALUE_X, 32 + 8 * OPT_CROSSHAIR, (crosshair.value == 0.0f) ? "off" : ((crosshair.value == 1.0f) ? "cross" : "dot"));
 
 	// OPT_CONSOLE:
-	M_Print (cbx, 16, 32 + 8 * OPT_CONSOLE, "          Goto console");
+	M_Print (cbx, MENU_LABEL_X, 32 + 8 * OPT_CONSOLE, M_MenuLabel ("Goto console"));
 	// OPT_DEFAULTS:
-	M_Print (cbx, 16, 32 + 8 * OPT_DEFAULTS, "          Reset config");
+	M_Print (cbx, MENU_LABEL_X, 32 + 8 * OPT_DEFAULTS, M_MenuLabel ("Reset config"));
 
 	// cursor
 	M_Mouse_UpdateListCursor (&options_cursor, 70, 320, 32, 8, OPTIONS_ITEMS, 0);
-	M_DrawCharacter (cbx, 200, 32 + options_cursor * 8, 12 + ((int)(realtime * 4) & 1));
+	M_DrawCharacter (cbx, MENU_CURSOR_X, 32 + options_cursor * 8, 12 + ((int)(realtime * 4) & 1));
 }
 
 void M_Options_Key (int k)

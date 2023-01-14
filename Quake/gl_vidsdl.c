@@ -32,6 +32,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "SDL.h"
 #include "SDL_syswm.h"
 #include "SDL_vulkan.h"
+#include "menu.h"
 #ifdef _WIN32
 #include <vulkan/vulkan_win32.h>
 #endif
@@ -4089,76 +4090,79 @@ static void VID_MenuDraw (cb_context_t *cbx)
 		switch (i)
 		{
 		case VID_OPT_MODE:
-			M_Print (cbx, 16, y, "        Video mode");
-			M_Print (cbx, 184, y, va ("%ix%i", (int)vid_width.value, (int)vid_height.value));
+			M_Print (cbx, MENU_LABEL_X, y, M_MenuLabel ("Video mode"));
+			M_Print (cbx, MENU_VALUE_X, y, va ("%ix%i", (int)vid_width.value, (int)vid_height.value));
 			break;
 		case VID_OPT_BPP:
-			M_Print (cbx, 16, y, "       Color depth");
-			M_Print (cbx, 184, y, (menu_settings.vid_palettize == 1) ? "classic" : "modern");
+			M_Print (cbx, MENU_LABEL_X, y, M_MenuLabel ("Color depth"));
+			M_Print (cbx, MENU_VALUE_X, y, (menu_settings.vid_palettize == 1) ? "classic" : "modern");
 			break;
 		case VID_OPT_REFRESHRATE:
-			M_Print (cbx, 16, y, "      Refresh rate");
-			M_Print (cbx, 184, y, va ("%i", (int)vid_refreshrate.value));
+			M_Print (cbx, MENU_LABEL_X, y, M_MenuLabel ("Refresh rate"));
+			M_Print (cbx, MENU_VALUE_X, y, va ("%i", (int)vid_refreshrate.value));
 			break;
 		case VID_OPT_FULLSCREEN:
-			M_Print (cbx, 16, y, "        Fullscreen");
-			M_Print (cbx, 184, y, ((int)vid_fullscreen.value == 0) ? "off" : (((int)vid_fullscreen.value == 1) ? "on" : "exclusive"));
+			M_Print (cbx, MENU_LABEL_X, y, M_MenuLabel ("Fullscreen"));
+			M_Print (cbx, MENU_VALUE_X, y, ((int)vid_fullscreen.value == 0) ? "off" : (((int)vid_fullscreen.value == 1) ? "on" : "exclusive"));
 			break;
 		case VID_OPT_VSYNC:
-			M_Print (cbx, 16, y, "     Vertical sync");
-			M_Print (cbx, 184, y, ((int)vid_vsync.value == 0) ? "off" : (((int)vid_vsync.value == 1) ? "on" : "triple buffer"));
+			M_Print (cbx, MENU_LABEL_X, y, M_MenuLabel ("Vertical sync"));
+			M_Print (cbx, MENU_VALUE_X, y, ((int)vid_vsync.value == 0) ? "off" : (((int)vid_vsync.value == 1) ? "on" : "triple buffer"));
 			break;
 		case VID_OPT_MAX_FPS:
-			M_Print (cbx, 16, y, "           Max FPS");
+			M_Print (cbx, MENU_LABEL_X, y, M_MenuLabel ("Max FPS"));
 			if (menu_settings.host_maxfps <= 0)
-				M_Print (cbx, 184, y, "no limit");
+				M_Print (cbx, MENU_VALUE_X, y, "no limit");
 			else
-				M_Print (cbx, 184, y, va ("%d", menu_settings.host_maxfps));
+				M_Print (cbx, MENU_VALUE_X, y, va ("%d", menu_settings.host_maxfps));
 			break;
 		case VID_OPT_ANTIALIASING_SAMPLES:
-			M_Print (cbx, 16, y, "      Antialiasing");
-			M_Print (cbx, 184, y, ((int)vid_fsaa.value >= 2) ? va ("%ix", CLAMP (2, (int)vid_fsaa.value, 16)) : "off");
+			M_Print (cbx, MENU_LABEL_X, y, M_MenuLabel ("Antialiasing"));
+			M_Print (cbx, MENU_VALUE_X, y, ((int)vid_fsaa.value >= 2) ? va ("%ix", CLAMP (2, (int)vid_fsaa.value, 16)) : "off");
 			break;
 		case VID_OPT_ANTIALIASING_MODE:
-			M_Print (cbx, 16, y, "           AA Mode");
-			M_Print (cbx, 184, y, (((int)vid_fsaamode.value == 0) || !vulkan_physical_device_features.sampleRateShading) ? "Multisample" : "Supersample");
+			M_Print (cbx, MENU_LABEL_X, y, M_MenuLabel ("AA Mode"));
+			M_Print (
+				cbx, MENU_VALUE_X, y, (((int)vid_fsaamode.value == 0) || !vulkan_physical_device_features.sampleRateShading) ? "Multisample" : "Supersample");
 			break;
 		case VID_OPT_RENDER_SCALE:
-			M_Print (cbx, 16, y, "      Render Scale");
-			M_Print (cbx, 184, y, (menu_settings.r_scale >= 2) ? va ("1/%i", menu_settings.r_scale) : "off");
+			M_Print (cbx, MENU_LABEL_X, y, M_MenuLabel ("Render Scale"));
+			M_Print (cbx, MENU_VALUE_X, y, (menu_settings.r_scale >= 2) ? va ("1/%i", menu_settings.r_scale) : "off");
 			break;
 		case VID_OPT_FILTER:
-			M_Print (cbx, 16, y, "          Textures");
-			M_Print (cbx, 184, y, (menu_settings.vid_filter == 0) ? "smooth" : "classic");
+			M_Print (cbx, MENU_LABEL_X, y, M_MenuLabel ("Textures"));
+			M_Print (cbx, MENU_VALUE_X, y, (menu_settings.vid_filter == 0) ? "smooth" : "classic");
 			break;
 		case VID_OPT_ANISOTROPY:
-			M_Print (cbx, 16, y, "       Anisotropic");
-			M_Print (cbx, 184, y, (menu_settings.vid_anisotropic == 0) ? "off" : va ("on (%gx)", vulkan_globals.device_properties.limits.maxSamplerAnisotropy));
+			M_Print (cbx, MENU_LABEL_X, y, M_MenuLabel ("Anisotropic"));
+			M_Print (
+				cbx, MENU_VALUE_X, y,
+				(menu_settings.vid_anisotropic == 0) ? "off" : va ("on (%gx)", vulkan_globals.device_properties.limits.maxSamplerAnisotropy));
 			break;
 		case VID_OPT_UNDERWATER:
-			M_Print (cbx, 16, y, "     Underwater FX");
-			M_Print (cbx, 184, y, (menu_settings.r_waterwarp == 0) ? "off" : ((menu_settings.r_waterwarp == 1) ? "Classic" : "glQuake"));
+			M_Print (cbx, MENU_LABEL_X, y, M_MenuLabel ("Underwater FX"));
+			M_Print (cbx, MENU_VALUE_X, y, (menu_settings.r_waterwarp == 0) ? "off" : ((menu_settings.r_waterwarp == 1) ? "Classic" : "glQuake"));
 			break;
 		case VID_OPT_PARTICLES:
-			M_Print (cbx, 16, y, "         Particles");
-			M_Print (cbx, 184, y, (menu_settings.r_particles == 0) ? "off" : ((menu_settings.r_particles == 2) ? "Classic" : "glQuake"));
+			M_Print (cbx, MENU_LABEL_X, y, M_MenuLabel ("Particles"));
+			M_Print (cbx, MENU_VALUE_X, y, (menu_settings.r_particles == 0) ? "off" : ((menu_settings.r_particles == 2) ? "Classic" : "glQuake"));
 			break;
 		case VID_OPT_SHADOWS:
-			M_Print (cbx, 16, y, "           Shadows");
-			M_Print (cbx, 184, y, (vulkan_globals.ray_query && menu_settings.r_rtshadows) ? "on" : "off");
+			M_Print (cbx, MENU_LABEL_X, y, M_MenuLabel ("Dynamic Shadows"));
+			M_Print (cbx, MENU_VALUE_X, y, (vulkan_globals.ray_query && menu_settings.r_rtshadows) ? "on" : "off");
 			break;
 		case VID_OPT_TEST:
 			y += 8; // separate the test and apply items
-			M_Print (cbx, 16, y, "      Test changes");
+			M_Print (cbx, MENU_LABEL_X, y, M_MenuLabel ("Test changes"));
 			break;
 		case VID_OPT_APPLY:
-			M_Print (cbx, 16, y, "     Apply changes");
+			M_Print (cbx, MENU_LABEL_X, y, M_MenuLabel ("Apply changes"));
 			break;
 		}
 
 		M_Mouse_UpdateCursor (&video_options_cursor, 12, 400, y, 8, i);
 		if (video_options_cursor == i)
-			M_DrawCharacter (cbx, 168, y, 12 + ((int)(realtime * 4) & 1));
+			M_DrawCharacter (cbx, MENU_VALUE_X - 16, y, 12 + ((int)(realtime * 4) & 1));
 
 		y += 8;
 	}

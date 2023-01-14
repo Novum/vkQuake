@@ -80,4 +80,10 @@ void M_DrawCheckbox (cb_context_t *cbx, int x, int y, int on);
 void M_Mouse_UpdateListCursor (int *cursor, int left, int right, int top, int item_height, int num_items, int scroll_offset);
 void M_Mouse_UpdateCursor (int *cursor, int left, int right, int top, int item_height, int index);
 
+char *M_MenuLabel (const char *name);
+
+#define MENU_LABEL_X  16
+#define MENU_VALUE_X  204
+#define MENU_CURSOR_X 188
+
 #endif /* _QUAKE_MENU_H */
