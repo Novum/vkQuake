@@ -2894,7 +2894,8 @@ R_FlushUpdateLightmaps
 #define UPDATE_LIGHTMAP_BATCH_SIZE 64
 void R_FlushUpdateLightmaps (
 	cb_context_t *cbx, int num_batch_lightmaps, VkImageMemoryBarrier *pre_barriers, VkImageMemoryBarrier *post_barriers, int *lightmap_indexes,
-	byte lightmap_regions[UPDATE_LIGHTMAP_BATCH_SIZE][LMBLOCK_HEIGHT / LM_CULL_BLOCK_H][LMBLOCK_WIDTH / LM_CULL_BLOCK_W])
+	byte lightmap_regions[UPDATE_LIGHTMAP_BATCH_SIZE][LMBLOCK_HEIGHT / LM_CULL_BLOCK_H][LMBLOCK_WIDTH / LM_CULL_BLOCK_W], int current_dlights,
+	int cached_dlights)
 {
 	vulkan_pipeline_t *pipeline =
 		(r_rtshadows.value && (bmodel_tlas != VK_NULL_HANDLE)) ? &vulkan_globals.update_lightmap_rt_pipeline : &vulkan_globals.update_lightmap_pipeline;
@@ -2938,12 +2939,10 @@ void R_FlushUpdateLightmaps (
 							lightmap_regions[j][y + h][i] = false;
 						h += 1;
 					}
-					uint32_t push_constants[6] = {
-						lightmaps[lightmap_indexes[j]].highest_used_dlight[0], LMBLOCK_WIDTH, x * LM_CULL_BLOCK_W / 8, y * LM_CULL_BLOCK_H / 8, type == 1,
-						lightmaps[lightmap_indexes[j]].highest_used_dlight[1]};
+					uint32_t push_constants[6] = {current_dlights, LMBLOCK_WIDTH, x * LM_CULL_BLOCK_W / 8, y * LM_CULL_BLOCK_H / 8, type == 1, cached_dlights};
 					R_PushConstants (cbx, VK_SHADER_STAGE_COMPUTE_BIT, 0, 6 * sizeof (uint32_t), push_constants);
-					w = q_min (lightmaps[lightmap_indexes[j]].lightstyle_rectused[0].w / 8 - x * LM_CULL_BLOCK_W / 8, w = w * LM_CULL_BLOCK_W / 8);
-					h = q_min (lightmaps[lightmap_indexes[j]].lightstyle_rectused[0].h / 8 - y * LM_CULL_BLOCK_H / 8, h = h * LM_CULL_BLOCK_H / 8);
+					w = q_min (lightmaps[lightmap_indexes[j]].lightstyle_rectused[0].w / 8 - x * LM_CULL_BLOCK_W / 8, w * LM_CULL_BLOCK_W / 8);
+					h = q_min (lightmaps[lightmap_indexes[j]].lightstyle_rectused[0].h / 8 - y * LM_CULL_BLOCK_H / 8, h * LM_CULL_BLOCK_H / 8);
 					vkCmdDispatch (cbx->cb, w, h, 1);
 				}
 	}
@@ -3010,8 +3009,6 @@ void R_UpdateLightmapsAndIndirect (void *unused)
 	cb_context_t *cbx = &vulkan_globals.secondary_cb_contexts[CBX_UPDATE_LIGHTMAPS];
 	R_BeginDebugUtilsLabel (cbx, "Update Lightmaps");
 	R_BuildTopLevelAccelerationStructure (cbx);
-	static dlight_t prev_dlights[MAX_DLIGHTS];
-	static double	prev_time;
 
 	for (int i = 0; i < MAX_LIGHTSTYLES; ++i)
 	{
@@ -3019,31 +3016,29 @@ void R_UpdateLightmapsAndIndirect (void *unused)
 		*style = (float)d_lightstylevalue[i] / 256.0f;
 	}
 
-	int					num_used_dlights = 0;
-	int					used_dlights[MAX_DLIGHTS];
-	float				squared_radius[MAX_DLIGHTS];
-	lm_compute_light_t *light = lights_buffer_mapped + (current_compute_buffer_index * MAX_DLIGHTS * 2);
-	for (int i = 0; i < MAX_DLIGHTS * 2; ++i)
+	static lm_compute_light_t cached_dlights[MAX_DLIGHTS];
+	static int				  num_cached_dlights;
+
+	memcpy (
+		lights_buffer_mapped + (current_compute_buffer_index * MAX_DLIGHTS * 2) + MAX_DLIGHTS, cached_dlights,
+		sizeof (lm_compute_light_t) * num_cached_dlights);
+
+	int	  num_used_dlights = 0;
+	int	  used_dlights[MAX_DLIGHTS];
+	float squared_radius[MAX_DLIGHTS];
+	for (int i = 0; i < MAX_DLIGHTS; ++i)
 	{
-		dlight_t *source = i < MAX_DLIGHTS ? &cl_dlights[i] : &prev_dlights[i - MAX_DLIGHTS];
-		double	  time = i < MAX_DLIGHTS ? cl.time : prev_time;
-		if (i == MAX_DLIGHTS)
-			light = lights_buffer_mapped + (current_compute_buffer_index * MAX_DLIGHTS * 2) + MAX_DLIGHTS;
-		if (!r_dynamic.value || source->die < time || source->radius == 0.0f || (source->radius < source->minlight))
+		lm_compute_light_t *light = &cached_dlights[num_used_dlights];
+		if (!r_dynamic.value || cl_dlights[i].die < cl.time || cl_dlights[i].radius == 0.0f || (cl_dlights[i].radius < cl_dlights[i].minlight))
 			continue;
-		VectorCopy (source->origin, light->origin);
-		light->radius = (source->die < time) ? 0.0f : source->radius;
-		VectorCopy (source->color, light->color);
-		light->minlight = source->minlight;
-		++light;
-		if (i < MAX_DLIGHTS)
-		{
-			squared_radius[num_used_dlights] = source->radius * source->radius;
-			used_dlights[num_used_dlights++] = i;
-		}
+		VectorCopy (cl_dlights[i].origin, light->origin);
+		light->radius = cl_dlights[i].radius;
+		VectorCopy (cl_dlights[i].color, light->color);
+		light->minlight = cl_dlights[i].minlight;
+		squared_radius[num_used_dlights] = cl_dlights[i].radius * cl_dlights[i].radius;
+		used_dlights[num_used_dlights++] = i;
 	}
-	memcpy (prev_dlights, cl_dlights, sizeof (prev_dlights));
-	prev_time = cl.time;
+	memcpy (lights_buffer_mapped + (current_compute_buffer_index * MAX_DLIGHTS * 2), cached_dlights, sizeof (lm_compute_light_t) * num_used_dlights);
 
 	int					 num_lightmaps = 0;
 	int					 num_batch_lightmaps = 0;
@@ -3127,8 +3122,6 @@ void R_UpdateLightmapsAndIndirect (void *unused)
 			for (int i = 0; i < MAX_LIGHTSTYLES; i++)
 				lm->cached_light[i] = d_lightstylevalue[i];
 			lm->cached_framecount = r_framecount;
-			lm->highest_used_dlight[1] = lm->highest_used_dlight[0];
-			lm->highest_used_dlight[0] = num_used_dlights;
 		}
 
 		int batch_index = num_batch_lightmaps++;
@@ -3169,13 +3162,18 @@ void R_UpdateLightmapsAndIndirect (void *unused)
 
 		if (num_batch_lightmaps == UPDATE_LIGHTMAP_BATCH_SIZE)
 		{
-			R_FlushUpdateLightmaps (cbx, num_batch_lightmaps, pre_lm_image_barriers, post_lm_image_barriers, lightmap_indexes, lightmap_regions);
+			R_FlushUpdateLightmaps (
+				cbx, num_batch_lightmaps, pre_lm_image_barriers, post_lm_image_barriers, lightmap_indexes, lightmap_regions, num_used_dlights,
+				num_cached_dlights);
 			num_batch_lightmaps = 0;
 		}
 	}
 
 	if (num_batch_lightmaps > 0)
-		R_FlushUpdateLightmaps (cbx, num_batch_lightmaps, pre_lm_image_barriers, post_lm_image_barriers, lightmap_indexes, lightmap_regions);
+		R_FlushUpdateLightmaps (
+			cbx, num_batch_lightmaps, pre_lm_image_barriers, post_lm_image_barriers, lightmap_indexes, lightmap_regions, num_used_dlights, num_cached_dlights);
+
+	num_cached_dlights = num_used_dlights;
 
 	Atomic_AddUInt32 (&rs_dynamiclightmaps, num_lightmaps);
 
