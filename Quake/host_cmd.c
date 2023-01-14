@@ -172,7 +172,7 @@ void FileList_Init (char *path, char *ext, int minsize, filelist_item_t **list)
 			}
 			closedir (dir_p);
 #endif
-			if (!strcmp (ext, "sav") && search != &multiuser_saves) // only game dir for savegames
+			if (!strcmp (ext, "sav") && (!multiuser || search != &multiuser_saves)) // only game dir for savegames
 				break;
 		}
 		else // pakfile
