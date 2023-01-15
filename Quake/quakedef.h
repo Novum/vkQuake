@@ -319,6 +319,7 @@ static inline int FindFirstBitNonZero (const uint32_t mask)
 
 #include "tasks.h"
 #include "atomics.h"
+#include "hash_map.h"
 
 //=============================================================================
 

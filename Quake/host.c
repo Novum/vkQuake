@@ -988,6 +988,18 @@ void Host_Frame (double time)
 
 /*
 ====================
+Tests_Init
+====================
+*/
+static void Tests_Init ()
+{
+#ifdef _DEBUG
+	Cmd_AddCommand ("test_hash_map", TestHashMap_f);
+#endif
+}
+
+/*
+====================
 Host_Init
 ====================
 */
@@ -1042,6 +1054,7 @@ void Host_Init (void)
 		BGM_Init ();
 		Sbar_Init ();
 		CL_Init ();
+		Tests_Init ();
 	}
 
 #ifdef PSET_SCRIPT

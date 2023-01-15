@@ -478,6 +478,9 @@
     <ClCompile Include="..\..\Shaders\Compiled\Debug\update_lightmap_rt.comp.c">
       <Filter>Shaders\Debug</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Quake\hash_map.c">
+      <Filter>Main</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\Quake\snd_codec.h">
@@ -691,6 +694,9 @@
       <Filter>Main</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Quake\mem.h">
+      <Filter>Main</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\hash_map.h">
       <Filter>Main</Filter>
     </ClInclude>
   </ItemGroup>

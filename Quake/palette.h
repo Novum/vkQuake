@@ -35,6 +35,8 @@ COMPILE_TIME_ASSERT ("palette_octree_node_t", sizeof (palette_octree_node_t) == 
 extern palette_octree_node_t palette_octree_nodes[NUM_PALETTE_OCTREE_NODES];
 extern uint32_t				 palette_octree_colors[NUM_PALETTE_OCTREE_COLORS];
 
+#ifdef _DEBUG
 void CreatePaletteOctree_f (void);
+#endif
 
 #endif /* _PALETTE_H */

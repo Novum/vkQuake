@@ -219,6 +219,7 @@ OBJS := strlcat.o \
 	world.o \
 	mem.o \
 	tasks.o \
+	hash_map.o \
 	embedded_pak.o \
 	$(SYSOBJ_SYS) $(SYSOBJ_MAIN)
 

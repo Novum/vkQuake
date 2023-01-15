@@ -137,6 +137,7 @@ srcs = [
     'Quake/view.c',
     'Quake/wad.c',
     'Quake/world.c',
+	'Quake/hash_map.c',
 	'Quake/embedded_pak.c',
 ]
 

@@ -954,6 +954,7 @@ uint32_t palette_octree_colors[NUM_PALETTE_OCTREE_COLORS] =
 
 extern unsigned int d_8to24table[256];
 
+#ifdef _DEBUG
 /*
 =================
 CreatePaletteOctreeRec
@@ -1096,3 +1097,4 @@ void CreatePaletteOctree_f (void)
 
 	Mem_Free (colors_lut);
 }
+#endif
