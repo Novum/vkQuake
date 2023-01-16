@@ -122,11 +122,14 @@ void HashMap_Reserve (hash_map_t *map, int capacity)
 
 /*
 =================
-HashMap_Insert
+HashMap_InsertImpl
 =================
 */
-qboolean HashMap_Insert (hash_map_t *map, const void *const key, const void *const value)
+qboolean HashMap_InsertImpl (hash_map_t *map, const uint32_t key_size, const uint32_t value_size, const void *const key, const void *const value)
 {
+	assert (map->key_size == key_size);
+	assert (map->value_size == value_size);
+
 	if (map->num_entries >= map->key_value_storage_size)
 		HashMap_ExpandKeyValueStorage (map, q_max (map->key_value_storage_size * 2, MIN_KEY_VALUE_STORAGE_SIZE));
 	if (map->num_entries >= (LOAD_FACTOR * map->hash_size))
@@ -138,9 +141,9 @@ qboolean HashMap_Insert (hash_map_t *map, const void *const key, const void *con
 		uint32_t storage_index = map->hash_to_index[hash_index];
 		while (storage_index != UINT32_MAX)
 		{
-			if (memcmp (key, HashMap_GetKeyImpl (map, storage_index), map->key_size) == 0)
+			if (memcmp (key, HashMap_GetKeyImpl (map, storage_index), key_size) == 0)
 			{
-				memcpy (HashMap_GetValueImpl (map, storage_index), value, map->value_size);
+				memcpy (HashMap_GetValueImpl (map, storage_index), value, value_size);
 				return true;
 			}
 			storage_index = map->index_chain[storage_index];
@@ -149,8 +152,8 @@ qboolean HashMap_Insert (hash_map_t *map, const void *const key, const void *con
 
 	map->index_chain[map->num_entries] = map->hash_to_index[hash_index];
 	map->hash_to_index[hash_index] = map->num_entries;
-	memcpy (HashMap_GetKeyImpl (map, map->num_entries), key, map->key_size);
-	memcpy (HashMap_GetValueImpl (map, map->num_entries), value, map->value_size);
+	memcpy (HashMap_GetKeyImpl (map, map->num_entries), key, key_size);
+	memcpy (HashMap_GetValueImpl (map, map->num_entries), value, value_size);
 	++map->num_entries;
 
 	return false;
@@ -158,11 +161,12 @@ qboolean HashMap_Insert (hash_map_t *map, const void *const key, const void *con
 
 /*
 =================
-HashMap_Erase
+HashMap_EraseImpl
 =================
 */
-qboolean HashMap_Erase (hash_map_t *map, const void *const key)
+qboolean HashMap_EraseImpl (hash_map_t *map, const uint32_t key_size, const void *const key)
 {
+	assert (key_size == map->key_size);
 	if (map->num_entries == 0)
 		return false;
 
@@ -172,7 +176,7 @@ qboolean HashMap_Erase (hash_map_t *map, const void *const key)
 	uint32_t	  *prev_storage_index_ptr = NULL;
 	while (storage_index != UINT32_MAX)
 	{
-		if (memcmp (key, HashMap_GetKeyImpl (map, storage_index), map->key_size) == 0)
+		if (memcmp (key, HashMap_GetKeyImpl (map, storage_index), key_size) == 0)
 		{
 			{
 				// Remove found key from index
@@ -235,8 +239,10 @@ qboolean HashMap_Erase (hash_map_t *map, const void *const key)
 HashMap_LookupImpl
 =================
 */
-void *HashMap_LookupImpl (hash_map_t *map, const void *const key)
+void *HashMap_LookupImpl (hash_map_t *map, const uint32_t key_size, const void *const key)
 {
+	assert (map->key_size == key_size);
+
 	if (map->num_entries == 0)
 		return NULL;
 
@@ -245,7 +251,7 @@ void *HashMap_LookupImpl (hash_map_t *map, const void *const key)
 	uint32_t	   storage_index = map->hash_to_index[hash_index];
 	while (storage_index != UINT32_MAX)
 	{
-		if (memcmp (key, (byte *)map->keys + (storage_index * map->key_size), map->key_size) == 0)
+		if (memcmp (key, (byte *)map->keys + (storage_index * key_size), key_size) == 0)
 			return (byte *)map->values + (storage_index * map->value_size);
 		storage_index = map->index_chain[storage_index];
 	}
