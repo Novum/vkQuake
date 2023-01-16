@@ -113,8 +113,8 @@ void HashMap_Reserve (hash_map_t *map, int capacity)
 {
 	const uint32_t new_key_value_storage_size = Q_nextPow2 (capacity);
 	if (map->key_value_storage_size < new_key_value_storage_size)
-		HashMap_ExpandKeyValueStorage (map, Q_nextPow2 (capacity));
-	const uint32_t new_hash_size = Q_nextPow2 (capacity + (capacity / 2));
+		HashMap_ExpandKeyValueStorage (map, new_key_value_storage_size);
+	const uint32_t new_hash_size = Q_nextPow2 (capacity + (capacity / 4));
 	if (map->hash_size < new_hash_size)
 		HashMap_Rehash (map, new_hash_size);
 }
@@ -131,7 +131,7 @@ qboolean HashMap_InsertImpl (hash_map_t *map, const uint32_t key_size, const uin
 
 	if (map->num_entries >= map->key_value_storage_size)
 		HashMap_ExpandKeyValueStorage (map, q_max (map->key_value_storage_size * 2, MIN_KEY_VALUE_STORAGE_SIZE));
-	if ((map->num_entries + (map->num_entries / 2)) >= map->hash_size)
+	if ((map->num_entries + (map->num_entries / 4)) >= map->hash_size)
 		HashMap_Rehash (map, q_max (map->hash_size * 2, MIN_HASH_SIZE));
 
 	const uint32_t hash = map->hasher (key);
