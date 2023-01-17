@@ -93,23 +93,18 @@ static combined_brush_deps *brush_deps_data;
 static int					used_deps_data = 0;
 #define INITIAL_BRUSH_DEPS_SIZE 16384
 
-static vulkan_memory_t					   bmodel_memory;
-VkBuffer								   bmodel_vertex_buffer;
-uint32_t								   bmodel_numverts;
-VkDeviceAddress							   bmodel_vertex_buffer_device_address;
-VkAccelerationStructureKHR				   bmodel_tlas = VK_NULL_HANDLE;
-static VkBuffer							   bmodel_tlas_buffer;
-static size_t							   bmodel_tlas_size;
-static VkBuffer							   bmodel_indices_buffer;
-static VkDeviceAddress					   bmodel_indices_device_address;
-static VkBuffer							   bmodel_scratch_buffer;
-static VkDeviceAddress					   bmodel_scratch_address;
-static VkBuffer							   bmodel_instances_buffer;
-static VkDeviceAddress					   bmodel_instances_addresses[2];
-static VkAccelerationStructureInstanceKHR *bmodel_instances[2];
-static int								   bmodel_current_instance_buffer = 0;
-static vulkan_memory_t					   bmodel_as_device_memory;
-static vulkan_memory_t					   bmodel_instances_memory;
+static vulkan_memory_t	   bmodel_memory;
+VkBuffer				   bmodel_vertex_buffer;
+uint32_t				   bmodel_numverts;
+VkDeviceAddress			   bmodel_vertex_buffer_device_address;
+VkAccelerationStructureKHR bmodel_tlas = VK_NULL_HANDLE;
+static VkBuffer			   bmodel_tlas_buffer;
+static size_t			   bmodel_tlas_size;
+static VkBuffer			   bmodel_indices_buffer;
+static VkDeviceAddress	   bmodel_indices_device_address;
+static VkBuffer			   bmodel_scratch_buffer;
+static VkDeviceAddress	   bmodel_scratch_address;
+static vulkan_memory_t	   bmodel_as_device_memory;
 
 extern cvar_t r_showtris;
 extern cvar_t r_simd;
@@ -2014,7 +2009,6 @@ void GL_DeleteBModelAccelerationStructures (void)
 		assert (m->blas_buffer == VK_NULL_HANDLE);
 		assert (m->blas_address == 0);
 	}
-	R_FreeBuffer (bmodel_instances_buffer, &bmodel_instances_memory, &num_vulkan_bmodel_allocations);
 	R_FreeBuffers (num_buffers, buffers, &bmodel_as_device_memory, &num_vulkan_bmodel_allocations);
 	bmodel_tlas = VK_NULL_HANDLE;
 	bmodel_tlas_buffer = VK_NULL_HANDLE;
@@ -2023,13 +2017,6 @@ void GL_DeleteBModelAccelerationStructures (void)
 	bmodel_indices_device_address = 0;
 	bmodel_scratch_buffer = VK_NULL_HANDLE;
 	bmodel_scratch_address = 0;
-	bmodel_instances_buffer = VK_NULL_HANDLE;
-	for (int i = 0; i < 2; ++i)
-	{
-		bmodel_instances_addresses[0] = 0;
-		bmodel_instances[0] = NULL;
-	}
-	bmodel_current_instance_buffer = 0;
 	TEMP_FREE (buffers);
 }
 
@@ -2248,12 +2235,6 @@ void GL_BuildBModelAccelerationStructures (void)
 
 	Sys_Printf ("Allocating acceleration structure data (%u KB)\n", (int)(total_as_device_size / 1024ull));
 
-	R_CreateBuffer (
-		&bmodel_instances_buffer, &bmodel_instances_memory, sizeof (VkAccelerationStructureInstanceKHR) * MAX_EDICTS * 2,
-		VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
-		&num_vulkan_bmodel_allocations, &bmodel_instances_addresses[0], "AS instances");
-	bmodel_instances_addresses[1] = bmodel_instances_addresses[0] + sizeof (VkAccelerationStructureInstanceKHR) * MAX_EDICTS;
-
 	{
 		ZEROED_STRUCT (VkAccelerationStructureCreateInfoKHR, acceleration_structure_create_info);
 		acceleration_structure_create_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR;
@@ -2264,11 +2245,6 @@ void GL_BuildBModelAccelerationStructures (void)
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkCreateAccelerationStructure failed");
 	}
-
-	err = vkMapMemory (vulkan_globals.device, bmodel_instances_memory.handle, 0, VK_WHOLE_SIZE, 0, (void **)&bmodel_instances[0]);
-	if (err != VK_SUCCESS)
-		Sys_Error ("vkMapMemory failed");
-	bmodel_instances[1] = bmodel_instances[0] + MAX_EDICTS;
 
 	VkBuffer		staging_buffer;
 	VkCommandBuffer command_buffer;
@@ -2389,18 +2365,31 @@ static void R_BuildTopLevelAccelerationStructure (cb_context_t *cbx)
 	if (bmodel_tlas == VK_NULL_HANDLE)
 		return;
 
-	int									num_instances = 0;
-	VkAccelerationStructureInstanceKHR *instances = bmodel_instances[bmodel_current_instance_buffer];
-	for (int i = 0; i < cl.num_entities; ++i)
+	int num_instances = 0;
+	for (int i = 0; i < cl.num_entities + cl.num_statics; ++i)
 	{
-		entity_t *e = &cl.entities[i];
+		entity_t *e = (i < cl.num_entities) ? &cl.entities[i] : cl.static_entities[i - cl.num_entities];
+		if (!e->model || (e->model->needload) || (e->model->type != mod_brush) || (e->model->blas == VK_NULL_HANDLE) ||
+			((e->alpha != ENTALPHA_DEFAULT) && (ENTALPHA_DECODE (e->alpha) < 1.0f)))
+			continue;
+		++num_instances;
+	}
+
+	VkDeviceAddress						instances_device_address;
+	VkAccelerationStructureInstanceKHR *instances = (VkAccelerationStructureInstanceKHR *)R_StorageAllocate (
+		num_instances * sizeof (VkAccelerationStructureInstanceKHR), NULL, NULL, &instances_device_address);
+
+	num_instances = 0;
+	for (int i = 0; i < cl.num_entities + cl.num_statics; ++i)
+	{
+		entity_t *e = (i < cl.num_entities) ? &cl.entities[i] : cl.static_entities[i - cl.num_entities];
 		if (!e->model || (e->model->needload) || (e->model->type != mod_brush) || (e->model->blas == VK_NULL_HANDLE) ||
 			((e->alpha != ENTALPHA_DEFAULT) && (ENTALPHA_DECODE (e->alpha) < 1.0f)))
 			continue;
 
 		vec3_t e_angles;
 		VectorCopy (e->angles, e_angles);
-		e_angles[0] = -e_angles[0]; // stupid quake bug
+		e_angles[0] = -e_angles[0]; // quake bug
 		float model_matrix[16];
 		IdentityMatrix (model_matrix);
 		if (e->model != cl.worldmodel)
@@ -2426,22 +2415,13 @@ static void R_BuildTopLevelAccelerationStructure (cb_context_t *cbx)
 		instance->accelerationStructureReference = e->model->blas_address;
 
 		++num_instances;
-		assert (num_instances < MAX_EDICTS);
-		if (num_instances >= MAX_EDICTS)
-			break;
 	}
-
-	ZEROED_STRUCT (VkMappedMemoryRange, range);
-	range.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
-	range.memory = bmodel_instances_memory.handle;
-	range.size = VK_WHOLE_SIZE;
-	vkFlushMappedMemoryRanges (vulkan_globals.device, 1, &range);
 
 	ZEROED_STRUCT (VkAccelerationStructureGeometryKHR, tlas_geometry);
 	tlas_geometry.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
 	tlas_geometry.geometryType = VK_GEOMETRY_TYPE_INSTANCES_KHR;
 	tlas_geometry.geometry.instances.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR;
-	tlas_geometry.geometry.instances.data.deviceAddress = bmodel_instances_addresses[bmodel_current_instance_buffer];
+	tlas_geometry.geometry.instances.data.deviceAddress = instances_device_address;
 
 	ZEROED_STRUCT (VkAccelerationStructureBuildGeometryInfoKHR, tlas_geometry_info);
 	tlas_geometry_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
@@ -2464,8 +2444,6 @@ static void R_BuildTopLevelAccelerationStructure (cb_context_t *cbx)
 	memory_barrier.dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR;
 	vulkan_globals.vk_cmd_pipeline_barrier (
 		cbx->cb, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 1, &memory_barrier, 0, NULL, 0, NULL);
-
-	bmodel_current_instance_buffer = (bmodel_current_instance_buffer + 1) % 2;
 }
 
 /*

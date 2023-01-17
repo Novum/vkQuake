@@ -85,6 +85,7 @@ qboolean use_simd;
 static SDL_mutex *vertex_allocate_mutex;
 static SDL_mutex *index_allocate_mutex;
 static SDL_mutex *uniform_allocate_mutex;
+static SDL_mutex *storage_allocate_mutex;
 static SDL_mutex *garbage_mutex;
 
 /*
@@ -126,21 +127,25 @@ Dynamic vertex/index & uniform buffer
 
 typedef struct
 {
-	VkBuffer	   buffer;
-	uint32_t	   current_offset;
-	unsigned char *data;
+	VkBuffer		buffer;
+	uint32_t		current_offset;
+	unsigned char  *data;
+	VkDeviceAddress device_address;
 } dynbuffer_t;
 
 static uint32_t		   current_dyn_vertex_buffer_size = INITIAL_DYNAMIC_VERTEX_BUFFER_SIZE_KB * 1024;
 static uint32_t		   current_dyn_index_buffer_size = INITIAL_DYNAMIC_INDEX_BUFFER_SIZE_KB * 1024;
 static uint32_t		   current_dyn_uniform_buffer_size = INITIAL_DYNAMIC_UNIFORM_BUFFER_SIZE_KB * 1024;
+static uint32_t		   current_dyn_storage_buffer_size = 0; // Only used for RT so allocate lazily
 static vulkan_memory_t dyn_vertex_buffer_memory;
 static vulkan_memory_t dyn_index_buffer_memory;
 static vulkan_memory_t dyn_uniform_buffer_memory;
+static vulkan_memory_t dyn_storage_buffer_memory;
 extern vulkan_memory_t lights_buffer_memory;
 static dynbuffer_t	   dyn_vertex_buffers[NUM_DYNAMIC_BUFFERS];
 static dynbuffer_t	   dyn_index_buffers[NUM_DYNAMIC_BUFFERS];
 static dynbuffer_t	   dyn_uniform_buffers[NUM_DYNAMIC_BUFFERS];
+static dynbuffer_t	   dyn_storage_buffers[NUM_DYNAMIC_BUFFERS];
 static int			   current_dyn_buffer_index = 0;
 static VkDescriptorSet ubo_descriptor_sets[2];
 
@@ -527,6 +532,7 @@ void R_InitStagingBuffers ()
 	vertex_allocate_mutex = SDL_CreateMutex ();
 	index_allocate_mutex = SDL_CreateMutex ();
 	uniform_allocate_mutex = SDL_CreateMutex ();
+	storage_allocate_mutex = SDL_CreateMutex ();
 	garbage_mutex = SDL_CreateMutex ();
 	staging_mutex = SDL_CreateMutex ();
 	staging_cond = SDL_CreateCond ();
@@ -704,62 +710,97 @@ void R_StagingEndCopy ()
 
 /*
 ===============
-R_InitDynamicVertexBuffers
+R_InitDynamicBuffers
 ===============
 */
-static void R_InitDynamicVertexBuffers ()
+static void R_InitDynamicBuffers (
+	dynbuffer_t *buffers, vulkan_memory_t *memory, uint32_t *current_size, VkBufferUsageFlags usage_flags, qboolean get_device_address, const char *name)
 {
 	int i;
 
-	Sys_Printf ("Reallocating dynamic VBs (%u KB)\n", current_dyn_vertex_buffer_size / 1024);
+	Sys_Printf ("Reallocating dynamic %ss (%u KB)\n", name, *current_size / 1024);
 
 	VkResult err;
 
+	if (get_device_address)
+		usage_flags |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT_KHR;
+
 	ZEROED_STRUCT (VkBufferCreateInfo, buffer_create_info);
 	buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	buffer_create_info.size = current_dyn_vertex_buffer_size;
-	buffer_create_info.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+	buffer_create_info.size = *current_size;
+	buffer_create_info.usage = usage_flags;
 
 	for (i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
 	{
-		dyn_vertex_buffers[i].current_offset = 0;
+		buffers[i].current_offset = 0;
 
-		err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &dyn_vertex_buffers[i].buffer);
+		err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &buffers[i].buffer);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkCreateBuffer failed");
 
-		GL_SetObjectName ((uint64_t)dyn_vertex_buffers[i].buffer, VK_OBJECT_TYPE_BUFFER, "Dynamic Vertex Buffer");
+		GL_SetObjectName ((uint64_t)buffers[i].buffer, VK_OBJECT_TYPE_BUFFER, name);
 	}
 
 	VkMemoryRequirements memory_requirements;
-	vkGetBufferMemoryRequirements (vulkan_globals.device, dyn_vertex_buffers[0].buffer, &memory_requirements);
+	vkGetBufferMemoryRequirements (vulkan_globals.device, buffers[0].buffer, &memory_requirements);
 
 	const size_t aligned_size = q_align (memory_requirements.size, memory_requirements.alignment);
 
+	ZEROED_STRUCT (VkMemoryAllocateFlagsInfo, memory_allocate_flags_info);
+	if (get_device_address)
+	{
+		memory_allocate_flags_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO_KHR;
+		memory_allocate_flags_info.flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT;
+	}
+
 	ZEROED_STRUCT (VkMemoryAllocateInfo, memory_allocate_info);
 	memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	memory_allocate_info.pNext = get_device_address ? &memory_allocate_flags_info : NULL;
 	memory_allocate_info.allocationSize = NUM_DYNAMIC_BUFFERS * aligned_size;
 	memory_allocate_info.memoryTypeIndex =
 		GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
 
 	Atomic_IncrementUInt32 (&num_vulkan_dynbuf_allocations);
-	R_AllocateVulkanMemory (&dyn_vertex_buffer_memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_HOST);
-	GL_SetObjectName ((uint64_t)dyn_vertex_buffer_memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, "Dynamic Vertex Buffers");
+	R_AllocateVulkanMemory (memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_HOST);
+	GL_SetObjectName ((uint64_t)memory->handle, VK_OBJECT_TYPE_DEVICE_MEMORY, name);
 
 	for (i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
 	{
-		err = vkBindBufferMemory (vulkan_globals.device, dyn_vertex_buffers[i].buffer, dyn_vertex_buffer_memory.handle, i * aligned_size);
+		err = vkBindBufferMemory (vulkan_globals.device, buffers[i].buffer, memory->handle, i * aligned_size);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkBindBufferMemory failed");
 	}
 
 	void *data;
-	err = vkMapMemory (vulkan_globals.device, dyn_vertex_buffer_memory.handle, 0, NUM_DYNAMIC_BUFFERS * aligned_size, 0, &data);
+	err = vkMapMemory (vulkan_globals.device, memory->handle, 0, NUM_DYNAMIC_BUFFERS * aligned_size, 0, &data);
 	if (err != VK_SUCCESS)
 		Sys_Error ("vkMapMemory failed");
 
 	for (i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
-		dyn_vertex_buffers[i].data = (unsigned char *)data + (i * aligned_size);
+	{
+		buffers[i].data = (unsigned char *)data + (i * aligned_size);
+
+		if (get_device_address)
+		{
+			VkBufferDeviceAddressInfoKHR buffer_device_address_info;
+			memset (&buffer_device_address_info, 0, sizeof (buffer_device_address_info));
+			buffer_device_address_info.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO_KHR;
+			buffer_device_address_info.buffer = buffers[i].buffer;
+			VkDeviceAddress device_address = vulkan_globals.vk_get_buffer_device_address (vulkan_globals.device, &buffer_device_address_info);
+			buffers[i].device_address = device_address;
+		}
+	}
+}
+
+/*
+===============
+R_InitDynamicVertexBuffers
+===============
+*/
+static void R_InitDynamicVertexBuffers (void)
+{
+	R_InitDynamicBuffers (
+		dyn_vertex_buffers, &dyn_vertex_buffer_memory, &current_dyn_vertex_buffer_size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, false, "vertex buffer");
 }
 
 /*
@@ -767,59 +808,9 @@ static void R_InitDynamicVertexBuffers ()
 R_InitDynamicIndexBuffers
 ===============
 */
-static void R_InitDynamicIndexBuffers ()
+static void R_InitDynamicIndexBuffers (void)
 {
-	int i;
-
-	Sys_Printf ("Reallocating dynamic IBs (%u KB)\n", current_dyn_index_buffer_size / 1024);
-
-	VkResult err;
-
-	ZEROED_STRUCT (VkBufferCreateInfo, buffer_create_info);
-	buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	buffer_create_info.size = current_dyn_index_buffer_size;
-	buffer_create_info.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
-
-	for (i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
-	{
-		dyn_index_buffers[i].current_offset = 0;
-
-		err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &dyn_index_buffers[i].buffer);
-		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateBuffer failed");
-
-		GL_SetObjectName ((uint64_t)dyn_index_buffers[i].buffer, VK_OBJECT_TYPE_BUFFER, "Dynamic Index Buffer");
-	}
-
-	VkMemoryRequirements memory_requirements;
-	vkGetBufferMemoryRequirements (vulkan_globals.device, dyn_index_buffers[0].buffer, &memory_requirements);
-
-	const size_t aligned_size = q_align (memory_requirements.size, memory_requirements.alignment);
-
-	ZEROED_STRUCT (VkMemoryAllocateInfo, memory_allocate_info);
-	memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	memory_allocate_info.allocationSize = NUM_DYNAMIC_BUFFERS * aligned_size;
-	memory_allocate_info.memoryTypeIndex =
-		GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
-
-	Atomic_IncrementUInt32 (&num_vulkan_dynbuf_allocations);
-	R_AllocateVulkanMemory (&dyn_index_buffer_memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_HOST);
-	GL_SetObjectName ((uint64_t)dyn_index_buffer_memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, "Dynamic Index Buffers");
-
-	for (i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
-	{
-		err = vkBindBufferMemory (vulkan_globals.device, dyn_index_buffers[i].buffer, dyn_index_buffer_memory.handle, i * aligned_size);
-		if (err != VK_SUCCESS)
-			Sys_Error ("vkBindBufferMemory failed");
-	}
-
-	void *data;
-	err = vkMapMemory (vulkan_globals.device, dyn_index_buffer_memory.handle, 0, NUM_DYNAMIC_BUFFERS * aligned_size, 0, &data);
-	if (err != VK_SUCCESS)
-		Sys_Error ("vkMapMemory failed");
-
-	for (i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
-		dyn_index_buffers[i].data = (unsigned char *)data + (i * aligned_size);
+	R_InitDynamicBuffers (dyn_index_buffers, &dyn_index_buffer_memory, &current_dyn_index_buffer_size, VK_BUFFER_USAGE_INDEX_BUFFER_BIT, false, "index buffer");
 }
 
 /*
@@ -827,59 +818,10 @@ static void R_InitDynamicIndexBuffers ()
 R_InitDynamicUniformBuffers
 ===============
 */
-static void R_InitDynamicUniformBuffers ()
+static void R_InitDynamicUniformBuffers (void)
 {
-	int i;
-
-	Sys_Printf ("Reallocating dynamic UBs (%u KB)\n", current_dyn_uniform_buffer_size / 1024);
-
-	VkResult err;
-
-	ZEROED_STRUCT (VkBufferCreateInfo, buffer_create_info);
-	buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	buffer_create_info.size = current_dyn_uniform_buffer_size;
-	buffer_create_info.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
-
-	for (i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
-	{
-		dyn_uniform_buffers[i].current_offset = 0;
-
-		err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &dyn_uniform_buffers[i].buffer);
-		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateBuffer failed");
-
-		GL_SetObjectName ((uint64_t)dyn_uniform_buffers[i].buffer, VK_OBJECT_TYPE_BUFFER, "Dynamic Uniform Buffer");
-	}
-
-	VkMemoryRequirements memory_requirements;
-	vkGetBufferMemoryRequirements (vulkan_globals.device, dyn_uniform_buffers[0].buffer, &memory_requirements);
-
-	const size_t aligned_size = q_align (memory_requirements.size, memory_requirements.alignment);
-
-	ZEROED_STRUCT (VkMemoryAllocateInfo, memory_allocate_info);
-	memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	memory_allocate_info.allocationSize = NUM_DYNAMIC_BUFFERS * aligned_size;
-	memory_allocate_info.memoryTypeIndex =
-		GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
-
-	Atomic_IncrementUInt32 (&num_vulkan_dynbuf_allocations);
-	R_AllocateVulkanMemory (&dyn_uniform_buffer_memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_HOST);
-	GL_SetObjectName ((uint64_t)dyn_uniform_buffer_memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, "Dynamic Uniform Buffers");
-
-	for (i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
-	{
-		err = vkBindBufferMemory (vulkan_globals.device, dyn_uniform_buffers[i].buffer, dyn_uniform_buffer_memory.handle, i * aligned_size);
-		if (err != VK_SUCCESS)
-			Sys_Error ("vkBindBufferMemory failed");
-	}
-
-	void *data;
-	err = vkMapMemory (vulkan_globals.device, dyn_uniform_buffer_memory.handle, 0, NUM_DYNAMIC_BUFFERS * aligned_size, 0, &data);
-	if (err != VK_SUCCESS)
-		Sys_Error ("vkMapMemory failed");
-
-	for (i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
-		dyn_uniform_buffers[i].data = (unsigned char *)data + (i * aligned_size);
+	R_InitDynamicBuffers (
+		dyn_uniform_buffers, &dyn_uniform_buffer_memory, &current_dyn_uniform_buffer_size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, false, "uniform buffer");
 
 	ZEROED_STRUCT (VkDescriptorSetAllocateInfo, descriptor_set_allocate_info);
 	descriptor_set_allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -902,12 +844,32 @@ static void R_InitDynamicUniformBuffers ()
 	ubo_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
 	ubo_write.pBufferInfo = &buffer_info;
 
-	for (i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
+	for (int i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
 	{
 		buffer_info.buffer = dyn_uniform_buffers[i].buffer;
 		ubo_write.dstSet = ubo_descriptor_sets[i];
 		vkUpdateDescriptorSets (vulkan_globals.device, 1, &ubo_write, 0, NULL);
 	}
+}
+
+/*
+===============
+R_InitDynamicStorageBuffers
+===============
+*/
+static void R_InitDynamicStorageBuffers (void)
+{
+	VkBufferUsageFlags usage_flags = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+	qboolean		   get_device_address = false;
+#if defined(VK_KHR_ray_query)
+	if (vulkan_globals.ray_query)
+	{
+		usage_flags |= VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
+		get_device_address = true;
+	}
+#endif
+
+	R_InitDynamicBuffers (dyn_storage_buffers, &dyn_storage_buffer_memory, &current_dyn_storage_buffer_size, usage_flags, get_device_address, "storage buffer");
 }
 
 /*
@@ -986,6 +948,7 @@ void R_SwapDynamicBuffers ()
 	dyn_vertex_buffers[current_dyn_buffer_index].current_offset = 0;
 	dyn_index_buffers[current_dyn_buffer_index].current_offset = 0;
 	dyn_uniform_buffers[current_dyn_buffer_index].current_offset = 0;
+	dyn_storage_buffers[current_dyn_buffer_index].current_offset = 0;
 }
 
 /*
@@ -995,20 +958,27 @@ R_FlushDynamicBuffers
 */
 void R_FlushDynamicBuffers ()
 {
-	ZEROED_STRUCT_ARRAY (VkMappedMemoryRange, ranges, 4);
-	ranges[0].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
-	ranges[0].memory = dyn_vertex_buffer_memory.handle;
-	ranges[0].size = VK_WHOLE_SIZE;
-	ranges[1].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
-	ranges[1].memory = dyn_index_buffer_memory.handle;
-	ranges[1].size = VK_WHOLE_SIZE;
-	ranges[2].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
-	ranges[2].memory = dyn_uniform_buffer_memory.handle;
-	ranges[2].size = VK_WHOLE_SIZE;
-	ranges[3].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
-	ranges[3].memory = lights_buffer_memory.handle;
-	ranges[3].size = VK_WHOLE_SIZE;
-	vkFlushMappedMemoryRanges (vulkan_globals.device, countof (ranges), ranges);
+	ZEROED_STRUCT_ARRAY (VkMappedMemoryRange, ranges, 5);
+	int num_ranges = 0;
+	ranges[num_ranges].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+	ranges[num_ranges].memory = dyn_vertex_buffer_memory.handle;
+	ranges[num_ranges++].size = VK_WHOLE_SIZE;
+	ranges[num_ranges].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+	ranges[num_ranges].memory = dyn_index_buffer_memory.handle;
+	ranges[num_ranges++].size = VK_WHOLE_SIZE;
+	ranges[num_ranges].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+	ranges[num_ranges].memory = dyn_uniform_buffer_memory.handle;
+	ranges[num_ranges++].size = VK_WHOLE_SIZE;
+	ranges[num_ranges].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+	ranges[num_ranges].memory = lights_buffer_memory.handle;
+	ranges[num_ranges++].size = VK_WHOLE_SIZE;
+	if (dyn_storage_buffer_memory.handle != VK_NULL_HANDLE)
+	{
+		ranges[num_ranges].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+		ranges[num_ranges].memory = dyn_storage_buffer_memory.handle;
+		ranges[num_ranges++].size = VK_WHOLE_SIZE;
+	}
+	vkFlushMappedMemoryRanges (vulkan_globals.device, num_ranges, ranges);
 }
 
 /*
@@ -1101,97 +1071,99 @@ void R_CollectDynamicBufferGarbage ()
 
 /*
 ===============
+R_BufferAllocate
+===============
+*/
+byte *R_BufferAllocate (
+	int size, int alignment, int min_tail_size, VkBuffer *buffer, VkDeviceSize *buffer_offset, VkDeviceAddress *device_address, SDL_mutex *mutex,
+	dynbuffer_t *dyn_buffers, vulkan_memory_t memory, uint32_t *current_size, VkDescriptorSet *descriptor_set, VkDescriptorSet *descriptor_sets,
+	void (*init_func) (void))
+{
+	SDL_LockMutex (mutex);
+	dynbuffer_t *dyn_buffer = &dyn_buffers[current_dyn_buffer_index];
+	const int	 aligned_size = q_align (size, alignment);
+
+	if ((dyn_buffer->current_offset + q_max (size, min_tail_size)) > *current_size)
+	{
+		R_AddDynamicBufferGarbage (memory, dyn_buffers, descriptor_sets);
+		*current_size = q_max (*current_size * 2, (uint32_t)Q_nextPow2 (size));
+		init_func ();
+	}
+
+	if (buffer)
+		*buffer = dyn_buffer->buffer;
+	if (buffer_offset)
+		*buffer_offset = dyn_buffer->current_offset;
+	if (device_address)
+		*device_address = dyn_buffer->device_address + dyn_buffer->current_offset;
+
+	unsigned char *data = dyn_buffer->data + dyn_buffer->current_offset;
+	dyn_buffer->current_offset += aligned_size;
+
+	if (descriptor_set)
+		*descriptor_set = descriptor_sets[current_dyn_buffer_index];
+
+	SDL_UnlockMutex (mutex);
+	return data;
+}
+
+/*
+===============
 R_VertexAllocate
+Vertex buffers need to be aligned by the maximum format component size, i.e. sizeof(float)
 ===============
 */
 byte *R_VertexAllocate (int size, VkBuffer *buffer, VkDeviceSize *buffer_offset)
 {
-	SDL_LockMutex (vertex_allocate_mutex);
-	dynbuffer_t *dyn_vb = &dyn_vertex_buffers[current_dyn_buffer_index];
-
-	if ((dyn_vb->current_offset + size) > current_dyn_vertex_buffer_size)
-	{
-		R_AddDynamicBufferGarbage (dyn_vertex_buffer_memory, dyn_vertex_buffers, NULL);
-		current_dyn_vertex_buffer_size = q_max (current_dyn_vertex_buffer_size * 2, (uint32_t)Q_nextPow2 (size));
-		R_InitDynamicVertexBuffers ();
-	}
-
-	*buffer = dyn_vb->buffer;
-	*buffer_offset = dyn_vb->current_offset;
-
-	unsigned char *data = dyn_vb->data + dyn_vb->current_offset;
-	dyn_vb->current_offset += size;
-
-	SDL_UnlockMutex (vertex_allocate_mutex);
-
-	return data;
+	return R_BufferAllocate (
+		size, sizeof (float), 0, buffer, buffer_offset, NULL, vertex_allocate_mutex, dyn_vertex_buffers, dyn_vertex_buffer_memory,
+		&current_dyn_vertex_buffer_size, NULL, NULL, &R_InitDynamicVertexBuffers);
 }
 
 /*
 ===============
 R_IndexAllocate
+Align to 4 bytes because we allocate both uint16 and uint32
+index buffers and alignment must match index size
 ===============
 */
 byte *R_IndexAllocate (int size, VkBuffer *buffer, VkDeviceSize *buffer_offset)
 {
-	SDL_LockMutex (index_allocate_mutex);
-	// Align to 4 bytes because we allocate both uint16 and uint32
-	// index buffers and alignment must match index size
-	const int aligned_size = q_align (size, 4);
+	return R_BufferAllocate (
+		size, sizeof (uint32_t), 0, buffer, buffer_offset, NULL, index_allocate_mutex, dyn_index_buffers, dyn_index_buffer_memory,
+		&current_dyn_index_buffer_size, NULL, NULL, &R_InitDynamicIndexBuffers);
+}
 
-	dynbuffer_t *dyn_ib = &dyn_index_buffers[current_dyn_buffer_index];
-
-	if ((dyn_ib->current_offset + aligned_size) > current_dyn_index_buffer_size)
-	{
-		R_AddDynamicBufferGarbage (dyn_index_buffer_memory, dyn_index_buffers, NULL);
-		current_dyn_index_buffer_size = q_max (current_dyn_index_buffer_size * 2, (uint32_t)Q_nextPow2 (size));
-		R_InitDynamicIndexBuffers ();
-	}
-
-	*buffer = dyn_ib->buffer;
-	*buffer_offset = dyn_ib->current_offset;
-
-	unsigned char *data = dyn_ib->data + dyn_ib->current_offset;
-	dyn_ib->current_offset += aligned_size;
-
-	SDL_UnlockMutex (index_allocate_mutex);
-
-	return data;
+/*
+===============
+R_StorageAllocate
+===============
+*/
+byte *R_StorageAllocate (int size, VkBuffer *buffer, VkDeviceSize *buffer_offset, VkDeviceAddress *device_address)
+{
+	return R_BufferAllocate (
+		size, vulkan_globals.device_properties.limits.minStorageBufferOffsetAlignment, 0, buffer, buffer_offset, device_address, storage_allocate_mutex,
+		dyn_storage_buffers, dyn_storage_buffer_memory, &current_dyn_storage_buffer_size, NULL, NULL, &R_InitDynamicStorageBuffers);
 }
 
 /*
 ===============
 R_UniformAllocate
-
-UBO offsets need to be 256 byte aligned on NVIDIA hardware
-This is also the maximum required alignment by the Vulkan spec
 ===============
 */
 byte *R_UniformAllocate (int size, VkBuffer *buffer, uint32_t *buffer_offset, VkDescriptorSet *descriptor_set)
 {
-	SDL_LockMutex (uniform_allocate_mutex);
 	if (size > MAX_UNIFORM_ALLOC)
 		Sys_Error ("Increase MAX_UNIFORM_ALLOC");
 
-	const int aligned_size = q_align (size, 256);
+	VkDeviceSize device_size_offset = 0;
 
-	dynbuffer_t *dyn_ub = &dyn_uniform_buffers[current_dyn_buffer_index];
+	byte *data = R_BufferAllocate (
+		size, vulkan_globals.device_properties.limits.minUniformBufferOffsetAlignment, MAX_UNIFORM_ALLOC, buffer, &device_size_offset, NULL,
+		uniform_allocate_mutex, dyn_uniform_buffers, dyn_uniform_buffer_memory, &current_dyn_uniform_buffer_size, descriptor_set, ubo_descriptor_sets,
+		&R_InitDynamicUniformBuffers);
 
-	if ((dyn_ub->current_offset + MAX_UNIFORM_ALLOC) > current_dyn_uniform_buffer_size)
-	{
-		R_AddDynamicBufferGarbage (dyn_uniform_buffer_memory, dyn_uniform_buffers, ubo_descriptor_sets);
-		current_dyn_uniform_buffer_size = q_max (current_dyn_uniform_buffer_size * 2, (uint32_t)Q_nextPow2 (size));
-		R_InitDynamicUniformBuffers ();
-	}
-
-	*buffer = dyn_ub->buffer;
-	*buffer_offset = dyn_ub->current_offset;
-
-	unsigned char *data = dyn_ub->data + dyn_ub->current_offset;
-	dyn_ub->current_offset += aligned_size;
-
-	*descriptor_set = ubo_descriptor_sets[current_dyn_buffer_index];
-	SDL_UnlockMutex (uniform_allocate_mutex);
+	*buffer_offset = device_size_offset;
 	return data;
 }
 
