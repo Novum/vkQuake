@@ -93,7 +93,7 @@ GENERIC_TYPES (IMPL_GENERIC_FUNCS, NO_COMMA)
 #define IMPL_GENERIC_INT_FUNCS(type, suffix) \
 static inline type q_align_##suffix (type size, type alignment) \
 { \
-	return ((size % alignment) == 0) ? size : (size + alignment - (size % alignment)); \
+	return ((size & (alignment - 1)) == 0) ? size : (size + alignment - (size & (alignment - 1))); \
 }
 
 GENERIC_INT_TYPES (IMPL_GENERIC_INT_FUNCS, NO_COMMA)

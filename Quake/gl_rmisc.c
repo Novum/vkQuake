@@ -663,6 +663,7 @@ byte *R_StagingAllocate (int size, int alignment, VkCommandBuffer *command_buffe
 	}
 
 	stagingbuffer_t *staging_buffer = &staging_buffers[current_staging_buffer];
+	assert (alignment == Q_nextPow2 (alignment));
 	staging_buffer->current_offset = q_align (staging_buffer->current_offset, alignment);
 
 	if ((staging_buffer->current_offset + size) >= vulkan_globals.staging_buffer_size && !staging_buffer->submitted)
