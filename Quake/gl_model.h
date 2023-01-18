@@ -341,30 +341,23 @@ typedef struct mtriangle_s
 #define MAX_SKINS 32
 typedef struct
 {
-	int		   ident;
-	int		   version;
-	vec3_t	   scale;
-	vec3_t	   scale_origin;
-	float	   boundingradius;
-	vec3_t	   eyeposition;
-	int		   numskins;
-	int		   skinwidth;
-	int		   skinheight;
-	int		   numverts;
-	int		   numtris;
-	int		   numframes;
-	synctype_t synctype;
-	int		   flags;
-	float	   size;
-
-	// ericw -- used to populate vbo
-	int				numverts_vbo; // number of verts with unique x,y,z,s,t
-	aliasmesh_t	   *meshdesc;
-	int				numindexes;
-	unsigned short *indexes;
-	trivertx_t	   *vertexes;
-	// ericw --
-
+	int					ident;
+	int					version;
+	vec3_t				scale;
+	vec3_t				scale_origin;
+	float				boundingradius;
+	vec3_t				eyeposition;
+	int					numskins;
+	int					skinwidth;
+	int					skinheight;
+	int					numverts;
+	int					numtris;
+	int					numframes;
+	synctype_t			synctype;
+	int					flags;
+	float				size;
+	int					numindexes;
+	int					numverts_vbo;
 	int					numposes;
 	int					poseverts;
 	int					posedata;				  // numposes*poseverts trivert_t

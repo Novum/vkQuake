@@ -96,7 +96,7 @@ void R_CollectMeshBufferGarbage ()
 	num_garbage_buffers[current_garbage_index] = 0;
 }
 
-static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr);
+static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr, int numindexes, unsigned short *indexes, trivertx_t *vertexes, aliasmesh_t *meshdesc);
 
 /*
 ================
@@ -117,37 +117,26 @@ static uint32_t AliasMeshHash (const void *const p)
 
 void GL_MakeAliasModelDisplayLists (qmodel_t *m, aliashdr_t *paliashdr)
 {
-	int				i, j;
-	int				maxverts_vbo;
-	trivertx_t	   *verts;
-	unsigned short *indexes;
-	aliasmesh_t	   *desc;
-
 	Con_DPrintf2 ("meshing %s...\n", m->name);
+
 	// first, copy the verts onto the hunk
-	verts = (trivertx_t *)Mem_Alloc (paliashdr->numposes * paliashdr->numverts * sizeof (trivertx_t));
-	paliashdr->vertexes = verts;
-	for (i = 0; i < paliashdr->numposes; i++)
-		for (j = 0; j < paliashdr->numverts; j++)
+	TEMP_ALLOC_ZEROED (trivertx_t, verts, paliashdr->numposes * paliashdr->numverts);
+	for (int i = 0; i < paliashdr->numposes; i++)
+		for (int j = 0; j < paliashdr->numverts; j++)
 			verts[i * paliashdr->numverts + j] = poseverts[i][j];
 
-	// there can never be more than this number of verts and we just put them all on the hunk
-	maxverts_vbo = pheader->numtris * 3;
-	desc = (aliasmesh_t *)Mem_Alloc (sizeof (aliasmesh_t) * maxverts_vbo);
+	// there can never be more than this number of verts
+	const int maxverts_vbo = pheader->numtris * 3;
+	TEMP_ALLOC_ZEROED (aliasmesh_t, desc, maxverts_vbo);
+	// there will always be this number of indexes
+	TEMP_ALLOC_ZEROED (unsigned short, indexes, maxverts_vbo);
+
 	hash_map_t *vertex_to_index_map = HashMap_Create (aliasmesh_t, unsigned short, &AliasMeshHash);
 	HashMap_Reserve (vertex_to_index_map, maxverts_vbo);
 
-	// there will always be this number of indexes
-	indexes = (unsigned short *)Mem_Alloc (sizeof (unsigned short) * maxverts_vbo);
-
-	pheader->indexes = indexes;
-	pheader->meshdesc = desc;
-	pheader->numindexes = 0;
-	pheader->numverts_vbo = 0;
-
-	for (i = 0; i < pheader->numtris; i++)
+	for (int i = 0; i < pheader->numtris; i++)
 	{
-		for (j = 0; j < 3; j++)
+		for (int j = 0; j < 3; j++)
 		{
 			// index into hdr->vertexes
 			unsigned short vertindex = triangles[i].vertindex[j];
@@ -173,21 +162,25 @@ void GL_MakeAliasModelDisplayLists (qmodel_t *m, aliashdr_t *paliashdr)
 			else
 			{
 				// doesn't exist; emit a new vert and index
-				index = pheader->numverts_vbo;
+				index = paliashdr->numverts_vbo;
 				HashMap_Insert (vertex_to_index_map, &mesh, &index);
-				desc[pheader->numverts_vbo].vertindex = vertindex;
-				desc[pheader->numverts_vbo].st[0] = s;
-				desc[pheader->numverts_vbo++].st[1] = t;
+				desc[paliashdr->numverts_vbo].vertindex = vertindex;
+				desc[paliashdr->numverts_vbo].st[0] = s;
+				desc[paliashdr->numverts_vbo++].st[1] = t;
 			}
 
-			indexes[pheader->numindexes++] = index;
+			indexes[paliashdr->numindexes++] = index;
 		}
 	}
 
 	HashMap_Destroy (vertex_to_index_map);
 
 	// upload immediately
-	GLMesh_LoadVertexBuffer (m, pheader);
+	GLMesh_LoadVertexBuffer (m, pheader, paliashdr->numindexes, indexes, verts, desc);
+
+	TEMP_FREE (indexes);
+	TEMP_FREE (desc);
+	TEMP_FREE (verts);
 }
 
 #define NUMVERTEXNORMALS 162
@@ -236,17 +229,14 @@ Upload the given alias model's mesh to a VBO
 Original code by MH from RMQEngine
 ================
 */
-static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
+static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr, int numindexes, unsigned short *indexes, trivertx_t *vertexes, aliasmesh_t *desc)
 {
-	int					  totalvbosize = 0;
-	int					  remaining_size;
-	int					  copy_offset;
-	const aliasmesh_t	 *desc;
-	const unsigned short *indexes;
-	const trivertx_t	 *trivertexes;
-	byte				 *vbodata;
-	int					  f;
-	VkResult			  err;
+	int		 totalvbosize = 0;
+	int		 remaining_size;
+	int		 copy_offset;
+	byte	*vbodata;
+	int		 f;
+	VkResult err;
 
 	GLMesh_DeleteVertexBuffer (m);
 
@@ -265,19 +255,15 @@ static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 
 	if (isDedicated)
 		return;
-	if (!hdr->numindexes)
+	if (!numindexes)
 		return;
 	if (!totalvbosize)
 		return;
 
 	// grab the pointers to data in the extradata
 
-	desc = hdr->meshdesc;
-	indexes = hdr->indexes;
-	trivertexes = hdr->vertexes;
-
 	{
-		const int totalindexsize = hdr->numindexes * sizeof (unsigned short);
+		const int totalindexsize = numindexes * sizeof (unsigned short);
 
 		// Allocate index buffer & upload to GPU
 		ZEROED_STRUCT (VkBufferCreateInfo, buffer_create_info);
@@ -338,7 +324,7 @@ static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 	{
 		int				  v;
 		meshxyz_t		 *xyz = (meshxyz_t *)(vbodata + (f * hdr->numverts_vbo * sizeof (meshxyz_t)));
-		const trivertx_t *tv = trivertexes + (hdr->numverts * f);
+		const trivertx_t *tv = vertexes + (hdr->numverts * f);
 
 		for (v = 0; v < hdr->numverts_vbo; v++)
 		{
@@ -422,32 +408,6 @@ static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 	}
 
 	Mem_Free (vbodata);
-}
-
-/*
-================
-GLMesh_LoadVertexBuffers
-
-Loop over all precached alias models, and upload each one to a VBO.
-================
-*/
-void GLMesh_LoadVertexBuffers (void)
-{
-	int				  j;
-	qmodel_t		 *m;
-	const aliashdr_t *hdr;
-
-	for (j = 1; j < MAX_MODELS; j++)
-	{
-		if (!(m = cl.model_precache[j]))
-			break;
-		if (m->type != mod_alias)
-			continue;
-
-		hdr = (const aliashdr_t *)Mod_Extradata (m);
-
-		GLMesh_LoadVertexBuffer (m, hdr);
-	}
 }
 
 /*
