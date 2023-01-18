@@ -108,9 +108,10 @@ is copied to Mod_Extradata.
 Original code by MH from RMQEngine
 ================
 */
-static uint32_t AliasMeshHash (const aliasmesh_t *const mesh)
+static uint32_t AliasMeshHash (const void *const p)
 {
-	uint32_t vertindex = mesh->vertindex;
+	aliasmesh_t *mesh = (aliasmesh_t *)p;
+	uint32_t	 vertindex = mesh->vertindex;
 	return HashCombine (HashInt32 (&vertindex), HashCombine (HashFloat (&mesh->st[0]), HashFloat (&mesh->st[0])));
 }
 

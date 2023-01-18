@@ -22,9 +22,9 @@ void	   *HashMap_GetValueImpl (hash_map_t *map, uint32_t index);
 #define HashMap_GetValue(type, map, index)			 ((type *)HashMap_GetValueImpl (map, index))
 
 // Murmur3 fmix32
-static inline uint32_t HashInt32 (const uint32_t *const val)
+static inline uint32_t HashInt32 (const void *const val)
 {
-	uint32_t h = *val;
+	uint32_t h = *(uint32_t *)val;
 	h ^= h >> 16;
 	h *= 0x85ebca6b;
 	h ^= h >> 13;
@@ -34,9 +34,9 @@ static inline uint32_t HashInt32 (const uint32_t *const val)
 }
 
 // Murmur3 fmix64
-static inline uint32_t HashInt64 (const uint64_t *const val)
+static inline uint32_t HashInt64 (const void *const val)
 {
-	uint64_t k = *val;
+	uint64_t k = *(uint64_t *)val;
 	k ^= k >> 33;
 	k *= 0xff51afd7ed558ccdull;
 	k ^= k >> 33;
@@ -46,7 +46,7 @@ static inline uint32_t HashInt64 (const uint64_t *const val)
 	return k;
 }
 
-static inline uint32_t HashFloat (const float *const val)
+static inline uint32_t HashFloat (const void *const val)
 {
 	uint32_t float_bits;
 	memcpy (&float_bits, val, sizeof (uint32_t));
