@@ -2637,7 +2637,7 @@ void LOC_LoadFile (const char *file)
 	cursor = localization.text;
 
 	// skip BOM
-	if ((unsigned char)(cursor[0]) == 0xEF && (unsigned char)(cursor[1]) == 0xBB && cursor[2] == 0xB)
+	if ((unsigned char)(cursor[0]) == 0xEF && (unsigned char)(cursor[1]) == 0xBB && (unsigned char)(cursor[2]) == 0xBF)
 		cursor += 3;
 
 	lineno = 0;
