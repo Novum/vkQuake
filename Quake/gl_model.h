@@ -358,11 +358,11 @@ typedef struct
 	float	   size;
 
 	// ericw -- used to populate vbo
-	int		 numverts_vbo; // number of verts with unique x,y,z,s,t
-	intptr_t meshdesc;	   // offset into extradata: numverts_vbo aliasmesh_t
-	int		 numindexes;
-	intptr_t indexes;  // offset into extradata: numindexes unsigned shorts
-	intptr_t vertexes; // offset into extradata: numposes*vertsperframe trivertx_t
+	int				numverts_vbo; // number of verts with unique x,y,z,s,t
+	aliasmesh_t	   *meshdesc;
+	int				numindexes;
+	unsigned short *indexes;
+	trivertx_t	   *vertexes;
 	// ericw --
 
 	int					numposes;

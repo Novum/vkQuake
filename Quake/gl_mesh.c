@@ -100,7 +100,7 @@ static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr);
 
 /*
 ================
-GL_MakeAliasModelDisplayLists_VBO
+GL_MakeAliasModelDisplayLists
 
 Saves data needed to build the VBO for this model on the hunk. Afterwards this
 is copied to Mod_Extradata.
@@ -126,7 +126,7 @@ void GL_MakeAliasModelDisplayLists (qmodel_t *m, aliashdr_t *paliashdr)
 	Con_DPrintf2 ("meshing %s...\n", m->name);
 	// first, copy the verts onto the hunk
 	verts = (trivertx_t *)Mem_Alloc (paliashdr->numposes * paliashdr->numverts * sizeof (trivertx_t));
-	paliashdr->vertexes = (byte *)verts - (byte *)paliashdr;
+	paliashdr->vertexes = verts;
 	for (i = 0; i < paliashdr->numposes; i++)
 		for (j = 0; j < paliashdr->numverts; j++)
 			verts[i * paliashdr->numverts + j] = poseverts[i][j];
@@ -140,8 +140,8 @@ void GL_MakeAliasModelDisplayLists (qmodel_t *m, aliashdr_t *paliashdr)
 	// there will always be this number of indexes
 	indexes = (unsigned short *)Mem_Alloc (sizeof (unsigned short) * maxverts_vbo);
 
-	pheader->indexes = (intptr_t)indexes - (intptr_t)pheader;
-	pheader->meshdesc = (intptr_t)desc - (intptr_t)pheader;
+	pheader->indexes = indexes;
+	pheader->meshdesc = desc;
 	pheader->numindexes = 0;
 	pheader->numverts_vbo = 0;
 
@@ -238,15 +238,15 @@ Original code by MH from RMQEngine
 */
 static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 {
-	int				   totalvbosize = 0;
-	int				   remaining_size;
-	int				   copy_offset;
-	const aliasmesh_t *desc;
-	const short		  *indexes;
-	const trivertx_t  *trivertexes;
-	byte			  *vbodata;
-	int				   f;
-	VkResult		   err;
+	int					  totalvbosize = 0;
+	int					  remaining_size;
+	int					  copy_offset;
+	const aliasmesh_t	 *desc;
+	const unsigned short *indexes;
+	const trivertx_t	 *trivertexes;
+	byte				 *vbodata;
+	int					  f;
+	VkResult			  err;
 
 	GLMesh_DeleteVertexBuffer (m);
 
@@ -272,9 +272,9 @@ static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr)
 
 	// grab the pointers to data in the extradata
 
-	desc = (aliasmesh_t *)((byte *)hdr + hdr->meshdesc);
-	indexes = (short *)((byte *)hdr + hdr->indexes);
-	trivertexes = (trivertx_t *)((byte *)hdr + hdr->vertexes);
+	desc = hdr->meshdesc;
+	indexes = hdr->indexes;
+	trivertexes = hdr->vertexes;
 
 	{
 		const int totalindexsize = hdr->numindexes * sizeof (unsigned short);
