@@ -62,6 +62,17 @@ static inline uint32_t HashPtr (const void *const val)
 	return HashInt32 (val);
 }
 
+// Murmur3 hash combine
+static inline uint32_t HashCombine (uint32_t a, uint32_t b)
+{
+	a *= 0xcc9e2d51;
+	a = (a >> 17) | (a << 15);
+	a *= 0x1b873593;
+	b ^= a;
+	b = (b >> 19) | (b << 13);
+	return (b * 5) + 0xe6546b64;
+}
+
 #ifdef _DEBUG
 void TestHashMap_f (void);
 #endif
