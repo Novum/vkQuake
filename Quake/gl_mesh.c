@@ -112,7 +112,7 @@ static uint32_t AliasMeshHash (const void *const p)
 {
 	aliasmesh_t *mesh = (aliasmesh_t *)p;
 	uint32_t	 vertindex = mesh->vertindex;
-	return HashCombine (HashInt32 (&vertindex), HashCombine (HashFloat (&mesh->st[0]), HashFloat (&mesh->st[0])));
+	return HashCombine (HashInt32 (&vertindex), HashCombine (HashFloat (&mesh->st[0]), HashFloat (&mesh->st[1])));
 }
 
 void GL_MakeAliasModelDisplayLists (qmodel_t *m, aliashdr_t *paliashdr)
