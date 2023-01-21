@@ -1701,7 +1701,7 @@ void R_CreatePipelineLayouts ()
 
 		ZEROED_STRUCT (VkPushConstantRange, push_constant_range);
 		push_constant_range.offset = 0;
-		push_constant_range.size = 3 * sizeof (uint32_t) + 8 * sizeof (float);
+		push_constant_range.size = 3 * sizeof (uint32_t) + 10 * sizeof (float);
 		push_constant_range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
 		ZEROED_STRUCT (VkPipelineLayoutCreateInfo, pipeline_layout_create_info);
@@ -1971,12 +1971,15 @@ void R_InitSamplers ()
 				}
 			}
 
-			if (r_scale.value >= 8)
-				lod_bias += 3.0f;
-			else if (r_scale.value >= 4)
-				lod_bias += 2.0f;
-			else if (r_scale.value >= 2)
-				lod_bias += 1.0f;
+			if (r_simplescale.value == 0)
+			{
+				if (r_scale.value >= 8)
+					lod_bias += 3.0f;
+				else if (r_scale.value >= 4)
+					lod_bias += 2.0f;
+				else if (r_scale.value >= 2)
+					lod_bias += 1.0f;
+			}
 		}
 
 		lod_bias += gl_lodbias.value;
@@ -3617,9 +3620,11 @@ void R_Init (void)
 	Cvar_RegisterVariable (&r_telealpha);
 	Cvar_RegisterVariable (&r_slimealpha);
 	Cvar_RegisterVariable (&r_scale);
+	Cvar_RegisterVariable (&r_simplescale);
 	Cvar_RegisterVariable (&r_lodbias);
 	Cvar_RegisterVariable (&gl_lodbias);
 	Cvar_SetCallback (&r_scale, R_ScaleChanged_f);
+	Cvar_SetCallback (&r_simplescale, R_ScaleChanged_f);
 	Cvar_SetCallback (&r_lodbias, R_ScaleChanged_f);
 	Cvar_SetCallback (&gl_lodbias, R_ScaleChanged_f);
 	Cvar_SetCallback (&r_lavaalpha, R_SetLavaalpha_f);

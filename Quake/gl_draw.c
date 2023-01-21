@@ -953,11 +953,22 @@ GL_Viewport
 */
 void GL_Viewport (cb_context_t *cbx, float x, float y, float width, float height, float min_depth, float max_depth)
 {
+	GL_Viewport_Scale (cbx, x, y, width, height, min_depth, max_depth, 1);
+}
+
+/*
+================
+GL_Viewport_Scale
+================
+*/
+void GL_Viewport_Scale (cb_context_t *cbx, float x, float y, float width, float height, float min_depth, float max_depth, int scale)
+{
 	VkViewport viewport;
-	viewport.x = x;
-	viewport.y = vid.height - (y + height);
-	viewport.width = width;
-	viewport.height = height;
+	// when using scale, always put the viewport flush against the corner (even when viewsize < 100) for simplicity
+	viewport.x = scale == 1 ? x : 0;
+	viewport.y = scale == 1 ? vid.height - (y + height) : 0;
+	viewport.width = (width + scale - 1) / scale;
+	viewport.height = (height + scale - 1) / scale;
 	viewport.minDepth = min_depth;
 	viewport.maxDepth = max_depth;
 

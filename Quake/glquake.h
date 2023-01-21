@@ -320,7 +320,7 @@ typedef struct
 	vulkan_desc_set_layout_t ubo_set_layout;
 	vulkan_desc_set_layout_t single_texture_set_layout;
 	vulkan_desc_set_layout_t input_attachment_set_layout;
-	VkDescriptorSet			 screen_effects_desc_set;
+	VkDescriptorSet			 screen_effects_desc_set[2];
 	vulkan_desc_set_layout_t screen_effects_set_layout;
 	vulkan_desc_set_layout_t single_texture_cs_write_set_layout;
 	vulkan_desc_set_layout_t lightmap_compute_set_layout;
@@ -383,6 +383,7 @@ extern qboolean render_warp;
 extern qboolean in_update_screen;
 extern qboolean use_simd;
 extern int		render_scale;
+extern int		simple_scale;
 
 //
 // view origin
@@ -414,6 +415,7 @@ extern cvar_t r_slimealpha;
 extern cvar_t r_dynamic;
 extern cvar_t r_novis;
 extern cvar_t r_scale;
+extern cvar_t r_simplescale;
 
 extern cvar_t gl_polyblend;
 extern cvar_t gl_nocolors;

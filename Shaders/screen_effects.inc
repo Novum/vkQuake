@@ -20,6 +20,7 @@ layout (push_constant) uniform PushConsts
 {
 	uvec2 clamp_size;
 	vec2  screen_size_rcp;
+	vec2  scale_rcp;
 	float aspect_ratio;
 	float time;
 	uint  flags;
@@ -142,7 +143,7 @@ void main ()
 		const float tex_x = (pos_x_norm + (sin (pos_y_norm * cycle_x + push_constants.time) * amp_x)) * (1.0f - amp_x * 2.0f) + amp_x;
 		const float tex_y = (pos_y_norm + (sin (pos_x_norm * cycle_y + push_constants.time) * amp_y)) * (1.0f - amp_y * 2.0f) + amp_y;
 
-		color = texture (input_tex, vec2 (tex_x, tex_y));
+		color = texture (input_tex, vec2 (tex_x, tex_y) * push_constants.scale_rcp);
 	}
 	else
 		color = texelFetch (input_tex, ivec2 (min (push_constants.clamp_size.x, pos_x), min (push_constants.clamp_size.y, pos_y)), 0);
