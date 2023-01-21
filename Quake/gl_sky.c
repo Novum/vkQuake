@@ -232,10 +232,11 @@ Sky_LoadSkyBox
 const char *suf[6] = {"rt", "bk", "lf", "ft", "up", "dn"};
 void		Sky_LoadSkyBox (const char *name)
 {
-	int		 i, width[6], height[6];
-	char	 filename[6][MAX_OSPATH];
-	byte	*data[6];
-	qboolean nonefound = true, cubemap = true;
+	int			   i, width[6], height[6];
+	enum srcformat fmt[6];
+	char		   filename[6][MAX_OSPATH];
+	byte		  *data[6];
+	qboolean	   nonefound = true, cubemap = true;
 
 	if (strcmp (skybox_name, name) == 0)
 		return; // no change
@@ -262,9 +263,9 @@ void		Sky_LoadSkyBox (const char *name)
 	for (i = 0; i < 6; i++)
 	{
 		q_snprintf (filename[i], sizeof (filename[i]), "gfx/env/%s%s", name, suf[i]);
-		if ((data[i] = Image_LoadImage (filename[i], &width[i], &height[i])))
+		if ((data[i] = Image_LoadImage (filename[i], &width[i], &height[i], &fmt[i])))
 			nonefound = false;
-		if (!data[i] || width[i] != height[i] || width[i] != width[0])
+		if (!data[i] || (width[i] != height[i]) || (width[i] != width[0]) || (fmt[i] != SRC_RGBA))
 			cubemap = false;
 	}
 
@@ -277,7 +278,7 @@ void		Sky_LoadSkyBox (const char *name)
 		for (i = 0; i < 6; i++)
 		{
 			if (data[i])
-				skybox_textures[i] = TexMgr_LoadImage (cl.worldmodel, filename[i], width[i], height[i], SRC_RGBA, data[i], filename[i], 0, TEXPREF_NONE);
+				skybox_textures[i] = TexMgr_LoadImage (cl.worldmodel, filename[i], width[i], height[i], fmt[i], data[i], filename[i], 0, TEXPREF_NONE);
 			else
 			{
 				Con_Printf ("Couldn't load %s\n", filename[i]);

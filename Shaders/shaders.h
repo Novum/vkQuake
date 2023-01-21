@@ -34,6 +34,7 @@ DECLARE_SHADER_SPV (world_frag);
 DECLARE_SHADER_SPV (alias_vert);
 DECLARE_SHADER_SPV (alias_frag);
 DECLARE_SHADER_SPV (alias_alphatest_frag);
+DECLARE_SHADER_SPV (md5_vert);
 DECLARE_SHADER_SPV (sky_layer_vert);
 DECLARE_SHADER_SPV (sky_layer_frag);
 DECLARE_SHADER_SPV (sky_box_frag);

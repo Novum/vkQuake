@@ -95,19 +95,33 @@ returns a pointer to hunk allocated RGBA data
 TODO: search order: tga png jpg pcx lmp
 ============
 */
-byte *Image_LoadImage (const char *name, int *width, int *height)
+byte *Image_LoadImage (const char *name, int *width, int *height, enum srcformat *fmt)
 {
 	FILE *f;
 
 	q_snprintf (loadfilename, sizeof (loadfilename), "%s.tga", name);
 	COM_FOpenFile (loadfilename, &f, NULL);
 	if (f)
+	{
+		*fmt = SRC_RGBA;
 		return Image_LoadTGA (f, width, height, name);
+	}
 
 	q_snprintf (loadfilename, sizeof (loadfilename), "%s.pcx", name);
 	COM_FOpenFile (loadfilename, &f, NULL);
 	if (f)
+	{
+		*fmt = SRC_RGBA;
 		return Image_LoadPCX (f, width, height);
+	}
+
+	q_snprintf (loadfilename, sizeof (loadfilename), "%s%s.lmp", "", name);
+	COM_FOpenFile (loadfilename, &f, NULL);
+	if (f)
+	{
+		*fmt = SRC_INDEXED;
+		return Image_LoadLMP (f, width, height);
+	}
 
 	return NULL;
 }
@@ -532,6 +546,52 @@ byte *Image_LoadPCX (FILE *f, int *width, int *height)
 
 	*width = w;
 	*height = h;
+	return data;
+}
+
+//==============================================================================
+//
+//  QPIC (aka '.lmp')
+//
+//==============================================================================
+
+typedef struct
+{
+	unsigned int width, height;
+} lmpheader_t;
+
+/*
+============
+Image_LoadLMP
+============
+*/
+byte *Image_LoadLMP (FILE *f, int *width, int *height)
+{
+	lmpheader_t qpic;
+	size_t		pix;
+	void	   *data;
+
+	if (fread (&qpic, 1, sizeof (qpic), f) != sizeof (qpic))
+		Sys_Error ("'%s' is not a valid LMP file", loadfilename);
+
+	qpic.width = LittleLong (qpic.width);
+	qpic.height = LittleLong (qpic.height);
+
+	pix = qpic.width * qpic.height;
+
+	if (com_filesize != 8 + pix)
+	{
+		fclose (f);
+		return NULL;
+	}
+
+	data = (byte *)Mem_Alloc (pix); //+1 to allow reading padding byte on last line
+	if (fread (data, 1, pix, f) != pix)
+		Sys_Error ("'%s' is not a valid LMP file", loadfilename);
+	fclose (f);
+
+	*width = qpic.width;
+	*height = qpic.height;
 	return data;
 }
 

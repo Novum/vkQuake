@@ -3286,6 +3286,7 @@ void VID_Init (void)
 	R_CreateDescriptorSetLayouts ();
 	R_CreateDescriptorPool ();
 	R_InitGPUBuffers ();
+	R_InitMeshHeapMemoryIndex ();
 	R_InitSamplers ();
 	R_CreatePipelineLayouts ();
 	R_CreatePaletteOctreeBuffers (palette_octree_colors, NUM_PALETTE_OCTREE_COLORS, palette_octree_nodes, NUM_PALETTE_OCTREE_NODES);

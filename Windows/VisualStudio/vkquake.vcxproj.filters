@@ -481,6 +481,12 @@
     <ClCompile Include="..\..\Quake\hash_map.c">
       <Filter>Main</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\md5.vert.c">
+      <Filter>Shaders\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\md5.vert.c">
+      <Filter>Shaders\Debug</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\Quake\snd_codec.h">

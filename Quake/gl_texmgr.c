@@ -1353,7 +1353,7 @@ void TexMgr_ReloadImage (gltexture_t *glt, int shirt, int pants)
 	}
 	else if (glt->source_file[0] && !glt->source_offset)
 	{
-		allocated = data = Image_LoadImage (glt->source_file, (int *)&glt->source_width, (int *)&glt->source_height); // simple file
+		allocated = data = Image_LoadImage (glt->source_file, (int *)&glt->source_width, (int *)&glt->source_height, &glt->source_format); // simple file
 	}
 	else if (!glt->source_file[0] && glt->source_offset)
 	{

@@ -2033,9 +2033,6 @@ void GL_BuildBModelVertexBuffer (void)
 	unsigned int varray_bytes;
 	int			 i, j;
 	qmodel_t	*m;
-	float		*varray;
-	int			 remaining_size;
-	int			 copy_offset;
 
 	// count all verts in all models
 	bmodel_numverts = 0;
@@ -2053,7 +2050,7 @@ void GL_BuildBModelVertexBuffer (void)
 
 	// build vertex array
 	varray_bytes = VERTEXSIZE * sizeof (float) * bmodel_numverts;
-	varray = (float *)Mem_Alloc (varray_bytes);
+	TEMP_ALLOC_ZEROED (float, varray, varray_bytes / sizeof (float));
 
 	for (j = 1; j < MAX_MODELS; j++)
 	{
@@ -2076,33 +2073,8 @@ void GL_BuildBModelVertexBuffer (void)
 	R_CreateBuffer (
 		&bmodel_vertex_buffer, &bmodel_memory, varray_bytes, usage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, &num_vulkan_bmodel_allocations,
 		&bmodel_vertex_buffer_device_address, "BModel vertices");
-
-	remaining_size = varray_bytes;
-	copy_offset = 0;
-
-	while (remaining_size > 0)
-	{
-		const int		size_to_copy = q_min (remaining_size, vulkan_globals.staging_buffer_size);
-		VkBuffer		staging_buffer;
-		VkCommandBuffer command_buffer;
-		int				staging_offset;
-		unsigned char  *staging_memory = R_StagingAllocate (size_to_copy, 1, &command_buffer, &staging_buffer, &staging_offset);
-
-		VkBufferCopy region;
-		region.srcOffset = staging_offset;
-		region.dstOffset = copy_offset;
-		region.size = size_to_copy;
-		vkCmdCopyBuffer (command_buffer, staging_buffer, bmodel_vertex_buffer, 1, &region);
-
-		R_StagingBeginCopy ();
-		memcpy (staging_memory, (byte *)varray + copy_offset, size_to_copy);
-		R_StagingEndCopy ();
-
-		copy_offset += size_to_copy;
-		remaining_size -= size_to_copy;
-	}
-
-	Mem_Free (varray);
+	R_StagingUploadBuffer (bmodel_vertex_buffer, varray_bytes, (byte *)varray);
+	TEMP_FREE (varray);
 }
 
 /*

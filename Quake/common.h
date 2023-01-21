@@ -228,8 +228,8 @@ int q_vsnprintf (char *str, size_t size, const char *format, va_list args) FUNC_
 
 //============================================================================
 
-extern char		com_token[1024];
-extern qboolean com_eof;
+extern THREAD_LOCAL char com_token[1024];
+extern qboolean			 com_eof;
 
 const char *COM_Parse (const char *data);
 

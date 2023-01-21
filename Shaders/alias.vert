@@ -51,8 +51,8 @@ void main ()
 {
 	out_texcoord = in_texcoord;
 
-	vec4 lerped_position = mix (vec4 (in_pose1_position.xyz, 1.0f), vec4 (in_pose2_position.xyz, 1.0f), ubo.blend_factor);
-	vec4 model_space_position = ubo.model_matrix * lerped_position;
+	const vec4 lerped_position = vec4 (mix (in_pose1_position.xyz, in_pose2_position.xyz, ubo.blend_factor) * 255.0f, 1.0f);
+	const vec4 model_space_position = ubo.model_matrix * lerped_position;
 	gl_Position = push_constants.view_projection_matrix * model_space_position;
 
 	if ((ubo.flags & 0x2) == 0)

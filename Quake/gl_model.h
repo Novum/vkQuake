@@ -339,7 +339,16 @@ typedef struct mtriangle_s
 } mtriangle_t;
 
 #define MAX_SKINS 32
-typedef struct
+
+typedef struct aliashdr_s aliashdr_t;
+
+typedef enum
+{
+	PV_QUAKE1 = 1, // trivertx_t
+	PV_MD5,		   // iqmvert_t
+} poseverttype_t;
+
+typedef struct aliashdr_s
 {
 	int					ident;
 	int					version;
@@ -359,18 +368,34 @@ typedef struct
 	int					numindexes;
 	int					numverts_vbo;
 	int					numposes;
-	int					poseverts;
-	int					posedata;				  // numposes*poseverts trivert_t
+	aliashdr_t		   *nextsurface; // spike
+	int					numjoints;	 // spike -- for md5
+	poseverttype_t		poseverttype;
 	struct gltexture_s *gltextures[MAX_SKINS][4]; // johnfitz
 	struct gltexture_s *fbtextures[MAX_SKINS][4]; // johnfitz
 	byte			   *texels[MAX_SKINS];		  // only for player skins
 	maliasframedesc_t	frames[1];				  // variable sized
 } aliashdr_t;
 
+#define NUM_JOINT_INFLUENCES 4
+
+typedef struct md5vert_s
+{
+	float xyz[3];
+	float norm[3];
+	float st[2]; // these are separate for consistency
+	byte  joint_weights[NUM_JOINT_INFLUENCES];
+	byte  joint_indices[NUM_JOINT_INFLUENCES];
+} md5vert_t;
+
+typedef struct jointpose_s
+{
+	float mat[12];
+} jointpose_t; // pose data for a single joint.
+
 #define MAXALIASVERTS  2000 // johnfitz -- was 1024
 #define MAXALIASFRAMES 1024 // spike -- was 256
 #define MAXALIASTRIS   4096 // ericw -- was 2048
-extern aliashdr_t *pheader;
 extern stvert_t	   stverts[MAXALIASVERTS];
 extern mtriangle_t triangles[MAXALIASTRIS];
 extern trivertx_t *poseverts[MAXALIASFRAMES];
@@ -514,9 +539,11 @@ typedef struct qmodel_s
 	VkBuffer			 index_buffer;
 	struct glheap_s		*index_heap;
 	struct glheapnode_s *index_heap_node;
-	int					 vboindexofs; // offset in vbo of the hdr->numindexes unsigned shorts
-	int					 vboxyzofs;	  // offset in vbo of hdr->numposes*hdr->numverts_vbo meshxyz_t
-	int					 vbostofs;	  // offset in vbo of hdr->numverts_vbo meshst_t
+	int					 vbostofs; // offset in vbo of hdr->numverts_vbo meshst_t
+	VkBuffer			 joints_buffer;
+	struct glheap_s		*joints_heap;
+	struct glheapnode_s *joints_heap_node;
+	VkDescriptorSet		 joints_set;
 
 	//
 	// additional model data

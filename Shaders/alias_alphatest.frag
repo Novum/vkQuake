@@ -36,7 +36,7 @@ void main ()
 	vec4 result = texture (diffuse_tex, in_texcoord.xy);
 	if (result.a < 0.666f)
 		discard;
-	result *= in_color;
+	result *= in_color * 2.0f;
 
 	if ((ubo.flags & 0x1) != 0)
 		result += texture (fullbright_tex, in_texcoord.xy);

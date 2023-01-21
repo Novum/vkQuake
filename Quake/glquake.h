@@ -172,6 +172,7 @@ typedef struct vulkan_memory_s
 } vulkan_memory_t;
 
 #define WORLD_PIPELINE_COUNT		16
+#define MODEL_PIPELINE_COUNT		6
 #define FTE_PARTICLE_PIPELINE_COUNT 16
 #define MAX_BATCH_SIZE				65536
 #define NUM_WORLD_CBX				6
@@ -276,10 +277,8 @@ typedef struct
 	vulkan_pipeline_t		 sky_box_pipeline;
 	vulkan_pipeline_t		 sky_cube_pipeline[2];
 	vulkan_pipeline_t		 sky_layer_pipeline[2];
-	vulkan_pipeline_t		 alias_pipeline;
-	vulkan_pipeline_t		 alias_blend_pipeline;
-	vulkan_pipeline_t		 alias_alphatest_pipeline;
-	vulkan_pipeline_t		 alias_alphatest_blend_pipeline;
+	vulkan_pipeline_t		 alias_pipelines[MODEL_PIPELINE_COUNT];
+	vulkan_pipeline_t		 md5_pipelines[MODEL_PIPELINE_COUNT];
 	vulkan_pipeline_t		 postprocess_pipeline;
 	vulkan_pipeline_t		 screen_effects_pipeline;
 	vulkan_pipeline_t		 screen_effects_scale_pipeline;
@@ -290,8 +289,6 @@ typedef struct
 	vulkan_pipeline_t		 showtris_depth_test_pipeline;
 	vulkan_pipeline_t		 showtris_indirect_depth_test_pipeline;
 	vulkan_pipeline_t		 showbboxes_pipeline;
-	vulkan_pipeline_t		 alias_showtris_pipeline;
-	vulkan_pipeline_t		 alias_showtris_depth_test_pipeline;
 	vulkan_pipeline_t		 update_lightmap_pipeline;
 	vulkan_pipeline_t		 update_lightmap_rt_pipeline;
 	vulkan_pipeline_t		 indirect_draw_pipeline;
@@ -315,6 +312,7 @@ typedef struct
 	vulkan_desc_set_layout_t lightmap_compute_rt_set_layout;
 	VkDescriptorSet			 ray_debug_desc_set;
 	vulkan_desc_set_layout_t ray_debug_set_layout;
+	vulkan_desc_set_layout_t joints_buffer_set_layout;
 
 	// Samplers
 	VkSampler point_sampler;
@@ -566,7 +564,8 @@ void GL_DeleteBModelAccelerationStructures (void);
 void GL_BuildBModelVertexBuffer (void);
 void GL_BuildBModelAccelerationStructures (void);
 void GL_PrepareSIMDAndParallelData (void);
-void GLMesh_DeleteVertexBuffers (void);
+void GLMesh_UploadBuffers (qmodel_t *m, aliashdr_t *hdr, unsigned short *indexes, byte *vertexes, aliasmesh_t *desc, jointpose_t *joints);
+void GLMesh_DeleteAllMeshBuffers (void);
 
 int R_LightPoint (vec3_t p, float ofs, lightcache_t *cache, vec3_t *lightcolor);
 
@@ -686,8 +685,10 @@ void  R_SubmitStagingBuffers ();
 byte *R_StagingAllocate (int size, int alignment, VkCommandBuffer *cb_context, VkBuffer *buffer, int *buffer_offset);
 void  R_StagingBeginCopy ();
 void  R_StagingEndCopy ();
+void  R_StagingUploadBuffer (const VkBuffer buffer, const size_t size, const byte *data);
 
 void  R_InitGPUBuffers ();
+void  R_InitMeshHeapMemoryIndex ();
 void  R_SwapDynamicBuffers ();
 void  R_FlushDynamicBuffers ();
 void  R_CollectDynamicBufferGarbage ();

@@ -92,6 +92,9 @@
       <Filter>Shaders</Filter>
     </CustomBuild>
     <CustomBuild Include="..\..\Quake\vkquake.pak" />
+    <CustomBuild Include="..\..\Shaders\md5.vert">
+      <Filter>Shaders</Filter>
+    </CustomBuild>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Shaders">

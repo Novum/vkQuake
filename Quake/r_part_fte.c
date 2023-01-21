@@ -1160,21 +1160,22 @@ static void P_LoadTexture (part_type_t *ptype, qboolean warn)
 		ptype->looks.texture = TexMgr_FindTexture (NULL, texname);
 		if (!ptype->looks.texture)
 		{
+			enum srcformat fmt = SRC_RGBA;
 			if (!data)
 			{
 				q_snprintf (filename, sizeof (filename), "textures/%s", ptype->texname);
-				data = Image_LoadImage (filename, &fwidth, &fheight);
+				data = Image_LoadImage (filename, &fwidth, &fheight, &fmt);
 			}
 			if (!data)
 			{
 				q_snprintf (filename, sizeof (filename), "%s", ptype->texname);
-				data = Image_LoadImage (filename, &fwidth, &fheight);
+				data = Image_LoadImage (filename, &fwidth, &fheight, &fmt);
 			}
 
 			if (data)
 			{
 				ptype->looks.texture = TexMgr_LoadImage (
-					NULL, texname, fwidth, fheight, SRC_RGBA, data, filename, 0,
+					NULL, texname, fwidth, fheight, fmt, data, filename, 0,
 					(ptype->looks.premul ? TEXPREF_PREMULTIPLY : 0) | (ptype->looks.nearest ? TEXPREF_NEAREST : 0) | TEXPREF_NOPICMIP | TEXPREF_ALPHA);
 			}
 		}

@@ -123,6 +123,7 @@ SHADER_OBJS = \
 	alias_frag.o \
 	alias_alphatest_frag.o \
 	alias_vert.o \
+	md5_vert.o \
 	basic_alphatest_frag.o \
 	screen_effects_8bit_comp.o \
 	screen_effects_8bit_scale_comp.o \

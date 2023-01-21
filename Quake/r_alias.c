@@ -53,13 +53,24 @@ typedef struct
 
 typedef struct
 {
-	float		 model_matrix[16];
-	float		 shade_vector[3];
-	float		 blend_factor;
-	float		 light_color[3];
-	float		 entalpha;
-	unsigned int flags;
+	float	 model_matrix[16];
+	float	 shade_vector[3];
+	float	 blend_factor;
+	float	 light_color[3];
+	float	 entalpha;
+	uint32_t flags;
 } aliasubo_t;
+
+typedef struct
+{
+	float	 model_matrix[16];
+	float	 shade_vector[3];
+	float	 blend_factor;
+	float	 light_color[3];
+	float	 entalpha;
+	uint32_t flags;
+	uint32_t joints_offsets[2];
+} md5ubo_t;
 
 /*
 =============
@@ -72,7 +83,7 @@ model and pose.
 static VkDeviceSize GLARB_GetXYZOffset (entity_t *e, aliashdr_t *hdr, int pose)
 {
 	const int xyzoffs = offsetof (meshxyz_t, xyz);
-	return e->model->vboxyzofs + (hdr->numverts_vbo * pose * sizeof (meshxyz_t)) + xyzoffs;
+	return hdr->numverts_vbo * pose * sizeof (meshxyz_t) + xyzoffs;
 }
 
 /*
@@ -90,8 +101,24 @@ Based on code by MH from RMQEngine
 */
 static void GL_DrawAliasFrame (
 	cb_context_t *cbx, entity_t *e, aliashdr_t *paliashdr, lerpdata_t lerpdata, gltexture_t *tx, gltexture_t *fb, float model_matrix[16], float entity_alpha,
-	qboolean alphatest, vec3_t shadevector, vec3_t lightcolor)
+	qboolean alphatest, vec3_t shadevector, vec3_t lightcolor, int showtris)
 {
+	qmodel_t *m = e->model;
+
+	vulkan_pipeline_t pipeline;
+	const int		  pipeline_index = (showtris == 0) ? (((entity_alpha >= 1.0f) ? 0 : 2) + (alphatest ? 1 : 0)) : (3 + CLAMP (1, showtris, 2));
+	switch (paliashdr->poseverttype)
+	{
+	case PV_MD5:
+		pipeline = vulkan_globals.md5_pipelines[pipeline_index];
+		break;
+	default:
+		pipeline = vulkan_globals.alias_pipelines[pipeline_index];
+		break;
+	}
+
+	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+
 	float blend;
 
 	if (lerpdata.pose1 != lerpdata.pose2)
@@ -99,49 +126,68 @@ static void GL_DrawAliasFrame (
 	else // poses the same means either 1. the entity has paused its animation, or 2. r_lerpmodels is disabled
 		blend = 0;
 
-	vulkan_pipeline_t pipeline;
-	if (entity_alpha >= 1.0f)
+	switch (paliashdr->poseverttype)
 	{
-		if (!alphatest)
-			pipeline = vulkan_globals.alias_pipeline;
-		else
-			pipeline = vulkan_globals.alias_alphatest_pipeline;
-	}
-	else
+	case PV_QUAKE1:
 	{
-		if (!alphatest)
-			pipeline = vulkan_globals.alias_blend_pipeline;
-		else
-			pipeline = vulkan_globals.alias_alphatest_blend_pipeline;
+		VkBuffer		uniform_buffer;
+		uint32_t		uniform_offset;
+		VkDescriptorSet ubo_set;
+		aliasubo_t	   *ubo = (aliasubo_t *)R_UniformAllocate (sizeof (aliasubo_t), &uniform_buffer, &uniform_offset, &ubo_set);
+
+		memcpy (ubo->model_matrix, model_matrix, 16 * sizeof (float));
+		memcpy (ubo->shade_vector, shadevector, 3 * sizeof (float));
+		ubo->blend_factor = blend;
+		memcpy (ubo->light_color, lightcolor, 3 * sizeof (float));
+		ubo->flags = (fb != NULL) ? 0x1 : 0x0;
+		if (r_fullbright_cheatsafe || (r_lightmap_cheatsafe && r_fullbright.value))
+			ubo->flags |= 0x2;
+		ubo->entalpha = entity_alpha;
+
+		VkDescriptorSet descriptor_sets[3] = {tx->descriptor_set, (fb != NULL) ? fb->descriptor_set : tx->descriptor_set, ubo_set};
+		vulkan_globals.vk_cmd_bind_descriptor_sets (
+			cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.layout.handle, 0, 3, descriptor_sets, 1, &uniform_offset);
+
+		VkBuffer	 vertex_buffers[3] = {m->vertex_buffer, m->vertex_buffer, m->vertex_buffer};
+		VkDeviceSize vertex_offsets[3] = {
+			(unsigned)m->vbostofs, GLARB_GetXYZOffset (e, paliashdr, lerpdata.pose1), GLARB_GetXYZOffset (e, paliashdr, lerpdata.pose2)};
+		vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 3, vertex_buffers, vertex_offsets);
+		vulkan_globals.vk_cmd_bind_index_buffer (cbx->cb, m->index_buffer, 0, VK_INDEX_TYPE_UINT16);
+
+		vulkan_globals.vk_cmd_draw_indexed (cbx->cb, paliashdr->numindexes, 1, 0, 0, 0);
+		break;
 	}
+	case PV_MD5:
+	{
+		VkBuffer		uniform_buffer;
+		uint32_t		uniform_offset;
+		VkDescriptorSet ubo_set;
+		md5ubo_t	   *ubo = (md5ubo_t *)R_UniformAllocate (sizeof (md5ubo_t), &uniform_buffer, &uniform_offset, &ubo_set);
 
-	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+		memcpy (ubo->model_matrix, model_matrix, 16 * sizeof (float));
+		memcpy (ubo->shade_vector, shadevector, 3 * sizeof (float));
+		ubo->blend_factor = blend;
+		memcpy (ubo->light_color, lightcolor, 3 * sizeof (float));
+		ubo->flags = (fb != NULL) ? 0x1 : 0x0;
+		if (r_fullbright_cheatsafe || (r_lightmap_cheatsafe && r_fullbright.value))
+			ubo->flags |= 0x2;
+		ubo->entalpha = entity_alpha;
+		ubo->joints_offsets[0] = lerpdata.pose1 * paliashdr->numjoints;
+		ubo->joints_offsets[1] = lerpdata.pose2 * paliashdr->numjoints;
 
-	VkBuffer		uniform_buffer;
-	uint32_t		uniform_offset;
-	VkDescriptorSet ubo_set;
-	aliasubo_t	   *ubo = (aliasubo_t *)R_UniformAllocate (sizeof (aliasubo_t), &uniform_buffer, &uniform_offset, &ubo_set);
+		VkDescriptorSet descriptor_sets[4] = {tx->descriptor_set, (fb != NULL) ? fb->descriptor_set : tx->descriptor_set, ubo_set, m->joints_set};
+		vulkan_globals.vk_cmd_bind_descriptor_sets (
+			cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.layout.handle, 0, 4, descriptor_sets, 1, &uniform_offset);
 
-	memcpy (ubo->model_matrix, model_matrix, 16 * sizeof (float));
-	memcpy (ubo->shade_vector, shadevector, 3 * sizeof (float));
-	ubo->blend_factor = blend;
-	memcpy (ubo->light_color, lightcolor, 3 * sizeof (float));
-	ubo->flags = (fb != NULL) ? 0x1 : 0x0;
-	if (r_fullbright_cheatsafe || (r_lightmap_cheatsafe && r_fullbright.value))
-		ubo->flags |= 0x2;
-	ubo->entalpha = entity_alpha;
+		VkBuffer	 vertex_buffers[1] = {m->vertex_buffer};
+		VkDeviceSize vertex_offsets[1] = {0};
+		vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 1, vertex_buffers, vertex_offsets);
+		vulkan_globals.vk_cmd_bind_index_buffer (cbx->cb, m->index_buffer, 0, VK_INDEX_TYPE_UINT16);
 
-	VkDescriptorSet descriptor_sets[3] = {tx->descriptor_set, (fb != NULL) ? fb->descriptor_set : tx->descriptor_set, ubo_set};
-	vulkan_globals.vk_cmd_bind_descriptor_sets (
-		cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.alias_pipeline.layout.handle, 0, 3, descriptor_sets, 1, &uniform_offset);
-
-	VkBuffer	 vertex_buffers[3] = {e->model->vertex_buffer, e->model->vertex_buffer, e->model->vertex_buffer};
-	VkDeviceSize vertex_offsets[3] = {
-		(unsigned)e->model->vbostofs, GLARB_GetXYZOffset (e, paliashdr, lerpdata.pose1), GLARB_GetXYZOffset (e, paliashdr, lerpdata.pose2)};
-	vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 3, vertex_buffers, vertex_offsets);
-	vulkan_globals.vk_cmd_bind_index_buffer (cbx->cb, e->model->index_buffer, 0, VK_INDEX_TYPE_UINT16);
-
-	vulkan_globals.vk_cmd_draw_indexed (cbx->cb, paliashdr->numindexes, 1, 0, 0, 0);
+		vulkan_globals.vk_cmd_draw_indexed (cbx->cb, paliashdr->numindexes, 1, 0, 0, 0);
+		break;
+	}
+	}
 }
 
 /*
@@ -202,16 +248,19 @@ void R_SetupAliasFrame (entity_t *e, aliashdr_t *paliashdr, int frame, lerpdata_
 		else
 			lerpdata->blend = CLAMP (0, (cl.time - e->lerpstart) / e->lerptime, 1);
 
-		if (e->currentpose >= paliashdr->numposes || e->currentpose < 0)
+		if (paliashdr->poseverttype == PV_QUAKE1)
 		{
-			Con_DPrintf ("R_AliasSetupFrame: invalid current pose %d (%d total) for '%s'\n", e->currentpose, paliashdr->numposes, e->model->name);
-			e->currentpose = 0;
-		}
+			if (e->currentpose >= paliashdr->numposes || e->currentpose < 0)
+			{
+				Con_DPrintf ("R_AliasSetupFrame: invalid current pose %d (%d total) for '%s'\n", e->currentpose, paliashdr->numposes, e->model->name);
+				e->currentpose = 0;
+			}
 
-		if (e->previouspose >= paliashdr->numposes || e->previouspose < 0)
-		{
-			Con_DPrintf ("R_AliasSetupFrame: invalid prev pose %d (%d total) for '%s'\n", e->previouspose, paliashdr->numposes, e->model->name);
-			e->previouspose = e->currentpose;
+			if (e->previouspose >= paliashdr->numposes || e->previouspose < 0)
+			{
+				Con_DPrintf ("R_AliasSetupFrame: invalid prev pose %d (%d total) for '%s'\n", e->previouspose, paliashdr->numposes, e->model->name);
+				e->previouspose = e->currentpose;
+			}
 		}
 
 		lerpdata->pose1 = e->previouspose;
@@ -407,9 +456,8 @@ void R_DrawAliasModel (cb_context_t *cbx, entity_t *e, int *aliaspolys)
 	TranslationMatrix (translation_matrix, paliashdr->scale_origin[0], paliashdr->scale_origin[1] * fovscale, paliashdr->scale_origin[2] * fovscale);
 	MatrixMultiply (model_matrix, translation_matrix);
 
-	// Scale multiplied by 255 because we use UNORM instead of USCALED in the vertex shader
 	float scale_matrix[16];
-	ScaleMatrix (scale_matrix, paliashdr->scale[0] * 255.0f, paliashdr->scale[1] * fovscale * 255.0f, paliashdr->scale[2] * fovscale * 255.0f);
+	ScaleMatrix (scale_matrix, paliashdr->scale[0], paliashdr->scale[1] * fovscale, paliashdr->scale[2] * fovscale);
 	MatrixMultiply (model_matrix, scale_matrix);
 
 	//
@@ -470,7 +518,7 @@ void R_DrawAliasModel (cb_context_t *cbx, entity_t *e, int *aliaspolys)
 	//
 	// draw it
 	//
-	GL_DrawAliasFrame (cbx, e, paliashdr, lerpdata, tx, fb, model_matrix, entalpha, alphatest, shadevector, lightcolor);
+	GL_DrawAliasFrame (cbx, e, paliashdr, lerpdata, tx, fb, model_matrix, entalpha, alphatest, shadevector, lightcolor, false);
 }
 
 // johnfitz -- values for shadow matrix
@@ -489,12 +537,12 @@ void R_DrawAliasModel_ShowTris (cb_context_t *cbx, entity_t *e)
 {
 	aliashdr_t *paliashdr;
 	lerpdata_t	lerpdata;
-	float		blend;
 
 	//
 	// setup pose/lerp data -- do it first so we don't miss updates due to culling
 	//
 	paliashdr = (aliashdr_t *)Mod_Extradata (e->model);
+
 	R_SetupAliasFrame (e, paliashdr, e->frame, &lerpdata);
 	R_SetupEntityTransform (e, &lerpdata);
 
@@ -522,42 +570,11 @@ void R_DrawAliasModel_ShowTris (cb_context_t *cbx, entity_t *e)
 	TranslationMatrix (translation_matrix, paliashdr->scale_origin[0], paliashdr->scale_origin[1] * fovscale, paliashdr->scale_origin[2] * fovscale);
 	MatrixMultiply (model_matrix, translation_matrix);
 
-	// Scale multiplied by 255 because we use UNORM instead of USCALED in the vertex shader
 	float scale_matrix[16];
-	ScaleMatrix (scale_matrix, paliashdr->scale[0] * 255.0f, paliashdr->scale[1] * fovscale * 255.0f, paliashdr->scale[2] * fovscale * 255.0f);
+	ScaleMatrix (scale_matrix, paliashdr->scale[0], paliashdr->scale[1] * fovscale, paliashdr->scale[2] * fovscale);
 	MatrixMultiply (model_matrix, scale_matrix);
 
-	if (r_showtris.value == 1)
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.alias_showtris_pipeline);
-	else
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.alias_showtris_depth_test_pipeline);
-
-	if (lerpdata.pose1 != lerpdata.pose2)
-		blend = lerpdata.blend;
-	else // poses the same means either 1. the entity has paused its animation, or 2. r_lerpmodels is disabled
-		blend = 0;
-
-	VkBuffer		uniform_buffer;
-	uint32_t		uniform_offset;
-	VkDescriptorSet ubo_set;
-	aliasubo_t	   *ubo = (aliasubo_t *)R_UniformAllocate (sizeof (aliasubo_t), &uniform_buffer, &uniform_offset, &ubo_set);
-
-	memcpy (ubo->model_matrix, model_matrix, 16 * sizeof (float));
-	memset (ubo->shade_vector, 0, 3 * sizeof (float));
-	ubo->blend_factor = blend;
-	memset (ubo->light_color, 0, 3 * sizeof (float));
-	ubo->entalpha = 1.0f;
-	ubo->flags = 0;
-
-	VkDescriptorSet descriptor_sets[3] = {nulltexture->descriptor_set, nulltexture->descriptor_set, ubo_set};
-	vulkan_globals.vk_cmd_bind_descriptor_sets (
-		cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.alias_pipeline.layout.handle, 0, 3, descriptor_sets, 1, &uniform_offset);
-
-	VkBuffer	 vertex_buffers[3] = {e->model->vertex_buffer, e->model->vertex_buffer, e->model->vertex_buffer};
-	VkDeviceSize vertex_offsets[3] = {
-		(unsigned)e->model->vbostofs, GLARB_GetXYZOffset (e, paliashdr, lerpdata.pose1), GLARB_GetXYZOffset (e, paliashdr, lerpdata.pose2)};
-	vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 3, vertex_buffers, vertex_offsets);
-	vulkan_globals.vk_cmd_bind_index_buffer (cbx->cb, e->model->index_buffer, 0, VK_INDEX_TYPE_UINT16);
-
-	vulkan_globals.vk_cmd_draw_indexed (cbx->cb, paliashdr->numindexes, 1, 0, 0, 0);
+	vec3_t shadevector = {0.0f, 0.0f, 0.0f};
+	vec3_t lightcolor = {0.0f, 0.0f, 0.0f};
+	GL_DrawAliasFrame (cbx, e, paliashdr, lerpdata, nulltexture, nulltexture, model_matrix, 0.0f, false, shadevector, lightcolor, r_showtris.value);
 }

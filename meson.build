@@ -4,6 +4,7 @@ shaders = [
     'Shaders/alias.frag',
     'Shaders/alias.vert',
     'Shaders/alias_alphatest.frag',
+    'Shaders/md5.vert',
     'Shaders/basic.frag',
     'Shaders/basic.vert',
     'Shaders/basic_alphatest.frag',

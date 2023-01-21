@@ -34,21 +34,21 @@ ALIAS MODEL DISPLAY LIST GENERATION
 */
 
 // Heap
-#define INDEX_HEAP_SIZE_MB	2
-#define VERTEX_HEAP_SIZE_MB 16
+#define MESH_HEAP_SIZE_MB 32
+#define MESH_HEAP_NAME	  "Mesh heap"
 
-static glheap_t **vertex_buffer_heaps;
-static glheap_t **index_buffer_heaps;
-static int		  num_vertex_buffer_heaps;
-static int		  num_index_buffer_heaps;
+static glheap_t **mesh_buffer_heaps;
+static int		  num_mesh_buffer_heaps;
+static int		  mesh_heap_memory_type_index;
 
 typedef struct
 {
-	VkBuffer	  buffer;
-	glheap_t	 *heap;
-	glheapnode_t *heap_node;
-	glheap_t   ***heaps;
-	int			 *num_heaps;
+	VkBuffer		buffer;
+	VkDescriptorSet descriptor_set;
+	glheap_t	   *heap;
+	glheapnode_t   *heap_node;
+	glheap_t	 ***heaps;
+	int			   *num_heaps;
 } buffer_garbage_t;
 
 static int				current_garbage_index;
@@ -60,7 +60,7 @@ static buffer_garbage_t buffer_garbage[MAX_MODELS * 2][2];
 AddBufferGarbage
 ================
 */
-static void AddBufferGarbage (VkBuffer buffer, glheap_t *heap, glheapnode_t *heap_node, glheap_t ***heaps, int *num_heaps)
+static void AddBufferGarbage (VkBuffer buffer, VkDescriptorSet descriptor_set, glheap_t *heap, glheapnode_t *heap_node, glheap_t ***heaps, int *num_heaps)
 {
 	int				  garbage_index;
 	buffer_garbage_t *garbage;
@@ -68,10 +68,36 @@ static void AddBufferGarbage (VkBuffer buffer, glheap_t *heap, glheapnode_t *hea
 	garbage_index = num_garbage_buffers[current_garbage_index]++;
 	garbage = &buffer_garbage[garbage_index][current_garbage_index];
 	garbage->buffer = buffer;
+	garbage->descriptor_set = descriptor_set;
 	garbage->heap = heap;
 	garbage->heap_node = heap_node;
 	garbage->heaps = heaps;
 	garbage->num_heaps = num_heaps;
+}
+/*
+================
+R_InitMeshHeapMemoryIndex
+================
+*/
+void R_InitMeshHeapMemoryIndex ()
+{
+	// Allocate index buffer & upload to GPU
+	ZEROED_STRUCT (VkBufferCreateInfo, buffer_create_info);
+	buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	buffer_create_info.size = 16;
+	buffer_create_info.usage =
+		VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+	VkBuffer dummy_buffer;
+	VkResult err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &dummy_buffer);
+	if (err != VK_SUCCESS)
+		Sys_Error ("vkCreateBuffer failed");
+
+	VkMemoryRequirements memory_requirements;
+	vkGetBufferMemoryRequirements (vulkan_globals.device, dummy_buffer, &memory_requirements);
+
+	mesh_heap_memory_type_index = GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
+
+	vkDestroyBuffer (vulkan_globals.device, dummy_buffer, NULL);
 }
 
 /*
@@ -96,15 +122,9 @@ void R_CollectMeshBufferGarbage ()
 	num_garbage_buffers[current_garbage_index] = 0;
 }
 
-static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr, int numindexes, unsigned short *indexes, trivertx_t *vertexes, aliasmesh_t *meshdesc);
-
 /*
 ================
 GL_MakeAliasModelDisplayLists
-
-Saves data needed to build the VBO for this model on the hunk. Afterwards this
-is copied to Mod_Extradata.
-
 Original code by MH from RMQEngine
 ================
 */
@@ -126,7 +146,7 @@ void GL_MakeAliasModelDisplayLists (qmodel_t *m, aliashdr_t *paliashdr)
 			verts[i * paliashdr->numverts + j] = poseverts[i][j];
 
 	// there can never be more than this number of verts
-	const int maxverts_vbo = pheader->numtris * 3;
+	const int maxverts_vbo = paliashdr->numtris * 3;
 	TEMP_ALLOC_ZEROED (aliasmesh_t, desc, maxverts_vbo);
 	// there will always be this number of indexes
 	TEMP_ALLOC_ZEROED (unsigned short, indexes, maxverts_vbo);
@@ -134,7 +154,7 @@ void GL_MakeAliasModelDisplayLists (qmodel_t *m, aliashdr_t *paliashdr)
 	hash_map_t *vertex_to_index_map = HashMap_Create (aliasmesh_t, unsigned short, &AliasMeshHash);
 	HashMap_Reserve (vertex_to_index_map, maxverts_vbo);
 
-	for (int i = 0; i < pheader->numtris; i++)
+	for (int i = 0; i < paliashdr->numtris; i++)
 	{
 		for (int j = 0; j < 3; j++)
 		{
@@ -147,7 +167,7 @@ void GL_MakeAliasModelDisplayLists (qmodel_t *m, aliashdr_t *paliashdr)
 
 			// check for back side and adjust texcoord s
 			if (!triangles[i].facesfront && stverts[vertindex].onseam)
-				s += pheader->skinwidth / 2;
+				s += paliashdr->skinwidth / 2;
 
 			const aliasmesh_t mesh = {
 				.st = {s, t},
@@ -176,7 +196,8 @@ void GL_MakeAliasModelDisplayLists (qmodel_t *m, aliashdr_t *paliashdr)
 	HashMap_Destroy (vertex_to_index_map);
 
 	// upload immediately
-	GLMesh_LoadVertexBuffer (m, pheader, paliashdr->numindexes, indexes, verts, desc);
+	paliashdr->poseverttype = PV_QUAKE1;
+	GLMesh_UploadBuffers (m, paliashdr, indexes, (byte *)verts, desc, NULL);
 
 	TEMP_FREE (indexes);
 	TEMP_FREE (desc);
@@ -188,28 +209,28 @@ extern float r_avertexnormals[NUMVERTEXNORMALS][3];
 
 /*
 ================
-GLMesh_DeleteVertexBuffer
+GLMesh_DeleteMeshBuffers
 ================
 */
-static void GLMesh_DeleteVertexBuffer (qmodel_t *m)
+static void GLMesh_DeleteMeshBuffers (qmodel_t *m)
 {
 	if (m->vertex_buffer == VK_NULL_HANDLE)
 		return;
 
 	if (in_update_screen)
 	{
-		AddBufferGarbage (m->vertex_buffer, m->vertex_heap, m->vertex_heap_node, &vertex_buffer_heaps, &num_vertex_buffer_heaps);
-		AddBufferGarbage (m->index_buffer, m->index_heap, m->index_heap_node, &index_buffer_heaps, &num_index_buffer_heaps);
+		AddBufferGarbage (m->vertex_buffer, VK_NULL_HANDLE, m->vertex_heap, m->vertex_heap_node, &mesh_buffer_heaps, &num_mesh_buffer_heaps);
+		AddBufferGarbage (m->index_buffer, VK_NULL_HANDLE, m->index_heap, m->index_heap_node, &mesh_buffer_heaps, &num_mesh_buffer_heaps);
 	}
 	else
 	{
 		GL_WaitForDeviceIdle ();
 
 		vkDestroyBuffer (vulkan_globals.device, m->vertex_buffer, NULL);
-		GL_FreeFromHeaps (num_vertex_buffer_heaps, vertex_buffer_heaps, m->vertex_heap, m->vertex_heap_node, &num_vulkan_mesh_allocations);
+		GL_FreeFromHeaps (num_mesh_buffer_heaps, mesh_buffer_heaps, m->vertex_heap, m->vertex_heap_node, &num_vulkan_mesh_allocations);
 
 		vkDestroyBuffer (vulkan_globals.device, m->index_buffer, NULL);
-		GL_FreeFromHeaps (num_index_buffer_heaps, index_buffer_heaps, m->index_heap, m->index_heap_node, &num_vulkan_mesh_allocations);
+		GL_FreeFromHeaps (num_mesh_buffer_heaps, mesh_buffer_heaps, m->index_heap, m->index_heap_node, &num_vulkan_mesh_allocations);
 	}
 
 	m->vertex_buffer = VK_NULL_HANDLE;
@@ -222,36 +243,46 @@ static void GLMesh_DeleteVertexBuffer (qmodel_t *m)
 
 /*
 ================
-GLMesh_LoadVertexBuffer
-
-Upload the given alias model's mesh to a VBO
-
-Original code by MH from RMQEngine
+GLMesh_UploadBuffers
 ================
 */
-static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr, int numindexes, unsigned short *indexes, trivertx_t *vertexes, aliasmesh_t *desc)
+void GLMesh_UploadBuffers (qmodel_t *m, aliashdr_t *mainhdr, unsigned short *indexes, byte *vertexes, aliasmesh_t *desc, jointpose_t *joints)
 {
-	int		 totalvbosize = 0;
-	int		 remaining_size;
-	int		 copy_offset;
-	byte	*vbodata;
-	int		 f;
+	size_t	 numindexes = 0;
+	size_t	 numverts = 0;
 	VkResult err;
+	if (!mainhdr)
+		return;
 
-	GLMesh_DeleteVertexBuffer (m);
+	GLMesh_DeleteMeshBuffers (m);
 
-	// count the sizes we need
+	// count how much space we're going to need.
+	size_t totalvbosize = 0;
+	for (const aliashdr_t *hdr = mainhdr; hdr != NULL; hdr = hdr->nextsurface)
+	{
+		switch (hdr->poseverttype)
+		{
+		case PV_QUAKE1:
+			totalvbosize +=
+				(hdr->numposes * hdr->numverts_vbo * sizeof (meshxyz_t)); // ericw -- what RMQEngine called nummeshframes is called numposes in QuakeSpasm
+			break;
+		case PV_MD5:
+			totalvbosize += (hdr->numposes * hdr->numverts_vbo * sizeof (md5vert_t));
+			break;
+		}
 
-	// ericw -- RMQEngine stored these vbo*ofs values in aliashdr_t, but we must not
-	// mutate Mod_Extradata since it might be reloaded from disk, so I moved them to qmodel_t
-	// (test case: roman1.bsp from arwop, 64mb heap)
-	m->vboindexofs = 0;
+		numverts += hdr->numverts_vbo;
+		numindexes += hdr->numindexes;
+	}
 
-	m->vboxyzofs = 0;
-	totalvbosize += (hdr->numposes * hdr->numverts_vbo * sizeof (meshxyz_t)); // ericw -- what RMQEngine called nummeshframes is called numposes in QuakeSpasm
+	const size_t totaljointssize = mainhdr->numframes * mainhdr->numjoints * sizeof (jointpose_t);
 
-	m->vbostofs = totalvbosize;
-	totalvbosize += (hdr->numverts_vbo * sizeof (meshst_t));
+	assert ((mainhdr->nextsurface == NULL) || (mainhdr->poseverttype != PV_QUAKE1));
+	if (mainhdr->poseverttype == PV_QUAKE1)
+	{
+		m->vbostofs = totalvbosize;
+		totalvbosize += (numverts * sizeof (meshst_t));
+	}
 
 	if (isDedicated)
 		return;
@@ -260,10 +291,8 @@ static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr, int num
 	if (!totalvbosize)
 		return;
 
-	// grab the pointers to data in the extradata
-
 	{
-		const int totalindexsize = numindexes * sizeof (unsigned short);
+		const size_t totalindexsize = numindexes * sizeof (unsigned short);
 
 		// Allocate index buffer & upload to GPU
 		ZEROED_STRUCT (VkBufferCreateInfo, buffer_create_info);
@@ -279,81 +308,67 @@ static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr, int num
 		VkMemoryRequirements memory_requirements;
 		vkGetBufferMemoryRequirements (vulkan_globals.device, m->index_buffer, &memory_requirements);
 
-		uint32_t	 memory_type_index = GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
-		VkDeviceSize heap_size = INDEX_HEAP_SIZE_MB * (VkDeviceSize)1024 * (VkDeviceSize)1024;
+		VkDeviceSize heap_size = MESH_HEAP_SIZE_MB * (VkDeviceSize)1024 * (VkDeviceSize)1024;
 		VkDeviceSize aligned_offset = GL_AllocateFromHeaps (
-			&num_index_buffer_heaps, &index_buffer_heaps, heap_size, memory_type_index, VULKAN_MEMORY_TYPE_DEVICE, memory_requirements.size,
-			memory_requirements.alignment, &m->index_heap, &m->index_heap_node, &num_vulkan_mesh_allocations, "Index Buffers");
+			&num_mesh_buffer_heaps, &mesh_buffer_heaps, heap_size, mesh_heap_memory_type_index, VULKAN_MEMORY_TYPE_DEVICE, memory_requirements.size,
+			memory_requirements.alignment, &m->index_heap, &m->index_heap_node, &num_vulkan_mesh_allocations, MESH_HEAP_NAME);
 		err = vkBindBufferMemory (vulkan_globals.device, m->index_buffer, m->index_heap->memory.handle, aligned_offset);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkBindBufferMemory failed");
 
-		remaining_size = totalindexsize;
-		copy_offset = 0;
-
-		while (remaining_size > 0)
-		{
-			const int		size_to_copy = q_min (remaining_size, vulkan_globals.staging_buffer_size);
-			VkBuffer		staging_buffer;
-			VkCommandBuffer command_buffer;
-			int				staging_offset;
-			unsigned char  *staging_memory = R_StagingAllocate (size_to_copy, 1, &command_buffer, &staging_buffer, &staging_offset);
-
-			VkBufferCopy region;
-			region.srcOffset = staging_offset;
-			region.dstOffset = copy_offset;
-			region.size = size_to_copy;
-			vkCmdCopyBuffer (command_buffer, staging_buffer, m->index_buffer, 1, &region);
-
-			R_StagingBeginCopy ();
-			memcpy (staging_memory, (byte *)indexes + copy_offset, size_to_copy);
-			R_StagingEndCopy ();
-
-			copy_offset += size_to_copy;
-			remaining_size -= size_to_copy;
-		}
+		R_StagingUploadBuffer (m->index_buffer, totalindexsize, (byte *)indexes);
 	}
 
 	// create the vertex buffer (empty)
 
-	vbodata = (byte *)Mem_Alloc (totalvbosize);
-	memset (vbodata, 0, totalvbosize);
+	TEMP_ALLOC (byte, vbodata, totalvbosize);
 
-	// fill in the vertices at the start of the buffer
-	for (f = 0; f < hdr->numposes; f++) // ericw -- what RMQEngine called nummeshframes is called numposes in QuakeSpasm
+	// fill in the vertices of the buffer
+	size_t vertofs = 0;
+	for (const aliashdr_t *hdr = mainhdr; hdr != NULL; hdr = hdr->nextsurface)
 	{
-		int				  v;
-		meshxyz_t		 *xyz = (meshxyz_t *)(vbodata + (f * hdr->numverts_vbo * sizeof (meshxyz_t)));
-		const trivertx_t *tv = vertexes + (hdr->numverts * f);
-
-		for (v = 0; v < hdr->numverts_vbo; v++)
+		switch (hdr->poseverttype)
 		{
-			trivertx_t trivert = tv[desc[v].vertindex];
+		case PV_QUAKE1:
+			for (int f = 0; f < hdr->numposes; f++) // ericw -- what RMQEngine called nummeshframes is called numposes in QuakeSpasm
+			{
+				meshxyz_t		 *xyz = (meshxyz_t *)vbodata + vertofs;
+				const trivertx_t *tv = (trivertx_t *)vertexes + (hdr->numverts * f);
+				vertofs += hdr->numverts_vbo;
 
-			xyz[v].xyz[0] = trivert.v[0];
-			xyz[v].xyz[1] = trivert.v[1];
-			xyz[v].xyz[2] = trivert.v[2];
-			xyz[v].xyz[3] = 1; // need w 1 for 4 byte vertex compression
+				for (int v = 0; v < hdr->numverts_vbo; v++)
+				{
+					trivertx_t trivert = tv[desc[v].vertindex];
 
-			// map the normal coordinates in [-1..1] to [-127..127] and store in an unsigned char.
-			// this introduces some error (less than 0.004), but the normals were very coarse
-			// to begin with
-			xyz[v].normal[0] = 127 * r_avertexnormals[trivert.lightnormalindex][0];
-			xyz[v].normal[1] = 127 * r_avertexnormals[trivert.lightnormalindex][1];
-			xyz[v].normal[2] = 127 * r_avertexnormals[trivert.lightnormalindex][2];
-			xyz[v].normal[3] = 0; // unused; for 4-byte alignment
+					xyz[v].xyz[0] = trivert.v[0];
+					xyz[v].xyz[1] = trivert.v[1];
+					xyz[v].xyz[2] = trivert.v[2];
+					xyz[v].xyz[3] = 1; // need w 1 for 4 byte vertex compression
+
+					// map the normal coordinates in [-1..1] to [-127..127] and store in an unsigned char.
+					// this introduces some error (less than 0.004), but the normals were very coarse
+					// to begin with
+					xyz[v].normal[0] = 127 * r_avertexnormals[trivert.lightnormalindex][0];
+					xyz[v].normal[1] = 127 * r_avertexnormals[trivert.lightnormalindex][1];
+					xyz[v].normal[2] = 127 * r_avertexnormals[trivert.lightnormalindex][2];
+					xyz[v].normal[3] = 0; // unused; for 4-byte alignment
+				}
+			}
+			break;
+		case PV_MD5:
+			assert (hdr->numposes == 1);
+			memcpy (vbodata, vertexes, totalvbosize);
 		}
 	}
 
 	// fill in the ST coords at the end of the buffer
+	if (mainhdr->poseverttype == PV_QUAKE1)
 	{
-		meshst_t *st;
-
-		st = (meshst_t *)(vbodata + m->vbostofs);
-		for (f = 0; f < hdr->numverts_vbo; f++)
+		meshst_t *st = (meshst_t *)(vbodata + m->vbostofs);
+		for (int f = 0; f < mainhdr->numverts_vbo; f++)
 		{
-			st[f].st[0] = ((float)desc[f].st[0] + 0.5f) / (float)hdr->skinwidth;
-			st[f].st[1] = ((float)desc[f].st[1] + 0.5f) / (float)hdr->skinheight;
+			st[f].st[0] = ((float)desc[f].st[0] + 0.5f) / (float)mainhdr->skinwidth;
+			st[f].st[1] = ((float)desc[f].st[1] + 0.5f) / (float)mainhdr->skinheight;
 		}
 	}
 
@@ -372,52 +387,73 @@ static void GLMesh_LoadVertexBuffer (qmodel_t *m, const aliashdr_t *hdr, int num
 		VkMemoryRequirements memory_requirements;
 		vkGetBufferMemoryRequirements (vulkan_globals.device, m->vertex_buffer, &memory_requirements);
 
-		uint32_t	 memory_type_index = GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
-		VkDeviceSize heap_size = VERTEX_HEAP_SIZE_MB * (VkDeviceSize)1024 * (VkDeviceSize)1024;
+		VkDeviceSize heap_size = MESH_HEAP_SIZE_MB * (VkDeviceSize)1024 * (VkDeviceSize)1024;
 		VkDeviceSize aligned_offset = GL_AllocateFromHeaps (
-			&num_vertex_buffer_heaps, &vertex_buffer_heaps, heap_size, memory_type_index, VULKAN_MEMORY_TYPE_DEVICE, memory_requirements.size,
-			memory_requirements.alignment, &m->vertex_heap, &m->vertex_heap_node, &num_vulkan_mesh_allocations, "Vertex Buffers");
+			&num_mesh_buffer_heaps, &mesh_buffer_heaps, heap_size, mesh_heap_memory_type_index, VULKAN_MEMORY_TYPE_DEVICE, memory_requirements.size,
+			memory_requirements.alignment, &m->vertex_heap, &m->vertex_heap_node, &num_vulkan_mesh_allocations, MESH_HEAP_NAME);
 		err = vkBindBufferMemory (vulkan_globals.device, m->vertex_buffer, m->vertex_heap->memory.handle, aligned_offset);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkBindBufferMemory failed");
 
-		remaining_size = totalvbosize;
-		copy_offset = 0;
-
-		while (remaining_size > 0)
-		{
-			const int		size_to_copy = q_min (remaining_size, vulkan_globals.staging_buffer_size);
-			VkBuffer		staging_buffer;
-			VkCommandBuffer command_buffer;
-			int				staging_offset;
-			unsigned char  *staging_memory = R_StagingAllocate (size_to_copy, 1, &command_buffer, &staging_buffer, &staging_offset);
-
-			VkBufferCopy region;
-			region.srcOffset = staging_offset;
-			region.dstOffset = copy_offset;
-			region.size = size_to_copy;
-			vkCmdCopyBuffer (command_buffer, staging_buffer, m->vertex_buffer, 1, &region);
-
-			R_StagingBeginCopy ();
-			memcpy (staging_memory, (byte *)vbodata + copy_offset, size_to_copy);
-			R_StagingEndCopy ();
-
-			copy_offset += size_to_copy;
-			remaining_size -= size_to_copy;
-		}
+		R_StagingUploadBuffer (m->vertex_buffer, totalvbosize, vbodata);
 	}
 
-	Mem_Free (vbodata);
+	// Allocate joints buffer & upload to GPU
+	if (joints)
+	{
+		ZEROED_STRUCT (VkBufferCreateInfo, buffer_create_info);
+		buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+		buffer_create_info.size = totaljointssize;
+		buffer_create_info.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+		err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &m->joints_buffer);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreateBuffer failed");
+
+		GL_SetObjectName ((uint64_t)m->joints_buffer, VK_OBJECT_TYPE_BUFFER, m->name);
+
+		VkMemoryRequirements memory_requirements;
+		vkGetBufferMemoryRequirements (vulkan_globals.device, m->joints_buffer, &memory_requirements);
+
+		VkDeviceSize heap_size = MESH_HEAP_SIZE_MB * (VkDeviceSize)1024 * (VkDeviceSize)1024;
+		VkDeviceSize aligned_offset = GL_AllocateFromHeaps (
+			&num_mesh_buffer_heaps, &mesh_buffer_heaps, heap_size, mesh_heap_memory_type_index, VULKAN_MEMORY_TYPE_DEVICE, memory_requirements.size,
+			memory_requirements.alignment, &m->joints_heap, &m->joints_heap_node, &num_vulkan_mesh_allocations, MESH_HEAP_NAME);
+		err = vkBindBufferMemory (vulkan_globals.device, m->joints_buffer, m->joints_heap->memory.handle, aligned_offset);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkBindBufferMemory failed");
+
+		R_StagingUploadBuffer (m->joints_buffer, totaljointssize, (byte *)joints);
+
+		m->joints_set = R_AllocateDescriptorSet (&vulkan_globals.joints_buffer_set_layout);
+
+		ZEROED_STRUCT (VkDescriptorBufferInfo, buffer_info);
+		buffer_info.buffer = m->joints_buffer;
+		buffer_info.offset = 0;
+		buffer_info.range = VK_WHOLE_SIZE;
+
+		ZEROED_STRUCT (VkWriteDescriptorSet, joints_set_write);
+		joints_set_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		joints_set_write.dstSet = m->joints_set;
+		joints_set_write.dstBinding = 0;
+		joints_set_write.dstArrayElement = 0;
+		joints_set_write.descriptorCount = 1;
+		joints_set_write.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+		joints_set_write.pBufferInfo = &buffer_info;
+
+		vkUpdateDescriptorSets (vulkan_globals.device, 1, &joints_set_write, 0, NULL);
+	}
+
+	TEMP_FREE (vbodata);
 }
 
 /*
 ================
-GLMesh_DeleteVertexBuffers
+GLMesh_DeleteAllMeshBuffers
 
 Delete VBOs for all loaded alias models
 ================
 */
-void GLMesh_DeleteVertexBuffers (void)
+void GLMesh_DeleteAllMeshBuffers (void)
 {
 	int		  j;
 	qmodel_t *m;
@@ -429,6 +465,6 @@ void GLMesh_DeleteVertexBuffers (void)
 		if (m->type != mod_alias)
 			continue;
 
-		GLMesh_DeleteVertexBuffer (m);
+		GLMesh_DeleteMeshBuffers (m);
 	}
 }

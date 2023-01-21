@@ -148,6 +148,9 @@ $(VULKAN_SDK)\bin\spirv-remap.exe -s -i "$(SolutionDir)..\..\Shaders\Compiled\Re
     <CustomBuild Include="..\..\Shaders\world.vert">
       <FileType>Document</FileType>
     </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\md5.vert">
+      <FileType>Document</FileType>
+    </CustomBuild>
     <None Include="..\..\Shaders\screen_effects.inc" />
     <None Include="..\..\Shaders\update_lightmap.inc" />
     <None Include="..\..\Shaders\globals.inc" />
@@ -181,7 +184,6 @@ $(VULKAN_SDK)\bin\spirv-remap.exe -s -i "$(SolutionDir)..\..\Shaders\Compiled\Re
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Quake\vkquake.pak" vkquake_pak "$(SolutionDir)..\..\Quake\embedded_pak.c"</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Quake\vkquake.pak" vkquake_pak "$(SolutionDir)..\..\Quake\embedded_pak.c"</Command>
     </CustomBuild>
-
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

@@ -711,6 +711,39 @@ void R_StagingEndCopy ()
 
 /*
 ===============
+R_StagingUploadBuffer
+===============
+*/
+void R_StagingUploadBuffer (const VkBuffer buffer, const size_t size, const byte *data)
+{
+	size_t remaining_size = size;
+	size_t copy_offset = 0;
+
+	while (remaining_size > 0)
+	{
+		const int		size_to_copy = q_min (remaining_size, vulkan_globals.staging_buffer_size);
+		VkBuffer		staging_buffer;
+		VkCommandBuffer command_buffer;
+		int				staging_offset;
+		unsigned char  *staging_ptr = R_StagingAllocate (size_to_copy, 1, &command_buffer, &staging_buffer, &staging_offset);
+
+		VkBufferCopy region;
+		region.srcOffset = staging_offset;
+		region.dstOffset = copy_offset;
+		region.size = size_to_copy;
+		vkCmdCopyBuffer (command_buffer, staging_buffer, buffer, 1, &region);
+
+		R_StagingBeginCopy ();
+		memcpy (staging_ptr, (byte *)data + copy_offset, size_to_copy);
+		R_StagingEndCopy ();
+
+		copy_offset += size_to_copy;
+		remaining_size -= size_to_copy;
+	}
+}
+
+/*
+===============
 R_InitDynamicBuffers
 ===============
 */
@@ -1233,6 +1266,25 @@ void R_CreateDescriptorSetLayouts ()
 	}
 
 	{
+		ZEROED_STRUCT (VkDescriptorSetLayoutBinding, joints_buffer_layout_bindings);
+		joints_buffer_layout_bindings.binding = 0;
+		joints_buffer_layout_bindings.descriptorCount = 1;
+		joints_buffer_layout_bindings.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+		joints_buffer_layout_bindings.stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS;
+
+		descriptor_set_layout_create_info.bindingCount = 1;
+		descriptor_set_layout_create_info.pBindings = &joints_buffer_layout_bindings;
+
+		memset (&vulkan_globals.joints_buffer_set_layout, 0, sizeof (vulkan_globals.joints_buffer_set_layout));
+		vulkan_globals.joints_buffer_set_layout.num_storage_buffers = 1;
+
+		err = vkCreateDescriptorSetLayout (vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.joints_buffer_set_layout.handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreateDescriptorSetLayout failed");
+		GL_SetObjectName ((uint64_t)vulkan_globals.joints_buffer_set_layout.handle, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT, "joints buffer");
+	}
+
+	{
 		ZEROED_STRUCT (VkDescriptorSetLayoutBinding, input_attachment_layout_bindings);
 		input_attachment_layout_bindings.binding = 0;
 		input_attachment_layout_bindings.descriptorCount = 1;
@@ -1554,11 +1606,36 @@ void R_CreatePipelineLayouts ()
 		pipeline_layout_create_info.pushConstantRangeCount = 1;
 		pipeline_layout_create_info.pPushConstantRanges = &push_constant_range;
 
-		err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.alias_pipeline.layout.handle);
+		err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.alias_pipelines[0].layout.handle);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkCreatePipelineLayout failed");
-		GL_SetObjectName ((uint64_t)vulkan_globals.alias_pipeline.layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "alias_pipeline_layout");
-		vulkan_globals.alias_pipeline.layout.push_constant_range = push_constant_range;
+		GL_SetObjectName ((uint64_t)vulkan_globals.alias_pipelines[0].layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "alias_pipeline_layout");
+		vulkan_globals.alias_pipelines[0].layout.push_constant_range = push_constant_range;
+	}
+
+	{
+		// MD5
+		VkDescriptorSetLayout md5_descriptor_set_layouts[4] = {
+			vulkan_globals.single_texture_set_layout.handle, vulkan_globals.single_texture_set_layout.handle, vulkan_globals.ubo_set_layout.handle,
+			vulkan_globals.joints_buffer_set_layout.handle};
+
+		ZEROED_STRUCT (VkPushConstantRange, push_constant_range);
+		push_constant_range.offset = 0;
+		push_constant_range.size = 24 * sizeof (float);
+		push_constant_range.stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS;
+
+		ZEROED_STRUCT (VkPipelineLayoutCreateInfo, pipeline_layout_create_info);
+		pipeline_layout_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+		pipeline_layout_create_info.setLayoutCount = 4;
+		pipeline_layout_create_info.pSetLayouts = md5_descriptor_set_layouts;
+		pipeline_layout_create_info.pushConstantRangeCount = 1;
+		pipeline_layout_create_info.pPushConstantRanges = &push_constant_range;
+
+		err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.md5_pipelines[0].layout.handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreatePipelineLayout failed");
+		GL_SetObjectName ((uint64_t)vulkan_globals.md5_pipelines[0].layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "md5_pipeline_layout");
+		vulkan_globals.md5_pipelines[0].layout.push_constant_range = push_constant_range;
 	}
 
 	{
@@ -2005,6 +2082,8 @@ static VkVertexInputAttributeDescription world_vertex_input_attribute_descriptio
 static VkVertexInputBindingDescription	 world_vertex_binding_description;
 static VkVertexInputAttributeDescription alias_vertex_input_attribute_descriptions[5];
 static VkVertexInputBindingDescription	 alias_vertex_binding_descriptions[3];
+static VkVertexInputAttributeDescription md5_vertex_input_attribute_descriptions[5];
+static VkVertexInputBindingDescription	 md5_vertex_binding_description;
 
 #define DECLARE_SHADER_MODULE(name) static VkShaderModule name##_module
 #define CREATE_SHADER_MODULE(name)                                                 \
@@ -2034,6 +2113,7 @@ DECLARE_SHADER_MODULE (world_frag);
 DECLARE_SHADER_MODULE (alias_vert);
 DECLARE_SHADER_MODULE (alias_frag);
 DECLARE_SHADER_MODULE (alias_alphatest_frag);
+DECLARE_SHADER_MODULE (md5_vert);
 DECLARE_SHADER_MODULE (sky_layer_vert);
 DECLARE_SHADER_MODULE (sky_layer_frag);
 DECLARE_SHADER_MODULE (sky_box_frag);
@@ -2063,70 +2143,104 @@ R_InitVertexAttributes
 */
 static void R_InitVertexAttributes ()
 {
-	basic_vertex_input_attribute_descriptions[0].binding = 0;
-	basic_vertex_input_attribute_descriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-	basic_vertex_input_attribute_descriptions[0].location = 0;
-	basic_vertex_input_attribute_descriptions[0].offset = 0;
-	basic_vertex_input_attribute_descriptions[1].binding = 0;
-	basic_vertex_input_attribute_descriptions[1].format = VK_FORMAT_R32G32_SFLOAT;
-	basic_vertex_input_attribute_descriptions[1].location = 1;
-	basic_vertex_input_attribute_descriptions[1].offset = 12;
-	basic_vertex_input_attribute_descriptions[2].binding = 0;
-	basic_vertex_input_attribute_descriptions[2].format = VK_FORMAT_R8G8B8A8_UNORM;
-	basic_vertex_input_attribute_descriptions[2].location = 2;
-	basic_vertex_input_attribute_descriptions[2].offset = 20;
+	{
+		basic_vertex_input_attribute_descriptions[0].binding = 0;
+		basic_vertex_input_attribute_descriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
+		basic_vertex_input_attribute_descriptions[0].location = 0;
+		basic_vertex_input_attribute_descriptions[0].offset = 0;
+		basic_vertex_input_attribute_descriptions[1].binding = 0;
+		basic_vertex_input_attribute_descriptions[1].format = VK_FORMAT_R32G32_SFLOAT;
+		basic_vertex_input_attribute_descriptions[1].location = 1;
+		basic_vertex_input_attribute_descriptions[1].offset = 12;
+		basic_vertex_input_attribute_descriptions[2].binding = 0;
+		basic_vertex_input_attribute_descriptions[2].format = VK_FORMAT_R8G8B8A8_UNORM;
+		basic_vertex_input_attribute_descriptions[2].location = 2;
+		basic_vertex_input_attribute_descriptions[2].offset = 20;
 
-	basic_vertex_binding_description.binding = 0;
-	basic_vertex_binding_description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-	basic_vertex_binding_description.stride = 24;
+		basic_vertex_binding_description.binding = 0;
+		basic_vertex_binding_description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+		basic_vertex_binding_description.stride = 24;
+	}
 
-	world_vertex_input_attribute_descriptions[0].binding = 0;
-	world_vertex_input_attribute_descriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-	world_vertex_input_attribute_descriptions[0].location = 0;
-	world_vertex_input_attribute_descriptions[0].offset = 0;
-	world_vertex_input_attribute_descriptions[1].binding = 0;
-	world_vertex_input_attribute_descriptions[1].format = VK_FORMAT_R32G32_SFLOAT;
-	world_vertex_input_attribute_descriptions[1].location = 1;
-	world_vertex_input_attribute_descriptions[1].offset = 12;
-	world_vertex_input_attribute_descriptions[2].binding = 0;
-	world_vertex_input_attribute_descriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
-	world_vertex_input_attribute_descriptions[2].location = 2;
-	world_vertex_input_attribute_descriptions[2].offset = 20;
+	{
+		world_vertex_input_attribute_descriptions[0].binding = 0;
+		world_vertex_input_attribute_descriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
+		world_vertex_input_attribute_descriptions[0].location = 0;
+		world_vertex_input_attribute_descriptions[0].offset = 0;
+		world_vertex_input_attribute_descriptions[1].binding = 0;
+		world_vertex_input_attribute_descriptions[1].format = VK_FORMAT_R32G32_SFLOAT;
+		world_vertex_input_attribute_descriptions[1].location = 1;
+		world_vertex_input_attribute_descriptions[1].offset = 12;
+		world_vertex_input_attribute_descriptions[2].binding = 0;
+		world_vertex_input_attribute_descriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
+		world_vertex_input_attribute_descriptions[2].location = 2;
+		world_vertex_input_attribute_descriptions[2].offset = 20;
 
-	world_vertex_binding_description.binding = 0;
-	world_vertex_binding_description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-	world_vertex_binding_description.stride = 28;
+		world_vertex_binding_description.binding = 0;
+		world_vertex_binding_description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+		world_vertex_binding_description.stride = 28;
+	}
 
-	alias_vertex_input_attribute_descriptions[0].binding = 0;
-	alias_vertex_input_attribute_descriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
-	alias_vertex_input_attribute_descriptions[0].location = 0;
-	alias_vertex_input_attribute_descriptions[0].offset = 0;
-	alias_vertex_input_attribute_descriptions[1].binding = 1;
-	alias_vertex_input_attribute_descriptions[1].format = VK_FORMAT_R8G8B8A8_UNORM;
-	alias_vertex_input_attribute_descriptions[1].location = 1;
-	alias_vertex_input_attribute_descriptions[1].offset = 0;
-	alias_vertex_input_attribute_descriptions[2].binding = 1;
-	alias_vertex_input_attribute_descriptions[2].format = VK_FORMAT_R8G8B8A8_SNORM;
-	alias_vertex_input_attribute_descriptions[2].location = 2;
-	alias_vertex_input_attribute_descriptions[2].offset = 4;
-	alias_vertex_input_attribute_descriptions[3].binding = 2;
-	alias_vertex_input_attribute_descriptions[3].format = VK_FORMAT_R8G8B8A8_UNORM;
-	alias_vertex_input_attribute_descriptions[3].location = 3;
-	alias_vertex_input_attribute_descriptions[3].offset = 0;
-	alias_vertex_input_attribute_descriptions[4].binding = 2;
-	alias_vertex_input_attribute_descriptions[4].format = VK_FORMAT_R8G8B8A8_SNORM;
-	alias_vertex_input_attribute_descriptions[4].location = 4;
-	alias_vertex_input_attribute_descriptions[4].offset = 4;
+	{
+		alias_vertex_input_attribute_descriptions[0].binding = 0;
+		alias_vertex_input_attribute_descriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
+		alias_vertex_input_attribute_descriptions[0].location = 0;
+		alias_vertex_input_attribute_descriptions[0].offset = 0;
+		alias_vertex_input_attribute_descriptions[1].binding = 1;
+		alias_vertex_input_attribute_descriptions[1].format = VK_FORMAT_R8G8B8A8_UNORM;
+		alias_vertex_input_attribute_descriptions[1].location = 1;
+		alias_vertex_input_attribute_descriptions[1].offset = 0;
+		alias_vertex_input_attribute_descriptions[2].binding = 1;
+		alias_vertex_input_attribute_descriptions[2].format = VK_FORMAT_R8G8B8A8_SNORM;
+		alias_vertex_input_attribute_descriptions[2].location = 2;
+		alias_vertex_input_attribute_descriptions[2].offset = 4;
+		alias_vertex_input_attribute_descriptions[3].binding = 2;
+		alias_vertex_input_attribute_descriptions[3].format = VK_FORMAT_R8G8B8A8_UNORM;
+		alias_vertex_input_attribute_descriptions[3].location = 3;
+		alias_vertex_input_attribute_descriptions[3].offset = 0;
+		alias_vertex_input_attribute_descriptions[4].binding = 2;
+		alias_vertex_input_attribute_descriptions[4].format = VK_FORMAT_R8G8B8A8_SNORM;
+		alias_vertex_input_attribute_descriptions[4].location = 4;
+		alias_vertex_input_attribute_descriptions[4].offset = 4;
 
-	alias_vertex_binding_descriptions[0].binding = 0;
-	alias_vertex_binding_descriptions[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-	alias_vertex_binding_descriptions[0].stride = 8;
-	alias_vertex_binding_descriptions[1].binding = 1;
-	alias_vertex_binding_descriptions[1].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-	alias_vertex_binding_descriptions[1].stride = 8;
-	alias_vertex_binding_descriptions[2].binding = 2;
-	alias_vertex_binding_descriptions[2].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-	alias_vertex_binding_descriptions[2].stride = 8;
+		alias_vertex_binding_descriptions[0].binding = 0;
+		alias_vertex_binding_descriptions[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+		alias_vertex_binding_descriptions[0].stride = 8;
+		alias_vertex_binding_descriptions[1].binding = 1;
+		alias_vertex_binding_descriptions[1].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+		alias_vertex_binding_descriptions[1].stride = 8;
+		alias_vertex_binding_descriptions[2].binding = 2;
+		alias_vertex_binding_descriptions[2].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+		alias_vertex_binding_descriptions[2].stride = 8;
+	}
+
+	{
+		// Matches md5vert_t
+		md5_vertex_input_attribute_descriptions[0].binding = 0;
+		md5_vertex_input_attribute_descriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
+		md5_vertex_input_attribute_descriptions[0].location = 0;
+		md5_vertex_input_attribute_descriptions[0].offset = 0;
+		md5_vertex_input_attribute_descriptions[1].binding = 0;
+		md5_vertex_input_attribute_descriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
+		md5_vertex_input_attribute_descriptions[1].location = 1;
+		md5_vertex_input_attribute_descriptions[1].offset = 12;
+		md5_vertex_input_attribute_descriptions[2].binding = 0;
+		md5_vertex_input_attribute_descriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
+		md5_vertex_input_attribute_descriptions[2].location = 2;
+		md5_vertex_input_attribute_descriptions[2].offset = 24;
+		md5_vertex_input_attribute_descriptions[3].binding = 0;
+		md5_vertex_input_attribute_descriptions[3].format = VK_FORMAT_R8G8B8A8_UNORM;
+		md5_vertex_input_attribute_descriptions[3].location = 3;
+		md5_vertex_input_attribute_descriptions[3].offset = 32;
+		md5_vertex_input_attribute_descriptions[4].binding = 0;
+		md5_vertex_input_attribute_descriptions[4].format = VK_FORMAT_R8G8B8A8_UINT;
+		md5_vertex_input_attribute_descriptions[4].location = 4;
+		md5_vertex_input_attribute_descriptions[4].offset = 36;
+
+		md5_vertex_binding_description.binding = 0;
+		md5_vertex_binding_description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+		md5_vertex_binding_description.stride = 40;
+	}
 }
 
 /*
@@ -2855,43 +2969,42 @@ static void R_CreateAliasPipelines ()
 	infos.shader_stages[0].module = alias_vert_module;
 	infos.shader_stages[1].module = alias_frag_module;
 
-	infos.graphics_pipeline.layout = vulkan_globals.alias_pipeline.layout.handle;
+	infos.graphics_pipeline.layout = vulkan_globals.alias_pipelines[0].layout.handle;
 
-	assert (vulkan_globals.alias_pipeline.handle == VK_NULL_HANDLE);
-	err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.alias_pipeline.handle);
+	assert (vulkan_globals.alias_pipelines[0].handle == VK_NULL_HANDLE);
+	err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.alias_pipelines[0].handle);
 	if (err != VK_SUCCESS)
 		Sys_Error ("vkCreateGraphicsPipelines failed (alias_pipeline)");
-	GL_SetObjectName ((uint64_t)vulkan_globals.alias_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "alias");
+	GL_SetObjectName ((uint64_t)vulkan_globals.alias_pipelines[0].handle, VK_OBJECT_TYPE_PIPELINE, "alias");
 
 	infos.shader_stages[1].module = alias_alphatest_frag_module;
 
-	assert (vulkan_globals.alias_alphatest_pipeline.handle == VK_NULL_HANDLE);
-	err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.alias_alphatest_pipeline.handle);
+	assert (vulkan_globals.alias_pipelines[1].handle == VK_NULL_HANDLE);
+	err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.alias_pipelines[1].handle);
 	if (err != VK_SUCCESS)
 		Sys_Error ("vkCreateGraphicsPipelines failed (alias_alphatest_pipeline)");
-	GL_SetObjectName ((uint64_t)vulkan_globals.alias_alphatest_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "alias_alphatest");
-	vulkan_globals.alias_alphatest_pipeline.layout = vulkan_globals.alias_pipeline.layout;
+	GL_SetObjectName ((uint64_t)vulkan_globals.alias_pipelines[1].handle, VK_OBJECT_TYPE_PIPELINE, "alias_alphatest");
+	vulkan_globals.alias_pipelines[1].layout = vulkan_globals.alias_pipelines[0].layout;
 
 	infos.depth_stencil_state.depthWriteEnable = VK_FALSE;
 	infos.blend_attachment_state.blendEnable = VK_TRUE;
 	infos.shader_stages[1].module = alias_frag_module;
 
-	assert (vulkan_globals.alias_blend_pipeline.handle == VK_NULL_HANDLE);
-	err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.alias_blend_pipeline.handle);
+	assert (vulkan_globals.alias_pipelines[2].handle == VK_NULL_HANDLE);
+	err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.alias_pipelines[2].handle);
 	if (err != VK_SUCCESS)
 		Sys_Error ("vkCreateGraphicsPipelines failed (alias_blend_pipeline)");
-	GL_SetObjectName ((uint64_t)vulkan_globals.alias_blend_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "alias_blend");
-	vulkan_globals.alias_blend_pipeline.layout = vulkan_globals.alias_pipeline.layout;
+	GL_SetObjectName ((uint64_t)vulkan_globals.alias_pipelines[2].handle, VK_OBJECT_TYPE_PIPELINE, "alias_blend");
+	vulkan_globals.alias_pipelines[2].layout = vulkan_globals.alias_pipelines[0].layout;
 
 	infos.shader_stages[1].module = alias_alphatest_frag_module;
 
-	assert (vulkan_globals.alias_alphatest_blend_pipeline.handle == VK_NULL_HANDLE);
-	err = vkCreateGraphicsPipelines (
-		vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.alias_alphatest_blend_pipeline.handle);
+	assert (vulkan_globals.alias_pipelines[3].handle == VK_NULL_HANDLE);
+	err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.alias_pipelines[3].handle);
 	if (err != VK_SUCCESS)
 		Sys_Error ("vkCreateGraphicsPipelines failed");
-	GL_SetObjectName ((uint64_t)vulkan_globals.alias_alphatest_blend_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "alias_alphatest_blend");
-	vulkan_globals.alias_alphatest_blend_pipeline.layout = vulkan_globals.alias_pipeline.layout;
+	GL_SetObjectName ((uint64_t)vulkan_globals.alias_pipelines[3].handle, VK_OBJECT_TYPE_PIPELINE, "alias_alphatest_blend");
+	vulkan_globals.alias_pipelines[3].layout = vulkan_globals.alias_pipelines[0].layout;
 
 	if (vulkan_globals.non_solid_fill)
 	{
@@ -2905,28 +3018,123 @@ static void R_CreateAliasPipelines ()
 		infos.shader_stages[0].module = alias_vert_module;
 		infos.shader_stages[1].module = showtris_frag_module;
 
-		infos.graphics_pipeline.layout = vulkan_globals.alias_pipeline.layout.handle;
+		infos.graphics_pipeline.layout = vulkan_globals.alias_pipelines[0].layout.handle;
 
-		assert (vulkan_globals.alias_showtris_pipeline.handle == VK_NULL_HANDLE);
-		err = vkCreateGraphicsPipelines (
-			vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.alias_showtris_pipeline.handle);
+		assert (vulkan_globals.alias_pipelines[4].handle == VK_NULL_HANDLE);
+		err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.alias_pipelines[4].handle);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkCreateGraphicsPipelines failed");
-		GL_SetObjectName ((uint64_t)vulkan_globals.alias_showtris_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "alias_showtris");
-		vulkan_globals.alias_showtris_pipeline.layout = vulkan_globals.alias_pipeline.layout;
+		GL_SetObjectName ((uint64_t)vulkan_globals.alias_pipelines[4].handle, VK_OBJECT_TYPE_PIPELINE, "alias_showtris");
+		vulkan_globals.alias_pipelines[4].layout = vulkan_globals.alias_pipelines[0].layout;
 
 		infos.depth_stencil_state.depthTestEnable = VK_TRUE;
 		infos.rasterization_state.depthBiasEnable = VK_TRUE;
 		infos.rasterization_state.depthBiasConstantFactor = 500.0f;
 		infos.rasterization_state.depthBiasSlopeFactor = 0.0f;
 
-		assert (vulkan_globals.alias_showtris_depth_test_pipeline.handle == VK_NULL_HANDLE);
-		err = vkCreateGraphicsPipelines (
-			vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.alias_showtris_depth_test_pipeline.handle);
+		assert (vulkan_globals.alias_pipelines[5].handle == VK_NULL_HANDLE);
+		err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.alias_pipelines[5].handle);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkCreateGraphicsPipelines failed");
-		GL_SetObjectName ((uint64_t)vulkan_globals.alias_showtris_depth_test_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "alias_showtris_depth_test");
-		vulkan_globals.alias_showtris_depth_test_pipeline.layout = vulkan_globals.alias_pipeline.layout;
+		GL_SetObjectName ((uint64_t)vulkan_globals.alias_pipelines[5].handle, VK_OBJECT_TYPE_PIPELINE, "alias_showtris_depth_test");
+		vulkan_globals.alias_pipelines[5].layout = vulkan_globals.alias_pipelines[0].layout;
+	}
+}
+
+/*
+===============
+R_CreateMD5Pipelines
+===============
+*/
+static void R_CreateMD5Pipelines ()
+{
+	VkResult				err;
+	pipeline_create_infos_t infos;
+	R_InitDefaultStates (&infos);
+
+	infos.depth_stencil_state.depthTestEnable = VK_TRUE;
+	infos.depth_stencil_state.depthWriteEnable = VK_TRUE;
+	infos.rasterization_state.depthBiasEnable = VK_FALSE;
+	infos.blend_attachment_state.blendEnable = VK_FALSE;
+	infos.shader_stages[1].pSpecializationInfo = NULL;
+
+	infos.vertex_input_state.vertexAttributeDescriptionCount = 5;
+	infos.vertex_input_state.pVertexAttributeDescriptions = md5_vertex_input_attribute_descriptions;
+	infos.vertex_input_state.vertexBindingDescriptionCount = 1;
+	infos.vertex_input_state.pVertexBindingDescriptions = &md5_vertex_binding_description;
+
+	infos.shader_stages[0].module = md5_vert_module;
+	infos.shader_stages[1].module = alias_frag_module;
+
+	infos.graphics_pipeline.layout = vulkan_globals.md5_pipelines[0].layout.handle;
+
+	assert (vulkan_globals.md5_pipelines[0].handle == VK_NULL_HANDLE);
+	err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.md5_pipelines[0].handle);
+	if (err != VK_SUCCESS)
+		Sys_Error ("vkCreateGraphicsPipelines failed (md5_pipeline)");
+	GL_SetObjectName ((uint64_t)vulkan_globals.md5_pipelines[0].handle, VK_OBJECT_TYPE_PIPELINE, "md5");
+
+	infos.shader_stages[1].module = alias_alphatest_frag_module;
+
+	assert (vulkan_globals.md5_pipelines[1].handle == VK_NULL_HANDLE);
+	err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.md5_pipelines[1].handle);
+	if (err != VK_SUCCESS)
+		Sys_Error ("vkCreateGraphicsPipelines failed (md5_alphatest_pipeline)");
+	GL_SetObjectName ((uint64_t)vulkan_globals.md5_pipelines[1].handle, VK_OBJECT_TYPE_PIPELINE, "md5_alphatest");
+	vulkan_globals.md5_pipelines[1].layout = vulkan_globals.md5_pipelines[0].layout;
+
+	infos.depth_stencil_state.depthWriteEnable = VK_FALSE;
+	infos.blend_attachment_state.blendEnable = VK_TRUE;
+	infos.shader_stages[1].module = alias_frag_module;
+
+	assert (vulkan_globals.md5_pipelines[2].handle == VK_NULL_HANDLE);
+	err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.md5_pipelines[2].handle);
+	if (err != VK_SUCCESS)
+		Sys_Error ("vkCreateGraphicsPipelines failed (md5_blend_pipeline)");
+	GL_SetObjectName ((uint64_t)vulkan_globals.md5_pipelines[2].handle, VK_OBJECT_TYPE_PIPELINE, "md5_blend");
+	vulkan_globals.md5_pipelines[2].layout = vulkan_globals.md5_pipelines[0].layout;
+
+	infos.shader_stages[1].module = alias_alphatest_frag_module;
+
+	assert (vulkan_globals.md5_pipelines[3].handle == VK_NULL_HANDLE);
+	err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.md5_pipelines[3].handle);
+	if (err != VK_SUCCESS)
+		Sys_Error ("vkCreateGraphicsPipelines failed");
+	GL_SetObjectName ((uint64_t)vulkan_globals.md5_pipelines[3].handle, VK_OBJECT_TYPE_PIPELINE, "md5_alphatest_blend");
+	vulkan_globals.md5_pipelines[3].layout = vulkan_globals.md5_pipelines[0].layout;
+
+	if (vulkan_globals.non_solid_fill)
+	{
+		infos.rasterization_state.cullMode = VK_CULL_MODE_NONE;
+		infos.rasterization_state.polygonMode = VK_POLYGON_MODE_LINE;
+		infos.depth_stencil_state.depthTestEnable = VK_FALSE;
+		infos.depth_stencil_state.depthWriteEnable = VK_FALSE;
+		infos.blend_attachment_state.blendEnable = VK_FALSE;
+		infos.input_assembly_state.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+
+		infos.shader_stages[0].module = md5_vert_module;
+		infos.shader_stages[1].module = showtris_frag_module;
+
+		infos.graphics_pipeline.layout = vulkan_globals.md5_pipelines[0].layout.handle;
+
+		assert (vulkan_globals.md5_pipelines[4].handle == VK_NULL_HANDLE);
+		err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.md5_pipelines[4].handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreateGraphicsPipelines failed");
+		GL_SetObjectName ((uint64_t)vulkan_globals.md5_pipelines[4].handle, VK_OBJECT_TYPE_PIPELINE, "md5_showtris");
+		vulkan_globals.md5_pipelines[4].layout = vulkan_globals.md5_pipelines[0].layout;
+
+		infos.depth_stencil_state.depthTestEnable = VK_TRUE;
+		infos.rasterization_state.depthBiasEnable = VK_TRUE;
+		infos.rasterization_state.depthBiasConstantFactor = 500.0f;
+		infos.rasterization_state.depthBiasSlopeFactor = 0.0f;
+
+		assert (vulkan_globals.md5_pipelines[5].handle == VK_NULL_HANDLE);
+		err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.md5_pipelines[5].handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreateGraphicsPipelines failed");
+		GL_SetObjectName ((uint64_t)vulkan_globals.md5_pipelines[5].handle, VK_OBJECT_TYPE_PIPELINE, "md5_showtris_depth_test");
+		vulkan_globals.md5_pipelines[5].layout = vulkan_globals.md5_pipelines[0].layout;
 	}
 }
 
@@ -3132,6 +3340,7 @@ static void R_CreateShaderModules ()
 	CREATE_SHADER_MODULE (alias_vert);
 	CREATE_SHADER_MODULE (alias_frag);
 	CREATE_SHADER_MODULE (alias_alphatest_frag);
+	CREATE_SHADER_MODULE (md5_vert);
 	CREATE_SHADER_MODULE (sky_layer_vert);
 	CREATE_SHADER_MODULE (sky_layer_frag);
 	CREATE_SHADER_MODULE (sky_box_frag);
@@ -3173,6 +3382,7 @@ static void R_DestroyShaderModules ()
 	DESTROY_SHADER_MODULE (alias_vert);
 	DESTROY_SHADER_MODULE (alias_frag);
 	DESTROY_SHADER_MODULE (alias_alphatest_frag);
+	DESTROY_SHADER_MODULE (md5_vert);
 	DESTROY_SHADER_MODULE (sky_layer_vert);
 	DESTROY_SHADER_MODULE (sky_layer_frag);
 	DESTROY_SHADER_MODULE (sky_box_frag);
@@ -3217,6 +3427,7 @@ void R_CreatePipelines ()
 	R_CreateShowTrisPipelines ();
 	R_CreateWorldPipelines ();
 	R_CreateAliasPipelines ();
+	R_CreateMD5Pipelines ();
 	R_CreatePostprocessPipelines ();
 	R_CreateScreenEffectsPipelines ();
 	R_CreateUpdateLightmapPipelines ();
@@ -3280,15 +3491,19 @@ void R_DestroyPipelines (void)
 	}
 	vkDestroyPipeline (vulkan_globals.device, vulkan_globals.sky_box_pipeline.handle, NULL);
 	vulkan_globals.sky_box_pipeline.handle = VK_NULL_HANDLE;
-
-	vkDestroyPipeline (vulkan_globals.device, vulkan_globals.alias_pipeline.handle, NULL);
-	vulkan_globals.alias_pipeline.handle = VK_NULL_HANDLE;
-	vkDestroyPipeline (vulkan_globals.device, vulkan_globals.alias_alphatest_pipeline.handle, NULL);
-	vulkan_globals.alias_alphatest_pipeline.handle = VK_NULL_HANDLE;
-	vkDestroyPipeline (vulkan_globals.device, vulkan_globals.alias_alphatest_blend_pipeline.handle, NULL);
-	vulkan_globals.alias_alphatest_blend_pipeline.handle = VK_NULL_HANDLE;
-	vkDestroyPipeline (vulkan_globals.device, vulkan_globals.alias_blend_pipeline.handle, NULL);
-	vulkan_globals.alias_blend_pipeline.handle = VK_NULL_HANDLE;
+	for (i = 0; i < MODEL_PIPELINE_COUNT; ++i)
+	{
+		if (vulkan_globals.alias_pipelines[i].handle != VK_NULL_HANDLE)
+		{
+			vkDestroyPipeline (vulkan_globals.device, vulkan_globals.alias_pipelines[i].handle, NULL);
+			vulkan_globals.alias_pipelines[i].handle = VK_NULL_HANDLE;
+		}
+		if (vulkan_globals.md5_pipelines[i].handle != VK_NULL_HANDLE)
+		{
+			vkDestroyPipeline (vulkan_globals.device, vulkan_globals.md5_pipelines[i].handle, NULL);
+			vulkan_globals.md5_pipelines[i].handle = VK_NULL_HANDLE;
+		}
+	}
 	vkDestroyPipeline (vulkan_globals.device, vulkan_globals.postprocess_pipeline.handle, NULL);
 	vulkan_globals.postprocess_pipeline.handle = VK_NULL_HANDLE;
 	vkDestroyPipeline (vulkan_globals.device, vulkan_globals.screen_effects_pipeline.handle, NULL);
@@ -3314,13 +3529,6 @@ void R_DestroyPipelines (void)
 		vulkan_globals.showtris_indirect_depth_test_pipeline.handle = VK_NULL_HANDLE;
 		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.showbboxes_pipeline.handle, NULL);
 		vulkan_globals.showbboxes_pipeline.handle = VK_NULL_HANDLE;
-	}
-	if (vulkan_globals.alias_showtris_pipeline.handle != VK_NULL_HANDLE)
-	{
-		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.alias_showtris_pipeline.handle, NULL);
-		vulkan_globals.alias_showtris_pipeline.handle = VK_NULL_HANDLE;
-		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.alias_showtris_depth_test_pipeline.handle, NULL);
-		vulkan_globals.alias_showtris_depth_test_pipeline.handle = VK_NULL_HANDLE;
 	}
 	vkDestroyPipeline (vulkan_globals.device, vulkan_globals.update_lightmap_pipeline.handle, NULL);
 	vulkan_globals.update_lightmap_pipeline.handle = VK_NULL_HANDLE;
@@ -3524,7 +3732,6 @@ void R_TranslateNewPlayerSkin (int playernum)
 		return;
 
 	paliashdr = (aliashdr_t *)Mod_Extradata (currententity->model);
-
 	skinnum = currententity->skinnum;
 
 	// TODO: move these tests to the place where skinnum gets received from the server
@@ -3535,6 +3742,8 @@ void R_TranslateNewPlayerSkin (int playernum)
 	}
 
 	pixels = (byte *)paliashdr->texels[skinnum];
+	if (!pixels)
+		return;
 
 	// upload new image
 	q_snprintf (name, sizeof (name), "player_%i", playernum);

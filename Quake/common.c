@@ -52,9 +52,9 @@ static void COM_Path_f (void);
 #define PAK0_COUNT_V091 308	  /* id1/pak0.pak - v0.91/0.92, not supported */
 #define PAK0_CRC_V091	28804 /* id1/pak0.pak - v0.91/0.92, not supported */
 
-char   com_token[1024];
-int	   com_argc;
-char **com_argv;
+THREAD_LOCAL char com_token[1024];
+int				  com_argc;
+char			**com_argv;
 
 #define CMDLINE_LENGTH 256 /* johnfitz -- mirrored in cmd.c */
 char com_cmdline[CMDLINE_LENGTH];
