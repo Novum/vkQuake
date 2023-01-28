@@ -151,7 +151,7 @@ void FileList_Init (char *path, char *ext, int minsize, filelist_item_t **list)
 			q_snprintf (filestring, sizeof (filestring), "%s/%s*.%s", search->filename, path, ext);
 			fhnd = FindFirstFile (filestring, &fdat);
 			if (fhnd == INVALID_HANDLE_VALUE)
-				continue;
+				goto next;
 			do
 			{
 				COM_StripExtension (fdat.cFileName, filename, sizeof (filename));
@@ -162,7 +162,7 @@ void FileList_Init (char *path, char *ext, int minsize, filelist_item_t **list)
 			q_snprintf (filestring, sizeof (filestring), "%s/%s", search->filename, path);
 			dir_p = opendir (filestring);
 			if (dir_p == NULL)
-				continue;
+				goto next;
 			while ((dir_t = readdir (dir_p)) != NULL)
 			{
 				if (q_strcasecmp (COM_FileGetExtension (dir_t->d_name), ext) != 0)
@@ -172,6 +172,7 @@ void FileList_Init (char *path, char *ext, int minsize, filelist_item_t **list)
 			}
 			closedir (dir_p);
 #endif
+		next:
 			if (!strcmp (ext, "sav") && (!multiuser || search != &multiuser_saves)) // only game dir for savegames
 				break;
 		}
