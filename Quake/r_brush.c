@@ -2360,10 +2360,13 @@ void GL_BuildBModelAccelerationStructures (void)
 R_BuildTopLevelAccelerationStructure
 =============
 */
-static void R_BuildTopLevelAccelerationStructure (cb_context_t *cbx)
+void R_BuildTopLevelAccelerationStructure (void *unused)
 {
 	if (bmodel_tlas == VK_NULL_HANDLE)
 		return;
+
+	cb_context_t *cbx = &vulkan_globals.secondary_cb_contexts[CBX_UPDATE_LIGHTMAPS];
+	R_BeginDebugUtilsLabel (cbx, "Build TLAS");
 
 	int num_instances = 0;
 	for (int i = 0; i < cl.num_entities + cl.num_statics; ++i)
@@ -2444,6 +2447,8 @@ static void R_BuildTopLevelAccelerationStructure (cb_context_t *cbx)
 	memory_barrier.dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR;
 	vulkan_globals.vk_cmd_pipeline_barrier (
 		cbx->cb, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 1, &memory_barrier, 0, NULL, 0, NULL);
+
+	R_EndDebugUtilsLabel (cbx);
 }
 
 /*
@@ -2992,7 +2997,6 @@ void R_UpdateLightmapsAndIndirect (void *unused)
 {
 	cb_context_t *cbx = &vulkan_globals.secondary_cb_contexts[CBX_UPDATE_LIGHTMAPS];
 	R_BeginDebugUtilsLabel (cbx, "Update Lightmaps");
-	R_BuildTopLevelAccelerationStructure (cbx);
 
 	for (int i = 0; i < MAX_LIGHTSTYLES; ++i)
 	{

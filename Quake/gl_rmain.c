@@ -963,21 +963,22 @@ void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 		task_handle_t draw_entities_task = Task_AllocateAndAssignIndexedFunc (R_DrawEntitiesTask, NUM_ENTITIES_CBX, NULL, 0);
 		Task_AddDependency (store_efrags, draw_entities_task);
 		Task_AddDependency (begin_rendering_task, draw_entities_task);
-		Task_AddDependency (draw_entities_task, draw_done_task);
 
 		task_handle_t draw_alpha_entities_task = Task_AllocateAndAssignFunc (R_DrawAlphaEntitiesTask, NULL, 0);
 		Task_AddDependency (store_efrags, draw_alpha_entities_task);
 		Task_AddDependency (begin_rendering_task, draw_alpha_entities_task);
-		Task_AddDependency (draw_alpha_entities_task, draw_done_task);
 
 		task_handle_t draw_particles_task = Task_AllocateAndAssignFunc (R_DrawParticlesTask, NULL, 0);
 		Task_AddDependency (before_mark, draw_particles_task);
 		Task_AddDependency (begin_rendering_task, draw_particles_task);
 		Task_AddDependency (draw_particles_task, draw_done_task);
 
+		task_handle_t build_tlas_task = Task_AllocateAndAssignFunc (R_BuildTopLevelAccelerationStructure, NULL, 0);
+		Task_AddDependency (begin_rendering_task, build_tlas_task);
+
 		task_handle_t update_lightmaps_task = Task_AllocateAndAssignFunc (R_UpdateLightmapsAndIndirect, NULL, 0);
 		Task_AddDependency (cull_surfaces, update_lightmaps_task);
-		Task_AddDependency (begin_rendering_task, update_lightmaps_task);
+		Task_AddDependency (build_tlas_task, update_lightmaps_task);
 		Task_AddDependency (draw_entities_task, update_lightmaps_task);
 		Task_AddDependency (draw_alpha_entities_task, update_lightmaps_task);
 		Task_AddDependency (update_lightmaps_task, draw_done_task);
@@ -996,7 +997,8 @@ void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 		}
 
 		task_handle_t tasks[] = {before_mark,		   store_efrags,	   update_warp_textures,	 draw_world_task,	  draw_sky_and_water_task,
-								 draw_view_model_task, draw_entities_task, draw_alpha_entities_task, draw_particles_task, update_lightmaps_task};
+								 draw_view_model_task, draw_entities_task, draw_alpha_entities_task, draw_particles_task, build_tlas_task,
+								 update_lightmaps_task};
 		Tasks_Submit ((sizeof (tasks) / sizeof (task_handle_t)), tasks);
 		if (cull_surfaces != chain_surfaces)
 		{
@@ -1017,7 +1019,10 @@ void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 		R_DrawParticlesTask (NULL);
 		R_DrawViewModelTask (NULL);
 		if (r_gpulightmapupdate.value)
+		{
+			R_BuildTopLevelAccelerationStructure (NULL);
 			R_UpdateLightmapsAndIndirect (NULL);
+		}
 		R_PrintStats (time1);
 	}
 }
