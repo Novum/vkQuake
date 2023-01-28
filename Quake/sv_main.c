@@ -35,6 +35,27 @@ unsigned int sv_protocol_pext1 = PEXT1_SUPPORTED_SERVER; // spike
 unsigned int sv_protocol_pext2 = PEXT2_SUPPORTED_SERVER; // spike
 
 static cvar_t sv_netsort = {"sv_netsort", "1", CVAR_NONE};
+static cvar_t sv_smoothplatformlerps = {"sv_smoothplatformlerps", "1", CVAR_NONE};
+
+/*
+=============
+SV_UsePredThinkPos
+=============
+*/
+static qboolean SV_UsePredThinkPos (edict_t *ent)
+{
+	extern cvar_t r_lerpmove;
+	if (!sv_smoothplatformlerps.value || (!isDedicated && !r_lerpmove.value))
+		return false;
+	if (ent->v.movetype != MOVETYPE_STEP)
+		return false;
+	if (!((int)ent->v.flags & FL_ONGROUND))
+		return false;
+	float elapsedtime = qcvm->time - ent->lastthink;
+	if (elapsedtime < 0 || elapsedtime > 0.1)
+		return false;
+	return true;
+}
 
 //============================================================================
 
@@ -787,7 +808,10 @@ void SV_BuildEntityState (edict_t *ent, entity_state_t *state)
 {
 	eval_t *val;
 	state->eflags = 0;
-	VectorCopy (ent->v.origin, state->origin);
+	if (SV_UsePredThinkPos (ent))
+		VectorCopy (ent->predthinkpos, state->origin);
+	else
+		VectorCopy (ent->v.origin, state->origin);
 	VectorCopy (ent->v.angles, state->angles);
 	state->modelindex = ent->v.modelindex;
 	state->frame = ent->v.frame;
@@ -1121,6 +1145,7 @@ void SV_Init (void)
 	Cvar_RegisterVariable (&pr_checkextension);
 	Cvar_RegisterVariable (&sv_altnoclip); // johnfitz
 	Cvar_RegisterVariable (&sv_netsort);
+	Cvar_RegisterVariable (&sv_smoothplatformlerps);
 
 	Cmd_AddCommand ("pext", SV_Pext_f);
 	Cmd_AddCommand ("sv_protocol", &SV_Protocol_f); // johnfitz
@@ -2001,9 +2026,15 @@ void SV_WriteEntitiesToClient (client_t *client, sizebuf_t *msg, size_t overflow
 		// send an update
 		bits = 0;
 
+		vec3_t origin;
+		if (SV_UsePredThinkPos (ent))
+			VectorCopy (ent->predthinkpos, origin);
+		else
+			VectorCopy (ent->v.origin, origin);
+
 		for (i = 0; i < 3; i++)
 		{
-			miss = ent->v.origin[i] - ent->baseline.origin[i];
+			miss = origin[i] - ent->baseline.origin[i];
 			if (miss < -0.1 || miss > 0.1)
 				bits |= U_ORIGIN1 << i;
 		}
@@ -2114,15 +2145,15 @@ void SV_WriteEntitiesToClient (client_t *client, sizebuf_t *msg, size_t overflow
 		if (bits & U_EFFECTS)
 			MSG_WriteByte (msg, (int)ent->v.effects & sv.effectsmask);
 		if (bits & U_ORIGIN1)
-			MSG_WriteCoord (msg, ent->v.origin[0], sv.protocolflags);
+			MSG_WriteCoord (msg, origin[0], sv.protocolflags);
 		if (bits & U_ANGLE1)
 			MSG_WriteAngle (msg, ent->v.angles[0], sv.protocolflags);
 		if (bits & U_ORIGIN2)
-			MSG_WriteCoord (msg, ent->v.origin[1], sv.protocolflags);
+			MSG_WriteCoord (msg, origin[1], sv.protocolflags);
 		if (bits & U_ANGLE2)
 			MSG_WriteAngle (msg, ent->v.angles[1], sv.protocolflags);
 		if (bits & U_ORIGIN3)
-			MSG_WriteCoord (msg, ent->v.origin[2], sv.protocolflags);
+			MSG_WriteCoord (msg, origin[2], sv.protocolflags);
 		if (bits & U_ANGLE3)
 			MSG_WriteAngle (msg, ent->v.angles[2], sv.protocolflags);
 

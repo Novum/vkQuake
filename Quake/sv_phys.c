@@ -152,6 +152,27 @@ qboolean SV_RunThink (edict_t *ent)
 	}
 	// johnfitz
 
+	ent->lastthink = 0;
+	if (!ent->free && ent->v.groundentity && ent->v.nextthink > 0 && ent->v.nextthink - thinktime < 0.105f &&
+		ent->v.groundentity <= (qcvm->num_edicts - 1) * qcvm->edict_size)
+	{
+		edict_t *pusher = PROG_TO_EDICT (ent->v.groundentity);
+		if (!pusher->free)
+		{
+			float pusher_remaining = pusher->v.nextthink - pusher->v.ltime;
+			if (pusher_remaining > 0)
+			{
+				float time = q_min ((int)((ent->v.nextthink - qcvm->time) / host_frametime) * host_frametime, pusher_remaining);
+				for (i = 0; i < 3; i++)
+				{
+					ent->predthinkpos[i] = ent->v.origin[i] + pusher->v.velocity[i] * time;
+					if (pusher->v.velocity[i] != 0.0f)
+						ent->lastthink = thinktime;
+				}
+			}
+		}
+	}
+
 	return !ent->free;
 }
 
