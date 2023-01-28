@@ -2909,7 +2909,7 @@ void R_FlushUpdateLightmaps (
 					{
 						qboolean ok = true;
 						for (int i = x + 1; i < x + w; i++)
-							if (!lightmap_regions[j][y + h][i])
+							if (lightmap_regions[j][y + h][i] != type)
 							{
 								ok = false;
 								break;
@@ -3045,7 +3045,9 @@ void R_UpdateLightmapsAndIndirect (void *unused)
 		if (modified == 0)
 			continue;
 
-		qboolean any_needs_update = false;
+		qboolean any_needs_dlight_update = false;
+		uint32_t used_lightstyles = 0;
+		int		 num_blocks = 0;
 		for (int y = 0; y < LMBLOCK_HEIGHT / LM_CULL_BLOCK_H; y++)
 			for (int x = 0; x < LMBLOCK_WIDTH / LM_CULL_BLOCK_W; x++)
 			{
@@ -3081,34 +3083,35 @@ void R_UpdateLightmapsAndIndirect (void *unused)
 				}
 				if (needs_update)
 				{
-					any_needs_update = true;
+					any_needs_dlight_update = true;
 					if (lm->cached_framecount == r_framecount - 1)
 						regions[y][x] = 1;
 					else
 						regions[y][x] = 2;
-					num_lightmaps += 1;
+					num_blocks += 1;
 				}
 				if (regions[y][x] != 2)
 					for (int i = 0; i < lm->num_used_lightstyles[y][x]; i++)
 					{
 						int l = lm->used_lightstyles[y][x][i];
-						if (modified & 1 << (l < 16 ? l : l % 16 + 16) && lm->cached_light[l] != d_lightstylevalue[l])
+						if (lm->cached_light[l] != d_lightstylevalue[l])
 						{
-							any_needs_update = true;
+							used_lightstyles |= 1 << (l < 16 ? l : l % 16 + 16);
 							if (regions[y][x] == 0)
-								num_lightmaps += 1;
+								num_blocks += 1;
 							regions[y][x] = 2;
 							break;
 						}
 					}
 			}
-		if (!any_needs_update)
+		if (!any_needs_dlight_update && !(used_lightstyles & modified))
 			continue;
 		else
 		{
 			for (int i = 0; i < MAX_LIGHTSTYLES; i++)
 				lm->cached_light[i] = d_lightstylevalue[i];
 			lm->cached_framecount = r_framecount;
+			num_lightmaps += num_blocks;
 		}
 
 		int batch_index = num_batch_lightmaps++;
