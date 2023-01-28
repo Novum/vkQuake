@@ -3096,11 +3096,13 @@ void R_UpdateLightmapsAndIndirect (void *unused)
 						int l = lm->used_lightstyles[y][x][i];
 						if (lm->cached_light[l] != d_lightstylevalue[l])
 						{
-							used_lightstyles |= 1 << (l < 16 ? l : l % 16 + 16);
 							if (regions[y][x] == 0)
 								num_blocks += 1;
 							regions[y][x] = 2;
-							break;
+							if (!any_needs_dlight_update)
+								used_lightstyles |= 1 << (l < 16 ? l : l % 16 + 16);
+							else
+								break;
 						}
 					}
 			}
