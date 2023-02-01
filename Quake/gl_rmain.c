@@ -119,6 +119,8 @@ extern qboolean indirect_ready;
 
 extern SDL_mutex *draw_qcvm_mutex;
 
+static atomic_uint32_t next_visedict;
+
 /*
 =================
 R_CullBox -- johnfitz -- replaced with new function from lordhavoc
@@ -436,9 +438,9 @@ static void R_SetupViewBeforeMark (void *unused)
 R_DrawEntitiesOnList
 =============
 */
-void R_DrawEntitiesOnList (cb_context_t *cbx, qboolean alphapass, int chain, int startedict, int endedict) // johnfitz -- added parameter
+void R_DrawEntitiesOnList (cb_context_t *cbx, qboolean alphapass, int chain, qboolean use_tasks) // johnfitz -- added parameter
 {
-	int i;
+	int i = -1;
 
 	if (!r_drawentities.value)
 		return;
@@ -450,8 +452,16 @@ void R_DrawEntitiesOnList (cb_context_t *cbx, qboolean alphapass, int chain, int
 
 	R_BeginDebugUtilsLabel (cbx, alphapass ? "Entities Alpha Pass" : "Entities");
 	// johnfitz -- sprites are not a special case
-	for (i = startedict; i < endedict; ++i)
+	while (true)
 	{
+		if (use_tasks)
+			i = Atomic_IncrementUInt32 (&next_visedict);
+		else
+			i += 1;
+
+		if (i >= cl_numvisedicts)
+			break;
+
 		entity_t *currententity = cl_visedicts[i];
 
 		// johnfitz -- if alphapass is true, draw only alpha entites this time
@@ -780,7 +790,7 @@ void R_ShowTris (cb_context_t *cbx)
 R_DrawWorldTask
 ================
 */
-static void R_DrawWorldTask (int index, qboolean *use_tasks)
+static void R_DrawWorldTask (int index, void *use_tasks)
 {
 	const int	  cbx_index = index + CBX_WORLD_0;
 	cb_context_t *cbx = &vulkan_globals.secondary_cb_contexts[cbx_index];
@@ -810,15 +820,12 @@ static void R_DrawSkyAndWaterTask (void *unused)
 R_DrawEntitiesTask
 ================
 */
-static void R_DrawEntitiesTask (int index, void *unused)
+static void R_DrawEntitiesTask (int index, void *use_tasks)
 {
 	const int cbx_index = index + CBX_ENTITIES_0;
 	R_SetupContext (&vulkan_globals.secondary_cb_contexts[cbx_index]);
 	Fog_EnableGFog (&vulkan_globals.secondary_cb_contexts[cbx_index]); // johnfitz
-	const int num_edicts_per_cb = (cl_numvisedicts + NUM_ENTITIES_CBX - 1) / NUM_ENTITIES_CBX;
-	int		  startedict = index * num_edicts_per_cb;
-	int		  endedict = q_min ((index + 1) * num_edicts_per_cb, cl_numvisedicts);
-	R_DrawEntitiesOnList (&vulkan_globals.secondary_cb_contexts[cbx_index], false, index + chain_model_0, startedict, endedict);
+	R_DrawEntitiesOnList (&vulkan_globals.secondary_cb_contexts[cbx_index], false, index + chain_model_0, use_tasks ? true : false);
 }
 
 /*
@@ -831,8 +838,8 @@ static void R_DrawAlphaEntitiesTask (void *unused)
 	R_SetupContext (&vulkan_globals.secondary_cb_contexts[CBX_ALPHA_ENTITIES]);
 	Fog_EnableGFog (&vulkan_globals.secondary_cb_contexts[CBX_ALPHA_ENTITIES]);
 	R_DrawEntitiesOnList (
-		&vulkan_globals.secondary_cb_contexts[CBX_ALPHA_ENTITIES], true, chain_alpha_model, 0,
-		cl_numvisedicts); // johnfitz -- true means this is the pass for alpha entities
+		&vulkan_globals.secondary_cb_contexts[CBX_ALPHA_ENTITIES], true, chain_alpha_model,
+		false); // johnfitz -- true means this is the pass for alpha entities
 }
 
 /*
@@ -944,7 +951,7 @@ void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 		Task_AddDependency (begin_rendering_task, update_warp_textures);
 		Task_AddDependency (update_warp_textures, draw_done_task);
 
-		task_handle_t draw_world_task = Task_AllocateAndAssignIndexedFunc ((task_indexed_func_t)R_DrawWorldTask, NUM_WORLD_CBX, &use_tasks, sizeof (use_tasks));
+		task_handle_t draw_world_task = Task_AllocateAndAssignIndexedFunc (R_DrawWorldTask, NUM_WORLD_CBX, &use_tasks, sizeof (use_tasks));
 		if (!indirect)
 			Task_AddDependency (chain_surfaces, draw_world_task);
 		Task_AddDependency (begin_rendering_task, draw_world_task);
@@ -961,7 +968,8 @@ void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 		Task_AddDependency (begin_rendering_task, draw_view_model_task);
 		Task_AddDependency (draw_view_model_task, draw_done_task);
 
-		task_handle_t draw_entities_task = Task_AllocateAndAssignIndexedFunc (R_DrawEntitiesTask, NUM_ENTITIES_CBX, NULL, 0);
+		Atomic_StoreUInt32 (&next_visedict, 0u);
+		task_handle_t draw_entities_task = Task_AllocateAndAssignIndexedFunc (R_DrawEntitiesTask, NUM_ENTITIES_CBX, &use_tasks, sizeof (use_tasks));
 		Task_AddDependency (store_efrags, draw_entities_task);
 		Task_AddDependency (begin_rendering_task, draw_entities_task);
 
@@ -1014,8 +1022,7 @@ void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 		R_UpdateWarpTextures (&primary_cbx);
 		R_DrawWorldTask (0, NULL);
 		R_DrawSkyAndWaterTask (NULL);
-		for (int i = 0; i < NUM_ENTITIES_CBX; ++i)
-			R_DrawEntitiesTask (i, NULL);
+		R_DrawEntitiesTask (0, NULL);
 		R_DrawAlphaEntitiesTask (NULL);
 		R_DrawParticlesTask (NULL);
 		R_DrawViewModelTask (NULL);
