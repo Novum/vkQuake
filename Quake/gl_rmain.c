@@ -945,7 +945,8 @@ void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 		Task_AddDependency (update_warp_textures, draw_done_task);
 
 		task_handle_t draw_world_task = Task_AllocateAndAssignIndexedFunc ((task_indexed_func_t)R_DrawWorldTask, NUM_WORLD_CBX, &use_tasks, sizeof (use_tasks));
-		Task_AddDependency (chain_surfaces, draw_world_task);
+		if (!indirect)
+			Task_AddDependency (chain_surfaces, draw_world_task);
 		Task_AddDependency (begin_rendering_task, draw_world_task);
 		Task_AddDependency (draw_world_task, draw_done_task);
 
