@@ -84,6 +84,8 @@ cvar_t snd_mixspeed = {"snd_mixspeed", "44100", CVAR_NONE};
 
 cvar_t snd_waterfx = {"snd_waterfx", "1", CVAR_ARCHIVE};
 
+cvar_t snd_pauselooping = {"snd_pauselooping", "1", CVAR_ARCHIVE};
+
 #if defined(_WIN32)
 #define SND_FILTERQUALITY_DEFAULT "5"
 #else
@@ -182,6 +184,7 @@ void S_Init (void)
 	Cvar_RegisterVariable (&snd_mixspeed);
 	Cvar_RegisterVariable (&snd_filterquality);
 	Cvar_RegisterVariable (&snd_waterfx);
+	Cvar_RegisterVariable (&snd_pauselooping);
 
 	if (safemode || COM_CheckParm ("-nosound"))
 		return;
