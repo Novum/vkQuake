@@ -2175,6 +2175,17 @@ void GL_BuildBModelAccelerationStructures (void)
 		++num_blas;
 	}
 
+	if (num_blas == 0)
+	{
+		TEMP_FREE (blas_num_tris);
+		TEMP_FREE (blas_geometries);
+		TEMP_FREE (blas_geometry_infos);
+		TEMP_FREE (blas_sizes_infos);
+		TEMP_FREE (blas_models);
+		TEMP_FREE (buffer_create_infos);
+		return;
+	}
+
 	ZEROED_STRUCT (VkAccelerationStructureGeometryKHR, tlas_geometry);
 	ZEROED_STRUCT (VkAccelerationStructureBuildGeometryInfoKHR, tlas_geometry_info);
 	ZEROED_STRUCT (VkAccelerationStructureBuildSizesInfoKHR, tlas_build_sizes_info);
