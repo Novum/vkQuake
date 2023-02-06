@@ -9,11 +9,21 @@ on:
 jobs:
   build-linux:
     name: Build Linux
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v3
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
     - name: Build Docker image
-      run: docker build . --file Packaging/AppImage/docker/Dockerfile --tag build-vkquake
+      uses: docker/build-push-action@v4
+      with:
+        context: Packaging/AppImage/docker
+        platforms: linux/amd64
+        tags: build-vkquake
+        load: true
+        push: false
+        cache-from: type=gha
+        cache-to: type=gha
     - name: Build vkQuake
       run: docker run --rm --privileged -e VERSION=${GITHUB_SHA::8} -v ${PWD}:/usr/src/vkQuake build-vkquake /usr/src/vkQuake/Packaging/AppImage/run-in-docker.sh
     - name: Upload vkQuake
