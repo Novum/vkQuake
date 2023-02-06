@@ -103,8 +103,6 @@ static void GL_DrawAliasFrame (
 	cb_context_t *cbx, entity_t *e, aliashdr_t *paliashdr, lerpdata_t lerpdata, gltexture_t *tx, gltexture_t *fb, float model_matrix[16], float entity_alpha,
 	qboolean alphatest, vec3_t shadevector, vec3_t lightcolor, int showtris)
 {
-	qmodel_t *m = e->model;
-
 	vulkan_pipeline_t pipeline;
 	const int		  pipeline_index = (showtris == 0) ? (((entity_alpha >= 1.0f) ? 0 : 2) + (alphatest ? 1 : 0)) : (3 + CLAMP (1, showtris, 2));
 	switch (paliashdr->poseverttype)
@@ -148,11 +146,11 @@ static void GL_DrawAliasFrame (
 		vulkan_globals.vk_cmd_bind_descriptor_sets (
 			cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.layout.handle, 0, 3, descriptor_sets, 1, &uniform_offset);
 
-		VkBuffer	 vertex_buffers[3] = {m->vertex_buffer, m->vertex_buffer, m->vertex_buffer};
+		VkBuffer	 vertex_buffers[3] = {paliashdr->vertex_buffer, paliashdr->vertex_buffer, paliashdr->vertex_buffer};
 		VkDeviceSize vertex_offsets[3] = {
-			(unsigned)m->vbostofs, GLARB_GetXYZOffset (e, paliashdr, lerpdata.pose1), GLARB_GetXYZOffset (e, paliashdr, lerpdata.pose2)};
+			(unsigned)paliashdr->vbostofs, GLARB_GetXYZOffset (e, paliashdr, lerpdata.pose1), GLARB_GetXYZOffset (e, paliashdr, lerpdata.pose2)};
 		vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 3, vertex_buffers, vertex_offsets);
-		vulkan_globals.vk_cmd_bind_index_buffer (cbx->cb, m->index_buffer, 0, VK_INDEX_TYPE_UINT16);
+		vulkan_globals.vk_cmd_bind_index_buffer (cbx->cb, paliashdr->index_buffer, 0, VK_INDEX_TYPE_UINT16);
 
 		vulkan_globals.vk_cmd_draw_indexed (cbx->cb, paliashdr->numindexes, 1, 0, 0, 0);
 		break;
@@ -175,14 +173,14 @@ static void GL_DrawAliasFrame (
 		ubo->joints_offsets[0] = lerpdata.pose1 * paliashdr->numjoints;
 		ubo->joints_offsets[1] = lerpdata.pose2 * paliashdr->numjoints;
 
-		VkDescriptorSet descriptor_sets[4] = {tx->descriptor_set, (fb != NULL) ? fb->descriptor_set : tx->descriptor_set, ubo_set, m->joints_set};
+		VkDescriptorSet descriptor_sets[4] = {tx->descriptor_set, (fb != NULL) ? fb->descriptor_set : tx->descriptor_set, ubo_set, paliashdr->joints_set};
 		vulkan_globals.vk_cmd_bind_descriptor_sets (
 			cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.layout.handle, 0, 4, descriptor_sets, 1, &uniform_offset);
 
-		VkBuffer	 vertex_buffers[1] = {m->vertex_buffer};
+		VkBuffer	 vertex_buffers[1] = {paliashdr->vertex_buffer};
 		VkDeviceSize vertex_offsets[1] = {0};
 		vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 1, vertex_buffers, vertex_offsets);
-		vulkan_globals.vk_cmd_bind_index_buffer (cbx->cb, m->index_buffer, 0, VK_INDEX_TYPE_UINT16);
+		vulkan_globals.vk_cmd_bind_index_buffer (cbx->cb, paliashdr->index_buffer, 0, VK_INDEX_TYPE_UINT16);
 
 		vulkan_globals.vk_cmd_draw_indexed (cbx->cb, paliashdr->numindexes, 1, 0, 0, 0);
 		break;

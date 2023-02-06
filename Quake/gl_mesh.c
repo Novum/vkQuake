@@ -43,12 +43,14 @@ static int		  mesh_heap_memory_type_index;
 
 typedef struct
 {
-	VkBuffer		buffer;
-	VkDescriptorSet descriptor_set;
-	glheap_t	   *heap;
-	glheapnode_t   *heap_node;
-	glheap_t	 ***heaps;
-	int			   *num_heaps;
+	VkBuffer				  buffer;
+	VkDescriptorSet			  descriptor_set;
+	glheap_t				 *heap;
+	glheapnode_t			 *heap_node;
+	glheap_t			   ***heaps;
+	int						 *num_heaps;
+	VkDescriptorSet			  desc_set;
+	vulkan_desc_set_layout_t *desc_set_layout;
 } buffer_garbage_t;
 
 static int				current_garbage_index;
@@ -60,7 +62,9 @@ static buffer_garbage_t buffer_garbage[MAX_MODELS * 2][2];
 AddBufferGarbage
 ================
 */
-static void AddBufferGarbage (VkBuffer buffer, VkDescriptorSet descriptor_set, glheap_t *heap, glheapnode_t *heap_node, glheap_t ***heaps, int *num_heaps)
+static void AddBufferGarbage (
+	VkBuffer buffer, VkDescriptorSet descriptor_set, glheap_t *heap, glheapnode_t *heap_node, glheap_t ***heaps, int *num_heaps, const VkDescriptorSet desc_set,
+	vulkan_desc_set_layout_t *desc_set_layout)
 {
 	int				  garbage_index;
 	buffer_garbage_t *garbage;
@@ -73,6 +77,8 @@ static void AddBufferGarbage (VkBuffer buffer, VkDescriptorSet descriptor_set, g
 	garbage->heap_node = heap_node;
 	garbage->heaps = heaps;
 	garbage->num_heaps = num_heaps;
+	garbage->desc_set = desc_set;
+	garbage->desc_set_layout = desc_set_layout;
 }
 /*
 ================
@@ -118,6 +124,8 @@ void R_CollectMeshBufferGarbage ()
 		garbage = &buffer_garbage[i][current_garbage_index];
 		vkDestroyBuffer (vulkan_globals.device, garbage->buffer, NULL);
 		GL_FreeFromHeaps (*garbage->num_heaps, *garbage->heaps, garbage->heap, garbage->heap_node, &num_vulkan_mesh_allocations);
+		if (garbage->desc_set != VK_NULL_HANDLE)
+			R_FreeDescriptorSet (garbage->desc_set, garbage->desc_set_layout);
 	}
 	num_garbage_buffers[current_garbage_index] = 0;
 }
@@ -214,31 +222,50 @@ GLMesh_DeleteMeshBuffers
 */
 static void GLMesh_DeleteMeshBuffers (qmodel_t *m)
 {
-	if (m->vertex_buffer == VK_NULL_HANDLE)
+	if (m->type != mod_alias)
+		return;
+
+	aliashdr_t *hdr = (aliashdr_t *)Mod_Extradata (m);
+	if (!hdr || (hdr->vertex_buffer == VK_NULL_HANDLE))
 		return;
 
 	if (in_update_screen)
 	{
-		AddBufferGarbage (m->vertex_buffer, VK_NULL_HANDLE, m->vertex_heap, m->vertex_heap_node, &mesh_buffer_heaps, &num_mesh_buffer_heaps);
-		AddBufferGarbage (m->index_buffer, VK_NULL_HANDLE, m->index_heap, m->index_heap_node, &mesh_buffer_heaps, &num_mesh_buffer_heaps);
+		AddBufferGarbage (hdr->vertex_buffer, VK_NULL_HANDLE, hdr->vertex_heap, hdr->vertex_heap_node, &mesh_buffer_heaps, &num_mesh_buffer_heaps, NULL, NULL);
+		AddBufferGarbage (hdr->index_buffer, VK_NULL_HANDLE, hdr->index_heap, hdr->index_heap_node, &mesh_buffer_heaps, &num_mesh_buffer_heaps, NULL, NULL);
+		if (hdr->joints_buffer != VK_NULL_HANDLE)
+			AddBufferGarbage (
+				hdr->joints_buffer, VK_NULL_HANDLE, hdr->joints_heap, hdr->joints_heap_node, &mesh_buffer_heaps, &num_mesh_buffer_heaps, hdr->joints_set,
+				&vulkan_globals.joints_buffer_set_layout);
 	}
 	else
 	{
 		GL_WaitForDeviceIdle ();
 
-		vkDestroyBuffer (vulkan_globals.device, m->vertex_buffer, NULL);
-		GL_FreeFromHeaps (num_mesh_buffer_heaps, mesh_buffer_heaps, m->vertex_heap, m->vertex_heap_node, &num_vulkan_mesh_allocations);
+		vkDestroyBuffer (vulkan_globals.device, hdr->vertex_buffer, NULL);
+		GL_FreeFromHeaps (num_mesh_buffer_heaps, mesh_buffer_heaps, hdr->vertex_heap, hdr->vertex_heap_node, &num_vulkan_mesh_allocations);
 
-		vkDestroyBuffer (vulkan_globals.device, m->index_buffer, NULL);
-		GL_FreeFromHeaps (num_mesh_buffer_heaps, mesh_buffer_heaps, m->index_heap, m->index_heap_node, &num_vulkan_mesh_allocations);
+		vkDestroyBuffer (vulkan_globals.device, hdr->index_buffer, NULL);
+		GL_FreeFromHeaps (num_mesh_buffer_heaps, mesh_buffer_heaps, hdr->index_heap, hdr->index_heap_node, &num_vulkan_mesh_allocations);
+
+		if (hdr->joints_buffer != VK_NULL_HANDLE)
+		{
+			vkDestroyBuffer (vulkan_globals.device, hdr->joints_buffer, NULL);
+			GL_FreeFromHeaps (num_mesh_buffer_heaps, mesh_buffer_heaps, hdr->joints_heap, hdr->joints_heap_node, &num_vulkan_mesh_allocations);
+			R_FreeDescriptorSet (hdr->joints_set, &vulkan_globals.joints_buffer_set_layout);
+		}
 	}
 
-	m->vertex_buffer = VK_NULL_HANDLE;
-	m->vertex_heap = NULL;
-	m->vertex_heap_node = NULL;
-	m->index_buffer = VK_NULL_HANDLE;
-	m->index_heap = NULL;
-	m->index_heap_node = NULL;
+	hdr->vertex_buffer = VK_NULL_HANDLE;
+	hdr->vertex_heap = NULL;
+	hdr->vertex_heap_node = NULL;
+	hdr->index_buffer = VK_NULL_HANDLE;
+	hdr->index_heap = NULL;
+	hdr->index_heap_node = NULL;
+	hdr->joints_buffer = VK_NULL_HANDLE;
+	hdr->joints_heap = NULL;
+	hdr->joints_heap_node = NULL;
+	hdr->joints_set = NULL;
 }
 
 /*
@@ -280,7 +307,7 @@ void GLMesh_UploadBuffers (qmodel_t *m, aliashdr_t *mainhdr, unsigned short *ind
 	assert ((mainhdr->nextsurface == NULL) || (mainhdr->poseverttype != PV_QUAKE1));
 	if (mainhdr->poseverttype == PV_QUAKE1)
 	{
-		m->vbostofs = totalvbosize;
+		mainhdr->vbostofs = totalvbosize;
 		totalvbosize += (numverts * sizeof (meshst_t));
 	}
 
@@ -299,24 +326,24 @@ void GLMesh_UploadBuffers (qmodel_t *m, aliashdr_t *mainhdr, unsigned short *ind
 		buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 		buffer_create_info.size = totalindexsize;
 		buffer_create_info.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-		err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &m->index_buffer);
+		err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &mainhdr->index_buffer);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkCreateBuffer failed");
 
-		GL_SetObjectName ((uint64_t)m->index_buffer, VK_OBJECT_TYPE_BUFFER, m->name);
+		GL_SetObjectName ((uint64_t)mainhdr->index_buffer, VK_OBJECT_TYPE_BUFFER, m->name);
 
 		VkMemoryRequirements memory_requirements;
-		vkGetBufferMemoryRequirements (vulkan_globals.device, m->index_buffer, &memory_requirements);
+		vkGetBufferMemoryRequirements (vulkan_globals.device, mainhdr->index_buffer, &memory_requirements);
 
 		VkDeviceSize heap_size = MESH_HEAP_SIZE_MB * (VkDeviceSize)1024 * (VkDeviceSize)1024;
 		VkDeviceSize aligned_offset = GL_AllocateFromHeaps (
 			&num_mesh_buffer_heaps, &mesh_buffer_heaps, heap_size, mesh_heap_memory_type_index, VULKAN_MEMORY_TYPE_DEVICE, memory_requirements.size,
-			memory_requirements.alignment, &m->index_heap, &m->index_heap_node, &num_vulkan_mesh_allocations, MESH_HEAP_NAME);
-		err = vkBindBufferMemory (vulkan_globals.device, m->index_buffer, m->index_heap->memory.handle, aligned_offset);
+			memory_requirements.alignment, &mainhdr->index_heap, &mainhdr->index_heap_node, &num_vulkan_mesh_allocations, MESH_HEAP_NAME);
+		err = vkBindBufferMemory (vulkan_globals.device, mainhdr->index_buffer, mainhdr->index_heap->memory.handle, aligned_offset);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkBindBufferMemory failed");
 
-		R_StagingUploadBuffer (m->index_buffer, totalindexsize, (byte *)indexes);
+		R_StagingUploadBuffer (mainhdr->index_buffer, totalindexsize, (byte *)indexes);
 	}
 
 	// create the vertex buffer (empty)
@@ -364,7 +391,7 @@ void GLMesh_UploadBuffers (qmodel_t *m, aliashdr_t *mainhdr, unsigned short *ind
 	// fill in the ST coords at the end of the buffer
 	if (mainhdr->poseverttype == PV_QUAKE1)
 	{
-		meshst_t *st = (meshst_t *)(vbodata + m->vbostofs);
+		meshst_t *st = (meshst_t *)(vbodata + mainhdr->vbostofs);
 		for (int f = 0; f < mainhdr->numverts_vbo; f++)
 		{
 			st[f].st[0] = ((float)desc[f].st[0] + 0.5f) / (float)mainhdr->skinwidth;
@@ -378,24 +405,24 @@ void GLMesh_UploadBuffers (qmodel_t *m, aliashdr_t *mainhdr, unsigned short *ind
 		buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 		buffer_create_info.size = totalvbosize;
 		buffer_create_info.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-		err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &m->vertex_buffer);
+		err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &mainhdr->vertex_buffer);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkCreateBuffer failed");
 
-		GL_SetObjectName ((uint64_t)m->vertex_buffer, VK_OBJECT_TYPE_BUFFER, m->name);
+		GL_SetObjectName ((uint64_t)mainhdr->vertex_buffer, VK_OBJECT_TYPE_BUFFER, m->name);
 
 		VkMemoryRequirements memory_requirements;
-		vkGetBufferMemoryRequirements (vulkan_globals.device, m->vertex_buffer, &memory_requirements);
+		vkGetBufferMemoryRequirements (vulkan_globals.device, mainhdr->vertex_buffer, &memory_requirements);
 
 		VkDeviceSize heap_size = MESH_HEAP_SIZE_MB * (VkDeviceSize)1024 * (VkDeviceSize)1024;
 		VkDeviceSize aligned_offset = GL_AllocateFromHeaps (
 			&num_mesh_buffer_heaps, &mesh_buffer_heaps, heap_size, mesh_heap_memory_type_index, VULKAN_MEMORY_TYPE_DEVICE, memory_requirements.size,
-			memory_requirements.alignment, &m->vertex_heap, &m->vertex_heap_node, &num_vulkan_mesh_allocations, MESH_HEAP_NAME);
-		err = vkBindBufferMemory (vulkan_globals.device, m->vertex_buffer, m->vertex_heap->memory.handle, aligned_offset);
+			memory_requirements.alignment, &mainhdr->vertex_heap, &mainhdr->vertex_heap_node, &num_vulkan_mesh_allocations, MESH_HEAP_NAME);
+		err = vkBindBufferMemory (vulkan_globals.device, mainhdr->vertex_buffer, mainhdr->vertex_heap->memory.handle, aligned_offset);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkBindBufferMemory failed");
 
-		R_StagingUploadBuffer (m->vertex_buffer, totalvbosize, vbodata);
+		R_StagingUploadBuffer (mainhdr->vertex_buffer, totalvbosize, vbodata);
 	}
 
 	// Allocate joints buffer & upload to GPU
@@ -405,35 +432,35 @@ void GLMesh_UploadBuffers (qmodel_t *m, aliashdr_t *mainhdr, unsigned short *ind
 		buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 		buffer_create_info.size = totaljointssize;
 		buffer_create_info.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-		err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &m->joints_buffer);
+		err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &mainhdr->joints_buffer);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkCreateBuffer failed");
 
-		GL_SetObjectName ((uint64_t)m->joints_buffer, VK_OBJECT_TYPE_BUFFER, m->name);
+		GL_SetObjectName ((uint64_t)mainhdr->joints_buffer, VK_OBJECT_TYPE_BUFFER, m->name);
 
 		VkMemoryRequirements memory_requirements;
-		vkGetBufferMemoryRequirements (vulkan_globals.device, m->joints_buffer, &memory_requirements);
+		vkGetBufferMemoryRequirements (vulkan_globals.device, mainhdr->joints_buffer, &memory_requirements);
 
 		VkDeviceSize heap_size = MESH_HEAP_SIZE_MB * (VkDeviceSize)1024 * (VkDeviceSize)1024;
 		VkDeviceSize aligned_offset = GL_AllocateFromHeaps (
 			&num_mesh_buffer_heaps, &mesh_buffer_heaps, heap_size, mesh_heap_memory_type_index, VULKAN_MEMORY_TYPE_DEVICE, memory_requirements.size,
-			memory_requirements.alignment, &m->joints_heap, &m->joints_heap_node, &num_vulkan_mesh_allocations, MESH_HEAP_NAME);
-		err = vkBindBufferMemory (vulkan_globals.device, m->joints_buffer, m->joints_heap->memory.handle, aligned_offset);
+			memory_requirements.alignment, &mainhdr->joints_heap, &mainhdr->joints_heap_node, &num_vulkan_mesh_allocations, MESH_HEAP_NAME);
+		err = vkBindBufferMemory (vulkan_globals.device, mainhdr->joints_buffer, mainhdr->joints_heap->memory.handle, aligned_offset);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkBindBufferMemory failed");
 
-		R_StagingUploadBuffer (m->joints_buffer, totaljointssize, (byte *)joints);
+		R_StagingUploadBuffer (mainhdr->joints_buffer, totaljointssize, (byte *)joints);
 
-		m->joints_set = R_AllocateDescriptorSet (&vulkan_globals.joints_buffer_set_layout);
+		mainhdr->joints_set = R_AllocateDescriptorSet (&vulkan_globals.joints_buffer_set_layout);
 
 		ZEROED_STRUCT (VkDescriptorBufferInfo, buffer_info);
-		buffer_info.buffer = m->joints_buffer;
+		buffer_info.buffer = mainhdr->joints_buffer;
 		buffer_info.offset = 0;
 		buffer_info.range = VK_WHOLE_SIZE;
 
 		ZEROED_STRUCT (VkWriteDescriptorSet, joints_set_write);
 		joints_set_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		joints_set_write.dstSet = m->joints_set;
+		joints_set_write.dstSet = mainhdr->joints_set;
 		joints_set_write.dstBinding = 0;
 		joints_set_write.dstArrayElement = 0;
 		joints_set_write.descriptorCount = 1;

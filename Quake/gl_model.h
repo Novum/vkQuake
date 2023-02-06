@@ -350,31 +350,42 @@ typedef enum
 
 typedef struct aliashdr_s
 {
-	int					ident;
-	int					version;
-	vec3_t				scale;
-	vec3_t				scale_origin;
-	float				boundingradius;
-	vec3_t				eyeposition;
-	int					numskins;
-	int					skinwidth;
-	int					skinheight;
-	int					numverts;
-	int					numtris;
-	int					numframes;
-	synctype_t			synctype;
-	int					flags;
-	float				size;
-	int					numindexes;
-	int					numverts_vbo;
-	int					numposes;
-	aliashdr_t		   *nextsurface; // spike
-	int					numjoints;	 // spike -- for md5
-	poseverttype_t		poseverttype;
-	struct gltexture_s *gltextures[MAX_SKINS][4]; // johnfitz
-	struct gltexture_s *fbtextures[MAX_SKINS][4]; // johnfitz
-	byte			   *texels[MAX_SKINS];		  // only for player skins
-	maliasframedesc_t	frames[1];				  // variable sized
+	int					 ident;
+	int					 version;
+	vec3_t				 scale;
+	vec3_t				 scale_origin;
+	float				 boundingradius;
+	vec3_t				 eyeposition;
+	int					 numskins;
+	int					 skinwidth;
+	int					 skinheight;
+	int					 numverts;
+	int					 numtris;
+	int					 numframes;
+	synctype_t			 synctype;
+	int					 flags;
+	float				 size;
+	int					 numindexes;
+	int					 numverts_vbo;
+	int					 numposes;
+	aliashdr_t			*nextsurface; // spike
+	int					 numjoints;	  // spike -- for md5
+	poseverttype_t		 poseverttype;
+	struct gltexture_s	*gltextures[MAX_SKINS][4]; // johnfitz
+	struct gltexture_s	*fbtextures[MAX_SKINS][4]; // johnfitz
+	byte				*texels[MAX_SKINS];		   // only for player skins
+	VkBuffer			 vertex_buffer;
+	struct glheap_s		*vertex_heap;
+	struct glheapnode_s *vertex_heap_node;
+	VkBuffer			 index_buffer;
+	struct glheap_s		*index_heap;
+	struct glheapnode_s *index_heap_node;
+	int					 vbostofs; // offset in vbo of hdr->numverts_vbo meshst_t
+	VkBuffer			 joints_buffer;
+	struct glheap_s		*joints_heap;
+	struct glheapnode_s *joints_heap_node;
+	VkDescriptorSet		 joints_set;
+	maliasframedesc_t	 frames[1]; // variable sized
 } aliashdr_t;
 
 #define NUM_JOINT_INFLUENCES 4
@@ -529,21 +540,6 @@ typedef struct qmodel_s
 
 	int *water_surfs; // list of surface indices with SURF_DRAWTURB flag (worldmodel only)
 	int	 used_water_surfs;
-
-	//
-	// alias model
-	//
-	VkBuffer			 vertex_buffer;
-	struct glheap_s		*vertex_heap;
-	struct glheapnode_s *vertex_heap_node;
-	VkBuffer			 index_buffer;
-	struct glheap_s		*index_heap;
-	struct glheapnode_s *index_heap_node;
-	int					 vbostofs; // offset in vbo of hdr->numverts_vbo meshst_t
-	VkBuffer			 joints_buffer;
-	struct glheap_s		*joints_heap;
-	struct glheapnode_s *joints_heap_node;
-	VkDescriptorSet		 joints_set;
 
 	//
 	// additional model data
