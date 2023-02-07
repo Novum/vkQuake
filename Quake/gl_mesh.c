@@ -227,8 +227,10 @@ void GLMesh_DeleteMeshBuffers (aliashdr_t *hdr)
 
 	if (in_update_screen)
 	{
-		AddBufferGarbage (hdr->vertex_buffer, VK_NULL_HANDLE, hdr->vertex_heap, hdr->vertex_heap_node, &mesh_buffer_heaps, &num_mesh_buffer_heaps, NULL, NULL);
-		AddBufferGarbage (hdr->index_buffer, VK_NULL_HANDLE, hdr->index_heap, hdr->index_heap_node, &mesh_buffer_heaps, &num_mesh_buffer_heaps, NULL, NULL);
+		AddBufferGarbage (
+			hdr->vertex_buffer, VK_NULL_HANDLE, hdr->vertex_heap, hdr->vertex_heap_node, &mesh_buffer_heaps, &num_mesh_buffer_heaps, VK_NULL_HANDLE, NULL);
+		AddBufferGarbage (
+			hdr->index_buffer, VK_NULL_HANDLE, hdr->index_heap, hdr->index_heap_node, &mesh_buffer_heaps, &num_mesh_buffer_heaps, VK_NULL_HANDLE, NULL);
 		if (hdr->joints_buffer != VK_NULL_HANDLE)
 			AddBufferGarbage (
 				hdr->joints_buffer, VK_NULL_HANDLE, hdr->joints_heap, hdr->joints_heap_node, &mesh_buffer_heaps, &num_mesh_buffer_heaps, hdr->joints_set,
@@ -261,7 +263,7 @@ void GLMesh_DeleteMeshBuffers (aliashdr_t *hdr)
 	hdr->joints_buffer = VK_NULL_HANDLE;
 	hdr->joints_heap = NULL;
 	hdr->joints_heap_node = NULL;
-	hdr->joints_set = NULL;
+	hdr->joints_set = VK_NULL_HANDLE;
 }
 
 /*
