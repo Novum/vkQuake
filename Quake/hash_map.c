@@ -228,6 +228,7 @@ qboolean HashMap_EraseImpl (hash_map_t *map, const uint32_t key_size, const void
 							break;
 						}
 					}
+					(void) found;
 					assert (found);
 				}
 			}
