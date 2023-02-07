@@ -1356,6 +1356,7 @@ static void Host_Loadgame_f (void)
 
 	if (!loadable)
 	{
+		SCR_EndLoadingPlaque ();
 		Con_Printf ("ERROR: couldn't open.\n");
 		return;
 	}
@@ -1625,6 +1626,8 @@ static void Host_Loadgame_f (void)
 		CL_EstablishConnection ("local");
 		Host_Reconnect_f ();
 	}
+	else
+		SCR_EndLoadingPlaque ();
 
 	if (strlen (Cmd_Argv (1)) < sizeof (sv.lastsave) - 1)
 		strcpy (sv.lastsave, Cmd_Argv (1));
