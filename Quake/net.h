@@ -104,8 +104,8 @@ void NET_Poll (void);
 
 // Server list related globals:
 extern qboolean slistInProgress;
-extern qboolean slistSilent;
-extern enum slistScope_e { SLIST_LOOP, SLIST_LAN, SLIST_INTERNET } slistScope;
+extern qboolean slist_silent;
+extern enum slistScope_e { SLIST_LOOP, SLIST_LAN, SLIST_INTERNET } slist_scope;
 
 extern size_t hostCacheCount;
 

@@ -71,9 +71,6 @@ static qboolean vid_locked = false; // johnfitz
 static qboolean vid_changed = false;
 
 static void VID_Menu_Init (void); // johnfitz
-static void VID_Menu_f (void);	  // johnfitz
-static void VID_MenuDraw (cb_context_t *cbx);
-static void VID_MenuKey (int key);
 static void VID_Restart (qboolean set_mode);
 static void VID_Restart_f (void);
 
@@ -86,7 +83,7 @@ static void GL_DestroyRenderResources (void);
 viddef_t		vid; // global video state
 modestate_t		modestate = MS_UNINIT;
 extern qboolean scr_initialized;
-extern cvar_t	r_particles, host_maxfps, r_gpulightmapupdate, r_showtris, r_showbboxes, r_rtshadows;
+extern cvar_t	r_particles, host_maxfps, r_gpulightmapupdate, r_showtris, r_showbboxes, r_rtshadows, r_md5models, r_lerpmodels, scr_fov;
 
 extern VkAccelerationStructureKHR bmodel_tlas;
 
@@ -115,7 +112,6 @@ extern cvar_t r_rtshadows;
 
 static VkInstance				vulkan_instance;
 static VkPhysicalDevice			vulkan_physical_device;
-static VkPhysicalDeviceFeatures vulkan_physical_device_features;
 static VkSurfaceKHR				vulkan_surface;
 static VkSurfaceCapabilitiesKHR vulkan_surface_capabilities;
 static VkSwapchainKHR			vulkan_swapchain;
@@ -507,6 +503,16 @@ VID_FilterChanged_f
 static void VID_FilterChanged_f (cvar_t *var)
 {
 	R_InitSamplers ();
+}
+
+/*
+===================
+VID_FSAAChanged_f
+===================
+*/
+static void VID_FSAAChanged_f (cvar_t *var)
+{
+	VID_Restart (false);
 }
 
 /*
@@ -1038,13 +1044,13 @@ static void GL_InitDevice (void)
 		}
 
 		fpGetPhysicalDeviceFeatures2 (vulkan_physical_device, &physical_device_features_2);
-		vulkan_physical_device_features = physical_device_features_2.features;
+		vulkan_globals.device_features = physical_device_features_2.features;
 	}
 	else
-		vkGetPhysicalDeviceFeatures (vulkan_physical_device, &vulkan_physical_device_features);
+		vkGetPhysicalDeviceFeatures (vulkan_physical_device, &vulkan_globals.device_features);
 
 #ifdef __APPLE__ // MoltenVK lies about this
-	vulkan_physical_device_features.sampleRateShading = false;
+	vulkan_globals.device_features.sampleRateShading = false;
 #endif
 
 	vulkan_globals.screen_effects_sops =
@@ -1087,15 +1093,15 @@ static void GL_InitDevice (void)
 		device_extensions[numEnabledExtensions++] = VK_KHR_RAY_QUERY_EXTENSION_NAME;
 	}
 
-	const VkBool32 extended_format_support = vulkan_physical_device_features.shaderStorageImageExtendedFormats;
-	const VkBool32 sampler_anisotropic = vulkan_physical_device_features.samplerAnisotropy;
+	const VkBool32 extended_format_support = vulkan_globals.device_features.shaderStorageImageExtendedFormats;
+	const VkBool32 sampler_anisotropic = vulkan_globals.device_features.samplerAnisotropy;
 
 	ZEROED_STRUCT (VkPhysicalDeviceFeatures, device_features);
 	device_features.shaderStorageImageExtendedFormats = extended_format_support;
 	device_features.samplerAnisotropy = sampler_anisotropic;
-	device_features.sampleRateShading = vulkan_physical_device_features.sampleRateShading;
-	device_features.fillModeNonSolid = vulkan_physical_device_features.fillModeNonSolid;
-	device_features.multiDrawIndirect = vulkan_physical_device_features.multiDrawIndirect;
+	device_features.sampleRateShading = vulkan_globals.device_features.sampleRateShading;
+	device_features.fillModeNonSolid = vulkan_globals.device_features.fillModeNonSolid;
+	device_features.multiDrawIndirect = vulkan_globals.device_features.multiDrawIndirect;
 
 	vulkan_globals.non_solid_fill = (device_features.fillModeNonSolid == VK_TRUE) ? true : false;
 	vulkan_globals.multi_draw_indirect = (device_features.multiDrawIndirect == VK_TRUE) ? true : false;
@@ -1716,7 +1722,7 @@ static void GL_CreateColorBuffer (void)
 
 	if (vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT)
 	{
-		vulkan_globals.supersampling = (vulkan_physical_device_features.sampleRateShading && vid_fsaamode.value >= 1) ? true : false;
+		vulkan_globals.supersampling = (vulkan_globals.device_features.sampleRateShading && vid_fsaamode.value >= 1) ? true : false;
 
 		if (vulkan_globals.supersampling)
 			Sys_Printf ("Supersampling enabled\n");
@@ -3195,8 +3201,8 @@ void VID_Init (void)
 	Cvar_SetCallback (&vid_refreshrate, VID_Changed_f);
 	Cvar_SetCallback (&vid_filter, VID_FilterChanged_f);
 	Cvar_SetCallback (&vid_anisotropic, VID_FilterChanged_f);
-	Cvar_SetCallback (&vid_fsaamode, VID_Changed_f);
-	Cvar_SetCallback (&vid_fsaa, VID_Changed_f);
+	Cvar_SetCallback (&vid_fsaamode, VID_FSAAChanged_f);
+	Cvar_SetCallback (&vid_fsaa, VID_FSAAChanged_f);
 	Cvar_SetCallback (&vid_vsync, VID_Changed_f);
 	Cvar_SetCallback (&vid_desktopfullscreen, VID_Changed_f);
 	Cvar_SetCallback (&vid_borderless, VID_Changed_f);
@@ -3323,10 +3329,6 @@ void VID_Init (void)
 
 	// johnfitz -- removed code creating "glquake" subdirectory
 
-	vid_menucmdfn = VID_Menu_f; // johnfitz
-	vid_menudrawfn = VID_MenuDraw;
-	vid_menukeyfn = VID_MenuKey;
-
 	VID_Gamma_Init (); // johnfitz
 	VID_Menu_Init ();  // johnfitz
 
@@ -3342,6 +3344,9 @@ VID_Restart
 */
 static void VID_Restart (qboolean set_mode)
 {
+	if (!vid_initialized)
+		return;
+
 	GL_SynchronizeEndRenderingTask ();
 
 	int		 width, height, refreshrate;
@@ -3451,21 +3456,6 @@ void VID_Toggle (void)
 	}
 }
 
-// For settings that are not applied during vid_restart
-typedef struct
-{
-	int host_maxfps;
-	int r_waterwarp;
-	int r_particles;
-	int r_scale;
-	int r_rtshadows;
-	int vid_filter;
-	int vid_anisotropic;
-	int vid_palettize;
-} vid_menu_settings_t;
-
-static vid_menu_settings_t menu_settings;
-
 /*
 ================
 VID_SyncCvars -- johnfitz -- set vid cvars to match current video mode
@@ -3486,15 +3476,6 @@ void VID_SyncCvars (void)
 		// should persist even if we are in windowed mode.
 	}
 
-	menu_settings.host_maxfps = CLAMP (0, host_maxfps.value, 1000);
-	menu_settings.r_waterwarp = CLAMP (0, (int)r_waterwarp.value, 2);
-	menu_settings.r_particles = CLAMP (0, (int)r_particles.value, 2);
-	menu_settings.r_rtshadows = CLAMP (0, (int)r_rtshadows.value, 1);
-	menu_settings.r_scale = CLAMP (1, (int)r_scale.value, 8);
-	menu_settings.vid_filter = CLAMP (0, (int)vid_filter.value, 1);
-	menu_settings.vid_anisotropic = CLAMP (0, (int)vid_anisotropic.value, 1);
-	menu_settings.vid_palettize = CLAMP (0, (int)vid_palettize.value, 1);
-
 	vid_changed = false;
 }
 
@@ -3507,19 +3488,10 @@ void VID_SyncCvars (void)
 enum
 {
 	VID_OPT_MODE,
-	VID_OPT_BPP,
 	VID_OPT_REFRESHRATE,
 	VID_OPT_FULLSCREEN,
 	VID_OPT_VSYNC,
-	VID_OPT_MAX_FPS,
-	VID_OPT_ANTIALIASING_SAMPLES,
-	VID_OPT_ANTIALIASING_MODE,
-	VID_OPT_RENDER_SCALE,
-	VID_OPT_FILTER,
-	VID_OPT_ANISOTROPY,
-	VID_OPT_UNDERWATER,
-	VID_OPT_PARTICLES,
-	VID_OPT_SHADOWS,
+	VID_OPT_PADDING,
 	VID_OPT_TEST,
 	VID_OPT_APPLY,
 	VIDEO_OPTIONS_ITEMS
@@ -3659,162 +3631,6 @@ static void VID_Menu_ChooseNextMode (int dir)
 
 /*
 ================
-VID_Menu_ChooseNextBpp
-================
-*/
-static void VID_Menu_ChooseNextBpp (void)
-{
-	menu_settings.vid_palettize = (menu_settings.vid_palettize + 1) % 2;
-}
-
-/*
-================
-VID_Menu_ChooseNextAAMode
-================
-*/
-static void VID_Menu_ChooseNextAAMode (int dir)
-{
-	if (vulkan_physical_device_features.sampleRateShading)
-		Cvar_SetValueQuick (&vid_fsaamode, (float)(((int)vid_fsaamode.value + 2 + dir) % 2));
-}
-
-/*
-================
-VID_Menu_ChooseNextAASamples
-================
-*/
-static void VID_Menu_ChooseNextAASamples (int dir)
-{
-	int value = vid_fsaa.value;
-
-	if (dir > 0)
-	{
-		if (value >= 16)
-			value = 0;
-		else if (value >= 8)
-			value = 16;
-		else if (value >= 4)
-			value = 8;
-		else if (value >= 2)
-			value = 4;
-		else
-			value = 2;
-	}
-	else
-	{
-		if (value <= 0)
-			value = 16;
-		else if (value <= 2)
-			value = 0;
-		else if (value <= 4)
-			value = 2;
-		else if (value <= 8)
-			value = 4;
-		else if (value <= 16)
-			value = 8;
-		else
-			value = 16;
-	}
-
-	Cvar_SetValueQuick (&vid_fsaa, (float)value);
-}
-
-/*
-================
-VID_Menu_ChooseNextRenderScale
-================
-*/
-static void VID_Menu_ChooseNextRenderScale (int dir)
-{
-	int value = menu_settings.r_scale;
-
-	if (dir > 0)
-	{
-		if (value >= 8)
-			value = 0;
-		else if (value >= 4)
-			value = 8;
-		else if (value >= 2)
-			value = 4;
-		else
-			value = 2;
-	}
-	else
-	{
-		if (value <= 0)
-			value = 8;
-		else if (value <= 2)
-			value = 0;
-		else if (value <= 4)
-			value = 2;
-		else if (value <= 8)
-			value = 4;
-		else
-			value = 8;
-	}
-
-	menu_settings.r_scale = value;
-}
-
-/*
-================
-VID_Menu_ChooseNextMaxFPS
-================
-*/
-static void VID_Menu_ChooseNextMaxFPS (int dir)
-{
-	menu_settings.host_maxfps = CLAMP (0, ((menu_settings.host_maxfps + (dir * 10)) / 10) * 10, 1000);
-}
-
-/*
-================
-VID_Menu_ChooseNextWaterWarp
-================
-*/
-static void VID_Menu_ChooseNextWaterWarp (int dir)
-{
-	menu_settings.r_waterwarp = (menu_settings.r_waterwarp + 3 + dir) % 3;
-}
-
-/*
-================
-VID_Menu_ChooseNextParticles
-================
-*/
-static void VID_Menu_ChooseNextParticles (int dir)
-{
-	if (dir > 0)
-	{
-		if (menu_settings.r_particles == 0)
-			menu_settings.r_particles = 2;
-		else if (menu_settings.r_particles == 2)
-			menu_settings.r_particles = 1;
-		else
-			menu_settings.r_particles = 0;
-	}
-	else
-	{
-		if (menu_settings.r_particles == 0)
-			menu_settings.r_particles = 1;
-		else if (menu_settings.r_particles == 2)
-			menu_settings.r_particles = 0;
-		else
-			menu_settings.r_particles = 2;
-	}
-}
-
-/*
-================
-VID_Menu_ChooseNextShadows
-================
-*/
-static void VID_Menu_ChooseNextShadows (int dir)
-{
-	menu_settings.r_rtshadows = (menu_settings.r_rtshadows + 2 + dir) % 2;
-}
-
-/*
-================
 VID_Menu_ChooseNextRate
 
 chooses next refresh rate in order, then updates vid_refreshrate cvar
@@ -3871,10 +3687,10 @@ static void VID_Menu_ChooseNextVSyncMode (int dir)
 
 /*
 ================
-VID_MenuKey
+M_Video_Key
 ================
 */
-static void VID_MenuKey (int key)
+void M_Video_Key (int key)
 {
 	switch (key)
 	{
@@ -3889,8 +3705,6 @@ static void VID_MenuKey (int key)
 	case K_UPARROW:
 		S_LocalSound ("misc/menu1.wav");
 		video_options_cursor--;
-		if (!vulkan_globals.ray_query && (video_options_cursor == VID_OPT_SHADOWS))
-			video_options_cursor--;
 		if (video_options_cursor < 0)
 			video_options_cursor = VIDEO_OPTIONS_ITEMS - 1;
 		break;
@@ -3898,8 +3712,6 @@ static void VID_MenuKey (int key)
 	case K_DOWNARROW:
 		S_LocalSound ("misc/menu1.wav");
 		video_options_cursor++;
-		if (!vulkan_globals.ray_query && (video_options_cursor == VID_OPT_SHADOWS))
-			video_options_cursor++;
 		if (video_options_cursor >= VIDEO_OPTIONS_ITEMS)
 			video_options_cursor = 0;
 		break;
@@ -3911,9 +3723,6 @@ static void VID_MenuKey (int key)
 		case VID_OPT_MODE:
 			VID_Menu_ChooseNextMode (1);
 			break;
-		case VID_OPT_BPP:
-			VID_Menu_ChooseNextBpp ();
-			break;
 		case VID_OPT_REFRESHRATE:
 			VID_Menu_ChooseNextRate (1);
 			break;
@@ -3922,33 +3731,6 @@ static void VID_MenuKey (int key)
 			break;
 		case VID_OPT_VSYNC:
 			VID_Menu_ChooseNextVSyncMode (-1);
-			break;
-		case VID_OPT_MAX_FPS:
-			VID_Menu_ChooseNextMaxFPS (-1);
-			break;
-		case VID_OPT_ANTIALIASING_SAMPLES:
-			VID_Menu_ChooseNextAASamples (-1);
-			break;
-		case VID_OPT_ANTIALIASING_MODE:
-			VID_Menu_ChooseNextAAMode (-1);
-			break;
-		case VID_OPT_RENDER_SCALE:
-			VID_Menu_ChooseNextRenderScale (-1);
-			break;
-		case VID_OPT_FILTER:
-			menu_settings.vid_filter = (menu_settings.vid_filter == 0) ? 1 : 0;
-			break;
-		case VID_OPT_ANISOTROPY:
-			menu_settings.vid_anisotropic = (menu_settings.vid_anisotropic == 0) ? 1 : 0;
-			break;
-		case VID_OPT_UNDERWATER:
-			VID_Menu_ChooseNextWaterWarp (-1);
-			break;
-		case VID_OPT_PARTICLES:
-			VID_Menu_ChooseNextParticles (-1);
-			break;
-		case VID_OPT_SHADOWS:
-			VID_Menu_ChooseNextShadows (-1);
 			break;
 		default:
 			break;
@@ -3962,9 +3744,6 @@ static void VID_MenuKey (int key)
 		case VID_OPT_MODE:
 			VID_Menu_ChooseNextMode (-1);
 			break;
-		case VID_OPT_BPP:
-			VID_Menu_ChooseNextBpp ();
-			break;
 		case VID_OPT_REFRESHRATE:
 			VID_Menu_ChooseNextRate (-1);
 			break;
@@ -3973,33 +3752,6 @@ static void VID_MenuKey (int key)
 			break;
 		case VID_OPT_VSYNC:
 			VID_Menu_ChooseNextVSyncMode (1);
-			break;
-		case VID_OPT_MAX_FPS:
-			VID_Menu_ChooseNextMaxFPS (1);
-			break;
-		case VID_OPT_ANTIALIASING_SAMPLES:
-			VID_Menu_ChooseNextAASamples (1);
-			break;
-		case VID_OPT_ANTIALIASING_MODE:
-			VID_Menu_ChooseNextAAMode (1);
-			break;
-		case VID_OPT_RENDER_SCALE:
-			VID_Menu_ChooseNextRenderScale (1);
-			break;
-		case VID_OPT_FILTER:
-			menu_settings.vid_filter = (menu_settings.vid_filter == 0) ? 1 : 0;
-			break;
-		case VID_OPT_ANISOTROPY:
-			menu_settings.vid_anisotropic = (menu_settings.vid_anisotropic == 0) ? 1 : 0;
-			break;
-		case VID_OPT_UNDERWATER:
-			VID_Menu_ChooseNextWaterWarp (1);
-			break;
-		case VID_OPT_PARTICLES:
-			VID_Menu_ChooseNextParticles (1);
-			break;
-		case VID_OPT_SHADOWS:
-			VID_Menu_ChooseNextShadows (1);
 			break;
 		default:
 			break;
@@ -4016,9 +3768,6 @@ static void VID_MenuKey (int key)
 		case VID_OPT_MODE:
 			VID_Menu_ChooseNextMode (-1);
 			break;
-		case VID_OPT_BPP:
-			VID_Menu_ChooseNextBpp ();
-			break;
 		case VID_OPT_REFRESHRATE:
 			VID_Menu_ChooseNextRate (-1);
 			break;
@@ -4028,49 +3777,11 @@ static void VID_MenuKey (int key)
 		case VID_OPT_VSYNC:
 			VID_Menu_ChooseNextVSyncMode (1);
 			break;
-		case VID_OPT_MAX_FPS:
-			VID_Menu_ChooseNextMaxFPS (1);
-			break;
-		case VID_OPT_ANTIALIASING_SAMPLES:
-			VID_Menu_ChooseNextAASamples (1);
-			break;
-		case VID_OPT_ANTIALIASING_MODE:
-			VID_Menu_ChooseNextAAMode (1);
-			break;
-		case VID_OPT_RENDER_SCALE:
-			VID_Menu_ChooseNextRenderScale (1);
-			break;
-		case VID_OPT_FILTER:
-			menu_settings.vid_filter = (menu_settings.vid_filter == 0) ? 1 : 0;
-			break;
-		case VID_OPT_ANISOTROPY:
-			menu_settings.vid_anisotropic = (menu_settings.vid_anisotropic == 0) ? 1 : 0;
-			break;
-		case VID_OPT_UNDERWATER:
-			VID_Menu_ChooseNextWaterWarp (1);
-			break;
-		case VID_OPT_PARTICLES:
-			VID_Menu_ChooseNextParticles (1);
-			break;
-		case VID_OPT_SHADOWS:
-			VID_Menu_ChooseNextShadows (1);
-			break;
 		case VID_OPT_TEST:
 			Cbuf_AddText ("vid_test\n");
 			break;
 		case VID_OPT_APPLY:
-			Cvar_SetValueQuick (&host_maxfps, menu_settings.host_maxfps);
-			Cvar_SetValueQuick (&r_particles, menu_settings.r_particles);
-			Cvar_SetValueQuick (&r_rtshadows, menu_settings.r_rtshadows);
-			Cvar_SetValueQuick (&r_waterwarp, menu_settings.r_waterwarp);
-			Cvar_SetValueQuick (&r_scale, menu_settings.r_scale);
-			Cvar_SetValueQuick (&vid_filter, menu_settings.vid_filter);
-			Cvar_SetValueQuick (&vid_anisotropic, menu_settings.vid_anisotropic);
-			Cvar_SetValueQuick (&vid_palettize, menu_settings.vid_palettize);
 			Cbuf_AddText ("vid_restart\n");
-			key_dest = key_game;
-			m_state = m_none;
-			IN_Activate ();
 			break;
 		default:
 			break;
@@ -4084,16 +3795,13 @@ static void VID_MenuKey (int key)
 
 /*
 ================
-VID_MenuDraw
+M_Video_Draw
 ================
 */
-static void VID_MenuDraw (cb_context_t *cbx)
+void M_Video_Draw (cb_context_t *cbx)
 {
-	int			i, y;
-	qpic_t	   *p;
-	const char *title;
-
-	y = 4;
+	qpic_t *p;
+	int		y = 4;
 
 	// plaque
 	p = Draw_CachePic ("gfx/qplaque.lmp");
@@ -4103,96 +3811,42 @@ static void VID_MenuDraw (cb_context_t *cbx)
 	p = Draw_CachePic ("gfx/p_option.lmp");
 	M_DrawPic (cbx, (320 - p->width) / 2, y, p);
 
-	y += 28;
-
-	// title
-	title = "Video Options";
-	M_PrintWhite (cbx, (320 - 8 * strlen (title)) / 2, y, title);
-
-	y += 16;
+	y += 36;
 
 	// options
-	for (i = 0; i < VIDEO_OPTIONS_ITEMS; i++)
+	for (int i = 0; i < VIDEO_OPTIONS_ITEMS; i++)
 	{
-		if (!vulkan_globals.ray_query && (i == VID_OPT_SHADOWS))
-			continue;
-
 		switch (i)
 		{
 		case VID_OPT_MODE:
-			M_Print (cbx, MENU_LABEL_X, y, M_MenuLabel ("Video mode"));
+			M_Print (cbx, MENU_LABEL_X, y, "Video mode");
 			M_Print (cbx, MENU_VALUE_X, y, va ("%ix%i", (int)vid_width.value, (int)vid_height.value));
 			break;
-		case VID_OPT_BPP:
-			M_Print (cbx, MENU_LABEL_X, y, M_MenuLabel ("Color depth"));
-			M_Print (cbx, MENU_VALUE_X, y, (menu_settings.vid_palettize == 1) ? "classic" : "modern");
-			break;
 		case VID_OPT_REFRESHRATE:
-			M_Print (cbx, MENU_LABEL_X, y, M_MenuLabel ("Refresh rate"));
+			M_Print (cbx, MENU_LABEL_X, y, "Refresh rate");
 			M_Print (cbx, MENU_VALUE_X, y, va ("%i", (int)vid_refreshrate.value));
 			break;
 		case VID_OPT_FULLSCREEN:
-			M_Print (cbx, MENU_LABEL_X, y, M_MenuLabel ("Fullscreen"));
+			M_Print (cbx, MENU_LABEL_X, y, "Fullscreen");
 			M_Print (cbx, MENU_VALUE_X, y, ((int)vid_fullscreen.value == 0) ? "off" : (((int)vid_fullscreen.value == 1) ? "on" : "exclusive"));
 			break;
 		case VID_OPT_VSYNC:
-			M_Print (cbx, MENU_LABEL_X, y, M_MenuLabel ("Vertical sync"));
+			M_Print (cbx, MENU_LABEL_X, y, "Vertical sync");
 			M_Print (cbx, MENU_VALUE_X, y, ((int)vid_vsync.value == 0) ? "off" : (((int)vid_vsync.value == 1) ? "on" : "triple buffer"));
 			break;
-		case VID_OPT_MAX_FPS:
-			M_Print (cbx, MENU_LABEL_X, y, M_MenuLabel ("Max FPS"));
-			if (menu_settings.host_maxfps <= 0)
-				M_Print (cbx, MENU_VALUE_X, y, "no limit");
-			else
-				M_Print (cbx, MENU_VALUE_X, y, va ("%d", menu_settings.host_maxfps));
-			break;
-		case VID_OPT_ANTIALIASING_SAMPLES:
-			M_Print (cbx, MENU_LABEL_X, y, M_MenuLabel ("Antialiasing"));
-			M_Print (cbx, MENU_VALUE_X, y, ((int)vid_fsaa.value >= 2) ? va ("%ix", CLAMP (2, (int)vid_fsaa.value, 16)) : "off");
-			break;
-		case VID_OPT_ANTIALIASING_MODE:
-			M_Print (cbx, MENU_LABEL_X, y, M_MenuLabel ("AA Mode"));
-			M_Print (
-				cbx, MENU_VALUE_X, y, (((int)vid_fsaamode.value == 0) || !vulkan_physical_device_features.sampleRateShading) ? "Multisample" : "Supersample");
-			break;
-		case VID_OPT_RENDER_SCALE:
-			M_Print (cbx, MENU_LABEL_X, y, M_MenuLabel ("Render Scale"));
-			M_Print (cbx, MENU_VALUE_X, y, (menu_settings.r_scale >= 2) ? va ("1/%i", menu_settings.r_scale) : "off");
-			break;
-		case VID_OPT_FILTER:
-			M_Print (cbx, MENU_LABEL_X, y, M_MenuLabel ("Textures"));
-			M_Print (cbx, MENU_VALUE_X, y, (menu_settings.vid_filter == 0) ? "smooth" : "classic");
-			break;
-		case VID_OPT_ANISOTROPY:
-			M_Print (cbx, MENU_LABEL_X, y, M_MenuLabel ("Anisotropic"));
-			M_Print (
-				cbx, MENU_VALUE_X, y,
-				(menu_settings.vid_anisotropic == 0) ? "off" : va ("on (%gx)", vulkan_globals.device_properties.limits.maxSamplerAnisotropy));
-			break;
-		case VID_OPT_UNDERWATER:
-			M_Print (cbx, MENU_LABEL_X, y, M_MenuLabel ("Underwater FX"));
-			M_Print (cbx, MENU_VALUE_X, y, (menu_settings.r_waterwarp == 0) ? "off" : ((menu_settings.r_waterwarp == 1) ? "Classic" : "glQuake"));
-			break;
-		case VID_OPT_PARTICLES:
-			M_Print (cbx, MENU_LABEL_X, y, M_MenuLabel ("Particles"));
-			M_Print (cbx, MENU_VALUE_X, y, (menu_settings.r_particles == 0) ? "off" : ((menu_settings.r_particles == 2) ? "Classic" : "glQuake"));
-			break;
-		case VID_OPT_SHADOWS:
-			M_Print (cbx, MENU_LABEL_X, y, M_MenuLabel ("Dynamic Shadows"));
-			M_Print (cbx, MENU_VALUE_X, y, (vulkan_globals.ray_query && menu_settings.r_rtshadows) ? "on" : "off");
-			break;
 		case VID_OPT_TEST:
-			y += 8; // separate the test and apply items
-			M_Print (cbx, MENU_LABEL_X, y, M_MenuLabel ("Test changes"));
+			M_Print (cbx, MENU_LABEL_X, y, "Test changes");
 			break;
 		case VID_OPT_APPLY:
-			M_Print (cbx, MENU_LABEL_X, y, M_MenuLabel ("Apply changes"));
+			M_Print (cbx, MENU_LABEL_X, y, "Apply changes");
 			break;
 		}
 
 		M_Mouse_UpdateCursor (&video_options_cursor, 12, 400, y, 8, i);
+		if (video_options_cursor == VID_OPT_PADDING)
+			video_options_cursor = VID_OPT_VSYNC;
 		if (video_options_cursor == i)
-			M_DrawCharacter (cbx, MENU_VALUE_X - 16, y, 12 + ((int)(realtime * 4) & 1));
+			Draw_Character (cbx, MENU_CURSOR_X, y, 12 + ((int)(realtime * 4) & 1));
 
 		y += 8;
 	}
@@ -4200,11 +3854,12 @@ static void VID_MenuDraw (cb_context_t *cbx)
 
 /*
 ================
-VID_Menu_f
+M_Menu_Video_f
 ================
 */
-static void VID_Menu_f (void)
+void M_Menu_Video_f (void)
 {
+	M_MenuChanged ();
 	IN_Deactivate (modestate == MS_WINDOWED);
 	key_dest = key_menu;
 	m_state = m_video;

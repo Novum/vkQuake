@@ -245,6 +245,7 @@ typedef struct
 	qboolean						 swap_chain_full_screen_exclusive;
 	qboolean						 swap_chain_full_screen_acquired;
 	VkPhysicalDeviceProperties		 device_properties;
+	VkPhysicalDeviceFeatures		 device_features;
 	VkPhysicalDeviceMemoryProperties memory_properties;
 	uint32_t						 gfx_queue_family_index;
 	VkFormat						 color_format;

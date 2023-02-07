@@ -34,12 +34,15 @@ enum m_state_e
 	m_setup,
 	m_net,
 	m_options,
+	m_game,
+	m_sound,
 	m_video,
+	m_graphics,
 	m_keys,
 	m_help,
 	m_quit,
 	m_lanconfig,
-	m_gameoptions,
+	m_mpgameoptions,
 	m_search,
 	m_slist,
 	m_mods,
@@ -61,29 +64,39 @@ qboolean M_TextEntry (void);
 void	 M_ToggleMenu_f (void);
 float	 M_GetScale ();
 void	 M_UpdateMouse ();
+void	 M_MenuChanged ();
 
 void M_Menu_Main_f (void);
 void M_Menu_Options_f (void);
 void M_Menu_Quit_f (void);
 
-void M_Print (cb_context_t *cbx, int cx, int cy, const char *str);
-void M_PrintWhite (cb_context_t *cbx, int cx, int cy, const char *str);
-void M_DrawSlider (cb_context_t *cbx, int x, int y, float range);
+void  M_Print (cb_context_t *cbx, int cx, int cy, const char *str);
+void  M_PrintWhite (cb_context_t *cbx, int cx, int cy, const char *str);
+void  M_DrawSlider (cb_context_t *cbx, int x, int y, float range);
+float M_GetSliderPos (float low, float high, float current, qboolean backward, qboolean mouse, float clamped_mouse, int dir, float step, float snap_start);
 
 void M_Draw (cb_context_t *cbx);
 void M_DrawCharacter (cb_context_t *cbx, int cx, int line, int num);
 
 void M_DrawPic (cb_context_t *cbx, int x, int y, qpic_t *pic);
 void M_DrawTransPic (cb_context_t *cbx, int x, int y, qpic_t *pic);
+void M_DrawScrollbar (cb_context_t *cbx, int x, int y, float value, float size);
 void M_DrawCheckbox (cb_context_t *cbx, int x, int y, int on);
 
 void M_Mouse_UpdateListCursor (int *cursor, int left, int right, int top, int item_height, int num_items, int scroll_offset);
 void M_Mouse_UpdateCursor (int *cursor, int left, int right, int top, int item_height, int index);
 
-char *M_MenuLabel (const char *name);
+void	 M_Menu_Video_f (void);
+void	 M_Video_Draw (cb_context_t *cbx);
+void	 M_Video_Key (int key);
+qboolean M_HandleScrollBarKeys (const int key, int *cursor, int *first_drawn, const int num_total, const int max_on_screen);
 
-#define MENU_LABEL_X  16
-#define MENU_VALUE_X  204
-#define MENU_CURSOR_X 188
+#define MENU_TOP		 40
+#define MENU_CURSOR_X	 60
+#define MENU_LABEL_X	 70
+#define MENU_VALUE_X	 204
+#define MENU_SLIDER_X	 (MENU_VALUE_X + 6)
+#define MENU_SCROLLBAR_X 312
+#define MAX_MENU_LINES	 18
 
 #endif /* _QUAKE_MENU_H */

@@ -43,8 +43,8 @@ char my_ipv6_address[NET_NAMELEN];
 qboolean listening = false;
 
 qboolean		  slistInProgress = false;
-qboolean		  slistSilent = false;
-enum slistScope_e slistScope = SLIST_LOOP;
+qboolean		  slist_silent = false;
+enum slistScope_e slist_scope = SLIST_LOOP;
 static double	  slistStartTime;
 static double	  slistActiveTime;
 static int		  slistLastShown;
@@ -309,7 +309,7 @@ void NET_Slist_f (void)
 	if (slistInProgress)
 		return;
 
-	if (!slistSilent)
+	if (!slist_silent)
 	{
 		Con_Printf ("Looking for Quake servers...\n");
 		PrintSlistHeader ();
@@ -376,7 +376,7 @@ static void Slist_Send (void *unused)
 {
 	for (net_driverlevel = 0; net_driverlevel < net_numdrivers; net_driverlevel++)
 	{
-		if (slistScope != SLIST_LOOP && IS_LOOP_DRIVER (net_driverlevel))
+		if (slist_scope != SLIST_LOOP && IS_LOOP_DRIVER (net_driverlevel))
 			continue;
 		if (net_drivers[net_driverlevel].initialized == false)
 			continue;
@@ -391,7 +391,7 @@ static void Slist_Poll (void *unused)
 {
 	for (net_driverlevel = 0; net_driverlevel < net_numdrivers; net_driverlevel++)
 	{
-		if (slistScope != SLIST_LOOP && IS_LOOP_DRIVER (net_driverlevel))
+		if (slist_scope != SLIST_LOOP && IS_LOOP_DRIVER (net_driverlevel))
 			continue;
 		if (net_drivers[net_driverlevel].initialized == false)
 			continue;
@@ -399,7 +399,7 @@ static void Slist_Poll (void *unused)
 			slistActiveTime = Sys_DoubleTime (); // something was sent, reset the timer.
 	}
 
-	if (!slistSilent)
+	if (!slist_silent)
 		PrintSlist ();
 
 	if ((Sys_DoubleTime () - slistActiveTime) < 1.5)
@@ -408,11 +408,11 @@ static void Slist_Poll (void *unused)
 		return;
 	}
 
-	if (!slistSilent)
+	if (!slist_silent)
 		PrintSlistTrailer ();
 	slistInProgress = false;
-	slistSilent = false;
-	slistScope = SLIST_LOOP;
+	slist_silent = false;
+	slist_scope = SLIST_LOOP;
 }
 
 /*
@@ -456,7 +456,7 @@ qsocket_t *NET_Connect (const char *host)
 		}
 	}
 
-	slistSilent = host ? true : false;
+	slist_silent = host ? true : false;
 	NET_Slist_f ();
 
 	while (slistInProgress)

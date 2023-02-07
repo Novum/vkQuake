@@ -314,7 +314,7 @@ void main ()
 
 	color.rgb = mix (color.rgb, vec3 (push_constants.poly_blend_r, push_constants.poly_blend_g, push_constants.poly_blend_b), push_constants.poly_blend_a);
 	[[branch]] if ((push_constants.flags & SCREEN_EFFECT_FLAG_MENU) != 0)
-		color.rgb = mix (color.rgb, vec3 (color.r * 0.3f + color.g * 0.59f + color.b * 0.11f), 0.5f) * 0.9f;
+		color.rgb = mix (color.rgb, vec3 (color.r * 0.3f + color.g * 0.59f + color.b * 0.11f), 0.5f) * 0.6f;
 
 	imageStore (output_image, ivec2 (pos_x, pos_y), color);
 }

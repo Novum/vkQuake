@@ -218,7 +218,7 @@ void SCR_DrawCenterString (cb_context_t *cbx) // actually do the drawing
 			if (start[l] == '\n' || !start[l])
 				break;
 		x = (320 - l * 8) / 2; // johnfitz -- 320x200 coordinate system
-		for (j = 0; j < l; j++, x += 8)
+		for (j = 0; j < l; j++, x += CHARACTER_SIZE)
 		{
 			Draw_Character (cbx, x, y, start[j]); // johnfitz -- stretch overlays
 			if (!remaining--)
@@ -845,13 +845,9 @@ void SCR_DrawCrosshair (cb_context_t *cbx)
 
 	GL_SetCanvas (cbx, CANVAS_CROSSHAIR);
 	if (crosshair.value >= 2.0f)
-	{
-		Draw_Character (cbx, -4, -4, '.'); // 0,0 is center of viewport
-	}
+		Draw_Character (cbx, -2, -5, '.'); // 0,0 is center of viewport
 	else
-	{
 		Draw_Character (cbx, -4, -4, '+'); // 0,0 is center of viewport
-	}
 }
 
 //=============================================================================
@@ -987,7 +983,7 @@ void SCR_DrawNotifyString (cb_context_t *cbx)
 			if (start[l] == '\n' || !start[l])
 				break;
 		x = (320 - l * 8) / 2; // johnfitz -- stretched overlays
-		for (j = 0; j < l; j++, x += 8)
+		for (j = 0; j < l; j++, x += CHARACTER_SIZE)
 			Draw_Character (cbx, x, y, start[j]);
 
 		y += 8;
