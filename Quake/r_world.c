@@ -378,7 +378,7 @@ void R_MarkVisSurfacesSIMD (qboolean *use_tasks)
 			mask &= ~(1u << j);
 
 			mleaf_t *leaf = &cl.worldmodel->leafs[1 + i + j];
-			if (leaf->contents != CONTENTS_SKY || r_oldskyleaf.value)
+			if (r_drawworld_cheatsafe && (leaf->contents != CONTENTS_SKY || r_oldskyleaf.value))
 			{
 				unsigned int nummarksurfaces = leaf->nummarksurfaces;
 				int			*marksurfaces = leaf->firstmarksurface;
@@ -454,7 +454,7 @@ void R_MarkLeafsSIMD (int index, void *unused)
 		const int i = FindFirstBitNonZero (mask_iter);
 
 		mleaf_t *leaf = &cl.worldmodel->leafs[1 + first_leaf + i];
-		if (leaf->contents != CONTENTS_SKY || r_oldskyleaf.value)
+		if (r_drawworld_cheatsafe && (leaf->contents != CONTENTS_SKY || r_oldskyleaf.value))
 		{
 			unsigned int nummarksurfaces = leaf->nummarksurfaces;
 			int			*marksurfaces = leaf->firstmarksurface;
@@ -603,7 +603,7 @@ void R_MarkLeafsParallel (int index, void *unused)
 		}
 		if (!leaf->efrags)
 			*mask &= bit_mask;
-		if (r_oldskyleaf.value || leaf->contents != CONTENTS_SKY)
+		if (r_drawworld_cheatsafe && (leaf->contents != CONTENTS_SKY || r_oldskyleaf.value))
 		{
 			unsigned int nummarksurfaces = leaf->nummarksurfaces;
 			int			*marksurfaces = leaf->firstmarksurface;
@@ -675,7 +675,7 @@ void R_MarkVisSurfaces (qboolean *use_tasks)
 			if (R_CullBox (leaf->minmaxs, leaf->minmaxs + 3))
 				continue;
 
-			if (r_oldskyleaf.value || leaf->contents != CONTENTS_SKY)
+			if (r_drawworld_cheatsafe && (leaf->contents != CONTENTS_SKY || r_oldskyleaf.value))
 			{
 				if (indirect)
 					R_MarkDeps (leaf->combined_deps, 0);
@@ -833,7 +833,7 @@ void R_MarkSurfaces (qboolean use_tasks, task_handle_t before_mark, task_handle_
 			*store_efrags = Task_AllocateAndAssignFunc (R_StoreLeafEFrags, NULL, 0);
 			Task_AddDependency (mark_surfaces, *store_efrags);
 
-			if (!indirect)
+			if (!indirect && r_drawworld_cheatsafe)
 			{
 				unsigned int numsurfaces = cl.worldmodel->numsurfaces;
 #if defined(USE_SIMD)
