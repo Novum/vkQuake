@@ -486,6 +486,6 @@ void GLMesh_DeleteAllMeshBuffers (void)
 			continue;
 
 		for (int i = 0; i < 2; ++i)
-			GLMesh_DeleteMeshBuffers ((aliashdr_t*)m->extradata[i]);
+			GLMesh_DeleteMeshBuffers ((aliashdr_t *)m->extradata[i]);
 	}
 }
