@@ -34,8 +34,7 @@ CPUFLAGS += -msse2
 endif
 LDFLAGS = -m64 -mwindows -static-libgcc
 DFLAGS ?=
-CFLAGS ?= -m64 -Wall -Wno-trigraphs -std=gnu11 -D_WIN32_WINNT=0x0501 -MMD
-CFLAGS += $(CPUFLAGS)
+CFLAGS ?= -m64 -D_WIN32_WINNT=0x0501
 
 # ---------------------------
 # objects

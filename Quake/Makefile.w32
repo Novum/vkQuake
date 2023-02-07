@@ -28,8 +28,7 @@ VORBISLIB = vorbis
 CPUFLAGS =
 LDFLAGS = -m32 -mwindows -static-libgcc
 DFLAGS ?=
-CFLAGS ?= -m32 -Wall -Wno-trigraphs -std=gnu11 -D_WIN32_WINNT=0x0501 -MMD
-CFLAGS += $(CPUFLAGS)
+CFLAGS ?= -m32 -D_WIN32_WINNT=0x0501
 
 # ---------------------------
 # objects

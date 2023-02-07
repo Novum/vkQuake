@@ -6,6 +6,8 @@ DEBUG ?= 0
 
 CHECK_GCC = $(shell if echo | $(CC) $(1) -Werror -S -o /dev/null -xc - > /dev/null 2>&1; then echo "$(1)"; else echo "$(2)"; fi;)
 
+CFLAGS += -MMD -Wall -Wno-trigraphs -Werror -std=gnu11
+CFLAGS += $(CPUFLAGS)
 ifneq ($(DEBUG),0)
 DFLAGS += -D_DEBUG
 CFLAGS += -g
