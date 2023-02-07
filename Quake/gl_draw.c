@@ -456,49 +456,47 @@ Draw_FillCharacterQuad
 */
 static void Draw_FillCharacterQuad (int x, int y, char num, basicvertex_t *output, int rotation)
 {
-	int	  row, col;
-	float frow, fcol, size;
-
-	row = num >> 4;
-	col = num & 15;
-
-	frow = row * 0.0625;
-	fcol = col * 0.0625;
-	size = 0.0625;
+	const int	row = num >> 4;
+	const int	col = num & 15;
+	const float st_size = 1.0f / 16.0f;
+	// Fixes sampling into previous/next character because of float rounding
+	const float texel_offset = 0.001f;
+	const float frow = row * st_size;
+	const float fcol = col * st_size;
 
 	basicvertex_t corner_verts[4];
 	memset (&corner_verts, 255, sizeof (corner_verts));
 
 	float texcoords[4][2] = {
 		{x, y},
-		{x + 8, y},
-		{x + 8, y + 8},
-		{x, y + 8},
+		{x + CHARACTER_SIZE, y},
+		{x + CHARACTER_SIZE, y + CHARACTER_SIZE},
+		{x, y + CHARACTER_SIZE},
 	};
 
 	corner_verts[0].position[0] = texcoords[(rotation + 0) % 4][0];
 	corner_verts[0].position[1] = texcoords[(rotation + 0) % 4][1];
 	corner_verts[0].position[2] = 0.0f;
-	corner_verts[0].texcoord[0] = fcol;
-	corner_verts[0].texcoord[1] = frow;
+	corner_verts[0].texcoord[0] = fcol + texel_offset;
+	corner_verts[0].texcoord[1] = frow + texel_offset;
 
 	corner_verts[1].position[0] = texcoords[(rotation + 1) % 4][0];
 	corner_verts[1].position[1] = texcoords[(rotation + 1) % 4][1];
 	corner_verts[1].position[2] = 0.0f;
-	corner_verts[1].texcoord[0] = fcol + size;
-	corner_verts[1].texcoord[1] = frow;
+	corner_verts[1].texcoord[0] = fcol + st_size - texel_offset;
+	corner_verts[1].texcoord[1] = frow + texel_offset;
 
 	corner_verts[2].position[0] = texcoords[(rotation + 2) % 4][0];
 	corner_verts[2].position[1] = texcoords[(rotation + 2) % 4][1];
 	corner_verts[2].position[2] = 0.0f;
-	corner_verts[2].texcoord[0] = fcol + size;
-	corner_verts[2].texcoord[1] = frow + size;
+	corner_verts[2].texcoord[0] = fcol + st_size - texel_offset;
+	corner_verts[2].texcoord[1] = frow + st_size - texel_offset;
 
 	corner_verts[3].position[0] = texcoords[(rotation + 3) % 4][0];
 	corner_verts[3].position[1] = texcoords[(rotation + 3) % 4][1];
 	corner_verts[3].position[2] = 0.0f;
-	corner_verts[3].texcoord[0] = fcol;
-	corner_verts[3].texcoord[1] = frow + size;
+	corner_verts[3].texcoord[0] = fcol + texel_offset;
+	corner_verts[3].texcoord[1] = frow + st_size - texel_offset;
 
 	output[0] = corner_verts[0];
 	output[1] = corner_verts[1];
@@ -515,7 +513,7 @@ Draw_Character
 */
 void Draw_Character (cb_context_t *cbx, int x, int y, int num)
 {
-	if (y <= -8)
+	if (y <= -CHARACTER_SIZE)
 		return; // totally off screen
 
 	const int rotation = (num / 256) % 4;
@@ -548,7 +546,7 @@ void Draw_String (cb_context_t *cbx, int x, int y, const char *str)
 	int			i;
 	const char *tmp;
 
-	if (y <= -8)
+	if (y <= -CHARACTER_SIZE)
 		return; // totally off screen
 
 	for (tmp = str; *tmp != 0; ++tmp)
@@ -566,7 +564,7 @@ void Draw_String (cb_context_t *cbx, int x, int y, const char *str)
 			Draw_FillCharacterQuad (x, y, *str, vertices + i * 6, 0);
 			i++;
 		}
-		x += 8;
+		x += CHARACTER_SIZE;
 	}
 
 	vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 1, &buffer, &buffer_offset);

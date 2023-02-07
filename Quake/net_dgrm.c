@@ -1728,7 +1728,7 @@ static qboolean _Datagram_SearchForHosts (qboolean xmit)
 		dfunc.Broadcast (dfunc.controlSock, net_message.data, net_message.cursize);
 		SZ_Clear (&net_message);
 
-		if (slistScope == SLIST_INTERNET)
+		if (slist_scope == SLIST_INTERNET)
 		{
 			struct qsockaddr masteraddr;
 			char			*str;
