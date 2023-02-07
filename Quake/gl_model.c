@@ -3326,6 +3326,8 @@ static void Mod_LoadSpriteModel (qmodel_t *mod, void *buffer)
 			mod->name, version, SPRITE_VERSION);
 
 	numframes = LittleLong (pin->numframes);
+	if (numframes < 1)
+		Sys_Error ("Mod_LoadSpriteModel: Invalid # of frames: %d", numframes);
 
 	size = sizeof (msprite_t) + (numframes - 1) * sizeof (psprite->frames);
 
@@ -3348,9 +3350,6 @@ static void Mod_LoadSpriteModel (qmodel_t *mod, void *buffer)
 	//
 	// load the frames
 	//
-	if (numframes < 1)
-		Sys_Error ("Mod_LoadSpriteModel: Invalid # of frames: %d", numframes);
-
 	mod->numframes = numframes;
 
 	pframetype = (dspriteframetype_t *)(pin + 1);
