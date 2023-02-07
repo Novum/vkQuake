@@ -701,6 +701,9 @@ void CL_RelinkEntities (void)
 		if (CL_LerpEntity (ent, ent->origin, ent->angles, frac))
 			ent->lerpflags |= LERP_RESETMOVE;
 
+		if (cl.time < cl.oldtime)
+			ent->lerpflags |= LERP_RESETMOVE | LERP_RESETANIM;
+
 		if (ent->netstate.tagentity)
 			if (!CL_AttachEntity (ent, frac))
 			{

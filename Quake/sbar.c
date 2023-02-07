@@ -583,6 +583,8 @@ void Sbar_DrawInventory (cb_context_t *cbx)
 		if (cl.items & (IT_SHOTGUN << i))
 		{
 			time = cl.item_gettime[i];
+			if (time > (float)cl.time)
+				time = cl.item_gettime[i] = cl.time - 2;
 			flashon = (int)((cl.time - time) * 10);
 			if (flashon >= 10)
 			{
@@ -608,6 +610,8 @@ void Sbar_DrawInventory (cb_context_t *cbx)
 			if (cl.items & (1 << hipweapons[i]))
 			{
 				time = cl.item_gettime[hipweapons[i]];
+				if (time > (float)cl.time)
+					time = cl.item_gettime[hipweapons[i]] = cl.time - 2;
 				flashon = (int)((cl.time - time) * 10);
 				if (flashon >= 10)
 				{
@@ -902,6 +906,9 @@ void Sbar_Draw (cb_context_t *cbx)
 	{
 		qboolean deathmatchoverlay = false;
 		float	 s = CLAMP (1.0, scr_sbarscale.value, (float)glwidth / 320.0);
+		int		 items = cl.stats[STAT_ITEMS];
+		if (cl.time < cl.oldtime)
+			cl.stats[STAT_ITEMS] = 0;
 		GL_SetCanvas (cbx, CANVAS_CSQC); // johnfitz
 		PR_SwitchQCVM (&cl.qcvm);
 		pr_global_struct->frametime = host_frametime;
@@ -928,6 +935,7 @@ void Sbar_Draw (cb_context_t *cbx)
 		else
 			deathmatchoverlay = (sb_showscores || cl.stats[STAT_HEALTH] <= 0);
 		PR_SwitchQCVM (NULL);
+		cl.stats[STAT_ITEMS] = items;
 
 		if (deathmatchoverlay && cl.gametype == GAME_DEATHMATCH)
 		{
