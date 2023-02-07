@@ -1,9 +1,12 @@
-# GNU Makefile for compiling Win64 vkQuake.exe using MinGW-w64.
-# Usage: "make -f Makefile.w64"
-# To cross-compile on Linux hosts, see the 'build_cross_win64.sh' script.
+# GNU Makefile for compiling vkQuake.exe for Windows x86 using MinGW-w64.
+# Usage: "make -f Makefile.w32"
+# To cross-compile on Linux hosts, see the 'build_cross_win32.sh' script.
 # "make VK_SDK_PATH=/path/to/vksdk" to specify the Vulkan SDK root
 # "make DEBUG=1" to build a debug client.
 # "make SDL_CONFIG=/path/to/sdl2-config" to override the locally included SDL2 version.
+
+### Enable SSE2 optimizations
+USE_SSE2 = 1
 
 ### Enable/disable codecs for streaming music support
 USE_CODEC_WAVE = 1
@@ -26,6 +29,9 @@ VORBISLIB = vorbis
 # build variables
 # ---------------------------
 CPUFLAGS =
+ifeq ($(USE_SSE2),1)
+CPUFLAGS += -msse2
+endif
 LDFLAGS = -m32 -mwindows -static-libgcc
 DFLAGS ?=
 CFLAGS ?= -m32 -D_WIN32_WINNT=0x0501
@@ -36,6 +42,7 @@ CFLAGS ?= -m32 -D_WIN32_WINNT=0x0501
 SYSOBJ_NET := net_win.o net_wins.o net_wipx.o
 SYSOBJ_SYS := pl_win.o sys_sdl.o sys_sdl_win.o
 DEFAULT_TARGET := vkQuake.exe
+BINTOC_EXE = ../Shaders/bintoc.exe
 
 # ---------------------------
 # common
@@ -61,7 +68,7 @@ CODEC_LINK = -L../Windows/codecs/x86
 
 VK_SDK_PATH ?= ../Windows/misc
 VULKAN_INC = -I$(VK_SDK_PATH)/include
-VULKAN_LINK= -L../Windows/misc/x86 # -L$(VK_SDK_PATH)/lib
+VULKAN_LINK= -L../Windows/misc/x86 # -L$(VK_SDK_PATH)/lib32
 VULKAN_LIBS= -lvulkan-1
 CFLAGS += $(VULKAN_INC)
 
@@ -91,6 +98,7 @@ debug:
 
 clean:
 	$(RM) *.o *.d *.res *.dll $(DEFAULT_TARGET) \
+	$(BINTOC_EXE) \
 	../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/*.c \
 	../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/*.spv \
 	../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/*.d

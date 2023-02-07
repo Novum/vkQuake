@@ -1,4 +1,4 @@
-# GNU Makefile for vkQuake unix targets
+# GNU Makefile for vkQuake unix x86_64 targets.
 # You need the SDL2 library fully installed.
 # "make DEBUG=1" to build a debug client.
 # "make SDL_CONFIG=/path/to/sdl2-config" for unusual SDL2 installations.
@@ -45,6 +45,7 @@ endif
 SYSOBJ_NET := net_bsd.o net_udp.o
 SYSOBJ_SYS := pl_linux.o sys_sdl.o sys_sdl_unix.o
 DEFAULT_TARGET := vkquake
+BINTOC_EXE = ../Shaders/bintoc
 
 # ---------------------------
 # common
@@ -100,7 +101,7 @@ debug:
 	$(error Use "make DEBUG=1")
 
 clean:
-	$(RM) *.o *.d $(DEFAULT_TARGET) \
+	$(RM) *.o *.d $(DEFAULT_TARGET) $(BINTOC_EXE) \
 	../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/*.c \
 	../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/*.spv \
 	../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/*.d

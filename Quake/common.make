@@ -1,4 +1,7 @@
 CC = gcc
+# HOST_CC is for bintoc which is run on the host OS, not
+#         the target OS: cross-compile friendliness.
+HOST_CC = gcc
 LINKER = $(CC)
 STRIP ?= strip
 GLSLANG = glslangValidator
@@ -226,35 +229,35 @@ OBJS := strlcat.o \
 	embedded_pak.o \
 	$(SYSOBJ_SYS) $(SYSOBJ_MAIN)
 
-../Shaders/bintoc: ../Shaders/bintoc.c
-	$(CC) $(CFLAGS) -o $@ $<
+$(BINTOC_EXE): ../Shaders/bintoc.c
+	$(HOST_CC) -o $@ $<
 
 .SECONDARY:
 ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/%_frag.spv: ../Shaders/%.frag
 	$(GLSLANG) $(GLSLANG_FLAGS) $< -o $@ --depfile ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_frag.d
-%_frag.o: ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/%_frag.spv ../Shaders/bintoc
-	../Shaders/bintoc $< $*_frag_spv ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_frag.c
+%_frag.o: ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/%_frag.spv $(BINTOC_EXE)
+	$(BINTOC_EXE) $< $*_frag_spv ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_frag.c
 	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_frag.c
 
 .SECONDARY:
 ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/%_vert.spv: ../Shaders/%.vert
 	$(GLSLANG) $(GLSLANG_FLAGS) $< -o $@ --depfile ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_vert.d
-%_vert.o: ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/%_vert.spv ../Shaders/bintoc
-	../Shaders/bintoc $< $*_vert_spv ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_vert.c
+%_vert.o: ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/%_vert.spv $(BINTOC_EXE)
+	$(BINTOC_EXE) $< $*_vert_spv ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_vert.c
 	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_vert.c
 
 .SECONDARY:
 ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/%_sops_comp.spv: ../Shaders/%_sops.comp
 	$(GLSLANG) $(GLSLANG_FLAGS) --target-env vulkan1.1 $< -o $@ --depfile ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_sops_comp.d
-%_sops_comp.o: ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/%_sops_comp.spv ../Shaders/bintoc
-	../Shaders/bintoc $< $*_sops_comp_spv ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_sops_comp.c
+%_sops_comp.o: ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/%_sops_comp.spv $(BINTOC_EXE)
+	$(BINTOC_EXE) $< $*_sops_comp_spv ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_sops_comp.c
 	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_sops_comp.c
 
 .SECONDARY:
 ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/%_comp.spv: ../Shaders/%.comp
 	$(GLSLANG) $(GLSLANG_FLAGS) $< -o $@ --depfile ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_comp.d
-%_comp.o: ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/%_comp.spv ../Shaders/bintoc
-	../Shaders/bintoc $< $*_comp_spv ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_comp.c
+%_comp.o: ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/%_comp.spv $(BINTOC_EXE)
+	$(BINTOC_EXE) $< $*_comp_spv ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_comp.c
 	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_comp.c
 
 %.o:	%.c
