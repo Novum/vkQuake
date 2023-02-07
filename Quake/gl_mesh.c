@@ -220,12 +220,8 @@ extern float r_avertexnormals[NUMVERTEXNORMALS][3];
 GLMesh_DeleteMeshBuffers
 ================
 */
-static void GLMesh_DeleteMeshBuffers (qmodel_t *m)
+void GLMesh_DeleteMeshBuffers (aliashdr_t *hdr)
 {
-	if (m->type != mod_alias)
-		return;
-
-	aliashdr_t *hdr = (aliashdr_t *)Mod_Extradata (m);
 	if (!hdr || (hdr->vertex_buffer == VK_NULL_HANDLE))
 		return;
 
@@ -280,8 +276,6 @@ void GLMesh_UploadBuffers (qmodel_t *m, aliashdr_t *mainhdr, unsigned short *ind
 	VkResult err;
 	if (!mainhdr)
 		return;
-
-	GLMesh_DeleteMeshBuffers (m);
 
 	// count how much space we're going to need.
 	size_t totalvbosize = 0;
@@ -482,16 +476,16 @@ Delete VBOs for all loaded alias models
 */
 void GLMesh_DeleteAllMeshBuffers (void)
 {
-	int		  j;
 	qmodel_t *m;
 
-	for (j = 1; j < MAX_MODELS; j++)
+	for (int j = 1; j < MAX_MODELS; j++)
 	{
 		if (!(m = cl.model_precache[j]))
 			break;
 		if (m->type != mod_alias)
 			continue;
 
-		GLMesh_DeleteMeshBuffers (m);
+		for (int i = 0; i < 2; ++i)
+			GLMesh_DeleteMeshBuffers ((aliashdr_t*)m->extradata[i]);
 	}
 }

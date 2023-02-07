@@ -39,7 +39,7 @@ static mspriteframe_t *R_GetSpriteFrame (entity_t *currentent)
 	int				i, numframes, frame;
 	float		   *pintervals, fullinterval, targettime, time;
 
-	psprite = (msprite_t *)currentent->model->extradata;
+	psprite = (msprite_t *)currentent->model->extradata[0];
 	frame = currentent->frame;
 
 	if ((frame >= psprite->numframes) || (frame < 0))

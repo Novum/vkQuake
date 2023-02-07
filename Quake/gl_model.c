@@ -34,6 +34,7 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash);
 
 cvar_t external_ents = {"external_ents", "1", CVAR_ARCHIVE};
 cvar_t external_vis = {"external_vis", "1", CVAR_ARCHIVE};
+cvar_t r_loadmd5models = {"r_loadmd5models", "1", CVAR_ARCHIVE};
 cvar_t r_md5models = {"r_md5models", "1", CVAR_ARCHIVE};
 
 static byte *mod_novis;
@@ -96,6 +97,7 @@ void Mod_Init (void)
 {
 	Cvar_RegisterVariable (&external_vis);
 	Cvar_RegisterVariable (&external_ents);
+	Cvar_RegisterVariable (&r_loadmd5models);
 	Cvar_RegisterVariable (&r_md5models);
 
 	// johnfitz -- create notexture miptex
@@ -121,7 +123,14 @@ Caches the data if needed
 void *Mod_Extradata (qmodel_t *mod)
 {
 	Mod_LoadModel (mod, true);
-	return mod->extradata;
+	if (mod->type == mod_alias)
+	{
+		if (r_md5models.value && mod->extradata[1])
+			return mod->extradata[1];
+		return mod->extradata[0];
+	}
+	else
+		return mod->extradata[0];
 }
 
 /*
@@ -288,8 +297,8 @@ static void Mod_FreeModelMemory (qmodel_t *mod)
 {
 	if (mod->name[0] != '*')
 	{
-		if ((mod->type == mod_sprite) && (mod->extradata))
-			Mod_FreeSpriteMemory ((msprite_t *)mod->extradata);
+		if ((mod->type == mod_sprite) && (mod->extradata[0]))
+			Mod_FreeSpriteMemory ((msprite_t *)mod->extradata[0]);
 		// Last two ones are dummy textures
 		for (int i = 0; i < mod->numtextures - 2; ++i)
 			SAFE_FREE (mod->textures[i]);
@@ -326,7 +335,8 @@ static void Mod_FreeModelMemory (qmodel_t *mod)
 		SAFE_FREE (mod->visdata);
 		SAFE_FREE (mod->lightdata);
 		SAFE_FREE (mod->entities);
-		SAFE_FREE (mod->extradata);
+		for (int i = 0; i < 2; ++i)
+			SAFE_FREE (mod->extradata[i]);
 		SAFE_FREE (mod->water_surfs);
 		mod->used_water_surfs = 0;
 	}
@@ -445,10 +455,16 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 
 	InvalidateTraceLineCache ();
 
+	if (mod->type == mod_alias)
+	{
+		for (int i = 0; i < 2; ++i)
+			GLMesh_DeleteMeshBuffers ((aliashdr_t *)mod->extradata[i]);
+	}
+
 	//
 	// load the file
 	//
-	if (r_md5models.value)
+	if (r_loadmd5models.value)
 	{
 		char newname[MAX_QPATH];
 		q_strlcpy (newname, mod->name, sizeof (newname));
@@ -457,10 +473,13 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 		{
 			q_strlcpy (extension, "md5mesh", sizeof (newname) - (extension - newname));
 			buf = COM_LoadFile (newname, &mod->path_id);
+			if (buf)
+				Mod_LoadMD5MeshModel (mod, buf);
+			Mem_Free (buf);
 		}
 	}
-	if (!buf)
-		buf = COM_LoadFile (mod->name, &mod->path_id);
+
+	buf = COM_LoadFile (mod->name, &mod->path_id);
 	if (!buf)
 	{
 		if (crash)
@@ -490,11 +509,6 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 
 	case IDSPRITEHEADER:
 		Mod_LoadSpriteModel (mod, buf);
-		break;
-
-	// Spike -- md5 support
-	case (('M' << 0) + ('D' << 8) + ('5' << 16) + ('V' << 24)):
-		Mod_LoadMD5MeshModel (mod, buf);
 		break;
 
 	default:
@@ -3187,7 +3201,7 @@ static void Mod_LoadAliasModel (qmodel_t *mod, void *buffer)
 	//
 	// move the complete, relocatable alias model to the cache
 	//
-	mod->extradata = (byte *)pheader;
+	mod->extradata[PV_QUAKE1] = (byte *)pheader;
 }
 
 //=============================================================================
@@ -3317,7 +3331,7 @@ static void Mod_LoadSpriteModel (qmodel_t *mod, void *buffer)
 
 	psprite = (msprite_t *)Mem_Alloc (size);
 
-	mod->extradata = (byte *)psprite;
+	mod->extradata[0] = (byte *)psprite;
 
 	psprite->type = LittleLong (pin->type);
 	psprite->maxwidth = LittleLong (pin->width);
@@ -4207,7 +4221,7 @@ static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 
 	mod->synctype = ST_FRAMETIME; // keep MD5 animations synced to when .frame is changed. framegroups are otherwise not very useful.
 	mod->type = mod_alias;
-	mod->extradata = (byte *)outhdr;
+	mod->extradata[PV_MD5] = (byte *)outhdr;
 
 	Mod_CalcAliasBounds (mod, outhdr, vertex_offset, (byte *)poutvertexes); // johnfitz
 
@@ -4232,7 +4246,7 @@ void Mod_Print (void)
 	Con_SafePrintf ("Cached models:\n"); // johnfitz -- safeprint instead of print
 	for (i = 0, mod = mod_known; i < mod_numknown; i++, mod++)
 	{
-		Con_SafePrintf ("%8p : %s\n", mod->extradata, mod->name); // johnfitz -- safeprint instead of print
+		Con_SafePrintf ("%8p %8p: %s\n", mod->extradata[0], mod->extradata[1], mod->name); // johnfitz -- safeprint instead of print
 	}
 	Con_Printf ("%i models\n", mod_numknown); // johnfitz -- print the total too
 }

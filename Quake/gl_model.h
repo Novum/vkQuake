@@ -344,8 +344,8 @@ typedef struct aliashdr_s aliashdr_t;
 
 typedef enum
 {
-	PV_QUAKE1 = 1, // trivertx_t
-	PV_MD5,		   // iqmvert_t
+	PV_QUAKE1, // trivertx_t
+	PV_MD5,	   // md5vert_t
 } poseverttype_t;
 
 typedef struct aliashdr_s
@@ -544,7 +544,7 @@ typedef struct qmodel_s
 	//
 	// additional model data
 	//
-	byte *extradata; // only access through Mod_Extradata
+	byte *extradata[2]; // only access through Mod_Extradata
 
 	// Ray tracing
 	VkAccelerationStructureKHR blas;
@@ -558,7 +558,7 @@ void	  Mod_Init (void);
 void	  Mod_ClearAll (void);
 void	  Mod_ResetAll (void); // for gamedir changes (Host_Game_f)
 qmodel_t *Mod_ForName (const char *name, qboolean crash);
-void	 *Mod_Extradata (qmodel_t *mod); // handles caching
+void	 *Mod_Extradata (qmodel_t *mod);
 void	  Mod_TouchModel (const char *name);
 
 mleaf_t *Mod_PointInLeaf (float *p, qmodel_t *model);
