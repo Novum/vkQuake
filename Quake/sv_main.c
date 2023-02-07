@@ -937,7 +937,7 @@ static void SVFTE_BuildSnapshotForClient (client_t *client)
 			ents[numents].state.velocity[1] = ent->v.velocity[1] * 8;
 			ents[numents].state.velocity[2] = ent->v.velocity[2] * 8;
 		}
-		else if (ent->alpha == ENTALPHA_ZERO && !ent->v.effects) // don't send invisible entities unless they have effects
+		else if (ents[numents].state.alpha == ENTALPHA_ZERO && !ent->v.effects) // don't send invisible entities unless they have effects
 			continue;
 		// EFLAGS_VIEWMODEL was handled above
 		ents[numents].state.eflags |= eflags;
