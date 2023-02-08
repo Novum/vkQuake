@@ -90,6 +90,17 @@ static float ReadFloatUnaligned (byte *ptr)
 
 /*
 ===============
+Mod_ToggleMD5_f
+===============
+*/
+static void Mod_ToggleMD5_f (cvar_t *var)
+{
+	for (int i = 0; i < cl.maxclients; ++i)
+		R_TranslateNewPlayerSkin (i);
+}
+
+/*
+===============
 Mod_Init
 ===============
 */
@@ -99,6 +110,7 @@ void Mod_Init (void)
 	Cvar_RegisterVariable (&external_ents);
 	Cvar_RegisterVariable (&r_loadmd5models);
 	Cvar_RegisterVariable (&r_md5models);
+	Cvar_SetCallback (&r_md5models, Mod_ToggleMD5_f);
 
 	// johnfitz -- create notexture miptex
 	r_notexture_mip = (texture_t *)Mem_Alloc (sizeof (texture_t));
@@ -4061,6 +4073,13 @@ static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 					surf->fbtextures[surf->numskins][f] = NULL;
 					if (fmt == SRC_INDEXED)
 					{
+						if (f == 0)
+						{
+							size_t size = fwidth * fheight;
+							byte  *texels = (byte *)Mem_Alloc (size);
+							surf->texels[surf->numskins] = texels;
+							memcpy (texels, data, size);
+						}
 						// 8bit base texture. use it for fullbrights.
 						for (j = 0; j < fwidth * fheight; j++)
 						{

@@ -490,7 +490,7 @@ void R_DrawAliasModel (cb_context_t *cbx, entity_t *e, int *aliaspolys)
 	tx = paliashdr->gltextures[skinnum][anim];
 	fb = paliashdr->fbtextures[skinnum][anim];
 	if (e->colormap != vid.colormap && !gl_nocolors.value)
-		if ((uintptr_t)e >= (uintptr_t)&cl.entities[1] && (uintptr_t)e <= (uintptr_t)&cl.entities[cl.maxclients])
+		if ((uintptr_t)e >= (uintptr_t)&cl.entities[1] && (uintptr_t)e <= (uintptr_t)&cl.entities[cl.maxclients] && playertextures[e - cl.entities - 1])
 			tx = playertextures[e - cl.entities - 1];
 	if (!gl_fullbrights.value)
 		fb = NULL;

@@ -264,6 +264,8 @@ void GLMesh_DeleteMeshBuffers (aliashdr_t *hdr)
 	hdr->joints_heap = NULL;
 	hdr->joints_heap_node = NULL;
 	hdr->joints_set = VK_NULL_HANDLE;
+	for (int i = 0; i < MAX_SKINS; ++i)
+		SAFE_FREE (hdr->texels[i]);
 }
 
 /*

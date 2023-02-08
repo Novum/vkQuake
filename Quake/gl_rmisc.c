@@ -3743,7 +3743,16 @@ void R_TranslateNewPlayerSkin (int playernum)
 
 	pixels = (byte *)paliashdr->texels[skinnum];
 	if (!pixels)
+	{
+		static qboolean warned = false;
+		if (!warned)
+		{
+			warned = true;
+			Con_Warning ("can't recolor non-indexed player skin\n");
+		}
+		playertextures[playernum] = NULL;
 		return;
+	}
 
 	// upload new image
 	q_snprintf (name, sizeof (name), "player_%i", playernum);
