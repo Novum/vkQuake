@@ -127,6 +127,28 @@ void Mod_Init (void)
 
 /*
 ===============
+Mod_Extradata_CheckSkin
+
+Caches the data if needed
+===============
+*/
+void *Mod_Extradata_CheckSkin (qmodel_t *mod, int skinnum)
+{
+	Mod_LoadModel (mod, true);
+	if (mod->type == mod_alias && mod->extradata[1])
+	{
+		if (r_md5models.value >= 3)
+			return mod->extradata[1];
+		if (r_md5models.value >= 2 && skinnum < ((aliashdr_t *)mod->extradata[1])->numskins)
+			return mod->extradata[1];
+		if (r_md5models.value && mod->md5_prio)
+			return mod->extradata[1];
+	}
+	return mod->extradata[0];
+}
+
+/*
+===============
 Mod_Extradata
 
 Caches the data if needed
@@ -134,15 +156,7 @@ Caches the data if needed
 */
 void *Mod_Extradata (qmodel_t *mod)
 {
-	Mod_LoadModel (mod, true);
-	if (mod->type == mod_alias)
-	{
-		if (r_md5models.value && mod->extradata[1])
-			return mod->extradata[1];
-		return mod->extradata[0];
-	}
-	else
-		return mod->extradata[0];
+	return Mod_Extradata_CheckSkin (mod, 0);
 }
 
 /*
@@ -491,6 +505,7 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 		}
 	}
 
+	unsigned int md5_path_id = mod->path_id;
 	buf = COM_LoadFile (mod->name, &mod->path_id);
 	if (!buf)
 	{
@@ -498,6 +513,7 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 			Host_Error ("Mod_LoadModel: %s not found", mod->name); // johnfitz -- was "Mod_NumForName"
 		return NULL;
 	}
+	mod->md5_prio = md5_path_id >= mod->path_id;
 
 	//
 	// allocate a new model

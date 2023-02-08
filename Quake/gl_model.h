@@ -546,6 +546,8 @@ typedef struct qmodel_s
 	//
 	byte *extradata[2]; // only access through Mod_Extradata
 
+	qboolean md5_prio; // if true, the MD5 model has at least as much path priority as the MDL model
+
 	// Ray tracing
 	VkAccelerationStructureKHR blas;
 	VkBuffer				   blas_buffer;
@@ -558,6 +560,7 @@ void	  Mod_Init (void);
 void	  Mod_ClearAll (void);
 void	  Mod_ResetAll (void); // for gamedir changes (Host_Game_f)
 qmodel_t *Mod_ForName (const char *name, qboolean crash);
+void	 *Mod_Extradata_CheckSkin (qmodel_t *mod, int skinnum);
 void	 *Mod_Extradata (qmodel_t *mod);
 void	  Mod_TouchModel (const char *name);
 

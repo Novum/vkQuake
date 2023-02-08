@@ -418,7 +418,7 @@ R_DrawAliasModel -- johnfitz -- almost completely rewritten
 void R_DrawAliasModel (cb_context_t *cbx, entity_t *e, int *aliaspolys)
 {
 	aliashdr_t	*paliashdr;
-	int			 anim, skinnum;
+	int			 anim, skinnum = e->skinnum;
 	gltexture_t *tx, *fb;
 	lerpdata_t	 lerpdata;
 	qboolean	 alphatest = !!(e->model->flags & MF_HOLEY);
@@ -426,7 +426,7 @@ void R_DrawAliasModel (cb_context_t *cbx, entity_t *e, int *aliaspolys)
 	//
 	// setup pose/lerp data -- do it first so we don't miss updates due to culling
 	//
-	paliashdr = (aliashdr_t *)Mod_Extradata (e->model);
+	paliashdr = (aliashdr_t *)Mod_Extradata_CheckSkin (e->model, skinnum);
 	R_SetupAliasFrame (e, paliashdr, e->frame, &lerpdata);
 	R_SetupEntityTransform (e, &lerpdata);
 
@@ -480,7 +480,6 @@ void R_DrawAliasModel (cb_context_t *cbx, entity_t *e, int *aliaspolys)
 	// set up textures
 	//
 	anim = (int)(cl.time * 10) & 3;
-	skinnum = e->skinnum;
 	if ((skinnum >= paliashdr->numskins) || (skinnum < 0))
 	{
 		Con_DPrintf ("R_DrawAliasModel: no such skin # %d for '%s'\n", skinnum, e->model->name);
@@ -539,7 +538,7 @@ void R_DrawAliasModel_ShowTris (cb_context_t *cbx, entity_t *e)
 	//
 	// setup pose/lerp data -- do it first so we don't miss updates due to culling
 	//
-	paliashdr = (aliashdr_t *)Mod_Extradata (e->model);
+	paliashdr = (aliashdr_t *)Mod_Extradata_CheckSkin (e->model, e->skinnum);
 
 	R_SetupAliasFrame (e, paliashdr, e->frame, &lerpdata);
 	R_SetupEntityTransform (e, &lerpdata);
