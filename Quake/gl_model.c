@@ -3721,31 +3721,52 @@ MD5_ComputeNormals
 */
 static void MD5_ComputeNormals (md5vert_t *vert, size_t numverts, unsigned short *indexes, size_t numindexes)
 {
-	size_t	   v, t;
-	md5vert_t *v0, *v1, *v2;
-	vec3_t	   d1, d2, norm;
-	for (v = 0; v < numverts; v++)
-		vert[v].norm[0] = vert[v].norm[1] = vert[v].norm[2] = 0;
-	for (t = 0; t < numindexes; t += 3)
-	{
-		v0 = &vert[indexes[t + 0]];
-		v1 = &vert[indexes[t + 1]];
-		v2 = &vert[indexes[t + 2]];
+	hash_map_t *pos_to_normal_map = HashMap_Create (vec3_t, vec3_t, &HashVec3);
+	HashMap_Reserve (pos_to_normal_map, numverts);
 
-		VectorSubtract (v1->xyz, v0->xyz, d1);
-		VectorSubtract (v2->xyz, v0->xyz, d2);
+	for (size_t v = 0; v < numverts; v++)
+		vert[v].norm[0] = vert[v].norm[1] = vert[v].norm[2] = 0;
+	for (size_t t = 0; t < numindexes; t += 3)
+	{
+		md5vert_t *verts[3] = {&vert[indexes[t + 0]], &vert[indexes[t + 1]], &vert[indexes[t + 2]]};
+
+		vec3_t d1, d2;
+		VectorSubtract (verts[1]->xyz, verts[0]->xyz, d1);
+		VectorSubtract (verts[2]->xyz, verts[0]->xyz, d2);
+		VectorNormalize (d1);
+		VectorNormalize (d2);
+
+		vec3_t norm;
 		CrossProduct (d1, d2, norm);
 		VectorNormalize (norm);
 
-		// FIXME: this should be weighted by each vertex angle.
-		VectorAdd (v0->norm, norm, v0->norm);
-		VectorAdd (v1->norm, norm, v1->norm);
-		VectorAdd (v2->norm, norm, v2->norm);
+		const float angle = acos (DotProduct (d1, d2));
+		VectorScale (norm, angle, norm);
+
+		vec3_t *found_normal;
+		for (int i = 0; i < 3; ++i)
+		{
+			if ((found_normal = HashMap_Lookup (vec3_t, pos_to_normal_map, &verts[i]->xyz)))
+				VectorAdd (norm, *found_normal, *found_normal);
+			else
+				HashMap_Insert (pos_to_normal_map, &verts[i]->xyz, &norm);
+		}
 	}
 
-	// and make sure it actually makes sense.
-	for (v = 0; v < numverts; v++)
-		VectorNormalize (vert[v].norm);
+	const uint32_t map_size = HashMap_Size (pos_to_normal_map);
+	for (uint32_t i = 0; i < map_size; ++i)
+	{
+		vec3_t *norm = HashMap_GetValue (vec3_t, pos_to_normal_map, i);
+		VectorNormalize (*norm);
+	}
+
+	for (size_t v = 0; v < numverts; v++)
+	{
+		vec3_t *norm = HashMap_Lookup (vec3_t, pos_to_normal_map, &vert[v].xyz);
+		VectorCopy (*norm, vert[v].norm);
+	}
+
+	HashMap_Destroy (pos_to_normal_map);
 }
 
 /*

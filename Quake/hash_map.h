@@ -89,6 +89,18 @@ static inline uint32_t HashCombine (uint32_t a, uint32_t b)
 	return (b * 5) + 0xe6546b64;
 }
 
+static inline uint32_t HashVec2 (const void *const val)
+{
+	vec2_t *vec = (vec2_t *)val;
+	return HashCombine (HashFloat (&(*vec)[0]), HashFloat (&(*vec)[1]));
+}
+
+static inline uint32_t HashVec3 (const void *const val)
+{
+	vec3_t *vec = (vec3_t *)val;
+	return HashCombine (HashFloat (&(*vec)[0]), HashCombine (HashFloat (&(*vec)[1]), HashFloat (&(*vec)[2])));
+}
+
 #ifdef _DEBUG
 void TestHashMap_f (void);
 #endif
