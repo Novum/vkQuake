@@ -3763,7 +3763,8 @@ static void MD5_ComputeNormals (md5vert_t *vert, size_t numverts, unsigned short
 	for (size_t v = 0; v < numverts; v++)
 	{
 		vec3_t *norm = HashMap_Lookup (vec3_t, pos_to_normal_map, &vert[v].xyz);
-		VectorCopy (*norm, vert[v].norm);
+		if (norm)
+			VectorCopy (*norm, vert[v].norm);
 	}
 
 	HashMap_Destroy (pos_to_normal_map);
