@@ -61,22 +61,27 @@ void main ()
 	const vec3 xyz = in_position.xyz;
 
 	vec3 skinned_positions[2] = {vec3 (0.0f), vec3 (0.0f)};
+	vec3 skinned_normals[2] = {vec3 (0.0f), vec3 (0.0f)};
 	uint joint_offsets[2] = {ubo.joints_offset0, ubo.joints_offset1};
 	for (int j = 0; j < 2; ++j)
 	{
 		const uint joints_offset = joint_offsets[j];
 		for (int i = 0; i < 4; ++i)
 		{
-			const uint	joint_index = in_joint_indices[i];
-			const float joint_weight = in_joint_weights[i];
-			float		joint_mat[12];
-			for (int k = 0; k < 12; ++k)
-				joint_mat[k] = joint_mats[((joints_offset + joint_index) * 12) + k];
-			float	   y = (xyz[0] * joint_mat[4] + xyz[1] * joint_mat[5] + xyz[2] * joint_mat[6] + joint_mat[7]);
-			float	   z = (xyz[0] * joint_mat[8] + xyz[1] * joint_mat[9] + xyz[2] * joint_mat[10] + joint_mat[11]);
-			float	   x = (xyz[0] * joint_mat[0] + xyz[1] * joint_mat[1] + xyz[2] * joint_mat[2] + joint_mat[3]);
-			const vec3 skinned_pos = vec3 (x, y, z);
+			const uint	 joint_index = in_joint_indices[i];
+			const float	 joint_weight = in_joint_weights[i];
+			const uint	 mat_offset = (joints_offset + joint_index) * 12;
+			const mat4x3 joint_mat = mat4x3 (
+				joint_mats[mat_offset + 0], joint_mats[mat_offset + 4], joint_mats[mat_offset + 8], joint_mats[mat_offset + 1], joint_mats[mat_offset + 5],
+				joint_mats[mat_offset + 9], joint_mats[mat_offset + 2], joint_mats[mat_offset + 6], joint_mats[mat_offset + 10], joint_mats[mat_offset + 3],
+				joint_mats[mat_offset + 7], joint_mats[mat_offset + 11]);
+			const vec3 skinned_pos = (joint_mat * vec4 (xyz, 1.0f)).xyz;
 			skinned_positions[j] += joint_weight * skinned_pos;
+			if ((ubo.flags & 0x2) == 0)
+			{
+				const vec3 skinned_normal = (mat3x3 (joint_mat) * in_normal).xyz;
+				skinned_normals[j] += joint_weight * skinned_normal;
+			}
 		}
 	}
 
@@ -86,7 +91,8 @@ void main ()
 
 	if ((ubo.flags & 0x2) == 0)
 	{
-		const float dot = r_avertexnormal_dot (in_normal);
+		const vec3	lerped_normal = mix (skinned_normals[0], skinned_normals[1], ubo.blend_factor);
+		const float dot = r_avertexnormal_dot (normalize (lerped_normal));
 		out_color = vec4 (ubo.light_color * dot, 1.0);
 	}
 	else
