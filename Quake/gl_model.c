@@ -3731,8 +3731,8 @@ static void MD5_ComputeNormals (md5vert_t *vert, size_t numverts, unsigned short
 		md5vert_t *verts[3] = {&vert[indexes[t + 0]], &vert[indexes[t + 1]], &vert[indexes[t + 2]]};
 
 		vec3_t d1, d2;
-		VectorSubtract (verts[1]->xyz, verts[0]->xyz, d1);
-		VectorSubtract (verts[2]->xyz, verts[0]->xyz, d2);
+		VectorSubtract (verts[2]->xyz, verts[0]->xyz, d1);
+		VectorSubtract (verts[1]->xyz, verts[0]->xyz, d2);
 		VectorNormalize (d1);
 		VectorNormalize (d2);
 
