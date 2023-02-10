@@ -895,13 +895,11 @@ static void R_InitDynamicStorageBuffers (void)
 {
 	VkBufferUsageFlags usage_flags = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
 	qboolean		   get_device_address = false;
-#if defined(VK_KHR_ray_query)
 	if (vulkan_globals.ray_query)
 	{
 		usage_flags |= VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
 		get_device_address = true;
 	}
-#endif
 
 	R_InitDynamicBuffers (dyn_storage_buffers, &dyn_storage_buffer_memory, &current_dyn_storage_buffer_size, usage_flags, get_device_address, "storage buffer");
 }
