@@ -1350,14 +1350,6 @@ enum
 	GAME_OPTIONS_ITEMS
 };
 
-enum
-{
-	ALWAYSRUN_OFF = 0,
-	ALWAYSRUN_VANILLA,
-	ALWAYSRUN_QUAKESPASM,
-	ALWAYSRUN_ITEMS
-};
-
 static int game_options_cursor = 0;
 
 static void M_Menu_GameOptions_f (void)
@@ -1370,7 +1362,6 @@ static void M_Menu_GameOptions_f (void)
 
 static void M_GameOptions_AdjustSliders (int dir, qboolean mouse)
 {
-	int	  curr_alwaysrun, target_alwaysrun;
 	float f, clamped_mouse = CLAMP (SLIDER_START, (float)m_mouse_x, SLIDER_END);
 
 	if (fabsf (clamped_mouse - (float)m_mouse_x) > 12.0f)
@@ -1422,33 +1413,12 @@ static void M_GameOptions_AdjustSliders (int dir, qboolean mouse)
 		Cvar_SetValue ("v_gunkick", ((int)v_gunkick.value + 3 + dir) % 3);
 		break;
 	case GAME_OPT_ALWAYRUN: // always run
-		if (cl_alwaysrun.value)
-			curr_alwaysrun = ALWAYSRUN_QUAKESPASM;
-		else if (cl_forwardspeed.value > 200)
-			curr_alwaysrun = ALWAYSRUN_VANILLA;
-		else
-			curr_alwaysrun = ALWAYSRUN_OFF;
+		Cvar_SetValue ("cl_alwaysrun", !(cl_alwaysrun.value || cl_forwardspeed.value > 200));
 
-		target_alwaysrun = (ALWAYSRUN_ITEMS + curr_alwaysrun + dir) % ALWAYSRUN_ITEMS;
-
-		if (target_alwaysrun == ALWAYSRUN_VANILLA)
-		{
-			Cvar_SetValue ("cl_alwaysrun", 0);
-			Cvar_SetValue ("cl_forwardspeed", 400);
-			Cvar_SetValue ("cl_backspeed", 400);
-		}
-		else if (target_alwaysrun == ALWAYSRUN_QUAKESPASM)
-		{
-			Cvar_SetValue ("cl_alwaysrun", 1);
-			Cvar_SetValue ("cl_forwardspeed", 200);
-			Cvar_SetValue ("cl_backspeed", 200);
-		}
-		else // ALWAYSRUN_OFF
-		{
-			Cvar_SetValue ("cl_alwaysrun", 0);
-			Cvar_SetValue ("cl_forwardspeed", 200);
-			Cvar_SetValue ("cl_backspeed", 200);
-		}
+		// The past vanilla "always run" option set these two CVARs, so reset them too when
+		// changing in case the user previously used that option.
+		Cvar_SetValue ("cl_forwardspeed", 200);
+		Cvar_SetValue ("cl_backspeed", 200);
 		break;
 	case GAME_OPT_INVMOUSE:
 		Cvar_SetValue ("m_pitch", -m_pitch.value);
@@ -1565,11 +1535,7 @@ static void M_GameOptions_Draw (cb_context_t *cbx)
 	M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GAME_OPT_GUNKICK, (v_gunkick.value == 2) ? "smooth" : (v_gunkick.value == 1) ? "classic" : "off");
 
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GAME_OPT_ALWAYRUN, "Always Run");
-	M_Print (
-		cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GAME_OPT_ALWAYRUN,
-		cl_alwaysrun.value				  ? "quakespasm"
-		: (cl_forwardspeed.value > 200.0) ? "vanilla"
-										  : "off");
+	M_DrawCheckbox (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GAME_OPT_ALWAYRUN, cl_alwaysrun.value || cl_forwardspeed.value > 200.0);
 
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GAME_OPT_INVMOUSE, "Invert Mouse");
 	M_DrawCheckbox (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GAME_OPT_INVMOUSE, m_pitch.value < 0);
