@@ -2348,7 +2348,7 @@ void R_BuildTopLevelAccelerationStructure (void *unused)
 	if (bmodel_tlas == VK_NULL_HANDLE)
 		return;
 
-	cb_context_t *cbx = &vulkan_globals.secondary_cb_contexts[CBX_UPDATE_LIGHTMAPS];
+	cb_context_t *cbx = &vulkan_globals.primary_cb_contexts[PCBX_BUILD_ACCELERATION_STRUCTURES];
 	R_BeginDebugUtilsLabel (cbx, "Build TLAS");
 
 	int num_instances = 0;
@@ -2978,7 +2978,7 @@ R_UpdateLightmapsAndIndirect
 */
 void R_UpdateLightmapsAndIndirect (void *unused)
 {
-	cb_context_t *cbx = &vulkan_globals.secondary_cb_contexts[CBX_UPDATE_LIGHTMAPS];
+	cb_context_t *cbx = &vulkan_globals.primary_cb_contexts[PCBX_UPDATE_LIGHTMAPS];
 	R_BeginDebugUtilsLabel (cbx, "Update Lightmaps");
 
 	for (int i = 0; i < MAX_LIGHTSTYLES; ++i)

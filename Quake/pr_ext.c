@@ -4488,7 +4488,7 @@ static void PF_cl_drawcharacter (void)
 	if (charcode == 32)
 		return; // don't waste time on spaces
 
-	DrawQC_CharacterQuad (&vulkan_globals.secondary_cb_contexts[CBX_GUI], pos[0], pos[1], charcode, size[0], size[1], rgb, alpha);
+	DrawQC_CharacterQuad (&vulkan_globals.secondary_cb_contexts[SCBX_GUI][0], pos[0], pos[1], charcode, size[0], size[1], rgb, alpha);
 }
 
 static void PF_cl_drawrawstring (void)
@@ -4507,7 +4507,7 @@ static void PF_cl_drawrawstring (void)
 
 	while ((c = *text++))
 	{
-		DrawQC_CharacterQuad (&vulkan_globals.secondary_cb_contexts[CBX_GUI], x, pos[1], c, size[0], size[1], rgb, alpha);
+		DrawQC_CharacterQuad (&vulkan_globals.secondary_cb_contexts[SCBX_GUI][0], x, pos[1], c, size[0], size[1], rgb, alpha);
 		x += size[0];
 	}
 }
@@ -4530,7 +4530,7 @@ static void PF_cl_drawstring (void)
 
 	while ((c = PR_Markup_Parse (&mu)))
 	{
-		DrawQC_CharacterQuad (&vulkan_globals.secondary_cb_contexts[CBX_GUI], x, pos[1], c, size[0], size[1], rgb, alpha);
+		DrawQC_CharacterQuad (&vulkan_globals.secondary_cb_contexts[SCBX_GUI][0], x, pos[1], c, size[0], size[1], rgb, alpha);
 		x += size[0];
 	}
 }
@@ -4572,7 +4572,7 @@ static void PF_cl_drawsetclip (void)
 	render_area.offset.y = y;
 	render_area.extent.width = w;
 	render_area.extent.height = h;
-	vkCmdSetScissor (vulkan_globals.secondary_cb_contexts[CBX_GUI].cb, 0, 1, &render_area);
+	vkCmdSetScissor (vulkan_globals.secondary_cb_contexts[SCBX_GUI][0].cb, 0, 1, &render_area);
 }
 static void PF_cl_drawresetclip (void)
 {
@@ -4581,7 +4581,7 @@ static void PF_cl_drawresetclip (void)
 	render_area.offset.y = 0;
 	render_area.extent.width = vid.width;
 	render_area.extent.height = vid.height;
-	vkCmdSetScissor (vulkan_globals.secondary_cb_contexts[CBX_GUI].cb, 0, 1, &render_area);
+	vkCmdSetScissor (vulkan_globals.secondary_cb_contexts[SCBX_GUI][0].cb, 0, 1, &render_area);
 }
 
 static void PF_cl_precachepic (void)
@@ -4612,7 +4612,7 @@ static void PF_cl_drawpic (void)
 	float	alpha = G_FLOAT (OFS_PARM4);
 
 	if (pic)
-		Draw_SubPic (&vulkan_globals.secondary_cb_contexts[CBX_GUI], pos[0], pos[1], size[0], size[1], pic, 0, 0, 1, 1, rgb, alpha);
+		Draw_SubPic (&vulkan_globals.secondary_cb_contexts[SCBX_GUI][0], pos[0], pos[1], size[0], size[1], pic, 0, 0, 1, 1, rgb, alpha);
 }
 
 static void PF_cl_getimagesize (void)
@@ -4636,7 +4636,8 @@ static void PF_cl_drawsubpic (void)
 
 	if (pic)
 		Draw_SubPic (
-			&vulkan_globals.secondary_cb_contexts[CBX_GUI], pos[0], pos[1], size[0], size[1], pic, srcpos[0], srcpos[1], srcsize[0], srcsize[1], rgb, alpha);
+			&vulkan_globals.secondary_cb_contexts[SCBX_GUI][0], pos[0], pos[1], size[0], size[1], pic, srcpos[0], srcpos[1], srcsize[0], srcsize[1], rgb,
+			alpha);
 }
 
 static void PF_cl_drawfill (void)
@@ -4685,7 +4686,7 @@ static void PF_cl_drawfill (void)
 	vertices[4] = corner_verts[3];
 	vertices[5] = corner_verts[0];
 
-	cb_context_t *cbx = &vulkan_globals.secondary_cb_contexts[CBX_GUI];
+	cb_context_t *cbx = &vulkan_globals.secondary_cb_contexts[SCBX_GUI][0];
 	vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 1, &buffer, &buffer_offset);
 	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_notex_blend_pipeline[cbx->render_pass_index]);
 	vulkan_globals.vk_cmd_bind_descriptor_sets (

@@ -120,34 +120,34 @@ static VkSurfaceKHR				vulkan_surface;
 static VkSurfaceCapabilitiesKHR vulkan_surface_capabilities;
 static VkSwapchainKHR			vulkan_swapchain;
 
-static uint32_t		   num_swap_chain_images;
-static qboolean		   render_resources_created = false;
-static uint32_t		   current_cb_index;
-static VkCommandPool   primary_command_pool;
-static VkCommandPool   secondary_command_pools[CBX_NUM];
-static VkCommandPool   transient_command_pool;
-static VkCommandBuffer primary_command_buffers[DOUBLE_BUFFERED];
-static VkCommandBuffer secondary_command_buffers[CBX_NUM][DOUBLE_BUFFERED];
-static VkFence		   command_buffer_fences[DOUBLE_BUFFERED];
-static qboolean		   frame_submitted[DOUBLE_BUFFERED];
-static VkFramebuffer   main_framebuffers[NUM_COLOR_BUFFERS];
-static VkSemaphore	   image_aquired_semaphores[DOUBLE_BUFFERED];
-static VkSemaphore	   draw_complete_semaphores[DOUBLE_BUFFERED];
-static VkFramebuffer   ui_framebuffers[MAX_SWAP_CHAIN_IMAGES];
-static VkImage		   swapchain_images[MAX_SWAP_CHAIN_IMAGES];
-static VkImageView	   swapchain_images_views[MAX_SWAP_CHAIN_IMAGES];
-static VkImage		   depth_buffer;
-static vulkan_memory_t depth_buffer_memory;
-static VkImageView	   depth_buffer_view;
-static vulkan_memory_t color_buffers_memory[NUM_COLOR_BUFFERS];
-static VkImageView	   color_buffers_view[NUM_COLOR_BUFFERS];
-static VkImage		   msaa_color_buffer;
-static vulkan_memory_t msaa_color_buffer_memory;
-static VkImageView	   msaa_color_buffer_view;
-static VkDescriptorSet postprocess_descriptor_set;
-static VkBuffer		   palette_colors_buffer;
-static VkBufferView	   palette_buffer_view;
-static VkBuffer		   palette_octree_buffer;
+static uint32_t			num_swap_chain_images;
+static qboolean			render_resources_created = false;
+static uint32_t			current_cb_index;
+static VkCommandPool	primary_command_pools[PCBX_NUM];
+static VkCommandPool   *secondary_command_pools[SCBX_NUM];
+static VkCommandPool	transient_command_pool;
+static VkCommandBuffer	primary_command_buffers[PCBX_NUM][DOUBLE_BUFFERED];
+static VkCommandBuffer *secondary_command_buffers[SCBX_NUM][DOUBLE_BUFFERED];
+static VkFence			command_buffer_fences[DOUBLE_BUFFERED];
+static qboolean			frame_submitted[DOUBLE_BUFFERED];
+static VkFramebuffer	main_framebuffers[NUM_COLOR_BUFFERS];
+static VkSemaphore		image_aquired_semaphores[DOUBLE_BUFFERED];
+static VkSemaphore		draw_complete_semaphores[DOUBLE_BUFFERED];
+static VkFramebuffer	ui_framebuffers[MAX_SWAP_CHAIN_IMAGES];
+static VkImage			swapchain_images[MAX_SWAP_CHAIN_IMAGES];
+static VkImageView		swapchain_images_views[MAX_SWAP_CHAIN_IMAGES];
+static VkImage			depth_buffer;
+static vulkan_memory_t	depth_buffer_memory;
+static VkImageView		depth_buffer_view;
+static vulkan_memory_t	color_buffers_memory[NUM_COLOR_BUFFERS];
+static VkImageView		color_buffers_view[NUM_COLOR_BUFFERS];
+static VkImage			msaa_color_buffer;
+static vulkan_memory_t	msaa_color_buffer_memory;
+static VkImageView		msaa_color_buffer_view;
+static VkDescriptorSet	postprocess_descriptor_set;
+static VkBuffer			palette_colors_buffer;
+static VkBufferView		palette_buffer_view;
+static VkBuffer			palette_octree_buffer;
 
 static PFN_vkGetInstanceProcAddr					  fpGetInstanceProcAddr;
 static PFN_vkGetDeviceProcAddr						  fpGetDeviceProcAddr;
@@ -1237,36 +1237,55 @@ static void GL_InitCommandBuffers (void)
 	command_pool_create_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 	command_pool_create_info.queueFamilyIndex = vulkan_globals.gfx_queue_family_index;
 
+	for (int pcbx_index = 0; pcbx_index < PCBX_NUM; ++pcbx_index)
 	{
-		err = vkCreateCommandPool (vulkan_globals.device, &command_pool_create_info, NULL, &primary_command_pool);
+		err = vkCreateCommandPool (vulkan_globals.device, &command_pool_create_info, NULL, &primary_command_pools[pcbx_index]);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkCreateCommandPool failed");
 
 		ZEROED_STRUCT (VkCommandBufferAllocateInfo, command_buffer_allocate_info);
 		command_buffer_allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-		command_buffer_allocate_info.commandPool = primary_command_pool;
+		command_buffer_allocate_info.commandPool = primary_command_pools[pcbx_index];
 		command_buffer_allocate_info.commandBufferCount = DOUBLE_BUFFERED;
 
-		err = vkAllocateCommandBuffers (vulkan_globals.device, &command_buffer_allocate_info, primary_command_buffers);
+		err = vkAllocateCommandBuffers (vulkan_globals.device, &command_buffer_allocate_info, primary_command_buffers[pcbx_index]);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkAllocateCommandBuffers failed");
+		for (int i = 0; i < DOUBLE_BUFFERED; ++i)
+			GL_SetObjectName (
+				(uint64_t)(uintptr_t)primary_command_buffers[pcbx_index][i], VK_OBJECT_TYPE_COMMAND_BUFFER, va ("PCBX index: %d cb_index: %d", pcbx_index, i));
 	}
 
-	for (int cbx_index = 0; cbx_index < CBX_NUM; ++cbx_index)
+	for (int scbx_index = 0; scbx_index < SCBX_NUM; ++scbx_index)
 	{
-		err = vkCreateCommandPool (vulkan_globals.device, &command_pool_create_info, NULL, &secondary_command_pools[cbx_index]);
-		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateCommandPool failed");
+		const int multiplicity = SECONDARY_CB_MULTIPLICITY[scbx_index];
+		vulkan_globals.secondary_cb_contexts[scbx_index] = Mem_Alloc (multiplicity * sizeof (cb_context_t));
+		secondary_command_pools[scbx_index] = Mem_Alloc (multiplicity * sizeof (VkCommandPool));
+		for (int i = 0; i < DOUBLE_BUFFERED; ++i)
+			secondary_command_buffers[scbx_index][i] = Mem_Alloc (multiplicity * sizeof (VkCommandBuffer));
+		for (int i = 0; i < multiplicity; ++i)
+		{
+			err = vkCreateCommandPool (vulkan_globals.device, &command_pool_create_info, NULL, &secondary_command_pools[scbx_index][i]);
+			if (err != VK_SUCCESS)
+				Sys_Error ("vkCreateCommandPool failed");
 
-		ZEROED_STRUCT (VkCommandBufferAllocateInfo, command_buffer_allocate_info);
-		command_buffer_allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-		command_buffer_allocate_info.commandPool = secondary_command_pools[cbx_index];
-		command_buffer_allocate_info.commandBufferCount = DOUBLE_BUFFERED;
-		command_buffer_allocate_info.level = VK_COMMAND_BUFFER_LEVEL_SECONDARY;
+			ZEROED_STRUCT (VkCommandBufferAllocateInfo, command_buffer_allocate_info);
+			command_buffer_allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+			command_buffer_allocate_info.commandPool = secondary_command_pools[scbx_index][i];
+			command_buffer_allocate_info.commandBufferCount = DOUBLE_BUFFERED;
+			command_buffer_allocate_info.level = VK_COMMAND_BUFFER_LEVEL_SECONDARY;
 
-		err = vkAllocateCommandBuffers (vulkan_globals.device, &command_buffer_allocate_info, secondary_command_buffers[cbx_index]);
-		if (err != VK_SUCCESS)
-			Sys_Error ("vkAllocateCommandBuffers failed");
+			VkCommandBuffer command_buffers[DOUBLE_BUFFERED];
+			err = vkAllocateCommandBuffers (vulkan_globals.device, &command_buffer_allocate_info, command_buffers);
+			if (err != VK_SUCCESS)
+				Sys_Error ("vkAllocateCommandBuffers failed");
+			for (int j = 0; j < DOUBLE_BUFFERED; ++j)
+			{
+				secondary_command_buffers[scbx_index][j][i] = command_buffers[j];
+				GL_SetObjectName (
+					(uint64_t)(uintptr_t)command_buffers[j], VK_OBJECT_TYPE_COMMAND_BUFFER, va ("SCBX index: %d sub_index: %d cb_index: %d", scbx_index, i, j));
+			}
+		}
 	}
 
 	ZEROED_STRUCT (VkFenceCreateInfo, fence_create_info);
@@ -1351,8 +1370,11 @@ static void GL_CreateRenderPasses ()
 		render_pass_create_info.subpassCount = 1;
 		render_pass_create_info.pSubpasses = &subpass_description;
 
-		for (int cbx_index = CBX_WORLD_0; cbx_index <= CBX_VIEW_MODEL; ++cbx_index)
-			assert (vulkan_globals.secondary_cb_contexts[cbx_index].render_pass == VK_NULL_HANDLE);
+		for (int scbx_index = SCBX_WORLD; scbx_index <= SCBX_VIEW_MODEL; ++scbx_index)
+		{
+			for (int i = 0; i < SECONDARY_CB_MULTIPLICITY[scbx_index]; ++i)
+				assert (vulkan_globals.secondary_cb_contexts[scbx_index][i].render_pass == VK_NULL_HANDLE);
+		}
 
 		err = vkCreateRenderPass (vulkan_globals.device, &render_pass_create_info, NULL, &vulkan_globals.main_render_pass[0]);
 		if (err != VK_SUCCESS)
@@ -1365,12 +1387,15 @@ static void GL_CreateRenderPasses ()
 			Sys_Error ("Couldn't create Vulkan render pass");
 		GL_SetObjectName ((uint64_t)vulkan_globals.main_render_pass[1], VK_OBJECT_TYPE_RENDER_PASS, "main_no_stencil");
 
-		for (int cbx_index = CBX_WORLD_0; cbx_index <= CBX_VIEW_MODEL; ++cbx_index)
+		for (int scbx_index = SCBX_WORLD; scbx_index <= SCBX_VIEW_MODEL; ++scbx_index)
 		{
-			cb_context_t *cbx = &vulkan_globals.secondary_cb_contexts[cbx_index];
-			cbx->render_pass = vulkan_globals.main_render_pass[0];
-			cbx->render_pass_index = 0;
-			cbx->subpass = 0;
+			for (int i = 0; i < SECONDARY_CB_MULTIPLICITY[scbx_index]; ++i)
+			{
+				cb_context_t *cbx = &vulkan_globals.secondary_cb_contexts[scbx_index][i];
+				cbx->render_pass = vulkan_globals.main_render_pass[0];
+				cbx->render_pass_index = 0;
+				cbx->subpass = 0;
+			}
 		}
 	}
 
@@ -1433,8 +1458,8 @@ static void GL_CreateRenderPasses ()
 		render_pass_create_info.dependencyCount = 1;
 		render_pass_create_info.pDependencies = subpass_dependencies;
 
-		cb_context_t *gui_cbx = &vulkan_globals.secondary_cb_contexts[CBX_GUI];
-		cb_context_t *post_process_cbx = &vulkan_globals.secondary_cb_contexts[CBX_POST_PROCESS];
+		cb_context_t *gui_cbx = &vulkan_globals.secondary_cb_contexts[SCBX_GUI][0];
+		cb_context_t *post_process_cbx = &vulkan_globals.secondary_cb_contexts[SCBX_POST_PROCESS][0];
 
 		assert (gui_cbx->render_pass == VK_NULL_HANDLE);
 		assert (post_process_cbx->render_pass == VK_NULL_HANDLE);
@@ -2157,7 +2182,7 @@ static void GL_CreateFrameBuffers (void)
 	{
 		ZEROED_STRUCT (VkFramebufferCreateInfo, framebuffer_create_info);
 		framebuffer_create_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-		framebuffer_create_info.renderPass = vulkan_globals.secondary_cb_contexts[CBX_WORLD_0].render_pass;
+		framebuffer_create_info.renderPass = vulkan_globals.secondary_cb_contexts[SCBX_WORLD][0].render_pass;
 		framebuffer_create_info.attachmentCount = resolve ? 3 : 2;
 		framebuffer_create_info.width = vid.width;
 		framebuffer_create_info.height = vid.height;
@@ -2178,7 +2203,7 @@ static void GL_CreateFrameBuffers (void)
 	{
 		ZEROED_STRUCT (VkFramebufferCreateInfo, framebuffer_create_info);
 		framebuffer_create_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-		framebuffer_create_info.renderPass = vulkan_globals.secondary_cb_contexts[CBX_GUI].render_pass;
+		framebuffer_create_info.renderPass = vulkan_globals.secondary_cb_contexts[SCBX_GUI][0].render_pass;
 		framebuffer_create_info.attachmentCount = 2;
 		framebuffer_create_info.width = vid.width;
 		framebuffer_create_info.height = vid.height;
@@ -2226,8 +2251,6 @@ GL_DestroyRenderResources
 */
 static void GL_DestroyRenderResources (void)
 {
-	uint32_t i;
-
 	render_resources_created = false;
 
 	GL_WaitForDeviceIdle ();
@@ -2251,7 +2274,7 @@ static void GL_DestroyRenderResources (void)
 		msaa_color_buffer = VK_NULL_HANDLE;
 	}
 
-	for (i = 0; i < NUM_COLOR_BUFFERS; ++i)
+	for (int i = 0; i < NUM_COLOR_BUFFERS; ++i)
 	{
 		vkDestroyImageView (vulkan_globals.device, color_buffers_view[i], NULL);
 		vkDestroyImage (vulkan_globals.device, vulkan_globals.color_buffers[i], NULL);
@@ -2270,13 +2293,13 @@ static void GL_DestroyRenderResources (void)
 	depth_buffer_view = VK_NULL_HANDLE;
 	depth_buffer = VK_NULL_HANDLE;
 
-	for (i = 0; i < NUM_COLOR_BUFFERS; ++i)
+	for (int i = 0; i < NUM_COLOR_BUFFERS; ++i)
 	{
 		vkDestroyFramebuffer (vulkan_globals.device, main_framebuffers[i], NULL);
 		main_framebuffers[i] = VK_NULL_HANDLE;
 	}
 
-	for (i = 0; i < num_swap_chain_images; ++i)
+	for (uint32_t i = 0; i < num_swap_chain_images; ++i)
 	{
 		vkDestroyImageView (vulkan_globals.device, swapchain_images_views[i], NULL);
 		swapchain_images_views[i] = VK_NULL_HANDLE;
@@ -2287,7 +2310,7 @@ static void GL_DestroyRenderResources (void)
 		swapchain_images[i] = VK_NULL_HANDLE;
 	}
 
-	for (i = 0; i < DOUBLE_BUFFERED; ++i)
+	for (int i = 0; i < DOUBLE_BUFFERED; ++i)
 	{
 		vkDestroySemaphore (vulkan_globals.device, image_aquired_semaphores[i], NULL);
 		image_aquired_semaphores[i] = VK_NULL_HANDLE;
@@ -2296,15 +2319,17 @@ static void GL_DestroyRenderResources (void)
 	fpDestroySwapchainKHR (vulkan_globals.device, vulkan_swapchain, NULL);
 	vulkan_swapchain = VK_NULL_HANDLE;
 
-	vkDestroyRenderPass (vulkan_globals.device, vulkan_globals.secondary_cb_contexts[CBX_GUI].render_pass, NULL);
-	for (int cbx_index = CBX_GUI; cbx_index <= CBX_POST_PROCESS; ++cbx_index)
-		vulkan_globals.secondary_cb_contexts[cbx_index].render_pass = VK_NULL_HANDLE;
+	vkDestroyRenderPass (vulkan_globals.device, vulkan_globals.secondary_cb_contexts[SCBX_GUI][0].render_pass, NULL);
+	for (int scbx_index = SCBX_GUI; scbx_index <= SCBX_POST_PROCESS; ++scbx_index)
+		for (int i = 0; i < SECONDARY_CB_MULTIPLICITY[scbx_index]; ++i)
+			vulkan_globals.secondary_cb_contexts[scbx_index][i].render_pass = VK_NULL_HANDLE;
 	vkDestroyRenderPass (vulkan_globals.device, vulkan_globals.main_render_pass[0], NULL);
 	vkDestroyRenderPass (vulkan_globals.device, vulkan_globals.main_render_pass[1], NULL);
 	vulkan_globals.main_render_pass[0] = VK_NULL_HANDLE;
 	vulkan_globals.main_render_pass[1] = VK_NULL_HANDLE;
-	for (int cbx_index = CBX_WORLD_0; cbx_index <= CBX_VIEW_MODEL; ++cbx_index)
-		vulkan_globals.secondary_cb_contexts[cbx_index].render_pass = VK_NULL_HANDLE;
+	for (int scbx_index = SCBX_WORLD; scbx_index <= SCBX_VIEW_MODEL; ++scbx_index)
+		for (int i = 0; i < SECONDARY_CB_MULTIPLICITY[scbx_index]; ++i)
+			vulkan_globals.secondary_cb_contexts[scbx_index][i].render_pass = VK_NULL_HANDLE;
 }
 
 /*
@@ -2331,9 +2356,10 @@ void GL_BeginRenderingTask (void *unused)
 	R_CollectMeshBufferGarbage ();
 	TexMgr_CollectGarbage ();
 
+	for (int pcbx_index = 0; pcbx_index < PCBX_NUM; ++pcbx_index)
 	{
-		cb_context_t *cbx = &vulkan_globals.primary_cb_context;
-		cbx->cb = primary_command_buffers[current_cb_index];
+		cb_context_t *cbx = &vulkan_globals.primary_cb_contexts[pcbx_index];
+		cbx->cb = primary_command_buffers[pcbx_index][current_cb_index];
 		cbx->current_canvas = CANVAS_INVALID;
 		memset (&cbx->current_pipeline, 0, sizeof (cbx->current_pipeline));
 
@@ -2348,58 +2374,56 @@ void GL_BeginRenderingTask (void *unused)
 		R_BeginDebugUtilsLabel (cbx, "Primary CB");
 	}
 
-	for (int cbx_index = 0; cbx_index < CBX_NUM; ++cbx_index)
+	for (int scbx_index = 0; scbx_index < SCBX_NUM; ++scbx_index)
 	{
-		cb_context_t *cbx = &vulkan_globals.secondary_cb_contexts[cbx_index];
-		cbx->cb = secondary_command_buffers[cbx_index][current_cb_index];
-		cbx->current_canvas = CANVAS_INVALID;
-		memset (&cbx->current_pipeline, 0, sizeof (cbx->current_pipeline));
-
-		if (cbx_index <= CBX_VIEW_MODEL)
+		for (int i = 0; i < SECONDARY_CB_MULTIPLICITY[scbx_index]; ++i)
 		{
-			const int main_render_pass_index = Sky_NeedStencil () ? 0 : 1;
-			cbx->render_pass = vulkan_globals.main_render_pass[main_render_pass_index];
+			cb_context_t *cbx = &vulkan_globals.secondary_cb_contexts[scbx_index][i];
+			cbx->cb = secondary_command_buffers[scbx_index][current_cb_index][i];
+			cbx->current_canvas = CANVAS_INVALID;
+			memset (&cbx->current_pipeline, 0, sizeof (cbx->current_pipeline));
+
+			if (scbx_index <= SCBX_VIEW_MODEL)
+			{
+				const int main_render_pass_index = Sky_NeedStencil () ? 0 : 1;
+				cbx->render_pass = vulkan_globals.main_render_pass[main_render_pass_index];
+			}
+
+			ZEROED_STRUCT (VkCommandBufferInheritanceInfo, inheritance_info);
+			inheritance_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO;
+			inheritance_info.renderPass = cbx->render_pass;
+			inheritance_info.subpass = cbx->subpass;
+
+			ZEROED_STRUCT (VkCommandBufferBeginInfo, command_buffer_begin_info);
+			command_buffer_begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+			command_buffer_begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT | VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT;
+			command_buffer_begin_info.pInheritanceInfo = &inheritance_info;
+
+			err = vkBeginCommandBuffer (cbx->cb, &command_buffer_begin_info);
+			if (err != VK_SUCCESS)
+				Sys_Error ("vkBeginCommandBuffer failed");
+
+			R_BeginDebugUtilsLabel (cbx, va ("CBX %d", scbx_index));
+
+			VkRect2D render_area;
+			render_area.offset.x = 0;
+			render_area.offset.y = 0;
+			render_area.extent.width = vid.width;
+			render_area.extent.height = vid.height;
+			vkCmdSetScissor (cbx->cb, 0, 1, &render_area);
+
+			VkViewport viewport;
+			viewport.x = 0;
+			viewport.y = 0;
+			viewport.width = vid.width;
+			viewport.height = vid.height;
+			viewport.minDepth = 0.0f;
+			viewport.maxDepth = 1.0f;
+			vkCmdSetViewport (cbx->cb, 0, 1, &viewport);
+
+			R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_blend_pipeline[cbx->render_pass_index]);
+			GL_SetCanvas (cbx, CANVAS_NONE);
 		}
-
-		ZEROED_STRUCT (VkCommandBufferInheritanceInfo, inheritance_info);
-		inheritance_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO;
-		inheritance_info.renderPass = cbx->render_pass;
-		inheritance_info.subpass = cbx->subpass;
-
-		ZEROED_STRUCT (VkCommandBufferBeginInfo, command_buffer_begin_info);
-		command_buffer_begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-		command_buffer_begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-		if (cbx_index != CBX_UPDATE_LIGHTMAPS)
-			command_buffer_begin_info.flags |= VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT;
-		command_buffer_begin_info.pInheritanceInfo = &inheritance_info;
-
-		err = vkBeginCommandBuffer (cbx->cb, &command_buffer_begin_info);
-		if (err != VK_SUCCESS)
-			Sys_Error ("vkBeginCommandBuffer failed");
-
-		R_BeginDebugUtilsLabel (cbx, va ("CBX %d", cbx_index));
-
-		if (cbx_index == CBX_UPDATE_LIGHTMAPS)
-			continue;
-
-		VkRect2D render_area;
-		render_area.offset.x = 0;
-		render_area.offset.y = 0;
-		render_area.extent.width = vid.width;
-		render_area.extent.height = vid.height;
-		vkCmdSetScissor (cbx->cb, 0, 1, &render_area);
-
-		VkViewport viewport;
-		viewport.x = 0;
-		viewport.y = 0;
-		viewport.width = vid.width;
-		viewport.height = vid.height;
-		viewport.minDepth = 0.0f;
-		viewport.maxDepth = 1.0f;
-		vkCmdSetViewport (cbx->cb, 0, 1, &viewport);
-
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_blend_pipeline[cbx->render_pass_index]);
-		GL_SetCanvas (cbx, CANVAS_NONE);
 	}
 
 	R_SwapDynamicBuffers ();
@@ -2751,7 +2775,7 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 	qboolean swapchain_acquired = parms->swapchain && GL_AcquireNextSwapChainImage ();
 	if (swapchain_acquired == true)
 	{
-		cb_context_t *cbx = &vulkan_globals.secondary_cb_contexts[CBX_POST_PROCESS];
+		cb_context_t *cbx = &vulkan_globals.secondary_cb_contexts[SCBX_POST_PROCESS][0];
 
 		// Render post process
 		GL_Viewport (cbx, 0, 0, vid.width, vid.height, 0.0f, 1.0f);
@@ -2764,16 +2788,19 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 		vkCmdDraw (cbx->cb, 3, 1, 0, 0);
 	}
 
-	for (int cbx_index = 0; cbx_index < CBX_NUM; ++cbx_index)
+	for (int scbx_index = 0; scbx_index < SCBX_NUM; ++scbx_index)
 	{
-		cb_context_t *cbx = &vulkan_globals.secondary_cb_contexts[cbx_index];
-		R_EndDebugUtilsLabel (cbx);
-		err = vkEndCommandBuffer (cbx->cb);
-		if (err != VK_SUCCESS)
-			Sys_Error ("vkEndCommandBuffer failed");
+		for (int i = 0; i < SECONDARY_CB_MULTIPLICITY[scbx_index]; ++i)
+		{
+			cb_context_t *cbx = &vulkan_globals.secondary_cb_contexts[scbx_index][i];
+			R_EndDebugUtilsLabel (cbx);
+			err = vkEndCommandBuffer (cbx->cb);
+			if (err != VK_SUCCESS)
+				Sys_Error ("vkEndCommandBuffer failed");
+		}
 	}
 
-	VkCommandBuffer primary_cb = vulkan_globals.primary_cb_context.cb;
+	VkCommandBuffer render_passes_cb = vulkan_globals.primary_cb_contexts[PCBX_RENDER_PASSES].cb;
 
 	VkRect2D render_area;
 	render_area.offset.x = 0;
@@ -2790,54 +2817,58 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 	clear_values[1] = depth_clear_value;
 	clear_values[2] = vulkan_globals.color_clear_value;
 
-	vkCmdExecuteCommands (primary_cb, 1, &vulkan_globals.secondary_cb_contexts[CBX_UPDATE_LIGHTMAPS].cb);
-
 	const qboolean screen_effects = parms->render_warp || (parms->render_scale >= 2) || parms->vid_palettize || (gl_polyblend.value && parms->v_blend[3]) ||
 									parms->menu || parms->ray_debug;
 	{
 		const qboolean resolve = (vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT);
 		ZEROED_STRUCT (VkRenderPassBeginInfo, render_pass_begin_info);
 		render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-		render_pass_begin_info.renderPass = vulkan_globals.secondary_cb_contexts[CBX_WORLD_0].render_pass;
+		render_pass_begin_info.renderPass = vulkan_globals.secondary_cb_contexts[SCBX_WORLD][0].render_pass;
 		render_pass_begin_info.framebuffer = main_framebuffers[screen_effects ? 1 : 0];
 		render_pass_begin_info.renderArea = render_area;
 		render_pass_begin_info.clearValueCount = resolve ? 3 : 2;
 		render_pass_begin_info.pClearValues = clear_values;
-		vkCmdBeginRenderPass (primary_cb, &render_pass_begin_info, VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
+		vkCmdBeginRenderPass (render_passes_cb, &render_pass_begin_info, VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
 		int viewmodel_first = ENTALPHA_DECODE (cl.viewent.alpha) == 1.0f && !r_showtris.value && !r_showbboxes.value; // debug views are in the viewmodel's CB
 		if (viewmodel_first)
-			vkCmdExecuteCommands (primary_cb, 1, &vulkan_globals.secondary_cb_contexts[CBX_VIEW_MODEL].cb);
-		for (int cbx_index = CBX_WORLD_0; cbx_index <= CBX_VIEW_MODEL - viewmodel_first; ++cbx_index)
-			vkCmdExecuteCommands (primary_cb, 1, &vulkan_globals.secondary_cb_contexts[cbx_index].cb);
-		vkCmdEndRenderPass (primary_cb);
+			vkCmdExecuteCommands (render_passes_cb, 1, &vulkan_globals.secondary_cb_contexts[SCBX_VIEW_MODEL][0].cb);
+		for (int scbx_index = SCBX_WORLD; scbx_index <= SCBX_VIEW_MODEL - viewmodel_first; ++scbx_index)
+			for (int i = 0; i < SECONDARY_CB_MULTIPLICITY[scbx_index]; ++i)
+				vkCmdExecuteCommands (render_passes_cb, 1, &vulkan_globals.secondary_cb_contexts[scbx_index][i].cb);
+		vkCmdEndRenderPass (render_passes_cb);
 	}
 
-	GL_ScreenEffects (&vulkan_globals.primary_cb_context, screen_effects, parms);
+	GL_ScreenEffects (&vulkan_globals.primary_cb_contexts[PCBX_RENDER_PASSES], screen_effects, parms);
 
 	{
 		ZEROED_STRUCT (VkRenderPassBeginInfo, render_pass_begin_info);
 		render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-		render_pass_begin_info.renderPass = vulkan_globals.secondary_cb_contexts[CBX_GUI].render_pass;
+		render_pass_begin_info.renderPass = vulkan_globals.secondary_cb_contexts[SCBX_GUI][0].render_pass;
 		render_pass_begin_info.framebuffer = ui_framebuffers[current_swapchain_buffer];
 		render_pass_begin_info.renderArea = render_area;
 		render_pass_begin_info.clearValueCount = 0;
-		vkCmdBeginRenderPass (primary_cb, &render_pass_begin_info, VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
-		vkCmdExecuteCommands (primary_cb, 1, &vulkan_globals.secondary_cb_contexts[CBX_GUI].cb);
-		vkCmdNextSubpass (primary_cb, VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
-		vkCmdExecuteCommands (primary_cb, 1, &vulkan_globals.secondary_cb_contexts[CBX_POST_PROCESS].cb);
-		vkCmdEndRenderPass (primary_cb);
+		vkCmdBeginRenderPass (render_passes_cb, &render_pass_begin_info, VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
+		vkCmdExecuteCommands (render_passes_cb, 1, &vulkan_globals.secondary_cb_contexts[SCBX_GUI][0].cb);
+		vkCmdNextSubpass (render_passes_cb, VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
+		vkCmdExecuteCommands (render_passes_cb, 1, &vulkan_globals.secondary_cb_contexts[SCBX_POST_PROCESS][0].cb);
+		vkCmdEndRenderPass (render_passes_cb);
 	}
 
 	{
-		R_EndDebugUtilsLabel (&vulkan_globals.primary_cb_context);
-		err = vkEndCommandBuffer (primary_cb);
-		if (err != VK_SUCCESS)
-			Sys_Error ("vkEndCommandBuffer failed");
+		VkCommandBuffer submit_cbs[PCBX_NUM];
+		for (int pcbx_index = 0; pcbx_index < PCBX_NUM; ++pcbx_index)
+		{
+			submit_cbs[pcbx_index] = vulkan_globals.primary_cb_contexts[pcbx_index].cb;
+			R_EndDebugUtilsLabel (&vulkan_globals.primary_cb_contexts[pcbx_index]);
+			err = vkEndCommandBuffer (submit_cbs[pcbx_index]);
+			if (err != VK_SUCCESS)
+				Sys_Error ("vkEndCommandBuffer failed");
+		}
 
 		ZEROED_STRUCT (VkSubmitInfo, submit_info);
 		submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-		submit_info.commandBufferCount = 1;
-		submit_info.pCommandBuffers = &primary_cb;
+		submit_info.commandBufferCount = PCBX_NUM;
+		submit_info.pCommandBuffers = submit_cbs;
 		submit_info.waitSemaphoreCount = swapchain_acquired ? 1 : 0;
 		submit_info.pWaitSemaphores = &image_aquired_semaphores[cb_index];
 		submit_info.signalSemaphoreCount = swapchain_acquired ? 1 : 0;
@@ -4256,7 +4287,7 @@ void SCR_ScreenShot_f (void)
 	// find a file name to save it to
 	for (i = 0; i < 10000; i++)
 	{
-		q_snprintf (imagename, sizeof (imagename), "vkquake%04i.%s", i, ext); // "fitz%04cbx_index.tga"
+		q_snprintf (imagename, sizeof (imagename), "vkquake%04i.%s", i, ext); // "fitz%04scbx_index.tga"
 		q_snprintf (checkname, sizeof (checkname), "%s/%s", com_gamedir, imagename);
 		if (Sys_FileType (checkname) == FS_ENT_NONE)
 			break; // file doesn't exist

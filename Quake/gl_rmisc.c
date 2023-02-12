@@ -2330,7 +2330,7 @@ static void R_InitDefaultStates (pipeline_create_infos_t *infos)
 	infos->graphics_pipeline.pColorBlendState = &infos->color_blend_state;
 	infos->graphics_pipeline.pDynamicState = &infos->dynamic_state;
 	infos->graphics_pipeline.layout = vulkan_globals.basic_pipeline_layout.handle;
-	infos->graphics_pipeline.renderPass = vulkan_globals.secondary_cb_contexts[CBX_WORLD_0].render_pass;
+	infos->graphics_pipeline.renderPass = vulkan_globals.secondary_cb_contexts[SCBX_WORLD][0].render_pass;
 }
 
 /*
@@ -2345,8 +2345,8 @@ static void R_CreateBasicPipelines ()
 	pipeline_create_infos_t infos;
 	R_InitDefaultStates (&infos);
 
-	VkRenderPass main_render_pass = vulkan_globals.secondary_cb_contexts[CBX_WORLD_0].render_pass;
-	VkRenderPass ui_render_pass = vulkan_globals.secondary_cb_contexts[CBX_GUI].render_pass;
+	VkRenderPass main_render_pass = vulkan_globals.secondary_cb_contexts[SCBX_WORLD][0].render_pass;
+	VkRenderPass ui_render_pass = vulkan_globals.secondary_cb_contexts[SCBX_GUI][0].render_pass;
 
 	infos.shader_stages[1].module = basic_alphatest_frag_module;
 	for (render_pass = 0; render_pass < 2; ++render_pass)
@@ -2464,7 +2464,7 @@ static void R_CreateParticlesPipelines ()
 	infos.depth_stencil_state.depthTestEnable = VK_TRUE;
 	infos.depth_stencil_state.depthWriteEnable = VK_FALSE;
 
-	infos.graphics_pipeline.renderPass = vulkan_globals.secondary_cb_contexts[CBX_WORLD_0].render_pass;
+	infos.graphics_pipeline.renderPass = vulkan_globals.secondary_cb_contexts[SCBX_WORLD][0].render_pass;
 
 	infos.blend_attachment_state.blendEnable = VK_TRUE;
 
@@ -2567,7 +2567,7 @@ static void R_CreateFTEParticlesPipelines ()
 
 	infos.depth_stencil_state.depthTestEnable = VK_TRUE;
 	infos.depth_stencil_state.depthWriteEnable = VK_FALSE;
-	infos.graphics_pipeline.renderPass = vulkan_globals.secondary_cb_contexts[CBX_WORLD_0].render_pass;
+	infos.graphics_pipeline.renderPass = vulkan_globals.secondary_cb_contexts[SCBX_WORLD][0].render_pass;
 	infos.blend_attachment_state.blendEnable = VK_TRUE;
 
 	infos.multisample_state.sampleShadingEnable = VK_FALSE;
@@ -2655,7 +2655,7 @@ static void R_CreateSkyPipelines ()
 			infos.vertex_input_state.pVertexBindingDescriptions = &world_vertex_binding_description;
 		}
 
-		infos.graphics_pipeline.renderPass = vulkan_globals.secondary_cb_contexts[CBX_WORLD_0].render_pass;
+		infos.graphics_pipeline.renderPass = vulkan_globals.secondary_cb_contexts[SCBX_WORLD][0].render_pass;
 
 		infos.graphics_pipeline.stageCount = 1;
 		infos.shader_stages[1].module = VK_NULL_HANDLE;
@@ -3163,7 +3163,7 @@ static void R_CreatePostprocessPipelines ()
 
 	infos.shader_stages[0].module = postprocess_vert_module;
 	infos.shader_stages[1].module = postprocess_frag_module;
-	infos.graphics_pipeline.renderPass = vulkan_globals.secondary_cb_contexts[CBX_GUI].render_pass;
+	infos.graphics_pipeline.renderPass = vulkan_globals.secondary_cb_contexts[SCBX_GUI][0].render_pass;
 	infos.graphics_pipeline.layout = vulkan_globals.postprocess_pipeline.layout.handle;
 	infos.graphics_pipeline.subpass = 1;
 

@@ -789,8 +789,7 @@ R_DrawWorldTask
 */
 static void R_DrawWorldTask (int index, void *use_tasks)
 {
-	const int	  cbx_index = index + CBX_WORLD_0;
-	cb_context_t *cbx = &vulkan_globals.secondary_cb_contexts[cbx_index];
+	cb_context_t *cbx = &vulkan_globals.secondary_cb_contexts[SCBX_WORLD][index];
 	R_SetupContext (cbx);
 	Fog_EnableGFog (cbx);
 	if (indirect)
@@ -806,10 +805,10 @@ R_DrawSkyAndWaterTask
 */
 static void R_DrawSkyAndWaterTask (void *unused)
 {
-	R_SetupContext (&vulkan_globals.secondary_cb_contexts[CBX_SKY_AND_WATER]);
-	Fog_EnableGFog (&vulkan_globals.secondary_cb_contexts[CBX_SKY_AND_WATER]);
-	Sky_DrawSky (&vulkan_globals.secondary_cb_contexts[CBX_SKY_AND_WATER]);
-	R_DrawWorld_Water (&vulkan_globals.secondary_cb_contexts[CBX_SKY_AND_WATER]);
+	R_SetupContext (&vulkan_globals.secondary_cb_contexts[SCBX_SKY_AND_WATER][0]);
+	Fog_EnableGFog (&vulkan_globals.secondary_cb_contexts[SCBX_SKY_AND_WATER][0]);
+	Sky_DrawSky (&vulkan_globals.secondary_cb_contexts[SCBX_SKY_AND_WATER][0]);
+	R_DrawWorld_Water (&vulkan_globals.secondary_cb_contexts[SCBX_SKY_AND_WATER][0]);
 }
 
 /*
@@ -819,10 +818,10 @@ R_DrawEntitiesTask
 */
 static void R_DrawEntitiesTask (int index, void *use_tasks)
 {
-	const int cbx_index = index + CBX_ENTITIES_0;
-	R_SetupContext (&vulkan_globals.secondary_cb_contexts[cbx_index]);
-	Fog_EnableGFog (&vulkan_globals.secondary_cb_contexts[cbx_index]); // johnfitz
-	R_DrawEntitiesOnList (&vulkan_globals.secondary_cb_contexts[cbx_index], false, index + chain_model_0, use_tasks ? true : false);
+	cb_context_t *cbx = &vulkan_globals.secondary_cb_contexts[SCBX_ENTITIES][index];
+	R_SetupContext (cbx);
+	Fog_EnableGFog (cbx); // johnfitz
+	R_DrawEntitiesOnList (cbx, false, index + chain_model_0, use_tasks ? true : false);
 }
 
 /*
@@ -832,11 +831,11 @@ R_DrawAlphaEntitiesTask
 */
 static void R_DrawAlphaEntitiesTask (void *unused)
 {
-	R_SetupContext (&vulkan_globals.secondary_cb_contexts[CBX_ALPHA_ENTITIES]);
-	Fog_EnableGFog (&vulkan_globals.secondary_cb_contexts[CBX_ALPHA_ENTITIES]);
-	R_DrawEntitiesOnList (
-		&vulkan_globals.secondary_cb_contexts[CBX_ALPHA_ENTITIES], true, chain_alpha_model,
-		false); // johnfitz -- true means this is the pass for alpha entities
+	cb_context_t *cbx = &vulkan_globals.secondary_cb_contexts[SCBX_ALPHA_ENTITIES][0];
+	R_SetupContext (cbx);
+	Fog_EnableGFog (cbx);
+	R_DrawEntitiesOnList (cbx, true, chain_alpha_model,
+						  false); // johnfitz -- true means this is the pass for alpha entities
 }
 
 /*
@@ -846,11 +845,12 @@ R_DrawParticlesTask
 */
 static void R_DrawParticlesTask (void *unused)
 {
-	R_SetupContext (&vulkan_globals.secondary_cb_contexts[CBX_PARTICLES]);
-	Fog_EnableGFog (&vulkan_globals.secondary_cb_contexts[CBX_PARTICLES]); // johnfitz
-	R_DrawParticles (&vulkan_globals.secondary_cb_contexts[CBX_PARTICLES]);
+	cb_context_t *cbx = &vulkan_globals.secondary_cb_contexts[SCBX_PARTICLES][0];
+	R_SetupContext (cbx);
+	Fog_EnableGFog (cbx); // johnfitz
+	R_DrawParticles (cbx);
 #ifdef PSET_SCRIPT
-	PScript_DrawParticles (&vulkan_globals.secondary_cb_contexts[CBX_PARTICLES]);
+	PScript_DrawParticles (cbx);
 #endif
 }
 
@@ -861,10 +861,11 @@ R_DrawViewModelTask
 */
 static void R_DrawViewModelTask (void *unused)
 {
-	R_SetupContext (&vulkan_globals.secondary_cb_contexts[CBX_VIEW_MODEL]);
-	R_DrawViewModel (&vulkan_globals.secondary_cb_contexts[CBX_VIEW_MODEL]);	 // johnfitz -- moved here from R_RenderView
-	R_ShowTris (&vulkan_globals.secondary_cb_contexts[CBX_VIEW_MODEL]);			 // johnfitz
-	R_ShowBoundingBoxes (&vulkan_globals.secondary_cb_contexts[CBX_VIEW_MODEL]); // johnfitz
+	cb_context_t *cbx = &vulkan_globals.secondary_cb_contexts[SCBX_VIEW_MODEL][0];
+	R_SetupContext (cbx);
+	R_DrawViewModel (cbx);	   // johnfitz -- moved here from R_RenderView
+	R_ShowTris (cbx);		   // johnfitz
+	R_ShowBoundingBoxes (cbx); // johnfitz
 }
 
 /*
@@ -932,7 +933,6 @@ void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 	else
 		stats_ready = false;
 
-	cb_context_t *primary_cbx = &vulkan_globals.primary_cb_context;
 	if (use_tasks)
 	{
 		task_handle_t before_mark = Task_AllocateAndAssignFunc (R_SetupViewBeforeMark, NULL, 0);
@@ -943,7 +943,7 @@ void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 		task_handle_t chain_surfaces = INVALID_TASK_HANDLE;
 		R_MarkSurfaces (use_tasks, before_mark, &store_efrags, &cull_surfaces, &chain_surfaces);
 
-		task_handle_t update_warp_textures = Task_AllocateAndAssignFunc ((task_func_t)R_UpdateWarpTextures, &primary_cbx, sizeof (cb_context_t *));
+		task_handle_t update_warp_textures = Task_AllocateAndAssignFunc ((task_func_t)R_UpdateWarpTextures, NULL, 0);
 		Task_AddDependency (cull_surfaces, update_warp_textures);
 		Task_AddDependency (begin_rendering_task, update_warp_textures);
 		Task_AddDependency (update_warp_textures, draw_done_task);
@@ -981,10 +981,10 @@ void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 
 		task_handle_t build_tlas_task = Task_AllocateAndAssignFunc (R_BuildTopLevelAccelerationStructure, NULL, 0);
 		Task_AddDependency (begin_rendering_task, build_tlas_task);
+		Task_AddDependency (build_tlas_task, draw_done_task);
 
 		task_handle_t update_lightmaps_task = Task_AllocateAndAssignFunc (R_UpdateLightmapsAndIndirect, NULL, 0);
 		Task_AddDependency (cull_surfaces, update_lightmaps_task);
-		Task_AddDependency (build_tlas_task, update_lightmaps_task);
 		Task_AddDependency (draw_entities_task, update_lightmaps_task);
 		Task_AddDependency (draw_alpha_entities_task, update_lightmaps_task);
 		Task_AddDependency (update_lightmaps_task, draw_done_task);
@@ -1016,7 +1016,7 @@ void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 	{
 		R_SetupViewBeforeMark (NULL);
 		R_MarkSurfaces (use_tasks, INVALID_TASK_HANDLE, NULL, NULL, NULL); // johnfitz -- create texture chains from PVS
-		R_UpdateWarpTextures (&primary_cbx);
+		R_UpdateWarpTextures (NULL);
 		R_DrawWorldTask (0, NULL);
 		R_DrawSkyAndWaterTask (NULL);
 		R_DrawEntitiesTask (0, NULL);

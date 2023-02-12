@@ -138,9 +138,9 @@ R_UpdateWarpTextures -- johnfitz -- each frame, update warping textures
 static texture_t		   *warp_textures[MAX_GLTEXTURES];
 static VkImageMemoryBarrier warp_image_barriers[MAX_GLTEXTURES];
 
-void R_UpdateWarpTextures (cb_context_t **cbx_ptr)
+void R_UpdateWarpTextures (void *unused)
 {
-	cb_context_t *cbx = *cbx_ptr;
+	cb_context_t *cbx = &vulkan_globals.primary_cb_contexts[PCBX_UPDATE_WARP];
 	GL_SetCanvas (cbx, CANVAS_NONE); // Invalidate canvas so push constants get set later
 
 	texture_t *tx;

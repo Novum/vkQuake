@@ -180,27 +180,38 @@ typedef struct vulkan_memory_s
 
 typedef enum
 {
-	CBX_UPDATE_LIGHTMAPS,
-	CBX_WORLD_0,
-	CBX_WORLD_1,
-	CBX_WORLD_2,
-	CBX_WORLD_3,
-	CBX_WORLD_4,
-	CBX_WORLD_5,
-	CBX_ENTITIES_0,
-	CBX_ENTITIES_1,
-	CBX_ENTITIES_2,
-	CBX_ENTITIES_3,
-	CBX_ENTITIES_4,
-	CBX_ENTITIES_5,
-	CBX_SKY_AND_WATER,
-	CBX_ALPHA_ENTITIES,
-	CBX_PARTICLES,
-	CBX_VIEW_MODEL,
-	CBX_GUI,
-	CBX_POST_PROCESS,
-	CBX_NUM,
+	PCBX_BUILD_ACCELERATION_STRUCTURES,
+	PCBX_UPDATE_LIGHTMAPS,
+	PCBX_UPDATE_WARP,
+	PCBX_RENDER_PASSES,
+	PCBX_NUM,
+} primary_cb_contexts_t;
+
+typedef enum
+{
+	// Main render pass:
+	SCBX_WORLD,
+	SCBX_ENTITIES,
+	SCBX_SKY_AND_WATER,
+	SCBX_ALPHA_ENTITIES,
+	SCBX_PARTICLES,
+	SCBX_VIEW_MODEL,
+	// UI render Pass:
+	SCBX_GUI,
+	SCBX_POST_PROCESS,
+	SCBX_NUM,
 } secondary_cb_contexts_t;
+
+static const int SECONDARY_CB_MULTIPLICITY[SCBX_NUM] = {
+	NUM_WORLD_CBX,	  // SCBX_WORLD,
+	NUM_ENTITIES_CBX, // SCBX_ENTITIES,
+	1,				  // SCBX_SKY_AND_WATER,
+	1,				  // SCBX_ALPHA_ENTITIES,
+	1,				  // SCBX_PARTICLES,
+	1,				  // SCBX_VIEW_MODEL,
+	1,				  // SCBX_GUI,
+	1,				  // SCBX_POST_PROCESS,
+};
 
 typedef struct cb_context_s
 {
@@ -221,8 +232,8 @@ typedef struct
 	qboolean						 validation;
 	qboolean						 debug_utils;
 	VkQueue							 queue;
-	cb_context_t					 primary_cb_context;
-	cb_context_t					 secondary_cb_contexts[CBX_NUM];
+	cb_context_t					 primary_cb_contexts[PCBX_NUM];
+	cb_context_t					*secondary_cb_contexts[SCBX_NUM];
 	VkClearValue					 color_clear_value;
 	VkFormat						 swap_chain_format;
 	qboolean						 want_full_screen_exclusive;
@@ -539,7 +550,7 @@ void R_ClearParticles (void);
 
 void R_TranslatePlayerSkin (int playernum);
 void R_TranslateNewPlayerSkin (int playernum); // johnfitz -- this handles cases when the actual texture changes
-void R_UpdateWarpTextures (cb_context_t **cbx_ptr);
+void R_UpdateWarpTextures (void *unused);
 
 void R_MarkDeps (int combined_deps, int worker_index);
 

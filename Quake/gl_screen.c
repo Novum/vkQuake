@@ -1093,7 +1093,7 @@ SCR_DrawGUI
 */
 static void SCR_DrawGUI (void *unused)
 {
-	cb_context_t *cbx = &vulkan_globals.secondary_cb_contexts[CBX_GUI];
+	cb_context_t *cbx = &vulkan_globals.secondary_cb_contexts[SCBX_GUI][0];
 
 	GL_SetCanvas (cbx, CANVAS_DEFAULT);
 	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_blend_pipeline[cbx->render_pass_index]);
