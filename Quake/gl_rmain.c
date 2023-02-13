@@ -805,10 +805,11 @@ R_DrawSkyAndWaterTask
 */
 static void R_DrawSkyAndWaterTask (void *unused)
 {
-	R_SetupContext (&vulkan_globals.secondary_cb_contexts[SCBX_SKY_AND_WATER][0]);
-	Fog_EnableGFog (&vulkan_globals.secondary_cb_contexts[SCBX_SKY_AND_WATER][0]);
-	Sky_DrawSky (&vulkan_globals.secondary_cb_contexts[SCBX_SKY_AND_WATER][0]);
-	R_DrawWorld_Water (&vulkan_globals.secondary_cb_contexts[SCBX_SKY_AND_WATER][0]);
+	cb_context_t *cbx = vulkan_globals.secondary_cb_contexts[SCBX_SKY_AND_WATER];
+	R_SetupContext (cbx);
+	Fog_EnableGFog (cbx);
+	Sky_DrawSky (cbx);
+	R_DrawWorld_Water (cbx);
 }
 
 /*
@@ -831,7 +832,7 @@ R_DrawAlphaEntitiesTask
 */
 static void R_DrawAlphaEntitiesTask (void *unused)
 {
-	cb_context_t *cbx = &vulkan_globals.secondary_cb_contexts[SCBX_ALPHA_ENTITIES][0];
+	cb_context_t *cbx = vulkan_globals.secondary_cb_contexts[SCBX_ALPHA_ENTITIES];
 	R_SetupContext (cbx);
 	Fog_EnableGFog (cbx);
 	R_DrawEntitiesOnList (cbx, true, chain_alpha_model,
@@ -845,7 +846,7 @@ R_DrawParticlesTask
 */
 static void R_DrawParticlesTask (void *unused)
 {
-	cb_context_t *cbx = &vulkan_globals.secondary_cb_contexts[SCBX_PARTICLES][0];
+	cb_context_t *cbx = vulkan_globals.secondary_cb_contexts[SCBX_PARTICLES];
 	R_SetupContext (cbx);
 	Fog_EnableGFog (cbx); // johnfitz
 	R_DrawParticles (cbx);
@@ -861,7 +862,7 @@ R_DrawViewModelTask
 */
 static void R_DrawViewModelTask (void *unused)
 {
-	cb_context_t *cbx = &vulkan_globals.secondary_cb_contexts[SCBX_VIEW_MODEL][0];
+	cb_context_t *cbx = vulkan_globals.secondary_cb_contexts[SCBX_VIEW_MODEL];
 	R_SetupContext (cbx);
 	R_DrawViewModel (cbx);	   // johnfitz -- moved here from R_RenderView
 	R_ShowTris (cbx);		   // johnfitz

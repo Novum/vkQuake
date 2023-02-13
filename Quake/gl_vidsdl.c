@@ -1458,8 +1458,8 @@ static void GL_CreateRenderPasses ()
 		render_pass_create_info.dependencyCount = 1;
 		render_pass_create_info.pDependencies = subpass_dependencies;
 
-		cb_context_t *gui_cbx = &vulkan_globals.secondary_cb_contexts[SCBX_GUI][0];
-		cb_context_t *post_process_cbx = &vulkan_globals.secondary_cb_contexts[SCBX_POST_PROCESS][0];
+		cb_context_t *gui_cbx = vulkan_globals.secondary_cb_contexts[SCBX_GUI];
+		cb_context_t *post_process_cbx = vulkan_globals.secondary_cb_contexts[SCBX_POST_PROCESS];
 
 		assert (gui_cbx->render_pass == VK_NULL_HANDLE);
 		assert (post_process_cbx->render_pass == VK_NULL_HANDLE);
@@ -2203,7 +2203,7 @@ static void GL_CreateFrameBuffers (void)
 	{
 		ZEROED_STRUCT (VkFramebufferCreateInfo, framebuffer_create_info);
 		framebuffer_create_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-		framebuffer_create_info.renderPass = vulkan_globals.secondary_cb_contexts[SCBX_GUI][0].render_pass;
+		framebuffer_create_info.renderPass = vulkan_globals.secondary_cb_contexts[SCBX_GUI]->render_pass;
 		framebuffer_create_info.attachmentCount = 2;
 		framebuffer_create_info.width = vid.width;
 		framebuffer_create_info.height = vid.height;
@@ -2775,7 +2775,7 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 	qboolean swapchain_acquired = parms->swapchain && GL_AcquireNextSwapChainImage ();
 	if (swapchain_acquired == true)
 	{
-		cb_context_t *cbx = &vulkan_globals.secondary_cb_contexts[SCBX_POST_PROCESS][0];
+		cb_context_t *cbx = vulkan_globals.secondary_cb_contexts[SCBX_POST_PROCESS];
 
 		// Render post process
 		GL_Viewport (cbx, 0, 0, vid.width, vid.height, 0.0f, 1.0f);
@@ -2831,7 +2831,7 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 		vkCmdBeginRenderPass (render_passes_cb, &render_pass_begin_info, VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
 		int viewmodel_first = ENTALPHA_DECODE (cl.viewent.alpha) == 1.0f && !r_showtris.value && !r_showbboxes.value; // debug views are in the viewmodel's CB
 		if (viewmodel_first)
-			vkCmdExecuteCommands (render_passes_cb, 1, &vulkan_globals.secondary_cb_contexts[SCBX_VIEW_MODEL][0].cb);
+			vkCmdExecuteCommands (render_passes_cb, 1, &vulkan_globals.secondary_cb_contexts[SCBX_VIEW_MODEL]->cb);
 		for (int scbx_index = SCBX_WORLD; scbx_index <= SCBX_VIEW_MODEL - viewmodel_first; ++scbx_index)
 			for (int i = 0; i < SECONDARY_CB_MULTIPLICITY[scbx_index]; ++i)
 				vkCmdExecuteCommands (render_passes_cb, 1, &vulkan_globals.secondary_cb_contexts[scbx_index][i].cb);
@@ -2843,14 +2843,14 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 	{
 		ZEROED_STRUCT (VkRenderPassBeginInfo, render_pass_begin_info);
 		render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-		render_pass_begin_info.renderPass = vulkan_globals.secondary_cb_contexts[SCBX_GUI][0].render_pass;
+		render_pass_begin_info.renderPass = vulkan_globals.secondary_cb_contexts[SCBX_GUI]->render_pass;
 		render_pass_begin_info.framebuffer = ui_framebuffers[current_swapchain_buffer];
 		render_pass_begin_info.renderArea = render_area;
 		render_pass_begin_info.clearValueCount = 0;
 		vkCmdBeginRenderPass (render_passes_cb, &render_pass_begin_info, VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
-		vkCmdExecuteCommands (render_passes_cb, 1, &vulkan_globals.secondary_cb_contexts[SCBX_GUI][0].cb);
+		vkCmdExecuteCommands (render_passes_cb, 1, &vulkan_globals.secondary_cb_contexts[SCBX_GUI]->cb);
 		vkCmdNextSubpass (render_passes_cb, VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
-		vkCmdExecuteCommands (render_passes_cb, 1, &vulkan_globals.secondary_cb_contexts[SCBX_POST_PROCESS][0].cb);
+		vkCmdExecuteCommands (render_passes_cb, 1, &vulkan_globals.secondary_cb_contexts[SCBX_POST_PROCESS]->cb);
 		vkCmdEndRenderPass (render_passes_cb);
 	}
 

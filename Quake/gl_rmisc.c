@@ -2346,7 +2346,7 @@ static void R_CreateBasicPipelines ()
 	R_InitDefaultStates (&infos);
 
 	VkRenderPass main_render_pass = vulkan_globals.secondary_cb_contexts[SCBX_WORLD][0].render_pass;
-	VkRenderPass ui_render_pass = vulkan_globals.secondary_cb_contexts[SCBX_GUI][0].render_pass;
+	VkRenderPass ui_render_pass = vulkan_globals.secondary_cb_contexts[SCBX_GUI]->render_pass;
 
 	infos.shader_stages[1].module = basic_alphatest_frag_module;
 	for (render_pass = 0; render_pass < 2; ++render_pass)
@@ -3163,7 +3163,7 @@ static void R_CreatePostprocessPipelines ()
 
 	infos.shader_stages[0].module = postprocess_vert_module;
 	infos.shader_stages[1].module = postprocess_frag_module;
-	infos.graphics_pipeline.renderPass = vulkan_globals.secondary_cb_contexts[SCBX_GUI][0].render_pass;
+	infos.graphics_pipeline.renderPass = vulkan_globals.secondary_cb_contexts[SCBX_GUI]->render_pass;
 	infos.graphics_pipeline.layout = vulkan_globals.postprocess_pipeline.layout.handle;
 	infos.graphics_pipeline.subpass = 1;
 
