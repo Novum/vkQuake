@@ -294,7 +294,7 @@ HashMap_TestAssert
 #define HashMap_TestAssert(cond, what) \
 	if (!(cond))                       \
 	{                                  \
-		Con_Printf (what);             \
+		Con_Printf ("%s", what);       \
 		abort ();                      \
 	}
 
