@@ -1,0 +1,28 @@
+{
+   False positives in the Nvidia driver
+   Helgrind:Race
+   ...
+   obj:*libnvidia*
+   ...
+}
+{
+   False positives in the Nvidia driver
+   Helgrind:Misc
+   ...
+   obj:*libnvidia*
+   ...
+}
+{
+   False positives in the Nvidia driver
+   Helgrind:Race
+   ...
+   obj:*libcuda*
+   ...
+}
+{
+   False positives in PulseAudio
+   Helgrind:Race
+   ...
+   obj:*libpulse*
+   ...
+}

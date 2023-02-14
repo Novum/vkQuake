@@ -88,7 +88,7 @@
         {
             "label": "run-helgrind",
             "type": "shell",
-            "command": "/usr/bin/valgrind --tool=helgrind ${workspaceFolder}/build/helgrind/vkquake -basedir ${env:QUAKE_DIR}",
+            "command": "/usr/bin/valgrind --tool=helgrind --gen-suppressions=all --suppressions=${workspaceFolder}/helgrind.supp --log-file=${workspaceFolder}/helgrind.log ${workspaceFolder}/build/helgrind/vkquake -basedir ${env:QUAKE_DIR}",
             "group": "build",
             "dependsOn": "helgrind",
             "presentation": {

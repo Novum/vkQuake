@@ -32,3 +32,4 @@ build/
 .DS_Store
 history.txt
 .vscode/settings.json
+helgrind.log
