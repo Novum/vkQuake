@@ -954,7 +954,6 @@ void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 			Task_AddDependency (before_mark, draw_world_task);
 		else
 			Task_AddDependency (chain_surfaces, draw_world_task);
-		Task_AddDependency (chain_surfaces, draw_world_task);
 		Task_AddDependency (begin_rendering_task, draw_world_task);
 		Task_AddDependency (draw_world_task, draw_done_task);
 
