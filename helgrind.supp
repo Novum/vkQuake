@@ -26,3 +26,17 @@
    obj:*libpulse*
    ...
 }
+{
+   False positives in SDL2
+   Helgrind:Race
+   ...
+   obj:*libSDL2*
+   ...
+}
+{
+   False positives in SDL2
+   Helgrind:LockOrder
+   ...
+   obj:*libSDL2*
+   ...
+}

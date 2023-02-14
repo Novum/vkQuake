@@ -1107,17 +1107,17 @@ R_BufferAllocate
 ===============
 */
 byte *R_BufferAllocate (
-	int size, int alignment, int min_tail_size, VkBuffer *buffer, VkDeviceSize *buffer_offset, VkDeviceAddress *device_address, SDL_mutex *mutex,
-	dynbuffer_t *dyn_buffers, vulkan_memory_t memory, uint32_t *current_size, VkDescriptorSet *descriptor_set, VkDescriptorSet *descriptor_sets,
+	int size, int alignment, int min_tail_size, VkBuffer *buffer, VkDeviceSize *buffer_offset, VkDeviceAddress *device_address, SDL_mutex **mutex,
+	dynbuffer_t *dyn_buffers, vulkan_memory_t *memory, uint32_t *current_size, VkDescriptorSet *descriptor_set, VkDescriptorSet *descriptor_sets,
 	void (*init_func) (void))
 {
-	SDL_LockMutex (mutex);
+	SDL_LockMutex (*mutex);
 	dynbuffer_t *dyn_buffer = &dyn_buffers[current_dyn_buffer_index];
 	const int	 aligned_size = q_align (size, alignment);
 
 	if ((dyn_buffer->current_offset + q_max (size, min_tail_size)) > *current_size)
 	{
-		R_AddDynamicBufferGarbage (memory, dyn_buffers, descriptor_sets);
+		R_AddDynamicBufferGarbage (*memory, dyn_buffers, descriptor_sets);
 		*current_size = q_max (*current_size * 2, (uint32_t)Q_nextPow2 (size));
 		init_func ();
 	}
@@ -1135,7 +1135,7 @@ byte *R_BufferAllocate (
 	if (descriptor_set)
 		*descriptor_set = descriptor_sets[current_dyn_buffer_index];
 
-	SDL_UnlockMutex (mutex);
+	SDL_UnlockMutex (*mutex);
 	return data;
 }
 
@@ -1148,7 +1148,7 @@ Vertex buffers need to be aligned by the maximum format component size, i.e. siz
 byte *R_VertexAllocate (int size, VkBuffer *buffer, VkDeviceSize *buffer_offset)
 {
 	return R_BufferAllocate (
-		size, sizeof (float), 0, buffer, buffer_offset, NULL, vertex_allocate_mutex, dyn_vertex_buffers, dyn_vertex_buffer_memory,
+		size, sizeof (float), 0, buffer, buffer_offset, NULL, &vertex_allocate_mutex, dyn_vertex_buffers, &dyn_vertex_buffer_memory,
 		&current_dyn_vertex_buffer_size, NULL, NULL, &R_InitDynamicVertexBuffers);
 }
 
@@ -1162,7 +1162,7 @@ index buffers and alignment must match index size
 byte *R_IndexAllocate (int size, VkBuffer *buffer, VkDeviceSize *buffer_offset)
 {
 	return R_BufferAllocate (
-		size, sizeof (uint32_t), 0, buffer, buffer_offset, NULL, index_allocate_mutex, dyn_index_buffers, dyn_index_buffer_memory,
+		size, sizeof (uint32_t), 0, buffer, buffer_offset, NULL, &index_allocate_mutex, dyn_index_buffers, &dyn_index_buffer_memory,
 		&current_dyn_index_buffer_size, NULL, NULL, &R_InitDynamicIndexBuffers);
 }
 
@@ -1174,8 +1174,8 @@ R_StorageAllocate
 byte *R_StorageAllocate (int size, VkBuffer *buffer, VkDeviceSize *buffer_offset, VkDeviceAddress *device_address)
 {
 	return R_BufferAllocate (
-		size, vulkan_globals.device_properties.limits.minStorageBufferOffsetAlignment, 0, buffer, buffer_offset, device_address, storage_allocate_mutex,
-		dyn_storage_buffers, dyn_storage_buffer_memory, &current_dyn_storage_buffer_size, NULL, NULL, &R_InitDynamicStorageBuffers);
+		size, vulkan_globals.device_properties.limits.minStorageBufferOffsetAlignment, 0, buffer, buffer_offset, device_address, &storage_allocate_mutex,
+		dyn_storage_buffers, &dyn_storage_buffer_memory, &current_dyn_storage_buffer_size, NULL, NULL, &R_InitDynamicStorageBuffers);
 }
 
 /*
@@ -1192,7 +1192,7 @@ byte *R_UniformAllocate (int size, VkBuffer *buffer, uint32_t *buffer_offset, Vk
 
 	byte *data = R_BufferAllocate (
 		size, vulkan_globals.device_properties.limits.minUniformBufferOffsetAlignment, MAX_UNIFORM_ALLOC, buffer, &device_size_offset, NULL,
-		uniform_allocate_mutex, dyn_uniform_buffers, dyn_uniform_buffer_memory, &current_dyn_uniform_buffer_size, descriptor_set, ubo_descriptor_sets,
+		&uniform_allocate_mutex, dyn_uniform_buffers, &dyn_uniform_buffer_memory, &current_dyn_uniform_buffer_size, descriptor_set, ubo_descriptor_sets,
 		&R_InitDynamicUniformBuffers);
 
 	*buffer_offset = device_size_offset;
