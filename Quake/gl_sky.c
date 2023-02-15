@@ -763,7 +763,10 @@ void Sky_ProcessEntities (cb_context_t *cbx, float color[3])
 		if (e->model->type != mod_brush)
 			continue;
 
-		if (e->model->name[0] == '*' && (!R_HasSky (e) || R_IndirectBrush (e)))
+		if (!(e->model->used_specials & SURF_DRAWSKY))
+			continue;
+
+		if (R_IndirectBrush (e))
 			continue;
 
 		if (R_CullModelForEntity (e))

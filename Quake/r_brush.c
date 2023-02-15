@@ -77,9 +77,8 @@ typedef union
 {
 	struct // 1st element contains this
 	{
-		short has_sky;
-		short water_count;
-		int	  lm_count;
+		int water_count;
+		int lm_count;
 	};
 	atomic_uint32_t *update_warp; // next water_count elements contain this
 	struct						  // last lm_count elements contain this
@@ -214,7 +213,6 @@ R_CalcDeps
 static void R_CalcDeps (qmodel_t *model, mleaf_t *leaf)
 {
 	combined_brush_deps deps[1 + 256 + MAX_SANITY_LIGHTMAPS];
-	deps[0].has_sky = false;
 	deps[0].water_count = 0;
 	deps[0].lm_count = 0;
 	const int num_surfs = model ? model->nummodelsurfaces : leaf->nummarksurfaces;
@@ -242,8 +240,6 @@ static void R_CalcDeps (qmodel_t *model, mleaf_t *leaf)
 				deps[deps[0].water_count].update_warp = &t->update_warp;
 			}
 		}
-		if (model && psurf->flags & SURF_DRAWSKY)
-			deps[0].has_sky = true;
 	}
 
 	for (int i = 0; i < num_surfs; i++)
@@ -272,6 +268,20 @@ static void R_CalcDeps (qmodel_t *model, mleaf_t *leaf)
 		model->combined_deps = R_AllocDepsData (deps);
 	else
 		leaf->combined_deps = R_AllocDepsData (deps);
+}
+
+/*
+================
+R_CalcSpecials
+================
+*/
+static void R_CalcSpecials (qmodel_t *model)
+{
+	for (int i = 0; i < model->nummodelsurfaces; i++)
+	{
+		msurface_t *psurf = &model->surfaces[model->firstmodelsurface] + i;
+		model->used_specials |= (SURF_DRAWSKY | SURF_DRAWTURB | SURF_DRAWWATER | SURF_DRAWLAVA | SURF_DRAWSLIME | SURF_DRAWTELE) & psurf->flags;
+	}
 }
 
 /*
@@ -389,17 +399,6 @@ void DrawGLPoly (cb_context_t *cbx, glpoly_t *p, float color[3], float alpha)
 
 =============================================================
 */
-
-/*
-=================
-R_HasSky
-=================
-*/
-qboolean R_HasSky (entity_t *e)
-{
-	assert (e->model->type == mod_brush && e->model->name[0] == '*');
-	return brush_deps_data[e->model->combined_deps].has_sky;
-}
 
 /*
 =================
@@ -1705,14 +1704,14 @@ void GL_SetupIndirectDraws ()
 			}
 	}
 
-	for (int j = 1; j < MAX_MODELS; j++)
+	for (int j = 2; j < MAX_MODELS; j++)
 	{
 		qmodel_t *m = cl.model_precache[j];
 		if (!m)
 			break;
-		if (m->name[0] != '*')
-			continue;
-		R_CalcDeps (m, NULL);
+		R_CalcSpecials (m);
+		if (m->name[0] == '*')
+			R_CalcDeps (m, NULL);
 	}
 }
 

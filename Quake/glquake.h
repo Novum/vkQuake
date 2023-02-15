@@ -555,7 +555,6 @@ void R_UpdateWarpTextures (void *unused);
 void R_MarkDeps (int combined_deps, int worker_index);
 
 qboolean R_IndirectBrush (entity_t *e);
-qboolean R_HasSky (entity_t *e);
 
 void R_DrawWorld (cb_context_t *cbx, int index);
 void R_DrawAliasModel (cb_context_t *cbx, entity_t *e, int *aliaspolys);
