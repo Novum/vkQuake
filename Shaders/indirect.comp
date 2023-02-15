@@ -7,7 +7,8 @@
 
 layout (push_constant) uniform PushConsts
 {
-	int	  num_draws;
+	uint  num_draws;
+	uint  first_draw;
 	uint  visibility_offset;
 	float vieworg_x;
 	float vieworg_y;
@@ -51,7 +52,7 @@ void R_TriangleIndicesForSurf (uint firstvert, uint numedges, uint dest)
 layout (local_size_x = 64, local_size_y = 1) in;
 void main ()
 {
-	const uint surf = gl_GlobalInvocationID.x;
+	const uint surf = gl_GlobalInvocationID.x + push_constants.first_draw;
 	if (surf >= push_constants.num_draws)
 		return;
 

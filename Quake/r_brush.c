@@ -2958,13 +2958,25 @@ static void R_IndirectComputeDispatch (cb_context_t *cbx)
 	vkCmdPipelineBarrier (cbx->cb, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 1, &memory_barrier, 0, NULL, 0, NULL);
 
 	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_COMPUTE, vulkan_globals.indirect_draw_pipeline);
-	char push_constants[5 * 4];
+	char push_constants[6 * 4];
 	memcpy (push_constants, &cl.model_precache[1]->numsurfaces, sizeof (int));
+	memset (push_constants + 4, 0, sizeof (uint32_t));
 	uint32_t offset = current_compute_buffer_index * dyn_visibility_offset / 4;
-	memcpy (push_constants + 4, &offset, sizeof (uint32_t));
-	memcpy (push_constants + 8, r_refdef.vieworg, sizeof (vec3_t));
-	R_PushConstants (cbx, VK_SHADER_STAGE_COMPUTE_BIT, 0, 5 * 4, push_constants);
-	vkCmdDispatch (cbx->cb, (cl.worldmodel->numsurfaces + 63) / 64, 1, 1);
+	memcpy (push_constants + 8, &offset, sizeof (uint32_t));
+	memcpy (push_constants + 12, r_refdef.vieworg, sizeof (vec3_t));
+	R_PushConstants (cbx, VK_SHADER_STAGE_COMPUTE_BIT, 0, 6 * 4, push_constants);
+	const uint32_t num_workgroups = (cl.worldmodel->numsurfaces + 63) / 64;
+	const uint32_t max_dispatch = vulkan_globals.device_properties.limits.maxComputeWorkGroupCount[0];
+	uint32_t	   start_workgroup = 0;
+	while (true)
+	{
+		vkCmdDispatch (cbx->cb, q_min (max_dispatch, num_workgroups - start_workgroup), 1, 1);
+		start_workgroup += max_dispatch;
+		if (start_workgroup >= num_workgroups)
+			break;
+		const uint32_t start_offset = start_workgroup * 64;
+		R_PushConstants (cbx, VK_SHADER_STAGE_COMPUTE_BIT, 4, sizeof (uint32_t), &start_offset);
+	}
 
 	memory_barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
 	memory_barrier.pNext = NULL;
