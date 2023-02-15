@@ -1728,6 +1728,9 @@ void GL_UpdateLightmapDescriptorSets (void)
 	const qboolean			  rt = vulkan_globals.ray_query && r_rtshadows.value && (bmodel_tlas != VK_NULL_HANDLE);
 	vulkan_desc_set_layout_t *set_layout = rt ? &vulkan_globals.lightmap_compute_rt_set_layout : &vulkan_globals.lightmap_compute_set_layout;
 
+	if (lightmap_count && !lightmaps[0].texture->target_image_view)
+		return;
+
 	for (int i = 0; i < lightmap_count; i++)
 	{
 		struct lightmap_s *lm = &lightmaps[i];
