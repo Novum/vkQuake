@@ -154,39 +154,50 @@ void R_UpdateWarpTextures (void *unused)
 
 	warptess = 128.0 / CLAMP (3.0, floor (r_waterquality.value), 64.0);
 
-	int num_textures = cl.worldmodel->numtextures;
 	int num_warp_textures = 0;
 
 	// Count warp texture & prepare barrier from undefined to GENERL if using compute warp
-	for (i = 0; i < num_textures; ++i)
+	for (int j = 1; j < MAX_MODELS; j++)
 	{
-		if (!(tx = cl.worldmodel->textures[i]))
+		qmodel_t *m = cl.model_precache[j];
+
+		if (!m)
+			break;
+		if (m->name[0] == '*')
+			continue;
+		if (j > 1 && !(m->used_specials & SURF_DRAWTURB))
 			continue;
 
-		if (!Atomic_LoadUInt32 (&tx->update_warp))
-			continue;
-
-		if (r_waterwarpcompute.value)
+		for (i = 0; i < m->numtextures; ++i)
 		{
-			VkImageMemoryBarrier *image_barrier = &warp_image_barriers[num_warp_textures];
-			image_barrier->sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-			image_barrier->pNext = NULL;
-			image_barrier->srcAccessMask = 0;
-			image_barrier->dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-			image_barrier->oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-			image_barrier->newLayout = VK_IMAGE_LAYOUT_GENERAL;
-			image_barrier->srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-			image_barrier->dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-			image_barrier->image = tx->warpimage->image;
-			image_barrier->subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-			image_barrier->subresourceRange.baseMipLevel = 0;
-			image_barrier->subresourceRange.levelCount = WARPIMAGEMIPS;
-			image_barrier->subresourceRange.baseArrayLayer = 0;
-			image_barrier->subresourceRange.layerCount = 1;
-		}
+			if (!(tx = m->textures[i]))
+				continue;
 
-		warp_textures[num_warp_textures] = tx;
-		num_warp_textures += 1;
+			if (!Atomic_LoadUInt32 (&tx->update_warp))
+				continue;
+
+			if (r_waterwarpcompute.value)
+			{
+				VkImageMemoryBarrier *image_barrier = &warp_image_barriers[num_warp_textures];
+				image_barrier->sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+				image_barrier->pNext = NULL;
+				image_barrier->srcAccessMask = 0;
+				image_barrier->dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+				image_barrier->oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+				image_barrier->newLayout = VK_IMAGE_LAYOUT_GENERAL;
+				image_barrier->srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+				image_barrier->dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+				image_barrier->image = tx->warpimage->image;
+				image_barrier->subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+				image_barrier->subresourceRange.baseMipLevel = 0;
+				image_barrier->subresourceRange.levelCount = WARPIMAGEMIPS;
+				image_barrier->subresourceRange.baseArrayLayer = 0;
+				image_barrier->subresourceRange.layerCount = 1;
+			}
+
+			warp_textures[num_warp_textures] = tx;
+			num_warp_textures += 1;
+		}
 	}
 
 	// Transfer mips from UNDEFINED to GENERAL layout
