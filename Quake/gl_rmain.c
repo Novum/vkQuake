@@ -464,9 +464,17 @@ void R_DrawEntitiesOnList (cb_context_t *cbx, qboolean alphapass, int chain, qbo
 
 		entity_t *currententity = cl_visedicts[i];
 
+		qboolean transparent = ENTALPHA_DECODE (currententity->alpha) != 1;
+		qboolean opaque_with_transparent_water =
+			(!transparent && currententity->model->type == mod_brush && currententity->model->used_specials & SURF_DRAWTURB &&
+			 ((currententity->model->used_specials & SURF_DRAWLAVA && (map_lavaalpha > 0 ? map_lavaalpha : map_fallbackalpha) != 1) ||
+			  (currententity->model->used_specials & SURF_DRAWTELE && (map_telealpha > 0 ? map_telealpha : map_fallbackalpha) != 1) ||
+			  (currententity->model->used_specials & SURF_DRAWSLIME && (map_slimealpha > 0 ? map_slimealpha : map_fallbackalpha) != 1) ||
+			  (currententity->model->used_specials & SURF_DRAWWATER && map_wateralpha != 1)));
+
 		// johnfitz -- if alphapass is true, draw only alpha entites this time
 		// if alphapass is false, draw only nonalpha entities this time
-		if ((ENTALPHA_DECODE (currententity->alpha) < 1 && !alphapass) || (ENTALPHA_DECODE (currententity->alpha) == 1 && alphapass))
+		if (transparent != alphapass && !opaque_with_transparent_water)
 			continue;
 
 		// johnfitz -- chasecam
@@ -485,7 +493,7 @@ void R_DrawEntitiesOnList (cb_context_t *cbx, qboolean alphapass, int chain, qbo
 			++aliaspasses;
 			break;
 		case mod_brush:
-			R_DrawBrushModel (cbx, currententity, chain, &brushpolys);
+			R_DrawBrushModel (cbx, currententity, chain, &brushpolys, opaque_with_transparent_water && !alphapass, opaque_with_transparent_water && alphapass);
 			++brushpasses;
 			break;
 		case mod_sprite:

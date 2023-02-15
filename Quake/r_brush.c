@@ -418,7 +418,7 @@ qboolean R_IndirectBrush (entity_t *e)
 R_DrawBrushModel
 =================
 */
-void R_DrawBrushModel (cb_context_t *cbx, entity_t *e, int chain, int *brushpolys)
+void R_DrawBrushModel (cb_context_t *cbx, entity_t *e, int chain, int *brushpolys, qboolean water_opaque_only, qboolean water_transparent_only)
 {
 	int			i, k;
 	msurface_t *psurf;
@@ -498,6 +498,10 @@ void R_DrawBrushModel (cb_context_t *cbx, entity_t *e, int chain, int *brushpoly
 	const int worker_index = Tasks_GetWorkerIndex ();
 	for (i = 0; i < clmodel->nummodelsurfaces; i++, psurf++)
 	{
+		if (water_opaque_only && psurf->flags & SURF_DRAWTURB && GL_WaterAlphaForSurface (psurf) != 1)
+			continue;
+		if (water_transparent_only && (!(psurf->flags & SURF_DRAWTURB) || GL_WaterAlphaForSurface (psurf) == 1))
+			continue;
 		pplane = psurf->plane;
 		dot = DotProduct (modelorg, pplane->normal) - pplane->dist;
 		if (((psurf->flags & SURF_PLANEBACK) && (dot < -BACKFACE_EPSILON)) || (!(psurf->flags & SURF_PLANEBACK) && (dot > BACKFACE_EPSILON)))

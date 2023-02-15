@@ -558,7 +558,7 @@ qboolean R_IndirectBrush (entity_t *e);
 
 void R_DrawWorld (cb_context_t *cbx, int index);
 void R_DrawAliasModel (cb_context_t *cbx, entity_t *e, int *aliaspolys);
-void R_DrawBrushModel (cb_context_t *cbx, entity_t *e, int chain, int *brushpolys);
+void R_DrawBrushModel (cb_context_t *cbx, entity_t *e, int chain, int *brushpolys, qboolean water_opaque_only, qboolean water_transparent_only);
 void R_DrawSpriteModel (cb_context_t *cbx, entity_t *e);
 void R_DrawIndirectBrushes (cb_context_t *cbx, qboolean draw_water, qboolean draw_sky, int index);
 void R_DrawIndirectBrushes_ShowTris (cb_context_t *cbx);
