@@ -1333,8 +1333,7 @@ static void GL_AllocateWorkgroupBoundsBuffers ()
 
 	if (workgroup_bounds_buffer_memory.handle != VK_NULL_HANDLE)
 	{
-		R_FreeVulkanMemory (&workgroup_bounds_buffer_memory);
-		Atomic_DecrementUInt32 (&num_vulkan_bmodel_allocations);
+		R_FreeVulkanMemory (&workgroup_bounds_buffer_memory, &num_vulkan_bmodel_allocations);
 	}
 
 	for (int i = 0; i < lightmap_count; i++)
@@ -1363,8 +1362,7 @@ static void GL_AllocateWorkgroupBoundsBuffers ()
 		memory_allocate_info.allocationSize = lightmap_count * aligned_size;
 		memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
 
-		Atomic_IncrementUInt32 (&num_vulkan_bmodel_allocations);
-		R_AllocateVulkanMemory (&workgroup_bounds_buffer_memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_DEVICE);
+		R_AllocateVulkanMemory (&workgroup_bounds_buffer_memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_DEVICE, &num_vulkan_bmodel_allocations);
 		GL_SetObjectName ((uint64_t)workgroup_bounds_buffer_memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, "Workgroup bounds memory");
 	}
 

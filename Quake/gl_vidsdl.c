@@ -1568,8 +1568,7 @@ static void GL_CreateDepthBuffer (void)
 		memory_allocate_info.pNext = &dedicated_allocation_info;
 
 	assert (depth_buffer_memory.handle == VK_NULL_HANDLE);
-	Atomic_IncrementUInt32 (&num_vulkan_misc_allocations);
-	R_AllocateVulkanMemory (&depth_buffer_memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_DEVICE);
+	R_AllocateVulkanMemory (&depth_buffer_memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_DEVICE, &num_vulkan_misc_allocations);
 	GL_SetObjectName ((uint64_t)depth_buffer_memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, "Depth Buffer");
 
 	err = vkBindImageMemory (vulkan_globals.device, depth_buffer, depth_buffer_memory.handle, 0);
@@ -1648,8 +1647,7 @@ static void GL_CreateColorBuffer (void)
 			memory_allocate_info.pNext = &dedicated_allocation_info;
 
 		assert (color_buffers_memory[i].handle == VK_NULL_HANDLE);
-		Atomic_IncrementUInt32 (&num_vulkan_misc_allocations);
-		R_AllocateVulkanMemory (&color_buffers_memory[i], &memory_allocate_info, VULKAN_MEMORY_TYPE_DEVICE);
+		R_AllocateVulkanMemory (&color_buffers_memory[i], &memory_allocate_info, VULKAN_MEMORY_TYPE_DEVICE, &num_vulkan_misc_allocations);
 		GL_SetObjectName ((uint64_t)color_buffers_memory[i].handle, VK_OBJECT_TYPE_DEVICE_MEMORY, va ("Color Buffer %d", i));
 
 		err = vkBindImageMemory (vulkan_globals.device, vulkan_globals.color_buffers[i], color_buffers_memory[i].handle, 0);
@@ -1750,7 +1748,7 @@ static void GL_CreateColorBuffer (void)
 
 		assert (msaa_color_buffer_memory.handle == VK_NULL_HANDLE);
 		Atomic_IncrementUInt32 (&num_vulkan_misc_allocations);
-		R_AllocateVulkanMemory (&msaa_color_buffer_memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_DEVICE);
+		R_AllocateVulkanMemory (&msaa_color_buffer_memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_DEVICE, &num_vulkan_misc_allocations);
 		GL_SetObjectName ((uint64_t)msaa_color_buffer_memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, "MSAA Color Buffer");
 
 		err = vkBindImageMemory (vulkan_globals.device, msaa_color_buffer, msaa_color_buffer_memory.handle, 0);
@@ -2267,8 +2265,7 @@ static void GL_DestroyRenderResources (void)
 	{
 		vkDestroyImageView (vulkan_globals.device, msaa_color_buffer_view, NULL);
 		vkDestroyImage (vulkan_globals.device, msaa_color_buffer, NULL);
-		Atomic_DecrementUInt32 (&num_vulkan_misc_allocations);
-		R_FreeVulkanMemory (&msaa_color_buffer_memory);
+		R_FreeVulkanMemory (&msaa_color_buffer_memory, &num_vulkan_misc_allocations);
 
 		msaa_color_buffer_view = VK_NULL_HANDLE;
 		msaa_color_buffer = VK_NULL_HANDLE;
@@ -2278,8 +2275,7 @@ static void GL_DestroyRenderResources (void)
 	{
 		vkDestroyImageView (vulkan_globals.device, color_buffers_view[i], NULL);
 		vkDestroyImage (vulkan_globals.device, vulkan_globals.color_buffers[i], NULL);
-		Atomic_DecrementUInt32 (&num_vulkan_misc_allocations);
-		R_FreeVulkanMemory (&color_buffers_memory[i]);
+		R_FreeVulkanMemory (&color_buffers_memory[i], &num_vulkan_misc_allocations);
 
 		color_buffers_view[i] = VK_NULL_HANDLE;
 		vulkan_globals.color_buffers[i] = VK_NULL_HANDLE;
@@ -2287,8 +2283,7 @@ static void GL_DestroyRenderResources (void)
 
 	vkDestroyImageView (vulkan_globals.device, depth_buffer_view, NULL);
 	vkDestroyImage (vulkan_globals.device, depth_buffer, NULL);
-	Atomic_DecrementUInt32 (&num_vulkan_misc_allocations);
-	R_FreeVulkanMemory (&depth_buffer_memory);
+	R_FreeVulkanMemory (&depth_buffer_memory, &num_vulkan_misc_allocations);
 
 	depth_buffer_view = VK_NULL_HANDLE;
 	depth_buffer = VK_NULL_HANDLE;
@@ -3319,7 +3314,8 @@ void VID_Init (void)
 	R_CreateDescriptorSetLayouts ();
 	R_CreateDescriptorPool ();
 	R_InitGPUBuffers ();
-	R_InitMeshHeapMemoryIndex ();
+	R_InitMeshHeap ();
+	TexMgr_InitHeap ();
 	R_InitSamplers ();
 	R_CreatePipelineLayouts ();
 	R_CreatePaletteOctreeBuffers (palette_octree_colors, NUM_PALETTE_OCTREE_COLORS, palette_octree_nodes, NUM_PALETTE_OCTREE_NODES);

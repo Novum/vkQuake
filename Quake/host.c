@@ -26,6 +26,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "bgmusic.h"
 #include "tasks.h"
 #include <setjmp.h>
+#ifdef _DEBUG
+#include "gl_heap.h"
+#endif
 
 /*
 
@@ -995,6 +998,7 @@ static void Tests_Init ()
 {
 #ifdef _DEBUG
 	Cmd_AddCommand ("test_hash_map", TestHashMap_f);
+	Cmd_AddCommand ("test_gl_heap", GL_HeapTest_f);
 #endif
 }
 

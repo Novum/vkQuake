@@ -260,12 +260,36 @@ static inline int FindFirstBitNonZero (const uint32_t mask)
 	_BitScanForward (&result, mask);
 	return result;
 }
+static inline int FindFirstBitNonZero64 (const uint64_t mask)
+{
+#if !defined(_M_IX86)
+	unsigned long result;
+	_BitScanForward64 (&result, mask);
+	return result;
+#else
+	unsigned long result;
+	if ((mask & 0xFFFFFFFF) != 0)
+	{
+		_BitScanForward (&result, (uint32_t)mask);
+		return result;
+	}
+	else
+	{
+		_BitScanForward (&result, (uint32_t)(mask >> 32));
+		return result + 32;
+	}
+#endif
+}
 #define THREAD_LOCAL __declspec (thread)
 #define FORCE_INLINE __forceinline
 #else
 static inline int FindFirstBitNonZero (const uint32_t mask)
 {
 	return __builtin_ctz (mask);
+}
+static inline int FindFirstBitNonZero64 (const uint64_t mask)
+{
+	return __builtin_ctzll (mask);
 }
 #define THREAD_LOCAL _Thread_local
 #define FORCE_INLINE __attribute__ ((always_inline)) inline

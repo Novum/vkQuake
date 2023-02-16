@@ -5613,7 +5613,7 @@ static void ReallocateVertexBuffer ()
 	memory_allocate_info.memoryTypeIndex =
 		GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
 
-	R_AllocateVulkanMemory (&vertex_buffers_memory[current_buffer_index], &memory_allocate_info, VULKAN_MEMORY_TYPE_HOST);
+	R_AllocateVulkanMemory (&vertex_buffers_memory[current_buffer_index], &memory_allocate_info, VULKAN_MEMORY_TYPE_HOST, &num_vulkan_dynbuf_allocations);
 	GL_SetObjectName ((uint64_t)vertex_buffers_memory[current_buffer_index].handle, VK_OBJECT_TYPE_DEVICE_MEMORY, "FTE Particle Vertex Buffer");
 
 	err = vkBindBufferMemory (vulkan_globals.device, vertex_buffers[current_buffer_index], vertex_buffers_memory[current_buffer_index].handle, 0);
@@ -5631,7 +5631,7 @@ static void ReallocateVertexBuffer ()
 		memcpy (cl_curstrisvert, old_cl_curstrisvert, old_maxstrisvert * sizeof (basicvertex_t));
 
 		vkUnmapMemory (vulkan_globals.device, old_memory.handle);
-		R_FreeVulkanMemory (&old_memory);
+		R_FreeVulkanMemory (&old_memory, &num_vulkan_dynbuf_allocations);
 	}
 }
 
@@ -5671,7 +5671,7 @@ static void ReallocateIndexBuffer ()
 	memory_allocate_info.memoryTypeIndex =
 		GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
 
-	R_AllocateVulkanMemory (&index_buffers_memory[current_buffer_index], &memory_allocate_info, VULKAN_MEMORY_TYPE_HOST);
+	R_AllocateVulkanMemory (&index_buffers_memory[current_buffer_index], &memory_allocate_info, VULKAN_MEMORY_TYPE_HOST, &num_vulkan_dynbuf_allocations);
 	GL_SetObjectName ((uint64_t)index_buffers_memory[current_buffer_index].handle, VK_OBJECT_TYPE_DEVICE_MEMORY, "FTE Particle index Buffer");
 
 	err = vkBindBufferMemory (vulkan_globals.device, index_buffers[current_buffer_index], index_buffers_memory[current_buffer_index].handle, 0);
@@ -5689,7 +5689,7 @@ static void ReallocateIndexBuffer ()
 		memcpy (cl_curstrisidx, old_cl_curstrisidx, old_maxstrisidx * sizeof (unsigned short));
 
 		vkUnmapMemory (vulkan_globals.device, old_memory.handle);
-		R_FreeVulkanMemory (&old_memory);
+		R_FreeVulkanMemory (&old_memory, &num_vulkan_dynbuf_allocations);
 	}
 }
 

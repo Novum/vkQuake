@@ -162,6 +162,7 @@ typedef enum
 {
 	VULKAN_MEMORY_TYPE_DEVICE,
 	VULKAN_MEMORY_TYPE_HOST,
+	VULKAN_MEMORY_TYPE_NONE,
 } vulkan_memory_type_t;
 
 typedef struct vulkan_memory_s
@@ -669,8 +670,8 @@ static inline void R_EndDebugUtilsLabel (cb_context_t *cbx)
 #endif
 }
 
-void R_AllocateVulkanMemory (vulkan_memory_t *memory, VkMemoryAllocateInfo *memory_allocate_info, vulkan_memory_type_t type);
-void R_FreeVulkanMemory (vulkan_memory_t *memory);
+void R_AllocateVulkanMemory (vulkan_memory_t *memory, VkMemoryAllocateInfo *memory_allocate_info, vulkan_memory_type_t type, atomic_uint32_t *num_allocations);
+void R_FreeVulkanMemory (vulkan_memory_t *memory, atomic_uint32_t *num_allocations);
 
 void R_CreateBuffer (
 	VkBuffer *buffer, vulkan_memory_t *memory, const size_t size, VkBufferUsageFlags usage, const VkFlags mem_requirements_mask,
@@ -703,7 +704,7 @@ void  R_StagingEndCopy ();
 void  R_StagingUploadBuffer (const VkBuffer buffer, const size_t size, const byte *data);
 
 void  R_InitGPUBuffers ();
-void  R_InitMeshHeapMemoryIndex ();
+void  R_InitMeshHeap ();
 void  R_SwapDynamicBuffers ();
 void  R_FlushDynamicBuffers ();
 void  R_CollectDynamicBufferGarbage ();

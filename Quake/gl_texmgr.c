@@ -69,10 +69,9 @@ unsigned int d_8to24table_shirt[256];
 unsigned int d_8to24table_pants[256];
 
 // Heap
-#define TEXTURE_HEAP_SIZE_MB 32
+#define TEXTURE_HEAP_MEMORY_SIZE_MB 48
 
-static glheap_t **texmgr_heaps;
-static int		  num_texmgr_heaps;
+static glheap_t *texmgr_heap;
 
 SDL_mutex *texmgr_mutex;
 
@@ -484,6 +483,44 @@ void TexMgr_DeleteTextureObjects (void)
 
 ================================================================================
 */
+
+/*
+================
+TexMgr_InitHeap
+================
+*/
+void TexMgr_InitHeap ()
+{
+	ZEROED_STRUCT (VkImageCreateInfo, image_create_info);
+	image_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+	image_create_info.imageType = VK_IMAGE_TYPE_2D;
+	image_create_info.format = VK_FORMAT_R8G8B8A8_UNORM;
+	image_create_info.extent.width = 1;
+	image_create_info.extent.height = 1;
+	image_create_info.extent.depth = 1;
+	image_create_info.mipLevels = 1;
+	image_create_info.arrayLayers = 1;
+	image_create_info.samples = VK_SAMPLE_COUNT_1_BIT;
+	image_create_info.tiling = VK_IMAGE_TILING_OPTIMAL;
+	image_create_info.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
+							  VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
+	image_create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+	image_create_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+	VkImage	 dummy_image;
+	VkResult err = vkCreateImage (vulkan_globals.device, &image_create_info, NULL, &dummy_image);
+	if (err != VK_SUCCESS)
+		Sys_Error ("vkCreateImage failed");
+
+	VkMemoryRequirements memory_requirements;
+	vkGetImageMemoryRequirements (vulkan_globals.device, dummy_image, &memory_requirements);
+	const uint32_t memory_type_index = GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
+
+	const VkDeviceSize heap_memory_size = TEXTURE_HEAP_MEMORY_SIZE_MB * (VkDeviceSize)1024 * (VkDeviceSize)1024;
+	texmgr_heap = GL_HeapCreate (heap_memory_size, memory_type_index, VULKAN_MEMORY_TYPE_DEVICE, "Texture Heap");
+
+	vkDestroyImage (vulkan_globals.device, dummy_image, NULL);
+}
 
 /*
 =================
@@ -928,12 +965,8 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	VkMemoryRequirements memory_requirements;
 	vkGetImageMemoryRequirements (vulkan_globals.device, glt->image, &memory_requirements);
 
-	uint32_t	 memory_type_index = GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
-	VkDeviceSize heap_size = q_max (TEXTURE_HEAP_SIZE_MB * (VkDeviceSize)1024 * (VkDeviceSize)1024, memory_requirements.size);
-	VkDeviceSize aligned_offset = GL_AllocateFromHeaps (
-		&num_texmgr_heaps, &texmgr_heaps, heap_size, memory_type_index, VULKAN_MEMORY_TYPE_DEVICE, memory_requirements.size, memory_requirements.alignment,
-		&glt->heap, &glt->heap_node, &num_vulkan_tex_allocations, "Textures Heap");
-	err = vkBindImageMemory (vulkan_globals.device, glt->image, glt->heap->memory.handle, aligned_offset);
+	glt->allocation = GL_HeapAllocate (texmgr_heap, memory_requirements.size, memory_requirements.alignment, &num_vulkan_tex_allocations);
+	err = vkBindImageMemory (vulkan_globals.device, glt->image, GL_HeapGetAllocationMemory (glt->allocation), GL_HeapGetAllocationOffset (glt->allocation));
 	if (err != VK_SUCCESS)
 		Sys_Error ("vkBindImageMemory failed");
 
@@ -1469,14 +1502,13 @@ void TexMgr_ReloadNobrightImages (void)
 
 typedef struct
 {
-	VkImage			image;
-	VkImageView		target_image_view;
-	VkImageView		image_view;
-	VkFramebuffer	frame_buffer;
-	VkDescriptorSet descriptor_set;
-	VkDescriptorSet storage_descriptor_set;
-	glheap_t	   *heap;
-	glheapnode_t   *heap_node;
+	VkImage				image;
+	VkImageView			target_image_view;
+	VkImageView			image_view;
+	VkFramebuffer		frame_buffer;
+	VkDescriptorSet		descriptor_set;
+	VkDescriptorSet		storage_descriptor_set;
+	glheapallocation_t *allocation;
 } texture_garbage_t;
 
 static int				 current_garbage_index;
@@ -1511,7 +1543,7 @@ void TexMgr_CollectGarbage (void)
 		if (garbage->storage_descriptor_set)
 			R_FreeDescriptorSet (garbage->descriptor_set, &vulkan_globals.single_texture_cs_write_set_layout);
 
-		GL_FreeFromHeaps (num_texmgr_heaps, texmgr_heaps, garbage->heap, garbage->heap_node, &num_vulkan_tex_allocations);
+		GL_HeapFree (texmgr_heap, garbage->allocation, &num_vulkan_tex_allocations);
 	}
 	num_garbage_textures[current_garbage_index] = 0;
 
@@ -1543,8 +1575,7 @@ static void GL_DeleteTexture (gltexture_t *texture)
 		garbage->frame_buffer = texture->frame_buffer;
 		garbage->descriptor_set = texture->descriptor_set;
 		garbage->storage_descriptor_set = texture->storage_descriptor_set;
-		garbage->heap = texture->heap;
-		garbage->heap_node = texture->heap_node;
+		garbage->allocation = texture->allocation;
 	}
 	else
 	{
@@ -1560,15 +1591,14 @@ static void GL_DeleteTexture (gltexture_t *texture)
 		if (texture->storage_descriptor_set)
 			R_FreeDescriptorSet (texture->storage_descriptor_set, &vulkan_globals.single_texture_cs_write_set_layout);
 
-		GL_FreeFromHeaps (num_texmgr_heaps, texmgr_heaps, texture->heap, texture->heap_node, &num_vulkan_tex_allocations);
+		GL_HeapFree (texmgr_heap, texture->allocation, &num_vulkan_tex_allocations);
 	}
 
 	texture->frame_buffer = VK_NULL_HANDLE;
 	texture->target_image_view = VK_NULL_HANDLE;
 	texture->image_view = VK_NULL_HANDLE;
 	texture->image = VK_NULL_HANDLE;
-	texture->heap = NULL;
-	texture->heap_node = NULL;
+	texture->allocation = NULL;
 
 mutex_unlock:
 	SDL_UnlockMutex (texmgr_mutex);
