@@ -2261,15 +2261,16 @@ VectorInverse (G_VECTOR (OFS_RETURN));
 }
 static void PF_sv_getlight (void)
 {
-	qmodel_t *om = cl.worldmodel;
-	float	 *point = G_VECTOR (OFS_PARM0);
+	qmodel_t		   *om = cl.worldmodel;
+	float			   *point = G_VECTOR (OFS_PARM0);
+	static lightcache_t lc;
 
 	cl.worldmodel = qcvm->worldmodel; // R_LightPoint is really clientside, so if its called from ssqc then try to make things work regardless
 									  // FIXME: d_lightstylevalue isn't set on dedicated servers
 
 	// FIXME: seems like quakespasm doesn't do lits for model lighting, so we won't either.
 	vec3_t lightcolor;
-	G_FLOAT (OFS_RETURN + 0) = G_FLOAT (OFS_RETURN + 1) = G_FLOAT (OFS_RETURN + 2) = R_LightPoint (point, 0.f, NULL, &lightcolor) / 255.0;
+	G_FLOAT (OFS_RETURN + 0) = G_FLOAT (OFS_RETURN + 1) = G_FLOAT (OFS_RETURN + 2) = R_LightPoint (point, 0.f, &lc, &lightcolor) / 255.0;
 
 	cl.worldmodel = om;
 }
