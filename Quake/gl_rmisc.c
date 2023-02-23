@@ -1017,7 +1017,7 @@ void R_FlushDynamicBuffers ()
 R_AddDynamicBufferGarbage
 ===============
 */
-static void R_AddDynamicBufferGarbage (vulkan_memory_t device_memory, dynbuffer_t *buffers, VkDescriptorSet *descriptor_sets)
+static void R_AddDynamicBufferGarbage (vulkan_memory_t memory, dynbuffer_t *buffers, VkDescriptorSet *descriptor_sets)
 {
 	SDL_LockMutex (garbage_mutex);
 
@@ -1030,7 +1030,7 @@ static void R_AddDynamicBufferGarbage (vulkan_memory_t device_memory, dynbuffer_
 		else
 			device_memory_garbage[current_garbage_index] =
 				Mem_Realloc (device_memory_garbage[current_garbage_index], sizeof (vulkan_memory_t) * (*num_garbage));
-		device_memory_garbage[current_garbage_index][old_num_memory_garbage] = device_memory;
+		device_memory_garbage[current_garbage_index][old_num_memory_garbage] = memory;
 	}
 
 	{

@@ -34,8 +34,9 @@ ALIAS MODEL DISPLAY LIST GENERATION
 */
 
 // Heap
-#define MESH_HEAP_SIZE_MB 32
-#define MESH_HEAP_NAME	  "Mesh heap"
+#define MESH_HEAP_SIZE_MB	32
+#define MESH_HEAP_PAGE_SIZE 8192
+#define MESH_HEAP_NAME		"Mesh heap"
 
 static glheap_t *mesh_buffer_heap;
 
@@ -94,7 +95,7 @@ void R_InitMeshHeap ()
 
 	const uint32_t memory_type_index = GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
 	VkDeviceSize   heap_size = MESH_HEAP_SIZE_MB * (VkDeviceSize)1024 * (VkDeviceSize)1024;
-	mesh_buffer_heap = GL_HeapCreate (heap_size, memory_type_index, VULKAN_MEMORY_TYPE_DEVICE, MESH_HEAP_NAME);
+	mesh_buffer_heap = GL_HeapCreate (heap_size, MESH_HEAP_PAGE_SIZE, memory_type_index, VULKAN_MEMORY_TYPE_DEVICE, MESH_HEAP_NAME);
 
 	vkDestroyBuffer (vulkan_globals.device, dummy_buffer, NULL);
 }

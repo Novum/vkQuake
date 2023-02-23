@@ -30,42 +30,80 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 ================================================================================
 */
 
-#define HEAP_PAGE_SIZE 4096
+#define NUM_SMALL_ALLOC_SIZES 6 // 64 bit mask
+#define MAX_PAGES			  (UINT16_MAX - 1)
+#define INVALID_PAGE_INDEX	  UINT16_MAX
 
-typedef struct glheapblock_s
-{
-	uint32_t size_in_pages;
-	uint32_t prev_block_page_index;
-} glheapblock_t;
+typedef uint16_t page_index_t;
 
-typedef struct glheapmemory_s
+#ifndef NDEBUG
+static uint32_t SMALL_SLOTS_PER_PAGE[NUM_SMALL_ALLOC_SIZES] = {
+	64, 32, 16, 8, 4, 2,
+};
+#endif
+
+static uint64_t SLOTS_FULL_MASK[NUM_SMALL_ALLOC_SIZES] = {
+	0xFFFFFFFFFFFFFFFFull, 0xFFFFFFFFull, 0xFFFFull, 0xFFull, 0xFull, 0x3ull,
+};
+
+typedef struct glheappagehdr_s
 {
-	vulkan_memory_t memory;
-	glheapblock_t  *pages;
-	uint64_t	   *free_blocks_bitfield;
-	uint32_t		num_pages;
-	uint32_t		num_pages_allocated;
-} glheapmemory_t;
+	page_index_t size_in_pages;
+	page_index_t prev_block_page_index;
+	page_index_t prev_small_alloc_page;
+	page_index_t next_small_alloc_page;
+	uint64_t	 small_alloc_mask;
+} glheappagehdr_t;
+
+static const glheappagehdr_t EMPTY_PAGE_HDR = {
+	0, 0, INVALID_PAGE_INDEX, INVALID_PAGE_INDEX, 0ull,
+};
+
+typedef struct glheapsegment_s
+{
+	vulkan_memory_t	 memory;
+	glheappagehdr_t *page_hdrs;
+	uint64_t		*free_blocks_bitfield;
+	page_index_t	 small_alloc_free_list_heads[NUM_SMALL_ALLOC_SIZES];
+	page_index_t	 num_pages;
+	page_index_t	 num_pages_allocated;
+} glheapsegment_t;
 
 typedef struct glheap_s
 {
 	const char			*name;
-	VkDeviceSize		 memory_size;
+	VkDeviceSize		 segment_size;
+	uint32_t			 page_size;
+	uint32_t			 page_size_shift;
+	uint32_t			 min_small_alloc_size;
+	uint32_t			 small_alloc_shift;
 	uint32_t			 memory_type_index;
 	vulkan_memory_type_t memory_type;
-	uint32_t			 num_memories;
-	glheapmemory_t	   **memories;
+	uint32_t			 num_segments;
+	glheapsegment_t	   **segments;
 } glheap_t;
+
+typedef enum
+{
+	ALLOC_TYPE_NONE,
+	ALLOC_TYPE_PAGES,
+	ALLOC_TYPE_DEDICATED,
+	ALLOC_TYPE_SMALL_ALLOC,
+} alloc_type_t;
 
 typedef struct glheapallocation_s
 {
 	union
 	{
-		glheapmemory_t	*heap_memory;
-		vulkan_memory_t *device_memory;
+		glheapsegment_t *segment;
+		vulkan_memory_t *memory;
 	};
 	VkDeviceSize offset;
-	qboolean	 dedicated;
+	alloc_type_t alloc_type;
+#ifndef NDEBUG
+	uint32_t small_alloc_slot;
+	uint32_t small_alloc_size;
+#endif
 } glheapallocation_t;
 
 #define SET_BIT(bitfield, bitfield_size, index)           \
@@ -91,31 +129,271 @@ typedef struct glheapallocation_s
 
 /*
 ===============
-GL_CreateHeapMemory
+GL_CreateHeapSegment
 ===============
 */
-glheapmemory_t *
-GL_CreateHeapMemory (VkDeviceSize size, uint32_t memory_type_index, vulkan_memory_type_t memory_type, const char *name, atomic_uint32_t *num_allocations)
+glheapsegment_t *GL_CreateHeapSegment (
+	VkDeviceSize size, uint32_t page_size, uint32_t memory_type_index, vulkan_memory_type_t memory_type, const char *name, atomic_uint32_t *num_allocations)
 {
-	const VkDeviceSize aligned_size = q_align (size, HEAP_PAGE_SIZE);
-	glheapmemory_t	  *heap_memory = (glheapmemory_t *)Mem_Alloc (sizeof (glheapmemory_t));
+	const VkDeviceSize aligned_size = q_align (size, page_size);
+	glheapsegment_t	  *segment = (glheapsegment_t *)Mem_Alloc (sizeof (glheapsegment_t));
 
 	ZEROED_STRUCT (VkMemoryAllocateInfo, memory_allocate_info);
 	memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 	memory_allocate_info.allocationSize = aligned_size;
 	memory_allocate_info.memoryTypeIndex = memory_type_index;
 
-	R_AllocateVulkanMemory (&heap_memory->memory, &memory_allocate_info, memory_type, num_allocations);
-	GL_SetObjectName ((uint64_t)heap_memory->memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, name);
+	R_AllocateVulkanMemory (&segment->memory, &memory_allocate_info, memory_type, num_allocations);
+	GL_SetObjectName ((uint64_t)segment->memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, name);
 
-	heap_memory->num_pages = aligned_size / HEAP_PAGE_SIZE;
-	heap_memory->pages = Mem_Alloc (heap_memory->num_pages * sizeof (glheapblock_t));
-	heap_memory->free_blocks_bitfield = Mem_Alloc ((heap_memory->num_pages / 64) * sizeof (uint64_t));
-	heap_memory->free_blocks_bitfield[0] = 0x1;
-	heap_memory->num_pages_allocated = 0;
-	heap_memory->pages[0].size_in_pages = heap_memory->num_pages;
+	segment->num_pages = aligned_size / page_size;
+	segment->page_hdrs = Mem_Alloc (segment->num_pages * sizeof (glheappagehdr_t));
+	segment->free_blocks_bitfield = Mem_Alloc ((segment->num_pages / 64) * sizeof (uint64_t));
+	segment->free_blocks_bitfield[0] = 0x1;
+	segment->num_pages_allocated = 0;
+	for (int i = 0; i < segment->num_pages; ++i)
+		segment->page_hdrs[i] = EMPTY_PAGE_HDR;
+	segment->page_hdrs[0].size_in_pages = segment->num_pages;
+	for (int i = 0; i < NUM_SMALL_ALLOC_SIZES; ++i)
+		segment->small_alloc_free_list_heads[i] = INVALID_PAGE_INDEX;
 
-	return heap_memory;
+	return segment;
+}
+
+/*
+===============
+GL_HeapAllocatePagesFromSegment
+===============
+*/
+static qboolean GL_HeapAllocatePagesFromSegment (glheap_t *heap, glheapsegment_t *segment, VkDeviceSize size, VkDeviceSize alignment, page_index_t *page_index)
+{
+	const uint32_t alloc_size_in_pages = (size + heap->page_size - 1) >> heap->page_size_shift;
+	const uint32_t alignment_in_pages = (alignment + heap->page_size - 1) >> heap->page_size_shift;
+	for (uint32_t i = 0; i < segment->num_pages; i += 64)
+	{
+		uint64_t mask = segment->free_blocks_bitfield[i / 64];
+		while (mask != 0)
+		{
+			const int j = FindFirstBitNonZero64 (mask);
+			mask &= ~(1ull << j);
+
+			const uint16_t block_page_index = i + j;
+			const uint16_t block_page_index_aligned = q_align (block_page_index, alignment_in_pages);
+
+			const uint32_t alignment_pages = block_page_index_aligned - block_page_index;
+			const uint32_t total_pages = alignment_pages + alloc_size_in_pages;
+
+			assert (block_page_index < segment->num_pages);
+			glheappagehdr_t *block_page_hdr = &segment->page_hdrs[block_page_index];
+			const uint32_t	 block_size_in_pages = block_page_hdr->size_in_pages;
+
+			if (total_pages <= block_size_in_pages)
+			{
+				TRACE_LOG ("Allocating block at page %u with size %u pages\n", block_page_index_aligned, alloc_size_in_pages);
+
+				assert (block_page_index_aligned < segment->num_pages);
+				glheappagehdr_t *aligned_block_page_hdr = &segment->page_hdrs[block_page_index_aligned];
+
+				if (alignment_pages == 0)
+				{
+					TRACE_LOG (" No alignment padding\n");
+					// No alignment, remove free bit for this block_page_hdr
+					CLEAR_BIT (segment->free_blocks_bitfield, segment->num_pages, block_page_index);
+				}
+				else
+				{
+					TRACE_LOG (" %u pages alignment padding\n", alignment_pages);
+					// Keep free bit, but resize to just leftover alignment page_hdrs
+					assert (!GET_BIT (segment->free_blocks_bitfield, block_page_index_aligned));
+					block_page_hdr->size_in_pages = alignment_pages;
+					assert ((block_page_index + block_page_hdr->size_in_pages) <= segment->num_pages);
+					aligned_block_page_hdr->prev_block_page_index = block_page_index;
+				}
+
+				const page_index_t next_block_page_index = block_page_index_aligned + alloc_size_in_pages;
+				if (total_pages < block_size_in_pages)
+				{
+					// There is leftover space to the right, create a new free block_page_hdr accordingly
+					assert (next_block_page_index < segment->num_pages);
+					assert (!GET_BIT (segment->free_blocks_bitfield, next_block_page_index));
+					SET_BIT (segment->free_blocks_bitfield, segment->num_pages, next_block_page_index);
+					glheappagehdr_t *next_block_page_hdr = &segment->page_hdrs[next_block_page_index];
+					next_block_page_hdr->size_in_pages = block_size_in_pages - total_pages;
+					assert ((next_block_page_index + next_block_page_hdr->size_in_pages) <= segment->num_pages);
+					next_block_page_hdr->prev_block_page_index = block_page_index_aligned;
+					TRACE_LOG (" Leftover free block at page %u size %u\n", next_block_page_index, next_block_page_hdr->size_in_pages);
+					const uint32_t nn_block_page_index = next_block_page_index + next_block_page_hdr->size_in_pages;
+					if (nn_block_page_index < segment->num_pages)
+					{
+						glheappagehdr_t *nn_block_page_hdr = &segment->page_hdrs[nn_block_page_index];
+						nn_block_page_hdr->prev_block_page_index = next_block_page_index;
+					}
+				}
+				else if (next_block_page_index < segment->num_pages)
+				{
+					glheappagehdr_t *next_block_page_hdr = &segment->page_hdrs[next_block_page_index];
+					next_block_page_hdr->prev_block_page_index = block_page_index_aligned;
+				}
+
+				assert (block_page_hdr->prev_small_alloc_page == INVALID_PAGE_INDEX);
+				assert (block_page_hdr->next_small_alloc_page == INVALID_PAGE_INDEX);
+				assert (block_page_hdr->small_alloc_mask == 0ull);
+
+				aligned_block_page_hdr->size_in_pages = alloc_size_in_pages;
+				segment->num_pages_allocated += alloc_size_in_pages;
+				*page_index = block_page_index_aligned;
+				return true;
+			}
+			else if (block_size_in_pages > 64)
+			{
+				// Skip over masks that are covered by the free block_page_hdr
+				i = ((block_page_index + block_size_in_pages) & ~0x3F) - 64;
+				break;
+			}
+		}
+	}
+
+	TRACE_LOG (" Failed to allocate block with size %u pages\n", alloc_size_in_pages);
+	return false;
+}
+
+/*
+===============
+GL_HeapAddPageToSmallFreeList
+===============
+*/
+static void GL_HeapAddPageToSmallFreeList (glheapsegment_t *segment, const page_index_t page_index, const int small_alloc_bucket)
+{
+	TRACE_LOG (" Adding page %u to bucket %u free list\n", page_index, small_alloc_bucket);
+	glheappagehdr_t *page_hdr = &segment->page_hdrs[page_index];
+
+	// This page needs to be unlinked at this point in time
+	assert (page_hdr->prev_small_alloc_page == INVALID_PAGE_INDEX);
+	assert (page_hdr->next_small_alloc_page == INVALID_PAGE_INDEX);
+
+	const page_index_t prev_head_index = segment->small_alloc_free_list_heads[small_alloc_bucket];
+	if (prev_head_index != INVALID_PAGE_INDEX)
+	{
+		glheappagehdr_t *prev_head_hdr = &segment->page_hdrs[prev_head_index];
+		prev_head_hdr->prev_small_alloc_page = page_index;
+		page_hdr->next_small_alloc_page = prev_head_index;
+	}
+	segment->small_alloc_free_list_heads[small_alloc_bucket] = page_index;
+}
+
+/*
+===============
+GL_HeapRemovePageFromSmallFreeList
+===============
+*/
+static void GL_HeapRemovePageFromSmallFreeList (glheapsegment_t *segment, const page_index_t page_index, const int small_alloc_bucket)
+{
+	TRACE_LOG (" Removing page %u from bucket %u free list\n", page_index, small_alloc_bucket);
+	glheappagehdr_t	  *page_hdr = &segment->page_hdrs[page_index];
+	const page_index_t prev_page_index = page_hdr->prev_small_alloc_page;
+	const page_index_t next_page_index = page_hdr->next_small_alloc_page;
+
+	if (prev_page_index != INVALID_PAGE_INDEX)
+	{
+		glheappagehdr_t *prev_page_hdr = &segment->page_hdrs[prev_page_index];
+		assert (prev_page_hdr->next_small_alloc_page == page_index);
+		prev_page_hdr->next_small_alloc_page = next_page_index;
+	}
+	if (next_page_index != INVALID_PAGE_INDEX)
+	{
+		glheappagehdr_t *next_page_hdr = &segment->page_hdrs[next_page_index];
+		assert (next_page_hdr->prev_small_alloc_page == page_index);
+		next_page_hdr->prev_small_alloc_page = prev_page_index;
+	}
+
+	page_hdr->prev_small_alloc_page = INVALID_PAGE_INDEX;
+	page_hdr->next_small_alloc_page = INVALID_PAGE_INDEX;
+
+	// If this page was the head replace it with next page in linked list
+	if (segment->small_alloc_free_list_heads[small_alloc_bucket] == page_index)
+		segment->small_alloc_free_list_heads[small_alloc_bucket] = next_page_index;
+}
+
+/*
+===============
+GL_HeapSmallAllocateFromBlock
+===============
+*/
+static void GL_HeapSmallAllocateFromBlock (
+	glheapallocation_t *allocation, glheap_t *heap, glheapsegment_t *segment, uint32_t block_page_index, const int small_alloc_size,
+	const int small_alloc_bucket)
+{
+	glheappagehdr_t *block_hdr = &segment->page_hdrs[block_page_index];
+	if (block_hdr->small_alloc_mask == 0ull)
+	{
+		// New page, add to free list
+		GL_HeapAddPageToSmallFreeList (segment, block_page_index, small_alloc_bucket);
+	}
+
+	const uint32_t slot_index = FindFirstBitNonZero (~block_hdr->small_alloc_mask);
+	TRACE_LOG (" Allocated slot %d from page %u\n", slot_index, block_page_index);
+	block_hdr->small_alloc_mask |= 1ull << slot_index;
+
+#ifndef NDEBUG
+	const uint32_t num_slots = SMALL_SLOTS_PER_PAGE[small_alloc_bucket];
+	assert ((num_slots * small_alloc_size) <= heap->page_size);
+	assert (slot_index < num_slots);
+#endif
+
+	if (block_hdr->small_alloc_mask == SLOTS_FULL_MASK[small_alloc_bucket])
+	{
+		// Page is full, remove from free list
+		GL_HeapRemovePageFromSmallFreeList (segment, block_page_index, small_alloc_bucket);
+	}
+
+	allocation->alloc_type = ALLOC_TYPE_SMALL_ALLOC + small_alloc_bucket;
+	allocation->offset = (block_page_index * heap->page_size) + (slot_index * small_alloc_size);
+#ifndef NDEBUG
+	allocation->small_alloc_slot = slot_index;
+	allocation->small_alloc_size = small_alloc_size;
+#endif
+}
+
+/*
+===============
+GL_HeapSmallFreeFromBlock
+===============
+*/
+static qboolean GL_HeapSmallFreeFromBlock (glheap_t *heap, glheapsegment_t *segment, glheapallocation_t *allocation)
+{
+	const uint32_t block_page_index = allocation->offset >> heap->page_size_shift;
+	const uint32_t offset_in_page = allocation->offset & (heap->page_size - 1);
+	const uint32_t small_alloc_bucket = allocation->alloc_type - ALLOC_TYPE_SMALL_ALLOC;
+	const uint32_t small_alloc_size_shift = heap->small_alloc_shift + small_alloc_bucket;
+	const uint32_t slot_index = offset_in_page >> small_alloc_size_shift;
+
+#ifndef NDEBUG
+	const uint32_t num_slots = SMALL_SLOTS_PER_PAGE[small_alloc_bucket];
+	assert (offset_in_page < heap->page_size);
+	assert (slot_index < num_slots);
+	assert (slot_index == allocation->small_alloc_slot);
+	assert ((heap->page_size / SMALL_SLOTS_PER_PAGE[small_alloc_bucket]) == allocation->small_alloc_size);
+#endif
+
+	TRACE_LOG (" Free slot %d from page %u\n", slot_index, block_page_index);
+	glheappagehdr_t *block_hdr = &segment->page_hdrs[block_page_index];
+	if (block_hdr->small_alloc_mask == SLOTS_FULL_MASK[small_alloc_bucket])
+	{
+		// Page was full, add to free list
+		GL_HeapAddPageToSmallFreeList (segment, block_page_index, small_alloc_bucket);
+	}
+
+	assert ((block_hdr->small_alloc_mask & (1ull << slot_index)) != 0);
+	block_hdr->small_alloc_mask &= ~(1ull << slot_index);
+
+	qboolean page_empty = block_hdr->small_alloc_mask == 0ull;
+	if (page_empty)
+	{
+		// Page is now empty, remove from free list
+		GL_HeapRemovePageFromSmallFreeList (segment, block_page_index, small_alloc_bucket);
+	}
+
+	return page_empty;
 }
 
 /*
@@ -123,89 +401,43 @@ GL_CreateHeapMemory (VkDeviceSize size, uint32_t memory_type_index, vulkan_memor
 GL_HeapAllocateFromMemory
 ===============
 */
-static qboolean GL_HeapAllocateFromMemory (glheapmemory_t *memory, VkDeviceSize size, VkDeviceSize alignment, VkDeviceSize *aligned_offset)
+static qboolean GL_HeapAllocateFromMemory (glheapallocation_t *allocation, glheap_t *heap, glheapsegment_t *segment, VkDeviceSize size, VkDeviceSize alignment)
 {
 	assert (size > 0);
 
-	const uint32_t alloc_size_in_pages = (size + HEAP_PAGE_SIZE - 1) / HEAP_PAGE_SIZE;
-	const uint32_t alignment_in_pages = (alignment + HEAP_PAGE_SIZE - 1) / HEAP_PAGE_SIZE;
-	for (uint32_t i = 0; i < memory->num_pages; i += 64)
+	const VkDeviceSize size_alignment_max = q_max (size, alignment);
+	if (size_alignment_max <= (heap->page_size / 2))
 	{
-		uint64_t mask = memory->free_blocks_bitfield[i / 64];
-		while (mask != 0)
+		const int small_alloc_size = q_max (Q_nextPow2 (size_alignment_max), heap->min_small_alloc_size);
+		const int small_alloc_bucket = Q_log2 (small_alloc_size >> heap->small_alloc_shift);
+		TRACE_LOG ("Small alloc size %u bucket %u\n", small_alloc_size, small_alloc_bucket);
+		assert (small_alloc_bucket < NUM_SMALL_ALLOC_SIZES);
+		page_index_t page_index = segment->small_alloc_free_list_heads[small_alloc_bucket];
+		if (page_index != INVALID_PAGE_INDEX)
 		{
-			const int j = FindFirstBitNonZero64 (mask);
-			mask &= ~(1ull << j);
+			// If there is a page_index we know it is pointing to a page with at least one small alloc slot free of this size
+			GL_HeapSmallAllocateFromBlock (allocation, heap, segment, page_index, small_alloc_size, small_alloc_bucket);
+		}
+		else
+		{
+			// If we hit this there are no pages with buckets for this size. Create a new page & set it as the first small alloc page.
+			if (!GL_HeapAllocatePagesFromSegment (heap, segment, heap->page_size, heap->page_size, &page_index))
+				return false;
+			GL_HeapSmallAllocateFromBlock (allocation, heap, segment, page_index, small_alloc_size, small_alloc_bucket);
+		}
 
-			const uint32_t block_page_index = i + j;
-			const uint32_t block_page_index_aligned = q_align (block_page_index, alignment_in_pages);
-
-			const uint32_t alignment_pages = block_page_index_aligned - block_page_index;
-			const uint32_t total_pages = alignment_pages + alloc_size_in_pages;
-
-			assert (block_page_index < memory->num_pages);
-			glheapblock_t *block = &memory->pages[block_page_index];
-			const uint32_t block_size_in_pages = block->size_in_pages;
-
-			if (total_pages <= block_size_in_pages)
-			{
-				TRACE_LOG ("Allocating block at page %u with size %u pages\n", block_page_index_aligned, alloc_size_in_pages);
-
-				assert (block_page_index_aligned < memory->num_pages);
-				glheapblock_t *aligned_block = &memory->pages[block_page_index_aligned];
-
-				if (alignment_pages == 0)
-				{
-					TRACE_LOG (" No alignment padding\n");
-					// No alignment, remove free bit for this block
-					CLEAR_BIT (memory->free_blocks_bitfield, memory->num_pages, block_page_index);
-				}
-				else
-				{
-					TRACE_LOG (" %u pages alignment padding\n", alignment_pages);
-					// Keep free bit, but resize to just leftover alignment pages
-					assert (!GET_BIT (memory->free_blocks_bitfield, block_page_index_aligned));
-					block->size_in_pages = alignment_pages;
-					assert ((block_page_index + block->size_in_pages) <= memory->num_pages);
-					aligned_block->prev_block_page_index = block_page_index;
-				}
-
-				const uint32_t next_block_page_index = block_page_index_aligned + alloc_size_in_pages;
-				if (total_pages < block_size_in_pages)
-				{
-					// There is leftover space to the right, create a new free block accordingly
-					assert (next_block_page_index < memory->num_pages);
-					assert (!GET_BIT (memory->free_blocks_bitfield, next_block_page_index));
-					SET_BIT (memory->free_blocks_bitfield, memory->num_pages, next_block_page_index);
-					glheapblock_t *next_block = &memory->pages[next_block_page_index];
-					next_block->size_in_pages = block_size_in_pages - total_pages;
-					assert ((next_block_page_index + next_block->size_in_pages) <= memory->num_pages);
-					next_block->prev_block_page_index = block_page_index_aligned;
-					TRACE_LOG (" Leftover free block at page %u size %u\n", next_block_page_index, next_block->size_in_pages);
-					const uint32_t next_next_block_page_index = next_block_page_index + next_block->size_in_pages;
-					if (next_next_block_page_index < memory->num_pages)
-					{
-						glheapblock_t *next_next_block = &memory->pages[next_next_block_page_index];
-						next_next_block->prev_block_page_index = next_block_page_index;
-					}
-				}
-				else if (next_block_page_index < memory->num_pages)
-				{
-					glheapblock_t *next_block = &memory->pages[next_block_page_index];
-					next_block->prev_block_page_index = block_page_index_aligned;
-				}
-
-				aligned_block->size_in_pages = alloc_size_in_pages;
-				memory->num_pages_allocated += alloc_size_in_pages;
-				*aligned_offset = (VkDeviceAddress)block_page_index_aligned * HEAP_PAGE_SIZE;
-				return true;
-			}
-			else if (block_size_in_pages > 64)
-			{
-				// Skip over masks that are covered by the free block
-				i = ((block_page_index + block_size_in_pages) & ~0x3F) - 64;
-				break;
-			}
+		allocation->segment = segment;
+		return true;
+	}
+	else
+	{
+		page_index_t page_index;
+		if (GL_HeapAllocatePagesFromSegment (heap, segment, size, alignment, &page_index))
+		{
+			allocation->segment = segment;
+			allocation->offset = page_index * heap->page_size;
+			allocation->alloc_type = ALLOC_TYPE_PAGES;
+			return true;
 		}
 	}
 
@@ -214,66 +446,66 @@ static qboolean GL_HeapAllocateFromMemory (glheapmemory_t *memory, VkDeviceSize 
 
 /*
 ===============
-GL_HeapFreeFromMemory
+GL_HeapFreePagesFromSegment
 ===============
 */
-static void GL_HeapFreeFromMemory (glheapmemory_t *memory, VkDeviceSize offset)
+static void GL_HeapFreePagesFromSegment (glheapsegment_t *segment, uint32_t page_size_shift, VkDeviceSize offset)
 {
-	uint32_t block_page_index = offset / HEAP_PAGE_SIZE;
-	assert (!GET_BIT (memory->free_blocks_bitfield, block_page_index));
-	glheapblock_t *block = &memory->pages[block_page_index];
-	assert (block->size_in_pages > 0);
-	memory->num_pages_allocated -= block->size_in_pages;
+	page_index_t block_page_index = offset >> page_size_shift;
 	TRACE_LOG ("Freeing block at page %u\n", block_page_index);
+	assert (!GET_BIT (segment->free_blocks_bitfield, block_page_index));
+	glheappagehdr_t *block_page_hdr = &segment->page_hdrs[block_page_index];
+	assert (block_page_hdr->size_in_pages > 0);
+	segment->num_pages_allocated -= block_page_hdr->size_in_pages;
 
 	if (block_page_index > 0)
 	{
-		assert (block->prev_block_page_index < block_page_index);
-		const qboolean prev_block_free = GET_BIT (memory->free_blocks_bitfield, block->prev_block_page_index);
+		assert (block_page_hdr->prev_block_page_index < block_page_index);
+		const qboolean prev_block_free = GET_BIT (segment->free_blocks_bitfield, block_page_hdr->prev_block_page_index);
 		if (prev_block_free)
 		{
-			// Merge with previous free block
-			const uint32_t prev_block_page_index = block->prev_block_page_index;
+			// Merge with previous free block_page_hdr
+			const page_index_t prev_block_page_index = block_page_hdr->prev_block_page_index;
 			TRACE_LOG (" Merging with prev free block at %u\n", prev_block_page_index);
-			glheapblock_t *prev_block = &memory->pages[prev_block_page_index];
-			prev_block->size_in_pages += block->size_in_pages;
-			assert ((prev_block_page_index + prev_block->size_in_pages) <= memory->num_pages);
-			block_page_index = block->prev_block_page_index;
-			memset (block, 0, sizeof (glheapblock_t));
-			block = prev_block;
+			glheappagehdr_t *prev_block_page_hdr = &segment->page_hdrs[prev_block_page_index];
+			prev_block_page_hdr->size_in_pages += block_page_hdr->size_in_pages;
+			assert ((prev_block_page_index + prev_block_page_hdr->size_in_pages) <= segment->num_pages);
+			block_page_index = block_page_hdr->prev_block_page_index;
+			*block_page_hdr = EMPTY_PAGE_HDR;
+			block_page_hdr = prev_block_page_hdr;
 		}
 	}
 
 	{
-		const uint32_t next_block_page_index = block_page_index + block->size_in_pages;
-		if (next_block_page_index < memory->num_pages)
+		const page_index_t next_block_page_index = block_page_index + block_page_hdr->size_in_pages;
+		if (next_block_page_index < segment->num_pages)
 		{
-			const qboolean next_block_free = GET_BIT (memory->free_blocks_bitfield, next_block_page_index);
-			glheapblock_t *next_block = &memory->pages[next_block_page_index];
+			const qboolean	 next_block_free = GET_BIT (segment->free_blocks_bitfield, next_block_page_index);
+			glheappagehdr_t *next_block_page_hdr = &segment->page_hdrs[next_block_page_index];
 			if (next_block_free)
 			{
 				TRACE_LOG (" Merging with next free block at %u\n", next_block_page_index);
-				// Merge with next free block
-				CLEAR_BIT (memory->free_blocks_bitfield, memory->num_pages, next_block_page_index);
-				block->size_in_pages += next_block->size_in_pages;
-				assert ((block_page_index + block->size_in_pages) <= memory->num_pages);
-				memset (next_block, 0, sizeof (glheapblock_t));
+				// Merge with next free block_page_hdr
+				CLEAR_BIT (segment->free_blocks_bitfield, segment->num_pages, next_block_page_index);
+				block_page_hdr->size_in_pages += next_block_page_hdr->size_in_pages;
+				assert ((block_page_index + block_page_hdr->size_in_pages) <= segment->num_pages);
+				*next_block_page_hdr = EMPTY_PAGE_HDR;
 			}
 		}
 	}
 
 	{
-		const uint32_t next_block_page_index = block_page_index + block->size_in_pages;
-		if (next_block_page_index < memory->num_pages)
+		const page_index_t next_block_page_index = block_page_index + block_page_hdr->size_in_pages;
+		if (next_block_page_index < segment->num_pages)
 		{
-			glheapblock_t *next_block = &memory->pages[next_block_page_index];
-			next_block->prev_block_page_index = block_page_index;
+			glheappagehdr_t *next_block_page_hdr = &segment->page_hdrs[next_block_page_index];
+			next_block_page_hdr->prev_block_page_index = block_page_index;
 		}
 	}
 
-	TRACE_LOG (" Free block at %u size %u pages\n", block_page_index, block->size_in_pages);
-	assert (block_page_index < memory->num_pages);
-	SET_BIT (memory->free_blocks_bitfield, memory->num_pages, block_page_index);
+	TRACE_LOG (" Free block at %u size %u pages\n", block_page_index, block_page_hdr->size_in_pages);
+	assert (block_page_index < segment->num_pages);
+	SET_BIT (segment->free_blocks_bitfield, segment->num_pages, block_page_index);
 }
 
 /*
@@ -281,12 +513,19 @@ static void GL_HeapFreeFromMemory (glheapmemory_t *memory, VkDeviceSize offset)
 GL_HeapCreate
 ===============
 */
-glheap_t *GL_HeapCreate (VkDeviceSize memory_size, uint32_t memory_type_index, vulkan_memory_type_t memory_type, const char *heap_name)
+glheap_t *GL_HeapCreate (VkDeviceSize segment_size, uint32_t page_size, uint32_t memory_type_index, vulkan_memory_type_t memory_type, const char *heap_name)
 {
-	assert(memory_size > HEAP_PAGE_SIZE);
-	assert((memory_size % HEAP_PAGE_SIZE) == 0);
+	assert (Q_nextPow2 (page_size) == page_size);
+	assert (page_size >= (1 << (NUM_SMALL_ALLOC_SIZES + 1)));
+	assert (segment_size >= page_size);
+	assert ((segment_size % page_size) == 0);
+	assert ((segment_size / page_size) <= MAX_PAGES);
 	glheap_t *heap = Mem_Alloc (sizeof (glheap_t));
-	heap->memory_size = memory_size;
+	heap->segment_size = segment_size;
+	heap->page_size = page_size;
+	heap->min_small_alloc_size = heap->page_size / 64;
+	heap->page_size_shift = Q_log2 (page_size);
+	heap->small_alloc_shift = Q_log2 (page_size / (1 << NUM_SMALL_ALLOC_SIZES));
 	heap->memory_type_index = memory_type_index;
 	heap->memory_type = memory_type;
 	heap->name = heap_name;
@@ -300,14 +539,14 @@ GL_HeapDestroy
 */
 void GL_HeapDestroy (glheap_t *heap, atomic_uint32_t *num_allocations)
 {
-	for (uint32_t i = 0; i < heap->num_memories; ++i)
+	for (uint32_t i = 0; i < heap->num_segments; ++i)
 	{
-		glheapmemory_t *memory = heap->memories[i];
+		glheapsegment_t *memory = heap->segments[i];
 		R_FreeVulkanMemory (&memory->memory, num_allocations);
-		Mem_Free (memory->pages);
+		Mem_Free (memory->page_hdrs);
 		Mem_Free (memory->free_blocks_bitfield);
 	}
-	Mem_Free (heap->memories);
+	Mem_Free (heap->segments);
 }
 
 /*
@@ -319,44 +558,40 @@ glheapallocation_t *GL_HeapAllocate (glheap_t *heap, VkDeviceSize size, VkDevice
 {
 	glheapallocation_t *allocation = Mem_Alloc (sizeof (glheapallocation_t));
 
-	if (size < heap->memory_size)
+	if (size < heap->segment_size)
 	{
-		for (uint32_t i = 0; i < heap->num_memories; ++i)
+		allocation->alloc_type = ALLOC_TYPE_PAGES;
+
+		const uint32_t num_segments = heap->num_segments;
+		for (uint32_t i = 0; i < (num_segments + 1); ++i)
 		{
-			VkDeviceSize   aligned_offset;
-			const qboolean success = GL_HeapAllocateFromMemory (heap->memories[i], size, alignment, &aligned_offset);
-			if (success)
+			if (i == num_segments)
 			{
-				allocation->heap_memory = heap->memories[i];
-				allocation->offset = aligned_offset;
-				return allocation;
+				heap->segments = Mem_Realloc (heap->segments, sizeof (glheapsegment_t *) * (num_segments + 1));
+				heap->segments[i] =
+					GL_CreateHeapSegment (heap->segment_size, heap->page_size, heap->memory_type_index, heap->memory_type, heap->name, num_allocations);
+				++heap->num_segments;
 			}
+
+			const qboolean success = GL_HeapAllocateFromMemory (allocation, heap, heap->segments[i], size, alignment);
+			if (success)
+				return allocation;
 		}
 
-		const uint32_t num_memories = heap->num_memories;
-		heap->memories = Mem_Realloc (heap->memories, sizeof (glheapmemory_t *) * (num_memories + 1));
-		heap->memories[num_memories] = GL_CreateHeapMemory (heap->memory_size, heap->memory_type_index, heap->memory_type, heap->name, num_allocations);
-		VkDeviceSize   aligned_offset;
-		const qboolean success = GL_HeapAllocateFromMemory (heap->memories[num_memories], size, alignment, &aligned_offset);
-		assert (success);
-		if (!success)
-			return NULL;
-		allocation->heap_memory = heap->memories[num_memories];
-		allocation->offset = aligned_offset;
-		++heap->num_memories;
+		Sys_Error ("GL_HeapAllocate failed to allocate");
 	}
 	else
 	{
-		allocation->device_memory = Mem_Alloc (sizeof (vulkan_memory_t));
-		allocation->dedicated = true;
+		allocation->alloc_type = ALLOC_TYPE_DEDICATED;
+		allocation->memory = Mem_Alloc (sizeof (vulkan_memory_t));
 
 		ZEROED_STRUCT (VkMemoryAllocateInfo, memory_allocate_info);
 		memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 		memory_allocate_info.allocationSize = size;
 		memory_allocate_info.memoryTypeIndex = heap->memory_type_index;
 
-		R_AllocateVulkanMemory (allocation->device_memory, &memory_allocate_info, heap->memory_type, num_allocations);
-		GL_SetObjectName ((uint64_t)allocation->device_memory->handle, VK_OBJECT_TYPE_DEVICE_MEMORY, heap->name);
+		R_AllocateVulkanMemory (allocation->memory, &memory_allocate_info, heap->memory_type, num_allocations);
+		GL_SetObjectName ((uint64_t)allocation->memory->handle, VK_OBJECT_TYPE_DEVICE_MEMORY, heap->name);
 	}
 
 	return allocation;
@@ -369,14 +604,19 @@ GL_HeapFree
 */
 void GL_HeapFree (glheap_t *heap, glheapallocation_t *allocation, atomic_uint32_t *num_allocations)
 {
-	if (!allocation->dedicated)
+	if (allocation->alloc_type == ALLOC_TYPE_PAGES)
 	{
-		GL_HeapFreeFromMemory (allocation->heap_memory, allocation->offset);
+		GL_HeapFreePagesFromSegment (allocation->segment, heap->page_size_shift, allocation->offset);
 	}
-	else
+	else if (allocation->alloc_type == ALLOC_TYPE_DEDICATED)
 	{
-		R_FreeVulkanMemory (allocation->device_memory, num_allocations);
-		Mem_Free (allocation->device_memory);
+		R_FreeVulkanMemory (allocation->memory, num_allocations);
+		Mem_Free (allocation->memory);
+	}
+	else if (allocation->alloc_type >= ALLOC_TYPE_SMALL_ALLOC)
+	{
+		if (GL_HeapSmallFreeFromBlock (heap, allocation->segment, allocation))
+			GL_HeapFreePagesFromSegment (allocation->segment, heap->page_size_shift, allocation->offset);
 	}
 	Mem_Free (allocation);
 }
@@ -388,7 +628,7 @@ GL_HeapGetAllocationMemory
 */
 VkDeviceMemory GL_HeapGetAllocationMemory (glheapallocation_t *allocation)
 {
-	return allocation->dedicated ? allocation->device_memory->handle : allocation->heap_memory->memory.handle;
+	return (allocation->alloc_type == ALLOC_TYPE_DEDICATED) ? allocation->memory->handle : allocation->segment->memory.handle;
 }
 
 /*
@@ -421,17 +661,16 @@ TestHeapCleanState
 */
 static void TestHeapCleanState (glheap_t *heap)
 {
-	ZEROED_STRUCT (glheapblock_t, empty_block);
-	for (uint32_t i = 0; i < heap->num_memories; ++i)
+	for (uint32_t i = 0; i < heap->num_segments; ++i)
 	{
-		glheapmemory_t *memory = heap->memories[i];
-		HEAP_TEST_ASSERT (memory->num_pages_allocated == 0, "num_pages_allocated needs to be 0");
-		HEAP_TEST_ASSERT (memory->pages[0].size_in_pages = memory->num_pages, "Empty heap first block needs to fill all pages");
-		HEAP_TEST_ASSERT (memory->free_blocks_bitfield[0] == 1, "first bitfield bit needs to be 1");
-		for (uint32_t j = 1; j < memory->num_pages; ++j)
-			HEAP_TEST_ASSERT (memcmp (&memory->pages[j], &empty_block, sizeof (glheapblock_t)) == 0, "Page block header zeroed");
-		for (uint32_t j = 1; j < (memory->num_pages / HEAP_PAGE_SIZE); ++j)
-			HEAP_TEST_ASSERT (memory->free_blocks_bitfield[j] == 0, "bitfield is not 0");
+		glheapsegment_t *segment = heap->segments[i];
+		HEAP_TEST_ASSERT (segment->num_pages_allocated == 0, "num_pages_allocated needs to be 0");
+		HEAP_TEST_ASSERT (segment->page_hdrs[0].size_in_pages = segment->num_pages, "Empty heap first block needs to fill all pages");
+		HEAP_TEST_ASSERT (segment->free_blocks_bitfield[0] == 1, "first bitfield bit needs to be 1");
+		for (page_index_t j = 1; j < segment->num_pages; ++j)
+			HEAP_TEST_ASSERT (memcmp (&segment->page_hdrs[j], &EMPTY_PAGE_HDR, sizeof (glheappagehdr_t)) == 0, "Page block header zeroed");
+		for (page_index_t j = 1; j < (segment->num_pages >> heap->page_size_shift); ++j)
+			HEAP_TEST_ASSERT (segment->free_blocks_bitfield[j] == 0, "bitfield is not 0");
 	}
 }
 
@@ -442,18 +681,17 @@ TestHeapConsistency
 */
 static void TestHeapConsistency (glheap_t *heap)
 {
-
-	for (uint32_t i = 0; i < heap->num_memories; ++i)
+	for (uint32_t i = 0; i < heap->num_segments; ++i)
 	{
-		uint32_t		current_block_index = 0;
-		uint32_t		prev_block = 0;
-		qboolean		prev_block_free = false;
-		uint32_t		num_allocated_pages = 0;
-		glheapmemory_t *memory = heap->memories[i];
-		while (current_block_index < memory->num_pages)
+		page_index_t	 current_block_index = 0;
+		page_index_t	 prev_block = 0;
+		qboolean		 prev_block_free = false;
+		page_index_t	 num_allocated_pages = 0;
+		glheapsegment_t *segment = heap->segments[i];
+		while (current_block_index < segment->num_pages)
 		{
-			glheapblock_t *block = &memory->pages[current_block_index];
-			const qboolean block_free = GET_BIT (memory->free_blocks_bitfield, current_block_index);
+			glheappagehdr_t *block = &segment->page_hdrs[current_block_index];
+			const qboolean	 block_free = GET_BIT (segment->free_blocks_bitfield, current_block_index);
 			if (current_block_index > 0)
 			{
 				HEAP_TEST_ASSERT (block->prev_block_page_index == prev_block, "Invalid prev block");
@@ -461,15 +699,15 @@ static void TestHeapConsistency (glheap_t *heap)
 					HEAP_TEST_ASSERT (!block_free, "Found two consecutive free blocks");
 			}
 			prev_block = current_block_index;
-			for (uint32_t j = 1; j < block->size_in_pages; ++j)
-				HEAP_TEST_ASSERT (!GET_BIT (memory->free_blocks_bitfield, current_block_index + j), "Free bit set for non block page");
+			for (page_index_t j = 1; j < block->size_in_pages; ++j)
+				HEAP_TEST_ASSERT (!GET_BIT (segment->free_blocks_bitfield, current_block_index + j), "Free bit set for non block page");
 			if (!block_free)
 				num_allocated_pages += block->size_in_pages;
 			prev_block_free = block_free;
 			current_block_index += block->size_in_pages;
 		}
-		HEAP_TEST_ASSERT (current_block_index == memory->num_pages, "Blocks need to add up to num pages");
-		HEAP_TEST_ASSERT (num_allocated_pages == memory->num_pages_allocated, "Invalid number of allocated pages found");
+		HEAP_TEST_ASSERT (current_block_index == segment->num_pages, "Blocks need to add up to num pages");
+		HEAP_TEST_ASSERT (num_allocated_pages == segment->num_pages_allocated, "Invalid number of allocated pages found");
 	}
 }
 
@@ -481,16 +719,17 @@ GL_HeapTest_f
 void GL_HeapTest_f (void)
 {
 	const VkDeviceSize TEST_HEAP_SIZE = 1ull * 1024ull * 1024ull;
-	const int		   NUM_ITERATIONS = 20;
+	const VkDeviceSize TEST_HEAP_PAGE_SIZE = 4096;
+	const int		   NUM_ITERATIONS = 100;
 	const int		   NUM_ALLOCS_PER_ITERATION = 500;
 	const int		   MAX_ALLOC_SIZE = 64ull * 1024ull;
 	const VkDeviceSize ALIGNMENTS[] = {
-		1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384,
+		1, 1, 1, 1, 2, 2, 2, 2, 4, 4, 4, 4, 8, 8, 16, 16, 32, 32, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384,
 	};
 	const int NUM_ALIGNMENTS = countof (ALIGNMENTS);
 
 	atomic_uint32_t num_allocations = {0};
-	glheap_t	   *test_heap = GL_HeapCreate (TEST_HEAP_SIZE, 0, VULKAN_MEMORY_TYPE_NONE, "Test Heap");
+	glheap_t	   *test_heap = GL_HeapCreate (TEST_HEAP_SIZE, TEST_HEAP_PAGE_SIZE, 0, VULKAN_MEMORY_TYPE_NONE, "Test Heap");
 	TestHeapCleanState (test_heap);
 	srand (0);
 	TEMP_ALLOC_ZEROED (glheapallocation_t *, allocations, NUM_ALLOCS_PER_ITERATION);
@@ -507,8 +746,10 @@ void GL_HeapTest_f (void)
 					const VkDeviceSize alignment = ALIGNMENTS[rand () % NUM_ALIGNMENTS];
 					HEAP_TEST_ASSERT (allocations[i] == NULL, "allocation is not NULL");
 
-					allocations[i] = GL_HeapAllocate (test_heap, size, alignment, &num_allocations);
-					HEAP_TEST_ASSERT ((GL_HeapGetAllocationOffset (allocations[i]) % alignment) == 0, "wrong alignment");
+					glheapallocation_t *allocation = GL_HeapAllocate (test_heap, size, alignment, &num_allocations);
+					const VkDeviceSize	offset = GL_HeapGetAllocationOffset (allocation);
+					HEAP_TEST_ASSERT ((offset % alignment) == 0, "wrong alignment");
+					allocations[i] = allocation;
 					TestHeapConsistency (test_heap);
 				}
 			}
