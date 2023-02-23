@@ -280,8 +280,9 @@ static inline int FindFirstBitNonZero64 (const uint64_t mask)
 	}
 #endif
 }
-#define THREAD_LOCAL __declspec (thread)
-#define FORCE_INLINE __forceinline
+#define THREAD_LOCAL  __declspec (thread)
+#define FORCE_INLINE  __forceinline
+#define UNREACHABLE() __assume (false)
 #else
 static inline int FindFirstBitNonZero (const uint32_t mask)
 {
@@ -291,8 +292,9 @@ static inline int FindFirstBitNonZero64 (const uint64_t mask)
 {
 	return __builtin_ctzll (mask);
 }
-#define THREAD_LOCAL _Thread_local
-#define FORCE_INLINE __attribute__ ((always_inline)) inline
+#define THREAD_LOCAL  _Thread_local
+#define FORCE_INLINE  __attribute__ ((always_inline)) inline
+#define UNREACHABLE() __builtin_unreachable ()
 #endif
 
 #include "common.h"

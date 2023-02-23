@@ -340,7 +340,7 @@ typedef struct mtriangle_s
 
 #define MAX_SKINS 32
 
-typedef struct aliashdr_s aliashdr_t;
+typedef struct aliashdr_s		  aliashdr_t;
 typedef struct glheapallocation_s glheapallocation_t;
 
 typedef enum

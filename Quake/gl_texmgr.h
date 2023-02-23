@@ -120,4 +120,3 @@ void TexMgr_ReloadNobrightImages (void);
 void TexMgr_UpdateTextureDescriptorSets (void);
 
 #endif /* _GL_TEXMAN_H */
-
