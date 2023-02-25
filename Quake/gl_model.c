@@ -50,8 +50,6 @@ int		 mod_numknown;
 texture_t *r_notexture_mip;	 // johnfitz -- moved here from r_main.c
 texture_t *r_notexture_mip2; // johnfitz -- used for non-lightmapped surfs with a missing texture
 
-SDL_mutex *lightcache_mutex;
-
 /*
 ===============
 ReadShortUnaligned
@@ -120,8 +118,6 @@ void Mod_Init (void)
 	r_notexture_mip2 = (texture_t *)Mem_Alloc (sizeof (texture_t));
 	strcpy (r_notexture_mip2->name, "notexture2");
 	r_notexture_mip2->height = r_notexture_mip2->width = 32;
-
-	lightcache_mutex = SDL_CreateMutex ();
 	// johnfitz
 }
 

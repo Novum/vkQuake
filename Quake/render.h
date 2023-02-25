@@ -42,11 +42,10 @@ typedef struct efrag_s
 
 typedef struct lightcache_s
 {
-	int		   surfidx; // < 0: black surface; == 0: no cache; > 0: 1+index of surface
-	vec3_t	   pos;
-	short	   ds;
-	short	   dt;
-	SDL_mutex *mutex;
+	int	   surfidx; // < 0: black surface; == 0: no cache; > 0: 1+index of surface
+	vec3_t pos;
+	short  ds;
+	short  dt;
 } lightcache_t;
 
 struct SDL_mutex;

@@ -29,8 +29,6 @@ extern cvar_t r_flatlightstyles; // johnfitz
 extern cvar_t r_lerplightstyles;
 extern cvar_t r_gpulightmapupdate;
 
-extern SDL_mutex *lightcache_mutex;
-
 /*
 ==================
 R_AnimateLight
@@ -361,8 +359,6 @@ int R_LightPoint (vec3_t p, float ofs, lightcache_t *cache, vec3_t *lightcolor)
 
 	(*lightcolor)[0] = (*lightcolor)[1] = (*lightcolor)[2] = 0;
 
-	SDL_mutex *mtx = cache->mutex ? cache->mutex : lightcache_mutex;
-	SDL_LockMutex (mtx);
 	if (cache->surfidx <= 0 // no cache or pitch black
 		|| cache->surfidx > cl.worldmodel->numsurfaces || fabsf (cache->pos[0] - p[0]) >= 1.f || fabsf (cache->pos[1] - p[1]) >= 1.f ||
 		fabsf (cache->pos[2] - p[2]) >= 1.f)
@@ -374,7 +370,6 @@ int R_LightPoint (vec3_t p, float ofs, lightcache_t *cache, vec3_t *lightcolor)
 
 	if (cache && cache->surfidx > 0)
 		InterpolateLightmap (*lightcolor, cl.worldmodel->surfaces + cache->surfidx - 1, cache->ds, cache->dt);
-	SDL_UnlockMutex (mtx);
 
 	return (((*lightcolor)[0] + (*lightcolor)[1] + (*lightcolor)[2]) * (1.0f / 3.0f));
 }

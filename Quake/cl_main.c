@@ -92,11 +92,7 @@ void CL_FreeState (void)
 	for (i = 0; i < MAX_CL_STATS; i++)
 		Mem_Free (cl.statss[i]);
 	PR_ClearProgs (&cl.qcvm);
-	for (i = 0; i < cl.max_edicts; ++i)
-		SDL_DestroyMutex (cl.entities[i].lightcache.mutex);
 	Mem_Free (cl.entities);
-	for (i = 0; i < cl.num_statics; ++i)
-		SDL_DestroyMutex (cl.static_entities[i]->lightcache.mutex);
 	for (i = 0; i < cl.num_statics; i += 64)
 		Mem_Free (cl.static_entities[i]);
 	Mem_Free (cl.static_entities);
@@ -135,8 +131,6 @@ void CL_ClearState (void)
 	cl.max_edicts = CLAMP (MIN_EDICTS, (int)max_edicts.value, MAX_EDICTS);
 	cl.entities = (entity_t *)Mem_Alloc (cl.max_edicts * sizeof (entity_t));
 	// johnfitz
-	for (int i = 0; i < cl.max_edicts; ++i)
-		cl.entities[i].lightcache.mutex = SDL_CreateMutex ();
 
 	cl.viewent.netstate = nullentitystate;
 #ifdef PSET_SCRIPT
