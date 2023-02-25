@@ -564,6 +564,7 @@ qmodel_t *Mod_ForName (const char *name, qboolean crash);
 void	 *Mod_Extradata_CheckSkin (qmodel_t *mod, int skinnum);
 void	 *Mod_Extradata (qmodel_t *mod);
 void	  Mod_TouchModel (const char *name);
+void	  Mod_RefreshSkins_f (cvar_t *var);
 
 mleaf_t *Mod_PointInLeaf (float *p, qmodel_t *model);
 byte	*Mod_LeafPVS (mleaf_t *leaf, qmodel_t *model);

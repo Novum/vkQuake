@@ -3584,6 +3584,7 @@ void R_Init (void)
 	Cvar_RegisterVariable (&r_pos);
 	Cvar_RegisterVariable (&gl_polyblend);
 	Cvar_RegisterVariable (&gl_nocolors);
+	Cvar_SetCallback (&gl_nocolors, Mod_RefreshSkins_f);
 
 	// johnfitz -- new cvars
 	Cvar_RegisterVariable (&r_clearcolor);
@@ -3703,7 +3704,6 @@ void R_TranslatePlayerSkin (int playernum)
 	top = (cl.scores[playernum].colors & 0xf0) >> 4;
 	bottom = cl.scores[playernum].colors & 15;
 
-	// FIXME: if gl_nocolors is on, then turned off, the textures may be out of sync with the scoreboard colors.
 	if (!gl_nocolors.value)
 		if (playertextures[playernum])
 			TexMgr_ReloadImage (playertextures[playernum], top, bottom);

@@ -88,10 +88,10 @@ static float ReadFloatUnaligned (byte *ptr)
 
 /*
 ===============
-Mod_ToggleMD5_f
+Mod_RefreshSkins_f
 ===============
 */
-static void Mod_ToggleMD5_f (cvar_t *var)
+void Mod_RefreshSkins_f (cvar_t *var)
 {
 	for (int i = 0; i < cl.maxclients; ++i)
 		R_TranslateNewPlayerSkin (i);
@@ -108,7 +108,7 @@ void Mod_Init (void)
 	Cvar_RegisterVariable (&external_ents);
 	Cvar_RegisterVariable (&r_loadmd5models);
 	Cvar_RegisterVariable (&r_md5models);
-	Cvar_SetCallback (&r_md5models, Mod_ToggleMD5_f);
+	Cvar_SetCallback (&r_md5models, Mod_RefreshSkins_f);
 
 	// johnfitz -- create notexture miptex
 	r_notexture_mip = (texture_t *)Mem_Alloc (sizeof (texture_t));
