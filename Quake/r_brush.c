@@ -1576,9 +1576,11 @@ void GL_BuildLightmaps (void)
 			surf = &m->surfaces[i];
 			if (!(surf->flags & SURF_DRAWTILED))
 			{
-				GL_CreateSurfaceLightmap (surf, surface_index);
+				const qboolean no_dlights = j > 1;
+				GL_CreateSurfaceLightmap (surf, surface_index | 0x80000000 * no_dlights);
 				BuildSurfaceDisplayList (surf);
-				R_AssignWorkgroupBounds (surf);
+				if (!no_dlights)
+					R_AssignWorkgroupBounds (surf);
 			}
 			if (indirect_ready)
 				UpdateIndirectStructs (surf, INDIRECT_ZBIAS && surface_index >= indirect_bmodel_start);

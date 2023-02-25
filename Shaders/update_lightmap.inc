@@ -186,7 +186,7 @@ void main ()
 	if (surface_index == 0xFFFFFFFF)
 		return;
 
-	const surface_t surf = surfaces[surface_index];
+	const surface_t surf = surfaces[surface_index & 0x7FFFFFFF];
 	const uint		packed_lighstyles = surf.packed_lightstyles;
 
 	const uint lightstyles[4] = {
@@ -210,7 +210,7 @@ void main ()
 			light_accumulated += scale * fourth_lightmap;
 	}
 
-	if (dlights)
+	if (dlights && surface_index < 0x80000000)
 	{
 		const float s = float (coords.x - (surf.packed_light_st & 0xFFFF)) - 0.5f;
 		const float t = float (coords.y - (surf.packed_light_st >> 16)) - 0.5f;
