@@ -1570,6 +1570,10 @@ sizebuf_t *WriteDest (void)
 	case MSG_INIT:
 		return &sv.signon;
 
+	case MSG_EXT_MULTICAST:
+	case MSG_EXT_ENTITY: // just reuse it...
+		return &sv.multicast;
+
 	default:
 		PR_RunError ("WriteDest: bad destination");
 		break;
