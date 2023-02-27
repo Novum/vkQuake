@@ -57,8 +57,11 @@ lightstyle_t	cl_lightstyle[MAX_LIGHTSTYLES];
 dlight_t		cl_dlights[MAX_DLIGHTS];
 
 int		   cl_numvisedicts;
+int		   cl_numvisedicts_alpha_overwater;
+int		   cl_numvisedicts_alpha_underwater;
 int		   cl_maxvisedicts;
 entity_t **cl_visedicts;
+entity_t **cl_visedicts_alpha;
 
 extern cvar_t r_lerpmodels, r_lerpmove; // johnfitz
 extern float  host_netinterval;			// Spike
@@ -635,10 +638,11 @@ void CL_RelinkEntities (void)
 	if (frametime > 0.1)
 		frametime = 0.1;
 
-	if (cl_numvisedicts + 64 > cl_maxvisedicts)
+	if (cl_numvisedicts + 256 > cl_maxvisedicts)
 	{
-		cl_maxvisedicts = cl_maxvisedicts + 64;
+		cl_maxvisedicts += cl_maxvisedicts ? 256 : 4096;
 		cl_visedicts = Mem_Realloc (cl_visedicts, sizeof (*cl_visedicts) * cl_maxvisedicts);
+		cl_visedicts_alpha = Mem_Realloc (cl_visedicts_alpha, sizeof (*cl_visedicts_alpha) * cl_maxvisedicts);
 	}
 	cl_numvisedicts = 0;
 

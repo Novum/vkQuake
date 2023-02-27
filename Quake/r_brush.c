@@ -401,6 +401,38 @@ void DrawGLPoly (cb_context_t *cbx, glpoly_t *p, float color[3], float alpha)
 */
 
 /*
+================
+R_RecursiveNode
+================
+*/
+static void R_RecursiveNode (mnode_t *node, qmodel_t *model, vec3_t modelorg, int chain, int *brushpolys, int worker_index, qboolean water_transparent_only)
+{
+	if (node->contents >= 0)
+	{
+		mplane_t *plane = node->plane;
+		float	  dot = (plane->type < 3 ? modelorg[plane->type] : DotProduct (modelorg, plane->normal)) - plane->dist;
+
+		// recurse down the children, front side first (chained surfaces are drawn in reverse order)
+		R_RecursiveNode (node->children[dot < 0], model, modelorg, chain, brushpolys, worker_index, water_transparent_only);
+
+		msurface_t *surf = model->surfaces + node->firstsurface;
+		for (int i = node->numsurfaces; i > 0; --i, surf++)
+			if (((surf->flags & SURF_PLANEBACK && dot < -BACKFACE_EPSILON) || (!(surf->flags & SURF_PLANEBACK) && dot > BACKFACE_EPSILON)) &&
+				(!water_transparent_only || (surf->flags & SURF_DRAWTURB && GL_WaterAlphaForSurface (surf) != 1)))
+			{
+				R_ChainSurface (surf, chain);
+				++(*brushpolys);
+				if (!r_gpulightmapupdate.value)
+					R_RenderDynamicLightmaps (surf);
+				else if (surf->lightmaptexturenum >= 0)
+					lightmaps[surf->lightmaptexturenum].modified[worker_index] |= surf->styles_bitmap;
+			}
+
+		R_RecursiveNode (node->children[dot >= 0], model, modelorg, chain, brushpolys, worker_index, water_transparent_only);
+	}
+}
+
+/*
 =================
 R_IndirectBrush
 =================
@@ -418,7 +450,7 @@ qboolean R_IndirectBrush (entity_t *e)
 R_DrawBrushModel
 =================
 */
-void R_DrawBrushModel (cb_context_t *cbx, entity_t *e, int chain, int *brushpolys, qboolean water_opaque_only, qboolean water_transparent_only)
+void R_DrawBrushModel (cb_context_t *cbx, entity_t *e, int chain, int *brushpolys, qboolean sort, qboolean water_opaque_only, qboolean water_transparent_only)
 {
 	int			i, k;
 	msurface_t *psurf;
@@ -496,24 +528,30 @@ void R_DrawBrushModel (cb_context_t *cbx, entity_t *e, int chain, int *brushpoly
 	R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 16 * sizeof (float), mvp);
 	R_ClearTextureChains (clmodel, chain);
 	const int worker_index = Tasks_GetWorkerIndex ();
-	for (i = 0; i < clmodel->nummodelsurfaces; i++, psurf++)
+	if (sort)
 	{
-		if (water_opaque_only && psurf->flags & SURF_DRAWTURB && GL_WaterAlphaForSurface (psurf) != 1)
-			continue;
-		if (water_transparent_only && (!(psurf->flags & SURF_DRAWTURB) || GL_WaterAlphaForSurface (psurf) == 1))
-			continue;
-		pplane = psurf->plane;
-		dot = DotProduct (modelorg, pplane->normal) - pplane->dist;
-		if (((psurf->flags & SURF_PLANEBACK) && (dot < -BACKFACE_EPSILON)) || (!(psurf->flags & SURF_PLANEBACK) && (dot > BACKFACE_EPSILON)))
-		{
-			R_ChainSurface (psurf, chain);
-			++(*brushpolys);
-			if (!r_gpulightmapupdate.value)
-				R_RenderDynamicLightmaps (psurf);
-			else if (psurf->lightmaptexturenum >= 0)
-				lightmaps[psurf->lightmaptexturenum].modified[worker_index] |= psurf->styles_bitmap;
-		}
+		mnode_t *head = &clmodel->nodes[clmodel->hulls[0].firstclipnode];
+		R_RecursiveNode (head, clmodel, modelorg, chain, brushpolys, worker_index, water_transparent_only);
 	}
+	else
+		for (i = 0; i < clmodel->nummodelsurfaces; i++, psurf++)
+		{
+			if (water_opaque_only && psurf->flags & SURF_DRAWTURB && GL_WaterAlphaForSurface (psurf) != 1)
+				continue;
+			if (water_transparent_only && (!(psurf->flags & SURF_DRAWTURB) || GL_WaterAlphaForSurface (psurf) == 1))
+				continue;
+			pplane = psurf->plane;
+			dot = DotProduct (modelorg, pplane->normal) - pplane->dist;
+			if (((psurf->flags & SURF_PLANEBACK) && (dot < -BACKFACE_EPSILON)) || (!(psurf->flags & SURF_PLANEBACK) && (dot > BACKFACE_EPSILON)))
+			{
+				R_ChainSurface (psurf, chain);
+				++(*brushpolys);
+				if (!r_gpulightmapupdate.value)
+					R_RenderDynamicLightmaps (psurf);
+				else if (psurf->lightmaptexturenum >= 0)
+					lightmaps[psurf->lightmaptexturenum].modified[worker_index] |= psurf->styles_bitmap;
+			}
+		}
 
 	R_DrawTextureChains (cbx, clmodel, e, chain);
 	R_DrawTextureChains_Water (cbx, clmodel, e, chain);

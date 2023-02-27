@@ -49,6 +49,7 @@ extern cvar_t r_lerpmove;
 extern cvar_t r_nolerp_list;
 // johnfitz
 extern cvar_t gl_zfix; // QuakeSpasm z-fighting fix
+extern cvar_t r_alphasort;
 
 extern cvar_t r_gpulightmapupdate;
 extern cvar_t r_rtshadows;
@@ -3580,6 +3581,7 @@ void R_Init (void)
 	Cvar_SetCallback (&r_simd, R_SIMD_f);
 	R_SIMD_f (&r_simd);
 #endif
+	Cvar_RegisterVariable (&r_alphasort);
 	Cvar_RegisterVariable (&r_speeds);
 	Cvar_RegisterVariable (&r_pos);
 	Cvar_RegisterVariable (&gl_polyblend);

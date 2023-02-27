@@ -332,7 +332,10 @@ extern dlight_t		cl_dlights[MAX_DLIGHTS];
 extern entity_t		cl_temp_entities[MAX_TEMP_ENTITIES];
 extern beam_t		cl_beams[MAX_BEAMS];
 extern entity_t	  **cl_visedicts;
+extern entity_t	  **cl_visedicts_alpha;
 extern int			cl_numvisedicts;
+extern int			cl_numvisedicts_alpha_overwater;
+extern int			cl_numvisedicts_alpha_underwater;
 extern int			cl_maxvisedicts; // extended if we exceeded it the previous frame
 
 //=============================================================================
