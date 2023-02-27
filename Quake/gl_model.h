@@ -88,6 +88,7 @@ typedef enum
 	chain_model_3,
 	chain_model_4,
 	chain_model_5,
+	chain_alpha_model_across_water,
 	chain_alpha_model,
 	chain_num,
 } texchain_t;

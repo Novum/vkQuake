@@ -192,7 +192,9 @@ typedef enum
 	// Main render pass:
 	SCBX_WORLD,
 	SCBX_ENTITIES,
-	SCBX_SKY_AND_WATER,
+	SCBX_SKY,
+	SCBX_ALPHA_ENTITIES_ACROSS_WATER,
+	SCBX_WATER,
 	SCBX_ALPHA_ENTITIES,
 	SCBX_PARTICLES,
 	SCBX_VIEW_MODEL,
@@ -205,7 +207,9 @@ typedef enum
 static const int SECONDARY_CB_MULTIPLICITY[SCBX_NUM] = {
 	NUM_WORLD_CBX,	  // SCBX_WORLD,
 	NUM_ENTITIES_CBX, // SCBX_ENTITIES,
-	1,				  // SCBX_SKY_AND_WATER,
+	1,				  // SCBX_SKY,
+	1,				  // SCBX_ALPHA_ENTITIES_ACROSS_WATER,
+	1,				  // SCBX_WATER,
 	1,				  // SCBX_ALPHA_ENTITIES,
 	1,				  // SCBX_PARTICLES,
 	1,				  // SCBX_VIEW_MODEL,
@@ -558,7 +562,7 @@ qboolean R_IndirectBrush (entity_t *e);
 
 void R_DrawWorld (cb_context_t *cbx, int index);
 void R_DrawAliasModel (cb_context_t *cbx, entity_t *e, int *aliaspolys);
-void R_DrawBrushModel (cb_context_t *cbx, entity_t *e, int chain, int *brushpolys, qboolean water_opaque_only, qboolean water_transparent_only);
+void R_DrawBrushModel (cb_context_t *cbx, entity_t *e, int chain, int *brushpolys, qboolean sort, qboolean water_opaque_only, qboolean water_transparent_only);
 void R_DrawSpriteModel (cb_context_t *cbx, entity_t *e);
 void R_DrawIndirectBrushes (cb_context_t *cbx, qboolean draw_water, qboolean draw_sky, int index);
 void R_DrawIndirectBrushes_ShowTris (cb_context_t *cbx);

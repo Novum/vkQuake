@@ -68,6 +68,7 @@ cvar_t r_novis = {"r_novis", "0", CVAR_ARCHIVE};
 #if defined(USE_SIMD)
 cvar_t r_simd = {"r_simd", "1", CVAR_ARCHIVE};
 #endif
+cvar_t r_alphasort = {"r_alphasort", "1", CVAR_ARCHIVE};
 
 cvar_t gl_finish = {"gl_finish", "0", CVAR_NONE};
 cvar_t gl_polyblend = {"gl_polyblend", "1", CVAR_NONE};
@@ -387,7 +388,7 @@ static void R_SetupViewBeforeMark (void *unused)
 
 	if (r_waterwarp.value)
 	{
-		int contents = Mod_PointInLeaf (r_origin, cl.worldmodel)->contents;
+		int contents = r_viewleaf->contents;
 		if (contents == CONTENTS_WATER || contents == CONTENTS_SLIME || contents == CONTENTS_LAVA)
 		{
 			if (r_waterwarp.value == 1)
@@ -435,10 +436,29 @@ static void R_SetupViewBeforeMark (void *unused)
 
 /*
 =============
-R_DrawEntitiesOnList
+R_IsEntityTransparent
 =============
 */
-void R_DrawEntitiesOnList (cb_context_t *cbx, qboolean alphapass, int chain, qboolean use_tasks) // johnfitz -- added parameter
+static qboolean R_IsEntityTransparent (entity_t *e, qboolean *opaque_with_transparent_water)
+{
+	qboolean transparent = ENTALPHA_DECODE (e->alpha) != 1;
+	*opaque_with_transparent_water =
+		(!transparent && e->model->type == mod_brush && e->model->used_specials & SURF_DRAWTURB &&
+		 ((e->model->used_specials & SURF_DRAWLAVA && (map_lavaalpha > 0 ? map_lavaalpha : map_fallbackalpha) != 1) ||
+		  (e->model->used_specials & SURF_DRAWTELE && (map_telealpha > 0 ? map_telealpha : map_fallbackalpha) != 1) ||
+		  (e->model->used_specials & SURF_DRAWSLIME && (map_slimealpha > 0 ? map_slimealpha : map_fallbackalpha) != 1) ||
+		  (e->model->used_specials & SURF_DRAWWATER && map_wateralpha != 1)));
+	return transparent;
+}
+
+/*
+=============
+R_DrawEntitiesOnList
+
+alphapass 0 for opaque, 1 for transparent overwater, 2 for transpatent underwater
+=============
+*/
+void R_DrawEntitiesOnList (cb_context_t *cbx, int alphapass, int chain, qboolean use_tasks) // johnfitz -- added parameter
 {
 	int i = -1;
 
@@ -450,6 +470,9 @@ void R_DrawEntitiesOnList (cb_context_t *cbx, qboolean alphapass, int chain, qbo
 	int aliaspolys = 0;
 	int aliaspasses = 0;
 
+	const int		 total = !alphapass ? cl_numvisedicts : alphapass == 1 ? cl_numvisedicts_alpha_overwater : cl_numvisedicts_alpha_underwater;
+	entity_t **const list = !alphapass ? cl_visedicts : alphapass == 1 ? cl_visedicts_alpha : cl_visedicts_alpha + cl_numvisedicts_alpha_overwater;
+
 	R_BeginDebugUtilsLabel (cbx, alphapass ? "Entities Alpha Pass" : "Entities");
 	// johnfitz -- sprites are not a special case
 	while (true)
@@ -459,22 +482,17 @@ void R_DrawEntitiesOnList (cb_context_t *cbx, qboolean alphapass, int chain, qbo
 		else
 			i += 1;
 
-		if (i >= cl_numvisedicts)
+		if (i >= total)
 			break;
 
-		entity_t *currententity = cl_visedicts[i];
+		entity_t *currententity = list[i];
 
-		qboolean transparent = ENTALPHA_DECODE (currententity->alpha) != 1;
-		qboolean opaque_with_transparent_water =
-			(!transparent && currententity->model->type == mod_brush && currententity->model->used_specials & SURF_DRAWTURB &&
-			 ((currententity->model->used_specials & SURF_DRAWLAVA && (map_lavaalpha > 0 ? map_lavaalpha : map_fallbackalpha) != 1) ||
-			  (currententity->model->used_specials & SURF_DRAWTELE && (map_telealpha > 0 ? map_telealpha : map_fallbackalpha) != 1) ||
-			  (currententity->model->used_specials & SURF_DRAWSLIME && (map_slimealpha > 0 ? map_slimealpha : map_fallbackalpha) != 1) ||
-			  (currententity->model->used_specials & SURF_DRAWWATER && map_wateralpha != 1)));
+		qboolean opaque_with_transparent_water;
+		qboolean transparent = R_IsEntityTransparent (currententity, &opaque_with_transparent_water);
 
 		// johnfitz -- if alphapass is true, draw only alpha entites this time
 		// if alphapass is false, draw only nonalpha entities this time
-		if (transparent != alphapass && !opaque_with_transparent_water)
+		if (transparent != !!alphapass && !opaque_with_transparent_water)
 			continue;
 
 		// johnfitz -- chasecam
@@ -493,7 +511,9 @@ void R_DrawEntitiesOnList (cb_context_t *cbx, qboolean alphapass, int chain, qbo
 			++aliaspasses;
 			break;
 		case mod_brush:
-			R_DrawBrushModel (cbx, currententity, chain, &brushpolys, opaque_with_transparent_water && !alphapass, opaque_with_transparent_water && alphapass);
+			R_DrawBrushModel (
+				cbx, currententity, chain, &brushpolys, alphapass && r_alphasort.value, !alphapass && opaque_with_transparent_water,
+				alphapass && opaque_with_transparent_water);
 			++brushpasses;
 			break;
 		case mod_sprite:
@@ -808,16 +828,127 @@ static void R_DrawWorldTask (int index, void *use_tasks)
 
 /*
 ================
-R_DrawSkyAndWaterTask
+R_DrawSkyTask
 ================
 */
-static void R_DrawSkyAndWaterTask (void *unused)
+static void R_DrawSkyTask (void *unused)
 {
-	cb_context_t *cbx = vulkan_globals.secondary_cb_contexts[SCBX_SKY_AND_WATER];
+	cb_context_t *cbx = vulkan_globals.secondary_cb_contexts[SCBX_SKY];
 	R_SetupContext (cbx);
 	Fog_EnableGFog (cbx);
 	Sky_DrawSky (cbx);
+}
+
+/*
+================
+R_DrawWaterTask
+================
+*/
+static void R_DrawWaterTask (void *unused)
+{
+	cb_context_t *cbx = vulkan_globals.secondary_cb_contexts[SCBX_WATER];
+	R_SetupContext (cbx);
+	Fog_EnableGFog (cbx);
 	R_DrawWorld_Water (cbx);
+}
+
+/*
+================
+R_SortAlphaEntitiesTask
+================
+*/
+static void R_SortAlphaEntitiesTask (void *unused)
+{
+	typedef struct
+	{
+		int		 visedict;
+		unsigned sortkey;
+	} transp_sort;
+	cl_numvisedicts_alpha_overwater = cl_numvisedicts_alpha_underwater = 0;
+	TEMP_ALLOC (transp_sort, edicts, r_alphasort.value ? cl_numvisedicts * 2 : 1);
+	int sort_bins[3][128];
+	if (r_alphasort.value)
+		memset (sort_bins, 0, sizeof (sort_bins));
+	for (int i = 0; i < cl_numvisedicts; ++i)
+	{
+		entity_t *currententity = cl_visedicts[i];
+
+		qboolean opaque_with_transparent_water;
+		qboolean transparent = R_IsEntityTransparent (currententity, &opaque_with_transparent_water);
+
+		if (!transparent && !opaque_with_transparent_water)
+			continue;
+		if (currententity->eflags & EFLAGS_EXTERIORMODEL)
+			continue;
+		// box culling here is not safe (R_DrawAliasModel updates lerp information)
+
+		if (!r_alphasort.value)
+		{
+			cl_visedicts_alpha[cl_numvisedicts_alpha_overwater++] = cl_visedicts[i];
+			continue;
+		}
+
+		vec3_t		center;
+		const float scalefactor = ENTSCALE_DECODE (currententity->netstate.scale);
+		float		dist_squared = 0;
+		for (int j = 0; j < 3; ++j)
+		{
+			const float mins = currententity->origin[j] + scalefactor * currententity->model->mins[j];
+			const float maxs = currententity->origin[j] + scalefactor * currententity->model->maxs[j];
+			center[j] = (mins + maxs) / 2;
+			const float dist = q_max (0.0f, q_max (mins - r_refdef.vieworg[j], r_refdef.vieworg[j] - maxs));
+			dist_squared += dist * dist;
+		}
+		int contents;
+		if (currententity->contentscache < 0 && memcmp (currententity->contentscache_origin, center, sizeof (vec3_t)) == 0)
+		{
+			contents = currententity->contentscache;
+		}
+		else
+		{
+			currententity->contentscache = contents = Mod_PointInLeaf (center, cl.worldmodel)->contents;
+			memcpy (currententity->contentscache_origin, center, sizeof (vec3_t));
+		}
+		const qboolean underwater = contents == CONTENTS_WATER || contents == CONTENTS_SLIME || contents == CONTENTS_LAVA;
+		const unsigned dist = sqrtf (dist_squared) * 2.0f;
+		const unsigned sortkey = !underwater << 20 | q_min (dist, (1 << 20) - 1);
+		sort_bins[2][(sortkey >> 14)] += 1;
+		sort_bins[1][(sortkey >> 7) % 128] += 1;
+		sort_bins[0][(sortkey >> 0) % 128] += 1;
+		transp_sort *const edict = &edicts[cl_numvisedicts_alpha_overwater + cl_numvisedicts_alpha_underwater];
+		edict->visedict = i;
+		edict->sortkey = sortkey;
+		if (underwater)
+			++cl_numvisedicts_alpha_underwater;
+		else
+			++cl_numvisedicts_alpha_overwater;
+	}
+
+	if (!r_alphasort.value)
+	{
+		TEMP_FREE (edicts);
+		return;
+	}
+
+	const int highest = cl_numvisedicts_alpha_underwater + cl_numvisedicts_alpha_overwater - 1;
+	for (int pass = 0; pass < 3; ++pass)
+	{
+		transp_sort *from = pass % 2 ? edicts + cl_numvisedicts : edicts;
+		transp_sort *to = pass % 2 ? edicts : edicts + cl_numvisedicts;
+		for (int i = 1; i < 128; ++i)
+			sort_bins[pass][i] += sort_bins[pass][i - 1];
+		for (int i = highest; i >= 0; --i)
+		{
+			int key = (from[i].sortkey >> 7 * pass) % 128;
+			sort_bins[pass][key] -= 1;
+			if (pass < 2)
+				to[sort_bins[pass][key]] = from[i];
+			else
+				cl_visedicts_alpha[highest - sort_bins[pass][key]] = cl_visedicts[from[i].visedict];
+		}
+	}
+
+	TEMP_FREE (edicts);
 }
 
 /*
@@ -838,13 +969,17 @@ static void R_DrawEntitiesTask (int index, void *use_tasks)
 R_DrawAlphaEntitiesTask
 ================
 */
-static void R_DrawAlphaEntitiesTask (void *unused)
+static void R_DrawAlphaEntitiesTask (int index, void *use_tasks)
 {
-	cb_context_t *cbx = vulkan_globals.secondary_cb_contexts[SCBX_ALPHA_ENTITIES];
-	R_SetupContext (cbx);
-	Fog_EnableGFog (cbx);
-	R_DrawEntitiesOnList (cbx, true, chain_alpha_model,
-						  false); // johnfitz -- true means this is the pass for alpha entities
+	const int	   contents = r_viewleaf->contents;
+	const qboolean underwater = r_alphasort.value && (contents == CONTENTS_WATER || contents == CONTENTS_SLIME || contents == CONTENTS_LAVA);
+	for (int i = use_tasks ? index : 0; i <= (use_tasks ? index : 1); ++i)
+	{
+		cb_context_t *cbx = vulkan_globals.secondary_cb_contexts[i ? SCBX_ALPHA_ENTITIES : SCBX_ALPHA_ENTITIES_ACROSS_WATER];
+		R_SetupContext (cbx);
+		Fog_EnableGFog (cbx);
+		R_DrawEntitiesOnList (cbx, underwater ? 1 + i : 2 - i, i ? chain_alpha_model : chain_alpha_model_across_water, false);
+	}
 }
 
 /*
@@ -965,11 +1100,19 @@ void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 		Task_AddDependency (begin_rendering_task, draw_world_task);
 		Task_AddDependency (draw_world_task, draw_done_task);
 
-		task_handle_t draw_sky_and_water_task = Task_AllocateAndAssignFunc (R_DrawSkyAndWaterTask, NULL, 0);
-		Task_AddDependency (store_efrags, draw_sky_and_water_task);
-		Task_AddDependency (chain_surfaces, draw_sky_and_water_task);
-		Task_AddDependency (begin_rendering_task, draw_sky_and_water_task);
-		Task_AddDependency (draw_sky_and_water_task, draw_done_task);
+		task_handle_t sort_transparents = Task_AllocateAndAssignFunc (R_SortAlphaEntitiesTask, NULL, 0);
+		Task_AddDependency (store_efrags, sort_transparents);
+
+		task_handle_t draw_sky_task = Task_AllocateAndAssignFunc (R_DrawSkyTask, NULL, 0);
+		Task_AddDependency (store_efrags, draw_sky_task);
+		Task_AddDependency (chain_surfaces, draw_sky_task);
+		Task_AddDependency (begin_rendering_task, draw_sky_task);
+		Task_AddDependency (draw_sky_task, draw_done_task);
+
+		task_handle_t draw_water_task = Task_AllocateAndAssignFunc (R_DrawWaterTask, NULL, 0);
+		Task_AddDependency (chain_surfaces, draw_water_task);
+		Task_AddDependency (begin_rendering_task, draw_water_task);
+		Task_AddDependency (draw_water_task, draw_done_task);
 
 		task_handle_t draw_view_model_task = Task_AllocateAndAssignFunc (R_DrawViewModelTask, NULL, 0);
 		Task_AddDependency (before_mark, draw_view_model_task);
@@ -981,8 +1124,8 @@ void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 		Task_AddDependency (store_efrags, draw_entities_task);
 		Task_AddDependency (begin_rendering_task, draw_entities_task);
 
-		task_handle_t draw_alpha_entities_task = Task_AllocateAndAssignFunc (R_DrawAlphaEntitiesTask, NULL, 0);
-		Task_AddDependency (store_efrags, draw_alpha_entities_task);
+		task_handle_t draw_alpha_entities_task = Task_AllocateAndAssignIndexedFunc (R_DrawAlphaEntitiesTask, 2, &use_tasks, sizeof (use_tasks));
+		Task_AddDependency (sort_transparents, draw_alpha_entities_task);
 		Task_AddDependency (begin_rendering_task, draw_alpha_entities_task);
 
 		task_handle_t draw_particles_task = Task_AllocateAndAssignFunc (R_DrawParticlesTask, NULL, 0);
@@ -1013,9 +1156,9 @@ void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 #endif
 		}
 
-		task_handle_t tasks[] = {before_mark,		   store_efrags,	   update_warp_textures,	 draw_world_task,	  draw_sky_and_water_task,
-								 draw_view_model_task, draw_entities_task, draw_alpha_entities_task, draw_particles_task, build_tlas_task,
-								 update_lightmaps_task};
+		task_handle_t tasks[] = {before_mark,		  store_efrags,	   update_warp_textures, draw_world_task,	 sort_transparents,
+								 draw_sky_task,		  draw_water_task, draw_view_model_task, draw_entities_task, draw_alpha_entities_task,
+								 draw_particles_task, build_tlas_task, update_lightmaps_task};
 		Tasks_Submit ((sizeof (tasks) / sizeof (task_handle_t)), tasks);
 		if (cull_surfaces != chain_surfaces)
 		{
@@ -1029,9 +1172,11 @@ void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 		R_MarkSurfaces (use_tasks, INVALID_TASK_HANDLE, NULL, NULL, NULL); // johnfitz -- create texture chains from PVS
 		R_UpdateWarpTextures (NULL);
 		R_DrawWorldTask (0, NULL);
-		R_DrawSkyAndWaterTask (NULL);
+		R_DrawSkyTask (NULL);
+		R_DrawWaterTask (NULL);
 		R_DrawEntitiesTask (0, NULL);
-		R_DrawAlphaEntitiesTask (NULL);
+		R_SortAlphaEntitiesTask (NULL);
+		R_DrawAlphaEntitiesTask (0, NULL);
 		R_DrawParticlesTask (NULL);
 		R_DrawViewModelTask (NULL);
 		if (r_gpulightmapupdate.value)
