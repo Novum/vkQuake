@@ -31,8 +31,7 @@ int r_framecount;	 // used for dlight push checking
 mplane_t frustum[4];
 
 qboolean render_warp;
-int		 render_scale = 1; // used ( > 1 ) when r_simplescale = 0, done in screen effects from a full res main view
-int		 simple_scale = 1; // used ( > 1 ) when r_simplescale = 1, done adjusting the viewport size and upsacaling after screen effects
+int		 render_scale = 1; // when > 1, adjust the viewport size and upsacale after screen effects
 
 // johnfitz -- rendering statistics
 atomic_uint32_t rs_brushpolys, rs_aliaspolys, rs_skypolys, rs_particles, rs_fogpolys;
@@ -110,7 +109,6 @@ float map_fallbackalpha;
 qboolean r_drawworld_cheatsafe, r_fullbright_cheatsafe, r_lightmap_cheatsafe; // johnfitz
 
 cvar_t r_scale = {"r_scale", "1", CVAR_ARCHIVE};
-cvar_t r_simplescale = {"r_simplescale", "1", CVAR_ARCHIVE};
 
 cvar_t r_gpulightmapupdate = {"r_gpulightmapupdate", "1", CVAR_NONE};
 cvar_t r_rtshadows = {"r_rtshadows", "1", CVAR_ARCHIVE};
@@ -355,7 +353,7 @@ R_SetupContext
 static void R_SetupContext (cb_context_t *cbx)
 {
 	GL_Viewport_Scale (
-		cbx, r_refdef.vrect.x, glheight - r_refdef.vrect.y - r_refdef.vrect.height, r_refdef.vrect.width, r_refdef.vrect.height, 0.0f, 1.0f, simple_scale);
+		cbx, r_refdef.vrect.x, glheight - r_refdef.vrect.y - r_refdef.vrect.height, r_refdef.vrect.width, r_refdef.vrect.height, 0.0f, 1.0f, render_scale);
 	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_blend_pipeline[cbx->render_pass_index]);
 	R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 16 * sizeof (float), vulkan_globals.view_projection_matrix);
 }
@@ -557,7 +555,7 @@ void R_DrawViewModel (cb_context_t *cbx)
 
 	// hack the depth range to prevent view model from poking into walls
 	GL_Viewport_Scale (
-		cbx, r_refdef.vrect.x, glheight - r_refdef.vrect.y - r_refdef.vrect.height, r_refdef.vrect.width, r_refdef.vrect.height, 0.7f, 1.0f, simple_scale);
+		cbx, r_refdef.vrect.x, glheight - r_refdef.vrect.y - r_refdef.vrect.height, r_refdef.vrect.width, r_refdef.vrect.height, 0.7f, 1.0f, render_scale);
 
 	int aliaspolys = 0;
 	R_DrawAliasModel (cbx, currententity, &aliaspolys);
@@ -565,7 +563,7 @@ void R_DrawViewModel (cb_context_t *cbx)
 	Atomic_IncrementUInt32 (&rs_aliaspasses);
 
 	GL_Viewport_Scale (
-		cbx, r_refdef.vrect.x, glheight - r_refdef.vrect.y - r_refdef.vrect.height, r_refdef.vrect.width, r_refdef.vrect.height, 0.0f, 1.0f, simple_scale);
+		cbx, r_refdef.vrect.x, glheight - r_refdef.vrect.y - r_refdef.vrect.height, r_refdef.vrect.width, r_refdef.vrect.height, 0.0f, 1.0f, render_scale);
 
 	R_EndDebugUtilsLabel (cbx);
 }

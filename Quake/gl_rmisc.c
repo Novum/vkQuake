@@ -57,7 +57,6 @@ extern cvar_t r_rtshadows;
 extern cvar_t r_indirect;
 extern cvar_t r_tasks;
 extern cvar_t r_parallelmark;
-extern cvar_t r_usesops;
 
 #if defined(USE_SIMD)
 extern cvar_t r_simd;
@@ -1716,10 +1715,6 @@ void R_CreatePipelineLayouts ()
 			Sys_Error ("vkCreatePipelineLayout failed");
 		GL_SetObjectName ((uint64_t)vulkan_globals.screen_effects_pipeline.layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "screen_effects_pipeline_layout");
 		vulkan_globals.screen_effects_pipeline.layout.push_constant_range = push_constant_range;
-		vulkan_globals.screen_effects_scale_pipeline.layout.handle = vulkan_globals.screen_effects_pipeline.layout.handle;
-		vulkan_globals.screen_effects_scale_pipeline.layout.push_constant_range = push_constant_range;
-		vulkan_globals.screen_effects_scale_sops_pipeline.layout.handle = vulkan_globals.screen_effects_pipeline.layout.handle;
-		vulkan_globals.screen_effects_scale_sops_pipeline.layout.push_constant_range = push_constant_range;
 	}
 
 	{
@@ -1970,16 +1965,6 @@ void R_InitSamplers ()
 					break;
 				}
 			}
-
-			if (r_simplescale.value == 0)
-			{
-				if (r_scale.value >= 8)
-					lod_bias += 3.0f;
-				else if (r_scale.value >= 4)
-					lod_bias += 2.0f;
-				else if (r_scale.value >= 2)
-					lod_bias += 1.0f;
-			}
 		}
 
 		lod_bias += gl_lodbias.value;
@@ -2123,11 +2108,7 @@ DECLARE_SHADER_MODULE (sky_cube_frag);
 DECLARE_SHADER_MODULE (postprocess_vert);
 DECLARE_SHADER_MODULE (postprocess_frag);
 DECLARE_SHADER_MODULE (screen_effects_8bit_comp);
-DECLARE_SHADER_MODULE (screen_effects_8bit_scale_comp);
-DECLARE_SHADER_MODULE (screen_effects_8bit_scale_sops_comp);
 DECLARE_SHADER_MODULE (screen_effects_10bit_comp);
-DECLARE_SHADER_MODULE (screen_effects_10bit_scale_comp);
-DECLARE_SHADER_MODULE (screen_effects_10bit_scale_sops_comp);
 DECLARE_SHADER_MODULE (cs_tex_warp_comp);
 DECLARE_SHADER_MODULE (indirect_comp);
 DECLARE_SHADER_MODULE (indirect_clear_comp);
@@ -3205,32 +3186,6 @@ static void R_CreateScreenEffectsPipelines ()
 	if (err != VK_SUCCESS)
 		Sys_Error ("vkCreateComputePipelines failed (screen_effects_pipeline)");
 	GL_SetObjectName ((uint64_t)vulkan_globals.screen_effects_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "screen_effects");
-
-	compute_shader_stage.module =
-		(vulkan_globals.color_format == VK_FORMAT_A2B10G10R10_UNORM_PACK32) ? screen_effects_10bit_scale_comp_module : screen_effects_8bit_scale_comp_module;
-	infos.compute_pipeline.stage = compute_shader_stage;
-	assert (vulkan_globals.screen_effects_scale_pipeline.handle == VK_NULL_HANDLE);
-	err = vkCreateComputePipelines (
-		vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.compute_pipeline, NULL, &vulkan_globals.screen_effects_scale_pipeline.handle);
-	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateComputePipelines failed (screen_effects_scale_pipeline)");
-	GL_SetObjectName ((uint64_t)vulkan_globals.screen_effects_scale_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "screen_effects_scale");
-
-	if (vulkan_globals.screen_effects_sops)
-	{
-		compute_shader_stage.module = (vulkan_globals.color_format == VK_FORMAT_A2B10G10R10_UNORM_PACK32) ? screen_effects_10bit_scale_sops_comp_module
-																										  : screen_effects_8bit_scale_sops_comp_module;
-		compute_shader_stage.flags =
-			VK_PIPELINE_SHADER_STAGE_CREATE_ALLOW_VARYING_SUBGROUP_SIZE_BIT_EXT | VK_PIPELINE_SHADER_STAGE_CREATE_REQUIRE_FULL_SUBGROUPS_BIT_EXT;
-		infos.compute_pipeline.stage = compute_shader_stage;
-		assert (vulkan_globals.screen_effects_scale_sops_pipeline.handle == VK_NULL_HANDLE);
-		err = vkCreateComputePipelines (
-			vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.compute_pipeline, NULL, &vulkan_globals.screen_effects_scale_sops_pipeline.handle);
-		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateComputePipelines failed (screen_effects_scale_sops_pipeline)");
-		GL_SetObjectName ((uint64_t)vulkan_globals.screen_effects_scale_sops_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "screen_effects_scale_sops");
-		compute_shader_stage.flags = 0;
-	}
 }
 
 /*
@@ -3350,11 +3305,7 @@ static void R_CreateShaderModules ()
 	CREATE_SHADER_MODULE (postprocess_vert);
 	CREATE_SHADER_MODULE (postprocess_frag);
 	CREATE_SHADER_MODULE (screen_effects_8bit_comp);
-	CREATE_SHADER_MODULE (screen_effects_8bit_scale_comp);
-	CREATE_SHADER_MODULE_COND (screen_effects_8bit_scale_sops_comp, vulkan_globals.screen_effects_sops);
 	CREATE_SHADER_MODULE (screen_effects_10bit_comp);
-	CREATE_SHADER_MODULE (screen_effects_10bit_scale_comp);
-	CREATE_SHADER_MODULE_COND (screen_effects_10bit_scale_sops_comp, vulkan_globals.screen_effects_sops);
 	CREATE_SHADER_MODULE (cs_tex_warp_comp);
 	CREATE_SHADER_MODULE (indirect_comp);
 	CREATE_SHADER_MODULE (indirect_clear_comp);
@@ -3392,11 +3343,7 @@ static void R_DestroyShaderModules ()
 	DESTROY_SHADER_MODULE (postprocess_vert);
 	DESTROY_SHADER_MODULE (postprocess_frag);
 	DESTROY_SHADER_MODULE (screen_effects_8bit_comp);
-	DESTROY_SHADER_MODULE (screen_effects_8bit_scale_comp);
-	DESTROY_SHADER_MODULE (screen_effects_8bit_scale_sops_comp);
 	DESTROY_SHADER_MODULE (screen_effects_10bit_comp);
-	DESTROY_SHADER_MODULE (screen_effects_10bit_scale_comp);
-	DESTROY_SHADER_MODULE (screen_effects_10bit_scale_sops_comp);
 	DESTROY_SHADER_MODULE (cs_tex_warp_comp);
 	DESTROY_SHADER_MODULE (indirect_comp);
 	DESTROY_SHADER_MODULE (indirect_clear_comp);
@@ -3509,13 +3456,6 @@ void R_DestroyPipelines (void)
 	vulkan_globals.postprocess_pipeline.handle = VK_NULL_HANDLE;
 	vkDestroyPipeline (vulkan_globals.device, vulkan_globals.screen_effects_pipeline.handle, NULL);
 	vulkan_globals.screen_effects_pipeline.handle = VK_NULL_HANDLE;
-	vkDestroyPipeline (vulkan_globals.device, vulkan_globals.screen_effects_scale_pipeline.handle, NULL);
-	vulkan_globals.screen_effects_scale_pipeline.handle = VK_NULL_HANDLE;
-	if (vulkan_globals.screen_effects_scale_sops_pipeline.handle != VK_NULL_HANDLE)
-	{
-		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.screen_effects_scale_sops_pipeline.handle, NULL);
-		vulkan_globals.screen_effects_scale_sops_pipeline.handle = VK_NULL_HANDLE;
-	}
 	vkDestroyPipeline (vulkan_globals.device, vulkan_globals.cs_tex_warp_pipeline.handle, NULL);
 	vulkan_globals.cs_tex_warp_pipeline.handle = VK_NULL_HANDLE;
 	if (vulkan_globals.showtris_pipeline.handle != VK_NULL_HANDLE)
@@ -3620,11 +3560,8 @@ void R_Init (void)
 	Cvar_RegisterVariable (&r_telealpha);
 	Cvar_RegisterVariable (&r_slimealpha);
 	Cvar_RegisterVariable (&r_scale);
-	Cvar_RegisterVariable (&r_simplescale);
 	Cvar_RegisterVariable (&r_lodbias);
 	Cvar_RegisterVariable (&gl_lodbias);
-	Cvar_SetCallback (&r_scale, R_ScaleChanged_f);
-	Cvar_SetCallback (&r_simplescale, R_ScaleChanged_f);
 	Cvar_SetCallback (&r_lodbias, R_ScaleChanged_f);
 	Cvar_SetCallback (&gl_lodbias, R_ScaleChanged_f);
 	Cvar_SetCallback (&r_lavaalpha, R_SetLavaalpha_f);
@@ -3637,7 +3574,6 @@ void R_Init (void)
 	Cvar_RegisterVariable (&r_indirect);
 	Cvar_RegisterVariable (&r_tasks);
 	Cvar_RegisterVariable (&r_parallelmark);
-	Cvar_RegisterVariable (&r_usesops);
 
 	R_InitParticles ();
 	SetClearColor (); // johnfitz

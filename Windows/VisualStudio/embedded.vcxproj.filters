@@ -40,19 +40,7 @@
     <CustomBuild Include="..\..\Shaders\screen_effects_8bit.comp">
       <Filter>Shaders</Filter>
     </CustomBuild>
-    <CustomBuild Include="..\..\Shaders\screen_effects_8bit_scale.comp">
-      <Filter>Shaders</Filter>
-    </CustomBuild>
-    <CustomBuild Include="..\..\Shaders\screen_effects_8bit_scale_sops.comp">
-      <Filter>Shaders</Filter>
-    </CustomBuild>
     <CustomBuild Include="..\..\Shaders\screen_effects_10bit.comp">
-      <Filter>Shaders</Filter>
-    </CustomBuild>
-    <CustomBuild Include="..\..\Shaders\screen_effects_10bit_scale.comp">
-      <Filter>Shaders</Filter>
-    </CustomBuild>
-    <CustomBuild Include="..\..\Shaders\screen_effects_10bit_scale_sops.comp">
       <Filter>Shaders</Filter>
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\showtris.frag">

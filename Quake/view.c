@@ -881,7 +881,6 @@ void V_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 	if (con_forcedup)
 	{
 		render_warp = false;
-		render_scale = 1;
 		return;
 	}
 

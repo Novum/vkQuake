@@ -104,7 +104,6 @@ cvar_t		  vid_fsaa = {"vid_fsaa", "0", CVAR_ARCHIVE};
 cvar_t		  vid_fsaamode = {"vid_fsaamode", "0", CVAR_ARCHIVE};
 cvar_t		  vid_gamma = {"gamma", "0.9", CVAR_ARCHIVE};		// johnfitz -- moved here from view.c
 cvar_t		  vid_contrast = {"contrast", "1.4", CVAR_ARCHIVE}; // QuakeSpasm, MarkV
-cvar_t		  r_usesops = {"r_usesops", "1", CVAR_ARCHIVE};		// johnfitz
 #if defined(_DEBUG)
 static cvar_t r_raydebug = {"r_raydebug", "0", 0};
 #endif
@@ -890,7 +889,6 @@ static void GL_InitDevice (void)
 	vulkan_globals.dedicated_allocation = false;
 	vulkan_globals.full_screen_exclusive = false;
 	vulkan_globals.swap_chain_full_screen_acquired = false;
-	vulkan_globals.screen_effects_sops = false;
 	vulkan_globals.ray_query = false;
 
 	vkGetPhysicalDeviceMemoryProperties (vulkan_physical_device, &vulkan_globals.memory_properties);
@@ -1053,16 +1051,6 @@ static void GL_InitDevice (void)
 	vulkan_globals.device_features.sampleRateShading = false;
 #endif
 
-	vulkan_globals.screen_effects_sops =
-		vulkan_globals.vulkan_1_1_available && subgroup_size_control && subgroup_size_control_features.subgroupSizeControl &&
-		subgroup_size_control_features.computeFullSubgroups && ((physical_device_subgroup_properties.supportedStages & VK_SHADER_STAGE_COMPUTE_BIT) != 0) &&
-		((physical_device_subgroup_properties.supportedOperations & VK_SUBGROUP_FEATURE_SHUFFLE_BIT) != 0)
-		// Shader only supports subgroup sizes from 4 to 64. 128 can't be supported because Vulkan spec states that workgroup size
-		// in x dimension must be a multiple of the subgroup size for VK_PIPELINE_SHADER_STAGE_CREATE_REQUIRE_FULL_SUBGROUPS_BIT_EXT.
-		&& (physical_device_subgroup_size_control_properties.minSubgroupSize >= 4) && (physical_device_subgroup_size_control_properties.maxSubgroupSize <= 64);
-	if (vulkan_globals.screen_effects_sops)
-		Con_Printf ("Using subgroup operations\n");
-
 	vulkan_globals.ray_query = vulkan_globals.ray_query && acceleration_structure_features.accelerationStructure && ray_query_features.rayQuery &&
 							   buffer_device_address_features.bufferDeviceAddress;
 	if (vulkan_globals.ray_query)
@@ -1075,8 +1063,6 @@ static void GL_InitDevice (void)
 		device_extensions[numEnabledExtensions++] = VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME;
 		device_extensions[numEnabledExtensions++] = VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME;
 	}
-	if (vulkan_globals.screen_effects_sops)
-		device_extensions[numEnabledExtensions++] = VK_EXT_SUBGROUP_SIZE_CONTROL_EXTENSION_NAME;
 #if defined(VK_EXT_full_screen_exclusive)
 	if (vulkan_globals.full_screen_exclusive)
 		device_extensions[numEnabledExtensions++] = VK_EXT_FULL_SCREEN_EXCLUSIVE_EXTENSION_NAME;
@@ -1109,8 +1095,6 @@ static void GL_InitDevice (void)
 	ZEROED_STRUCT (VkDeviceCreateInfo, device_create_info);
 	device_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 	void **device_create_info_next = (void **)&device_create_info.pNext;
-	if (vulkan_globals.screen_effects_sops)
-		CHAIN_PNEXT (device_create_info_next, subgroup_size_control_features);
 	if (vulkan_globals.ray_query)
 	{
 		CHAIN_PNEXT (device_create_info_next, buffer_device_address_features);
@@ -2497,8 +2481,7 @@ qboolean GL_BeginRendering (qboolean use_tasks, task_handle_t *begin_rendering_t
 	else
 		GL_BeginRenderingTask (NULL);
 
-	render_scale = r_simplescale.value ? 1 : CLAMP (1, (int)r_scale.value, 8);
-	simple_scale = r_simplescale.value ? CLAMP (1, (int)r_scale.value, 32) : 1;
+	render_scale = CLAMP (1, (int)r_scale.value, 32);
 
 	return true;
 }
@@ -2602,9 +2585,8 @@ typedef struct end_rendering_parms_s
 	qboolean render_warp   : 1;
 	qboolean vid_palettize : 1;
 	qboolean menu		   : 1;
-	uint32_t render_scale  : 4;
 	uint32_t vid_height	   : 20;
-	uint32_t simple_scale  : 6;
+	uint32_t render_scale  : 6;
 	qboolean ray_debug	   : 1;
 	glRect_t bounds;
 	float	 time;
@@ -2616,20 +2598,16 @@ typedef struct end_rendering_parms_s
 	vec3_t	 down;
 } end_rendering_parms_t;
 
-#define SCREEN_EFFECT_FLAG_SCALE_MASK 0x3
-#define SCREEN_EFFECT_FLAG_SCALE_2X	  0x1
-#define SCREEN_EFFECT_FLAG_SCALE_4X	  0x2
-#define SCREEN_EFFECT_FLAG_SCALE_8X	  0x3
 #define SCREEN_EFFECT_FLAG_WATER_WARP 0x4
 #define SCREEN_EFFECT_FLAG_PALETTIZE  0x8
 #define SCREEN_EFFECT_FLAG_MENU		  0x10
 
 /*
 ===============
-GL_SimpleScale
+GL_RenderScale
 ===============
 */
-static void GL_SimpleScale (cb_context_t *cbx, end_rendering_parms_t *parms, qboolean effects)
+static void GL_RenderScale (cb_context_t *cbx, end_rendering_parms_t *parms, qboolean effects)
 {
 	VkImageMemoryBarrier image_barriers[2];
 	image_barriers[0].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -2673,8 +2651,8 @@ static void GL_SimpleScale (cb_context_t *cbx, end_rendering_parms_t *parms, qbo
 		!effects ? 1 : 0, &memory_barrier, 0, NULL, 2, image_barriers);
 
 	ZEROED_STRUCT (VkImageBlit, region);
-	region.srcOffsets[1].x = (parms->bounds.w + parms->simple_scale - 1) / parms->simple_scale;
-	region.srcOffsets[1].y = (parms->bounds.h + parms->simple_scale - 1) / parms->simple_scale;
+	region.srcOffsets[1].x = (parms->bounds.w + parms->render_scale - 1) / parms->render_scale;
+	region.srcOffsets[1].y = (parms->bounds.h + parms->render_scale - 1) / parms->render_scale;
 	region.srcOffsets[1].z = 1;
 	region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 	region.srcSubresource.layerCount = 1;
@@ -2765,20 +2743,12 @@ static void GL_ScreenEffects (cb_context_t *cbx, qboolean enabled, qboolean sour
 		}
 		else
 #endif
-			if (parms->render_scale >= 2)
-		{
-			if (vulkan_globals.screen_effects_sops && r_usesops.value)
-				pipeline = &vulkan_globals.screen_effects_scale_sops_pipeline;
-			else
-				pipeline = &vulkan_globals.screen_effects_scale_pipeline;
-		}
-		else
 			pipeline = &vulkan_globals.screen_effects_pipeline;
 
 		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_COMPUTE, *pipeline);
 
-		uint32_t width = parms->simple_scale > 1 && !parms->ray_debug ? (parms->bounds.w + parms->simple_scale - 1) / parms->simple_scale : parms->vid_width;
-		uint32_t height = parms->simple_scale > 1 && !parms->ray_debug ? (parms->bounds.h + parms->simple_scale - 1) / parms->simple_scale : parms->vid_height;
+		uint32_t width = parms->render_scale > 1 && !parms->ray_debug ? (parms->bounds.w + parms->render_scale - 1) / parms->render_scale : parms->vid_width;
+		uint32_t height = parms->render_scale > 1 && !parms->ray_debug ? (parms->bounds.h + parms->render_scale - 1) / parms->render_scale : parms->vid_height;
 
 #if defined(_DEBUG)
 		if (!parms->ray_debug || !bmodel_tlas)
@@ -2791,12 +2761,6 @@ static void GL_ScreenEffects (cb_context_t *cbx, qboolean enabled, qboolean sour
 			uint32_t screen_effect_flags = 0;
 			if (parms->render_warp)
 				screen_effect_flags |= SCREEN_EFFECT_FLAG_WATER_WARP;
-			if (parms->render_scale >= 8)
-				screen_effect_flags |= SCREEN_EFFECT_FLAG_SCALE_8X;
-			else if (parms->render_scale >= 4)
-				screen_effect_flags |= SCREEN_EFFECT_FLAG_SCALE_4X;
-			else if (parms->render_scale >= 2)
-				screen_effect_flags |= SCREEN_EFFECT_FLAG_SCALE_2X;
 			if (parms->vid_palettize)
 				screen_effect_flags |= SCREEN_EFFECT_FLAG_PALETTIZE;
 			if (parms->menu)
@@ -2921,8 +2885,8 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 	VkRect2D render_area;
 	render_area.offset.x = 0;
 	render_area.offset.y = 0;
-	render_area.extent.width = parms->simple_scale > 1 ? (parms->bounds.w + parms->simple_scale - 1) / parms->simple_scale : parms->vid_width;
-	render_area.extent.height = parms->simple_scale > 1 ? (parms->bounds.h + parms->simple_scale - 1) / parms->simple_scale : parms->vid_height;
+	render_area.extent.width = parms->render_scale > 1 ? (parms->bounds.w + parms->render_scale - 1) / parms->render_scale : parms->vid_width;
+	render_area.extent.height = parms->render_scale > 1 ? (parms->bounds.h + parms->render_scale - 1) / parms->render_scale : parms->vid_height;
 
 	VkClearValue depth_clear_value;
 	depth_clear_value.depthStencil.depth = 0.0f;
@@ -2933,9 +2897,8 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 	clear_values[1] = depth_clear_value;
 	clear_values[2] = vulkan_globals.color_clear_value;
 
-	const qboolean screen_effects = parms->render_warp || (parms->render_scale >= 2) || parms->vid_palettize || (gl_polyblend.value && parms->v_blend[3]) ||
-									parms->menu || parms->ray_debug;
-	const qboolean source_buffer = parms->ray_debug || screen_effects != (parms->simple_scale > 1);
+	const qboolean screen_effects = parms->render_warp || parms->vid_palettize || (gl_polyblend.value && parms->v_blend[3]) || parms->menu || parms->ray_debug;
+	const qboolean source_buffer = parms->ray_debug || screen_effects != (parms->render_scale > 1);
 	{
 		const qboolean resolve = (vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT);
 		ZEROED_STRUCT (VkRenderPassBeginInfo, render_pass_begin_info);
@@ -2957,8 +2920,8 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 
 	GL_ScreenEffects (&vulkan_globals.primary_cb_contexts[PCBX_RENDER_PASSES], screen_effects, source_buffer, parms);
 
-	if (parms->simple_scale > 1 && !parms->ray_debug)
-		GL_SimpleScale (&vulkan_globals.primary_cb_contexts[PCBX_RENDER_PASSES], parms, screen_effects);
+	if (parms->render_scale > 1 && !parms->ray_debug)
+		GL_RenderScale (&vulkan_globals.primary_cb_contexts[PCBX_RENDER_PASSES], parms, screen_effects);
 
 	render_area.offset.x = 0;
 	render_area.offset.y = 0;
@@ -3048,10 +3011,9 @@ task_handle_t GL_EndRendering (qboolean use_tasks, qboolean swapchain)
 		.render_warp = render_warp,
 		.vid_palettize = vid_palettize.value != 0,
 		.menu = key_dest == key_menu,
-		.render_scale = render_scale,
 		.vid_width = vid.width,
 		.vid_height = vid.height,
-		.simple_scale = simple_scale,
+		.render_scale = render_scale,
 #if defined(_DEBUG)
 		.ray_debug = r_raydebug.value && (bmodel_tlas != VK_NULL_HANDLE),
 #endif

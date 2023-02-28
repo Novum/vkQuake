@@ -254,7 +254,6 @@ typedef struct
 	qboolean						 supersampling;
 	qboolean						 non_solid_fill;
 	qboolean						 multi_draw_indirect;
-	qboolean						 screen_effects_sops;
 
 	// Instance extensions
 	qboolean get_surface_capabilities_2;
@@ -298,8 +297,6 @@ typedef struct
 	vulkan_pipeline_t		 md5_pipelines[MODEL_PIPELINE_COUNT];
 	vulkan_pipeline_t		 postprocess_pipeline;
 	vulkan_pipeline_t		 screen_effects_pipeline;
-	vulkan_pipeline_t		 screen_effects_scale_pipeline;
-	vulkan_pipeline_t		 screen_effects_scale_sops_pipeline;
 	vulkan_pipeline_t		 cs_tex_warp_pipeline;
 	vulkan_pipeline_t		 showtris_pipeline;
 	vulkan_pipeline_t		 showtris_indirect_pipeline;
@@ -383,7 +380,6 @@ extern qboolean render_warp;
 extern qboolean in_update_screen;
 extern qboolean use_simd;
 extern int		render_scale;
-extern int		simple_scale;
 
 //
 // view origin
@@ -415,7 +411,6 @@ extern cvar_t r_slimealpha;
 extern cvar_t r_dynamic;
 extern cvar_t r_novis;
 extern cvar_t r_scale;
-extern cvar_t r_simplescale;
 
 extern cvar_t gl_polyblend;
 extern cvar_t gl_nocolors;
