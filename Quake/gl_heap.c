@@ -250,12 +250,6 @@ static qboolean GL_HeapAllocateBlockFromSegment (glheap_t *heap, glheapsegment_t
 				++heap->stats.num_blocks_used;
 				return true;
 			}
-			else if (block_size_in_pages > 64)
-			{
-				// Skip over masks that are covered by the free block_page_hdr
-				i = ((block_page_index + block_size_in_pages) & ~0x3F) - 64;
-				break;
-			}
 		}
 	}
 
