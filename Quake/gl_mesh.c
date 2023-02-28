@@ -34,7 +34,7 @@ ALIAS MODEL DISPLAY LIST GENERATION
 */
 
 // Heap
-#define MESH_HEAP_SIZE_MB	32
+#define MESH_HEAP_SIZE_MB	4
 #define MESH_HEAP_PAGE_SIZE 8192
 #define MESH_HEAP_NAME		"Mesh heap"
 
@@ -72,12 +72,13 @@ static void AddBufferGarbage (
 	garbage->desc_set = desc_set;
 	garbage->desc_set_layout = desc_set_layout;
 }
+
 /*
 ================
 R_InitMeshHeap
 ================
 */
-void R_InitMeshHeap ()
+void R_InitMeshHeap (void)
 {
 	// Allocate index buffer & upload to GPU
 	ZEROED_STRUCT (VkBufferCreateInfo, buffer_create_info);
@@ -102,10 +103,20 @@ void R_InitMeshHeap ()
 
 /*
 ================
+R_GetMeshHeapStats
+================
+*/
+glheapstats_t *R_GetMeshHeapStats (void)
+{
+	return GL_HeapGetStats (mesh_buffer_heap);
+}
+
+/*
+================
 R_CollectMeshBufferGarbage
 ================
 */
-void R_CollectMeshBufferGarbage ()
+void R_CollectMeshBufferGarbage (void)
 {
 	int				  num;
 	int				  i;
