@@ -50,23 +50,34 @@ typedef struct glheappagehdr_s
 {
 	page_index_t size_in_pages;
 	page_index_t prev_block_page_index;
-	page_index_t prev_small_alloc_page;
-	page_index_t next_small_alloc_page;
-	uint64_t	 small_alloc_mask;
 } glheappagehdr_t;
 
+typedef struct glheapsmallalloclinks_s
+{
+	page_index_t prev_small_alloc_page;
+	page_index_t next_small_alloc_page;
+} glheapsmallalloclinks_t;
+
 static const glheappagehdr_t EMPTY_PAGE_HDR = {
-	0, 0, INVALID_PAGE_INDEX, INVALID_PAGE_INDEX, 0ull,
+	0,
+	0,
+};
+
+static const glheapsmallalloclinks_t EMPTY_SMALL_ALLOC_LINKS = {
+	INVALID_PAGE_INDEX,
+	INVALID_PAGE_INDEX,
 };
 
 typedef struct glheapsegment_s
 {
-	vulkan_memory_t	 memory;
-	glheappagehdr_t *page_hdrs;
-	uint64_t		*free_blocks_bitfield;
-	page_index_t	 small_alloc_free_list_heads[NUM_SMALL_ALLOC_SIZES];
-	page_index_t	 num_pages;
-	page_index_t	 num_pages_allocated;
+	vulkan_memory_t			 memory;
+	glheappagehdr_t			*page_hdrs;
+	glheapsmallalloclinks_t *small_alloc_links;
+	uint64_t				*small_alloc_masks;
+	uint64_t				*free_blocks_bitfield;
+	page_index_t			 small_alloc_free_list_heads[NUM_SMALL_ALLOC_SIZES];
+	page_index_t			 num_pages;
+	page_index_t			 num_pages_allocated;
 } glheapsegment_t;
 
 typedef struct glheap_s
@@ -151,11 +162,13 @@ glheapsegment_t *GL_CreateHeapSegment (
 
 	segment->num_pages = aligned_size / page_size;
 	segment->page_hdrs = Mem_Alloc (segment->num_pages * sizeof (glheappagehdr_t));
+	segment->small_alloc_links = Mem_Alloc (segment->num_pages * sizeof (glheapsmallalloclinks_t));
+	segment->small_alloc_masks = Mem_Alloc (segment->num_pages * sizeof (uint64_t));
 	segment->free_blocks_bitfield = Mem_Alloc ((segment->num_pages / 64) * sizeof (uint64_t));
 	segment->free_blocks_bitfield[0] = 0x1;
 	segment->num_pages_allocated = 0;
 	for (int i = 0; i < segment->num_pages; ++i)
-		segment->page_hdrs[i] = EMPTY_PAGE_HDR;
+		segment->small_alloc_links[i] = EMPTY_SMALL_ALLOC_LINKS;
 	segment->page_hdrs[0].size_in_pages = segment->num_pages;
 	for (int i = 0; i < NUM_SMALL_ALLOC_SIZES; ++i)
 		segment->small_alloc_free_list_heads[i] = INVALID_PAGE_INDEX;
@@ -240,9 +253,9 @@ static qboolean GL_HeapAllocateBlockFromSegment (glheap_t *heap, glheapsegment_t
 					next_block_page_hdr->prev_block_page_index = block_page_index_aligned;
 				}
 
-				assert (block_page_hdr->prev_small_alloc_page == INVALID_PAGE_INDEX);
-				assert (block_page_hdr->next_small_alloc_page == INVALID_PAGE_INDEX);
-				assert (block_page_hdr->small_alloc_mask == 0ull);
+				assert (segment->small_alloc_links[block_page_index_aligned].prev_small_alloc_page == INVALID_PAGE_INDEX);
+				assert (segment->small_alloc_links[block_page_index_aligned].next_small_alloc_page == INVALID_PAGE_INDEX);
+				assert (segment->small_alloc_masks[block_page_index_aligned] == 0ull);
 
 				aligned_block_page_hdr->size_in_pages = alloc_size_in_pages;
 				segment->num_pages_allocated += alloc_size_in_pages;
@@ -265,18 +278,16 @@ GL_HeapAddPageToSmallFreeList
 static void GL_HeapAddPageToSmallFreeList (glheapsegment_t *segment, const page_index_t page_index, const int small_alloc_bucket)
 {
 	TRACE_LOG (" Adding page %u to bucket %u free list\n", page_index, small_alloc_bucket);
-	glheappagehdr_t *page_hdr = &segment->page_hdrs[page_index];
 
 	// This page needs to be unlinked at this point in time
-	assert (page_hdr->prev_small_alloc_page == INVALID_PAGE_INDEX);
-	assert (page_hdr->next_small_alloc_page == INVALID_PAGE_INDEX);
+	assert (segment->small_alloc_links[page_index].prev_small_alloc_page == INVALID_PAGE_INDEX);
+	assert (segment->small_alloc_links[page_index].next_small_alloc_page == INVALID_PAGE_INDEX);
 
 	const page_index_t prev_head_index = segment->small_alloc_free_list_heads[small_alloc_bucket];
 	if (prev_head_index != INVALID_PAGE_INDEX)
 	{
-		glheappagehdr_t *prev_head_hdr = &segment->page_hdrs[prev_head_index];
-		prev_head_hdr->prev_small_alloc_page = page_index;
-		page_hdr->next_small_alloc_page = prev_head_index;
+		segment->small_alloc_links[prev_head_index].prev_small_alloc_page = page_index;
+		segment->small_alloc_links[page_index].next_small_alloc_page = prev_head_index;
 	}
 	segment->small_alloc_free_list_heads[small_alloc_bucket] = page_index;
 }
@@ -289,25 +300,23 @@ GL_HeapRemovePageFromSmallFreeList
 static void GL_HeapRemovePageFromSmallFreeList (glheapsegment_t *segment, const page_index_t page_index, const int small_alloc_bucket)
 {
 	TRACE_LOG (" Removing page %u from bucket %u free list\n", page_index, small_alloc_bucket);
-	glheappagehdr_t	  *page_hdr = &segment->page_hdrs[page_index];
-	const page_index_t prev_page_index = page_hdr->prev_small_alloc_page;
-	const page_index_t next_page_index = page_hdr->next_small_alloc_page;
+	glheapsmallalloclinks_t *page_links = &segment->small_alloc_links[page_index];
+	const page_index_t		 prev_page_index = page_links->prev_small_alloc_page;
+	const page_index_t		 next_page_index = page_links->next_small_alloc_page;
 
 	if (prev_page_index != INVALID_PAGE_INDEX)
 	{
-		glheappagehdr_t *prev_page_hdr = &segment->page_hdrs[prev_page_index];
-		assert (prev_page_hdr->next_small_alloc_page == page_index);
-		prev_page_hdr->next_small_alloc_page = next_page_index;
+		assert (segment->small_alloc_links[prev_page_index].next_small_alloc_page == page_index);
+		segment->small_alloc_links[prev_page_index].next_small_alloc_page = next_page_index;
 	}
 	if (next_page_index != INVALID_PAGE_INDEX)
 	{
-		glheappagehdr_t *next_page_hdr = &segment->page_hdrs[next_page_index];
-		assert (next_page_hdr->prev_small_alloc_page == page_index);
-		next_page_hdr->prev_small_alloc_page = prev_page_index;
+		assert (segment->small_alloc_links[next_page_index].prev_small_alloc_page == page_index);
+		segment->small_alloc_links[next_page_index].prev_small_alloc_page = prev_page_index;
 	}
 
-	page_hdr->prev_small_alloc_page = INVALID_PAGE_INDEX;
-	page_hdr->next_small_alloc_page = INVALID_PAGE_INDEX;
+	page_links->prev_small_alloc_page = INVALID_PAGE_INDEX;
+	page_links->next_small_alloc_page = INVALID_PAGE_INDEX;
 
 	// If this page was the head replace it with next page in linked list
 	if (segment->small_alloc_free_list_heads[small_alloc_bucket] == page_index)
@@ -323,16 +332,16 @@ static void GL_HeapSmallAllocateFromBlock (
 	glheapallocation_t *allocation, glheap_t *heap, glheapsegment_t *segment, uint32_t block_page_index, const int small_alloc_size,
 	const int small_alloc_bucket)
 {
-	glheappagehdr_t *block_hdr = &segment->page_hdrs[block_page_index];
-	if (block_hdr->small_alloc_mask == 0ull)
+	uint64_t *small_alloc_mask = &segment->small_alloc_masks[block_page_index];
+	if (*small_alloc_mask == 0ull)
 	{
 		// New page, add to free list
 		GL_HeapAddPageToSmallFreeList (segment, block_page_index, small_alloc_bucket);
 	}
 
-	const uint32_t slot_index = FindFirstBitNonZero (~block_hdr->small_alloc_mask);
+	const uint32_t slot_index = FindFirstBitNonZero (~(*small_alloc_mask));
 	TRACE_LOG (" Allocated slot %d from page %u\n", slot_index, block_page_index);
-	block_hdr->small_alloc_mask |= 1ull << slot_index;
+	*small_alloc_mask |= 1ull << slot_index;
 
 #ifndef NDEBUG
 	const uint32_t num_slots = SMALL_SLOTS_PER_PAGE[small_alloc_bucket];
@@ -340,7 +349,7 @@ static void GL_HeapSmallAllocateFromBlock (
 	assert (slot_index < num_slots);
 #endif
 
-	if (block_hdr->small_alloc_mask == SLOTS_FULL_MASK[small_alloc_bucket])
+	if (*small_alloc_mask == SLOTS_FULL_MASK[small_alloc_bucket])
 	{
 		// Page is full, remove from free list
 		GL_HeapRemovePageFromSmallFreeList (segment, block_page_index, small_alloc_bucket);
@@ -376,17 +385,17 @@ static qboolean GL_HeapSmallFreeFromBlock (glheap_t *heap, glheapsegment_t *segm
 #endif
 
 	TRACE_LOG (" Free slot %d from page %u\n", slot_index, block_page_index);
-	glheappagehdr_t *block_hdr = &segment->page_hdrs[block_page_index];
-	if (block_hdr->small_alloc_mask == SLOTS_FULL_MASK[small_alloc_bucket])
+	uint64_t *small_alloc_mask = &segment->small_alloc_masks[block_page_index];
+	if (*small_alloc_mask == SLOTS_FULL_MASK[small_alloc_bucket])
 	{
 		// Page was full, add to free list
 		GL_HeapAddPageToSmallFreeList (segment, block_page_index, small_alloc_bucket);
 	}
 
-	assert ((block_hdr->small_alloc_mask & (1ull << slot_index)) != 0);
-	block_hdr->small_alloc_mask &= ~(1ull << slot_index);
+	assert ((*small_alloc_mask & (1ull << slot_index)) != 0);
+	*small_alloc_mask &= ~(1ull << slot_index);
 
-	qboolean page_empty = block_hdr->small_alloc_mask == 0ull;
+	qboolean page_empty = *small_alloc_mask == 0ull;
 	if (page_empty)
 	{
 		// Page is now empty, remove from free list
@@ -707,9 +716,17 @@ static void TestHeapCleanState (glheap_t *heap)
 		HEAP_TEST_ASSERT (segment->page_hdrs[0].size_in_pages = segment->num_pages, "Empty heap first block needs to fill all pages");
 		HEAP_TEST_ASSERT (segment->free_blocks_bitfield[0] == 1, "first bitfield bit needs to be 1");
 		for (page_index_t j = 1; j < segment->num_pages; ++j)
-			HEAP_TEST_ASSERT (memcmp (&segment->page_hdrs[j], &EMPTY_PAGE_HDR, sizeof (glheappagehdr_t)) == 0, "Page block header zeroed");
+		{
+			HEAP_TEST_ASSERT (memcmp (&segment->page_hdrs[j], &EMPTY_PAGE_HDR, sizeof (glheappagehdr_t)) == 0, "Page block header needs to be empty");
+			HEAP_TEST_ASSERT (
+				memcmp (&segment->small_alloc_links[j], &EMPTY_SMALL_ALLOC_LINKS, sizeof (glheapsmallalloclinks_t)) == 0,
+				"Page small alloc links need to be empty");
+			HEAP_TEST_ASSERT (segment->small_alloc_masks[j] == 0, "Page small alloc masks needs to be empty");
+		}
 		for (page_index_t j = 1; j < (segment->num_pages >> heap->page_size_shift); ++j)
 			HEAP_TEST_ASSERT (segment->free_blocks_bitfield[j] == 0, "bitfield is not 0");
+		for (page_index_t j = 0; j < NUM_SMALL_ALLOC_SIZES; ++j)
+			HEAP_TEST_ASSERT (segment->small_alloc_free_list_heads[j] == INVALID_PAGE_INDEX, "free list head is not empty");
 	}
 }
 
