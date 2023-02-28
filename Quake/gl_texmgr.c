@@ -70,11 +70,10 @@ unsigned int d_8to24table_pants[256];
 
 // Heap
 #define TEXTURE_HEAP_MEMORY_SIZE_MB 48
-#define TEXTURE_HEAP_PAGE_SIZE		16384
+#define TEXTURE_HEAP_PAGE_SIZE		32768
 
-static glheap_t *texmgr_heap;
-
-SDL_mutex *texmgr_mutex;
+static glheap_t	 *texmgr_heap;
+static SDL_mutex *texmgr_mutex;
 
 static byte bluenoise_data[4096] = {
 	0x27, 0x62, 0x08, 0x4C, 0xDE, 0xBA, 0x05, 0xEF, 0x2A, 0xA1, 0xF7, 0x4A, 0x5F, 0x29, 0xE8, 0x34, 0xA9, 0xCB, 0x40, 0x60, 0xD5, 0x87, 0x70, 0xD0, 0x61, 0x8A,
@@ -1603,4 +1602,9 @@ static void GL_DeleteTexture (gltexture_t *texture)
 
 mutex_unlock:
 	SDL_UnlockMutex (texmgr_mutex);
+}
+
+glheapstats_t *TexMgr_GetHeapStats (void)
+{
+	return GL_HeapGetStats (texmgr_heap);
 }

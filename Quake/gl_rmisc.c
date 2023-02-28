@@ -24,6 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // r_misc.c
 
 #include "quakedef.h"
+#include "gl_heap.h"
 #include <float.h>
 
 cvar_t r_lodbias = {"r_lodbias", "1", CVAR_ARCHIVE};
@@ -465,7 +466,7 @@ static void R_CreateStagingBuffers ()
 R_DestroyStagingBuffers
 ===============
 */
-static void R_DestroyStagingBuffers ()
+static void R_DestroyStagingBuffers (void)
 {
 	int i;
 
@@ -481,7 +482,7 @@ static void R_DestroyStagingBuffers ()
 R_InitStagingBuffers
 ===============
 */
-void R_InitStagingBuffers ()
+void R_InitStagingBuffers (void)
 {
 	int		 i;
 	VkResult err;
@@ -582,7 +583,7 @@ static void R_SubmitStagingBuffer (int index)
 R_SubmitStagingBuffers
 ===============
 */
-void R_SubmitStagingBuffers ()
+void R_SubmitStagingBuffers (void)
 {
 	SDL_LockMutex (staging_mutex);
 	if (staging_submitting)
@@ -691,7 +692,7 @@ byte *R_StagingAllocate (int size, int alignment, VkCommandBuffer *command_buffe
 R_StagingBeginCopy
 ===============
 */
-void R_StagingBeginCopy ()
+void R_StagingBeginCopy (void)
 {
 	SDL_UnlockMutex (staging_mutex);
 }
@@ -701,7 +702,7 @@ void R_StagingBeginCopy ()
 R_StagingEndCopy
 ===============
 */
-void R_StagingEndCopy ()
+void R_StagingEndCopy (void)
 {
 	SDL_LockMutex (staging_mutex);
 	num_stagings_in_flight -= 1;
@@ -973,7 +974,7 @@ static void R_InitFanIndexBuffer ()
 R_SwapDynamicBuffers
 ===============
 */
-void R_SwapDynamicBuffers ()
+void R_SwapDynamicBuffers (void)
 {
 	current_dyn_buffer_index = (current_dyn_buffer_index + 1) % NUM_DYNAMIC_BUFFERS;
 	dyn_vertex_buffers[current_dyn_buffer_index].current_offset = 0;
@@ -987,7 +988,7 @@ void R_SwapDynamicBuffers ()
 R_FlushDynamicBuffers
 ===============
 */
-void R_FlushDynamicBuffers ()
+void R_FlushDynamicBuffers (void)
 {
 	ZEROED_STRUCT_ARRAY (VkMappedMemoryRange, ranges, 5);
 	int num_ranges = 0;
@@ -1067,7 +1068,7 @@ static void R_AddDynamicBufferGarbage (vulkan_memory_t memory, dynbuffer_t *buff
 R_CollectDynamicBufferGarbage
 ===============
 */
-void R_CollectDynamicBufferGarbage ()
+void R_CollectDynamicBufferGarbage (void)
 {
 	current_garbage_index = (current_garbage_index + 1) % GARBAGE_FRAME_COUNT;
 	const int collect_garbage_index = (current_garbage_index + 1) % GARBAGE_FRAME_COUNT;
@@ -1203,7 +1204,7 @@ byte *R_UniformAllocate (int size, VkBuffer *buffer, uint32_t *buffer_offset, Vk
 R_InitGPUBuffers
 ===============
 */
-void R_InitGPUBuffers ()
+void R_InitGPUBuffers (void)
 {
 	R_InitDynamicVertexBuffers ();
 	R_InitDynamicIndexBuffers ();
@@ -4166,6 +4167,30 @@ void R_FreeBuffers (const int num_buffers, VkBuffer *buffers, vulkan_memory_t *m
 
 /*
 ====================
+R_PrintHeapStats
+====================
+*/
+static void R_PrintHeapStats (const char *name, glheapstats_t *stats)
+{
+	Con_Printf (
+		" %s:\n"
+		"  segments: %" SDL_PRIu32 "\n"
+		"  dedicated allocs: %" SDL_PRIu32 "\n"
+		"  allocations: %" SDL_PRIu32 "\n"
+		"  blocks used: %" SDL_PRIu32 "\n"
+		"  blocks free: %" SDL_PRIu32 "\n"
+		"  pages allocated: %" SDL_PRIu32 "\n"
+		"  pages free: %" SDL_PRIu32 "\n"
+		"  bytes allocated: %" SDL_PRIu64 "\n"
+		"  bytes free: %" SDL_PRIu64 "\n"
+		"  bytes wasted: %" SDL_PRIu64 " (%.3g%%)\n",
+		name, stats->num_segments, stats->num_dedicated_allocs, stats->num_allocations, stats->num_blocks_used, stats->num_blocks_free,
+		stats->num_pages_allocated, stats->num_pages_free, stats->num_bytes_allocated, stats->num_bytes_free, stats->num_bytes_wasted,
+		((double)stats->num_bytes_wasted / (double)stats->num_bytes_allocated) * 100.0f);
+}
+
+/*
+====================
 R_VulkanMemStats_f
 ====================
 */
@@ -4185,6 +4210,10 @@ void R_VulkanMemStats_f (void)
 	Con_Printf (" Mesh:   %" SDL_PRIu32 "\n", num_mesh_allocations);
 	Con_Printf (" Misc:   %" SDL_PRIu32 "\n", num_misc_allocations);
 	Con_Printf (" DynBuf: %" SDL_PRIu32 "\n", num_dynbuf_allocations);
+
+	Con_Printf ("Heaps:\n");
+	R_PrintHeapStats ("Tex", TexMgr_GetHeapStats ());
+	R_PrintHeapStats ("Mesh", R_GetMeshHeapStats ());
 
 	Con_Printf ("Descriptors:\n");
 	Con_Printf (" Combined image samplers: %" SDL_PRIu32 "\n", Atomic_LoadUInt32 (&num_vulkan_combined_image_samplers));

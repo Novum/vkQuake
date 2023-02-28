@@ -81,6 +81,8 @@ typedef struct glheap_s
 	vulkan_memory_type_t memory_type;
 	uint32_t			 num_segments;
 	glheapsegment_t	   **segments;
+	uint64_t			 dedicated_alloc_bytes;
+	glheapstats_t		 stats;
 } glheap_t;
 
 typedef enum
@@ -98,6 +100,7 @@ typedef struct glheapallocation_s
 		glheapsegment_t *segment;
 		vulkan_memory_t *memory;
 	};
+	VkDeviceSize size;
 	VkDeviceSize offset;
 	alloc_type_t alloc_type;
 #ifndef NDEBUG
@@ -162,10 +165,10 @@ glheapsegment_t *GL_CreateHeapSegment (
 
 /*
 ===============
-GL_HeapAllocatePagesFromSegment
+GL_HeapAllocateBlockFromSegment
 ===============
 */
-static qboolean GL_HeapAllocatePagesFromSegment (glheap_t *heap, glheapsegment_t *segment, VkDeviceSize size, VkDeviceSize alignment, page_index_t *page_index)
+static qboolean GL_HeapAllocateBlockFromSegment (glheap_t *heap, glheapsegment_t *segment, VkDeviceSize size, VkDeviceSize alignment, page_index_t *page_index)
 {
 	const uint32_t alloc_size_in_pages = (size + heap->page_size - 1) >> heap->page_size_shift;
 	const uint32_t alignment_in_pages = (alignment + heap->page_size - 1) >> heap->page_size_shift;
@@ -199,6 +202,7 @@ static qboolean GL_HeapAllocatePagesFromSegment (glheap_t *heap, glheapsegment_t
 					TRACE_LOG (" No alignment padding\n");
 					// No alignment, remove free bit for this block_page_hdr
 					CLEAR_BIT (segment->free_blocks_bitfield, segment->num_pages, block_page_index);
+					--heap->stats.num_blocks_free;
 				}
 				else
 				{
@@ -217,6 +221,7 @@ static qboolean GL_HeapAllocatePagesFromSegment (glheap_t *heap, glheapsegment_t
 					assert (next_block_page_index < segment->num_pages);
 					assert (!GET_BIT (segment->free_blocks_bitfield, next_block_page_index));
 					SET_BIT (segment->free_blocks_bitfield, segment->num_pages, next_block_page_index);
+					++heap->stats.num_blocks_free;
 					glheappagehdr_t *next_block_page_hdr = &segment->page_hdrs[next_block_page_index];
 					next_block_page_hdr->size_in_pages = block_size_in_pages - total_pages;
 					assert ((next_block_page_index + next_block_page_hdr->size_in_pages) <= segment->num_pages);
@@ -242,6 +247,7 @@ static qboolean GL_HeapAllocatePagesFromSegment (glheap_t *heap, glheapsegment_t
 				aligned_block_page_hdr->size_in_pages = alloc_size_in_pages;
 				segment->num_pages_allocated += alloc_size_in_pages;
 				*page_index = block_page_index_aligned;
+				++heap->stats.num_blocks_used;
 				return true;
 			}
 			else if (block_size_in_pages > 64)
@@ -421,7 +427,7 @@ static qboolean GL_HeapAllocateFromMemory (glheapallocation_t *allocation, glhea
 		else
 		{
 			// If we hit this there are no pages with buckets for this size. Create a new page & set it as the first small alloc page.
-			if (!GL_HeapAllocatePagesFromSegment (heap, segment, heap->page_size, heap->page_size, &page_index))
+			if (!GL_HeapAllocateBlockFromSegment (heap, segment, heap->page_size, heap->page_size, &page_index))
 				return false;
 			GL_HeapSmallAllocateFromBlock (allocation, heap, segment, page_index, small_alloc_size, small_alloc_bucket);
 		}
@@ -432,7 +438,7 @@ static qboolean GL_HeapAllocateFromMemory (glheapallocation_t *allocation, glhea
 	else
 	{
 		page_index_t page_index;
-		if (GL_HeapAllocatePagesFromSegment (heap, segment, size, alignment, &page_index))
+		if (GL_HeapAllocateBlockFromSegment (heap, segment, size, alignment, &page_index))
 		{
 			allocation->segment = segment;
 			allocation->offset = page_index * heap->page_size;
@@ -446,10 +452,10 @@ static qboolean GL_HeapAllocateFromMemory (glheapallocation_t *allocation, glhea
 
 /*
 ===============
-GL_HeapFreePagesFromSegment
+GL_HeapFreeBlockFromSegment
 ===============
 */
-static void GL_HeapFreePagesFromSegment (glheapsegment_t *segment, uint32_t page_size_shift, VkDeviceSize offset)
+static void GL_HeapFreeBlockFromSegment (glheap_t *heap, glheapsegment_t *segment, uint32_t page_size_shift, VkDeviceSize offset)
 {
 	page_index_t block_page_index = offset >> page_size_shift;
 	TRACE_LOG ("Freeing block at page %u\n", block_page_index);
@@ -457,6 +463,7 @@ static void GL_HeapFreePagesFromSegment (glheapsegment_t *segment, uint32_t page
 	glheappagehdr_t *block_page_hdr = &segment->page_hdrs[block_page_index];
 	assert (block_page_hdr->size_in_pages > 0);
 	segment->num_pages_allocated -= block_page_hdr->size_in_pages;
+	--heap->stats.num_blocks_used;
 
 	if (block_page_index > 0)
 	{
@@ -487,6 +494,7 @@ static void GL_HeapFreePagesFromSegment (glheapsegment_t *segment, uint32_t page
 				TRACE_LOG (" Merging with next free block at %u\n", next_block_page_index);
 				// Merge with next free block_page_hdr
 				CLEAR_BIT (segment->free_blocks_bitfield, segment->num_pages, next_block_page_index);
+				--heap->stats.num_blocks_free;
 				block_page_hdr->size_in_pages += next_block_page_hdr->size_in_pages;
 				assert ((block_page_index + block_page_hdr->size_in_pages) <= segment->num_pages);
 				*next_block_page_hdr = EMPTY_PAGE_HDR;
@@ -506,6 +514,7 @@ static void GL_HeapFreePagesFromSegment (glheapsegment_t *segment, uint32_t page
 	TRACE_LOG (" Free block at %u size %u pages\n", block_page_index, block_page_hdr->size_in_pages);
 	assert (block_page_index < segment->num_pages);
 	SET_BIT (segment->free_blocks_bitfield, segment->num_pages, block_page_index);
+	++heap->stats.num_blocks_free;
 }
 
 /*
@@ -557,6 +566,10 @@ GL_HeapAllocate
 glheapallocation_t *GL_HeapAllocate (glheap_t *heap, VkDeviceSize size, VkDeviceSize alignment, atomic_uint32_t *num_allocations)
 {
 	glheapallocation_t *allocation = Mem_Alloc (sizeof (glheapallocation_t));
+	allocation->size = size;
+
+	++heap->stats.num_allocations;
+	heap->stats.num_bytes_allocated += size;
 
 	if (size < heap->segment_size)
 	{
@@ -570,6 +583,7 @@ glheapallocation_t *GL_HeapAllocate (glheap_t *heap, VkDeviceSize size, VkDevice
 				heap->segments = Mem_Realloc (heap->segments, sizeof (glheapsegment_t *) * (num_segments + 1));
 				heap->segments[i] =
 					GL_CreateHeapSegment (heap->segment_size, heap->page_size, heap->memory_type_index, heap->memory_type, heap->name, num_allocations);
+				++heap->stats.num_blocks_free;
 				++heap->num_segments;
 			}
 
@@ -582,6 +596,8 @@ glheapallocation_t *GL_HeapAllocate (glheap_t *heap, VkDeviceSize size, VkDevice
 	}
 	else
 	{
+		++heap->stats.num_dedicated_allocs;
+		heap->dedicated_alloc_bytes += allocation->size;
 		allocation->alloc_type = ALLOC_TYPE_DEDICATED;
 		allocation->memory = Mem_Alloc (sizeof (vulkan_memory_t));
 
@@ -604,19 +620,24 @@ GL_HeapFree
 */
 void GL_HeapFree (glheap_t *heap, glheapallocation_t *allocation, atomic_uint32_t *num_allocations)
 {
+	--heap->stats.num_allocations;
+	heap->stats.num_bytes_allocated -= allocation->size;
+
 	if (allocation->alloc_type == ALLOC_TYPE_PAGES)
 	{
-		GL_HeapFreePagesFromSegment (allocation->segment, heap->page_size_shift, allocation->offset);
+		GL_HeapFreeBlockFromSegment (heap, allocation->segment, heap->page_size_shift, allocation->offset);
 	}
 	else if (allocation->alloc_type == ALLOC_TYPE_DEDICATED)
 	{
+		--heap->stats.num_dedicated_allocs;
+		heap->dedicated_alloc_bytes -= allocation->size;
 		R_FreeVulkanMemory (allocation->memory, num_allocations);
 		Mem_Free (allocation->memory);
 	}
 	else if (allocation->alloc_type >= ALLOC_TYPE_SMALL_ALLOC)
 	{
 		if (GL_HeapSmallFreeFromBlock (heap, allocation->segment, allocation))
-			GL_HeapFreePagesFromSegment (allocation->segment, heap->page_size_shift, allocation->offset);
+			GL_HeapFreeBlockFromSegment (heap, allocation->segment, heap->page_size_shift, allocation->offset);
 	}
 	Mem_Free (allocation);
 }
@@ -639,6 +660,30 @@ GL_HeapGetAllocationOffset
 VkDeviceSize GL_HeapGetAllocationOffset (glheapallocation_t *allocation)
 {
 	return allocation->offset;
+}
+
+/*
+===============
+GL_HeapGetStats
+===============
+*/
+glheapstats_t *GL_HeapGetStats (glheap_t *heap)
+{
+	heap->stats.num_pages_allocated = 0;
+	uint32_t num_total_pages = 0;
+	uint64_t total_page_bytes = 0;
+	for (uint32_t i = 0; i < heap->num_segments; ++i)
+	{
+		glheapsegment_t *segment = heap->segments[i];
+		num_total_pages += segment->num_pages;
+		heap->stats.num_pages_allocated += segment->num_pages_allocated;
+		total_page_bytes += segment->num_pages_allocated * heap->page_size;
+	}
+	heap->stats.num_segments = heap->num_segments;
+	heap->stats.num_pages_free = num_total_pages - heap->stats.num_pages_allocated;
+	heap->stats.num_bytes_free = heap->stats.num_pages_free * heap->page_size;
+	heap->stats.num_bytes_wasted = total_page_bytes + heap->dedicated_alloc_bytes - heap->stats.num_bytes_allocated;
+	return &heap->stats;
 }
 
 #ifdef _DEBUG

@@ -696,23 +696,24 @@ void R_FreeBuffers (const int num_buffers, VkBuffer *buffers, vulkan_memory_t *m
 VkDescriptorSet R_AllocateDescriptorSet (vulkan_desc_set_layout_t *layout);
 void			R_FreeDescriptorSet (VkDescriptorSet desc_set, vulkan_desc_set_layout_t *layout);
 
-void  R_InitStagingBuffers ();
-void  R_SubmitStagingBuffers ();
+void  R_InitStagingBuffers (void);
+void  R_SubmitStagingBuffers (void);
 byte *R_StagingAllocate (int size, int alignment, VkCommandBuffer *cb_context, VkBuffer *buffer, int *buffer_offset);
-void  R_StagingBeginCopy ();
-void  R_StagingEndCopy ();
+void  R_StagingBeginCopy (void);
+void  R_StagingEndCopy (void);
 void  R_StagingUploadBuffer (const VkBuffer buffer, const size_t size, const byte *data);
 
-void  R_InitGPUBuffers ();
-void  R_InitMeshHeap ();
-void  R_SwapDynamicBuffers ();
-void  R_FlushDynamicBuffers ();
-void  R_CollectDynamicBufferGarbage ();
-void  R_CollectMeshBufferGarbage ();
-byte *R_VertexAllocate (int size, VkBuffer *buffer, VkDeviceSize *buffer_offset);
-byte *R_IndexAllocate (int size, VkBuffer *buffer, VkDeviceSize *buffer_offset);
-byte *R_UniformAllocate (int size, VkBuffer *buffer, uint32_t *buffer_offset, VkDescriptorSet *descriptor_set);
-byte *R_StorageAllocate (int size, VkBuffer *buffer, VkDeviceSize *buffer_offset, VkDeviceAddress *device_address);
+void		   R_InitGPUBuffers (void);
+void		   R_InitMeshHeap (void);
+glheapstats_t *R_GetMeshHeapStats (void);
+void		   R_SwapDynamicBuffers (void);
+void		   R_FlushDynamicBuffers (void);
+void		   R_CollectDynamicBufferGarbage (void);
+void		   R_CollectMeshBufferGarbage (void);
+byte		  *R_VertexAllocate (int size, VkBuffer *buffer, VkDeviceSize *buffer_offset);
+byte		  *R_IndexAllocate (int size, VkBuffer *buffer, VkDeviceSize *buffer_offset);
+byte		  *R_UniformAllocate (int size, VkBuffer *buffer, uint32_t *buffer_offset, VkDescriptorSet *descriptor_set);
+byte		  *R_StorageAllocate (int size, VkBuffer *buffer, VkDeviceSize *buffer_offset, VkDeviceAddress *device_address);
 
 void R_AllocateLightmapComputeBuffers ();
 

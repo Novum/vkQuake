@@ -24,12 +24,27 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 typedef struct glheap_s			  glheap_t;
 typedef struct glheapallocation_s glheapallocation_t;
 
+typedef struct glheapstats_s
+{
+	uint32_t num_segments;
+	uint32_t num_dedicated_allocs;
+	uint32_t num_allocations;
+	uint32_t num_blocks_used;
+	uint32_t num_blocks_free;
+	uint32_t num_pages_allocated;
+	uint32_t num_pages_free;
+	uint64_t num_bytes_allocated;
+	uint64_t num_bytes_free;
+	uint64_t num_bytes_wasted;
+} glheapstats_t;
+
 glheap_t *GL_HeapCreate (VkDeviceSize segment_size, uint32_t page_size, uint32_t memory_type_index, vulkan_memory_type_t memory_type, const char *heap_name);
 void	  GL_HeapDestroy (glheap_t *heap, atomic_uint32_t *num_allocations);
 glheapallocation_t *GL_HeapAllocate (glheap_t *heap, VkDeviceSize size, VkDeviceSize alignment, atomic_uint32_t *num_allocations);
 void				GL_HeapFree (glheap_t *heap, glheapallocation_t *allocation, atomic_uint32_t *num_allocations);
 VkDeviceMemory		GL_HeapGetAllocationMemory (glheapallocation_t *allocation);
 VkDeviceSize		GL_HeapGetAllocationOffset (glheapallocation_t *allocation);
+glheapstats_t	   *GL_HeapGetStats (glheap_t *heap);
 
 #ifdef _DEBUG
 void GL_HeapTest_f (void);

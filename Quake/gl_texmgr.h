@@ -119,4 +119,7 @@ void TexMgr_ReloadNobrightImages (void);
 
 void TexMgr_UpdateTextureDescriptorSets (void);
 
+typedef struct glheapstats_s glheapstats_t;
+glheapstats_t				*TexMgr_GetHeapStats (void);
+
 #endif /* _GL_TEXMAN_H */
