@@ -320,11 +320,11 @@ static inline int FindFirstBitNonZero64 (const uint64_t mask)
 }
 static inline int FindLastBitNonZero (const uint32_t mask)
 {
-	return __builtin_clz (mask);
+	return 31 ^ __builtin_clz (mask);
 }
 static inline int FindLastBitNonZero64 (const uint64_t mask)
 {
-	return __builtin_clzll (mask);
+	return 63 ^ __builtin_clzll (mask);
 }
 #define THREAD_LOCAL  _Thread_local
 #define FORCE_INLINE  __attribute__ ((always_inline)) inline
