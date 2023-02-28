@@ -421,14 +421,22 @@ void VectorScale (vec3_t in, vec_t scale, vec3_t out)
 
 int Q_log2 (int val)
 {
+	const int last_bit_index = FindLastBitNonZero (val);
+#ifndef NDEBUG
 	int answer = 0;
 	while (val >>= 1)
 		answer++;
-	return answer;
+	assert (last_bit_index == answer);
+#endif
+	return last_bit_index;
 }
 
 int Q_nextPow2 (int val)
 {
+	int result = 1;
+	if (val > 1)
+		result = 1 << (FindLastBitNonZero (val - 1) + 1);
+#ifndef NDEBUG
 	val--;
 	val |= val >> 1;
 	val |= val >> 2;
@@ -436,7 +444,9 @@ int Q_nextPow2 (int val)
 	val |= val >> 8;
 	val |= val >> 16;
 	val++;
-	return val;
+	assert (val == result);
+#endif
+	return result;
 }
 
 /*
