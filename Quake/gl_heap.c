@@ -223,6 +223,7 @@ static qboolean GL_HeapAllocateBlockFromSegment (glheap_t *heap, glheapsegment_t
 				{
 					TRACE_LOG (" No alignment padding\n");
 					// No alignment, remove free bit for this block_page_hdr
+					assert (GET_BIT (segment->free_blocks_bitfield, block_page_index));
 					CLEAR_BIT (segment->free_blocks_bitfield, heap->num_pages_per_segment, block_page_index);
 					--heap->stats.num_blocks_free;
 				}
@@ -500,6 +501,7 @@ static void GL_HeapFreeBlockFromSegment (glheap_t *heap, glheapsegment_t *segmen
 			{
 				TRACE_LOG (" Merging with next free block at %u\n", next_block_page_index);
 				// Merge with next free block_page_hdr
+				assert (GET_BIT (segment->free_blocks_bitfield, next_block_page_index));
 				CLEAR_BIT (segment->free_blocks_bitfield, heap->num_pages_per_segment, next_block_page_index);
 				--heap->stats.num_blocks_free;
 				block_page_hdr->size_in_pages += next_block_page_hdr->size_in_pages;
@@ -520,9 +522,11 @@ static void GL_HeapFreeBlockFromSegment (glheap_t *heap, glheapsegment_t *segmen
 
 	TRACE_LOG (" Free block at %u size %u pages\n", block_page_index, block_page_hdr->size_in_pages);
 	assert (block_page_index < heap->num_pages_per_segment);
-	SET_BIT (segment->free_blocks_bitfield, heap->num_pages_per_segment, block_page_index);
-
-	++heap->stats.num_blocks_free;
+	if (!GET_BIT (segment->free_blocks_bitfield, block_page_index))
+	{
+		SET_BIT (segment->free_blocks_bitfield, heap->num_pages_per_segment, block_page_index);
+		++heap->stats.num_blocks_free;
+	}
 }
 
 /*
@@ -750,6 +754,7 @@ static void TestHeapCleanState (glheap_t *heap)
 		for (page_index_t j = 0; j < NUM_SMALL_ALLOC_SIZES; ++j)
 			HEAP_TEST_ASSERT (segment->small_alloc_free_list_heads[j] == INVALID_PAGE_INDEX, "free list head is not empty");
 	}
+	HEAP_TEST_ASSERT (heap->num_segments == heap->stats.num_blocks_free, "Invalid number of free blocks");
 }
 
 /*
