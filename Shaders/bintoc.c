@@ -3,11 +3,10 @@
 
 int main (int argc, char **argv)
 {
-	FILE *fin, *fout, *fin_compressed;
-	char fin_deflate[1024];
-	unsigned long decompressed_length = 0;
-	unsigned long n = 0;
-	char *c;
+	FILE *		  fin, *fout, *fin_compressed;
+	char		  fin_deflate[1024];
+	unsigned long decompressed_length, n;
+	char *		  c;
 
 	if (argc != 4)
 		return 0;
@@ -25,6 +24,7 @@ int main (int argc, char **argv)
 	}
 
 	snprintf (fin_deflate, sizeof (fin_deflate), "%s.deflate", argv[1]);
+	decompressed_length = 0;
 	fin_compressed = fopen (fin_deflate, "rb");
 	if (fin_compressed != NULL)
 	{
@@ -41,6 +41,7 @@ int main (int argc, char **argv)
 	fprintf (fout, "// clang-format off\n");
 	fprintf (fout, "const unsigned char %s[] = {\n", argv[2]);
 
+	n = 0;
 	while (!feof (fin))
 	{
 		unsigned char ch;
