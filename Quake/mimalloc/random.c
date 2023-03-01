@@ -174,7 +174,9 @@ If we cannot get good randomness, we fall back to weak randomness based on a tim
 // sometimes deadlocks when also running under the VS debugger.
 // In contrast, issue #623 implies that on Windows Server 2019 we need to use BCryptGenRandom.
 // To be continued..
+#ifdef _MSC_VER
 #pragma comment (lib,"advapi32.lib")
+#endif
 #define RtlGenRandom  SystemFunction036
 #ifdef __cplusplus
 extern "C" {
