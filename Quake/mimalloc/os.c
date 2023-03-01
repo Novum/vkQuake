@@ -374,7 +374,7 @@ static bool mi_os_mem_free(void* addr, size_t size, bool was_committed, mi_stats
     }
   }
   if (errcode != 0) {
-    _mi_warning_message("unable to release OS memory: error code 0x%x, addr: %p, size: %" MI_PRISZU "\n", errcode, addr, size);
+    _mi_warning_message("unable to release OS memory: error code 0x%lx, addr: %p, size: %" MI_PRISZU "\n", errcode, addr, size);
   }
 #elif defined(MI_USE_SBRK) || defined(__wasi__)
   err = false; // sbrk heap cannot be shrunk
@@ -406,7 +406,7 @@ static void* mi_win_virtual_allocx(void* addr, size_t size, size_t try_alignment
     if (hint != NULL) {
       void* p = VirtualAlloc(hint, size, flags, PAGE_READWRITE);
       if (p != NULL) return p;
-      _mi_verbose_message("warning: unable to allocate hinted aligned OS memory (%" MI_PRISZU " bytes, error code: 0x%x, address: %p, alignment: %" MI_PRISZU ", flags: 0x%x)\n", size, GetLastError(), hint, try_alignment, flags);
+      _mi_verbose_message("warning: unable to allocate hinted aligned OS memory (%" MI_PRISZU " bytes, error code: 0x%lx, address: %p, alignment: %" MI_PRISZU ", flags: 0x%lx)\n", size, GetLastError(), hint, try_alignment, flags);
       // fall through on error
     }
   }
@@ -420,7 +420,7 @@ static void* mi_win_virtual_allocx(void* addr, size_t size, size_t try_alignment
     param.Arg.Pointer = &reqs;
     void* p = (*pVirtualAlloc2)(GetCurrentProcess(), addr, size, flags, PAGE_READWRITE, &param, 1);
     if (p != NULL) return p;
-    _mi_warning_message("unable to allocate aligned OS memory (%" MI_PRISZU " bytes, error code: 0x%x, address: %p, alignment: %" MI_PRISZU ", flags: 0x%x)\n", size, GetLastError(), addr, try_alignment, flags);
+    _mi_warning_message("unable to allocate aligned OS memory (%" MI_PRISZU " bytes, error code: 0x%lx, address: %p, alignment: %" MI_PRISZU ", flags: 0x%lx)\n", size, GetLastError(), addr, try_alignment, flags);
     // fall through on error
   }
   // last resort
@@ -457,7 +457,7 @@ static void* mi_win_virtual_alloc(void* addr, size_t size, size_t try_alignment,
     p = mi_win_virtual_allocx(addr, size, try_alignment, flags);
   }
   if (p == NULL) {
-    _mi_warning_message("unable to allocate OS memory (%" MI_PRISZU " bytes, error code: 0x%x, address: %p, alignment: %" MI_PRISZU ", flags: 0x%x, large only: %d, allow large: %d)\n", size, GetLastError(), addr, try_alignment, flags, large_only, allow_large);
+    _mi_warning_message("unable to allocate OS memory (%" MI_PRISZU " bytes, error code: 0x%lx, address: %p, alignment: %" MI_PRISZU ", flags: 0x%lx, large only: %d, allow large: %d)\n", size, GetLastError(), addr, try_alignment, flags, large_only, allow_large);
   }
   return p;
 }

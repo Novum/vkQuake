@@ -342,7 +342,8 @@ void _mi_fputs(mi_output_fun* out, void* arg, const char* prefix, const char* me
 
 // Define our own limited `fprintf` that avoids memory allocation.
 // We do this using `snprintf` with a limited buffer.
-static void mi_vfprintf( mi_output_fun* out, void* arg, const char* prefix, const char* fmt, va_list args ) {
+static void FUNC_PRINTF(4,0)
+mi_vfprintf( mi_output_fun* out, void* arg, const char* prefix, const char* fmt, va_list args ) {
   char buf[512];
   if (fmt==NULL) return;
   if (!mi_recurse_enter()) return;
@@ -358,10 +359,11 @@ void _mi_fprintf( mi_output_fun* out, void* arg, const char* fmt, ... ) {
   va_end(args);
 }
 
-static void mi_vfprintf_thread(mi_output_fun* out, void* arg, const char* prefix, const char* fmt, va_list args) {
+static void FUNC_PRINTF(4,0)
+mi_vfprintf_thread(mi_output_fun* out, void* arg, const char* prefix, const char* fmt, va_list args) {
   if (prefix != NULL && strlen(prefix) <= 32 && !_mi_is_main_thread()) {
     char tprefix[64];
-    snprintf(tprefix, sizeof(tprefix), "%sthread 0x%llx: ", prefix, (unsigned long long)_mi_thread_id());
+    snprintf(tprefix, sizeof(tprefix), "%sthread 0x%" MI_PRIx64 ": ", prefix, (uint64_t)_mi_thread_id());
     mi_vfprintf(out, arg, tprefix, fmt, args);
   }
   else {
@@ -385,7 +387,8 @@ void _mi_verbose_message(const char* fmt, ...) {
   va_end(args);
 }
 
-static void mi_show_error_message(const char* fmt, va_list args) {
+static void FUNC_PRINTF(1,0)
+mi_show_error_message(const char* fmt, va_list args) {
   if (!mi_option_is_enabled(mi_option_verbose)) {
     if (!mi_option_is_enabled(mi_option_show_errors)) return;
     if (mi_max_error_count >= 0 && (long)mi_atomic_increment_acq_rel(&error_count) > mi_max_error_count) return;
