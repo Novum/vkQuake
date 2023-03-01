@@ -513,6 +513,7 @@ void mi_free(void* p) mi_attr_noexcept
   }
 }
 
+// return true if successful
 bool _mi_free_delayed_block(mi_block_t* block) {
   // get segment and page
   const mi_segment_t* const segment = _mi_ptr_segment(block);
@@ -525,7 +526,9 @@ bool _mi_free_delayed_block(mi_block_t* block) {
   // some blocks may end up in the page `thread_free` list with no blocks in the
   // heap `thread_delayed_free` list which may cause the page to be never freed!
   // (it would only be freed if we happen to scan it in `mi_page_queue_find_free_ex`)
-  _mi_page_use_delayed_free(page, MI_USE_DELAYED_FREE, false /* dont overwrite never delayed */);
+  if (!_mi_page_try_use_delayed_free(page, MI_USE_DELAYED_FREE, false /* dont overwrite never delayed */)) {
+    return false;
+  }
 
   // collect all other non-local frees to ensure up-to-date `used` count
   _mi_page_free_collect(page, false);
@@ -638,8 +641,11 @@ void* mi_expand(void* p, size_t newsize) mi_attr_noexcept {
 }
 
 void* _mi_heap_realloc_zero(mi_heap_t* heap, void* p, size_t newsize, bool zero) mi_attr_noexcept {
-  const size_t size = _mi_usable_size(p,"mi_realloc"); // also works if p == NULL
-  if (mi_unlikely(newsize <= size && newsize >= (size / 2))) {
+  const size_t size = _mi_usable_size(p,"mi_realloc"); // also works if p == NULL (with size 0)
+  // if p == NULL then behave as malloc.
+  // else if size == 0 then reallocate to a zero-sized block (and don't return NULL, just as mi_malloc(0)).
+  // (this means that returning NULL always indicates an error, and `p` will not have been freed in that case.)
+  if (mi_unlikely(newsize <= size && newsize >= (size / 2) && newsize > 0)) {  // note: newsize must be > 0 or otherwise we return NULL for realloc(NULL,0)
     // todo: adjust potential padding to reflect the new size?
     return p;  // reallocation still fits and not more than 50% waste
   }
@@ -835,8 +841,8 @@ static bool mi_try_new_handler(bool nothrow) {
 #else
 typedef void (*std_new_handler_t)(void);
 
-#if (defined(__GNUC__) || defined(__clang__))
-std_new_handler_t __attribute((weak)) _ZSt15get_new_handlerv(void) {
+#if (defined(__GNUC__) || (defined(__clang__) && !defined(_MSC_VER)))  // exclude clang-cl, see issue #631
+std_new_handler_t __attribute__((weak)) _ZSt15get_new_handlerv(void) {
   return NULL;
 }
 static std_new_handler_t mi_get_new_handler(void) {
