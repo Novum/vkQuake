@@ -3,10 +3,10 @@
 
 int main (int argc, char **argv)
 {
-	FILE *		  fin, *fout, *fin_compressed;
+	FILE		 *fin, *fout, *fin_compressed;
 	char		  fin_deflate[1024];
 	unsigned long decompressed_length, n;
-	char *		  c;
+	char		 *c;
 
 	if (argc != 4)
 		return 0;
