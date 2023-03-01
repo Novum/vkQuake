@@ -21,19 +21,18 @@ terms of the MIT license. A copy of the license can be found in the file
 #define MI_PRISZU "zu"
 #define MI_PRISZX "zx"
 #endif
+
 #if defined(_WIN32)
 #define MI_PRIi64 "I64d"
 #define MI_PRIu64 "I64u"
 #define MI_PRIx64 "I64x"
-#elif defined(_LP64) || defined(__LP64__)
-#define MI_PRIi64 "ld"
-#define MI_PRIu64 "lu"
-#define MI_PRIx64 "lx"
 #else
-#define MI_PRIi64 "lld"
-#define MI_PRIu64 "llu"
-#define MI_PRIx64 "llx"
+#include <inttypes.h>
+#define MI_PRIi64 PRIi64
+#define MI_PRIu64 PRIu64
+#define MI_PRIx64 PRIx64
 #endif
+
 #if !defined(FUNC_PRINTF)
 #if defined(__GNUC__)
 #define FUNC_PRINTF(x, y) __attribute__((__format__(__printf__,x,y)))
