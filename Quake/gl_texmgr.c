@@ -69,8 +69,8 @@ unsigned int d_8to24table_shirt[256];
 unsigned int d_8to24table_pants[256];
 
 // Heap
-#define TEXTURE_HEAP_MEMORY_SIZE_MB 48
-#define TEXTURE_HEAP_PAGE_SIZE		32768
+#define TEXTURE_HEAP_MEMORY_SIZE_MB 64
+#define TEXTURE_HEAP_PAGE_SIZE		16384
 
 static glheap_t	 *texmgr_heap;
 static SDL_mutex *texmgr_mutex;
