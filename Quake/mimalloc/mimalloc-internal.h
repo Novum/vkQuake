@@ -33,13 +33,11 @@ terms of the MIT license. A copy of the license can be found in the file
 #define MI_PRIx64 PRIx64
 #endif
 
-#if !defined(FUNC_PRINTF)
-#if defined(__GNUC__)
-#define FUNC_PRINTF(x, y) __attribute__((__format__(__printf__,x,y)))
+#if defined(__GNUC__) && (0) /* enable to see any -Wformat issues. */
+#define mi_printf_func(x,y) __attribute__((__format__(__printf__,x,y)))
 #else
-#define FUNC_PRINTF(x, y)
+#define mi_printf_func(x,y)
 #endif
-#endif /**/
 
 #if (MI_DEBUG>0)
 #define mi_trace_message(...)  _mi_trace_message(__VA_ARGS__)
@@ -81,12 +79,12 @@ terms of the MIT license. A copy of the license can be found in the file
 
 // "options.c"
 void       _mi_fputs(mi_output_fun* out, void* arg, const char* prefix, const char* message);
-void       _mi_fprintf(mi_output_fun* out, void* arg, const char* fmt, ...) FUNC_PRINTF(3,4);
-void       _mi_warning_message(const char* fmt, ...) FUNC_PRINTF(1,2);
-void       _mi_verbose_message(const char* fmt, ...) FUNC_PRINTF(1,2);
-void       _mi_trace_message(const char* fmt, ...) FUNC_PRINTF(1,2);
+void       _mi_fprintf(mi_output_fun* out, void* arg, const char* fmt, ...) mi_printf_func(3,4);
+void       _mi_warning_message(const char* fmt, ...) mi_printf_func(1,2);
+void       _mi_verbose_message(const char* fmt, ...) mi_printf_func(1,2);
+void       _mi_trace_message(const char* fmt, ...)   mi_printf_func(1,2);
 void       _mi_options_init(void);
-void       _mi_error_message(int err, const char* fmt, ...) FUNC_PRINTF(2,3);
+void       _mi_error_message(int err, const char* fmt, ...) mi_printf_func(2,3);
 
 // random.c
 void       _mi_random_init(mi_random_ctx_t* ctx);

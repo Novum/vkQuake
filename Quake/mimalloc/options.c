@@ -342,7 +342,7 @@ void _mi_fputs(mi_output_fun* out, void* arg, const char* prefix, const char* me
 
 // Define our own limited `fprintf` that avoids memory allocation.
 // We do this using `snprintf` with a limited buffer.
-static void FUNC_PRINTF(4,0)
+static void mi_printf_func(4,0)
 mi_vfprintf( mi_output_fun* out, void* arg, const char* prefix, const char* fmt, va_list args ) {
   char buf[512];
   if (fmt==NULL) return;
@@ -359,7 +359,7 @@ void _mi_fprintf( mi_output_fun* out, void* arg, const char* fmt, ... ) {
   va_end(args);
 }
 
-static void FUNC_PRINTF(4,0)
+static void mi_printf_func(4,0)
 mi_vfprintf_thread(mi_output_fun* out, void* arg, const char* prefix, const char* fmt, va_list args) {
   if (prefix != NULL && strlen(prefix) <= 32 && !_mi_is_main_thread()) {
     char tprefix[64];
@@ -387,7 +387,7 @@ void _mi_verbose_message(const char* fmt, ...) {
   va_end(args);
 }
 
-static void FUNC_PRINTF(1,0)
+static void mi_printf_func(1,0)
 mi_show_error_message(const char* fmt, va_list args) {
   if (!mi_option_is_enabled(mi_option_verbose)) {
     if (!mi_option_is_enabled(mi_option_show_errors)) return;
