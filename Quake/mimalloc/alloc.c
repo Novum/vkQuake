@@ -193,7 +193,7 @@ static mi_decl_noinline bool mi_check_is_double_freex(const mi_page_t* page, con
       mi_list_contains(page, page->local_free, block) ||
       mi_list_contains(page, mi_page_thread_free(page), block))
   {
-    _mi_error_message(EAGAIN, "double free detected of block %p with size %zu\n", block, mi_page_block_size(page));
+    _mi_error_message(EAGAIN, "double free detected of block %p with size %" MI_PRISZU "\n", block, mi_page_block_size(page));
     return true;
   }
   return false;
@@ -277,7 +277,7 @@ static void mi_check_padding(const mi_page_t* page, const mi_block_t* block) {
   size_t size;
   size_t wrong;
   if (!mi_verify_padding(page,block,&size,&wrong)) {
-    _mi_error_message(EFAULT, "buffer overflow in heap block %p of size %zu: write after %zu bytes\n", block, size, wrong );
+    _mi_error_message(EFAULT, "buffer overflow in heap block %p of size %" MI_PRISZU ": write after %" MI_PRISZU " bytes\n", block, size, wrong );
   }
 }
 

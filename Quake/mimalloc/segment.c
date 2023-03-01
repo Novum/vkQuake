@@ -453,7 +453,7 @@ static void mi_segment_commit_mask(mi_segment_t* segment, bool conservative, uin
   
   size_t bitcount = *full_size / MI_COMMIT_SIZE; // can be 0
   if (bitidx + bitcount > MI_COMMIT_MASK_BITS) {
-    _mi_warning_message("commit mask overflow: idx=%zu count=%zu start=%zx end=%zx p=0x%p size=%zu fullsize=%zu\n", bitidx, bitcount, start, end, p, size, *full_size);
+    _mi_warning_message("commit mask overflow: idx=%" MI_PRISZU " count=%" MI_PRISZU " start=%" MI_PRISZX " end=%" MI_PRISZX " p=0x%p size=%" MI_PRISZU " fullsize=%" MI_PRISZU "\n", bitidx, bitcount, start, end, p, size, *full_size);
   }
   mi_assert_internal((bitidx + bitcount) <= MI_COMMIT_MASK_BITS);
   mi_commit_mask_create(bitidx, bitcount, cm);

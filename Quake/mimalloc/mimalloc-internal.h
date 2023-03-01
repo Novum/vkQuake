@@ -11,6 +11,17 @@ terms of the MIT license. A copy of the license can be found in the file
 #include "mimalloc-types.h"
 #include "mimalloc-track.h"
 
+#if defined(_WIN64)
+#define MI_PRISZU "I64u"
+#define MI_PRISZX "I64x"
+#elif defined(_WIN32)
+#define MI_PRISZU "u"
+#define MI_PRISZX "x"
+#else
+#define MI_PRISZU "zu"
+#define MI_PRISZX "zx"
+#endif
+
 #if (MI_DEBUG>0)
 #define mi_trace_message(...)  _mi_trace_message(__VA_ARGS__)
 #else
@@ -331,7 +342,7 @@ static inline bool mi_count_size_overflow(size_t count, size_t size, size_t* tot
   }
   else if mi_unlikely(mi_mul_overflow(count, size, total)) {
     #if MI_DEBUG > 0
-    _mi_error_message(EOVERFLOW, "allocation request is too large (%zu * %zu bytes)\n", count, size);
+    _mi_error_message(EOVERFLOW, "allocation request is too large (%" MI_PRISZU " * %" MI_PRISZU " bytes)\n", count, size);
     #endif
     *total = SIZE_MAX;
     return true;
@@ -726,7 +737,7 @@ static inline mi_block_t* mi_block_next(const mi_page_t* page, const mi_block_t*
   // check for free list corruption: is `next` at least in the same page?
   // TODO: check if `next` is `page->block_size` aligned?
   if mi_unlikely(next!=NULL && !mi_is_in_same_page(block, next)) {
-    _mi_error_message(EFAULT, "corrupted free list entry of size %zub at %p: value 0x%zx\n", mi_page_block_size(page), block, (uintptr_t)next);
+    _mi_error_message(EFAULT, "corrupted free list entry of size %" MI_PRISZU "b at %p: value 0x%" MI_PRISZX "\n", mi_page_block_size(page), block, (uintptr_t)next);
     next = NULL;
   }
   return next;
