@@ -87,7 +87,7 @@ mi_decl_nodiscard mi_decl_restrict void* mi_aligned_alloc(size_t alignment, size
   // unfortunately, it turns out quite some programs pass a size that is not an integral multiple so skip this check..
   /* if mi_unlikely((size & (alignment - 1)) != 0) { // C11 requires alignment>0 && integral multiple, see <https://en.cppreference.com/w/c/memory/aligned_alloc>
       #if MI_DEBUG > 0
-      _mi_error_message(EOVERFLOW, "(mi_)aligned_alloc requires the size to be an integral multiple of the alignment (size %" MI_PRISZU ", alignment %" MI_PRISZU ")\n", size, alignment);
+      _mi_error_message(EOVERFLOW, "(mi_)aligned_alloc requires the size to be an integral multiple of the alignment (size %zu, alignment %zu)\n", size, alignment);
       #endif
       return NULL;
     }
