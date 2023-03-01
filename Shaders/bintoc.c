@@ -3,24 +3,29 @@
 
 int main (int argc, char **argv)
 {
+	FILE *fin, *fout, *fin_compressed;
+	char fin_deflate[1024];
+	unsigned long decompressed_length = 0;
+	unsigned long n = 0;
+	char *c;
+
 	if (argc != 4)
 		return 0;
 
-	char *fnin = argv[1];
-	FILE *fin = fopen (fnin, "rb");
-
-	char *fnout = argv[3];
-	FILE *fout = fopen (fnout, "w+");
+	fin = fopen (argv[1], "rb");
+	fout = fopen (argv[3], "w+");
 
 	if ((fin == NULL) || (fout == NULL))
 	{
+		if (fin != NULL)
+			fclose (fin);
+		if (fout != NULL)
+			fclose (fout);
 		return 1;
 	}
 
-	char fin_deflate[1024];
 	snprintf (fin_deflate, sizeof (fin_deflate), "%s.deflate", argv[1]);
-	FILE		 *fin_compressed = fopen (fin_deflate, "rb");
-	unsigned long decompressed_length = 0;
+	fin_compressed = fopen (fin_deflate, "rb");
 	if (fin_compressed != NULL)
 	{
 		fseek (fin, 0, SEEK_END);
@@ -29,19 +34,19 @@ int main (int argc, char **argv)
 		fin = fin_compressed;
 	}
 
-	for (char *c = argv[2]; *c != 0; ++c)
+	for (c = argv[2]; *c != 0; ++c)
 		if (*c == '.')
 			*c = '_';
+
 	fprintf (fout, "// clang-format off\n");
 	fprintf (fout, "const unsigned char %s[] = {\n", argv[2]);
-	unsigned long n = 0;
 
 	while (!feof (fin))
 	{
-		unsigned char c;
-		if (fread (&c, 1, 1, fin) == 0)
+		unsigned char ch;
+		if (fread (&ch, 1, 1, fin) == 0)
 			break;
-		fprintf (fout, "0x%.2X, ", (int)c);
+		fprintf (fout, "0x%.2X, ", (int)ch);
 		++n;
 		if (n % 10 == 0)
 			fprintf (fout, "\n");
