@@ -34,8 +34,8 @@ ALIAS MODEL DISPLAY LIST GENERATION
 */
 
 // Heap
-#define MESH_HEAP_SIZE_MB	4
-#define MESH_HEAP_PAGE_SIZE 8192
+#define MESH_HEAP_SIZE_MB	16
+#define MESH_HEAP_PAGE_SIZE 4096
 #define MESH_HEAP_NAME		"Mesh heap"
 
 static glheap_t *mesh_buffer_heap;

@@ -421,6 +421,8 @@ void VectorScale (vec3_t in, vec_t scale, vec3_t out)
 
 int Q_log2 (int val)
 {
+	if (val <= 0)
+		return 0;
 	const int last_bit_index = FindLastBitNonZero (val);
 #ifndef NDEBUG
 	int answer = 0;
