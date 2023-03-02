@@ -37,11 +37,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 typedef uint16_t page_index_t;
 
-#ifndef NDEBUG
 static uint32_t SMALL_SLOTS_PER_PAGE[NUM_SMALL_ALLOC_SIZES] = {
 	64, 32, 16, 8, 4, 2,
 };
-#endif
 
 static uint64_t SLOTS_FULL_MASK[NUM_SMALL_ALLOC_SIZES] = {
 	0xFFFFFFFFFFFFFFFFull, 0xFFFFFFFFull, 0xFFFFull, 0xFFull, 0xFull, 0x3ull,
@@ -753,18 +751,39 @@ glheapstats_t *GL_HeapGetStats (glheap_t *heap)
 {
 	heap->stats.num_pages_allocated = 0;
 	uint32_t num_total_pages = 0;
-	uint64_t total_page_bytes = 0;
+	uint64_t total_allocated_page_bytes = 0;
+	uint32_t small_alloc_pages_bytes = 0;
+	uint64_t small_alloc_bytes = 0;
 	for (uint32_t mask_page_offset = 0; mask_page_offset < heap->num_segments; ++mask_page_offset)
 	{
 		glheapsegment_t *segment = heap->segments[mask_page_offset];
 		num_total_pages += heap->num_pages_per_segment;
 		heap->stats.num_pages_allocated += segment->num_pages_allocated;
-		total_page_bytes += segment->num_pages_allocated * heap->page_size;
+		total_allocated_page_bytes += segment->num_pages_allocated * heap->page_size;
+		for (int i = 0; i < NUM_SMALL_ALLOC_SIZES; ++i)
+		{
+			const uint32_t slots_per_page = SMALL_SLOTS_PER_PAGE[i];
+			const uint32_t slot_size = heap->page_size / slots_per_page;
+			page_index_t   small_alloc_page_index = segment->small_alloc_free_list_heads[i];
+			while (small_alloc_page_index != INVALID_PAGE_INDEX)
+			{
+				small_alloc_pages_bytes += heap->page_size;
+				glheapsmallalloclinks_t *links = &segment->small_alloc_links[small_alloc_page_index];
+				uint64_t				 small_alloc_mask = segment->small_alloc_masks[small_alloc_page_index];
+				for (uint32_t slot_index = 0; slot_index < slots_per_page; ++slot_index)
+				{
+					if ((small_alloc_mask & (1ull << slot_index)) != 0)
+						small_alloc_bytes += slot_size;
+				}
+				small_alloc_page_index = links->next_small_alloc_page;
+			}
+		}
 	}
 	heap->stats.num_segments = heap->num_segments;
 	heap->stats.num_pages_free = num_total_pages - heap->stats.num_pages_allocated;
 	heap->stats.num_bytes_free = heap->stats.num_pages_free * heap->page_size;
-	heap->stats.num_bytes_wasted = total_page_bytes + heap->dedicated_alloc_bytes - heap->stats.num_bytes_allocated;
+	heap->stats.num_bytes_wasted =
+		(total_allocated_page_bytes - small_alloc_pages_bytes) + heap->dedicated_alloc_bytes + small_alloc_bytes - heap->stats.num_bytes_allocated;
 	return &heap->stats;
 }
 
