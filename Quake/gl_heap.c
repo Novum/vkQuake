@@ -646,11 +646,13 @@ glheapallocation_t *GL_HeapAllocate (glheap_t *heap, VkDeviceSize size, VkDevice
 		alloc_info.is_small_alloc = size_alignment_max <= heap->page_size / 2;
 		if (alloc_info.is_small_alloc)
 		{
+			++heap->stats.num_small_allocations;
 			alloc_info.small_alloc_size = q_max (Q_nextPow2 (size_alignment_max), heap->min_small_alloc_size);
 			alloc_info.small_alloc_bucket = Q_log2 (alloc_info.small_alloc_size >> heap->small_alloc_shift);
 		}
 		else
 		{
+			++heap->stats.num_block_allocations;
 			alloc_info.alloc_size_in_pages = (size + heap->page_size - 1) >> heap->page_size_shift;
 			alloc_info.alignment_in_pages = (alignment + heap->page_size - 1) >> heap->page_size_shift;
 			alloc_info.size_class = q_min (Q_log2 (alloc_info.alloc_size_in_pages), NUM_BLOCK_SIZE_CLASSES - 1);
@@ -676,7 +678,7 @@ glheapallocation_t *GL_HeapAllocate (glheap_t *heap, VkDeviceSize size, VkDevice
 	}
 	else
 	{
-		++heap->stats.num_dedicated_allocs;
+		++heap->stats.num_dedicated_allocations;
 		heap->dedicated_alloc_bytes += allocation->size;
 		allocation->alloc_type = ALLOC_TYPE_DEDICATED;
 		allocation->memory = Mem_Alloc (sizeof (vulkan_memory_t));
@@ -709,7 +711,7 @@ void GL_HeapFree (glheap_t *heap, glheapallocation_t *allocation, atomic_uint32_
 	}
 	else if (allocation->alloc_type == ALLOC_TYPE_DEDICATED)
 	{
-		--heap->stats.num_dedicated_allocs;
+		--heap->stats.num_dedicated_allocations;
 		heap->dedicated_alloc_bytes -= allocation->size;
 		R_FreeVulkanMemory (allocation->memory, num_allocations);
 		Mem_Free (allocation->memory);

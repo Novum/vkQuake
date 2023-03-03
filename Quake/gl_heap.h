@@ -27,8 +27,10 @@ typedef struct glheapallocation_s glheapallocation_t;
 typedef struct glheapstats_s
 {
 	uint32_t num_segments;
-	uint32_t num_dedicated_allocs;
 	uint32_t num_allocations;
+	uint32_t num_small_allocations;
+	uint32_t num_block_allocations;
+	uint32_t num_dedicated_allocations;
 	uint32_t num_blocks_used;
 	uint32_t num_blocks_free;
 	uint32_t num_pages_allocated;

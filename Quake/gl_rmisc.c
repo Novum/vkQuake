@@ -4175,8 +4175,10 @@ static void R_PrintHeapStats (const char *name, glheapstats_t *stats)
 	Con_Printf (
 		" %s:\n"
 		"  segments: %" SDL_PRIu32 "\n"
-		"  dedicated allocs: %" SDL_PRIu32 "\n"
 		"  allocations: %" SDL_PRIu32 "\n"
+		"  small allocations: %" SDL_PRIu32 "\n"
+		"  block allocations: %" SDL_PRIu32 "\n"
+		"  dedicated allocs: %" SDL_PRIu32 "\n"
 		"  blocks used: %" SDL_PRIu32 "\n"
 		"  blocks free: %" SDL_PRIu32 "\n"
 		"  pages allocated: %" SDL_PRIu32 "\n"
@@ -4184,9 +4186,9 @@ static void R_PrintHeapStats (const char *name, glheapstats_t *stats)
 		"  bytes allocated: %" SDL_PRIu64 "\n"
 		"  bytes free: %" SDL_PRIu64 "\n"
 		"  bytes wasted: %" SDL_PRIu64 " (%.3g%%)\n",
-		name, stats->num_segments, stats->num_dedicated_allocs, stats->num_allocations, stats->num_blocks_used, stats->num_blocks_free,
-		stats->num_pages_allocated, stats->num_pages_free, stats->num_bytes_allocated, stats->num_bytes_free, stats->num_bytes_wasted,
-		((double)stats->num_bytes_wasted / (double)stats->num_bytes_allocated) * 100.0f);
+		name, stats->num_segments, stats->num_allocations, stats->num_small_allocations, stats->num_block_allocations, stats->num_dedicated_allocations,
+		stats->num_blocks_used, stats->num_blocks_free, stats->num_pages_allocated, stats->num_pages_free, stats->num_bytes_allocated, stats->num_bytes_free,
+		stats->num_bytes_wasted, ((double)stats->num_bytes_wasted / (double)stats->num_bytes_allocated) * 100.0f);
 }
 
 /*
