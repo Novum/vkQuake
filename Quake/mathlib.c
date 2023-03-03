@@ -419,37 +419,6 @@ void VectorScale (vec3_t in, vec_t scale, vec3_t out)
 	out[2] = in[2] * scale;
 }
 
-uint32_t Q_log2 (uint32_t val)
-{
-	assert(val > 0);
-	const uint32_t last_bit_index = FindLastBitNonZero (val);
-#ifndef NDEBUG
-	uint32_t answer = 0;
-	while (val >>= 1)
-		answer++;
-	assert (last_bit_index == answer);
-#endif
-	return last_bit_index;
-}
-
-uint32_t Q_nextPow2 (uint32_t val)
-{
-	uint32_t result = 1;
-	if (val > 1)
-		result = 1 << (FindLastBitNonZero (val - 1) + 1);
-#ifndef NDEBUG
-	val--;
-	val |= val >> 1;
-	val |= val >> 2;
-	val |= val >> 4;
-	val |= val >> 8;
-	val |= val >> 16;
-	val++;
-	assert (val == result);
-#endif
-	return result;
-}
-
 /*
 ================
 R_ConcatRotations

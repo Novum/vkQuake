@@ -131,14 +131,12 @@ void  _VectorSubtract (vec3_t veca, vec3_t vecb, vec3_t out);
 void  _VectorAdd (vec3_t veca, vec3_t vecb, vec3_t out);
 void  _VectorCopy (vec3_t in, vec3_t out);
 
-int		 VectorCompare (vec3_t v1, vec3_t v2);
-vec_t	 VectorLength (vec3_t v);
-void	 CrossProduct (const vec3_t v1, const vec3_t v2, vec3_t cross);
-float	 VectorNormalize (vec3_t v); // returns vector length
-void	 VectorInverse (vec3_t v);
-void	 VectorScale (vec3_t in, vec_t scale, vec3_t out);
-uint32_t Q_log2 (uint32_t val);
-uint32_t Q_nextPow2 (uint32_t val);
+int	  VectorCompare (vec3_t v1, vec3_t v2);
+vec_t VectorLength (vec3_t v);
+void  CrossProduct (const vec3_t v1, const vec3_t v2, vec3_t cross);
+float VectorNormalize (vec3_t v); // returns vector length
+void  VectorInverse (vec3_t v);
+void  VectorScale (vec3_t in, vec_t scale, vec3_t out);
 
 void R_ConcatRotations (float in1[3][3], float in2[3][3], float out[3][3]);
 void R_ConcatTransforms (float in1[3][4], float in2[3][4], float out[3][4]);
@@ -175,6 +173,20 @@ qboolean IsOriginWithinMinMax (vec3_t origin, vec3_t mins, vec3_t maxs);
 #define USE_SIMD
 #define USE_NEON
 #endif
+
+static inline uint32_t Q_log2 (uint32_t val)
+{
+	assert (val > 0);
+	return FindLastBitNonZero (val);
+}
+
+static inline uint32_t Q_nextPow2 (uint32_t val)
+{
+	uint32_t result = 1;
+	if (val > 1)
+		result = 1 << (FindLastBitNonZero (val - 1) + 1);
+	return result;
+}
 
 /*==========================================================================*/
 
