@@ -155,7 +155,7 @@ GL_HeapMarkBlockFree
 */
 static void GL_HeapMarkBlockFree (glheap_t *heap, glheapsegment_t *segment, page_index_t size_in_pages, uint32_t block_page_index)
 {
-	const int size_class = q_min (Q_log2 (size_in_pages), NUM_BLOCK_SIZE_CLASSES - 1);
+	const int size_class = Q_log2 (size_in_pages & (1u << NUM_BLOCK_SIZE_CLASSES) - 1);
 	for (int i = 0; i <= size_class; ++i)
 	{
 		SET_BIT (segment->free_blocks_bitfields[i], block_page_index);
@@ -655,7 +655,7 @@ glheapallocation_t *GL_HeapAllocate (glheap_t *heap, VkDeviceSize size, VkDevice
 			++heap->stats.num_block_allocations;
 			alloc_info.alloc_size_in_pages = (size + heap->page_size - 1) >> heap->page_size_shift;
 			alloc_info.alignment_in_pages = (alignment + heap->page_size - 1) >> heap->page_size_shift;
-			alloc_info.size_class = q_min (Q_log2 (alloc_info.alloc_size_in_pages), NUM_BLOCK_SIZE_CLASSES - 1);
+			alloc_info.size_class = Q_log2 (alloc_info.alloc_size_in_pages & (1u << NUM_BLOCK_SIZE_CLASSES) - 1);
 		}
 
 		const uint32_t num_segments = heap->num_segments;
