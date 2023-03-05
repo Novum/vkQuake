@@ -33,11 +33,11 @@ cvar_t joy_deadzone_move = {"joy_deadzone_move", "0.175", CVAR_ARCHIVE};
 cvar_t joy_outer_threshold_look = {"joy_outer_threshold_look", "0.02", CVAR_ARCHIVE};
 cvar_t joy_outer_threshold_move = {"joy_outer_threshold_move", "0.02", CVAR_ARCHIVE};
 cvar_t joy_deadzone_trigger = {"joy_deadzone_trigger", "0.2", CVAR_ARCHIVE};
-cvar_t joy_sensitivity_yaw = {"joy_sensitivity_yaw", "300", CVAR_ARCHIVE};
-cvar_t joy_sensitivity_pitch = {"joy_sensitivity_pitch", "150", CVAR_ARCHIVE};
+cvar_t joy_sensitivity_yaw = {"joy_sensitivity_yaw", "240", CVAR_ARCHIVE};
+cvar_t joy_sensitivity_pitch = {"joy_sensitivity_pitch", "130", CVAR_ARCHIVE};
 cvar_t joy_invert = {"joy_invert", "0", CVAR_ARCHIVE};
-cvar_t joy_exponent = {"joy_exponent", "3", CVAR_ARCHIVE};
-cvar_t joy_exponent_move = {"joy_exponent_move", "3", CVAR_ARCHIVE};
+cvar_t joy_exponent = {"joy_exponent", "2", CVAR_ARCHIVE};
+cvar_t joy_exponent_move = {"joy_exponent_move", "2", CVAR_ARCHIVE};
 cvar_t joy_swapmovelook = {"joy_swapmovelook", "0", CVAR_ARCHIVE};
 cvar_t joy_enable = {"joy_enable", "1", CVAR_ARCHIVE};
 
