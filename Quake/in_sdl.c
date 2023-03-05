@@ -28,7 +28,8 @@ static qboolean textmode;
 static cvar_t in_debugkeys = {"in_debugkeys", "0", CVAR_NONE};
 
 // SDL2 Game Controller cvars
-cvar_t joy_deadzone = {"joy_deadzone", "0.175", CVAR_ARCHIVE};
+cvar_t joy_deadzone_look = {"joy_deadzone_look", "0.175", CVAR_ARCHIVE};
+cvar_t joy_deadzone_move = {"joy_deadzone_move", "0.175", CVAR_ARCHIVE};
 cvar_t joy_deadzone_trigger = {"joy_deadzone_trigger", "0.2", CVAR_ARCHIVE};
 cvar_t joy_sensitivity_yaw = {"joy_sensitivity_yaw", "300", CVAR_ARCHIVE};
 cvar_t joy_sensitivity_pitch = {"joy_sensitivity_pitch", "150", CVAR_ARCHIVE};
@@ -219,7 +220,8 @@ void IN_Init (void)
 	Cvar_RegisterVariable (&in_debugkeys);
 	Cvar_RegisterVariable (&joy_sensitivity_yaw);
 	Cvar_RegisterVariable (&joy_sensitivity_pitch);
-	Cvar_RegisterVariable (&joy_deadzone);
+	Cvar_RegisterVariable (&joy_deadzone_look);
+	Cvar_RegisterVariable (&joy_deadzone_move);
 	Cvar_RegisterVariable (&joy_deadzone_trigger);
 	Cvar_RegisterVariable (&joy_invert);
 	Cvar_RegisterVariable (&joy_exponent);
@@ -557,8 +559,8 @@ void IN_JoyMove (usercmd_t *cmd)
 		lookRaw = temp;
 	}
 
-	moveDeadzone = IN_ApplyDeadzone (moveRaw, joy_deadzone.value);
-	lookDeadzone = IN_ApplyDeadzone (lookRaw, joy_deadzone.value);
+	moveDeadzone = IN_ApplyDeadzone (moveRaw, joy_deadzone_move.value);
+	lookDeadzone = IN_ApplyDeadzone (lookRaw, joy_deadzone_look.value);
 
 	moveEased = IN_ApplyMoveEasing (moveDeadzone, joy_exponent_move.value);
 	lookEased = IN_ApplyEasing (lookDeadzone, joy_exponent.value);
