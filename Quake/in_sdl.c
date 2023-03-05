@@ -92,6 +92,15 @@ void IN_Activate (void)
 	if (no_mouse)
 		return;
 
+#ifdef __APPLE__
+	{
+		// Work around https://github.com/sezero/quakespasm/issues/48
+		int width, height;
+		SDL_GetWindowSize ((SDL_Window *)VID_GetWindow (), &width, &height);
+		SDL_WarpMouseInWindow ((SDL_Window *)VID_GetWindow (), width / 2, height / 2);
+	}
+#endif
+
 	if (SDL_SetRelativeMouseMode (SDL_TRUE) != 0)
 	{
 		Con_Printf ("WARNING: SDL_SetRelativeMouseMode(SDL_TRUE) failed.\n");
