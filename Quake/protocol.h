@@ -415,6 +415,11 @@ typedef struct
 	float sidemove;
 	float upmove;
 
+	// used by client for mouse-based movements that should accumulate over multiple client frames
+	float forwardmove_accumulator;
+	float sidemove_accumulator;
+	float upmove_accumulator;
+
 	unsigned int buttons;
 	unsigned int impulse;
 

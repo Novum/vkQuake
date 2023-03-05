@@ -585,7 +585,7 @@ void IN_MouseMove (usercmd_t *cmd)
 		return;
 
 	if ((in_strafe.state & 1) || (lookstrafe.value && (in_mlook.state & 1)))
-		cmd->sidemove += m_side.value * dmx;
+		cmd->sidemove_accumulator += m_side.value * dmx;
 	else
 		cl.viewangles[YAW] -= m_yaw.value * dmx;
 
@@ -607,14 +607,19 @@ void IN_MouseMove (usercmd_t *cmd)
 	else
 	{
 		if ((in_strafe.state & 1) && noclip_anglehack)
-			cmd->upmove -= m_forward.value * dmy;
+			cmd->upmove_accumulator -= m_forward.value * dmy;
 		else
-			cmd->forwardmove -= m_forward.value * dmy;
+			cmd->forwardmove_accumulator -= m_forward.value * dmy;
 	}
 }
 
 void IN_Move (usercmd_t *cmd)
 {
+	// We only want the latest joystick movements
+	cmd->forwardmove = 0;
+	cmd->sidemove = 0;
+	cmd->upmove = 0;
+
 	IN_JoyMove (cmd);
 	IN_MouseMove (cmd);
 }

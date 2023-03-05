@@ -1025,9 +1025,9 @@ void CL_SendCmd (void)
 	CL_BaseMove (&cmd);
 
 	// allow mice or other external controllers to add to the move
-	cmd.forwardmove += cl.pendingcmd.forwardmove;
-	cmd.sidemove += cl.pendingcmd.sidemove;
-	cmd.upmove += cl.pendingcmd.upmove;
+	cmd.forwardmove += cl.pendingcmd.forwardmove + cl.pendingcmd.forwardmove_accumulator;
+	cmd.sidemove += cl.pendingcmd.sidemove + cl.pendingcmd.sidemove_accumulator;
+	cmd.upmove += cl.pendingcmd.upmove + cl.pendingcmd.upmove_accumulator;
 	cmd.sequence = cl.movemessages;
 	cmd.servertime = cl.time;
 	cmd.seconds = cmd.servertime - cl.pendingcmd.servertime;
