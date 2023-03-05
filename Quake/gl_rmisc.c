@@ -3917,6 +3917,7 @@ R_AllocateVulkanMemory
 */
 void R_AllocateVulkanMemory (vulkan_memory_t *memory, VkMemoryAllocateInfo *memory_allocate_info, vulkan_memory_type_t type, atomic_uint32_t *num_allocations)
 {
+	memory->type = type;
 	if (memory->type != VULKAN_MEMORY_TYPE_NONE)
 	{
 		VkResult err = vkAllocateMemory (vulkan_globals.device, memory_allocate_info, NULL, &memory->handle);
@@ -3925,7 +3926,6 @@ void R_AllocateVulkanMemory (vulkan_memory_t *memory, VkMemoryAllocateInfo *memo
 		if (num_allocations)
 			Atomic_IncrementUInt32 (num_allocations);
 	}
-	memory->type = type;
 	memory->size = memory_allocate_info->allocationSize;
 	if (memory->type == VULKAN_MEMORY_TYPE_DEVICE)
 		Atomic_AddUInt64 (&total_device_vulkan_allocation_size, memory->size);
