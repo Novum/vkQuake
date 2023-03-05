@@ -30,6 +30,8 @@ static cvar_t in_debugkeys = {"in_debugkeys", "0", CVAR_NONE};
 // SDL2 Game Controller cvars
 cvar_t joy_deadzone_look = {"joy_deadzone_look", "0.175", CVAR_ARCHIVE};
 cvar_t joy_deadzone_move = {"joy_deadzone_move", "0.175", CVAR_ARCHIVE};
+cvar_t joy_outer_threshold_look = {"joy_outer_threshold_look", "0.02", CVAR_ARCHIVE};
+cvar_t joy_outer_threshold_move = {"joy_outer_threshold_move", "0.02", CVAR_ARCHIVE};
 cvar_t joy_deadzone_trigger = {"joy_deadzone_trigger", "0.2", CVAR_ARCHIVE};
 cvar_t joy_sensitivity_yaw = {"joy_sensitivity_yaw", "300", CVAR_ARCHIVE};
 cvar_t joy_sensitivity_pitch = {"joy_sensitivity_pitch", "150", CVAR_ARCHIVE};
@@ -222,6 +224,8 @@ void IN_Init (void)
 	Cvar_RegisterVariable (&joy_sensitivity_pitch);
 	Cvar_RegisterVariable (&joy_deadzone_look);
 	Cvar_RegisterVariable (&joy_deadzone_move);
+	Cvar_RegisterVariable (&joy_outer_threshold_look);
+	Cvar_RegisterVariable (&joy_outer_threshold_move);
 	Cvar_RegisterVariable (&joy_deadzone_trigger);
 	Cvar_RegisterVariable (&joy_invert);
 	Cvar_RegisterVariable (&joy_exponent);
@@ -342,23 +346,24 @@ static joyaxis_t IN_ApplyMoveEasing (joyaxis_t axis, float exponent)
 IN_ApplyDeadzone
 
 in: raw joystick axis values converted to floats in +-1
-out: applies a circular deadzone and clamps the magnitude at 1
+out: applies a circular inner deadzone and a circular outer threshold and clamps the magnitude at 1
 	 (my 360 controller is slightly non-circular and the stick travels further on the diagonals)
 
-deadzone is expected to satisfy 0 < deadzone < 1
+deadzone is expected to satisfy 0 < deadzone < 1 - outer_threshold
+outer_threshold is expected to satisfy 0 < outer_threshold < 1 - deadzone
 
 from https://github.com/jeremiah-sypult/Quakespasm-Rift
 and adapted from http://www.third-helix.com/2013/04/12/doing-thumbstick-dead-zones-right.html
 ================
 */
-static joyaxis_t IN_ApplyDeadzone (joyaxis_t axis, float deadzone)
+static joyaxis_t IN_ApplyDeadzone (joyaxis_t axis, float deadzone, float outer_threshold)
 {
 	joyaxis_t result = {0};
 	vec_t	  magnitude = IN_AxisMagnitude (axis);
 
 	if (magnitude > deadzone)
 	{
-		const vec_t new_magnitude = q_min (1.0, (magnitude - deadzone) / (1.0 - deadzone));
+		const vec_t new_magnitude = q_min (1.0, (magnitude - deadzone) / (1.0 - deadzone - outer_threshold));
 		const vec_t scale = new_magnitude / magnitude;
 		result.x = axis.x * scale;
 		result.y = axis.y * scale;
@@ -559,8 +564,8 @@ void IN_JoyMove (usercmd_t *cmd)
 		lookRaw = temp;
 	}
 
-	moveDeadzone = IN_ApplyDeadzone (moveRaw, joy_deadzone_move.value);
-	lookDeadzone = IN_ApplyDeadzone (lookRaw, joy_deadzone_look.value);
+	moveDeadzone = IN_ApplyDeadzone (moveRaw, joy_deadzone_move.value, joy_outer_threshold_move.value);
+	lookDeadzone = IN_ApplyDeadzone (lookRaw, joy_deadzone_look.value, joy_outer_threshold_look.value);
 
 	moveEased = IN_ApplyMoveEasing (moveDeadzone, joy_exponent_move.value);
 	lookEased = IN_ApplyEasing (lookDeadzone, joy_exponent.value);
