@@ -888,8 +888,9 @@ void GL_HeapTest_f (void)
 	};
 	const int NUM_ALIGNMENTS = countof (ALIGNMENTS);
 
-	atomic_uint32_t num_allocations = {0};
-	glheap_t	   *test_heap = GL_HeapCreate (TEST_HEAP_SIZE, TEST_HEAP_PAGE_SIZE, 0, VULKAN_MEMORY_TYPE_NONE, "Test Heap");
+	atomic_uint32_t num_allocations;
+	Atomic_StoreUInt32 (&num_allocations, 0);
+	glheap_t *test_heap = GL_HeapCreate (TEST_HEAP_SIZE, TEST_HEAP_PAGE_SIZE, 0, VULKAN_MEMORY_TYPE_NONE, "Test Heap");
 	TestHeapCleanState (test_heap);
 	srand (0);
 	TEMP_ALLOC_ZEROED (glheapallocation_t *, allocations, NUM_ALLOCS_PER_ITERATION);
