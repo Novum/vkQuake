@@ -405,7 +405,8 @@ void DrawGLPoly (cb_context_t *cbx, glpoly_t *p, float color[3], float alpha)
 R_RecursiveNode
 ================
 */
-static void R_RecursiveNode (mnode_t *node, qmodel_t *model, vec3_t modelorg, int chain, int *brushpolys, int worker_index, qboolean water_transparent_only)
+static void R_RecursiveNode (
+	mnode_t *node, qmodel_t *model, vec3_t modelorg, int chain, int *brushpolys, int *surfs_visited, int worker_index, qboolean water_transparent_only)
 {
 	if (node->contents >= 0)
 	{
@@ -413,7 +414,7 @@ static void R_RecursiveNode (mnode_t *node, qmodel_t *model, vec3_t modelorg, in
 		float	  dot = (plane->type < 3 ? modelorg[plane->type] : DotProduct (modelorg, plane->normal)) - plane->dist;
 
 		// recurse down the children, front side first (chained surfaces are drawn in reverse order)
-		R_RecursiveNode (node->children[dot < 0], model, modelorg, chain, brushpolys, worker_index, water_transparent_only);
+		R_RecursiveNode (node->children[dot < 0], model, modelorg, chain, brushpolys, surfs_visited, worker_index, water_transparent_only);
 
 		msurface_t *surf = model->surfaces + node->firstsurface;
 		for (int i = node->numsurfaces; i > 0; --i, surf++)
@@ -427,8 +428,9 @@ static void R_RecursiveNode (mnode_t *node, qmodel_t *model, vec3_t modelorg, in
 				else if (surf->lightmaptexturenum >= 0)
 					lightmaps[surf->lightmaptexturenum].modified[worker_index] |= surf->styles_bitmap;
 			}
+		*surfs_visited += node->numsurfaces;
 
-		R_RecursiveNode (node->children[dot >= 0], model, modelorg, chain, brushpolys, worker_index, water_transparent_only);
+		R_RecursiveNode (node->children[dot >= 0], model, modelorg, chain, brushpolys, surfs_visited, worker_index, water_transparent_only);
 	}
 }
 
@@ -528,12 +530,19 @@ void R_DrawBrushModel (cb_context_t *cbx, entity_t *e, int chain, int *brushpoly
 	R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 16 * sizeof (float), mvp);
 	R_ClearTextureChains (clmodel, chain);
 	const int worker_index = Tasks_GetWorkerIndex ();
-	if (sort)
+	if (sort && !clmodel->bogus_tree)
 	{
 		mnode_t *head = &clmodel->nodes[clmodel->hulls[0].firstclipnode];
-		R_RecursiveNode (head, clmodel, modelorg, chain, brushpolys, worker_index, water_transparent_only);
+		int		 surfs_visited = 0;
+		R_RecursiveNode (head, clmodel, modelorg, chain, brushpolys, &surfs_visited, worker_index, water_transparent_only);
+		if (surfs_visited != clmodel->nummodelsurfaces)
+		{
+			Con_DPrintf ("model %s nummodelsurfaces %d != node tree numsurfaces sum %d\n", clmodel->name, clmodel->nummodelsurfaces, surfs_visited);
+			clmodel->bogus_tree = true;
+			R_ClearTextureChains (clmodel, chain);
+		}
 	}
-	else
+	if (!sort || clmodel->bogus_tree)
 		for (i = 0; i < clmodel->nummodelsurfaces; i++, psurf++)
 		{
 			if (water_opaque_only && psurf->flags & SURF_DRAWTURB && GL_WaterAlphaForSurface (psurf) != 1)
