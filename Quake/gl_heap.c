@@ -612,13 +612,16 @@ void GL_HeapDestroy (glheap_t *heap, atomic_uint32_t *num_allocations)
 {
 	for (uint32_t mask_page_offset = 0; mask_page_offset < heap->num_segments; ++mask_page_offset)
 	{
-		glheapsegment_t *memory = heap->segments[mask_page_offset];
-		R_FreeVulkanMemory (&memory->memory, num_allocations);
-		Mem_Free (memory->page_hdrs);
-		Mem_Free (memory->small_alloc_links);
-		Mem_Free (memory->small_alloc_masks);
+		glheapsegment_t *segment = heap->segments[mask_page_offset];
+		R_FreeVulkanMemory (&segment->memory, num_allocations);
+		Mem_Free (segment->page_hdrs);
+		Mem_Free (segment->small_alloc_links);
+		Mem_Free (segment->small_alloc_masks);
 		for (int mask_page_index = 0; mask_page_index < NUM_BLOCK_SIZE_CLASSES; ++mask_page_index)
-			Mem_Free (memory->free_blocks_bitfields[mask_page_index]);
+		{
+			Mem_Free (segment->free_blocks_bitfields[mask_page_index]);
+			Mem_Free (segment->free_blocks_skip_bitfields[mask_page_index]);
+		}
 	}
 	Mem_Free (heap->segments);
 }
@@ -815,7 +818,10 @@ static void TestHeapCleanState (glheap_t *heap)
 		HEAP_TEST_ASSERT (segment->num_pages_allocated == 0, "num_pages_allocated needs to be 0");
 		HEAP_TEST_ASSERT (segment->page_hdrs[0].size_in_pages = heap->num_pages_per_segment, "Empty heap first block needs to fill all pages");
 		for (int j = 0; j < NUM_BLOCK_SIZE_CLASSES; ++j)
+		{
 			HEAP_TEST_ASSERT (segment->free_blocks_bitfields[j][0] == 1, "first bitfield bit needs to be 1");
+			HEAP_TEST_ASSERT (segment->free_blocks_skip_bitfields[j][0] == 1, "first skip bitfield bit needs to be 1");
+		}
 		for (page_index_t j = 1; j < heap->num_pages_per_segment; ++j)
 		{
 			HEAP_TEST_ASSERT (memcmp (&segment->page_hdrs[j], &EMPTY_PAGE_HDR, sizeof (glheappagehdr_t)) == 0, "Page block header needs to be empty");
@@ -824,9 +830,12 @@ static void TestHeapCleanState (glheap_t *heap)
 				"Page small alloc links need to be empty");
 			HEAP_TEST_ASSERT (segment->small_alloc_masks[j] == 0, "Page small alloc masks needs to be empty");
 		}
-		for (page_index_t j = 1; j < (heap->num_pages_per_segment >> heap->page_size_shift); ++j)
+		for (page_index_t j = 1; j < ((heap->num_pages_per_segment + 63) / 64); ++j)
 			for (int k = 0; k < NUM_BLOCK_SIZE_CLASSES; ++k)
 				HEAP_TEST_ASSERT (segment->free_blocks_bitfields[k][j] == 0, "bitfield is not 0");
+		for (page_index_t j = 1; j < ((heap->num_pages_per_segment + 4095) / 4096); ++j)
+			for (int k = 0; k < NUM_BLOCK_SIZE_CLASSES; ++k)
+				HEAP_TEST_ASSERT (segment->free_blocks_skip_bitfields[k][j] == 0, "skip bitfield is not 0");
 		for (page_index_t j = 0; j < NUM_SMALL_ALLOC_SIZES; ++j)
 			HEAP_TEST_ASSERT (segment->small_alloc_free_list_heads[j] == INVALID_PAGE_INDEX, "free list head is not empty");
 	}
@@ -903,7 +912,7 @@ void GL_HeapTest_f (void)
 			{
 				for (int i = k; i < NUM_ALLOCS_PER_ITERATION; i += STRIDE)
 				{
-					const VkDeviceSize size = (rand () + 1) % MAX_ALLOC_SIZE;
+					const VkDeviceSize size = (rand () % (MAX_ALLOC_SIZE - 1) + 1);
 					const VkDeviceSize alignment = ALIGNMENTS[rand () % NUM_ALIGNMENTS];
 					HEAP_TEST_ASSERT (allocations[i] == NULL, "allocation is not NULL");
 
