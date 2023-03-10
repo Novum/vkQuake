@@ -111,6 +111,7 @@ extern cvar_t r_rtshadows;
 extern cvar_t r_particles;
 extern cvar_t r_md5models;
 extern cvar_t r_lerpmodels;
+extern cvar_t r_lerpmove;
 extern cvar_t vid_filter;
 extern cvar_t vid_palettize;
 extern cvar_t vid_anisotropic;
@@ -119,6 +120,8 @@ extern cvar_t vid_fsaamode;
 extern cvar_t host_maxfps;
 extern cvar_t snd_waterfx;
 extern cvar_t cl_bob;
+extern cvar_t cl_rollangle;
+extern cvar_t v_gunkick;
 
 static qboolean slider_grab;
 
@@ -1331,6 +1334,8 @@ enum
 	GAME_OPT_SBALPHA,
 	GAME_OPT_MOUSESPEED,
 	GAME_OPT_VIEWBOB,
+	GAME_OPT_VIEWROLL,
+	GAME_OPT_GUNKICK,
 	GAME_OPT_ALWAYRUN,
 	GAME_OPT_INVMOUSE,
 	GAME_OPT_ALWAYSMLOOK,
@@ -1406,6 +1411,13 @@ static void M_GameOptions_AdjustSliders (int dir, qboolean mouse)
 	case GAME_OPT_VIEWBOB: // statusbar alpha
 		f = (1.0f - M_GetSliderPos (0, 1, 1.0f - (cl_bob.value * 20.0f), true, mouse, clamped_mouse, dir, 0.05, 999)) / 20.0f;
 		Cvar_SetValue ("cl_bob", f);
+		break;
+	case GAME_OPT_VIEWROLL: // statusbar alpha
+		f = (1.0f - M_GetSliderPos (0, 1, 1.0f - (cl_rollangle.value * 0.2f), true, mouse, clamped_mouse, dir, 0.05, 999)) / 0.2f;
+		Cvar_SetValue ("cl_rollangle", f);
+		break;
+	case GAME_OPT_GUNKICK: // gun kick
+		Cvar_SetValue ("v_gunkick", ((int)v_gunkick.value + 3 + dir) % 3);
 		break;
 	case GAME_OPT_ALWAYRUN: // always run
 		if (cl_alwaysrun.value)
@@ -1539,6 +1551,13 @@ static void M_GameOptions_Draw (cb_context_t *cbx)
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GAME_OPT_VIEWBOB, "View Bob");
 	r = cl_bob.value * 20.0f;
 	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * GAME_OPT_VIEWBOB, r);
+
+	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GAME_OPT_VIEWROLL, "View Roll");
+	r = cl_rollangle.value * 0.2f;
+	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * GAME_OPT_VIEWROLL, r);
+
+	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GAME_OPT_GUNKICK, "Gun Kick");
+	M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GAME_OPT_GUNKICK, (v_gunkick.value == 2) ? "smooth" : (v_gunkick.value == 1) ? "classic" : "off");
 
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GAME_OPT_ALWAYRUN, "Always Run");
 	M_Print (
@@ -1771,6 +1790,7 @@ static void M_GraphicsOptions_AdjustSliders (int dir, qboolean mouse)
 		break;
 	case GRAPHICS_OPT_MODEL_INTERPOLATION:
 		Cvar_SetValueQuick (&r_lerpmodels, (float)(((int)r_lerpmodels.value + 2 + dir) % 2));
+		Cvar_SetValueQuick (&r_lerpmove, r_lerpmodels.value);
 		break;
 	case GRAPHICS_OPT_PARTICLES:
 		M_GraphicsOptions_ChooseNextParticles (dir);
@@ -3413,7 +3433,7 @@ void M_UpdateMouse (void)
 	m_mouse_y = new_mouse_y;
 	M_PixelToMenuCanvasCoord (&m_mouse_x, &m_mouse_y);
 
-	if (keydown[K_MOUSE1] && slider_grab && (m_state == m_game) && (game_options_cursor >= GAME_OPT_SCALE) && (game_options_cursor <= GAME_OPT_VIEWBOB))
+	if (keydown[K_MOUSE1] && slider_grab && (m_state == m_game) && (game_options_cursor >= GAME_OPT_SCALE) && (game_options_cursor <= GAME_OPT_VIEWROLL))
 		M_GameOptions_AdjustSliders (0, true);
 	else if (
 		keydown[K_MOUSE1] && slider_grab && (m_state == m_graphics) && (graphics_options_cursor >= GRAPHICS_OPT_GAMMA) &&
