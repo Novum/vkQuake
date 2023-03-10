@@ -117,6 +117,7 @@ extern cvar_t vid_fsaa;
 extern cvar_t vid_fsaamode;
 extern cvar_t host_maxfps;
 extern cvar_t snd_waterfx;
+extern cvar_t cl_bob;
 
 static qboolean slider_grab;
 
@@ -1328,6 +1329,7 @@ enum
 	GAME_OPT_SCRSIZE,
 	GAME_OPT_SBALPHA,
 	GAME_OPT_MOUSESPEED,
+	GAME_OPT_VIEWBOB,
 	GAME_OPT_ALWAYRUN,
 	GAME_OPT_INVMOUSE,
 	GAME_OPT_ALWAYSMLOOK,
@@ -1398,6 +1400,10 @@ static void M_GameOptions_AdjustSliders (int dir, qboolean mouse)
 	case GAME_OPT_SBALPHA: // statusbar alpha
 		f = M_GetSliderPos (0, 1, scr_sbaralpha.value, true, mouse, clamped_mouse, dir, 0.05, 999);
 		Cvar_SetValue ("scr_sbaralpha", f);
+		break;
+	case GAME_OPT_VIEWBOB: // statusbar alpha
+		f = (1.0f - M_GetSliderPos (0, 1, 1.0f - (cl_bob.value * 20.0f), true, mouse, clamped_mouse, dir, 0.05, 999)) / 20.0f;
+		Cvar_SetValue ("cl_bob", f);
 		break;
 	case GAME_OPT_ALWAYRUN: // always run
 		if (cl_alwaysrun.value)
@@ -1524,6 +1530,10 @@ static void M_GameOptions_Draw (cb_context_t *cbx)
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GAME_OPT_MOUSESPEED, "Mouse Speed");
 	r = (sensitivity.value - 1) / 10;
 	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * GAME_OPT_MOUSESPEED, r);
+
+	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GAME_OPT_VIEWBOB, "View Bob");
+	r = cl_bob.value * 20.0f;
+	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * GAME_OPT_VIEWBOB, r);
 
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GAME_OPT_ALWAYRUN, "Always Run");
 	M_Print (
@@ -3395,7 +3405,7 @@ void M_UpdateMouse (void)
 	m_mouse_y = new_mouse_y;
 	M_PixelToMenuCanvasCoord (&m_mouse_x, &m_mouse_y);
 
-	if (keydown[K_MOUSE1] && slider_grab && (m_state == m_game) && (game_options_cursor >= GAME_OPT_SCALE) && (game_options_cursor <= GAME_OPT_MOUSESPEED))
+	if (keydown[K_MOUSE1] && slider_grab && (m_state == m_game) && (game_options_cursor >= GAME_OPT_SCALE) && (game_options_cursor <= GAME_OPT_VIEWBOB))
 		M_GameOptions_AdjustSliders (0, true);
 	else if (
 		keydown[K_MOUSE1] && slider_grab && (m_state == m_graphics) && (graphics_options_cursor >= GRAPHICS_OPT_GAMMA) &&
