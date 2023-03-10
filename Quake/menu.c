@@ -105,6 +105,7 @@ void M_ConfigureNetSubsystem (void);
 extern qboolean keydown[256];
 
 extern cvar_t scr_fov;
+extern cvar_t scr_showfps;
 extern cvar_t autoload;
 extern cvar_t r_rtshadows;
 extern cvar_t r_particles;
@@ -1338,6 +1339,7 @@ enum
 	GAME_OPT_CROSSHAIR,
 	GAME_OPT_AUTOLOAD,
 	GAME_OPT_STARTUP_DEMOS,
+	GAME_OPT_SHOWFPS,
 	GAME_OPTIONS_ITEMS
 };
 
@@ -1458,6 +1460,9 @@ static void M_GameOptions_AdjustSliders (int dir, qboolean mouse)
 	case GAME_OPT_STARTUP_DEMOS:
 		Cvar_SetValue ("cl_startdemos", ((int)cl_startdemos.value + 2 + dir) % 2);
 		break;
+	case GAME_OPT_SHOWFPS:
+		Cvar_SetValue ("scr_showfps", ((int)scr_showfps.value + 2 + dir) % 2);
+		break;
 	}
 }
 
@@ -1567,6 +1572,9 @@ static void M_GameOptions_Draw (cb_context_t *cbx)
 
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GAME_OPT_STARTUP_DEMOS, "Startup Demos");
 	M_DrawCheckbox (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GAME_OPT_STARTUP_DEMOS, cl_startdemos.value);
+
+	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GAME_OPT_SHOWFPS, "Show FPS");
+	M_DrawCheckbox (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GAME_OPT_SHOWFPS, scr_showfps.value);
 
 	// cursor
 	M_Mouse_UpdateListCursor (&game_options_cursor, MENU_CURSOR_X, 320, top, CHARACTER_SIZE, GAME_OPTIONS_ITEMS, 0);
