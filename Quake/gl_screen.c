@@ -99,6 +99,7 @@ cvar_t scr_fov_adapt = {"fov_adapt", "1", CVAR_ARCHIVE};
 cvar_t scr_zoomfov = {"zoom_fov", "30", CVAR_ARCHIVE}; // 10 - 170
 cvar_t scr_zoomspeed = {"zoom_speed", "8", CVAR_ARCHIVE};
 cvar_t scr_conspeed = {"scr_conspeed", "500", CVAR_ARCHIVE};
+cvar_t scr_conanim = {"scr_conanim", "0", CVAR_ARCHIVE};
 cvar_t scr_centertime = {"scr_centertime", "2", CVAR_NONE};
 cvar_t scr_showturtle = {"showturtle", "0", CVAR_NONE};
 cvar_t scr_showpause = {"showpause", "1", CVAR_NONE};
@@ -559,6 +560,7 @@ void SCR_Init (void)
 	Cvar_RegisterVariable (&scr_zoomspeed);
 	Cvar_RegisterVariable (&scr_viewsize);
 	Cvar_RegisterVariable (&scr_conspeed);
+	Cvar_RegisterVariable (&scr_conanim);
 	Cvar_RegisterVariable (&scr_showturtle);
 	Cvar_RegisterVariable (&scr_showpause);
 	Cvar_RegisterVariable (&scr_centertime);
@@ -881,18 +883,28 @@ void SCR_SetUpToDrawConsole (void)
 
 	timescale = (host_timescale.value > 0) ? host_timescale.value : 1; // johnfitz -- timescale
 
-	if (scr_conlines < scr_con_current)
+	if (scr_conanim.value)
 	{
-		// ericw -- (glheight/600.0) factor makes conspeed resolution independent, using 800x600 as a baseline
-		scr_con_current -= scr_conspeed.value * (glheight / 600.0) * host_frametime / timescale; // johnfitz -- timescale
-		if (scr_conlines > scr_con_current)
-			scr_con_current = scr_conlines;
-	}
-	else if (scr_conlines > scr_con_current)
-	{
-		// ericw -- (glheight/600.0)
-		scr_con_current += scr_conspeed.value * (glheight / 600.0) * host_frametime / timescale; // johnfitz -- timescale
 		if (scr_conlines < scr_con_current)
+		{
+			// ericw -- (glheight/600.0) factor makes conspeed resolution independent, using 800x600 as a baseline
+			scr_con_current -= scr_conspeed.value * (glheight / 600.0) * host_frametime / timescale; // johnfitz -- timescale
+			if (scr_conlines > scr_con_current)
+				scr_con_current = scr_conlines;
+		}
+		else if (scr_conlines > scr_con_current)
+		{
+			// ericw -- (glheight/600.0)
+			scr_con_current += scr_conspeed.value * (glheight / 600.0) * host_frametime / timescale; // johnfitz -- timescale
+			if (scr_conlines < scr_con_current)
+				scr_con_current = scr_conlines;
+		}
+	}
+	else
+	{
+		if (scr_conlines < scr_con_current)
+			scr_con_current = scr_conlines;
+		else if (scr_conlines > scr_con_current)
 			scr_con_current = scr_conlines;
 	}
 }
