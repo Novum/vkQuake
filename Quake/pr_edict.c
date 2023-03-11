@@ -95,9 +95,15 @@ FIXME: walk all entities and NULL out references to this entity
 */
 void ED_Free (edict_t *ed)
 {
+	if (ed->free)
+	{
+		// Assert that this isn't linked to any area
+		assert (!ed->area.prev);
+		return;
+	}
+
 	SV_UnlinkEdict (ed); // unlink from world bsp
 
-	assert (!ed->free);
 	ed->free = true;
 	ed->v.model = 0;
 	ed->v.takedamage = 0;
