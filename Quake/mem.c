@@ -22,10 +22,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 #include "mem.h"
 
-#if defined(USE_HELGRIND)
+#if !defined(USE_CRT_MALLOC) && !defined(USE_MI_MALLOC) && !defined(USE_SDL_MALLOC)
+#if defined(USE_HELGRIND) || (!defined(__APPLE__) && !defined(__linux__) && !defined(_WIN32))
 #define USE_CRT_MALLOC
-#elif !defined(USE_MI_MALLOC) && !defined(USE_SDL_MALLOC) && !defined(USE_CRT_MALLOC)
+#else
 #define USE_MI_MALLOC
+#endif
 #endif
 
 #if defined(USE_MI_MALLOC)
