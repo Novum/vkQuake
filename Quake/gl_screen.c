@@ -90,8 +90,8 @@ cvar_t scr_crosshairscale = {"scr_crosshairscale", "1", CVAR_ARCHIVE};
 cvar_t scr_showfps = {"scr_showfps", "0", CVAR_ARCHIVE};
 cvar_t scr_clock = {"scr_clock", "0", CVAR_NONE};
 cvar_t scr_autoclock = {"scr_autoclock", "1", CVAR_ARCHIVE};
-// johnfitz
 cvar_t scr_usekfont = {"scr_usekfont", "0", CVAR_NONE}; // 2021 re-release
+cvar_t scr_style = {"scr_style", "0", CVAR_ARCHIVE};
 
 cvar_t scr_viewsize = {"viewsize", "100", CVAR_ARCHIVE};
 cvar_t scr_fov = {"fov", "90", CVAR_ARCHIVE}; // 10 - 170
@@ -394,7 +394,8 @@ static void SCR_CalcRefdef (void)
 
 	if (size >= 120 || cl.intermission ||
 		(scr_sbaralpha.value < 1 ||
-		 cl.qcvm.extfuncs.CSQC_DrawHud)) // johnfitz -- scr_sbaralpha.value. Spike -- simple csqc assumes fullscreen video the same way.
+		 ((scr_style.value != 1.0f) &&
+		  cl.qcvm.extfuncs.CSQC_DrawHud))) // johnfitz -- scr_sbaralpha.value. Spike -- simple csqc assumes fullscreen video the same way.
 		sb_lines = 0;
 	else if (size >= 110)
 		sb_lines = 24 * scale;
@@ -554,6 +555,7 @@ void SCR_Init (void)
 	Cvar_SetCallback (&scr_fov_adapt, SCR_Callback_refdef);
 	Cvar_SetCallback (&scr_zoomfov, SCR_Callback_refdef);
 	Cvar_SetCallback (&scr_viewsize, SCR_Callback_refdef);
+	Cvar_SetCallback (&scr_style, SCR_Callback_refdef);
 	Cvar_RegisterVariable (&scr_fov);
 	Cvar_RegisterVariable (&scr_fov_adapt);
 	Cvar_RegisterVariable (&scr_zoomfov);
@@ -565,6 +567,7 @@ void SCR_Init (void)
 	Cvar_RegisterVariable (&scr_showpause);
 	Cvar_RegisterVariable (&scr_centertime);
 	Cvar_RegisterVariable (&scr_printspeed);
+	Cvar_RegisterVariable (&scr_style);
 	Cvar_RegisterVariable (&cl_gun_fovscale);
 
 	Cvar_RegisterVariable (&scr_relativescale);
@@ -1110,12 +1113,13 @@ static void SCR_DrawGUI (void *unused)
 	R_BeginDebugUtilsLabel (cbx, "2D");
 	SCR_TileClear (cbx);
 
-	qboolean use_mutex = r_showbboxes.value && cl.qcvm.extfuncs.CSQC_DrawHud;
+	const qboolean cscqhud = (scr_style.value < 1.0f) && cl.qcvm.extfuncs.CSQC_DrawHud;
+	qboolean	   use_mutex = r_showbboxes.value && cscqhud;
 
 	if (use_mutex)
 		SDL_LockMutex (draw_qcvm_mutex);
 
-	if (cl.qcvm.extfuncs.CSQC_DrawHud && setjmp (screen_error))
+	if (cscqhud && setjmp (screen_error))
 		PR_ClearProgs (&cl.qcvm);
 
 	if (scr_drawdialog) // new game confirm

@@ -66,6 +66,8 @@ static int hudtype;
 #define hipnotic (hudtype == 1)
 #define rogue	 (hudtype == 2)
 
+extern cvar_t scr_style;
+
 void Sbar_MiniDeathmatchOverlay (cb_context_t *cbx);
 void Sbar_DeathmatchOverlay (cb_context_t *cbx);
 void M_DrawPic (cb_context_t *cbx, int x, int y, qpic_t *pic);
@@ -73,7 +75,7 @@ void M_DrawPic (cb_context_t *cbx, int x, int y, qpic_t *pic);
 qboolean Sbar_CSQCCommand (void)
 {
 	qboolean ret = false;
-	if (cl.qcvm.extfuncs.CSQC_ConsoleCommand)
+	if ((scr_style.value < 1.0f) && cl.qcvm.extfuncs.CSQC_ConsoleCommand)
 	{
 		PR_SwitchQCVM (&cl.qcvm);
 		G_INT (OFS_PARM0) = PR_MakeTempString (Cmd_Argv (0));
@@ -800,13 +802,13 @@ void Sbar_DrawFrags (cb_context_t *cbx)
 Sbar_DrawFace
 ===============
 */
-void Sbar_DrawFace (cb_context_t *cbx)
+void Sbar_DrawFace (cb_context_t *cbx, int x, int y, qboolean classic_style)
 {
 	int f, anim;
 
 	// PGM 01/19/97 - team color drawing
 	// PGM 03/02/97 - fixed so color swatch only appears in CTF modes
-	if (rogue && (cl.maxclients != 1) && (teamplay.value > 3) && (teamplay.value < 7))
+	if (classic_style && rogue && (cl.maxclients != 1) && (teamplay.value > 3) && (teamplay.value < 7))
 	{
 		int			  top, bottom;
 		int			  xofs;
@@ -826,8 +828,8 @@ void Sbar_DrawFace (cb_context_t *cbx)
 			xofs = ((vid.width - 320) >> 1) + 113;
 
 		Sbar_DrawPic (cbx, 112, 0, rsb_teambord);
-		Draw_Fill (cbx, xofs, /*vid.height-*/ 24 + 3, 22, 9, top, 1);	  // johnfitz -- sbar coords are now relative
-		Draw_Fill (cbx, xofs, /*vid.height-*/ 24 + 12, 22, 9, bottom, 1); // johnfitz -- sbar coords are now relative
+		Draw_Fill (cbx, xofs, 24 + 3, 22, 9, top, 1);
+		Draw_Fill (cbx, xofs, 24 + 12, 22, 9, bottom, 1);
 
 		// draw number
 		f = s->frags;
@@ -855,22 +857,22 @@ void Sbar_DrawFace (cb_context_t *cbx)
 
 	if ((cl.items & (IT_INVISIBILITY | IT_INVULNERABILITY)) == (IT_INVISIBILITY | IT_INVULNERABILITY))
 	{
-		Sbar_DrawPic (cbx, 112, 0, sb_face_invis_invuln);
+		Sbar_DrawPic (cbx, x, y, sb_face_invis_invuln);
 		return;
 	}
 	if (cl.items & IT_QUAD)
 	{
-		Sbar_DrawPic (cbx, 112, 0, sb_face_quad);
+		Sbar_DrawPic (cbx, x, y, sb_face_quad);
 		return;
 	}
 	if (cl.items & IT_INVISIBILITY)
 	{
-		Sbar_DrawPic (cbx, 112, 0, sb_face_invis);
+		Sbar_DrawPic (cbx, x, y, sb_face_invis);
 		return;
 	}
 	if (cl.items & IT_INVULNERABILITY)
 	{
-		Sbar_DrawPic (cbx, 112, 0, sb_face_invuln);
+		Sbar_DrawPic (cbx, x, y, sb_face_invuln);
 		return;
 	}
 
@@ -882,91 +884,67 @@ void Sbar_DrawFace (cb_context_t *cbx)
 		f = 0;
 
 	if (cl.time <= cl.faceanimtime)
-	{
 		anim = 1;
-	}
 	else
 		anim = 0;
-	Sbar_DrawPic (cbx, 112, 0, sb_faces[f][anim]);
+	Sbar_DrawPic (cbx, x, y, sb_faces[f][anim]);
 }
 
 /*
 ===============
-Sbar_Draw
+Sbar_DrawCSCQ
 ===============
 */
-void Sbar_Draw (cb_context_t *cbx)
+static void Sbar_DrawCSCQ (cb_context_t *cbx)
 {
-	float w; // johnfitz
-
-	if (scr_con_current == vid.height)
-		return; // console is full screen
-
-	if (cl.qcvm.extfuncs.CSQC_DrawHud && !qcvm)
+	qboolean deathmatchoverlay = false;
+	float	 s = CLAMP (1.0, scr_sbarscale.value, (float)glwidth / 320.0);
+	int		 items = cl.stats[STAT_ITEMS];
+	if (cl.time < cl.oldtime)
+		cl.stats[STAT_ITEMS] = 0;
+	GL_SetCanvas (cbx, CANVAS_CSQC); // johnfitz
+	PR_SwitchQCVM (&cl.qcvm);
+	pr_global_struct->frametime = host_frametime;
+	if (qcvm->extglobals.cltime)
+		*qcvm->extglobals.cltime = realtime;
+	if (qcvm->extglobals.clframetime)
+		*qcvm->extglobals.clframetime = host_frametime;
+	if (qcvm->extglobals.intermission)
+		*qcvm->extglobals.intermission = cl.intermission;
+	if (qcvm->extglobals.player_localentnum)
+		*qcvm->extglobals.player_localentnum = cl.viewentity;
+	pr_global_struct->time = cl.time;
+	Sbar_SortFrags ();
+	G_VECTORSET (OFS_PARM0, vid.width / s, vid.height / s, 0);
+	G_FLOAT (OFS_PARM1) = sb_showscores;
+	PR_ExecuteProgram (cl.qcvm.extfuncs.CSQC_DrawHud);
+	if (cl.qcvm.extfuncs.CSQC_DrawScores)
 	{
-		qboolean deathmatchoverlay = false;
-		float	 s = CLAMP (1.0, scr_sbarscale.value, (float)glwidth / 320.0);
-		int		 items = cl.stats[STAT_ITEMS];
-		if (cl.time < cl.oldtime)
-			cl.stats[STAT_ITEMS] = 0;
-		GL_SetCanvas (cbx, CANVAS_CSQC); // johnfitz
-		PR_SwitchQCVM (&cl.qcvm);
-		pr_global_struct->frametime = host_frametime;
-		if (qcvm->extglobals.cltime)
-			*qcvm->extglobals.cltime = realtime;
-		if (qcvm->extglobals.clframetime)
-			*qcvm->extglobals.clframetime = host_frametime;
-		if (qcvm->extglobals.intermission)
-			*qcvm->extglobals.intermission = cl.intermission;
-		if (qcvm->extglobals.player_localentnum)
-			*qcvm->extglobals.player_localentnum = cl.viewentity;
-		pr_global_struct->time = cl.time;
-		Sbar_SortFrags ();
 		G_VECTORSET (OFS_PARM0, vid.width / s, vid.height / s, 0);
 		G_FLOAT (OFS_PARM1) = sb_showscores;
-		PR_ExecuteProgram (cl.qcvm.extfuncs.CSQC_DrawHud);
-		if (cl.qcvm.extfuncs.CSQC_DrawScores)
-		{
-			G_VECTORSET (OFS_PARM0, vid.width / s, vid.height / s, 0);
-			G_FLOAT (OFS_PARM1) = sb_showscores;
-			if (key_dest != key_menu)
-				PR_ExecuteProgram (cl.qcvm.extfuncs.CSQC_DrawScores);
-		}
-		else
-			deathmatchoverlay = (sb_showscores || cl.stats[STAT_HEALTH] <= 0);
-		PR_SwitchQCVM (NULL);
-		cl.stats[STAT_ITEMS] = items;
-
-		if (deathmatchoverlay && cl.gametype == GAME_DEATHMATCH)
-		{
-			GL_SetCanvas (cbx, CANVAS_SBAR);
-			Sbar_DeathmatchOverlay (cbx);
-		}
-		return;
+		if (key_dest != key_menu)
+			PR_ExecuteProgram (cl.qcvm.extfuncs.CSQC_DrawScores);
 	}
+	else
+		deathmatchoverlay = (sb_showscores || cl.stats[STAT_HEALTH] <= 0);
+	PR_SwitchQCVM (NULL);
+	cl.stats[STAT_ITEMS] = items;
 
-	if (cl.intermission)
-		return; // johnfitz -- never draw sbar during intermission
-
-	GL_SetCanvas (cbx, CANVAS_DEFAULT); // johnfitz
-
-	// johnfitz -- don't waste fillrate by clearing the area behind the sbar
-	w = CLAMP (320.0f, scr_sbarscale.value * 320.0f, (float)glwidth);
-	if (sb_lines && glwidth > w)
+	if (deathmatchoverlay && cl.gametype == GAME_DEATHMATCH)
 	{
-		if (scr_sbaralpha.value < 1)
-			Draw_TileClear (cbx, 0, glheight - sb_lines, glwidth, sb_lines);
-		if (cl.gametype == GAME_DEATHMATCH)
-			Draw_TileClear (cbx, w, glheight - sb_lines, glwidth - w, sb_lines);
-		else
-		{
-			Draw_TileClear (cbx, 0, glheight - sb_lines, (glwidth - w) / 2.0f, sb_lines);
-			Draw_TileClear (cbx, (glwidth - w) / 2.0f + w, glheight - sb_lines, (glwidth - w) / 2.0f, sb_lines);
-		}
+		GL_SetCanvas (cbx, CANVAS_SBAR);
+		Sbar_DeathmatchOverlay (cbx);
 	}
-	// johnfitz
+}
 
-	GL_SetCanvas (cbx, CANVAS_SBAR); // johnfitz
+/*
+===============
+Sbar_DrawClassic
+===============
+*/
+static void Sbar_DrawClassic (cb_context_t *cbx)
+{
+	GL_SetCanvas (cbx, CANVAS_SBAR);
 
 	if (scr_viewsize.value < 110) // johnfitz -- check viewsize instead of sb_lines
 	{
@@ -1024,7 +1002,7 @@ void Sbar_Draw (cb_context_t *cbx)
 		}
 
 		// face
-		Sbar_DrawFace (cbx);
+		Sbar_DrawFace (cbx, 112, 0, true);
 
 		// health
 		Sbar_DrawNum (cbx, 136, 0, cl.stats[STAT_HEALTH], 3, cl.stats[STAT_HEALTH] <= 25);
@@ -1065,6 +1043,107 @@ void Sbar_Draw (cb_context_t *cbx)
 	// johnfitz -- removed the vid.width > 320 check here
 	if (cl.gametype == GAME_DEATHMATCH)
 		Sbar_MiniDeathmatchOverlay (cbx);
+}
+
+/*
+===============
+Sbar_DrawSimple
+===============
+*/
+static void Sbar_DrawSimple (cb_context_t *cbx)
+{
+	const int TOP = 135;
+
+	GL_SetCanvas (cbx, CANVAS_BOTTOMLEFT);
+	Sbar_DrawFace (cbx, 20, TOP, false);
+	Sbar_DrawNum (cbx, 45, TOP, cl.stats[STAT_HEALTH], 3, cl.stats[STAT_HEALTH] <= 25);
+
+	GL_SetCanvas (cbx, CANVAS_BOTTOMRIGHT);
+	Sbar_DrawNum (cbx, 195, TOP, cl.stats[STAT_AMMO], 3, cl.stats[STAT_AMMO] <= 10);
+
+	// ammo icon
+	const int AMMO_ICON_X = 280;
+	const int AMMO_ICON_Y = TOP;
+	if (rogue)
+	{
+		if (cl.items & RIT_SHELLS)
+			Sbar_DrawPic (cbx, AMMO_ICON_X, AMMO_ICON_Y, sb_ammo[0]);
+		else if (cl.items & RIT_NAILS)
+			Sbar_DrawPic (cbx, AMMO_ICON_X, AMMO_ICON_Y, sb_ammo[1]);
+		else if (cl.items & RIT_ROCKETS)
+			Sbar_DrawPic (cbx, AMMO_ICON_X, AMMO_ICON_Y, sb_ammo[2]);
+		else if (cl.items & RIT_CELLS)
+			Sbar_DrawPic (cbx, AMMO_ICON_X, AMMO_ICON_Y, sb_ammo[3]);
+		else if (cl.items & RIT_LAVA_NAILS)
+			Sbar_DrawPic (cbx, AMMO_ICON_X, AMMO_ICON_Y, rsb_ammo[0]);
+		else if (cl.items & RIT_PLASMA_AMMO)
+			Sbar_DrawPic (cbx, AMMO_ICON_X, AMMO_ICON_Y, rsb_ammo[1]);
+		else if (cl.items & RIT_MULTI_ROCKETS)
+			Sbar_DrawPic (cbx, AMMO_ICON_X, AMMO_ICON_Y, rsb_ammo[2]);
+	}
+	else
+	{
+		if (cl.items & IT_SHELLS)
+			Sbar_DrawPic (cbx, AMMO_ICON_X, AMMO_ICON_Y, sb_ammo[0]);
+		else if (cl.items & IT_NAILS)
+			Sbar_DrawPic (cbx, AMMO_ICON_X, AMMO_ICON_Y, sb_ammo[1]);
+		else if (cl.items & IT_ROCKETS)
+			Sbar_DrawPic (cbx, AMMO_ICON_X, AMMO_ICON_Y, sb_ammo[2]);
+		else if (cl.items & IT_CELLS)
+			Sbar_DrawPic (cbx, AMMO_ICON_X, AMMO_ICON_Y, sb_ammo[3]);
+	}
+
+	GL_SetCanvas (cbx, CANVAS_SBAR);
+	if (sb_showscores || cl.stats[STAT_HEALTH] <= 0)
+	{
+		Sbar_DrawPicAlpha (cbx, 0, 0, sb_scorebar, scr_sbaralpha.value); // johnfitz -- scr_sbaralpha
+		Sbar_DrawScoreboard (cbx);
+	}
+}
+
+/*
+===============
+Sbar_Draw
+===============
+*/
+void Sbar_Draw (cb_context_t *cbx)
+{
+	float w; // johnfitz
+
+	if (scr_con_current == vid.height)
+		return; // console is full screen
+
+	if ((scr_style.value < 1.0f) && cl.qcvm.extfuncs.CSQC_DrawHud && !qcvm)
+	{
+		Sbar_DrawCSCQ (cbx);
+		return;
+	}
+
+	if (cl.intermission)
+		return; // johnfitz -- never draw sbar during intermission
+
+	GL_SetCanvas (cbx, CANVAS_DEFAULT); // johnfitz
+
+	// johnfitz -- don't waste fillrate by clearing the area behind the sbar
+	w = CLAMP (320.0f, scr_sbarscale.value * 320.0f, (float)glwidth);
+	if (sb_lines && glwidth > w)
+	{
+		if (scr_sbaralpha.value < 1)
+			Draw_TileClear (cbx, 0, glheight - sb_lines, glwidth, sb_lines);
+		if (cl.gametype == GAME_DEATHMATCH)
+			Draw_TileClear (cbx, w, glheight - sb_lines, glwidth - w, sb_lines);
+		else
+		{
+			Draw_TileClear (cbx, 0, glheight - sb_lines, (glwidth - w) / 2.0f, sb_lines);
+			Draw_TileClear (cbx, (glwidth - w) / 2.0f + w, glheight - sb_lines, (glwidth - w) / 2.0f, sb_lines);
+		}
+	}
+	// johnfitz
+
+	if (scr_style.value < 2.0f)
+		Sbar_DrawClassic (cbx);
+	else
+		Sbar_DrawSimple (cbx);
 }
 
 //=============================================================================
@@ -1321,7 +1400,7 @@ void Sbar_IntermissionOverlay (cb_context_t *cbx)
 	int		ltime, lsecrets, lmonsters;
 	int		total;
 
-	if (cl.qcvm.extfuncs.CSQC_DrawScores && !qcvm)
+	if ((scr_style.value < 1.0f) && cl.qcvm.extfuncs.CSQC_DrawScores && !qcvm)
 	{
 		float s = CLAMP (1.0, scr_sbarscale.value, (float)glwidth / 320.0);
 		GL_SetCanvas (cbx, CANVAS_CSQC);

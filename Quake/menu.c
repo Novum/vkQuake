@@ -106,6 +106,7 @@ extern qboolean keydown[256];
 
 extern cvar_t scr_fov;
 extern cvar_t scr_showfps;
+extern cvar_t scr_style;
 extern cvar_t autoload;
 extern cvar_t r_rtshadows;
 extern cvar_t r_particles;
@@ -1341,6 +1342,7 @@ enum
 	GAME_OPT_ALWAYSMLOOK,
 	GAME_OPT_LOOKSPRING,
 	GAME_OPT_LOOKSTRAFE,
+	GAME_OPT_SCRSTYLE,
 	GAME_OPT_CROSSHAIR,
 	GAME_OPT_AUTOLOAD,
 	GAME_OPT_STARTUP_DEMOS,
@@ -1466,6 +1468,9 @@ static void M_GameOptions_AdjustSliders (int dir, qboolean mouse)
 	case GAME_OPT_CROSSHAIR:
 		Cvar_SetValue ("crosshair", ((int)crosshair.value + 3 + dir) % 3);
 		break;
+	case GAME_OPT_SCRSTYLE:
+		Cvar_SetValue ("scr_style", ((int)scr_style.value + 3 + dir) % 3);
+		break;
 	case GAME_OPT_AUTOLOAD: // load last save on death
 		Cvar_SetValue ("autoload", ((int)autoload.value + 3 + dir) % 3);
 		break;
@@ -1577,6 +1582,14 @@ static void M_GameOptions_Draw (cb_context_t *cbx)
 
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GAME_OPT_LOOKSTRAFE, "Lookstrafe");
 	M_DrawCheckbox (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GAME_OPT_LOOKSTRAFE, lookstrafe.value);
+
+	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GAME_OPT_SCRSTYLE, "Interface Style");
+	if (scr_style.value < 1.0f)
+		M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GAME_OPT_SCRSTYLE, "Mod");
+	else if (scr_style.value < 2.0f)
+		M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GAME_OPT_SCRSTYLE, "Classic");
+	else
+		M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GAME_OPT_SCRSTYLE, "Simple");
 
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GAME_OPT_CROSSHAIR, "Crosshair");
 	if (crosshair.value == 0.0f)
