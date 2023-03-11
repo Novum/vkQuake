@@ -1470,6 +1470,7 @@ static void Mod_LoadFaces (qmodel_t *mod, byte *mod_base, lump_t *l, qboolean bs
 			out->samples = mod->lightdata + (lofs * 3); // johnfitz -- lit support via lordhavoc (was "+ i")
 
 		// johnfitz -- this section rewritten
+		out->lightmaptexturenum = -1;
 		if (!q_strncasecmp (out->texinfo->texture->name, "sky", 3)) // sky surface //also note -- was strncmp, changed to match qbsp
 		{
 			out->flags |= (SURF_DRAWSKY | SURF_DRAWTILED);
@@ -1481,7 +1482,6 @@ static void Mod_LoadFaces (qmodel_t *mod, byte *mod_base, lump_t *l, qboolean bs
 
 			if (out->texinfo->flags & TEX_SPECIAL)
 				out->flags |= SURF_DRAWTILED; // unlit water
-			out->lightmaptexturenum = -1;
 
 			// detect special liquid types
 			if (!strncmp (out->texinfo->texture->name, "*lava", 5))
