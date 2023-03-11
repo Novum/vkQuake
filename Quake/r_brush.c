@@ -563,7 +563,8 @@ void R_DrawBrushModel (cb_context_t *cbx, entity_t *e, int chain, int *brushpoly
 		}
 
 	R_DrawTextureChains (cbx, clmodel, e, chain);
-	R_DrawTextureChains_Water (cbx, clmodel, e, chain);
+	if (clmodel->used_specials & SURF_DRAWTURB)
+		R_DrawTextureChains_Water (cbx, clmodel, e, chain);
 	R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 16 * sizeof (float), vulkan_globals.view_projection_matrix);
 }
 
