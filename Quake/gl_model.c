@@ -362,6 +362,9 @@ static void Mod_FreeModelMemory (qmodel_t *mod)
 		SAFE_FREE (mod->water_surfs);
 		mod->used_water_surfs = 0;
 	}
+	else
+		SAFE_FREE (mod->textures);
+
 	if (!isDedicated)
 		TexMgr_FreeTexturesForOwner (mod);
 }
@@ -1222,10 +1225,12 @@ static void Mod_LoadTexinfo (qmodel_t *mod, byte *mod_base, lump_t *l)
 				out->texture = mod->textures[mod->numtextures - 2];
 			out->flags |= TEX_MISSING;
 			missing++;
+			out->tex_idx = -1;
 		}
 		else
 		{
 			out->texture = mod->textures[miptex];
+			out->tex_idx = miptex;
 		}
 		// johnfitz
 	}

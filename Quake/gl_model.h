@@ -140,6 +140,7 @@ typedef struct
 	float	   vecs[2][4];
 	texture_t *texture;
 	int		   flags;
+	int		   tex_idx;
 } mtexinfo_t;
 
 #define VERTEXSIZE 7

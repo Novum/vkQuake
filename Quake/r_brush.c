@@ -272,16 +272,42 @@ static void R_CalcDeps (qmodel_t *model, mleaf_t *leaf)
 
 /*
 ================
-R_CalcSpecials
+R_CalcSpecialsAndTextures
 ================
 */
-static void R_CalcSpecials (qmodel_t *model)
+static void R_CalcSpecialsAndTextures (qmodel_t *model)
 {
+	qboolean is_submodel = model->name[0] == '*';
+	TEMP_ALLOC_ZEROED (byte, used_tex, is_submodel ? model->numtextures : 1);
+
 	for (int i = 0; i < model->nummodelsurfaces; i++)
 	{
 		msurface_t *psurf = &model->surfaces[model->firstmodelsurface] + i;
 		model->used_specials |= (SURF_DRAWSKY | SURF_DRAWTURB | SURF_DRAWWATER | SURF_DRAWLAVA | SURF_DRAWSLIME | SURF_DRAWTELE) & psurf->flags;
+		if (is_submodel && psurf->texinfo->tex_idx >= 0)
+			used_tex[psurf->texinfo->tex_idx] = true;
 	}
+
+	if (!is_submodel)
+	{
+		TEMP_FREE (used_tex);
+		return;
+	}
+
+	int total = 0, placed = 0;
+	for (int i = 0; i < model->numtextures; i++)
+		if (used_tex[i])
+			++total;
+
+	texture_t **orig_textures = model->textures;
+	model->textures = (texture_t **)Mem_AllocNonZero (total * sizeof (*model->textures));
+	model->numtextures = total;
+
+	for (int i = 0; placed < total; i++)
+		if (used_tex[i])
+			model->textures[placed++] = orig_textures[i];
+
+	TEMP_FREE (used_tex);
 }
 
 /*
@@ -1761,7 +1787,7 @@ void GL_SetupIndirectDraws ()
 		qmodel_t *m = cl.model_precache[j];
 		if (!m)
 			break;
-		R_CalcSpecials (m);
+		R_CalcSpecialsAndTextures (m);
 		if (m->name[0] == '*')
 			R_CalcDeps (m, NULL);
 	}
