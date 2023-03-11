@@ -36,7 +36,7 @@ static sys_socket_t		   net_controlsocket;
 static struct sockaddr_ipx broadcastaddr;
 
 /* externs from net_wins.c: */
-extern qboolean	   winsock_initialized;
+extern int	   winsock_initialized;
 extern WSADATA	   winsockdata;
 extern const char *__WSAE_StrError (int);
 
