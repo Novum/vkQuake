@@ -49,7 +49,7 @@ extern size_t			   max_thread_stack_alloc_size;
 	const size_t temp_alloc_##var##_size = sizeof (type) * (size);                         \
 	if ((thread_stack_alloc_size + temp_alloc_##var##_size) > max_thread_stack_alloc_size) \
 	{                                                                                      \
-		var = (type *)Mem_Alloc (temp_alloc_##var##_size);                                 \
+		var = (type *)Mem_AllocNonZero (temp_alloc_##var##_size);                          \
 		temp_alloc_##var##_on_heap = true;                                                 \
 	}                                                                                      \
 	else                                                                                   \
