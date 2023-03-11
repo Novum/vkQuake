@@ -28,6 +28,7 @@
 
 void  Mem_Init ();
 void *Mem_Alloc (const size_t size);
+void *Mem_AllocNonZero (const size_t size);
 void *Mem_Realloc (void *ptr, const size_t size);
 void  Mem_Free (const void *ptr);
 

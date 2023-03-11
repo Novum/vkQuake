@@ -87,6 +87,22 @@ void *Mem_Alloc (const size_t size)
 
 /*
 ====================
+Mem_AllocNonZero
+====================
+*/
+void *Mem_AllocNonZero (const size_t size)
+{
+#if defined(USE_MI_MALLOC)
+	return mi_malloc (size);
+#elif defined(USE_SDL_MALLOC)
+	return SDL_malloc (size);
+#elif defined(USE_CRT_MALLOC)
+	return malloc (size);
+#endif
+}
+
+/*
+====================
 Mem_Realloc
 ====================
 */

@@ -1730,7 +1730,7 @@ byte *COM_LoadFile (const char *path, unsigned int *path_id)
 	// extract the filename base name for hunk tag
 	COM_FileBase (path, base, sizeof (base));
 
-	buf = (byte *)Mem_Alloc (len + 1);
+	buf = (byte *)Mem_AllocNonZero (len + 1);
 
 	if (!buf)
 		Sys_Error ("COM_LoadFile: not enough space for %s", path);
@@ -1764,7 +1764,7 @@ byte *COM_LoadMallocFile_TextMode_OSPath (const char *path, long *len_out)
 		return NULL;
 	}
 
-	data = (byte *)Mem_Alloc (len + 1);
+	data = (byte *)Mem_AllocNonZero (len + 1);
 	if (data == NULL)
 	{
 		fclose (f);
