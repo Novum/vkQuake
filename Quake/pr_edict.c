@@ -177,15 +177,9 @@ ED_FindField
 */
 ddef_t *ED_FindField (const char *name)
 {
-	ddef_t *def;
-	int		i;
-
-	for (i = 0; i < qcvm->progs->numfielddefs; i++)
-	{
-		def = &qcvm->fielddefs[i];
-		if (!strcmp (PR_GetString (def->s_name), name))
-			return def;
-	}
+	ddef_t **def_ptr = HashMap_Lookup (ddef_t *, qcvm->fielddefs_map, &name);
+	if (def_ptr)
+		return *def_ptr;
 	return NULL;
 }
 
@@ -206,15 +200,9 @@ ED_FindGlobal
 */
 ddef_t *ED_FindGlobal (const char *name)
 {
-	ddef_t *def;
-	int		i;
-
-	for (i = 0; i < qcvm->progs->numglobaldefs; i++)
-	{
-		def = &qcvm->globaldefs[i];
-		if (!strcmp (PR_GetString (def->s_name), name))
-			return def;
-	}
+	ddef_t **def_ptr = HashMap_Lookup (ddef_t *, qcvm->globaldefs_map, &name);
+	if (def_ptr)
+		return *def_ptr;
 	return NULL;
 }
 
@@ -225,15 +213,9 @@ ED_FindFunction
 */
 dfunction_t *ED_FindFunction (const char *fn_name)
 {
-	dfunction_t *func;
-	int			 i;
-
-	for (i = 0; i < qcvm->progs->numfunctions; i++)
-	{
-		func = &qcvm->functions[i];
-		if (!strcmp (PR_GetString (func->s_name), fn_name))
-			return func;
-	}
+	dfunction_t **func_ptr = HashMap_Lookup (dfunction_t *, qcvm->function_map, &fn_name);
+	if (func_ptr)
+		return *func_ptr;
 	return NULL;
 }
 
@@ -1111,6 +1093,9 @@ void PR_ClearProgs (qcvm_t *vm)
 	if (qcvm->fielddefs != (ddef_t *)((byte *)qcvm->progs + qcvm->progs->ofs_fielddefs))
 		Mem_Free (qcvm->fielddefs);
 	Mem_Free (qcvm->progs); // spike -- pr_progs switched to use malloc (so menuqc doesn't end up stuck on the early hunk nor wiped on every map change)
+	HashMap_Destroy (qcvm->function_map);
+	HashMap_Destroy (qcvm->fielddefs_map);
+	HashMap_Destroy (qcvm->globaldefs_map);
 	memset (qcvm, 0, sizeof (*qcvm));
 
 	qcvm = NULL;
@@ -1373,12 +1358,28 @@ qboolean PR_LoadProgs (const char *filename, qboolean fatal, unsigned int needcr
 		qcvm->functions[i].numparms = LittleLong (qcvm->functions[i].numparms);
 		qcvm->functions[i].locals = LittleLong (qcvm->functions[i].locals);
 	}
+	// Just to be sure: Reverse insert because there can be duplicates and we want
+	// to match linear search with hash lookup (find first)
+	qcvm->function_map = HashMap_Create (const char *, dfunction_t *, &HashStr, &HashStrCmp);
+	for (i = qcvm->progs->numfunctions - 1; i >= 0; --i)
+	{
+		const char		  *func_name = PR_GetString (qcvm->functions[i].s_name);
+		const dfunction_t *func_ptr = &qcvm->functions[i];
+		HashMap_Insert (qcvm->function_map, &func_name, &func_ptr);
+	}
 
 	for (i = 0; i < qcvm->progs->numglobaldefs; i++)
 	{
 		qcvm->globaldefs[i].type = LittleShort (qcvm->globaldefs[i].type);
 		qcvm->globaldefs[i].ofs = LittleShort (qcvm->globaldefs[i].ofs);
 		qcvm->globaldefs[i].s_name = LittleLong (qcvm->globaldefs[i].s_name);
+	}
+	qcvm->globaldefs_map = HashMap_Create (const char *, ddef_t *, &HashStr, &HashStrCmp);
+	for (i = qcvm->progs->numglobaldefs - 1; i >= 0; --i)
+	{
+		const char	 *globaldef_name = PR_GetString (qcvm->globaldefs[i].s_name);
+		const ddef_t *def_ptr = &qcvm->globaldefs[i];
+		HashMap_Insert (qcvm->globaldefs_map, &globaldef_name, &def_ptr);
 	}
 
 	for (i = 0; i < qcvm->progs->numfielddefs; i++)
@@ -1388,6 +1389,13 @@ qboolean PR_LoadProgs (const char *filename, qboolean fatal, unsigned int needcr
 			Host_Error ("PR_LoadProgs: pr_fielddefs[i].type & DEF_SAVEGLOBAL");
 		qcvm->fielddefs[i].ofs = LittleShort (qcvm->fielddefs[i].ofs);
 		qcvm->fielddefs[i].s_name = LittleLong (qcvm->fielddefs[i].s_name);
+	}
+	qcvm->fielddefs_map = HashMap_Create (const char *, ddef_t *, &HashStr, &HashStrCmp);
+	for (i = qcvm->progs->numfielddefs - 1; i >= 0; --i)
+	{
+		const char	 *fielddef_name = PR_GetString (qcvm->fielddefs[i].s_name);
+		const ddef_t *def_ptr = &qcvm->fielddefs[i];
+		HashMap_Insert (qcvm->fielddefs_map, &fielddef_name, &def_ptr);
 	}
 
 	for (i = 0; i < qcvm->progs->numglobals; i++)

@@ -303,13 +303,17 @@ typedef struct areanode_s
 #define MAX_AREA_DEPTH	   9
 #define AREA_NODES		   (2 << MAX_AREA_DEPTH)
 
+typedef struct hash_map_s hash_map_t;
+
 struct qcvm_s
 {
 	dprograms_t	 *progs;
 	dfunction_t	 *functions;
+	hash_map_t	 *function_map;
 	dstatement_t *statements;
 	float		 *globals;	 /* same as pr_global_struct */
 	ddef_t		 *fielddefs; // yay reflection.
+	hash_map_t	 *fielddefs_map;
 
 	int edict_size; /* in bytes */
 
@@ -340,6 +344,7 @@ struct qcvm_s
 	int			 progsstrings; // allocated by PR_MergeEngineFieldDefs (), not tied to edicts
 	int			 freeknownstrings;
 	ddef_t		*globaldefs;
+	hash_map_t	*globaldefs_map;
 
 	unsigned char *knownzone;
 	size_t		   knownzonesize;

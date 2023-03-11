@@ -164,7 +164,7 @@ void GL_MakeAliasModelDisplayLists (qmodel_t *m, aliashdr_t *paliashdr)
 	// there will always be this number of indexes
 	TEMP_ALLOC_ZEROED (unsigned short, indexes, maxverts_vbo);
 
-	hash_map_t *vertex_to_index_map = HashMap_Create (aliasmesh_t, unsigned short, &AliasMeshHash);
+	hash_map_t *vertex_to_index_map = HashMap_Create (aliasmesh_t, unsigned short, &AliasMeshHash, NULL);
 	HashMap_Reserve (vertex_to_index_map, maxverts_vbo);
 
 	for (int i = 0; i < paliashdr->numtris; i++)

@@ -3717,7 +3717,7 @@ MD5_ComputeNormals
 */
 static void MD5_ComputeNormals (md5vert_t *vert, size_t numverts, unsigned short *indexes, size_t numindexes)
 {
-	hash_map_t *pos_to_normal_map = HashMap_Create (vec3_t, vec3_t, &HashVec3);
+	hash_map_t *pos_to_normal_map = HashMap_Create (vec3_t, vec3_t, &HashVec3, NULL);
 	HashMap_Reserve (pos_to_normal_map, numverts);
 
 	for (size_t v = 0; v < numverts; v++)

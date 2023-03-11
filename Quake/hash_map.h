@@ -20,22 +20,23 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 typedef struct hash_map_s hash_map_t;
 
-hash_map_t *HashMap_CreateImpl (const uint32_t key_size, const uint32_t value_size, uint32_t (*hasher) (const void *const));
-void		HashMap_Destroy (hash_map_t *map);
-void		HashMap_Reserve (hash_map_t *map, int capacity);
-qboolean	HashMap_InsertImpl (hash_map_t *map, const uint32_t key_size, const uint32_t value_size, const void *const key, const void *const value);
-qboolean	HashMap_EraseImpl (hash_map_t *map, const uint32_t key_size, const void *const key);
-void	   *HashMap_LookupImpl (hash_map_t *map, const uint32_t key_size, const void *const key);
-uint32_t	HashMap_Size (hash_map_t *map);
-void	   *HashMap_GetKeyImpl (hash_map_t *map, uint32_t index);
-void	   *HashMap_GetValueImpl (hash_map_t *map, uint32_t index);
+hash_map_t *HashMap_CreateImpl (
+	const uint32_t key_size, const uint32_t value_size, uint32_t (*hasher) (const void *const), uint32_t (*comp) (const void *const, const void *const));
+void	 HashMap_Destroy (hash_map_t *map);
+void	 HashMap_Reserve (hash_map_t *map, int capacity);
+qboolean HashMap_InsertImpl (hash_map_t *map, const uint32_t key_size, const uint32_t value_size, const void *const key, const void *const value);
+qboolean HashMap_EraseImpl (hash_map_t *map, const uint32_t key_size, const void *const key);
+void	*HashMap_LookupImpl (hash_map_t *map, const uint32_t key_size, const void *const key);
+uint32_t HashMap_Size (hash_map_t *map);
+void	*HashMap_GetKeyImpl (hash_map_t *map, uint32_t index);
+void	*HashMap_GetValueImpl (hash_map_t *map, uint32_t index);
 
-#define HashMap_Create(key_type, value_type, hasher) HashMap_CreateImpl (sizeof (key_type), sizeof (value_type), hasher)
-#define HashMap_Insert(map, key, value)				 HashMap_InsertImpl (map, sizeof (*key), sizeof (*value), key, value)
-#define HashMap_Erase(map, key)						 HashMap_EraseImpl (map, sizeof (*key), key)
-#define HashMap_Lookup(type, map, key)				 ((type *)HashMap_LookupImpl (map, sizeof (*key), key))
-#define HashMap_GetKey(type, map, index)			 ((type *)HashMap_GetKeyImpl (map, index))
-#define HashMap_GetValue(type, map, index)			 ((type *)HashMap_GetValueImpl (map, index))
+#define HashMap_Create(key_type, value_type, hasher, comp) HashMap_CreateImpl (sizeof (key_type), sizeof (value_type), hasher, comp)
+#define HashMap_Insert(map, key, value)					   HashMap_InsertImpl (map, sizeof (*key), sizeof (*value), key, value)
+#define HashMap_Erase(map, key)							   HashMap_EraseImpl (map, sizeof (*key), key)
+#define HashMap_Lookup(type, map, key)					   ((type *)HashMap_LookupImpl (map, sizeof (*key), key))
+#define HashMap_GetKey(type, map, index)				   ((type *)HashMap_GetKeyImpl (map, index))
+#define HashMap_GetValue(type, map, index)				   ((type *)HashMap_GetValueImpl (map, index))
 
 // Murmur3 fmix32
 static inline uint32_t HashInt32 (const void *const val)
@@ -99,6 +100,30 @@ static inline uint32_t HashVec3 (const void *const val)
 {
 	vec3_t *vec = (vec3_t *)val;
 	return HashCombine (HashFloat (&(*vec)[0]), HashCombine (HashFloat (&(*vec)[1]), HashFloat (&(*vec)[2])));
+}
+
+// FNV-1a hash
+static inline uint32_t HashStr (const void *const val)
+{
+	const unsigned char	 *str = *(const unsigned char **)val;
+	static const uint32_t FNV_32_PRIME = 0x01000193;
+
+	uint32_t hval = 0;
+	while (*str)
+	{
+		hval ^= (uint32_t)*str;
+		hval *= FNV_32_PRIME;
+		++str;
+	}
+
+	return hval;
+}
+
+static inline qboolean HashStrCmp (const void *const a, const void *const b)
+{
+	const char *str_a = *(const char **)a;
+	const char *str_b = *(const char **)b;
+	return strcmp (str_a, str_b) == 0;
 }
 
 #ifdef _DEBUG

@@ -31,6 +31,7 @@ typedef struct hash_map_s
 	uint32_t key_size;
 	uint32_t value_size;
 	uint32_t (*hasher) (const void *const);
+	uint32_t (*comp) (const void *const, const void *const);
 	uint32_t *hash_to_index;
 	uint32_t *index_chain;
 	void	 *keys;
@@ -97,12 +98,14 @@ static void HashMap_ExpandKeyValueStorage (hash_map_t *map, const uint32_t new_s
 HashMap_CreateImpl
 =================
 */
-hash_map_t *HashMap_CreateImpl (const uint32_t key_size, const uint32_t value_size, uint32_t (*hasher) (const void *const))
+hash_map_t *HashMap_CreateImpl (
+	const uint32_t key_size, const uint32_t value_size, uint32_t (*hasher) (const void *const), uint32_t (*comp) (const void *const, const void *const))
 {
 	hash_map_t *map = Mem_Alloc (sizeof (hash_map_t));
 	map->key_size = key_size;
 	map->value_size = value_size;
 	map->hasher = hasher;
+	map->comp = comp;
 	return map;
 }
 
@@ -156,7 +159,8 @@ qboolean HashMap_InsertImpl (hash_map_t *map, const uint32_t key_size, const uin
 		uint32_t storage_index = map->hash_to_index[hash_index];
 		while (storage_index != UINT32_MAX)
 		{
-			if (memcmp (key, HashMap_GetKeyImpl (map, storage_index), key_size) == 0)
+			const void *const storage_key = HashMap_GetKeyImpl (map, storage_index);
+			if (map->comp ? map->comp (key, storage_key) : (memcmp (key, storage_key, key_size) == 0))
 			{
 				memcpy (HashMap_GetValueImpl (map, storage_index), value, value_size);
 				return true;
@@ -191,7 +195,8 @@ qboolean HashMap_EraseImpl (hash_map_t *map, const uint32_t key_size, const void
 	uint32_t	  *prev_storage_index_ptr = NULL;
 	while (storage_index != UINT32_MAX)
 	{
-		if (memcmp (key, HashMap_GetKeyImpl (map, storage_index), key_size) == 0)
+		const void *storage_key = HashMap_GetKeyImpl (map, storage_index);
+		if (map->comp ? map->comp (key, storage_key) : (memcmp (key, storage_key, key_size) == 0))
 		{
 			{
 				// Remove found key from index
@@ -267,7 +272,8 @@ void *HashMap_LookupImpl (hash_map_t *map, const uint32_t key_size, const void *
 	uint32_t	   storage_index = map->hash_to_index[hash_index];
 	while (storage_index != UINT32_MAX)
 	{
-		if (memcmp (key, (byte *)map->keys + (storage_index * key_size), key_size) == 0)
+		const void *const storage_key = HashMap_GetKeyImpl (map, storage_index);
+		if (map->comp ? map->comp (key, storage_key) : (memcmp (key, storage_key, key_size) == 0))
 			return (byte *)map->values + (storage_index * map->value_size);
 		storage_index = map->index_chain[storage_index];
 	}
@@ -306,7 +312,7 @@ HashMap_BasicTest
 static void HashMap_BasicTest (const qboolean reserve)
 {
 	const int	TEST_SIZE = 1000;
-	hash_map_t *map = HashMap_Create (int32_t, int64_t, &HashInt32);
+	hash_map_t *map = HashMap_Create (int32_t, int64_t, &HashInt32, NULL);
 	if (reserve)
 		HashMap_Reserve (map, TEST_SIZE);
 	for (int i = 0; i < TEST_SIZE; ++i)
@@ -340,7 +346,7 @@ static void HashMap_StressTest (void)
 	srand (0);
 	const int TEST_SIZE = 10000;
 	TEMP_ALLOC (int64_t, keys, TEST_SIZE);
-	hash_map_t *map = HashMap_Create (int64_t, int32_t, &HashInt64);
+	hash_map_t *map = HashMap_Create (int64_t, int32_t, &HashInt64, NULL);
 	for (int j = 0; j < 10; ++j)
 	{
 		for (int i = 0; i < TEST_SIZE; ++i)
