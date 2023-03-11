@@ -31,7 +31,7 @@ typedef struct hash_map_s
 	uint32_t key_size;
 	uint32_t value_size;
 	uint32_t (*hasher) (const void *const);
-	uint32_t (*comp) (const void *const, const void *const);
+	qboolean (*comp) (const void *const, const void *const);
 	uint32_t *hash_to_index;
 	uint32_t *index_chain;
 	void	 *keys;
@@ -99,7 +99,7 @@ HashMap_CreateImpl
 =================
 */
 hash_map_t *HashMap_CreateImpl (
-	const uint32_t key_size, const uint32_t value_size, uint32_t (*hasher) (const void *const), uint32_t (*comp) (const void *const, const void *const))
+	const uint32_t key_size, const uint32_t value_size, uint32_t (*hasher) (const void *const), qboolean (*comp) (const void *const, const void *const))
 {
 	hash_map_t *map = Mem_Alloc (sizeof (hash_map_t));
 	map->key_size = key_size;

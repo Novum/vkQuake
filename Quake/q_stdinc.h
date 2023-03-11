@@ -70,11 +70,7 @@
 /*==========================================================================*/
 
 #ifndef NULL
-#if defined(__cplusplus)
-#define NULL 0
-#else
 #define NULL ((void *)0)
-#endif
 #endif
 
 #define Q_MAXCHAR  ((char)0x7f)
@@ -92,8 +88,6 @@
  */
 #if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L)
 #define COMPILE_TIME_ASSERT(name, x) _Static_assert (x, #x)
-#elif defined(__cplusplus) && (__cplusplus >= 201103L)
-#define COMPILE_TIME_ASSERT(name, x) static_assert (x, #x)
 #else /* universal, but may trigger -Wunused-local-typedefs */
 #define COMPILE_TIME_ASSERT(name, x) typedef int dummy_##name[(x)*2 - 1]
 #endif
@@ -124,24 +118,14 @@ typedef unsigned char byte;
 
 #undef true
 #undef false
-#if defined(__cplusplus)
-/* some structures have qboolean members and the x86 asm code expect
- * those members to be 4 bytes long. therefore, qboolean must be 32
- * bits and it can NOT be binary compatible with the 8 bit C++ bool.  */
-typedef uint32_t qboolean;
-COMPILE_TIME_ASSERT (falsehood, (0 == false));
-COMPILE_TIME_ASSERT (truth, (1 == true));
-#else
 enum
 {
 	false = 0,
 	true = 1
 };
-typedef uint32_t qboolean;
+typedef _Bool qboolean;
 COMPILE_TIME_ASSERT (falsehood, ((1 != 1) == false));
 COMPILE_TIME_ASSERT (truth, ((1 == 1) == true));
-#endif
-COMPILE_TIME_ASSERT (qboolean, sizeof (qboolean) == 4);
 
 /*==========================================================================*/
 
@@ -233,7 +217,7 @@ typedef ptrdiff_t ssize_t;
 #define FUNC_NOCLONE
 #endif
 
-#if defined(_MSC_VER) && !defined(__cplusplus)
+#if defined(_MSC_VER)
 #define inline __inline
 #endif /* _MSC_VER */
 
