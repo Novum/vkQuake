@@ -50,19 +50,6 @@ cvar_t saved4 = {"saved4", "0", CVAR_ARCHIVE};
 
 /*
 =================
-ED_ClearEdict
-
-Sets everything to NULL
-=================
-*/
-void ED_ClearEdict (edict_t *e)
-{
-	memset (&e->v, 0, qcvm->progs->entityfields * 4);
-	e->free = false;
-}
-
-/*
-=================
 ED_Alloc
 
 Either finds a free edict, or allocates a new one.
@@ -74,30 +61,26 @@ angles and bad trails.
 */
 edict_t *ED_Alloc (void)
 {
-	int		 i;
-	edict_t *e;
-
-	for (i = qcvm->reserved_edicts; i < qcvm->num_edicts; i++)
+	edict_t *e = qcvm->free_edicts_head;
+	if (e && ((e->freetime < 2) || (qcvm->time - e->freetime) > 0.5))
 	{
-		e = EDICT_NUM (i);
-		// the first couple seconds of server time can involve a lot of
-		// freeing and allocating, so relax the replacement policy
-		if (e->free && (e->freetime < 2 || qcvm->time - e->freetime > 0.5))
+		assert (e->free);
+		memset (&e->v, 0, qcvm->progs->entityfields * 4);
+		e->free = false;
+		e->next_free = NULL;
+		if (e == qcvm->free_edicts_tail)
 		{
-			ED_ClearEdict (e);
-			return e;
+			assert (e->next_free == NULL);
+			qcvm->free_edicts_tail = NULL;
 		}
+		qcvm->free_edicts_head = e->next_free;
+		return e;
 	}
 
-	if (i == qcvm->max_edicts) // johnfitz -- use sv.max_edicts instead of MAX_EDICTS
+	if ((qcvm->num_edicts + 1) == qcvm->max_edicts) // johnfitz -- use sv.max_edicts instead of MAX_EDICTS
 		Host_Error ("ED_Alloc: no free edicts (max_edicts is %i)", qcvm->max_edicts);
 
-	qcvm->num_edicts++;
-	e = EDICT_NUM (i);
-	memset (
-		e, 0,
-		qcvm->edict_size); // ericw -- switched sv.edicts to malloc(), so we are accessing uninitialized memory and must fully zero it, not just ED_ClearEdict
-
+	e = EDICT_NUM (qcvm->num_edicts++);
 	e->baseline = nullentitystate;
 	return e;
 }
@@ -114,6 +97,7 @@ void ED_Free (edict_t *ed)
 {
 	SV_UnlinkEdict (ed); // unlink from world bsp
 
+	assert (!ed->free);
 	ed->free = true;
 	ed->v.model = 0;
 	ed->v.takedamage = 0;
@@ -128,6 +112,17 @@ void ED_Free (edict_t *ed)
 	ed->alpha = ENTALPHA_DEFAULT; // johnfitz -- reset alpha for next entity
 
 	ed->freetime = qcvm->time;
+
+	if (qcvm->free_edicts_head == NULL)
+	{
+		qcvm->free_edicts_head = ed;
+		qcvm->free_edicts_tail = ed;
+	}
+	else
+	{
+		qcvm->free_edicts_tail->next_free = ed;
+		qcvm->free_edicts_tail = ed;
+	}
 }
 
 //===========================================================================

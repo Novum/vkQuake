@@ -39,8 +39,7 @@ typedef union eval_s
 #define MAX_ENT_LEAFS 32
 typedef struct edict_s
 {
-	qboolean free;
-	link_t	 area; /* linked to a division node or leaf */
+	link_t area; /* linked to a division node or leaf */
 
 	unsigned int num_leafs;
 	int			 leafnums[MAX_ENT_LEAFS];
@@ -52,8 +51,11 @@ typedef struct edict_s
 	vec3_t predthinkpos; /* expected edict origin once its nextthink arrives (sv_smoothplatformlerps) */
 	float  lastthink;	 /* time when predthinkpos was updated, or 0 if not valid (sv_smoothplatformlerps) */
 
-	float	  freetime; /* sv.time when the object was freed */
-	entvars_t v;		/* C exported fields from progs */
+	float			freetime; /* sv.time when the object was freed */
+	qboolean		free;
+	struct edict_s *next_free;
+
+	entvars_t v; /* C exported fields from progs */
 
 	/* other fields from progs come immediately after */
 } edict_t;
@@ -365,6 +367,8 @@ struct qcvm_s
 	int				 reserved_edicts;
 	int				 max_edicts;
 	edict_t			*edicts; // can NOT be array indexed, because edict_t is variable sized, but can be used to reference the world ent
+	edict_t			*free_edicts_head;
+	edict_t			*free_edicts_tail;
 	struct qmodel_s *worldmodel;
 	struct qmodel_s *(*GetModel) (int modelindex); // returns the model for the given index, or null.
 
