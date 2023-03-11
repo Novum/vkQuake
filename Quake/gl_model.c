@@ -1388,7 +1388,7 @@ static void Mod_LoadFaces (qmodel_t *mod, byte *mod_base, lump_t *l, qboolean bs
 			Sys_Error ("MOD_LoadBmodel: funny lump size in %s", mod->name);
 		count = l->filelen / sizeof (dsface_t);
 	}
-	out = (msurface_t *)Mem_Alloc (count * sizeof (*out));
+	out = (msurface_t *)Mem_AllocNonZero (count * sizeof (*out));
 
 	// johnfitz -- warn mappers about exceeding old limits
 	if (count > 32767 && !bsp2)
@@ -1449,6 +1449,7 @@ static void Mod_LoadFaces (qmodel_t *mod, byte *mod_base, lump_t *l, qboolean bs
 			out->styles_bitmap = 1;
 
 		out->flags = 0;
+		out->polys = NULL;
 
 		if (side)
 			out->flags |= SURF_PLANEBACK;
