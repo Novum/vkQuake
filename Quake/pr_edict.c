@@ -1361,6 +1361,7 @@ qboolean PR_LoadProgs (const char *filename, qboolean fatal, unsigned int needcr
 	// Just to be sure: Reverse insert because there can be duplicates and we want
 	// to match linear search with hash lookup (find first)
 	qcvm->function_map = HashMap_Create (const char *, dfunction_t *, &HashStr, &HashStrCmp);
+	HashMap_Reserve (qcvm->function_map, qcvm->progs->numfunctions);
 	for (i = qcvm->progs->numfunctions - 1; i >= 0; --i)
 	{
 		const char		  *func_name = PR_GetString (qcvm->functions[i].s_name);
@@ -1375,6 +1376,7 @@ qboolean PR_LoadProgs (const char *filename, qboolean fatal, unsigned int needcr
 		qcvm->globaldefs[i].s_name = LittleLong (qcvm->globaldefs[i].s_name);
 	}
 	qcvm->globaldefs_map = HashMap_Create (const char *, ddef_t *, &HashStr, &HashStrCmp);
+	HashMap_Reserve (qcvm->globaldefs_map, qcvm->progs->numglobaldefs);
 	for (i = qcvm->progs->numglobaldefs - 1; i >= 0; --i)
 	{
 		const char	 *globaldef_name = PR_GetString (qcvm->globaldefs[i].s_name);
@@ -1391,6 +1393,7 @@ qboolean PR_LoadProgs (const char *filename, qboolean fatal, unsigned int needcr
 		qcvm->fielddefs[i].s_name = LittleLong (qcvm->fielddefs[i].s_name);
 	}
 	qcvm->fielddefs_map = HashMap_Create (const char *, ddef_t *, &HashStr, &HashStrCmp);
+	HashMap_Reserve (qcvm->fielddefs_map, qcvm->progs->numfielddefs);
 	for (i = qcvm->progs->numfielddefs - 1; i >= 0; --i)
 	{
 		const char	 *fielddef_name = PR_GetString (qcvm->fielddefs[i].s_name);
