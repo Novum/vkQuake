@@ -82,7 +82,7 @@ edict_t *ED_Alloc (void)
 		return e;
 	}
 
-	if ((qcvm->num_edicts + 1) == qcvm->max_edicts) // johnfitz -- use sv.max_edicts instead of MAX_EDICTS
+	if (qcvm->num_edicts == qcvm->max_edicts) // johnfitz -- use sv.max_edicts instead of MAX_EDICTS
 		Host_Error ("ED_Alloc: no free edicts (max_edicts is %i)", qcvm->max_edicts);
 
 	e = EDICT_NUM (qcvm->num_edicts++);

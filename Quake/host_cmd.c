@@ -1609,13 +1609,12 @@ static void Host_Loadgame_f (void)
 	}
 
 	qcvm->time = time;
+	for (i = entnum; i < qcvm->num_edicts; i++)
+		ED_Free (EDICT_NUM (i));
 
 	if (fastload)
 	{
 		sv.lastchecktime = 0.0;
-		for (i = entnum; i < qcvm->num_edicts; i++)
-			ED_Free (EDICT_NUM (i));
-
 		memset (cl_dlights, 0, sizeof (cl_dlights));
 		memset (cl_temp_entities, 0, sizeof (cl_temp_entities));
 		memset (cl_beams, 0, sizeof (cl_beams));
@@ -1629,8 +1628,10 @@ static void Host_Loadgame_f (void)
 
 		Send_Spawn_Info (svs.clients, true);
 	}
+	else if (entnum < qcvm->num_edicts)
+		Con_Warning ("Save game had less entities than map (%d < %d)\n", entnum, qcvm->num_edicts); // should be Host_Error, but try to recover
 
-	qcvm->num_edicts = entnum;
+	qcvm->num_edicts = q_max (qcvm->num_edicts, entnum);
 
 	Mem_Free (start);
 	start = NULL;
