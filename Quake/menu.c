@@ -1331,7 +1331,6 @@ static void M_Net_Key (int k)
 enum
 {
 	GAME_OPT_SCALE,
-	GAME_OPT_SCRSIZE,
 	GAME_OPT_SBALPHA,
 	GAME_OPT_MOUSESPEED,
 	GAME_OPT_VIEWBOB,
@@ -1342,6 +1341,7 @@ enum
 	GAME_OPT_ALWAYSMLOOK,
 	GAME_OPT_LOOKSPRING,
 	GAME_OPT_LOOKSTRAFE,
+	GAME_OPT_SCRSIZE,
 	GAME_OPT_SCRSTYLE,
 	GAME_OPT_CROSSHAIR,
 	GAME_OPT_AUTOLOAD,
@@ -1389,10 +1389,6 @@ static void M_GameOptions_AdjustSliders (int dir, qboolean mouse)
 			Cvar_SetValue ("scr_sbarscale", f);
 		}
 		break;
-	case GAME_OPT_SCRSIZE: // screen size
-		f = M_GetSliderPos (30, 130, scr_viewsize.value, false, mouse, clamped_mouse, dir, 10, 100);
-		Cvar_SetValue ("viewsize", f);
-		break;
 	case GAME_OPT_MOUSESPEED: // mouse speed
 		f = M_GetSliderPos (1, 11, sensitivity.value, false, mouse, clamped_mouse, dir, 0.5, 999);
 		Cvar_SetValue ("sensitivity", f);
@@ -1437,6 +1433,10 @@ static void M_GameOptions_AdjustSliders (int dir, qboolean mouse)
 		break;
 	case GAME_OPT_CROSSHAIR:
 		Cvar_SetValue ("crosshair", ((int)crosshair.value + 3 + dir) % 3);
+		break;
+	case GAME_OPT_SCRSIZE: // interface detail
+		// cycles through 130 (no gun), 120 (none), 110 (standard), 100 (full)
+		Cvar_SetValue ("viewsize", (CLAMP (0, ((int)scr_viewsize.value - 100) / 10, 3) + 4 - dir) % 4 * 10 + 100);
 		break;
 	case GAME_OPT_SCRSTYLE:
 		Cvar_SetValue ("scr_style", ((int)scr_style.value + 3 + dir) % 3);
@@ -1511,10 +1511,6 @@ static void M_GameOptions_Draw (cb_context_t *cbx)
 	r = l > 0 ? ((scr_relativescale.value ? scr_relativescale.value : scr_conscale.value) - 1) / l : 0;
 	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * GAME_OPT_SCALE, r);
 
-	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GAME_OPT_SCRSIZE, "Screen Size");
-	r = (scr_viewsize.value - 30) / (130 - 30);
-	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * GAME_OPT_SCRSIZE, r);
-
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GAME_OPT_SBALPHA, "Statusbar Alpha");
 	r = (1.0 - scr_sbaralpha.value); // scr_sbaralpha range is 1.0 to 0.0
 	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * GAME_OPT_SBALPHA, r);
@@ -1548,6 +1544,16 @@ static void M_GameOptions_Draw (cb_context_t *cbx)
 
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GAME_OPT_LOOKSTRAFE, "Lookstrafe");
 	M_DrawCheckbox (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GAME_OPT_LOOKSTRAFE, lookstrafe.value);
+
+	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GAME_OPT_SCRSIZE, "Interface Detail");
+	if (scr_viewsize.value >= 130.0f)
+		M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GAME_OPT_SCRSIZE, "No gun");
+	else if (scr_viewsize.value >= 120.0f)
+		M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GAME_OPT_SCRSIZE, "None");
+	else if (scr_viewsize.value >= 110.0f)
+		M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GAME_OPT_SCRSIZE, "Standard");
+	else
+		M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GAME_OPT_SCRSIZE, "Full");
 
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GAME_OPT_SCRSTYLE, "Interface Style");
 	if (scr_style.value < 1.0f)
