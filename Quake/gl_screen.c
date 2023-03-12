@@ -94,6 +94,7 @@ cvar_t scr_usekfont = {"scr_usekfont", "0", CVAR_NONE}; // 2021 re-release
 cvar_t scr_style = {"scr_style", "0", CVAR_ARCHIVE};
 
 cvar_t scr_viewsize = {"viewsize", "100", CVAR_ARCHIVE};
+cvar_t scr_viewsize_allow_shrinking = {"viewsize_allow_shrinking", "0", CVAR_ARCHIVE};
 cvar_t scr_fov = {"fov", "90", CVAR_ARCHIVE}; // 10 - 170
 cvar_t scr_fov_adapt = {"fov_adapt", "1", CVAR_ARCHIVE};
 cvar_t scr_zoomfov = {"zoom_fov", "30", CVAR_ARCHIVE}; // 10 - 170
@@ -442,7 +443,10 @@ Keybinding command
 */
 void SCR_SizeDown_f (void)
 {
-	Cvar_SetValueQuick (&scr_viewsize, scr_viewsize.value - 10);
+	float new_value = scr_viewsize.value - 10;
+	if (!scr_viewsize_allow_shrinking.value)
+		new_value = q_max (new_value, 100);
+	Cvar_SetValueQuick (&scr_viewsize, new_value);
 }
 
 static void SCR_Callback_refdef (cvar_t *var)
@@ -561,6 +565,7 @@ void SCR_Init (void)
 	Cvar_RegisterVariable (&scr_zoomfov);
 	Cvar_RegisterVariable (&scr_zoomspeed);
 	Cvar_RegisterVariable (&scr_viewsize);
+	Cvar_RegisterVariable (&scr_viewsize_allow_shrinking);
 	Cvar_RegisterVariable (&scr_conspeed);
 	Cvar_RegisterVariable (&scr_conanim);
 	Cvar_RegisterVariable (&scr_showturtle);
