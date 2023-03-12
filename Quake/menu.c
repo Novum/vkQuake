@@ -2070,7 +2070,7 @@ static void M_Options_Draw (cb_context_t *cbx)
 	// cursor
 	M_Mouse_UpdateListCursor (&options_cursor, MENU_LABEL_X, 320, top, CHARACTER_SIZE, OPTIONS_ITEMS, 0);
 	if (options_cursor == OPT_PADDING)
-		options_cursor = OPT_SOUND;
+		options_cursor--;
 	Draw_Character (cbx, MENU_CURSOR_X, top + options_cursor * CHARACTER_SIZE, 12 + ((int)(realtime * 4) & 1));
 }
 
@@ -2123,6 +2123,8 @@ void M_Options_Key (int k)
 	case K_UPARROW:
 		S_LocalSound ("misc/menu1.wav");
 		options_cursor--;
+		if (options_cursor == OPT_PADDING)
+			options_cursor--;
 		if (options_cursor < 0)
 			options_cursor = OPTIONS_ITEMS - 1;
 		break;
@@ -2130,6 +2132,8 @@ void M_Options_Key (int k)
 	case K_DOWNARROW:
 		S_LocalSound ("misc/menu1.wav");
 		options_cursor++;
+		if (options_cursor == OPT_PADDING)
+			options_cursor++;
 		if (options_cursor >= OPTIONS_ITEMS)
 			options_cursor = 0;
 		break;

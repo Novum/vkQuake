@@ -3705,6 +3705,8 @@ void M_Video_Key (int key)
 	case K_UPARROW:
 		S_LocalSound ("misc/menu1.wav");
 		video_options_cursor--;
+		if (video_options_cursor == VID_OPT_PADDING)
+			video_options_cursor--;
 		if (video_options_cursor < 0)
 			video_options_cursor = VIDEO_OPTIONS_ITEMS - 1;
 		break;
@@ -3712,6 +3714,8 @@ void M_Video_Key (int key)
 	case K_DOWNARROW:
 		S_LocalSound ("misc/menu1.wav");
 		video_options_cursor++;
+		if (video_options_cursor == VID_OPT_PADDING)
+			video_options_cursor++;
 		if (video_options_cursor >= VIDEO_OPTIONS_ITEMS)
 			video_options_cursor = 0;
 		break;
@@ -3844,7 +3848,7 @@ void M_Video_Draw (cb_context_t *cbx)
 
 		M_Mouse_UpdateCursor (&video_options_cursor, 12, 400, y, 8, i);
 		if (video_options_cursor == VID_OPT_PADDING)
-			video_options_cursor = VID_OPT_VSYNC;
+			video_options_cursor--;
 		if (video_options_cursor == i)
 			Draw_Character (cbx, MENU_CURSOR_X, y, 12 + ((int)(realtime * 4) & 1));
 
