@@ -1052,45 +1052,81 @@ Sbar_DrawSimple
 */
 static void Sbar_DrawSimple (cb_context_t *cbx)
 {
-	const int TOP = 135;
-
 	GL_SetCanvas (cbx, CANVAS_BOTTOMLEFT);
-	Sbar_DrawFace (cbx, 20, TOP, false);
-	Sbar_DrawNum (cbx, 45, TOP, cl.stats[STAT_HEALTH], 3, cl.stats[STAT_HEALTH] <= 25);
+	Sbar_DrawFace (cbx, 20, 135, false);
+	Sbar_DrawNum (cbx, 45, 135, cl.stats[STAT_HEALTH], 3, cl.stats[STAT_HEALTH] <= 25);
 
-	GL_SetCanvas (cbx, CANVAS_BOTTOMRIGHT);
-	Sbar_DrawNum (cbx, 195, TOP, cl.stats[STAT_AMMO], 3, cl.stats[STAT_AMMO] <= 10);
-
-	// ammo icon
-	const int AMMO_ICON_X = 280;
-	const int AMMO_ICON_Y = TOP;
-	if (rogue)
 	{
-		if (cl.items & RIT_SHELLS)
-			Sbar_DrawPic (cbx, AMMO_ICON_X, AMMO_ICON_Y, sb_ammo[0]);
-		else if (cl.items & RIT_NAILS)
-			Sbar_DrawPic (cbx, AMMO_ICON_X, AMMO_ICON_Y, sb_ammo[1]);
-		else if (cl.items & RIT_ROCKETS)
-			Sbar_DrawPic (cbx, AMMO_ICON_X, AMMO_ICON_Y, sb_ammo[2]);
-		else if (cl.items & RIT_CELLS)
-			Sbar_DrawPic (cbx, AMMO_ICON_X, AMMO_ICON_Y, sb_ammo[3]);
-		else if (cl.items & RIT_LAVA_NAILS)
-			Sbar_DrawPic (cbx, AMMO_ICON_X, AMMO_ICON_Y, rsb_ammo[0]);
-		else if (cl.items & RIT_PLASMA_AMMO)
-			Sbar_DrawPic (cbx, AMMO_ICON_X, AMMO_ICON_Y, rsb_ammo[1]);
-		else if (cl.items & RIT_MULTI_ROCKETS)
-			Sbar_DrawPic (cbx, AMMO_ICON_X, AMMO_ICON_Y, rsb_ammo[2]);
+		// armor
+		const int ARMOR_NUM_X = 45;
+		const int ARMOR_NUM_Y = 110;
+		const int ARMOR_ICON_X = 20;
+		const int ARMOR_ICON_Y = 110;
+		if (cl.items & IT_INVULNERABILITY)
+		{
+			Sbar_DrawNum (cbx, ARMOR_NUM_X, ARMOR_NUM_Y, 666, 3, 1);
+			Sbar_DrawPic (cbx, ARMOR_ICON_X, ARMOR_ICON_Y, draw_disc);
+		}
+		else if (cl.stats[STAT_ARMOR] > 0)
+		{
+			if (rogue)
+			{
+				Sbar_DrawNum (cbx, ARMOR_NUM_X, ARMOR_NUM_Y, cl.stats[STAT_ARMOR], 3, cl.stats[STAT_ARMOR] <= 25);
+				if (cl.items & RIT_ARMOR3)
+					Sbar_DrawPic (cbx, ARMOR_ICON_X, ARMOR_ICON_Y, sb_armor[2]);
+				else if (cl.items & RIT_ARMOR2)
+					Sbar_DrawPic (cbx, ARMOR_ICON_X, ARMOR_ICON_Y, sb_armor[1]);
+				else if (cl.items & RIT_ARMOR1)
+					Sbar_DrawPic (cbx, ARMOR_ICON_X, ARMOR_ICON_Y, sb_armor[0]);
+			}
+			else
+			{
+				Sbar_DrawNum (cbx, ARMOR_NUM_X, ARMOR_NUM_Y, cl.stats[STAT_ARMOR], 3, cl.stats[STAT_ARMOR] <= 25);
+				if (cl.items & IT_ARMOR3)
+					Sbar_DrawPic (cbx, ARMOR_ICON_X, ARMOR_ICON_Y, sb_armor[2]);
+				else if (cl.items & IT_ARMOR2)
+					Sbar_DrawPic (cbx, ARMOR_ICON_X, ARMOR_ICON_Y, sb_armor[1]);
+				else if (cl.items & IT_ARMOR1)
+					Sbar_DrawPic (cbx, ARMOR_ICON_X, ARMOR_ICON_Y, sb_armor[0]);
+			}
+		}
 	}
-	else
+
 	{
-		if (cl.items & IT_SHELLS)
-			Sbar_DrawPic (cbx, AMMO_ICON_X, AMMO_ICON_Y, sb_ammo[0]);
-		else if (cl.items & IT_NAILS)
-			Sbar_DrawPic (cbx, AMMO_ICON_X, AMMO_ICON_Y, sb_ammo[1]);
-		else if (cl.items & IT_ROCKETS)
-			Sbar_DrawPic (cbx, AMMO_ICON_X, AMMO_ICON_Y, sb_ammo[2]);
-		else if (cl.items & IT_CELLS)
-			Sbar_DrawPic (cbx, AMMO_ICON_X, AMMO_ICON_Y, sb_ammo[3]);
+		GL_SetCanvas (cbx, CANVAS_BOTTOMRIGHT);
+		Sbar_DrawNum (cbx, 195, 135, cl.stats[STAT_AMMO], 3, cl.stats[STAT_AMMO] <= 10);
+
+		// ammo icon
+		const int AMMO_ICON_X = 280;
+		const int AMMO_ICON_Y = 135;
+		if (rogue)
+		{
+			if (cl.items & RIT_SHELLS)
+				Sbar_DrawPic (cbx, AMMO_ICON_X, AMMO_ICON_Y, sb_ammo[0]);
+			else if (cl.items & RIT_NAILS)
+				Sbar_DrawPic (cbx, AMMO_ICON_X, AMMO_ICON_Y, sb_ammo[1]);
+			else if (cl.items & RIT_ROCKETS)
+				Sbar_DrawPic (cbx, AMMO_ICON_X, AMMO_ICON_Y, sb_ammo[2]);
+			else if (cl.items & RIT_CELLS)
+				Sbar_DrawPic (cbx, AMMO_ICON_X, AMMO_ICON_Y, sb_ammo[3]);
+			else if (cl.items & RIT_LAVA_NAILS)
+				Sbar_DrawPic (cbx, AMMO_ICON_X, AMMO_ICON_Y, rsb_ammo[0]);
+			else if (cl.items & RIT_PLASMA_AMMO)
+				Sbar_DrawPic (cbx, AMMO_ICON_X, AMMO_ICON_Y, rsb_ammo[1]);
+			else if (cl.items & RIT_MULTI_ROCKETS)
+				Sbar_DrawPic (cbx, AMMO_ICON_X, AMMO_ICON_Y, rsb_ammo[2]);
+		}
+		else
+		{
+			if (cl.items & IT_SHELLS)
+				Sbar_DrawPic (cbx, AMMO_ICON_X, AMMO_ICON_Y, sb_ammo[0]);
+			else if (cl.items & IT_NAILS)
+				Sbar_DrawPic (cbx, AMMO_ICON_X, AMMO_ICON_Y, sb_ammo[1]);
+			else if (cl.items & IT_ROCKETS)
+				Sbar_DrawPic (cbx, AMMO_ICON_X, AMMO_ICON_Y, sb_ammo[2]);
+			else if (cl.items & IT_CELLS)
+				Sbar_DrawPic (cbx, AMMO_ICON_X, AMMO_ICON_Y, sb_ammo[3]);
+		}
 	}
 
 	GL_SetCanvas (cbx, CANVAS_SBAR);
