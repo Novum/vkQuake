@@ -1124,7 +1124,7 @@ void R_DrawTextureChains_Water (cb_context_t *cbx, qmodel_t *model, entity_t *en
 		const float	   alpha = GL_WaterAlphaForEntitySurface (ent, t->texturechains[chain]);
 		const qboolean alpha_blend = alpha < 1.0f;
 
-		if ((opaque_only && alpha_blend || transparent_only && !alpha_blend) && (!r_lightmap_cheatsafe || !indirect))
+		if (((opaque_only && alpha_blend) || (transparent_only && !alpha_blend)) && (!r_lightmap_cheatsafe || !indirect))
 			continue;
 
 		gltexture_t *gl_texture = t->warpimage;
