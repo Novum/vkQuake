@@ -1571,8 +1571,11 @@ static void Host_Loadgame_f (void)
 			ent = EDICT_NUM (entnum);
 			if (entnum < qcvm->num_edicts)
 			{
-				assert (!ent->free);
+				if (ent->free && ent->prev_free)
+					ent->prev_free->next_free = ent->next_free;
 				ent->free = false;
+				ent->next_free = NULL;
+				ent->prev_free = NULL;
 				memset (&ent->v, 0, qcvm->progs->entityfields * 4);
 			}
 			else

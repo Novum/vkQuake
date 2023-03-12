@@ -53,6 +53,7 @@ typedef struct edict_s
 
 	float			freetime; /* sv.time when the object was freed */
 	qboolean		free;
+	struct edict_s *prev_free;
 	struct edict_s *next_free;
 
 	entvars_t v; /* C exported fields from progs */

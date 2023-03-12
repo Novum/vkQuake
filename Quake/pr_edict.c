@@ -67,13 +67,14 @@ edict_t *ED_Alloc (void)
 		assert (e->free);
 		memset (&e->v, 0, qcvm->progs->entityfields * 4);
 		e->free = false;
-		e->next_free = NULL;
 		if (e == qcvm->free_edicts_tail)
 		{
 			assert (e->next_free == NULL);
 			qcvm->free_edicts_tail = NULL;
 		}
 		qcvm->free_edicts_head = e->next_free;
+		e->next_free = NULL;
+		e->prev_free = NULL;
 		return e;
 	}
 
@@ -119,6 +120,8 @@ void ED_Free (edict_t *ed)
 
 	ed->freetime = qcvm->time;
 
+	assert (ed->next_free == NULL);
+	assert (ed->prev_free == NULL);
 	if (qcvm->free_edicts_head == NULL)
 	{
 		qcvm->free_edicts_head = ed;
@@ -126,6 +129,7 @@ void ED_Free (edict_t *ed)
 	}
 	else
 	{
+		ed->prev_free = qcvm->free_edicts_tail;
 		qcvm->free_edicts_tail->next_free = ed;
 		qcvm->free_edicts_tail = ed;
 	}
@@ -957,7 +961,7 @@ const char *ED_ParseEdict (const char *data, edict_t *ent)
 	}
 
 	if (!init)
-		ent->free = true;
+		ED_Free (ent);
 
 	return data;
 }
