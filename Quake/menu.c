@@ -125,6 +125,7 @@ extern cvar_t cl_rollangle;
 extern cvar_t v_gunkick;
 
 static qboolean slider_grab;
+static qboolean scrollbar_grab;
 
 /*
 ================
@@ -451,8 +452,8 @@ M_InScrollbar
 */
 static qboolean M_InScrollbar ()
 {
-	return scrollbar_size && (m_mouse_x >= scrollbar_x) && (m_mouse_x <= (scrollbar_x + 8)) && (m_mouse_y >= scrollbar_y) &&
-		   (m_mouse_y <= (scrollbar_y + scrollbar_size)) && (m_mouse_y <= (scrollbar_y + scrollbar_size));
+	return scrollbar_grab || (scrollbar_size && (m_mouse_x >= scrollbar_x) && (m_mouse_x <= (scrollbar_x + 8)) && (m_mouse_y >= scrollbar_y) &&
+							  (m_mouse_y <= (scrollbar_y + scrollbar_size)) && (m_mouse_y <= (scrollbar_y + scrollbar_size)));
 }
 
 /*
@@ -475,10 +476,10 @@ qboolean M_HandleScrollBarKeys (const int key, int *cursor, int *first_drawn, co
 	switch (key)
 	{
 	case K_MOUSE1:
-		if (M_InScrollbar () && num_total - max_on_screen > 0)
+		if (M_InScrollbar () && ((num_total - max_on_screen) > 0) && !slider_grab)
 		{
 			handled_mouse = true;
-			slider_grab = true;
+			scrollbar_grab = true;
 			int clamped_mouse = CLAMP (scrollbar_y + 8, m_mouse_y, scrollbar_y + scrollbar_size - 8);
 			*first_drawn = ((float)clamped_mouse - scrollbar_y - 8) / (scrollbar_size - 16) * (num_total - max_on_screen) + 0.5f;
 			if (*cursor < *first_drawn)
@@ -551,7 +552,7 @@ M_UpdateCursorForList
 */
 void M_Mouse_UpdateListCursor (int *cursor, int left, int right, int top, int item_height, int num_items, int scroll_offset)
 {
-	if (!slider_grab && m_mouse_moved && (num_items > 0) && (m_mouse_x >= left) && (m_mouse_x <= right) && (m_mouse_y >= top) &&
+	if (!scrollbar_grab && !slider_grab && m_mouse_moved && (num_items > 0) && (m_mouse_x >= left) && (m_mouse_x <= right) && (m_mouse_y >= top) &&
 		(m_mouse_y <= (top + item_height * num_items)))
 		*cursor = scroll_offset + CLAMP (0, (m_mouse_y - top) / item_height, num_items - 1);
 }
@@ -1349,7 +1350,7 @@ enum
 	GAME_OPTIONS_ITEMS
 };
 
-#define GAME_OPTIONS_PER_PAGE 14
+#define GAME_OPTIONS_PER_PAGE MAX_MENU_LINES
 static int game_options_cursor = 0;
 static int first_game_option = 0;
 
@@ -1365,6 +1366,9 @@ static void M_Menu_GameOptions_f (void)
 
 static void M_GameOptions_AdjustSliders (int dir, qboolean mouse)
 {
+	if (scrollbar_grab)
+		return;
+
 	float f, clamped_mouse = CLAMP (SLIDER_START, (float)m_mouse_x, SLIDER_END);
 
 	if (fabsf (clamped_mouse - (float)m_mouse_x) > 12.0f)
@@ -3474,11 +3478,16 @@ void M_UpdateMouse (void)
 	m_mouse_y = new_mouse_y;
 	M_PixelToMenuCanvasCoord (&m_mouse_x, &m_mouse_y);
 
-	if (slider_grab)
+	if (scrollbar_grab)
 	{
 		if (keydown[K_MOUSE1] && M_InScrollbar ())
 			M_Keydown (K_MOUSE1);
-		else if (keydown[K_MOUSE1] && (m_state == m_game) && (game_options_cursor >= GAME_OPT_SCALE) && (game_options_cursor <= GAME_OPT_VIEWROLL))
+		else
+			scrollbar_grab = false;
+	}
+	else if (slider_grab)
+	{
+		if (keydown[K_MOUSE1] && (m_state == m_game) && (game_options_cursor >= GAME_OPT_SCALE) && (game_options_cursor <= GAME_OPT_VIEWROLL))
 			M_GameOptions_AdjustSliders (0, true);
 		else if (
 			keydown[K_MOUSE1] && (m_state == m_graphics) && (graphics_options_cursor >= GRAPHICS_OPT_GAMMA) && (graphics_options_cursor <= GRAPHICS_OPT_FOV))

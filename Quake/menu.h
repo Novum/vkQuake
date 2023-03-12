@@ -97,6 +97,6 @@ qboolean M_HandleScrollBarKeys (const int key, int *cursor, int *first_drawn, co
 #define MENU_VALUE_X	 204
 #define MENU_SLIDER_X	 (MENU_VALUE_X + 6)
 #define MENU_SCROLLBAR_X 312
-#define MAX_MENU_LINES	 18
+#define MAX_MENU_LINES	 14
 
 #endif /* _QUAKE_MENU_H */
