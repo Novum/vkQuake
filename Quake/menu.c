@@ -451,8 +451,8 @@ M_InScrollbar
 */
 static qboolean M_InScrollbar ()
 {
-	return scrollbar_size &&
-		   (slider_grab || (m_mouse_x >= scrollbar_x && m_mouse_x <= scrollbar_x + 8 && m_mouse_y >= scrollbar_y && m_mouse_y <= scrollbar_y + scrollbar_size));
+	return scrollbar_size && (m_mouse_x >= scrollbar_x) && (m_mouse_x <= (scrollbar_x + 8)) && (m_mouse_y >= scrollbar_y) &&
+		   (m_mouse_y <= (scrollbar_y + scrollbar_size)) && (m_mouse_y <= (scrollbar_y + scrollbar_size));
 }
 
 /*
@@ -509,7 +509,6 @@ qboolean M_HandleScrollBarKeys (const int key, int *cursor, int *first_drawn, co
 		break;
 
 	case K_UPARROW:
-	case K_LEFTARROW:
 		if (*cursor == 0)
 			*cursor = num_total - 1;
 		else
@@ -517,7 +516,6 @@ qboolean M_HandleScrollBarKeys (const int key, int *cursor, int *first_drawn, co
 		break;
 
 	case K_DOWNARROW:
-	case K_RIGHTARROW:
 		if (*cursor == num_total - 1)
 			*cursor = 0;
 		else
@@ -1351,7 +1349,9 @@ enum
 	GAME_OPTIONS_ITEMS
 };
 
+#define GAME_OPTIONS_PER_PAGE 14
 static int game_options_cursor = 0;
+static int first_game_option = 0;
 
 static void M_Menu_GameOptions_f (void)
 {
@@ -1359,6 +1359,8 @@ static void M_Menu_GameOptions_f (void)
 	key_dest = key_menu;
 	m_state = m_game;
 	m_entersound = true;
+	game_options_cursor = 0;
+	first_game_option = 0;
 }
 
 static void M_GameOptions_AdjustSliders (int dir, qboolean mouse)
@@ -1464,6 +1466,9 @@ static void M_GameOptions_AdjustSliders (int dir, qboolean mouse)
 
 static void M_GameOptions_Key (int k)
 {
+	if (M_HandleScrollBarKeys (k, &game_options_cursor, &first_game_option, GAME_OPTIONS_ITEMS, GAME_OPTIONS_PER_PAGE))
+		return;
+
 	switch (k)
 	{
 	case K_MOUSE2:
@@ -1479,20 +1484,6 @@ static void M_GameOptions_Key (int k)
 		m_entersound = true;
 		M_GameOptions_AdjustSliders (1, k == K_MOUSE1);
 		return;
-
-	case K_UPARROW:
-		S_LocalSound ("misc/menu1.wav");
-		game_options_cursor--;
-		if (game_options_cursor < 0)
-			game_options_cursor = GAME_OPTIONS_ITEMS - 1;
-		break;
-
-	case K_DOWNARROW:
-		S_LocalSound ("misc/menu1.wav");
-		game_options_cursor++;
-		if (game_options_cursor >= GAME_OPTIONS_ITEMS)
-			game_options_cursor = 0;
-		break;
 
 	case K_LEFTARROW:
 		M_GameOptions_AdjustSliders (-1, false);
@@ -1515,84 +1506,132 @@ static void M_GameOptions_Draw (cb_context_t *cbx)
 
 	// Draw the items in the order of the enum defined above:
 
-	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GAME_OPT_SCALE, "Interface Scale");
-	l = scr_relativescale.value ? 2.0f : ((vid.width / 320.0) - 1);
-	r = l > 0 ? ((scr_relativescale.value ? scr_relativescale.value : scr_conscale.value) - 1) / l : 0;
-	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * GAME_OPT_SCALE, r);
+	for (int i = 0; i < GAME_OPTIONS_PER_PAGE && i < (int)GAME_OPTIONS_ITEMS; i++)
+	{
+		const int y = top + i * CHARACTER_SIZE;
+		switch (i + first_game_option)
+		{
+		case GAME_OPT_SCALE:
+			M_Print (cbx, MENU_LABEL_X, y, "Interface Scale");
+			l = scr_relativescale.value ? 2.0f : ((vid.width / 320.0) - 1);
+			r = l > 0 ? ((scr_relativescale.value ? scr_relativescale.value : scr_conscale.value) - 1) / l : 0;
+			M_DrawSlider (cbx, MENU_SLIDER_X, y, r);
+			break;
 
-	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GAME_OPT_SBALPHA, "Statusbar Alpha");
-	r = (1.0 - scr_sbaralpha.value); // scr_sbaralpha range is 1.0 to 0.0
-	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * GAME_OPT_SBALPHA, r);
+		case GAME_OPT_SBALPHA:
+			M_Print (cbx, MENU_LABEL_X, y, "Statusbar Alpha");
+			r = (1.0 - scr_sbaralpha.value); // scr_sbaralpha range is 1.0 to 0.0
+			M_DrawSlider (cbx, MENU_SLIDER_X, y, r);
+			break;
 
-	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GAME_OPT_MOUSESPEED, "Mouse Speed");
-	r = (sensitivity.value - 1) / 10;
-	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * GAME_OPT_MOUSESPEED, r);
+		case GAME_OPT_MOUSESPEED:
+			M_Print (cbx, MENU_LABEL_X, y, "Mouse Speed");
+			r = (sensitivity.value - 1) / 10;
+			M_DrawSlider (cbx, MENU_SLIDER_X, y, r);
+			break;
 
-	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GAME_OPT_VIEWBOB, "View Bob");
-	r = cl_bob.value * 20.0f;
-	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * GAME_OPT_VIEWBOB, r);
+		case GAME_OPT_VIEWBOB:
+			M_Print (cbx, MENU_LABEL_X, y, "View Bob");
+			r = cl_bob.value * 20.0f;
+			M_DrawSlider (cbx, MENU_SLIDER_X, y, r);
+			break;
 
-	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GAME_OPT_VIEWROLL, "View Roll");
-	r = cl_rollangle.value * 0.2f;
-	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * GAME_OPT_VIEWROLL, r);
+		case GAME_OPT_VIEWROLL:
+			M_Print (cbx, MENU_LABEL_X, y, "View Roll");
+			r = cl_rollangle.value * 0.2f;
+			M_DrawSlider (cbx, MENU_SLIDER_X, y, r);
+			break;
 
-	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GAME_OPT_GUNKICK, "Gun Kick");
-	M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GAME_OPT_GUNKICK, (v_gunkick.value == 2) ? "smooth" : (v_gunkick.value == 1) ? "classic" : "off");
+		case GAME_OPT_GUNKICK:
+			M_Print (cbx, MENU_LABEL_X, y, "Gun Kick");
+			M_Print (cbx, MENU_VALUE_X, y, (v_gunkick.value == 2) ? "smooth" : (v_gunkick.value == 1) ? "classic" : "off");
+			break;
 
-	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GAME_OPT_SHOWGUN, "Show Gun");
-	M_DrawCheckbox (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GAME_OPT_SHOWGUN, r_drawviewmodel.value);
+		case GAME_OPT_SHOWGUN:
+			M_Print (cbx, MENU_LABEL_X, y, "Show Gun");
+			M_DrawCheckbox (cbx, MENU_VALUE_X, y, r_drawviewmodel.value);
+			break;
 
-	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GAME_OPT_ALWAYRUN, "Always Run");
-	M_DrawCheckbox (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GAME_OPT_ALWAYRUN, cl_alwaysrun.value || cl_forwardspeed.value > 200.0);
+		case GAME_OPT_ALWAYRUN:
+			M_Print (cbx, MENU_LABEL_X, y, "Always Run");
+			M_DrawCheckbox (cbx, MENU_VALUE_X, y, cl_alwaysrun.value || cl_forwardspeed.value > 200.0);
+			break;
 
-	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GAME_OPT_INVMOUSE, "Invert Mouse");
-	M_DrawCheckbox (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GAME_OPT_INVMOUSE, m_pitch.value < 0);
+		case GAME_OPT_INVMOUSE:
+			M_Print (cbx, MENU_LABEL_X, y, "Invert Mouse");
+			M_DrawCheckbox (cbx, MENU_VALUE_X, y, m_pitch.value < 0);
+			break;
 
-	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GAME_OPT_ALWAYSMLOOK, "Mouse Look");
-	M_DrawCheckbox (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GAME_OPT_ALWAYSMLOOK, in_mlook.state & 1);
+		case GAME_OPT_ALWAYSMLOOK:
+			M_Print (cbx, MENU_LABEL_X, y, "Mouse Look");
+			M_DrawCheckbox (cbx, MENU_VALUE_X, y, in_mlook.state & 1);
+			break;
 
-	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GAME_OPT_LOOKSPRING, "Lookspring");
-	M_DrawCheckbox (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GAME_OPT_LOOKSPRING, lookspring.value);
+		case GAME_OPT_LOOKSPRING:
+			M_Print (cbx, MENU_LABEL_X, y, "Lookspring");
+			M_DrawCheckbox (cbx, MENU_VALUE_X, y, lookspring.value);
+			break;
 
-	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GAME_OPT_LOOKSTRAFE, "Lookstrafe");
-	M_DrawCheckbox (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GAME_OPT_LOOKSTRAFE, lookstrafe.value);
+		case GAME_OPT_LOOKSTRAFE:
+			M_Print (cbx, MENU_LABEL_X, y, "Lookstrafe");
+			M_DrawCheckbox (cbx, MENU_VALUE_X, y, lookstrafe.value);
+			break;
 
-	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GAME_OPT_HUD_DETAIL, "HUD Detail");
-	if (scr_viewsize.value >= 120.0f)
-		M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GAME_OPT_HUD_DETAIL, "None");
-	else if (scr_viewsize.value >= 110.0f)
-		M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GAME_OPT_HUD_DETAIL, "Minimal");
-	else
-		M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GAME_OPT_HUD_DETAIL, "Full");
+		case GAME_OPT_HUD_DETAIL:
+			M_Print (cbx, MENU_LABEL_X, y, "HUD Detail");
+			if (scr_viewsize.value >= 120.0f)
+				M_Print (cbx, MENU_VALUE_X, y, "None");
+			else if (scr_viewsize.value >= 110.0f)
+				M_Print (cbx, MENU_VALUE_X, y, "Minimal");
+			else
+				M_Print (cbx, MENU_VALUE_X, y, "Full");
+			break;
 
-	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GAME_OPT_HUD_STYLE, "HUD Style");
-	if (scr_style.value < 1.0f)
-		M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GAME_OPT_HUD_STYLE, "Mod");
-	else if (scr_style.value < 2.0f)
-		M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GAME_OPT_HUD_STYLE, "Classic");
-	else
-		M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GAME_OPT_HUD_STYLE, "Modern");
+		case GAME_OPT_HUD_STYLE:
+			M_Print (cbx, MENU_LABEL_X, y, "HUD Style");
+			if (scr_style.value < 1.0f)
+				M_Print (cbx, MENU_VALUE_X, y, "Mod");
+			else if (scr_style.value < 2.0f)
+				M_Print (cbx, MENU_VALUE_X, y, "Classic");
+			else
+				M_Print (cbx, MENU_VALUE_X, y, "Modern");
+			break;
 
-	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GAME_OPT_CROSSHAIR, "Crosshair");
-	if (crosshair.value == 0.0f)
-		M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GAME_OPT_CROSSHAIR, "off");
-	else if (crosshair.value < 2.0f)
-		M_PrintHighlighted (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GAME_OPT_CROSSHAIR, "+");
-	else
-		M_PrintHighlighted (cbx, MENU_VALUE_X + 2, top + CHARACTER_SIZE * GAME_OPT_CROSSHAIR - 1, ".");
+		case GAME_OPT_CROSSHAIR:
+			M_Print (cbx, MENU_LABEL_X, y, "Crosshair");
+			if (crosshair.value == 0.0f)
+				M_Print (cbx, MENU_VALUE_X, y, "off");
+			else if (crosshair.value < 2.0f)
+				M_PrintHighlighted (cbx, MENU_VALUE_X, y, "+");
+			else
+				M_PrintHighlighted (cbx, MENU_VALUE_X + 2, y - 1, ".");
+			break;
 
-	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GAME_OPT_AUTOLOAD, "Load last save");
-	M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GAME_OPT_AUTOLOAD, (autoload.value >= 2) ? "fast" : (autoload.value ? "on" : "off"));
+		case GAME_OPT_AUTOLOAD:
+			M_Print (cbx, MENU_LABEL_X, y, "Load last save");
+			M_Print (cbx, MENU_VALUE_X, y, (autoload.value >= 2) ? "fast" : (autoload.value ? "on" : "off"));
+			break;
 
-	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GAME_OPT_STARTUP_DEMOS, "Startup Demos");
-	M_DrawCheckbox (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GAME_OPT_STARTUP_DEMOS, cl_startdemos.value);
+		case GAME_OPT_STARTUP_DEMOS:
+			M_Print (cbx, MENU_LABEL_X, y, "Startup Demos");
+			M_DrawCheckbox (cbx, MENU_VALUE_X, y, cl_startdemos.value);
+			break;
 
-	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GAME_OPT_SHOWFPS, "Show FPS");
-	M_DrawCheckbox (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GAME_OPT_SHOWFPS, scr_showfps.value);
+		case GAME_OPT_SHOWFPS:
+			M_Print (cbx, MENU_LABEL_X, y, "Show FPS");
+			M_DrawCheckbox (cbx, MENU_VALUE_X, y, scr_showfps.value);
+			break;
+		}
+	}
+
+	if (GAME_OPTIONS_ITEMS > GAME_OPTIONS_PER_PAGE)
+		M_DrawScrollbar (
+			cbx, MENU_SCROLLBAR_X, MENU_TOP + CHARACTER_SIZE, (float)(first_game_option) / (GAME_OPTIONS_ITEMS - GAME_OPTIONS_PER_PAGE),
+			GAME_OPTIONS_PER_PAGE - 2);
 
 	// cursor
-	M_Mouse_UpdateListCursor (&game_options_cursor, MENU_CURSOR_X, 320, top, CHARACTER_SIZE, GAME_OPTIONS_ITEMS, 0);
-	Draw_Character (cbx, MENU_CURSOR_X, top + game_options_cursor * CHARACTER_SIZE, 12 + ((int)(realtime * 4) & 1));
+	M_Mouse_UpdateListCursor (&game_options_cursor, MENU_CURSOR_X, 320, top, CHARACTER_SIZE, GAME_OPTIONS_PER_PAGE, first_game_option);
+	Draw_Character (cbx, MENU_CURSOR_X, top + (game_options_cursor - first_game_option) * CHARACTER_SIZE, 12 + ((int)(realtime * 4) & 1));
 }
 
 //=============================================================================
@@ -1631,6 +1670,7 @@ static void M_Menu_GraphicsOptions_f (void)
 	key_dest = key_menu;
 	m_state = m_graphics;
 	m_entersound = true;
+	graphics_options_cursor = 0;
 }
 
 static void M_GraphicsOptions_ChooseNextAASamples (int dir)
@@ -2064,6 +2104,7 @@ void M_Menu_Options_f (void)
 	IN_Deactivate (true);
 	key_dest = key_menu;
 	m_state = m_options;
+	options_cursor = 0;
 }
 
 static void M_Options_Draw (cb_context_t *cbx)
@@ -2941,6 +2982,10 @@ static int startepisode;
 static int startlevel;
 static int maxplayers;
 
+static int mpgameoptions_cursor_table[] = {40, 56, 64, 72, 80, 88, 96, 112, 120};
+#define NUM_MPGAMEOPTIONS 9
+static int mpgameoptions_cursor;
+
 static void M_Menu_MPGameOptions_f (void)
 {
 	M_MenuChanged ();
@@ -2951,11 +2996,8 @@ static void M_Menu_MPGameOptions_f (void)
 		maxplayers = svs.maxclients;
 	if (maxplayers < 2)
 		maxplayers = 4;
+	mpgameoptions_cursor = 0;
 }
-
-static int mpgameoptions_cursor_table[] = {40, 56, 64, 72, 80, 88, 96, 112, 120};
-#define NUM_MPGAMEOPTIONS 9
-static int mpgameoptions_cursor;
 
 static void M_MPGameOptions_Draw (cb_context_t *cbx)
 {
@@ -3432,20 +3474,20 @@ void M_UpdateMouse (void)
 	m_mouse_y = new_mouse_y;
 	M_PixelToMenuCanvasCoord (&m_mouse_x, &m_mouse_y);
 
-	if (keydown[K_MOUSE1] && slider_grab && (m_state == m_game) && (game_options_cursor >= GAME_OPT_SCALE) && (game_options_cursor <= GAME_OPT_VIEWROLL))
-		M_GameOptions_AdjustSliders (0, true);
-	else if (
-		keydown[K_MOUSE1] && slider_grab && (m_state == m_graphics) && (graphics_options_cursor >= GRAPHICS_OPT_GAMMA) &&
-		(graphics_options_cursor <= GRAPHICS_OPT_FOV))
-		M_GraphicsOptions_AdjustSliders (0, true);
-	else if (
-		keydown[K_MOUSE1] && slider_grab && (m_state == m_sound) && (graphics_options_cursor >= SOUND_OPT_SNDVOL) &&
-		(graphics_options_cursor <= SOUND_OPT_MUSICVOL))
-		M_SoundOptions_AdjustSliders (0, true);
-	else if (keydown[K_MOUSE1] && slider_grab && M_InScrollbar ())
-		M_Keydown (K_MOUSE1);
-	else if (slider_grab)
-		slider_grab = false;
+	if (slider_grab)
+	{
+		if (keydown[K_MOUSE1] && M_InScrollbar ())
+			M_Keydown (K_MOUSE1);
+		else if (keydown[K_MOUSE1] && (m_state == m_game) && (game_options_cursor >= GAME_OPT_SCALE) && (game_options_cursor <= GAME_OPT_VIEWROLL))
+			M_GameOptions_AdjustSliders (0, true);
+		else if (
+			keydown[K_MOUSE1] && (m_state == m_graphics) && (graphics_options_cursor >= GRAPHICS_OPT_GAMMA) && (graphics_options_cursor <= GRAPHICS_OPT_FOV))
+			M_GraphicsOptions_AdjustSliders (0, true);
+		else if (keydown[K_MOUSE1] && (m_state == m_sound) && (graphics_options_cursor >= SOUND_OPT_SNDVOL) && (graphics_options_cursor <= SOUND_OPT_MUSICVOL))
+			M_SoundOptions_AdjustSliders (0, true);
+		else
+			slider_grab = false;
+	}
 
 	scrollbar_size = 0;
 }

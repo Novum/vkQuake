@@ -20,6 +20,7 @@ Shaders/*.obj
 Shaders/bintoc
 Windows/VisualStudio/.vs
 Windows/VisualStudio/Build-*
+Windows/VisualStudio/enc_temp_folder
 Packaging/AppImage/AppDir
 Packaging/AppImage/vkquake*
 Packaging/Windows/vkQuake-Installer-*.exe
