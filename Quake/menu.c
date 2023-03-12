@@ -1401,8 +1401,8 @@ static void M_GameOptions_AdjustSliders (int dir, qboolean mouse)
 		Cvar_SetValue ("sensitivity", f);
 		break;
 	case GAME_OPT_SBALPHA: // statusbar alpha
-		f = M_GetSliderPos (0, 1, scr_sbaralpha.value, true, mouse, clamped_mouse, dir, 0.05, 999);
-		Cvar_SetValue ("scr_sbaralpha", f);
+		f = M_GetSliderPos (0, 1, 1.0f - scr_sbaralpha.value, true, mouse, clamped_mouse, dir, 0.05, 999);
+		Cvar_SetValue ("scr_sbaralpha", 1.0f - f);
 		break;
 	case GAME_OPT_VIEWBOB: // statusbar alpha
 		f = (1.0f - M_GetSliderPos (0, 1, 1.0f - (cl_bob.value * 20.0f), true, mouse, clamped_mouse, dir, 0.05, 999)) / 20.0f;
@@ -1524,7 +1524,7 @@ static void M_GameOptions_Draw (cb_context_t *cbx)
 
 		case GAME_OPT_SBALPHA:
 			M_Print (cbx, MENU_LABEL_X, y, "HUD Opacity");
-			r = (1.0 - scr_sbaralpha.value); // scr_sbaralpha range is 1.0 to 0.0
+			r = scr_sbaralpha.value; // scr_sbaralpha range is 1.0 to 0.0
 			M_DrawSlider (cbx, MENU_SLIDER_X, y, r);
 			break;
 
