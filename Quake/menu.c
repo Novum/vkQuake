@@ -1523,7 +1523,7 @@ static void M_GameOptions_Draw (cb_context_t *cbx)
 			break;
 
 		case GAME_OPT_SBALPHA:
-			M_Print (cbx, MENU_LABEL_X, y, "Statusbar Alpha");
+			M_Print (cbx, MENU_LABEL_X, y, "HUD Opacity");
 			r = (1.0 - scr_sbaralpha.value); // scr_sbaralpha range is 1.0 to 0.0
 			M_DrawSlider (cbx, MENU_SLIDER_X, y, r);
 			break;
