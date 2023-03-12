@@ -72,9 +72,13 @@ edict_t *ED_Alloc (void)
 			assert (e->next_free == NULL);
 			qcvm->free_edicts_tail = NULL;
 		}
+		else
+			assert (e->next_free);
 		qcvm->free_edicts_head = e->next_free;
+		assert (!e->prev_free);
+		if (e->next_free)
+			e->next_free->prev_free = NULL;
 		e->next_free = NULL;
-		e->prev_free = NULL;
 		return e;
 	}
 
@@ -124,6 +128,7 @@ void ED_Free (edict_t *ed)
 	assert (ed->prev_free == NULL);
 	if (qcvm->free_edicts_head == NULL)
 	{
+		assert (!qcvm->free_edicts_tail);
 		qcvm->free_edicts_head = ed;
 		qcvm->free_edicts_tail = ed;
 	}
@@ -416,7 +421,7 @@ void ED_Print (edict_t *ed)
 
 	if (ed->free)
 	{
-		Con_Printf ("FREE\n");
+		Con_SafePrintf ("FREE\n");
 		return;
 	}
 

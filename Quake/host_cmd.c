@@ -1571,8 +1571,23 @@ static void Host_Loadgame_f (void)
 			ent = EDICT_NUM (entnum);
 			if (entnum < qcvm->num_edicts)
 			{
-				if (ent->free && ent->prev_free)
-					ent->prev_free->next_free = ent->next_free;
+				if (ent->free)
+				{
+					if (qcvm->free_edicts_head == ent)
+					{
+						assert (!ent->prev_free);
+						qcvm->free_edicts_head = ent->next_free;
+					}
+					if (qcvm->free_edicts_tail == ent)
+					{
+						assert (!ent->next_free);
+						qcvm->free_edicts_tail = ent->prev_free;
+					}
+					if (ent->prev_free)
+						ent->prev_free->next_free = ent->next_free;
+					if (ent->next_free)
+						ent->next_free->prev_free = ent->prev_free;
+				}
 				ent->free = false;
 				ent->next_free = NULL;
 				ent->prev_free = NULL;
