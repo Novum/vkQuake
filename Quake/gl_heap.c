@@ -204,7 +204,8 @@ static glheapsegment_t *GL_CreateHeapSegment (glheap_t *heap, atomic_uint32_t *n
 	memory_allocate_info.memoryTypeIndex = heap->memory_type_index;
 
 	R_AllocateVulkanMemory (&segment->memory, &memory_allocate_info, heap->memory_type, num_allocations);
-	GL_SetObjectName ((uint64_t)segment->memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, heap->name);
+	if (segment->memory.handle != VK_NULL_HANDLE)
+		GL_SetObjectName ((uint64_t)segment->memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, heap->name);
 
 	segment->page_hdrs = Mem_Alloc (heap->num_pages_per_segment * sizeof (glheappagehdr_t));
 	segment->small_alloc_links = Mem_Alloc (heap->num_pages_per_segment * sizeof (glheapsmallalloclinks_t));
@@ -692,7 +693,8 @@ glheapallocation_t *GL_HeapAllocate (glheap_t *heap, VkDeviceSize size, VkDevice
 		memory_allocate_info.memoryTypeIndex = heap->memory_type_index;
 
 		R_AllocateVulkanMemory (allocation->memory, &memory_allocate_info, heap->memory_type, num_allocations);
-		GL_SetObjectName ((uint64_t)allocation->memory->handle, VK_OBJECT_TYPE_DEVICE_MEMORY, heap->name);
+		if (allocation->memory->handle != VK_NULL_HANDLE)
+			GL_SetObjectName ((uint64_t)allocation->memory->handle, VK_OBJECT_TYPE_DEVICE_MEMORY, heap->name);
 	}
 
 	return allocation;
@@ -710,6 +712,7 @@ void GL_HeapFree (glheap_t *heap, glheapallocation_t *allocation, atomic_uint32_
 
 	if (allocation->alloc_type == ALLOC_TYPE_PAGES)
 	{
+		--heap->stats.num_block_allocations;
 		GL_HeapFreeBlockFromSegment (heap, allocation->segment, heap->page_size_shift, allocation->offset);
 	}
 	else if (allocation->alloc_type == ALLOC_TYPE_DEDICATED)
@@ -721,6 +724,7 @@ void GL_HeapFree (glheap_t *heap, glheapallocation_t *allocation, atomic_uint32_
 	}
 	else if (allocation->alloc_type >= ALLOC_TYPE_SMALL_ALLOC)
 	{
+		--heap->stats.num_small_allocations;
 		if (GL_HeapSmallFreeFromBlock (heap, allocation->segment, allocation))
 			GL_HeapFreeBlockFromSegment (heap, allocation->segment, heap->page_size_shift, allocation->offset);
 	}
@@ -840,6 +844,13 @@ static void TestHeapCleanState (glheap_t *heap)
 			HEAP_TEST_ASSERT (segment->small_alloc_free_list_heads[j] == INVALID_PAGE_INDEX, "free list head is not empty");
 	}
 	HEAP_TEST_ASSERT (heap->num_segments == heap->stats.num_blocks_free, "Invalid number of free blocks");
+
+	glheapstats_t *stats = GL_HeapGetStats (heap);
+	HEAP_TEST_ASSERT (stats->num_allocations == 0, "Invalid num_allocations counter");
+	HEAP_TEST_ASSERT (stats->num_small_allocations == 0, "Invalid num_small_allocations counter");
+	HEAP_TEST_ASSERT (stats->num_block_allocations == 0, "Invalid num_block_allocations counter");
+	HEAP_TEST_ASSERT (stats->num_dedicated_allocations == 0, "Invalid num_dedicated_allocations counter");
+	HEAP_TEST_ASSERT (stats->num_blocks_free == heap->num_segments, "Invalid num_blocks_free counter");
 }
 
 /*
@@ -878,6 +889,10 @@ static void TestHeapConsistency (glheap_t *heap)
 		HEAP_TEST_ASSERT (current_block_index == heap->num_pages_per_segment, "Blocks need to add up to num pages");
 		HEAP_TEST_ASSERT (num_allocated_pages == segment->num_pages_allocated, "Invalid number of allocated pages found");
 	}
+
+	glheapstats_t *stats = GL_HeapGetStats (heap);
+	HEAP_TEST_ASSERT (
+		stats->num_allocations == (stats->num_small_allocations + stats->num_block_allocations + stats->num_dedicated_allocations), "Invalid alloc counter");
 }
 
 /*
