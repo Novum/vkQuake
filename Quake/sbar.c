@@ -1047,15 +1047,19 @@ static void Sbar_DrawClassic (cb_context_t *cbx)
 
 /*
 ===============
-Sbar_DrawSimple
+Sbar_DrawModern
 ===============
 */
-static void Sbar_DrawSimple (cb_context_t *cbx)
+static void Sbar_DrawModern (cb_context_t *cbx)
 {
+	if (scr_viewsize.value >= 120.0f)
+		return;
+
 	GL_SetCanvas (cbx, CANVAS_BOTTOMLEFT);
 	Sbar_DrawFace (cbx, 20, 135, false);
 	Sbar_DrawNum (cbx, 45, 135, cl.stats[STAT_HEALTH], 3, cl.stats[STAT_HEALTH] <= 25);
 
+	if (scr_viewsize.value < 110.0f)
 	{
 		// armor
 		const int ARMOR_NUM_X = 45;
@@ -1179,7 +1183,7 @@ void Sbar_Draw (cb_context_t *cbx)
 	if (scr_style.value < 2.0f)
 		Sbar_DrawClassic (cbx);
 	else
-		Sbar_DrawSimple (cbx);
+		Sbar_DrawModern (cbx);
 }
 
 //=============================================================================

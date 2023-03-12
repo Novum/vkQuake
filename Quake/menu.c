@@ -1336,13 +1336,14 @@ enum
 	GAME_OPT_VIEWBOB,
 	GAME_OPT_VIEWROLL,
 	GAME_OPT_GUNKICK,
+	GAME_OPT_SHOWGUN,
 	GAME_OPT_ALWAYRUN,
 	GAME_OPT_INVMOUSE,
 	GAME_OPT_ALWAYSMLOOK,
 	GAME_OPT_LOOKSPRING,
 	GAME_OPT_LOOKSTRAFE,
-	GAME_OPT_SCRSIZE,
-	GAME_OPT_SCRSTYLE,
+	GAME_OPT_HUD_DETAIL,
+	GAME_OPT_HUD_STYLE,
 	GAME_OPT_CROSSHAIR,
 	GAME_OPT_AUTOLOAD,
 	GAME_OPT_STARTUP_DEMOS,
@@ -1408,6 +1409,9 @@ static void M_GameOptions_AdjustSliders (int dir, qboolean mouse)
 	case GAME_OPT_GUNKICK: // gun kick
 		Cvar_SetValue ("v_gunkick", ((int)v_gunkick.value + 3 + dir) % 3);
 		break;
+	case GAME_OPT_SHOWGUN: // gun kick
+		Cvar_SetValue ("r_drawviewmodel", ((int)r_drawviewmodel.value + 2 + dir) % 2);
+		break;
 	case GAME_OPT_ALWAYRUN: // always run
 		Cvar_SetValue ("cl_alwaysrun", !(cl_alwaysrun.value || cl_forwardspeed.value > 200));
 
@@ -1434,11 +1438,16 @@ static void M_GameOptions_AdjustSliders (int dir, qboolean mouse)
 	case GAME_OPT_CROSSHAIR:
 		Cvar_SetValue ("crosshair", ((int)crosshair.value + 3 + dir) % 3);
 		break;
-	case GAME_OPT_SCRSIZE: // interface detail
-		// cycles through 130 (no gun), 120 (none), 110 (standard), 100 (full)
-		Cvar_SetValue ("viewsize", (CLAMP (0, ((int)scr_viewsize.value - 100) / 10, 3) + 4 - dir) % 4 * 10 + 100);
+	case GAME_OPT_HUD_DETAIL: // interface detail
+		// cycles through 120 (none), 110 (standard), 100 (full)
+		if (scr_viewsize.value <= 100.0f)
+			Cvar_SetValue ("viewsize", 110.0f);
+		else if (scr_viewsize.value <= 110.0f)
+			Cvar_SetValue ("viewsize", 120.0f);
+		else
+			Cvar_SetValue ("viewsize", 100.0f);
 		break;
-	case GAME_OPT_SCRSTYLE:
+	case GAME_OPT_HUD_STYLE:
 		Cvar_SetValue ("scr_style", ((int)scr_style.value + 3 + dir) % 3);
 		break;
 	case GAME_OPT_AUTOLOAD: // load last save on death
@@ -1530,6 +1539,9 @@ static void M_GameOptions_Draw (cb_context_t *cbx)
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GAME_OPT_GUNKICK, "Gun Kick");
 	M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GAME_OPT_GUNKICK, (v_gunkick.value == 2) ? "smooth" : (v_gunkick.value == 1) ? "classic" : "off");
 
+	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GAME_OPT_SHOWGUN, "Show Gun");
+	M_DrawCheckbox (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GAME_OPT_SHOWGUN, r_drawviewmodel.value);
+
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GAME_OPT_ALWAYRUN, "Always Run");
 	M_DrawCheckbox (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GAME_OPT_ALWAYRUN, cl_alwaysrun.value || cl_forwardspeed.value > 200.0);
 
@@ -1545,23 +1557,21 @@ static void M_GameOptions_Draw (cb_context_t *cbx)
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GAME_OPT_LOOKSTRAFE, "Lookstrafe");
 	M_DrawCheckbox (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GAME_OPT_LOOKSTRAFE, lookstrafe.value);
 
-	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GAME_OPT_SCRSIZE, "Interface Detail");
-	if (scr_viewsize.value >= 130.0f)
-		M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GAME_OPT_SCRSIZE, "No gun");
-	else if (scr_viewsize.value >= 120.0f)
-		M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GAME_OPT_SCRSIZE, "None");
+	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GAME_OPT_HUD_DETAIL, "HUD Detail");
+	if (scr_viewsize.value >= 120.0f)
+		M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GAME_OPT_HUD_DETAIL, "None");
 	else if (scr_viewsize.value >= 110.0f)
-		M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GAME_OPT_SCRSIZE, "Standard");
+		M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GAME_OPT_HUD_DETAIL, "Minimal");
 	else
-		M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GAME_OPT_SCRSIZE, "Full");
+		M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GAME_OPT_HUD_DETAIL, "Full");
 
-	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GAME_OPT_SCRSTYLE, "Interface Style");
+	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GAME_OPT_HUD_STYLE, "HUD Style");
 	if (scr_style.value < 1.0f)
-		M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GAME_OPT_SCRSTYLE, "Mod");
+		M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GAME_OPT_HUD_STYLE, "Mod");
 	else if (scr_style.value < 2.0f)
-		M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GAME_OPT_SCRSTYLE, "Classic");
+		M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GAME_OPT_HUD_STYLE, "Classic");
 	else
-		M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GAME_OPT_SCRSTYLE, "Simple");
+		M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GAME_OPT_HUD_STYLE, "Modern");
 
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GAME_OPT_CROSSHAIR, "Crosshair");
 	if (crosshair.value == 0.0f)
