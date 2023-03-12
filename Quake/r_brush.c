@@ -728,7 +728,7 @@ void R_DrawIndirectBrushes (cb_context_t *cbx, qboolean draw_water, qboolean tra
 			else
 				alpha = map_wateralpha;
 
-			if (alpha < 1.0f != transparent_water)
+			if ((alpha < 1.0f) != transparent_water)
 				continue;
 
 			if (alpha != last_alpha)
