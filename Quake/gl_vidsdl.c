@@ -3704,14 +3704,18 @@ void M_Video_Key (int key)
 
 	case K_UPARROW:
 		S_LocalSound ("misc/menu1.wav");
-		video_options_cursor--;
+		--video_options_cursor;
+		if (video_options_cursor == VID_OPT_PADDING)
+			--video_options_cursor;
 		if (video_options_cursor < 0)
 			video_options_cursor = VIDEO_OPTIONS_ITEMS - 1;
 		break;
 
 	case K_DOWNARROW:
 		S_LocalSound ("misc/menu1.wav");
-		video_options_cursor++;
+		++video_options_cursor;
+		if (video_options_cursor == VID_OPT_PADDING)
+			++video_options_cursor;
 		if (video_options_cursor >= VIDEO_OPTIONS_ITEMS)
 			video_options_cursor = 0;
 		break;
