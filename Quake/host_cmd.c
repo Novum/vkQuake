@@ -1431,7 +1431,7 @@ static void Host_Loadgame_f (void)
 		sv.loadgame = true;
 	}
 	else
-		S_StopAllSounds (true); // do this before parsing the edicts, since that may take a while
+		S_StopAllSounds (true, true); // do this before parsing the edicts, since that may take a while
 
 	if (was_recording)
 		CL_Resume_Record (fastload);

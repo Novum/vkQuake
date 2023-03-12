@@ -228,7 +228,7 @@ void		 CL_Seek_f (void)
 
 		// replay last signon for stats and lightstyles
 		cls.signon = (SIGNONS - 2);
-		S_StopAllSounds (true);
+		S_StopAllSounds (true, true);
 	}
 	else
 		cl.time = cls.seektime;

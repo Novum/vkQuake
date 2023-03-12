@@ -32,7 +32,7 @@ static void S_Play (void);
 static void S_PlayVol (void);
 static void S_SoundList (void);
 static void S_Update_ (void);
-void		S_StopAllSounds (qboolean clear);
+void		S_StopAllSounds (qboolean clear, qboolean keep_statics);
 static void S_StopAllSoundsC (void);
 
 void S_SetUnderwaterIntensity (float intensity);
@@ -232,7 +232,7 @@ void S_Init (void)
 
 	S_CodecInit ();
 
-	S_StopAllSounds (true);
+	S_StopAllSounds (true, false);
 }
 
 // =======================================================================
@@ -519,7 +519,7 @@ unlock_mutex:
 	SDL_UnlockMutex (snd_mutex);
 }
 
-void S_StopAllSounds (qboolean clear)
+void S_StopAllSounds (qboolean clear, qboolean keep_statics)
 {
 	int i;
 
@@ -530,15 +530,20 @@ void S_StopAllSounds (qboolean clear)
 	if (!sound_started)
 		goto unlock_mutex;
 
-	total_channels = MAX_DYNAMIC_CHANNELS + NUM_AMBIENTS; // no statics
+	if (!keep_statics)
+		total_channels = MAX_DYNAMIC_CHANNELS + NUM_AMBIENTS; // no statics
 
 	for (i = 0; i < MAX_CHANNELS; i++)
 	{
-		if (snd_channels[i].sfx)
-			snd_channels[i].sfx = NULL;
+		if (!keep_statics || snd_channels[i].entnum || !snd_channels[i].sfx || !S_LoadSound (snd_channels[i].sfx) ||
+			S_LoadSound (snd_channels[i].sfx)->loopstart == -1)
+			memset (&snd_channels[i], 0, sizeof (channel_t));
+		else
+		{
+			snd_channels[i].pos = 0;
+			snd_channels[i].end = paintedtime + S_LoadSound (snd_channels[i].sfx)->length;
+		}
 	}
-
-	memset (snd_channels, 0, MAX_CHANNELS * sizeof (channel_t));
 
 	if (clear)
 		S_ClearBuffer ();
@@ -549,7 +554,7 @@ unlock_mutex:
 
 static void S_StopAllSoundsC (void)
 {
-	S_StopAllSounds (true);
+	S_StopAllSounds (true, false);
 }
 
 void S_ClearBuffer (void)
@@ -920,7 +925,7 @@ static void GetSoundtime (void)
 		{ // time to chop things off to avoid 32 bit limits
 			buffers = 0;
 			paintedtime = fullsamples;
-			S_StopAllSounds (true);
+			S_StopAllSounds (true, true);
 		}
 	}
 	oldsamplepos = samplepos;
