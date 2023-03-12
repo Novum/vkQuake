@@ -1978,13 +1978,13 @@ static void M_SoundOptions_Key (int k)
 		S_LocalSound ("misc/menu1.wav");
 		sound_options_cursor--;
 		if (sound_options_cursor < 0)
-			sound_options_cursor = GAME_OPTIONS_ITEMS - 1;
+			sound_options_cursor = SOUND_OPTIONS_ITEMS - 1;
 		break;
 
 	case K_DOWNARROW:
 		S_LocalSound ("misc/menu1.wav");
 		sound_options_cursor++;
-		if (sound_options_cursor >= GAME_OPTIONS_ITEMS)
+		if (sound_options_cursor >= SOUND_OPTIONS_ITEMS)
 			sound_options_cursor = 0;
 		break;
 
