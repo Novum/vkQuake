@@ -998,7 +998,7 @@ void Sky_DrawSky (cb_context_t *cbx)
 	int skypolys = 0;
 	if (indirect)
 	{
-		R_DrawIndirectBrushes (cbx, false, true, -1);
+		R_DrawIndirectBrushes (cbx, false, false, true, -1);
 
 		// Entities cannot use the indirect pipelines
 		vkCmdBindIndexBuffer (cbx->cb, vulkan_globals.fan_index_buffer, 0, VK_INDEX_TYPE_UINT16);
