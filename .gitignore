@@ -1,6 +1,5 @@
 *.suo
 vkquake.VC*
-Misc/vq_pak/vkquake.pak
 Quake/*.dll
 Quake/*.o
 Quake/*.d
@@ -25,6 +24,8 @@ Packaging/AppImage/vkquake*
 Packaging/Windows/vkQuake-Installer-*.exe
 Packaging/Windows/vkQuake*.zip
 Misc/vq_pak/mkpak
+Misc/vq_pak/bintoc
+Misc/vq_pak/*.dSYM
 build/
 .settings
 .project

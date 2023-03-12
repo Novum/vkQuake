@@ -11,13 +11,26 @@ INPUT := gfx/conback.lmp \
 	maps/r2m3@76ec.ent \
 	default.cfg
 
-OUTPUT := vkquake.pak
+OUTPUT_NAME := vkquake.pak
+OUTPUT := ../../Quake/$(OUTPUT_NAME)
+OUTPUT_EMBEDDED := ../../Quake/embedded_pak.c
 
-$(OUTPUT): $(INPUT)
-	cc mkpak.c -o mkpak --std=gnu11 -g && ./mkpak $(OUTPUT) $(INPUT) && zopfli --deflate $(OUTPUT)
+$(OUTPUT_EMBEDDED): bintoc $(OUTPUT) $(OUTPUT).deflate
+	./bintoc $(OUTPUT) $(OUTPUT_NAME) $(OUTPUT_EMBEDDED)
+
+$(OUTPUT).deflate: $(OUTPUT)
+	zopfli --deflate $(OUTPUT)
+
+$(OUTPUT): mkpak $(INPUT)
+	./mkpak $(OUTPUT) $(INPUT)
+
+mkpak: mkpak.c
+	cc mkpak.c -o mkpak --std=gnu11 -g
+
+bintoc: ../../Shaders/bintoc.c
+	cc ../../Shaders/bintoc.c -o bintoc --std=gnu11 -g
 
 .PHONY: clean
 clean:
-	rm -f $(OUTPUT)
 	rm -f mkpak
-
+	rm -f bintoc
