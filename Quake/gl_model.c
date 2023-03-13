@@ -962,7 +962,7 @@ static void Mod_LoadLighting (qmodel_t *mod, byte *mod_base, lump_t *l)
 				if (8 + l->filelen * 3 == com_filesize)
 				{
 					Con_DPrintf2 ("%s loaded\n", litfilename);
-					mod->lightdata = (byte *)Mem_Alloc (l->filelen * 3);
+					mod->lightdata = (byte *)Mem_AllocNonZero (l->filelen * 3);
 					memcpy (mod->lightdata, data + 8, l->filelen * 3);
 					Mem_Free (data);
 					return;
