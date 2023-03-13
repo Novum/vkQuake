@@ -2197,172 +2197,193 @@ static void Host_Give_f (void)
 	t = Cmd_Argv (1);
 	v = atoi (Cmd_Argv (2));
 
-	switch (t[0])
+	if (strcmp (t, "all") == 0)
 	{
-	case '0':
-	case '1':
-	case '2':
-	case '3':
-	case '4':
-	case '5':
-	case '6':
-	case '7':
-	case '8':
-	case '9':
-		// MED 01/04/97 added hipnotic give stuff
-		if (hipnotic)
+		for (int i = 0; i < 9; ++i)
 		{
-			if (t[0] == '6')
-			{
-				if (t[1] == 'a')
-					sv_player->v.items = (int)sv_player->v.items | HIT_PROXIMITY_GUN;
-				else
-					sv_player->v.items = (int)sv_player->v.items | IT_GRENADE_LAUNCHER;
-			}
-			else if (t[0] == '9')
-				sv_player->v.items = (int)sv_player->v.items | HIT_LASER_CANNON;
-			else if (t[0] == '0')
-				sv_player->v.items = (int)sv_player->v.items | HIT_MJOLNIR;
-			else if (t[0] >= '2')
-				sv_player->v.items = (int)sv_player->v.items | (IT_SHOTGUN << (t[0] - '2'));
-		}
-		else
-		{
-			if (t[0] >= '2')
-				sv_player->v.items = (int)sv_player->v.items | (IT_SHOTGUN << (t[0] - '2'));
-		}
-		break;
-
-	case 's':
-		if (rogue)
-		{
-			val = GetEdictFieldValue (sv_player, ED_FindFieldOffset ("ammo_shells1"));
-			if (val)
-				val->_float = v;
-		}
-		sv_player->v.ammo_shells = v;
-		break;
-
-	case 'n':
-		if (rogue)
-		{
-			val = GetEdictFieldValue (sv_player, ED_FindFieldOffset ("ammo_nails1"));
-			if (val)
-			{
-				val->_float = v;
-				if (sv_player->v.weapon <= IT_LIGHTNING)
-					sv_player->v.ammo_nails = v;
-			}
-		}
-		else
-		{
-			sv_player->v.ammo_nails = v;
-		}
-		break;
-
-	case 'l':
-		if (rogue)
-		{
-			val = GetEdictFieldValue (sv_player, ED_FindFieldOffset ("ammo_lava_nails"));
-			if (val)
-			{
-				val->_float = v;
-				if (sv_player->v.weapon > IT_LIGHTNING)
-					sv_player->v.ammo_nails = v;
-			}
-		}
-		break;
-
-	case 'r':
-		if (rogue)
-		{
-			val = GetEdictFieldValue (sv_player, ED_FindFieldOffset ("ammo_rockets1"));
-			if (val)
-			{
-				val->_float = v;
-				if (sv_player->v.weapon <= IT_LIGHTNING)
-					sv_player->v.ammo_rockets = v;
-			}
-		}
-		else
-		{
-			sv_player->v.ammo_rockets = v;
-		}
-		break;
-
-	case 'm':
-		if (rogue)
-		{
-			val = GetEdictFieldValue (sv_player, ED_FindFieldOffset ("ammo_multi_rockets"));
-			if (val)
-			{
-				val->_float = v;
-				if (sv_player->v.weapon > IT_LIGHTNING)
-					sv_player->v.ammo_rockets = v;
-			}
-		}
-		break;
-
-	case 'h':
-		sv_player->v.health = v;
-		break;
-
-	case 'c':
-		if (rogue)
-		{
-			val = GetEdictFieldValue (sv_player, ED_FindFieldOffset ("ammo_cells1"));
-			if (val)
-			{
-				val->_float = v;
-				if (sv_player->v.weapon <= IT_LIGHTNING)
-					sv_player->v.ammo_cells = v;
-			}
-		}
-		else
-		{
-			sv_player->v.ammo_cells = v;
-		}
-		break;
-
-	case 'p':
-		if (rogue)
-		{
-			val = GetEdictFieldValue (sv_player, ED_FindFieldOffset ("ammo_plasma"));
-			if (val)
-			{
-				val->_float = v;
-				if (sv_player->v.weapon > IT_LIGHTNING)
-					sv_player->v.ammo_cells = v;
-			}
-		}
-		break;
-
-	// johnfitz -- give armour
-	case 'a':
-		if (v > 150)
-		{
-			sv_player->v.armortype = 0.8;
-			sv_player->v.armorvalue = v;
+			if (hipnotic)
+				sv_player->v.items = (int)sv_player->v.items | HIT_PROXIMITY_GUN | HIT_LASER_CANNON | HIT_MJOLNIR;
+			for (i = 0; i <= 9; ++i)
+				sv_player->v.items = (int)sv_player->v.items | (IT_SHOTGUN << i);
 			sv_player->v.items = sv_player->v.items - ((int)(sv_player->v.items) & (int)(IT_ARMOR1 | IT_ARMOR2 | IT_ARMOR3)) + IT_ARMOR3;
+			sv_player->v.items = (int)sv_player->v.items | (int)(IT_KEY1 | IT_KEY2);
+			sv_player->v.ammo_shells = 999;
+			sv_player->v.ammo_nails = 999;
+			sv_player->v.ammo_rockets = 999;
+			sv_player->v.ammo_cells = 999;
+			sv_player->v.armortype = 0.8;
+			sv_player->v.armorvalue = 200;
 		}
-		else if (v > 100)
+	}
+	else
+	{
+		switch (t[0])
 		{
-			sv_player->v.armortype = 0.6;
-			sv_player->v.armorvalue = v;
-			sv_player->v.items = sv_player->v.items - ((int)(sv_player->v.items) & (int)(IT_ARMOR1 | IT_ARMOR2 | IT_ARMOR3)) + IT_ARMOR2;
-		}
-		else if (v >= 0)
-		{
-			sv_player->v.armortype = 0.3;
-			sv_player->v.armorvalue = v;
-			sv_player->v.items = sv_player->v.items - ((int)(sv_player->v.items) & (int)(IT_ARMOR1 | IT_ARMOR2 | IT_ARMOR3)) + IT_ARMOR1;
-		}
-		break;
-		// johnfitz
+		case '0':
+		case '1':
+		case '2':
+		case '3':
+		case '4':
+		case '5':
+		case '6':
+		case '7':
+		case '8':
+		case '9':
+			// MED 01/04/97 added hipnotic give stuff
+			if (hipnotic)
+			{
+				if (t[0] == '6')
+				{
+					if (t[1] == 'a')
+						sv_player->v.items = (int)sv_player->v.items | HIT_PROXIMITY_GUN;
+					else
+						sv_player->v.items = (int)sv_player->v.items | IT_GRENADE_LAUNCHER;
+				}
+				else if (t[0] == '9')
+					sv_player->v.items = (int)sv_player->v.items | HIT_LASER_CANNON;
+				else if (t[0] == '0')
+					sv_player->v.items = (int)sv_player->v.items | HIT_MJOLNIR;
+				else if (t[0] >= '2')
+					sv_player->v.items = (int)sv_player->v.items | (IT_SHOTGUN << (t[0] - '2'));
+			}
+			else
+			{
+				if (t[0] >= '2')
+					sv_player->v.items = (int)sv_player->v.items | (IT_SHOTGUN << (t[0] - '2'));
+			}
+			break;
 
-	case 'k':
-		sv_player->v.items = (int)sv_player->v.items | (int)(IT_KEY1 | IT_KEY2);
-		break;
+		case 's':
+			if (rogue)
+			{
+				val = GetEdictFieldValue (sv_player, ED_FindFieldOffset ("ammo_shells1"));
+				if (val)
+					val->_float = v;
+			}
+			sv_player->v.ammo_shells = v;
+			break;
+
+		case 'n':
+			if (rogue)
+			{
+				val = GetEdictFieldValue (sv_player, ED_FindFieldOffset ("ammo_nails1"));
+				if (val)
+				{
+					val->_float = v;
+					if (sv_player->v.weapon <= IT_LIGHTNING)
+						sv_player->v.ammo_nails = v;
+				}
+			}
+			else
+			{
+				sv_player->v.ammo_nails = v;
+			}
+			break;
+
+		case 'l':
+			if (rogue)
+			{
+				val = GetEdictFieldValue (sv_player, ED_FindFieldOffset ("ammo_lava_nails"));
+				if (val)
+				{
+					val->_float = v;
+					if (sv_player->v.weapon > IT_LIGHTNING)
+						sv_player->v.ammo_nails = v;
+				}
+			}
+			break;
+
+		case 'r':
+			if (rogue)
+			{
+				val = GetEdictFieldValue (sv_player, ED_FindFieldOffset ("ammo_rockets1"));
+				if (val)
+				{
+					val->_float = v;
+					if (sv_player->v.weapon <= IT_LIGHTNING)
+						sv_player->v.ammo_rockets = v;
+				}
+			}
+			else
+			{
+				sv_player->v.ammo_rockets = v;
+			}
+			break;
+
+		case 'm':
+			if (rogue)
+			{
+				val = GetEdictFieldValue (sv_player, ED_FindFieldOffset ("ammo_multi_rockets"));
+				if (val)
+				{
+					val->_float = v;
+					if (sv_player->v.weapon > IT_LIGHTNING)
+						sv_player->v.ammo_rockets = v;
+				}
+			}
+			break;
+
+		case 'h':
+			sv_player->v.health = v;
+			break;
+
+		case 'c':
+			if (rogue)
+			{
+				val = GetEdictFieldValue (sv_player, ED_FindFieldOffset ("ammo_cells1"));
+				if (val)
+				{
+					val->_float = v;
+					if (sv_player->v.weapon <= IT_LIGHTNING)
+						sv_player->v.ammo_cells = v;
+				}
+			}
+			else
+			{
+				sv_player->v.ammo_cells = v;
+			}
+			break;
+
+		case 'p':
+			if (rogue)
+			{
+				val = GetEdictFieldValue (sv_player, ED_FindFieldOffset ("ammo_plasma"));
+				if (val)
+				{
+					val->_float = v;
+					if (sv_player->v.weapon > IT_LIGHTNING)
+						sv_player->v.ammo_cells = v;
+				}
+			}
+			break;
+
+		// johnfitz -- give armour
+		case 'a':
+			if (v > 150)
+			{
+				sv_player->v.armortype = 0.8;
+				sv_player->v.armorvalue = v;
+				sv_player->v.items = sv_player->v.items - ((int)(sv_player->v.items) & (int)(IT_ARMOR1 | IT_ARMOR2 | IT_ARMOR3)) + IT_ARMOR3;
+			}
+			else if (v > 100)
+			{
+				sv_player->v.armortype = 0.6;
+				sv_player->v.armorvalue = v;
+				sv_player->v.items = sv_player->v.items - ((int)(sv_player->v.items) & (int)(IT_ARMOR1 | IT_ARMOR2 | IT_ARMOR3)) + IT_ARMOR2;
+			}
+			else if (v >= 0)
+			{
+				sv_player->v.armortype = 0.3;
+				sv_player->v.armorvalue = v;
+				sv_player->v.items = sv_player->v.items - ((int)(sv_player->v.items) & (int)(IT_ARMOR1 | IT_ARMOR2 | IT_ARMOR3)) + IT_ARMOR1;
+			}
+			break;
+			// johnfitz
+
+		case 'k':
+			sv_player->v.items = (int)sv_player->v.items | (int)(IT_KEY1 | IT_KEY2);
+			break;
+		}
 	}
 
 	// johnfitz -- update currentammo to match new ammo (so statusbar updates correctly)
