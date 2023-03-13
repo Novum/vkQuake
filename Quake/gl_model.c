@@ -363,6 +363,9 @@ static void Mod_FreeModelMemory (qmodel_t *mod)
 		mod->used_water_surfs = 0;
 		mod->water_surfs_specials = 0;
 	}
+	else
+		SAFE_FREE (mod->textures);
+
 	if (!isDedicated)
 		TexMgr_FreeTexturesForOwner (mod);
 }
@@ -1223,10 +1226,12 @@ static void Mod_LoadTexinfo (qmodel_t *mod, byte *mod_base, lump_t *l)
 				out->texture = mod->textures[mod->numtextures - 2];
 			out->flags |= TEX_MISSING;
 			missing++;
+			out->tex_idx = -1;
 		}
 		else
 		{
 			out->texture = mod->textures[miptex];
+			out->tex_idx = miptex;
 		}
 		// johnfitz
 	}
@@ -2453,6 +2458,47 @@ static void Mod_LoadLeafsExternal (qmodel_t *mod, FILE *f)
 }
 
 /*
+================
+Mod_CalcSpecialsAndTextures
+================
+*/
+static void Mod_CalcSpecialsAndTextures (qmodel_t *model)
+{
+	qboolean is_submodel = model->name[0] == '*';
+	model->used_specials = 0;
+	TEMP_ALLOC_ZEROED (byte, used_tex, is_submodel ? model->numtextures : 1);
+
+	for (int i = 0; i < model->nummodelsurfaces; i++)
+	{
+		msurface_t *psurf = &model->surfaces[model->firstmodelsurface] + i;
+		model->used_specials |= (SURF_DRAWSKY | SURF_DRAWTURB | SURF_DRAWWATER | SURF_DRAWLAVA | SURF_DRAWSLIME | SURF_DRAWTELE) & psurf->flags;
+		if (is_submodel && psurf->texinfo->tex_idx >= 0)
+			used_tex[psurf->texinfo->tex_idx] = true;
+	}
+
+	if (!is_submodel)
+	{
+		TEMP_FREE (used_tex);
+		return;
+	}
+
+	int total = 0, placed = 0;
+	for (int i = 0; i < model->numtextures; i++)
+		if (used_tex[i])
+			++total;
+
+	texture_t **orig_textures = model->textures;
+	model->textures = (texture_t **)Mem_AllocNonZero (total * sizeof (*model->textures));
+	model->numtextures = total;
+
+	for (int i = 0; placed < total; i++)
+		if (used_tex[i])
+			model->textures[placed++] = orig_textures[i];
+
+	TEMP_FREE (used_tex);
+}
+
+/*
 =================
 Mod_SetupSubmodels
 set up the submodels (FIXME: this is confusing)
@@ -2460,6 +2506,9 @@ set up the submodels (FIXME: this is confusing)
 */
 static void Mod_SetupSubmodels (qmodel_t *mod)
 {
+	texture_t **const orig_textures = mod->textures;
+	int const		  orig_numtextures = mod->numtextures;
+
 	int		  i, j;
 	float	  radius;
 	dmodel_t *bm;
@@ -2505,6 +2554,10 @@ static void Mod_SetupSubmodels (qmodel_t *mod)
 		// johnfitz
 
 		mod->numleafs = bm->visleafs;
+
+		mod->textures = orig_textures;
+		mod->numtextures = orig_numtextures;
+		Mod_CalcSpecialsAndTextures (mod);
 
 		if (i < mod->numsubmodels - 1)
 		{ // duplicate the basic information

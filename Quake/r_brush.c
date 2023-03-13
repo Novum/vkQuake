@@ -272,20 +272,6 @@ static void R_CalcDeps (qmodel_t *model, mleaf_t *leaf)
 
 /*
 ================
-R_CalcSpecials
-================
-*/
-static void R_CalcSpecials (qmodel_t *model)
-{
-	for (int i = 0; i < model->nummodelsurfaces; i++)
-	{
-		msurface_t *psurf = &model->surfaces[model->firstmodelsurface] + i;
-		model->used_specials |= (SURF_DRAWSKY | SURF_DRAWTURB | SURF_DRAWWATER | SURF_DRAWLAVA | SURF_DRAWSLIME | SURF_DRAWTELE) & psurf->flags;
-	}
-}
-
-/*
-================
 R_MarkDeps
 ================
 */
@@ -1751,7 +1737,6 @@ void GL_SetupIndirectDraws ()
 		qmodel_t *m = cl.model_precache[j];
 		if (!m)
 			break;
-		R_CalcSpecials (m);
 		if (m->name[0] == '*')
 			R_CalcDeps (m, NULL);
 	}
