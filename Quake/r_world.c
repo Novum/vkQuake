@@ -563,11 +563,58 @@ void R_ChainVisSurfaces (qboolean *use_tasks)
 
 /*
 ===============
-R_ChainVisSurfaces_Water
+R_GetTransparentWaterTypes
 ===============
 */
-static void R_ChainVisSurfaces_Water ()
+static int R_GetTransparentWaterTypes ()
 {
+	int types = 0;
+	if ((map_lavaalpha > 0 ? map_lavaalpha : map_fallbackalpha) != 1)
+		types |= SURF_DRAWLAVA;
+	if ((map_telealpha > 0 ? map_telealpha : map_fallbackalpha) != 1)
+		types |= SURF_DRAWTELE;
+	if ((map_slimealpha > 0 ? map_slimealpha : map_fallbackalpha) != 1)
+		types |= SURF_DRAWSLIME;
+	if (map_wateralpha != 1)
+		types |= SURF_DRAWWATER;
+	return types;
+}
+
+/*
+===============
+R_PrepareTransparentWaterSurfList
+===============
+*/
+static void R_PrepareTransparentWaterSurfList ()
+{
+	int types = R_GetTransparentWaterTypes ();
+	if (cl.worldmodel->water_surfs_specials != types)
+	{
+		if (!cl.worldmodel->water_surfs)
+			cl.worldmodel->water_surfs = Mem_Realloc (cl.worldmodel->water_surfs, 8192 * sizeof (int));
+		cl.worldmodel->used_water_surfs = 0;
+
+		for (int i = 0; i < cl.worldmodel->numsurfaces; i++)
+			if (cl.worldmodel->surfaces[i].flags & types)
+			{
+				if (cl.worldmodel->used_water_surfs >= 8192 && !(cl.worldmodel->used_water_surfs & (cl.worldmodel->used_water_surfs - 1)))
+					cl.worldmodel->water_surfs = Mem_Realloc (cl.worldmodel->water_surfs, cl.worldmodel->used_water_surfs * 2 * sizeof (int));
+				cl.worldmodel->water_surfs[cl.worldmodel->used_water_surfs] = i;
+				++cl.worldmodel->used_water_surfs;
+			}
+
+		cl.worldmodel->water_surfs_specials = types;
+	}
+}
+
+/*
+===============
+R_ChainVisSurfaces_TransparentWater
+===============
+*/
+static void R_ChainVisSurfaces_TransparentWater ()
+{
+	R_PrepareTransparentWaterSurfList ();
 	uint32_t *surfvis = (uint32_t *)cl.worldmodel->surfvis;
 	for (int i = 0; i < cl.worldmodel->used_water_surfs; i++)
 	{
@@ -1047,7 +1094,7 @@ void R_DrawTextureChains_ShowTris (cb_context_t *cbx, qmodel_t *model, texchain_
 R_DrawTextureChains_Water -- johnfitz
 ================
 */
-void R_DrawTextureChains_Water (cb_context_t *cbx, qmodel_t *model, entity_t *ent, texchain_t chain)
+void R_DrawTextureChains_Water (cb_context_t *cbx, qmodel_t *model, entity_t *ent, texchain_t chain, qboolean opaque_only, qboolean transparent_only)
 {
 	int			i;
 	msurface_t *s;
@@ -1073,42 +1120,34 @@ void R_DrawTextureChains_Water (cb_context_t *cbx, qmodel_t *model, entity_t *en
 		gltexture_t *lightmap_texture = NULL;
 		R_ClearBatch (cbx);
 
-		int	  lastlightmap = -2; // avoid compiler warning
-		float last_alpha = 0.0f;
-		float alpha = 0.0f;
+		int			   lastlightmap = -2;
+		const float	   alpha = GL_WaterAlphaForEntitySurface (ent, t->texturechains[chain]);
+		const qboolean alpha_blend = alpha < 1.0f;
+
+		if (((opaque_only && alpha_blend) || (transparent_only && !alpha_blend)) && (!r_lightmap_cheatsafe || !indirect))
+			continue;
 
 		gltexture_t *gl_texture = t->warpimage;
 		if (!r_lightmap_cheatsafe)
 			vulkan_globals.vk_cmd_bind_descriptor_sets (
 				cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 0, 1, &gl_texture->descriptor_set, 0, NULL);
 
+		if (model != cl.worldmodel)
+			Atomic_StoreUInt32 (&t->update_warp, true); // FIXME: races against UpdateWarpTextures task, bmodel-only warps may end up updating at half frequency
+
 		for (s = t->texturechains[chain]; s; s = s->texturechains[chain])
 		{
-			if (model != cl.worldmodel)
-			{
-				// ericw -- this is copied from R_DrawSequentialPoly.
-				// If the poly is not part of the world we have to
-				// set this flag
-				Atomic_StoreUInt32 (&t->update_warp, true); // FIXME: one frame too late!
-			}
-
-			alpha = GL_WaterAlphaForEntitySurface (ent, s);
-			const qboolean alpha_blend = alpha < 1.0f;
-
-			if ((s->lightmaptexturenum != lastlightmap) || (last_alpha != alpha))
+			if (s->lightmaptexturenum != lastlightmap)
 			{
 				if (alpha_blend)
 					R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 20 * sizeof (float), 1 * sizeof (float), &alpha);
 				R_FlushBatch (cbx, false, false, alpha_blend, false, lightmap_texture, &brushpasses);
 				lightmap_texture = (s->lightmaptexturenum >= 0) ? lightmaps[s->lightmaptexturenum].texture : greylightmap;
-				last_alpha = alpha;
+				lastlightmap = s->lightmaptexturenum;
 			}
-
-			lastlightmap = s->lightmaptexturenum;
 			R_BatchSurface (cbx, s, false, false, alpha_blend, false, lightmap_texture, &brushpasses);
 		}
 
-		const qboolean alpha_blend = alpha < 1.0f;
 		if (alpha_blend)
 			R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 20 * sizeof (float), 1 * sizeof (float), &alpha);
 		R_FlushBatch (cbx, false, false, alpha_blend, false, lightmap_texture, &brushpasses);
@@ -1237,24 +1276,24 @@ void R_DrawWorld (cb_context_t *cbx, int index)
 R_DrawWorld_Water -- ericw -- moved from R_DrawTextureChains_Water, which is no longer specific to the world.
 =============
 */
-void R_DrawWorld_Water (cb_context_t *cbx)
+void R_DrawWorld_Water (cb_context_t *cbx, qboolean transparent)
 {
 	if (!r_drawworld_cheatsafe)
 		return;
 
-	R_BeginDebugUtilsLabel (cbx, "Water");
+	R_BeginDebugUtilsLabel (cbx, transparent ? "Transparent World Water" : "Opaque World Water");
 	if (indirect)
 	{
-		if (WATER_FIXED_ORDER)
+		if (WATER_FIXED_ORDER && transparent)
 		{
-			R_ChainVisSurfaces_Water ();
-			R_DrawTextureChains_Water (cbx, cl.worldmodel, NULL, chain_world);
+			R_ChainVisSurfaces_TransparentWater ();
+			R_DrawTextureChains_Water (cbx, cl.worldmodel, NULL, chain_world, false, true);
 		}
 		else
-			R_DrawIndirectBrushes (cbx, true, false, -1);
+			R_DrawIndirectBrushes (cbx, true, transparent, false, -1);
 	}
 	else
-		R_DrawTextureChains_Water (cbx, cl.worldmodel, NULL, chain_world);
+		R_DrawTextureChains_Water (cbx, cl.worldmodel, NULL, chain_world, !transparent, transparent);
 	R_EndDebugUtilsLabel (cbx);
 }
 

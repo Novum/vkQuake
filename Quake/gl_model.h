@@ -539,8 +539,9 @@ typedef struct qmodel_s
 	int combined_deps; // contains index into brush_deps_data[] with used warp and lightmap textures
 	int used_specials; // contains SURF_DRAWSKY, SURF_DRAWTURB, SURF_DRAWWATER, SURF_DRAWLAVA, SURF_DRAWSLIME, SURF_DRAWTELE flags if used by any surf
 
-	int *water_surfs; // list of surface indices with SURF_DRAWTURB flag (worldmodel only)
+	int *water_surfs; // worldmodel only: list of surface indices with SURF_DRAWTURB flag of transparent types
 	int	 used_water_surfs;
+	int	 water_surfs_specials; // which surfaces are in water_surfs (SURF_DRAWWATER, SURF_DRAWLAVA, SURF_DRAWSLIME, SURF_DRAWTELE) to track transparency changes
 
 	//
 	// additional model data
