@@ -37,6 +37,7 @@ extern cvar_t vid_filter;
 extern cvar_t vid_palettize;
 
 cvar_t r_parallelmark = {"r_parallelmark", "1", CVAR_NONE};
+cvar_t r_sortworldwater = {"r_sortworldwater", "1", CVAR_NONE};
 
 byte *SV_FatPVS (vec3_t org, qmodel_t *worldmodel);
 
@@ -612,10 +613,9 @@ static void R_PrepareTransparentWaterSurfList ()
 R_ChainVisSurfaces_TransparentWater
 ===============
 */
-#define SORTED_WORLD_WATER 1
 static void R_ChainVisSurfaces_TransparentWater ()
 {
-	if (SORTED_WORLD_WATER)
+	if (r_sortworldwater.value)
 	{
 		int dummy = 0;
 		// FIXME use visibility information (vised, frustum-culled surfvis[])
