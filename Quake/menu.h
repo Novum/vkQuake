@@ -53,6 +53,8 @@ extern enum m_state_e m_return_state;
 
 extern qboolean m_entersound;
 
+extern qboolean m_is_quitting;
+
 //
 // menus
 //
