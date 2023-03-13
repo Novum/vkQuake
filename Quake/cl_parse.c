@@ -877,9 +877,6 @@ static void CL_ParseServerInfo (void)
 	//
 	CL_ClearState ();
 
-	if (sv.loadgame)
-		V_StopPitchDrift ();
-
 	// parse protocol version number
 	for (;;)
 	{

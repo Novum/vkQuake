@@ -139,108 +139,6 @@ float V_CalcBob (void)
 	return bob;
 }
 
-//=============================================================================
-
-cvar_t v_centermove = {"v_centermove", "0.15", CVAR_NONE};
-cvar_t v_centerspeed = {"v_centerspeed", "500", CVAR_NONE};
-
-void V_StartPitchDrift (void)
-{
-#if 1
-	if (cl.laststop == cl.time)
-	{
-		return; // something else is keeping it from drifting
-	}
-#endif
-	if (cl.nodrift || !cl.pitchvel)
-	{
-		cl.pitchvel = v_centerspeed.value;
-		cl.nodrift = false;
-		cl.driftmove = 0;
-	}
-}
-
-void V_StopPitchDrift (void)
-{
-	cl.laststop = cl.time;
-	cl.nodrift = true;
-	cl.pitchvel = 0;
-}
-
-/*
-===============
-V_DriftPitch
-
-Moves the client pitch angle towards cl.idealpitch sent by the server.
-
-If the user is adjusting pitch manually, either with lookup/lookdown,
-mlook and mouse, or klook and keyboard, pitch drifting is constantly stopped.
-
-Drifting is enabled when the center view key is hit, mlook is released and
-lookspring is non 0, or when
-===============
-*/
-void V_DriftPitch (void)
-{
-	float delta, move;
-
-	if (noclip_anglehack || !cl.onground || cls.demoplayback || CL_AngleLocked ())
-	// FIXME: noclip_anglehack is set on the server, so in a nonlocal game this won't work.
-	{
-		cl.driftmove = 0;
-		cl.pitchvel = 0;
-		return;
-	}
-
-	// don't count small mouse motion
-	if (cl.nodrift)
-	{
-		if (fabs (cl.movecmds[(cl.movemessages - 1) & MOVECMDS_MASK].forwardmove) < cl_forwardspeed.value)
-			cl.driftmove = 0;
-		else
-			cl.driftmove += host_frametime;
-
-		if (cl.driftmove > v_centermove.value)
-		{
-			if (lookspring.value)
-				V_StartPitchDrift ();
-		}
-		return;
-	}
-
-	delta = cl.statsf[STAT_IDEALPITCH] - cl.viewangles[PITCH];
-
-	if (!delta)
-	{
-		cl.pitchvel = 0;
-		return;
-	}
-
-	move = host_frametime * cl.pitchvel;
-	cl.pitchvel += host_frametime * v_centerspeed.value;
-
-	// Con_Printf ("move: %f (%f)\n", move, host_frametime);
-
-	if (delta > 0)
-	{
-		if (move > delta)
-		{
-			cl.pitchvel = 0;
-			move = delta;
-		}
-		cl.viewangles[PITCH] += move;
-	}
-	else if (delta < 0)
-	{
-		if (move > -delta)
-		{
-			cl.pitchvel = 0;
-			move = -delta;
-		}
-		cl.viewangles[PITCH] -= move;
-	}
-}
-
 /*
 ==============================================================================
 
@@ -712,8 +610,6 @@ void V_CalcRefdef (void)
 	static vec3_t punch = {0, 0, 0}; // johnfitz -- v_gunkick
 	float		  delta;			 // johnfitz -- v_gunkick
 
-	V_DriftPitch ();
-
 	// ent is the player model (visible when out of body)
 	ent = &cl.entities[cl.viewentity];
 	// view is the weapon model (only visible from inside body)
@@ -913,10 +809,6 @@ void V_Init (void)
 {
 	Cmd_AddCommand ("v_cshift", V_cshift_f);
 	Cmd_AddCommand ("bf", V_BonusFlash_f);
-	Cmd_AddCommand ("centerview", V_StartPitchDrift);
-
-	Cvar_RegisterVariable (&v_centermove);
-	Cvar_RegisterVariable (&v_centerspeed);
 
 	Cvar_RegisterVariable (&v_iyaw_cycle);
 	Cvar_RegisterVariable (&v_iroll_cycle);

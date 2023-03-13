@@ -1338,9 +1338,6 @@ enum
 	GAME_OPT_SHOWGUN,
 	GAME_OPT_ALWAYRUN,
 	GAME_OPT_INVMOUSE,
-	GAME_OPT_ALWAYSMLOOK,
-	GAME_OPT_LOOKSPRING,
-	GAME_OPT_LOOKSTRAFE,
 	GAME_OPT_HUD_DETAIL,
 	GAME_OPT_HUD_STYLE,
 	GAME_OPT_CROSSHAIR,
@@ -1428,18 +1425,6 @@ static void M_GameOptions_AdjustSliders (int dir, qboolean mouse)
 		break;
 	case GAME_OPT_INVMOUSE:
 		Cvar_SetValue ("m_pitch", -m_pitch.value);
-		break;
-	case GAME_OPT_ALWAYSMLOOK:
-		if (in_mlook.state & 1)
-			Cbuf_AddText ("-mlook");
-		else
-			Cbuf_AddText ("+mlook");
-		break;
-	case GAME_OPT_LOOKSPRING:
-		Cvar_Set ("lookspring", lookspring.value ? "0" : "1");
-		break;
-	case GAME_OPT_LOOKSTRAFE:
-		Cvar_Set ("lookstrafe", lookstrafe.value ? "0" : "1");
 		break;
 	case GAME_OPT_CROSSHAIR:
 		Cvar_SetValue ("crosshair", ((int)crosshair.value + 3 + dir) % 3);
@@ -1564,21 +1549,6 @@ static void M_GameOptions_Draw (cb_context_t *cbx)
 		case GAME_OPT_INVMOUSE:
 			M_Print (cbx, MENU_LABEL_X, y, "Invert Mouse");
 			M_DrawCheckbox (cbx, MENU_VALUE_X, y, m_pitch.value < 0);
-			break;
-
-		case GAME_OPT_ALWAYSMLOOK:
-			M_Print (cbx, MENU_LABEL_X, y, "Mouse Look");
-			M_DrawCheckbox (cbx, MENU_VALUE_X, y, in_mlook.state & 1);
-			break;
-
-		case GAME_OPT_LOOKSPRING:
-			M_Print (cbx, MENU_LABEL_X, y, "Lookspring");
-			M_DrawCheckbox (cbx, MENU_VALUE_X, y, lookspring.value);
-			break;
-
-		case GAME_OPT_LOOKSTRAFE:
-			M_Print (cbx, MENU_LABEL_X, y, "Lookstrafe");
-			M_DrawCheckbox (cbx, MENU_VALUE_X, y, lookstrafe.value);
 			break;
 
 		case GAME_OPT_HUD_DETAIL:
@@ -2205,16 +2175,28 @@ void M_Options_Key (int k)
 /* KEYS MENU */
 
 const char *bindnames[][2] = {
-	{"+attack", "Attack"},			{"impulse 10", "Next weapon"},	{"impulse 12", "Prev weapon"},
-	{"+jump", "Jump / Swim up"},	{"+forward", "Walk forward"},	{"+back", "Backpedal"},
-	{"+left", "Turn left"},			{"+right", "Turn right"},		{"+speed", "Run"},
-	{"+moveleft", "Step left"},		{"+moveright", "Step right"},	{"+strafe", "Sidestep"},
-	{"+lookup", "Look up"},			{"+lookdown", "Look down"},		{"centerview", "Center view"},
-	{"+mlook", "Mouse look"},		{"+klook", "Keyboard look"},	{"+zoom", "Quick zoom"},
-	{"+moveup", "Swim up"},			{"+movedown", "Swim down"},		{"+showscores", "Show Scores"},
-	{"impulse 1", "Axe"},			{"impulse 2", "Shotgun"},		{"impulse 3", "Super Shotgun"},
-	{"impulse 4", "Nailgun"},		{"impulse 5", "Super Nailgun"}, {"impulse 6", "Grenade Lnchr."},
-	{"impulse 7", "Rocket Lnchr."}, {"impulse 8", "Thunderbolt"},	{"toggleconsole", "Toggle console"},
+	{"+forward", "Move Forward"},
+	{"+back", "Move Backward"},
+	{"+moveleft", "Strafe Left"},
+	{"+moveright", "Strafe Right"},
+	{"+jump", "Jump / Swim up"},
+	{"+attack", "Attack"},
+	{"+speed", "Run"},
+	{"+zoom", "Quick zoom"},
+	{"+moveup", "Swim up"},
+	{"+movedown", "Swim down"},
+	{"+showscores", "Show Scores"},
+	{"impulse 10", "Next weapon"},
+	{"impulse 12", "Prev weapon"},
+	{"impulse 1", "Axe"},
+	{"impulse 2", "Shotgun"},
+	{"impulse 3", "Super Shotgun"},
+	{"impulse 4", "Nailgun"},
+	{"impulse 5", "Super Nailgun"},
+	{"impulse 6", "Grenade Lnchr."},
+	{"impulse 7", "Rocket Lnchr."},
+	{"impulse 8", "Thunderbolt"},
+	{"toggleconsole", "Toggle console"},
 };
 
 #define NUMCOMMANDS (sizeof (bindnames) / sizeof (bindnames[0]))

@@ -368,8 +368,6 @@ void Host_WriteConfiguration (void)
 
 		// johnfitz -- extra commands to preserve state
 		fprintf (f, "vid_restart\n");
-		if (in_mlook.state & 1)
-			fprintf (f, "+mlook\n");
 		// johnfitz
 
 		fclose (f);

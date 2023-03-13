@@ -50,10 +50,9 @@ state bit 2 is edge triggered on the down to up transition
 ===============================================================================
 */
 
-kbutton_t in_mlook, in_klook;
 kbutton_t in_left, in_right, in_forward, in_back;
 kbutton_t in_lookup, in_lookdown, in_moveleft, in_moveright;
-kbutton_t in_strafe, in_speed, in_use, in_jump, in_attack;
+kbutton_t in_speed, in_use, in_jump, in_attack;
 kbutton_t in_up, in_down;
 
 int in_impulse;
@@ -117,24 +116,6 @@ void KeyUp (kbutton_t *b)
 	b->state |= 4;	// impulse up
 }
 
-void IN_KLookDown (void)
-{
-	KeyDown (&in_klook);
-}
-void IN_KLookUp (void)
-{
-	KeyUp (&in_klook);
-}
-void IN_MLookDown (void)
-{
-	KeyDown (&in_mlook);
-}
-void IN_MLookUp (void)
-{
-	KeyUp (&in_mlook);
-	if (!(in_mlook.state & 1) && lookspring.value)
-		V_StartPitchDrift ();
-}
 void IN_UpDown (void)
 {
 	KeyDown (&in_up);
@@ -223,14 +204,6 @@ void IN_SpeedDown (void)
 void IN_SpeedUp (void)
 {
 	KeyUp (&in_speed);
-}
-void IN_StrafeDown (void)
-{
-	KeyDown (&in_strafe);
-}
-void IN_StrafeUp (void)
-{
-	KeyUp (&in_strafe);
 }
 
 void IN_AttackDown (void)
@@ -366,27 +339,11 @@ void CL_AdjustAngles (void)
 	else
 		speed = host_frametime;
 
-	if (!(in_strafe.state & 1))
-	{
-		cl.viewangles[YAW] -= speed * cl_yawspeed.value * CL_KeyState (&in_right);
-		cl.viewangles[YAW] += speed * cl_yawspeed.value * CL_KeyState (&in_left);
-		cl.viewangles[YAW] = anglemod (cl.viewangles[YAW]);
-	}
-	if (in_klook.state & 1)
-	{
-		V_StopPitchDrift ();
-		cl.viewangles[PITCH] -= speed * cl_pitchspeed.value * CL_KeyState (&in_forward);
-		cl.viewangles[PITCH] += speed * cl_pitchspeed.value * CL_KeyState (&in_back);
-	}
-
 	up = CL_KeyState (&in_lookup);
 	down = CL_KeyState (&in_lookdown);
 
 	cl.viewangles[PITCH] -= speed * cl_pitchspeed.value * up;
 	cl.viewangles[PITCH] += speed * cl_pitchspeed.value * down;
-
-	if (up || down)
-		V_StopPitchDrift ();
 
 	// johnfitz -- variable pitch clamping
 	if (cl.viewangles[PITCH] > cl_maxpitch.value)
@@ -417,23 +374,14 @@ void CL_BaseMove (usercmd_t *cmd)
 	if (cls.signon != SIGNONS)
 		return;
 
-	if (in_strafe.state & 1)
-	{
-		cmd->sidemove += cl_sidespeed.value * CL_KeyState (&in_right);
-		cmd->sidemove -= cl_sidespeed.value * CL_KeyState (&in_left);
-	}
-
 	cmd->sidemove += cl_sidespeed.value * CL_KeyState (&in_moveright);
 	cmd->sidemove -= cl_sidespeed.value * CL_KeyState (&in_moveleft);
 
 	cmd->upmove += cl_upspeed.value * CL_KeyState (&in_up);
 	cmd->upmove -= cl_upspeed.value * CL_KeyState (&in_down);
 
-	if (!(in_klook.state & 1))
-	{
-		cmd->forwardmove += cl_forwardspeed.value * CL_KeyState (&in_forward);
-		cmd->forwardmove -= cl_backspeed.value * CL_KeyState (&in_back);
-	}
+	cmd->forwardmove += cl_forwardspeed.value * CL_KeyState (&in_forward);
+	cmd->forwardmove -= cl_backspeed.value * CL_KeyState (&in_back);
 
 	//
 	// adjust for speed key
@@ -582,8 +530,6 @@ void CL_InitInput (void)
 	Cmd_AddCommand ("-lookup", IN_LookupUp);
 	Cmd_AddCommand ("+lookdown", IN_LookdownDown);
 	Cmd_AddCommand ("-lookdown", IN_LookdownUp);
-	Cmd_AddCommand ("+strafe", IN_StrafeDown);
-	Cmd_AddCommand ("-strafe", IN_StrafeUp);
 	Cmd_AddCommand ("+moveleft", IN_MoveleftDown);
 	Cmd_AddCommand ("-moveleft", IN_MoveleftUp);
 	Cmd_AddCommand ("+moveright", IN_MoverightDown);
@@ -597,8 +543,4 @@ void CL_InitInput (void)
 	Cmd_AddCommand ("+jump", IN_JumpDown);
 	Cmd_AddCommand ("-jump", IN_JumpUp);
 	Cmd_AddCommand ("impulse", IN_Impulse);
-	Cmd_AddCommand ("+klook", IN_KLookDown);
-	Cmd_AddCommand ("-klook", IN_KLookUp);
-	Cmd_AddCommand ("+mlook", IN_MLookDown);
-	Cmd_AddCommand ("-mlook", IN_MLookUp);
 }
