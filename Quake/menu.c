@@ -80,6 +80,8 @@ qboolean m_entersound; // play after drawing a frame, so caching
 					   // won't disrupt the sound
 qboolean m_recursiveDraw;
 
+qboolean m_is_quitting = false; // prevents SDL_StartTextInput during quit
+
 enum m_state_e m_return_state;
 qboolean	   m_return_onerror;
 char		   m_return_reason[32];
@@ -2560,6 +2562,7 @@ static void M_Quit_Char (int key)
 
 	case 'y':
 	case 'Y':
+		m_is_quitting = true;
 		IN_Deactivate (true);
 		key_dest = key_console;
 		Cbuf_InsertText ("quit");
@@ -3576,6 +3579,7 @@ void M_Draw (cb_context_t *cbx)
 		if (!fitzmode)
 		{ /* QuakeSpasm customization: */
 			/* Quit now! S.A. */
+			m_is_quitting = true;
 			key_dest = key_console;
 			Cbuf_InsertText ("quit");
 		}

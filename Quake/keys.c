@@ -1208,6 +1208,11 @@ qboolean Key_TextEntry (void)
 		return false;
 	}
 
+	// key_dest == key_console for a moment while quitting. Don't let that
+	// cause SDL_StartTextInput.
+	if (m_is_quitting)
+		return false;
+
 	switch (key_dest)
 	{
 	case key_message:
