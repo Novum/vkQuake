@@ -941,7 +941,8 @@ void IN_SendKeyEvents (void)
 			// are based on key position, not the label on the key cap.
 			key = IN_SDL2_ScancodeToQuakeKey (event.key.keysym.scancode);
 
-			Key_Event (key, down);
+			// though we also pass along the key using the proper current layout for Y/N prompts
+			Key_EventWithKeycode (key, down, event.key.keysym.sym);
 			break;
 
 		case SDL_MOUSEBUTTONDOWN:
