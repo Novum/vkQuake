@@ -37,6 +37,7 @@ extern cvar_t vid_filter;
 extern cvar_t vid_palettize;
 
 cvar_t r_parallelmark = {"r_parallelmark", "1", CVAR_NONE};
+cvar_t r_sortworldwater = {"r_sortworldwater", "1", CVAR_NONE};
 
 byte *SV_FatPVS (vec3_t org, qmodel_t *worldmodel);
 
@@ -701,13 +702,22 @@ R_ChainVisSurfaces_TransparentWater
 */
 static void R_ChainVisSurfaces_TransparentWater ()
 {
-	R_PrepareTransparentWaterSurfList ();
-	uint32_t *surfvis = (uint32_t *)cl.worldmodel->surfvis;
-	for (int i = 0; i < cl.worldmodel->used_water_surfs; i++)
+	if (r_sortworldwater.value)
 	{
-		int j = cl.worldmodel->water_surfs[i];
-		if (surfvis[j / 32] & 1 << j % 32 && !R_BackFaceCull (&cl.worldmodel->surfaces[j]))
-			R_ChainSurface (&cl.worldmodel->surfaces[j], chain_world);
+		int dummy = 0;
+		// FIXME use visibility information (vised, frustum-culled surfvis[])
+		R_RecursiveNode (cl.worldmodel->nodes, cl.worldmodel, r_refdef.vieworg, chain_world, &dummy, &dummy, Tasks_GetWorkerIndex (), true);
+	}
+	else
+	{
+		R_PrepareTransparentWaterSurfList ();
+		uint32_t *surfvis = (uint32_t *)cl.worldmodel->surfvis;
+		for (int i = 0; i < cl.worldmodel->used_water_surfs; i++)
+		{
+			int j = cl.worldmodel->water_surfs[i];
+			if (surfvis[j / 32] & 1 << j % 32 && !R_BackFaceCull (&cl.worldmodel->surfaces[j]))
+				R_ChainSurface (&cl.worldmodel->surfaces[j], chain_world);
+		}
 	}
 }
 

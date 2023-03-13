@@ -2527,6 +2527,29 @@ static void Mod_MakeHull0 (qmodel_t *mod)
 
 /*
 =================
+Mod_MarkWaterNodes
+=================
+*/
+static qboolean Mod_MarkWaterNodes (qmodel_t *model, mnode_t *node)
+{
+	if (node->contents < 0)
+		return false;
+	msurface_t *surf = model->surfaces + node->firstsurface;
+	for (int i = node->numsurfaces; i > 0; --i, surf++)
+		if (surf->flags & SURF_DRAWTURB)
+		{
+			node->has_water = 1;
+			break;
+		}
+	int c1 = Mod_MarkWaterNodes (model, node->children[0]);
+	int c2 = Mod_MarkWaterNodes (model, node->children[1]);
+	if (c1 || c2)
+		node->has_water |= 2;
+	return node->has_water;
+}
+
+/*
+=================
 Mod_LoadMarksurfaces
 =================
 */
@@ -3141,6 +3164,7 @@ visdone:
 	Mod_LoadClipnodes (mod, mod_base, &header->lumps[LUMP_CLIPNODES], bsp2);
 	Mod_LoadSubmodels (mod, mod_base, &header->lumps[LUMP_MODELS]);
 
+	Mod_MarkWaterNodes (mod, mod->nodes);
 	Mod_MakeHull0 (mod);
 
 	mod->numframes = 2; // regular and alternate animation

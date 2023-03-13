@@ -59,6 +59,7 @@ extern cvar_t r_rtshadows;
 extern cvar_t r_indirect;
 extern cvar_t r_tasks;
 extern cvar_t r_parallelmark;
+extern cvar_t r_sortworldwater;
 extern cvar_t r_usesops;
 
 #if defined(USE_SIMD)
@@ -4339,6 +4340,7 @@ void R_Init (void)
 	Cvar_RegisterVariable (&r_indirect);
 	Cvar_RegisterVariable (&r_tasks);
 	Cvar_RegisterVariable (&r_parallelmark);
+	Cvar_RegisterVariable (&r_sortworldwater);
 	Cvar_RegisterVariable (&r_usesops);
 
 	R_InitParticles ();
