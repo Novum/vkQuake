@@ -1432,11 +1432,11 @@ static void M_GameOptions_AdjustSliders (int dir, qboolean mouse)
 	case GAME_OPT_HUD_DETAIL: // interface detail
 		// cycles through 120 (none), 110 (standard), 100 (full)
 		if (scr_viewsize.value <= 100.0f)
-			Cvar_SetValue ("viewsize", 110.0f);
+			Cvar_SetValue ("viewsize", dir < 0 ? 110.0f : 120.0f);
 		else if (scr_viewsize.value <= 110.0f)
-			Cvar_SetValue ("viewsize", 120.0f);
+			Cvar_SetValue ("viewsize", dir < 0 ? 120.0f : 100.0f);
 		else
-			Cvar_SetValue ("viewsize", 100.0f);
+			Cvar_SetValue ("viewsize", dir < 0 ? 100.0f : 110.0f);
 		break;
 	case GAME_OPT_HUD_STYLE:
 		Cvar_SetValue ("scr_style", ((int)scr_style.value + 3 + dir) % 3);
