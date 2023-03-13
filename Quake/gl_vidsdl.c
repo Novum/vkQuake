@@ -1789,6 +1789,9 @@ GL_UpdateDescriptorSets
 */
 void GL_UpdateDescriptorSets (void)
 {
+	if (!render_resources_created)
+		return;
+
 	GL_WaitForDeviceIdle ();
 
 	if (postprocess_descriptor_set != VK_NULL_HANDLE)
@@ -2232,6 +2235,9 @@ GL_CreateRenderResources
 */
 static void GL_CreateRenderResources (void)
 {
+	if (sv.active && cls.signon < 1) // server has loaded the map but client hasn't called R_NewMap yet - wait until next frame
+		return;
+
 	if (!GL_CreateSwapChain ())
 	{
 		render_resources_created = false;
@@ -2243,9 +2249,10 @@ static void GL_CreateRenderResources (void)
 	GL_CreateRenderPasses ();
 	GL_CreateFrameBuffers ();
 	R_CreatePipelines ();
-	GL_UpdateDescriptorSets ();
 
 	render_resources_created = true;
+
+	GL_UpdateDescriptorSets ();
 }
 
 /*
