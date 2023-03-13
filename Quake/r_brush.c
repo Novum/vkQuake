@@ -408,7 +408,7 @@ R_RecursiveNode
 void R_RecursiveNode (
 	mnode_t *node, qmodel_t *model, vec3_t modelorg, int chain, int *brushpolys, int *surfs_visited, int worker_index, qboolean water_transparent_only)
 {
-	if (node->contents >= 0)
+	if (node->contents >= 0 && (!water_transparent_only || node->has_water))
 	{
 		mplane_t *plane = node->plane;
 		float	  dot = (plane->type < 3 ? modelorg[plane->type] : DotProduct (modelorg, plane->normal)) - plane->dist;

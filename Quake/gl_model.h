@@ -196,6 +196,7 @@ typedef struct mnode_s
 	// node specific
 	unsigned int	firstsurface;
 	unsigned int	numsurfaces;
+	qboolean		has_water;
 	mplane_t	   *plane;
 	struct mnode_s *children[2];
 } mnode_t;
