@@ -1261,6 +1261,11 @@ static void CalcSurfaceExtents (qmodel_t *mod, msurface_t *s)
 
 	tex = s->texinfo;
 
+	const double tex_vecs[2][4] = {
+		{tex->vecs[0][0], tex->vecs[0][1], tex->vecs[0][2], tex->vecs[0][3]},
+		{tex->vecs[1][0], tex->vecs[1][1], tex->vecs[1][2], tex->vecs[1][3]},
+	};
+
 	for (i = 0; i < s->numedges; i++)
 	{
 		e = mod->surfedges[s->firstedge + i];
@@ -1286,8 +1291,8 @@ static void CalcSurfaceExtents (qmodel_t *mod, msurface_t *s)
 			 * and using SSE2 floating-point.  A potential trouble spot
 			 * is the hallway at the beginning of mfxsp17.  -- ericw
 			 */
-			val = ((double)v->position[0] * (double)tex->vecs[j][0]) + ((double)v->position[1] * (double)tex->vecs[j][1]) +
-				  ((double)v->position[2] * (double)tex->vecs[j][2]) + (double)tex->vecs[j][3];
+			val = ((double)v->position[0] * tex_vecs[j][0]) + ((double)v->position[1] * tex_vecs[j][1]) + ((double)v->position[2] * tex_vecs[j][2]) +
+				  tex_vecs[j][3];
 
 			mins[j] = q_min (mins[j], val);
 			maxs[j] = q_max (maxs[j], val);
