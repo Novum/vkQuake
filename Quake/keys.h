@@ -188,6 +188,7 @@ void Key_EndInputGrab (void);
 void Key_GetGrabbedInput (int *lastkey, int *lastchar);
 
 void	 Key_Event (int key, qboolean down);
+void	 Key_EventWithKeycode (int key, qboolean down, int keycode);
 void	 Char_Event (int key);
 qboolean Key_TextEntry (void);
 
