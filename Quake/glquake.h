@@ -566,10 +566,10 @@ void R_DrawWorld (cb_context_t *cbx, int index);
 void R_DrawAliasModel (cb_context_t *cbx, entity_t *e, int *aliaspolys);
 void R_DrawBrushModel (cb_context_t *cbx, entity_t *e, int chain, int *brushpolys, qboolean sort, qboolean water_opaque_only, qboolean water_transparent_only);
 void R_DrawSpriteModel (cb_context_t *cbx, entity_t *e);
-void R_DrawIndirectBrushes (cb_context_t *cbx, qboolean draw_water, qboolean transparent_water, qboolean draw_sky, int index);
+void R_DrawIndirectBrushes (cb_context_t *cbx, qboolean draw_water, qboolean draw_sky, int index);
 void R_DrawIndirectBrushes_ShowTris (cb_context_t *cbx);
 
-void R_DrawTextureChains_Water (cb_context_t *cbx, qmodel_t *model, entity_t *ent, texchain_t chain, qboolean opaque_only, qboolean transparent_only);
+void R_DrawTextureChains_Water (cb_context_t *cbx, qmodel_t *model, entity_t *ent, texchain_t chain);
 
 void GL_BuildLightmaps (void);
 void GL_SetupIndirectDraws (void);
@@ -614,7 +614,7 @@ void		Sky_SetSkyfog (float value);
 void R_ClearTextureChains (qmodel_t *mod, texchain_t chain);
 void R_ChainSurface (msurface_t *surf, texchain_t chain);
 void R_DrawTextureChains (cb_context_t *cbx, qmodel_t *model, entity_t *ent, texchain_t chain);
-void R_DrawWorld_Water (cb_context_t *cbx, qboolean transparent);
+void R_DrawWorld_Water (cb_context_t *cbx);
 
 float GL_WaterAlphaForSurface (msurface_t *fa);
 

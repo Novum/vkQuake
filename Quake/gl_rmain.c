@@ -821,7 +821,7 @@ static void R_DrawWorldTask (int index, void *use_tasks)
 	R_SetupContext (cbx);
 	Fog_EnableGFog (cbx);
 	if (indirect)
-		R_DrawIndirectBrushes (cbx, false, false, false, use_tasks ? index : -1);
+		R_DrawIndirectBrushes (cbx, false, false, use_tasks ? index : -1);
 	else
 		R_DrawWorld (cbx, index);
 }
@@ -836,7 +836,6 @@ static void R_DrawSkyTask (void *unused)
 	cb_context_t *cbx = vulkan_globals.secondary_cb_contexts[SCBX_SKY];
 	R_SetupContext (cbx);
 	Fog_EnableGFog (cbx);
-	R_DrawWorld_Water (cbx, false); // draw opaque water before sky (more likely to occlude)
 	Sky_DrawSky (cbx);
 }
 
@@ -850,7 +849,7 @@ static void R_DrawWaterTask (void *unused)
 	cb_context_t *cbx = vulkan_globals.secondary_cb_contexts[SCBX_WATER];
 	R_SetupContext (cbx);
 	Fog_EnableGFog (cbx);
-	R_DrawWorld_Water (cbx, true); // transparent worldmodel water only
+	R_DrawWorld_Water (cbx);
 }
 
 /*

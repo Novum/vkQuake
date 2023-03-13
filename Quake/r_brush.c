@@ -564,7 +564,7 @@ void R_DrawBrushModel (cb_context_t *cbx, entity_t *e, int chain, int *brushpoly
 
 	R_DrawTextureChains (cbx, clmodel, e, chain);
 	if (clmodel->used_specials & SURF_DRAWTURB)
-		R_DrawTextureChains_Water (cbx, clmodel, e, chain, water_opaque_only, water_transparent_only);
+		R_DrawTextureChains_Water (cbx, clmodel, e, chain);
 	R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 16 * sizeof (float), vulkan_globals.view_projection_matrix);
 }
 
@@ -641,7 +641,7 @@ void R_DrawBrushModel_ShowTris (cb_context_t *cbx, entity_t *e)
 R_DrawIndirectBrushes
 =============
 */
-void R_DrawIndirectBrushes (cb_context_t *cbx, qboolean draw_water, qboolean transparent_water, qboolean draw_sky, int index)
+void R_DrawIndirectBrushes (cb_context_t *cbx, qboolean draw_water, qboolean draw_sky, int index)
 {
 	assert (!draw_water || !draw_sky);
 
@@ -690,6 +690,19 @@ void R_DrawIndirectBrushes (cb_context_t *cbx, qboolean draw_water, qboolean tra
 			lasttexture = gl_texture;
 		}
 
+		qboolean	 fullbright_enabled = false;
+		gltexture_t *fullbright;
+		if (!draw_sky && gl_fullbrights.value && (fullbright = R_TextureAnimation (t, 0)->fullbright) && !r_lightmap_cheatsafe)
+		{
+			fullbright_enabled = true;
+			if (lastfullbright != fullbright)
+			{
+				vulkan_globals.vk_cmd_bind_descriptor_sets (
+					cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 2, 1, &fullbright->descriptor_set, 0, NULL);
+				lastfullbright = fullbright;
+			}
+		}
+
 		float alpha = 1.0f;
 		if (draw_water)
 		{
@@ -702,26 +715,10 @@ void R_DrawIndirectBrushes (cb_context_t *cbx, qboolean draw_water, qboolean tra
 			else
 				alpha = map_wateralpha;
 
-			if ((alpha < 1.0f) != transparent_water)
-				continue;
-
 			if (alpha != last_alpha)
 			{
 				R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 20 * sizeof (float), 1 * sizeof (float), &alpha);
 				last_alpha = alpha;
-			}
-		}
-
-		qboolean	 fullbright_enabled = false;
-		gltexture_t *fullbright;
-		if (!draw_sky && gl_fullbrights.value && (fullbright = R_TextureAnimation (t, 0)->fullbright) && !r_lightmap_cheatsafe)
-		{
-			fullbright_enabled = true;
-			if (lastfullbright != fullbright)
-			{
-				vulkan_globals.vk_cmd_bind_descriptor_sets (
-					cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 2, 1, &fullbright->descriptor_set, 0, NULL);
-				lastfullbright = fullbright;
 			}
 		}
 
@@ -1745,6 +1742,19 @@ void GL_SetupIndirectDraws ()
 
 	for (int i = 0; i < cl.worldmodel->numleafs; i++)
 		R_CalcDeps (NULL, &cl.worldmodel->leafs[i + 1]); // worldmodel->leafs is 1-based
+
+	if (WATER_FIXED_ORDER)
+	{
+		cl.worldmodel->water_surfs = Mem_Alloc (8192 * sizeof (int));
+		for (int i = 0; i < cl.worldmodel->numsurfaces; i++)
+			if (cl.worldmodel->surfaces[i].flags & SURF_DRAWTURB)
+			{
+				if (cl.worldmodel->used_water_surfs >= 8192 && !(cl.worldmodel->used_water_surfs & (cl.worldmodel->used_water_surfs - 1)))
+					cl.worldmodel->water_surfs = Mem_Realloc (cl.worldmodel->water_surfs, cl.worldmodel->used_water_surfs * 2 * sizeof (int));
+				cl.worldmodel->water_surfs[cl.worldmodel->used_water_surfs] = i;
+				++cl.worldmodel->used_water_surfs;
+			}
+	}
 
 	for (int j = 2; j < MAX_MODELS; j++)
 	{
