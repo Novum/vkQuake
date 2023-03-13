@@ -2359,6 +2359,10 @@ static void Host_Give_f (void)
 		}
 		break;
 		// johnfitz
+
+	case 'k':
+		sv_player->v.items = (int)sv_player->v.items | (int)(IT_KEY1 | IT_KEY2);
+		break;
 	}
 
 	// johnfitz -- update currentammo to match new ammo (so statusbar updates correctly)
