@@ -2125,12 +2125,13 @@ static qboolean Mod_MarkWaterNodes (qmodel_t *model, mnode_t *node)
 	for (int i = node->numsurfaces; i > 0; --i, surf++)
 		if (surf->flags & SURF_DRAWTURB)
 		{
-			node->has_water = true;
+			node->has_water = 1;
 			break;
 		}
-	qboolean c1 = Mod_MarkWaterNodes (model, node->children[0]);
-	qboolean c2 = Mod_MarkWaterNodes (model, node->children[1]);
-	node->has_water = node->has_water || c1 || c2;
+	int c1 = Mod_MarkWaterNodes (model, node->children[0]);
+	int c2 = Mod_MarkWaterNodes (model, node->children[1]);
+	if (c1 || c2)
+		node->has_water |= 2;
 	return node->has_water;
 }
 

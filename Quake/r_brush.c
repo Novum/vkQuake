@@ -416,19 +416,22 @@ void R_RecursiveNode (
 		// recurse down the children, front side first (chained surfaces are drawn in reverse order)
 		R_RecursiveNode (node->children[dot < 0], model, modelorg, chain, brushpolys, surfs_visited, worker_index, water_transparent_only);
 
-		msurface_t *surf = model->surfaces + node->firstsurface;
-		for (int i = node->numsurfaces; i > 0; --i, surf++)
-			if ((!water_transparent_only || (surf->flags & SURF_DRAWTURB && GL_WaterAlphaForSurface (surf) != 1)) &&
-				((surf->flags & SURF_PLANEBACK && dot < -BACKFACE_EPSILON) || (!(surf->flags & SURF_PLANEBACK) && dot > BACKFACE_EPSILON)))
-			{
-				R_ChainSurface (surf, chain);
-				++(*brushpolys);
-				if (!r_gpulightmapupdate.value)
-					R_RenderDynamicLightmaps (surf);
-				else if (surf->lightmaptexturenum >= 0)
-					lightmaps[surf->lightmaptexturenum].modified[worker_index] |= surf->styles_bitmap;
-			}
-		*surfs_visited += node->numsurfaces;
+		if (!water_transparent_only || node->has_water & 1)
+		{
+			msurface_t *surf = model->surfaces + node->firstsurface;
+			for (int i = node->numsurfaces; i > 0; --i, surf++)
+				if ((!water_transparent_only || (surf->flags & SURF_DRAWTURB && GL_WaterAlphaForSurface (surf) != 1)) &&
+					((surf->flags & SURF_PLANEBACK && dot < -BACKFACE_EPSILON) || (!(surf->flags & SURF_PLANEBACK) && dot > BACKFACE_EPSILON)))
+				{
+					R_ChainSurface (surf, chain);
+					++(*brushpolys);
+					if (!r_gpulightmapupdate.value)
+						R_RenderDynamicLightmaps (surf);
+					else if (surf->lightmaptexturenum >= 0)
+						lightmaps[surf->lightmaptexturenum].modified[worker_index] |= surf->styles_bitmap;
+				}
+			*surfs_visited += node->numsurfaces;
+		}
 
 		R_RecursiveNode (node->children[dot >= 0], model, modelorg, chain, brushpolys, surfs_visited, worker_index, water_transparent_only);
 	}
