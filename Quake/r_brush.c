@@ -405,7 +405,7 @@ void DrawGLPoly (cb_context_t *cbx, glpoly_t *p, float color[3], float alpha)
 R_RecursiveNode
 ================
 */
-static void R_RecursiveNode (
+void R_RecursiveNode (
 	mnode_t *node, qmodel_t *model, vec3_t modelorg, int chain, int *brushpolys, int *surfs_visited, int worker_index, qboolean water_transparent_only)
 {
 	if (node->contents >= 0)
@@ -418,8 +418,8 @@ static void R_RecursiveNode (
 
 		msurface_t *surf = model->surfaces + node->firstsurface;
 		for (int i = node->numsurfaces; i > 0; --i, surf++)
-			if (((surf->flags & SURF_PLANEBACK && dot < -BACKFACE_EPSILON) || (!(surf->flags & SURF_PLANEBACK) && dot > BACKFACE_EPSILON)) &&
-				(!water_transparent_only || (surf->flags & SURF_DRAWTURB && GL_WaterAlphaForSurface (surf) != 1)))
+			if ((!water_transparent_only || (surf->flags & SURF_DRAWTURB && GL_WaterAlphaForSurface (surf) != 1)) &&
+				((surf->flags & SURF_PLANEBACK && dot < -BACKFACE_EPSILON) || (!(surf->flags & SURF_PLANEBACK) && dot > BACKFACE_EPSILON)))
 			{
 				R_ChainSurface (surf, chain);
 				++(*brushpolys);

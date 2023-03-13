@@ -612,15 +612,25 @@ static void R_PrepareTransparentWaterSurfList ()
 R_ChainVisSurfaces_TransparentWater
 ===============
 */
+#define SORTED_WORLD_WATER 1
 static void R_ChainVisSurfaces_TransparentWater ()
 {
-	R_PrepareTransparentWaterSurfList ();
-	uint32_t *surfvis = (uint32_t *)cl.worldmodel->surfvis;
-	for (int i = 0; i < cl.worldmodel->used_water_surfs; i++)
+	if (SORTED_WORLD_WATER)
 	{
-		int j = cl.worldmodel->water_surfs[i];
-		if (surfvis[j / 32] & 1 << j % 32 && !R_BackFaceCull (&cl.worldmodel->surfaces[j]))
-			R_ChainSurface (&cl.worldmodel->surfaces[j], chain_world);
+		int dummy = 0;
+		// FIXME use visibility information (vised, frustum-culled surfvis[])
+		R_RecursiveNode (cl.worldmodel->nodes, cl.worldmodel, r_refdef.vieworg, chain_world, &dummy, &dummy, Tasks_GetWorkerIndex (), true);
+	}
+	else
+	{
+		R_PrepareTransparentWaterSurfList ();
+		uint32_t *surfvis = (uint32_t *)cl.worldmodel->surfvis;
+		for (int i = 0; i < cl.worldmodel->used_water_surfs; i++)
+		{
+			int j = cl.worldmodel->water_surfs[i];
+			if (surfvis[j / 32] & 1 << j % 32 && !R_BackFaceCull (&cl.worldmodel->surfaces[j]))
+				R_ChainSurface (&cl.worldmodel->surfaces[j], chain_world);
+		}
 	}
 }
 

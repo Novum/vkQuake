@@ -560,6 +560,9 @@ void R_UpdateWarpTextures (void *unused);
 
 void R_MarkDeps (int combined_deps, int worker_index);
 
+void R_RecursiveNode (
+	mnode_t *node, qmodel_t *model, vec3_t modelorg, int chain, int *brushpolys, int *surfs_visited, int worker_index, qboolean water_transparent_only);
+
 qboolean R_IndirectBrush (entity_t *e);
 
 void R_DrawWorld (cb_context_t *cbx, int index);
