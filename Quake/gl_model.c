@@ -1250,7 +1250,7 @@ Fills in s->texturemins[] and s->extents[]
 */
 static void CalcSurfaceExtents (qmodel_t *mod, msurface_t *s)
 {
-	double		mins[2], maxs[2], val;
+	float		mins[2], maxs[2], val;
 	int			i, j, e;
 	mvertex_t  *v;
 	mtexinfo_t *tex;
@@ -1260,10 +1260,6 @@ static void CalcSurfaceExtents (qmodel_t *mod, msurface_t *s)
 	maxs[0] = maxs[1] = -FLT_MAX;
 
 	tex = s->texinfo;
-	const double tex_vecs[2][4] = {
-		{tex->vecs[0][0], tex->vecs[0][1], tex->vecs[0][2], tex->vecs[0][3]},
-		{tex->vecs[1][0], tex->vecs[1][1], tex->vecs[1][2], tex->vecs[1][3]},
-	};
 
 	for (i = 0; i < s->numedges; i++)
 	{
@@ -1290,10 +1286,11 @@ static void CalcSurfaceExtents (qmodel_t *mod, msurface_t *s)
 			 * and using SSE2 floating-point.  A potential trouble spot
 			 * is the hallway at the beginning of mfxsp17.  -- ericw
 			 */
-			val = ((double)v->position[0] * tex_vecs[j][0]) + ((double)v->position[1] * tex_vecs[j][1]) + ((double)v->position[2] * tex_vecs[j][2]) +
-				  tex_vecs[j][3];
-			mins[j] = q_min (val, mins[j]);
-			maxs[j] = q_max (val, maxs[j]);
+			val = ((double)v->position[0] * (double)tex->vecs[j][0]) + ((double)v->position[1] * (double)tex->vecs[j][1]) +
+				  ((double)v->position[2] * (double)tex->vecs[j][2]) + (double)tex->vecs[j][3];
+
+			mins[j] = q_min (mins[j], val);
+			maxs[j] = q_max (maxs[j], val);
 		}
 	}
 
@@ -1302,7 +1299,7 @@ static void CalcSurfaceExtents (qmodel_t *mod, msurface_t *s)
 		bmins[i] = floor (mins[i] / 16);
 		bmaxs[i] = ceil (maxs[i] / 16);
 
-		s->texturemins[i] = bmins[i] * 16.0f;
+		s->texturemins[i] = bmins[i] * 16;
 		s->extents[i] = (bmaxs[i] - bmins[i]) * 16;
 
 		if (!(tex->flags & TEX_SPECIAL) && s->extents[i] > 2000) // johnfitz -- was 512 in glquake, 256 in winquake
