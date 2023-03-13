@@ -1357,6 +1357,17 @@ static void Mod_PolyForUnlitSurface (qmodel_t *mod, msurface_t *fa)
 }
 
 /*
+================
+Mod_CalcSurfaceExtents
+================
+*/
+static void Mod_CalcSurfaceExtentsTask (int surfnum, qmodel_t **mod_ptr)
+{
+	qmodel_t *mod = *mod_ptr;
+	CalcSurfaceExtents (mod, &mod->surfaces[surfnum]);
+}
+
+/*
 =================
 Mod_LoadFaces
 =================
@@ -1455,8 +1466,6 @@ static void Mod_LoadFaces (qmodel_t *mod, byte *mod_base, lump_t *l, qboolean bs
 
 		out->texinfo = mod->texinfo + texinfon;
 
-		CalcSurfaceExtents (mod, out);
-
 		// lighting info
 		if (mod->bspversion == BSPVERSION_QUAKE64)
 			lofs /= 2; // Q64 samples are 16bits instead 8 in normal Quake
@@ -1509,6 +1518,20 @@ static void Mod_LoadFaces (qmodel_t *mod, byte *mod_base, lump_t *l, qboolean bs
 			}
 		}
 		// johnfitz
+	}
+
+	if (!isDedicated)
+	{
+		if (!Tasks_IsWorker () && (count > 1))
+		{
+			task_handle_t task = Task_AllocateAssignIndexedFuncAndSubmit ((task_indexed_func_t)Mod_CalcSurfaceExtentsTask, count, &mod, sizeof (qmodel_t *));
+			Task_Join (task, SDL_MUTEX_MAXWAIT);
+		}
+		else
+		{
+			for (i = 0; i < count; i++)
+				Mod_CalcSurfaceExtentsTask (i, &mod);
+		}
 	}
 }
 
