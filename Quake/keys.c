@@ -1192,9 +1192,10 @@ qboolean Key_TextEntry (void)
 	case key_menu:
 		return M_TextEntry ();
 	case key_game:
-		if (!con_forcedup)
-			return false;
-		/* fallthrough */
+		// Don't return true even during con_forcedup, because that happens while starting a
+		// game and we don't to trigger text input (and the onscreen keyboard on some devices)
+		// during this.
+		return false;
 	case key_console:
 		return true;
 	default:
