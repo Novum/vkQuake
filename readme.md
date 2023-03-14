@@ -7,6 +7,8 @@ Improvements over QuakeSpasm include:
 * Much better performance with multithreaded rendering and loading
 * The game can run at higher frame rates than 72Hz without breaking physics
 * A software Quake like underwater effect
+* Support for remastered models if using data from the 2021 rerelease
+* Dynamic shadows (requires a GPU with ray tracing support)
 * Better color precision reducing banding in dark areas
 * Native support for anti aliasing and anisotropic filtering
 * 8-bit color emulation
