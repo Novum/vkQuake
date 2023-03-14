@@ -368,6 +368,7 @@ void Host_WriteConfiguration (void)
 
 		// johnfitz -- extra commands to preserve state
 		fprintf (f, "vid_restart\n");
+		fprintf (f, "+mlook\n"); // always enable mouse look on config, can be overriden by -mlook in autoexec.cfg
 		// johnfitz
 
 		fclose (f);
