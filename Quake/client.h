@@ -310,6 +310,8 @@ extern cvar_t cl_nolerp;
 extern cvar_t cfg_unbindall;
 
 extern cvar_t cl_pitchdriftspeed;
+extern cvar_t lookspring;
+extern cvar_t lookstrafe;
 extern cvar_t sensitivity;
 extern cvar_t crosshair;
 
@@ -367,6 +369,8 @@ typedef struct
 	int state;	 // low bit is down state
 } kbutton_t;
 
+extern kbutton_t in_mlook, in_klook;
+extern kbutton_t in_strafe;
 extern kbutton_t in_speed;
 
 void	 CL_InitInput (void);
@@ -410,6 +414,9 @@ void CL_NewTranslation (int slot);
 //
 // view
 //
+void V_StartPitchDrift (void);
+void V_StopPitchDrift (void);
+
 void V_ParseDamage (void);
 void V_SetContentsColor (int contents);
 
