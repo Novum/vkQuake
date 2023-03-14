@@ -19,7 +19,7 @@ Improvements over QuakeSpasm include:
 # Installation
 
 ## Windows
-It is recommended to use the installer on Windows. This sets up start menu entries for the original and remastered Quake versions. Save games and config files will be written to the user folder instead of the Quake data folder.
+It is recommended to use the installer on Windows. This sets up start menu entries for the original and remastered Quake versions. Save data and config files will be written to the user folder (`%APPDATA\vkQuake`) instead of the Quake data folder.
 
 Otherwise copy all files inside the `vkquake-<version>_win64` or `vkquake-<version>_win32` folder in the zip to the Quake base directory. Overwrite any existing files. Afterward to run the game just execute `vkQuake.exe`.
 
