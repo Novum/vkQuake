@@ -48,6 +48,8 @@ cvar_t v_kickroll = {"v_kickroll", "0.6", CVAR_NONE};
 cvar_t v_kickpitch = {"v_kickpitch", "0.6", CVAR_NONE};
 cvar_t v_gunkick = {"v_gunkick", "1", CVAR_ARCHIVE}; // johnfitz
 
+cvar_t v_autopitch = {"v_autopitch", "0", CVAR_ARCHIVE};
+
 cvar_t v_iyaw_cycle = {"v_iyaw_cycle", "2", CVAR_NONE};
 cvar_t v_iroll_cycle = {"v_iroll_cycle", "0.5", CVAR_NONE};
 cvar_t v_ipitch_cycle = {"v_ipitch_cycle", "1", CVAR_NONE};
@@ -208,7 +210,10 @@ void V_DriftPitch (void)
 		return;
 	}
 
-	delta = cl.statsf[STAT_IDEALPITCH] - cl.viewangles[PITCH];
+	if (v_autopitch.value)
+		delta = cl.statsf[STAT_IDEALPITCH] - cl.viewangles[PITCH];
+	else
+		delta = -cl.viewangles[PITCH];
 
 	if (!delta)
 	{
@@ -946,6 +951,8 @@ void V_Init (void)
 	Cvar_RegisterVariable (&v_kickroll);
 	Cvar_RegisterVariable (&v_kickpitch);
 	Cvar_RegisterVariable (&v_gunkick); // johnfitz
+
+	Cvar_RegisterVariable (&v_autopitch);
 
 	Cvar_RegisterVariable (&r_viewmodel_quake); // MarkV
 }
