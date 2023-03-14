@@ -4040,17 +4040,17 @@ size_t R_CreateBuffers (
 	VkBufferUsageFlags usage_union = 0;
 
 	qboolean get_device_address = false;
-	if (vulkan_globals.vk_get_buffer_device_address)
+	for (int i = 0; i < num_buffers; ++i)
 	{
-		for (int i = 0; i < num_buffers; ++i)
+		if (vulkan_globals.vk_get_buffer_device_address)
 		{
 			if (create_infos[i].address)
 			{
 				get_device_address = true;
 				create_infos[i].usage |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT_KHR;
 			}
-			usage_union |= create_infos[i].usage;
 		}
+		usage_union |= create_infos[i].usage;
 	}
 
 	qboolean map_memory = false;
