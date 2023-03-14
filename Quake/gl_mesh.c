@@ -167,6 +167,7 @@ void GL_MakeAliasModelDisplayLists (qmodel_t *m, aliashdr_t *paliashdr)
 	hash_map_t *vertex_to_index_map = HashMap_Create (aliasmesh_t, unsigned short, &AliasMeshHash, NULL);
 	HashMap_Reserve (vertex_to_index_map, maxverts_vbo);
 
+	ZEROED_STRUCT (aliasmesh_t, mesh);
 	for (int i = 0; i < paliashdr->numtris; i++)
 	{
 		for (int j = 0; j < 3; j++)
@@ -182,10 +183,9 @@ void GL_MakeAliasModelDisplayLists (qmodel_t *m, aliashdr_t *paliashdr)
 			if (!triangles[i].facesfront && stverts[vertindex].onseam)
 				s += paliashdr->skinwidth / 2;
 
-			const aliasmesh_t mesh = {
-				.st = {s, t},
-				.vertindex = vertindex,
-			};
+			mesh.st[0] = s;
+			mesh.st[1] = t;
+			mesh.vertindex = vertindex;
 
 			// Check if this vert already exists
 			unsigned short	index;
