@@ -992,15 +992,15 @@ void Sky_DrawSky (cb_context_t *cbx)
 		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_stencil_pipeline[indirect]);
 	vkCmdBindIndexBuffer (cbx->cb, vulkan_globals.fan_index_buffer, 0, VK_INDEX_TYPE_UINT16);
 
+	// XXX: re-push mvp to avoid problems with AMD drivers
+	R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 16 * sizeof (float), vulkan_globals.view_projection_matrix);
+
 	//
 	// process world and bmodels: draw flat-shaded sky surfs, and update skybounds
 	//
 	int skypolys = 0;
 	if (indirect)
 	{
-		// XXX: re-push mvp to avoid AMD problems
-		R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 16 * sizeof (float), vulkan_globals.view_projection_matrix);
-
 		R_DrawIndirectBrushes (cbx, false, false, true, -1);
 
 		// Entities cannot use the indirect pipelines
