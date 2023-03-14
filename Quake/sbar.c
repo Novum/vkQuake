@@ -1133,6 +1133,18 @@ static void Sbar_DrawModern (cb_context_t *cbx)
 		}
 	}
 
+	if (scr_viewsize.value < 110.0f)
+	{
+		const int KEY_ICON_X = 284;
+		const int KEY_ICON_Y = 115;
+		// keys
+		for (int i = 0; i < 2; i++)
+		{
+			if (cl.items & (1 << (17 + i)) && (!hipnotic || (i > 1)))
+				Sbar_DrawPic (cbx, KEY_ICON_X, KEY_ICON_Y - (i * 16), sb_items[i]);
+		}
+	}
+
 	GL_SetCanvas (cbx, CANVAS_SBAR);
 	if (sb_showscores || cl.stats[STAT_HEALTH] <= 0)
 	{
