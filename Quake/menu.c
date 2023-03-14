@@ -91,6 +91,7 @@ char		   m_return_reason[32];
 
 static int		m_main_cursor;
 static qboolean m_mouse_moved;
+static qboolean menu_changed;
 static int		m_mouse_x = -1;
 static int		m_mouse_y = -1;
 static int		m_mouse_x_pixels = -1;
@@ -322,7 +323,7 @@ M_MenuChanged
 void M_MenuChanged ()
 {
 	m_entersound = true;
-	m_mouse_x_pixels = -1;
+	menu_changed = true;
 }
 
 #define SLIDER_SIZE	  10
@@ -3452,9 +3453,10 @@ void M_UpdateMouse (void)
 	int new_mouse_x;
 	int new_mouse_y;
 	SDL_GetMouseState (&new_mouse_x, &new_mouse_y);
-	m_mouse_moved = (m_mouse_x_pixels != new_mouse_x) || (m_mouse_y_pixels != new_mouse_y);
+	m_mouse_moved = !menu_changed && ((m_mouse_x_pixels != new_mouse_x) || (m_mouse_y_pixels != new_mouse_y));
 	m_mouse_x_pixels = new_mouse_x;
 	m_mouse_y_pixels = new_mouse_y;
+	menu_changed = false;
 
 	m_mouse_x = new_mouse_x;
 	m_mouse_y = new_mouse_y;
