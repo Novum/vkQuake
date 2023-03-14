@@ -19,7 +19,9 @@ Improvements over QuakeSpasm include:
 # Installation
 
 ## Windows
-Copy all files inside the `vkquake-<version>_win64` or `vkquake-<version>_win32` folder in the zip to the Quake base directory. Overwrite any existing files. Afterward to run the game just execute `vkQuake.exe`.
+It is recommended to use the installer on Windows. This sets up start menu entries for the original and remastered Quake versions. Save games and config files will be written to the user folder instead of the Quake data folder.
+
+Otherwise copy all files inside the `vkquake-<version>_win64` or `vkquake-<version>_win32` folder in the zip to the Quake base directory. Overwrite any existing files. Afterward to run the game just execute `vkQuake.exe`.
 
 ## Linux
 Copy all files inside the `vkquake-<version>-linux64` folder in the tar archive to the Quake base directory. Overwrite any existing files. Run `vkquake.AppImage`.
@@ -148,25 +150,6 @@ make -f Makefile.w64
 ~~~
 
 If you are on Linux and want to cross-compile for Windows, see the `build_cross_win??.sh` scripts.
-
-# Usage
-
-Quake has 4 episodes that are split into 2 files:
-
-* `pak0.pak`: contains episode 1
-* `pak1.pak`: contains episodes 2-4
-
-These files aren't free to distribute, but `pak0.pak` is sufficient to run the game and it's freely available via the
-[shareware version of Quake](https://ftp.gwdg.de/pub/misc/ftp.idsoftware.com/idstuff/quake/). Use [7-Zip](http://7-zip.org/) or a similar file archiver to extract
-`quake106.zip/resource.1/ID1/PAK0.PAK`. Alternatively, if you own the game, you can obtain both .pak files from its install media.
-
-Now locate your vkQuake executable, i.e. `vkQuake.exe` on Windows or `vkquake` on Ubuntu. You need to create an `id1` directory
-next to that and copy `pak0.pak` there, e.g.:
-
-* Windows: `Windows\VisualStudio\Build-vkQuake\x64\Release\id1\pak0.pak`
-* Ubuntu: `Quake\id1\pak0.pak`
-
-Then vkQuake is ready to play.
 
 # Optional - Music / Soundtrack
 
