@@ -998,6 +998,9 @@ void Sky_DrawSky (cb_context_t *cbx)
 	int skypolys = 0;
 	if (indirect)
 	{
+		// XXX: re-push mvp to avoid AMD problems
+		R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 16 * sizeof (float), vulkan_globals.view_projection_matrix);
+
 		R_DrawIndirectBrushes (cbx, false, false, true, -1);
 
 		// Entities cannot use the indirect pipelines
