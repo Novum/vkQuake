@@ -117,6 +117,11 @@ Function QuakeDirectories
 	nsDialogs::Show
 FunctionEnd
 
+Function LeaveQuakeDirectories
+	${NSD_GetText} $RereleaseDirRequest $RereleaseDir
+    ${NSD_GetText} $ClassicDirRequest $ClassicDir
+FunctionEnd
+
 Function un.onInit
 	!insertmacro MULTIUSER_UNINIT
 	!if ${PLATFORM} == x64
@@ -128,7 +133,7 @@ FunctionEnd
 
 !insertmacro MULTIUSER_PAGE_INSTALLMODE
 !insertmacro MUI_PAGE_DIRECTORY
-Page Custom QuakeDirectories
+Page Custom QuakeDirectories LeaveQuakeDirectories
 
 !define MUI_STARTMENUPAGE_REGISTRY_ROOT "HKLM"
 !define MUI_STARTMENUPAGE_REGISTRY_KEY "Software\vkQuake"
