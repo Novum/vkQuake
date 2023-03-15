@@ -2466,7 +2466,7 @@ static void Mod_CalcSpecialsAndTextures (qmodel_t *model)
 {
 	qboolean is_submodel = model->name[0] == '*';
 	model->used_specials = 0;
-	TEMP_ALLOC_ZEROED (byte, used_tex, is_submodel ? model->numtextures : 1);
+	TEMP_ALLOC_ZEROED_COND (byte, used_tex, model->numtextures, is_submodel);
 
 	for (int i = 0; i < model->nummodelsurfaces; i++)
 	{
@@ -2477,10 +2477,7 @@ static void Mod_CalcSpecialsAndTextures (qmodel_t *model)
 	}
 
 	if (!is_submodel)
-	{
-		TEMP_FREE (used_tex);
 		return;
-	}
 
 	int total = 0, placed = 0;
 	for (int i = 0; i < model->numtextures; i++)

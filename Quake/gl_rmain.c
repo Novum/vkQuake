@@ -866,7 +866,7 @@ static void R_SortAlphaEntitiesTask (void *unused)
 		unsigned sortkey;
 	} transp_sort;
 	cl_numvisedicts_alpha_overwater = cl_numvisedicts_alpha_underwater = 0;
-	TEMP_ALLOC (transp_sort, edicts, r_alphasort.value ? cl_numvisedicts * 2 : 1);
+	TEMP_ALLOC_COND (transp_sort, edicts, cl_numvisedicts * 2, r_alphasort.value);
 	int sort_bins[3][128];
 	if (r_alphasort.value)
 		memset (sort_bins, 0, sizeof (sort_bins));
@@ -926,10 +926,7 @@ static void R_SortAlphaEntitiesTask (void *unused)
 	}
 
 	if (!r_alphasort.value)
-	{
-		TEMP_FREE (edicts);
 		return;
-	}
 
 	const int highest = cl_numvisedicts_alpha_underwater + cl_numvisedicts_alpha_overwater - 1;
 	for (int pass = 0; pass < 3; ++pass)
