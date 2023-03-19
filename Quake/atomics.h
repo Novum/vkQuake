@@ -62,6 +62,17 @@ static inline void Atomic_StoreUInt32 (volatile atomic_uint32_t *atomic, uint32_
 	_ReadBarrier ();
 }
 
+static inline qboolean Atomic_CompareExchangeUInt32 (atomic_uint32_t *atomic, uint32_t *expected, uint32_t desired)
+{
+	const uint32_t actual = InterlockedCompareExchange ((volatile LONG *)&atomic->value, desired, *expected);
+	if (actual == *expected)
+	{
+		return true;
+	}
+	*expected = actual;
+	return false;
+}
+
 static inline uint32_t Atomic_AddUInt32 (volatile atomic_uint32_t *atomic, uint32_t value)
 {
 	return InterlockedAdd ((volatile LONG *)&atomic->value, value) - value;
@@ -184,6 +195,11 @@ static inline uint64_t Atomic_LoadUInt64 (atomic_uint64_t *atomic)
 static inline void Atomic_StoreUInt64 (atomic_uint64_t *atomic, uint64_t desired)
 {
 	atomic_store (atomic, desired);
+}
+
+static inline qboolean Atomic_CompareExchangeUInt32 (atomic_uint32_t *atomic, uint32_t *expected, uint32_t desired)
+{
+	return atomic_compare_exchange_weak (atomic, expected, desired);
 }
 
 static inline qboolean Atomic_CompareExchangeUInt64 (atomic_uint64_t *atomic, uint64_t *expected, uint64_t desired)

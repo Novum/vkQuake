@@ -998,6 +998,7 @@ static void Tests_Init ()
 #ifdef _DEBUG
 	Cmd_AddCommand ("test_hash_map", TestHashMap_f);
 	Cmd_AddCommand ("test_gl_heap", GL_HeapTest_f);
+	Cmd_AddCommand ("test_tasks", TestTasks_f);
 #endif
 }
 

@@ -74,8 +74,11 @@ typedef struct
 
 typedef struct
 {
+	atomic_uint32_t head;
+	uint32_t		head_padding[15]; // Pad to 64 byte cache line size
+	atomic_uint32_t tail;
+	uint32_t		tail_padding[15];
 	uint32_t		capacity_mask;
-	atomic_uint64_t state;
 	SDL_sem		   *push_semaphore;
 	SDL_sem		   *pop_semaphore;
 	atomic_uint32_t task_indices[1];
@@ -139,6 +142,23 @@ static inline task_handle_t CreateTaskHandle (uint32_t index, int epoch)
 
 /*
 ====================
+CPUPause
+====================
+*/
+static inline void CPUPause ()
+{
+#if defined(USE_SSE2)
+	// Don't have to actually check for SSE2 support, the
+	// instruction is backwards compatible and executes as a NOP
+	_mm_pause ();
+#elif defined(USE_NEON)
+	// Always available on AArch64
+	asm volatile ("isb" ::);
+#endif
+}
+
+/*
+====================
 SpinWaitSemaphore
 ====================
 */
@@ -148,18 +168,9 @@ static inline void SpinWaitSemaphore (SDL_sem *semaphore)
 	int result = 0;
 	while ((result = SDL_SemTryWait (semaphore)) != 0)
 	{
-#if defined(USE_SSE2)
-		// Don't have to actually check for SSE2 support, the
-		// instruction is backwards compatible and executes as a NOP
-		_mm_pause ();
-#elif defined(USE_NEON)
-		// Always available on AArch64
-		asm volatile ("isb" ::);
-#endif
+		CPUPause ();
 		if (--remaining_spins == 0)
-		{
 			break;
-		}
 	}
 	if (result != 0)
 		SDL_SemWait (semaphore);
@@ -189,62 +200,47 @@ TaskQueuePush
 static inline void TaskQueuePush (task_queue_t *queue, uint32_t task_index)
 {
 	SpinWaitSemaphore (queue->push_semaphore);
-	uint64_t state = Atomic_LoadUInt64 (&queue->state);
-	uint64_t new_state;
-	uint32_t head;
+	uint32_t head = Atomic_LoadUInt32 (&queue->head);
 	qboolean cas_successful = false;
 	do
 	{
-		head = (uint32_t)(state & queue->capacity_mask);
-		const uint32_t tail = (uint32_t)(state >> 32) & queue->capacity_mask;
 		const uint32_t next = (head + 1u) & queue->capacity_mask;
-		if ((next == tail) || (Atomic_LoadUInt32 (&queue->task_indices[head]) != 0u))
-		{
-			state = Atomic_LoadUInt64 (&queue->state);
-			continue;
-		}
-		// avoid overflow
-		new_state = (state & (~0x80000000ull)) + 1;
-		cas_successful = Atomic_CompareExchangeUInt64 (&queue->state, &state, new_state);
+		cas_successful = Atomic_CompareExchangeUInt32 (&queue->head, &head, next);
 	} while (!cas_successful);
 
+	while (Atomic_LoadUInt32 (&queue->task_indices[head]) != 0u)
+		CPUPause ();
+
 	ANNOTATE_HAPPENS_BEFORE (&queue->task_indices[head]);
-	Atomic_StoreUInt32 (&queue->task_indices[head], task_index + 1u);
+	Atomic_StoreUInt32 (&queue->task_indices[head], task_index + 1);
 	SDL_SemPost (queue->pop_semaphore);
 }
 
 /*
 ====================
 TaskQueuePop
-====================
+====================a
 */
 static inline uint32_t TaskQueuePop (task_queue_t *queue)
 {
 	SpinWaitSemaphore (queue->pop_semaphore);
-	uint64_t state = Atomic_LoadUInt64 (&queue->state);
-	uint64_t new_state;
-	uint32_t tail;
+	uint32_t tail = Atomic_LoadUInt32 (&queue->tail);
 	qboolean cas_successful = false;
 	do
 	{
-		const uint32_t head = (uint32_t)(state & queue->capacity_mask);
-		tail = (uint32_t)(state >> 32) & queue->capacity_mask;
-		if ((head == tail) || (Atomic_LoadUInt32 (&queue->task_indices[tail]) == 0u))
-		{
-			state = Atomic_LoadUInt64 (&queue->state);
-			continue;
-		}
-		// avoid overflow
-		new_state = state + 0x100000000ull;
-		cas_successful = Atomic_CompareExchangeUInt64 (&queue->state, &state, new_state);
+		const uint32_t next = (tail + 1u) & queue->capacity_mask;
+		cas_successful = Atomic_CompareExchangeUInt32 (&queue->tail, &tail, next);
 	} while (!cas_successful);
 
-	const uint32_t val = Atomic_LoadUInt32 (&queue->task_indices[tail]);
+	while (Atomic_LoadUInt32 (&queue->task_indices[tail]) == 0u)
+		CPUPause ();
+
+	const uint32_t val = Atomic_LoadUInt32 (&queue->task_indices[tail]) - 1;
 	Atomic_StoreUInt32 (&queue->task_indices[tail], 0u);
 	SDL_SemPost (queue->push_semaphore);
 	ANNOTATE_HAPPENS_AFTER (&queue->task_indices[tail]);
 
-	return val - 1;
+	return val;
 }
 
 /*
@@ -538,3 +534,26 @@ qboolean Task_Join (task_handle_t handle, uint32_t timeout)
 	ANNOTATE_HAPPENS_AFTER (task);
 	return true;
 }
+
+#ifdef _DEBUG
+static void TestTask (void *unused) {}
+static void LotsOfTasks (void)
+{
+	TEMP_ALLOC (task_handle_t, handles, 100000);
+	for (int i = 0; i < 100000; ++i)
+		handles[i] = Task_AllocateAssignFuncAndSubmit (TestTask, NULL, 0);
+	for (int i = 0; i < 100000; ++i)
+		Task_Join (handles[i], SDL_MUTEX_MAXWAIT);
+	TEMP_FREE (handles);
+}
+
+/*
+=================
+TestTasks_f
+=================
+*/
+void TestTasks_f (void)
+{
+	LotsOfTasks ();
+}
+#endif
