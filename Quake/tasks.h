@@ -75,4 +75,8 @@ static inline task_handle_t Task_AllocateAssignIndexedFuncAndSubmit (task_indexe
 	return handle;
 }
 
+#ifdef _DEBUG
+void TestTasks_f (void);
+#endif
+
 #endif
