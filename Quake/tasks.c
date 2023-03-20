@@ -48,6 +48,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define WORKER_HUNK_SIZE	 (1 * 1024 * 1024)
 #define WAIT_SPIN_COUNT		 100
 
+COMPILE_TIME_ASSERT (tasks, MAX_EXECUTABLE_TASKS >= 256);
 COMPILE_TIME_ASSERT (tasks, MAX_PENDING_TASKS >= MAX_EXECUTABLE_TASKS);
 
 typedef enum
@@ -142,6 +143,17 @@ static inline task_handle_t CreateTaskHandle (uint32_t index, int epoch)
 
 /*
 ====================
+ShuffleIndex
+====================
+*/
+static uint32_t ShuffleIndex (uint32_t i)
+{
+	// Swap bits 0-3 and 4-7 to avoid false sharing
+	return (i & ~0xFF) | ((i & 0xF) << 4) | ((i >> 4) & 0xF);
+}
+
+/*
+====================
 CPUPause
 ====================
 */
@@ -208,11 +220,12 @@ static inline void TaskQueuePush (task_queue_t *queue, uint32_t task_index)
 		cas_successful = Atomic_CompareExchangeUInt32 (&queue->head, &head, next);
 	} while (!cas_successful);
 
-	while (Atomic_LoadUInt32 (&queue->task_indices[head]) != 0u)
+	const uint32_t shuffled_index = ShuffleIndex (head);
+	while (Atomic_LoadUInt32 (&queue->task_indices[shuffled_index]) != 0u)
 		CPUPause ();
 
-	ANNOTATE_HAPPENS_BEFORE (&queue->task_indices[head]);
-	Atomic_StoreUInt32 (&queue->task_indices[head], task_index + 1);
+	ANNOTATE_HAPPENS_BEFORE (&queue->task_indices[shuffled_index]);
+	Atomic_StoreUInt32 (&queue->task_indices[shuffled_index], task_index + 1);
 	SDL_SemPost (queue->pop_semaphore);
 }
 
@@ -232,13 +245,14 @@ static inline uint32_t TaskQueuePop (task_queue_t *queue)
 		cas_successful = Atomic_CompareExchangeUInt32 (&queue->tail, &tail, next);
 	} while (!cas_successful);
 
-	while (Atomic_LoadUInt32 (&queue->task_indices[tail]) == 0u)
+	const uint32_t shuffled_index = ShuffleIndex (tail);
+	while (Atomic_LoadUInt32 (&queue->task_indices[shuffled_index]) == 0u)
 		CPUPause ();
 
-	const uint32_t val = Atomic_LoadUInt32 (&queue->task_indices[tail]) - 1;
-	Atomic_StoreUInt32 (&queue->task_indices[tail], 0u);
+	const uint32_t val = Atomic_LoadUInt32 (&queue->task_indices[shuffled_index]) - 1;
+	Atomic_StoreUInt32 (&queue->task_indices[shuffled_index], 0u);
 	SDL_SemPost (queue->push_semaphore);
-	ANNOTATE_HAPPENS_AFTER (&queue->task_indices[tail]);
+	ANNOTATE_HAPPENS_AFTER (&queue->task_indices[shuffled_index]);
 
 	return val;
 }
