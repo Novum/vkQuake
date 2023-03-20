@@ -550,15 +550,65 @@ qboolean Task_Join (task_handle_t handle, uint32_t timeout)
 }
 
 #ifdef _DEBUG
-static void TestTask (void *unused) {}
+/*
+=================
+TASKS_TEST_ASSERT
+=================
+*/
+#define TASKS_TEST_ASSERT(cond, what) \
+	if (!(cond))                      \
+	{                                 \
+		Con_Printf ("%s\n", what);    \
+		abort ();                     \
+	}
+
+/*
+=================
+LotsOfTasks
+=================
+*/
+static void LotsOfTasksTestTask (void **counters_ptr)
+{
+	uint32_t *counters = (uint32_t *)(*counters_ptr);
+	++counters[Tasks_GetWorkerIndex ()];
+}
 static void LotsOfTasks (void)
 {
-	TEMP_ALLOC (task_handle_t, handles, 100000);
-	for (int i = 0; i < 100000; ++i)
-		handles[i] = Task_AllocateAssignFuncAndSubmit (TestTask, NULL, 0);
-	for (int i = 0; i < 100000; ++i)
+	static const int NUM_TASKS = 100000;
+	TEMP_ALLOC_ZEROED (uint32_t, counters, TASKS_MAX_WORKERS);
+	TEMP_ALLOC (task_handle_t, handles, NUM_TASKS);
+	for (int i = 0; i < NUM_TASKS; ++i)
+		handles[i] = Task_AllocateAssignFuncAndSubmit (LotsOfTasksTestTask, &counters, sizeof (uint32_t *));
+	for (int i = 0; i < NUM_TASKS; ++i)
 		Task_Join (handles[i], SDL_MUTEX_MAXWAIT);
+	uint32_t counters_sum = 0;
+	for (int i = 0; i < TASKS_MAX_WORKERS; ++i)
+		counters_sum += counters[i];
+	TASKS_TEST_ASSERT (counters_sum == NUM_TASKS, "Wrong counters_sum");
 	TEMP_FREE (handles);
+}
+
+/*
+=================
+IndexedTasks
+=================
+*/
+static void IndexedTestTask (int index, void **counters_ptr)
+{
+	uint32_t *counters = (uint32_t *)(*counters_ptr);
+	++counters[Tasks_GetWorkerIndex ()];
+}
+static void IndexedTasks ()
+{
+	static const int LIMIT = 100000;
+	TEMP_ALLOC_ZEROED (uint32_t, counters, TASKS_MAX_WORKERS);
+	task_handle_t task = Task_AllocateAssignIndexedFuncAndSubmit (IndexedTestTask, LIMIT, &counters, sizeof (uint32_t *));
+	Task_Join (task, SDL_MUTEX_MAXWAIT);
+	uint32_t counters_sum = 0;
+	for (int i = 0; i < TASKS_MAX_WORKERS; ++i)
+		counters_sum += counters[i];
+	TASKS_TEST_ASSERT (counters_sum == LIMIT, "Wrong counters_sum");
+	TEMP_FREE (counters);
 }
 
 /*
@@ -569,5 +619,6 @@ TestTasks_f
 void TestTasks_f (void)
 {
 	LotsOfTasks ();
+	IndexedTasks ();
 }
 #endif
