@@ -26,5 +26,8 @@ If applicable, add screenshots to help explain your problem.
  - GPU vendor and model
  - Driver version
 
+**Mod**
+Describe what mod you are using, what version of it and what map causes the issue.
+
 **Additional context**
 Add any other context about the problem here.
