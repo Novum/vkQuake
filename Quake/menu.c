@@ -116,6 +116,7 @@ extern cvar_t r_particles;
 extern cvar_t r_md5models;
 extern cvar_t r_lerpmodels;
 extern cvar_t r_lerpmove;
+extern cvar_t r_lerpturn;
 extern cvar_t vid_filter;
 extern cvar_t vid_palettize;
 extern cvar_t vid_anisotropic;
@@ -1800,6 +1801,7 @@ static void M_GraphicsOptions_AdjustSliders (int dir, qboolean mouse)
 	case GRAPHICS_OPT_MODEL_INTERPOLATION:
 		Cvar_SetValueQuick (&r_lerpmodels, (float)(((int)r_lerpmodels.value + 2 + dir) % 2));
 		Cvar_SetValueQuick (&r_lerpmove, r_lerpmodels.value);
+		Cvar_SetValueQuick (&r_lerpturn, r_lerpmodels.value);
 		break;
 	case GRAPHICS_OPT_PARTICLES:
 		M_GraphicsOptions_ChooseNextParticles (dir);

@@ -64,6 +64,7 @@ entity_t **cl_visedicts;
 entity_t **cl_visedicts_alpha;
 
 extern cvar_t r_lerpmodels, r_lerpmove; // johnfitz
+extern cvar_t r_lerpturn;				// Danni
 extern float  host_netinterval;			// Spike
 
 qboolean needs_relink;
@@ -466,7 +467,7 @@ float CL_LerpPoint (void)
 
 static qboolean CL_LerpEntity (entity_t *ent, vec3_t org, vec3_t ang, float frac)
 {
-	float	 f, d;
+	float	 f, d, a;
 	int		 j;
 	vec3_t	 delta;
 	qboolean teleported = false;
@@ -490,9 +491,17 @@ static qboolean CL_LerpEntity (entity_t *ent, vec3_t org, vec3_t ang, float frac
 			}
 		}
 
+		a = f;
+
 		// johnfitz -- don't cl_lerp entities that will be r_lerped
 		if (r_lerpmove.value && (ent->lerpflags & LERP_MOVESTEP))
+		{
 			f = 1;
+
+			// same but for angles
+			if (r_lerpturn.value)
+				a = 1;
+		}
 		// johnfitz
 
 		// interpolate the origin and angles
@@ -505,7 +514,7 @@ static qboolean CL_LerpEntity (entity_t *ent, vec3_t org, vec3_t ang, float frac
 				d -= 360;
 			else if (d < -180)
 				d += 360;
-			ang[j] = ent->msg_angles[1][j] + f * d;
+			ang[j] = ent->msg_angles[1][j] + a * d;
 		}
 	}
 	return teleported;
