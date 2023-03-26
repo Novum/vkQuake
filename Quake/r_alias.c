@@ -26,6 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 
 extern cvar_t r_drawflat, gl_fullbrights, r_lerpmodels, r_lerpmove, r_showtris; // johnfitz
+extern cvar_t r_lerpturn;
 extern cvar_t cl_gun_fovscale;
 
 // up to 16 color translated skins
@@ -293,7 +294,8 @@ void R_SetupEntityTransform (entity_t *e, lerpdata_t *lerpdata)
 		VectorCopy (e->angles, e->currentangles);
 		e->lerpflags -= LERP_RESETMOVE;
 	}
-	else if (!VectorCompare (e->origin, e->currentorigin) || !VectorCompare (e->angles, e->currentangles)) // origin/angles changed, start new lerp
+	else if (!VectorCompare (e->origin, e->currentorigin) || (r_lerpturn.value && !VectorCompare (e->angles, e->currentangles))) // origin/angles changed, start
+																																 // new lerp
 	{
 		e->movelerpstart = cl.time;
 		VectorCopy (e->currentorigin, e->previousorigin);
@@ -316,18 +318,25 @@ void R_SetupEntityTransform (entity_t *e, lerpdata_t *lerpdata)
 		lerpdata->origin[1] = e->previousorigin[1] + d[1] * blend;
 		lerpdata->origin[2] = e->previousorigin[2] + d[2] * blend;
 
-		// rotation
-		VectorSubtract (e->currentangles, e->previousangles, d);
-		for (i = 0; i < 3; i++)
+		// rotation (if enabled)
+		if (r_lerpturn.value)
 		{
-			if (d[i] > 180)
-				d[i] -= 360;
-			if (d[i] < -180)
-				d[i] += 360;
+			VectorSubtract (e->currentangles, e->previousangles, d);
+			for (i = 0; i < 3; i++)
+			{
+				if (d[i] > 180)
+					d[i] -= 360;
+				if (d[i] < -180)
+					d[i] += 360;
+			}
+			lerpdata->angles[0] = e->previousangles[0] + d[0] * blend;
+			lerpdata->angles[1] = e->previousangles[1] + d[1] * blend;
+			lerpdata->angles[2] = e->previousangles[2] + d[2] * blend;
 		}
-		lerpdata->angles[0] = e->previousangles[0] + d[0] * blend;
-		lerpdata->angles[1] = e->previousangles[1] + d[1] * blend;
-		lerpdata->angles[2] = e->previousangles[2] + d[2] * blend;
+		else
+		{
+			VectorCopy (e->angles, lerpdata->angles);
+		}
 	}
 	else // don't lerp
 	{

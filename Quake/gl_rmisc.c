@@ -47,6 +47,7 @@ extern cvar_t r_showbboxes;
 extern cvar_t r_showbboxes_filter;
 extern cvar_t r_lerpmodels;
 extern cvar_t r_lerpmove;
+extern cvar_t r_lerpturn;
 extern cvar_t r_nolerp_list;
 // johnfitz
 extern cvar_t gl_zfix; // QuakeSpasm z-fighting fix
@@ -3608,6 +3609,7 @@ void R_Init (void)
 	Cvar_SetCallback (&gl_fullbrights, GL_Fullbrights_f);
 	Cvar_RegisterVariable (&r_lerpmodels);
 	Cvar_RegisterVariable (&r_lerpmove);
+	Cvar_RegisterVariable (&r_lerpturn);
 	Cvar_RegisterVariable (&r_nolerp_list);
 	Cvar_SetCallback (&r_nolerp_list, R_Model_ExtraFlags_List_f);
 	// johnfitz
