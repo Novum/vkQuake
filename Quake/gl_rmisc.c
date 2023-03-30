@@ -1546,7 +1546,7 @@ void R_CreatePipelineLayouts ()
 
 		ZEROED_STRUCT (VkPushConstantRange, push_constant_range);
 		push_constant_range.offset = 0;
-		push_constant_range.size = 24 * sizeof (float);
+		push_constant_range.size = 21 * sizeof (float);
 		push_constant_range.stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS;
 
 		ZEROED_STRUCT (VkPipelineLayoutCreateInfo, pipeline_layout_create_info);
@@ -1570,7 +1570,7 @@ void R_CreatePipelineLayouts ()
 
 		ZEROED_STRUCT (VkPushConstantRange, push_constant_range);
 		push_constant_range.offset = 0;
-		push_constant_range.size = 24 * sizeof (float);
+		push_constant_range.size = 21 * sizeof (float);
 		push_constant_range.stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS;
 
 		ZEROED_STRUCT (VkPipelineLayoutCreateInfo, pipeline_layout_create_info);
@@ -1594,7 +1594,7 @@ void R_CreatePipelineLayouts ()
 
 		ZEROED_STRUCT (VkPushConstantRange, push_constant_range);
 		push_constant_range.offset = 0;
-		push_constant_range.size = 24 * sizeof (float);
+		push_constant_range.size = 21 * sizeof (float);
 		push_constant_range.stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS;
 
 		ZEROED_STRUCT (VkPipelineLayoutCreateInfo, pipeline_layout_create_info);
@@ -1619,7 +1619,7 @@ void R_CreatePipelineLayouts ()
 
 		ZEROED_STRUCT (VkPushConstantRange, push_constant_range);
 		push_constant_range.offset = 0;
-		push_constant_range.size = 24 * sizeof (float);
+		push_constant_range.size = 21 * sizeof (float);
 		push_constant_range.stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS;
 
 		ZEROED_STRUCT (VkPipelineLayoutCreateInfo, pipeline_layout_create_info);
@@ -1645,27 +1645,30 @@ void R_CreatePipelineLayouts ()
 
 		ZEROED_STRUCT (VkPushConstantRange, push_constant_range);
 		push_constant_range.offset = 0;
-		push_constant_range.size = 24 * sizeof (float);
+		push_constant_range.size = 23 * sizeof (float);
 		push_constant_range.stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS;
 
 		ZEROED_STRUCT (VkPipelineLayoutCreateInfo, pipeline_layout_create_info);
 		pipeline_layout_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-		pipeline_layout_create_info.setLayoutCount = 2;
+		pipeline_layout_create_info.setLayoutCount = 1;
 		pipeline_layout_create_info.pSetLayouts = sky_layer_descriptor_set_layouts;
 		pipeline_layout_create_info.pushConstantRangeCount = 1;
 		pipeline_layout_create_info.pPushConstantRanges = &push_constant_range;
 
-		err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.sky_layer_pipeline[0].layout.handle);
+		err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.sky_pipeline_layout[0].handle);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkCreatePipelineLayout failed");
-		GL_SetObjectName ((uint64_t)vulkan_globals.sky_layer_pipeline[0].layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "sky_layer_pipeline_layout");
-		vulkan_globals.sky_layer_pipeline[0].layout.push_constant_range = push_constant_range;
+		GL_SetObjectName ((uint64_t)vulkan_globals.sky_pipeline_layout[0].handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "sky_pipeline_layout");
+		vulkan_globals.sky_pipeline_layout[0].push_constant_range = push_constant_range;
 
-		err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.sky_layer_pipeline[1].layout.handle);
+		push_constant_range.size = 24 * sizeof (float);
+		pipeline_layout_create_info.setLayoutCount = 2;
+
+		err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.sky_pipeline_layout[1].handle);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkCreatePipelineLayout failed");
-		GL_SetObjectName ((uint64_t)vulkan_globals.sky_layer_pipeline[1].layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "sky_layer_indirect_pipeline_layout");
-		vulkan_globals.sky_layer_pipeline[1].layout.push_constant_range = push_constant_range;
+		GL_SetObjectName ((uint64_t)vulkan_globals.sky_pipeline_layout[1].handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "sky_layer_pipeline_layout");
+		vulkan_globals.sky_pipeline_layout[1].push_constant_range = push_constant_range;
 	}
 
 	{
@@ -2655,6 +2658,8 @@ static void R_CreateSkyPipelines ()
 			infos.vertex_input_state.pVertexBindingDescriptions = &world_vertex_binding_description;
 		}
 
+		infos.graphics_pipeline.layout = vulkan_globals.sky_pipeline_layout[0].handle;
+
 		infos.graphics_pipeline.renderPass = vulkan_globals.secondary_cb_contexts[SCBX_WORLD][0].render_pass;
 
 		infos.graphics_pipeline.stageCount = 1;
@@ -2678,7 +2683,7 @@ static void R_CreateSkyPipelines ()
 			vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.sky_stencil_pipeline[i].handle);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkCreateGraphicsPipelines failed (sky_stencil_pipeline)");
-		vulkan_globals.sky_stencil_pipeline[i].layout = vulkan_globals.basic_pipeline_layout;
+		vulkan_globals.sky_stencil_pipeline[i].layout = vulkan_globals.sky_pipeline_layout[0];
 		GL_SetObjectName ((uint64_t)vulkan_globals.sky_stencil_pipeline[i].handle, VK_OBJECT_TYPE_PIPELINE, i ? "sky_stencil_indirect" : "sky_stencil");
 
 		infos.depth_stencil_state.stencilTestEnable = VK_FALSE;
@@ -2692,7 +2697,7 @@ static void R_CreateSkyPipelines ()
 			vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.sky_color_pipeline[i].handle);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkCreateGraphicsPipelines failed (sky_color_pipeline)");
-		vulkan_globals.sky_color_pipeline[i].layout = vulkan_globals.basic_pipeline_layout;
+		vulkan_globals.sky_color_pipeline[i].layout = vulkan_globals.sky_pipeline_layout[0];
 		GL_SetObjectName ((uint64_t)vulkan_globals.sky_color_pipeline[i].handle, VK_OBJECT_TYPE_PIPELINE, i ? "sky_color_indirect" : "sky_color");
 
 		infos.shader_stages[0].module = sky_cube_vert_module;
@@ -2702,17 +2707,18 @@ static void R_CreateSkyPipelines ()
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkCreateGraphicsPipelines failed (sky_cube_pipeline)");
 		GL_SetObjectName ((uint64_t)vulkan_globals.sky_cube_pipeline[i].handle, VK_OBJECT_TYPE_PIPELINE, i ? "sky_cube_indirect" : "sky_cube");
-		vulkan_globals.sky_cube_pipeline[i].layout = vulkan_globals.basic_pipeline_layout;
+		vulkan_globals.sky_cube_pipeline[i].layout = vulkan_globals.sky_pipeline_layout[0];
 
 		infos.shader_stages[0].module = sky_layer_vert_module;
 		infos.shader_stages[1].module = sky_layer_frag_module;
-		infos.graphics_pipeline.layout = vulkan_globals.sky_layer_pipeline[i].layout.handle;
+		infos.graphics_pipeline.layout = vulkan_globals.sky_pipeline_layout[1].handle;
 		assert (vulkan_globals.sky_layer_pipeline[i].handle == VK_NULL_HANDLE);
 		err =
 			vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.sky_layer_pipeline[i].handle);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkCreateGraphicsPipelines failed (sky_layer_pipeline)");
 		GL_SetObjectName ((uint64_t)vulkan_globals.sky_layer_pipeline[i].handle, VK_OBJECT_TYPE_PIPELINE, i ? "sky_layer_indirect" : "sky_layer");
+		vulkan_globals.sky_layer_pipeline[i].layout = vulkan_globals.sky_pipeline_layout[1];
 
 		if (i > 0)
 			break;
@@ -2729,6 +2735,7 @@ static void R_CreateSkyPipelines ()
 		infos.depth_stencil_state.front.reference = 0x1;
 		infos.shader_stages[0].module = basic_vert_module;
 		infos.shader_stages[1].module = sky_box_frag_module;
+		infos.graphics_pipeline.layout = vulkan_globals.sky_pipeline_layout[0].handle;
 
 		assert (vulkan_globals.sky_box_pipeline.handle == VK_NULL_HANDLE);
 		err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.sky_box_pipeline.handle);
@@ -2736,7 +2743,7 @@ static void R_CreateSkyPipelines ()
 			Sys_Error ("vkCreateGraphicsPipelines failed (sky_box_pipeline)");
 		GL_SetObjectName ((uint64_t)vulkan_globals.sky_box_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "sky_box");
 
-		vulkan_globals.sky_box_pipeline.layout = vulkan_globals.basic_pipeline_layout;
+		vulkan_globals.sky_box_pipeline.layout = vulkan_globals.sky_pipeline_layout[0];
 	}
 }
 

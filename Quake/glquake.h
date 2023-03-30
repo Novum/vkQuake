@@ -289,6 +289,7 @@ typedef struct
 	vulkan_pipeline_t		 raster_tex_warp_pipeline;
 	vulkan_pipeline_t		 particle_pipeline;
 	vulkan_pipeline_t		 sprite_pipeline;
+	vulkan_pipeline_layout_t sky_pipeline_layout[2]; // one texture (cubemap-like), two textures (animated layers)
 	vulkan_pipeline_t		 sky_stencil_pipeline[2];
 	vulkan_pipeline_t		 sky_color_pipeline[2];
 	vulkan_pipeline_t		 sky_box_pipeline;

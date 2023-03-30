@@ -882,8 +882,8 @@ void Sky_DrawSkyBox (cb_context_t *cbx, int *skypolys)
 			continue;
 
 		vkCmdBindDescriptorSets (
-			cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &skybox_textures[skytexorder[i]]->descriptor_set, 0,
-			NULL);
+			cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_stencil_pipeline[indirect].layout.handle, 0, 1,
+			&skybox_textures[skytexorder[i]]->descriptor_set, 0, NULL);
 
 		VkBuffer	   buffer;
 		VkDeviceSize   buffer_offset;
@@ -901,7 +901,6 @@ void Sky_DrawSkyBox (cb_context_t *cbx, int *skypolys)
 		Sky_EmitSkyBoxVertex (vertices + 3, skymaxs[0][i], skymins[1][i], i);
 
 		vkCmdBindVertexBuffers (cbx->cb, 0, 1, &buffer, &buffer_offset);
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_box_pipeline);
 		vkCmdDrawIndexed (cbx->cb, 6, 1, 0, 0, 0);
 
 		++(*skypolys);
@@ -918,7 +917,7 @@ void Sky_DrawSkyBox (cb_context_t *cbx, int *skypolys)
 ==============
 Sky_DrawSky
 
-called once per frame before drawing anything else
+called once per frame after opaques before transparents, handles world + entities
 ==============
 */
 void Sky_DrawSky (cb_context_t *cbx)
@@ -950,28 +949,29 @@ void Sky_DrawSky (cb_context_t *cbx)
 	else
 		memcpy (color, skyflatcolor, 3 * sizeof (float));
 
-	float constant_values[8] = {CLAMP (0.0f, color[0], 1.0f), CLAMP (0.0f, color[1], 1.0f), CLAMP (0.0f, color[2], 1.0f), fog_density};
+	float constant_values[24];
+	memcpy (constant_values, vulkan_globals.view_projection_matrix, sizeof (vulkan_globals.view_projection_matrix));
+	constant_values[16] = CLAMP (0.0f, color[0], 1.0f);
+	constant_values[17] = CLAMP (0.0f, color[1], 1.0f);
+	constant_values[18] = CLAMP (0.0f, color[2], 1.0f);
+	constant_values[19] = fog_density;
 
 	// With slow sky we first write stencil for the part of the screen that is covered by sky geometry and passes the depth test
 	// Sky_DrawSkyBox then only fills the parts that had stencil written
 	if (flat_color)
 	{
 		if (indirect)
-		{
-			constant_values[3] = 1.0f;
-			R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 16 * sizeof (float), 4 * sizeof (float), constant_values);
-		}
+			constant_values[19] = 1.0f;
 		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_color_pipeline[indirect]);
+		R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 20 * sizeof (float), constant_values);
 	}
 	else if (skybox_cubemap)
 	{
-		memcpy (&constant_values[4], r_refdef.vieworg, sizeof (r_refdef.vieworg));
-
-		R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 16 * sizeof (float), 7 * sizeof (float), constant_values);
-		vkCmdBindDescriptorSets (
-			cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &skybox_cubemap->descriptor_set, 0, NULL);
-
 		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_cube_pipeline[indirect]);
+		vkCmdBindDescriptorSets (
+			cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_cube_pipeline[indirect].layout.handle, 0, 1, &skybox_cubemap->descriptor_set, 0, NULL);
+		memcpy (&constant_values[20], r_refdef.vieworg, sizeof (r_refdef.vieworg));
+		R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 23 * sizeof (float), constant_values);
 	}
 	else if (!skybox_name[0])
 	{
@@ -981,19 +981,19 @@ void Sky_DrawSky (cb_context_t *cbx)
 			return;
 		}
 		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_layer_pipeline[indirect]);
-		memcpy (&constant_values[4], r_refdef.vieworg, sizeof (r_refdef.vieworg));
-		constant_values[7] = cl.time - (int)cl.time / 16 * 16;
-		R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 16 * sizeof (float), 8 * sizeof (float), constant_values);
 		VkDescriptorSet descriptor_sets[2] = {solidskytexture->descriptor_set, alphaskytexture->descriptor_set};
 		vkCmdBindDescriptorSets (
 			cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_layer_pipeline[indirect].layout.handle, 0, 2, descriptor_sets, 0, NULL);
+		memcpy (&constant_values[20], r_refdef.vieworg, sizeof (r_refdef.vieworg));
+		constant_values[23] = cl.time - (int)cl.time / 16 * 16;
+		R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 24 * sizeof (float), constant_values);
 	}
 	else
+	{
 		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_stencil_pipeline[indirect]);
+		R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 20 * sizeof (float), constant_values);
+	}
 	vkCmdBindIndexBuffer (cbx->cb, vulkan_globals.fan_index_buffer, 0, VK_INDEX_TYPE_UINT16);
-
-	// XXX: re-push mvp to avoid problems with AMD drivers
-	R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 16 * sizeof (float), vulkan_globals.view_projection_matrix);
 
 	//
 	// process world and bmodels: draw flat-shaded sky surfs, and update skybounds
@@ -1024,13 +1024,11 @@ void Sky_DrawSky (cb_context_t *cbx)
 	//
 	if (!flat_color && !skybox_cubemap && skybox_name[0])
 	{
-		R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 16 * sizeof (float), 4 * sizeof (float), constant_values);
+		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_box_pipeline);
 		Sky_DrawSkyBox (cbx, &skypolys);
 	}
 
 	Atomic_AddUInt32 (&rs_skypolys, skypolys);
-
-	Fog_EnableGFog (cbx);
 
 	R_EndDebugUtilsLabel (cbx);
 }
