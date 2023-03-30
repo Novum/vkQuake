@@ -1513,13 +1513,20 @@ static void Mod_LoadFaces (qmodel_t *mod, byte *mod_base, lump_t *l, qboolean bs
 		}
 		else if (out->texinfo->flags & TEX_MISSING) // texture is missing from bsp
 		{
-			if (out->samples) // lightmapped
+			out->flags |= SURF_NOTEXTURE;
+			qboolean missing_samples = !out->samples && out->styles[0] != 255;
+			qboolean unlit_texture = out->texinfo->flags & TEX_SPECIAL;
+
+			if (!unlit_texture && missing_samples)
 			{
-				out->flags |= SURF_NOTEXTURE;
+				// unlit surf in a lit texture (mod->numtextures - 2: r_notexture_mip instead of r_notexture_mip2)
+				Con_Warning ("Mod_LoadFaces: TEX_MISSING without TEX_SPECIAL missing lightmap samples");
+				out->lightmaptexturenum = 0; // set a lightmaptexturenum to at least avoid a crash
 			}
-			else // not lightmapped
+
+			if (unlit_texture || missing_samples) // not lightmapped
 			{
-				out->flags |= (SURF_NOTEXTURE | SURF_DRAWTILED);
+				out->flags |= SURF_DRAWTILED;
 				Mod_PolyForUnlitSurface (mod, out);
 			}
 		}
