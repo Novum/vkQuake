@@ -5081,12 +5081,12 @@ static struct
 } qcextensions[] = {
 	{"DP_CON_SET"},
 	{"DP_CON_SETA"},
-	{"DP_EF_NOSHADOW"},
+	//	{"DP_EF_NOSHADOW"},
 	{"DP_ENT_ALPHA", PR_Can_Ent_Alpha}, // already in quakespasm, supposedly.
 	{"DP_ENT_COLORMOD", PR_Can_Ent_ColorMod},
 	{"DP_ENT_SCALE", PR_Can_Ent_Scale},
 	{"DP_ENT_TRAILEFFECTNUM", PR_Can_Particles},
-	{"DP_INPUTBUTTONS"},
+	//	{"DP_INPUTBUTTONS"},
 	{"DP_QC_ASINACOSATANATAN2TAN"},
 	{"DP_QC_COPYENTITY"},
 	{"DP_QC_CRC16"},
@@ -5137,8 +5137,8 @@ static struct
 #endif
 	{"DP_TE_STANDARDEFFECTBUILTINS"},
 	{"EXT_BITSHIFT"},
-	{"FTE_ENT_SKIN_CONTENTS"}, // SOLID_BSP&&skin==CONTENTS_FOO changes CONTENTS_SOLID to CONTENTS_FOO, allowing you to swim in moving ents without qc hacks,
-							   // as well as correcting view cshifts etc.
+//	{"FTE_ENT_SKIN_CONTENTS"}, // SOLID_BSP&&skin==CONTENTS_FOO changes CONTENTS_SOLID to CONTENTS_FOO, allowing you to swim in moving ents without qc hacks,
+//							   // as well as correcting view cshifts etc.
 #ifdef PSET_SCRIPT
 	{"FTE_PART_SCRIPT"},
 	{"FTE_PART_NAMESPACES"},
