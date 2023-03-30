@@ -1360,8 +1360,6 @@ static void M_Menu_GameOptions_f (void)
 	key_dest = key_menu;
 	m_state = m_game;
 	m_entersound = true;
-	game_options_cursor = 0;
-	first_game_option = 0;
 }
 
 static void M_GameOptions_AdjustSliders (int dir, qboolean mouse)
@@ -1647,7 +1645,6 @@ static void M_Menu_GraphicsOptions_f (void)
 	key_dest = key_menu;
 	m_state = m_graphics;
 	m_entersound = true;
-	graphics_options_cursor = 0;
 }
 
 static void M_GraphicsOptions_ChooseNextAASamples (int dir)
@@ -2081,7 +2078,6 @@ void M_Menu_Options_f (void)
 	IN_Deactivate (true);
 	key_dest = key_menu;
 	m_state = m_options;
-	options_cursor = 0;
 }
 
 static void M_Options_Draw (cb_context_t *cbx)
@@ -2986,7 +2982,6 @@ static void M_Menu_MPGameOptions_f (void)
 		maxplayers = svs.maxclients;
 	if (maxplayers < 2)
 		maxplayers = 4;
-	mpgameoptions_cursor = 0;
 }
 
 static void M_MPGameOptions_Draw (cb_context_t *cbx)
