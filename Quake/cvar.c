@@ -99,6 +99,40 @@ void Cvar_Inc_f (void)
 
 /*
 ============
+Cvar_Set_f -- spike
+
+both set+seta commands
+============
+*/
+void Cvar_Set_f (void)
+{
+	// q2: set name value flags
+	// dp: set name value description
+	// fte: set name some freeform value with spaces or whatever //description
+	// to avoid politics, its easier to just stick with name+value only.
+	// that leaves someone else free to pick a standard for what to do with extra args.
+	const char *varname = Cmd_Argv (1);
+	const char *varvalue = Cmd_Argv (2);
+	cvar_t	   *var;
+	if (Cmd_Argc () < 3)
+	{
+		Con_Printf ("%s <cvar> <value>\n", Cmd_Argv (0));
+		return;
+	}
+	if (Cmd_Argc () > 3)
+	{
+		Con_Warning ("%s \"%s\" command with extra args\n", Cmd_Argv (0), varname);
+		return;
+	}
+	var = Cvar_Create (varname, varvalue);
+	Cvar_SetQuick (var, varvalue);
+
+	if (!strcmp (Cmd_Argv (0), "seta"))
+		var->flags |= CVAR_ARCHIVE | CVAR_SETA;
+}
+
+/*
+============
 Cvar_Toggle_f -- johnfitz
 ============
 */
@@ -229,6 +263,8 @@ void Cvar_Init (void)
 	Cmd_AddCommand ("reset", Cvar_Reset_f);
 	Cmd_AddCommand ("resetall", Cvar_ResetAll_f);
 	Cmd_AddCommand ("resetcfg", Cvar_ResetCfg_f);
+	Cmd_AddCommand ("set", Cvar_Set_f);
+	Cmd_AddCommand ("seta", Cvar_Set_f);
 }
 
 //==============================================================================
@@ -670,6 +706,10 @@ void Cvar_WriteVariables (FILE *f)
 	for (var = cvar_vars; var; var = var->next)
 	{
 		if (var->flags & CVAR_ARCHIVE)
+		{
+			if (var->flags & (CVAR_USERDEFINED | CVAR_SETA))
+				fprintf (f, "seta ");
 			fprintf (f, "%s \"%s\"\n", var->name, var->string);
+		}
 	}
 }

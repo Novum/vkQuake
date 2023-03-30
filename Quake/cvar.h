@@ -75,6 +75,7 @@ interface from being ambiguous.
 #define CVAR_CALLBACK	 (1U << 16) // var has a callback
 #define CVAR_USERDEFINED (1U << 17) // cvar was created by the user/mod, and needs to be saved a bit differently.
 #define CVAR_AUTOCVAR	 (1U << 18) // cvar changes need to feed back to qc global changes.
+#define CVAR_SETA		 (1U << 19) // cvar will be saved with seta.
 
 typedef void (*cvarcallback_t) (struct cvar_s *);
 
