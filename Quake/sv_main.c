@@ -976,10 +976,8 @@ void MSG_WriteStaticOrBaseLine (sizebuf_t *buf, int idx, entity_state_t *state, 
 					bits |= B_LARGEFRAME;
 				if (state->alpha != ENTALPHA_DEFAULT)
 					bits |= B_ALPHA;
-#ifdef BASE_PROTO_SCALES
 				if (state->scale != ENTSCALE_DEFAULT && protocol == PROTOCOL_RMQ)
 					bits |= B_SCALE;
-#endif
 			}
 			if (idx >= 0)
 			{
@@ -2085,15 +2083,12 @@ void SV_WriteEntitiesToClient (client_t *client, sizebuf_t *msg, size_t overflow
 		{
 			if (ent->baseline.alpha != ent->alpha)
 				bits |= U_ALPHA;
-#ifdef BASE_PROTO_SCALES
 			if (sv.protocol == PROTOCOL_RMQ)
 			{
 				if (ent->baseline.scale != scale)
 					bits |= U_SCALE;
 			}
-			else
-#endif
-				if (ENTSCALE_DEFAULT != scale) // for 666, we didn't send the scale in the baseline!
+			else if (ENTSCALE_DEFAULT != scale) // for 666, we didn't send the scale in the baseline!
 				bits |= U_SCALE;
 			if (bits & U_FRAME && (int)ent->v.frame & 0xFF00)
 				bits |= U_FRAME2;
