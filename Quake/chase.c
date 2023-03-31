@@ -104,7 +104,7 @@ void Chase_UpdateForDrawing (void)
 	VectorCopy (ideal, r_refdef.vieworg);
 
 	// find the spot the player is looking at
-	VectorMA (cl.viewent.origin, 4096, forward, temp);
+	VectorMA (cl.viewent.origin, 1<<20, forward, temp);
 	TraceLine (cl.viewent.origin, temp, crosshair_vec);
 
 	if (VectorLength (crosshair_vec) == 0) // didn't hit anything
