@@ -12,14 +12,16 @@ jobs:
     runs-on: macos-11
     strategy:
       fail-fast: false
+      matrix:
+        configuration: [release, debug]
     steps:
     - uses: actions/checkout@v3
     - name: Install Dependencies
       run: brew install molten-vk vulkan-headers glslang spirv-tools sdl2 libvorbis flac opus opusfile flac mad meson
     - name: Build vkQuake
-      run: meson build && ninja -C build
+      run: meson build --buildtype=${{ matrix.configuration }} && ninja -C build
     - name: Upload vkQuake
       uses: actions/upload-artifact@v3
       with:
-        name: vkQuake archive
+        name: vkQuake archive (${{ matrix.configuration }})
         path: build/vkquake
