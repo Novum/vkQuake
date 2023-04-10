@@ -567,9 +567,9 @@ TASKS_TEST_ASSERT
 LotsOfTasks
 =================
 */
-static void LotsOfTasksTestTask (void **counters_ptr)
+static void LotsOfTasksTestTask (void *counters_ptr)
 {
-	uint32_t *counters = (uint32_t *)(*counters_ptr);
+	uint32_t *counters = *((uint32_t **)counters_ptr);
 	++counters[Tasks_GetWorkerIndex ()];
 }
 static void LotsOfTasks (void)
@@ -578,7 +578,7 @@ static void LotsOfTasks (void)
 	TEMP_ALLOC_ZEROED (uint32_t, counters, TASKS_MAX_WORKERS);
 	TEMP_ALLOC (task_handle_t, handles, NUM_TASKS);
 	for (int i = 0; i < NUM_TASKS; ++i)
-		handles[i] = Task_AllocateAssignFuncAndSubmit (LotsOfTasksTestTask, &counters, sizeof (uint32_t *));
+		handles[i] = Task_AllocateAssignFuncAndSubmit (LotsOfTasksTestTask, (void *)&counters, sizeof (uint32_t *));
 	for (int i = 0; i < NUM_TASKS; ++i)
 		Task_Join (handles[i], SDL_MUTEX_MAXWAIT);
 	uint32_t counters_sum = 0;
@@ -586,6 +586,7 @@ static void LotsOfTasks (void)
 		counters_sum += counters[i];
 	TASKS_TEST_ASSERT (counters_sum == NUM_TASKS, "Wrong counters_sum");
 	TEMP_FREE (handles);
+	TEMP_FREE (counters);
 }
 
 /*
@@ -593,16 +594,16 @@ static void LotsOfTasks (void)
 IndexedTasks
 =================
 */
-static void IndexedTestTask (int index, void **counters_ptr)
+static void IndexedTestTask (int index, void *counters_ptr)
 {
-	uint32_t *counters = (uint32_t *)(*counters_ptr);
+	uint32_t *counters = *((uint32_t **)counters_ptr);
 	++counters[Tasks_GetWorkerIndex ()];
 }
 static void IndexedTasks ()
 {
 	static const int LIMIT = 100000;
 	TEMP_ALLOC_ZEROED (uint32_t, counters, TASKS_MAX_WORKERS);
-	task_handle_t task = Task_AllocateAssignIndexedFuncAndSubmit (IndexedTestTask, LIMIT, &counters, sizeof (uint32_t *));
+	task_handle_t task = Task_AllocateAssignIndexedFuncAndSubmit (IndexedTestTask, LIMIT, (void *)&counters, sizeof (uint32_t *));
 	Task_Join (task, SDL_MUTEX_MAXWAIT);
 	uint32_t counters_sum = 0;
 	for (int i = 0; i < TASKS_MAX_WORKERS; ++i)
