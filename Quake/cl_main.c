@@ -118,7 +118,7 @@ CL_ClearState
 void CL_ClearState (void)
 {
 	if (!sv.active)
-		Host_ClearMemory ();
+		Host_ClearMemory (NULL);
 
 	// wipe the entire cl structure
 	CL_FreeState ();

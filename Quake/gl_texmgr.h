@@ -42,6 +42,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define TEXPREF_CONCHARS	0x0400 // use conchars palette
 #define TEXPREF_WARPIMAGE	0x0800 // resize this texture when warpimagesize changes
 #define TEXPREF_PREMULTIPLY 0x1000 // rgb = rgb*a; a=a;
+#define TEXPREF_ISLIGHTMAP	0x2000 // lightmap / lightstyle / surface index
 
 enum srcformat
 {

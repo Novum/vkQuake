@@ -974,6 +974,8 @@ static void CL_ParseServerInfo (void)
 		str = MSG_ReadString ();
 		if (!str[0])
 			break;
+		if (!sv.active && nummodels == 1)
+			Mod_ClearBModelCaches (str);
 		if (nummodels == MAX_MODELS)
 		{
 			Host_Error ("Server sent too many model precaches");

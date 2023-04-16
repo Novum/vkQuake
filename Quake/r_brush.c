@@ -1162,6 +1162,7 @@ static void BuildSurfaceDisplayList (msurface_t *fa)
 	// draw texture
 	//
 	poly = (glpoly_t *)Mem_Alloc (sizeof (glpoly_t) + (lnumverts - 4) * VERTEXSIZE * sizeof (float));
+	assert (!fa->polys);
 	poly->next = fa->polys;
 	fa->polys = poly;
 	poly->numverts = lnumverts;
@@ -1916,7 +1917,8 @@ void GL_SetupLightmapCompute (void)
 		q_snprintf (name, sizeof (name), "lightmap_%07i", i);
 
 		lm->texture = TexMgr_LoadImage (
-			cl.worldmodel, name, LMBLOCK_WIDTH, LMBLOCK_HEIGHT, SRC_LIGHTMAP, lm->data, "", (src_offset_t)lm->data, TEXPREF_LINEAR | TEXPREF_NOPICMIP);
+			cl.worldmodel, name, LMBLOCK_WIDTH, LMBLOCK_HEIGHT, SRC_LIGHTMAP, lm->data, "", (src_offset_t)lm->data,
+			TEXPREF_LINEAR | TEXPREF_NOPICMIP | TEXPREF_ISLIGHTMAP);
 		for (int j = 0; j < MAXLIGHTMAPS * 3 / 4; ++j)
 		{
 			q_snprintf (name, sizeof (name), "lightstyle%d_%07i", j, i);
@@ -1932,7 +1934,8 @@ void GL_SetupLightmapCompute (void)
 					for (int row = 1; row < size_h; row++)
 						memmove (lm->lightstyle_data[j] + size_w * row * 4, lm->lightstyle_data[j] + LMBLOCK_WIDTH * row * 4, size_w * 4);
 				lm->lightstyle_textures[j] = TexMgr_LoadImage (
-					cl.worldmodel, name, size_w, size_h, SRC_RGBA, lm->lightstyle_data[j], "", (src_offset_t)lm->data, TEXPREF_NEAREST | TEXPREF_NOPICMIP);
+					cl.worldmodel, name, size_w, size_h, SRC_RGBA, lm->lightstyle_data[j], "", (src_offset_t)lm->data,
+					TEXPREF_NEAREST | TEXPREF_NOPICMIP | TEXPREF_ISLIGHTMAP);
 			}
 			SAFE_FREE (lm->lightstyle_data[j]);
 		}
@@ -1947,7 +1950,7 @@ void GL_SetupLightmapCompute (void)
 		q_snprintf (name, sizeof (name), "surfindices_%07i", i);
 		lm->surface_indices_texture = TexMgr_LoadImage (
 			cl.worldmodel, name, *size_w, *size_h, SRC_SURF_INDICES, (byte *)lm->surface_indices, "", (src_offset_t)lm->surface_indices,
-			TEXPREF_NEAREST | TEXPREF_NOPICMIP);
+			TEXPREF_NEAREST | TEXPREF_NOPICMIP | TEXPREF_ISLIGHTMAP);
 		SAFE_FREE (lm->surface_indices);
 
 		for (int y = 0; y < LMBLOCK_HEIGHT / LM_CULL_BLOCK_H; y++)
