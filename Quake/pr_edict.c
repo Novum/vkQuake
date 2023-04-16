@@ -142,6 +142,33 @@ void ED_Free (edict_t *ed)
 	}
 }
 
+/*
+=================
+ED_RemoveFromFreeList
+
+Used at load time to place edicts at a specifit spot, and to trim qcvm->num_edicts
+=================
+*/
+void ED_RemoveFromFreeList (edict_t *ed)
+{
+	assert (ed->free);
+
+	if (qcvm->free_edicts_head == ed)
+	{
+		assert (!ed->prev_free);
+		qcvm->free_edicts_head = ed->next_free;
+	}
+	if (qcvm->free_edicts_tail == ed)
+	{
+		assert (!ed->next_free);
+		qcvm->free_edicts_tail = ed->prev_free;
+	}
+	if (ed->prev_free)
+		ed->prev_free->next_free = ed->next_free;
+	if (ed->next_free)
+		ed->next_free->prev_free = ed->prev_free;
+}
+
 //===========================================================================
 
 /*
@@ -738,42 +765,37 @@ For savegames
 */
 void ED_Write (FILE *f, edict_t *ed)
 {
-	ddef_t	   *d;
-	int		   *v;
-	int			i, j;
-	const char *name;
-	int			type;
-
-	fprintf (f, "{\n");
+	ddef_t *d;
+	int	   *v;
+	int		i;
+	int		type;
 
 	if (ed->free)
 	{
-		fprintf (f, "}\n");
+		fprintf (f, "{\n}\n");
 		return;
 	}
+
+	fprintf (f, "{\n");
 
 	for (i = 1; i < qcvm->progs->numfielddefs; i++)
 	{
 		d = &qcvm->fielddefs[i];
-		name = PR_GetString (d->s_name);
-		j = strlen (name);
-		if (j > 1 && name[j - 2] == '_')
-			continue; // skip _x, _y, _z vars
+		type = d->type;
+		assert (!!(type & DEF_SAVEGLOBAL) == (strlen (PR_GetString (d->s_name)) > 1 && PR_GetString (d->s_name)[strlen (PR_GetString (d->s_name)) - 2] == '_'));
+		if (type & DEF_SAVEGLOBAL)
+			continue;
 
 		v = (int *)((char *)&ed->v + d->ofs * 4);
 
 		// if the value is still all 0, skip the field
-		type = d->type & ~DEF_SAVEGLOBAL;
-		for (j = 0; j < type_size[type]; j++)
-		{
-			if (v[j])
-				break;
-		}
-		if (j == type_size[type])
+		assert (type < 8 && ((type == ev_vector && type_size[type] == 3) || (type != ev_vector && type_size[type] == 1)));
+		if (type != ev_vector && !v[0])
+			continue;
+		if (type == ev_vector && !v[0] && !v[1] && !v[2])
 			continue;
 
-		fprintf (f, "\"%s\" ", name);
-		fprintf (f, "\"%s\"\n", PR_UglyValueString (d->type, (eval_t *)v));
+		fprintf (f, "\"%s\" \"%s\"\n", PR_GetString (d->s_name), PR_UglyValueString (d->type, (eval_t *)v));
 	}
 
 	// johnfitz -- save entity alpha manually when progs.dat doesn't know about alpha
