@@ -25,6 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // on the same machine.
 
 #include "quakedef.h"
+#include <sys/stat.h>
 
 static void		 Mod_LoadSpriteModel (qmodel_t *mod, void *buffer);
 static void		 Mod_LoadBrushModel (qmodel_t *mod, const char *loadname, void *buffer);
@@ -36,6 +37,7 @@ cvar_t external_ents = {"external_ents", "1", CVAR_ARCHIVE};
 cvar_t external_vis = {"external_vis", "1", CVAR_ARCHIVE};
 cvar_t r_loadmd5models = {"r_loadmd5models", "1", CVAR_ARCHIVE};
 cvar_t r_md5models = {"r_md5models", "1", CVAR_ARCHIVE};
+cvar_t keepbmodelcache = {"keepbmodelcache", "1", CVAR_NONE};
 
 static byte *mod_novis;
 static int	 mod_novis_capacity;
@@ -46,6 +48,12 @@ static int	 mod_decompressed_capacity;
 #define MAX_MOD_KNOWN 2048 /*johnfitz -- was 512 */
 qmodel_t mod_known[MAX_MOD_KNOWN];
 int		 mod_numknown;
+
+char   mod_loaded_map[MAX_QPATH];
+off_t  mod_loaded_map_size;
+time_t mod_loaded_map_time;
+off_t  mod_loaded_map_lit_size;
+time_t mod_loaded_map_lit_time;
 
 texture_t *r_notexture_mip;	 // johnfitz -- moved here from r_main.c
 texture_t *r_notexture_mip2; // johnfitz -- used for non-lightmapped surfs with a missing texture
@@ -109,6 +117,7 @@ void Mod_Init (void)
 	Cvar_RegisterVariable (&r_loadmd5models);
 	Cvar_RegisterVariable (&r_md5models);
 	Cvar_SetCallback (&r_md5models, Mod_RefreshSkins_f);
+	Cvar_RegisterVariable (&keepbmodelcache);
 
 	// johnfitz -- create notexture miptex
 	r_notexture_mip = (texture_t *)Mem_Alloc (sizeof (texture_t));
@@ -372,6 +381,107 @@ static void Mod_FreeModelMemory (qmodel_t *mod)
 
 /*
 ===================
+Mod_UnPrimeAll
+===================
+*/
+void Mod_UnPrimeAll (void)
+{
+	int		  i;
+	qmodel_t *mod;
+	GL_DeleteBModelAccelerationStructures ();
+
+	for (i = 0, mod = mod_known; i < mod_numknown; i++, mod++)
+	{
+		if (mod->type == mod_brush && mod->primed)
+		{
+			mod->primed = false;
+			for (int j = 0; j < mod->numsurfaces; ++j)
+				if (!(mod->surfaces[j].flags & SURF_DRAWTILED))
+					SAFE_FREE (mod->surfaces[j].polys);
+		}
+	}
+
+	InvalidateTraceLineCache ();
+}
+
+/*
+==================
+GetMapFileInfo
+==================
+*/
+static void GetMapFileInfo (const char *path, off_t *size, time_t *time, off_t *lit_size, time_t *lit_time)
+{
+	// this does not account for external .vis changes for BSP29
+	// (or for .ent files, but that's not important)
+	struct stat file_info;
+	FILE	   *f;
+
+	COM_FOpenFile (path, &f, NULL);
+	if (!f || fstat (fileno (f), &file_info))
+	{
+		if (f)
+			fclose (f);
+		*size = *time = *lit_size = *lit_time = 0;
+		return;
+	}
+	*time = file_info.st_mtime;
+	*size = file_info.st_size;
+	fclose (f);
+
+	char litfilename[MAX_OSPATH];
+	q_strlcpy (litfilename, path, sizeof (litfilename));
+	COM_StripExtension (litfilename, litfilename, sizeof (litfilename));
+	q_strlcat (litfilename, ".lit", sizeof (litfilename));
+	COM_FOpenFile (path, &f, NULL);
+	if (!f || fstat (fileno (f), &file_info))
+	{
+		if (f)
+			fclose (f);
+		*lit_size = *lit_time = 0;
+		return;
+	}
+	*lit_time = file_info.st_mtime;
+	*lit_size = file_info.st_size;
+	fclose (f);
+}
+
+/*
+================
+Mod_ClearBModelCaches
+
+newmap contains the path of the map that is about to be loaded. If
+it matches the last one, brush models are not freed.
+================
+*/
+void Mod_ClearBModelCaches (const char *newmap)
+{
+	qboolean clear = !keepbmodelcache.value || strcmp (mod_loaded_map, newmap);
+
+	off_t  size;
+	time_t time;
+	off_t  lit_size;
+	time_t lit_time;
+	GetMapFileInfo (newmap, &size, &time, &lit_size, &lit_time);
+	if (size != mod_loaded_map_size || time != mod_loaded_map_time || lit_size != mod_loaded_map_lit_size || lit_time != mod_loaded_map_lit_time)
+		clear = true;
+
+	q_strlcpy (mod_loaded_map, newmap, sizeof (mod_loaded_map));
+	mod_loaded_map_size = size;
+	mod_loaded_map_time = time;
+	mod_loaded_map_lit_size = lit_size;
+	mod_loaded_map_lit_time = lit_time;
+
+	Con_DPrintf ("%s bmodels\n", clear ? "Clearing" : "Keeping");
+
+	if (clear)
+	{
+		Mod_ClearAll ();
+		Sky_ClearAll ();
+	}
+}
+
+/*
+===================
 Mod_ClearAll
 ===================
 */
@@ -386,6 +496,7 @@ void Mod_ClearAll (void)
 		if (mod->type != mod_alias)
 		{
 			mod->needload = true;
+			mod->primed = false;
 			Mod_FreeModelMemory (mod); // johnfitz
 		}
 	}
@@ -415,6 +526,8 @@ void Mod_ResetAll (void)
 		memset (mod, 0, sizeof (qmodel_t));
 	}
 	mod_numknown = 0;
+
+	memset (mod_loaded_map, 0, sizeof (mod_loaded_map));
 
 	InvalidateTraceLineCache ();
 }
@@ -1505,7 +1618,8 @@ static void Mod_LoadFaces (qmodel_t *mod, byte *mod_base, lump_t *l, qboolean bs
 			else
 				out->flags |= SURF_DRAWWATER;
 
-			Mod_PolyForUnlitSurface (mod, out);
+			if (out->flags & SURF_DRAWTILED)
+				Mod_PolyForUnlitSurface (mod, out);
 		}
 		else if (out->texinfo->texture->name[0] == '{') // ericw -- fence textures
 		{
