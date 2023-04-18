@@ -3870,7 +3870,7 @@ void R_NewMap (void)
 		qmodel_t *m = cl.model_precache[i];
 		if (!m)
 			break;
-		if (!m->primed)
+		if (m->type == mod_brush && !m->primed)
 			need_GL_init = true;
 	}
 

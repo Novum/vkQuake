@@ -395,6 +395,9 @@ void Mod_UnPrimeAll (void)
 		if (mod->type == mod_brush && mod->primed)
 		{
 			mod->primed = false;
+			SAFE_FREE (mod->surfvis);
+			SAFE_FREE (mod->soa_leafbounds);
+			SAFE_FREE (mod->soa_surfplanes);
 			for (int j = 0; j < mod->numsurfaces; ++j)
 				if (!(mod->surfaces[j].flags & SURF_DRAWTILED))
 					SAFE_FREE (mod->surfaces[j].polys);
