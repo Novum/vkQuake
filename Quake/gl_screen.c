@@ -811,7 +811,7 @@ void SCR_DrawPause (cb_context_t *cbx)
 	if (!cl.paused)
 		return;
 
-	if (!scr_showpause.value) // turn off for screenshots
+	if (!scr_showpause.value || scr_viewsize.value >= 130) // turn off for screenshots
 		return;
 
 	if (cls.demoplayback && cls.demospeed == 0.f)

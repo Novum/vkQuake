@@ -1090,25 +1090,22 @@ void Con_DrawNotify (cb_context_t *cbx)
 	GL_SetCanvas (cbx, CANVAS_CONSOLE); // johnfitz
 	v = vid.conheight;					// johnfitz
 
-	if (scr_viewsize.value < 130)
+	for (i = con_current - NUM_CON_TIMES + 1; i <= con_current; i++)
 	{
-		for (i = con_current - NUM_CON_TIMES + 1; i <= con_current; i++)
-		{
-			if (i < 0)
-				continue;
-			time = con_times[i % NUM_CON_TIMES];
-			if (time == 0)
-				continue;
-			time = realtime - time;
-			if (time > con_notifytime.value)
-				continue;
-			text = con_text + (i % con_totallines) * con_linewidth;
+		if (i < 0)
+			continue;
+		time = con_times[i % NUM_CON_TIMES];
+		if (time == 0)
+			continue;
+		time = realtime - time;
+		if (time > con_notifytime.value / (scr_viewsize.value >= 130 ? 4 : 1))
+			continue;
+		text = con_text + (i % con_totallines) * con_linewidth;
 
-			for (x = 0; x < con_linewidth; x++)
-				Draw_Character (cbx, (x + 1) << 3, v, text[x]);
+		for (x = 0; x < con_linewidth; x++)
+			Draw_Character (cbx, (x + 1) << 3, v, text[x]);
 
-			v += 8;
-		}
+		v += 8;
 	}
 
 	if (key_dest == key_message)
