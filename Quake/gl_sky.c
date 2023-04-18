@@ -949,7 +949,7 @@ void Sky_DrawSky (cb_context_t *cbx)
 	else
 		memcpy (color, skyflatcolor, 3 * sizeof (float));
 
-	float constant_values[24];
+	float constant_values[25];
 	memcpy (constant_values, vulkan_globals.view_projection_matrix, sizeof (vulkan_globals.view_projection_matrix));
 	constant_values[16] = CLAMP (0.0f, color[0], 1.0f);
 	constant_values[17] = CLAMP (0.0f, color[1], 1.0f);
@@ -986,7 +986,8 @@ void Sky_DrawSky (cb_context_t *cbx)
 			cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_layer_pipeline[indirect].layout.handle, 0, 2, descriptor_sets, 0, NULL);
 		memcpy (&constant_values[20], r_refdef.vieworg, sizeof (r_refdef.vieworg));
 		constant_values[23] = cl.time - (int)cl.time / 16 * 16;
-		R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 24 * sizeof (float), constant_values);
+		constant_values[24] = r_skyalpha.value;
+		R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 25 * sizeof (float), constant_values);
 	}
 	else
 	{

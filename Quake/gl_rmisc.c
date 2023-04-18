@@ -1662,7 +1662,7 @@ void R_CreatePipelineLayouts ()
 		GL_SetObjectName ((uint64_t)vulkan_globals.sky_pipeline_layout[0].handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "sky_pipeline_layout");
 		vulkan_globals.sky_pipeline_layout[0].push_constant_range = push_constant_range;
 
-		push_constant_range.size = 24 * sizeof (float);
+		push_constant_range.size = 25 * sizeof (float);
 		pipeline_layout_create_info.setLayoutCount = 2;
 
 		err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.sky_pipeline_layout[1].handle);

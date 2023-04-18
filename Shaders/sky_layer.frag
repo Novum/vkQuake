@@ -9,6 +9,7 @@ layout (push_constant) uniform PushConsts
 	float fog_density;
 	vec3  eye_pos;
 	float time;
+	float alpha;
 }
 push_constants;
 
@@ -26,6 +27,7 @@ void main ()
 	vec4 solid_layer = texture (solid_tex, uv + push_constants.time / 16.0f);
 	vec4 alpha_layer = texture (alpha_tex, uv + push_constants.time / 8.0f);
 
+	alpha_layer.a *= push_constants.alpha;
 	out_frag_color = vec4 ((solid_layer.rgb * (1.0f - alpha_layer.a) + alpha_layer.rgb * alpha_layer.a), 1.0f);
 
 	if (push_constants.fog_density > 0.0f)
