@@ -20,6 +20,7 @@ layout (push_constant) uniform PushConsts
 {
 	uvec2 clamp_size;
 	vec2  screen_size_rcp;
+	vec2  scale_rcp;
 	float aspect_ratio;
 	float time;
 	uint  flags;
@@ -30,102 +31,26 @@ layout (push_constant) uniform PushConsts
 }
 push_constants;
 
-#if defined(USE_SUBGROUP_OPS)
-uint Compact1By1 (uint x)
-{
-	x &= 0x55555555;
-	if (gl_SubgroupSize > 4)
-		x = (x ^ (x >> 1)) & 0x33333333;
-	if (gl_SubgroupSize > 16)
-		x = (x ^ (x >> 2)) & 0x0f0f0f0f;
-	return x;
-}
-
-uint DecodeMorton2X (uint code)
-{
-	return Compact1By1 (code >> 0);
-}
-
-uint DecodeMorton2Y (uint code)
-{
-	return Compact1By1 (code >> 1);
-}
-#endif
-
 float blue_noise (ivec2 u)
 {
 	return texelFetch (blue_noise_tex, ivec2 (uint (u.x) % 64, uint (u.y) % 64), 0).r;
 }
 
-#define SCREEN_EFFECT_FLAG_SCALE_MASK 0x3
-#define SCREEN_EFFECT_FLAG_SCALE_2X	  0x1
-#define SCREEN_EFFECT_FLAG_SCALE_4X	  0x2
-#define SCREEN_EFFECT_FLAG_SCALE_8X	  0x3
 #define SCREEN_EFFECT_FLAG_WATER_WARP 0x4
 #define SCREEN_EFFECT_FLAG_PALETTIZE  0x8
 #define SCREEN_EFFECT_FLAG_MENU		  0x10
 
-#if defined(SCALING)
-// Vulkan guarantees 16384 bytes of shared memory, so host doesn't need to check
-shared uint group_red[16];
-shared uint group_green[16];
-shared uint group_blue[16];
-#endif
-
-#if defined(SCALING) && defined(USE_SUBGROUP_OPS)
-// Vulkan spec states that workgroup size in x dimension must be a multiple of the
-// subgroup size for VK_PIPELINE_SHADER_STAGE_CREATE_REQUIRE_FULL_SUBGROUPS_BIT_EXT
-layout (local_size_x = 64, local_size_y = 1) in;
-#else
 layout (local_size_x = 8, local_size_y = 8) in;
-#endif
+
 void main ()
 {
 	const uint tile_size_x = 8;
 	const uint tile_size_y = 8;
 
-#if defined(SCALING) && defined(USE_SUBGROUP_OPS)
-	// gl_SubgroupSize >= 4 && gl_SubgroupSize <= 64 otherwise the host code chooses the shared mem only shader
-	// Vulkan guarantees subgroup size must be power of two and between 1 and 128
-	uint subgroup_width = 0;
-	uint subgroup_height = 0;
-	switch (gl_SubgroupSize)
-	{
-	case 4:
-		subgroup_width = 2;
-		subgroup_height = 2;
-		break;
-	case 8:
-		subgroup_width = 4;
-		subgroup_height = 2;
-		break;
-	case 16:
-		subgroup_width = 4;
-		subgroup_height = 4;
-		break;
-	case 32:
-		subgroup_width = 8;
-		subgroup_height = 4;
-		break;
-	case 64:
-		subgroup_width = 8;
-		subgroup_height = 8;
-		break;
-	}
-	// Morton order for subgroupShuffleXor
-	const uint subgroup_x = DecodeMorton2X (gl_SubgroupInvocationID);
-	const uint subgroup_y = DecodeMorton2Y (gl_SubgroupInvocationID);
-	const uint num_subgroups_x = (tile_size_x + subgroup_width - 1) / subgroup_width;
-	const uint local_x = ((gl_SubgroupID % num_subgroups_x) * subgroup_width) + subgroup_x;
-	const uint local_y = ((gl_SubgroupID / num_subgroups_x) * subgroup_height) + subgroup_y;
-	const uint pos_x = (gl_WorkGroupID.x * tile_size_x) + local_x;
-	const uint pos_y = (gl_WorkGroupID.y * tile_size_y) + local_y;
-#else
 	const uint local_x = gl_LocalInvocationID.x;
 	const uint local_y = gl_LocalInvocationID.y;
 	const uint pos_x = gl_GlobalInvocationID.x;
 	const uint pos_y = gl_GlobalInvocationID.y;
-#endif
 
 	vec4 color = vec4 (0.0f, 0.0f, 0.0f, 0.0f);
 
@@ -142,7 +67,7 @@ void main ()
 		const float tex_x = (pos_x_norm + (sin (pos_y_norm * cycle_x + push_constants.time) * amp_x)) * (1.0f - amp_x * 2.0f) + amp_x;
 		const float tex_y = (pos_y_norm + (sin (pos_x_norm * cycle_y + push_constants.time) * amp_y)) * (1.0f - amp_y * 2.0f) + amp_y;
 
-		color = texture (input_tex, vec2 (tex_x, tex_y));
+		color = texture (input_tex, vec2 (tex_x, tex_y) * push_constants.scale_rcp);
 	}
 	else
 		color = texelFetch (input_tex, ivec2 (min (push_constants.clamp_size.x, pos_x), min (push_constants.clamp_size.y, pos_y)), 0);
@@ -209,108 +134,16 @@ void main ()
 					 (s[0] * luma[0][0]) - (s[0] * luma[0][2]) + (s[1] * luma[1][0]) - (s[1] * luma[1][2]) + (s[0] * luma[2][0]) - (s[0] * luma[2][2]));
 				float sobel = dot (sobel_xy, sobel_xy);
 
-				float p = clamp ((5.0f - (sobel * 1e4f)), 1.0f, 5.0f);
-				float a = pow (best_dist_sq, p);
-				float b = pow (second_best_dist_sq, p);
-				float ratio = a / (a + b);
-#if defined(SCALING)
-				uint noise_shift = push_constants.flags & SCREEN_EFFECT_FLAG_SCALE_MASK;
-#else
-				uint noise_shift = 0;
-#endif
-				const float noise = blue_noise (ivec2 (pos_x >> noise_shift, pos_y >> noise_shift));
+				float		p = clamp ((5.0f - (sobel * 1e4f)), 1.0f, 5.0f);
+				float		a = pow (best_dist_sq, p);
+				float		b = pow (second_best_dist_sq, p);
+				float		ratio = a / (a + b);
+				const float noise = blue_noise (ivec2 (pos_x, pos_y));
 				color.rgb = (ratio < noise) ? best_color : second_best_color;
 				break;
 			}
 		}
 	}
-
-#if defined(SCALING)
-	[[branch]] if ((push_constants.flags & SCREEN_EFFECT_FLAG_SCALE_MASK) == SCREEN_EFFECT_FLAG_SCALE_2X)
-	{
-#if defined(USE_SUBGROUP_OPS)
-		if (gl_SubgroupSize >= 4)
-		{
-			color.r = uintBitsToFloat (subgroupShuffle (floatBitsToUint (color.r), gl_SubgroupInvocationID & ~0x3));
-			color.g = uintBitsToFloat (subgroupShuffle (floatBitsToUint (color.g), gl_SubgroupInvocationID & ~0x3));
-			color.b = uintBitsToFloat (subgroupShuffle (floatBitsToUint (color.b), gl_SubgroupInvocationID & ~0x3));
-		}
-		else
-		{
-#endif
-			const uint local_idx = local_x + (local_y * tile_size_x);
-			const uint shared_mem_idx = (local_x / 2) + ((local_y / 2) * (tile_size_x / 2));
-			if (((local_x % 2) == 0) && ((local_y % 2) == 0))
-			{
-				group_red[shared_mem_idx] = floatBitsToUint (color.r);
-				group_green[shared_mem_idx] = floatBitsToUint (color.g);
-				group_blue[shared_mem_idx] = floatBitsToUint (color.b);
-			}
-			barrier ();
-			color.r = uintBitsToFloat (group_red[shared_mem_idx]);
-			color.g = uintBitsToFloat (group_green[shared_mem_idx]);
-			color.b = uintBitsToFloat (group_blue[shared_mem_idx]);
-#if defined(USE_SUBGROUP_OPS)
-		}
-#endif
-	}
-	else if ((push_constants.flags & SCREEN_EFFECT_FLAG_SCALE_MASK) == SCREEN_EFFECT_FLAG_SCALE_4X)
-	{
-#if defined(USE_SUBGROUP_OPS)
-		if (gl_SubgroupSize >= 16)
-		{
-			color.r = uintBitsToFloat (subgroupShuffle (floatBitsToUint (color.r), gl_SubgroupInvocationID & ~0xF));
-			color.g = uintBitsToFloat (subgroupShuffle (floatBitsToUint (color.g), gl_SubgroupInvocationID & ~0xF));
-			color.b = uintBitsToFloat (subgroupShuffle (floatBitsToUint (color.b), gl_SubgroupInvocationID & ~0xF));
-		}
-		else
-		{
-#endif
-			const uint local_idx = local_x + (local_y * tile_size_x);
-			const uint shared_mem_idx = (local_x / 4) + ((local_y / 4) * (tile_size_x / 4));
-			if (((local_x % 4) == 0) && ((local_y % 4) == 0))
-			{
-				group_red[shared_mem_idx] = floatBitsToUint (color.r);
-				group_green[shared_mem_idx] = floatBitsToUint (color.g);
-				group_blue[shared_mem_idx] = floatBitsToUint (color.b);
-			}
-			barrier ();
-			color.r = uintBitsToFloat (group_red[shared_mem_idx]);
-			color.g = uintBitsToFloat (group_green[shared_mem_idx]);
-			color.b = uintBitsToFloat (group_blue[shared_mem_idx]);
-#if defined(USE_SUBGROUP_OPS)
-		}
-#endif
-	}
-	else if ((push_constants.flags & SCREEN_EFFECT_FLAG_SCALE_MASK) == SCREEN_EFFECT_FLAG_SCALE_8X)
-	{
-#if defined(USE_SUBGROUP_OPS)
-		if (gl_SubgroupSize >= 64)
-		{
-			color.r = uintBitsToFloat (subgroupShuffle (floatBitsToUint (color.r), gl_SubgroupInvocationID & ~0x3F));
-			color.g = uintBitsToFloat (subgroupShuffle (floatBitsToUint (color.g), gl_SubgroupInvocationID & ~0x3F));
-			color.b = uintBitsToFloat (subgroupShuffle (floatBitsToUint (color.b), gl_SubgroupInvocationID & ~0x3F));
-		}
-		else
-		{
-#endif
-			const uint local_idx = local_x + (local_y * tile_size_x);
-			const uint shared_mem_idx = (local_x / 8) + ((local_y / 8) * (tile_size_x / 8));
-			if (((local_x % 8) == 0) && ((local_y % 8) == 0))
-			{
-				group_red[shared_mem_idx] = floatBitsToUint (color.r);
-				group_green[shared_mem_idx] = floatBitsToUint (color.g);
-				group_blue[shared_mem_idx] = floatBitsToUint (color.b);
-			}
-			barrier ();
-			color.r = uintBitsToFloat (group_red[shared_mem_idx]);
-			color.g = uintBitsToFloat (group_green[shared_mem_idx]);
-			color.b = uintBitsToFloat (group_blue[shared_mem_idx]);
-#if defined(USE_SUBGROUP_OPS)
-		}
-#endif
-	}
-#endif
 
 	color.rgb = mix (color.rgb, vec3 (push_constants.poly_blend_r, push_constants.poly_blend_g, push_constants.poly_blend_b), push_constants.poly_blend_a);
 	[[branch]] if ((push_constants.flags & SCREEN_EFFECT_FLAG_MENU) != 0)

@@ -104,7 +104,6 @@ cvar_t		  vid_fsaa = {"vid_fsaa", "0", CVAR_ARCHIVE};
 cvar_t		  vid_fsaamode = {"vid_fsaamode", "0", CVAR_ARCHIVE};
 cvar_t		  vid_gamma = {"gamma", "0.9", CVAR_ARCHIVE};		// johnfitz -- moved here from view.c
 cvar_t		  vid_contrast = {"contrast", "1.4", CVAR_ARCHIVE}; // QuakeSpasm, MarkV
-cvar_t		  r_usesops = {"r_usesops", "1", CVAR_ARCHIVE};		// johnfitz
 #if defined(_DEBUG)
 static cvar_t r_raydebug = {"r_raydebug", "0", 0};
 #endif
@@ -890,7 +889,6 @@ static void GL_InitDevice (void)
 	vulkan_globals.dedicated_allocation = false;
 	vulkan_globals.full_screen_exclusive = false;
 	vulkan_globals.swap_chain_full_screen_acquired = false;
-	vulkan_globals.screen_effects_sops = false;
 	vulkan_globals.ray_query = false;
 
 	vkGetPhysicalDeviceMemoryProperties (vulkan_physical_device, &vulkan_globals.memory_properties);
@@ -1053,16 +1051,6 @@ static void GL_InitDevice (void)
 	vulkan_globals.device_features.sampleRateShading = false;
 #endif
 
-	vulkan_globals.screen_effects_sops =
-		vulkan_globals.vulkan_1_1_available && subgroup_size_control && subgroup_size_control_features.subgroupSizeControl &&
-		subgroup_size_control_features.computeFullSubgroups && ((physical_device_subgroup_properties.supportedStages & VK_SHADER_STAGE_COMPUTE_BIT) != 0) &&
-		((physical_device_subgroup_properties.supportedOperations & VK_SUBGROUP_FEATURE_SHUFFLE_BIT) != 0)
-		// Shader only supports subgroup sizes from 4 to 64. 128 can't be supported because Vulkan spec states that workgroup size
-		// in x dimension must be a multiple of the subgroup size for VK_PIPELINE_SHADER_STAGE_CREATE_REQUIRE_FULL_SUBGROUPS_BIT_EXT.
-		&& (physical_device_subgroup_size_control_properties.minSubgroupSize >= 4) && (physical_device_subgroup_size_control_properties.maxSubgroupSize <= 64);
-	if (vulkan_globals.screen_effects_sops)
-		Con_Printf ("Using subgroup operations\n");
-
 	vulkan_globals.ray_query = vulkan_globals.ray_query && acceleration_structure_features.accelerationStructure && ray_query_features.rayQuery &&
 							   buffer_device_address_features.bufferDeviceAddress;
 	if (vulkan_globals.ray_query)
@@ -1075,8 +1063,6 @@ static void GL_InitDevice (void)
 		device_extensions[numEnabledExtensions++] = VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME;
 		device_extensions[numEnabledExtensions++] = VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME;
 	}
-	if (vulkan_globals.screen_effects_sops)
-		device_extensions[numEnabledExtensions++] = VK_EXT_SUBGROUP_SIZE_CONTROL_EXTENSION_NAME;
 #if defined(VK_EXT_full_screen_exclusive)
 	if (vulkan_globals.full_screen_exclusive)
 		device_extensions[numEnabledExtensions++] = VK_EXT_FULL_SCREEN_EXCLUSIVE_EXTENSION_NAME;
@@ -1109,8 +1095,6 @@ static void GL_InitDevice (void)
 	ZEROED_STRUCT (VkDeviceCreateInfo, device_create_info);
 	device_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 	void **device_create_info_next = (void **)&device_create_info.pNext;
-	if (vulkan_globals.screen_effects_sops)
-		CHAIN_PNEXT (device_create_info_next, subgroup_size_control_features);
 	if (vulkan_globals.ray_query)
 	{
 		CHAIN_PNEXT (device_create_info_next, buffer_device_address_features);
@@ -1625,11 +1609,17 @@ static void GL_CreateColorBuffer (void)
 	image_create_info.arrayLayers = 1;
 	image_create_info.samples = VK_SAMPLE_COUNT_1_BIT;
 	image_create_info.tiling = VK_IMAGE_TILING_OPTIMAL;
-	image_create_info.usage =
-		VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
+	image_create_info.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT |
+							  VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 
 	for (i = 0; i < NUM_COLOR_BUFFERS; ++i)
 	{
+		if (i == 1)
+		{
+			image_create_info.usage &= ~VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+			image_create_info.usage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+		}
+
 		assert (vulkan_globals.color_buffers[i] == VK_NULL_HANDLE);
 		err = vkCreateImage (vulkan_globals.device, &image_create_info, NULL, &vulkan_globals.color_buffers[i]);
 		if (err != VK_SUCCESS)
@@ -1812,18 +1802,13 @@ void GL_UpdateDescriptorSets (void)
 	input_attachment_write.pImageInfo = &image_info;
 	vkUpdateDescriptorSets (vulkan_globals.device, 1, &input_attachment_write, 0, NULL);
 
-	if (vulkan_globals.screen_effects_desc_set != VK_NULL_HANDLE)
-		R_FreeDescriptorSet (vulkan_globals.screen_effects_desc_set, &vulkan_globals.input_attachment_set_layout);
-	vulkan_globals.screen_effects_desc_set = R_AllocateDescriptorSet (&vulkan_globals.screen_effects_set_layout);
-
-	ZEROED_STRUCT (VkDescriptorImageInfo, input_image_info);
-	input_image_info.imageView = color_buffers_view[1];
-	input_image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	input_image_info.sampler = vulkan_globals.linear_sampler;
-
-	ZEROED_STRUCT (VkDescriptorImageInfo, output_image_info);
-	output_image_info.imageView = color_buffers_view[0];
-	output_image_info.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+	if (vulkan_globals.screen_effects_desc_set[0] != VK_NULL_HANDLE)
+	{
+		R_FreeDescriptorSet (vulkan_globals.screen_effects_desc_set[0], &vulkan_globals.input_attachment_set_layout);
+		R_FreeDescriptorSet (vulkan_globals.screen_effects_desc_set[1], &vulkan_globals.input_attachment_set_layout);
+	}
+	vulkan_globals.screen_effects_desc_set[0] = R_AllocateDescriptorSet (&vulkan_globals.screen_effects_set_layout);
+	vulkan_globals.screen_effects_desc_set[1] = R_AllocateDescriptorSet (&vulkan_globals.screen_effects_set_layout);
 
 	ZEROED_STRUCT (VkDescriptorBufferInfo, palette_octree_info);
 	palette_octree_info.buffer = palette_octree_buffer;
@@ -1835,48 +1820,60 @@ void GL_UpdateDescriptorSets (void)
 	blue_noise_image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	blue_noise_image_info.sampler = vulkan_globals.linear_sampler;
 
-	ZEROED_STRUCT_ARRAY (VkWriteDescriptorSet, screen_effects_writes, 5);
-	screen_effects_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	screen_effects_writes[0].dstBinding = 0;
-	screen_effects_writes[0].dstArrayElement = 0;
-	screen_effects_writes[0].descriptorCount = 1;
-	screen_effects_writes[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	screen_effects_writes[0].dstSet = vulkan_globals.screen_effects_desc_set;
-	screen_effects_writes[0].pImageInfo = &input_image_info;
+	for (int i = 0; i < 2; i++)
+	{
+		ZEROED_STRUCT (VkDescriptorImageInfo, input_image_info);
+		input_image_info.imageView = color_buffers_view[1 - i];
+		input_image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		input_image_info.sampler = vulkan_globals.linear_sampler;
 
-	screen_effects_writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	screen_effects_writes[1].dstBinding = 1;
-	screen_effects_writes[1].dstArrayElement = 0;
-	screen_effects_writes[1].descriptorCount = 1;
-	screen_effects_writes[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	screen_effects_writes[1].dstSet = vulkan_globals.screen_effects_desc_set;
-	screen_effects_writes[1].pImageInfo = &blue_noise_image_info;
+		ZEROED_STRUCT (VkDescriptorImageInfo, output_image_info);
+		output_image_info.imageView = color_buffers_view[i];
+		output_image_info.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
 
-	screen_effects_writes[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	screen_effects_writes[2].dstBinding = 2;
-	screen_effects_writes[2].dstArrayElement = 0;
-	screen_effects_writes[2].descriptorCount = 1;
-	screen_effects_writes[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-	screen_effects_writes[2].dstSet = vulkan_globals.screen_effects_desc_set;
-	screen_effects_writes[2].pImageInfo = &output_image_info;
+		ZEROED_STRUCT_ARRAY (VkWriteDescriptorSet, screen_effects_writes, 5);
+		screen_effects_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		screen_effects_writes[0].dstBinding = 0;
+		screen_effects_writes[0].dstArrayElement = 0;
+		screen_effects_writes[0].descriptorCount = 1;
+		screen_effects_writes[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		screen_effects_writes[0].dstSet = vulkan_globals.screen_effects_desc_set[i];
+		screen_effects_writes[0].pImageInfo = &input_image_info;
 
-	screen_effects_writes[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	screen_effects_writes[3].dstBinding = 3;
-	screen_effects_writes[3].dstArrayElement = 0;
-	screen_effects_writes[3].descriptorCount = 1;
-	screen_effects_writes[3].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER;
-	screen_effects_writes[3].dstSet = vulkan_globals.screen_effects_desc_set;
-	screen_effects_writes[3].pTexelBufferView = &palette_buffer_view;
+		screen_effects_writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		screen_effects_writes[1].dstBinding = 1;
+		screen_effects_writes[1].dstArrayElement = 0;
+		screen_effects_writes[1].descriptorCount = 1;
+		screen_effects_writes[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		screen_effects_writes[1].dstSet = vulkan_globals.screen_effects_desc_set[i];
+		screen_effects_writes[1].pImageInfo = &blue_noise_image_info;
 
-	screen_effects_writes[4].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	screen_effects_writes[4].dstBinding = 4;
-	screen_effects_writes[4].dstArrayElement = 0;
-	screen_effects_writes[4].descriptorCount = 1;
-	screen_effects_writes[4].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	screen_effects_writes[4].dstSet = vulkan_globals.screen_effects_desc_set;
-	screen_effects_writes[4].pBufferInfo = &palette_octree_info;
+		screen_effects_writes[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		screen_effects_writes[2].dstBinding = 2;
+		screen_effects_writes[2].dstArrayElement = 0;
+		screen_effects_writes[2].descriptorCount = 1;
+		screen_effects_writes[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+		screen_effects_writes[2].dstSet = vulkan_globals.screen_effects_desc_set[i];
+		screen_effects_writes[2].pImageInfo = &output_image_info;
 
-	vkUpdateDescriptorSets (vulkan_globals.device, countof (screen_effects_writes), screen_effects_writes, 0, NULL);
+		screen_effects_writes[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		screen_effects_writes[3].dstBinding = 3;
+		screen_effects_writes[3].dstArrayElement = 0;
+		screen_effects_writes[3].descriptorCount = 1;
+		screen_effects_writes[3].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER;
+		screen_effects_writes[3].dstSet = vulkan_globals.screen_effects_desc_set[i];
+		screen_effects_writes[3].pTexelBufferView = &palette_buffer_view;
+
+		screen_effects_writes[4].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		screen_effects_writes[4].dstBinding = 4;
+		screen_effects_writes[4].dstArrayElement = 0;
+		screen_effects_writes[4].descriptorCount = 1;
+		screen_effects_writes[4].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		screen_effects_writes[4].dstSet = vulkan_globals.screen_effects_desc_set[i];
+		screen_effects_writes[4].pBufferInfo = &palette_octree_info;
+
+		vkUpdateDescriptorSets (vulkan_globals.device, countof (screen_effects_writes), screen_effects_writes, 0, NULL);
+	}
 
 #if defined(_DEBUG)
 	if (vulkan_globals.ray_query)
@@ -1884,6 +1881,10 @@ void GL_UpdateDescriptorSets (void)
 		if (vulkan_globals.ray_debug_desc_set != VK_NULL_HANDLE)
 			R_FreeDescriptorSet (vulkan_globals.ray_debug_desc_set, &vulkan_globals.ray_debug_set_layout);
 		vulkan_globals.ray_debug_desc_set = R_AllocateDescriptorSet (&vulkan_globals.ray_debug_set_layout);
+
+		ZEROED_STRUCT (VkDescriptorImageInfo, output_image_info);
+		output_image_info.imageView = color_buffers_view[0];
+		output_image_info.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
 
 		ZEROED_STRUCT_ARRAY (VkWriteDescriptorSet, ray_debug_writes, 2);
 
@@ -2271,8 +2272,10 @@ static void GL_DestroyRenderResources (void)
 	R_FreeDescriptorSet (postprocess_descriptor_set, &vulkan_globals.input_attachment_set_layout);
 	postprocess_descriptor_set = VK_NULL_HANDLE;
 
-	R_FreeDescriptorSet (vulkan_globals.screen_effects_desc_set, &vulkan_globals.screen_effects_set_layout);
-	vulkan_globals.screen_effects_desc_set = VK_NULL_HANDLE;
+	R_FreeDescriptorSet (vulkan_globals.screen_effects_desc_set[0], &vulkan_globals.screen_effects_set_layout);
+	R_FreeDescriptorSet (vulkan_globals.screen_effects_desc_set[1], &vulkan_globals.screen_effects_set_layout);
+	vulkan_globals.screen_effects_desc_set[0] = VK_NULL_HANDLE;
+	vulkan_globals.screen_effects_desc_set[1] = VK_NULL_HANDLE;
 
 	if (msaa_color_buffer)
 	{
@@ -2485,6 +2488,8 @@ qboolean GL_BeginRendering (qboolean use_tasks, task_handle_t *begin_rendering_t
 	else
 		GL_BeginRenderingTask (NULL);
 
+	render_scale = CLAMP (1, (int)r_scale.value, 32);
+
 	return true;
 }
 
@@ -2550,6 +2555,8 @@ typedef struct screen_effect_constants_s
 	uint32_t clamp_size_y;
 	float	 screen_size_rcp_x;
 	float	 screen_size_rcp_y;
+	float	 scale_rcp_x;
+	float	 scale_rcp_y;
 	float	 aspect_ratio;
 	float	 time;
 	uint32_t flags;
@@ -2585,9 +2592,10 @@ typedef struct end_rendering_parms_s
 	qboolean render_warp   : 1;
 	qboolean vid_palettize : 1;
 	qboolean menu		   : 1;
-	qboolean ray_debug	   : 1;
-	uint32_t render_scale  : 4;
 	uint32_t vid_height	   : 20;
+	uint32_t render_scale  : 6;
+	qboolean ray_debug	   : 1;
+	glRect_t bounds;
 	float	 time;
 	float	 viewent_alpha;
 	uint8_t	 v_blend[4];
@@ -2597,20 +2605,102 @@ typedef struct end_rendering_parms_s
 	vec3_t	 down;
 } end_rendering_parms_t;
 
-#define SCREEN_EFFECT_FLAG_SCALE_MASK 0x3
-#define SCREEN_EFFECT_FLAG_SCALE_2X	  0x1
-#define SCREEN_EFFECT_FLAG_SCALE_4X	  0x2
-#define SCREEN_EFFECT_FLAG_SCALE_8X	  0x3
 #define SCREEN_EFFECT_FLAG_WATER_WARP 0x4
 #define SCREEN_EFFECT_FLAG_PALETTIZE  0x8
 #define SCREEN_EFFECT_FLAG_MENU		  0x10
 
 /*
 ===============
+GL_RenderScale
+===============
+*/
+static void GL_RenderScale (cb_context_t *cbx, end_rendering_parms_t *parms, qboolean effects)
+{
+	VkImageMemoryBarrier image_barriers[2];
+	image_barriers[0].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+	image_barriers[0].pNext = NULL;
+	image_barriers[0].srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+	image_barriers[0].dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+	image_barriers[0].oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	image_barriers[0].newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+	image_barriers[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	image_barriers[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	image_barriers[0].image = vulkan_globals.color_buffers[0];
+	image_barriers[0].subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	image_barriers[0].subresourceRange.baseMipLevel = 0;
+	image_barriers[0].subresourceRange.levelCount = 1;
+	image_barriers[0].subresourceRange.baseArrayLayer = 0;
+	image_barriers[0].subresourceRange.layerCount = 1;
+
+	image_barriers[1].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+	image_barriers[1].pNext = NULL;
+	image_barriers[1].srcAccessMask = effects ? VK_ACCESS_SHADER_WRITE_BIT : VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+	image_barriers[1].dstAccessMask = effects ? VK_ACCESS_TRANSFER_READ_BIT : VK_ACCESS_TRANSFER_WRITE_BIT;
+	image_barriers[1].oldLayout = effects ? VK_IMAGE_LAYOUT_GENERAL : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	image_barriers[1].newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+	image_barriers[1].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	image_barriers[1].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	image_barriers[1].image = vulkan_globals.color_buffers[1];
+	image_barriers[1].subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	image_barriers[1].subresourceRange.baseMipLevel = 0;
+	image_barriers[1].subresourceRange.levelCount = 1;
+	image_barriers[1].subresourceRange.baseArrayLayer = 0;
+	image_barriers[1].subresourceRange.layerCount = 1;
+
+	VkMemoryBarrier memory_barrier;
+	memory_barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+	memory_barrier.pNext = NULL;
+	memory_barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+	memory_barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT | VK_ACCESS_TRANSFER_WRITE_BIT;
+
+	vkCmdPipelineBarrier (
+		cbx->cb, (!effects ? VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT : 0) | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0,
+		!effects ? 1 : 0, &memory_barrier, 0, NULL, 2, image_barriers);
+
+	ZEROED_STRUCT (VkImageBlit, region);
+	region.srcOffsets[1].x = (parms->bounds.w + parms->render_scale - 1) / parms->render_scale;
+	region.srcOffsets[1].y = (parms->bounds.h + parms->render_scale - 1) / parms->render_scale;
+	region.srcOffsets[1].z = 1;
+	region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	region.srcSubresource.layerCount = 1;
+	region.srcSubresource.mipLevel = 0;
+	region.dstOffsets[0].x = parms->bounds.l;
+	region.dstOffsets[0].y = parms->bounds.t;
+	region.dstOffsets[1].x = parms->bounds.l + parms->bounds.w;
+	region.dstOffsets[1].y = parms->bounds.t + parms->bounds.h;
+	region.dstOffsets[1].z = 1;
+	region.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	region.dstSubresource.layerCount = 1;
+	region.dstSubresource.mipLevel = 0;
+
+	vkCmdBlitImage (
+		cbx->cb, vulkan_globals.color_buffers[1], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, vulkan_globals.color_buffers[0], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+		1, &region, VK_FILTER_NEAREST);
+
+	image_barriers[0].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+	image_barriers[0].pNext = NULL;
+	image_barriers[0].srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+	image_barriers[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+	image_barriers[0].oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+	image_barriers[0].newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	image_barriers[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	image_barriers[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	image_barriers[0].image = vulkan_globals.color_buffers[0];
+	image_barriers[0].subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	image_barriers[0].subresourceRange.baseMipLevel = 0;
+	image_barriers[0].subresourceRange.levelCount = 1;
+	image_barriers[0].subresourceRange.baseArrayLayer = 0;
+	image_barriers[0].subresourceRange.layerCount = 1;
+
+	vkCmdPipelineBarrier (cbx->cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, 0, 0, NULL, 0, NULL, 1, image_barriers);
+}
+
+/*
+===============
 GL_ScreenEffects
 ===============
 */
-static void GL_ScreenEffects (cb_context_t *cbx, qboolean enabled, end_rendering_parms_t *parms)
+static void GL_ScreenEffects (cb_context_t *cbx, qboolean enabled, qboolean source_buffer, end_rendering_parms_t *parms)
 {
 	if (enabled)
 	{
@@ -2625,7 +2715,7 @@ static void GL_ScreenEffects (cb_context_t *cbx, qboolean enabled, end_rendering
 		image_barriers[0].newLayout = VK_IMAGE_LAYOUT_GENERAL;
 		image_barriers[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 		image_barriers[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		image_barriers[0].image = vulkan_globals.color_buffers[0];
+		image_barriers[0].image = vulkan_globals.color_buffers[source_buffer ? 0 : 1];
 		image_barriers[0].subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 		image_barriers[0].subresourceRange.baseMipLevel = 0;
 		image_barriers[0].subresourceRange.levelCount = 1;
@@ -2640,7 +2730,7 @@ static void GL_ScreenEffects (cb_context_t *cbx, qboolean enabled, end_rendering
 		image_barriers[1].newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 		image_barriers[1].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 		image_barriers[1].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		image_barriers[1].image = vulkan_globals.color_buffers[1];
+		image_barriers[1].image = vulkan_globals.color_buffers[source_buffer];
 		image_barriers[1].subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 		image_barriers[1].subresourceRange.baseMipLevel = 0;
 		image_barriers[1].subresourceRange.levelCount = 1;
@@ -2660,44 +2750,37 @@ static void GL_ScreenEffects (cb_context_t *cbx, qboolean enabled, end_rendering
 		}
 		else
 #endif
-			if (parms->render_scale >= 2)
-		{
-			if (vulkan_globals.screen_effects_sops && r_usesops.value)
-				pipeline = &vulkan_globals.screen_effects_scale_sops_pipeline;
-			else
-				pipeline = &vulkan_globals.screen_effects_scale_pipeline;
-		}
-		else
 			pipeline = &vulkan_globals.screen_effects_pipeline;
 
 		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_COMPUTE, *pipeline);
+
+		uint32_t width = parms->render_scale > 1 && !parms->ray_debug ? (parms->bounds.w + parms->render_scale - 1) / parms->render_scale : parms->vid_width;
+		uint32_t height = parms->render_scale > 1 && !parms->ray_debug ? (parms->bounds.h + parms->render_scale - 1) / parms->render_scale : parms->vid_height;
 
 #if defined(_DEBUG)
 		if (!parms->ray_debug || !bmodel_tlas)
 #endif
 		{
-			vkCmdBindDescriptorSets (cbx->cb, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->layout.handle, 0, 1, &vulkan_globals.screen_effects_desc_set, 0, NULL);
+			vkCmdBindDescriptorSets (
+				cbx->cb, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->layout.handle, 0, 1, &vulkan_globals.screen_effects_desc_set[source_buffer ? 0 : 1], 0,
+				NULL);
 
 			uint32_t screen_effect_flags = 0;
 			if (parms->render_warp)
 				screen_effect_flags |= SCREEN_EFFECT_FLAG_WATER_WARP;
-			if (parms->render_scale >= 8)
-				screen_effect_flags |= SCREEN_EFFECT_FLAG_SCALE_8X;
-			else if (parms->render_scale >= 4)
-				screen_effect_flags |= SCREEN_EFFECT_FLAG_SCALE_4X;
-			else if (parms->render_scale >= 2)
-				screen_effect_flags |= SCREEN_EFFECT_FLAG_SCALE_2X;
 			if (parms->vid_palettize)
 				screen_effect_flags |= SCREEN_EFFECT_FLAG_PALETTIZE;
 			if (parms->menu)
 				screen_effect_flags |= SCREEN_EFFECT_FLAG_MENU;
 
 			const screen_effect_constants_t push_constants = {
-				parms->vid_width - 1,
-				parms->vid_height - 1,
-				1.0f / (float)parms->vid_width,
-				1.0f / (float)parms->vid_height,
-				(float)parms->vid_width / (float)parms->vid_height,
+				width - 1,
+				height - 1,
+				1.0f / (float)width,
+				1.0f / (float)height,
+				(float)width / (float)parms->vid_width,
+				(float)height / (float)parms->vid_height,
+				(float)width / (float)height,
 				parms->time,
 				screen_effect_flags,
 				(float)parms->v_blend[0] / 255.0f,
@@ -2713,49 +2796,44 @@ static void GL_ScreenEffects (cb_context_t *cbx, qboolean enabled, end_rendering
 			vkCmdBindDescriptorSets (cbx->cb, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->layout.handle, 0, 1, &vulkan_globals.ray_debug_desc_set, 0, NULL);
 
 			const ray_debug_constants_t push_constants = {
-				1.0f / (float)parms->vid_width,
-				1.0f / (float)parms->vid_height,
-				(float)parms->vid_width / (float)parms->vid_height,
-				parms->origin[0],
-				parms->origin[1],
-				parms->origin[2],
-				parms->forward[0],
-				parms->forward[1],
-				parms->forward[2],
-				parms->right[0],
-				parms->right[1],
-				parms->right[2],
-				parms->down[0],
-				parms->down[1],
-				parms->down[2],
+				1.0f / (float)width, 1.0f / (float)height, (float)width / (float)height,
+				parms->origin[0],	 parms->origin[1],	   parms->origin[2],
+				parms->forward[0],	 parms->forward[1],	   parms->forward[2],
+				parms->right[0],	 parms->right[1],	   parms->right[2],
+				parms->down[0],		 parms->down[1],	   parms->down[2],
 			};
 			R_PushConstants (cbx, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof (push_constants), &push_constants);
 		}
 #endif
 
-		vkCmdDispatch (cbx->cb, (parms->vid_width + 7) / 8, (parms->vid_height + 7) / 8, 1);
+		vkCmdDispatch (cbx->cb, (width + 7) / 8, (height + 7) / 8, 1);
 
-		image_barriers[0].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-		image_barriers[0].pNext = NULL;
-		image_barriers[0].srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-		image_barriers[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-		image_barriers[0].oldLayout = VK_IMAGE_LAYOUT_GENERAL;
-		image_barriers[0].newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-		image_barriers[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		image_barriers[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		image_barriers[0].image = vulkan_globals.color_buffers[0];
-		image_barriers[0].subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		image_barriers[0].subresourceRange.baseMipLevel = 0;
-		image_barriers[0].subresourceRange.levelCount = 1;
-		image_barriers[0].subresourceRange.baseArrayLayer = 0;
-		image_barriers[0].subresourceRange.layerCount = 1;
+		if (source_buffer)
+		{
+			image_barriers[0].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+			image_barriers[0].pNext = NULL;
+			image_barriers[0].srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+			image_barriers[0].dstAccessMask =
+				source_buffer == 0 ? VK_ACCESS_TRANSFER_READ_BIT : VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+			image_barriers[0].oldLayout = VK_IMAGE_LAYOUT_GENERAL;
+			image_barriers[0].newLayout = source_buffer == 0 ? VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+			image_barriers[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+			image_barriers[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+			image_barriers[0].image = vulkan_globals.color_buffers[source_buffer ? 0 : 1];
+			image_barriers[0].subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+			image_barriers[0].subresourceRange.baseMipLevel = 0;
+			image_barriers[0].subresourceRange.levelCount = 1;
+			image_barriers[0].subresourceRange.baseArrayLayer = 0;
+			image_barriers[0].subresourceRange.layerCount = 1;
 
-		vkCmdPipelineBarrier (
-			cbx->cb, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, 0, 0, NULL, 0, NULL, 1, image_barriers);
+			vkCmdPipelineBarrier (
+				cbx->cb, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+				source_buffer == 0 ? VK_PIPELINE_STAGE_TRANSFER_BIT : VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, 0, 0, NULL, 0, NULL, 1, image_barriers);
+		}
 
 		R_EndDebugUtilsLabel (cbx);
 	}
-	else
+	else if (source_buffer == 0)
 	{
 		VkMemoryBarrier memory_barrier;
 		memory_barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
@@ -2814,8 +2892,8 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 	VkRect2D render_area;
 	render_area.offset.x = 0;
 	render_area.offset.y = 0;
-	render_area.extent.width = parms->vid_width;
-	render_area.extent.height = parms->vid_height;
+	render_area.extent.width = parms->render_scale > 1 ? (parms->bounds.w + parms->render_scale - 1) / parms->render_scale : parms->vid_width;
+	render_area.extent.height = parms->render_scale > 1 ? (parms->bounds.h + parms->render_scale - 1) / parms->render_scale : parms->vid_height;
 
 	VkClearValue depth_clear_value;
 	depth_clear_value.depthStencil.depth = 0.0f;
@@ -2826,14 +2904,14 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 	clear_values[1] = depth_clear_value;
 	clear_values[2] = vulkan_globals.color_clear_value;
 
-	const qboolean screen_effects = parms->render_warp || (parms->render_scale >= 2) || parms->vid_palettize || (gl_polyblend.value && parms->v_blend[3]) ||
-									parms->menu || parms->ray_debug;
+	const qboolean screen_effects = parms->render_warp || parms->vid_palettize || (gl_polyblend.value && parms->v_blend[3]) || parms->menu || parms->ray_debug;
+	const qboolean source_buffer = parms->ray_debug || screen_effects != (parms->render_scale > 1);
 	{
 		const qboolean resolve = (vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT);
 		ZEROED_STRUCT (VkRenderPassBeginInfo, render_pass_begin_info);
 		render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 		render_pass_begin_info.renderPass = vulkan_globals.secondary_cb_contexts[SCBX_WORLD][0].render_pass;
-		render_pass_begin_info.framebuffer = main_framebuffers[screen_effects ? 1 : 0];
+		render_pass_begin_info.framebuffer = main_framebuffers[source_buffer ? 1 : 0];
 		render_pass_begin_info.renderArea = render_area;
 		render_pass_begin_info.clearValueCount = resolve ? 3 : 2;
 		render_pass_begin_info.pClearValues = clear_values;
@@ -2847,8 +2925,15 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 		vkCmdEndRenderPass (render_passes_cb);
 	}
 
-	GL_ScreenEffects (&vulkan_globals.primary_cb_contexts[PCBX_RENDER_PASSES], screen_effects, parms);
+	GL_ScreenEffects (&vulkan_globals.primary_cb_contexts[PCBX_RENDER_PASSES], screen_effects, source_buffer, parms);
 
+	if (parms->render_scale > 1 && !parms->ray_debug)
+		GL_RenderScale (&vulkan_globals.primary_cb_contexts[PCBX_RENDER_PASSES], parms, screen_effects);
+
+	render_area.offset.x = 0;
+	render_area.offset.y = 0;
+	render_area.extent.width = parms->vid_width;
+	render_area.extent.height = parms->vid_height;
 	{
 		ZEROED_STRUCT (VkRenderPassBeginInfo, render_pass_begin_info);
 		render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -2933,12 +3018,13 @@ task_handle_t GL_EndRendering (qboolean use_tasks, qboolean swapchain)
 		.render_warp = render_warp,
 		.vid_palettize = vid_palettize.value != 0,
 		.menu = key_dest == key_menu,
+		.vid_width = vid.width,
+		.vid_height = vid.height,
+		.render_scale = render_scale,
 #if defined(_DEBUG)
 		.ray_debug = r_raydebug.value && (bmodel_tlas != VK_NULL_HANDLE),
 #endif
-		.render_scale = CLAMP (0, render_scale, 8),
-		.vid_width = vid.width,
-		.vid_height = vid.height,
+		.bounds = {r_refdef.vrect.x, r_refdef.vrect.y, r_refdef.vrect.width, r_refdef.vrect.height},
 		.time = fmod (cl.time, 2.0 * M_PI),
 		.viewent_alpha = ENTALPHA_DECODE (cl.viewent.alpha),
 		.v_blend[0] = v_blend[0],

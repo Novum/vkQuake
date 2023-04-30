@@ -48,6 +48,7 @@ qpic_t *Draw_TryCachePic (const char *path, unsigned int texflags);
 void	Draw_NewGame (void);
 
 void GL_Viewport (cb_context_t *cbx, float x, float y, float width, float height, float min_depth, float max_depth);
+void GL_Viewport_Scale (cb_context_t *cbx, float x, float y, float width, float height, float min_depth, float max_depth, int scale);
 void GL_SetCanvas (cb_context_t *cbx, canvastype newcanvas); // johnfitz
 
 #endif /* _QUAKE_DRAW_H */

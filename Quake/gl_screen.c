@@ -1226,9 +1226,6 @@ void SCR_UpdateScreen (qboolean use_tasks)
 		}
 	}
 
-	if (vid.recalc_refdef)
-		SCR_CalcRefdef ();
-
 	// decide on the height of the console
 	con_forcedup = !cl.worldmodel || cls.signon != SIGNONS;
 
@@ -1238,6 +1235,9 @@ void SCR_UpdateScreen (qboolean use_tasks)
 		in_update_screen = false;
 		return;
 	}
+
+	if (vid.recalc_refdef)
+		SCR_CalcRefdef ();
 
 	if (use_tasks)
 	{

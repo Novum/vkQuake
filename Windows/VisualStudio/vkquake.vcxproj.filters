@@ -319,19 +319,7 @@
     <ClCompile Include="..\..\Shaders\Compiled\Debug\screen_effects_8bit.comp.c">
       <Filter>Shaders\Debug</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Shaders\Compiled\Debug\screen_effects_8bit_scale.comp.c">
-      <Filter>Shaders\Debug</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Shaders\Compiled\Debug\screen_effects_8bit_scale_sops.comp.c">
-      <Filter>Shaders\Debug</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\screen_effects_10bit.comp.c">
-      <Filter>Shaders\Debug</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Shaders\Compiled\Debug\screen_effects_10bit_scale.comp.c">
-      <Filter>Shaders\Debug</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Shaders\Compiled\Debug\screen_effects_10bit_scale_sops.comp.c">
       <Filter>Shaders\Debug</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\showtris.frag.c">
@@ -400,19 +388,7 @@
     <ClCompile Include="..\..\Shaders\Compiled\Release\screen_effects_8bit.comp.c">
       <Filter>Shaders\Release</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Shaders\Compiled\Release\screen_effects_8bit_scale.comp.c">
-      <Filter>Shaders\Release</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Shaders\Compiled\Release\screen_effects_8bit_scale_sops.comp.c">
-      <Filter>Shaders\Release</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\screen_effects_10bit.comp.c">
-      <Filter>Shaders\Release</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Shaders\Compiled\Release\screen_effects_10bit_scale.comp.c">
-      <Filter>Shaders\Release</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\Shaders\Compiled\Release\screen_effects_10bit_scale_sops.comp.c">
       <Filter>Shaders\Release</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\showtris.frag.c">

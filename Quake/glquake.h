@@ -254,7 +254,6 @@ typedef struct
 	qboolean						 supersampling;
 	qboolean						 non_solid_fill;
 	qboolean						 multi_draw_indirect;
-	qboolean						 screen_effects_sops;
 
 	// Instance extensions
 	qboolean get_surface_capabilities_2;
@@ -299,8 +298,6 @@ typedef struct
 	vulkan_pipeline_t		 md5_pipelines[MODEL_PIPELINE_COUNT];
 	vulkan_pipeline_t		 postprocess_pipeline;
 	vulkan_pipeline_t		 screen_effects_pipeline;
-	vulkan_pipeline_t		 screen_effects_scale_pipeline;
-	vulkan_pipeline_t		 screen_effects_scale_sops_pipeline;
 	vulkan_pipeline_t		 cs_tex_warp_pipeline;
 	vulkan_pipeline_t		 showtris_pipeline;
 	vulkan_pipeline_t		 showtris_indirect_pipeline;
@@ -321,7 +318,7 @@ typedef struct
 	vulkan_desc_set_layout_t ubo_set_layout;
 	vulkan_desc_set_layout_t single_texture_set_layout;
 	vulkan_desc_set_layout_t input_attachment_set_layout;
-	VkDescriptorSet			 screen_effects_desc_set;
+	VkDescriptorSet			 screen_effects_desc_set[2];
 	vulkan_desc_set_layout_t screen_effects_set_layout;
 	vulkan_desc_set_layout_t single_texture_cs_write_set_layout;
 	vulkan_desc_set_layout_t lightmap_compute_set_layout;

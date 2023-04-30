@@ -131,11 +131,7 @@ SHADER_OBJS = \
 	md5_vert.o \
 	basic_alphatest_frag.o \
 	screen_effects_8bit_comp.o \
-	screen_effects_8bit_scale_comp.o \
-	screen_effects_8bit_scale_sops_comp.o \
 	screen_effects_10bit_comp.o \
-	screen_effects_10bit_scale_comp.o \
-	screen_effects_10bit_scale_sops_comp.o \
 	cs_tex_warp_comp.o \
 	indirect_comp.o \
 	indirect_clear_comp.o \

@@ -1686,32 +1686,21 @@ static void M_GraphicsOptions_ChooseNextAASamples (int dir)
 
 static void M_GraphicsOptions_ChooseNextRenderScale (int dir)
 {
-	int value = r_scale.value;
+	int value = CLAMP (1, r_scale.value, 32);
 
-	if (dir > 0)
-	{
-		if (value >= 8)
-			value = 0;
-		else if (value >= 4)
-			value = 8;
-		else if (value >= 2)
-			value = 4;
-		else
-			value = 2;
-	}
-	else
-	{
-		if (value <= 0)
-			value = 8;
-		else if (value <= 2)
-			value = 0;
-		else if (value <= 4)
-			value = 2;
-		else if (value <= 8)
-			value = 4;
-		else
-			value = 8;
-	}
+	value += dir;
+
+	if (value > 8 && value & 1)
+		value += dir;
+
+	if (value > 16 && value & 3)
+		value += dir * 2;
+
+	if (value > 32)
+		value = 1;
+
+	if (value < 1)
+		value = 32;
 
 	Cvar_SetValueQuick (&r_scale, (float)value);
 }
