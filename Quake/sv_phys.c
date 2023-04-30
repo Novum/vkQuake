@@ -276,6 +276,7 @@ int SV_FlyMove (edict_t *ent, float time, trace_t *steptrace)
 	blocked = 0;
 	VectorCopy (ent->v.velocity, original_velocity);
 	VectorCopy (ent->v.velocity, primal_velocity);
+	VectorCopy (ent->v.velocity, new_velocity);
 	numplanes = 0;
 
 	time_left = time;

@@ -645,7 +645,7 @@ glheapallocation_t *GL_HeapAllocate (glheap_t *heap, VkDeviceSize size, VkDevice
 
 	if (size < heap->segment_size)
 	{
-		allocinfo_t		   alloc_info;
+		ZEROED_STRUCT (allocinfo_t, alloc_info);
 		const VkDeviceSize size_alignment_max = q_max (size, alignment);
 		alloc_info.is_small_alloc = size_alignment_max <= heap->page_size / 2;
 		if (alloc_info.is_small_alloc)
