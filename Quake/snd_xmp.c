@@ -26,7 +26,7 @@
 #include "snd_codec.h"
 #include "snd_codeci.h"
 #include "snd_xmp.h"
-#if defined(_WIN32) && defined(XMP_NO_DLL)
+#if defined(_WIN32) && defined(LIBXMP_STATIC)
 #define BUILDING_STATIC
 #endif
 #include <xmp.h>
