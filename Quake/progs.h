@@ -103,7 +103,6 @@ void PR_Profile_f (void);
 
 edict_t *ED_Alloc (void);
 void	 ED_Free (edict_t *ed);
-void	 ED_RemoveFromFreeList (edict_t *ed);
 
 void		ED_Print (edict_t *ed);
 void		ED_Write (FILE *f, edict_t *ed);
@@ -368,8 +367,7 @@ struct qcvm_s
 	int				 num_edicts;
 	int				 reserved_edicts;
 	int				 max_edicts;
-	int				 min_edicts; // for savegame compatibility
-	edict_t			*edicts;	 // can NOT be array indexed, because edict_t is variable sized, but can be used to reference the world ent
+	edict_t			*edicts; // can NOT be array indexed, because edict_t is variable sized, but can be used to reference the world ent
 	edict_t			*free_edicts_head;
 	edict_t			*free_edicts_tail;
 	struct qmodel_s *worldmodel;
