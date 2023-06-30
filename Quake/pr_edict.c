@@ -843,6 +843,9 @@ void ED_Write (FILE *f, edict_t *ed)
 		if (type & DEF_SAVEGLOBAL)
 			continue;
 
+		if (type >= NUM_TYPE_SIZES)
+			continue;
+
 		name = PR_GetString (d->s_name);
 		j = strlen (name);
 		if (j > 1 && name[j - 2] == '_')
