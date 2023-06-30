@@ -463,6 +463,9 @@ void ED_Print (edict_t *ed)
 		// if the value is still all 0, skip the field
 		type = d->type & ~DEF_SAVEGLOBAL;
 
+		if (type >= countof (type_size))
+			continue;
+
 		for (j = 0; j < type_size[type]; j++)
 		{
 			if (v[j])
