@@ -32,6 +32,7 @@
 #include <sys/types.h>
 #include <stddef.h>
 #include <limits.h>
+#include <inttypes.h>
 #ifndef _WIN32 /* others we support without sys/param.h? */
 #include <sys/param.h>
 #endif
