@@ -27,6 +27,20 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 typedef unsigned int func_t;
 typedef int			 string_t;
 
+#if _MSC_VER >= 1300
+	#define Q_ALIGN(a) __declspec(align(a))
+#elif defined(__clang__)
+	#define Q_ALIGN(a) __attribute__((aligned(a)))
+#elif __GNUC__ >= 3
+	#define Q_ALIGN(a) __attribute__((aligned(a)))
+#else
+	#define Q_ALIGN(a)
+#endif
+//64bit types need alignment hints to ensure we don't get misalignment exceptions on other platforms.
+typedef Q_ALIGN(4) int64_t	qcsint64_t;
+typedef Q_ALIGN(4) uint64_t	qcuint64_t;
+typedef Q_ALIGN(4) double	qcdouble_t;
+
 typedef enum
 {
 	ev_bad = -1,
@@ -39,7 +53,11 @@ typedef enum
 	ev_function,
 	ev_pointer,
 
-	ev_ext_integer
+	ev_ext_integer,
+	ev_ext_uint32,
+	ev_ext_sint64,
+	ev_ext_uint64,
+	ev_ext_double,
 } etype_t;
 
 #define OFS_NULL	 0

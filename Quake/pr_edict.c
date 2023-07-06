@@ -280,8 +280,20 @@ static const char *PR_ValueString (int type, eval_t *val)
 	case ev_float:
 		q_snprintf (line, sizeof (line), "%5.1f", val->_float);
 		break;
+	case ev_ext_double:
+		q_snprintf (line, sizeof(line), "%5.1f", val->_double);
+		break;
 	case ev_ext_integer:
 		q_snprintf (line, sizeof (line), "%i", val->_int);
+		break;
+	case ev_ext_uint32:
+		sprintf (line, "%u", val->_uint32);
+		break;
+	case ev_ext_sint64:
+		sprintf (line, "%"PRIi64, val->_sint64);
+		break;
+	case ev_ext_uint64:
+		sprintf (line, "%"PRIu64, val->_uint64);
 		break;
 	case ev_vector:
 		q_snprintf (line, sizeof (line), "'%5.1f %5.1f %5.1f'", val->vector[0], val->vector[1], val->vector[2]);
@@ -338,6 +350,18 @@ const char *PR_UglyValueString (int type, eval_t *val)
 		break;
 	case ev_ext_integer:
 		q_snprintf (line, sizeof (line), "%i", val->_int);
+		break;
+	case ev_ext_uint32:
+		sprintf (line, "%u", val->_uint32);
+		break;
+	case ev_ext_sint64:
+		sprintf (line, "%"PRIi64, val->_sint64);
+		break;
+	case ev_ext_uint64:
+		sprintf (line, "%"PRIu64, val->_uint64);
+		break;
+	case ev_ext_double:
+		q_snprintf (line, sizeof(line), "%f", val->_double);
 		break;
 	case ev_vector:
 		q_snprintf (line, sizeof (line), "%f %f %f", val->vector[0], val->vector[1], val->vector[2]);
@@ -639,7 +663,7 @@ void ED_WriteGlobals (FILE *f)
 			continue;
 		type &= ~DEF_SAVEGLOBAL;
 
-		if (type != ev_string && type != ev_float && type != ev_ext_integer && type != ev_entity)
+		if (type != ev_string && type != ev_float && type != ev_ext_double && type != ev_ext_integer && type != ev_ext_uint32 && type != ev_ext_sint64 && type != ev_ext_uint64 && type != ev_entity)
 			continue;
 
 		name = PR_GetString (def->s_name);
@@ -791,9 +815,20 @@ qboolean ED_ParseEpair (void *base, ddef_t *key, const char *s, qboolean zoned)
 	case ev_float:
 		*(float *)d = atof (s);
 		break;
-
+	case ev_ext_double:
+		*(qcdouble_t *)d = atof (s);
+		break;
 	case ev_ext_integer:
-		*(int *)d = atoi (s);
+		*(int32_t *)d = atoi (s);
+		break;
+	case ev_ext_uint32:
+		*(uint32_t *)d = atoi (s);
+		break;
+	case ev_ext_sint64:
+		*(qcsint64_t *)d = strtoll(s, NULL, 0);	//if longlong is 128bit then no real harm done for 64bit quantities...
+		break;
+	case ev_ext_uint64:
+		*(qcuint64_t *)d = strtoull(s, NULL, 0);
 		break;
 
 	case ev_vector:

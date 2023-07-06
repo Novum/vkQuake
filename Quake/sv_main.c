@@ -114,6 +114,20 @@ void SV_CalcStats (client_t *client, int *statsi, float *statsf, const char **st
 		case ev_ext_integer:
 			statsi[sv.customstats[i].idx] = eval->_int;
 			break;
+		case ev_ext_uint32:
+			statsi[sv.customstats[i].idx] = eval->_uint32;
+			break;
+		case ev_ext_sint64:
+			statsi[sv.customstats[i].idx+0] = eval->_sint64;
+			statsi[sv.customstats[i].idx+1] = eval->_sint64>>32;
+			break;
+		case ev_ext_uint64:
+			statsi[sv.customstats[i].idx+0] = eval->_uint64;
+			statsi[sv.customstats[i].idx+1] = eval->_uint64>>32;
+			break;
+		case ev_ext_double:
+			statsf[sv.customstats[i].idx] = eval->_double;	//FIXME: precision loss
+			break;
 		case ev_entity:
 			statsi[sv.customstats[i].idx] = NUM_FOR_EDICT (PROG_TO_EDICT (eval->edict));
 			break;

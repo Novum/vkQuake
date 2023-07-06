@@ -1008,368 +1008,368 @@ static void PF_strireplace (void)
 		G_INT (OFS_RETURN) = PR_SetEngineString (subject);
 }
 
+
 static void PF_sprintf_internal (const char *s, int firstarg, char *outbuf, int outbuflen)
 {
-	const char	*s0;
-	char		*o = outbuf, *end = outbuf + outbuflen, *err;
-	int			 width, precision, thisarg, flags;
-	char		 formatbuf[16];
-	char		*f;
-	int			 argpos = firstarg;
-	int			 isfloat;
-	static int	 dummyivec[3] = {0, 0, 0};
+	const char *s0;
+	char *o = outbuf, *end = outbuf + outbuflen, *err;
+	int width, precision, thisarg, flags;
+	char formatbuf[16];
+	char *f;
+	int argpos = firstarg;
+	int isfloat, is64bit;
+	static int dummyivec[3] = {0, 0, 0};
 	static float dummyvec[3] = {0, 0, 0};
 
-#define PRINTF_ALTERNATE	 1
-#define PRINTF_ZEROPAD		 2
-#define PRINTF_LEFT			 4
+#define PRINTF_ALTERNATE 1
+#define PRINTF_ZEROPAD 2
+#define PRINTF_LEFT 4
 #define PRINTF_SPACEPOSITIVE 8
-#define PRINTF_SIGNPOSITIVE	 16
+#define PRINTF_SIGNPOSITIVE 16
 
 	formatbuf[0] = '%';
 
-#define GETARG_FLOAT(a)		(((a) >= firstarg && (a) < qcvm->argc) ? (G_FLOAT (OFS_PARM0 + 3 * (a))) : 0)
-#define GETARG_VECTOR(a)	(((a) >= firstarg && (a) < qcvm->argc) ? (G_VECTOR (OFS_PARM0 + 3 * (a))) : dummyvec)
-#define GETARG_INT(a)		(((a) >= firstarg && (a) < qcvm->argc) ? (G_INT (OFS_PARM0 + 3 * (a))) : 0)
-#define GETARG_INTVECTOR(a) (((a) >= firstarg && (a) < qcvm->argc) ? ((int *)G_VECTOR (OFS_PARM0 + 3 * (a))) : dummyivec)
-#define GETARG_STRING(a)	(((a) >= firstarg && (a) < qcvm->argc) ? (G_STRING (OFS_PARM0 + 3 * (a))) : "")
+#define GETARG_FLOAT(a) (((a)>=firstarg && (a)<qcvm->argc) ? (G_FLOAT(OFS_PARM0 + 3 * (a))) : 0)
+#define GETARG_DOUBLE(a) (((a)>=firstarg && (a)<qcvm->argc) ? (G_DOUBLE(OFS_PARM0 + 3 * (a))) : 0)
+#define GETARG_VECTOR(a) (((a)>=firstarg && (a)<qcvm->argc) ? (G_VECTOR(OFS_PARM0 + 3 * (a))) : dummyvec)
+#define GETARG_INT(a) (((a)>=firstarg && (a)<qcvm->argc) ? (G_INT(OFS_PARM0 + 3 * (a))) : 0)
+#define GETARG_INT64(a) (((a)>=firstarg && (a)<qcvm->argc) ? (G_INT64(OFS_PARM0 + 3 * (a))) : 0)
+#define GETARG_UINT(a) (((a)>=firstarg && (a)<qcvm->argc) ? (G_UINT(OFS_PARM0 + 3 * (a))) : 0)
+#define GETARG_UINT64(a) (((a)>=firstarg && (a)<qcvm->argc) ? (G_UINT64(OFS_PARM0 + 3 * (a))) : 0)
+#define GETARG_INTVECTOR(a) (((a)>=firstarg && (a)<qcvm->argc) ? ((int*) G_VECTOR(OFS_PARM0 + 3 * (a))) : dummyivec)
+#define GETARG_STRING(a) (((a)>=firstarg && (a)<qcvm->argc) ? (G_STRING(OFS_PARM0 + 3 * (a))) : "")
 
-	for (;;)
+#define GETARG_SNUMERIC(t, a) (is64bit?(isfloat ? (t) GETARG_DOUBLE(a) : (t) GETARG_INT64 (a)):(isfloat ? (t) GETARG_FLOAT(a) : (t) GETARG_INT (a)))
+#define GETARG_UNUMERIC(t, a) (is64bit?(isfloat ? (t) GETARG_DOUBLE(a) : (t) GETARG_UINT64(a)):(isfloat ? (t) GETARG_FLOAT(a) : (t) GETARG_UINT(a)))
+
+	for(;;)
 	{
 		s0 = s;
-		switch (*s)
+		switch(*s)
 		{
-		case 0:
-			goto finished;
-		case '%':
-			++s;
-
-			if (*s == '%')
-				goto verbatim;
-
-			// complete directive format:
-			// %3$*1$.*2$ld
-
-			width = -1;
-			precision = -1;
-			thisarg = -1;
-			flags = 0;
-			isfloat = -1;
-
-			// is number following?
-			if (*s >= '0' && *s <= '9')
-			{
-				width = strtol (s, &err, 10);
-				if (!err)
-				{
-					Con_Warning ("PF_sprintf: bad format string: %s\n", s0);
-					goto finished;
-				}
-				if (*err == '$')
-				{
-					thisarg = width + (firstarg - 1);
-					width = -1;
-					s = err + 1;
-				}
-				else
-				{
-					if (*s == '0')
-					{
-						flags |= PRINTF_ZEROPAD;
-						if (width == 0)
-							width = -1; // it was just a flag
-					}
-					s = err;
-				}
-			}
-
-			if (width < 0)
-			{
-				for (;;)
-				{
-					switch (*s)
-					{
-					case '#':
-						flags |= PRINTF_ALTERNATE;
-						break;
-					case '0':
-						flags |= PRINTF_ZEROPAD;
-						break;
-					case '-':
-						flags |= PRINTF_LEFT;
-						break;
-					case ' ':
-						flags |= PRINTF_SPACEPOSITIVE;
-						break;
-					case '+':
-						flags |= PRINTF_SIGNPOSITIVE;
-						break;
-					default:
-						goto noflags;
-					}
-					++s;
-				}
-			noflags:
-				if (*s == '*')
-				{
-					++s;
-					if (*s >= '0' && *s <= '9')
-					{
-						width = strtol (s, &err, 10);
-						if (!err || *err != '$')
-						{
-							Con_Warning ("PF_sprintf: invalid format string: %s\n", s0);
-							goto finished;
-						}
-						s = err + 1;
-					}
-					else
-						width = argpos++;
-					width = GETARG_FLOAT (width);
-					if (width < 0)
-					{
-						flags |= PRINTF_LEFT;
-						width = -width;
-					}
-				}
-				else if (*s >= '0' && *s <= '9')
-				{
-					width = strtol (s, &err, 10);
-					if (!err)
-					{
-						Con_Warning ("PF_sprintf: invalid format string: %s\n", s0);
-						goto finished;
-					}
-					s = err;
-					if (width < 0)
-					{
-						flags |= PRINTF_LEFT;
-						width = -width;
-					}
-				}
-				// otherwise width stays -1
-			}
-
-			if (*s == '.')
-			{
+			case 0:
+				goto finished;
+			case '%':
 				++s;
-				if (*s == '*')
+
+				if(*s == '%')
+					goto verbatim;
+
+				// complete directive format:
+				// %3$*1$.*2$ld
+				
+				width = -1;
+				precision = -1;
+				thisarg = -1;
+				flags = 0;
+				isfloat = -1;
+				is64bit = 0;
+
+				// is number following?
+				if(*s >= '0' && *s <= '9')
 				{
-					++s;
-					if (*s >= '0' && *s <= '9')
+					width = strtol(s, &err, 10);
+					if(!err)
 					{
-						precision = strtol (s, &err, 10);
-						if (!err || *err != '$')
-						{
-							Con_Warning ("PF_sprintf: invalid format string: %s\n", s0);
-							goto finished;
-						}
+						Con_Warning("PF_sprintf: bad format string: %s\n", s0);
+						goto finished;
+					}
+					if(*err == '$')
+					{
+						thisarg = width + (firstarg-1);
+						width = -1;
 						s = err + 1;
 					}
 					else
-						precision = argpos++;
-					precision = GETARG_FLOAT (precision);
-				}
-				else if (*s >= '0' && *s <= '9')
-				{
-					precision = strtol (s, &err, 10);
-					if (!err)
 					{
-						Con_Warning ("PF_sprintf: invalid format string: %s\n", s0);
+						if(*s == '0')
+						{
+							flags |= PRINTF_ZEROPAD;
+							if(width == 0)
+								width = -1; // it was just a flag
+						}
+						s = err;
+					}
+				}
+
+				if(width < 0)
+				{
+					for(;;)
+					{
+						switch(*s)
+						{
+							case '#': flags |= PRINTF_ALTERNATE; break;
+							case '0': flags |= PRINTF_ZEROPAD; break;
+							case '-': flags |= PRINTF_LEFT; break;
+							case ' ': flags |= PRINTF_SPACEPOSITIVE; break;
+							case '+': flags |= PRINTF_SIGNPOSITIVE; break;
+							default:
+								goto noflags;
+						}
+						++s;
+					}
+noflags:
+					if(*s == '*')
+					{
+						++s;
+						if(*s >= '0' && *s <= '9')
+						{
+							width = strtol(s, &err, 10);
+							if(!err || *err != '$')
+							{
+								Con_Warning("PF_sprintf: invalid format string: %s\n", s0);
+								goto finished;
+							}
+							s = err + 1;
+						}
+						else
+							width = argpos++;
+						width = GETARG_FLOAT(width);
+						if(width < 0)
+						{
+							flags |= PRINTF_LEFT;
+							width = -width;
+						}
+					}
+					else if(*s >= '0' && *s <= '9')
+					{
+						width = strtol(s, &err, 10);
+						if(!err)
+						{
+							Con_Warning("PF_sprintf: invalid format string: %s\n", s0);
+							goto finished;
+						}
+						s = err;
+						if(width < 0)
+						{
+							flags |= PRINTF_LEFT;
+							width = -width;
+						}
+					}
+					// otherwise width stays -1
+				}
+
+				if(*s == '.')
+				{
+					++s;
+					if(*s == '*')
+					{
+						++s;
+						if(*s >= '0' && *s <= '9')
+						{
+							precision = strtol(s, &err, 10);
+							if(!err || *err != '$')
+							{
+								Con_Warning("PF_sprintf: invalid format string: %s\n", s0);
+								goto finished;
+							}
+							s = err + 1;
+						}
+						else
+							precision = argpos++;
+						precision = GETARG_FLOAT(precision);
+					}
+					else if(*s >= '0' && *s <= '9')
+					{
+						precision = strtol(s, &err, 10);
+						if(!err)
+						{
+							Con_Warning("PF_sprintf: invalid format string: %s\n", s0);
+							goto finished;
+						}
+						s = err;
+					}
+					else
+					{
+						Con_Warning("PF_sprintf: invalid format string: %s\n", s0);
 						goto finished;
 					}
-					s = err;
 				}
-				else
-				{
-					Con_Warning ("PF_sprintf: invalid format string: %s\n", s0);
-					goto finished;
-				}
-			}
 
-			for (;;)
-			{
-				switch (*s)
+				for(;;)
 				{
-				case 'h':
+					switch(*s)
+					{
+						case 'h': isfloat = 1; break;
+						case 'l': isfloat = 0; break;
+						case 'L': isfloat = 0; break;
+						case 'q': is64bit = 1; break;
+						case 'j': break;
+						case 'z': break;
+						case 't': break;
+						default:
+							goto nolength;
+					}
+					++s;
+				}
+nolength:
+
+				// now s points to the final directive char and is no longer changed
+				if (*s == 'p' || *s == 'P')
+				{
+					//%p is slightly different from %x.
+					//always 8-bytes wide with 0 padding, always ints.
+					flags |= PRINTF_ZEROPAD;
+					if (width < 0) width = 8;
+					if (isfloat < 0) isfloat = 0;
+				}
+				else if (*s == 'i')
+				{
+					//%i defaults to ints, not floats.
+					if(isfloat < 0) isfloat = 0;
+				}
+
+				//assume floats, not ints.
+				if(isfloat < 0)
 					isfloat = 1;
-					break;
-				case 'l':
-					isfloat = 0;
-					break;
-				case 'L':
-					isfloat = 0;
-					break;
-				case 'j':
-					break;
-				case 'z':
-					break;
-				case 't':
-					break;
-				default:
-					goto nolength;
-				}
-				++s;
-			}
-		nolength:
 
-			// now s points to the final directive char and is no longer changed
-			if (*s == 'p' || *s == 'P')
-			{
-				//%p is slightly different from %x.
-				// always 8-bytes wide with 0 padding, always ints.
-				flags |= PRINTF_ZEROPAD;
-				if (width < 0)
-					width = 8;
-				if (isfloat < 0)
-					isfloat = 0;
-			}
-			else if (*s == 'i')
-			{
-				//%i defaults to ints, not floats.
-				if (isfloat < 0)
-					isfloat = 0;
-			}
+				if(thisarg < 0)
+					thisarg = argpos++;
 
-			// assume floats, not ints.
-			if (isfloat < 0)
-				isfloat = 1;
-
-			if (thisarg < 0)
-				thisarg = argpos++;
-
-			if (o < end - 1)
-			{
-				f = &formatbuf[1];
-				if (*s != 's' && *s != 'c')
-					if (flags & PRINTF_ALTERNATE)
-						*f++ = '#';
-				if (flags & PRINTF_ZEROPAD)
-					*f++ = '0';
-				if (flags & PRINTF_LEFT)
-					*f++ = '-';
-				if (flags & PRINTF_SPACEPOSITIVE)
-					*f++ = ' ';
-				if (flags & PRINTF_SIGNPOSITIVE)
-					*f++ = '+';
-				*f++ = '*';
-				if (precision >= 0)
+				if(o < end - 1)
 				{
-					*f++ = '.';
+					f = &formatbuf[1];
+					if(*s != 's' && *s != 'c')
+						if(flags & PRINTF_ALTERNATE) *f++ = '#';
+					if(flags & PRINTF_ZEROPAD) *f++ = '0';
+					if(flags & PRINTF_LEFT) *f++ = '-';
+					if(flags & PRINTF_SPACEPOSITIVE) *f++ = ' ';
+					if(flags & PRINTF_SIGNPOSITIVE) *f++ = '+';
 					*f++ = '*';
-				}
-				if (*s == 'p')
-					*f++ = 'x';
-				else if (*s == 'P')
-					*f++ = 'X';
-				else if (*s == 'S')
-					*f++ = 's';
-				else
-					*f++ = *s;
-				*f++ = 0;
-
-				if (width < 0) // not set
-					width = 0;
-
-				switch (*s)
-				{
-				case 'd':
-				case 'i':
-					if (precision < 0) // not set
-						q_snprintf (o, end - o, formatbuf, width, (isfloat ? (int)GETARG_FLOAT (thisarg) : (int)GETARG_INT (thisarg)));
-					else
-						q_snprintf (o, end - o, formatbuf, width, precision, (isfloat ? (int)GETARG_FLOAT (thisarg) : (int)GETARG_INT (thisarg)));
-					o += strlen (o);
-					break;
-				case 'o':
-				case 'u':
-				case 'x':
-				case 'X':
-				case 'p':
-				case 'P':
-					if (precision < 0) // not set
-						q_snprintf (o, end - o, formatbuf, width, (isfloat ? (unsigned int)GETARG_FLOAT (thisarg) : (unsigned int)GETARG_INT (thisarg)));
-					else
-						q_snprintf (
-							o, end - o, formatbuf, width, precision, (isfloat ? (unsigned int)GETARG_FLOAT (thisarg) : (unsigned int)GETARG_INT (thisarg)));
-					o += strlen (o);
-					break;
-				case 'e':
-				case 'E':
-				case 'f':
-				case 'F':
-				case 'g':
-				case 'G':
-					if (precision < 0) // not set
-						q_snprintf (o, end - o, formatbuf, width, (isfloat ? (double)GETARG_FLOAT (thisarg) : (double)GETARG_INT (thisarg)));
-					else
-						q_snprintf (o, end - o, formatbuf, width, precision, (isfloat ? (double)GETARG_FLOAT (thisarg) : (double)GETARG_INT (thisarg)));
-					o += strlen (o);
-					break;
-				case 'v':
-				case 'V':
-					f[-2] += 'g' - 'v';
-					if (precision < 0) // not set
-						q_snprintf (
-							o, end - o, va ("%s %s %s", /* NESTED SPRINTF IS NESTED */ formatbuf, formatbuf, formatbuf), width,
-							(isfloat ? (double)GETARG_VECTOR (thisarg)[0] : (double)GETARG_INTVECTOR (thisarg)[0]), width,
-							(isfloat ? (double)GETARG_VECTOR (thisarg)[1] : (double)GETARG_INTVECTOR (thisarg)[1]), width,
-							(isfloat ? (double)GETARG_VECTOR (thisarg)[2] : (double)GETARG_INTVECTOR (thisarg)[2]));
-					else
-						q_snprintf (
-							o, end - o, va ("%s %s %s", /* NESTED SPRINTF IS NESTED */ formatbuf, formatbuf, formatbuf), width, precision,
-							(isfloat ? (double)GETARG_VECTOR (thisarg)[0] : (double)GETARG_INTVECTOR (thisarg)[0]), width, precision,
-							(isfloat ? (double)GETARG_VECTOR (thisarg)[1] : (double)GETARG_INTVECTOR (thisarg)[1]), width, precision,
-							(isfloat ? (double)GETARG_VECTOR (thisarg)[2] : (double)GETARG_INTVECTOR (thisarg)[2]));
-					o += strlen (o);
-					break;
-				case 'c':
-					// UTF-8-FIXME: figure it out yourself
-					//							if(flags & PRINTF_ALTERNATE)
+					if(precision >= 0)
 					{
-						if (precision < 0) // not set
-							q_snprintf (o, end - o, formatbuf, width, (isfloat ? (unsigned int)GETARG_FLOAT (thisarg) : (unsigned int)GETARG_INT (thisarg)));
-						else
-							q_snprintf (
-								o, end - o, formatbuf, width, precision, (isfloat ? (unsigned int)GETARG_FLOAT (thisarg) : (unsigned int)GETARG_INT (thisarg)));
-						o += strlen (o);
+						*f++ = '.';
+						*f++ = '*';
 					}
-					/*							else
-												{
-													unsigned int c = (isfloat ? (unsigned int) GETARG_FLOAT(thisarg) : (unsigned int)
-					   GETARG_INT(thisarg)); char charbuf16[16]; const char *buf = u8_encodech(c, NULL, charbuf16); if(!buf) buf = ""; if(precision < 0)
-					   // not set precision = end - o - 1; o += u8_strpad(o, end - o, buf, (flags & PRINTF_LEFT) != 0, width, precision);
-												}
-					*/
-					break;
-				case 'S':
-				{ // tokenizable string
-					const char *quotedarg = GETARG_STRING (thisarg);
-
-					// try and escape it... hopefully it won't get truncated by precision limits...
-					char   quotedbuf[65536];
-					size_t l;
-					l = strlen (quotedarg);
-					if (strchr (quotedarg, '\"') || strchr (quotedarg, '\n') || strchr (quotedarg, '\r') || l + 3 >= sizeof (quotedbuf))
-					{ // our escapes suck...
-						Con_Warning ("PF_sprintf: unable to safely escape arg: %s\n", s0);
-						quotedarg = "";
-					}
-					quotedbuf[0] = '\"';
-					memcpy (quotedbuf + 1, quotedarg, l);
-					quotedbuf[1 + l] = '\"';
-					quotedbuf[1 + l + 1] = 0;
-					quotedarg = quotedbuf;
-
-					// UTF-8-FIXME: figure it out yourself
-					//								if(flags & PRINTF_ALTERNATE)
+					switch(*s)
 					{
-						if (precision < 0) // not set
-							q_snprintf (o, end - o, formatbuf, width, quotedarg);
-						else
-							q_snprintf (o, end - o, formatbuf, width, precision, quotedarg);
-						o += strlen (o);
+						case 'd': case 'i': case 'I':
+						case 'o': case 'u': case 'x': case 'X': case 'p': case 'P':
+#ifdef _WIN32				//not c99
+							*f++ = 'I';
+							*f++ = '6';
+							*f++ = '4';
+#else						//c99
+							*f++ = 'l';
+							if (sizeof(long) == 4)
+								*f++ = 'l';	//go for long long instead
+#endif
+							break;
 					}
+					if (*s == 'p')
+						*f++ = 'x';
+					else if (*s == 'P')
+						*f++ = 'X';
+					else if (*s == 'S')
+						*f++ = 's';
+					else
+						*f++ = *s;
+					*f++ = 0;
+
+					if(width < 0) // not set
+						width = 0;
+
+					switch(*s)
+					{
+						case 'd': case 'i':
+							if(precision < 0) // not set
+								q_snprintf(o, end - o, formatbuf, width, GETARG_SNUMERIC(int64_t, thisarg));
+							else
+								q_snprintf(o, end - o, formatbuf, width, precision, GETARG_SNUMERIC(int64_t, thisarg));
+							o += strlen(o);
+							break;
+						case 'o': case 'u': case 'x': case 'X': case 'p': case 'P':
+							if(precision < 0) // not set
+								q_snprintf(o, end - o, formatbuf, width, GETARG_UNUMERIC(uint64_t, thisarg));
+							else
+								q_snprintf(o, end - o, formatbuf, width, precision, GETARG_UNUMERIC(uint64_t, thisarg));
+							o += strlen(o);
+							break;
+						case 'e': case 'E': case 'f': case 'F': case 'g': case 'G':
+							if(precision < 0) // not set
+								q_snprintf(o, end - o, formatbuf, width, GETARG_SNUMERIC(double, thisarg));
+							else
+								q_snprintf(o, end - o, formatbuf, width, precision, GETARG_SNUMERIC(double, thisarg));
+							o += strlen(o);
+							break;
+						case 'v': case 'V':
+							f[-2] += 'g' - 'v';
+							if(precision < 0) // not set
+								q_snprintf(o, end - o, va("%s %s %s", /* NESTED SPRINTF IS NESTED */ formatbuf, formatbuf, formatbuf),
+									width, (isfloat ? (double) GETARG_VECTOR(thisarg)[0] : (double) GETARG_INTVECTOR(thisarg)[0]),
+									width, (isfloat ? (double) GETARG_VECTOR(thisarg)[1] : (double) GETARG_INTVECTOR(thisarg)[1]),
+									width, (isfloat ? (double) GETARG_VECTOR(thisarg)[2] : (double) GETARG_INTVECTOR(thisarg)[2])
+								);
+							else
+								q_snprintf(o, end - o, va("%s %s %s", /* NESTED SPRINTF IS NESTED */ formatbuf, formatbuf, formatbuf),
+									width, precision, (isfloat ? (double) GETARG_VECTOR(thisarg)[0] : (double) GETARG_INTVECTOR(thisarg)[0]),
+									width, precision, (isfloat ? (double) GETARG_VECTOR(thisarg)[1] : (double) GETARG_INTVECTOR(thisarg)[1]),
+									width, precision, (isfloat ? (double) GETARG_VECTOR(thisarg)[2] : (double) GETARG_INTVECTOR(thisarg)[2])
+								);
+							o += strlen(o);
+							break;
+						case 'c':
+							//UTF-8-FIXME: figure it out yourself
+//							if(flags & PRINTF_ALTERNATE)
+							{
+								if(precision < 0) // not set
+									q_snprintf(o, end - o, formatbuf, width, (isfloat ? (unsigned int) GETARG_FLOAT(thisarg) : (unsigned int) GETARG_INT(thisarg)));
+								else
+									q_snprintf(o, end - o, formatbuf, width, precision, (isfloat ? (unsigned int) GETARG_FLOAT(thisarg) : (unsigned int) GETARG_INT(thisarg)));
+								o += strlen(o);
+							}
+/*							else
+							{
+								unsigned int c = (isfloat ? (unsigned int) GETARG_FLOAT(thisarg) : (unsigned int) GETARG_INT(thisarg));
+								char charbuf16[16];
+								const char *buf = u8_encodech(c, NULL, charbuf16);
+								if(!buf)
+									buf = "";
+								if(precision < 0) // not set
+									precision = end - o - 1;
+								o += u8_strpad(o, end - o, buf, (flags & PRINTF_LEFT) != 0, width, precision);
+							}
+*/							break;
+						case 'S':
+							{	//tokenizable string
+								const char *quotedarg = GETARG_STRING(thisarg);
+
+								//try and escape it... hopefully it won't get truncated by precision limits...
+								char quotedbuf[65536];
+								size_t l;
+								qboolean warn = false;
+								quotedbuf[0] = '\\';
+								quotedbuf[1] = '\"';
+								for (l = 2; *quotedarg && l < countof(quotedbuf)-4; )
+								{	//-2 for maximum output of an encoded char, and -2 more for the trailing \"\0.
+									switch(*quotedarg)
+									{
+									case '\n':	quotedbuf[l++] = '\\';	quotedbuf[l++] = 'n'; warn=true;break;
+									case '\r':	quotedbuf[l++] = '\\';	quotedbuf[l++] = 'r'; warn=true;break;
+									case '\"':	quotedbuf[l++] = '\\';	quotedbuf[l++] = '"'; warn=true;break;
+									default:							quotedbuf[l++] = *quotedarg;	break;
+									}
+									quotedarg++;
+								}
+								quotedbuf[l] = '\"';
+								quotedbuf[l+1] = 0;
+								if (warn || *quotedarg)	//our escapes suck...
+								{
+									Con_Warning("PF_sprintf: unable to safely escape arg: %i\n", thisarg+1);
+									quotedarg = quotedbuf;
+								}
+								else
+									quotedarg = quotedbuf+1;	//don't need the leading cstring-indicator.
+
+								//UTF-8-FIXME: figure it out yourself
+//								if(flags & PRINTF_ALTERNATE)
+								{
+									if(precision < 0) // not set
+										q_snprintf(o, end - o, formatbuf, width, quotedarg);
+									else
+										q_snprintf(o, end - o, formatbuf, width, precision, quotedarg);
+									o += strlen(o);
+								}
 /*								else
 								{
 									if(precision < 0) // not set
@@ -1377,38 +1377,38 @@ static void PF_sprintf_internal (const char *s, int firstarg, char *outbuf, int 
 									o += u8_strpad(o, end - o, quotedarg, (flags & PRINTF_LEFT) != 0, width, precision);
 								}
 */							}
-break;
-case 's':
-	// UTF-8-FIXME: figure it out yourself
-	//							if(flags & PRINTF_ALTERNATE)
-	{
-		if (precision < 0) // not set
-			q_snprintf (o, end - o, formatbuf, width, GETARG_STRING (thisarg));
-		else
-			q_snprintf (o, end - o, formatbuf, width, precision, GETARG_STRING (thisarg));
-		o += strlen (o);
-	}
-	/*							else
-								{
-									if(precision < 0) // not set
-										precision = end - o - 1;
-									o += u8_strpad(o, end - o, GETARG_STRING(thisarg), (flags & PRINTF_LEFT) != 0, width, precision);
-								}
-	*/
-	break;
-default:
-	Con_Warning ("PF_sprintf: invalid format string: %s\n", s0);
-	goto finished;
-}
-			}
-			++s;
-			break;
-		default:
-		verbatim:
-			if (o < end - 1)
-*o++ = *s;
-			s++;
-			break;
+							break;
+						case 's':
+							//UTF-8-FIXME: figure it out yourself
+//							if(flags & PRINTF_ALTERNATE)
+							{
+								if(precision < 0) // not set
+									q_snprintf(o, end - o, formatbuf, width, GETARG_STRING(thisarg));
+								else
+									q_snprintf(o, end - o, formatbuf, width, precision, GETARG_STRING(thisarg));
+								o += strlen(o);
+							}
+/*							else
+							{
+								if(precision < 0) // not set
+									precision = end - o - 1;
+								o += u8_strpad(o, end - o, GETARG_STRING(thisarg), (flags & PRINTF_LEFT) != 0, width, precision);
+							}
+*/							
+							break;
+						default:
+							Con_Warning("PF_sprintf: invalid format string: %s\n", s0);
+							goto finished;
+					}
+				}
+				++s;
+				break;
+			default:
+verbatim:
+				if(o < end - 1)
+					*o++ = *s;
+				s++;
+				break;
 		}
 	}
 finished:
@@ -1849,6 +1849,16 @@ static void PF_cl_setmodelindex (void)
 		SetMinMaxSize (e, vec3_origin, vec3_origin, true);
 }
 
+static void PF_modelnameforidx(void)
+{
+	int idx = G_FLOAT(OFS_PARM0);
+	qmodel_t *mod = qcvm->GetModel(idx);
+	if (mod)
+		G_INT(OFS_RETURN) = PR_MakeTempString(mod->name);
+	else
+		G_INT(OFS_RETURN) = 0;
+}
+
 static void PF_frameforname (void)
 {
 	unsigned int modelindex = G_FLOAT (OFS_PARM0);
@@ -2194,6 +2204,16 @@ static void PF_getsurfaceclippedpoint (void)
 	getsurface_clippointpoly (model, surf, point, result, FLT_MAX, &distsquared);
 }
 
+enum
+{
+	SPA_POSITION	= 0,
+	SPA_S_AXIS		= 1,
+	SPA_T_AXIS		= 2,
+	SPA_R_AXIS		= 3,	//normal
+	SPA_TEXCOORDS0	= 4,
+	SPA_LIGHTMAP0_TEXCOORDS	= 5,
+	SPA_LIGHTMAP0_COLOR		= 6,
+};
 static void PF_getsurfacepointattribute (void)
 {
 	edict_t		*ed = G_EDICT (OFS_PARM0);
@@ -2216,11 +2236,11 @@ static void PF_getsurfacepointattribute (void)
 			G_FLOAT (OFS_RETURN + 1) = 0;
 			G_FLOAT (OFS_RETURN + 2) = 0;
 			break;
-		case 0: // xyz coord
+		case SPA_POSITION: // xyz coord
 			VectorCopy (v->position, G_VECTOR (OFS_RETURN));
 			break;
-		case 1: // s dir
-		case 2: // t dir
+		case SPA_S_AXIS: // s dir
+		case SPA_T_AXIS: // t dir
 		{
 			// figure out how similar to the normal it is, and negate any influence, so that its perpendicular
 			float sc = -DotProduct (fa->plane->normal, fa->texinfo->vecs[attribute - 1]);
@@ -2228,24 +2248,24 @@ static void PF_getsurfacepointattribute (void)
 			VectorNormalize (G_VECTOR (OFS_RETURN));
 		}
 		break;
-		case 3: // normal
+		case SPA_R_AXIS: // normal
 			VectorCopy (fa->plane->normal, G_VECTOR (OFS_RETURN));
 			if (fa->flags & SURF_PLANEBACK)
 VectorInverse (G_VECTOR (OFS_RETURN));
 			break;
-		case 4: // st coord
+		case SPA_TEXCOORDS0: // st coord
 			G_FLOAT (OFS_RETURN + 0) = (DotProduct (v->position, fa->texinfo->vecs[0]) + fa->texinfo->vecs[0][3]) / fa->texinfo->texture->width;
 			G_FLOAT (OFS_RETURN + 1) = (DotProduct (v->position, fa->texinfo->vecs[1]) + fa->texinfo->vecs[1][3]) / fa->texinfo->texture->height;
 			G_FLOAT (OFS_RETURN + 2) = 0;
 			break;
-		case 5: // lmst coord, not actually very useful
+		case SPA_LIGHTMAP0_TEXCOORDS: // lmst coord, not actually very useful
 			G_FLOAT (OFS_RETURN + 0) =
 				(DotProduct (v->position, fa->texinfo->vecs[0]) + fa->texinfo->vecs[0][3] - fa->texturemins[0] + (fa->light_s + .5)) / LMBLOCK_WIDTH;
 			G_FLOAT (OFS_RETURN + 1) =
 				(DotProduct (v->position, fa->texinfo->vecs[1]) + fa->texinfo->vecs[1][3] - fa->texturemins[1] + (fa->light_t + .5)) / LMBLOCK_HEIGHT;
 			G_FLOAT (OFS_RETURN + 2) = 0;
 			break;
-		case 6: // colour
+		case SPA_LIGHTMAP0_COLOR: // colour
 			G_FLOAT (OFS_RETURN + 0) = 1;
 			G_FLOAT (OFS_RETURN + 1) = 1;
 			G_FLOAT (OFS_RETURN + 2) = 1;
@@ -2439,6 +2459,23 @@ static void PF_WriteFloat (void)
 { // curiously, this was missing in vanilla.
 	MSG_WriteFloat (WriteDest (), G_FLOAT (OFS_PARM0));
 }
+static void PF_WriteDouble(void)
+{
+	MSG_WriteDouble(WriteDest(), G_DOUBLE(OFS_PARM0));
+}
+static void PF_WriteInt(void)
+{
+	MSG_WriteDouble(WriteDest(), G_INT(OFS_PARM0));
+}
+static void PF_WriteInt64(void)
+{
+	MSG_WriteInt64(WriteDest(), G_INT64(OFS_PARM0));
+}
+static void PF_WriteUInt64(void)
+{
+	MSG_WriteUInt64(WriteDest(), G_UINT64(OFS_PARM0));
+}
+
 static void PF_sv_te_blooddp (void)
 { // blood is common enough that we should emulate it for when engines do actually support it.
 	float *org = G_VECTOR (OFS_PARM0);
@@ -3995,6 +4032,7 @@ static struct svcustomstat_s *PR_CustomStat (int idx, int type)
 	switch (type)
 	{
 	case ev_ext_integer:
+	case ev_ext_uint32:
 	case ev_float:
 	case ev_vector:
 	case ev_entity:
@@ -4771,6 +4809,59 @@ static void PF_cl_registercommand (void)
 	const char *cmdname = G_STRING (OFS_PARM0);
 	Cmd_AddCommand (cmdname, NULL);
 }
+static void PF_cl_readbyte(void)
+{
+	G_FLOAT(OFS_RETURN) = MSG_ReadByte();
+}
+static void PF_cl_readchar(void)
+{
+	G_FLOAT(OFS_RETURN) = MSG_ReadChar();
+}
+static void PF_cl_readshort(void)
+{
+	G_FLOAT(OFS_RETURN) = MSG_ReadShort();
+}
+static void PF_cl_readlong(void)
+{
+	G_FLOAT(OFS_RETURN) = MSG_ReadLong();
+}
+static void PF_cl_readcoord(void)
+{
+	G_FLOAT(OFS_RETURN) = MSG_ReadCoord(cl.protocolflags);
+}
+static void PF_cl_readangle(void)
+{
+	G_FLOAT(OFS_RETURN) = MSG_ReadAngle(cl.protocolflags);
+}
+static void PF_cl_readstring(void)
+{
+	G_INT(OFS_RETURN) = PR_MakeTempString(MSG_ReadString());
+}
+static void PF_cl_readfloat(void)
+{
+	G_FLOAT(OFS_RETURN) = MSG_ReadFloat();
+}
+static void PF_cl_readdouble(void)
+{
+	G_DOUBLE(OFS_RETURN) = MSG_ReadDouble();
+}
+static void PF_cl_readint(void)
+{
+	G_INT(OFS_RETURN) = MSG_ReadLong();
+}
+static void PF_cl_readint64(void)
+{
+	G_INT64(OFS_RETURN) = MSG_ReadInt64();
+}
+static void PF_cl_readuint64(void)
+{
+	G_UINT64(OFS_RETURN) = MSG_ReadUInt64();
+}
+static void PF_cl_readentitynum(void)
+{
+	G_FLOAT(OFS_RETURN) = MSG_ReadEntity(cl.protocol_pext2);
+}
+
 static void PF_uri_get (void)
 {
 	G_VECTORSET (OFS_RETURN, 0, 0, 0);
@@ -4897,6 +4988,11 @@ static struct
 	{"frameduration",				PF_frameduration,				PF_frameduration,				277,	D("float(float modidx, float framenum)", "Retrieves the duration (in seconds) of the specified framegroup.")},// (FTE_CSQC_SKELETONOBJECTS)
 	{"touchtriggers",				PF_touchtriggers,				PF_touchtriggers,				279,	D("void(optional entity ent, optional vector neworigin)", "Triggers a touch events between self and every SOLID_TRIGGER entity that it is in contact with. This should typically just be the triggers touch functions. Also optionally updates the origin of the moved entity.")},//
 	{"WriteFloat",					PF_WriteFloat,					PF_NoCSQC,						280,	"void(float buf, float fl)"},
+	{"WriteDouble",					PF_WriteDouble,					PF_NoCSQC,						0,		"void(float buf, __double fl)"},
+	{"WriteInt",					PF_WriteInt,					PF_NoCSQC,						0,		D("void(float buf, int fl)", "Writes all 4 bytes of a 32bit integer without truncating to a float first before converting back to an int (unlike WriteLong does, but otherwise equivelent).")},//
+	{"WriteUInt",					PF_WriteInt,					PF_NoCSQC,						0,		D("void(float buf, __uint fl)", "Writes all 4 bytes of a 32bit integer without truncating to a float first before converting back to an int (unlike WriteLong does, but otherwise equivelent).")},//
+	{"WriteInt64",					PF_WriteInt64,					PF_NoCSQC,						0,		D("void(float buf, __int64 val)", "Writes all 8 bytes of a 64bit integer. This uses variable-length coding and will send only a single byte for any value between -64 and 63.")},//
+	{"WriteUInt64",					PF_WriteUInt64,					PF_NoCSQC,						0,		D("void(float buf, __uint64 val)", "Writes all 8 bytes of a 64bit unsigned integer. Values between 0-127 will be sent in a single byte.")},//
 	{"frametoname",					PF_frametoname,					PF_frametoname,					284,	"string(float modidx, float framenum)"},
 	{"checkcommand",				PF_checkcommand,				PF_checkcommand,				294,	D("float(string name)", "Checks to see if the supplied name is a valid command, cvar, or alias. Returns 0 if it does not exist.")},
 	{"iscachedpic",					PF_NoSSQC,						PF_cl_iscachedpic,				316,	D("float(string name)", "Checks to see if the image is currently loaded. Engines might lie, or cache between maps.")},// (EXT_CSQC)
@@ -4911,10 +5007,11 @@ static struct
 	{"drawstring",					PF_NoSSQC,						PF_cl_drawstring,				326,	D("float(vector position, string text, vector size, vector rgb, float alpha, float drawflag)", "Draws a string, interpreting markup and recolouring as appropriate.")},// #326
 	{"stringwidth",					PF_NoSSQC,						PF_cl_stringwidth,				327,	D("float(string text, float usecolours, vector fontsize='8 8')", "Calculates the width of the screen in virtual pixels. If usecolours is 1, markup that does not affect the string width will be ignored. Will always be decoded as UTF-8 if UTF-8 is globally enabled.\nIf the char size is not specified, '8 8 0' will be assumed.")},// EXT_CSQC_'DARKPLACES'
 	{"drawsubpic",					PF_NoSSQC,						PF_cl_drawsubpic,				328,	D("void(vector pos, vector sz, string pic, vector srcpos, vector srcsz, vector rgb, float alpha, optional float drawflag)", "Draws a rescaled subsection of an image to the screen.")},// #328 EXT_CSQC_'DARKPLACES'
-	{"getstati",					PF_NoSSQC,						PF_cl_getstat_int,				330,	D("#define getstati_punf(stnum) (float)(__variant)getstati(stnum)\nint(float stnum)", "Retrieves the numerical value of the given EV_INTEGER or EV_ENTITY stat. Use getstati_punf if you wish to type-pun a float stat as an int to avoid truncation issues in DP.")},// (EXT_CSQC)
+	{"getstati",					PF_NoSSQC,						PF_cl_getstat_int,				330,	D("#define getstati_punf(stnum) (float)(__variant)getstati(stnum)\nint(float stnum)", "Retrieves the numerical value of the given EV_INTEGER or EV_ENTITY stat. Use getstati_punf if you wish to type-pun a float stat as an int to avoid truncation issues with DP's network protocol.")},// (EXT_CSQC)
 	{"getstatf",					PF_NoSSQC,						PF_cl_getstat_float,			331,	D("#define getstatbits getstatf\nfloat(float stnum, optional float firstbit, optional float bitcount)", "Retrieves the numerical value of the given EV_FLOAT stat. If firstbit and bitcount are specified, retrieves the upper bits of the STAT_ITEMS stat (converted into a float, so there are no VM dependancies).")},// (EXT_CSQC)
 	{"getstats",					PF_NoSSQC,						PF_cl_getstat_string,			332,	D("string(float stnum)", "Retrieves the value of the given EV_STRING stat, as a tempstring.\nString stats use a separate pool of stats from numeric ones.\n")},
 	{"setmodelindex",				PF_sv_setmodelindex,			PF_cl_setmodelindex,			333,	D("void(entity e, float mdlindex)", "Sets a model by precache index instead of by name. Otherwise identical to setmodel.")},//
+	{"modelnameforindex",			PF_modelnameforidx,				PF_modelnameforidx,				334,	D("string(float mdlindex)", "Retrieves the name of the model based upon a precache index. This can be used to reduce csqc network traffic by enabling model matching.")},//
 	{"particleeffectnum",			PF_sv_particleeffectnum,		PF_cl_particleeffectnum,		335,	D("float(string effectname)", "Precaches the named particle effect. If your effect name is of the form 'foo.bar' then particles/foo.cfg will be loaded by the client if foo.bar was not already defined.\nDifferent engines will have different particle systems, this specifies the QC API only.")},// (EXT_CSQC)
 	{"trailparticles",				PF_sv_trailparticles,			PF_cl_trailparticles,			336,	D("void(float effectnum, entity ent, vector start, vector end)", "Draws the given effect between the two named points. If ent is not world, distances will be cached in the entity in order to avoid framerate dependancies. The entity is not otherwise used.")},// (EXT_CSQC),
 	{"pointparticles",				PF_sv_pointparticles,			PF_cl_pointparticles,			337,	D("void(float effectnum, vector origin, optional vector dir, optional float count)", "Spawn a load of particles from the given effect at the given point traveling or aiming along the direction specified. The number of particles are scaled by the count argument.")},// (EXT_CSQC)
@@ -4923,6 +5020,20 @@ static struct
 	{"getplayerkeyfloat",			NULL,							PF_cl_playerkey_f,				0,		D("float(float playernum, string keyname, optional float assumevalue)", "Cheaper version of getplayerkeyvalue that avoids the need for so many tempstrings.")},
 	{"registercommand",				NULL,							PF_cl_registercommand,			352,	D("void(string cmdname)", "Register the given console command, for easy console use.\nConsole commands that are later used will invoke CSQC_ConsoleCommand.")},//(EXT_CSQC)
 	{"wasfreed",					PF_WasFreed,					PF_WasFreed,					353,	D("float(entity ent)", "Quickly check to see if the entity is currently free. This function is only valid during the two-second non-reuse window, after that it may give bad results. Try one second to make it more robust.")},//(EXT_CSQC) (should be availabe on server too)
+	{"readbyte",					PF_NoSSQC,						PF_cl_readbyte,					360,	"float()"},// (EXT_CSQC)
+	{"readchar",					PF_NoSSQC,						PF_cl_readchar,					361,	"float()"},// (EXT_CSQC)
+	{"readshort",					PF_NoSSQC,						PF_cl_readshort,				362,	"float()"},// (EXT_CSQC)
+	{"readlong",					PF_NoSSQC,						PF_cl_readlong,					363,	"float()"},// (EXT_CSQC)
+	{"readcoord",					PF_NoSSQC,						PF_cl_readcoord,				364,	"float()"},// (EXT_CSQC)
+	{"readangle",					PF_NoSSQC,						PF_cl_readangle,				365,	"float()"},// (EXT_CSQC)
+	{"readstring",					PF_NoSSQC,						PF_cl_readstring,				366,	"string()"},// (EXT_CSQC)
+	{"readfloat",					PF_NoSSQC,						PF_cl_readfloat,				367,	"float()"},// (EXT_CSQC)
+	{"readdouble",					PF_NoSSQC,						PF_cl_readdouble,				0,		D("__double()", "Reads a double-precision float without any truncation nor conversions. Data MUST have originally been written with WriteDouble.")},
+	{"readint",						PF_NoSSQC,						PF_cl_readint,					0,		D("int()", "Reads a 32bit signed int without any conversions to float, otherwise interchangable with readlong.")},// (EXT_CSQC)
+	{"readuint",					PF_NoSSQC,						PF_cl_readint,					0,		D("__uint()", "Reads a 32bit unsigned int without any conversions to float.")},// (EXT_CSQC)
+	{"readint64",					PF_NoSSQC,						PF_cl_readint64,				0,		D("__int64()", "Reads a 64bit signed int. Paired with WriteInt64.")},
+	{"readuint64",					PF_NoSSQC,						PF_cl_readuint64,				0,		D("__uint64()", "Reads a 64bit unsigned int. Paired with WriteUInt64.")},
+	{"readentitynum",				PF_NoSSQC,						PF_cl_readentitynum,			368,	"float()"},// (EXT_CSQC)
 	{"copyentity",					PF_copyentity,					PF_copyentity,					400,	D("entity(entity from, optional entity to)", "Copies all fields from one entity to another.")},// (DP_QC_COPYENTITY)
 	{"findchain",					PF_findchain,					PF_findchain,					402,	"entity(.string field, string match, optional .entity chainfield)"},// (DP_QC_FINDCHAIN)
 	{"findchainfloat",				PF_findchainfloat,				PF_findchainfloat,				403,	"entity(.float fld, float match, optional .entity chainfield)"},// (DP_QC_FINDCHAINFLOAT)
@@ -5833,6 +5944,7 @@ outname = Cmd_Argv (i++);
 	fprintf (f, "const float EV_VOID = %i;\n", ev_void);
 	fprintf (f, "const float EV_STRING = %i;\n", ev_string);
 	fprintf (f, "const float EV_FLOAT = %i;\n", ev_float);
+	fprintf(f, "const float EV_FLOAT_PUN = %i; //to work around DP's stat limitations.\n", ev_ext_integer);
 	fprintf (f, "const float EV_VECTOR = %i;\n", ev_vector);
 	fprintf (f, "const float EV_ENTITY = %i;\n", ev_entity);
 	fprintf (f, "const float EV_FIELD = %i;\n", ev_field);
