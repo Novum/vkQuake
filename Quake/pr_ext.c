@@ -5596,7 +5596,18 @@ if (!strcmp (extensionbuiltins[j].name, name))
 		if (!strncmp (n, "autocvar_", 9))
 		{
 			// really crappy approach
-			cvar_t *var = Cvar_Create (n + 9, PR_UglyValueString (qcvm->globaldefs[i].type, (eval_t *)(qcvm->globals + qcvm->globaldefs[i].ofs)));
+			const char *def;
+			cvar_t *var;
+			switch(qcvm->globaldefs[i].type&~DEF_SAVEGLOBAL)
+			{
+			case ev_float:	def = va("%g", ((eval_t*)(qcvm->globals + qcvm->globaldefs[i].ofs))->_float);	break;	//just to be a bit prettier. autocvars should not depend on denormals etc.
+			case ev_ext_double:	def = va("%g", ((eval_t*)(qcvm->globals + qcvm->globaldefs[i].ofs))->_double);	break;
+			case ev_vector:	def = va("%g %g %g", ((eval_t*)(qcvm->globals + qcvm->globaldefs[i].ofs))->vector[0], ((eval_t*)(qcvm->globals + qcvm->globaldefs[i].ofs))->vector[1], ((eval_t*)(qcvm->globals + qcvm->globaldefs[i].ofs))->vector[2]);	break;
+			default:	//go generic
+				def = PR_UglyValueString (qcvm->globaldefs[i].type, (eval_t*)(qcvm->globals + qcvm->globaldefs[i].ofs));
+				break;
+			}
+			var = Cvar_Create(n + 9, def);
 			numautocvars++;
 			if (!var)
 continue; // name conflicts with a command?
