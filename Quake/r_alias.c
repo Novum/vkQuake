@@ -247,6 +247,9 @@ void R_SetupAliasFrame (entity_t *e, aliashdr_t *paliashdr, int frame, lerpdata_
 		else
 			lerpdata->blend = CLAMP (0, (cl.time - e->lerpstart) / e->lerptime, 1);
 
+		if (lerpdata->blend == 1.0f)
+			e->previouspose = e->currentpose;
+		
 		if (paliashdr->poseverttype == PV_QUAKE1)
 		{
 			if (e->currentpose >= paliashdr->numposes || e->currentpose < 0)
