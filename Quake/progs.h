@@ -51,7 +51,8 @@ typedef struct edict_s
 	entity_state_t baseline;
 	unsigned char  alpha;		 /* johnfitz -- hack to support alpha since it's not part of entvars_t */
 	qboolean	   sendinterval; /* johnfitz -- send time until nextthink to client for better lerp timing */
-
+	float		oldframe;
+	float		oldthinktime;
 	vec3_t predthinkpos; /* expected edict origin once its nextthink arrives (sv_smoothplatformlerps) */
 	float  lastthink;	 /* time when predthinkpos was updated, or 0 if not valid (sv_smoothplatformlerps) */
 
