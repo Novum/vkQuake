@@ -98,8 +98,10 @@ static void R_CreateSpriteVertices (entity_t *e, mspriteframe_t *frame, basicver
 		v_up[0] = 0;
 		v_up[1] = 0;
 		v_up[2] = 1;
+		CrossProduct(vpn, v_up, v_right);
+		VectorNormalizeFast(v_right);
 		s_up = v_up;
-		s_right = vright;
+		s_right = v_right;
 		break;
 	case SPR_FACING_UPRIGHT: // faces camera origin, up is towards the heavens
 		VectorSubtract (e->origin, r_origin, v_forward);
