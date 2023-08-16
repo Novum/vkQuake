@@ -130,6 +130,69 @@ void InsertLinkAfter (link_t *l, link_t *after)
 /*
 ============================================================================
 
+							DYNAMIC VECTORS
+
+============================================================================
+*/
+
+void Vec_Grow (void **pvec, size_t element_size, size_t count)
+{
+	vec_header_t header;
+	if (*pvec)
+		header = VEC_HEADER(*pvec);
+	else
+		header.size = header.capacity = 0;
+
+	if (header.size + count > header.capacity)
+	{
+		void *new_buffer;
+		size_t total_size;
+
+		header.capacity = header.size + count;
+		header.capacity += header.capacity >> 1;
+		if (header.capacity < 16)
+			header.capacity = 16;
+		total_size = sizeof(vec_header_t) + header.capacity * element_size;
+
+		if (*pvec)
+			new_buffer = Mem_Realloc (((vec_header_t *)*pvec) - 1, total_size);
+		else
+			new_buffer = Mem_Alloc (total_size);
+		if (!new_buffer)
+			Sys_Error ("Vec_Grow: failed to allocate %lu bytes\n", (unsigned long)total_size);
+
+		*pvec = 1 + (vec_header_t*)new_buffer;
+		VEC_HEADER(*pvec) = header;
+	}
+}
+
+void Vec_Append (void **pvec, size_t element_size, const void *data, size_t count)
+{
+	if (!count)
+		return;
+	Vec_Grow (pvec, element_size, count);
+	memcpy ((byte *)*pvec + VEC_HEADER(*pvec).size, data, count * element_size);
+	VEC_HEADER(*pvec).size += count;
+}
+
+void Vec_Clear (void **pvec)
+{
+	if (*pvec)
+		VEC_HEADER(*pvec).size = 0;
+}
+
+void Vec_Free (void **pvec)
+{
+	if (*pvec)
+	{
+		Mem_Free (&VEC_HEADER (*pvec));
+		*pvec = NULL;
+	}
+}
+
+/*
+============================================================================
+
 					LIBRARY REPLACEMENT FUNCTIONS
 
 ============================================================================
