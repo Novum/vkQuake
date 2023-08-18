@@ -122,7 +122,7 @@ int		 NUM_FOR_EDICT (edict_t *e);
 
 #define NEXT_EDICT(e) ((edict_t *)((byte *)e + qcvm->edict_size))
 
-#define EDICT_TO_PROG(e) ((byte *)e - (byte *)qcvm->edicts)
+#define EDICT_TO_PROG(e) (int)((byte *)e - (byte *)qcvm->edicts)
 #define PROG_TO_EDICT(e) ((edict_t *)((byte *)qcvm->edicts + e))
 
 #define G_FLOAT(o)	  (qcvm->globals[o])
