@@ -3481,7 +3481,7 @@ static void *Mod_LoadSpriteFrame (qmodel_t *mod, byte *mod_base, void *pin, mspr
 Mod_LoadSpriteGroup
 =================
 */
-static void *Mod_LoadSpriteGroup (qmodel_t *mod, byte *mod_base, void *pin, mspriteframe_t **ppframe, int framenum)
+static void *Mod_LoadSpriteGroup (qmodel_t *mod, byte *mod_base, void *pin, mspriteframe_t **ppframe, int framenum, spriteframetype_t type)
 {
 	dspritegroup_t	  *pingroup;
 	mspritegroup_t	  *pspritegroup;
@@ -3493,6 +3493,8 @@ static void *Mod_LoadSpriteGroup (qmodel_t *mod, byte *mod_base, void *pin, mspr
 	pingroup = (dspritegroup_t *)pin;
 
 	numframes = LittleLong (pingroup->numframes);
+	if (type == SPR_ANGLED && numframes != 8)
+		Sys_Error ("Mod_LoadSpriteGroup: Bad # of frames: %d", numframes);
 
 	pspritegroup = (mspritegroup_t *)Mem_Alloc (sizeof (mspritegroup_t) + (numframes - 1) * sizeof (pspritegroup->frames[0]));
 
@@ -3593,7 +3595,7 @@ static void Mod_LoadSpriteModel (qmodel_t *mod, void *buffer)
 		}
 		else
 		{
-			pframetype = (dspriteframetype_t *)Mod_LoadSpriteGroup (mod, mod_base, pframetype + 1, &psprite->frames[i].frameptr, i);
+			pframetype = (dspriteframetype_t *)Mod_LoadSpriteGroup (mod, mod_base, pframetype + 1, &psprite->frames[i].frameptr, i, frametype);
 		}
 	}
 

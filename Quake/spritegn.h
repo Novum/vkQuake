@@ -115,7 +115,8 @@ typedef struct
 typedef enum
 {
 	SPR_SINGLE = 0,
-	SPR_GROUP
+	SPR_GROUP,
+	SPR_ANGLED,
 } spriteframetype_t;
 
 typedef struct
