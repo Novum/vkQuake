@@ -87,7 +87,6 @@ typedef struct entity_s
 	int dlightbits;
 
 	// FIXME: could turn these into a union
-	int				trivial_accept;
 	struct mnode_s *topnode; // for bmodels, first world node
 							 //  that splits bmodel, or NULL if
 							 //  not split
