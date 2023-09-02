@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2022 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2023 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -34,31 +34,97 @@
 #ifndef UNICODE
 #define UNICODE 1
 #endif
+#undef WINVER
 #undef _WIN32_WINNT
-#define _WIN32_WINNT  0x501   /* Need 0x410 for AlphaBlend() and 0x500 for EnumDisplayDevices(), 0x501 for raw input */
+#if defined(SDL_VIDEO_RENDER_D3D12)
+#define _WIN32_WINNT 0xA00 /* For D3D12, 0xA00 is required */
+#elif defined(HAVE_SHELLSCALINGAPI_H)
+#define _WIN32_WINNT 0x603 /* For DPI support */
+#else
+#define _WIN32_WINNT 0x501 /* Need 0x410 for AlphaBlend() and 0x500 for EnumDisplayDevices(), 0x501 for raw input */
+#endif
+#define WINVER _WIN32_WINNT
+
+#elif defined(__WINGDK__)
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN 1
+#endif
+#ifndef STRICT
+#define STRICT 1
+#endif
+#ifndef UNICODE
+#define UNICODE 1
+#endif
+#undef WINVER
+#undef _WIN32_WINNT
+#define _WIN32_WINNT 0xA00
+#define WINVER       _WIN32_WINNT
+
+#elif defined(__XBOXONE__) || defined(__XBOXSERIES__)
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN 1
+#endif
+#ifndef STRICT
+#define STRICT 1
+#endif
+#ifndef UNICODE
+#define UNICODE 1
+#endif
+#undef WINVER
+#undef _WIN32_WINNT
+#define _WIN32_WINNT 0xA00
+#define WINVER       _WIN32_WINNT
+#endif
+
+/* See https://github.com/libsdl-org/SDL/pull/7607  */
+/* force_align_arg_pointer attribute requires gcc >= 4.2.x.  */
+#if defined(__clang__)
+#define HAVE_FORCE_ALIGN_ARG_POINTER
+#elif defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 2))
+#define HAVE_FORCE_ALIGN_ARG_POINTER
+#endif
+#if defined(__GNUC__) && defined(__i386__) && defined(HAVE_FORCE_ALIGN_ARG_POINTER)
+#define MINGW32_FORCEALIGN __attribute__((force_align_arg_pointer))
+#else
+#define MINGW32_FORCEALIGN
 #endif
 
 #include <windows.h>
-#include <basetyps.h>   /* for REFIID with broken mingw.org headers */
+#include <basetyps.h> /* for REFIID with broken mingw.org headers */
+
+/* Older Visual C++ headers don't have the Win64-compatible typedefs... */
+#if defined(_MSC_VER) && (_MSC_VER <= 1200)
+#ifndef DWORD_PTR
+#define DWORD_PTR DWORD
+#endif
+#ifndef LONG_PTR
+#define LONG_PTR LONG
+#endif
+#endif
 
 #include "SDL_rect.h"
 
 /* Routines to convert from UTF8 to native Windows text */
-#define WIN_StringToUTF8W(S) SDL_iconv_string("UTF-8", "UTF-16LE", (const char *)(S), (SDL_wcslen(S)+1)*sizeof(WCHAR))
-#define WIN_UTF8ToStringW(S) (WCHAR *)SDL_iconv_string("UTF-16LE", "UTF-8", (const char *)(S), SDL_strlen(S)+1)
+#define WIN_StringToUTF8W(S) SDL_iconv_string("UTF-8", "UTF-16LE", (const char *)(S), (SDL_wcslen(S) + 1) * sizeof(WCHAR))
+#define WIN_UTF8ToStringW(S) (WCHAR *)SDL_iconv_string("UTF-16LE", "UTF-8", (const char *)(S), SDL_strlen(S) + 1)
 /* !!! FIXME: UTF8ToString() can just be a SDL_strdup() here. */
-#define WIN_StringToUTF8A(S) SDL_iconv_string("UTF-8", "ASCII", (const char *)(S), (SDL_strlen(S)+1))
-#define WIN_UTF8ToStringA(S) SDL_iconv_string("ASCII", "UTF-8", (const char *)(S), SDL_strlen(S)+1)
+#define WIN_StringToUTF8A(S) SDL_iconv_string("UTF-8", "ASCII", (const char *)(S), (SDL_strlen(S) + 1))
+#define WIN_UTF8ToStringA(S) SDL_iconv_string("ASCII", "UTF-8", (const char *)(S), SDL_strlen(S) + 1)
 #if UNICODE
 #define WIN_StringToUTF8 WIN_StringToUTF8W
 #define WIN_UTF8ToString WIN_UTF8ToStringW
-#define SDL_tcslen SDL_wcslen
-#define SDL_tcsstr SDL_wcsstr
+#define SDL_tcslen       SDL_wcslen
+#define SDL_tcsstr       SDL_wcsstr
 #else
 #define WIN_StringToUTF8 WIN_StringToUTF8A
 #define WIN_UTF8ToString WIN_UTF8ToStringA
-#define SDL_tcslen SDL_strlen
-#define SDL_tcsstr SDL_strstr
+#define SDL_tcslen       SDL_strlen
+#define SDL_tcsstr       SDL_strstr
+#endif
+
+/* Set up for C function definitions, even when using C++ */
+#ifdef __cplusplus
+extern "C" {
 #endif
 
 /* Sets an error message based on a given HRESULT */
@@ -93,12 +159,20 @@ extern BOOL WIN_IsWindows8OrGreater(void);
 extern char *WIN_LookupAudioDeviceName(const WCHAR *name, const GUID *guid);
 
 /* Checks to see if two GUID are the same. */
-extern BOOL WIN_IsEqualGUID(const GUID * a, const GUID * b);
+extern BOOL WIN_IsEqualGUID(const GUID *a, const GUID *b);
 extern BOOL WIN_IsEqualIID(REFIID a, REFIID b);
 
 /* Convert between SDL_rect and RECT */
 extern void WIN_RECTToRect(const RECT *winrect, SDL_Rect *sdlrect);
 extern void WIN_RectToRECT(const SDL_Rect *sdlrect, RECT *winrect);
+
+/* Returns SDL_TRUE if the rect is empty */
+extern BOOL WIN_IsRectEmpty(const RECT *rect);
+
+/* Ends C function definitions when using C++ */
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* _INCLUDED_WINDOWS_H */
 

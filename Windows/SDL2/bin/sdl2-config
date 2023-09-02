@@ -40,7 +40,7 @@ while test $# -gt 0; do
       lib_suffix=$optarg
       ;;
     --version)
-      echo 2.26.3
+      echo 2.28.3
       ;;
     --cflags)
       echo -I${prefix}/include -Dmain=SDL_main
