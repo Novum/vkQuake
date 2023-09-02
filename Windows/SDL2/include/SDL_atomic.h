@@ -240,7 +240,7 @@ typedef void (*SDL_KernelMemoryBarrierFunc)();
 /* "REP NOP" is PAUSE, coded for tools that don't know it by that name. */
 #if (defined(__GNUC__) || defined(__clang__)) && (defined(__i386__) || defined(__x86_64__))
     #define SDL_CPUPauseInstruction() __asm__ __volatile__("pause\n")  /* Some assemblers can't do REP NOP, so go with PAUSE. */
-#elif (defined(__arm__) && __ARM_ARCH >= 7) || defined(__aarch64__)
+#elif (defined(__arm__) && defined(__ARM_ARCH) && __ARM_ARCH >= 7) || defined(__aarch64__)
     #define SDL_CPUPauseInstruction() __asm__ __volatile__("yield" ::: "memory")
 #elif (defined(__powerpc__) || defined(__powerpc64__))
     #define SDL_CPUPauseInstruction() __asm__ __volatile__("or 27,27,27");
@@ -249,9 +249,8 @@ typedef void (*SDL_KernelMemoryBarrierFunc)();
 #elif defined(_MSC_VER) && (defined(_M_ARM) || defined(_M_ARM64))
     #define SDL_CPUPauseInstruction() __yield()
 #elif defined(__WATCOMC__) && defined(__386__)
-    /* watcom assembler rejects PAUSE if CPU < i686, and it refuses REP NOP as an invalid combination. Hardcode the bytes.  */
     extern __inline void SDL_CPUPauseInstruction(void);
-    #pragma aux SDL_CPUPauseInstruction = "db 0f3h,90h"
+    #pragma aux SDL_CPUPauseInstruction = ".686p" ".xmm2" "pause"
 #else
     #define SDL_CPUPauseInstruction()
 #endif

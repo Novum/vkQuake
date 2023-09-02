@@ -1731,6 +1731,11 @@ extern DECLSPEC int SDLCALL SDL_RenderReadPixels(SDL_Renderer * renderer,
  *
  * \param renderer the rendering context
  *
+ * \threadsafety You may only call this function on the main thread. If this
+ *               happens to work on a background thread on any given platform
+ *               or backend, it's purely by luck and you should not rely on it
+ *               to work next time.
+ *
  * \since This function is available since SDL 2.0.0.
  *
  * \sa SDL_RenderClear
@@ -1885,7 +1890,7 @@ extern DECLSPEC void *SDLCALL SDL_RenderGetMetalLayer(SDL_Renderer * renderer);
  * Note that as of SDL 2.0.18, this will return NULL if Metal refuses to give
  * SDL a drawable to render to, which might happen if the window is
  * hidden/minimized/offscreen. This doesn't apply to command encoders for
- * render targets, just the window's backbacker. Check your return values!
+ * render targets, just the window's backbuffer. Check your return values!
  *
  * \param renderer The renderer to query
  * \returns an `id<MTLRenderCommandEncoder>` on success, or NULL if the
