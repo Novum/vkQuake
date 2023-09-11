@@ -238,44 +238,19 @@ int q_strncasecmp (const char *s1, const char *s2, size_t n)
 	return (int)(c1 - c2);
 }
 
-// spike -- grabbed this from fte, because its useful to me
-char *q_strcasestr (const char *haystack, const char *needle)
+char *q_strcasestr(const char *haystack, const char *needle)
 {
-	int c1, c2, c2f;
-	int i;
-	c2f = *needle;
-	if (c2f >= 'a' && c2f <= 'z')
-		c2f -= ('a' - 'A');
-	if (!c2f)
-		return (char *)haystack;
-	while (1)
+	const size_t len = strlen(needle);
+
+	while (*haystack)
 	{
-		c1 = *haystack;
-		if (!c1)
-			return NULL;
-		if (c1 >= 'a' && c1 <= 'z')
-			c1 -= ('a' - 'A');
-		if (c1 == c2f)
-		{
-			for (i = 1;; i++)
-			{
-				c1 = haystack[i];
-				c2 = needle[i];
-				if (c1 >= 'a' && c1 <= 'z')
-					c1 -= ('a' - 'A');
-				if (c2 >= 'a' && c2 <= 'z')
-					c2 -= ('a' - 'A');
-				if (!c2)
-					return (char *)haystack; // end of needle means we found a complete match
-				if (!c1)					 // end of haystack means we can't possibly find needle in it any more
-					return NULL;
-				if (c1 != c2) // mismatch means no match starting at haystack[0]
-					break;
-			}
-		}
-		haystack++;
+		if (!q_strncasecmp(haystack, needle, len))
+			return (char *)haystack;
+
+		++haystack;
 	}
-	return NULL; // didn't find it
+
+	return NULL;
 }
 
 char *q_strlwr (char *str)
