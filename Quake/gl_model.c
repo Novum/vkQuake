@@ -45,7 +45,7 @@ static int	 mod_novis_capacity;
 static byte *mod_decompressed;
 static int	 mod_decompressed_capacity;
 
-#define MAX_MOD_KNOWN 2048 /*johnfitz -- was 512 */
+#define MAX_MOD_KNOWN 4096 /*johnfitz -- was 512 */
 qmodel_t mod_known[MAX_MOD_KNOWN];
 int		 mod_numknown;
 
