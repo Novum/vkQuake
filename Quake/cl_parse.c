@@ -988,7 +988,9 @@ static void CL_ParseServerInfo (void)
 	}
 
 	// johnfitz -- check for excessive models
-	if (nummodels >= 256)
+	if (nummodels >= 2048)
+		Con_Warning ("%i models exceeds QS limit of 2048 (max = %d).\n", nummodels, MAX_MODELS);
+	else if (nummodels >= 256)
 		Con_DWarning ("%i models exceeds standard limit of 256 (max = %d).\n", nummodels, MAX_MODELS);
 	// johnfitz
 
