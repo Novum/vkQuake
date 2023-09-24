@@ -194,7 +194,7 @@ void Fog_ParseWorldspawn (void)
 			q_strlcpy (key, com_token, sizeof (key));
 		while (key[0] && key[strlen (key) - 1] == ' ') // remove trailing spaces
 			key[strlen (key) - 1] = 0;
-		data = COM_Parse (data);
+		data = COM_ParseEx(data, CPE_ALLOWTRUNC);
 		if (!data)
 			return; // error
 		q_strlcpy (value, com_token, sizeof (value));
