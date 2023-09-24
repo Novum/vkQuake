@@ -1168,12 +1168,16 @@ void COM_AddExtension (char *path, const char *extension, size_t len)
 
 /*
 ==============
-COM_Parse
+COM_ParseEx
 
 Parse a token out of a string
+
+The mode argument controls how overflow is handled:
+- CPE_NOTRUNC:		return NULL (abort parsing)
+- CPE_ALLOWTRUNC:	truncate com_token (ignore the extra characters in this token)
 ==============
 */
-const char *COM_Parse (const char *data)
+const char *COM_ParseEx (const char *data, cpe_mode mode)
 {
 	int c;
 	int len;
@@ -1225,16 +1229,20 @@ skipwhite:
 				com_token[len] = 0;
 				return data;
 			}
-			com_token[len] = c;
-			len++;
+			if (len < countof (com_token) - 1)
+				com_token[len++] = c;
+			else if (mode == CPE_NOTRUNC)
+				return NULL;
 		}
 	}
 
 	// parse single characters
 	if (c == '{' || c == '}' || c == '(' || c == ')' || c == '\'' || c == ':')
 	{
-		com_token[len] = c;
-		len++;
+		if (len < countof (com_token) - 1)
+			com_token[len++] = c;
+		else if (mode == CPE_NOTRUNC)
+			return NULL;
 		com_token[len] = 0;
 		return data + 1;
 	}
@@ -1242,9 +1250,11 @@ skipwhite:
 	// parse a regular word
 	do
 	{
-		com_token[len] = c;
+		if (len < countof (com_token) - 1)
+			com_token[len++] = c;
+		else if (mode == CPE_NOTRUNC)
+			return NULL;
 		data++;
-		len++;
 		c = *data;
 		/* commented out the check for ':' so that ip:port works */
 		if (c == '{' || c == '}' || c == '(' || c == ')' || c == '\'' /* || c == ':' */)
@@ -1254,6 +1264,22 @@ skipwhite:
 	com_token[len] = 0;
 	return data;
 }
+
+
+/*
+==============
+COM_Parse
+
+Parse a token out of a string
+
+Return NULL in case of overflow
+==============
+*/
+const char *COM_Parse (const char *data)
+{
+	return COM_ParseEx (data, CPE_NOTRUNC);
+}
+
 
 /*
 ================
@@ -1864,7 +1890,7 @@ const char *COM_ParseFloatNewline (const char *buffer, float *value)
 	return buffer + consumed;
 }
 
-const char *COM_ParseStringNewline (const char *buffer)
+ const char *COM_ParseStringNewline (const char *buffer)
 {
 	int consumed = 0;
 	com_token[0] = '\0';
