@@ -1028,38 +1028,36 @@ Host_SavegameComment
 Writes a SAVEGAME_COMMENT_LENGTH character comment describing the current
 ===============
 */
-static void Host_SavegameComment (char *text)
+static void Host_SavegameComment (char text[SAVEGAME_COMMENT_LENGTH + 1])
 {
 	int	  i;
 	char  kills[20];
-	char *p1, *p2;
+	char	*p;
 
 	for (i = 0; i < SAVEGAME_COMMENT_LENGTH; i++)
 		text[i] = ' ';
+	text[SAVEGAME_COMMENT_LENGTH] = '\0';
+
+	i = (int) strlen(cl.levelname);
+	if (i > 22) i = 22;
+	memcpy (text, cl.levelname, (size_t)i);
 
 	// Remove CR/LFs from level name to avoid broken saves, e.g. with autumn_sp map:
 	// https://celephais.net/board/view_thread.php?id=60452&start=3666
-	p1 = strchr (cl.levelname, '\n');
-	p2 = strchr (cl.levelname, '\r');
-	if (p1 != NULL)
-		*p1 = 0;
-	if (p2 != NULL)
-		*p2 = 0;
+	while ((p = strchr(text, '\n')) != NULL)
+		*p = ' ';
+	while ((p = strchr(text, '\r')) != NULL)
+		*p = ' ';
 
-	memcpy (text, cl.levelname, q_min (strlen (cl.levelname), 22)); // johnfitz -- only copy 22 chars.
-	q_snprintf (kills, sizeof (kills), "kills:%3i/%3i", cl.stats[STAT_MONSTERS], cl.stats[STAT_TOTALMONSTERS]);
+	sprintf (kills,"kills:%3i/%3i", cl.stats[STAT_MONSTERS], cl.stats[STAT_TOTALMONSTERS]);
 	memcpy (text + 22, kills, strlen (kills));
+
 	// convert space to _ to make stdio happy
 	for (i = 0; i < SAVEGAME_COMMENT_LENGTH; i++)
 	{
 		if (text[i] == ' ')
 			text[i] = '_';
 	}
-	if (p1 != NULL)
-		*p1 = '\n';
-	if (p2 != NULL)
-		*p2 = '\r';
-	text[SAVEGAME_COMMENT_LENGTH] = '\0';
 }
 
 /*
