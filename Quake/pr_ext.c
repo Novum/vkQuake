@@ -5234,7 +5234,7 @@ static void PF_builtinsupported (void)
 {
 	const char	*biname = G_STRING (OFS_PARM0);
 	unsigned int i;
-	for (i = 0; i < sizeof (extensionbuiltins) / sizeof (extensionbuiltins[0]); i++)
+	for (i = 0; i < countof (extensionbuiltins); i++)
 	{
 		if (!strcmp (extensionbuiltins[i].name, biname))
 		{
@@ -5260,7 +5260,7 @@ static void PF_checkbuiltin (void)
 			if (qcvm->builtins[binum] == PF_Fixme)
 			{
 G_FLOAT (OFS_RETURN) = false; // the builtin with that number isn't defined.
-for (i = 0; i < sizeof (extensionbuiltins) / sizeof (extensionbuiltins[0]); i++)
+for (i = 0; i < countof (extensionbuiltins); i++)
 {
 	if (extensionbuiltins[i].number == binum)
 	{ // but it will be defined if its actually executed.
@@ -5304,7 +5304,7 @@ void PF_Fixme (void)
 		if (binum >= 0)
 		{
 			// find an extension with the matching number
-			for (i = 0; i < sizeof (extensionbuiltins) / sizeof (extensionbuiltins[0]); i++)
+			for (i = 0; i < countof (extensionbuiltins); i++)
 			{
 int num = extensionbuiltins[i].number;
 if (num == binum)
@@ -5396,8 +5396,8 @@ void PR_InitExtensions (void)
 	size_t i, g, m;
 	// this only needs to be done once. because we're evil.
 	// it should help slightly with the 'documentation' above at least.
-	g = m = sizeof (qcvm->builtins) / sizeof (qcvm->builtins[0]);
-	for (i = 0; i < sizeof (extensionbuiltins) / sizeof (extensionbuiltins[0]); i++)
+	g = m = countof (qcvm->builtins);
+	for (i = 0; i < countof (extensionbuiltins); i++)
 	{
 		if (extensionbuiltins[i].documentednumber)
 			extensionbuiltins[i].number = extensionbuiltins[i].documentednumber;
@@ -5427,7 +5427,7 @@ void PR_EnableExtensions (ddef_t *pr_globaldefs)
 	// replace standard builtins with new replacement extended ones and selectively populate references to module-specific entrypoints.
 	if (qcvm == &cl.qcvm)
 	{ // csqc
-		for (i = 0; i < sizeof (extensionbuiltins) / sizeof (extensionbuiltins[0]); i++)
+		for (i = 0; i < countof (extensionbuiltins); i++)
 		{
 			int num = (extensionbuiltins[i].documentednumber);
 			if (num && extensionbuiltins[i].csqcfunc && qcvm->builtins[num] != PF_Fixme)
@@ -5439,7 +5439,7 @@ qcvm->builtins[num] = extensionbuiltins[i].csqcfunc;
 	}
 	else if (qcvm == &sv.qcvm)
 	{ // ssqc
-		for (i = 0; i < sizeof (extensionbuiltins) / sizeof (extensionbuiltins[0]); i++)
+		for (i = 0; i < countof (extensionbuiltins); i++)
 		{
 			int num = (extensionbuiltins[i].documentednumber);
 			if (num && extensionbuiltins[i].ssqcfunc && qcvm->builtins[num] != PF_Fixme)
@@ -5467,7 +5467,7 @@ qcvm->builtins[num] = extensionbuiltins[i].ssqcfunc;
 		if (qcvm->functions[i].first_statement == 0 && qcvm->functions[i].s_name && !qcvm->functions[i].parm_start && !qcvm->functions[i].locals)
 		{
 			const char *name = PR_GetString (qcvm->functions[i].s_name);
-			for (j = 0; j < sizeof (extensionbuiltins) / sizeof (extensionbuiltins[0]); j++)
+			for (j = 0; j < countof (extensionbuiltins); j++)
 			{
 if (!strcmp (extensionbuiltins[j].name, name))
 { // okay, map it
@@ -6017,7 +6017,7 @@ outname = Cmd_Argv (i++);
 			fprintf (f, "\n\n//Builtin Stubs List (these are present for simpler compatibility, but not properly supported in QuakeSpasm at this time).\n/*\n");
 		else
 			fprintf (f, "\n\n//Builtin list\n");
-		for (i = 0; i < sizeof (extensionbuiltins) / sizeof (extensionbuiltins[0]); i++)
+		for (i = 0; i < countof (extensionbuiltins); i++)
 		{
 			if ((targs & CS) && extensionbuiltins[i].csqcfunc)
 ;

@@ -36,7 +36,8 @@ net_driver_t net_drivers[] = {
 	 Datagram_GetAnyMessage, Datagram_GetMessage, Datagram_SendMessage, Datagram_SendUnreliableMessage, Datagram_CanSendMessage,
 	 Datagram_CanSendUnreliableMessage, Datagram_Close, Datagram_Shutdown}};
 
-const int net_numdrivers = (sizeof (net_drivers) / sizeof (net_drivers[0]));
+const int net_numdrivers = countof(net_drivers);
+
 
 #include "net_wins.h"
 #include "net_wipx.h"
@@ -111,4 +112,4 @@ net_landriver_t net_landrivers[] = {
 	 WIPX_GetSocketPort,
 	 WIPX_SetSocketPort}};
 
-const int net_numlandrivers = (sizeof (net_landrivers) / sizeof (net_landrivers[0]));
+const int net_numlandrivers = countof(net_landrivers);
