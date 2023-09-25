@@ -756,7 +756,7 @@ static unsigned int CL_PointContentsMask (vec3_t p)
 	unsigned int cont;
 
 	cont = -SV_HullPointContents (&cl.worldmodel->hulls[0], 0, p);
-	if (cont < sizeof (cont_qtof) / sizeof (cont_qtof[0]))
+	if (cont < countof (cont_qtof))
 		return cont_qtof[cont];
 	else
 		return cont_qtof[-(CONTENTS_WATER)]; // assume water
@@ -3048,7 +3048,7 @@ static void P_ImportEffectInfo (const char *config, char *line, qboolean part_pa
 			ptype->s2 = teximages[mini][1];
 			ptype->t1 = teximages[mini][2];
 			ptype->t2 = teximages[mini][3];
-			ptype->texsstride = teximages[(mini + 1) & (sizeof (teximages) / sizeof (teximages[0]) - 1)][0] - teximages[mini][0];
+			ptype->texsstride = teximages[(mini + 1) & (countof (teximages) - 1)][0] - teximages[mini][0];
 			ptype->randsmax = (maxi - mini);
 			if (ptype->randsmax < 1)
 				ptype->randsmax = 1;
@@ -3722,7 +3722,7 @@ static void R_Part_SkyTri (qmodel_t *mod, float *v1, float *v2, float *v3, msurf
 	skytris_t *st;
 
 	skytriblock_t *mem = mod->skytrimem;
-	if (!mem || mem->count == sizeof (mem->tris) / sizeof (mem->tris[0]))
+	if (!mem || mem->count == countof (mem->tris))
 	{
 		mod->skytrimem = Mem_Alloc (sizeof (*mod->skytrimem));
 		mod->skytrimem->next = mem;

@@ -443,7 +443,7 @@ static void Host_Status_f (void)
 	print_fn ("host:    %s\n", Cvar_VariableString ("hostname"));
 	print_fn ("version: " ENGINE_NAME_AND_VER "\n");
 
-	numaddresses = NET_ListAddresses (addresses, sizeof (addresses) / sizeof (addresses[0]));
+	numaddresses = NET_ListAddresses (addresses, countof (addresses));
 	for (i = 0; i < numaddresses; i++)
 	{
 		if (*addresses[i] == '[')

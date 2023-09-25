@@ -1867,7 +1867,7 @@ builtin_t pr_ssqcbuiltins[] = {
 	PF_Fixme,             // void draw_sphere (vector origin, float radius, float colormap, float lifetime, float depthtest) = #88
 	PF_Fixme,             // void draw_cylinder (vector origin, float halfHeight, float radius, float colormap, float lifetime, float depthtest) = #89
 };
-int pr_ssqcnumbuiltins = sizeof (pr_ssqcbuiltins) / sizeof (pr_ssqcbuiltins[0]);
+int pr_ssqcnumbuiltins = countof (pr_ssqcbuiltins);
 
 #define PF_NoCSQC   PF_Fixme
 #define PF_CSQCToDo PF_Fixme
@@ -1961,4 +1961,4 @@ builtin_t pr_csqcbuiltins[] = {
 	PF_NoCSQC, // PF_setspawnparms
 };
 // clang-format on
-int pr_csqcnumbuiltins = sizeof (pr_csqcbuiltins) / sizeof (pr_csqcbuiltins[0]);
+int pr_csqcnumbuiltins = countof (pr_csqcbuiltins);

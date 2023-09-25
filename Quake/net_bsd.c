@@ -36,7 +36,7 @@ net_driver_t net_drivers[] = {
 	 Datagram_GetAnyMessage, Datagram_GetMessage, Datagram_SendMessage, Datagram_SendUnreliableMessage, Datagram_CanSendMessage,
 	 Datagram_CanSendUnreliableMessage, Datagram_Close, Datagram_Shutdown}};
 
-const int net_numdrivers = (sizeof (net_drivers) / sizeof (net_drivers[0]));
+const int net_numdrivers = countof(net_drivers);
 
 #include "net_udp.h"
 

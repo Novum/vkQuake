@@ -2200,7 +2200,7 @@ const char *bindnames[][2] = {
 	{"toggleconsole", "Toggle console"},
 };
 
-#define NUMCOMMANDS (sizeof (bindnames) / sizeof (bindnames[0]))
+#define	NUMCOMMANDS	countof(bindnames)
 
 static int		keys_cursor;
 static qboolean bind_grab;
@@ -2669,7 +2669,7 @@ static void M_LanConfig_Draw (cb_context_t *cbx)
 
 	y = 52;
 	M_Print (cbx, basex, y, "Address:");
-	numaddresses = NET_ListAddresses (addresses, sizeof (addresses) / sizeof (addresses[0]));
+	numaddresses = NET_ListAddresses (addresses, countof (addresses));
 	if (!numaddresses)
 	{
 		M_Print (cbx, basex + 9 * 8, y, "NONE KNOWN");

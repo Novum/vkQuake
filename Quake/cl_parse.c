@@ -85,7 +85,7 @@ const char *svc_strings[128] = {
 	"svc_backtolobby",	  // 55
 	"svc_localsound"	  // 56
 };
-#define NUM_SVC_STRINGS (sizeof (svc_strings) / sizeof (svc_strings[0]))
+#define NUM_SVC_STRINGS countof(svc_strings)
 
 qboolean warn_about_nehahra_protocol; // johnfitz
 
@@ -562,7 +562,7 @@ static void CLFTE_ParseEntitiesUpdate (void)
 	float	  newtime;
 
 	// so the server can know when we got it, and guess which frames we didn't get
-	if (cls.netcon && cl.ackframes_count < sizeof (cl.ackframes) / sizeof (cl.ackframes[0]))
+	if (cls.netcon && cl.ackframes_count < countof (cl.ackframes))
 		cl.ackframes[cl.ackframes_count++] = NET_QSocketGetSequenceIn (cls.netcon);
 
 	if (cl.protocol_pext2 & PEXT2_PREDINFO)
