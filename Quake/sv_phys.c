@@ -47,6 +47,7 @@ cvar_t sv_gravity = {"sv_gravity", "800", CVAR_NOTIFY | CVAR_SERVERINFO};
 cvar_t sv_maxvelocity = {"sv_maxvelocity", "2000", CVAR_NONE};
 cvar_t sv_nostep = {"sv_nostep", "0", CVAR_NONE};
 cvar_t sv_freezenonclients = {"sv_freezenonclients", "0", CVAR_NONE};
+cvar_t	sv_gameplayfix_spawnbeforethinks = {"sv_gameplayfix_spawnbeforethinks","0",CVAR_NONE};
 cvar_t	sv_gameplayfix_bouncedownslopes = {"sv_gameplayfix_bouncedownslopes","0",CVAR_NONE};	//fixes grenades making horrible noises on slopes.
 
 #define MOVE_EPSILON 0.01
@@ -953,6 +954,9 @@ void SV_Physics_Client (edict_t *ent, int num)
 {
 	if (!svs.clients[num - 1].active)
 		return; // unconnected slot
+
+	if (!svs.clients[num-1].knowntoqc && sv_gameplayfix_spawnbeforethinks.value)
+		return;	//don't spam prethinks before we called putclientinserver.
 
 	//
 	// call standard client pre-think
