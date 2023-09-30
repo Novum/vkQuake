@@ -1769,7 +1769,7 @@ void PF_sv_localsound (void)
 }
 
 // clang-format off
-builtin_t pr_ssqcbuiltins[] = {
+const builtin_t pr_ssqcbuiltins[] = {
 	PF_Fixme,
 	PF_makevectors,       // void(entity e) makevectors		= #1
 	PF_setorigin,         // void(entity e, vector o) setorigin	= #2
@@ -1871,11 +1871,11 @@ builtin_t pr_ssqcbuiltins[] = {
 	PF_Fixme,             // void draw_sphere (vector origin, float radius, float colormap, float lifetime, float depthtest) = #88
 	PF_Fixme,             // void draw_cylinder (vector origin, float halfHeight, float radius, float colormap, float lifetime, float depthtest) = #89
 };
-int pr_ssqcnumbuiltins = countof (pr_ssqcbuiltins);
+const int pr_ssqcnumbuiltins = countof (pr_ssqcbuiltins);
 
 #define PF_NoCSQC   PF_Fixme
 #define PF_CSQCToDo PF_Fixme
-builtin_t pr_csqcbuiltins[] = {
+const builtin_t pr_csqcbuiltins[] = {
 	PF_Fixme,
 	PF_makevectors, // void(entity e) makevectors		= #1
 	PF_setorigin,   // void(entity e, vector o) setorigin	= #2
@@ -1965,4 +1965,4 @@ builtin_t pr_csqcbuiltins[] = {
 	PF_NoCSQC, // PF_setspawnparms
 };
 // clang-format on
-int pr_csqcnumbuiltins = countof (pr_csqcbuiltins);
+const int pr_csqcnumbuiltins = countof (pr_csqcbuiltins);

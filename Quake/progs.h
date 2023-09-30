@@ -77,7 +77,7 @@ void PR_Init (void);
 
 void	 PR_ExecuteProgram (func_t fnum);
 void	 PR_ClearProgs (qcvm_t *vm);
-qboolean PR_LoadProgs (const char *filename, qboolean fatal, unsigned int needcrc, builtin_t *builtins, size_t numbuiltins);
+qboolean PR_LoadProgs (const char *filename, qboolean fatal, unsigned int needcrc, const builtin_t *builtins, size_t numbuiltins);
 
 // from pr_ext.c
 void   PR_InitExtensions (void);
@@ -391,9 +391,9 @@ extern globalvars_t *pr_global_struct;
 extern qcvm_t *qcvm;
 void		   PR_SwitchQCVM (qcvm_t *nvm);
 
-extern builtin_t pr_ssqcbuiltins[];
-extern int		 pr_ssqcnumbuiltins;
-extern builtin_t pr_csqcbuiltins[];
-extern int		 pr_csqcnumbuiltins;
+extern const builtin_t pr_ssqcbuiltins[];
+extern const int		 pr_ssqcnumbuiltins;
+extern const builtin_t pr_csqcbuiltins[];
+extern const int		 pr_csqcnumbuiltins;
 
 #endif /* _QUAKE_PROGS_H */
