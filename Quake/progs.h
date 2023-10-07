@@ -90,6 +90,7 @@ void   PR_DumpPlatform_f (void); // console command: writes out a qsextensions.q
 // special hacks...
 int	   PF_SV_ForceParticlePrecache (const char *s);
 int	   SV_Precache_Model (const char *s);
+void   PR_spawnfunc_misc_model (edict_t *self);
 
 // from pr_edict, for pr_ext. reflection is messy.
 qboolean	 ED_ParseEpair (void *base, ddef_t *key, const char *s, qboolean zoned);
