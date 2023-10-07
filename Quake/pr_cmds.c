@@ -1709,6 +1709,7 @@ static void PF_cl_sound (void)
 	int			volume;
 	float		attenuation;
 	int			entnum;
+	vec3_t		origin;
 
 	entity = G_EDICT (OFS_PARM0);
 	channel = G_FLOAT (OFS_PARM1);
@@ -1720,8 +1721,13 @@ static void PF_cl_sound (void)
 	// fullcsqc fixme: if (entity->v->entnum)
 	entnum *= -1;
 
-	S_StartSound (entnum, channel, S_PrecacheSound (sample), entity->v.origin, volume, attenuation);
+	// fix up origin like the ssqc's would.
+	VectorAdd (entity->v.mins, entity->v.maxs, origin);
+	VectorMA (entity->v.origin, 0.5, origin, origin);
+
+	S_StartSound (entnum, channel, S_PrecacheSound (sample), origin, volume, attenuation);
 }
+
 static void PF_cl_ambientsound (void)
 {
 	const char *samp;
@@ -1786,6 +1792,87 @@ void PF_sv_localsound (void)
 		return;
 	}
 	SV_LocalSound (&svs.clients[entnum - 1], sample);
+}
+
+static void PF_cl_precache_sound (void)
+{
+	const char	*s;
+
+	s = G_STRING(OFS_PARM0);
+	G_INT(OFS_RETURN) = G_INT(OFS_PARM0);
+	PR_CheckEmptyString (s);
+
+	//precache sounds are optional in quake's sound system. NULL is a valid response so don't check.
+	S_PrecacheSound(s);
+}
+
+static void PF_cl_makestatic (void)
+{
+	edict_t	*ent = G_EDICT(OFS_PARM0);
+	entity_t *stat;
+	int		i;
+
+	i = cl.num_statics;
+	if (i >= cl.max_static_entities)
+	{
+		int ec = 64;
+		entity_t **newstatics = Mem_Realloc(cl.static_entities, sizeof(*newstatics) * (cl.max_static_entities+ec));
+		entity_t *newents = Mem_Alloc(sizeof(*newents) * ec);
+		if (!newstatics || !newents)
+			Host_Error ("Too many static entities");
+		cl.static_entities = newstatics;
+		while (ec--)
+			cl.static_entities[cl.max_static_entities++] = newents++;
+	}
+
+	stat = cl.static_entities[i];
+	cl.num_statics++;
+
+	SV_BuildEntityState(ent, &stat->baseline);
+
+// copy it to the current state
+
+	stat->netstate = stat->baseline;
+	stat->eflags = stat->netstate.eflags; //spike -- annoying and probably not used anyway, but w/e
+
+	stat->trailstate = NULL;
+	stat->emitstate = NULL;
+	stat->model = cl.model_precache[stat->baseline.modelindex];
+	stat->lerpflags |= LERP_RESETANIM; //johnfitz -- lerping
+	stat->frame = stat->baseline.frame;
+
+	stat->skinnum = stat->baseline.skin;
+	stat->effects = stat->baseline.effects;
+	stat->alpha = stat->baseline.alpha; //johnfitz -- alpha
+
+	VectorCopy (ent->baseline.origin, stat->origin);
+	VectorCopy (ent->baseline.angles, stat->angles);
+	if (stat->model)
+		R_AddEfrags (stat);
+
+// throw the entity away now
+	ED_Free (ent);
+}
+static void PF_cl_particle (void)
+{
+	float		*org = G_VECTOR(OFS_PARM0);
+	float		*dir = G_VECTOR(OFS_PARM1);
+	float		color = G_FLOAT(OFS_PARM2);
+	float		count = G_FLOAT(OFS_PARM3);
+
+	if (count == 255)
+	{
+		if (!PScript_RunParticleEffectTypeString(org, dir, 1, "te_explosion"))
+			count = 0;
+		else
+			count = 1024;
+	}
+	else
+	{
+		if (!PScript_RunParticleEffect(org, dir, color, count))
+			count = 0;
+	}
+	R_RunParticleEffect (org, dir, color, count);
 }
 
 // clang-format off
@@ -1915,8 +2002,8 @@ const builtin_t pr_csqcbuiltins[] = {
 	PF_traceline,   // float(vector v1, vector v2, float tryents) traceline	= #16
 	PF_NoCSQC,      // entity() checkclient (was: clientlist, apparently)			= #17
 	PF_Find,        // entity(entity start, .string fld, string match) find	= #18
-	PF_Fixme,       // void(string s) precache_sound	= #19
-	PF_Fixme,       // void(string s) precache_model	= #20
+	PF_cl_precache_sound,	// void(string s) precache_sound	= #19
+	PF_Fixme,	// void(string s) precache_model	= #20
 	PF_NoCSQC,      // void(entity client, string s)stuffcmd	= #21
 	PF_findradius,  // entity(vector org, float rad) findradius	= #22
 	PF_NoCSQC,      // void(string s) bprint		= #23
@@ -1944,7 +2031,7 @@ const builtin_t pr_csqcbuiltins[] = {
 	PF_cvar,
 	PF_localcmd,
 	PF_nextent,
-	PF_Fixme,
+	PF_cl_particle,
 	PF_changeyaw,
 	PF_Fixme,
 	PF_vectoangles,
@@ -1968,7 +2055,7 @@ const builtin_t pr_csqcbuiltins[] = {
 
 	SV_MoveToGoal,
 	PF_precache_file,
-	PF_Fixme,
+	PF_cl_makestatic,
 
 	PF_NoCSQC, // PF_changelevel,
 	PF_Fixme,
@@ -1979,7 +2066,7 @@ const builtin_t pr_csqcbuiltins[] = {
 	PF_cl_ambientsound,
 
 	PF_Fixme,
-	PF_Fixme,
+	PF_cl_precache_sound,
 	PF_precache_file,
 
 	PF_NoCSQC, // PF_setspawnparms
