@@ -2681,6 +2681,9 @@ static void PF_sv_te_wizspike (void)
 static void PF_cl_te_wizspike (void)
 {
 	float *pos = G_VECTOR (OFS_PARM0);
+
+	if (PScript_RunParticleEffectTypeString(pos, NULL, 1, "TE_WIZSPIKE"))
+		R_RunParticleEffect (pos, vec3_origin, 20, 30);
 	S_StartSound (-1, 0, S_PrecacheSound ("wizard/hit.wav"), pos, 1, 1);
 }
 static void PF_sv_te_knightspike (void)
@@ -2696,6 +2699,9 @@ static void PF_sv_te_knightspike (void)
 static void PF_cl_te_knightspike (void)
 {
 	float *pos = G_VECTOR (OFS_PARM0);
+
+	if (PScript_RunParticleEffectTypeString(pos, NULL, 1, "TE_KNIGHTSPIKE"))
+		R_RunParticleEffect (pos, vec3_origin, 226, 20);
 	S_StartSound (-1, 0, S_PrecacheSound ("hknight/hit.wav"), pos, 1, 1);
 }
 static void PF_sv_te_lightning3 (void)
@@ -2732,7 +2738,13 @@ static void PF_sv_te_lavasplash (void)
 	MSG_WriteCoord (&sv.datagram, org[2], sv.protocolflags);
 	SV_Multicast (MULTICAST_PHS_U, org, 0, 0);
 }
-static void PF_cl_te_lavasplash (void) {}
+static void PF_cl_te_lavasplash(void)
+{
+	float *pos = G_VECTOR(OFS_PARM0);
+
+	if (PScript_RunParticleEffectTypeString(pos, NULL, 1, "TE_LAVASPLASH"))
+		R_LavaSplash (pos);
+}
 static void PF_sv_te_teleport (void)
 {
 	float *org = G_VECTOR (OFS_PARM0);
@@ -2743,7 +2755,12 @@ static void PF_sv_te_teleport (void)
 	MSG_WriteCoord (&sv.multicast, org[2], sv.protocolflags);
 	SV_Multicast (MULTICAST_PHS_U, org, 0, 0);
 }
-static void PF_cl_te_teleport (void) {}
+static void PF_cl_te_teleport(void)
+{
+	float *pos = G_VECTOR(OFS_PARM0);
+	if (PScript_RunParticleEffectTypeString(pos, NULL, 1, "TE_TELEPORT"))
+		R_TeleportSplash (pos);
+}
 static void PF_sv_te_explosion2 (void)
 {
 	float *org = G_VECTOR (OFS_PARM0);
@@ -2761,8 +2778,12 @@ static void PF_sv_te_explosion2 (void)
 static void PF_cl_te_explosion2 (void)
 {
 	float	 *pos = G_VECTOR (OFS_PARM0);
+	int colorStart = G_FLOAT(OFS_PARM1);
+	int colorLength = G_FLOAT(OFS_PARM1);
 	dlight_t *dl;
 
+	if (PScript_RunParticleEffectTypeString(pos, NULL, 1, va("TE_EXPLOSION2_%i_%i", colorStart, colorLength)))
+		R_ParticleExplosion2 (pos, colorStart, colorLength);
 	dl = CL_AllocDlight (0);
 	VectorCopy (pos, dl->origin);
 	dl->radius = 350;
@@ -3669,7 +3690,7 @@ static void PF_infokey_internal (qboolean returnfloat)
 			float		 total = 0;
 			unsigned int j;
 			for (j = 0; j < NUM_PING_TIMES; j++)
-total += client->ping_times[j];
+				total += client->ping_times[j];
 			total /= NUM_PING_TIMES;
 			q_snprintf (buf, sizeof (buf), "%f", total);
 		}
