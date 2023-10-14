@@ -406,7 +406,7 @@ static qboolean VID_SetMode (int width, int height, int refreshrate, qboolean fu
 	CDAudio_Pause ();
 	BGM_Pause ();
 
-	q_snprintf (caption, sizeof (caption), "vkQuake " VKQUAKE_VER_STRING);
+	q_snprintf (caption, sizeof (caption), ENGINE_NAME_AND_VER);
 
 	/* Create the window if needed, hidden */
 	if (!draw_context)

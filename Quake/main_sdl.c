@@ -72,7 +72,7 @@ int main (int argc, char *argv[])
 	Sys_Init ();
 
 	Sys_Printf ("Detected %d CPUs.\n", SDL_GetCPUCount ());
-	Sys_Printf ("Initializing vkQuake v%s\n", VKQUAKE_VER_STRING);
+	Sys_Printf ("Initializing %s\n", ENGINE_NAME_AND_VER);
 #if defined(__clang_version__)
 	Sys_Printf ("Built with Clang " __clang_version__ "\n");
 #elif defined(__GNUC__)
