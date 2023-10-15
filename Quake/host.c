@@ -594,12 +594,9 @@ Host_ClearMemory
 
 This clears all the memory used by both the client and server, but does
 not reinitialize anything.
-
-newmap contains the path of the map that is about to be loaded. If it matches the last one and keepbmodelcache is set, brush models are not freed.
-If it's NULL, brush models are not freed (pending a later call to Mod_ClearBModelCaches once the map name is known)
 ================
 */
-void Host_ClearMemory (char *newmap)
+void Host_ClearMemory (void)
 {
 	if (cl.qcvm.extfuncs.CSQC_Shutdown)
 	{
@@ -610,9 +607,8 @@ void Host_ClearMemory (char *newmap)
 	}
 
 	Con_DPrintf ("Clearing memory\n");
-	if (newmap)
-		Mod_ClearBModelCaches (newmap);
-
+	Mod_ClearAll ();
+	Sky_ClearAll ();
 	if (!isDedicated)
 		S_ClearAll ();
 	cls.signon = 0;

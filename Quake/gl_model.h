@@ -452,7 +452,6 @@ typedef struct qmodel_s
 	unsigned int path_id;  // path id of the game directory
 						   // that this model came from
 	qboolean	 needload; // bmodels and sprites don't cache normally
-	qboolean	 primed;   // if true, this model is placed in the lightmap and has its vertex buffers and accel structures built
 
 	modtype_t  type;
 	int		   numframes;
@@ -563,8 +562,6 @@ typedef struct qmodel_s
 void	  Mod_Init (void);
 void	  Mod_ClearAll (void);
 void	  Mod_ResetAll (void); // for gamedir changes (Host_Game_f)
-void	  Mod_UnPrimeAll (void);
-void	  Mod_ClearBModelCaches (const char *newmap);
 qmodel_t *Mod_ForName (const char *name, qboolean crash);
 void	 *Mod_Extradata_CheckSkin (qmodel_t *mod, int skinnum);
 void	 *Mod_Extradata (qmodel_t *mod);
