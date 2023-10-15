@@ -3863,41 +3863,15 @@ void R_NewMap (void)
 #ifdef PSET_SCRIPT
 	PScript_ClearParticles (true);
 #endif
+	GL_DeleteBModelVertexBuffer ();
 
-	qboolean need_GL_init = false;
-	for (i = 1; i < MAX_MODELS; ++i)
-	{
-		qmodel_t *m = cl.model_precache[i];
-		if (!m)
-			break;
-		if (m->type == mod_brush && !m->primed)
-			need_GL_init = true;
-	}
-
-	Con_DPrintf ("%sGL init\n", need_GL_init ? "" : "Skipping ");
-
-	if (need_GL_init)
-	{
-		TexMgr_FreeTextures (TEXPREF_ISLIGHTMAP, TEXPREF_ISLIGHTMAP);
-		Mod_UnPrimeAll ();
-		GL_DeleteBModelVertexBuffer ();
-
-		GL_BuildLightmaps ();
-		GL_BuildBModelVertexBuffer ();
-		GL_BuildBModelAccelerationStructures ();
-		GL_PrepareSIMDAndParallelData ();
-		GL_SetupIndirectDraws ();
-		GL_SetupLightmapCompute ();
-		GL_UpdateLightmapDescriptorSets ();
-
-		for (i = 1; i < MAX_MODELS; ++i)
-		{
-			qmodel_t *m = cl.model_precache[i];
-			if (!m)
-				break;
-			m->primed = true;
-		}
-	}
+	GL_BuildLightmaps ();
+	GL_BuildBModelVertexBuffer ();
+	GL_BuildBModelAccelerationStructures ();
+	GL_PrepareSIMDAndParallelData ();
+	GL_SetupIndirectDraws ();
+	GL_SetupLightmapCompute ();
+	GL_UpdateLightmapDescriptorSets ();
 	// ericw -- no longer load alias models into a VBO here, it's done in Mod_LoadAliasModel
 
 	r_framecount = 0;	 // johnfitz -- paranoid?
