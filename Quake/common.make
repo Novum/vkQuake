@@ -17,7 +17,7 @@ CFLAGS += -g
 DO_STRIP=
 else
 DFLAGS += -DNDEBUG
-CFLAGS += -O3
+CFLAGS += -O3 -flto
 CFLAGS += $(call CHECK_GCC,-fweb,)
 CFLAGS += $(call CHECK_GCC,-frename-registers,)
 CFLAGS += $(call CHECK_GCC,-fno-asynchronous-unwind-tables,)
