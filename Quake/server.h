@@ -214,62 +214,84 @@ typedef struct client_s
 //=============================================================================
 
 // edict->movetype values
-#define MOVETYPE_NONE		 0 // never moves
-#define MOVETYPE_ANGLENOCLIP 1
-#define MOVETYPE_ANGLECLIP	 2
-#define MOVETYPE_WALK		 3 // gravity
-#define MOVETYPE_STEP		 4 // gravity, special edge handling
-#define MOVETYPE_FLY		 5
-#define MOVETYPE_TOSS		 6 // gravity
-#define MOVETYPE_PUSH		 7 // no clip to world, push and crush
-#define MOVETYPE_NOCLIP		 8
-#define MOVETYPE_FLYMISSILE	 9 // extra size to monsters
-#define MOVETYPE_BOUNCE		 10
-#define MOVETYPE_GIB		 11 // 2021 rerelease gibs
+typedef enum
+{
+	MOVETYPE_NONE				= 0,	// never moves
+	MOVETYPE_ANGLENOCLIP		= 1,
+	MOVETYPE_ANGLECLIP			= 2,
+	MOVETYPE_WALK				= 3,	// gravity
+	MOVETYPE_STEP				= 4,	// gravity, special edge handling
+	MOVETYPE_FLY				= 5,
+	MOVETYPE_TOSS				= 6,	// gravity
+	MOVETYPE_PUSH				= 7,	// no clip to world, push and crush
+	MOVETYPE_NOCLIP				= 8,
+	MOVETYPE_FLYMISSILE			= 9,	// extra size to monsters
+	MOVETYPE_BOUNCE				= 10,
+	MOVETYPE_GIB				= 11,	// 2021 rerelease gibs
+} emovetype_t;
 
 // edict->solid values
-#define SOLID_NOT	   0 // no interaction with other objects
-#define SOLID_TRIGGER  1 // touch on edge, but not blocking
-#define SOLID_BBOX	   2 // touch on edge, block
-#define SOLID_SLIDEBOX 3 // touch on edge, but not an onground
-#define SOLID_BSP	   4 // bsp clip, touch on edge, block
+typedef enum
+{
+	SOLID_NOT					= 0,	// no interaction with other objects
+	SOLID_TRIGGER				= 1,	// touch on edge, but not blocking
+	SOLID_BBOX					= 2,	// touch on edge, block
+	SOLID_SLIDEBOX				= 3,	// touch on edge, but not an onground
+	SOLID_BSP					= 4,	// bsp clip, touch on edge, block
+} esolid_t;
 
 // edict->deadflag values
-#define DEAD_NO	   0
-#define DEAD_DYING 1
-#define DEAD_DEAD  2
+typedef enum
+{
+	DEAD_NO						= 0,
+	DEAD_DYING					= 1,
+	DEAD_DEAD					= 2,
+} edeadflag_t;
 
-#define DAMAGE_NO  0
-#define DAMAGE_YES 1
-#define DAMAGE_AIM 2
+// edict->takedamage
+typedef enum
+{
+	DAMAGE_NO					= 0,
+	DAMAGE_YES					= 1,
+	DAMAGE_AIM					= 2,
+} etakedamage_t;
 
 // edict->flags
-#define FL_FLY			 1
-#define FL_SWIM			 2
-// #define	FL_GLIMPSE				4
-#define FL_CONVEYOR		 4
-#define FL_CLIENT		 8
-#define FL_INWATER		 16
-#define FL_MONSTER		 32
-#define FL_GODMODE		 64
-#define FL_NOTARGET		 128
-#define FL_ITEM			 256
-#define FL_ONGROUND		 512
-#define FL_PARTIALGROUND 1024 // not all corners are valid
-#define FL_WATERJUMP	 2048 // player jumping out of water
-#define FL_JUMPRELEASED	 4096 // for jump debouncing
+typedef enum
+{
+	FL_FLY						= 1,
+	FL_SWIM						= 2,
+//	FL_GLIMPSE					= 4,
+	FL_CONVEYOR					= 4,
+	FL_CLIENT					= 8,
+	FL_INWATER					= 16,
+	FL_MONSTER					= 32,
+	FL_GODMODE					= 64,
+	FL_NOTARGET					= 128,
+	FL_ITEM						= 256,
+	FL_ONGROUND					= 512,
+	FL_PARTIALGROUND			= 1024,	// not all corners are valid
+	FL_WATERJUMP				= 2048,	// player jumping out of water
+	FL_JUMPRELEASED				= 4096,	// for jump debouncing
+} eflags_t;
 
 // entity effects
+typedef enum
+{
+	EF_BRIGHTFIELD				= 1,
+	EF_MUZZLEFLASH 				= 2,
+	EF_BRIGHTLIGHT 				= 4,
+	EF_DIMLIGHT 				= 8,
+} efx_t;
 
-#define EF_BRIGHTFIELD 1
-#define EF_MUZZLEFLASH 2
-#define EF_BRIGHTLIGHT 4
-#define EF_DIMLIGHT	   8
-
-#define SPAWNFLAG_NOT_EASY		 256
-#define SPAWNFLAG_NOT_MEDIUM	 512
-#define SPAWNFLAG_NOT_HARD		 1024
-#define SPAWNFLAG_NOT_DEATHMATCH 2048
+// spawnflags
+typedef enum
+{
+	SPAWNFLAG_NOT_EASY			= 256,
+	SPAWNFLAG_NOT_MEDIUM		= 512,
+	SPAWNFLAG_NOT_HARD			= 1024,
+	SPAWNFLAG_NOT_DEATHMATCH	= 2048,
+} spawnflags_t;
 
 #define MSG_BROADCAST	  0 // unreliable to all
 #define MSG_ONE			  1 // reliable to one (msg_entity)
