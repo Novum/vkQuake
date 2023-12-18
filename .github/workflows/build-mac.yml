@@ -5,19 +5,19 @@ on: [push, pull_request]
 jobs:
   build-mac-os:
     name: Build macOS
-    runs-on: macos-11
+    runs-on: macos-12
     strategy:
       fail-fast: false
       matrix:
         configuration: [release, debug]
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Install Dependencies
       run: brew install molten-vk vulkan-headers glslang spirv-tools sdl2 libvorbis flac opus opusfile flac mad meson
     - name: Build vkQuake
       run: meson build --buildtype=${{ matrix.configuration }} && ninja -C build
     - name: Upload vkQuake
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: vkQuake archive (${{ matrix.configuration }})
         path: build/vkquake

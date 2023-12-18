@@ -12,7 +12,7 @@ jobs:
         configuration: [Release, Debug]
         platform: [x64, Win32]
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Install Vulkan SDK
       uses: humbletim/install-vulkan-sdk@v1.1.1
       with:
@@ -31,7 +31,7 @@ jobs:
         & $msbuild Windows\VisualStudio\vkquake.sln $options
         if (-not $?) { throw "Build failed" }
     - name: Upload vkQuake
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: vkQuake archive (${{ matrix.configuration }}, ${{ matrix.platform }})
         path: |
