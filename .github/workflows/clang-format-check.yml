@@ -12,7 +12,7 @@ jobs:
           - check: 'Shaders'
             exclude: 'Compiled|compile'
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Run clang-format style check for C/GLSL
       uses: jidicula/clang-format-action@v4.9.0
       with:
