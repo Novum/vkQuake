@@ -242,6 +242,9 @@ char *q_strcasestr (const char *haystack, const char *needle)
 {
 	const size_t len = strlen (needle);
 
+	if (!len)
+		return (char *)haystack;
+
 	while (*haystack)
 	{
 		if (!q_strncasecmp (haystack, needle, len))
