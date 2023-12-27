@@ -90,7 +90,7 @@
 #if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L)
 #define COMPILE_TIME_ASSERT(name, x) _Static_assert (x, #x)
 #else /* universal, but may trigger -Wunused-local-typedefs */
-#define COMPILE_TIME_ASSERT(name, x) typedef int dummy_##name[(x)*2 - 1]
+#define COMPILE_TIME_ASSERT(name, x) typedef int dummy_##name[(x) * 2 - 1]
 #endif
 
 COMPILE_TIME_ASSERT (char, sizeof (char) == 1);

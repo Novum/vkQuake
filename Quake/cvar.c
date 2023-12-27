@@ -139,34 +139,35 @@ Cvar_Toggle_f -- johnfitz
 void Cvar_Toggle_f (void)
 {
 	cvar_t *v;
-	if (Cmd_Argc()<2)
+	if (Cmd_Argc () < 2)
 	{
-		Con_Printf("toggle <cvar> [value] [altvalue]: toggle cvar\n");
+		Con_Printf ("toggle <cvar> [value] [altvalue]: toggle cvar\n");
 		return;
 	}
-	v = Cvar_FindVar(Cmd_Argv(1));
+	v = Cvar_FindVar (Cmd_Argv (1));
 	if (!v)
 	{
-		Con_Printf ("variable \"%s\" not found\n", Cmd_Argv(1));
+		Con_Printf ("variable \"%s\" not found\n", Cmd_Argv (1));
 		return;
 	}
 
-	if (Cmd_Argc() >= 3)
+	if (Cmd_Argc () >= 3)
 	{
-		const char *newval = Cmd_Argv(2);
-		const char *defval = (Cmd_Argc()>3)?Cmd_Argv(3):v->default_string;
-		if (!defval) defval = "0";
-		if (!strcmp(newval, v->string))
-			Cvar_SetQuick(v, defval);
+		const char *newval = Cmd_Argv (2);
+		const char *defval = (Cmd_Argc () > 3) ? Cmd_Argv (3) : v->default_string;
+		if (!defval)
+			defval = "0";
+		if (!strcmp (newval, v->string))
+			Cvar_SetQuick (v, defval);
 		else
-			Cvar_SetQuick(v, newval);
+			Cvar_SetQuick (v, newval);
 	}
 	else
 	{
 		if (v->value)
-			Cvar_SetQuick(v, "0");
+			Cvar_SetQuick (v, "0");
 		else
-			Cvar_SetQuick(v, "1");
+			Cvar_SetQuick (v, "1");
 	}
 }
 

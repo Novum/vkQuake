@@ -421,7 +421,7 @@ void Sbar_DrawNum (cb_context_t *cbx, int x, int y, int num, int digits, int col
 
 int fragsort[MAX_SCOREBOARD];
 
-int	 scoreboardlines;
+int scoreboardlines;
 
 /*
 ===============

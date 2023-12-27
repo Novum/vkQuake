@@ -3189,7 +3189,7 @@ void VID_Init (void)
 	qboolean	fullscreen;
 	const char *read_vars[] = {"vid_fullscreen",		"vid_width",	"vid_height", "vid_refreshrate", "vid_vsync",
 							   "vid_desktopfullscreen", "vid_fsaamode", "vid_fsaa",	  "vid_borderless"};
-#define num_readvars	countof(read_vars)
+#define num_readvars countof (read_vars)
 
 	Cvar_RegisterVariable (&vid_fullscreen);  // johnfitz
 	Cvar_RegisterVariable (&vid_width);		  // johnfitz

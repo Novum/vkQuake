@@ -118,15 +118,15 @@ void SV_CalcStats (client_t *client, int *statsi, float *statsf, const char **st
 			statsi[sv.customstats[i].idx] = eval->_uint32;
 			break;
 		case ev_ext_sint64:
-			statsi[sv.customstats[i].idx+0] = eval->_sint64;
-			statsi[sv.customstats[i].idx+1] = eval->_sint64>>32;
+			statsi[sv.customstats[i].idx + 0] = eval->_sint64;
+			statsi[sv.customstats[i].idx + 1] = eval->_sint64 >> 32;
 			break;
 		case ev_ext_uint64:
-			statsi[sv.customstats[i].idx+0] = eval->_uint64;
-			statsi[sv.customstats[i].idx+1] = eval->_uint64>>32;
+			statsi[sv.customstats[i].idx + 0] = eval->_uint64;
+			statsi[sv.customstats[i].idx + 1] = eval->_uint64 >> 32;
 			break;
 		case ev_ext_double:
-			statsf[sv.customstats[i].idx] = eval->_double;	//FIXME: precision loss
+			statsf[sv.customstats[i].idx] = eval->_double; // FIXME: precision loss
 			break;
 		case ev_entity:
 			statsi[sv.customstats[i].idx] = NUM_FOR_EDICT (PROG_TO_EDICT (eval->edict));
@@ -1131,8 +1131,8 @@ void SV_Init (void)
 	extern cvar_t sv_gravity;
 	extern cvar_t sv_nostep;
 	extern cvar_t sv_freezenonclients;
-	extern	cvar_t	sv_gameplayfix_spawnbeforethinks;
-    extern	cvar_t	sv_gameplayfix_bouncedownslopes;
+	extern cvar_t sv_gameplayfix_spawnbeforethinks;
+	extern cvar_t sv_gameplayfix_bouncedownslopes;
 	extern cvar_t sv_friction;
 	extern cvar_t sv_edgefriction;
 	extern cvar_t sv_stopspeed;
@@ -1141,7 +1141,7 @@ void SV_Init (void)
 	extern cvar_t sv_idealpitchscale;
 	extern cvar_t sv_aim;
 	extern cvar_t sv_altnoclip; // johnfitz
-	extern	cvar_t	sv_gameplayfix_random;
+	extern cvar_t sv_gameplayfix_random;
 
 	Cvar_RegisterVariable (&sv_maxvelocity);
 	Cvar_RegisterVariable (&sv_gravity);
@@ -1158,10 +1158,10 @@ void SV_Init (void)
 	Cvar_RegisterVariable (&sv_nostep);
 	Cvar_RegisterVariable (&sv_freezenonclients);
 	Cvar_RegisterVariable (&sv_gameplayfix_spawnbeforethinks);
-    Cvar_RegisterVariable (&sv_gameplayfix_bouncedownslopes);
+	Cvar_RegisterVariable (&sv_gameplayfix_bouncedownslopes);
 	Cvar_RegisterVariable (&pr_checkextension);
 	Cvar_RegisterVariable (&sv_altnoclip); // johnfitz
-    Cvar_RegisterVariable (&sv_gameplayfix_random);
+	Cvar_RegisterVariable (&sv_gameplayfix_random);
 	Cvar_RegisterVariable (&sv_netsort);
 	Cvar_RegisterVariable (&sv_smoothplatformlerps);
 

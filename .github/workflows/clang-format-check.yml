@@ -8,14 +8,11 @@ jobs:
       matrix:
         path:
           - check: 'Quake'
-            exclude: 'mimalloc'
           - check: 'Shaders'
-            exclude: 'Compiled|compile'
     steps:
     - uses: actions/checkout@v4
-    - name: Run clang-format style check for C/GLSL
-      uses: jidicula/clang-format-action@v4.9.0
+    - uses: DoozyX/clang-format-lint-action@v0.17
       with:
-        clang-format-version: '15'
-        check-path: ${{ matrix.path['check'] }}
-        exclude-regex: ${{ matrix.path['exclude'] }}
+        source: ${{ matrix.path['check'] }}
+        extensions: 'h,c,cpp'
+        clangFormatVersion: 17

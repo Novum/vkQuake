@@ -947,7 +947,7 @@ void IN_SendKeyEvents (void)
 
 		case SDL_MOUSEBUTTONDOWN:
 		case SDL_MOUSEBUTTONUP:
-			if (event.button.button < 1 || event.button.button > countof(buttonremap))
+			if (event.button.button < 1 || event.button.button > countof (buttonremap))
 			{
 				Con_Printf ("Ignored event for mouse button %d\n", event.button.button);
 				break;

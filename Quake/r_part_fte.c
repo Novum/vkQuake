@@ -6187,8 +6187,8 @@ static void R_AddTexturedParticle (scenetris_t *t, particle_t *p, plooks_t *type
 
 static void PScript_DrawParticleTypes (cb_context_t *cbx, float pframetime)
 {
-	void (*bdraw) (scenetris_t * t, beamseg_t * p, plooks_t * type);
-	void (*tdraw) (scenetris_t * t, particle_t * p, plooks_t * type);
+	void (*bdraw) (scenetris_t *t, beamseg_t *p, plooks_t *type);
+	void (*tdraw) (scenetris_t *t, particle_t *p, plooks_t *type);
 
 	vec3_t			oldorg;
 	vec3_t			stop, normal;

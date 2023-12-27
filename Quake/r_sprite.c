@@ -56,13 +56,13 @@ static mspriteframe_t *R_GetSpriteFrame (entity_t *currentent)
 	{
 		// erysdren - angled sprites code backported from FTEQW
 		vec3_t axis[3];
-		AngleVectors(currentent->angles, axis[0], axis[1], axis[2]);
+		AngleVectors (currentent->angles, axis[0], axis[1], axis[2]);
 		{
-			float f = DotProduct(vpn, axis[0]);
-			float r = DotProduct(vright, axis[0]);
-			int dir = (atan2(r, f)+1.125*M_PI)*(4/M_PI);
+			float f = DotProduct (vpn, axis[0]);
+			float r = DotProduct (vright, axis[0]);
+			int	  dir = (atan2 (r, f) + 1.125 * M_PI) * (4 / M_PI);
 			pspritegroup = (mspritegroup_t *)psprite->frames[frame].frameptr;
-			pspriteframe = pspritegroup->frames[dir&7];
+			pspriteframe = pspritegroup->frames[dir & 7];
 		}
 	}
 	else
@@ -111,8 +111,8 @@ static void R_CreateSpriteVertices (entity_t *e, mspriteframe_t *frame, basicver
 		v_up[0] = 0;
 		v_up[1] = 0;
 		v_up[2] = 1;
-		CrossProduct(vpn, v_up, v_right);
-		VectorNormalizeFast(v_right);
+		CrossProduct (vpn, v_up, v_right);
+		VectorNormalizeFast (v_right);
 		s_up = v_up;
 		s_right = v_right;
 		break;

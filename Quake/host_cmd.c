@@ -295,9 +295,9 @@ void Modlist_Init (void)
 #else
 void Modlist_Init (void)
 {
-	DIR *dir_p, *mod_dir_p;
+	DIR			  *dir_p, *mod_dir_p;
 	struct dirent *dir_t;
-	char dir_string[MAX_OSPATH], mod_string[MAX_OSPATH];
+	char		   dir_string[MAX_OSPATH], mod_string[MAX_OSPATH];
 
 	q_snprintf (dir_string, sizeof (dir_string), "%s/", com_basedir);
 	dir_p = opendir (dir_string);
@@ -1032,24 +1032,25 @@ static void Host_SavegameComment (char text[SAVEGAME_COMMENT_LENGTH + 1])
 {
 	int	  i;
 	char  kills[20];
-	char	*p;
+	char *p;
 
 	for (i = 0; i < SAVEGAME_COMMENT_LENGTH; i++)
 		text[i] = ' ';
 	text[SAVEGAME_COMMENT_LENGTH] = '\0';
 
-	i = (int) strlen(cl.levelname);
-	if (i > 22) i = 22;
+	i = (int)strlen (cl.levelname);
+	if (i > 22)
+		i = 22;
 	memcpy (text, cl.levelname, (size_t)i);
 
 	// Remove CR/LFs from level name to avoid broken saves, e.g. with autumn_sp map:
 	// https://celephais.net/board/view_thread.php?id=60452&start=3666
-	while ((p = strchr(text, '\n')) != NULL)
+	while ((p = strchr (text, '\n')) != NULL)
 		*p = ' ';
-	while ((p = strchr(text, '\r')) != NULL)
+	while ((p = strchr (text, '\r')) != NULL)
 		*p = ' ';
 
-	sprintf (kills,"kills:%3i/%3i", cl.stats[STAT_MONSTERS], cl.stats[STAT_TOTALMONSTERS]);
+	sprintf (kills, "kills:%3i/%3i", cl.stats[STAT_MONSTERS], cl.stats[STAT_TOTALMONSTERS]);
 	memcpy (text + 22, kills, strlen (kills));
 
 	// convert space to _ to make stdio happy

@@ -2200,7 +2200,7 @@ const char *bindnames[][2] = {
 	{"toggleconsole", "Toggle console"},
 };
 
-#define	NUMCOMMANDS	countof(bindnames)
+#define NUMCOMMANDS countof (bindnames)
 
 static int		keys_cursor;
 static qboolean bind_grab;

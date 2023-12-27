@@ -1008,368 +1008,431 @@ static void PF_strireplace (void)
 		G_INT (OFS_RETURN) = PR_SetEngineString (subject);
 }
 
-
 static void PF_sprintf_internal (const char *s, int firstarg, char *outbuf, int outbuflen)
 {
-	const char *s0;
-	char *o = outbuf, *end = outbuf + outbuflen, *err;
-	int width, precision, thisarg, flags;
-	char formatbuf[16];
-	char *f;
-	int argpos = firstarg;
-	int isfloat, is64bit;
-	static int dummyivec[3] = {0, 0, 0};
+	const char	*s0;
+	char		*o = outbuf, *end = outbuf + outbuflen, *err;
+	int			 width, precision, thisarg, flags;
+	char		 formatbuf[16];
+	char		*f;
+	int			 argpos = firstarg;
+	int			 isfloat, is64bit;
+	static int	 dummyivec[3] = {0, 0, 0};
 	static float dummyvec[3] = {0, 0, 0};
 
-#define PRINTF_ALTERNATE 1
-#define PRINTF_ZEROPAD 2
-#define PRINTF_LEFT 4
+#define PRINTF_ALTERNATE	 1
+#define PRINTF_ZEROPAD		 2
+#define PRINTF_LEFT			 4
 #define PRINTF_SPACEPOSITIVE 8
-#define PRINTF_SIGNPOSITIVE 16
+#define PRINTF_SIGNPOSITIVE	 16
 
 	formatbuf[0] = '%';
 
-#define GETARG_FLOAT(a) (((a)>=firstarg && (a)<qcvm->argc) ? (G_FLOAT(OFS_PARM0 + 3 * (a))) : 0)
-#define GETARG_DOUBLE(a) (((a)>=firstarg && (a)<qcvm->argc) ? (G_DOUBLE(OFS_PARM0 + 3 * (a))) : 0)
-#define GETARG_VECTOR(a) (((a)>=firstarg && (a)<qcvm->argc) ? (G_VECTOR(OFS_PARM0 + 3 * (a))) : dummyvec)
-#define GETARG_INT(a) (((a)>=firstarg && (a)<qcvm->argc) ? (G_INT(OFS_PARM0 + 3 * (a))) : 0)
-#define GETARG_INT64(a) (((a)>=firstarg && (a)<qcvm->argc) ? (G_INT64(OFS_PARM0 + 3 * (a))) : 0)
-#define GETARG_UINT(a) (((a)>=firstarg && (a)<qcvm->argc) ? (G_UINT(OFS_PARM0 + 3 * (a))) : 0)
-#define GETARG_UINT64(a) (((a)>=firstarg && (a)<qcvm->argc) ? (G_UINT64(OFS_PARM0 + 3 * (a))) : 0)
-#define GETARG_INTVECTOR(a) (((a)>=firstarg && (a)<qcvm->argc) ? ((int*) G_VECTOR(OFS_PARM0 + 3 * (a))) : dummyivec)
-#define GETARG_STRING(a) (((a)>=firstarg && (a)<qcvm->argc) ? (G_STRING(OFS_PARM0 + 3 * (a))) : "")
+#define GETARG_FLOAT(a)		(((a) >= firstarg && (a) < qcvm->argc) ? (G_FLOAT (OFS_PARM0 + 3 * (a))) : 0)
+#define GETARG_DOUBLE(a)	(((a) >= firstarg && (a) < qcvm->argc) ? (G_DOUBLE (OFS_PARM0 + 3 * (a))) : 0)
+#define GETARG_VECTOR(a)	(((a) >= firstarg && (a) < qcvm->argc) ? (G_VECTOR (OFS_PARM0 + 3 * (a))) : dummyvec)
+#define GETARG_INT(a)		(((a) >= firstarg && (a) < qcvm->argc) ? (G_INT (OFS_PARM0 + 3 * (a))) : 0)
+#define GETARG_INT64(a)		(((a) >= firstarg && (a) < qcvm->argc) ? (G_INT64 (OFS_PARM0 + 3 * (a))) : 0)
+#define GETARG_UINT(a)		(((a) >= firstarg && (a) < qcvm->argc) ? (G_UINT (OFS_PARM0 + 3 * (a))) : 0)
+#define GETARG_UINT64(a)	(((a) >= firstarg && (a) < qcvm->argc) ? (G_UINT64 (OFS_PARM0 + 3 * (a))) : 0)
+#define GETARG_INTVECTOR(a) (((a) >= firstarg && (a) < qcvm->argc) ? ((int *)G_VECTOR (OFS_PARM0 + 3 * (a))) : dummyivec)
+#define GETARG_STRING(a)	(((a) >= firstarg && (a) < qcvm->argc) ? (G_STRING (OFS_PARM0 + 3 * (a))) : "")
 
-#define GETARG_SNUMERIC(t, a) (is64bit?(isfloat ? (t) GETARG_DOUBLE(a) : (t) GETARG_INT64 (a)):(isfloat ? (t) GETARG_FLOAT(a) : (t) GETARG_INT (a)))
-#define GETARG_UNUMERIC(t, a) (is64bit?(isfloat ? (t) GETARG_DOUBLE(a) : (t) GETARG_UINT64(a)):(isfloat ? (t) GETARG_FLOAT(a) : (t) GETARG_UINT(a)))
+#define GETARG_SNUMERIC(t, a) (is64bit ? (isfloat ? (t)GETARG_DOUBLE (a) : (t)GETARG_INT64 (a)) : (isfloat ? (t)GETARG_FLOAT (a) : (t)GETARG_INT (a)))
+#define GETARG_UNUMERIC(t, a) (is64bit ? (isfloat ? (t)GETARG_DOUBLE (a) : (t)GETARG_UINT64 (a)) : (isfloat ? (t)GETARG_FLOAT (a) : (t)GETARG_UINT (a)))
 
-	for(;;)
+	for (;;)
 	{
 		s0 = s;
-		switch(*s)
+		switch (*s)
 		{
-			case 0:
-				goto finished;
-			case '%':
-				++s;
+		case 0:
+			goto finished;
+		case '%':
+			++s;
 
-				if(*s == '%')
-					goto verbatim;
+			if (*s == '%')
+				goto verbatim;
 
-				// complete directive format:
-				// %3$*1$.*2$ld
-				
-				width = -1;
-				precision = -1;
-				thisarg = -1;
-				flags = 0;
-				isfloat = -1;
-				is64bit = 0;
+			// complete directive format:
+			// %3$*1$.*2$ld
 
-				// is number following?
-				if(*s >= '0' && *s <= '9')
+			width = -1;
+			precision = -1;
+			thisarg = -1;
+			flags = 0;
+			isfloat = -1;
+			is64bit = 0;
+
+			// is number following?
+			if (*s >= '0' && *s <= '9')
+			{
+				width = strtol (s, &err, 10);
+				if (!err)
 				{
-					width = strtol(s, &err, 10);
-					if(!err)
+					Con_Warning ("PF_sprintf: bad format string: %s\n", s0);
+					goto finished;
+				}
+				if (*err == '$')
+				{
+					thisarg = width + (firstarg - 1);
+					width = -1;
+					s = err + 1;
+				}
+				else
+				{
+					if (*s == '0')
 					{
-						Con_Warning("PF_sprintf: bad format string: %s\n", s0);
-						goto finished;
+						flags |= PRINTF_ZEROPAD;
+						if (width == 0)
+							width = -1; // it was just a flag
 					}
-					if(*err == '$')
+					s = err;
+				}
+			}
+
+			if (width < 0)
+			{
+				for (;;)
+				{
+					switch (*s)
 					{
-						thisarg = width + (firstarg-1);
-						width = -1;
+					case '#':
+						flags |= PRINTF_ALTERNATE;
+						break;
+					case '0':
+						flags |= PRINTF_ZEROPAD;
+						break;
+					case '-':
+						flags |= PRINTF_LEFT;
+						break;
+					case ' ':
+						flags |= PRINTF_SPACEPOSITIVE;
+						break;
+					case '+':
+						flags |= PRINTF_SIGNPOSITIVE;
+						break;
+					default:
+						goto noflags;
+					}
+					++s;
+				}
+			noflags:
+				if (*s == '*')
+				{
+					++s;
+					if (*s >= '0' && *s <= '9')
+					{
+						width = strtol (s, &err, 10);
+						if (!err || *err != '$')
+						{
+							Con_Warning ("PF_sprintf: invalid format string: %s\n", s0);
+							goto finished;
+						}
 						s = err + 1;
 					}
 					else
+						width = argpos++;
+					width = GETARG_FLOAT (width);
+					if (width < 0)
 					{
-						if(*s == '0')
-						{
-							flags |= PRINTF_ZEROPAD;
-							if(width == 0)
-								width = -1; // it was just a flag
-						}
-						s = err;
+						flags |= PRINTF_LEFT;
+						width = -width;
 					}
 				}
-
-				if(width < 0)
+				else if (*s >= '0' && *s <= '9')
 				{
-					for(;;)
+					width = strtol (s, &err, 10);
+					if (!err)
 					{
-						switch(*s)
-						{
-							case '#': flags |= PRINTF_ALTERNATE; break;
-							case '0': flags |= PRINTF_ZEROPAD; break;
-							case '-': flags |= PRINTF_LEFT; break;
-							case ' ': flags |= PRINTF_SPACEPOSITIVE; break;
-							case '+': flags |= PRINTF_SIGNPOSITIVE; break;
-							default:
-								goto noflags;
-						}
-						++s;
-					}
-noflags:
-					if(*s == '*')
-					{
-						++s;
-						if(*s >= '0' && *s <= '9')
-						{
-							width = strtol(s, &err, 10);
-							if(!err || *err != '$')
-							{
-								Con_Warning("PF_sprintf: invalid format string: %s\n", s0);
-								goto finished;
-							}
-							s = err + 1;
-						}
-						else
-							width = argpos++;
-						width = GETARG_FLOAT(width);
-						if(width < 0)
-						{
-							flags |= PRINTF_LEFT;
-							width = -width;
-						}
-					}
-					else if(*s >= '0' && *s <= '9')
-					{
-						width = strtol(s, &err, 10);
-						if(!err)
-						{
-							Con_Warning("PF_sprintf: invalid format string: %s\n", s0);
-							goto finished;
-						}
-						s = err;
-						if(width < 0)
-						{
-							flags |= PRINTF_LEFT;
-							width = -width;
-						}
-					}
-					// otherwise width stays -1
-				}
-
-				if(*s == '.')
-				{
-					++s;
-					if(*s == '*')
-					{
-						++s;
-						if(*s >= '0' && *s <= '9')
-						{
-							precision = strtol(s, &err, 10);
-							if(!err || *err != '$')
-							{
-								Con_Warning("PF_sprintf: invalid format string: %s\n", s0);
-								goto finished;
-							}
-							s = err + 1;
-						}
-						else
-							precision = argpos++;
-						precision = GETARG_FLOAT(precision);
-					}
-					else if(*s >= '0' && *s <= '9')
-					{
-						precision = strtol(s, &err, 10);
-						if(!err)
-						{
-							Con_Warning("PF_sprintf: invalid format string: %s\n", s0);
-							goto finished;
-						}
-						s = err;
-					}
-					else
-					{
-						Con_Warning("PF_sprintf: invalid format string: %s\n", s0);
+						Con_Warning ("PF_sprintf: invalid format string: %s\n", s0);
 						goto finished;
 					}
-				}
-
-				for(;;)
-				{
-					switch(*s)
+					s = err;
+					if (width < 0)
 					{
-						case 'h': isfloat = 1; break;
-						case 'l': isfloat = 0; break;
-						case 'L': isfloat = 0; break;
-						case 'q': is64bit = 1; break;
-						case 'j': break;
-						case 'z': break;
-						case 't': break;
-						default:
-							goto nolength;
+						flags |= PRINTF_LEFT;
+						width = -width;
 					}
+				}
+				// otherwise width stays -1
+			}
+
+			if (*s == '.')
+			{
+				++s;
+				if (*s == '*')
+				{
 					++s;
-				}
-nolength:
-
-				// now s points to the final directive char and is no longer changed
-				if (*s == 'p' || *s == 'P')
-				{
-					//%p is slightly different from %x.
-					//always 8-bytes wide with 0 padding, always ints.
-					flags |= PRINTF_ZEROPAD;
-					if (width < 0) width = 8;
-					if (isfloat < 0) isfloat = 0;
-				}
-				else if (*s == 'i')
-				{
-					//%i defaults to ints, not floats.
-					if(isfloat < 0) isfloat = 0;
-				}
-
-				//assume floats, not ints.
-				if(isfloat < 0)
-					isfloat = 1;
-
-				if(thisarg < 0)
-					thisarg = argpos++;
-
-				if(o < end - 1)
-				{
-					f = &formatbuf[1];
-					if(*s != 's' && *s != 'c')
-						if(flags & PRINTF_ALTERNATE) *f++ = '#';
-					if(flags & PRINTF_ZEROPAD) *f++ = '0';
-					if(flags & PRINTF_LEFT) *f++ = '-';
-					if(flags & PRINTF_SPACEPOSITIVE) *f++ = ' ';
-					if(flags & PRINTF_SIGNPOSITIVE) *f++ = '+';
-					*f++ = '*';
-					if(precision >= 0)
+					if (*s >= '0' && *s <= '9')
 					{
-						*f++ = '.';
-						*f++ = '*';
+						precision = strtol (s, &err, 10);
+						if (!err || *err != '$')
+						{
+							Con_Warning ("PF_sprintf: invalid format string: %s\n", s0);
+							goto finished;
+						}
+						s = err + 1;
 					}
-					switch(*s)
-					{
-						case 'd': case 'i': case 'I':
-						case 'o': case 'u': case 'x': case 'X': case 'p': case 'P':
-#ifdef _WIN32				//not c99
-							*f++ = 'I';
-							*f++ = '6';
-							*f++ = '4';
-#else						//c99
-							*f++ = 'l';
-							if (sizeof(long) == 4)
-								*f++ = 'l';	//go for long long instead
-#endif
-							break;
-					}
-					if (*s == 'p')
-						*f++ = 'x';
-					else if (*s == 'P')
-						*f++ = 'X';
-					else if (*s == 'S')
-						*f++ = 's';
 					else
-						*f++ = *s;
-					*f++ = 0;
-
-					if(width < 0) // not set
-						width = 0;
-
-					switch(*s)
+						precision = argpos++;
+					precision = GETARG_FLOAT (precision);
+				}
+				else if (*s >= '0' && *s <= '9')
+				{
+					precision = strtol (s, &err, 10);
+					if (!err)
 					{
-						case 'd': case 'i':
-							if(precision < 0) // not set
-								q_snprintf(o, end - o, formatbuf, width, GETARG_SNUMERIC(int64_t, thisarg));
-							else
-								q_snprintf(o, end - o, formatbuf, width, precision, GETARG_SNUMERIC(int64_t, thisarg));
-							o += strlen(o);
-							break;
-						case 'o': case 'u': case 'x': case 'X': case 'p': case 'P':
-							if(precision < 0) // not set
-								q_snprintf(o, end - o, formatbuf, width, GETARG_UNUMERIC(uint64_t, thisarg));
-							else
-								q_snprintf(o, end - o, formatbuf, width, precision, GETARG_UNUMERIC(uint64_t, thisarg));
-							o += strlen(o);
-							break;
-						case 'e': case 'E': case 'f': case 'F': case 'g': case 'G':
-							if(precision < 0) // not set
-								q_snprintf(o, end - o, formatbuf, width, GETARG_SNUMERIC(double, thisarg));
-							else
-								q_snprintf(o, end - o, formatbuf, width, precision, GETARG_SNUMERIC(double, thisarg));
-							o += strlen(o);
-							break;
-						case 'v': case 'V':
-							f[-2] += 'g' - 'v';
-							if(precision < 0) // not set
-								q_snprintf(o, end - o, va("%s %s %s", /* NESTED SPRINTF IS NESTED */ formatbuf, formatbuf, formatbuf),
-									width, (isfloat ? (double) GETARG_VECTOR(thisarg)[0] : (double) GETARG_INTVECTOR(thisarg)[0]),
-									width, (isfloat ? (double) GETARG_VECTOR(thisarg)[1] : (double) GETARG_INTVECTOR(thisarg)[1]),
-									width, (isfloat ? (double) GETARG_VECTOR(thisarg)[2] : (double) GETARG_INTVECTOR(thisarg)[2])
-								);
-							else
-								q_snprintf(o, end - o, va("%s %s %s", /* NESTED SPRINTF IS NESTED */ formatbuf, formatbuf, formatbuf),
-									width, precision, (isfloat ? (double) GETARG_VECTOR(thisarg)[0] : (double) GETARG_INTVECTOR(thisarg)[0]),
-									width, precision, (isfloat ? (double) GETARG_VECTOR(thisarg)[1] : (double) GETARG_INTVECTOR(thisarg)[1]),
-									width, precision, (isfloat ? (double) GETARG_VECTOR(thisarg)[2] : (double) GETARG_INTVECTOR(thisarg)[2])
-								);
-							o += strlen(o);
-							break;
-						case 'c':
-							//UTF-8-FIXME: figure it out yourself
-//							if(flags & PRINTF_ALTERNATE)
-							{
-								if(precision < 0) // not set
-									q_snprintf(o, end - o, formatbuf, width, (isfloat ? (unsigned int) GETARG_FLOAT(thisarg) : (unsigned int) GETARG_INT(thisarg)));
-								else
-									q_snprintf(o, end - o, formatbuf, width, precision, (isfloat ? (unsigned int) GETARG_FLOAT(thisarg) : (unsigned int) GETARG_INT(thisarg)));
-								o += strlen(o);
-							}
-/*							else
-							{
-								unsigned int c = (isfloat ? (unsigned int) GETARG_FLOAT(thisarg) : (unsigned int) GETARG_INT(thisarg));
-								char charbuf16[16];
-								const char *buf = u8_encodech(c, NULL, charbuf16);
-								if(!buf)
-									buf = "";
-								if(precision < 0) // not set
-									precision = end - o - 1;
-								o += u8_strpad(o, end - o, buf, (flags & PRINTF_LEFT) != 0, width, precision);
-							}
-*/							break;
-						case 'S':
-							{	//tokenizable string
-								const char *quotedarg = GETARG_STRING(thisarg);
+						Con_Warning ("PF_sprintf: invalid format string: %s\n", s0);
+						goto finished;
+					}
+					s = err;
+				}
+				else
+				{
+					Con_Warning ("PF_sprintf: invalid format string: %s\n", s0);
+					goto finished;
+				}
+			}
 
-								//try and escape it... hopefully it won't get truncated by precision limits...
-								char quotedbuf[65536];
-								size_t l;
-								qboolean warn = false;
-								quotedbuf[0] = '\\';
-								quotedbuf[1] = '\"';
-								for (l = 2; *quotedarg && l < countof(quotedbuf)-4; )
-								{	//-2 for maximum output of an encoded char, and -2 more for the trailing \"\0.
-									switch(*quotedarg)
-									{
-									case '\n':	quotedbuf[l++] = '\\';	quotedbuf[l++] = 'n'; warn=true;break;
-									case '\r':	quotedbuf[l++] = '\\';	quotedbuf[l++] = 'r'; warn=true;break;
-									case '\"':	quotedbuf[l++] = '\\';	quotedbuf[l++] = '"'; warn=true;break;
-									default:							quotedbuf[l++] = *quotedarg;	break;
-									}
-									quotedarg++;
-								}
-								quotedbuf[l] = '\"';
-								quotedbuf[l+1] = 0;
-								if (warn || *quotedarg)	//our escapes suck...
-								{
-									Con_Warning("PF_sprintf: unable to safely escape arg: %i\n", thisarg+1);
-									quotedarg = quotedbuf;
-								}
-								else
-									quotedarg = quotedbuf+1;	//don't need the leading cstring-indicator.
+			for (;;)
+			{
+				switch (*s)
+				{
+				case 'h':
+					isfloat = 1;
+					break;
+				case 'l':
+					isfloat = 0;
+					break;
+				case 'L':
+					isfloat = 0;
+					break;
+				case 'q':
+					is64bit = 1;
+					break;
+				case 'j':
+					break;
+				case 'z':
+					break;
+				case 't':
+					break;
+				default:
+					goto nolength;
+				}
+				++s;
+			}
+		nolength:
 
-								//UTF-8-FIXME: figure it out yourself
-//								if(flags & PRINTF_ALTERNATE)
-								{
-									if(precision < 0) // not set
-										q_snprintf(o, end - o, formatbuf, width, quotedarg);
-									else
-										q_snprintf(o, end - o, formatbuf, width, precision, quotedarg);
-									o += strlen(o);
-								}
+			// now s points to the final directive char and is no longer changed
+			if (*s == 'p' || *s == 'P')
+			{
+				//%p is slightly different from %x.
+				// always 8-bytes wide with 0 padding, always ints.
+				flags |= PRINTF_ZEROPAD;
+				if (width < 0)
+					width = 8;
+				if (isfloat < 0)
+					isfloat = 0;
+			}
+			else if (*s == 'i')
+			{
+				//%i defaults to ints, not floats.
+				if (isfloat < 0)
+					isfloat = 0;
+			}
+
+			// assume floats, not ints.
+			if (isfloat < 0)
+				isfloat = 1;
+
+			if (thisarg < 0)
+				thisarg = argpos++;
+
+			if (o < end - 1)
+			{
+				f = &formatbuf[1];
+				if (*s != 's' && *s != 'c')
+					if (flags & PRINTF_ALTERNATE)
+						*f++ = '#';
+				if (flags & PRINTF_ZEROPAD)
+					*f++ = '0';
+				if (flags & PRINTF_LEFT)
+					*f++ = '-';
+				if (flags & PRINTF_SPACEPOSITIVE)
+					*f++ = ' ';
+				if (flags & PRINTF_SIGNPOSITIVE)
+					*f++ = '+';
+				*f++ = '*';
+				if (precision >= 0)
+				{
+					*f++ = '.';
+					*f++ = '*';
+				}
+				switch (*s)
+				{
+				case 'd':
+				case 'i':
+				case 'I':
+				case 'o':
+				case 'u':
+				case 'x':
+				case 'X':
+				case 'p':
+				case 'P':
+#ifdef _WIN32 // not c99
+					*f++ = 'I';
+					*f++ = '6';
+					*f++ = '4';
+#else // c99
+					*f++ = 'l';
+					if (sizeof (long) == 4)
+						*f++ = 'l'; // go for long long instead
+#endif
+					break;
+				}
+				if (*s == 'p')
+					*f++ = 'x';
+				else if (*s == 'P')
+					*f++ = 'X';
+				else if (*s == 'S')
+					*f++ = 's';
+				else
+					*f++ = *s;
+				*f++ = 0;
+
+				if (width < 0) // not set
+					width = 0;
+
+				switch (*s)
+				{
+				case 'd':
+				case 'i':
+					if (precision < 0) // not set
+						q_snprintf (o, end - o, formatbuf, width, GETARG_SNUMERIC (int64_t, thisarg));
+					else
+						q_snprintf (o, end - o, formatbuf, width, precision, GETARG_SNUMERIC (int64_t, thisarg));
+					o += strlen (o);
+					break;
+				case 'o':
+				case 'u':
+				case 'x':
+				case 'X':
+				case 'p':
+				case 'P':
+					if (precision < 0) // not set
+						q_snprintf (o, end - o, formatbuf, width, GETARG_UNUMERIC (uint64_t, thisarg));
+					else
+						q_snprintf (o, end - o, formatbuf, width, precision, GETARG_UNUMERIC (uint64_t, thisarg));
+					o += strlen (o);
+					break;
+				case 'e':
+				case 'E':
+				case 'f':
+				case 'F':
+				case 'g':
+				case 'G':
+					if (precision < 0) // not set
+						q_snprintf (o, end - o, formatbuf, width, GETARG_SNUMERIC (double, thisarg));
+					else
+						q_snprintf (o, end - o, formatbuf, width, precision, GETARG_SNUMERIC (double, thisarg));
+					o += strlen (o);
+					break;
+				case 'v':
+				case 'V':
+					f[-2] += 'g' - 'v';
+					if (precision < 0) // not set
+						q_snprintf (
+							o, end - o, va ("%s %s %s", /* NESTED SPRINTF IS NESTED */ formatbuf, formatbuf, formatbuf), width,
+							(isfloat ? (double)GETARG_VECTOR (thisarg)[0] : (double)GETARG_INTVECTOR (thisarg)[0]), width,
+							(isfloat ? (double)GETARG_VECTOR (thisarg)[1] : (double)GETARG_INTVECTOR (thisarg)[1]), width,
+							(isfloat ? (double)GETARG_VECTOR (thisarg)[2] : (double)GETARG_INTVECTOR (thisarg)[2]));
+					else
+						q_snprintf (
+							o, end - o, va ("%s %s %s", /* NESTED SPRINTF IS NESTED */ formatbuf, formatbuf, formatbuf), width, precision,
+							(isfloat ? (double)GETARG_VECTOR (thisarg)[0] : (double)GETARG_INTVECTOR (thisarg)[0]), width, precision,
+							(isfloat ? (double)GETARG_VECTOR (thisarg)[1] : (double)GETARG_INTVECTOR (thisarg)[1]), width, precision,
+							(isfloat ? (double)GETARG_VECTOR (thisarg)[2] : (double)GETARG_INTVECTOR (thisarg)[2]));
+					o += strlen (o);
+					break;
+				case 'c':
+					// UTF-8-FIXME: figure it out yourself
+					//							if(flags & PRINTF_ALTERNATE)
+					{
+						if (precision < 0) // not set
+							q_snprintf (o, end - o, formatbuf, width, (isfloat ? (unsigned int)GETARG_FLOAT (thisarg) : (unsigned int)GETARG_INT (thisarg)));
+						else
+							q_snprintf (
+								o, end - o, formatbuf, width, precision, (isfloat ? (unsigned int)GETARG_FLOAT (thisarg) : (unsigned int)GETARG_INT (thisarg)));
+						o += strlen (o);
+					}
+					/*							else
+												{
+													unsigned int c = (isfloat ? (unsigned int) GETARG_FLOAT(thisarg) : (unsigned int) GETARG_INT(thisarg));
+													char charbuf16[16];
+													const char *buf = u8_encodech(c, NULL, charbuf16);
+													if(!buf)
+														buf = "";
+													if(precision < 0) // not set
+														precision = end - o - 1;
+													o += u8_strpad(o, end - o, buf, (flags & PRINTF_LEFT) != 0, width, precision);
+												}
+					*/
+					break;
+				case 'S':
+				{ // tokenizable string
+					const char *quotedarg = GETARG_STRING (thisarg);
+
+					// try and escape it... hopefully it won't get truncated by precision limits...
+					char	 quotedbuf[65536];
+					size_t	 l;
+					qboolean warn = false;
+					quotedbuf[0] = '\\';
+					quotedbuf[1] = '\"';
+					for (l = 2; *quotedarg && l < countof (quotedbuf) - 4;)
+					{ //-2 for maximum output of an encoded char, and -2 more for the trailing \"\0.
+						switch (*quotedarg)
+						{
+						case '\n':
+							quotedbuf[l++] = '\\';
+							quotedbuf[l++] = 'n';
+							warn = true;
+							break;
+						case '\r':
+							quotedbuf[l++] = '\\';
+							quotedbuf[l++] = 'r';
+							warn = true;
+							break;
+						case '\"':
+							quotedbuf[l++] = '\\';
+							quotedbuf[l++] = '"';
+							warn = true;
+							break;
+						default:
+							quotedbuf[l++] = *quotedarg;
+							break;
+						}
+						quotedarg++;
+					}
+					quotedbuf[l] = '\"';
+					quotedbuf[l + 1] = 0;
+					if (warn || *quotedarg) // our escapes suck...
+					{
+						Con_Warning ("PF_sprintf: unable to safely escape arg: %i\n", thisarg + 1);
+						quotedarg = quotedbuf;
+					}
+					else
+						quotedarg = quotedbuf + 1; // don't need the leading cstring-indicator.
+
+					// UTF-8-FIXME: figure it out yourself
+					//								if(flags & PRINTF_ALTERNATE)
+					{
+						if (precision < 0) // not set
+							q_snprintf (o, end - o, formatbuf, width, quotedarg);
+						else
+							q_snprintf (o, end - o, formatbuf, width, precision, quotedarg);
+						o += strlen (o);
+					}
 /*								else
 								{
 									if(precision < 0) // not set
@@ -1377,38 +1440,38 @@ nolength:
 									o += u8_strpad(o, end - o, quotedarg, (flags & PRINTF_LEFT) != 0, width, precision);
 								}
 */							}
-							break;
-						case 's':
-							//UTF-8-FIXME: figure it out yourself
-//							if(flags & PRINTF_ALTERNATE)
-							{
-								if(precision < 0) // not set
-									q_snprintf(o, end - o, formatbuf, width, GETARG_STRING(thisarg));
-								else
-									q_snprintf(o, end - o, formatbuf, width, precision, GETARG_STRING(thisarg));
-								o += strlen(o);
-							}
-/*							else
-							{
-								if(precision < 0) // not set
-									precision = end - o - 1;
-								o += u8_strpad(o, end - o, GETARG_STRING(thisarg), (flags & PRINTF_LEFT) != 0, width, precision);
-							}
-*/							
-							break;
-						default:
-							Con_Warning("PF_sprintf: invalid format string: %s\n", s0);
-							goto finished;
-					}
-				}
-				++s;
-				break;
-			default:
-verbatim:
-				if(o < end - 1)
-					*o++ = *s;
-				s++;
-				break;
+break;
+case 's':
+	// UTF-8-FIXME: figure it out yourself
+	//							if(flags & PRINTF_ALTERNATE)
+	{
+		if (precision < 0) // not set
+			q_snprintf (o, end - o, formatbuf, width, GETARG_STRING (thisarg));
+		else
+			q_snprintf (o, end - o, formatbuf, width, precision, GETARG_STRING (thisarg));
+		o += strlen (o);
+	}
+	/*							else
+								{
+									if(precision < 0) // not set
+										precision = end - o - 1;
+									o += u8_strpad(o, end - o, GETARG_STRING(thisarg), (flags & PRINTF_LEFT) != 0, width, precision);
+								}
+	*/
+	break;
+default:
+	Con_Warning ("PF_sprintf: invalid format string: %s\n", s0);
+	goto finished;
+}
+			}
+			++s;
+			break;
+		default:
+		verbatim:
+			if (o < end - 1)
+				*o++ = *s;
+			s++;
+			break;
 		}
 	}
 finished:
@@ -1520,36 +1583,36 @@ static void PF_tokenizebyseparator (void)
 			/*see if its a separator*/
 			if (!*str)
 			{
-qctoken[qctoken_count].end = str - start;
-found = true;
+				qctoken[qctoken_count].end = str - start;
+				found = true;
 			}
 			else
 			{
-for (s = 0; s < seps; s++)
-{
-	if (!strncmp (str, sep[s], seplen[s]))
-	{
-		qctoken[qctoken_count].end = str - start;
-		str += seplen[s];
-		found = true;
-		break;
-	}
-}
+				for (s = 0; s < seps; s++)
+				{
+					if (!strncmp (str, sep[s], seplen[s]))
+					{
+						qctoken[qctoken_count].end = str - start;
+						str += seplen[s];
+						found = true;
+						break;
+					}
+				}
 			}
 			/*it was, split it out*/
 			if (found)
 			{
-tlen = qctoken[qctoken_count].end - qctoken[qctoken_count].start;
-qctoken[qctoken_count].token = Mem_Alloc (tlen + 1);
-memcpy (qctoken[qctoken_count].token, start + qctoken[qctoken_count].start, tlen);
-qctoken[qctoken_count].token[tlen] = 0;
+				tlen = qctoken[qctoken_count].end - qctoken[qctoken_count].start;
+				qctoken[qctoken_count].token = Mem_Alloc (tlen + 1);
+				memcpy (qctoken[qctoken_count].token, start + qctoken[qctoken_count].start, tlen);
+				qctoken[qctoken_count].token[tlen] = 0;
 
-qctoken_count++;
+				qctoken_count++;
 
-if (*str && qctoken_count < MAXQCTOKENS)
-	qctoken[qctoken_count].start = str - start;
-else
-	break;
+				if (*str && qctoken_count < MAXQCTOKENS)
+					qctoken[qctoken_count].start = str - start;
+				else
+					break;
 			}
 			str++;
 		}
@@ -1849,14 +1912,14 @@ static void PF_cl_setmodelindex (void)
 		SetMinMaxSize (e, vec3_origin, vec3_origin, true);
 }
 
-static void PF_modelnameforidx(void)
+static void PF_modelnameforidx (void)
 {
-	int idx = G_FLOAT(OFS_PARM0);
-	qmodel_t *mod = qcvm->GetModel(idx);
+	int		  idx = G_FLOAT (OFS_PARM0);
+	qmodel_t *mod = qcvm->GetModel (idx);
 	if (mod)
-		G_INT(OFS_RETURN) = PR_MakeTempString(mod->name);
+		G_INT (OFS_RETURN) = PR_MakeTempString (mod->name);
 	else
-		G_INT(OFS_RETURN) = 0;
+		G_INT (OFS_RETURN) = 0;
 }
 
 static void PF_frameforname (void)
@@ -1874,8 +1937,8 @@ static void PF_frameforname (void)
 		{
 			if (!strcmp (alias->frames[i].name, framename))
 			{
-G_FLOAT (OFS_RETURN) = i;
-break;
+				G_FLOAT (OFS_RETURN) = i;
+				break;
 			}
 		}
 	}
@@ -2031,26 +2094,26 @@ static float getsurface_clippointpoly (qmodel_t *model, msurface_t *surf, vec3_t
 			edge = model->surfedges[--e];
 			if (edge < 0)
 			{
-v1 = &model->vertexes[model->edges[-edge].v[0]];
-v2 = &model->vertexes[model->edges[-edge].v[1]];
+				v1 = &model->vertexes[model->edges[-edge].v[0]];
+				v2 = &model->vertexes[model->edges[-edge].v[1]];
 			}
 			else
 			{
-v2 = &model->vertexes[model->edges[edge].v[0]];
-v1 = &model->vertexes[model->edges[edge].v[1]];
+				v2 = &model->vertexes[model->edges[edge].v[0]];
+				v1 = &model->vertexes[model->edges[edge].v[1]];
 			}
 
 			VectorSubtract (v1->position, v2->position, edgedir);
 			CrossProduct (edgedir, surf->plane->normal, edgenormal);
 			if (!(surf->flags & SURF_PLANEBACK))
 			{
-VectorSubtract (vec3_origin, edgenormal, edgenormal);
+				VectorSubtract (vec3_origin, edgenormal, edgenormal);
 			}
 			VectorNormalize (edgenormal);
 
 			dist = DotProduct (v1->position, edgenormal) - DotProduct (cpoint, edgenormal);
 			if (dist < 0)
-VectorMA (cpoint, dist, edgenormal, cpoint);
+				VectorMA (cpoint, dist, edgenormal, cpoint);
 		}
 
 		VectorSubtract (cpoint, point, temp);
@@ -2113,12 +2176,12 @@ static void PF_getsurfacenearpoint (void)
 		{
 			for (i = 0; i < nearsurface_cache_entries; i++)
 			{
-dist = getsurface_clippointpoly (model, surf + nearsurface_cache[i], point, cpoint, bestdist, &distsquare);
-if (dist < bestdist)
-{
-	bestdist = dist;
-	bestsurf = nearsurface_cache[i];
-}
+				dist = getsurface_clippointpoly (model, surf + nearsurface_cache[i], point, cpoint, bestdist, &distsquare);
+				if (dist < bestdist)
+				{
+					bestdist = dist;
+					bestsurf = nearsurface_cache[i];
+				}
 			}
 			cached = true;
 		}
@@ -2137,15 +2200,15 @@ if (dist < bestdist)
 			dist = getsurface_clippointpoly (model, surf, point, cpoint, bestdist, &distsquare);
 			if (dist < bestdist)
 			{
-bestdist = dist;
-bestsurf = i;
+				bestdist = dist;
+				bestsurf = i;
 			}
 			if (cacheable && distsquare < NEARSURFACE_CACHEDIST * NEARSURFACE_CACHEDIST)
 			{
-if (nearsurface_cache_entries == NEARSURFACE_CACHESIZE)
-	nearsurface_cache_valid = false;
-else
-	nearsurface_cache[nearsurface_cache_entries++] = i;
+				if (nearsurface_cache_entries == NEARSURFACE_CACHESIZE)
+					nearsurface_cache_valid = false;
+				else
+					nearsurface_cache[nearsurface_cache_entries++] = i;
 			}
 		}
 	}
@@ -2206,13 +2269,13 @@ static void PF_getsurfaceclippedpoint (void)
 
 enum
 {
-	SPA_POSITION	= 0,
-	SPA_S_AXIS		= 1,
-	SPA_T_AXIS		= 2,
-	SPA_R_AXIS		= 3,	//normal
-	SPA_TEXCOORDS0	= 4,
-	SPA_LIGHTMAP0_TEXCOORDS	= 5,
-	SPA_LIGHTMAP0_COLOR		= 6,
+	SPA_POSITION = 0,
+	SPA_S_AXIS = 1,
+	SPA_T_AXIS = 2,
+	SPA_R_AXIS = 3, // normal
+	SPA_TEXCOORDS0 = 4,
+	SPA_LIGHTMAP0_TEXCOORDS = 5,
+	SPA_LIGHTMAP0_COLOR = 6,
 };
 static void PF_getsurfacepointattribute (void)
 {
@@ -2251,7 +2314,7 @@ static void PF_getsurfacepointattribute (void)
 		case SPA_R_AXIS: // normal
 			VectorCopy (fa->plane->normal, G_VECTOR (OFS_RETURN));
 			if (fa->flags & SURF_PLANEBACK)
-VectorInverse (G_VECTOR (OFS_RETURN));
+				VectorInverse (G_VECTOR (OFS_RETURN));
 			break;
 		case SPA_TEXCOORDS0: // st coord
 			G_FLOAT (OFS_RETURN + 0) = (DotProduct (v->position, fa->texinfo->vecs[0]) + fa->texinfo->vecs[0][3]) / fa->texinfo->texture->width;
@@ -2352,16 +2415,16 @@ static void PF_spawnclient (void)
 		{
 			if (!svs.clients[i].active)
 			{
-svs.clients[i].netconnection = NULL; // botclients have no net connection, obviously.
-SV_ConnectClient (i);
-svs.clients[i].spawned = true;
-ent = svs.clients[i].edict;
-memset (&ent->v, 0, qcvm->progs->entityfields * 4);
-ent->v.colormap = NUM_FOR_EDICT (ent);
-ent->v.team = (svs.clients[i].colors & 15) + 1;
-ent->v.netname = PR_SetEngineString (svs.clients[i].name);
-RETURN_EDICT (ent);
-return;
+				svs.clients[i].netconnection = NULL; // botclients have no net connection, obviously.
+				SV_ConnectClient (i);
+				svs.clients[i].spawned = true;
+				ent = svs.clients[i].edict;
+				memset (&ent->v, 0, qcvm->progs->entityfields * 4);
+				ent->v.colormap = NUM_FOR_EDICT (ent);
+				ent->v.team = (svs.clients[i].colors & 15) + 1;
+				ent->v.netname = PR_SetEngineString (svs.clients[i].name);
+				RETURN_EDICT (ent);
+				return;
 			}
 		}
 	RETURN_EDICT (qcvm->edicts);
@@ -2459,21 +2522,21 @@ static void PF_WriteFloat (void)
 { // curiously, this was missing in vanilla.
 	MSG_WriteFloat (WriteDest (), G_FLOAT (OFS_PARM0));
 }
-static void PF_WriteDouble(void)
+static void PF_WriteDouble (void)
 {
-	MSG_WriteDouble(WriteDest(), G_DOUBLE(OFS_PARM0));
+	MSG_WriteDouble (WriteDest (), G_DOUBLE (OFS_PARM0));
 }
-static void PF_WriteInt(void)
+static void PF_WriteInt (void)
 {
-	MSG_WriteDouble(WriteDest(), G_INT(OFS_PARM0));
+	MSG_WriteDouble (WriteDest (), G_INT (OFS_PARM0));
 }
-static void PF_WriteInt64(void)
+static void PF_WriteInt64 (void)
 {
-	MSG_WriteInt64(WriteDest(), G_INT64(OFS_PARM0));
+	MSG_WriteInt64 (WriteDest (), G_INT64 (OFS_PARM0));
 }
-static void PF_WriteUInt64(void)
+static void PF_WriteUInt64 (void)
 {
-	MSG_WriteUInt64(WriteDest(), G_UINT64(OFS_PARM0));
+	MSG_WriteUInt64 (WriteDest (), G_UINT64 (OFS_PARM0));
 }
 
 static void PF_sv_te_blooddp (void)
@@ -2682,7 +2745,7 @@ static void PF_cl_te_wizspike (void)
 {
 	float *pos = G_VECTOR (OFS_PARM0);
 
-	if (PScript_RunParticleEffectTypeString(pos, NULL, 1, "TE_WIZSPIKE"))
+	if (PScript_RunParticleEffectTypeString (pos, NULL, 1, "TE_WIZSPIKE"))
 		R_RunParticleEffect (pos, vec3_origin, 20, 30);
 	S_StartSound (-1, 0, S_PrecacheSound ("wizard/hit.wav"), pos, 1, 1);
 }
@@ -2700,7 +2763,7 @@ static void PF_cl_te_knightspike (void)
 {
 	float *pos = G_VECTOR (OFS_PARM0);
 
-	if (PScript_RunParticleEffectTypeString(pos, NULL, 1, "TE_KNIGHTSPIKE"))
+	if (PScript_RunParticleEffectTypeString (pos, NULL, 1, "TE_KNIGHTSPIKE"))
 		R_RunParticleEffect (pos, vec3_origin, 226, 20);
 	S_StartSound (-1, 0, S_PrecacheSound ("hknight/hit.wav"), pos, 1, 1);
 }
@@ -2738,11 +2801,11 @@ static void PF_sv_te_lavasplash (void)
 	MSG_WriteCoord (&sv.datagram, org[2], sv.protocolflags);
 	SV_Multicast (MULTICAST_PHS_U, org, 0, 0);
 }
-static void PF_cl_te_lavasplash(void)
+static void PF_cl_te_lavasplash (void)
 {
-	float *pos = G_VECTOR(OFS_PARM0);
+	float *pos = G_VECTOR (OFS_PARM0);
 
-	if (PScript_RunParticleEffectTypeString(pos, NULL, 1, "TE_LAVASPLASH"))
+	if (PScript_RunParticleEffectTypeString (pos, NULL, 1, "TE_LAVASPLASH"))
 		R_LavaSplash (pos);
 }
 static void PF_sv_te_teleport (void)
@@ -2755,10 +2818,10 @@ static void PF_sv_te_teleport (void)
 	MSG_WriteCoord (&sv.multicast, org[2], sv.protocolflags);
 	SV_Multicast (MULTICAST_PHS_U, org, 0, 0);
 }
-static void PF_cl_te_teleport(void)
+static void PF_cl_te_teleport (void)
 {
-	float *pos = G_VECTOR(OFS_PARM0);
-	if (PScript_RunParticleEffectTypeString(pos, NULL, 1, "TE_TELEPORT"))
+	float *pos = G_VECTOR (OFS_PARM0);
+	if (PScript_RunParticleEffectTypeString (pos, NULL, 1, "TE_TELEPORT"))
 		R_TeleportSplash (pos);
 }
 static void PF_sv_te_explosion2 (void)
@@ -2778,11 +2841,11 @@ static void PF_sv_te_explosion2 (void)
 static void PF_cl_te_explosion2 (void)
 {
 	float	 *pos = G_VECTOR (OFS_PARM0);
-	int colorStart = G_FLOAT(OFS_PARM1);
-	int colorLength = G_FLOAT(OFS_PARM1);
+	int		  colorStart = G_FLOAT (OFS_PARM1);
+	int		  colorLength = G_FLOAT (OFS_PARM1);
 	dlight_t *dl;
 
-	if (PScript_RunParticleEffectTypeString(pos, NULL, 1, va("TE_EXPLOSION2_%i_%i", colorStart, colorLength)))
+	if (PScript_RunParticleEffectTypeString (pos, NULL, 1, va ("TE_EXPLOSION2_%i_%i", colorStart, colorLength)))
 		R_ParticleExplosion2 (pos, colorStart, colorLength);
 	dl = CL_AllocDlight (0);
 	VectorCopy (pos, dl->origin);
@@ -2943,7 +3006,7 @@ static void PF_whichpack (void)
 		searchpath_t *path;
 		for (path = com_searchpaths; path; path = path->next)
 			if (!path->pack && path->path_id == path_id)
-break; // okay, this one looks like one we can report
+				break; // okay, this one looks like one we can report
 
 		// sandbox it by stripping the basedir
 		fname = path->filename;
@@ -3173,19 +3236,19 @@ static void PF_buf_implode (void)
 		{
 			if (retlen)
 			{
-if (retlen + gluelen + 1 > STRINGTEMP_LENGTH)
-{
-	Con_Printf ("PF_buf_implode: tempstring overflow\n");
-	break;
-}
-memcpy (ret + retlen, glue, gluelen);
-retlen += gluelen;
+				if (retlen + gluelen + 1 > STRINGTEMP_LENGTH)
+				{
+					Con_Printf ("PF_buf_implode: tempstring overflow\n");
+					break;
+				}
+				memcpy (ret + retlen, glue, gluelen);
+				retlen += gluelen;
 			}
 			l = strlen (strings[i]);
 			if (retlen + l + 1 > STRINGTEMP_LENGTH)
 			{
-Con_Printf ("PF_buf_implode: tempstring overflow\n");
-break;
+				Con_Printf ("PF_buf_implode: tempstring overflow\n");
+				break;
 			}
 			memcpy (ret + retlen, strings[i], l);
 			retlen += l;
@@ -3271,7 +3334,7 @@ static int PF_bufstr_add_internal (unsigned int bufno, const char *string, int a
 		// find a hole
 		for (index = 0; index < strbuflist[bufno].used; index++)
 			if (!strbuflist[bufno].strings[index])
-break;
+				break;
 	}
 
 	// expand it if needed
@@ -3699,17 +3762,17 @@ static void PF_infokey_internal (qboolean returnfloat)
 			switch (sv.protocol)
 			{
 			case PROTOCOL_NETQUAKE:
-r = "quake";
-break;
+				r = "quake";
+				break;
 			case PROTOCOL_FITZQUAKE:
-r = "fitz666";
-break;
+				r = "fitz666";
+				break;
 			case PROTOCOL_RMQ:
-r = "rmq999";
-break;
+				r = "rmq999";
+				break;
 			default:
-r = "";
-break;
+				r = "";
+				break;
 			}
 		}
 		else if (!strcmp (key, "name"))
@@ -3773,11 +3836,11 @@ static void PF_multicast_internal (qboolean reliable, byte *pvs, unsigned int re
 		{
 			for (i = 0; i < (unsigned int)svs.maxclients; i++)
 			{
-if (!svs.clients[i].active)
-	continue;
-if (!(svs.clients[i].protocol_pext2 & requireext2))
-	continue;
-SZ_Write ((reliable ? &svs.clients[i].message : &svs.clients[i].datagram), sv.multicast.data, sv.multicast.cursize);
+				if (!svs.clients[i].active)
+					continue;
+				if (!(svs.clients[i].protocol_pext2 & requireext2))
+					continue;
+				SZ_Write ((reliable ? &svs.clients[i].message : &svs.clients[i].datagram), sv.multicast.data, sv.multicast.cursize);
 			}
 		}
 	}
@@ -3786,10 +3849,10 @@ SZ_Write ((reliable ? &svs.clients[i].message : &svs.clients[i].datagram), sv.mu
 		for (i = 0; i < (unsigned int)svs.maxclients; i++)
 		{
 			if (!svs.clients[i].active)
-continue;
+				continue;
 
 			if (requireext2 && !(svs.clients[i].protocol_pext2 & requireext2))
-continue;
+				continue;
 
 			// figure out which cluster (read: pvs index) to use.
 			playerleaf = Mod_PointInLeaf (svs.clients[i].edict->v.origin, qcvm->worldmodel);
@@ -3797,11 +3860,11 @@ continue;
 			cluster--; // pvs is 1-based, leaf 0 is discarded.
 			if (cluster < 0 || (pvs[cluster >> 3] & (1 << (cluster & 7))))
 			{
-// they can see it. add it in to whichever buffer is appropriate.
-if (reliable)
-	SZ_Write (&svs.clients[i].message, sv.multicast.data, sv.multicast.cursize);
-else
-	SZ_Write (&svs.clients[i].datagram, sv.multicast.data, sv.multicast.cursize);
+				// they can see it. add it in to whichever buffer is appropriate.
+				if (reliable)
+					SZ_Write (&svs.clients[i].message, sv.multicast.data, sv.multicast.cursize);
+				else
+					SZ_Write (&svs.clients[i].datagram, sv.multicast.data, sv.multicast.cursize);
 			}
 		}
 	}
@@ -3909,27 +3972,27 @@ static void PF_uri_unescape (void)
 		{
 			hex = 0;
 			if (i[1] >= 'A' && i[1] <= 'F')
-hex += i[1] - 'A' + 10;
+				hex += i[1] - 'A' + 10;
 			else if (i[1] >= 'a' && i[1] <= 'f')
-hex += i[1] - 'a' + 10;
+				hex += i[1] - 'a' + 10;
 			else if (i[1] >= '0' && i[1] <= '9')
-hex += i[1] - '0';
+				hex += i[1] - '0';
 			else
 			{
-*o++ = *i++;
-continue;
+				*o++ = *i++;
+				continue;
 			}
 			hex <<= 4;
 			if (i[2] >= 'A' && i[2] <= 'F')
-hex += i[2] - 'A' + 10;
+				hex += i[2] - 'A' + 10;
 			else if (i[2] >= 'a' && i[2] <= 'f')
-hex += i[2] - 'a' + 10;
+				hex += i[2] - 'a' + 10;
 			else if (i[2] >= '0' && i[2] <= '9')
-hex += i[2] - '0';
+				hex += i[2] - '0';
 			else
 			{
-*o++ = *i++;
-continue;
+				*o++ = *i++;
+				continue;
 			}
 			*o++ = hex;
 			i += 3;
@@ -4114,10 +4177,10 @@ int PF_SV_ForceParticlePrecache (const char *s)
 		{
 			if (sv.state != ss_loading)
 			{
-MSG_WriteByte (&sv.multicast, svcdp_precache);
-MSG_WriteShort (&sv.multicast, i | 0x4000);
-MSG_WriteString (&sv.multicast, s);
-SV_Multicast (MULTICAST_ALL_R, NULL, 0, PEXT2_REPLACEMENTDELTAS); // FIXME
+				MSG_WriteByte (&sv.multicast, svcdp_precache);
+				MSG_WriteShort (&sv.multicast, i | 0x4000);
+				MSG_WriteString (&sv.multicast, s);
+				SV_Multicast (MULTICAST_ALL_R, NULL, 0, PEXT2_REPLACEMENTDELTAS); // FIXME
 			}
 
 			sv.particle_precache[i] = q_strdup (s); // weirdness to avoid issues with tempstrings
@@ -4148,8 +4211,8 @@ static void PF_sv_particleeffectnum (void)
 		{
 			if (sv.state != ss_loading && !pr_checkextension.value)
 			{
-if (pr_ext_warned_particleeffectnum++ < 3)
-	Con_Warning ("PF_sv_particleeffectnum(%s): Precache should only be done in spawn functions\n", s);
+				if (pr_ext_warned_particleeffectnum++ < 3)
+					Con_Warning ("PF_sv_particleeffectnum(%s): Precache should only be done in spawn functions\n", s);
 			}
 			G_FLOAT (OFS_RETURN) = i;
 			return;
@@ -4162,13 +4225,13 @@ if (pr_ext_warned_particleeffectnum++ < 3)
 		{
 			if (sv.state != ss_loading)
 			{
-if (pr_ext_warned_particleeffectnum++ < 3)
-	Con_Warning ("PF_sv_particleeffectnum(%s): Precache should only be done in spawn functions\n", s);
+				if (pr_ext_warned_particleeffectnum++ < 3)
+					Con_Warning ("PF_sv_particleeffectnum(%s): Precache should only be done in spawn functions\n", s);
 
-MSG_WriteByte (&sv.multicast, svcdp_precache);
-MSG_WriteShort (&sv.multicast, i | 0x4000);
-MSG_WriteString (&sv.multicast, s);
-SV_Multicast (MULTICAST_ALL_R, NULL, 0, PEXT2_REPLACEMENTDELTAS);
+				MSG_WriteByte (&sv.multicast, svcdp_precache);
+				MSG_WriteShort (&sv.multicast, i | 0x4000);
+				MSG_WriteString (&sv.multicast, s);
+				SV_Multicast (MULTICAST_ALL_R, NULL, 0, PEXT2_REPLACEMENTDELTAS);
 			}
 
 			sv.particle_precache[i] = q_strdup (s); // weirdness to avoid issues with tempstrings
@@ -4425,7 +4488,7 @@ static qpic_t *DrawQC_CachePic (const char *picname, unsigned int flags)
 		if (!strcmp (picname, qcpics[i].name))
 		{
 			if (qcpics[i].pic)
-return qcpics[i].pic;
+				return qcpics[i].pic;
 			break;
 		}
 	}
@@ -4830,57 +4893,57 @@ static void PF_cl_registercommand (void)
 	const char *cmdname = G_STRING (OFS_PARM0);
 	Cmd_AddCommand (cmdname, NULL);
 }
-static void PF_cl_readbyte(void)
+static void PF_cl_readbyte (void)
 {
-	G_FLOAT(OFS_RETURN) = MSG_ReadByte();
+	G_FLOAT (OFS_RETURN) = MSG_ReadByte ();
 }
-static void PF_cl_readchar(void)
+static void PF_cl_readchar (void)
 {
-	G_FLOAT(OFS_RETURN) = MSG_ReadChar();
+	G_FLOAT (OFS_RETURN) = MSG_ReadChar ();
 }
-static void PF_cl_readshort(void)
+static void PF_cl_readshort (void)
 {
-	G_FLOAT(OFS_RETURN) = MSG_ReadShort();
+	G_FLOAT (OFS_RETURN) = MSG_ReadShort ();
 }
-static void PF_cl_readlong(void)
+static void PF_cl_readlong (void)
 {
-	G_FLOAT(OFS_RETURN) = MSG_ReadLong();
+	G_FLOAT (OFS_RETURN) = MSG_ReadLong ();
 }
-static void PF_cl_readcoord(void)
+static void PF_cl_readcoord (void)
 {
-	G_FLOAT(OFS_RETURN) = MSG_ReadCoord(cl.protocolflags);
+	G_FLOAT (OFS_RETURN) = MSG_ReadCoord (cl.protocolflags);
 }
-static void PF_cl_readangle(void)
+static void PF_cl_readangle (void)
 {
-	G_FLOAT(OFS_RETURN) = MSG_ReadAngle(cl.protocolflags);
+	G_FLOAT (OFS_RETURN) = MSG_ReadAngle (cl.protocolflags);
 }
-static void PF_cl_readstring(void)
+static void PF_cl_readstring (void)
 {
-	G_INT(OFS_RETURN) = PR_MakeTempString(MSG_ReadString());
+	G_INT (OFS_RETURN) = PR_MakeTempString (MSG_ReadString ());
 }
-static void PF_cl_readfloat(void)
+static void PF_cl_readfloat (void)
 {
-	G_FLOAT(OFS_RETURN) = MSG_ReadFloat();
+	G_FLOAT (OFS_RETURN) = MSG_ReadFloat ();
 }
-static void PF_cl_readdouble(void)
+static void PF_cl_readdouble (void)
 {
-	G_DOUBLE(OFS_RETURN) = MSG_ReadDouble();
+	G_DOUBLE (OFS_RETURN) = MSG_ReadDouble ();
 }
-static void PF_cl_readint(void)
+static void PF_cl_readint (void)
 {
-	G_INT(OFS_RETURN) = MSG_ReadLong();
+	G_INT (OFS_RETURN) = MSG_ReadLong ();
 }
-static void PF_cl_readint64(void)
+static void PF_cl_readint64 (void)
 {
-	G_INT64(OFS_RETURN) = MSG_ReadInt64();
+	G_INT64 (OFS_RETURN) = MSG_ReadInt64 ();
 }
-static void PF_cl_readuint64(void)
+static void PF_cl_readuint64 (void)
 {
-	G_UINT64(OFS_RETURN) = MSG_ReadUInt64();
+	G_UINT64 (OFS_RETURN) = MSG_ReadUInt64 ();
 }
-static void PF_cl_readentitynum(void)
+static void PF_cl_readentitynum (void)
 {
-	G_FLOAT(OFS_RETURN) = MSG_ReadEntity(cl.protocol_pext2);
+	G_FLOAT (OFS_RETURN) = MSG_ReadEntity (cl.protocol_pext2);
 }
 
 static void PF_uri_get (void)
@@ -5303,56 +5366,56 @@ static void PF_checkextension (void)
 		{
 			if (qcextensions[i].checkextsupported)
 			{
-unsigned int		prot, pext1, pext2;
-extern int			sv_protocol;
-extern unsigned int sv_protocol_pext1;
-extern unsigned int sv_protocol_pext2;
-extern cvar_t		cl_nopext;
-if (sv.active || qcvm == &sv.qcvm)
-{ // server or client+server
-	prot = sv_protocol;
-	pext1 = sv_protocol_pext1;
-	pext2 = sv_protocol_pext2;
+				unsigned int		prot, pext1, pext2;
+				extern int			sv_protocol;
+				extern unsigned int sv_protocol_pext1;
+				extern unsigned int sv_protocol_pext2;
+				extern cvar_t		cl_nopext;
+				if (sv.active || qcvm == &sv.qcvm)
+				{ // server or client+server
+					prot = sv_protocol;
+					pext1 = sv_protocol_pext1;
+					pext2 = sv_protocol_pext2;
 
-	// if the server seems to be set up for singleplayer then filter by client settings. otherwise just assume the best.
-	if (!isDedicated && svs.maxclients == 1 && cl_nopext.value)
-		pext1 = pext2 = 0;
-}
-else if (cls.state == ca_connected)
-{ // client only (or demo)
-	prot = cl.protocol;
-	pext1 = cl.protocol_pext1;
-	pext2 = cl.protocol_pext2;
-}
-else
-{ // menuqc? ooer
-	prot = 0;
-	pext1 = 0;
-	pext2 = 0;
-}
-if (!qcextensions[i].checkextsupported (prot, pext1, pext2))
-{
-	if (!pr_checkextension.value)
-		Con_Printf ("Mod queried extension %s, but not enabled\n", extname);
-	G_FLOAT (OFS_RETURN) = false;
-	return;
-}
+					// if the server seems to be set up for singleplayer then filter by client settings. otherwise just assume the best.
+					if (!isDedicated && svs.maxclients == 1 && cl_nopext.value)
+						pext1 = pext2 = 0;
+				}
+				else if (cls.state == ca_connected)
+				{ // client only (or demo)
+					prot = cl.protocol;
+					pext1 = cl.protocol_pext1;
+					pext2 = cl.protocol_pext2;
+				}
+				else
+				{ // menuqc? ooer
+					prot = 0;
+					pext1 = 0;
+					pext2 = 0;
+				}
+				if (!qcextensions[i].checkextsupported (prot, pext1, pext2))
+				{
+					if (!pr_checkextension.value)
+						Con_Printf ("Mod queried extension %s, but not enabled\n", extname);
+					G_FLOAT (OFS_RETURN) = false;
+					return;
+				}
 			}
 
 			cvn = va ("pr_ext_%s", qcextensions[i].name);
 			for (i = 0; cvn[i]; i++)
-if (cvn[i] >= 'A' && cvn[i] <= 'Z')
-	cvn[i] = 'a' + (cvn[i] - 'A');
+				if (cvn[i] >= 'A' && cvn[i] <= 'Z')
+					cvn[i] = 'a' + (cvn[i] - 'A');
 			v = Cvar_Create (cvn, "1");
 			if (v && !v->value)
 			{
-if (!pr_checkextension.value)
-	Con_Printf ("Mod queried extension %s, but blocked by cvar\n", extname);
-G_FLOAT (OFS_RETURN) = false;
-return;
+				if (!pr_checkextension.value)
+					Con_Printf ("Mod queried extension %s, but blocked by cvar\n", extname);
+				G_FLOAT (OFS_RETURN) = false;
+				return;
 			}
 			if (!pr_checkextension.value)
-Con_Printf ("Mod found extension %s\n", extname);
+				Con_Printf ("Mod found extension %s\n", extname);
 			G_FLOAT (OFS_RETURN) = true;
 			return;
 		}
@@ -5391,26 +5454,27 @@ static void PF_checkbuiltin (void)
 		{
 			if (qcvm->builtins[binum] == PF_Fixme)
 			{
-G_FLOAT (OFS_RETURN) = false; // the builtin with that number isn't defined.
-for (i = 0; i < countof (extensionbuiltins); i++)
-{
-	if (extensionbuiltins[i].number == binum)
-	{ // but it will be defined if its actually executed.
-		if (extensionbuiltins[i].desc && !strncmp (extensionbuiltins[i].desc, "stub.", 5))
-			G_FLOAT (OFS_RETURN) = false; // pretend it won't work if it probably won't be useful
-		else if ((qcvm == &cl.qcvm && !extensionbuiltins[i].csqcfunc) || (qcvm == &sv.qcvm && !extensionbuiltins[i].ssqcfunc))
-			G_FLOAT (OFS_RETURN) = false; // works, but not in this module
-		else
-			G_FLOAT (OFS_RETURN) = true;
-		break;
-	}
-}
+				G_FLOAT (OFS_RETURN) = false; // the builtin with that number isn't defined.
+				for (i = 0; i < countof (extensionbuiltins); i++)
+				{
+					if (extensionbuiltins[i].number == binum)
+					{ // but it will be defined if its actually executed.
+						if (extensionbuiltins[i].desc && !strncmp (extensionbuiltins[i].desc, "stub.", 5))
+							G_FLOAT (OFS_RETURN) = false; // pretend it won't work if it probably won't be useful
+						else if ((qcvm == &cl.qcvm && !extensionbuiltins[i].csqcfunc) || (qcvm == &sv.qcvm && !extensionbuiltins[i].ssqcfunc))
+							G_FLOAT (OFS_RETURN) = false; // works, but not in this module
+						else
+							G_FLOAT (OFS_RETURN) = true;
+						break;
+					}
+				}
 			}
 			else
 			{
-G_FLOAT (OFS_RETURN) = true; // its defined, within the sane range, mapped, everything. all looks good.
-							 // we should probably go through the available builtins and validate that the qc's name matches what would be expected
-							 // this is really intended more for builtins defined as #0 though, in such cases, mismatched assumptions are impossible.
+				G_FLOAT (OFS_RETURN) =
+					true; // its defined, within the sane range, mapped, everything. all looks good.
+						  // we should probably go through the available builtins and validate that the qc's name matches what would be expected
+						  // this is really intended more for builtins defined as #0 though, in such cases, mismatched assumptions are impossible.
 			}
 		}
 		else
@@ -5438,26 +5502,26 @@ void PF_Fixme (void)
 			// find an extension with the matching number
 			for (i = 0; i < countof (extensionbuiltins); i++)
 			{
-int num = extensionbuiltins[i].number;
-if (num == binum)
-{ // set it up so we're faster next time
-	builtin_t bi = NULL;
-	if (qcvm == &sv.qcvm)
-		bi = extensionbuiltins[i].ssqcfunc;
-	else if (qcvm == &cl.qcvm)
-		bi = extensionbuiltins[i].csqcfunc;
-	if (!bi)
-		continue;
+				int num = extensionbuiltins[i].number;
+				if (num == binum)
+				{ // set it up so we're faster next time
+					builtin_t bi = NULL;
+					if (qcvm == &sv.qcvm)
+						bi = extensionbuiltins[i].ssqcfunc;
+					else if (qcvm == &cl.qcvm)
+						bi = extensionbuiltins[i].csqcfunc;
+					if (!bi)
+						continue;
 
-	num = extensionbuiltins[i].documentednumber;
-	if (!pr_checkextension.value || (extensionbuiltins[i].desc && !strncmp (extensionbuiltins[i].desc, "stub.", 5)))
-		Con_Warning ("Mod is using builtin #%u - %s\n", num, extensionbuiltins[i].name);
-	else
-		Con_DPrintf2 ("Mod uses builtin #%u - %s\n", num, extensionbuiltins[i].name);
-	qcvm->builtins[binum] = bi;
-	qcvm->builtins[binum]();
-	return;
-}
+					num = extensionbuiltins[i].documentednumber;
+					if (!pr_checkextension.value || (extensionbuiltins[i].desc && !strncmp (extensionbuiltins[i].desc, "stub.", 5)))
+						Con_Warning ("Mod is using builtin #%u - %s\n", num, extensionbuiltins[i].name);
+					else
+						Con_DPrintf2 ("Mod uses builtin #%u - %s\n", num, extensionbuiltins[i].name);
+					qcvm->builtins[binum] = bi;
+					qcvm->builtins[binum]();
+					return;
+				}
 			}
 
 			PR_RunError ("unimplemented builtin #%i - %s", binum, funcname);
@@ -5504,7 +5568,7 @@ void PR_AutoCvarChanged (cvar_t *var)
 		if (glob)
 		{
 			if (!ED_ParseEpair ((void *)qcvm->globals, glob, var->string, true))
-Con_Warning ("EXT: Unable to configure %s\n", n);
+				Con_Warning ("EXT: Unable to configure %s\n", n);
 		}
 		PR_SwitchQCVM (NULL);
 	}
@@ -5516,7 +5580,7 @@ Con_Warning ("EXT: Unable to configure %s\n", n);
 		if (glob)
 		{
 			if (!ED_ParseEpair ((void *)qcvm->globals, glob, var->string, true))
-Con_Warning ("EXT: Unable to configure %s\n", n);
+				Con_Warning ("EXT: Unable to configure %s\n", n);
 		}
 		PR_SwitchQCVM (NULL);
 	}
@@ -5563,7 +5627,7 @@ void PR_EnableExtensions (ddef_t *pr_globaldefs)
 		{
 			int num = (extensionbuiltins[i].documentednumber);
 			if (num && extensionbuiltins[i].csqcfunc && qcvm->builtins[num] != PF_Fixme)
-qcvm->builtins[num] = extensionbuiltins[i].csqcfunc;
+				qcvm->builtins[num] = extensionbuiltins[i].csqcfunc;
 		}
 
 		QCEXTFUNCS_GAME
@@ -5575,7 +5639,7 @@ qcvm->builtins[num] = extensionbuiltins[i].csqcfunc;
 		{
 			int num = (extensionbuiltins[i].documentednumber);
 			if (num && extensionbuiltins[i].ssqcfunc && qcvm->builtins[num] != PF_Fixme)
-qcvm->builtins[num] = extensionbuiltins[i].ssqcfunc;
+				qcvm->builtins[num] = extensionbuiltins[i].ssqcfunc;
 		}
 
 		QCEXTFUNCS_GAME
@@ -5601,11 +5665,11 @@ qcvm->builtins[num] = extensionbuiltins[i].ssqcfunc;
 			const char *name = PR_GetString (qcvm->functions[i].s_name);
 			for (j = 0; j < countof (extensionbuiltins); j++)
 			{
-if (!strcmp (extensionbuiltins[j].name, name))
-{ // okay, map it
-	qcvm->functions[i].first_statement = -extensionbuiltins[j].number;
-	break;
-}
+				if (!strcmp (extensionbuiltins[j].name, name))
+				{ // okay, map it
+					qcvm->functions[i].first_statement = -extensionbuiltins[j].number;
+					break;
+				}
 			}
 		}
 	}
@@ -5618,23 +5682,31 @@ if (!strcmp (extensionbuiltins[j].name, name))
 		{
 			// really crappy approach
 			const char *def;
-			cvar_t *var;
-			switch(qcvm->globaldefs[i].type&~DEF_SAVEGLOBAL)
+			cvar_t	   *var;
+			switch (qcvm->globaldefs[i].type & ~DEF_SAVEGLOBAL)
 			{
-			case ev_float:	def = va("%g", ((eval_t*)(qcvm->globals + qcvm->globaldefs[i].ofs))->_float);	break;	//just to be a bit prettier. autocvars should not depend on denormals etc.
-			case ev_ext_double:	def = va("%g", ((eval_t*)(qcvm->globals + qcvm->globaldefs[i].ofs))->_double);	break;
-			case ev_vector:	def = va("%g %g %g", ((eval_t*)(qcvm->globals + qcvm->globaldefs[i].ofs))->vector[0], ((eval_t*)(qcvm->globals + qcvm->globaldefs[i].ofs))->vector[1], ((eval_t*)(qcvm->globals + qcvm->globaldefs[i].ofs))->vector[2]);	break;
-			default:	//go generic
-				def = PR_UglyValueString (qcvm->globaldefs[i].type, (eval_t*)(qcvm->globals + qcvm->globaldefs[i].ofs));
+			case ev_float:
+				def = va ("%g", ((eval_t *)(qcvm->globals + qcvm->globaldefs[i].ofs))->_float);
+				break; // just to be a bit prettier. autocvars should not depend on denormals etc.
+			case ev_ext_double:
+				def = va ("%g", ((eval_t *)(qcvm->globals + qcvm->globaldefs[i].ofs))->_double);
+				break;
+			case ev_vector:
+				def =
+					va ("%g %g %g", ((eval_t *)(qcvm->globals + qcvm->globaldefs[i].ofs))->vector[0],
+						((eval_t *)(qcvm->globals + qcvm->globaldefs[i].ofs))->vector[1], ((eval_t *)(qcvm->globals + qcvm->globaldefs[i].ofs))->vector[2]);
+				break;
+			default: // go generic
+				def = PR_UglyValueString (qcvm->globaldefs[i].type, (eval_t *)(qcvm->globals + qcvm->globaldefs[i].ofs));
 				break;
 			}
-			var = Cvar_Create(n + 9, def);
+			var = Cvar_Create (n + 9, def);
 			numautocvars++;
 			if (!var)
-continue; // name conflicts with a command?
+				continue; // name conflicts with a command?
 
 			if (!ED_ParseEpair ((void *)qcvm->globals, &pr_globaldefs[i], var->string, true))
-Con_Warning ("EXT: Unable to configure %s\n", n);
+				Con_Warning ("EXT: Unable to configure %s\n", n);
 			var->flags |= CVAR_AUTOCVAR;
 		}
 	}
@@ -5663,9 +5735,9 @@ void PR_DumpPlatform_f (void)
 		if (!strncmp (arg, "-O", 2))
 		{
 			if (arg[2])
-outname = arg + 2;
+				outname = arg + 2;
 			else
-outname = Cmd_Argv (i++);
+				outname = Cmd_Argv (i++);
 		}
 		else if (!q_strcasecmp (arg, "-Tcs"))
 			targs |= CS;
@@ -5976,7 +6048,7 @@ outname = Cmd_Argv (i++);
 	fprintf (f, "const float EV_VOID = %i;\n", ev_void);
 	fprintf (f, "const float EV_STRING = %i;\n", ev_string);
 	fprintf (f, "const float EV_FLOAT = %i;\n", ev_float);
-	fprintf(f, "const float EV_FLOAT_PUN = %i; //to work around DP's stat limitations.\n", ev_ext_integer);
+	fprintf (f, "const float EV_FLOAT_PUN = %i; //to work around DP's stat limitations.\n", ev_ext_integer);
 	fprintf (f, "const float EV_VECTOR = %i;\n", ev_vector);
 	fprintf (f, "const float EV_ENTITY = %i;\n", ev_entity);
 	fprintf (f, "const float EV_FIELD = %i;\n", ev_field);
@@ -6164,37 +6236,37 @@ outname = Cmd_Argv (i++);
 		for (i = 0; i < countof (extensionbuiltins); i++)
 		{
 			if ((targs & CS) && extensionbuiltins[i].csqcfunc)
-;
+				;
 			else if ((targs & SS) && extensionbuiltins[i].ssqcfunc)
-;
+				;
 			else
-continue;
+				continue;
 
 			if (j != (extensionbuiltins[i].desc ? !strncmp (extensionbuiltins[i].desc, "stub.", 5) : 0))
-continue;
+				continue;
 			fprintf (f, "%s %s = #%i;", extensionbuiltins[i].typestr, extensionbuiltins[i].name, extensionbuiltins[i].documentednumber);
 			if (extensionbuiltins[i].desc && !j)
 			{
-const char *line = extensionbuiltins[i].desc;
-const char *term;
-fprintf (f, " /*");
-while (*line)
-{
-	fprintf (f, "\n\t\t");
-	term = line;
-	while (*term && *term != '\n')
-		term++;
-	fwrite (line, 1, term - line, f);
-	if (*term == '\n')
-	{
-		term++;
-	}
-	line = term;
-}
-fprintf (f, " */\n\n");
+				const char *line = extensionbuiltins[i].desc;
+				const char *term;
+				fprintf (f, " /*");
+				while (*line)
+				{
+					fprintf (f, "\n\t\t");
+					term = line;
+					while (*term && *term != '\n')
+						term++;
+					fwrite (line, 1, term - line, f);
+					if (*term == '\n')
+					{
+						term++;
+					}
+					line = term;
+				}
+				fprintf (f, " */\n\n");
 			}
 			else
-fprintf (f, "\n");
+				fprintf (f, "\n");
 		}
 		if (j)
 			fprintf (f, "*/\n");

@@ -153,17 +153,23 @@ void InsertLinkAfter (link_t *l, link_t *after);
 
 //============================================================================
 
-typedef struct vec_header_t {
+typedef struct vec_header_t
+{
 	size_t capacity;
 	size_t size;
 } vec_header_t;
 
-#define VEC_HEADER(v)			(((vec_header_t*)(v))[-1])
+#define VEC_HEADER(v) (((vec_header_t *)(v))[-1])
 
-#define VEC_PUSH(v,n)			do { Vec_Grow((void**)&(v), sizeof((v)[0]), 1); (v)[VEC_HEADER(v).size++] = (n); } while (0)
-#define VEC_SIZE(v)				((v) ? VEC_HEADER(v).size : 0)
-#define VEC_FREE(v)				Vec_Free((void**)&(v))
-#define VEC_CLEAR(v)			Vec_Clear((void**)&(v))
+#define VEC_PUSH(v, n)                                \
+	do                                                \
+	{                                                 \
+		Vec_Grow ((void **)&(v), sizeof ((v)[0]), 1); \
+		(v)[VEC_HEADER (v).size++] = (n);             \
+	} while (0)
+#define VEC_SIZE(v)	 ((v) ? VEC_HEADER (v).size : 0)
+#define VEC_FREE(v)	 Vec_Free ((void **)&(v))
+#define VEC_CLEAR(v) Vec_Clear ((void **)&(v))
 
 void Vec_Grow (void **pvec, size_t element_size, size_t count);
 void Vec_Append (void **pvec, size_t element_size, const void *data, size_t count);
@@ -203,16 +209,16 @@ void MSG_WriteStaticOrBaseLine (
 extern int		msg_readcount;
 extern qboolean msg_badread; // set if a read goes beyond end of message
 
-void		MSG_BeginReading (void);
-int			MSG_ReadChar (void);
-int			MSG_ReadByte (void);
-int			MSG_ReadShort (void);
-int			MSG_ReadLong (void);
+void			   MSG_BeginReading (void);
+int				   MSG_ReadChar (void);
+int				   MSG_ReadByte (void);
+int				   MSG_ReadShort (void);
+int				   MSG_ReadLong (void);
 unsigned long long MSG_ReadUInt64 (void);
-long long MSG_ReadInt64 (void);
-float		MSG_ReadFloat (void);
-float MSG_ReadDouble (void);
-const char *MSG_ReadString (void);
+long long		   MSG_ReadInt64 (void);
+float			   MSG_ReadFloat (void);
+float			   MSG_ReadDouble (void);
+const char		  *MSG_ReadString (void);
 
 float		 MSG_ReadCoord (unsigned int flags);
 float		 MSG_ReadAngle (unsigned int flags);
@@ -258,8 +264,8 @@ extern qboolean			 com_eof;
 
 typedef enum
 {
-	CPE_NOTRUNC,					// return parse error in case of overflow
-	CPE_ALLOWTRUNC,					// truncate com_token in case of overflow
+	CPE_NOTRUNC,	// return parse error in case of overflow
+	CPE_ALLOWTRUNC, // truncate com_token in case of overflow
 } cpe_mode;
 
 const char *COM_Parse (const char *data);

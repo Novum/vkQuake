@@ -47,8 +47,8 @@ cvar_t sv_gravity = {"sv_gravity", "800", CVAR_NOTIFY | CVAR_SERVERINFO};
 cvar_t sv_maxvelocity = {"sv_maxvelocity", "2000", CVAR_NONE};
 cvar_t sv_nostep = {"sv_nostep", "0", CVAR_NONE};
 cvar_t sv_freezenonclients = {"sv_freezenonclients", "0", CVAR_NONE};
-cvar_t	sv_gameplayfix_spawnbeforethinks = {"sv_gameplayfix_spawnbeforethinks","0",CVAR_NONE};
-cvar_t	sv_gameplayfix_bouncedownslopes = {"sv_gameplayfix_bouncedownslopes","1",CVAR_NONE};	//fixes grenades making horrible noises on slopes.
+cvar_t sv_gameplayfix_spawnbeforethinks = {"sv_gameplayfix_spawnbeforethinks", "0", CVAR_NONE};
+cvar_t sv_gameplayfix_bouncedownslopes = {"sv_gameplayfix_bouncedownslopes", "1", CVAR_NONE}; // fixes grenades making horrible noises on slopes.
 
 #define MOVE_EPSILON 0.01
 
@@ -122,7 +122,7 @@ Returns false if the entity removed itself.
 qboolean SV_RunThink (edict_t *ent)
 {
 	float thinktime;
-	
+
 	thinktime = ent->v.nextthink;
 	if (thinktime <= 0 || thinktime > qcvm->time + host_frametime)
 		return true;
@@ -133,7 +133,7 @@ qboolean SV_RunThink (edict_t *ent)
 								// by a trigger with a local time.
 
 	ent->oldthinktime = thinktime;
-	ent->oldframe = ent->v.frame; //johnfitz
+	ent->oldframe = ent->v.frame; // johnfitz
 
 	ent->v.nextthink = 0;
 	pr_global_struct->time = thinktime;
@@ -512,7 +512,7 @@ void SV_PushMove (edict_t *pusher, float movetime)
 
 		// remove the onground flag for non-players
 		if (check->v.movetype != MOVETYPE_WALK)
-			if (!pr_checkextension.value || PROG_TO_EDICT(check->v.groundentity) != pusher) //unless they're already riding us (prevents grenade sound spam)
+			if (!pr_checkextension.value || PROG_TO_EDICT (check->v.groundentity) != pusher) // unless they're already riding us (prevents grenade sound spam)
 				check->v.flags = (int)check->v.flags & ~FL_ONGROUND;
 
 		VectorCopy (check->v.origin, entorig);
@@ -943,8 +943,8 @@ void SV_Physics_Client (edict_t *ent, int num)
 	if (!svs.clients[num - 1].active)
 		return; // unconnected slot
 
-	if (!svs.clients[num-1].knowntoqc && sv_gameplayfix_spawnbeforethinks.value)
-		return;	//don't spam prethinks before we called putclientinserver.
+	if (!svs.clients[num - 1].knowntoqc && sv_gameplayfix_spawnbeforethinks.value)
+		return; // don't spam prethinks before we called putclientinserver.
 
 	//
 	// call standard client pre-think
@@ -1138,7 +1138,8 @@ void SV_Physics_Toss (edict_t *ent)
 	// stop if on ground
 	if (trace.plane.normal[2] > 0.7)
 	{
-		if (ent->v.movetype != MOVETYPE_BOUNCE || (sv_gameplayfix_bouncedownslopes.value?DotProduct(trace.plane.normal, ent->v.velocity):ent->v.velocity[2]) < 60)
+		if (ent->v.movetype != MOVETYPE_BOUNCE ||
+			(sv_gameplayfix_bouncedownslopes.value ? DotProduct (trace.plane.normal, ent->v.velocity) : ent->v.velocity[2]) < 60)
 		{
 			ent->v.flags = (int)ent->v.flags | FL_ONGROUND;
 			ent->v.groundentity = EDICT_TO_PROG (trace.ent);
@@ -1287,18 +1288,18 @@ void SV_Physics (void)
 		else
 			Host_EndGame ("SV_Physics: bad movetype %i", (int)ent->v.movetype);
 
-    //johnfitz -- PROTOCOL_FITZQUAKE
-	//capture interval to nextthink here and send it to client for better
-	//lerp timing, but only if interval is not 0.1 (which client assumes)
+		// johnfitz -- PROTOCOL_FITZQUAKE
+		// capture interval to nextthink here and send it to client for better
+		// lerp timing, but only if interval is not 0.1 (which client assumes)
 		ent->sendinterval = false;
-		if (!ent->free && ent->v.nextthink > qcvm->time && (ent->v.movetype == MOVETYPE_STEP || ent->v.movetype == MOVETYPE_WALK || ent->v.frame != ent->oldframe))
+		if (!ent->free && ent->v.nextthink > qcvm->time &&
+			(ent->v.movetype == MOVETYPE_STEP || ent->v.movetype == MOVETYPE_WALK || ent->v.frame != ent->oldframe))
 		{
-			int j = Q_rint((ent->v.nextthink-ent->oldthinktime)*255);
-			if (j >= 0 && j < 256 && j != 25 && j != 26) //25 and 26 are close enough to 0.1 to not send
+			int j = Q_rint ((ent->v.nextthink - ent->oldthinktime) * 255);
+			if (j >= 0 && j < 256 && j != 25 && j != 26) // 25 and 26 are close enough to 0.1 to not send
 				ent->sendinterval = true;
 		}
-	//johnfitz
-
+		// johnfitz
 	}
 
 	if (pr_global_struct->force_retouch)
