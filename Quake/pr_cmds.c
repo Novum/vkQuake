@@ -530,15 +530,15 @@ Returns a number from 0 < num < 1
 random()
 =================
 */
-cvar_t sv_gameplayfix_random = {"sv_gameplayfix_random", "1", CVAR_ARCHIVE};
+cvar_t		sv_gameplayfix_random = {"sv_gameplayfix_random", "1", CVAR_ARCHIVE};
 static void PF_random (void)
 {
 	float num;
 
 	if (sv_gameplayfix_random.value)
-		num = ((rand() & 0x7fff) + 0.5f) * (1.f / 0x8000);
+		num = ((rand () & 0x7fff) + 0.5f) * (1.f / 0x8000);
 	else
-		num = (rand() & 0x7fff) / ((float)0x7fff);
+		num = (rand () & 0x7fff) / ((float)0x7fff);
 
 	G_FLOAT (OFS_RETURN) = num;
 }
@@ -1742,24 +1742,24 @@ static void PF_cl_ambientsound (void)
 	S_StaticSound (S_PrecacheSound (samp), pos, vol, attenuation);
 }
 
-void PR_spawnfunc_misc_model(edict_t *self)
+void PR_spawnfunc_misc_model (edict_t *self)
 {
 	eval_t *val;
-	if (!self->v.model && (val = GetEdictFieldValue(self, ED_FindFieldOffset("mdl"))))
+	if (!self->v.model && (val = GetEdictFieldValue (self, ED_FindFieldOffset ("mdl"))))
 		self->v.model = val->string;
-	if (!*PR_GetString(self->v.model)) //must have a model, because otherwise various things will assume its not valid at all.
-		self->v.model = PR_SetEngineString("*null");
+	if (!*PR_GetString (self->v.model)) // must have a model, because otherwise various things will assume its not valid at all.
+		self->v.model = PR_SetEngineString ("*null");
 
-	if (self->v.angles[1] < 0)	//mimic AD. shame there's no avelocity clientside.
-		self->v.angles[1] = (rand()*(360.0f/RAND_MAX));
+	if (self->v.angles[1] < 0) // mimic AD. shame there's no avelocity clientside.
+		self->v.angles[1] = (rand () * (360.0f / RAND_MAX));
 
-	//make sure the model is precached, to avoid errors.
-	G_INT(OFS_PARM0) = self->v.model;
-	PF_sv_precache_model();
+	// make sure the model is precached, to avoid errors.
+	G_INT (OFS_PARM0) = self->v.model;
+	PF_sv_precache_model ();
 
-	//and lets just call makestatic instead of worrying if it'll interfere with the rest of the qc.
-	G_INT(OFS_PARM0) = EDICT_TO_PROG(self);
-	PF_sv_makestatic();
+	// and lets just call makestatic instead of worrying if it'll interfere with the rest of the qc.
+	G_INT (OFS_PARM0) = EDICT_TO_PROG (self);
+	PF_sv_makestatic ();
 }
 
 /*
@@ -1796,28 +1796,28 @@ void PF_sv_localsound (void)
 
 static void PF_cl_precache_sound (void)
 {
-	const char	*s;
+	const char *s;
 
-	s = G_STRING(OFS_PARM0);
-	G_INT(OFS_RETURN) = G_INT(OFS_PARM0);
+	s = G_STRING (OFS_PARM0);
+	G_INT (OFS_RETURN) = G_INT (OFS_PARM0);
 	PR_CheckEmptyString (s);
 
-	//precache sounds are optional in quake's sound system. NULL is a valid response so don't check.
-	S_PrecacheSound(s);
+	// precache sounds are optional in quake's sound system. NULL is a valid response so don't check.
+	S_PrecacheSound (s);
 }
 
 static void PF_cl_makestatic (void)
 {
-	edict_t	*ent = G_EDICT(OFS_PARM0);
+	edict_t	 *ent = G_EDICT (OFS_PARM0);
 	entity_t *stat;
-	int		i;
+	int		  i;
 
 	i = cl.num_statics;
 	if (i >= cl.max_static_entities)
 	{
-		int ec = 64;
-		entity_t **newstatics = Mem_Realloc(cl.static_entities, sizeof(*newstatics) * (cl.max_static_entities+ec));
-		entity_t *newents = Mem_Alloc(sizeof(*newents) * ec);
+		int		   ec = 64;
+		entity_t **newstatics = Mem_Realloc (cl.static_entities, sizeof (*newstatics) * (cl.max_static_entities + ec));
+		entity_t  *newents = Mem_Alloc (sizeof (*newents) * ec);
 		if (!newstatics || !newents)
 			Host_Error ("Too many static entities");
 		cl.static_entities = newstatics;
@@ -1828,48 +1828,48 @@ static void PF_cl_makestatic (void)
 	stat = cl.static_entities[i];
 	cl.num_statics++;
 
-	SV_BuildEntityState(ent, &stat->baseline);
+	SV_BuildEntityState (ent, &stat->baseline);
 
-// copy it to the current state
+	// copy it to the current state
 
 	stat->netstate = stat->baseline;
-	stat->eflags = stat->netstate.eflags; //spike -- annoying and probably not used anyway, but w/e
+	stat->eflags = stat->netstate.eflags; // spike -- annoying and probably not used anyway, but w/e
 
 	stat->trailstate = NULL;
 	stat->emitstate = NULL;
 	stat->model = cl.model_precache[stat->baseline.modelindex];
-	stat->lerpflags |= LERP_RESETANIM; //johnfitz -- lerping
+	stat->lerpflags |= LERP_RESETANIM; // johnfitz -- lerping
 	stat->frame = stat->baseline.frame;
 
 	stat->skinnum = stat->baseline.skin;
 	stat->effects = stat->baseline.effects;
-	stat->alpha = stat->baseline.alpha; //johnfitz -- alpha
+	stat->alpha = stat->baseline.alpha; // johnfitz -- alpha
 
 	VectorCopy (ent->baseline.origin, stat->origin);
 	VectorCopy (ent->baseline.angles, stat->angles);
 	if (stat->model)
 		R_AddEfrags (stat);
 
-// throw the entity away now
+	// throw the entity away now
 	ED_Free (ent);
 }
 static void PF_cl_particle (void)
 {
-	float		*org = G_VECTOR(OFS_PARM0);
-	float		*dir = G_VECTOR(OFS_PARM1);
-	float		color = G_FLOAT(OFS_PARM2);
-	float		count = G_FLOAT(OFS_PARM3);
+	float *org = G_VECTOR (OFS_PARM0);
+	float *dir = G_VECTOR (OFS_PARM1);
+	float  color = G_FLOAT (OFS_PARM2);
+	float  count = G_FLOAT (OFS_PARM3);
 
 	if (count == 255)
 	{
-		if (!PScript_RunParticleEffectTypeString(org, dir, 1, "te_explosion"))
+		if (!PScript_RunParticleEffectTypeString (org, dir, 1, "te_explosion"))
 			count = 0;
 		else
 			count = 1024;
 	}
 	else
 	{
-		if (!PScript_RunParticleEffect(org, dir, color, count))
+		if (!PScript_RunParticleEffect (org, dir, color, count))
 			count = 0;
 	}
 	R_RunParticleEffect (org, dir, color, count);

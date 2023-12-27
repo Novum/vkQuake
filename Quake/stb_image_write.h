@@ -200,7 +200,7 @@ STBIWDEF int stbi_write_jpg_to_func(stbi_write_func *func, void *context, int x,
 #define STBIW_ASSERT(x) assert (x)
 #endif
 
-#define STBIW_UCHAR(x) (unsigned char)((x)&0xff)
+#define STBIW_UCHAR(x) (unsigned char)((x) & 0xff)
 
 typedef struct
 {

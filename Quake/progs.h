@@ -28,16 +28,16 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 typedef union eval_s
 {
-	string_t string;
-	float	 _float;
-	float	 vector[3];
-	func_t	 function;
-	int32_t		_int;
-	uint32_t	_uint32;
-	qcsint64_t	_sint64;
-	qcuint64_t	_uint64;
-	qcdouble_t	_double;
-	int		 edict;
+	string_t   string;
+	float	   _float;
+	float	   vector[3];
+	func_t	   function;
+	int32_t	   _int;
+	uint32_t   _uint32;
+	qcsint64_t _sint64;
+	qcuint64_t _uint64;
+	qcdouble_t _double;
+	int		   edict;
 } eval_t;
 
 #define MAX_ENT_LEAFS 32
@@ -51,10 +51,10 @@ typedef struct edict_s
 	entity_state_t baseline;
 	unsigned char  alpha;		 /* johnfitz -- hack to support alpha since it's not part of entvars_t */
 	qboolean	   sendinterval; /* johnfitz -- send time until nextthink to client for better lerp timing */
-	float		oldframe;
-	float		oldthinktime;
-	vec3_t predthinkpos; /* expected edict origin once its nextthink arrives (sv_smoothplatformlerps) */
-	float  lastthink;	 /* time when predthinkpos was updated, or 0 if not valid (sv_smoothplatformlerps) */
+	float		   oldframe;
+	float		   oldthinktime;
+	vec3_t		   predthinkpos; /* expected edict origin once its nextthink arrives (sv_smoothplatformlerps) */
+	float		   lastthink;	 /* time when predthinkpos was updated, or 0 if not valid (sv_smoothplatformlerps) */
 
 	float			freetime; /* sv.time when the object was freed */
 	qboolean		free;
@@ -133,10 +133,10 @@ int		 NUM_FOR_EDICT (edict_t *e);
 
 #define G_FLOAT(o)	  (qcvm->globals[o])
 #define G_INT(o)	  (*(int *)&qcvm->globals[o])
-#define	G_UINT(o)		(*(unsigned int *)&qcvm->globals[o])
-#define	G_INT64(o)		(*(qcsint64_t *)&qcvm->globals[o])
-#define	G_UINT64(o)		(*(qcuint64_t *)&qcvm->globals[o])
-#define	G_DOUBLE(o)		(*(qcdouble_t *)&qcvm->globals[o])
+#define G_UINT(o)	  (*(unsigned int *)&qcvm->globals[o])
+#define G_INT64(o)	  (*(qcsint64_t *)&qcvm->globals[o])
+#define G_UINT64(o)	  (*(qcuint64_t *)&qcvm->globals[o])
+#define G_DOUBLE(o)	  (*(qcdouble_t *)&qcvm->globals[o])
 #define G_EDICT(o)	  ((edict_t *)((byte *)qcvm->edicts + *(int *)&qcvm->globals[o]))
 #define G_EDICTNUM(o) NUM_FOR_EDICT (G_EDICT (o))
 #define G_VECTOR(o)	  (&qcvm->globals[o])
@@ -391,8 +391,8 @@ extern qcvm_t *qcvm;
 void		   PR_SwitchQCVM (qcvm_t *nvm);
 
 extern const builtin_t pr_ssqcbuiltins[];
-extern const int		 pr_ssqcnumbuiltins;
+extern const int	   pr_ssqcnumbuiltins;
 extern const builtin_t pr_csqcbuiltins[];
-extern const int		 pr_csqcnumbuiltins;
+extern const int	   pr_csqcnumbuiltins;
 
 #endif /* _QUAKE_PROGS_H */

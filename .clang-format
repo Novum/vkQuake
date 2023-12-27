@@ -8,16 +8,15 @@ AllowShortFunctionsOnASingleLine: Empty
 BreakBeforeBraces: Allman
 DerivePointerAlignment: false
 ColumnLimit: 160
-AlignAfterOpenBracket: Align
 AlignConsecutiveBitFields: AcrossComments
 AlignConsecutiveMacros: AcrossComments
 AlignConsecutiveDeclarations: AcrossComments
 AlignEscapedNewlines: Left
 AlignTrailingComments: true
 AlignAfterOpenBracket: AlwaysBreak
-AlignOperands: false
 PointerAlignment: Right
 AlignOperands: Align
 AllowShortIfStatementsOnASingleLine: Never
 SpaceBeforeParens: Always
 SortIncludes: Never
+InsertNewlineAtEOF: true

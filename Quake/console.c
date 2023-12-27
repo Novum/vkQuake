@@ -835,7 +835,7 @@ static const arg_completion_type_t arg_completion_types[] = {{"map ", &extraleve
 															 {"record ", &demolist}, {"playdemo ", &demolist},		 {"timedemo ", &demolist},
 															 {"save ", &savelist},	 {"load ", &savelist},			 {"fastload ", &savelist}};
 
-static const int num_arg_completion_types = countof(arg_completion_types);
+static const int num_arg_completion_types = countof (arg_completion_types);
 
 /*
 ============

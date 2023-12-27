@@ -85,7 +85,7 @@ const char *svc_strings[128] = {
 	"svc_backtolobby",	  // 55
 	"svc_localsound"	  // 56
 };
-#define NUM_SVC_STRINGS countof(svc_strings)
+#define NUM_SVC_STRINGS countof (svc_strings)
 
 qboolean warn_about_nehahra_protocol; // johnfitz
 

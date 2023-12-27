@@ -28,18 +28,18 @@ typedef unsigned int func_t;
 typedef int			 string_t;
 
 #if _MSC_VER >= 1300
-	#define Q_ALIGN(a) __declspec(align(a))
+#define Q_ALIGN(a) __declspec (align (a))
 #elif defined(__clang__)
-	#define Q_ALIGN(a) __attribute__((aligned(a)))
+#define Q_ALIGN(a) __attribute__ ((aligned (a)))
 #elif __GNUC__ >= 3
-	#define Q_ALIGN(a) __attribute__((aligned(a)))
+#define Q_ALIGN(a) __attribute__ ((aligned (a)))
 #else
-	#define Q_ALIGN(a)
+#define Q_ALIGN(a)
 #endif
-//64bit types need alignment hints to ensure we don't get misalignment exceptions on other platforms.
-typedef Q_ALIGN(4) int64_t	qcsint64_t;
-typedef Q_ALIGN(4) uint64_t	qcuint64_t;
-typedef Q_ALIGN(4) double	qcdouble_t;
+// 64bit types need alignment hints to ensure we don't get misalignment exceptions on other platforms.
+typedef Q_ALIGN (4) int64_t qcsint64_t;
+typedef Q_ALIGN (4) uint64_t qcuint64_t;
+typedef Q_ALIGN (4) double qcdouble_t;
 
 typedef enum
 {

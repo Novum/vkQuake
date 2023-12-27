@@ -566,7 +566,7 @@ void CDAudio_Shutdown (void)
 	if (hw_vol_works)
 		CD_SetVolume (NULL); /* no SDL support at present. */
 #ifdef __linux__
-	SDL_CDStop (cd_handle);	 /* see CDAudio_Stop() */
+	SDL_CDStop (cd_handle); /* see CDAudio_Stop() */
 #endif
 	SDL_CDClose (cd_handle);
 	cd_handle = NULL;
