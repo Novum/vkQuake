@@ -222,4 +222,8 @@ if get_option('do_userdirs').enabled()
     cflags += '-DDO_USERDIRS=1'
 endif
 
-executable('vkquake', [srcs, shaders_c], dependencies : deps, c_args : cflags, c_pch: ['Quake/quakedef.h', 'Quake/quakedef.c'])
+incdirs = [
+    'Quake/mimalloc',
+]
+
+executable('vkquake', [srcs, shaders_c], dependencies : deps, include_directories : incdirs, c_args : cflags, c_pch: ['Quake/quakedef.h', 'Quake/quakedef.c'])
