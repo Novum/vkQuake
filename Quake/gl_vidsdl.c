@@ -1885,29 +1885,33 @@ void GL_UpdateDescriptorSets (void)
 			R_FreeDescriptorSet (vulkan_globals.ray_debug_desc_set, &vulkan_globals.ray_debug_set_layout);
 		vulkan_globals.ray_debug_desc_set = R_AllocateDescriptorSet (&vulkan_globals.ray_debug_set_layout);
 
+		int num_ray_debug_writes = 0;
 		ZEROED_STRUCT_ARRAY (VkWriteDescriptorSet, ray_debug_writes, 2);
 
 		ray_debug_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		ray_debug_writes[0].dstBinding = 0;
+		ray_debug_writes[0].dstBinding = num_ray_debug_writes++;
 		ray_debug_writes[0].dstArrayElement = 0;
 		ray_debug_writes[0].descriptorCount = 1;
 		ray_debug_writes[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
 		ray_debug_writes[0].dstSet = vulkan_globals.ray_debug_desc_set;
 		ray_debug_writes[0].pImageInfo = &output_image_info;
 
-		ZEROED_STRUCT (VkWriteDescriptorSetAccelerationStructureKHR, acceleration_structure_write);
-		acceleration_structure_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR;
-		acceleration_structure_write.accelerationStructureCount = 1;
-		acceleration_structure_write.pAccelerationStructures = &bmodel_tlas;
-		ray_debug_writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		ray_debug_writes[1].pNext = &acceleration_structure_write;
-		ray_debug_writes[1].dstBinding = 1;
-		ray_debug_writes[1].dstArrayElement = 0;
-		ray_debug_writes[1].descriptorCount = 1;
-		ray_debug_writes[1].descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
-		ray_debug_writes[1].dstSet = vulkan_globals.ray_debug_desc_set;
+		if (bmodel_tlas != VK_NULL_HANDLE)
+		{
+			ZEROED_STRUCT (VkWriteDescriptorSetAccelerationStructureKHR, acceleration_structure_write);
+			acceleration_structure_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR;
+			acceleration_structure_write.accelerationStructureCount = 1;
+			acceleration_structure_write.pAccelerationStructures = &bmodel_tlas;
+			ray_debug_writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+			ray_debug_writes[1].pNext = &acceleration_structure_write;
+			ray_debug_writes[1].dstBinding = num_ray_debug_writes++;
+			ray_debug_writes[1].dstArrayElement = 0;
+			ray_debug_writes[1].descriptorCount = 1;
+			ray_debug_writes[1].descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
+			ray_debug_writes[1].dstSet = vulkan_globals.ray_debug_desc_set;
+		}
 
-		vkUpdateDescriptorSets (vulkan_globals.device, countof (ray_debug_writes), ray_debug_writes, 0, NULL);
+		vkUpdateDescriptorSets (vulkan_globals.device, num_ray_debug_writes, ray_debug_writes, 0, NULL);
 	}
 #endif
 }
