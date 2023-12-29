@@ -98,49 +98,6 @@ typedef enum keycode_t
 	K_MOUSE2			= 201,
 	K_MOUSE3			= 202,
 
-//
-// joystick buttons
-//
-	K_JOY1				= 203,
-	K_JOY2				= 204,
-	K_JOY3				= 205,
-	K_JOY4				= 206,
-// aux keys are for multi-buttoned joysticks to generate so they can use
-// the normal binding process
-// aux29-32: reserved for the HAT (POV) switch motion
-	K_AUX1				= 207,
-	K_AUX2				= 208,
-	K_AUX3				= 209,
-	K_AUX4				= 210,
-	K_AUX5				= 211,
-	K_AUX6				= 212,
-	K_AUX7				= 213,
-	K_AUX8				= 214,
-	K_AUX9				= 215,
-	K_AUX10				= 216,
-	K_AUX11				= 217,
-	K_AUX12				= 218,
-	K_AUX13				= 219,
-	K_AUX14				= 220,
-	K_AUX15				= 221,
-	K_AUX16				= 222,
-	K_AUX17				= 223,
-	K_AUX18				= 224,
-	K_AUX19				= 225,
-	K_AUX20				= 226,
-	K_AUX21				= 227,
-	K_AUX22				= 228,
-	K_AUX23				= 229,
-	K_AUX24				= 230,
-	K_AUX25				= 231,
-	K_AUX26				= 232,
-	K_AUX27				= 233,
-	K_AUX28				= 234,
-	K_AUX29				= 235,
-	K_AUX30				= 236,
-	K_AUX31				= 237,
-	K_AUX32				= 238,
-
 // JACK: Intellimouse(c) Mouse Wheel Support
 
 	K_MWHEELUP			= 239,
