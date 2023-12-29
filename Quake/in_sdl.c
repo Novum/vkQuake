@@ -46,13 +46,12 @@ static SDL_GameController *joy_active_controller = NULL;
 
 static qboolean no_mouse = false;
 
-static const int buttonremap[] =
-{
-	K_MOUSE1,	/* left button		*/
-	K_MOUSE3,	/* middle button	*/
-	K_MOUSE2,	/* right button		*/
-	K_MOUSE4,	/* back button		*/
-	K_MOUSE5	/* forward button	*/
+static const int buttonremap[] = {
+	K_MOUSE1, /* left button		*/
+	K_MOUSE3, /* middle button	*/
+	K_MOUSE2, /* right button		*/
+	K_MOUSE4, /* back button		*/
+	K_MOUSE5  /* forward button	*/
 };
 
 /* total accumulated mouse movement since last frame */
