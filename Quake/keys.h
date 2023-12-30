@@ -115,6 +115,12 @@ typedef enum keycode_t
 	K_YBUTTON,
 	K_LTRIGGER,
 	K_RTRIGGER,
+	K_MISC1,
+	K_PADDLE1,
+	K_PADDLE2,
+	K_PADDLE3,
+	K_PADDLE4,
+	K_TOUCHPAD,
 
 	K_PAUSE,
 
