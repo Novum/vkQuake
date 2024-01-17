@@ -132,7 +132,7 @@ byte *Image_LoadImage (const char *name, int *width, int *height, enum srcformat
 				data = hunkdata;
 			}
 			else
-				Con_Warning ("couldn't load %s (%s)\n", stbi_failure_reason ());
+				Con_Warning ("couldn't load %s (%s)\n", loadfilename, stbi_failure_reason ());
 			return data;
 		}
 	}
