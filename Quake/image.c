@@ -23,6 +23,19 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 
+static byte *Image_LoadPCX (FILE *f, int *width, int *height);
+static byte *Image_LoadLMP (FILE *f, int *width, int *height);
+
+#define STB_IMAGE_IMPLEMENTATION
+#define STB_IMAGE_STATIC
+#define STBI_NO_BMP
+#define STBI_NO_PSD
+#define STBI_NO_GIF
+#define STBI_NO_HDR
+#define STBI_NO_PIC
+#define STBI_NO_PNM
+#include "stb_image.h"
+
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_STATIC
 #include "stb_image_write.h"
@@ -92,19 +105,36 @@ Image_LoadImage
 
 returns a pointer to hunk allocated RGBA data
 
-TODO: search order: tga png jpg pcx lmp
+Search order:  png tga jpg pcx lmp
 ============
 */
 byte *Image_LoadImage (const char *name, int *width, int *height, enum srcformat *fmt)
 {
-	FILE *f;
+	static const char *const stbi_formats[] = {"png", "tga", "jpg", NULL};
 
-	q_snprintf (loadfilename, sizeof (loadfilename), "%s.tga", name);
-	COM_FOpenFile (loadfilename, &f, NULL);
-	if (f)
+	FILE *f;
+	int	  i;
+
+	for (i = 0; stbi_formats[i]; i++)
 	{
-		*fmt = SRC_RGBA;
-		return Image_LoadTGA (f, width, height, name);
+		q_snprintf (loadfilename, sizeof (loadfilename), "%s.%s", name, stbi_formats[i]);
+		COM_FOpenFile (loadfilename, &f, NULL);
+		if (f)
+		{
+			byte *data = stbi_load_from_file (f, width, height, NULL, 4);
+			if (data)
+			{
+				*fmt = SRC_RGBA;
+				int	  numbytes = (*width) * (*height) * 4;
+				byte *hunkdata = (byte *)Mem_Alloc (numbytes);
+				memcpy (hunkdata, data, numbytes);
+				free (data);
+				data = hunkdata;
+			}
+			else
+				Con_Warning ("couldn't load %s (%s)\n", stbi_failure_reason ());
+			return data;
+		}
 	}
 
 	q_snprintf (loadfilename, sizeof (loadfilename), "%s.pcx", name);
@@ -132,38 +162,7 @@ byte *Image_LoadImage (const char *name, int *width, int *height, enum srcformat
 //
 //==============================================================================
 
-typedef struct targaheader_s
-{
-	unsigned char  id_length, colormap_type, image_type;
-	unsigned short colormap_index, colormap_length;
-	unsigned char  colormap_size;
-	unsigned short x_origin, y_origin, width, height;
-	unsigned char  pixel_size, attributes;
-} targaheader_t;
-
-#define TARGAHEADERSIZE 18 // size on disk
-
-int fgetLittleShort (FILE *f)
-{
-	byte b1, b2;
-
-	b1 = fgetc (f);
-	b2 = fgetc (f);
-
-	return (short)(b1 + b2 * 256);
-}
-
-int fgetLittleLong (FILE *f)
-{
-	byte b1, b2, b3, b4;
-
-	b1 = fgetc (f);
-	b2 = fgetc (f);
-	b3 = fgetc (f);
-	b4 = fgetc (f);
-
-	return b1 + (b2 << 8) + (b3 << 16) + (b4 << 24);
-}
+#define TARGAHEADERSIZE 18 /* size on disk */
 
 /*
 ============
@@ -211,238 +210,6 @@ qboolean Image_WriteTGA (const char *name, byte *data, int width, int height, in
 	return true;
 }
 
-/*
-=============
-Image_LoadTGA
-=============
-*/
-byte *Image_LoadTGA (FILE *fin, int *width, int *height, const char *name)
-{
-	targaheader_t	targa_header;
-	int				columns, rows, numPixels;
-	byte		   *pixbuf;
-	int				row, column;
-	byte		   *targa_rgba;
-	int				realrow;	 // johnfitz -- fix for upside-down targas
-	qboolean		upside_down; // johnfitz -- fix for upside-down targas
-	stdio_buffer_t *buf;
-
-	targa_header.id_length = fgetc (fin);
-	targa_header.colormap_type = fgetc (fin);
-	targa_header.image_type = fgetc (fin);
-
-	targa_header.colormap_index = fgetLittleShort (fin);
-	targa_header.colormap_length = fgetLittleShort (fin);
-	targa_header.colormap_size = fgetc (fin);
-	targa_header.x_origin = fgetLittleShort (fin);
-	targa_header.y_origin = fgetLittleShort (fin);
-	targa_header.width = fgetLittleShort (fin);
-	targa_header.height = fgetLittleShort (fin);
-	targa_header.pixel_size = fgetc (fin);
-	targa_header.attributes = fgetc (fin);
-
-	if (targa_header.image_type == 1)
-	{
-		Con_Warning ("paletted TGA (less compatible): %s\n", name);
-		if (targa_header.pixel_size != 8 || targa_header.colormap_size != 24 || targa_header.colormap_length > 256)
-			Sys_Error ("Image_LoadTGA: %s has an %ibit palette", loadfilename, targa_header.colormap_type);
-	}
-	else
-	{
-		if (targa_header.image_type != 2 && targa_header.image_type != 10)
-			Sys_Error ("Image_LoadTGA: %s is not a type 2 or type 10 targa (%i)", loadfilename, targa_header.image_type);
-
-		if (targa_header.colormap_type != 0 || (targa_header.pixel_size != 32 && targa_header.pixel_size != 24))
-			Sys_Error ("Image_LoadTGA: %s is not a 24bit or 32bit targa", loadfilename);
-	}
-
-	columns = targa_header.width;
-	rows = targa_header.height;
-	numPixels = columns * rows;
-	upside_down = !(targa_header.attributes & 0x20); // johnfitz -- fix for upside-down targas
-
-	targa_rgba = (byte *)Mem_Alloc (numPixels * 4);
-
-	if (targa_header.id_length != 0)
-		fseek (fin, targa_header.id_length, SEEK_CUR); // skip TARGA image comment
-
-	buf = Buf_Alloc (fin);
-
-	if (targa_header.image_type == 1) // Uncompressed, paletted images
-	{
-		byte palette[256 * 4];
-		int	 i;
-		// palette data comes first
-		for (i = 0; i < targa_header.colormap_length; i++)
-		{ // this palette data is bgr.
-			palette[i * 3 + 2] = Buf_GetC (buf);
-			palette[i * 3 + 1] = Buf_GetC (buf);
-			palette[i * 3 + 0] = Buf_GetC (buf);
-			palette[i * 3 + 3] = 255;
-		}
-		for (i = targa_header.colormap_length * 4; i < sizeof (palette); i++)
-			palette[i] = 0;
-		for (row = rows - 1; row >= 0; row--)
-		{
-			realrow = upside_down ? row : rows - 1 - row;
-			pixbuf = targa_rgba + realrow * columns * 4;
-
-			for (column = 0; column < columns; column++)
-			{
-				i = Buf_GetC (buf);
-				*pixbuf++ = palette[i * 3 + 0];
-				*pixbuf++ = palette[i * 3 + 1];
-				*pixbuf++ = palette[i * 3 + 2];
-				*pixbuf++ = palette[i * 3 + 3];
-			}
-		}
-	}
-	else if (targa_header.image_type == 2) // Uncompressed, RGB images
-	{
-		for (row = rows - 1; row >= 0; row--)
-		{
-			// johnfitz -- fix for upside-down targas
-			realrow = upside_down ? row : rows - 1 - row;
-			pixbuf = targa_rgba + realrow * columns * 4;
-			// johnfitz
-			for (column = 0; column < columns; column++)
-			{
-				unsigned char red, green, blue, alphabyte;
-				switch (targa_header.pixel_size)
-				{
-				case 24:
-					blue = Buf_GetC (buf);
-					green = Buf_GetC (buf);
-					red = Buf_GetC (buf);
-					*pixbuf++ = red;
-					*pixbuf++ = green;
-					*pixbuf++ = blue;
-					*pixbuf++ = 255;
-					break;
-				case 32:
-					blue = Buf_GetC (buf);
-					green = Buf_GetC (buf);
-					red = Buf_GetC (buf);
-					alphabyte = Buf_GetC (buf);
-					*pixbuf++ = red;
-					*pixbuf++ = green;
-					*pixbuf++ = blue;
-					*pixbuf++ = alphabyte;
-					break;
-				}
-			}
-		}
-	}
-	else if (targa_header.image_type == 10) // Runlength encoded RGB images
-	{
-		unsigned char red, green, blue, alphabyte, packetHeader, packetSize, j;
-		for (row = rows - 1; row >= 0; row--)
-		{
-			// johnfitz -- fix for upside-down targas
-			realrow = upside_down ? row : rows - 1 - row;
-			pixbuf = targa_rgba + realrow * columns * 4;
-			// johnfitz
-			for (column = 0; column < columns;)
-			{
-				packetHeader = Buf_GetC (buf);
-				packetSize = 1 + (packetHeader & 0x7f);
-				if (packetHeader & 0x80) // run-length packet
-				{
-					switch (targa_header.pixel_size)
-					{
-					case 24:
-						blue = Buf_GetC (buf);
-						green = Buf_GetC (buf);
-						red = Buf_GetC (buf);
-						alphabyte = 255;
-						break;
-					case 32:
-						blue = Buf_GetC (buf);
-						green = Buf_GetC (buf);
-						red = Buf_GetC (buf);
-						alphabyte = Buf_GetC (buf);
-						break;
-					default: /* avoid compiler warnings */
-						blue = red = green = alphabyte = 0;
-					}
-
-					for (j = 0; j < packetSize; j++)
-					{
-						*pixbuf++ = red;
-						*pixbuf++ = green;
-						*pixbuf++ = blue;
-						*pixbuf++ = alphabyte;
-						column++;
-						if (column == columns) // run spans across rows
-						{
-							column = 0;
-							if (row > 0)
-								row--;
-							else
-								goto breakOut;
-							// johnfitz -- fix for upside-down targas
-							realrow = upside_down ? row : rows - 1 - row;
-							pixbuf = targa_rgba + realrow * columns * 4;
-							// johnfitz
-						}
-					}
-				}
-				else // non run-length packet
-				{
-					for (j = 0; j < packetSize; j++)
-					{
-						switch (targa_header.pixel_size)
-						{
-						case 24:
-							blue = Buf_GetC (buf);
-							green = Buf_GetC (buf);
-							red = Buf_GetC (buf);
-							*pixbuf++ = red;
-							*pixbuf++ = green;
-							*pixbuf++ = blue;
-							*pixbuf++ = 255;
-							break;
-						case 32:
-							blue = Buf_GetC (buf);
-							green = Buf_GetC (buf);
-							red = Buf_GetC (buf);
-							alphabyte = Buf_GetC (buf);
-							*pixbuf++ = red;
-							*pixbuf++ = green;
-							*pixbuf++ = blue;
-							*pixbuf++ = alphabyte;
-							break;
-						default: /* avoid compiler warnings */
-							blue = red = green = alphabyte = 0;
-						}
-						column++;
-						if (column == columns) // pixel packet run spans across rows
-						{
-							column = 0;
-							if (row > 0)
-								row--;
-							else
-								goto breakOut;
-							// johnfitz -- fix for upside-down targas
-							realrow = upside_down ? row : rows - 1 - row;
-							pixbuf = targa_rgba + realrow * columns * 4;
-							// johnfitz
-						}
-					}
-				}
-			}
-		breakOut:;
-		}
-	}
-
-	Buf_Free (buf);
-	fclose (fin);
-
-	*width = (int)(targa_header.width);
-	*height = (int)(targa_header.height);
-	return targa_rgba;
-}
-
 //==============================================================================
 //
 //  PCX
@@ -470,7 +237,7 @@ typedef struct
 Image_LoadPCX
 ============
 */
-byte *Image_LoadPCX (FILE *f, int *width, int *height)
+static byte *Image_LoadPCX (FILE *f, int *width, int *height)
 {
 	pcxheader_t		pcx;
 	int				x, y, w, h, readbyte, runlength, start;
@@ -565,7 +332,7 @@ typedef struct
 Image_LoadLMP
 ============
 */
-byte *Image_LoadLMP (FILE *f, int *width, int *height)
+static byte *Image_LoadLMP (FILE *f, int *width, int *height)
 {
 	lmpheader_t qpic;
 	size_t		pix;
