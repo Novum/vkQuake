@@ -281,7 +281,7 @@ static const char *PR_ValueString (int type, eval_t *val)
 		q_snprintf (line, sizeof (line), "%5.1f", val->_float);
 		break;
 	case ev_ext_double:
-		q_snprintf (line, sizeof(line), "%5.1f", val->_double);
+		q_snprintf (line, sizeof (line), "%5.1f", val->_double);
 		break;
 	case ev_ext_integer:
 		q_snprintf (line, sizeof (line), "%i", val->_int);
@@ -290,10 +290,10 @@ static const char *PR_ValueString (int type, eval_t *val)
 		sprintf (line, "%u", val->_uint32);
 		break;
 	case ev_ext_sint64:
-		sprintf (line, "%"PRIi64, val->_sint64);
+		sprintf (line, "%" PRIi64, val->_sint64);
 		break;
 	case ev_ext_uint64:
-		sprintf (line, "%"PRIu64, val->_uint64);
+		sprintf (line, "%" PRIu64, val->_uint64);
 		break;
 	case ev_vector:
 		q_snprintf (line, sizeof (line), "'%5.1f %5.1f %5.1f'", val->vector[0], val->vector[1], val->vector[2]);
@@ -355,13 +355,13 @@ const char *PR_UglyValueString (int type, eval_t *val)
 		sprintf (line, "%u", val->_uint32);
 		break;
 	case ev_ext_sint64:
-		sprintf (line, "%"PRIi64, val->_sint64);
+		sprintf (line, "%" PRIi64, val->_sint64);
 		break;
 	case ev_ext_uint64:
-		sprintf (line, "%"PRIu64, val->_uint64);
+		sprintf (line, "%" PRIu64, val->_uint64);
 		break;
 	case ev_ext_double:
-		q_snprintf (line, sizeof(line), "%f", val->_double);
+		q_snprintf (line, sizeof (line), "%f", val->_double);
 		break;
 	case ev_vector:
 		q_snprintf (line, sizeof (line), "%f %f %f", val->vector[0], val->vector[1], val->vector[2]);
@@ -384,12 +384,12 @@ padded to 20 field width
 */
 const char *PR_GlobalString (int ofs)
 {
-	static char line[512];
-	static const int lastchari = Q_COUNTOF(line) - 2;
-	const char *s;
-	int			i;
-	ddef_t	   *def;
-	void	   *val;
+	static char		 line[512];
+	static const int lastchari = countof (line) - 2;
+	const char		*s;
+	int				 i;
+	ddef_t			*def;
+	void			*val;
 
 	val = (void *)&qcvm->globals[ofs];
 	def = ED_GlobalAtOfs (ofs);
@@ -415,10 +415,10 @@ const char *PR_GlobalString (int ofs)
 
 const char *PR_GlobalStringNoContents (int ofs)
 {
-	static char line[512];
-	static const int lastchari = Q_COUNTOF(line) - 2;
-	int			i;
-	ddef_t	   *def;
+	static char		 line[512];
+	static const int lastchari = countof (line) - 2;
+	int				 i;
+	ddef_t			*def;
 
 	def = ED_GlobalAtOfs (ofs);
 	if (!def)
@@ -676,7 +676,8 @@ void ED_WriteGlobals (FILE *f)
 			continue;
 		type &= ~DEF_SAVEGLOBAL;
 
-		if (type != ev_string && type != ev_float && type != ev_ext_double && type != ev_ext_integer && type != ev_ext_uint32 && type != ev_ext_sint64 && type != ev_ext_uint64 && type != ev_entity)
+		if (type != ev_string && type != ev_float && type != ev_ext_double && type != ev_ext_integer && type != ev_ext_uint32 && type != ev_ext_sint64 &&
+			type != ev_ext_uint64 && type != ev_entity)
 			continue;
 
 		name = PR_GetString (def->s_name);
@@ -838,10 +839,10 @@ qboolean ED_ParseEpair (void *base, ddef_t *key, const char *s, qboolean zoned)
 		*(uint32_t *)d = atoi (s);
 		break;
 	case ev_ext_sint64:
-		*(qcsint64_t *)d = strtoll(s, NULL, 0);	//if longlong is 128bit then no real harm done for 64bit quantities...
+		*(qcsint64_t *)d = strtoll (s, NULL, 0); // if longlong is 128bit then no real harm done for 64bit quantities...
 		break;
 	case ev_ext_uint64:
-		*(qcuint64_t *)d = strtoull(s, NULL, 0);
+		*(qcuint64_t *)d = strtoull (s, NULL, 0);
 		break;
 
 	case ev_vector:
@@ -1105,9 +1106,9 @@ void ED_LoadFromFile (const char *data)
 
 		if (!func)
 		{
-			const char *classname = PR_GetString(ent->v.classname);
-			if (!strcmp(classname, "misc_model"))
-				PR_spawnfunc_misc_model(ent);
+			const char *classname = PR_GetString (ent->v.classname);
+			if (!strcmp (classname, "misc_model"))
+				PR_spawnfunc_misc_model (ent);
 			else
 			{
 				Con_SafePrintf ("No spawn function for:\n"); // johnfitz -- was Con_Printf
@@ -1391,7 +1392,7 @@ qboolean PR_LoadProgs (const char *filename, qboolean fatal, unsigned int needcr
 			return false;
 		}
 	}
-	Con_DPrintf ("%s occupies %uK.\n", filename, (unsigned)(com_filesize/1024u));
+	Con_DPrintf ("%s occupies %uK.\n", filename, (unsigned)(com_filesize / 1024u));
 
 	qcvm->functions = (dfunction_t *)((byte *)qcvm->progs + qcvm->progs->ofs_functions);
 	qcvm->strings = (char *)qcvm->progs + qcvm->progs->ofs_strings;
