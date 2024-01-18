@@ -26,6 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 static byte *Image_LoadPCX (FILE *f, int *width, int *height);
 static byte *Image_LoadLMP (FILE *f, int *width, int *height);
 
+// STB_IMAGE config:
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_STATIC
 #define STBI_NO_BMP
@@ -34,12 +35,32 @@ static byte *Image_LoadLMP (FILE *f, int *width, int *height);
 #define STBI_NO_HDR
 #define STBI_NO_PIC
 #define STBI_NO_PNM
+
+// plug our Mem_Alloc in stb_image:
+#undef STBI_MALLOC
+#undef STBI_REALLOC
+#undef STBI_FREE
+#define STBI_MALLOC(sz)		   Mem_Alloc (sz)
+#define STBI_REALLOC(p, newsz) Mem_Realloc (p, newsz)
+#define STBI_FREE(p)		   Mem_Free (p)
+
 #include "stb_image.h"
 
+// STB_IMAGE_WRITE config:
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_STATIC
+
+// plug our Mem_Alloc in stb_image_write:
+#undef STBIW_MALLOC
+#undef STBIW_REALLOC
+#undef STBIW_FREE
+#define STBIW_MALLOC(sz)		Mem_Alloc (sz)
+#define STBIW_REALLOC(p, newsz) Mem_Realloc (p, newsz)
+#define STBIW_FREE(p)			Mem_Free (p)
+
 #include "stb_image_write.h"
 
+// LODEPNG config:
 #define LODEPNG_NO_COMPILE_ALLOCATORS
 #define LODEPNG_NO_COMPILE_DECODER
 #define LODEPNG_NO_COMPILE_CPP
@@ -121,15 +142,12 @@ byte *Image_LoadImage (const char *name, int *width, int *height, enum srcformat
 		COM_FOpenFile (loadfilename, &f, NULL);
 		if (f)
 		{
+			// data is managed by our Mem_Alloc routines, nothing more to do.
 			byte *data = stbi_load_from_file (f, width, height, NULL, 4);
+
 			if (data)
 			{
 				*fmt = SRC_RGBA;
-				int	  numbytes = (*width) * (*height) * 4;
-				byte *hunkdata = (byte *)Mem_Alloc (numbytes);
-				memcpy (hunkdata, data, numbytes);
-				free (data);
-				data = hunkdata;
 			}
 			else
 				Con_Warning ("couldn't load %s (%s)\n", loadfilename, stbi_failure_reason ());
