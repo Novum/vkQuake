@@ -404,11 +404,12 @@ typedef struct jointpose_s
 	float mat[12];
 } jointpose_t; // pose data for a single joint.
 
-#define MAXALIASVERTS  2000 // johnfitz -- was 1024
-#define MAXALIASFRAMES 1024 // spike -- was 256
-#define MAXALIASTRIS   4096 // ericw -- was 2048
-extern stvert_t	   stverts[MAXALIASVERTS];
+#define MAXALIASTRIS   4096				  // ericw -- was 2048
+#define MAXALIASVERTS  (3 * MAXALIASTRIS) // johnfitz -- was 1024
+#define MAXALIASFRAMES 2048				  // spike -- was 256
+
 extern mtriangle_t triangles[MAXALIASTRIS];
+extern stvert_t	   stverts[MAXALIASVERTS];
 extern trivertx_t *poseverts[MAXALIASFRAMES];
 
 //===================================================================
