@@ -35,6 +35,7 @@ static byte *Image_LoadLMP (FILE *f, int *width, int *height);
 #define STBI_NO_HDR
 #define STBI_NO_PIC
 #define STBI_NO_PNM
+#define STBI_NO_LINEAR
 
 // plug our Mem_Alloc in stb_image:
 #undef STBI_MALLOC
