@@ -36,7 +36,6 @@ static byte *Image_LoadLMP (FILE *f, int *width, int *height);
 #define STBI_NO_PIC
 #define STBI_NO_PNM
 #define STBI_NO_LINEAR
-
 // plug our Mem_Alloc in stb_image:
 #undef STBI_MALLOC
 #undef STBI_REALLOC
@@ -51,7 +50,18 @@ static byte *Image_LoadLMP (FILE *f, int *width, int *height);
 #pragma warning(disable : 4505)
 #endif
 
+#ifdef __GNUC__
+// Suppress unused function warnings on GCC/clang
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-function"
+#endif
+
 #include "stb_image.h"
+
+#ifdef __GNUC__
+// Restore unused function warnings on GCC/clang
+#pragma GCC diagnostic pop
+#endif
 
 #ifdef _MSC_VER
 #pragma warning(pop)
@@ -60,7 +70,6 @@ static byte *Image_LoadLMP (FILE *f, int *width, int *height);
 // STB_IMAGE_WRITE config:
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_STATIC
-
 // plug our Mem_Alloc in stb_image_write:
 #undef STBIW_MALLOC
 #undef STBIW_REALLOC
@@ -68,7 +77,6 @@ static byte *Image_LoadLMP (FILE *f, int *width, int *height);
 #define STBIW_MALLOC(sz)		Mem_Alloc (sz)
 #define STBIW_REALLOC(p, newsz) Mem_Realloc (p, newsz)
 #define STBIW_FREE(p)			Mem_Free (p)
-
 #include "stb_image_write.h"
 
 // LODEPNG config:
