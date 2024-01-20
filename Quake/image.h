@@ -23,7 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef GL_IMAGE_H
 #define GL_IMAGE_H
 
-//image.h -- image reading / writing
+// image.h -- image reading / writing
 enum srcformat;
 
 byte *Image_LoadImage (const char *name, int *width, int *height, enum srcformat *fmt);
@@ -32,5 +32,4 @@ qboolean Image_WriteTGA (const char *name, byte *data, int width, int height, in
 qboolean Image_WritePNG (const char *name, byte *data, int width, int height, int bpp, qboolean upsidedown);
 qboolean Image_WriteJPG (const char *name, byte *data, int width, int height, int bpp, int quality, qboolean upsidedown);
 
-#endif	/* GL_IMAGE_H */
-
+#endif /* GL_IMAGE_H */

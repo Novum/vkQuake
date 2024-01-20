@@ -1,3 +1,4 @@
+// clang-format off
 /* QuakeSpasm: kept only the jpg writer, the only thing we use, and removed all others. */
 
 /* stb_image_write - v1.07 - public domain - http://nothings.org/stb/stb_image_write.h
@@ -200,7 +201,7 @@ STBIWDEF int stbi_write_jpg_to_func(stbi_write_func *func, void *context, int x,
 #define STBIW_ASSERT(x) assert (x)
 #endif
 
-#define STBIW_UCHAR(x) (unsigned char)((x) & 0xff)
+#define STBIW_UCHAR(x) (unsigned char)((x)&0xff)
 
 typedef struct
 {
@@ -734,3 +735,4 @@ ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ------------------------------------------------------------------------------
 */
+// clang-format on

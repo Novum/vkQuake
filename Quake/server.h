@@ -212,7 +212,7 @@ typedef struct client_s
 } client_t;
 
 //=============================================================================
-
+// clang-format off
 // edict->movetype values
 typedef enum
 {
@@ -299,6 +299,8 @@ typedef enum
 #define MSG_INIT		  3 // write to the init string
 #define MSG_EXT_MULTICAST 4 // temporary buffer that can be splurged more reliably / with more control.
 #define MSG_EXT_ENTITY	  5 // for csqc networking. we don't actually support this. I'm just defining it for completeness.
+
+// clang-format on
 
 //============================================================================
 
