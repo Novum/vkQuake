@@ -142,7 +142,7 @@ srcs = [
 	'Quake/embedded_pak.c',
 ]
 
-cflags = ['-Wall', '-Wno-trigraphs', '-Wno-unused-function', '-Werror']
+cflags = ['-Wall', '-Wno-trigraphs', '-Wno-unused-function', '-Werror', '-Wno-error=unused-function', '-std=gnu11']
 cc = meson.get_compiler('c')
 deps = [
     cc.find_library('m', required : false),
