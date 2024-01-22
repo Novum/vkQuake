@@ -37,9 +37,6 @@ static byte *Image_LoadLMP (FILE *f, int *width, int *height);
 #define STBI_NO_PNM
 #define STBI_NO_LINEAR
 // plug our Mem_Alloc in stb_image:
-#undef STBI_MALLOC
-#undef STBI_REALLOC
-#undef STBI_FREE
 #define STBI_MALLOC(sz)		   Mem_Alloc (sz)
 #define STBI_REALLOC(p, newsz) Mem_Realloc (p, newsz)
 #define STBI_FREE(p)		   Mem_Free (p)
@@ -71,9 +68,6 @@ static byte *Image_LoadLMP (FILE *f, int *width, int *height);
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_STATIC
 // plug our Mem_Alloc in stb_image_write:
-#undef STBIW_MALLOC
-#undef STBIW_REALLOC
-#undef STBIW_FREE
 #define STBIW_MALLOC(sz)		Mem_Alloc (sz)
 #define STBIW_REALLOC(p, newsz) Mem_Realloc (p, newsz)
 #define STBIW_FREE(p)			Mem_Free (p)
