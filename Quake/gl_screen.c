@@ -623,12 +623,12 @@ void SCR_DrawFPS (cb_context_t *cbx)
 	int			  frames;
 
 	elapsed_time = realtime - oldtime;
-	frames = r_framecount - oldframecount;
+	frames = host_framecount - oldframecount;
 
 	if (elapsed_time < 0 || frames < 0)
 	{
 		oldtime = realtime;
-		oldframecount = r_framecount;
+		oldframecount = host_framecount;
 		return;
 	}
 	// update value every 3/4 second
@@ -636,7 +636,7 @@ void SCR_DrawFPS (cb_context_t *cbx)
 	{
 		lastfps = frames / elapsed_time;
 		oldtime = realtime;
-		oldframecount = r_framecount;
+		oldframecount = host_framecount;
 	}
 
 	if (scr_showfps.value && scr_viewsize.value < 130)
