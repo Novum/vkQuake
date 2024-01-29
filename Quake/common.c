@@ -2130,6 +2130,7 @@ _add_path:
 	search = (searchpath_t *)Mem_Alloc (sizeof (searchpath_t));
 	search->path_id = path_id;
 	q_strlcpy (search->filename, com_gamedir, sizeof (search->filename));
+	q_strlcpy (search->dir, dir, sizeof (search->dir));
 	search->next = com_searchpaths;
 	com_searchpaths = search;
 
@@ -2145,6 +2146,7 @@ _add_path:
 			search = (searchpath_t *)Mem_Alloc (sizeof (searchpath_t));
 			search->path_id = path_id;
 			search->pack = pak;
+			q_strlcpy (search->dir, dir, sizeof (search->dir));
 			search->next = com_searchpaths;
 			com_searchpaths = search;
 		}
@@ -2168,6 +2170,7 @@ _add_path:
 			search = (searchpath_t *)Mem_Alloc (sizeof (searchpath_t));
 			search->path_id = path_id;
 			search->pack = pak;
+			q_strlcpy (search->dir, dir, sizeof (search->dir));
 			search->next = com_searchpaths;
 			com_searchpaths = search;
 			com_modified = pak0_modified;
