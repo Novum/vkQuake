@@ -137,7 +137,7 @@ void *Mod_Extradata_CheckSkin (qmodel_t *mod, int skinnum)
 			return mod->extradata[1];
 		if (r_md5models.value >= 2 && skinnum < ((aliashdr_t *)mod->extradata[1])->numskins)
 			return mod->extradata[1];
-		if (r_md5models.value && mod->md5_prio)
+		if (r_md5models.value && mod->md5_prio && skinnum < ((aliashdr_t *)mod->extradata[1])->numskins)
 			return mod->extradata[1];
 	}
 	return mod->extradata[0];
@@ -490,6 +490,8 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 	//
 	// load the file
 	//
+	qboolean	 md5_loaded = false;
+	unsigned int md5_path_id = 0;
 	if (r_loadmd5models.value)
 	{
 		char newname[MAX_QPATH];
@@ -500,12 +502,15 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 			q_strlcpy (extension, "md5mesh", sizeof (newname) - (extension - newname));
 			buf = COM_LoadFile (newname, &mod->path_id);
 			if (buf)
+			{
 				Mod_LoadMD5MeshModel (mod, buf);
+				md5_loaded = true;
+				md5_path_id = mod->path_id;
+			}
 			Mem_Free (buf);
 		}
 	}
 
-	unsigned int md5_path_id = mod->path_id;
 	buf = COM_LoadFile (mod->name, &mod->path_id);
 	if (!buf)
 	{
@@ -513,7 +518,37 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 			Host_Error ("Mod_LoadModel: %s not found", mod->name); // johnfitz -- was "Mod_NumForName"
 		return NULL;
 	}
-	mod->md5_prio = md5_path_id >= mod->path_id;
+
+	if (md5_loaded)
+	{
+		// Only prioritize the MD5 over the MDL if the MD5 is in the same path or a higher priority path.
+		// This means mods that replace a MDL won't have the id1 MD5s override them.
+		mod->md5_prio = md5_path_id >= mod->path_id;
+
+		// Exception: rogue provides MDLs that match the base game except they have extra skins, so
+		// we should still use the remastered id1 MD5s with them. (The model rendering will fall
+		// back to the MDLs when their extra skins are used.)
+		if (rogue && !mod->md5_prio)
+		{
+			searchpath_t *mod_searchpath = NULL;
+			for (searchpath_t *path = com_searchpaths; path; path = path->next)
+			{
+				if (path->path_id == mod->path_id)
+				{
+					mod_searchpath = path;
+					break;
+				}
+			}
+			if (mod_searchpath && !q_strcasecmp (mod_searchpath->dir, "rogue"))
+			{
+				mod->md5_prio = true;
+			}
+		}
+	}
+	else
+	{
+		mod->md5_prio = false;
+	}
 
 	//
 	// allocate a new model

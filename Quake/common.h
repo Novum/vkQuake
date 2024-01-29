@@ -334,7 +334,8 @@ typedef struct searchpath_s
 								  // Note that <install_dir>/game1 and
 								  // <userdir>/game1 have the same id.
 	char				 filename[MAX_OSPATH];
-	pack_t				*pack; // only one of filename / pack will be used
+	pack_t				*pack;			 // only one of filename / pack will be used
+	char				 dir[MAX_QPATH]; // directory name: "id1", "rogue", etc.
 	struct searchpath_s *next;
 } searchpath_t;
 
