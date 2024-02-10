@@ -232,6 +232,9 @@
     <ClCompile Include="..\..\Quake\sys_sdl_unix.c">
       <Filter>Main</Filter>
     </ClCompile>
+   <ClCompile Include="..\..\Quake\pl_linux.c">
+      <Filter>Main</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\Quake\view.c">
       <Filter>Main</Filter>
     </ClCompile>
