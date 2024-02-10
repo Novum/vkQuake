@@ -574,8 +574,10 @@ float FloatNoSwap (float f)
 
 short (*BigShort) (short l) = ShortSwap;
 short (*LittleShort) (short l) = ShortNoSwap;
-int	  (*BigLong) (int l) = LongSwap;
-int	  (*LittleLong) (int l) = LongNoSwap;
+
+int (*BigLong) (int l) = LongSwap;
+int (*LittleLong) (int l) = LongNoSwap;
+
 float (*BigFloat) (float l) = FloatSwap;
 float (*LittleFloat) (float l) = FloatNoSwap;
 

@@ -75,4 +75,7 @@ char *PL_GetClipboardData (void)
 	return data;
 }
 
-void PL_ErrorDialog (const char *errorMsg) {}
+void PL_ErrorDialog (const char *errorMsg)
+{
+	SDL_ShowSimpleMessageBox (SDL_MESSAGEBOX_ERROR, "Quake Error", errorMsg, NULL);
+}
