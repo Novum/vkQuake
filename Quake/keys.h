@@ -129,31 +129,30 @@ typedef enum keycode_t
 
 // clang-format on
 
-#define	MAX_KEYS		256
+#define MAX_KEYS 256
 
-#define	MAXCMDLINE	256
+#define MAXCMDLINE 256
 
-typedef enum {key_game, key_console, key_message, key_menu} keydest_t;
-typedef enum textmode_t
+typedef enum
 {
-	TEXTMODE_OFF,		// no char events
-	TEXTMODE_ON,		// char events, show on-screen keyboard
-	TEXTMODE_NOPOPUP,	// char events, don't show on-screen keyboard
-} textmode_t;
+	key_game,
+	key_console,
+	key_message,
+	key_menu
+} keydest_t;
 
-extern keydest_t	key_dest;
-extern	char	*keybindings[MAX_KEYS];
+extern keydest_t key_dest;
+extern char		*keybindings[MAX_KEYS];
 
-#define		CMDLINES 64
+#define CMDLINES 64
 
-extern	char	key_lines[CMDLINES][MAXCMDLINE];
-extern	char	key_tabhint[MAXCMDLINE];
-extern	int		edit_line;
-extern	int		key_linepos;
-extern	int		key_insert;
-extern	double		key_blinktime;
+extern char	  key_lines[CMDLINES][MAXCMDLINE];
+extern int	  edit_line;
+extern int	  key_linepos;
+extern int	  key_insert;
+extern double key_blinktime;
 
-extern	qboolean	chat_team;
+extern qboolean chat_team;
 
 void Key_Init (void);
 void Key_ClearStates (void);
@@ -163,22 +162,20 @@ void Key_BeginInputGrab (void);
 void Key_EndInputGrab (void);
 void Key_GetGrabbedInput (int *lastkey, int *lastchar);
 
-void Key_Event (int key, qboolean down);
-void Key_EventWithKeycode (int key, qboolean down, int keycode);
-void Char_Event (int key);
-textmode_t Key_TextEntry (void);
+void	 Key_Event (int key, qboolean down);
+void	 Key_EventWithKeycode (int key, qboolean down, int keycode);
+void	 Char_Event (int key);
+qboolean Key_TextEntry (void);
 
-void Key_SetBinding (int keynum, const char *binding);
-int Key_GetKeysForCommand (const char *command, int *keys, int maxkeys);
+void		Key_SetBinding (int keynum, const char *binding);
 const char *Key_KeynumToString (int keynum);
-void Key_WriteBindings (FILE *f);
+void		Key_WriteBindings (FILE *f);
 
-void Key_EndChat (void);
+void		Key_EndChat (void);
 const char *Key_GetChatBuffer (void);
-int Key_GetChatMsgLen (void);
+int			Key_GetChatMsgLen (void);
 
 void History_Init (void);
 void History_Shutdown (void);
 
-#endif	/* _QUAKE_KEYS_H */
-
+#endif /* _QUAKE_KEYS_H */
