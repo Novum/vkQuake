@@ -246,6 +246,7 @@ typedef enum
 	DEAD_NO						= 0,
 	DEAD_DYING					= 1,
 	DEAD_DEAD					= 2,
+	DEAD_RESPAWNABLE			= 3,
 } edeadflag_t;
 
 // edict->takedamage
