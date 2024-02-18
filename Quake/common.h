@@ -180,8 +180,8 @@ void Vec_Free (void **pvec);
 
 extern short (*BigShort) (short l);
 extern short (*LittleShort) (short l);
-extern int (*BigLong) (int l);
-extern int (*LittleLong) (int l);
+extern int	 (*BigLong) (int l);
+extern int	 (*LittleLong) (int l);
 extern float (*BigFloat) (float l);
 extern float (*LittleFloat) (float l);
 
@@ -342,7 +342,7 @@ typedef struct searchpath_s
 extern searchpath_t *com_searchpaths;
 extern searchpath_t *com_base_searchpaths;
 
-extern THREAD_LOCAL int com_filesize;
+extern THREAD_LOCAL qfileofs_t com_filesize;
 struct cache_user_s;
 
 extern char				com_basedir[MAX_OSPATH];

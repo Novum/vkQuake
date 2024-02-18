@@ -30,12 +30,19 @@ void Sys_Init (void);
 // file IO
 //
 
+typedef long long qfileofs_t;
+
+int		   Sys_fseek (FILE *file, qfileofs_t ofs, int origin);
+qfileofs_t Sys_ftell (FILE *file);
+
 // returns the file size or -1 if file is not present.
 // the file should be in BINARY mode for stupid OSs that care
-int	 Sys_FileOpenRead (const char *path, int *hndl);
-void Sys_MemFileOpenRead (const byte *memory, int size, int *hndl);
+qfileofs_t Sys_FileOpenRead (const char *path, int *hndl);
+void	   Sys_MemFileOpenRead (const byte *memory, int size, int *hndl);
 
-int	 Sys_FileOpenWrite (const char *path);
+// Returns a file handle
+int Sys_FileOpenWrite (const char *path);
+
 void Sys_FileClose (int handle);
 void Sys_FileSeek (int handle, int position);
 int	 Sys_FileRead (int handle, void *dest, int count);

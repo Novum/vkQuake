@@ -50,19 +50,19 @@ static int findhandle (void)
 	return -1;
 }
 
-static long Sys_filelength (FILE *f)
+static qfileofs_t Sys_filelength (FILE *f)
 {
-	long pos, end;
+	qfileofs_t pos, end;
 
-	pos = ftell (f);
-	fseek (f, 0, SEEK_END);
-	end = ftell (f);
-	fseek (f, pos, SEEK_SET);
+	pos = Sys_ftell (f);
+	Sys_fseek (f, 0, SEEK_END);
+	end = Sys_ftell (f);
+	Sys_fseek (f, pos, SEEK_SET);
 
 	return end;
 }
 
-int Sys_FileOpenRead (const char *path, int *hndl)
+qfileofs_t Sys_FileOpenRead (const char *path, int *hndl)
 {
 	FILE *f;
 	int	  i, retval;

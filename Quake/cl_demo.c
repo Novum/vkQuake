@@ -20,6 +20,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 #include "quakedef.h"
+#include "sys.h"
+
 #include "bgmusic.h"
 
 static void CL_FinishTimeDemo (void);
@@ -96,7 +98,7 @@ static int CL_GetDemoMessage (void)
 		return 0;
 
 	if (cls.signon == (SIGNONS - 2))
-		cls.demo_prespawn_end = ftell (cls.demofile);
+		cls.demo_prespawn_end = Sys_ftell (cls.demofile);
 	// decide if it is time to grab the next message
 	else if (cls.signon == SIGNONS) // always grab until fully connected
 	{
@@ -203,7 +205,7 @@ void		 CL_Seek_f (void)
 	// large positive offsets could benefit from demoseeking, but we'd lose prints etc
 	if ((offset < 0 || (!relative && offset < cl.time)) && cls.demo_prespawn_end)
 	{
-		fseek (cls.demofile, cls.demo_prespawn_end, SEEK_SET);
+		Sys_fseek (cls.demofile, cls.demo_prespawn_end, SEEK_SET);
 		cl.mtime[0] = cl.time = 0;
 		cls.demoseeking = true;
 
@@ -667,7 +669,7 @@ void CL_Resume_Record (qboolean recordsignons)
 		return;
 	}
 	// overwrite svc_disconnect
-	fseek (cls.demofile, -17, SEEK_END);
+	Sys_fseek (cls.demofile, -17, SEEK_END);
 	Con_Printf ("Demo recording resumed\n");
 	cls.demorecording = true;
 	if (recordsignons)

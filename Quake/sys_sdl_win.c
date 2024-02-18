@@ -55,6 +55,16 @@ static HANDLE hinput, houtput;
 static char	  cwd[1024];
 static double counter_freq;
 
+int Sys_fseek (FILE *file, qfileofs_t ofs, int origin)
+{
+	return _fseeki64 (file, ofs, origin);
+}
+
+qfileofs_t Sys_ftell (FILE *file)
+{
+	return _ftelli64 (file);
+}
+
 static void Sys_GetBasedir (char *argv0, char *dst, size_t dstsize)
 {
 	char  *tmp;
