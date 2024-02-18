@@ -47,6 +47,18 @@ qboolean isDedicated;
 
 static double counter_freq;
 
+COMPILE_TIME_ASSERT (CHECK_LARGE_FILE_SUPPORT, sizeof (off_t) >= sizeof (qfileofs_t));
+
+int Sys_fseek (FILE *file, qfileofs_t ofs, int origin)
+{
+	return fseeko (file, ofs, origin);
+}
+
+qfileofs_t Sys_ftell (FILE *file)
+{
+	return ftello (file);
+}
+
 int Sys_FileType (const char *path)
 {
 	/*

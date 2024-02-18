@@ -23,6 +23,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // common.c -- misc functions used in client and server
 
 #include "quakedef.h"
+#include "sys.h"
+
 #include "q_ctype.h"
 #include <errno.h>
 
@@ -572,8 +574,8 @@ float FloatNoSwap (float f)
 
 short (*BigShort) (short l) = ShortSwap;
 short (*LittleShort) (short l) = ShortNoSwap;
-int (*BigLong) (int l) = LongSwap;
-int (*LittleLong) (int l) = LongNoSwap;
+int	  (*BigLong) (int l) = LongSwap;
+int	  (*LittleLong) (int l) = LongNoSwap;
 float (*BigFloat) (float l) = FloatSwap;
 float (*LittleFloat) (float l) = FloatNoSwap;
 
@@ -1564,7 +1566,7 @@ QUAKE FILESYSTEM
 =============================================================================
 */
 
-THREAD_LOCAL int com_filesize;
+THREAD_LOCAL qfileofs_t com_filesize;
 
 //
 // on-disk pakfile
@@ -1666,14 +1668,14 @@ void COM_CreatePath (char *path)
 COM_filelength
 ================
 */
-long COM_filelength (FILE *f)
+qfileofs_t COM_filelength (FILE *f)
 {
-	long pos, end;
+	qfileofs_t pos, end;
 
-	pos = ftell (f);
-	fseek (f, 0, SEEK_END);
-	end = ftell (f);
-	fseek (f, pos, SEEK_SET);
+	pos = Sys_ftell (f);
+	Sys_fseek (f, 0, SEEK_END);
+	end = Sys_ftell (f);
+	Sys_fseek (f, pos, SEEK_SET);
 
 	return end;
 }

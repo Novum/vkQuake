@@ -129,7 +129,7 @@ typedef struct
 	float	 demospeed;
 
 	// demo file position where the current level starts (after signon packets)
-	size_t demo_prespawn_end;
+	qfileofs_t demo_prespawn_end;
 
 	qboolean timedemo;
 	int		 forcetrack; // -1 = use normal cd track

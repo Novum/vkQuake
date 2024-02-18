@@ -347,10 +347,10 @@ static inline int FindLastBitNonZero64 (const uint64_t mask)
 #define UNREACHABLE() __builtin_unreachable ()
 #endif
 
+#include "sys.h"
 #include "common.h"
 #include "mem.h"
 #include "bspfile.h"
-#include "sys.h"
 #include "mathlib.h"
 #include "cvar.h"
 
