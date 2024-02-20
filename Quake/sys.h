@@ -34,11 +34,13 @@ typedef long long qfileofs_t;
 
 int		   Sys_fseek (FILE *file, qfileofs_t ofs, int origin);
 qfileofs_t Sys_ftell (FILE *file);
+qfileofs_t Sys_filelength (FILE *f);
 
 // returns the file size or -1 if file is not present.
 // the file should be in BINARY mode for stupid OSs that care
 qfileofs_t Sys_FileOpenRead (const char *path, int *hndl);
-void	   Sys_MemFileOpenRead (const byte *memory, int size, int *hndl);
+
+void Sys_MemFileOpenRead (const byte *memory, int size, int *hndl);
 
 // Returns a file handle
 int Sys_FileOpenWrite (const char *path);

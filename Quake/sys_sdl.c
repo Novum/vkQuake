@@ -50,7 +50,7 @@ static int findhandle (void)
 	return -1;
 }
 
-static qfileofs_t Sys_filelength (FILE *f)
+qfileofs_t Sys_filelength (FILE *f)
 {
 	qfileofs_t pos, end;
 

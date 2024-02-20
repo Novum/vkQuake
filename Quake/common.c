@@ -1672,14 +1672,7 @@ COM_filelength
 */
 qfileofs_t COM_filelength (FILE *f)
 {
-	qfileofs_t pos, end;
-
-	pos = Sys_ftell (f);
-	Sys_fseek (f, 0, SEEK_END);
-	end = Sys_ftell (f);
-	Sys_fseek (f, pos, SEEK_SET);
-
-	return end;
+	return Sys_filelength (f);
 }
 
 /*
