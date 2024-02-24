@@ -525,22 +525,26 @@ static void PF_vectoangles (void)
 =================
 PF_Random
 
-Returns a number from 0 < num < 1
+Returns a number from 0 <= num < 1
 
 random()
+
+bug: vanilla could return 1, contrary to the (unchanged) comment just above.
 =================
 */
-cvar_t		sv_gameplayfix_random = {"sv_gameplayfix_random", "1", CVAR_ARCHIVE};
 static void PF_random (void)
 {
-	float num;
+	// don't return 1 (it would break array[random()*array.length];
+	// don't return 0 either, it would break the self.nextthink = time+random()*foo; lines in walkmonster_start, resulting rarely in statue-monsters.
+	G_FLOAT (OFS_RETURN) = (rand () & 0x7fff) / ((float)0x08000) + (0.5 / 0x08000);
 
-	if (sv_gameplayfix_random.value)
-		num = ((rand () & 0x7fff) + 0.5f) * (1.f / 0x8000);
-	else
-		num = (rand () & 0x7fff) / ((float)0x7fff);
-
-	G_FLOAT (OFS_RETURN) = num;
+	if (qcvm->argc)
+	{
+		if (qcvm->argc == 1) // maximum value
+			G_FLOAT (OFS_RETURN) *= G_FLOAT (OFS_PARM0);
+		else // min and max.
+			G_FLOAT (OFS_RETURN) = G_FLOAT (OFS_PARM0) + G_FLOAT (OFS_RETURN) * (G_FLOAT (OFS_PARM1) - G_FLOAT (OFS_PARM0));
+	}
 }
 
 /*
