@@ -71,6 +71,7 @@ typedef struct edict_s
 //============================================================================
 
 typedef void (*builtin_t) (void);
+
 typedef struct qcvm_s qcvm_t;
 
 void PR_Init (void);
@@ -90,6 +91,7 @@ void   PR_DumpPlatform_f (void); // console command: writes out a qsextensions.q
 // special hacks...
 int	   PF_SV_ForceParticlePrecache (const char *s);
 int	   SV_Precache_Model (const char *s);
+int	   SV_Precache_Sound (const char *s);
 void   PR_spawnfunc_misc_model (edict_t *self);
 
 // from pr_edict, for pr_ext. reflection is messy.
@@ -165,7 +167,7 @@ eval_t *GetEdictFieldValue (edict_t *ed, int fldofs); // handles invalid offsets
 int		ED_FindFieldOffset (const char *name);
 
 #define GetEdictFieldValid(fld)	   (qcvm->extfields.fld >= 0)
-#define GetEdictFieldEval(ed, fld) ((eval_t *)((char *)&ed->v + qcvm->extfields.fld * 4)) // caller must validate the field first
+#define GetEdictFieldEval(ed, fld) ((eval_t *)((float *)&ed->v + qcvm->extfields.fld)) // caller must validate the field first
 
 // from pr_cmds, no longer static so that pr_ext can use them.
 sizebuf_t *WriteDest (void);

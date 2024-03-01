@@ -974,9 +974,20 @@ const char *ED_ParseEdict (const char *data, edict_t *ent)
 		init = true;
 
 		// keynames with a leading underscore are used for utility comments,
-		// and are immediately discarded by quake
+		// and are immediately discarded by quake, except for some specific keywords...
 		if (keyname[0] == '_')
+		{
+			// spike -- hacks to support func_illusionary with all sorts of mdls, and various particle effects
+			if (qcvm == &sv.qcvm)
+			{
+				if (!strcmp (keyname, "_precache_model") && sv.state == ss_loading)
+					SV_Precache_Model (PR_GetString (ED_NewString (com_token)));
+				else if (!strcmp (keyname, "_precache_sound") && sv.state == ss_loading)
+					SV_Precache_Sound (PR_GetString (ED_NewString (com_token)));
+			}
+			// spike
 			continue;
+		}
 
 		// johnfitz -- hack to support .alpha even when progs.dat doesn't know about it
 		if (!strcmp (keyname, "alpha"))
