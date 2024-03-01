@@ -63,7 +63,7 @@ int paintedtime; // sample PAIRS
 int					  s_rawend;
 portable_samplepair_t s_rawsamples[MAX_RAW_SAMPLES];
 
-#define MAX_SFX 1024
+#define MAX_SFX (MAX_SOUNDS)
 static sfx_t *known_sfx = NULL; // hunk allocated [MAX_SFX]
 static int	  num_sfx;
 
@@ -213,8 +213,8 @@ void S_Init (void)
 	Cvar_SetCallback (&snd_filterquality, &SND_Callback_snd_filterquality);
 
 	SND_InitScaletable ();
-
-	known_sfx = (sfx_t *)Mem_Alloc (MAX_SFX * sizeof (sfx_t));
+	// allocate twice the max sounds to be able to cache enough...
+	known_sfx = (sfx_t *)Mem_Alloc ((MAX_SFX * 2) * sizeof (sfx_t));
 	num_sfx = 0;
 
 	snd_initialized = true;
@@ -256,6 +256,23 @@ void S_Shutdown (void)
 // Load a sound
 // =======================================================================
 
+static void S_FlushOldestSounds (void)
+{
+	assert (num_sfx == MAX_SFX * 2);
+
+	for (int i = 0; i < MAX_SFX; ++i)
+	{
+		if (known_sfx[i].cache)
+		{
+			Mem_Free (known_sfx[i].cache);
+		}
+	}
+
+	// move [MAX_SFX ; 2* MAX_SFX - 1] into [0 ; MAX_SFX - 1]
+	memmove ((void *)&known_sfx[0], (const void *)&known_sfx[MAX_SFX], MAX_SFX * sizeof (sfx_t));
+
+	num_sfx = MAX_SFX;
+}
 /*
 ==================
 S_FindName
@@ -282,8 +299,13 @@ static sfx_t *S_FindName (const char *name)
 		}
 	}
 
-	if (num_sfx == MAX_SFX)
-		Sys_Error ("S_FindName: out of sfx_t");
+	if (num_sfx == MAX_SFX * 2)
+	{
+		// clear oldest, i.e the first MAX_SFX sounds, and slide the second part (most recent) into place.
+		S_FlushOldestSounds ();
+		assert (num_sfx == MAX_SFX);
+		i = MAX_SFX;
+	}
 
 	sfx = &known_sfx[i];
 	q_strlcpy (sfx->name, name, sizeof (sfx->name));
