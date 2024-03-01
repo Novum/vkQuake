@@ -132,7 +132,7 @@ static int MSG_ReadSize16 (sizebuf_t *sb)
 	{
 		int solid = (((ssolid >> 7) & 0x1F8) - 32 + 32768) << 16; /*up can be negative*/
 		solid |= ((ssolid & 0x1F) << 3);
-		solid |= ((ssolid & 0x3E0) << 10);
+		solid |= ((ssolid & 0x3E0) << 6);
 		return solid;
 	}
 }
