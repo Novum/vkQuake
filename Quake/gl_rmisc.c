@@ -113,7 +113,6 @@ static vulkan_memory_t staging_memory;
 static stagingbuffer_t staging_buffers[NUM_STAGING_BUFFERS];
 static int			   current_staging_buffer = 0;
 static int			   num_stagings_in_flight = 0;
-static qboolean		   staging_submitting = false;
 static SDL_mutex	  *staging_mutex;
 static SDL_cond		  *staging_cond;
 /*
@@ -547,11 +546,8 @@ R_SubmitStagingBuffer
 */
 static void R_SubmitStagingBuffer (int index)
 {
-	staging_submitting = true;
 	while (num_stagings_in_flight > 0)
 		SDL_CondWait (staging_cond, staging_mutex);
-	staging_submitting = false;
-	SDL_CondBroadcast (staging_cond);
 
 	ZEROED_STRUCT (VkMemoryBarrier, memory_barrier);
 	memory_barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
@@ -587,11 +583,9 @@ R_SubmitStagingBuffers
 void R_SubmitStagingBuffers (void)
 {
 	SDL_LockMutex (staging_mutex);
-	if (staging_submitting)
-	{
-		while (staging_submitting || (num_stagings_in_flight > 0))
-			SDL_CondWait (staging_cond, staging_mutex);
-	}
+
+	while (num_stagings_in_flight > 0)
+		SDL_CondWait (staging_cond, staging_mutex);
 
 	int i;
 	for (i = 0; i < NUM_STAGING_BUFFERS; ++i)
@@ -643,11 +637,9 @@ R_StagingAllocate
 byte *R_StagingAllocate (int size, int alignment, VkCommandBuffer *command_buffer, VkBuffer *buffer, int *buffer_offset)
 {
 	SDL_LockMutex (staging_mutex);
-	if (staging_submitting)
-	{
-		while (staging_submitting || (num_stagings_in_flight > 0))
-			SDL_CondWait (staging_cond, staging_mutex);
-	}
+
+	while (num_stagings_in_flight > 0)
+		SDL_CondWait (staging_cond, staging_mutex);
 
 	vulkan_globals.device_idle = false;
 
