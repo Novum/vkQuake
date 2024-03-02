@@ -59,7 +59,7 @@ vkQuake shows basic usage of the API. For example it demonstrates render passes 
 
 ## Windows
 
-Clone the vkQuake repo from `https://github.com/Novum/vkQuake.git`
+Clone the vkQuake repo from `https://github.com/vsonnier/vkQuake.git`
 
 Prerequisites:
 
@@ -93,7 +93,7 @@ pacman -S git meson flac glibc libgl libmad libvorbis libx11 sdl2 vulkan-headers
 Then clone the vkQuake repo:
 
 ~~~
-git clone https://github.com/Novum/vkQuake.git
+git clone https://github.com/vsonnier/vkQuake.git
 ~~~
 
 Now go to the Quake directory and compile the executable:
@@ -125,7 +125,7 @@ brew install molten-vk vulkan-headers glslang spirv-tools sdl2 libvorbis flac op
 Then clone the vkQuake repo:
 
 ~~~
-git clone https://github.com/Novum/vkQuake.git
+git clone https://github.com/vsonnier/vkQuake.git
 ~~~
 
 Now go to the Quake directory and compile the executable:
