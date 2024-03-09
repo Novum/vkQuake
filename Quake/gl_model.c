@@ -2743,7 +2743,7 @@ void *Mod_LoadAliasFrame (void *pin, aliashdr_t *pheader, const int index)
 
 	pdaliasframe = (daliasframe_t *)pin;
 
-	strcpy (frame->name, pdaliasframe->name);
+	q_strlcpy (frame->name, pdaliasframe->name, sizeof (frame->name));
 	frame->firstpose = posenum;
 	frame->numposes = 1;
 
