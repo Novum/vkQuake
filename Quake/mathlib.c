@@ -189,8 +189,10 @@ int BoxOnPlaneSide (vec3_t emins, vec3_t emaxs, mplane_t *p)
 	dist1 = p->normal[0] * (xneg ? emins : emaxs)[0] + p->normal[1] * (yneg ? emins : emaxs)[1] + p->normal[2] * (zneg ? emins : emaxs)[2];
 	dist2 = p->normal[0] * (xneg ? emaxs : emins)[0] + p->normal[1] * (yneg ? emaxs : emins)[1] + p->normal[2] * (zneg ? emaxs : emins)[2];
 
+#ifdef PARANOID
 	if (p->signbits & ~7)
 		Sys_Error ("BoxOnPlaneSide:  Bad signbits");
+#endif
 
 #if 0
 	int		i;
