@@ -31,11 +31,23 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #endif
 
 #if defined(USE_MI_MALLOC)
+
+#if defined(__GNUC__) && (__GNUC__ >= 12)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstringop-overflow" +
+#pragma message "ignore stringop-overflow warnings for mimalloc v2.14+"
+#endif
+
 #undef snprintf
 #define snprintf q_snprintf
 #undef vsnprintf
 #define vsnprintf q_vsnprintf
 #include "mimalloc/static.c"
+
+#if defined(__GNUC__) && (__GNUC__ >= 12)
+#pragma GCC diagnostic pop // Restore warnings on GCC
+#endif
+
 #elif defined(USE_CRT_MALLOC)
 #include <stdlib.h>
 #endif
