@@ -119,12 +119,18 @@ typedef unsigned char byte;
 
 #undef true
 #undef false
+#if defined __STDC_VERSION__ && (__STDC_VERSION__ >= 199901L)
+#include <stdbool.h>
+typedef bool qboolean;
+#else
 enum
 {
 	false = 0,
 	true = 1
 };
 typedef _Bool qboolean;
+#endif
+
 COMPILE_TIME_ASSERT (falsehood, ((1 != 1) == false));
 COMPILE_TIME_ASSERT (truth, ((1 == 1) == true));
 
