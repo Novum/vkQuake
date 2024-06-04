@@ -1357,11 +1357,10 @@ TODO: merge this into BuildSurfaceDisplayList?
 */
 static void Mod_PolyForUnlitSurface (qmodel_t *mod, msurface_t *fa)
 {
-	vec3_t	  verts[64];
-	int		  numverts, i, lindex;
+	const int numverts = fa->numedges;
+	int		  i, lindex;
 	float	 *vec;
 	glpoly_t *poly;
-	float	 *poly_vert;
 	float	  texscale;
 
 	if (fa->flags & (SURF_DRAWTURB | SURF_DRAWSKY))
@@ -1369,31 +1368,19 @@ static void Mod_PolyForUnlitSurface (qmodel_t *mod, msurface_t *fa)
 	else
 		texscale = (1.0 / 32.0); // to match r_notexture_mip
 
-	// convert edges back to a normal polygon
-	numverts = 0;
-	for (i = 0; i < fa->numedges; i++)
-	{
-		lindex = mod->surfedges[fa->firstedge + i];
-
-		if (lindex > 0)
-			vec = mod->vertexes[mod->edges[lindex].v[0]].position;
-		else
-			vec = mod->vertexes[mod->edges[-lindex].v[1]].position;
-		VectorCopy (vec, verts[numverts]);
-		numverts++;
-	}
-
 	// create the poly
 	poly = (glpoly_t *)Mem_Alloc (sizeof (glpoly_t) + (numverts - 4) * VERTEXSIZE * sizeof (float));
 	poly->next = NULL;
 	fa->polys = poly;
 	poly->numverts = numverts;
-	for (i = 0, vec = (float *)verts; i < numverts; i++, vec += 3)
+	for (i = 0; i < numverts; i++)
 	{
-		poly_vert = &poly->verts[0][0] + (i * VERTEXSIZE);
-		VectorCopy (vec, poly_vert);
-		poly_vert[3] = DotProduct (vec, fa->texinfo->vecs[0]) * texscale;
-		poly_vert[4] = DotProduct (vec, fa->texinfo->vecs[1]) * texscale;
+		lindex = mod->surfedges[fa->firstedge + i];
+		vec = (lindex > 0) ? mod->vertexes[mod->edges[lindex].v[0]].position : mod->vertexes[mod->edges[-lindex].v[1]].position;
+
+		VectorCopy (vec, poly->verts[i]);
+		poly->verts[i][3] = DotProduct (vec, fa->texinfo->vecs[0]) * texscale;
+		poly->verts[i][4] = DotProduct (vec, fa->texinfo->vecs[1]) * texscale;
 	}
 }
 
