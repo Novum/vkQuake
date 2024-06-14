@@ -60,7 +60,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define ENGINE_NAME_AND_VER "vkQuake " QS_STRINGIFY (QSS_DATE) VKQUAKE_VER_SUFFIX
 #else
 #define ENGINE_NAME_AND_VER \
-	"vkQuake-vso"           \
+	"vkQuake"               \
 	" " VKQUAKE_VER_STRING
 #endif
 
