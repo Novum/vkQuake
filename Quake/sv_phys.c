@@ -512,8 +512,7 @@ void SV_PushMove (edict_t *pusher, float movetime)
 
 		// remove the onground flag for non-players
 		if (check->v.movetype != MOVETYPE_WALK)
-			if (!pr_checkextension.value || PROG_TO_EDICT (check->v.groundentity) != pusher) // unless they're already riding us (prevents grenade sound spam)
-				check->v.flags = (int)check->v.flags & ~FL_ONGROUND;
+			check->v.flags = (int)check->v.flags & ~FL_ONGROUND;
 
 		VectorCopy (check->v.origin, entorig);
 		VectorCopy (check->v.origin, moved_from[num_moved]);
