@@ -63,7 +63,7 @@ endif
 
 NET_LIBS := -lws2_32
 
-CFLAGS += -I../Windows/codecs/include  -Imimalloc
+CFLAGS += -I../Windows/codecs/include
 CODEC_LINK = -L../Windows/codecs/x86
 
 VK_SDK_PATH ?= ../Windows/misc

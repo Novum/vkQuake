@@ -101,6 +101,7 @@ endif
 ifeq ($(USE_CODEC_UMX),1)
 CFLAGS += -DUSE_CODEC_UMX
 endif
+CFLAGS += -Imimalloc
 
 # ---------------------------
 # objects
