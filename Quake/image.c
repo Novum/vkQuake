@@ -168,6 +168,7 @@ byte *Image_LoadImage (const char *name, int *width, int *height, enum srcformat
 			}
 			else
 				Con_Warning ("couldn't load %s (%s)\n", loadfilename, stbi_failure_reason ());
+			fclose (f);
 			return data;
 		}
 	}
