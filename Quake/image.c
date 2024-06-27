@@ -51,10 +51,6 @@ static byte *Image_LoadLMP (FILE *f, int *width, int *height);
 // Suppress unused function warnings on GCC/clang
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-function"
-#if __GNUC__ >= 14
-#pragma GCC diagnostic ignored "-Wstringop-overflow"
-#pragma message "ignore stringop-overflow warnings in stb_image.h"
-#endif
 #endif
 
 #include "stb_image.h"
