@@ -1,10 +1,10 @@
-FROM ubuntu:20.04
+FROM ubuntu:24.04
 ARG DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update \
  && apt-get install -y apt-transport-https ca-certificates wget gnupg apt-utils \
  && wget -qO - https://packages.lunarg.com/lunarg-signing-key-pub.asc | apt-key add - \
- && wget -qO /etc/apt/sources.list.d/lunarg-vulkan-1.3.268-focal.list https://packages.lunarg.com/vulkan/1.3.268/lunarg-vulkan-1.3.268-focal.list \
+ && wget -qO /etc/apt/sources.list.d/lunarg-vulkan-1.3.275-focal.list https://packages.lunarg.com/vulkan/1.3.275/lunarg-vulkan-1.3.275-focal.list \
  && apt-get update \
  && apt-get install -y \
 	build-essential \
@@ -39,10 +39,10 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 
 RUN cd /tmp \
- && wget https://www.libsdl.org/release/SDL2-2.28.5.tar.gz \
- && tar -xzf SDL2-2.28.5.tar.gz \
- && rm SDL2-2.28.5.tar.gz \
- && cd /tmp/SDL2-2.28.5 \
+ && wget https://www.libsdl.org/release/SDL2-2.30.4.tar.gz \
+ && tar -xzf SDL2-2.30.4.tar.gz \
+ && rm SDL2-2.30.4.tar.gz \
+ && cd /tmp/SDL2-2.30.4 \
  && ./configure \
  && make -j \
  && make install
