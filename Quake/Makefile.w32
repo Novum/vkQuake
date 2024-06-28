@@ -76,6 +76,8 @@ COMMON_LIBS:= -lwinmm
 
 LIBS := $(COMMON_LIBS) $(NET_LIBS) $(CODEC_LINK) $(CODECLIBS) $(VULKAN_LINK) $(VULKAN_LIBS)
 
+SYSOBJ_RES = vkQuake.res
+
 # ---------------------------
 # targets / rules
 # ---------------------------

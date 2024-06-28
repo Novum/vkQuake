@@ -70,13 +70,15 @@ COMMON_LIBS:= -lwinmm
 
 LIBS := $(COMMON_LIBS) $(NET_LIBS) $(CODEC_LINK) $(CODECLIBS) $(VULKAN_LINK) $(VULKAN_LIBS)
 
+SYSOBJ_RES = vkQuake.res
+
 # ---------------------------
 # targets / rules
 # ---------------------------
 all: $(DEFAULT_TARGET) dll
 
 %.res: ../Windows/%.rc
-	$(WINDRES) -I../Windows --output-format=coff --target=pe-x86-64 -o $@ $<
+	$(WINDRES) -I../Windows -I../Quake --output-format=coff --target=pe-x86-64 -o $@ $<
 
 vkQuake.exe: $(SHADER_OBJS) $(OBJS) $(SYSOBJ_RES)
 	$(LINKER) $(SHADER_OBJS) $(OBJS) $(SYSOBJ_RES) $(LDFLAGS) $(LIBS) $(SDL_LIBS) -o $@

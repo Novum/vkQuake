@@ -4,6 +4,7 @@ CC = gcc
 HOST_CC = gcc
 LINKER = $(CC)
 STRIP ?= strip
+WINDRES ?= windres
 GLSLANG = glslangValidator
 DEBUG ?= 0
 
