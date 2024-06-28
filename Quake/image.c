@@ -26,6 +26,18 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 static byte *Image_LoadPCX (FILE *f, int *width, int *height);
 static byte *Image_LoadLMP (FILE *f, int *width, int *height);
 
+#ifdef _MSC_VER
+// Disable warning C4505: Unused functions
+#pragma warning(push)
+#pragma warning(disable : 4505)
+#endif
+
+#ifdef __GNUC__
+// Suppress unused function warnings on GCC/clang
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-function"
+#endif
+
 // STB_IMAGE config:
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_STATIC
@@ -40,19 +52,6 @@ static byte *Image_LoadLMP (FILE *f, int *width, int *height);
 #define STBI_MALLOC(sz)		   Mem_Alloc (sz)
 #define STBI_REALLOC(p, newsz) Mem_Realloc (p, newsz)
 #define STBI_FREE(p)		   Mem_Free (p)
-
-#ifdef _MSC_VER
-// Disable warning C4505: Unused functions
-#pragma warning(push)
-#pragma warning(disable : 4505)
-#endif
-
-#ifdef __GNUC__
-// Suppress unused function warnings on GCC/clang
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-function"
-#endif
-
 #include "stb_image.h"
 
 #ifdef __GNUC__

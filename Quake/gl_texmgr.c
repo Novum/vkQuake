@@ -32,8 +32,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "SDL.h"
 #endif
 
-#define STB_IMAGE_RESIZE_IMPLEMENTATION
-#define STB_IMAGE_RESIZE_STATIC
 #if defined(__GNUC__)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-function"
@@ -41,7 +39,16 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #pragma warning(push)
 #pragma warning(disable : 4505)
 #endif
+
+#define STB_IMAGE_RESIZE_IMPLEMENTATION
+#define STB_IMAGE_RESIZE_STATIC
+// STB_IMAGERESIZE config:
+// plug our Mem_Alloc in stb_image_resize:
+// use comma operator to evaluate c, to avoid "unused parameter" warnings
+#define STBIR_MALLOC(sz, c) ((void)(c), Mem_Alloc (sz))
+#define STBIR_FREE(p, c)	((void)(c), Mem_Free (p))
 #include "stb_image_resize.h"
+
 #if defined(__GNUC__)
 #pragma GCC diagnostic pop
 #elif defined(_MSC_VER)
