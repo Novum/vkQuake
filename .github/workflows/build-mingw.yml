@@ -33,7 +33,7 @@ jobs:
       run: |
         set -eu
         parallel="$(getconf _NPROCESSORS_ONLN)"
-        make -j"${parallel}" -C Quake -f ${{ matrix.platform.makefile }}
+        make -j"${parallel}" -C Quake -f ${{ matrix.platform.makefile }} all
     - name: Upload vkQuake
       uses: actions/upload-artifact@v4
       with:

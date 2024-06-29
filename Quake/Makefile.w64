@@ -85,8 +85,9 @@ vkQuake.exe: $(SHADER_OBJS) $(OBJS) $(SYSOBJ_RES)
 	$(call DO_STRIP,$@)
 
 dll:
-	cp ../Windows/codecs/x86/*.dll .
-	cp ../Windows/SDL2/lib/*.dll .
+	cp ../Windows/misc/x64/*.dll .
+	cp ../Windows/codecs/x64/*.dll .
+	cp ../Windows/SDL2/lib64/*.dll .
 
 release: vkQuake.exe
 debug:
