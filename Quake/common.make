@@ -19,7 +19,10 @@ CFLAGS += -g
 DO_STRIP=
 else
 DFLAGS += -DNDEBUG
-CFLAGS += -O3 -flto
+CFLAGS += -O3 
+ifndef W64DEVKIT
+CFLAGS += -flto=auto
+endif
 CFLAGS += $(call CHECK_GCC,-fweb,)
 CFLAGS += $(call CHECK_GCC,-frename-registers,)
 CFLAGS += $(call CHECK_GCC,-fno-asynchronous-unwind-tables,)
