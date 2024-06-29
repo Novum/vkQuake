@@ -72,6 +72,8 @@ LIBS := $(COMMON_LIBS) $(NET_LIBS) $(CODEC_LINK) $(CODECLIBS) $(VULKAN_LINK) $(V
 
 SYSOBJ_RES = vkQuake.res
 
+MINGW_PATH = ${MINGW_PREFIX}
+
 # ---------------------------
 # targets / rules
 # ---------------------------
@@ -85,7 +87,7 @@ vkQuake.exe: $(SHADER_OBJS) $(OBJS) $(SYSOBJ_RES)
 	$(call DO_STRIP,$@)
 
 dll:
-	cp ../Windows/misc/x64/*.dll .
+	cp $(MINGW_PATH)/bin/libwinpthread-1.dll .
 	cp ../Windows/codecs/x64/*.dll .
 	cp ../Windows/SDL2/lib64/*.dll .
 
