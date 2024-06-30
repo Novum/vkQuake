@@ -46,16 +46,16 @@ cvar_t		  r_sky_quality = {"r_sky_quality", "12", CVAR_NONE};
 cvar_t		  r_skyalpha = {"r_skyalpha", "1", CVAR_NONE};
 cvar_t		  r_skyfog = {"r_skyfog", "0.5", CVAR_NONE};
 
-int skytexorder[6] = {0, 2, 1, 3, 4, 5}; // for skybox
+const int skytexorder[6] = {0, 2, 1, 3, 4, 5}; // for skybox
 
-vec3_t skyclip[6] = {{1, 1, 0}, {1, -1, 0}, {0, -1, 1}, {0, 1, 1}, {1, 0, 1}, {-1, 0, 1}};
+const vec3_t skyclip[6] = {{1, 1, 0}, {1, -1, 0}, {0, -1, 1}, {0, 1, 1}, {1, 0, 1}, {-1, 0, 1}};
 
-int st_to_vec[6][3] = {
+const int st_to_vec[6][3] = {
 	{3, -1, 2}, {-3, 1, 2}, {1, 3, 2}, {-1, -3, 2}, {-2, -1, 3}, // straight up
 	{2, -1, -3}													 // straight down
 };
 
-int vec_to_st[6][3] = {{-2, 3, 1}, {2, 3, -1}, {1, 3, 2}, {-1, 3, -2}, {-2, -1, 3}, {-2, 1, -3}};
+const int vec_to_st[6][3] = {{-2, 3, 1}, {2, 3, -1}, {1, 3, 2}, {-1, 3, -2}, {-2, -1, 3}, {-2, 1, -3}};
 
 float skyfog; // ericw
 
@@ -565,7 +565,6 @@ Sky_ClipPoly
 */
 void Sky_ClipPoly (int nump, vec3_t vecs, int stage)
 {
-	float	*norm;
 	float	*v;
 	qboolean front, back;
 	float	 d, e;
@@ -584,10 +583,11 @@ void Sky_ClipPoly (int nump, vec3_t vecs, int stage)
 	}
 
 	front = back = false;
-	norm = skyclip[stage];
+
 	for (i = 0, v = vecs; i < nump; i++, v += 3)
 	{
-		d = DotProduct (v, norm);
+		d = DotProduct (v, skyclip[stage]);
+
 		if (d > ON_EPSILON)
 		{
 			front = true;
