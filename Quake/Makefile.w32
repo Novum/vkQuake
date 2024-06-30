@@ -78,7 +78,7 @@ LIBS := $(COMMON_LIBS) $(NET_LIBS) $(CODEC_LINK) $(CODECLIBS) $(VULKAN_LINK) $(V
 
 SYSOBJ_RES = vkQuake.res
 
-MINGW_PATH = ${MINGW_PREFIX}
+LIBWINPTHREAD = $(MSYSTEM_PREFIX)/bin/libwinpthread-1.dll
 
 # ---------------------------
 # targets / rules
@@ -93,7 +93,9 @@ vkQuake.exe: $(SHADER_OBJS) $(OBJS) $(SYSOBJ_RES)
 	$(call DO_STRIP,$@)
 
 dll:
-	cp $(MINGW_PATH)/bin/libwinpthread-1.dll .
+	if [ -f $(LIBWINPTHREAD) ]; then \
+		cp $(LIBWINPTHREAD)  . ; \
+	fi
 	cp ../Windows/codecs/x86/*.dll .
 	cp ../Windows/SDL2/lib/*.dll .
 
