@@ -63,9 +63,6 @@ float  host_netinterval = 1.0 / 72;
 cvar_t host_framerate = {"host_framerate", "0", CVAR_NONE}; // set for slow motion
 cvar_t host_speeds = {"host_speeds", "0", CVAR_NONE};		// set for running times
 cvar_t host_maxfps = {"host_maxfps", "200", CVAR_ARCHIVE};	// johnfitz
-
-cvar_t host_phys_cst_ticrate = {"host_phys_cst_ticrate", "0", CVAR_ARCHIVE}; // vso = [0 = disabled; 72]
-
 cvar_t host_timescale = {"host_timescale", "0", CVAR_NONE}; // johnfitz
 cvar_t max_edicts = {"max_edicts", "8192", CVAR_NONE};		// johnfitz //ericw -- changed from 2048 to 8192, removed CVAR_ARCHIVE
 cvar_t cl_nocsqc = {"cl_nocsqc", "0", CVAR_NONE};			// spike -- blocks the loading of any csqc modules
@@ -113,10 +110,6 @@ static void Max_Edicts_f (cvar_t *var)
 		Con_Printf ("Changes to max_edicts will not take effect until the next time a map is loaded.\n");
 }
 
-// forward declarations for below...
-static void Max_Fps_f (cvar_t *var);
-static void Phys_Ticrate_f (cvar_t *var);
-
 /*
 ================
 Max_Fps_f -- ericw
@@ -124,13 +117,6 @@ Max_Fps_f -- ericw
 */
 static void Max_Fps_f (cvar_t *var)
 {
-	// host_phys_cst_ticrate overrides normal behaviour
-	if (host_phys_cst_ticrate.value > 0)
-	{
-		Phys_Ticrate_f (&host_phys_cst_ticrate);
-		return;
-	}
-
 	if (var->value > 72 || var->value <= 0)
 	{
 		if (!host_netinterval)
@@ -145,27 +131,6 @@ static void Max_Fps_f (cvar_t *var)
 
 		if (var->value > 72)
 			Con_Warning ("host_maxfps above 72 breaks physics.\n");
-	}
-}
-
-/*
-================
-Phys_Ticrate_f -- vso
-================
-*/
-static void Phys_Ticrate_f (cvar_t *var)
-{
-	if (var->value > 0)
-	{
-		// clamp within valid limits, use only integer values
-		var->value = roundf (CLAMP (0, var->value, 72));
-
-		Con_Printf ("Using constant physics tics rate = %dHz.\n", (int)var->value);
-		host_netinterval = 1.0 / var->value;
-	}
-	else
-	{ // apply max_fps policy
-		Max_Fps_f (&host_maxfps);
 	}
 }
 
@@ -330,9 +295,6 @@ void Host_InitLocal (void)
 	Cvar_RegisterVariable (&host_maxfps); // johnfitz
 	Cvar_SetCallback (&host_maxfps, Max_Fps_f);
 	Cvar_RegisterVariable (&host_timescale); // johnfitz
-
-	Cvar_RegisterVariable (&host_phys_cst_ticrate);			   // vso
-	Cvar_SetCallback (&host_phys_cst_ticrate, Phys_Ticrate_f); // vso
 
 	Cvar_RegisterVariable (&cl_nocsqc);	 // spike
 	Cvar_RegisterVariable (&max_edicts); // johnfitz
