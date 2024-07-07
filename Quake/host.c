@@ -64,7 +64,7 @@ cvar_t host_framerate = {"host_framerate", "0", CVAR_NONE}; // set for slow moti
 cvar_t host_speeds = {"host_speeds", "0", CVAR_NONE};		// set for running times
 cvar_t host_maxfps = {"host_maxfps", "200", CVAR_ARCHIVE};	// johnfitz
 
-cvar_t host_phys_max_ticrate = {"host_phys_max_ticrate", "0", CVAR_ARCHIVE}; // vso = [0 = disabled; 72]
+cvar_t host_phys_cst_ticrate = {"host_phys_cst_ticrate", "0", CVAR_ARCHIVE}; // vso = [0 = disabled; 72]
 
 cvar_t host_timescale = {"host_timescale", "0", CVAR_NONE}; // johnfitz
 cvar_t max_edicts = {"max_edicts", "8192", CVAR_NONE};		// johnfitz //ericw -- changed from 2048 to 8192, removed CVAR_ARCHIVE
@@ -124,10 +124,10 @@ Max_Fps_f -- ericw
 */
 static void Max_Fps_f (cvar_t *var)
 {
-	// host_phys_max_ticrate overrides normal behaviour
-	if (host_phys_max_ticrate.value > 0)
+	// host_phys_cst_ticrate overrides normal behaviour
+	if (host_phys_cst_ticrate.value > 0)
 	{
-		Phys_Ticrate_f (&host_phys_max_ticrate);
+		Phys_Ticrate_f (&host_phys_cst_ticrate);
 		return;
 	}
 
@@ -160,7 +160,7 @@ static void Phys_Ticrate_f (cvar_t *var)
 		// clamp within valid limits, use only integer values
 		var->value = roundf (CLAMP (0, var->value, 72));
 
-		Con_Printf ("Using max physics tics rate = %dHz.\n", (int)var->value);
+		Con_Printf ("Using constant physics tics rate = %dHz.\n", (int)var->value);
 		host_netinterval = 1.0 / var->value;
 	}
 	else
@@ -331,8 +331,8 @@ void Host_InitLocal (void)
 	Cvar_SetCallback (&host_maxfps, Max_Fps_f);
 	Cvar_RegisterVariable (&host_timescale); // johnfitz
 
-	Cvar_RegisterVariable (&host_phys_max_ticrate);			   // vso
-	Cvar_SetCallback (&host_phys_max_ticrate, Phys_Ticrate_f); // vso
+	Cvar_RegisterVariable (&host_phys_cst_ticrate);			   // vso
+	Cvar_SetCallback (&host_phys_cst_ticrate, Phys_Ticrate_f); // vso
 
 	Cvar_RegisterVariable (&cl_nocsqc);	 // spike
 	Cvar_RegisterVariable (&max_edicts); // johnfitz
