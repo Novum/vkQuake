@@ -600,7 +600,7 @@ CL_ResetTrail
 */
 static void CL_ResetTrail (entity_t *ent)
 {
-	ent->traildelay = 1.f / 72.f;
+	ent->traildelay = 1.f / MAX_PHYSICS_FREQ;
 	VectorCopy (ent->origin, ent->trailorg);
 }
 
@@ -618,7 +618,7 @@ static void CL_RocketTrail (entity_t *ent, int type)
 		return;
 	R_RocketTrail (ent->trailorg, ent->origin, type);
 
-	ent->traildelay = q_max (0.f, ent->traildelay + 1.f / 72.f);
+	ent->traildelay = q_max (0.f, ent->traildelay + 1.f / MAX_PHYSICS_FREQ);
 	VectorCopy (ent->origin, ent->trailorg);
 }
 

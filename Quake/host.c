@@ -59,7 +59,7 @@ jmp_buf host_abortserver;
 jmp_buf screen_error;
 
 byte  *host_colormap;
-float  host_netinterval = 1.0 / 72;
+float  host_netinterval = 1.0 / MAX_PHYSICS_FREQ;
 cvar_t host_framerate = {"host_framerate", "0", CVAR_NONE}; // set for slow motion
 cvar_t host_speeds = {"host_speeds", "0", CVAR_NONE};		// set for running times
 cvar_t host_maxfps = {"host_maxfps", "200", CVAR_ARCHIVE};	// johnfitz
@@ -117,11 +117,11 @@ Max_Fps_f -- ericw
 */
 static void Max_Fps_f (cvar_t *var)
 {
-	if (var->value > 72 || var->value <= 0)
+	if (var->value > MAX_PHYSICS_FREQ || var->value <= 0)
 	{
 		if (!host_netinterval)
 			Con_Printf ("Using renderer/network isolation.\n");
-		host_netinterval = 1.0 / 72;
+		host_netinterval = 1.0 / MAX_PHYSICS_FREQ;
 	}
 	else
 	{
@@ -129,7 +129,7 @@ static void Max_Fps_f (cvar_t *var)
 			Con_Printf ("Disabling renderer/network isolation.\n");
 		host_netinterval = 0;
 
-		if (var->value > 72)
+		if (var->value > MAX_PHYSICS_FREQ)
 			Con_Warning ("host_maxfps above 72 breaks physics.\n");
 	}
 }
