@@ -271,7 +271,7 @@ PR_DoubleFormat
 */
 static const char *PR_DoubleFormat (double d)
 {
-	return abs (d - round (d)) < 0.05 ? "% 13.0lf  " : "% 15.1lf";
+	return fabs (d - round (d)) < 0.05 ? "% 13.0lf  " : "% 15.1lf";
 }
 
 /*
@@ -284,11 +284,11 @@ Returns a string describing *data in a type specific manner
 */
 static const char *PR_ValueString (int type, eval_t *val)
 {
-	static char	line[512];
-	char		fmt[64];
+	static char	 line[512];
+	char		 fmt[64];
 	const char	*str;
 	ddef_t		*def;
-	dfunction_t	*f;
+	dfunction_t *f;
 	edict_t		*ed;
 
 	type &= ~DEF_SAVEGLOBAL;
@@ -299,9 +299,9 @@ static const char *PR_ValueString (int type, eval_t *val)
 		q_snprintf (line, sizeof (line), "%s", PR_GetString (val->string));
 		break;
 	case ev_entity:
-		ed = PROG_TO_EDICT(val->edict);
-		str = PR_GetString(ed->v.classname);
-		q_snprintf (line, sizeof(line), *str ? "entity %i (%s)" : "entity %i", NUM_FOR_EDICT(ed), PR_GetString(ed->v.classname));
+		ed = PROG_TO_EDICT (val->edict);
+		str = PR_GetString (ed->v.classname);
+		q_snprintf (line, sizeof (line), *str ? "entity %i (%s)" : "entity %i", NUM_FOR_EDICT (ed), PR_GetString (ed->v.classname));
 		break;
 	case ev_function:
 		f = qcvm->functions + val->function;
