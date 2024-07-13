@@ -624,7 +624,7 @@ Okay to call even when the screen can't be updated
 void Con_SafePrintf (const char *fmt, ...)
 {
 	va_list argptr;
-	char	msg[1024];
+	char	msg[MAXPRINTMSG];
 	int		temp;
 
 	va_start (argptr, fmt);
