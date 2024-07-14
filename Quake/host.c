@@ -880,7 +880,7 @@ void _Host_Frame (double time)
 	// Run the server+networking (client->server->client), at a different rate from everyt
 	while ((host_netinterval == 0) || (accumtime >= host_netinterval))
 	{
-		float realframetime = host_frametime;
+		double realframetime = host_frametime;
 		if (host_netinterval && isDedicated == 0)
 		{
 			host_frametime = sv.active ? (listening ? q_min (accumtime, 0.017) : host_netinterval) : accumtime;
