@@ -51,12 +51,12 @@ COMPILE_TIME_ASSERT (CHECK_LARGE_FILE_SUPPORT, sizeof (off_t) >= sizeof (qfileof
 
 int Sys_fseek (FILE *file, qfileofs_t ofs, int origin)
 {
-	return fseeko (file, ofs, origin);
+	return fseeko (file, (off_t)ofs, origin);
 }
 
 qfileofs_t Sys_ftell (FILE *file)
 {
-	return ftello (file);
+	return (qfileofs_t)ftello (file);
 }
 
 int Sys_FileType (const char *path)

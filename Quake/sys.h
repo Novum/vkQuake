@@ -30,7 +30,7 @@ void Sys_Init (void);
 // file IO
 //
 
-typedef long long qfileofs_t;
+typedef int64_t qfileofs_t;
 
 int		   Sys_fseek (FILE *file, qfileofs_t ofs, int origin);
 qfileofs_t Sys_ftell (FILE *file);
