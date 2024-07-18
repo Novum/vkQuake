@@ -1129,7 +1129,7 @@ static void S_SoundList (void)
 			Con_SafePrintf (" ");											  // johnfitz -- was Con_Printf
 		Con_SafePrintf ("(%2db) %9i : %s\n", sc->width * 8, size, sfx->name); // johnfitz -- was Con_Printf
 	}
-	Con_Printf ("%i sounds, %zu bytes\n", num_sfx, total); // johnfitz -- added count
+	Con_Printf ("%i sounds, %lu bytes\n", num_sfx, (unsigned long)total); // johnfitz -- added count
 }
 
 void S_LocalSound (const char *name)
