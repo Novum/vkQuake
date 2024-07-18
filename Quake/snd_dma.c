@@ -1113,9 +1113,9 @@ static void S_SoundList (void)
 	int			i;
 	sfx_t	   *sfx;
 	sfxcache_t *sc;
-	int			size, total;
+	int			size;
 
-	total = 0;
+	size_t total = 0;
 	for (sfx = known_sfx, i = 0; i < num_sfx; i++, sfx++)
 	{
 		sc = (sfxcache_t *)sfx->cache;
@@ -1127,9 +1127,9 @@ static void S_SoundList (void)
 			Con_SafePrintf ("L"); // johnfitz -- was Con_Printf
 		else
 			Con_SafePrintf (" ");											  // johnfitz -- was Con_Printf
-		Con_SafePrintf ("(%2db) %6i : %s\n", sc->width * 8, size, sfx->name); // johnfitz -- was Con_Printf
+		Con_SafePrintf ("(%2db) %9i : %s\n", sc->width * 8, size, sfx->name); // johnfitz -- was Con_Printf
 	}
-	Con_Printf ("%i sounds, %i bytes\n", num_sfx, total); // johnfitz -- added count
+	Con_Printf ("%i sounds, %zu bytes\n", num_sfx, total); // johnfitz -- added count
 }
 
 void S_LocalSound (const char *name)
