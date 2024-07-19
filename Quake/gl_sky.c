@@ -568,7 +568,7 @@ void Sky_ClipPoly (int nump, vec3_t vecs, int stage)
 	float	 d, e;
 	int		 newc[2];
 
-	int i, j;
+	int i, j = 0;
 
 	const size_t MAX_CLIP_VERTS = nump + 2;
 
@@ -669,8 +669,6 @@ Sky_ProcessPoly
 */
 void Sky_ProcessPoly (cb_context_t *cbx, glpoly_t *p, float color[3])
 {
-	int i;
-
 	float *poly_vert;
 
 	// draw it
@@ -683,7 +681,7 @@ void Sky_ProcessPoly (cb_context_t *cbx, glpoly_t *p, float color[3])
 
 		TEMP_ALLOC (vec3_t, verts, MAX_CLIP_VERTS);
 
-		for (i = 0; i < MAX_CLIP_VERTS; i++)
+		for (size_t i = 0; i < MAX_CLIP_VERTS; i++)
 		{
 			poly_vert = &p->verts[0][0] + (i * VERTEXSIZE);
 			VectorSubtract (poly_vert, r_origin, verts[i]);
