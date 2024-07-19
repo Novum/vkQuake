@@ -25,8 +25,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 
-#define MAX_CLIP_VERTS 64
-
 float Fog_GetDensity (void);
 void  Fog_GetColor (float *c);
 
@@ -568,14 +566,19 @@ void Sky_ClipPoly (int nump, vec3_t vecs, int stage)
 	float	*v;
 	qboolean front, back;
 	float	 d, e;
-	float	 dists[MAX_CLIP_VERTS];
-	int		 sides[MAX_CLIP_VERTS];
-	vec3_t	 newv[2][MAX_CLIP_VERTS];
 	int		 newc[2];
-	int		 i, j;
 
-	if (nump > MAX_CLIP_VERTS - 2)
-		Sys_Error ("Sky_ClipPoly: MAX_CLIP_VERTS");
+	int i, j;
+
+	const size_t MAX_CLIP_VERTS = nump + 2;
+
+	TEMP_ALLOC (float, dists, MAX_CLIP_VERTS);
+	TEMP_ALLOC (int, sides, MAX_CLIP_VERTS);
+
+	// 2-dim vec3_t	 newv[2][MAX_CLIP_VERTS]; as 2 arrays
+	TEMP_ALLOC (vec3_t, newv_0, MAX_CLIP_VERTS);
+	TEMP_ALLOC (vec3_t, newv_1, MAX_CLIP_VERTS);
+
 	if (stage == 6) // fully clipped
 	{
 		Sky_ProjectPoly (nump, vecs);
@@ -620,17 +623,17 @@ void Sky_ClipPoly (int nump, vec3_t vecs, int stage)
 		switch (sides[i])
 		{
 		case SIDE_FRONT:
-			VectorCopy (v, newv[0][newc[0]]);
+			VectorCopy (v, newv_0[newc[0]]);
 			newc[0]++;
 			break;
 		case SIDE_BACK:
-			VectorCopy (v, newv[1][newc[1]]);
+			VectorCopy (v, newv_1[newc[1]]);
 			newc[1]++;
 			break;
 		case SIDE_ON:
-			VectorCopy (v, newv[0][newc[0]]);
+			VectorCopy (v, newv_0[newc[0]]);
 			newc[0]++;
-			VectorCopy (v, newv[1][newc[1]]);
+			VectorCopy (v, newv_1[newc[1]]);
 			newc[1]++;
 			break;
 		}
@@ -642,16 +645,21 @@ void Sky_ClipPoly (int nump, vec3_t vecs, int stage)
 		for (j = 0; j < 3; j++)
 		{
 			e = v[j] + d * (v[j + 3] - v[j]);
-			newv[0][newc[0]][j] = e;
-			newv[1][newc[1]][j] = e;
+			newv_0[newc[0]][j] = e;
+			newv_1[newc[1]][j] = e;
 		}
 		newc[0]++;
 		newc[1]++;
 	}
 
 	// continue
-	Sky_ClipPoly (newc[0], newv[0][0], stage + 1);
-	Sky_ClipPoly (newc[1], newv[1][0], stage + 1);
+	Sky_ClipPoly (newc[0], newv_0[0], stage + 1);
+	Sky_ClipPoly (newc[1], newv_1[0], stage + 1);
+
+	TEMP_FREE (dists);
+	TEMP_FREE (sides);
+	TEMP_FREE (newv_0);
+	TEMP_FREE (newv_1);
 }
 
 /*
@@ -661,8 +669,8 @@ Sky_ProcessPoly
 */
 void Sky_ProcessPoly (cb_context_t *cbx, glpoly_t *p, float color[3])
 {
-	int	   i;
-	vec3_t verts[MAX_CLIP_VERTS];
+	int i;
+
 	float *poly_vert;
 
 	// draw it
@@ -671,12 +679,18 @@ void Sky_ProcessPoly (cb_context_t *cbx, glpoly_t *p, float color[3])
 	// update sky bounds
 	if (need_bounds)
 	{
-		for (i = 0; i < p->numverts; i++)
+		const size_t MAX_CLIP_VERTS = p->numverts;
+
+		TEMP_ALLOC (vec3_t, verts, MAX_CLIP_VERTS);
+
+		for (i = 0; i < MAX_CLIP_VERTS; i++)
 		{
 			poly_vert = &p->verts[0][0] + (i * VERTEXSIZE);
 			VectorSubtract (poly_vert, r_origin, verts[i]);
 		}
-		Sky_ClipPoly (p->numverts, verts[0], 0);
+		Sky_ClipPoly (MAX_CLIP_VERTS, verts[0], 0);
+
+		TEMP_FREE (verts);
 	}
 }
 
