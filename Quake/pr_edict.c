@@ -782,14 +782,14 @@ void ED_Write (FILE *f, edict_t *ed)
 	{
 		d = &qcvm->fielddefs[i];
 		type = d->type;
-		assert (!!(type & DEF_SAVEGLOBAL) == (strlen (PR_GetString (d->s_name)) > 1 && PR_GetString (d->s_name)[strlen (PR_GetString (d->s_name)) - 2] == '_'));
+		// exclude tagged DEF_SAVEGLOBAL, which are saved by the dedicated ED_WriteGlobals()
 		if (type & DEF_SAVEGLOBAL)
 			continue;
 
 		v = (int *)((char *)&ed->v + d->ofs * 4);
 
 		// if the value is still all 0, skip the field
-		assert (type < 8 && ((type == ev_vector && type_size[type] == 3) || (type != ev_vector && type_size[type] == 1)));
+		assert (type < NUM_TYPE_SIZES && ((type == ev_vector && type_size[type] == 3) || (type != ev_vector && type_size[type] == 1)));
 		if (type != ev_vector && !v[0])
 			continue;
 		if (type == ev_vector && !v[0] && !v[1] && !v[2])
