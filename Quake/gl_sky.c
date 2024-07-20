@@ -561,7 +561,7 @@ void Sky_ProjectPoly (int nump, vec3_t vecs)
 Sky_ClipPoly
 =================
 */
-void Sky_ClipPoly (int nump, vec3_t vecs, int stage)
+static void Sky_ClipPoly (int nump, vec3_t vecs, int stage)
 {
 	float	*v;
 	qboolean front, back;
@@ -572,13 +572,6 @@ void Sky_ClipPoly (int nump, vec3_t vecs, int stage)
 
 	const size_t MAX_CLIP_VERTS = nump + 2;
 
-	TEMP_ALLOC (float, dists, MAX_CLIP_VERTS);
-	TEMP_ALLOC (int, sides, MAX_CLIP_VERTS);
-
-	// 2-dim vec3_t	 newv[2][MAX_CLIP_VERTS]; as 2 arrays
-	TEMP_ALLOC (vec3_t, newv_0, MAX_CLIP_VERTS);
-	TEMP_ALLOC (vec3_t, newv_1, MAX_CLIP_VERTS);
-
 	if (stage == 6) // fully clipped
 	{
 		Sky_ProjectPoly (nump, vecs);
@@ -586,6 +579,9 @@ void Sky_ClipPoly (int nump, vec3_t vecs, int stage)
 	}
 
 	front = back = false;
+
+	TEMP_ALLOC (int, sides, MAX_CLIP_VERTS);
+	TEMP_ALLOC (float, dists, MAX_CLIP_VERTS);
 
 	for (i = 0, v = vecs; i < nump; i++, v += 3)
 	{
@@ -607,7 +603,10 @@ void Sky_ClipPoly (int nump, vec3_t vecs, int stage)
 	}
 
 	if (!front || !back)
-	{ // not clipped
+	{
+		// not clipped
+		TEMP_FREE (dists);
+		TEMP_FREE (sides);
 		Sky_ClipPoly (nump, vecs, stage + 1);
 		return;
 	}
@@ -617,6 +616,10 @@ void Sky_ClipPoly (int nump, vec3_t vecs, int stage)
 	dists[i] = dists[0];
 	VectorCopy (vecs, (vecs + (i * 3)));
 	newc[0] = newc[1] = 0;
+
+	// 2-dim vec3_t	 newv[2][MAX_CLIP_VERTS]; as 2 arrays
+	TEMP_ALLOC (vec3_t, newv_0, MAX_CLIP_VERTS);
+	TEMP_ALLOC (vec3_t, newv_1, MAX_CLIP_VERTS);
 
 	for (i = 0, v = vecs; i < nump; i++, v += 3)
 	{
@@ -652,14 +655,17 @@ void Sky_ClipPoly (int nump, vec3_t vecs, int stage)
 		newc[1]++;
 	}
 
-	// continue
-	Sky_ClipPoly (newc[0], newv_0[0], stage + 1);
-	Sky_ClipPoly (newc[1], newv_1[0], stage + 1);
+	vec3_t tmp_newv_0 = {*(newv_0[0])};
+	vec3_t tmp_newv_1 = {*(newv_1[0])};
 
 	TEMP_FREE (dists);
 	TEMP_FREE (sides);
 	TEMP_FREE (newv_0);
 	TEMP_FREE (newv_1);
+
+	// continue
+	Sky_ClipPoly (newc[0], tmp_newv_0, stage + 1);
+	Sky_ClipPoly (newc[1], tmp_newv_1, stage + 1);
 }
 
 /*
@@ -686,9 +692,12 @@ void Sky_ProcessPoly (cb_context_t *cbx, glpoly_t *p, float color[3])
 			poly_vert = &p->verts[0][0] + (i * VERTEXSIZE);
 			VectorSubtract (poly_vert, r_origin, verts[i]);
 		}
-		Sky_ClipPoly (MAX_CLIP_VERTS, verts[0], 0);
+
+		vec3_t verts_0 = {*(verts[0])};
 
 		TEMP_FREE (verts);
+
+		Sky_ClipPoly (MAX_CLIP_VERTS, verts_0, 0);
 	}
 }
 
