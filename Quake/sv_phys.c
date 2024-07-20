@@ -514,7 +514,9 @@ static void SV_PushMove (edict_t *pusher, float movetime)
 		if (check->free)
 			continue;
 
-		if (check->v.movetype == MOVETYPE_PUSH || check->v.movetype == MOVETYPE_NONE || check->v.movetype == MOVETYPE_NOCLIP)
+		int movemask = 1 << (int)check->v.movetype;
+
+		if (movemask & ((1 << MOVETYPE_PUSH) | (1 << MOVETYPE_NONE) | (1 << MOVETYPE_NOCLIP)))
 			continue;
 
 		qboolean riding = false;
@@ -522,9 +524,20 @@ static void SV_PushMove (edict_t *pusher, float movetime)
 		// if the entity is standing on the pusher, it will definately be moved
 		if (!(((int)check->v.flags & FL_ONGROUND) && PROG_TO_EDICT (check->v.groundentity) == pusher))
 		{
+#ifdef USE_SSE2
+			__m128 check_absmin_vec = _mm_loadu_ps (check->v.absmin);
+			__m128 check_absmax_vec = _mm_loadu_ps (check->v.absmax);
+			__m128 maxs_vec = _mm_loadu_ps (maxs);
+			__m128 mins_vec = _mm_loadu_ps (mins);
+			if (_mm_movemask_ps (_mm_cmpngt_ps (check_absmin_vec, maxs_vec)) & 7)
+				continue;
+			if (_mm_movemask_ps (_mm_cmpnlt_ps (check_absmax_vec, mins_vec)) & 7)
+				continue;
+#else
 			if (check->v.absmin[0] >= maxs[0] || check->v.absmin[1] >= maxs[1] || check->v.absmin[2] >= maxs[2] || check->v.absmax[0] <= mins[0] ||
 				check->v.absmax[1] <= mins[1] || check->v.absmax[2] <= mins[2])
 				continue;
+#endif
 
 			// see if the ent's bbox is inside the pusher's final position
 			if (pusher->v.skin < 0)
