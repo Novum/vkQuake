@@ -1444,8 +1444,8 @@ static void Host_Loadgame_f (void)
 		PR_ClearEdictStrings ();
 
 	// load the edicts out of the savegame file
-	qcvm->time = 0;			   // mark freed edicts for immediate reuse
-	entnum = -1; // -1 is the globals
+	qcvm->time = 0; // mark freed edicts for immediate reuse
+	entnum = -1;	// -1 is the globals
 	while (*data)
 	{
 		while (*data == ' ' || *data == '\r' || *data == '\n')
@@ -1594,7 +1594,7 @@ static void Host_Loadgame_f (void)
 	qcvm->time = time;
 	for (i = entnum; i < qcvm->num_edicts; i++)
 		ED_Free (EDICT_NUM (i));
-		
+
 	if (fastload)
 	{
 		sv.lastchecktime = 0.0;
