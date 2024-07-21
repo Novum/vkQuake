@@ -417,7 +417,7 @@ Host_Status_f
 */
 static void Host_Status_f (void)
 {
-	void	  (*print_fn) (const char *fmt, ...) FUNCP_PRINTF (1, 2);
+	void (*print_fn) (const char *fmt, ...) FUNCP_PRINTF (1, 2);
 	client_t *client;
 	int		  seconds;
 	int		  minutes;
