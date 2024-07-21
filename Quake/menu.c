@@ -1443,8 +1443,8 @@ static void M_GameOptions_AdjustSliders (int dir, qboolean mouse)
 	case GAME_OPT_HUD_STYLE:
 		Cvar_SetValue ("scr_style", ((int)scr_style.value + 3 + dir) % 3);
 		break;
-	case GAME_OPT_AUTOLOAD: // load last save on death
-		Cvar_SetValue ("autoload", ((int)autoload.value + 3 + dir) % 3);
+	case GAME_OPT_AUTOLOAD: // load last save behaviour
+		Cvar_SetValue ("autoload", ((int)autoload.value + 4 + dir) % 4);
 		break;
 	case GAME_OPT_STARTUP_DEMOS:
 		Cvar_SetValue ("cl_startdemos", ((int)cl_startdemos.value + 2 + dir) % 2);
@@ -1585,7 +1585,15 @@ static void M_GameOptions_Draw (cb_context_t *cbx)
 
 		case GAME_OPT_AUTOLOAD:
 			M_Print (cbx, MENU_LABEL_X, y, "Load last save");
-			M_Print (cbx, MENU_VALUE_X, y, (autoload.value >= 2) ? "fast" : (autoload.value ? "on" : "off"));
+
+			if (autoload.value >= 2)
+			{
+				M_Print (cbx, MENU_VALUE_X, y, (autoload.value >= 3) ? "Ultra-fast" : "fast");
+			}
+			else
+			{
+				M_Print (cbx, MENU_VALUE_X, y, autoload.value ? "on" : "off");
+			}
 			break;
 
 		case GAME_OPT_STARTUP_DEMOS:
