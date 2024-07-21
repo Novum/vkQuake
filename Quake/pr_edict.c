@@ -1450,37 +1450,39 @@ void PR_ClearProgs (qcvm_t *vm)
 	PR_SwitchQCVM (oldvm);
 }
 
+// extension fields:
+struct
+{
+	const char *fname;
+	etype_t		type;
+	int			newidx;
+} extrafields[] = {
+	// table of engine fields to add. we'll be using ED_FindFieldOffset for these later.
+	// this is useful for fields that should be defined for mappers which are not defined by the mod.
+	// future note: mutators will need to edit the mutator's globaldefs table too. remember to handle vectors and their 3 globals too.
+	{"alpha", ev_float},		  // just because we can (though its already handled in a weird hacky way)
+	{"scale", ev_float},		  // hurrah for being able to rescale entities.
+	{"emiteffectnum", ev_float},  // constantly emitting particles, even without moving.
+	{"traileffectnum", ev_float}, // custom effect for trails
+								  //{"glow_size",		ev_float},	//deprecated particle trail rubbish
+								  //{"glow_color",	ev_float},	//deprecated particle trail rubbish
+	{"tag_entity", ev_float},	  // for setattachment to not bug out when omitted.
+	{"tag_index", ev_float},	  // for setattachment to not bug out when omitted.
+	{"modelflags", ev_float},	  // deprecated rubbish to fill the high 8 bits of effects.
+								  //{"vw_index",		ev_float},	//modelindex2
+								  //{"pflags",		ev_float},	//for rtlights
+								  //{"drawflags",		ev_float},	//hexen2 compat
+								  //{"abslight",		ev_float},	//hexen2 compat
+	{"colormod", ev_vector},	  // lighting tints
+								  //{"glowmod",		ev_vector},	//fullbright tints
+								  //{"fatness",		ev_float},	//bloated rendering...
+								  //{"gravitydir",	ev_vector},	//says which direction gravity should act for this ent...
+
+};
+
 // makes sure extension fields are actually registered so they can be used for mappers without qc changes. eg so scale can be used.
 static void PR_MergeEngineFieldDefs (void)
 {
-	struct
-	{
-		const char *fname;
-		etype_t		type;
-		int			newidx;
-	} extrafields[] = {
-		// table of engine fields to add. we'll be using ED_FindFieldOffset for these later.
-		// this is useful for fields that should be defined for mappers which are not defined by the mod.
-		// future note: mutators will need to edit the mutator's globaldefs table too. remember to handle vectors and their 3 globals too.
-		{"alpha", ev_float},		  // just because we can (though its already handled in a weird hacky way)
-		{"scale", ev_float},		  // hurrah for being able to rescale entities.
-		{"emiteffectnum", ev_float},  // constantly emitting particles, even without moving.
-		{"traileffectnum", ev_float}, // custom effect for trails
-									  //{"glow_size",		ev_float},	//deprecated particle trail rubbish
-									  //{"glow_color",	ev_float},	//deprecated particle trail rubbish
-		{"tag_entity", ev_float},	  // for setattachment to not bug out when omitted.
-		{"tag_index", ev_float},	  // for setattachment to not bug out when omitted.
-		{"modelflags", ev_float},	  // deprecated rubbish to fill the high 8 bits of effects.
-									  //{"vw_index",		ev_float},	//modelindex2
-									  //{"pflags",		ev_float},	//for rtlights
-									  //{"drawflags",		ev_float},	//hexen2 compat
-									  //{"abslight",		ev_float},	//hexen2 compat
-		{"colormod", ev_vector},	  // lighting tints
-									  //{"glowmod",		ev_vector},	//fullbright tints
-									  //{"fatness",		ev_float},	//bloated rendering...
-									  //{"gravitydir",	ev_vector},	//says which direction gravity should act for this ent...
-
-	};
 	int			 maxofs = qcvm->progs->entityfields;
 	int			 maxdefs = qcvm->progs->numfielddefs;
 	unsigned int j, a;
@@ -1746,7 +1748,8 @@ qboolean PR_LoadProgs (const char *filename, qboolean fatal, unsigned int needcr
 		qcvm->fielddefs[i].s_name = LittleLong (qcvm->fielddefs[i].s_name);
 	}
 	qcvm->fielddefs_map = HashMap_Create (const char *, ddef_t *, &HashStr, &HashStrCmp);
-	HashMap_Reserve (qcvm->fielddefs_map, qcvm->progs->numfielddefs + 11); // up to 7 scalar + 1 vector engine autofields
+	HashMap_Reserve (
+		qcvm->fielddefs_map, qcvm->progs->numfielddefs + countof (extrafields) * 3); // assume size of vectors for all engine autofields, for margin.
 	for (i = qcvm->progs->numfielddefs - 1; i >= 0; --i)
 	{
 		const char	 *fielddef_name = PR_GetString (qcvm->fielddefs[i].s_name);
