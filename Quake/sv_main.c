@@ -3251,6 +3251,7 @@ void SV_SpawnServer (const char *server)
 
 	// create a baseline for more efficient communications
 	SV_CreateBaseline ();
+	qcvm->min_edicts = qcvm->num_edicts;
 
 	// johnfitz -- warn if signon buffer larger than standard server can handle
 	if (sv.signon.cursize > 8000 - 2) // max size that will fit into 8000-sized client->message buffer with 2 extra bytes on the end

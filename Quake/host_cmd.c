@@ -417,7 +417,7 @@ Host_Status_f
 */
 static void Host_Status_f (void)
 {
-	void (*print_fn) (const char *fmt, ...) FUNCP_PRINTF (1, 2);
+	void	  (*print_fn) (const char *fmt, ...) FUNCP_PRINTF (1, 2);
 	client_t *client;
 	int		  seconds;
 	int		  minutes;
@@ -1156,8 +1156,11 @@ static void Host_Savegame_f (void)
 	for (i = 0; i < qcvm->num_edicts; i++)
 	{
 		ED_Write (f, EDICT_NUM (i));
-		fflush (f);
 	}
+
+	// padding to min with 'free' edicts for savegame compatibility
+	for (; i < qcvm->min_edicts; i++)
+		fprintf (f, "{\n}\n");
 
 	// add extra info (lightstyles, precaches, etc) in a way that's supposed to be compatible with DP.
 	// sidenote - this provides extended lightstyles and support for late precaches
