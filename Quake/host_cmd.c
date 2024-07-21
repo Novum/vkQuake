@@ -1158,10 +1158,6 @@ static void Host_Savegame_f (void)
 		ED_Write (f, EDICT_NUM (i));
 	}
 
-	// padding to min with 'free' edicts for savegame compatibility
-	for (; i < qcvm->min_edicts; i++)
-		fprintf (f, "{\n}\n");
-
 	// add extra info (lightstyles, precaches, etc) in a way that's supposed to be compatible with DP.
 	// sidenote - this provides extended lightstyles and support for late precaches
 	// it does NOT protect against spawnfunc precache changes - we would need to include makestatics here too (and optionally baselines, or just recalculate
@@ -1308,7 +1304,7 @@ static void Host_Loadgame_f (void)
 	const char *data;
 	int			i;
 	edict_t	   *ent;
-	int			entnum, lastusedent;
+	int			entnum;
 	int			version;
 	float		spawn_parms[NUM_TOTAL_SPAWN_PARMS];
 	qboolean	was_recording = cls.demorecording;
@@ -1449,7 +1445,7 @@ static void Host_Loadgame_f (void)
 
 	// load the edicts out of the savegame file
 	qcvm->time = 0;			   // mark freed edicts for immediate reuse
-	entnum = lastusedent = -1; // -1 is the globals
+	entnum = -1; // -1 is the globals
 	while (*data)
 	{
 		while (*data == ' ' || *data == '\r' || *data == '\n')
@@ -1589,24 +1585,16 @@ static void Host_Loadgame_f (void)
 
 			// link it into the bsp tree
 			if (!ent->free)
-			{
 				SV_LinkEdict (ent, false);
-				lastusedent = entnum;
-			}
 		}
 
 		entnum++;
 	}
 
-	for (i = lastusedent + 1; i < q_max (qcvm->num_edicts, entnum); i++)
-	{
-		ED_Free (EDICT_NUM (i));
-		ED_RemoveFromFreeList (EDICT_NUM (i));
-		memset (EDICT_NUM (i), 0, qcvm->edict_size);
-	}
 	qcvm->time = time;
-	qcvm->num_edicts = lastusedent + 1;
-
+	for (i = entnum; i < qcvm->num_edicts; i++)
+		ED_Free (EDICT_NUM (i));
+		
 	if (fastload)
 	{
 		sv.lastchecktime = 0.0;
@@ -1623,6 +1611,10 @@ static void Host_Loadgame_f (void)
 
 		Send_Spawn_Info (svs.clients, true);
 	}
+	else if (entnum < qcvm->num_edicts)
+		Con_Warning ("Save game had less entities than map (%d < %d)\n", entnum, qcvm->num_edicts); // should be Host_Error, but try to recover
+
+	qcvm->num_edicts = q_max (qcvm->num_edicts, entnum);
 
 	Mem_Free (start);
 	start = NULL;
