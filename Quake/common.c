@@ -1954,6 +1954,36 @@ const char *COM_ParseStringNewline (const char *buffer)
 	return buffer + consumed;
 }
 
+size_t COM_SanitizeDescriptionString (char *dst, size_t dstsize, const char *src, bool remove_color)
+{
+	int srcpos, dstpos;
+
+	if (!dstsize)
+		return 0;
+
+	for (srcpos = dstpos = 0; src[srcpos] && (size_t)dstpos + 1 < dstsize; srcpos++)
+	{
+		char c = src[srcpos] & (remove_color ? 0x7f : 0xFF); // remove_color
+
+		if (c == '\n' || c == '\r') // replace newlines with spaces
+			c = ' ';
+		else if (c == '\\' && src[srcpos + 1] == 'n') // replace '\\' followed by 'n' with space
+		{
+			c = ' ';
+			srcpos++;
+		}
+		// remove leading spaces, replace consecutive spaces with single one
+		if (c != ' ' || (dstpos > 0 && dst[dstpos - 1] != c))
+			dst[dstpos++] = c;
+	}
+	// remove trailing space, if any
+	if (dstpos > 0 && dst[dstpos - 1] == ' ')
+		--dstpos;
+
+	dst[dstpos] = '\0';
+	return dstpos;
+}
+
 /*
 =================
 COM_LoadPackFile -- johnfitz -- modified based on topaz's tutorial

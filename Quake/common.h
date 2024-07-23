@@ -381,6 +381,21 @@ const char *COM_ParseFloatNewline (const char *buffer, float *value);
 // newline. Returns advanced buffer position.
 const char *COM_ParseStringNewline (const char *buffer);
 
+/*
+=================
+COM_SanitizeDescriptionString
+
+Cleans up strings commonly found in map descriptions:
+- removes colors if remove_color = true
+- replaces newlines with spaces
+- replaces consecutive spaces with single one
+- removes leading/trailing spaces
+
+Returns dst string length (excluding NUL terminator)
+=================
+*/
+size_t COM_SanitizeDescriptionString (char *dst, size_t dstsize, const char *src, bool remove_color);
+
 #define FS_ENT_NONE		 (0)
 #define FS_ENT_FILE		 (1 << 0)
 #define FS_ENT_DIRECTORY (1 << 1)

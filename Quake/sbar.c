@@ -481,12 +481,16 @@ void Sbar_SoloScoreboard (cb_context_t *cbx)
 	right = 312 - strlen (str) * 8;
 	Sbar_DrawString (cbx, right, 12, str);
 
+	char cleanname[sizeof (cl.levelname)];
+	COM_SanitizeDescriptionString (cleanname, sizeof (cleanname), cl.levelname, false);
+
 	if (!fitzmode)
 	{ /* QuakeSpasm customization: */
 		q_snprintf (str, sizeof (str), "skill %i", (int)(skill.value + 0.5));
 		Sbar_DrawString (cbx, (left + right) / 2 - strlen (str) * 4, 12, str);
 
-		q_snprintf (str, sizeof (str), "%s (%s)", cl.levelname, cl.mapname);
+		q_snprintf (str, sizeof (str), "%s (%s)", cleanname, cl.mapname);
+
 		len = strlen (str);
 		if (len > 40)
 			Sbar_DrawScrollString (cbx, 0, 4, 320, str);
@@ -501,11 +505,11 @@ void Sbar_SoloScoreboard (cb_context_t *cbx)
 	q_snprintf (str, sizeof (str), "%i:%i%i", minutes, tens, units);
 	Sbar_DrawString (cbx, 160 - strlen (str) * 4, 12, str);
 
-	len = strlen (cl.levelname);
+	len = strlen (cleanname);
 	if (len > 40)
-		Sbar_DrawScrollString (cbx, 0, 4, 320, cl.levelname);
+		Sbar_DrawScrollString (cbx, 0, 4, 320, cleanname);
 	else
-		Sbar_DrawString (cbx, 160 - len * 4, 4, cl.levelname);
+		Sbar_DrawString (cbx, 160 - len * 4, 4, cleanname);
 }
 
 /*

@@ -1029,25 +1029,22 @@ Writes a SAVEGAME_COMMENT_LENGTH character comment describing the current
 */
 static void Host_SavegameComment (char text[SAVEGAME_COMMENT_LENGTH + 1])
 {
-	int	  i;
-	char  kills[20];
-	char *p;
+	int	 i;
+	char kills[20];
 
 	for (i = 0; i < SAVEGAME_COMMENT_LENGTH; i++)
 		text[i] = ' ';
 	text[SAVEGAME_COMMENT_LENGTH] = '\0';
 
-	i = (int)strlen (cl.levelname);
+	// Remove CR/LFs from level name to avoid broken saves, e.g. with autumn_sp map:
+	// sanitize Level name:
+	char cleanname[sizeof (cl.levelname)];
+	COM_SanitizeDescriptionString (cleanname, sizeof (cleanname), cl.levelname, true);
+
+	i = (int)strlen (cleanname);
 	if (i > 22)
 		i = 22;
-	memcpy (text, cl.levelname, (size_t)i);
-
-	// Remove CR/LFs from level name to avoid broken saves, e.g. with autumn_sp map:
-	// https://celephais.net/board/view_thread.php?id=60452&start=3666
-	while ((p = strchr (text, '\n')) != NULL)
-		*p = ' ';
-	while ((p = strchr (text, '\r')) != NULL)
-		*p = ' ';
+	memcpy (text, cleanname, (size_t)i);
 
 	sprintf (kills, "kills:%3i/%3i", cl.stats[STAT_MONSTERS], cl.stats[STAT_TOTALMONSTERS]);
 	memcpy (text + 22, kills, strlen (kills));
