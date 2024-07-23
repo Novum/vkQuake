@@ -605,9 +605,10 @@ static void Sky_ClipPoly (int nump, vec3_t vecs, int stage)
 	if (!front || !back)
 	{
 		// not clipped
+		Sky_ClipPoly (nump, vecs, stage + 1);
+
 		TEMP_FREE (dists);
 		TEMP_FREE (sides);
-		Sky_ClipPoly (nump, vecs, stage + 1);
 		return;
 	}
 
@@ -655,17 +656,14 @@ static void Sky_ClipPoly (int nump, vec3_t vecs, int stage)
 		newc[1]++;
 	}
 
-	vec3_t tmp_newv_0 = {*(newv_0[0])};
-	vec3_t tmp_newv_1 = {*(newv_1[0])};
+	// continue
+	Sky_ClipPoly (newc[0], newv_0[0], stage + 1);
+	Sky_ClipPoly (newc[1], newv_1[0], stage + 1);
 
 	TEMP_FREE (dists);
 	TEMP_FREE (sides);
 	TEMP_FREE (newv_0);
 	TEMP_FREE (newv_1);
-
-	// continue
-	Sky_ClipPoly (newc[0], tmp_newv_0, stage + 1);
-	Sky_ClipPoly (newc[1], tmp_newv_1, stage + 1);
 }
 
 /*
@@ -692,12 +690,9 @@ void Sky_ProcessPoly (cb_context_t *cbx, glpoly_t *p, float color[3])
 			poly_vert = &p->verts[0][0] + (i * VERTEXSIZE);
 			VectorSubtract (poly_vert, r_origin, verts[i]);
 		}
-
-		vec3_t verts_0 = {*(verts[0])};
+		Sky_ClipPoly (MAX_CLIP_VERTS, verts[0], 0);
 
 		TEMP_FREE (verts);
-
-		Sky_ClipPoly (MAX_CLIP_VERTS, verts_0, 0);
 	}
 }
 
