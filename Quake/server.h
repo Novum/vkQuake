@@ -283,6 +283,9 @@ typedef enum
 	EF_MUZZLEFLASH 				= 2,
 	EF_BRIGHTLIGHT 				= 4,
 	EF_DIMLIGHT 				= 8,
+	EF_QEX_QUADLIGHT			= 16,	// 2021 rerelease
+	EF_QEX_PENTALIGHT			= 32,	// 2021 rerelease
+	EF_QEX_CANDLELIGHT			= 64,	// 2021 rerelease
 } efx_t;
 
 // spawnflags
