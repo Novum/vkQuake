@@ -681,16 +681,17 @@ void Sky_ProcessPoly (cb_context_t *cbx, glpoly_t *p, float color[3])
 	// update sky bounds
 	if (need_bounds)
 	{
-		const size_t MAX_CLIP_VERTS = p->numverts;
+		const size_t MAX_CLIP_VERTS = p->numverts + 2;
+		const int num_verts = p->numverts;
 
 		TEMP_ALLOC (vec3_t, verts, MAX_CLIP_VERTS);
 
-		for (size_t i = 0; i < MAX_CLIP_VERTS; i++)
+		for (int i = 0; i < num_verts; i++)
 		{
 			poly_vert = &p->verts[0][0] + (i * VERTEXSIZE);
 			VectorSubtract (poly_vert, r_origin, verts[i]);
 		}
-		Sky_ClipPoly (MAX_CLIP_VERTS, verts[0], 0);
+		Sky_ClipPoly (num_verts, verts[0], 0);
 
 		TEMP_FREE (verts);
 	}
