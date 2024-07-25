@@ -682,7 +682,7 @@ void Sky_ProcessPoly (cb_context_t *cbx, glpoly_t *p, float color[3])
 	if (need_bounds)
 	{
 		const size_t MAX_CLIP_VERTS = p->numverts + 2;
-		const int num_verts = p->numverts;
+		const int	 num_verts = p->numverts;
 
 		TEMP_ALLOC (vec3_t, verts, MAX_CLIP_VERTS);
 
