@@ -31,6 +31,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 extern cvar_t pausable;
 extern cvar_t autoload;
+extern cvar_t autofastload;
 
 int current_skill;
 
@@ -1306,7 +1307,7 @@ static void Host_Loadgame_f (void)
 	float		spawn_parms[NUM_TOTAL_SPAWN_PARMS];
 	qboolean	was_recording = cls.demorecording;
 	int			old_skill = current_skill;
-	qboolean	fastload = !!strstr (Cmd_Argv (0), "fast") || autoload.value >= 3;
+	qboolean	fastload = !!strstr (Cmd_Argv (0), "fast") || autofastload.value;
 
 	if (cmd_source != src_command)
 		return;

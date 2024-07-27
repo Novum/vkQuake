@@ -85,6 +85,7 @@ cvar_t coop = {"coop", "0", CVAR_NONE};				// 0 or 1
 cvar_t pausable = {"pausable", "1", CVAR_NONE};
 
 cvar_t autoload = {"autoload", "1", CVAR_ARCHIVE};
+cvar_t autofastload = {"autofastload", "0", CVAR_ARCHIVE};
 
 cvar_t developer = {"developer", "0", CVAR_NONE};
 
@@ -363,6 +364,7 @@ void Host_InitLocal (void)
 	Cvar_RegisterVariable (&pausable);
 
 	Cvar_RegisterVariable (&autoload);
+	Cvar_RegisterVariable (&autofastload);
 
 	Cvar_RegisterVariable (&temp1);
 
