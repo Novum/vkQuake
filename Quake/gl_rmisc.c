@@ -1489,26 +1489,26 @@ void R_CreateDescriptorPool ()
 {
 	ZEROED_STRUCT_ARRAY (VkDescriptorPoolSize, pool_sizes, 9);
 	pool_sizes[0].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	pool_sizes[0].descriptorCount = 32 + (MAX_SANITY_LIGHTMAPS * 2) + (MAX_GLTEXTURES + 1);
+	pool_sizes[0].descriptorCount = MIN_NB_DESCRIPTORS_PER_TYPE + (MAX_SANITY_LIGHTMAPS * 2) + (MAX_GLTEXTURES + 1);
 	pool_sizes[1].type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-	pool_sizes[1].descriptorCount = 32 + MAX_GLTEXTURES + MAX_SANITY_LIGHTMAPS;
+	pool_sizes[1].descriptorCount = MIN_NB_DESCRIPTORS_PER_TYPE + MAX_GLTEXTURES + MAX_SANITY_LIGHTMAPS;
 	pool_sizes[2].type = VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER;
-	pool_sizes[2].descriptorCount = 32;
+	pool_sizes[2].descriptorCount = MIN_NB_DESCRIPTORS_PER_TYPE;
 	pool_sizes[3].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	pool_sizes[3].descriptorCount = 32;
+	pool_sizes[3].descriptorCount = MIN_NB_DESCRIPTORS_PER_TYPE;
 	pool_sizes[4].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-	pool_sizes[4].descriptorCount = 32 + MAX_SANITY_LIGHTMAPS * 2;
+	pool_sizes[4].descriptorCount = MIN_NB_DESCRIPTORS_PER_TYPE + MAX_SANITY_LIGHTMAPS * 2;
 	pool_sizes[5].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
-	pool_sizes[5].descriptorCount = 32 + (MAX_SANITY_LIGHTMAPS * 2);
+	pool_sizes[5].descriptorCount = MIN_NB_DESCRIPTORS_PER_TYPE + (MAX_SANITY_LIGHTMAPS * 2);
 	pool_sizes[6].type = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
-	pool_sizes[6].descriptorCount = 32;
+	pool_sizes[6].descriptorCount = MIN_NB_DESCRIPTORS_PER_TYPE;
 	pool_sizes[7].type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-	pool_sizes[7].descriptorCount = 32;
+	pool_sizes[7].descriptorCount = MIN_NB_DESCRIPTORS_PER_TYPE + (1 + MAXLIGHTMAPS * 3 / 4) * MAX_SANITY_LIGHTMAPS;
 	int num_sizes = 8;
 	if (vulkan_globals.ray_query)
 	{
 		pool_sizes[8].type = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
-		pool_sizes[8].descriptorCount = 32 + MAX_SANITY_LIGHTMAPS;
+		pool_sizes[8].descriptorCount = MIN_NB_DESCRIPTORS_PER_TYPE + MAX_SANITY_LIGHTMAPS;
 		num_sizes = 9;
 	}
 
