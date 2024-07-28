@@ -1590,7 +1590,7 @@ static void M_GameOptions_Draw (cb_context_t *cbx)
 
 		case GAME_OPT_FAST_LOADING:
 			M_Print (cbx, MENU_LABEL_X, y, "Fast loading");
-			M_Print (cbx, MENU_VALUE_X, y, (autofastload.value > 0) ? "on" : "off");
+			M_DrawCheckbox (cbx, MENU_VALUE_X, y, autofastload.value);
 			break;
 
 		case GAME_OPT_AUTOLOAD:
