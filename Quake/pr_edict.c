@@ -64,11 +64,13 @@ angles and bad trails.
 edict_t *ED_Alloc (void)
 {
 	edict_t *e = qcvm->free_edicts_head;
+
 	if (e && ((e->freetime < 2) || (qcvm->time - e->freetime) > 0.5))
 	{
 		assert (e->free);
 		memset (&e->v, 0, qcvm->progs->entityfields * 4);
 		e->free = false;
+
 		if (e == qcvm->free_edicts_tail)
 		{
 			assert (e->next_free == NULL);
@@ -76,10 +78,14 @@ edict_t *ED_Alloc (void)
 		}
 		else
 			assert (e->next_free);
+
 		qcvm->free_edicts_head = e->next_free;
+
 		assert (!e->prev_free);
+
 		if (e->next_free)
 			e->next_free->prev_free = NULL;
+
 		e->next_free = NULL;
 		return e;
 	}
@@ -90,6 +96,27 @@ edict_t *ED_Alloc (void)
 	e = EDICT_NUM (qcvm->num_edicts++);
 	e->baseline = nullentitystate;
 	return e;
+}
+
+/*
+=================
+ED_AddToFreeList
+=================
+*/
+void ED_AddToFreeList (edict_t *ed)
+{
+	if (qcvm->free_edicts_head == NULL)
+	{
+		assert (!qcvm->free_edicts_tail);
+		qcvm->free_edicts_head = ed;
+		qcvm->free_edicts_tail = ed;
+	}
+	else
+	{
+		ed->prev_free = qcvm->free_edicts_tail;
+		qcvm->free_edicts_tail->next_free = ed;
+		qcvm->free_edicts_tail = ed;
+	}
 }
 
 /*
@@ -128,25 +155,13 @@ void ED_Free (edict_t *ed)
 
 	assert (ed->next_free == NULL);
 	assert (ed->prev_free == NULL);
-	if (qcvm->free_edicts_head == NULL)
-	{
-		assert (!qcvm->free_edicts_tail);
-		qcvm->free_edicts_head = ed;
-		qcvm->free_edicts_tail = ed;
-	}
-	else
-	{
-		ed->prev_free = qcvm->free_edicts_tail;
-		qcvm->free_edicts_tail->next_free = ed;
-		qcvm->free_edicts_tail = ed;
-	}
+
+	ED_AddToFreeList (ed);
 }
 
 /*
 =================
 ED_RemoveFromFreeList
-
-Used at load time to place edicts at a specifit spot, and to trim qcvm->num_edicts
 =================
 */
 void ED_RemoveFromFreeList (edict_t *ed)
@@ -729,11 +744,11 @@ void ED_Print (edict_t *ed)
 
 	if (ed->free)
 	{
-		Con_SafePrintf ("FREE\n");
+		Con_SafePrintf ("EDICT %5i: FREE, age: %5.1f\n", NUM_FOR_EDICT (ed), qcvm->time - ed->freetime);
 		return;
 	}
 
-	q_snprintf (buf, sizeof (buf), "\nEDICT %i:\n", NUM_FOR_EDICT (ed)); // johnfitz -- was Con_Printf
+	q_snprintf (buf, sizeof (buf), "\nEDICT %5i:\n", NUM_FOR_EDICT (ed)); // johnfitz -- was Con_Printf
 	p = buf + strlen (buf);
 	for (i = 1; i < qcvm->progs->numfielddefs; i++)
 	{
@@ -753,7 +768,7 @@ void ED_Print (edict_t *ed)
 		p += l;
 	}
 
-	Con_SafePrintf ("%s", buf);
+	Con_SafePrintf ("%s\n", buf);
 }
 
 /*
@@ -886,18 +901,22 @@ For debugging
 static void ED_Count (void)
 {
 	edict_t *ent;
-	int		 i, active, models, solid, step;
+	int		 i, active, models, solid, step, free_edicts;
 
 	if (!sv.active)
 		return;
 
 	PR_SwitchQCVM (&sv.qcvm);
-	active = models = solid = step = 0;
+	active = models = solid = step = free_edicts = 0;
 	for (i = 0; i < qcvm->num_edicts; i++)
 	{
 		ent = EDICT_NUM (i);
 		if (ent->free)
+		{
+			free_edicts++;
 			continue;
+		}
+
 		active++;
 		if (ent->v.solid)
 			solid++;
@@ -907,11 +926,12 @@ static void ED_Count (void)
 			step++;
 	}
 
-	Con_Printf ("num_edicts:%3i\n", qcvm->num_edicts);
-	Con_Printf ("active    :%3i\n", active);
-	Con_Printf ("view      :%3i\n", models);
-	Con_Printf ("touch     :%3i\n", solid);
-	Con_Printf ("step      :%3i\n", step);
+	Con_Printf ("num_edicts: %5i\n", qcvm->num_edicts);
+	Con_Printf ("active    : %5i\n", active);
+	Con_Printf ("free      : %5i\n", free_edicts);
+	Con_Printf ("view      : %5i\n", models);
+	Con_Printf ("touch     : %5i\n", solid);
+	Con_Printf ("step      : %5i\n", step);
 	PR_SwitchQCVM (NULL);
 }
 

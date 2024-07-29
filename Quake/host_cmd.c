@@ -1442,8 +1442,7 @@ static void Host_Loadgame_f (void)
 		PR_ClearEdictStrings ();
 
 	// load the edicts out of the savegame file
-	qcvm->time = 0; // mark freed edicts for immediate reuse
-	entnum = -1;	// -1 is the globals
+	entnum = -1; // -1 is the globals
 	while (*data)
 	{
 		while (*data == ' ' || *data == '\r' || *data == '\n')
@@ -1591,7 +1590,12 @@ static void Host_Loadgame_f (void)
 
 	qcvm->time = time;
 	for (i = entnum; i < qcvm->num_edicts; i++)
+	{
 		ED_Free (EDICT_NUM (i));
+		// those are garantteed to be unused, so patch their freetime to favor
+		// selection in ED_Alloc
+		EDICT_NUM (i)->freetime = 0;
+	}
 
 	if (fastload)
 	{
@@ -1609,10 +1613,8 @@ static void Host_Loadgame_f (void)
 
 		Send_Spawn_Info (svs.clients, true);
 	}
-	else if (entnum < qcvm->num_edicts)
-		Con_Warning ("Save game had less entities than map (%d < %d)\n", entnum, qcvm->num_edicts); // should be Host_Error, but try to recover
 
-	qcvm->num_edicts = q_max (qcvm->num_edicts, entnum);
+	qcvm->num_edicts = entnum;
 
 	Mem_Free (start);
 	start = NULL;
