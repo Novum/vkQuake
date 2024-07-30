@@ -23,7 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 
-const int type_size[8] = {
+const int type_size[NUM_TYPE_SIZES] = {
 	1, // ev_void
 	1, // sizeof(string_t) / 4		// ev_string
 	1, // ev_float
@@ -33,8 +33,6 @@ const int type_size[8] = {
 	1, // sizeof(func_t) / 4		// ev_function
 	1  // sizeof(void *) / 4		// ev_pointer
 };
-
-#define NUM_TYPE_SIZES (int)countof (type_size)
 
 static ddef_t *ED_FieldAtOfs (int ofs);
 
