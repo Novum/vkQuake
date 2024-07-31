@@ -957,7 +957,7 @@ static void Host_Restart_f (void)
 
 	if (autoload.value && sv.lastsave[0] && q_strcasecmp (Cmd_Argv (1), "noload") && q_strcasecmp (Cmd_Argv (1), "force"))
 	{
-		Cbuf_AddText (va ("-use;-jump;-attack;%sload \"%s\"\n", autoload.value >= 2 ? "fast" : "", sv.lastsave));
+		Cbuf_AddText (va ("-use;-jump;-attack;%sload \"%s\"\n", autofastload.value > 0 ? "fast" : "", sv.lastsave));
 		svs.changelevel_issued = false;
 		return;
 	}
