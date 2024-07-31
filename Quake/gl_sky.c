@@ -227,7 +227,7 @@ void Sky_LoadTextureQ64 (qmodel_t *mod, texture_t *mt, int tex_index)
 Sky_LoadSkyBox
 ==================
 */
-const char *suf[6] = {"rt", "bk", "lf", "ft", "up", "dn"};
+static const char *const suf[6] = {"rt", "bk", "lf", "ft", "up", "dn"};
 void		Sky_LoadSkyBox (const char *name)
 {
 	int			   i, width[6], height[6];

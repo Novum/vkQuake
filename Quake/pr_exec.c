@@ -21,45 +21,45 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 
-static const char *pr_opnames[] = {"DONE",
+static const char *const pr_opnames[] = {"DONE",
 
-								   "MUL_F",	   "MUL_V",	   "MUL_FV",   "MUL_VF",
+										 "MUL_F",	 "MUL_V",	 "MUL_FV",	 "MUL_VF",
 
-								   "DIV",
+										 "DIV",
 
-								   "ADD_F",	   "ADD_V",
+										 "ADD_F",	 "ADD_V",
 
-								   "SUB_F",	   "SUB_V",
+										 "SUB_F",	 "SUB_V",
 
-								   "EQ_F",	   "EQ_V",	   "EQ_S",	   "EQ_E",		 "EQ_FNC",
+										 "EQ_F",	 "EQ_V",	 "EQ_S",	 "EQ_E",	   "EQ_FNC",
 
-								   "NE_F",	   "NE_V",	   "NE_S",	   "NE_E",		 "NE_FNC",
+										 "NE_F",	 "NE_V",	 "NE_S",	 "NE_E",	   "NE_FNC",
 
-								   "LE",	   "GE",	   "LT",	   "GT",
+										 "LE",		 "GE",		 "LT",		 "GT",
 
-								   "INDIRECT", "INDIRECT", "INDIRECT", "INDIRECT",	 "INDIRECT",   "INDIRECT",
+										 "INDIRECT", "INDIRECT", "INDIRECT", "INDIRECT",   "INDIRECT",	 "INDIRECT",
 
-								   "ADDRESS",
+										 "ADDRESS",
 
-								   "STORE_F",  "STORE_V",  "STORE_S",  "STORE_ENT",	 "STORE_FLD",  "STORE_FNC",
+										 "STORE_F",	 "STORE_V",	 "STORE_S",	 "STORE_ENT",  "STORE_FLD",	 "STORE_FNC",
 
-								   "STOREP_F", "STOREP_V", "STOREP_S", "STOREP_ENT", "STOREP_FLD", "STOREP_FNC",
+										 "STOREP_F", "STOREP_V", "STOREP_S", "STOREP_ENT", "STOREP_FLD", "STOREP_FNC",
 
-								   "RETURN",
+										 "RETURN",
 
-								   "NOT_F",	   "NOT_V",	   "NOT_S",	   "NOT_ENT",	 "NOT_FNC",
+										 "NOT_F",	 "NOT_V",	 "NOT_S",	 "NOT_ENT",	   "NOT_FNC",
 
-								   "IF",	   "IFNOT",
+										 "IF",		 "IFNOT",
 
-								   "CALL0",	   "CALL1",	   "CALL2",	   "CALL3",		 "CALL4",	   "CALL5",		 "CALL6", "CALL7", "CALL8",
+										 "CALL0",	 "CALL1",	 "CALL2",	 "CALL3",	   "CALL4",		 "CALL5",	   "CALL6", "CALL7", "CALL8",
 
-								   "STATE",
+										 "STATE",
 
-								   "GOTO",
+										 "GOTO",
 
-								   "AND",	   "OR",
+										 "AND",		 "OR",
 
-								   "BITAND",   "BITOR"};
+										 "BITAND",	 "BITOR"};
 
 const char *PR_GlobalString (int ofs);
 const char *PR_GlobalStringNoContents (int ofs);
