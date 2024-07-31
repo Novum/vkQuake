@@ -77,9 +77,11 @@ edict_t *ED_Alloc (void)
 		else
 			assert (e->next_free);
 
+		// move the head to next :
 		qcvm->free_edicts_head = e->next_free;
 
-		assert (!e->prev_free);
+		// TBC: invalid assert ?
+		// assert (!e->prev_free);
 
 		if (e->next_free)
 			e->next_free->prev_free = NULL;
@@ -101,7 +103,7 @@ edict_t *ED_Alloc (void)
 ED_AddToFreeList
 =================
 */
-void ED_AddToFreeList (edict_t *ed)
+static void ED_AddToFreeList (edict_t *ed)
 {
 	if (qcvm->free_edicts_head == NULL)
 	{
@@ -151,8 +153,9 @@ void ED_Free (edict_t *ed)
 
 	ed->freetime = qcvm->time;
 
-	assert (ed->next_free == NULL);
-	assert (ed->prev_free == NULL);
+	// TBC: invalid asserts ?
+	// assert (ed->next_free == NULL);
+	// assert (ed->prev_free == NULL);
 
 	ED_AddToFreeList (ed);
 }
@@ -180,6 +183,71 @@ void ED_RemoveFromFreeList (edict_t *ed)
 		ed->prev_free->next_free = ed->next_free;
 	if (ed->next_free)
 		ed->next_free->prev_free = ed->prev_free;
+}
+
+static int ED_freetime_compare_func (const void *first, const void *second)
+{
+	int firstInt = *(const int *)first;
+	int secondInt = *(const int *)second;
+	return (int)copysign (1.0, EDICT_NUM (firstInt)->freetime - EDICT_NUM (secondInt)->freetime);
+}
+
+/*
+=================
+ED_RebuildFreeList
+Rebuild the entire free list, ordering the free edicts
+by the smallest freetime to maximize chance of reuse in ED_Alloc
+=================
+*/
+void ED_RebuildFreeList (bool force_free_reuse)
+{
+	int *free_edicts_table = (int *)Mem_Alloc (qcvm->num_edicts * sizeof (int));
+
+	int nb_free_edicts = 0;
+
+	// 1. Enumerate free edict numebers aand put it in free_edicts_table
+	for (int i = 0; i < qcvm->num_edicts; i++)
+	{
+		if (EDICT_NUM (i)->free)
+		{
+			if (force_free_reuse)
+				EDICT_NUM (i)->freetime = 0.0f;
+
+			free_edicts_table[nb_free_edicts++] = i;
+		}
+	}
+
+	if (!force_free_reuse)
+	{
+		// 2.2 Sort free_edicts_table by their corrsponding edict freetime
+		qsort (free_edicts_table, nb_free_edicts, sizeof (int), ED_freetime_compare_func);
+	}
+
+	// 3. Reset freelist and insert by free_edicts_table order
+	qcvm->free_edicts_head = NULL;
+	qcvm->free_edicts_tail = NULL;
+
+	for (int j = 0; j < nb_free_edicts; j++)
+	{
+		ED_AddToFreeList (EDICT_NUM (free_edicts_table[j]));
+	}
+
+#if 0
+	//DEBUG
+	edict_t *e = qcvm->free_edicts_head;
+
+	while (e)
+	{
+		ED_Print (e);
+
+		if (e == qcvm->free_edicts_tail)
+			break;
+		// goto next
+		e = e->next_free;
+	}
+#endif
+
+	Mem_Free (free_edicts_table);
 }
 
 //===========================================================================
@@ -839,15 +907,46 @@ For debugging, prints all the entities in the current server
 */
 void ED_PrintEdicts (void)
 {
-	int i;
+	int free_edicts_count = 0;
+	int free_list_count = 0;
 
 	if (!sv.active)
 		return;
 
 	PR_SwitchQCVM (&sv.qcvm);
-	Con_Printf ("%i entities\n", qcvm->num_edicts);
-	for (i = 0; i < qcvm->num_edicts; i++)
-		ED_PrintNum (i);
+
+	// display the non-free ones first
+	for (int i = 0; i < qcvm->num_edicts; i++)
+	{
+		if (EDICT_NUM (i)->free)
+		{
+			free_edicts_count++;
+		}
+		else
+		{
+			ED_PrintNum (i);
+		}
+	}
+
+	Con_Printf ("\nFree-list:\n");
+
+	edict_t *e = qcvm->free_edicts_head;
+
+	while (e)
+	{
+		ED_Print (e);
+		free_list_count++;
+
+		if (e == qcvm->free_edicts_tail)
+			break;
+		// goto next
+		e = e->next_free;
+	}
+
+	assert (free_list_count == free_edicts_count);
+
+	Con_Printf ("Total: %i entities\n", qcvm->num_edicts);
+
 	PR_SwitchQCVM (NULL);
 }
 

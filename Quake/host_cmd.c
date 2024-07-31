@@ -419,6 +419,7 @@ Host_Status_f
 static void Host_Status_f (void)
 {
 	void (*print_fn) (const char *fmt, ...) FUNCP_PRINTF (1, 2);
+
 	client_t *client;
 	int		  seconds;
 	int		  minutes;
@@ -1201,7 +1202,13 @@ static void Host_Savegame_f (void)
 	fprintf (f, "*/\n");
 
 	fclose (f);
+
 	Con_Printf ("done.\n");
+
+	// Take the occasion to rebuild the free list
+	// since saving is a long operation anyway
+	ED_RebuildFreeList (false);
+
 	PR_SwitchQCVM (NULL);
 	SaveList_Rebuild ();
 
@@ -1408,6 +1415,7 @@ static void Host_Loadgame_f (void)
 		CL_Stop_f ();
 
 	PR_SwitchQCVM (&sv.qcvm);
+
 	if (!fastload)
 		SV_SpawnServer (mapname);
 
@@ -1592,9 +1600,6 @@ static void Host_Loadgame_f (void)
 	for (i = entnum; i < qcvm->num_edicts; i++)
 	{
 		ED_Free (EDICT_NUM (i));
-		// those are garantteed to be unused, so patch their freetime to favor
-		// selection in ED_Alloc
-		EDICT_NUM (i)->freetime = 0;
 	}
 
 	if (fastload)
@@ -1615,6 +1620,8 @@ static void Host_Loadgame_f (void)
 	}
 
 	qcvm->num_edicts = entnum;
+
+	ED_RebuildFreeList (true);
 
 	Mem_Free (start);
 	start = NULL;
