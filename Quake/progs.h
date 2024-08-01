@@ -159,7 +159,7 @@ int		 NUM_FOR_EDICT (edict_t *e);
 #define E_STRING(e, o) (PR_GetString (*(string_t *)&((float *)&e->v)[o]))
 
 #define NUM_TYPE_SIZES 8
-extern const int	type_size[NUM_TYPE_SIZES];
+extern const int type_size[NUM_TYPE_SIZES];
 
 FUNC_NORETURN void PR_RunError (const char *error, ...) FUNC_PRINTF (1, 2);
 void			   PR_RunWarning (const char *error, ...) FUNC_PRINTF (1, 2);

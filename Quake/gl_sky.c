@@ -228,7 +228,8 @@ Sky_LoadSkyBox
 ==================
 */
 static const char *const suf[6] = {"rt", "bk", "lf", "ft", "up", "dn"};
-void		Sky_LoadSkyBox (const char *name)
+
+void Sky_LoadSkyBox (const char *name)
 {
 	int			   i, width[6], height[6];
 	enum srcformat fmt[6];
