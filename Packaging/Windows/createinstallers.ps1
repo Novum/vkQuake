@@ -1,10 +1,12 @@
-$BaseVersionMatch=Select-String "^#define\s*VKQUAKE_VERSION\s*([0-9.]*)" "../../Quake/quakedef.h"
-$BaseVersion=$BaseVersionMatch.Matches.groups[1].value
-$PatchVersionMatch=Select-String "^#define\s*VKQUAKE_VER_PATCH\s*([0-9.]*)" "../../Quake/quakedef.h"
+$VersionMajorMatch=Select-String "^#define\s*VKQUAKE_VERSION_MAJOR\s*([0-9.]*)" "../../Quake/quakever.h"
+$VersionMajor=$VersionMajorMatch.Matches.groups[1].value
+$VersionMinorMatch=Select-String "^#define\s*VKQUAKE_VERSION_MINOR\s*([0-9.]*)" "../../Quake/quakever.h"
+$VersionMinor=$VersionMinorMatch.Matches.groups[1].value
+$PatchVersionMatch=Select-String "^#define\s*VKQUAKE_VER_PATCH\s*([0-9.]*)" "../../Quake/quakever.h"
 $PatchVersion=$PatchVersionMatch.Matches.groups[1].value
-$SuffixMatch=Select-String "^#define\s*VKQUAKE_VER_SUFFIX\s*`"([^`"]*)" "../../Quake/quakedef.h"
+$SuffixMatch=Select-String "^#define\s*VKQUAKE_VER_SUFFIX\s*`"([^`"]*)" "../../Quake/quakever.h"
 $Suffix=$SuffixMatch.Matches.groups[1].value
-$Version=$BaseVersion + '.' + $PatchVersion + $Suffix
+$Version=$VersionMajor + '.' + $VersionMinor + '.' + $PatchVersion + $Suffix
 $SrcDirX64="..\..\Windows\VisualStudio\Build-vkQuake\x64\Release"
 $SrcDirX86="..\..\Windows\VisualStudio\Build-vkQuake\x86\Release"
 
