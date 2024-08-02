@@ -111,7 +111,6 @@ void PR_Profile_f (void);
 
 edict_t *ED_Alloc (void);
 void	 ED_Free (edict_t *ed);
-void	 ED_RemoveFromFreeList (edict_t *ed);
 void	 ED_RebuildFreeList (bool force_free_reuse);
 
 void		ED_Print (edict_t *ed);

@@ -1574,8 +1574,6 @@ static void Host_Loadgame_f (void)
 			ent = EDICT_NUM (entnum);
 			if (entnum < qcvm->num_edicts)
 			{
-				if (ent->free)
-					ED_RemoveFromFreeList (ent);
 				ent->free = false;
 				ent->next_free = NULL;
 				ent->prev_free = NULL;

@@ -72,7 +72,12 @@ edict_t *ED_Alloc (void)
 		if (e == qcvm->free_edicts_tail)
 		{
 			assert (e->next_free == NULL);
+			// we are in the special 1-element list case (see ED_AddToFreeList)
+			//  where qcvm->free_edicts_head = qcvm->free_edicts_tail
+			// so reset all to NULL to create an empty list.
+			qcvm->free_edicts_head = NULL;
 			qcvm->free_edicts_tail = NULL;
+			return e;
 		}
 		else
 			assert (e->next_free);
@@ -80,12 +85,12 @@ edict_t *ED_Alloc (void)
 		// move the head to next :
 		qcvm->free_edicts_head = e->next_free;
 
-		// TBC: invalid assert ?
-		// assert (!e->prev_free);
+		// the new head has no predecessor
+		if (qcvm->free_edicts_head)
+			qcvm->free_edicts_head->prev_free = NULL;
 
-		if (e->next_free)
-			e->next_free->prev_free = NULL;
-
+		// non-free edicts have no link to the free-list whatsoever, so mark it as such
+		e->prev_free = NULL;
 		e->next_free = NULL;
 		return e;
 	}
@@ -105,17 +110,30 @@ ED_AddToFreeList
 */
 static void ED_AddToFreeList (edict_t *ed)
 {
+	// empty list case:
 	if (qcvm->free_edicts_head == NULL)
 	{
 		assert (!qcvm->free_edicts_tail);
 		qcvm->free_edicts_head = ed;
 		qcvm->free_edicts_tail = ed;
 	}
-	else
+	// 1. element case :
+	else if (qcvm->free_edicts_head == qcvm->free_edicts_tail)
+	{
+		// We build a 2-element list such as
+		//  {qcvm->free_edicts_head; qcvm->free_edicts_tail}
+		qcvm->free_edicts_head->prev_free = NULL;
+		qcvm->free_edicts_head->next_free = ed;
+		ed->prev_free = qcvm->free_edicts_head;
+		qcvm->free_edicts_tail = ed;
+		qcvm->free_edicts_tail->next_free = NULL;
+	}
+	else // 2-element+ case:
 	{
 		ed->prev_free = qcvm->free_edicts_tail;
 		qcvm->free_edicts_tail->next_free = ed;
 		qcvm->free_edicts_tail = ed;
+		qcvm->free_edicts_tail->next_free = NULL;
 	}
 }
 
@@ -153,36 +171,7 @@ void ED_Free (edict_t *ed)
 
 	ed->freetime = qcvm->time;
 
-	// TBC: invalid asserts ?
-	// assert (ed->next_free == NULL);
-	// assert (ed->prev_free == NULL);
-
 	ED_AddToFreeList (ed);
-}
-
-/*
-=================
-ED_RemoveFromFreeList
-=================
-*/
-void ED_RemoveFromFreeList (edict_t *ed)
-{
-	assert (ed->free);
-
-	if (qcvm->free_edicts_head == ed)
-	{
-		assert (!ed->prev_free);
-		qcvm->free_edicts_head = ed->next_free;
-	}
-	if (qcvm->free_edicts_tail == ed)
-	{
-		assert (!ed->next_free);
-		qcvm->free_edicts_tail = ed->prev_free;
-	}
-	if (ed->prev_free)
-		ed->prev_free->next_free = ed->next_free;
-	if (ed->next_free)
-		ed->next_free->prev_free = ed->prev_free;
 }
 
 static int ED_freetime_compare_func (const void *first, const void *second)
