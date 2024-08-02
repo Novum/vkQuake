@@ -77,6 +77,10 @@ edict_t *ED_Alloc (void)
 			// so reset all to NULL to create an empty list.
 			qcvm->free_edicts_head = NULL;
 			qcvm->free_edicts_tail = NULL;
+
+			// non-free edicts have no link to the free-list whatsoever, so mark it as such
+			e->prev_free = NULL;
+			e->next_free = NULL;
 			return e;
 		}
 		else
