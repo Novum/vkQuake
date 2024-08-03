@@ -1879,7 +1879,7 @@ void GL_UpdateDescriptorSets (void)
 	vkUpdateDescriptorSets (vulkan_globals.device, countof (screen_effects_writes), screen_effects_writes, 0, NULL);
 
 #if defined(_DEBUG)
-	if (vulkan_globals.ray_query)
+	if (vulkan_globals.ray_query && bmodel_tlas)
 	{
 		if (vulkan_globals.ray_debug_desc_set != VK_NULL_HANDLE)
 			R_FreeDescriptorSet (vulkan_globals.ray_debug_desc_set, &vulkan_globals.ray_debug_set_layout);
