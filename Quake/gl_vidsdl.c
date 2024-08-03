@@ -1369,12 +1369,27 @@ static void GL_CreateRenderPasses ()
 		if (resolve)
 			subpass_description.pResolveAttachments = &resolve_attachment_reference;
 
+		VkSubpassDependency subpass_dependencies[1];
+		subpass_dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
+		subpass_dependencies[0].dstSubpass = 0;
+		subpass_dependencies[0].srcStageMask =
+			VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+		subpass_dependencies[0].dstStageMask =
+			VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+		subpass_dependencies[0].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT |
+												VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+		subpass_dependencies[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT |
+												VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+		subpass_dependencies[0].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+
 		ZEROED_STRUCT (VkRenderPassCreateInfo, render_pass_create_info);
 		render_pass_create_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
 		render_pass_create_info.attachmentCount = resolve ? 3 : 2;
 		render_pass_create_info.pAttachments = attachment_descriptions;
 		render_pass_create_info.subpassCount = 1;
 		render_pass_create_info.pSubpasses = &subpass_description;
+		render_pass_create_info.dependencyCount = 1;
+		render_pass_create_info.pDependencies = subpass_dependencies;
 
 		for (int scbx_index = SCBX_WORLD; scbx_index <= SCBX_VIEW_MODEL; ++scbx_index)
 		{
@@ -1450,9 +1465,9 @@ static void GL_CreateRenderPasses ()
 		subpass_dependencies[0].srcSubpass = 0;
 		subpass_dependencies[0].dstSubpass = 1;
 		subpass_dependencies[0].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-		subpass_dependencies[0].dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+		subpass_dependencies[0].dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 		subpass_dependencies[0].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-		subpass_dependencies[0].dstAccessMask = VK_ACCESS_INPUT_ATTACHMENT_READ_BIT;
+		subpass_dependencies[0].dstAccessMask = VK_ACCESS_INPUT_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 		subpass_dependencies[0].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
 
 		ZEROED_STRUCT (VkRenderPassCreateInfo, render_pass_create_info);
@@ -1506,6 +1521,22 @@ static void GL_CreateRenderPasses ()
 		subpass_description.pDepthStencilAttachment = NULL;
 		subpass_description.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 
+		VkSubpassDependency subpass_dependencies[2];
+		subpass_dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
+		subpass_dependencies[0].dstSubpass = 0;
+		subpass_dependencies[0].srcStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+		subpass_dependencies[0].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+		subpass_dependencies[0].srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+		subpass_dependencies[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+		subpass_dependencies[0].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+		subpass_dependencies[1].srcSubpass = 0;
+		subpass_dependencies[1].dstSubpass = VK_SUBPASS_EXTERNAL;
+		subpass_dependencies[1].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+		subpass_dependencies[1].dstStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+		subpass_dependencies[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+		subpass_dependencies[1].dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+		subpass_dependencies[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+
 		ZEROED_STRUCT (VkRenderPassCreateInfo, render_pass_create_info);
 		render_pass_create_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
 		render_pass_create_info.pAttachments = &attachment_description;
@@ -1514,6 +1545,8 @@ static void GL_CreateRenderPasses ()
 		render_pass_create_info.attachmentCount = 1;
 		render_pass_create_info.dependencyCount = 0;
 		render_pass_create_info.pDependencies = NULL;
+		render_pass_create_info.dependencyCount = 2;
+		render_pass_create_info.pDependencies = subpass_dependencies;
 
 		err = vkCreateRenderPass (vulkan_globals.device, &render_pass_create_info, NULL, &vulkan_globals.warp_render_pass);
 		if (err != VK_SUCCESS)
@@ -2623,7 +2656,7 @@ static void GL_ScreenEffects (cb_context_t *cbx, qboolean enabled, end_rendering
 		VkImageMemoryBarrier image_barriers[2];
 		image_barriers[0].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 		image_barriers[0].pNext = NULL;
-		image_barriers[0].srcAccessMask = 0;
+		image_barriers[0].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 		image_barriers[0].dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
 		image_barriers[0].oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 		image_barriers[0].newLayout = VK_IMAGE_LAYOUT_GENERAL;
@@ -2638,7 +2671,7 @@ static void GL_ScreenEffects (cb_context_t *cbx, qboolean enabled, end_rendering
 
 		image_barriers[1].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 		image_barriers[1].pNext = NULL;
-		image_barriers[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+		image_barriers[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 		image_barriers[1].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 		image_barriers[1].oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 		image_barriers[1].newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -2886,7 +2919,7 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 		submit_info.pWaitSemaphores = &image_aquired_semaphores[cb_index];
 		submit_info.signalSemaphoreCount = swapchain_acquired ? 1 : 0;
 		submit_info.pSignalSemaphores = &draw_complete_semaphores[cb_index];
-		VkPipelineStageFlags wait_dst_stage_mask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+		VkPipelineStageFlags wait_dst_stage_mask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 		submit_info.pWaitDstStageMask = &wait_dst_stage_mask;
 
 		err = vkQueueSubmit (vulkan_globals.queue, 1, &submit_info, command_buffer_fences[cb_index]);

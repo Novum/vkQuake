@@ -156,7 +156,7 @@ void R_UpdateWarpTextures (void *unused)
 
 	int num_warp_textures = 0;
 
-	// Count warp texture & prepare barrier from undefined to GENERL if using compute warp
+	// Count warp texture & prepare barrier from undefined to GENERAL if using compute warp
 	for (int j = 1; j < MAX_MODELS; j++)
 	{
 		qmodel_t *m = cl.model_precache[j];
@@ -181,7 +181,7 @@ void R_UpdateWarpTextures (void *unused)
 				VkImageMemoryBarrier *image_barrier = &warp_image_barriers[num_warp_textures];
 				image_barrier->sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 				image_barrier->pNext = NULL;
-				image_barrier->srcAccessMask = 0;
+				image_barrier->srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
 				image_barrier->dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
 				image_barrier->oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 				image_barrier->newLayout = VK_IMAGE_LAYOUT_GENERAL;
@@ -203,7 +203,7 @@ void R_UpdateWarpTextures (void *unused)
 	// Transfer mips from UNDEFINED to GENERAL layout
 	if (r_waterwarpcompute.value)
 		vkCmdPipelineBarrier (
-			cbx->cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, NULL, 0, NULL, num_warp_textures, warp_image_barriers);
+			cbx->cb, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, NULL, 0, NULL, num_warp_textures, warp_image_barriers);
 
 	// Render warp to top mips
 	for (i = 0; i < num_warp_textures; ++i)
@@ -241,7 +241,9 @@ void R_UpdateWarpTextures (void *unused)
 
 	// Transfer all other mips from UNDEFINED to GENERAL layout
 	vkCmdPipelineBarrier (
-		cbx->cb, r_waterwarpcompute.value ? VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT : VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+		cbx->cb,
+		VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT |
+			(r_waterwarpcompute.value ? VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT : VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT),
 		VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 1, &memory_barrier, 0, NULL, num_warp_textures, warp_image_barriers);
 
 	// Generate mip chains
