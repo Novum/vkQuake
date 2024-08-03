@@ -36,7 +36,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #define VKQUAKE_VERSION_MAJOR 1
 #define VKQUAKE_VERSION_MINOR 31
-#define VKQUAKE_VER_PATCH	  1
+#define VKQUAKE_VER_PATCH	  2
 
 #define VKQUAKE_VERSION 1.31
 
