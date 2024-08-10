@@ -34,7 +34,6 @@ void CDAudio_Update (void) {}
 
 int CDAudio_Init (void)
 {
-	Con_Printf ("CDAudio disabled at compile time\n");
 	return -1;
 }
 
