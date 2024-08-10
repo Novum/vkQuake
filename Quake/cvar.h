@@ -62,20 +62,24 @@ Cvars are restricted from having the same names as commands to keep this
 interface from being ambiguous.
 
 */
-
-#define CVAR_NONE		 0
-#define CVAR_ARCHIVE	 (1U << 0) // if set, causes it to be saved to config
-#define CVAR_NOTIFY		 (1U << 1) // changes will be broadcasted to all players (q1)
-#define CVAR_SERVERINFO	 (1U << 2) // added to serverinfo will be sent to clients (q1/net_dgrm.c and qwsv)
-#define CVAR_USERINFO	 (1U << 3) // added to userinfo, will be sent to server (qwcl)
-#define CVAR_CHANGED	 (1U << 4)
-#define CVAR_ROM		 (1U << 6)
-#define CVAR_LOCKED		 (1U << 8)	// locked temporarily
-#define CVAR_REGISTERED	 (1U << 10) // the var is added to the list of variables
-#define CVAR_CALLBACK	 (1U << 16) // var has a callback
-#define CVAR_USERDEFINED (1U << 17) // cvar was created by the user/mod, and needs to be saved a bit differently.
-#define CVAR_AUTOCVAR	 (1U << 18) // cvar changes need to feed back to qc global changes.
-#define CVAR_SETA		 (1U << 19) // cvar will be saved with seta.
+// clang-format off
+typedef enum
+{
+	CVAR_NONE             = 0,
+	CVAR_ARCHIVE          = (1U << 0),	 // if set, causes it to be saved to config
+	CVAR_NOTIFY           = (1U << 1),	 // changes will be broadcasted to all players (q1)
+	CVAR_SERVERINFO       = (1U << 2),   // added to serverinfo will be sent to clients (q1/net_dgrm.c and qwsv)
+	CVAR_USERINFO         = (1U << 3),	 // added to userinfo, will be sent to server (qwcl)
+	CVAR_CHANGED          = (1U << 4),
+	CVAR_ROM              = (1U << 6),
+	CVAR_LOCKED           = (1U << 8),	 // locked temporarily
+	CVAR_REGISTERED       = (1U << 10),  // the var is added to the list of variables
+	CVAR_CALLBACK         = (1U << 16),	 // var has a callback
+	CVAR_USERDEFINED      = (1U << 17),  // cvar was created by the user/mod, and needs to be saved a bit differently.
+	CVAR_AUTOCVAR         = (1U << 18),	 // cvar changes need to feed back to qc global changes.
+	CVAR_SETA             = (1U << 19)   // cvar will be saved with seta.
+} cvarflags_t;
+// lang-format on
 
 typedef void (*cvarcallback_t) (struct cvar_s *);
 
@@ -83,7 +87,7 @@ typedef struct cvar_s
 {
 	const char	  *name;
 	const char	  *string;
-	unsigned int   flags;
+	cvarflags_t	   flags;
 	float		   value;
 	const char	  *default_string; // johnfitz -- remember defaults for reset function
 	cvarcallback_t callback;
