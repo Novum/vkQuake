@@ -79,7 +79,7 @@ typedef enum
 	CVAR_AUTOCVAR         = (1U << 18),	 // cvar changes need to feed back to qc global changes.
 	CVAR_SETA             = (1U << 19)   // cvar will be saved with seta.
 } cvarflags_t;
-// lang-format on
+// clang-format on
 
 typedef void (*cvarcallback_t) (struct cvar_s *);
 

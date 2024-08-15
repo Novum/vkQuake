@@ -30,21 +30,21 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // clang-format off
 typedef enum
 {
-	TEXPREF_NONE			= 0x0000,
-	TEXPREF_MIPMAP			= 0x0001,	// generate mipmaps
+	TEXPREF_NONE            = 0x0000,
+	TEXPREF_MIPMAP          = 0x0001,   // generate mipmaps
 	// TEXPREF_NEAREST and TEXPREF_LINEAR aren't supposed to be ORed with TEX_MIPMAP
-	TEXPREF_LINEAR			= 0x0002,	// force linear
-	TEXPREF_NEAREST			= 0x0004,	// force nearest
-	TEXPREF_ALPHA			= 0x0008,	// allow alpha
-	TEXPREF_PAD				= 0x0010,	// allow padding
-	TEXPREF_PERSIST			= 0x0020,	// never free
-	TEXPREF_OVERWRITE		= 0x0040,	// overwrite existing same-name texture
-	TEXPREF_NOPICMIP		= 0x0080,	// always load full-sized
-	TEXPREF_FULLBRIGHT		= 0x0100,	// use fullbright mask palette
-	TEXPREF_NOBRIGHT		= 0x0200,	// use nobright mask palette
-	TEXPREF_CONCHARS		= 0x0400,	// use conchars palette
-	TEXPREF_WARPIMAGE		= 0x0800,	// resize this texture when warpimagesize changes
-	TEXPREF_PREMULTIPLY		= 0x1000,	// rgb = rgb*a; a=a; 	
+	TEXPREF_LINEAR          = 0x0002,   // force linear
+	TEXPREF_NEAREST         = 0x0004,   // force nearest
+	TEXPREF_ALPHA           = 0x0008,   // allow alpha
+	TEXPREF_PAD             = 0x0010,   // allow padding
+	TEXPREF_PERSIST         = 0x0020,   // never free
+	TEXPREF_OVERWRITE       = 0x0040,   // overwrite existing same-name texture
+	TEXPREF_NOPICMIP        = 0x0080,   // always load full-sized
+	TEXPREF_FULLBRIGHT      = 0x0100,   // use fullbright mask palette
+	TEXPREF_NOBRIGHT        = 0x0200,   // use nobright mask palette
+	TEXPREF_CONCHARS        = 0x0400,   // use conchars palette
+	TEXPREF_WARPIMAGE       = 0x0800,   // resize this texture when warpimagesize changes
+	TEXPREF_PREMULTIPLY     = 0x1000,   // rgb = rgb*a; a=a; 	
 } textureflags_t;
 // clang-format on
 
