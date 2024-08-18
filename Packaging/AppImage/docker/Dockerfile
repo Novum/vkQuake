@@ -23,7 +23,6 @@ RUN apt-get update \
 	libudev-dev \
 	libusb-dev \
 	libvorbis-dev \
-	libvorbis-dev \
 	libvulkan-dev \
 	libx11-xcb-dev \
 	libxcursor-dev \
