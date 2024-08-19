@@ -991,13 +991,13 @@ For debugging
 static void ED_Count (void)
 {
 	edict_t *ent;
-	int		 i, active, models, solid, step, free_edicts;
+	int		 i, active, models, solid, step, push, none, noclip, free_edicts;
 
 	if (!sv.active)
 		return;
 
 	PR_SwitchQCVM (&sv.qcvm);
-	active = models = solid = step = free_edicts = 0;
+	active = models = solid = step = push = none = noclip = free_edicts = 0;
 	for (i = 0; i < qcvm->num_edicts; i++)
 	{
 		ent = EDICT_NUM (i);
@@ -1012,16 +1012,27 @@ static void ED_Count (void)
 			solid++;
 		if (ent->v.model)
 			models++;
+
 		if (ent->v.movetype == MOVETYPE_STEP)
 			step++;
+		if (ent->v.movetype == MOVETYPE_PUSH)
+			push++;
+		if (ent->v.movetype == MOVETYPE_NONE)
+			none++;
+		if (ent->v.movetype == MOVETYPE_NOCLIP)
+			noclip++;
 	}
 
-	Con_Printf ("num_edicts: %5i\n", qcvm->num_edicts);
-	Con_Printf ("active    : %5i\n", active);
-	Con_Printf ("free      : %5i\n", free_edicts);
-	Con_Printf ("view      : %5i\n", models);
-	Con_Printf ("touch     : %5i\n", solid);
-	Con_Printf ("step      : %5i\n", step);
+	Con_Printf ("num_edicts : %5i\n", qcvm->num_edicts);
+	Con_Printf ("active     : %5i\n", active);
+	Con_Printf ("free       : %5i\n", free_edicts);
+	Con_Printf ("view       : %5i\n", models);
+	Con_Printf ("touch      : %5i\n", solid);
+	Con_Printf ("------------------\n", solid);
+	Con_Printf ("move step  : %5i\n", step);
+	Con_Printf ("move push  : %5i\n", push);
+	Con_Printf ("move none  : %5i\n", none);
+	Con_Printf ("move noclip: %5i\n", noclip);
 	PR_SwitchQCVM (NULL);
 }
 
