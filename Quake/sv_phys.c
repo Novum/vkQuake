@@ -49,6 +49,7 @@ cvar_t sv_nostep = {"sv_nostep", "0", CVAR_NONE};
 cvar_t sv_freezenonclients = {"sv_freezenonclients", "0", CVAR_NONE};
 cvar_t sv_gameplayfix_spawnbeforethinks = {"sv_gameplayfix_spawnbeforethinks", "0", CVAR_NONE};
 cvar_t sv_gameplayfix_bouncedownslopes = {"sv_gameplayfix_bouncedownslopes", "1", CVAR_NONE}; // fixes grenades making horrible noises on slopes.
+cvar_t sv_fastpushmove = {"sv_fastpushmove", "0", CVAR_ARCHIVE}; // 0=old SV_PushMove processing; 1= faster SV_PushMove, with bugs ?
 
 #define MOVE_EPSILON 0.01
 
@@ -57,6 +58,8 @@ static void SV_Physics_Toss (edict_t *ent);
 // For usage by SV_PushMove, allocate at max possible size
 static edict_t *moved_edict[MAX_EDICTS];
 static vec3_t	moved_from[MAX_EDICTS];
+static edict_t *pushable_ent_cache[MAX_EDICTS];
+static int		num_pushable_ent_cache;
 
 /*
 ================
@@ -453,7 +456,7 @@ cvar_t sv_gameplayfix_elevators = {"sv_gameplayfix_elevators", "2", CVAR_ARCHIVE
 
 static void SV_PushMove (edict_t *pusher, float movetime)
 {
-	int		 i, e;
+	int		 i;
 	edict_t *check, *block;
 	vec3_t	 mins, maxs, move;
 	vec3_t	 entorig, pushorig;
@@ -483,15 +486,38 @@ static void SV_PushMove (edict_t *pusher, float movetime)
 
 	// see if any solid entities are inside the final position
 	num_moved = 0;
+
+	const bool fast_pushers = (sv_fastpushmove.value > 0.f);
+
+	int e = -1;
+
+	// beware, we skip entity 0:
 	check = NEXT_EDICT (qcvm->edicts);
-	for (e = 1; e < qcvm->num_edicts; e++, check = NEXT_EDICT (check))
+
+	while (true)
 	{
-		qboolean riding = false;
+		// TBC :does qcvm->num_edicts always constant here, i.e is there edicts allocs possible in this loop ?
+		if (e >= (fast_pushers ? num_pushable_ent_cache - 1 : qcvm->num_edicts - 1 - 1))
+			break;
+
+		e++;
+
+		if (fast_pushers)
+		{
+			check = pushable_ent_cache[e];
+		}
+		else if (e > 0)
+		{
+			check = NEXT_EDICT (check);
+		}
 
 		if (check->free)
 			continue;
+
 		if (check->v.movetype == MOVETYPE_PUSH || check->v.movetype == MOVETYPE_NONE || check->v.movetype == MOVETYPE_NOCLIP)
 			continue;
+
+		qboolean riding = false;
 
 		// if the entity is standing on the pusher, it will definately be moved
 		if (!(((int)check->v.flags & FL_ONGROUND) && PROG_TO_EDICT (check->v.groundentity) == pusher))
@@ -554,6 +580,7 @@ static void SV_PushMove (edict_t *pusher, float movetime)
 		{ // fail the move
 			if (check->v.mins[0] == check->v.maxs[0])
 				continue;
+
 			if (check->v.solid == SOLID_NOT || check->v.solid == SOLID_TRIGGER)
 			{ // corpse
 				check->v.mins[0] = check->v.mins[1] = 0;
@@ -1270,6 +1297,23 @@ void SV_Physics (void)
 		entity_cap = svs.maxclients + 1; // Only run physics on clients and the world
 	else
 		entity_cap = qcvm->num_edicts;
+
+	// fill the pushable entities cache
+	if (sv_fastpushmove.value > 0.f)
+	{
+		num_pushable_ent_cache = 0;
+		// beware, we skip entity 0 here:
+		edict_t *check = NEXT_EDICT (qcvm->edicts);
+		for (int e = 1; e < qcvm->num_edicts; e++, check = NEXT_EDICT (check))
+		{
+			if (check->free)
+				continue;
+			if (check->v.movetype == MOVETYPE_PUSH || check->v.movetype == MOVETYPE_NONE || check->v.movetype == MOVETYPE_NOCLIP)
+				continue;
+
+			pushable_ent_cache[num_pushable_ent_cache++] = check;
+		}
+	}
 
 	// for (i=0 ; i<sv.num_edicts ; i++, ent = NEXT_EDICT(ent))
 	for (i = 0; i < entity_cap; i++, ent = NEXT_EDICT (ent))
