@@ -56,10 +56,8 @@ typedef struct edict_s
 	vec3_t		   predthinkpos; /* expected edict origin once its nextthink arrives (sv_smoothplatformlerps) */
 	float		   lastthink;	 /* time when predthinkpos was updated, or 0 if not valid (sv_smoothplatformlerps) */
 
-	float			freetime; /* sv.time when the object was freed */
-	qboolean		free;
-	struct edict_s *prev_free;
-	struct edict_s *next_free;
+	float	 freetime; /* sv.time when the object was freed */
+	qboolean free;
 
 	entvars_t v; /* C exported fields from progs */
 
@@ -322,6 +320,14 @@ typedef struct areanode_s
 
 typedef struct hash_map_s hash_map_t;
 
+// the free-list of edicts, as a FIFO made of a circular buffer.
+typedef struct freelist_s
+{
+	size_t	 size;		 // current nb of edicts
+	size_t	 head_index; // index of the first valid element (head of FIFO)
+	edict_t *circular_buffer[MAX_EDICTS];
+} freelist_t;
+
 struct qcvm_s
 {
 	dprograms_t	 *progs;
@@ -382,8 +388,7 @@ struct qcvm_s
 	int				 reserved_edicts;
 	int				 max_edicts;
 	edict_t			*edicts; // can NOT be array indexed, because edict_t is variable sized, but can be used to reference the world ent
-	edict_t			*free_edicts_head;
-	edict_t			*free_edicts_tail;
+	freelist_t		 free_list;
 	struct qmodel_s *worldmodel;
 	struct qmodel_s *(*GetModel) (int modelindex); // returns the model for the given index, or null.
 

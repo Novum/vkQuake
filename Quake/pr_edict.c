@@ -61,7 +61,8 @@ angles and bad trails.
 */
 edict_t *ED_Alloc (void)
 {
-	edict_t *e = qcvm->free_edicts_head;
+	// get head of FIFO, if not empty
+	edict_t *e = (qcvm->free_list.size > 0) ? qcvm->free_list.circular_buffer[qcvm->free_list.head_index] : NULL;
 
 	if (e && ((e->freetime < 2) || (qcvm->time - e->freetime) > 0.5))
 	{
@@ -69,33 +70,10 @@ edict_t *ED_Alloc (void)
 		memset (&e->v, 0, qcvm->progs->entityfields * 4);
 		e->free = false;
 
-		if (e == qcvm->free_edicts_tail)
-		{
-			assert (e->next_free == NULL);
-			// we are in the special 1-element list case (see ED_AddToFreeList)
-			//  where qcvm->free_edicts_head = qcvm->free_edicts_tail
-			// so reset all to NULL to create an empty list.
-			qcvm->free_edicts_head = NULL;
-			qcvm->free_edicts_tail = NULL;
+		// pop HEAD
+		qcvm->free_list.head_index = (qcvm->free_list.head_index + 1) % MAX_EDICTS;
+		qcvm->free_list.size -= 1;
 
-			// non-free edicts have no link to the free-list whatsoever, so mark it as such
-			e->prev_free = NULL;
-			e->next_free = NULL;
-			return e;
-		}
-		else
-			assert (e->next_free);
-
-		// move the head to next :
-		qcvm->free_edicts_head = e->next_free;
-
-		// the new head has no predecessor
-		if (qcvm->free_edicts_head)
-			qcvm->free_edicts_head->prev_free = NULL;
-
-		// non-free edicts have no link to the free-list whatsoever, so mark it as such
-		e->prev_free = NULL;
-		e->next_free = NULL;
 		return e;
 	}
 
@@ -114,31 +92,11 @@ ED_AddToFreeList
 */
 static void ED_AddToFreeList (edict_t *ed)
 {
-	// empty list case:
-	if (qcvm->free_edicts_head == NULL)
-	{
-		assert (!qcvm->free_edicts_tail);
-		qcvm->free_edicts_head = ed;
-		qcvm->free_edicts_tail = ed;
-	}
-	// 1. element case :
-	else if (qcvm->free_edicts_head == qcvm->free_edicts_tail)
-	{
-		// We build a 2-element list such as
-		//  {qcvm->free_edicts_head; qcvm->free_edicts_tail}
-		qcvm->free_edicts_head->prev_free = NULL;
-		qcvm->free_edicts_head->next_free = ed;
-		ed->prev_free = qcvm->free_edicts_head;
-		qcvm->free_edicts_tail = ed;
-		qcvm->free_edicts_tail->next_free = NULL;
-	}
-	else // 2-element+ case:
-	{
-		ed->prev_free = qcvm->free_edicts_tail;
-		qcvm->free_edicts_tail->next_free = ed;
-		qcvm->free_edicts_tail = ed;
-		qcvm->free_edicts_tail->next_free = NULL;
-	}
+	assert (qcvm->free_list.size < qcvm->num_edicts);
+
+	size_t add_index = (qcvm->free_list.head_index + qcvm->free_list.size) % MAX_EDICTS;
+	qcvm->free_list.circular_buffer[add_index] = ed;
+	qcvm->free_list.size += 1;
 }
 
 /*
@@ -216,9 +174,8 @@ void ED_RebuildFreeList (bool force_free_reuse)
 		qsort (free_edicts_table, nb_free_edicts, sizeof (int), ED_freetime_compare_func);
 	}
 
-	// 3. Reset freelist and insert by free_edicts_table order
-	qcvm->free_edicts_head = NULL;
-	qcvm->free_edicts_tail = NULL;
+	// 3. Reset freelist and insert by free_edicts_table order;
+	memset (&qcvm->free_list, 0x0, sizeof (qcvm->free_list));
 
 	for (int j = 0; j < nb_free_edicts; j++)
 	{
@@ -923,17 +880,16 @@ void ED_PrintEdicts (void)
 
 	Con_Printf ("\nFree-list:\n");
 
-	edict_t *e = qcvm->free_edicts_head;
+	size_t current_index = qcvm->free_list.head_index;
 
-	while (e)
+	for (int j = 0; j < qcvm->free_list.size; j++)
 	{
+		edict_t *e = qcvm->free_list.circular_buffer[current_index];
+
 		ED_Print (e);
 		free_list_count++;
 
-		if (e == qcvm->free_edicts_tail)
-			break;
-		// goto next
-		e = e->next_free;
+		current_index = (current_index + 1) % MAX_EDICTS;
 	}
 
 	assert (free_list_count == free_edicts_count);

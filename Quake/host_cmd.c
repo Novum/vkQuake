@@ -1575,8 +1575,6 @@ static void Host_Loadgame_f (void)
 			if (entnum < qcvm->num_edicts)
 			{
 				ent->free = false;
-				ent->next_free = NULL;
-				ent->prev_free = NULL;
 				memset (&ent->v, 0, qcvm->progs->entityfields * 4);
 			}
 			else
