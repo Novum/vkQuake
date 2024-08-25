@@ -449,20 +449,34 @@ void R_MarkLeafsSIMD (int index, void *unused)
 	*mask = R_CullBoxSIMD (&leafbounds[index * 4], *mask);
 
 	uint32_t mask_iter = *mask;
+
+	unsigned int current_surfvis_index_written = 0;
+	uint32_t	 current_surfvis_written = 0;
+
 	while (mask_iter != 0)
 	{
 		const int i = FindFirstBitNonZero (mask_iter);
 
 		mleaf_t *leaf = &cl.worldmodel->leafs[1 + first_leaf + i];
+
 		if (r_drawworld_cheatsafe && (leaf->contents != CONTENTS_SKY || r_oldskyleaf.value))
 		{
 			unsigned int nummarksurfaces = leaf->nummarksurfaces;
 			int			*marksurfaces = leaf->firstmarksurface;
+
 			for (j = 0; j < nummarksurfaces; ++j)
 			{
-				unsigned int surf_index = marksurfaces[j];
-				Atomic_OrUInt32 (&surfvis[surf_index / 32], 1u << (surf_index % 32));
+				const unsigned int surf_index = marksurfaces[j];
+
+				if (surf_index / 32 != current_surfvis_index_written)
+				{
+					Atomic_OrUInt32 (&surfvis[current_surfvis_index_written], current_surfvis_written);
+					current_surfvis_index_written = surf_index / 32;
+					current_surfvis_written = 0;
+				}
+				current_surfvis_written |= 1u << (surf_index % 32);
 			}
+
 			if (indirect)
 				R_MarkDeps (leaf->combined_deps, Tasks_GetWorkerIndex ());
 		}
@@ -473,6 +487,8 @@ void R_MarkLeafsSIMD (int index, void *unused)
 		}
 		mask_iter &= bit_mask;
 	}
+
+	Atomic_OrUInt32 (&surfvis[current_surfvis_index_written], current_surfvis_written);
 }
 
 /*
@@ -637,6 +653,10 @@ void R_MarkLeafsParallel (int index, void *unused)
 	unsigned int	 first_leaf = index * 32 + 1;
 
 	uint32_t mask_iter = *mask;
+
+	unsigned int current_surfvis_index_written = 0;
+	uint32_t	 current_surfvis_written = 0;
+
 	while (mask_iter != 0)
 	{
 		const int	   i = FindFirstBitNonZero (mask_iter);
@@ -654,15 +674,25 @@ void R_MarkLeafsParallel (int index, void *unused)
 		{
 			unsigned int nummarksurfaces = leaf->nummarksurfaces;
 			int			*marksurfaces = leaf->firstmarksurface;
+
 			for (unsigned int j = 0; j < nummarksurfaces; ++j)
 			{
 				unsigned int surf_index = marksurfaces[j];
-				Atomic_OrUInt32 (&surfvis[surf_index / 32], 1u << (surf_index % 32));
+
+				if (surf_index / 32 != current_surfvis_index_written)
+				{
+					Atomic_OrUInt32 (&surfvis[current_surfvis_index_written], current_surfvis_written);
+					current_surfvis_index_written = surf_index / 32;
+					current_surfvis_written = 0;
+				}
+				current_surfvis_written |= 1u << (surf_index % 32);
 			}
 			if (indirect)
 				R_MarkDeps (leaf->combined_deps, Tasks_GetWorkerIndex ());
 		}
 	}
+
+	Atomic_OrUInt32 (&surfvis[current_surfvis_index_written], current_surfvis_written);
 }
 
 /*
