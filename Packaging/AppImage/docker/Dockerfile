@@ -53,8 +53,7 @@ RUN cd /tmp \
  && cp ninja /usr/bin/ninja
 
 RUN cd /opt \
- && wget https://github.com/mesonbuild/meson/releases/download/1.3.1/meson-1.3.1.tar.gz \
- && tar -xzf meson-1.3.1.tar.gz \
- && rm meson-1.3.1.tar.gz \
- && mv meson-1.3.1 meson
+ && wget https://github.com/mesonbuild/meson/releases/download/1.0.0/meson-1.0.0.tar.gz \
+ && tar -xzf meson-1.0.0.tar.gz \
+ && mv meson-1.0.0 meson
  
