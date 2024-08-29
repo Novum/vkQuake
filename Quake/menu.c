@@ -2185,6 +2185,9 @@ void M_Options_Key (int k)
 //=============================================================================
 /* KEYS MENU */
 
+#define QUICKSAVE "echo Quicksaving...; wait; save quick"
+#define QUICKLOAD "echo Quickloading...; wait; load quick"
+
 const char *bindnames[][2] = {
 	{"+forward", "Move Forward"},
 	{"+back", "Move Backward"},
@@ -2207,6 +2210,8 @@ const char *bindnames[][2] = {
 	{"impulse 6", "Grenade Lnchr."},
 	{"impulse 7", "Rocket Lnchr."},
 	{"impulse 8", "Thunderbolt"},
+	{QUICKSAVE, "Quick save"},
+	{QUICKLOAD, "Quick load"},
 	{"toggleconsole", "Toggle console"},
 };
 
