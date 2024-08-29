@@ -569,7 +569,7 @@ const char *Key_KeynumToString (int keynum)
 	keyname_t  *kn;
 
 	if (keynum == -1)
-		return "<KEY NOT FOUND>";
+		return "";
 	if (keynum > 32 && keynum < 127)
 	{ // printable ascii
 		tinystr[0] = keynum;
@@ -865,9 +865,6 @@ void Key_Init (void)
 	// initialize menubound[]
 	//
 	menubound[K_ESCAPE] = true;
-	for (i = 0; i < 12; i++)
-		menubound[K_F1 + i] = true;
-
 	//
 	// register our functions
 	//
