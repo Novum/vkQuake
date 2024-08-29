@@ -5272,7 +5272,9 @@ qboolean PR_Can_Ent_Scale (unsigned int prot, unsigned int pext1, unsigned int p
 static struct
 {
 	const char *name;
-	qboolean	(*checkextsupported) (unsigned int prot, unsigned int pext1, unsigned int pext2);
+
+	qboolean (*checkextsupported) (unsigned int prot, unsigned int pext1, unsigned int pext2);
+
 } qcextensions[] = {
 	{"DP_CON_SET"},
 	{"DP_CON_SETA"},
