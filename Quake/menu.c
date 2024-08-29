@@ -2331,7 +2331,7 @@ static void M_Keys_Draw (cb_context_t *cbx)
 		M_DrawScrollbar (cbx, MENU_SCROLLBAR_X, 56, (float)(first_key) / (NUMCOMMANDS - BINDS_PER_PAGE), BINDS_PER_PAGE - 2);
 
 	if (bind_grab)
-		Draw_Character (cbx, (KEY_STRING_DRAW_POS - 8), 48 + (keys_cursor - first_key) * 8, '=');
+		Draw_Character (cbx, (KEY_STRING_DRAW_POS - 10), 48 + (keys_cursor - first_key) * 8, '=');
 	else
 	{
 		M_Mouse_UpdateListCursor (&keys_cursor, 12, 400, 48, 8, keys_height, first_key);
