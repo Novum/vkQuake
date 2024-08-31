@@ -63,6 +63,7 @@ void	 M_NewGame (void);
 void	 M_Keydown (int key);
 void	 M_Charinput (int key);
 qboolean M_TextEntry (void);
+qboolean M_WaitingForKeyBinding (void);
 void	 M_ToggleMenu_f (void);
 float	 M_GetScale ();
 void	 M_UpdateMouse ();

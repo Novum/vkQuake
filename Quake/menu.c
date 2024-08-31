@@ -2308,7 +2308,7 @@ static void M_Keys_Draw (cb_context_t *cbx)
 		M_FindKeysForCommand (bindnames[i + first_key][0], keys);
 
 		// do not draw anything if the bindnames is empty, it means a plceholder separator.
-		if (strcmp (bindnames[i + first_key][0], "") && (keys[0] == -1))
+		if (strlen (bindnames[i + first_key][0]) && (keys[0] == -1))
 		{
 			M_Print (cbx, KEY_STRING_DRAW_POS, y, "???");
 		}
@@ -2374,10 +2374,10 @@ void M_Keys_Key (int k)
 	case K_KP_ENTER:
 	case K_ABUTTON:
 		M_FindKeysForCommand (bindnames[keys_cursor][0], keys);
-		S_LocalSound ("misc/menu2.wav");
 		// if bindnames is empty, it means as a placeholder separator
-		if (strcmp (bindnames[keys_cursor][0], "") == 0)
+		if (!strlen (bindnames[keys_cursor][0]))
 			return;
+		S_LocalSound ("misc/menu2.wav");
 		if (keys[1] != -1)
 			M_UnbindCommand (bindnames[keys_cursor][0]);
 		bind_grab = true;
@@ -3758,6 +3758,11 @@ qboolean M_TextEntry (void)
 	default:
 		return false;
 	}
+}
+
+qboolean M_WaitingForKeyBinding (void)
+{
+	return key_dest == key_menu && m_state == m_keys && bind_grab;
 }
 
 void M_ConfigureNetSubsystem (void)
