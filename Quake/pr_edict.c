@@ -74,6 +74,10 @@ edict_t *ED_Alloc (void)
 		qcvm->free_list.head_index = (qcvm->free_list.head_index + 1) % MAX_EDICTS;
 		qcvm->free_list.size -= 1;
 
+		// no real need, but easier for debugging...
+		if (qcvm->free_list.size == 0)
+			qcvm->free_list.head_index = 0;
+
 		return e;
 	}
 
@@ -81,7 +85,11 @@ edict_t *ED_Alloc (void)
 		Host_Error ("ED_Alloc: no free edicts (max_edicts is %i)", qcvm->max_edicts);
 
 	e = EDICT_NUM (qcvm->num_edicts++);
+
+	assert (!e->free);
+
 	e->baseline = nullentitystate;
+
 	return e;
 }
 
@@ -136,6 +144,32 @@ void ED_Free (edict_t *ed)
 	ED_AddToFreeList (ed);
 }
 
+/*
+=================
+ED_RemoveFromFreeList
+=================
+*/
+void ED_RemoveFromFreeList (edict_t *ed)
+{
+	if (ed->free)
+	{
+		// find the index where ed is...
+		for (int i = 0; i < qcvm->free_list.size; i++)
+		{
+			const size_t found_index = (qcvm->free_list.head_index + i) % MAX_EDICTS;
+
+			if (qcvm->free_list.circular_buffer[found_index] == ed)
+			{
+				// overwrite found_index with head data, advance head.
+				qcvm->free_list.circular_buffer[found_index] = qcvm->free_list.circular_buffer[qcvm->free_list.head_index];
+				qcvm->free_list.head_index = (qcvm->free_list.head_index + 1) % MAX_EDICTS;
+				qcvm->free_list.size -= 1;
+				break;
+			}
+		}
+	}
+}
+
 static int ED_freetime_compare_func (const void *first, const void *second)
 {
 	int firstInt = *(const int *)first;
@@ -175,27 +209,14 @@ void ED_RebuildFreeList (bool force_free_reuse)
 	}
 
 	// 3. Reset freelist and insert by free_edicts_table order;
-	memset (&qcvm->free_list, 0x0, sizeof (qcvm->free_list));
+	assert (qcvm->free_list.size == nb_free_edicts);
+
+	memset (&(qcvm->free_list), 0x0, sizeof (freelist_t));
 
 	for (int j = 0; j < nb_free_edicts; j++)
 	{
 		ED_AddToFreeList (EDICT_NUM (free_edicts_table[j]));
 	}
-
-#if 0
-	//DEBUG
-	edict_t *e = qcvm->free_edicts_head;
-
-	while (e)
-	{
-		ED_Print (e);
-
-		if (e == qcvm->free_edicts_tail)
-			break;
-		// goto next
-		e = e->next_free;
-	}
-#endif
 
 	Mem_Free (free_edicts_table);
 }
