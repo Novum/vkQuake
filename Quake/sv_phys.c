@@ -52,7 +52,11 @@ cvar_t sv_gameplayfix_bouncedownslopes = {"sv_gameplayfix_bouncedownslopes", "1"
 
 #define MOVE_EPSILON 0.01
 
-void SV_Physics_Toss (edict_t *ent);
+static void SV_Physics_Toss (edict_t *ent);
+
+// For usage by SV_PushMove, allocate at max possible size
+static edict_t *moved_edict[MAX_EDICTS];
+static vec3_t	moved_from[MAX_EDICTS];
 
 /*
 ================
@@ -119,7 +123,7 @@ in a frame.  Not used for pushmove objects, because they must be exact.
 Returns false if the entity removed itself.
 =============
 */
-qboolean SV_RunThink (edict_t *ent)
+static qboolean SV_RunThink (edict_t *ent)
 {
 	float thinktime;
 
@@ -172,7 +176,7 @@ SV_Impact
 Two entities have touched, so run their touch functions
 ==================
 */
-void SV_Impact (edict_t *e1, edict_t *e2)
+static void SV_Impact (edict_t *e1, edict_t *e2)
 {
 	int old_self, old_other;
 
@@ -208,7 +212,7 @@ returns the blocked flags (1 = floor, 2 = step / wall)
 */
 #define STOP_EPSILON 0.1
 
-int ClipVelocity (vec3_t in, vec3_t normal, vec3_t out, float overbounce)
+static int ClipVelocity (vec3_t in, vec3_t normal, vec3_t out, float overbounce)
 {
 	float backoff;
 	float change;
@@ -246,7 +250,7 @@ If steptrace is not NULL, the trace of any vertical wall hit will be stored
 ============
 */
 #define MAX_CLIP_PLANES 5
-int SV_FlyMove (edict_t *ent, float time, trace_t *steptrace)
+static int SV_FlyMove (edict_t *ent, float time, trace_t *steptrace)
 {
 	int		bumpcount, numbumps;
 	vec3_t	dir;
@@ -387,7 +391,7 @@ SV_AddGravity
 
 ============
 */
-void SV_AddGravity (edict_t *ent)
+static void SV_AddGravity (edict_t *ent)
 {
 	float	ent_gravity;
 	eval_t *val;
@@ -416,7 +420,7 @@ SV_PushEntity
 Does not change the entities velocity at all
 ============
 */
-trace_t SV_PushEntity (edict_t *ent, vec3_t push)
+static trace_t SV_PushEntity (edict_t *ent, vec3_t push)
 {
 	trace_t trace;
 	vec3_t	end;
@@ -447,7 +451,7 @@ SV_PushMove
 */
 cvar_t sv_gameplayfix_elevators = {"sv_gameplayfix_elevators", "2", CVAR_ARCHIVE}; // 0=off; 1=clients only; 2=all entities
 
-void SV_PushMove (edict_t *pusher, float movetime)
+static void SV_PushMove (edict_t *pusher, float movetime)
 {
 	int		 i, e;
 	edict_t *check, *block;
@@ -476,11 +480,6 @@ void SV_PushMove (edict_t *pusher, float movetime)
 	VectorAdd (pusher->v.origin, move, pusher->v.origin);
 	pusher->v.ltime += movetime;
 	SV_LinkEdict (pusher, false);
-
-	// johnfitz -- dynamically allocate
-	TEMP_ALLOC (edict_t *, moved_edict, qcvm->num_edicts);
-	TEMP_ALLOC (vec3_t, moved_from, qcvm->num_edicts);
-	// johnfitz
 
 	// see if any solid entities are inside the final position
 	num_moved = 0;
@@ -592,12 +591,9 @@ void SV_PushMove (edict_t *pusher, float movetime)
 				VectorCopy (moved_from[i], moved_edict[i]->v.origin);
 				SV_LinkEdict (moved_edict[i], false);
 			}
-			goto cleanup;
-		}
-	}
-cleanup:
-	TEMP_FREE (moved_from);
-	TEMP_FREE (moved_edict);
+			break;
+		} // end if block
+	}	  // foreach pushable entities
 }
 
 /*
@@ -606,7 +602,7 @@ SV_Physics_Pusher
 
 ================
 */
-void SV_Physics_Pusher (edict_t *ent)
+static void SV_Physics_Pusher (edict_t *ent)
 {
 	float thinktime;
 	float oldltime;
@@ -657,7 +653,7 @@ This is a big hack to try and fix the rare case of getting stuck in the world
 clipping hull.
 =============
 */
-void SV_CheckStuck (edict_t *ent)
+static void SV_CheckStuck (edict_t *ent)
 {
 	int	   i, j;
 	int	   z;
@@ -702,7 +698,7 @@ void SV_CheckStuck (edict_t *ent)
 SV_CheckWater
 =============
 */
-qboolean SV_CheckWater (edict_t *ent)
+static qboolean SV_CheckWater (edict_t *ent)
 {
 	vec3_t point;
 	int	   cont;
@@ -739,7 +735,7 @@ SV_WallFriction
 
 ============
 */
-void SV_WallFriction (edict_t *ent, trace_t *trace)
+static void SV_WallFriction (edict_t *ent, trace_t *trace)
 {
 	vec3_t forward, right, up;
 	float  d, i;
@@ -773,7 +769,7 @@ Try fixing by pushing one pixel in each direction.
 This is a hack, but in the interest of good gameplay...
 ======================
 */
-int SV_TryUnstick (edict_t *ent, vec3_t oldvel)
+static int SV_TryUnstick (edict_t *ent, vec3_t oldvel)
 {
 	int		i;
 	vec3_t	oldorg;
@@ -853,7 +849,7 @@ Only used by players
 ======================
 */
 #define STEPSIZE 18
-void SV_WalkMove (edict_t *ent)
+static void SV_WalkMove (edict_t *ent)
 {
 	vec3_t	upmove, downmove;
 	vec3_t	oldorg, oldvel;
@@ -953,7 +949,7 @@ SV_Physics_Client
 Player character actions
 ================
 */
-void SV_Physics_Client (edict_t *ent, int num)
+static void SV_Physics_Client (edict_t *ent, int num)
 {
 	if (!svs.clients[num - 1].active)
 		return; // unconnected slot
@@ -1033,7 +1029,7 @@ SV_Physics_None
 Non moving objects can only think
 =============
 */
-void SV_Physics_None (edict_t *ent)
+static void SV_Physics_None (edict_t *ent)
 {
 	// regular thinking
 	SV_RunThink (ent);
@@ -1046,7 +1042,7 @@ SV_Physics_Noclip
 A moving object that doesn't obey physics
 =============
 */
-void SV_Physics_Noclip (edict_t *ent)
+static void SV_Physics_Noclip (edict_t *ent)
 {
 	// regular thinking
 	if (!SV_RunThink (ent))
@@ -1112,7 +1108,7 @@ SV_Physics_Toss
 Toss, bounce, and fly movement.  When onground, do nothing.
 =============
 */
-void SV_Physics_Toss (edict_t *ent)
+static void SV_Physics_Toss (edict_t *ent)
 {
 	trace_t trace;
 	vec3_t	move;
@@ -1186,7 +1182,7 @@ This is also used for objects that have become still on the ground, but
 will fall if the floor is pulled out from under them.
 =============
 */
-void SV_Physics_Step (edict_t *ent)
+static void SV_Physics_Step (edict_t *ent)
 {
 	qboolean hitsound;
 
