@@ -154,7 +154,7 @@ void ED_RemoveFromFreeList (edict_t *ed)
 	if (ed->free)
 	{
 		// find the index where ed is...
-		for (int i = 0; i < qcvm->free_list.size; i++)
+		for (size_t i = 0; i < qcvm->free_list.size; i++)
 		{
 			const size_t found_index = (qcvm->free_list.head_index + i) % MAX_EDICTS;
 
