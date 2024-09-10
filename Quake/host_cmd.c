@@ -1212,10 +1212,6 @@ static void Host_Savegame_f (void)
 
 	Con_Printf ("done.\n");
 
-	// Take the occasion to rebuild the free list
-	// since saving is a long operation anyway
-	ED_RebuildFreeList (false);
-
 	PR_SwitchQCVM (NULL);
 	SaveList_Rebuild ();
 
@@ -1633,8 +1629,6 @@ static void Host_Loadgame_f (void)
 	}
 
 	qcvm->num_edicts = entnum;
-
-	ED_RebuildFreeList (true);
 
 	Mem_Free (start);
 	start = NULL;

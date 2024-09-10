@@ -75,8 +75,17 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 //
 // per-level limits
 //
-#define MIN_EDICTS		  256	// johnfitz -- lowest allowed value for max_edicts cvar
-#define MAX_EDICTS		  32000 // johnfitz -- highest allowed value for max_edicts cvar
+#define MIN_EDICTS 256	 // johnfitz -- lowest allowed value for max_edicts cvar
+#define MAX_EDICTS 32000 // johnfitz -- highest allowed value for max_edicts cvar
+
+// never re-use free edicts younger than MIN_EDICT_AGE_FOR_REUSE (age = qcvm->time - e->freetime)
+#define MIN_EDICT_AGE_FOR_REUSE 2.0
+
+// Special case at loading savegame : it generates a ton of trensient allocs by spawn,
+// so use freetime to detect this situation and allow immediate reuse, NOT using MIN_EDICT_AGE_FOR_REUSE
+// criteria in this case.
+#define MAX_EDICT_FREETIME_ALWAYS_REUSE 2.0
+
 // ents past 8192 can't play sounds in the standard protocol
 #define MAX_LIGHTSTYLES	  64
 #define MAX_MODELS		  4096 // johnfitz -- was 256

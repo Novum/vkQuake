@@ -64,7 +64,7 @@ edict_t *ED_Alloc (void)
 	// get head of FIFO, if not empty
 	edict_t *e = (qcvm->free_list.size > 0) ? qcvm->free_list.circular_buffer[qcvm->free_list.head_index] : NULL;
 
-	if (e && ((e->freetime < 2) || (qcvm->time - e->freetime) > 0.5))
+	if (e && ((e->freetime < MAX_EDICT_FREETIME_ALWAYS_REUSE) || (qcvm->time - e->freetime) > MIN_EDICT_AGE_FOR_REUSE))
 	{
 		assert (e->free);
 		memset (&e->v, 0, qcvm->progs->entityfields * 4);
@@ -168,57 +168,6 @@ void ED_RemoveFromFreeList (edict_t *ed)
 			}
 		}
 	}
-}
-
-static int ED_freetime_compare_func (const void *first, const void *second)
-{
-	int firstInt = *(const int *)first;
-	int secondInt = *(const int *)second;
-	return (int)copysign (1.0, EDICT_NUM (firstInt)->freetime - EDICT_NUM (secondInt)->freetime);
-}
-
-/*
-=================
-ED_RebuildFreeList
-Rebuild the entire free list, ordering the free edicts
-by the smallest freetime to maximize chance of reuse in ED_Alloc
-=================
-*/
-void ED_RebuildFreeList (bool force_free_reuse)
-{
-	int *free_edicts_table = (int *)Mem_Alloc (qcvm->num_edicts * sizeof (int));
-
-	int nb_free_edicts = 0;
-
-	// 1. Enumerate free edict numebers aand put it in free_edicts_table
-	for (int i = 0; i < qcvm->num_edicts; i++)
-	{
-		if (EDICT_NUM (i)->free)
-		{
-			if (force_free_reuse)
-				EDICT_NUM (i)->freetime = 0.0f;
-
-			free_edicts_table[nb_free_edicts++] = i;
-		}
-	}
-
-	if (!force_free_reuse)
-	{
-		// 2.2 Sort free_edicts_table by their corrsponding edict freetime
-		qsort (free_edicts_table, nb_free_edicts, sizeof (int), ED_freetime_compare_func);
-	}
-
-	// 3. Reset freelist and insert by free_edicts_table order;
-	assert (qcvm->free_list.size == nb_free_edicts);
-
-	memset (&(qcvm->free_list), 0x0, sizeof (freelist_t));
-
-	for (int j = 0; j < nb_free_edicts; j++)
-	{
-		ED_AddToFreeList (EDICT_NUM (free_edicts_table[j]));
-	}
-
-	Mem_Free (free_edicts_table);
 }
 
 //===========================================================================
