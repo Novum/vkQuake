@@ -1755,7 +1755,7 @@ void PR_spawnfunc_misc_model (edict_t *self)
 		self->v.model = PR_SetEngineString ("*null");
 
 	if (self->v.angles[1] < 0) // mimic AD. shame there's no avelocity clientside.
-		self->v.angles[1] = (rand () * (360.0f / RAND_MAX));
+		self->v.angles[1] = (rand () * (360.0f / (float)RAND_MAX));
 
 	// make sure the model is precached, to avoid errors.
 	G_INT (OFS_PARM0) = self->v.model;
