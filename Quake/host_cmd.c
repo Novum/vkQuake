@@ -1212,6 +1212,10 @@ static void Host_Savegame_f (void)
 
 	Con_Printf ("done.\n");
 
+	// Take the occasion to rebuild the free list
+	// since saving is a long operation anyway
+	ED_RebuildFreeList (false);
+
 	PR_SwitchQCVM (NULL);
 	SaveList_Rebuild ();
 
@@ -1627,8 +1631,12 @@ static void Host_Loadgame_f (void)
 
 		Send_Spawn_Info (svs.clients, true);
 	}
+	else if (entnum < qcvm->num_edicts)
+		Con_Warning ("Save game had less entities than map (%d < %d)\n", entnum, qcvm->num_edicts); // should be Host_Error, but try to recover
 
 	qcvm->num_edicts = entnum;
+
+	ED_RebuildFreeList (true);
 
 	Mem_Free (start);
 	start = NULL;
