@@ -256,7 +256,7 @@ static ddef_t *ED_FieldAtOfs (int ofs)
 	ddef_t *def;
 	int		i;
 
-	for (i = 0; i < qcvm->progs->numfielddefs; i++)
+	for (i = 1; i < qcvm->progs->numfielddefs; i++)
 	{
 		def = &qcvm->fielddefs[i];
 		if (def->ofs == ofs)
