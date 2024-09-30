@@ -316,8 +316,8 @@ void BGM_PlayCDtrack (byte track, qboolean looping)
 	{
 		if (!handler->is_available)
 			goto _next;
-		if (!CDRIPTYPE (handler->type))
-			goto _next;
+		// if (!CDRIPTYPE (handler->type))
+		//	goto _next;
 		q_snprintf (tmp, sizeof (tmp), "%s/track%02d.%s", MUSIC_DIRNAME, (int)track, handler->ext);
 		if (!COM_FileExists (tmp, &path_id))
 			goto _next;
