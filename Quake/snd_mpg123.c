@@ -25,6 +25,7 @@
 #include "snd_mp3.h"
 #include <errno.h>
 
+#define MPG123_NO_LARGENAME
 #define MPG123_DEF_SSIZE_T /* we do define ssize_t in our stdinc.h */
 #include <mpg123.h>
 
