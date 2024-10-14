@@ -458,7 +458,7 @@ static void SV_PushMove (edict_t *pusher, float movetime)
 {
 	int		 i;
 	edict_t *check, *block;
-	vec3_t	 mins, maxs, move;
+	vec4_t	 mins, maxs, move = {0};
 	vec3_t	 entorig, pushorig;
 	int		 num_moved;
 	float	 solid_backup;
@@ -524,15 +524,21 @@ static void SV_PushMove (edict_t *pusher, float movetime)
 		// if the entity is standing on the pusher, it will definately be moved
 		if (!(((int)check->v.flags & FL_ONGROUND) && PROG_TO_EDICT (check->v.groundentity) == pusher))
 		{
-#ifdef USE_SSE2
+#if defined(USE_SSE2)
 			__m128 check_absmin_vec = _mm_loadu_ps (check->v.absmin);
 			__m128 check_absmax_vec = _mm_loadu_ps (check->v.absmax);
 			__m128 maxs_vec = _mm_loadu_ps (maxs);
 			__m128 mins_vec = _mm_loadu_ps (mins);
-			if (_mm_movemask_ps (_mm_cmpngt_ps (check_absmin_vec, maxs_vec)) & 7)
+			if (_mm_movemask_ps (_mm_cmpnlt_ps (check_absmin_vec, maxs_vec)) & 7)
 				continue;
-			if (_mm_movemask_ps (_mm_cmpnlt_ps (check_absmax_vec, mins_vec)) & 7)
+			if (_mm_movemask_ps (_mm_cmpngt_ps (check_absmax_vec, mins_vec)) & 7)
 				continue;
+#elif defined(USE_NEON)
+			// TODO : Make a proper ARM64 version...
+			if (check->v.absmin[0] >= maxs[0] || check->v.absmin[1] >= maxs[1] || check->v.absmin[2] >= maxs[2] || check->v.absmax[0] <= mins[0] ||
+				check->v.absmax[1] <= mins[1] || check->v.absmax[2] <= mins[2])
+				continue;
+
 #else
 			if (check->v.absmin[0] >= maxs[0] || check->v.absmin[1] >= maxs[1] || check->v.absmin[2] >= maxs[2] || check->v.absmax[0] <= mins[0] ||
 				check->v.absmax[1] <= mins[1] || check->v.absmax[2] <= mins[2])
@@ -633,7 +639,7 @@ static void SV_PushMove (edict_t *pusher, float movetime)
 			}
 			break;
 		} // end if block
-	}	  // foreach pushable entities
+	}
 }
 
 /*
