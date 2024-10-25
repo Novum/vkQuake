@@ -21,7 +21,7 @@ USE_CODEC_MODPLUG = 0
 USE_CODEC_UMX = 0
 
 # which library to use for mp3 decoding: mad or mpg123
-MP3LIB = mad
+MP3LIB = mpg123
 # which library to use for ogg decoding: vorbis or tremor
 VORBISLIB = vorbis
 
