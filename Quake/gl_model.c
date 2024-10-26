@@ -4097,8 +4097,8 @@ static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 	size_t			 numjoints, j;
 	size_t			 nummeshes, m;
 	char			 texname[MAX_QPATH];
-	md5vertinfo_t	*vinfo;
-	md5weightinfo_t *weight;
+	md5vertinfo_t	*vinfo = NULL;
+	md5weightinfo_t *weight = NULL;
 	size_t			 numweights;
 
 	md5animctx_t anim = {NULL};
@@ -4126,7 +4126,7 @@ static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 
 	hdrsize = sizeof (*outhdr) - sizeof (outhdr->frames);
 	hdrsize += sizeof (outhdr->frames) * anim.numposes;
-	outhdr = Mem_Alloc (hdrsize * numjoints);
+	outhdr = (aliashdr_t *)Mem_Alloc (hdrsize * numjoints);
 	TEMP_ALLOC_ZEROED (jointinfo_t, joint_infos, numjoints);
 	TEMP_ALLOC_ZEROED (jointpose_t, joint_poses, numjoints);
 
@@ -4167,6 +4167,12 @@ static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 
 	int index_offset = 0;
 	int vertex_offset = 0;
+	int weight_offset = 0;
+
+	size_t total_numverts = 0;
+	size_t total_numindexes = 0;
+	size_t total_numweights = 0;
+
 	for (m = 0; m < nummeshes; m++)
 	{
 		MD5EXPECT ("mesh");
@@ -4288,8 +4294,9 @@ static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 		MD5EXPECT ("numverts");
 		surf->numverts_vbo = surf->numverts = MD5UINT ();
 
-		vinfo = Mem_Alloc (sizeof (*vinfo) * surf->numverts);
-		poutvertexes = Mem_Realloc (poutvertexes, sizeof (*poutvertexes) * (vertex_offset + surf->numverts));
+		vinfo = (md5vertinfo_t *)Mem_Realloc (vinfo, sizeof (*vinfo) * (vertex_offset + surf->numverts));
+		poutvertexes = (md5vert_t *)Mem_Realloc (poutvertexes, sizeof (*poutvertexes) * (vertex_offset + surf->numverts));
+		total_numverts += surf->numverts;
 		while (MD5CHECK ("vert"))
 		{
 			size_t idx = MD5UINT ();
@@ -4299,15 +4306,16 @@ static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 			poutvertexes[vertex_offset + idx].st[0] = MD5FLOAT ();
 			poutvertexes[vertex_offset + idx].st[1] = MD5FLOAT ();
 			MD5EXPECT (")");
-			vinfo[idx].firstweight = MD5UINT ();
-			vinfo[idx].count = MD5UINT ();
+			vinfo[vertex_offset + idx].firstweight = MD5UINT ();
+			vinfo[vertex_offset + idx].count = MD5UINT ();
 		}
 		vertex_offset += surf->numverts;
 
 		MD5EXPECT ("numtris");
 		surf->numtris = MD5UINT ();
 		surf->numindexes = surf->numtris * 3;
-		poutindexes = Mem_Realloc (poutindexes, sizeof (*poutindexes) * (index_offset + surf->numindexes));
+		poutindexes = (unsigned short *)Mem_Realloc (poutindexes, sizeof (*poutindexes) * (index_offset + surf->numindexes));
+		total_numindexes += surf->numindexes;
 		while (MD5CHECK ("tri"))
 		{
 			size_t idx = MD5UINT ();
@@ -4327,33 +4335,37 @@ static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 		// md5 is a gpu-unfriendly interchange format. :(
 		MD5EXPECT ("numweights");
 		numweights = MD5UINT ();
-		weight = Mem_Alloc (sizeof (*weight) * numweights);
+		weight = (md5weightinfo_t *)Mem_Realloc (weight, sizeof (*weight) * (weight_offset + numweights));
+		total_numweights += numweights;
+
 		while (MD5CHECK ("weight"))
 		{
 			size_t idx = MD5UINT ();
 			if (idx >= numweights)
 				Sys_Error ("weight index out of bounds");
 
-			weight[idx].joint_index = MD5UINT ();
-			if (weight[idx].joint_index >= numjoints)
+			weight[weight_offset + idx].joint_index = MD5UINT ();
+			if (weight[weight_offset + idx].joint_index >= numjoints)
 				Sys_Error ("joint index out of bounds");
-			weight[idx].pos[3] = MD5FLOAT ();
+			weight[weight_offset + idx].pos[3] = MD5FLOAT ();
 			MD5EXPECT ("(");
-			weight[idx].pos[0] = MD5FLOAT () * weight[idx].pos[3];
-			weight[idx].pos[1] = MD5FLOAT () * weight[idx].pos[3];
-			weight[idx].pos[2] = MD5FLOAT () * weight[idx].pos[3];
+			weight[weight_offset + idx].pos[0] = MD5FLOAT () * weight[weight_offset + idx].pos[3];
+			weight[weight_offset + idx].pos[1] = MD5FLOAT () * weight[weight_offset + idx].pos[3];
+			weight[weight_offset + idx].pos[2] = MD5FLOAT () * weight[weight_offset + idx].pos[3];
 			MD5EXPECT (")");
 		}
-		// so make it gpu-friendly.
-		MD5_BakeInfluences (fname, joint_poses, poutvertexes, vinfo, weight, surf->numverts, numweights);
-		// and now make up the normals that the format lacks. we'll still probably have issues from seams, but then so did qme, so at least its faithful... :P
-		MD5_ComputeNormals (poutvertexes, surf->numverts, poutindexes, surf->numindexes);
-
-		Mem_Free (weight);
-		Mem_Free (vinfo);
+		weight_offset += numweights;
 
 		MD5EXPECT ("}");
 	}
+
+	// so make it gpu-friendly.
+	MD5_BakeInfluences (fname, joint_poses, poutvertexes, vinfo, weight, total_numverts, total_numweights);
+	// and now make up the normals that the format lacks. we'll still probably have issues from seams, but then so did qme, so at least its faithful... :P
+	MD5_ComputeNormals (poutvertexes, total_numverts, poutindexes, total_numindexes);
+
+	Mem_Free (weight);
+	Mem_Free (vinfo);
 
 	TEMP_ALLOC_ZEROED (jointpose_t, inverted_joints, anim.numjoints * anim.numposes);
 	TEMP_ALLOC_ZEROED (jointpose_t, concat_joints, anim.numjoints);
