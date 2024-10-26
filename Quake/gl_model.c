@@ -3573,7 +3573,7 @@ MD5_ParseUInt
 */
 static size_t MD5_ParseUInt (const void **buffer)
 {
-	size_t i = SDL_strtoull (com_token, NULL, 0);
+	size_t i = strtoull (com_token, NULL, 0);
 	*buffer = COM_Parse (*buffer);
 	return i;
 }
@@ -3585,7 +3585,7 @@ MD5_ParseSInt
 */
 static long MD5_ParseSInt (const void **buffer)
 {
-	long i = SDL_strtol (com_token, NULL, 0);
+	long i = strtol (com_token, NULL, 0);
 	*buffer = COM_Parse (*buffer);
 	return i;
 }
@@ -3597,7 +3597,7 @@ MD5_ParseFloat
 */
 static double MD5_ParseFloat (const void **buffer)
 {
-	double i = SDL_strtod (com_token, NULL);
+	double i = strtod (com_token, NULL);
 	*buffer = COM_Parse (*buffer);
 	return i;
 }
