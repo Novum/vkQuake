@@ -359,6 +359,8 @@ typedef struct aliashdr_s
 	int					flags;
 	float				size;
 	int					numindexes;
+	// total nunumindexes in index_buffer, made of the union of this aliashdr_t and all of its nextsurface indexes.
+	int					total_numindexes;
 	int					numverts_vbo;
 	int					numposes;
 	aliashdr_t		   *nextsurface; // spike

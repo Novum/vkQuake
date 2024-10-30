@@ -183,7 +183,8 @@ static void GL_DrawAliasFrame (
 		vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 1, vertex_buffers, vertex_offsets);
 		vulkan_globals.vk_cmd_bind_index_buffer (cbx->cb, paliashdr->index_buffer, 0, VK_INDEX_TYPE_UINT16);
 
-		vulkan_globals.vk_cmd_draw_indexed (cbx->cb, paliashdr->numindexes, 1, 0, 0, 0);
+		// paliashdr->vertex_buffer contains all the indices of its nextsurface, so we draw paliashdr->total_numindexes.
+		vulkan_globals.vk_cmd_draw_indexed (cbx->cb, paliashdr->total_numindexes, 1, 0, 0, 0);
 		break;
 	}
 	}
@@ -484,7 +485,11 @@ void R_DrawAliasModel (cb_context_t *cbx, entity_t *e, int *aliaspolys)
 	//
 	// set up lighting
 	//
-	*aliaspolys += paliashdr->numtris;
+	for (const aliashdr_t *hdr = paliashdr; hdr != NULL; hdr = hdr->nextsurface)
+	{
+		*aliaspolys += hdr->numtris;
+	}
+
 	vec3_t shadevector, lightcolor;
 	R_SetupAliasLighting (e, &shadevector, &lightcolor);
 

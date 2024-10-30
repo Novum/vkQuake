@@ -208,6 +208,8 @@ void GL_MakeAliasModelDisplayLists (qmodel_t *m, aliashdr_t *paliashdr)
 
 	HashMap_Destroy (vertex_to_index_map);
 
+	paliashdr->total_numindexes = paliashdr->numindexes;
+
 	// upload immediately
 	paliashdr->poseverttype = PV_QUAKE1;
 	GLMesh_UploadBuffers (m, paliashdr, indexes, (byte *)verts, desc, NULL);
