@@ -69,6 +69,26 @@ Prerequisites:
 Open the Visual Studio solution, `Windows\VisualStudio\vkquake.sln`, select the desired configuration and platform, then
 build the solution.
 
+### MinGW
+
+Setup your [MinGW-w64](https://sourceforge.net/projects/mingw-w64/) environment, e.g. using [w64devkit](https://github.com/skeeto/w64devkit) or [MSYS2](https://www.msys2.org/).
+
+Build 32 bit (x86) vkQuake:
+
+~~~
+cd vkQuake/Quake
+make -f Makefile.w32
+~~~
+
+Build 64 bit (x64) vkQuake:
+
+~~~
+cd vkQuake/Quake
+make -f Makefile.w64
+~~~
+
+If you are on Linux and want to cross-compile for Windows, see the `build_cross_win??.sh` scripts.
+
 ## Linux
 
 Make sure that both your GPU and your GPU driver support [Vulkan](https://en.wikipedia.org/wiki/Vulkan#Support_across_vendors).
@@ -132,26 +152,6 @@ meson build && ninja -C build
 
 > **Note**\
 > The Meson version needs to be 0.47.0 or newer.
-
-### MinGW
-
-Setup your [MinGW-w64](https://sourceforge.net/projects/mingw-w64/) environment, e.g. using [w64devkit](https://github.com/skeeto/w64devkit) or [MSYS2](https://www.msys2.org/).
-
-Build 32 bit (x86) vkQuake:
-
-~~~
-cd vkQuake/Quake
-make -f Makefile.w32
-~~~
-
-Build 64 bit (x64) vkQuake:
-
-~~~
-cd vkQuake/Quake
-make -f Makefile.w64
-~~~
-
-If you are on Linux and want to cross-compile for Windows, see the `build_cross_win??.sh` scripts.
 
 # Optional - Music / Soundtrack
 
