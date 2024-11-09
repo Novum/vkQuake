@@ -3472,7 +3472,6 @@ static void Mod_LoadSpriteModel (qmodel_t *mod, void *buffer)
 	psprite->type = LittleLong (pin->type);
 	psprite->maxwidth = LittleLong (pin->width);
 	psprite->maxheight = LittleLong (pin->height);
-	psprite->beamlength = LittleFloat (pin->beamlength);
 	mod->synctype = (synctype_t)LittleLong (pin->synctype);
 	psprite->numframes = numframes;
 
