@@ -380,13 +380,16 @@ typedef struct jointpose_s
 	float mat[12];
 } jointpose_t; // pose data for a single joint.
 
-#define MAXALIASTRIS   4096				  // ericw -- was 2048
-#define MAXALIASVERTS  (3 * MAXALIASTRIS) // johnfitz -- was 1024
-#define MAXALIASFRAMES 2048				  // spike -- was 256
+// QS limits : vkQuake is no longer constrainted by MAXALIASVERTS /  MAXALIASTRIS,
+// those limits are only used to trace QS incompatibilities.
+#define MAXALIASVERTS_QS 2000 // johnfitz -- was 1024
+#define MAXALIASTRIS_QS	 4096 // ericw -- was 2048
 
-extern mtriangle_t triangles[MAXALIASTRIS];
-extern stvert_t	   stverts[MAXALIASVERTS];
-extern trivertx_t *poseverts[MAXALIASFRAMES];
+#define MAXALIASFRAMES 2048 // spike -- was 256
+
+extern stvert_t	   *stverts;
+extern mtriangle_t *triangles;
+extern trivertx_t  *poseverts[MAXALIASFRAMES];
 
 //===================================================================
 
