@@ -2705,8 +2705,7 @@ ALIAS MODELS
 ==============================================================================
 */
 
-stvert_t	 *stverts = NULL;
-static size_t stverts_size = 0;
+stvert_t stverts[MAXALIASVERTS];
 
 mtriangle_t	 *triangles = NULL;
 static size_t triangles_size = 0;
@@ -3196,19 +3195,9 @@ void Mod_SetExtraFlags (qmodel_t *mod)
 #endif
 }
 
-static void check_vert_and_tris_sizes (size_t numverts, size_t numtris)
+static void check_tris_size (size_t numtris)
 {
-	// 1. assure that numverts < stverts_size, else realloc
-	if (numverts > stverts_size)
-	{
-		size_t new_stverts_size = q_max (stverts_size * 2, numverts);
-
-		stverts = Mem_Realloc (stverts, new_stverts_size * sizeof (stvert_t));
-
-		stverts_size = new_stverts_size;
-	}
-
-	// 2. assure that numtris < trinagles_size, else realloc
+	// 1. assure that numtris < trinagles_size, else realloc
 	if (numtris > triangles_size)
 	{
 		size_t new_trinagles_size = q_max (triangles_size * 2, numtris);
@@ -3265,6 +3254,9 @@ static void Mod_LoadAliasModel (qmodel_t *mod, void *buffer)
 	if (pheader->numverts <= 0)
 		Sys_Error ("model %s has no vertices", mod->name);
 
+	if (pheader->numverts > MAXALIASVERTS)
+		Sys_Error ("model %s has too many vertices (%d; max = %d)", mod->name, pheader->numverts, MAXALIASVERTS);
+
 	if (pheader->numverts > MAXALIASVERTS_QS)
 		Con_DWarning ("model %s vertex count of %d exceeds QS limit of %d\n", mod->name, pheader->numverts, MAXALIASVERTS_QS);
 
@@ -3276,7 +3268,7 @@ static void Mod_LoadAliasModel (qmodel_t *mod, void *buffer)
 	if (pheader->numtris > MAXALIASTRIS_QS)
 		Con_DWarning ("model %s triangle count of %d exceeds QS limit of %d\n", mod->name, pheader->numtris, MAXALIASTRIS_QS);
 
-	check_vert_and_tris_sizes (pheader->numverts, pheader->numtris);
+	check_tris_size (pheader->numtris);
 
 	pheader->numframes = ReadLongUnaligned (mod_base + offsetof (mdl_t, numframes));
 	numframes = pheader->numframes;
@@ -4387,6 +4379,10 @@ static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 		weight_offset += numweights;
 
 	} // end foreach mesh
+
+	// vertex indices are 16 bit (VK_INDEX_TYPE_UINT16) so we cannot address more than MAXALIASVERTS vertexes.
+	if (total_numverts > MAXALIASVERTS)
+		Sys_Error ("MD5 model %s has too many vertices (%d; max = %d)", mod->name, total_numverts, MAXALIASVERTS);
 
 	// so make it gpu-friendly.
 	MD5_BakeInfluences (fname, joint_poses, poutvertexes, vinfo, weight, total_numverts, total_numweights);
