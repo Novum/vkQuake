@@ -4382,7 +4382,7 @@ static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 
 	// vertex indices are 16 bit (VK_INDEX_TYPE_UINT16) so we cannot address more than MAXALIASVERTS vertexes.
 	if (total_numverts > MAXALIASVERTS)
-		Sys_Error ("MD5 model %s has too many vertices (%d; max = %d)", mod->name, total_numverts, MAXALIASVERTS);
+		Sys_Error ("MD5 model %s has too many vertices (%d; max = %d)", mod->name, (int)total_numverts, MAXALIASVERTS);
 
 	// so make it gpu-friendly.
 	MD5_BakeInfluences (fname, joint_poses, poutvertexes, vinfo, weight, total_numverts, total_numweights);
