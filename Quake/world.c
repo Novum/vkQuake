@@ -203,7 +203,12 @@ areanode_t *SV_CreateAreaNode (int depth, vec3_t mins, vec3_t maxs)
 	else
 		anode->axis = 1;
 
+#if 0 // Code as the same code as QS / QSS / Ironwail
+	if (depth == VANILLA_AREA_DEPTH)
+#else // vso - vkQuake variant : hard to trigger some events, ex. opening Gold Door in https://www.quaddicted.com/filebase/hhouse.zip ?
+	  // But a perceptible performance gain in big maps, so keep it for now...
 	if (pr_checkextension.value ? depth == MAX_AREA_DEPTH || size[anode->axis] < 500 : depth == VANILLA_AREA_DEPTH)
+#endif
 	{
 		anode->axis = -1;
 		anode->children[0] = anode->children[1] = NULL;
