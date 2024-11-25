@@ -1537,7 +1537,11 @@ FIXME: make this buffer size safe someday
 ============
 */
 #define VA_NUM_BUFFS 4
+#if (MAX_OSPATH >= 1024)
+#define VA_BUFFERLEN MAX_OSPATH
+#else
 #define VA_BUFFERLEN 1024
+#endif
 
 static char *get_va_buffer (void)
 {
