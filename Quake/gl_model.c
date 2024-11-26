@@ -4239,7 +4239,13 @@ static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 				{
 					surf->gltextures[surf->numskins][f] =
 						TexMgr_LoadImage (mod, texname, fwidth, fheight, fmt, data, texname, 0, TEXPREF_ALPHA | TEXPREF_NOBRIGHT | TEXPREF_MIPMAP);
+
+					// no fullbrights by default.
 					surf->fbtextures[surf->numskins][f] = NULL;
+					// initialize skinsizes, known at this point.
+					surf->skinwidth = surf->gltextures[0][0] ? surf->gltextures[0][0]->width : 1;
+					surf->skinheight = surf->gltextures[0][0] ? surf->gltextures[0][0]->height : 1;
+
 					if (fmt == SRC_INDEXED)
 					{
 						if (f == 0)
@@ -4256,7 +4262,7 @@ static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 							{
 								surf->fbtextures[surf->numskins][f] = TexMgr_LoadImage (
 									mod, va ("%s_luma", texname), fwidth, fheight, SRC_INDEXED, data, texname, 0,
-									TEXPREF_ALPHA | TEXPREF_FULLBRIGHT | TEXPREF_MIPMAP);
+									TEXPREF_ALPHA | TEXPREF_MIPMAP | TEXPREF_FULLBRIGHT);
 								break;
 							}
 						}
@@ -4267,14 +4273,42 @@ static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 						if (!surf->fbtextures[surf->numskins][f])
 						{
 							q_snprintf (texname, sizeof (texname), "progs/%s_%02u_%02u_glow", com_token, surf->numskins, f);
-							surf->fbtextures[surf->numskins][f] =
-								TexMgr_LoadImage (mod, texname, surf->skinwidth, surf->skinheight, SRC_RGBA, NULL, texname, 0, TEXPREF_MIPMAP);
+
+							// try to find matching glow texture :
+							unsigned int   glow_width, glow_height;
+							enum srcformat glow_fmt = SRC_RGBA;
+							void		  *glow_data = Image_LoadImage (texname, (int *)&glow_width, (int *)&glow_height, &glow_fmt);
+							// glow texture found:
+							if (glow_data)
+							{
+								assert (glow_fmt == SRC_RGBA);
+								assert (glow_width == fwidth);
+								assert (glow_height == fheight);
+								surf->fbtextures[surf->numskins][f] = TexMgr_LoadImage (
+									mod, texname, surf->skinwidth, surf->skinheight, SRC_RGBA, glow_data, texname, 0,
+									TEXPREF_ALPHA | TEXPREF_MIPMAP | TEXPREF_FULLBRIGHT);
+								Mem_Free (glow_data);
+							}
 						}
 						if (!surf->fbtextures[surf->numskins][f])
 						{
 							q_snprintf (texname, sizeof (texname), "progs/%s_%02u_%02u_luma", com_token, surf->numskins, f);
-							surf->fbtextures[surf->numskins][f] =
-								TexMgr_LoadImage (mod, texname, surf->skinwidth, surf->skinheight, SRC_RGBA, NULL, texname, 0, TEXPREF_MIPMAP);
+
+							// try to find matching luma texture :
+							unsigned int   luma_width, luma_height;
+							enum srcformat luma_fmt = SRC_RGBA;
+							void		  *luma_data = Image_LoadImage (texname, (int *)&luma_width, (int *)&luma_height, &luma_fmt);
+							// luma found:
+							if (luma_data)
+							{
+								assert (luma_fmt == SRC_RGBA);
+								assert (luma_width == fwidth);
+								assert (luma_height == fheight);
+								surf->fbtextures[surf->numskins][f] = TexMgr_LoadImage (
+									mod, texname, surf->skinwidth, surf->skinheight, SRC_RGBA, luma_data, texname, 0,
+									TEXPREF_ALPHA | TEXPREF_MIPMAP | TEXPREF_FULLBRIGHT);
+								Mem_Free (luma_data);
+							}
 						}
 					}
 
@@ -4304,8 +4338,6 @@ static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 			}
 		}
 
-		surf->skinwidth = surf->gltextures[0][0] ? surf->gltextures[0][0]->width : 1;
-		surf->skinheight = surf->gltextures[0][0] ? surf->gltextures[0][0]->height : 1;
 		surf->numposes = 1;
 
 		buffer = COM_Parse (buffer);
