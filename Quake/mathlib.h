@@ -56,7 +56,7 @@ static inline int IS_NAN (float x)
 }
 #endif
 
-#define Q_rint(x) ((x) > 0 ? (int)((x) + 0.5) : (int)((x)-0.5)) // johnfitz -- from joequake
+#define Q_rint(x) ((x) > 0 ? (int)((x) + 0.5) : (int)((x) - 0.5)) // johnfitz -- from joequake
 
 #define DotProduct(x, y)				((x)[0] * (y)[0] + (x)[1] * (y)[1] + (x)[2] * (y)[2])
 #define DotProduct2(x, y)				((x)[0] * (y)[0] + (x)[1] * (y)[1])
@@ -121,8 +121,7 @@ static inline int IS_NAN (float x)
 		}                                                            \
 	}
 
-void TurnVector (vec3_t out, const vec3_t forward, const vec3_t side, float angle); // johnfitz
-void VectorAngles (const vec3_t forward, float *up, vec3_t angles);					// johnfitz, spike(up is optional)
+void VectorAngles (const vec3_t forward, float *up, vec3_t angles); // johnfitz, spike(up is optional)
 
 void VectorMA (vec3_t veca, float scale, vec3_t vecb, vec3_t vecc);
 
