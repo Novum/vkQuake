@@ -304,7 +304,7 @@ void AngleVectors (vec3_t angles, vec3_t forward, vec3_t right, vec3_t up)
 	up[2] = cr * cp;
 }
 
-int VectorCompare (vec3_t v1, vec3_t v2)
+int VectorCompare (const vec3_t v1, const vec3_t v2)
 {
 	int i;
 
@@ -315,33 +315,33 @@ int VectorCompare (vec3_t v1, vec3_t v2)
 	return 1;
 }
 
-void VectorMA (vec3_t veca, float scale, vec3_t vecb, vec3_t vecc)
+void VectorMA (const vec3_t veca, float scale, const vec3_t vecb, vec3_t vecc)
 {
 	vecc[0] = veca[0] + scale * vecb[0];
 	vecc[1] = veca[1] + scale * vecb[1];
 	vecc[2] = veca[2] + scale * vecb[2];
 }
 
-vec_t _DotProduct (vec3_t v1, vec3_t v2)
+vec_t _DotProduct (const vec3_t v1, const vec3_t v2)
 {
 	return v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
 }
 
-void _VectorSubtract (vec3_t veca, vec3_t vecb, vec3_t out)
+void _VectorSubtract (const vec3_t veca, const vec3_t vecb, vec3_t out)
 {
 	out[0] = veca[0] - vecb[0];
 	out[1] = veca[1] - vecb[1];
 	out[2] = veca[2] - vecb[2];
 }
 
-void _VectorAdd (vec3_t veca, vec3_t vecb, vec3_t out)
+void _VectorAdd (const vec3_t veca, const vec3_t vecb, vec3_t out)
 {
 	out[0] = veca[0] + vecb[0];
 	out[1] = veca[1] + vecb[1];
 	out[2] = veca[2] + vecb[2];
 }
 
-void _VectorCopy (vec3_t in, vec3_t out)
+void _VectorCopy (const vec3_t in, vec3_t out)
 {
 	out[0] = in[0];
 	out[1] = in[1];
@@ -355,7 +355,7 @@ void CrossProduct (const vec3_t v1, const vec3_t v2, vec3_t cross)
 	cross[2] = v1[0] * v2[1] - v1[1] * v2[0];
 }
 
-vec_t VectorLength (vec3_t v)
+vec_t VectorLength (const vec3_t v)
 {
 	return sqrt (DotProduct (v, v));
 }
@@ -384,7 +384,7 @@ void VectorInverse (vec3_t v)
 	v[2] = -v[2];
 }
 
-void VectorScale (vec3_t in, vec_t scale, vec3_t out)
+void VectorScale (const vec3_t in, vec_t scale, vec3_t out)
 {
 	out[0] = in[0] * scale;
 	out[1] = in[1] * scale;
@@ -644,13 +644,13 @@ void IdentityMatrix (float matrix[16])
 	matrix[3 * 4 + 3] = 1.0f;
 }
 
-qboolean IsOriginWithinMinMax (vec3_t origin, vec3_t mins, vec3_t maxs)
+qboolean IsOriginWithinMinMax (const vec3_t origin, const vec3_t mins, const vec3_t maxs)
 {
 	return origin[0] > mins[0] && origin[1] > mins[1] && origin[2] > mins[2] && origin[0] < maxs[0] && origin[1] < maxs[1] && origin[2] < maxs[2];
 }
 
 // is angle (in degrees) within an arcsec of a mulitple of 90 degrees (ignoring gimbal lock)
-qboolean IsAxisAlignedDeg (vec3_t angle)
+qboolean IsAxisAlignedDeg (const vec3_t angle)
 {
 	int remainder[3] = {
 		((int)(angle[0] * ARRSECS_PER_DEGREE) + 1) % ARCSECS_PER_RIGHT_ANGLE, ((int)(angle[1] * ARRSECS_PER_DEGREE) + 1) % ARCSECS_PER_RIGHT_ANGLE,

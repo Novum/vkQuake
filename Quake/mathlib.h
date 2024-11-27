@@ -123,19 +123,19 @@ static inline int IS_NAN (float x)
 
 void VectorAngles (const vec3_t forward, float *up, vec3_t angles); // johnfitz, spike(up is optional)
 
-void VectorMA (vec3_t veca, float scale, vec3_t vecb, vec3_t vecc);
+void VectorMA (const vec3_t veca, float scale, const vec3_t vecb, vec3_t vecc);
 
-vec_t _DotProduct (vec3_t v1, vec3_t v2);
-void  _VectorSubtract (vec3_t veca, vec3_t vecb, vec3_t out);
-void  _VectorAdd (vec3_t veca, vec3_t vecb, vec3_t out);
-void  _VectorCopy (vec3_t in, vec3_t out);
+vec_t _DotProduct (const vec3_t v1, const vec3_t v2);
+void  _VectorSubtract (const vec3_t veca, const vec3_t vecb, vec3_t out);
+void  _VectorAdd (const vec3_t veca, const vec3_t vecb, vec3_t out);
+void  _VectorCopy (const vec3_t in, vec3_t out);
 
-int	  VectorCompare (vec3_t v1, vec3_t v2);
-vec_t VectorLength (vec3_t v);
+int	  VectorCompare (const vec3_t v1, const vec3_t v2);
+vec_t VectorLength (const vec3_t v);
 void  CrossProduct (const vec3_t v1, const vec3_t v2, vec3_t cross);
 float VectorNormalize (vec3_t v); // returns vector length
 void  VectorInverse (vec3_t v);
-void  VectorScale (vec3_t in, vec_t scale, vec3_t out);
+void  VectorScale (const vec3_t in, vec_t scale, vec3_t out);
 
 void R_ConcatRotations (float in1[3][3], float in2[3][3], float out[3][3]);
 void R_ConcatTransforms (float in1[3][4], float in2[3][4], float out[3][4]);
@@ -155,8 +155,8 @@ void TranslationMatrix (float matrix[16], float x, float y, float z);
 void ScaleMatrix (float matrix[16], float x, float y, float z);
 void IdentityMatrix (float matrix[16]);
 
-qboolean IsAxisAlignedDeg (vec3_t angle);
-qboolean IsOriginWithinMinMax (vec3_t origin, vec3_t mins, vec3_t maxs);
+qboolean IsAxisAlignedDeg (const vec3_t angle);
+qboolean IsOriginWithinMinMax (const vec3_t origin, const vec3_t mins, const vec3_t maxs);
 
 #define BOX_ON_PLANE_SIDE(emins, emaxs, p) \
 	(((p)->type < 3) ? (((p)->dist <= (emins)[(p)->type]) ? 1 : (((p)->dist >= (emaxs)[(p)->type]) ? 2 : 3)) : BoxOnPlaneSide ((emins), (emaxs), (p)))
