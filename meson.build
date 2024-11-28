@@ -222,6 +222,10 @@ if get_option('do_userdirs').enabled()
     cflags += '-DDO_USERDIRS=1'
 endif
 
+if get_option('use_valve_formats').enabled()
+    cflags += '-DUSE_VALVE_FORMATS'
+endif
+
 incdirs = [
     'Quake/mimalloc',
 ]
