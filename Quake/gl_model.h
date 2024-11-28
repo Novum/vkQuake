@@ -90,6 +90,7 @@ typedef struct texture_s
 	char				name[16];
 	unsigned			width, height;
 	unsigned			shift;					  // Q64
+	char				source_file[MAX_QPATH];	  // relative filepath to data source, or "" if source is in memory
 	src_offset_t		source_offset;			  // offset from start of BSP file for BSP textures
 	struct gltexture_s *gltexture;				  // johnfitz -- pointer to gltexture
 	struct gltexture_s *fullbright;				  // johnfitz -- fullbright mask texture
@@ -102,6 +103,9 @@ typedef struct texture_s
 	struct texture_s   *anim_next;				  // in the animation sequence
 	struct texture_s   *alternate_anims;		  // bmodels in frmae 1 use these
 	unsigned			offsets[MIPLEVELS];		  // four mip maps stored
+#ifdef USE_VALVE_FORMATS
+	qboolean			palette;
+#endif
 } texture_t;
 
 #define SURF_PLANEBACK		2

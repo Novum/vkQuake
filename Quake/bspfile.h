@@ -58,6 +58,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #define BSPVERSION 29
 
+#ifdef USE_VALVE_FORMATS
+#define BSPVERSION_VALVE 30
+#endif
+
 /* RMQ support (2PSB). 32bits instead of shorts for all but bbox sizes (which
  * still use shorts) */
 #define BSP2VERSION_2PSB (('B' << 24) | ('S' << 16) | ('P' << 8) | '2')
