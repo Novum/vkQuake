@@ -55,8 +55,9 @@ static inline int IS_NAN (float x)
 	return ((num.i & nanmask) == nanmask);
 }
 #endif
-
+// clang-format off
 #define Q_rint(x) ((x) > 0 ? (int)((x) + 0.5) : (int)((x) - 0.5)) // johnfitz -- from joequake
+// clang-format on
 
 #define DotProduct(x, y)				((x)[0] * (y)[0] + (x)[1] * (y)[1] + (x)[2] * (y)[2])
 #define DotProduct2(x, y)				((x)[0] * (y)[0] + (x)[1] * (y)[1])
