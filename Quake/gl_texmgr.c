@@ -606,7 +606,6 @@ void TexMgr_LoadPalette (void)
 	((byte *)&d_8to24table_conchars[0])[3] = 0;
 }
 
-#ifdef USE_VALVE_FORMATS
 /*
 =================
 TexMgr_LoadMiptexPalette -- convert a 24bit color palette to 32bit
@@ -680,7 +679,6 @@ static void TexMgr_LoadMiptexPalette (byte *in, byte *out, int numcolors, unsign
 	if (flags & TEXPREF_ALPHA)
 		out[-1] = 0;
 }
-#endif
 
 /*
 ================
@@ -1349,7 +1347,6 @@ static void TexMgr_LoadLightmap (gltexture_t *glt, byte *data)
 	TexMgr_LoadImage32 (glt, (unsigned *)data);
 }
 
-#ifdef USE_VALVE_FORMATS
 /*
 ================
 TexMgr_LoadImage8Valve
@@ -1370,7 +1367,6 @@ static void TexMgr_LoadImage8Valve (gltexture_t *glt, byte *data)
 	TexMgr_LoadImage8 (glt, data, (unsigned *)usepal);
 	TEMP_FREE (usepal);
 }
-#endif
 
 /*
 ================
@@ -1392,9 +1388,7 @@ gltexture_t *TexMgr_LoadImage (
 		switch (format)
 		{
 		case SRC_INDEXED:
-#ifdef USE_VALVE_FORMATS
 		case SRC_INDEXED_PALETTE:
-#endif
 			crc = CRC_Block (data, width * height);
 			break;
 		case SRC_LIGHTMAP:
@@ -1443,11 +1437,9 @@ gltexture_t *TexMgr_LoadImage (
 	case SRC_RGBA_CUBEMAP:
 		TexMgr_LoadImage32 (glt, (unsigned *)data);
 		break;
-#ifdef USE_VALVE_FORMATS
 	case SRC_INDEXED_PALETTE:
 		TexMgr_LoadImage8Valve (glt, data);
 		break;
-#endif
 	}
 
 	return glt;
@@ -1586,11 +1578,9 @@ void TexMgr_ReloadImage (gltexture_t *glt, int shirt, int pants)
 	case SRC_RGBA_CUBEMAP:
 		TexMgr_LoadImage32 (glt, (unsigned *)data);
 		break;
-#ifdef USE_VALVE_FORMATS
 	case SRC_INDEXED_PALETTE:
 		TexMgr_LoadImage8Valve (glt, data);
 		break;
-#endif
 	}
 
 	Mem_Free (translated);

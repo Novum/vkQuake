@@ -38,15 +38,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define TYP_QTEX		   65
 #define TYP_QPIC		   66
 #define TYP_SOUND		   67
-#ifdef USE_VALVE_FORMATS
 #define TYP_MIPTEX_PALETTE 67
-#endif
 #define TYP_MIPTEX		   68
 
 #define WADID		('W' | ('A' << 8) | ('D' << 16) | ('2' << 24))
-#ifdef USE_VALVE_FORMATS
 #define WADID_VALVE	('W' | ('A' << 8) | ('D' << 16) | ('3' << 24))
-#endif
 
 #define WADFILENAME "gfx.wad" // johnfitz -- filename is now hard-coded for honesty
 
