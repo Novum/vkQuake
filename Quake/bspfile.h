@@ -58,7 +58,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #define BSPVERSION 29
 
-#ifdef USE_VALVE_FORMATS
+#ifdef BSP29_VALVE
 #define BSPVERSION_VALVE 30
 #endif
 

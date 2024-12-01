@@ -55,9 +55,7 @@ enum srcformat
 	SRC_RGBA,
 	SRC_SURF_INDICES,
 	SRC_RGBA_CUBEMAP,
-#ifdef USE_VALVE_FORMATS
 	SRC_INDEXED_PALETTE,
-#endif
 };
 
 typedef struct glheapallocation_s glheapallocation_t;

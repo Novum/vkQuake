@@ -673,10 +673,8 @@ static texture_t *Mod_LoadWadTexture (qmodel_t *mod, wad_t *wads, const char *na
 	wad_t		  *wad;
 	miptex_t	   mt;
 	texture_t	  *tx;
-#ifdef USE_VALVE_FORMATS
 	qboolean	   pal;
 	unsigned short colors;
-#endif
 
 	// look for the lump in any of the loaded wads
 	info = W_GetLumpinfoList (wads, name, &wad);
@@ -702,12 +700,9 @@ static texture_t *Mod_LoadWadTexture (qmodel_t *mod, wad_t *wads, const char *na
 		return NULL;
 	}
 
-#ifdef USE_VALVE_FORMATS
 	pal = wad->id == WADID_VALVE && info->type == TYP_MIPTEX_PALETTE;
-#endif
 
 	pixels = mt.width * mt.height / 64 * 85;
-#ifdef USE_VALVE_FORMATS
 	// valve textures have a color palette immediately following the pixels
 	if (pal)
 	{
@@ -718,7 +713,6 @@ static texture_t *Mod_LoadWadTexture (qmodel_t *mod, wad_t *wads, const char *na
 		// add space for the color palette
 		pixels += 2 + colors * 3;
 	}
-#endif
 	tx = (texture_t *)Mem_Alloc (sizeof (texture_t) + pixels);
 
 	memcpy (tx->name, mt.name, sizeof (tx->name));
@@ -741,9 +735,7 @@ static texture_t *Mod_LoadWadTexture (qmodel_t *mod, wad_t *wads, const char *na
 	tx->warpimage = NULL;						  // johnfitz
 	tx->fullbright = NULL;						  // johnfitz
 	tx->shift = 0;								  // Q64 only
-#ifdef USE_VALVE_FORMATS
 	tx->palette = pal;
-#endif
 
 	FS_fseek (&wad->fh, info->filepos + sizeof (miptex_t), SEEK_SET);
 	FS_fread (tx + 1, 1, pixels, &wad->fh);
@@ -765,7 +757,6 @@ qboolean Mod_CheckFullbrights (byte *pixels, int count)
 	return false;
 }
 
-#ifdef USE_VALVE_FORMATS
 /*
 =================
 Mod_CheckFullbrightsValve
@@ -777,7 +768,6 @@ static qboolean Mod_CheckFullbrightsValve (char *name, byte *pixels, int count)
 		return Mod_CheckFullbrights (pixels, count);
 	return false;
 }
-#endif
 
 /*
 =================
@@ -818,12 +808,12 @@ static void Mod_LoadTextureTask (int i, qmodel_t **ppmod)
 	byte *data = NULL;
 	bool  fbright;
 
+#ifdef BSP29_VALVE
+	if (mod->bspversion != BSPVERSION_VALVE && !q_strncasecmp (tx->name, "sky", 3))
+#else
 	if (!q_strncasecmp (tx->name, "sky", 3)) // sky texture //also note -- was strncmp, changed to match qbsp
-	{
-#ifdef USE_VALVE_FORMATS
-		if (mod->bspversion == BSPVERSION_VALVE)
-			goto _load_regular;
 #endif
+	{
 		if (mod->bspversion == BSPVERSION_QUAKE64)
 			Sky_LoadTextureQ64 (mod, tx, i);
 		else
@@ -852,10 +842,8 @@ static void Mod_LoadTextureTask (int i, qmodel_t **ppmod)
 		{
 			q_snprintf (texturename, sizeof (texturename), "%s:%s", mod->name, tx->name);
 			fmt = SRC_INDEXED;
-#ifdef USE_VALVE_FORMATS
 			if (tx->palette)
 				fmt = SRC_INDEXED_PALETTE;
-#endif
 			tx->gltexture = TexMgr_LoadImage (
 				mod, texturename, tx->width, tx->height, fmt, (byte *)(tx + 1), tx->source_file, tx->source_offset,
 				TEXPREF_NONE);
@@ -868,9 +856,6 @@ static void Mod_LoadTextureTask (int i, qmodel_t **ppmod)
 	}
 	else // regular texture
 	{
-#ifdef USE_VALVE_FORMATS
-_load_regular:
-#endif
 		// ericw -- fence textures
 		int extraflags;
 
@@ -913,14 +898,12 @@ _load_regular:
 		else // use the texture from the bsp file
 		{
 			q_snprintf (texturename, sizeof (texturename), "%s:%s", mod->name, tx->name);
-#ifdef USE_VALVE_FORMATS
 			if (tx->palette)
 			{
 				fmt = SRC_INDEXED_PALETTE;
 				fbright = Mod_CheckFullbrightsValve (tx->name, (byte *)(tx + 1), pixels);
 			}
 			else
-#endif
 			{
 				fmt = SRC_INDEXED;
 				fbright = Mod_CheckFullbrights ((byte *)(tx + 1), pixels);
@@ -962,7 +945,7 @@ static void Mod_LoadTextures (qmodel_t *mod, byte *mod_base, lump_t *l)
 	int		   nummiptex;
 	int		   dataofs;
 	wad_t	  *wads;
-#ifdef USE_VALVE_FORMATS
+#ifdef BSP29_VALVE
 	qboolean   pal;
 	int		   colors;
 #endif
@@ -987,7 +970,7 @@ static void Mod_LoadTextures (qmodel_t *mod, byte *mod_base, lump_t *l)
 	// load any wads this map may need to load external textures from
 	wads = Mod_LoadWadFiles (mod);
 
-#ifdef USE_VALVE_FORMATS
+#ifdef BSP29_VALVE
 	pal = mod->bspversion == BSPVERSION_VALVE;
 #endif
 
@@ -1016,7 +999,7 @@ static void Mod_LoadTextures (qmodel_t *mod, byte *mod_base, lump_t *l)
 		}
 
 		pixels = mt.width * mt.height / 64 * 85;
-#ifdef USE_VALVE_FORMATS
+#ifdef BSP29_VALVE
 		// valve textures have a color palette immediately following the pixels
 		if (pal)
 		{
@@ -1054,8 +1037,10 @@ static void Mod_LoadTextures (qmodel_t *mod, byte *mod_base, lump_t *l)
 		tx->warpimage = NULL;						  // johnfitz
 		tx->fullbright = NULL;						  // johnfitz
 		tx->shift = 0;								  // Q64 only
-#ifdef USE_VALVE_FORMATS
+#ifdef BSP29_VALVE
 		tx->palette = pal;
+#else
+		tx->palette = false;
 #endif
 
 		if (mod->bspversion != BSPVERSION_QUAKE64)
@@ -1267,7 +1252,7 @@ static void Mod_LoadLighting (qmodel_t *mod, byte *mod_base, lump_t *l)
 		return;
 	}
 
-#ifdef USE_VALVE_FORMATS
+#ifdef BSP29_VALVE
 	if (mod->bspversion == BSPVERSION_VALVE)
 	{
 		// lightmap samples are already stored as rgb
@@ -1731,7 +1716,7 @@ static void Mod_LoadFaces (qmodel_t *mod, byte *mod_base, lump_t *l, qboolean bs
 
 		if (lofs == -1)
 			out->samples = NULL;
-#ifdef USE_VALVE_FORMATS
+#ifdef BSP29_VALVE
 		else if (mod->bspversion == BSPVERSION_VALVE)
 			out->samples = mod->lightdata + lofs; // accounts for RGB light data
 #endif
@@ -2860,7 +2845,7 @@ static void Mod_LoadBrushModel (qmodel_t *mod, const char *loadname, void *buffe
 	case BSPVERSION:
 		bsp2 = false;
 		break;
-#ifdef USE_VALVE_FORMATS
+#ifdef BSP29_VALVE
 	case BSPVERSION_VALVE:
 		bsp2 = false;
 		break;

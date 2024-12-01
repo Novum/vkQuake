@@ -205,11 +205,7 @@ static wad_t *W_AddWadFile (const char *name, fshandle_t *fh)
 	FS_fread ((void *)&header, 1, sizeof (header), fh);
 
 	id = LittleLong (*(int *)&header.identification[0]);
-#ifdef USE_VALVE_FORMATS
 	if (id != WADID && id != WADID_VALVE)
-#else
-	if (id != WADID)
-#endif
 	{
 		Con_DWarning ("%s is not a wad", name);
 		return NULL;
