@@ -679,7 +679,8 @@ static texture_t *Mod_LoadWadTexture (qmodel_t *mod, wad_t *wads, const char *na
 	// look for the lump in any of the loaded wads
 	info = W_GetLumpinfoList (wads, name, &wad);
 
-	if (!info)
+	// ensure we're dealing with a miptex
+	if (!info || (info->type != TYP_MIPTEX && (wad->id != WADID_VALVE || info->type != TYP_MIPTEX_PALETTE)))
 	{
 		Con_Warning ("Missing texture %s in %s!\n", name, mod->name);
 		return NULL;

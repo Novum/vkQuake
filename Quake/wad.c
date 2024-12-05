@@ -197,7 +197,7 @@ W_AddWadFile
 */
 static wad_t *W_AddWadFile (const char *name, fshandle_t *fh)
 {
-	int			i, id, numlumps, infotableofs;
+	int			i, id, numlumps, infotableofs, disksize;
 	wadinfo_t	header;
 	lumpinfo_t *lumps, *info;
 	wad_t	   *wad;
@@ -207,7 +207,7 @@ static wad_t *W_AddWadFile (const char *name, fshandle_t *fh)
 	id = LittleLong (*(int *)&header.identification[0]);
 	if (id != WADID && id != WADID_VALVE)
 	{
-		Con_DWarning ("%s is not a wad", name);
+		Con_DWarning ("%s is not a valid WAD\n", name);
 		return NULL;
 	}
 
@@ -216,12 +216,14 @@ static wad_t *W_AddWadFile (const char *name, fshandle_t *fh)
 
 	if (numlumps < 0 || infotableofs < 0)
 	{
-		Con_DWarning ("Invalid wad %s (numlumps: %i, infotableofs: %i)", name, numlumps, infotableofs);
+		Con_DWarning (
+			"%s is not a valid WAD (%i lumps, %i info table offset)\n",
+			name, numlumps, infotableofs);
 		return NULL;
 	}
 	if (!numlumps)
 	{
-		Con_DWarning ("WARNING: %s has no lumps, ignored\n", name);
+		Con_DPrintf2 ("WAD file %s has no lumps, ignored\n", name);
 		return NULL;
 	}
 
@@ -236,6 +238,32 @@ static wad_t *W_AddWadFile (const char *name, fshandle_t *fh)
 		W_CleanupName (info->name, info->name);
 		info->filepos = LittleLong (info->filepos);
 		info->size = LittleLong (info->size);
+		disksize = LittleLong (info->disksize);
+
+		if (info->filepos + info->size > fh->length && !(info->filepos + disksize > fh->length))
+			info->size = disksize;
+
+		// ensure lump sanity
+		if (info->filepos < 0 || info->size < 0 || info->filepos + info->size > fh->length)
+		{
+			if (info->filepos > fh->length || info->size < 0)
+			{
+				Con_DWarning (
+					"WAD file %s lump \"%.16s\" begins %" SDL_PRIs64 " bytes beyond end of WAD\n",
+					name, info->name, info->filepos - fh->length);
+
+				info->filepos = 0;
+				info->size = q_max (0, info->size - info->filepos);
+			}
+			else
+			{
+				Con_DWarning (
+					"WAD file %s lump \"%.16s\" extends %" SDL_PRIs64 " bytes beyond end of WAD (lump size is %i)\n",
+					name, info->name, (info->filepos + info->size) - fh->length, info->size);
+
+				info->size = q_max (0, info->size - info->filepos);
+			}
+		}
 	}
 
 	wad = (wad_t *)Mem_Alloc (sizeof (wad_t));
@@ -281,6 +309,7 @@ wad_t *W_LoadWadList (const char *names)
 
 			if (!W_OpenWadFile (filename, &fh))
 			{
+				Con_DPrintf2 ("%s not found\n", name);
 				name = e;
 				continue;
 			}
