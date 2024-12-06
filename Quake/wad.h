@@ -42,7 +42,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define TYP_MIPTEX		   68
 
 #define WADID		('W' | ('A' << 8) | ('D' << 16) | ('2' << 24))
-#define WADID_VALVE	('W' | ('A' << 8) | ('D' << 16) | ('3' << 24))
+#define WADID_VALVE ('W' | ('A' << 8) | ('D' << 16) | ('3' << 24))
 
 #define WADFILENAME "gfx.wad" // johnfitz -- filename is now hard-coded for honesty
 
@@ -87,8 +87,8 @@ void  W_LoadWadFile ();
 void  W_CleanupName (const char *in, char *out);
 void *W_GetLumpName (const char *name, lumpinfo_t **out_info);
 
-wad_t *W_LoadWadList (const char *names);
-void W_FreeWadList (wad_t *wads);
+wad_t	   *W_LoadWadList (const char *names);
+void		W_FreeWadList (wad_t *wads);
 lumpinfo_t *W_GetLumpinfoList (wad_t *wads, const char *name, wad_t **out_wad);
 
 void SwapPic (qpic_t *pic);

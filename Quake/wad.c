@@ -216,9 +216,7 @@ static wad_t *W_AddWadFile (const char *name, fshandle_t *fh)
 
 	if (numlumps < 0 || infotableofs < 0)
 	{
-		Con_DWarning (
-			"%s is not a valid WAD (%i lumps, %i info table offset)\n",
-			name, numlumps, infotableofs);
+		Con_DWarning ("%s is not a valid WAD (%i lumps, %i info table offset)\n", name, numlumps, infotableofs);
 		return NULL;
 	}
 	if (!numlumps)
@@ -248,9 +246,7 @@ static wad_t *W_AddWadFile (const char *name, fshandle_t *fh)
 		{
 			if (info->filepos > fh->length || info->size < 0)
 			{
-				Con_DWarning (
-					"WAD file %s lump \"%.16s\" begins %" SDL_PRIs64 " bytes beyond end of WAD\n",
-					name, info->name, info->filepos - fh->length);
+				Con_DWarning ("WAD file %s lump \"%.16s\" begins %i bytes beyond end of WAD\n", name, info->name, info->filepos - fh->length);
 
 				info->filepos = 0;
 				info->size = q_max (0, info->size - info->filepos);
@@ -258,8 +254,8 @@ static wad_t *W_AddWadFile (const char *name, fshandle_t *fh)
 			else
 			{
 				Con_DWarning (
-					"WAD file %s lump \"%.16s\" extends %" SDL_PRIs64 " bytes beyond end of WAD (lump size is %i)\n",
-					name, info->name, (info->filepos + info->size) - fh->length, info->size);
+					"WAD file %s lump \"%.16s\" extends %i bytes beyond end of WAD (lump size is %i)\n", name, info->name,
+					(info->filepos + info->size) - fh->length, info->size);
 
 				info->size = q_max (0, info->size - info->filepos);
 			}
