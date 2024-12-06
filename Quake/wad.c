@@ -207,7 +207,7 @@ static wad_t *W_AddWadFile (const char *name, fshandle_t *fh)
 	id = LittleLong (*(int *)&header.identification[0]);
 	if (id != WADID && id != WADID_VALVE)
 	{
-		Con_DWarning ("%s is not a valid WAD\n", name);
+		Con_Warning ("%s is not a valid WAD\n", name);
 		return NULL;
 	}
 
@@ -216,7 +216,7 @@ static wad_t *W_AddWadFile (const char *name, fshandle_t *fh)
 
 	if (numlumps < 0 || infotableofs < 0)
 	{
-		Con_DWarning ("%s is not a valid WAD (%i lumps, %i info table offset)\n", name, numlumps, infotableofs);
+		Con_Warning ("%s is not a valid WAD (%i lumps, %i info table offset)\n", name, numlumps, infotableofs);
 		return NULL;
 	}
 	if (!numlumps)
@@ -246,14 +246,14 @@ static wad_t *W_AddWadFile (const char *name, fshandle_t *fh)
 		{
 			if (info->filepos > fh->length || info->size < 0)
 			{
-				Con_DWarning ("WAD file %s lump \"%.16s\" begins %li bytes beyond end of WAD\n", name, info->name, info->filepos - fh->length);
+				Con_Warning ("WAD file %s lump \"%.16s\" begins %li bytes beyond end of WAD\n", name, info->name, info->filepos - fh->length);
 
 				info->filepos = 0;
 				info->size = q_max (0, info->size - info->filepos);
 			}
 			else
 			{
-				Con_DWarning (
+				Con_Warning (
 					"WAD file %s lump \"%.16s\" extends %li bytes beyond end of WAD (lump size is %i)\n", name, info->name,
 					(info->filepos + info->size) - fh->length, info->size);
 
@@ -305,7 +305,6 @@ wad_t *W_LoadWadList (const char *names)
 
 			if (!W_OpenWadFile (filename, &fh))
 			{
-				Con_DPrintf2 ("%s not found\n", name);
 				name = e;
 				continue;
 			}
