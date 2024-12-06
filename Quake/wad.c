@@ -246,7 +246,7 @@ static wad_t *W_AddWadFile (const char *name, fshandle_t *fh)
 		{
 			if (info->filepos > fh->length || info->size < 0)
 			{
-				Con_DWarning ("WAD file %s lump \"%.16s\" begins %i bytes beyond end of WAD\n", name, info->name, info->filepos - fh->length);
+				Con_DWarning ("WAD file %s lump \"%.16s\" begins %li bytes beyond end of WAD\n", name, info->name, info->filepos - fh->length);
 
 				info->filepos = 0;
 				info->size = q_max (0, info->size - info->filepos);
@@ -254,7 +254,7 @@ static wad_t *W_AddWadFile (const char *name, fshandle_t *fh)
 			else
 			{
 				Con_DWarning (
-					"WAD file %s lump \"%.16s\" extends %i bytes beyond end of WAD (lump size is %i)\n", name, info->name,
+					"WAD file %s lump \"%.16s\" extends %li bytes beyond end of WAD (lump size is %i)\n", name, info->name,
 					(info->filepos + info->size) - fh->length, info->size);
 
 				info->size = q_max (0, info->size - info->filepos);
