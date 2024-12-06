@@ -845,9 +845,7 @@ static void Mod_LoadTextureTask (int i, qmodel_t **ppmod)
 			fmt = SRC_INDEXED;
 			if (tx->palette)
 				fmt = SRC_INDEXED_PALETTE;
-			tx->gltexture = TexMgr_LoadImage (
-				mod, texturename, tx->width, tx->height, fmt, (byte *)(tx + 1), tx->source_file, tx->source_offset,
-				TEXPREF_NONE);
+			tx->gltexture = TexMgr_LoadImage (mod, texturename, tx->width, tx->height, fmt, (byte *)(tx + 1), tx->source_file, tx->source_offset, TEXPREF_NONE);
 		}
 
 		// now create the warpimage, using dummy data from the hunk to create the initial image
@@ -947,8 +945,8 @@ static void Mod_LoadTextures (qmodel_t *mod, byte *mod_base, lump_t *l)
 	int		   dataofs;
 	wad_t	  *wads;
 #ifdef BSP29_VALVE
-	qboolean   pal;
-	int		   colors;
+	qboolean pal;
+	int		 colors;
 #endif
 
 	// johnfitz -- don't return early if no textures; still need to create dummy texture
