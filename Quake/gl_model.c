@@ -711,6 +711,7 @@ static texture_t *Mod_LoadWadTexture (qmodel_t *mod, wad_t *wads, const char *na
 		// we might as well use the value since it *does* exist
 		FS_fseek (&wad->fh, info->filepos + pixels, SEEK_SET);
 		FS_fread (&colors, 1, 2, &wad->fh);
+		colors = LittleShort (colors);
 		// add space for the color palette
 		pixels += 2 + colors * 3;
 	}
