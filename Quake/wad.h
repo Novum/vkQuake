@@ -33,12 +33,16 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define TYP_NONE  0
 #define TYP_LABEL 1
 
-#define TYP_LUMPY	64 // 64 + grab command number
-#define TYP_PALETTE 64
-#define TYP_QTEX	65
-#define TYP_QPIC	66
-#define TYP_SOUND	67
-#define TYP_MIPTEX	68
+#define TYP_LUMPY		   64 // 64 + grab command number
+#define TYP_PALETTE		   64
+#define TYP_QTEX		   65
+#define TYP_QPIC		   66
+#define TYP_SOUND		   67
+#define TYP_MIPTEX_PALETTE 67
+#define TYP_MIPTEX		   68
+
+#define WADID		('W' | ('A' << 8) | ('D' << 16) | ('2' << 24))
+#define WADID_VALVE ('W' | ('A' << 8) | ('D' << 16) | ('3' << 24))
 
 #define WADFILENAME "gfx.wad" // johnfitz -- filename is now hard-coded for honesty
 
@@ -66,6 +70,16 @@ typedef struct
 	char name[16]; // must be null terminated
 } lumpinfo_t;
 
+typedef struct wad_s
+{
+	char		  name[MAX_QPATH];
+	int			  id;
+	fshandle_t	  fh;
+	int			  numlumps;
+	lumpinfo_t	 *lumps;
+	struct wad_s *next;
+} wad_t;
+
 extern int		   wad_numlumps;
 extern lumpinfo_t *wad_lumps;
 extern byte		  *wad_base;
@@ -73,7 +87,10 @@ extern byte		  *wad_base;
 void  W_LoadWadFile (void); // johnfitz -- filename is now hard-coded for honesty
 void  W_CleanupName (const char *in, char *out);
 void *W_GetLumpName (const char *name, lumpinfo_t **out_info);
-void *W_GetLumpNum (int num);
+
+wad_t	   *W_LoadWadList (const char *names);
+void		W_FreeWadList (wad_t *wads);
+lumpinfo_t *W_GetLumpinfoList (wad_t *wads, const char *name, wad_t **out_wad);
 
 void SwapPic (qpic_t *pic);
 

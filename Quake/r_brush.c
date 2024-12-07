@@ -221,7 +221,7 @@ static void R_CalcDeps (qmodel_t *model, mleaf_t *leaf)
 	{
 		msurface_t *psurf = model ? &model->surfaces[model->firstmodelsurface] + i : &cl.worldmodel->surfaces[leaf->firstmarksurface[i]];
 		texture_t  *t = psurf->texinfo->texture;
-		if (t->name[0] == '*')
+		if (t->name[0] == '*' || t->name[0] == '!')
 		{
 			qboolean found = false;
 			for (int j = 1; j < 1 + deps[0].water_count; j++)
@@ -664,7 +664,7 @@ void R_DrawIndirectBrushes (cb_context_t *cbx, qboolean draw_water, qboolean tra
 
 		if (!draw_sky && !gl_texture)
 			continue;
-		if (draw_water != (texture->name[0] == '*')) // SURF_DRAWTURB is in surfaces only, but it's derived from the texture name
+		if (draw_water != (texture->name[0] == '*' || texture->name[0] == '!')) // SURF_DRAWTURB is in surfaces only, but it's derived from the texture name
 			continue;
 		if (draw_sky != (!q_strncasecmp (texture->name, "sky", 3))) // SURF_DRAWSKY is in surfaces only, but it's derived from the texture name
 			continue;
