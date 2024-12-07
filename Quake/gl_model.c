@@ -707,13 +707,18 @@ static texture_t *Mod_LoadWadTexture (qmodel_t *mod, wad_t *wads, const char *na
 	// valve textures have a color palette immediately following the pixels
 	if (pal)
 	{
-		// the palette is basically garunteed to be 256 colors but,
-		// we might as well use the value since it *does* exist
-		FS_fseek (&wad->fh, info->filepos + pixels, SEEK_SET);
-		FS_fread (&colors, 1, 2, &wad->fh);
-		colors = LittleShort (colors);
-		// add space for the color palette
-		pixels += 2 + colors * 3;
+		if ((pixels + 2) <= info->size)
+		{
+			// the palette is basically garunteed to be 256 colors but,
+			// we might as well use the value since it *does* exist
+			FS_fseek (&wad->fh, info->filepos + pixels, SEEK_SET);
+			FS_fread (&colors, 1, 2, &wad->fh);
+			colors = LittleShort (colors);
+			// add space for the color palette
+			pixels += colors * 3;
+		}
+		// add space for the color count
+		pixels += 2;
 	}
 	tx = (texture_t *)Mem_Alloc (sizeof (texture_t) + pixels);
 
@@ -946,8 +951,8 @@ static void Mod_LoadTextures (qmodel_t *mod, byte *mod_base, lump_t *l)
 	int		   dataofs;
 	wad_t	  *wads;
 #ifdef BSP29_VALVE
-	qboolean pal;
-	int		 colors;
+	qboolean	   pal;
+	unsigned short colors;
 #endif
 
 	// johnfitz -- don't return early if no textures; still need to create dummy texture
@@ -999,15 +1004,22 @@ static void Mod_LoadTextures (qmodel_t *mod, byte *mod_base, lump_t *l)
 		}
 
 		pixels = mt.width * mt.height / 64 * 85;
+		pixels_p = m + dataofs + sizeof (miptex_t);
 #ifdef BSP29_VALVE
 		// valve textures have a color palette immediately following the pixels
 		if (pal)
 		{
-			// the palette is basically garunteed to be 256 colors but,
-			// we might as well use the value since it *does* exist
-			colors = ReadShortUnaligned (m + dataofs + sizeof (miptex_t) + pixels);
-			// add space for the color palette
-			pixels += 2 + colors * 3;
+			if ((pixels_p + pixels + 2) <= (mod_base + l->fileofs + l->filelen))
+			{
+				// the palette is basically garunteed to be 256 colors but,
+				// we might as well use the value since it *does* exist
+				memcpy (&colors, pixels_p + pixels, 2);
+				colors = LittleShort (colors);
+				// add space for the color palette
+				pixels += colors * 3;
+			}
+			// add space for the color count
+			pixels += 2;
 		}
 #endif
 		tx = (texture_t *)Mem_Alloc (sizeof (texture_t) + pixels);
@@ -1024,7 +1036,6 @@ static void Mod_LoadTextures (qmodel_t *mod, byte *mod_base, lump_t *l)
 		// appears in the wild; e.g. jam2_tronyn.bsp (func_mapjam2),
 		// kellbase1.bsp (quoth), and can lead to a segfault if we read past
 		// the end of the .bsp file buffer
-		pixels_p = m + dataofs + sizeof (miptex_t);
 		if ((pixels_p + pixels) > (mod_base + l->fileofs + l->filelen))
 		{
 			Con_DPrintf ("Texture %s extends past end of lump\n", mt.name);
