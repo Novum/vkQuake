@@ -240,7 +240,7 @@ qpic_t *Draw_PicFromWad2 (const char *name, unsigned int texflags)
 		char texturename[64];														// johnfitz
 		q_snprintf (texturename, sizeof (texturename), "%s:%s", WADFILENAME, name); // johnfitz
 
-		offset = (src_offset_t)p - (src_offset_t)gfx.base + sizeof (int) * 2; // johnfitz
+		offset = (src_offset_t)p - (src_offset_t)wad_base + sizeof (int) * 2; // johnfitz
 
 		gl.gltexture = TexMgr_LoadImage (NULL, texturename, p->width, p->height, SRC_INDEXED, p->data, WADFILENAME, offset, texflags); // johnfitz -- TexMgr
 		gl.sl = 0;
@@ -382,7 +382,7 @@ void Draw_LoadPics (void)
 	data = (byte *)W_GetLumpName ("conchars", &info);
 	if (!data)
 		Sys_Error ("Draw_LoadPics: couldn't load conchars");
-	offset = (src_offset_t)data - (src_offset_t)gfx.base;
+	offset = (src_offset_t)data - (src_offset_t)wad_base;
 	char_texture = TexMgr_LoadImage (
 		NULL, WADFILENAME ":conchars", 128, 128, SRC_INDEXED, data, WADFILENAME, offset, TEXPREF_ALPHA | TEXPREF_NEAREST | TEXPREF_NOPICMIP | TEXPREF_CONCHARS);
 

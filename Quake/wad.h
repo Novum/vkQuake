@@ -77,13 +77,14 @@ typedef struct wad_s
 	fshandle_t	  fh;
 	int			  numlumps;
 	lumpinfo_t	 *lumps;
-	byte		 *base;
 	struct wad_s *next;
 } wad_t;
 
-extern wad_t gfx;
+extern int		   wad_numlumps;
+extern lumpinfo_t *wad_lumps;
+extern byte		  *wad_base;
 
-void  W_LoadWadFile ();
+void  W_LoadWadFile (void); // johnfitz -- filename is now hard-coded for honesty
 void  W_CleanupName (const char *in, char *out);
 void *W_GetLumpName (const char *name, lumpinfo_t **out_info);
 
