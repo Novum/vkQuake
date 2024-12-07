@@ -1354,12 +1354,12 @@ TexMgr_LoadImage8Valve
 */
 static void TexMgr_LoadImage8Valve (gltexture_t *glt, byte *data)
 {
-	byte *in;
-	short colors;
+	byte		  *in;
+	unsigned short colors;
 
 	in = data + glt->source_width * glt->source_height / 64 * 85;
 
-	memcpy (&colors, in, sizeof (short));
+	memcpy (&colors, in, 2);
 	colors = LittleShort (colors);
 
 	TEMP_ALLOC (byte, usepal, colors * 4);
