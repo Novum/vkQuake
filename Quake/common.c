@@ -1171,7 +1171,7 @@ void COM_FileBase (const char *in, char *out, size_t outsize)
 	dot = NULL;
 	while (*s)
 	{
-		if (*s == '/')
+		if (*s == '/' || *s == '\\')
 			slash = s + 1;
 		if (*s == '.')
 			dot = s;
