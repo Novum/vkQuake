@@ -206,8 +206,7 @@ static wad_t *W_AddWadFile (const char *name, fshandle_t *fh)
 
 	FS_fread ((void *)&header, 1, sizeof (header), fh);
 
-	id = LittleLong (header.identification[0] | (header.identification[1] << 8)
-			| (header.identification[2] << 16) | (header.identification[3] << 24));
+	id = LittleLong (header.identification[0] | (header.identification[1] << 8) | (header.identification[2] << 16) | (header.identification[3] << 24));
 	if (id != WADID && id != WADID_VALVE)
 	{
 		Con_Warning ("%s is not a valid WAD\n", name);
