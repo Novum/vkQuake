@@ -91,19 +91,24 @@ static qboolean Sys_GetUserdirArgs (int argc, char **argv, char *dst, size_t dst
 	int i = 1;
 	for (; i < argc - 1; ++i)
 	{
-		if (strcmp(argv[i], "-userdir") == 0)
+		if (strcmp (argv[i], "-userdir") == 0)
 		{
-			char *p = dst;
-			const char * arg = argv[i + 1];
-			const int n = (int)strlen(arg);
-			if (n < 1) Sys_Error ("Bad argument to -userdir");
+			char	   *p = dst;
+			const char *arg = argv[i + 1];
+			const int	n = (int)strlen (arg);
+			if (n < 1)
+				Sys_Error ("Bad argument to -userdir");
 			if (q_strlcpy (dst, arg, dstsize) >= dstsize)
 				Sys_Error ("Insufficient array size for userspace directory");
-			if (dst[n - 1] == '/') dst[n - 1] = 0;
-			if (*p == '/') p++;
-			for (; *p; p++) {
+			if (dst[n - 1] == '/')
+				dst[n - 1] = 0;
+			if (*p == '/')
+				p++;
+			for (; *p; p++)
+			{
 				const char c = *p;
-				if (c == '/') {
+				if (c == '/')
+				{
 					*p = 0;
 					Sys_mkdir (dst);
 					*p = c;
@@ -217,7 +222,7 @@ void Sys_Init (void)
 	host_parms->userdir = host_parms->basedir; /* code elsewhere relies on this ! */
 #else
 	memset (userdir, 0, sizeof (userdir));
-	Sys_GetUserdir (host_parms->argc, host_parms->argv, userdir, sizeof(userdir));
+	Sys_GetUserdir (host_parms->argc, host_parms->argv, userdir, sizeof (userdir));
 	Sys_mkdir (userdir);
 	host_parms->userdir = userdir;
 #endif
