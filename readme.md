@@ -48,6 +48,11 @@ vkQuake has initial support for playing the 2021 re-release content. Follow inst
 ## Vulkan
 vkQuake shows basic usage of the API. For example it demonstrates render passes & sub passes, pipeline barriers & synchronization, compute shaders, push & specialization constants, CPU/GPU parallelism and memory pooling.
 
+## Endianness
+vkQuake only supports **little-endian** systems. 
+The reason is, all known existing Vulkan-capable systems in the wild are little-endian. Consequently, all big-endian support from QuakeSpasm has been effectively removed. 
+vkQuake wouldn't even start on an big-endian system, outputing a fatal error.
+
 ## Building
 > **Note**\
 > You will need at least Vulkan SDK version 1.2.162 or newer. When building for Linux this is not always the case for the SDK provided by the distribution. Install the latest LunarG SDK if necessary.
