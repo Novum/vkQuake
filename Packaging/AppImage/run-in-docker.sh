@@ -17,6 +17,7 @@ rm -rf vkquake*
 mkdir "$FOLDER"
 ./linuxdeploy-x86_64.AppImage \
 	-e ../../build/appimage/vkquake --appdir=AppDir --create-desktop-file \
+ 	-l ../../../../lib/x86_64-linux-gnu/libpulse.so.0 \
 	-i ../../Misc/vkQuake_256.png --icon-filename=vkquake --output appimage
 
 cp "vkquake-$VERSION-x86_64.AppImage" "$FOLDER/vkquake.AppImage"
