@@ -401,7 +401,7 @@ static void GL_HeapSmallAllocateFromBlock (
 		GL_HeapAddPageToSmallFreeList (segment, block_page_index, small_alloc_bucket);
 	}
 
-	const uint32_t slot_index = FindFirstBitNonZero (~(*small_alloc_mask));
+	const uint32_t slot_index = FindFirstBitNonZero64 (~(*small_alloc_mask));
 	TRACE_LOG (" Allocated slot %d from page %u (mask %" PRIx64 ")\n", slot_index, block_page_index, *small_alloc_mask);
 	*small_alloc_mask |= 1ull << slot_index;
 
