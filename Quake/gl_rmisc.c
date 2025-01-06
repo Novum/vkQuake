@@ -4002,7 +4002,7 @@ void R_CreateBuffer (
 
 	err = vkBindBufferMemory (vulkan_globals.device, *buffer, memory->handle, 0);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkBindImageMemory failed");
+		Sys_Error ("vkBindBufferMemory failed");
 
 	if (get_device_address)
 	{
@@ -4131,7 +4131,7 @@ size_t R_CreateBuffers (
 
 		err = vkBindBufferMemory (vulkan_globals.device, *create_infos[i].buffer, memory->handle, current_offset);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkBindImageMemory failed");
+			Sys_Error ("vkBindBufferMemory failed");
 
 		if (create_infos[i].mapped)
 			*create_infos[i].mapped = mapped_base + current_offset;
