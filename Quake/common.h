@@ -313,6 +313,10 @@ const char *LOC_GetString (const char *key);
 qboolean	LOC_HasPlaceholders (const char *str);
 size_t		LOC_Format (const char *format, const char *(*getarg_fn) (int idx, void *userdata), void *userdata, char *out, size_t len);
 
+void	 COM_SeedRand (uint64_t seed);
+uint32_t COM_Rand (void);
+#define COM_RAND_MAX UINT32_MAX
+
 //============================================================================
 
 // QUAKEFS

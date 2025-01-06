@@ -874,7 +874,7 @@ void _Host_Frame (double time)
 		return; // something bad happened, or the server disconnected
 
 	// keep the random time dependent
-	rand ();
+	COM_Rand ();
 
 	// decide the simulation time
 	accumtime += host_netinterval ? CLAMP (0, time, 0.2) : 0; // for renderer/server isolation

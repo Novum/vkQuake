@@ -343,7 +343,7 @@ HashMap_BasicTest
 */
 static void HashMap_StressTest (void)
 {
-	srand (0);
+	COM_SeedRand (0);
 	const int TEST_SIZE = 10000;
 	TEMP_ALLOC (int64_t, keys, TEST_SIZE);
 	hash_map_t *map = HashMap_Create (int64_t, int32_t, &HashInt64, NULL);
@@ -355,7 +355,7 @@ static void HashMap_StressTest (void)
 		}
 		for (int i = TEST_SIZE - 1; i > 0; --i)
 		{
-			const int swap_index = rand () % (i + 1);
+			const int swap_index = COM_Rand () % (i + 1);
 			const int temp = keys[swap_index];
 			keys[swap_index] = keys[i];
 			keys[i] = temp;

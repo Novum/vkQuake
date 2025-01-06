@@ -34,9 +34,9 @@ cvar_t r_fteparticles = {"r_fteparticles", "1", CVAR_ARCHIVE};
 #define USE_DECALS
 #define Con_Printf Con_SafePrintf
 
-#define frandom()  (rand () * (1.0f / (float)RAND_MAX))
-#define crandom()  (rand () * (2.0f / (float)RAND_MAX) - 1.0f)
-#define hrandom()  (rand () * (1.0f / (float)RAND_MAX) - 0.5f)
+#define frandom()  (COM_Rand () * (1.0f / (float)COM_RAND_MAX))
+#define crandom()  (COM_Rand () * (2.0f / (float)COM_RAND_MAX) - 1.0f)
+#define hrandom()  (COM_Rand () * (1.0f / (float)COM_RAND_MAX) - 0.5f)
 #define particle_s fparticle_s
 #define particle_t fparticle_t
 typedef vec_t vec2_t[2];
@@ -451,7 +451,7 @@ static pcfg_t *loadedconfigs;
 
 #ifndef TYPESONLY
 
-#define crand() (rand () % 32767 / 16383.5f - 1)
+#define crand() (COM_Rand () % 32767 / 16383.5f - 1)
 
 #define MAX_BEAMSEGS	(1 << 11) // default max # of beam segments
 #define MAX_PARTICLES	(1 << 18) // max # of particles at one time
@@ -3885,7 +3885,7 @@ static void PScript_EffectSpawned (part_type_t *ptype, vec3_t org, vec3_t axis[3
 		if (flickertime != i)
 		{
 			flickertime = i;
-			flicker = rand ();
+			flicker = COM_Rand ();
 		}
 		radius = ptype->dl_radius[0] + (r_lightflicker.value ? ((flicker + dlkey * 2000) & 0xffff) * (1.0f / 0xffff) : 0.5) * ptype->dl_radius[1];
 
@@ -3991,7 +3991,7 @@ static void PScript_AddDecals (void *vctx, vec3_t *points, size_t numtris)
 		if (ptype->colorindex >= 0)
 		{
 			int cidx;
-			cidx = ptype->colorrand > 0 ? rand () % ptype->colorrand : 0;
+			cidx = ptype->colorrand > 0 ? COM_Rand () % ptype->colorrand : 0;
 			cidx = ptype->colorindex + cidx;
 			if (cidx > 255)
 				d->rgba[3] = d->rgba[3] / 2; // Hexen 2 style transparency
@@ -4494,7 +4494,7 @@ int PScript_RunParticleEffectState (vec3_t org, vec3_t dir, float count, int typ
 			ctx.scale2 /= m;
 
 			if (ptype->randsmax != 1)
-				ctx.bias1 += ptype->texsstride * (rand () % ptype->randsmax);
+				ctx.bias1 += ptype->texsstride * (COM_Rand () % ptype->randsmax);
 
 			// inserts decals through a callback.
 			Mod_ClipDecal (
@@ -4547,8 +4547,8 @@ int PScript_RunParticleEffectState (vec3_t org, vec3_t dir, float count, int typ
 			{
 				for (j = 0; j < NUMVERTEXNORMALS; j++)
 				{
-					avelocities[j][0] = (rand () & 255) * 0.01;
-					avelocities[j][1] = (rand () & 255) * 0.01;
+					avelocities[j][0] = (COM_Rand () & 255) * 0.01;
+					avelocities[j][1] = (COM_Rand () & 255) * 0.01;
 				}
 			}
 
@@ -4629,7 +4629,7 @@ int PScript_RunParticleEffectState (vec3_t org, vec3_t dir, float count, int typ
 			p->t2 = ptype->t2;
 			if (ptype->randsmax != 1)
 			{
-				m = ptype->texsstride * (rand () % ptype->randsmax);
+				m = ptype->texsstride * (COM_Rand () % ptype->randsmax);
 				p->s1 += m;
 				p->s2 += m;
 			}
@@ -4637,7 +4637,7 @@ int PScript_RunParticleEffectState (vec3_t org, vec3_t dir, float count, int typ
 			if (ptype->colorindex >= 0)
 			{
 				int cidx;
-				cidx = ptype->colorrand > 0 ? rand () % ptype->colorrand : 0;
+				cidx = ptype->colorrand > 0 ? COM_Rand () % ptype->colorrand : 0;
 				cidx = ptype->colorindex + cidx;
 				if (cidx > 255)
 					p->rgba[3] = p->rgba[3] / 2; // Hexen 2 style transparency
@@ -4683,9 +4683,9 @@ int PScript_RunParticleEffectState (vec3_t org, vec3_t dir, float count, int typ
 				VectorScale (ofsvec, 1.0 - (frandom ()) * m, ofsvec);
 
 				// org is just like the original
-				arsvec[0] = j + (rand () % spawnspc);
-				arsvec[1] = k + (rand () % spawnspc);
-				arsvec[2] = l + (rand () % spawnspc);
+				arsvec[0] = j + (COM_Rand () % spawnspc);
+				arsvec[1] = k + (COM_Rand () % spawnspc);
+				arsvec[2] = l + (COM_Rand () % spawnspc);
 
 				// advance telebox loop
 				j += spawnspc;
@@ -4704,8 +4704,8 @@ int PScript_RunParticleEffectState (vec3_t org, vec3_t dir, float count, int typ
 				break;
 			case SM_LAVASPLASH:
 				// calc directions, org with temp vector
-				ofsvec[0] = k + (rand () % spawnspc);
-				ofsvec[1] = j + (rand () % spawnspc);
+				ofsvec[0] = k + (COM_Rand () % spawnspc);
+				ofsvec[1] = j + (COM_Rand () % spawnspc);
 				ofsvec[2] = 256;
 
 				arsvec[0] = ofsvec[0];
@@ -5007,7 +5007,7 @@ void PScript_RunParticleWeather (vec3_t minb, vec3_t maxb, vec3_t dir, float cou
 
 		for (j = 0; j < 3; j++)
 		{
-			num = rand () / (float)RAND_MAX;
+			num = COM_Rand () / (float)COM_RAND_MAX;
 			org[j] = minb[j] + num * (maxb[j] - minb[j]);
 		}
 		PScript_RunParticleEffectState (org, dir, invcount, ptype, NULL);
@@ -5254,7 +5254,7 @@ static void PScript_ParticleTrailSpawn (vec3_t startpos, vec3_t end, part_type_t
 		if (ptype->colorindex >= 0)
 		{
 			int cidx;
-			cidx = ptype->colorrand > 0 ? rand () % ptype->colorrand : 0;
+			cidx = ptype->colorrand > 0 ? COM_Rand () % ptype->colorrand : 0;
 			if (ptype->flags & PT_CITRACER) // colorindex behavior as per tracers in std Q1
 				cidx += ((tcount & 4) << 1);
 
@@ -5294,7 +5294,7 @@ static void PScript_ParticleTrailSpawn (vec3_t startpos, vec3_t end, part_type_t
 		if (ptype->randsmax != 1)
 		{
 			float offs;
-			offs = ptype->texsstride * (rand () % ptype->randsmax);
+			offs = ptype->texsstride * (COM_Rand () % ptype->randsmax);
 			p->s1 += offs;
 			p->s2 += offs;
 			while (p->s1 >= 1)

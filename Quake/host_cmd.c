@@ -879,7 +879,7 @@ static void Host_Randmap_f (void)
 		return;
 	}
 
-	randlevel = (rand () % numlevels);
+	randlevel = (COM_Rand () % numlevels);
 
 	for (level = extralevels, i = 0; level; level = level->next, i++)
 	{

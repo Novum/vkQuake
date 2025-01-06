@@ -3163,3 +3163,47 @@ size_t LOC_Format (const char *format, const char *(*getarg_fn) (int idx, void *
 
 	return written;
 }
+
+/*
+================
+Initial state picked randomly, can't be 0.
+================
+*/
+static uint32_t xorshiro_state[2] = {0xcdb38550, 0x720a8392};
+
+/*
+=================
+COM_SeedRand
+=================
+*/
+void COM_SeedRand (uint64_t seed)
+{
+	// SplitMix64
+	uint64_t z = (seed + 0x9e3779b97f4a7c15);
+	z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9;
+	z = (z ^ (z >> 27)) * 0x94d049bb133111eb;
+	uint64_t state = z ^ (z >> 31);
+	xorshiro_state[0] = (uint32_t)state;
+	xorshiro_state[1] = (uint32_t)(state >> 32);
+}
+
+/*
+=================
+COM_Rand
+=================
+*/
+static inline uint32_t rotl (const uint32_t x, int k)
+{
+	return (x << k) | (x >> (32 - k));
+}
+uint32_t COM_Rand ()
+{
+	// Xorshiro64**
+	const uint32_t s0 = xorshiro_state[0];
+	uint32_t	   s1 = xorshiro_state[1];
+	const uint32_t result = rotl (s0 * 0x9E3779BB, 5) * 5;
+	s1 ^= s0;
+	xorshiro_state[0] = rotl (s0, 26) ^ s1 ^ (s1 << 9);
+	xorshiro_state[1] = rotl (s1, 13);
+	return result;
+}

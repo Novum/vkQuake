@@ -165,11 +165,11 @@ void CL_ParseTEnt (void)
 		pos[2] = MSG_ReadCoord (cl.protocolflags);
 		if (PScript_RunParticleEffectTypeString (pos, NULL, 1, "TE_SPIKE"))
 			R_RunParticleEffect (pos, vec3_origin, 0, 10);
-		if (rand () % 5)
+		if (COM_Rand () % 5)
 			S_StartSound (-1, 0, cl_sfx_tink1, pos, 1, 1);
 		else
 		{
-			rnd = rand () & 3;
+			rnd = COM_Rand () & 3;
 			if (rnd == 1)
 				S_StartSound (-1, 0, cl_sfx_ric1, pos, 1, 1);
 			else if (rnd == 2)
@@ -185,11 +185,11 @@ void CL_ParseTEnt (void)
 		if (PScript_RunParticleEffectTypeString (pos, NULL, 1, "TE_SUPERSPIKE"))
 			R_RunParticleEffect (pos, vec3_origin, 0, 20);
 
-		if (rand () % 5)
+		if (COM_Rand () % 5)
 			S_StartSound (-1, 0, cl_sfx_tink1, pos, 1, 1);
 		else
 		{
-			rnd = rand () & 3;
+			rnd = COM_Rand () & 3;
 			if (rnd == 1)
 				S_StartSound (-1, 0, cl_sfx_ric1, pos, 1, 1);
 			else if (rnd == 2)
@@ -356,7 +356,7 @@ void CL_UpdateTEnts (void)
 	num_temp_entities = 0;
 
 	if (cl.paused)
-		srand ((int)(cl.time * 1000)); // johnfitz -- freeze beams when paused
+		COM_SeedRand ((uint64_t)(cl.time * 1000)); // johnfitz -- freeze beams when paused
 
 	// update lightning
 	for (i = 0, b = cl_beams; i < MAX_BEAMS; i++, b++)
@@ -405,7 +405,7 @@ void CL_UpdateTEnts (void)
 			ent->model = b->model;
 			ent->angles[0] = pitch;
 			ent->angles[1] = yaw;
-			ent->angles[2] = rand () % 360;
+			ent->angles[2] = COM_Rand () % 360;
 
 			// johnfitz -- use j instead of using i twice, so we don't corrupt memory
 			for (j = 0; j < 3; j++)

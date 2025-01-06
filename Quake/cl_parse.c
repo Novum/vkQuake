@@ -528,7 +528,7 @@ static void CL_EntitiesDeltaed (void)
 				if (model->synctype == ST_FRAMETIME)
 					ent->syncbase = -cl.time;
 				else if (model->synctype == ST_RAND)
-					ent->syncbase = (float)(rand () & 0x7fff) / 0x7fff;
+					ent->syncbase = (float)(COM_Rand () & 0xffffff) / 0xffffff;
 				else
 					ent->syncbase = 0.0;
 			}
@@ -1265,7 +1265,7 @@ static void CL_ParseUpdate (int bits)
 		if (model)
 		{
 			if (model->synctype == ST_RAND)
-				ent->syncbase = (float)(rand () & 0x7fff) / 0x7fff;
+				ent->syncbase = (float)(COM_Rand () & 0xffffff) / 0xffffff;
 			else
 				ent->syncbase = 0.0;
 		}

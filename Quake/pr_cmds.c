@@ -536,7 +536,7 @@ static void PF_random (void)
 {
 	// don't return 1 (it would break array[random()*array.length];
 	// don't return 0 either, it would break the self.nextthink = time+random()*foo; lines in walkmonster_start, resulting rarely in statue-monsters.
-	G_FLOAT (OFS_RETURN) = (rand () & 0x7fff) / ((float)0x08000) + (0.5 / 0x08000);
+	G_FLOAT (OFS_RETURN) = (COM_Rand () & 0x7fff) / ((float)0x08000) + (0.5 / 0x08000);
 
 	if (qcvm->argc)
 	{
@@ -1755,7 +1755,7 @@ void PR_spawnfunc_misc_model (edict_t *self)
 		self->v.model = PR_SetEngineString ("*null");
 
 	if (self->v.angles[1] < 0) // mimic AD. shame there's no avelocity clientside.
-		self->v.angles[1] = (rand () * (360.0f / (float)RAND_MAX));
+		self->v.angles[1] = (COM_Rand () * (360.0f / (float)COM_RAND_MAX));
 
 	// make sure the model is precached, to avoid errors.
 	G_INT (OFS_PARM0) = self->v.model;

@@ -501,7 +501,7 @@ void S_StartSound (int entnum, int entchannel, sfx_t *sfx, vec3_t origin, float 
 		if (check->sfx == sfx && !check->pos)
 		{
 			/*
-			skip = rand () % (int)(0.1 * shm->speed);
+			skip = COM_Rand () % (int)(0.1 * shm->speed);
 			if (skip >= target_chan->end)
 				skip = target_chan->end - 1;
 			*/
@@ -510,7 +510,7 @@ void S_StartSound (int entnum, int entchannel, sfx_t *sfx, vec3_t origin, float 
 			if (skip > sc->length)
 				skip = sc->length;
 			if (skip > 0)
-				skip = rand () % skip;
+				skip = COM_Rand () % skip;
 			target_chan->pos += skip;
 			target_chan->end -= skip;
 			break;

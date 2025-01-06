@@ -2579,11 +2579,11 @@ static void PF_cl_te_spike (void)
 
 	if (PScript_RunParticleEffectTypeString (pos, NULL, 1, "TE_SPIKE"))
 		R_RunParticleEffect (pos, vec3_origin, 0, 10);
-	if (rand () % 5)
+	if (COM_Rand () % 5)
 		S_StartSound (-1, 0, S_PrecacheSound ("weapons/tink1.wav"), pos, 1, 1);
 	else
 	{
-		int rnd = rand () & 3;
+		int rnd = COM_Rand () & 3;
 		if (rnd == 1)
 			S_StartSound (-1, 0, S_PrecacheSound ("weapons/ric1.wav"), pos, 1, 1);
 		else if (rnd == 2)
@@ -2609,11 +2609,11 @@ static void PF_cl_te_superspike (void)
 	if (PScript_RunParticleEffectTypeString (pos, NULL, 1, "TE_SUPERSPIKE"))
 		R_RunParticleEffect (pos, vec3_origin, 0, 20);
 
-	if (rand () % 5)
+	if (COM_Rand () % 5)
 		S_StartSound (-1, 0, S_PrecacheSound ("weapons/tink1.wav"), pos, 1, 1);
 	else
 	{
-		int rnd = rand () & 3;
+		int rnd = COM_Rand () & 3;
 		if (rnd == 1)
 			S_StartSound (-1, 0, S_PrecacheSound ("weapons/ric1.wav"), pos, 1, 1);
 		else if (rnd == 2)
@@ -3926,9 +3926,9 @@ static void PF_randomvector (void)
 	vec3_t temp;
 	do
 	{
-		temp[0] = (rand () & 32767) * (2.0 / 32767.0) - 1.0;
-		temp[1] = (rand () & 32767) * (2.0 / 32767.0) - 1.0;
-		temp[2] = (rand () & 32767) * (2.0 / 32767.0) - 1.0;
+		temp[0] = (COM_Rand () & 0xffffff) * (2.0 / (float)0xffffff) - 1.0;
+		temp[1] = (COM_Rand () & 0xffffff) * (2.0 / (float)0xffffff) - 1.0;
+		temp[2] = (COM_Rand () & 0xffffff) * (2.0 / (float)0xffffff) - 1.0;
 	} while (DotProduct (temp, temp) >= 1);
 	VectorCopy (temp, G_VECTOR (OFS_RETURN));
 }

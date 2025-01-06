@@ -903,50 +903,6 @@ static void TestHeapConsistency (glheap_t *heap)
 
 /*
 =================
-Xorshiro128Seed
-=================
-*/
-static uint64_t SplitMix64 (uint64_t *seed)
-{
-	uint64_t z = (*seed += 0x9e3779b97f4a7c15);
-	z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9;
-	z = (z ^ (z >> 27)) * 0x94d049bb133111eb;
-	return z ^ (z >> 31);
-}
-void Xorshiro128Seed (uint64_t seed, uint32_t state[4])
-{
-	uint64_t tmp = SplitMix64 (&seed);
-	state[0] = (uint32_t)tmp;
-	state[1] = (uint32_t)(tmp >> 32);
-	tmp = SplitMix64 (&seed);
-	state[2] = (uint32_t)tmp;
-	state[3] = (uint32_t)(tmp >> 32);
-}
-
-/*
-=================
-Xorshiro128Next
-=================
-*/
-static inline uint32_t rotl (const uint32_t x, int k)
-{
-	return (x << k) | (x >> (32 - k));
-}
-uint32_t Xorshiro128Next (uint32_t *state)
-{
-	const uint32_t result = rotl (state[1] * 5, 7) * 9;
-	const uint32_t t = state[1] << 9;
-	state[2] ^= state[0];
-	state[3] ^= state[1];
-	state[1] ^= state[2];
-	state[0] ^= state[3];
-	state[2] ^= t;
-	state[3] = rotl (state[3], 11);
-	return result;
-}
-
-/*
-=================
 GL_HeapTest_f
 =================
 */
@@ -963,8 +919,7 @@ void GL_HeapTest_f (void)
 	Atomic_StoreUInt32 (&num_allocations, 0);
 	glheap_t *test_heap = GL_HeapCreate (TEST_HEAP_SIZE, TEST_HEAP_PAGE_SIZE, 0, VULKAN_MEMORY_TYPE_NONE, "Test Heap");
 	TestHeapCleanState (test_heap);
-	uint32_t rand_state[4] = {0, 0, 0, 0};
-	Xorshiro128Seed (0, rand_state);
+	COM_SeedRand (0);
 	TEMP_ALLOC_ZEROED (glheapallocation_t *, allocations, NUM_ALLOCS_PER_ITERATION);
 	for (int j = 0; j < NUM_ITERATIONS; ++j)
 	{
@@ -976,9 +931,9 @@ void GL_HeapTest_f (void)
 				for (int i = k; i < NUM_ALLOCS_PER_ITERATION; i += STRIDE)
 				{
 					// Exponential distribution (more small allocations)
-					const double	   exponential_dist_size = powf ((double)Xorshiro128Next (rand_state) / (double)UINT32_MAX, 5.0);
+					const double	   exponential_dist_size = powf ((double)COM_Rand () / (double)COM_RAND_MAX, 5.0);
 					const VkDeviceSize size = (VkDeviceSize)((double)(MAX_ALLOC_SIZE - 1) * exponential_dist_size) + 1;
-					const double	   exponential_dist_alignment = powf ((double)Xorshiro128Next (rand_state) / (double)UINT32_MAX, 10.0);
+					const double	   exponential_dist_alignment = powf ((double)COM_Rand () / (double)COM_RAND_MAX, 10.0);
 					const VkDeviceSize alignment = 1ull << (uint32_t)(exponential_dist_alignment * (double)MAX_ALIGNMENT_POW2);
 					HEAP_TEST_ASSERT (allocations[i] == NULL, "allocation is not NULL");
 
