@@ -263,21 +263,21 @@ static qboolean GL_HeapAllocateBlockFromSegment (glheap_t *heap, glheapsegment_t
 
 				if (total_pages <= block_size_in_pages)
 				{
-					TRACE_LOG ("Allocating block at page %u with size %u pages\n", block_page_index_aligned, alloc_size_in_pages);
+					TRACE_LOG (" Allocating block at page %u with size %u pages\n", block_page_index_aligned, alloc_info->alloc_size_in_pages);
 
 					assert (block_page_index_aligned < heap->num_pages_per_segment);
 					glheappagehdr_t *aligned_block_page_hdr = &segment->page_hdrs[block_page_index_aligned];
 
 					if (alignment_pages == 0)
 					{
-						TRACE_LOG (" No alignment padding\n");
+						TRACE_LOG ("  No alignment padding\n");
 						// No alignment, remove free bits for this block_page_hdr
 						--heap->stats.num_blocks_free;
 						GL_HeapMarkBlockUsed (heap, segment, block_page_index);
 					}
 					else
 					{
-						TRACE_LOG (" %u pages alignment padding\n", alignment_pages);
+						TRACE_LOG ("  %u pages alignment padding\n", alignment_pages);
 						// Keep free bit, but resize to just leftover alignment page_hdrs
 						for (int k = 0; k < NUM_BLOCK_SIZE_CLASSES; ++k)
 							assert (!GET_BIT (segment->free_blocks_bitfields[k], block_page_index_aligned));
@@ -328,7 +328,7 @@ static qboolean GL_HeapAllocateBlockFromSegment (glheap_t *heap, glheapsegment_t
 		}
 	}
 
-	TRACE_LOG (" Failed to allocate block with size %u pages\n", alloc_size_in_pages);
+	TRACE_LOG (" Failed to allocate block with size %u pages\n", alloc_info->alloc_size_in_pages);
 	return false;
 }
 
@@ -402,7 +402,7 @@ static void GL_HeapSmallAllocateFromBlock (
 	}
 
 	const uint32_t slot_index = FindFirstBitNonZero (~(*small_alloc_mask));
-	TRACE_LOG (" Allocated slot %d from page %u\n", slot_index, block_page_index);
+	TRACE_LOG (" Allocated slot %d from page %u (mask %" PRIx64 ")\n", slot_index, block_page_index, *small_alloc_mask);
 	*small_alloc_mask |= 1ull << slot_index;
 
 #ifndef NDEBUG
@@ -446,8 +446,8 @@ static qboolean GL_HeapSmallFreeFromBlock (glheap_t *heap, glheapsegment_t *segm
 	assert ((heap->page_size / SMALL_SLOTS_PER_PAGE[small_alloc_bucket]) == allocation->small_alloc_size);
 #endif
 
-	TRACE_LOG (" Free slot %d from page %u\n", slot_index, block_page_index);
 	uint64_t *small_alloc_mask = &segment->small_alloc_masks[block_page_index];
+	TRACE_LOG (" Free slot %d from page %u (mask %" PRIx64 ")\n", slot_index, block_page_index, *small_alloc_mask);
 	if (*small_alloc_mask == SLOTS_FULL_MASK[small_alloc_bucket])
 	{
 		// Page was full, add to free list
@@ -476,7 +476,7 @@ static qboolean GL_HeapAllocateFromSegment (glheapallocation_t *allocation, glhe
 {
 	if (alloc_info->is_small_alloc)
 	{
-		TRACE_LOG ("Small alloc size %u bucket %u\n", small_alloc_size, small_alloc_bucket);
+		TRACE_LOG (" Small alloc size %u bucket %u\n", alloc_info->small_alloc_size, alloc_info->small_alloc_bucket);
 		assert (alloc_info->small_alloc_bucket < NUM_SMALL_ALLOC_SIZES);
 		page_index_t page_index = segment->small_alloc_free_list_heads[alloc_info->small_alloc_bucket];
 		if (page_index != INVALID_PAGE_INDEX)
@@ -634,6 +634,7 @@ GL_HeapAllocate
 */
 glheapallocation_t *GL_HeapAllocate (glheap_t *heap, VkDeviceSize size, VkDeviceSize alignment, atomic_uint32_t *num_allocations)
 {
+	TRACE_LOG ("Allocating %" PRIu64 " bytes with alignment %" PRIu64 "\n", size, alignment);
 	assert (size > 0);
 	assert (alignment > 0);
 
@@ -675,7 +676,10 @@ glheapallocation_t *GL_HeapAllocate (glheap_t *heap, VkDeviceSize size, VkDevice
 
 			const qboolean success = GL_HeapAllocateFromSegment (allocation, heap, heap->segments[mask_page_offset], &alloc_info);
 			if (success)
+			{
+				TRACE_LOG (" Allocated %" PRIu64 " bytes from segment %p offset %" PRIu64 "\n", allocation->size, allocation->segment, allocation->offset);
 				return allocation;
+			}
 		}
 
 		Sys_Error ("GL_HeapAllocate failed to allocate");
@@ -707,6 +711,8 @@ GL_HeapFree
 */
 void GL_HeapFree (glheap_t *heap, glheapallocation_t *allocation, atomic_uint32_t *num_allocations)
 {
+	TRACE_LOG ("Freeing %" PRIu64 " bytes from segment %p offset %" PRIu64 "\n", allocation->size, allocation->segment, allocation->offset);
+
 	--heap->stats.num_allocations;
 	heap->stats.num_bytes_allocated -= allocation->size;
 
