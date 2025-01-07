@@ -38,10 +38,10 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 
 RUN cd /tmp \
- && wget https://www.libsdl.org/release/SDL2-2.30.9.tar.gz \
- && tar -xzf SDL2-2.30.9.tar.gz \
- && rm SDL2-2.30.9.tar.gz \
- && cd /tmp/SDL2-2.30.9 \
+ && wget https://www.libsdl.org/release/SDL2-2.30.11.tar.gz \
+ && tar -xzf SDL2-2.30.11.tar.gz \
+ && rm SDL2-2.30.11.tar.gz \
+ && cd /tmp/SDL2-2.30.11 \
  && ./configure \
  && make -j \
  && make install
