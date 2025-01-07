@@ -3,9 +3,7 @@
 prefix=/opt/cross_sdl2
 exec_prefix=${prefix}
 exec_prefix_set=no
-libdir=${exec_prefix}/lib
 lib_suffix=
-
 usage="\
 Usage: $0 [--prefix[=DIR]] [--exec-prefix[=DIR]] [--version] [--cflags] [--lib-suffix=SUFFIX] [--libs]"
 
@@ -47,7 +45,7 @@ while test $# -gt 0; do
       echo -I${prefix}/include -Dmain=SDL_main
       ;;
     --libs)
-      echo -L${libdir}/lib${lib_suffix} -lmingw32 -lSDL2main -lSDL2 -mwindows
+      echo -L${exec_prefix}/lib${lib_suffix} -lmingw32 -lSDL2main -lSDL2 -mwindows
       ;;
     *)
       echo "${usage}" 1>&2
