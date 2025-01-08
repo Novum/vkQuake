@@ -4338,10 +4338,64 @@ static void MD5Anim_Load (md5animctx_t *ctx, jointinfo_t *joints, size_t numjoin
 }
 
 /*
-================
+=====================
 Mod_LoadMD5MeshModel
-================
+=====================
 */
+static gltexture_t *Mod_LoadMD5FullbrightTexture (qmodel_t *mod, const char *texname, int expected_width, int expected_height)
+{
+	// try to find matching glow texture :
+	unsigned int   fb_width, fb_height;
+	enum srcformat fb_fmt = SRC_RGBA;
+	void		  *fb_data = Image_LoadImage (texname, (int *)&fb_width, (int *)&fb_height, &fb_fmt);
+	// fb texture found:
+	if (fb_data)
+	{
+		// Check consitency:
+		if (fb_fmt != SRC_RGBA)
+		{
+			Con_Warning ("MD5 fb %s not RGBA, skipped.\n", texname);
+			Mem_Free (fb_data);
+			return NULL;
+		}
+
+		if ((fb_width != expected_width) || (fb_height != expected_height))
+		{
+			Con_Warning ("MD5 fb %s dim invalid, skipped...\n", texname);
+			Mem_Free (fb_data);
+			return NULL;
+		}
+
+		// Normalize pixels for additive blending as in INDEXED: fullbright pixels have alpha > 0 => force alpha = 255
+		// otherwhise for trensparent pixels (alpha = 0) => force alapha = 255 + color = black
+		for (size_t pixel_index = 0; pixel_index < (size_t)fb_width * (size_t)fb_height; pixel_index++)
+		{
+			uint32_t *rgba_pixel = (uint32_t *)fb_data + pixel_index;
+			byte	 *rgba_component = (byte *)rgba_pixel;
+
+			// pixels not trensparent are the fulbright ones
+			if (rgba_component[3] == 0)
+			{
+				// transparent pixels are force to black with force alpha = 255
+				rgba_component[0] = 0;
+				rgba_component[1] = 0;
+				rgba_component[2] = 0;
+			}
+
+			// always force alpha = 255 for all
+			rgba_component[3] = 255;
+		}
+
+		gltexture_t *loaded_texture =
+			TexMgr_LoadImage (mod, texname, expected_width, expected_height, SRC_RGBA, (byte *)fb_data, texname, 0, TEXPREF_ALPHA | TEXPREF_MIPMAP);
+		Mem_Free (fb_data);
+
+		return loaded_texture;
+	}
+
+	return NULL;
+}
+
 static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 {
 	const char		*fname = mod->name;
@@ -4510,41 +4564,13 @@ static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 						{
 							q_snprintf (texname, sizeof (texname), "progs/%s_%02u_%02u_glow", com_token, surf->numskins, f);
 
-							// try to find matching glow texture :
-							unsigned int   glow_width, glow_height;
-							enum srcformat glow_fmt = SRC_RGBA;
-							void		  *glow_data = Image_LoadImage (texname, (int *)&glow_width, (int *)&glow_height, &glow_fmt);
-							// glow texture found:
-							if (glow_data)
-							{
-								assert (glow_fmt == SRC_RGBA);
-								assert (glow_width == fwidth);
-								assert (glow_height == fheight);
-								surf->fbtextures[surf->numskins][f] = TexMgr_LoadImage (
-									mod, texname, surf->skinwidth, surf->skinheight, SRC_RGBA, glow_data, texname, 0,
-									TEXPREF_ALPHA | TEXPREF_MIPMAP | TEXPREF_FULLBRIGHT);
-								Mem_Free (glow_data);
-							}
+							surf->fbtextures[surf->numskins][f] = Mod_LoadMD5FullbrightTexture (mod, texname, surf->skinwidth, surf->skinheight);
 						}
 						if (!surf->fbtextures[surf->numskins][f])
 						{
 							q_snprintf (texname, sizeof (texname), "progs/%s_%02u_%02u_luma", com_token, surf->numskins, f);
 
-							// try to find matching luma texture :
-							unsigned int   luma_width, luma_height;
-							enum srcformat luma_fmt = SRC_RGBA;
-							void		  *luma_data = Image_LoadImage (texname, (int *)&luma_width, (int *)&luma_height, &luma_fmt);
-							// luma found:
-							if (luma_data)
-							{
-								assert (luma_fmt == SRC_RGBA);
-								assert (luma_width == fwidth);
-								assert (luma_height == fheight);
-								surf->fbtextures[surf->numskins][f] = TexMgr_LoadImage (
-									mod, texname, surf->skinwidth, surf->skinheight, SRC_RGBA, luma_data, texname, 0,
-									TEXPREF_ALPHA | TEXPREF_MIPMAP | TEXPREF_FULLBRIGHT);
-								Mem_Free (luma_data);
-							}
+							surf->fbtextures[surf->numskins][f] = Mod_LoadMD5FullbrightTexture (mod, texname, surf->skinwidth, surf->skinheight);
 						}
 					}
 
@@ -4654,7 +4680,8 @@ static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 
 	// so make it gpu-friendly.
 	MD5_BakeInfluences (fname, joint_poses, poutvertexes, vinfo, weight, total_numverts, total_numweights);
-	// and now make up the normals that the format lacks. we'll still probably have issues from seams, but then so did qme, so at least its faithful... :P
+	// and now make up the normals that the format lacks. we'll still probably have issues from seams, but then so did qme, so at least its faithful...
+	// :P
 	MD5_ComputeNormals (poutvertexes, total_numverts, poutindexes, outhdr->total_numindexes);
 
 	Mem_Free (weight);
