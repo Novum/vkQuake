@@ -313,8 +313,8 @@ const char *LOC_GetString (const char *key);
 qboolean	LOC_HasPlaceholders (const char *str);
 size_t		LOC_Format (const char *format, const char *(*getarg_fn) (int idx, void *userdata), void *userdata, char *out, size_t len);
 
-void	 COM_SeedRand (uint64_t seed);
-uint32_t COM_Rand (void);
+void	COM_SeedRand (uint64_t seed);
+int32_t COM_Rand (void);
 
 // Limit to 24 bits so values fit in float mantissa & don't get negative when casting to ints
 #define COM_RAND_MAX 0xFFFFFF

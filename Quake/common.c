@@ -3196,7 +3196,8 @@ static inline uint32_t rotl (const uint32_t x, int k)
 {
 	return (x << k) | (x >> (32 - k));
 }
-uint32_t COM_Rand ()
+
+int32_t COM_Rand ()
 {
 	// Xorshiro64**
 	const uint32_t s0 = xorshiro_state[0];
@@ -3205,5 +3206,6 @@ uint32_t COM_Rand ()
 	s1 ^= s0;
 	xorshiro_state[0] = rotl (s0, 26) ^ s1 ^ (s1 << 9);
 	xorshiro_state[1] = rotl (s1, 13);
-	return result & COM_RAND_MAX;
+
+	return (int)(result & COM_RAND_MAX);
 }
