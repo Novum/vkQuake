@@ -3926,9 +3926,9 @@ static void PF_randomvector (void)
 	vec3_t temp;
 	do
 	{
-		temp[0] = (COM_Rand () & 0xffffff) * (2.0 / (float)0xffffff) - 1.0;
-		temp[1] = (COM_Rand () & 0xffffff) * (2.0 / (float)0xffffff) - 1.0;
-		temp[2] = (COM_Rand () & 0xffffff) * (2.0 / (float)0xffffff) - 1.0;
+		temp[0] = COM_Rand () * (2.0 / (float)COM_RAND_MAX) - 1.0;
+		temp[1] = COM_Rand () * (2.0 / (float)COM_RAND_MAX) - 1.0;
+		temp[2] = COM_Rand () * (2.0 / (float)COM_RAND_MAX) - 1.0;
 	} while (DotProduct (temp, temp) >= 1);
 	VectorCopy (temp, G_VECTOR (OFS_RETURN));
 }

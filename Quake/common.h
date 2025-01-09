@@ -315,7 +315,9 @@ size_t		LOC_Format (const char *format, const char *(*getarg_fn) (int idx, void 
 
 void	 COM_SeedRand (uint64_t seed);
 uint32_t COM_Rand (void);
-#define COM_RAND_MAX UINT32_MAX
+
+// Limit to 24 bits so values fit in float mantissa & don't get negative when casting to ints
+#define COM_RAND_MAX 0xFFFFFF
 
 //============================================================================
 

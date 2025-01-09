@@ -3205,5 +3205,5 @@ uint32_t COM_Rand ()
 	s1 ^= s0;
 	xorshiro_state[0] = rotl (s0, 26) ^ s1 ^ (s1 << 9);
 	xorshiro_state[1] = rotl (s1, 13);
-	return result;
+	return result & COM_RAND_MAX;
 }

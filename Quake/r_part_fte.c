@@ -34,9 +34,9 @@ cvar_t r_fteparticles = {"r_fteparticles", "1", CVAR_ARCHIVE};
 #define USE_DECALS
 #define Con_Printf Con_SafePrintf
 
-#define frandom()  ((COM_Rand () & 0xFFFFFF) * (1.0f / (float)0xFFFFFF))
-#define crandom()  ((COM_Rand () & 0xFFFFFF) * (2.0f / (float)0xFFFFFF) - 1.0f)
-#define hrandom()  ((COM_Rand () & 0xFFFFFF) * (1.0f / (float)0xFFFFFF) - 0.5f)
+#define frandom()  (COM_Rand () * (1.0f / (float)COM_RAND_MAX))
+#define crandom()  (COM_Rand () * (2.0f / (float)COM_RAND_MAX) - 1.0f)
+#define hrandom()  (COM_Rand () * (1.0f / (float)COM_RAND_MAX) - 0.5f)
 #define particle_s fparticle_s
 #define particle_t fparticle_t
 typedef vec_t vec2_t[2];
