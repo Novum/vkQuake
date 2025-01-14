@@ -1029,8 +1029,7 @@ static void Sbar_DrawModern (cb_context_t *cbx)
 	GL_SetCanvas (cbx, CANVAS_BOTTOMLEFT);
 	Sbar_DrawFace (cbx, 20, 135, false);
 	Sbar_DrawNum (cbx, 45, 135, cl.stats[STAT_HEALTH], 3, cl.stats[STAT_HEALTH] <= 25);
-
-	if (scr_viewsize.value < 110.0f)
+	
 	{
 		// armor
 		const int ARMOR_NUM_X = 45;
@@ -1104,7 +1103,6 @@ static void Sbar_DrawModern (cb_context_t *cbx)
 		}
 	}
 
-	if (scr_viewsize.value < 110.0f)
 	{
 		const int KEY_ICON_X = 284;
 		const int KEY_ICON_Y = 115;
