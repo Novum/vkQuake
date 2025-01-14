@@ -1106,11 +1106,17 @@ static void Sbar_DrawModern (cb_context_t *cbx)
 	{
 		const int KEY_ICON_X = 284;
 		const int KEY_ICON_Y = 115;
+		const int KEY_ICON_HIPNOTIC_Y = 122;
 		// keys
 		for (int i = 0; i < 2; i++)
 		{
-			if (cl.items & (1 << (17 + i)) && (!hipnotic || (i > 1)))
-				Sbar_DrawPic (cbx, KEY_ICON_X, KEY_ICON_Y - (i * 16), sb_items[i]);
+			if (cl.items & (1 << (17 + i)))
+			{
+				if (!hipnotic)
+					Sbar_DrawPic (cbx, KEY_ICON_X, KEY_ICON_Y - (i * 16), sb_items[i]);
+				else
+					Sbar_DrawPic (cbx, KEY_ICON_X, KEY_ICON_HIPNOTIC_Y - (i * 10), sb_items[i]);
+			}
 		}
 	}
 
