@@ -141,6 +141,8 @@ void *Mod_Extradata_CheckSkin (qmodel_t *mod, int skinnum)
 			return mod->extradata[1];
 		if (r_md5models.value && mod->md5_prio && skinnum < ((aliashdr_t *)mod->extradata[1])->numskins)
 			return mod->extradata[1];
+		if (!mod->extradata[0])
+			return mod->extradata[1];
 	}
 	return mod->extradata[0];
 }
@@ -492,9 +494,10 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 	//
 	// load the file
 	//
+	mod_type = COM_FileExists (mod->name, &mod->path_id);
 	qboolean	 md5_loaded = false;
 	unsigned int md5_path_id = 0;
-	if (r_loadmd5models.value)
+	if (r_loadmd5models.value || !mod_type)
 	{
 		char newname[MAX_QPATH];
 		q_strlcpy (newname, mod->name, sizeof (newname));
@@ -506,6 +509,8 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 			if (buf)
 			{
 				Mod_LoadMD5MeshModel (mod, buf);
+				if (!mod_type)
+					goto md5_forced;
 				md5_loaded = true;
 				md5_path_id = mod->path_id;
 			}
@@ -558,27 +563,31 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 	char loadname[256];
 	COM_FileBase (mod->name, loadname, sizeof (loadname));
 
+md5_forced:
+
 	//
 	// fill it in
 	//
-
-	// call the apropriate loader
 	mod->needload = false;
 
-	mod_type = (buf[0] | (buf[1] << 8) | (buf[2] << 16) | (buf[3] << 24));
-	switch (mod_type)
+	// call the apropriate loader
+	if (mod_type)
 	{
-	case IDPOLYHEADER:
-		Mod_LoadAliasModel (mod, buf);
-		break;
+		mod_type = (buf[0] | (buf[1] << 8) | (buf[2] << 16) | (buf[3] << 24));
+		switch (mod_type)
+		{
+		case IDPOLYHEADER:
+			Mod_LoadAliasModel (mod, buf);
+			break;
 
-	case IDSPRITEHEADER:
-		Mod_LoadSpriteModel (mod, buf);
-		break;
+		case IDSPRITEHEADER:
+			Mod_LoadSpriteModel (mod, buf);
+			break;
 
-	default:
-		Mod_LoadBrushModel (mod, loadname, buf);
-		break;
+		default:
+			Mod_LoadBrushModel (mod, loadname, buf);
+			break;
+		}
 	}
 
 	Mem_Free (buf);
