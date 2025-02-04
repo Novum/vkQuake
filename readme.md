@@ -110,6 +110,11 @@ Arch Linux:
 pacman -S git meson flac glibc libgl mpg123 libvorbis libx11 sdl2 vulkan-headers glslang spirv-tools
 ~~~
 
+Fedora:
+~~~
+dnf install git meson gcc glslang spirv-tools vulkan-loader-devel SDL2-devel mpg123-devel libvorbis-devel flac-devel opusfile-devel
+~~~
+
 Then clone the vkQuake repo:
 
 ~~~
