@@ -67,7 +67,7 @@ cvar_t host_maxfps = {"host_maxfps", "200", CVAR_ARCHIVE};	// johnfitz
 cvar_t host_phys_max_ticrate = {"host_phys_max_ticrate", "0", CVAR_NONE}; // vso = [0 = disabled; MAX_PHYSICS_FREQ]
 
 cvar_t host_timescale = {"host_timescale", "0", CVAR_NONE}; // johnfitz
-cvar_t max_edicts = {"max_edicts", "8192", CVAR_NONE};		// johnfitz //ericw -- changed from 2048 to 8192, removed CVAR_ARCHIVE
+cvar_t max_edicts = {"max_edicts", "32000", CVAR_NONE};		// vso -- changed from 8192 to 32000 = MAX_EDICTS, because there is no performance impact to do so
 cvar_t cl_nocsqc = {"cl_nocsqc", "0", CVAR_NONE};			// spike -- blocks the loading of any csqc modules
 
 cvar_t sys_ticrate = {"sys_ticrate", "0.025", CVAR_NONE}; // dedicated server
