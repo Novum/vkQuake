@@ -20,6 +20,9 @@ Improvements over QuakeSpasm include:
 
 ## Installation
 
+Windows and Linux binaries can be found in [Releases](https://github.com/Novum/vkQuake/releases).
+MacOS (both Apple Silicon and 64-bit Intel) binaries are at [Mac Source Ports](https://www.macsourceports.com/game/quake).
+
 ### Windows
 It is recommended to use the installer on Windows. This sets up start menu entries for the original and remastered Quake versions. Save data and config files will be written to the user folder (`%APPDATA\vkQuake`) instead of the Quake data folder.
 
