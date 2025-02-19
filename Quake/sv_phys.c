@@ -49,7 +49,7 @@ cvar_t sv_nostep = {"sv_nostep", "0", CVAR_NONE};
 cvar_t sv_freezenonclients = {"sv_freezenonclients", "0", CVAR_NONE};
 cvar_t sv_gameplayfix_spawnbeforethinks = {"sv_gameplayfix_spawnbeforethinks", "0", CVAR_NONE};
 cvar_t sv_gameplayfix_bouncedownslopes = {"sv_gameplayfix_bouncedownslopes", "1", CVAR_NONE}; // fixes grenades making horrible noises on slopes.
-cvar_t sv_fastpushmove = {"sv_fastpushmove", "0", CVAR_ARCHIVE}; // 0=old SV_PushMove processing; 1= faster SV_PushMove, with bugs ?
+cvar_t sv_fastpushmove = {"sv_fastpushmove", "1", CVAR_ARCHIVE};							  // 0=old SV_PushMove processing; 1= faster SV_PushMove, (default)
 
 #define MOVE_EPSILON 0.01
 
@@ -620,7 +620,7 @@ static void SV_PushMove (edict_t *pusher, float movetime)
 			}
 			break;
 		} // end if block
-	}	  // foreach pushable entities
+	} // foreach pushable entities
 }
 
 /*
