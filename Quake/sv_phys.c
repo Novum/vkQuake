@@ -619,8 +619,8 @@ static void SV_PushMove (edict_t *pusher, float movetime)
 				SV_LinkEdict (moved_edict[i], false);
 			}
 			break;
-		} // end if block
-	} // foreach pushable entities
+		}
+	}
 }
 
 /*
