@@ -83,7 +83,7 @@ static void GL_DestroyRenderResources (void);
 viddef_t		vid; // global video state
 modestate_t		modestate = MS_UNINIT;
 extern qboolean scr_initialized;
-extern cvar_t	r_particles, host_maxfps, r_gpulightmapupdate, r_showtris, r_showbboxes, r_rtshadows, r_md5models, r_lerpmodels, scr_fov;
+extern cvar_t	r_showtris, r_showbboxes;
 
 extern VkAccelerationStructureKHR bmodel_tlas;
 
@@ -108,7 +108,6 @@ cvar_t		  r_usesops = {"r_usesops", "1", CVAR_ARCHIVE};		// johnfitz
 #if defined(_DEBUG)
 static cvar_t r_raydebug = {"r_raydebug", "0", 0};
 #endif
-extern cvar_t r_rtshadows;
 
 static VkInstance				vulkan_instance;
 static VkPhysicalDevice			vulkan_physical_device;

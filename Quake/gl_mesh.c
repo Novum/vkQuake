@@ -273,7 +273,7 @@ void GLMesh_DeleteMeshBuffers (aliashdr_t *hdr)
 GLMesh_UploadBuffers
 ================
 */
-void GLMesh_UploadBuffers (qmodel_t *m, aliashdr_t *mainhdr, unsigned short *indexes, byte *vertexes, aliasmesh_t *desc, jointpose_t *joints)
+void GLMesh_UploadBuffers (qmodel_t *mod, aliashdr_t *mainhdr, unsigned short *indexes, byte *vertexes, aliasmesh_t *desc, jointpose_t *joints)
 {
 	size_t	 numindexes = 0;
 	size_t	 numverts = 0;
@@ -328,7 +328,7 @@ void GLMesh_UploadBuffers (qmodel_t *m, aliashdr_t *mainhdr, unsigned short *ind
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkCreateBuffer failed");
 
-		GL_SetObjectName ((uint64_t)mainhdr->index_buffer, VK_OBJECT_TYPE_BUFFER, m->name);
+		GL_SetObjectName ((uint64_t)mainhdr->index_buffer, VK_OBJECT_TYPE_BUFFER, mod->name);
 
 		VkMemoryRequirements memory_requirements;
 		vkGetBufferMemoryRequirements (vulkan_globals.device, mainhdr->index_buffer, &memory_requirements);
@@ -406,7 +406,7 @@ void GLMesh_UploadBuffers (qmodel_t *m, aliashdr_t *mainhdr, unsigned short *ind
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkCreateBuffer failed");
 
-		GL_SetObjectName ((uint64_t)mainhdr->vertex_buffer, VK_OBJECT_TYPE_BUFFER, m->name);
+		GL_SetObjectName ((uint64_t)mainhdr->vertex_buffer, VK_OBJECT_TYPE_BUFFER, mod->name);
 
 		VkMemoryRequirements memory_requirements;
 		vkGetBufferMemoryRequirements (vulkan_globals.device, mainhdr->vertex_buffer, &memory_requirements);
@@ -432,7 +432,7 @@ void GLMesh_UploadBuffers (qmodel_t *m, aliashdr_t *mainhdr, unsigned short *ind
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkCreateBuffer failed");
 
-		GL_SetObjectName ((uint64_t)mainhdr->joints_buffer, VK_OBJECT_TYPE_BUFFER, m->name);
+		GL_SetObjectName ((uint64_t)mainhdr->joints_buffer, VK_OBJECT_TYPE_BUFFER, mod->name);
 
 		VkMemoryRequirements memory_requirements;
 		vkGetBufferMemoryRequirements (vulkan_globals.device, mainhdr->joints_buffer, &memory_requirements);

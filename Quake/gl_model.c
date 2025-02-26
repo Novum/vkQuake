@@ -35,8 +35,11 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash);
 cvar_t external_ents = {"external_ents", "1", CVAR_ARCHIVE};
 cvar_t external_vis = {"external_vis", "1", CVAR_ARCHIVE};
 cvar_t external_textures = {"external_textures", "1", CVAR_ARCHIVE};
-cvar_t r_loadmd5models = {"r_loadmd5models", "1", CVAR_ARCHIVE};
-cvar_t r_md5models = {"r_md5models", "1", CVAR_ARCHIVE};
+
+// r_allow_replacement_md5models = 1 allow loading of replacement models if available, 0 to forbid it for debug purposes.
+cvar_t r_allow_replacement_md5models = {"r_allow_replacement_md5models", "1", CVAR_NONE};
+
+cvar_t r_md5models = {"r_md5models", "1", CVAR_ARCHIVE}; // controlled in Menu with Models: Remastered (1) / Classic (0)
 
 static byte *mod_novis;
 static int	 mod_novis_capacity;
@@ -108,7 +111,7 @@ void Mod_Init (void)
 	Cvar_RegisterVariable (&external_vis);
 	Cvar_RegisterVariable (&external_ents);
 	Cvar_RegisterVariable (&external_textures);
-	Cvar_RegisterVariable (&r_loadmd5models);
+	Cvar_RegisterVariable (&r_allow_replacement_md5models);
 	Cvar_RegisterVariable (&r_md5models);
 	Cvar_SetCallback (&r_md5models, Mod_RefreshSkins_f);
 
@@ -494,10 +497,9 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 	//
 	// load the file
 	//
-	mod_type = COM_FileExists (mod->name, &mod->path_id);
-	qboolean	 md5_loaded = false;
+	qboolean	 md5_replacement_loaded = false;
 	unsigned int md5_path_id = 0;
-	if (r_loadmd5models.value || !mod_type)
+	if (r_allow_replacement_md5models.value)
 	{
 		char newname[MAX_QPATH];
 		q_strlcpy (newname, mod->name, sizeof (newname));
@@ -509,9 +511,7 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 			if (buf)
 			{
 				Mod_LoadMD5MeshModel (mod, buf);
-				if (!mod_type)
-					goto md5_forced;
-				md5_loaded = true;
+				md5_replacement_loaded = true;
 				md5_path_id = mod->path_id;
 			}
 			Mem_Free (buf);
@@ -526,7 +526,7 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 		return NULL;
 	}
 
-	if (md5_loaded)
+	if (md5_replacement_loaded)
 	{
 		// Only prioritize the MD5 over the MDL if the MD5 is in the same path or a higher priority path.
 		// This means mods that replace a MDL won't have the id1 MD5s override them.
@@ -562,32 +562,36 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 	//
 	char loadname[256];
 	COM_FileBase (mod->name, loadname, sizeof (loadname));
-
-md5_forced:
-
 	//
 	// fill it in
 	//
-	mod->needload = false;
 
 	// call the apropriate loader
-	if (mod_type)
+	mod->needload = false;
+
+	mod_type = (buf[0] | (buf[1] << 8) | (buf[2] << 16) | (buf[3] << 24));
+	switch (mod_type)
 	{
-		mod_type = (buf[0] | (buf[1] << 8) | (buf[2] << 16) | (buf[3] << 24));
-		switch (mod_type)
-		{
-		case IDPOLYHEADER:
-			Mod_LoadAliasModel (mod, buf);
-			break;
+	case IDPOLYHEADER:
+		Mod_LoadAliasModel (mod, buf);
+		break;
 
-		case IDSPRITEHEADER:
-			Mod_LoadSpriteModel (mod, buf);
-			break;
+	case IDSPRITEHEADER:
+		Mod_LoadSpriteModel (mod, buf);
+		break;
 
-		default:
-			Mod_LoadBrushModel (mod, loadname, buf);
-			break;
-		}
+	//
+	case IDMD5HEADER:
+	{
+		// by construction this is a "native" MD5 model, NOT a .mdl replacement so md5_replacement_loaded = false here
+		assert (!md5_replacement_loaded);
+		Mod_LoadMD5MeshModel (mod, buf);
+	}
+	break;
+
+	default:
+		Mod_LoadBrushModel (mod, loadname, buf);
+		break;
 	}
 
 	Mem_Free (buf);

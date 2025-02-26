@@ -558,4 +558,7 @@ byte	*Mod_NoVisPVS (qmodel_t *model);
 
 void Mod_SetExtraFlags (qmodel_t *mod);
 
+// little-endian 4-byte "MD5V" header
+#define IDMD5HEADER (('M' << 0) + ('D' << 8) + ('5' << 16) + ('V' << 24))
+
 #endif // __MODEL__

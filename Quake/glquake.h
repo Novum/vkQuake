@@ -582,7 +582,7 @@ void GL_DeleteBModelAccelerationStructures (void);
 void GL_BuildBModelVertexBuffer (void);
 void GL_BuildBModelAccelerationStructures (void);
 void GL_PrepareSIMDAndParallelData (void);
-void GLMesh_UploadBuffers (qmodel_t *m, aliashdr_t *hdr, unsigned short *indexes, byte *vertexes, aliasmesh_t *desc, jointpose_t *joints);
+void GLMesh_UploadBuffers (qmodel_t *mod, aliashdr_t *hdr, unsigned short *indexes, byte *vertexes, aliasmesh_t *desc, jointpose_t *joints);
 void GLMesh_DeleteAllMeshBuffers (void);
 
 int R_LightPoint (vec3_t p, float ofs, lightcache_t *cache, vec3_t *lightcolor);
