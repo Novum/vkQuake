@@ -69,9 +69,6 @@ extern float  host_netinterval;			// Spike
 
 qboolean needs_relink;
 
-// temporary as global, but fine beacause only called from the main loop.
-char temp_str[8192];
-
 #ifdef PSET_SCRIPT
 void CL_ClearTrailStates (void)
 {
@@ -246,9 +243,10 @@ CL_SignonReply
 An svc_signonnum has been received, perform a client side setup
 =====================
 */
-
 void CL_SignonReply (void)
 {
+	char str[8192];
+
 	Con_DPrintf ("CL_SignonReply: %i\n", cls.signon);
 
 	switch (cls.signon)
@@ -268,8 +266,8 @@ void CL_SignonReply (void)
 			Info_Enumerate (cls.userinfo, CL_SendInitialUserinfo, NULL);
 
 		MSG_WriteByte (&cls.message, clc_stringcmd);
-		q_snprintf (temp_str, sizeof (temp_str), "spawn %s", cls.spawnparms);
-		MSG_WriteString (&cls.message, temp_str);
+		q_snprintf (str, sizeof (str), "spawn %s", cls.spawnparms);
+		MSG_WriteString (&cls.message, str);
 		break;
 
 	case 3:
@@ -292,6 +290,8 @@ Called to play the next demo in the demo loop
 */
 void CL_NextDemo (void)
 {
+	char str[1024];
+
 	if (cls.demonum == -1)
 		return; // don't play demos
 
@@ -309,8 +309,8 @@ void CL_NextDemo (void)
 
 	SCR_BeginLoadingPlaque ();
 
-	q_snprintf (temp_str, sizeof (temp_str), "playdemo %s\n", cls.demos[cls.demonum]);
-	Cbuf_InsertText (temp_str);
+	q_snprintf (str, sizeof (str), "playdemo %s\n", cls.demos[cls.demonum]);
+	Cbuf_InsertText (str);
 	cls.demonum++;
 }
 
