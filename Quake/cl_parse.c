@@ -857,10 +857,10 @@ CL_ParseServerInfo
 
 // temporaries as globals to prevent excessive stack usage,
 // this is fine because this is called only from the main loop.
-char gamedir[1024];
-char protname[64];
-char model_precache[MAX_MODELS][MAX_QPATH];
-char sound_precache[MAX_SOUNDS][MAX_QPATH];
+static char gamedir[1024];
+static char protname[64];
+static char model_precache[MAX_MODELS][MAX_QPATH];
+static char sound_precache[MAX_SOUNDS][MAX_QPATH];
 
 static void CL_ParseServerInfo (void)
 {

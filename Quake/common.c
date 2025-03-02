@@ -2000,7 +2000,7 @@ of the list so they override previous pack files.
 */
 // use tglobal as temporary to prevent stack consumption,
 // fine because this is only called from the main loop.
-dpackfile_t info[MAX_FILES_IN_PACK];
+static dpackfile_t info[MAX_FILES_IN_PACK];
 
 static pack_t *COM_LoadPackFile (const char *packfile, int packhandle)
 {
