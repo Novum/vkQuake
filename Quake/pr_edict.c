@@ -106,8 +106,6 @@ ED_AddToFreeList
 */
 static void ED_AddToFreeList (edict_t *ed)
 {
-	assert ((int)qcvm->free_list.size < qcvm->num_edicts);
-
 	size_t add_index = (qcvm->free_list.head_index + qcvm->free_list.size) % MAX_EDICTS;
 	qcvm->free_list.circular_buffer[add_index] = ed;
 	qcvm->free_list.size += 1;
