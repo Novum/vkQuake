@@ -25,7 +25,6 @@
  *  Main include header for the SDL library
  */
 
-
 #ifndef SDL_h_
 #define SDL_h_
 
@@ -69,6 +68,8 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/* WIKI CATEGORY: Init */
 
 /* As of version 0.5, SDL is loaded dynamically into the application */
 
@@ -130,7 +131,7 @@ extern "C" {
  * call SDL_Quit() to force shutdown). If a subsystem is already loaded then
  * this call will increase the ref-count and return.
  *
- * \param flags subsystem initialization flags
+ * \param flags subsystem initialization flags.
  * \returns 0 on success or a negative error code on failure; call
  *          SDL_GetError() for more information.
  *

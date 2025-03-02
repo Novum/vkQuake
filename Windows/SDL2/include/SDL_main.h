@@ -25,9 +25,9 @@
 #include "SDL_stdinc.h"
 
 /**
- *  \file SDL_main.h
+ * # CategoryMain
  *
- *  Redefine main() on some platforms so that it is called by SDL.
+ * Redefine main() on some platforms so that it is called by SDL.
  */
 
 #ifndef SDL_MAIN_HANDLED
@@ -129,14 +129,14 @@
  *
  *  The application's main() function must be called with C linkage,
  *  and should be declared like this:
- *  \code
+ *  ```c
  *  #ifdef __cplusplus
  *  extern "C"
  *  #endif
  *  int main(int argc, char *argv[])
  *  {
  *  }
- *  \endcode
+ *  ```
  */
 
 #if defined(SDL_MAIN_NEEDED) || defined(SDL_MAIN_AVAILABLE)
@@ -149,7 +149,7 @@ extern "C" {
 #endif
 
 /**
- *  The prototype for the application's main() function
+ * The prototype for the application's main() function
  */
 typedef int (*SDL_main_func)(int argc, char *argv[]);
 extern SDLMAIN_DECLSPEC int SDL_main(int argc, char *argv[]);
@@ -222,8 +222,8 @@ extern DECLSPEC void SDLCALL SDL_UnregisterApp(void);
 /**
  * Initialize and launch an SDL/WinRT application.
  *
- * \param mainFunction the SDL app's C-style main(), an SDL_main_func
- * \param reserved reserved for future use; should be NULL
+ * \param mainFunction the SDL app's C-style main(), an SDL_main_func.
+ * \param reserved reserved for future use; should be NULL.
  * \returns 0 on success or -1 on failure; call SDL_GetError() to retrieve
  *          more information on the failure.
  *
@@ -238,10 +238,10 @@ extern DECLSPEC int SDLCALL SDL_WinRTRunApp(SDL_main_func mainFunction, void * r
 /**
  * Initializes and launches an SDL application.
  *
- * \param argc The argc parameter from the application's main() function
- * \param argv The argv parameter from the application's main() function
- * \param mainFunction The SDL app's C-style main(), an SDL_main_func
- * \return the return value from mainFunction
+ * \param argc The argc parameter from the application's main() function.
+ * \param argv The argv parameter from the application's main() function.
+ * \param mainFunction The SDL app's C-style main(), an SDL_main_func.
+ * \return the return value from mainFunction.
  *
  * \since This function is available since SDL 2.0.10.
  */
@@ -254,8 +254,8 @@ extern DECLSPEC int SDLCALL SDL_UIKitRunApp(int argc, char *argv[], SDL_main_fun
 /**
  * Initialize and launch an SDL GDK application.
  *
- * \param mainFunction the SDL app's C-style main(), an SDL_main_func
- * \param reserved reserved for future use; should be NULL
+ * \param mainFunction the SDL app's C-style main(), an SDL_main_func.
+ * \param reserved reserved for future use; should be NULL.
  * \returns 0 on success or -1 on failure; call SDL_GetError() to retrieve
  *          more information on the failure.
  *

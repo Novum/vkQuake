@@ -19,12 +19,12 @@
   3. This notice may not be removed or altered from any source distribution.
 */
 
+/* WIKI CATEGORY: BeginCode */
+
 /**
- *  \file begin_code.h
- *
- *  This file sets things up for C dynamic library function definitions,
- *  static inlined functions, and structures aligned at 4-byte alignment.
- *  If you don't like ugly C preprocessor code, don't look at this file. :)
+ * begin_code.h sets things up for C dynamic library function definitions,
+ * static inlined functions, and structures aligned at 4-byte alignment.
+ * If you don't like ugly C preprocessor code, don't look at this file. :)
  */
 
 /* This shouldn't be nested -- included it around code only. */
@@ -172,7 +172,7 @@
     (defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202000L)
 #define SDL_FALLTHROUGH [[fallthrough]]
 #else
-#if defined(__has_attribute)
+#if defined(__has_attribute) && !defined(__SUNPRO_C) && !defined(__SUNPRO_CC)
 #define SDL_HAS_FALLTHROUGH __has_attribute(__fallthrough__)
 #else
 #define SDL_HAS_FALLTHROUGH 0
