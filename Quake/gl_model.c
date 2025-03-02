@@ -47,8 +47,7 @@ static int	 mod_novis_capacity;
 static byte *mod_decompressed;
 static int	 mod_decompressed_capacity;
 
-#define MAX_MOD_KNOWN 4096 /*johnfitz -- was 512 */
-qmodel_t mod_known[MAX_MOD_KNOWN];
+qmodel_t mod_known[MAX_MODELS];
 int		 mod_numknown;
 
 texture_t *r_notexture_mip;	 // johnfitz -- moved here from r_main.c
@@ -449,8 +448,8 @@ qmodel_t *Mod_FindName (const char *name)
 
 	if (i == mod_numknown)
 	{
-		if (mod_numknown == MAX_MOD_KNOWN)
-			Sys_Error ("mod_numknown == MAX_MOD_KNOWN");
+		if (mod_numknown == MAX_MODELS)
+			Sys_Error ("mod_numknown == MAX_MODELS");
 		q_strlcpy (mod->name, name, MAX_QPATH);
 		mod->needload = true;
 		mod_numknown++;

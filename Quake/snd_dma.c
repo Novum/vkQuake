@@ -63,9 +63,11 @@ int paintedtime; // sample PAIRS
 int					  s_rawend;
 portable_samplepair_t s_rawsamples[MAX_RAW_SAMPLES];
 
-#define MAX_SFX (MAX_SOUNDS)
-static sfx_t *known_sfx = NULL; // hunk allocated [MAX_SFX]
-static int	  num_sfx;
+// allocate twice the max sounds to be able to cache enough
+// and cleanup the oldest sounds.
+// TODO: do someting better, like models ?
+static sfx_t known_sfx[MAX_SOUNDS * 2];
+static int	 num_sfx;
 
 static sfx_t *ambient_sfx[NUM_AMBIENTS];
 
@@ -213,8 +215,6 @@ void S_Init (void)
 	Cvar_SetCallback (&snd_filterquality, &SND_Callback_snd_filterquality);
 
 	SND_InitScaletable ();
-	// allocate twice the max sounds to be able to cache enough...
-	known_sfx = (sfx_t *)Mem_Alloc ((MAX_SFX * 2) * sizeof (sfx_t));
 	num_sfx = 0;
 
 	snd_initialized = true;
@@ -258,20 +258,17 @@ void S_Shutdown (void)
 
 static void S_FlushOldestSounds (void)
 {
-	assert (num_sfx == MAX_SFX * 2);
+	assert (num_sfx == sizeof (known_sfx));
 
-	for (int i = 0; i < MAX_SFX; ++i)
+	for (int i = 0; i < MAX_SOUNDS; ++i)
 	{
-		if (known_sfx[i].cache)
-		{
-			Mem_Free (known_sfx[i].cache);
-		}
+		SAFE_FREE (known_sfx[i].cache);
 	}
 
-	// move [MAX_SFX ; 2* MAX_SFX - 1] into [0 ; MAX_SFX - 1]
-	memmove ((void *)&known_sfx[0], (const void *)&known_sfx[MAX_SFX], MAX_SFX * sizeof (sfx_t));
+	// move [MAX_SOUNDS ; 2* MAX_SOUNDS - 1] into [0 ; MAX_SOUNDS - 1]
+	memmove ((void *)&known_sfx[0], (const void *)&known_sfx[MAX_SOUNDS], MAX_SOUNDS * sizeof (sfx_t));
 
-	num_sfx = MAX_SFX;
+	num_sfx = MAX_SOUNDS;
 }
 /*
 ==================
@@ -299,12 +296,12 @@ static sfx_t *S_FindName (const char *name)
 		}
 	}
 
-	if (num_sfx == MAX_SFX * 2)
+	if (num_sfx == sizeof (known_sfx))
 	{
 		// clear oldest, i.e the first MAX_SFX sounds, and slide the second part (most recent) into place.
 		S_FlushOldestSounds ();
-		assert (num_sfx == MAX_SFX);
-		i = MAX_SFX;
+		assert (num_sfx == MAX_SOUNDS);
+		i = MAX_SOUNDS;
 	}
 
 	sfx = &known_sfx[i];
@@ -1046,11 +1043,7 @@ void S_ClearAll (void)
 
 	for (int i = 0; i < num_sfx; ++i)
 	{
-		if (known_sfx[i].cache)
-		{
-			Mem_Free (known_sfx[i].cache);
-			known_sfx[i].cache = NULL;
-		}
+		SAFE_FREE (known_sfx[i].cache);
 	}
 
 	SDL_UnlockMutex (snd_mutex);

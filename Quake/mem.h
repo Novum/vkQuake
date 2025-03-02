@@ -32,11 +32,14 @@ void *Mem_AllocNonZero (const size_t size);
 void *Mem_Realloc (void *ptr, const size_t size);
 void  Mem_Free (const void *ptr);
 
-#define SAFE_FREE(ptr)  \
-	do                  \
-	{                   \
-		Mem_Free (ptr); \
-		ptr = NULL;     \
+// clang-format off
+
+#define SAFE_FREE(ptr)          \
+	do                          \
+	{                           \
+		if (ptr)                \
+			Mem_Free (ptr);     \
+		ptr = NULL;             \
 	} while (false)
 #endif
 
@@ -80,3 +83,5 @@ extern size_t			   max_thread_stack_alloc_size;
 	{                                                       \
 		thread_stack_alloc_size -= temp_alloc_##var##_size; \
 	}
+
+// clang-format on
