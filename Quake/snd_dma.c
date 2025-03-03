@@ -258,7 +258,7 @@ void S_Shutdown (void)
 
 static void S_FlushOldestSounds (void)
 {
-	assert (num_sfx == sizeof (known_sfx));
+	assert (num_sfx == countof (known_sfx));
 
 	for (int i = 0; i < MAX_SOUNDS; ++i)
 	{
@@ -296,9 +296,9 @@ static sfx_t *S_FindName (const char *name)
 		}
 	}
 
-	if (num_sfx == sizeof (known_sfx))
+	if (num_sfx == countof (known_sfx))
 	{
-		// clear oldest, i.e the first MAX_SFX sounds, and slide the second part (most recent) into place.
+		// clear oldest, i.e the first MAX_SOUNDS sounds, and slide the second part (most recent) into place.
 		S_FlushOldestSounds ();
 		assert (num_sfx == MAX_SOUNDS);
 		i = MAX_SOUNDS;
