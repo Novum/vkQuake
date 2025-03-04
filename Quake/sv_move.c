@@ -34,7 +34,7 @@ is not a staircase.
 
 =============
 */
-int c_yes, c_no;
+static int c_yes, c_no;
 
 qboolean SV_CheckBottom (edict_t *ent)
 {

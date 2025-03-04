@@ -76,9 +76,9 @@ static void M_Help_Key (int key);
 static void M_Mods_Key (int key);
 static void M_Quit_Key (int key);
 
-qboolean m_entersound; // play after drawing a frame, so caching
-					   // won't disrupt the sound
-qboolean m_recursiveDraw;
+qboolean		m_entersound; // play after drawing a frame, so caching
+							  // won't disrupt the sound
+static qboolean m_recursiveDraw;
 
 qboolean m_is_quitting = false; // prevents SDL_StartTextInput during quit
 

@@ -87,7 +87,7 @@ const char *svc_strings[128] = {
 };
 #define NUM_SVC_STRINGS countof (svc_strings)
 
-qboolean warn_about_nehahra_protocol; // johnfitz
+static qboolean warn_about_nehahra_protocol; // johnfitz
 
 extern vec3_t v_punchangles[2];		  // johnfitz
 extern double v_punchangles_times[2]; // spike -- don't assume 10fps...

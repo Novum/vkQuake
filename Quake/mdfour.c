@@ -27,13 +27,14 @@
 	$Id: mdfour.c 2557 2007-08-01 14:55:28Z acceptthis $
 */
 
+#include <stdint.h>
 #include <string.h> /* XoXus: needed for memset call */
 
 #ifndef _MDFOUR_H
 #define _MDFOUR_H
 
 #ifndef int32
-#define int32 int
+#define int32 int32_t
 #endif
 
 #if SIZEOF_INT > 4
@@ -41,7 +42,7 @@
 #endif
 
 #ifndef uint32
-#define uint32 unsigned int32
+#define uint32 uint32_t
 #endif
 
 struct mdfour

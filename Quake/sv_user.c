@@ -32,13 +32,13 @@ extern cvar_t sv_stopspeed;
 static vec3_t forward, right, up;
 
 // world
-float *angles;
-float *origin;
-float *velocity;
+static float *angles;
+static float *origin;
+static float *velocity;
 
-qboolean onground;
+static qboolean onground;
 
-usercmd_t cmd;
+static usercmd_t cmd;
 
 cvar_t sv_idealpitchscale = {"sv_idealpitchscale", "0.8", CVAR_NONE};
 cvar_t sv_altnoclip = {"sv_altnoclip", "1", CVAR_ARCHIVE}; // johnfitz

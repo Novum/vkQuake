@@ -26,7 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 static void CL_FinishTimeDemo (void);
 
-char name[MAX_OSPATH];
+static char name[MAX_OSPATH];
 
 /*
 ==============================================================================
@@ -533,11 +533,14 @@ static void CL_Record_Spawn (void)
 	}
 }
 
+// temporary as global to prevent big stack usage,
+// fine because only used in the main loop.
+static byte weirdaltbufferthatprobablyisntneeded[NET_MAXMESSAGE];
+
 static void CL_Record_Signons (void)
 {
 	byte *data = net_message.data;
 	int	  cursize = net_message.cursize;
-	byte  weirdaltbufferthatprobablyisntneeded[NET_MAXMESSAGE];
 
 	net_message.data = weirdaltbufferthatprobablyisntneeded;
 	SZ_Clear (&net_message);

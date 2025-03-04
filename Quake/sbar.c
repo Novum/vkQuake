@@ -25,41 +25,41 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #define STAT_MINUS 10 // num frame for '-' stats digit
 
-qpic_t *sb_nums[2][11];
-qpic_t *sb_colon, *sb_slash;
-qpic_t *sb_ibar;
-qpic_t *sb_sbar;
-qpic_t *sb_scorebar;
+static qpic_t *sb_nums[2][11];
+static qpic_t *sb_colon, *sb_slash;
+static qpic_t *sb_ibar;
+static qpic_t *sb_sbar;
+static qpic_t *sb_scorebar;
 
-qpic_t *sb_weapons[7][8]; // 0 is active, 1 is owned, 2-5 are flashes
-qpic_t *sb_ammo[4];
-qpic_t *sb_sigil[4];
-qpic_t *sb_armor[3];
-qpic_t *sb_items[32];
+static qpic_t *sb_weapons[7][8]; // 0 is active, 1 is owned, 2-5 are flashes
+static qpic_t *sb_ammo[4];
+static qpic_t *sb_sigil[4];
+static qpic_t *sb_armor[3];
+static qpic_t *sb_items[32];
 
-qpic_t *sb_faces[7][2]; // 0 is gibbed, 1 is dead, 2-6 are alive
-						// 0 is static, 1 is temporary animation
-qpic_t *sb_face_invis;
-qpic_t *sb_face_quad;
-qpic_t *sb_face_invuln;
-qpic_t *sb_face_invis_invuln;
+static qpic_t *sb_faces[7][2]; // 0 is gibbed, 1 is dead, 2-6 are alive
+							   // 0 is static, 1 is temporary animation
+static qpic_t *sb_face_invis;
+static qpic_t *sb_face_quad;
+static qpic_t *sb_face_invuln;
+static qpic_t *sb_face_invis_invuln;
 
 qboolean sb_showscores;
 
 int sb_lines; // scan lines to draw
 
-qpic_t *rsb_invbar[2];
-qpic_t *rsb_weapons[5];
-qpic_t *rsb_items[2];
-qpic_t *rsb_ammo[3];
-qpic_t *rsb_teambord; // PGM 01/19/97 - team color border
+static qpic_t *rsb_invbar[2];
+static qpic_t *rsb_weapons[5];
+static qpic_t *rsb_items[2];
+static qpic_t *rsb_ammo[3];
+static qpic_t *rsb_teambord; // PGM 01/19/97 - team color border
 
 // MED 01/04/97 added two more weapons + 3 alternates for grenade launcher
-qpic_t *hsb_weapons[7][5]; // 0 is active, 1 is owned, 2-5 are flashes
+static qpic_t *hsb_weapons[7][5]; // 0 is active, 1 is owned, 2-5 are flashes
 // MED 01/04/97 added array to simplify weapon parsing
-int		hipweapons[4] = {HIT_LASER_CANNON_BIT, HIT_MJOLNIR_BIT, 4, HIT_PROXIMITY_GUN_BIT};
+static int	   hipweapons[4] = {HIT_LASER_CANNON_BIT, HIT_MJOLNIR_BIT, 4, HIT_PROXIMITY_GUN_BIT};
 // MED 01/04/97 added hipnotic items array
-qpic_t *hsb_items[2];
+static qpic_t *hsb_items[2];
 
 // spike -- fix -game hipnotic by autodetecting hud types. the fte protocols will deal with the networking issue, other than demos, anyway
 static int hudtype;

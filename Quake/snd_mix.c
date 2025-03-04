@@ -24,10 +24,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 
 #define PAINTBUFFER_SIZE 2048
-portable_samplepair_t paintbuffer[PAINTBUFFER_SIZE];
-int					  snd_scaletable[32][256];
-int					 *snd_p, snd_linear_count;
-short				 *snd_out;
+static portable_samplepair_t paintbuffer[PAINTBUFFER_SIZE];
+static int					 snd_scaletable[32][256];
+static int					*snd_p, snd_linear_count;
+static short				*snd_out;
 
 static int snd_vol;
 
