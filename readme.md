@@ -7,7 +7,9 @@ Improvements over QuakeSpasm include:
 * Much better performance with multithreaded rendering and loading
 * The game can run at higher frame rates than 72Hz without breaking physics
 * A software Quake like underwater effect
-* Support for remastered models if using data from the 2021 rerelease
+* Support for remastered models (in MD5 format) if using data from the 2021 rerelease
+* Support for standalone MD5 models, not only as `.mdl` alternatives
+* True color skins support (`.png`, `.tga`, `.jpg`) for MD5 models, including fullbrigts 
 * Dynamic shadows (requires a GPU with ray tracing support)
 * Better color precision reducing banding in dark areas
 * Native support for anti aliasing and anisotropic filtering
@@ -17,6 +19,8 @@ Improvements over QuakeSpasm include:
 * More modern protocol to avoid certain movement issues (from QSS)
 * Support for custom mod HUDs (from QSS)
 * Support for scriptable particles (from QSS)
+* External WAD support for levels ([more info](https://github.com/Novum/vkQuake/pull/753))
+* WAD3 format support, allowing per-texture palettes for more colorful levels ([more info](https://github.com/Novum/vkQuake/pull/753))
 
 ## Installation
 
