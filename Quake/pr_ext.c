@@ -1008,9 +1008,6 @@ static void PF_strireplace (void)
 		G_INT (OFS_RETURN) = PR_SetEngineString (subject);
 }
 
-// temporary for PF_sprintf_internal as global to prevent big stack usage
-// fine because only called from the main loop (PR_ExecuteProgram)
-static char quotedbuf[65536];
 static void PF_sprintf_internal (const char *s, int firstarg, char *outbuf, int outbuflen)
 {
 	const char	*s0;
@@ -1022,6 +1019,10 @@ static void PF_sprintf_internal (const char *s, int firstarg, char *outbuf, int 
 	int			 isfloat, is64bit;
 	static int	 dummyivec[3] = {0, 0, 0};
 	static float dummyvec[3] = {0, 0, 0};
+
+	// temporary for PF_sprintf_internal as global to prevent big stack usage
+	// fine because only called from the main loop (PR_ExecuteProgram)
+	static char quotedbuf[65536] = {0};
 
 #define PRINTF_ALTERNATE	 1
 #define PRINTF_ZEROPAD		 2

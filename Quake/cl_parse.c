@@ -854,20 +854,19 @@ static void CL_KeepaliveMessage (void)
 CL_ParseServerInfo
 ==================
 */
-
-// temporaries as globals to prevent excessive stack usage,
-// this is fine because this is called only from the main loop.
-static char gamedir[1024];
-static char protname[64];
-static char model_precache[MAX_MODELS][MAX_QPATH];
-static char sound_precache[MAX_SOUNDS][MAX_QPATH];
-
 static void CL_ParseServerInfo (void)
 {
 	const char *str;
 	int			i;
 	qboolean	gamedirswitchwarning = false;
 	int			nummodels, numsounds;
+
+	// temporaries as globals to prevent excessive stack usage,
+	// this is fine because this is called only from the main loop.
+	static char gamedir[1024] = {0};
+	static char protname[64] = {0};
+	static char model_precache[MAX_MODELS][MAX_QPATH] = {0};
+	static char sound_precache[MAX_SOUNDS][MAX_QPATH] = {0};
 
 	Con_DPrintf ("Serverinfo packet received.\n");
 

@@ -533,12 +533,12 @@ static void CL_Record_Spawn (void)
 	}
 }
 
-// temporary as global to prevent big stack usage,
-// fine because only used in the main loop.
-static byte weirdaltbufferthatprobablyisntneeded[NET_MAXMESSAGE];
-
 static void CL_Record_Signons (void)
 {
+	// temporary as global to prevent big stack usage,
+	// fine because only used in the main loop.
+	static byte weirdaltbufferthatprobablyisntneeded[NET_MAXMESSAGE] = {0};
+
 	byte *data = net_message.data;
 	int	  cursize = net_message.cursize;
 

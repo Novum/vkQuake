@@ -1997,10 +1997,6 @@ Loads the header and directory, adding the files at the beginning
 of the list so they override previous pack files.
 =================
 */
-// use tglobal as temporary to prevent stack consumption,
-// fine because this is only called from the main loop.
-static dpackfile_t info[MAX_FILES_IN_PACK];
-
 static pack_t *COM_LoadPackFile (const char *packfile, int packhandle)
 {
 	dpackheader_t  header;
@@ -2009,6 +2005,10 @@ static pack_t *COM_LoadPackFile (const char *packfile, int packhandle)
 	int			   numpackfiles;
 	pack_t		  *pack;
 	unsigned short crc;
+
+	// use global as temporary to prevent stack consumption,
+	// fine because this is only called from the main loop.
+	static dpackfile_t info[MAX_FILES_IN_PACK] = {0};
 
 	Sys_FileRead (packhandle, (void *)&header, sizeof (header));
 	if (header.id[0] != 'P' || header.id[1] != 'A' || header.id[2] != 'C' || header.id[3] != 'K')
