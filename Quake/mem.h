@@ -34,12 +34,11 @@ void  Mem_Free (const void *ptr);
 
 // clang-format off
 
-#define SAFE_FREE(ptr)          \
-	do                          \
-	{                           \
-		if (ptr)                \
-			Mem_Free (ptr);     \
-		ptr = NULL;             \
+#define SAFE_FREE(ptr)  \
+	do                  \
+	{                   \
+		Mem_Free (ptr); \
+		ptr = NULL;     \
 	} while (false)
 #endif
 
