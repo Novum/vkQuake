@@ -34,7 +34,9 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash);
 
 cvar_t external_ents = {"external_ents", "1", CVAR_ARCHIVE};
 cvar_t external_vis = {"external_vis", "1", CVAR_ARCHIVE};
-cvar_t external_textures = {"external_textures", "1", CVAR_ARCHIVE};
+
+// wad_external_textures = 1 enable loading of external WAD textures, 0 to forbid it for debug purposes.
+cvar_t wad_external_textures = {"wad_external_textures", "1", CVAR_NONE};
 
 // r_allow_replacement_md5models = 1 allow loading of replacement models if available, 0 to forbid it for debug purposes.
 cvar_t r_allow_replacement_md5models = {"r_allow_replacement_md5models", "1", CVAR_NONE};
@@ -109,7 +111,7 @@ void Mod_Init (void)
 {
 	Cvar_RegisterVariable (&external_vis);
 	Cvar_RegisterVariable (&external_ents);
-	Cvar_RegisterVariable (&external_textures);
+	Cvar_RegisterVariable (&wad_external_textures);
 	Cvar_RegisterVariable (&r_allow_replacement_md5models);
 	Cvar_RegisterVariable (&r_md5models);
 	Cvar_SetCallback (&r_md5models, Mod_RefreshSkins_f);
@@ -633,7 +635,7 @@ static wad_t *Mod_LoadWadFiles (qmodel_t *mod)
 	char		key[128], value[4096];
 	const char *data;
 
-	if (!external_textures.value)
+	if (!wad_external_textures.value)
 		return NULL;
 
 	// disregard if this isn't the world model
