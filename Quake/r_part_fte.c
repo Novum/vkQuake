@@ -4678,7 +4678,7 @@ int PScript_RunParticleEffectState (vec3_t org, vec3_t dir, float count, int typ
 				ofsvec[1] = j;
 				ofsvec[2] = l + 4;
 				VectorNormalize (ofsvec);
-				VectorScale (ofsvec, 1.0 - (frandom ())*m, ofsvec);
+				VectorScale (ofsvec, 1.0 - (frandom ()) * m, ofsvec);
 
 				// org is just like the original
 				arsvec[0] = j + (COM_Rand () % spawnspc);
@@ -4711,7 +4711,7 @@ int PScript_RunParticleEffectState (vec3_t org, vec3_t dir, float count, int typ
 				arsvec[2] = frandom () * ptype->areaspreadvert;
 
 				VectorNormalize (ofsvec);
-				VectorScale (ofsvec, 1.0 - (frandom ())*m, ofsvec);
+				VectorScale (ofsvec, 1.0 - (frandom ()) * m, ofsvec);
 
 				// advance splash loop
 				j += spawnspc;
