@@ -4535,10 +4535,18 @@ static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 			void		*data;
 			for (f = 0; f < countof (surf->gltextures[0]); f++)
 			{
-				q_snprintf (texname, sizeof (texname), "progs/%s_%02u_%02u", com_token, surf->numskins, f);
-
 				enum srcformat fmt = SRC_RGBA;
+
+				// for Skins: try first the same location as the model, then 'progs/' if not found.
+				q_snprintf (texname, sizeof (texname), "%s_%02u_%02u", com_token, surf->numskins, f);
 				data = Image_LoadImage (texname, (int *)&fwidth, (int *)&fheight, &fmt);
+
+				if (!data)
+				{
+					q_snprintf (texname, sizeof (texname), "progs/%s_%02u_%02u", com_token, surf->numskins, f);
+					data = Image_LoadImage (texname, (int *)&fwidth, (int *)&fheight, &fmt);
+				}
+
 				if (data) // load external image
 				{
 					surf->gltextures[surf->numskins][f] =
@@ -4573,17 +4581,26 @@ static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 					}
 					else
 					{
-						// we found a 32bit base texture.
+						// we found a 32bit base texture, try to fetch the fullbrights counterparts
+						// Same as skins, try first the same location as the model, then 'progs/' if not found.
+						if (!surf->fbtextures[surf->numskins][f])
+						{
+							q_snprintf (texname, sizeof (texname), "%s_%02u_%02u_glow", com_token, surf->numskins, f);
+							surf->fbtextures[surf->numskins][f] = Mod_LoadMD5FullbrightTexture (mod, texname, surf->skinwidth, surf->skinheight);
+						}
 						if (!surf->fbtextures[surf->numskins][f])
 						{
 							q_snprintf (texname, sizeof (texname), "progs/%s_%02u_%02u_glow", com_token, surf->numskins, f);
-
+							surf->fbtextures[surf->numskins][f] = Mod_LoadMD5FullbrightTexture (mod, texname, surf->skinwidth, surf->skinheight);
+						}
+						if (!surf->fbtextures[surf->numskins][f])
+						{
+							q_snprintf (texname, sizeof (texname), "%s_%02u_%02u_luma", com_token, surf->numskins, f);
 							surf->fbtextures[surf->numskins][f] = Mod_LoadMD5FullbrightTexture (mod, texname, surf->skinwidth, surf->skinheight);
 						}
 						if (!surf->fbtextures[surf->numskins][f])
 						{
 							q_snprintf (texname, sizeof (texname), "progs/%s_%02u_%02u_luma", com_token, surf->numskins, f);
-
 							surf->fbtextures[surf->numskins][f] = Mod_LoadMD5FullbrightTexture (mod, texname, surf->skinwidth, surf->skinheight);
 						}
 					}
@@ -4603,7 +4620,7 @@ static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 				surf->fbtextures[surf->numskins][1] = surf->fbtextures[surf->numskins][0];
 			}
 			if (f == 3)
-				Con_Warning ("progs/%s_%02u_##: 3 skinframes found...\n", com_token, surf->numskins);
+				Con_Warning ("%s_%02u_##: 3 skinframes found...\n", com_token, surf->numskins);
 			if (f < 4)
 			{
 				surf->gltextures[surf->numskins][3] = surf->gltextures[surf->numskins][1];
