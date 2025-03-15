@@ -38,6 +38,9 @@ cvar_t external_vis = {"external_vis", "1", CVAR_ARCHIVE};
 // wad_external_textures = 1 enable loading of external WAD textures, 0 to forbid it for debug purposes.
 cvar_t wad_external_textures = {"wad_external_textures", "1", CVAR_NONE};
 
+// mdl_external_textures = 1 enable loading of external MDL textures, 0 to forbid it for debug purposes.
+cvar_t mdl_external_textures = {"mdl_external_textures", "1", CVAR_NONE};
+
 // r_allow_replacement_md5models = 1 allow loading of replacement models if available, 0 to forbid it for debug purposes.
 cvar_t r_allow_replacement_md5models = {"r_allow_replacement_md5models", "1", CVAR_NONE};
 
@@ -112,6 +115,7 @@ void Mod_Init (void)
 	Cvar_RegisterVariable (&external_vis);
 	Cvar_RegisterVariable (&external_ents);
 	Cvar_RegisterVariable (&wad_external_textures);
+	Cvar_RegisterVariable (&mdl_external_textures);
 	Cvar_RegisterVariable (&r_allow_replacement_md5models);
 	Cvar_RegisterVariable (&r_md5models);
 	Cvar_SetCallback (&r_md5models, Mod_RefreshSkins_f);
@@ -3085,7 +3089,7 @@ typedef struct
 			fdc = pos[off];                                   \
 	} while (0)
 
-void Mod_FloodFillSkin (byte *skin, int skinwidth, int skinheight)
+static void Mod_FloodFillSkin (byte *skin, int skinwidth, int skinheight)
 {
 	byte		fillcolor = *skin; // assume this is the pixel to fill
 	floodfill_t fifo[FLOODFILL_FIFO_SIZE];
@@ -3135,6 +3139,60 @@ void Mod_FloodFillSkin (byte *skin, int skinwidth, int skinheight)
 	}
 }
 
+static gltexture_t *Mod_LoadFullbrightTexture (qmodel_t *mod, const char *texname, int expected_width, int expected_height)
+{
+	// try to find matching glow texture :
+	unsigned int   fb_width, fb_height;
+	enum srcformat fb_fmt = SRC_RGBA;
+	void		  *fb_data = Image_LoadImage (texname, (int *)&fb_width, (int *)&fb_height, &fb_fmt);
+	// fb texture found:
+	if (fb_data)
+	{
+		// Check consitency:
+		if (fb_fmt != SRC_RGBA)
+		{
+			Con_Warning ("%s fbrights not RGBA, skipped.\n", texname);
+			Mem_Free (fb_data);
+			return NULL;
+		}
+
+		if ((fb_width != expected_width) || (fb_height != expected_height))
+		{
+			Con_Warning ("%s dims invalid, skipped.\n", texname);
+			Mem_Free (fb_data);
+			return NULL;
+		}
+
+		// Normalize pixels for additive blending as in INDEXED: fullbright pixels have alpha > 0 => force alpha = 255
+		// otherwhise for trensparent pixels (alpha = 0) => force alapha = 255 + color = black
+		for (size_t pixel_index = 0; pixel_index < (size_t)fb_width * (size_t)fb_height; pixel_index++)
+		{
+			uint32_t *rgba_pixel = (uint32_t *)fb_data + pixel_index;
+			byte	 *rgba_component = (byte *)rgba_pixel;
+
+			// pixels not trensparent are the fulbright ones
+			if (rgba_component[3] == 0)
+			{
+				// transparent pixels are force to black with force alpha = 255
+				rgba_component[0] = 0;
+				rgba_component[1] = 0;
+				rgba_component[2] = 0;
+			}
+
+			// always force alpha = 255 for all
+			rgba_component[3] = 255;
+		}
+
+		gltexture_t *loaded_texture =
+			TexMgr_LoadImage (mod, texname, expected_width, expected_height, SRC_RGBA, (byte *)fb_data, texname, 0, TEXPREF_ALPHA | TEXPREF_MIPMAP);
+		Mem_Free (fb_data);
+
+		return loaded_texture;
+	}
+
+	return NULL;
+}
+
 /*
 ===============
 Mod_LoadSkinTask
@@ -3178,23 +3236,62 @@ static void Mod_LoadSkinTask (int i, load_skin_task_args_t *args)
 		pheader->texels[i] = texels;
 		memcpy (texels, skin, size);
 
-		// johnfitz -- rewritten
-		q_snprintf (name, sizeof (name), "%s:frame%i", mod->name, i);
-		offset = (src_offset_t)(skin) - (src_offset_t)mod_base;
-		if (Mod_CheckFullbrights (skin, size))
+		pheader->gltextures[i][0] = NULL;
+		pheader->fbtextures[i][0] = NULL;
+
+		// try to load external textures first, if enabled.
+		if (mdl_external_textures.value > 0.0f)
 		{
-			pheader->gltextures[i][0] = TexMgr_LoadImage (
-				mod, name, pheader->skinwidth, pheader->skinheight, SRC_INDEXED, skin, mod->name, offset, texflags | TEXPREF_MIPMAP | TEXPREF_NOBRIGHT);
-			q_snprintf (fbr_mask_name, sizeof (fbr_mask_name), "%s:frame%i_glow", mod->name, i);
-			pheader->fbtextures[i][0] = TexMgr_LoadImage (
-				mod, fbr_mask_name, pheader->skinwidth, pheader->skinheight, SRC_INDEXED, skin, mod->name, offset,
-				texflags | TEXPREF_MIPMAP | TEXPREF_FULLBRIGHT);
+			char		   texname[MAX_QPATH];
+			unsigned int   fwidth, fheight;
+			void		  *data;
+			enum srcformat fmt = SRC_RGBA;
+
+			q_snprintf (texname, sizeof (texname), "%s_%i", mod->name, i);
+			data = Image_LoadImage (texname, (int *)&fwidth, (int *)&fheight, &fmt);
+
+			if (data && (fmt == SRC_RGBA))
+			{
+				pheader->gltextures[i][0] =
+					TexMgr_LoadImage (mod, texname, fwidth, fheight, fmt, data, texname, 0, TEXPREF_ALPHA | TEXPREF_NOBRIGHT | TEXPREF_MIPMAP);
+			}
+
+			SAFE_FREE (data);
+
+			// try to load the external fullbright texture, if any.
+			if (pheader->gltextures[i][0])
+			{
+				q_snprintf (texname, sizeof (texname), "%s_%i_glow", mod->name, i);
+				pheader->fbtextures[i][0] = Mod_LoadFullbrightTexture (mod, texname, fwidth, fheight);
+
+				if (!pheader->fbtextures[i][0])
+				{
+					q_snprintf (texname, sizeof (texname), "%s_%i_luma", mod->name, i);
+					pheader->fbtextures[i][0] = Mod_LoadFullbrightTexture (mod, texname, fwidth, fheight);
+				}
+			}
 		}
-		else
+
+		if (!pheader->gltextures[i][0])
 		{
-			pheader->gltextures[i][0] =
-				TexMgr_LoadImage (mod, name, pheader->skinwidth, pheader->skinheight, SRC_INDEXED, skin, mod->name, offset, texflags | TEXPREF_MIPMAP);
-			pheader->fbtextures[i][0] = NULL;
+			// johnfitz -- rewritten
+			q_snprintf (name, sizeof (name), "%s:frame%i", mod->name, i);
+			offset = (src_offset_t)(skin) - (src_offset_t)mod_base;
+			if (Mod_CheckFullbrights (skin, size))
+			{
+				pheader->gltextures[i][0] = TexMgr_LoadImage (
+					mod, name, pheader->skinwidth, pheader->skinheight, SRC_INDEXED, skin, mod->name, offset, texflags | TEXPREF_MIPMAP | TEXPREF_NOBRIGHT);
+				q_snprintf (fbr_mask_name, sizeof (fbr_mask_name), "%s:frame%i_glow", mod->name, i);
+				pheader->fbtextures[i][0] = TexMgr_LoadImage (
+					mod, fbr_mask_name, pheader->skinwidth, pheader->skinheight, SRC_INDEXED, skin, mod->name, offset,
+					texflags | TEXPREF_MIPMAP | TEXPREF_FULLBRIGHT);
+			}
+			else
+			{
+				pheader->gltextures[i][0] =
+					TexMgr_LoadImage (mod, name, pheader->skinwidth, pheader->skinheight, SRC_INDEXED, skin, mod->name, offset, texflags | TEXPREF_MIPMAP);
+				pheader->fbtextures[i][0] = NULL;
+			}
 		}
 
 		pheader->gltextures[i][3] = pheader->gltextures[i][2] = pheader->gltextures[i][1] = pheader->gltextures[i][0];
@@ -4356,60 +4453,6 @@ static void MD5Anim_Load (md5animctx_t *ctx, jointinfo_t *joints, size_t numjoin
 Mod_LoadMD5MeshModel
 =====================
 */
-static gltexture_t *Mod_LoadMD5FullbrightTexture (qmodel_t *mod, const char *texname, int expected_width, int expected_height)
-{
-	// try to find matching glow texture :
-	unsigned int   fb_width, fb_height;
-	enum srcformat fb_fmt = SRC_RGBA;
-	void		  *fb_data = Image_LoadImage (texname, (int *)&fb_width, (int *)&fb_height, &fb_fmt);
-	// fb texture found:
-	if (fb_data)
-	{
-		// Check consitency:
-		if (fb_fmt != SRC_RGBA)
-		{
-			Con_Warning ("MD5 fb %s not RGBA, skipped.\n", texname);
-			Mem_Free (fb_data);
-			return NULL;
-		}
-
-		if ((fb_width != expected_width) || (fb_height != expected_height))
-		{
-			Con_Warning ("MD5 fb %s dim invalid, skipped...\n", texname);
-			Mem_Free (fb_data);
-			return NULL;
-		}
-
-		// Normalize pixels for additive blending as in INDEXED: fullbright pixels have alpha > 0 => force alpha = 255
-		// otherwhise for trensparent pixels (alpha = 0) => force alapha = 255 + color = black
-		for (size_t pixel_index = 0; pixel_index < (size_t)fb_width * (size_t)fb_height; pixel_index++)
-		{
-			uint32_t *rgba_pixel = (uint32_t *)fb_data + pixel_index;
-			byte	 *rgba_component = (byte *)rgba_pixel;
-
-			// pixels not trensparent are the fulbright ones
-			if (rgba_component[3] == 0)
-			{
-				// transparent pixels are force to black with force alpha = 255
-				rgba_component[0] = 0;
-				rgba_component[1] = 0;
-				rgba_component[2] = 0;
-			}
-
-			// always force alpha = 255 for all
-			rgba_component[3] = 255;
-		}
-
-		gltexture_t *loaded_texture =
-			TexMgr_LoadImage (mod, texname, expected_width, expected_height, SRC_RGBA, (byte *)fb_data, texname, 0, TEXPREF_ALPHA | TEXPREF_MIPMAP);
-		Mem_Free (fb_data);
-
-		return loaded_texture;
-	}
-
-	return NULL;
-}
-
 static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 {
 	const char		*fname = mod->name;
@@ -4586,22 +4629,22 @@ static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 						if (!surf->fbtextures[surf->numskins][f])
 						{
 							q_snprintf (texname, sizeof (texname), "%s_%02u_%02u_glow", com_token, surf->numskins, f);
-							surf->fbtextures[surf->numskins][f] = Mod_LoadMD5FullbrightTexture (mod, texname, surf->skinwidth, surf->skinheight);
+							surf->fbtextures[surf->numskins][f] = Mod_LoadFullbrightTexture (mod, texname, surf->skinwidth, surf->skinheight);
 						}
 						if (!surf->fbtextures[surf->numskins][f])
 						{
 							q_snprintf (texname, sizeof (texname), "progs/%s_%02u_%02u_glow", com_token, surf->numskins, f);
-							surf->fbtextures[surf->numskins][f] = Mod_LoadMD5FullbrightTexture (mod, texname, surf->skinwidth, surf->skinheight);
+							surf->fbtextures[surf->numskins][f] = Mod_LoadFullbrightTexture (mod, texname, surf->skinwidth, surf->skinheight);
 						}
 						if (!surf->fbtextures[surf->numskins][f])
 						{
 							q_snprintf (texname, sizeof (texname), "%s_%02u_%02u_luma", com_token, surf->numskins, f);
-							surf->fbtextures[surf->numskins][f] = Mod_LoadMD5FullbrightTexture (mod, texname, surf->skinwidth, surf->skinheight);
+							surf->fbtextures[surf->numskins][f] = Mod_LoadFullbrightTexture (mod, texname, surf->skinwidth, surf->skinheight);
 						}
 						if (!surf->fbtextures[surf->numskins][f])
 						{
 							q_snprintf (texname, sizeof (texname), "progs/%s_%02u_%02u_luma", com_token, surf->numskins, f);
-							surf->fbtextures[surf->numskins][f] = Mod_LoadMD5FullbrightTexture (mod, texname, surf->skinwidth, surf->skinheight);
+							surf->fbtextures[surf->numskins][f] = Mod_LoadFullbrightTexture (mod, texname, surf->skinwidth, surf->skinheight);
 						}
 					}
 
