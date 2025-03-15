@@ -2484,8 +2484,10 @@ SV_SendClientDatagram
 */
 qboolean SV_SendClientDatagram (client_t *client)
 {
-	byte	  buf[MAX_DATAGRAM + 1000];
-	sizebuf_t msg;
+	// made static to prevent too big stack usage.
+	// fine as a temporary because only called from the main thread.
+	static byte buf[MAX_DATAGRAM + 1000];
+	sizebuf_t	msg;
 
 	if (!client->netconnection)
 	{

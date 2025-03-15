@@ -156,8 +156,6 @@ typedef struct trailstate_s
 entity_t *CL_EntityNum (int num);
 #define BEF_LINES 1
 
-extern int PClassic_PointFile (int c, vec3_t point);
-
 #define PART_VALID(part) ((part) >= 0 && (part) < numparticletypes)
 
 static int pe_default = P_INVALID;
@@ -4680,7 +4678,7 @@ int PScript_RunParticleEffectState (vec3_t org, vec3_t dir, float count, int typ
 				ofsvec[1] = j;
 				ofsvec[2] = l + 4;
 				VectorNormalize (ofsvec);
-				VectorScale (ofsvec, 1.0 - (frandom ()) * m, ofsvec);
+				VectorScale (ofsvec, 1.0 - (frandom ())*m, ofsvec);
 
 				// org is just like the original
 				arsvec[0] = j + (COM_Rand () % spawnspc);
@@ -4713,7 +4711,7 @@ int PScript_RunParticleEffectState (vec3_t org, vec3_t dir, float count, int typ
 				arsvec[2] = frandom () * ptype->areaspreadvert;
 
 				VectorNormalize (ofsvec);
-				VectorScale (ofsvec, 1.0 - (frandom ()) * m, ofsvec);
+				VectorScale (ofsvec, 1.0 - (frandom ())*m, ofsvec);
 
 				// advance splash loop
 				j += spawnspc;

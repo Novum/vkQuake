@@ -3091,11 +3091,12 @@ typedef struct
 
 static void Mod_FloodFillSkin (byte *skin, int skinwidth, int skinheight)
 {
-	byte		fillcolor = *skin; // assume this is the pixel to fill
-	floodfill_t fifo[FLOODFILL_FIFO_SIZE];
-	int			inpt = 0, outpt = 0;
-	int			filledcolor = -1;
-	int			i;
+	byte fillcolor = *skin; // assume this is the pixel to fill
+	int	 inpt = 0, outpt = 0;
+	int	 filledcolor = -1;
+	int	 i;
+
+	TEMP_ALLOC (floodfill_t, fifo, FLOODFILL_FIFO_SIZE);
 
 	if (filledcolor == -1)
 	{
@@ -3137,6 +3138,8 @@ static void Mod_FloodFillSkin (byte *skin, int skinwidth, int skinheight)
 			FLOODFILL_STEP (skinwidth, 0, 1);
 		skin[x + skinwidth * y] = fdc;
 	}
+
+	TEMP_FREE (fifo);
 }
 
 static gltexture_t *Mod_LoadFullbrightTexture (qmodel_t *mod, const char *texname, int expected_width, int expected_height)
