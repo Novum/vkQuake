@@ -3145,9 +3145,13 @@ static void Mod_FloodFillSkin (byte *skin, int skinwidth, int skinheight)
 static gltexture_t *Mod_LoadFullbrightTexture (qmodel_t *mod, const char *texname, int expected_width, int expected_height)
 {
 	// try to find matching glow texture :
-	unsigned int   fb_width, fb_height;
-	enum srcformat fb_fmt = SRC_RGBA;
-	void		  *fb_data = Image_LoadImage (texname, (int *)&fb_width, (int *)&fb_height, &fb_fmt);
+	unsigned int fb_width, fb_height = 0;
+
+	// unsupported format by default
+	enum srcformat fb_fmt = SRC_INDEXED;
+
+	void *fb_data = Image_LoadImage (texname, (int *)&fb_width, (int *)&fb_height, &fb_fmt);
+
 	// fb texture found:
 	if (fb_data)
 	{
@@ -3248,31 +3252,35 @@ static void Mod_LoadSkinTask (int i, load_skin_task_args_t *args)
 			char		   texname[MAX_QPATH];
 			unsigned int   fwidth, fheight;
 			void		  *data;
-			enum srcformat fmt = SRC_RGBA;
+			// unsupported format by default
+			enum srcformat fmt = SRC_INDEXED;
 
 			q_snprintf (texname, sizeof (texname), "%s_%i", mod->name, i);
 			data = Image_LoadImage (texname, (int *)&fwidth, (int *)&fheight, &fmt);
 
-			if (data && (fmt == SRC_RGBA))
+			if (data)
 			{
-				pheader->gltextures[i][0] =
-					TexMgr_LoadImage (mod, texname, fwidth, fheight, fmt, data, texname, 0, TEXPREF_ALPHA | TEXPREF_NOBRIGHT | TEXPREF_MIPMAP);
-			}
-
-			SAFE_FREE (data);
-
-			// try to load the external fullbright texture, if any.
-			if (pheader->gltextures[i][0])
-			{
-				q_snprintf (texname, sizeof (texname), "%s_%i_glow", mod->name, i);
-				pheader->fbtextures[i][0] = Mod_LoadFullbrightTexture (mod, texname, fwidth, fheight);
-
-				if (!pheader->fbtextures[i][0])
+				if (fmt == SRC_RGBA)
 				{
-					q_snprintf (texname, sizeof (texname), "%s_%i_luma", mod->name, i);
+					pheader->gltextures[i][0] = TexMgr_LoadImage (mod, texname, fwidth, fheight, fmt, data, texname, 0, TEXPREF_ALPHA | TEXPREF_MIPMAP);
+
+					// try to load the external fullbright texture, if any.
+					q_snprintf (texname, sizeof (texname), "%s_%i_glow", mod->name, i);
 					pheader->fbtextures[i][0] = Mod_LoadFullbrightTexture (mod, texname, fwidth, fheight);
+
+					if (!pheader->fbtextures[i][0])
+					{
+						q_snprintf (texname, sizeof (texname), "%s_%i_luma", mod->name, i);
+						pheader->fbtextures[i][0] = Mod_LoadFullbrightTexture (mod, texname, fwidth, fheight);
+					}
+				}
+				else
+				{
+					Con_Warning ("%s skin not RGBA, skipped.\n", texname);
 				}
 			}
+
+			Mem_Free (data);
 		}
 
 		if (!pheader->gltextures[i][0])
