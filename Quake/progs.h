@@ -279,8 +279,8 @@ struct pr_extfields_s
 	/*ssqc-only*/                                                                   \
 	QCEXTFIELD (items2, "//.float")									 /*float*/      \
 	QCEXTFIELD (movement, ".vector")								 /*vector*/     \
-	QCEXTFIELD (viewmodelforclient, ".entity")						 /*entity*/     \
-	QCEXTFIELD (exteriormodeltoclient, ".entity")					 /*entity*/     \
+	QCEXTFIELD (nodrawtoclient, ".entity")						 /*entity*/     \
+	QCEXTFIELD (drawonlytoclient, ".entity")					 /*entity*/     \
 	QCEXTFIELD (traileffectnum, ".float")							 /*float*/      \
 	QCEXTFIELD (emiteffectnum, ".float")							 /*float*/      \
 	QCEXTFIELD (button3, ".float")									 /*float*/      \

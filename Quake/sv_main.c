@@ -882,7 +882,9 @@ static void SVFTE_BuildSnapshotForClient (client_t *client)
 	edict_t		 *ent, *parent;
 	unsigned int  maxentities = client->limit_entities;
 	edict_t		 *clent = client->edict;
+	eval_t			*val;
 	unsigned char eflags;
+	int proged = EDICT_TO_PROG(clent);
 
 	struct entity_num_state_s *ents = snapshot_entstate;
 	size_t					   numents = 0;
@@ -909,28 +911,33 @@ static void SVFTE_BuildSnapshotForClient (client_t *client)
 				continue;
 			}
 
+			// attached entities should use the pvs of the parent rather than the child (because the child will typically be bugging out around '0 0 0', so
+			// won't be useful)
+			parent = ent;
+			if (parent->num_leafs)
 			{
-				// attached entities should use the pvs of the parent rather than the child (because the child will typically be bugging out around '0 0 0', so
-				// won't be useful)
-				parent = ent;
-				if (parent->num_leafs)
-				{
-					// ignore if not touching a PV leaf
-					for (i = 0; i < parent->num_leafs; i++)
-						if (pvs[parent->leafnums[i] >> 3] & (1 << (parent->leafnums[i] & 7)))
-							break;
+				// ignore if not touching a PV leaf
+				for (i = 0; i < parent->num_leafs; i++)
+					if (pvs[parent->leafnums[i] >> 3] & (1 << (parent->leafnums[i] & 7)))
+						break;
 
-					// ericw -- added ent->num_leafs < MAX_ENT_LEAFS condition.
-					//
-					// if ent->num_leafs == MAX_ENT_LEAFS, the ent is visible from too many leafs
-					// for us to say whether it's in the PVS, so don't try to vis cull it.
-					// this commonly happens with rotators, because they often have huge bboxes
-					// spanning the entire map, or really tall lifts, etc.
-					if (i == parent->num_leafs && parent->num_leafs < MAX_ENT_LEAFS)
-						goto invisible; // not visible
-				}
+				// ericw -- added ent->num_leafs < MAX_ENT_LEAFS condition.
+				//
+				// if ent->num_leafs == MAX_ENT_LEAFS, the ent is visible from too many leafs
+				// for us to say whether it's in the PVS, so don't try to vis cull it.
+				// this commonly happens with rotators, because they often have huge bboxes
+				// spanning the entire map, or really tall lifts, etc.
+				if (i == parent->num_leafs && parent->num_leafs < MAX_ENT_LEAFS)
+					goto invisible; // not visible
 			}
 		}
+
+		val = GetEdictFieldValue(ent, qcvm->extfields.nodrawtoclient);
+		if (val && val->edict == proged)
+			goto invisible;
+		val = GetEdictFieldValue(ent, qcvm->extfields.drawonlytoclient);
+		if (val && val->edict && val->edict != proged)
+			goto invisible;
 
 		// okay, we care about this entity.
 
@@ -1948,6 +1955,16 @@ void SV_WriteEntitiesToClient (client_t *client, sizebuf_t *msg, size_t overflow
 	{
 		if (ent != clent) // clent already added before the loop
 		{
+			// hide from the specified client
+			val = GetEdictFieldValue(ent, qcvm->extfields.nodrawtoclient);
+			if (val && val->edict == EDICT_TO_PROG(client))
+				continue;
+
+			// hide from an unspecified client
+			val = GetEdictFieldValue(ent, qcvm->extfields.drawonlytoclient);
+			if (val && val->edict && val->edict != EDICT_TO_PROG(client))
+				continue;
+
 			// ignore ents without visible models
 			if (!ent->v.modelindex || !(model = PR_GetString (ent->v.model))[0])
 				continue;
