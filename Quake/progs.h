@@ -181,6 +181,7 @@ char	  *PF_VarString (int first);
 #define STRINGTEMP_LENGTH  1024
 void PF_Fixme (void); // the 'unimplemented' builtin. woot.
 
+// clang-format off
 struct pr_extfuncs_s
 {
 /*all vms*/
@@ -279,8 +280,8 @@ struct pr_extfields_s
 	/*ssqc-only*/                                                                   \
 	QCEXTFIELD (items2, "//.float")									 /*float*/      \
 	QCEXTFIELD (movement, ".vector")								 /*vector*/     \
-	QCEXTFIELD (viewmodelforclient, ".entity")						 /*entity*/     \
-	QCEXTFIELD (exteriormodeltoclient, ".entity")					 /*entity*/     \
+	QCEXTFIELD (nodrawtoclient, ".entity")						 /*entity*/     \
+	QCEXTFIELD (drawonlytoclient, ".entity")					 /*entity*/     \
 	QCEXTFIELD (traileffectnum, ".float")							 /*float*/      \
 	QCEXTFIELD (emiteffectnum, ".float")							 /*float*/      \
 	QCEXTFIELD (button3, ".float")									 /*float*/      \
@@ -300,6 +301,7 @@ struct pr_extfields_s
 	QCEXTFIELDS_SS
 #undef QCEXTFIELD
 };
+// clang-format on
 
 typedef struct
 {

@@ -108,7 +108,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define UF_SKIN		(1u << 11)
 #define UF_COLORMAP (1u << 12)
 #define UF_SOLID	(1u << 13) /*encodes the size of the entity, so prediction can bump against it*/
-#define UF_FLAGS	(1u << 14) /*some extra flags like viewmodelforclient*/
+#define UF_FLAGS	(1u << 14) /*some extra flags, like scale */
 #define UF_EXTEND2	(1u << 15)
 
 /*the rest is optional extensions*/
@@ -208,9 +208,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // johnfitz
 
 // johnfitz -- PROTOCOL_FITZQUAKE -- alpha encoding
-#define ENTALPHA_DEFAULT   0   // entity's alpha is "default" (i.e. water obeys r_wateralpha) -- must be zero so zeroed out memory works
-#define ENTALPHA_ZERO	   1   // entity is invisible (lowest possible alpha)
-#define ENTALPHA_ONE	   255 // entity is fully opaque (highest possible alpha)
+#define ENTALPHA_DEFAULT 0	 // entity's alpha is "default" (i.e. water obeys r_wateralpha) -- must be zero so zeroed out memory works
+#define ENTALPHA_ZERO	 1	 // entity is invisible (lowest possible alpha)
+#define ENTALPHA_ONE	 255 // entity is fully opaque (highest possible alpha)
+// clang-format off
 #define ENTALPHA_ENCODE(a) (((a) == 0) ? ENTALPHA_DEFAULT : Q_rint (CLAMP (1, (a) * 254.0f + 1, 255))) // server convert to byte to send to client
 #define ENTALPHA_DECODE(a) (((a) == ENTALPHA_DEFAULT) ? 1.0f : ((float)(a)-1) / (254))				   // client convert to float for rendering
 #define ENTALPHA_TOSAVE(a) \
@@ -221,6 +222,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define ENTSCALE_DEFAULT	16 // 4.4 fixed point
 #define ENTSCALE_ENCODE(f)	((f) ? CLAMP (1, (int)(ENTSCALE_DEFAULT * (f)), 255) : ENTSCALE_DEFAULT)
 #define ENTSCALE_DECODE(es) ((es) / (float)ENTSCALE_DEFAULT)
+// clang-format on
 
 // defaults for clientinfo messages
 #define DEFAULT_VIEWHEIGHT 22
