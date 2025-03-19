@@ -1955,12 +1955,12 @@ void SV_WriteEntitiesToClient (client_t *client, sizebuf_t *msg, size_t overflow
 	{
 		if (ent != clent) // clent already added before the loop
 		{
-			// hide from the specified client
+			// hide if the current client is specified
 			val = GetEdictFieldValue(ent, qcvm->extfields.nodrawtoclient);
 			if (val && val->edict == EDICT_TO_PROG(client))
 				continue;
 
-			// hide from an unspecified client
+			// hide if the current client is not specified
 			val = GetEdictFieldValue(ent, qcvm->extfields.drawonlytoclient);
 			if (val && val->edict && val->edict != EDICT_TO_PROG(client))
 				continue;
