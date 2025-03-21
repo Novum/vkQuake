@@ -122,6 +122,11 @@ Fedora:
 dnf install git meson gcc glslang spirv-tools vulkan-loader-devel SDL2-devel mpg123-devel libvorbis-devel flac-devel opusfile-devel
 ~~~
 
+NixOS:
+~~~
+nix-shell -p git meson flac glibc libGL mpg123 libvorbis xorg.libX11 SDL2 vulkan-loader glslang spirv-tools pkg-config libgcc cmake opusfile ninja
+~~~
+
 Then clone the vkQuake repo:
 
 ~~~
