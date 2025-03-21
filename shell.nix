@@ -16,7 +16,6 @@ pkgs.mkShell {
     spirv-tools
     pkg-config
     libgcc
-    glslang
     cmake
     opusfile
     ninja
