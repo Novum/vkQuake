@@ -11,8 +11,14 @@ pkgs.mkShell {
     libvorbis
     xorg.libX11
     SDL2
-    vulkan-headers
+    vulkan-loader
     glslang
     spirv-tools
+    pkg-config
+    libgcc
+    glslang
+    cmake
+    opusfile
+    ninja
   ];
 }
