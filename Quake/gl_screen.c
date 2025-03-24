@@ -116,6 +116,7 @@ cvar_t scr_relcrosshairscale = {"scr_relcrosshairscale", "1", CVAR_ARCHIVE};
 cvar_t scr_relconscale = {"scr_relconscale", "1", CVAR_ARCHIVE};
 
 extern cvar_t crosshair;
+extern cvar_t crosshair_def;
 extern cvar_t r_tasks;
 extern cvar_t r_gpulightmapupdate;
 extern cvar_t r_showtris;
@@ -852,10 +853,12 @@ void SCR_DrawCrosshair (cb_context_t *cbx)
 		return;
 
 	GL_SetCanvas (cbx, CANVAS_CROSSHAIR);
-	if (crosshair.value >= 2.0f)
-		Draw_Character (cbx, -2, -5, '.'); // 0,0 is center of viewport
-	else
-		Draw_Character (cbx, -4, -4, '+'); // 0,0 is center of viewport
+
+	if (crosshair.value)
+	{
+		crosshair_s current = M_GetCrosshairDef ((int)crosshair_def.value);
+		Draw_Character (cbx, current.viewport_x_offset, current.viewport_y_offset, current.crosshair_char); // 0,0 is center of viewport
+	}
 }
 
 //=============================================================================

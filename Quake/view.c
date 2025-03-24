@@ -60,6 +60,7 @@ cvar_t v_ipitch_level = {"v_ipitch_level", "0.3", CVAR_NONE};
 cvar_t v_idlescale = {"v_idlescale", "0", CVAR_NONE};
 
 cvar_t crosshair = {"crosshair", "1", CVAR_ARCHIVE};
+cvar_t crosshair_def = {"crosshair_def", "0", CVAR_ARCHIVE};
 
 cvar_t gl_cshiftpercent = {"gl_cshiftpercent", "100", CVAR_NONE};
 cvar_t gl_cshiftpercent_contents = {"gl_cshiftpercent_contents", "100", CVAR_NONE}; // QuakeSpasm
@@ -940,6 +941,7 @@ void V_Init (void)
 
 	Cvar_RegisterVariable (&v_idlescale);
 	Cvar_RegisterVariable (&crosshair);
+	Cvar_RegisterVariable (&crosshair_def);
 	Cvar_RegisterVariable (&gl_cshiftpercent);
 	Cvar_RegisterVariable (&gl_cshiftpercent_contents); // QuakeSpasm
 	Cvar_RegisterVariable (&gl_cshiftpercent_damage);	// QuakeSpasm

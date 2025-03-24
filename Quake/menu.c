@@ -128,9 +128,34 @@ extern cvar_t snd_waterfx;
 extern cvar_t cl_bob;
 extern cvar_t cl_rollangle;
 extern cvar_t v_gunkick;
+extern cvar_t crosshair;
+extern cvar_t crosshair_def;
 
 static qboolean slider_grab;
 static qboolean scrollbar_grab;
+
+// clang-format off
+//crosshair_definitions
+static const crosshair_s crosshair_defs[] = 
+{
+	{'+',    -4,    -4,    0,   0},
+	{'.',    -2,    -5,    2,  -1},
+	{'x',    -4,    -4,    0,   0},
+	{'o',    -4,    -4,    0,   0}
+};
+
+static const size_t num_crosshair_defs = countof (crosshair_defs);
+// clang-format on
+
+/*
+================
+M_GetCrosshairDef
+================
+*/
+crosshair_s M_GetCrosshairDef (int crosshair_index)
+{
+	return crosshair_defs[crosshair_index % num_crosshair_defs];
+}
 
 /*
 ================
@@ -1431,7 +1456,38 @@ static void M_GameOptions_AdjustSliders (int dir, qboolean mouse)
 		Cvar_SetValue ("m_pitch", -m_pitch.value);
 		break;
 	case GAME_OPT_CROSSHAIR:
-		Cvar_SetValue ("crosshair", ((int)crosshair.value + 3 + dir) % 3);
+		if (crosshair.value)
+		{
+			if ((crosshair_def.value == num_crosshair_defs - 1) && (dir == 1))
+			{
+				// fold to off
+				Cvar_SetValue ("crosshair", 0.0f);
+				Cvar_SetValue ("crosshair_def", 0.0f);
+			}
+			else if ((crosshair_def.value == 0) && (dir == -1))
+			{
+				// fold to off
+				Cvar_SetValue ("crosshair", 0.0f);
+			}
+			else
+			{
+				Cvar_SetValue ("crosshair_def", ((int)crosshair_def.value + num_crosshair_defs + dir) % num_crosshair_defs);
+			}
+		}
+		else // off => on
+		{
+			if (dir == -1)
+			{
+				// fold to max
+				Cvar_SetValue ("crosshair", 1.0f);
+				Cvar_SetValue ("crosshair_def", (float)(num_crosshair_defs - 1));
+			}
+			else if (dir == 1)
+			{
+				Cvar_SetValue ("crosshair", 1.0f);
+				Cvar_SetValue ("crosshair_def", 0.0f);
+			}
+		}
 		break;
 	case GAME_OPT_HUD_DETAIL: // interface detail
 		// cycles through 120 (none), 110 (standard), 100 (full)
@@ -1580,12 +1636,17 @@ static void M_GameOptions_Draw (cb_context_t *cbx)
 
 		case GAME_OPT_CROSSHAIR:
 			M_Print (cbx, MENU_LABEL_X, y, "Crosshair");
-			if (crosshair.value == 0.0f)
+			if (!crosshair.value)
+			{
 				M_Print (cbx, MENU_VALUE_X, y, "off");
-			else if (crosshair.value < 2.0f)
-				M_PrintHighlighted (cbx, MENU_VALUE_X, y, "+");
+			}
 			else
-				M_PrintHighlighted (cbx, MENU_VALUE_X + 2, y - 1, ".");
+			{
+				char		crosshair_as_string[2] = {0};
+				crosshair_s current = M_GetCrosshairDef ((int)crosshair_def.value);
+				crosshair_as_string[0] = current.crosshair_char;
+				M_PrintHighlighted (cbx, MENU_VALUE_X + current.menu_x_offset, y + current.menu_y_offset, crosshair_as_string);
+			}
 			break;
 
 		case GAME_OPT_FAST_LOADING:

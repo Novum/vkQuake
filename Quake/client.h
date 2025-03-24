@@ -313,7 +313,6 @@ extern cvar_t cl_pitchdriftspeed;
 extern cvar_t lookspring;
 extern cvar_t lookstrafe;
 extern cvar_t sensitivity;
-extern cvar_t crosshair;
 
 extern cvar_t m_pitch;
 extern cvar_t m_yaw;
