@@ -138,10 +138,12 @@ static qboolean scrollbar_grab;
 //crosshair_definitions
 static const crosshair_t crosshair_defs[] = 
 {
-	{'+',    -4.0f,    -4.0f,    0,   0},
-	{'.',    -2.0f,    -5.0f,    2,  -1},
-	{'x',    -4.0f,    -4.0f,    0,   0},
-	{'o',    -4.0f,    -4.0f,    0,   0}
+	{'+',    - CHARACTER_SIZE * 0.5f,           - CHARACTER_SIZE * 0.5f,             0,   0},
+	{'.',    - CHARACTER_SIZE * 0.5f + 1.75f,   - CHARACTER_SIZE * 0.5f - 1.5f,      2,  -1}, 
+	{'x',    - CHARACTER_SIZE * 0.5f,           - CHARACTER_SIZE * 0.5f,             0,   0},
+	{'o',    - CHARACTER_SIZE * 0.5f,           - CHARACTER_SIZE * 0.5f,             0,   0},
+	{'^',    - CHARACTER_SIZE * 0.5f,           - CHARACTER_SIZE * 0.5f + 5.0f,      0,   2},
+	{'v',    - CHARACTER_SIZE * 0.5f - 0.65f,   - CHARACTER_SIZE * 0.5f + 0.75f,     0,   0}
 };
 
 static const size_t num_crosshair_defs = countof (crosshair_defs);
