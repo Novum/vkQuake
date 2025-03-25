@@ -856,7 +856,7 @@ void SCR_DrawCrosshair (cb_context_t *cbx)
 
 	if (crosshair.value)
 	{
-		crosshair_s current = M_GetCrosshairDef ((int)crosshair_def.value);
+		crosshair_t current = M_GetCrosshairDef (crosshair_def.value);
 		Draw_Character (cbx, current.viewport_x_offset, current.viewport_y_offset, current.crosshair_char); // 0,0 is center of viewport
 	}
 }

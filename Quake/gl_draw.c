@@ -36,28 +36,28 @@ qpic_t		*pic_ovr, *pic_ins; // johnfitz -- new cursor handling
 qpic_t		*pic_nul;			// johnfitz -- for missing gfx, don't crash
 
 // johnfitz -- new pics
-byte pic_ovr_data[8][8] = {
+const byte pic_ovr_data[8][8] = {
 	{255, 255, 255, 255, 255, 255, 255, 255}, {255, 15, 15, 15, 15, 15, 15, 255}, {255, 15, 15, 15, 15, 15, 15, 2}, {255, 15, 15, 15, 15, 15, 15, 2},
 	{255, 15, 15, 15, 15, 15, 15, 2},		  {255, 15, 15, 15, 15, 15, 15, 2},	  {255, 15, 15, 15, 15, 15, 15, 2}, {255, 255, 2, 2, 2, 2, 2, 2},
 };
 
-byte pic_ins_data[9][8] = {
+const byte pic_ins_data[9][8] = {
 	{15, 15, 255, 255, 255, 255, 255, 255}, {15, 15, 2, 255, 255, 255, 255, 255}, {15, 15, 2, 255, 255, 255, 255, 255},
 	{15, 15, 2, 255, 255, 255, 255, 255},	{15, 15, 2, 255, 255, 255, 255, 255}, {15, 15, 2, 255, 255, 255, 255, 255},
 	{15, 15, 2, 255, 255, 255, 255, 255},	{15, 15, 2, 255, 255, 255, 255, 255}, {255, 2, 2, 255, 255, 255, 255, 255},
 };
 
-byte pic_nul_data[8][8] = {
+const byte pic_nul_data[8][8] = {
 	{252, 252, 252, 252, 0, 0, 0, 0}, {252, 252, 252, 252, 0, 0, 0, 0}, {252, 252, 252, 252, 0, 0, 0, 0}, {252, 252, 252, 252, 0, 0, 0, 0},
 	{0, 0, 0, 0, 252, 252, 252, 252}, {0, 0, 0, 0, 252, 252, 252, 252}, {0, 0, 0, 0, 252, 252, 252, 252}, {0, 0, 0, 0, 252, 252, 252, 252},
 };
 
-byte pic_stipple_data[8][8] = {
+const byte pic_stipple_data[8][8] = {
 	{255, 0, 0, 0, 255, 0, 0, 0}, {0, 0, 255, 0, 0, 0, 255, 0}, {255, 0, 0, 0, 255, 0, 0, 0}, {0, 0, 255, 0, 0, 0, 255, 0},
 	{255, 0, 0, 0, 255, 0, 0, 0}, {0, 0, 255, 0, 0, 0, 255, 0}, {255, 0, 0, 0, 255, 0, 0, 0}, {0, 0, 255, 0, 0, 0, 255, 0},
 };
 
-byte pic_crosshair_data[8][8] = {
+const byte pic_crosshair_data[8][8] = {
 	{255, 255, 255, 255, 255, 255, 255, 255},
 	{255, 255, 255, 8, 9, 255, 255, 255},
 	{255, 255, 255, 6, 8, 2, 255, 255},
@@ -261,8 +261,8 @@ qpic_t *Draw_PicFromWad (const char *name)
 {
 	return Draw_PicFromWad2 (name, TEXPREF_ALPHA | TEXPREF_PAD | TEXPREF_NOPICMIP);
 }
-
-qpic_t *Draw_GetCachedPic (const char *path)
+#if 0 // vso - unused 
+static qpic_t *Draw_GetCachedPic (const char *path)
 {
 	cachepic_t *pic;
 	int			i;
@@ -274,7 +274,7 @@ qpic_t *Draw_GetCachedPic (const char *path)
 	}
 	return NULL;
 }
-
+#endif
 /*
 ================
 Draw_CachePic
@@ -342,7 +342,7 @@ qpic_t *Draw_CachePic (const char *path)
 Draw_MakePic -- johnfitz -- generate pics from internal data
 ================
 */
-qpic_t *Draw_MakePic (const char *name, int width, int height, byte *data)
+static qpic_t *Draw_MakePic (const char *name, int width, int height, const byte *data)
 {
 	int		flags = TEXPREF_NEAREST | TEXPREF_ALPHA | TEXPREF_PERSIST | TEXPREF_NOPICMIP | TEXPREF_PAD;
 	qpic_t *pic;
@@ -352,7 +352,7 @@ qpic_t *Draw_MakePic (const char *name, int width, int height, byte *data)
 	pic->width = width;
 	pic->height = height;
 
-	gl.gltexture = TexMgr_LoadImage (NULL, name, width, height, SRC_INDEXED, data, "", (src_offset_t)data, flags);
+	gl.gltexture = TexMgr_LoadImage (NULL, name, width, height, SRC_INDEXED, (byte *)data, "", (src_offset_t)data, flags);
 	gl.sl = 0;
 	gl.sh = 1;
 	gl.tl = 0;
@@ -373,7 +373,7 @@ qpic_t *Draw_MakePic (const char *name, int width, int height, byte *data)
 Draw_LoadPics -- johnfitz
 ===============
 */
-void Draw_LoadPics (void)
+static void Draw_LoadPics (void)
 {
 	byte		*data;
 	src_offset_t offset;
@@ -454,7 +454,7 @@ void Draw_Init (void)
 Draw_FillCharacterQuad
 ================
 */
-static void Draw_FillCharacterQuad (int x, int y, char num, basicvertex_t *output, int rotation)
+static void Draw_FillCharacterQuad (float x, float y, char num, basicvertex_t *output, int rotation)
 {
 	const int	row = num >> 4;
 	const int	col = num & 15;
@@ -511,7 +511,7 @@ static void Draw_FillCharacterQuad (int x, int y, char num, basicvertex_t *outpu
 Draw_Character
 ================
 */
-void Draw_Character (cb_context_t *cbx, int x, int y, int num)
+void Draw_Character (cb_context_t *cbx, float x, float y, int num)
 {
 	if (y <= -CHARACTER_SIZE)
 		return; // totally off screen
@@ -540,7 +540,7 @@ void Draw_Character (cb_context_t *cbx, int x, int y, int num)
 Draw_String
 ================
 */
-void Draw_String (cb_context_t *cbx, int x, int y, const char *str)
+void Draw_String (cb_context_t *cbx, float x, float y, const char *str)
 {
 	int			num_verts = 0;
 	int			i;
@@ -579,7 +579,7 @@ void Draw_String (cb_context_t *cbx, int x, int y, const char *str)
 Draw_Pic -- johnfitz -- modified
 =============
 */
-void Draw_Pic (cb_context_t *cbx, int x, int y, qpic_t *pic, float alpha, qboolean alpha_blend)
+void Draw_Pic (cb_context_t *cbx, float x, float y, qpic_t *pic, float alpha, qboolean alpha_blend)
 {
 	glpic_t gl;
 	int		i;
@@ -719,7 +719,7 @@ Draw_TransPicTranslate -- johnfitz -- rewritten to use texmgr to do translation
 Only used for the player color selection menu
 =============
 */
-void Draw_TransPicTranslate (cb_context_t *cbx, int x, int y, qpic_t *pic, int top, int bottom)
+void Draw_TransPicTranslate (cb_context_t *cbx, float x, float y, qpic_t *pic, int top, int bottom)
 {
 	static int oldtop = -2;
 	static int oldbottom = -2;
@@ -768,7 +768,7 @@ This repeats a 64*64 tile graphic to fill the screen around a sized down
 refresh window.
 =============
 */
-void Draw_TileClear (cb_context_t *cbx, int x, int y, int w, int h)
+void Draw_TileClear (cb_context_t *cbx, float x, float y, float w, float h)
 {
 	glpic_t gl;
 	memcpy (&gl, draw_backtile->data, sizeof (glpic_t));
@@ -825,7 +825,7 @@ Draw_Fill
 Fills a box of pixels with a single color
 =============
 */
-void Draw_Fill (cb_context_t *cbx, int x, int y, int w, int h, int c, float alpha) // johnfitz -- added alpha
+void Draw_Fill (cb_context_t *cbx, float x, float y, float w, float h, int c, float alpha) // johnfitz -- added alpha
 {
 	int	  i;
 	byte *pal = (byte *)d_8to24table; // johnfitz -- use d_8to24table instead of host_basepal

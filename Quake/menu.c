@@ -136,12 +136,12 @@ static qboolean scrollbar_grab;
 
 // clang-format off
 //crosshair_definitions
-static const crosshair_s crosshair_defs[] = 
+static const crosshair_t crosshair_defs[] = 
 {
-	{'+',    -4,    -4,    0,   0},
-	{'.',    -2,    -5,    2,  -1},
-	{'x',    -4,    -4,    0,   0},
-	{'o',    -4,    -4,    0,   0}
+	{'+',    -4.0f,    -4.0f,    0,   0},
+	{'.',    -2.0f,    -5.0f,    2,  -1},
+	{'x',    -4.0f,    -4.0f,    0,   0},
+	{'o',    -4.0f,    -4.0f,    0,   0}
 };
 
 static const size_t num_crosshair_defs = countof (crosshair_defs);
@@ -152,9 +152,9 @@ static const size_t num_crosshair_defs = countof (crosshair_defs);
 M_GetCrosshairDef
 ================
 */
-crosshair_s M_GetCrosshairDef (int crosshair_index)
+crosshair_t M_GetCrosshairDef (float crosshair_def_value)
 {
-	return crosshair_defs[crosshair_index % num_crosshair_defs];
+	return crosshair_defs[(int)crosshair_def_value % num_crosshair_defs];
 }
 
 /*
@@ -1643,7 +1643,7 @@ static void M_GameOptions_Draw (cb_context_t *cbx)
 			else
 			{
 				char		crosshair_as_string[2] = {0};
-				crosshair_s current = M_GetCrosshairDef ((int)crosshair_def.value);
+				crosshair_t current = M_GetCrosshairDef (crosshair_def.value);
 				crosshair_as_string[0] = current.crosshair_char;
 				M_PrintHighlighted (cbx, MENU_VALUE_X + current.menu_x_offset, y + current.menu_y_offset, crosshair_as_string);
 			}
