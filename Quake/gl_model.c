@@ -2744,15 +2744,29 @@ Mod_CalcSpecialsAndTextures
 static void Mod_CalcSpecialsAndTextures (qmodel_t *model)
 {
 	qboolean is_submodel = model->name[0] == '*';
+
 	model->used_specials = 0;
+
 	TEMP_ALLOC_ZEROED_COND (byte, used_tex, model->numtextures, is_submodel);
 
 	for (int i = 0; i < model->nummodelsurfaces; i++)
 	{
 		msurface_t *psurf = &model->surfaces[model->firstmodelsurface] + i;
 		model->used_specials |= (SURF_DRAWSKY | SURF_DRAWTURB | SURF_DRAWWATER | SURF_DRAWLAVA | SURF_DRAWSLIME | SURF_DRAWTELE) & psurf->flags;
+
 		if (is_submodel && psurf->texinfo->tex_idx >= 0)
-			used_tex[psurf->texinfo->tex_idx] = true;
+		{
+			if (psurf->texinfo->tex_idx < model->numtextures)
+			{
+				used_tex[psurf->texinfo->tex_idx] = true;
+			}
+			else
+			{
+				TEMP_FREE (used_tex);
+				// Can we incounter invalid indices tex_idx >= model->numtextures
+				Host_Error ("Mod_CalcSpecialsAndTextures: %s invalid tex_idx %i", model->name, (int)psurf->texinfo->tex_idx);
+			}
+		}
 	}
 
 	if (!is_submodel)
@@ -2768,8 +2782,10 @@ static void Mod_CalcSpecialsAndTextures (qmodel_t *model)
 	model->numtextures = total;
 
 	for (int i = 0; placed < total; i++)
+	{
 		if (used_tex[i])
 			model->textures[placed++] = orig_textures[i];
+	}
 
 	TEMP_FREE (used_tex);
 }
