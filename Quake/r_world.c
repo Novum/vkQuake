@@ -1154,9 +1154,10 @@ void R_DrawTextureChains_Water (cb_context_t *cbx, qmodel_t *model, entity_t *en
 		const float	   alpha = GL_WaterAlphaForEntitySurface (ent, t->texturechains[chain]);
 		const qboolean alpha_blend = alpha < 1.0f;
 
+#if 0 // TODO : vso - #767 : this shortcut creates invisible liquids or lava in some levels, disable it for now 
 		if (((opaque_only && alpha_blend) || (transparent_only && !alpha_blend)) && (!r_lightmap_cheatsafe || !indirect))
 			continue;
-
+#endif
 		gltexture_t *gl_texture = t->warpimage;
 		if (!r_lightmap_cheatsafe)
 			vulkan_globals.vk_cmd_bind_descriptor_sets (
