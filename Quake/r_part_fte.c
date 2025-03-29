@@ -739,7 +739,7 @@ float CL_TraceLine (vec3_t start, vec3_t end, vec3_t impact, vec3_t normal, int 
 #define FTECONTENTS_FLUID	   (FTECONTENTS_WATER | FTECONTENTS_SLIME | FTECONTENTS_LAVA | FTECONTENTS_SKY)
 #define FTECONTENTS_PLAYERCLIP 0
 
-int					SV_HullPointContents (hull_t *hull, int num, vec3_t p);
+// int					SV_HullPointContents (hull_t *hull, int num, vec3_t p);
 static unsigned int CL_PointContentsMask (vec3_t p)
 {
 	static const unsigned int cont_qtof[] = {
@@ -4678,7 +4678,7 @@ int PScript_RunParticleEffectState (vec3_t org, vec3_t dir, float count, int typ
 				ofsvec[1] = j;
 				ofsvec[2] = l + 4;
 				VectorNormalize (ofsvec);
-				VectorScale (ofsvec, 1.0 - (frandom ()) * m, ofsvec);
+				VectorScale (ofsvec, 1.0 - (frandom ())*m, ofsvec);
 
 				// org is just like the original
 				arsvec[0] = j + (COM_Rand () % spawnspc);
@@ -4711,7 +4711,7 @@ int PScript_RunParticleEffectState (vec3_t org, vec3_t dir, float count, int typ
 				arsvec[2] = frandom () * ptype->areaspreadvert;
 
 				VectorNormalize (ofsvec);
-				VectorScale (ofsvec, 1.0 - (frandom ()) * m, ofsvec);
+				VectorScale (ofsvec, 1.0 - (frandom ())*m, ofsvec);
 
 				// advance splash loop
 				j += spawnspc;

@@ -44,8 +44,6 @@ typedef struct
 	edict_t		*passedict;
 } moveclip_t;
 
-int SV_HullPointContents (hull_t *hull, int num, vec3_t p);
-
 /*
 ===============================================================================
 
@@ -742,7 +740,7 @@ reenter:
 	return rht_impact;
 }
 
-qboolean SV_SlowRecursiveHullCheck (hull_t *hull, int num, float p1f, float p2f, vec3_t p1, vec3_t p2, trace_t *trace)
+static qboolean SV_SlowRecursiveHullCheck (hull_t *hull, int num, float p1f, float p2f, vec3_t p1, vec3_t p2, trace_t *trace)
 {
 	mclipnode_t *node; // johnfitz -- was dclipnode_t
 	mplane_t	*plane;
@@ -880,7 +878,7 @@ Decides if its a simple point test, or does a slightly more expensive check.
 */
 qboolean SV_RecursiveHullCheck (hull_t *hull, vec3_t p1, vec3_t p2, trace_t *trace, unsigned int hitcontents)
 {
-	if (!pr_checkextension.value)
+	if (!RECURSIVE_HULL_CHECK_FTE_OPTIMIZATION || !pr_checkextension.value)
 		return SV_SlowRecursiveHullCheck (hull, hull->firstclipnode, 0, 1, p1, p2, trace);
 	else if (p1[0] == p2[0] && p1[1] == p2[1] && p1[2] == p2[2])
 	{

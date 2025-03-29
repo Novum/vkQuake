@@ -87,6 +87,12 @@ trace_t SV_Move (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type, e
 
 // passedict is explicitly excluded from clipping checks (normally NULL)
 
+int SV_HullPointContents (hull_t *hull, int num, vec3_t p);
+
 qboolean SV_RecursiveHullCheck (hull_t *hull, vec3_t p1, vec3_t p2, trace_t *trace, unsigned int hitcontents);
+
+// QSS has an optimzed path for SV_RecursiveHullCheck if FTE extensions are available
+//  but it is buggy.
+#define RECURSIVE_HULL_CHECK_FTE_OPTIMIZATION 0
 
 #endif /* _QUAKE_WORLD_H */
