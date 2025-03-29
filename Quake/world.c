@@ -24,6 +24,16 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 
+// FTE-opimized world queries
+
+// QSS has an optimzed path for SV_RecursiveHullCheck if FTE extensions are available
+// but it differs from other engines and sometimes entities are falling through
+// the world at level start because being misplaced.
+// So, disable it by default to get the same behaviour as QuakeSpasm.
+cvar_t sv_fte_recursivehullckeck = {"sv_fte_recursivehullckeck", "0", CVAR_ARCHIVE};
+
+cvar_t sv_fte_createareanode = {"sv_fte_createareanode", "1", CVAR_ARCHIVE};
+
 /*
 
 entities never clip against themselves, or their owner
@@ -43,8 +53,6 @@ typedef struct
 	unsigned int hitcontents; // content types to impact upon... (1<<-CONTENTS_FOO) bitmask
 	edict_t		*passedict;
 } moveclip_t;
-
-int SV_HullPointContents (hull_t *hull, int num, vec3_t p);
 
 /*
 ===============================================================================
@@ -203,12 +211,21 @@ areanode_t *SV_CreateAreaNode (int depth, vec3_t mins, vec3_t maxs)
 	else
 		anode->axis = 1;
 
-#if 0 // Code as the same code as QS / QSS / Ironwail
-	if (depth == VANILLA_AREA_DEPTH)
-#else // vso - vkQuake variant : hard to trigger some events, ex. opening Gold Door in https://www.quaddicted.com/filebase/hhouse.zip ?
-	  // But a perceptible performance gain in big maps, so keep it for now...
-	if (pr_checkextension.value ? depth == MAX_AREA_DEPTH || size[anode->axis] < 500 : depth == VANILLA_AREA_DEPTH)
-#endif
+	bool max_depth_reached = false;
+
+	if (pr_checkextension.value && sv_fte_createareanode.value > 0.0f)
+	{
+		// vso - vkQuake variant : hard to trigger some events, ex. opening Gold Door in https://www.quaddicted.com/filebase/hhouse.zip ?
+		// But a perceptible performance gain in big maps, so keep it.
+		// controlled by sv_fte_createareanode.
+		max_depth_reached = (depth == MAX_AREA_DEPTH || size[anode->axis] < 500);
+	}
+	else
+	{
+		max_depth_reached = (depth == VANILLA_AREA_DEPTH);
+	}
+
+	if (max_depth_reached)
 	{
 		anode->axis = -1;
 		anode->children[0] = anode->children[1] = NULL;
@@ -593,20 +610,6 @@ LINE TESTING IN HULLS
 
 ===============================================================================
 */
-
-enum
-{
-	rht_solid,
-	rht_empty,
-	rht_impact
-};
-struct rhtctx_s
-{
-	unsigned int hitcontents;
-	vec3_t		 start, end;
-	mclipnode_t *clipnodes;
-	mplane_t	*planes;
-};
 #define VectorNegate(a, b)				 ((b)[0] = -(a)[0], (b)[1] = -(a)[1], (b)[2] = -(a)[2])
 #define FloatInterpolate(a, bness, b, c) ((c) = (a) + (b - a) * bness)
 #define VectorInterpolate(a, bness, b, c) \
@@ -624,7 +627,7 @@ an epsilon, so the end point shouldn't be inside walls either way. FTE's version
 with allsolid). ezQuake also has a version of this logic, but I trust mine more.
 ==================
 */
-static int Q1BSP_RecursiveHullTrace (struct rhtctx_s *ctx, int num, float p1f, float p2f, vec3_t p1, vec3_t p2, trace_t *trace)
+int Q1BSP_RecursiveHullTrace (struct rhtctx_s *ctx, int num, float p1f, float p2f, vec3_t p1, vec3_t p2, trace_t *trace)
 {
 	mclipnode_t *node;
 	mplane_t	*plane;
@@ -742,7 +745,7 @@ reenter:
 	return rht_impact;
 }
 
-qboolean SV_SlowRecursiveHullCheck (hull_t *hull, int num, float p1f, float p2f, vec3_t p1, vec3_t p2, trace_t *trace)
+static qboolean SV_SlowRecursiveHullCheck (hull_t *hull, int num, float p1f, float p2f, vec3_t p1, vec3_t p2, trace_t *trace)
 {
 	mclipnode_t *node; // johnfitz -- was dclipnode_t
 	mplane_t	*plane;
@@ -880,7 +883,7 @@ Decides if its a simple point test, or does a slightly more expensive check.
 */
 qboolean SV_RecursiveHullCheck (hull_t *hull, vec3_t p1, vec3_t p2, trace_t *trace, unsigned int hitcontents)
 {
-	if (!pr_checkextension.value)
+	if (sv_fte_recursivehullckeck.value <= 0.0f || !pr_checkextension.value)
 		return SV_SlowRecursiveHullCheck (hull, hull->firstclipnode, 0, 1, p1, p2, trace);
 	else if (p1[0] == p2[0] && p1[1] == p2[1] && p1[2] == p2[2])
 	{
@@ -1160,10 +1163,9 @@ static void World_ClipToNetwork (moveclip_t *clip)
 			VectorSubtract (clip->end, offset, end_l);
 
 			// trace a line through the apropriate clipping hull
-			if (touch->netstate.solidsize == ES_SOLID_BSP && (touch->angles[0] || touch->angles[1] || touch->angles[2]) &&
-				pr_checkextension
-					.value) // don't rotate the world entity's collisions (its not networked, and some maps are buggy, resulting in screwed collisions)
+			if (touch->netstate.solidsize == ES_SOLID_BSP && (touch->angles[0] || touch->angles[1] || touch->angles[2]) && pr_checkextension.value)
 			{
+				// don't rotate the world entity's collisions (its not networked, and some maps are buggy, resulting in screwed collisions)
 #define DotProductTranspose(v, m, a) ((v)[0] * (m)[0][a] + (v)[1] * (m)[1][a] + (v)[2] * (m)[2][a])
 				vec3_t axis[3], start_r, end_r, tmp;
 				AngleVectors (touch->angles, axis[0], axis[1], axis[2]);

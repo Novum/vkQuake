@@ -1152,6 +1152,10 @@ void SV_Init (void)
 	extern cvar_t sv_aim;
 	extern cvar_t sv_altnoclip; // johnfitz
 
+	// FTE optimized world geometry checks
+	extern cvar_t sv_fte_recursivehullckeck;
+	extern cvar_t sv_fte_createareanode;
+
 	Cvar_RegisterVariable (&sv_maxvelocity);
 	Cvar_RegisterVariable (&sv_gravity);
 	Cvar_RegisterVariable (&sv_friction);
@@ -1174,6 +1178,9 @@ void SV_Init (void)
 	Cvar_RegisterVariable (&sv_altnoclip); // johnfitz
 	Cvar_RegisterVariable (&sv_netsort);
 	Cvar_RegisterVariable (&sv_smoothplatformlerps);
+
+	Cvar_RegisterVariable (&sv_fte_recursivehullckeck);
+	Cvar_RegisterVariable (&sv_fte_createareanode);
 
 	Cmd_AddCommand ("pext", SV_Pext_f);
 	Cmd_AddCommand ("sv_protocol", &SV_Protocol_f); // johnfitz

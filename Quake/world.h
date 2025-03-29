@@ -87,6 +87,24 @@ trace_t SV_Move (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type, e
 
 // passedict is explicitly excluded from clipping checks (normally NULL)
 
+int SV_HullPointContents (hull_t *hull, int num, vec3_t p);
+
 qboolean SV_RecursiveHullCheck (hull_t *hull, vec3_t p1, vec3_t p2, trace_t *trace, unsigned int hitcontents);
+
+enum
+{
+	rht_solid,
+	rht_empty,
+	rht_impact
+};
+struct rhtctx_s
+{
+	unsigned int hitcontents;
+	vec3_t		 start, end;
+	mclipnode_t *clipnodes;
+	mplane_t	*planes;
+};
+
+int Q1BSP_RecursiveHullTrace (struct rhtctx_s *ctx, int num, float p1f, float p2f, vec3_t p1, vec3_t p2, trace_t *trace);
 
 #endif /* _QUAKE_WORLD_H */
