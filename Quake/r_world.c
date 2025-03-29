@@ -38,6 +38,11 @@ extern cvar_t vid_palettize;
 
 cvar_t r_parallelmark = {"r_parallelmark", "1", CVAR_NONE};
 
+// vso - in some cases, R_DrawTextureChains_Water oprimization
+// make some surfaces not rendered. Since this optimization does not seem
+// to actually impact performance disable it by default for now.
+cvar_t r_drawwater_fast = {"r_drawwater_fast", "0", CVAR_ARCHIVE};
+
 byte *SV_FatPVS (vec3_t org, qmodel_t *worldmodel);
 
 extern VkBuffer bmodel_vertex_buffer;
@@ -1154,8 +1159,21 @@ void R_DrawTextureChains_Water (cb_context_t *cbx, qmodel_t *model, entity_t *en
 		const float	   alpha = GL_WaterAlphaForEntitySurface (ent, t->texturechains[chain]);
 		const qboolean alpha_blend = alpha < 1.0f;
 
-		if (((opaque_only && alpha_blend) || (transparent_only && !alpha_blend)) && (!r_lightmap_cheatsafe || !indirect))
-			continue;
+		// vso - water-like surfaces are in some cases rendered incorrectly,
+		// disabling this path solves the issue.
+		if (r_drawwater_fast.value > 0.0f)
+		{
+			if (alpha_blend)
+			{
+				if (opaque_only && (!r_lightmap_cheatsafe || !indirect))
+					continue;
+			}
+			else
+			{
+				if (transparent_only && (!r_lightmap_cheatsafe || !indirect))
+					continue;
+			}
+		}
 
 		gltexture_t *gl_texture = t->warpimage;
 		if (!r_lightmap_cheatsafe)

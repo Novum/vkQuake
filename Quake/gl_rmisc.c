@@ -60,6 +60,8 @@ extern cvar_t r_tasks;
 extern cvar_t r_parallelmark;
 extern cvar_t r_usesops;
 
+extern cvar_t r_drawwater_fast;
+
 #if defined(USE_SIMD)
 extern cvar_t r_simd;
 #endif
@@ -3634,6 +3636,8 @@ void R_Init (void)
 	Cvar_RegisterVariable (&r_tasks);
 	Cvar_RegisterVariable (&r_parallelmark);
 	Cvar_RegisterVariable (&r_usesops);
+
+	Cvar_RegisterVariable (&r_drawwater_fast);
 
 	R_InitParticles ();
 	SetClearColor (); // johnfitz
