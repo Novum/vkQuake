@@ -610,6 +610,20 @@ LINE TESTING IN HULLS
 
 ===============================================================================
 */
+
+enum
+{
+	rht_solid,
+	rht_empty,
+	rht_impact
+};
+struct rhtctx_s
+{
+	unsigned int hitcontents;
+	vec3_t		 start, end;
+	mclipnode_t *clipnodes;
+	mplane_t	*planes;
+};
 #define VectorNegate(a, b)				 ((b)[0] = -(a)[0], (b)[1] = -(a)[1], (b)[2] = -(a)[2])
 #define FloatInterpolate(a, bness, b, c) ((c) = (a) + (b - a) * bness)
 #define VectorInterpolate(a, bness, b, c) \
@@ -627,7 +641,7 @@ an epsilon, so the end point shouldn't be inside walls either way. FTE's version
 with allsolid). ezQuake also has a version of this logic, but I trust mine more.
 ==================
 */
-int Q1BSP_RecursiveHullTrace (struct rhtctx_s *ctx, int num, float p1f, float p2f, vec3_t p1, vec3_t p2, trace_t *trace)
+static int Q1BSP_RecursiveHullTrace (struct rhtctx_s *ctx, int num, float p1f, float p2f, vec3_t p1, vec3_t p2, trace_t *trace)
 {
 	mclipnode_t *node;
 	mplane_t	*plane;
