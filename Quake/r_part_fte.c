@@ -527,139 +527,6 @@ static unsigned short *cl_curstrisidx;
 static unsigned int	   cl_numstrisidx;
 static unsigned int	   cl_maxstrisidx[2];
 
-enum
-{
-	rht_solid,
-	rht_empty,
-	rht_impact
-};
-struct rhtctx_s
-{
-	vec3_t		 start, end;
-	mclipnode_t *clipnodes;
-	mplane_t	*planes;
-};
-
-/*
-FTE_Q1BSP_RecursiveHullTrace
-distinct enough from world.c Q1BSP_RecursiveHullTrace to have its own implementation.
-*/
-static int FTE_Q1BSP_RecursiveHullTrace (struct rhtctx_s *ctx, int num, float p1f, float p2f, vec3_t p1, vec3_t p2, trace_t *trace)
-{
-	mclipnode_t *node;
-	mplane_t	*plane;
-	float		 t1, t2;
-	vec3_t		 mid;
-	int			 side;
-	float		 midf;
-	int			 rht;
-
-reenter:
-
-	if (num < 0)
-	{
-		/*hit a leaf*/
-		if (num == CONTENTS_SOLID)
-		{
-			if (trace->allsolid)
-				trace->startsolid = true;
-			return rht_solid;
-		}
-		else
-		{
-			trace->allsolid = false;
-			if (num == CONTENTS_EMPTY)
-				trace->inopen = true;
-			else
-				trace->inwater = true;
-			return rht_empty;
-		}
-	}
-
-	/*its a node*/
-
-	/*get the node info*/
-	node = ctx->clipnodes + num;
-	plane = ctx->planes + node->planenum;
-
-	if (plane->type < 3)
-	{
-		t1 = p1[plane->type] - plane->dist;
-		t2 = p2[plane->type] - plane->dist;
-	}
-	else
-	{
-		t1 = DotProduct (plane->normal, p1) - plane->dist;
-		t2 = DotProduct (plane->normal, p2) - plane->dist;
-	}
-
-	/*if its completely on one side, resume on that side*/
-	if (t1 >= 0 && t2 >= 0)
-	{
-		num = node->children[0];
-		goto reenter;
-	}
-	if (t1 < 0 && t2 < 0)
-	{
-		num = node->children[1];
-		goto reenter;
-	}
-
-	if (plane->type < 3)
-	{
-		t1 = ctx->start[plane->type] - plane->dist;
-		t2 = ctx->end[plane->type] - plane->dist;
-	}
-	else
-	{
-		t1 = DotProduct (plane->normal, ctx->start) - plane->dist;
-		t2 = DotProduct (plane->normal, ctx->end) - plane->dist;
-	}
-
-	side = t1 < 0;
-
-	midf = t1 / (t1 - t2);
-	if (midf < p1f)
-		midf = p1f;
-	if (midf > p2f)
-		midf = p2f;
-	VectorInterpolate (ctx->start, midf, ctx->end, mid);
-
-	rht = FTE_Q1BSP_RecursiveHullTrace (ctx, node->children[side], p1f, midf, p1, mid, trace);
-	if (rht != rht_empty && !trace->allsolid)
-		return rht;
-	rht = FTE_Q1BSP_RecursiveHullTrace (ctx, node->children[side ^ 1], midf, p2f, mid, p2, trace);
-	if (rht != rht_solid)
-		return rht;
-
-	if (side)
-	{
-		/*we impacted the back of the node, so flip the plane*/
-		trace->plane.dist = -plane->dist;
-		VectorScale (plane->normal, -1, trace->plane.normal);
-		midf = (t1 + DIST_EPSILON) / (t1 - t2);
-	}
-	else
-	{
-		/*we impacted the front of the node*/
-		trace->plane.dist = plane->dist;
-		VectorCopy (plane->normal, trace->plane.normal);
-		midf = (t1 - DIST_EPSILON) / (t1 - t2);
-	}
-
-	t1 = DotProduct (trace->plane.normal, ctx->start) - trace->plane.dist;
-	t2 = DotProduct (trace->plane.normal, ctx->end) - trace->plane.dist;
-	midf = (t1 - DIST_EPSILON) / (t1 - t2);
-	if (midf < 0)
-		midf = 0;
-	if (midf > 1)
-		midf = 1;
-	trace->fraction = midf;
-	VectorCopy (mid, trace->endpos);
-	VectorInterpolate (ctx->start, midf, ctx->end, trace->endpos);
-
-	return rht_impact;
-}
 static qboolean Q1BSP_RecursiveHullCheck (hull_t *hull, int num, float p1f, float p2f, vec3_t p1, vec3_t p2, trace_t *trace)
 {
 	// this function is basicall meant as a drop-in replacement for fte's SV_RecursiveHullCheck. p1f and p2f must be 0+1 respectively, num must be
@@ -668,8 +535,10 @@ static qboolean Q1BSP_RecursiveHullCheck (hull_t *hull, int num, float p1f, floa
 	VectorCopy (p1, ctx.start);
 	VectorCopy (p2, ctx.end);
 	ctx.clipnodes = hull->clipnodes;
+	ctx.hitcontents = CONTENTMASK_FROMQ1 (CONTENTS_SOLID);
 	ctx.planes = hull->planes;
-	return FTE_Q1BSP_RecursiveHullTrace (&ctx, num, p1f, p2f, p1, p2, trace) != rht_impact;
+
+	return Q1BSP_RecursiveHullTrace (&ctx, num, p1f, p2f, p1, p2, trace) != rht_impact;
 }
 
 float CL_TraceLine (vec3_t start, vec3_t end, vec3_t impact, vec3_t normal, int *entnum)

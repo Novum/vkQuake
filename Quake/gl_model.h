@@ -57,7 +57,6 @@ typedef struct
 #define SIDE_ON	   2
 
 // plane_t structure
-// !!! if this is changed, it must be changed in asm_i386.h too !!!
 typedef struct mplane_s
 {
 	vec3_t normal;
