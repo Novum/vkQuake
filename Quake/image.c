@@ -139,6 +139,7 @@ Image_LoadImage
 either returns a pointer to hunk allocated RGBA data
 or returns NULL if not loaded, either because not found OR if name
 is ignored because from a gamedir with lower priority than min_path_id
+Use min_path_id = 0 if gamedir preiority is N/A.
 Search order:  png tga jpg pcx lmp
 ============
 */
@@ -181,19 +182,35 @@ byte *Image_LoadImage (const char *name, int *width, int *height, enum srcformat
 	}
 
 	q_snprintf (loadfilename, sizeof (loadfilename), "%s.pcx", name);
-	COM_FOpenFile (loadfilename, &f, NULL);
+	COM_FOpenFile (loadfilename, &f, &opened_file_path_id);
 	if (f)
 	{
-		*fmt = SRC_RGBA;
-		return Image_LoadPCX (f, width, height);
+		if (opened_file_path_id >= min_path_id)
+		{
+			*fmt = SRC_RGBA;
+			return Image_LoadPCX (f, width, height);
+		}
+		else
+		{
+			Con_DPrintf ("Image_LoadImage: ignored %s from a gamedir with lower priority\n", loadfilename);
+			fclose (f);
+		}
 	}
 
 	q_snprintf (loadfilename, sizeof (loadfilename), "%s%s.lmp", "", name);
-	COM_FOpenFile (loadfilename, &f, NULL);
+	COM_FOpenFile (loadfilename, &f, &opened_file_path_id);
 	if (f)
 	{
-		*fmt = SRC_INDEXED;
-		return Image_LoadLMP (f, width, height);
+		if (opened_file_path_id >= min_path_id)
+		{
+			*fmt = SRC_INDEXED;
+			return Image_LoadLMP (f, width, height);
+		}
+		else
+		{
+			Con_DPrintf ("Image_LoadImage: ignored %s from a gamedir with lower priority\n", loadfilename);
+			fclose (f);
+		}
 	}
 
 	return NULL;
