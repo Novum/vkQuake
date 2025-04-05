@@ -1030,12 +1030,12 @@ static void P_LoadTexture (part_type_t *ptype, qboolean warn)
 			if (!data)
 			{
 				q_snprintf (filename, sizeof (filename), "textures/%s", ptype->texname);
-				data = Image_LoadImage (filename, &fwidth, &fheight, &fmt);
+				data = Image_LoadImage (filename, &fwidth, &fheight, &fmt, 0);
 			}
 			if (!data)
 			{
 				q_snprintf (filename, sizeof (filename), "%s", ptype->texname);
-				data = Image_LoadImage (filename, &fwidth, &fheight, &fmt);
+				data = Image_LoadImage (filename, &fwidth, &fheight, &fmt, 0);
 			}
 
 			if (data)

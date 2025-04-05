@@ -136,35 +136,47 @@ static inline int Buf_GetC (stdio_buffer_t *buf)
 ============
 Image_LoadImage
 
-returns a pointer to hunk allocated RGBA data
-
+either returns a pointer to hunk allocated RGBA data
+or returns NULL if not loaded, either because not found OR if name
+is ignored because from a gamedir with lower priority than min_path_id
 Search order:  png tga jpg pcx lmp
 ============
 */
-byte *Image_LoadImage (const char *name, int *width, int *height, enum srcformat *fmt)
+byte *Image_LoadImage (const char *name, int *width, int *height, enum srcformat *fmt, unsigned int min_path_id)
 {
 	static const char *const stbi_formats[] = {"png", "tga", "jpg", NULL};
 
 	FILE *f;
 	int	  i;
 
+	unsigned int opened_file_path_id = 0;
+
 	for (i = 0; stbi_formats[i]; i++)
 	{
 		q_snprintf (loadfilename, sizeof (loadfilename), "%s.%s", name, stbi_formats[i]);
-		COM_FOpenFile (loadfilename, &f, NULL);
+		COM_FOpenFile (loadfilename, &f, &opened_file_path_id);
+
 		if (f)
 		{
-			// data is managed by our Mem_Alloc routines, nothing more to do.
-			byte *data = stbi_load_from_file (f, width, height, NULL, 4);
-
-			if (data)
+			if (opened_file_path_id >= min_path_id)
 			{
-				*fmt = SRC_RGBA;
+				// data is managed by our Mem_Alloc routines, nothing more to do.
+				byte *data = stbi_load_from_file (f, width, height, NULL, 4);
+
+				if (data)
+				{
+					*fmt = SRC_RGBA;
+				}
+				else
+					Con_Warning ("couldn't load %s (%s)\n", loadfilename, stbi_failure_reason ());
+				fclose (f);
+				return data;
 			}
 			else
-				Con_Warning ("couldn't load %s (%s)\n", loadfilename, stbi_failure_reason ());
-			fclose (f);
-			return data;
+			{
+				Con_DPrintf ("Image_LoadImage: ignored %s from a gamedir with lower priority\n", loadfilename);
+				fclose (f);
+			}
 		}
 	}
 

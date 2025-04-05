@@ -850,11 +850,11 @@ static void Mod_LoadTextureTask (int i, qmodel_t **ppmod)
 		COM_StripExtension (mod->name + 5, mapname, sizeof (mapname));
 		q_snprintf (filename, sizeof (filename), "textures/%s/#%s", mapname, tx->name + 1); // this also replaces the '*' with a '#'
 		enum srcformat fmt = SRC_RGBA;
-		data = Image_LoadImage (filename, &fwidth, &fheight, &fmt);
+		data = Image_LoadImage (filename, &fwidth, &fheight, &fmt, mod->path_id);
 		if (!data)
 		{
 			q_snprintf (filename, sizeof (filename), "textures/#%s", tx->name + 1);
-			data = Image_LoadImage (filename, &fwidth, &fheight, &fmt);
+			data = Image_LoadImage (filename, &fwidth, &fheight, &fmt, mod->path_id);
 		}
 
 		// now load whatever we found
@@ -891,11 +891,11 @@ static void Mod_LoadTextureTask (int i, qmodel_t **ppmod)
 		COM_StripExtension (mod->name + 5, mapname, sizeof (mapname));
 		q_snprintf (filename, sizeof (filename), "textures/%s/%s", mapname, tx->name);
 		enum srcformat fmt = SRC_RGBA;
-		data = Image_LoadImage (filename, &fwidth, &fheight, &fmt);
+		data = Image_LoadImage (filename, &fwidth, &fheight, &fmt, mod->path_id);
 		if (!data)
 		{
 			q_snprintf (filename, sizeof (filename), "textures/%s", tx->name);
-			data = Image_LoadImage (filename, &fwidth, &fheight, &fmt);
+			data = Image_LoadImage (filename, &fwidth, &fheight, &fmt, mod->path_id);
 		}
 
 		// now load whatever we found
@@ -908,11 +908,11 @@ static void Mod_LoadTextureTask (int i, qmodel_t **ppmod)
 
 			// now try to load glow/luma image from the same place
 			q_snprintf (filename2, sizeof (filename2), "%s_glow", filename);
-			data = Image_LoadImage (filename2, &fwidth, &fheight, &fmt);
+			data = Image_LoadImage (filename2, &fwidth, &fheight, &fmt, mod->path_id);
 			if (!data)
 			{
 				q_snprintf (filename2, sizeof (filename2), "%s_luma", filename);
-				data = Image_LoadImage (filename2, &fwidth, &fheight, &fmt);
+				data = Image_LoadImage (filename2, &fwidth, &fheight, &fmt, mod->path_id);
 			}
 
 			if (data)
@@ -3166,7 +3166,7 @@ static gltexture_t *Mod_LoadFullbrightTexture (qmodel_t *mod, const char *texnam
 	// unsupported format by default
 	enum srcformat fb_fmt = SRC_INDEXED;
 
-	void *fb_data = Image_LoadImage (texname, (int *)&fb_width, (int *)&fb_height, &fb_fmt);
+	void *fb_data = Image_LoadImage (texname, (int *)&fb_width, (int *)&fb_height, &fb_fmt, mod->path_id);
 
 	// fb texture found:
 	if (fb_data)
@@ -3272,7 +3272,7 @@ static void Mod_LoadSkinTask (int i, load_skin_task_args_t *args)
 			enum srcformat fmt = SRC_INDEXED;
 
 			q_snprintf (texname, sizeof (texname), "%s_%i", mod->name, i);
-			data = Image_LoadImage (texname, (int *)&fwidth, (int *)&fheight, &fmt);
+			data = Image_LoadImage (texname, (int *)&fwidth, (int *)&fheight, &fmt, mod->path_id);
 
 			if (data)
 			{
@@ -4609,12 +4609,12 @@ static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 
 				// for Skins: try first the same location as the model, then 'progs/' if not found.
 				q_snprintf (texname, sizeof (texname), "%s_%02u_%02u", com_token, surf->numskins, f);
-				data = Image_LoadImage (texname, (int *)&fwidth, (int *)&fheight, &fmt);
+				data = Image_LoadImage (texname, (int *)&fwidth, (int *)&fheight, &fmt, mod->path_id);
 
 				if (!data)
 				{
 					q_snprintf (texname, sizeof (texname), "progs/%s_%02u_%02u", com_token, surf->numskins, f);
-					data = Image_LoadImage (texname, (int *)&fwidth, (int *)&fheight, &fmt);
+					data = Image_LoadImage (texname, (int *)&fwidth, (int *)&fheight, &fmt, mod->path_id);
 				}
 
 				if (data) // load external image
