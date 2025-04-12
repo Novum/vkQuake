@@ -2132,12 +2132,15 @@ static float getsurface_clippointpoly (qmodel_t *model, msurface_t *surf, vec3_t
 
 #define NEARSURFACE_MAXDIST				256
 #define NEARSURFACE_CACHEDIST			384
-#define NEARSURFACE_CACHESIZE			65536
+#define NEARSURFACE_CACHESIZE			(16 * 65536)
 #define NEARSURFACE_CACHEHITDISTSQUARED ((NEARSURFACE_CACHEDIST - NEARSURFACE_MAXDIST) * (NEARSURFACE_CACHEDIST - NEARSURFACE_MAXDIST))
-int		 nearsurface_cache[NEARSURFACE_CACHESIZE];
-int		 nearsurface_cache_entries;
-vec3_t	 nearsurface_cache_point;
-qboolean nearsurface_cache_valid;
+
+// persistent cache to prevent scanning model->nummodelsurfaces all the time,
+// especially when model->nummodelsurfaces is large.
+static int		nearsurface_cache[NEARSURFACE_CACHESIZE];
+static int		nearsurface_cache_entries;
+static vec3_t	nearsurface_cache_point;
+static qboolean nearsurface_cache_valid;
 
 // #438 float(entity e, vector p) getsurfacenearpoint (DP_QC_GETSURFACE)
 static void PF_getsurfacenearpoint (void)
