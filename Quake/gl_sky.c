@@ -262,7 +262,7 @@ void Sky_LoadSkyBox (const char *name)
 	for (i = 0; i < 6; i++)
 	{
 		q_snprintf (filename[i], sizeof (filename[i]), "gfx/env/%s%s", name, suf[i]);
-		if ((data[i] = Image_LoadImage (filename[i], &width[i], &height[i], &fmt[i], 0)))
+		if ((data[i] = Image_LoadImage (filename[i], &width[i], &height[i], &fmt[i], cl.worldmodel->path_id)))
 			nonefound = false;
 		if (!data[i] || (width[i] != height[i]) || (width[i] != width[0]) || (fmt[i] != SRC_RGBA))
 			cubemap = false;
