@@ -1407,7 +1407,7 @@ static void Host_Loadgame_f (void)
 
 	if (fastload && (!sv.active || cls.signon != SIGNONS || svs.maxclients != 1))
 	{
-		Con_Printf ("Not in a local singleplayer game - can't fastload\n");
+		Con_Printf ("Can't fastload (first load, or is a client multiplayer game)\n");
 		fastload = 0;
 	}
 	if (fastload && (strcmp (mapname, sv.name) || current_skill != old_skill))
