@@ -37,8 +37,6 @@ static const int ramp3[8] = {0x6d, 0x6b, 6, 5, 4, 3};
 
 static particle_t *active_particles, *free_particles, *particles;
 
-static vec3_t r_pright, r_pup, r_ppn;
-
 // beware: different from the r_part_fte.c r_numparticles one, this is for classic particles, controlled -particles arg
 static int r_numparticles;
 
