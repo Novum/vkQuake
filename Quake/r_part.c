@@ -31,21 +31,22 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 	512 // no fewer than this no matter what's
 		//  on the command line
 
-int ramp1[8] = {0x6f, 0x6d, 0x6b, 0x69, 0x67, 0x65, 0x63, 0x61};
-int ramp2[8] = {0x6f, 0x6e, 0x6d, 0x6c, 0x6b, 0x6a, 0x68, 0x66};
-int ramp3[8] = {0x6d, 0x6b, 6, 5, 4, 3};
+static const int ramp1[8] = {0x6f, 0x6d, 0x6b, 0x69, 0x67, 0x65, 0x63, 0x61};
+static const int ramp2[8] = {0x6f, 0x6e, 0x6d, 0x6c, 0x6b, 0x6a, 0x68, 0x66};
+static const int ramp3[8] = {0x6d, 0x6b, 6, 5, 4, 3};
 
-particle_t *active_particles, *free_particles, *particles;
+static particle_t *active_particles, *free_particles, *particles;
 
-vec3_t r_pright, r_pup, r_ppn;
+static vec3_t r_pright, r_pup, r_ppn;
 
-int r_numparticles;
+// beware: different from the r_part_fte.c r_numparticles one, this is for classic particles, controlled -particles arg
+static int r_numparticles;
 
 gltexture_t *particletexture, *particletexture1, *particletexture2, *particletexture3, *particletexture4; // johnfitz
-float		 texturescalefactor; // johnfitz -- compensate for apparent size of different particle textures
+static float texturescalefactor; // johnfitz -- compensate for apparent size of different particle textures
 
-cvar_t r_particles = {"r_particles", "1", CVAR_ARCHIVE};		 // johnfitz
-cvar_t r_quadparticles = {"r_quadparticles", "1", CVAR_ARCHIVE}; // johnfitz
+cvar_t		  r_particles = {"r_particles", "1", CVAR_ARCHIVE};			// johnfitz
+static cvar_t r_quadparticles = {"r_quadparticles", "1", CVAR_ARCHIVE}; // johnfitz
 
 extern cvar_t r_showtris;
 
