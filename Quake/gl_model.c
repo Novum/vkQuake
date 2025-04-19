@@ -3186,23 +3186,23 @@ static gltexture_t *Mod_LoadFullbrightTexture (qmodel_t *mod, const char *texnam
 			return NULL;
 		}
 
-		// Normalize pixels for additive blending as in INDEXED: fullbright pixels have alpha > 0 => force alpha = 255
-		// otherwhise for trensparent pixels (alpha = 0) => force alapha = 255 + color = black
+		// Normalize pixels for additive blending as in INDEXED: fullbright pixels have alpha > 0 => force alpha = 255 anyway.
+		// otherwhise for transparent pixels (alpha = 0) => force alapha = 255 AND force color = black.
 		for (size_t pixel_index = 0; pixel_index < (size_t)fb_width * (size_t)fb_height; pixel_index++)
 		{
 			uint32_t *rgba_pixel = (uint32_t *)fb_data + pixel_index;
 			byte	 *rgba_component = (byte *)rgba_pixel;
 
-			// pixels not trensparent are the fulbright ones
+			// not transparent pixels are the fulbright ones, otherwise they are the mask.
 			if (rgba_component[3] == 0)
 			{
-				// transparent pixels are force to black with force alpha = 255
+				// transparent pixels / mask are forced to black.
 				rgba_component[0] = 0;
 				rgba_component[1] = 0;
 				rgba_component[2] = 0;
 			}
 
-			// always force alpha = 255 for all
+			// always force alpha = 255 for all pixels
 			rgba_component[3] = 255;
 		}
 

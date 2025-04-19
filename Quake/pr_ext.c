@@ -1022,7 +1022,7 @@ static void PF_sprintf_internal (const char *s, int firstarg, char *outbuf, int 
 
 	// temporary for PF_sprintf_internal as global to prevent big stack usage
 	// fine because only called from the main loop (PR_ExecuteProgram)
-	static char quotedbuf[65536] = {0};
+	static char quotedbuf[65536];
 
 #define PRINTF_ALTERNATE	 1
 #define PRINTF_ZEROPAD		 2

@@ -44,16 +44,16 @@ cvar_t		  r_sky_quality = {"r_sky_quality", "12", CVAR_NONE};
 cvar_t		  r_skyalpha = {"r_skyalpha", "1", CVAR_NONE};
 cvar_t		  r_skyfog = {"r_skyfog", "0.5", CVAR_NONE};
 
-const int skytexorder[6] = {0, 2, 1, 3, 4, 5}; // for skybox
+static const int skytexorder[6] = {0, 2, 1, 3, 4, 5}; // for skybox
 
-const vec3_t skyclip[6] = {{1, 1, 0}, {1, -1, 0}, {0, -1, 1}, {0, 1, 1}, {1, 0, 1}, {-1, 0, 1}};
+static const vec3_t skyclip[6] = {{1, 1, 0}, {1, -1, 0}, {0, -1, 1}, {0, 1, 1}, {1, 0, 1}, {-1, 0, 1}};
 
-const int st_to_vec[6][3] = {
+static const int st_to_vec[6][3] = {
 	{3, -1, 2}, {-3, 1, 2}, {1, 3, 2}, {-1, -3, 2}, {-2, -1, 3}, // straight up
 	{2, -1, -3}													 // straight down
 };
 
-const int vec_to_st[6][3] = {{-2, 3, 1}, {2, 3, -1}, {1, 3, 2}, {-1, 3, -2}, {-2, -1, 3}, {-2, 1, -3}};
+static const int vec_to_st[6][3] = {{-2, 3, 1}, {2, 3, -1}, {1, 3, 2}, {-1, 3, -2}, {-2, -1, 3}, {-2, 1, -3}};
 
 float skyfog; // ericw
 

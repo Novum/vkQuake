@@ -659,8 +659,6 @@ static void SV_Physics_Pusher (edict_t *ent)
 		pr_global_struct->self = EDICT_TO_PROG (ent);
 		pr_global_struct->other = EDICT_TO_PROG (qcvm->edicts);
 		PR_ExecuteProgram (ent->v.think);
-		if (ent->free)
-			return;
 	}
 }
 

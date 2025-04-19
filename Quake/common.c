@@ -2008,7 +2008,7 @@ static pack_t *COM_LoadPackFile (const char *packfile, int packhandle)
 
 	// use global as temporary to prevent stack consumption,
 	// fine because this is only called from the main loop.
-	static dpackfile_t info[MAX_FILES_IN_PACK] = {0};
+	static dpackfile_t info[MAX_FILES_IN_PACK];
 
 	Sys_FileRead (packhandle, (void *)&header, sizeof (header));
 	if (header.id[0] != 'P' || header.id[1] != 'A' || header.id[2] != 'C' || header.id[3] != 'K')
