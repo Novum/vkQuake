@@ -38,6 +38,8 @@ int current_skill;
 
 void Mod_Print (void);
 
+#define MIN_BSP_MAP_SIZE (32 * 1024)
+
 /*
 ==================
 Host_Quit_f
@@ -113,7 +115,7 @@ static void FileList_Clear (filelist_item_t **list)
 
 filelist_item_t *extralevels;
 
-void FileList_Init (char *path, char *ext, int minsize, filelist_item_t **list)
+static void FileList_Init (char *path, char *ext, int min_bsp_size, filelist_item_t **list)
 {
 #ifdef _WIN32
 	WIN32_FIND_DATA fdat;
@@ -185,7 +187,7 @@ void FileList_Init (char *path, char *ext, int minsize, filelist_item_t **list)
 				{
 					if (!strcmp (COM_FileGetExtension (pak->files[i].name), ext))
 					{
-						if (pak->files[i].filelen > minsize)
+						if (pak->files[i].filelen > min_bsp_size)
 						{ // don't list files under minsize (ammo boxes etc for maps)
 							COM_StripExtension (pak->files[i].name + strlen (path), filename, sizeof (filename));
 							FileList_Add (filename, list);
@@ -204,7 +206,7 @@ static void ExtraMaps_Clear (void)
 
 void ExtraMaps_Init (void)
 {
-	FileList_Init ("maps/", "bsp", 32 * 1024, &extralevels);
+	FileList_Init ("maps/", "bsp", MIN_BSP_MAP_SIZE, &extralevels);
 }
 
 void ExtraMaps_NewGame (void)

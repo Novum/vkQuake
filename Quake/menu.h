@@ -73,20 +73,13 @@ void M_Menu_Main_f (void);
 void M_Menu_Options_f (void);
 void M_Menu_Quit_f (void);
 
-void  M_Print (cb_context_t *cbx, int cx, int cy, const char *str);
-void  M_PrintWhite (cb_context_t *cbx, int cx, int cy, const char *str);
-void  M_DrawSlider (cb_context_t *cbx, int x, int y, float range);
-float M_GetSliderPos (float low, float high, float current, qboolean backward, qboolean mouse, float clamped_mouse, int dir, float step, float snap_start);
+void M_Print (cb_context_t *cbx, int cx, int cy, const char *str);
 
 void M_Draw (cb_context_t *cbx);
-void M_DrawCharacter (cb_context_t *cbx, int cx, int line, int num);
 
 void M_DrawPic (cb_context_t *cbx, int x, int y, qpic_t *pic);
 void M_DrawTransPic (cb_context_t *cbx, int x, int y, qpic_t *pic);
-void M_DrawScrollbar (cb_context_t *cbx, int x, int y, float value, float size);
-void M_DrawCheckbox (cb_context_t *cbx, int x, int y, int on);
 
-void M_Mouse_UpdateListCursor (int *cursor, int left, int right, int top, int item_height, int num_items, int scroll_offset);
 void M_Mouse_UpdateCursor (int *cursor, int left, int right, int top, int item_height, int index);
 
 void	 M_Menu_Video_f (void);
@@ -99,8 +92,13 @@ qboolean M_HandleScrollBarKeys (const int key, int *cursor, int *first_drawn, co
 #define MENU_LABEL_X	 70
 #define MENU_VALUE_X	 204
 #define MENU_SLIDER_X	 (MENU_VALUE_X + 6)
-#define MENU_SCROLLBAR_X 312
+#define MENU_SCROLLBAR_X (312 + (48)) // make some room for slider labels
 #define MAX_MENU_LINES	 14
+
+// Max FPS menu entry is a slider [10 .. 1000; no limit] by steps of 2 fps so we can set 72 fps
+#define MIN_FPS_MENU_VALUE	10.0f
+#define FPS_MENU_VALUE_STEP 2.0f
+#define MAX_FPS_MENU_VALUE	1000.0f
 
 typedef struct crosshair_s
 {

@@ -243,6 +243,10 @@ void		Info_Enumerate (const char *info, void (*cb) (void *ctx, const char *key, 
 
 /* locale-insensitive strcasecmp replacement functions: */
 int q_strcasecmp (const char *s1, const char *s2);
+
+/* locale-insensitive natural string comparison function */
+int q_strnaturalcmp (const char *s1, const char *s2);
+
 int q_strncasecmp (const char *s1, const char *s2, size_t n);
 
 /* locale-insensitive case-insensitive alternative to strstr */

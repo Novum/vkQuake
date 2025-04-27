@@ -192,7 +192,7 @@ static void M_PixelToMenuCanvasCoord (int *x, int *y)
 M_PrintHighlighted
 ================
 */
-void M_PrintHighlighted (cb_context_t *cbx, int cx, int cy, const char *str)
+static void M_PrintHighlighted (cb_context_t *cbx, int cx, int cy, const char *str)
 {
 	while (*str)
 	{
@@ -222,7 +222,7 @@ void M_Print (cb_context_t *cbx, int cx, int cy, const char *str)
 M_PrintElided
 ================
 */
-void M_PrintElided (cb_context_t *cbx, int cx, int cy, const char *str, const int max_length)
+static void M_PrintElided (cb_context_t *cbx, int cx, int cy, const char *str, const int max_length)
 {
 	int i = 0;
 	while (str[i] && i < max_length)
@@ -246,7 +246,7 @@ void M_PrintElided (cb_context_t *cbx, int cx, int cy, const char *str, const in
 M_PrintWhite
 ================
 */
-void M_PrintWhite (cb_context_t *cbx, int cx, int cy, const char *str)
+static void M_PrintWhite (cb_context_t *cbx, int cx, int cy, const char *str)
 {
 	while (*str)
 	{
@@ -367,14 +367,18 @@ void M_MenuChanged ()
 M_DrawSlider
 ================
 */
-void M_DrawSlider (cb_context_t *cbx, int x, int y, float value)
+static void M_DrawSlider (cb_context_t *cbx, int x, int y, float value, const char *label)
 {
 	value = CLAMP (0.0f, value, 1.0f);
-	Draw_Character (cbx, x - 8, y, 128);
+	Draw_Character (cbx, x - CHARACTER_SIZE, y, 128);
+
 	for (int i = 0; i < SLIDER_SIZE; i++)
-		Draw_Character (cbx, x + i * 8, y, 129);
-	Draw_Character (cbx, x + SLIDER_SIZE * 8, y, 130);
-	Draw_Character (cbx, x + (SLIDER_SIZE - 1) * 8 * value, y, 131);
+		Draw_Character (cbx, x + i * CHARACTER_SIZE, y, 129);
+
+	Draw_Character (cbx, x + SLIDER_SIZE * CHARACTER_SIZE, y, 130);
+	Draw_Character (cbx, x + (SLIDER_SIZE - 1) * CHARACTER_SIZE * value, y, 131);
+
+	M_Print (cbx, x + (SLIDER_SIZE + 1) * CHARACTER_SIZE, y, label);
 }
 
 /*
@@ -382,7 +386,8 @@ void M_DrawSlider (cb_context_t *cbx, int x, int y, float value)
 M_GetSliderPos
 ================
 */
-float M_GetSliderPos (float low, float high, float current, qboolean backward, qboolean mouse, float clamped_mouse, int dir, float step, float snap_start)
+static float
+M_GetSliderPos (float low, float high, float current, qboolean backward, qboolean mouse, float clamped_mouse, int dir, float step, float snap_start)
 {
 	float f;
 
@@ -415,7 +420,7 @@ float M_GetSliderPos (float low, float high, float current, qboolean backward, q
 M_DrawScrollbar
 ================
 */
-void M_DrawScrollbar (cb_context_t *cbx, int x, int y, float value, float size)
+static void M_DrawScrollbar (cb_context_t *cbx, int x, int y, float value, float size)
 {
 	scrollbar_x = x;
 	scrollbar_y = y - 8;
@@ -433,7 +438,7 @@ void M_DrawScrollbar (cb_context_t *cbx, int x, int y, float value, float size)
 M_DrawCheckbox
 ================
 */
-void M_DrawCheckbox (cb_context_t *cbx, int x, int y, int on)
+static void M_DrawCheckbox (cb_context_t *cbx, int x, int y, int on)
 {
 	if (on)
 		M_Print (cbx, x, y, "on");
@@ -582,7 +587,7 @@ qboolean M_HandleScrollBarKeys (const int key, int *cursor, int *first_drawn, co
 M_UpdateCursorForList
 ================
 */
-void M_Mouse_UpdateListCursor (int *cursor, int left, int right, int top, int item_height, int num_items, int scroll_offset)
+static void M_Mouse_UpdateListCursor (int *cursor, int left, int right, int top, int item_height, int num_items, int scroll_offset)
 {
 	if (!scrollbar_grab && !slider_grab && m_mouse_moved && (num_items > 0) && (m_mouse_x >= left) && (m_mouse_x <= right) && (m_mouse_y >= top) &&
 		(m_mouse_y <= (top + item_height * num_items)))
@@ -1569,31 +1574,31 @@ static void M_GameOptions_Draw (cb_context_t *cbx)
 			M_Print (cbx, MENU_LABEL_X, y, "Interface Scale");
 			l = scr_relativescale.value ? 2.0f : ((vid.width / 320.0) - 1);
 			r = l > 0 ? ((scr_relativescale.value ? scr_relativescale.value : scr_conscale.value) - 1) / l : 0;
-			M_DrawSlider (cbx, MENU_SLIDER_X, y, r);
+			M_DrawSlider (cbx, MENU_SLIDER_X, y, r, va ("%.1f", r));
 			break;
 
 		case GAME_OPT_SBALPHA:
 			M_Print (cbx, MENU_LABEL_X, y, "HUD Opacity");
 			r = scr_sbaralpha.value; // scr_sbaralpha range is 1.0 to 0.0
-			M_DrawSlider (cbx, MENU_SLIDER_X, y, r);
+			M_DrawSlider (cbx, MENU_SLIDER_X, y, r, va ("%.2f", r));
 			break;
 
 		case GAME_OPT_MOUSESPEED:
 			M_Print (cbx, MENU_LABEL_X, y, "Mouse Speed");
 			r = (sensitivity.value - 1) / 10;
-			M_DrawSlider (cbx, MENU_SLIDER_X, y, r);
+			M_DrawSlider (cbx, MENU_SLIDER_X, y, r, va ("%.1f", r));
 			break;
 
 		case GAME_OPT_VIEWBOB:
 			M_Print (cbx, MENU_LABEL_X, y, "View Bob");
 			r = cl_bob.value * 20.0f;
-			M_DrawSlider (cbx, MENU_SLIDER_X, y, r);
+			M_DrawSlider (cbx, MENU_SLIDER_X, y, r, va ("%.2f", r));
 			break;
 
 		case GAME_OPT_VIEWROLL:
 			M_Print (cbx, MENU_LABEL_X, y, "View Roll");
 			r = cl_rollangle.value * 0.2f;
-			M_DrawSlider (cbx, MENU_SLIDER_X, y, r);
+			M_DrawSlider (cbx, MENU_SLIDER_X, y, r, va ("%.2f", r));
 			break;
 
 		case GAME_OPT_GUNKICK:
@@ -1849,8 +1854,20 @@ static void M_GraphicsOptions_AdjustSliders (int dir, qboolean mouse)
 		Cvar_SetValueQuick (&vid_filter, (float)(((int)vid_filter.value + 2 + dir) % 2));
 		break;
 	case GRAPHICS_OPT_MAX_FPS:
-		Cvar_SetValueQuick (&host_maxfps, (float)CLAMP (0, (((int)host_maxfps.value + (dir * 10)) / 10) * 10, 1000));
-		break;
+	{
+		float clamped_host_maxfps = CLAMP (MIN_FPS_MENU_VALUE, host_maxfps.value, MAX_FPS_MENU_VALUE);
+
+		float host_fps_slider_value = (host_maxfps.value <= 0.0f) ? MAX_FPS_MENU_VALUE + FPS_MENU_VALUE_STEP : clamped_host_maxfps;
+
+		f = roundf (M_GetSliderPos (
+			MIN_FPS_MENU_VALUE, MAX_FPS_MENU_VALUE + FPS_MENU_VALUE_STEP, host_fps_slider_value, false, mouse, clamped_mouse, dir, FPS_MENU_VALUE_STEP,
+			2.0f * MAX_FPS_MENU_VALUE));
+
+		float changed_host_maxfps = (f >= MAX_FPS_MENU_VALUE + FPS_MENU_VALUE_STEP) ? 0.0f : f;
+
+		Cvar_SetValueQuick (&host_maxfps, changed_host_maxfps);
+	}
+	break;
 	case GRAPHICS_OPT_ANTIALIASING_SAMPLES:
 		M_GraphicsOptions_ChooseNextAASamples (dir);
 		Cbuf_AddText ("vid_restart\n");
@@ -1940,15 +1957,15 @@ static void M_GraphicsOptions_Draw (cb_context_t *cbx)
 	// Draw the items in the order of the enum defined above:
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_GAMMA, "Gamma");
 	r = (1.0 - vid_gamma.value) / 0.5;
-	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * GRAPHICS_OPT_GAMMA, r);
+	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * GRAPHICS_OPT_GAMMA, r, va ("%.1f", vid_gamma.value));
 
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_CONTRAST, "Contrast");
 	r = vid_contrast.value - 1.0;
-	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * GRAPHICS_OPT_CONTRAST, r);
+	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * GRAPHICS_OPT_CONTRAST, r, va ("%.1f", vid_contrast.value));
 
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_FOV, "Field of View");
 	r = (scr_fov.value - 80) / (130 - 80);
-	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * GRAPHICS_OPT_FOV, r);
+	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * GRAPHICS_OPT_FOV, r, va ("%.0f", scr_fov.value));
 
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_8BIT_COLOR, "8-bit Color");
 	M_DrawCheckbox (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GRAPHICS_OPT_8BIT_COLOR, vid_palettize.value);
@@ -1956,11 +1973,26 @@ static void M_GraphicsOptions_Draw (cb_context_t *cbx)
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_FILTER, "Textures");
 	M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GRAPHICS_OPT_FILTER, (vid_filter.value == 0) ? "smooth" : "classic");
 
-	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_MAX_FPS, "Max FPS");
-	if (host_maxfps.value <= 0)
-		M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GRAPHICS_OPT_MAX_FPS, "no limit");
-	else
-		M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GRAPHICS_OPT_MAX_FPS, va ("%" SDL_PRIu32, q_min ((uint32_t)host_maxfps.value, (uint32_t)1000)));
+	// Max FPS special display
+	{
+		M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_MAX_FPS, "Max FPS");
+
+		if (host_maxfps.value <= 0)
+		{
+			M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * GRAPHICS_OPT_MAX_FPS, 1.0, "no limit");
+		}
+		else
+		{
+			const float max_r_value = 1.0 - (FPS_MENU_VALUE_STEP / MAX_FPS_MENU_VALUE);
+
+			// slider knob normal range is [0.0, max_r_value] because 1.0 is reserved for "no limit"
+			float clamped_fps = CLAMP (MIN_FPS_MENU_VALUE, host_maxfps.value, MAX_FPS_MENU_VALUE);
+			r = (max_r_value * (clamped_fps - MIN_FPS_MENU_VALUE)) / (MAX_FPS_MENU_VALUE - MIN_FPS_MENU_VALUE);
+
+			// label displays the real host_fps value if > 0
+			M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * GRAPHICS_OPT_MAX_FPS, r, va ("%.0f", host_maxfps.value));
+		}
+	}
 
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_ANTIALIASING_SAMPLES, "Antialiasing");
 	M_Print (
@@ -2045,11 +2077,11 @@ static void M_SoundOptions_AdjustSliders (int dir, qboolean mouse)
 	switch (sound_options_cursor)
 	{
 	case SOUND_OPT_SNDVOL:
-		f = M_GetSliderPos (0, 1, sfxvolume.value, false, mouse, clamped_mouse, dir, 0.1, 999);
+		f = M_GetSliderPos (0, 1, sfxvolume.value, false, mouse, clamped_mouse, dir, 0.01, 999);
 		Cvar_SetValue ("volume", f);
 		break;
 	case SOUND_OPT_MUSICVOL:
-		f = M_GetSliderPos (0, 1, bgmvolume.value, false, mouse, clamped_mouse, dir, 0.1, 999);
+		f = M_GetSliderPos (0, 1, bgmvolume.value, false, mouse, clamped_mouse, dir, 0.01, 999);
 		Cvar_SetValue ("bgmvolume", f);
 		break;
 	case SOUND_OPT_MUSICEXT:
@@ -2112,12 +2144,15 @@ static void M_SoundOptions_Draw (cb_context_t *cbx)
 	M_DrawPic (cbx, (320 - p->width) / 2, 4, p);
 
 	// Draw the items in the order of the enum defined above:
+	float label_value;
 
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * SOUND_OPT_SNDVOL, "Sound Volume");
-	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * SOUND_OPT_SNDVOL, sfxvolume.value);
+	label_value = sfxvolume.value * 100.f;
+	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * SOUND_OPT_SNDVOL, sfxvolume.value, va ("%.0f%%", label_value));
 
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * SOUND_OPT_MUSICVOL, "Music Volume");
-	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * SOUND_OPT_MUSICVOL, bgmvolume.value);
+	label_value = bgmvolume.value * 100.f;
+	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * SOUND_OPT_MUSICVOL, bgmvolume.value, va ("%.0f%%", label_value));
 
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * SOUND_OPT_MUSICEXT, "External Music");
 	M_DrawCheckbox (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * SOUND_OPT_MUSICEXT, bgm_extmusic.value);
@@ -3562,10 +3597,12 @@ void M_UpdateMouse (void)
 	}
 	else if (slider_grab)
 	{
+		const bool graphic_option_has_sliders = ((graphics_options_cursor >= GRAPHICS_OPT_GAMMA) && (graphics_options_cursor <= GRAPHICS_OPT_FOV)) ||
+												(graphics_options_cursor == GRAPHICS_OPT_MAX_FPS);
+
 		if (keydown[K_MOUSE1] && (m_state == m_game) && (game_options_cursor >= GAME_OPT_SCALE) && (game_options_cursor <= GAME_OPT_VIEWROLL))
 			M_GameOptions_AdjustSliders (0, true);
-		else if (
-			keydown[K_MOUSE1] && (m_state == m_graphics) && (graphics_options_cursor >= GRAPHICS_OPT_GAMMA) && (graphics_options_cursor <= GRAPHICS_OPT_FOV))
+		else if (keydown[K_MOUSE1] && (m_state == m_graphics) && graphic_option_has_sliders)
 			M_GraphicsOptions_AdjustSliders (0, true);
 		else if (keydown[K_MOUSE1] && (m_state == m_sound) && (graphics_options_cursor >= SOUND_OPT_SNDVOL) && (graphics_options_cursor <= SOUND_OPT_MUSICVOL))
 			M_SoundOptions_AdjustSliders (0, true);
