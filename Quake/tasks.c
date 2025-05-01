@@ -374,6 +374,7 @@ void Tasks_Init (void)
 	for (int i = 0; i < num_workers; ++i)
 	{
 		worker_threads[i] = SDL_CreateThread (Task_Worker, "Task_Worker", (void *)(intptr_t)i);
+		SDL_DetachThread(worker_threads[i]);
 	}
 }
 
