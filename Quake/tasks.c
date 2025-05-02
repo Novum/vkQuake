@@ -135,7 +135,7 @@ static inline uint64_t EpochFromTaskHandle (task_handle_t handle)
 CreateTaskHandle
 ====================
 */
-static inline task_handle_t CreateTaskHandle (uint32_t index, int epoch)
+static inline task_handle_t CreateTaskHandle (uint32_t index, uint64_t epoch)
 {
 	return (task_handle_t)index | ((task_handle_t)epoch << NUM_INDEX_BITS);
 }
@@ -505,9 +505,9 @@ Task_AddDependency
 */
 void Task_AddDependency (task_handle_t before, task_handle_t after)
 {
-	uint32_t  before_task_index = IndexFromTaskHandle (before);
-	task_t	 *before_task = &tasks[before_task_index];
-	const int before_handle_task_epoch = EpochFromTaskHandle (before);
+	uint32_t	   before_task_index = IndexFromTaskHandle (before);
+	task_t		  *before_task = &tasks[before_task_index];
+	const uint64_t before_handle_task_epoch = EpochFromTaskHandle (before);
 	SDL_LockMutex (before_task->epoch_mutex);
 	if (before_task->epoch != before_handle_task_epoch)
 	{
@@ -531,8 +531,8 @@ Task_Join
 */
 qboolean Task_Join (task_handle_t handle, uint32_t timeout)
 {
-	task_t	 *task = &tasks[IndexFromTaskHandle (handle)];
-	const int handle_task_epoch = EpochFromTaskHandle (handle);
+	task_t		  *task = &tasks[IndexFromTaskHandle (handle)];
+	const uint64_t handle_task_epoch = EpochFromTaskHandle (handle);
 	SDL_LockMutex (task->epoch_mutex);
 	while (task->epoch == handle_task_epoch)
 	{
