@@ -92,7 +92,6 @@ typedef struct
 } task_counter_t;
 
 static int					 num_workers = 0;
-static SDL_Thread		   **worker_threads;
 static task_t				 tasks[MAX_PENDING_TASKS];
 static task_queue_t			*free_task_queue;
 static task_queue_t			*executable_task_queue;
@@ -370,10 +369,9 @@ void Tasks_Init (void)
 	}
 
 	indexed_task_counters = Mem_Alloc (sizeof (task_counter_t) * num_workers * MAX_PENDING_TASKS);
-	worker_threads = (SDL_Thread **)Mem_Alloc (sizeof (SDL_Thread *) * num_workers);
 	for (int i = 0; i < num_workers; ++i)
 	{
-		worker_threads[i] = SDL_CreateThread (Task_Worker, "Task_Worker", (void *)(intptr_t)i);
+		SDL_DetachThread (SDL_CreateThread (Task_Worker, "Task_Worker", (void *)(intptr_t)i));
 	}
 }
 
