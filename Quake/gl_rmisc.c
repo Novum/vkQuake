@@ -2128,8 +2128,10 @@ DECLARE_SHADER_MODULE (indirect_comp);
 DECLARE_SHADER_MODULE (indirect_clear_comp);
 DECLARE_SHADER_MODULE (showtris_vert);
 DECLARE_SHADER_MODULE (showtris_frag);
-DECLARE_SHADER_MODULE (update_lightmap_comp);
-DECLARE_SHADER_MODULE (update_lightmap_rt_comp);
+DECLARE_SHADER_MODULE (update_lightmap_8bit_comp);
+DECLARE_SHADER_MODULE (update_lightmap_8bit_rt_comp);
+DECLARE_SHADER_MODULE (update_lightmap_10bit_comp);
+DECLARE_SHADER_MODULE (update_lightmap_10bit_rt_comp);
 DECLARE_SHADER_MODULE (ray_debug_comp);
 
 /*
@@ -3257,7 +3259,8 @@ static void R_CreateUpdateLightmapPipelines ()
 	ZEROED_STRUCT (VkPipelineShaderStageCreateInfo, compute_shader_stage);
 	compute_shader_stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 	compute_shader_stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
-	compute_shader_stage.module = update_lightmap_comp_module;
+	compute_shader_stage.module =
+		(vulkan_globals.color_format == VK_FORMAT_A2B10G10R10_UNORM_PACK32) ? update_lightmap_10bit_comp_module : update_lightmap_8bit_comp_module;
 	compute_shader_stage.pName = "main";
 	compute_shader_stage.pSpecializationInfo = &specialization_info;
 
@@ -3274,7 +3277,8 @@ static void R_CreateUpdateLightmapPipelines ()
 
 	if (vulkan_globals.ray_query)
 	{
-		compute_shader_stage.module = update_lightmap_rt_comp_module;
+		compute_shader_stage.module =
+			(vulkan_globals.color_format == VK_FORMAT_A2B10G10R10_UNORM_PACK32) ? update_lightmap_10bit_rt_comp_module : update_lightmap_8bit_rt_comp_module;
 		infos.compute_pipeline.stage = compute_shader_stage;
 		infos.compute_pipeline.layout = vulkan_globals.update_lightmap_rt_pipeline.layout.handle;
 		assert (vulkan_globals.update_lightmap_rt_pipeline.handle == VK_NULL_HANDLE);
@@ -3359,8 +3363,10 @@ static void R_CreateShaderModules ()
 	CREATE_SHADER_MODULE (indirect_clear_comp);
 	CREATE_SHADER_MODULE (showtris_vert);
 	CREATE_SHADER_MODULE (showtris_frag);
-	CREATE_SHADER_MODULE (update_lightmap_comp);
-	CREATE_SHADER_MODULE_COND (update_lightmap_rt_comp, vulkan_globals.ray_query);
+	CREATE_SHADER_MODULE (update_lightmap_8bit_comp);
+	CREATE_SHADER_MODULE (update_lightmap_10bit_comp);
+	CREATE_SHADER_MODULE_COND (update_lightmap_8bit_rt_comp, vulkan_globals.ray_query);
+	CREATE_SHADER_MODULE_COND (update_lightmap_10bit_rt_comp, vulkan_globals.ray_query);
 #ifdef _DEBUG
 	CREATE_SHADER_MODULE_COND (ray_debug_comp, vulkan_globals.ray_query);
 #endif
@@ -3401,8 +3407,10 @@ static void R_DestroyShaderModules ()
 	DESTROY_SHADER_MODULE (indirect_clear_comp);
 	DESTROY_SHADER_MODULE (showtris_vert);
 	DESTROY_SHADER_MODULE (showtris_frag);
-	DESTROY_SHADER_MODULE (update_lightmap_comp);
-	DESTROY_SHADER_MODULE (update_lightmap_rt_comp);
+	DESTROY_SHADER_MODULE (update_lightmap_8bit_comp);
+	DESTROY_SHADER_MODULE (update_lightmap_8bit_rt_comp);
+	DESTROY_SHADER_MODULE (update_lightmap_10bit_comp);
+	DESTROY_SHADER_MODULE (update_lightmap_10bit_rt_comp);
 	DESTROY_SHADER_MODULE (ray_debug_comp);
 }
 

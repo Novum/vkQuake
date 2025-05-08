@@ -37,7 +37,6 @@ const uint	LIGHT_MASK_SIZE = (MAX_DLIGHTS + 31) / 32;
 shared uint light_mask[LIGHT_MASK_SIZE];
 shared uint was_lit;
 
-layout (set = 0, binding = 0, rgba8) uniform writeonly image2D output_image;
 layout (set = 0, binding = 1) uniform utexture2D surface_indices;
 layout (set = 0, binding = 2) uniform texture2D lightstyles_textures[MAXLIGHTMAPS * 3 / 4];
 layout (std430, set = 0, binding = 3) restrict readonly buffer surfaces_buffer
