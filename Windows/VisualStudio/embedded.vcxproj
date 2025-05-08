@@ -154,14 +154,28 @@ $(VULKAN_SDK)\bin\spirv-remap.exe -s -i "$(SolutionDir)..\..\Shaders\Compiled\Re
     <None Include="..\..\Shaders\screen_effects.inc" />
     <None Include="..\..\Shaders\update_lightmap.inc" />
     <None Include="..\..\Shaders\globals.inc" />
-    <CustomBuild Include="..\..\Shaders\update_lightmap.comp">
+    <CustomBuild Include="..\..\Shaders\update_lightmap_8bit.comp">
       <FileType>Document</FileType>
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(SolutionDir)..\..\Shaders\update_lightmap.inc;%(AdditionalInputs)</AdditionalInputs>
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(SolutionDir)..\..\Shaders\update_lightmap.inc;%(AdditionalInputs)</AdditionalInputs>
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\update_lightmap.inc;%(AdditionalInputs)</AdditionalInputs>
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\update_lightmap.inc;%(AdditionalInputs)</AdditionalInputs>
     </CustomBuild>
-    <CustomBuild Include="..\..\Shaders\update_lightmap_rt.comp">
+    <CustomBuild Include="..\..\Shaders\update_lightmap_8bit_rt.comp">
+      <FileType>Document</FileType>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(SolutionDir)..\..\Shaders\update_lightmap.inc;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(SolutionDir)..\..\Shaders\update_lightmap.inc;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\update_lightmap.inc;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\update_lightmap.inc;%(AdditionalInputs)</AdditionalInputs>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\update_lightmap_10bit.comp">
+      <FileType>Document</FileType>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(SolutionDir)..\..\Shaders\update_lightmap.inc;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(SolutionDir)..\..\Shaders\update_lightmap.inc;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\update_lightmap.inc;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\update_lightmap.inc;%(AdditionalInputs)</AdditionalInputs>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\update_lightmap_10bit_rt.comp">
       <FileType>Document</FileType>
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(SolutionDir)..\..\Shaders\update_lightmap.inc;%(AdditionalInputs)</AdditionalInputs>
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(SolutionDir)..\..\Shaders\update_lightmap.inc;%(AdditionalInputs)</AdditionalInputs>

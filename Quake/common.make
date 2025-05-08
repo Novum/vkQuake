@@ -157,8 +157,10 @@ SHADER_OBJS = \
 	world_vert.o \
 	showtris_frag.o \
 	showtris_vert.o \
-	update_lightmap_comp.o \
-	update_lightmap_rt_comp.o \
+	update_lightmap_8bit_comp.o \
+	update_lightmap_8bit_rt_comp.o \
+	update_lightmap_10bit_comp.o \
+	update_lightmap_10bit_rt_comp.o \
 	ray_debug_comp.o
 
 GLOBJS = \

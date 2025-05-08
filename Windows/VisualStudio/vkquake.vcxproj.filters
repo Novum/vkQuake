@@ -445,10 +445,16 @@
     <ClCompile Include="..\..\Shaders\Compiled\Release\world.frag.c">
       <Filter>Shaders\Release</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Shaders\Compiled\Release\update_lightmap.comp.c">
+    <ClCompile Include="..\..\Shaders\Compiled\Release\update_lightmap_8bit.comp.c">
       <Filter>Shaders\Release</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Shaders\Compiled\Debug\update_lightmap.comp.c">
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\update_lightmap_8bit.comp.c">
+      <Filter>Shaders\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\update_lightmap_10bit.comp.c">
+      <Filter>Shaders\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\update_lightmap_10bit.comp.c">
       <Filter>Shaders\Debug</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Quake\snd_mpg123.c">
@@ -472,7 +478,10 @@
     <ClCompile Include="..\..\Quake\quakedef.c">
       <Filter>Main</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Shaders\Compiled\Release\update_lightmap_rt.comp.c">
+    <ClCompile Include="..\..\Shaders\Compiled\Release\update_lightmap_8bit_rt.comp.c">
+      <Filter>Shaders\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\update_lightmap_10bit_rt.comp.c">
       <Filter>Shaders\Release</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\ray_debug.comp.c">
@@ -481,7 +490,10 @@
     <ClCompile Include="..\..\Shaders\Compiled\Debug\ray_debug.comp.c">
       <Filter>Shaders\Debug</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Shaders\Compiled\Debug\update_lightmap_rt.comp.c">
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\update_lightmap_8bit_rt.comp.c">
+      <Filter>Shaders\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\update_lightmap_10bit_rt.comp.c">
       <Filter>Shaders\Debug</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Quake\hash_map.c">
