@@ -27,7 +27,9 @@
 #include <stddef.h>
 
 #define INVALID_TASK_HANDLE UINT64_MAX
-#define TASKS_MAX_WORKERS	32
+#define TASKS_MAX_WORKERS	12
+
+#define PIN_WORKERS_ON_CORES
 
 typedef uint64_t task_handle_t;
 typedef void (*task_func_t) (void *);

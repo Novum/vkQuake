@@ -23,6 +23,17 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "atomics.h"
 #include "quakedef.h"
 
+#ifdef _MSC_VER
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+#else
+#define _GNU_SOURCE
+#include <pthread.h>
+#include <sched.h>
+#endif
+
 #if defined(USE_HELGRIND)
 #include "valgrind/helgrind.h"
 #else
@@ -231,7 +242,7 @@ static inline void TaskQueuePush (task_queue_t *queue, uint32_t task_index)
 /*
 ====================
 TaskQueuePop
-====================a
+====================
 */
 static inline uint32_t TaskQueuePop (task_queue_t *queue)
 {
@@ -276,6 +287,54 @@ static inline void Task_ExecuteIndexed (int worker_index, task_t *task, uint32_t
 	}
 }
 
+static bool Task_Pin_Current_Worker(int core_id)
+{
+#ifdef PIN_WORKERS_ON_CORES
+#ifdef _MSC_VER
+	// Get the current thread handle
+	HANDLE hThread = GetCurrentThread ();
+	if (hThread == NULL)
+	{
+		return false;
+	}
+
+	// Open the thread with necessary access rights
+	DWORD  dwThreadId = GetCurrentThreadId ();
+	HANDLE hThreadAccess = OpenThread (THREAD_SET_INFORMATION | THREAD_QUERY_INFORMATION, FALSE, dwThreadId);
+	if (hThreadAccess == NULL)
+	{
+		return false;
+	}
+
+	// Define the processor affinity mask
+	DWORD mask = (1 << (DWORD)(core_id % Tasks_NumWorkers())); // Set affinity to core number
+
+	// Set the thread affinity
+	DWORD_PTR prevAffinityMask = SetThreadAffinityMask (hThreadAccess, (DWORD_PTR)mask);
+	if (prevAffinityMask == 0)
+	{
+		CloseHandle (hThreadAccess);
+		return false;
+	}
+
+	// Close the thread handle
+	CloseHandle (hThreadAccess);
+
+#else
+	cpu_set_t cpuset;
+	CPU_ZERO (&cpuset);
+	CPU_SET (core_id % Tasks_NumWorkers (), &cpuset);
+
+	pthread_t current_thread = pthread_self ();
+	if (pthread_setaffinity_np (current_thread, sizeof (cpu_set_t), &cpuset) != 0)
+	{
+		return false;
+	}
+#endif  
+#endif 
+	return true;
+}
+
 /*
 ====================
 Task_Worker
@@ -287,6 +346,10 @@ static int Task_Worker (void *data)
 
 	const int worker_index = (intptr_t)data;
 	tl_worker_index = worker_index;
+
+	//try to pin workers on different cores
+	Task_Pin_Current_Worker (worker_index);
+
 	while (true)
 	{
 		uint32_t task_index = TaskQueuePop (executable_task_queue);
@@ -371,7 +434,7 @@ void Tasks_Init (void)
 	indexed_task_counters = Mem_Alloc (sizeof (task_counter_t) * num_workers * MAX_PENDING_TASKS);
 	for (int i = 0; i < num_workers; ++i)
 	{
-		SDL_DetachThread (SDL_CreateThread (Task_Worker, "Task_Worker", (void *)(intptr_t)i));
+		SDL_DetachThread (SDL_CreateThread (Task_Worker, va("Task_Worker_%d", i), (void *)(intptr_t)i));
 	}
 }
 

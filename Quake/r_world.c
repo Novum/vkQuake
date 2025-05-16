@@ -492,8 +492,8 @@ void R_MarkLeafsSIMD (int index, void *unused)
 		}
 		mask_iter &= bit_mask;
 	}
-
-	Atomic_OrUInt32 (&surfvis[current_surfvis_index_written], current_surfvis_written);
+	if (current_surfvis_index_written != 0)
+		Atomic_OrUInt32 (&surfvis[current_surfvis_index_written], current_surfvis_written);
 }
 
 /*
@@ -883,8 +883,10 @@ static void R_MarkSurfacesPrepare (void *unused)
 	}
 	else
 #endif
+	{
 		if (r_parallelmark.value || indirect)
-		memset (cl.worldmodel->surfvis, 0, (cl.worldmodel->numsurfaces + 31) / 8);
+			memset (cl.worldmodel->surfvis, 0, (cl.worldmodel->numsurfaces + 31) / 8);
+	}
 }
 
 /*
