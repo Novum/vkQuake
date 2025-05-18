@@ -13,8 +13,8 @@ DEBUG ?= 0
 CHECK_GCC = $(shell if echo | $(CC) $(1) -Werror -S -o /dev/null -xc - > /dev/null 2>&1; then echo "$(1)"; else echo "$(2)"; fi;)
 
 CFLAGS += -MMD -Wall -Wno-trigraphs -Werror -std=gnu11
-ifeq (,$(findstring darwin,$(HOST_OS)))
-CFLAGS += -D_FILE_OFFSET_BITS=64 
+ifneq ($(HOST_OS),darwin)
+CFLAGS += -D_FILE_OFFSET_BITS=64
 endif
 CFLAGS += $(CPUFLAGS)
 ifneq ($(DEBUG),0)

@@ -25,8 +25,6 @@ MP3LIB = mpg123
 # which library to use for ogg decoding: vorbis or tremor
 VORBISLIB = vorbis
 
-HOST_OS := $(shell uname|sed -e s/_.*//|tr '[:upper:]' '[:lower:]')
-
 # ---------------------------
 # build variables
 # ---------------------------
