@@ -8,6 +8,10 @@
 #ifndef MPG123_LIB_H
 #define MPG123_LIB_H
 
+/* This build of libmpg123 has no _FILE_OFFSET_BITS=64 support: */
+#define MPG123_NO_LARGENAME
+/* */
+
 /** \file mpg123.h The header file for the libmpg123 MPEG Audio decoder */
 
 /* A macro to check at compile time which set of API functions to expect.
@@ -38,6 +42,10 @@ typedef ptrdiff_t ssize_t;
 #ifndef MPG123_NO_CONFIGURE /* Enable use of this file without configure. */
 #include <stdlib.h>
 #include <sys/types.h>
+
+/* This build of libmpg123 has no _FILE_OFFSET_BITS=64 support: */
+#define off_t long
+/* */
 
 /* Simplified large file handling.
 	I used to have a check here that prevents building for a library with conflicting large file setup
