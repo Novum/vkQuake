@@ -18,10 +18,22 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 // tasks.c -- parallel task system
-
+#include "arch_def.h"
 #include "tasks.h"
 #include "atomics.h"
 #include "quakedef.h"
+#include "q_ctype.h"
+
+#if defined(_MSC_VER)
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+#elif defined(PLATFORM_LINUX) && !defined(PLATFORM_OSX)
+#define _GNU_SOURCE
+#include <sched.h>
+#include <pthread.h>
+#endif
 
 #if defined(USE_HELGRIND)
 #include "valgrind/helgrind.h"
@@ -99,6 +111,11 @@ static task_counter_t		*indexed_task_counters;
 static uint8_t				 steal_worker_indices[TASKS_MAX_WORKERS * 2];
 static THREAD_LOCAL qboolean is_worker = false;
 static THREAD_LOCAL int		 tl_worker_index;
+
+COMPILE_TIME_ASSERT (steal_worker_indices, TASKS_MAX_WORKERS * 2 < UINT8_MAX);
+
+static int pinned_workers_core_ids[TASKS_MAX_WORKERS];
+static int num_pinned_workers = 0;
 
 /*
 ====================
@@ -231,7 +248,7 @@ static inline void TaskQueuePush (task_queue_t *queue, uint32_t task_index)
 /*
 ====================
 TaskQueuePop
-====================a
+====================
 */
 static inline uint32_t TaskQueuePop (task_queue_t *queue)
 {
@@ -276,6 +293,56 @@ static inline void Task_ExecuteIndexed (int worker_index, task_t *task, uint32_t
 	}
 }
 
+static bool Task_Pin_Current_Worker (int pinned_index)
+{
+#ifdef _MSC_VER
+	// Get the current thread handle
+	HANDLE hThread = GetCurrentThread ();
+	if (hThread == NULL)
+	{
+		return false;
+	}
+
+	// Open the thread with necessary access rights
+	DWORD  dwThreadId = GetCurrentThreadId ();
+	HANDLE hThreadAccess = OpenThread (THREAD_SET_INFORMATION | THREAD_QUERY_INFORMATION, FALSE, dwThreadId);
+	if (hThreadAccess == NULL)
+	{
+		return false;
+	}
+
+	// Define the processor affinity mask, fold beyond DWORD_PTR bit size...
+	// should allow setting to 32 different cores on 32 bit and 64 different on 64 bits, should be enough for anybody....
+	DWORD_PTR mask = ((DWORD_PTR)1 << ((DWORD_PTR)pinned_workers_core_ids[pinned_index] % (sizeof (DWORD_PTR) * 8)));
+
+	// Set the thread affinity
+	DWORD_PTR prevAffinityMask = SetThreadAffinityMask (hThreadAccess, mask);
+	if (prevAffinityMask == 0)
+	{
+		CloseHandle (hThreadAccess);
+		return false;
+	}
+
+	// Close the thread handle
+	CloseHandle (hThreadAccess);
+
+#elif defined(PLATFORM_LINUX) && !defined(PLATFORM_OSX)
+	// apparently pthread_setaffinity_np() is not available
+	// in either OSX or MINGW (winpthread) so do nothing about it
+	cpu_set_t cpuset;
+	CPU_ZERO (&cpuset);
+	CPU_SET (pinned_workers_core_ids[pinned_index], &cpuset);
+
+	pthread_t current_thread = pthread_self ();
+	if (pthread_setaffinity_np (current_thread, sizeof (cpu_set_t), &cpuset) != 0)
+	{
+		return false;
+	}
+#endif
+
+	return true;
+}
+
 /*
 ====================
 Task_Worker
@@ -287,6 +354,16 @@ static int Task_Worker (void *data)
 
 	const int worker_index = (intptr_t)data;
 	tl_worker_index = worker_index;
+
+	// try to pin workers on different cores, if set
+	if (num_pinned_workers)
+	{
+		assert (worker_index < num_pinned_workers);
+		assert (num_pinned_workers == num_workers);
+
+		Task_Pin_Current_Worker (worker_index);
+	}
+
 	while (true)
 	{
 		uint32_t task_index = TaskQueuePop (executable_task_queue);
@@ -338,6 +415,64 @@ static int Task_Worker (void *data)
 	return 0;
 }
 
+static void parse_pinned_workers (void)
+{
+	// defaults:
+	num_pinned_workers = 0;
+
+	const int pinned_workers_param_index = COM_CheckParm ("-pinnedworkers");
+
+	if (pinned_workers_param_index && pinned_workers_param_index < com_argc - 1)
+	{
+#define MAX_CORE_IDS_CHAR_LEN 3
+		const char *csv_pinned_list = com_argv[pinned_workers_param_index + 1];
+		const int	max_num_workers = num_workers;
+		char		num_field[MAX_CORE_IDS_CHAR_LEN + 1];
+
+		int field_pos = 0;
+		int i = 0;
+
+		while (csv_pinned_list[i] != '\0')
+		{
+			if (csv_pinned_list[i] == ',')
+			{
+				num_field[field_pos] = '\0';
+				pinned_workers_core_ids[num_pinned_workers++] = (strtol (num_field, NULL, 0) % SDL_GetCPUCount ());
+
+				field_pos = 0;
+				if (num_pinned_workers >= max_num_workers)
+					break;
+			}
+			else
+			{
+				if (!q_isdigit (csv_pinned_list[i]))
+				{
+					// invalid input, invalidate all
+					num_pinned_workers = 0;
+					return;
+				}
+
+				if (field_pos < MAX_CORE_IDS_CHAR_LEN - 1)
+				{
+					num_field[field_pos++] = csv_pinned_list[i];
+				}
+			}
+			i++;
+		}
+
+		// Add last field (if not ending with a comma)
+		if (csv_pinned_list[i - 1] != ',')
+		{
+			num_field[field_pos] = '\0';
+			if (num_pinned_workers < max_num_workers)
+				pinned_workers_core_ids[num_pinned_workers++] = strtol (num_field, NULL, 0) % SDL_GetCPUCount ();
+		}
+
+		// override num_works with the number of valid fields
+		num_workers = num_pinned_workers;
+	}
+}
+
 /*
 ====================
 Tasks_Init
@@ -361,17 +496,23 @@ void Tasks_Init (void)
 
 	num_workers = CLAMP (1, SDL_GetCPUCount (), TASKS_MAX_WORKERS);
 
+	// num_workers is overriden by -pinnedworkers number of fields
+	parse_pinned_workers ();
+
 	// Fill lookup table to avoid modulo in Task_ExecuteIndexed
 	for (int i = 0; i < num_workers; ++i)
 	{
 		steal_worker_indices[i] = i;
-		steal_worker_indices[i + num_workers] = i;
+
+		// Workaround for "error: writing 16 bytes into a region of size 0 [-Werror=stringop-overflow=]"
+		size_t steal_index = CLAMP (0, (size_t)(i + num_workers), countof (steal_worker_indices) - 1);
+		steal_worker_indices[steal_index] = i;
 	}
 
 	indexed_task_counters = Mem_Alloc (sizeof (task_counter_t) * num_workers * MAX_PENDING_TASKS);
 	for (int i = 0; i < num_workers; ++i)
 	{
-		SDL_DetachThread (SDL_CreateThread (Task_Worker, "Task_Worker", (void *)(intptr_t)i));
+		SDL_DetachThread (SDL_CreateThread (Task_Worker, va ("Task_Worker_%d", i), (void *)(intptr_t)i));
 	}
 }
 
