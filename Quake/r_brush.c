@@ -282,7 +282,7 @@ void R_MarkDeps (int combined_deps, int worker_index)
 	int					 lm_count = deps->lm_count;
 	int					 i;
 	for (i = 0; i < water_count; ++i)
-		Atomic_StoreUInt32 ((++deps)->update_warp, true);
+		Atomic_StoreUInt32_Relaxed ((++deps)->update_warp, true);
 	for (i = 0, ++deps; i < lm_count; ++i, ++deps)
 		lightmaps[deps->lightmap_num].modified[worker_index] |= deps->lightmap_styles;
 }
@@ -1420,6 +1420,9 @@ R_UploadVisibility
 */
 static void R_UploadVisibility (byte *data, uint32_t size)
 {
+	// TODO: do we really need a read barrier for surfvis uploading ?
+	Atomic_ReadBarrier ();
+
 	memcpy (dyn_visibility_view + current_compute_buffer_index * dyn_visibility_offset, data, size);
 	ZEROED_STRUCT (VkMappedMemoryRange, range);
 	range.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;

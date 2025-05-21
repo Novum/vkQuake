@@ -62,6 +62,12 @@ static inline void Atomic_StoreUInt32 (volatile atomic_uint32_t *atomic, uint32_
 	_ReadBarrier ();
 }
 
+static inline void Atomic_StoreUInt32_Relaxed (volatile atomic_uint32_t *atomic, uint32_t desired)
+{
+	// on x86 it implies a read barruer, but it is supposed to be relaxed on ARM64
+	_InterlockedExchange ((volatile LONG *)&atomic->value, (LONG)desired);
+}
+
 static inline qboolean Atomic_CompareExchangeUInt32 (atomic_uint32_t *atomic, uint32_t *expected, uint32_t desired)
 {
 	const uint32_t actual = InterlockedCompareExchange ((volatile LONG *)&atomic->value, desired, *expected);
@@ -86,6 +92,12 @@ static inline uint32_t Atomic_SubUInt32 (volatile atomic_uint32_t *atomic, uint3
 static inline uint32_t Atomic_OrUInt32 (volatile atomic_uint32_t *atomic, uint32_t val)
 {
 	return InterlockedOr ((volatile LONG *)&atomic->value, val);
+}
+
+static inline uint32_t Atomic_OrUInt32_Relaxed (volatile atomic_uint32_t *atomic, uint32_t val)
+{
+	// on x86 it is equivalent to InterlockedOr, but it is supposed to be relaxed on ARM64
+	return InterlockedOrNoFence ((volatile LONG *)&atomic->value, val);
 }
 
 static inline uint32_t Atomic_IncrementUInt32 (volatile atomic_uint32_t *atomic)
@@ -140,6 +152,16 @@ static inline uint64_t Atomic_SubUInt64 (volatile atomic_uint64_t *atomic, uint6
 {
 	return InterlockedAdd64 ((volatile LONG64 *)&atomic->value, (~value) + 1) + value;
 }
+
+static inline void Atomic_ReadBarrier (void)
+{
+	_ReadBarrier ();
+}
+
+static inline void Atomic_WriteBarrier (void)
+{
+	_WriteBarrier ();
+}
 #else
 typedef _Atomic uint8_t atomic_uint8_t;
 
@@ -160,6 +182,11 @@ static inline void Atomic_StoreUInt32 (atomic_uint32_t *atomic, uint32_t desired
 	atomic_store (atomic, desired);
 }
 
+static inline void Atomic_StoreUInt32_Relaxed (atomic_uint32_t *atomic, uint32_t desired)
+{
+	atomic_store_explicit (atomic, desired, memory_order_relaxed);
+}
+
 static inline uint32_t Atomic_AddUInt32 (atomic_uint32_t *atomic, uint32_t value)
 {
 	return atomic_fetch_add (atomic, value);
@@ -173,6 +200,11 @@ static inline uint32_t Atomic_SubUInt32 (atomic_uint32_t *atomic, uint32_t value
 static inline uint32_t Atomic_OrUInt32 (atomic_uint32_t *atomic, uint32_t value)
 {
 	return atomic_fetch_or (atomic, value);
+}
+
+static inline uint32_t Atomic_OrUInt32_Relaxed (atomic_uint32_t *atomic, uint32_t value)
+{
+	return atomic_fetch_or_explicit (atomic, value, memory_order_relaxed);
 }
 
 static inline uint32_t Atomic_IncrementUInt32 (atomic_uint32_t *atomic)
@@ -220,6 +252,16 @@ static inline uint64_t Atomic_AddUInt64 (atomic_uint64_t *atomic, const uint64_t
 static inline uint64_t Atomic_SubUInt64 (atomic_uint64_t *atomic, const uint64_t value)
 {
 	return atomic_fetch_sub (atomic, value);
+}
+
+static inline void Atomic_ReadBarrier (void)
+{
+	atomic_thread_fence (memory_order_acquire);
+}
+
+static inline void Atomic_WriteBarrier (void)
+{
+	atomic_thread_fence (memory_order_release);
 }
 #endif
 

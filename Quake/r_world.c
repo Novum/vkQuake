@@ -369,6 +369,8 @@ void R_MarkVisSurfacesSIMD (qboolean *use_tasks)
 	uint32_t	*surfvis = (uint32_t *)cl.worldmodel->surfvis;
 	soa_aabb_t	*leafbounds = cl.worldmodel->soa_leafbounds;
 
+	int current_combined_dep_index = INT_MAX;
+
 	// iterate through leaves, marking surfaces
 	for (i = 0; i < numleafs; i += 32)
 	{
@@ -392,8 +394,12 @@ void R_MarkVisSurfacesSIMD (qboolean *use_tasks)
 					unsigned int index = marksurfaces[k];
 					surfvis[index / 32] |= 1u << (index % 32);
 				}
-				if (indirect)
+
+				if (indirect && current_combined_dep_index != leaf->combined_deps)
+				{
 					R_MarkDeps (leaf->combined_deps, 0);
+					current_combined_dep_index = leaf->combined_deps;
+				}
 			}
 
 			// add static models
@@ -426,7 +432,7 @@ void R_MarkVisSurfacesSIMD (qboolean *use_tasks)
 			else if (surf->lightmaptexturenum >= 0)
 				lightmaps[surf->lightmaptexturenum].modified[0] |= surf->styles_bitmap;
 			if (surf->texinfo->texture->warpimage)
-				Atomic_StoreUInt32 (&surf->texinfo->texture->update_warp, true);
+				Atomic_StoreUInt32_Relaxed (&surf->texinfo->texture->update_warp, true);
 		}
 	}
 
@@ -457,6 +463,7 @@ void R_MarkLeafsSIMD (int index, void *unused)
 
 	unsigned int current_surfvis_index_written = 0;
 	uint32_t	 current_surfvis_written = 0;
+	int			 current_combined_dep_index = INT_MAX;
 
 	while (mask_iter != 0)
 	{
@@ -475,15 +482,18 @@ void R_MarkLeafsSIMD (int index, void *unused)
 
 				if (surf_index / 32 != current_surfvis_index_written)
 				{
-					Atomic_OrUInt32 (&surfvis[current_surfvis_index_written], current_surfvis_written);
+					Atomic_OrUInt32_Relaxed (&surfvis[current_surfvis_index_written], current_surfvis_written);
 					current_surfvis_index_written = surf_index / 32;
 					current_surfvis_written = 0;
 				}
 				current_surfvis_written |= 1u << (surf_index % 32);
 			}
 
-			if (indirect)
+			if (indirect && current_combined_dep_index != leaf->combined_deps)
+			{
 				R_MarkDeps (leaf->combined_deps, Tasks_GetWorkerIndex ());
+				current_combined_dep_index = leaf->combined_deps;
+			}
 		}
 		const uint32_t bit_mask = ~(1u << i);
 		if (!leaf->efrags)
@@ -492,8 +502,8 @@ void R_MarkLeafsSIMD (int index, void *unused)
 		}
 		mask_iter &= bit_mask;
 	}
-
-	Atomic_OrUInt32 (&surfvis[current_surfvis_index_written], current_surfvis_written);
+	if (current_surfvis_written != 0)
+		Atomic_OrUInt32_Relaxed (&surfvis[current_surfvis_index_written], current_surfvis_written);
 }
 
 /*
@@ -522,7 +532,7 @@ void R_BackfaceCullSurfacesSIMD (int index, void *unused)
 		if (surf->lightmaptexturenum >= 0)
 			lightmaps[surf->lightmaptexturenum].modified[worker_index] |= surf->styles_bitmap;
 		if (surf->texinfo->texture->warpimage)
-			Atomic_StoreUInt32 (&surf->texinfo->texture->update_warp, true);
+			Atomic_StoreUInt32_Relaxed (&surf->texinfo->texture->update_warp, true);
 
 		const uint32_t bit_mask = ~(1u << i);
 		mask_iter &= bit_mask;
@@ -661,6 +671,7 @@ void R_MarkLeafsParallel (int index, void *unused)
 
 	unsigned int current_surfvis_index_written = 0;
 	uint32_t	 current_surfvis_written = 0;
+	int			 current_combined_dep_index = INT_MAX;
 
 	while (mask_iter != 0)
 	{
@@ -686,18 +697,22 @@ void R_MarkLeafsParallel (int index, void *unused)
 
 				if (surf_index / 32 != current_surfvis_index_written)
 				{
-					Atomic_OrUInt32 (&surfvis[current_surfvis_index_written], current_surfvis_written);
+					Atomic_OrUInt32_Relaxed (&surfvis[current_surfvis_index_written], current_surfvis_written);
 					current_surfvis_index_written = surf_index / 32;
 					current_surfvis_written = 0;
 				}
 				current_surfvis_written |= 1u << (surf_index % 32);
 			}
-			if (indirect)
+
+			if (indirect && current_combined_dep_index != leaf->combined_deps)
+			{
 				R_MarkDeps (leaf->combined_deps, Tasks_GetWorkerIndex ());
+				current_combined_dep_index = leaf->combined_deps;
+			}
 		}
 	}
-
-	Atomic_OrUInt32 (&surfvis[current_surfvis_index_written], current_surfvis_written);
+	if (current_surfvis_written != 0)
+		Atomic_OrUInt32_Relaxed (&surfvis[current_surfvis_index_written], current_surfvis_written);
 }
 
 /*
@@ -730,7 +745,7 @@ void R_BackfaceCullSurfacesParallel (int index, void *unused)
 			if (surf->lightmaptexturenum >= 0)
 				lightmaps[surf->lightmaptexturenum].modified[worker_index] |= surf->styles_bitmap;
 			if (surf->texinfo->texture->warpimage)
-				Atomic_StoreUInt32 (&surf->texinfo->texture->update_warp, true);
+				Atomic_StoreUInt32_Relaxed (&surf->texinfo->texture->update_warp, true);
 		}
 	}
 }
@@ -749,6 +764,8 @@ void R_MarkVisSurfaces (qboolean *use_tasks)
 	uint32_t   *vis = (uint32_t *)mark_surfaces_state.vis;
 	uint32_t   *surfvis = (uint32_t *)cl.worldmodel->surfvis;
 
+	int current_combined_dep_index = INT_MAX;
+
 	leaf = &cl.worldmodel->leafs[1];
 	for (i = 0; i < cl.worldmodel->numleafs; i++, leaf++)
 	{
@@ -759,8 +776,12 @@ void R_MarkVisSurfaces (qboolean *use_tasks)
 
 			if (r_drawworld_cheatsafe && (leaf->contents != CONTENTS_SKY || r_oldskyleaf.value))
 			{
-				if (indirect)
+				if (indirect && current_combined_dep_index != leaf->combined_deps)
+				{
 					R_MarkDeps (leaf->combined_deps, 0);
+					current_combined_dep_index = leaf->combined_deps;
+				}
+
 				for (j = 0; j < leaf->nummarksurfaces; j++)
 				{
 					if (indirect)
@@ -782,7 +803,7 @@ void R_MarkVisSurfaces (qboolean *use_tasks)
 							else if (surf->lightmaptexturenum >= 0)
 								lightmaps[surf->lightmaptexturenum].modified[0] |= surf->styles_bitmap;
 							if (surf->texinfo->texture->warpimage)
-								Atomic_StoreUInt32 (&surf->texinfo->texture->update_warp, true);
+								Atomic_StoreUInt32_Relaxed (&surf->texinfo->texture->update_warp, true);
 						}
 					}
 				}
@@ -883,8 +904,10 @@ static void R_MarkSurfacesPrepare (void *unused)
 	}
 	else
 #endif
+	{
 		if (r_parallelmark.value || indirect)
-		memset (cl.worldmodel->surfvis, 0, (cl.worldmodel->numsurfaces + 31) / 8);
+			memset (cl.worldmodel->surfvis, 0, (cl.worldmodel->numsurfaces + 31) / 8);
+	}
 }
 
 /*
