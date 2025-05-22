@@ -55,9 +55,8 @@ cvar_t sv_fastpushmove = {"sv_fastpushmove", "1", CVAR_ARCHIVE};							  // 0=ol
 
 static void SV_Physics_Toss (edict_t *ent);
 
-// For usage by SV_PushMove, allocate at max possible size
-static edict_t *moved_edict[MAX_EDICTS];
-static vec3_t	moved_from[MAX_EDICTS];
+// For usage by SV_PushMove, allocate at max possible size,
+// fine to be static because all SV_phys is only called from the main thread.
 static edict_t *pushable_ent_cache[MAX_EDICTS];
 static int		num_pushable_ent_cache;
 
@@ -462,6 +461,11 @@ static void SV_PushMove (edict_t *pusher, float movetime)
 	vec3_t	 entorig, pushorig;
 	int		 num_moved;
 	float	 solid_backup;
+
+	// fine to be a static temporary because SV_PushMove is only called from the main thread,
+	// without consuming stack space.
+	static edict_t *moved_edict[MAX_EDICTS];
+	static vec3_t	moved_from[MAX_EDICTS];
 
 	if (!pusher->v.velocity[0] && !pusher->v.velocity[1] && !pusher->v.velocity[2])
 	{
