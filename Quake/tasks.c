@@ -24,7 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 #include "q_ctype.h"
 
-#if defined(_MSC_VER)
+#if defined(_WIN32)
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
@@ -295,7 +295,7 @@ static inline void Task_ExecuteIndexed (int worker_index, task_t *task, uint32_t
 
 static bool Task_Pin_Current_Worker (int pinned_index)
 {
-#ifdef _MSC_VER
+#if defined(_WIN32)
 	// Get the current thread handle
 	HANDLE hThread = GetCurrentThread ();
 	if (hThread == NULL)
