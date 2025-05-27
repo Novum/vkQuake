@@ -500,7 +500,6 @@ static void SV_PushMove (edict_t *pusher, float movetime)
 
 	while (true)
 	{
-		// TBC :does qcvm->num_edicts always constant here, i.e is there edicts allocs possible in this loop ?
 		if (e >= (fast_pushers ? num_pushable_ent_cache - 1 : qcvm->num_edicts - 1 - 1))
 			break;
 
@@ -1243,6 +1242,19 @@ static void SV_Physics_Step (edict_t *ent)
 
 //============================================================================
 
+// track ED_Alloc during SV_Physics execution
+static void SV_Physics_Alloc_Hook (edict_t *e)
+{
+	assert (!e->free);
+
+	// track the newly allocated edicts in order to add them into the pushable_ent_cache.
+	// this is OK because by construction free edicts cannot be reused immediatly,
+	// so e is garanteed not to be in pushable_ent_cache already.
+	// since they are just allocated, they have a blank state so we add all of them
+	// to pushable_ent_cache regardless, and the pushable test will be made later on in SV_Push_Move in any case.
+	pushable_ent_cache[num_pushable_ent_cache++] = e;
+}
+
 /*
 ================
 SV_Physics
@@ -1253,7 +1265,10 @@ void SV_Physics (void)
 {
 	int		 i;
 	int		 entity_cap; // For sv_freezenonclients
+	int		*pentitycap = NULL;
 	edict_t *ent;
+
+	ED_AllocHook_func previous_alloc_hook = NULL;
 
 	int physics_mode;
 	if (qcvm->extglobals.physics_mode)
@@ -1296,9 +1311,16 @@ void SV_Physics (void)
 	ent = qcvm->edicts;
 
 	if (sv_freezenonclients.value && qcvm == &sv.qcvm)
+	{
 		entity_cap = svs.maxclients + 1; // Only run physics on clients and the world
+		// a const during edicts iteration = entity_cap;
+		pentitycap = &entity_cap;
+	}
 	else
-		entity_cap = qcvm->num_edicts;
+	{
+		// adapts to the actual qcvm->num_edicts possibly raising during edicts iteration itself
+		pentitycap = &qcvm->num_edicts;
+	}
 
 	// fill the pushable entities cache
 	if (sv_fastpushmove.value > 0.f)
@@ -1315,10 +1337,12 @@ void SV_Physics (void)
 
 			pushable_ent_cache[num_pushable_ent_cache++] = check;
 		}
+
+		previous_alloc_hook = ED_AllocSetHook (SV_Physics_Alloc_Hook);
 	}
 
 	// for (i=0 ; i<sv.num_edicts ; i++, ent = NEXT_EDICT(ent))
-	for (i = 0; i < entity_cap; i++, ent = NEXT_EDICT (ent))
+	for (i = 0; i < *pentitycap; i++, ent = NEXT_EDICT (ent))
 	{
 		if (ent->free)
 			continue;
@@ -1364,4 +1388,7 @@ void SV_Physics (void)
 
 	if (!(sv_freezenonclients.value && qcvm == &sv.qcvm))
 		qcvm->time += host_frametime;
+
+	if (sv_fastpushmove.value > 0.f)
+		ED_AllocSetHook (previous_alloc_hook);
 }

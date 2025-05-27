@@ -112,6 +112,12 @@ void	 ED_Free (edict_t *ed);
 void	 ED_RemoveFromFreeList (edict_t *ed);
 void	 ED_RebuildFreeList (bool force_free_reuse);
 
+typedef void (*ED_AllocHook_func) (edict_t *allocated_ed);
+
+// register a ED_AllocHook_func that will be called at each ED_Alloc,
+// passing the newly allocated allocated_ed. Returns the previously registered ED_AllocHook.
+ED_AllocHook_func ED_AllocSetHook (ED_AllocHook_func alloc_hook);
+
 void		ED_Print (edict_t *ed);
 void		ED_Write (FILE *f, edict_t *ed);
 const char *ED_ParseEdict (const char *data, edict_t *ent);

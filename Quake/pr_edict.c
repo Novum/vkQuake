@@ -48,6 +48,17 @@ cvar_t saved2 = {"saved2", "0", CVAR_ARCHIVE};
 cvar_t saved3 = {"saved3", "0", CVAR_ARCHIVE};
 cvar_t saved4 = {"saved4", "0", CVAR_ARCHIVE};
 
+//
+static ED_AllocHook_func GLOBAL_ALLOC_HOOK = NULL;
+
+ED_AllocHook_func ED_AllocSetHook (ED_AllocHook_func alloc_hook)
+{
+	ED_AllocHook_func previous = GLOBAL_ALLOC_HOOK;
+	GLOBAL_ALLOC_HOOK = alloc_hook;
+
+	return previous;
+}
+
 /*
 =================
 ED_Alloc
@@ -74,9 +85,8 @@ edict_t *ED_Alloc (void)
 		qcvm->free_list.head_index = (qcvm->free_list.head_index + 1) % MAX_EDICTS;
 		qcvm->free_list.size -= 1;
 
-		// no real need, but easier for debugging...
-		if (qcvm->free_list.size == 0)
-			qcvm->free_list.head_index = 0;
+		if (GLOBAL_ALLOC_HOOK)
+			GLOBAL_ALLOC_HOOK (e);
 
 		return e;
 	}
@@ -95,6 +105,9 @@ edict_t *ED_Alloc (void)
 	e->baseline = nullentitystate;
 
 	assert (!e->free);
+
+	if (GLOBAL_ALLOC_HOOK)
+		GLOBAL_ALLOC_HOOK (e);
 
 	return e;
 }
