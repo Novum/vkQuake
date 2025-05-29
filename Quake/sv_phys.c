@@ -1251,7 +1251,7 @@ static void SV_Physics_Alloc_Hook (edict_t *e)
 	// this is OK because by construction free edicts cannot be reused immediatly,
 	// so e is garanteed not to be in pushable_ent_cache already.
 	// since they are just allocated, they have a blank state so we add all of them
-	// to pushable_ent_cache regardless, and the pushable test will be made later on in SV_Push_Move in any case.
+	// to pushable_ent_cache regardless, and the pushable test will be made later on in SV_PushMove in any case.
 	pushable_ent_cache[num_pushable_ent_cache++] = e;
 }
 

@@ -18,7 +18,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 // tasks.c -- parallel task system
-#include "arch_def.h"
 #include "tasks.h"
 #include "atomics.h"
 #include "quakedef.h"
@@ -29,7 +28,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define WIN32_LEAN_AND_MEAN
 #endif
 #include <windows.h>
-#elif defined(PLATFORM_LINUX) && !defined(PLATFORM_OSX)
+#elif defined(__linux__) && !defined(__APPLE__)
 #define _GNU_SOURCE
 #include <sched.h>
 #include <pthread.h>
@@ -296,14 +295,8 @@ static inline void Task_ExecuteIndexed (int worker_index, task_t *task, uint32_t
 static bool Task_Pin_Current_Worker (int pinned_index)
 {
 #if defined(_WIN32)
-	// Get the current thread handle
-	HANDLE hThread = GetCurrentThread ();
-	if (hThread == NULL)
-	{
-		return false;
-	}
-
-	// Open the thread with necessary access rights
+	// valid for both MSVC and MINGW
+	//  Open the thread with necessary access rights
 	DWORD  dwThreadId = GetCurrentThreadId ();
 	HANDLE hThreadAccess = OpenThread (THREAD_SET_INFORMATION | THREAD_QUERY_INFORMATION, FALSE, dwThreadId);
 	if (hThreadAccess == NULL)
@@ -326,9 +319,9 @@ static bool Task_Pin_Current_Worker (int pinned_index)
 	// Close the thread handle
 	CloseHandle (hThreadAccess);
 
-#elif defined(PLATFORM_LINUX) && !defined(PLATFORM_OSX)
-	// apparently pthread_setaffinity_np() is not available
-	// in either OSX or MINGW (winpthread) so do nothing about it
+#elif defined(__linux__) && !defined(__APPLE__)
+	// valid for *Nix with GNU pthread extension pthread_setaffinity_np()
+	//  which apparently is not available on OSX so skip it in that case.
 	cpu_set_t cpuset;
 	CPU_ZERO (&cpuset);
 	CPU_SET (pinned_workers_core_ids[pinned_index], &cpuset);

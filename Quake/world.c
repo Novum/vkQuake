@@ -621,7 +621,7 @@ Q1BSP_RecursiveHullTrace
 
 This does the core traceline/tracebox logic.
 This version is from FTE and attempts to be more numerically stable than vanilla.
-This is achieved by recursing at the actual decision points instead of vanilla's habit of vanilla's habit of using points that are outside of the child's
+This is achieved by recursing at the actual decision points instead of vanilla's habit using points that are outside of the child's
 volume. It also uses itself to test solidity on the other side of the node, which ensures consistent precision. The actual collision point is (still) biased by
 an epsilon, so the end point shouldn't be inside walls either way. FTE's version 'should' be more compatible with vanilla than DP's (which doesn't take care
 with allsolid). ezQuake also has a version of this logic, but I trust mine more.
