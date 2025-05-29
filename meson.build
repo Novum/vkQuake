@@ -2,7 +2,10 @@ project('vkquake', 'c', default_options : ['c_std=gnu11', 'buildtype=release'])
 
 cc = meson.get_compiler('c')
 
-if not cc.has_header_symbol('sched.h', 'CPU_ZERO')
+if cc.has_header_symbol('sched.h', 'CPU_ZERO', prefix: '#define _GNU_SOURCE')
+    message('Info: Task affinity support enabled.')
+    add_project_arguments('-D_GNU_SOURCE', language: 'c')
+else
     message('Warning: sched.h not found, disabling Task affinity support.')
     add_project_arguments('-DTASK_AFFINITY_NOT_AVAILABLE', language: 'c')
 endif

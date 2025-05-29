@@ -35,7 +35,6 @@ RUN apt-get update \
 	libopusfile-dev \
 	vulkan-sdk \
 	zlib1g-dev \
-	libc6-dev \
  && rm -rf /var/lib/apt/lists/*
 
 RUN cd /tmp \
