@@ -1,5 +1,12 @@
 project('vkquake', 'c', default_options : ['c_std=gnu11', 'buildtype=release'])
 
+cc = meson.get_compiler('c')
+
+if not cc.has_header_symbol('sched.h', 'CPU_ZERO')
+    message('Warning: sched.h not found, disabling Task affinity support.')
+    add_project_arguments('-DTASK_AFFINITY_NOT_AVAILABLE', language: 'c')
+endif
+
 shaders = [
     'Shaders/alias.frag',
     'Shaders/alias.vert',
@@ -145,11 +152,10 @@ srcs = [
 ]
 
 cflags = ['-Wall', '-Wno-trigraphs', '-Werror', '-std=gnu11']
-cc = meson.get_compiler('c')
+
 deps = [
     cc.find_library('m', required : false),
     cc.find_library('dl', required : false),
-    cc.find_library('pthread', required : true),
     dependency('threads'),
     dependency('sdl2'),
 ]

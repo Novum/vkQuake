@@ -29,7 +29,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define WIN32_LEAN_AND_MEAN
 #endif
 #include <windows.h>
-#elif defined(PLATFORM_LINUX) && !defined(PLATFORM_OSX)
+#elif defined(PLATFORM_UNIX) && !defined(PLATFORM_OSX) && !defined(TASK_AFFINITY_NOT_AVAILABLE)
 #define _GNU_SOURCE
 #include <sched.h>
 #include <pthread.h>
@@ -320,7 +320,9 @@ static bool Task_Pin_Current_Worker (int pinned_index)
 	// Close the thread handle
 	CloseHandle (hThreadAccess);
 
-#elif defined(PLATFORM_LINUX) && !defined(PLATFORM_OSX)
+	return true;
+
+#elif defined(PLATFORM_UNIX) && !defined(PLATFORM_OSX) && !defined(TASK_AFFINITY_NOT_AVAILABLE)
 	// valid for *Nix with GNU pthread extension pthread_setaffinity_np()
 	//  which apparently is not available on OSX so skip it in that case.
 	cpu_set_t cpuset;
@@ -332,9 +334,11 @@ static bool Task_Pin_Current_Worker (int pinned_index)
 	{
 		return false;
 	}
-#endif
 
 	return true;
+
+#endif
+	return false;
 }
 
 /*
@@ -355,7 +359,10 @@ static int Task_Worker (void *data)
 		assert (worker_index < num_pinned_workers);
 		assert (num_pinned_workers == num_workers);
 
-		Task_Pin_Current_Worker (worker_index);
+		if (!Task_Pin_Current_Worker (worker_index))
+		{
+			Con_Printf ("Tasks : Failed to pin worker %d (N/A or no access rights)", worker_index);
+		}
 	}
 
 	while (true)
