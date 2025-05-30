@@ -19,10 +19,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 // tasks.c -- parallel task system
 #include "arch_def.h"
-#if defined(PLATFORM_UNIX) && !defined(PLATFORM_OSX) && !defined(_GNU_SOURCE)
-#define _GNU_SOURCE 1
-#endif
-
 #include "tasks.h"
 #include "atomics.h"
 #include "quakedef.h"
@@ -34,6 +30,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #endif
 #include <windows.h>
 #elif defined(PLATFORM_UNIX) && !defined(PLATFORM_OSX) && !defined(TASK_AFFINITY_NOT_AVAILABLE)
+#if !defined(_GNU_SOURCE)
+#define _GNU_SOURCE
+#endif
 #include <sched.h>
 #include <pthread.h>
 #endif
