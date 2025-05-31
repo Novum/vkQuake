@@ -24,17 +24,15 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 #include "q_ctype.h"
 
+// clang-format off
 #if defined(_WIN32)
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#include <windows.h>
+  #ifndef WIN32_LEAN_AND_MEAN
+    #define WIN32_LEAN_AND_MEAN
+  #endif
+  #include <windows.h>
 #elif defined(PLATFORM_UNIX) && !defined(PLATFORM_OSX) && !defined(TASK_AFFINITY_NOT_AVAILABLE)
-#if !defined(_GNU_SOURCE)
-#define _GNU_SOURCE
-#endif
-#include <sched.h>
-#include <pthread.h>
+  #include <sched.h>
+  #include <pthread.h>
 #endif
 
 #if defined(USE_HELGRIND)
@@ -53,6 +51,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 	{                                         \
 	} while (false)
 #endif
+
+// clang-format on
 
 #define NUM_INDEX_BITS		 8
 #define MAX_PENDING_TASKS	 (1u << NUM_INDEX_BITS)
@@ -325,7 +325,7 @@ static bool Task_Pin_Current_Worker (int pinned_index)
 	return true;
 
 #elif defined(PLATFORM_UNIX) && !defined(PLATFORM_OSX) && !defined(TASK_AFFINITY_NOT_AVAILABLE)
-#pragma message("Pinned tasks support for *Nix enabled using pthread_setaffinity_np()")
+#pragma message("Info : Pinned tasks support for *Nix enabled using pthread_setaffinity_np()...")
 
 	// valid for *Nix with GNU pthread extension pthread_setaffinity_np()
 	//  which apparently is not available on OSX so skip it in that case.

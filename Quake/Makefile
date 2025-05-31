@@ -75,6 +75,7 @@ COMMON_LIBS:= -lm -lpthread
 ifneq ($(HOST_OS),darwin)
 COMMON_LIBS+= -lvulkan
 CFLAGS+= -DLINUX
+CFLAGS+= -D_GNU_SOURCE
 else
 ifeq ($(shell test -d /opt/homebrew && echo true),true)
 COMMON_LIBS+= -L/opt/homebrew/lib
