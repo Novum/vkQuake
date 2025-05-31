@@ -30,7 +30,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
     #define WIN32_LEAN_AND_MEAN
   #endif
   #include <windows.h>
-#elif defined(PLATFORM_UNIX) && !defined(PLATFORM_OSX) && !defined(TASK_AFFINITY_NOT_AVAILABLE)
+#elif defined(PLATFORM_UNIX) && !defined(PLATFORM_OSX) && !defined(PLATFORM_BSD) && !defined(TASK_AFFINITY_NOT_AVAILABLE)
   #include <sched.h>
   #include <pthread.h>
 #endif
@@ -324,7 +324,7 @@ static bool Task_Pin_Current_Worker (int pinned_index)
 
 	return true;
 
-#elif defined(PLATFORM_UNIX) && !defined(PLATFORM_OSX) && !defined(TASK_AFFINITY_NOT_AVAILABLE)
+#elif defined(PLATFORM_UNIX) && !defined(PLATFORM_OSX) && !defined(PLATFORM_BSD) && !defined(TASK_AFFINITY_NOT_AVAILABLE)
 #pragma message("Info : Pinned tasks support for *Nix enabled using pthread_setaffinity_np()...")
 
 	// valid for *Nix with GNU pthread extension pthread_setaffinity_np()
