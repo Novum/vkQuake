@@ -24,6 +24,7 @@
 #include "snd_codeci.h"
 #include "snd_mp3.h"
 #include <errno.h>
+#include <limits.h>
 
 #define MPG123_DEF_SSIZE_T /* we do define ssize_t in our stdinc.h */
 #include <mpg123.h>
@@ -40,6 +41,27 @@ typedef struct _mp3_priv_t
 } mp3_priv_t;
 
 /* CALLBACKS: libmpg123 expects POSIX read/lseek() behavior! */
+#if (MPG123_API_VERSION >= 49)
+static int mp3_read (void *f, void *buf, size_t size, size_t *bytes)
+{
+	*bytes = FS_fread (buf, 1, size, (fshandle_t *)f);
+	if (*bytes == 0 && errno != 0)
+		return -1;
+	return 0;
+}
+static int64_t mp3_seek (void *f, int64_t offset, int whence)
+{
+	#if (LONG_MAX <= 2147483647L)
+	if (offset > LONG_MAX)
+		return -1;
+	#endif
+	if (f == NULL)
+		return -1;
+	if (FS_fseek ((fshandle_t *)f, (long)offset, whence) < 0)
+		return -1;
+	return (int64_t)FS_ftell ((fshandle_t *)f);
+}
+#else
 static ssize_t mp3_read (void *f, void *buf, size_t size)
 {
 	ssize_t ret = (ssize_t)FS_fread (buf, 1, size, (fshandle_t *)f);
@@ -49,11 +71,20 @@ static ssize_t mp3_read (void *f, void *buf, size_t size)
 }
 static off_t mp3_seek (void *f, off_t offset, int whence)
 {
+	#if (LONG_MAX <= 2147483647L)
+	if (offset > LONG_MAX)
+		return -1;
+	#endif
 	if (f == NULL)
 		return -1;
 	if (FS_fseek ((fshandle_t *)f, (long)offset, whence) < 0)
 		return (off_t)-1;
 	return (off_t)FS_ftell ((fshandle_t *)f);
+}
+#endif
+static void mp3_close (void *f)
+{
+	/* we close elsewhere. */
 }
 
 static qboolean S_MP3_CodecInitialize (void)
@@ -100,11 +131,19 @@ static qboolean S_MP3_CodecOpenStream (snd_stream_t *stream)
 		goto _fail;
 	}
 
-	if (mpg123_replace_reader_handle (priv->handle, mp3_read, mp3_seek, NULL) != MPG123_OK || mpg123_open_handle (priv->handle, &stream->fh) != MPG123_OK)
+	#if (MPG123_API_VERSION >= 49)
+	if (mpg123_reader64 (priv->handle, mp3_read, mp3_seek, mp3_close) != MPG123_OK || mpg123_open_handle64 (priv->handle, &stream->fh) != MPG123_OK)
 	{
 		Con_Printf ("Unable to open mpg123 handle\n");
 		goto _fail;
 	}
+	#else
+	if (mpg123_replace_reader_handle (priv->handle, mp3_read, mp3_seek, mp3_close) != MPG123_OK || mpg123_open_handle (priv->handle, &stream->fh) != MPG123_OK)
+	{
+		Con_Printf ("Unable to open mpg123 handle\n");
+		goto _fail;
+	}
+	#endif
 	priv->handle_open = 1;
 
 	if (mpg123_getformat (priv->handle, &rate, &channels, &encoding) != MPG123_OK)
@@ -202,10 +241,14 @@ static void S_MP3_CodecCloseStream (snd_stream_t *stream)
 static int S_MP3_CodecRewindStream (snd_stream_t *stream)
 {
 	mp3_priv_t *priv = (mp3_priv_t *)stream->priv;
+	#if (MPG123_API_VERSION >= 49)
+	int64_t		res = mpg123_seek64 (priv->handle, 0, SEEK_SET);
+	#else
 	off_t		res = mpg123_seek (priv->handle, 0, SEEK_SET);
+	#endif
 	if (res >= 0)
 		return 0;
-	return res;
+	return (int)res;
 }
 
 snd_codec_t mp3_codec = {CODECTYPE_MP3,			  false, "mp3", S_MP3_CodecInitialize, S_MP3_CodecShutdown, S_MP3_CodecOpenStream, S_MP3_CodecReadStream,
