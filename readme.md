@@ -42,10 +42,26 @@ Copy all files inside the `vkquake-<version>-linux64` folder in the tar archive 
 
 [OpenBSD](https://openbsd.org) includes vkQuake in the standard package repositories since version [6.6](https://www.openbsd.org/66.html).
 
-If you're running `OpenBSD 6.6` or greater you can install the package with:
+If you're running `OpenBSD 6.6` or greater, you can install the package with:
 
 ```console
 $ pkg_add vkquake
+```
+
+### FreeBSD
+
+[FreeBSD](https://freebsd.org) includes vkQuake in the standard port/package repoistories since version [11.3](https://www.freebsd.org/releases/11.3R/announce).
+
+If you're running `FreeBSD 11.3` or greater, you can install the package with:
+
+```console
+# pkg install vkquake
+```
+
+Alternatvely, you can build vkQuake with FreeBSD's port collection:
+```console
+$ cd /usr/ports/games/vkquake
+# make install
 ```
 
 ### Quake '2021 re-release'
