@@ -499,7 +499,7 @@ static void SV_PushMove (edict_t *pusher, float movetime)
 	check = NEXT_EDICT (qcvm->edicts);
 
 	while (true)
-	{		
+	{
 		if (e >= (fast_pushers ? num_pushable_ent_cache - 1 : qcvm->num_edicts - 1 - 1))
 			break;
 
