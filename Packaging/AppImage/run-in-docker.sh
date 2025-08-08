@@ -16,9 +16,9 @@ rm -rf AppDir
 rm -rf vkquake*
 mkdir "$FOLDER"
 ./linuxdeploy-x86_64.AppImage \
-	-e ../../build/appimage/vkquake --appdir=AppDir --create-desktop-file \
+	-e ../../build/appimage/vkquake --appdir=AppDir -d ../../Misc/vkquake.desktop \
 	-i ../../Misc/vkQuake_256.png --icon-filename=vkquake --output appimage
 
-cp "vkquake-$VERSION-x86_64.AppImage" "$FOLDER/vkquake.AppImage"
+cp "vkQuake-$VERSION-x86_64.AppImage" "$FOLDER/vkquake.AppImage"
 cp ../../LICENSE.txt "$FOLDER"
 tar -zcvf "$ARCHIVE" "$FOLDER"
