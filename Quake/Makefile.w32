@@ -80,6 +80,10 @@ SYSOBJ_RES = vkQuake.res
 
 LIBWINPTHREAD = $(MSYSTEM_PREFIX)/bin/libwinpthread-1.dll
 
+ifeq ($(wildcard $(GLSLANG)),)
+  GLSLANG := /mingw64/bin/glslangValidator
+endif
+
 # ---------------------------
 # targets / rules
 # ---------------------------
