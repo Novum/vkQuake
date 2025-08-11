@@ -212,7 +212,7 @@ void SCR_DrawCenterString (cb_context_t *cbx) // actually do the drawing
 	else
 		y = 48;
 	if (crosshair.value)
-		y -= 8;
+		y -= CHARACTER_SIZE;
 
 	do
 	{
@@ -220,7 +220,7 @@ void SCR_DrawCenterString (cb_context_t *cbx) // actually do the drawing
 		for (l = 0; start[l]; l++)
 			if (start[l] == '\n')
 				break;
-		x = (320 - l * 8) / 2; // johnfitz -- 320x200 coordinate system
+		x = (320 - l * CHARACTER_SIZE) / 2; // johnfitz -- 320x200 coordinate system
 		for (j = 0; j < l; j++, x += CHARACTER_SIZE)
 		{
 			Draw_Character (cbx, x, y, start[j]); // johnfitz -- stretch overlays
@@ -228,7 +228,7 @@ void SCR_DrawCenterString (cb_context_t *cbx) // actually do the drawing
 				return;
 		}
 
-		y += 8;
+		y += CHARACTER_SIZE;
 		start += l;
 
 		if (!*start)
@@ -644,7 +644,7 @@ void SCR_DrawFPS (cb_context_t *cbx)
 		int	 x, y;
 		q_snprintf (st, sizeof (st), "%4.0f fps", lastfps);
 		x = 320 - (strlen (st) << 3);
-		y = 200 - 8;
+		y = 200 - CHARACTER_SIZE;
 		GL_SetCanvas (cbx, CANVAS_BOTTOMRIGHT);
 		Draw_String (cbx, x, y, st);
 	}
@@ -658,7 +658,7 @@ SCR_DrawClock -- johnfitz
 void SCR_DrawClock (cb_context_t *cbx)
 {
 	char			str[32];
-	int				y = 200 - 8;
+	int				y = 200 - CHARACTER_SIZE;
 	static qboolean shown_pause;
 	extern qboolean sb_showscores;
 
@@ -682,16 +682,16 @@ void SCR_DrawClock (cb_context_t *cbx)
 	GL_SetCanvas (cbx, CANVAS_BOTTOMRIGHT);
 
 	if (scr_showfps.value)
-		y -= 8; // make room for fps counter
+		y -= CHARACTER_SIZE; // make room for fps counter
 
 	if (scr_clock.value >= 2)
 	{
 		q_snprintf (str, sizeof (str), "%i/%i", cl.stats[STAT_MONSTERS], cl.stats[STAT_TOTALMONSTERS]);
 		Draw_String (cbx, 320 - (strlen (str) << 3), y, str);
-		y -= 8;
+		y -= CHARACTER_SIZE;
 		q_snprintf (str, sizeof (str), "%i/%i", cl.stats[STAT_SECRETS], cl.stats[STAT_TOTALSECRETS]);
 		Draw_String (cbx, 320 - (strlen (str) << 3), y, str);
-		y -= 8;
+		y -= CHARACTER_SIZE;
 	}
 
 	q_snprintf (str, sizeof (str), "%i:%02i", (int)cl.time / 60, (int)cl.time % 60);
@@ -700,7 +700,7 @@ void SCR_DrawClock (cb_context_t *cbx)
 	// show playback rate
 	if (cls.demoplayback && cls.demospeed != 1)
 	{
-		y -= 8;
+		y -= CHARACTER_SIZE;
 		q_snprintf (str, sizeof (str), "[%gx]", cls.demospeed);
 		if (cls.demospeed == 0)
 			q_snprintf (str, sizeof (str), "[paused]");
@@ -724,34 +724,34 @@ void SCR_DrawDevStats (cb_context_t *cbx)
 
 	GL_SetCanvas (cbx, CANVAS_BOTTOMLEFT);
 
-	Draw_Fill (cbx, x, y * 8, 19 * 8, 9 * 8, 0, 0.5); // dark rectangle
+	Draw_Fill (cbx, x, y * CHARACTER_SIZE, 19 * CHARACTER_SIZE, 9 * CHARACTER_SIZE, 0, 0.5); // dark rectangle
 
 	q_snprintf (str, sizeof (str), "devstats |Curr Peak");
-	Draw_String (cbx, x, (y++) * 8 - x, str);
+	Draw_String (cbx, x, (y++) * CHARACTER_SIZE - x, str);
 
 	q_snprintf (str, sizeof (str), "---------+---------");
-	Draw_String (cbx, x, (y++) * 8 - x, str);
+	Draw_String (cbx, x, (y++) * CHARACTER_SIZE - x, str);
 
 	q_snprintf (str, sizeof (str), "Edicts   |%4i %4i", dev_stats.edicts, dev_peakstats.edicts);
-	Draw_String (cbx, x, (y++) * 8 - x, str);
+	Draw_String (cbx, x, (y++) * CHARACTER_SIZE - x, str);
 
 	q_snprintf (str, sizeof (str), "Packet   |%4i %4i", dev_stats.packetsize, dev_peakstats.packetsize);
-	Draw_String (cbx, x, (y++) * 8 - x, str);
+	Draw_String (cbx, x, (y++) * CHARACTER_SIZE - x, str);
 
 	q_snprintf (str, sizeof (str), "Visedicts|%4i %4i", dev_stats.visedicts, dev_peakstats.visedicts);
-	Draw_String (cbx, x, (y++) * 8 - x, str);
+	Draw_String (cbx, x, (y++) * CHARACTER_SIZE - x, str);
 
 	q_snprintf (str, sizeof (str), "Efrags   |%4i %4i", dev_stats.efrags, dev_peakstats.efrags);
-	Draw_String (cbx, x, (y++) * 8 - x, str);
+	Draw_String (cbx, x, (y++) * CHARACTER_SIZE - x, str);
 
 	q_snprintf (str, sizeof (str), "Dlights  |%4i %4i", dev_stats.dlights, dev_peakstats.dlights);
-	Draw_String (cbx, x, (y++) * 8 - x, str);
+	Draw_String (cbx, x, (y++) * CHARACTER_SIZE - x, str);
 
 	q_snprintf (str, sizeof (str), "Beams    |%4i %4i", dev_stats.beams, dev_peakstats.beams);
-	Draw_String (cbx, x, (y++) * 8 - x, str);
+	Draw_String (cbx, x, (y++) * CHARACTER_SIZE - x, str);
 
 	q_snprintf (str, sizeof (str), "Tempents |%4i %4i", dev_stats.tempents, dev_peakstats.tempents);
-	Draw_String (cbx, x, (y++) * 8 - x, str);
+	Draw_String (cbx, x, (y++) * CHARACTER_SIZE - x, str);
 }
 
 /*
@@ -998,17 +998,15 @@ void SCR_DrawNotifyString (cb_context_t *cbx)
 	do
 	{
 		// scan the width of the line
-		for (l = 0; l < 40; l++)
-			if (start[l] == '\n' || !start[l])
+		for (l = 0; start[l]; l++)
+			if (start[l] == '\n')
 				break;
-		x = (320 - l * 8) / 2; // johnfitz -- stretched overlays
+		x = (320 - l * CHARACTER_SIZE) / 2; // johnfitz -- 320x200 coordinate system
 		for (j = 0; j < l; j++, x += CHARACTER_SIZE)
 			Draw_Character (cbx, x, y, start[j]);
 
-		y += 8;
-
-		while (*start && *start != '\n')
-			start++;
+		y += CHARACTER_SIZE;
+		start += l;
 
 		if (!*start)
 			break;
