@@ -188,7 +188,7 @@ void SCR_CenterPrint (const char *str) // update centerprint data
 	}
 }
 
-void SCR_DrawCenterString (cb_context_t *cbx) // actually do the drawing
+static void SCR_DrawCenterString (cb_context_t *cbx) // actually do the drawing
 {
 	char *start;
 	int	  l;
@@ -237,7 +237,7 @@ void SCR_DrawCenterString (cb_context_t *cbx) // actually do the drawing
 	} while (1);
 }
 
-void SCR_CheckDrawCenterString (cb_context_t *cbx)
+static void SCR_CheckDrawCenterString (cb_context_t *cbx)
 {
 	if (scr_center_lines > scr_erase_lines)
 		scr_erase_lines = scr_center_lines;
@@ -318,7 +318,7 @@ Adapt a 4:3 horizontal FOV to the current screen size using the "Hor+" scaling:
 2.0 * atan(width / height * 3.0 / 4.0 * tan(fov_x / 2.0))
 ====================
 */
-float AdaptFovx (float fov_x, float width, float height)
+static float AdaptFovx (float fov_x, float width, float height)
 {
 	float a, x;
 
@@ -344,7 +344,7 @@ float AdaptFovx (float fov_x, float width, float height)
 CalcFovy
 ====================
 */
-float CalcFovy (float fov_x, float width, float height)
+static float CalcFovy (float fov_x, float width, float height)
 {
 	float a, x;
 
@@ -426,7 +426,7 @@ SCR_SizeUp_f
 Keybinding command
 =================
 */
-void SCR_SizeUp_f (void)
+static void SCR_SizeUp_f (void)
 {
 	Cvar_SetValueQuick (&scr_viewsize, scr_viewsize.value + 10);
 }
@@ -438,7 +438,7 @@ SCR_SizeDown_f
 Keybinding command
 =================
 */
-void SCR_SizeDown_f (void)
+static void SCR_SizeDown_f (void)
 {
 	float new_value = scr_viewsize.value - 10;
 	if (!scr_viewsize_allow_shrinking.value)
@@ -613,7 +613,7 @@ void SCR_Init (void)
 SCR_DrawFPS -- johnfitz
 ==============
 */
-void SCR_DrawFPS (cb_context_t *cbx)
+static void SCR_DrawFPS (cb_context_t *cbx)
 {
 	static double oldtime = 0;
 	static double lastfps = 0;
@@ -655,7 +655,7 @@ void SCR_DrawFPS (cb_context_t *cbx)
 SCR_DrawClock -- johnfitz
 ==============
 */
-void SCR_DrawClock (cb_context_t *cbx)
+static void SCR_DrawClock (cb_context_t *cbx)
 {
 	char			str[32];
 	int				y = 200 - CHARACTER_SIZE;
@@ -713,7 +713,7 @@ void SCR_DrawClock (cb_context_t *cbx)
 SCR_DrawDevStats
 ==============
 */
-void SCR_DrawDevStats (cb_context_t *cbx)
+static void SCR_DrawDevStats (cb_context_t *cbx)
 {
 	char str[40];
 	int	 y = 25 - 9; // 9=number of lines to print
@@ -759,7 +759,7 @@ void SCR_DrawDevStats (cb_context_t *cbx)
 SCR_DrawTurtle
 ==============
 */
-void SCR_DrawTurtle (cb_context_t *cbx)
+static void SCR_DrawTurtle (cb_context_t *cbx)
 {
 	static int count;
 
@@ -786,7 +786,7 @@ void SCR_DrawTurtle (cb_context_t *cbx)
 SCR_DrawNet
 ==============
 */
-void SCR_DrawNet (cb_context_t *cbx)
+static void SCR_DrawNet (cb_context_t *cbx)
 {
 	if (realtime - cl.last_received_message < 0.3)
 		return;
@@ -803,7 +803,7 @@ void SCR_DrawNet (cb_context_t *cbx)
 DrawPause
 ==============
 */
-void SCR_DrawPause (cb_context_t *cbx)
+static void SCR_DrawPause (cb_context_t *cbx)
 {
 	qpic_t *pic;
 
@@ -827,7 +827,7 @@ void SCR_DrawPause (cb_context_t *cbx)
 SCR_DrawLoading
 ==============
 */
-void SCR_DrawLoading (cb_context_t *cbx)
+static void SCR_DrawLoading (cb_context_t *cbx)
 {
 	qpic_t *pic;
 
@@ -845,7 +845,7 @@ void SCR_DrawLoading (cb_context_t *cbx)
 SCR_DrawCrosshair -- johnfitz
 ==============
 */
-void SCR_DrawCrosshair (cb_context_t *cbx)
+static void SCR_DrawCrosshair (cb_context_t *cbx)
 {
 	if (!crosshair.value || scr_viewsize.value >= 130)
 		return;
@@ -866,7 +866,7 @@ void SCR_DrawCrosshair (cb_context_t *cbx)
 SCR_SetUpToDrawConsole
 ==================
 */
-void SCR_SetUpToDrawConsole (void)
+static void SCR_SetUpToDrawConsole (void)
 {
 	// johnfitz -- let's hack away the problem of slow console when host_timescale is <0
 	extern cvar_t host_timescale;
@@ -921,7 +921,7 @@ void SCR_SetUpToDrawConsole (void)
 SCR_DrawConsole
 ==================
 */
-void SCR_DrawConsole (cb_context_t *cbx)
+static void SCR_DrawConsole (cb_context_t *cbx)
 {
 	if (scr_con_current)
 	{
@@ -982,7 +982,7 @@ void SCR_EndLoadingPlaque (void)
 const char *scr_notifystring;
 qboolean	scr_drawdialog;
 
-void SCR_DrawNotifyString (cb_context_t *cbx)
+static void SCR_DrawNotifyString (cb_context_t *cbx)
 {
 	const char *start;
 	int			l;
