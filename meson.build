@@ -48,14 +48,23 @@ shaders = [
 
 glslang = find_program('glslangValidator')
 spirv_opt = find_program('spirv-opt')
-spirv_remap = find_program('spirv-remap')
+spirv_remap_command = []
+spirv_opt_command  = []
+run_test_canonicalize_ids_spirv_opt = run_command(spirv_opt, '-h', check : false)
+has_canonicalize_ids_spirv_opt = (run_test_canonicalize_ids_spirv_opt.stdout().strip().contains('--canonicalize-ids'))
 bintoc = executable('bintoc', ['Shaders/bintoc.c'], native: true)
 if (build_machine.system() == 'darwin') or get_option('buildtype').startswith('debug')
     spirv_opt_command = [] # MoltenVK spirv-cross has a bug that breaks optimized shaders
-else
+elif has_canonicalize_ids_spirv_opt
+	message('Info: spirv-opt has --canonicalize-ids (glslang >= 16.0).')
+    spirv_opt_command = [spirv_opt, '-Os', '--canonicalize-ids', '--strip-debug', '@PLAINNAME@.spv', '-o', '@PLAINNAME@.spv', '&&']   
+else 
     spirv_opt_command = [spirv_opt, '-Os', '@PLAINNAME@.spv', '-o', '@PLAINNAME@.spv', '&&']
+	message('Info: spirv-opt has NOT --canonicalize-ids (glslang < 16.0) so use spirv-remap instead.')
+	spirv_remap = find_program('spirv-remap')
+	spirv_remap_command = [spirv_remap, '-s', '-o', '.', '-i', '@PLAINNAME@.spv', '&&']
 endif
-spirv_remap_command = get_option('buildtype').startswith('debug') ? [] : [spirv_remap, '-s', '-o', '.', '-i', '@PLAINNAME@.spv', '&&']
+
 bintoc_command = [bintoc, '@PLAINNAME@.spv', '@PLAINNAME@_spv', '@OUTPUT@']
 
 shaders_c = []
