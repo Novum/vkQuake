@@ -78,7 +78,7 @@ vkQuake wouldn't even start on an big-endian system, outputing a fatal error.
 
 ## Building
 > **Note**\
-> For Windows, you will need at least Vulkan SDK version 1.4.121.1 or newer. (Re-)Installing the latest LunarG SDK should be sufficient in practice.
+> For Windows, you will need at least Vulkan SDK version 1.4.321.1 or newer. (Re-)Installing the latest LunarG SDK should be sufficient in practice.
 > 
 > For Linux, you will need at least Vulkan SDK version 1.2.162 or newer. When building for Linux this is not always the case for the SDK provided by the distribution. Install the latest LunarG SDK if necessary.
 
