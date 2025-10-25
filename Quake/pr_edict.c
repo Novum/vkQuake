@@ -883,11 +883,11 @@ For debugging, prints all the entities in the current server
 */
 void ED_PrintEdicts (void)
 {
-	int free_edicts_count = 0;
-	int free_list_count = 0;
-
 	if (!sv.active)
 		return;
+
+	int free_edicts_count = 0;
+	int free_list_count = 0;
 
 	PR_SwitchQCVM (&sv.qcvm);
 
