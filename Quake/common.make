@@ -216,7 +216,6 @@ OBJS := strlcat.o \
 	wad.o \
 	cmd.o \
 	common.o \
-	miniz.o \
 	crc.o \
 	cvar.o \
 	cfgfile.o \
@@ -240,7 +239,8 @@ OBJS := strlcat.o \
 	$(SYSOBJ_SYS) $(SYSOBJ_MAIN)
 
 $(BINTOC_EXE): ../Shaders/bintoc.c
-	$(HOST_CC) -o $@ $<
+	make -C ../Misc/vq_pak clean
+	make -B -C ../Misc/vq_pak
 
 .SECONDARY:
 ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/%_frag.spv: ../Shaders/%.frag
@@ -270,7 +270,7 @@ $(BINTOC_EXE): ../Shaders/bintoc.c
 	$(BINTOC_EXE) $< $*_comp_spv ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_comp.c
 	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ ../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/$*_comp.c
 
-%.o:	%.c
+%.o: %.c
 	$(CC) $(DFLAGS) -c $(CFLAGS) $(SDL_CFLAGS) -o $@ $<
 
 sinclude $(OBJS:.o=.d)

@@ -28,7 +28,14 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "q_ctype.h"
 #include <errno.h>
 
-#include "miniz.h"
+// Plug our allocators into miniz:
+#define MZ_MALLOC(x)	 Mem_Alloc (x)
+#define MZ_FREE(x)		 Mem_Free (x)
+#define MZ_REALLOC(p, x) Mem_Realloc (p, x)
+
+// include miniz stb-syle, directly in this compilation unit.
+#define MINIZ_HEADER_FILE_ONLY
+#include "miniz.c"
 
 static char *largv[MAX_NUM_ARGVS + 1];
 static char	 argvdummy[] = " ";
@@ -2255,9 +2262,12 @@ _add_path:
 				tinfl_decompressor inflator;
 				tinfl_init (&inflator);
 				vkquake_pak_extracted = Mem_Alloc (vkquake_pak_size_extracted);
-				if (TINFL_STATUS_DONE != tinfl_decompress (
-											 &inflator, vkquake_pak, &vkquake_pak_size_compressed, vkquake_pak_extracted, vkquake_pak_extracted,
-											 &vkquake_pak_size_extracted, TINFL_FLAG_USING_NON_WRAPPING_OUTPUT_BUF))
+
+				tinfl_status decomp_status = tinfl_decompress (
+					&inflator, vkquake_pak, &vkquake_pak_size_compressed, vkquake_pak_extracted, vkquake_pak_extracted, &vkquake_pak_size_extracted,
+					TINFL_FLAG_USING_NON_WRAPPING_OUTPUT_BUF);
+
+				if (TINFL_STATUS_DONE != decomp_status)
 					Sys_Error ("Error extracting embedded pack");
 			}
 			qboolean pak0_modified = com_modified;

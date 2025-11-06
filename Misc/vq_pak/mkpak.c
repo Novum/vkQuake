@@ -26,7 +26,7 @@ static FILE *out;
 typedef struct
 {
 	char name[56];
-	int  filepos, filelen;
+	int	 filepos, filelen;
 } dpackfile_t;
 
 void write_byte (uint8_t value)
@@ -57,9 +57,10 @@ void write_header (int32_t directory_offset, int32_t directory_size)
 
 int main (int argc, char *argv[])
 {
-	if (argc < 3)
+
+	if (argc < 4)
 	{
-		fprintf (stderr, "Usage: mkpak [output.pak] [files...]\n");
+		fprintf (stderr, "Usage: mkpak [output.pak] [root dir for files] [files...]\n");
 		return 1;
 	}
 
@@ -71,20 +72,30 @@ int main (int argc, char *argv[])
 	}
 
 	int32_t directory_offset = 12;
-	int32_t num_in_files = argc - 2;
+	int32_t num_in_files = argc - 3;
 	int32_t directory_size = num_in_files * sizeof (dpackfile_t);
 	int32_t file_offset = directory_offset + directory_size;
 
 	write_header (directory_offset, directory_size);
 
+	FILE	*in = NULL;
 	uint8_t *in_buffer = NULL;
-	for (int i = 2; i < argc; ++i)
+
+	char input_file_path[1024] = {0};
+
+	for (int i = 3; i < argc; ++i)
 	{
-		int   file_index = i - 2;
-		FILE *in = fopen (argv[i], "rb");
+		int file_index = i - 3;
+		// prepend the root dir
+		snprintf (input_file_path, sizeof (input_file_path), "%s/%s", argv[2], argv[i]);
+
+		// printf (" argv[%d]=%s\n", i, input_file_path);
+
+		in = fopen (input_file_path, "rb");
+
 		if (in == NULL)
 		{
-			fprintf (stderr, "Could not open input file '%s'", argv[i]);
+			fprintf (stderr, "Could not open input file '%s', index %d", input_file_path, file_index);
 			return 1;
 		}
 

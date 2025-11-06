@@ -53,6 +53,7 @@ spirv_opt_command  = []
 run_test_canonicalize_ids_spirv_opt = run_command(spirv_opt, '-h', check : false)
 has_canonicalize_ids_spirv_opt = (run_test_canonicalize_ids_spirv_opt.stdout().strip().contains('--canonicalize-ids'))
 bintoc = executable('bintoc', ['Shaders/bintoc.c'], native: true)
+mkpak = executable('mkpak', ['Misc/vq_pak/mkpak.c'], native: true)
 if (build_machine.system() == 'darwin') or get_option('buildtype').startswith('debug')
     spirv_opt_command = [] # MoltenVK spirv-cross has a bug that breaks optimized shaders
 elif has_canonicalize_ids_spirv_opt
@@ -67,6 +68,24 @@ endif
 
 bintoc_command = [bintoc, '@PLAINNAME@.spv', '@PLAINNAME@_spv', '@OUTPUT@']
 
+mkpak_file_list = run_command('cat', 'Misc/vq_pak/vq_pak_contents.txt').stdout().strip().split('\n')
+vkquake_pak_path = join_paths(meson.project_source_root(), 'Quake', 'vkquake.pak')
+vq_pak_path = join_paths(meson.project_source_root(), 'Misc', 'vq_pak')
+
+mkpak_command = [mkpak, vkquake_pak_path, vq_pak_path, mkpak_file_list]
+
+run_mkpak = custom_target('run-mkpak',
+  output : 'vkquake.pak',
+  command: mkpak_command)
+
+embedded_pak_path = join_paths(meson.project_source_root(), 'Quake', 'embedded_pak.c')
+
+bintoc_compress_command = [bintoc, '-c', vkquake_pak_path,'vkquake.pak', embedded_pak_path]
+
+run_generate_embedded_pak = custom_target('run-embed_vkquake_pak',
+							output : 'embedded_pak.c',
+							depends : [run_mkpak],
+							command : bintoc_compress_command)
 shaders_c = []
 foreach shader : shaders
     target_env = shader.contains('sops') ? ['--target-env', 'vulkan1.1'] : []
@@ -76,6 +95,7 @@ foreach shader : shaders
                  input: shader,
                  output: '@PLAINNAME@.c',
                  depfile: '@PLAINNAME@.deps',
+				 depends : [run_generate_embedded_pak],
                  command: glslang_command
                           + spirv_opt_command
                           + spirv_remap_command
@@ -121,7 +141,6 @@ srcs = [
     'Quake/mdfour.c',
     'Quake/mem.c',
     'Quake/menu.c',
-    'Quake/miniz.c',
     'Quake/net_bsd.c',
     'Quake/net_dgrm.c',
     'Quake/net_loop.c',

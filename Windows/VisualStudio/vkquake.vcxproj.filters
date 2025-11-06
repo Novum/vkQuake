@@ -202,9 +202,6 @@
     <ClCompile Include="..\..\Quake\menu.c">
       <Filter>Main</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Quake\miniz.c">
-      <Filter>Main</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\Quake\pl_win.c">
       <Filter>Main</Filter>
     </ClCompile>
@@ -619,9 +616,6 @@
       <Filter>Main</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Quake\menu.h">
-      <Filter>Main</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Quake\miniz.h">
       <Filter>Main</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Quake\modelgen.h">

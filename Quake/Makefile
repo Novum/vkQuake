@@ -89,7 +89,7 @@ LIBS := $(COMMON_LIBS) $(CODECLIBS)
 # ---------------------------
 # targets / rules
 # ---------------------------
-all: $(DEFAULT_TARGET)
+all: $(BINTOC_EXE) .WAIT $(DEFAULT_TARGET)
 
 vkquake: $(SHADER_OBJS) $(OBJS)
 	$(LINKER) $(SHADER_OBJS) $(OBJS) $(LDFLAGS) $(LIBS) $(SDL_LIBS) -o $@
@@ -100,7 +100,8 @@ debug:
 	$(error Use "make DEBUG=1")
 
 clean:
-	$(RM) *.o *.d $(DEFAULT_TARGET) $(BINTOC_EXE) \
+	make -C ../Misc/vq_pak clean
+	$(RM) *.o *.d $(DEFAULT_TARGET) vkquake.pak $(BINTOC_EXE) \
 	../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/*.c \
 	../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/*.spv \
 	../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/*.d
