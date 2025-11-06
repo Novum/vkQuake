@@ -77,7 +77,7 @@ LIBWINPTHREAD = $(MSYSTEM_PREFIX)/bin/libwinpthread-1.dll
 # ---------------------------
 # targets / rules
 # ---------------------------
-all: $(DEFAULT_TARGET) dll
+all: $(BINTOC_EXE) .WAIT $(DEFAULT_TARGET) dll
 
 %.res: ../Windows/%.rc
 	$(WINDRES) -I../Windows -I../Quake --output-format=coff --target=pe-x86-64 -o $@ $<
@@ -98,7 +98,8 @@ debug:
 	$(error Use "make DEBUG=1")
 
 clean:
-	$(RM) *.o *.d *.res *.dll $(DEFAULT_TARGET) \
+	make -C ../Misc/vq_pak clean
+	$(RM) *.o *.d *.res *.dll vkquake.pak $(DEFAULT_TARGET) \
 	$(BINTOC_EXE) \
 	../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/*.c \
 	../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/*.spv \

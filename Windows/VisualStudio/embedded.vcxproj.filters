@@ -76,25 +76,22 @@
     <CustomBuild Include="..\..\Shaders\sky_layer.vert">
       <Filter>Shaders</Filter>
     </CustomBuild>
-    <CustomBuild Include="..\..\Shaders\update_lightmap.comp">
-      <Filter>Shaders</Filter>
-    </CustomBuild>
     <CustomBuild Include="..\..\Shaders\world.frag">
       <Filter>Shaders</Filter>
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\world.vert">
       <Filter>Shaders</Filter>
     </CustomBuild>
-    <CustomBuild Include="..\..\Shaders\update_lightmap_rt.comp">
-      <Filter>Shaders</Filter>
-    </CustomBuild>
     <CustomBuild Include="..\..\Shaders\ray_debug.comp">
       <Filter>Shaders</Filter>
     </CustomBuild>
-    <CustomBuild Include="..\..\Quake\vkquake.pak" />
     <CustomBuild Include="..\..\Shaders\md5.vert">
       <Filter>Shaders</Filter>
     </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\update_lightmap_8bit.comp" />
+    <CustomBuild Include="..\..\Shaders\update_lightmap_8bit_rt.comp" />
+    <CustomBuild Include="..\..\Shaders\update_lightmap_10bit.comp" />
+    <CustomBuild Include="..\..\Shaders\update_lightmap_10bit_rt.comp" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Shaders">

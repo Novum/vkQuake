@@ -5,6 +5,7 @@ Quake/*.o
 Quake/*.d
 Quake/id1/
 Quake/vkquake
+Quake/vkquake.pak
 Quake/*.exe
 Quake/*.res
 Windows/VisualStudio/Id1

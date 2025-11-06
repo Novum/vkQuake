@@ -1,4 +1,4 @@
-﻿
+﻿﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.32014.148
@@ -8,7 +8,12 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "vkQuake", "vkquake.vcxproj"
 		{50420275-BAE3-4FDB-8A26-F2E07737FCD6} = {50420275-BAE3-4FDB-8A26-F2E07737FCD6}
 	EndProjectSection
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "mkpak", "mkpak.vcxproj", "{5B3A2C1D-9E4F-4B2A-A123-0F1E2D3C4B5A}"
+EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "bintoc", "bintoc.vcxproj", "{91D0ED02-D4DB-4CD4-A232-9F0ACC573048}"
+	ProjectSection(ProjectDependencies) = postProject
+		{5B3A2C1D-9E4F-4B2A-A123-0F1E2D3C4B5A} = {5B3A2C1D-9E4F-4B2A-A123-0F1E2D3C4B5A}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "embedded", "embedded.vcxproj", "{50420275-BAE3-4FDB-8A26-F2E07737FCD6}"
 	ProjectSection(ProjectDependencies) = postProject
@@ -31,6 +36,14 @@ Global
 		{AE77266F-0A23-4F08-A491-369DE664B273}.Release|Win32.Build.0 = Release|Win32
 		{AE77266F-0A23-4F08-A491-369DE664B273}.Release|x64.ActiveCfg = Release|x64
 		{AE77266F-0A23-4F08-A491-369DE664B273}.Release|x64.Build.0 = Release|x64
+		{5B3A2C1D-9E4F-4B2A-A123-0F1E2D3C4B5A}.Debug|Win32.ActiveCfg = Debug|Win32
+		{5B3A2C1D-9E4F-4B2A-A123-0F1E2D3C4B5A}.Debug|Win32.Build.0 = Debug|Win32
+		{5B3A2C1D-9E4F-4B2A-A123-0F1E2D3C4B5A}.Debug|x64.ActiveCfg = Debug|x64
+		{5B3A2C1D-9E4F-4B2A-A123-0F1E2D3C4B5A}.Debug|x64.Build.0 = Debug|x64
+		{5B3A2C1D-9E4F-4B2A-A123-0F1E2D3C4B5A}.Release|Win32.ActiveCfg = Release|Win32
+		{5B3A2C1D-9E4F-4B2A-A123-0F1E2D3C4B5A}.Release|Win32.Build.0 = Release|Win32
+		{5B3A2C1D-9E4F-4B2A-A123-0F1E2D3C4B5A}.Release|x64.ActiveCfg = Release|x64
+		{5B3A2C1D-9E4F-4B2A-A123-0F1E2D3C4B5A}.Release|x64.Build.0 = Release|x64
 		{91D0ED02-D4DB-4CD4-A232-9F0ACC573048}.Debug|Win32.ActiveCfg = Debug|Win32
 		{91D0ED02-D4DB-4CD4-A232-9F0ACC573048}.Debug|Win32.Build.0 = Debug|Win32
 		{91D0ED02-D4DB-4CD4-A232-9F0ACC573048}.Debug|x64.ActiveCfg = Debug|x64

@@ -291,12 +291,6 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     </ClCompile>
     <ClCompile Include="..\..\Quake\mem.c" />
     <ClCompile Include="..\..\Quake\menu.c" />
-    <ClCompile Include="..\..\Quake\miniz.c">
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
-    </ClCompile>
     <ClCompile Include="..\..\Quake\net_dgrm.c" />
     <ClCompile Include="..\..\Quake\net_loop.c" />
     <ClCompile Include="..\..\Quake\net_main.c" />
@@ -934,7 +928,6 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClInclude Include="..\..\Quake\mathlib.h" />
     <ClInclude Include="..\..\Quake\mem.h" />
     <ClInclude Include="..\..\Quake\menu.h" />
-    <ClInclude Include="..\..\Quake\miniz.h" />
     <ClInclude Include="..\..\Quake\modelgen.h" />
     <ClInclude Include="..\..\Quake\net.h" />
     <ClInclude Include="..\..\Quake\net_defs.h" />
