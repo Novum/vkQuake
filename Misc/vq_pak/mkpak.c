@@ -29,23 +29,23 @@ typedef struct
 	int	 filepos, filelen;
 } dpackfile_t;
 
-void write_byte (uint8_t value)
+static void write_byte (uint8_t value)
 {
 	fwrite (&value, 1, 1, out);
 }
 
-void write_int32 (uint32_t value)
+static void write_int32 (uint32_t value)
 {
 	fwrite (&value, 4, 1, out);
 }
 
-void write_zero_padding (int count)
+static void write_zero_padding (int count)
 {
 	for (int i = 0; i < count; ++i)
 		write_byte (0);
 }
 
-void write_header (int32_t directory_offset, int32_t directory_size)
+static void write_header (int32_t directory_offset, int32_t directory_size)
 {
 	write_byte ('P');
 	write_byte ('A');
@@ -108,7 +108,7 @@ int main (int argc, char *argv[])
 		dpackfile_t pack_entry;
 		memset (&pack_entry, 0, sizeof (pack_entry));
 		strncpy (pack_entry.name, argv[i], sizeof (pack_entry.name) - 1);
-		pack_entry.filelen = in_size;
+		pack_entry.filelen = (int)in_size;
 		pack_entry.filepos = file_offset;
 
 		fseek (out, directory_offset + (file_index * sizeof (dpackfile_t)), SEEK_SET);
@@ -117,7 +117,7 @@ int main (int argc, char *argv[])
 		fseek (out, file_offset, SEEK_SET);
 		fwrite (in_buffer, in_size, 1, out);
 
-		file_offset += in_size;
+		file_offset += (int32_t)in_size;
 		fclose (in);
 	}
 	free (in_buffer);

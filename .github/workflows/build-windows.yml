@@ -10,7 +10,7 @@ jobs:
       fail-fast: false
       matrix:
         configuration: [Release, Debug]
-        platform: [x64, Win32]
+        platform: [x64]
     steps:
     - uses: actions/checkout@v4
     - name: Install Vulkan SDK
