@@ -34,7 +34,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define MZ_REALLOC(p, x) Mem_Realloc (p, x)
 
 // include miniz stb-syle, directly in this compilation unit.
-#define MINIZ_HEADER_FILE_ONLY
+// (supported by miniz)
 #include "miniz.c"
 
 static char *largv[MAX_NUM_ARGVS + 1];

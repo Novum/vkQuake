@@ -4,7 +4,7 @@
 #include <string.h>
 
 // include miniz stb-syle, directly in this compilation unit.
-#define MINIZ_HEADER_FILE_ONLY
+// (supported by miniz)
 #include "../Quake/miniz.c"
 
 int main (int argc, char **argv)
