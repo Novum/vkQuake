@@ -129,6 +129,9 @@ static void GL_DrawAliasFrame (
 	{
 	case PV_QUAKE1:
 	{
+		// only 1 surface
+		assert (paliashdr->nextsurface == NULL);
+
 		VkBuffer		uniform_buffer;
 		uint32_t		uniform_offset;
 		VkDescriptorSet ubo_set;
@@ -183,8 +186,8 @@ static void GL_DrawAliasFrame (
 		vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 1, vertex_buffers, vertex_offsets);
 		vulkan_globals.vk_cmd_bind_index_buffer (cbx->cb, paliashdr->index_buffer, 0, VK_INDEX_TYPE_UINT16);
 
-		// paliashdr->vertex_buffer contains all the indices of its nextsurface, so we draw paliashdr->total_numindexes.
-		vulkan_globals.vk_cmd_draw_indexed (cbx->cb, paliashdr->total_numindexes, 1, 0, 0, 0);
+		//
+		vulkan_globals.vk_cmd_draw_indexed (cbx->cb, paliashdr->numindexes, 1, 0, 0, 0);
 		break;
 	}
 	}
@@ -485,54 +488,56 @@ void R_DrawAliasModel (cb_context_t *cbx, entity_t *e, int *aliaspolys)
 	//
 	// set up lighting
 	//
-	for (const aliashdr_t *hdr = paliashdr; hdr != NULL; hdr = hdr->nextsurface)
-	{
-		*aliaspolys += hdr->numtris;
-	}
-
 	vec3_t shadevector, lightcolor;
 	R_SetupAliasLighting (e, &shadevector, &lightcolor);
 
-	//
-	// set up textures
-	//
-	anim = (int)(cl.time * 10) & 3;
-	if ((skinnum >= paliashdr->numskins) || (skinnum < 0))
+	// Draw each surface of the model independently:
+	for (aliashdr_t *hdr = paliashdr; hdr != NULL; hdr = hdr->nextsurface)
 	{
-		Con_DPrintf ("R_DrawAliasModel: no such skin # %d for '%s'\n", skinnum, e->model->name);
-		// ericw -- display skin 0 for winquake compatibility
-		skinnum = 0;
-	}
-	tx = paliashdr->gltextures[skinnum][anim];
-	fb = paliashdr->fbtextures[skinnum][anim];
-	if (e->colormap != vid.colormap && !gl_nocolors.value)
-		if ((uintptr_t)e >= (uintptr_t)&cl.entities[1] && (uintptr_t)e <= (uintptr_t)&cl.entities[cl.maxclients] && playertextures[e - cl.entities - 1])
-			tx = playertextures[e - cl.entities - 1];
-	if (!gl_fullbrights.value)
-		fb = NULL;
-
-	if (r_fullbright_cheatsafe)
-	{
-		lightcolor[0] = 0.5f;
-		lightcolor[1] = 0.5f;
-		lightcolor[2] = 0.5f;
-	}
-	if (r_lightmap_cheatsafe)
-	{
-		tx = greytexture;
-		fb = NULL;
-		if (r_fullbright.value)
+		//
+		// set up textures
+		//
+		anim = (int)(cl.time * 10) & 3;
+		if ((skinnum >= hdr->numskins) || (skinnum < 0))
 		{
-			lightcolor[0] = 1.0f;
-			lightcolor[1] = 1.0f;
-			lightcolor[2] = 1.0f;
+			Con_DPrintf ("R_DrawAliasModel: no such skin # %d for '%s'\n", skinnum, e->model->name);
+			// ericw -- display skin 0 for winquake compatibility
+			skinnum = 0;
 		}
-	}
+		tx = hdr->gltextures[skinnum][anim];
+		fb = hdr->fbtextures[skinnum][anim];
+		if (e->colormap != vid.colormap && !gl_nocolors.value)
+			if ((uintptr_t)e >= (uintptr_t)&cl.entities[1] && (uintptr_t)e <= (uintptr_t)&cl.entities[cl.maxclients] && playertextures[e - cl.entities - 1])
+				tx = playertextures[e - cl.entities - 1];
+		if (!gl_fullbrights.value)
+			fb = NULL;
 
-	//
-	// draw it
-	//
-	GL_DrawAliasFrame (cbx, e, paliashdr, lerpdata, tx, fb, model_matrix, entalpha, alphatest, shadevector, lightcolor, false);
+		if (r_fullbright_cheatsafe)
+		{
+			lightcolor[0] = 0.5f;
+			lightcolor[1] = 0.5f;
+			lightcolor[2] = 0.5f;
+		}
+		if (r_lightmap_cheatsafe)
+		{
+			tx = greytexture;
+			fb = NULL;
+			if (r_fullbright.value)
+			{
+				lightcolor[0] = 1.0f;
+				lightcolor[1] = 1.0f;
+				lightcolor[2] = 1.0f;
+			}
+		}
+
+		//
+		// draw it
+		//
+		GL_DrawAliasFrame (cbx, e, hdr, lerpdata, tx, fb, model_matrix, entalpha, alphatest, shadevector, lightcolor, false);
+
+		// update polycounts
+		*aliaspolys += hdr->numtris;
+	} // e for each surface
 }
 
 // johnfitz -- values for shadow matrix
@@ -590,5 +595,9 @@ void R_DrawAliasModel_ShowTris (cb_context_t *cbx, entity_t *e)
 
 	vec3_t shadevector = {0.0f, 0.0f, 0.0f};
 	vec3_t lightcolor = {0.0f, 0.0f, 0.0f};
-	GL_DrawAliasFrame (cbx, e, paliashdr, lerpdata, nulltexture, nulltexture, model_matrix, 0.0f, false, shadevector, lightcolor, r_showtris.value);
+	// Draw each surface of the model independently:
+	for (aliashdr_t *hdr = paliashdr; hdr != NULL; hdr = hdr->nextsurface)
+	{
+		GL_DrawAliasFrame (cbx, e, hdr, lerpdata, nulltexture, nulltexture, model_matrix, 0.0f, false, shadevector, lightcolor, r_showtris.value);
+	}
 }

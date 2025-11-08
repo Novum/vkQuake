@@ -150,10 +150,13 @@ static uint32_t AliasMeshHash (const void *const p)
 
 void GL_MakeAliasModelDisplayLists (qmodel_t *m, aliashdr_t *paliashdr)
 {
+	assert (paliashdr->poseverttype == PV_QUAKE1);
+
 	Con_DPrintf2 ("meshing %s...\n", m->name);
 
 	// first, copy the verts onto the hunk
 	TEMP_ALLOC_ZEROED (trivertx_t, verts, paliashdr->numposes * paliashdr->numverts);
+
 	for (int i = 0; i < paliashdr->numposes; i++)
 		for (int j = 0; j < paliashdr->numverts; j++)
 			verts[i * paliashdr->numverts + j] = poseverts[i][j];
@@ -208,8 +211,6 @@ void GL_MakeAliasModelDisplayLists (qmodel_t *m, aliashdr_t *paliashdr)
 
 	HashMap_Destroy (vertex_to_index_map);
 
-	paliashdr->total_numindexes = paliashdr->numindexes;
-
 	// upload immediately
 	paliashdr->poseverttype = PV_QUAKE1;
 	GLMesh_UploadBuffers (m, paliashdr, indexes, (byte *)verts, desc, NULL);
@@ -227,85 +228,88 @@ extern float r_avertexnormals[NUMVERTEXNORMALS][3];
 GLMesh_DeleteMeshBuffers
 ================
 */
-void GLMesh_DeleteMeshBuffers (aliashdr_t *hdr)
+void GLMesh_DeleteMeshBuffers (aliashdr_t *mainhdr)
 {
-	if (!hdr || (hdr->vertex_buffer == VK_NULL_HANDLE))
-		return;
-
-	if (in_update_screen)
+	// Delete all surfaces:
+	for (aliashdr_t *hdr = mainhdr; hdr != NULL; hdr = hdr->nextsurface)
 	{
-		AddBufferGarbage (hdr->vertex_buffer, VK_NULL_HANDLE, hdr->vertex_allocation, VK_NULL_HANDLE, NULL);
-		AddBufferGarbage (hdr->index_buffer, VK_NULL_HANDLE, hdr->index_allocation, VK_NULL_HANDLE, NULL);
-		if (hdr->joints_buffer != VK_NULL_HANDLE)
-			AddBufferGarbage (hdr->joints_buffer, VK_NULL_HANDLE, hdr->joints_allocation, hdr->joints_set, &vulkan_globals.joints_buffer_set_layout);
-	}
-	else
-	{
-		GL_WaitForDeviceIdle ();
+		if (!hdr || (hdr->vertex_buffer == VK_NULL_HANDLE))
+			return;
 
-		vkDestroyBuffer (vulkan_globals.device, hdr->vertex_buffer, NULL);
-		GL_HeapFree (mesh_buffer_heap, hdr->vertex_allocation, &num_vulkan_mesh_allocations);
-
-		vkDestroyBuffer (vulkan_globals.device, hdr->index_buffer, NULL);
-		GL_HeapFree (mesh_buffer_heap, hdr->index_allocation, &num_vulkan_mesh_allocations);
-
-		if (hdr->joints_buffer != VK_NULL_HANDLE)
+		if (in_update_screen)
 		{
-			vkDestroyBuffer (vulkan_globals.device, hdr->joints_buffer, NULL);
-			GL_HeapFree (mesh_buffer_heap, hdr->joints_allocation, &num_vulkan_mesh_allocations);
-			R_FreeDescriptorSet (hdr->joints_set, &vulkan_globals.joints_buffer_set_layout);
+			AddBufferGarbage (hdr->vertex_buffer, VK_NULL_HANDLE, hdr->vertex_allocation, VK_NULL_HANDLE, NULL);
+			AddBufferGarbage (hdr->index_buffer, VK_NULL_HANDLE, hdr->index_allocation, VK_NULL_HANDLE, NULL);
+			if (hdr->joints_buffer != VK_NULL_HANDLE)
+				AddBufferGarbage (hdr->joints_buffer, VK_NULL_HANDLE, hdr->joints_allocation, hdr->joints_set, &vulkan_globals.joints_buffer_set_layout);
 		}
-	}
+		else
+		{
+			GL_WaitForDeviceIdle ();
 
-	hdr->vertex_buffer = VK_NULL_HANDLE;
-	hdr->vertex_allocation = NULL;
-	hdr->index_buffer = VK_NULL_HANDLE;
-	hdr->index_allocation = NULL;
-	hdr->joints_buffer = VK_NULL_HANDLE;
-	hdr->joints_allocation = NULL;
-	hdr->joints_set = VK_NULL_HANDLE;
-	for (int i = 0; i < MAX_SKINS; ++i)
-		SAFE_FREE (hdr->texels[i]);
+			vkDestroyBuffer (vulkan_globals.device, hdr->vertex_buffer, NULL);
+			GL_HeapFree (mesh_buffer_heap, hdr->vertex_allocation, &num_vulkan_mesh_allocations);
+
+			vkDestroyBuffer (vulkan_globals.device, hdr->index_buffer, NULL);
+			GL_HeapFree (mesh_buffer_heap, hdr->index_allocation, &num_vulkan_mesh_allocations);
+
+			if (hdr->joints_buffer != VK_NULL_HANDLE)
+			{
+				vkDestroyBuffer (vulkan_globals.device, hdr->joints_buffer, NULL);
+				GL_HeapFree (mesh_buffer_heap, hdr->joints_allocation, &num_vulkan_mesh_allocations);
+				R_FreeDescriptorSet (hdr->joints_set, &vulkan_globals.joints_buffer_set_layout);
+			}
+		}
+
+		hdr->vertex_buffer = VK_NULL_HANDLE;
+		hdr->vertex_allocation = NULL;
+		hdr->index_buffer = VK_NULL_HANDLE;
+		hdr->index_allocation = NULL;
+		hdr->joints_buffer = VK_NULL_HANDLE;
+		hdr->joints_allocation = NULL;
+		hdr->joints_set = VK_NULL_HANDLE;
+		for (int i = 0; i < MAX_SKINS; ++i)
+			SAFE_FREE (hdr->texels[i]);
+	}
 }
 
 /*
 ================
-GLMesh_UploadBuffers
+GLMesh_UploadBuffers : Upload data for a single aliashdr_t *hdr (not it's nextsurfaces)
 ================
 */
-void GLMesh_UploadBuffers (qmodel_t *mod, aliashdr_t *mainhdr, unsigned short *indexes, byte *vertexes, aliasmesh_t *desc, jointpose_t *joints)
+void GLMesh_UploadBuffers (qmodel_t *mod, aliashdr_t *hdr, unsigned short *indexes, byte *vertexes, aliasmesh_t *desc, jointpose_t *joints)
 {
-	size_t	 numindexes = 0;
-	size_t	 numverts = 0;
+	int		 numindexes = 0;
+	int		 numverts = 0;
 	VkResult err;
-	if (!mainhdr)
+	if (!hdr)
 		return;
 
 	// count how much space we're going to need.
-	size_t totalvbosize = 0;
-	for (const aliashdr_t *hdr = mainhdr; hdr != NULL; hdr = hdr->nextsurface)
-	{
-		switch (hdr->poseverttype)
-		{
-		case PV_QUAKE1:
-			totalvbosize +=
-				(hdr->numposes * hdr->numverts_vbo * sizeof (meshxyz_t)); // ericw -- what RMQEngine called nummeshframes is called numposes in QuakeSpasm
-			break;
-		case PV_MD5:
-			totalvbosize += (hdr->numposes * hdr->numverts_vbo * sizeof (md5vert_t));
-			break;
-		}
+	int totalvbosize = 0;
 
-		numverts += hdr->numverts_vbo;
-		numindexes += hdr->numindexes;
+	switch (hdr->poseverttype)
+	{
+	case PV_QUAKE1:
+		totalvbosize +=
+			(hdr->numposes * hdr->numverts_vbo * (int)sizeof (meshxyz_t)); // ericw -- what RMQEngine called nummeshframes is called numposes in QuakeSpasm
+		break;
+	case PV_MD5:
+		assert (hdr->numposes == 1);
+		totalvbosize += hdr->numverts_vbo * (int)sizeof (md5vert_t);
+		break;
 	}
 
-	const size_t totaljointssize = mainhdr->numframes * mainhdr->numjoints * sizeof (jointpose_t);
+	numverts += hdr->numverts_vbo;
+	numindexes += hdr->numindexes;
 
-	assert ((mainhdr->nextsurface == NULL) || (mainhdr->poseverttype != PV_QUAKE1));
-	if (mainhdr->poseverttype == PV_QUAKE1)
+	const size_t totaljointssize = hdr->numframes * hdr->numjoints * sizeof (jointpose_t);
+
+	if (hdr->poseverttype == PV_QUAKE1)
 	{
-		mainhdr->vbostofs = totalvbosize;
+		// reserve room from ST data starting at vbostofs.
+		hdr->vbostofs = totalvbosize;
 		totalvbosize += (numverts * sizeof (meshst_t));
 	}
 
@@ -324,75 +328,76 @@ void GLMesh_UploadBuffers (qmodel_t *mod, aliashdr_t *mainhdr, unsigned short *i
 		buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 		buffer_create_info.size = totalindexsize;
 		buffer_create_info.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-		err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &mainhdr->index_buffer);
+		err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &hdr->index_buffer);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkCreateBuffer failed");
 
-		GL_SetObjectName ((uint64_t)mainhdr->index_buffer, VK_OBJECT_TYPE_BUFFER, mod->name);
+		GL_SetObjectName ((uint64_t)hdr->index_buffer, VK_OBJECT_TYPE_BUFFER, mod->name);
 
 		VkMemoryRequirements memory_requirements;
-		vkGetBufferMemoryRequirements (vulkan_globals.device, mainhdr->index_buffer, &memory_requirements);
+		vkGetBufferMemoryRequirements (vulkan_globals.device, hdr->index_buffer, &memory_requirements);
 
-		mainhdr->index_allocation = GL_HeapAllocate (mesh_buffer_heap, memory_requirements.size, memory_requirements.alignment, &num_vulkan_mesh_allocations);
+		hdr->index_allocation = GL_HeapAllocate (mesh_buffer_heap, memory_requirements.size, memory_requirements.alignment, &num_vulkan_mesh_allocations);
 		err = vkBindBufferMemory (
-			vulkan_globals.device, mainhdr->index_buffer, GL_HeapGetAllocationMemory (mainhdr->index_allocation),
-			GL_HeapGetAllocationOffset (mainhdr->index_allocation));
+			vulkan_globals.device, hdr->index_buffer, GL_HeapGetAllocationMemory (hdr->index_allocation), GL_HeapGetAllocationOffset (hdr->index_allocation));
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkBindBufferMemory failed");
 
-		R_StagingUploadBuffer (mainhdr->index_buffer, totalindexsize, (byte *)indexes);
+		R_StagingUploadBuffer (hdr->index_buffer, totalindexsize, (byte *)indexes);
 	}
 
 	// create the vertex buffer (empty)
-
 	TEMP_ALLOC (byte, vbodata, totalvbosize);
 
 	// fill in the vertices of the buffer
 	size_t vertofs = 0;
-	for (const aliashdr_t *hdr = mainhdr; hdr != NULL; hdr = hdr->nextsurface)
+
+	switch (hdr->poseverttype)
 	{
-		switch (hdr->poseverttype)
+	case PV_QUAKE1:
+		for (int f = 0; f < hdr->numposes; f++) // ericw -- what RMQEngine called nummeshframes is called numposes in QuakeSpasm
 		{
-		case PV_QUAKE1:
-			for (int f = 0; f < hdr->numposes; f++) // ericw -- what RMQEngine called nummeshframes is called numposes in QuakeSpasm
+			meshxyz_t		 *xyz = (meshxyz_t *)vbodata + vertofs;
+			const trivertx_t *tv = (trivertx_t *)vertexes + (hdr->numverts * f);
+			vertofs += hdr->numverts_vbo;
+
+			for (int v = 0; v < hdr->numverts_vbo; v++)
 			{
-				meshxyz_t		 *xyz = (meshxyz_t *)vbodata + vertofs;
-				const trivertx_t *tv = (trivertx_t *)vertexes + (hdr->numverts * f);
-				vertofs += hdr->numverts_vbo;
+				trivertx_t trivert = tv[desc[v].vertindex];
 
-				for (int v = 0; v < hdr->numverts_vbo; v++)
-				{
-					trivertx_t trivert = tv[desc[v].vertindex];
+				xyz[v].xyz[0] = trivert.v[0];
+				xyz[v].xyz[1] = trivert.v[1];
+				xyz[v].xyz[2] = trivert.v[2];
+				xyz[v].xyz[3] = 1; // need w 1 for 4 byte vertex compression
 
-					xyz[v].xyz[0] = trivert.v[0];
-					xyz[v].xyz[1] = trivert.v[1];
-					xyz[v].xyz[2] = trivert.v[2];
-					xyz[v].xyz[3] = 1; // need w 1 for 4 byte vertex compression
-
-					// map the normal coordinates in [-1..1] to [-127..127] and store in an unsigned char.
-					// this introduces some error (less than 0.004), but the normals were very coarse
-					// to begin with
-					xyz[v].normal[0] = 127 * r_avertexnormals[trivert.lightnormalindex][0];
-					xyz[v].normal[1] = 127 * r_avertexnormals[trivert.lightnormalindex][1];
-					xyz[v].normal[2] = 127 * r_avertexnormals[trivert.lightnormalindex][2];
-					xyz[v].normal[3] = 0; // unused; for 4-byte alignment
-				}
+				// map the normal coordinates in [-1..1] to [-127..127] and store in an unsigned char.
+				// this introduces some error (less than 0.004), but the normals were very coarse
+				// to begin with
+				xyz[v].normal[0] = 127 * r_avertexnormals[trivert.lightnormalindex][0];
+				xyz[v].normal[1] = 127 * r_avertexnormals[trivert.lightnormalindex][1];
+				xyz[v].normal[2] = 127 * r_avertexnormals[trivert.lightnormalindex][2];
+				xyz[v].normal[3] = 0; // unused; for 4-byte alignment
 			}
-			break;
-		case PV_MD5:
-			assert (hdr->numposes == 1);
-			memcpy (vbodata, vertexes, totalvbosize);
 		}
+		break;
+	case PV_MD5:
+		assert (hdr->numposes == 1);
+		memcpy (vbodata, vertexes, totalvbosize);
+		// vertexes is already the concat of the hdr surface vertices, triangles, ST, and normals
+		// already baked in.
+		break;
 	}
 
 	// fill in the ST coords at the end of the buffer
-	if (mainhdr->poseverttype == PV_QUAKE1)
+	if (hdr->poseverttype == PV_QUAKE1)
 	{
-		meshst_t *st = (meshst_t *)(vbodata + mainhdr->vbostofs);
-		for (int f = 0; f < mainhdr->numverts_vbo; f++)
+		assert (hdr->nextsurface == NULL);
+
+		meshst_t *st = (meshst_t *)(vbodata + hdr->vbostofs);
+		for (int f = 0; f < hdr->numverts_vbo; f++)
 		{
-			st[f].st[0] = ((float)desc[f].st[0] + 0.5f) / (float)mainhdr->skinwidth;
-			st[f].st[1] = ((float)desc[f].st[1] + 0.5f) / (float)mainhdr->skinheight;
+			st[f].st[0] = ((float)desc[f].st[0] + 0.5f) / (float)hdr->skinwidth;
+			st[f].st[1] = ((float)desc[f].st[1] + 0.5f) / (float)hdr->skinheight;
 		}
 	}
 
@@ -402,23 +407,23 @@ void GLMesh_UploadBuffers (qmodel_t *mod, aliashdr_t *mainhdr, unsigned short *i
 		buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 		buffer_create_info.size = totalvbosize;
 		buffer_create_info.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-		err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &mainhdr->vertex_buffer);
+		err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &hdr->vertex_buffer);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkCreateBuffer failed");
 
-		GL_SetObjectName ((uint64_t)mainhdr->vertex_buffer, VK_OBJECT_TYPE_BUFFER, mod->name);
+		GL_SetObjectName ((uint64_t)hdr->vertex_buffer, VK_OBJECT_TYPE_BUFFER, mod->name);
 
 		VkMemoryRequirements memory_requirements;
-		vkGetBufferMemoryRequirements (vulkan_globals.device, mainhdr->vertex_buffer, &memory_requirements);
+		vkGetBufferMemoryRequirements (vulkan_globals.device, hdr->vertex_buffer, &memory_requirements);
 
-		mainhdr->vertex_allocation = GL_HeapAllocate (mesh_buffer_heap, memory_requirements.size, memory_requirements.alignment, &num_vulkan_mesh_allocations);
+		hdr->vertex_allocation = GL_HeapAllocate (mesh_buffer_heap, memory_requirements.size, memory_requirements.alignment, &num_vulkan_mesh_allocations);
 		err = vkBindBufferMemory (
-			vulkan_globals.device, mainhdr->vertex_buffer, GL_HeapGetAllocationMemory (mainhdr->vertex_allocation),
-			GL_HeapGetAllocationOffset (mainhdr->vertex_allocation));
+			vulkan_globals.device, hdr->vertex_buffer, GL_HeapGetAllocationMemory (hdr->vertex_allocation),
+			GL_HeapGetAllocationOffset (hdr->vertex_allocation));
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkBindBufferMemory failed");
 
-		R_StagingUploadBuffer (mainhdr->vertex_buffer, totalvbosize, vbodata);
+		R_StagingUploadBuffer (hdr->vertex_buffer, totalvbosize, vbodata);
 	}
 
 	// Allocate joints buffer & upload to GPU
@@ -428,34 +433,34 @@ void GLMesh_UploadBuffers (qmodel_t *mod, aliashdr_t *mainhdr, unsigned short *i
 		buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 		buffer_create_info.size = totaljointssize;
 		buffer_create_info.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-		err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &mainhdr->joints_buffer);
+		err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &hdr->joints_buffer);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkCreateBuffer failed");
 
-		GL_SetObjectName ((uint64_t)mainhdr->joints_buffer, VK_OBJECT_TYPE_BUFFER, mod->name);
+		GL_SetObjectName ((uint64_t)hdr->joints_buffer, VK_OBJECT_TYPE_BUFFER, mod->name);
 
 		VkMemoryRequirements memory_requirements;
-		vkGetBufferMemoryRequirements (vulkan_globals.device, mainhdr->joints_buffer, &memory_requirements);
+		vkGetBufferMemoryRequirements (vulkan_globals.device, hdr->joints_buffer, &memory_requirements);
 
-		mainhdr->joints_allocation = GL_HeapAllocate (mesh_buffer_heap, memory_requirements.size, memory_requirements.alignment, &num_vulkan_mesh_allocations);
+		hdr->joints_allocation = GL_HeapAllocate (mesh_buffer_heap, memory_requirements.size, memory_requirements.alignment, &num_vulkan_mesh_allocations);
 		err = vkBindBufferMemory (
-			vulkan_globals.device, mainhdr->joints_buffer, GL_HeapGetAllocationMemory (mainhdr->joints_allocation),
-			GL_HeapGetAllocationOffset (mainhdr->joints_allocation));
+			vulkan_globals.device, hdr->joints_buffer, GL_HeapGetAllocationMemory (hdr->joints_allocation),
+			GL_HeapGetAllocationOffset (hdr->joints_allocation));
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkBindBufferMemory failed");
 
-		R_StagingUploadBuffer (mainhdr->joints_buffer, totaljointssize, (byte *)joints);
+		R_StagingUploadBuffer (hdr->joints_buffer, totaljointssize, (byte *)joints);
 
-		mainhdr->joints_set = R_AllocateDescriptorSet (&vulkan_globals.joints_buffer_set_layout);
+		hdr->joints_set = R_AllocateDescriptorSet (&vulkan_globals.joints_buffer_set_layout);
 
 		ZEROED_STRUCT (VkDescriptorBufferInfo, buffer_info);
-		buffer_info.buffer = mainhdr->joints_buffer;
+		buffer_info.buffer = hdr->joints_buffer;
 		buffer_info.offset = 0;
 		buffer_info.range = VK_WHOLE_SIZE;
 
 		ZEROED_STRUCT (VkWriteDescriptorSet, joints_set_write);
 		joints_set_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		joints_set_write.dstSet = mainhdr->joints_set;
+		joints_set_write.dstSet = hdr->joints_set;
 		joints_set_write.dstBinding = 0;
 		joints_set_write.dstArrayElement = 0;
 		joints_set_write.descriptorCount = 1;
