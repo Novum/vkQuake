@@ -68,11 +68,12 @@ endif
 
 bintoc_command = [bintoc, '@PLAINNAME@.spv', '@PLAINNAME@_spv', '@OUTPUT@']
 
-mkpak_file_list = run_command('cat', 'Misc/vq_pak/vq_pak_contents.txt').stdout().strip().split('\n')
 vkquake_pak_path = join_paths(meson.project_source_root(), 'Quake', 'vkquake.pak')
-vq_pak_path = join_paths(meson.project_source_root(), 'Misc', 'vq_pak')
 
-mkpak_command = [mkpak, vkquake_pak_path, vq_pak_path, mkpak_file_list]
+vq_pak_path = join_paths(meson.project_source_root(), 'Misc', 'vq_pak')
+mkpak_toc_file = join_paths(vq_pak_path, 'vq_pak_contents.txt')
+
+mkpak_command = [mkpak, vkquake_pak_path, vq_pak_path, mkpak_toc_file]
 
 run_mkpak = custom_target('run-mkpak',
   output : 'vkquake.pak',

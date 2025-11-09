@@ -20,6 +20,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <stdint.h>
 #include <string.h>
 #include <stdlib.h>
+#include <ctype.h>
 
 static FILE *out;
 
@@ -57,10 +58,11 @@ static void write_header (int32_t directory_offset, int32_t directory_size)
 
 int main (int argc, char *argv[])
 {
+	FILE *toc_file = NULL;
 
 	if (argc < 4)
 	{
-		fprintf (stderr, "Usage: mkpak [output.pak] [root dir for files] [files...]\n");
+		fprintf (stderr, "Usage: mkpak [output.pak] [root dir for files] [toc file]\n");
 		return 1;
 	}
 
@@ -70,9 +72,28 @@ int main (int argc, char *argv[])
 		fprintf (stderr, "Could not open output file '%s'", argv[1]);
 		return 1;
 	}
+	// read as text file
+	toc_file = fopen (argv[3], "r");
+	if (toc_file == NULL)
+	{
+		fprintf (stderr, "Could not open toc_file file '%s'", argv[3]);
+		return 1;
+	}
+
+	char entry_path[1024] = {0};
+
+	int32_t num_in_files = 0;
+
+	// count the number of lines = num_in_files
+	while (fgets (entry_path, sizeof (entry_path), toc_file))
+	{
+		num_in_files++;
+	}
+	// rewind
+	rewind (toc_file);
 
 	int32_t directory_offset = 12;
-	int32_t num_in_files = argc - 3;
+
 	int32_t directory_size = num_in_files * sizeof (dpackfile_t);
 	int32_t file_offset = directory_offset + directory_size;
 
@@ -83,13 +104,30 @@ int main (int argc, char *argv[])
 
 	char input_file_path[1024] = {0};
 
-	for (int i = 3; i < argc; ++i)
+	int file_index = -1;
+	// read each  line
+	while (fgets (entry_path, sizeof (entry_path), toc_file))
 	{
-		int file_index = i - 3;
-		// prepend the root dir
-		snprintf (input_file_path, sizeof (input_file_path), "%s/%s", argv[2], argv[i]);
+		// trim leading and trailing whaitespaces:
+		char *entry_path_start = entry_path;
 
-		// printf (" argv[%d]=%s\n", i, input_file_path);
+		while (isspace ((unsigned char)*entry_path_start))
+			entry_path_start++;
+
+		for (int char_index = 0; char_index < strlen (entry_path_start); char_index++)
+		{
+			if (isspace (entry_path_start[char_index]))
+			{
+				entry_path_start[char_index] = '\0';
+				break;
+			}
+		}
+
+		file_index++;
+		// prepend the root dir
+		snprintf (input_file_path, sizeof (input_file_path), "%s/%s", argv[2], entry_path_start);
+
+		// printf (" pak entry = %s, filename = %s\n", entry_path_start, input_file_path);
 
 		in = fopen (input_file_path, "rb");
 
@@ -107,7 +145,7 @@ int main (int argc, char *argv[])
 
 		dpackfile_t pack_entry;
 		memset (&pack_entry, 0, sizeof (pack_entry));
-		strncpy (pack_entry.name, argv[i], sizeof (pack_entry.name) - 1);
+		strncpy (pack_entry.name, entry_path_start, sizeof (pack_entry.name) - 1);
 		pack_entry.filelen = (int)in_size;
 		pack_entry.filepos = file_offset;
 
@@ -119,7 +157,11 @@ int main (int argc, char *argv[])
 
 		file_offset += (int32_t)in_size;
 		fclose (in);
-	}
+
+	} // end while
+
+	fclose (out);
+	fclose (toc_file);
 	free (in_buffer);
 
 	return 0;

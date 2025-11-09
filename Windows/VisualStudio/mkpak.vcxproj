@@ -67,7 +67,7 @@
     </Link>
     <PostBuildEvent>
       <Message>Building vkquake.pak</Message>
-      <Command>powershell -ExecutionPolicy Bypass -File $(ProjectDir)\..\..\Misc\vq_pak\run_mkpak.ps1 $(ProjectDir) $(OutDir)</Command>
+      <Command>$(OutDir)mkpak.exe $(ProjectDir)\..\..\Quake\vkquake.pak $(ProjectDir)\..\..\Misc\vq_pak $(ProjectDir)\..\..\Misc\vq_pak\vq_pak_contents.txt</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -87,7 +87,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <PostBuildEvent>
-      <Command>powershell -ExecutionPolicy Bypass -File $(ProjectDir)\..\..\Misc\vq_pak\run_mkpak.ps1 $(ProjectDir) $(OutDir)</Command>
+      <Command>$(OutDir)mkpak.exe $(ProjectDir)\..\..\Quake\vkquake.pak $(ProjectDir)\..\..\Misc\vq_pak $(ProjectDir)\..\..\Misc\vq_pak\vq_pak_contents.txt</Command>
     </PostBuildEvent>
     <PostBuildEvent>
       <Message>Building vkquake.pak</Message>

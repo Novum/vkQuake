@@ -1,5 +1,5 @@
 HOST_CC = gcc
-INPUT := $(shell cat vq_pak_contents.txt)
+INPUT := vq_pak_contents.txt
 OUTPUT_NAME := vkquake.pak
 OUTPUT := ../../Quake/$(OUTPUT_NAME)
 OUTPUT_EMBEDDED := ../../Quake/embedded_pak.c
