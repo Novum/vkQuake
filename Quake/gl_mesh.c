@@ -364,10 +364,11 @@ void GLMesh_UploadBuffers (qmodel_t *mod, aliashdr_t *hdr, unsigned short *index
 			for (int v = 0; v < hdr->numverts_vbo; v++)
 			{
 				trivertx_t trivert = tv[desc[v].vertindex];
-
-				xyz[v].xyz[0] = trivert.v[0];
-				xyz[v].xyz[1] = trivert.v[1];
-				xyz[v].xyz[2] = trivert.v[2];
+				// MDL is [0-255] => remapped on unsigned 16bit [0; 65535] seen as [0,1] coords in the vertex shader
+				// to be compatible with the MD3 range
+				xyz[v].xyz[0] = (int)trivert.v[0] * 257;
+				xyz[v].xyz[1] = (int)trivert.v[1] * 257;
+				xyz[v].xyz[2] = (int)trivert.v[2] * 257;
 				xyz[v].xyz[3] = 1; // need w 1 for 4 byte vertex compression
 
 				// map the normal coordinates in [-1..1] to [-127..127] and store in an unsigned char.
@@ -491,7 +492,9 @@ void GLMesh_DeleteAllMeshBuffers (void)
 		if (m->type != mod_alias)
 			continue;
 
-		for (int i = 0; i < 2; ++i)
+		for (int i = 0; i < PV_SIZE; ++i)
+		{
 			GLMesh_DeleteMeshBuffers ((aliashdr_t *)m->extradata[i]);
+		}
 	}
 }
