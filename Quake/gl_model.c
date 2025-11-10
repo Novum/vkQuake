@@ -141,18 +141,18 @@ Caches the data if needed
 void *Mod_Extradata_CheckSkin (qmodel_t *mod, int skinnum)
 {
 	Mod_LoadModel (mod, true);
-	if (mod->type == mod_alias && mod->extradata[1])
+	if (mod->type == mod_alias && mod->extradata[PV_MD5])
 	{
 		if (r_md5models.value >= 3)
-			return mod->extradata[1];
-		if (r_md5models.value >= 2 && skinnum < ((aliashdr_t *)mod->extradata[1])->numskins)
-			return mod->extradata[1];
-		if (r_md5models.value && mod->md5_prio && skinnum < ((aliashdr_t *)mod->extradata[1])->numskins)
-			return mod->extradata[1];
-		if (!mod->extradata[0])
-			return mod->extradata[1];
+			return mod->extradata[PV_MD5];
+		if (r_md5models.value >= 2 && skinnum < ((aliashdr_t *)mod->extradata[PV_MD5])->numskins)
+			return mod->extradata[PV_MD5];
+		if (r_md5models.value && mod->md5_prio && skinnum < ((aliashdr_t *)mod->extradata[PV_MD5])->numskins)
+			return mod->extradata[PV_MD5];
+		if (!mod->extradata[PV_QUAKE1])
+			return mod->extradata[PV_MD5];
 	}
-	return mod->extradata[0];
+	return mod->extradata[PV_QUAKE1];
 }
 
 /*
@@ -331,8 +331,8 @@ static void Mod_FreeModelMemory (qmodel_t *mod)
 {
 	if (mod->name[0] != '*')
 	{
-		if ((mod->type == mod_sprite) && (mod->extradata[0]))
-			Mod_FreeSpriteMemory ((msprite_t *)mod->extradata[0]);
+		if ((mod->type == mod_sprite) && (mod->extradata[PV_QUAKE1]))
+			Mod_FreeSpriteMemory ((msprite_t *)mod->extradata[PV_QUAKE1]);
 		// Last two ones are dummy textures
 		for (int i = 0; i < mod->numtextures - 2; ++i)
 			SAFE_FREE (mod->textures[i]);
@@ -369,7 +369,7 @@ static void Mod_FreeModelMemory (qmodel_t *mod)
 		SAFE_FREE (mod->visdata);
 		SAFE_FREE (mod->lightdata);
 		SAFE_FREE (mod->entities);
-		for (int i = 0; i < 2; ++i)
+		for (int i = 0; i < PV_SIZE; ++i)
 			SAFE_FREE (mod->extradata[i]);
 		SAFE_FREE (mod->water_surfs);
 		mod->used_water_surfs = 0;
@@ -495,8 +495,10 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 
 	if (mod->type == mod_alias)
 	{
-		for (int i = 0; i < 2; ++i)
+		for (int i = 0; i < PV_SIZE; ++i)
+		{
 			GLMesh_DeleteMeshBuffers ((aliashdr_t *)mod->extradata[i]);
+		}
 	}
 
 	//
@@ -3865,7 +3867,7 @@ static void Mod_LoadSpriteModel (qmodel_t *mod, void *buffer)
 
 	psprite = (msprite_t *)Mem_Alloc (size);
 
-	mod->extradata[0] = (byte *)psprite;
+	mod->extradata[PV_QUAKE1] = (byte *)psprite;
 
 	psprite->type = LittleLong (pin->type);
 	psprite->maxwidth = LittleLong (pin->width);
@@ -4850,7 +4852,9 @@ void Mod_Print (void)
 	Con_SafePrintf ("Cached models:\n"); // johnfitz -- safeprint instead of print
 	for (i = 0, mod = mod_known; i < mod_numknown; i++, mod++)
 	{
-		Con_SafePrintf ("%8p %8p: %s\n", mod->extradata[0], mod->extradata[1], mod->name); // johnfitz -- safeprint instead of print
+		Con_SafePrintf (
+			"MDL:%s|MD5:%s|MD3:%s - %s\n", (mod->extradata[PV_QUAKE1]) ? "YES" : " no", (mod->extradata[PV_MD5]) ? "YES" : " no",
+			(mod->extradata[PV_QUAKE3]) ? "YES" : " no", mod->name); // johnfitz -- safeprint instead of print
 	}
 	Con_Printf ("%i models\n", mod_numknown); // johnfitz -- print the total too
 }

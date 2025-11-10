@@ -2185,31 +2185,31 @@ static void R_InitVertexAttributes ()
 		alias_vertex_input_attribute_descriptions[0].location = 0;
 		alias_vertex_input_attribute_descriptions[0].offset = 0;
 		alias_vertex_input_attribute_descriptions[1].binding = 1;
-		alias_vertex_input_attribute_descriptions[1].format = VK_FORMAT_R8G8B8A8_UNORM;
+		alias_vertex_input_attribute_descriptions[1].format = VK_FORMAT_R16G16B16A16_UNORM;
 		alias_vertex_input_attribute_descriptions[1].location = 1;
 		alias_vertex_input_attribute_descriptions[1].offset = 0;
 		alias_vertex_input_attribute_descriptions[2].binding = 1;
 		alias_vertex_input_attribute_descriptions[2].format = VK_FORMAT_R8G8B8A8_SNORM;
 		alias_vertex_input_attribute_descriptions[2].location = 2;
-		alias_vertex_input_attribute_descriptions[2].offset = 4;
+		alias_vertex_input_attribute_descriptions[2].offset = 8;
 		alias_vertex_input_attribute_descriptions[3].binding = 2;
-		alias_vertex_input_attribute_descriptions[3].format = VK_FORMAT_R8G8B8A8_UNORM;
+		alias_vertex_input_attribute_descriptions[3].format = VK_FORMAT_R16G16B16A16_UNORM;
 		alias_vertex_input_attribute_descriptions[3].location = 3;
 		alias_vertex_input_attribute_descriptions[3].offset = 0;
 		alias_vertex_input_attribute_descriptions[4].binding = 2;
 		alias_vertex_input_attribute_descriptions[4].format = VK_FORMAT_R8G8B8A8_SNORM;
 		alias_vertex_input_attribute_descriptions[4].location = 4;
-		alias_vertex_input_attribute_descriptions[4].offset = 4;
+		alias_vertex_input_attribute_descriptions[4].offset = 8;
 
 		alias_vertex_binding_descriptions[0].binding = 0;
 		alias_vertex_binding_descriptions[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 		alias_vertex_binding_descriptions[0].stride = 8;
 		alias_vertex_binding_descriptions[1].binding = 1;
 		alias_vertex_binding_descriptions[1].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-		alias_vertex_binding_descriptions[1].stride = 8;
+		alias_vertex_binding_descriptions[1].stride = 12;
 		alias_vertex_binding_descriptions[2].binding = 2;
 		alias_vertex_binding_descriptions[2].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-		alias_vertex_binding_descriptions[2].stride = 8;
+		alias_vertex_binding_descriptions[2].stride = 12;
 	}
 
 	{
