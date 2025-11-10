@@ -287,8 +287,10 @@ typedef struct aliasmesh_s
 
 typedef struct meshxyz_s
 {
-	byte		xyz[4];
-	signed char normal[4];
+	// 16bit unsigned to fit both MDL and MD3,
+	// the alias vertex shader maps this on [0,1]
+	unsigned short xyz[4];
+	signed char	   normal[4];
 } meshxyz_t;
 
 typedef struct meshst_s
@@ -296,6 +298,13 @@ typedef struct meshst_s
 	float st[2];
 } meshst_t;
 //--
+
+// MD3 vertex+norm file format:
+typedef struct
+{
+	short xyz[3];
+	byte  latlong[2];
+} md3XyzNormal_t;
 
 typedef struct
 {
@@ -322,8 +331,10 @@ typedef struct glheapallocation_s glheapallocation_t;
 
 typedef enum
 {
-	PV_QUAKE1, // trivertx_t
-	PV_MD5,	   // md5vert_t
+	PV_QUAKE1 = 0, // trivertx_t (MDL)
+	PV_MD5,		   // md5vert_t (MD5)
+	PV_QUAKE3,	   // md3XyzNormal_t (MD3)
+	PV_SIZE
 } poseverttype_t;
 
 typedef struct aliashdr_s
@@ -528,7 +539,7 @@ typedef struct qmodel_s
 	//
 	// additional model data
 	//
-	byte *extradata[2]; // only access through Mod_Extradata
+	byte *extradata[PV_SIZE]; // only access through Mod_Extradata
 
 	qboolean md5_prio; // if true, the MD5 model has at least as much path priority as the MDL model
 
