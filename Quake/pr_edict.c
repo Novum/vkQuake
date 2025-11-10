@@ -886,8 +886,17 @@ void ED_PrintEdicts (void)
 	if (!sv.active)
 		return;
 
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-but-set-variable"
+#endif
+
 	int free_edicts_count = 0;
 	int free_list_count = 0;
+
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
 
 	PR_SwitchQCVM (&sv.qcvm);
 
