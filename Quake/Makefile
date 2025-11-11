@@ -101,7 +101,7 @@ debug:
 
 clean:
 	make -C ../Misc/vq_pak clean
-	$(RM) *.o *.d $(DEFAULT_TARGET) vkquake.pak $(BINTOC_EXE) \
+	$(RM) *.o *.d $(DEFAULT_TARGET) \
 	../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/*.c \
 	../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/*.spv \
 	../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/*.d

@@ -79,7 +79,9 @@ run_mkpak = custom_target('run-mkpak',
   output : 'vkquake.pak',
   command: mkpak_command)
 
-embedded_pak_path = join_paths(meson.project_source_root(), 'Quake', 'embedded_pak.c')
+# Write the embedded pak into the build dir so Meson can track it.
+# this as no special dependencies, so actually can generated anywhere
+embedded_pak_path = join_paths(meson.current_build_dir(), 'embedded_pak.c')
 
 bintoc_compress_command = [bintoc, '-c', vkquake_pak_path,'vkquake.pak', embedded_pak_path]
 
@@ -180,7 +182,7 @@ srcs = [
     'Quake/wad.c',
     'Quake/world.c',
 	'Quake/hash_map.c',
-	'Quake/embedded_pak.c',
+	 run_generate_embedded_pak,
 ]
 
 cflags = ['-Wall', '-Wno-trigraphs', '-Werror', '-std=gnu11']
