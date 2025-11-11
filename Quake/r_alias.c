@@ -111,9 +111,12 @@ static void GL_DrawAliasFrame (
 	case PV_MD5:
 		pipeline = vulkan_globals.md5_pipelines[pipeline_index];
 		break;
-	default:
+	case PV_QUAKE1:
+	case PV_QUAKE3:
 		pipeline = vulkan_globals.alias_pipelines[pipeline_index];
 		break;
+	default:
+		pipeline = vulkan_globals.alias_pipelines[pipeline_index];
 	}
 
 	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
