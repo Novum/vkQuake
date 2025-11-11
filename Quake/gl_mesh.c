@@ -292,6 +292,7 @@ void GLMesh_UploadBuffers (qmodel_t *mod, aliashdr_t *hdr, unsigned short *index
 	switch (hdr->poseverttype)
 	{
 	case PV_QUAKE1:
+	case PV_QUAKE3:
 		totalvbosize +=
 			(hdr->numposes * hdr->numverts_vbo * (int)sizeof (meshxyz_t)); // ericw -- what RMQEngine called nummeshframes is called numposes in QuakeSpasm
 		break;
@@ -299,6 +300,8 @@ void GLMesh_UploadBuffers (qmodel_t *mod, aliashdr_t *hdr, unsigned short *index
 		assert (hdr->numposes == 1);
 		totalvbosize += hdr->numverts_vbo * (int)sizeof (md5vert_t);
 		break;
+	default:
+		assert (false);
 	}
 
 	numverts += hdr->numverts_vbo;
@@ -306,7 +309,7 @@ void GLMesh_UploadBuffers (qmodel_t *mod, aliashdr_t *hdr, unsigned short *index
 
 	const size_t totaljointssize = hdr->numframes * hdr->numjoints * sizeof (jointpose_t);
 
-	if (hdr->poseverttype == PV_QUAKE1)
+	if (hdr->poseverttype == PV_QUAKE1 || hdr->poseverttype == PV_QUAKE3)
 	{
 		// reserve room from ST data starting at vbostofs.
 		hdr->vbostofs = totalvbosize;
@@ -381,15 +384,47 @@ void GLMesh_UploadBuffers (qmodel_t *mod, aliashdr_t *hdr, unsigned short *index
 			}
 		}
 		break;
+	case PV_QUAKE3:
+		for (int f = 0; f < hdr->numposes; f++) // ericw -- what RMQEngine called nummeshframes is called numposes in QuakeSpasm
+		{
+			meshxyz_t			 *xyz = (meshxyz_t *)vbodata + vertofs;
+			const md3XyzNormal_t *tv = (md3XyzNormal_t *)vertexes + (hdr->numverts * f);
+			vertofs += hdr->numverts_vbo;
+
+			float lat, lng;
+			vertofs += hdr->numverts_vbo * sizeof (*xyz);
+
+			for (int v = 0; v < hdr->numverts_vbo; v++, tv++)
+			{
+				// MD3 is SIGNED 16bit => remapped on unsigned 16bit seen as [0,1] coords in the vertex shader
+				xyz[v].xyz[0] = (int)tv->xyz[0] + 32768;
+				xyz[v].xyz[1] = (int)tv->xyz[1] + 32768;
+				xyz[v].xyz[2] = (int)tv->xyz[2] + 32768;
+				xyz[v].xyz[3] = 1; // need w 1 for 4 byte vertex compression
+
+				// map the normal coordinates in [-1..1] to [-127..127] and store in an unsigned char.
+				// this introduces some error (less than 0.004), but the normals were very coarse
+				// to begin with
+				lat = (float)tv->latlong[0] * (2 * M_PI) * (1.0 / 255.0);
+				lng = (float)tv->latlong[1] * (2 * M_PI) * (1.0 / 255.0);
+				xyz[v].normal[0] = 127 * cos (lng) * sin (lat);
+				xyz[v].normal[1] = 127 * sin (lng) * sin (lat);
+				xyz[v].normal[2] = 127 * cos (lat);
+				xyz[v].normal[3] = 0; // unused; for 4-byte alignment
+			}
+		}
+		break;
 	case PV_MD5:
 		assert (hdr->numposes == 1);
 		memcpy (vbodata, vertexes, totalvbosize);
 		// vertexes is already the concat of the hdr surface vertices, triangles, ST, and normals
 		// already baked in.
 		break;
+	default:
+		assert (false);
 	}
 
-	// fill in the ST coords at the end of the buffer
+	// fill in the ST coords at the end of the buffer for MDL and MD3:
 	if (hdr->poseverttype == PV_QUAKE1)
 	{
 		assert (hdr->nextsurface == NULL);
@@ -399,6 +434,16 @@ void GLMesh_UploadBuffers (qmodel_t *mod, aliashdr_t *hdr, unsigned short *index
 		{
 			st[f].st[0] = ((float)desc[f].st[0] + 0.5f) / (float)hdr->skinwidth;
 			st[f].st[1] = ((float)desc[f].st[1] + 0.5f) / (float)hdr->skinheight;
+		}
+	}
+	else if (hdr->poseverttype == PV_QUAKE3)
+	{
+		meshst_t *st = (meshst_t *)(vbodata + hdr->vbostofs);
+		for (int f = 0; f < hdr->numverts_vbo; f++)
+		{
+			// md3 has floating-point skin coords. use the values directly.
+			st[f].st[0] = desc[f].st[0];
+			st[f].st[1] = desc[f].st[1];
 		}
 	}
 

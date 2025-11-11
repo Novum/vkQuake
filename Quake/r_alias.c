@@ -128,6 +128,7 @@ static void GL_DrawAliasFrame (
 	switch (paliashdr->poseverttype)
 	{
 	case PV_QUAKE1:
+	case PV_QUAKE3:
 	{
 		// only 1 surface
 		assert (paliashdr->nextsurface == NULL);
@@ -190,6 +191,8 @@ static void GL_DrawAliasFrame (
 		vulkan_globals.vk_cmd_draw_indexed (cbx->cb, paliashdr->numindexes, 1, 0, 0, 0);
 		break;
 	}
+	default:
+		assert (false);
 	}
 }
 

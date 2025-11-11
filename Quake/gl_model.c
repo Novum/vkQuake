@@ -3499,6 +3499,11 @@ static void Mod_CalcAliasBounds (qmodel_t *mod, aliashdr_t *a, int numvertexes, 
 		}
 		break;
 	}
+	case PV_QUAKE3:
+		// TODO : same as PV_QUAKE1 ?
+		assert (false);
+	default:
+		assert (false);
 	}
 
 	// rbounds will be used when entity has nonzero pitch or roll
