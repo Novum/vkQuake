@@ -292,9 +292,12 @@ void GLMesh_UploadBuffers (qmodel_t *mod, aliashdr_t *hdr, unsigned short *index
 	switch (hdr->poseverttype)
 	{
 	case PV_QUAKE1:
-	case PV_QUAKE3:
 		totalvbosize +=
 			(hdr->numposes * hdr->numverts_vbo * (int)sizeof (meshxyz_t)); // ericw -- what RMQEngine called nummeshframes is called numposes in QuakeSpasm
+		break;
+	case PV_QUAKE3:
+		totalvbosize +=
+			(hdr->numframes * hdr->numverts_vbo * (int)sizeof (meshxyz_t)); // ericw -- what RMQEngine called nummeshframes is called numposes in QuakeSpasm
 		break;
 	case PV_MD5:
 		assert (hdr->numposes == 1);
@@ -385,7 +388,7 @@ void GLMesh_UploadBuffers (qmodel_t *mod, aliashdr_t *hdr, unsigned short *index
 		}
 		break;
 	case PV_QUAKE3:
-		for (int f = 0; f < hdr->numposes; f++) // ericw -- what RMQEngine called nummeshframes is called numposes in QuakeSpasm
+		for (int f = 0; f < hdr->numframes; f++) // ericw -- what RMQEngine called nummeshframes is called numposes in QuakeSpasm
 		{
 			meshxyz_t			 *xyz = (meshxyz_t *)vbodata + vertofs;
 			const md3XyzNormal_t *tv = (md3XyzNormal_t *)vertexes + (hdr->numverts * f);

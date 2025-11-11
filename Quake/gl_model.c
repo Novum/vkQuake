@@ -30,6 +30,7 @@ static void		 Mod_LoadSpriteModel (qmodel_t *mod, void *buffer);
 static void		 Mod_LoadBrushModel (qmodel_t *mod, const char *loadname, void *buffer);
 static void		 Mod_LoadAliasModel (qmodel_t *mod, void *buffer);
 static void		 Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer);
+static void		 Mod_LoadMD3Model (qmodel_t *mod, const void *buffer);
 static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash);
 
 cvar_t external_ents = {"external_ents", "1", CVAR_ARCHIVE};
@@ -577,6 +578,7 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 	mod->needload = false;
 
 	mod_type = (buf[0] | (buf[1] << 8) | (buf[2] << 16) | (buf[3] << 24));
+
 	switch (mod_type)
 	{
 	case IDPOLYHEADER:
@@ -592,7 +594,15 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 	{
 		// by construction this is a "native" MD5 model, NOT a .mdl replacement so md5_replacement_loaded = false here
 		assert (!md5_replacement_loaded);
-		Mod_LoadMD5MeshModel (mod, buf);
+		Mod_LoadMD5MeshModel (mod, (const void *)buf);
+	}
+	break;
+
+	//
+	case IDMD3HEADER:
+	{
+		// TODO : untested
+		Mod_LoadMD3Model (mod, (const void *)buf);
 	}
 	break;
 
@@ -3439,12 +3449,11 @@ Mod_CalcAliasBounds -- johnfitz -- calculate bounds of alias model for nonrotate
 */
 static void Mod_CalcAliasBounds (qmodel_t *mod, aliashdr_t *a, int numvertexes, byte *vertexes)
 {
-	int	   i, j, k;
 	float  dist, yawradius, radius;
 	vec3_t v;
 
 	// clear out all data
-	for (i = 0; i < 3; i++)
+	for (int i = 0; i < 3; i++)
 	{
 		mod->mins[i] = mod->ymins[i] = mod->rmins[i] = FLT_MAX;
 		mod->maxs[i] = mod->ymaxs[i] = mod->rmaxs[i] = -FLT_MAX;
@@ -3456,13 +3465,14 @@ static void Mod_CalcAliasBounds (qmodel_t *mod, aliashdr_t *a, int numvertexes, 
 	case PV_QUAKE1:
 	{
 		// process verts
-		for (i = 0; i < a->numposes; i++)
-			for (j = 0; j < a->numverts; j++)
+		for (int i = 0; i < a->numposes; i++)
+		{
+			for (int j = 0; j < a->numverts; j++)
 			{
-				for (k = 0; k < 3; k++)
+				for (int k = 0; k < 3; k++)
 					v[k] = poseverts[i][j].v[k] * a->scale[k] + a->scale_origin[k];
 
-				for (k = 0; k < 3; k++)
+				for (int k = 0; k < 3; k++)
 				{
 					mod->mins[k] = q_min (mod->mins[k], v[k]);
 					mod->maxs[k] = q_max (mod->maxs[k], v[k]);
@@ -3474,18 +3484,20 @@ static void Mod_CalcAliasBounds (qmodel_t *mod, aliashdr_t *a, int numvertexes, 
 				if (radius < dist)
 					radius = dist;
 			}
-		break;
+		}
 	}
+	break;
 	case PV_MD5:
 	{
-		// process verts
+		// process verts : (vertexes;numvertexes) is all the vertices from all the poses/frames
+		// for all the surfaces of a model.
 		md5vert_t *pv = (md5vert_t *)vertexes;
-		for (j = 0; j < numvertexes; j++)
+		for (int j = 0; j < numvertexes; j++)
 		{
-			for (k = 0; k < 3; k++)
+			for (int k = 0; k < 3; k++)
 				v[k] = pv[j].xyz[k];
 
-			for (k = 0; k < 3; k++)
+			for (int k = 0; k < 3; k++)
 			{
 				mod->mins[k] = q_min (mod->mins[k], v[k]);
 				mod->maxs[k] = q_max (mod->maxs[k], v[k]);
@@ -3497,11 +3509,32 @@ static void Mod_CalcAliasBounds (qmodel_t *mod, aliashdr_t *a, int numvertexes, 
 			if (radius < dist)
 				radius = dist;
 		}
-		break;
 	}
+	break;
 	case PV_QUAKE3:
-		// TODO : same as PV_QUAKE1 ?
-		assert (false);
+	{
+		// process verts : (vertexes;numvertexes) is all the vertices from all the poses/frames
+		// for all the surfaces of a model.
+		md3XyzNormal_t *pv = (md3XyzNormal_t *)vertexes;
+		for (int j = 0; j < numvertexes; j++)
+		{
+			for (int k = 0; k < 3; k++)
+				v[k] = pv[j].xyz[k] * MD3_XYZ_SCALE;
+
+			for (int k = 0; k < 3; k++)
+			{
+				mod->mins[k] = q_min (mod->mins[k], v[k]);
+				mod->maxs[k] = q_max (mod->maxs[k], v[k]);
+			}
+			dist = v[0] * v[0] + v[1] * v[1];
+			if (yawradius < dist)
+				yawradius = dist;
+			dist += v[2] * v[2];
+			if (radius < dist)
+				radius = dist;
+		}
+	}
+	break;
 	default:
 		assert (false);
 	}
@@ -4498,7 +4531,7 @@ static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 	aliashdr_t *outhdr, *surf;
 	size_t		hdrsize;
 	size_t		numjoints, j;
-	size_t		nummeshes, m;
+	size_t		nummeshes;
 	char		texname[MAX_QPATH];
 
 	md5animctx_t anim = {NULL};
@@ -4506,7 +4539,7 @@ static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 	buffer = COM_Parse (buffer);
 
 	MD5EXPECT ("MD5Version");
-	MD5EXPECT ("10");
+	MD5EXPECT (MD5_VERSION);
 	if (MD5CHECK ("commandline"))
 		buffer = COM_Parse (buffer);
 	MD5EXPECT ("numJoints");
@@ -4597,7 +4630,7 @@ static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 	size_t	   total_numverts = 0;
 	md5vert_t *total_vertexes = NULL;
 
-	for (m = 0; m < nummeshes; m++)
+	for (int m = 0; m < nummeshes; m++)
 	{
 		MD5EXPECT ("mesh");
 		MD5EXPECT ("{");
@@ -4734,7 +4767,7 @@ static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 				surf->fbtextures[surf->numskins][2] = surf->fbtextures[surf->numskins][0];
 			}
 		}
-		// MD5 have only 1 pose, a.k.a frame in MDL / MD3
+		// MD5 have only 1 pose, because N/A
 		//  because it uses skeletal animation instead of displaying/interpolating different frames/poses of vertices
 		surf->numposes = 1;
 
@@ -4841,6 +4874,268 @@ static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 	TEMP_FREE (joint_poses);
 	TEMP_FREE (joint_infos)
 }
+/*
+=====================
+Mod_LoadMD3SurfaceTexture
+=====================
+*/
+static bool Mod_LoadMD3SurfaceTexture (qmodel_t *mod, aliashdr_t *surf, const char *shader_texture_name)
+{
+	char texturename[MAX_QPATH] = {0};
+
+	bool is_texture_found = false;
+
+	for (int try_index = 0; try_index < 2 && !is_texture_found; try_index++)
+	{
+		char full_texname[MAX_QPATH];
+
+		// 1. First attempt : use shader name:
+		if (try_index == 0)
+		{
+			// strip shader_texture_name of its file extension:
+			q_strlcpy (texturename, shader_texture_name, strlen (shader_texture_name));
+			COM_StripExtension (texturename, full_texname, MAX_QPATH);
+		}
+		else
+		{
+			// 2. Second attempt: use the mod name, build a skin name using a skin index:
+			q_snprintf (full_texname, sizeof (full_texname), "%s_%02u", mod->name, surf->numskins);
+		}
+
+		unsigned int fwidth, fheight;
+		void		*data = NULL;
+
+		// 1.1 Search directly shader_name, then progs/shader_name if not found
+		enum srcformat fmt = SRC_RGBA;
+
+		// for Skins: try first the same location as the model, then 'progs/' if not found.
+		data = Image_LoadImage (full_texname, (int *)&fwidth, (int *)&fheight, &fmt, mod->path_id);
+
+		if (!data)
+		{
+			data = Image_LoadImage (va ("progs/%s", full_texname), (int *)&fwidth, (int *)&fheight, &fmt, mod->path_id);
+		}
+
+		if (data)
+		{
+			surf->gltextures[surf->numskins][0] =
+				TexMgr_LoadImage (mod, full_texname, fwidth, fheight, fmt, data, full_texname, 0, TEXPREF_ALPHA | TEXPREF_NOBRIGHT | TEXPREF_MIPMAP);
+
+			// no fullbrights by default.
+			surf->fbtextures[surf->numskins][0] = NULL;
+			// initialize skinsizes, known at this point.
+			surf->skinwidth = surf->gltextures[0][0] ? surf->gltextures[0][0]->width : 1;
+			surf->skinheight = surf->gltextures[0][0] ? surf->gltextures[0][0]->height : 1;
+
+			surf->gltextures[surf->numskins][3] = surf->gltextures[surf->numskins][2] = surf->gltextures[surf->numskins][1] =
+				surf->gltextures[surf->numskins][0];
+
+			// 1.2. Load additional fullbrights, if any.
+			//  Try first the same location as the model, then 'progs/' if not found.
+			if (!surf->fbtextures[surf->numskins][0])
+			{
+				surf->fbtextures[surf->numskins][0] = Mod_LoadFullbrightTexture (mod, va ("%s_glow", full_texname), surf->skinwidth, surf->skinheight);
+			}
+			if (!surf->fbtextures[surf->numskins][0])
+			{
+				surf->fbtextures[surf->numskins][0] = Mod_LoadFullbrightTexture (mod, va ("progs/%s_glow", full_texname), surf->skinwidth, surf->skinheight);
+			}
+			if (!surf->fbtextures[surf->numskins][0])
+			{
+				surf->fbtextures[surf->numskins][0] = Mod_LoadFullbrightTexture (mod, va ("%s_luma", full_texname), surf->skinwidth, surf->skinheight);
+			}
+			if (!surf->fbtextures[surf->numskins][0])
+			{
+				surf->fbtextures[surf->numskins][0] = Mod_LoadFullbrightTexture (mod, va ("progs/%s_luma", full_texname), surf->skinwidth, surf->skinheight);
+			}
+
+			surf->fbtextures[surf->numskins][3] = surf->fbtextures[surf->numskins][2] = surf->fbtextures[surf->numskins][1] =
+				surf->fbtextures[surf->numskins][0];
+
+			is_texture_found = true;
+			surf->numskins++;
+		}
+
+		Mem_Free (data);
+	}
+
+	return is_texture_found;
+}
+
+/*
+=====================
+Mod_LoadMD3Model
+=====================
+*/
+static void Mod_LoadMD3Model (qmodel_t *mod, const void *buffer)
+{
+	aliashdr_t	   *outhdr, *surf;
+	md3Header_t	   *pinheader;
+	md3Frame_t	   *pinframes;
+	md3Triangle_t  *pintriangle;
+	md3XyzNormal_t *pinvertexes;
+	md3St_t		   *pinst;
+	md3Shader_t	   *pinshader;
+	size_t			hdrsize;
+	int				numsurfs;
+	int				numframes;
+
+	pinheader = (md3Header_t *)buffer;
+
+	int version = LittleLong (pinheader->version);
+	if (version != MD3_VERSION)
+		Sys_Error ("%s has wrong version number (%d should be %d)", mod->name, version, MD3_VERSION);
+
+	numsurfs = LittleLong (pinheader->numSurfaces);
+	numframes = LittleLong (pinheader->numFrames);
+
+	if (numframes > MAXALIASFRAMES)
+		Sys_Error ("%s has too many frames (%i vs %i)", mod->name, numframes, MAXALIASFRAMES);
+	if (!numsurfs)
+		Sys_Error ("%s has nosurfaces", mod->name);
+
+	pinframes = (md3Frame_t *)((byte *)buffer + LittleLong (pinheader->ofsFrames));
+
+	hdrsize = sizeof (*outhdr) - sizeof (outhdr->frames);
+	hdrsize += sizeof (outhdr->frames) * numframes;
+
+	// alloc all aliashdr_t and their chained nextsurface, a.k.a numsurfs, in one array
+	outhdr = (aliashdr_t *)Mem_Alloc (hdrsize * numsurfs);
+
+	// total_numverts and total_vertexes accumulate all vertices of the surface,
+	// just to be able to Mod_CalcAliasBounds at the end.
+	size_t			total_numverts = 0;
+	md3XyzNormal_t *total_vertexes = NULL;
+
+	// for each of the surfaces :
+	md3Surface_t *pinsurface = (md3Surface_t *)((byte *)buffer + LittleLong (pinheader->ofsSurfaces));
+	for (int m = 0; m < numsurfs; m++)
+	{
+		if (LittleLong (pinsurface->ident) != IDMD3HEADER)
+			Sys_Error ("%s corrupt surface ident", mod->name);
+		if (LittleLong (pinsurface->numFrames) != numframes)
+			Sys_Error ("%s mismatched framecounts", mod->name);
+
+		// go to the surf, chaining the next nextsurface
+		surf = (aliashdr_t *)((byte *)outhdr + m * hdrsize);
+		if (m + 1 < numsurfs)
+			surf->nextsurface = (aliashdr_t *)((byte *)outhdr + (m + 1) * hdrsize);
+		else
+			surf->nextsurface = NULL;
+
+		surf->poseverttype = PV_QUAKE3;
+
+		// the number of vertices per-frame:
+		surf->numverts_vbo = surf->numverts = LittleLong (pinsurface->numVerts);
+
+		// All the vertices for this surface, concat of the vertices of each of the numframes, one frame after another:
+		pinvertexes = (md3XyzNormal_t *)((byte *)pinsurface + LittleLong (pinsurface->ofsXyzNormals));
+
+		md3XyzNormal_t *poutvertexes = (md3XyzNormal_t *)Mem_Alloc (numframes * surf->numverts * sizeof (*poutvertexes));
+
+		// for each frame:
+		// only 1 pose for MD3, it have frames instead
+		surf->numposes = 1;
+
+		for (int ival = 0; ival < numframes; ival++)
+		{
+			surf->frames[ival].firstpose = ival;
+			surf->frames[ival].numposes = 1;
+			surf->frames[ival].interval = 0.1;
+
+			q_strlcpy (surf->frames[ival].name, pinframes->name, sizeof (surf->frames[ival].name));
+
+			for (int j = 0; j < 3; j++)
+			{ // fixme...
+				surf->frames[ival].bboxmin.v[j] = 0;
+				surf->frames[ival].bboxmax.v[j] = 255;
+			}
+
+			for (int j = 0; j < surf->numverts; j++)
+				poutvertexes[j] = pinvertexes[j];
+
+			poutvertexes += surf->numverts;
+			pinvertexes += surf->numverts;
+		}
+		surf->numframes = numframes;
+
+		surf->numtris = LittleLong (pinsurface->numTriangles);
+		surf->numindexes = surf->numtris * 3;
+
+		pintriangle = (md3Triangle_t *)((byte *)pinsurface + LittleLong (pinsurface->ofsTriangles));
+
+		unsigned short *poutindexes = (unsigned short *)Mem_Alloc (sizeof (*poutindexes) * surf->numindexes);
+
+		for (int ival = 0; ival < surf->numtris; ival++, pintriangle++, poutindexes += 3)
+		{
+			for (int j = 0; j < 3; j++)
+				poutindexes[j] = LittleLong (pintriangle->indexes[j]);
+		}
+
+		for (int j = 0; j < 3; j++)
+		{
+			surf->scale_origin[j] = 0;
+			surf->scale[j] = MD3_XYZ_SCALE;
+		}
+
+		// guess at skin sizes
+		surf->skinwidth = 320;
+		surf->skinheight = 200;
+
+		// load the textures, listed as "shader" names.
+		// if not found
+		int numshaders = pinsurface->numShaders;
+		pinshader = (md3Shader_t *)((byte *)pinsurface + LittleLong (pinsurface->ofsShaders));
+
+		// reset for Mod_LoadMD3SurfaceTexture
+		surf->numskins = 0;
+
+		for (int skin_index = 0; skin_index < q_min (numshaders, MAX_SKINS); skin_index++, pinshader++)
+		{
+			if (false == Mod_LoadMD3SurfaceTexture (mod, surf, pinshader->name))
+				break;
+		}
+
+		// and figure out the texture coords properly, now we know the actual sizes.
+		pinst = (md3St_t *)((byte *)pinsurface + LittleLong (pinsurface->ofsSt));
+
+		aliasmesh_t *poutst = (aliasmesh_t *)Mem_Alloc (sizeof (*poutst) * surf->numverts);
+
+		for (int j = 0; j < surf->numverts; j++)
+		{
+			poutst[j].vertindex = j; // how is this useful?
+			poutst[j].st[0] = pinst[j].s;
+			poutst[j].st[1] = pinst[j].t;
+		}
+
+		// Upload to GPU that surface/mesh m:
+		GLMesh_UploadBuffers (mod, surf, poutindexes, (byte *)poutvertexes, poutst, NULL);
+
+		// concat surface vertices to total_vertexes
+		total_vertexes = (md3XyzNormal_t *)Mem_Realloc (total_vertexes, sizeof (*poutvertexes) * (total_numverts + surf->numverts));
+		memcpy ((void *)(total_vertexes + total_numverts), (const void *)poutvertexes, sizeof (*poutvertexes) * surf->numverts);
+		total_numverts += surf->numverts;
+
+		Mem_Free (poutst);
+		Mem_Free (poutvertexes);
+		Mem_Free (poutindexes);
+
+		// go to the next surface:
+		pinsurface = (md3Surface_t *)((byte *)pinsurface + LittleLong (pinsurface->ofsEnd));
+
+	} // end for surface
+
+	// small violation of the spec, but it seems like noone else uses it.
+	mod->flags = LittleLong (pinheader->flags);
+
+	mod->type = mod_alias;
+	mod->extradata[PV_QUAKE3] = (byte *)outhdr;
+
+	// calc alias bounds of the whole surfaces model :
+	Mod_CalcAliasBounds (mod, outhdr, total_numverts, (byte *)total_vertexes); // johnfitz
+
+	Mem_Free (total_vertexes);
+}
 
 //=============================================================================
 
@@ -4858,7 +5153,7 @@ void Mod_Print (void)
 	for (i = 0, mod = mod_known; i < mod_numknown; i++, mod++)
 	{
 		Con_SafePrintf (
-			"MDL:%s|MD5:%s|MD3:%s - %s\n", (mod->extradata[PV_QUAKE1]) ? "YES" : " no", (mod->extradata[PV_MD5]) ? "YES" : " no",
+			"MDL: %s| MD5: %s| MD3: %s - %s\n", (mod->extradata[PV_QUAKE1]) ? "YES" : " no", (mod->extradata[PV_MD5]) ? "YES" : " no",
 			(mod->extradata[PV_QUAKE3]) ? "YES" : " no", mod->name); // johnfitz -- safeprint instead of print
 	}
 	Con_Printf ("%i models\n", mod_numknown); // johnfitz -- print the total too
