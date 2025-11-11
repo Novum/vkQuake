@@ -5,7 +5,7 @@ on: [push, pull_request]
 jobs:
   build-mac-os:
     name: Build macOS
-    runs-on: macos-13
+    runs-on: macos-14
     strategy:
       fail-fast: false
       matrix:
