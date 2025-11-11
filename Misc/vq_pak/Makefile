@@ -19,4 +19,7 @@ bintoc: ../../Shaders/bintoc.c
 .PHONY: clean
 clean:
 	rm -f mkpak
+	rm -f mkpak.exe
 	rm -f ../../Shaders/bintoc
+	rm -f ../../Quake/vkquake.pak
+	rm -f ../../Quake/embedded_pak.c
