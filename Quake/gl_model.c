@@ -4530,7 +4530,7 @@ static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 
 	aliashdr_t *outhdr, *surf;
 	size_t		hdrsize;
-	size_t		numjoints, j;
+	size_t		numjoints;
 	size_t		nummeshes;
 	char		texname[MAX_QPATH];
 
@@ -4568,7 +4568,7 @@ static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 
 	// 1. Load joints
 	MD5EXPECT ("{");
-	for (j = 0; j < numjoints; j++)
+	for (size_t j = 0; j < numjoints; j++)
 	{
 		vec3_t		  pos;
 		static vec3_t scale = {1, 1, 1};
@@ -4643,7 +4643,7 @@ static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 			surf->nextsurface = NULL;
 
 		surf->poseverttype = PV_MD5;
-		for (j = 0; j < 3; j++)
+		for (size_t j = 0; j < 3; j++)
 		{
 			surf->scale_origin[j] = 0;
 			surf->scale[j] = 1.0;
@@ -4653,13 +4653,13 @@ static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 
 		if (anim.numposes)
 		{
-			for (j = 0; j < anim.numposes; j++)
+			for (size_t j = 0; j < anim.numposes; j++)
 			{
 				surf->frames[j].firstpose = j;
 				surf->frames[j].numposes = 1;
 				surf->frames[j].interval = 0.1;
 			}
-			surf->numframes = j;
+			surf->numframes = anim.numposes;
 		}
 
 		//"shader" is the texture of the surf
@@ -4674,13 +4674,18 @@ static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 			{
 				enum srcformat fmt = SRC_RGBA;
 
-				// for Skins: try first the same location as the model, then 'progs/' if not found.
+				// for Skins: try first the same location as the model, then 'progs/', then 'textures/' if not found.
 				q_snprintf (texname, sizeof (texname), "%s_%02u_%02u", com_token, surf->numskins, f);
 				data = Image_LoadImage (texname, (int *)&fwidth, (int *)&fheight, &fmt, mod->path_id);
 
 				if (!data)
 				{
 					q_snprintf (texname, sizeof (texname), "progs/%s_%02u_%02u", com_token, surf->numskins, f);
+					data = Image_LoadImage (texname, (int *)&fwidth, (int *)&fheight, &fmt, mod->path_id);
+				}
+				if (!data)
+				{
+					q_snprintf (texname, sizeof (texname), "textures/%s_%02u_%02u", com_token, surf->numskins, f);
 					data = Image_LoadImage (texname, (int *)&fwidth, (int *)&fheight, &fmt, mod->path_id);
 				}
 
@@ -4705,7 +4710,7 @@ static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 							memcpy (texels, data, size);
 						}
 						// 8bit base texture. use it for fullbrights.
-						for (j = 0; j < fwidth * fheight; j++)
+						for (size_t j = 0; j < fwidth * fheight; j++)
 						{
 							if (((byte *)data)[j] > 223)
 							{
@@ -4719,26 +4724,39 @@ static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 					else
 					{
 						// we found a 32bit base texture, try to fetch the fullbrights counterparts
-						// Same as skins, try first the same location as the model, then 'progs/' if not found.
+						// Same as skins, try first the same location as the model, then 'progs/', then 'textures/' if not found.
+						// glow
 						if (!surf->fbtextures[surf->numskins][f])
 						{
-							q_snprintf (texname, sizeof (texname), "%s_%02u_%02u_glow", com_token, surf->numskins, f);
-							surf->fbtextures[surf->numskins][f] = Mod_LoadFullbrightTexture (mod, texname, surf->skinwidth, surf->skinheight);
+							surf->fbtextures[surf->numskins][f] =
+								Mod_LoadFullbrightTexture (mod, va ("%s_%02u_%02u_glow", com_token, surf->numskins, f), surf->skinwidth, surf->skinheight);
 						}
 						if (!surf->fbtextures[surf->numskins][f])
 						{
-							q_snprintf (texname, sizeof (texname), "progs/%s_%02u_%02u_glow", com_token, surf->numskins, f);
-							surf->fbtextures[surf->numskins][f] = Mod_LoadFullbrightTexture (mod, texname, surf->skinwidth, surf->skinheight);
+							surf->fbtextures[surf->numskins][f] = Mod_LoadFullbrightTexture (
+								mod, va ("progs/%s_%02u_%02u_glow", com_token, surf->numskins, f), surf->skinwidth, surf->skinheight);
 						}
 						if (!surf->fbtextures[surf->numskins][f])
 						{
-							q_snprintf (texname, sizeof (texname), "%s_%02u_%02u_luma", com_token, surf->numskins, f);
-							surf->fbtextures[surf->numskins][f] = Mod_LoadFullbrightTexture (mod, texname, surf->skinwidth, surf->skinheight);
+							surf->fbtextures[surf->numskins][f] = Mod_LoadFullbrightTexture (
+								mod, va ("textures/%s_%02u_%02u_glow", com_token, surf->numskins, f), surf->skinwidth, surf->skinheight);
+						}
+
+						// luma
+						if (!surf->fbtextures[surf->numskins][f])
+						{
+							surf->fbtextures[surf->numskins][f] =
+								Mod_LoadFullbrightTexture (mod, va ("%s_%02u_%02u_luma", com_token, surf->numskins, f), surf->skinwidth, surf->skinheight);
 						}
 						if (!surf->fbtextures[surf->numskins][f])
 						{
-							q_snprintf (texname, sizeof (texname), "progs/%s_%02u_%02u_luma", com_token, surf->numskins, f);
-							surf->fbtextures[surf->numskins][f] = Mod_LoadFullbrightTexture (mod, texname, surf->skinwidth, surf->skinheight);
+							surf->fbtextures[surf->numskins][f] = Mod_LoadFullbrightTexture (
+								mod, va ("progs/%s_%02u_%02u_luma", com_token, surf->numskins, f), surf->skinwidth, surf->skinheight);
+						}
+						if (!surf->fbtextures[surf->numskins][f])
+						{
+							surf->fbtextures[surf->numskins][f] = Mod_LoadFullbrightTexture (
+								mod, va ("textures/%s_%02u_%02u_luma", com_token, surf->numskins, f), surf->skinwidth, surf->skinheight);
 						}
 					}
 
@@ -4767,7 +4785,7 @@ static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 				surf->fbtextures[surf->numskins][2] = surf->fbtextures[surf->numskins][0];
 			}
 		}
-		// MD5 have only 1 pose, because N/A
+		// MD5 have only 1 surface pose, meaning 1 vertex-like "pose" (not to ne mixed with md5animctx_t anim poses !)
 		//  because it uses skeletal animation instead of displaying/interpolating different frames/poses of vertices
 		surf->numposes = 1;
 
@@ -4802,7 +4820,7 @@ static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 			if (idx >= (size_t)surf->numtris)
 				Sys_Error ("triangle index out of bounds");
 			idx *= 3;
-			for (j = 0; j < 3; j++)
+			for (size_t j = 0; j < 3; j++)
 			{
 				size_t t = MD5UINT ();
 				if (t > (size_t)surf->numverts)
