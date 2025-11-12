@@ -418,7 +418,6 @@ void GLMesh_UploadBuffers (qmodel_t *mod, aliashdr_t *hdr, unsigned short *index
 		}
 		break;
 	case PV_MD5:
-		assert (hdr->numposes == 1);
 		memcpy (vbodata, vertexes, totalvbosize);
 		// vertexes is already the concat of the hdr surface vertices, triangles, ST, and normals
 		// already baked in.
