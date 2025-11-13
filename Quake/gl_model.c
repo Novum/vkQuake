@@ -4519,6 +4519,15 @@ static void MD5Anim_Load (md5animctx_t *ctx, jointinfo_t *joints, size_t numjoin
 	Mem_Free (ctx->animfile);
 }
 
+#define TRY_LOAD_FULLBRIGHTS(tex_name)                                                                                          \
+	do                                                                                                                          \
+	{                                                                                                                           \
+		if (!surf->fbtextures[surf->numskins][f])                                                                               \
+		{                                                                                                                       \
+			surf->fbtextures[surf->numskins][f] = Mod_LoadFullbrightTexture (mod, tex_name, surf->skinwidth, surf->skinheight); \
+		}                                                                                                                       \
+	} while (0);
+
 /*
 =====================
 Mod_LoadMD5MeshModel
@@ -4561,6 +4570,7 @@ static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 	hdrsize += sizeof (outhdr->frames) * anim.numposes;
 
 	// alloc all aliashdr_t and their chained nextsurface, a.k.a nummeshes, in one array
+	// all aliashdr_t are zero-initialized by Mem_Alloc
 	outhdr = (aliashdr_t *)Mem_Alloc (hdrsize * nummeshes);
 
 	TEMP_ALLOC_ZEROED (jointinfo_t, joint_infos, numjoints);
@@ -4695,7 +4705,8 @@ static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 						TexMgr_LoadImage (mod, texname, fwidth, fheight, fmt, data, texname, 0, TEXPREF_ALPHA | TEXPREF_NOBRIGHT | TEXPREF_MIPMAP);
 
 					// no fullbrights by default.
-					surf->fbtextures[surf->numskins][f] = NULL;
+					assert (surf->fbtextures[surf->numskins][f] == NULL);
+
 					// initialize skinsizes, known at this point.
 					surf->skinwidth = surf->gltextures[0][0] ? surf->gltextures[0][0]->width : 1;
 					surf->skinheight = surf->gltextures[0][0] ? surf->gltextures[0][0]->height : 1;
@@ -4726,45 +4737,21 @@ static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 						// we found a 32bit base texture, try to fetch the fullbrights counterparts
 						// Same as skins, try first the same location as the model, then 'progs/', then 'textures/' if not found.
 						// glow
-						if (!surf->fbtextures[surf->numskins][f])
-						{
-							surf->fbtextures[surf->numskins][f] =
-								Mod_LoadFullbrightTexture (mod, va ("%s_%02u_%02u_glow", com_token, surf->numskins, f), surf->skinwidth, surf->skinheight);
-						}
-						if (!surf->fbtextures[surf->numskins][f])
-						{
-							surf->fbtextures[surf->numskins][f] = Mod_LoadFullbrightTexture (
-								mod, va ("progs/%s_%02u_%02u_glow", com_token, surf->numskins, f), surf->skinwidth, surf->skinheight);
-						}
-						if (!surf->fbtextures[surf->numskins][f])
-						{
-							surf->fbtextures[surf->numskins][f] = Mod_LoadFullbrightTexture (
-								mod, va ("textures/%s_%02u_%02u_glow", com_token, surf->numskins, f), surf->skinwidth, surf->skinheight);
-						}
+						assert (surf->fbtextures[surf->numskins][f] == NULL);
 
-						// luma
-						if (!surf->fbtextures[surf->numskins][f])
-						{
-							surf->fbtextures[surf->numskins][f] =
-								Mod_LoadFullbrightTexture (mod, va ("%s_%02u_%02u_luma", com_token, surf->numskins, f), surf->skinwidth, surf->skinheight);
-						}
-						if (!surf->fbtextures[surf->numskins][f])
-						{
-							surf->fbtextures[surf->numskins][f] = Mod_LoadFullbrightTexture (
-								mod, va ("progs/%s_%02u_%02u_luma", com_token, surf->numskins, f), surf->skinwidth, surf->skinheight);
-						}
-						if (!surf->fbtextures[surf->numskins][f])
-						{
-							surf->fbtextures[surf->numskins][f] = Mod_LoadFullbrightTexture (
-								mod, va ("textures/%s_%02u_%02u_luma", com_token, surf->numskins, f), surf->skinwidth, surf->skinheight);
-						}
+						TRY_LOAD_FULLBRIGHTS (va ("%s_%02u_%02u_glow", com_token, surf->numskins, f));
+						TRY_LOAD_FULLBRIGHTS (va ("progs/%s_%02u_%02u_glow", com_token, surf->numskins, f));
+						TRY_LOAD_FULLBRIGHTS (va ("textures/%s_%02u_%02u_glow", com_token, surf->numskins, f));
+						TRY_LOAD_FULLBRIGHTS (va ("%s_%02u_%02u_luma", com_token, surf->numskins, f));
+						TRY_LOAD_FULLBRIGHTS (va ("progs/%s_%02u_%02u_luma", com_token, surf->numskins, f));
+						TRY_LOAD_FULLBRIGHTS (va ("textures/%s_%02u_%02u_luma", com_token, surf->numskins, f));
 					}
 
 					Mem_Free (data);
 				}
 				else
 					break;
-			}
+			} // for each framegroup
 			if (f == 0)
 				break; // no images loaded...
 
@@ -4784,7 +4771,8 @@ static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 				surf->fbtextures[surf->numskins][3] = surf->fbtextures[surf->numskins][1];
 				surf->fbtextures[surf->numskins][2] = surf->fbtextures[surf->numskins][0];
 			}
-		}
+		} // foreach skins
+
 		// MD5 have only 1 surface pose, meaning 1 vertex-like "pose" (not to ne mixed with md5animctx_t anim poses !)
 		//  because it uses skeletal animation instead of displaying/interpolating different frames/poses of vertices
 		surf->numposes = 1;
@@ -4894,10 +4882,10 @@ static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 }
 /*
 =====================
-Mod_LoadMD3SurfaceTexture
+Mod_LoadMD3ShaderTexture
 =====================
 */
-static bool Mod_LoadMD3SurfaceTexture (qmodel_t *mod, aliashdr_t *surf, const char *shader_texture_name)
+static bool Mod_LoadMD3ShaderTexture (qmodel_t *mod, aliashdr_t *surf, const char *shader_texture_name, int surface_index, size_t numsurfs)
 {
 	char texturename[MAX_QPATH] = {0};
 
@@ -4916,66 +4904,103 @@ static bool Mod_LoadMD3SurfaceTexture (qmodel_t *mod, aliashdr_t *surf, const ch
 		}
 		else
 		{
-			// 2. Second attempt: use the mod name, build a skin name using a skin index:
-			q_snprintf (full_texname, sizeof (full_texname), "%s_%02u", mod->name, surf->numskins);
+			// 2. Second attempt: use the mod name: build a skin name using a surface index and skin index:
+			q_snprintf (full_texname, sizeof (full_texname), "%s_%d_%d", mod->name, surface_index, surf->numskins);
 		}
-
-		unsigned int fwidth, fheight;
-		void		*data = NULL;
-
-		// 1.1 Search directly shader_name, then progs/shader_name if not found
-		enum srcformat fmt = SRC_RGBA;
-
-		// for Skins: try first the same location as the model, then 'progs/' if not found.
-		data = Image_LoadImage (full_texname, (int *)&fwidth, (int *)&fheight, &fmt, mod->path_id);
-
-		if (!data)
+		// for each framgroup:
+		int f = 0;
+		for (f = 0; f < countof (surf->gltextures[0]); f++)
 		{
-			data = Image_LoadImage (va ("progs/%s", full_texname), (int *)&fwidth, (int *)&fheight, &fmt, mod->path_id);
-		}
+			unsigned int fwidth, fheight;
+			void		*data = NULL;
 
-		if (data)
+			//  Search directly shader_name, then progs/shader_name if not found
+			enum srcformat fmt = SRC_RGBA;
+
+			// for Skins: try first the same location as the model, then 'progs/', then 'textures/' if not found.
+			data = Image_LoadImage (full_texname, (int *)&fwidth, (int *)&fheight, &fmt, mod->path_id);
+
+			if (!data)
+			{
+				data = Image_LoadImage (va ("progs/%s", full_texname), (int *)&fwidth, (int *)&fheight, &fmt, mod->path_id);
+			}
+			if (!data)
+			{
+				data = Image_LoadImage (va ("textures/%s", full_texname), (int *)&fwidth, (int *)&fheight, &fmt, mod->path_id);
+			}
+
+			if (data)
+			{
+				surf->gltextures[surf->numskins][0] =
+					TexMgr_LoadImage (mod, full_texname, fwidth, fheight, fmt, data, full_texname, 0, TEXPREF_ALPHA | TEXPREF_NOBRIGHT | TEXPREF_MIPMAP);
+
+				// no fullbrights by default.
+				assert (surf->fbtextures[surf->numskins][0] == NULL);
+				// initialize skinsizes, known at this point.
+				surf->skinwidth = surf->gltextures[0][0] ? surf->gltextures[0][0]->width : 1;
+				surf->skinheight = surf->gltextures[0][0] ? surf->gltextures[0][0]->height : 1;
+
+				if (fmt == SRC_INDEXED)
+				{
+					if (f == 0)
+					{
+						size_t size = fwidth * fheight;
+						byte  *texels = (byte *)Mem_Alloc (size);
+						surf->texels[surf->numskins] = texels;
+						memcpy (texels, data, size);
+					}
+					// 8bit base texture. use it for fullbrights.
+					for (size_t j = 0; j < fwidth * fheight; j++)
+					{
+						if (((byte *)data)[j] > 223)
+						{
+							surf->fbtextures[surf->numskins][f] = TexMgr_LoadImage (
+								mod, va ("%s_luma", full_texname), fwidth, fheight, SRC_INDEXED, data, va ("%s_luma", full_texname), 0,
+								TEXPREF_ALPHA | TEXPREF_MIPMAP | TEXPREF_FULLBRIGHT);
+							break;
+						}
+					}
+				}
+				else
+				{
+					// we found a 32bit base texture, try to fetch the fullbrights counterparts:
+					// Same as skins, try first the same location as the model, then 'progs/', then 'textures/' if not found.
+					TRY_LOAD_FULLBRIGHTS (va ("%s_glow", full_texname));
+					TRY_LOAD_FULLBRIGHTS (va ("progs/%s_glow", full_texname));
+					TRY_LOAD_FULLBRIGHTS (va ("textures/%s_glow", full_texname));
+					TRY_LOAD_FULLBRIGHTS (va ("%s_luma", full_texname));
+					TRY_LOAD_FULLBRIGHTS (va ("progs/%s_luma", full_texname));
+					TRY_LOAD_FULLBRIGHTS (va ("textures/%s_luma", full_texname));
+				}
+				Mem_Free (data);
+
+				is_texture_found = true;
+			} // end if data
+			else
+				break;
+		} // for each f framegroup
+
+		if (f == 0)
+			continue; // no images loaded, make another try
+		// this stuff is hideous.
+		if (f < 2)
 		{
-			surf->gltextures[surf->numskins][0] =
-				TexMgr_LoadImage (mod, full_texname, fwidth, fheight, fmt, data, full_texname, 0, TEXPREF_ALPHA | TEXPREF_NOBRIGHT | TEXPREF_MIPMAP);
-
-			// no fullbrights by default.
-			surf->fbtextures[surf->numskins][0] = NULL;
-			// initialize skinsizes, known at this point.
-			surf->skinwidth = surf->gltextures[0][0] ? surf->gltextures[0][0]->width : 1;
-			surf->skinheight = surf->gltextures[0][0] ? surf->gltextures[0][0]->height : 1;
-
-			surf->gltextures[surf->numskins][3] = surf->gltextures[surf->numskins][2] = surf->gltextures[surf->numskins][1] =
-				surf->gltextures[surf->numskins][0];
-
-			// 1.2. Load additional fullbrights, if any.
-			//  Try first the same location as the model, then 'progs/' if not found.
-			if (!surf->fbtextures[surf->numskins][0])
-			{
-				surf->fbtextures[surf->numskins][0] = Mod_LoadFullbrightTexture (mod, va ("%s_glow", full_texname), surf->skinwidth, surf->skinheight);
-			}
-			if (!surf->fbtextures[surf->numskins][0])
-			{
-				surf->fbtextures[surf->numskins][0] = Mod_LoadFullbrightTexture (mod, va ("progs/%s_glow", full_texname), surf->skinwidth, surf->skinheight);
-			}
-			if (!surf->fbtextures[surf->numskins][0])
-			{
-				surf->fbtextures[surf->numskins][0] = Mod_LoadFullbrightTexture (mod, va ("%s_luma", full_texname), surf->skinwidth, surf->skinheight);
-			}
-			if (!surf->fbtextures[surf->numskins][0])
-			{
-				surf->fbtextures[surf->numskins][0] = Mod_LoadFullbrightTexture (mod, va ("progs/%s_luma", full_texname), surf->skinwidth, surf->skinheight);
-			}
-
-			surf->fbtextures[surf->numskins][3] = surf->fbtextures[surf->numskins][2] = surf->fbtextures[surf->numskins][1] =
-				surf->fbtextures[surf->numskins][0];
-
-			is_texture_found = true;
-			surf->numskins++;
+			surf->gltextures[surf->numskins][1] = surf->gltextures[surf->numskins][0];
+			surf->fbtextures[surf->numskins][1] = surf->fbtextures[surf->numskins][0];
 		}
+		if (f == 3)
+		{
+			Con_Warning ("%s_%02u_##: 3 skinframes found...\n", com_token, surf->numskins);
+		}
+		if (f < 4)
+		{
+			surf->gltextures[surf->numskins][3] = surf->gltextures[surf->numskins][1];
+			surf->gltextures[surf->numskins][2] = surf->gltextures[surf->numskins][0];
 
-		Mem_Free (data);
-	}
+			surf->fbtextures[surf->numskins][3] = surf->fbtextures[surf->numskins][1];
+			surf->fbtextures[surf->numskins][2] = surf->fbtextures[surf->numskins][0];
+		}
+	} // foreach try
 
 	return is_texture_found;
 }
@@ -5096,21 +5121,21 @@ static void Mod_LoadMD3Model (qmodel_t *mod, const void *buffer)
 			surf->scale[j] = MD3_XYZ_SCALE;
 		}
 
-		// guess at skin sizes
-		surf->skinwidth = 320;
-		surf->skinheight = 200;
-
 		// load the textures, listed as "shader" names.
-		// if not found
 		int numshaders = pinsurface->numShaders;
 		pinshader = (md3Shader_t *)((byte *)pinsurface + LittleLong (pinsurface->ofsShaders));
 
-		// reset for Mod_LoadMD3SurfaceTexture
+		// reset skins
 		surf->numskins = 0;
 
+		// TODO: Load .skin file first...
 		for (int skin_index = 0; skin_index < q_min (numshaders, MAX_SKINS); skin_index++, pinshader++)
 		{
-			if (false == Mod_LoadMD3SurfaceTexture (mod, surf, pinshader->name))
+			if (Mod_LoadMD3ShaderTexture (mod, surf, pinshader->name, m, numsurfs))
+			{
+				surf->numskins++;
+			}
+			else
 				break;
 		}
 
