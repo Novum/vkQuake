@@ -114,7 +114,7 @@ extern cvar_t autoload;
 extern cvar_t autofastload;
 extern cvar_t r_rtshadows;
 extern cvar_t r_particles;
-extern cvar_t r_md5models;
+extern cvar_t r_enhancedmodels;
 extern cvar_t r_lerpmodels;
 extern cvar_t r_lerpmove;
 extern cvar_t r_lerpturn;
@@ -1886,7 +1886,7 @@ static void M_GraphicsOptions_AdjustSliders (int dir, qboolean mouse)
 		Cvar_SetValueQuick (&r_waterwarp, (float)(((int)r_waterwarp.value + 3 + dir) % 3));
 		break;
 	case GRAPHICS_OPT_MODELS:
-		Cvar_SetValueQuick (&r_md5models, (float)(((int)r_md5models.value + 2 + dir) % 2));
+		Cvar_SetValueQuick (&r_enhancedmodels, (float)(((int)r_enhancedmodels.value + 2 + dir) % 2));
 		break;
 	case GRAPHICS_OPT_MODEL_INTERPOLATION:
 		Cvar_SetValueQuick (&r_lerpmodels, (float)(((int)r_lerpmodels.value + 2 + dir) % 2));
@@ -2018,7 +2018,7 @@ static void M_GraphicsOptions_Draw (cb_context_t *cbx)
 		(r_waterwarp.value == 0) ? "off" : ((r_waterwarp.value == 1) ? "Classic" : "glQuake"));
 
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_MODELS, "Models");
-	M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GRAPHICS_OPT_MODELS, (r_md5models.value == 0) ? "classic" : "remastered");
+	M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GRAPHICS_OPT_MODELS, (r_enhancedmodels.value == 0) ? "classic" : "enhanced");
 
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_MODEL_INTERPOLATION, "Animations");
 	M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GRAPHICS_OPT_MODEL_INTERPOLATION, (r_lerpmodels.value == 0) ? "classic" : "smooth");

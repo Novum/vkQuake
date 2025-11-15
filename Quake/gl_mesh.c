@@ -292,23 +292,30 @@ void GLMesh_UploadBuffers (qmodel_t *mod, aliashdr_t *hdr, unsigned short *index
 	switch (hdr->poseverttype)
 	{
 	case PV_QUAKE1:
-		totalvbosize +=
-			(hdr->numposes * hdr->numverts_vbo * (int)sizeof (meshxyz_t)); // ericw -- what RMQEngine called nummeshframes is called numposes in QuakeSpasm
-		break;
+	{
+		numverts = hdr->numverts_vbo;
+		totalvbosize += (numverts * hdr->numposes * (int)sizeof (meshxyz_t)); // ericw -- what RMQEngine called nummeshframes is called numposes in QuakeSpasm
+		numindexes = hdr->numindexes;
+	}
+	break;
 	case PV_QUAKE3:
-		totalvbosize +=
-			(hdr->numframes * hdr->numverts_vbo * (int)sizeof (meshxyz_t)); // ericw -- what RMQEngine called nummeshframes is called numposes in QuakeSpasm
-		break;
+	{
+		numverts = hdr->numverts_vbo;
+		totalvbosize += (numverts * hdr->numframes * (int)sizeof (meshxyz_t)); // ericw -- what RMQEngine called nummeshframes is called numposes in QuakeSpasm
+		numindexes = hdr->numindexes;
+	}
+	break;
 	case PV_MD5:
+	{
 		assert (hdr->numposes == 1);
 		totalvbosize += hdr->numverts_vbo * (int)sizeof (md5vert_t);
-		break;
+		numverts = hdr->numverts_vbo;
+		numindexes = hdr->numindexes;
+	}
+	break;
 	default:
 		assert (false);
 	}
-
-	numverts += hdr->numverts_vbo;
-	numindexes += hdr->numindexes;
 
 	const size_t totaljointssize = hdr->numframes * hdr->numjoints * sizeof (jointpose_t);
 
@@ -395,7 +402,6 @@ void GLMesh_UploadBuffers (qmodel_t *mod, aliashdr_t *hdr, unsigned short *index
 			vertofs += hdr->numverts_vbo;
 
 			float lat, lng;
-			vertofs += hdr->numverts_vbo * sizeof (*xyz);
 
 			for (int v = 0; v < hdr->numverts_vbo; v++, tv++)
 			{

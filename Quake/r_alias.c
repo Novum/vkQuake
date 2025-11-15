@@ -133,9 +133,6 @@ static void GL_DrawAliasFrame (
 	case PV_QUAKE1:
 	case PV_QUAKE3:
 	{
-		// only 1 surface
-		assert (paliashdr->nextsurface == NULL);
-
 		VkBuffer		uniform_buffer;
 		uint32_t		uniform_offset;
 		VkDescriptorSet ubo_set;
