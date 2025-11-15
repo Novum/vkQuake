@@ -113,6 +113,7 @@ typedef struct dtriangle_s
 // This mirrors trivert_t in trilib.h, is present so Quake knows how to
 // load this data
 
+// MDL vertex+norm file format
 typedef struct
 {
 	byte v[3];

@@ -111,9 +111,12 @@ static void GL_DrawAliasFrame (
 	case PV_MD5:
 		pipeline = vulkan_globals.md5_pipelines[pipeline_index];
 		break;
-	default:
+	case PV_QUAKE1:
+	case PV_QUAKE3:
 		pipeline = vulkan_globals.alias_pipelines[pipeline_index];
 		break;
+	default:
+		pipeline = vulkan_globals.alias_pipelines[pipeline_index];
 	}
 
 	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
@@ -128,6 +131,7 @@ static void GL_DrawAliasFrame (
 	switch (paliashdr->poseverttype)
 	{
 	case PV_QUAKE1:
+	case PV_QUAKE3:
 	{
 		// only 1 surface
 		assert (paliashdr->nextsurface == NULL);
@@ -190,6 +194,8 @@ static void GL_DrawAliasFrame (
 		vulkan_globals.vk_cmd_draw_indexed (cbx->cb, paliashdr->numindexes, 1, 0, 0, 0);
 		break;
 	}
+	default:
+		assert (false);
 	}
 }
 

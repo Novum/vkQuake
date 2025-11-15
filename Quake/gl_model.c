@@ -30,6 +30,7 @@ static void		 Mod_LoadSpriteModel (qmodel_t *mod, void *buffer);
 static void		 Mod_LoadBrushModel (qmodel_t *mod, const char *loadname, void *buffer);
 static void		 Mod_LoadAliasModel (qmodel_t *mod, void *buffer);
 static void		 Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer);
+static void		 Mod_LoadMD3Model (qmodel_t *mod, const void *buffer);
 static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash);
 
 cvar_t external_ents = {"external_ents", "1", CVAR_ARCHIVE};
@@ -41,10 +42,13 @@ cvar_t wad_external_textures = {"wad_external_textures", "1", CVAR_NONE};
 // mdl_external_textures = 1 enable loading of external MDL textures, 0 to forbid it for debug purposes.
 cvar_t mdl_external_textures = {"mdl_external_textures", "1", CVAR_NONE};
 
-// r_allow_replacement_md5models = 1 allow loading of replacement models if available, 0 to forbid it for debug purposes.
+// r_allow_replacement_md5models = 1 allow loading of MD5 replacement models if available, 0 to forbid it for debug purposes.
 cvar_t r_allow_replacement_md5models = {"r_allow_replacement_md5models", "1", CVAR_NONE};
 
-cvar_t r_md5models = {"r_md5models", "1", CVAR_ARCHIVE}; // controlled in Menu with Models: Remastered (1) / Classic (0)
+// r_allow_replacement_md3models = 1 allow loading of MD3 replacement models if available, 0 to forbid it for debug purposes.
+cvar_t r_allow_replacement_md3models = {"r_allow_replacement_md3models", "1", CVAR_NONE};
+
+cvar_t r_enhancedmodels = {"r_enhancedmodels", "1", CVAR_ARCHIVE}; // controlled in Menu with Models: Modern (1) / Classic (0)
 
 static byte *mod_novis;
 static int	 mod_novis_capacity;
@@ -117,8 +121,9 @@ void Mod_Init (void)
 	Cvar_RegisterVariable (&wad_external_textures);
 	Cvar_RegisterVariable (&mdl_external_textures);
 	Cvar_RegisterVariable (&r_allow_replacement_md5models);
-	Cvar_RegisterVariable (&r_md5models);
-	Cvar_SetCallback (&r_md5models, Mod_RefreshSkins_f);
+	Cvar_RegisterVariable (&r_allow_replacement_md3models);
+	Cvar_RegisterVariable (&r_enhancedmodels);
+	Cvar_SetCallback (&r_enhancedmodels, Mod_RefreshSkins_f);
 
 	// johnfitz -- create notexture miptex
 	r_notexture_mip = (texture_t *)Mem_Alloc (sizeof (texture_t));
@@ -141,18 +146,69 @@ Caches the data if needed
 void *Mod_Extradata_CheckSkin (qmodel_t *mod, int skinnum)
 {
 	Mod_LoadModel (mod, true);
-	if (mod->type == mod_alias && mod->extradata[1])
+
+	if (mod->type != mod_alias)
+		return mod->extradata[PV_QUAKE1];
+
+	poseverttype_t valid_models_with_prio[PV_SIZE] = {0};
+	int			   id_models_with_prio_size = 0;
+
+	// 1. fill valid_models_with_prio in the order (MD3, MD5, MDL) selecting non-null extradata
+	// there are probably smarter things to do but let's not over-engeneer this and trust the compiler instead
+	for (size_t i = 0; i < PV_SIZE; i++)
 	{
-		if (r_md5models.value >= 3)
-			return mod->extradata[1];
-		if (r_md5models.value >= 2 && skinnum < ((aliashdr_t *)mod->extradata[1])->numskins)
-			return mod->extradata[1];
-		if (r_md5models.value && mod->md5_prio && skinnum < ((aliashdr_t *)mod->extradata[1])->numskins)
-			return mod->extradata[1];
-		if (!mod->extradata[0])
-			return mod->extradata[1];
+		if (mod->extradata[i] && (i == PV_QUAKE3))
+		{
+			valid_models_with_prio[id_models_with_prio_size++] = PV_QUAKE3;
+			break;
+		}
 	}
-	return mod->extradata[0];
+	for (size_t i = 0; i < PV_SIZE; i++)
+	{
+		if (mod->extradata[i] && (i == PV_MD5))
+		{
+			valid_models_with_prio[id_models_with_prio_size++] = PV_MD5;
+			break;
+		}
+	}
+	for (size_t i = 0; i < PV_SIZE; i++)
+	{
+		if (mod->extradata[i] && (i == PV_QUAKE1))
+		{
+			valid_models_with_prio[id_models_with_prio_size++] = PV_QUAKE1;
+			break;
+		}
+	}
+
+	// 2.1. Simple case 1: only one model, return it whatever its kind.
+	if (id_models_with_prio_size == 1)
+		return mod->extradata[valid_models_with_prio[0]];
+
+	// 2.2. Simple case 2: 2 models with (MD3 and MD5) return MD3 all the time (higher prio)
+	if (id_models_with_prio_size == 2 && (valid_models_with_prio[0] == PV_QUAKE3) && (valid_models_with_prio[1] == PV_MD5))
+		return mod->extradata[valid_models_with_prio[0]];
+
+	// 3.1. There are 3 cases left:
+	//  a) - (MD3 + MD5 + MDL) => change into (MD3 + MDL) to become b) because MD3 has higher prio
+	//  b) - (MD3 + MDL)
+	//  c) - (MD5 + MDL)
+	if (id_models_with_prio_size == 3 && (valid_models_with_prio[0] == PV_QUAKE3) && (valid_models_with_prio[1] == PV_MD5))
+	{
+		assert (valid_models_with_prio[2] == PV_QUAKE1);
+		valid_models_with_prio[1] = PV_QUAKE1;
+	}
+
+	// 3.2. Apply the rules MDL vs. MDX now:
+	byte *mdx_extradata = mod->extradata[valid_models_with_prio[0]];
+
+	if (r_enhancedmodels.value >= 3)
+		return mdx_extradata;
+	if (r_enhancedmodels.value >= 2 && skinnum < ((aliashdr_t *)mdx_extradata)->numskins)
+		return mdx_extradata;
+	if (r_enhancedmodels.value && mod->enhancedmodels_prio && skinnum < ((aliashdr_t *)mdx_extradata)->numskins)
+		return mdx_extradata;
+	//
+	return mod->extradata[PV_QUAKE1];
 }
 
 /*
@@ -331,8 +387,8 @@ static void Mod_FreeModelMemory (qmodel_t *mod)
 {
 	if (mod->name[0] != '*')
 	{
-		if ((mod->type == mod_sprite) && (mod->extradata[0]))
-			Mod_FreeSpriteMemory ((msprite_t *)mod->extradata[0]);
+		if ((mod->type == mod_sprite) && (mod->extradata[PV_QUAKE1]))
+			Mod_FreeSpriteMemory ((msprite_t *)mod->extradata[PV_QUAKE1]);
 		// Last two ones are dummy textures
 		for (int i = 0; i < mod->numtextures - 2; ++i)
 			SAFE_FREE (mod->textures[i]);
@@ -369,7 +425,7 @@ static void Mod_FreeModelMemory (qmodel_t *mod)
 		SAFE_FREE (mod->visdata);
 		SAFE_FREE (mod->lightdata);
 		SAFE_FREE (mod->entities);
-		for (int i = 0; i < 2; ++i)
+		for (int i = 0; i < PV_SIZE; ++i)
 			SAFE_FREE (mod->extradata[i]);
 		SAFE_FREE (mod->water_surfs);
 		mod->used_water_surfs = 0;
@@ -495,34 +551,52 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 
 	if (mod->type == mod_alias)
 	{
-		for (int i = 0; i < 2; ++i)
-			GLMesh_DeleteMeshBuffers ((aliashdr_t *)mod->extradata[i]);
-	}
-
-	//
-	// load the file
-	//
-	qboolean	 md5_replacement_loaded = false;
-	unsigned int md5_path_id = 0;
-	if (r_allow_replacement_md5models.value)
-	{
-		char newname[MAX_QPATH];
-		q_strlcpy (newname, mod->name, sizeof (newname));
-		char *extension = (char *)COM_FileGetExtension (newname);
-		if (strcmp (extension, "mdl") == 0)
+		for (int i = 0; i < PV_SIZE; ++i)
 		{
-			q_strlcpy (extension, "md5mesh", sizeof (newname) - (extension - newname));
-			buf = COM_LoadFile (newname, &mod->path_id);
-			if (buf)
-			{
-				Mod_LoadMD5MeshModel (mod, buf);
-				md5_replacement_loaded = true;
-				md5_path_id = mod->path_id;
-			}
-			Mem_Free (buf);
+			GLMesh_DeleteMeshBuffers ((aliashdr_t *)mod->extradata[i]);
 		}
 	}
 
+	// load the model file, together with replacement overrides for .mdl, if they are available.
+	qboolean	 enhanced_replacement_loaded = false;
+	unsigned int enhanced_path_id = 0;
+	char		 newname[MAX_QPATH];
+
+	bool mod_is_mdl = (strcmp (COM_FileGetExtension (mod->name), "mdl") == 0);
+
+	if (mod_is_mdl && r_allow_replacement_md5models.value)
+	{
+		// newname is the .mdl model with extension changed to .md5mesh:
+		COM_StripExtension (mod->name, newname, sizeof (newname));
+		COM_AddExtension (newname, ".md5mesh", sizeof (newname));
+
+		buf = COM_LoadFile (newname, &mod->path_id);
+		if (buf)
+		{
+			Mod_LoadMD5MeshModel (mod, buf);
+			enhanced_replacement_loaded = true;
+			enhanced_path_id = mod->path_id;
+		}
+		Mem_Free (buf);
+	}
+
+	if (mod_is_mdl && r_allow_replacement_md3models.value)
+	{
+		// newname is the .mdl model with extension changed to .md3:
+		COM_StripExtension (mod->name, newname, sizeof (newname));
+		COM_AddExtension (newname, ".md3", sizeof (newname));
+
+		buf = COM_LoadFile (newname, &mod->path_id);
+		if (buf)
+		{
+			Mod_LoadMD3Model (mod, buf);
+			enhanced_replacement_loaded = true;
+			enhanced_path_id = mod->path_id;
+		}
+		Mem_Free (buf);
+	}
+
+	// Load the
 	buf = COM_LoadFile (mod->name, &mod->path_id);
 	if (!buf)
 	{
@@ -531,16 +605,16 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 		return NULL;
 	}
 
-	if (md5_replacement_loaded)
+	if (enhanced_replacement_loaded)
 	{
-		// Only prioritize the MD5 over the MDL if the MD5 is in the same path or a higher priority path.
+		// Only prioritize the MD3/MD5 over the MDL if the MD3/MD5 is in the same path or a higher priority path.
 		// This means mods that replace a MDL won't have the id1 MD5s override them.
-		mod->md5_prio = md5_path_id >= mod->path_id;
+		mod->enhancedmodels_prio = enhanced_path_id >= mod->path_id;
 
 		// Exception: rogue provides MDLs that match the base game except they have extra skins, so
 		// we should still use the remastered id1 MD5s with them. (The model rendering will fall
 		// back to the MDLs when their extra skins are used.)
-		if (rogue && !mod->md5_prio)
+		if (rogue && !mod->enhancedmodels_prio)
 		{
 			searchpath_t *mod_searchpath = NULL;
 			for (searchpath_t *path = com_searchpaths; path; path = path->next)
@@ -553,13 +627,13 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 			}
 			if (mod_searchpath && !q_strcasecmp (mod_searchpath->dir, "rogue"))
 			{
-				mod->md5_prio = true;
+				mod->enhancedmodels_prio = true;
 			}
 		}
 	}
 	else
 	{
-		mod->md5_prio = false;
+		mod->enhancedmodels_prio = false;
 	}
 
 	//
@@ -571,7 +645,7 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 	// fill it in
 	//
 
-	// call the apropriate loader
+	// call the apropriate loader:
 	mod->needload = false;
 
 	mod_type = (buf[0] | (buf[1] << 8) | (buf[2] << 16) | (buf[3] << 24));
@@ -588,9 +662,18 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 	//
 	case IDMD5HEADER:
 	{
-		// by construction this is a "native" MD5 model, NOT a .mdl replacement so md5_replacement_loaded = false here
-		assert (!md5_replacement_loaded);
-		Mod_LoadMD5MeshModel (mod, buf);
+		// by construction this is a "native" MD5 model, NOT a .mdl replacement so enhanced_replacement_loaded = false here
+		assert (!enhanced_replacement_loaded);
+		Mod_LoadMD5MeshModel (mod, (const void *)buf);
+	}
+	break;
+
+	//
+	case IDMD3HEADER:
+	{
+		// by construction this is a "native" MD3 model, NOT a .mdl replacement so enhanced_replacement_loaded = false here
+		assert (!enhanced_replacement_loaded);
+		Mod_LoadMD3Model (mod, (const void *)buf);
 	}
 	break;
 
@@ -3437,12 +3520,11 @@ Mod_CalcAliasBounds -- johnfitz -- calculate bounds of alias model for nonrotate
 */
 static void Mod_CalcAliasBounds (qmodel_t *mod, aliashdr_t *a, int numvertexes, byte *vertexes)
 {
-	int	   i, j, k;
 	float  dist, yawradius, radius;
 	vec3_t v;
 
 	// clear out all data
-	for (i = 0; i < 3; i++)
+	for (int i = 0; i < 3; i++)
 	{
 		mod->mins[i] = mod->ymins[i] = mod->rmins[i] = FLT_MAX;
 		mod->maxs[i] = mod->ymaxs[i] = mod->rmaxs[i] = -FLT_MAX;
@@ -3454,13 +3536,14 @@ static void Mod_CalcAliasBounds (qmodel_t *mod, aliashdr_t *a, int numvertexes, 
 	case PV_QUAKE1:
 	{
 		// process verts
-		for (i = 0; i < a->numposes; i++)
-			for (j = 0; j < a->numverts; j++)
+		for (int i = 0; i < a->numposes; i++)
+		{
+			for (int j = 0; j < a->numverts; j++)
 			{
-				for (k = 0; k < 3; k++)
+				for (int k = 0; k < 3; k++)
 					v[k] = poseverts[i][j].v[k] * a->scale[k] + a->scale_origin[k];
 
-				for (k = 0; k < 3; k++)
+				for (int k = 0; k < 3; k++)
 				{
 					mod->mins[k] = q_min (mod->mins[k], v[k]);
 					mod->maxs[k] = q_max (mod->maxs[k], v[k]);
@@ -3472,18 +3555,20 @@ static void Mod_CalcAliasBounds (qmodel_t *mod, aliashdr_t *a, int numvertexes, 
 				if (radius < dist)
 					radius = dist;
 			}
-		break;
+		}
 	}
+	break;
 	case PV_MD5:
 	{
-		// process verts
+		// process verts : (vertexes;numvertexes) is all the vertices from all the poses/frames
+		// for all the surfaces of a model.
 		md5vert_t *pv = (md5vert_t *)vertexes;
-		for (j = 0; j < numvertexes; j++)
+		for (int j = 0; j < numvertexes; j++)
 		{
-			for (k = 0; k < 3; k++)
+			for (int k = 0; k < 3; k++)
 				v[k] = pv[j].xyz[k];
 
-			for (k = 0; k < 3; k++)
+			for (int k = 0; k < 3; k++)
 			{
 				mod->mins[k] = q_min (mod->mins[k], v[k]);
 				mod->maxs[k] = q_max (mod->maxs[k], v[k]);
@@ -3495,8 +3580,34 @@ static void Mod_CalcAliasBounds (qmodel_t *mod, aliashdr_t *a, int numvertexes, 
 			if (radius < dist)
 				radius = dist;
 		}
-		break;
 	}
+	break;
+	case PV_QUAKE3:
+	{
+		// process verts : (vertexes;numvertexes) is all the vertices from all the poses/frames
+		// for all the surfaces of a model.
+		md3XyzNormal_t *pv = (md3XyzNormal_t *)vertexes;
+		for (int j = 0; j < numvertexes; j++)
+		{
+			for (int k = 0; k < 3; k++)
+				v[k] = pv[j].xyz[k] * MD3_XYZ_SCALE;
+
+			for (int k = 0; k < 3; k++)
+			{
+				mod->mins[k] = q_min (mod->mins[k], v[k]);
+				mod->maxs[k] = q_max (mod->maxs[k], v[k]);
+			}
+			dist = v[0] * v[0] + v[1] * v[1];
+			if (yawradius < dist)
+				yawradius = dist;
+			dist += v[2] * v[2];
+			if (radius < dist)
+				radius = dist;
+		}
+	}
+	break;
+	default:
+		assert (false);
 	}
 
 	// rbounds will be used when entity has nonzero pitch or roll
@@ -3865,7 +3976,7 @@ static void Mod_LoadSpriteModel (qmodel_t *mod, void *buffer)
 
 	psprite = (msprite_t *)Mem_Alloc (size);
 
-	mod->extradata[0] = (byte *)psprite;
+	mod->extradata[PV_QUAKE1] = (byte *)psprite;
 
 	psprite->type = LittleLong (pin->type);
 	psprite->maxwidth = LittleLong (pin->width);
@@ -4481,25 +4592,168 @@ static void MD5Anim_Load (md5animctx_t *ctx, jointinfo_t *joints, size_t numjoin
 
 /*
 =====================
+Mod_LoadMDXSkinsByIndex : generic method to load skins for MD3/MD5 exploring standard search paths,
+parametrized by skin and framegroup index and skin_texture_pattern_fn.
+returns the number of successfully loaded (i.e. up to numskins) skins for surf.
+=====================
+*/
+typedef char *(*skin_base_name_fn) (
+	qmodel_t *mod, aliashdr_t *surf, int surf_index, size_t numsurfaces, int skin_index, size_t numskins, int framegroup_index, const char *basename);
+
+static size_t Mod_LoadMDXSkinsByIndex (
+	qmodel_t *mod, aliashdr_t *surf, int surf_index, size_t numsurfaces, size_t numskins, const char *basename, skin_base_name_fn skin_pattern_func)
+{
+#define TRY_LOAD_FULLBRIGHTS(tex_name)                                                                                      \
+	do                                                                                                                      \
+	{                                                                                                                       \
+		if (!surf->fbtextures[skin_index][f])                                                                               \
+		{                                                                                                                   \
+			surf->fbtextures[skin_index][f] = Mod_LoadFullbrightTexture (mod, tex_name, surf->skinwidth, surf->skinheight); \
+		}                                                                                                                   \
+	} while (0);
+
+	// for each skin:
+	size_t nb_loaded_skins = 0;
+	for (int skin_index = 0; skin_index < numskins; skin_index++)
+	{
+		unsigned int fwidth, fheight, f;
+		void		*data;
+
+		// look for framegroups:
+		for (f = 0; f < countof (surf->gltextures[0]); f++)
+		{
+			enum srcformat fmt = SRC_RGBA;
+
+			char texname[MAX_QPATH];
+
+			// for Skins: try first the same location as the model, then 'progs/', then 'textures/' if not found.
+			char *basic_texname = skin_pattern_func (mod, surf, surf_index, numsurfaces, skin_index, numskins, f, basename);
+
+			q_snprintf (texname, sizeof (texname), "%s", basic_texname);
+			data = Image_LoadImage (texname, (int *)&fwidth, (int *)&fheight, &fmt, mod->path_id);
+
+			if (!data)
+			{
+				q_snprintf (texname, sizeof (texname), "progs/%s", basic_texname);
+				data = Image_LoadImage (texname, (int *)&fwidth, (int *)&fheight, &fmt, mod->path_id);
+			}
+			if (!data)
+			{
+				q_snprintf (texname, sizeof (texname), "textures/%s", basic_texname);
+				data = Image_LoadImage (texname, (int *)&fwidth, (int *)&fheight, &fmt, mod->path_id);
+			}
+
+			if (data) // load external image
+			{
+				surf->gltextures[skin_index][f] =
+					TexMgr_LoadImage (mod, texname, fwidth, fheight, fmt, data, texname, 0, TEXPREF_ALPHA | TEXPREF_NOBRIGHT | TEXPREF_MIPMAP);
+
+				// no fullbrights by default.
+				assert (surf->fbtextures[skin_index][f] == NULL);
+
+				// initialize skinsizes, known at this point.
+				surf->skinwidth = surf->gltextures[0][0] ? surf->gltextures[0][0]->width : 1;
+				surf->skinheight = surf->gltextures[0][0] ? surf->gltextures[0][0]->height : 1;
+
+				if (fmt == SRC_INDEXED)
+				{
+					if (f == 0)
+					{
+						size_t size = fwidth * fheight;
+						byte  *texels = (byte *)Mem_Alloc (size);
+						surf->texels[surf->numskins] = texels;
+						memcpy (texels, data, size);
+					}
+					// 8bit base texture. use it for fullbrights.
+					for (size_t j = 0; j < fwidth * fheight; j++)
+					{
+						if (((byte *)data)[j] > 223)
+						{
+							surf->fbtextures[skin_index][f] = TexMgr_LoadImage (
+								mod, va ("%s_luma", basic_texname), fwidth, fheight, SRC_INDEXED, data, texname, 0,
+								TEXPREF_ALPHA | TEXPREF_MIPMAP | TEXPREF_FULLBRIGHT);
+							break;
+						}
+					}
+				}
+				else
+				{
+					// we found a 32bit base texture, try to fetch the fullbrights counterparts
+					// Same as skins, try first the same location as the model, then 'progs/', then 'textures/' if not found.
+					// glow
+					assert (surf->fbtextures[skin_index][f] == NULL);
+
+					TRY_LOAD_FULLBRIGHTS (va ("%s_glow", basic_texname));
+					TRY_LOAD_FULLBRIGHTS (va ("progs/%s_glow", basic_texname));
+					TRY_LOAD_FULLBRIGHTS (va ("textures/%s_glow", basic_texname));
+					TRY_LOAD_FULLBRIGHTS (va ("%s_luma", basic_texname));
+					TRY_LOAD_FULLBRIGHTS (va ("progs/%s_luma", basic_texname));
+					TRY_LOAD_FULLBRIGHTS (va ("textures/%s_luma", basic_texname));
+				}
+
+				Mem_Free (data);
+			}
+			else
+				break;
+		} // for each framegroup
+		if (f == 0)
+			break; // no images loaded...
+
+		// this stuff is hideous.
+		if (f < 2)
+		{
+			surf->gltextures[skin_index][1] = surf->gltextures[skin_index][0];
+			surf->fbtextures[skin_index][1] = surf->fbtextures[skin_index][0];
+		}
+		if (f == 3)
+		{
+			// Con_Warning ("%s_%02u_##: 3 skinframes found...\n", basename, numskins);
+		}
+
+		if (f < 4)
+		{
+			surf->gltextures[skin_index][3] = surf->gltextures[skin_index][1];
+			surf->gltextures[skin_index][2] = surf->gltextures[skin_index][0];
+
+			surf->fbtextures[skin_index][3] = surf->fbtextures[skin_index][1];
+			surf->fbtextures[skin_index][2] = surf->fbtextures[skin_index][0];
+		}
+
+		nb_loaded_skins++;
+
+	} // foreach skins
+
+#undef TRY_LOAD_FULLBRIGHTS
+
+	return nb_loaded_skins;
+}
+
+/*
+=====================
 Mod_LoadMD5MeshModel
 =====================
 */
+static char *
+MD5_Skin_Name (qmodel_t *mod, aliashdr_t *surf, int surf_index, size_t numsurfaces, int skin_index, size_t numskins, int framegroup_index, const char *basename)
+{
+	return va ("%s_%02u_%02u", basename, skin_index, framegroup_index);
+}
+
 static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 {
 	const char *fname = mod->name;
 
 	aliashdr_t *outhdr, *surf;
 	size_t		hdrsize;
-	size_t		numjoints, j;
-	size_t		nummeshes, m;
-	char		texname[MAX_QPATH];
+	size_t		numjoints;
+	size_t		nummeshes;
 
 	md5animctx_t anim = {NULL};
 
 	buffer = COM_Parse (buffer);
 
 	MD5EXPECT ("MD5Version");
-	MD5EXPECT ("10");
+	MD5EXPECT (MD5_VERSION);
 	if (MD5CHECK ("commandline"))
 		buffer = COM_Parse (buffer);
 	MD5EXPECT ("numJoints");
@@ -4521,6 +4775,7 @@ static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 	hdrsize += sizeof (outhdr->frames) * anim.numposes;
 
 	// alloc all aliashdr_t and their chained nextsurface, a.k.a nummeshes, in one array
+	// all aliashdr_t are zero-initialized by Mem_Alloc
 	outhdr = (aliashdr_t *)Mem_Alloc (hdrsize * nummeshes);
 
 	TEMP_ALLOC_ZEROED (jointinfo_t, joint_infos, numjoints);
@@ -4528,7 +4783,7 @@ static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 
 	// 1. Load joints
 	MD5EXPECT ("{");
-	for (j = 0; j < numjoints; j++)
+	for (size_t j = 0; j < numjoints; j++)
 	{
 		vec3_t		  pos;
 		static vec3_t scale = {1, 1, 1};
@@ -4590,7 +4845,7 @@ static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 	size_t	   total_numverts = 0;
 	md5vert_t *total_vertexes = NULL;
 
-	for (m = 0; m < nummeshes; m++)
+	for (int m = 0; m < nummeshes; m++)
 	{
 		MD5EXPECT ("mesh");
 		MD5EXPECT ("{");
@@ -4603,7 +4858,7 @@ static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 			surf->nextsurface = NULL;
 
 		surf->poseverttype = PV_MD5;
-		for (j = 0; j < 3; j++)
+		for (size_t j = 0; j < 3; j++)
 		{
 			surf->scale_origin[j] = 0;
 			surf->scale[j] = 1.0;
@@ -4613,121 +4868,25 @@ static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 
 		if (anim.numposes)
 		{
-			for (j = 0; j < anim.numposes; j++)
+			for (size_t j = 0; j < anim.numposes; j++)
 			{
 				surf->frames[j].firstpose = j;
 				surf->frames[j].numposes = 1;
 				surf->frames[j].interval = 0.1;
 			}
-			surf->numframes = j;
+			surf->numframes = anim.numposes;
 		}
 
 		//"shader" is the texture of the surf
 		MD5EXPECT ("shader");
 		// MD5 violation: the skin is a single material. adding prefixes/postfixes here is the wrong thing to do.
 		// but we do so anyway, because rerelease compat.
-		for (surf->numskins = 0; surf->numskins < MAX_SKINS; surf->numskins++)
-		{
-			unsigned int fwidth, fheight, f;
-			void		*data;
-			for (f = 0; f < countof (surf->gltextures[0]); f++)
-			{
-				enum srcformat fmt = SRC_RGBA;
+		surf->numskins = (int)Mod_LoadMDXSkinsByIndex (mod, surf, m, nummeshes, MAX_SKINS, (const char *)com_token, MD5_Skin_Name);
 
-				// for Skins: try first the same location as the model, then 'progs/' if not found.
-				q_snprintf (texname, sizeof (texname), "%s_%02u_%02u", com_token, surf->numskins, f);
-				data = Image_LoadImage (texname, (int *)&fwidth, (int *)&fheight, &fmt, mod->path_id);
+		if (surf->numskins == 0)
+			Sys_Error ("Mod_LoadMD5MeshModel(%s): no skins found for surf %d", fname, m);
 
-				if (!data)
-				{
-					q_snprintf (texname, sizeof (texname), "progs/%s_%02u_%02u", com_token, surf->numskins, f);
-					data = Image_LoadImage (texname, (int *)&fwidth, (int *)&fheight, &fmt, mod->path_id);
-				}
-
-				if (data) // load external image
-				{
-					surf->gltextures[surf->numskins][f] =
-						TexMgr_LoadImage (mod, texname, fwidth, fheight, fmt, data, texname, 0, TEXPREF_ALPHA | TEXPREF_NOBRIGHT | TEXPREF_MIPMAP);
-
-					// no fullbrights by default.
-					surf->fbtextures[surf->numskins][f] = NULL;
-					// initialize skinsizes, known at this point.
-					surf->skinwidth = surf->gltextures[0][0] ? surf->gltextures[0][0]->width : 1;
-					surf->skinheight = surf->gltextures[0][0] ? surf->gltextures[0][0]->height : 1;
-
-					if (fmt == SRC_INDEXED)
-					{
-						if (f == 0)
-						{
-							size_t size = fwidth * fheight;
-							byte  *texels = (byte *)Mem_Alloc (size);
-							surf->texels[surf->numskins] = texels;
-							memcpy (texels, data, size);
-						}
-						// 8bit base texture. use it for fullbrights.
-						for (j = 0; j < fwidth * fheight; j++)
-						{
-							if (((byte *)data)[j] > 223)
-							{
-								surf->fbtextures[surf->numskins][f] = TexMgr_LoadImage (
-									mod, va ("%s_luma", texname), fwidth, fheight, SRC_INDEXED, data, texname, 0,
-									TEXPREF_ALPHA | TEXPREF_MIPMAP | TEXPREF_FULLBRIGHT);
-								break;
-							}
-						}
-					}
-					else
-					{
-						// we found a 32bit base texture, try to fetch the fullbrights counterparts
-						// Same as skins, try first the same location as the model, then 'progs/' if not found.
-						if (!surf->fbtextures[surf->numskins][f])
-						{
-							q_snprintf (texname, sizeof (texname), "%s_%02u_%02u_glow", com_token, surf->numskins, f);
-							surf->fbtextures[surf->numskins][f] = Mod_LoadFullbrightTexture (mod, texname, surf->skinwidth, surf->skinheight);
-						}
-						if (!surf->fbtextures[surf->numskins][f])
-						{
-							q_snprintf (texname, sizeof (texname), "progs/%s_%02u_%02u_glow", com_token, surf->numskins, f);
-							surf->fbtextures[surf->numskins][f] = Mod_LoadFullbrightTexture (mod, texname, surf->skinwidth, surf->skinheight);
-						}
-						if (!surf->fbtextures[surf->numskins][f])
-						{
-							q_snprintf (texname, sizeof (texname), "%s_%02u_%02u_luma", com_token, surf->numskins, f);
-							surf->fbtextures[surf->numskins][f] = Mod_LoadFullbrightTexture (mod, texname, surf->skinwidth, surf->skinheight);
-						}
-						if (!surf->fbtextures[surf->numskins][f])
-						{
-							q_snprintf (texname, sizeof (texname), "progs/%s_%02u_%02u_luma", com_token, surf->numskins, f);
-							surf->fbtextures[surf->numskins][f] = Mod_LoadFullbrightTexture (mod, texname, surf->skinwidth, surf->skinheight);
-						}
-					}
-
-					Mem_Free (data);
-				}
-				else
-					break;
-			}
-			if (f == 0)
-				break; // no images loaded...
-
-			// this stuff is hideous.
-			if (f < 2)
-			{
-				surf->gltextures[surf->numskins][1] = surf->gltextures[surf->numskins][0];
-				surf->fbtextures[surf->numskins][1] = surf->fbtextures[surf->numskins][0];
-			}
-			if (f == 3)
-				Con_Warning ("%s_%02u_##: 3 skinframes found...\n", com_token, surf->numskins);
-			if (f < 4)
-			{
-				surf->gltextures[surf->numskins][3] = surf->gltextures[surf->numskins][1];
-				surf->gltextures[surf->numskins][2] = surf->gltextures[surf->numskins][0];
-
-				surf->fbtextures[surf->numskins][3] = surf->fbtextures[surf->numskins][1];
-				surf->fbtextures[surf->numskins][2] = surf->fbtextures[surf->numskins][0];
-			}
-		}
-		// MD5 have only 1 pose, a.k.a frame in MDL / MD3
+		// MD5 have only 1 surface pose, meaning 1 vertex-like "pose" (not to ne mixed with md5animctx_t anim poses !)
 		//  because it uses skeletal animation instead of displaying/interpolating different frames/poses of vertices
 		surf->numposes = 1;
 
@@ -4762,7 +4921,7 @@ static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 			if (idx >= (size_t)surf->numtris)
 				Sys_Error ("triangle index out of bounds");
 			idx *= 3;
-			for (j = 0; j < 3; j++)
+			for (size_t j = 0; j < 3; j++)
 			{
 				size_t t = MD5UINT ();
 				if (t > (size_t)surf->numverts)
@@ -4834,6 +4993,251 @@ static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 	TEMP_FREE (joint_poses);
 	TEMP_FREE (joint_infos)
 }
+/*
+=====================
+Mod_LoadMD3SkinsWithSurfaceNames:
+Load skins using a naming based on the surface names alone, not .skin definitions
+=====================
+*/
+// skin name : surfacename.ext (1 skin, 1 framgroup)
+static char *MD3_Skin_Name_Legacy_Single (
+	qmodel_t *mod, aliashdr_t *surf, int surf_index, size_t numsurfaces, int skin_index, size_t numskins, int framegroup_index, const char *basename)
+{
+	return va ("%s", basename);
+}
+
+// skin name : surfacename_X.ext (0..X-1 skin, 1 framgroup)
+static char *MD3_Skin_Name_Legacy_One_Framegroup (
+	qmodel_t *mod, aliashdr_t *surf, int surf_index, size_t numsurfaces, int skin_index, size_t numskins, int framegroup_index, const char *basename)
+{
+	return va ("%s_%d", basename, skin_index);
+}
+
+// skin name : surfacename_X_Y.ext (0..X-1 skin, 0..Y-1 framgroup)
+static char *MD3_Skin_Name_Legacy (
+	qmodel_t *mod, aliashdr_t *surf, int surf_index, size_t numsurfaces, int skin_index, size_t numskins, int framegroup_index, const char *basename)
+{
+	return va ("%s_%d_%d", basename, skin_index, framegroup_index);
+}
+
+// skin name : model_name.md3_S_X_Y.ext (0..S-1 surfaces, 0..X-1 skin, 0..Y-1 framgroup) using MD5 conventions, using the model name as prefix
+static char *MD3_Skin_Name_Standalone (
+	qmodel_t *mod, aliashdr_t *surf, int surf_index, size_t numsurfaces, int skin_index, size_t numskins, int framegroup_index, const char *basename)
+{
+	char newname[MAX_QPATH];
+	COM_StripExtension (basename, newname, sizeof (newname));
+	COM_AddExtension (newname, ".md3", sizeof (newname));
+
+	return va ("%s_%02u_%02u_%02u", newname, surf_index, skin_index, framegroup_index);
+}
+
+//
+static bool Mod_LoadMD3SkinsWithSurfaceNames (qmodel_t *mod, aliashdr_t *surf, const char *surface_name, int surface_index, size_t numsurfs, size_t numskins)
+{
+	// 1. Try to load the "legacy" MD3 namings from the existing Quake 3 ecosystem first :
+	//  skin name : surfacename.ext (1 skin, 1 framgroup)
+	surf->numskins = (int)Mod_LoadMDXSkinsByIndex (mod, surf, surface_index, numsurfs, 1, surface_name, MD3_Skin_Name_Legacy_Single);
+
+	if (surf->numskins > 0 && numskins > 1)
+		Con_Warning ("Mod_LoadMD3ShaderSkins(%s): load 1 skin with numskins = %d\n", mod->name, (int)numskins);
+
+	// skin name : surfacename_X.ext (0..X-1 skins, 1 framgroup)
+	if (!surf->numskins)
+	{
+		surf->numskins = (int)Mod_LoadMDXSkinsByIndex (mod, surf, surface_index, numsurfs, numskins, surface_name, MD3_Skin_Name_Legacy_One_Framegroup);
+	}
+	// skin name : surfacename_X_Y.ext (0..X-1 skins, 0..Y-1 framgroups)
+	if (!surf->numskins)
+	{
+		surf->numskins = (int)Mod_LoadMDXSkinsByIndex (mod, surf, surface_index, numsurfs, numskins, surface_name, MD3_Skin_Name_Legacy);
+	}
+
+	// 2. MD5-like naming conventions:
+	// skin name : surfacename_X_Y.ext (0..X-1 skins, 0..Y-1 framgroups) with %s_%02u_%02u pattern
+	if (!surf->numskins)
+	{
+		surf->numskins = (int)Mod_LoadMDXSkinsByIndex (mod, surf, surface_index, numsurfs, numskins, mod->name, MD5_Skin_Name);
+	}
+
+	// skin name: use the model name (without extension).md3 + _ + surface index as prefix, not making use of the shader_texture_name at all.
+	if (!surf->numskins)
+	{
+		surf->numskins = (int)Mod_LoadMDXSkinsByIndex (mod, surf, surface_index, numsurfs, numskins, mod->name, MD3_Skin_Name_Standalone);
+	}
+
+	return surf->numskins > 0;
+}
+
+/*
+=====================
+Mod_LoadMD3Model
+=====================
+*/
+static void Mod_LoadMD3Model (qmodel_t *mod, const void *buffer)
+{
+	aliashdr_t	   *outhdr, *surf;
+	md3Header_t	   *pinheader;
+	md3Frame_t	   *pinframes;
+	md3Triangle_t  *pintriangle;
+	md3XyzNormal_t *pinvertexes;
+	md3St_t		   *pinst;
+	size_t			hdrsize;
+	int				numsurfs;
+	int				numframes;
+
+	pinheader = (md3Header_t *)buffer;
+
+	int version = LittleLong (pinheader->version);
+	if (version != MD3_VERSION)
+		Sys_Error ("%s has wrong version number (%d should be %d)", mod->name, version, MD3_VERSION);
+
+	numsurfs = LittleLong (pinheader->numSurfaces);
+	numframes = LittleLong (pinheader->numFrames);
+
+	if (numframes > MAXALIASFRAMES)
+		Sys_Error ("%s has too many frames (%i vs %i)", mod->name, numframes, MAXALIASFRAMES);
+	if (!numsurfs)
+		Sys_Error ("%s has nosurfaces", mod->name);
+
+	pinframes = (md3Frame_t *)((byte *)buffer + LittleLong (pinheader->ofsFrames));
+
+	hdrsize = sizeof (*outhdr) - sizeof (outhdr->frames);
+	hdrsize += sizeof (outhdr->frames) * numframes;
+
+	// alloc all aliashdr_t and their chained nextsurface, a.k.a numsurfs, in one array
+	outhdr = (aliashdr_t *)Mem_Alloc (hdrsize * numsurfs);
+
+	// total_numverts and total_vertexes accumulate all vertices of the surface,
+	// just to be able to Mod_CalcAliasBounds at the end.
+	size_t			total_numverts = 0;
+	md3XyzNormal_t *total_vertexes = NULL;
+
+	// for each of the surfaces :
+	md3Surface_t *pinsurface = (md3Surface_t *)((byte *)buffer + LittleLong (pinheader->ofsSurfaces));
+	for (int m = 0; m < numsurfs; m++)
+	{
+		if (LittleLong (pinsurface->ident) != IDMD3HEADER)
+			Sys_Error ("%s corrupt surface ident", mod->name);
+		if (LittleLong (pinsurface->numFrames) != numframes)
+			Sys_Error ("%s mismatched framecounts", mod->name);
+
+		// go to the surf, chaining the next nextsurface
+		surf = (aliashdr_t *)((byte *)outhdr + m * hdrsize);
+		if (m + 1 < numsurfs)
+			surf->nextsurface = (aliashdr_t *)((byte *)outhdr + (m + 1) * hdrsize);
+		else
+			surf->nextsurface = NULL;
+
+		surf->poseverttype = PV_QUAKE3;
+
+		// the number of vertices per-frame:
+		surf->numverts_vbo = surf->numverts = LittleLong (pinsurface->numVerts);
+
+		// All the vertices for this surface, concat of the vertices of each of the numframes, one frame after another:
+		pinvertexes = (md3XyzNormal_t *)((byte *)pinsurface + LittleLong (pinsurface->ofsXyzNormals));
+
+		md3XyzNormal_t *poutvertexes = (md3XyzNormal_t *)Mem_Alloc (numframes * surf->numverts * sizeof (*poutvertexes));
+		// keep track of the original poutvertexes, because we are going to pointer arithmetic below...
+		md3XyzNormal_t *poutvertexes_for_freeing = poutvertexes;
+
+		// TODO : make .skin have priority over this...
+		// TODO : load skins based on surface names only, for now:
+		surf->numskins = (int)Mod_LoadMD3SkinsWithSurfaceNames (mod, surf, pinsurface->name, m, numsurfs, MAX_SKINS);
+
+		if (surf->numskins == 0)
+			Sys_Error ("Mod_LoadMD3Model(%s): no skins found for surf %s (%d)", mod->name, pinsurface->name, m);
+
+		// for each frame:
+		// only 1 pose for MD3, it have frames instead
+		surf->numposes = 1;
+
+		for (int ival = 0; ival < numframes; ival++)
+		{
+			surf->frames[ival].firstpose = ival;
+			surf->frames[ival].numposes = 1;
+			surf->frames[ival].interval = 0.1;
+
+			q_strlcpy (surf->frames[ival].name, pinframes->name, sizeof (surf->frames[ival].name));
+
+			for (int j = 0; j < 3; j++)
+			{ // fixme...
+				surf->frames[ival].bboxmin.v[j] = 0;
+				surf->frames[ival].bboxmax.v[j] = 255;
+			}
+
+			for (int j = 0; j < surf->numverts; j++)
+				poutvertexes[j] = pinvertexes[j];
+
+			poutvertexes += surf->numverts;
+			pinvertexes += surf->numverts;
+		}
+		surf->numframes = numframes;
+
+		surf->numtris = LittleLong (pinsurface->numTriangles);
+		surf->numindexes = surf->numtris * 3;
+
+		pintriangle = (md3Triangle_t *)((byte *)pinsurface + LittleLong (pinsurface->ofsTriangles));
+
+		unsigned short *poutindexes = (unsigned short *)Mem_Alloc (sizeof (*poutindexes) * surf->numindexes);
+		// keep track of the original poutindexes, because we are going to pointer arithmetic below...
+		unsigned short *poutindexes_for_freeing = poutindexes;
+
+		for (int ival = 0; ival < surf->numtris; ival++, pintriangle++, poutindexes += 3)
+		{
+			for (int j = 0; j < 3; j++)
+				poutindexes[j] = LittleLong (pintriangle->indexes[j]);
+		}
+
+		for (int j = 0; j < 3; j++)
+		{
+			surf->scale_origin[j] = 0;
+			surf->scale[j] = MD3_XYZ_SCALE;
+		}
+
+		// TODO: What to do with the shaders ?
+		// int numshaders = pinsurface->numShaders;
+		// md3Shader_t	   * pinshader = (md3Shader_t *)((byte *)pinsurface + LittleLong (pinsurface->ofsShaders));
+
+		// and figure out the texture coords properly, now we know the actual sizes.
+		pinst = (md3St_t *)((byte *)pinsurface + LittleLong (pinsurface->ofsSt));
+
+		aliasmesh_t *poutst = (aliasmesh_t *)Mem_Alloc (sizeof (*poutst) * surf->numverts);
+
+		for (int j = 0; j < surf->numverts; j++)
+		{
+			poutst[j].vertindex = j; // how is this useful?
+			poutst[j].st[0] = pinst[j].s;
+			poutst[j].st[1] = pinst[j].t;
+		}
+
+		// Upload to GPU that surface/mesh m:
+		GLMesh_UploadBuffers (mod, surf, poutindexes, (byte *)poutvertexes, poutst, NULL);
+
+		// concat surface vertices to total_vertexes
+		total_vertexes = (md3XyzNormal_t *)Mem_Realloc (total_vertexes, sizeof (*poutvertexes) * (total_numverts + surf->numverts));
+		memcpy ((void *)(total_vertexes + total_numverts), (const void *)poutvertexes, sizeof (*poutvertexes) * surf->numverts);
+		total_numverts += surf->numverts;
+
+		Mem_Free (poutst);
+		Mem_Free (poutvertexes_for_freeing);
+		Mem_Free (poutindexes_for_freeing);
+
+		// go to the next surface:
+		pinsurface = (md3Surface_t *)((byte *)pinsurface + LittleLong (pinsurface->ofsEnd));
+
+	} // end for surface
+
+	// small violation of the spec, but it seems like noone else uses it.
+	mod->flags = LittleLong (pinheader->flags);
+
+	mod->type = mod_alias;
+	mod->extradata[PV_QUAKE3] = (byte *)outhdr;
+
+	// calc alias bounds of the whole surfaces model :
+	Mod_CalcAliasBounds (mod, outhdr, total_numverts, (byte *)total_vertexes); // johnfitz
+
+	Mem_Free (total_vertexes);
+}
 
 //=============================================================================
 
@@ -4850,7 +5254,9 @@ void Mod_Print (void)
 	Con_SafePrintf ("Cached models:\n"); // johnfitz -- safeprint instead of print
 	for (i = 0, mod = mod_known; i < mod_numknown; i++, mod++)
 	{
-		Con_SafePrintf ("%8p %8p: %s\n", mod->extradata[0], mod->extradata[1], mod->name); // johnfitz -- safeprint instead of print
+		Con_SafePrintf (
+			"MDL: %s| MD5: %s| MD3: %s - %s\n", (mod->extradata[PV_QUAKE1]) ? "YES" : " no", (mod->extradata[PV_MD5]) ? "YES" : " no",
+			(mod->extradata[PV_QUAKE3]) ? "YES" : " no", mod->name); // johnfitz -- safeprint instead of print
 	}
 	Con_Printf ("%i models\n", mod_numknown); // johnfitz -- print the total too
 }

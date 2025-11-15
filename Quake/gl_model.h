@@ -287,8 +287,10 @@ typedef struct aliasmesh_s
 
 typedef struct meshxyz_s
 {
-	byte		xyz[4];
-	signed char normal[4];
+	// 16bit unsigned to fit both MDL and MD3,
+	// the alias vertex shader maps this on [0,1]
+	unsigned short xyz[4];
+	signed char	   normal[4];
 } meshxyz_t;
 
 typedef struct meshst_s
@@ -322,8 +324,10 @@ typedef struct glheapallocation_s glheapallocation_t;
 
 typedef enum
 {
-	PV_QUAKE1, // trivertx_t
-	PV_MD5,	   // md5vert_t
+	PV_QUAKE1 = 0, // trivertx_t (MDL)
+	PV_MD5,		   // md5vert_t (MD5)
+	PV_QUAKE3,	   // md3XyzNormal_t (MD3)
+	PV_SIZE
 } poseverttype_t;
 
 typedef struct aliashdr_s
@@ -363,6 +367,16 @@ typedef struct aliashdr_s
 	maliasframedesc_t	frames[1]; // variable sized
 } aliashdr_t;
 
+/*
+==============================================================================
+MD5 MODELS
+==============================================================================
+*/
+
+// little-endian 4-byte "MD5V" header
+#define IDMD5HEADER (('M' << 0) + ('D' << 8) + ('5' << 16) + ('V' << 24))
+#define MD5_VERSION "10"
+
 #define NUM_JOINT_INFLUENCES 4
 
 typedef struct md5vert_s
@@ -378,6 +392,100 @@ typedef struct jointpose_s
 {
 	float mat[12];
 } jointpose_t; // pose data for a single joint.
+
+/*
+==============================================================================
+MD3 MODELS
+==============================================================================
+*/
+
+#define MD3_VERSION 15
+#define IDMD3HEADER (('I' << 0) | ('D' << 8) | ('P' << 16) | ('3' << 24))
+
+// MD3 vertex+norm file format:
+typedef struct md3XyzNormal_s
+{
+	short xyz[3];
+	byte  latlong[2];
+} md3XyzNormal_t;
+
+// MD3 scale is a constant
+#define MD3_XYZ_SCALE (1.0f / 64.0f)
+
+// structures from Tenebrae
+typedef struct md3Header_s
+{
+	int ident;
+	int version;
+
+	char name[64];
+
+	int flags; // assumed to match quake1 models, for lack of somewhere better.
+
+	int numFrames;
+	int numTags;
+	int numSurfaces;
+
+	int numSkins;
+
+	int ofsFrames;
+	int ofsTags;
+	int ofsSurfaces;
+	int ofsEnd;
+} md3Header_t;
+
+// then has header->numFrames of these at header->ofs_Frames
+typedef struct md3Frame_s
+{
+	vec3_t bounds[2];
+	vec3_t localOrigin;
+	float  radius;
+	char   name[16];
+} md3Frame_t;
+
+// there are header->numSurfaces of these at header->ofsSurfaces, following from ofsEnd
+typedef struct md3Surface_s
+{
+	int ident; //
+
+	char name[64]; // polyset name
+
+	int flags;
+	int numFrames; // all surfaces in a model should have the same
+
+	int numShaders; // all surfaces in a model should have the same
+	int numVerts;
+
+	int numTriangles;
+	int ofsTriangles;
+
+	int ofsShaders;	   // offset from start of md3Surface_t
+	int ofsSt;		   // texture coords are common for all frames
+	int ofsXyzNormals; // numVerts * numFrames
+
+	int ofsEnd; // next surface follows
+} md3Surface_t;
+
+// surf->numTriangles at surf+surf->ofsTriangles
+typedef struct md3Triangle_s
+{
+	int indexes[3];
+} md3Triangle_t;
+
+// surf->numVerts at surf+surf->ofsSt
+typedef struct md3St_s
+{
+	float s;
+	float t;
+} md3St_t;
+
+typedef struct md3Shader_s
+{
+	char name[64];
+	int	 shaderIndex;
+} md3Shader_t;
+
+//===================================================================
 
 // QS limits : vkQuake is no longer constrained by QS limits,
 // so those values are only used to trace QS incompatibilities.
@@ -528,9 +636,9 @@ typedef struct qmodel_s
 	//
 	// additional model data
 	//
-	byte *extradata[2]; // only access through Mod_Extradata
+	byte *extradata[PV_SIZE]; // only access through Mod_Extradata
 
-	qboolean md5_prio; // if true, the MD5 model has at least as much path priority as the MDL model
+	qboolean enhancedmodels_prio; // if true, the MD5/MD3 model has at least as much path priority as the MDL model
 
 	// Ray tracing
 	VkAccelerationStructureKHR blas;
@@ -554,8 +662,5 @@ byte	*Mod_LeafPVS (mleaf_t *leaf, qmodel_t *model);
 byte	*Mod_NoVisPVS (qmodel_t *model);
 
 void Mod_SetExtraFlags (qmodel_t *mod);
-
-// little-endian 4-byte "MD5V" header
-#define IDMD5HEADER (('M' << 0) + ('D' << 8) + ('5' << 16) + ('V' << 24))
 
 #endif // __MODEL__
