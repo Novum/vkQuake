@@ -922,6 +922,11 @@ void ED_PrintEdicts (void)
 
 	Con_Printf ("Total: %i entities\n", qcvm->num_edicts);
 
+	if (free_list_count != free_edicts_count)
+	{
+		Con_Warning ("free_list_count:%i is not equal to free_edicts_count:%i\n", free_list_count, free_edicts_count);
+	}
+
 	PR_SwitchQCVM (NULL);
 }
 
