@@ -679,11 +679,14 @@ void R_DrawIndirectBrushes (cb_context_t *cbx, qboolean draw_water, qboolean tra
 		float alpha = 1.0f;
 		if (draw_water)
 		{
-			if (!(q_strncasecmp (texture->name, "*lava", 5))) // SURF_DRAWLAVA is in surfaces only, but it's derived from the texture name
+			if (!(q_strncasecmp (texture->name, "*lava", 5) ||
+				  q_strncasecmp (texture->name, "!lava", 5))) // SURF_DRAWLAVA is in surfaces only, but it's derived from the texture name
 				alpha = map_lavaalpha > 0 ? map_lavaalpha : map_fallbackalpha;
-			else if (!(q_strncasecmp (texture->name, "*slime", 6))) // SURF_DRAWSLIME is in surfaces only, but it's derived from the texture name
+			else if (!(q_strncasecmp (texture->name, "*slime", 6) ||
+					   q_strncasecmp (texture->name, "!slime", 6))) // SURF_DRAWSLIME is in surfaces only, but it's derived from the texture name
 				alpha = map_slimealpha > 0 ? map_slimealpha : map_fallbackalpha;
-			else if (!(q_strncasecmp (texture->name, "*tele", 5))) // SURF_DRAWTELE is in surfaces only, but it's derived from the texture name
+			else if (!(q_strncasecmp (texture->name, "*tele", 5) ||
+					   q_strncasecmp (texture->name, "!tele", 5))) // SURF_DRAWTELE is in surfaces only, but it's derived from the texture name
 				alpha = map_telealpha > 0 ? map_telealpha : map_fallbackalpha;
 			else
 				alpha = map_wateralpha;
