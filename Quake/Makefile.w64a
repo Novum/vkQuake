@@ -39,7 +39,7 @@ CFLAGS ?=
 SYSOBJ_NET := net_win.o net_wins.o net_wipx.o
 SYSOBJ_SYS := pl_win.o sys_sdl.o sys_sdl_win.o
 DEFAULT_TARGET := vkQuake.exe
-BINTOC_EXE = ../Shaders/bintoc.exe
+BINTOC_EXE = ../Shaders/bintoc
 
 # ---------------------------
 # common
