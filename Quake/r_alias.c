@@ -143,8 +143,13 @@ static void GL_DrawAliasFrame (
 		ubo->blend_factor = blend;
 		memcpy (ubo->light_color, lightcolor, 3 * sizeof (float));
 		ubo->flags = (fb != NULL) ? 0x1 : 0x0;
+
 		if (r_fullbright_cheatsafe || (r_lightmap_cheatsafe && r_fullbright.value))
 			ubo->flags |= 0x2;
+
+		if (paliashdr->poseverttype == PV_QUAKE3)
+			ubo->flags |= 0x4;
+
 		ubo->entalpha = entity_alpha;
 
 		VkDescriptorSet descriptor_sets[3] = {tx->descriptor_set, (fb != NULL) ? fb->descriptor_set : tx->descriptor_set, ubo_set};
@@ -440,12 +445,14 @@ void R_DrawAliasModel (cb_context_t *cbx, entity_t *e, int *aliaspolys)
 	int			 anim, skinnum = e->skinnum;
 	gltexture_t *tx, *fb;
 	lerpdata_t	 lerpdata;
-	qboolean	 alphatest = !!(e->model->flags & MF_HOLEY);
 
 	//
 	// setup pose/lerp data -- do it first so we don't miss updates due to culling
 	//
 	paliashdr = (aliashdr_t *)Mod_Extradata_CheckSkin (e->model, skinnum);
+
+	qboolean alphatest = (paliashdr->poseverttype == PV_QUAKE3) || (paliashdr->poseverttype == PV_MD5) || (!!(e->model->flags & MF_HOLEY));
+
 	R_SetupAliasFrame (e, paliashdr, e->frame, &lerpdata);
 	R_SetupEntityTransform (e, &lerpdata);
 
