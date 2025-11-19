@@ -1,9 +1,12 @@
-# GNU Makefile for compiling vkQuake.exe for Windows x64 using MinGW-w64.
-# Usage: "make -f Makefile.w64"
-# To cross-compile on Linux hosts, see the 'build_cross_win64.sh' script.
+# GNU Makefile for compiling vkQuake.exe for Windows arm64 using MSYS2/clangarm64.
+# Usage: "make -f Makefile.w64a"
+#
 # "make VK_SDK_PATH=/path/to/vksdk" to specify the Vulkan SDK root
 # "make DEBUG=1" to build a debug client.
-# "make SDL_CONFIG=/path/to/sdl2-config" to override the locally included SDL2 version.
+#
+# WINDRES currently unsupported on Aarch64 ?
+# https://github.com/llvm/llvm-project/issues/125371
+#
 
 ### Enable/disable codecs for streaming music support
 USE_CODEC_WAVE = 1
@@ -26,9 +29,9 @@ VORBISLIB = vorbis
 # build variables
 # ---------------------------
 CPUFLAGS =
-LDFLAGS = -m64 -mwindows -static-libgcc
+LDFLAGS = -mwindows -static-libgcc
 DFLAGS ?=
-CFLAGS ?= -m64 -D_WIN32_WINNT=0x0501
+CFLAGS ?=
 
 # ---------------------------
 # objects
@@ -45,24 +48,25 @@ include common.make
 
 # ---------------------------
 # libraries
-# --------------------------- 
+# ---------------------------
 # default to our local SDL2 for build
-SDL_CONFIG ?=../Windows/SDL2/bin/sdl2-config --prefix=../Windows/SDL2 --lib-suffix=64
+SDL_CONFIG ?= sdl2-config
 SDL_CFLAGS := $(shell $(SDL_CONFIG) --cflags)
 SDL_LIBS := $(shell $(SDL_CONFIG) --libs)
 
 ifeq ($(USE_CODEC_OPUS),1)
+CFLAGS += -I ${MSYSTEM_PREFIX}/include/opus
 CODECLIBS += -lopusfile -lopus -logg
 endif
 
 NET_LIBS := -lws2_32
 
-CFLAGS += -I../Windows/codecs/include
-CODEC_LINK = -L../Windows/codecs/x64
+CFLAGS += -I ${MSYSTEM_PREFIX}/include
+CODEC_LINK = -L ${MINGW_PREFIX}/lib
 
-VK_SDK_PATH ?= ../Windows/misc
+VK_SDK_PATH ?= ${MSYSTEM_PREFIX}
 VULKAN_INC = -I$(VK_SDK_PATH)/include
-VULKAN_LINK= -L../Windows/misc/x64 # -L$(VK_SDK_PATH)/lib 
+VULKAN_LINK= -L$(VK_SDK_PATH)/lib
 VULKAN_LIBS= -lvulkan-1
 CFLAGS += $(VULKAN_INC)
 
@@ -77,21 +81,28 @@ LIBWINPTHREAD = $(MSYSTEM_PREFIX)/bin/libwinpthread-1.dll
 # ---------------------------
 # targets / rules
 # ---------------------------
-all: $(BINTOC_EXE) .WAIT $(DEFAULT_TARGET) dll
+all: $(BINTOC_EXE) .WAIT $(DEFAULT_TARGET) .WAIT dll
 
+#FIXME:  windres on Aarch64?
 %.res: ../Windows/%.rc
-	$(WINDRES) -I../Windows -I../Quake --output-format=coff --target=pe-x86-64 -o $@ $<
+	$(WINDRES) -I../Windows -I../Quake --output-format=coff --target=pe-aarch64-little -o $@ $<
 
-vkQuake.exe: $(SHADER_OBJS) $(OBJS) $(SYSOBJ_RES)
-	$(LINKER) $(SHADER_OBJS) $(OBJS) $(SYSOBJ_RES) $(LDFLAGS) $(LIBS) $(SDL_LIBS) -o $@
+vkQuake.exe: $(SHADER_OBJS) $(OBJS)
+	$(LINKER) $(SHADER_OBJS) $(OBJS) $(LDFLAGS) $(LIBS) $(SDL_LIBS) -o $@
 	$(call DO_STRIP,$@)
 
 dll:
-	if [ -f $(LIBWINPTHREAD) ]; then \
-		cp $(LIBWINPTHREAD)  . ; \
-	fi
-	cp ../Windows/codecs/x64/*.dll .
-	cp ../Windows/SDL2/lib64/*.dll .
+	ldd vkquake.exe | cut -d' ' -f3 | grep ${MSYSTEM_PREFIX}
+	cp -p ${MSYSTEM_PREFIX}/bin/libvorbisfile-3.dll .
+	cp -p ${MSYSTEM_PREFIX}/bin/libFLAC.dll .
+	cp -p ${MSYSTEM_PREFIX}/bin/libmpg123-0.dll .
+	cp -p ${MSYSTEM_PREFIX}/bin/libxmp.dll .
+	cp -p ${MSYSTEM_PREFIX}/bin/libopusfile-0.dll .
+	cp -p ${MSYSTEM_PREFIX}/bin/SDL2.dll .
+	cp -p ${MSYSTEM_PREFIX}/bin/libogg-0.dll .
+	cp -p ${MSYSTEM_PREFIX}/bin/libwinpthread-1.dll .
+	cp -p ${MSYSTEM_PREFIX}/bin/libvorbis-0.dll .
+	cp -p ${MSYSTEM_PREFIX}/bin/libopus-0.dll .
 
 release: vkQuake.exe
 debug:
@@ -99,7 +110,8 @@ debug:
 
 clean:
 	make -C ../Misc/vq_pak clean
-	$(RM) *.o *.d *.res *.dll $(DEFAULT_TARGET) \
+	$(RM) *.o *.d *.res *.dll vkquake.pak $(DEFAULT_TARGET) \
+	$(BINTOC_EXE) \
 	../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/*.c \
 	../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/*.spv \
 	../Shaders/Compiled/$(GLSLANG_OUT_FOLDER)/*.d
