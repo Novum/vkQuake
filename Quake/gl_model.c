@@ -136,6 +136,23 @@ void Mod_Init (void)
 	// johnfitz
 }
 
+const char *MODEL_TYPE_STR (poseverttype_t kind)
+{
+	switch (kind)
+	{
+	case PV_QUAKE1:
+		return "MDL";
+		break;
+	case PV_MD5:
+		return "MD5";
+		break;
+	case PV_QUAKE3:
+		return "MD3";
+		break;
+	default:
+		return "(invalid)";
+	}
+}
 /*
 ===============
 Mod_Extradata_CheckSkin
@@ -3243,7 +3260,7 @@ static void Mod_FloodFillSkin (byte *skin, int skinwidth, int skinheight)
 	TEMP_FREE (fifo);
 }
 
-static gltexture_t *Mod_LoadFullbrightTexture (qmodel_t *mod, const char *texname, int expected_width, int expected_height)
+static gltexture_t *Mod_LoadFullbrightTexture (qmodel_t *mod, aliashdr_t *surf, const char *texname)
 {
 	// try to find matching glow texture :
 	unsigned int fb_width, fb_height = 0;
@@ -3256,17 +3273,9 @@ static gltexture_t *Mod_LoadFullbrightTexture (qmodel_t *mod, const char *texnam
 	// fb texture found:
 	if (fb_data)
 	{
-		// Check consitency:
 		if (fb_fmt != SRC_RGBA)
 		{
 			Con_Warning ("%s fbrights not RGBA, skipped.\n", texname);
-			Mem_Free (fb_data);
-			return NULL;
-		}
-
-		if ((fb_width != expected_width) || (fb_height != expected_height))
-		{
-			Con_Warning ("%s dims invalid, skipped.\n", texname);
 			Mem_Free (fb_data);
 			return NULL;
 		}
@@ -3292,7 +3301,7 @@ static gltexture_t *Mod_LoadFullbrightTexture (qmodel_t *mod, const char *texnam
 		}
 
 		gltexture_t *loaded_texture =
-			TexMgr_LoadImage (mod, texname, expected_width, expected_height, SRC_RGBA, (byte *)fb_data, texname, 0, TEXPREF_ALPHA | TEXPREF_MIPMAP);
+			TexMgr_LoadImage (mod, texname, fb_width, fb_height, SRC_RGBA, (byte *)fb_data, texname, 0, TEXPREF_ALPHA | TEXPREF_MIPMAP);
 		Mem_Free (fb_data);
 
 		return loaded_texture;
@@ -3367,12 +3376,12 @@ static void Mod_LoadSkinTask (int i, load_skin_task_args_t *args)
 
 					// try to load the external fullbright texture, if any.
 					q_snprintf (texname, sizeof (texname), "%s_%i_glow", mod->name, i);
-					pheader->fbtextures[i][0] = Mod_LoadFullbrightTexture (mod, texname, fwidth, fheight);
+					pheader->fbtextures[i][0] = Mod_LoadFullbrightTexture (mod, pheader, texname);
 
 					if (!pheader->fbtextures[i][0])
 					{
 						q_snprintf (texname, sizeof (texname), "%s_%i_luma", mod->name, i);
-						pheader->fbtextures[i][0] = Mod_LoadFullbrightTexture (mod, texname, fwidth, fheight);
+						pheader->fbtextures[i][0] = Mod_LoadFullbrightTexture (mod, pheader, texname);
 					}
 				}
 				else
@@ -4603,13 +4612,13 @@ typedef char *(*skin_base_name_fn) (
 static size_t Mod_LoadMDXSkinsByIndex (
 	qmodel_t *mod, aliashdr_t *surf, int surf_index, size_t numsurfaces, size_t numskins, const char *basename, skin_base_name_fn skin_pattern_func)
 {
-#define TRY_LOAD_FULLBRIGHTS(tex_name)                                                                                      \
-	do                                                                                                                      \
-	{                                                                                                                       \
-		if (!surf->fbtextures[skin_index][f])                                                                               \
-		{                                                                                                                   \
-			surf->fbtextures[skin_index][f] = Mod_LoadFullbrightTexture (mod, tex_name, surf->skinwidth, surf->skinheight); \
-		}                                                                                                                   \
+#define TRY_LOAD_FULLBRIGHTS(tex_name)                                                         \
+	do                                                                                         \
+	{                                                                                          \
+		if (!surf->fbtextures[skin_index][f])                                                  \
+		{                                                                                      \
+			surf->fbtextures[skin_index][f] = Mod_LoadFullbrightTexture (mod, surf, tex_name); \
+		}                                                                                      \
 	} while (0);
 
 	// for each skin:
@@ -4884,7 +4893,7 @@ static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 		surf->numskins = (int)Mod_LoadMDXSkinsByIndex (mod, surf, m, nummeshes, MAX_SKINS, (const char *)com_token, MD5_Skin_Name);
 
 		if (surf->numskins == 0)
-			Sys_Error ("Mod_LoadMD5MeshModel(%s): no skins found for surf %d", fname, m);
+			Con_Warning ("MD5: %s, no skins found for surf %s (%d)", fname, (const char *)com_token, m);
 
 		// MD5 have only 1 surface pose, meaning 1 vertex-like "pose" (not to ne mixed with md5animctx_t anim poses !)
 		//  because it uses skeletal animation instead of displaying/interpolating different frames/poses of vertices
@@ -5051,9 +5060,6 @@ static int Mod_LoadMD3SkinsWithSurfaceNames (qmodel_t *mod, aliashdr_t *surf, co
 
 	surf_numskins = (int)Mod_LoadMDXSkinsByIndex (mod, surf, surface_index, numsurfs, 1, surface_name, MD3_Skin_Name_Legacy_Single);
 
-	if (surf_numskins > 0 && numskins > 1)
-		Con_Warning ("Mod_LoadMD3ShaderSkins(%s): load 1 skin with numskins = %d\n", mod->name, surf_numskins);
-
 	// skin name : surfacename_X.ext (0..X-1 skins, 1 framgroup)
 	if (!surf_numskins)
 	{
@@ -5165,7 +5171,7 @@ static void Mod_LoadMD3Model (qmodel_t *mod, const void *buffer)
 		surf->numskins = Mod_LoadMD3SkinsWithSurfaceNames (mod, surf, pinsurface->name, m, numsurfs, MAX_SKINS);
 
 		if (surf->numskins == 0)
-			Sys_Error ("Mod_LoadMD3Model(%s): no skins found for surf %s (%d)", mod->name, pinsurface->name, m);
+			Con_Warning ("MD3: %s, no skins found surf %s (%d)", mod->name, pinsurface->name, m);
 
 		// for each frame:
 		// only 1 pose for MD3, it have frames instead
