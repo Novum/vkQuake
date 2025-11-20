@@ -451,7 +451,7 @@ void R_DrawAliasModel (cb_context_t *cbx, entity_t *e, int *aliaspolys)
 	//
 	paliashdr = (aliashdr_t *)Mod_Extradata_CheckSkin (e->model, skinnum);
 
-	qboolean alphatest = (paliashdr->poseverttype == PV_QUAKE3) || (paliashdr->poseverttype == PV_MD5) || (!!(e->model->flags & MF_HOLEY));
+	qboolean alphatest = !!(e->model->flags & MF_HOLEY);
 
 	R_SetupAliasFrame (e, paliashdr, e->frame, &lerpdata);
 	R_SetupEntityTransform (e, &lerpdata);
@@ -516,9 +516,18 @@ void R_DrawAliasModel (cb_context_t *cbx, entity_t *e, int *aliaspolys)
 		}
 		tx = hdr->gltextures[skinnum][anim];
 		fb = hdr->fbtextures[skinnum][anim];
+
 		if (e->colormap != vid.colormap && !gl_nocolors.value)
 			if ((uintptr_t)e >= (uintptr_t)&cl.entities[1] && (uintptr_t)e <= (uintptr_t)&cl.entities[cl.maxclients] && playertextures[e - cl.entities - 1])
 				tx = playertextures[e - cl.entities - 1];
+
+		// if there are no texture, force the grey one. (a.k.a lightmap).
+		if (tx == NULL)
+		{
+			tx = greytexture;
+			fb = NULL;
+		}
+
 		if (!gl_fullbrights.value)
 			fb = NULL;
 
