@@ -3359,39 +3359,53 @@ static void Mod_LoadSkinTask (int i, load_skin_task_args_t *args)
 		// try to load external textures first, if enabled.
 		if (mdl_external_textures.value > 0.0f)
 		{
-			char		   texname[MAX_QPATH];
-			unsigned int   fwidth, fheight;
-			void		  *data;
+			unsigned int   fwidth = 0;
+			unsigned int   fheight = 0;
+			void		  *data = NULL;
 			// unsupported format by default
 			enum srcformat fmt = SRC_INDEXED;
 
-			q_snprintf (texname, sizeof (texname), "%s_%i", mod->name, i);
-			data = Image_LoadImage (texname, (int *)&fwidth, (int *)&fheight, &fmt, mod->path_id);
+			if (!data)
+				data = Image_LoadImage (va ("%s_%i", mod->name, i), (int *)&fwidth, (int *)&fheight, &fmt, mod->path_id);
+
+			if (!data)
+				data = Image_LoadImage (va ("progs/%s_%i", mod->name, i), (int *)&fwidth, (int *)&fheight, &fmt, mod->path_id);
+
+			if (!data)
+				data = Image_LoadImage (va ("textures/%s_%i", mod->name, i), (int *)&fwidth, (int *)&fheight, &fmt, mod->path_id);
 
 			if (data)
 			{
 				if (fmt == SRC_RGBA)
 				{
-					pheader->gltextures[i][0] = TexMgr_LoadImage (mod, texname, fwidth, fheight, fmt, data, texname, 0, TEXPREF_ALPHA | TEXPREF_MIPMAP);
+					pheader->gltextures[i][0] = TexMgr_LoadImage (
+						mod, va ("%s_%i", mod->name, i), fwidth, fheight, fmt, data, va ("%s_%i", mod->name, i), 0, TEXPREF_ALPHA | TEXPREF_MIPMAP);
+
+#define TRY_LOAD_FULLBRIGHTS(tex_name)                                                      \
+	do                                                                                      \
+	{                                                                                       \
+		if (!pheader->fbtextures[i][0])                                                     \
+			pheader->fbtextures[i][0] = Mod_LoadFullbrightTexture (mod, pheader, tex_name); \
+	} while (0);
 
 					// try to load the external fullbright texture, if any.
-					q_snprintf (texname, sizeof (texname), "%s_%i_glow", mod->name, i);
-					pheader->fbtextures[i][0] = Mod_LoadFullbrightTexture (mod, pheader, texname);
+					assert (pheader->fbtextures[i][0] == NULL);
 
-					if (!pheader->fbtextures[i][0])
-					{
-						q_snprintf (texname, sizeof (texname), "%s_%i_luma", mod->name, i);
-						pheader->fbtextures[i][0] = Mod_LoadFullbrightTexture (mod, pheader, texname);
-					}
+					TRY_LOAD_FULLBRIGHTS (va ("%s_%i_glow", mod->name, i));
+					TRY_LOAD_FULLBRIGHTS (va ("%s_%i_luma", mod->name, i));
+					TRY_LOAD_FULLBRIGHTS (va ("progs/%s_%i_glow", mod->name, i));
+					TRY_LOAD_FULLBRIGHTS (va ("progs/%s_%i_luma", mod->name, i));
+					TRY_LOAD_FULLBRIGHTS (va ("textures/%s_%i_glow", mod->name, i));
+					TRY_LOAD_FULLBRIGHTS (va ("textures/%s_%i_luma", mod->name, i));
 				}
 				else
 				{
-					Con_Warning ("%s skin not RGBA, skipped.\n", texname);
+					Con_Warning ("%s skin not RGBA, skipped.\n", va ("%s_%i", mod->name, i));
 				}
 			}
 
 			Mem_Free (data);
-		}
+		} // end if mdl_external_textures
 
 		if (!pheader->gltextures[i][0])
 		{
@@ -3463,6 +3477,7 @@ static void Mod_LoadSkinTask (int i, load_skin_task_args_t *args)
 		for (/**/; j < 4; j++)
 			pheader->gltextures[i][j & 3] = pheader->gltextures[i][j - k];
 	}
+#undef TRY_LOAD_FULLBRIGHTS
 }
 
 /*
