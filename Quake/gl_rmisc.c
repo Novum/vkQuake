@@ -2988,7 +2988,6 @@ static void R_CreateAliasPipelines ()
 	GL_SetObjectName ((uint64_t)vulkan_globals.alias_pipelines[1].handle, VK_OBJECT_TYPE_PIPELINE, "alias_alphatest");
 	vulkan_globals.alias_pipelines[1].layout = vulkan_globals.alias_pipelines[0].layout;
 
-	infos.depth_stencil_state.depthWriteEnable = VK_FALSE;
 	infos.blend_attachment_state.blendEnable = VK_TRUE;
 	infos.shader_stages[1].module = alias_frag_module;
 
@@ -3085,7 +3084,6 @@ static void R_CreateMD5Pipelines ()
 	GL_SetObjectName ((uint64_t)vulkan_globals.md5_pipelines[1].handle, VK_OBJECT_TYPE_PIPELINE, "md5_alphatest");
 	vulkan_globals.md5_pipelines[1].layout = vulkan_globals.md5_pipelines[0].layout;
 
-	infos.depth_stencil_state.depthWriteEnable = VK_FALSE;
 	infos.blend_attachment_state.blendEnable = VK_TRUE;
 	infos.shader_stages[1].module = alias_frag_module;
 
