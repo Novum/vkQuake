@@ -108,9 +108,9 @@ static void GL_DrawAliasFrame (
 
 	int pipeline_index = 0;
 
-	// TODO : Do as Ironwail ? i.e. analyse effective presence of alpha pixels on the surface for Q3 and MD5 so that
-	//  we only have has_alpha = true if  (entity_alpha < 1.0f) AND real alpha pixels present. What for ?
-	const bool has_alpha = (entity_alpha < 1.0f) || (paliashdr->poseverttype == PV_QUAKE3) || (paliashdr->poseverttype == PV_MD5);
+	// only enable alpha management if either entity have alpha or the surface texture has effective
+	// non-opaque pixels.
+	const bool has_alpha = (entity_alpha < 1.0f) || (tx->flags & TEXPREF_ALPHAPIXELS);
 
 	if (showtris == 0)
 	{
