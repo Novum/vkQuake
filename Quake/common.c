@@ -1605,7 +1605,7 @@ is defined in VA_NUM_BUFFS.
 FIXME: make this buffer size safe someday
 ============
 */
-#define VA_NUM_BUFFS 8
+#define VA_NUM_BUFFS 4
 #if (MAX_OSPATH >= 1024)
 #define VA_BUFFERLEN MAX_OSPATH
 #else

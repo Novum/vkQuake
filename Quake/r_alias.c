@@ -105,13 +105,57 @@ static void GL_DrawAliasFrame (
 	qboolean alphatest, vec3_t shadevector, vec3_t lightcolor, int showtris)
 {
 	vulkan_pipeline_t pipeline;
-	const int		  pipeline_index = (showtris == 0) ? (((entity_alpha >= 1.0f) ? 0 : 2) + (alphatest ? 1 : 0)) : (3 + CLAMP (1, showtris, 2));
+
+	int pipeline_index = 0;
+
+	// TODO : Do as Ironwail ? i.e. analyse effective presence of alpha pixels on the surface for Q3 and MD5 so that
+	//  we only have has_alpha = true if  (entity_alpha < 1.0f) AND real alpha pixels present. What for ?
+	const bool has_alpha = (entity_alpha < 1.0f) || (paliashdr->poseverttype == PV_QUAKE3) || (paliashdr->poseverttype == PV_MD5);
+
+	if (showtris == 0)
+	{
+		// depthBiasEnable = VK_FALSE;
+
+		// has_alpha = none, alphatest = 0 ? => 0
+		// 	depthTestEnable = VK_TRUE;
+		//  depthWriteEnable = VK_TRUE;
+		//  blendEnable = VK_FALSE;
+
+		// has_alpha = none, alphatest = 1 ? => 1
+		//  alias_alphatest_frag_module ON
+		//  depthTestEnable = VK_TRUE;
+		//  depthWriteEnable = VK_TRUE;
+		//  blendEnable = VK_FALSE;
+
+		// has_alpha = yes, alphatest = 0 ?  => 2
+		//  depthTestEnable = VK_TRUE;
+		//  depthWriteEnable = VK_TRUE; //We NEED this to have
+		//  blendEnable = VK_FALSE => VK_TRUE;
+
+		//
+		// entity_alpha = yes, alphatest = 1 ?  => 3
+		//  alias_alphatest_frag_module ON
+		//  depthTestEnable = VK_TRUE;
+		//  depthWriteEnable = VK_FALSE;
+		//  blendEnable = VK_TRUE;
+
+		pipeline_index = ((has_alpha ? 2 : 0) + (alphatest ? 1 : 0));
+	}
+	else
+	{
+		// showtris = 4
+		//  depthBiasEnable = VK_TRUE;
+		pipeline_index = 4;
+	}
+
 	switch (paliashdr->poseverttype)
 	{
 	case PV_MD5:
 		pipeline = vulkan_globals.md5_pipelines[pipeline_index];
 		break;
 	case PV_QUAKE1:
+		pipeline = vulkan_globals.alias_pipelines[pipeline_index];
+		break;
 	case PV_QUAKE3:
 		pipeline = vulkan_globals.alias_pipelines[pipeline_index];
 		break;
