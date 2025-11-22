@@ -3262,20 +3262,25 @@ static void Mod_FloodFillSkin (byte *skin, int skinwidth, int skinheight)
 
 static gltexture_t *Mod_LoadFullbrightTexture (qmodel_t *mod, aliashdr_t *surf, const char *texname)
 {
+	// make a safe copy of texname to manage va() trensient usage
+	char texname_copy[MAX_QPATH];
+	q_strlcpy (texname_copy, texname, MAX_QPATH);
+
 	// try to find matching glow texture :
-	unsigned int fb_width, fb_height = 0;
+	unsigned int fb_width = 0;
+	unsigned int fb_height = 0;
 
 	// unsupported format by default
 	enum srcformat fb_fmt = SRC_INDEXED;
 
-	void *fb_data = Image_LoadImage (texname, (int *)&fb_width, (int *)&fb_height, &fb_fmt, mod->path_id);
+	void *fb_data = Image_LoadImage (texname_copy, (int *)&fb_width, (int *)&fb_height, &fb_fmt, mod->path_id);
 
 	// fb texture found:
 	if (fb_data)
 	{
 		if (fb_fmt != SRC_RGBA)
 		{
-			Con_Warning ("%s fbrights not RGBA, skipped.\n", texname);
+			Con_Warning ("%s fbrights not RGBA, skipped.\n", texname_copy);
 			Mem_Free (fb_data);
 			return NULL;
 		}
@@ -3301,7 +3306,7 @@ static gltexture_t *Mod_LoadFullbrightTexture (qmodel_t *mod, aliashdr_t *surf, 
 		}
 
 		gltexture_t *loaded_texture =
-			TexMgr_LoadImage (mod, texname, fb_width, fb_height, SRC_RGBA, (byte *)fb_data, texname, 0, TEXPREF_ALPHA | TEXPREF_MIPMAP);
+			TexMgr_LoadImage (mod, texname_copy, fb_width, fb_height, SRC_RGBA, (byte *)fb_data, texname_copy, 0, TEXPREF_ALPHA | TEXPREF_MIPMAP);
 		Mem_Free (fb_data);
 
 		return loaded_texture;
@@ -4621,8 +4626,9 @@ parametrized by skin and framegroup index and skin_texture_pattern_fn.
 returns the number of successfully loaded (i.e. up to numskins) skins for surf.
 =====================
 */
-typedef char *(*skin_base_name_fn) (
-	qmodel_t *mod, aliashdr_t *surf, int surf_index, size_t numsurfaces, int skin_index, size_t numskins, int framegroup_index, const char *basename);
+typedef void (*skin_base_name_fn) (
+	qmodel_t *mod, aliashdr_t *surf, int surf_index, size_t numsurfaces, int skin_index, size_t numskins, int framegroup_index, const char *basename,
+	char output_name[MAX_QPATH]);
 
 static size_t Mod_LoadMDXSkinsByIndex (
 	qmodel_t *mod, aliashdr_t *surf, int surf_index, size_t numsurfaces, size_t numskins, const char *basename, skin_base_name_fn skin_pattern_func)
@@ -4649,9 +4655,10 @@ static size_t Mod_LoadMDXSkinsByIndex (
 			enum srcformat fmt = SRC_RGBA;
 
 			char texname[MAX_QPATH];
+			char basic_texname[MAX_QPATH];
 
 			// for Skins: try first the same location as the model, then 'progs/', then 'textures/' if not found.
-			char *basic_texname = skin_pattern_func (mod, surf, surf_index, numsurfaces, skin_index, numskins, f, basename);
+			skin_pattern_func (mod, surf, surf_index, numsurfaces, skin_index, numskins, f, basename, basic_texname);
 
 			q_snprintf (texname, sizeof (texname), "%s", basic_texname);
 			data = Image_LoadImage (texname, (int *)&fwidth, (int *)&fheight, &fmt, mod->path_id);
@@ -4708,10 +4715,10 @@ static size_t Mod_LoadMDXSkinsByIndex (
 					assert (surf->fbtextures[skin_index][f] == NULL);
 
 					TRY_LOAD_FULLBRIGHTS (va ("%s_glow", basic_texname));
-					TRY_LOAD_FULLBRIGHTS (va ("progs/%s_glow", basic_texname));
-					TRY_LOAD_FULLBRIGHTS (va ("textures/%s_glow", basic_texname));
 					TRY_LOAD_FULLBRIGHTS (va ("%s_luma", basic_texname));
+					TRY_LOAD_FULLBRIGHTS (va ("progs/%s_glow", basic_texname));
 					TRY_LOAD_FULLBRIGHTS (va ("progs/%s_luma", basic_texname));
+					TRY_LOAD_FULLBRIGHTS (va ("textures/%s_glow", basic_texname));
 					TRY_LOAD_FULLBRIGHTS (va ("textures/%s_luma", basic_texname));
 				}
 
@@ -4757,10 +4764,11 @@ static size_t Mod_LoadMDXSkinsByIndex (
 Mod_LoadMD5MeshModel
 =====================
 */
-static char *
-MD5_Skin_Name (qmodel_t *mod, aliashdr_t *surf, int surf_index, size_t numsurfaces, int skin_index, size_t numskins, int framegroup_index, const char *basename)
+static void MD5_Skin_Name (
+	qmodel_t *mod, aliashdr_t *surf, int surf_index, size_t numsurfaces, int skin_index, size_t numskins, int framegroup_index, const char *basename,
+	char output_name[MAX_QPATH])
 {
-	return va ("%s_%02u_%02u", basename, skin_index, framegroup_index);
+	q_snprintf (output_name, MAX_QPATH, "%s_%02u_%02u", basename, skin_index, framegroup_index);
 }
 
 static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
@@ -5024,46 +5032,51 @@ Load skins using a naming based on the surface names alone, not .skin definition
 =====================
 */
 // skin name : surfacename.ext (1 skin, 1 framgroup)
-static char *MD3_Skin_Name_Legacy_Single (
-	qmodel_t *mod, aliashdr_t *surf, int surf_index, size_t numsurfaces, int skin_index, size_t numskins, int framegroup_index, const char *basename)
+static void MD3_Skin_Name_Legacy_Single (
+	qmodel_t *mod, aliashdr_t *surf, int surf_index, size_t numsurfaces, int skin_index, size_t numskins, int framegroup_index, const char *basename,
+	char output_name[MAX_QPATH])
 {
-	return va ("%s", basename);
+	q_snprintf (output_name, MAX_QPATH, "%s", basename);
 }
 
 // skin name : surfacename_X.ext (0..X-1 skin, 1 framgroup)
-static char *MD3_Skin_Name_Legacy_One_Framegroup (
-	qmodel_t *mod, aliashdr_t *surf, int surf_index, size_t numsurfaces, int skin_index, size_t numskins, int framegroup_index, const char *basename)
+static void MD3_Skin_Name_Legacy_One_Framegroup (
+	qmodel_t *mod, aliashdr_t *surf, int surf_index, size_t numsurfaces, int skin_index, size_t numskins, int framegroup_index, const char *basename,
+	char output_name[MAX_QPATH])
 {
-	return va ("%s_%d", basename, skin_index);
+	q_snprintf (output_name, MAX_QPATH, "%s_%d", basename, skin_index);
 }
 
 // skin name : surfacename_X_Y.ext (0..X-1 skin, 0..Y-1 framgroup)
-static char *MD3_Skin_Name_Legacy (
-	qmodel_t *mod, aliashdr_t *surf, int surf_index, size_t numsurfaces, int skin_index, size_t numskins, int framegroup_index, const char *basename)
+static void MD3_Skin_Name_Legacy (
+	qmodel_t *mod, aliashdr_t *surf, int surf_index, size_t numsurfaces, int skin_index, size_t numskins, int framegroup_index, const char *basename,
+	char output_name[MAX_QPATH])
 {
-	return va ("%s_%d_%d", basename, skin_index, framegroup_index);
+	q_snprintf (output_name, MAX_QPATH, "%s_%d_%d", basename, skin_index, framegroup_index);
 }
 
 // skin name : model_name.md3_S_X_Y.ext (0..S-1 surfaces, 0..X-1 skin, 0..Y-1 framgroup) using Legacy conventions (%d), using the model name as prefix
-static char *MD3_Skin_Name_Legacy_Standalone (
-	qmodel_t *mod, aliashdr_t *surf, int surf_index, size_t numsurfaces, int skin_index, size_t numskins, int framegroup_index, const char *basename)
+static void MD3_Skin_Name_Legacy_Standalone (
+	qmodel_t *mod, aliashdr_t *surf, int surf_index, size_t numsurfaces, int skin_index, size_t numskins, int framegroup_index, const char *basename,
+	char output_name[MAX_QPATH])
 {
 	char newname[MAX_QPATH];
 	COM_StripExtension (basename, newname, sizeof (newname));
 	COM_AddExtension (newname, ".md3", sizeof (newname));
 
-	return va ("%s_%d_%d_%d", newname, surf_index, skin_index, framegroup_index);
+	q_snprintf (output_name, MAX_QPATH, "%s_%d_%d_%d", newname, surf_index, skin_index, framegroup_index);
 }
 
 // skin name : model_name.md3_S_X_Y.ext (0..S-1 surfaces, 0..X-1 skin, 0..Y-1 framgroup) using MD5 conventions (%02u), using the model name as prefix
-static char *MD3_Skin_Name_Standalone (
-	qmodel_t *mod, aliashdr_t *surf, int surf_index, size_t numsurfaces, int skin_index, size_t numskins, int framegroup_index, const char *basename)
+static void MD3_Skin_Name_Standalone (
+	qmodel_t *mod, aliashdr_t *surf, int surf_index, size_t numsurfaces, int skin_index, size_t numskins, int framegroup_index, const char *basename,
+	char output_name[MAX_QPATH])
 {
 	char newname[MAX_QPATH];
 	COM_StripExtension (basename, newname, sizeof (newname));
 	COM_AddExtension (newname, ".md3", sizeof (newname));
 
-	return va ("%s_%02u_%02u_%02u", newname, surf_index, skin_index, framegroup_index);
+	q_snprintf (output_name, MAX_QPATH, "%s_%02u_%02u_%02u", newname, surf_index, skin_index, framegroup_index);
 }
 
 //
