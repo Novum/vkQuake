@@ -85,7 +85,7 @@ void Mem_Init ()
 
 /*
 ====================
-Mem_Alloc
+Mem_Alloc : initialize memory to zero by default.
 ====================
 */
 void *Mem_Alloc (const size_t size)

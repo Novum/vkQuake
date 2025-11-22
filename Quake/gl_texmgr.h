@@ -44,7 +44,8 @@ typedef enum
 	TEXPREF_NOBRIGHT        = 0x0200,   // use nobright mask palette
 	TEXPREF_CONCHARS        = 0x0400,   // use conchars palette
 	TEXPREF_WARPIMAGE       = 0x0800,   // resize this texture when warpimagesize changes
-	TEXPREF_PREMULTIPLY     = 0x1000,   // rgb = rgb*a; a=a; 	
+	TEXPREF_PREMULTIPLY     = 0x1000,   // rgb = rgb*a; a=a;
+	TEXPREF_ALPHAPIXELS     = 0x2000,   // has demonstratable alpha pixels, mostly used for md3/md5
 } textureflags_t;
 // clang-format on
 

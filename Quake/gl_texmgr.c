@@ -979,7 +979,23 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 			mipheight = maxsize;
 		}
 	}
+	// has alpha detection :
+	if (data && glt->source_format == SRC_RGBA && !(glt->flags & TEXPREF_ALPHAPIXELS))
+	{
+		int	  num_pixels = glt->width * glt->height;
+		byte *pixel_data = (byte *)data;
 
+		for (int i = 0; i < num_pixels; i++)
+		{
+			if (pixel_data[i * 4 + 3] != 255)
+			{
+				glt->flags |= TEXPREF_ALPHA;
+				glt->flags |= TEXPREF_ALPHAPIXELS;
+				break;
+			}
+		}
+	}
+	// mipmap generation:
 	if ((int)glt->width != mipwidth || (int)glt->height != mipheight)
 	{
 		if (is_cube)

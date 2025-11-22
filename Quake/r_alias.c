@@ -105,15 +105,62 @@ static void GL_DrawAliasFrame (
 	qboolean alphatest, vec3_t shadevector, vec3_t lightcolor, int showtris)
 {
 	vulkan_pipeline_t pipeline;
-	const int		  pipeline_index = (showtris == 0) ? (((entity_alpha >= 1.0f) ? 0 : 2) + (alphatest ? 1 : 0)) : (3 + CLAMP (1, showtris, 2));
+
+	int pipeline_index = 0;
+
+	// only enable alpha management if either entity have alpha or the surface texture has effective
+	// non-opaque pixels.
+	const bool has_alpha = (entity_alpha < 1.0f) || (tx->flags & TEXPREF_ALPHAPIXELS);
+
+	if (showtris == 0)
+	{
+		// depthBiasEnable = VK_FALSE;
+
+		// has_alpha = none, alphatest = 0 ? => 0
+		// 	depthTestEnable = VK_TRUE;
+		//  depthWriteEnable = VK_TRUE;
+		//  blendEnable = VK_FALSE;
+
+		// has_alpha = none, alphatest = 1 ? => 1
+		//  alias_alphatest_frag_module ON
+		//  depthTestEnable = VK_TRUE;
+		//  depthWriteEnable = VK_TRUE;
+		//  blendEnable = VK_FALSE;
+
+		// has_alpha = yes, alphatest = 0 ?  => 2
+		//  depthTestEnable = VK_TRUE;
+		//  depthWriteEnable = VK_TRUE; //We NEED this to have
+		//  blendEnable = VK_FALSE => VK_TRUE;
+
+		//
+		// entity_alpha = yes, alphatest = 1 ?  => 3
+		//  alias_alphatest_frag_module ON
+		//  depthTestEnable = VK_TRUE;
+		//  depthWriteEnable = VK_FALSE;
+		//  blendEnable = VK_TRUE;
+
+		pipeline_index = ((has_alpha ? 2 : 0) + (alphatest ? 1 : 0));
+	}
+	else
+	{
+		// showtris = 4
+		//  depthBiasEnable = VK_TRUE;
+		pipeline_index = 4;
+	}
+
 	switch (paliashdr->poseverttype)
 	{
 	case PV_MD5:
 		pipeline = vulkan_globals.md5_pipelines[pipeline_index];
 		break;
-	default:
+	case PV_QUAKE1:
 		pipeline = vulkan_globals.alias_pipelines[pipeline_index];
 		break;
+	case PV_QUAKE3:
+		pipeline = vulkan_globals.alias_pipelines[pipeline_index];
+		break;
+	default:
+		pipeline = vulkan_globals.alias_pipelines[pipeline_index];
 	}
 
 	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
@@ -128,10 +175,8 @@ static void GL_DrawAliasFrame (
 	switch (paliashdr->poseverttype)
 	{
 	case PV_QUAKE1:
+	case PV_QUAKE3:
 	{
-		// only 1 surface
-		assert (paliashdr->nextsurface == NULL);
-
 		VkBuffer		uniform_buffer;
 		uint32_t		uniform_offset;
 		VkDescriptorSet ubo_set;
@@ -142,8 +187,13 @@ static void GL_DrawAliasFrame (
 		ubo->blend_factor = blend;
 		memcpy (ubo->light_color, lightcolor, 3 * sizeof (float));
 		ubo->flags = (fb != NULL) ? 0x1 : 0x0;
+
 		if (r_fullbright_cheatsafe || (r_lightmap_cheatsafe && r_fullbright.value))
 			ubo->flags |= 0x2;
+
+		if (paliashdr->poseverttype == PV_QUAKE3)
+			ubo->flags |= 0x4;
+
 		ubo->entalpha = entity_alpha;
 
 		VkDescriptorSet descriptor_sets[3] = {tx->descriptor_set, (fb != NULL) ? fb->descriptor_set : tx->descriptor_set, ubo_set};
@@ -190,6 +240,8 @@ static void GL_DrawAliasFrame (
 		vulkan_globals.vk_cmd_draw_indexed (cbx->cb, paliashdr->numindexes, 1, 0, 0, 0);
 		break;
 	}
+	default:
+		assert (false);
 	}
 }
 
@@ -437,12 +489,14 @@ void R_DrawAliasModel (cb_context_t *cbx, entity_t *e, int *aliaspolys)
 	int			 anim, skinnum = e->skinnum;
 	gltexture_t *tx, *fb;
 	lerpdata_t	 lerpdata;
-	qboolean	 alphatest = !!(e->model->flags & MF_HOLEY);
 
 	//
 	// setup pose/lerp data -- do it first so we don't miss updates due to culling
 	//
 	paliashdr = (aliashdr_t *)Mod_Extradata_CheckSkin (e->model, skinnum);
+
+	qboolean alphatest = !!(e->model->flags & MF_HOLEY);
+
 	R_SetupAliasFrame (e, paliashdr, e->frame, &lerpdata);
 	R_SetupEntityTransform (e, &lerpdata);
 
@@ -506,9 +560,18 @@ void R_DrawAliasModel (cb_context_t *cbx, entity_t *e, int *aliaspolys)
 		}
 		tx = hdr->gltextures[skinnum][anim];
 		fb = hdr->fbtextures[skinnum][anim];
+
 		if (e->colormap != vid.colormap && !gl_nocolors.value)
 			if ((uintptr_t)e >= (uintptr_t)&cl.entities[1] && (uintptr_t)e <= (uintptr_t)&cl.entities[cl.maxclients] && playertextures[e - cl.entities - 1])
 				tx = playertextures[e - cl.entities - 1];
+
+		// if there are no texture, force the grey one. (a.k.a lightmap).
+		if (tx == NULL)
+		{
+			tx = greytexture;
+			fb = NULL;
+		}
+
 		if (!gl_fullbrights.value)
 			fb = NULL;
 
