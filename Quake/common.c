@@ -1599,13 +1599,12 @@ void COM_Init (void)
 ============
 va
 
-does a varargs printf into a temp buffer. cycles between
-4 different static buffers. the number of buffers cycled
-is defined in VA_NUM_BUFFS.
+does a varargs printf into a temp buffer. Cycles between
+VA_NUM_BUFFS different static buffers.
 FIXME: make this buffer size safe someday
 ============
 */
-#define VA_NUM_BUFFS 4
+#define VA_NUM_BUFFS 8
 #if (MAX_OSPATH >= 1024)
 #define VA_BUFFERLEN MAX_OSPATH
 #else
