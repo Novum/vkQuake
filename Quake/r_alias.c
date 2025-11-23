@@ -108,44 +108,51 @@ static void GL_DrawAliasFrame (
 
 	int pipeline_index = 0;
 
-	// only enable alpha management if either entity have alpha or the surface texture has effective
-	// non-opaque pixels.
+	// only enable alpha management if entity have alpha or the surface texture has effective
+	// non-opaque pixels:
 	const bool has_alpha = (entity_alpha < 1.0f) || (tx->flags & TEXPREF_ALPHAPIXELS);
 
+	// was : pipeline_index = (showtris == 0) ? (((entity_alpha >= 1.0f) ? 0 : 2) + (alphatest ? 1 : 0)) : (3 + CLAMP (1, showtris, 2));
+	//  decomposed below for clarity:
 	if (showtris == 0)
 	{
 		// depthBiasEnable = VK_FALSE;
-
-		// has_alpha = none, alphatest = 0 ? => 0
-		// 	depthTestEnable = VK_TRUE;
-		//  depthWriteEnable = VK_TRUE;
-		//  blendEnable = VK_FALSE;
-
-		// has_alpha = none, alphatest = 1 ? => 1
-		//  alias_alphatest_frag_module ON
-		//  depthTestEnable = VK_TRUE;
-		//  depthWriteEnable = VK_TRUE;
-		//  blendEnable = VK_FALSE;
-
-		// has_alpha = yes, alphatest = 0 ?  => 2
-		//  depthTestEnable = VK_TRUE;
-		//  depthWriteEnable = VK_TRUE; //We NEED this to have
-		//  blendEnable = VK_FALSE => VK_TRUE;
-
+		// depthTestEnable = VK_TRUE;
 		//
-		// entity_alpha = yes, alphatest = 1 ?  => 3
+		//  has_alpha = none, alphatest = 0 ? => 0
+		//  depthWriteEnable = VK_TRUE;
+		//  blendEnable = VK_FALSE;
+		//
+		//  has_alpha = none, alphatest = 1 ? => 1
 		//  alias_alphatest_frag_module ON
-		//  depthTestEnable = VK_TRUE;
+		//  depthWriteEnable = VK_TRUE;
+		//  blendEnable = VK_FALSE;
+		//
+		//  has_alpha = yes, alphatest = 0 ?  => 2
+		//  depthWriteEnable = VK_TRUE => VK_FALSE;
+		//  blendEnable = VK_FALSE => VK_TRUE;
+		//
+		//  has_alpha = yes, alphatest = 1 ?  => 3
+		//  alias_alphatest_frag_module ON
 		//  depthWriteEnable = VK_FALSE;
 		//  blendEnable = VK_TRUE;
-
 		pipeline_index = ((has_alpha ? 2 : 0) + (alphatest ? 1 : 0));
 	}
 	else
 	{
-		// showtris = 4
-		//  depthBiasEnable = VK_TRUE;
-		pipeline_index = 4;
+		// polygonMode = VK_POLYGON_MODE_LINE;
+		// blendEnable = VK_FALSE;
+		//
+		//  showtris == 1
+		//  depthTestEnable = VK_FALSE;
+		//  depthWriteEnable = VK_FALSE;
+		//  depthBiasEnable = VK_FALSE;
+		//
+		//  showtris >= 2
+		//  depthTestEnable = VK_FALSE => VK_TRUE;
+		//  depthWriteEnable = VK_FALSE;
+		//  depthBiasEnable = VK_FALSE => VK_TRUE;
+		pipeline_index = (3 + CLAMP (1, showtris, 2));
 	}
 
 	switch (paliashdr->poseverttype)

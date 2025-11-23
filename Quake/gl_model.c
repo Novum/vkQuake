@@ -48,7 +48,7 @@ cvar_t r_allow_replacement_md5models = {"r_allow_replacement_md5models", "1", CV
 // r_allow_replacement_md3models = 1 allow loading of MD3 replacement models if available, 0 to forbid it for debug purposes.
 cvar_t r_allow_replacement_md3models = {"r_allow_replacement_md3models", "1", CVAR_NONE};
 
-cvar_t r_enhancedmodels = {"r_enhancedmodels", "1", CVAR_ARCHIVE}; // controlled in Menu with Models: Modern (1) / Classic (0)
+cvar_t r_enhancedmodels = {"r_enhancedmodels", "1", CVAR_ARCHIVE}; // controlled in Menu with Models: enhanced (1) / classic (0)
 
 static byte *mod_novis;
 static int	 mod_novis_capacity;
@@ -4630,6 +4630,11 @@ typedef void (*skin_base_name_fn) (
 	qmodel_t *mod, aliashdr_t *surf, int surf_index, size_t numsurfaces, int skin_index, size_t numskins, int framegroup_index, const char *basename,
 	char output_name[MAX_QPATH]);
 
+#define SKIN_PATTERN_FUNC_DEF(signature)                                                                                                                  \
+	static void signature (                                                                                                                               \
+		qmodel_t *mod, aliashdr_t *surf, int surf_index, size_t numsurfaces, int skin_index, size_t numskins, int framegroup_index, const char *basename, \
+		char output_name[MAX_QPATH])
+
 static size_t Mod_LoadMDXSkinsByIndex (
 	qmodel_t *mod, aliashdr_t *surf, int surf_index, size_t numsurfaces, size_t numskins, const char *basename, skin_base_name_fn skin_pattern_func)
 {
@@ -4764,9 +4769,7 @@ static size_t Mod_LoadMDXSkinsByIndex (
 Mod_LoadMD5MeshModel
 =====================
 */
-static void MD5_Skin_Name (
-	qmodel_t *mod, aliashdr_t *surf, int surf_index, size_t numsurfaces, int skin_index, size_t numskins, int framegroup_index, const char *basename,
-	char output_name[MAX_QPATH])
+SKIN_PATTERN_FUNC_DEF (MD5_Skin_Name)
 {
 	q_snprintf (output_name, MAX_QPATH, "%s_%02u_%02u", basename, skin_index, framegroup_index);
 }
@@ -4916,7 +4919,7 @@ static void Mod_LoadMD5MeshModel (qmodel_t *mod, const void *buffer)
 		surf->numskins = (int)Mod_LoadMDXSkinsByIndex (mod, surf, m, nummeshes, MAX_SKINS, (const char *)com_token, MD5_Skin_Name);
 
 		if (surf->numskins == 0)
-			Con_Warning ("MD5: %s, no skins found for surf %s (%d)", fname, (const char *)com_token, m);
+			Con_Warning ("MD5: %s, no skins found for surf '%s' (%d)\n", fname, (const char *)com_token, m);
 
 		// MD5 have only 1 surface pose, meaning 1 vertex-like "pose" (not to ne mixed with md5animctx_t anim poses !)
 		//  because it uses skeletal animation instead of displaying/interpolating different frames/poses of vertices
@@ -5032,33 +5035,55 @@ Load skins using a naming based on the surface names alone, not .skin definition
 =====================
 */
 // skin name : surfacename.ext (1 skin, 1 framgroup)
-static void MD3_Skin_Name_Legacy_Single (
-	qmodel_t *mod, aliashdr_t *surf, int surf_index, size_t numsurfaces, int skin_index, size_t numskins, int framegroup_index, const char *basename,
-	char output_name[MAX_QPATH])
+SKIN_PATTERN_FUNC_DEF (MD3_Surf_Name_Legacy_Single)
 {
 	q_snprintf (output_name, MAX_QPATH, "%s", basename);
 }
 
 // skin name : surfacename_X.ext (0..X-1 skin, 1 framgroup)
-static void MD3_Skin_Name_Legacy_One_Framegroup (
-	qmodel_t *mod, aliashdr_t *surf, int surf_index, size_t numsurfaces, int skin_index, size_t numskins, int framegroup_index, const char *basename,
-	char output_name[MAX_QPATH])
+SKIN_PATTERN_FUNC_DEF (MD3_Surf_Name_Legacy_One_Framegroup)
 {
 	q_snprintf (output_name, MAX_QPATH, "%s_%d", basename, skin_index);
 }
 
 // skin name : surfacename_X_Y.ext (0..X-1 skin, 0..Y-1 framgroup)
-static void MD3_Skin_Name_Legacy (
-	qmodel_t *mod, aliashdr_t *surf, int surf_index, size_t numsurfaces, int skin_index, size_t numskins, int framegroup_index, const char *basename,
-	char output_name[MAX_QPATH])
+SKIN_PATTERN_FUNC_DEF (MD3_Surf_Name_Legacy)
 {
 	q_snprintf (output_name, MAX_QPATH, "%s_%d_%d", basename, skin_index, framegroup_index);
 }
 
+// skin name : model_name.md3.ext (1 surface, 1 skin, 1 framgroup)
+SKIN_PATTERN_FUNC_DEF (MD3_Model_Name_Legacy_Single)
+{
+	char newname[MAX_QPATH];
+	COM_StripExtension (basename, newname, sizeof (newname));
+	COM_AddExtension (newname, ".md3", sizeof (newname));
+
+	q_snprintf (output_name, MAX_QPATH, "%s", newname);
+}
+
+// skin name :model_name.md3_S.ext (0..S-1 surfaces, 1 skin, 1 framgroup) using Legacy conventions (%d), using the model name as prefix
+SKIN_PATTERN_FUNC_DEF (MD3_Model_Name_Legacy_One_Framegroup)
+{
+	char newname[MAX_QPATH];
+	COM_StripExtension (basename, newname, sizeof (newname));
+	COM_AddExtension (newname, ".md3", sizeof (newname));
+
+	q_snprintf (output_name, MAX_QPATH, "%s_%d", newname, surf_index);
+}
+
+// skin name : model_name.md3_S_X.ext (0..S-1 surfaces, 0..X-1 skins, 1 framgroup) using Legacy conventions (%d), using the model name as prefix
+SKIN_PATTERN_FUNC_DEF (MD3_Model_Name_Legacy)
+{
+	char newname[MAX_QPATH];
+	COM_StripExtension (basename, newname, sizeof (newname));
+	COM_AddExtension (newname, ".md3", sizeof (newname));
+
+	q_snprintf (output_name, MAX_QPATH, "%s_%d_%d", newname, surf_index, skin_index);
+}
+
 // skin name : model_name.md3_S_X_Y.ext (0..S-1 surfaces, 0..X-1 skin, 0..Y-1 framgroup) using Legacy conventions (%d), using the model name as prefix
-static void MD3_Skin_Name_Legacy_Standalone (
-	qmodel_t *mod, aliashdr_t *surf, int surf_index, size_t numsurfaces, int skin_index, size_t numskins, int framegroup_index, const char *basename,
-	char output_name[MAX_QPATH])
+SKIN_PATTERN_FUNC_DEF (MD3_Model_Name_Legacy_Full)
 {
 	char newname[MAX_QPATH];
 	COM_StripExtension (basename, newname, sizeof (newname));
@@ -5068,9 +5093,7 @@ static void MD3_Skin_Name_Legacy_Standalone (
 }
 
 // skin name : model_name.md3_S_X_Y.ext (0..S-1 surfaces, 0..X-1 skin, 0..Y-1 framgroup) using MD5 conventions (%02u), using the model name as prefix
-static void MD3_Skin_Name_Standalone (
-	qmodel_t *mod, aliashdr_t *surf, int surf_index, size_t numsurfaces, int skin_index, size_t numskins, int framegroup_index, const char *basename,
-	char output_name[MAX_QPATH])
+SKIN_PATTERN_FUNC_DEF (MD3_Model_Name_Full_MD5)
 {
 	char newname[MAX_QPATH];
 	COM_StripExtension (basename, newname, sizeof (newname));
@@ -5082,45 +5105,51 @@ static void MD3_Skin_Name_Standalone (
 //
 static int Mod_LoadMD3SkinsWithSurfaceNames (qmodel_t *mod, aliashdr_t *surf, const char *surface_name, int surface_index, size_t numsurfs, size_t numskins)
 {
-	// 1. Try to load the "legacy" MD3 namings from the existing Quake 3 ecosystem first :
-	//  skin name : surfacename.ext (1 skin, 1 framgroup)
 	int surf_numskins = 0;
 
-	surf_numskins = (int)Mod_LoadMDXSkinsByIndex (mod, surf, surface_index, numsurfs, 1, surface_name, MD3_Skin_Name_Legacy_Single);
+	// 1. Try to load the "legacy" MD3 namings from the existing Quake 3 ecosystem first :
+	// skin name : surfacename_X_Y.ext (0..X-1 skins, 0..Y-1 framgroups)
+	if (!surf_numskins)
+		surf_numskins = (int)Mod_LoadMDXSkinsByIndex (mod, surf, surface_index, numsurfs, numskins, surface_name, MD3_Surf_Name_Legacy);
 
 	// skin name : surfacename_X.ext (0..X-1 skins, 1 framgroup)
 	if (!surf_numskins)
-	{
-		surf_numskins = (int)Mod_LoadMDXSkinsByIndex (mod, surf, surface_index, numsurfs, numskins, surface_name, MD3_Skin_Name_Legacy_One_Framegroup);
-	}
+		surf_numskins = (int)Mod_LoadMDXSkinsByIndex (mod, surf, surface_index, numsurfs, numskins, surface_name, MD3_Surf_Name_Legacy_One_Framegroup);
 
-	// skin name : surfacename_X_Y.ext (0..X-1 skins, 0..Y-1 framgroups)
+	//  skin name : surfacename.ext (1 skin, 1 framgroup)
 	if (!surf_numskins)
-	{
-		surf_numskins = (int)Mod_LoadMDXSkinsByIndex (mod, surf, surface_index, numsurfs, numskins, surface_name, MD3_Skin_Name_Legacy);
-	}
+		surf_numskins = (int)Mod_LoadMDXSkinsByIndex (mod, surf, surface_index, numsurfs, 1, surface_name, MD3_Surf_Name_Legacy_Single);
 
-	// skin name : model_name.md3_S_X_Y.ext (0..S-1 surfaces, 0..X-1 skin, 0..Y-1 framgroup) using Legacy conventions (%d), using the model name as prefix
+	// 2. Model-based names:
+	//   skin name : model_name.md3_S_X_Y.ext (0..S-1 surfaces, 0..X-1 skin, 0..Y-1 framgroup) using Legacy conventions (%d), using the model name as prefix
 	if (!surf_numskins)
-	{
-		surf_numskins = (int)Mod_LoadMDXSkinsByIndex (mod, surf, surface_index, numsurfs, numskins, mod->name, MD3_Skin_Name_Legacy_Standalone);
-	}
+		surf_numskins = (int)Mod_LoadMDXSkinsByIndex (mod, surf, surface_index, numsurfs, numskins, mod->name, MD3_Model_Name_Legacy_Full);
 
-	// 2. MD5-like naming conventions:
+	// skin name : model_name.md3_S_X.ext (0..S-1 surfaces, 0..X-1 skins, 1 framgroup) using Legacy conventions (%d), using the model name as prefix
+	if (!surf_numskins)
+		surf_numskins = (int)Mod_LoadMDXSkinsByIndex (mod, surf, surface_index, numsurfs, numskins, mod->name, MD3_Model_Name_Legacy);
+
+	// skin name :model_name.md3_S.ext (0..S-1 surfaces, 1 skin, 1 framgroup) using Legacy conventions (%d), using the model name as prefix
+	if (!surf_numskins)
+		surf_numskins = (int)Mod_LoadMDXSkinsByIndex (mod, surf, surface_index, numsurfs, 1, mod->name, MD3_Model_Name_Legacy_One_Framegroup);
+
+	// skin name : model_name.md3.ext (1 surface, 1 skin, 1 framgroup)
+	if (!surf_numskins)
+		surf_numskins = (int)Mod_LoadMDXSkinsByIndex (mod, surf, surface_index, numsurfs, 1, mod->name, MD3_Model_Name_Legacy_Single);
+
+	// 3. MD5-like naming conventions:
 	// skin name : surfacename_X_Y.ext (0..X-1 skins, 0..Y-1 framgroups) with %s_%02u_%02u pattern
 	if (!surf_numskins)
-	{
-		surf_numskins = (int)Mod_LoadMDXSkinsByIndex (mod, surf, surface_index, numsurfs, numskins, mod->name, MD5_Skin_Name);
-	}
+		surf_numskins = (int)Mod_LoadMDXSkinsByIndex (mod, surf, surface_index, numsurfs, numskins, surface_name, MD5_Skin_Name);
 
 	// skin name: use the model name (without extension).md3 + _ + surface index as prefix, not making use of the shader_texture_name at all.
 	if (!surf_numskins)
-	{
-		surf_numskins = (int)Mod_LoadMDXSkinsByIndex (mod, surf, surface_index, numsurfs, numskins, mod->name, MD3_Skin_Name_Standalone);
-	}
+		surf_numskins = (int)Mod_LoadMDXSkinsByIndex (mod, surf, surface_index, numsurfs, numskins, mod->name, MD3_Model_Name_Full_MD5);
 
 	return surf_numskins;
 }
+
+#undef SKIN_PATTERN_FUNC_DEF
 
 /*
 =====================
@@ -5199,7 +5228,7 @@ static void Mod_LoadMD3Model (qmodel_t *mod, const void *buffer)
 		surf->numskins = Mod_LoadMD3SkinsWithSurfaceNames (mod, surf, pinsurface->name, m, numsurfs, MAX_SKINS);
 
 		if (surf->numskins == 0)
-			Con_Warning ("MD3: %s, no skins found surf %s (%d)", mod->name, pinsurface->name, m);
+			Con_Warning ("MD3: %s, no skins found for surf '%s' (%d)\n", mod->name, pinsurface->name, m);
 
 		// for each frame:
 		// only 1 pose for MD3, it have frames instead

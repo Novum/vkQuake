@@ -135,12 +135,12 @@ static inline int Buf_GetC (stdio_buffer_t *buf)
 /*
 ============
 Image_LoadImage
-
 either returns a pointer to Mem_Alloc allocated RGBA data
 or returns NULL if not loaded, either because not found OR if name
 is ignored because from a gamedir with lower priority than min_path_id.
 Use min_path_id = 0 if gamedir priority is N/A.
 Search order:  png tga jpg pcx lmp
+Note : makes a thread-safe copy of 'name' so ve can use va() as inuput.
 ============
 */
 byte *Image_LoadImage (const char *name, int *width, int *height, enum srcformat *fmt, unsigned int min_path_id)
