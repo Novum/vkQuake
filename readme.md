@@ -7,9 +7,9 @@ Improvements over QuakeSpasm include:
 * Much better performance with multithreaded rendering and loading
 * The game can run at higher frame rates than 72Hz without breaking physics
 * A software Quake like underwater effect
-* Support for remastered models (in MD5 format) if using data from the 2021 rerelease
-* Support for standalone MD5 models, not only as `.mdl` alternatives
-* True color skins support (`.png`, `.tga`, `.jpg`) for MD5 models, including fullbrights 
+* Support for Classic (original Quake) and Enhanced models (either MD5 format like the 2021 re-Release, or MD3 like Quake3)
+* When both Classic and Enhanced versions of models exist, display one or other kind using the Models menu option.
+* True color skins support (`.png`, `.tga`, `.jpg`) for MD3/MD5 models, including fullbrights 
 * Dynamic shadows (requires a GPU with ray tracing support)
 * Better color precision reducing banding in dark areas
 * Native support for anti aliasing and anisotropic filtering
@@ -103,12 +103,6 @@ build the solution.
 
 Setup your [MinGW-w64](https://sourceforge.net/projects/mingw-w64/) environment, e.g. using [w64devkit](https://github.com/skeeto/w64devkit) or [MSYS2](https://www.msys2.org/).
 
-Build 32 bit (x86) vkQuake:
-
-~~~
-cd vkQuake/Quake
-make -f Makefile.w32
-~~~
 
 Build 64 bit (x64) vkQuake:
 
