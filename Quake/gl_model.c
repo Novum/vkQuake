@@ -800,7 +800,7 @@ static texture_t *Mod_LoadWadTexture (qmodel_t *mod, wad_t *wads, const char *na
 	// ensure we're dealing with a miptex
 	if (!info || (info->type != TYP_MIPTEX && (wad->id != WADID_VALVE || info->type != TYP_MIPTEX_PALETTE)))
 	{
-		Con_Warning ("Missing texture %s in %s!\n", name, mod->name);
+		Con_Warning ("Missing external texture '%s' in wads, using BSP\n", name);
 		return NULL;
 	}
 
@@ -1118,7 +1118,13 @@ static void Mod_LoadTextures (qmodel_t *mod, byte *mod_base, lump_t *l)
 		if (mt.offsets[0] == 0)
 		{
 			mod->textures[i] = Mod_LoadWadTexture (mod, wads, mt.name);
-			continue;
+			// Mod_LoadWadTexture trust the .wad name in bsp, but its loading may
+			//  fail anyway, so try with regular internal .bsp texture loading as fallback:
+			if (mod->textures[i])
+			{
+				// external texture loading success, skip the regular internal .bsp texture loading below:
+				continue;
+			}
 		}
 
 		pixels = mt.width * mt.height / 64 * 85;
@@ -4716,7 +4722,6 @@ static size_t Mod_LoadMDXSkinsByIndex (
 				{
 					// we found a 32bit base texture, try to fetch the fullbrights counterparts
 					// Same as skins, try first the same location as the model, then 'progs/', then 'textures/' if not found.
-					// glow
 					assert (surf->fbtextures[skin_index][f] == NULL);
 
 					TRY_LOAD_FULLBRIGHTS (va ("%s_glow", basic_texname));
@@ -5223,7 +5228,6 @@ static void Mod_LoadMD3Model (qmodel_t *mod, const void *buffer)
 		// keep track of the original poutvertexes, because we are going to pointer arithmetic below...
 		md3XyzNormal_t *poutvertexes_start = poutvertexes;
 
-		// TODO : make .skin have priority over this...
 		// TODO : load skins based on surface names only, for now:
 		surf->numskins = Mod_LoadMD3SkinsWithSurfaceNames (mod, surf, pinsurface->name, m, numsurfs, MAX_SKINS);
 
