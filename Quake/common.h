@@ -256,6 +256,14 @@ char *q_strcasestr (const char *haystack, const char *needle);
 char *q_strlwr (char *str);
 char *q_strupr (char *str);
 
+/* Trim whitespace on both ends, modifying str on-place: Returns the new start of str after trim */
+char *q_strtrim (char *str);
+
+/* Split str around sep, modifying it in-place. The returned char**
+ is the array of resulting sub-strings: subs[k] for k in 0 ..  nb_substr - 1.
+ The returned char** is allocated by Mem_Alloc */
+char **q_strsplit (char *str, char sep, size_t *nb_substr);
+
 // strdup that calls Mem_Alloc
 char *q_strdup (const char *str);
 
@@ -265,7 +273,9 @@ int q_vsnprintf (char *str, size_t size, const char *format, va_list args) FUNC_
 
 //============================================================================
 
-extern THREAD_LOCAL char com_token[1024];
+#define COM_PARSE_MAX_TOKEN_SIZE 4096
+
+extern THREAD_LOCAL char com_token[COM_PARSE_MAX_TOKEN_SIZE];
 extern qboolean			 com_eof;
 
 typedef enum
