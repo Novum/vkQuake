@@ -61,7 +61,7 @@ static void COM_Path_f (void);
 #define PAK0_COUNT_V091 308	  /* id1/pak0.pak - v0.91/0.92, not supported */
 #define PAK0_CRC_V091	28804 /* id1/pak0.pak - v0.91/0.92, not supported */
 
-THREAD_LOCAL char com_token[1024];
+THREAD_LOCAL char com_token[COM_PARSE_MAX_TOKEN_SIZE];
 int				  com_argc;
 char			**com_argv;
 
@@ -349,6 +349,97 @@ char *q_strupr (char *str)
 		c++;
 	}
 	return str;
+}
+
+char *q_strtrim (char *str)
+{
+	// trim leading and ending whitespaces:
+	char *str_start = (char *)str;
+
+	// trim leading:
+	while (q_isspace ((unsigned char)*str))
+		str++;
+
+	// trim ending :
+	size_t last_index = strlen (str_start) - 1;
+
+	while (last_index >= 0)
+	{
+		if (q_isspace (str_start[last_index]))
+		{
+			str_start[last_index] = '\0';
+		}
+		else
+		{
+			break;
+		}
+		last_index--;
+	}
+
+	return str;
+}
+
+// TODO : There is probably a ton of corner cases not properly managed here....
+char **q_strsplit (char *str, char sep, size_t *nb_substr)
+{
+	size_t nb_sub_strings_max_size = 8;
+	char **sub_strings = Mem_Alloc (nb_sub_strings_max_size * sizeof (char *));
+	int	   nb_sub_strings = 0;
+
+	size_t start_str_index = 0;
+
+	// special case, gobble the leading sep characters:
+	while (str[start_str_index] == sep)
+	{
+		str[start_str_index] = 0;
+		start_str_index++;
+	}
+	// the real start of the string is here
+	char *str_start = &str[start_str_index];
+
+	// always return a valid memory although  nb_sub_strings = 0
+	// so that the caller is not burdened with NULL checks.
+	//  TODO: or more explicit if it would ?
+	assert (nb_sub_strings == 0);
+	if (!str_start)
+		return sub_strings;
+
+	const size_t initial_str_size = strlen (str_start);
+
+	for (size_t char_index = 0; char_index < initial_str_size; char_index++)
+	{
+		// find the next sep
+		if (str_start[char_index] == sep)
+		{
+			// goble consecutive seps, if any
+			while (str_start[char_index] == sep)
+			{
+				// split the original string
+				str_start[char_index] = 0;
+				char_index++;
+			}
+			//
+			if (char_index <= initial_str_size)
+			{
+				// make room
+				if (nb_sub_strings >= nb_sub_strings_max_size)
+				{
+					nb_sub_strings_max_size = nb_sub_strings_max_size * 2;
+					sub_strings = Mem_Realloc (sub_strings, nb_sub_strings_max_size * sizeof (char *));
+				}
+				// we found the first split, meaning the string before this split is indeed the first sub-string
+				if (nb_sub_strings == 0)
+					sub_strings[nb_sub_strings++] = &str_start[0];
+
+				if (char_index < initial_str_size)
+					sub_strings[nb_sub_strings++] = &str_start[char_index];
+			}
+		}
+	}
+
+	*nb_substr = nb_sub_strings;
+
+	return sub_strings;
 }
 
 char *q_strdup (const char *str)

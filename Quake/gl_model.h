@@ -330,6 +330,8 @@ typedef enum
 	PV_SIZE
 } poseverttype_t;
 
+#define MAX_FRAMEGROUPS 4
+
 typedef struct aliashdr_s
 {
 	int					ident;
@@ -353,9 +355,9 @@ typedef struct aliashdr_s
 	aliashdr_t		   *nextsurface; // spike
 	int					numjoints;	 // spike -- for md5
 	poseverttype_t		poseverttype;
-	struct gltexture_s *gltextures[MAX_SKINS][4]; // johnfitz
-	struct gltexture_s *fbtextures[MAX_SKINS][4]; // johnfitz
-	byte			   *texels[MAX_SKINS];		  // only for player skins
+	struct gltexture_s *gltextures[MAX_SKINS][MAX_FRAMEGROUPS]; // johnfitz
+	struct gltexture_s *fbtextures[MAX_SKINS][MAX_FRAMEGROUPS]; // johnfitz
+	byte			   *texels[MAX_SKINS];						// only for player skins
 	VkBuffer			vertex_buffer;
 	glheapallocation_t *vertex_allocation;
 	VkBuffer			index_buffer;
@@ -366,6 +368,37 @@ typedef struct aliashdr_s
 	VkDescriptorSet		joints_set;
 	maliasframedesc_t	frames[1]; // variable sized
 } aliashdr_t;
+
+/*
+==============================================================================
+SKIN DEFINITIONS
+==============================================================================
+*/
+#define MAX_SURFACES 32
+
+typedef struct qpath_str_s
+{
+	char c_str[MAX_QPATH];
+} qpath_str_t;
+
+typedef struct skin_def_s
+{
+	qpath_str_t framegroups[MAX_FRAMEGROUPS];
+	size_t		numframegroups;
+} skin_def_t;
+
+typedef struct surface_def_s
+{
+	qpath_str_t surfname;
+	skin_def_t	skins[MAX_SKINS];
+	size_t		numskins;
+} surface_def_t;
+
+typedef struct all_surfaces_def_s
+{
+	surface_def_t surfaces[MAX_SURFACES];
+	size_t		  numsurfaces;
+} all_surfaces_def_t;
 
 /*
 ==============================================================================
@@ -402,6 +435,7 @@ MD3 MODELS
 #define MD3_VERSION 15
 #define IDMD3HEADER (('I' << 0) | ('D' << 8) | ('P' << 16) | ('3' << 24))
 
+/////////////////////////////////////////////////
 // MD3 vertex+norm file format:
 typedef struct md3XyzNormal_s
 {
