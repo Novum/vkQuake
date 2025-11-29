@@ -30,7 +30,7 @@ MacOS (both Apple Silicon and 64-bit Intel) binaries are at [Mac Source Ports](h
 ### Windows
 It is recommended to use the installer on Windows. This sets up start menu entries for the original and remastered Quake versions. Save data and config files will be written to the user folder (`%APPDATA\vkQuake`) instead of the Quake data folder.
 
-Otherwise copy all files inside the `vkquake-<version>_win64` or `vkquake-<version>_win32` folder in the zip to the Quake base directory. Overwrite any existing files. Afterward to run the game just execute `vkQuake.exe`.
+Otherwise copy all files inside the `vkquake-<version>_win64` or `vkquake-<version>_winArm64` folder in the zip to the Quake base directory. Overwrite any existing files. Afterward to run the game just execute `vkQuake.exe`.
 
 ### Linux
 Copy all files inside the `vkquake-<version>-linux64` folder in the tar archive to the Quake base directory. Overwrite any existing files. Run `vkquake.AppImage`.
@@ -66,7 +66,7 @@ $ cd /usr/ports/games/vkquake
 
 ### Quake '2021 re-release'
 
-vkQuake has initial support for playing the 2021 re-release content. Follow installation instructions as above but copy the files into the rerelease folder.
+vkQuake has support for playing the 2021 re-release content. Follow installation instructions as above but copy the files into the rerelease folder.
 
 ## Vulkan
 vkQuake shows basic usage of the API. For example it demonstrates render passes & sub passes, pipeline barriers & synchronization, compute shaders, push & specialization constants, CPU/GPU parallelism and memory pooling.
@@ -78,7 +78,7 @@ vkQuake wouldn't even start on an big-endian system, outputing a fatal error.
 
 ## Building
 > **Note**\
-> For Windows, you will need at least Vulkan SDK version 1.4.321.1 or newer. (Re-)Installing the latest LunarG SDK should be sufficient in practice.
+> For Windows, you will need at least Vulkan SDK version 1.4.321.1 or newer.
 > 
 > For Linux, you will need at least Vulkan SDK version 1.2.162 or newer. When building for Linux this is not always the case for the SDK provided by the distribution. Install the latest LunarG SDK if necessary.
 
@@ -104,11 +104,18 @@ build the solution.
 Setup your [MinGW-w64](https://sourceforge.net/projects/mingw-w64/) environment, e.g. using [w64devkit](https://github.com/skeeto/w64devkit) or [MSYS2](https://www.msys2.org/).
 
 
-Build 64 bit (x64) vkQuake:
+Build 64 bit Intel vkQuake:
 
 ~~~
 cd vkQuake/Quake
 make -f Makefile.w64
+~~~
+
+Build 64 bit Arm vkQuake:
+
+~~~
+cd vkQuake/Quake
+make -f Makefile.w64a
 ~~~
 
 If you are on Linux and want to cross-compile for Windows, see the `build_cross_win??.sh` scripts.
