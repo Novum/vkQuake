@@ -18,13 +18,13 @@ msbuild ..\..\Windows\VisualStudio\vkquake.sln /target:Clean /target:Build /prop
 
 # Create NSIS exe installers
 $Nsis="C:\Program Files (x86)\NSIS\Bin\makensis.exe"
-$NsisArguments = '-V4 -DSRCDIR="' + $SrcDirX64 + '" -DPLATFORM=x64 -DVERSION=' + $Version + ' vkQuake.nsi'
+$NsisArguments = '-V4 -DSRCDIR="' + $SrcDirX64 + '" -DPLATFORM=win64_x86 -DVERSION=' + $Version + ' vkQuake.nsi'
 Start-Process -Wait -NoNewWindow -PassThru -FilePath $Nsis -ArgumentList $NsisArguments
 
 # Create zip files
 $compress = @{
   Path = "$SrcDirX64\*.exe", "$SrcDirX64\*.dll", "..\..\LICENSE.txt"
   CompressionLevel = "Optimal"
-  DestinationPath = "vkQuake-" + $Version + "_win64.zip"
+  DestinationPath = "vkQuake-" + $Version + "_win64_x86.zip"
 }
 Compress-Archive @compress

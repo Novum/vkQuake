@@ -1,7 +1,7 @@
 !define MULTIUSER_EXECUTIONLEVEL Highest
 !define MULTIUSER_MUI
 !define MULTIUSER_INSTALLMODE_COMMANDLINE
-!if ${PLATFORM} == x64
+!if ${PLATFORM} == win64_x86
 	!define MULTIUSER_USE_PROGRAMFILES64
 !endif
 !define MULTIUSER_INSTALLMODE_INSTDIR "vkQuake"
@@ -50,11 +50,7 @@ FunctionEnd
 Function .onInit
 	!insertmacro MULTIUSER_INIT
 	Call GetQuakePathSteam
-	!if ${PLATFORM} == x64
-		SetRegView 64
-	!else
-		SetRegView 32
-	!endif
+	SetRegView 64
 FunctionEnd
 
 Function OnBrowseRereleaseDir
@@ -124,11 +120,7 @@ FunctionEnd
 
 Function un.onInit
 	!insertmacro MULTIUSER_UNINIT
-	!if ${PLATFORM} == x64
-		SetRegView 64
-	!else
-		SetRegView 32
-	!endif
+	SetRegView 64
 FunctionEnd
 
 !insertmacro MULTIUSER_PAGE_INSTALLMODE
