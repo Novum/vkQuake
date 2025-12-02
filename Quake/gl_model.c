@@ -5057,36 +5057,6 @@ SKIN_PATTERN_FUNC_DEF (MD3_Surf_Name_Legacy)
 	q_snprintf (output_name, MAX_QPATH, "%s_%d_%d", basename, skin_index, framegroup_index);
 }
 
-// skin name : model_name.md3.ext (1 surface, 1 skin, 1 framgroup)
-SKIN_PATTERN_FUNC_DEF (MD3_Model_Name_Legacy_Single)
-{
-	char newname[MAX_QPATH];
-	COM_StripExtension (basename, newname, sizeof (newname));
-	COM_AddExtension (newname, ".md3", sizeof (newname));
-
-	q_snprintf (output_name, MAX_QPATH, "%s", newname);
-}
-
-// skin name :model_name.md3_S.ext (0..S-1 surfaces, 1 skin, 1 framgroup) using Legacy conventions (%d), using the model name as prefix
-SKIN_PATTERN_FUNC_DEF (MD3_Model_Name_Legacy_One_Framegroup)
-{
-	char newname[MAX_QPATH];
-	COM_StripExtension (basename, newname, sizeof (newname));
-	COM_AddExtension (newname, ".md3", sizeof (newname));
-
-	q_snprintf (output_name, MAX_QPATH, "%s_%d", newname, surf_index);
-}
-
-// skin name : model_name.md3_S_X.ext (0..S-1 surfaces, 0..X-1 skins, 1 framgroup) using Legacy conventions (%d), using the model name as prefix
-SKIN_PATTERN_FUNC_DEF (MD3_Model_Name_Legacy)
-{
-	char newname[MAX_QPATH];
-	COM_StripExtension (basename, newname, sizeof (newname));
-	COM_AddExtension (newname, ".md3", sizeof (newname));
-
-	q_snprintf (output_name, MAX_QPATH, "%s_%d_%d", newname, surf_index, skin_index);
-}
-
 // skin name : model_name.md3_S_X_Y.ext (0..S-1 surfaces, 0..X-1 skin, 0..Y-1 framgroup) using Legacy conventions (%d), using the model name as prefix
 SKIN_PATTERN_FUNC_DEF (MD3_Model_Name_Legacy_Full)
 {
@@ -5129,18 +5099,6 @@ static int Mod_LoadMD3SkinsWithSurfaceNames (qmodel_t *mod, aliashdr_t *surf, co
 	//   skin name : model_name.md3_S_X_Y.ext (0..S-1 surfaces, 0..X-1 skin, 0..Y-1 framgroup) using Legacy conventions (%d), using the model name as prefix
 	if (!surf_numskins)
 		surf_numskins = (int)Mod_LoadMDXSkinsByIndex (mod, surf, surface_index, numsurfs, numskins, mod->name, MD3_Model_Name_Legacy_Full);
-
-	// skin name : model_name.md3_S_X.ext (0..S-1 surfaces, 0..X-1 skins, 1 framgroup) using Legacy conventions (%d), using the model name as prefix
-	if (!surf_numskins)
-		surf_numskins = (int)Mod_LoadMDXSkinsByIndex (mod, surf, surface_index, numsurfs, numskins, mod->name, MD3_Model_Name_Legacy);
-
-	// skin name :model_name.md3_S.ext (0..S-1 surfaces, 1 skin, 1 framgroup) using Legacy conventions (%d), using the model name as prefix
-	if (!surf_numskins)
-		surf_numskins = (int)Mod_LoadMDXSkinsByIndex (mod, surf, surface_index, numsurfs, 1, mod->name, MD3_Model_Name_Legacy_One_Framegroup);
-
-	// skin name : model_name.md3.ext (1 surface, 1 skin, 1 framgroup)
-	if (!surf_numskins)
-		surf_numskins = (int)Mod_LoadMDXSkinsByIndex (mod, surf, surface_index, numsurfs, 1, mod->name, MD3_Model_Name_Legacy_Single);
 
 	// 3. MD5-like naming conventions:
 	// skin name : surfacename_X_Y.ext (0..X-1 skins, 0..Y-1 framgroups) with %s_%02u_%02u pattern
