@@ -5067,16 +5067,6 @@ SKIN_PATTERN_FUNC_DEF (MD3_Model_Name_Legacy_Full)
 	q_snprintf (output_name, MAX_QPATH, "%s_%d_%d_%d", newname, surf_index, skin_index, framegroup_index);
 }
 
-// skin name : model_name.md3_S_X_Y.ext (0..S-1 surfaces, 0..X-1 skin, 0..Y-1 framgroup) using MD5 conventions (%02u), using the model name as prefix
-SKIN_PATTERN_FUNC_DEF (MD3_Model_Name_Full_MD5)
-{
-	char newname[MAX_QPATH];
-	COM_StripExtension (basename, newname, sizeof (newname));
-	COM_AddExtension (newname, ".md3", sizeof (newname));
-
-	q_snprintf (output_name, MAX_QPATH, "%s_%02u_%02u_%02u", newname, surf_index, skin_index, framegroup_index);
-}
-
 //
 static int Mod_LoadMD3SkinsWithSurfaceNames (qmodel_t *mod, aliashdr_t *surf, const char *surface_name, int surface_index, size_t numsurfs, size_t numskins)
 {
@@ -5104,10 +5094,6 @@ static int Mod_LoadMD3SkinsWithSurfaceNames (qmodel_t *mod, aliashdr_t *surf, co
 	// skin name : surfacename_X_Y.ext (0..X-1 skins, 0..Y-1 framgroups) with %s_%02u_%02u pattern
 	if (!surf_numskins)
 		surf_numskins = (int)Mod_LoadMDXSkinsByIndex (mod, surf, surface_index, numsurfs, numskins, surface_name, MD5_Skin_Name);
-
-	// skin name: use the model name (without extension).md3 + _ + surface index as prefix, not making use of the shader_texture_name at all.
-	if (!surf_numskins)
-		surf_numskins = (int)Mod_LoadMDXSkinsByIndex (mod, surf, surface_index, numsurfs, numskins, mod->name, MD3_Model_Name_Full_MD5);
 
 	return surf_numskins;
 }
