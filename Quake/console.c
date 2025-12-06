@@ -555,7 +555,7 @@ void Con_DWarning (const char *fmt, ...)
 
 /*
 ================
-Con_Warning -- johnfitz -- prints a warning to the console
+Con_Warning -- johnfitz -- prints a warning to the console. Is thread-safe.
 ================
 */
 void Con_Warning (const char *fmt, ...)
@@ -567,8 +567,7 @@ void Con_Warning (const char *fmt, ...)
 	q_vsnprintf (msg, sizeof (msg), fmt, argptr);
 	va_end (argptr);
 
-	Con_SafePrintf ("\x02Warning: ");
-	Con_Printf ("%s", msg);
+	Con_SafePrintf ("\x02Warning: %s", msg);
 }
 
 /*
