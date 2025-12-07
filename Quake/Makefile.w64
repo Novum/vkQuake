@@ -28,7 +28,7 @@ VORBISLIB = vorbis
 CPUFLAGS =
 LDFLAGS = -m64 -mwindows -static-libgcc
 DFLAGS ?=
-CFLAGS ?= -m64 -D_WIN32_WINNT=0x0501
+CFLAGS ?= -m64 -D_WIN32_WINNT=0x0600 -DMI_WIN_USE_FLS
 
 # ---------------------------
 # objects
