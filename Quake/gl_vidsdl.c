@@ -37,6 +37,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <vulkan/vulkan_win32.h>
 #endif
 
+#include <time.h>
+
 #define MAX_MODE_LIST  600 // johnfitz -- was 30
 #define MAX_BPPS_LIST  5
 #define MAX_RATES_LIST 20
@@ -185,7 +187,7 @@ static uint32_t current_swapchain_buffer;
 // Screenshots
 qboolean	take_screenshot = false;
 static char screenshot_ext[4];
-char		screenshot_imagename[16]; // johnfitz -- was [80]
+char		screenshot_imagename[MAX_OSPATH]; // johnfitz -- was [80]
 int			screenshot_quality;
 
 task_handle_t prev_end_rendering_task = INVALID_TASK_HANDLE;
@@ -4057,10 +4059,53 @@ static void SCR_ScreenShot_Usage (void)
 	Con_Printf ("   quality must be 1-100\n");
 	return;
 }
+/*
+==================
+SCR_GetScreenshotMapTitle
+==================
+*/
+
+static void SCR_GetScreenshotMapTitle (char *buf, size_t maxchars)
+{
+	char   clean[countof (cl.levelname)] = {0};
+	size_t i, j;
+
+	for (i = j = 0; i + 1 < countof (cl.levelname) && cl.levelname[i]; i++)
+	{
+		char c = cl.levelname[i] & 0x7f;
+		switch (c)
+		{
+		case '/':
+		case '|':
+		case ':':
+		case ' ':
+		case '\n':
+		case '*':
+		case '<':
+		case '>':
+		case '-':
+		case '?':
+		case '!':
+		case '"':
+		case '\t':
+		case '\\':
+			c = '_';
+			break;
+		default:
+			break;
+		}
+		// remove leading spaces, replace consecutive spaces with a single one
+		if (c != ' ' || (j > 0 && clean[j - 1] != c))
+			clean[j++] = c;
+	}
+	clean[j++] = '\0';
+
+	q_strlcpy (buf, clean, maxchars);
+}
 
 /*
 ==================
-SCR_ScreenShot_f -- johnfitz -- rewritten to use Image_WriteTGA
+SCR_ScreenShot_f -- johnfitz
 ==================
 */
 void SCR_ScreenShot_f (void)
@@ -4106,15 +4151,32 @@ void SCR_ScreenShot_f (void)
 
 	// find a file name to save it to
 	int i;
-	for (i = 0; i < 10000; i++)
+
+	// retreive the current date
+	time_t now;
+	time (&now);
+	struct tm *lt = localtime (&now);
+
+	// extract map title:
+	char map_title[128];
+	SCR_GetScreenshotMapTitle (map_title, sizeof (map_title));
+
+	// not all maps have a valid map title:
+	const bool have_map_title = (strlen (map_title) > 0);
+
+	for (i = 0; i < 100; i++)
 	{
-		q_snprintf (screenshot_imagename, sizeof (screenshot_imagename), "vkquake%04i.%s", i, screenshot_ext); // "fitz%04scbx_index.tga"
+		q_snprintf (
+			screenshot_imagename, sizeof (screenshot_imagename), "%s-%s%s-%04d%02d%02d-%02d%02d%02d-%02i.%s", SCREENSHOT_PREFIX,
+			(have_map_title ? va ("%s-", map_title) : ""), cl.mapname, lt->tm_year + 1900, lt->tm_mon + 1, lt->tm_mday, lt->tm_hour, lt->tm_min, lt->tm_sec, i,
+			screenshot_ext); // "vkQuake%04scbx_index.tga"
+
 		char checkname[MAX_OSPATH];
 		q_snprintf (checkname, sizeof (checkname), "%s/%s", com_gamedir, screenshot_imagename);
 		if (Sys_FileType (checkname) == FS_ENT_NONE)
 			break; // file doesn't exist
 	}
-	if (i == 10000)
+	if (i == 100)
 	{
 		Con_Printf ("SCR_ScreenShot_f: Couldn't find an unused filename\n");
 		return;
