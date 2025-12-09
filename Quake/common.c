@@ -379,7 +379,6 @@ char *q_strtrim (char *str)
 	return str;
 }
 
-// TODO : There is probably a ton of corner cases not properly managed here....
 char **q_strsplit (char *str, char sep, size_t *nb_substr)
 {
 	size_t nb_sub_strings_max_size = 8;
@@ -436,6 +435,10 @@ char **q_strsplit (char *str, char sep, size_t *nb_substr)
 			}
 		}
 	}
+
+	// no split, return the original string stripped from its leadings seps
+	if (nb_sub_strings == 0)
+		sub_strings[nb_sub_strings++] = &str_start[0];
 
 	*nb_substr = nb_sub_strings;
 

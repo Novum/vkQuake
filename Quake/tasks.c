@@ -429,49 +429,29 @@ static void parse_pinned_workers (void)
 
 	if (pinned_workers_param_index && pinned_workers_param_index < com_argc - 1)
 	{
-#define MAX_CORE_IDS_CHAR_LEN 3
-		const char *csv_pinned_list = com_argv[pinned_workers_param_index + 1];
-		const int	max_num_workers = num_workers;
-		char		num_field[MAX_CORE_IDS_CHAR_LEN + 1];
+		size_t max_num_workers = 0;
 
-		int field_pos = 0;
-		int i = 0;
+		char **fields = q_strsplit (com_argv[pinned_workers_param_index + 1], ',', &max_num_workers);
 
-		while (csv_pinned_list[i] != '\0')
+		for (size_t core_index = 0; core_index < max_num_workers; core_index++)
 		{
-			if (csv_pinned_list[i] == ',')
-			{
-				num_field[field_pos] = '\0';
-				pinned_workers_core_ids[num_pinned_workers++] = (strtol (num_field, NULL, 0) % SDL_GetCPUCount ());
+			const size_t core_id_len = strlen (fields[core_index]);
 
-				field_pos = 0;
-				if (num_pinned_workers >= max_num_workers)
-					break;
-			}
-			else
+			// test if all are digits
+			for (size_t j = 0; j < core_id_len; j++)
 			{
-				if (!q_isdigit (csv_pinned_list[i]))
+				if (!q_isdigit ((int)fields[core_index][j]))
 				{
 					// invalid input, invalidate all
 					num_pinned_workers = 0;
 					return;
 				}
-
-				if (field_pos < MAX_CORE_IDS_CHAR_LEN - 1)
-				{
-					num_field[field_pos++] = csv_pinned_list[i];
-				}
 			}
-			i++;
+
+			pinned_workers_core_ids[num_pinned_workers++] = strtol (fields[core_index], NULL, 0) % SDL_GetCPUCount ();
 		}
 
-		// Add last field (if not ending with a comma)
-		if (csv_pinned_list[i - 1] != ',')
-		{
-			num_field[field_pos] = '\0';
-			if (num_pinned_workers < max_num_workers)
-				pinned_workers_core_ids[num_pinned_workers++] = strtol (num_field, NULL, 0) % SDL_GetCPUCount ();
-		}
+		Mem_Free (fields);
 
 		// override num_works with the number of valid fields
 		num_workers = num_pinned_workers;
