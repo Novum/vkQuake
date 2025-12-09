@@ -68,37 +68,32 @@ endif
 
 bintoc_command = [bintoc, '@PLAINNAME@.spv', '@PLAINNAME@_spv', '@OUTPUT@']
 
-vkquake_pak_path = join_paths(meson.project_source_root(), 'Quake', 'vkquake.pak')
-
 vq_pak_path = join_paths(meson.project_source_root(), 'Misc', 'vq_pak')
 mkpak_toc_file = join_paths(vq_pak_path, 'vq_pak_contents.txt')
 
-mkpak_command = [mkpak, vkquake_pak_path, vq_pak_path, mkpak_toc_file]
+mkpak_command = [mkpak, '@OUTPUT@', vq_pak_path, mkpak_toc_file, '@DEPFILE@']
 
 run_mkpak = custom_target('run-mkpak',
   output : 'vkquake.pak',
+  depfile : 'vkquake.pak.d',
   command: mkpak_command)
 
 # Write the embedded pak into the build dir so Meson can track it.
-# this as no special dependencies, so actually can generated anywhere
-embedded_pak_path = join_paths(meson.current_build_dir(), 'embedded_pak.c')
-
-bintoc_compress_command = [bintoc, '-c', vkquake_pak_path,'vkquake.pak', embedded_pak_path]
+bintoc_compress_command = [bintoc, '-c', '@INPUT@', 'vkquake.pak', '@OUTPUT@']
 
 run_generate_embedded_pak = custom_target('run-embed_vkquake_pak',
 							output : 'embedded_pak.c',
-							depends : [run_mkpak],
+							input : run_mkpak,
 							command : bintoc_compress_command)
 shaders_c = []
 foreach shader : shaders
     target_env = shader.contains('sops') ? ['--target-env', 'vulkan1.1'] : []
     debug_flag = get_option('buildtype').startswith('debug') ? ['-g'] : []
-    glslang_command = [glslang, '-V'] + debug_flag + target_env + ['-o', '@PLAINNAME@.spv', '@INPUT@', '--depfile', '@PLAINNAME@.deps', '&&']
+    glslang_command = [glslang, '-V', '--quiet'] + debug_flag + target_env + ['-o', '@PLAINNAME@.spv', '@INPUT@', '--depfile', '@PLAINNAME@.deps', '&&']
     shaders_c += custom_target(shader.underscorify(),
                  input: shader,
                  output: '@PLAINNAME@.c',
                  depfile: '@PLAINNAME@.deps',
-				 depends : [run_generate_embedded_pak],
                  command: glslang_command
                           + spirv_opt_command
                           + spirv_remap_command
