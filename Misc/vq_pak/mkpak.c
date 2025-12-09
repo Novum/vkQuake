@@ -40,12 +40,6 @@ static void write_int32 (uint32_t value)
 	fwrite (&value, 4, 1, out);
 }
 
-static void write_zero_padding (int count)
-{
-	for (int i = 0; i < count; ++i)
-		write_byte (0);
-}
-
 static void write_header (int32_t directory_offset, int32_t directory_size)
 {
 	write_byte ('P');
@@ -62,7 +56,7 @@ int main (int argc, char *argv[])
 
 	if (argc < 4)
 	{
-		fprintf (stderr, "Usage: mkpak [output.pak] [root dir for files] [toc file]\n");
+		fprintf (stderr, "Usage: mkpak [output.pak] [root dir for files] [toc file] [depfile (optional)]\n");
 		return 1;
 	}
 
@@ -78,6 +72,20 @@ int main (int argc, char *argv[])
 	{
 		fprintf (stderr, "Could not open toc_file file '%s'", argv[3]);
 		return 1;
+	}
+
+	FILE *dep_file = NULL;
+	if (argc >= 5)
+	{
+		dep_file = fopen (argv[4], "w");
+		if (dep_file == NULL)
+		{
+			fprintf (stderr, "Could not open depfile '%s'", argv[4]);
+			return 1;
+		}
+		// Write depfile header: target: dependencies
+		// Include the TOC file itself as a dependency
+		fprintf (dep_file, "%s: %s", argv[1], argv[3]);
 	}
 
 	char entry_path[1024] = {0};
@@ -127,7 +135,9 @@ int main (int argc, char *argv[])
 		// prepend the root dir
 		snprintf (input_file_path, sizeof (input_file_path), "%s/%s", argv[2], entry_path_start);
 
-		// printf (" pak entry = %s, filename = %s\n", entry_path_start, input_file_path);
+		// Add this input file to the depfile
+		if (dep_file)
+			fprintf (dep_file, " %s", input_file_path);
 
 		in = fopen (input_file_path, "rb");
 
@@ -160,6 +170,11 @@ int main (int argc, char *argv[])
 
 	} // end while
 
+	if (dep_file)
+	{
+		fprintf (dep_file, "\n");
+		fclose (dep_file);
+	}
 	fclose (out);
 	fclose (toc_file);
 	free (in_buffer);
