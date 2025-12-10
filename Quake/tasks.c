@@ -443,6 +443,7 @@ static void parse_pinned_workers (void)
 				if (!q_isdigit ((int)fields[core_index][j]))
 				{
 					// invalid input, invalidate all
+					Mem_Free (fields);
 					num_pinned_workers = 0;
 					return;
 				}
