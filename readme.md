@@ -9,7 +9,7 @@ Improvements over QuakeSpasm include:
 * A software Quake like underwater effect
 * Support for Classic (original Quake) and Enhanced models (either MD5 format like the 2021 re-Release, or MD3 like Quake3)
 * When both Classic and Enhanced versions of models exist, display one or other kind using the Models menu option.
-* True color skins support (`.png`, `.tga`, `.jpg`) for MD3/MD5 models, including fullbrights 
+* True color skins support (`.png`, `.tga`, `.jpg`) for MD3/MD5 models, including fullbrights (from QSS)
 * Dynamic shadows (requires a GPU with ray tracing support)
 * Better color precision reducing banding in dark areas
 * Native support for anti aliasing and anisotropic filtering
@@ -19,6 +19,7 @@ Improvements over QuakeSpasm include:
 * More modern protocol to avoid certain movement issues (from QSS)
 * Support for custom mod HUDs (from QSS)
 * Support for scriptable particles (from QSS)
+* True color support for level textures and static models (`.png`, `.tga`, `.jpg`)
 * External WAD support ([more info](https://github.com/Novum/vkQuake/pull/753))
 * WAD3 format support, allowing per-texture palettes for more colorful levels ([more info](https://github.com/Novum/vkQuake/pull/753))
 
