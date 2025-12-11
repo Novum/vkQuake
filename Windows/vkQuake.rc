@@ -10,6 +10,7 @@ icon ICON "vkQuake.ico"
 
 #define VER_PRODUCTVERSION			VER_FILEVERSION
 #define VER_PRODUCTVERSION_STR		VER_FILEVERSION_STR
+#define VER_LEGAL_COPYRIGHT         "\xA9 " VKQUAKE_COPYRIGHT_YEAR
 
 #ifdef DEBUG
 	#define VER_DEBUG				VS_FF_DEBUG
@@ -34,7 +35,7 @@ BEGIN
 		BEGIN
 			VALUE "FileDescription",	"vkQuake Quake engine"
 			VALUE "FileVersion",		VER_FILEVERSION_STR
-			VALUE "LegalCopyright",		"\xA9 2024"
+			VALUE "LegalCopyright",		VER_LEGAL_COPYRIGHT
 			VALUE "OriginalFilename",	"vkQuake.exe"
 			VALUE "ProductName",		"vkQuake"
 			VALUE "ProductVersion",		VER_PRODUCTVERSION_STR
