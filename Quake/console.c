@@ -549,7 +549,7 @@ void Con_DWarning (const char *fmt, ...)
 		va_end (argptr);
 
 		Con_SafePrintf ("\x02Warning: ");
-		Con_Printf ("%s", msg);
+		Con_SafePrintf ("%s", msg);
 	}
 }
 
@@ -567,7 +567,8 @@ void Con_Warning (const char *fmt, ...)
 	q_vsnprintf (msg, sizeof (msg), fmt, argptr);
 	va_end (argptr);
 
-	Con_SafePrintf ("\x02Warning: %s", msg);
+	Con_SafePrintf ("\x02Warning: ");
+	Con_SafePrintf ("%s", msg);
 }
 
 /*
