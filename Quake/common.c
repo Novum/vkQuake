@@ -379,7 +379,20 @@ char *q_strtrim (char *str)
 	return str;
 }
 
-char **q_strsplit (char *str, char sep, size_t *nb_substr)
+static bool is_in_char_set (char single_char, const char *char_set)
+{
+	const size_t char_set_size = strlen (char_set);
+
+	for (size_t char_index = 0; char_index < char_set_size; char_index++)
+	{
+		if (char_set[char_index] == single_char)
+			return true;
+	}
+
+	return false;
+}
+
+char **q_strsplit (char *str, const char *sep_set, size_t *nb_substr)
 {
 	size_t nb_sub_strings_max_size = 8;
 	char **sub_strings = Mem_Alloc (nb_sub_strings_max_size * sizeof (char *));
@@ -388,7 +401,7 @@ char **q_strsplit (char *str, char sep, size_t *nb_substr)
 	size_t start_str_index = 0;
 
 	// special case, gobble the leading sep characters:
-	while (str[start_str_index] == sep)
+	while (is_in_char_set (str[start_str_index], sep_set))
 	{
 		str[start_str_index] = 0;
 		start_str_index++;
@@ -408,10 +421,10 @@ char **q_strsplit (char *str, char sep, size_t *nb_substr)
 	for (size_t char_index = 0; char_index < initial_str_size; char_index++)
 	{
 		// find the next sep
-		if (str_start[char_index] == sep)
+		if (is_in_char_set (str_start[char_index], sep_set))
 		{
 			// goble consecutive seps, if any
-			while (str_start[char_index] == sep)
+			while (is_in_char_set (str_start[char_index], sep_set))
 			{
 				// split the original string
 				str_start[char_index] = 0;

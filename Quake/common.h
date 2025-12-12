@@ -259,10 +259,10 @@ char *q_strupr (char *str);
 /* Trim whitespace on both ends, modifying str on-place: Returns the new start of str after trim */
 char *q_strtrim (char *str);
 
-/* Split str around sep, modifying it in-place. The returned char**
- is the array of resulting sub-strings: subs[k] for k in 0 ..  nb_substr - 1.
- The returned char** is allocated by Mem_Alloc */
-char **q_strsplit (char *str, char sep, size_t *nb_substr);
+/* Split str around any of the characters of sep_set, gobbling any number of consecutive found separators, modifying str in-place.
+The returned char** subs is the array of resulting sub-strings: subs[k] for k in 0 ..  nb_substr - 1.
+The returned char** is allocated by Mem_Alloc */
+char **q_strsplit (char *str, const char *sep_set, size_t *nb_substr);
 
 // strdup that calls Mem_Alloc
 char *q_strdup (const char *str);

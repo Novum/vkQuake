@@ -431,7 +431,7 @@ static void parse_pinned_workers (void)
 	{
 		size_t max_num_workers = 0;
 
-		char **fields = q_strsplit (com_argv[pinned_workers_param_index + 1], ',', &max_num_workers);
+		char **fields = q_strsplit (com_argv[pinned_workers_param_index + 1], ",", &max_num_workers);
 
 		for (size_t core_index = 0; core_index < max_num_workers; core_index++)
 		{

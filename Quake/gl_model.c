@@ -5127,14 +5127,14 @@ static void Mod_AppendMD3SkinFile (char *file_contents, int expected_skin_index,
 
 	// split by lines:
 	size_t nb_lines = 0;
-	char **lines = q_strsplit (file_contents, '\n', &nb_lines);
+	char **lines = q_strsplit (file_contents, "\n\r", &nb_lines);
 
 	// parse line by line
 	for (size_t line_index = 0; line_index < nb_lines; line_index++)
 	{
 		// This line must be split by its ',' and stripping whitespaces of the resulting sub-tokens
 		size_t nb_fields = 0;
-		char **fields = q_strsplit (q_strtrim (lines[line_index]), ',', &nb_fields);
+		char **fields = q_strsplit (q_strtrim (lines[line_index]), ",", &nb_fields);
 
 		// there should be at least a "surface name, skin"
 		// butno more than "surface name, skin0, skin1, ..." upto MAX_SKINS
