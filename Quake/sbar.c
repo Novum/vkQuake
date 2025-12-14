@@ -528,26 +528,76 @@ void Sbar_DrawScoreboard (cb_context_t *cbx)
 
 /*
 ===============
+Sbar_DrawFrags -- johnfitz -- heavy revision
+===============
+*/
+void Sbar_DrawFrags (cb_context_t *cbx, int y)
+{
+	int			  numscores, i, x, color;
+	char		  num[12];
+	scoreboard_t *s;
+
+	Sbar_SortFrags ();
+
+	// draw the text
+	numscores = q_min (scoreboardlines, 4);
+
+	for (i = 0, x = 184; i < numscores; i++, x += 32)
+	{
+		s = &cl.scores[fragsort[i]];
+		if (!s->name[0])
+			continue;
+
+		// top color
+		color = s->colors & 0xf0;
+		color = Sbar_ColorForMap (color);
+		Draw_Fill (cbx, x + 10, y + 25, 28, 4, color, 1);
+
+		// bottom color
+		color = (s->colors & 15) << 4;
+		color = Sbar_ColorForMap (color);
+		Draw_Fill (cbx, x + 10, y + 29, 28, 3, color, 1);
+
+		// number
+		q_snprintf (num, sizeof (num), "%3i", s->frags);
+		Sbar_DrawCharacter (cbx, x + 12, y, num[0]);
+		Sbar_DrawCharacter (cbx, x + 20, y, num[1]);
+		Sbar_DrawCharacter (cbx, x + 28, y, num[2]);
+
+		// brackets
+		if (fragsort[i] == cl.viewentity - 1)
+		{
+			Sbar_DrawCharacter (cbx, x + 6, y, 16);
+			Sbar_DrawCharacter (cbx, x + 32, y, 17);
+		}
+	}
+}
+
+//=============================================================================
+
+/*
+===============
 Sbar_DrawInventory
 ===============
 */
 void Sbar_DrawInventory (cb_context_t *cbx)
 {
-	int	  i, val;
-	char  num[6];
-	float time;
-	int	  flashon;
+	int		  i, val, flashon;
+	char	  num[6];
+	float	  time;
+	const int L1 = -24 * (scr_style.value < 2.0f);
+	const int L2 = L1 + 8;
 
 	if (rogue)
 	{
 		if (cl.stats[STAT_ACTIVEWEAPON] >= RIT_LAVA_NAILGUN)
-			Sbar_DrawPicAlpha (cbx, 0, -24, rsb_invbar[0], scr_sbaralpha.value); // johnfitz -- scr_sbaralpha
+			Sbar_DrawPicAlpha (cbx, 0, L1, rsb_invbar[0], scr_sbaralpha.value); // johnfitz -- scr_sbaralpha
 		else
-			Sbar_DrawPicAlpha (cbx, 0, -24, rsb_invbar[1], scr_sbaralpha.value); // johnfitz -- scr_sbaralpha
+			Sbar_DrawPicAlpha (cbx, 0, L1, rsb_invbar[1], scr_sbaralpha.value); // johnfitz -- scr_sbaralpha
 	}
 	else
 	{
-		Sbar_DrawPicAlpha (cbx, 0, -24, sb_ibar, scr_sbaralpha.value); // johnfitz -- scr_sbaralpha
+		Sbar_DrawPicAlpha (cbx, 0, L1, sb_ibar, scr_sbaralpha.value); // johnfitz -- scr_sbaralpha
 	}
 
 	// weapons
@@ -569,7 +619,7 @@ void Sbar_DrawInventory (cb_context_t *cbx)
 			else
 				flashon = (flashon % 5) + 2;
 
-			Sbar_DrawPic (cbx, i * 24, -16, sb_weapons[flashon][i]);
+			Sbar_DrawPic (cbx, i * 24, L2, sb_weapons[flashon][i]);
 		}
 	}
 
@@ -604,7 +654,7 @@ void Sbar_DrawInventory (cb_context_t *cbx)
 						if (flashon)
 						{
 							grenadeflashing = 1;
-							Sbar_DrawPic (cbx, 96, -16, hsb_weapons[flashon][2]);
+							Sbar_DrawPic (cbx, 96, L2, hsb_weapons[flashon][2]);
 						}
 					}
 				}
@@ -614,18 +664,18 @@ void Sbar_DrawInventory (cb_context_t *cbx)
 					{
 						if (flashon && !grenadeflashing)
 						{
-							Sbar_DrawPic (cbx, 96, -16, hsb_weapons[flashon][3]);
+							Sbar_DrawPic (cbx, 96, L2, hsb_weapons[flashon][3]);
 						}
 						else if (!grenadeflashing)
 						{
-							Sbar_DrawPic (cbx, 96, -16, hsb_weapons[0][3]);
+							Sbar_DrawPic (cbx, 96, L2, hsb_weapons[0][3]);
 						}
 					}
 					else
-						Sbar_DrawPic (cbx, 96, -16, hsb_weapons[flashon][4]);
+						Sbar_DrawPic (cbx, 96, L2, hsb_weapons[flashon][4]);
 				}
 				else
-					Sbar_DrawPic (cbx, 176 + (i * 24), -16, hsb_weapons[flashon][i]);
+					Sbar_DrawPic (cbx, 176 + (i * 24), L2, hsb_weapons[flashon][i]);
 			}
 		}
 	}
@@ -639,7 +689,7 @@ void Sbar_DrawInventory (cb_context_t *cbx)
 			{
 				if (cl.stats[STAT_ACTIVEWEAPON] == (RIT_LAVA_NAILGUN << i))
 				{
-					Sbar_DrawPic (cbx, (i + 2) * 24, -16, rsb_weapons[i]);
+					Sbar_DrawPic (cbx, (i + 2) * 24, L2, rsb_weapons[i]);
 				}
 			}
 		}
@@ -652,11 +702,11 @@ void Sbar_DrawInventory (cb_context_t *cbx)
 		val = (val < 0) ? 0 : q_min (999, val); // johnfitz -- cap displayed value to 999
 		q_snprintf (num, sizeof (num), "%3i", val);
 		if (num[0] != ' ')
-			Sbar_DrawCharacter (cbx, (6 * i + 1) * 8 + 2, -24, 18 + num[0] - '0');
+			Sbar_DrawCharacter (cbx, (6 * i + 1) * 8 + 2, L1, 18 + num[0] - '0');
 		if (num[1] != ' ')
-			Sbar_DrawCharacter (cbx, (6 * i + 2) * 8 + 2, -24, 18 + num[1] - '0');
+			Sbar_DrawCharacter (cbx, (6 * i + 2) * 8 + 2, L1, 18 + num[1] - '0');
 		if (num[2] != ' ')
-			Sbar_DrawCharacter (cbx, (6 * i + 3) * 8 + 2, -24, 18 + num[2] - '0');
+			Sbar_DrawCharacter (cbx, (6 * i + 3) * 8 + 2, L1, 18 + num[2] - '0');
 	}
 
 	flashon = 0;
@@ -670,7 +720,7 @@ void Sbar_DrawInventory (cb_context_t *cbx)
 			{
 				// MED 01/04/97 changed keys
 				if (!hipnotic || (i > 1))
-					Sbar_DrawPic (cbx, 192 + i * 16, -16, sb_items[i]);
+					Sbar_DrawPic (cbx, 192 + i * 16, L2, sb_items[i]);
 			}
 		}
 	}
@@ -684,7 +734,7 @@ void Sbar_DrawInventory (cb_context_t *cbx)
 			{
 				time = cl.item_gettime[24 + i];
 				if (!time || time <= cl.time - 2 || !flashon)
-					Sbar_DrawPic (cbx, 288 + i * 16, -16, hsb_items[i]);
+					Sbar_DrawPic (cbx, 288 + i * 16, L2, hsb_items[i]);
 			}
 		}
 	}
@@ -698,7 +748,7 @@ void Sbar_DrawInventory (cb_context_t *cbx)
 			{
 				time = cl.item_gettime[29 + i];
 				if (!time || time <= cl.time - 2 || !flashon)
-					Sbar_DrawPic (cbx, 288 + i * 16, -16, rsb_items[i]);
+					Sbar_DrawPic (cbx, 288 + i * 16, L2, rsb_items[i]);
 			}
 		}
 	}
@@ -711,59 +761,13 @@ void Sbar_DrawInventory (cb_context_t *cbx)
 			{
 				time = cl.item_gettime[28 + i];
 				if (!time || time <= cl.time - 2 || !flashon)
-					Sbar_DrawPic (cbx, 320 - 32 + i * 8, -16, sb_sigil[i]);
+					Sbar_DrawPic (cbx, 320 - 32 + i * 8, L2, sb_sigil[i]);
 			}
 		}
 	}
-}
 
-//=============================================================================
-
-/*
-===============
-Sbar_DrawFrags -- johnfitz -- heavy revision
-===============
-*/
-void Sbar_DrawFrags (cb_context_t *cbx)
-{
-	int			  numscores, i, x, color;
-	char		  num[12];
-	scoreboard_t *s;
-
-	Sbar_SortFrags ();
-
-	// draw the text
-	numscores = q_min (scoreboardlines, 4);
-
-	for (i = 0, x = 184; i < numscores; i++, x += 32)
-	{
-		s = &cl.scores[fragsort[i]];
-		if (!s->name[0])
-			continue;
-
-		// top color
-		color = s->colors & 0xf0;
-		color = Sbar_ColorForMap (color);
-		Draw_Fill (cbx, x + 10, 1, 28, 4, color, 1);
-
-		// bottom color
-		color = (s->colors & 15) << 4;
-		color = Sbar_ColorForMap (color);
-		Draw_Fill (cbx, x + 10, 5, 28, 3, color, 1);
-
-		// number
-		q_snprintf (num, sizeof (num), "%3i", s->frags);
-		Sbar_DrawCharacter (cbx, x + 12, -24, num[0]);
-		Sbar_DrawCharacter (cbx, x + 20, -24, num[1]);
-		Sbar_DrawCharacter (cbx, x + 28, -24, num[2]);
-
-		// brackets
-		if (fragsort[i] == cl.viewentity - 1)
-		{
-			Sbar_DrawCharacter (cbx, x + 6, -24, 16);
-			Sbar_DrawCharacter (cbx, x + 32, -24, 17);
-		}
-	}
+	if (cl.maxclients != 1)
+		Sbar_DrawFrags (cbx, L1);
 }
 
 //=============================================================================
@@ -918,11 +922,7 @@ static void Sbar_DrawClassic (cb_context_t *cbx)
 	GL_SetCanvas (cbx, CANVAS_SBAR);
 
 	if (scr_viewsize.value < 110) // johnfitz -- check viewsize instead of sb_lines
-	{
 		Sbar_DrawInventory (cbx);
-		if (cl.maxclients != 1)
-			Sbar_DrawFrags (cbx);
-	}
 
 	if (sb_showscores || cl.stats[STAT_HEALTH] <= 0)
 	{
@@ -1103,19 +1103,21 @@ static void Sbar_DrawModern (cb_context_t *cbx)
 		}
 	}
 
+	if (scr_viewsize.value >= 110.0f || hipnotic)
 	{
-		const int KEY_ICON_X = 284;
-		const int KEY_ICON_Y = 115;
-		const int KEY_ICON_HIPNOTIC_Y = 122;
 		// keys
+		const int KEY_ICON_X = 284;
+		qboolean  KEY_ADDED = false;
 		for (int i = 0; i < 2; i++)
 		{
 			if (cl.items & (1 << (17 + i)))
 			{
 				if (!hipnotic)
-					Sbar_DrawPic (cbx, KEY_ICON_X, KEY_ICON_Y - (i * 16), sb_items[i]);
+					Sbar_DrawPic (cbx, KEY_ICON_X, 115 - (KEY_ADDED * 17), sb_items[i]);
 				else
-					Sbar_DrawPic (cbx, KEY_ICON_X, KEY_ICON_HIPNOTIC_Y - (i * 10), sb_items[i]);
+					Sbar_DrawPic (cbx, KEY_ICON_X, 122 - (KEY_ADDED * 10), sb_items[i]);
+
+				KEY_ADDED = true;
 			}
 		}
 	}
@@ -1126,6 +1128,8 @@ static void Sbar_DrawModern (cb_context_t *cbx)
 		Sbar_DrawPicAlpha (cbx, 0, 0, sb_scorebar, scr_sbaralpha.value); // johnfitz -- scr_sbaralpha
 		Sbar_DrawScoreboard (cbx);
 	}
+	else if (scr_viewsize.value < 110.0f)
+		Sbar_DrawInventory (cbx);
 }
 
 /*
