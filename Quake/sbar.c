@@ -580,12 +580,11 @@ void Sbar_DrawFrags (cb_context_t *cbx, int y)
 Sbar_DrawInventory
 ===============
 */
-void Sbar_DrawInventory (cb_context_t *cbx)
+void Sbar_DrawInventory (cb_context_t *cbx, int L1)
 {
 	int		  i, val, flashon;
 	char	  num[6];
 	float	  time;
-	const int L1 = -24 * (scr_style.value < 2.0f);
 	const int L2 = L1 + 8;
 
 	if (rogue)
@@ -922,7 +921,7 @@ static void Sbar_DrawClassic (cb_context_t *cbx)
 	GL_SetCanvas (cbx, CANVAS_SBAR);
 
 	if (scr_viewsize.value < 110) // johnfitz -- check viewsize instead of sb_lines
-		Sbar_DrawInventory (cbx);
+		Sbar_DrawInventory (cbx, -24);
 
 	if (sb_showscores || cl.stats[STAT_HEALTH] <= 0)
 	{
@@ -1129,7 +1128,7 @@ static void Sbar_DrawModern (cb_context_t *cbx)
 		Sbar_DrawScoreboard (cbx);
 	}
 	else if (scr_viewsize.value < 110.0f)
-		Sbar_DrawInventory (cbx);
+		Sbar_DrawInventory (cbx, 0);
 }
 
 /*
