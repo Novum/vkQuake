@@ -5298,18 +5298,33 @@ static void Mod_LoadMD3SkinDefinitions (qmodel_t *mod, all_surfaces_def_t *surf_
 //
 SKIN_PATTERN_FUNC_DEF (MD3_Skinfile)
 {
-	if (surf_index >= surf_defs->numsurfaces)
+	// BEWARE : surf_index here designates the mesh index in the MD3 file
+	// which has nothing to do with the index of the surface in surf_defs.
+	// So we have to search for the right surface by name using 'basename' which is in this case
+	// is the MD3 surface name to look for.
+	int skinfile_surf_index = -1;
+
+	for (size_t i = 0; i < surf_defs->numsurfaces; i++)
+	{
+		if (!strcmp (basename, surf_defs->surfaces[i].surfname.c_str))
+		{
+			skinfile_surf_index = i;
+			break;
+		}
+	}
+
+	if (skinfile_surf_index == -1)
 		return;
 
-	if (skin_index >= surf_defs->surfaces[surf_index].numskins)
+	if (skin_index >= surf_defs->surfaces[skinfile_surf_index].numskins)
 		return;
 
-	if (framegroup_index >= surf_defs->surfaces[surf_index].skins[skin_index].numframegroups)
+	if (framegroup_index >= surf_defs->surfaces[skinfile_surf_index].skins[skin_index].numframegroups)
 		return;
 
 	// strip extension:
 	char skin_name[MAX_QPATH];
-	q_strlcpy (skin_name, surf_defs->surfaces[surf_index].skins[skin_index].framegroups[framegroup_index].c_str, MAX_QPATH);
+	q_strlcpy (skin_name, surf_defs->surfaces[skinfile_surf_index].skins[skin_index].framegroups[framegroup_index].c_str, MAX_QPATH);
 	COM_StripExtension (skin_name, output_name, MAX_QPATH);
 }
 // skin name : surfacename.ext (1 skin, 1 framgroup)
