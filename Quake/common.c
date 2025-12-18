@@ -2648,6 +2648,104 @@ void COM_InitFilesystem (void) // johnfitz -- modified based on topaz's tutorial
 	COM_CheckRegistered ();
 }
 
+static qboolean switch_mod (char *mod_name)
+{
+	if (q_strcasecmp (mod_name, GAMENAME)) // only switch for stuff outside id1
+	{
+		qboolean found = false;
+
+		for (filelist_item_t *mod = modlist; mod; mod = mod->next)
+			if (!q_strcasecmp (mod_name, mod->name))
+				found = true;
+
+		if (!found)
+		{
+			Con_Warning ("mod %s not in search path\n", mod_name);
+			return false;
+		}
+
+		const char *games = COM_GetGameNames (true);
+		char	   *pos = strstr (games, mod_name);
+
+		if (!pos || *(pos - 1) != ';' || (*(pos + strlen (mod_name)) != ';' && *(pos + strlen (mod_name)) != 0))
+		{
+			Cbuf_AddText ("game \"");
+			Cbuf_AddText (mod_name);
+			Cbuf_AddText ("\"\n");
+		}
+	}
+	return true;
+}
+
+/*
+=================
+COM_RunPath
+
+Tries to determine what to do with a path (mods, demos, bsps or savegames), switches mod if needed
+=================
+*/
+void COM_RunPath (char *in_path)
+{
+	char *path = q_strdup (in_path);
+	char *path1 = "";
+	char *path2 = "";
+	char *path3 = path;
+	char *c = path;
+	while (*c)
+	{
+		if (*c == '\\' || *c == '/')
+		{
+			path1 = path2;
+			path2 = path3;
+			path3 = c + 1;
+			*c = 0;
+		}
+		++c;
+	}
+	const char *ext = COM_FileGetExtension (path3);
+	if (!q_strcasecmp (ext, "bsp"))
+	{
+		if (q_strcasecmp (path2, "maps") || !q_strcasecmp (path1, "") || !switch_mod (path1))
+		{
+			Con_Warning ("map not in maps path\n");
+			Mem_Free (path);
+			return;
+		}
+		Cbuf_AddText ("map \"");
+		Cbuf_AddText (path3);
+		Cbuf_AddText ("\"\n");
+	}
+	else if (!q_strcasecmp (ext, "sav"))
+	{
+		if (!q_strcasecmp (path2, "") || !switch_mod (path2))
+		{
+			Con_Warning ("savegame not in mod path\n");
+			Mem_Free (path);
+			return;
+		}
+		Cbuf_AddText ("load \"");
+		Cbuf_AddText (path3);
+		Cbuf_AddText ("\"\n");
+	}
+	else if (!q_strcasecmp (ext, "dem"))
+	{
+		if (!q_strcasecmp (path2, "") || !switch_mod (path2))
+		{
+			Con_Warning ("demo not in mod path\n");
+			Mem_Free (path);
+			return;
+		}
+		Cbuf_AddText ("playdemo \"");
+		Cbuf_AddText (path3);
+		Cbuf_AddText ("\"\n");
+	}
+	else if (Sys_FileType (in_path) == FS_ENT_DIRECTORY)
+		switch_mod (path3);
+	else
+		Con_Warning ("unrecognized file type %s\n", in_path);
+	Mem_Free (path);
+}
+
 /* The following FS_*() stdio replacements are necessary if one is
  * to perform non-sequential reads on files reopened on pak files
  * because we need the bookkeeping about file start/end positions.
