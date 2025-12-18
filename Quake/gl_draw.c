@@ -26,6 +26,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 
+extern cvar_t scr_style;
+
 cvar_t scr_conalpha = {"scr_conalpha", "0.5", CVAR_ARCHIVE}; // johnfitz
 
 qpic_t *draw_disc;
@@ -1010,7 +1012,7 @@ void GL_SetCanvas (cb_context_t *cbx, canvastype newcanvas)
 		break;
 	case CANVAS_SBAR:
 		s = CLAMP (1.0, scr_sbarscale.value, (float)glwidth / 320.0);
-		if (cl.gametype == GAME_DEATHMATCH)
+		if (cl.gametype == GAME_DEATHMATCH && scr_style.value < 2.0f)
 		{
 			GL_OrthoMatrix (cbx, 0, glwidth / s, 48, 0, -99999, 99999);
 			GL_Viewport (cbx, 0, 0, glwidth, 48 * s, 0.0f, 1.0f);
