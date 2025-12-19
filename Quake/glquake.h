@@ -52,7 +52,7 @@ extern int glwidth, glheight;
 
 #define BACKFACE_EPSILON 0.01
 
-#define MAX_GLTEXTURES				4096
+#define MAX_GLTEXTURES				(16 * 4096)
 #define MAX_SANITY_LIGHTMAPS		256
 #define MIN_NB_DESCRIPTORS_PER_TYPE 32
 

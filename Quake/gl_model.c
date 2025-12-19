@@ -197,32 +197,17 @@ void *Mod_Extradata_CheckSkin (qmodel_t *mod, int skinnum)
 		}
 	}
 
-	// 2.1. Simple case 1: only one model, return it whatever its kind.
-	if (id_models_with_prio_size == 1)
-		return mod->extradata[valid_models_with_prio[0]];
+	// by construction of Mod_LoadModel we only have 2 models at most
+	assert (id_models_with_prio_size <= 2);
 
-	// 2.2. Simple case 2: 2 models with (MD3 and MD5) return MD3 all the time (higher prio)
-	if (id_models_with_prio_size == 2 && (valid_models_with_prio[0] == PV_QUAKE3) && (valid_models_with_prio[1] == PV_MD5))
-		return mod->extradata[valid_models_with_prio[0]];
-
-	// 3.1. There are 3 cases left:
-	//  a) - (MD3 + MD5 + MDL) => change into (MD3 + MDL) to become b) because MD3 has higher prio
-	//  b) - (MD3 + MDL)
-	//  c) - (MD5 + MDL)
-	if (id_models_with_prio_size == 3 && (valid_models_with_prio[0] == PV_QUAKE3) && (valid_models_with_prio[1] == PV_MD5))
-	{
-		assert (valid_models_with_prio[2] == PV_QUAKE1);
-		valid_models_with_prio[1] = PV_QUAKE1;
-	}
-
-	// 3.2. Apply the rules MDL vs. MDX now:
 	byte *mdx_extradata = mod->extradata[valid_models_with_prio[0]];
 
-	if (r_enhancedmodels.value >= 3)
+	// 2. Only one model, return it whatever its kind.
+	if (id_models_with_prio_size == 1)
 		return mdx_extradata;
-	if (r_enhancedmodels.value >= 2 && skinnum < ((aliashdr_t *)mdx_extradata)->numskins)
-		return mdx_extradata;
-	if (r_enhancedmodels.value && mod->enhancedmodels_prio && skinnum < ((aliashdr_t *)mdx_extradata)->numskins)
+
+	// 3. Apply the dynamic rule MDL vs. MDX now:
+	if (r_enhancedmodels.value && skinnum < ((aliashdr_t *)mdx_extradata)->numskins)
 		return mdx_extradata;
 	//
 	return mod->extradata[PV_QUAKE1];
@@ -558,8 +543,7 @@ Loads a model into the cache
 */
 static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 {
-	byte *buf = NULL;
-	int	  mod_type;
+	int mod_type;
 
 	if (!mod->needload)
 		return mod;
@@ -575,45 +559,15 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 	}
 
 	// load the model file, together with replacement overrides for .mdl, if they are available.
-	qboolean	 enhanced_replacement_loaded = false;
 	unsigned int md5_enhanced_path_id = 0;
 	unsigned int md3_enhanced_path_id = 0;
-	char		 newname[MAX_QPATH];
+	byte		*buf = NULL, *md3_buf = NULL, *md5_buf = NULL;
 
-	bool mod_is_mdl = (strcmp (COM_FileGetExtension (mod->name), "mdl") == 0);
+	char newname[MAX_QPATH];
 
-	if (mod_is_mdl && r_allow_replacement_md5models.value)
-	{
-		// newname is the .mdl model with extension changed to .md5mesh:
-		COM_StripExtension (mod->name, newname, sizeof (newname));
-		COM_AddExtension (newname, ".md5mesh", sizeof (newname));
-
-		buf = COM_LoadFile (newname, &md5_enhanced_path_id);
-		if (buf)
-		{
-			Mod_LoadMD5MeshModel (mod, buf);
-			enhanced_replacement_loaded = true;
-		}
-		Mem_Free (buf);
-	}
-
-	if (mod_is_mdl && r_allow_replacement_md3models.value)
-	{
-		// newname is the .mdl model with extension changed to .md3:
-		COM_StripExtension (mod->name, newname, sizeof (newname));
-		COM_AddExtension (newname, ".md3", sizeof (newname));
-
-		buf = COM_LoadFile (newname, &md3_enhanced_path_id);
-		if (buf)
-		{
-			Mod_LoadMD3Model (mod, buf);
-			enhanced_replacement_loaded = true;
-		}
-		Mem_Free (buf);
-	}
-
-	// Load the original model:
+	// 1. Load the original model buffer:
 	buf = COM_LoadFile (mod->name, &mod->path_id);
+
 	if (!buf)
 	{
 		if (crash)
@@ -621,42 +575,71 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 		return NULL;
 	}
 
-	if (enhanced_replacement_loaded)
-	{
-		// Only prioritize the MD3/MD5 over the MDL if the MD3/MD5 is in the same path or a higher priority path.
-		// This means mods that replace a MDL won't have the id1 MD5s override them.
-		mod->enhancedmodels_prio = q_max (md3_enhanced_path_id, md5_enhanced_path_id) >= mod->path_id;
+	const bool mod_is_mdl = (strcmp (COM_FileGetExtension (mod->name), "mdl") == 0);
 
-		// Exception: rogue provides MDLs that match the base game except they have extra skins, so
-		// we should still use the remastered id1 MD5s with them. (The model rendering will fall
-		// back to the MDLs when their extra skins are used.)
-		if (rogue && !mod->enhancedmodels_prio)
+	// 2. Find MDL "enhanced" complementatry models, if any:
+	if (mod_is_mdl && r_allow_replacement_md3models.value)
+	{
+		// newname is the .mdl model with extension changed to .md3:
+		COM_StripExtension (mod->name, newname, sizeof (newname));
+		COM_AddExtension (newname, ".md3", sizeof (newname));
+
+		md3_buf = COM_LoadFile (newname, &md3_enhanced_path_id);
+
+		// this is a replacement only if its priority is >= MDL one, else discard it
+		if (md3_enhanced_path_id < mod->path_id)
 		{
-			searchpath_t *mod_searchpath = NULL;
-			for (searchpath_t *path = com_searchpaths; path; path = path->next)
-			{
-				if (path->path_id == mod->path_id)
-				{
-					mod_searchpath = path;
-					break;
-				}
-			}
-			if (mod_searchpath && !q_strcasecmp (mod_searchpath->dir, "rogue"))
-			{
-				mod->enhancedmodels_prio = true;
-			}
+			SAFE_FREE (md3_buf);
 		}
 	}
-	else
+
+	if (mod_is_mdl && r_allow_replacement_md5models.value)
 	{
-		mod->enhancedmodels_prio = false;
+		// newname is the .mdl model with extension changed to .md5mesh:
+		COM_StripExtension (mod->name, newname, sizeof (newname));
+		COM_AddExtension (newname, ".md5mesh", sizeof (newname));
+
+		md5_buf = COM_LoadFile (newname, &md5_enhanced_path_id);
+
+		// this is a replacement only if its priority is >= MDL one, else discard it
+		if (md5_enhanced_path_id < mod->path_id)
+		{
+			SAFE_FREE (md5_buf);
+		}
 	}
 
-	//
-	// fill it in
-	//
+	// 3. If there are multiple replacement models (MD3 + MD5) only keep the one with the highest prio
+	//  in case of equality, MD3 wins.
+	if (md3_buf && md5_buf)
+	{
+		if (md5_enhanced_path_id > md3_enhanced_path_id)
+			SAFE_FREE (md3_buf);
+		else
+			SAFE_FREE (md5_buf);
+	}
 
-	// call the apropriate loader:
+	if (md3_buf)
+	{
+		// To assure that the external resources associated with MD3
+		// are properly filtered/loaded, we need to set mod->path_id = md3_enhanced_path_id temporarilly
+		unsigned int original_path_id = mod->path_id;
+		mod->path_id = md3_enhanced_path_id;
+		Mod_LoadMD3Model (mod, md3_buf);
+		mod->path_id = original_path_id;
+		SAFE_FREE (md3_buf);
+	}
+	else if (md5_buf)
+	{
+		// To assure that the external resources associated with MD5
+		// are properly filtered/loaded, we need to set mod->path_id = md5_enhanced_path_id temporarilly
+		unsigned int original_path_id = mod->path_id;
+		mod->path_id = md5_enhanced_path_id;
+		Mod_LoadMD5MeshModel (mod, md5_buf);
+		mod->path_id = original_path_id;
+		SAFE_FREE (md5_buf);
+	}
+
+	// 4. Finally, Load the original model, calling the appropriate loader:
 	mod->needload = false;
 
 	mod_type = (buf[0] | (buf[1] << 8) | (buf[2] << 16) | (buf[3] << 24));
@@ -673,8 +656,8 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 	//
 	case IDMD5HEADER:
 	{
-		// by construction this is a "native" MD5 model, NOT a .mdl replacement so enhanced_replacement_loaded = false here
-		assert (!enhanced_replacement_loaded);
+		// by construction this is a "native" MD5 model, NOT a .mdl replacement so md5_enhanced_path_id = 0 here
+		assert (md5_enhanced_path_id == 0);
 		Mod_LoadMD5MeshModel (mod, (const void *)buf);
 	}
 	break;
@@ -682,17 +665,19 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 	//
 	case IDMD3HEADER:
 	{
-		// by construction this is a "native" MD3 model, NOT a .mdl replacement so enhanced_replacement_loaded = false here
-		assert (!enhanced_replacement_loaded);
+		// by construction this is a "native" MD3 model, NOT a .mdl replacement so md3_enhanced_path_id = 0 here
+		assert (md3_enhanced_path_id == 0);
 		Mod_LoadMD3Model (mod, (const void *)buf);
 	}
 	break;
 
 	default:
+	{
 		char loadname[MAX_QPATH];
 		COM_FileBase (mod->name, loadname, sizeof (loadname));
 		Mod_LoadBrushModel (mod, loadname, buf);
-		break;
+	}
+	break;
 	}
 
 	Mem_Free (buf);
