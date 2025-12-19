@@ -672,8 +672,6 @@ typedef struct qmodel_s
 	//
 	byte *extradata[PV_SIZE]; // only access through Mod_Extradata
 
-	qboolean enhancedmodels_prio; // if true, the MD5/MD3 model has at least as much path priority as the MDL model
-
 	// Ray tracing
 	VkAccelerationStructureKHR blas;
 	VkBuffer				   blas_buffer;
