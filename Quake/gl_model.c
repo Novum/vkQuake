@@ -689,10 +689,12 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 	break;
 
 	default:
+	{
 		char loadname[MAX_QPATH];
 		COM_FileBase (mod->name, loadname, sizeof (loadname));
 		Mod_LoadBrushModel (mod, loadname, buf);
-		break;
+	}
+	break;
 	}
 
 	Mem_Free (buf);
