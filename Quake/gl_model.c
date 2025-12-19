@@ -576,7 +576,8 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 
 	// load the model file, together with replacement overrides for .mdl, if they are available.
 	qboolean	 enhanced_replacement_loaded = false;
-	unsigned int enhanced_path_id = 0;
+	unsigned int md5_enhanced_path_id = 0;
+	unsigned int md3_enhanced_path_id = 0;
 	char		 newname[MAX_QPATH];
 
 	bool mod_is_mdl = (strcmp (COM_FileGetExtension (mod->name), "mdl") == 0);
@@ -587,12 +588,11 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 		COM_StripExtension (mod->name, newname, sizeof (newname));
 		COM_AddExtension (newname, ".md5mesh", sizeof (newname));
 
-		buf = COM_LoadFile (newname, &mod->path_id);
+		buf = COM_LoadFile (newname, &md5_enhanced_path_id);
 		if (buf)
 		{
 			Mod_LoadMD5MeshModel (mod, buf);
 			enhanced_replacement_loaded = true;
-			enhanced_path_id = mod->path_id;
 		}
 		Mem_Free (buf);
 	}
@@ -603,17 +603,16 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 		COM_StripExtension (mod->name, newname, sizeof (newname));
 		COM_AddExtension (newname, ".md3", sizeof (newname));
 
-		buf = COM_LoadFile (newname, &mod->path_id);
+		buf = COM_LoadFile (newname, &md3_enhanced_path_id);
 		if (buf)
 		{
 			Mod_LoadMD3Model (mod, buf);
 			enhanced_replacement_loaded = true;
-			enhanced_path_id = mod->path_id;
 		}
 		Mem_Free (buf);
 	}
 
-	// Load the
+	// Load the original model:
 	buf = COM_LoadFile (mod->name, &mod->path_id);
 	if (!buf)
 	{
@@ -626,7 +625,7 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 	{
 		// Only prioritize the MD3/MD5 over the MDL if the MD3/MD5 is in the same path or a higher priority path.
 		// This means mods that replace a MDL won't have the id1 MD5s override them.
-		mod->enhancedmodels_prio = enhanced_path_id >= mod->path_id;
+		mod->enhancedmodels_prio = q_max (md3_enhanced_path_id, md5_enhanced_path_id) >= mod->path_id;
 
 		// Exception: rogue provides MDLs that match the base game except they have extra skins, so
 		// we should still use the remastered id1 MD5s with them. (The model rendering will fall
@@ -653,11 +652,6 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 		mod->enhancedmodels_prio = false;
 	}
 
-	//
-	// allocate a new model
-	//
-	char loadname[256];
-	COM_FileBase (mod->name, loadname, sizeof (loadname));
 	//
 	// fill it in
 	//
@@ -695,6 +689,8 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 	break;
 
 	default:
+		char loadname[MAX_QPATH];
+		COM_FileBase (mod->name, loadname, sizeof (loadname));
 		Mod_LoadBrushModel (mod, loadname, buf);
 		break;
 	}
@@ -4760,14 +4756,13 @@ static size_t Mod_LoadMDXSkinsByIndex (
 {
 	// for each skin:
 	size_t nb_loaded_skins = 0;
-	bool   load_finished = false;
 
 	TEMP_ALLOC_ZEROED (skin_def_t, skin_table, numskins);
 
 	int effective_num_skins = 0;
 
 	// Populate basic texture names:
-	for (int skin_index = 0; !load_finished && skin_index < numskins; skin_index++)
+	for (int skin_index = 0; skin_index < numskins; skin_index++)
 	{
 		for (int f = 0; f < countof (surf->gltextures[0]); f++)
 		{
@@ -4777,13 +4772,16 @@ static size_t Mod_LoadMDXSkinsByIndex (
 			if (strlen (skin_table[skin_index].framegroups[f].c_str) == 0)
 			{
 				// No more framegroup
-				load_finished = true;
 				break;
 			}
 			skin_table[skin_index].numframegroups++;
 		}
 		if (skin_table[skin_index].numframegroups)
+		{
 			effective_num_skins++;
+		}
+		else
+			break;
 	}
 
 	// load textures: (concurrently)
