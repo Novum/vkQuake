@@ -85,7 +85,6 @@ static void GL_DestroyRenderResources (void);
 viddef_t		vid; // global video state
 modestate_t		modestate = MS_UNINIT;
 extern qboolean scr_initialized;
-extern cvar_t	r_showtris, r_showbboxes;
 
 extern VkAccelerationStructureKHR bmodel_tlas;
 
