@@ -2633,7 +2633,6 @@ typedef struct end_rendering_parms_s
 	uint32_t render_scale  : 4;
 	uint32_t vid_height	   : 20;
 	float	 time;
-	float	 viewent_alpha;
 	uint8_t	 v_blend[4];
 	vec3_t	 origin;
 	vec3_t	 forward;
@@ -2986,12 +2985,11 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 		render_pass_begin_info.clearValueCount = resolve ? 3 : 2;
 		render_pass_begin_info.pClearValues = clear_values;
 		vkCmdBeginRenderPass (render_passes_cb, &render_pass_begin_info, VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
-		int viewmodel_first = (parms->viewent_alpha == 1.0f) && !r_showtris.value && !r_showbboxes.value; // debug views are in the viewmodel's CB
-		if (viewmodel_first)
-			vkCmdExecuteCommands (render_passes_cb, 1, &vulkan_globals.secondary_cb_contexts[SCBX_VIEW_MODEL]->cb);
-		for (int scbx_index = SCBX_WORLD; scbx_index <= SCBX_VIEW_MODEL - viewmodel_first; ++scbx_index)
+
+		for (int scbx_index = SCBX_WORLD; scbx_index <= SCBX_VIEW_MODEL; ++scbx_index)
 			for (int i = 0; i < SECONDARY_CB_MULTIPLICITY[scbx_index]; ++i)
 				vkCmdExecuteCommands (render_passes_cb, 1, &vulkan_globals.secondary_cb_contexts[scbx_index][i].cb);
+
 		vkCmdEndRenderPass (render_passes_cb);
 	}
 
@@ -3101,7 +3099,6 @@ task_handle_t GL_EndRendering (qboolean use_tasks, qboolean swapchain)
 		.vid_width = vid.width,
 		.vid_height = vid.height,
 		.time = fmod (cl.time, 2.0 * M_PI),
-		.viewent_alpha = ENTALPHA_DECODE (cl.viewent.alpha),
 		.v_blend[0] = v_blend[0],
 		.v_blend[1] = v_blend[1],
 		.v_blend[2] = v_blend[2],
