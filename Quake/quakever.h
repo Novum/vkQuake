@@ -39,7 +39,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define VKQUAKE_VER_PATCH	  1
 
 #define VKQUAKE_VERSION		   1.33
-#define VKQUAKE_COPYRIGHT_YEAR "2025"
+#define VKQUAKE_COPYRIGHT_YEAR "2026"
 
 #define LINUX_VERSION VKQUAKE_VERSION
 
