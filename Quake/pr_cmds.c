@@ -1710,7 +1710,7 @@ static void PF_cl_sound (void)
 	const char *sample;
 	int			channel;
 	edict_t	   *entity;
-	int			volume;
+	float		volume;
 	float		attenuation;
 	int			entnum;
 	vec3_t		origin;
@@ -1718,7 +1718,7 @@ static void PF_cl_sound (void)
 	entity = G_EDICT (OFS_PARM0);
 	channel = G_FLOAT (OFS_PARM1);
 	sample = G_STRING (OFS_PARM2);
-	volume = G_FLOAT (OFS_PARM3) * 255;
+	volume = G_FLOAT (OFS_PARM3);
 	attenuation = G_FLOAT (OFS_PARM4);
 
 	entnum = NUM_FOR_EDICT (entity);
@@ -1740,7 +1740,7 @@ static void PF_cl_ambientsound (void)
 
 	pos = G_VECTOR (OFS_PARM0);
 	samp = G_STRING (OFS_PARM1);
-	vol = G_FLOAT (OFS_PARM2);
+	vol = G_FLOAT (OFS_PARM2) * 255;
 	attenuation = G_FLOAT (OFS_PARM3);
 
 	S_StaticSound (S_PrecacheSound (samp), pos, vol, attenuation);

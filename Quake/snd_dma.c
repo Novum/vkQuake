@@ -444,10 +444,12 @@ void SND_Spatialize (channel_t *ch)
 		ch->leftvol = 0;
 }
 
-// =======================================================================
-// Start a sound effect
-// =======================================================================
-
+/*
+=======================================================================
+Start a sound effect
+fvol is in 0.0-1.0f
+=======================================================================
+*/
 void S_StartSound (int entnum, int entchannel, sfx_t *sfx, vec3_t origin, float fvol, float attenuation)
 {
 	channel_t  *target_chan, *check;
@@ -607,9 +609,10 @@ unlock_mutex:
 /*
 =================
 S_StaticSound
+vol is in 0-255
 =================
 */
-void S_StaticSound (sfx_t *sfx, vec3_t origin, float vol, float attenuation)
+void S_StaticSound (sfx_t *sfx, vec3_t origin, int vol, float attenuation)
 {
 	channel_t  *ss;
 	sfxcache_t *sc;
@@ -640,7 +643,7 @@ void S_StaticSound (sfx_t *sfx, vec3_t origin, float vol, float attenuation)
 
 	ss->sfx = sfx;
 	VectorCopy (origin, ss->origin);
-	ss->master_vol = (int)vol;
+	ss->master_vol = vol;
 	ss->dist_mult = (attenuation / 64) / sound_nominal_clip_dist;
 	ss->end = paintedtime + sc->length;
 
