@@ -1216,7 +1216,7 @@ static void Sbar_DrawModern (cb_context_t *cbx)
 						x_active = 32;
 				}
 
-				Sbar_DrawPic (cbx, 304 - x_active, 120 - offset, weaponpic);
+					Sbar_DrawPic (cbx, 304 - x_active, 120 - offset, weaponpic);
 				offset += 16;
 			}
 			if (i == 4 && hipnotic && cl.items & HIT_PROXIMITY_GUN)
