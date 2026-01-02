@@ -424,12 +424,12 @@ Sbar_DrawSmallAmmoCounter
 */
 void Sbar_DrawSmallAmmoCounter (cb_context_t *cbx, int x, int y, int val)
 {
-	char  num[6];
+	char		  num[6];
 	unsigned char i;
 
 	val = (val < 0) ? 0 : q_min (999, val); // johnfitz -- cap displayed value to 999
 	q_snprintf (num, sizeof (num), "%3i", val);
-	for (i =0; i < 3; i++)
+	for (i = 0; i < 3; i++)
 		if (num[i] != ' ')
 			Sbar_DrawCharacter (cbx, x + i * 8, y, 18 + num[i] - '0');
 }
@@ -576,7 +576,7 @@ int Sbar_CalculateFlashOn (int val)
 	}
 	else
 		flashon = (flashon % 5) + 2;
-	
+
 	return flashon;
 }
 
@@ -588,7 +588,7 @@ Sbar_DrawInventory
 void Sbar_DrawInventory (cb_context_t *cbx)
 {
 	unsigned char i;
-	unsigned char skip = 255;	// avoid wasting GPU time
+	unsigned char skip = 255; // avoid wasting GPU time
 
 	Sbar_DrawPicAlpha (cbx, 0, -24, Sbar_InventoryBarPic (), scr_sbaralpha.value); // johnfitz -- scr_sbaralpha
 
@@ -999,7 +999,7 @@ static void Sbar_DrawModern (cb_context_t *cbx)
 {
 	if (scr_viewsize.value >= 120.0f)
 		return;
-	
+
 	unsigned char i;
 	unsigned char offset = 0;
 
@@ -1080,7 +1080,7 @@ static void Sbar_DrawModern (cb_context_t *cbx)
 			}
 		}
 	}
-		
+
 	if (cl.maxclients != 1)
 	{
 		GL_SetCanvas (cbx, CANVAS_TOPLEFT);
@@ -1123,17 +1123,17 @@ static void Sbar_DrawModern (cb_context_t *cbx)
 				Sbar_DrawPic (cbx, AMMO_ICON_X, AMMO_ICON_Y, sb_ammo[3]);
 		}
 	}
-	
+
 	{
 		const unsigned char KEY_ICON_Y = (scr_viewsize.value >= 110) ? 118 : 97;
 		const unsigned char KEY_ICON_HIPNOTIC_Y = KEY_ICON_Y + 7;
 		offset = 0;
 		// sigils
 		if (!rogue && !hipnotic)
-			for (i = 3; ; i--)
+			for (i = 3;; i--)
 			{
 				if (cl.items & (1u << (28 + i)))
-				{	
+				{
 					Sbar_DrawPic (cbx, 296 - offset, KEY_ICON_Y, sb_sigil[i]);
 					offset += 8;
 				}
@@ -1168,13 +1168,13 @@ static void Sbar_DrawModern (cb_context_t *cbx)
 		offset = 0;
 		unsigned char skip = 255;
 		unsigned char x_active;
-		int currentweapon;
+		int			  currentweapon;
 		// ammo counts
 		for (i = 0; i < 2; i++)
-			Draw_SubPic (cbx, 200, 148 - 10 * i, 104, 10, invpic, i * (2*48/320.f), 0.f, 2*48/320.f, 10/24.f, NULL, scr_sbaralpha.value);
+			Draw_SubPic (cbx, 200, 148 - 10 * i, 104, 10, invpic, i * (2 * 48 / 320.f), 0.f, 2 * 48 / 320.f, 10 / 24.f, NULL, scr_sbaralpha.value);
 
 		for (i = 0; i < 4; i++)
-			Sbar_DrawSmallAmmoCounter (cbx, 211 + 52 * (i&1), 124 - 10 * (i>>1), cl.stats[STAT_SHELLS+i]);
+			Sbar_DrawSmallAmmoCounter (cbx, 211 + 52 * (i & 1), 124 - 10 * (i >> 1), cl.stats[STAT_SHELLS + i]);
 
 		GL_SetCanvas (cbx, CANVAS_TOPRIGHT);
 
@@ -1206,15 +1206,16 @@ static void Sbar_DrawModern (cb_context_t *cbx)
 			{
 				weaponpic = sb_weapons[Sbar_CalculateFlashOn (i)][i];
 				if (cl.stats[STAT_ACTIVEWEAPON] == currentweapon)
-altammo:
+				altammo:
 				{
 					if (i != 6)
 						x_active = 8;
-					else if (hipnotic)	// thunderbolt icon is longer
+					else if (hipnotic) // thunderbolt icon is longer
 						x_active = 16;
 					else
 						x_active = 32;
 				}
+
 				Sbar_DrawPic (cbx, 304 - x_active, 120 - offset, weaponpic);
 				offset += 16;
 			}
@@ -1235,7 +1236,7 @@ altammo:
 			{
 				x_active = 0;
 				currentweapon = 1 << hipweapons[i];
-				
+
 				if (cl.items & currentweapon)
 				{
 					if (cl.stats[STAT_ACTIVEWEAPON] == currentweapon)
