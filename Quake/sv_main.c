@@ -1961,16 +1961,6 @@ void SV_WriteEntitiesToClient (client_t *client, sizebuf_t *msg, size_t overflow
 	{
 		if (ent != clent) // clent already added before the loop
 		{
-			// hide if the current client is specified
-			val = GetEdictFieldValue (ent, qcvm->extfields.nodrawtoclient);
-			if (val && val->edict == EDICT_TO_PROG (client))
-				continue;
-
-			// hide if the current client is not specified
-			val = GetEdictFieldValue (ent, qcvm->extfields.drawonlytoclient);
-			if (val && val->edict && val->edict != EDICT_TO_PROG (client))
-				continue;
-
 			// ignore ents without visible models
 			if (!ent->v.modelindex || !(model = PR_GetString (ent->v.model))[0])
 				continue;
@@ -2110,6 +2100,16 @@ void SV_WriteEntitiesToClient (client_t *client, sizebuf_t *msg, size_t overflow
 
 		if (ent->baseline.modelindex != ent->v.modelindex)
 			bits |= U_MODEL;
+
+		// hide if the current client is specified
+		val = GetEdictFieldValue (ent, qcvm->extfields.nodrawtoclient);
+		if (val && val->edict == EDICT_TO_PROG (clent))
+			continue;
+
+		// hide if the current client is not specified
+		val = GetEdictFieldValue (ent, qcvm->extfields.drawonlytoclient);
+		if (val && val->edict && val->edict != EDICT_TO_PROG (clent))
+			continue;
 
 		// johnfitz -- alpha
 		//  TODO: find a cleaner place to put this code
