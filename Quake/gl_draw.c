@@ -26,6 +26,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 
+extern cvar_t scr_style;
+
 cvar_t scr_conalpha = {"scr_conalpha", "0.5", CVAR_ARCHIVE}; // johnfitz
 
 qpic_t *draw_disc;
@@ -657,6 +659,14 @@ void Draw_SubPic (cb_context_t *cbx, float x, float y, float w, float h, qpic_t 
 	memcpy (&gl, pic->data, sizeof (glpic_t));
 	if (!gl.gltexture)
 		return;
+	
+	vec4_t rgba = {255.0f, 255.0f, 255.0f, 255.0f};
+	if (rgb)
+	{
+		for (i = 0; i < 3; i++)
+			rgba[i] *= rgb[i];
+	}
+	rgba[3] *= alpha;
 
 	VkBuffer	   buffer;
 	VkDeviceSize   buffer_offset;
@@ -691,10 +701,10 @@ void Draw_SubPic (cb_context_t *cbx, float x, float y, float w, float h, qpic_t 
 
 	for (i = 0; i < 4; ++i)
 	{
-		corner_verts[i].color[0] = rgb[0] * 255.0f;
-		corner_verts[i].color[1] = rgb[1] * 255.0f;
-		corner_verts[i].color[2] = rgb[2] * 255.0f;
-		corner_verts[i].color[3] = alpha * 255.0f;
+		corner_verts[i].color[0] = rgba[0];
+		corner_verts[i].color[1] = rgba[1];
+		corner_verts[i].color[2] = rgba[2];
+		corner_verts[i].color[3] = rgba[3];
 	}
 
 	vertices[0] = corner_verts[0];
@@ -1010,7 +1020,7 @@ void GL_SetCanvas (cb_context_t *cbx, canvastype newcanvas)
 		break;
 	case CANVAS_SBAR:
 		s = CLAMP (1.0, scr_sbarscale.value, (float)glwidth / 320.0);
-		if (cl.gametype == GAME_DEATHMATCH)
+		if (cl.gametype == GAME_DEATHMATCH && scr_style.value < 2.0f)
 		{
 			GL_OrthoMatrix (cbx, 0, glwidth / s, 48, 0, -99999, 99999);
 			GL_Viewport (cbx, 0, 0, glwidth, 48 * s, 0.0f, 1.0f);
@@ -1035,13 +1045,18 @@ void GL_SetCanvas (cb_context_t *cbx, canvastype newcanvas)
 		GL_OrthoMatrix (cbx, 0, 320, 200, 0, -99999, 99999);
 		GL_Viewport (cbx, 0, 0, 320 * s, 200 * s, 0.0f, 1.0f);
 		break;
+	case CANVAS_TOPLEFT:				   // for modern HUD frag counter
+		s = (float)glwidth / vid.conwidth; // use console scale
+		GL_OrthoMatrix (cbx, 0, 320, 200, 0, -99999, 99999);
+		GL_Viewport (cbx, 0, glheight - 200 * s, 320 * s, 200 * s, 0.0f, 1.0f);
+		break;
 	case CANVAS_BOTTOMRIGHT:			   // used by fps/clock
 		s = (float)glwidth / vid.conwidth; // use console scale
 		GL_OrthoMatrix (cbx, 0, 320, 200, 0, -99999, 99999);
 		GL_Viewport (cbx, glwidth - 320 * s, 0, 320 * s, 200 * s, 0.0f, 1.0f);
 		break;
 	case CANVAS_TOPRIGHT: // used by disc
-		s = 1;
+		s = (float)glwidth / vid.conwidth; // use console scale
 		GL_OrthoMatrix (cbx, 0, 320, 200, 0, -99999, 99999);
 		GL_Viewport (cbx, glwidth - 320 * s, glheight - 200 * s, 320 * s, 200 * s, 0.0f, 1.0f);
 		break;
