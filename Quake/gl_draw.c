@@ -659,7 +659,7 @@ void Draw_SubPic (cb_context_t *cbx, float x, float y, float w, float h, qpic_t 
 	memcpy (&gl, pic->data, sizeof (glpic_t));
 	if (!gl.gltexture)
 		return;
-	
+
 	vec4_t rgba = {255.0f, 255.0f, 255.0f, 255.0f};
 	if (rgb)
 	{
@@ -1055,7 +1055,7 @@ void GL_SetCanvas (cb_context_t *cbx, canvastype newcanvas)
 		GL_OrthoMatrix (cbx, 0, 320, 200, 0, -99999, 99999);
 		GL_Viewport (cbx, glwidth - 320 * s, 0, 320 * s, 200 * s, 0.0f, 1.0f);
 		break;
-	case CANVAS_TOPRIGHT: // used by disc
+	case CANVAS_TOPRIGHT:				   // for modern HUD weapon icons
 		s = (float)glwidth / vid.conwidth; // use console scale
 		GL_OrthoMatrix (cbx, 0, 320, 200, 0, -99999, 99999);
 		GL_Viewport (cbx, glwidth - 320 * s, glheight - 200 * s, 320 * s, 200 * s, 0.0f, 1.0f);
