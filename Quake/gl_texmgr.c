@@ -26,12 +26,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 #include "gl_heap.h"
 
-#if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
-#include <SDL2/SDL.h>
-#else
-#include "SDL.h"
-#endif
-
 #if defined(__GNUC__)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-function"
@@ -78,7 +72,7 @@ unsigned int d_8to24table_conchars[256];
 #define TEXTURE_HEAP_PAGE_SIZE		16384
 
 static glheap_t	 *texmgr_heap;
-static SDL_mutex *texmgr_mutex;
+static SDL_Mutex *texmgr_mutex;
 
 static byte bluenoise_data[4096] = {
 	0x27, 0x62, 0x08, 0x4C, 0xDE, 0xBA, 0x05, 0xEF, 0x2A, 0xA1, 0xF7, 0x4A, 0x5F, 0x29, 0xE8, 0x34, 0xA9, 0xCB, 0x40, 0x60, 0xD5, 0x87, 0x70, 0xD0, 0x61, 0x8A,

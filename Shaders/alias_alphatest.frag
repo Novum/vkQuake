@@ -34,13 +34,13 @@ layout (location = 0) out vec4 out_frag_color;
 void main ()
 {
 	vec4 result = texture (diffuse_tex, in_texcoord.xy);
-	
+
 	if (result.a < 0.666f)
 		discard;
-	
+
 	float original_diffuse_tex_a = result.a;
 	result.a = 1.0;
-	
+
 	result *= in_color * 2.0f;
 
 	if ((ubo.flags & 0x1) != 0)

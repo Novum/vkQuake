@@ -67,7 +67,7 @@ qboolean con_debuglog = false;
 
 qboolean con_initialized;
 
-SDL_mutex *con_mutex;
+SDL_Mutex *con_mutex;
 
 /*
 ================

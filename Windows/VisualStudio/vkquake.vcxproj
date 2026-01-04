@@ -170,6 +170,7 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClCompile Include="..\..\Quake\host_cmd.c" />
     <ClCompile Include="..\..\Quake\image.c" />
     <ClCompile Include="..\..\Quake\in_sdl.c" />
+    <ClCompile Include="..\..\Quake\in_sdl2.c" />
     <ClCompile Include="..\..\Quake\keys.c" />
     <ClCompile Include="..\..\Quake\main_sdl.c" />
     <ClCompile Include="..\..\Quake\mathlib.c" />

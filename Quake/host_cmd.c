@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 #include "quakedef.h"
+#include "q_ctype.h"
 #include <sys/stat.h>
 #ifndef _WIN32
 #include <dirent.h>
@@ -243,7 +244,7 @@ filelist_item_t *modlist;
 static void Modlist_Add (const char *name)
 {
 	struct stat maps_info;
-	if ((strlen (name) == 3) && (tolower (name[0]) == 'i') && (tolower (name[1]) == 'd') && (name[2] == '1'))
+	if ((strlen (name) == 3) && (q_tolower (name[0]) == 'i') && (q_tolower (name[1]) == 'd') && (name[2] == '1'))
 		return;
 	if (COM_ModForbiddenChars (name))
 		return;

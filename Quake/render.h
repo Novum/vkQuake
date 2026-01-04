@@ -48,9 +48,6 @@ typedef struct lightcache_s
 	short  dt;
 } lightcache_t;
 
-struct SDL_mutex;
-typedef struct SDL_mutex SDL_mutex;
-
 // johnfitz -- for lerping
 #define LERP_MOVESTEP	(1 << 0) // this is a MOVETYPE_STEP entity, enable movement lerp
 #define LERP_RESETANIM	(1 << 1) // disable anim lerping until next anim frame

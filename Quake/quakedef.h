@@ -46,6 +46,25 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "q_stdinc.h"
 
+#ifndef USE_SDL3
+#define SDL_Mutex SDL_mutex
+#define SDL_Mutex SDL_mutex
+
+#define SDL_Condition							SDL_cond
+#define SDL_Condition							SDL_cond
+#define SDL_CreateCondition						SDL_CreateCond
+#define SDL_BroadcastCondition					SDL_CondBroadcast
+#define SDL_WaitCondition						SDL_CondWait
+#define SDL_WaitConditionTimeout(cond, mtx, ms) (SDL_CondWaitTimeout (cond, mtx, ms) == 0)
+
+#define SDL_SignalSemaphore		  SDL_SemPost
+#define SDL_Semaphore			  SDL_sem
+#define SDL_TryWaitSemaphore(sem) (SDL_SemTryWait (sem) == 0)
+#define SDL_WaitSemaphore		  SDL_SemWait
+
+#define SDL_GetNumLogicalCPUCores SDL_GetCPUCount
+#endif
+
 #define Q_UNUSED(x) (x = x) // for pesky compiler / lint warnings
 
 #define MAX_NUM_ARGVS 50

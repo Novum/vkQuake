@@ -73,7 +73,7 @@ static sfx_t *ambient_sfx[NUM_AMBIENTS];
 
 static qboolean sound_started = false;
 
-SDL_mutex *snd_mutex;
+SDL_Mutex *snd_mutex;
 
 cvar_t bgmvolume = {"bgmvolume", "1", CVAR_ARCHIVE};
 cvar_t sfxvolume = {"volume", "0.7", CVAR_ARCHIVE};

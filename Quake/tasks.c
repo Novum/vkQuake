@@ -81,8 +81,8 @@ typedef struct
 	atomic_uint32_t remaining_dependencies;
 	uint64_t		epoch;
 	void		   *func;
-	SDL_mutex	   *epoch_mutex;
-	SDL_cond	   *epoch_condition;
+	SDL_Mutex	   *epoch_mutex;
+	SDL_Condition  *epoch_condition;
 	uint8_t			payload[MAX_PAYLOAD_SIZE];
 	task_handle_t	dependent_task_handles[MAX_DEPENDENT_TASKS];
 } task_t;
@@ -94,8 +94,8 @@ typedef struct
 	atomic_uint32_t tail;
 	uint32_t		tail_padding[15];
 	uint32_t		capacity_mask;
-	SDL_sem		   *push_semaphore;
-	SDL_sem		   *pop_semaphore;
+	SDL_Semaphore  *push_semaphore;
+	SDL_Semaphore  *pop_semaphore;
 	atomic_uint32_t task_indices[1];
 } task_queue_t;
 
@@ -192,18 +192,18 @@ static inline void CPUPause ()
 SpinWaitSemaphore
 ====================
 */
-static inline void SpinWaitSemaphore (SDL_sem *semaphore)
+static inline void SpinWaitSemaphore (SDL_Semaphore *semaphore)
 {
-	int remaining_spins = WAIT_SPIN_COUNT;
-	int result = 0;
-	while ((result = SDL_SemTryWait (semaphore)) != 0)
+	int	 remaining_spins = WAIT_SPIN_COUNT;
+	bool signalled = false;
+	while (!(signalled = SDL_TryWaitSemaphore (semaphore)))
 	{
 		CPUPause ();
 		if (--remaining_spins == 0)
 			break;
 	}
-	if (result != 0)
-		SDL_SemWait (semaphore);
+	if (!signalled)
+		SDL_WaitSemaphore (semaphore);
 }
 
 /*
@@ -244,7 +244,7 @@ static inline void TaskQueuePush (task_queue_t *queue, uint32_t task_index)
 
 	ANNOTATE_HAPPENS_BEFORE (&queue->task_indices[shuffled_index]);
 	Atomic_StoreUInt32 (&queue->task_indices[shuffled_index], task_index + 1);
-	SDL_SemPost (queue->pop_semaphore);
+	SDL_SignalSemaphore (queue->pop_semaphore);
 }
 
 /*
@@ -269,7 +269,7 @@ static inline uint32_t TaskQueuePop (task_queue_t *queue)
 
 	const uint32_t val = Atomic_LoadUInt32 (&queue->task_indices[shuffled_index]) - 1;
 	Atomic_StoreUInt32 (&queue->task_indices[shuffled_index], 0u);
-	SDL_SemPost (queue->push_semaphore);
+	SDL_SignalSemaphore (queue->push_semaphore);
 	ANNOTATE_HAPPENS_AFTER (&queue->task_indices[shuffled_index]);
 
 	return val;
@@ -407,7 +407,7 @@ static int Task_Worker (void *data)
 			for (int i = 0; i < task->num_dependents; ++i)
 				Task_Submit (task->dependent_task_handles[i]);
 			task->epoch += 1;
-			SDL_CondBroadcast (task->epoch_condition);
+			SDL_BroadcastCondition (task->epoch_condition);
 			SDL_UnlockMutex (task->epoch_mutex);
 			TaskQueuePush (free_task_queue, task_index);
 		}
@@ -449,7 +449,7 @@ static void parse_pinned_workers (void)
 				}
 			}
 
-			pinned_workers_core_ids[num_pinned_workers++] = strtol (fields[core_index], NULL, 0) % SDL_GetCPUCount ();
+			pinned_workers_core_ids[num_pinned_workers++] = strtol (fields[core_index], NULL, 0) % SDL_GetNumLogicalCPUCores ();
 		}
 
 		Mem_Free (fields);
@@ -477,10 +477,10 @@ void Tasks_Init (void)
 	for (uint32_t task_index = 0; task_index < MAX_PENDING_TASKS; ++task_index)
 	{
 		tasks[task_index].epoch_mutex = SDL_CreateMutex ();
-		tasks[task_index].epoch_condition = SDL_CreateCond ();
+		tasks[task_index].epoch_condition = SDL_CreateCondition ();
 	}
 
-	num_workers = CLAMP (1, SDL_GetCPUCount (), TASKS_MAX_WORKERS);
+	num_workers = CLAMP (1, SDL_GetNumLogicalCPUCores (), TASKS_MAX_WORKERS);
 
 	// num_workers is overriden by -pinnedworkers number of fields
 	parse_pinned_workers ();
@@ -663,7 +663,7 @@ qboolean Task_Join (task_handle_t handle, uint32_t timeout)
 	SDL_LockMutex (task->epoch_mutex);
 	while (task->epoch == handle_task_epoch)
 	{
-		if (SDL_CondWaitTimeout (task->epoch_condition, task->epoch_mutex, timeout) == SDL_MUTEX_TIMEDOUT)
+		if (!SDL_WaitConditionTimeout (task->epoch_condition, task->epoch_mutex, timeout))
 		{
 			SDL_UnlockMutex (task->epoch_mutex);
 			return false;
@@ -705,7 +705,7 @@ static void LotsOfTasks (void)
 	for (int i = 0; i < NUM_TASKS; ++i)
 		handles[i] = Task_AllocateAssignFuncAndSubmit (LotsOfTasksTestTask, (void *)&counters, sizeof (uint32_t *));
 	for (int i = 0; i < NUM_TASKS; ++i)
-		Task_Join (handles[i], SDL_MUTEX_MAXWAIT);
+		Task_Join (handles[i], TASK_TIMEOUT_INFINITE);
 	uint32_t counters_sum = 0;
 	for (int i = 0; i < TASKS_MAX_WORKERS; ++i)
 		counters_sum += counters[i];
@@ -729,7 +729,7 @@ static void IndexedTasks ()
 	static const int LIMIT = 100000;
 	TEMP_ALLOC_ZEROED (uint32_t, counters, TASKS_MAX_WORKERS);
 	task_handle_t task = Task_AllocateAssignIndexedFuncAndSubmit (IndexedTestTask, LIMIT, (void *)&counters, sizeof (uint32_t *));
-	Task_Join (task, SDL_MUTEX_MAXWAIT);
+	Task_Join (task, TASK_TIMEOUT_INFINITE);
 	uint32_t counters_sum = 0;
 	for (int i = 0; i < TASKS_MAX_WORKERS; ++i)
 		counters_sum += counters[i];

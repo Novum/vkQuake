@@ -23,19 +23,20 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 #include <windows.h>
+#ifndef USE_SDL3
 #if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
 #include <SDL2/SDL_syswm.h>
 #else
 #include "SDL_syswm.h"
+#endif
 #endif
 
 static HICON icon;
 
 void PL_SetWindowIcon (void)
 {
-	HINSTANCE	  handle;
-	SDL_SysWMinfo wminfo;
-	HWND		  hwnd;
+	HINSTANCE handle;
+	HWND	  hwnd;
 
 	handle = GetModuleHandle (NULL);
 	icon = LoadIcon (handle, "icon");
@@ -43,12 +44,18 @@ void PL_SetWindowIcon (void)
 	if (!icon)
 		return; /* no icon in the exe */
 
+#ifdef USE_SDL3
+	hwnd = (HWND)SDL_GetPointerProperty (SDL_GetWindowProperties ((SDL_Window *)VID_GetWindow ()), SDL_PROP_WINDOW_WIN32_HWND_POINTER, NULL);
+#else
+	SDL_SysWMinfo wminfo;
 	SDL_VERSION (&wminfo.version);
-
-	if (SDL_GetWindowWMInfo ((SDL_Window *)VID_GetWindow (), &wminfo) != SDL_TRUE)
-		return; /* wrong SDL version */
-
-	hwnd = wminfo.info.win.window;
+	if (SDL_GetWindowWMInfo ((SDL_Window *)VID_GetWindow (), &wminfo))
+		hwnd = wminfo.info.win.window;
+	else
+		hwnd = NULL;
+#endif
+	if (!hwnd)
+		return;
 #ifdef _WIN64
 	SetClassLongPtr (hwnd, GCLP_HICON, (LONG_PTR)icon);
 #else

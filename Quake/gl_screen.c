@@ -136,7 +136,7 @@ float	 scr_disabled_time;
 
 qboolean	   in_update_screen;
 extern jmp_buf screen_error;
-SDL_mutex	  *draw_qcvm_mutex;
+SDL_Mutex	  *draw_qcvm_mutex;
 
 void SCR_ScreenShot_f (void);
 
