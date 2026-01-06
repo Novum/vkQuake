@@ -29,10 +29,20 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "bgmusic.h"
 #include "resource.h"
 #include "palette.h"
-#include "SDL.h"
+#include "menu.h"
+
+#ifdef USE_SDL3
+#include <SDL3/SDL_vulkan.h>
+#else
+#if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
+#include <SDL2/SDL_syswm.h>
+#include <SDL2/SDL_vulkan.h>
+#else
 #include "SDL_syswm.h"
 #include "SDL_vulkan.h"
-#include "menu.h"
+#endif
+#endif
+
 #ifdef _WIN32
 #include <vulkan/vulkan_win32.h>
 #endif
@@ -66,8 +76,7 @@ static qboolean vid_initialized = false;
 static qboolean has_focus = true;
 static uint32_t num_images_acquired = 0;
 
-static SDL_Window	*draw_context;
-static SDL_SysWMinfo sys_wm_info;
+static SDL_Window *draw_context;
 
 static qboolean vid_locked = false; // johnfitz
 static qboolean vid_changed = false;
@@ -238,7 +247,11 @@ VID_GetCurrentWidth
 static int VID_GetCurrentWidth (void)
 {
 	int w = 0, h = 0;
+#ifdef USE_SDL3
+	SDL_GetWindowSizeInPixels (draw_context, &w, &h);
+#else
 	SDL_Vulkan_GetDrawableSize (draw_context, &w, &h);
+#endif
 	return w;
 }
 
@@ -250,7 +263,11 @@ VID_GetCurrentHeight
 static int VID_GetCurrentHeight (void)
 {
 	int w = 0, h = 0;
+#ifdef USE_SDL3
+	SDL_GetWindowSizeInPixels (draw_context, &w, &h);
+#else
 	SDL_Vulkan_GetDrawableSize (draw_context, &w, &h);
+#endif
 	return h;
 }
 
@@ -261,15 +278,32 @@ VID_GetCurrentRefreshRate
 */
 static int VID_GetCurrentRefreshRate (void)
 {
-	SDL_DisplayMode mode;
+#ifdef USE_SDL3
+	SDL_DisplayID		   current_display;
+	const SDL_DisplayMode *mode;
+
+	current_display = SDL_GetDisplayForWindow (draw_context);
+	if (current_display == 0)
+		current_display = SDL_GetPrimaryDisplay ();
+
+	mode = SDL_GetCurrentDisplayMode (current_display);
+	if (!mode)
+		return DEFAULT_REFRESHRATE;
+
+	return (int)mode->refresh_rate;
+#else
 	int				current_display;
+	SDL_DisplayMode mode;
 
 	current_display = SDL_GetWindowDisplayIndex (draw_context);
+	if (current_display < 0)
+		current_display = 0;
 
-	if (0 != SDL_GetCurrentDisplayMode (current_display, &mode))
+	if (SDL_GetCurrentDisplayMode (current_display, &mode) != 0)
 		return DEFAULT_REFRESHRATE;
 
 	return mode.refresh_rate;
+#endif
 }
 
 /*
@@ -304,7 +338,12 @@ returns true if we are specifically in "desktop fullscreen" mode
 */
 static qboolean VID_GetDesktopFullscreen (void)
 {
-	return (SDL_GetWindowFlags (draw_context) & SDL_WINDOW_FULLSCREEN_DESKTOP) == SDL_WINDOW_FULLSCREEN_DESKTOP;
+#ifdef USE_SDL3
+	// In SDL3, check if fullscreen mode is NULL (desktop fullscreen) or has a mode (exclusive fullscreen)
+	return SDL_GetWindowFullscreenMode (draw_context) == NULL && (SDL_GetWindowFlags (draw_context) & SDL_WINDOW_FULLSCREEN);
+#else
+	return (SDL_GetWindowFlags (draw_context) & SDL_WINDOW_FULLSCREEN_DESKTOP) != 0;
+#endif
 }
 
 /*
@@ -336,23 +375,49 @@ VID_IsMinimized
 */
 qboolean VID_IsMinimized (void)
 {
+#ifdef USE_SDL3
+	return (SDL_GetWindowFlags (draw_context) & SDL_WINDOW_MINIMIZED) != 0;
+#else
 	return !(SDL_GetWindowFlags (draw_context) & SDL_WINDOW_SHOWN);
+#endif
 }
 
 /*
 ================
-VID_SDL2_GetDisplayMode
+VID_SDL_GetDisplayMode
 
-Returns a pointer to a statically allocated SDL_DisplayMode structure
+Returns a pointer to a SDL_DisplayMode structure
 if there is one with the requested params on the default display.
 Otherwise returns NULL.
 
-This is passed to SDL_SetWindowDisplayMode to specify a pixel format
+This is passed to SDL_SetWindowFullscreenMode to specify a pixel format
 with the requested bpp. If we didn't care about bpp we could just pass NULL.
 ================
 */
-static SDL_DisplayMode *VID_SDL2_GetDisplayMode (int width, int height, int refreshrate)
+static const SDL_DisplayMode *VID_SDL_GetDisplayMode (int width, int height, int refreshrate)
 {
+#ifdef USE_SDL3
+	SDL_DisplayID		   display = SDL_GetPrimaryDisplay ();
+	int					   count = 0;
+	SDL_DisplayMode		 **modes = (SDL_DisplayMode **)SDL_GetFullscreenDisplayModes (display, &count);
+	const SDL_DisplayMode *result = NULL;
+	int					   i;
+
+	if (!modes)
+		return NULL;
+
+	for (i = 0; i < count; i++)
+	{
+		const SDL_DisplayMode *mode = modes[i];
+		if (mode->w == width && mode->h == height && SDL_BITSPERPIXEL (mode->format) >= 24 && (int)mode->refresh_rate == refreshrate)
+		{
+			result = mode;
+			break;
+		}
+	}
+	SDL_free (modes);
+	return result;
+#else
 	static SDL_DisplayMode mode;
 	const int			   sdlmodes = SDL_GetNumDisplayModes (0);
 	int					   i;
@@ -368,6 +433,7 @@ static SDL_DisplayMode *VID_SDL2_GetDisplayMode (int width, int height, int refr
 		}
 	}
 	return NULL;
+#endif
 }
 
 /*
@@ -387,7 +453,7 @@ static qboolean VID_ValidMode (int width, int height, int refreshrate, qboolean 
 	if (height < 200)
 		return false;
 
-	if (fullscreen && VID_SDL2_GetDisplayMode (width, height, refreshrate) == NULL)
+	if (fullscreen && VID_SDL_GetDisplayMode (width, height, refreshrate) == NULL)
 		return false;
 
 	return true;
@@ -424,19 +490,27 @@ static qboolean VID_SetMode (int width, int height, int refreshrate, qboolean fu
 		else if (!fullscreen)
 			flags |= SDL_WINDOW_RESIZABLE;
 
+#ifdef USE_SDL3
+		draw_context = SDL_CreateWindow (caption, width, height, flags);
+#else
 		draw_context = SDL_CreateWindow (caption, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, flags);
+#endif
 		if (!draw_context)
 			Sys_Error ("Couldn't create window: %s", SDL_GetError ());
 
-		SDL_VERSION (&sys_wm_info.version);
-		if (!SDL_GetWindowWMInfo (draw_context, &sys_wm_info))
-			Sys_Error ("Couldn't get window wm info: %s", SDL_GetError ());
-
+#ifdef USE_SDL3
+		previous_display = 0;
+#else
 		previous_display = -1;
+#endif
 	}
 	else
 	{
+#ifdef USE_SDL3
+		previous_display = SDL_GetDisplayForWindow (draw_context);
+#else
 		previous_display = SDL_GetWindowDisplayIndex (draw_context);
+#endif
 	}
 
 	/* Ensure the window is not fullscreen */
@@ -452,16 +526,31 @@ static qboolean VID_SetMode (int width, int height, int refreshrate, qboolean fu
 		SDL_SetWindowPosition (draw_context, SDL_WINDOWPOS_CENTERED_DISPLAY (previous_display), SDL_WINDOWPOS_CENTERED_DISPLAY (previous_display));
 	else
 		SDL_SetWindowPosition (draw_context, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
-	SDL_SetWindowDisplayMode (draw_context, VID_SDL2_GetDisplayMode (width, height, refreshrate));
+
+#ifdef USE_SDL3
+	// Set fullscreen mode: NULL for desktop fullscreen, specific mode for exclusive fullscreen
+	if (vid_desktopfullscreen.value)
+		SDL_SetWindowFullscreenMode (draw_context, NULL);
+	else
+		SDL_SetWindowFullscreenMode (draw_context, VID_SDL_GetDisplayMode (width, height, refreshrate));
+	SDL_SetWindowBordered (draw_context, vid_borderless.value ? false : true);
+#else
+	SDL_SetWindowDisplayMode (draw_context, VID_SDL_GetDisplayMode (width, height, refreshrate));
 	SDL_SetWindowBordered (draw_context, vid_borderless.value ? SDL_FALSE : SDL_TRUE);
+#endif
 
 	/* Make window fullscreen if needed, and show the window */
 
 	if (fullscreen)
 	{
-		const Uint32 flag = vid_desktopfullscreen.value ? SDL_WINDOW_FULLSCREEN_DESKTOP : SDL_WINDOW_FULLSCREEN;
-		if (SDL_SetWindowFullscreen (draw_context, flag) != 0)
+#ifdef USE_SDL3
+		if (!SDL_SetWindowFullscreen (draw_context, true))
 			Sys_Error ("Couldn't set fullscreen state mode: %s", SDL_GetError ());
+#else
+		Uint32 fullscreen_flag = vid_desktopfullscreen.value ? SDL_WINDOW_FULLSCREEN_DESKTOP : SDL_WINDOW_FULLSCREEN;
+		if (SDL_SetWindowFullscreen (draw_context, fullscreen_flag) != 0)
+			Sys_Error ("Couldn't set fullscreen state mode: %s", SDL_GetError ());
+#endif
 	}
 
 	SDL_ShowWindow (draw_context);
@@ -618,12 +707,22 @@ static void GL_InitInstance (void)
 	unsigned int sdl_extension_count;
 	vulkan_globals.debug_utils = false;
 
+#ifdef USE_SDL3
+	const char *const *sdl_extensions = SDL_Vulkan_GetInstanceExtensions (&sdl_extension_count);
+	if (!sdl_extensions)
+		Sys_Error ("SDL_Vulkan_GetInstanceExtensions failed: %s", SDL_GetError ());
+
+	const char **const instance_extensions = Mem_Alloc (sizeof (const char *) * (sdl_extension_count + 3));
+	for (i = 0; i < sdl_extension_count; i++)
+		instance_extensions[i] = sdl_extensions[i];
+#else
 	if (!SDL_Vulkan_GetInstanceExtensions (draw_context, &sdl_extension_count, NULL))
 		Sys_Error ("SDL_Vulkan_GetInstanceExtensions failed: %s", SDL_GetError ());
 
 	const char **const instance_extensions = Mem_Alloc (sizeof (const char *) * (sdl_extension_count + 3));
 	if (!SDL_Vulkan_GetInstanceExtensions (draw_context, &sdl_extension_count, instance_extensions))
 		Sys_Error ("SDL_Vulkan_GetInstanceExtensions failed: %s", SDL_GetError ());
+#endif
 
 	uint32_t instance_extension_count;
 	err = vkEnumerateInstanceExtensionProperties (NULL, &instance_extension_count, NULL);
@@ -703,8 +802,13 @@ static void GL_InitInstance (void)
 	if (err != VK_SUCCESS)
 		Sys_Error ("Couldn't create Vulkan instance");
 
+#ifdef USE_SDL3
+	if (!SDL_Vulkan_CreateSurface (draw_context, vulkan_instance, NULL, &vulkan_surface))
+		Sys_Error ("Couldn't create Vulkan surface");
+#else
 	if (!SDL_Vulkan_CreateSurface (draw_context, vulkan_instance, &vulkan_surface))
 		Sys_Error ("Couldn't create Vulkan surface");
+#endif
 
 	GET_INSTANCE_PROC_ADDR (GetDeviceProcAddr);
 	GET_INSTANCE_PROC_ADDR (GetPhysicalDeviceSurfaceSupportKHR);
@@ -1973,15 +2077,16 @@ static qboolean GL_CreateSwapChain (void)
 	ZEROED_STRUCT (VkSurfaceFullScreenExclusiveWin32InfoEXT, full_screen_exclusive_win32_info);
 	if (try_use_exclusive_full_screen)
 	{
-		SDL_SysWMinfo wmInfo;
-		HWND		  hwnd;
-		HMONITOR	  monitor;
+#ifdef USE_SDL3
+		HWND hwnd = (HWND)SDL_GetPointerProperty (SDL_GetWindowProperties (draw_context), SDL_PROP_WINDOW_WIN32_HWND_POINTER, NULL);
+#else
+		SDL_SysWMinfo wm_info;
+		SDL_VERSION (&wm_info.version);
+		SDL_GetWindowWMInfo (draw_context, &wm_info);
+		HWND hwnd = wm_info.info.win.window;
+#endif
 
-		SDL_VERSION (&wmInfo.version);
-		SDL_GetWindowWMInfo (draw_context, &wmInfo);
-		hwnd = wmInfo.info.win.window;
-
-		monitor = MonitorFromWindow (hwnd, MONITOR_DEFAULTTOPRIMARY);
+		HMONITOR monitor = MonitorFromWindow (hwnd, MONITOR_DEFAULTTOPRIMARY);
 
 		full_screen_exclusive_win32_info.sType = VK_STRUCTURE_TYPE_SURFACE_FULL_SCREEN_EXCLUSIVE_WIN32_INFO_EXT;
 		full_screen_exclusive_win32_info.pNext = NULL;
@@ -2489,7 +2594,11 @@ void GL_SynchronizeEndRenderingTask (void)
 {
 	if (prev_end_rendering_task != INVALID_TASK_HANDLE)
 	{
+#ifdef USE_SDL3
+		Task_Join (prev_end_rendering_task, -1);
+#else
 		Task_Join (prev_end_rendering_task, SDL_MUTEX_MAXWAIT);
+#endif
 		prev_end_rendering_task = INVALID_TASK_HANDLE;
 	}
 }
@@ -3246,6 +3355,32 @@ VID_InitModelist
 */
 static void VID_InitModelist (void)
 {
+#ifdef USE_SDL3
+	SDL_DisplayID	  display = SDL_GetPrimaryDisplay ();
+	int				  count = 0;
+	SDL_DisplayMode **modes = (SDL_DisplayMode **)SDL_GetFullscreenDisplayModes (display, &count);
+	int				  i;
+
+	if (!modes)
+	{
+		nummodes = 0;
+		return;
+	}
+
+	modelist = Mem_Realloc (modelist, sizeof (vmode_t) * count);
+	nummodes = 0;
+
+	for (i = 0; i < count; i++)
+	{
+		const SDL_DisplayMode *mode = modes[i];
+		modelist[nummodes].width = mode->w;
+		modelist[nummodes].height = mode->h;
+		modelist[nummodes].refreshrate = (int)mode->refresh_rate;
+		nummodes++;
+	}
+
+	SDL_free (modes);
+#else
 	const int sdlmodes = SDL_GetNumDisplayModes (0);
 	int		  i;
 
@@ -3263,6 +3398,7 @@ static void VID_InitModelist (void)
 			nummodes++;
 		}
 	}
+#endif
 }
 
 /*
@@ -3383,6 +3519,21 @@ void VID_Init (void)
 
 	putenv (vid_center); /* SDL_putenv is problematic in versions <= 1.2.9 */
 
+#ifdef USE_SDL3
+	if (!SDL_InitSubSystem (SDL_INIT_VIDEO))
+		Sys_Error ("Couldn't init SDL video: %s", SDL_GetError ());
+
+	{
+		SDL_DisplayID		   display = SDL_GetPrimaryDisplay ();
+		const SDL_DisplayMode *mode = SDL_GetDesktopDisplayMode (display);
+		if (!mode)
+			Sys_Error ("Could not get desktop display mode: %s\n", SDL_GetError ());
+
+		display_width = mode->w;
+		display_height = mode->h;
+		display_refreshrate = (int)mode->refresh_rate;
+	}
+#else
 	if (SDL_InitSubSystem (SDL_INIT_VIDEO) < 0)
 		Sys_Error ("Couldn't init SDL video: %s", SDL_GetError ());
 
@@ -3395,6 +3546,9 @@ void VID_Init (void)
 		display_height = mode.h;
 		display_refreshrate = mode.refresh_rate;
 	}
+#endif
+
+	Sys_Printf ("SDL Video Driver: %s\n", SDL_GetCurrentVideoDriver ());
 
 	if (CFG_OpenConfig ("config.cfg") == 0)
 	{
@@ -3599,10 +3753,23 @@ void VID_Toggle (void)
 
 	if (!VID_GetFullscreen ())
 	{
+#ifdef USE_SDL3
+		// Set fullscreen mode before enabling fullscreen
+		if (vid_desktopfullscreen.value)
+			SDL_SetWindowFullscreenMode (draw_context, NULL);
+		else
+			SDL_SetWindowFullscreenMode (draw_context, VID_SDL_GetDisplayMode (vid.width, vid.height, (int)vid_refreshrate.value));
+		flags = SDL_WINDOW_FULLSCREEN;
+#else
 		flags = vid_desktopfullscreen.value ? SDL_WINDOW_FULLSCREEN_DESKTOP : SDL_WINDOW_FULLSCREEN;
+#endif
 	}
 
-	toggleWorked = SDL_SetWindowFullscreen (draw_context, flags) == 0;
+#ifdef USE_SDL3
+	toggleWorked = SDL_SetWindowFullscreen (draw_context, flags != 0);
+#else
+	toggleWorked = (SDL_SetWindowFullscreen (draw_context, flags) == 0);
+#endif
 	if (toggleWorked)
 	{
 		modestate = VID_GetFullscreen () ? MS_FULLSCREEN : MS_WINDOWED;

@@ -2919,9 +2919,15 @@ unsigned COM_HashString (const char *str)
 
 static size_t mz_zip_file_read_func (void *opaque, mz_uint64 ofs, void *buf, size_t n)
 {
+#ifdef USE_SDL3
+	if (SDL_SeekIO ((SDL_IOStream *)opaque, (Sint64)ofs, SDL_IO_SEEK_SET) < 0)
+		return 0;
+	return SDL_ReadIO ((SDL_IOStream *)opaque, buf, n);
+#else
 	if (SDL_RWseek ((SDL_RWops *)opaque, (Sint64)ofs, RW_SEEK_SET) < 0)
 		return 0;
 	return SDL_RWread ((SDL_RWops *)opaque, buf, 1, n);
+#endif
 }
 
 /*
@@ -2935,7 +2941,11 @@ void LOC_LoadFile (const char *file)
 	int	  i, lineno;
 	char *cursor;
 
-	SDL_RWops	  *rw = NULL;
+#ifdef USE_SDL3
+	SDL_IOStream *rw = NULL;
+#else
+	SDL_RWops *rw = NULL;
+#endif
 	Sint64		   sz;
 	mz_zip_archive archive;
 	size_t		   size = 0;
@@ -2956,28 +2966,48 @@ void LOC_LoadFile (const char *file)
 
 	memset (&archive, 0, sizeof (archive));
 	q_snprintf (path, sizeof (path), "%s/%s", com_basedir, file);
+#ifdef USE_SDL3
+	rw = SDL_IOFromFile (path, "rb");
+#else
 	rw = SDL_RWFromFile (path, "rb");
+#endif
 #if defined(DO_USERDIRS)
 	if (!rw)
 	{
 		q_snprintf (path, sizeof (path), "%s/%s", host_parms->userdir, file);
+#ifdef USE_SDL3
+		rw = SDL_IOFromFile (path, "rb");
+#else
 		rw = SDL_RWFromFile (path, "rb");
+#endif
 	}
 #endif
 	if (!rw)
 	{
 		q_snprintf (path, sizeof (path), "%s/QuakeEX.kpf", com_basedir);
+#ifdef USE_SDL3
+		rw = SDL_IOFromFile (path, "rb");
+#else
 		rw = SDL_RWFromFile (path, "rb");
+#endif
 #if defined(DO_USERDIRS)
 		if (!rw)
 		{
 			q_snprintf (path, sizeof (path), "%s/QuakeEX.kpf", host_parms->userdir);
+#ifdef USE_SDL3
+			rw = SDL_IOFromFile (path, "rb");
+#else
 			rw = SDL_RWFromFile (path, "rb");
+#endif
 		}
 #endif
 		if (!rw)
 			goto fail;
+#ifdef USE_SDL3
+		sz = SDL_GetIOSize (rw);
+#else
 		sz = SDL_RWsize (rw);
+#endif
 		if (sz <= 0)
 			goto fail;
 		archive.m_pRead = mz_zip_file_read_func;
@@ -2988,13 +3018,21 @@ void LOC_LoadFile (const char *file)
 		if (!localization.text)
 			goto fail;
 		mz_zip_reader_end (&archive);
+#ifdef USE_SDL3
+		SDL_CloseIO (rw);
+#else
 		SDL_RWclose (rw);
+#endif
 		localization.text = (char *)Mem_Realloc (localization.text, size + 1);
 		localization.text[size] = 0;
 	}
 	else
 	{
+#ifdef USE_SDL3
+		sz = SDL_GetIOSize (rw);
+#else
 		sz = SDL_RWsize (rw);
+#endif
 		if (sz <= 0)
 			goto fail;
 		localization.text = (char *)Mem_Alloc (sz + 1);
@@ -3003,12 +3041,21 @@ void LOC_LoadFile (const char *file)
 		fail:
 			mz_zip_reader_end (&archive);
 			if (rw)
+#ifdef USE_SDL3
+				SDL_CloseIO (rw);
+#else
 				SDL_RWclose (rw);
+#endif
 			Con_Printf ("Couldn't load '%s'\nfrom '%s'\n", file, com_basedir);
 			return;
 		}
+#ifdef USE_SDL3
+		SDL_ReadIO (rw, localization.text, sz);
+		SDL_CloseIO (rw);
+#else
 		SDL_RWread (rw, localization.text, 1, sz);
 		SDL_RWclose (rw);
+#endif
 	}
 
 	cursor = localization.text;

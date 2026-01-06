@@ -31,19 +31,38 @@ static void Sys_AtExit (void)
 
 static void Sys_InitSDL (void)
 {
-	SDL_version	 v;
-	SDL_version *sdl_version = &v;
-	SDL_GetVersion (&v);
+#ifdef USE_SDL3
+	int version = SDL_GetVersion ();
+	int major = SDL_VERSIONNUM_MAJOR (version);
+	int minor = SDL_VERSIONNUM_MINOR (version);
+	int patch = SDL_VERSIONNUM_MICRO (version);
+#else
+	SDL_version version;
+	SDL_GetVersion (&version);
+	int major = version.major;
+	int minor = version.minor;
+	int patch = version.patch;
+#endif
 
-	Sys_Printf ("Found SDL version %i.%i.%i\n", sdl_version->major, sdl_version->minor, sdl_version->patch);
+	Sys_Printf ("Using SDL version %i.%i.%i\n", major, minor, patch);
 
-	if (SDL_Init (0) < 0)
+#ifdef USE_SDL3
+	const bool initialized = SDL_Init (0);
+#else
+	const bool initialized = SDL_Init (0) >= 0;
+#endif
+
+	if (!initialized)
 	{
 		Sys_Error ("Couldn't init SDL: %s", SDL_GetError ());
 	}
 
 #ifdef _DEBUG
+#ifdef USE_SDL3
+	SDL_SetLogPriorities (SDL_LOG_PRIORITY_DEBUG);
+#else
 	SDL_LogSetAllPriority (SDL_LOG_PRIORITY_DEBUG);
+#endif
 #endif
 
 	atexit (Sys_AtExit);
@@ -71,7 +90,11 @@ int main (int argc, char *argv[])
 
 	Sys_Init ();
 
+#ifdef USE_SDL3
+	Sys_Printf ("Detected %d CPUs.\n", SDL_GetNumLogicalCPUCores ());
+#else
 	Sys_Printf ("Detected %d CPUs.\n", SDL_GetCPUCount ());
+#endif
 	Sys_Printf ("Initializing %s\n", ENGINE_NAME_AND_VER);
 #if defined(__clang_version__)
 	Sys_Printf ("Built with Clang " __clang_version__ "\n");

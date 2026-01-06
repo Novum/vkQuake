@@ -119,7 +119,7 @@ cvar_t r_tasks = {"r_tasks", "1", CVAR_NONE};
 cvar_t			r_indirect = {"r_indirect", "1", CVAR_NONE};
 extern qboolean indirect_ready;
 
-extern SDL_mutex *draw_qcvm_mutex;
+extern SDL_Mutex *draw_qcvm_mutex;
 
 static atomic_uint32_t next_visedict;
 

@@ -22,10 +22,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 #include "quakedef.h"
+#ifndef USE_SDL3
 #if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
-#include <SDL2/SDL.h>
+#include <SDL2/SDL_syswm.h>
 #else
-#include "SDL.h"
+#include "SDL_syswm.h"
+#endif
 #endif
 
 static const Uint8 bmp_bytes[] = {
@@ -34,11 +36,28 @@ static const Uint8 bmp_bytes[] = {
 
 void PL_SetWindowIcon (void)
 {
-	SDL_RWops	*rwop;
+#ifdef USE_SDL3
+	SDL_IOStream *rwop;
+#else
+	SDL_RWops *rwop;
+#endif
 	SDL_Surface *icon;
 	Uint32		 colorkey;
 
-	/* SDL_RWFromConstMem() requires SDL >= 1.2.7 */
+	/* SDL_IOFromConstMem() requires SDL >= 1.2.7 */
+#ifdef USE_SDL3
+	rwop = SDL_IOFromConstMem (bmp_bytes, sizeof (bmp_bytes));
+	if (rwop == NULL)
+		return;
+	icon = SDL_LoadBMP_IO (rwop, true);
+	if (icon == NULL)
+		return;
+	/* make pure magenta (#ff00ff) tranparent */
+	colorkey = SDL_MapSurfaceRGBA (icon, 255, 0, 255, 255);
+	SDL_SetSurfaceColorKey (icon, true, colorkey);
+	SDL_SetWindowIcon ((SDL_Window *)VID_GetWindow (), icon);
+	SDL_DestroySurface (icon);
+#else
 	rwop = SDL_RWFromConstMem (bmp_bytes, sizeof (bmp_bytes));
 	if (rwop == NULL)
 		return;
@@ -50,6 +69,7 @@ void PL_SetWindowIcon (void)
 	SDL_SetColorKey (icon, SDL_TRUE, colorkey);
 	SDL_SetWindowIcon ((SDL_Window *)VID_GetWindow (), icon);
 	SDL_FreeSurface (icon);
+#endif
 }
 
 void PL_VID_Shutdown (void) {}

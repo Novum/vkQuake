@@ -59,7 +59,7 @@ float skyfog; // ericw
 
 char skybox_name_worldspawn[1024];
 
-static SDL_mutex *load_skytexture_mutex;
+static SDL_Mutex *load_skytexture_mutex;
 static int		  max_skytexture_index = -1;
 
 qboolean need_bounds;

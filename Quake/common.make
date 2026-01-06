@@ -128,7 +128,7 @@ MUSIC_OBJS:= bgmusic.o \
 COMOBJ_SND := snd_dma.o snd_mix.o snd_mem.o $(MUSIC_OBJS)
 SYSOBJ_SND := snd_sdl.o
 SYSOBJ_CDA := cd_sdl.o
-SYSOBJ_INPUT := in_sdl.o
+SYSOBJ_INPUT := in_sdl.o in_sdl2.o
 SYSOBJ_GL_VID:= gl_vidsdl.o
 SYSOBJ_MAIN:= main_sdl.o
 

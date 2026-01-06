@@ -87,11 +87,11 @@ atomic_uint64_t total_host_vulkan_allocation_size;
 
 qboolean use_simd;
 
-static SDL_mutex *vertex_allocate_mutex;
-static SDL_mutex *index_allocate_mutex;
-static SDL_mutex *uniform_allocate_mutex;
-static SDL_mutex *storage_allocate_mutex;
-static SDL_mutex *garbage_mutex;
+static SDL_Mutex *vertex_allocate_mutex;
+static SDL_Mutex *index_allocate_mutex;
+static SDL_Mutex *uniform_allocate_mutex;
+static SDL_Mutex *storage_allocate_mutex;
+static SDL_Mutex *garbage_mutex;
 
 /*
 ================
@@ -115,8 +115,8 @@ static vulkan_memory_t staging_memory;
 static stagingbuffer_t staging_buffers[NUM_STAGING_BUFFERS];
 static int			   current_staging_buffer = 0;
 static int			   num_stagings_in_flight = 0;
-static SDL_mutex	  *staging_mutex;
-static SDL_cond		  *staging_cond;
+static SDL_Mutex	  *staging_mutex;
+static SDL_Condition  *staging_cond;
 /*
 ================
 Dynamic vertex/index & uniform buffer
@@ -538,7 +538,7 @@ void R_InitStagingBuffers (void)
 	storage_allocate_mutex = SDL_CreateMutex ();
 	garbage_mutex = SDL_CreateMutex ();
 	staging_mutex = SDL_CreateMutex ();
-	staging_cond = SDL_CreateCond ();
+	staging_cond = SDL_CreateCondition ();
 }
 
 /*
@@ -549,7 +549,7 @@ R_SubmitStagingBuffer
 static void R_SubmitStagingBuffer (int index)
 {
 	while (num_stagings_in_flight > 0)
-		SDL_CondWait (staging_cond, staging_mutex);
+		SDL_WaitCondition (staging_cond, staging_mutex);
 
 	ZEROED_STRUCT (VkMemoryBarrier, memory_barrier);
 	memory_barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
@@ -587,7 +587,7 @@ void R_SubmitStagingBuffers (void)
 	SDL_LockMutex (staging_mutex);
 
 	while (num_stagings_in_flight > 0)
-		SDL_CondWait (staging_cond, staging_mutex);
+		SDL_WaitCondition (staging_cond, staging_mutex);
 
 	int i;
 	for (i = 0; i < NUM_STAGING_BUFFERS; ++i)
@@ -641,7 +641,7 @@ byte *R_StagingAllocate (int size, int alignment, VkCommandBuffer *command_buffe
 	SDL_LockMutex (staging_mutex);
 
 	while (num_stagings_in_flight > 0)
-		SDL_CondWait (staging_cond, staging_mutex);
+		SDL_WaitCondition (staging_cond, staging_mutex);
 
 	vulkan_globals.device_idle = false;
 
@@ -701,7 +701,7 @@ void R_StagingEndCopy (void)
 {
 	SDL_LockMutex (staging_mutex);
 	num_stagings_in_flight -= 1;
-	SDL_CondBroadcast (staging_cond);
+	SDL_BroadcastCondition (staging_cond);
 	SDL_UnlockMutex (staging_mutex);
 }
 
@@ -1102,7 +1102,7 @@ R_DynBufferAllocate
 ===============
 */
 byte *R_DynBufferAllocate (
-	int size, int alignment, int min_tail_size, VkBuffer *buffer, VkDeviceSize *buffer_offset, VkDeviceAddress *device_address, SDL_mutex **mutex,
+	int size, int alignment, int min_tail_size, VkBuffer *buffer, VkDeviceSize *buffer_offset, VkDeviceAddress *device_address, SDL_Mutex **mutex,
 	dynbuffer_t *dyn_buffers, vulkan_memory_t *memory, uint32_t *current_size, VkDescriptorSet *descriptor_set, VkDescriptorSet *descriptor_sets,
 	void (*init_func) (void))
 {

@@ -50,21 +50,22 @@ float r_avertexnormal_dot (vec3 vertexnormal) // from MH
 void main ()
 {
 	out_texcoord = in_texcoord;
-	
-	//default : MDL
-	// [0; 1] => [0; 255]
+
+	// default : MDL
+	//  [0; 1] => [0; 255]
 	float to_world_coords_factor = 255.0f;
 	float to_world_coords_shift = 0.0f;
-		
-	//MD3 :
-	// [0; 1] => [-32768; 32767]
+
+	// MD3 :
+	//  [0; 1] => [-32768; 32767]
 	if ((ubo.flags & 0x4) != 0)
 	{
 		to_world_coords_factor = 65535.0f;
 		to_world_coords_shift = -32768.0f;
 	}
 
-	const vec4 lerped_position = vec4 (mix (in_pose1_position.xyz, in_pose2_position.xyz, ubo.blend_factor) * to_world_coords_factor + to_world_coords_shift, 1.0f);
+	const vec4 lerped_position =
+		vec4 (mix (in_pose1_position.xyz, in_pose2_position.xyz, ubo.blend_factor) * to_world_coords_factor + to_world_coords_shift, 1.0f);
 	const vec4 model_space_position = ubo.model_matrix * lerped_position;
 	gl_Position = push_constants.view_projection_matrix * model_space_position;
 

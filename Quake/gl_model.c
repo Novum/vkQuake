@@ -1178,7 +1178,7 @@ static void Mod_LoadTextures (qmodel_t *mod, byte *mod_base, lump_t *l)
 		if (!Tasks_IsWorker () && (nummiptex > 1))
 		{
 			task_handle_t task = Task_AllocateAssignIndexedFuncAndSubmit ((task_indexed_func_t)Mod_LoadTextureTask, nummiptex, &mod, sizeof (mod));
-			Task_Join (task, SDL_MUTEX_MAXWAIT);
+			Task_Join (task, TASK_TIMEOUT_INFINITE);
 		}
 		else
 		{
@@ -1897,7 +1897,7 @@ static void Mod_LoadFaces (qmodel_t *mod, byte *mod_base, lump_t *l, qboolean bs
 		if (!Tasks_IsWorker () && (count > 1))
 		{
 			task_handle_t task = Task_AllocateAssignIndexedFuncAndSubmit ((task_indexed_func_t)Mod_CalcSurfaceExtentsTask, count, &mod, sizeof (qmodel_t *));
-			Task_Join (task, SDL_MUTEX_MAXWAIT);
+			Task_Join (task, TASK_TIMEOUT_INFINITE);
 		}
 		else
 		{
@@ -3513,7 +3513,7 @@ void *Mod_LoadAllSkins (aliashdr_t *pheader, qmodel_t *mod, byte *mod_base, int 
 	if (!Tasks_IsWorker () && (numskins > 1))
 	{
 		task_handle_t task = Task_AllocateAssignIndexedFuncAndSubmit ((task_indexed_func_t)Mod_LoadSkinTask, numskins, &args, sizeof (args));
-		Task_Join (task, SDL_MUTEX_MAXWAIT);
+		Task_Join (task, TASK_TIMEOUT_INFINITE);
 	}
 	else
 	{
@@ -4776,7 +4776,7 @@ static size_t Mod_LoadMDXSkinsByIndex (
 	{
 		task_handle_t task =
 			Task_AllocateAssignIndexedFuncAndSubmit ((task_indexed_func_t)Mod_LoadMDXSkinTask, effective_num_skins * MAX_FRAMEGROUPS, &args, sizeof (args));
-		Task_Join (task, SDL_MUTEX_MAXWAIT);
+		Task_Join (task, TASK_TIMEOUT_INFINITE);
 	}
 	else
 	{

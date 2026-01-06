@@ -22,76 +22,76 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 #include "quakedef.h"
+#include "in_sdl.h"
 
 static qboolean textmode;
 
-static cvar_t in_debugkeys = {"in_debugkeys", "0", CVAR_NONE};
+cvar_t in_debugkeys = {"in_debugkeys", "0", CVAR_NONE};
 
-// SDL2 Game Controller cvars
-cvar_t joy_deadzone_look = {"joy_deadzone_look", "0.175", CVAR_ARCHIVE};
-cvar_t joy_deadzone_move = {"joy_deadzone_move", "0.175", CVAR_ARCHIVE};
-cvar_t joy_outer_threshold_look = {"joy_outer_threshold_look", "0.02", CVAR_ARCHIVE};
-cvar_t joy_outer_threshold_move = {"joy_outer_threshold_move", "0.02", CVAR_ARCHIVE};
-cvar_t joy_deadzone_trigger = {"joy_deadzone_trigger", "0.2", CVAR_ARCHIVE};
-cvar_t joy_sensitivity_yaw = {"joy_sensitivity_yaw", "240", CVAR_ARCHIVE};
-cvar_t joy_sensitivity_pitch = {"joy_sensitivity_pitch", "130", CVAR_ARCHIVE};
-cvar_t joy_invert = {"joy_invert", "0", CVAR_ARCHIVE};
-cvar_t joy_exponent = {"joy_exponent", "2", CVAR_ARCHIVE};
-cvar_t joy_exponent_move = {"joy_exponent_move", "2", CVAR_ARCHIVE};
-cvar_t joy_swapmovelook = {"joy_swapmovelook", "0", CVAR_ARCHIVE};
-cvar_t joy_enable = {"joy_enable", "1", CVAR_ARCHIVE};
+// SDL Game Controller cvars
+static cvar_t joy_deadzone_look = {"joy_deadzone_look", "0.175", CVAR_ARCHIVE};
+static cvar_t joy_deadzone_move = {"joy_deadzone_move", "0.175", CVAR_ARCHIVE};
+static cvar_t joy_outer_threshold_look = {"joy_outer_threshold_look", "0.02", CVAR_ARCHIVE};
+static cvar_t joy_outer_threshold_move = {"joy_outer_threshold_move", "0.02", CVAR_ARCHIVE};
+static cvar_t joy_deadzone_trigger = {"joy_deadzone_trigger", "0.2", CVAR_ARCHIVE};
+static cvar_t joy_sensitivity_yaw = {"joy_sensitivity_yaw", "240", CVAR_ARCHIVE};
+static cvar_t joy_sensitivity_pitch = {"joy_sensitivity_pitch", "130", CVAR_ARCHIVE};
+static cvar_t joy_invert = {"joy_invert", "0", CVAR_ARCHIVE};
+static cvar_t joy_exponent = {"joy_exponent", "2", CVAR_ARCHIVE};
+static cvar_t joy_exponent_move = {"joy_exponent_move", "2", CVAR_ARCHIVE};
+static cvar_t joy_swapmovelook = {"joy_swapmovelook", "0", CVAR_ARCHIVE};
+static cvar_t joy_enable = {"joy_enable", "1", CVAR_ARCHIVE};
 
-static SDL_JoystickID	   joy_active_instaceid = -1;
-static SDL_GameController *joy_active_controller = NULL;
+#ifdef USE_SDL3
+#define SDL3_GET_WINDOW (SDL_Window *)VID_GetWindow ()
+#else
+#define SDL3_GET_WINDOW
+
+#define SDL_GamepadButton SDL_GameControllerButton
+#define SDL_GamepadAxis	  SDL_GameControllerAxis
+
+#define SDL_EVENT_MOUSE_MOTION SDL_MOUSEMOTION
+
+#define SDL_GAMEPAD_BUTTON_COUNT SDL_CONTROLLER_BUTTON_MAX
+
+#define SDL_GAMEPAD_AXIS_COUNT		   SDL_CONTROLLER_AXIS_MAX
+#define SDL_GAMEPAD_AXIS_LEFTX		   SDL_CONTROLLER_AXIS_LEFTX
+#define SDL_GAMEPAD_AXIS_LEFTY		   SDL_CONTROLLER_AXIS_LEFTY
+#define SDL_GAMEPAD_AXIS_RIGHTX		   SDL_CONTROLLER_AXIS_RIGHTX
+#define SDL_GAMEPAD_AXIS_RIGHTY		   SDL_CONTROLLER_AXIS_RIGHTY
+#define SDL_GAMEPAD_AXIS_LEFT_TRIGGER  SDL_CONTROLLER_AXIS_TRIGGERLEFT
+#define SDL_GAMEPAD_AXIS_RIGHT_TRIGGER SDL_CONTROLLER_AXIS_TRIGGERRIGHT
+
+#define SDL_GAMEPAD_BUTTON_COUNT		  SDL_CONTROLLER_BUTTON_MAX
+#define SDL_GAMEPAD_BUTTON_SOUTH		  SDL_CONTROLLER_BUTTON_A
+#define SDL_GAMEPAD_BUTTON_EAST			  SDL_CONTROLLER_BUTTON_B
+#define SDL_GAMEPAD_BUTTON_WEST			  SDL_CONTROLLER_BUTTON_X
+#define SDL_GAMEPAD_BUTTON_NORTH		  SDL_CONTROLLER_BUTTON_Y
+#define SDL_GAMEPAD_BUTTON_BACK			  SDL_CONTROLLER_BUTTON_BACK
+#define SDL_GAMEPAD_BUTTON_START		  SDL_CONTROLLER_BUTTON_START
+#define SDL_GAMEPAD_BUTTON_LEFT_STICK	  SDL_CONTROLLER_BUTTON_LEFTSTICK
+#define SDL_GAMEPAD_BUTTON_RIGHT_STICK	  SDL_CONTROLLER_BUTTON_RIGHTSTICK
+#define SDL_GAMEPAD_BUTTON_LEFT_SHOULDER  SDL_CONTROLLER_BUTTON_LEFTSHOULDER
+#define SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER SDL_CONTROLLER_BUTTON_RIGHTSHOULDER
+#define SDL_GAMEPAD_BUTTON_DPAD_UP		  SDL_CONTROLLER_BUTTON_DPAD_UP
+#define SDL_GAMEPAD_BUTTON_DPAD_DOWN	  SDL_CONTROLLER_BUTTON_DPAD_DOWN
+#define SDL_GAMEPAD_BUTTON_DPAD_LEFT	  SDL_CONTROLLER_BUTTON_DPAD_LEFT
+#define SDL_GAMEPAD_BUTTON_DPAD_RIGHT	  SDL_CONTROLLER_BUTTON_DPAD_RIGHT
+#define SDL_GAMEPAD_BUTTON_MISC1		  SDL_CONTROLLER_BUTTON_MISC1
+#define SDL_GAMEPAD_BUTTON_RIGHT_PADDLE1  SDL_CONTROLLER_BUTTON_PADDLE1
+#define SDL_GAMEPAD_BUTTON_LEFT_PADDLE1	  SDL_CONTROLLER_BUTTON_PADDLE2
+#define SDL_GAMEPAD_BUTTON_RIGHT_PADDLE2  SDL_CONTROLLER_BUTTON_PADDLE3
+#define SDL_GAMEPAD_BUTTON_LEFT_PADDLE2	  SDL_CONTROLLER_BUTTON_PADDLE4
+#define SDL_GAMEPAD_BUTTON_TOUCHPAD		  SDL_CONTROLLER_BUTTON_TOUCHPAD
+
+#define SDL_EVENT_WINDOW_FOCUS_GAINED SDL_WINDOWEVENT_FOCUS_GAINED
+#define SDL3_GET_WINDOW
+#endif
 
 static qboolean no_mouse = false;
 
-static const int buttonremap[] = {
-	K_MOUSE1, /* left button		*/
-	K_MOUSE3, /* middle button	*/
-	K_MOUSE2, /* right button		*/
-	K_MOUSE4, /* back button		*/
-	K_MOUSE5  /* forward button	*/
-};
-
 /* total accumulated mouse movement since last frame */
 static int total_dx, total_dy = 0;
-
-static int SDLCALL IN_FilterMouseEvents (const SDL_Event *event)
-{
-	switch (event->type)
-	{
-	case SDL_MOUSEMOTION:
-		// case SDL_MOUSEBUTTONDOWN:
-		// case SDL_MOUSEBUTTONUP:
-		return 0;
-	}
-
-	return 1;
-}
-
-static int SDLCALL IN_SDL2_FilterMouseEvents (void *userdata, SDL_Event *event)
-{
-	return IN_FilterMouseEvents (event);
-}
-
-static void IN_BeginIgnoringMouseEvents (void)
-{
-	SDL_EventFilter currentFilter = NULL;
-	void		   *currentUserdata = NULL;
-	SDL_GetEventFilter (&currentFilter, &currentUserdata);
-
-	if (currentFilter != IN_SDL2_FilterMouseEvents)
-		SDL_SetEventFilter (IN_SDL2_FilterMouseEvents, NULL);
-}
-
-static void IN_EndIgnoringMouseEvents (void)
-{
-	SDL_EventFilter currentFilter;
-	void		   *currentUserdata;
-	if (SDL_GetEventFilter (&currentFilter, &currentUserdata) == SDL_TRUE)
-		SDL_SetEventFilter (NULL, NULL);
-}
 
 void IN_Activate (void)
 {
@@ -107,10 +107,17 @@ void IN_Activate (void)
 	}
 #endif
 
+#ifdef USE_SDL3
+	if (!SDL_SetWindowRelativeMouseMode ((SDL_Window *)VID_GetWindow (), true))
+	{
+		Con_Printf ("WARNING: SDL_SetWindowRelativeMouseMode(true) failed.\n");
+	}
+#else
 	if (SDL_SetRelativeMouseMode (SDL_TRUE) != 0)
 	{
 		Con_Printf ("WARNING: SDL_SetRelativeMouseMode(SDL_TRUE) failed.\n");
 	}
+#endif
 
 	IN_EndIgnoringMouseEvents ();
 
@@ -125,7 +132,11 @@ void IN_Deactivate (qboolean free_cursor)
 
 	if (free_cursor)
 	{
+#ifdef USE_SDL3
+		SDL_SetWindowRelativeMouseMode ((SDL_Window *)VID_GetWindow (), false);
+#else
 		SDL_SetRelativeMouseMode (SDL_FALSE);
+#endif
 	}
 
 	/* discard all mouse events when input is deactivated */
@@ -137,73 +148,17 @@ void IN_HideCursor ()
 	if (no_mouse)
 		return;
 
+#ifdef USE_SDL3
+	if (!SDL_SetWindowRelativeMouseMode ((SDL_Window *)VID_GetWindow (), true))
+	{
+		Con_Printf ("WARNING: SDL_SetWindowRelativeMouseMode(true) failed.\n");
+	}
+#else
 	if (SDL_SetRelativeMouseMode (SDL_TRUE) != 0)
 	{
 		Con_Printf ("WARNING: SDL_SetRelativeMouseMode(SDL_TRUE) failed.\n");
 	}
-}
-
-void IN_StartupJoystick (void)
-{
-	int					i;
-	int					nummappings;
-	char				controllerdb[MAX_OSPATH];
-	SDL_GameController *gamecontroller;
-
-	if (COM_CheckParm ("-nojoy"))
-		return;
-
-	if (SDL_InitSubSystem (SDL_INIT_GAMECONTROLLER) == -1)
-	{
-		Con_Warning ("could not initialize SDL Game Controller\n");
-		return;
-	}
-
-	// Load additional SDL2 controller definitions from gamecontrollerdb.txt
-	q_snprintf (controllerdb, sizeof (controllerdb), "%s/gamecontrollerdb.txt", com_basedir);
-	nummappings = SDL_GameControllerAddMappingsFromFile (controllerdb);
-	if (nummappings > 0)
-		Con_Printf ("%d mappings loaded from gamecontrollerdb.txt\n", nummappings);
-
-	// Also try host_parms->userdir
-	if (host_parms->userdir != host_parms->basedir)
-	{
-		q_snprintf (controllerdb, sizeof (controllerdb), "%s/gamecontrollerdb.txt", host_parms->userdir);
-		nummappings = SDL_GameControllerAddMappingsFromFile (controllerdb);
-		if (nummappings > 0)
-			Con_Printf ("%d mappings loaded from gamecontrollerdb.txt\n", nummappings);
-	}
-
-	for (i = 0; i < SDL_NumJoysticks (); i++)
-	{
-		const char *joyname = SDL_JoystickNameForIndex (i);
-		if (SDL_IsGameController (i))
-		{
-			const char *controllername = SDL_GameControllerNameForIndex (i);
-			gamecontroller = SDL_GameControllerOpen (i);
-			if (gamecontroller)
-			{
-				Con_Printf ("detected controller: %s\n", controllername != NULL ? controllername : "NULL");
-
-				joy_active_instaceid = SDL_JoystickInstanceID (SDL_GameControllerGetJoystick (gamecontroller));
-				joy_active_controller = gamecontroller;
-				break;
-			}
-			else
-			{
-				Con_Warning ("failed to open controller: %s\n", controllername != NULL ? controllername : "NULL");
-			}
-		}
-		else
-		{
-			Con_Warning ("joystick missing controller mappings: %s\n", joyname != NULL ? joyname : "NULL");
-		}
-	}
-}
-
-void IN_ShutdownJoystick (void)
-{
-	SDL_QuitSubSystem (SDL_INIT_GAMECONTROLLER);
+#endif
 }
 
 void IN_Init (void)
@@ -211,9 +166,9 @@ void IN_Init (void)
 	textmode = Key_TextEntry ();
 
 	if (textmode)
-		SDL_StartTextInput ();
+		SDL_StartTextInput (SDL3_GET_WINDOW);
 	else
-		SDL_StopTextInput ();
+		SDL_StopTextInput (SDL3_GET_WINDOW);
 
 	if (safemode || COM_CheckParm ("-nomouse"))
 	{
@@ -270,18 +225,18 @@ typedef struct joyaxis_s
 
 typedef struct joy_buttonstate_s
 {
-	qboolean buttondown[SDL_CONTROLLER_BUTTON_MAX];
+	qboolean buttondown[SDL_GAMEPAD_BUTTON_COUNT];
 } joybuttonstate_t;
 
 typedef struct axisstate_s
 {
-	float axisvalue[SDL_CONTROLLER_AXIS_MAX]; // normalized to +-1
+	float axisvalue[SDL_GAMEPAD_AXIS_COUNT]; // normalized to +-1
 } joyaxisstate_t;
 
 static joybuttonstate_t joy_buttonstate;
 static joyaxisstate_t	joy_axisstate;
 
-static double joy_buttontimer[SDL_CONTROLLER_BUTTON_MAX];
+static double joy_buttontimer[SDL_GAMEPAD_BUTTON_COUNT];
 static double joy_emulatedkeytimer[6];
 
 /*
@@ -358,49 +313,49 @@ static joyaxis_t IN_ApplyDeadzone (joyaxis_t axis, float deadzone, float outer_t
 IN_KeyForControllerButton
 ================
 */
-static int IN_KeyForControllerButton (SDL_GameControllerButton button)
+static int IN_KeyForControllerButton (SDL_GamepadButton button)
 {
 	switch (button)
 	{
-	case SDL_CONTROLLER_BUTTON_A:
+	case SDL_GAMEPAD_BUTTON_SOUTH:
 		return K_ABUTTON;
-	case SDL_CONTROLLER_BUTTON_B:
+	case SDL_GAMEPAD_BUTTON_EAST:
 		return K_BBUTTON;
-	case SDL_CONTROLLER_BUTTON_X:
+	case SDL_GAMEPAD_BUTTON_WEST:
 		return K_XBUTTON;
-	case SDL_CONTROLLER_BUTTON_Y:
+	case SDL_GAMEPAD_BUTTON_NORTH:
 		return K_YBUTTON;
-	case SDL_CONTROLLER_BUTTON_BACK:
+	case SDL_GAMEPAD_BUTTON_BACK:
 		return K_TAB;
-	case SDL_CONTROLLER_BUTTON_START:
+	case SDL_GAMEPAD_BUTTON_START:
 		return K_ESCAPE;
-	case SDL_CONTROLLER_BUTTON_LEFTSTICK:
+	case SDL_GAMEPAD_BUTTON_LEFT_STICK:
 		return K_LTHUMB;
-	case SDL_CONTROLLER_BUTTON_RIGHTSTICK:
+	case SDL_GAMEPAD_BUTTON_RIGHT_STICK:
 		return K_RTHUMB;
-	case SDL_CONTROLLER_BUTTON_LEFTSHOULDER:
+	case SDL_GAMEPAD_BUTTON_LEFT_SHOULDER:
 		return K_LSHOULDER;
-	case SDL_CONTROLLER_BUTTON_RIGHTSHOULDER:
+	case SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER:
 		return K_RSHOULDER;
-	case SDL_CONTROLLER_BUTTON_DPAD_UP:
+	case SDL_GAMEPAD_BUTTON_DPAD_UP:
 		return K_UPARROW;
-	case SDL_CONTROLLER_BUTTON_DPAD_DOWN:
+	case SDL_GAMEPAD_BUTTON_DPAD_DOWN:
 		return K_DOWNARROW;
-	case SDL_CONTROLLER_BUTTON_DPAD_LEFT:
+	case SDL_GAMEPAD_BUTTON_DPAD_LEFT:
 		return K_LEFTARROW;
-	case SDL_CONTROLLER_BUTTON_DPAD_RIGHT:
+	case SDL_GAMEPAD_BUTTON_DPAD_RIGHT:
 		return K_RIGHTARROW;
-	case SDL_CONTROLLER_BUTTON_MISC1:
+	case SDL_GAMEPAD_BUTTON_MISC1:
 		return K_MISC1;
-	case SDL_CONTROLLER_BUTTON_PADDLE1:
+	case SDL_GAMEPAD_BUTTON_RIGHT_PADDLE1:
 		return K_PADDLE1;
-	case SDL_CONTROLLER_BUTTON_PADDLE2:
+	case SDL_GAMEPAD_BUTTON_LEFT_PADDLE1:
 		return K_PADDLE2;
-	case SDL_CONTROLLER_BUTTON_PADDLE3:
+	case SDL_GAMEPAD_BUTTON_RIGHT_PADDLE2:
 		return K_PADDLE3;
-	case SDL_CONTROLLER_BUTTON_PADDLE4:
+	case SDL_GAMEPAD_BUTTON_LEFT_PADDLE2:
 		return K_PADDLE4;
-	case SDL_CONTROLLER_BUTTON_TOUCHPAD:
+	case SDL_GAMEPAD_BUTTON_TOUCHPAD:
 		return K_TOUCHPAD;
 	default:
 		return 0;
@@ -469,46 +424,58 @@ void IN_Commands (void)
 		return;
 
 	// emit key events for controller buttons
-	for (i = 0; i < SDL_CONTROLLER_BUTTON_MAX; i++)
+	for (i = 0; i < SDL_GAMEPAD_BUTTON_COUNT; i++)
 	{
+#ifdef USE_SDL3
+		qboolean newstate = SDL_GetGamepadButton (joy_active_controller, (SDL_GamepadButton)i);
+#else
 		qboolean newstate = SDL_GameControllerGetButton (joy_active_controller, (SDL_GameControllerButton)i);
+#endif
 		qboolean oldstate = joy_buttonstate.buttondown[i];
 
 		joy_buttonstate.buttondown[i] = newstate;
 
 		// NOTE: This can cause a reentrant call of IN_Commands, via SCR_ModalMessage when confirming a new game.
+#ifdef USE_SDL3
+		IN_JoyKeyEvent (oldstate, newstate, IN_KeyForControllerButton ((SDL_GamepadButton)i), &joy_buttontimer[i]);
+#else
 		IN_JoyKeyEvent (oldstate, newstate, IN_KeyForControllerButton ((SDL_GameControllerButton)i), &joy_buttontimer[i]);
+#endif
 	}
 
-	for (i = 0; i < SDL_CONTROLLER_AXIS_MAX; i++)
+	for (i = 0; i < SDL_GAMEPAD_AXIS_COUNT; i++)
 	{
+#ifdef USE_SDL3
+		newaxisstate.axisvalue[i] = SDL_GetGamepadAxis (joy_active_controller, (SDL_GamepadAxis)i) / 32768.0f;
+#else
 		newaxisstate.axisvalue[i] = SDL_GameControllerGetAxis (joy_active_controller, (SDL_GameControllerAxis)i) / 32768.0f;
+#endif
 	}
 
 	// emit emulated arrow keys so the analog sticks can be used in the menu
 	if (key_dest != key_game)
 	{
 		IN_JoyKeyEvent (
-			joy_axisstate.axisvalue[SDL_CONTROLLER_AXIS_LEFTX] < -stickthreshold, newaxisstate.axisvalue[SDL_CONTROLLER_AXIS_LEFTX] < -stickthreshold,
-			K_LEFTARROW, &joy_emulatedkeytimer[0]);
+			joy_axisstate.axisvalue[SDL_GAMEPAD_AXIS_LEFTX] < -stickthreshold, newaxisstate.axisvalue[SDL_GAMEPAD_AXIS_LEFTX] < -stickthreshold, K_LEFTARROW,
+			&joy_emulatedkeytimer[0]);
 		IN_JoyKeyEvent (
-			joy_axisstate.axisvalue[SDL_CONTROLLER_AXIS_LEFTX] > stickthreshold, newaxisstate.axisvalue[SDL_CONTROLLER_AXIS_LEFTX] > stickthreshold,
-			K_RIGHTARROW, &joy_emulatedkeytimer[1]);
+			joy_axisstate.axisvalue[SDL_GAMEPAD_AXIS_LEFTX] > stickthreshold, newaxisstate.axisvalue[SDL_GAMEPAD_AXIS_LEFTX] > stickthreshold, K_RIGHTARROW,
+			&joy_emulatedkeytimer[1]);
 		IN_JoyKeyEvent (
-			joy_axisstate.axisvalue[SDL_CONTROLLER_AXIS_LEFTY] < -stickthreshold, newaxisstate.axisvalue[SDL_CONTROLLER_AXIS_LEFTY] < -stickthreshold,
-			K_UPARROW, &joy_emulatedkeytimer[2]);
+			joy_axisstate.axisvalue[SDL_GAMEPAD_AXIS_LEFTY] < -stickthreshold, newaxisstate.axisvalue[SDL_GAMEPAD_AXIS_LEFTY] < -stickthreshold, K_UPARROW,
+			&joy_emulatedkeytimer[2]);
 		IN_JoyKeyEvent (
-			joy_axisstate.axisvalue[SDL_CONTROLLER_AXIS_LEFTY] > stickthreshold, newaxisstate.axisvalue[SDL_CONTROLLER_AXIS_LEFTY] > stickthreshold,
-			K_DOWNARROW, &joy_emulatedkeytimer[3]);
+			joy_axisstate.axisvalue[SDL_GAMEPAD_AXIS_LEFTY] > stickthreshold, newaxisstate.axisvalue[SDL_GAMEPAD_AXIS_LEFTY] > stickthreshold, K_DOWNARROW,
+			&joy_emulatedkeytimer[3]);
 	}
 
 	// emit emulated keys for the analog triggers
 	IN_JoyKeyEvent (
-		joy_axisstate.axisvalue[SDL_CONTROLLER_AXIS_TRIGGERLEFT] > triggerthreshold, newaxisstate.axisvalue[SDL_CONTROLLER_AXIS_TRIGGERLEFT] > triggerthreshold,
+		joy_axisstate.axisvalue[SDL_GAMEPAD_AXIS_LEFT_TRIGGER] > triggerthreshold, newaxisstate.axisvalue[SDL_GAMEPAD_AXIS_LEFT_TRIGGER] > triggerthreshold,
 		K_LTRIGGER, &joy_emulatedkeytimer[4]);
 	IN_JoyKeyEvent (
-		joy_axisstate.axisvalue[SDL_CONTROLLER_AXIS_TRIGGERRIGHT] > triggerthreshold,
-		newaxisstate.axisvalue[SDL_CONTROLLER_AXIS_TRIGGERRIGHT] > triggerthreshold, K_RTRIGGER, &joy_emulatedkeytimer[5]);
+		joy_axisstate.axisvalue[SDL_GAMEPAD_AXIS_RIGHT_TRIGGER] > triggerthreshold, newaxisstate.axisvalue[SDL_GAMEPAD_AXIS_RIGHT_TRIGGER] > triggerthreshold,
+		K_RTRIGGER, &joy_emulatedkeytimer[5]);
 
 	joy_axisstate = newaxisstate;
 }
@@ -534,10 +501,10 @@ void IN_JoyMove (usercmd_t *cmd)
 	if (cl.paused || key_dest != key_game)
 		return;
 
-	moveRaw.x = joy_axisstate.axisvalue[SDL_CONTROLLER_AXIS_LEFTX];
-	moveRaw.y = joy_axisstate.axisvalue[SDL_CONTROLLER_AXIS_LEFTY];
-	lookRaw.x = joy_axisstate.axisvalue[SDL_CONTROLLER_AXIS_RIGHTX];
-	lookRaw.y = joy_axisstate.axisvalue[SDL_CONTROLLER_AXIS_RIGHTY];
+	moveRaw.x = joy_axisstate.axisvalue[SDL_GAMEPAD_AXIS_LEFTX];
+	moveRaw.y = joy_axisstate.axisvalue[SDL_GAMEPAD_AXIS_LEFTY];
+	lookRaw.x = joy_axisstate.axisvalue[SDL_GAMEPAD_AXIS_RIGHTX];
+	lookRaw.y = joy_axisstate.axisvalue[SDL_GAMEPAD_AXIS_RIGHTY];
 
 	if (joy_swapmovelook.value)
 	{
@@ -651,379 +618,15 @@ void IN_UpdateInputMode (void)
 			Con_Printf ("SDL_EnableUNICODE %d time: %g\n", textmode, Sys_DoubleTime ());
 		if (textmode)
 		{
-			SDL_StartTextInput ();
+			SDL_StartTextInput (SDL3_GET_WINDOW);
 			if (in_debugkeys.value)
 				Con_Printf ("SDL_StartTextInput time: %g\n", Sys_DoubleTime ());
 		}
 		else
 		{
-			SDL_StopTextInput ();
+			SDL_StopTextInput (SDL3_GET_WINDOW);
 			if (in_debugkeys.value)
 				Con_Printf ("SDL_StopTextInput time: %g\n", Sys_DoubleTime ());
-		}
-	}
-}
-
-static inline int IN_SDL2_ScancodeToQuakeKey (SDL_Scancode scancode)
-{
-	switch (scancode)
-	{
-	case SDL_SCANCODE_TAB:
-		return K_TAB;
-	case SDL_SCANCODE_RETURN:
-		return K_ENTER;
-	case SDL_SCANCODE_RETURN2:
-		return K_ENTER;
-	case SDL_SCANCODE_ESCAPE:
-		return K_ESCAPE;
-	case SDL_SCANCODE_SPACE:
-		return K_SPACE;
-
-	case SDL_SCANCODE_A:
-		return 'a';
-	case SDL_SCANCODE_B:
-		return 'b';
-	case SDL_SCANCODE_C:
-		return 'c';
-	case SDL_SCANCODE_D:
-		return 'd';
-	case SDL_SCANCODE_E:
-		return 'e';
-	case SDL_SCANCODE_F:
-		return 'f';
-	case SDL_SCANCODE_G:
-		return 'g';
-	case SDL_SCANCODE_H:
-		return 'h';
-	case SDL_SCANCODE_I:
-		return 'i';
-	case SDL_SCANCODE_J:
-		return 'j';
-	case SDL_SCANCODE_K:
-		return 'k';
-	case SDL_SCANCODE_L:
-		return 'l';
-	case SDL_SCANCODE_M:
-		return 'm';
-	case SDL_SCANCODE_N:
-		return 'n';
-	case SDL_SCANCODE_O:
-		return 'o';
-	case SDL_SCANCODE_P:
-		return 'p';
-	case SDL_SCANCODE_Q:
-		return 'q';
-	case SDL_SCANCODE_R:
-		return 'r';
-	case SDL_SCANCODE_S:
-		return 's';
-	case SDL_SCANCODE_T:
-		return 't';
-	case SDL_SCANCODE_U:
-		return 'u';
-	case SDL_SCANCODE_V:
-		return 'v';
-	case SDL_SCANCODE_W:
-		return 'w';
-	case SDL_SCANCODE_X:
-		return 'x';
-	case SDL_SCANCODE_Y:
-		return 'y';
-	case SDL_SCANCODE_Z:
-		return 'z';
-
-	case SDL_SCANCODE_1:
-		return '1';
-	case SDL_SCANCODE_2:
-		return '2';
-	case SDL_SCANCODE_3:
-		return '3';
-	case SDL_SCANCODE_4:
-		return '4';
-	case SDL_SCANCODE_5:
-		return '5';
-	case SDL_SCANCODE_6:
-		return '6';
-	case SDL_SCANCODE_7:
-		return '7';
-	case SDL_SCANCODE_8:
-		return '8';
-	case SDL_SCANCODE_9:
-		return '9';
-	case SDL_SCANCODE_0:
-		return '0';
-
-	case SDL_SCANCODE_MINUS:
-		return '-';
-	case SDL_SCANCODE_EQUALS:
-		return '=';
-	case SDL_SCANCODE_LEFTBRACKET:
-		return '[';
-	case SDL_SCANCODE_RIGHTBRACKET:
-		return ']';
-	case SDL_SCANCODE_BACKSLASH:
-		return '\\';
-	case SDL_SCANCODE_NONUSHASH:
-		return '#';
-	case SDL_SCANCODE_SEMICOLON:
-		return ';';
-	case SDL_SCANCODE_APOSTROPHE:
-		return '\'';
-	case SDL_SCANCODE_GRAVE:
-		return '`';
-	case SDL_SCANCODE_COMMA:
-		return ',';
-	case SDL_SCANCODE_PERIOD:
-		return '.';
-	case SDL_SCANCODE_SLASH:
-		return '/';
-	case SDL_SCANCODE_NONUSBACKSLASH:
-		return '\\';
-
-	case SDL_SCANCODE_BACKSPACE:
-		return K_BACKSPACE;
-	case SDL_SCANCODE_UP:
-		return K_UPARROW;
-	case SDL_SCANCODE_DOWN:
-		return K_DOWNARROW;
-	case SDL_SCANCODE_LEFT:
-		return K_LEFTARROW;
-	case SDL_SCANCODE_RIGHT:
-		return K_RIGHTARROW;
-
-	case SDL_SCANCODE_LALT:
-		return K_ALT;
-	case SDL_SCANCODE_RALT:
-		return K_ALT;
-	case SDL_SCANCODE_LCTRL:
-		return K_CTRL;
-	case SDL_SCANCODE_RCTRL:
-		return K_CTRL;
-	case SDL_SCANCODE_LSHIFT:
-		return K_SHIFT;
-	case SDL_SCANCODE_RSHIFT:
-		return K_SHIFT;
-
-	case SDL_SCANCODE_F1:
-		return K_F1;
-	case SDL_SCANCODE_F2:
-		return K_F2;
-	case SDL_SCANCODE_F3:
-		return K_F3;
-	case SDL_SCANCODE_F4:
-		return K_F4;
-	case SDL_SCANCODE_F5:
-		return K_F5;
-	case SDL_SCANCODE_F6:
-		return K_F6;
-	case SDL_SCANCODE_F7:
-		return K_F7;
-	case SDL_SCANCODE_F8:
-		return K_F8;
-	case SDL_SCANCODE_F9:
-		return K_F9;
-	case SDL_SCANCODE_F10:
-		return K_F10;
-	case SDL_SCANCODE_F11:
-		return K_F11;
-	case SDL_SCANCODE_F12:
-		return K_F12;
-	case SDL_SCANCODE_INSERT:
-		return K_INS;
-	case SDL_SCANCODE_DELETE:
-		return K_DEL;
-	case SDL_SCANCODE_PAGEDOWN:
-		return K_PGDN;
-	case SDL_SCANCODE_PAGEUP:
-		return K_PGUP;
-	case SDL_SCANCODE_HOME:
-		return K_HOME;
-	case SDL_SCANCODE_END:
-		return K_END;
-
-	case SDL_SCANCODE_NUMLOCKCLEAR:
-		return K_KP_NUMLOCK;
-	case SDL_SCANCODE_KP_DIVIDE:
-		return K_KP_SLASH;
-	case SDL_SCANCODE_KP_MULTIPLY:
-		return K_KP_STAR;
-	case SDL_SCANCODE_KP_MINUS:
-		return K_KP_MINUS;
-	case SDL_SCANCODE_KP_7:
-		return K_KP_HOME;
-	case SDL_SCANCODE_KP_8:
-		return K_KP_UPARROW;
-	case SDL_SCANCODE_KP_9:
-		return K_KP_PGUP;
-	case SDL_SCANCODE_KP_PLUS:
-		return K_KP_PLUS;
-	case SDL_SCANCODE_KP_4:
-		return K_KP_LEFTARROW;
-	case SDL_SCANCODE_KP_5:
-		return K_KP_5;
-	case SDL_SCANCODE_KP_6:
-		return K_KP_RIGHTARROW;
-	case SDL_SCANCODE_KP_1:
-		return K_KP_END;
-	case SDL_SCANCODE_KP_2:
-		return K_KP_DOWNARROW;
-	case SDL_SCANCODE_KP_3:
-		return K_KP_PGDN;
-	case SDL_SCANCODE_KP_ENTER:
-		return K_KP_ENTER;
-	case SDL_SCANCODE_KP_0:
-		return K_KP_INS;
-	case SDL_SCANCODE_KP_PERIOD:
-		return K_KP_DEL;
-
-	case SDL_SCANCODE_LGUI:
-		return K_COMMAND;
-	case SDL_SCANCODE_RGUI:
-		return K_COMMAND;
-
-	case SDL_SCANCODE_PAUSE:
-		return K_PAUSE;
-
-	default:
-		return 0;
-	}
-}
-
-static void IN_DebugTextEvent (SDL_Event *event)
-{
-	Con_Printf ("SDL_TEXTINPUT '%s' time: %g\n", event->text.text, Sys_DoubleTime ());
-}
-
-static void IN_DebugKeyEvent (SDL_Event *event)
-{
-	const char *eventtype = (event->key.state == SDL_PRESSED) ? "SDL_KEYDOWN" : "SDL_KEYUP";
-	Con_Printf (
-		"%s scancode: '%s' keycode: '%s' time: %g\n", eventtype, SDL_GetScancodeName (event->key.keysym.scancode), SDL_GetKeyName (event->key.keysym.sym),
-		Sys_DoubleTime ());
-}
-
-void IN_SendKeyEvents (void)
-{
-	SDL_Event event;
-	int		  key;
-	qboolean  down;
-
-	while (SDL_PollEvent (&event))
-	{
-		switch (event.type)
-		{
-		case SDL_WINDOWEVENT:
-			if (event.window.event == SDL_WINDOWEVENT_FOCUS_GAINED)
-			{
-				S_UnblockSound ();
-				VID_FocusGained ();
-			}
-			else if (event.window.event == SDL_WINDOWEVENT_FOCUS_LOST)
-			{
-				S_BlockSound ();
-				VID_FocusLost ();
-			}
-			else if (event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)
-			{
-				vid.width = event.window.data1;
-				vid.height = event.window.data2;
-				vid.restart_next_frame = true;
-				Cvar_FindVar ("scr_conscale")->callback (NULL);
-			}
-			break;
-		case SDL_TEXTINPUT:
-			if (in_debugkeys.value)
-				IN_DebugTextEvent (&event);
-
-			// SDL2: We use SDL_TEXTINPUT for typing in the console / chat.
-			// SDL2 uses the local keyboard layout and handles modifiers
-			// (shift for uppercase, etc.) for us.
-			{
-				unsigned char *ch;
-				for (ch = (unsigned char *)event.text.text; *ch; ch++)
-					if ((*ch & ~0x7F) == 0)
-						Char_Event (*ch);
-			}
-			break;
-		case SDL_KEYDOWN:
-		case SDL_KEYUP:
-			down = (event.key.state == SDL_PRESSED);
-
-			if (in_debugkeys.value)
-				IN_DebugKeyEvent (&event);
-
-			// SDL2: we interpret the keyboard as the US layout, so keybindings
-			// are based on key position, not the label on the key cap.
-			key = IN_SDL2_ScancodeToQuakeKey (event.key.keysym.scancode);
-
-			// though we also pass along the key using the proper current layout for Y/N prompts
-			Key_EventWithKeycode (key, down, event.key.keysym.sym);
-			break;
-
-		case SDL_MOUSEBUTTONDOWN:
-		case SDL_MOUSEBUTTONUP:
-			if (event.button.button < 1 || event.button.button > countof (buttonremap))
-			{
-				Con_Printf ("Ignored event for mouse button %d\n", event.button.button);
-				break;
-			}
-			Key_Event (buttonremap[event.button.button - 1], event.button.state == SDL_PRESSED);
-			break;
-
-		case SDL_MOUSEWHEEL:
-			if (event.wheel.y > 0)
-			{
-				Key_Event (K_MWHEELUP, true);
-				Key_Event (K_MWHEELUP, false);
-			}
-			else if (event.wheel.y < 0)
-			{
-				Key_Event (K_MWHEELDOWN, true);
-				Key_Event (K_MWHEELDOWN, false);
-			}
-			break;
-
-		case SDL_MOUSEMOTION:
-			IN_MouseMotion (event.motion.xrel, event.motion.yrel);
-			break;
-
-		case SDL_CONTROLLERDEVICEADDED:
-			if (joy_active_instaceid == -1)
-			{
-				joy_active_controller = SDL_GameControllerOpen (event.cdevice.which);
-				if (joy_active_controller == NULL)
-					Con_DPrintf ("Couldn't open game controller\n");
-				else
-				{
-					SDL_Joystick *joy;
-					joy = SDL_GameControllerGetJoystick (joy_active_controller);
-					joy_active_instaceid = SDL_JoystickInstanceID (joy);
-				}
-			}
-			else
-				Con_DPrintf ("Ignoring SDL_CONTROLLERDEVICEADDED\n");
-			break;
-		case SDL_CONTROLLERDEVICEREMOVED:
-			if (joy_active_instaceid != -1 && event.cdevice.which == joy_active_instaceid)
-			{
-				SDL_GameControllerClose (joy_active_controller);
-				joy_active_controller = NULL;
-				joy_active_instaceid = -1;
-			}
-			else
-				Con_DPrintf ("Ignoring SDL_CONTROLLERDEVICEREMOVED\n");
-			break;
-		case SDL_CONTROLLERDEVICEREMAPPED:
-			Con_DPrintf ("Ignoring SDL_CONTROLLERDEVICEREMAPPED\n");
-			break;
-
-		case SDL_QUIT:
-			CL_Disconnect ();
-			Sys_Quit ();
-			break;
-
-		default:
-			break;
 		}
 	}
 }

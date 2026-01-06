@@ -46,6 +46,11 @@ shaders = [
     'Shaders/ray_debug.comp',
 ]
 
+use_sdl3 = get_option('use_sdl3')
+if use_sdl3
+    add_project_arguments('-DUSE_SDL3', language: 'c')
+endif
+
 glslang = find_program('glslangValidator')
 spirv_opt = find_program('spirv-opt')
 spirv_remap_command = []
@@ -161,7 +166,6 @@ srcs = [
     'Quake/snd_dma.c',
     'Quake/snd_mem.c',
     'Quake/snd_mix.c',
-    'Quake/snd_sdl.c',
     'Quake/snd_umx.c',
     'Quake/snd_wave.c',
     'Quake/strlcat.c',
@@ -182,11 +186,21 @@ srcs = [
 
 cflags = ['-Wall', '-Wno-trigraphs', '-Werror', '-std=gnu11']
 
+if use_sdl3
+    sdl_dep = dependency('sdl3')
+    srcs += 'Quake/in_sdl3.c'
+    srcs += 'Quake/snd_sdl3.c'
+else
+    sdl_dep = dependency('sdl2')
+    srcs += 'Quake/in_sdl2.c'
+    srcs += 'Quake/snd_sdl.c'
+endif
+
 deps = [
     cc.find_library('m', required : false),
     cc.find_library('dl', required : false),
     dependency('threads'),
-    dependency('sdl2'),
+    sdl_dep,
 ]
 
 if build_machine.system() == 'darwin'

@@ -79,4 +79,10 @@ static inline task_handle_t Task_AllocateAssignIndexedFuncAndSubmit (task_indexe
 void TestTasks_f (void);
 #endif
 
+#ifdef USE_SDL3
+#define TASK_TIMEOUT_INFINITE -1
+#else
+#define TASK_TIMEOUT_INFINITE SDL_MUTEX_MAXWAIT
+#endif
+
 #endif

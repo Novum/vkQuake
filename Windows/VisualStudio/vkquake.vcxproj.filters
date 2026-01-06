@@ -190,6 +190,9 @@
     <ClCompile Include="..\..\Quake\in_sdl.c">
       <Filter>Main</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Quake\in_sdl2.c">
+      <Filter>Main</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\Quake\keys.c">
       <Filter>Main</Filter>
     </ClCompile>
