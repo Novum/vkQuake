@@ -2055,7 +2055,6 @@ byte *COM_LoadFile (const char *path, unsigned int *path_id)
 {
 	int	  h;
 	byte *buf;
-	char  base[32];
 	int	  len;
 
 	buf = NULL; // quiet compiler warning
@@ -2064,9 +2063,6 @@ byte *COM_LoadFile (const char *path, unsigned int *path_id)
 	len = COM_OpenFile (path, &h, path_id);
 	if (h == -1)
 		return NULL;
-
-	// extract the filename base name for hunk tag
-	COM_FileBase (path, base, sizeof (base));
 
 	buf = (byte *)Mem_AllocNonZero (len + 1);
 
