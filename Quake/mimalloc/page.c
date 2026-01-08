@@ -163,6 +163,7 @@ static void mi_page_thread_collect_to_local(mi_page_t* page, mi_block_t* head)
 
   // update counts now
   mi_assert_internal(count <= UINT16_MAX);
+  mi_assert_internal(page->used >= (uint16_t)count);
   page->used = page->used - (uint16_t)count;
 }
 
@@ -385,7 +386,7 @@ void _mi_page_free(mi_page_t* page, mi_page_queue_t* pq) {
   // mi_assert_internal(mi_page_thread_free_flag(page)!=MI_DELAYED_FREEING);
 
   // no more aligned blocks in here
-  mi_page_set_has_aligned(page, false);
+  mi_page_set_has_interior_pointers(page, false);
 
   // remove from the page list
   // (no need to do _mi_heap_delayed_free first as all blocks are already free)
@@ -412,7 +413,7 @@ void _mi_page_retire(mi_page_t* page) mi_attr_noexcept {
   mi_assert_expensive(_mi_page_is_valid(page));
   mi_assert_internal(mi_page_all_free(page));
 
-  mi_page_set_has_aligned(page, false);
+  mi_page_set_has_interior_pointers(page, false);
 
   // don't retire too often..
   // (or we end up retiring and re-allocating most of the time)
@@ -697,12 +698,11 @@ mi_decl_nodiscard bool _mi_page_init(mi_heap_t* heap, mi_page_t* page) {
   mi_assert_internal(page->next == NULL);
   mi_assert_internal(page->prev == NULL);
   mi_assert_internal(page->retire_expire == 0);
-  mi_assert_internal(!mi_page_has_aligned(page));
+  mi_assert_internal(!mi_page_has_interior_pointers(page));
   #if (MI_PADDING || MI_ENCODE_FREELIST)
   mi_assert_internal(page->keys[0] != 0);
   mi_assert_internal(page->keys[1] != 0);
   #endif
-  mi_assert_internal(page->block_size_shift == 0 || (mi_page_block_size(page) == ((size_t)1 << page->block_size_shift)));
   mi_assert_expensive(mi_page_is_valid_init(page));
 
   // initialize an initial free list
@@ -790,6 +790,7 @@ static mi_decl_noinline mi_page_t* mi_page_queue_find_free_ex(mi_heap_t* heap, m
   } // for each page
 
   mi_heap_stat_counter_increase(heap, page_searches, count);
+  mi_heap_stat_counter_increase(heap, page_searches_count, 1);
 
   // set the page to the best candidate
   if (page_candidate != NULL) {
@@ -938,7 +939,7 @@ static mi_page_t* mi_find_page(mi_heap_t* heap, size_t size, size_t huge_alignme
 // Note: in debug mode the size includes MI_PADDING_SIZE and might have overflowed.
 // The `huge_alignment` is normally 0 but is set to a multiple of MI_SLICE_SIZE for
 // very large requested alignments in which case we use a huge singleton page.
-void* _mi_malloc_generic(mi_heap_t* heap, size_t size, bool zero, size_t huge_alignment) mi_attr_noexcept
+void* _mi_malloc_generic(mi_heap_t* heap, size_t size, bool zero, size_t huge_alignment, size_t* usable) mi_attr_noexcept
 {
   mi_assert_internal(heap != NULL);
 
@@ -983,19 +984,11 @@ void* _mi_malloc_generic(mi_heap_t* heap, size_t size, bool zero, size_t huge_al
   mi_assert_internal(_mi_ptr_page(page)==page);
 
   // and try again, this time succeeding! (i.e. this should never recurse through _mi_page_malloc)
-  void* p;
-  if mi_unlikely(zero && mi_page_is_huge(page)) {
-    // note: we cannot call _mi_page_malloc with zeroing for huge blocks; we zero it afterwards in that case.
-    p = _mi_page_malloc(heap, page, size);
-    mi_assert_internal(p != NULL);
-    _mi_memzero_aligned(p, mi_page_usable_block_size(page));
-  }
-  else {
-    p = _mi_page_malloc_zero(heap, page, size, zero);
-    mi_assert_internal(p != NULL);
-  }
-  // move singleton pages to the full queue
-  if (page->reserved == page->used) {
+  void* const p = _mi_page_malloc_zero(heap, page, size, zero, usable);
+  mi_assert_internal(p != NULL);
+  
+  // move full pages to the full queue
+  if (mi_page_is_full(page)) {
     mi_page_to_full(page, mi_page_queue_of(page));
   }
   return p;

@@ -199,7 +199,11 @@ void _mi_heap_init(mi_heap_t* heap, mi_arena_id_t arena_id, bool allow_destroy, 
 
   if (heap->tld->heap_backing == NULL) {
     heap->tld->heap_backing = heap;  // first heap becomes the backing heap
-    _mi_random_init(&heap->random);
+    #if defined(_WIN32) && !defined(MI_SHARED_LIB)
+      _mi_random_init_weak(&heap->random);    // prevent allocation failure during bcrypt dll initialization with static linking (issue #1185)
+    #else
+      _mi_random_init(&heap->random);
+    #endif
   }
   else {
     _mi_random_split(&heap->tld->heap_backing->random, &heap->random);
@@ -224,7 +228,7 @@ mi_heap_t* _mi_heap_create(int heap_tag, bool allow_destroy, mi_arena_id_t arena
     heap = (mi_heap_t*)_mi_meta_zalloc(sizeof(mi_heap_t), &memid);
   }
   else {
-    // heaps associated wita a specific arena are allocated in that arena
+    // heaps associated with a specific arena are allocated in that arena
     // note: takes up at least one slice which is quite wasteful...
     heap = (mi_heap_t*)_mi_arenas_alloc(_mi_subproc(), _mi_align_up(sizeof(mi_heap_t),MI_ARENA_MIN_OBJ_SIZE), true, true, _mi_arena_from_id(arena_id), tld->thread_seq, tld->numa_node, &memid);
   }
@@ -305,7 +309,12 @@ static void mi_heap_free(mi_heap_t* heap, bool do_free_mem) {
 
   // and free the used memory
   if (do_free_mem) {
-    _mi_meta_free(heap, sizeof(*heap), heap->memid);
+    if (heap->memid.memkind == MI_MEM_META) {
+      _mi_meta_free(heap, sizeof(*heap), heap->memid);
+    }
+    else {
+      _mi_arenas_free(heap, _mi_align_up(sizeof(*heap),MI_ARENA_MIN_OBJ_SIZE), heap->memid ); // issue #1168, avoid assertion failure
+    }
   }
 }
 

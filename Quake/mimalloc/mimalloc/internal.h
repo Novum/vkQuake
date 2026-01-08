@@ -126,6 +126,7 @@ void          _mi_strlcpy(char* dest, const char* src, size_t dest_size);
 void          _mi_strlcat(char* dest, const char* src, size_t dest_size);
 size_t        _mi_strlen(const char* s);
 size_t        _mi_strnlen(const char* s, size_t max_len);
+char*         _mi_strnstr(char* s, size_t max_len, const char* pat);
 bool          _mi_getenv(const char* name, char* result, size_t result_size);
 
 // "options.c"
@@ -184,6 +185,7 @@ size_t        _mi_os_good_alloc_size(size_t size);
 bool          _mi_os_has_overcommit(void);
 bool          _mi_os_has_virtual_reserve(void);
 size_t        _mi_os_virtual_address_bits(void);
+size_t        _mi_os_minimal_purge_size(void);
 
 bool          _mi_os_reset(void* addr, size_t size);
 bool          _mi_os_decommit(void* addr, size_t size);
@@ -208,7 +210,7 @@ void*         _mi_os_alloc_aligned(size_t size, size_t alignment, bool commit, b
 void*         _mi_os_alloc_aligned_at_offset(size_t size, size_t alignment, size_t align_offset, bool commit, bool allow_large, mi_memid_t* memid);
 
 void*         _mi_os_get_aligned_hint(size_t try_alignment, size_t size);
-bool          _mi_os_use_large_page(size_t size, size_t alignment);
+bool          _mi_os_canuse_large_page(size_t size, size_t alignment);
 size_t        _mi_os_large_page_size(void);
 void*         _mi_os_alloc_huge_os_pages(size_t pages, int numa_node, mi_msecs_t max_secs, size_t* pages_reserved, size_t* psize, mi_memid_t* memid);
 
@@ -223,7 +225,7 @@ void*         _mi_arenas_alloc_aligned(mi_subproc_t* subproc, size_t size, size_
 void          _mi_arenas_free(void* p, size_t size, mi_memid_t memid);
 bool          _mi_arenas_contain(const void* p);
 void          _mi_arenas_collect(bool force_purge, bool visit_all, mi_tld_t* tld);
-void          _mi_arenas_unsafe_destroy_all(mi_tld_t* tld);
+void          _mi_arenas_unsafe_destroy_all(mi_subproc_t* subproc);
 
 mi_page_t*    _mi_arenas_page_alloc(mi_heap_t* heap, size_t block_size, size_t page_alignment);
 void          _mi_arenas_page_free(mi_page_t* page, mi_tld_t* tld);
@@ -238,14 +240,14 @@ bool          _mi_meta_is_meta_page(void* p);
 
 // "page-map.c"
 bool          _mi_page_map_init(void);
-void          _mi_page_map_register(mi_page_t* page);
+mi_decl_nodiscard bool _mi_page_map_register(mi_page_t* page);
 void          _mi_page_map_unregister(mi_page_t* page);
 void          _mi_page_map_unregister_range(void* start, size_t size);
 mi_page_t*    _mi_safe_ptr_page(const void* p);
 void          _mi_page_map_unsafe_destroy(mi_subproc_t* subproc);
 
 // "page.c"
-void*         _mi_malloc_generic(mi_heap_t* heap, size_t size, bool zero, size_t huge_alignment)  mi_attr_noexcept mi_attr_malloc;
+void*         _mi_malloc_generic(mi_heap_t* heap, size_t size, bool zero, size_t huge_alignment, size_t* usable)  mi_attr_noexcept mi_attr_malloc;
 
 void          _mi_page_retire(mi_page_t* page) mi_attr_noexcept;       // free the page if there are no other pages with many free blocks
 void          _mi_page_unfull(mi_page_t* page);
@@ -261,9 +263,9 @@ void          _mi_page_free_collect_partly(mi_page_t* page, mi_block_t* head);
 mi_decl_nodiscard bool _mi_page_init(mi_heap_t* heap, mi_page_t* page);
 bool          _mi_page_queue_is_valid(mi_heap_t* heap, const mi_page_queue_t* pq);
 
-size_t        _mi_page_bin(const mi_page_t* page); // for stats
-size_t        _mi_bin_size(size_t bin);            // for stats
-size_t        _mi_bin(size_t size);                // for stats
+size_t        _mi_page_stats_bin(const mi_page_t* page); // for stats
+size_t        _mi_bin_size(size_t bin);                  // for stats
+size_t        _mi_bin(size_t size);                      // for stats
 
 // "heap.c"
 mi_heap_t*    _mi_heap_create(int heap_tag, bool allow_destroy, mi_arena_id_t arena_id, mi_tld_t* tld);
@@ -289,12 +291,12 @@ mi_msecs_t    _mi_clock_end(mi_msecs_t start);
 mi_msecs_t    _mi_clock_start(void);
 
 // "alloc.c"
-void*         _mi_page_malloc_zero(mi_heap_t* heap, mi_page_t* page, size_t size, bool zero) mi_attr_noexcept;  // called from `_mi_malloc_generic`
+void*         _mi_page_malloc_zero(mi_heap_t* heap, mi_page_t* page, size_t size, bool zero, size_t* usable) mi_attr_noexcept;  // called from `_mi_malloc_generic`
 void*         _mi_page_malloc(mi_heap_t* heap, mi_page_t* page, size_t size) mi_attr_noexcept;                  // called from `_mi_heap_malloc_aligned`
 void*         _mi_page_malloc_zeroed(mi_heap_t* heap, mi_page_t* page, size_t size) mi_attr_noexcept;           // called from `_mi_heap_malloc_aligned`
 void*         _mi_heap_malloc_zero(mi_heap_t* heap, size_t size, bool zero) mi_attr_noexcept;
-void*         _mi_heap_malloc_zero_ex(mi_heap_t* heap, size_t size, bool zero, size_t huge_alignment) mi_attr_noexcept;     // called from `_mi_heap_malloc_aligned`
-void*         _mi_heap_realloc_zero(mi_heap_t* heap, void* p, size_t newsize, bool zero) mi_attr_noexcept;
+void*         _mi_heap_malloc_zero_ex(mi_heap_t* heap, size_t size, bool zero, size_t huge_alignment, size_t* usable) mi_attr_noexcept;     // called from `_mi_heap_malloc_aligned`
+void*         _mi_heap_realloc_zero(mi_heap_t* heap, void* p, size_t newsize, bool zero, size_t* usable_pre, size_t* usable_post) mi_attr_noexcept;
 mi_block_t*   _mi_page_ptr_unalign(const mi_page_t* page, const void* p);
 void          _mi_padding_shrink(const mi_page_t* page, const mi_block_t* block, const size_t min_size);
 
@@ -604,7 +606,8 @@ static inline mi_page_t* _mi_unchecked_ptr_page(const void* p) {
 #define MI_PAGE_MAP_SHIFT         (MI_MAX_VABITS - MI_PAGE_MAP_SUB_SHIFT - MI_ARENA_SLICE_SHIFT)
 #define MI_PAGE_MAP_COUNT         (MI_ZU(1) << MI_PAGE_MAP_SHIFT)
 
-extern mi_decl_hidden _Atomic(mi_page_t**)* _mi_page_map;
+typedef mi_page_t**   mi_submap_t;
+extern mi_decl_hidden _Atomic(mi_submap_t)* _mi_page_map;
 
 static inline size_t _mi_page_map_index(const void* p, size_t* sub_idx) {
   const size_t u = (size_t)((uintptr_t)p / MI_ARENA_SLICE_SIZE);
@@ -612,7 +615,7 @@ static inline size_t _mi_page_map_index(const void* p, size_t* sub_idx) {
   return (u / MI_PAGE_MAP_SUB_COUNT);
 }
 
-static inline mi_page_t** _mi_page_map_at(size_t idx) {
+static inline mi_submap_t _mi_page_map_at(size_t idx) {
   return mi_atomic_load_ptr_relaxed(mi_page_t*, &_mi_page_map[idx]);
 }
 
@@ -625,7 +628,7 @@ static inline mi_page_t* _mi_unchecked_ptr_page(const void* p) {
 static inline mi_page_t* _mi_checked_ptr_page(const void* p) {
   size_t sub_idx;
   const size_t idx = _mi_page_map_index(p, &sub_idx);
-  mi_page_t** const sub = _mi_page_map_at(idx);
+  mi_submap_t const sub = _mi_page_map_at(idx);
   if mi_unlikely(sub == NULL) return NULL;
   return sub[sub_idx];
 }
@@ -730,7 +733,7 @@ static inline bool mi_page_is_expandable(const mi_page_t* page) {
 
 
 static inline bool mi_page_is_full(mi_page_t* page) {
-  bool full = (page->reserved == page->used);
+  const bool full = (page->reserved == page->used);
   mi_assert_internal(!full || page->free == NULL);
   return full;
 }
@@ -794,17 +797,16 @@ static inline void mi_page_set_in_full(mi_page_t* page, bool in_full) {
   mi_page_flags_set(page, in_full, MI_PAGE_IN_FULL_QUEUE);
 }
 
-static inline bool mi_page_has_aligned(const mi_page_t* page) {
-  return ((mi_page_flags(page) & MI_PAGE_HAS_ALIGNED) != 0);
+static inline bool mi_page_has_interior_pointers(const mi_page_t* page) {
+  return ((mi_page_flags(page) & MI_PAGE_HAS_INTERIOR_POINTERS) != 0);
 }
 
-static inline void mi_page_set_has_aligned(mi_page_t* page, bool has_aligned) {
-  mi_page_flags_set(page, has_aligned, MI_PAGE_HAS_ALIGNED);
+static inline void mi_page_set_has_interior_pointers(mi_page_t* page, bool has_aligned) {
+  mi_page_flags_set(page, has_aligned, MI_PAGE_HAS_INTERIOR_POINTERS);
 }
 
 static inline void mi_page_set_heap(mi_page_t* page, mi_heap_t* heap) {
   // mi_assert_internal(!mi_page_is_in_full(page));  // can happen when destroying pages on heap_destroy
-  const mi_threadid_t tid = (heap == NULL ? MI_THREADID_ABANDONED : heap->tld->thread_id) | mi_page_flags(page);
   if (heap != NULL) {
     page->heap = heap;
     page->heap_tag = heap->tag;
@@ -812,7 +814,15 @@ static inline void mi_page_set_heap(mi_page_t* page, mi_heap_t* heap) {
   else {
     page->heap = NULL;
   }
-  mi_atomic_store_release(&page->xthread_id, tid);
+  const mi_threadid_t tid = (heap == NULL ? MI_THREADID_ABANDONED : heap->tld->thread_id);
+  mi_assert_internal((tid & MI_PAGE_FLAG_MASK) == 0);
+
+  // we need to use an atomic cas since a concurrent thread may still set the MI_PAGE_HAS_INTERIOR_POINTERS flag (see `alloc_aligned.c`).
+  mi_threadid_t xtid_old = mi_page_xthread_id(page);
+  mi_threadid_t xtid;
+  do {
+    xtid = tid | (xtid_old & MI_PAGE_FLAG_MASK);
+  } while (!mi_atomic_cas_weak_release(&page->xthread_id, &xtid_old, xtid));
 }
 
 static inline bool mi_page_is_abandoned(const mi_page_t* page) {
@@ -860,48 +870,15 @@ static inline bool mi_page_has_any_available(const mi_page_t* page) {
   return (page->used < page->reserved || (mi_page_thread_free(page) != NULL));
 }
 
-
 // Owned?
 static inline bool mi_page_is_owned(const mi_page_t* page) {
   return mi_tf_is_owned(mi_atomic_load_relaxed(&((mi_page_t*)page)->xthread_free));
-}
-
-// Unown a page that is currently owned
-static inline void _mi_page_unown_unconditional(mi_page_t* page) {
-  mi_assert_internal(mi_page_is_owned(page));
-  mi_assert_internal(mi_page_thread_id(page)==0);
-  const uintptr_t old = mi_atomic_and_acq_rel(&page->xthread_free, ~((uintptr_t)1));
-  mi_assert_internal((old&1)==1); MI_UNUSED(old);
 }
 
 // get ownership if it is not yet owned
 static inline bool mi_page_try_claim_ownership(mi_page_t* page) {
   const uintptr_t old = mi_atomic_or_acq_rel(&page->xthread_free, 1);
   return ((old&1)==0);
-}
-
-// release ownership of a page. This may free the page if all blocks were concurrently
-// freed in the meantime. Returns true if the page was freed.
-static inline bool _mi_page_unown(mi_page_t* page) {
-  mi_assert_internal(mi_page_is_owned(page));
-  mi_assert_internal(mi_page_is_abandoned(page));
-  mi_thread_free_t tf_new;
-  mi_thread_free_t tf_old = mi_atomic_load_relaxed(&page->xthread_free);
-  do {
-    mi_assert_internal(mi_tf_is_owned(tf_old));
-    while mi_unlikely(mi_tf_block(tf_old) != NULL) {
-      _mi_page_free_collect(page, false);  // update used
-      if (mi_page_all_free(page)) {        // it may become free just before unowning it
-        _mi_arenas_page_unabandon(page);
-        _mi_arenas_page_free(page,NULL);
-        return true;
-      }
-      tf_old = mi_atomic_load_relaxed(&page->xthread_free);
-    }
-    mi_assert_internal(mi_tf_block(tf_old)==NULL);
-    tf_new = mi_tf_create(NULL, false);
-  } while (!mi_atomic_cas_weak_acq_rel(&page->xthread_free, &tf_old, tf_new));
-  return false;
 }
 
 
