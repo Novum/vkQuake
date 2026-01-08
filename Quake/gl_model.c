@@ -559,11 +559,15 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 	}
 
 	// load the model file, together with replacement overrides for .mdl, if they are available.
+	// 0 is an invalid path_id, starts at 1 for existing files:
 	unsigned int md5_enhanced_path_id = 0;
 	unsigned int md3_enhanced_path_id = 0;
-	byte		*buf = NULL, *md3_buf = NULL, *md5_buf = NULL;
+	int			 h;
+	int			 len;
 
-	char newname[MAX_QPATH];
+	byte *buf = NULL;
+
+	char md3_name[MAX_QPATH], md5_name[MAX_QPATH];
 
 	// 1. Load the original model buffer:
 	buf = COM_LoadFile (mod->name, &mod->path_id);
@@ -577,69 +581,82 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 
 	const bool mod_is_mdl = (strcmp (COM_FileGetExtension (mod->name), "mdl") == 0);
 
-	// 2. Find MDL "enhanced" complementatry models, if any:
+	// 2. Find MDL "enhanced" complementary models, if any:
 	if (mod_is_mdl && r_allow_replacement_md3models.value)
 	{
 		// newname is the .mdl model with extension changed to .md3:
-		COM_StripExtension (mod->name, newname, sizeof (newname));
-		COM_AddExtension (newname, ".md3", sizeof (newname));
+		COM_StripExtension (mod->name, md3_name, sizeof (md3_name));
+		COM_AddExtension (md3_name, ".md3", sizeof (md3_name));
 
-		md3_buf = COM_LoadFile (newname, &md3_enhanced_path_id);
+		// Search for the file but do not load it:
+		//   look for it in the filesystem or pack files
+		len = COM_OpenFile (md3_name, &h, &md3_enhanced_path_id);
+		if (h == -1)
+			md3_enhanced_path_id = 0; // file not found
+		COM_CloseFile (h);
 
 		// this is a replacement only if its priority is >= MDL one, else discard it
 		if (md3_enhanced_path_id < mod->path_id)
 		{
-			SAFE_FREE (md3_buf);
+			md3_enhanced_path_id = 0;
 		}
 	}
 
 	if (mod_is_mdl && r_allow_replacement_md5models.value)
 	{
 		// newname is the .mdl model with extension changed to .md5mesh:
-		COM_StripExtension (mod->name, newname, sizeof (newname));
-		COM_AddExtension (newname, ".md5mesh", sizeof (newname));
+		COM_StripExtension (mod->name, md5_name, sizeof (md5_name));
+		COM_AddExtension (md5_name, ".md5mesh", sizeof (md5_name));
 
-		md5_buf = COM_LoadFile (newname, &md5_enhanced_path_id);
+		// Search for the file but do not load it:
+		//   look for it in the filesystem or pack files
+		len = COM_OpenFile (md5_name, &h, &md5_enhanced_path_id);
+		if (h == -1)
+			md5_enhanced_path_id = 0;
+		COM_CloseFile (h);
 
 		// this is a replacement only if its priority is >= MDL one, else discard it
 		if (md5_enhanced_path_id < mod->path_id)
 		{
-			SAFE_FREE (md5_buf);
+			md5_enhanced_path_id = 0;
 		}
 	}
 
 	// 3. If there are multiple replacement models (MD3 + MD5) only keep the one with the highest prio
 	//  in case of equality, MD3 wins.
-	if (md3_buf && md5_buf)
+	if (md3_enhanced_path_id && md5_enhanced_path_id)
 	{
 		if (md5_enhanced_path_id > md3_enhanced_path_id)
-			SAFE_FREE (md3_buf);
+			md3_enhanced_path_id = 0;
 		else
-			SAFE_FREE (md5_buf);
+			md5_enhanced_path_id = 0;
 	}
 
-	if (md3_buf)
+	// 4. Load the (unique) selected complementary model :
+	if (md3_enhanced_path_id)
 	{
+		byte		*md3_buf = COM_LoadFile (md3_name, &md3_enhanced_path_id);
 		// To assure that the external resources associated with MD3
 		// are properly filtered/loaded, we need to set mod->path_id = md3_enhanced_path_id temporarilly
 		unsigned int original_path_id = mod->path_id;
 		mod->path_id = md3_enhanced_path_id;
 		Mod_LoadMD3Model (mod, md3_buf);
 		mod->path_id = original_path_id;
-		SAFE_FREE (md3_buf);
+		Mem_Free (md3_buf);
 	}
-	else if (md5_buf)
+	else if (md5_enhanced_path_id)
 	{
+		byte		*md5_buf = COM_LoadFile (md5_name, &md5_enhanced_path_id);
 		// To assure that the external resources associated with MD5
 		// are properly filtered/loaded, we need to set mod->path_id = md5_enhanced_path_id temporarilly
 		unsigned int original_path_id = mod->path_id;
 		mod->path_id = md5_enhanced_path_id;
 		Mod_LoadMD5MeshModel (mod, md5_buf);
 		mod->path_id = original_path_id;
-		SAFE_FREE (md5_buf);
+		Mem_Free (md5_buf);
 	}
 
-	// 4. Finally, Load the original model, calling the appropriate loader:
+	// 5. Finally, Load the original model, calling the appropriate loader:
 	mod->needload = false;
 
 	mod_type = (buf[0] | (buf[1] << 8) | (buf[2] << 16) | (buf[3] << 24));
