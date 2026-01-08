@@ -2390,16 +2390,26 @@ void R_BuildTopLevelAccelerationStructure (void *unused)
 		return;
 
 	cb_context_t *cbx = &vulkan_globals.primary_cb_contexts[PCBX_BUILD_ACCELERATION_STRUCTURES];
+
+	// Update animated entity BLASes first
+	R_UpdateAnimatedBLAS (cbx);
+
 	R_BeginDebugUtilsLabel (cbx, "Build TLAS");
 
 	int num_instances = 0;
 	for (int i = 0; i < cl.num_entities + cl.num_statics; ++i)
 	{
 		entity_t *e = (i < cl.num_entities) ? &cl.entities[i] : cl.static_entities[i - cl.num_entities];
-		if (!e->model || (e->model->needload) || (e->model->type != mod_brush) || (e->model->blas == VK_NULL_HANDLE) ||
-			((e->alpha != ENTALPHA_DEFAULT) && (ENTALPHA_DECODE (e->alpha) < 1.0f)))
+		if (!e->model || e->model->needload)
 			continue;
-		++num_instances;
+		if ((e->alpha != ENTALPHA_DEFAULT) && (ENTALPHA_DECODE (e->alpha) < 1.0f))
+			continue;
+
+		// Brush models use model BLAS, alias models use entity BLAS
+		if (e->model->type == mod_brush && e->model->blas != VK_NULL_HANDLE)
+			++num_instances;
+		else if (e->model->type == mod_alias && e->blas != VK_NULL_HANDLE)
+			++num_instances;
 	}
 
 	VkDeviceAddress						instances_device_address;
@@ -2410,9 +2420,27 @@ void R_BuildTopLevelAccelerationStructure (void *unused)
 	for (int i = 0; i < cl.num_entities + cl.num_statics; ++i)
 	{
 		entity_t *e = (i < cl.num_entities) ? &cl.entities[i] : cl.static_entities[i - cl.num_entities];
-		if (!e->model || (e->model->needload) || (e->model->type != mod_brush) || (e->model->blas == VK_NULL_HANDLE) ||
-			((e->alpha != ENTALPHA_DEFAULT) && (ENTALPHA_DECODE (e->alpha) < 1.0f)))
+		if (!e->model || e->model->needload)
 			continue;
+		if ((e->alpha != ENTALPHA_DEFAULT) && (ENTALPHA_DECODE (e->alpha) < 1.0f))
+			continue;
+
+		VkDeviceAddress blas_address = 0;
+		qboolean		is_alias = false;
+
+		if (e->model->type == mod_brush && e->model->blas != VK_NULL_HANDLE)
+		{
+			blas_address = e->model->blas_address;
+		}
+		else if (e->model->type == mod_alias && e->blas != VK_NULL_HANDLE)
+		{
+			blas_address = e->blas_address;
+			is_alias = true;
+		}
+		else
+		{
+			continue;
+		}
 
 		vec3_t e_angles;
 		VectorCopy (e->angles, e_angles);
@@ -2421,6 +2449,22 @@ void R_BuildTopLevelAccelerationStructure (void *unused)
 		IdentityMatrix (model_matrix);
 		if (e->model != cl.worldmodel)
 			R_RotateForEntity (model_matrix, e->origin, e_angles, e->netstate.scale);
+
+		// For alias models, apply scale_origin translation and scale
+		if (is_alias)
+		{
+			aliashdr_t *hdr = (aliashdr_t *)Mod_Extradata (e->model);
+			if (hdr)
+			{
+				float translation_matrix[16];
+				TranslationMatrix (translation_matrix, hdr->scale_origin[0], hdr->scale_origin[1], hdr->scale_origin[2]);
+				MatrixMultiply (model_matrix, translation_matrix);
+
+				float scale_matrix[16];
+				ScaleMatrix (scale_matrix, hdr->scale[0], hdr->scale[1], hdr->scale[2]);
+				MatrixMultiply (model_matrix, scale_matrix);
+			}
+		}
 
 		VkAccelerationStructureInstanceKHR *instance = &instances[num_instances];
 		instance->transform.matrix[0][0] = model_matrix[0];
@@ -2439,7 +2483,7 @@ void R_BuildTopLevelAccelerationStructure (void *unused)
 		instance->mask = 0xFF;
 		instance->instanceShaderBindingTableRecordOffset = 0;
 		instance->flags = VK_GEOMETRY_INSTANCE_FORCE_OPAQUE_BIT_KHR | VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR;
-		instance->accelerationStructureReference = e->model->blas_address;
+		instance->accelerationStructureReference = blas_address;
 
 		++num_instances;
 	}

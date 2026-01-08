@@ -44,6 +44,8 @@ shaders = [
     'Shaders/world.frag',
     'Shaders/world.vert',
     'Shaders/ray_debug.comp',
+    'Shaders/mesh_interpolate.comp',
+    'Shaders/skinning.comp',
 ]
 
 use_sdl3 = get_option('use_sdl3')

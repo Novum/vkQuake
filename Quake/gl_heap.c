@@ -198,8 +198,17 @@ static glheapsegment_t *GL_CreateHeapSegment (glheap_t *heap, atomic_uint32_t *n
 {
 	glheapsegment_t *segment = (glheapsegment_t *)Mem_Alloc (sizeof (glheapsegment_t));
 
+	// If ray tracing is enabled, we need device addresses for acceleration structure buffers
+	ZEROED_STRUCT (VkMemoryAllocateFlagsInfo, memory_allocate_flags_info);
+	if (vulkan_globals.ray_query)
+	{
+		memory_allocate_flags_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO;
+		memory_allocate_flags_info.flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT;
+	}
+
 	ZEROED_STRUCT (VkMemoryAllocateInfo, memory_allocate_info);
 	memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	memory_allocate_info.pNext = vulkan_globals.ray_query ? &memory_allocate_flags_info : NULL;
 	memory_allocate_info.allocationSize = heap->segment_size;
 	memory_allocate_info.memoryTypeIndex = heap->memory_type_index;
 

@@ -117,7 +117,13 @@ $(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(Solution
     <CustomBuild Include="..\..\Shaders\md5.vert">
       <FileType>Document</FileType>
     </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\mesh_interpolate.comp">
+      <FileType>Document</FileType>
+    </CustomBuild>
     <None Include="..\..\Shaders\screen_effects.inc" />
+    <CustomBuild Include="..\..\Shaders\skinning.comp">
+      <FileType>Document</FileType>
+    </CustomBuild>
     <None Include="..\..\Shaders\update_lightmap.inc" />
     <None Include="..\..\Shaders\globals.inc" />
     <CustomBuild Include="..\..\Shaders\update_lightmap_8bit.comp">

@@ -518,6 +518,7 @@ static void CL_EntitiesDeltaed (void)
 		model = cl.model_precache[ent->netstate.modelindex];
 		if (model != ent->model)
 		{
+			R_FreeEntityBLAS (ent); // Free old BLAS before model change
 			ent->model = model;
 			InvalidateTraceLineCache ();
 
@@ -1261,6 +1262,7 @@ static void CL_ParseUpdate (int bits)
 	model = cl.model_precache[modnum];
 	if (model != ent->model)
 	{
+		R_FreeEntityBLAS (ent); // Free old BLAS before model change
 		ent->model = model;
 		InvalidateTraceLineCache ();
 		// automatic animation (torches, etc) can be either all together

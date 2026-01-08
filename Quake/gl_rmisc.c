@@ -1205,6 +1205,22 @@ void R_InitGPUBuffers (void)
 	R_InitDynamicIndexBuffers ();
 	R_InitDynamicUniformBuffers ();
 	R_InitFanIndexBuffer ();
+
+	// Initialize scratch buffer for animated AS building
+	if (vulkan_globals.ray_query)
+	{
+		buffer_create_info_t buffer_create_info = {
+			.buffer = &vulkan_globals.scratch_buffer,
+			.size = SCRATCH_BUFFER_SIZE_MB * 1024 * 1024,
+			.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+					 VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
+			.address = &vulkan_globals.scratch_buffer_address,
+			.alignment = vulkan_globals.physical_device_acceleration_structure_properties.minAccelerationStructureScratchOffsetAlignment,
+			.name = "Animated AS scratch",
+		};
+		R_CreateBuffers (1, &buffer_create_info, &vulkan_globals.scratch_buffer_memory, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, &num_vulkan_misc_allocations,
+						 "Animated AS scratch");
+	}
 }
 
 /*
@@ -1453,6 +1469,35 @@ void R_CreateDescriptorSetLayouts ()
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkCreateDescriptorSetLayout failed");
 		GL_SetObjectName ((uint64_t)vulkan_globals.indirect_compute_set_layout.handle, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT, "indirect compute");
+	}
+
+	if (vulkan_globals.ray_query)
+	{
+		// Animation compute set layout: 3 storage buffers (input vertices, joints/unused, output positions)
+		ZEROED_STRUCT_ARRAY (VkDescriptorSetLayoutBinding, anim_compute_layout_bindings, 3);
+		anim_compute_layout_bindings[0].binding = 0;
+		anim_compute_layout_bindings[0].descriptorCount = 1;
+		anim_compute_layout_bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+		anim_compute_layout_bindings[0].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+		anim_compute_layout_bindings[1].binding = 1;
+		anim_compute_layout_bindings[1].descriptorCount = 1;
+		anim_compute_layout_bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+		anim_compute_layout_bindings[1].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+		anim_compute_layout_bindings[2].binding = 2;
+		anim_compute_layout_bindings[2].descriptorCount = 1;
+		anim_compute_layout_bindings[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+		anim_compute_layout_bindings[2].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
+		descriptor_set_layout_create_info.bindingCount = countof (anim_compute_layout_bindings);
+		descriptor_set_layout_create_info.pBindings = anim_compute_layout_bindings;
+
+		memset (&vulkan_globals.anim_compute_set_layout, 0, sizeof (vulkan_globals.anim_compute_set_layout));
+		vulkan_globals.anim_compute_set_layout.num_storage_buffers = 3;
+
+		err = vkCreateDescriptorSetLayout (vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.anim_compute_set_layout.handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreateDescriptorSetLayout failed");
+		GL_SetObjectName ((uint64_t)vulkan_globals.anim_compute_set_layout.handle, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT, "anim compute");
 	}
 
 #if defined(_DEBUG)
@@ -1845,6 +1890,41 @@ void R_CreatePipelineLayouts ()
 		vulkan_globals.indirect_clear_pipeline.layout.push_constant_range = push_constant_range;
 	}
 
+	if (vulkan_globals.ray_query)
+	{
+		// Mesh interpolate pipeline (MDL/MD3)
+		VkDescriptorSetLayout mesh_interpolate_descriptor_set_layouts[1] = {
+			vulkan_globals.anim_compute_set_layout.handle,
+		};
+
+		ZEROED_STRUCT (VkPushConstantRange, push_constant_range);
+		push_constant_range.offset = 0;
+		push_constant_range.size = 12 * sizeof (uint32_t); // 48 bytes
+		push_constant_range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
+		ZEROED_STRUCT (VkPipelineLayoutCreateInfo, pipeline_layout_create_info);
+		pipeline_layout_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+		pipeline_layout_create_info.setLayoutCount = 1;
+		pipeline_layout_create_info.pSetLayouts = mesh_interpolate_descriptor_set_layouts;
+		pipeline_layout_create_info.pushConstantRangeCount = 1;
+		pipeline_layout_create_info.pPushConstantRanges = &push_constant_range;
+
+		err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.mesh_interpolate_pipeline.layout.handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreatePipelineLayout failed");
+		GL_SetObjectName ((uint64_t)vulkan_globals.mesh_interpolate_pipeline.layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "mesh_interpolate_pipeline_layout");
+		vulkan_globals.mesh_interpolate_pipeline.layout.push_constant_range = push_constant_range;
+
+		// Skinning pipeline (MD5)
+		push_constant_range.size = 5 * sizeof (uint32_t); // 20 bytes
+
+		err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.skinning_pipeline.layout.handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreatePipelineLayout failed");
+		GL_SetObjectName ((uint64_t)vulkan_globals.skinning_pipeline.layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "skinning_pipeline_layout");
+		vulkan_globals.skinning_pipeline.layout.push_constant_range = push_constant_range;
+	}
+
 #if defined(_DEBUG)
 	if (vulkan_globals.ray_query)
 	{
@@ -2133,6 +2213,8 @@ DECLARE_SHADER_MODULE (update_lightmap_8bit_rt_comp);
 DECLARE_SHADER_MODULE (update_lightmap_10bit_comp);
 DECLARE_SHADER_MODULE (update_lightmap_10bit_rt_comp);
 DECLARE_SHADER_MODULE (ray_debug_comp);
+DECLARE_SHADER_MODULE (mesh_interpolate_comp);
+DECLARE_SHADER_MODULE (skinning_comp);
 
 /*
 ===============
@@ -2508,6 +2590,48 @@ static void R_CreateRayDebugPipelines ()
 		Sys_Error ("vkCreateComputePipelines failed (ray_debug_pipeline)");
 	GL_SetObjectName ((uint64_t)vulkan_globals.ray_debug_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "ray_debug_pipeline");
 #endif
+}
+
+/*
+===============
+R_CreateAnimComputePipelines
+===============
+*/
+static void R_CreateAnimComputePipelines ()
+{
+	if (!vulkan_globals.ray_query)
+		return;
+
+	VkResult				err;
+	pipeline_create_infos_t infos;
+	R_InitDefaultStates (&infos);
+
+	ZEROED_STRUCT (VkPipelineShaderStageCreateInfo, compute_shader_stage);
+	compute_shader_stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	compute_shader_stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+	compute_shader_stage.module = mesh_interpolate_comp_module;
+	compute_shader_stage.pName = "main";
+
+	memset (&infos.compute_pipeline, 0, sizeof (infos.compute_pipeline));
+	infos.compute_pipeline.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+	infos.compute_pipeline.stage = compute_shader_stage;
+	infos.compute_pipeline.layout = vulkan_globals.mesh_interpolate_pipeline.layout.handle;
+
+	assert (vulkan_globals.mesh_interpolate_pipeline.handle == VK_NULL_HANDLE);
+	err = vkCreateComputePipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.compute_pipeline, NULL, &vulkan_globals.mesh_interpolate_pipeline.handle);
+	if (err != VK_SUCCESS)
+		Sys_Error ("vkCreateComputePipelines failed (mesh_interpolate_pipeline)");
+	GL_SetObjectName ((uint64_t)vulkan_globals.mesh_interpolate_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "mesh_interpolate_pipeline");
+
+	compute_shader_stage.module = skinning_comp_module;
+	infos.compute_pipeline.stage = compute_shader_stage;
+	infos.compute_pipeline.layout = vulkan_globals.skinning_pipeline.layout.handle;
+
+	assert (vulkan_globals.skinning_pipeline.handle == VK_NULL_HANDLE);
+	err = vkCreateComputePipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.compute_pipeline, NULL, &vulkan_globals.skinning_pipeline.handle);
+	if (err != VK_SUCCESS)
+		Sys_Error ("vkCreateComputePipelines failed (skinning_pipeline)");
+	GL_SetObjectName ((uint64_t)vulkan_globals.skinning_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "skinning_pipeline");
 }
 
 /*
@@ -3370,6 +3494,8 @@ static void R_CreateShaderModules ()
 #ifdef _DEBUG
 	CREATE_SHADER_MODULE_COND (ray_debug_comp, vulkan_globals.ray_query);
 #endif
+	CREATE_SHADER_MODULE_COND (mesh_interpolate_comp, vulkan_globals.ray_query);
+	CREATE_SHADER_MODULE_COND (skinning_comp, vulkan_globals.ray_query);
 }
 
 /*
@@ -3412,6 +3538,8 @@ static void R_DestroyShaderModules ()
 	DESTROY_SHADER_MODULE (update_lightmap_10bit_comp);
 	DESTROY_SHADER_MODULE (update_lightmap_10bit_rt_comp);
 	DESTROY_SHADER_MODULE (ray_debug_comp);
+	DESTROY_SHADER_MODULE (mesh_interpolate_comp);
+	DESTROY_SHADER_MODULE (skinning_comp);
 }
 
 /*
@@ -3441,6 +3569,7 @@ void R_CreatePipelines ()
 	R_CreateUpdateLightmapPipelines ();
 	R_CreateIndirectComputePipelines ();
 	R_CreateRayDebugPipelines ();
+	R_CreateAnimComputePipelines ();
 
 	R_DestroyShaderModules ();
 }
@@ -3549,6 +3678,16 @@ void R_DestroyPipelines (void)
 	{
 		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.ray_debug_pipeline.handle, NULL);
 		vulkan_globals.ray_debug_pipeline.handle = VK_NULL_HANDLE;
+	}
+	if (vulkan_globals.mesh_interpolate_pipeline.handle != VK_NULL_HANDLE)
+	{
+		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.mesh_interpolate_pipeline.handle, NULL);
+		vulkan_globals.mesh_interpolate_pipeline.handle = VK_NULL_HANDLE;
+	}
+	if (vulkan_globals.skinning_pipeline.handle != VK_NULL_HANDLE)
+	{
+		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.skinning_pipeline.handle, NULL);
+		vulkan_globals.skinning_pipeline.handle = VK_NULL_HANDLE;
 	}
 	vkDestroyPipeline (vulkan_globals.device, vulkan_globals.indirect_draw_pipeline.handle, NULL);
 	vulkan_globals.indirect_draw_pipeline.handle = VK_NULL_HANDLE;

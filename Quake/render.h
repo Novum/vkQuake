@@ -115,6 +115,15 @@ typedef struct entity_s
 
 	int	   contentscache;
 	vec3_t contentscache_origin;
+
+	// Ray tracing - per-entity BLAS for animated alias models
+	VkAccelerationStructureKHR		blas;
+	VkBuffer						blas_buffer;
+	struct glheapallocation_s	   *blas_allocation;
+	VkDeviceAddress					blas_address;
+	VkDeviceSize					blas_build_scratch_size;
+	VkDescriptorSet					blas_compute_set;
+	struct qmodel_s				   *blas_model; // Model the BLAS was allocated for
 } entity_t;
 
 // !!! if this is changed, it must be changed in asm_draw.h too !!!

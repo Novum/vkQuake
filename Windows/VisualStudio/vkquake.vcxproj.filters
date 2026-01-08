@@ -490,6 +490,18 @@
     <ClCompile Include="..\..\Shaders\Compiled\Debug\ray_debug.comp.c">
       <Filter>Shaders\Debug</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\mesh_interpolate.comp.c">
+      <Filter>Shaders\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\mesh_interpolate.comp.c">
+      <Filter>Shaders\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\skinning.comp.c">
+      <Filter>Shaders\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\skinning.comp.c">
+      <Filter>Shaders\Debug</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\update_lightmap_8bit_rt.comp.c">
       <Filter>Shaders\Debug</Filter>
     </ClCompile>
