@@ -591,7 +591,7 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 		// Search for the file but do not load it:
 		//   look for it in the filesystem or pack files
 		len = COM_OpenFile (md3_name, &h, &md3_enhanced_path_id);
-		Q_UNUSED(len);
+		Q_UNUSED (len);
 
 		if (h == -1)
 			md3_enhanced_path_id = 0; // file not found
