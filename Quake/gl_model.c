@@ -595,7 +595,8 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 
 		if (h == -1)
 			md3_enhanced_path_id = 0; // file not found
-		COM_CloseFile (h);
+		else
+			COM_CloseFile (h);
 
 		// this is a replacement only if its priority is >= MDL one, else discard it
 		if (md3_enhanced_path_id < mod->path_id)
@@ -617,7 +618,8 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 
 		if (h == -1)
 			md5_enhanced_path_id = 0;
-		COM_CloseFile (h);
+		else
+			COM_CloseFile (h);
 
 		// this is a replacement only if its priority is >= MDL one, else discard it
 		if (md5_enhanced_path_id < mod->path_id)
