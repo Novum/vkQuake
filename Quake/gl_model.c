@@ -563,7 +563,6 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 	unsigned int md5_enhanced_path_id = 0;
 	unsigned int md3_enhanced_path_id = 0;
 	int			 h;
-	int			 len;
 
 	byte *buf = NULL;
 
@@ -590,8 +589,7 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 
 		// Search for the file but do not load it:
 		//   look for it in the filesystem or pack files
-		len = COM_OpenFile (md3_name, &h, &md3_enhanced_path_id);
-		Q_UNUSED (len);
+		COM_OpenFile (md3_name, &h, &md3_enhanced_path_id);
 
 		if (h == -1)
 			md3_enhanced_path_id = 0; // file not found
@@ -613,8 +611,7 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 
 		// Search for the file but do not load it:
 		//   look for it in the filesystem or pack files
-		len = COM_OpenFile (md5_name, &h, &md5_enhanced_path_id);
-		Q_UNUSED (len);
+		COM_OpenFile (md5_name, &h, &md5_enhanced_path_id);
 
 		if (h == -1)
 			md5_enhanced_path_id = 0;
