@@ -365,6 +365,7 @@ typedef struct
 	PFN_vkCreateAccelerationStructureKHR			   vk_create_acceleration_structure;
 	PFN_vkDestroyAccelerationStructureKHR			   vk_destroy_acceleration_structure;
 	PFN_vkCmdBuildAccelerationStructuresKHR			   vk_cmd_build_acceleration_structures;
+	PFN_vkGetAccelerationStructureDeviceAddressKHR	   vk_get_acceleration_structure_device_address;
 	VkPhysicalDeviceAccelerationStructurePropertiesKHR physical_device_acceleration_structure_properties;
 
 #ifdef _DEBUG
@@ -584,6 +585,8 @@ void GL_BuildBModelAccelerationStructures (void);
 void GL_PrepareSIMDAndParallelData (void);
 void GLMesh_UploadBuffers (qmodel_t *mod, aliashdr_t *hdr, unsigned short *indexes, byte *vertexes, aliasmesh_t *desc, jointpose_t *joints);
 void GLMesh_DeleteAllMeshBuffers (void);
+void R_AllocateEntityBLAS (entity_t *e);
+void R_FreeEntityBLAS (entity_t *e);
 
 int R_LightPoint (vec3_t p, float ofs, lightcache_t *cache, vec3_t *lightcolor);
 

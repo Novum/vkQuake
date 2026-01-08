@@ -49,9 +49,18 @@ typedef struct
 	vulkan_desc_set_layout_t *desc_set_layout;
 } buffer_garbage_t;
 
+typedef struct
+{
+	VkAccelerationStructureKHR blas;
+	VkBuffer				   buffer;
+	glheapallocation_t		  *allocation;
+} blas_garbage_t;
+
 static int				current_garbage_index;
 static int				num_garbage_buffers[2];
 static buffer_garbage_t buffer_garbage[MAX_MODELS * 2][2];
+static int				num_garbage_blas[2];
+static blas_garbage_t	blas_garbage[MAX_EDICTS][2];
 
 /*
 ================
@@ -75,6 +84,23 @@ static void AddBufferGarbage (
 
 /*
 ================
+AddBLASGarbage
+================
+*/
+static void AddBLASGarbage (VkAccelerationStructureKHR blas, VkBuffer buffer, glheapallocation_t *allocation)
+{
+	int				garbage_index;
+	blas_garbage_t *garbage;
+
+	garbage_index = num_garbage_blas[current_garbage_index]++;
+	garbage = &blas_garbage[garbage_index][current_garbage_index];
+	garbage->blas = blas;
+	garbage->buffer = buffer;
+	garbage->allocation = allocation;
+}
+
+/*
+================
 R_InitMeshHeap
 ================
 */
@@ -86,6 +112,8 @@ void R_InitMeshHeap (void)
 	buffer_create_info.size = 16;
 	buffer_create_info.usage =
 		VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+	if (vulkan_globals.ray_query)
+		buffer_create_info.usage |= VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR;
 	VkBuffer dummy_buffer;
 	VkResult err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &dummy_buffer);
 	if (err != VK_SUCCESS)
@@ -133,6 +161,17 @@ void R_CollectMeshBufferGarbage (void)
 			R_FreeDescriptorSet (garbage->desc_set, garbage->desc_set_layout);
 	}
 	num_garbage_buffers[current_garbage_index] = 0;
+
+	// Process BLAS garbage
+	num = num_garbage_blas[current_garbage_index];
+	for (i = 0; i < num; ++i)
+	{
+		blas_garbage_t *blas_g = &blas_garbage[i][current_garbage_index];
+		vulkan_globals.vk_destroy_acceleration_structure (vulkan_globals.device, blas_g->blas, NULL);
+		vkDestroyBuffer (vulkan_globals.device, blas_g->buffer, NULL);
+		GL_HeapFree (mesh_buffer_heap, blas_g->allocation, &num_vulkan_mesh_allocations);
+	}
+	num_garbage_blas[current_garbage_index] = 0;
 }
 
 /*
@@ -550,4 +589,120 @@ void GLMesh_DeleteAllMeshBuffers (void)
 			GLMesh_DeleteMeshBuffers ((aliashdr_t *)m->extradata[i]);
 		}
 	}
+}
+
+/*
+================
+R_AllocateEntityBLAS
+
+Allocate acceleration structure for an entity with an alias model.
+Handles MDL (PV_QUAKE1), MD3 (PV_QUAKE3), and MD5 (PV_MD5) models.
+================
+*/
+void R_AllocateEntityBLAS (entity_t *e)
+{
+	if (!vulkan_globals.ray_query)
+		return;
+	if (e->blas != VK_NULL_HANDLE)
+		return;
+	if (!e->model || e->model->type != mod_alias)
+		return;
+
+	aliashdr_t *hdr = (aliashdr_t *)Mod_Extradata (e->model);
+	if (!hdr)
+		return;
+
+	// TODO: handle multi-surface models (nextsurface chain)
+	const uint32_t num_triangles = hdr->numtris;
+	if (num_triangles == 0)
+		return;
+
+	// Set up geometry info for size query
+	// Vertex positions will be computed into scratch memory as vec3 floats
+	ZEROED_STRUCT (VkAccelerationStructureGeometryKHR, blas_geometry);
+	blas_geometry.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
+	blas_geometry.geometryType = VK_GEOMETRY_TYPE_TRIANGLES_KHR;
+	blas_geometry.geometry.triangles.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR;
+	blas_geometry.geometry.triangles.vertexFormat = VK_FORMAT_R32G32B32_SFLOAT;
+	blas_geometry.geometry.triangles.vertexStride = sizeof (float) * 3;
+	blas_geometry.geometry.triangles.maxVertex = hdr->numverts_vbo;
+	blas_geometry.geometry.triangles.indexType = VK_INDEX_TYPE_UINT16;
+
+	Con_Printf ("Allocating BLAS for %p %d verts\n", e, hdr->numverts_vbo);
+
+	ZEROED_STRUCT (VkAccelerationStructureBuildGeometryInfoKHR, blas_geometry_info);
+	blas_geometry_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
+	blas_geometry_info.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
+	blas_geometry_info.flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_BUILD_BIT_KHR;
+	blas_geometry_info.mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
+	blas_geometry_info.geometryCount = 1;
+	blas_geometry_info.pGeometries = &blas_geometry;
+
+	// Query acceleration structure size
+	ZEROED_STRUCT (VkAccelerationStructureBuildSizesInfoKHR, blas_sizes_info);
+	blas_sizes_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
+	vulkan_globals.vk_get_acceleration_structure_build_sizes (
+		vulkan_globals.device, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &blas_geometry_info, &num_triangles, &blas_sizes_info);
+
+	// Create buffer for BLAS
+	ZEROED_STRUCT (VkBufferCreateInfo, buffer_create_info);
+	buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	buffer_create_info.size = blas_sizes_info.accelerationStructureSize;
+	buffer_create_info.usage = VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR;
+
+	VkResult err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &e->blas_buffer);
+	if (err != VK_SUCCESS)
+		Sys_Error ("vkCreateBuffer failed for entity BLAS");
+
+	// Allocate from mesh heap
+	VkMemoryRequirements memory_requirements;
+	vkGetBufferMemoryRequirements (vulkan_globals.device, e->blas_buffer, &memory_requirements);
+
+	e->blas_allocation = GL_HeapAllocate (mesh_buffer_heap, memory_requirements.size, memory_requirements.alignment, &num_vulkan_mesh_allocations);
+	err = vkBindBufferMemory (
+		vulkan_globals.device, e->blas_buffer, GL_HeapGetAllocationMemory (e->blas_allocation), GL_HeapGetAllocationOffset (e->blas_allocation));
+	if (err != VK_SUCCESS)
+		Sys_Error ("vkBindBufferMemory failed for entity BLAS");
+
+	// Create acceleration structure
+	ZEROED_STRUCT (VkAccelerationStructureCreateInfoKHR, acceleration_structure_create_info);
+	acceleration_structure_create_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR;
+	acceleration_structure_create_info.buffer = e->blas_buffer;
+	acceleration_structure_create_info.size = blas_sizes_info.accelerationStructureSize;
+	acceleration_structure_create_info.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
+
+	err = vulkan_globals.vk_create_acceleration_structure (vulkan_globals.device, &acceleration_structure_create_info, NULL, &e->blas);
+	if (err != VK_SUCCESS)
+		Sys_Error ("vkCreateAccelerationStructure failed for entity BLAS");
+
+	// Get device address
+	ZEROED_STRUCT (VkAccelerationStructureDeviceAddressInfoKHR, address_info);
+	address_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
+	address_info.accelerationStructure = e->blas;
+	e->blas_address = vulkan_globals.vk_get_acceleration_structure_device_address (vulkan_globals.device, &address_info);
+}
+
+/*
+================
+R_FreeEntityBLAS
+
+Free acceleration structure for an entity
+================
+*/
+void R_FreeEntityBLAS (entity_t *e)
+{
+	if (!e)
+		return;
+	if (e->blas == VK_NULL_HANDLE)
+		return;
+
+	Con_Printf("Freeing BLAS for %p\n", e);
+
+	// Add to garbage collection - resources will be freed after GPU is done with them
+	AddBLASGarbage (e->blas, e->blas_buffer, e->blas_allocation);
+
+	e->blas = VK_NULL_HANDLE;
+	e->blas_buffer = VK_NULL_HANDLE;
+	e->blas_allocation = NULL;
+	e->blas_address = 0;
 }

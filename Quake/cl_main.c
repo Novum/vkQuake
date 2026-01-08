@@ -96,7 +96,15 @@ void CL_FreeState (void)
 	for (i = 0; i < MAX_CL_STATS; i++)
 		Mem_Free (cl.statss[i]);
 	PR_ClearProgs (&cl.qcvm);
+	// Free entity BLASes before freeing entities
+	if (cl.entities)
+	{
+		for (i = 0; i < cl.max_edicts; i++)
+			R_FreeEntityBLAS (&cl.entities[i]);
+	}
 	Mem_Free (cl.entities);
+	for (i = 0; i < cl.num_statics; i++)
+		R_FreeEntityBLAS (cl.static_entities[i]);
 	for (i = 0; i < cl.num_statics; i += 64)
 		Mem_Free (cl.static_entities[i]);
 	Mem_Free (cl.static_entities);
@@ -698,6 +706,7 @@ void CL_RelinkEntities (void)
 		if (ent->msgtime != cl.mtime[0])
 		{
 			ent->model = NULL;
+			R_FreeEntityBLAS (ent);
 			ent->lerpflags |= LERP_RESETMOVE | LERP_RESETANIM; // johnfitz -- next time this entity slot is reused, the lerp will need to be reset
 			InvalidateTraceLineCache ();
 			continue;
@@ -883,6 +892,7 @@ void CL_RelinkEntities (void)
 
 		if (cl_numvisedicts < cl_maxvisedicts)
 		{
+			R_AllocateEntityBLAS (ent);
 			cl_visedicts[cl_numvisedicts] = ent;
 			cl_numvisedicts++;
 		}
