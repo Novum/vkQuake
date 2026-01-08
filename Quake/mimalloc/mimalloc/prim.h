@@ -5,9 +5,9 @@ terms of the MIT license. A copy of the license can be found in the file
 "LICENSE" at the root of this distribution.
 -----------------------------------------------------------------------------*/
 #pragma once
-#ifndef MI_PRIM_H
-#define MI_PRIM_H
-
+#ifndef MIMALLOC_PRIM_H
+#define MIMALLOC_PRIM_H
+#include "internal.h"             // mi_decl_hidden
 
 // --------------------------------------------------------------------------
 // This file specifies the primitive portability API.
@@ -30,6 +30,7 @@ typedef struct mi_os_mem_config_s {
   bool    has_overcommit;         // can we reserve more memory than can be actually committed?
   bool    has_partial_free;       // can allocated blocks be freed partially? (true for mmap, false for VirtualAlloc)
   bool    has_virtual_reserve;    // supports virtual address space reservation? (if true we can reserve virtual address space without using commit or physical memory)
+  bool    has_transparent_huge_pages;  // true if transparent huge pages are enabled (on Linux)
 } mi_os_mem_config_t;
 
 // Initialize

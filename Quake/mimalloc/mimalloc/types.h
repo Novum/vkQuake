@@ -1,5 +1,5 @@
 /* ----------------------------------------------------------------------------
-Copyright (c) 2018-2024, Microsoft Research, Daan Leijen
+Copyright (c) 2018-2025, Microsoft Research, Daan Leijen
 This is free software; you can redistribute it and/or modify it under the
 terms of the MIT license. A copy of the license can be found in the file
 "LICENSE" at the root of this distribution.
@@ -10,18 +10,23 @@ terms of the MIT license. A copy of the license can be found in the file
 
 // --------------------------------------------------------------------------
 // This file contains the main type definitions for mimalloc:
-// mi_heap_t      : all data for a thread-local heap, contains
-//                  lists of all managed heap pages.
+// mi_heap_t      : all data for a heap; usually there is just one main default heap.
+// mi_theap_t     : a thread local heap belonging to a specific heap: 
+//                  maintains lists of thread-local heap pages that have free space.
 // mi_page_t      : a mimalloc page (usually 64KiB or 512KiB) from
 //                  where objects of a single size are allocated.
 //                  Note: we write "OS page" for OS memory pages while
 //                  using plain "page" for mimalloc pages (`mi_page_t`).
+// mi_arena_t     : a large memory area where pages are allocated (process shared)
+// mi_tld_t       : thread local data
+// mi_subproc_t   : all heaps belong to a sub-process (usually just the main one)
 // --------------------------------------------------------------------------
 
 
 #include <mimalloc-stats.h>
 #include <stddef.h>   // ptrdiff_t
 #include <stdint.h>   // uintptr_t, uint16_t, etc
+#include <stdbool.h>  // bool
 #include <limits.h>   // SIZE_MAX etc.
 #include <errno.h>    // error codes
 #include "bits.h"     // size defines (MI_INTPTR_SIZE etc), bit operations
@@ -111,9 +116,10 @@ terms of the MIT license. A copy of the license can be found in the file
 #endif
 
 // Enable large pages for objects between 64KiB and 512KiB.
-// Disabled by default as for many workloads the block sizes above 64 KiB are quite random which can lead to too many partially used large pages.
+// This should perhaps be disabled by default as for many workloads the block sizes above 64 KiB 
+// are quite random which can lead to too many partially used large pages (but see issue #1104).
 #ifndef MI_ENABLE_LARGE_PAGES
-#define MI_ENABLE_LARGE_PAGES  0
+#define MI_ENABLE_LARGE_PAGES  1
 #endif
 
 // --------------------------------------------------------------
@@ -125,6 +131,8 @@ terms of the MIT license. A copy of the license can be found in the file
 #ifndef MI_ARENA_SLICE_SHIFT
   #ifdef  MI_SMALL_PAGE_SHIFT   // backward compatibility
   #define MI_ARENA_SLICE_SHIFT              MI_SMALL_PAGE_SHIFT
+  #elif MI_SECURE && __APPLE__ && MI_ARCH_ARM64 
+  #define MI_ARENA_SLICE_SHIFT              (17)                        // 128 KiB to not waste too much due to 16 KiB guard pages
   #else
   #define MI_ARENA_SLICE_SHIFT              (13 + MI_SIZE_SHIFT)        // 64 KiB (32 KiB on 32-bit)
   #endif
@@ -148,12 +156,13 @@ terms of the MIT license. A copy of the license can be found in the file
 #define MI_ARENA_SLICE_ALIGN              (MI_ARENA_SLICE_SIZE)
 
 #define MI_ARENA_MIN_OBJ_SLICES           (1)
-#define MI_ARENA_MAX_OBJ_SLICES           (MI_BCHUNK_BITS)            // 32 MiB (for now, cannot cross chunk boundaries)
+#define MI_ARENA_MAX_CHUNK_OBJ_SLICES     (MI_BCHUNK_BITS)            // 32 MiB (for now, cannot cross chunk boundaries) (or 8 MiB on 32-bit)
 
 #define MI_ARENA_MIN_OBJ_SIZE             (MI_ARENA_MIN_OBJ_SLICES * MI_ARENA_SLICE_SIZE)
-#define MI_ARENA_MAX_OBJ_SIZE             (MI_ARENA_MAX_OBJ_SLICES * MI_ARENA_SLICE_SIZE)
+#define MI_ARENA_MAX_CHUNK_OBJ_SIZE       (MI_ARENA_MAX_CHUNK_OBJ_SLICES * MI_ARENA_SLICE_SIZE)  
+#define MI_ARENA_MAX_OBJ_SIZE             (MI_SIZE_BITS * MI_ARENA_MAX_CHUNK_OBJ_SIZE)  // 1 GiB (or 256 MiB on 32-bit)
 
-#if MI_ARENA_MAX_OBJ_SIZE < MI_SIZE_SIZE*1024
+#if MI_ARENA_MAX_CHUNK_OBJ_SIZE < MI_SIZE_SIZE*1024
 #error maximum object size may be too small to hold local thread data  
 #endif
 
@@ -275,17 +284,18 @@ typedef struct mi_block_s {
 
 
 // The page flags are put in the bottom 2 bits of the thread_id (for a fast test in `mi_free`)
-// `has_aligned` is true if the page has pointers at an offset in a block (so we unalign before free-ing)
+// If `has_interior_pointers` is true if the page has pointers at an offset in a block (so we have to unalign to the block start before free-ing)
 // `in_full_queue` is true if the page is full and resides in the full queue (so we move it to a regular queue on free-ing)
-#define MI_PAGE_IN_FULL_QUEUE         MI_ZU(0x01)
-#define MI_PAGE_HAS_ALIGNED           MI_ZU(0x02)
-#define MI_PAGE_FLAG_MASK             MI_ZU(0x03)
+#define MI_PAGE_IN_FULL_QUEUE           MI_ZU(0x01)
+#define MI_PAGE_HAS_INTERIOR_POINTERS   MI_ZU(0x02)
+#define MI_PAGE_FLAG_MASK               MI_ZU(0x03)
 typedef size_t mi_page_flags_t;
 
 // There are two special threadid's: 0 for abandoned threads, and 4 for abandoned & mapped threads --
-// abandoned-mapped pages are abandoned but also mapped in an arena so can be quickly found for reuse.
-#define MI_THREADID_ABANDONED         MI_ZU(0)
-#define MI_THREADID_ABANDONED_MAPPED  (MI_PAGE_FLAG_MASK + 1)
+// abandoned-mapped pages are abandoned but also mapped in an arena (in `mi_arena_t.pages_abandoned`) 
+// so these can be quickly found for reuse.
+#define MI_THREADID_ABANDONED           MI_ZU(0)
+#define MI_THREADID_ABANDONED_MAPPED    (MI_PAGE_FLAG_MASK + 1)
 
 // Thread free list.
 // Points to a list of blocks that are freed by other threads.
@@ -320,7 +330,7 @@ typedef uint8_t mi_heaptag_t;
 //   free an object and (re)claim ownership if the page was abandoned.
 // - If a page is not part of a heap it is called "abandoned"  (`heap==NULL`) -- in
 //   that case the `xthreadid` is 0 or 4 (4 is for abandoned pages that
-//   are in the abandoned page lists of an arena, these are called "mapped" abandoned pages).
+//   are in the `pages_abandoned` lists of an arena, these are called "mapped" abandoned pages).
 // - page flags are in the bottom 3 bits of `xthread_id` for the fast path in `mi_free`.
 // - The layout is optimized for `free.c:mi_free` and `alloc.c:mi_page_alloc`
 // - Using `uint16_t` does not seem to slow things down
@@ -332,9 +342,8 @@ typedef struct mi_page_s {
   uint16_t                  used;              // number of blocks in use (including blocks in `thread_free`)
   uint16_t                  capacity;          // number of blocks committed
   uint16_t                  reserved;          // number of blocks reserved in memory
-  uint8_t                   block_size_shift;  // if not zero, then `(1 << block_size_shift) == block_size` (only used for fast path in `free.c:_mi_page_ptr_unalign`)
   uint8_t                   retire_expire;     // expiration count for retired blocks
-
+                                               // padding  
   mi_block_t*               local_free;        // list of deferred free blocks by this thread (migrates to `free`)
   _Atomic(mi_thread_free_t) xthread_free;      // list of deferred free blocks freed by other threads (= `mi_block_t* | (1 if owned)`)
 
@@ -361,7 +370,8 @@ typedef struct mi_page_s {
 
 #define MI_PAGE_ALIGN                     MI_ARENA_SLICE_ALIGN // pages must be aligned on this for the page map.
 #define MI_PAGE_MIN_START_BLOCK_ALIGN     MI_MAX_ALIGN_SIZE    // minimal block alignment for the first block in a page (16b)
-#define MI_PAGE_MAX_START_BLOCK_ALIGN2    MI_KiB               // maximal block alignment for "power of 2"-sized blocks (such that we guarantee natural alignment)
+#define MI_PAGE_MAX_START_BLOCK_ALIGN2    (4*MI_KiB)           // maximal block alignment for "power of 2"-sized blocks (such that we guarantee natural alignment)
+#define MI_PAGE_OSPAGE_BLOCK_ALIGN2       (4*MI_KiB)           // also aligns any multiple of this size to avoid TLB misses.
 #define MI_PAGE_MAX_OVERALLOC_ALIGN       MI_ARENA_SLICE_SIZE  // (64 KiB) limit for which we overallocate in arena pages, beyond this use OS allocation
 
 #if (MI_ENCODE_FREELIST || MI_PADDING) && MI_SIZE_SIZE == 8
@@ -370,11 +380,11 @@ typedef struct mi_page_s {
 #define MI_PAGE_INFO_SIZE                 ((MI_INTPTR_SHIFT+1)*32)  // 128/96 >= sizeof(mi_page_t)
 #endif
 
-// The max object size are checked to not waste more than 12.5% internally over the page sizes.
-#define MI_SMALL_MAX_OBJ_SIZE             ((MI_SMALL_PAGE_SIZE-MI_PAGE_INFO_SIZE)/8)   // < ~8 KiB
+// The max object sizes are intended to not waste more than ~ 12.5% internally over the page sizes.
+#define MI_SMALL_MAX_OBJ_SIZE             ((MI_SMALL_PAGE_SIZE-MI_PAGE_OSPAGE_BLOCK_ALIGN2)/6)   // = 10 KiB
 #if MI_ENABLE_LARGE_PAGES
-#define MI_MEDIUM_MAX_OBJ_SIZE            ((MI_MEDIUM_PAGE_SIZE-MI_PAGE_INFO_SIZE)/8)  // < ~64 KiB
-#define MI_LARGE_MAX_OBJ_SIZE             (MI_LARGE_PAGE_SIZE/8)    // <= 512KiB // note: this must be a nice power of 2 or we get rounding issues with `_mi_bin`
+#define MI_MEDIUM_MAX_OBJ_SIZE            ((MI_MEDIUM_PAGE_SIZE-MI_PAGE_OSPAGE_BLOCK_ALIGN2)/6)  // ~ 84 KiB
+#define MI_LARGE_MAX_OBJ_SIZE             (MI_LARGE_PAGE_SIZE/8)    // <= 512 KiB // note: this must be a nice power of 2 or we get rounding issues with `_mi_bin`
 #else
 #define MI_MEDIUM_MAX_OBJ_SIZE            (MI_MEDIUM_PAGE_SIZE/8)   // <= 64 KiB
 #define MI_LARGE_MAX_OBJ_SIZE             MI_MEDIUM_MAX_OBJ_SIZE    // note: this must be a nice power of 2 or we get rounding issues with `_mi_bin`

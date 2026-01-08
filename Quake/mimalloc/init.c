@@ -21,7 +21,6 @@ const mi_page_t _mi_page_empty = {
   0,                      // used
   0,                      // capacity
   0,                      // reserved capacity
-  0,                      // block size shift
   0,                      // retire_expire
   NULL,                   // local_free
   MI_ATOMIC_VAR_INIT(0),  // xthread_free
@@ -69,13 +68,14 @@ const mi_page_t _mi_page_empty = {
 
 // Empty statistics
 #define MI_STATS_NULL  \
-  MI_STAT_COUNT_NULL(), MI_STAT_COUNT_NULL(), MI_STAT_COUNT_NULL(), MI_STAT_COUNT_NULL(), \
-  MI_STAT_COUNT_NULL(), MI_STAT_COUNT_NULL(), MI_STAT_COUNT_NULL(), MI_STAT_COUNT_NULL(), \
+  MI_STAT_COUNT_NULL(), MI_STAT_COUNT_NULL(), MI_STAT_COUNT_NULL(), \
+  { 0 }, { 0 }, \
+  MI_STAT_COUNT_NULL(), MI_STAT_COUNT_NULL(), MI_STAT_COUNT_NULL(), \
   MI_STAT_COUNT_NULL(), MI_STAT_COUNT_NULL(), MI_STAT_COUNT_NULL(), \
   { 0 }, { 0 }, { 0 }, { 0 }, \
   { 0 }, { 0 }, { 0 }, { 0 }, \
   \
-  { 0 }, { 0 }, { 0 }, { 0 }, { 0 }, \
+  { 0 }, { 0 }, { 0 }, { 0 }, { 0 }, { 0 }, \
   MI_INIT4(MI_STAT_COUNT_NULL), \
   { 0 }, { 0 }, { 0 }, { 0 },  \
   \
@@ -711,7 +711,7 @@ void mi_process_init(void) mi_attr_noexcept {
   mi_detect_cpu_features();
   _mi_stats_init();
   _mi_os_init();
-  _mi_page_map_init();
+  _mi_page_map_init(); // this could fail.. should we abort in that case?
   mi_heap_main_init();
   mi_tld_main_init();
   // the following two can potentially allocate (on freeBSD for locks and thread keys)
@@ -731,7 +731,7 @@ void mi_process_init(void) mi_attr_noexcept {
 
   if (mi_option_is_enabled(mi_option_reserve_huge_os_pages)) {
     size_t pages = mi_option_get_clamp(mi_option_reserve_huge_os_pages, 0, 128*1024);
-    long reserve_at = mi_option_get(mi_option_reserve_huge_os_pages_at);
+    int reserve_at  = (int)mi_option_get_clamp(mi_option_reserve_huge_os_pages_at, -1, INT_MAX);
     if (reserve_at != -1) {
       mi_reserve_huge_os_pages_at(pages, reserve_at, pages*500);
     } else {
@@ -778,7 +778,7 @@ void mi_cdecl mi_process_done(void) mi_attr_noexcept {
   if (mi_option_is_enabled(mi_option_destroy_on_exit)) {
     mi_heap_collect(heap, true /* force */);
     _mi_heap_unsafe_destroy_all(heap);     // forcefully release all memory held by all heaps (of this thread only!)
-    _mi_arenas_unsafe_destroy_all(heap->tld);
+    _mi_arenas_unsafe_destroy_all(_mi_subproc_main());
     _mi_page_map_unsafe_destroy(_mi_subproc_main());
   }
   //_mi_page_map_unsafe_destroy(_mi_subproc_main());
