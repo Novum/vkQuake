@@ -329,10 +329,6 @@ wavinfo_t GetWavinfo (const char *name, byte *wav, int wavlength)
 					// Con_Printf("looped length: %i\n", i);
 				}
 			}
-			else
-			{
-				Con_Warning ("%s contains bad LIST chunk\n", name);
-			}
 		}
 	}
 	else
