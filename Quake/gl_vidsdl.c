@@ -516,7 +516,13 @@ static qboolean VID_SetMode (int width, int height, int refreshrate, qboolean fu
 	/* Ensure the window is not fullscreen */
 	if (VID_GetFullscreen ())
 	{
-		if (SDL_SetWindowFullscreen (draw_context, 0) != 0)
+		qboolean ok;
+#ifdef USE_SDL3
+		ok = SDL_SetWindowFullscreen (draw_context, false);
+#else
+		ok = SDL_SetWindowFullscreen (draw_context, 0) == 0;
+#endif
+		if (!ok)
 			Sys_Error ("Couldn't set fullscreen state mode: %s", SDL_GetError ());
 	}
 
