@@ -385,8 +385,8 @@ static inline int FindLastBitNonZero64 (const uint64_t mask)
 #include "gl_model.h"
 #include "world.h"
 
-#include "image.h"	   //johnfitz
 #include "gl_texmgr.h" //johnfitz
+#include "image.h"	   //johnfitz
 #include "input.h"
 #include "keys.h"
 #include "menu.h"

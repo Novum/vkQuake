@@ -1,281 +1,367 @@
-project('vkquake', 'c', default_options : ['c_std=gnu11', 'buildtype=release'])
+project('vkquake', 'c', default_options: ['c_std=gnu11', 'buildtype=release'])
 
 cc = meson.get_compiler('c')
 
 if cc.has_header_symbol('sched.h', 'CPU_ZERO', prefix: '#define _GNU_SOURCE')
-    message('Info: Task affinity support enabled.')
-    add_project_arguments('-D_GNU_SOURCE', language: 'c')
+  message('Info: Task affinity support enabled.')
+  add_project_arguments('-D_GNU_SOURCE', language: 'c')
 else
-    message('Warning: sched.h not found, disabling Task affinity support.')
-    add_project_arguments('-DTASK_AFFINITY_NOT_AVAILABLE', language: 'c')
+  message('Warning: sched.h not found, disabling Task affinity support.')
+  add_project_arguments('-DTASK_AFFINITY_NOT_AVAILABLE', language: 'c')
+endif
+
+if host_machine.system() == 'windows'
+  add_project_arguments('-D_CRT_SECURE_NO_WARNINGS', language: 'c')
+  add_project_arguments('-D_CRT_NONSTDC_NO_WARNINGS', language: 'c')
+  add_project_arguments('-D_WINSOCK_DEPRECATED_NO_WARNINGS', language: 'c')
 endif
 
 shaders = [
-    'Shaders/alias.frag',
-    'Shaders/alias.vert',
-    'Shaders/alias_alphatest.frag',
-    'Shaders/md5.vert',
-    'Shaders/basic.frag',
-    'Shaders/basic.vert',
-    'Shaders/basic_alphatest.frag',
-    'Shaders/basic_notex.frag',
-    'Shaders/cs_tex_warp.comp',
-    'Shaders/indirect.comp',
-    'Shaders/indirect_clear.comp',
-    'Shaders/postprocess.frag',
-    'Shaders/postprocess.vert',
-    'Shaders/screen_effects_10bit.comp',
-    'Shaders/screen_effects_10bit_scale.comp',
-    'Shaders/screen_effects_10bit_scale_sops.comp',
-    'Shaders/screen_effects_8bit.comp',
-    'Shaders/screen_effects_8bit_scale.comp',
-    'Shaders/screen_effects_8bit_scale_sops.comp',
-    'Shaders/showtris.frag',
-    'Shaders/showtris.vert',
-    'Shaders/sky_box.frag',
-    'Shaders/sky_cube.frag',
-    'Shaders/sky_cube.vert',
-    'Shaders/sky_layer.frag',
-    'Shaders/sky_layer.vert',
-    'Shaders/update_lightmap_10bit.comp',
-    'Shaders/update_lightmap_10bit_rt.comp',
-    'Shaders/update_lightmap_8bit.comp',
-    'Shaders/update_lightmap_8bit_rt.comp',
-    'Shaders/world.frag',
-    'Shaders/world.vert',
-    'Shaders/ray_debug.comp',
+  'Shaders/alias.frag',
+  'Shaders/alias.vert',
+  'Shaders/alias_alphatest.frag',
+  'Shaders/md5.vert',
+  'Shaders/basic.frag',
+  'Shaders/basic.vert',
+  'Shaders/basic_alphatest.frag',
+  'Shaders/basic_notex.frag',
+  'Shaders/cs_tex_warp.comp',
+  'Shaders/indirect.comp',
+  'Shaders/indirect_clear.comp',
+  'Shaders/postprocess.frag',
+  'Shaders/postprocess.vert',
+  'Shaders/screen_effects_10bit.comp',
+  'Shaders/screen_effects_10bit_scale.comp',
+  'Shaders/screen_effects_10bit_scale_sops.comp',
+  'Shaders/screen_effects_8bit.comp',
+  'Shaders/screen_effects_8bit_scale.comp',
+  'Shaders/screen_effects_8bit_scale_sops.comp',
+  'Shaders/showtris.frag',
+  'Shaders/showtris.vert',
+  'Shaders/sky_box.frag',
+  'Shaders/sky_cube.frag',
+  'Shaders/sky_cube.vert',
+  'Shaders/sky_layer.frag',
+  'Shaders/sky_layer.vert',
+  'Shaders/update_lightmap_10bit.comp',
+  'Shaders/update_lightmap_10bit_rt.comp',
+  'Shaders/update_lightmap_8bit.comp',
+  'Shaders/update_lightmap_8bit_rt.comp',
+  'Shaders/world.frag',
+  'Shaders/world.vert',
+  'Shaders/ray_debug.comp',
 ]
 
 use_sdl3 = get_option('use_sdl3')
 if use_sdl3
-    add_project_arguments('-DUSE_SDL3', language: 'c')
+  add_project_arguments('-DUSE_SDL3', language: 'c')
 endif
 
 glslang = find_program('glslangValidator')
 spirv_opt = find_program('spirv-opt')
-spirv_remap_command = []
-spirv_opt_command  = []
-run_test_canonicalize_ids_spirv_opt = run_command(spirv_opt, '-h', check : false)
-has_canonicalize_ids_spirv_opt = (run_test_canonicalize_ids_spirv_opt.stdout().strip().contains('--canonicalize-ids'))
+use_spirv_remap = false
+run_test_canonicalize_ids_spirv_opt = run_command(spirv_opt, '-h', check: false)
+has_canonicalize_ids_spirv_opt = (
+  run_test_canonicalize_ids_spirv_opt.stdout().strip().contains('--canonicalize-ids')
+)
 bintoc = executable('bintoc', ['Shaders/bintoc.c'], native: true)
 mkpak = executable('mkpak', ['Misc/vq_pak/mkpak.c'], native: true)
-if (build_machine.system() == 'darwin') or get_option('buildtype').startswith('debug')
-    spirv_opt_command = [] # MoltenVK spirv-cross has a bug that breaks optimized shaders
+skip_spirv_opt = (build_machine.system() == 'darwin') or get_option('buildtype').startswith('debug')
+if skip_spirv_opt
+  message('Info: Skipping spirv-opt (MoltenVK or debug build).')
 elif has_canonicalize_ids_spirv_opt
-	message('Info: spirv-opt has --canonicalize-ids (glslang >= 16.0).')
-    spirv_opt_command = [spirv_opt, '-Os', '--canonicalize-ids', '--strip-debug', '@PLAINNAME@.spv', '-o', '@PLAINNAME@.spv', '&&']   
-else 
-    spirv_opt_command = [spirv_opt, '-Os', '@PLAINNAME@.spv', '-o', '@PLAINNAME@.spv', '&&']
-	message('Info: spirv-opt has NOT --canonicalize-ids (glslang < 16.0) so use spirv-remap instead.')
-	spirv_remap = find_program('spirv-remap')
-	spirv_remap_command = [spirv_remap, '-s', '-o', '.', '-i', '@PLAINNAME@.spv', '&&']
+  message('Info: spirv-opt has --canonicalize-ids (glslang >= 16.0).')
+else
+  message(
+    'Info: spirv-opt has NOT --canonicalize-ids (glslang < 16.0) so use spirv-remap instead.',
+  )
+  spirv_remap = find_program('spirv-remap')
+  use_spirv_remap = true
 endif
-
-bintoc_command = [bintoc, '@PLAINNAME@.spv', '@PLAINNAME@_spv', '@OUTPUT@']
 
 vq_pak_path = join_paths(meson.project_source_root(), 'Misc', 'vq_pak')
 mkpak_toc_file = join_paths(vq_pak_path, 'vq_pak_contents.txt')
 
 mkpak_command = [mkpak, '@OUTPUT@', vq_pak_path, mkpak_toc_file, '@DEPFILE@']
 
-run_mkpak = custom_target('run-mkpak',
-  output : 'vkquake.pak',
-  depfile : 'vkquake.pak.d',
-  command: mkpak_command)
+run_mkpak = custom_target(
+  'run-mkpak',
+  output: 'vkquake.pak',
+  depfile: 'vkquake.pak.d',
+  command: mkpak_command,
+)
 
 # Write the embedded pak into the build dir so Meson can track it.
 bintoc_compress_command = [bintoc, '-c', '@INPUT@', 'vkquake.pak', '@OUTPUT@']
 
-run_generate_embedded_pak = custom_target('run-embed_vkquake_pak',
-							output : 'embedded_pak.c',
-							input : run_mkpak,
-							command : bintoc_compress_command)
+run_generate_embedded_pak = custom_target(
+  'run-embed_vkquake_pak',
+  output: 'embedded_pak.c',
+  input: run_mkpak,
+  command: bintoc_compress_command,
+)
 shaders_c = []
+fs = import('fs')
 foreach shader : shaders
-    target_env = shader.contains('sops') ? ['--target-env', 'vulkan1.1'] : []
-    debug_flag = get_option('buildtype').startswith('debug') ? ['-g'] : []
-    glslang_command = [glslang, '-V', '--quiet'] + debug_flag + target_env + ['-o', '@PLAINNAME@.spv', '@INPUT@', '--depfile', '@PLAINNAME@.deps', '&&']
-    shaders_c += custom_target(shader.underscorify(),
-                 input: shader,
-                 output: '@PLAINNAME@.c',
-                 depfile: '@PLAINNAME@.deps',
-                 command: glslang_command
-                          + spirv_opt_command
-                          + spirv_remap_command
-                          + bintoc_command)
+  shader_name = shader.underscorify()
+  shader_basename = fs.name(shader).underscorify()  # e.g., 'sky_cube_frag'
+  symbol_name = shader_basename + '_spv'  # e.g., 'sky_cube_frag_spv'
+  target_env = shader.contains('sops') ? ['--target-env', 'vulkan1.1'] : []
+  debug_flag = get_option('buildtype').startswith('debug') ? ['-g'] : []
+
+  # Compile GLSL to SPIR-V
+  glslang_command = [glslang, '-V', '--quiet'] + debug_flag + target_env + ['-o', '@OUTPUT@', '@INPUT@', '--depfile', '@PLAINNAME@.deps']
+  spv_target = custom_target(
+    shader_name + '_spv',
+    input: shader,
+    output: '@PLAINNAME@.spv',
+    depfile: '@PLAINNAME@.deps',
+    command: glslang_command,
+  )
+
+  #  Optimize SPIR-V (if not skipped)
+  if not skip_spirv_opt
+    if has_canonicalize_ids_spirv_opt
+      spirv_opt_command = [
+        spirv_opt,
+        '-Os',
+        '--canonicalize-ids',
+        '--strip-debug', '@INPUT@',
+        '-o', '@OUTPUT@',
+      ]
+    else
+      spirv_opt_command = [spirv_opt, '-Os', '@INPUT@', '-o', '@OUTPUT@']
+    endif
+    opt_target = custom_target(
+      shader_name + '_opt',
+      input: spv_target,
+      output: '@PLAINNAME@.opt.spv',
+      command: spirv_opt_command,
+    )
+
+    # Remap if needed (for older glslang)
+    if use_spirv_remap
+      remap_target = custom_target(
+        shader_name + '_remap',
+        input: opt_target,
+        output: '@PLAINNAME@.remap.spv',
+        command: [spirv_remap, '-s', '-o', '@OUTDIR@', '-i', '@INPUT@'],
+      )
+      final_spv = remap_target
+    else
+      final_spv = opt_target
+    endif
+  else
+    final_spv = spv_target
+  endif
+
+  # Convert to C
+  shaders_c += custom_target(
+    shader_name,
+    input: final_spv,
+    output: shader_basename + '.c',
+    command: [bintoc, '@INPUT@', symbol_name, '@OUTPUT@'],
+  )
 endforeach
 
 srcs = [
-    'Quake/bgmusic.c',
-    'Quake/cd_null.c',
-    'Quake/cfgfile.c',
-    'Quake/chase.c',
-    'Quake/cl_demo.c',
-    'Quake/cl_input.c',
-    'Quake/cl_main.c',
-    'Quake/cl_parse.c',
-    'Quake/cl_tent.c',
-    'Quake/cmd.c',
-    'Quake/common.c',
-    'Quake/console.c',
-    'Quake/crc.c',
-    'Quake/cvar.c',
-    'Quake/gl_draw.c',
-    'Quake/gl_fog.c',
-    'Quake/gl_heap.c',
-    'Quake/gl_mesh.c',
-    'Quake/gl_model.c',
-    'Quake/gl_refrag.c',
-    'Quake/gl_rlight.c',
-    'Quake/gl_rmain.c',
-    'Quake/gl_rmisc.c',
-    'Quake/gl_screen.c',
-    'Quake/gl_sky.c',
-    'Quake/gl_texmgr.c',
-    'Quake/gl_vidsdl.c',
-    'Quake/gl_warp.c',
-    'Quake/host.c',
-    'Quake/host_cmd.c',
-    'Quake/image.c',
-    'Quake/in_sdl.c',
-    'Quake/keys.c',
-    'Quake/main_sdl.c',
-    'Quake/mathlib.c',
-    'Quake/mdfour.c',
-    'Quake/mem.c',
-    'Quake/menu.c',
-    'Quake/net_bsd.c',
-    'Quake/net_dgrm.c',
-    'Quake/net_loop.c',
-    'Quake/net_main.c',
-    'Quake/net_udp.c',
-    'Quake/palette.c',
-    'Quake/pl_linux.c',
-    'Quake/pr_cmds.c',
-    'Quake/pr_edict.c',
-    'Quake/pr_exec.c',
-    'Quake/pr_ext.c',
-    'Quake/r_alias.c',
-    'Quake/r_brush.c',
-    'Quake/r_part.c',
-    'Quake/r_part_fte.c',
-    'Quake/r_sprite.c',
-    'Quake/r_world.c',
-    'Quake/sbar.c',
-    'Quake/snd_codec.c',
-    'Quake/snd_dma.c',
-    'Quake/snd_mem.c',
-    'Quake/snd_mix.c',
-    'Quake/snd_umx.c',
-    'Quake/snd_wave.c',
-    'Quake/strlcat.c',
-    'Quake/strlcpy.c',
-    'Quake/sv_main.c',
-    'Quake/sv_move.c',
-    'Quake/sv_phys.c',
-    'Quake/sv_user.c',
-	'Quake/sys_sdl.c',
-    'Quake/sys_sdl_unix.c',
-    'Quake/tasks.c',
-    'Quake/view.c',
-    'Quake/wad.c',
-    'Quake/world.c',
-	'Quake/hash_map.c',
-	 run_generate_embedded_pak,
+  'Quake/bgmusic.c',
+  'Quake/cd_null.c',
+  'Quake/cfgfile.c',
+  'Quake/chase.c',
+  'Quake/cl_demo.c',
+  'Quake/cl_input.c',
+  'Quake/cl_main.c',
+  'Quake/cl_parse.c',
+  'Quake/cl_tent.c',
+  'Quake/cmd.c',
+  'Quake/common.c',
+  'Quake/console.c',
+  'Quake/crc.c',
+  'Quake/cvar.c',
+  'Quake/gl_draw.c',
+  'Quake/gl_fog.c',
+  'Quake/gl_heap.c',
+  'Quake/gl_mesh.c',
+  'Quake/gl_model.c',
+  'Quake/gl_refrag.c',
+  'Quake/gl_rlight.c',
+  'Quake/gl_rmain.c',
+  'Quake/gl_rmisc.c',
+  'Quake/gl_screen.c',
+  'Quake/gl_sky.c',
+  'Quake/gl_texmgr.c',
+  'Quake/gl_vidsdl.c',
+  'Quake/gl_warp.c',
+  'Quake/host.c',
+  'Quake/host_cmd.c',
+  'Quake/image.c',
+  'Quake/in_sdl.c',
+  'Quake/keys.c',
+  'Quake/main_sdl.c',
+  'Quake/mathlib.c',
+  'Quake/mdfour.c',
+  'Quake/mem.c',
+  'Quake/menu.c',
+  'Quake/net_dgrm.c',
+  'Quake/net_loop.c',
+  'Quake/net_main.c',
+  'Quake/palette.c',
+  'Quake/pr_cmds.c',
+  'Quake/pr_edict.c',
+  'Quake/pr_exec.c',
+  'Quake/pr_ext.c',
+  'Quake/r_alias.c',
+  'Quake/r_brush.c',
+  'Quake/r_part.c',
+  'Quake/r_part_fte.c',
+  'Quake/r_sprite.c',
+  'Quake/r_world.c',
+  'Quake/sbar.c',
+  'Quake/snd_codec.c',
+  'Quake/snd_dma.c',
+  'Quake/snd_mem.c',
+  'Quake/snd_mix.c',
+  'Quake/snd_umx.c',
+  'Quake/snd_wave.c',
+  'Quake/strlcat.c',
+  'Quake/strlcpy.c',
+  'Quake/sv_main.c',
+  'Quake/sv_move.c',
+  'Quake/sv_phys.c',
+  'Quake/sv_user.c',
+  'Quake/sys_sdl.c',
+  'Quake/tasks.c',
+  'Quake/view.c',
+  'Quake/wad.c',
+  'Quake/world.c',
+  'Quake/hash_map.c',
+  run_generate_embedded_pak,
 ]
 
 cflags = ['-Wall', '-Wno-trigraphs', '-Werror', '-std=gnu11']
 
-if use_sdl3
-    sdl_dep = dependency('sdl3')
-    srcs += 'Quake/in_sdl3.c'
-    srcs += 'Quake/snd_sdl3.c'
+if host_machine.system() == 'windows'
+  cflags += '-Wno-unused-function'
+  srcs += [
+    'Quake/net_win.c',
+    'Quake/net_wins.c',
+    'Quake/net_wipx.c',
+    'Quake/pl_win.c',
+    'Quake/sys_sdl_win.c',
+  ]
 else
-    sdl_dep = dependency('sdl2')
-    srcs += 'Quake/in_sdl2.c'
-    srcs += 'Quake/snd_sdl.c'
+  srcs += [
+    'Quake/net_bsd.c',
+    'Quake/net_udp.c',
+    'Quake/pl_linux.c',
+    'Quake/sys_sdl_unix.c',
+  ]
+endif
+
+if use_sdl3
+  sdl_dep = dependency('sdl3')
+  srcs += 'Quake/in_sdl3.c'
+  srcs += 'Quake/snd_sdl3.c'
+else
+  sdl_dep = dependency('sdl2')
+  srcs += 'Quake/in_sdl2.c'
+  srcs += 'Quake/snd_sdl.c'
 endif
 
 deps = [
-    cc.find_library('m', required : false),
-    cc.find_library('dl', required : false),
-    dependency('threads'),
-    sdl_dep,
+  cc.find_library('m', required: false),
+  cc.find_library('dl', required: false),
+  dependency('threads'),
+  sdl_dep,
 ]
 
+if host_machine.system() == 'windows'
+  deps += cc.find_library('ws2_32')
+  deps += cc.find_library('winmm')
+endif
+
 if build_machine.system() == 'darwin'
-    molten_dirs = []
-    if import('fs').exists('/opt/homebrew/lib/libMoltenVK.dylib')
-        molten_dirs += '/opt/homebrew/lib'
-    endif
-    deps += cc.find_library('MoltenVK', required : true, dirs : molten_dirs)
+  molten_dirs = []
+  if import('fs').exists('/opt/homebrew/lib/libMoltenVK.dylib')
+    molten_dirs += '/opt/homebrew/lib'
+  endif
+  deps += cc.find_library('MoltenVK', required: true, dirs: molten_dirs)
 else
-    deps += dependency('vulkan')
+  deps += dependency('vulkan')
 endif
 
 if get_option('use_codec_wave').enabled()
-    cflags += '-DUSE_CODEC_WAVE'
+  cflags += '-DUSE_CODEC_WAVE'
 endif
 
 if get_option('mp3_lib') == 'mad'
-    mp3_dep = dependency('mad', required : get_option('use_codec_mp3'))
-    if mp3_dep.found()
-        srcs += [ 'Quake/snd_mp3.c', 'Quake/snd_mp3tag.c' ]
-        deps += mp3_dep
-        cflags += '-DUSE_CODEC_MP3'
-    endif
+  mp3_dep = dependency('mad', required: get_option('use_codec_mp3'))
+  if mp3_dep.found()
+    srcs += ['Quake/snd_mp3.c', 'Quake/snd_mp3tag.c']
+    deps += mp3_dep
+    cflags += '-DUSE_CODEC_MP3'
+  endif
 else
-    mp3_dep = dependency('libmpg123', required : get_option('use_codec_mp3'))
-    if mp3_dep.found()
-        srcs += [ 'Quake/snd_mpg123.c', 'Quake/snd_mp3tag.c' ]
-        deps += mp3_dep
-        cflags += '-DUSE_CODEC_MP3'
-    endif
+  mp3_dep = dependency('libmpg123', required: get_option('use_codec_mp3'))
+  if mp3_dep.found()
+    srcs += ['Quake/snd_mpg123.c', 'Quake/snd_mp3tag.c']
+    deps += mp3_dep
+    cflags += '-DUSE_CODEC_MP3'
+  endif
 endif
 
-flac_dep = dependency('flac', required : get_option('use_codec_flac'))
+flac_dep = dependency('flac', required: get_option('use_codec_flac'))
 if flac_dep.found()
-    srcs += 'Quake/snd_flac.c'
-    deps += flac_dep
-    cflags += '-DUSE_CODEC_FLAC'
+  srcs += 'Quake/snd_flac.c'
+  deps += flac_dep
+  cflags += '-DUSE_CODEC_FLAC'
 endif
 
-ogg_dep = dependency('ogg', required : get_option('use_codec_vorbis'))
+ogg_dep = dependency('ogg', required: get_option('use_codec_vorbis'))
 if get_option('vorbis_lib') == 'vorbis'
-    vorbisfile_dep = dependency('vorbisfile', required : get_option('use_codec_vorbis'))
-    vorbis_dep = dependency('vorbis', required : get_option('use_codec_vorbis'))
-    if ogg_dep.found() and vorbisfile_dep.found() and vorbis_dep.found()
-        srcs += 'Quake/snd_vorbis.c'
-        deps += [ ogg_dep, vorbisfile_dep, vorbis_dep ]
-        cflags += '-DUSE_CODEC_VORBIS'
-    endif
+  vorbisfile_dep = dependency('vorbisfile', required: get_option('use_codec_vorbis'))
+  vorbis_dep = dependency('vorbis', required: get_option('use_codec_vorbis'))
+  if ogg_dep.found() and vorbisfile_dep.found() and vorbis_dep.found()
+    srcs += 'Quake/snd_vorbis.c'
+    deps += [ogg_dep, vorbisfile_dep, vorbis_dep]
+    cflags += '-DUSE_CODEC_VORBIS'
+  endif
 else
-    vorbis_dep = dependency('vorbisidec', required : get_option('use_codec_vorbis'))
-    if ogg_dep.found() and vorbis_dep.found()
-        srcs += 'Quake/snd_vorbis.c'
-        deps += [ ogg_dep, vorbis_dep ]
-        cflags += [ '-DUSE_CODEC_VORBIS', '-DVORBIS_USE_TREMOR' ]
-    endif
+  vorbis_dep = dependency('vorbisidec', required: get_option('use_codec_vorbis'))
+  if ogg_dep.found() and vorbis_dep.found()
+    srcs += 'Quake/snd_vorbis.c'
+    deps += [ogg_dep, vorbis_dep]
+    cflags += ['-DUSE_CODEC_VORBIS', '-DVORBIS_USE_TREMOR']
+  endif
 endif
 
-opus_dep = dependency('opus', required : get_option('use_codec_opus'))
-opusfile_dep = dependency('opusfile', required : get_option('use_codec_opus'))
+opus_dep = dependency('opus', required: get_option('use_codec_opus'))
+opusfile_dep = dependency('opusfile', required: get_option('use_codec_opus'))
 if opus_dep.found() and opusfile_dep.found()
-    srcs += 'Quake/snd_opus.c'
-    deps += [ opus_dep, opusfile_dep ]
-    cflags += '-DUSE_CODEC_OPUS'
+  srcs += 'Quake/snd_opus.c'
+  deps += [opus_dep, opusfile_dep]
+  cflags += '-DUSE_CODEC_OPUS'
 endif
 
 if get_option('buildtype').startswith('debug')
-    cflags += '-D_DEBUG'
+  cflags += '-D_DEBUG'
 endif
 
 if get_option('do_userdirs').enabled()
-    cflags += '-DDO_USERDIRS=1'
+  cflags += '-DDO_USERDIRS=1'
 endif
 
 incdirs = [
-    'Quake/mimalloc',
+  'Quake/mimalloc',
 ]
 
-executable('vkquake', [srcs, shaders_c], dependencies : deps, include_directories : incdirs, c_args : cflags, c_pch: ['Quake/quakedef.h', 'Quake/quakedef.c'])
+executable(
+  'vkquake',
+  [srcs, shaders_c],
+  dependencies: deps,
+  include_directories: incdirs,
+  c_args: cflags,
+  c_pch: ['Quake/quakedef.h', 'Quake/quakedef.c'],
+  win_subsystem: 'windows',
+)
