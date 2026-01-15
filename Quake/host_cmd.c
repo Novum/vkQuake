@@ -838,9 +838,12 @@ static void Host_Map_f (void)
 	svs.serverflags = 0; // haven't completed an episode yet
 	q_strlcpy (name, Cmd_Argv (1), sizeof (name));
 	// remove (any) trailing ".bsp" from mapname -- S.A.
-	p = strstr (name, ".bsp");
-	if (p && p[4] == '\0')
-		*p = '\0';
+	p = strrchr (name, '.');
+	if (p != NULL)
+	{
+		if (strcmp (p, ".bsp") == 0)
+			*p = '\0';
+	}
 	PR_SwitchQCVM (&sv.qcvm);
 	SV_SpawnServer (name);
 	PR_SwitchQCVM (NULL);
