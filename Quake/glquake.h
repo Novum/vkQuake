@@ -597,6 +597,7 @@ void GLMesh_UploadBuffers (qmodel_t *mod, aliashdr_t *hdr, unsigned short *index
 void GLMesh_DeleteAllMeshBuffers (void);
 void R_AllocateEntityBLAS (entity_t *e);
 void R_FreeEntityBLAS (entity_t *e);
+void R_FreeAllEntityBLAS (void);
 
 int R_LightPoint (vec3_t p, float ofs, lightcache_t *cache, vec3_t *lightcolor);
 

@@ -39,6 +39,7 @@ ALIAS MODEL DISPLAY LIST GENERATION
 #define MESH_HEAP_NAME		"Mesh heap"
 
 extern cvar_t r_lerpmodels;
+extern cvar_t r_rtshadows;
 
 static glheap_t *mesh_buffer_heap;
 
@@ -630,7 +631,7 @@ Handles MDL (PV_QUAKE1), MD3 (PV_QUAKE3), and MD5 (PV_MD5) models.
 */
 void R_AllocateEntityBLAS (entity_t *e)
 {
-	if (!vulkan_globals.ray_query)
+	if (!vulkan_globals.ray_query || r_rtshadows.value <= 0)
 		return;
 	if (!e->model || e->model->type != mod_alias)
 		return;
@@ -789,6 +790,25 @@ void R_FreeEntityBLAS (entity_t *e)
 	e->blas_address = 0;
 	e->blas_build_scratch_size = 0;
 	e->blas_model = NULL;
+}
+
+/*
+================
+R_FreeAllEntityBLAS
+
+Free all entity BLASes. Called when RT shadows are disabled.
+================
+*/
+void R_FreeAllEntityBLAS (void)
+{
+	if (!cl.entities)
+		return;
+
+	for (int i = 0; i < cl.num_entities; i++)
+		R_FreeEntityBLAS (&cl.entities[i]);
+
+	for (int i = 0; i < cl.num_statics; i++)
+		R_FreeEntityBLAS (cl.static_entities[i]);
 }
 
 /*
