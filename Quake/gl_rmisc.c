@@ -383,7 +383,7 @@ R_SetRTShadows_f
 */
 static void R_SetRTShadows_f (cvar_t *var)
 {
-	if (var->value)
+	if (var->value > 0)
 		GL_BuildBModelAccelerationStructures ();
 	else
 		GL_DeleteBModelAccelerationStructures ();

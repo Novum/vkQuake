@@ -1898,7 +1898,7 @@ static void M_GraphicsOptions_AdjustSliders (int dir, qboolean mouse)
 		break;
 	case GRAPHICS_OPT_SHADOWS:
 		if (vulkan_globals.ray_query)
-			Cvar_SetValueQuick (&r_rtshadows, (float)(((int)r_rtshadows.value + 2 + dir) % 2));
+			Cvar_SetValueQuick (&r_rtshadows, (float)(((int)r_rtshadows.value + 4 + dir) % 4));
 		break;
 	}
 }
@@ -2031,7 +2031,8 @@ static void M_GraphicsOptions_Draw (cb_context_t *cbx)
 	if (vulkan_globals.ray_query)
 	{
 		M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_SHADOWS, "Dynamic Shadows");
-		M_DrawCheckbox (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GRAPHICS_OPT_SHADOWS, r_rtshadows.value);
+		const char *shadow_modes[] = {"off", "low", "medium", "high"};
+		M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GRAPHICS_OPT_SHADOWS, shadow_modes[(int)r_rtshadows.value]);
 	}
 
 	// cursor
