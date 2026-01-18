@@ -388,7 +388,7 @@ static void R_SetRTShadows_f (cvar_t *var)
 	else
 	{
 		GL_DeleteBModelAccelerationStructures ();
-		R_FreeAllEntityBLAS ();
+		R_FreeAllEntityBLASes ();
 	}
 	GL_UpdateLightmapDescriptorSets ();
 }

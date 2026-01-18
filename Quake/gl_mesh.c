@@ -636,15 +636,6 @@ void R_AllocateEntityBLAS (entity_t *e)
 	if (!e->model || e->model->type != mod_alias)
 		return;
 
-	// Check if model changed - need to reallocate BLAS
-	if (e->blas != VK_NULL_HANDLE && e->blas_model != e->model)
-	{
-		R_FreeEntityBLAS (e);
-	}
-
-	if (e->blas != VK_NULL_HANDLE)
-		return;
-
 	aliashdr_t *hdr = (aliashdr_t *)Mod_Extradata (e->model);
 	if (!hdr)
 		return;
@@ -653,6 +644,17 @@ void R_AllocateEntityBLAS (entity_t *e)
 	const uint32_t num_triangles = hdr->numtris;
 	if (num_triangles == 0)
 		return;
+
+	// Check if model or geometry changed - need to reallocate BLAS
+	if (e->blas_data && (e->blas_data->blas_model != e->model || e->blas_data->blas_numtris != (int)num_triangles))
+		R_FreeEntityBLAS (e);
+
+	if (e->blas_data)
+		return;
+
+	// Allocate BLAS data struct (after validation to avoid alloc/free cycles)
+	e->blas_data = Mem_Alloc (sizeof (entity_blas_t));
+	memset (e->blas_data, 0, sizeof (entity_blas_t));
 
 	// Set up geometry info for size query
 	// Vertex positions will be computed into scratch memory as vec3 floats
@@ -685,45 +687,47 @@ void R_AllocateEntityBLAS (entity_t *e)
 	buffer_create_info.size = blas_sizes_info.accelerationStructureSize;
 	buffer_create_info.usage = VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
 
-	VkResult err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &e->blas_buffer);
+	VkResult err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &e->blas_data->blas_buffer);
 	if (err != VK_SUCCESS)
 		Sys_Error ("vkCreateBuffer failed for entity BLAS");
 
 	// Allocate from mesh heap
 	VkMemoryRequirements memory_requirements;
-	vkGetBufferMemoryRequirements (vulkan_globals.device, e->blas_buffer, &memory_requirements);
+	vkGetBufferMemoryRequirements (vulkan_globals.device, e->blas_data->blas_buffer, &memory_requirements);
 
-	e->blas_allocation = GL_HeapAllocate (mesh_buffer_heap, memory_requirements.size, memory_requirements.alignment, &num_vulkan_mesh_allocations);
+	e->blas_data->blas_allocation = GL_HeapAllocate (mesh_buffer_heap, memory_requirements.size, memory_requirements.alignment, &num_vulkan_mesh_allocations);
 	err = vkBindBufferMemory (
-		vulkan_globals.device, e->blas_buffer, GL_HeapGetAllocationMemory (e->blas_allocation), GL_HeapGetAllocationOffset (e->blas_allocation));
+		vulkan_globals.device, e->blas_data->blas_buffer, GL_HeapGetAllocationMemory (e->blas_data->blas_allocation),
+		GL_HeapGetAllocationOffset (e->blas_data->blas_allocation));
 	if (err != VK_SUCCESS)
 		Sys_Error ("vkBindBufferMemory failed for entity BLAS");
 
 	// Create acceleration structure
 	ZEROED_STRUCT (VkAccelerationStructureCreateInfoKHR, acceleration_structure_create_info);
 	acceleration_structure_create_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR;
-	acceleration_structure_create_info.buffer = e->blas_buffer;
+	acceleration_structure_create_info.buffer = e->blas_data->blas_buffer;
 	acceleration_structure_create_info.size = blas_sizes_info.accelerationStructureSize;
 	acceleration_structure_create_info.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
 
-	err = vulkan_globals.vk_create_acceleration_structure (vulkan_globals.device, &acceleration_structure_create_info, NULL, &e->blas);
+	err = vulkan_globals.vk_create_acceleration_structure (vulkan_globals.device, &acceleration_structure_create_info, NULL, &e->blas_data->blas);
 	if (err != VK_SUCCESS)
 		Sys_Error ("vkCreateAccelerationStructure failed for entity BLAS");
 
 	// Get device address
 	ZEROED_STRUCT (VkAccelerationStructureDeviceAddressInfoKHR, address_info);
 	address_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
-	address_info.accelerationStructure = e->blas;
-	e->blas_address = vulkan_globals.vk_get_acceleration_structure_device_address (vulkan_globals.device, &address_info);
+	address_info.accelerationStructure = e->blas_data->blas;
+	e->blas_data->blas_address = vulkan_globals.vk_get_acceleration_structure_device_address (vulkan_globals.device, &address_info);
 
 	// Store scratch size for per-frame rebuilds
-	e->blas_build_scratch_size = blas_sizes_info.buildScratchSize;
+	e->blas_data->blas_build_scratch_size = blas_sizes_info.buildScratchSize;
 
 	// Track which model this BLAS was allocated for
-	e->blas_model = e->model;
+	e->blas_data->blas_model = e->model;
+	e->blas_data->blas_numtris = num_triangles;
 
 	// Allocate and set up descriptor set for compute shader
-	e->blas_compute_set = R_AllocateDescriptorSet (&vulkan_globals.anim_compute_set_layout);
+	e->blas_data->blas_compute_set = R_AllocateDescriptorSet (&vulkan_globals.anim_compute_set_layout);
 
 	// Set up descriptor set bindings (these don't change between frames)
 	if (vulkan_globals.scratch_buffer != VK_NULL_HANDLE)
@@ -755,7 +759,7 @@ void R_AllocateEntityBLAS (entity_t *e)
 		for (int j = 0; j < 3; ++j)
 		{
 			writes[j].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-			writes[j].dstSet = e->blas_compute_set;
+			writes[j].dstSet = e->blas_data->blas_compute_set;
 			writes[j].dstBinding = j;
 			writes[j].dstArrayElement = 0;
 			writes[j].descriptorCount = 1;
@@ -775,31 +779,32 @@ Free acceleration structure for an entity
 */
 void R_FreeEntityBLAS (entity_t *e)
 {
-	if (!e)
+	if (!e || !e->blas_data)
 		return;
-	if (e->blas == VK_NULL_HANDLE)
+
+	if (e->blas_data->blas == VK_NULL_HANDLE)
+	{
+		Mem_Free (e->blas_data);
+		e->blas_data = NULL;
 		return;
+	}
 
 	// Add to garbage collection - resources will be freed after GPU is done with them
-	AddBLASGarbage (e->blas, e->blas_buffer, e->blas_allocation, e->blas_compute_set, &vulkan_globals.anim_compute_set_layout);
+	AddBLASGarbage (
+		e->blas_data->blas, e->blas_data->blas_buffer, e->blas_data->blas_allocation, e->blas_data->blas_compute_set, &vulkan_globals.anim_compute_set_layout);
 
-	e->blas_compute_set = VK_NULL_HANDLE;
-	e->blas = VK_NULL_HANDLE;
-	e->blas_buffer = VK_NULL_HANDLE;
-	e->blas_allocation = NULL;
-	e->blas_address = 0;
-	e->blas_build_scratch_size = 0;
-	e->blas_model = NULL;
+	Mem_Free (e->blas_data);
+	e->blas_data = NULL;
 }
 
 /*
 ================
-R_FreeAllEntityBLAS
+R_FreeAllEntityBLASes
 
 Free all entity BLASes. Called when RT shadows are disabled.
 ================
 */
-void R_FreeAllEntityBLAS (void)
+void R_FreeAllEntityBLASes (void)
 {
 	if (!cl.entities)
 		return;
@@ -894,7 +899,7 @@ static void R_SetupAliasFrameForBLAS (entity_t *e, aliashdr_t *paliashdr, int *p
 
 /*
 ================
-R_UpdateAnimatedBLAS
+R_UpdateAnimatedBLASes
 
 Update all entity BLASes with animated vertex data.
 This dispatches compute shaders to interpolate/skin vertices into the
@@ -958,7 +963,7 @@ static void R_FlushPendingBLASBuilds (cb_context_t *cbx, int num_pending, qboole
 	}
 }
 
-void R_UpdateAnimatedBLAS (cb_context_t *cbx)
+void R_UpdateAnimatedBLASes (cb_context_t *cbx)
 {
 	if (!vulkan_globals.ray_query)
 		return;
@@ -983,7 +988,7 @@ void R_UpdateAnimatedBLAS (cb_context_t *cbx)
 			entity_t *e = (entity_index < cl.num_entities) ? &cl.entities[entity_index] : cl.static_entities[entity_index - cl.num_entities];
 			++entity_index;
 
-			if (!e->model || e->model->needload || e->model->type != mod_alias || e->blas == VK_NULL_HANDLE)
+			if (!e->model || e->model->needload || e->model->type != mod_alias || !e->blas_data || e->blas_data->blas == VK_NULL_HANDLE)
 				continue;
 
 			// Skip transparent entities (same as TLAS)
@@ -994,12 +999,16 @@ void R_UpdateAnimatedBLAS (cb_context_t *cbx)
 			if (!hdr || hdr->numverts_vbo == 0)
 				continue;
 
+			// Skip if BLAS was allocated for a different model/geometry (model changed but entity not visible yet)
+			if (e->blas_data->blas_model != e->model || e->blas_data->blas_numtris != hdr->numtris)
+				continue;
+
 			// Align for AS build scratch
 			VkDeviceSize aligned_scratch_offset = q_align (scratch_offset, as_alignment);
 
 			// Calculate space needed
 			const VkDeviceSize vertex_size = hdr->numverts_vbo * sizeof (float) * 3;
-			const VkDeviceSize scratch_size = e->blas_build_scratch_size;
+			const VkDeviceSize scratch_size = e->blas_data->blas_build_scratch_size;
 			VkDeviceSize	   aligned_vertex_size = q_align (vertex_size, as_alignment);
 			VkDeviceSize	   total_needed = aligned_vertex_size + scratch_size;
 
@@ -1029,7 +1038,7 @@ void R_UpdateAnimatedBLAS (cb_context_t *cbx)
 			R_SetupAliasFrameForBLAS (e, hdr, &pose1, &pose2, &blend);
 
 			// Use the descriptor set allocated per-entity (bindings don't change between frames)
-			VkDescriptorSet anim_compute_set = e->blas_compute_set;
+			VkDescriptorSet anim_compute_set = e->blas_data->blas_compute_set;
 
 			// Dispatch compute shader
 			vulkan_pipeline_t pipeline;
@@ -1083,7 +1092,7 @@ void R_UpdateAnimatedBLAS (cb_context_t *cbx)
 			build->type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
 			build->flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_BUILD_BIT_KHR;
 			build->mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
-			build->dstAccelerationStructure = e->blas;
+			build->dstAccelerationStructure = e->blas_data->blas;
 			build->geometryCount = 1;
 			build->pGeometries = geom;
 			build->scratchData.deviceAddress = scratch_address;

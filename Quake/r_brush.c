@@ -2392,7 +2392,7 @@ void R_BuildTopLevelAccelerationStructure (void *unused)
 	cb_context_t *cbx = &vulkan_globals.primary_cb_contexts[PCBX_BUILD_ACCELERATION_STRUCTURES];
 
 	// Update animated entity BLASes first
-	R_UpdateAnimatedBLAS (cbx);
+	R_UpdateAnimatedBLASes (cbx);
 
 	R_BeginDebugUtilsLabel (cbx, "Build TLAS");
 
@@ -2408,7 +2408,7 @@ void R_BuildTopLevelAccelerationStructure (void *unused)
 		// Brush models use model BLAS, alias models use entity BLAS
 		if (e->model->type == mod_brush && e->model->blas != VK_NULL_HANDLE)
 			++num_instances;
-		else if (e->model->type == mod_alias && e->blas != VK_NULL_HANDLE)
+		else if (e->model->type == mod_alias && e->blas_data && e->blas_data->blas != VK_NULL_HANDLE && e->blas_data->blas_model == e->model)
 			++num_instances;
 	}
 
@@ -2432,9 +2432,9 @@ void R_BuildTopLevelAccelerationStructure (void *unused)
 		{
 			blas_address = e->model->blas_address;
 		}
-		else if (e->model->type == mod_alias && e->blas != VK_NULL_HANDLE)
+		else if (e->model->type == mod_alias && e->blas_data && e->blas_data->blas != VK_NULL_HANDLE && e->blas_data->blas_model == e->model)
 		{
-			blas_address = e->blas_address;
+			blas_address = e->blas_data->blas_address;
 			is_alias = true;
 		}
 		else

@@ -56,6 +56,19 @@ typedef struct lightcache_s
 #define LERP_FINISH		(1 << 4) // use lerpfinish time from server update instead of assuming interval of 0.1
 // johnfitz
 
+// Separate allocation for RT BLAS state (hot/cold split for cache efficiency)
+typedef struct entity_blas_s
+{
+	VkAccelerationStructureKHR blas;
+	VkBuffer				   blas_buffer;
+	struct glheapallocation_s *blas_allocation;
+	VkDeviceAddress			   blas_address;
+	VkDeviceSize			   blas_build_scratch_size;
+	VkDescriptorSet			   blas_compute_set;
+	struct qmodel_s			  *blas_model;
+	int						   blas_numtris; // Track triangle count to detect model data changes
+} entity_blas_t;
+
 typedef struct entity_s
 {
 	qboolean forcelink; // model changed
@@ -116,14 +129,8 @@ typedef struct entity_s
 	int	   contentscache;
 	vec3_t contentscache_origin;
 
-	// Ray tracing - per-entity BLAS for animated alias models
-	VkAccelerationStructureKHR blas;
-	VkBuffer				   blas_buffer;
-	struct glheapallocation_s *blas_allocation;
-	VkDeviceAddress			   blas_address;
-	VkDeviceSize			   blas_build_scratch_size;
-	VkDescriptorSet			   blas_compute_set;
-	struct qmodel_s			  *blas_model; // Model the BLAS was allocated for
+	// Per-entity BLAS for animated models
+	struct entity_blas_s *blas_data; // NULL when no BLAS allocated
 } entity_t;
 
 // !!! if this is changed, it must be changed in asm_draw.h too !!!

@@ -553,7 +553,7 @@ void R_NewGame (void);
 
 void R_AnimateLight (void);
 void R_BuildTopLevelAccelerationStructure (void *unused);
-void R_UpdateAnimatedBLAS (cb_context_t *cbx);
+void R_UpdateAnimatedBLASes (cb_context_t *cbx);
 void R_UpdateLightmapsAndIndirect (void *unused);
 void R_MarkSurfaces (qboolean use_tasks, task_handle_t before_mark, task_handle_t *store_efrags, task_handle_t *cull_surfaces, task_handle_t *chain_surfaces);
 qboolean R_CullBox (vec3_t emins, vec3_t emaxs);
@@ -597,7 +597,7 @@ void GLMesh_UploadBuffers (qmodel_t *mod, aliashdr_t *hdr, unsigned short *index
 void GLMesh_DeleteAllMeshBuffers (void);
 void R_AllocateEntityBLAS (entity_t *e);
 void R_FreeEntityBLAS (entity_t *e);
-void R_FreeAllEntityBLAS (void);
+void R_FreeAllEntityBLASes (void);
 
 int R_LightPoint (vec3_t p, float ofs, lightcache_t *cache, vec3_t *lightcolor);
 
