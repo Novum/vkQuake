@@ -10,9 +10,9 @@
 
 layout (push_constant) uniform PushConsts
 {
-	uint  joints_offset0;  // Joint matrix offset for pose 0
-	uint  joints_offset1;  // Joint matrix offset for pose 1
-	uint  output_offset;   // Offset in output buffer (in floats)
+	uint  joints_offset0; // Joint matrix offset for pose 0
+	uint  joints_offset1; // Joint matrix offset for pose 1
+	uint  output_offset;  // Offset in output buffer (in floats)
 	uint  num_verts;
 	float blend_factor;
 }
@@ -44,13 +44,10 @@ layout (std430, set = 0, binding = 2) restrict writeonly buffer OutputPositions
 // Load a 3x4 joint matrix and transform a position
 vec3 transform_by_joint (vec3 pos, uint joint_offset)
 {
-	uint base = joint_offset * 12;
+	uint   base = joint_offset * 12;
 	mat4x3 m = mat4x3 (
-		joint_mats[base + 0], joint_mats[base + 4], joint_mats[base + 8],
-		joint_mats[base + 1], joint_mats[base + 5], joint_mats[base + 9],
-		joint_mats[base + 2], joint_mats[base + 6], joint_mats[base + 10],
-		joint_mats[base + 3], joint_mats[base + 7], joint_mats[base + 11]
-	);
+		joint_mats[base + 0], joint_mats[base + 4], joint_mats[base + 8], joint_mats[base + 1], joint_mats[base + 5], joint_mats[base + 9],
+		joint_mats[base + 2], joint_mats[base + 6], joint_mats[base + 10], joint_mats[base + 3], joint_mats[base + 7], joint_mats[base + 11]);
 	return (m * vec4 (pos, 1.0)).xyz;
 }
 
@@ -71,20 +68,13 @@ void main ()
 	uint indices_packed = floatBitsToUint (vertex_data[base + 9]);
 
 	// Extract weights (normalized bytes)
-	vec4 weights = vec4 (
-		float (weights_packed & 0xFF),
-		float ((weights_packed >> 8) & 0xFF),
-		float ((weights_packed >> 16) & 0xFF),
-		float ((weights_packed >> 24) & 0xFF)
-	) / 255.0;
+	vec4 weights =
+		vec4 (
+			float (weights_packed & 0xFF), float ((weights_packed >> 8) & 0xFF), float ((weights_packed >> 16) & 0xFF), float ((weights_packed >> 24) & 0xFF)) /
+		255.0;
 
 	// Extract joint indices
-	uvec4 indices = uvec4 (
-		indices_packed & 0xFF,
-		(indices_packed >> 8) & 0xFF,
-		(indices_packed >> 16) & 0xFF,
-		(indices_packed >> 24) & 0xFF
-	);
+	uvec4 indices = uvec4 (indices_packed & 0xFF, (indices_packed >> 8) & 0xFF, (indices_packed >> 16) & 0xFF, (indices_packed >> 24) & 0xFF);
 
 	// Skin for both animation frames
 	vec3 skinned_pos[2] = vec3[2](vec3 (0.0), vec3 (0.0));

@@ -12,12 +12,12 @@
 
 layout (push_constant) uniform PushConsts
 {
-	uint  pose1_offset;    // Offset in source buffer for pose1 (in vertices)
-	uint  pose2_offset;    // Offset in source buffer for pose2 (in vertices)
-	uint  output_offset;   // Offset in output buffer (in floats)
+	uint  pose1_offset;	 // Offset in source buffer for pose1 (in vertices)
+	uint  pose2_offset;	 // Offset in source buffer for pose2 (in vertices)
+	uint  output_offset; // Offset in output buffer (in floats)
 	uint  num_verts;
 	float blend_factor;
-	uint  flags;           // Bit 2: MD3 format
+	uint  flags; // Bit 2: MD3 format
 }
 push_constants;
 
@@ -48,7 +48,7 @@ vec3 decode_vertex (uint offset)
 
 	// Normalize to [0, 1] then convert to model-space format
 	const float norm = 1.0 / 65535.0;
-	vec3 pos = vec3 (x, y, z) * norm;
+	vec3		pos = vec3 (x, y, z) * norm;
 
 	if ((push_constants.flags & 0x4) != 0)
 	{

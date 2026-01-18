@@ -1221,8 +1221,9 @@ void R_InitGPUBuffers (void)
 			.alignment = vulkan_globals.physical_device_acceleration_structure_properties.minAccelerationStructureScratchOffsetAlignment,
 			.name = "Animated AS scratch",
 		};
-		R_CreateBuffers (1, &buffer_create_info, &vulkan_globals.scratch_buffer_memory, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, &num_vulkan_misc_allocations,
-						 "Animated AS scratch");
+		R_CreateBuffers (
+			1, &buffer_create_info, &vulkan_globals.scratch_buffer_memory, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, &num_vulkan_misc_allocations,
+			"Animated AS scratch");
 	}
 }
 

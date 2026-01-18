@@ -2997,7 +2997,8 @@ void R_FlushUpdateLightmaps (
 						h += 1;
 					}
 					uint32_t shadow_samples = (r_rtshadows.value > 0) ? (1 << ((int)r_rtshadows.value + 1)) : 0;
-					uint32_t push_constants[7] = {current_dlights, LMBLOCK_WIDTH, x * LM_CULL_BLOCK_W / 8, y * LM_CULL_BLOCK_H / 8, type == 1, cached_dlights, shadow_samples};
+					uint32_t push_constants[7] = {current_dlights, LMBLOCK_WIDTH,  x * LM_CULL_BLOCK_W / 8, y * LM_CULL_BLOCK_H / 8,
+												  type == 1,	   cached_dlights, shadow_samples};
 					R_PushConstants (cbx, VK_SHADER_STAGE_COMPUTE_BIT, 0, 7 * sizeof (uint32_t), push_constants);
 					w = q_min (lightmaps[lightmap_indexes[j]].lightstyle_rectused[0].w / 8 - x * LM_CULL_BLOCK_W / 8, w * LM_CULL_BLOCK_W / 8);
 					h = q_min (lightmaps[lightmap_indexes[j]].lightstyle_rectused[0].h / 8 - y * LM_CULL_BLOCK_H / 8, h * LM_CULL_BLOCK_H / 8);

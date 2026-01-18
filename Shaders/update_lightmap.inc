@@ -238,16 +238,16 @@ void main ()
 				const float R2_ALPHA2 = 0.5698402909980532;
 
 				// Per-texel offset breaks coherence between adjacent texels
-				const vec2 texel_offset = fract(vec2(coords) * vec2(R2_ALPHA1, R2_ALPHA2));
+				const vec2 texel_offset = fract (vec2 (coords) * vec2 (R2_ALPHA1, R2_ALPHA2));
 
 				for (int i = 0; i < push_constants.shadow_samples; ++i)
 				{
-					const vec2 sample_offset = fract(texel_offset + float(i) * vec2(R2_ALPHA1, R2_ALPHA2));
-					const vec3 pos = world_pos + (sample_offset.x * tangent) + (sample_offset.y * bitangent);
-					const vec3 light_vec = pos - light.origin;
-					const float light_dist = length(light_vec);
-					if (IsOccluded(light.origin, normalize(light_vec), light_dist - 1e-2f))
-						occlusion -= 1.0f / float(push_constants.shadow_samples);
+					const vec2	sample_offset = fract (texel_offset + float (i) * vec2 (R2_ALPHA1, R2_ALPHA2));
+					const vec3	pos = world_pos + (sample_offset.x * tangent) + (sample_offset.y * bitangent);
+					const vec3	light_vec = pos - light.origin;
+					const float light_dist = length (light_vec);
+					if (IsOccluded (light.origin, normalize (light_vec), light_dist - 1e-2f))
+						occlusion -= 1.0f / float (push_constants.shadow_samples);
 				}
 #endif
 

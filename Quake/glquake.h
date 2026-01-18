@@ -59,7 +59,7 @@ extern int glwidth, glheight;
 #define NUM_COLOR_BUFFERS			   2
 #define INITIAL_STAGING_BUFFER_SIZE_KB 16384
 
-#define FAN_INDEX_BUFFER_SIZE 126
+#define FAN_INDEX_BUFFER_SIZE  126
 #define SCRATCH_BUFFER_SIZE_MB 16
 
 #define LIGHTMAP_BYTES 4
@@ -338,9 +338,9 @@ typedef struct
 	vulkan_desc_set_layout_t anim_compute_set_layout;
 
 	// Scratch buffer for animated AS building (vertex positions + AS build scratch)
-	VkBuffer				 scratch_buffer;
-	VkDeviceAddress			 scratch_buffer_address;
-	vulkan_memory_t			 scratch_buffer_memory;
+	VkBuffer		scratch_buffer;
+	VkDeviceAddress scratch_buffer_address;
+	vulkan_memory_t scratch_buffer_memory;
 
 	// Samplers
 	VkSampler point_sampler;
