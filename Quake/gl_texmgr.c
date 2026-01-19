@@ -516,7 +516,7 @@ void TexMgr_InitHeap ()
 	const uint32_t memory_type_index = GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
 
 	const VkDeviceSize heap_memory_size = TEXTURE_HEAP_MEMORY_SIZE_MB * (VkDeviceSize)1024 * (VkDeviceSize)1024;
-	texmgr_heap = GL_HeapCreate (heap_memory_size, TEXTURE_HEAP_PAGE_SIZE, memory_type_index, VULKAN_MEMORY_TYPE_DEVICE, "Texture Heap");
+	texmgr_heap = GL_HeapCreate (heap_memory_size, TEXTURE_HEAP_PAGE_SIZE, memory_type_index, VULKAN_MEMORY_TYPE_DEVICE, false, "Texture Heap");
 
 	vkDestroyImage (vulkan_globals.device, dummy_image, NULL);
 }
