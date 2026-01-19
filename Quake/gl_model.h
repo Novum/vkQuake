@@ -360,8 +360,10 @@ typedef struct aliashdr_s
 	byte			   *texels[MAX_SKINS];						// only for player skins
 	VkBuffer			vertex_buffer;
 	glheapallocation_t *vertex_allocation;
+	VkDeviceAddress		vertex_buffer_address;
 	VkBuffer			index_buffer;
 	glheapallocation_t *index_allocation;
+	VkDeviceAddress		index_buffer_address;
 	int					vbostofs; // offset in vbo of hdr->numverts_vbo meshst_t
 	VkBuffer			joints_buffer;
 	glheapallocation_t *joints_allocation;

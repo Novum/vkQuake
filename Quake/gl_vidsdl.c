@@ -1267,6 +1267,7 @@ static void GL_InitDevice (void)
 		GET_GLOBAL_DEVICE_PROC_ADDR (vk_create_acceleration_structure, vkCreateAccelerationStructureKHR);
 		GET_GLOBAL_DEVICE_PROC_ADDR (vk_destroy_acceleration_structure, vkDestroyAccelerationStructureKHR);
 		GET_GLOBAL_DEVICE_PROC_ADDR (vk_cmd_build_acceleration_structures, vkCmdBuildAccelerationStructuresKHR);
+		GET_GLOBAL_DEVICE_PROC_ADDR (vk_get_acceleration_structure_device_address, vkGetAccelerationStructureDeviceAddressKHR);
 	}
 #ifdef _DEBUG
 	if (vulkan_globals.debug_utils)

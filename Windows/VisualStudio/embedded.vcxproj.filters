@@ -88,10 +88,24 @@
     <CustomBuild Include="..\..\Shaders\md5.vert">
       <Filter>Shaders</Filter>
     </CustomBuild>
-    <CustomBuild Include="..\..\Shaders\update_lightmap_8bit.comp" />
-    <CustomBuild Include="..\..\Shaders\update_lightmap_8bit_rt.comp" />
-    <CustomBuild Include="..\..\Shaders\update_lightmap_10bit.comp" />
-    <CustomBuild Include="..\..\Shaders\update_lightmap_10bit_rt.comp" />
+    <CustomBuild Include="..\..\Shaders\update_lightmap_8bit.comp">
+      <Filter>Shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\update_lightmap_8bit_rt.comp">
+      <Filter>Shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\update_lightmap_10bit.comp">
+      <Filter>Shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\update_lightmap_10bit_rt.comp">
+      <Filter>Shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\skinning.comp">
+      <Filter>Shaders</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\mesh_interpolate.comp">
+      <Filter>Shaders</Filter>
+    </CustomBuild>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Shaders">

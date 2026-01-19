@@ -59,7 +59,8 @@ extern int glwidth, glheight;
 #define NUM_COLOR_BUFFERS			   2
 #define INITIAL_STAGING_BUFFER_SIZE_KB 16384
 
-#define FAN_INDEX_BUFFER_SIZE 126
+#define FAN_INDEX_BUFFER_SIZE  126
+#define SCRATCH_BUFFER_SIZE_MB 16
 
 #define LIGHTMAP_BYTES 4
 
@@ -313,6 +314,8 @@ typedef struct
 	vulkan_pipeline_t		 indirect_draw_pipeline;
 	vulkan_pipeline_t		 indirect_clear_pipeline;
 	vulkan_pipeline_t		 ray_debug_pipeline;
+	vulkan_pipeline_t		 mesh_interpolate_pipeline;
+	vulkan_pipeline_t		 skinning_pipeline;
 #ifdef PSET_SCRIPT
 	vulkan_pipeline_t fte_particle_pipelines[FTE_PARTICLE_PIPELINE_COUNT];
 #endif
@@ -332,6 +335,12 @@ typedef struct
 	VkDescriptorSet			 ray_debug_desc_set;
 	vulkan_desc_set_layout_t ray_debug_set_layout;
 	vulkan_desc_set_layout_t joints_buffer_set_layout;
+	vulkan_desc_set_layout_t anim_compute_set_layout;
+
+	// Scratch buffer for animated AS building (vertex positions + AS build scratch)
+	VkBuffer		scratch_buffer;
+	VkDeviceAddress scratch_buffer_address;
+	vulkan_memory_t scratch_buffer_memory;
 
 	// Samplers
 	VkSampler point_sampler;
@@ -365,6 +374,7 @@ typedef struct
 	PFN_vkCreateAccelerationStructureKHR			   vk_create_acceleration_structure;
 	PFN_vkDestroyAccelerationStructureKHR			   vk_destroy_acceleration_structure;
 	PFN_vkCmdBuildAccelerationStructuresKHR			   vk_cmd_build_acceleration_structures;
+	PFN_vkGetAccelerationStructureDeviceAddressKHR	   vk_get_acceleration_structure_device_address;
 	VkPhysicalDeviceAccelerationStructurePropertiesKHR physical_device_acceleration_structure_properties;
 
 #ifdef _DEBUG
@@ -543,6 +553,7 @@ void R_NewGame (void);
 
 void R_AnimateLight (void);
 void R_BuildTopLevelAccelerationStructure (void *unused);
+void R_UpdateAnimatedBLASes (cb_context_t *cbx);
 void R_UpdateLightmapsAndIndirect (void *unused);
 void R_MarkSurfaces (qboolean use_tasks, task_handle_t before_mark, task_handle_t *store_efrags, task_handle_t *cull_surfaces, task_handle_t *chain_surfaces);
 qboolean R_CullBox (vec3_t emins, vec3_t emaxs);
@@ -584,6 +595,9 @@ void GL_BuildBModelAccelerationStructures (void);
 void GL_PrepareSIMDAndParallelData (void);
 void GLMesh_UploadBuffers (qmodel_t *mod, aliashdr_t *hdr, unsigned short *indexes, byte *vertexes, aliasmesh_t *desc, jointpose_t *joints);
 void GLMesh_DeleteAllMeshBuffers (void);
+void R_AllocateEntityBLAS (entity_t *e);
+void R_FreeEntityBLAS (entity_t *e);
+void R_FreeAllEntityBLASes (void);
 
 int R_LightPoint (vec3_t p, float ofs, lightcache_t *cache, vec3_t *lightcolor);
 

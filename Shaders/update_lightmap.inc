@@ -12,6 +12,7 @@ layout (push_constant) uniform PushConsts
 	uint y_workgroup_offset;
 	bool dlights_only;
 	uint num_cached_dlights;
+	uint shadow_samples;
 }
 push_constants;
 
@@ -232,20 +233,21 @@ void main ()
 
 				float occlusion = 1.0f;
 #ifdef RAY_QUERIES
-				// TODO: Quality settings
-				const int NUM_SAMPLES = 2;
-				for (int y = 0; y < NUM_SAMPLES; ++y)
+				// R2 sequence constants (based on plastic constant φ₂)
+				const float R2_ALPHA1 = 0.7548776662466927;
+				const float R2_ALPHA2 = 0.5698402909980532;
+
+				// Per-texel offset breaks coherence between adjacent texels
+				const vec2 texel_offset = fract (vec2 (coords) * vec2 (R2_ALPHA1, R2_ALPHA2));
+
+				for (int i = 0; i < push_constants.shadow_samples; ++i)
 				{
-					for (int x = 0; x < NUM_SAMPLES; ++x)
-					{
-						const float offset_s = (x * (1.0f / NUM_SAMPLES)) + (0.5f / NUM_SAMPLES);
-						const float offset_t = (y * (1.0f / NUM_SAMPLES)) + (0.5f / NUM_SAMPLES);
-						const vec3	pos = world_pos + (offset_s * tangent) + (offset_t * bitangent);
-						const vec3	light_vec = pos - light.origin;
-						const float light_dist = length (light_vec);
-						if (IsOccluded (light.origin, normalize (light_vec), light_dist - 1e-2f))
-							occlusion -= 1.0f / float (NUM_SAMPLES * NUM_SAMPLES);
-					}
+					const vec2	sample_offset = fract (texel_offset + float (i) * vec2 (R2_ALPHA1, R2_ALPHA2));
+					const vec3	pos = world_pos + (sample_offset.x * tangent) + (sample_offset.y * bitangent);
+					const vec3	light_vec = pos - light.origin;
+					const float light_dist = length (light_vec);
+					if (IsOccluded (light.origin, normalize (light_vec), light_dist - 1e-2f))
+						occlusion -= 1.0f / float (push_constants.shadow_samples);
 				}
 #endif
 

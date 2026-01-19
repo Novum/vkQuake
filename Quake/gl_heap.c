@@ -89,6 +89,7 @@ typedef struct glheap_s
 	uint32_t			 small_alloc_shift;
 	uint32_t			 memory_type_index;
 	vulkan_memory_type_t memory_type;
+	qboolean			 device_address;
 	uint32_t			 num_segments;
 	page_index_t		 num_pages_per_segment;
 	page_index_t		 num_masks_per_segment;
@@ -198,8 +199,17 @@ static glheapsegment_t *GL_CreateHeapSegment (glheap_t *heap, atomic_uint32_t *n
 {
 	glheapsegment_t *segment = (glheapsegment_t *)Mem_Alloc (sizeof (glheapsegment_t));
 
+	// If device addresses are needed, set the appropriate flag (for acceleration structure buffers)
+	ZEROED_STRUCT (VkMemoryAllocateFlagsInfo, memory_allocate_flags_info);
+	if (heap->device_address)
+	{
+		memory_allocate_flags_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO;
+		memory_allocate_flags_info.flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT;
+	}
+
 	ZEROED_STRUCT (VkMemoryAllocateInfo, memory_allocate_info);
 	memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	memory_allocate_info.pNext = heap->device_address ? &memory_allocate_flags_info : NULL;
 	memory_allocate_info.allocationSize = heap->segment_size;
 	memory_allocate_info.memoryTypeIndex = heap->memory_type_index;
 
@@ -583,7 +593,8 @@ static void GL_HeapFreeBlockFromSegment (glheap_t *heap, glheapsegment_t *segmen
 GL_HeapCreate
 ===============
 */
-glheap_t *GL_HeapCreate (VkDeviceSize segment_size, uint32_t page_size, uint32_t memory_type_index, vulkan_memory_type_t memory_type, const char *heap_name)
+glheap_t *GL_HeapCreate (
+	VkDeviceSize segment_size, uint32_t page_size, uint32_t memory_type_index, vulkan_memory_type_t memory_type, qboolean device_address, const char *heap_name)
 {
 	assert (Q_nextPow2 (page_size) == page_size);
 	assert (page_size >= (1 << (NUM_SMALL_ALLOC_SIZES + 1)));
@@ -600,6 +611,7 @@ glheap_t *GL_HeapCreate (VkDeviceSize segment_size, uint32_t page_size, uint32_t
 	heap->small_alloc_shift = Q_log2 (page_size / (1 << NUM_SMALL_ALLOC_SIZES));
 	heap->memory_type_index = memory_type_index;
 	heap->memory_type = memory_type;
+	heap->device_address = device_address;
 	heap->name = heap_name;
 	return heap;
 }
@@ -917,7 +929,7 @@ void GL_HeapTest_f (void)
 
 	atomic_uint32_t num_allocations;
 	Atomic_StoreUInt32 (&num_allocations, 0);
-	glheap_t *test_heap = GL_HeapCreate (TEST_HEAP_SIZE, TEST_HEAP_PAGE_SIZE, 0, VULKAN_MEMORY_TYPE_NONE, "Test Heap");
+	glheap_t *test_heap = GL_HeapCreate (TEST_HEAP_SIZE, TEST_HEAP_PAGE_SIZE, 0, VULKAN_MEMORY_TYPE_NONE, false, "Test Heap");
 	TestHeapCleanState (test_heap);
 	COM_SeedRand (0);
 	TEMP_ALLOC_ZEROED (glheapallocation_t *, allocations, NUM_ALLOCS_PER_ITERATION);

@@ -40,8 +40,10 @@ typedef struct glheapstats_s
 	uint64_t num_bytes_wasted;
 } glheapstats_t;
 
-glheap_t *GL_HeapCreate (VkDeviceSize segment_size, uint32_t page_size, uint32_t memory_type_index, vulkan_memory_type_t memory_type, const char *heap_name);
-void	  GL_HeapDestroy (glheap_t *heap, atomic_uint32_t *num_allocations);
+glheap_t *GL_HeapCreate (
+	VkDeviceSize segment_size, uint32_t page_size, uint32_t memory_type_index, vulkan_memory_type_t memory_type, qboolean device_address,
+	const char *heap_name);
+void				GL_HeapDestroy (glheap_t *heap, atomic_uint32_t *num_allocations);
 glheapallocation_t *GL_HeapAllocate (glheap_t *heap, VkDeviceSize size, VkDeviceSize alignment, atomic_uint32_t *num_allocations);
 void				GL_HeapFree (glheap_t *heap, glheapallocation_t *allocation, atomic_uint32_t *num_allocations);
 VkDeviceMemory		GL_HeapGetAllocationMemory (glheapallocation_t *allocation);
