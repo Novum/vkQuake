@@ -258,6 +258,7 @@ void R_StoreEfrags (efrag_t **ppefrag)
 				aliashdr_t *hdr = (aliashdr_t *)Mod_Extradata (pent->model);
 				if (hdr)
 					R_UpdateEntityAnimState (pent, hdr);
+				R_UpdateEntityMoveState (pent);
 			}
 		}
 		ppefrag = &pefrag->leafnext;

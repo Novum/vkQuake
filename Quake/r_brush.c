@@ -2442,13 +2442,20 @@ void R_BuildTopLevelAccelerationStructure (void *unused)
 			continue;
 		}
 
-		vec3_t e_angles;
-		VectorCopy (e->angles, e_angles);
-		e_angles[0] = -e_angles[0]; // quake bug
+		vec3_t lerped_origin, lerped_angles;
+		if (is_alias)
+			R_GetEntityLerpedTransform (e, lerped_origin, lerped_angles);
+		else
+		{
+			VectorCopy (e->origin, lerped_origin);
+			VectorCopy (e->angles, lerped_angles);
+		}
+		lerped_angles[0] = -lerped_angles[0]; // quake bug
+
 		float model_matrix[16];
 		IdentityMatrix (model_matrix);
 		if (e->model != cl.worldmodel)
-			R_RotateForEntity (model_matrix, e->origin, e_angles, e->netstate.scale);
+			R_RotateForEntity (model_matrix, lerped_origin, lerped_angles, e->netstate.scale);
 
 		// For alias models, apply scale_origin translation and scale
 		if (is_alias)

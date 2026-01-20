@@ -901,6 +901,7 @@ void CL_RelinkEntities (void)
 				aliashdr_t *hdr = (aliashdr_t *)Mod_Extradata (ent->model);
 				if (hdr)
 					R_UpdateEntityAnimState (ent, hdr);
+				R_UpdateEntityMoveState (ent);
 			}
 		}
 	}

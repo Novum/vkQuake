@@ -366,15 +366,14 @@ void R_SetupAliasFrame (entity_t *e, aliashdr_t *paliashdr, int frame, lerpdata_
 
 /*
 =================
-R_SetupEntityTransform -- johnfitz -- set up transform part of lerpdata
+R_UpdateEntityMoveState
+
+Updates entity movement state (previousorigin, currentorigin, etc.).
+Call once per frame when entity becomes visible, before R_GetEntityLerpedTransform.
 =================
 */
-void R_SetupEntityTransform (entity_t *e, lerpdata_t *lerpdata)
+void R_UpdateEntityMoveState (entity_t *e)
 {
-	float  blend;
-	vec3_t d;
-	int	   i;
-
 	// if LERP_RESETMOVE, kill any lerps in progress
 	if (e->lerpflags & LERP_RESETMOVE)
 	{
@@ -385,54 +384,66 @@ void R_SetupEntityTransform (entity_t *e, lerpdata_t *lerpdata)
 		VectorCopy (e->angles, e->currentangles);
 		e->lerpflags -= LERP_RESETMOVE;
 	}
-	else if (!VectorCompare (e->origin, e->currentorigin) || (r_lerpturn.value && !VectorCompare (e->angles, e->currentangles))) // origin/angles changed, start
-																																 // new lerp
+	else if (!VectorCompare (e->origin, e->currentorigin) || (r_lerpturn.value && !VectorCompare (e->angles, e->currentangles)))
 	{
+		// origin/angles changed, start new lerp
 		e->movelerpstart = cl.time;
 		VectorCopy (e->currentorigin, e->previousorigin);
 		VectorCopy (e->origin, e->currentorigin);
 		VectorCopy (e->currentangles, e->previousangles);
 		VectorCopy (e->angles, e->currentangles);
 	}
+}
 
-	// set up values
+/*
+=================
+R_GetEntityLerpedTransform
+
+Computes lerped origin/angles from stable entity state.
+Call R_UpdateEntityMoveState first to update entity state.
+=================
+*/
+void R_GetEntityLerpedTransform (entity_t *e, vec3_t out_origin, vec3_t out_angles)
+{
 	if (r_lerpmove.value && e != &cl.viewent && e->lerpflags & LERP_MOVESTEP)
 	{
+		float blend;
 		if (e->lerpflags & LERP_FINISH)
 			blend = CLAMP (0, (cl.time - e->movelerpstart) / (e->lerpfinish - e->movelerpstart), 1);
 		else
 			blend = CLAMP (0, (cl.time - e->movelerpstart) / 0.1, 1);
 
 		// translation
+		vec3_t d;
 		VectorSubtract (e->currentorigin, e->previousorigin, d);
-		lerpdata->origin[0] = e->previousorigin[0] + d[0] * blend;
-		lerpdata->origin[1] = e->previousorigin[1] + d[1] * blend;
-		lerpdata->origin[2] = e->previousorigin[2] + d[2] * blend;
+		out_origin[0] = e->previousorigin[0] + d[0] * blend;
+		out_origin[1] = e->previousorigin[1] + d[1] * blend;
+		out_origin[2] = e->previousorigin[2] + d[2] * blend;
 
 		// rotation (if enabled)
 		if (r_lerpturn.value)
 		{
 			VectorSubtract (e->currentangles, e->previousangles, d);
-			for (i = 0; i < 3; i++)
+			for (int i = 0; i < 3; i++)
 			{
 				if (d[i] > 180)
 					d[i] -= 360;
 				if (d[i] < -180)
 					d[i] += 360;
 			}
-			lerpdata->angles[0] = e->previousangles[0] + d[0] * blend;
-			lerpdata->angles[1] = e->previousangles[1] + d[1] * blend;
-			lerpdata->angles[2] = e->previousangles[2] + d[2] * blend;
+			out_angles[0] = e->previousangles[0] + d[0] * blend;
+			out_angles[1] = e->previousangles[1] + d[1] * blend;
+			out_angles[2] = e->previousangles[2] + d[2] * blend;
 		}
 		else
 		{
-			VectorCopy (e->angles, lerpdata->angles);
+			VectorCopy (e->angles, out_angles);
 		}
 	}
 	else // don't lerp
 	{
-		VectorCopy (e->origin, lerpdata->origin);
-		VectorCopy (e->angles, lerpdata->angles);
+		VectorCopy (e->origin, out_origin);
+		VectorCopy (e->angles, out_angles);
 	}
 }
 
@@ -530,7 +541,7 @@ void R_DrawAliasModel (cb_context_t *cbx, entity_t *e, int *aliaspolys)
 	qboolean alphatest = !!(e->model->flags & MF_HOLEY);
 
 	R_SetupAliasFrame (e, paliashdr, e->frame, &lerpdata);
-	R_SetupEntityTransform (e, &lerpdata);
+	R_GetEntityLerpedTransform (e, lerpdata.origin, lerpdata.angles);
 
 	//
 	// cull it
@@ -658,7 +669,7 @@ void R_DrawAliasModel_ShowTris (cb_context_t *cbx, entity_t *e)
 	paliashdr = (aliashdr_t *)Mod_Extradata_CheckSkin (e->model, e->skinnum);
 
 	R_SetupAliasFrame (e, paliashdr, e->frame, &lerpdata);
-	R_SetupEntityTransform (e, &lerpdata);
+	R_GetEntityLerpedTransform (e, lerpdata.origin, lerpdata.angles);
 
 	//
 	// cull it
