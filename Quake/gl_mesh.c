@@ -825,11 +825,12 @@ This dispatches compute shaders to interpolate/skin vertices into the
 scratch buffer, then builds/updates the BLASes.
 ================
 */
-#define MAX_PENDING_BLAS_BUILDS 128
+#define MAX_PENDING_BLAS_BUILDS 256
 
-static VkAccelerationStructureGeometryKHR		   pending_geometries[MAX_PENDING_BLAS_BUILDS];
-static VkAccelerationStructureBuildGeometryInfoKHR pending_build_infos[MAX_PENDING_BLAS_BUILDS];
-static VkAccelerationStructureBuildRangeInfoKHR	   pending_range_infos[MAX_PENDING_BLAS_BUILDS];
+static VkAccelerationStructureGeometryKHR			   pending_geometries[MAX_PENDING_BLAS_BUILDS];
+static VkAccelerationStructureBuildGeometryInfoKHR	   pending_build_infos[MAX_PENDING_BLAS_BUILDS];
+static VkAccelerationStructureBuildRangeInfoKHR		   pending_range_infos[MAX_PENDING_BLAS_BUILDS];
+static const VkAccelerationStructureBuildRangeInfoKHR *pending_range_info_ptrs[MAX_PENDING_BLAS_BUILDS];
 
 /*
 ================
@@ -851,13 +852,8 @@ static void R_FlushPendingBLASBuilds (cb_context_t *cbx, int num_pending, qboole
 	vulkan_globals.vk_cmd_pipeline_barrier (
 		cbx->cb, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR, 0, 1, &compute_barrier, 0, NULL, 0, NULL);
 
-	// Build range info pointer array
-	const VkAccelerationStructureBuildRangeInfoKHR *range_info_ptrs[MAX_PENDING_BLAS_BUILDS];
-	for (int i = 0; i < num_pending; ++i)
-		range_info_ptrs[i] = &pending_range_infos[i];
-
 	// Single batched AS build call
-	vulkan_globals.vk_cmd_build_acceleration_structures (cbx->cb, num_pending, pending_build_infos, range_info_ptrs);
+	vulkan_globals.vk_cmd_build_acceleration_structures (cbx->cb, num_pending, pending_build_infos, pending_range_info_ptrs);
 
 	// Barrier for next phase
 	ZEROED_STRUCT (VkMemoryBarrier, as_barrier);
@@ -1021,6 +1017,7 @@ void R_UpdateAnimatedBLASes (cb_context_t *cbx)
 			VkAccelerationStructureBuildRangeInfoKHR *range = &pending_range_infos[num_pending];
 			memset (range, 0, sizeof (*range));
 			range->primitiveCount = hdr->numtris;
+			pending_range_info_ptrs[num_pending] = range;
 
 			++num_pending;
 
