@@ -252,6 +252,14 @@ void R_StoreEfrags (efrag_t **ppefrag)
 #endif
 			cl_visedicts[cl_numvisedicts++] = pent;
 			pent->visframe = r_framecount;
+			// Update animation state for alias models
+			if (pent->model && pent->model->type == mod_alias)
+			{
+				aliashdr_t *hdr = (aliashdr_t *)Mod_Extradata (pent->model);
+				if (hdr)
+					R_UpdateEntityAnimState (pent, hdr);
+				R_UpdateEntityMoveState (pent);
+			}
 		}
 		ppefrag = &pefrag->leafnext;
 	}

@@ -818,87 +818,6 @@ void R_FreeAllEntityBLASes (void)
 
 /*
 ================
-R_SetupAliasFrameForBLAS
-
-Sets up animation frame data for BLAS building.
-This updates entity state (previouspose, currentpose, lerpstart) just like
-R_SetupAliasFrame in r_alias.c, ensuring correct animation for ray tracing.
-================
-*/
-static void R_SetupAliasFrameForBLAS (entity_t *e, aliashdr_t *paliashdr, int *pose1, int *pose2, float *blend)
-{
-	int frame = e->frame;
-	if ((frame >= paliashdr->numframes) || (frame < 0))
-		frame = 0;
-
-	int posenum = paliashdr->frames[frame].firstpose;
-	int numposes = paliashdr->frames[frame].numposes;
-
-	if (numposes > 1)
-	{
-		e->lerptime = paliashdr->frames[frame].interval;
-		posenum += (int)(cl.time / e->lerptime) % numposes;
-	}
-	else
-		e->lerptime = 0.1f;
-
-	// Update entity animation state (mirroring R_SetupAliasFrame logic)
-	if (e->lerpflags & LERP_RESETANIM)
-	{
-		e->lerpstart = 0;
-		e->previouspose = posenum;
-		e->currentpose = posenum;
-		e->lerpflags -= LERP_RESETANIM;
-	}
-	else if (e->currentpose != posenum)
-	{
-		if (e->lerpflags & LERP_RESETANIM2)
-		{
-			e->lerpstart = 0;
-			e->previouspose = posenum;
-			e->currentpose = posenum;
-			e->lerpflags -= LERP_RESETANIM2;
-		}
-		else
-		{
-			e->lerpstart = cl.time;
-			e->previouspose = e->currentpose;
-			e->currentpose = posenum;
-		}
-	}
-
-	// Compute lerp values
-	if (r_lerpmodels.value && !(e->model->flags & MOD_NOLERP && r_lerpmodels.value != 2))
-	{
-		if (e->lerpflags & LERP_FINISH && numposes == 1)
-			*blend = CLAMP (0, (cl.time - e->lerpstart) / (e->lerpfinish - e->lerpstart), 1);
-		else
-			*blend = CLAMP (0, (cl.time - e->lerpstart) / e->lerptime, 1);
-
-		if (*blend == 1.0f)
-			e->previouspose = e->currentpose;
-
-		*pose1 = e->previouspose;
-		*pose2 = e->currentpose;
-
-		// Clamp poses to valid range
-		// For MD5, numposes is 1 (bind pose only), but we have numframes joint matrices
-		int max_poses = (paliashdr->poseverttype == PV_MD5) ? paliashdr->numframes : paliashdr->numposes;
-		if (*pose1 >= max_poses || *pose1 < 0)
-			*pose1 = 0;
-		if (*pose2 >= max_poses || *pose2 < 0)
-			*pose2 = 0;
-	}
-	else
-	{
-		*blend = 1.0f;
-		*pose1 = posenum;
-		*pose2 = posenum;
-	}
-}
-
-/*
-================
 R_UpdateAnimatedBLASes
 
 Update all entity BLASes with animated vertex data.
@@ -906,11 +825,12 @@ This dispatches compute shaders to interpolate/skin vertices into the
 scratch buffer, then builds/updates the BLASes.
 ================
 */
-#define MAX_PENDING_BLAS_BUILDS 128
+#define MAX_PENDING_BLAS_BUILDS 256
 
-static VkAccelerationStructureGeometryKHR		   pending_geometries[MAX_PENDING_BLAS_BUILDS];
-static VkAccelerationStructureBuildGeometryInfoKHR pending_build_infos[MAX_PENDING_BLAS_BUILDS];
-static VkAccelerationStructureBuildRangeInfoKHR	   pending_range_infos[MAX_PENDING_BLAS_BUILDS];
+static VkAccelerationStructureGeometryKHR			   pending_geometries[MAX_PENDING_BLAS_BUILDS];
+static VkAccelerationStructureBuildGeometryInfoKHR	   pending_build_infos[MAX_PENDING_BLAS_BUILDS];
+static VkAccelerationStructureBuildRangeInfoKHR		   pending_range_infos[MAX_PENDING_BLAS_BUILDS];
+static const VkAccelerationStructureBuildRangeInfoKHR *pending_range_info_ptrs[MAX_PENDING_BLAS_BUILDS];
 
 /*
 ================
@@ -932,13 +852,8 @@ static void R_FlushPendingBLASBuilds (cb_context_t *cbx, int num_pending, qboole
 	vulkan_globals.vk_cmd_pipeline_barrier (
 		cbx->cb, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR, 0, 1, &compute_barrier, 0, NULL, 0, NULL);
 
-	// Build range info pointer array
-	const VkAccelerationStructureBuildRangeInfoKHR *range_info_ptrs[MAX_PENDING_BLAS_BUILDS];
-	for (int i = 0; i < num_pending; ++i)
-		range_info_ptrs[i] = &pending_range_infos[i];
-
 	// Single batched AS build call
-	vulkan_globals.vk_cmd_build_acceleration_structures (cbx->cb, num_pending, pending_build_infos, range_info_ptrs);
+	vulkan_globals.vk_cmd_build_acceleration_structures (cbx->cb, num_pending, pending_build_infos, pending_range_info_ptrs);
 
 	// Barrier for next phase
 	ZEROED_STRUCT (VkMemoryBarrier, as_barrier);
@@ -1033,9 +948,11 @@ void R_UpdateAnimatedBLASes (cb_context_t *cbx)
 			VkDeviceAddress scratch_address = vulkan_globals.scratch_buffer_address + scratch_offset + aligned_vertex_size;
 
 			// Get lerp data
-			int	  pose1, pose2;
-			float blend;
-			R_SetupAliasFrameForBLAS (e, hdr, &pose1, &pose2, &blend);
+			lerpdata_t lerpdata;
+			R_SetupAliasFrame (e, hdr, e->frame, &lerpdata);
+			int	  pose1 = lerpdata.pose1;
+			int	  pose2 = lerpdata.pose2;
+			float blend = lerpdata.blend;
 
 			// Use the descriptor set allocated per-entity (bindings don't change between frames)
 			VkDescriptorSet anim_compute_set = e->blas_data->blas_compute_set;
@@ -1100,6 +1017,7 @@ void R_UpdateAnimatedBLASes (cb_context_t *cbx)
 			VkAccelerationStructureBuildRangeInfoKHR *range = &pending_range_infos[num_pending];
 			memset (range, 0, sizeof (*range));
 			range->primitiveCount = hdr->numtris;
+			pending_range_info_ptrs[num_pending] = range;
 
 			++num_pending;
 

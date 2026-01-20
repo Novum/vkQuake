@@ -895,6 +895,14 @@ void CL_RelinkEntities (void)
 			R_AllocateEntityBLAS (ent);
 			cl_visedicts[cl_numvisedicts] = ent;
 			cl_numvisedicts++;
+			// Update animation state for alias models
+			if (ent->model && ent->model->type == mod_alias)
+			{
+				aliashdr_t *hdr = (aliashdr_t *)Mod_Extradata (ent->model);
+				if (hdr)
+					R_UpdateEntityAnimState (ent, hdr);
+				R_UpdateEntityMoveState (ent);
+			}
 		}
 	}
 
