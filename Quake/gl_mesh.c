@@ -818,87 +818,6 @@ void R_FreeAllEntityBLASes (void)
 
 /*
 ================
-R_SetupAliasFrameForBLAS
-
-Sets up animation frame data for BLAS building.
-This updates entity state (previouspose, currentpose, lerpstart) just like
-R_SetupAliasFrame in r_alias.c, ensuring correct animation for ray tracing.
-================
-*/
-static void R_SetupAliasFrameForBLAS (entity_t *e, aliashdr_t *paliashdr, int *pose1, int *pose2, float *blend)
-{
-	int frame = e->frame;
-	if ((frame >= paliashdr->numframes) || (frame < 0))
-		frame = 0;
-
-	int posenum = paliashdr->frames[frame].firstpose;
-	int numposes = paliashdr->frames[frame].numposes;
-
-	if (numposes > 1)
-	{
-		e->lerptime = paliashdr->frames[frame].interval;
-		posenum += (int)(cl.time / e->lerptime) % numposes;
-	}
-	else
-		e->lerptime = 0.1f;
-
-	// Update entity animation state (mirroring R_SetupAliasFrame logic)
-	if (e->lerpflags & LERP_RESETANIM)
-	{
-		e->lerpstart = 0;
-		e->previouspose = posenum;
-		e->currentpose = posenum;
-		e->lerpflags -= LERP_RESETANIM;
-	}
-	else if (e->currentpose != posenum)
-	{
-		if (e->lerpflags & LERP_RESETANIM2)
-		{
-			e->lerpstart = 0;
-			e->previouspose = posenum;
-			e->currentpose = posenum;
-			e->lerpflags -= LERP_RESETANIM2;
-		}
-		else
-		{
-			e->lerpstart = cl.time;
-			e->previouspose = e->currentpose;
-			e->currentpose = posenum;
-		}
-	}
-
-	// Compute lerp values
-	if (r_lerpmodels.value && !(e->model->flags & MOD_NOLERP && r_lerpmodels.value != 2))
-	{
-		if (e->lerpflags & LERP_FINISH && numposes == 1)
-			*blend = CLAMP (0, (cl.time - e->lerpstart) / (e->lerpfinish - e->lerpstart), 1);
-		else
-			*blend = CLAMP (0, (cl.time - e->lerpstart) / e->lerptime, 1);
-
-		if (*blend == 1.0f)
-			e->previouspose = e->currentpose;
-
-		*pose1 = e->previouspose;
-		*pose2 = e->currentpose;
-
-		// Clamp poses to valid range
-		// For MD5, numposes is 1 (bind pose only), but we have numframes joint matrices
-		int max_poses = (paliashdr->poseverttype == PV_MD5) ? paliashdr->numframes : paliashdr->numposes;
-		if (*pose1 >= max_poses || *pose1 < 0)
-			*pose1 = 0;
-		if (*pose2 >= max_poses || *pose2 < 0)
-			*pose2 = 0;
-	}
-	else
-	{
-		*blend = 1.0f;
-		*pose1 = posenum;
-		*pose2 = posenum;
-	}
-}
-
-/*
-================
 R_UpdateAnimatedBLASes
 
 Update all entity BLASes with animated vertex data.
@@ -1033,9 +952,11 @@ void R_UpdateAnimatedBLASes (cb_context_t *cbx)
 			VkDeviceAddress scratch_address = vulkan_globals.scratch_buffer_address + scratch_offset + aligned_vertex_size;
 
 			// Get lerp data
-			int	  pose1, pose2;
-			float blend;
-			R_SetupAliasFrameForBLAS (e, hdr, &pose1, &pose2, &blend);
+			lerpdata_t lerpdata;
+			R_SetupAliasFrame (e, hdr, e->frame, &lerpdata);
+			int	  pose1 = lerpdata.pose1;
+			int	  pose2 = lerpdata.pose2;
+			float blend = lerpdata.blend;
 
 			// Use the descriptor set allocated per-entity (bindings don't change between frames)
 			VkDescriptorSet anim_compute_set = e->blas_data->blas_compute_set;

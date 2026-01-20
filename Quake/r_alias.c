@@ -41,17 +41,6 @@ float r_avertexnormals[NUMVERTEXNORMALS][3] = {
 // precalculated dot products for quantized angles
 #define SHADEDOT_QUANT 16
 
-// johnfitz -- struct for passing lerp information to drawing functions
-typedef struct
-{
-	short  pose1;
-	short  pose2;
-	float  blend;
-	vec3_t origin;
-	vec3_t angles;
-} lerpdata_t;
-// johnfitz
-
 typedef struct
 {
 	float	 model_matrix[16];
@@ -254,21 +243,20 @@ static void GL_DrawAliasFrame (
 
 /*
 =================
-R_SetupAliasFrame -- johnfitz -- rewritten to support lerping
+R_UpdateEntityAnimState
+
+Updates entity animation state (previouspose, currentpose, lerpstart, lerptime).
+Call once per frame when entity becomes visible, before R_SetupAliasFrame.
 =================
 */
-void R_SetupAliasFrame (entity_t *e, aliashdr_t *paliashdr, int frame, lerpdata_t *lerpdata)
+void R_UpdateEntityAnimState (entity_t *e, aliashdr_t *paliashdr)
 {
-	int posenum, numposes;
-
+	int frame = e->frame;
 	if ((frame >= paliashdr->numframes) || (frame < 0))
-	{
-		Con_DPrintf ("R_AliasSetupFrame: no such frame %d for '%s'\n", frame, e->model->name);
 		frame = 0;
-	}
 
-	posenum = paliashdr->frames[frame].firstpose;
-	numposes = paliashdr->frames[frame].numposes;
+	int posenum = paliashdr->frames[frame].firstpose;
+	int numposes = paliashdr->frames[frame].numposes;
 
 	if (numposes > 1)
 	{
@@ -278,16 +266,16 @@ void R_SetupAliasFrame (entity_t *e, aliashdr_t *paliashdr, int frame, lerpdata_
 	else
 		e->lerptime = 0.1;
 
-	if (e->lerpflags & LERP_RESETANIM) // kill any lerp in progress
+	if (e->lerpflags & LERP_RESETANIM)
 	{
 		e->lerpstart = 0;
 		e->previouspose = posenum;
 		e->currentpose = posenum;
 		e->lerpflags -= LERP_RESETANIM;
 	}
-	else if (e->currentpose != posenum) // pose changed, start new lerp
+	else if (e->currentpose != posenum)
 	{
-		if (e->lerpflags & LERP_RESETANIM2) // defer lerping one more time
+		if (e->lerpflags & LERP_RESETANIM2)
 		{
 			e->lerpstart = 0;
 			e->previouspose = posenum;
@@ -302,7 +290,39 @@ void R_SetupAliasFrame (entity_t *e, aliashdr_t *paliashdr, int frame, lerpdata_
 		}
 	}
 
-	// set up values
+	// Check blend==1 and snap previouspose
+	if (r_lerpmodels.value && !(e->model->flags & MOD_NOLERP && r_lerpmodels.value != 2))
+	{
+		float blend;
+		if (e->lerpflags & LERP_FINISH && numposes == 1)
+			blend = CLAMP (0, (cl.time - e->lerpstart) / (e->lerpfinish - e->lerpstart), 1);
+		else
+			blend = CLAMP (0, (cl.time - e->lerpstart) / e->lerptime, 1);
+
+		if (blend == 1.0f)
+			e->previouspose = e->currentpose;
+	}
+}
+
+/*
+=================
+R_SetupAliasFrame -- johnfitz -- rewritten to support lerping
+
+Computes output lerp data from stable entity animation state.
+Call R_UpdateEntityAnimState first to update entity state.
+=================
+*/
+void R_SetupAliasFrame (entity_t *e, aliashdr_t *paliashdr, int frame, lerpdata_t *lerpdata)
+{
+	if ((frame >= paliashdr->numframes) || (frame < 0))
+		frame = 0;
+
+	int posenum = paliashdr->frames[frame].firstpose;
+	int numposes = paliashdr->frames[frame].numposes;
+
+	if (numposes > 1)
+		posenum += (int)(cl.time / e->lerptime) % numposes;
+
 	if (r_lerpmodels.value && !(e->model->flags & MOD_NOLERP && r_lerpmodels.value != 2))
 	{
 		if (e->lerpflags & LERP_FINISH && numposes == 1)
@@ -310,28 +330,33 @@ void R_SetupAliasFrame (entity_t *e, aliashdr_t *paliashdr, int frame, lerpdata_
 		else
 			lerpdata->blend = CLAMP (0, (cl.time - e->lerpstart) / e->lerptime, 1);
 
-		if (lerpdata->blend == 1.0f)
-			e->previouspose = e->currentpose;
-
-		if (paliashdr->poseverttype == PV_QUAKE1)
-		{
-			if (e->currentpose >= paliashdr->numposes || e->currentpose < 0)
-			{
-				Con_DPrintf ("R_AliasSetupFrame: invalid current pose %d (%d total) for '%s'\n", e->currentpose, paliashdr->numposes, e->model->name);
-				e->currentpose = 0;
-			}
-
-			if (e->previouspose >= paliashdr->numposes || e->previouspose < 0)
-			{
-				Con_DPrintf ("R_AliasSetupFrame: invalid prev pose %d (%d total) for '%s'\n", e->previouspose, paliashdr->numposes, e->model->name);
-				e->previouspose = e->currentpose;
-			}
-		}
-
 		lerpdata->pose1 = e->previouspose;
 		lerpdata->pose2 = e->currentpose;
+
+		// Clamp poses (safety check for Quake1 models)
+		if (paliashdr->poseverttype == PV_QUAKE1)
+		{
+			if (lerpdata->pose2 >= paliashdr->numposes || lerpdata->pose2 < 0)
+			{
+				Con_DPrintf ("R_AliasSetupFrame: invalid current pose %d (%d total) for '%s'\n", lerpdata->pose2, paliashdr->numposes, e->model->name);
+				lerpdata->pose2 = 0;
+			}
+			if (lerpdata->pose1 >= paliashdr->numposes || lerpdata->pose1 < 0)
+			{
+				Con_DPrintf ("R_AliasSetupFrame: invalid prev pose %d (%d total) for '%s'\n", lerpdata->pose1, paliashdr->numposes, e->model->name);
+				lerpdata->pose1 = lerpdata->pose2;
+			}
+		}
+		else if (paliashdr->poseverttype == PV_MD5)
+		{
+			// MD5 uses numframes for joint matrices
+			if (lerpdata->pose1 >= paliashdr->numframes || lerpdata->pose1 < 0)
+				lerpdata->pose1 = 0;
+			if (lerpdata->pose2 >= paliashdr->numframes || lerpdata->pose2 < 0)
+				lerpdata->pose2 = 0;
+		}
 	}
-	else // don't lerp
+	else
 	{
 		lerpdata->blend = 1;
 		lerpdata->pose1 = posenum;
