@@ -1133,6 +1133,7 @@ void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 		Task_AddDependency (draw_particles_task, draw_done_task);
 
 		task_handle_t build_tlas_task = Task_AllocateAndAssignFunc (R_BuildTopLevelAccelerationStructure, NULL, 0);
+		Task_AddDependency (store_efrags, build_tlas_task);
 		Task_AddDependency (begin_rendering_task, build_tlas_task);
 		Task_AddDependency (build_tlas_task, draw_done_task);
 
