@@ -335,7 +335,6 @@ typedef struct
 	VkDescriptorSet			 ray_debug_desc_set;
 	vulkan_desc_set_layout_t ray_debug_set_layout;
 	vulkan_desc_set_layout_t joints_buffer_set_layout;
-	vulkan_desc_set_layout_t anim_compute_set_layout;
 
 	// Scratch buffer for animated AS building (vertex positions + AS build scratch)
 	VkBuffer		scratch_buffer;
@@ -368,6 +367,7 @@ typedef struct
 	PFN_vkCmdDrawIndexedIndirect	vk_cmd_draw_indexed_indirect;
 	PFN_vkCmdPipelineBarrier		vk_cmd_pipeline_barrier;
 	PFN_vkCmdCopyBufferToImage		vk_cmd_copy_buffer_to_image;
+	PFN_vkCmdDispatch				vk_cmd_dispatch;
 	PFN_vkGetBufferDeviceAddressKHR vk_get_buffer_device_address;
 
 	PFN_vkGetAccelerationStructureBuildSizesKHR		   vk_get_acceleration_structure_build_sizes;

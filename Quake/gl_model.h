@@ -367,6 +367,7 @@ typedef struct aliashdr_s
 	int					vbostofs; // offset in vbo of hdr->numverts_vbo meshst_t
 	VkBuffer			joints_buffer;
 	glheapallocation_t *joints_allocation;
+	VkDeviceAddress		joints_buffer_address;
 	VkDescriptorSet		joints_set;
 	maliasframedesc_t	frames[1]; // variable sized
 } aliashdr_t;

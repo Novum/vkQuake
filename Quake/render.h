@@ -64,7 +64,6 @@ typedef struct entity_blas_s
 	struct glheapallocation_s *blas_allocation;
 	VkDeviceAddress			   blas_address;
 	VkDeviceSize			   blas_build_scratch_size;
-	VkDescriptorSet			   blas_compute_set;
 	struct qmodel_s			  *blas_model;
 	int						   blas_numtris; // Track triangle count to detect model data changes
 } entity_blas_t;
@@ -164,6 +163,30 @@ typedef struct
 
 	int ambientlight;
 } refdef_t;
+
+typedef struct
+{
+	VkDeviceAddress input_address;
+	VkDeviceAddress output_address;
+	uint32_t		pose1_offset;
+	uint32_t		pose2_offset;
+	uint32_t		output_offset;
+	uint32_t		num_verts;
+	float			blend_factor;
+	uint32_t		flags;
+} mesh_interpolate_push_constants_t;
+
+typedef struct
+{
+	VkDeviceAddress input_address;
+	VkDeviceAddress joints_address;
+	VkDeviceAddress output_address;
+	uint32_t		joints_offset0;
+	uint32_t		joints_offset1;
+	uint32_t		output_offset;
+	uint32_t		num_verts;
+	float			blend_factor;
+} skinning_push_constants_t;
 
 //
 // refresh

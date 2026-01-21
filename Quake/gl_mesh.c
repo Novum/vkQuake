@@ -57,8 +57,6 @@ typedef struct
 	VkAccelerationStructureKHR blas;
 	VkBuffer				   buffer;
 	glheapallocation_t		  *allocation;
-	VkDescriptorSet			   compute_set;
-	vulkan_desc_set_layout_t  *compute_set_layout;
 } blas_garbage_t;
 
 static int				current_garbage_index;
@@ -92,8 +90,7 @@ static void AddBufferGarbage (
 AddBLASGarbage
 ================
 */
-static void AddBLASGarbage (
-	VkAccelerationStructureKHR blas, VkBuffer buffer, glheapallocation_t *allocation, VkDescriptorSet compute_set, vulkan_desc_set_layout_t *compute_set_layout)
+static void AddBLASGarbage (VkAccelerationStructureKHR blas, VkBuffer buffer, glheapallocation_t *allocation)
 {
 	int				garbage_index;
 	blas_garbage_t *garbage;
@@ -103,8 +100,6 @@ static void AddBLASGarbage (
 	garbage->blas = blas;
 	garbage->buffer = buffer;
 	garbage->allocation = allocation;
-	garbage->compute_set = compute_set;
-	garbage->compute_set_layout = compute_set_layout;
 }
 
 /*
@@ -178,8 +173,6 @@ void R_CollectMeshBufferGarbage (void)
 		vulkan_globals.vk_destroy_acceleration_structure (vulkan_globals.device, blas_g->blas, NULL);
 		vkDestroyBuffer (vulkan_globals.device, blas_g->buffer, NULL);
 		GL_HeapFree (mesh_buffer_heap, blas_g->allocation, &num_vulkan_mesh_allocations);
-		if (blas_g->compute_set != VK_NULL_HANDLE)
-			R_FreeDescriptorSet (blas_g->compute_set, blas_g->compute_set_layout);
 	}
 	num_garbage_blas[current_garbage_index] = 0;
 }
@@ -412,7 +405,8 @@ void GLMesh_UploadBuffers (qmodel_t *mod, aliashdr_t *hdr, unsigned short *index
 		// Get device address for ray tracing
 		if (vulkan_globals.ray_query)
 		{
-			VkBufferDeviceAddressInfoKHR address_info = {VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO_KHR};
+			ZEROED_STRUCT (VkBufferDeviceAddressInfoKHR, address_info);
+			address_info.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO_KHR;
 			address_info.buffer = hdr->index_buffer;
 			hdr->index_buffer_address = vulkan_globals.vk_get_buffer_device_address (vulkan_globals.device, &address_info);
 		}
@@ -543,7 +537,8 @@ void GLMesh_UploadBuffers (qmodel_t *mod, aliashdr_t *hdr, unsigned short *index
 		// Get device address for ray tracing
 		if (vulkan_globals.ray_query)
 		{
-			VkBufferDeviceAddressInfoKHR address_info = {VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO_KHR};
+			ZEROED_STRUCT (VkBufferDeviceAddressInfoKHR, address_info);
+			address_info.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO_KHR;
 			address_info.buffer = hdr->vertex_buffer;
 			hdr->vertex_buffer_address = vulkan_globals.vk_get_buffer_device_address (vulkan_globals.device, &address_info);
 		}
@@ -556,6 +551,8 @@ void GLMesh_UploadBuffers (qmodel_t *mod, aliashdr_t *hdr, unsigned short *index
 		buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 		buffer_create_info.size = totaljointssize;
 		buffer_create_info.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+		if (vulkan_globals.ray_query)
+			buffer_create_info.usage |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
 		err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &hdr->joints_buffer);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkCreateBuffer failed");
@@ -573,6 +570,15 @@ void GLMesh_UploadBuffers (qmodel_t *mod, aliashdr_t *hdr, unsigned short *index
 			Sys_Error ("vkBindBufferMemory failed");
 
 		R_StagingUploadBuffer (hdr->joints_buffer, totaljointssize, (byte *)joints);
+
+		// Get device address for ray tracing
+		if (vulkan_globals.ray_query)
+		{
+			ZEROED_STRUCT (VkBufferDeviceAddressInfoKHR, address_info);
+			address_info.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO_KHR;
+			address_info.buffer = hdr->joints_buffer;
+			hdr->joints_buffer_address = vulkan_globals.vk_get_buffer_device_address (vulkan_globals.device, &address_info);
+		}
 
 		hdr->joints_set = R_AllocateDescriptorSet (&vulkan_globals.joints_buffer_set_layout);
 
@@ -725,49 +731,6 @@ void R_AllocateEntityBLAS (entity_t *e)
 	// Track which model this BLAS was allocated for
 	e->blas_data->blas_model = e->model;
 	e->blas_data->blas_numtris = num_triangles;
-
-	// Allocate and set up descriptor set for compute shader
-	e->blas_data->blas_compute_set = R_AllocateDescriptorSet (&vulkan_globals.anim_compute_set_layout);
-
-	// Set up descriptor set bindings (these don't change between frames)
-	if (vulkan_globals.scratch_buffer != VK_NULL_HANDLE)
-	{
-		ZEROED_STRUCT_ARRAY (VkDescriptorBufferInfo, buffer_infos, 3);
-		buffer_infos[0].buffer = hdr->vertex_buffer;
-		buffer_infos[0].offset = 0;
-		buffer_infos[0].range = VK_WHOLE_SIZE;
-
-		// Binding 1: joints buffer (for MD5) or scratch buffer as dummy
-		if (hdr->poseverttype == PV_MD5 && hdr->joints_buffer != VK_NULL_HANDLE)
-		{
-			buffer_infos[1].buffer = hdr->joints_buffer;
-			buffer_infos[1].offset = 0;
-			buffer_infos[1].range = VK_WHOLE_SIZE;
-		}
-		else
-		{
-			buffer_infos[1].buffer = vulkan_globals.scratch_buffer;
-			buffer_infos[1].offset = 0;
-			buffer_infos[1].range = VK_WHOLE_SIZE;
-		}
-
-		buffer_infos[2].buffer = vulkan_globals.scratch_buffer;
-		buffer_infos[2].offset = 0;
-		buffer_infos[2].range = VK_WHOLE_SIZE;
-
-		ZEROED_STRUCT_ARRAY (VkWriteDescriptorSet, writes, 3);
-		for (int j = 0; j < 3; ++j)
-		{
-			writes[j].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-			writes[j].dstSet = e->blas_data->blas_compute_set;
-			writes[j].dstBinding = j;
-			writes[j].dstArrayElement = 0;
-			writes[j].descriptorCount = 1;
-			writes[j].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-			writes[j].pBufferInfo = &buffer_infos[j];
-		}
-		vkUpdateDescriptorSets (vulkan_globals.device, 3, writes, 0, NULL);
-	}
 }
 
 /*
@@ -790,8 +753,7 @@ void R_FreeEntityBLAS (entity_t *e)
 	}
 
 	// Add to garbage collection - resources will be freed after GPU is done with them
-	AddBLASGarbage (
-		e->blas_data->blas, e->blas_data->blas_buffer, e->blas_data->blas_allocation, e->blas_data->blas_compute_set, &vulkan_globals.anim_compute_set_layout);
+	AddBLASGarbage (e->blas_data->blas, e->blas_data->blas_buffer, e->blas_data->blas_allocation);
 
 	Mem_Free (e->blas_data);
 	e->blas_data = NULL;
@@ -886,7 +848,9 @@ void R_UpdateAnimatedBLASes (cb_context_t *cbx)
 		return;
 
 	const VkDeviceSize scratch_buffer_size = SCRATCH_BUFFER_SIZE_MB * 1024 * 1024;
-	const VkDeviceSize as_alignment = vulkan_globals.physical_device_acceleration_structure_properties.minAccelerationStructureScratchOffsetAlignment;
+	const VkDeviceSize scratch_alignment = vulkan_globals.physical_device_acceleration_structure_properties.minAccelerationStructureScratchOffsetAlignment;
+	// 16 bytes because of device address default buffer_reference_align
+	const VkDeviceSize buffer_alignment = q_max (vulkan_globals.device_properties.limits.minStorageBufferOffsetAlignment, 16);
 
 	VkDeviceSize scratch_offset = 0;
 	int			 num_pending = 0;
@@ -918,14 +882,14 @@ void R_UpdateAnimatedBLASes (cb_context_t *cbx)
 			if (e->blas_data->blas_model != e->model || e->blas_data->blas_numtris != hdr->numtris)
 				continue;
 
-			// Align for AS build scratch
-			VkDeviceSize aligned_scratch_offset = q_align (scratch_offset, as_alignment);
-
-			// Calculate space needed
+			// Calculate space needed with proper alignments:
+			// - Position buffer needs buffer_alignment (for storage buffer access)
+			// - AS build scratch needs scratch_alignment (for acceleration structure build)
+			const VkDeviceSize vertex_offset = q_align (scratch_offset, buffer_alignment);
 			const VkDeviceSize vertex_size = hdr->numverts_vbo * sizeof (float) * 3;
-			const VkDeviceSize scratch_size = e->blas_data->blas_build_scratch_size;
-			VkDeviceSize	   aligned_vertex_size = q_align (vertex_size, as_alignment);
-			VkDeviceSize	   total_needed = aligned_vertex_size + scratch_size;
+			const VkDeviceSize as_scratch_offset = q_align (vertex_offset + vertex_size, scratch_alignment);
+			const VkDeviceSize as_scratch_size = e->blas_data->blas_build_scratch_size;
+			const VkDeviceSize total_needed = as_scratch_offset - scratch_offset + as_scratch_size;
 
 			// Check if entity fits in scratch buffer at all
 			if (total_needed > scratch_buffer_size)
@@ -935,17 +899,15 @@ void R_UpdateAnimatedBLASes (cb_context_t *cbx)
 			}
 
 			// Check if we have space; if not, flush current batch and reset
-			if (aligned_scratch_offset + total_needed > scratch_buffer_size)
+			if (scratch_offset + total_needed > scratch_buffer_size)
 			{
 				// Need to flush - back up entity_index to retry this entity after flush
 				--entity_index;
 				break;
 			}
 
-			scratch_offset = aligned_scratch_offset;
-
-			VkDeviceAddress vertex_output_address = vulkan_globals.scratch_buffer_address + scratch_offset;
-			VkDeviceAddress scratch_address = vulkan_globals.scratch_buffer_address + scratch_offset + aligned_vertex_size;
+			VkDeviceAddress vertex_output_address = vulkan_globals.scratch_buffer_address + vertex_offset;
+			VkDeviceAddress scratch_address = vulkan_globals.scratch_buffer_address + as_scratch_offset;
 
 			// Get lerp data
 			lerpdata_t lerpdata;
@@ -954,41 +916,42 @@ void R_UpdateAnimatedBLASes (cb_context_t *cbx)
 			int	  pose2 = lerpdata.pose2;
 			float blend = lerpdata.blend;
 
-			// Use the descriptor set allocated per-entity (bindings don't change between frames)
-			VkDescriptorSet anim_compute_set = e->blas_data->blas_compute_set;
-
-			// Dispatch compute shader
-			vulkan_pipeline_t pipeline;
-			uint32_t		  push_constants[12]; // Max size needed
-
+			// Dispatch compute shader with push constants containing buffer addresses
 			if (hdr->poseverttype == PV_MD5)
 			{
 				// MD5 skinning
-				pipeline = vulkan_globals.skinning_pipeline;
-				push_constants[0] = pose1 * hdr->numjoints;						 // joints_offset0
-				push_constants[1] = pose2 * hdr->numjoints;						 // joints_offset1
-				push_constants[2] = (uint32_t)(scratch_offset / sizeof (float)); // output_offset (in floats)
-				push_constants[3] = hdr->numverts_vbo;							 // num_verts
-				memcpy (&push_constants[4], &blend, sizeof (float));			 // blend_factor
+				skinning_push_constants_t pc = {
+					.input_address = hdr->vertex_buffer_address,
+					.joints_address = hdr->joints_buffer_address,
+					.output_address = vertex_output_address,
+					.joints_offset0 = pose1 * hdr->numjoints,
+					.joints_offset1 = pose2 * hdr->numjoints,
+					.output_offset = 0, // output starts at output_address
+					.num_verts = hdr->numverts_vbo,
+					.blend_factor = blend,
+				};
+				R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_COMPUTE, vulkan_globals.skinning_pipeline);
+				R_PushConstants (cbx, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof (pc), &pc);
 			}
 			else
 			{
 				// MDL/MD3 interpolation
-				pipeline = vulkan_globals.mesh_interpolate_pipeline;
-				push_constants[0] = pose1 * hdr->numverts_vbo;					 // pose1_offset (in vertices)
-				push_constants[1] = pose2 * hdr->numverts_vbo;					 // pose2_offset (in vertices)
-				push_constants[2] = (uint32_t)(scratch_offset / sizeof (float)); // output_offset (in floats)
-				push_constants[3] = hdr->numverts_vbo;							 // num_verts
-				memcpy (&push_constants[4], &blend, sizeof (float));			 // blend_factor
-				push_constants[5] = (hdr->poseverttype == PV_QUAKE3) ? 0x4 : 0;	 // flags (bit 2 = MD3)
+				mesh_interpolate_push_constants_t pc = {
+					.input_address = hdr->vertex_buffer_address,
+					.output_address = vertex_output_address,
+					.pose1_offset = pose1 * hdr->numverts_vbo,
+					.pose2_offset = pose2 * hdr->numverts_vbo,
+					.output_offset = 0, // output starts at output_address
+					.num_verts = hdr->numverts_vbo,
+					.blend_factor = blend,
+					.flags = (hdr->poseverttype == PV_QUAKE3) ? 0x4 : 0,
+				};
+				R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_COMPUTE, vulkan_globals.mesh_interpolate_pipeline);
+				R_PushConstants (cbx, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof (pc), &pc);
 			}
 
-			R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
-			vkCmdBindDescriptorSets (cbx->cb, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline.layout.handle, 0, 1, &anim_compute_set, 0, NULL);
-			R_PushConstants (cbx, VK_SHADER_STAGE_COMPUTE_BIT, 0, pipeline.layout.push_constant_range.size, push_constants);
-
 			uint32_t num_groups = (hdr->numverts_vbo + 63) / 64;
-			vkCmdDispatch (cbx->cb, num_groups, 1, 1);
+			vulkan_globals.vk_cmd_dispatch (cbx->cb, num_groups, 1, 1);
 
 			// Store build info for later
 			VkAccelerationStructureGeometryKHR *geom = &pending_geometries[num_pending];
