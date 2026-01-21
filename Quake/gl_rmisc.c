@@ -1475,35 +1475,6 @@ void R_CreateDescriptorSetLayouts ()
 		GL_SetObjectName ((uint64_t)vulkan_globals.indirect_compute_set_layout.handle, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT, "indirect compute");
 	}
 
-	if (vulkan_globals.ray_query)
-	{
-		// Animation compute set layout: 3 storage buffers (input vertices, joints/unused, output positions)
-		ZEROED_STRUCT_ARRAY (VkDescriptorSetLayoutBinding, anim_compute_layout_bindings, 3);
-		anim_compute_layout_bindings[0].binding = 0;
-		anim_compute_layout_bindings[0].descriptorCount = 1;
-		anim_compute_layout_bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-		anim_compute_layout_bindings[0].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-		anim_compute_layout_bindings[1].binding = 1;
-		anim_compute_layout_bindings[1].descriptorCount = 1;
-		anim_compute_layout_bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-		anim_compute_layout_bindings[1].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-		anim_compute_layout_bindings[2].binding = 2;
-		anim_compute_layout_bindings[2].descriptorCount = 1;
-		anim_compute_layout_bindings[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-		anim_compute_layout_bindings[2].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-
-		descriptor_set_layout_create_info.bindingCount = countof (anim_compute_layout_bindings);
-		descriptor_set_layout_create_info.pBindings = anim_compute_layout_bindings;
-
-		memset (&vulkan_globals.anim_compute_set_layout, 0, sizeof (vulkan_globals.anim_compute_set_layout));
-		vulkan_globals.anim_compute_set_layout.num_storage_buffers = 3;
-
-		err = vkCreateDescriptorSetLayout (vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.anim_compute_set_layout.handle);
-		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateDescriptorSetLayout failed");
-		GL_SetObjectName ((uint64_t)vulkan_globals.anim_compute_set_layout.handle, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT, "anim compute");
-	}
-
 #if defined(_DEBUG)
 	if (vulkan_globals.ray_query)
 	{
@@ -1896,20 +1867,16 @@ void R_CreatePipelineLayouts ()
 
 	if (vulkan_globals.ray_query)
 	{
-		// Mesh interpolate pipeline (MDL/MD3)
-		VkDescriptorSetLayout mesh_interpolate_descriptor_set_layouts[1] = {
-			vulkan_globals.anim_compute_set_layout.handle,
-		};
-
+		// Mesh interpolate pipeline (MDL/MD3) - uses buffer device addresses via push constants
 		ZEROED_STRUCT (VkPushConstantRange, push_constant_range);
 		push_constant_range.offset = 0;
-		push_constant_range.size = 12 * sizeof (uint32_t); // 48 bytes
+		push_constant_range.size = 40; // sizeof(mesh_interpolate_push_constants_t)
 		push_constant_range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
 		ZEROED_STRUCT (VkPipelineLayoutCreateInfo, pipeline_layout_create_info);
 		pipeline_layout_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-		pipeline_layout_create_info.setLayoutCount = 1;
-		pipeline_layout_create_info.pSetLayouts = mesh_interpolate_descriptor_set_layouts;
+		pipeline_layout_create_info.setLayoutCount = 0;
+		pipeline_layout_create_info.pSetLayouts = NULL;
 		pipeline_layout_create_info.pushConstantRangeCount = 1;
 		pipeline_layout_create_info.pPushConstantRanges = &push_constant_range;
 
@@ -1919,8 +1886,8 @@ void R_CreatePipelineLayouts ()
 		GL_SetObjectName ((uint64_t)vulkan_globals.mesh_interpolate_pipeline.layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "mesh_interpolate_pipeline_layout");
 		vulkan_globals.mesh_interpolate_pipeline.layout.push_constant_range = push_constant_range;
 
-		// Skinning pipeline (MD5)
-		push_constant_range.size = 5 * sizeof (uint32_t); // 20 bytes
+		// Skinning pipeline (MD5) - uses buffer device addresses via push constants
+		push_constant_range.size = q_max (sizeof (skinning_push_constants_t), sizeof (mesh_interpolate_push_constants_t));
 
 		err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.skinning_pipeline.layout.handle);
 		if (err != VK_SUCCESS)

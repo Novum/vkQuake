@@ -1332,6 +1332,7 @@ static void GL_InitDevice (void)
 	GET_GLOBAL_DEVICE_PROC_ADDR (vk_cmd_draw_indexed_indirect, vkCmdDrawIndexedIndirect);
 	GET_GLOBAL_DEVICE_PROC_ADDR (vk_cmd_pipeline_barrier, vkCmdPipelineBarrier);
 	GET_GLOBAL_DEVICE_PROC_ADDR (vk_cmd_copy_buffer_to_image, vkCmdCopyBufferToImage);
+	GET_GLOBAL_DEVICE_PROC_ADDR (vk_cmd_dispatch, vkCmdDispatch);
 }
 
 /*

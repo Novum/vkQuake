@@ -1,6 +1,8 @@
 #version 460
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_ARB_shading_language_420pack : enable
+#extension GL_EXT_buffer_reference : require
+#extension GL_EXT_buffer_reference_uvec2 : require
 
 // Compute shader for interpolating alias model vertices (MDL/MD3)
 // for acceleration structure building.
@@ -10,36 +12,35 @@
 //
 // The TLAS instance transform handles scale_origin, scale, and entity transform.
 
+layout (buffer_reference, std430) readonly buffer InputVertexBuffer
+{
+	uint data[];
+};
+layout (buffer_reference, std430) writeonly buffer OutputBuffer
+{
+	float data[];
+};
+
 layout (push_constant) uniform PushConsts
 {
-	uint  pose1_offset;	 // Offset in source buffer for pose1 (in vertices)
-	uint  pose2_offset;	 // Offset in source buffer for pose2 (in vertices)
-	uint  output_offset; // Offset in output buffer (in floats)
-	uint  num_verts;
-	float blend_factor;
-	uint  flags; // Bit 2: MD3 format
+	uvec2 input_address;  // 0
+	uvec2 output_address; // 8
+	uint  pose1_offset;	  // 16
+	uint  pose2_offset;	  // 20
+	uint  output_offset;  // 24
+	uint  num_verts;	  // 28
+	float blend_factor;	  // 32
+	uint  flags;		  // 36 (Bit 2: MD3 format)
 }
 push_constants;
 
-// meshxyz_t is 12 bytes: uint16[4] xyz + int8[4] normal
-// We read as uints to get the data
-layout (std430, set = 0, binding = 0) restrict readonly buffer InputVertices
-{
-	uint vertex_data[];
-};
-
-layout (std430, set = 0, binding = 2) restrict writeonly buffer OutputPositions
-{
-	float positions[];
-};
-
 // Decode a meshxyz_t vertex position to model-space coordinates
-vec3 decode_vertex (uint offset)
+vec3 decode_vertex (InputVertexBuffer input_buffer, uint offset)
 {
 	// Each meshxyz_t is 12 bytes = 3 uints
 	// First 8 bytes (2 uints) contain xyz[4] as uint16
-	uint xyz_low = vertex_data[offset * 3];
-	uint xyz_high = vertex_data[offset * 3 + 1];
+	uint xyz_low = input_buffer.data[offset * 3];
+	uint xyz_high = input_buffer.data[offset * 3 + 1];
 
 	// Extract uint16 values
 	float x = float (xyz_low & 0xFFFF);
@@ -71,13 +72,16 @@ void main ()
 	if (vertex_idx >= push_constants.num_verts)
 		return;
 
-	vec3 pos1 = decode_vertex (push_constants.pose1_offset + vertex_idx);
-	vec3 pos2 = decode_vertex (push_constants.pose2_offset + vertex_idx);
+	InputVertexBuffer input_buffer = InputVertexBuffer (push_constants.input_address);
+	OutputBuffer	  output_buffer = OutputBuffer (push_constants.output_address);
+
+	vec3 pos1 = decode_vertex (input_buffer, push_constants.pose1_offset + vertex_idx);
+	vec3 pos2 = decode_vertex (input_buffer, push_constants.pose2_offset + vertex_idx);
 
 	vec3 lerped = mix (pos1, pos2, push_constants.blend_factor);
 
 	uint out_idx = push_constants.output_offset + vertex_idx * 3;
-	positions[out_idx + 0] = lerped.x;
-	positions[out_idx + 1] = lerped.y;
-	positions[out_idx + 2] = lerped.z;
+	output_buffer.data[out_idx + 0] = lerped.x;
+	output_buffer.data[out_idx + 1] = lerped.y;
+	output_buffer.data[out_idx + 2] = lerped.z;
 }

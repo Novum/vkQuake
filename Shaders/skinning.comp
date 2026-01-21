@@ -1,6 +1,8 @@
 #version 460
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_ARB_shading_language_420pack : enable
+#extension GL_EXT_buffer_reference : require
+#extension GL_EXT_buffer_reference_uvec2 : require
 
 // Compute shader for skeletal skinning of MD5 model vertices
 // for acceleration structure building.
@@ -8,13 +10,29 @@
 // Input: md5vert_t vertex data, joint matrices
 // Output: skinned vec3 positions
 
+layout (buffer_reference, std430) readonly buffer InputVertexBuffer
+{
+	float data[];
+};
+layout (buffer_reference, std430) readonly buffer JointMatrixBuffer
+{
+	float data[];
+};
+layout (buffer_reference, std430) writeonly buffer OutputBuffer
+{
+	float data[];
+};
+
 layout (push_constant) uniform PushConsts
 {
-	uint  joints_offset0; // Joint matrix offset for pose 0
-	uint  joints_offset1; // Joint matrix offset for pose 1
-	uint  output_offset;  // Offset in output buffer (in floats)
-	uint  num_verts;
-	float blend_factor;
+	uvec2 input_address;  // 0
+	uvec2 joints_address; // 8
+	uvec2 output_address; // 16
+	uint  joints_offset0; // 24 - Joint matrix offset for pose 0
+	uint  joints_offset1; // 28 - Joint matrix offset for pose 1
+	uint  output_offset;  // 32 - Offset in output buffer (in floats)
+	uint  num_verts;	  // 36
+	float blend_factor;	  // 40
 }
 push_constants;
 
@@ -26,28 +44,14 @@ push_constants;
 // byte joint_indices[4]  - 4 bytes  (offset 36)
 // Total: 40 bytes = 10 floats
 
-layout (std430, set = 0, binding = 0) restrict readonly buffer InputVertices
-{
-	float vertex_data[];
-};
-
-layout (std430, set = 0, binding = 1) restrict readonly buffer JointMatrices
-{
-	float joint_mats[];
-};
-
-layout (std430, set = 0, binding = 2) restrict writeonly buffer OutputPositions
-{
-	float positions[];
-};
-
 // Load a 3x4 joint matrix and transform a position
-vec3 transform_by_joint (vec3 pos, uint joint_offset)
+vec3 transform_by_joint (JointMatrixBuffer joint_mats, vec3 pos, uint joint_offset)
 {
 	uint   base = joint_offset * 12;
 	mat4x3 m = mat4x3 (
-		joint_mats[base + 0], joint_mats[base + 4], joint_mats[base + 8], joint_mats[base + 1], joint_mats[base + 5], joint_mats[base + 9],
-		joint_mats[base + 2], joint_mats[base + 6], joint_mats[base + 10], joint_mats[base + 3], joint_mats[base + 7], joint_mats[base + 11]);
+		joint_mats.data[base + 0], joint_mats.data[base + 4], joint_mats.data[base + 8], joint_mats.data[base + 1], joint_mats.data[base + 5],
+		joint_mats.data[base + 9], joint_mats.data[base + 2], joint_mats.data[base + 6], joint_mats.data[base + 10], joint_mats.data[base + 3],
+		joint_mats.data[base + 7], joint_mats.data[base + 11]);
 	return (m * vec4 (pos, 1.0)).xyz;
 }
 
@@ -58,14 +62,18 @@ void main ()
 	if (vertex_idx >= push_constants.num_verts)
 		return;
 
+	InputVertexBuffer vertex_data = InputVertexBuffer (push_constants.input_address);
+	JointMatrixBuffer joint_mats = JointMatrixBuffer (push_constants.joints_address);
+	OutputBuffer	  positions = OutputBuffer (push_constants.output_address);
+
 	// Read vertex data (40 bytes = 10 floats per vertex)
 	uint base = vertex_idx * 10;
-	vec3 bind_pos = vec3 (vertex_data[base + 0], vertex_data[base + 1], vertex_data[base + 2]);
+	vec3 bind_pos = vec3 (vertex_data.data[base + 0], vertex_data.data[base + 1], vertex_data.data[base + 2]);
 
 	// Joint weights and indices are packed as bytes at offset 32 and 36
 	// That's floats 8 and 9 in our float array
-	uint weights_packed = floatBitsToUint (vertex_data[base + 8]);
-	uint indices_packed = floatBitsToUint (vertex_data[base + 9]);
+	uint weights_packed = floatBitsToUint (vertex_data.data[base + 8]);
+	uint indices_packed = floatBitsToUint (vertex_data.data[base + 9]);
 
 	// Extract weights (normalized bytes)
 	vec4 weights =
@@ -89,7 +97,7 @@ void main ()
 			if (weight > 0.0)
 			{
 				uint joint_idx = indices[i];
-				skinned_pos[frame] += weight * transform_by_joint (bind_pos, frame_offset + joint_idx);
+				skinned_pos[frame] += weight * transform_by_joint (joint_mats, bind_pos, frame_offset + joint_idx);
 			}
 		}
 	}
@@ -99,7 +107,7 @@ void main ()
 
 	// Write output
 	uint out_idx = push_constants.output_offset + vertex_idx * 3;
-	positions[out_idx + 0] = lerped.x;
-	positions[out_idx + 1] = lerped.y;
-	positions[out_idx + 2] = lerped.z;
+	positions.data[out_idx + 0] = lerped.x;
+	positions.data[out_idx + 1] = lerped.y;
+	positions.data[out_idx + 2] = lerped.z;
 }
