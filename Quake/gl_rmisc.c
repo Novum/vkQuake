@@ -475,7 +475,7 @@ static void R_DestroyStagingBuffers (void)
 {
 	int i;
 
-	R_FreeVulkanMemory (&staging_memory, NULL);
+	R_FreeVulkanMemory (&staging_memory, &num_vulkan_misc_allocations);
 	for (i = 0; i < NUM_STAGING_BUFFERS; ++i)
 	{
 		vkDestroyBuffer (vulkan_globals.device, staging_buffers[i].buffer, NULL);
@@ -4075,6 +4075,7 @@ void R_FreeVulkanMemory (vulkan_memory_t *memory, atomic_uint32_t *num_allocatio
 	}
 	memory->handle = VK_NULL_HANDLE;
 	memory->size = 0;
+	memory->type = VULKAN_MEMORY_TYPE_NONE;
 }
 
 /*

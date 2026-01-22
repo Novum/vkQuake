@@ -1904,7 +1904,6 @@ static void GL_CreateColorBuffer (void)
 			memory_allocate_info.pNext = &dedicated_allocation_info;
 
 		assert (msaa_color_buffer_memory.handle == VK_NULL_HANDLE);
-		Atomic_IncrementUInt32 (&num_vulkan_misc_allocations);
 		R_AllocateVulkanMemory (&msaa_color_buffer_memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_DEVICE, &num_vulkan_misc_allocations);
 		GL_SetObjectName ((uint64_t)msaa_color_buffer_memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, "MSAA Color Buffer");
 

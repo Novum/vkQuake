@@ -162,9 +162,9 @@ typedef struct vulkan_desc_set_layout_s
 
 typedef enum
 {
+	VULKAN_MEMORY_TYPE_NONE,
 	VULKAN_MEMORY_TYPE_DEVICE,
 	VULKAN_MEMORY_TYPE_HOST,
-	VULKAN_MEMORY_TYPE_NONE,
 } vulkan_memory_type_t;
 
 typedef struct vulkan_memory_s
