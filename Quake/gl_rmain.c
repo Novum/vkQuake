@@ -557,7 +557,9 @@ void R_DrawViewModel (cb_context_t *cbx)
 	// hack the depth range to prevent view model from poking into walls
 	GL_Viewport (cbx, r_refdef.vrect.x, glheight - r_refdef.vrect.y - r_refdef.vrect.height, r_refdef.vrect.width, r_refdef.vrect.height, 0.7f, 1.0f);
 
-	int aliaspolys = 0;
+	int			aliaspolys = 0;
+	aliashdr_t *paliashdr = (aliashdr_t *)Mod_Extradata (currententity->model);
+	R_UpdateEntityAnimState (currententity, paliashdr);
 	R_DrawAliasModel (cbx, currententity, &aliaspolys);
 	Atomic_AddUInt32 (&rs_aliaspolys, aliaspolys);
 	Atomic_IncrementUInt32 (&rs_aliaspasses);
