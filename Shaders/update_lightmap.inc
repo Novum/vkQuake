@@ -87,7 +87,7 @@ bool IsOccluded (vec3 origin, vec3 direction, float dist)
 {
 	rayQueryEXT ray_query;
 	rayQueryInitializeEXT (
-		ray_query, tlas, gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsOpaqueEXT | gl_RayFlagsSkipClosestHitShaderEXT, 0xFF, origin, 0.01f, direction, dist);
+		ray_query, tlas, gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsOpaqueEXT | gl_RayFlagsSkipClosestHitShaderEXT, 0xFF, origin, 8.0f, direction, dist);
 	rayQueryProceedEXT (ray_query);
 	return rayQueryGetIntersectionTypeEXT (ray_query, true) == gl_RayQueryCommittedIntersectionTriangleEXT;
 }
