@@ -29,14 +29,10 @@ float Fog_GetDensity (void);
 void  Fog_GetColor (float *c);
 
 extern atomic_uint32_t rs_skypolys; // for r_speeds readout
-float				   skyflatcolor[3];
-float				   skymins[2][6], skymaxs[2][6];
+static float				   skyflatcolor[3];
+static float				   skymins[2][6], skymaxs[2][6];
 
-char skybox_name[1024]; // name of current skybox, or "" if no skybox
-
-gltexture_t *skybox_textures[6];
-gltexture_t *skybox_cubemap;
-gltexture_t *solidskytexture, *alphaskytexture;
+static gltexture_t *solidskytexture, *alphaskytexture;
 
 extern cvar_t gl_farclip;
 cvar_t		  r_fastsky = {"r_fastsky", "0", CVAR_NONE};
@@ -55,9 +51,7 @@ static const int st_to_vec[6][3] = {
 
 static const int vec_to_st[6][3] = {{-2, 3, 1}, {2, 3, -1}, {1, 3, 2}, {-1, 3, -2}, {-2, -1, 3}, {-2, 1, -3}};
 
-float skyfog; // ericw
-
-char skybox_name_worldspawn[1024];
+static float skyfog; // ericw
 
 static SDL_Mutex *load_skytexture_mutex;
 static int		  max_skytexture_index = -1;
@@ -71,6 +65,20 @@ typedef struct
 	float texcoord2[2];
 	byte  color[4];
 } skylayervertex_t;
+
+typedef struct skybox_s
+{
+	char		 name[1024]; // name of current skybox, or "" if no skybox
+	char		 name_worldspawn[1024];
+	gltexture_t *textures[6];
+	gltexture_t *cubemap;
+	float		 wind_dist;
+	float		 wind_yaw;
+	float		 wind_pitch;
+	float		 wind_period;
+} skybox_t;
+
+static skybox_t skybox;
 
 //==============================================================================
 //
@@ -237,24 +245,24 @@ void Sky_LoadSkyBox (const char *name)
 	byte		  *data[6];
 	qboolean	   nonefound = true, cubemap = true;
 
-	if (strcmp (skybox_name, name) == 0)
+	if (strcmp (skybox.name, name) == 0)
 		return; // no change
 
 	// purge old textures
 	for (i = 0; i < 6; i++)
 	{
-		if (skybox_textures[i] && skybox_textures[i] != notexture)
-			TexMgr_FreeTexture (skybox_textures[i]);
-		skybox_textures[i] = NULL;
+		if (skybox.textures[i] && skybox.textures[i] != notexture)
+			TexMgr_FreeTexture (skybox.textures[i]);
+		skybox.textures[i] = NULL;
 	}
-	if (skybox_cubemap)
-		TexMgr_FreeTexture (skybox_cubemap);
-	skybox_cubemap = NULL;
+	if (skybox.cubemap)
+		TexMgr_FreeTexture (skybox.cubemap);
+	skybox.cubemap = NULL;
 
 	// turn off skybox if sky is set to ""
 	if (name[0] == 0)
 	{
-		skybox_name[0] = 0;
+		skybox.name[0] = 0;
 		return;
 	}
 
@@ -271,17 +279,17 @@ void Sky_LoadSkyBox (const char *name)
 	if (cubemap)
 	{
 		q_snprintf (filename[0], sizeof (filename[0]), "gfx/env/%scube", name);
-		skybox_cubemap = TexMgr_LoadImage (cl.worldmodel, filename[0], width[0], height[0], SRC_RGBA_CUBEMAP, (byte *)data, filename[0], 0, TEXPREF_NONE);
+		skybox.cubemap = TexMgr_LoadImage (cl.worldmodel, filename[0], width[0], height[0], SRC_RGBA_CUBEMAP, (byte *)data, filename[0], 0, TEXPREF_NONE);
 	}
 	else
 		for (i = 0; i < 6; i++)
 		{
 			if (data[i])
-				skybox_textures[i] = TexMgr_LoadImage (cl.worldmodel, filename[i], width[i], height[i], fmt[i], data[i], filename[i], 0, TEXPREF_NONE);
+				skybox.textures[i] = TexMgr_LoadImage (cl.worldmodel, filename[i], width[i], height[i], fmt[i], data[i], filename[i], 0, TEXPREF_NONE);
 			else
 			{
 				Con_Printf ("Couldn't load %s\n", filename[i]);
-				skybox_textures[i] = notexture;
+				skybox.textures[i] = notexture;
 			}
 		}
 
@@ -293,15 +301,15 @@ void Sky_LoadSkyBox (const char *name)
 	{
 		for (i = 0; i < 6; i++)
 		{
-			if (skybox_textures[i] && skybox_textures[i] != notexture)
-				TexMgr_FreeTexture (skybox_textures[i]);
-			skybox_textures[i] = NULL;
+			if (skybox.textures[i] && skybox.textures[i] != notexture)
+				TexMgr_FreeTexture (skybox.textures[i]);
+			skybox.textures[i] = NULL;
 		}
-		skybox_name[0] = 0;
+		skybox.name[0] = 0;
 		return;
 	}
 
-	q_strlcpy (skybox_name, name, sizeof (skybox_name));
+	q_strlcpy (skybox.name, name, sizeof (skybox.name));
 }
 
 /*
@@ -313,14 +321,14 @@ To preserve dynamic skies in demos and savegames
 */
 const char *Sky_GetSkyCommand (qboolean always)
 {
-	qboolean need_sky = always || strcmp (skybox_name, skybox_name_worldspawn);
+	qboolean need_sky = always || strcmp (skybox.name, skybox.name_worldspawn);
 	qboolean need_skyfog = always; // no safe way to record skyfog in demos; r_skyfog is user pref
 
 	if (need_sky || need_skyfog)
 	{
 		char sky[128];
 		char fog[128];
-		q_strlcpy (sky, va ("sky \"%s\"", skybox_name), sizeof (sky));
+		q_strlcpy (sky, va ("sky \"%s\"", skybox.name), sizeof (sky));
 		q_strlcpy (fog, va ("skyfog %g", skyfog), sizeof (fog));
 		return va ("\n%s%s%s\n", need_sky ? sky : "", need_sky && need_skyfog ? "\n" : "", need_skyfog ? fog : "");
 	}
@@ -339,10 +347,10 @@ void Sky_ClearAll (void)
 {
 	int i;
 
-	skybox_name[0] = 0;
+	skybox.name[0] = 0;
 	for (i = 0; i < 6; i++)
-		skybox_textures[i] = NULL;
-	skybox_cubemap = NULL;
+		skybox.textures[i] = NULL;
+	skybox.cubemap = NULL;
 	solidskytexture = NULL;
 	alphaskytexture = NULL;
 	max_skytexture_index = -1;
@@ -406,7 +414,7 @@ void Sky_NewMap (void)
 #endif
 	}
 
-	q_strlcpy (skybox_name_worldspawn, skybox_name, sizeof (skybox_name_worldspawn));
+	q_strlcpy (skybox.name_worldspawn, skybox.name, sizeof (skybox.name_worldspawn));
 }
 
 /*
@@ -419,7 +427,7 @@ void Sky_SkyCommand_f (void)
 	switch (Cmd_Argc ())
 	{
 	case 1:
-		Con_Printf ("\"sky\" is \"%s\"\n", skybox_name);
+		Con_Printf ("\"sky\" is \"%s\"\n", skybox.name);
 		break;
 	case 2:
 		Sky_LoadSkyBox (Cmd_Argv (1));
@@ -467,10 +475,10 @@ void Sky_Init (void)
 
 	Cmd_AddCommand ("sky", Sky_SkyCommand_f);
 
-	skybox_name[0] = 0;
+	skybox.name[0] = 0;
 	for (i = 0; i < 6; i++)
-		skybox_textures[i] = NULL;
-	skybox_cubemap = NULL;
+		skybox.textures[i] = NULL;
+	skybox.cubemap = NULL;
 
 	load_skytexture_mutex = SDL_CreateMutex ();
 }
@@ -857,8 +865,8 @@ void Sky_EmitSkyBoxVertex (basicvertex_t *vertex, float s, float t, int axis)
 	t = (t + 1) * 0.5;
 
 	// avoid bilerp seam
-	w = skybox_textures[skytexorder[axis]]->width;
-	h = skybox_textures[skytexorder[axis]]->height;
+	w = skybox.textures[skytexorder[axis]]->width;
+	h = skybox.textures[skytexorder[axis]]->height;
 	s = s * (w - 1) / w + 0.5 / w;
 	t = t * (h - 1) / h + 0.5 / h;
 
@@ -902,7 +910,7 @@ void Sky_DrawSkyBox (cb_context_t *cbx, int *skypolys)
 
 		vkCmdBindDescriptorSets (
 			cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_stencil_pipeline[indirect].layout.handle, 0, 1,
-			&skybox_textures[skytexorder[i]]->descriptor_set, 0, NULL);
+			&skybox.textures[skytexorder[i]]->descriptor_set, 0, NULL);
 
 		VkBuffer	   buffer;
 		VkDeviceSize   buffer_offset;
@@ -984,15 +992,15 @@ void Sky_DrawSky (cb_context_t *cbx)
 		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_color_pipeline[indirect]);
 		R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 20 * sizeof (float), constant_values);
 	}
-	else if (skybox_cubemap)
+	else if (skybox.cubemap)
 	{
 		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_cube_pipeline[indirect]);
 		vkCmdBindDescriptorSets (
-			cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_cube_pipeline[indirect].layout.handle, 0, 1, &skybox_cubemap->descriptor_set, 0, NULL);
+			cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_cube_pipeline[indirect].layout.handle, 0, 1, &skybox.cubemap->descriptor_set, 0, NULL);
 		memcpy (&constant_values[20], r_refdef.vieworg, sizeof (r_refdef.vieworg));
 		R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 23 * sizeof (float), constant_values);
 	}
-	else if (!skybox_name[0])
+	else if (!skybox.name[0])
 	{
 		if (!solidskytexture || !alphaskytexture)
 		{
@@ -1027,9 +1035,9 @@ void Sky_DrawSky (cb_context_t *cbx)
 		vkCmdBindIndexBuffer (cbx->cb, vulkan_globals.fan_index_buffer, 0, VK_INDEX_TYPE_UINT16);
 		if (flat_color)
 			R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_color_pipeline[0]);
-		else if (skybox_cubemap)
+		else if (skybox.cubemap)
 			R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_cube_pipeline[0]);
-		else if (!skybox_name[0])
+		else if (!skybox.name[0])
 			R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_layer_pipeline[0]);
 		else
 			R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_stencil_pipeline[0]);
@@ -1042,7 +1050,7 @@ void Sky_DrawSky (cb_context_t *cbx)
 	//
 	// render slow sky: non-cubemap skybox
 	//
-	if (!flat_color && !skybox_cubemap && skybox_name[0])
+	if (!flat_color && !skybox.cubemap && skybox.name[0])
 	{
 		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_box_pipeline);
 		Sky_DrawSkyBox (cbx, &skypolys);
@@ -1061,5 +1069,5 @@ Sky_NeedStencil
 qboolean Sky_NeedStencil ()
 {
 	const qboolean flat_color = r_fastsky.value || (Fog_GetDensity () > 0 && skyfog >= 1);
-	return !flat_color && !skybox_cubemap && skybox_name[0];
+	return !flat_color && !skybox.cubemap && skybox.name[0];
 }
