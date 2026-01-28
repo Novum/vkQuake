@@ -759,8 +759,8 @@ static unsigned *TexMgr_Downsample (unsigned *data, int in_width, int in_height,
 {
 	const int out_size_bytes = out_width * out_height * 4;
 
-	assert ((out_width >= 1) && (out_width < in_width));
-	assert ((out_height >= 1) && (out_height < in_height));
+	assert ((out_width >= 1) && (out_width <= in_width));
+	assert ((out_height >= 1) && (out_height <= in_height));
 
 	TEMP_ALLOC (byte, image_resize_buffer, out_size_bytes);
 	stbir_resize_uint8 ((byte *)data, in_width, in_height, 0, image_resize_buffer, out_width, out_height, 0, 4);
@@ -990,8 +990,8 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 		}
 	}
 	// downsizing according to gl_picmip / gl_max_size: (debug only)
-	// don't attempt to downsize below 2x2
-	if (((int)glt->width != mipwidth || (int)glt->height != mipheight) && (mipwidth >= 2) && (mipheight >= 2))
+	// don't attempt to downsize below 1x1
+	if (((int)glt->width != mipwidth || (int)glt->height != mipheight) && (mipwidth >= 1) && (mipheight >= 1))
 	{
 		if (is_cube)
 			for (int i = 0; i < 6; i++)
