@@ -989,8 +989,9 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 			}
 		}
 	}
-	// mipmap generation:
-	if ((int)glt->width != mipwidth || (int)glt->height != mipheight)
+	// downsizing according to gl_picmip / gl_max_size: (debug only)
+	// don't attempt to downsize below 2x2
+	if (((int)glt->width != mipwidth || (int)glt->height != mipheight) && (mipwidth >= 2) && (mipheight >= 2))
 	{
 		if (is_cube)
 			for (int i = 0; i < 6; i++)
