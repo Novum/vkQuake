@@ -66,6 +66,11 @@ typedef struct entity_blas_s
 	VkDeviceSize			   blas_build_scratch_size;
 	struct qmodel_s			  *blas_model;
 	int						   blas_numtris; // Track triangle count to detect model data changes
+
+	// Animation state tracking for rebuild optimization
+	short last_pose1;
+	short last_pose2;
+	float last_blend; // FLT_MAX forces initial build
 } entity_blas_t;
 
 typedef struct entity_s

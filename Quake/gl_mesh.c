@@ -661,6 +661,7 @@ void R_AllocateEntityBLAS (entity_t *e)
 	// Allocate BLAS data struct (after validation to avoid alloc/free cycles)
 	e->blas_data = Mem_Alloc (sizeof (entity_blas_t));
 	memset (e->blas_data, 0, sizeof (entity_blas_t));
+	e->blas_data->last_blend = FLT_MAX; // Force rebuild on first use
 
 	// Set up geometry info for size query
 	// Vertex positions will be computed into scratch memory as vec3 floats
@@ -745,15 +746,9 @@ void R_FreeEntityBLAS (entity_t *e)
 	if (!e || !e->blas_data)
 		return;
 
-	if (e->blas_data->blas == VK_NULL_HANDLE)
-	{
-		Mem_Free (e->blas_data);
-		e->blas_data = NULL;
-		return;
-	}
-
 	// Add to garbage collection - resources will be freed after GPU is done with them
-	AddBLASGarbage (e->blas_data->blas, e->blas_data->blas_buffer, e->blas_data->blas_allocation);
+	if (e->blas_data->blas != VK_NULL_HANDLE)
+		AddBLASGarbage (e->blas_data->blas, e->blas_data->blas_buffer, e->blas_data->blas_allocation);
 
 	Mem_Free (e->blas_data);
 	e->blas_data = NULL;
@@ -915,6 +910,15 @@ void R_UpdateAnimatedBLASes (cb_context_t *cbx)
 			int	  pose1 = lerpdata.pose1;
 			int	  pose2 = lerpdata.pose2;
 			float blend = lerpdata.blend;
+
+			// Skip if animation unchanged since last frame
+			if (e->blas_data->last_pose1 == pose1 && e->blas_data->last_pose2 == pose2 && e->blas_data->last_blend == blend)
+				continue;
+
+			// Update cached state
+			e->blas_data->last_pose1 = pose1;
+			e->blas_data->last_pose2 = pose2;
+			e->blas_data->last_blend = blend;
 
 			// Dispatch compute shader with push constants containing buffer addresses
 			if (hdr->poseverttype == PV_MD5)
