@@ -60,17 +60,13 @@ typedef struct lightcache_s
 typedef struct entity_blas_s
 {
 	VkAccelerationStructureKHR blas;
-	VkBuffer				   blas_buffer;
-	struct glheapallocation_s *blas_allocation;
-	VkDeviceAddress			   blas_address;
-	VkDeviceSize			   blas_build_scratch_size;
-	struct qmodel_s			  *blas_model;
-	int						   blas_numtris; // Track triangle count to detect model data changes
-
-	// Animation state tracking for rebuild optimization
-	short last_pose1;
-	short last_pose2;
-	float last_blend; // FLT_MAX forces initial build
+	VkBuffer				   buffer;
+	struct glheapallocation_s *allocation;
+	VkDeviceAddress			   address;
+	VkDeviceSize			   build_scratch_size;
+	VkDeviceSize			   update_scratch_size;
+	struct qmodel_s			  *model;
+	qboolean				   needs_initial_build;
 } entity_blas_t;
 
 typedef struct entity_s

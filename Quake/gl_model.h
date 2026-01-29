@@ -677,8 +677,8 @@ typedef struct qmodel_s
 
 	// Ray tracing
 	VkAccelerationStructureKHR blas;
-	VkBuffer				   blas_buffer;
-	VkDeviceAddress			   blas_address;
+	VkBuffer				   buffer;
+	VkDeviceAddress			   address;
 } qmodel_t;
 
 //============================================================================

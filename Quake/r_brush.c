@@ -2042,13 +2042,13 @@ void GL_DeleteBModelAccelerationStructures (void)
 		if (m->blas != VK_NULL_HANDLE)
 		{
 			vulkan_globals.vk_destroy_acceleration_structure (vulkan_globals.device, cl.model_precache[i]->blas, NULL);
-			buffers[num_buffers++] = m->blas_buffer;
+			buffers[num_buffers++] = m->buffer;
 			m->blas = VK_NULL_HANDLE;
-			m->blas_buffer = VK_NULL_HANDLE;
-			m->blas_address = 0;
+			m->buffer = VK_NULL_HANDLE;
+			m->address = 0;
 		}
-		assert (m->blas_buffer == VK_NULL_HANDLE);
-		assert (m->blas_address == 0);
+		assert (m->buffer == VK_NULL_HANDLE);
+		assert (m->address == 0);
 	}
 	R_FreeBuffers (num_buffers, buffers, &bmodel_as_device_memory, &num_vulkan_bmodel_allocations);
 	bmodel_tlas = VK_NULL_HANDLE;
@@ -2247,10 +2247,10 @@ void GL_BuildBModelAccelerationStructures (void)
 	for (int i = 0; i < num_blas; ++i)
 	{
 		buffer_create_info_t *create_info = &buffer_create_infos[3 + i];
-		create_info->buffer = &blas_models[i]->blas_buffer;
+		create_info->buffer = &blas_models[i]->buffer;
 		create_info->size = blas_sizes_infos[i].accelerationStructureSize;
 		create_info->usage = VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR;
-		create_info->address = &blas_models[i]->blas_address;
+		create_info->address = &blas_models[i]->address;
 		create_info->name = "BModel BLAS";
 	}
 
@@ -2311,7 +2311,7 @@ void GL_BuildBModelAccelerationStructures (void)
 
 		ZEROED_STRUCT (VkAccelerationStructureCreateInfoKHR, acceleration_structure_create_info);
 		acceleration_structure_create_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR;
-		acceleration_structure_create_info.buffer = blas_models[i]->blas_buffer;
+		acceleration_structure_create_info.buffer = blas_models[i]->buffer;
 		acceleration_structure_create_info.size = blas_sizes_infos[i].accelerationStructureSize;
 		acceleration_structure_create_info.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
 		err = vulkan_globals.vk_create_acceleration_structure (vulkan_globals.device, &acceleration_structure_create_info, NULL, &blas_models[i]->blas);
@@ -2408,7 +2408,7 @@ void R_BuildTopLevelAccelerationStructure (void *unused)
 		// Brush models use model BLAS, alias models use entity BLAS
 		if (e->model->type == mod_brush && e->model->blas != VK_NULL_HANDLE)
 			++num_instances;
-		else if (e->model->type == mod_alias && e->blas_data && e->blas_data->blas != VK_NULL_HANDLE && e->blas_data->blas_model == e->model)
+		else if (e->model->type == mod_alias && e->blas_data && e->blas_data->blas != VK_NULL_HANDLE && e->blas_data->model == e->model)
 			++num_instances;
 	}
 
@@ -2425,16 +2425,16 @@ void R_BuildTopLevelAccelerationStructure (void *unused)
 		if ((e->alpha != ENTALPHA_DEFAULT) && (ENTALPHA_DECODE (e->alpha) < 1.0f))
 			continue;
 
-		VkDeviceAddress blas_address = 0;
+		VkDeviceAddress address = 0;
 		qboolean		is_alias = false;
 
 		if (e->model->type == mod_brush && e->model->blas != VK_NULL_HANDLE)
 		{
-			blas_address = e->model->blas_address;
+			address = e->model->address;
 		}
-		else if (e->model->type == mod_alias && e->blas_data && e->blas_data->blas != VK_NULL_HANDLE && e->blas_data->blas_model == e->model)
+		else if (e->model->type == mod_alias && e->blas_data && e->blas_data->blas != VK_NULL_HANDLE && e->blas_data->model == e->model)
 		{
-			blas_address = e->blas_data->blas_address;
+			address = e->blas_data->address;
 			is_alias = true;
 		}
 		else
@@ -2490,7 +2490,7 @@ void R_BuildTopLevelAccelerationStructure (void *unused)
 		instance->mask = 0xFF;
 		instance->instanceShaderBindingTableRecordOffset = 0;
 		instance->flags = VK_GEOMETRY_INSTANCE_FORCE_OPAQUE_BIT_KHR | VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR;
-		instance->accelerationStructureReference = blas_address;
+		instance->accelerationStructureReference = address;
 
 		++num_instances;
 	}
