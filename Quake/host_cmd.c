@@ -188,8 +188,10 @@ static void FileList_Init (char *path, char *ext, int min_bsp_size, filelist_ite
 				{
 					if (!strcmp (COM_FileGetExtension (pak->files[i].name), ext))
 					{
-						if (pak->files[i].filelen > min_bsp_size)
-						{ // don't list files under minsize (ammo boxes etc for maps)
+						if (pak->files[i].filelen > min_bsp_size &&		 // don't list files under minsize (ammo boxes etc for maps)
+							!strncmp (pak->files[i].name, "maps/", 5) && // don't list files outside of maps/
+							!strchr (pak->files[i].name + 5, '/'))		 // don't list files in subdirectories
+						{
 							COM_StripExtension (pak->files[i].name + strlen (path), filename, sizeof (filename));
 							FileList_Add (filename, list);
 						}
