@@ -562,7 +562,6 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 	// 0 is an invalid path_id, starts at 1 for existing files:
 	unsigned int md5_enhanced_path_id = 0;
 	unsigned int md3_enhanced_path_id = 0;
-	int			 h;
 
 	byte *buf = NULL;
 
@@ -589,12 +588,8 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 
 		// Search for the file but do not load it:
 		//   look for it in the filesystem or pack files
-		COM_OpenFile (md3_name, &h, &md3_enhanced_path_id);
-
-		if (h == -1)
+		if (!COM_FileExists (md3_name, &md3_enhanced_path_id))
 			md3_enhanced_path_id = 0; // file not found
-		else
-			COM_CloseFile (h);
 
 		// this is a replacement only if its priority is >= MDL one, else discard it
 		if (md3_enhanced_path_id < mod->path_id)
@@ -611,12 +606,8 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 
 		// Search for the file but do not load it:
 		//   look for it in the filesystem or pack files
-		COM_OpenFile (md5_name, &h, &md5_enhanced_path_id);
-
-		if (h == -1)
-			md5_enhanced_path_id = 0;
-		else
-			COM_CloseFile (h);
+		if (!COM_FileExists (md5_name, &md5_enhanced_path_id))
+			md5_enhanced_path_id = 0; // file not found
 
 		// this is a replacement only if its priority is >= MDL one, else discard it
 		if (md5_enhanced_path_id < mod->path_id)
