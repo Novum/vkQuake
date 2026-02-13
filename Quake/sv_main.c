@@ -2433,14 +2433,16 @@ void SV_WriteClientdataToMessage (client_t *client, sizebuf_t *msg)
 	}
 	else
 	{
+		int weapon = 0;
 		for (i = 0; i < 32; i++)
 		{
 			if (((int)ent->v.weapon) & (1 << i))
 			{
-				MSG_WriteByte (msg, i);
+				weapon = i;
 				break;
 			}
 		}
+		MSG_WriteByte (msg, weapon);
 	}
 
 	// johnfitz -- PROTOCOL_FITZQUAKE
