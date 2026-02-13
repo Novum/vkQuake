@@ -487,9 +487,7 @@ void PR_ExecuteProgram (func_t fnum)
 
 		case OP_ADDRESS:
 			ed = PROG_TO_EDICT (OPA->edict);
-#ifdef PARANOID
-			NUM_FOR_EDICT (ed); // Make sure it's in range
-#endif
+
 			if (ed == (edict_t *)qcvm->edicts && sv.state == ss_active)
 			{
 				qcvm->xstatement = st - qcvm->statements;
@@ -504,17 +502,13 @@ void PR_ExecuteProgram (func_t fnum)
 		case OP_LOAD_S:
 		case OP_LOAD_FNC:
 			ed = PROG_TO_EDICT (OPA->edict);
-#ifdef PARANOID
-			NUM_FOR_EDICT (ed); // Make sure it's in range
-#endif
+
 			OPC->_int = ((eval_t *)((int *)&ed->v + OPB->_int))->_int;
 			break;
 
 		case OP_LOAD_V:
 			ed = PROG_TO_EDICT (OPA->edict);
-#ifdef PARANOID
-			NUM_FOR_EDICT (ed); // Make sure it's in range
-#endif
+
 			ptr = (eval_t *)((int *)&ed->v + OPB->_int);
 			OPC->vector[0] = ptr->vector[0];
 			OPC->vector[1] = ptr->vector[1];

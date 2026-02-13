@@ -42,6 +42,13 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define snprintf q_snprintf
 #undef vsnprintf
 #define vsnprintf q_vsnprintf
+
+#ifdef PARANOID
+// activate mimalloc debug and guarded pages:
+#define MI_DEBUG   3
+#define MI_GUARDED 1
+#endif // PARANOID
+
 #include "mimalloc/static.c"
 
 #if defined(__GNUC__) && (__GNUC__ >= 12)

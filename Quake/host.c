@@ -303,9 +303,13 @@ void Host_Version_f (void)
 	Con_Printf ("Quake Version %1.2f\n", VERSION);
 	Con_Printf ("QuakeSpasm Version " QUAKESPASM_VER_STRING "\n");
 	Con_Printf ("vkQuake Version " ENGINE_NAME_AND_VER "\n");
-	Con_Printf ("Exe: "__TIME__
-				" "__DATE__
-				"\n");
+
+#ifdef PARANOID
+	const char *build_str_suffix = "(PARANOID build)";
+#else
+	const char *build_str_suffix = "";
+#endif
+	Con_Printf ("Exe: %s %s %s\n", __TIME__, __DATE__, build_str_suffix);
 }
 
 /* cvar callback functions : */
@@ -807,8 +811,16 @@ static void CL_LoadCSProgs (void)
 			qcvm->max_edicts = CLAMP (MIN_EDICTS, (int)max_edicts.value, MAX_EDICTS);
 			qcvm->edicts = (edict_t *)Mem_Alloc (qcvm->max_edicts * qcvm->edict_size);
 			qcvm->num_edicts = qcvm->reserved_edicts = 1;
-			memset (qcvm->edicts, 0, qcvm->num_edicts * qcvm->edict_size);
-
+#ifdef PARANOID
+			// set debug fiels for all max_edicts
+			for (int i = 0; i < qcvm->max_edicts; i++)
+			{
+				edict_t *e = EDICT_NUM_NO_CHECK (i);
+				e->qcvm_owner = qcvm;
+				e->edict_ptr = e;
+				e->edict_num = i;
+			}
+#endif
 			if (!qcvm->extfuncs.CSQC_DrawHud)
 			{ // no simplecsqc entry points... abort entirely!
 				PR_ClearProgs (qcvm);
@@ -1086,7 +1098,13 @@ void Host_Init (void)
 	NET_Init ();
 	SV_Init ();
 
-	Con_Printf ("Exe: " __TIME__ " " __DATE__ "\n");
+#ifdef PARANOID
+	const char *build_str_suffix = "(PARANOID build)";
+#else
+	const char *build_str_suffix = "";
+#endif
+
+	Con_Printf ("Exe: %s %s %s\n", __TIME__, __DATE__, build_str_suffix);
 
 	if (cls.state != ca_dedicated)
 	{

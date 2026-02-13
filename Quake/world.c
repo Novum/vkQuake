@@ -346,6 +346,8 @@ void SV_TouchLinks (edict_t *ent)
 		// edicts later in the list no longer touch
 		if (touch == ent)
 			continue;
+		if (touch->free || ent->free)
+			continue;
 		if (!touch->v.touch || touch->v.solid != SOLID_TRIGGER)
 			continue;
 		if (ent->v.absmin[0] > touch->v.absmax[0] || ent->v.absmin[1] > touch->v.absmax[1] || ent->v.absmin[2] > touch->v.absmax[2] ||
@@ -823,14 +825,6 @@ static qboolean SV_SlowRecursiveHullCheck (hull_t *hull, int num, float p1f, flo
 	// move up to the node
 	if (!SV_SlowRecursiveHullCheck (hull, node->children[side], p1f, midf, p1, mid, trace))
 		return false;
-
-#ifdef PARANOID
-	if (SV_HullPointContents (sv_hullmodel, mid, node->children[side]) == CONTENTS_SOLID)
-	{
-		Con_Printf ("mid PointInHullSolid\n");
-		return false;
-	}
-#endif
 
 	if (SV_HullPointContents (hull, node->children[side ^ 1], mid) != CONTENTS_SOLID)
 		// go past the node

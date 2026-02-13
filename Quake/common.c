@@ -776,7 +776,7 @@ void MSG_WriteChar (sizebuf_t *sb, int c)
 
 #ifdef PARANOID
 	if (c < -128 || c > 127)
-		Sys_Error ("MSG_WriteChar: range error");
+		Sys_Error ("MSG_WriteChar: range error = %i not in -128..127", c);
 #endif
 
 	buf = (byte *)SZ_GetSpace (sb, 1);
@@ -789,7 +789,7 @@ void MSG_WriteByte (sizebuf_t *sb, int c)
 
 #ifdef PARANOID
 	if (c < 0 || c > 255)
-		Sys_Error ("MSG_WriteByte: range error");
+		Sys_Error ("MSG_WriteByte: range error = %i not in 0..255", c);
 #endif
 
 	buf = (byte *)SZ_GetSpace (sb, 1);
@@ -801,8 +801,9 @@ void MSG_WriteShort (sizebuf_t *sb, int c)
 	byte *buf;
 
 #ifdef PARANOID
-	if (c < ((short)0x8000) || c > (short)0x7fff)
-		Sys_Error ("MSG_WriteShort: range error");
+	// it is apparently used to encode signed OR unsigned shorts...
+	if (c < INT16_MIN || c > UINT16_MAX)
+		Sys_Error ("MSG_WriteShort: range error = %i not in -32768..65535", c);
 #endif
 
 	buf = (byte *)SZ_GetSpace (sb, 2);

@@ -1218,11 +1218,11 @@ static void Host_Savegame_f (void)
 
 	fclose (f);
 
-	Con_Printf ("done.\n");
+	// Take the occasion to check the free-list
+	// this is a long operation anyway.
+	ED_CheckFreeList ();
 
-	// Take the occasion to rebuild the free list
-	// since saving is a long operation anyway
-	ED_RebuildFreeList (false);
+	Con_Printf ("done.\n");
 
 	PR_SwitchQCVM (NULL);
 	SaveList_Rebuild ();
@@ -1595,17 +1595,24 @@ static void Host_Loadgame_f (void)
 			ent = EDICT_NUM (entnum);
 			if (entnum < qcvm->num_edicts)
 			{
-				// Maintain the free-list conststency
-				if (ent->free)
-					ED_RemoveFromFreeList (ent);
-
 				ent->free = false;
 				memset (&ent->v, 0, qcvm->progs->entityfields * 4);
 			}
 			else
 			{
+				// adjust qcvm->num_edicts for consistency:
+				qcvm->num_edicts = q_max (qcvm->num_edicts, entnum + 1);
 				memset (ent, 0, qcvm->edict_size);
+
+				assert (!ent->free);
+
 				ent->baseline = nullentitystate;
+#ifdef PARANOID
+				// fill debug fields, they were overwriten above:
+				ent->qcvm_owner = qcvm;
+				ent->edict_ptr = ent;
+				ent->edict_num = entnum;
+#endif
 			}
 			data = ED_ParseEdict (data, ent);
 
@@ -1618,10 +1625,18 @@ static void Host_Loadgame_f (void)
 	}
 
 	qcvm->time = time;
+
+	// we finished the edicts loading, free the excess > entnum
 	for (i = entnum; i < qcvm->num_edicts; i++)
 	{
 		ED_Free (EDICT_NUM (i));
 	}
+	// adjust to the effective nb of edicts
+	qcvm->num_edicts = entnum;
+
+	// The loading process purposefully bypassed the free-list
+	// usage, so rebuild it now
+	ED_RebuildFreeList (true);
 
 	if (fastload)
 	{
@@ -1639,12 +1654,6 @@ static void Host_Loadgame_f (void)
 
 		Send_Spawn_Info (svs.clients, true);
 	}
-	else if (entnum < qcvm->num_edicts)
-		Con_Warning ("Save game had less entities than map (%d < %d)\n", entnum, qcvm->num_edicts); // should be Host_Error, but try to recover
-
-	qcvm->num_edicts = entnum;
-
-	ED_RebuildFreeList (true);
 
 	Mem_Free (start);
 	start = NULL;

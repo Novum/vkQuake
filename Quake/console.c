@@ -1275,8 +1275,11 @@ void LOG_Init (quakeparms_t *parms)
 	time_t inittime;
 	char   session[24];
 
+	// always activate the console log in PARANOID mode
+#if !defined(PARANOID)
 	if (!COM_CheckParm ("-condebug"))
 		return;
+#endif
 
 	inittime = time (NULL);
 	strftime (session, sizeof (session), "%m/%d/%Y %H:%M:%S", localtime (&inittime));

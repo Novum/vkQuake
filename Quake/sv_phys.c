@@ -186,6 +186,9 @@ static void SV_Impact (edict_t *e1, edict_t *e2)
 	old_other = pr_global_struct->other;
 
 	pr_global_struct->time = qcvm->time;
+
+	assert (!e1->free && !e2->free);
+
 	if (e1->v.touch && e1->v.solid != SOLID_NOT)
 	{
 		pr_global_struct->self = EDICT_TO_PROG (e1);
@@ -193,7 +196,10 @@ static void SV_Impact (edict_t *e1, edict_t *e2)
 		PR_ExecuteProgram (e1->v.touch);
 	}
 
-	if (e2->v.touch && e2->v.solid != SOLID_NOT)
+	// TBC : PR_ExecuteProgram have side effects on e1, e2 (like freeing) so only execute the next one if
+	// e1,e2 are still valid
+	// TBC : why managing impact e1 => e2 AND e2 => e1 in this call ?
+	if (!e1->free && !e2->free && e2->v.touch && e2->v.solid != SOLID_NOT)
 	{
 		pr_global_struct->self = EDICT_TO_PROG (e2);
 		pr_global_struct->other = EDICT_TO_PROG (e1);

@@ -62,7 +62,7 @@ angles and bad trails.
 edict_t *ED_Alloc (void)
 {
 	// get head of FIFO, if not empty
-	edict_t *e = (qcvm->free_list.size > 0) ? qcvm->free_list.circular_buffer[qcvm->free_list.head_index] : NULL;
+	edict_t *e = (qcvm->free_list.size > 0) ? EDICT_NUM (qcvm->free_list.circular_buffer[qcvm->free_list.head_index]) : NULL;
 
 	if (e && ((e->freetime < MAX_EDICT_FREETIME_ALWAYS_REUSE) || (qcvm->time - e->freetime) > MIN_EDICT_AGE_FOR_REUSE))
 	{
@@ -73,10 +73,6 @@ edict_t *ED_Alloc (void)
 		// pop HEAD
 		qcvm->free_list.head_index = (qcvm->free_list.head_index + 1) % MAX_EDICTS;
 		qcvm->free_list.size -= 1;
-
-		// no real need, but easier for debugging...
-		if (qcvm->free_list.size == 0)
-			qcvm->free_list.head_index = 0;
 
 		return e;
 	}
@@ -96,6 +92,13 @@ edict_t *ED_Alloc (void)
 
 	assert (!e->free);
 
+#ifdef PARANOID
+	// fill debug fields, they were overwriten above:
+	e->qcvm_owner = qcvm;
+	e->edict_ptr = e;
+	e->edict_num = qcvm->num_edicts - 1;
+#endif
+
 	return e;
 }
 
@@ -106,8 +109,14 @@ ED_AddToFreeList
 */
 static void ED_AddToFreeList (edict_t *ed)
 {
+#ifdef PARANOID
+	if (qcvm->free_list.size >= MAX_EDICTS)
+		Host_Error ("ED_AddToFreeList : is full (qcvm 0x%p)", qcvm);
+	if (qcvm->free_list.size >= qcvm->max_edicts)
+		Host_Error ("ED_AddToFreeList : has more than max_edicts >= %i (qcvm 0x%p)", qcvm->max_edicts, qcvm);
+#endif
 	size_t add_index = (qcvm->free_list.head_index + qcvm->free_list.size) % MAX_EDICTS;
-	qcvm->free_list.circular_buffer[add_index] = ed;
+	qcvm->free_list.circular_buffer[add_index] = NUM_FOR_EDICT (ed);
 	qcvm->free_list.size += 1;
 }
 
@@ -155,21 +164,20 @@ ED_RemoveFromFreeList
 */
 void ED_RemoveFromFreeList (edict_t *ed)
 {
-	if (ed->free)
+	const int	 num_edict_found = NUM_FOR_EDICT (ed);
+	const size_t head_index = qcvm->free_list.head_index;
+	// find the index where ed is...
+	for (size_t i = 0; i < qcvm->free_list.size; i++)
 	{
-		// find the index where ed is...
-		for (size_t i = 0; i < qcvm->free_list.size; i++)
-		{
-			const size_t found_index = (qcvm->free_list.head_index + i) % MAX_EDICTS;
+		const size_t found_index = (head_index + i) % MAX_EDICTS;
 
-			if (qcvm->free_list.circular_buffer[found_index] == ed)
-			{
-				// overwrite found_index with head data, advance head.
-				qcvm->free_list.circular_buffer[found_index] = qcvm->free_list.circular_buffer[qcvm->free_list.head_index];
-				qcvm->free_list.head_index = (qcvm->free_list.head_index + 1) % MAX_EDICTS;
-				qcvm->free_list.size -= 1;
-				break;
-			}
+		if (qcvm->free_list.circular_buffer[found_index] == num_edict_found)
+		{
+			// overwrite found_index with head data, advance head.
+			qcvm->free_list.circular_buffer[found_index] = qcvm->free_list.circular_buffer[head_index];
+			qcvm->free_list.head_index = (head_index + 1) % MAX_EDICTS;
+			qcvm->free_list.size -= 1;
+			break;
 		}
 	}
 }
@@ -179,6 +187,71 @@ static int ED_freetime_compare_func (const void *first, const void *second)
 	int firstInt = *(const int *)first;
 	int secondInt = *(const int *)second;
 	return (int)copysign (1.0, EDICT_NUM (firstInt)->freetime - EDICT_NUM (secondInt)->freetime);
+}
+
+/*
+=================
+ED_CheckFreeList
+For debugging : Check that the list of free edicts in the free-list
+is the same as the qcvm->edicts structure
+=================
+*/
+void ED_CheckFreeList (void)
+{
+	bool  has_errors = false;
+	// 1. for each free edict i of the free list : check is it effectively free
+	//  and mark it at free_list_edicts[i] = 1 (0 = default = not free)
+	byte *free_list_edicts = (byte *)Mem_Alloc (MAX_EDICTS * sizeof (byte));
+
+	size_t current_index = qcvm->free_list.head_index;
+
+	for (size_t j = 0; j < qcvm->free_list.size; j++)
+	{
+		int edict_num = qcvm->free_list.circular_buffer[current_index];
+
+		edict_t *e = EDICT_NUM (edict_num);
+
+		// check : e should be free
+		if (!e->free)
+		{
+			Con_Warning ("ED_CheckFreeList: edict %i is in free-list but is NOT free\n", edict_num);
+			has_errors = true;
+		}
+
+		free_list_edicts[edict_num] = 1;
+
+		current_index = (current_index + 1) % MAX_EDICTS;
+	}
+
+	// 2. inverted check: Enumerate edicts in qcvm, they should have the same state as free_list_edicts
+	for (int i = 0; i < qcvm->num_edicts; i++)
+	{
+		edict_t *e = EDICT_NUM (i);
+
+		if (e->free)
+		{
+			if (free_list_edicts[i] != 1)
+			{
+				Con_Warning ("ED_CheckFreeList: edict %i is free, but is NOT in free-list\n", i);
+				has_errors = true;
+			}
+		}
+		else
+		{
+			if (free_list_edicts[i] != 0)
+			{
+				Con_Warning ("ED_CheckFreeList: edict %i is NOT free, but is in free-list\n", i);
+				has_errors = true;
+			}
+		}
+	}
+
+	if (has_errors)
+	{
+		ED_RebuildFreeList (false);
+	}
+
+	Mem_Free (free_list_edicts);
 }
 
 /*
@@ -194,7 +267,7 @@ void ED_RebuildFreeList (bool force_free_reuse)
 
 	int nb_free_edicts = 0;
 
-	// 1. Enumerate free edict numebers aand put it in free_edicts_table
+	// 1. Enumerate free edict nums and put it in free_edicts_table
 	for (int i = 0; i < qcvm->num_edicts; i++)
 	{
 		if (EDICT_NUM (i)->free)
@@ -208,7 +281,7 @@ void ED_RebuildFreeList (bool force_free_reuse)
 
 	if (!force_free_reuse)
 	{
-		// 2.2 Sort free_edicts_table by their corrsponding edict freetime
+		// 2.2 Sort free_edicts_table by their corresponding edict freetime
 		qsort (free_edicts_table, nb_free_edicts, sizeof (int), ED_freetime_compare_func);
 	}
 
@@ -891,6 +964,8 @@ void ED_PrintEdicts (void)
 
 	PR_SwitchQCVM (&sv.qcvm);
 
+	ED_CheckFreeList ();
+
 	// display the non-free ones first
 	for (int i = 0; i < qcvm->num_edicts; i++)
 	{
@@ -910,7 +985,7 @@ void ED_PrintEdicts (void)
 
 	for (size_t j = 0; j < qcvm->free_list.size; j++)
 	{
-		edict_t *e = qcvm->free_list.circular_buffer[current_index];
+		edict_t *e = EDICT_NUM (qcvm->free_list.circular_buffer[current_index]);
 
 		ED_Print (e);
 		free_list_count++;
@@ -946,6 +1021,9 @@ static void ED_PrintEdict_f (void)
 
 	i = atoi (Cmd_Argv (1));
 	PR_SwitchQCVM (&sv.qcvm);
+
+	ED_CheckFreeList ();
+
 	if (i < 0 || i >= qcvm->num_edicts)
 		Con_Printf ("Bad edict number\n");
 	else
@@ -984,6 +1062,9 @@ static void ED_Count (void)
 		return;
 
 	PR_SwitchQCVM (&sv.qcvm);
+
+	ED_CheckFreeList ();
+
 	active = models = solid = step = push = none = noclip = free_edicts = 0;
 	for (i = 0; i < qcvm->num_edicts; i++)
 	{
@@ -1248,10 +1329,52 @@ qboolean ED_ParseEpair (void *base, ddef_t *key, const char *s, qboolean zoned)
 		break;
 
 	case ev_entity:
+	{
 		if (!strncmp (s, "entity ", 7)) // Spike: putentityfieldstring/etc should be able to cope with etos's weirdness.
 			s += 7;
-		*(int *)d = EDICT_TO_PROG (EDICT_NUM (atoi (s)));
-		break;
+		const int loaded_ent_num = atoi (s);
+
+		if (loaded_ent_num >= qcvm->max_edicts)
+			Host_Error ("ED_ParseEpair: ev_entity %d too large (max_edicts is %i)", loaded_ent_num, qcvm->max_edicts);
+
+		// loaded_ent_num can be beyond qcvm->num_edicts at loading, take care of adjusting
+		// preperly.
+		const int previous_num_edicts = qcvm->num_edicts;
+
+		// adjust first we need it for consistenecy checks in EDICT_NUM / ED_Free..etc.
+		qcvm->num_edicts = q_max (previous_num_edicts, loaded_ent_num + 1);
+
+		// properly initialize the free edicts in previous_num_edicts..loaded_ent_num - 1 range:
+		for (int j = previous_num_edicts; j < loaded_ent_num; j++)
+		{
+			edict_t *new_edict = EDICT_NUM (j);
+
+			// proceed to the same init as new edicts in ED_Alloc: wipe all out, then deallocate it
+			// right away
+			memset (new_edict, 0, qcvm->edict_size);
+#ifdef PARANOID
+			// fill debug fields, they were overwriten above:
+			new_edict->qcvm_owner = qcvm;
+			new_edict->edict_ptr = new_edict;
+			new_edict->edict_num = j;
+#endif
+			assert (!new_edict->free);
+
+			ED_Free (new_edict);
+		}
+
+		edict_t *found_edict = EDICT_NUM (loaded_ent_num);
+
+		// mark loaded_ent_num as allocated :
+		if (found_edict->free)
+		{
+			ED_RemoveFromFreeList (found_edict);
+			found_edict->free = false;
+		}
+
+		*(int *)d = EDICT_TO_PROG (found_edict);
+	}
+	break;
 
 	case ev_field:
 		def = ED_FindField (s);
@@ -1300,7 +1423,7 @@ const char *ED_ParseEdict (const char *data, edict_t *ent)
 	init = false;
 
 	// clear it
-	if (ent != qcvm->edicts) // hack
+	if (ent != qcvm->edicts) // hack, this way never clear edict 0 = world
 		memset (&ent->v, 0, qcvm->progs->entityfields * 4);
 
 	// go through all the dictionary pairs
@@ -1311,7 +1434,7 @@ const char *ED_ParseEdict (const char *data, edict_t *ent)
 		if (com_token[0] == '}')
 			break;
 		if (!data)
-			Host_Error ("ED_ParseEntity: EOF without closing brace");
+			Host_Error ("ED_ParseEdict: EOF without closing brace");
 
 		// anglehack is to allow QuakeEd to write single scalar angles
 		// and allow them to be turned into vectors. (FIXME...)
@@ -1343,10 +1466,10 @@ const char *ED_ParseEdict (const char *data, edict_t *ent)
 		// could cause a parse error
 		data = COM_ParseEx (data, !strcmp (keyname, "wad") ? CPE_ALLOWTRUNC : CPE_NOTRUNC);
 		if (!data)
-			Host_Error ("ED_ParseEntity: EOF without closing brace");
+			Host_Error ("ED_ParseEdict: EOF without closing brace");
 
 		if (com_token[0] == '}')
-			Host_Error ("ED_ParseEntity: closing brace without data");
+			Host_Error ("ED_ParseEdict: closing brace without data");
 
 		init = true;
 
@@ -1414,11 +1537,6 @@ const char *ED_ParseEdict (const char *data, edict_t *ent)
 /*
 ================
 ED_LoadFromFile
-
-The entities are directly placed in the array, rather than allocated with
-ED_Alloc, because otherwise an error loading the map would have entity
-number references out of order.
-
 Creates a server's entity / program execution context by
 parsing textual entity definitions out of an ent file.
 
@@ -1945,12 +2063,30 @@ void PR_Init (void)
 edict_t *EDICT_NUM (int n)
 {
 	if (n < 0 || n >= qcvm->max_edicts)
-		Host_Error ("EDICT_NUM: bad number %i", n);
-	return (edict_t *)((byte *)qcvm->edicts + (n)*qcvm->edict_size);
+		Host_Error ("EDICT_NUM: bad edict_num %i", n);
+
+	edict_t *found_edict = EDICT_NUM_NO_CHECK (n);
+
+#ifdef PARANOID
+	if (found_edict->edict_num != n)
+		Host_Error ("EDICT_NUM(%i): inconsistent number vs. edict_num=%i", n, (int)found_edict->edict_num);
+
+	if (found_edict->edict_ptr != found_edict)
+		Host_Error ("EDICT_NUM(%i) inconsistent pointer", n);
+#endif
+	return found_edict;
 }
 
 int NUM_FOR_EDICT (edict_t *e)
 {
+#ifdef PARANOID
+	if (e->qcvm_owner != qcvm)
+		Host_Error ("NUM_FOR_EDICT inconsistent qcvm 0x%p, expected 0x%p", qcvm, e->qcvm_owner);
+
+	if (e->edict_ptr != e)
+		Host_Error ("NUM_FOR_EDICT inconsistent pointer");
+#endif
+
 	int b;
 
 	b = (byte *)e - (byte *)qcvm->edicts;
@@ -1958,9 +2094,65 @@ int NUM_FOR_EDICT (edict_t *e)
 
 	if (b < 0 || b >= qcvm->num_edicts)
 		Host_Error ("NUM_FOR_EDICT: bad pointer");
+
+#ifdef PARANOID
+	if (e->edict_num != b)
+		Host_Error ("NUM_FOR_EDICT: inconsistent number %i vs. e.edict_num %i", b, (int)e->edict_num);
+#endif
+
 	return b;
 }
 
+#ifdef PARANOID
+edict_t *NEXT_EDICT (edict_t *e)
+{
+	int current_num = NUM_FOR_EDICT (e);
+	EDICT_NUM (current_num);
+
+	// the usage pattern is such that NEXT_EDICT can go beyond the last element
+	// in for loops but this is normally fine because the returned value is not used.
+	// here test for last element and return a NULL edict_t* if we go beyond the last element,
+	// and we coredump if that element get used. This NULL checks is only for
+	// PARANOID mode because it has a noticable performance impact on big edict-heavy levels.
+	if (current_num == qcvm->num_edicts - 1)
+		return NULL;
+
+	edict_t *next_edict = (edict_t *)((byte *)e + qcvm->edict_size);
+	int		 next_num = NUM_FOR_EDICT (next_edict);
+	EDICT_NUM (next_num);
+	if (next_num != current_num + 1)
+		Host_Error ("NEXT_EDICT: inconsistent next edict %i (expected %i)", next_num, current_num + 1);
+
+	return next_edict;
+}
+
+int EDICT_TO_PROG (edict_t *e)
+{
+	if (e->qcvm_owner != qcvm)
+		Host_Error ("EDICT_TO_PROG inconsistent qcvm 0x%p, expected 0x%p", qcvm, e->qcvm_owner);
+
+	if (e->edict_ptr != e)
+		Host_Error ("EDICT_TO_PROG inconsistent pointer");
+
+	int edict_num = NUM_FOR_EDICT (e);
+	int found_prog = (int)((byte *)e - (byte *)qcvm->edicts);
+
+	// It seems invalid to cast a edict to prog if it's free, because it is intended to be active.
+	if (e->free)
+		Host_Error ("EDICT_TO_PROG: edict %i is free (qcvm 0x%p)", edict_num, qcvm);
+
+	return found_prog;
+}
+
+edict_t *PROG_TO_EDICT (int p)
+{
+	edict_t *found_edict = (edict_t *)((byte *)qcvm->edicts + p);
+	NUM_FOR_EDICT (found_edict);
+
+	return found_edict;
+}
+
+#endif
 //===========================================================================
 
 #define PR_STRING_ALLOCSLOTS 256
