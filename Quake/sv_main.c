@@ -1243,7 +1243,11 @@ void SV_StartParticle (vec3_t org, vec3_t dir, int color, int count)
 			v = -128;
 		MSG_WriteChar (&sv.datagram, v);
 	}
+	// count is sent through 1 byte, clamp it to 255
+	if (count > 255.0f)
+		count = 255.0f;
 	MSG_WriteByte (&sv.datagram, count);
+
 	MSG_WriteByte (&sv.datagram, color);
 }
 
@@ -2272,8 +2276,15 @@ void SV_WriteDamageToMessage (edict_t *ent, sizebuf_t *msg)
 	{
 		other = PROG_TO_EDICT (ent->v.dmg_inflictor);
 		MSG_WriteByte (msg, svc_damage);
+		// damages are only 1 byte, clamp their vavlue
+		if (ent->v.dmg_save > 255.0f)
+			ent->v.dmg_save = 255.0f;
 		MSG_WriteByte (msg, ent->v.dmg_save);
+
+		if (ent->v.dmg_take > 255.0f)
+			ent->v.dmg_take = 255.0f;
 		MSG_WriteByte (msg, ent->v.dmg_take);
+
 		for (i = 0; i < 3; i++)
 			MSG_WriteCoord (msg, other->v.origin[i] + 0.5 * (other->v.mins[i] + other->v.maxs[i]), sv.protocolflags);
 
@@ -3181,6 +3192,17 @@ void SV_SpawnServer (const char *server)
 	qcvm->max_edicts = CLAMP (MIN_EDICTS, (int)max_edicts.value, MAX_EDICTS);  // johnfitz -- max_edicts cvar
 	qcvm->edicts = (edict_t *)Mem_Alloc (qcvm->max_edicts * qcvm->edict_size); // ericw -- sv.edicts switched to use malloc()
 
+#ifdef PARANOID
+	for (int j = 0; j < qcvm->max_edicts; j++)
+	{
+		// set debug fiels for all max_edicts
+		edict_t *e = EDICT_NUM_NO_CHECK (j);
+		e->qcvm_owner = qcvm;
+		e->edict_ptr = e;
+		e->edict_num = j;
+	}
+#endif
+
 	sv.datagram.maxsize = sizeof (sv.datagram_buf);
 	sv.datagram.cursize = 0;
 	sv.datagram.data = sv.datagram_buf;
@@ -3197,12 +3219,14 @@ void SV_SpawnServer (const char *server)
 	sv.signon.cursize = 0;
 	sv.signon.data = sv.signon_buf;
 
-	// leave slots at start for clients only
+	// leave slots at start for clients only:
 	qcvm->num_edicts = qcvm->reserved_edicts = svs.maxclients + 1;
-	memset (qcvm->edicts, 0, qcvm->num_edicts * qcvm->edict_size); // ericw -- sv.edicts switched to use malloc()
+
 	for (i = 0; i < svs.maxclients; i++)
 	{
+		// skip entity 0 = World, initialized below:
 		ent = EDICT_NUM (i + 1);
+		assert (!ent->free);
 		svs.clients[i].edict = ent;
 	}
 
@@ -3245,8 +3269,10 @@ void SV_SpawnServer (const char *server)
 	}
 
 	//
-	// load the rest of the entities
+	// load the rest of the entities:
 	//
+
+	// Initialize entity 0 = World
 	ent = EDICT_NUM (0);
 	memset (&ent->v, 0, qcvm->progs->entityfields * 4);
 	ent->free = false;

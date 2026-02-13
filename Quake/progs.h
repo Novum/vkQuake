@@ -41,8 +41,21 @@ typedef union eval_s
 } eval_t;
 
 #define MAX_ENT_LEAFS 32
+
+typedef struct edict_s edict_t;
+
+typedef struct qcvm_s qcvm_t;
+
 typedef struct edict_s
 {
+#ifdef PARANOID
+	// by construction, an edict do not move after its creation
+	edict_t *edict_ptr;
+	// edicts are allocated and owned by one qcvm:
+	qcvm_t	*qcvm_owner;
+	// edict num is fixed after creation
+	uint64_t edict_num;
+#endif
 	link_t area; /* linked to a division node or leaf */
 
 	unsigned int num_leafs;
@@ -69,8 +82,6 @@ typedef struct edict_s
 //============================================================================
 
 typedef void (*builtin_t) (void);
-
-typedef struct qcvm_s qcvm_t;
 
 void PR_Init (void);
 
@@ -107,11 +118,11 @@ void		PR_ClearEngineString (int num);
 
 void PR_Profile_f (void);
 
-edict_t *ED_Alloc (void);
-void	 ED_Free (edict_t *ed);
-void	 ED_RemoveFromFreeList (edict_t *ed);
-void	 ED_RebuildFreeList (bool force_free_reuse);
-
+edict_t	   *ED_Alloc (void);
+void		ED_Free (edict_t *ed);
+void		ED_RemoveFromFreeList (edict_t *ed);
+void		ED_CheckFreeList (void);
+void		ED_RebuildFreeList (bool force_free_reuse);
 void		ED_Print (edict_t *ed);
 void		ED_Write (FILE *f, edict_t *ed);
 const char *ED_ParseEdict (const char *data, edict_t *ent);
@@ -121,17 +132,21 @@ const char *ED_ParseGlobals (const char *data);
 
 void ED_LoadFromFile (const char *data);
 
-/*
-#define EDICT_NUM(n)		((edict_t *)(sv.edicts+ (n)*pr_edict_size))
-#define NUM_FOR_EDICT(e)	(((byte *)(e) - sv.edicts) / pr_edict_size)
-*/
+#define EDICT_NUM_NO_CHECK(n)	  ((edict_t *)((byte *)qcvm->edicts + (n) * qcvm->edict_size))
+#define NUM_FOR_EDICT_NO_CHECK(e) ((int)(((byte *)e - (byte *)qcvm->edicts) / qcvm->edict_size))
+
 edict_t *EDICT_NUM (int n);
 int		 NUM_FOR_EDICT (edict_t *e);
 
-#define NEXT_EDICT(e) ((edict_t *)((byte *)e + qcvm->edict_size))
-
-#define EDICT_TO_PROG(e) (int)((byte *)e - (byte *)qcvm->edicts)
-#define PROG_TO_EDICT(e) ((edict_t *)((byte *)qcvm->edicts + e))
+#ifdef PARANOID
+edict_t *NEXT_EDICT (edict_t *e);
+int		 EDICT_TO_PROG (edict_t *e);
+edict_t *PROG_TO_EDICT (int n);
+#else
+#define NEXT_EDICT(e)	 ((edict_t *)((byte *)e + qcvm->edict_size))
+#define EDICT_TO_PROG(e) ((int)((byte *)e - (byte *)qcvm->edicts))
+#define PROG_TO_EDICT(p) ((edict_t *)((byte *)qcvm->edicts + p))
+#endif
 
 #define G_FLOAT(o)	  (qcvm->globals[o])
 #define G_INT(o)	  (*(int *)&qcvm->globals[o])
@@ -326,9 +341,11 @@ typedef struct hash_map_s hash_map_t;
 // the free-list of edicts, as a FIFO made of a circular buffer.
 typedef struct freelist_s
 {
-	size_t	 size;		 // current nb of edicts
-	size_t	 head_index; // index of the first valid element (head of FIFO)
-	edict_t *circular_buffer[MAX_EDICTS];
+	size_t size;	   // current nb of edicts
+	size_t head_index; // index of the first valid element (head of FIFO)
+	// store the edicts nums only
+	COMPILE_TIME_ASSERT ("MAX_EDICTS > uint16_t max", MAX_EDICTS <= UINT16_MAX);
+	uint16_t circular_buffer[MAX_EDICTS];
 } freelist_t;
 
 struct qcvm_s
