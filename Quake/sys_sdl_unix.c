@@ -37,6 +37,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <pwd.h>
 #endif
 
+#if defined(PLATFORM_UNIX) && !defined(PLATFORM_OSX) && !defined(PLATFORM_BSD) && !defined(TASK_AFFINITY_NOT_AVAILABLE)
+#include <sched.h>
+#include <pthread.h>
+#endif
+
 qboolean isDedicated;
 
 static double counter_freq;
@@ -346,4 +351,27 @@ void Sys_SendKeyEvents (void)
 {
 	IN_Commands (); // ericw -- allow joysticks to add keys so they can be used to confirm SCR_ModalMessage
 	IN_SendKeyEvents ();
+}
+
+bool Sys_Pin_Current_Thread (int core_index)
+{
+#if defined(PLATFORM_UNIX) && !defined(PLATFORM_OSX) && !defined(PLATFORM_BSD) && !defined(TASK_AFFINITY_NOT_AVAILABLE)
+#pragma message("Info : Pinned tasks support for *Nix enabled using pthread_setaffinity_np()...")
+
+	// valid for *Nix with GNU pthread extension pthread_setaffinity_np()
+	//  which apparently is not available on OSX so skip it in that case.
+	cpu_set_t cpuset;
+	CPU_ZERO (&cpuset);
+	CPU_SET (core_index, &cpuset);
+
+	pthread_t current_thread = pthread_self ();
+	if (pthread_setaffinity_np (current_thread, sizeof (cpu_set_t), &cpuset) != 0)
+	{
+		return false;
+	}
+
+	return true;
+
+#endif
+	return false;
 }
