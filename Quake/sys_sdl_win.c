@@ -37,7 +37,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 qboolean isDedicated;
 
 #ifndef INVALID_FILE_ATTRIBUTES
-#define INVALID_FILE_ATTRIBUTES ((DWORD)-1)
+#define INVALID_FILE_ATTRIBUTES ((DWORD) - 1)
 #endif
 int Sys_FileType (const char *path)
 {
@@ -251,11 +251,12 @@ double Sys_DoubleTime (void)
 
 const char *Sys_ConsoleInput (void)
 {
-	static char	 con_text[256];
-	static int	 textlen;
-	INPUT_RECORD recs[1024];
-	int			 ch;
-	DWORD		 dummy, numread, numevents;
+	static char con_text[256];
+	static int	textlen;
+	int			ch;
+	DWORD		dummy, numread, numevents;
+
+	TEMP_ALLOC (INPUT_RECORD, recs, 1024);
 
 	for (;;)
 	{
@@ -266,10 +267,16 @@ const char *Sys_ConsoleInput (void)
 			break;
 
 		if (ReadConsoleInput (hinput, recs, 1, &numread) == 0)
+		{
+			TEMP_FREE (recs);
 			Sys_Error ("Error reading console input");
+		}
 
 		if (numread != 1)
+		{
+			TEMP_FREE (recs);
 			Sys_Error ("Couldn't read console input");
+		}
 
 		if (recs[0].EventType == KEY_EVENT)
 		{
@@ -294,6 +301,7 @@ const char *Sys_ConsoleInput (void)
 					{
 						con_text[textlen] = 0;
 						textlen = 0;
+						TEMP_FREE (recs);
 						return con_text;
 					}
 
@@ -319,7 +327,7 @@ const char *Sys_ConsoleInput (void)
 			}
 		}
 	}
-
+	TEMP_FREE (recs);
 	return NULL;
 }
 
@@ -333,4 +341,33 @@ void Sys_SendKeyEvents (void)
 {
 	IN_Commands (); // ericw -- allow joysticks to add keys so they can be used to confirm SCR_ModalMessage
 	IN_SendKeyEvents ();
+}
+
+bool Sys_Pin_Current_Thread (int core_index)
+{
+	// valid for both MSVC and MINGW
+	//  Open the thread with necessary access rights
+	DWORD  dwThreadId = GetCurrentThreadId ();
+	HANDLE hThreadAccess = OpenThread (THREAD_SET_INFORMATION | THREAD_QUERY_INFORMATION, FALSE, dwThreadId);
+	if (hThreadAccess == NULL)
+	{
+		return false;
+	}
+
+	// Define the processor affinity mask, fold beyond DWORD_PTR bit size...
+	// should allow setting to 64 different cores on 64 bits, should be enough for anybody....
+	DWORD_PTR mask = ((DWORD_PTR)1 << ((DWORD_PTR)core_index % (sizeof (DWORD_PTR) * 8)));
+
+	// Set the thread affinity
+	DWORD_PTR prevAffinityMask = SetThreadAffinityMask (hThreadAccess, mask);
+	if (prevAffinityMask == 0)
+	{
+		CloseHandle (hThreadAccess);
+		return false;
+	}
+
+	// Close the thread handle
+	CloseHandle (hThreadAccess);
+
+	return true;
 }

@@ -18,22 +18,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 // tasks.c -- parallel task system
-#include "arch_def.h"
 #include "tasks.h"
 #include "atomics.h"
 #include "quakedef.h"
 #include "q_ctype.h"
-
-// clang-format off
-#if defined(_WIN32)
-  #ifndef WIN32_LEAN_AND_MEAN
-    #define WIN32_LEAN_AND_MEAN
-  #endif
-  #include <windows.h>
-#elif defined(PLATFORM_UNIX) && !defined(PLATFORM_OSX) && !defined(PLATFORM_BSD) && !defined(TASK_AFFINITY_NOT_AVAILABLE)
-  #include <sched.h>
-  #include <pthread.h>
-#endif
 
 #if defined(USE_HELGRIND)
 #include "valgrind/helgrind.h"
@@ -295,56 +283,6 @@ static inline void Task_ExecuteIndexed (int worker_index, task_t *task, uint32_t
 	}
 }
 
-static bool Task_Pin_Current_Worker (int pinned_index)
-{
-#if defined(_WIN32)
-	// valid for both MSVC and MINGW
-	//  Open the thread with necessary access rights
-	DWORD  dwThreadId = GetCurrentThreadId ();
-	HANDLE hThreadAccess = OpenThread (THREAD_SET_INFORMATION | THREAD_QUERY_INFORMATION, FALSE, dwThreadId);
-	if (hThreadAccess == NULL)
-	{
-		return false;
-	}
-
-	// Define the processor affinity mask, fold beyond DWORD_PTR bit size...
-	// should allow setting to 32 different cores on 32 bit and 64 different on 64 bits, should be enough for anybody....
-	DWORD_PTR mask = ((DWORD_PTR)1 << ((DWORD_PTR)pinned_workers_core_ids[pinned_index] % (sizeof (DWORD_PTR) * 8)));
-
-	// Set the thread affinity
-	DWORD_PTR prevAffinityMask = SetThreadAffinityMask (hThreadAccess, mask);
-	if (prevAffinityMask == 0)
-	{
-		CloseHandle (hThreadAccess);
-		return false;
-	}
-
-	// Close the thread handle
-	CloseHandle (hThreadAccess);
-
-	return true;
-
-#elif defined(PLATFORM_UNIX) && !defined(PLATFORM_OSX) && !defined(PLATFORM_BSD) && !defined(TASK_AFFINITY_NOT_AVAILABLE)
-#pragma message("Info : Pinned tasks support for *Nix enabled using pthread_setaffinity_np()...")
-
-	// valid for *Nix with GNU pthread extension pthread_setaffinity_np()
-	//  which apparently is not available on OSX so skip it in that case.
-	cpu_set_t cpuset;
-	CPU_ZERO (&cpuset);
-	CPU_SET (pinned_workers_core_ids[pinned_index], &cpuset);
-
-	pthread_t current_thread = pthread_self ();
-	if (pthread_setaffinity_np (current_thread, sizeof (cpu_set_t), &cpuset) != 0)
-	{
-		return false;
-	}
-
-	return true;
-
-#endif
-	return false;
-}
-
 /*
 ====================
 Task_Worker
@@ -363,9 +301,9 @@ static int Task_Worker (void *data)
 		assert (worker_index < num_pinned_workers);
 		assert (num_pinned_workers == num_workers);
 
-		if (!Task_Pin_Current_Worker (worker_index))
+		if (!Sys_Pin_Current_Thread (pinned_workers_core_ids[worker_index]))
 		{
-			Con_Printf ("Tasks : Failed to pin worker %d (N/A or no access rights)", worker_index);
+			Con_DPrintf ("Tasks : Failed to pin worker %d (N/A or no access rights)", worker_index);
 		}
 	}
 
