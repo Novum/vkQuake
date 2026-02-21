@@ -78,4 +78,8 @@ void Sys_SendKeyEvents (void);
 // Pin the calling Thread to core core_index, return true if succcessfull
 bool Sys_Pin_Current_Thread (int core_index);
 
+// Return the stack trace at the point of this call.
+// The returned string is a per-thread static buffer (no deallocation needed)
+const char *Sys_StackTrace (void);
+
 #endif /* _QUAKE_SYS_H */

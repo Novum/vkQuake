@@ -93,7 +93,9 @@ all: $(BINTOC_EXE) .WAIT $(DEFAULT_TARGET)
 
 vkquake: $(SHADER_OBJS) $(OBJS)
 	$(LINKER) $(SHADER_OBJS) $(OBJS) $(LDFLAGS) $(LIBS) $(SDL_LIBS) -o $@
-	$(call DO_STRIP,$@)
+
+#Never strip, we want stack traces	
+#	$(call DO_STRIP,$@)
 
 release: vkquake
 debug:

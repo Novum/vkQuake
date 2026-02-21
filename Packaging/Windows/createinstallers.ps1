@@ -23,7 +23,7 @@ Start-Process -Wait -NoNewWindow -PassThru -FilePath $Nsis -ArgumentList $NsisAr
 
 # Create zip files
 $compress = @{
-  Path = "$SrcDirX64\*.exe", "$SrcDirX64\*.dll", "..\..\LICENSE.txt"
+  Path = "$SrcDirX64\*.exe", "$SrcDirX64\vkQuake.pdb", "$SrcDirX64\*.dll", "..\..\LICENSE.txt"
   CompressionLevel = "Optimal"
   DestinationPath = "vkQuake-" + $Version + "_windows_x64.zip"
 }
