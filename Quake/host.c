@@ -219,6 +219,10 @@ void Host_Error (const char *error, ...)
 		Sys_Error ("Host_Error: recursively entered");
 	inerror = true;
 
+	Con_Printf ("================ STACK TRACE ================\n");
+	Con_Printf ("%s", Sys_StackTrace ());
+	Con_Printf ("=============================================\n");
+
 	PR_SwitchQCVM (NULL);
 
 	SCR_EndLoadingPlaque (); // reenable screen updates

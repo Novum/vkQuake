@@ -1,6 +1,9 @@
-project('vkquake', 'c', default_options : ['c_std=gnu11', 'buildtype=release'])
+project('vkquake', 'c', default_options : ['c_std=gnu11', 'buildtype=release', 'strip=false', 'debug=true'])
 
 cc = meson.get_compiler('c')
+
+# Always build keeping frame pointers to get better backtraces
+add_project_arguments(['-fno-omit-frame-pointer'], language: 'c')
 
 if cc.has_header_symbol('sched.h', 'CPU_ZERO', prefix: '#define _GNU_SOURCE')
     message('Info: Task affinity support enabled.')

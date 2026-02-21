@@ -66,13 +66,16 @@ VULKAN_LINK= -L../Windows/misc/x64 # -L$(VK_SDK_PATH)/lib
 VULKAN_LIBS= -lvulkan-1
 CFLAGS += $(VULKAN_INC)
 
-COMMON_LIBS:= -lwinmm
+COMMON_LIBS:= -lwinmm -ldbghelp
 
 LIBS := $(COMMON_LIBS) $(NET_LIBS) $(CODEC_LINK) $(CODECLIBS) $(VULKAN_LINK) $(VULKAN_LIBS)
 
 SYSOBJ_RES = vkQuake.res
 
 LIBWINPTHREAD = $(MSYSTEM_PREFIX)/bin/libwinpthread-1.dll
+
+# Additional flags to assure correct backtraces addresses, using addr2line offine for symbol resolution 
+CFLAGS += -funwind-tables
 
 # ---------------------------
 # targets / rules
@@ -84,7 +87,8 @@ all: $(BINTOC_EXE) .WAIT $(DEFAULT_TARGET) dll
 
 vkQuake.exe: $(SHADER_OBJS) $(OBJS) $(SYSOBJ_RES)
 	$(LINKER) $(SHADER_OBJS) $(OBJS) $(SYSOBJ_RES) $(LDFLAGS) $(LIBS) $(SDL_LIBS) -o $@
-	$(call DO_STRIP,$@)
+# Never strip
+#	$(call DO_STRIP,$@)
 
 dll:
 	if [ -f $(LIBWINPTHREAD) ]; then \

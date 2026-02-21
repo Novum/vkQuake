@@ -34,10 +34,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <io.h>
 #include <direct.h>
 
+#include <dbghelp.h>
+
 qboolean isDedicated;
 
 #ifndef INVALID_FILE_ATTRIBUTES
-#define INVALID_FILE_ATTRIBUTES ((DWORD) - 1)
+#define INVALID_FILE_ATTRIBUTES ((DWORD)-1)
 #endif
 int Sys_FileType (const char *path)
 {
@@ -54,6 +56,11 @@ int Sys_FileType (const char *path)
 static HANDLE hinput, houtput;
 static char	  cwd[1024];
 static double counter_freq;
+
+// DbgHelp initialization:
+static bool win32_DbgHelp_init_success = false;
+
+static intptr_t win32_Dwarf_offset = 0;
 
 COMPILE_TIME_ASSERT (CHECK_LARGE_FILE_SUPPORT, sizeof (long long) >= sizeof (qfileofs_t));
 
@@ -159,6 +166,51 @@ void Sys_Init (void)
 	}
 
 	counter_freq = (double)SDL_GetPerformanceFrequency ();
+
+	// DbgHelp one-time initialization:
+	HANDLE process = GetCurrentProcess ();
+
+	SymSetOptions (SYMOPT_LOAD_LINES | SYMOPT_UNDNAME | SYMOPT_FAIL_CRITICAL_ERRORS | SYMOPT_NO_PROMPTS | SYMOPT_DEFERRED_LOADS);
+
+	if (!SymInitialize (process, NULL, TRUE))
+	{
+		SymCleanup (process);
+	}
+	else
+		win32_DbgHelp_init_success = true;
+
+	// MSYS2 DWARF debug info is only usable if the stack addresses are offseted
+	// by win32_Dwarf_offset
+	// We need to look for the binary executable itself to look for the original ImageBase:
+	wchar_t path[MAX_OSPATH];
+
+	if (GetModuleFileNameW (NULL, path, MAX_OSPATH))
+	{
+		HANDLE hSelfExecutable = CreateFileW (path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
+
+		if (hSelfExecutable != INVALID_HANDLE_VALUE)
+		{
+			BYTE  peHeader[4096];
+			DWORD read = 0;
+			if (ReadFile (hSelfExecutable, peHeader, sizeof (peHeader), &read, NULL) && read >= sizeof (IMAGE_DOS_HEADER))
+			{
+				IMAGE_DOS_HEADER   *dos = (IMAGE_DOS_HEADER *)peHeader;
+				IMAGE_NT_HEADERS64 *nt = (IMAGE_NT_HEADERS64 *)(peHeader + dos->e_lfanew);
+
+				uintptr_t LoadBase = (uintptr_t)GetModuleHandle (NULL);
+
+				if ((uintptr_t)nt->OptionalHeader.ImageBase >= LoadBase)
+				{
+					win32_Dwarf_offset = (intptr_t)((uintptr_t)nt->OptionalHeader.ImageBase - LoadBase);
+				}
+				else
+				{
+					win32_Dwarf_offset = -(intptr_t)(LoadBase - (uintptr_t)nt->OptionalHeader.ImageBase);
+				}
+			}
+			CloseHandle (hSelfExecutable);
+		}
+	}
 }
 
 void Sys_mkdir (const char *path)
@@ -175,7 +227,7 @@ static const char errortxt2[] = "\nQUAKE ERROR: ";
 void Sys_Error (const char *error, ...)
 {
 	va_list argptr;
-	char	text[1024];
+	char	text[4096];
 	DWORD	dummy;
 
 	host_parms->errstate++;
@@ -192,6 +244,9 @@ void Sys_Error (const char *error, ...)
 	   so print to stderr even in graphical mode. */
 	fputs (errortxt1, stderr);
 	fputs (errortxt2, stderr);
+
+	q_snprintf (text + strnlen (text, sizeof (text)), sizeof (text), "\nSTACK TRACE:\n%s", Sys_StackTrace ());
+
 	fputs (text, stderr);
 	fputs ("\n\n", stderr);
 	if (!isDedicated)
@@ -370,4 +425,69 @@ bool Sys_Pin_Current_Thread (int core_index)
 	CloseHandle (hThreadAccess);
 
 	return true;
+}
+
+const char *Sys_StackTrace (void)
+{
+#define MAX_STACK_FRAMES   24
+#define OUTPUT_BUFFER_SIZE (MAX_STACK_FRAMES * (sizeof (SYMBOL_INFO) + MAX_OSPATH + 1 + 256))
+
+	static THREAD_LOCAL char output_buffer[OUTPUT_BUFFER_SIZE];
+
+	if (!win32_DbgHelp_init_success)
+		return "[Not available.]\n";
+
+	memset (output_buffer, 0, OUTPUT_BUFFER_SIZE);
+
+	HANDLE process = GetCurrentProcess ();
+
+	void *stack[MAX_STACK_FRAMES];
+
+	int nb_frames = (int)CaptureStackBackTrace (0, MAX_STACK_FRAMES, stack, NULL);
+
+	for (int frame_index = 0; frame_index < nb_frames; frame_index++)
+	{
+		DWORD64 addr = (DWORD64)(stack[frame_index]);
+
+		// + 1 for null termination
+		// buffer overlays SYMBOL_INFO + Name string
+		char		 symbol_buffer[sizeof (SYMBOL_INFO) + MAX_OSPATH + 1];
+		PSYMBOL_INFO symbol = (PSYMBOL_INFO)symbol_buffer;
+
+		symbol->SizeOfStruct = sizeof (SYMBOL_INFO);
+		symbol->MaxNameLen = MAX_OSPATH;
+
+		const char *symbol_name = "[no symbols]";
+		if (SymFromAddr (process, addr, 0, symbol))
+		{
+			symbol_name = symbol->Name;
+		}
+
+		IMAGEHLP_LINE64 line;
+		DWORD			displacement = 0;
+		line.SizeOfStruct = sizeof (IMAGEHLP_LINE64);
+
+		if (SymGetLineFromAddr64 (process, addr, &displacement, &line))
+		{
+			// we only want the short file name, not the full path:
+			const char *last_sep = strrchr (line.FileName, '\\');
+			// this is not super-safe...
+			q_snprintf (
+				output_buffer + strnlen (output_buffer, OUTPUT_BUFFER_SIZE), OUTPUT_BUFFER_SIZE, "%-2i: %s - %s:%i\n", frame_index, symbol_name,
+				(const char *)(last_sep ? last_sep + 1 : line.FileName), (int)line.LineNumber);
+		}
+		else
+		{
+			uintptr_t dwarf_va = (uintptr_t)((intptr_t)stack[frame_index] + win32_Dwarf_offset);
+			// display on 1 line to pass to addr2line easily:
+			q_snprintf (output_buffer + strnlen (output_buffer, OUTPUT_BUFFER_SIZE), OUTPUT_BUFFER_SIZE, "0x%" PRIxPTR " ", dwarf_va);
+			if (frame_index == nb_frames - 1)
+				q_snprintf (output_buffer + strnlen (output_buffer, OUTPUT_BUFFER_SIZE), OUTPUT_BUFFER_SIZE, "\n");
+		}
+	}
+
+	return output_buffer;
+
+#undef MAX_STACK_FRAMES
+#undef OUTPUT_BUFFER_SIZE
 }

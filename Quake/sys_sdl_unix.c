@@ -27,6 +27,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <sys/types.h>
 #include <errno.h>
 #include <unistd.h>
+#include <execinfo.h>
 #ifdef PLATFORM_OSX
 #include <libgen.h> /* dirname() and basename() */
 #endif
@@ -251,7 +252,7 @@ static const char errortxt2[] = "\nQUAKE ERROR: ";
 void Sys_Error (const char *error, ...)
 {
 	va_list argptr;
-	char	text[1024];
+	char	text[4096];
 
 	PR_SwitchQCVM (NULL);
 	host_parms->errstate++;
@@ -263,6 +264,7 @@ void Sys_Error (const char *error, ...)
 	fputs (errortxt1, stderr);
 	Host_Shutdown ();
 	fputs (errortxt2, stderr);
+	q_snprintf (text + strnlen (text, sizeof (text)), sizeof (text), "\nSTACK TRACE:\n%s", Sys_StackTrace ());
 	fputs (text, stderr);
 	fputs ("\n\n", stderr);
 	if (!isDedicated)
@@ -374,4 +376,36 @@ bool Sys_Pin_Current_Thread (int core_index)
 
 #endif
 	return false;
+}
+
+const char *Sys_StackTrace (void)
+{
+#define MAX_STACK_FRAMES   24
+#define OUTPUT_BUFFER_SIZE (MAX_STACK_FRAMES * 1024)
+
+	static THREAD_LOCAL char output_buffer[OUTPUT_BUFFER_SIZE];
+
+	memset (output_buffer, 0, OUTPUT_BUFFER_SIZE);
+
+	void *buffer[MAX_STACK_FRAMES];
+
+	int nb_frames = backtrace (buffer, MAX_STACK_FRAMES);
+
+	char **symbols = backtrace_symbols (buffer, nb_frames);
+
+	// Print 1 frame per line, together with its symbol
+	for (int frame_index = 0; frame_index < nb_frames; frame_index++)
+	{
+		// this is not super-safe
+		q_snprintf (
+			output_buffer + strnlen (output_buffer, OUTPUT_BUFFER_SIZE), OUTPUT_BUFFER_SIZE, "%-2i: %s\n", frame_index,
+			(symbols && symbols[frame_index]) ? symbols[frame_index] : "[no symbols]");
+	}
+
+	free (symbols);
+
+	return output_buffer;
+
+#undef MAX_STACK_FRAMES
+#undef OUTPUT_BUFFER_SIZE
 }

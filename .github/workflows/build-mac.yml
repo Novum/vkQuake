@@ -15,7 +15,7 @@ jobs:
     - name: Install Dependencies
       run: brew install molten-vk vulkan-headers glslang spirv-tools sdl2 libvorbis flac opus opusfile flac mpg123 meson
     - name: Build vkQuake
-      run: meson build --buildtype=${{ matrix.configuration }} && ninja -C build
+      run: meson build --buildtype=${{ matrix.configuration }} -Ddebug=true -Dstrip=false && ninja -C build
     - name: Upload vkQuake
       uses: actions/upload-artifact@v4
       with:

@@ -20,10 +20,13 @@ CFLAGS += $(CPUFLAGS)
 ifneq ($(DEBUG),0)
 DFLAGS += -D_DEBUG
 CFLAGS += -g
+CFLAGS += -fno-omit-frame-pointer
 DO_STRIP=
 else
 DFLAGS += -DNDEBUG
 CFLAGS += -O3
+CFLAGS += -g
+CFLAGS += -fno-omit-frame-pointer
 #CFLAGS += $(call CHECK_GCC,-flto=auto,)
 CFLAGS += $(call CHECK_GCC,-fweb,)
 CFLAGS += $(call CHECK_GCC,-frename-registers,)

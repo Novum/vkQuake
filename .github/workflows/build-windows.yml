@@ -37,3 +37,4 @@ jobs:
         path: |
             Windows\VisualStudio\Build-vkQuake\**\*.exe
             Windows\VisualStudio\Build-vkQuake\**\*.dll
+            Windows\VisualStudio\Build-vkQuake\**\vkQuake.pdb
