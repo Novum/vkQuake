@@ -2408,7 +2408,9 @@ void R_BuildTopLevelAccelerationStructure (void *unused)
 		// Brush models use model BLAS, alias models use entity BLAS
 		if (e->model->type == mod_brush && e->model->blas != VK_NULL_HANDLE)
 			++num_instances;
-		else if (e->model->type == mod_alias && e->blas_data && e->blas_data->blas != VK_NULL_HANDLE && e->blas_data->model == e->model)
+		else if (
+			e->model->type == mod_alias && e->blas_data && e->blas_data->blas != VK_NULL_HANDLE && !e->blas_data->needs_initial_build &&
+			e->blas_data->model == e->model)
 			++num_instances;
 	}
 
@@ -2432,7 +2434,9 @@ void R_BuildTopLevelAccelerationStructure (void *unused)
 		{
 			address = e->model->address;
 		}
-		else if (e->model->type == mod_alias && e->blas_data && e->blas_data->blas != VK_NULL_HANDLE && e->blas_data->model == e->model)
+		else if (
+			e->model->type == mod_alias && e->blas_data && e->blas_data->blas != VK_NULL_HANDLE && !e->blas_data->needs_initial_build &&
+			e->blas_data->model == e->model)
 		{
 			address = e->blas_data->address;
 			is_alias = true;

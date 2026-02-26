@@ -886,7 +886,6 @@ void R_UpdateAnimatedBLASes (cb_context_t *cbx)
 
 			// Always use refit after first build. We trace few rays and full updates are expensive.
 			qboolean use_update = !e->blas_data->needs_initial_build;
-			e->blas_data->needs_initial_build = false;
 
 			// Calculate space needed with proper alignments:
 			// - Position buffer needs buffer_alignment (for storage buffer access)
@@ -911,6 +910,8 @@ void R_UpdateAnimatedBLASes (cb_context_t *cbx)
 				--entity_index;
 				break;
 			}
+
+			e->blas_data->needs_initial_build = false;
 
 			VkDeviceAddress vertex_output_address = vulkan_globals.scratch_buffer_address + vertex_offset;
 			VkDeviceAddress scratch_address = vulkan_globals.scratch_buffer_address + as_scratch_offset;
