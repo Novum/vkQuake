@@ -172,21 +172,20 @@ void Sys_Init (void)
 
 	SymSetOptions (SYMOPT_LOAD_LINES | SYMOPT_UNDNAME | SYMOPT_FAIL_CRITICAL_ERRORS | SYMOPT_NO_PROMPTS | SYMOPT_DEFERRED_LOADS);
 
-	if (!SymInitialize (process, NULL, TRUE))
-	{
-		SymCleanup (process);
-	}
-	else
+	if (SymInitialize (process, NULL, TRUE))
 		win32_DbgHelp_init_success = true;
 
 	// MSYS2 DWARF debug info is only usable if the stack addresses are offseted
 	// by win32_Dwarf_offset
-	// We need to look for the binary executable itself to look for the original ImageBase:
+	// We need to look for the executable to look for the original ImageBase in the binary
+	// ifself BEFORE it got patched in the loaded image...
+	// this is the address we would get by : objdump -p vkQuake.exe | grep ImageBase
 	wchar_t path[MAX_OSPATH];
 
 	if (GetModuleFileNameW (NULL, path, MAX_OSPATH))
 	{
-		HANDLE hSelfExecutable = CreateFileW (path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
+		HANDLE hSelfExecutable =
+			CreateFileW (path, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 
 		if (hSelfExecutable != INVALID_HANDLE_VALUE)
 		{
