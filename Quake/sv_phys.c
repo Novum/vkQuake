@@ -330,6 +330,8 @@ static int SV_FlyMove (edict_t *ent, float time, trace_t *steptrace)
 		//
 		// run the impact function
 		//
+		assert (!ent->free);
+
 		SV_Impact (ent, trace.ent);
 		if (ent->free)
 			break; // removed by the impact function
@@ -446,7 +448,8 @@ static trace_t SV_PushEntity (edict_t *ent, vec3_t push)
 	VectorCopy (trace.endpos, ent->v.origin);
 	SV_LinkEdict (ent, true);
 
-	if (trace.ent)
+	// SV_LinkEdict could have freed ent calling its touch program:
+	if (!ent->free && trace.ent)
 		SV_Impact (ent, trace.ent);
 
 	return trace;
