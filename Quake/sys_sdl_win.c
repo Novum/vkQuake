@@ -457,7 +457,7 @@ const char *Sys_StackTrace (void)
 		symbol->MaxNameLen = MAX_OSPATH;
 
 		const char *symbol_name = "[no symbols]";
-		const bool	pdb_symbol_available = SymFromAddr (process, addr, 0, symbol);
+		const BOOL	pdb_symbol_available = SymFromAddr (process, addr, 0, symbol);
 
 		if (pdb_symbol_available)
 			symbol_name = symbol->Name;
@@ -466,7 +466,7 @@ const char *Sys_StackTrace (void)
 		DWORD			displacement = 0;
 		line.SizeOfStruct = sizeof (IMAGEHLP_LINE64);
 
-		const bool pdb_file_and_line_available = SymGetLineFromAddr64 (process, addr, &displacement, &line);
+		const BOOL pdb_file_and_line_available = SymGetLineFromAddr64 (process, addr, &displacement, &line);
 
 		// 1. All information:
 		if (pdb_file_and_line_available && pdb_symbol_available)
