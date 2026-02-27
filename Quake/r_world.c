@@ -178,7 +178,15 @@ void R_SetupWorldCBXTexRanges (qboolean use_tasks)
 		texture_t *t = cl.worldmodel->textures[i];
 		if (!t || !t->texturechains[chain_world] || t->texturechains[chain_world]->flags & (SURF_DRAWTURB | SURF_DRAWTILED))
 			continue;
+
 		assert (current_cbx < NUM_WORLD_CBX);
+		// TODO : quick hack to shutup MSYS2 error:
+		// error: array subscript 6 is above array bounds of 'int[6]' [-Werror=array-bounds=]
+		// world_texend[current_cbx] = i + 1;
+		// ==> potential bug or zealous compiler triggered by assert (current_cbx < NUM_WORLD_CBX); ?
+		if (current_cbx >= NUM_WORLD_CBX)
+			break;
+
 		world_texend[current_cbx] = i + 1;
 		num_assigned_to_cbx += t->chain_size[chain_world];
 		if (num_assigned_to_cbx >= num_surfs_per_cbx)
@@ -188,6 +196,7 @@ void R_SetupWorldCBXTexRanges (qboolean use_tasks)
 			{
 				world_texstart[current_cbx] = i + 1;
 			}
+
 			num_assigned_to_cbx = 0;
 		}
 	}
