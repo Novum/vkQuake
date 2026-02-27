@@ -16,8 +16,15 @@ jobs:
       run: brew install molten-vk vulkan-headers glslang spirv-tools sdl2 libvorbis flac opus opusfile flac mpg123 meson
     - name: Build vkQuake
       run: meson build --buildtype=${{ matrix.configuration }} -Ddebug=true -Dstrip=false && ninja -C build
+    - name: Extract debug information and bundle it to .dSYM
+      run: |
+        dsymutil build/vkquake -o build/vkquake.dSYM
+        du -sh build/vkquake build/vkquake.dSYM
+        dwarfdump --uuid build/vkquake build/vkquake.dSYM
     - name: Upload vkQuake
       uses: actions/upload-artifact@v4
       with:
         name: vkQuake archive (${{ matrix.configuration }})
-        path: build/vkquake
+        path: |
+          build/vkquake
+          build/vkquake.dSYM
