@@ -457,16 +457,19 @@ const char *Sys_StackTrace (void)
 		symbol->MaxNameLen = MAX_OSPATH;
 
 		const char *symbol_name = "[no symbols]";
-		if (SymFromAddr (process, addr, 0, symbol))
-		{
+		const bool	pdb_symbol_available = SymFromAddr (process, addr, 0, symbol);
+
+		if (pdb_symbol_available)
 			symbol_name = symbol->Name;
-		}
 
 		IMAGEHLP_LINE64 line;
 		DWORD			displacement = 0;
 		line.SizeOfStruct = sizeof (IMAGEHLP_LINE64);
 
-		if (SymGetLineFromAddr64 (process, addr, &displacement, &line))
+		const bool pdb_file_and_line_available = SymGetLineFromAddr64 (process, addr, &displacement, &line);
+
+		// 1. All information:
+		if (pdb_file_and_line_available && pdb_symbol_available)
 		{
 			// we only want the short file name, not the full path:
 			const char *last_sep = strrchr (line.FileName, '\\');
@@ -475,6 +478,22 @@ const char *Sys_StackTrace (void)
 				output_buffer + strnlen (output_buffer, OUTPUT_BUFFER_SIZE), OUTPUT_BUFFER_SIZE, "%-2i: %s - %s:%i\n", frame_index, symbol_name,
 				(const char *)(last_sep ? last_sep + 1 : line.FileName), (int)line.LineNumber);
 		}
+		// 2. File and line, but no symbols, display the address in its place.
+		else if (pdb_file_and_line_available)
+		{
+			// we only want the short file name, not the full path:
+			const char *last_sep = strrchr (line.FileName, '\\');
+			// this is not super-safe...
+			q_snprintf (
+				output_buffer + strnlen (output_buffer, OUTPUT_BUFFER_SIZE), OUTPUT_BUFFER_SIZE, "%-2i: 0x%" PRIxPTR " - %s:%i\n", frame_index,
+				(uintptr_t)stack[frame_index], (const char *)(last_sep ? last_sep + 1 : line.FileName), (int)line.LineNumber);
+		}
+		// 3. Symbol but no file and line
+		else if (pdb_symbol_available)
+		{
+			q_snprintf (output_buffer + strnlen (output_buffer, OUTPUT_BUFFER_SIZE), OUTPUT_BUFFER_SIZE, "%-2i: %s\n", frame_index, symbol_name);
+		}
+		// 4. No symbols, no file and lines, this is likely a MSYS2 DWARF binary:
 		else
 		{
 			uintptr_t dwarf_va = (uintptr_t)((intptr_t)stack[frame_index] + win32_Dwarf_offset);
