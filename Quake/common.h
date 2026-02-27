@@ -333,6 +333,9 @@ int32_t COM_Rand (void);
 // Limit to 24 bits so values fit in float mantissa & don't get negative when casting to ints
 #define COM_RAND_MAX 0xFFFFFF
 
+// Utility for assert() redefinition
+void COM_Assert_Failed (const char *expr, const char *file_path, int line);
+
 //============================================================================
 
 // QUAKEFS
