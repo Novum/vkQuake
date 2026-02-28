@@ -1481,7 +1481,7 @@ static void Host_Loadgame_f (void)
 			char	   *end;
 			const char *ext;
 			ext = data + 2;
-			while ((end = strchr (ext, '\n')))
+			while ((end = (char *)strchr (ext, '\n')))
 			{
 				*end = 0;
 				ext = COM_Parse (ext);
