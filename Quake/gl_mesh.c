@@ -59,11 +59,11 @@ typedef struct
 	glheapallocation_t		  *allocation;
 } blas_garbage_t;
 
-static int				current_garbage_index;
-static int				num_garbage_buffers[2];
-static buffer_garbage_t buffer_garbage[MAX_MODELS * 2][2];
-static int				num_garbage_blas[2];
-static blas_garbage_t	blas_garbage[MAX_EDICTS][2];
+static int				 current_garbage_index;
+static int				 num_garbage_buffers[2];
+static buffer_garbage_t *buffer_garbage[2];
+static int				 num_garbage_blas[2];
+static blas_garbage_t	*blas_garbage[2];
 
 /*
 ================
@@ -73,11 +73,14 @@ AddBufferGarbage
 static void AddBufferGarbage (
 	VkBuffer buffer, VkDescriptorSet descriptor_set, glheapallocation_t *allocation, const VkDescriptorSet desc_set, vulkan_desc_set_layout_t *desc_set_layout)
 {
-	int				  garbage_index;
-	buffer_garbage_t *garbage;
-
-	garbage_index = num_garbage_buffers[current_garbage_index]++;
-	garbage = &buffer_garbage[garbage_index][current_garbage_index];
+	int *num_garbage = &num_garbage_buffers[current_garbage_index];
+	int	 old_num_garbage = *num_garbage;
+	*num_garbage += 1;
+	if (buffer_garbage[current_garbage_index] == NULL)
+		buffer_garbage[current_garbage_index] = Mem_Alloc (sizeof (buffer_garbage_t) * (*num_garbage));
+	else
+		buffer_garbage[current_garbage_index] = Mem_Realloc (buffer_garbage[current_garbage_index], sizeof (buffer_garbage_t) * (*num_garbage));
+	buffer_garbage_t *garbage = &buffer_garbage[current_garbage_index][old_num_garbage];
 	garbage->buffer = buffer;
 	garbage->descriptor_set = descriptor_set;
 	garbage->allocation = allocation;
@@ -92,14 +95,17 @@ AddBLASGarbage
 */
 static void AddBLASGarbage (VkAccelerationStructureKHR blas, VkBuffer buffer, glheapallocation_t *allocation)
 {
-	int				garbage_index;
-	blas_garbage_t *garbage;
-
-	garbage_index = num_garbage_blas[current_garbage_index]++;
-	garbage = &blas_garbage[garbage_index][current_garbage_index];
-	garbage->blas = blas;
-	garbage->buffer = buffer;
-	garbage->allocation = allocation;
+	int *num_garbage = &num_garbage_blas[current_garbage_index];
+	int	 old_num_garbage = *num_garbage;
+	*num_garbage += 1;
+	if (blas_garbage[current_garbage_index] == NULL)
+		blas_garbage[current_garbage_index] = Mem_Alloc (sizeof (blas_garbage_t) * (*num_garbage));
+	else
+		blas_garbage[current_garbage_index] = Mem_Realloc (blas_garbage[current_garbage_index], sizeof (blas_garbage_t) * (*num_garbage));
+	blas_garbage_t *g = &blas_garbage[current_garbage_index][old_num_garbage];
+	g->blas = blas;
+	g->buffer = buffer;
+	g->allocation = allocation;
 }
 
 /*
@@ -149,32 +155,36 @@ R_CollectMeshBufferGarbage
 */
 void R_CollectMeshBufferGarbage (void)
 {
-	int				  num;
-	int				  i;
-	buffer_garbage_t *garbage;
-
 	current_garbage_index = (current_garbage_index + 1) % 2;
-	num = num_garbage_buffers[current_garbage_index];
-	for (i = 0; i < num; ++i)
-	{
-		garbage = &buffer_garbage[i][current_garbage_index];
-		vkDestroyBuffer (vulkan_globals.device, garbage->buffer, NULL);
-		GL_HeapFree (mesh_buffer_heap, garbage->allocation, &num_vulkan_mesh_allocations);
-		if (garbage->desc_set != VK_NULL_HANDLE)
-			R_FreeDescriptorSet (garbage->desc_set, garbage->desc_set_layout);
-	}
-	num_garbage_buffers[current_garbage_index] = 0;
 
-	// Process BLAS garbage
-	num = num_garbage_blas[current_garbage_index];
-	for (i = 0; i < num; ++i)
+	if (num_garbage_buffers[current_garbage_index] > 0)
 	{
-		blas_garbage_t *blas_g = &blas_garbage[i][current_garbage_index];
-		vulkan_globals.vk_destroy_acceleration_structure (vulkan_globals.device, blas_g->blas, NULL);
-		vkDestroyBuffer (vulkan_globals.device, blas_g->buffer, NULL);
-		GL_HeapFree (mesh_buffer_heap, blas_g->allocation, &num_vulkan_mesh_allocations);
+		for (int i = 0; i < num_garbage_buffers[current_garbage_index]; ++i)
+		{
+			buffer_garbage_t *garbage = &buffer_garbage[current_garbage_index][i];
+			vkDestroyBuffer (vulkan_globals.device, garbage->buffer, NULL);
+			GL_HeapFree (mesh_buffer_heap, garbage->allocation, &num_vulkan_mesh_allocations);
+			if (garbage->desc_set != VK_NULL_HANDLE)
+				R_FreeDescriptorSet (garbage->desc_set, garbage->desc_set_layout);
+		}
+		Mem_Free (buffer_garbage[current_garbage_index]);
+		buffer_garbage[current_garbage_index] = NULL;
+		num_garbage_buffers[current_garbage_index] = 0;
 	}
-	num_garbage_blas[current_garbage_index] = 0;
+
+	if (num_garbage_blas[current_garbage_index] > 0)
+	{
+		for (int i = 0; i < num_garbage_blas[current_garbage_index]; ++i)
+		{
+			blas_garbage_t *blas_g = &blas_garbage[current_garbage_index][i];
+			vulkan_globals.vk_destroy_acceleration_structure (vulkan_globals.device, blas_g->blas, NULL);
+			vkDestroyBuffer (vulkan_globals.device, blas_g->buffer, NULL);
+			GL_HeapFree (mesh_buffer_heap, blas_g->allocation, &num_vulkan_mesh_allocations);
+		}
+		Mem_Free (blas_garbage[current_garbage_index]);
+		blas_garbage[current_garbage_index] = NULL;
+		num_garbage_blas[current_garbage_index] = 0;
+	}
 }
 
 /*
