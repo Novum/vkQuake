@@ -1400,26 +1400,6 @@ void R_CreateDescriptorSetLayouts ()
 			Sys_Error ("vkCreateDescriptorSetLayout failed");
 		GL_SetObjectName ((uint64_t)vulkan_globals.lightmap_compute_set_layout.handle, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT, "lightmap compute");
 
-		if (vulkan_globals.ray_query)
-		{
-			lightmap_compute_layout_bindings[8].binding = num_descriptors++;
-			lightmap_compute_layout_bindings[8].descriptorCount = 1;
-			lightmap_compute_layout_bindings[8].descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
-			lightmap_compute_layout_bindings[8].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-			descriptor_set_layout_create_info.bindingCount = num_descriptors;
-
-			vulkan_globals.lightmap_compute_rt_set_layout.num_storage_images = 1;
-			vulkan_globals.lightmap_compute_rt_set_layout.num_sampled_images = 1 + MAXLIGHTMAPS * 3 / 4;
-			vulkan_globals.lightmap_compute_rt_set_layout.num_storage_buffers = 3;
-			vulkan_globals.lightmap_compute_rt_set_layout.num_ubos_dynamic = 2;
-			vulkan_globals.lightmap_compute_rt_set_layout.num_acceleration_structures = 1;
-
-			err = vkCreateDescriptorSetLayout (
-				vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.lightmap_compute_rt_set_layout.handle);
-			if (err != VK_SUCCESS)
-				Sys_Error ("vkCreateDescriptorSetLayout failed");
-			GL_SetObjectName ((uint64_t)vulkan_globals.lightmap_compute_rt_set_layout.handle, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT, "lightmap compute rt");
-		}
 	}
 
 	{
@@ -1456,15 +1436,11 @@ void R_CreateDescriptorSetLayouts ()
 #if defined(_DEBUG)
 	if (vulkan_globals.ray_query)
 	{
-		ZEROED_STRUCT_ARRAY (VkDescriptorSetLayoutBinding, ray_debug_layout_bindings, 2);
+		ZEROED_STRUCT_ARRAY (VkDescriptorSetLayoutBinding, ray_debug_layout_bindings, 1);
 		ray_debug_layout_bindings[0].binding = 0;
 		ray_debug_layout_bindings[0].descriptorCount = 1;
 		ray_debug_layout_bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
 		ray_debug_layout_bindings[0].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-		ray_debug_layout_bindings[1].binding = 1;
-		ray_debug_layout_bindings[1].descriptorCount = 1;
-		ray_debug_layout_bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
-		ray_debug_layout_bindings[1].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
 		descriptor_set_layout_create_info.bindingCount = countof (ray_debug_layout_bindings);
 		descriptor_set_layout_create_info.pBindings = ray_debug_layout_bindings;
@@ -1768,7 +1744,7 @@ void R_CreatePipelineLayouts ()
 
 		ZEROED_STRUCT (VkPushConstantRange, push_constant_range);
 		push_constant_range.offset = 0;
-		push_constant_range.size = 7 * sizeof (uint32_t);
+		push_constant_range.size = 6 * sizeof (uint32_t);
 		push_constant_range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
 		ZEROED_STRUCT (VkPipelineLayoutCreateInfo, pipeline_layout_create_info);
@@ -1789,12 +1765,12 @@ void R_CreatePipelineLayouts ()
 	{
 		// Update lightmaps RT
 		VkDescriptorSetLayout update_lightmap_rt_descriptor_set_layouts[1] = {
-			vulkan_globals.lightmap_compute_rt_set_layout.handle,
+			vulkan_globals.lightmap_compute_set_layout.handle,
 		};
 
 		ZEROED_STRUCT (VkPushConstantRange, push_constant_range);
 		push_constant_range.offset = 0;
-		push_constant_range.size = 7 * sizeof (uint32_t);
+		push_constant_range.size = 9 * sizeof (uint32_t);
 		push_constant_range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
 		ZEROED_STRUCT (VkPipelineLayoutCreateInfo, pipeline_layout_create_info);
@@ -1884,7 +1860,7 @@ void R_CreatePipelineLayouts ()
 
 		ZEROED_STRUCT (VkPushConstantRange, push_constant_range);
 		push_constant_range.offset = 0;
-		push_constant_range.size = 15 * sizeof (float);
+		push_constant_range.size = 17 * sizeof (uint32_t);
 		push_constant_range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
 		ZEROED_STRUCT (VkPipelineLayoutCreateInfo, pipeline_layout_create_info);

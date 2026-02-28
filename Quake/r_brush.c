@@ -73,6 +73,8 @@ extern cvar_t vid_palettize;
 
 static VkDrawIndexedIndirectCommand initial_indirect_buffer[MAX_INDIRECT_DRAWS];
 
+#define TLAS_SIZE_MULTIPLE 1024
+
 typedef union
 {
 	struct // 1st element contains this
@@ -99,9 +101,16 @@ VkDeviceAddress			   bmodel_vertex_buffer_device_address;
 VkAccelerationStructureKHR bmodel_tlas = VK_NULL_HANDLE;
 static VkBuffer			   bmodel_tlas_buffer;
 static size_t			   bmodel_tlas_size;
+static vulkan_memory_t	   bmodel_tlas_device_memory;
+VkDeviceAddress			   bmodel_tlas_device_address;
+static uint32_t			   bmodel_tlas_max_instances = TLAS_SIZE_MULTIPLE;
 static VkBuffer			   bmodel_indices_buffer;
 static VkDeviceAddress	   bmodel_indices_device_address;
 static vulkan_memory_t	   bmodel_as_device_memory;
+
+#define TLAS_GARBAGE_FRAME_COUNT 2
+static VkAccelerationStructureKHR tlas_garbage[TLAS_GARBAGE_FRAME_COUNT];
+static int						  tlas_garbage_index;
 
 #define INITIAL_SCRATCH_BUFFER_SIZE_MB 8
 
@@ -181,6 +190,75 @@ void R_FreeASScratchBuffer (void)
 		memset (&as_scratch_buffer, 0, sizeof (as_scratch_buffer));
 		R_FreeVulkanMemory (&as_scratch_memory, &num_vulkan_dynbuf_allocations);
 	}
+}
+
+/*
+===============
+R_CollectTLASGarbage
+===============
+*/
+void R_CollectTLASGarbage (void)
+{
+	tlas_garbage_index = (tlas_garbage_index + 1) % TLAS_GARBAGE_FRAME_COUNT;
+	if (tlas_garbage[tlas_garbage_index] != VK_NULL_HANDLE)
+	{
+		vulkan_globals.vk_destroy_acceleration_structure (vulkan_globals.device, tlas_garbage[tlas_garbage_index], NULL);
+		tlas_garbage[tlas_garbage_index] = VK_NULL_HANDLE;
+	}
+}
+
+/*
+===============
+R_AllocateTLAS
+===============
+*/
+static void R_AllocateTLAS (void)
+{
+	VkResult err;
+
+	ZEROED_STRUCT (VkBufferCreateInfo, buffer_create_info);
+	buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	buffer_create_info.size = bmodel_tlas_size;
+	buffer_create_info.usage = VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+
+	err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &bmodel_tlas_buffer);
+	if (err != VK_SUCCESS)
+		Sys_Error ("vkCreateBuffer failed");
+	GL_SetObjectName ((uint64_t)bmodel_tlas_buffer, VK_OBJECT_TYPE_BUFFER, "BModel TLAS");
+
+	VkMemoryRequirements memory_requirements;
+	vkGetBufferMemoryRequirements (vulkan_globals.device, bmodel_tlas_buffer, &memory_requirements);
+
+	ZEROED_STRUCT (VkMemoryAllocateFlagsInfo, memory_allocate_flags_info);
+	memory_allocate_flags_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO_KHR;
+	memory_allocate_flags_info.flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT;
+
+	ZEROED_STRUCT (VkMemoryAllocateInfo, memory_allocate_info);
+	memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	memory_allocate_info.pNext = &memory_allocate_flags_info;
+	memory_allocate_info.allocationSize = memory_requirements.size;
+	memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
+
+	R_AllocateVulkanMemory (&bmodel_tlas_device_memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_DEVICE, &num_vulkan_bmodel_allocations);
+	GL_SetObjectName ((uint64_t)bmodel_tlas_device_memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, "BModel TLAS");
+
+	err = vkBindBufferMemory (vulkan_globals.device, bmodel_tlas_buffer, bmodel_tlas_device_memory.handle, 0);
+	if (err != VK_SUCCESS)
+		Sys_Error ("vkBindBufferMemory failed");
+
+	ZEROED_STRUCT (VkAccelerationStructureCreateInfoKHR, acceleration_structure_create_info);
+	acceleration_structure_create_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR;
+	acceleration_structure_create_info.buffer = bmodel_tlas_buffer;
+	acceleration_structure_create_info.size = bmodel_tlas_size;
+	acceleration_structure_create_info.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
+	err = vulkan_globals.vk_create_acceleration_structure (vulkan_globals.device, &acceleration_structure_create_info, NULL, &bmodel_tlas);
+	if (err != VK_SUCCESS)
+		Sys_Error ("vkCreateAccelerationStructure failed");
+
+	ZEROED_STRUCT (VkAccelerationStructureDeviceAddressInfoKHR, tlas_address_info);
+	tlas_address_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
+	tlas_address_info.accelerationStructure = bmodel_tlas;
+	bmodel_tlas_device_address = vulkan_globals.vk_get_acceleration_structure_device_address (vulkan_globals.device, &tlas_address_info);
 }
 
 extern cvar_t r_showtris;
@@ -1841,8 +1919,7 @@ void GL_UpdateLightmapDescriptorSets (void)
 {
 	GL_WaitForDeviceIdle ();
 
-	const qboolean			  rt = vulkan_globals.ray_query && r_rtshadows.value && (bmodel_tlas != VK_NULL_HANDLE);
-	vulkan_desc_set_layout_t *set_layout = rt ? &vulkan_globals.lightmap_compute_rt_set_layout : &vulkan_globals.lightmap_compute_set_layout;
+	vulkan_desc_set_layout_t *set_layout = &vulkan_globals.lightmap_compute_set_layout;
 
 	if (lightmap_count && !lightmaps[0].texture->target_image_view)
 		return;
@@ -1896,7 +1973,7 @@ void GL_UpdateLightmapDescriptorSets (void)
 		world_vertex_buffer_info.range = VK_WHOLE_SIZE;
 
 		int num_writes = 0;
-		ZEROED_STRUCT_ARRAY (VkWriteDescriptorSet, writes, 9);
+		ZEROED_STRUCT_ARRAY (VkWriteDescriptorSet, writes, 8);
 		writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		writes[0].dstBinding = num_writes++;
 		writes[0].dstArrayElement = 0;
@@ -1960,21 +2037,6 @@ void GL_UpdateLightmapDescriptorSets (void)
 		writes[7].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 		writes[7].dstSet = lm->descriptor_set;
 		writes[7].pBufferInfo = &world_vertex_buffer_info;
-
-		ZEROED_STRUCT (VkWriteDescriptorSetAccelerationStructureKHR, acceleration_structure_write);
-		if (rt)
-		{
-			acceleration_structure_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR;
-			acceleration_structure_write.accelerationStructureCount = 1;
-			acceleration_structure_write.pAccelerationStructures = &bmodel_tlas;
-			writes[8].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-			writes[8].pNext = &acceleration_structure_write;
-			writes[8].dstBinding = num_writes++;
-			writes[8].dstArrayElement = 0;
-			writes[8].descriptorCount = 1;
-			writes[8].descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
-			writes[8].dstSet = lm->descriptor_set;
-		}
 
 		vkUpdateDescriptorSets (vulkan_globals.device, num_writes, writes, 0, NULL);
 	}
@@ -2107,10 +2169,9 @@ void GL_DeleteBModelAccelerationStructures (void)
 		return;
 
 	GL_WaitForDeviceIdle ();
-	TEMP_ALLOC (VkBuffer, buffers, 2 + MAX_MODELS);
+	TEMP_ALLOC (VkBuffer, buffers, 1 + MAX_MODELS);
 	int num_buffers = 0;
 	buffers[num_buffers++] = bmodel_indices_buffer;
-	buffers[num_buffers++] = bmodel_tlas_buffer;
 	for (int i = 0; i < MAX_MODELS; ++i)
 	{
 		qmodel_t *m = cl.model_precache[i];
@@ -2128,9 +2189,15 @@ void GL_DeleteBModelAccelerationStructures (void)
 		assert (m->address == 0);
 	}
 	R_FreeBuffers (num_buffers, buffers, &bmodel_as_device_memory, &num_vulkan_bmodel_allocations);
+
+	vulkan_globals.vk_destroy_acceleration_structure (vulkan_globals.device, bmodel_tlas, NULL);
+	vkDestroyBuffer (vulkan_globals.device, bmodel_tlas_buffer, NULL);
+	R_FreeVulkanMemory (&bmodel_tlas_device_memory, &num_vulkan_bmodel_allocations);
+
 	bmodel_tlas = VK_NULL_HANDLE;
 	bmodel_tlas_buffer = VK_NULL_HANDLE;
 	bmodel_tlas_size = 0;
+	bmodel_tlas_device_address = 0;
 	bmodel_indices_buffer = VK_NULL_HANDLE;
 	bmodel_indices_device_address = 0;
 	TEMP_FREE (buffers);
@@ -2212,7 +2279,7 @@ void GL_BuildBModelAccelerationStructures (void)
 	TEMP_ALLOC_ZEROED (VkAccelerationStructureBuildGeometryInfoKHR, blas_geometry_infos, MAX_MODELS);
 	TEMP_ALLOC_ZEROED (VkAccelerationStructureBuildSizesInfoKHR, blas_sizes_infos, MAX_MODELS);
 	TEMP_ALLOC_ZEROED (qmodel_t *, blas_models, MAX_MODELS);
-	TEMP_ALLOC_ZEROED (buffer_create_info_t, buffer_create_infos, 2 + MAX_MODELS);
+	TEMP_ALLOC_ZEROED (buffer_create_info_t, buffer_create_infos, 1 + MAX_MODELS);
 
 	size_t scratch_buffer_size = 0;
 	int	   num_blas = 0;
@@ -2274,16 +2341,14 @@ void GL_BuildBModelAccelerationStructures (void)
 		return;
 	}
 
-	ZEROED_STRUCT (VkAccelerationStructureGeometryKHR, tlas_geometry);
-	ZEROED_STRUCT (VkAccelerationStructureBuildGeometryInfoKHR, tlas_geometry_info);
-	ZEROED_STRUCT (VkAccelerationStructureBuildSizesInfoKHR, tlas_build_sizes_info);
+	// Query TLAS sizes for initial instance count
 	{
-		const uint32_t num_instances = MAX_MODELS;
-
+		ZEROED_STRUCT (VkAccelerationStructureGeometryKHR, tlas_geometry);
 		tlas_geometry.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
 		tlas_geometry.geometryType = VK_GEOMETRY_TYPE_INSTANCES_KHR;
 		tlas_geometry.geometry.instances.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR;
 
+		ZEROED_STRUCT (VkAccelerationStructureBuildGeometryInfoKHR, tlas_geometry_info);
 		tlas_geometry_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
 		tlas_geometry_info.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
 		tlas_geometry_info.flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
@@ -2291,9 +2356,10 @@ void GL_BuildBModelAccelerationStructures (void)
 		tlas_geometry_info.geometryCount = 1;
 		tlas_geometry_info.pGeometries = &tlas_geometry;
 
+		ZEROED_STRUCT (VkAccelerationStructureBuildSizesInfoKHR, tlas_build_sizes_info);
 		tlas_build_sizes_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
 		vulkan_globals.vk_get_acceleration_structure_build_sizes (
-			vulkan_globals.device, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &tlas_geometry_info, &num_instances, &tlas_build_sizes_info);
+			vulkan_globals.device, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &tlas_geometry_info, &bmodel_tlas_max_instances, &tlas_build_sizes_info);
 
 		scratch_buffer_size = q_max (scratch_buffer_size, tlas_build_sizes_info.buildScratchSize);
 		bmodel_tlas_size = tlas_build_sizes_info.accelerationStructureSize;
@@ -2307,14 +2373,9 @@ void GL_BuildBModelAccelerationStructures (void)
 	buffer_create_infos[0].address = &bmodel_indices_device_address;
 	buffer_create_infos[0].name = "BModel indices";
 
-	buffer_create_infos[1].buffer = &bmodel_tlas_buffer;
-	buffer_create_infos[1].size = tlas_build_sizes_info.accelerationStructureSize;
-	buffer_create_infos[1].usage = VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR;
-	buffer_create_infos[1].name = "BModel TLAS";
-
 	for (int i = 0; i < num_blas; ++i)
 	{
-		buffer_create_info_t *create_info = &buffer_create_infos[2 + i];
+		buffer_create_info_t *create_info = &buffer_create_infos[1 + i];
 		create_info->buffer = &blas_models[i]->buffer;
 		create_info->size = blas_sizes_infos[i].accelerationStructureSize;
 		create_info->usage = VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR;
@@ -2323,22 +2384,13 @@ void GL_BuildBModelAccelerationStructures (void)
 	}
 
 	const size_t total_as_device_size = R_CreateBuffers (
-		2 + num_blas, buffer_create_infos, &bmodel_as_device_memory, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, &num_vulkan_bmodel_allocations, "BModel AS");
+		1 + num_blas, buffer_create_infos, &bmodel_as_device_memory, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, &num_vulkan_bmodel_allocations, "BModel AS");
 
 	Sys_Printf ("Allocating acceleration structure data (%u KB)\n", (int)(total_as_device_size / 1024ull));
 
-	R_EnsureASScratchBufferSize (scratch_buffer_size);
+	R_AllocateTLAS ();
 
-	{
-		ZEROED_STRUCT (VkAccelerationStructureCreateInfoKHR, acceleration_structure_create_info);
-		acceleration_structure_create_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR;
-		acceleration_structure_create_info.buffer = bmodel_tlas_buffer;
-		acceleration_structure_create_info.size = bmodel_tlas_size;
-		acceleration_structure_create_info.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
-		err = vulkan_globals.vk_create_acceleration_structure (vulkan_globals.device, &acceleration_structure_create_info, NULL, &bmodel_tlas);
-		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateAccelerationStructure failed");
-	}
+	R_EnsureASScratchBufferSize (scratch_buffer_size);
 
 	VkBuffer		staging_buffer;
 	VkCommandBuffer command_buffer;
@@ -2583,20 +2635,33 @@ void R_BuildTopLevelAccelerationStructure (void *unused)
 	tlas_geometry_info.geometryCount = 1;
 	tlas_geometry_info.pGeometries = &tlas_geometry;
 
-	// Query sizes for actual instance count
+	// Resize TLAS if instance count exceeds current capacity
+	if ((uint32_t)num_instances > bmodel_tlas_max_instances)
+	{
+		tlas_garbage[tlas_garbage_index] = bmodel_tlas;
+		dynbuffer_t tlas_dynbuf;
+		memset (&tlas_dynbuf, 0, sizeof (tlas_dynbuf));
+		tlas_dynbuf.buffer = bmodel_tlas_buffer;
+		R_AddDynamicBufferGarbage (bmodel_tlas_device_memory, &tlas_dynbuf, 1, NULL);
+
+		bmodel_tlas_max_instances = ((num_instances / TLAS_SIZE_MULTIPLE) + 1) * TLAS_SIZE_MULTIPLE;
+
+		ZEROED_STRUCT (VkAccelerationStructureBuildSizesInfoKHR, new_tlas_sizes);
+		new_tlas_sizes.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
+		vulkan_globals.vk_get_acceleration_structure_build_sizes (
+			vulkan_globals.device, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &tlas_geometry_info, &bmodel_tlas_max_instances, &new_tlas_sizes);
+		bmodel_tlas_size = new_tlas_sizes.accelerationStructureSize;
+
+		Sys_Printf ("Reallocating TLAS for %u instances (%u KB)\n", bmodel_tlas_max_instances, (uint32_t)(bmodel_tlas_size / 1024));
+		R_AllocateTLAS ();
+	}
+
 	const uint32_t							 tlas_num_instances = num_instances;
 	VkAccelerationStructureBuildSizesInfoKHR tlas_sizes;
 	tlas_sizes.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
 	tlas_sizes.pNext = NULL;
 	vulkan_globals.vk_get_acceleration_structure_build_sizes (
 		vulkan_globals.device, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &tlas_geometry_info, &tlas_num_instances, &tlas_sizes);
-
-	if (tlas_sizes.accelerationStructureSize > bmodel_tlas_size)
-	{
-		Con_DPrintf ("TLAS too small for %d instances, skipping build\n", num_instances);
-		R_EndDebugUtilsLabel (cbx);
-		return;
-	}
 
 	R_EnsureASScratchBufferSize (tlas_sizes.buildScratchSize);
 
@@ -3095,10 +3160,16 @@ void R_FlushUpdateLightmaps (
 							lightmap_regions[j][y + h][i] = false;
 						h += 1;
 					}
-					uint32_t shadow_samples = (r_rtshadows.value > 0) ? (1 << ((int)r_rtshadows.value + 1)) : 0;
-					uint32_t push_constants[7] = {current_dlights, LMBLOCK_WIDTH,  x * LM_CULL_BLOCK_W / 8, y * LM_CULL_BLOCK_H / 8,
-												  type == 1,	   cached_dlights, shadow_samples};
-					R_PushConstants (cbx, VK_SHADER_STAGE_COMPUTE_BIT, 0, 7 * sizeof (uint32_t), push_constants);
+					uint32_t push_constants[9] = {current_dlights, LMBLOCK_WIDTH, x * LM_CULL_BLOCK_W / 8, y * LM_CULL_BLOCK_H / 8, type == 1, cached_dlights};
+					int		 push_size = 6 * sizeof (uint32_t);
+					if (pipeline == &vulkan_globals.update_lightmap_rt_pipeline)
+					{
+						uint32_t shadow_samples = 1 << ((int)r_rtshadows.value + 1);
+						memcpy (&push_constants[6], &bmodel_tlas_device_address, sizeof (VkDeviceAddress));
+						push_constants[8] = shadow_samples;
+						push_size = 9 * sizeof (uint32_t);
+					}
+					R_PushConstants (cbx, VK_SHADER_STAGE_COMPUTE_BIT, 0, push_size, push_constants);
 					w = q_min (lightmaps[lightmap_indexes[j]].lightstyle_rectused[0].w / 8 - x * LM_CULL_BLOCK_W / 8, w * LM_CULL_BLOCK_W / 8);
 					h = q_min (lightmaps[lightmap_indexes[j]].lightstyle_rectused[0].h / 8 - y * LM_CULL_BLOCK_H / 8, h * LM_CULL_BLOCK_H / 8);
 					vkCmdDispatch (cbx->cb, w, h, 1);

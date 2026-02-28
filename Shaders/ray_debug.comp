@@ -4,11 +4,11 @@
 #extension GL_EXT_ray_query : enable
 
 layout (set = 0, binding = 0, rgb10_a2) uniform writeonly image2D output_image;
-layout (set = 0, binding = 1) uniform accelerationStructureEXT tlas;
 
 layout (push_constant) uniform PushConsts
 {
 	vec2  screen_size_rcp;
+	uvec2 tlas_address;
 	float aspect_ratio;
 	float origin_x;
 	float origin_y;
@@ -42,7 +42,7 @@ void main ()
 
 	float		depth = 1e30f;
 	rayQueryEXT ray_query;
-	rayQueryInitializeEXT (ray_query, tlas, gl_RayFlagsOpaqueEXT, 0xFF, origin, 1e-3f, direction, 1e30f);
+	rayQueryInitializeEXT (ray_query, accelerationStructureEXT (push_constants.tlas_address), gl_RayFlagsOpaqueEXT, 0xFF, origin, 1e-3f, direction, 1e30f);
 
 	while (rayQueryProceedEXT (ray_query))
 	{

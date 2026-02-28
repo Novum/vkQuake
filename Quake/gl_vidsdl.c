@@ -96,6 +96,7 @@ modestate_t		modestate = MS_UNINIT;
 extern qboolean scr_initialized;
 
 extern VkAccelerationStructureKHR bmodel_tlas;
+extern VkDeviceAddress			  bmodel_tlas_device_address;
 
 //====================================
 
@@ -2029,39 +2030,23 @@ void GL_UpdateDescriptorSets (void)
 	vkUpdateDescriptorSets (vulkan_globals.device, countof (screen_effects_writes), screen_effects_writes, 0, NULL);
 
 #if defined(_DEBUG)
-	if (vulkan_globals.ray_query && bmodel_tlas)
+	if (vulkan_globals.ray_query)
 	{
 		if (vulkan_globals.ray_debug_desc_set != VK_NULL_HANDLE)
 			R_FreeDescriptorSet (vulkan_globals.ray_debug_desc_set, &vulkan_globals.ray_debug_set_layout);
 		vulkan_globals.ray_debug_desc_set = R_AllocateDescriptorSet (&vulkan_globals.ray_debug_set_layout);
 
-		int num_ray_debug_writes = 0;
-		ZEROED_STRUCT_ARRAY (VkWriteDescriptorSet, ray_debug_writes, 2);
+		ZEROED_STRUCT_ARRAY (VkWriteDescriptorSet, ray_debug_writes, 1);
 
 		ray_debug_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		ray_debug_writes[0].dstBinding = num_ray_debug_writes++;
+		ray_debug_writes[0].dstBinding = 0;
 		ray_debug_writes[0].dstArrayElement = 0;
 		ray_debug_writes[0].descriptorCount = 1;
 		ray_debug_writes[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
 		ray_debug_writes[0].dstSet = vulkan_globals.ray_debug_desc_set;
 		ray_debug_writes[0].pImageInfo = &output_image_info;
 
-		if (bmodel_tlas != VK_NULL_HANDLE)
-		{
-			ZEROED_STRUCT (VkWriteDescriptorSetAccelerationStructureKHR, acceleration_structure_write);
-			acceleration_structure_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR;
-			acceleration_structure_write.accelerationStructureCount = 1;
-			acceleration_structure_write.pAccelerationStructures = &bmodel_tlas;
-			ray_debug_writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-			ray_debug_writes[1].pNext = &acceleration_structure_write;
-			ray_debug_writes[1].dstBinding = num_ray_debug_writes++;
-			ray_debug_writes[1].dstArrayElement = 0;
-			ray_debug_writes[1].descriptorCount = 1;
-			ray_debug_writes[1].descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
-			ray_debug_writes[1].dstSet = vulkan_globals.ray_debug_desc_set;
-		}
-
-		vkUpdateDescriptorSets (vulkan_globals.device, num_ray_debug_writes, ray_debug_writes, 0, NULL);
+		vkUpdateDescriptorSets (vulkan_globals.device, countof (ray_debug_writes), ray_debug_writes, 0, NULL);
 	}
 #endif
 }
@@ -2517,6 +2502,7 @@ void GL_BeginRenderingTask (void *unused)
 
 	R_CollectDynamicBufferGarbage ();
 	R_CollectMeshBufferGarbage ();
+	R_CollectTLASGarbage ();
 	TexMgr_CollectGarbage ();
 
 	for (int pcbx_index = 0; pcbx_index < PCBX_NUM; ++pcbx_index)
@@ -2720,21 +2706,23 @@ typedef struct screen_effect_constants_s
 
 typedef struct ray_debug_constants_s
 {
-	float screen_size_rcp_x;
-	float screen_size_rcp_y;
-	float aspect_ratio;
-	float origin_x;
-	float origin_y;
-	float origin_z;
-	float forward_x;
-	float forward_y;
-	float forward_z;
-	float right_x;
-	float right_y;
-	float right_z;
-	float down_x;
-	float down_y;
-	float down_z;
+	float	 screen_size_rcp_x;
+	float	 screen_size_rcp_y;
+	uint32_t tlas_address_lo;
+	uint32_t tlas_address_hi;
+	float	 aspect_ratio;
+	float	 origin_x;
+	float	 origin_y;
+	float	 origin_z;
+	float	 forward_x;
+	float	 forward_y;
+	float	 forward_z;
+	float	 right_x;
+	float	 right_y;
+	float	 right_z;
+	float	 down_x;
+	float	 down_y;
+	float	 down_z;
 } ray_debug_constants_t;
 
 typedef struct end_rendering_parms_s
@@ -2873,6 +2861,8 @@ static void GL_ScreenEffects (cb_context_t *cbx, qboolean enabled, end_rendering
 			const ray_debug_constants_t push_constants = {
 				1.0f / (float)parms->vid_width,
 				1.0f / (float)parms->vid_height,
+				(uint32_t)(bmodel_tlas_device_address),
+				(uint32_t)(bmodel_tlas_device_address >> 32),
 				(float)parms->vid_width / (float)parms->vid_height,
 				parms->origin[0],
 				parms->origin[1],

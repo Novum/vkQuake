@@ -12,7 +12,10 @@ layout (push_constant) uniform PushConsts
 	uint y_workgroup_offset;
 	bool dlights_only;
 	uint num_cached_dlights;
-	uint shadow_samples;
+#ifdef RAY_QUERIES
+	uvec2 tlas_address;
+	uint  shadow_samples;
+#endif
 }
 push_constants;
 
@@ -61,9 +64,6 @@ layout (std430, set = 0, binding = 7) readonly restrict buffer world_verts_buffe
 {
 	world_vert_t world_verts[];
 };
-#ifdef RAY_QUERIES
-layout (set = 0, binding = 8) uniform accelerationStructureEXT tlas;
-#endif
 
 layout (constant_id = 0) const bool scaled_lm = false;
 
@@ -87,7 +87,7 @@ bool IsOccluded (vec3 origin, vec3 direction, float dist)
 {
 	rayQueryEXT ray_query;
 	rayQueryInitializeEXT (
-		ray_query, tlas, gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsOpaqueEXT | gl_RayFlagsSkipClosestHitShaderEXT, 0xFF, origin, 8.0f, direction, dist);
+		ray_query, accelerationStructureEXT (push_constants.tlas_address), gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsOpaqueEXT | gl_RayFlagsSkipClosestHitShaderEXT, 0xFF, origin, 8.0f, direction, dist);
 	rayQueryProceedEXT (ray_query);
 	return rayQueryGetIntersectionTypeEXT (ray_query, true) == gl_RayQueryCommittedIntersectionTriangleEXT;
 }

@@ -338,7 +338,6 @@ typedef struct
 	vulkan_desc_set_layout_t lightmap_compute_set_layout;
 	VkDescriptorSet			 indirect_compute_desc_set;
 	vulkan_desc_set_layout_t indirect_compute_set_layout;
-	vulkan_desc_set_layout_t lightmap_compute_rt_set_layout;
 	VkDescriptorSet			 ray_debug_desc_set;
 	vulkan_desc_set_layout_t ray_debug_set_layout;
 	vulkan_desc_set_layout_t joints_buffer_set_layout;
@@ -621,6 +620,7 @@ extern dynbuffer_t as_scratch_buffer;
 extern uint32_t	   as_scratch_buffer_size;
 void			   R_EnsureASScratchBufferSize (uint32_t required_size);
 void			   R_FreeASScratchBuffer (void);
+void			   R_CollectTLASGarbage (void);
 
 int R_LightPoint (vec3_t p, float ofs, lightcache_t *cache, vec3_t *lightcolor);
 
