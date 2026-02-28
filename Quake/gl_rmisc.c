@@ -129,14 +129,6 @@ Dynamic vertex/index & uniform buffer
 #define GARBAGE_FRAME_COUNT					   3
 #define MAX_UNIFORM_ALLOC					   2048
 
-typedef struct
-{
-	VkBuffer		buffer;
-	uint32_t		current_offset;
-	unsigned char  *data;
-	VkDeviceAddress device_address;
-} dynbuffer_t;
-
 static uint32_t		   current_dyn_vertex_buffer_size = INITIAL_DYNAMIC_VERTEX_BUFFER_SIZE_KB * 1024;
 static uint32_t		   current_dyn_index_buffer_size = INITIAL_DYNAMIC_INDEX_BUFFER_SIZE_KB * 1024;
 static uint32_t		   current_dyn_uniform_buffer_size = INITIAL_DYNAMIC_UNIFORM_BUFFER_SIZE_KB * 1024;
@@ -385,14 +377,13 @@ static void R_SetRTShadows_f (cvar_t *var)
 {
 	if (var->value > 0)
 	{
-		R_CreateAnimatedBLASScratchBuffer ();
 		GL_BuildBModelAccelerationStructures ();
 	}
 	else
 	{
 		GL_DeleteBModelAccelerationStructures ();
 		R_FreeAllEntityBLASes ();
-		R_FreeAnimatedBLASScratchBuffer ();
+		R_FreeASScratchBuffer ();
 	}
 	GL_UpdateLightmapDescriptorSets ();
 }
@@ -1020,7 +1011,7 @@ void R_FlushDynamicBuffers (void)
 R_AddDynamicBufferGarbage
 ===============
 */
-static void R_AddDynamicBufferGarbage (vulkan_memory_t memory, dynbuffer_t *buffers, VkDescriptorSet *descriptor_sets)
+void R_AddDynamicBufferGarbage (vulkan_memory_t memory, dynbuffer_t *buffers, int num_buffers, VkDescriptorSet *descriptor_sets)
 {
 	SDL_LockMutex (garbage_mutex);
 
@@ -1039,12 +1030,12 @@ static void R_AddDynamicBufferGarbage (vulkan_memory_t memory, dynbuffer_t *buff
 	{
 		int *num_garbage = &num_buffer_garbage[current_garbage_index];
 		int	 old_num_buffer_garbage = *num_garbage;
-		*num_garbage += NUM_DYNAMIC_BUFFERS;
+		*num_garbage += num_buffers;
 		if (buffer_garbage[current_garbage_index] == NULL)
 			buffer_garbage[current_garbage_index] = Mem_Alloc (sizeof (VkBuffer) * (*num_garbage));
 		else
 			buffer_garbage[current_garbage_index] = Mem_Realloc (buffer_garbage[current_garbage_index], sizeof (VkBuffer) * (*num_garbage));
-		for (int i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
+		for (int i = 0; i < num_buffers; ++i)
 			buffer_garbage[current_garbage_index][old_num_buffer_garbage + i] = buffers[i].buffer;
 	}
 
@@ -1119,7 +1110,7 @@ byte *R_DynBufferAllocate (
 
 	if ((dyn_buffer->current_offset + q_max (size, min_tail_size)) > *current_size)
 	{
-		R_AddDynamicBufferGarbage (*memory, dyn_buffers, descriptor_sets);
+		R_AddDynamicBufferGarbage (*memory, dyn_buffers, NUM_DYNAMIC_BUFFERS, descriptor_sets);
 		*current_size = q_max (*current_size * 2, (uint32_t)Q_nextPow2 (size));
 		init_func ();
 	}
@@ -1199,46 +1190,6 @@ byte *R_UniformAllocate (int size, VkBuffer *buffer, uint32_t *buffer_offset, Vk
 
 	*buffer_offset = device_size_offset;
 	return data;
-}
-
-/*
-===============
-R_CreateAnimatedBLASScratchBuffer
-===============
-*/
-void R_CreateAnimatedBLASScratchBuffer (void)
-{
-	if (!vulkan_globals.ray_query || r_rtshadows.value <= 0 || vulkan_globals.scratch_buffer != VK_NULL_HANDLE)
-		return;
-
-	buffer_create_info_t buffer_create_info = {
-		.buffer = &vulkan_globals.scratch_buffer,
-		.size = SCRATCH_BUFFER_SIZE_MB * 1024 * 1024,
-		.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
-				 VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
-		.address = &vulkan_globals.scratch_buffer_address,
-		.alignment = vulkan_globals.physical_device_acceleration_structure_properties.minAccelerationStructureScratchOffsetAlignment,
-		.name = "Animated AS scratch",
-	};
-	R_CreateBuffers (
-		1, &buffer_create_info, &vulkan_globals.scratch_buffer_memory, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, &num_vulkan_misc_allocations,
-		"Animated AS scratch");
-}
-
-/*
-===============
-R_FreeAnimatedBLASScratchBuffer
-===============
-*/
-void R_FreeAnimatedBLASScratchBuffer (void)
-{
-	if (vulkan_globals.scratch_buffer == VK_NULL_HANDLE)
-		return;
-
-	GL_WaitForDeviceIdle ();
-	R_FreeBuffers (1, &vulkan_globals.scratch_buffer, &vulkan_globals.scratch_buffer_memory, &num_vulkan_misc_allocations);
-	vulkan_globals.scratch_buffer = VK_NULL_HANDLE;
-	vulkan_globals.scratch_buffer_address = 0;
 }
 
 /*
@@ -4008,7 +3959,6 @@ void R_NewMap (void)
 
 	GL_BuildLightmaps ();
 	GL_BuildBModelVertexBuffer ();
-	R_CreateAnimatedBLASScratchBuffer ();
 	GL_BuildBModelAccelerationStructures ();
 	GL_PrepareSIMDAndParallelData ();
 	GL_SetupIndirectDraws ();

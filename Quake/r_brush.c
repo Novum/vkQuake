@@ -101,9 +101,87 @@ static VkBuffer			   bmodel_tlas_buffer;
 static size_t			   bmodel_tlas_size;
 static VkBuffer			   bmodel_indices_buffer;
 static VkDeviceAddress	   bmodel_indices_device_address;
-static VkBuffer			   bmodel_scratch_buffer;
-static VkDeviceAddress	   bmodel_scratch_address;
 static vulkan_memory_t	   bmodel_as_device_memory;
+
+#define INITIAL_SCRATCH_BUFFER_SIZE_MB 8
+
+// Shared scratch buffer for all AS operations (bmodel BLAS build, TLAS build, animated BLAS updates)
+dynbuffer_t			   as_scratch_buffer;
+static vulkan_memory_t as_scratch_memory;
+uint32_t			   as_scratch_buffer_size = INITIAL_SCRATCH_BUFFER_SIZE_MB * 1024 * 1024;
+
+/*
+===============
+R_EnsureASScratchBufferSize
+===============
+*/
+void R_EnsureASScratchBufferSize (uint32_t required_size)
+{
+	if (required_size <= as_scratch_buffer_size && as_scratch_buffer.buffer != VK_NULL_HANDLE)
+		return;
+
+	if (as_scratch_buffer.buffer != VK_NULL_HANDLE)
+	{
+		R_AddDynamicBufferGarbage (as_scratch_memory, &as_scratch_buffer, 1, NULL);
+		as_scratch_buffer_size = q_max (as_scratch_buffer_size * 2, Q_nextPow2 (required_size));
+	}
+
+	Sys_Printf ("Reallocating dynamic AS scratch buffer (%u KB)\n", as_scratch_buffer_size / 1024);
+
+	VkResult err;
+
+	ZEROED_STRUCT (VkBufferCreateInfo, buffer_create_info);
+	buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	buffer_create_info.size = as_scratch_buffer_size;
+	buffer_create_info.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR |
+							   VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT_KHR;
+
+	err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &as_scratch_buffer.buffer);
+	if (err != VK_SUCCESS)
+		Sys_Error ("vkCreateBuffer failed");
+	GL_SetObjectName ((uint64_t)as_scratch_buffer.buffer, VK_OBJECT_TYPE_BUFFER, "AS scratch buffer");
+
+	VkMemoryRequirements memory_requirements;
+	vkGetBufferMemoryRequirements (vulkan_globals.device, as_scratch_buffer.buffer, &memory_requirements);
+
+	ZEROED_STRUCT (VkMemoryAllocateFlagsInfo, memory_allocate_flags_info);
+	memory_allocate_flags_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO_KHR;
+	memory_allocate_flags_info.flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT;
+
+	ZEROED_STRUCT (VkMemoryAllocateInfo, memory_allocate_info);
+	memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	memory_allocate_info.pNext = &memory_allocate_flags_info;
+	memory_allocate_info.allocationSize = memory_requirements.size;
+	memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
+
+	R_AllocateVulkanMemory (&as_scratch_memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_DEVICE, &num_vulkan_dynbuf_allocations);
+	GL_SetObjectName ((uint64_t)as_scratch_memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, "AS scratch buffer");
+
+	err = vkBindBufferMemory (vulkan_globals.device, as_scratch_buffer.buffer, as_scratch_memory.handle, 0);
+	if (err != VK_SUCCESS)
+		Sys_Error ("vkBindBufferMemory failed");
+
+	ZEROED_STRUCT (VkBufferDeviceAddressInfoKHR, buffer_device_address_info);
+	buffer_device_address_info.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO_KHR;
+	buffer_device_address_info.buffer = as_scratch_buffer.buffer;
+	as_scratch_buffer.device_address = vulkan_globals.vk_get_buffer_device_address (vulkan_globals.device, &buffer_device_address_info);
+	as_scratch_buffer.current_offset = 0;
+}
+
+/*
+===============
+R_FreeASScratchBuffer
+===============
+*/
+void R_FreeASScratchBuffer (void)
+{
+	if (as_scratch_buffer.buffer != VK_NULL_HANDLE)
+	{
+		vkDestroyBuffer (vulkan_globals.device, as_scratch_buffer.buffer, NULL);
+		memset (&as_scratch_buffer, 0, sizeof (as_scratch_buffer));
+		R_FreeVulkanMemory (&as_scratch_memory, &num_vulkan_dynbuf_allocations);
+	}
+}
 
 extern cvar_t r_showtris;
 extern cvar_t r_simd;
@@ -2029,9 +2107,8 @@ void GL_DeleteBModelAccelerationStructures (void)
 		return;
 
 	GL_WaitForDeviceIdle ();
-	TEMP_ALLOC (VkBuffer, buffers, 3 + MAX_MODELS);
+	TEMP_ALLOC (VkBuffer, buffers, 2 + MAX_MODELS);
 	int num_buffers = 0;
-	buffers[num_buffers++] = bmodel_scratch_buffer;
 	buffers[num_buffers++] = bmodel_indices_buffer;
 	buffers[num_buffers++] = bmodel_tlas_buffer;
 	for (int i = 0; i < MAX_MODELS; ++i)
@@ -2056,8 +2133,6 @@ void GL_DeleteBModelAccelerationStructures (void)
 	bmodel_tlas_size = 0;
 	bmodel_indices_buffer = VK_NULL_HANDLE;
 	bmodel_indices_device_address = 0;
-	bmodel_scratch_buffer = VK_NULL_HANDLE;
-	bmodel_scratch_address = 0;
 	TEMP_FREE (buffers);
 }
 
@@ -2137,7 +2212,7 @@ void GL_BuildBModelAccelerationStructures (void)
 	TEMP_ALLOC_ZEROED (VkAccelerationStructureBuildGeometryInfoKHR, blas_geometry_infos, MAX_MODELS);
 	TEMP_ALLOC_ZEROED (VkAccelerationStructureBuildSizesInfoKHR, blas_sizes_infos, MAX_MODELS);
 	TEMP_ALLOC_ZEROED (qmodel_t *, blas_models, MAX_MODELS);
-	TEMP_ALLOC_ZEROED (buffer_create_info_t, buffer_create_infos, 3 + MAX_MODELS);
+	TEMP_ALLOC_ZEROED (buffer_create_info_t, buffer_create_infos, 2 + MAX_MODELS);
 
 	size_t scratch_buffer_size = 0;
 	int	   num_blas = 0;
@@ -2237,16 +2312,9 @@ void GL_BuildBModelAccelerationStructures (void)
 	buffer_create_infos[1].usage = VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR;
 	buffer_create_infos[1].name = "BModel TLAS";
 
-	buffer_create_infos[2].buffer = &bmodel_scratch_buffer;
-	buffer_create_infos[2].size = scratch_buffer_size;
-	buffer_create_infos[2].usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
-	buffer_create_infos[2].address = &bmodel_scratch_address;
-	buffer_create_infos[2].alignment = vulkan_globals.physical_device_acceleration_structure_properties.minAccelerationStructureScratchOffsetAlignment;
-	buffer_create_infos[2].name = "BModel AS build scratch";
-
 	for (int i = 0; i < num_blas; ++i)
 	{
-		buffer_create_info_t *create_info = &buffer_create_infos[3 + i];
+		buffer_create_info_t *create_info = &buffer_create_infos[2 + i];
 		create_info->buffer = &blas_models[i]->buffer;
 		create_info->size = blas_sizes_infos[i].accelerationStructureSize;
 		create_info->usage = VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR;
@@ -2255,9 +2323,11 @@ void GL_BuildBModelAccelerationStructures (void)
 	}
 
 	const size_t total_as_device_size = R_CreateBuffers (
-		3 + num_blas, buffer_create_infos, &bmodel_as_device_memory, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, &num_vulkan_bmodel_allocations, "BModel AS");
+		2 + num_blas, buffer_create_infos, &bmodel_as_device_memory, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, &num_vulkan_bmodel_allocations, "BModel AS");
 
 	Sys_Printf ("Allocating acceleration structure data (%u KB)\n", (int)(total_as_device_size / 1024ull));
+
+	R_EnsureASScratchBufferSize (scratch_buffer_size);
 
 	{
 		ZEROED_STRUCT (VkAccelerationStructureCreateInfoKHR, acceleration_structure_create_info);
@@ -2322,7 +2392,7 @@ void GL_BuildBModelAccelerationStructures (void)
 		build_range_info.primitiveCount = blas_num_tris[i];
 		VkAccelerationStructureBuildGeometryInfoKHR *blas_geometry_info = &blas_geometry_infos[i];
 		blas_geometry_info->dstAccelerationStructure = blas_models[i]->blas;
-		blas_geometry_info->scratchData.deviceAddress = bmodel_scratch_address + scratch_offset;
+		blas_geometry_info->scratchData.deviceAddress = as_scratch_buffer.device_address + scratch_offset;
 		VkAccelerationStructureGeometryKHR *blas_geometry = &blas_geometries[i];
 		blas_geometry->geometry.triangles.vertexData.deviceAddress = bmodel_vertex_buffer_device_address;
 		blas_geometry->geometry.triangles.indexData.deviceAddress = bmodel_indices_device_address + indices_offsets;
@@ -2512,8 +2582,26 @@ void R_BuildTopLevelAccelerationStructure (void *unused)
 	tlas_geometry_info.mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
 	tlas_geometry_info.geometryCount = 1;
 	tlas_geometry_info.pGeometries = &tlas_geometry;
+
+	// Query sizes for actual instance count
+	const uint32_t							 tlas_num_instances = num_instances;
+	VkAccelerationStructureBuildSizesInfoKHR tlas_sizes;
+	tlas_sizes.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
+	tlas_sizes.pNext = NULL;
+	vulkan_globals.vk_get_acceleration_structure_build_sizes (
+		vulkan_globals.device, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &tlas_geometry_info, &tlas_num_instances, &tlas_sizes);
+
+	if (tlas_sizes.accelerationStructureSize > bmodel_tlas_size)
+	{
+		Con_DPrintf ("TLAS too small for %d instances, skipping build\n", num_instances);
+		R_EndDebugUtilsLabel (cbx);
+		return;
+	}
+
+	R_EnsureASScratchBufferSize (tlas_sizes.buildScratchSize);
+
 	tlas_geometry_info.dstAccelerationStructure = bmodel_tlas;
-	tlas_geometry_info.scratchData.deviceAddress = bmodel_scratch_address;
+	tlas_geometry_info.scratchData.deviceAddress = as_scratch_buffer.device_address;
 
 	ZEROED_STRUCT (VkAccelerationStructureBuildRangeInfoKHR, build_range_info);
 	build_range_info.primitiveCount = num_instances;

@@ -839,18 +839,43 @@ void R_UpdateAnimatedBLASes (cb_context_t *cbx)
 {
 	if (!vulkan_globals.ray_query)
 		return;
-	if (vulkan_globals.scratch_buffer == VK_NULL_HANDLE)
+	if (as_scratch_buffer.buffer == VK_NULL_HANDLE)
 		return;
 
-	const VkDeviceSize scratch_buffer_size = SCRATCH_BUFFER_SIZE_MB * 1024 * 1024;
 	const VkDeviceSize scratch_alignment = vulkan_globals.physical_device_acceleration_structure_properties.minAccelerationStructureScratchOffsetAlignment;
 	// 16 bytes because of device address default buffer_reference_align
 	const VkDeviceSize buffer_alignment = q_max (vulkan_globals.device_properties.limits.minStorageBufferOffsetAlignment, 16);
+	const int		   total_entities = cl.num_entities + cl.num_statics;
 
-	VkDeviceSize scratch_offset = 0;
-	int			 num_pending = 0;
-	int			 entity_index = 0;
-	const int	 total_entities = cl.num_entities + cl.num_statics;
+	// Pre-pass: find max scratch size needed across all entities and resize if necessary
+	{
+		VkDeviceSize max_scratch_needed = 0;
+		for (int i = 0; i < total_entities; ++i)
+		{
+			entity_t *e = (i < cl.num_entities) ? &cl.entities[i] : cl.static_entities[i - cl.num_entities];
+			if (!e->model || e->model->needload || e->model->type != mod_alias || !e->blas_data || e->blas_data->blas == VK_NULL_HANDLE)
+				continue;
+			if ((e->alpha != ENTALPHA_DEFAULT) && (ENTALPHA_DECODE (e->alpha) < 1.0f))
+				continue;
+			aliashdr_t *hdr = (aliashdr_t *)Mod_Extradata (e->model);
+			if (!hdr || hdr->numverts_vbo == 0)
+				continue;
+			if (e->blas_data->model != e->model)
+				continue;
+
+			const VkDeviceSize vertex_size = hdr->numverts_vbo * sizeof (float) * 3;
+			const VkDeviceSize as_scratch_size = e->blas_data->needs_initial_build ? e->blas_data->build_scratch_size : e->blas_data->update_scratch_size;
+			const VkDeviceSize total_needed = q_align (vertex_size, scratch_alignment) + as_scratch_size;
+			max_scratch_needed = q_max (max_scratch_needed, total_needed);
+		}
+
+		R_EnsureASScratchBufferSize (max_scratch_needed);
+	}
+
+	const VkDeviceSize scratch_buffer_size = as_scratch_buffer_size;
+	VkDeviceSize	   scratch_offset = 0;
+	int				   num_pending = 0;
+	int				   entity_index = 0;
 
 	R_BeginDebugUtilsLabel (cbx, "Update Animated BLAS");
 
@@ -890,14 +915,6 @@ void R_UpdateAnimatedBLASes (cb_context_t *cbx)
 			const VkDeviceSize vertex_size = hdr->numverts_vbo * sizeof (float) * 3;
 			const VkDeviceSize as_scratch_size = use_update ? e->blas_data->update_scratch_size : e->blas_data->build_scratch_size;
 
-			// Check if entity fits in scratch buffer at all
-			const VkDeviceSize total_needed_unaligned = q_align (vertex_size, scratch_alignment) + as_scratch_size;
-			if (total_needed_unaligned > scratch_buffer_size)
-			{
-				Con_DPrintf ("Entity BLAS too large for scratch buffer\n");
-				continue;
-			}
-
 			// Check if we have space; if not, flush current batch and reset
 			const VkDeviceSize vertex_offset = q_align (scratch_offset, buffer_alignment);
 			const VkDeviceSize as_scratch_offset = q_align (vertex_offset + vertex_size, scratch_alignment);
@@ -911,8 +928,8 @@ void R_UpdateAnimatedBLASes (cb_context_t *cbx)
 
 			e->blas_data->needs_initial_build = false;
 
-			VkDeviceAddress vertex_output_address = vulkan_globals.scratch_buffer_address + vertex_offset;
-			VkDeviceAddress scratch_address = vulkan_globals.scratch_buffer_address + as_scratch_offset;
+			VkDeviceAddress vertex_output_address = as_scratch_buffer.device_address + vertex_offset;
+			VkDeviceAddress scratch_address = as_scratch_buffer.device_address + as_scratch_offset;
 
 			// Dispatch compute shader with push constants containing buffer addresses
 			if (hdr->poseverttype == PV_MD5)
