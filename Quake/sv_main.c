@@ -2802,8 +2802,8 @@ int SV_SendAmbientSounds (int idx)
 			MSG_WriteShort (&host_client->message, snd->soundindex);
 		else
 			MSG_WriteByte (&host_client->message, snd->soundindex);
-		MSG_WriteByte (&host_client->message, snd->volume * 255);
-		MSG_WriteByte (&host_client->message, snd->attenuation * 64);
+		MSG_WriteByte (&host_client->message, (int)CLAMP (0.f, snd->volume * 255.f, 255.f));
+		MSG_WriteByte (&host_client->message, (int)CLAMP (0.f, snd->attenuation * 64.f, 255.f));
 	}
 	return idx;
 }
