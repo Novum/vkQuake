@@ -60,7 +60,7 @@ extern int glwidth, glheight;
 #define INITIAL_STAGING_BUFFER_SIZE_KB 16384
 
 #define FAN_INDEX_BUFFER_SIZE  126
-#define SCRATCH_BUFFER_SIZE_MB 16
+#define SCRATCH_BUFFER_SIZE_MB 32
 
 #define LIGHTMAP_BYTES 4
 
@@ -736,6 +736,8 @@ void  R_StagingEndCopy (void);
 void  R_StagingUploadBuffer (const VkBuffer buffer, const size_t size, const byte *data);
 
 void		   R_InitGPUBuffers (void);
+void		   R_CreateAnimatedBLASScratchBuffer (void);
+void		   R_FreeAnimatedBLASScratchBuffer (void);
 void		   R_InitMeshHeap (void);
 glheapstats_t *R_GetMeshHeapStats (void);
 void		   R_SwapDynamicBuffers (void);

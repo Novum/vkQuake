@@ -384,11 +384,15 @@ R_SetRTShadows_f
 static void R_SetRTShadows_f (cvar_t *var)
 {
 	if (var->value > 0)
+	{
+		R_CreateAnimatedBLASScratchBuffer ();
 		GL_BuildBModelAccelerationStructures ();
+	}
 	else
 	{
 		GL_DeleteBModelAccelerationStructures ();
 		R_FreeAllEntityBLASes ();
+		R_FreeAnimatedBLASScratchBuffer ();
 	}
 	GL_UpdateLightmapDescriptorSets ();
 }
@@ -1199,6 +1203,46 @@ byte *R_UniformAllocate (int size, VkBuffer *buffer, uint32_t *buffer_offset, Vk
 
 /*
 ===============
+R_CreateAnimatedBLASScratchBuffer
+===============
+*/
+void R_CreateAnimatedBLASScratchBuffer (void)
+{
+	if (!vulkan_globals.ray_query || r_rtshadows.value <= 0 || vulkan_globals.scratch_buffer != VK_NULL_HANDLE)
+		return;
+
+	buffer_create_info_t buffer_create_info = {
+		.buffer = &vulkan_globals.scratch_buffer,
+		.size = SCRATCH_BUFFER_SIZE_MB * 1024 * 1024,
+		.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+				 VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
+		.address = &vulkan_globals.scratch_buffer_address,
+		.alignment = vulkan_globals.physical_device_acceleration_structure_properties.minAccelerationStructureScratchOffsetAlignment,
+		.name = "Animated AS scratch",
+	};
+	R_CreateBuffers (
+		1, &buffer_create_info, &vulkan_globals.scratch_buffer_memory, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, &num_vulkan_misc_allocations,
+		"Animated AS scratch");
+}
+
+/*
+===============
+R_FreeAnimatedBLASScratchBuffer
+===============
+*/
+void R_FreeAnimatedBLASScratchBuffer (void)
+{
+	if (vulkan_globals.scratch_buffer == VK_NULL_HANDLE)
+		return;
+
+	GL_WaitForDeviceIdle ();
+	R_FreeBuffers (1, &vulkan_globals.scratch_buffer, &vulkan_globals.scratch_buffer_memory, &num_vulkan_misc_allocations);
+	vulkan_globals.scratch_buffer = VK_NULL_HANDLE;
+	vulkan_globals.scratch_buffer_address = 0;
+}
+
+/*
+===============
 R_InitGPUBuffers
 ===============
 */
@@ -1208,23 +1252,6 @@ void R_InitGPUBuffers (void)
 	R_InitDynamicIndexBuffers ();
 	R_InitDynamicUniformBuffers ();
 	R_InitFanIndexBuffer ();
-
-	// Initialize scratch buffer for animated AS building
-	if (vulkan_globals.ray_query)
-	{
-		buffer_create_info_t buffer_create_info = {
-			.buffer = &vulkan_globals.scratch_buffer,
-			.size = SCRATCH_BUFFER_SIZE_MB * 1024 * 1024,
-			.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
-					 VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
-			.address = &vulkan_globals.scratch_buffer_address,
-			.alignment = vulkan_globals.physical_device_acceleration_structure_properties.minAccelerationStructureScratchOffsetAlignment,
-			.name = "Animated AS scratch",
-		};
-		R_CreateBuffers (
-			1, &buffer_create_info, &vulkan_globals.scratch_buffer_memory, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, &num_vulkan_misc_allocations,
-			"Animated AS scratch");
-	}
 }
 
 /*
@@ -3981,6 +4008,7 @@ void R_NewMap (void)
 
 	GL_BuildLightmaps ();
 	GL_BuildBModelVertexBuffer ();
+	R_CreateAnimatedBLASScratchBuffer ();
 	GL_BuildBModelAccelerationStructures ();
 	GL_PrepareSIMDAndParallelData ();
 	GL_SetupIndirectDraws ();
