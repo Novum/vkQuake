@@ -887,23 +887,21 @@ void R_UpdateAnimatedBLASes (cb_context_t *cbx)
 			// Always use refit after first build. We trace few rays and full updates are expensive.
 			qboolean use_update = !e->blas_data->needs_initial_build;
 
-			// Calculate space needed with proper alignments:
-			// - Position buffer needs buffer_alignment (for storage buffer access)
-			// - AS build scratch needs scratch_alignment (for acceleration structure build)
-			const VkDeviceSize vertex_offset = q_align (scratch_offset, buffer_alignment);
 			const VkDeviceSize vertex_size = hdr->numverts_vbo * sizeof (float) * 3;
-			const VkDeviceSize as_scratch_offset = q_align (vertex_offset + vertex_size, scratch_alignment);
 			const VkDeviceSize as_scratch_size = use_update ? e->blas_data->update_scratch_size : e->blas_data->build_scratch_size;
-			const VkDeviceSize total_needed = as_scratch_offset - scratch_offset + as_scratch_size;
 
 			// Check if entity fits in scratch buffer at all
-			if (total_needed > scratch_buffer_size)
+			const VkDeviceSize total_needed_unaligned = q_align (vertex_size, scratch_alignment) + as_scratch_size;
+			if (total_needed_unaligned > scratch_buffer_size)
 			{
 				Con_DPrintf ("Entity BLAS too large for scratch buffer\n");
 				continue;
 			}
 
 			// Check if we have space; if not, flush current batch and reset
+			const VkDeviceSize vertex_offset = q_align (scratch_offset, buffer_alignment);
+			const VkDeviceSize as_scratch_offset = q_align (vertex_offset + vertex_size, scratch_alignment);
+			const VkDeviceSize total_needed = as_scratch_offset - scratch_offset + as_scratch_size;
 			if (scratch_offset + total_needed > scratch_buffer_size)
 			{
 				// Need to flush - back up entity_index to retry this entity after flush
