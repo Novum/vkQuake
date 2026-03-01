@@ -391,9 +391,20 @@ const char *Sys_StackTrace (void)
 
 	int nb_frames = backtrace (buffer, MAX_STACK_FRAMES);
 
+	// display on 1 line to pass to addr2line easily:
+	for (int frame_index = 0; frame_index < nb_frames; frame_index++)
+	{
+		q_snprintf (output_buffer + strnlen (output_buffer, OUTPUT_BUFFER_SIZE), OUTPUT_BUFFER_SIZE, "0x%" PRIxPTR " ", (uintptr_t)buffer[frame_index]);
+		if (frame_index == nb_frames - 1)
+			q_snprintf (output_buffer + strnlen (output_buffer, OUTPUT_BUFFER_SIZE), OUTPUT_BUFFER_SIZE, "\n");
+	}
+
+	// Then print 1 frame per line, together with its symbol using backtrace_symbols()
+	// This is not working on MacOS, skip it and only rely on addr2line to solve addresses
+#if !defined(PLATFORM_OSX)
+
 	char **symbols = backtrace_symbols (buffer, nb_frames);
 
-	// Print 1 frame per line, together with its symbol
 	for (int frame_index = 0; frame_index < nb_frames; frame_index++)
 	{
 		// this is not super-safe
@@ -403,6 +414,7 @@ const char *Sys_StackTrace (void)
 	}
 
 	free (symbols);
+#endif
 
 	return output_buffer;
 
