@@ -48,7 +48,7 @@ typedef struct qcvm_s qcvm_t;
 
 typedef struct edict_s
 {
-#ifdef PARANOID
+#if defined(DEBUG) || defined(_DEBUG)
 	// by construction, an edict do not move after its creation
 	edict_t *edict_ptr;
 	// edicts are allocated and owned by one qcvm:
@@ -138,7 +138,7 @@ void ED_LoadFromFile (const char *data);
 edict_t *EDICT_NUM (int n);
 int		 NUM_FOR_EDICT (edict_t *e);
 
-#ifdef PARANOID
+#if defined(DEBUG) || defined(_DEBUG)
 edict_t *NEXT_EDICT (edict_t *e);
 int		 EDICT_TO_PROG (edict_t *e);
 edict_t *PROG_TO_EDICT (int n);

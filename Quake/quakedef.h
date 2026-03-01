@@ -33,14 +33,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define CONFIG_NAME		  "vkQuake.cfg"
 #define SCREENSHOT_PREFIX "vkQuake"
 
-// Instrumented build with extra checks
-#if !defined(PARANOID)
-// TODO: always valid for MSVC, what about others ?
-#if defined(_DEBUG) || defined(DEBUG)
-#define PARANOID
-#endif
-#endif
-
 #define GAMENAME "id1" // directory to look in by default
 
 #define PSET_SCRIPT			   // enable the scriptable particle system (poorly ported from FTE)

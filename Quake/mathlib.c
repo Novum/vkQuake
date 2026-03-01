@@ -189,7 +189,7 @@ int BoxOnPlaneSide (vec3_t emins, vec3_t emaxs, mplane_t *p)
 	dist1 = p->normal[0] * (xneg ? emins : emaxs)[0] + p->normal[1] * (yneg ? emins : emaxs)[1] + p->normal[2] * (zneg ? emins : emaxs)[2];
 	dist2 = p->normal[0] * (xneg ? emaxs : emins)[0] + p->normal[1] * (yneg ? emaxs : emins)[1] + p->normal[2] * (zneg ? emaxs : emins)[2];
 
-#ifdef PARANOID
+#if defined(DEBUG) || defined(_DEBUG)
 	if (p->signbits & ~7)
 		Sys_Error ("BoxOnPlaneSide:  Bad signbits");
 #endif
@@ -226,7 +226,7 @@ int BoxOnPlaneSide (vec3_t emins, vec3_t emaxs, mplane_t *p)
 	if (dist2 < p->dist)
 		sides |= 2;
 
-#ifdef PARANOID
+#if defined(DEBUG) || defined(_DEBUG)
 	if (sides == 0)
 		Sys_Error ("BoxOnPlaneSide: sides==0");
 #endif
@@ -445,14 +445,12 @@ void FloorDivMod (double numer, double denom, int *quotient, int *rem)
 	int	   q, r;
 	double x;
 
-#ifndef PARANOID
 	if (denom <= 0.0)
 		Sys_Error ("FloorDivMod: bad denominator %f\n", denom);
 
-//	if ((floor(numer) != numer) || (floor(denom) != denom))
-//		Sys_Error ("FloorDivMod: non-integer numer or denom %f %f\n",
-//				numer, denom);
-#endif
+	//	if ((floor(numer) != numer) || (floor(denom) != denom))
+	//		Sys_Error ("FloorDivMod: non-integer numer or denom %f %f\n",
+	//				numer, denom);
 
 	if (numer >= 0.0)
 	{

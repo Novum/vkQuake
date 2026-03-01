@@ -92,7 +92,7 @@ edict_t *ED_Alloc (void)
 
 	assert (!e->free);
 
-#ifdef PARANOID
+#if defined(DEBUG) || defined(_DEBUG)
 	// fill debug fields, they were overwriten above:
 	e->qcvm_owner = qcvm;
 	e->edict_ptr = e;
@@ -109,7 +109,7 @@ ED_AddToFreeList
 */
 static void ED_AddToFreeList (edict_t *ed)
 {
-#ifdef PARANOID
+#if defined(DEBUG) || defined(_DEBUG)
 	if (qcvm->free_list.size >= MAX_EDICTS)
 		Host_Error ("ED_AddToFreeList : is full (qcvm 0x%p)", qcvm);
 	if (qcvm->free_list.size >= qcvm->max_edicts)
@@ -1352,7 +1352,7 @@ qboolean ED_ParseEpair (void *base, ddef_t *key, const char *s, qboolean zoned)
 			// proceed to the same init as new edicts in ED_Alloc: wipe all out, then deallocate it
 			// right away
 			memset (new_edict, 0, qcvm->edict_size);
-#ifdef PARANOID
+#if defined(DEBUG) || defined(_DEBUG)
 			// fill debug fields, they were overwriten above:
 			new_edict->qcvm_owner = qcvm;
 			new_edict->edict_ptr = new_edict;
@@ -2067,7 +2067,7 @@ edict_t *EDICT_NUM (int n)
 
 	edict_t *found_edict = EDICT_NUM_NO_CHECK (n);
 
-#ifdef PARANOID
+#if defined(DEBUG) || defined(_DEBUG)
 	if (found_edict->edict_num != n)
 		Host_Error ("EDICT_NUM(%i): inconsistent number vs. edict_num=%i", n, (int)found_edict->edict_num);
 
@@ -2079,7 +2079,7 @@ edict_t *EDICT_NUM (int n)
 
 int NUM_FOR_EDICT (edict_t *e)
 {
-#ifdef PARANOID
+#if defined(DEBUG) || defined(_DEBUG)
 	if (e->qcvm_owner != qcvm)
 		Host_Error ("NUM_FOR_EDICT inconsistent qcvm 0x%p, expected 0x%p", qcvm, e->qcvm_owner);
 
@@ -2095,7 +2095,7 @@ int NUM_FOR_EDICT (edict_t *e)
 	if (b < 0 || b >= qcvm->num_edicts)
 		Host_Error ("NUM_FOR_EDICT: bad pointer");
 
-#ifdef PARANOID
+#if defined(DEBUG) || defined(_DEBUG)
 	if (e->edict_num != b)
 		Host_Error ("NUM_FOR_EDICT: inconsistent number %i vs. e.edict_num %i", b, (int)e->edict_num);
 #endif
@@ -2103,7 +2103,7 @@ int NUM_FOR_EDICT (edict_t *e)
 	return b;
 }
 
-#ifdef PARANOID
+#if defined(DEBUG) || defined(_DEBUG)
 edict_t *NEXT_EDICT (edict_t *e)
 {
 	int current_num = NUM_FOR_EDICT (e);
@@ -2113,7 +2113,7 @@ edict_t *NEXT_EDICT (edict_t *e)
 	// in for loops but this is normally fine because the returned value is not used.
 	// here test for last element and return a NULL edict_t* if we go beyond the last element,
 	// and we coredump if that element get used. This NULL checks is only for
-	// PARANOID mode because it has a noticable performance impact on big edict-heavy levels.
+	// Debug builds because it has a noticable performance impact on big edict-heavy levels.
 	if (current_num == qcvm->num_edicts - 1)
 		return NULL;
 

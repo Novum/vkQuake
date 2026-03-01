@@ -1275,8 +1275,8 @@ void LOG_Init (quakeparms_t *parms)
 	time_t inittime;
 	char   session[24];
 
-	// always activate the console log in PARANOID mode
-#if !defined(PARANOID)
+	// always activate the console log in Debug mode
+#if !defined(DEBUG) && !defined(_DEBUG)
 	if (!COM_CheckParm ("-condebug"))
 		return;
 #endif
