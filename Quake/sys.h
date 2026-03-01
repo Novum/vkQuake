@@ -82,4 +82,10 @@ bool Sys_Pin_Current_Thread (int core_index);
 // The returned string is a per-thread static buffer (no deallocation needed)
 const char *Sys_StackTrace (void);
 
+// Return true if we are running in a debugger
+bool Sys_IsInDebugger (void);
+
+// Break in a debugger if we are running in one, else do nothing
+void Sys_DebugBreak (void);
+
 #endif /* _QUAKE_SYS_H */

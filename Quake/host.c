@@ -219,17 +219,23 @@ void Host_Error (const char *error, ...)
 		Sys_Error ("Host_Error: recursively entered");
 	inerror = true;
 
-	Con_Printf ("================ STACK TRACE ================\n");
-	Con_Printf ("%s", Sys_StackTrace ());
-	Con_Printf ("=============================================\n");
+	va_start (argptr, error);
+	q_vsnprintf (string, sizeof (string), error, argptr);
+	va_end (argptr);
+
+	Sys_DebugBreak ();
+
+	if (!Sys_IsInDebugger ())
+	{
+		Con_Printf ("================ STACK TRACE ================\n");
+		Con_Printf ("%s", Sys_StackTrace ());
+		Con_Printf ("=============================================\n");
+	}
 
 	PR_SwitchQCVM (NULL);
 
 	SCR_EndLoadingPlaque (); // reenable screen updates
 
-	va_start (argptr, error);
-	q_vsnprintf (string, sizeof (string), error, argptr);
-	va_end (argptr);
 	Con_Printf ("Host_Error: %s\n", string);
 
 	if (cl.qcvm.extfuncs.CSQC_DrawHud && in_update_screen)
