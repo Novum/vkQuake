@@ -235,21 +235,26 @@ void Sys_Error (const char *error, ...)
 	q_vsnprintf (text, sizeof (text), error, argptr);
 	va_end (argptr);
 
+	Sys_DebugBreak ();
+
+	if (!Sys_IsInDebugger ())
+		q_snprintf (text + strnlen (text, sizeof (text)), sizeof (text), "\nSTACK TRACE:\n%s", Sys_StackTrace ());
+
 	PR_SwitchQCVM (NULL);
 
 	if (isDedicated)
 		WriteFile (houtput, errortxt1, strlen (errortxt1), &dummy, NULL);
 	/* SDL will put these into its own stderr log,
 	   so print to stderr even in graphical mode. */
-	fputs (errortxt1, stderr);
-	fputs (errortxt2, stderr);
+	fputs (errortxt1, stdout);
+	fputs (errortxt2, stdout);
 
-	q_snprintf (text + strnlen (text, sizeof (text)), sizeof (text), "\nSTACK TRACE:\n%s", Sys_StackTrace ());
+	Sys_Printf (text, "%s\n\n", text);
 
-	fputs (text, stderr);
-	fputs ("\n\n", stderr);
-	if (!isDedicated)
+	if (!isDedicated && !Sys_IsInDebugger ())
+	{
 		PL_ErrorDialog (text);
+	}
 	else
 	{
 		WriteFile (houtput, errortxt2, strlen (errortxt2), &dummy, NULL);
@@ -258,17 +263,13 @@ void Sys_Error (const char *error, ...)
 		SDL_Delay (3000); /* show the console 3 more seconds */
 	}
 
-#ifdef _DEBUG
-	__debugbreak ();
-#endif
-
 	exit (1);
 }
 
 void Sys_Printf (const char *fmt, ...)
 {
 	va_list argptr;
-	char	text[1024];
+	char	text[4096];
 	DWORD	dummy;
 
 	va_start (argptr, fmt);
@@ -508,4 +509,19 @@ const char *Sys_StackTrace (void)
 
 #undef MAX_STACK_FRAMES
 #undef OUTPUT_BUFFER_SIZE
+}
+
+bool Sys_IsInDebugger (void)
+{
+	// skip the pop-up when in a debugger:
+	BOOL debugger_attached = FALSE;
+	CheckRemoteDebuggerPresent (GetCurrentProcess (), &debugger_attached);
+
+	return debugger_attached != 0;
+}
+
+void Sys_DebugBreak (void)
+{
+	if (Sys_IsInDebugger ())
+		DebugBreak ();
 }
