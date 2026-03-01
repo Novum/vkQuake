@@ -1607,7 +1607,7 @@ static void Host_Loadgame_f (void)
 				assert (!ent->free);
 
 				ent->baseline = nullentitystate;
-#ifdef PARANOID
+#if defined(DEBUG) || defined(_DEBUG)
 				// fill debug fields, they were overwriten above:
 				ent->qcvm_owner = qcvm;
 				ent->edict_ptr = ent;

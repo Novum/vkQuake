@@ -3192,7 +3192,7 @@ void SV_SpawnServer (const char *server)
 	qcvm->max_edicts = CLAMP (MIN_EDICTS, (int)max_edicts.value, MAX_EDICTS);  // johnfitz -- max_edicts cvar
 	qcvm->edicts = (edict_t *)Mem_Alloc (qcvm->max_edicts * qcvm->edict_size); // ericw -- sv.edicts switched to use malloc()
 
-#ifdef PARANOID
+#if defined(DEBUG) || defined(_DEBUG)
 	for (int j = 0; j < qcvm->max_edicts; j++)
 	{
 		// set debug fiels for all max_edicts
