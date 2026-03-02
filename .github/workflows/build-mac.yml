@@ -21,6 +21,9 @@ jobs:
         dsymutil build/vkquake -o build/vkquake.dSYM
         du -sh build/vkquake build/vkquake.dSYM
         dwarfdump --uuid build/vkquake build/vkquake.dSYM
+    - name: Copy HOWTO to the artifact root
+      run: |
+        cp "Packaging/MacOS/Reading_Stack_Traces_HOWTO_MacOS.md" "build/Reading_Stack_Traces_HOWTO_MacOS.md"    
     - name: Upload vkQuake
       uses: actions/upload-artifact@v4
       with:
@@ -28,3 +31,4 @@ jobs:
         path: |
           build/vkquake
           build/vkquake.dSYM
+          build/Reading_Stack_Traces_HOWTO_MacOS.md

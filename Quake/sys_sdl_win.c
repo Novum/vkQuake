@@ -398,7 +398,7 @@ void Sys_SendKeyEvents (void)
 	IN_SendKeyEvents ();
 }
 
-bool Sys_Pin_Current_Thread (int core_index)
+bool Sys_PinCurrentThread (int core_index)
 {
 	// valid for both MSVC and MINGW
 	//  Open the thread with necessary access rights

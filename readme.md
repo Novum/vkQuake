@@ -152,7 +152,7 @@ Now go to the Quake directory and compile the executable:
 
 ~~~
 cd vkQuake
-meson build && ninja -C build
+meson build -Ddebug=true -Dstrip=false && ninja -C build
 ~~~
 
 > **Note**\
@@ -184,7 +184,7 @@ Now go to the Quake directory and compile the executable:
 
 ~~~
 cd vkQuake
-meson build && ninja -C build
+meson build -Ddebug=true -Dstrip=false && ninja -C build
 ~~~
 
 > **Note**\

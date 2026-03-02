@@ -47,7 +47,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // activate mimalloc debug and guarded pages:
 #define MI_DEBUG   3
 #define MI_GUARDED 1
-#endif // PARANOID
+#endif
 
 #include "mimalloc/static.c"
 

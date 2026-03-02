@@ -363,7 +363,7 @@ void Sys_SendKeyEvents (void)
 	IN_SendKeyEvents ();
 }
 
-bool Sys_Pin_Current_Thread (int core_index)
+bool Sys_PinCurrentThread (int core_index)
 {
 #if defined(PLATFORM_UNIX) && !defined(PLATFORM_OSX) && !defined(PLATFORM_BSD) && !defined(TASK_AFFINITY_NOT_AVAILABLE)
 #pragma message("Info : Pinned tasks support for *Nix enabled using pthread_setaffinity_np()...")
@@ -399,18 +399,16 @@ const char *Sys_StackTrace (void)
 
 	int nb_frames = backtrace (buffer, MAX_STACK_FRAMES);
 
-	// display on 1 line to pass to addr2line easily:
+#if defined(PLATFORM_OSX)
+	// display on 1 line to pass to atos easily on MacOS:
 	for (int frame_index = 0; frame_index < nb_frames; frame_index++)
 	{
 		q_snprintf (output_buffer + strnlen (output_buffer, OUTPUT_BUFFER_SIZE), OUTPUT_BUFFER_SIZE, "0x%" PRIxPTR " ", (uintptr_t)buffer[frame_index]);
 		if (frame_index == nb_frames - 1)
 			q_snprintf (output_buffer + strnlen (output_buffer, OUTPUT_BUFFER_SIZE), OUTPUT_BUFFER_SIZE, "\n");
 	}
-
+#endif
 	// Then print 1 frame per line, together with its symbol using backtrace_symbols()
-	// This is not working on MacOS, skip it and only rely on addr2line to solve addresses
-#if !defined(PLATFORM_OSX)
-
 	char **symbols = backtrace_symbols (buffer, nb_frames);
 
 	for (int frame_index = 0; frame_index < nb_frames; frame_index++)
@@ -422,7 +420,6 @@ const char *Sys_StackTrace (void)
 	}
 
 	free (symbols);
-#endif
 
 	return output_buffer;
 

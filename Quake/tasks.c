@@ -301,7 +301,7 @@ static int Task_Worker (void *data)
 		assert (worker_index < num_pinned_workers);
 		assert (num_pinned_workers == num_workers);
 
-		if (!Sys_Pin_Current_Thread (pinned_workers_core_ids[worker_index]))
+		if (!Sys_PinCurrentThread (pinned_workers_core_ids[worker_index]))
 		{
 			Con_DPrintf ("Tasks : Failed to pin worker %d (N/A or no access rights)", worker_index);
 		}
