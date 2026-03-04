@@ -249,7 +249,7 @@ void Sys_Error (const char *error, ...)
 	fputs (errortxt1, stdout);
 	fputs (errortxt2, stdout);
 
-	Sys_Printf (text, "%s\n\n", text);
+	Sys_Printf ("%s\n\n", text);
 
 	if (!isDedicated && !Sys_IsInDebugger ())
 	{
@@ -269,7 +269,7 @@ void Sys_Error (const char *error, ...)
 void Sys_Printf (const char *fmt, ...)
 {
 	va_list argptr;
-	char	text[4096];
+	char	text[8192];
 	DWORD	dummy;
 
 	va_start (argptr, fmt);

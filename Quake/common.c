@@ -3453,13 +3453,18 @@ void COM_Assert_Failed (const char *expr, const char *file_path, int line)
 
 		if (!Sys_IsInDebugger ())
 		{
-			char msg[4096];
-			q_snprintf (msg, 4096, "%s:%d Assertion: '%s' failed\n", filename, line, expr);
-			q_snprintf (msg + strnlen (msg, 4096), 4096, "STACK TRACE:\n");
-			q_snprintf (msg + strnlen (msg, 4096), 4096, "%s", Sys_StackTrace ());
+			char msg[8192];
+			q_snprintf (msg, 8192, "%s:%d Assertion: '%s' failed\n", filename, line, expr);
+			q_snprintf (msg + strnlen (msg, 8192), 8192, "STACK TRACE:\n");
+			q_snprintf (msg + strnlen (msg, 8192), 8192, "%s", Sys_StackTrace ());
+
+			Sys_Printf ("%s\n", msg);
+#if defined(_WIN32)
+			// Only the Win32 MessageBox can safely be called from any thread.
 			PL_ErrorDialog (msg);
+#endif
 		}
-		exit (1);
+		abort ();
 	}
 	else // We are in the main thread, console is accessible, do Host_Error and we can recover.
 		Host_Error ("%s:%d Assertion: '%s' failed", filename, line, expr);

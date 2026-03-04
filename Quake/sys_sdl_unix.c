@@ -273,7 +273,7 @@ void Sys_Error (const char *error, ...)
 	Host_Shutdown ();
 	fputs (errortxt2, stdout);
 
-	Sys_Printf (text, "%s\n\n", text);
+	Sys_Printf ("%s\n\n", text);
 
 	if (!isDedicated && !Sys_IsInDebugger ())
 		PL_ErrorDialog (text);
