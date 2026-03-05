@@ -227,8 +227,22 @@ void Host_Error (const char *error, ...)
 
 	if (!Sys_IsInDebugger ())
 	{
+		const char *captured_stack_trace = Sys_StackTrace ();
+
 		Con_Printf ("================ STACK TRACE ================\n");
-		Con_Printf ("%s", Sys_StackTrace ());
+
+		// captured_stack_trace is long, split it into lines and Con_Printf each one
+		size_t nb_lines = 0;
+		char **stack_lines = q_strsplit ((char *)captured_stack_trace, "\r\n", &nb_lines);
+
+		for (size_t line_index = 0; line_index < nb_lines; line_index++)
+		{
+			Con_Printf ("%s\n", stack_lines[line_index]);
+		}
+
+		Mem_Free (captured_stack_trace);
+		Mem_Free (stack_lines);
+
 		Con_Printf ("=============================================\n");
 	}
 

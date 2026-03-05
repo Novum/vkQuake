@@ -226,19 +226,26 @@ static const char errortxt2[] = "\nQUAKE ERROR: ";
 void Sys_Error (const char *error, ...)
 {
 	va_list argptr;
-	char	text[4096];
 	DWORD	dummy;
 
 	host_parms->errstate++;
 
+	char *text = NULL;
+
 	va_start (argptr, error);
-	q_vsnprintf (text, sizeof (text), error, argptr);
+	text = q_vstrcatf (text, error, argptr);
 	va_end (argptr);
 
 	Sys_DebugBreak ();
 
 	if (!Sys_IsInDebugger ())
-		q_snprintf (text + strnlen (text, sizeof (text)), sizeof (text), "\nSTACK TRACE:\n%s", Sys_StackTrace ());
+	{
+		const char *captured_stack_trace = Sys_StackTrace ();
+
+		text = q_strcatf (text, "\nSTACK TRACE:\n%s", captured_stack_trace);
+
+		Mem_Free (captured_stack_trace);
+	}
 
 	PR_SwitchQCVM (NULL);
 
@@ -263,30 +270,37 @@ void Sys_Error (const char *error, ...)
 		SDL_Delay (3000); /* show the console 3 more seconds */
 	}
 
+	Mem_Free (text);
+
 	exit (1);
 }
 
 void Sys_Printf (const char *fmt, ...)
 {
 	va_list argptr;
-	char	text[8192];
 	DWORD	dummy;
 
+	char *output_buffer = NULL;
+
 	va_start (argptr, fmt);
-	q_vsnprintf (text, sizeof (text), fmt, argptr);
+
+	output_buffer = q_vstrcatf (output_buffer, fmt, argptr);
+
 	va_end (argptr);
 
 	if (isDedicated)
 	{
-		WriteFile (houtput, text, strlen (text), &dummy, NULL);
+		WriteFile (houtput, output_buffer, strlen (output_buffer), &dummy, NULL);
 	}
 	else
 	{
 		/* SDL will put these into its own stdout log,
 		   so print to stdout even in graphical mode. */
-		fputs (text, stdout);
-		OutputDebugStringA (text);
+		fputs (output_buffer, stdout);
+		OutputDebugStringA (output_buffer);
 	}
+
+	Mem_Free (output_buffer);
 }
 
 void Sys_Quit (void)
@@ -429,15 +443,12 @@ bool Sys_PinCurrentThread (int core_index)
 
 const char *Sys_StackTrace (void)
 {
-#define MAX_STACK_FRAMES   24
-#define OUTPUT_BUFFER_SIZE (MAX_STACK_FRAMES * (sizeof (SYMBOL_INFO) + MAX_OSPATH + 1 + 256))
-
-	static THREAD_LOCAL char output_buffer[OUTPUT_BUFFER_SIZE];
+#define MAX_STACK_FRAMES 24
 
 	if (!win32_DbgHelp_init_success)
 		return "[Not available.]\n";
 
-	memset (output_buffer, 0, OUTPUT_BUFFER_SIZE);
+	char *output_buffer = NULL;
 
 	HANDLE process = GetCurrentProcess ();
 
@@ -474,34 +485,34 @@ const char *Sys_StackTrace (void)
 		{
 			// we only want the short file name, not the full path:
 			const char *last_sep = strrchr (line.FileName, '\\');
-			// this is not super-safe...
-			q_snprintf (
-				output_buffer + strnlen (output_buffer, OUTPUT_BUFFER_SIZE), OUTPUT_BUFFER_SIZE, "%-2i: %s - %s:%i\n", frame_index, symbol_name,
-				(const char *)(last_sep ? last_sep + 1 : line.FileName), (int)line.LineNumber);
+
+			output_buffer = q_strcatf (
+				output_buffer, "%-2i: %s - %s:%i\n", frame_index, symbol_name, (const char *)(last_sep ? last_sep + 1 : line.FileName), (int)line.LineNumber);
 		}
 		// 2. File and line, but no symbols, display the address in its place.
 		else if (pdb_file_and_line_available)
 		{
 			// we only want the short file name, not the full path:
 			const char *last_sep = strrchr (line.FileName, '\\');
-			// this is not super-safe...
-			q_snprintf (
-				output_buffer + strnlen (output_buffer, OUTPUT_BUFFER_SIZE), OUTPUT_BUFFER_SIZE, "%-2i: 0x%" PRIxPTR " - %s:%i\n", frame_index,
-				(uintptr_t)stack[frame_index], (const char *)(last_sep ? last_sep + 1 : line.FileName), (int)line.LineNumber);
+
+			output_buffer = q_strcatf (
+				output_buffer, "%-2i: 0x%" PRIxPTR " - %s:%i\n", frame_index, (uintptr_t)stack[frame_index],
+				(const char *)(last_sep ? last_sep + 1 : line.FileName), (int)line.LineNumber);
 		}
 		// 3. Symbol but no file and line
 		else if (pdb_symbol_available)
 		{
-			q_snprintf (output_buffer + strnlen (output_buffer, OUTPUT_BUFFER_SIZE), OUTPUT_BUFFER_SIZE, "%-2i: %s\n", frame_index, symbol_name);
+			output_buffer = q_strcatf (output_buffer, "%-2i: %s\n", frame_index, symbol_name);
 		}
 		// 4. No symbols, no file and lines, this is likely a MSYS2 DWARF binary:
 		else
 		{
 			uintptr_t dwarf_va = (uintptr_t)((intptr_t)stack[frame_index] + win32_Dwarf_offset);
 			// display on 1 line to pass to addr2line easily:
-			q_snprintf (output_buffer + strnlen (output_buffer, OUTPUT_BUFFER_SIZE), OUTPUT_BUFFER_SIZE, "0x%" PRIxPTR " ", dwarf_va);
+			output_buffer = q_strcatf (output_buffer, "0x%" PRIxPTR " ", dwarf_va);
+
 			if (frame_index == nb_frames - 1)
-				q_snprintf (output_buffer + strnlen (output_buffer, OUTPUT_BUFFER_SIZE), OUTPUT_BUFFER_SIZE, "\n");
+				output_buffer = q_strcatf (output_buffer, "\n");
 		}
 	}
 

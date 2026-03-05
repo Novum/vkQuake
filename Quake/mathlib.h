@@ -180,12 +180,22 @@ static inline uint32_t Q_log2 (uint32_t val)
 	return FindLastBitNonZero (val);
 }
 
+// Note: According to the usual conventions : Q_nextPow2 (N) == N when N is a power of 2
 static inline uint32_t Q_nextPow2 (uint32_t val)
 {
 	uint32_t result = 1;
 	if (val > 1)
 		result = 1 << (FindLastBitNonZero (val - 1) + 1);
 	return result;
+}
+
+// Version of Q_nextPow2(N) returning a power of 2 strictly greater than N
+// in particular Q_nextPow2_Strict (N) == N*N when N is a power of 2
+static inline uint32_t Q_nextPow2_Strict (uint32_t val)
+{
+	uint32_t next_pow2 = Q_nextPow2 (val);
+
+	return (next_pow2 == val) ? (next_pow2 << 1) : next_pow2;
 }
 
 /*==========================================================================*/

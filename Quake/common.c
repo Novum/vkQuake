@@ -466,20 +466,11 @@ char *q_strdup (const char *str)
 	return newstr;
 }
 
-/* platform dependant (v)snprintf function names: */
-#if defined(_WIN32)
-#define snprintf_func  _snprintf
-#define vsnprintf_func _vsnprintf
-#else
-#define snprintf_func  snprintf
-#define vsnprintf_func vsnprintf
-#endif
-
 int q_vsnprintf (char *str, size_t size, const char *format, va_list args)
 {
 	int ret;
 
-	ret = vsnprintf_func (str, size, format, args);
+	ret = vsnprintf (str, size, format, args);
 
 	if (ret < 0)
 		ret = (int)size;
@@ -501,6 +492,86 @@ int q_snprintf (char *str, size_t size, const char *format, ...)
 	va_end (argptr);
 
 	return ret;
+}
+
+char *q_vstrcatf (char *input_str, const char *format, va_list args)
+{
+#define MIN_SIZE_POW 8
+#define MIN_SIZE	 (1 << MIN_SIZE_POW)
+
+	char *output_str = NULL;
+
+	if (input_str == NULL)
+		input_str = (char *)Mem_Alloc (MIN_SIZE);
+
+	// We allways construct the dynamically allocated buffer a way we can
+	// get its current size from the current input_str_size: allocated size is the next power of 2 strictly.
+	const size_t input_str_size = strlen (input_str);
+	const size_t input_str_allocated_size = (input_str_size + 1 < MIN_SIZE) ? MIN_SIZE : Q_nextPow2_Strict (input_str_size + 1);
+
+	// we can push remaining_size more characters (including null)
+	size_t remaining_size = input_str_allocated_size - (input_str_size + 1);
+
+	//  First try : attempt to sprintf and append into the current input_str
+	va_list argptr_first;
+	va_copy (argptr_first, args);
+
+	// Note : we need C99 conformant vsnprintf, returning the number of chars that are written, or would have been written
+	// This is OK for MSVC 2015+ and all other compilers out there
+	int expected_append_size = vsnprintf ((char *)(input_str + input_str_size), remaining_size, format, argptr_first);
+	va_end (argptr_first);
+
+	// Something wrong happened, return the original, unmodified.
+	if (expected_append_size < 0)
+	{
+		output_str = (char *)input_str;
+		output_str[input_str_size] = '\0';
+		return output_str;
+	}
+	// Fits into the remaining room
+	if (expected_append_size < remaining_size)
+	{
+		output_str = (char *)input_str;
+		// the C99 conformant vsnprintf should already do this, but anyway
+		output_str[input_str_size + expected_append_size] = '\0';
+		return output_str;
+	}
+
+	// Second try : do not fit, so reallocate to the next power of 2 for the final size
+	const size_t output_str_size = input_str_size + expected_append_size;
+	size_t		 output_str_allocated_size = Q_nextPow2_Strict (output_str_size + 1);
+
+	va_list argptr_second;
+	va_copy (argptr_second, args);
+
+	output_str = (char *)Mem_Realloc ((void *)input_str, output_str_allocated_size);
+	output_str[input_str_size] = '\0';
+
+	remaining_size = output_str_allocated_size - (input_str_size + 1);
+
+	if (expected_append_size == vsnprintf ((char *)(output_str + input_str_size), remaining_size, format, argptr_second))
+	{
+		output_str[input_str_size + expected_append_size] = '\0';
+	}
+
+	va_end (argptr_second);
+
+	return output_str;
+
+#undef MIN_SIZE_POW
+#undef MIN_SIZE
+}
+
+char *q_strcatf (char *input_str, const char *format, ...)
+{
+	char   *output_buffer = NULL;
+	va_list argptr;
+
+	va_start (argptr, format);
+	output_buffer = q_vstrcatf (input_str, format, argptr);
+	va_end (argptr);
+
+	return output_buffer;
 }
 
 int wildcmp (const char *wild, const char *string)
@@ -3453,16 +3524,19 @@ void COM_Assert_Failed (const char *expr, const char *file_path, int line)
 
 		if (!Sys_IsInDebugger ())
 		{
-			char msg[8192];
-			q_snprintf (msg, 8192, "%s:%d Assertion: '%s' failed\n", filename, line, expr);
-			q_snprintf (msg + strnlen (msg, 8192), 8192, "STACK TRACE:\n");
-			q_snprintf (msg + strnlen (msg, 8192), 8192, "%s", Sys_StackTrace ());
+			const char *captured_stack_trace = Sys_StackTrace ();
+
+			char *msg = NULL;
+
+			msg = q_strcatf (msg, "%s:%d Assertion: '%s' failed\nSTACK TRACE:\n%s", filename, line, expr, captured_stack_trace);
+			Mem_Free (captured_stack_trace);
 
 			Sys_Printf ("%s\n", msg);
 #if defined(_WIN32)
 			// Only the Win32 MessageBox can safely be called from any thread.
 			PL_ErrorDialog (msg);
 #endif
+			Mem_Free (msg);
 		}
 		abort ();
 	}
