@@ -188,6 +188,7 @@ void R_FreeASScratchBuffer (void)
 		memset (&as_scratch_buffer, 0, sizeof (as_scratch_buffer));
 		R_FreeVulkanMemory (&as_scratch_memory, &num_vulkan_dynbuf_allocations);
 	}
+	as_scratch_buffer_size = 0;
 }
 
 /*
