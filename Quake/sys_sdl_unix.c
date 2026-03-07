@@ -428,7 +428,6 @@ const char *Sys_StackTrace (void)
 	return output_buffer;
 
 #undef MAX_STACK_FRAMES
-#undef OUTPUT_BUFFER_SIZE
 }
 
 bool Sys_IsInDebugger (void)

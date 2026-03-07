@@ -58,7 +58,8 @@ static char	  cwd[1024];
 static double counter_freq;
 
 // DbgHelp initialization:
-static bool win32_DbgHelp_init_success = false;
+static bool				win32_DbgHelp_init_success = false;
+static CRITICAL_SECTION win32_DbgHelp_lock;
 
 static intptr_t win32_Dwarf_offset = 0;
 
@@ -174,6 +175,8 @@ void Sys_Init (void)
 
 	if (SymInitialize (process, NULL, TRUE))
 		win32_DbgHelp_init_success = true;
+
+	InitializeCriticalSection (&win32_DbgHelp_lock);
 
 	// MSYS2 DWARF debug info is only usable if the stack addresses are offseted
 	// by win32_Dwarf_offset
@@ -456,6 +459,9 @@ const char *Sys_StackTrace (void)
 
 	int nb_frames = (int)CaptureStackBackTrace (0, MAX_STACK_FRAMES, stack, NULL);
 
+	// DbgHelp Sym* has internal state that must be protected
+	EnterCriticalSection (&win32_DbgHelp_lock);
+
 	for (int frame_index = 0; frame_index < nb_frames; frame_index++)
 	{
 		DWORD64 addr = (DWORD64)(stack[frame_index]);
@@ -516,10 +522,11 @@ const char *Sys_StackTrace (void)
 		}
 	}
 
+	LeaveCriticalSection (&win32_DbgHelp_lock);
+
 	return output_buffer;
 
 #undef MAX_STACK_FRAMES
-#undef OUTPUT_BUFFER_SIZE
 }
 
 bool Sys_IsInDebugger (void)
