@@ -271,10 +271,11 @@ char *q_strdup (const char *str);
 int q_snprintf (char *str, size_t size, const char *format, ...) FUNC_PRINTF (3, 4);
 int q_vsnprintf (char *str, size_t size, const char *format, va_list args) FUNC_PRINTF (3, 0);
 
-/* strcat to input_str the provided printf-like format string
-If input_str = NULL allocates and fill the new returned as an equivalent to sprintf
-If input_str != NULL, it expects a Mem_Alloc-ated valid null-terminated string. Appends the printf-like format string to it,
-reallocating if needed. The result is returned as a Mem_Alloc-ated null-terminated string.
+/*
+For input_str = NULL, sprintf() a new returned Mem_Alloc-ated string.
+For input_str != NULL, input_str must be a string previously returned by q_strcatf/q_vstrcatf:
+strcat() to input_str the sprintf() way reallocating if needed.
+The returned string is a Mem_Alloc-ated null-terminated string.
 */
 char *q_strcatf (char *input_str, const char *format, ...) FUNC_PRINTF (2, 3);
 char *q_vstrcatf (char *input_str, const char *format, va_list args) FUNC_PRINTF (2, 0);

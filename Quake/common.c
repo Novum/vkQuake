@@ -564,11 +564,9 @@ char *q_vstrcatf (char *input_str, const char *format, va_list args)
 
 char *q_strcatf (char *input_str, const char *format, ...)
 {
-	char   *output_buffer = NULL;
 	va_list argptr;
-
 	va_start (argptr, format);
-	output_buffer = q_vstrcatf (input_str, format, argptr);
+	char *output_buffer = q_vstrcatf (input_str, format, argptr);
 	va_end (argptr);
 
 	return output_buffer;
@@ -3526,9 +3524,8 @@ void COM_Assert_Failed (const char *expr, const char *file_path, int line)
 		{
 			const char *captured_stack_trace = Sys_StackTrace ();
 
-			char *msg = NULL;
+			char *msg = q_strcatf (NULL, "%s:%d Assertion: '%s' failed\nSTACK TRACE:\n%s", filename, line, expr, captured_stack_trace);
 
-			msg = q_strcatf (msg, "%s:%d Assertion: '%s' failed\nSTACK TRACE:\n%s", filename, line, expr, captured_stack_trace);
 			Mem_Free (captured_stack_trace);
 
 			Sys_Printf ("%s\n", msg);

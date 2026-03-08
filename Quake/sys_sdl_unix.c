@@ -253,14 +253,11 @@ static const char errortxt2[] = "\nQUAKE ERROR: ";
 
 void Sys_Error (const char *error, ...)
 {
-	va_list argptr;
-
-	char *text = NULL;
-
 	host_parms->errstate++;
 
+	va_list argptr;
 	va_start (argptr, error);
-	text = q_vstrcatf (text, error, argptr);
+	char *text = q_vstrcatf (NULL, error, argptr);
 	va_end (argptr);
 
 	Sys_DebugBreak ();
