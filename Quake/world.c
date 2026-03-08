@@ -328,7 +328,7 @@ which could potentially corrupt the list while it's being iterated.
 Based on code from Spike.
 ====================
 */
-void SV_TouchLinks (edict_t *ent)
+static void SV_TouchLinks (edict_t *ent)
 {
 	edict_t *touch;
 	int		 old_self, old_other;

@@ -118,11 +118,11 @@ void		PR_ClearEngineString (int num);
 
 void PR_Profile_f (void);
 
-edict_t	   *ED_Alloc (void);
-void		ED_Free (edict_t *ed);
-void		ED_RemoveFromFreeList (edict_t *ed);
-void		ED_CheckFreeList (void);
-void		ED_RebuildFreeList (bool force_free_reuse);
+edict_t *ED_Alloc (void);
+void	 ED_Free (edict_t *ed);
+void	 ED_RemoveFromFreeList (edict_t *ed);
+void	 ED_CheckFreeList (void);
+void	 ED_RebuildFreeList (bool force_free_reuse);
 
 typedef void (*ED_AllocHook_func) (edict_t *allocated_ed);
 
