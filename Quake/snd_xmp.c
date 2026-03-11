@@ -159,7 +159,14 @@ static void S_XMP_CodecCloseStream (snd_stream_t *stream)
 
 static int S_XMP_CodecJumpToOrder (snd_stream_t *stream, int to)
 {
-	return xmp_set_position ((xmp_context)stream->priv, to);
+	const int err = xmp_set_position ((xmp_context)stream->priv, to);
+	switch (err)
+	{
+	case -XMP_ERROR_STATE:
+	case -XMP_ERROR_INVALID:
+		return -1;
+	}
+	return 0;
 }
 
 static int S_XMP_CodecRewindStream (snd_stream_t *stream)
