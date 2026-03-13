@@ -279,11 +279,11 @@ void SV_UnlinkEdict (edict_t *ent)
 ====================
 SV_AreaTriggerEdicts
 
-Spike -- just builds a list of entities within the area, rather than walking
+Spike -- just builds a list of entities (as edict nums uint16_t) within the area, rather than walking
 them and risking the list getting corrupt.
 ====================
 */
-static void SV_AreaTriggerEdicts (edict_t *ent, areanode_t *node, edict_t **list, int *listcount, const int listspace)
+static void SV_AreaTriggerEdicts (edict_t *ent, areanode_t *node, uint16_t *list, int *listcount, const int listspace)
 {
 	link_t	*l, *next;
 	edict_t *touch;
@@ -304,7 +304,7 @@ static void SV_AreaTriggerEdicts (edict_t *ent, areanode_t *node, edict_t **list
 		if (*listcount == listspace)
 			return; // should never happen
 
-		list[*listcount] = touch;
+		list[*listcount] = NUM_FOR_EDICT (touch);
 		(*listcount)++;
 	}
 
@@ -330,40 +330,47 @@ Based on code from Spike.
 */
 static void SV_TouchLinks (edict_t *ent)
 {
-	edict_t *touch;
-	int		 old_self, old_other;
-	int		 i, listcount;
+	int old_self, old_other;
+	int listcount;
 
-	TEMP_ALLOC (edict_t *, list, qcvm->num_edicts);
+	assert (!ent->free);
+
+	// Make a list of edicts num to take less stack space that edict_t*
+	// TODO : can list be a static variable ? SV_TouchLinks is only called from the main thread,
+	// but it is unclear if recursion could happen.
+	TEMP_ALLOC (uint16_t, list, qcvm->num_edicts);
 
 	listcount = 0;
 	SV_AreaTriggerEdicts (ent, qcvm->areanodes, list, &listcount, qcvm->num_edicts);
 
-	for (i = 0; i < listcount; i++)
+	old_self = pr_global_struct->self;
+	old_other = pr_global_struct->other;
+
+	for (int i = 0; i < listcount; i++)
 	{
-		touch = list[i];
+		edict_t *touch = EDICT_NUM (list[i]);
 		// re-validate in case of PR_ExecuteProgram having side effects that make
 		// edicts later in the list no longer touch
-		if (touch == ent)
-			continue;
-		if (touch->free || ent->free)
+		if (touch->free || touch == ent)
 			continue;
 		if (!touch->v.touch || touch->v.solid != SOLID_TRIGGER)
 			continue;
 		if (ent->v.absmin[0] > touch->v.absmax[0] || ent->v.absmin[1] > touch->v.absmax[1] || ent->v.absmin[2] > touch->v.absmax[2] ||
 			ent->v.absmax[0] < touch->v.absmin[0] || ent->v.absmax[1] < touch->v.absmin[1] || ent->v.absmax[2] < touch->v.absmin[2])
 			continue;
-		old_self = pr_global_struct->self;
-		old_other = pr_global_struct->other;
 
 		pr_global_struct->self = EDICT_TO_PROG (touch);
 		pr_global_struct->other = EDICT_TO_PROG (ent);
 		pr_global_struct->time = qcvm->time;
 		PR_ExecuteProgram (touch->v.touch);
 
-		pr_global_struct->self = old_self;
-		pr_global_struct->other = old_other;
+		// bail out if ent get free as a side effect of v.touch
+		if (ent->free)
+			break;
 	}
+
+	pr_global_struct->self = old_self;
+	pr_global_struct->other = old_other;
 
 	TEMP_FREE (list);
 }

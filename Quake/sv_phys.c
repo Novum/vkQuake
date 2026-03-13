@@ -180,14 +180,14 @@ Two entities have touched, so run their touch functions
 */
 static void SV_Impact (edict_t *e1, edict_t *e2)
 {
+	assert (!e1->free && !e2->free);
+
 	int old_self, old_other;
 
 	old_self = pr_global_struct->self;
 	old_other = pr_global_struct->other;
 
 	pr_global_struct->time = qcvm->time;
-
-	assert (!e1->free && !e2->free);
 
 	if (e1->v.touch && e1->v.solid != SOLID_NOT)
 	{
@@ -196,7 +196,7 @@ static void SV_Impact (edict_t *e1, edict_t *e2)
 		PR_ExecuteProgram (e1->v.touch);
 	}
 
-	// TBC : PR_ExecuteProgram have side effects on e1, e2 (like freeing) so only execute the next one if
+	// PR_ExecuteProgram can have side effects on e1, e2 (like freeing) so only execute the next one if
 	// e1,e2 are still valid
 	// TBC : why managing impact e1 => e2 AND e2 => e1 in this call ?
 	if (!e1->free && !e2->free && e2->v.touch && e2->v.solid != SOLID_NOT)
