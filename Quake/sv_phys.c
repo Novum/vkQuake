@@ -1240,7 +1240,8 @@ static void SV_Physics_Step (edict_t *ent)
 		SV_FlyMove (ent, host_frametime, NULL);
 		SV_LinkEdict (ent, true);
 
-		assert (!ent->free);
+		if (ent->free)
+			return;
 
 		if ((int)ent->v.flags & FL_ONGROUND) // just hit ground
 		{
