@@ -31,6 +31,5 @@ mkdir "$FOLDER"
 cp "vkQuake-$VERSION-x86_64.AppImage" "$FOLDER/vkquake.AppImage"
 cp ../../LICENSE.txt "$FOLDER"
 cp ../../build/appimage/vkquake.debuginfo "$FOLDER/"
-cp Reading_Stack_Traces_HOWTO_Linux.md "$FOLDER/"
 tar -zcvf "$ARCHIVE" "$FOLDER"
 
