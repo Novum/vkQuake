@@ -190,6 +190,13 @@ meson build -Ddebug=true -Dstrip=false && ninja -C build
 > **Note**\
 > The Meson version needs to be 0.47.0 or newer.
 
+## Error reporting
+
+`vkQuake` is not garanteed to be free of runtime errors. In those rare cases, the game is either quit brutally with a `QUAKE ERROR` dialog, 
+or by `Host_Eror` console message that only terminates the currently played level. 
+
+In both cases some error context is provided that can be useful for developers. See [Error reporting](error_reporting_howto.md) for details.      
+
 ## Optional - Music / Soundtrack
 
 > **Note**\
