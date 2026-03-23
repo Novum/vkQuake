@@ -1355,7 +1355,9 @@ void SV_Physics (void)
 		if (pr_global_struct->force_retouch)
 		{
 			SV_LinkEdict (ent, true); // force retouch even for stationary
-			assert (!ent->free);
+
+			if (ent->free)
+				continue;
 		}
 
 		if (i > 0 && i <= svs.maxclients && qcvm == &sv.qcvm)
