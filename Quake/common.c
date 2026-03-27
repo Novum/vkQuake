@@ -3509,7 +3509,7 @@ void COM_Assert_Failed (const char *expr, const char *file_path, int line)
 {
 	// only keep the simple file name, strip the directory part
 	// we only want the short file name, not the full path:
-	char *last_sep = strrchr (file_path, '\\');
+	const char *last_sep = strrchr (file_path, '\\');
 
 	if (!last_sep)
 		last_sep = strrchr (file_path, '/');
