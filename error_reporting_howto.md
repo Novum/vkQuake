@@ -18,7 +18,9 @@ either alongside the `vkQuake` executable, or in a place where it can be found f
    - `vkquake.dSYM` directory contains the Debug information that will be used for post-mortem analysis, and should be put at the same place
      where the `vkquake` exeutable is. 
  
-## Extracting file+line information from in-game vkQuake fatal errors 
+## Extracting file+line information from in-game vkQuake fatal errors :  
+
+### _Examples:_
 
 ### Windows MSVC
 
@@ -34,10 +36,10 @@ In order to get file+line information Users will need to run some external tools
 -  #### MSYS2:
 
 ```c
-================ STACK TRACE ================
+STACK TRACE
 0x100003f4d 0x100003f01 0x100003ed0 0x100003ea0 0x7fff2035a3d5
 ```
-use 
+Run: 
 ```sh
 addr2line -e vkquake 0x16a8a8 0x93267 0x165735 0x165839 0x1669dd 0x166ea0 0x936ed
 ```
@@ -46,7 +48,7 @@ addr2line -e vkquake 0x16a8a8 0x93267 0x165735 0x165839 0x1669dd 0x166ea0 0x936e
 -  #### Linux:
  
 ```c
-================ STACK TRACE ================
+STACK TRACE
 0 : ./vkquake(+0x16a8a8) [0x588582e618a8]
 1 : ./vkquake(+0x93267) [0x588582d8a267]
 2 : ./vkquake(+0x165735) [0x588582e5c735]
@@ -55,12 +57,12 @@ addr2line -e vkquake 0x16a8a8 0x93267 0x165735 0x165839 0x1669dd 0x166ea0 0x936e
 5 : ./vkquake(+0x166ea0) [0x588582e5dea0]
 6 : ./vkquake(+0x936ed) [0x588582d8a6ed]
 ```
-use
+Run:
 ```sh
 # Using relative addresses: 
 addr2line -f -e [VKQUAKEBEBUG] 0x16a8a8 0x93267 0x165735 0x165839 0x1669dd 0x166ea0 0x936ed
 ```
-or
+or Run:
 ```sh
 # Using absolute addresses: 
 addr2line -f -e [VKQUAKEBEBUG] 0x588582e618a8 0x588582d8a267 0x588582e5c735 0x588582e5c839 0x588582e5d9dd 0x588582e5dea0 0x588582d8a6ed
@@ -69,19 +71,33 @@ Use whatever works best, where `[VKQUAKEBEBUG]` is the vkQuake executable if bui
 for Appimage.  
 
 
--  #### MacOS:
+-  ##### MacOS:
 
 ```c
-================ STACK TRACE ================
+STACK TRACE
 0x100003f4d 0x100003f01 0x100003ed0 0x100003ea0 0x7fff2035a3d5
-0 : 0   vkQuake                 0x0000000100003f4d Sys_StackTrace + 77
-1 : 1   vkQuake                 0x0000000100003f01 level3 + 17
-2 : 2   vkQuake                 0x0000000100003ed0 level2 + 16
-3 : 3   vkQuake                 0x0000000100003ea0 level1 + 16
+0 : 0   vkquake                 0x0000000100003f4d Sys_StackTrace + 77
+1 : 1   vkquake                 0x0000000100003f01 level3 + 17
+2 : 2   vkquake                 0x0000000100003ed0 level2 + 16
+3 : 3   vkquake                 0x0000000100003ea0 level1 + 16
 4 : 4   libdyld.dylib           0x00007fff2035a3d5 start + 1
 ```
-use
+Run:
 ```sh
 # Pass the first line :
 atos -o vkquake 0x100003f4d 0x100003f01 0x100003ed0 0x100003ea0 0x7fff2035a3d5
-``` 
+```
+
+----------------------------
+
+As a result of running either `addr2line` or `atos` we get file+line trace information looking like this :
+```c
+sys_sdl_win.c:461
+sys_sdl_win.c:278
+wad.c:82
+host.c:1115
+main_sdl.c:112
+SDL_windows_main.c:?
+
+```
+That can be reported to `vkQuake` maintainers.
