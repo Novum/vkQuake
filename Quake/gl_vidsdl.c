@@ -116,6 +116,8 @@ cvar_t		  vid_fsaamode = {"vid_fsaamode", "0", CVAR_ARCHIVE};
 cvar_t		  vid_gamma = {"gamma", "0.9", CVAR_ARCHIVE};		// johnfitz -- moved here from view.c
 cvar_t		  vid_contrast = {"contrast", "1.4", CVAR_ARCHIVE}; // QuakeSpasm, MarkV
 cvar_t		  r_usesops = {"r_usesops", "1", CVAR_ARCHIVE};		// johnfitz
+// vso : At startup, set to 0 to bypass RT detection for buggy cards, do not archive it. (same principle as pr_checkextension)
+cvar_t		  r_checkrt = {"r_checkrt", "1", CVAR_NONE};
 #if defined(_DEBUG)
 static cvar_t r_raydebug = {"r_raydebug", "0", 0};
 #endif
@@ -1037,7 +1039,7 @@ static void GL_InitDevice (void)
 				vulkan_globals.full_screen_exclusive = true;
 #endif
 			if (strcmp (VK_KHR_RAY_QUERY_EXTENSION_NAME, device_extensions[i].extensionName) == 0)
-				vulkan_globals.ray_query = true;
+				vulkan_globals.ray_query = r_checkrt.value > 0;
 		}
 
 		Mem_Free (device_extensions);
