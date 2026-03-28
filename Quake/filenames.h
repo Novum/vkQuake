@@ -26,12 +26,11 @@
 
 #ifndef FILENAMES_H
 #define FILENAMES_H
-
+#include "arch_def.h"
 #include <string.h>
 
 /* ---------------------- Windows, DOS, OS2: ---------------------- */
-#if defined(__MSDOS__) || defined(__DOS__) || defined(__DJGPP__) || defined(_MSDOS) || defined(__OS2__) || defined(__EMX__) || defined(_WIN32) || \
-	defined(_Windows) || defined(__WINDOWS__) || defined(__NT__) || defined(__CYGWIN__)
+#if defined(PLATFORM_WINDOWS)
 
 #define HAVE_DOS_BASED_FILE_SYSTEM		  1
 #define HAVE_CASE_INSENSITIVE_FILE_SYSTEM 1
@@ -126,8 +125,7 @@ static inline char *FIND_LAST_DIRSEP (const char *_the_path)
 #endif /* C++ */
 
 /* ----------------- AmigaOS, MorphOS, AROS, etc: ----------------- */
-#elif defined(__MORPHOS__) || defined(__AROS__) || defined(AMIGAOS) || defined(__amigaos__) || defined(__amigaos4__) || defined(__amigados__) || \
-	defined(AMIGA) || defined(_AMIGA) || defined(__AMIGA__)
+#elif defined(PLATFORM_AMIGA)
 
 #define HAS_DRIVE_SPEC(f)				  (0) /* */
 #define STRIP_DRIVE_SPEC(f)				  (f) /* */

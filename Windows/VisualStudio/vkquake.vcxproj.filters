@@ -609,6 +609,9 @@
     <ClInclude Include="..\..\Quake\common.h">
       <Filter>Main</Filter>
     </ClInclude>
+	<ClInclude Include="..\..\Quake\filenames.h">
+      <Filter>Main</Filter>
+    </ClInclude>
     <ClInclude Include="..\..\Quake\console.h">
       <Filter>Main</Filter>
     </ClInclude>

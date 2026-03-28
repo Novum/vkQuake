@@ -347,6 +347,7 @@ static inline int FindLastBitNonZero64 (const uint64_t mask)
 #endif
 
 #include "sys.h"
+#include "filenames.h"
 #include "common.h"
 
 // Our custom assert() output stack traces either on the console with Host_Error
