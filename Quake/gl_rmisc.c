@@ -428,7 +428,7 @@ static void R_CreateStagingBuffers ()
 
 		err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &staging_buffers[i].buffer);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateBuffer failed");
+			Sys_Error ("vkCreateBuffer failed with code %i", (int)err);
 
 		GL_SetObjectName ((uint64_t)staging_buffers[i].buffer, VK_OBJECT_TYPE_BUFFER, "Staging Buffer");
 	}
@@ -450,13 +450,13 @@ static void R_CreateStagingBuffers ()
 	{
 		err = vkBindBufferMemory (vulkan_globals.device, staging_buffers[i].buffer, staging_memory.handle, i * aligned_size);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkBindBufferMemory failed");
+			Sys_Error ("vkBindBufferMemory failed with code %i", (int)err);
 	}
 
 	void *data;
 	err = vkMapMemory (vulkan_globals.device, staging_memory.handle, 0, NUM_STAGING_BUFFERS * aligned_size, 0, &data);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkMapMemory failed");
+		Sys_Error ("vkMapMemory failed with code %i", (int)err);
 
 	for (i = 0; i < NUM_STAGING_BUFFERS; ++i)
 		staging_buffers[i].data = (unsigned char *)data + (i * aligned_size);
@@ -499,7 +499,7 @@ void R_InitStagingBuffers (void)
 
 	err = vkCreateCommandPool (vulkan_globals.device, &command_pool_create_info, NULL, &staging_command_pool);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateCommandPool failed");
+		Sys_Error ("vkCreateCommandPool failed with code %i", (int)err);
 
 	ZEROED_STRUCT (VkCommandBufferAllocateInfo, command_buffer_allocate_info);
 	command_buffer_allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -509,7 +509,7 @@ void R_InitStagingBuffers (void)
 	VkCommandBuffer command_buffers[NUM_STAGING_BUFFERS];
 	err = vkAllocateCommandBuffers (vulkan_globals.device, &command_buffer_allocate_info, command_buffers);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkAllocateCommandBuffers failed");
+		Sys_Error ("vkAllocateCommandBuffers failed with code %i", (int)err);
 
 	ZEROED_STRUCT (VkFenceCreateInfo, fence_create_info);
 	fence_create_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
@@ -522,13 +522,13 @@ void R_InitStagingBuffers (void)
 	{
 		err = vkCreateFence (vulkan_globals.device, &fence_create_info, NULL, &staging_buffers[i].fence);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateFence failed");
+			Sys_Error ("vkCreateFence failed with code %i", (int)err);
 
 		staging_buffers[i].command_buffer = command_buffers[i];
 
 		err = vkBeginCommandBuffer (staging_buffers[i].command_buffer, &command_buffer_begin_info);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkBeginCommandBuffer failed");
+			Sys_Error ("vkBeginCommandBuffer failed with code %i", (int)err);
 	}
 
 	vertex_allocate_mutex = SDL_CreateMutex ();
@@ -612,11 +612,11 @@ static void R_FlushStagingCommandBuffer (stagingbuffer_t *staging_buffer)
 
 	err = vkWaitForFences (vulkan_globals.device, 1, &staging_buffer->fence, VK_TRUE, UINT64_MAX);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkWaitForFences failed");
+		Sys_Error ("vkWaitForFences failed with code %i", (int)err);
 
 	err = vkResetFences (vulkan_globals.device, 1, &staging_buffer->fence);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkResetFences failed");
+		Sys_Error ("vkResetFences failed with code %i", (int)err);
 
 	staging_buffer->current_offset = 0;
 	staging_buffer->submitted = false;
@@ -627,7 +627,7 @@ static void R_FlushStagingCommandBuffer (stagingbuffer_t *staging_buffer)
 
 	err = vkBeginCommandBuffer (staging_buffer->command_buffer, &command_buffer_begin_info);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkBeginCommandBuffer failed");
+		Sys_Error ("vkBeginCommandBuffer failed with code %i", (int)err);
 }
 
 /*
@@ -765,7 +765,7 @@ static void R_InitDynamicBuffers (
 
 		err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &buffers[i].buffer);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateBuffer failed");
+			Sys_Error ("vkCreateBuffer failed with code %i", (int)err);
 
 		GL_SetObjectName ((uint64_t)buffers[i].buffer, VK_OBJECT_TYPE_BUFFER, name);
 	}
@@ -796,13 +796,13 @@ static void R_InitDynamicBuffers (
 	{
 		err = vkBindBufferMemory (vulkan_globals.device, buffers[i].buffer, memory->handle, i * aligned_size);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkBindBufferMemory failed");
+			Sys_Error ("vkBindBufferMemory failed with code %i", (int)err);
 	}
 
 	void *data;
 	err = vkMapMemory (vulkan_globals.device, memory->handle, 0, NUM_DYNAMIC_BUFFERS * aligned_size, 0, &data);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkMapMemory failed");
+		Sys_Error ("vkMapMemory failed with code %i", (int)err);
 
 	for (i = 0; i < NUM_DYNAMIC_BUFFERS; ++i)
 	{
@@ -916,7 +916,7 @@ static void R_InitFanIndexBuffer ()
 
 	err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &vulkan_globals.fan_index_buffer);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateBuffer failed");
+		Sys_Error ("vkCreateBuffer failed with code %i", (int)err);
 
 	GL_SetObjectName ((uint64_t)vulkan_globals.fan_index_buffer, VK_OBJECT_TYPE_BUFFER, "Quad Index Buffer");
 
@@ -932,11 +932,11 @@ static void R_InitFanIndexBuffer ()
 	Atomic_AddUInt64 (&total_device_vulkan_allocation_size, memory_requirements.size);
 	err = vkAllocateMemory (vulkan_globals.device, &memory_allocate_info, NULL, &memory);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkAllocateMemory failed");
+		Sys_Error ("vkAllocateMemory failed with code %i", (int)err);
 
 	err = vkBindBufferMemory (vulkan_globals.device, vulkan_globals.fan_index_buffer, memory, 0);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkBindBufferMemory failed");
+		Sys_Error ("vkBindBufferMemory failed with code %i", (int)err);
 
 	{
 		VkBuffer		staging_buffer;
@@ -1234,7 +1234,7 @@ void R_CreateDescriptorSetLayouts ()
 
 		err = vkCreateDescriptorSetLayout (vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.single_texture_set_layout.handle);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateDescriptorSetLayout failed");
+			Sys_Error ("vkCreateDescriptorSetLayout failed with code %i", (int)err);
 		GL_SetObjectName ((uint64_t)vulkan_globals.single_texture_set_layout.handle, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT, "single texture");
 	}
 
@@ -1253,7 +1253,7 @@ void R_CreateDescriptorSetLayouts ()
 
 		err = vkCreateDescriptorSetLayout (vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.ubo_set_layout.handle);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateDescriptorSetLayout failed");
+			Sys_Error ("vkCreateDescriptorSetLayout failed with code %i", (int)err);
 		GL_SetObjectName ((uint64_t)vulkan_globals.ubo_set_layout.handle, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT, "single dynamic UBO");
 	}
 
@@ -1272,7 +1272,7 @@ void R_CreateDescriptorSetLayouts ()
 
 		err = vkCreateDescriptorSetLayout (vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.joints_buffer_set_layout.handle);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateDescriptorSetLayout failed");
+			Sys_Error ("vkCreateDescriptorSetLayout failed with code %i", (int)err);
 		GL_SetObjectName ((uint64_t)vulkan_globals.joints_buffer_set_layout.handle, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT, "joints buffer");
 	}
 
@@ -1291,7 +1291,7 @@ void R_CreateDescriptorSetLayouts ()
 
 		err = vkCreateDescriptorSetLayout (vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.input_attachment_set_layout.handle);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateDescriptorSetLayout failed");
+			Sys_Error ("vkCreateDescriptorSetLayout failed with code %i", (int)err);
 		GL_SetObjectName ((uint64_t)vulkan_globals.input_attachment_set_layout.handle, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT, "input attachment");
 	}
 
@@ -1327,7 +1327,7 @@ void R_CreateDescriptorSetLayouts ()
 
 		err = vkCreateDescriptorSetLayout (vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.screen_effects_set_layout.handle);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateDescriptorSetLayout failed");
+			Sys_Error ("vkCreateDescriptorSetLayout failed with code %i", (int)err);
 		GL_SetObjectName ((uint64_t)vulkan_globals.screen_effects_set_layout.handle, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT, "screen effects");
 	}
 
@@ -1347,7 +1347,7 @@ void R_CreateDescriptorSetLayouts ()
 		err = vkCreateDescriptorSetLayout (
 			vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.single_texture_cs_write_set_layout.handle);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateDescriptorSetLayout failed");
+			Sys_Error ("vkCreateDescriptorSetLayout failed with code %i", (int)err);
 		GL_SetObjectName ((uint64_t)vulkan_globals.single_texture_cs_write_set_layout.handle, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT, "single storage image");
 	}
 
@@ -1398,7 +1398,7 @@ void R_CreateDescriptorSetLayouts ()
 
 		err = vkCreateDescriptorSetLayout (vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.lightmap_compute_set_layout.handle);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateDescriptorSetLayout failed");
+			Sys_Error ("vkCreateDescriptorSetLayout failed with code %i", (int)err);
 		GL_SetObjectName ((uint64_t)vulkan_globals.lightmap_compute_set_layout.handle, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT, "lightmap compute");
 	}
 
@@ -1429,7 +1429,7 @@ void R_CreateDescriptorSetLayouts ()
 
 		err = vkCreateDescriptorSetLayout (vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.indirect_compute_set_layout.handle);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateDescriptorSetLayout failed");
+			Sys_Error ("vkCreateDescriptorSetLayout failed with code %i", (int)err);
 		GL_SetObjectName ((uint64_t)vulkan_globals.indirect_compute_set_layout.handle, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT, "indirect compute");
 	}
 
@@ -1450,7 +1450,7 @@ void R_CreateDescriptorSetLayouts ()
 
 		err = vkCreateDescriptorSetLayout (vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.ray_debug_set_layout.handle);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateDescriptorSetLayout failed");
+			Sys_Error ("vkCreateDescriptorSetLayout failed with code %i", (int)err);
 		GL_SetObjectName ((uint64_t)vulkan_globals.screen_effects_set_layout.handle, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT, "ray debug");
 	}
 #endif
@@ -1527,7 +1527,7 @@ void R_CreatePipelineLayouts ()
 
 		err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.basic_pipeline_layout.handle);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreatePipelineLayout failed");
+			Sys_Error ("vkCreatePipelineLayout failed with code %i", (int)err);
 		GL_SetObjectName ((uint64_t)vulkan_globals.basic_pipeline_layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "basic_pipeline_layout");
 		vulkan_globals.basic_pipeline_layout.push_constant_range = push_constant_range;
 	}
@@ -1551,7 +1551,7 @@ void R_CreatePipelineLayouts ()
 
 		err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.world_pipeline_layout.handle);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreatePipelineLayout failed");
+			Sys_Error ("vkCreatePipelineLayout failed with code %i", (int)err);
 		GL_SetObjectName ((uint64_t)vulkan_globals.world_pipeline_layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "world_pipeline_layout");
 		vulkan_globals.world_pipeline_layout.push_constant_range = push_constant_range;
 	}
@@ -1575,7 +1575,7 @@ void R_CreatePipelineLayouts ()
 
 		err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.alias_pipelines[0].layout.handle);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreatePipelineLayout failed");
+			Sys_Error ("vkCreatePipelineLayout failed with code %i", (int)err);
 		GL_SetObjectName ((uint64_t)vulkan_globals.alias_pipelines[0].layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "alias_pipeline_layout");
 		vulkan_globals.alias_pipelines[0].layout.push_constant_range = push_constant_range;
 	}
@@ -1600,7 +1600,7 @@ void R_CreatePipelineLayouts ()
 
 		err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.md5_pipelines[0].layout.handle);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreatePipelineLayout failed");
+			Sys_Error ("vkCreatePipelineLayout failed with code %i", (int)err);
 		GL_SetObjectName ((uint64_t)vulkan_globals.md5_pipelines[0].layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "md5_pipeline_layout");
 		vulkan_globals.md5_pipelines[0].layout.push_constant_range = push_constant_range;
 	}
@@ -1626,7 +1626,7 @@ void R_CreatePipelineLayouts ()
 
 		err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.sky_pipeline_layout[0].handle);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreatePipelineLayout failed");
+			Sys_Error ("vkCreatePipelineLayout failed with code %i", (int)err);
 		GL_SetObjectName ((uint64_t)vulkan_globals.sky_pipeline_layout[0].handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "sky_pipeline_layout");
 		vulkan_globals.sky_pipeline_layout[0].push_constant_range = push_constant_range;
 
@@ -1635,7 +1635,7 @@ void R_CreatePipelineLayouts ()
 
 		err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.sky_pipeline_layout[1].handle);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreatePipelineLayout failed");
+			Sys_Error ("vkCreatePipelineLayout failed with code %i", (int)err);
 		GL_SetObjectName ((uint64_t)vulkan_globals.sky_pipeline_layout[1].handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "sky_layer_pipeline_layout");
 		vulkan_globals.sky_pipeline_layout[1].push_constant_range = push_constant_range;
 	}
@@ -1660,7 +1660,7 @@ void R_CreatePipelineLayouts ()
 
 		err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.postprocess_pipeline.layout.handle);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreatePipelineLayout failed");
+			Sys_Error ("vkCreatePipelineLayout failed with code %i", (int)err);
 		GL_SetObjectName ((uint64_t)vulkan_globals.postprocess_pipeline.layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "postprocess_pipeline_layout");
 		vulkan_globals.postprocess_pipeline.layout.push_constant_range = push_constant_range;
 	}
@@ -1685,7 +1685,7 @@ void R_CreatePipelineLayouts ()
 
 		err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.screen_effects_pipeline.layout.handle);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreatePipelineLayout failed");
+			Sys_Error ("vkCreatePipelineLayout failed with code %i", (int)err);
 		GL_SetObjectName ((uint64_t)vulkan_globals.screen_effects_pipeline.layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "screen_effects_pipeline_layout");
 		vulkan_globals.screen_effects_pipeline.layout.push_constant_range = push_constant_range;
 		vulkan_globals.screen_effects_scale_pipeline.layout.handle = vulkan_globals.screen_effects_pipeline.layout.handle;
@@ -1715,7 +1715,7 @@ void R_CreatePipelineLayouts ()
 
 		err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.cs_tex_warp_pipeline.layout.handle);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreatePipelineLayout failed");
+			Sys_Error ("vkCreatePipelineLayout failed with code %i", (int)err);
 		GL_SetObjectName ((uint64_t)vulkan_globals.cs_tex_warp_pipeline.layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "cs_tex_warp_pipeline_layout");
 		vulkan_globals.cs_tex_warp_pipeline.layout.push_constant_range = push_constant_range;
 	}
@@ -1731,7 +1731,7 @@ void R_CreatePipelineLayouts ()
 
 		err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.showtris_pipeline.layout.handle);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreatePipelineLayout failed");
+			Sys_Error ("vkCreatePipelineLayout failed with code %i", (int)err);
 		GL_SetObjectName ((uint64_t)vulkan_globals.showtris_pipeline.layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "showtris_pipeline_layout");
 		vulkan_globals.showtris_pipeline.layout.push_constant_range = push_constant_range;
 	}
@@ -1756,7 +1756,7 @@ void R_CreatePipelineLayouts ()
 
 		err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.update_lightmap_pipeline.layout.handle);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreatePipelineLayout failed");
+			Sys_Error ("vkCreatePipelineLayout failed with code %i", (int)err);
 		GL_SetObjectName ((uint64_t)vulkan_globals.update_lightmap_pipeline.layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "update_lightmap_pipeline_layout");
 		vulkan_globals.update_lightmap_pipeline.layout.push_constant_range = push_constant_range;
 	}
@@ -1782,7 +1782,7 @@ void R_CreatePipelineLayouts ()
 
 		err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.update_lightmap_rt_pipeline.layout.handle);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreatePipelineLayout failed");
+			Sys_Error ("vkCreatePipelineLayout failed with code %i", (int)err);
 		GL_SetObjectName (
 			(uint64_t)vulkan_globals.update_lightmap_rt_pipeline.layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "update_lightmap_rt_pipeline_layout");
 		vulkan_globals.update_lightmap_rt_pipeline.layout.push_constant_range = push_constant_range;
@@ -1808,13 +1808,13 @@ void R_CreatePipelineLayouts ()
 
 		err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.indirect_draw_pipeline.layout.handle);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreatePipelineLayout failed");
+			Sys_Error ("vkCreatePipelineLayout failed with code %i", (int)err);
 		GL_SetObjectName ((uint64_t)vulkan_globals.indirect_draw_pipeline.layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "indirect_draw_pipeline_layout");
 		vulkan_globals.indirect_draw_pipeline.layout.push_constant_range = push_constant_range;
 
 		err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.indirect_clear_pipeline.layout.handle);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreatePipelineLayout failed");
+			Sys_Error ("vkCreatePipelineLayout failed with code %i", (int)err);
 		GL_SetObjectName ((uint64_t)vulkan_globals.indirect_clear_pipeline.layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "indirect_clear_pipeline_layout");
 		vulkan_globals.indirect_clear_pipeline.layout.push_constant_range = push_constant_range;
 	}
@@ -1836,7 +1836,7 @@ void R_CreatePipelineLayouts ()
 
 		err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.mesh_interpolate_pipeline.layout.handle);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreatePipelineLayout failed");
+			Sys_Error ("vkCreatePipelineLayout failed with code %i", (int)err);
 		GL_SetObjectName ((uint64_t)vulkan_globals.mesh_interpolate_pipeline.layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "mesh_interpolate_pipeline_layout");
 		vulkan_globals.mesh_interpolate_pipeline.layout.push_constant_range = push_constant_range;
 
@@ -1845,7 +1845,7 @@ void R_CreatePipelineLayouts ()
 
 		err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.skinning_pipeline.layout.handle);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreatePipelineLayout failed");
+			Sys_Error ("vkCreatePipelineLayout failed with code %i", (int)err);
 		GL_SetObjectName ((uint64_t)vulkan_globals.skinning_pipeline.layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "skinning_pipeline_layout");
 		vulkan_globals.skinning_pipeline.layout.push_constant_range = push_constant_range;
 	}
@@ -1872,7 +1872,7 @@ void R_CreatePipelineLayouts ()
 
 		err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.ray_debug_pipeline.layout.handle);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreatePipelineLayout failed");
+			Sys_Error ("vkCreatePipelineLayout failed with code %i", (int)err);
 		GL_SetObjectName ((uint64_t)vulkan_globals.ray_debug_pipeline.layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "ray_debug_pipeline_layout");
 		vulkan_globals.ray_debug_pipeline.layout.push_constant_range = push_constant_range;
 	}
@@ -1908,7 +1908,7 @@ void R_InitSamplers ()
 
 		err = vkCreateSampler (vulkan_globals.device, &sampler_create_info, NULL, &vulkan_globals.point_sampler);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateSampler failed");
+			Sys_Error ("vkCreateSampler failed with code %i", (int)err);
 
 		GL_SetObjectName ((uint64_t)vulkan_globals.point_sampler, VK_OBJECT_TYPE_SAMPLER, "point");
 
@@ -1916,7 +1916,7 @@ void R_InitSamplers ()
 		sampler_create_info.maxAnisotropy = vulkan_globals.device_properties.limits.maxSamplerAnisotropy;
 		err = vkCreateSampler (vulkan_globals.device, &sampler_create_info, NULL, &vulkan_globals.point_aniso_sampler);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateSampler failed");
+			Sys_Error ("vkCreateSampler failed with code %i", (int)err);
 
 		GL_SetObjectName ((uint64_t)vulkan_globals.point_aniso_sampler, VK_OBJECT_TYPE_SAMPLER, "point_aniso");
 
@@ -1928,7 +1928,7 @@ void R_InitSamplers ()
 
 		err = vkCreateSampler (vulkan_globals.device, &sampler_create_info, NULL, &vulkan_globals.linear_sampler);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateSampler failed");
+			Sys_Error ("vkCreateSampler failed with code %i", (int)err);
 
 		GL_SetObjectName ((uint64_t)vulkan_globals.linear_sampler, VK_OBJECT_TYPE_SAMPLER, "linear");
 
@@ -1936,7 +1936,7 @@ void R_InitSamplers ()
 		sampler_create_info.maxAnisotropy = vulkan_globals.device_properties.limits.maxSamplerAnisotropy;
 		err = vkCreateSampler (vulkan_globals.device, &sampler_create_info, NULL, &vulkan_globals.linear_aniso_sampler);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateSampler failed");
+			Sys_Error ("vkCreateSampler failed with code %i", (int)err);
 
 		GL_SetObjectName ((uint64_t)vulkan_globals.linear_aniso_sampler, VK_OBJECT_TYPE_SAMPLER, "linear_aniso");
 	}
@@ -2001,7 +2001,7 @@ void R_InitSamplers ()
 
 		err = vkCreateSampler (vulkan_globals.device, &sampler_create_info, NULL, &vulkan_globals.point_sampler_lod_bias);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateSampler failed");
+			Sys_Error ("vkCreateSampler failed with code %i", (int)err);
 
 		GL_SetObjectName ((uint64_t)vulkan_globals.point_sampler_lod_bias, VK_OBJECT_TYPE_SAMPLER, "point_lod_bias");
 
@@ -2009,7 +2009,7 @@ void R_InitSamplers ()
 		sampler_create_info.maxAnisotropy = vulkan_globals.device_properties.limits.maxSamplerAnisotropy;
 		err = vkCreateSampler (vulkan_globals.device, &sampler_create_info, NULL, &vulkan_globals.point_aniso_sampler_lod_bias);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateSampler failed");
+			Sys_Error ("vkCreateSampler failed with code %i", (int)err);
 
 		GL_SetObjectName ((uint64_t)vulkan_globals.point_aniso_sampler_lod_bias, VK_OBJECT_TYPE_SAMPLER, "point_aniso_lod_bias");
 
@@ -2021,7 +2021,7 @@ void R_InitSamplers ()
 
 		err = vkCreateSampler (vulkan_globals.device, &sampler_create_info, NULL, &vulkan_globals.linear_sampler_lod_bias);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateSampler failed");
+			Sys_Error ("vkCreateSampler failed with code %i", (int)err);
 
 		GL_SetObjectName ((uint64_t)vulkan_globals.linear_sampler_lod_bias, VK_OBJECT_TYPE_SAMPLER, "linear_lod_bias");
 
@@ -2029,7 +2029,7 @@ void R_InitSamplers ()
 		sampler_create_info.maxAnisotropy = vulkan_globals.device_properties.limits.maxSamplerAnisotropy;
 		err = vkCreateSampler (vulkan_globals.device, &sampler_create_info, NULL, &vulkan_globals.linear_aniso_sampler_lod_bias);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateSampler failed");
+			Sys_Error ("vkCreateSampler failed with code %i", (int)err);
 
 		GL_SetObjectName ((uint64_t)vulkan_globals.linear_aniso_sampler_lod_bias, VK_OBJECT_TYPE_SAMPLER, "linear_aniso_lod_bias");
 	}
@@ -2053,7 +2053,7 @@ static VkShaderModule R_CreateShaderModule (const byte *code, const int size, co
 	VkShaderModule module;
 	VkResult	   err = vkCreateShaderModule (vulkan_globals.device, &module_create_info, NULL, &module);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateShaderModule failed");
+		Sys_Error ("vkCreateShaderModule failed with code %i", (int)err);
 
 	GL_SetObjectName ((uint64_t)module, VK_OBJECT_TYPE_SHADER_MODULE, name);
 
@@ -2365,7 +2365,7 @@ static void R_CreateBasicPipelines ()
 		err = vkCreateGraphicsPipelines (
 			vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.basic_alphatest_pipeline[render_pass].handle);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateGraphicsPipelines failed");
+			Sys_Error ("vkCreateGraphicsPipelines failed with code %i", (int)err);
 		vulkan_globals.basic_alphatest_pipeline[render_pass].layout = vulkan_globals.basic_pipeline_layout;
 		GL_SetObjectName ((uint64_t)vulkan_globals.basic_alphatest_pipeline[render_pass].handle, VK_OBJECT_TYPE_PIPELINE, "basic_alphatest");
 	}
@@ -2382,7 +2382,7 @@ static void R_CreateBasicPipelines ()
 		err = vkCreateGraphicsPipelines (
 			vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.basic_notex_blend_pipeline[render_pass].handle);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateGraphicsPipelines failed");
+			Sys_Error ("vkCreateGraphicsPipelines failed with code %i", (int)err);
 		vulkan_globals.basic_notex_blend_pipeline[render_pass].layout = vulkan_globals.basic_pipeline_layout;
 		GL_SetObjectName ((uint64_t)vulkan_globals.basic_notex_blend_pipeline[render_pass].handle, VK_OBJECT_TYPE_PIPELINE, "basic_notex_blend");
 	}
@@ -2402,7 +2402,7 @@ static void R_CreateBasicPipelines ()
 		err = vkCreateGraphicsPipelines (
 			vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.basic_blend_pipeline[render_pass].handle);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateGraphicsPipelines failed");
+			Sys_Error ("vkCreateGraphicsPipelines failed with code %i", (int)err);
 		vulkan_globals.basic_blend_pipeline[render_pass].layout = vulkan_globals.basic_pipeline_layout;
 
 		GL_SetObjectName ((uint64_t)vulkan_globals.basic_blend_pipeline[render_pass].handle, VK_OBJECT_TYPE_PIPELINE, "basic_blend");
@@ -2435,7 +2435,7 @@ static void R_CreateWarpPipelines ()
 	assert (vulkan_globals.raster_tex_warp_pipeline.handle == VK_NULL_HANDLE);
 	err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.raster_tex_warp_pipeline.handle);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateGraphicsPipelines failed (raster_tex_warp_pipeline)");
+		Sys_Error ("vkCreateGraphicsPipelines failed (raster_tex_warp_pipeline) with code %i", (int)err);
 	vulkan_globals.raster_tex_warp_pipeline.layout = vulkan_globals.basic_pipeline_layout;
 	GL_SetObjectName ((uint64_t)vulkan_globals.raster_tex_warp_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "warp");
 
@@ -2453,7 +2453,7 @@ static void R_CreateWarpPipelines ()
 	assert (vulkan_globals.cs_tex_warp_pipeline.handle == VK_NULL_HANDLE);
 	err = vkCreateComputePipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.compute_pipeline, NULL, &vulkan_globals.cs_tex_warp_pipeline.handle);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateComputePipelines failed (cs_tex_warp_pipeline)");
+		Sys_Error ("vkCreateComputePipelines failed (cs_tex_warp_pipeline) with code %i", (int)err);
 	GL_SetObjectName ((uint64_t)vulkan_globals.cs_tex_warp_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "cs_tex_warp");
 }
 
@@ -2478,7 +2478,7 @@ static void R_CreateParticlesPipelines ()
 	assert (vulkan_globals.particle_pipeline.handle == VK_NULL_HANDLE);
 	err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.particle_pipeline.handle);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateGraphicsPipelines failed");
+		Sys_Error ("vkCreateGraphicsPipelines failed with code %i", (int)err);
 	vulkan_globals.particle_pipeline.layout = vulkan_globals.basic_pipeline_layout;
 	GL_SetObjectName ((uint64_t)vulkan_globals.particle_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "particles");
 }
@@ -2512,7 +2512,7 @@ static void R_CreateRayDebugPipelines ()
 	assert (vulkan_globals.ray_debug_pipeline.handle == VK_NULL_HANDLE);
 	err = vkCreateComputePipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.compute_pipeline, NULL, &vulkan_globals.ray_debug_pipeline.handle);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateComputePipelines failed (ray_debug_pipeline)");
+		Sys_Error ("vkCreateComputePipelines failed (ray_debug_pipeline) with code %i", (int)err);
 	GL_SetObjectName ((uint64_t)vulkan_globals.ray_debug_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "ray_debug_pipeline");
 #endif
 }
@@ -2545,7 +2545,7 @@ static void R_CreateAnimComputePipelines ()
 	assert (vulkan_globals.mesh_interpolate_pipeline.handle == VK_NULL_HANDLE);
 	err = vkCreateComputePipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.compute_pipeline, NULL, &vulkan_globals.mesh_interpolate_pipeline.handle);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateComputePipelines failed (mesh_interpolate_pipeline)");
+		Sys_Error ("vkCreateComputePipelines failed (mesh_interpolate_pipeline) with code %i", (int)err);
 	GL_SetObjectName ((uint64_t)vulkan_globals.mesh_interpolate_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "mesh_interpolate_pipeline");
 
 	compute_shader_stage.module = skinning_comp_module;
@@ -2555,7 +2555,7 @@ static void R_CreateAnimComputePipelines ()
 	assert (vulkan_globals.skinning_pipeline.handle == VK_NULL_HANDLE);
 	err = vkCreateComputePipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.compute_pipeline, NULL, &vulkan_globals.skinning_pipeline.handle);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateComputePipelines failed (skinning_pipeline)");
+		Sys_Error ("vkCreateComputePipelines failed (skinning_pipeline) with code %i", (int)err);
 	GL_SetObjectName ((uint64_t)vulkan_globals.skinning_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "skinning_pipeline");
 }
 
@@ -2635,7 +2635,7 @@ static void R_CreateFTEParticlesPipelines ()
 		err = vkCreateGraphicsPipelines (
 			vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.fte_particle_pipelines[i].handle);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateGraphicsPipelines failed (fte_particle_pipelines[%d]", i);
+			Sys_Error ("vkCreateGraphicsPipelines failed (fte_particle_pipelines[%d]) with code %i", i, (int)err);
 		vulkan_globals.fte_particle_pipelines[i].layout = vulkan_globals.basic_pipeline_layout;
 		GL_SetObjectName ((uint64_t)vulkan_globals.fte_particle_pipelines[i].handle, VK_OBJECT_TYPE_PIPELINE, fte_particle_pipeline_names[i]);
 
@@ -2648,7 +2648,7 @@ static void R_CreateFTEParticlesPipelines ()
 			err = vkCreateGraphicsPipelines (
 				vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.fte_particle_pipelines[i + 8].handle);
 			if (err != VK_SUCCESS)
-				Sys_Error ("vkCreateGraphicsPipelines failed (vulkan_globals.fte_particle_pipelines[%d])", i + 8);
+				Sys_Error ("vkCreateGraphicsPipelines failed (vulkan_globals.fte_particle_pipelines[%d]) with code %i", i + 8, (int)err);
 			vulkan_globals.fte_particle_pipelines[i + 8].layout = vulkan_globals.basic_pipeline_layout;
 			GL_SetObjectName ((uint64_t)vulkan_globals.fte_particle_pipelines[i + 8].handle, VK_OBJECT_TYPE_PIPELINE, fte_particle_pipeline_names[i + 8]);
 		}
@@ -2678,7 +2678,7 @@ static void R_CreateSpritesPipelines ()
 	assert (vulkan_globals.sprite_pipeline.handle == VK_NULL_HANDLE);
 	err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.sprite_pipeline.handle);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateGraphicsPipelines failed (sprite_pipeline)");
+		Sys_Error ("vkCreateGraphicsPipelines failed (sprite_pipeline) with code %i", (int)err);
 	vulkan_globals.sprite_pipeline.layout = vulkan_globals.basic_pipeline_layout;
 	GL_SetObjectName ((uint64_t)vulkan_globals.sprite_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "sprite");
 }
@@ -2728,7 +2728,7 @@ static void R_CreateSkyPipelines ()
 		err = vkCreateGraphicsPipelines (
 			vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.sky_stencil_pipeline[i].handle);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateGraphicsPipelines failed (sky_stencil_pipeline)");
+			Sys_Error ("vkCreateGraphicsPipelines failed (sky_stencil_pipeline) with code %i", (int)err);
 		vulkan_globals.sky_stencil_pipeline[i].layout = vulkan_globals.sky_pipeline_layout[0];
 		GL_SetObjectName ((uint64_t)vulkan_globals.sky_stencil_pipeline[i].handle, VK_OBJECT_TYPE_PIPELINE, i ? "sky_stencil_indirect" : "sky_stencil");
 
@@ -2742,7 +2742,7 @@ static void R_CreateSkyPipelines ()
 		err =
 			vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.sky_color_pipeline[i].handle);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateGraphicsPipelines failed (sky_color_pipeline)");
+			Sys_Error ("vkCreateGraphicsPipelines failed (sky_color_pipeline) with code %i", (int)err);
 		vulkan_globals.sky_color_pipeline[i].layout = vulkan_globals.sky_pipeline_layout[0];
 		GL_SetObjectName ((uint64_t)vulkan_globals.sky_color_pipeline[i].handle, VK_OBJECT_TYPE_PIPELINE, i ? "sky_color_indirect" : "sky_color");
 
@@ -2751,7 +2751,7 @@ static void R_CreateSkyPipelines ()
 		assert (vulkan_globals.sky_cube_pipeline[i].handle == VK_NULL_HANDLE);
 		err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.sky_cube_pipeline[i].handle);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateGraphicsPipelines failed (sky_cube_pipeline)");
+			Sys_Error ("vkCreateGraphicsPipelines failed (sky_cube_pipeline) with code %i", (int)err);
 		GL_SetObjectName ((uint64_t)vulkan_globals.sky_cube_pipeline[i].handle, VK_OBJECT_TYPE_PIPELINE, i ? "sky_cube_indirect" : "sky_cube");
 		vulkan_globals.sky_cube_pipeline[i].layout = vulkan_globals.sky_pipeline_layout[0];
 
@@ -2762,7 +2762,7 @@ static void R_CreateSkyPipelines ()
 		err =
 			vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.sky_layer_pipeline[i].handle);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateGraphicsPipelines failed (sky_layer_pipeline)");
+			Sys_Error ("vkCreateGraphicsPipelines failed (sky_layer_pipeline) with code %i", (int)err);
 		GL_SetObjectName ((uint64_t)vulkan_globals.sky_layer_pipeline[i].handle, VK_OBJECT_TYPE_PIPELINE, i ? "sky_layer_indirect" : "sky_layer");
 		vulkan_globals.sky_layer_pipeline[i].layout = vulkan_globals.sky_pipeline_layout[1];
 
@@ -2786,7 +2786,7 @@ static void R_CreateSkyPipelines ()
 		assert (vulkan_globals.sky_box_pipeline.handle == VK_NULL_HANDLE);
 		err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.sky_box_pipeline.handle);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateGraphicsPipelines failed (sky_box_pipeline)");
+			Sys_Error ("vkCreateGraphicsPipelines failed (sky_box_pipeline) with code %i", (int)err);
 		GL_SetObjectName ((uint64_t)vulkan_globals.sky_box_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "sky_box");
 
 		vulkan_globals.sky_box_pipeline.layout = vulkan_globals.sky_pipeline_layout[0];
@@ -2836,7 +2836,7 @@ static void R_CreateShowTrisPipelines ()
 		assert (vulkan_globals.showtris_pipeline.handle == VK_NULL_HANDLE);
 		err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.showtris_pipeline.handle);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateGraphicsPipelines failed (showtris_pipeline)");
+			Sys_Error ("vkCreateGraphicsPipelines failed (showtris_pipeline) with code %i", (int)err);
 		vulkan_globals.showtris_pipeline.layout = vulkan_globals.basic_pipeline_layout;
 		GL_SetObjectName ((uint64_t)vulkan_globals.showtris_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "showtris");
 
@@ -2849,7 +2849,7 @@ static void R_CreateShowTrisPipelines ()
 		err = vkCreateGraphicsPipelines (
 			vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.showtris_depth_test_pipeline.handle);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateGraphicsPipelines failed (showtris_depth_test_pipeline)");
+			Sys_Error ("vkCreateGraphicsPipelines failed (showtris_depth_test_pipeline) with code %i", (int)err);
 		vulkan_globals.showtris_depth_test_pipeline.layout = vulkan_globals.basic_pipeline_layout;
 
 		GL_SetObjectName ((uint64_t)vulkan_globals.showtris_depth_test_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "showtris_depth_test");
@@ -2860,7 +2860,7 @@ static void R_CreateShowTrisPipelines ()
 		assert (vulkan_globals.showbboxes_pipeline.handle == VK_NULL_HANDLE);
 		err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.showbboxes_pipeline.handle);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateGraphicsPipelines failed (showtris_depth_test)");
+			Sys_Error ("vkCreateGraphicsPipelines failed (showtris_depth_test) with code %i", (int)err);
 		vulkan_globals.showbboxes_pipeline.layout = vulkan_globals.basic_pipeline_layout;
 
 		GL_SetObjectName ((uint64_t)vulkan_globals.showbboxes_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "showbboxes");
@@ -2875,7 +2875,7 @@ static void R_CreateShowTrisPipelines ()
 		err = vkCreateGraphicsPipelines (
 			vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.showtris_indirect_pipeline.handle);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateGraphicsPipelines failed (showtris_indirect_pipeline)");
+			Sys_Error ("vkCreateGraphicsPipelines failed (showtris_indirect_pipeline) with code %i", (int)err);
 		vulkan_globals.showtris_indirect_pipeline.layout = vulkan_globals.basic_pipeline_layout;
 		GL_SetObjectName ((uint64_t)vulkan_globals.showtris_indirect_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "showtris_indirect");
 
@@ -2886,7 +2886,7 @@ static void R_CreateShowTrisPipelines ()
 		err = vkCreateGraphicsPipelines (
 			vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.showtris_indirect_depth_test_pipeline.handle);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateGraphicsPipelines failed (showtris_indirect_depth_test_pipeline)");
+			Sys_Error ("vkCreateGraphicsPipelines failed (showtris_indirect_depth_test_pipeline) with code %i", (int)err);
 		vulkan_globals.showtris_indirect_depth_test_pipeline.layout = vulkan_globals.basic_pipeline_layout;
 		GL_SetObjectName ((uint64_t)vulkan_globals.showtris_indirect_depth_test_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "showtris_indirect_depth_test");
 	}
@@ -2985,7 +2985,7 @@ static void R_CreateWorldPipelines ()
 					err = vkCreateGraphicsPipelines (
 						vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.world_pipelines[pipeline_index].handle);
 					if (err != VK_SUCCESS)
-						Sys_Error ("vkCreateGraphicsPipelines failed (world_pipelines[%d])", pipeline_index);
+						Sys_Error ("vkCreateGraphicsPipelines failed (world_pipelines[%d]) with code %i", pipeline_index, (int)err);
 					GL_SetObjectName (
 						(uint64_t)vulkan_globals.world_pipelines[pipeline_index].handle, VK_OBJECT_TYPE_PIPELINE, va ("world %d", pipeline_index));
 					vulkan_globals.world_pipelines[pipeline_index].layout = vulkan_globals.world_pipeline_layout;
@@ -3025,7 +3025,7 @@ static void R_CreateAliasPipelines ()
 	assert (vulkan_globals.alias_pipelines[0].handle == VK_NULL_HANDLE);
 	err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.alias_pipelines[0].handle);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateGraphicsPipelines failed (alias_pipeline)");
+		Sys_Error ("vkCreateGraphicsPipelines failed (alias_pipeline) with code %i", (int)err);
 	GL_SetObjectName ((uint64_t)vulkan_globals.alias_pipelines[0].handle, VK_OBJECT_TYPE_PIPELINE, "alias");
 
 	infos.shader_stages[1].module = alias_alphatest_frag_module;
@@ -3033,7 +3033,7 @@ static void R_CreateAliasPipelines ()
 	assert (vulkan_globals.alias_pipelines[1].handle == VK_NULL_HANDLE);
 	err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.alias_pipelines[1].handle);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateGraphicsPipelines failed (alias_alphatest_pipeline)");
+		Sys_Error ("vkCreateGraphicsPipelines failed (alias_alphatest_pipeline) with code %i", (int)err);
 	GL_SetObjectName ((uint64_t)vulkan_globals.alias_pipelines[1].handle, VK_OBJECT_TYPE_PIPELINE, "alias_alphatest");
 	vulkan_globals.alias_pipelines[1].layout = vulkan_globals.alias_pipelines[0].layout;
 
@@ -3044,7 +3044,7 @@ static void R_CreateAliasPipelines ()
 	assert (vulkan_globals.alias_pipelines[2].handle == VK_NULL_HANDLE);
 	err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.alias_pipelines[2].handle);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateGraphicsPipelines failed (alias_blend_pipeline)");
+		Sys_Error ("vkCreateGraphicsPipelines failed (alias_blend_pipeline) with code %i", (int)err);
 	GL_SetObjectName ((uint64_t)vulkan_globals.alias_pipelines[2].handle, VK_OBJECT_TYPE_PIPELINE, "alias_blend");
 	vulkan_globals.alias_pipelines[2].layout = vulkan_globals.alias_pipelines[0].layout;
 
@@ -3053,7 +3053,7 @@ static void R_CreateAliasPipelines ()
 	assert (vulkan_globals.alias_pipelines[3].handle == VK_NULL_HANDLE);
 	err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.alias_pipelines[3].handle);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateGraphicsPipelines failed");
+		Sys_Error ("vkCreateGraphicsPipelines failed with code %i", (int)err);
 	GL_SetObjectName ((uint64_t)vulkan_globals.alias_pipelines[3].handle, VK_OBJECT_TYPE_PIPELINE, "alias_alphatest_blend");
 	vulkan_globals.alias_pipelines[3].layout = vulkan_globals.alias_pipelines[0].layout;
 
@@ -3074,7 +3074,7 @@ static void R_CreateAliasPipelines ()
 		assert (vulkan_globals.alias_pipelines[4].handle == VK_NULL_HANDLE);
 		err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.alias_pipelines[4].handle);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateGraphicsPipelines failed");
+			Sys_Error ("vkCreateGraphicsPipelines failed with code %i", (int)err);
 		GL_SetObjectName ((uint64_t)vulkan_globals.alias_pipelines[4].handle, VK_OBJECT_TYPE_PIPELINE, "alias_showtris");
 		vulkan_globals.alias_pipelines[4].layout = vulkan_globals.alias_pipelines[0].layout;
 
@@ -3086,7 +3086,7 @@ static void R_CreateAliasPipelines ()
 		assert (vulkan_globals.alias_pipelines[5].handle == VK_NULL_HANDLE);
 		err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.alias_pipelines[5].handle);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateGraphicsPipelines failed");
+			Sys_Error ("vkCreateGraphicsPipelines failed with code %i", (int)err);
 		GL_SetObjectName ((uint64_t)vulkan_globals.alias_pipelines[5].handle, VK_OBJECT_TYPE_PIPELINE, "alias_showtris_depth_test");
 		vulkan_globals.alias_pipelines[5].layout = vulkan_globals.alias_pipelines[0].layout;
 	}
@@ -3122,7 +3122,7 @@ static void R_CreateMD5Pipelines ()
 	assert (vulkan_globals.md5_pipelines[0].handle == VK_NULL_HANDLE);
 	err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.md5_pipelines[0].handle);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateGraphicsPipelines failed (md5_pipeline)");
+		Sys_Error ("vkCreateGraphicsPipelines failed (md5_pipeline) with code %i", (int)err);
 	GL_SetObjectName ((uint64_t)vulkan_globals.md5_pipelines[0].handle, VK_OBJECT_TYPE_PIPELINE, "md5");
 
 	infos.shader_stages[1].module = alias_alphatest_frag_module;
@@ -3130,7 +3130,7 @@ static void R_CreateMD5Pipelines ()
 	assert (vulkan_globals.md5_pipelines[1].handle == VK_NULL_HANDLE);
 	err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.md5_pipelines[1].handle);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateGraphicsPipelines failed (md5_alphatest_pipeline)");
+		Sys_Error ("vkCreateGraphicsPipelines failed (md5_alphatest_pipeline) with code %i", (int)err);
 	GL_SetObjectName ((uint64_t)vulkan_globals.md5_pipelines[1].handle, VK_OBJECT_TYPE_PIPELINE, "md5_alphatest");
 	vulkan_globals.md5_pipelines[1].layout = vulkan_globals.md5_pipelines[0].layout;
 
@@ -3141,7 +3141,7 @@ static void R_CreateMD5Pipelines ()
 	assert (vulkan_globals.md5_pipelines[2].handle == VK_NULL_HANDLE);
 	err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.md5_pipelines[2].handle);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateGraphicsPipelines failed (md5_blend_pipeline)");
+		Sys_Error ("vkCreateGraphicsPipelines failed (md5_blend_pipeline) with code %i", (int)err);
 	GL_SetObjectName ((uint64_t)vulkan_globals.md5_pipelines[2].handle, VK_OBJECT_TYPE_PIPELINE, "md5_blend");
 	vulkan_globals.md5_pipelines[2].layout = vulkan_globals.md5_pipelines[0].layout;
 
@@ -3150,7 +3150,7 @@ static void R_CreateMD5Pipelines ()
 	assert (vulkan_globals.md5_pipelines[3].handle == VK_NULL_HANDLE);
 	err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.md5_pipelines[3].handle);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateGraphicsPipelines failed");
+		Sys_Error ("vkCreateGraphicsPipelines failed with code %i", (int)err);
 	GL_SetObjectName ((uint64_t)vulkan_globals.md5_pipelines[3].handle, VK_OBJECT_TYPE_PIPELINE, "md5_alphatest_blend");
 	vulkan_globals.md5_pipelines[3].layout = vulkan_globals.md5_pipelines[0].layout;
 
@@ -3171,8 +3171,10 @@ static void R_CreateMD5Pipelines ()
 		assert (vulkan_globals.md5_pipelines[4].handle == VK_NULL_HANDLE);
 		err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.md5_pipelines[4].handle);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateGraphicsPipelines failed");
+			Sys_Error ("vkCreateGraphicsPipelines failed with code %i", (int)err);
+
 		GL_SetObjectName ((uint64_t)vulkan_globals.md5_pipelines[4].handle, VK_OBJECT_TYPE_PIPELINE, "md5_showtris");
+
 		vulkan_globals.md5_pipelines[4].layout = vulkan_globals.md5_pipelines[0].layout;
 
 		infos.depth_stencil_state.depthTestEnable = VK_TRUE;
@@ -3183,7 +3185,7 @@ static void R_CreateMD5Pipelines ()
 		assert (vulkan_globals.md5_pipelines[5].handle == VK_NULL_HANDLE);
 		err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.md5_pipelines[5].handle);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateGraphicsPipelines failed");
+			Sys_Error ("vkCreateGraphicsPipelines failed with code %i", (int)err);
 		GL_SetObjectName ((uint64_t)vulkan_globals.md5_pipelines[5].handle, VK_OBJECT_TYPE_PIPELINE, "md5_showtris_depth_test");
 		vulkan_globals.md5_pipelines[5].layout = vulkan_globals.md5_pipelines[0].layout;
 	}
@@ -3223,7 +3225,7 @@ static void R_CreatePostprocessPipelines ()
 	assert (vulkan_globals.postprocess_pipeline.handle == VK_NULL_HANDLE);
 	err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.postprocess_pipeline.handle);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateGraphicsPipelines failed (postprocess_pipeline)");
+		Sys_Error ("vkCreateGraphicsPipelines failed (postprocess_pipeline) with code %i", (int)err);
 	GL_SetObjectName ((uint64_t)vulkan_globals.postprocess_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "postprocess");
 }
 
@@ -3253,7 +3255,7 @@ static void R_CreateScreenEffectsPipelines ()
 	assert (vulkan_globals.screen_effects_pipeline.handle == VK_NULL_HANDLE);
 	err = vkCreateComputePipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.compute_pipeline, NULL, &vulkan_globals.screen_effects_pipeline.handle);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateComputePipelines failed (screen_effects_pipeline)");
+		Sys_Error ("vkCreateComputePipelines failed (screen_effects_pipeline) with code %i", (int)err);
 	GL_SetObjectName ((uint64_t)vulkan_globals.screen_effects_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "screen_effects");
 
 	compute_shader_stage.module =
@@ -3263,7 +3265,7 @@ static void R_CreateScreenEffectsPipelines ()
 	err = vkCreateComputePipelines (
 		vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.compute_pipeline, NULL, &vulkan_globals.screen_effects_scale_pipeline.handle);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateComputePipelines failed (screen_effects_scale_pipeline)");
+		Sys_Error ("vkCreateComputePipelines failed (screen_effects_scale_pipeline) with code %i", (int)err);
 	GL_SetObjectName ((uint64_t)vulkan_globals.screen_effects_scale_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "screen_effects_scale");
 
 	if (vulkan_globals.screen_effects_sops)
@@ -3277,7 +3279,7 @@ static void R_CreateScreenEffectsPipelines ()
 		err = vkCreateComputePipelines (
 			vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.compute_pipeline, NULL, &vulkan_globals.screen_effects_scale_sops_pipeline.handle);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateComputePipelines failed (screen_effects_scale_sops_pipeline)");
+			Sys_Error ("vkCreateComputePipelines failed (screen_effects_scale_sops_pipeline) with code %i", (int)err);
 		GL_SetObjectName ((uint64_t)vulkan_globals.screen_effects_scale_sops_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "screen_effects_scale_sops");
 		compute_shader_stage.flags = 0;
 	}
@@ -3321,7 +3323,7 @@ static void R_CreateUpdateLightmapPipelines ()
 	assert (vulkan_globals.update_lightmap_pipeline.handle == VK_NULL_HANDLE);
 	err = vkCreateComputePipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.compute_pipeline, NULL, &vulkan_globals.update_lightmap_pipeline.handle);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateComputePipelines failed (update_lightmap_pipeline)");
+		Sys_Error ("vkCreateComputePipelines failed (update_lightmap_pipeline) with code %i", (int)err);
 	GL_SetObjectName ((uint64_t)vulkan_globals.update_lightmap_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "update_lightmap");
 
 	if (vulkan_globals.ray_query)
@@ -3334,7 +3336,7 @@ static void R_CreateUpdateLightmapPipelines ()
 		err = vkCreateComputePipelines (
 			vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.compute_pipeline, NULL, &vulkan_globals.update_lightmap_rt_pipeline.handle);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateComputePipelines failed (update_lightmap_rt_pipeline)");
+			Sys_Error ("vkCreateComputePipelines failed (update_lightmap_rt_pipeline) with code %i", (int)err);
 		GL_SetObjectName ((uint64_t)vulkan_globals.update_lightmap_rt_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "update_lightmap_rt");
 	}
 }
@@ -3364,7 +3366,7 @@ static void R_CreateIndirectComputePipelines ()
 	assert (vulkan_globals.indirect_draw_pipeline.handle == VK_NULL_HANDLE);
 	err = vkCreateComputePipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.compute_pipeline, NULL, &vulkan_globals.indirect_draw_pipeline.handle);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateComputePipelines failed (indirect_draw_pipeline)");
+		Sys_Error ("vkCreateComputePipelines failed (indirect_draw_pipeline) with code %i", (int)err);
 	GL_SetObjectName ((uint64_t)vulkan_globals.indirect_draw_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "indirect_draw");
 
 	compute_shader_stage.module = indirect_clear_comp_module;
@@ -3373,7 +3375,7 @@ static void R_CreateIndirectComputePipelines ()
 	assert (vulkan_globals.indirect_clear_pipeline.handle == VK_NULL_HANDLE);
 	err = vkCreateComputePipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.compute_pipeline, NULL, &vulkan_globals.indirect_clear_pipeline.handle);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateComputePipelines failed (indirect_clear_pipeline)");
+		Sys_Error ("vkCreateComputePipelines failed (indirect_clear_pipeline) with code %i", (int)err);
 	GL_SetObjectName ((uint64_t)vulkan_globals.indirect_clear_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "indirect_clear");
 }
 
@@ -4000,7 +4002,7 @@ void R_AllocateVulkanMemory (vulkan_memory_t *memory, VkMemoryAllocateInfo *memo
 	{
 		VkResult err = vkAllocateMemory (vulkan_globals.device, memory_allocate_info, NULL, &memory->handle);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkAllocateMemory failed");
+			Sys_Error ("vkAllocateMemory failed with code %i", (int)err);
 		if (num_allocations)
 			Atomic_IncrementUInt32 (num_allocations);
 	}
@@ -4055,7 +4057,7 @@ void R_CreateBuffer (
 	buffer_create_info.usage = usage;
 	err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, buffer);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateBuffer failed");
+		Sys_Error ("vkCreateBuffer failed with code %i", (int)err);
 
 	GL_SetObjectName ((uint64_t)*buffer, VK_OBJECT_TYPE_BUFFER, va ("%s buffer", name));
 
@@ -4080,7 +4082,7 @@ void R_CreateBuffer (
 
 	err = vkBindBufferMemory (vulkan_globals.device, *buffer, memory->handle, 0);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkBindBufferMemory failed");
+		Sys_Error ("vkBindBufferMemory failed with code %i", (int)err);
 
 	if (get_device_address)
 	{
@@ -4142,7 +4144,7 @@ size_t R_CreateBuffers (
 		buffer_create_info.usage = create_infos[i].usage;
 		err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, create_infos[i].buffer);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateBuffer failed");
+			Sys_Error ("vkCreateBuffer failed with code %i", (int)err);
 
 		GL_SetObjectName ((uint64_t)*create_infos[i].buffer, VK_OBJECT_TYPE_BUFFER, va ("%s buffer", create_infos[i].name));
 
@@ -4170,7 +4172,7 @@ size_t R_CreateBuffers (
 		VkBuffer dummy_buffer;
 		err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &dummy_buffer);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateBuffer failed");
+			Sys_Error ("vkCreateBuffer failed with code %i", (int)err);
 		VkMemoryRequirements memory_requirements;
 		// Vulkan spec:
 		// The memoryTypeBits member is identical for all VkBuffer objects created with the same value for the flags and usage members in the VkBufferCreateInfo
@@ -4196,7 +4198,7 @@ size_t R_CreateBuffers (
 	{
 		err = vkMapMemory (vulkan_globals.device, memory->handle, 0, total_size, 0, (void **)&mapped_base);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkMapMemory failed");
+			Sys_Error ("vkMapMemory failed with code %i", (int)err);
 	}
 
 	size_t current_offset = 0;
@@ -4209,7 +4211,7 @@ size_t R_CreateBuffers (
 
 		err = vkBindBufferMemory (vulkan_globals.device, *create_infos[i].buffer, memory->handle, current_offset);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkBindBufferMemory failed");
+			Sys_Error ("vkBindBufferMemory failed with code %i", (int)err);
 
 		if (create_infos[i].mapped)
 			*create_infos[i].mapped = mapped_base + current_offset;
