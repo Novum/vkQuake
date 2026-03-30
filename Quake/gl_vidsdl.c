@@ -96,7 +96,6 @@ modestate_t		modestate = MS_UNINIT;
 extern qboolean scr_initialized;
 
 extern VkAccelerationStructureKHR bmodel_tlas;
-extern VkDeviceAddress			  bmodel_tlas_device_address;
 
 //====================================
 
@@ -1009,6 +1008,7 @@ static void GL_InitDevice (void)
 	vulkan_globals.swap_chain_full_screen_acquired = false;
 	vulkan_globals.screen_effects_sops = false;
 	vulkan_globals.ray_query = false;
+	qboolean push_descriptor = false;
 
 	vkGetPhysicalDeviceMemoryProperties (vulkan_physical_device, &vulkan_globals.memory_properties);
 	vkGetPhysicalDeviceProperties (vulkan_physical_device, &vulkan_globals.device_properties);
@@ -1036,6 +1036,8 @@ static void GL_InitDevice (void)
 			if (strcmp (VK_EXT_FULL_SCREEN_EXCLUSIVE_EXTENSION_NAME, device_extensions[i].extensionName) == 0)
 				vulkan_globals.full_screen_exclusive = true;
 #endif
+			if (strcmp (VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME, device_extensions[i].extensionName) == 0)
+				push_descriptor = true;
 			if (strcmp (VK_KHR_RAY_QUERY_EXTENSION_NAME, device_extensions[i].extensionName) == 0)
 				vulkan_globals.ray_query = true;
 		}
@@ -1180,8 +1182,8 @@ static void GL_InitDevice (void)
 	if (vulkan_globals.screen_effects_sops)
 		Con_Printf ("Using subgroup operations\n");
 
-	vulkan_globals.ray_query = vulkan_globals.ray_query && acceleration_structure_features.accelerationStructure && ray_query_features.rayQuery &&
-							   buffer_device_address_features.bufferDeviceAddress;
+	vulkan_globals.ray_query = vulkan_globals.ray_query && push_descriptor && acceleration_structure_features.accelerationStructure &&
+							   ray_query_features.rayQuery && buffer_device_address_features.bufferDeviceAddress;
 	if (vulkan_globals.ray_query)
 		Con_Printf ("Using ray queries\n");
 
@@ -1201,6 +1203,7 @@ static void GL_InitDevice (void)
 	if (vulkan_globals.ray_query)
 	{
 		device_extensions[numEnabledExtensions++] = VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME;
+		device_extensions[numEnabledExtensions++] = VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME;
 		device_extensions[numEnabledExtensions++] = VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME;
 		device_extensions[numEnabledExtensions++] = VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME;
 		device_extensions[numEnabledExtensions++] = VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME;
@@ -1268,6 +1271,7 @@ static void GL_InitDevice (void)
 		GET_GLOBAL_DEVICE_PROC_ADDR (vk_create_acceleration_structure, vkCreateAccelerationStructureKHR);
 		GET_GLOBAL_DEVICE_PROC_ADDR (vk_destroy_acceleration_structure, vkDestroyAccelerationStructureKHR);
 		GET_GLOBAL_DEVICE_PROC_ADDR (vk_cmd_build_acceleration_structures, vkCmdBuildAccelerationStructuresKHR);
+		GET_GLOBAL_DEVICE_PROC_ADDR (vk_cmd_push_descriptor_set, vkCmdPushDescriptorSetKHR);
 		GET_GLOBAL_DEVICE_PROC_ADDR (vk_get_acceleration_structure_device_address, vkGetAccelerationStructureDeviceAddressKHR);
 	}
 #ifdef _DEBUG
@@ -2706,23 +2710,21 @@ typedef struct screen_effect_constants_s
 
 typedef struct ray_debug_constants_s
 {
-	float	 screen_size_rcp_x;
-	float	 screen_size_rcp_y;
-	uint32_t tlas_address_lo;
-	uint32_t tlas_address_hi;
-	float	 aspect_ratio;
-	float	 origin_x;
-	float	 origin_y;
-	float	 origin_z;
-	float	 forward_x;
-	float	 forward_y;
-	float	 forward_z;
-	float	 right_x;
-	float	 right_y;
-	float	 right_z;
-	float	 down_x;
-	float	 down_y;
-	float	 down_z;
+	float screen_size_rcp_x;
+	float screen_size_rcp_y;
+	float aspect_ratio;
+	float origin_x;
+	float origin_y;
+	float origin_z;
+	float forward_x;
+	float forward_y;
+	float forward_z;
+	float right_x;
+	float right_y;
+	float right_z;
+	float down_x;
+	float down_y;
+	float down_z;
 } ray_debug_constants_t;
 
 typedef struct end_rendering_parms_s
@@ -2858,11 +2860,23 @@ static void GL_ScreenEffects (cb_context_t *cbx, qboolean enabled, end_rendering
 		{
 			vkCmdBindDescriptorSets (cbx->cb, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->layout.handle, 0, 1, &vulkan_globals.ray_debug_desc_set, 0, NULL);
 
+			ZEROED_STRUCT (VkWriteDescriptorSetAccelerationStructureKHR, tlas_info);
+			tlas_info.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR;
+			tlas_info.accelerationStructureCount = 1;
+			tlas_info.pAccelerationStructures = &bmodel_tlas;
+
+			ZEROED_STRUCT (VkWriteDescriptorSet, tlas_write);
+			tlas_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+			tlas_write.pNext = &tlas_info;
+			tlas_write.dstBinding = 0;
+			tlas_write.descriptorCount = 1;
+			tlas_write.descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
+
+			vulkan_globals.vk_cmd_push_descriptor_set (cbx->cb, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->layout.handle, 1, 1, &tlas_write);
+
 			const ray_debug_constants_t push_constants = {
 				1.0f / (float)parms->vid_width,
 				1.0f / (float)parms->vid_height,
-				(uint32_t)(bmodel_tlas_device_address),
-				(uint32_t)(bmodel_tlas_device_address >> 32),
 				(float)parms->vid_width / (float)parms->vid_height,
 				parms->origin[0],
 				parms->origin[1],

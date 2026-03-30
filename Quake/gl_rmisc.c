@@ -1432,6 +1432,28 @@ void R_CreateDescriptorSetLayouts ()
 		GL_SetObjectName ((uint64_t)vulkan_globals.indirect_compute_set_layout.handle, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT, "indirect compute");
 	}
 
+	if (vulkan_globals.ray_query)
+	{
+		ZEROED_STRUCT (VkDescriptorSetLayoutBinding, ray_query_push_layout_binding);
+		ray_query_push_layout_binding.binding = 0;
+		ray_query_push_layout_binding.descriptorCount = 1;
+		ray_query_push_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
+		ray_query_push_layout_binding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
+		descriptor_set_layout_create_info.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR;
+		descriptor_set_layout_create_info.bindingCount = 1;
+		descriptor_set_layout_create_info.pBindings = &ray_query_push_layout_binding;
+
+		memset (&vulkan_globals.ray_query_push_set_layout, 0, sizeof (vulkan_globals.ray_query_push_set_layout));
+
+		err = vkCreateDescriptorSetLayout (vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.ray_query_push_set_layout.handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreateDescriptorSetLayout failed with code %i", (int)err);
+		GL_SetObjectName ((uint64_t)vulkan_globals.ray_query_push_set_layout.handle, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT, "ray query push");
+
+		descriptor_set_layout_create_info.flags = 0;
+	}
+
 #if defined(_DEBUG)
 	if (vulkan_globals.ray_query)
 	{
@@ -1450,7 +1472,7 @@ void R_CreateDescriptorSetLayouts ()
 		err = vkCreateDescriptorSetLayout (vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.ray_debug_set_layout.handle);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkCreateDescriptorSetLayout failed with code %i", (int)err);
-		GL_SetObjectName ((uint64_t)vulkan_globals.screen_effects_set_layout.handle, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT, "ray debug");
+		GL_SetObjectName ((uint64_t)vulkan_globals.ray_debug_set_layout.handle, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT, "ray debug");
 	}
 #endif
 }
@@ -1462,7 +1484,7 @@ R_CreateDescriptorPool
 */
 void R_CreateDescriptorPool ()
 {
-	ZEROED_STRUCT_ARRAY (VkDescriptorPoolSize, pool_sizes, 9);
+	ZEROED_STRUCT_ARRAY (VkDescriptorPoolSize, pool_sizes, 8);
 	pool_sizes[0].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	pool_sizes[0].descriptorCount = MIN_NB_DESCRIPTORS_PER_TYPE + (MAX_SANITY_LIGHTMAPS * 2) + (MAX_GLTEXTURES + 1);
 	pool_sizes[1].type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
@@ -1479,18 +1501,11 @@ void R_CreateDescriptorPool ()
 	pool_sizes[6].descriptorCount = MIN_NB_DESCRIPTORS_PER_TYPE;
 	pool_sizes[7].type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
 	pool_sizes[7].descriptorCount = MIN_NB_DESCRIPTORS_PER_TYPE + (1 + MAXLIGHTMAPS * 3 / 4) * MAX_SANITY_LIGHTMAPS;
-	int num_sizes = 8;
-	if (vulkan_globals.ray_query)
-	{
-		pool_sizes[8].type = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
-		pool_sizes[8].descriptorCount = MIN_NB_DESCRIPTORS_PER_TYPE + MAX_SANITY_LIGHTMAPS;
-		num_sizes = 9;
-	}
 
 	ZEROED_STRUCT (VkDescriptorPoolCreateInfo, descriptor_pool_create_info);
 	descriptor_pool_create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 	descriptor_pool_create_info.maxSets = MAX_GLTEXTURES + MAX_SANITY_LIGHTMAPS + 128;
-	descriptor_pool_create_info.poolSizeCount = num_sizes;
+	descriptor_pool_create_info.poolSizeCount = countof (pool_sizes);
 	descriptor_pool_create_info.pPoolSizes = pool_sizes;
 	descriptor_pool_create_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
 
@@ -1763,18 +1778,19 @@ void R_CreatePipelineLayouts ()
 	if (vulkan_globals.ray_query)
 	{
 		// Update lightmaps RT
-		VkDescriptorSetLayout update_lightmap_rt_descriptor_set_layouts[1] = {
+		VkDescriptorSetLayout update_lightmap_rt_descriptor_set_layouts[2] = {
 			vulkan_globals.lightmap_compute_set_layout.handle,
+			vulkan_globals.ray_query_push_set_layout.handle,
 		};
 
 		ZEROED_STRUCT (VkPushConstantRange, push_constant_range);
 		push_constant_range.offset = 0;
-		push_constant_range.size = 9 * sizeof (uint32_t);
+		push_constant_range.size = 7 * sizeof (uint32_t);
 		push_constant_range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
 		ZEROED_STRUCT (VkPipelineLayoutCreateInfo, pipeline_layout_create_info);
 		pipeline_layout_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-		pipeline_layout_create_info.setLayoutCount = 1;
+		pipeline_layout_create_info.setLayoutCount = countof (update_lightmap_rt_descriptor_set_layouts);
 		pipeline_layout_create_info.pSetLayouts = update_lightmap_rt_descriptor_set_layouts;
 		pipeline_layout_create_info.pushConstantRangeCount = 1;
 		pipeline_layout_create_info.pPushConstantRanges = &push_constant_range;
@@ -1853,18 +1869,19 @@ void R_CreatePipelineLayouts ()
 	if (vulkan_globals.ray_query)
 	{
 		// Ray debug
-		VkDescriptorSetLayout ray_debug_descriptor_set_layouts[1] = {
+		VkDescriptorSetLayout ray_debug_descriptor_set_layouts[2] = {
 			vulkan_globals.ray_debug_set_layout.handle,
+			vulkan_globals.ray_query_push_set_layout.handle,
 		};
 
 		ZEROED_STRUCT (VkPushConstantRange, push_constant_range);
 		push_constant_range.offset = 0;
-		push_constant_range.size = 17 * sizeof (uint32_t);
+		push_constant_range.size = 15 * sizeof (float);
 		push_constant_range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
 		ZEROED_STRUCT (VkPipelineLayoutCreateInfo, pipeline_layout_create_info);
 		pipeline_layout_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-		pipeline_layout_create_info.setLayoutCount = 1;
+		pipeline_layout_create_info.setLayoutCount = countof (ray_debug_descriptor_set_layouts);
 		pipeline_layout_create_info.pSetLayouts = ray_debug_descriptor_set_layouts;
 		pipeline_layout_create_info.pushConstantRangeCount = 1;
 		pipeline_layout_create_info.pPushConstantRanges = &push_constant_range;

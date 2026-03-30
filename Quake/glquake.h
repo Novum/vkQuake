@@ -338,6 +338,7 @@ typedef struct
 	vulkan_desc_set_layout_t lightmap_compute_set_layout;
 	VkDescriptorSet			 indirect_compute_desc_set;
 	vulkan_desc_set_layout_t indirect_compute_set_layout;
+	vulkan_desc_set_layout_t ray_query_push_set_layout;
 	VkDescriptorSet			 ray_debug_desc_set;
 	vulkan_desc_set_layout_t ray_debug_set_layout;
 	vulkan_desc_set_layout_t joints_buffer_set_layout;
@@ -369,6 +370,7 @@ typedef struct
 	PFN_vkCmdPipelineBarrier		vk_cmd_pipeline_barrier;
 	PFN_vkCmdCopyBufferToImage		vk_cmd_copy_buffer_to_image;
 	PFN_vkCmdDispatch				vk_cmd_dispatch;
+	PFN_vkCmdPushDescriptorSetKHR	vk_cmd_push_descriptor_set;
 	PFN_vkGetBufferDeviceAddressKHR vk_get_buffer_device_address;
 
 	PFN_vkGetAccelerationStructureBuildSizesKHR		   vk_get_acceleration_structure_build_sizes;

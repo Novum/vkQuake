@@ -102,7 +102,6 @@ VkAccelerationStructureKHR bmodel_tlas = VK_NULL_HANDLE;
 static VkBuffer			   bmodel_tlas_buffer;
 static size_t			   bmodel_tlas_size;
 static vulkan_memory_t	   bmodel_tlas_device_memory;
-VkDeviceAddress			   bmodel_tlas_device_address;
 static uint32_t			   bmodel_tlas_max_instances = TLAS_SIZE_MULTIPLE;
 static VkBuffer			   bmodel_indices_buffer;
 static VkDeviceAddress	   bmodel_indices_device_address;
@@ -253,11 +252,6 @@ static void R_AllocateTLAS (void)
 	err = vulkan_globals.vk_create_acceleration_structure (vulkan_globals.device, &acceleration_structure_create_info, NULL, &bmodel_tlas);
 	if (err != VK_SUCCESS)
 		Sys_Error ("vkCreateAccelerationStructure failed with code %i", (int)err);
-
-	ZEROED_STRUCT (VkAccelerationStructureDeviceAddressInfoKHR, tlas_address_info);
-	tlas_address_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
-	tlas_address_info.accelerationStructure = bmodel_tlas;
-	bmodel_tlas_device_address = vulkan_globals.vk_get_acceleration_structure_device_address (vulkan_globals.device, &tlas_address_info);
 }
 
 extern cvar_t r_showtris;
@@ -2196,7 +2190,6 @@ void GL_DeleteBModelAccelerationStructures (void)
 	bmodel_tlas = VK_NULL_HANDLE;
 	bmodel_tlas_buffer = VK_NULL_HANDLE;
 	bmodel_tlas_size = 0;
-	bmodel_tlas_device_address = 0;
 	bmodel_indices_buffer = VK_NULL_HANDLE;
 	bmodel_indices_device_address = 0;
 	TEMP_FREE (buffers);
@@ -3123,6 +3116,22 @@ void R_FlushUpdateLightmaps (
 	vkCmdPipelineBarrier (
 		cbx->cb, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, NULL, 0, NULL, num_batch_lightmaps, pre_barriers);
 	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_COMPUTE, *pipeline);
+	if (pipeline == &vulkan_globals.update_lightmap_rt_pipeline)
+	{
+		ZEROED_STRUCT (VkWriteDescriptorSetAccelerationStructureKHR, tlas_info);
+		tlas_info.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR;
+		tlas_info.accelerationStructureCount = 1;
+		tlas_info.pAccelerationStructures = &bmodel_tlas;
+
+		ZEROED_STRUCT (VkWriteDescriptorSet, tlas_write);
+		tlas_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		tlas_write.pNext = &tlas_info;
+		tlas_write.dstBinding = 0;
+		tlas_write.descriptorCount = 1;
+		tlas_write.descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
+
+		vulkan_globals.vk_cmd_push_descriptor_set (cbx->cb, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->layout.handle, 1, 1, &tlas_write);
+	}
 	uint32_t offsets[2] = {
 		current_compute_buffer_index * MAX_LIGHTSTYLES * sizeof (float), current_compute_buffer_index * MAX_DLIGHTS * 2 * sizeof (lm_compute_light_t)};
 	for (int j = 0; j < num_batch_lightmaps; ++j)
@@ -3159,14 +3168,13 @@ void R_FlushUpdateLightmaps (
 							lightmap_regions[j][y + h][i] = false;
 						h += 1;
 					}
-					uint32_t push_constants[9] = {current_dlights, LMBLOCK_WIDTH, x * LM_CULL_BLOCK_W / 8, y * LM_CULL_BLOCK_H / 8, type == 1, cached_dlights};
+					uint32_t push_constants[7] = {current_dlights, LMBLOCK_WIDTH, x * LM_CULL_BLOCK_W / 8, y * LM_CULL_BLOCK_H / 8, type == 1, cached_dlights};
 					int		 push_size = 6 * sizeof (uint32_t);
 					if (pipeline == &vulkan_globals.update_lightmap_rt_pipeline)
 					{
 						uint32_t shadow_samples = 1 << ((int)r_rtshadows.value + 1);
-						memcpy (&push_constants[6], &bmodel_tlas_device_address, sizeof (VkDeviceAddress));
-						push_constants[8] = shadow_samples;
-						push_size = 9 * sizeof (uint32_t);
+						push_constants[6] = shadow_samples;
+						push_size = 7 * sizeof (uint32_t);
 					}
 					R_PushConstants (cbx, VK_SHADER_STAGE_COMPUTE_BIT, 0, push_size, push_constants);
 					w = q_min (lightmaps[lightmap_indexes[j]].lightstyle_rectused[0].w / 8 - x * LM_CULL_BLOCK_W / 8, w * LM_CULL_BLOCK_W / 8);
