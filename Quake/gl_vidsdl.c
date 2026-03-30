@@ -809,7 +809,7 @@ static void GL_InitInstance (void)
 
 	err = vkCreateInstance (&instance_create_info, NULL, &vulkan_instance);
 	if (err != VK_SUCCESS)
-		Sys_Error ("Couldn't create Vulkan instance");
+		Sys_Error ("Couldn't create Vulkan instance with code %i", (int)err);
 
 #ifdef USE_SDL3
 	if (!SDL_Vulkan_CreateSurface (draw_context, vulkan_instance, NULL, &vulkan_surface))
@@ -855,7 +855,7 @@ static void GL_InitInstance (void)
 
 			err = fpCreateDebugUtilsMessengerEXT (vulkan_instance, &debug_utils_messenger_create_info, NULL, &debug_utils_messenger);
 			if (err != VK_SUCCESS)
-				Sys_Error ("Could not create debug report callback");
+				Sys_Error ("Could not create debug report callback with code %i", (int)err);
 		}
 	}
 #endif
@@ -977,7 +977,7 @@ static void GL_InitDevice (void)
 	uint32_t physical_device_count;
 	err = vkEnumeratePhysicalDevices (vulkan_instance, &physical_device_count, NULL);
 	if (err != VK_SUCCESS || physical_device_count == 0)
-		Sys_Error ("Couldn't find any Vulkan devices");
+		Sys_Error ("Couldn't find any Vulkan devices with code %i", (int)err);
 
 	arg_index = COM_CheckParm ("-device");
 	if (arg_index && (arg_index < (com_argc - 1)))
@@ -1244,7 +1244,7 @@ static void GL_InitDevice (void)
 
 	err = vkCreateDevice (vulkan_physical_device, &device_create_info, NULL, &vulkan_globals.device);
 	if (err != VK_SUCCESS)
-		Sys_Error ("Couldn't create Vulkan device");
+		Sys_Error ("Couldn't create Vulkan device with code %i", (int)err);
 
 	GET_DEVICE_PROC_ADDR (CreateSwapchainKHR);
 	GET_DEVICE_PROC_ADDR (DestroySwapchainKHR);
@@ -1356,7 +1356,7 @@ static void GL_InitCommandBuffers (void)
 		command_pool_create_info.queueFamilyIndex = vulkan_globals.gfx_queue_family_index;
 		err = vkCreateCommandPool (vulkan_globals.device, &command_pool_create_info, NULL, &transient_command_pool);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateCommandPool failed");
+			Sys_Error ("vkCreateCommandPool failed with code %i", (int)err);
 	}
 
 	ZEROED_STRUCT (VkCommandPoolCreateInfo, command_pool_create_info);
@@ -1368,7 +1368,7 @@ static void GL_InitCommandBuffers (void)
 	{
 		err = vkCreateCommandPool (vulkan_globals.device, &command_pool_create_info, NULL, &primary_command_pools[pcbx_index]);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateCommandPool failed");
+			Sys_Error ("vkCreateCommandPool failed with code %i", (int)err);
 
 		ZEROED_STRUCT (VkCommandBufferAllocateInfo, command_buffer_allocate_info);
 		command_buffer_allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -1377,7 +1377,7 @@ static void GL_InitCommandBuffers (void)
 
 		err = vkAllocateCommandBuffers (vulkan_globals.device, &command_buffer_allocate_info, primary_command_buffers[pcbx_index]);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkAllocateCommandBuffers failed");
+			Sys_Error ("vkAllocateCommandBuffers failed with code %i", (int)err);
 		for (int i = 0; i < DOUBLE_BUFFERED; ++i)
 			GL_SetObjectName (
 				(uint64_t)(uintptr_t)primary_command_buffers[pcbx_index][i], VK_OBJECT_TYPE_COMMAND_BUFFER, va ("PCBX index: %d cb_index: %d", pcbx_index, i));
@@ -1394,7 +1394,7 @@ static void GL_InitCommandBuffers (void)
 		{
 			err = vkCreateCommandPool (vulkan_globals.device, &command_pool_create_info, NULL, &secondary_command_pools[scbx_index][i]);
 			if (err != VK_SUCCESS)
-				Sys_Error ("vkCreateCommandPool failed");
+				Sys_Error ("vkCreateCommandPool failed with code %i", (int)err);
 
 			ZEROED_STRUCT (VkCommandBufferAllocateInfo, command_buffer_allocate_info);
 			command_buffer_allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -1405,7 +1405,7 @@ static void GL_InitCommandBuffers (void)
 			VkCommandBuffer command_buffers[DOUBLE_BUFFERED];
 			err = vkAllocateCommandBuffers (vulkan_globals.device, &command_buffer_allocate_info, command_buffers);
 			if (err != VK_SUCCESS)
-				Sys_Error ("vkAllocateCommandBuffers failed");
+				Sys_Error ("vkAllocateCommandBuffers failed with code %i", (int)err);
 			for (int j = 0; j < DOUBLE_BUFFERED; ++j)
 			{
 				secondary_command_buffers[scbx_index][j][i] = command_buffers[j];
@@ -1422,7 +1422,7 @@ static void GL_InitCommandBuffers (void)
 	{
 		err = vkCreateFence (vulkan_globals.device, &fence_create_info, NULL, &command_buffer_fences[i]);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateFence failed");
+			Sys_Error ("vkCreateFence failed with code %i", (int)err);
 
 		ZEROED_STRUCT (VkSemaphoreCreateInfo, semaphore_create_info);
 		semaphore_create_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
@@ -1520,13 +1520,13 @@ static void GL_CreateRenderPasses ()
 
 		err = vkCreateRenderPass (vulkan_globals.device, &render_pass_create_info, NULL, &vulkan_globals.main_render_pass[0]);
 		if (err != VK_SUCCESS)
-			Sys_Error ("Couldn't create Vulkan render pass");
+			Sys_Error ("Couldn't create Vulkan render pass with code %i", (int)err);
 		GL_SetObjectName ((uint64_t)vulkan_globals.main_render_pass[0], VK_OBJECT_TYPE_RENDER_PASS, "main");
 
 		attachment_descriptions[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 		err = vkCreateRenderPass (vulkan_globals.device, &render_pass_create_info, NULL, &vulkan_globals.main_render_pass[1]);
 		if (err != VK_SUCCESS)
-			Sys_Error ("Couldn't create Vulkan render pass");
+			Sys_Error ("Couldn't create Vulkan render pass with code %i", (int)err);
 		GL_SetObjectName ((uint64_t)vulkan_globals.main_render_pass[1], VK_OBJECT_TYPE_RENDER_PASS, "main_no_stencil");
 
 		for (int scbx_index = SCBX_WORLD; scbx_index <= SCBX_VIEW_MODEL; ++scbx_index)
@@ -1609,7 +1609,7 @@ static void GL_CreateRenderPasses ()
 		VkRenderPass render_pass;
 		err = vkCreateRenderPass (vulkan_globals.device, &render_pass_create_info, NULL, &render_pass);
 		if (err != VK_SUCCESS)
-			Sys_Error ("Couldn't create Vulkan render pass");
+			Sys_Error ("Couldn't create Vulkan render pass with code %i", (int)err);
 		GL_SetObjectName ((uint64_t)render_pass, VK_OBJECT_TYPE_RENDER_PASS, "ui");
 
 		gui_cbx->render_pass = render_pass;
@@ -1671,7 +1671,7 @@ static void GL_CreateRenderPasses ()
 
 		err = vkCreateRenderPass (vulkan_globals.device, &render_pass_create_info, NULL, &vulkan_globals.warp_render_pass);
 		if (err != VK_SUCCESS)
-			Sys_Error ("Couldn't create Vulkan render pass");
+			Sys_Error ("Couldn't create Vulkan render pass with code %i", (int)err);
 
 		GL_SetObjectName ((uint64_t)vulkan_globals.warp_render_pass, VK_OBJECT_TYPE_RENDER_PASS, "warp");
 	}
@@ -1708,7 +1708,7 @@ static void GL_CreateDepthBuffer (void)
 	assert (depth_buffer == VK_NULL_HANDLE);
 	err = vkCreateImage (vulkan_globals.device, &image_create_info, NULL, &depth_buffer);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateImage failed");
+		Sys_Error ("vkCreateImage failed with code %i", (int)err);
 
 	GL_SetObjectName ((uint64_t)depth_buffer, VK_OBJECT_TYPE_IMAGE, "Depth Buffer");
 
@@ -1733,7 +1733,7 @@ static void GL_CreateDepthBuffer (void)
 
 	err = vkBindImageMemory (vulkan_globals.device, depth_buffer, depth_buffer_memory.handle, 0);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkBindImageMemory failed");
+		Sys_Error ("vkBindImageMemory failed with code %i", (int)err);
 
 	ZEROED_STRUCT (VkImageViewCreateInfo, image_view_create_info);
 	image_view_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -1750,7 +1750,7 @@ static void GL_CreateDepthBuffer (void)
 	assert (depth_buffer_view == VK_NULL_HANDLE);
 	err = vkCreateImageView (vulkan_globals.device, &image_view_create_info, NULL, &depth_buffer_view);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateImageView failed");
+		Sys_Error ("vkCreateImageView failed with code %i", (int)err);
 
 	GL_SetObjectName ((uint64_t)depth_buffer_view, VK_OBJECT_TYPE_IMAGE_VIEW, "Depth Buffer View");
 }
@@ -1787,7 +1787,7 @@ static void GL_CreateColorBuffer (void)
 		assert (vulkan_globals.color_buffers[i] == VK_NULL_HANDLE);
 		err = vkCreateImage (vulkan_globals.device, &image_create_info, NULL, &vulkan_globals.color_buffers[i]);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateImage failed");
+			Sys_Error ("vkCreateImage failed with code %i", (int)err);
 
 		GL_SetObjectName ((uint64_t)vulkan_globals.color_buffers[i], VK_OBJECT_TYPE_IMAGE, va ("Color Buffer %d", i));
 
@@ -1812,7 +1812,7 @@ static void GL_CreateColorBuffer (void)
 
 		err = vkBindImageMemory (vulkan_globals.device, vulkan_globals.color_buffers[i], color_buffers_memory[i].handle, 0);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkBindImageMemory failed");
+			Sys_Error ("vkBindImageMemory failed with code %i", (int)err);
 
 		ZEROED_STRUCT (VkImageViewCreateInfo, image_view_create_info);
 		image_view_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -1829,7 +1829,7 @@ static void GL_CreateColorBuffer (void)
 		assert (color_buffers_view[i] == VK_NULL_HANDLE);
 		err = vkCreateImageView (vulkan_globals.device, &image_view_create_info, NULL, &color_buffers_view[i]);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateImageView failed");
+			Sys_Error ("vkCreateImageView failed with code %i", (int)err);
 
 		GL_SetObjectName ((uint64_t)color_buffers_view[i], VK_OBJECT_TYPE_IMAGE_VIEW, va ("Color Buffer View %d", i));
 	}
@@ -1887,7 +1887,7 @@ static void GL_CreateColorBuffer (void)
 		assert (msaa_color_buffer == VK_NULL_HANDLE);
 		err = vkCreateImage (vulkan_globals.device, &image_create_info, NULL, &msaa_color_buffer);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateImage failed");
+			Sys_Error ("vkCreateImage failed with code %i", (int)err);
 
 		GL_SetObjectName ((uint64_t)msaa_color_buffer, VK_OBJECT_TYPE_IMAGE, "MSAA Color Buffer");
 
@@ -1912,7 +1912,7 @@ static void GL_CreateColorBuffer (void)
 
 		err = vkBindImageMemory (vulkan_globals.device, msaa_color_buffer, msaa_color_buffer_memory.handle, 0);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkBindImageMemory failed");
+			Sys_Error ("vkBindImageMemory failed with code %i", (int)err);
 
 		ZEROED_STRUCT (VkImageViewCreateInfo, image_view_create_info);
 		image_view_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -1929,7 +1929,7 @@ static void GL_CreateColorBuffer (void)
 		assert (msaa_color_buffer_view == VK_NULL_HANDLE);
 		err = vkCreateImageView (vulkan_globals.device, &image_view_create_info, NULL, &msaa_color_buffer_view);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateImageView failed");
+			Sys_Error ("vkCreateImageView failed with code %i", (int)err);
 	}
 	else
 		Sys_Printf ("AA disabled\n");
@@ -2105,7 +2105,7 @@ static qboolean GL_CreateSwapChain (void)
 
 		err = fpGetPhysicalDeviceSurfaceCapabilities2KHR (vulkan_physical_device, &surface_info_2, &surface_capabilitities_2);
 		if (err != VK_SUCCESS)
-			Sys_Error ("Couldn't get surface capabilities");
+			Sys_Error ("Couldn't get surface capabilities with code %i", (int)err);
 
 		vulkan_surface_capabilities = surface_capabilitities_2.surfaceCapabilities;
 		use_exclusive_full_screen = surface_capabilities_full_screen_exclusive.fullScreenExclusiveSupported;
@@ -2115,7 +2115,7 @@ static qboolean GL_CreateSwapChain (void)
 	{
 		err = fpGetPhysicalDeviceSurfaceCapabilitiesKHR (vulkan_physical_device, vulkan_surface, &vulkan_surface_capabilities);
 		if (err != VK_SUCCESS)
-			Sys_Error ("Couldn't get surface capabilities");
+			Sys_Error ("Couldn't get surface capabilities with code %i", (int)err);
 	}
 
 	if ((vulkan_surface_capabilities.currentExtent.width != 0xFFFFFFFF || vulkan_surface_capabilities.currentExtent.height != 0xFFFFFFFF) &&
@@ -2127,12 +2127,12 @@ static qboolean GL_CreateSwapChain (void)
 	uint32_t format_count;
 	err = fpGetPhysicalDeviceSurfaceFormatsKHR (vulkan_physical_device, vulkan_surface, &format_count, NULL);
 	if (err != VK_SUCCESS)
-		Sys_Error ("Couldn't get surface formats");
+		Sys_Error ("Couldn't get surface formats with code %i", (int)err);
 
 	VkSurfaceFormatKHR *surface_formats = (VkSurfaceFormatKHR *)Mem_Alloc (format_count * sizeof (VkSurfaceFormatKHR));
 	err = fpGetPhysicalDeviceSurfaceFormatsKHR (vulkan_physical_device, vulkan_surface, &format_count, surface_formats);
 	if (err != VK_SUCCESS)
-		Sys_Error ("fpGetPhysicalDeviceSurfaceFormatsKHR failed");
+		Sys_Error ("fpGetPhysicalDeviceSurfaceFormatsKHR failed with code %i", (int)err);
 
 	VkFormat		swap_chain_format = VK_FORMAT_B8G8R8A8_UNORM;
 	VkColorSpaceKHR swap_chain_color_space = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
@@ -2161,12 +2161,12 @@ static qboolean GL_CreateSwapChain (void)
 	uint32_t present_mode_count = 0;
 	err = fpGetPhysicalDeviceSurfacePresentModesKHR (vulkan_physical_device, vulkan_surface, &present_mode_count, NULL);
 	if (err != VK_SUCCESS)
-		Sys_Error ("fpGetPhysicalDeviceSurfacePresentModesKHR failed");
+		Sys_Error ("fpGetPhysicalDeviceSurfacePresentModesKHR failed with code %i", (int)err);
 
 	VkPresentModeKHR *present_modes = (VkPresentModeKHR *)Mem_Alloc (present_mode_count * sizeof (VkPresentModeKHR));
 	err = fpGetPhysicalDeviceSurfacePresentModesKHR (vulkan_physical_device, vulkan_surface, &present_mode_count, present_modes);
 	if (err != VK_SUCCESS)
-		Sys_Error ("fpGetPhysicalDeviceSurfacePresentModesKHR failed");
+		Sys_Error ("fpGetPhysicalDeviceSurfacePresentModesKHR failed with code %i", (int)err);
 
 	// VK_PRESENT_MODE_FIFO_KHR is always supported
 	VkPresentModeKHR present_mode = VK_PRESENT_MODE_FIFO_KHR;
@@ -2257,7 +2257,7 @@ static qboolean GL_CreateSwapChain (void)
 #endif
 		if (err != VK_SUCCESS)
 		{
-			Sys_Error ("Couldn't create swap chain");
+			Sys_Error ("Couldn't create swap chain with code %i", (int)err);
 		}
 	}
 	num_images_acquired = 0;
@@ -2266,7 +2266,7 @@ static qboolean GL_CreateSwapChain (void)
 		assert (swapchain_images[i] == VK_NULL_HANDLE);
 	err = fpGetSwapchainImagesKHR (vulkan_globals.device, vulkan_swapchain, &num_swap_chain_images, NULL);
 	if (err != VK_SUCCESS || num_swap_chain_images > MAX_SWAP_CHAIN_IMAGES)
-		Sys_Error ("Couldn't get swap chain images");
+		Sys_Error ("Couldn't get swap chain images with code %i", (int)err);
 
 	fpGetSwapchainImagesKHR (vulkan_globals.device, vulkan_swapchain, &num_swap_chain_images, swapchain_images);
 
@@ -2296,7 +2296,7 @@ static qboolean GL_CreateSwapChain (void)
 		image_view_create_info.image = swapchain_images[i];
 		err = vkCreateImageView (vulkan_globals.device, &image_view_create_info, NULL, &swapchain_images_views[i]);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateImageView failed");
+			Sys_Error ("vkCreateImageView failed with code %i", (int)err);
 
 		GL_SetObjectName ((uint64_t)swapchain_images_views[i], VK_OBJECT_TYPE_IMAGE_VIEW, "Swap Chain View");
 	}
@@ -2306,7 +2306,7 @@ static qboolean GL_CreateSwapChain (void)
 		assert (image_aquired_semaphores[i] == VK_NULL_HANDLE);
 		err = vkCreateSemaphore (vulkan_globals.device, &semaphore_create_info, NULL, &image_aquired_semaphores[i]);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateSemaphore failed");
+			Sys_Error ("vkCreateSemaphore failed with code %i", (int)err);
 	}
 
 	return true;
@@ -2343,7 +2343,7 @@ static void GL_CreateFrameBuffers (void)
 		assert (main_framebuffers[i] == VK_NULL_HANDLE);
 		err = vkCreateFramebuffer (vulkan_globals.device, &framebuffer_create_info, NULL, &main_framebuffers[i]);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateFramebuffer failed");
+			Sys_Error ("vkCreateFramebuffer failed with code %i", (int)err);
 
 		GL_SetObjectName ((uint64_t)main_framebuffers[i], VK_OBJECT_TYPE_FRAMEBUFFER, "main");
 	}
@@ -2364,7 +2364,7 @@ static void GL_CreateFrameBuffers (void)
 		assert (ui_framebuffers[i] == VK_NULL_HANDLE);
 		err = vkCreateFramebuffer (vulkan_globals.device, &framebuffer_create_info, NULL, &ui_framebuffers[i]);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateFramebuffer failed");
+			Sys_Error ("vkCreateFramebuffer failed with code %i", (int)err);
 
 		GL_SetObjectName ((uint64_t)ui_framebuffers[i], VK_OBJECT_TYPE_FRAMEBUFFER, "ui");
 	}
@@ -2495,12 +2495,12 @@ void GL_BeginRenderingTask (void *unused)
 	{
 		err = vkWaitForFences (vulkan_globals.device, 1, &command_buffer_fences[current_cb_index], VK_TRUE, UINT64_MAX);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkWaitForFences failed");
+			Sys_Error ("vkWaitForFences failed with code %i", (int)err);
 	}
 
 	err = vkResetFences (vulkan_globals.device, 1, &command_buffer_fences[current_cb_index]);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkResetFences failed");
+		Sys_Error ("vkResetFences failed with code %i", (int)err);
 
 	R_CollectDynamicBufferGarbage ();
 	R_CollectMeshBufferGarbage ();
@@ -2520,7 +2520,7 @@ void GL_BeginRenderingTask (void *unused)
 
 		err = vkBeginCommandBuffer (cbx->cb, &command_buffer_begin_info);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkBeginCommandBuffer failed");
+			Sys_Error ("vkBeginCommandBuffer failed with code %i", (int)err);
 
 		R_BeginDebugUtilsLabel (cbx, "Primary CB");
 	}
@@ -2552,7 +2552,7 @@ void GL_BeginRenderingTask (void *unused)
 
 			err = vkBeginCommandBuffer (cbx->cb, &command_buffer_begin_info);
 			if (err != VK_SUCCESS)
-				Sys_Error ("vkBeginCommandBuffer failed");
+				Sys_Error ("vkBeginCommandBuffer failed with code %i", (int)err);
 
 			R_BeginDebugUtilsLabel (cbx, va ("CBX %d", scbx_index));
 
@@ -2685,7 +2685,7 @@ qboolean GL_AcquireNextSwapChainImage (void)
 		vid.restart_next_frame = true;
 	}
 	else if (err != VK_SUCCESS)
-		Sys_Error ("Couldn't acquire next image");
+		Sys_Error ("Couldn't acquire next image with code %i", (int)err);
 
 	num_images_acquired += 1;
 	return true;
@@ -3059,7 +3059,7 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 			R_EndDebugUtilsLabel (cbx);
 			err = vkEndCommandBuffer (cbx->cb);
 			if (err != VK_SUCCESS)
-				Sys_Error ("vkEndCommandBuffer failed");
+				Sys_Error ("vkEndCommandBuffer failed with code %i", (int)err);
 		}
 	}
 
@@ -3131,7 +3131,7 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 			R_EndDebugUtilsLabel (&vulkan_globals.primary_cb_contexts[pcbx_index]);
 			err = vkEndCommandBuffer (submit_cbs[pcbx_index]);
 			if (err != VK_SUCCESS)
-				Sys_Error ("vkEndCommandBuffer failed");
+				Sys_Error ("vkEndCommandBuffer failed with code %i", (int)err);
 		}
 
 		ZEROED_STRUCT (VkSubmitInfo, submit_info);
@@ -3147,7 +3147,7 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 
 		err = vkQueueSubmit (vulkan_globals.queue, 1, &submit_info, command_buffer_fences[cb_index]);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkQueueSubmit failed");
+			Sys_Error ("vkQueueSubmit failed with code %i", (int)err);
 	}
 
 	vulkan_globals.device_idle = false;
@@ -3177,7 +3177,7 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 			vid.restart_next_frame = true;
 		}
 		else if (err != VK_SUCCESS)
-			Sys_Error ("vkQueuePresentKHR failed");
+			Sys_Error ("vkQueuePresentKHR failed with code %i", (int)err);
 
 		if (err == VK_SUCCESS || err == VK_ERROR_OUT_OF_DATE_KHR || err == VK_ERROR_SURFACE_LOST_KHR)
 			num_images_acquired -= 1;
@@ -3442,7 +3442,7 @@ static void R_CreatePaletteOctreeBuffers (uint32_t *colors, int num_colors, pale
 		buffer_view_create_info.range = VK_WHOLE_SIZE;
 		VkResult err = vkCreateBufferView (vulkan_globals.device, &buffer_view_create_info, NULL, &palette_buffer_view);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateBufferView failed");
+			Sys_Error ("vkCreateBufferView failed with code %i", (int)err);
 		GL_SetObjectName ((uint64_t)palette_buffer_view, VK_OBJECT_TYPE_BUFFER_VIEW, "Palette colors");
 	}
 

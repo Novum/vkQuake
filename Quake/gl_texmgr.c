@@ -509,7 +509,7 @@ void TexMgr_InitHeap ()
 	VkImage	 dummy_image;
 	VkResult err = vkCreateImage (vulkan_globals.device, &image_create_info, NULL, &dummy_image);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateImage failed");
+		Sys_Error ("vkCreateImage failed with code %i", (int)err);
 
 	VkMemoryRequirements memory_requirements;
 	vkGetImageMemoryRequirements (vulkan_globals.device, dummy_image, &memory_requirements);
@@ -1049,7 +1049,7 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 
 	err = vkCreateImage (vulkan_globals.device, &image_create_info, NULL, &glt->image);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateImage failed");
+		Sys_Error ("vkCreateImage failed with code %i", (int)err);
 	GL_SetObjectName ((uint64_t)glt->image, VK_OBJECT_TYPE_IMAGE, va ("%s image", glt->name));
 
 	VkMemoryRequirements memory_requirements;
@@ -1058,7 +1058,7 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 	glt->allocation = GL_HeapAllocate (texmgr_heap, memory_requirements.size, memory_requirements.alignment, &num_vulkan_tex_allocations);
 	err = vkBindImageMemory (vulkan_globals.device, glt->image, GL_HeapGetAllocationMemory (glt->allocation), GL_HeapGetAllocationOffset (glt->allocation));
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkBindImageMemory failed");
+		Sys_Error ("vkBindImageMemory failed with code %i", (int)err);
 
 	ZEROED_STRUCT (VkImageViewCreateInfo, image_view_create_info);
 	image_view_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -1077,7 +1077,7 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 
 	err = vkCreateImageView (vulkan_globals.device, &image_view_create_info, NULL, &glt->image_view);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateImageView failed");
+		Sys_Error ("vkCreateImageView failed with code %i", (int)err);
 	GL_SetObjectName ((uint64_t)glt->image_view, VK_OBJECT_TYPE_IMAGE_VIEW, va ("%s image view", glt->name));
 
 	// Allocate and update descriptor for this texture
@@ -1091,7 +1091,7 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 		image_view_create_info.subresourceRange.levelCount = 1;
 		err = vkCreateImageView (vulkan_globals.device, &image_view_create_info, NULL, &glt->target_image_view);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateImageView failed");
+			Sys_Error ("vkCreateImageView failed with code %i", (int)err);
 		GL_SetObjectName ((uint64_t)glt->target_image_view, VK_OBJECT_TYPE_IMAGE_VIEW, va ("%s target image view", glt->name));
 	}
 	else
@@ -1112,7 +1112,7 @@ static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
 		framebuffer_create_info.layers = 1;
 		err = vkCreateFramebuffer (vulkan_globals.device, &framebuffer_create_info, NULL, &glt->frame_buffer);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateFramebuffer failed");
+			Sys_Error ("vkCreateFramebuffer failed with code %i", (int)err);
 		GL_SetObjectName ((uint64_t)glt->frame_buffer, VK_OBJECT_TYPE_FRAMEBUFFER, va ("%s framebuffer", glt->name));
 	}
 

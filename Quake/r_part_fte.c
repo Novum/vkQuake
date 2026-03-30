@@ -5465,7 +5465,7 @@ static void ReallocateVertexBuffer ()
 
 	err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &vertex_buffers[current_buffer_index]);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateBuffer failed");
+		Sys_Error ("vkCreateBuffer failed with code %i", (int)err);
 	GL_SetObjectName ((uint64_t)vertex_buffers[current_buffer_index], VK_OBJECT_TYPE_BUFFER, "FTE Particle Vertex Buffer");
 
 	VkMemoryRequirements memory_requirements;
@@ -5484,11 +5484,11 @@ static void ReallocateVertexBuffer ()
 
 	err = vkBindBufferMemory (vulkan_globals.device, vertex_buffers[current_buffer_index], vertex_buffers_memory[current_buffer_index].handle, 0);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkBindBufferMemory failed");
+		Sys_Error ("vkBindBufferMemory failed with code %i", (int)err);
 
 	err = vkMapMemory (vulkan_globals.device, vertex_buffers_memory[current_buffer_index].handle, 0, new_size, 0, (void **)&cl_curstrisvert);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkMapMemory failed");
+		Sys_Error ("vkMapMemory failed with code %i", (int)err);
 	cl_strisvert[current_buffer_index] = cl_curstrisvert;
 
 	if (old_memory.handle != VK_NULL_HANDLE)
@@ -5523,7 +5523,7 @@ static void ReallocateIndexBuffer ()
 
 	err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &index_buffers[current_buffer_index]);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateBuffer failed");
+		Sys_Error ("vkCreateBuffer failed with code %i", (int)err);
 	GL_SetObjectName ((uint64_t)index_buffers[current_buffer_index], VK_OBJECT_TYPE_BUFFER, "FTE Particle Index Buffer");
 
 	VkMemoryRequirements memory_requirements;
@@ -5542,11 +5542,11 @@ static void ReallocateIndexBuffer ()
 
 	err = vkBindBufferMemory (vulkan_globals.device, index_buffers[current_buffer_index], index_buffers_memory[current_buffer_index].handle, 0);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkBindBufferMemory failed");
+		Sys_Error ("vkBindBufferMemory failed with code %i", (int)err);
 
 	err = vkMapMemory (vulkan_globals.device, index_buffers_memory[current_buffer_index].handle, 0, new_size, 0, (void **)&cl_curstrisidx);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkMapMemory failed");
+		Sys_Error ("vkMapMemory failed with code %i", (int)err);
 	cl_strisidx[current_buffer_index] = cl_curstrisidx;
 
 	if (old_memory.handle != VK_NULL_HANDLE)

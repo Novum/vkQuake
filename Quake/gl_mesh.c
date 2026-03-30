@@ -126,7 +126,7 @@ void R_InitMeshHeap (void)
 	VkBuffer dummy_buffer;
 	VkResult err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &dummy_buffer);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateBuffer failed");
+		Sys_Error ("vkCreateBuffer failed with code %i", (int)err);
 
 	VkMemoryRequirements memory_requirements;
 	vkGetBufferMemoryRequirements (vulkan_globals.device, dummy_buffer, &memory_requirements);
@@ -397,7 +397,7 @@ void GLMesh_UploadBuffers (qmodel_t *mod, aliashdr_t *hdr, unsigned short *index
 			buffer_create_info.usage |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
 		err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &hdr->index_buffer);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateBuffer failed");
+			Sys_Error ("vkCreateBuffer failed with code %i", (int)err);
 
 		GL_SetObjectName ((uint64_t)hdr->index_buffer, VK_OBJECT_TYPE_BUFFER, mod->name);
 
@@ -408,7 +408,7 @@ void GLMesh_UploadBuffers (qmodel_t *mod, aliashdr_t *hdr, unsigned short *index
 		err = vkBindBufferMemory (
 			vulkan_globals.device, hdr->index_buffer, GL_HeapGetAllocationMemory (hdr->index_allocation), GL_HeapGetAllocationOffset (hdr->index_allocation));
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkBindBufferMemory failed");
+			Sys_Error ("vkBindBufferMemory failed with code %i", (int)err);
 
 		R_StagingUploadBuffer (hdr->index_buffer, totalindexsize, (byte *)indexes);
 
@@ -528,7 +528,7 @@ void GLMesh_UploadBuffers (qmodel_t *mod, aliashdr_t *hdr, unsigned short *index
 			buffer_create_info.usage |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
 		err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &hdr->vertex_buffer);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateBuffer failed");
+			Sys_Error ("vkCreateBuffer failed with code %i", (int)err);
 
 		GL_SetObjectName ((uint64_t)hdr->vertex_buffer, VK_OBJECT_TYPE_BUFFER, mod->name);
 
@@ -540,7 +540,7 @@ void GLMesh_UploadBuffers (qmodel_t *mod, aliashdr_t *hdr, unsigned short *index
 			vulkan_globals.device, hdr->vertex_buffer, GL_HeapGetAllocationMemory (hdr->vertex_allocation),
 			GL_HeapGetAllocationOffset (hdr->vertex_allocation));
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkBindBufferMemory failed");
+			Sys_Error ("vkBindBufferMemory failed with code %i", (int)err);
 
 		R_StagingUploadBuffer (hdr->vertex_buffer, totalvbosize, vbodata);
 
@@ -565,7 +565,7 @@ void GLMesh_UploadBuffers (qmodel_t *mod, aliashdr_t *hdr, unsigned short *index
 			buffer_create_info.usage |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
 		err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &hdr->joints_buffer);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateBuffer failed");
+			Sys_Error ("vkCreateBuffer failed with code %i", (int)err);
 
 		GL_SetObjectName ((uint64_t)hdr->joints_buffer, VK_OBJECT_TYPE_BUFFER, mod->name);
 
@@ -577,7 +577,7 @@ void GLMesh_UploadBuffers (qmodel_t *mod, aliashdr_t *hdr, unsigned short *index
 			vulkan_globals.device, hdr->joints_buffer, GL_HeapGetAllocationMemory (hdr->joints_allocation),
 			GL_HeapGetAllocationOffset (hdr->joints_allocation));
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkBindBufferMemory failed");
+			Sys_Error ("vkBindBufferMemory failed with code %i", (int)err);
 
 		R_StagingUploadBuffer (hdr->joints_buffer, totaljointssize, (byte *)joints);
 
@@ -708,7 +708,7 @@ void R_AllocateEntityBLAS (entity_t *e)
 
 	VkResult err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &e->blas_data->buffer);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateBuffer failed for entity BLAS");
+		Sys_Error ("vkCreateBuffer failed for entity BLAS with code %i", (int)err);
 
 	// Allocate from mesh heap
 	VkMemoryRequirements memory_requirements;
@@ -719,7 +719,7 @@ void R_AllocateEntityBLAS (entity_t *e)
 		vulkan_globals.device, e->blas_data->buffer, GL_HeapGetAllocationMemory (e->blas_data->allocation),
 		GL_HeapGetAllocationOffset (e->blas_data->allocation));
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkBindBufferMemory failed for entity BLAS");
+		Sys_Error ("vkBindBufferMemory failed for entity BLAS with code %i", (int)err);
 
 	// Create acceleration structure
 	ZEROED_STRUCT (VkAccelerationStructureCreateInfoKHR, acceleration_structure_create_info);
@@ -730,7 +730,7 @@ void R_AllocateEntityBLAS (entity_t *e)
 
 	err = vulkan_globals.vk_create_acceleration_structure (vulkan_globals.device, &acceleration_structure_create_info, NULL, &e->blas_data->blas);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateAccelerationStructure failed for entity BLAS");
+		Sys_Error ("vkCreateAccelerationStructure failed for entity BLAS with code %i", (int)err);
 
 	// Get device address
 	ZEROED_STRUCT (VkAccelerationStructureDeviceAddressInfoKHR, address_info);

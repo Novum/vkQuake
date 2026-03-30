@@ -145,7 +145,7 @@ void R_EnsureASScratchBufferSize (uint32_t required_size)
 
 	err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &as_scratch_buffer.buffer);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateBuffer failed");
+		Sys_Error ("vkCreateBuffer failed with code %i", (int)err);
 	GL_SetObjectName ((uint64_t)as_scratch_buffer.buffer, VK_OBJECT_TYPE_BUFFER, "AS scratch buffer");
 
 	VkMemoryRequirements memory_requirements;
@@ -166,7 +166,7 @@ void R_EnsureASScratchBufferSize (uint32_t required_size)
 
 	err = vkBindBufferMemory (vulkan_globals.device, as_scratch_buffer.buffer, as_scratch_memory.handle, 0);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkBindBufferMemory failed");
+		Sys_Error ("vkBindBufferMemory failed with code %i", (int)err);
 
 	ZEROED_STRUCT (VkBufferDeviceAddressInfoKHR, buffer_device_address_info);
 	buffer_device_address_info.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO_KHR;
@@ -222,7 +222,7 @@ static void R_AllocateTLAS (void)
 
 	err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &bmodel_tlas_buffer);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateBuffer failed");
+		Sys_Error ("vkCreateBuffer failed with code %i", (int)err);
 	GL_SetObjectName ((uint64_t)bmodel_tlas_buffer, VK_OBJECT_TYPE_BUFFER, "BModel TLAS");
 
 	VkMemoryRequirements memory_requirements;
@@ -243,7 +243,7 @@ static void R_AllocateTLAS (void)
 
 	err = vkBindBufferMemory (vulkan_globals.device, bmodel_tlas_buffer, bmodel_tlas_device_memory.handle, 0);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkBindBufferMemory failed");
+		Sys_Error ("vkBindBufferMemory failed with code %i", (int)err);
 
 	ZEROED_STRUCT (VkAccelerationStructureCreateInfoKHR, acceleration_structure_create_info);
 	acceleration_structure_create_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR;
@@ -252,7 +252,7 @@ static void R_AllocateTLAS (void)
 	acceleration_structure_create_info.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
 	err = vulkan_globals.vk_create_acceleration_structure (vulkan_globals.device, &acceleration_structure_create_info, NULL, &bmodel_tlas);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateAccelerationStructure failed");
+		Sys_Error ("vkCreateAccelerationStructure failed with code %i", (int)err);
 
 	ZEROED_STRUCT (VkAccelerationStructureDeviceAddressInfoKHR, tlas_address_info);
 	tlas_address_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
@@ -1508,7 +1508,7 @@ static void GL_AllocateWorkgroupBoundsBuffers ()
 
 		err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &lightmaps[i].workgroup_bounds_buffer);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateBuffer failed");
+			Sys_Error ("vkCreateBuffer failed with code %i", (int)err);
 		GL_SetObjectName ((uint64_t)lightmaps[i].workgroup_bounds_buffer, VK_OBJECT_TYPE_BUFFER, "Workgroup bounds buffer");
 	}
 
@@ -1533,7 +1533,7 @@ static void GL_AllocateWorkgroupBoundsBuffers ()
 	{
 		err = vkBindBufferMemory (vulkan_globals.device, lightmaps[i].workgroup_bounds_buffer, workgroup_bounds_buffer_memory.handle, aligned_size * i);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkBindBufferMemory failed");
+			Sys_Error ("vkBindBufferMemory failed with code %i", (int)err);
 	}
 }
 
@@ -1571,7 +1571,7 @@ static void R_InitVisibilityBuffers (uint32_t size)
 	void	*data;
 	VkResult err = vkMapMemory (vulkan_globals.device, dyn_visibility_buffer_memory.handle, 0, size, 0, &data);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkMapMemory failed");
+		Sys_Error ("vkMapMemory failed with code %i", (int)err);
 
 	dyn_visibility_view = (unsigned char *)data;
 	dyn_visibility_offset = size / 2;
@@ -2437,7 +2437,7 @@ void GL_BuildBModelAccelerationStructures (void)
 		acceleration_structure_create_info.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
 		err = vulkan_globals.vk_create_acceleration_structure (vulkan_globals.device, &acceleration_structure_create_info, NULL, &blas_models[i]->blas);
 		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateAccelerationStructure failed");
+			Sys_Error ("vkCreateAccelerationStructure failed with code %i", (int)err);
 
 		ZEROED_STRUCT (VkAccelerationStructureBuildRangeInfoKHR, build_range_info);
 		build_range_info.primitiveCount = blas_num_tris[i];

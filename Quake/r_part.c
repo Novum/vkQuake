@@ -169,7 +169,7 @@ void R_InitParticleIndexBuffer (void)
 
 	err = vkCreateBuffer (vulkan_globals.device, &buffer_create_info, NULL, &particle_index_buffer);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkCreateBuffer failed");
+		Sys_Error ("vkCreateBuffer failed with code %i", (int)err);
 
 	GL_SetObjectName ((uint64_t)particle_index_buffer, VK_OBJECT_TYPE_BUFFER, "Particle index buffer");
 
@@ -188,13 +188,13 @@ void R_InitParticleIndexBuffer (void)
 	Atomic_AddUInt64 (&total_device_vulkan_allocation_size, memory_requirements.size);
 	err = vkAllocateMemory (vulkan_globals.device, &memory_allocate_info, NULL, &particle_index_buffer_memory);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkAllocateMemory failed");
+		Sys_Error ("vkAllocateMemory failed with code %i", (int)err);
 
 	GL_SetObjectName ((uint64_t)particle_index_buffer_memory, VK_OBJECT_TYPE_DEVICE_MEMORY, "Particle index buffer");
 
 	err = vkBindBufferMemory (vulkan_globals.device, particle_index_buffer, particle_index_buffer_memory, 0);
 	if (err != VK_SUCCESS)
-		Sys_Error ("vkBindBufferMemory failed");
+		Sys_Error ("vkBindBufferMemory failed with code %i", (int)err);
 
 	VkBuffer		staging_buffer;
 	VkCommandBuffer cb_context;
