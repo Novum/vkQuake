@@ -29,7 +29,7 @@ or `QUAKE ERROR` dialogs.
 
 ### Linux, MacOS, or Windows MSYS2 (x64 or ARM64)
 
-`Host_Error` and `QUAKE_ERROR` dialogs only report raw stack traces with minimal context,
+`Host_Error` and `Quake Error` dialogs only report raw stack traces with minimal context,
 often limited to function names in the best of cases. 
 In order to get file+line information Users will need to run some external tools.  
 

@@ -192,8 +192,8 @@ meson build -Ddebug=true -Dstrip=false && ninja -C build
 
 ## Error reporting
 
-`vkQuake` is not garanteed to be free of runtime errors. In those rare cases, the game is either quit brutally with a `QUAKE ERROR` dialog, 
-or by `Host_Eror` console message that only terminates the currently played level. 
+`vkQuake` is not garanteed to be free of runtime errors. In those rare cases, the game is either quit brutally with a `Quake Error` dialog, 
+or by an `Host_Eror` console message that only terminates the currently played level. 
 
 In both cases some error context is provided that can be useful for developers. See [Error reporting](error_reporting_howto.md) for details.      
 
