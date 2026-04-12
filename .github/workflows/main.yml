@@ -1,0 +1,167 @@
+name: Build and Check CI
+
+on: [push, pull_request]
+
+jobs:
+
+  formatting-check:
+    name: Formatting Check
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        path:
+          - check: 'Quake'
+          - check: 'Shaders'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: DoozyX/clang-format-lint-action@v0.18
+        with:
+          source: ${{ matrix.path['check'] }}
+          extensions: 'h,c,cpp'
+          clangFormatVersion: 18
+
+  build-linux:
+    name: Build Linux
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v6
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+      - name: Build Docker image
+        uses: docker/build-push-action@v7
+        with:
+          context: Packaging/AppImage/docker
+          platforms: linux/amd64
+          tags: build-vkquake
+          load: true
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha
+      - name: Build vkQuake
+        run: docker run --rm --privileged -e VERSION=${GITHUB_SHA::8} -v "$PWD:/usr/src/vkQuake" build-vkquake /usr/src/vkQuake/Packaging/AppImage/run-in-docker.sh
+      - name: Upload vkQuake
+        uses: actions/upload-artifact@v7
+        with:
+          name: vkQuake archive
+          path: Packaging/AppImage/*.tar.gz
+
+  build-macos:
+    name: Build macOS
+    runs-on: macos-14
+    strategy:
+      fail-fast: false
+      matrix:
+        configuration: [release, debug]
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Dependencies
+        run: brew install molten-vk vulkan-headers glslang spirv-tools sdl2 libvorbis flac opus opusfile flac mpg123 meson
+      - name: Build vkQuake
+        run: meson build --buildtype=${{ matrix.configuration }} -Ddebug=true -Dstrip=false && ninja -C build
+      - name: Extract debug info and bundle it to .dSYM
+        run: |
+          dsymutil build/vkquake -o build/vkquake.dSYM
+          du -sh build/vkquake build/vkquake.dSYM
+          dwarfdump --uuid build/vkquake build/vkquake.dSYM
+      - name: Upload vkQuake
+        uses: actions/upload-artifact@v7
+        with:
+          name: vkQuake archive (macOS-${{ matrix.configuration }})
+          path: |
+            build/vkquake
+            build/vkquake.dSYM
+
+  build-mingw:
+    name: ${{ matrix.platform.name }}
+    runs-on: ${{ matrix.platform.os }}
+    defaults:
+      run:
+        shell: ${{ matrix.platform.shell }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - name: Windows (mingw64)
+            os: windows-latest
+            shell: 'msys2 {0}'
+            msystem: mingw64
+            msys-env: mingw-w64-x86_64
+            makefile: Makefile.w64
+            install_extra: ""
+
+          - name: Windows (clangarm64)
+            os: windows-11-arm
+            shell: 'msys2 {0}'
+            msystem: clangarm64
+            msys-env: mingw-w64-clang-aarch64
+            makefile: Makefile.w64a
+            install_extra: >-
+              mingw-w64-clang-aarch64-vulkan-headers
+              mingw-w64-clang-aarch64-opus
+              mingw-w64-clang-aarch64-opusfile
+              mingw-w64-clang-aarch64-mpg123
+              mingw-w64-clang-aarch64-SDL2
+              mingw-w64-clang-aarch64-flac
+              mingw-w64-clang-aarch64-libmad
+              mingw-w64-clang-aarch64-libogg
+              mingw-w64-clang-aarch64-libvorbis
+              mingw-w64-clang-aarch64-libxmp
+    steps:
+      - name: Setup MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: ${{ matrix.platform.msystem }}
+          install: >-
+            base-devel
+            ${{ matrix.platform.msys-env }}-gcc
+            ${{ matrix.platform.msys-env }}-glslang
+            ${{ matrix.platform.install_extra }}
+      - uses: actions/checkout@v6
+      - name: Build MinGW
+        run: |
+          set -eu
+          parallel="$(getconf _NPROCESSORS_ONLN)"
+          make -j"${parallel}" -C Quake -f ${{ matrix.platform.makefile }} all
+      - name: Upload vkQuake
+        uses: actions/upload-artifact@v7
+        with:
+          name: vkQuake archive (${{ matrix.platform.msystem }})
+          path: |
+            Quake/*.exe
+            Quake/*.dll
+
+  build-windows-msvc:
+    name: Build Windows (MSVC)
+    runs-on: windows-2022
+    strategy:
+      fail-fast: false
+      matrix:
+        configuration: [Release, Debug]
+        platform: [x64]
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Vulkan SDK
+        uses: humbletim/install-vulkan-sdk@v1.2
+        with:
+          version: 1.4.321.1
+          cache: true
+      - name: Build vkQuake
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $msbuild = & "$vswhere" -latest -requires Microsoft.Component.MSBuild -find MSBuild\**\Bin\MSBuild.exe | select-object -first 1
+          $options = @( `
+            '-property:Configuration=${{ matrix.configuration }}', `
+            '-property:Platform=${{ matrix.platform }}', `
+            '-maxcpucount', `
+            '-verbosity:minimal' `
+          )
+          & $msbuild Windows\VisualStudio\vkquake.sln $options
+          if (-not $?) { throw "Build failed" }
+      - name: Upload vkQuake
+        uses: actions/upload-artifact@v7
+        with:
+          name: vkQuake archive (MSVC-${{ matrix.configuration }}-${{ matrix.platform }})
+          path: |
+            Windows\VisualStudio\Build-vkQuake\**\*.exe
+            Windows\VisualStudio\Build-vkQuake\**\*.dll
+            Windows\VisualStudio\Build-vkQuake\**\vkQuake.pdb
