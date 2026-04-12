@@ -1,0 +1,91 @@
+name: Bug report
+description: Create a report to help us improve
+title: " "
+labels: ["bug"]
+assignees: ["vsonnier"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **LOW EFFORT BUG REPORTS WILL BE CLOSED**
+        Please provide as much detail as possible to help us reproduce the issue.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the bug
+      description: A clear and concise description of what the bug is.
+      placeholder: I encountered a crash when...
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: To Reproduce
+      description: Steps to reproduce the behavior.
+      placeholder: |
+        1. Start the game with...
+        2. Load map...
+        3. Press key...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected behavior
+      description: A clear and concise description of what you expected to happen.
+    validations:
+      required: true
+
+  - type: input
+    id: mod-info
+    attributes:
+      label: Mod
+      description: Describe what mod you are using, what version, and what map causes the issue.
+    validations:
+      required: false
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating System
+      options:
+        - Windows
+        - Linux
+        - macOS
+    validations:
+      required: true
+
+  - type: input
+    id: gpu
+    attributes:
+      label: GPU Vendor and Model
+      placeholder: e.g., NVIDIA RTX 3080
+    validations:
+      required: true
+
+  - type: input
+    id: driver-version
+    attributes:
+      label: Driver Version
+    validations:
+      required: false
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Add any other context or screenshots about the problem here.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Code of Conduct
+      description: By submitting this issue, you agree to follow our project's guidelines.
+      options:
+        - label: I have checked that this is not a duplicate issue.
+          required: true
