@@ -898,7 +898,7 @@ Host_Frame
 Runs all active servers
 ==================
 */
-void _Host_Frame (double time)
+static void _Host_Frame (double time)
 {
 	static double accumtime = 0;
 	static double time1 = 0;

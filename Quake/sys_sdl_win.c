@@ -497,7 +497,7 @@ const char *Sys_StackTrace (void)
 		else if (pdb_file_and_line_available)
 		{
 			// we only want the short file name, not the full path:
-			const char *last_sep = strrchr (line.FileName, '\\');
+			const char *last_sep = FIND_LAST_DIRSEP (line.FileName);
 
 			output_buffer = q_strcatf (
 				output_buffer, "%-2i: 0x%" PRIxPTR " - %s:%i\n", frame_index, (uintptr_t)stack[frame_index],
