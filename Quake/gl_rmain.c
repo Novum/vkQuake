@@ -63,6 +63,7 @@ cvar_t r_pos = {"r_pos", "0", CVAR_NONE};
 cvar_t r_fullbright = {"r_fullbright", "0", CVAR_NONE};
 cvar_t r_lightmap = {"r_lightmap", "0", CVAR_NONE};
 cvar_t r_wateralpha = {"r_wateralpha", "1", CVAR_ARCHIVE};
+cvar_t r_oit = {"r_oit", "1", CVAR_ARCHIVE};
 cvar_t r_dynamic = {"r_dynamic", "1", CVAR_ARCHIVE};
 cvar_t r_novis = {"r_novis", "0", CVAR_ARCHIVE};
 #if defined(USE_SIMD)
@@ -513,7 +514,7 @@ void R_DrawEntitiesOnList (cb_context_t *cbx, int alphapass, int chain, qboolean
 			break;
 		case mod_brush:
 			R_DrawBrushModel (
-				cbx, currententity, chain, &brushpolys, alphapass && r_alphasort.value, !alphapass && opaque_with_transparent_water,
+				cbx, currententity, chain, &brushpolys, alphapass && R_UseAlphaSort (), !alphapass && opaque_with_transparent_water,
 				alphapass && opaque_with_transparent_water);
 			++brushpasses;
 			break;
@@ -680,7 +681,7 @@ static void R_ShowBoundingBoxes (cb_context_t *cbx)
 
 	R_BeginDebugUtilsLabel (cbx, "show bboxes");
 	if (vulkan_globals.non_solid_fill)
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showbboxes_pipeline);
+		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showbboxes_pipeline[R_MainPassPipelineVariant (cbx->render_pass_index)]);
 
 	VkBuffer	 box_index_buffer;
 	VkDeviceSize box_index_buffer_offset;
@@ -868,10 +869,11 @@ static void R_SortAlphaEntitiesTask (void *unused)
 		int		 visedict;
 		unsigned sortkey;
 	} transp_sort;
+	const qboolean sort_alpha = R_UseAlphaSort ();
 	cl_numvisedicts_alpha_overwater = cl_numvisedicts_alpha_underwater = 0;
-	TEMP_ALLOC_COND (transp_sort, edicts, cl_numvisedicts * 2, r_alphasort.value);
+	TEMP_ALLOC_COND (transp_sort, edicts, cl_numvisedicts * 2, sort_alpha);
 	int sort_bins[3][128];
-	if (r_alphasort.value)
+	if (sort_alpha)
 		memset (sort_bins, 0, sizeof (sort_bins));
 	for (int i = 0; i < cl_numvisedicts; ++i)
 	{
@@ -886,7 +888,7 @@ static void R_SortAlphaEntitiesTask (void *unused)
 			continue;
 		// box culling here is not safe (R_DrawAliasModel updates lerp information)
 
-		if (!r_alphasort.value)
+		if (!sort_alpha)
 		{
 			cl_visedicts_alpha[cl_numvisedicts_alpha_overwater++] = cl_visedicts[i];
 			continue;
@@ -928,7 +930,7 @@ static void R_SortAlphaEntitiesTask (void *unused)
 			++cl_numvisedicts_alpha_overwater;
 	}
 
-	if (!r_alphasort.value)
+	if (!sort_alpha)
 		return;
 
 	const int highest = cl_numvisedicts_alpha_underwater + cl_numvisedicts_alpha_overwater - 1;
@@ -973,7 +975,7 @@ R_DrawAlphaEntitiesTask
 static void R_DrawAlphaEntitiesTask (int index, void *use_tasks)
 {
 	const int	   contents = r_viewleaf->contents;
-	const qboolean underwater = r_alphasort.value && (contents == CONTENTS_WATER || contents == CONTENTS_SLIME || contents == CONTENTS_LAVA);
+	const qboolean underwater = R_UseAlphaSort () && (contents == CONTENTS_WATER || contents == CONTENTS_SLIME || contents == CONTENTS_LAVA);
 	for (int i = use_tasks ? index : 0; i <= (use_tasks ? index : 1); ++i)
 	{
 		cb_context_t *cbx = vulkan_globals.secondary_cb_contexts[i ? SCBX_ALPHA_ENTITIES : SCBX_ALPHA_ENTITIES_ACROSS_WATER];
@@ -995,7 +997,14 @@ static void R_DrawParticlesTask (void *unused)
 	Fog_EnableGFog (cbx); // johnfitz
 	R_DrawParticles (cbx);
 #ifdef PSET_SCRIPT
-	PScript_DrawParticles (cbx);
+	cb_context_t *fte_blend_cbx = NULL;
+	if (oit_active)
+	{
+		fte_blend_cbx = vulkan_globals.secondary_cb_contexts[SCBX_FTE_PARTICLES_BLEND];
+		R_SetupContext (fte_blend_cbx);
+		Fog_EnableGFog (fte_blend_cbx);
+	}
+	PScript_DrawParticles (oit_active ? fte_blend_cbx : cbx, oit_active ? cbx : NULL);
 #endif
 }
 

@@ -1047,7 +1047,10 @@ static void R_FlushBatch (
 	{
 		int pipeline_index =
 			(fullbright_enabled ? 1 : 0) + (alpha_test ? 2 : 0) + (alpha_blend ? 4 : 0) + (vid_filter.value != 0 && vid_palettize.value != 0 ? 8 : 0);
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipelines[pipeline_index]);
+		vulkan_pipeline_t pipeline = cbx->render_pass_index == RENDER_PASS_INDEX_WBOIT
+										 ? vulkan_globals.world_wboit_pipelines[pipeline_index]
+										 : vulkan_globals.world_pipelines[R_MainPassPipelineVariant (cbx->render_pass_index)][pipeline_index];
+		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 
 		float constant_factor = 0.0f, slope_factor = 0.0f;
 		if (use_zbias)
@@ -1186,7 +1189,9 @@ void R_DrawTextureChains_Water (cb_context_t *cbx, qmodel_t *model, entity_t *en
 		const float	   alpha = GL_WaterAlphaForEntitySurface (ent, t->texturechains[chain]);
 		const qboolean alpha_blend = alpha < 1.0f;
 
-		if (((opaque_only && alpha_blend) || (transparent_only && !alpha_blend)) && (!r_lightmap_cheatsafe || !indirect))
+		if (opaque_only && alpha_blend)
+			continue;
+		if (transparent_only && !alpha_blend)
 			continue;
 
 		gltexture_t *gl_texture = t->warpimage;
@@ -1346,13 +1351,13 @@ void R_DrawWorld_Water (cb_context_t *cbx, qboolean transparent)
 	R_BeginDebugUtilsLabel (cbx, transparent ? "Transparent World Water" : "Opaque World Water");
 	if (indirect)
 	{
-		if (WATER_FIXED_ORDER && transparent)
+		if (!transparent || R_UseIndirectTransparentWater ())
+			R_DrawIndirectBrushes (cbx, true, transparent, false, -1);
+		else
 		{
 			R_ChainVisSurfaces_TransparentWater ();
 			R_DrawTextureChains_Water (cbx, cl.worldmodel, NULL, chain_world, false, true);
 		}
-		else
-			R_DrawIndirectBrushes (cbx, true, transparent, false, -1);
 	}
 	else
 		R_DrawTextureChains_Water (cbx, cl.worldmodel, NULL, chain_world, !transparent, transparent);
@@ -1367,9 +1372,13 @@ R_DrawWorld_ShowTris -- ericw -- moved from R_DrawTextureChains_ShowTris, which 
 void R_DrawWorld_ShowTris (cb_context_t *cbx)
 {
 	if (r_showtris.value == 1)
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_pipeline);
+		R_BindPipeline (
+			cbx, VK_PIPELINE_BIND_POINT_GRAPHICS,
+			vulkan_globals.showtris_pipeline[R_MainPassPipelineVariant (cbx->render_pass_index)]);
 	else
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_depth_test_pipeline);
+		R_BindPipeline (
+			cbx, VK_PIPELINE_BIND_POINT_GRAPHICS,
+			vulkan_globals.showtris_depth_test_pipeline[R_MainPassPipelineVariant (cbx->render_pass_index)]);
 
 	vkCmdBindIndexBuffer (cbx->cb, vulkan_globals.fan_index_buffer, 0, VK_INDEX_TYPE_UINT16);
 

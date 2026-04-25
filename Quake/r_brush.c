@@ -577,9 +577,10 @@ R_IndirectBrush
 qboolean R_IndirectBrush (entity_t *e)
 {
 	assert (e->model->type == mod_brush);
-	return indirect && !(e->origin[0] || e->origin[1] || e->origin[2] || e->angles[0] || e->angles[1] || e->angles[2] ||
-						 ENTSCALE_DECODE (e->netstate.scale) != 1.0f || ENTALPHA_DECODE (e->alpha) != 1.0f || e->frame != 0 || e->model->name[0] != '*' ||
-						 (WATER_FIXED_ORDER && brush_deps_data[e->model->combined_deps].water_count != 0));
+	const qboolean transparent_entity = ENTALPHA_DECODE (e->alpha) != 1.0f;
+	const qboolean alpha_sorted = !oit_active && (transparent_entity || (WATER_FIXED_ORDER && brush_deps_data[e->model->combined_deps].water_count != 0));
+	return indirect && !(transparent_entity || alpha_sorted || e->origin[0] || e->origin[1] || e->origin[2] || e->angles[0] || e->angles[1] || e->angles[2] ||
+						 ENTSCALE_DECODE (e->netstate.scale) != 1.0f || e->frame != 0 || e->model->name[0] != '*');
 }
 
 /*
@@ -601,7 +602,7 @@ void R_DrawBrushModel (cb_context_t *cbx, entity_t *e, int chain, int *brushpoly
 
 	clmodel = e->model;
 
-	if (R_IndirectBrush (e))
+	if (!water_opaque_only && !water_transparent_only && R_IndirectBrush (e))
 	{
 		// indirect mark
 		int				 start = clmodel->firstmodelsurface;
@@ -697,7 +698,8 @@ void R_DrawBrushModel (cb_context_t *cbx, entity_t *e, int chain, int *brushpoly
 			}
 		}
 
-	R_DrawTextureChains (cbx, clmodel, e, chain);
+	if (!water_transparent_only)
+		R_DrawTextureChains (cbx, clmodel, e, chain);
 	if (clmodel->used_specials & SURF_DRAWTURB)
 		R_DrawTextureChains_Water (cbx, clmodel, e, chain, water_opaque_only, water_transparent_only);
 	R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 16 * sizeof (float), vulkan_globals.view_projection_matrix);
@@ -750,9 +752,13 @@ void R_DrawBrushModel_ShowTris (cb_context_t *cbx, entity_t *e)
 	MatrixMultiply (mvp, model_matrix);
 
 	if (r_showtris.value == 1)
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_pipeline);
+		R_BindPipeline (
+			cbx, VK_PIPELINE_BIND_POINT_GRAPHICS,
+			vulkan_globals.showtris_pipeline[R_MainPassPipelineVariant (cbx->render_pass_index)]);
 	else
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_depth_test_pipeline);
+		R_BindPipeline (
+			cbx, VK_PIPELINE_BIND_POINT_GRAPHICS,
+			vulkan_globals.showtris_depth_test_pipeline[R_MainPassPipelineVariant (cbx->render_pass_index)]);
 	R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 16 * sizeof (float), mvp);
 
 	//
@@ -875,7 +881,10 @@ void R_DrawIndirectBrushes (cb_context_t *cbx, qboolean draw_water, qboolean tra
 			const qboolean alpha_blend = alpha < 1.0f;
 			int			   pipeline_index =
 				(fullbright_enabled ? 1 : 0) + (alpha_test ? 2 : 0) + (alpha_blend ? 4 : 0) + (vid_filter.value != 0 && vid_palettize.value != 0 ? 8 : 0);
-			R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipelines[pipeline_index]);
+			vulkan_pipeline_t pipeline = cbx->render_pass_index == RENDER_PASS_INDEX_WBOIT
+											 ? vulkan_globals.world_wboit_pipelines[pipeline_index]
+											 : vulkan_globals.world_pipelines[R_MainPassPipelineVariant (cbx->render_pass_index)][pipeline_index];
+			R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 
 			qboolean use_zbias = INDIRECT_ZBIAS && gl_zfix.value && indirect_draws[i].is_bmodel;
 			float	 constant_factor = 0.0f, slope_factor = 0.0f;
@@ -923,7 +932,8 @@ void R_DrawIndirectBrushes_ShowTris (cb_context_t *cbx)
 {
 	R_BindPipeline (
 		cbx, VK_PIPELINE_BIND_POINT_GRAPHICS,
-		r_showtris.value == 1 ? vulkan_globals.showtris_indirect_pipeline : vulkan_globals.showtris_indirect_depth_test_pipeline);
+		r_showtris.value == 1 ? vulkan_globals.showtris_indirect_pipeline[R_MainPassPipelineVariant (cbx->render_pass_index)]
+							  : vulkan_globals.showtris_indirect_depth_test_pipeline[R_MainPassPipelineVariant (cbx->render_pass_index)]);
 
 	VkDeviceSize offset = 0;
 	vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 1, &bmodel_vertex_buffer, &offset);

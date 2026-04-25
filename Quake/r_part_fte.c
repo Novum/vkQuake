@@ -509,7 +509,15 @@ typedef struct
 	gltexture_t *texture;
 	blendmode_t	 blendmode;
 	int			 beflags;
+	qboolean	 use_oit;
 } scenetris_t;
+
+static qboolean PScript_LooksUseWBOIT (const plooks_t *looks)
+{
+	// Ironwail's OIT path is alpha transparency only. FTE additive, inverse-modulate,
+	// subtractive, and color-modulate modes need their original blend equations.
+	return looks->blendmode == BM_BLEND || (looks->blendmode == BM_PREMUL && looks->premul != 2);
+}
 
 #define MAX_INDICES			 0xffff
 #define INITIAL_NUM_VERTICES 100000
@@ -6051,7 +6059,52 @@ static void R_AddTexturedParticle (scenetris_t *t, particle_t *p, plooks_t *type
 	t->numidx += 6;
 }
 
-static void PScript_DrawParticleTypes (cb_context_t *cbx, float pframetime)
+static void PScript_DrawParticleBatches (cb_context_t *cbx, qboolean draw_oit_batches, qboolean split_batches)
+{
+	unsigned int i, o;
+
+	if (!cbx || !cl_numstris)
+		return;
+
+	R_BeginDebugUtilsLabel (cbx, draw_oit_batches ? "FTE Particles OIT" : "FTE Particles");
+	Fog_DisableGFog (cbx);
+
+	for (o = 0; o < 3; o++)
+	{
+		static int blend_modes_order[] = {1, 1, 2, 2, 0, 0, 0, 2};
+		for (i = 0; i < cl_numstris; i++)
+		{
+			scenetris_t *tris = &cl_stris[i];
+			const int	 blend_mode = tris->blendmode;
+			if (split_batches && tris->use_oit != draw_oit_batches)
+				continue;
+			if (blend_modes_order[blend_mode] != o)
+				continue;
+			const qboolean draw_lines = ((tris->beflags & BEF_LINES) != 0);
+			if (!vulkan_globals.non_solid_fill && draw_lines)
+				continue; // Can't draw lines
+			if (tris->numidx == 0)
+				continue;
+
+			const int				pipeline_index = blend_mode + (draw_lines ? 8 : 0);
+			const vulkan_pipeline_t pipeline = draw_oit_batches
+												   ? vulkan_globals.fte_particle_wboit_pipelines[pipeline_index]
+												   : vulkan_globals.fte_particle_pipelines[R_MainPassPipelineVariant (cbx->render_pass_index)][pipeline_index];
+			R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+			gltexture_t *tex = (tris->beflags & BEF_LINES) ? whitetexture : tris->texture;
+
+			const int		   num_indices = tris->numidx;
+			const VkDeviceSize vertex_buffer_offset = 0;
+			vulkan_globals.vk_cmd_bind_index_buffer (cbx->cb, index_buffers[current_buffer_index], 0, VK_INDEX_TYPE_UINT16);
+			vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 1, &vertex_buffers[current_buffer_index], &vertex_buffer_offset);
+			vulkan_globals.vk_cmd_bind_descriptor_sets (cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.layout.handle, 0, 1, &tex->descriptor_set, 0, NULL);
+			vulkan_globals.vk_cmd_draw_indexed (cbx->cb, num_indices, 1, tris->firstidx, tris->firstvert, 0);
+		}
+	}
+	R_EndDebugUtilsLabel (cbx);
+}
+
+static void PScript_UpdateParticleTypes (float pframetime)
 {
 	void (*bdraw) (scenetris_t *t, beamseg_t *p, plooks_t *type);
 	void (*tdraw) (scenetris_t *t, particle_t *p, plooks_t *type);
@@ -6076,7 +6129,7 @@ static void PScript_DrawParticleTypes (cb_context_t *cbx, float pframetime)
 	static float flurrytime;
 	qboolean	 doflurry;
 	int			 batchflags;
-	unsigned int i, o;
+	unsigned int i;
 
 	if (r_plooksdirty)
 	{
@@ -6144,8 +6197,9 @@ static void PScript_DrawParticleTypes (cb_context_t *cbx, float pframetime)
 	{
 		if (type->clippeddecals)
 		{
+			const qboolean use_oit = PScript_LooksUseWBOIT (type->slooks);
 			if (cl_numstris && cl_stris[cl_numstris - 1].texture == type->looks.texture && cl_stris[cl_numstris - 1].blendmode == type->looks.blendmode &&
-				cl_stris[cl_numstris - 1].beflags == 0)
+				cl_stris[cl_numstris - 1].beflags == 0 && cl_stris[cl_numstris - 1].use_oit == use_oit)
 				scenetri = &cl_stris[cl_numstris - 1];
 			else
 			{
@@ -6158,6 +6212,7 @@ static void PScript_DrawParticleTypes (cb_context_t *cbx, float pframetime)
 				scenetri->texture = type->looks.texture;
 				scenetri->blendmode = type->looks.blendmode;
 				scenetri->beflags = 0;
+				scenetri->use_oit = use_oit;
 				scenetri->firstidx = cl_numstrisidx;
 				scenetri->firstvert = cl_numstrisvert;
 				scenetri->numvert = 0;
@@ -6246,6 +6301,7 @@ static void PScript_DrawParticleTypes (cb_context_t *cbx, float pframetime)
 					scenetri->texture = scenetri[-1].texture;
 					scenetri->blendmode = scenetri[-1].blendmode;
 					scenetri->beflags = scenetri[-1].beflags;
+					scenetri->use_oit = scenetri[-1].use_oit;
 					scenetri->firstidx = cl_numstrisidx;
 					scenetri->firstvert = cl_numstrisvert;
 					scenetri->numvert = 0;
@@ -6289,8 +6345,9 @@ static void PScript_DrawParticleTypes (cb_context_t *cbx, float pframetime)
 			break;
 		}
 
+		const qboolean use_oit = PScript_LooksUseWBOIT (type->slooks);
 		if (cl_numstris && cl_stris[cl_numstris - 1].texture == type->looks.texture && cl_stris[cl_numstris - 1].blendmode == type->looks.blendmode &&
-			cl_stris[cl_numstris - 1].beflags == batchflags)
+			cl_stris[cl_numstris - 1].beflags == batchflags && cl_stris[cl_numstris - 1].use_oit == use_oit)
 			scenetri = &cl_stris[cl_numstris - 1];
 		else
 		{
@@ -6303,6 +6360,7 @@ static void PScript_DrawParticleTypes (cb_context_t *cbx, float pframetime)
 			scenetri->texture = type->looks.texture;
 			scenetri->blendmode = type->looks.blendmode;
 			scenetri->beflags = batchflags;
+			scenetri->use_oit = use_oit;
 			scenetri->firstidx = cl_numstrisidx;
 			scenetri->firstvert = cl_numstrisvert;
 			scenetri->numvert = 0;
@@ -6327,6 +6385,7 @@ static void PScript_DrawParticleTypes (cb_context_t *cbx, float pframetime)
 						scenetri->texture = scenetri[-1].texture;
 						scenetri->blendmode = scenetri[-1].blendmode;
 						scenetri->beflags = scenetri[-1].beflags;
+						scenetri->use_oit = scenetri[-1].use_oit;
 						scenetri->firstidx = cl_numstrisidx;
 						scenetri->firstvert = cl_numstrisvert;
 						scenetri->numvert = 0;
@@ -6662,6 +6721,7 @@ static void PScript_DrawParticleTypes (cb_context_t *cbx, float pframetime)
 					scenetri->texture = scenetri[-1].texture;
 					scenetri->blendmode = scenetri[-1].blendmode;
 					scenetri->beflags = scenetri[-1].beflags;
+					scenetri->use_oit = scenetri[-1].use_oit;
 					scenetri->firstidx = cl_numstrisidx;
 					scenetri->firstvert = cl_numstrisvert;
 					scenetri->numvert = 0;
@@ -6773,41 +6833,6 @@ static void PScript_DrawParticleTypes (cb_context_t *cbx, float pframetime)
 	}
 
 	particletime += pframetime;
-
-	if (!cl_numstris)
-		return;
-
-	R_BeginDebugUtilsLabel (cbx, "FTE Particles");
-	Fog_DisableGFog (cbx);
-
-	for (o = 0; o < 3; o++)
-	{
-		static int blend_modes_order[] = {1, 1, 2, 2, 0, 0, 0, 2};
-		for (i = 0; i < cl_numstris; i++)
-		{
-			scenetris_t *tris = &cl_stris[i];
-			const int	 blend_mode = tris->blendmode;
-			if (blend_modes_order[blend_mode] != o)
-				continue;
-			const qboolean draw_lines = ((tris->beflags & BEF_LINES) != 0);
-			if (!vulkan_globals.non_solid_fill && draw_lines)
-				continue; // Can't draw lines
-			if (tris->numidx == 0)
-				continue;
-
-			const vulkan_pipeline_t pipeline = vulkan_globals.fte_particle_pipelines[blend_mode + (draw_lines ? 8 : 0)];
-			R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
-			gltexture_t *tex = (tris->beflags & BEF_LINES) ? whitetexture : tris->texture;
-
-			const int		   num_indices = tris->numidx;
-			const VkDeviceSize vertex_buffer_offset = 0;
-			vulkan_globals.vk_cmd_bind_index_buffer (cbx->cb, index_buffers[current_buffer_index], 0, VK_INDEX_TYPE_UINT16);
-			vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 1, &vertex_buffers[current_buffer_index], &vertex_buffer_offset);
-			vulkan_globals.vk_cmd_bind_descriptor_sets (cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.layout.handle, 0, 1, &tex->descriptor_set, 0, NULL);
-			vulkan_globals.vk_cmd_draw_indexed (cbx->cb, num_indices, 1, tris->firstidx, tris->firstvert, 0);
-		}
-	}
-	R_EndDebugUtilsLabel (cbx);
 }
 
 /*
@@ -6815,7 +6840,7 @@ static void PScript_DrawParticleTypes (cb_context_t *cbx, float pframetime)
 PScript_DrawParticles
 ===============
 */
-void PScript_DrawParticles (cb_context_t *cbx)
+void PScript_DrawParticles (cb_context_t *blend_cbx, cb_context_t *wboit_cbx)
 {
 	int			 i;
 	entity_t	*ent;
@@ -6856,7 +6881,9 @@ void PScript_DrawParticles (cb_context_t *cbx)
 		}
 	}
 
-	PScript_DrawParticleTypes (cbx, pframetime);
+	PScript_UpdateParticleTypes (pframetime);
+	PScript_DrawParticleBatches (blend_cbx, false, wboit_cbx != NULL);
+	PScript_DrawParticleBatches (wboit_cbx, true, true);
 }
 
 /*
@@ -6867,9 +6894,9 @@ R_DrawParticles_ShowTris
 void PScript_DrawParticles_ShowTris (cb_context_t *cbx)
 {
 	if (r_showtris.value == 1)
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_pipeline);
+		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_pipeline[R_MainPassPipelineVariant (cbx->render_pass_index)]);
 	else
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_depth_test_pipeline);
+		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_depth_test_pipeline[R_MainPassPipelineVariant (cbx->render_pass_index)]);
 
 	for (unsigned int i = 0; i < cl_numstris; i++)
 	{

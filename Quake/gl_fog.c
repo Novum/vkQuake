@@ -297,7 +297,7 @@ void Fog_SetupFrame (cb_context_t *cbx)
 	float fog_color[4];
 	Fog_GetColor (fog_color);
 	float fog_values[4] = {CLAMP (0.0f, fog_color[0], 1.0f), CLAMP (0.0f, fog_color[1], 1.0f), CLAMP (0.0f, fog_color[2], 1.0f), Fog_GetDensity () / 64.0f};
-	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipelines[0]);
+	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipelines[R_MainPassPipelineVariant (cbx->render_pass_index)][0]);
 	R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 16 * sizeof (float), 4 * sizeof (float), fog_values);
 }
 

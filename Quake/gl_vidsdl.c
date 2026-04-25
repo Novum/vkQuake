@@ -82,13 +82,17 @@ static qboolean vid_locked = false; // johnfitz
 static qboolean vid_changed = false;
 
 static void VID_Menu_Init (void); // johnfitz
-static void VID_Restart (qboolean set_mode);
 static void VID_Restart_f (void);
 
 static void ClearAllStates (void);
 static void GL_InitInstance (void);
 static void GL_InitDevice (void);
 static void GL_CreateFrameBuffers (void);
+static void GL_CreateMainFrameBuffers (void);
+static void GL_DestroyMainFrameBuffers (void);
+static void GL_CreateOITBuffers (void);
+static void GL_DestroyOITBuffers (void);
+static void GL_DestroyMainRenderPasses (void);
 static void GL_DestroyRenderResources (void);
 
 viddef_t		vid; // global video state
@@ -146,10 +150,15 @@ static vulkan_memory_t	depth_buffer_memory;
 static VkImageView		depth_buffer_view;
 static vulkan_memory_t	color_buffers_memory[NUM_COLOR_BUFFERS];
 static VkImageView		color_buffers_view[NUM_COLOR_BUFFERS];
+static vulkan_memory_t	oit_accum_buffer_memory;
+static vulkan_memory_t	oit_reveal_buffer_memory;
+static VkImageView		oit_accum_buffer_view;
+static VkImageView		oit_reveal_buffer_view;
 static VkImage			msaa_color_buffer;
 static vulkan_memory_t	msaa_color_buffer_memory;
 static VkImageView		msaa_color_buffer_view;
 static VkDescriptorSet	postprocess_descriptor_set;
+static VkDescriptorSet	wboit_resolve_descriptor_set;
 static VkBuffer			palette_colors_buffer;
 static VkBufferView		palette_buffer_view;
 static VkBuffer			palette_octree_buffer;
@@ -1214,10 +1223,12 @@ static void GL_InitDevice (void)
 	}
 
 	const VkBool32 extended_format_support = vulkan_globals.device_features.shaderStorageImageExtendedFormats;
+	const VkBool32 independent_blend = vulkan_globals.device_features.independentBlend;
 	const VkBool32 sampler_anisotropic = vulkan_globals.device_features.samplerAnisotropy;
 
 	ZEROED_STRUCT (VkPhysicalDeviceFeatures, device_features);
 	device_features.shaderStorageImageExtendedFormats = extended_format_support;
+	device_features.independentBlend = independent_blend;
 	device_features.samplerAnisotropy = sampler_anisotropic;
 	device_features.sampleRateShading = vulkan_globals.device_features.sampleRateShading;
 	device_features.fillModeNonSolid = vulkan_globals.device_features.fillModeNonSolid;
@@ -1445,102 +1456,199 @@ static void GL_CreateRenderPasses ()
 
 	{
 		// Main render pass
-		ZEROED_STRUCT_ARRAY (VkAttachmentDescription, attachment_descriptions, 3);
-
 		const qboolean resolve = (vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT);
 
-		attachment_descriptions[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		attachment_descriptions[0].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-		attachment_descriptions[0].samples = VK_SAMPLE_COUNT_1_BIT;
-		attachment_descriptions[0].format = vulkan_globals.color_format;
-		attachment_descriptions[0].loadOp = resolve ? VK_ATTACHMENT_LOAD_OP_DONT_CARE : VK_ATTACHMENT_LOAD_OP_CLEAR;
-		attachment_descriptions[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-
-		attachment_descriptions[1].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		attachment_descriptions[1].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-		attachment_descriptions[1].samples = vulkan_globals.sample_count;
-		attachment_descriptions[1].format = vulkan_globals.depth_format;
-		attachment_descriptions[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-		attachment_descriptions[1].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		attachment_descriptions[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-		attachment_descriptions[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-
-		attachment_descriptions[2].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		attachment_descriptions[2].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-		attachment_descriptions[2].samples = vulkan_globals.sample_count;
-		attachment_descriptions[2].format = vulkan_globals.color_format;
-		attachment_descriptions[2].loadOp = resolve ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-		attachment_descriptions[2].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-
-		VkAttachmentReference scene_color_attachment_reference;
-		scene_color_attachment_reference.attachment = resolve ? 2 : 0;
-		scene_color_attachment_reference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-		VkAttachmentReference depth_attachment_reference;
-		depth_attachment_reference.attachment = 1;
-		depth_attachment_reference.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-		VkAttachmentReference resolve_attachment_reference;
-		resolve_attachment_reference.attachment = 0;
-		resolve_attachment_reference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-		ZEROED_STRUCT (VkSubpassDescription, subpass_description);
-		subpass_description.colorAttachmentCount = 1;
-		subpass_description.pColorAttachments = &scene_color_attachment_reference;
-		subpass_description.pDepthStencilAttachment = &depth_attachment_reference;
-		subpass_description.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-		if (resolve)
-			subpass_description.pResolveAttachments = &resolve_attachment_reference;
-
-		VkSubpassDependency subpass_dependencies[1];
-		subpass_dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
-		subpass_dependencies[0].dstSubpass = 0;
-		subpass_dependencies[0].srcStageMask =
-			VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-		subpass_dependencies[0].dstStageMask =
-			VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-		subpass_dependencies[0].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT |
-												VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-		subpass_dependencies[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT |
-												VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-		subpass_dependencies[0].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
-
-		ZEROED_STRUCT (VkRenderPassCreateInfo, render_pass_create_info);
-		render_pass_create_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-		render_pass_create_info.attachmentCount = resolve ? 3 : 2;
-		render_pass_create_info.pAttachments = attachment_descriptions;
-		render_pass_create_info.subpassCount = 1;
-		render_pass_create_info.pSubpasses = &subpass_description;
-		render_pass_create_info.dependencyCount = 1;
-		render_pass_create_info.pDependencies = subpass_dependencies;
-
-		for (int scbx_index = SCBX_WORLD; scbx_index <= SCBX_VIEW_MODEL; ++scbx_index)
+		for (int scbx_index = SCBX_WORLD; scbx_index <= SCBX_WBOIT_RESOLVE; ++scbx_index)
 		{
 			for (int i = 0; i < SECONDARY_CB_MULTIPLICITY[scbx_index]; ++i)
 				assert (vulkan_globals.secondary_cb_contexts[scbx_index][i].render_pass == VK_NULL_HANDLE);
 		}
 
-		err = vkCreateRenderPass (vulkan_globals.device, &render_pass_create_info, NULL, &vulkan_globals.main_render_pass[0]);
-		if (err != VK_SUCCESS)
-			Sys_Error ("Couldn't create Vulkan render pass with code %i", (int)err);
-		GL_SetObjectName ((uint64_t)vulkan_globals.main_render_pass[0], VK_OBJECT_TYPE_RENDER_PASS, "main");
+		for (int variant = 0; variant < MAIN_RENDER_PASS_VARIANT_COUNT; ++variant)
+		{
+			ZEROED_STRUCT_ARRAY (VkAttachmentDescription, attachment_descriptions, 5);
+			const qboolean use_oit = (variant == MAIN_RENDER_PASS_OIT);
+			const uint32_t scene_attachment_index = resolve ? 2 : 0;
+			const uint32_t accum_attachment_index = resolve ? 3 : 2;
+			const uint32_t reveal_attachment_index = resolve ? 4 : 3;
 
-		attachment_descriptions[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-		err = vkCreateRenderPass (vulkan_globals.device, &render_pass_create_info, NULL, &vulkan_globals.main_render_pass[1]);
-		if (err != VK_SUCCESS)
-			Sys_Error ("Couldn't create Vulkan render pass with code %i", (int)err);
-		GL_SetObjectName ((uint64_t)vulkan_globals.main_render_pass[1], VK_OBJECT_TYPE_RENDER_PASS, "main_no_stencil");
+			attachment_descriptions[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+			attachment_descriptions[0].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+			attachment_descriptions[0].samples = VK_SAMPLE_COUNT_1_BIT;
+			attachment_descriptions[0].format = vulkan_globals.color_format;
+			attachment_descriptions[0].loadOp = resolve ? VK_ATTACHMENT_LOAD_OP_DONT_CARE : VK_ATTACHMENT_LOAD_OP_CLEAR;
+			attachment_descriptions[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 
-		for (int scbx_index = SCBX_WORLD; scbx_index <= SCBX_VIEW_MODEL; ++scbx_index)
+			attachment_descriptions[1].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+			attachment_descriptions[1].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+			attachment_descriptions[1].samples = vulkan_globals.sample_count;
+			attachment_descriptions[1].format = vulkan_globals.depth_format;
+			attachment_descriptions[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+			attachment_descriptions[1].storeOp = use_oit ? VK_ATTACHMENT_STORE_OP_STORE : VK_ATTACHMENT_STORE_OP_DONT_CARE;
+			attachment_descriptions[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+			attachment_descriptions[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+
+			if (resolve)
+			{
+				attachment_descriptions[scene_attachment_index].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+				attachment_descriptions[scene_attachment_index].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+				attachment_descriptions[scene_attachment_index].samples = vulkan_globals.sample_count;
+				attachment_descriptions[scene_attachment_index].format = vulkan_globals.color_format;
+				attachment_descriptions[scene_attachment_index].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+				attachment_descriptions[scene_attachment_index].storeOp = use_oit ? VK_ATTACHMENT_STORE_OP_DONT_CARE : VK_ATTACHMENT_STORE_OP_STORE;
+			}
+
+			if (use_oit)
+			{
+				attachment_descriptions[accum_attachment_index].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+				attachment_descriptions[accum_attachment_index].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+				attachment_descriptions[accum_attachment_index].samples = vulkan_globals.sample_count;
+				attachment_descriptions[accum_attachment_index].format = VK_FORMAT_R16G16B16A16_SFLOAT;
+				attachment_descriptions[accum_attachment_index].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+				attachment_descriptions[accum_attachment_index].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+
+				attachment_descriptions[reveal_attachment_index].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+				attachment_descriptions[reveal_attachment_index].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+				attachment_descriptions[reveal_attachment_index].samples = vulkan_globals.sample_count;
+				attachment_descriptions[reveal_attachment_index].format = VK_FORMAT_R8_UNORM;
+				attachment_descriptions[reveal_attachment_index].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+				attachment_descriptions[reveal_attachment_index].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+			}
+
+			VkAttachmentReference scene_color_attachment_reference = {
+				.attachment = scene_attachment_index,
+				.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+			};
+			VkAttachmentReference accum_attachment_reference = {
+				.attachment = accum_attachment_index,
+				.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+			};
+			VkAttachmentReference reveal_attachment_reference = {
+				.attachment = reveal_attachment_index,
+				.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+			};
+			VkAttachmentReference depth_attachment_reference = {
+				.attachment = 1,
+				.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+			};
+			VkAttachmentReference resolve_attachment_reference = {
+				.attachment = 0,
+				.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+			};
+			VkAttachmentReference oit_input_attachment_references[2] = {
+				{.attachment = accum_attachment_index, .layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL},
+				{.attachment = reveal_attachment_index, .layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL},
+			};
+			VkAttachmentReference oit_accum_color_attachment_references[2] = {
+				accum_attachment_reference,
+				reveal_attachment_reference,
+			};
+			uint32_t oit_subpass_preserve_attachments[1] = {
+				scene_attachment_index,
+			};
+
+			ZEROED_STRUCT_ARRAY (VkSubpassDescription, subpass_descriptions, 3);
+			subpass_descriptions[0].colorAttachmentCount = 1;
+			subpass_descriptions[0].pColorAttachments = &scene_color_attachment_reference;
+			subpass_descriptions[0].pDepthStencilAttachment = &depth_attachment_reference;
+			subpass_descriptions[0].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+			if (resolve && !use_oit)
+				subpass_descriptions[0].pResolveAttachments = &resolve_attachment_reference;
+
+			if (use_oit)
+			{
+				subpass_descriptions[1].colorAttachmentCount = countof (oit_accum_color_attachment_references);
+				subpass_descriptions[1].pColorAttachments = oit_accum_color_attachment_references;
+				subpass_descriptions[1].pDepthStencilAttachment = &depth_attachment_reference;
+				subpass_descriptions[1].preserveAttachmentCount = countof (oit_subpass_preserve_attachments);
+				subpass_descriptions[1].pPreserveAttachments = oit_subpass_preserve_attachments;
+				subpass_descriptions[1].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+
+				subpass_descriptions[2].colorAttachmentCount = 1;
+				subpass_descriptions[2].pColorAttachments = &scene_color_attachment_reference;
+				subpass_descriptions[2].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+				subpass_descriptions[2].inputAttachmentCount = countof (oit_input_attachment_references);
+				subpass_descriptions[2].pInputAttachments = oit_input_attachment_references;
+				if (resolve)
+					subpass_descriptions[2].pResolveAttachments = &resolve_attachment_reference;
+			}
+
+			ZEROED_STRUCT_ARRAY (VkSubpassDependency, subpass_dependencies, 4);
+			subpass_dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
+			subpass_dependencies[0].dstSubpass = 0;
+			subpass_dependencies[0].srcStageMask =
+				VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+			subpass_dependencies[0].dstStageMask =
+				VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+			subpass_dependencies[0].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT |
+													VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+			subpass_dependencies[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT |
+													VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+			subpass_dependencies[0].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+
+			subpass_dependencies[1].srcSubpass = 0;
+			subpass_dependencies[1].dstSubpass = 1;
+			subpass_dependencies[1].srcStageMask =
+				VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+			subpass_dependencies[1].dstStageMask =
+				VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+			subpass_dependencies[1].srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+			subpass_dependencies[1].dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+			subpass_dependencies[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+
+			subpass_dependencies[2].srcSubpass = 1;
+			subpass_dependencies[2].dstSubpass = 2;
+			subpass_dependencies[2].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+			subpass_dependencies[2].dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+			subpass_dependencies[2].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+			subpass_dependencies[2].dstAccessMask = VK_ACCESS_INPUT_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+			subpass_dependencies[2].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+
+			subpass_dependencies[3].srcSubpass = 0;
+			subpass_dependencies[3].dstSubpass = 2;
+			subpass_dependencies[3].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+			subpass_dependencies[3].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+			subpass_dependencies[3].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+			subpass_dependencies[3].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+			subpass_dependencies[3].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+
+			ZEROED_STRUCT (VkRenderPassCreateInfo, render_pass_create_info);
+			render_pass_create_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+			render_pass_create_info.attachmentCount = use_oit ? (resolve ? 5 : 4) : (resolve ? 3 : 2);
+			render_pass_create_info.pAttachments = attachment_descriptions;
+			render_pass_create_info.subpassCount = use_oit ? 3 : 1;
+			render_pass_create_info.pSubpasses = subpass_descriptions;
+			render_pass_create_info.dependencyCount = use_oit ? 4 : 1;
+			render_pass_create_info.pDependencies = subpass_dependencies;
+
+			for (int stencil = 0; stencil < MAIN_RENDER_PASS_STENCIL_COUNT; ++stencil)
+			{
+				const char *name = (variant == MAIN_RENDER_PASS_OIT) ? ((stencil == MAIN_RENDER_PASS_STENCIL_CLEAR) ? "main_oit" : "main_oit_no_stencil")
+																	 : ((stencil == MAIN_RENDER_PASS_STENCIL_CLEAR) ? "main" : "main_no_stencil");
+				if (stencil == MAIN_RENDER_PASS_NO_STENCIL)
+					attachment_descriptions[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+				err = vkCreateRenderPass (vulkan_globals.device, &render_pass_create_info, NULL, &vulkan_globals.main_render_pass[variant][stencil]);
+				if (err != VK_SUCCESS)
+					Sys_Error ("Couldn't create Vulkan render pass with code %i", (int)err);
+				GL_SetObjectName ((uint64_t)vulkan_globals.main_render_pass[variant][stencil], VK_OBJECT_TYPE_RENDER_PASS, name);
+			}
+		}
+
+		for (int scbx_index = SCBX_WORLD; scbx_index <= SCBX_MAIN_PASS_LAST; ++scbx_index)
 		{
 			for (int i = 0; i < SECONDARY_CB_MULTIPLICITY[scbx_index]; ++i)
 			{
 				cb_context_t *cbx = &vulkan_globals.secondary_cb_contexts[scbx_index][i];
-				cbx->render_pass = vulkan_globals.main_render_pass[0];
-				cbx->render_pass_index = 0;
+				cbx->render_pass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_STANDARD][MAIN_RENDER_PASS_STENCIL_CLEAR];
+				cbx->render_pass_index = RENDER_PASS_INDEX_MAIN;
 				cbx->subpass = 0;
 			}
 		}
+
+		cb_context_t *wboit_resolve_cbx = vulkan_globals.secondary_cb_contexts[SCBX_WBOIT_RESOLVE];
+		wboit_resolve_cbx->render_pass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_OIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
+		wboit_resolve_cbx->render_pass_index = RENDER_PASS_INDEX_MAIN_OIT;
+		wboit_resolve_cbx->subpass = 2;
 	}
 
 	{
@@ -1605,21 +1713,31 @@ static void GL_CreateRenderPasses ()
 		cb_context_t *gui_cbx = vulkan_globals.secondary_cb_contexts[SCBX_GUI];
 		cb_context_t *post_process_cbx = vulkan_globals.secondary_cb_contexts[SCBX_POST_PROCESS];
 
-		assert (gui_cbx->render_pass == VK_NULL_HANDLE);
-		assert (post_process_cbx->render_pass == VK_NULL_HANDLE);
+		if (gui_cbx->render_pass != VK_NULL_HANDLE || post_process_cbx->render_pass != VK_NULL_HANDLE)
+		{
+			assert (gui_cbx->render_pass != VK_NULL_HANDLE);
+			assert (post_process_cbx->render_pass != VK_NULL_HANDLE);
+			assert (gui_cbx->render_pass == post_process_cbx->render_pass);
+			assert (gui_cbx->render_pass_index == RENDER_PASS_INDEX_UI);
+			assert (post_process_cbx->render_pass_index == RENDER_PASS_INDEX_UI);
+			assert (gui_cbx->subpass == 0);
+			assert (post_process_cbx->subpass == 1);
+		}
+		else
+		{
+			VkRenderPass render_pass;
+			err = vkCreateRenderPass (vulkan_globals.device, &render_pass_create_info, NULL, &render_pass);
+			if (err != VK_SUCCESS)
+				Sys_Error ("Couldn't create Vulkan render pass with code %i", (int)err);
+			GL_SetObjectName ((uint64_t)render_pass, VK_OBJECT_TYPE_RENDER_PASS, "ui");
 
-		VkRenderPass render_pass;
-		err = vkCreateRenderPass (vulkan_globals.device, &render_pass_create_info, NULL, &render_pass);
-		if (err != VK_SUCCESS)
-			Sys_Error ("Couldn't create Vulkan render pass with code %i", (int)err);
-		GL_SetObjectName ((uint64_t)render_pass, VK_OBJECT_TYPE_RENDER_PASS, "ui");
-
-		gui_cbx->render_pass = render_pass;
-		gui_cbx->render_pass_index = 1;
-		gui_cbx->subpass = 0;
-		post_process_cbx->render_pass = render_pass;
-		post_process_cbx->render_pass_index = 1;
-		post_process_cbx->subpass = 1;
+			gui_cbx->render_pass = render_pass;
+			gui_cbx->render_pass_index = RENDER_PASS_INDEX_UI;
+			gui_cbx->subpass = 0;
+			post_process_cbx->render_pass = render_pass;
+			post_process_cbx->render_pass_index = RENDER_PASS_INDEX_UI;
+			post_process_cbx->subpass = 1;
+		}
 	}
 
 	if (vulkan_globals.warp_render_pass == VK_NULL_HANDLE)
@@ -1935,6 +2053,173 @@ static void GL_CreateColorBuffer (void)
 	}
 	else
 		Sys_Printf ("AA disabled\n");
+
+	if ((int)r_oit.value == 1)
+		GL_CreateOITBuffers ();
+}
+
+/*
+===============
+GL_CreateOITBuffers
+===============
+*/
+static void GL_CreateOITBuffers (void)
+{
+	VkResult err;
+
+	ZEROED_STRUCT (VkImageCreateInfo, image_create_info);
+	image_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+	image_create_info.imageType = VK_IMAGE_TYPE_2D;
+	image_create_info.extent.width = vid.width;
+	image_create_info.extent.height = vid.height;
+	image_create_info.extent.depth = 1;
+	image_create_info.mipLevels = 1;
+	image_create_info.arrayLayers = 1;
+	image_create_info.samples = vulkan_globals.sample_count;
+	image_create_info.tiling = VK_IMAGE_TILING_OPTIMAL;
+	image_create_info.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
+
+	image_create_info.format = VK_FORMAT_R16G16B16A16_SFLOAT;
+	assert (vulkan_globals.oit_accum_buffer == VK_NULL_HANDLE);
+	err = vkCreateImage (vulkan_globals.device, &image_create_info, NULL, &vulkan_globals.oit_accum_buffer);
+	if (err != VK_SUCCESS)
+		Sys_Error ("vkCreateImage failed with code %i", (int)err);
+
+	GL_SetObjectName ((uint64_t)vulkan_globals.oit_accum_buffer, VK_OBJECT_TYPE_IMAGE, "OIT Accum Buffer");
+
+	{
+		VkMemoryRequirements memory_requirements;
+		vkGetImageMemoryRequirements (vulkan_globals.device, vulkan_globals.oit_accum_buffer, &memory_requirements);
+
+		ZEROED_STRUCT (VkMemoryDedicatedAllocateInfoKHR, dedicated_allocation_info);
+		dedicated_allocation_info.sType = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO_KHR;
+		dedicated_allocation_info.image = vulkan_globals.oit_accum_buffer;
+
+		ZEROED_STRUCT (VkMemoryAllocateInfo, memory_allocate_info);
+		memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+		memory_allocate_info.allocationSize = memory_requirements.size;
+		memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
+
+		if (vulkan_globals.dedicated_allocation)
+			memory_allocate_info.pNext = &dedicated_allocation_info;
+
+		assert (oit_accum_buffer_memory.handle == VK_NULL_HANDLE);
+		R_AllocateVulkanMemory (&oit_accum_buffer_memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_DEVICE, &num_vulkan_misc_allocations);
+		GL_SetObjectName ((uint64_t)oit_accum_buffer_memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, "OIT Accum Buffer");
+
+		err = vkBindImageMemory (vulkan_globals.device, vulkan_globals.oit_accum_buffer, oit_accum_buffer_memory.handle, 0);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkBindImageMemory failed with code %i", (int)err);
+	}
+
+	{
+		ZEROED_STRUCT (VkImageViewCreateInfo, image_view_create_info);
+		image_view_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+		image_view_create_info.format = VK_FORMAT_R16G16B16A16_SFLOAT;
+		image_view_create_info.image = vulkan_globals.oit_accum_buffer;
+		image_view_create_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		image_view_create_info.subresourceRange.baseMipLevel = 0;
+		image_view_create_info.subresourceRange.levelCount = 1;
+		image_view_create_info.subresourceRange.baseArrayLayer = 0;
+		image_view_create_info.subresourceRange.layerCount = 1;
+		image_view_create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+		image_view_create_info.flags = 0;
+
+		assert (oit_accum_buffer_view == VK_NULL_HANDLE);
+		err = vkCreateImageView (vulkan_globals.device, &image_view_create_info, NULL, &oit_accum_buffer_view);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreateImageView failed with code %i", (int)err);
+
+		GL_SetObjectName ((uint64_t)oit_accum_buffer_view, VK_OBJECT_TYPE_IMAGE_VIEW, "OIT Accum Buffer View");
+	}
+
+	image_create_info.format = VK_FORMAT_R8_UNORM;
+	assert (vulkan_globals.oit_reveal_buffer == VK_NULL_HANDLE);
+	err = vkCreateImage (vulkan_globals.device, &image_create_info, NULL, &vulkan_globals.oit_reveal_buffer);
+	if (err != VK_SUCCESS)
+		Sys_Error ("vkCreateImage failed with code %i", (int)err);
+
+	GL_SetObjectName ((uint64_t)vulkan_globals.oit_reveal_buffer, VK_OBJECT_TYPE_IMAGE, "OIT Reveal Buffer");
+
+	{
+		VkMemoryRequirements memory_requirements;
+		vkGetImageMemoryRequirements (vulkan_globals.device, vulkan_globals.oit_reveal_buffer, &memory_requirements);
+
+		ZEROED_STRUCT (VkMemoryDedicatedAllocateInfoKHR, dedicated_allocation_info);
+		dedicated_allocation_info.sType = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO_KHR;
+		dedicated_allocation_info.image = vulkan_globals.oit_reveal_buffer;
+
+		ZEROED_STRUCT (VkMemoryAllocateInfo, memory_allocate_info);
+		memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+		memory_allocate_info.allocationSize = memory_requirements.size;
+		memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
+
+		if (vulkan_globals.dedicated_allocation)
+			memory_allocate_info.pNext = &dedicated_allocation_info;
+
+		assert (oit_reveal_buffer_memory.handle == VK_NULL_HANDLE);
+		R_AllocateVulkanMemory (&oit_reveal_buffer_memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_DEVICE, &num_vulkan_misc_allocations);
+		GL_SetObjectName ((uint64_t)oit_reveal_buffer_memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, "OIT Reveal Buffer");
+
+		err = vkBindImageMemory (vulkan_globals.device, vulkan_globals.oit_reveal_buffer, oit_reveal_buffer_memory.handle, 0);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkBindImageMemory failed with code %i", (int)err);
+	}
+
+	{
+		ZEROED_STRUCT (VkImageViewCreateInfo, image_view_create_info);
+		image_view_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+		image_view_create_info.format = VK_FORMAT_R8_UNORM;
+		image_view_create_info.image = vulkan_globals.oit_reveal_buffer;
+		image_view_create_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		image_view_create_info.subresourceRange.baseMipLevel = 0;
+		image_view_create_info.subresourceRange.levelCount = 1;
+		image_view_create_info.subresourceRange.baseArrayLayer = 0;
+		image_view_create_info.subresourceRange.layerCount = 1;
+		image_view_create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+		image_view_create_info.flags = 0;
+
+		assert (oit_reveal_buffer_view == VK_NULL_HANDLE);
+		err = vkCreateImageView (vulkan_globals.device, &image_view_create_info, NULL, &oit_reveal_buffer_view);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreateImageView failed with code %i", (int)err);
+
+		GL_SetObjectName ((uint64_t)oit_reveal_buffer_view, VK_OBJECT_TYPE_IMAGE_VIEW, "OIT Reveal Buffer View");
+	}
+}
+
+/*
+===============
+GL_DestroyOITBuffers
+===============
+*/
+static void GL_DestroyOITBuffers (void)
+{
+	if (oit_accum_buffer_view != VK_NULL_HANDLE)
+	{
+		vkDestroyImageView (vulkan_globals.device, oit_accum_buffer_view, NULL);
+		oit_accum_buffer_view = VK_NULL_HANDLE;
+	}
+	if (vulkan_globals.oit_accum_buffer != VK_NULL_HANDLE)
+	{
+		vkDestroyImage (vulkan_globals.device, vulkan_globals.oit_accum_buffer, NULL);
+		vulkan_globals.oit_accum_buffer = VK_NULL_HANDLE;
+	}
+	if (oit_accum_buffer_memory.handle != VK_NULL_HANDLE)
+		R_FreeVulkanMemory (&oit_accum_buffer_memory, &num_vulkan_misc_allocations);
+
+	if (oit_reveal_buffer_view != VK_NULL_HANDLE)
+	{
+		vkDestroyImageView (vulkan_globals.device, oit_reveal_buffer_view, NULL);
+		oit_reveal_buffer_view = VK_NULL_HANDLE;
+	}
+	if (vulkan_globals.oit_reveal_buffer != VK_NULL_HANDLE)
+	{
+		vkDestroyImage (vulkan_globals.device, vulkan_globals.oit_reveal_buffer, NULL);
+		vulkan_globals.oit_reveal_buffer = VK_NULL_HANDLE;
+	}
+	if (oit_reveal_buffer_memory.handle != VK_NULL_HANDLE)
+		R_FreeVulkanMemory (&oit_reveal_buffer_memory, &num_vulkan_misc_allocations);
 }
 
 /*
@@ -1967,8 +2252,37 @@ void GL_UpdateDescriptorSets (void)
 	input_attachment_write.pImageInfo = &image_info;
 	vkUpdateDescriptorSets (vulkan_globals.device, 1, &input_attachment_write, 0, NULL);
 
+	if (wboit_resolve_descriptor_set != VK_NULL_HANDLE)
+	{
+		R_FreeDescriptorSet (wboit_resolve_descriptor_set, &vulkan_globals.oit_input_attachment_set_layout);
+		wboit_resolve_descriptor_set = VK_NULL_HANDLE;
+	}
+	if ((int)r_oit.value == 1)
+	{
+		wboit_resolve_descriptor_set = R_AllocateDescriptorSet (&vulkan_globals.oit_input_attachment_set_layout);
+
+		ZEROED_STRUCT_ARRAY (VkDescriptorImageInfo, oit_image_infos, 2);
+		oit_image_infos[0].imageView = oit_accum_buffer_view;
+		oit_image_infos[0].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		oit_image_infos[1].imageView = oit_reveal_buffer_view;
+		oit_image_infos[1].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+		ZEROED_STRUCT_ARRAY (VkWriteDescriptorSet, oit_writes, 2);
+		for (int i = 0; i < 2; ++i)
+		{
+			oit_writes[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+			oit_writes[i].dstBinding = i;
+			oit_writes[i].dstArrayElement = 0;
+			oit_writes[i].descriptorCount = 1;
+			oit_writes[i].descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+			oit_writes[i].dstSet = wboit_resolve_descriptor_set;
+			oit_writes[i].pImageInfo = &oit_image_infos[i];
+		}
+		vkUpdateDescriptorSets (vulkan_globals.device, countof (oit_writes), oit_writes, 0, NULL);
+	}
+
 	if (vulkan_globals.screen_effects_desc_set != VK_NULL_HANDLE)
-		R_FreeDescriptorSet (vulkan_globals.screen_effects_desc_set, &vulkan_globals.input_attachment_set_layout);
+		R_FreeDescriptorSet (vulkan_globals.screen_effects_desc_set, &vulkan_globals.screen_effects_set_layout);
 	vulkan_globals.screen_effects_desc_set = R_AllocateDescriptorSet (&vulkan_globals.screen_effects_set_layout);
 
 	ZEROED_STRUCT (VkDescriptorImageInfo, input_image_info);
@@ -2316,6 +2630,64 @@ static qboolean GL_CreateSwapChain (void)
 
 /*
 ===============
+GL_CreateMainFrameBuffers
+===============
+*/
+static void GL_CreateMainFrameBuffers (void)
+{
+	VkResult	   err;
+	const qboolean resolve = (vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT);
+	const qboolean use_oit = ((int)r_oit.value == 1);
+
+	for (uint32_t i = 0; i < NUM_COLOR_BUFFERS; ++i)
+	{
+		ZEROED_STRUCT (VkFramebufferCreateInfo, framebuffer_create_info);
+		framebuffer_create_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+		framebuffer_create_info.renderPass =
+			vulkan_globals.main_render_pass[use_oit ? MAIN_RENDER_PASS_OIT : MAIN_RENDER_PASS_STANDARD][MAIN_RENDER_PASS_STENCIL_CLEAR];
+		framebuffer_create_info.attachmentCount = resolve ? (use_oit ? 5 : 3) : (use_oit ? 4 : 2);
+		framebuffer_create_info.width = vid.width;
+		framebuffer_create_info.height = vid.height;
+		framebuffer_create_info.layers = 1;
+
+		VkImageView attachments[5] = {
+			color_buffers_view[i], depth_buffer_view, msaa_color_buffer_view, oit_accum_buffer_view, oit_reveal_buffer_view,
+		};
+		if (!resolve)
+		{
+			attachments[2] = oit_accum_buffer_view;
+			attachments[3] = oit_reveal_buffer_view;
+		}
+		framebuffer_create_info.pAttachments = attachments;
+
+		assert (main_framebuffers[i] == VK_NULL_HANDLE);
+		err = vkCreateFramebuffer (vulkan_globals.device, &framebuffer_create_info, NULL, &main_framebuffers[i]);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreateFramebuffer failed with code %i", (int)err);
+
+		GL_SetObjectName ((uint64_t)main_framebuffers[i], VK_OBJECT_TYPE_FRAMEBUFFER, "main");
+	}
+}
+
+/*
+===============
+GL_DestroyMainFrameBuffers
+===============
+*/
+static void GL_DestroyMainFrameBuffers (void)
+{
+	for (int i = 0; i < NUM_COLOR_BUFFERS; ++i)
+	{
+		if (main_framebuffers[i] != VK_NULL_HANDLE)
+		{
+			vkDestroyFramebuffer (vulkan_globals.device, main_framebuffers[i], NULL);
+			main_framebuffers[i] = VK_NULL_HANDLE;
+		}
+	}
+}
+
+/*
+===============
 GL_CreateFrameBuffers
 ===============
 */
@@ -2327,28 +2699,7 @@ static void GL_CreateFrameBuffers (void)
 
 	VkResult err;
 
-	const qboolean resolve = (vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT);
-
-	for (i = 0; i < NUM_COLOR_BUFFERS; ++i)
-	{
-		ZEROED_STRUCT (VkFramebufferCreateInfo, framebuffer_create_info);
-		framebuffer_create_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-		framebuffer_create_info.renderPass = vulkan_globals.secondary_cb_contexts[SCBX_WORLD][0].render_pass;
-		framebuffer_create_info.attachmentCount = resolve ? 3 : 2;
-		framebuffer_create_info.width = vid.width;
-		framebuffer_create_info.height = vid.height;
-		framebuffer_create_info.layers = 1;
-
-		VkImageView attachments[3] = {color_buffers_view[i], depth_buffer_view, msaa_color_buffer_view};
-		framebuffer_create_info.pAttachments = attachments;
-
-		assert (main_framebuffers[i] == VK_NULL_HANDLE);
-		err = vkCreateFramebuffer (vulkan_globals.device, &framebuffer_create_info, NULL, &main_framebuffers[i]);
-		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateFramebuffer failed with code %i", (int)err);
-
-		GL_SetObjectName ((uint64_t)main_framebuffers[i], VK_OBJECT_TYPE_FRAMEBUFFER, "main");
-	}
+	GL_CreateMainFrameBuffers ();
 
 	for (i = 0; i < num_swap_chain_images; ++i)
 	{
@@ -2401,6 +2752,28 @@ static void GL_CreateRenderResources (void)
 
 /*
 ===============
+GL_DestroyMainRenderPasses
+===============
+*/
+static void GL_DestroyMainRenderPasses (void)
+{
+	for (int variant = 0; variant < MAIN_RENDER_PASS_VARIANT_COUNT; ++variant)
+	{
+		for (int stencil = 0; stencil < MAIN_RENDER_PASS_STENCIL_COUNT; ++stencil)
+		{
+			if (vulkan_globals.main_render_pass[variant][stencil] != VK_NULL_HANDLE)
+				vkDestroyRenderPass (vulkan_globals.device, vulkan_globals.main_render_pass[variant][stencil], NULL);
+			vulkan_globals.main_render_pass[variant][stencil] = VK_NULL_HANDLE;
+		}
+	}
+
+	for (int scbx_index = SCBX_WORLD; scbx_index <= SCBX_WBOIT_RESOLVE; ++scbx_index)
+		for (int i = 0; i < SECONDARY_CB_MULTIPLICITY[scbx_index]; ++i)
+			vulkan_globals.secondary_cb_contexts[scbx_index][i].render_pass = VK_NULL_HANDLE;
+}
+
+/*
+===============
 GL_DestroyRenderResources
 ===============
 */
@@ -2412,11 +2785,22 @@ static void GL_DestroyRenderResources (void)
 
 	R_DestroyPipelines ();
 
-	R_FreeDescriptorSet (postprocess_descriptor_set, &vulkan_globals.input_attachment_set_layout);
-	postprocess_descriptor_set = VK_NULL_HANDLE;
+	if (postprocess_descriptor_set != VK_NULL_HANDLE)
+	{
+		R_FreeDescriptorSet (postprocess_descriptor_set, &vulkan_globals.input_attachment_set_layout);
+		postprocess_descriptor_set = VK_NULL_HANDLE;
+	}
+	if (wboit_resolve_descriptor_set != VK_NULL_HANDLE)
+	{
+		R_FreeDescriptorSet (wboit_resolve_descriptor_set, &vulkan_globals.oit_input_attachment_set_layout);
+		wboit_resolve_descriptor_set = VK_NULL_HANDLE;
+	}
 
-	R_FreeDescriptorSet (vulkan_globals.screen_effects_desc_set, &vulkan_globals.screen_effects_set_layout);
-	vulkan_globals.screen_effects_desc_set = VK_NULL_HANDLE;
+	if (vulkan_globals.screen_effects_desc_set != VK_NULL_HANDLE)
+	{
+		R_FreeDescriptorSet (vulkan_globals.screen_effects_desc_set, &vulkan_globals.screen_effects_set_layout);
+		vulkan_globals.screen_effects_desc_set = VK_NULL_HANDLE;
+	}
 
 	if (msaa_color_buffer)
 	{
@@ -2427,6 +2811,8 @@ static void GL_DestroyRenderResources (void)
 		msaa_color_buffer_view = VK_NULL_HANDLE;
 		msaa_color_buffer = VK_NULL_HANDLE;
 	}
+
+	GL_DestroyOITBuffers ();
 
 	for (int i = 0; i < NUM_COLOR_BUFFERS; ++i)
 	{
@@ -2445,11 +2831,7 @@ static void GL_DestroyRenderResources (void)
 	depth_buffer_view = VK_NULL_HANDLE;
 	depth_buffer = VK_NULL_HANDLE;
 
-	for (int i = 0; i < NUM_COLOR_BUFFERS; ++i)
-	{
-		vkDestroyFramebuffer (vulkan_globals.device, main_framebuffers[i], NULL);
-		main_framebuffers[i] = VK_NULL_HANDLE;
-	}
+	GL_DestroyMainFrameBuffers ();
 
 	for (uint32_t i = 0; i < num_swap_chain_images; ++i)
 	{
@@ -2475,13 +2857,7 @@ static void GL_DestroyRenderResources (void)
 	for (int scbx_index = SCBX_GUI; scbx_index <= SCBX_POST_PROCESS; ++scbx_index)
 		for (int i = 0; i < SECONDARY_CB_MULTIPLICITY[scbx_index]; ++i)
 			vulkan_globals.secondary_cb_contexts[scbx_index][i].render_pass = VK_NULL_HANDLE;
-	vkDestroyRenderPass (vulkan_globals.device, vulkan_globals.main_render_pass[0], NULL);
-	vkDestroyRenderPass (vulkan_globals.device, vulkan_globals.main_render_pass[1], NULL);
-	vulkan_globals.main_render_pass[0] = VK_NULL_HANDLE;
-	vulkan_globals.main_render_pass[1] = VK_NULL_HANDLE;
-	for (int scbx_index = SCBX_WORLD; scbx_index <= SCBX_VIEW_MODEL; ++scbx_index)
-		for (int i = 0; i < SECONDARY_CB_MULTIPLICITY[scbx_index]; ++i)
-			vulkan_globals.secondary_cb_contexts[scbx_index][i].render_pass = VK_NULL_HANDLE;
+	GL_DestroyMainRenderPasses ();
 }
 
 /*
@@ -2536,10 +2912,29 @@ void GL_BeginRenderingTask (void *unused)
 			cbx->current_canvas = CANVAS_INVALID;
 			memset (&cbx->current_pipeline, 0, sizeof (cbx->current_pipeline));
 
-			if (scbx_index <= SCBX_VIEW_MODEL)
+			if (scbx_index <= SCBX_WBOIT_RESOLVE)
 			{
-				const int main_render_pass_index = Sky_NeedStencil () ? 0 : 1;
-				cbx->render_pass = vulkan_globals.main_render_pass[main_render_pass_index];
+				const int main_render_pass_stencil = Sky_NeedStencil () ? MAIN_RENDER_PASS_STENCIL_CLEAR : MAIN_RENDER_PASS_NO_STENCIL;
+				cbx->render_pass = vulkan_globals.main_render_pass[oit_active ? MAIN_RENDER_PASS_OIT : MAIN_RENDER_PASS_STANDARD][main_render_pass_stencil];
+				cbx->render_pass_index = RENDER_PASS_INDEX_MAIN;
+				cbx->subpass = 0;
+				if (oit_active)
+				{
+					if (scbx_index == SCBX_WBOIT_RESOLVE)
+					{
+						cbx->render_pass_index = RENDER_PASS_INDEX_MAIN_OIT;
+						cbx->subpass = 2;
+					}
+					else if (scbx_index > SCBX_MAIN_OPAQUE_PASS_LAST)
+					{
+						cbx->render_pass_index = RENDER_PASS_INDEX_WBOIT;
+						cbx->subpass = 1;
+					}
+					else
+					{
+						cbx->render_pass_index = RENDER_PASS_INDEX_MAIN_OIT;
+					}
+				}
 			}
 
 			ZEROED_STRUCT (VkCommandBufferInheritanceInfo, inheritance_info);
@@ -2574,8 +2969,11 @@ void GL_BeginRenderingTask (void *unused)
 			viewport.maxDepth = 1.0f;
 			vkCmdSetViewport (cbx->cb, 0, 1, &viewport);
 
-			R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_blend_pipeline[cbx->render_pass_index]);
-			GL_SetCanvas (cbx, CANVAS_NONE);
+			if (scbx_index != SCBX_WBOIT_RESOLVE)
+			{
+				R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_blend_pipeline[cbx->render_pass_index]);
+				GL_SetCanvas (cbx, CANVAS_NONE);
+			}
 		}
 	}
 
@@ -2625,6 +3023,8 @@ qboolean GL_BeginRendering (qboolean use_tasks, task_handle_t *begin_rendering_t
 			return false;
 		}
 	}
+
+	oit_active = ((int)r_oit.value == 1);
 
 	*width = vid.width;
 	*height = vid.height;
@@ -2729,20 +3129,23 @@ typedef struct ray_debug_constants_s
 
 typedef struct end_rendering_parms_s
 {
-	uint32_t vid_width	   : 20;
-	qboolean swapchain	   : 1;
-	qboolean render_warp   : 1;
-	qboolean vid_palettize : 1;
-	qboolean menu		   : 1;
-	qboolean ray_debug	   : 1;
-	uint32_t render_scale  : 4;
-	uint32_t vid_height	   : 20;
-	float	 time;
-	uint8_t	 v_blend[4];
-	vec3_t	 origin;
-	vec3_t	 forward;
-	vec3_t	 right;
-	vec3_t	 down;
+	uint32_t	 vid_width	   : 20;
+	qboolean	 swapchain	   : 1;
+	qboolean	 use_oit	   : 1;
+	qboolean	 render_warp   : 1;
+	qboolean	 vid_palettize : 1;
+	qboolean	 polyblend	   : 1;
+	qboolean	 menu		   : 1;
+	qboolean	 ray_debug	   : 1;
+	uint32_t	 render_scale  : 3;
+	uint32_t	 vid_height	   : 20;
+	float		 time;
+	VkClearValue color_clear_value;
+	uint8_t		 v_blend[4];
+	vec3_t		 origin;
+	vec3_t		 forward;
+	vec3_t		 right;
+	vec3_t		 down;
 } end_rendering_parms_t;
 
 #define SCREEN_EFFECT_FLAG_SCALE_MASK 0x3
@@ -3039,6 +3442,15 @@ void WriteScreenshot (VkBuffer buffer, vulkan_memory_t memory)
 GL_EndRenderingTask
 =================
 */
+static void GL_SubmitContexts (VkCommandBuffer command_buffer, int first_context, int last_context)
+{
+	for (int scbx_index = first_context; scbx_index <= last_context; ++scbx_index)
+	{
+		for (int i = 0; i < SECONDARY_CB_MULTIPLICITY[scbx_index]; ++i)
+			vkCmdExecuteCommands (command_buffer, 1, &vulkan_globals.secondary_cb_contexts[scbx_index][i].cb);
+	}
+}
+
 static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 {
 	R_SubmitStagingBuffers ();
@@ -3087,27 +3499,73 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 	depth_clear_value.depthStencil.depth = 0.0f;
 	depth_clear_value.depthStencil.stencil = 0;
 
-	VkClearValue clear_values[3];
-	clear_values[0] = vulkan_globals.color_clear_value;
-	clear_values[1] = depth_clear_value;
-	clear_values[2] = vulkan_globals.color_clear_value;
-
-	const qboolean screen_effects = parms->render_warp || (parms->render_scale >= 2) || parms->vid_palettize || (gl_polyblend.value && parms->v_blend[3]) ||
-									parms->menu || parms->ray_debug;
+	const qboolean screen_effects =
+		parms->render_warp || (parms->render_scale >= 2) || parms->vid_palettize || (parms->polyblend && parms->v_blend[3]) || parms->menu || parms->ray_debug;
 	{
 		const qboolean resolve = (vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT);
+		const qboolean use_oit = parms->use_oit;
+		const uint32_t scene_attachment_index = resolve ? 2 : 0;
+		const uint32_t accum_attachment_index = resolve ? 3 : 2;
+		const uint32_t reveal_attachment_index = resolve ? 4 : 3;
+		ZEROED_STRUCT_ARRAY (VkClearValue, main_pass_clear_values, 5);
+
+		main_pass_clear_values[0] = parms->color_clear_value;
+		main_pass_clear_values[1] = depth_clear_value;
+		if (resolve)
+			main_pass_clear_values[scene_attachment_index] = parms->color_clear_value;
+		if (use_oit)
+		{
+			// These LOAD_OP_CLEAR values are applied when the WBOIT targets are first used in subpass 1.
+			main_pass_clear_values[accum_attachment_index].color.float32[0] = 0.0f;
+			main_pass_clear_values[accum_attachment_index].color.float32[1] = 0.0f;
+			main_pass_clear_values[accum_attachment_index].color.float32[2] = 0.0f;
+			main_pass_clear_values[accum_attachment_index].color.float32[3] = 0.0f;
+			main_pass_clear_values[reveal_attachment_index].color.float32[0] = 1.0f;
+			main_pass_clear_values[reveal_attachment_index].color.float32[1] = 1.0f;
+			main_pass_clear_values[reveal_attachment_index].color.float32[2] = 1.0f;
+			main_pass_clear_values[reveal_attachment_index].color.float32[3] = 1.0f;
+		}
 		ZEROED_STRUCT (VkRenderPassBeginInfo, render_pass_begin_info);
 		render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-		render_pass_begin_info.renderPass = vulkan_globals.secondary_cb_contexts[SCBX_WORLD][0].render_pass;
+		render_pass_begin_info.renderPass = vulkan_globals.main_render_pass[use_oit ? MAIN_RENDER_PASS_OIT : MAIN_RENDER_PASS_STANDARD]
+																		   [Sky_NeedStencil () ? MAIN_RENDER_PASS_STENCIL_CLEAR : MAIN_RENDER_PASS_NO_STENCIL];
 		render_pass_begin_info.framebuffer = main_framebuffers[screen_effects ? 1 : 0];
 		render_pass_begin_info.renderArea = render_area;
-		render_pass_begin_info.clearValueCount = resolve ? 3 : 2;
-		render_pass_begin_info.pClearValues = clear_values;
+		render_pass_begin_info.clearValueCount = resolve ? (use_oit ? 5 : 3) : (use_oit ? 4 : 2);
+		render_pass_begin_info.pClearValues = main_pass_clear_values;
 		vkCmdBeginRenderPass (render_passes_cb, &render_pass_begin_info, VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
 
-		for (int scbx_index = SCBX_WORLD; scbx_index <= SCBX_VIEW_MODEL; ++scbx_index)
-			for (int i = 0; i < SECONDARY_CB_MULTIPLICITY[scbx_index]; ++i)
-				vkCmdExecuteCommands (render_passes_cb, 1, &vulkan_globals.secondary_cb_contexts[scbx_index][i].cb);
+		GL_SubmitContexts (render_passes_cb, SCBX_WORLD, use_oit ? SCBX_MAIN_OPAQUE_PASS_LAST : SCBX_MAIN_PASS_LAST);
+
+		if (use_oit)
+		{
+			vkCmdNextSubpass (render_passes_cb, VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
+			GL_SubmitContexts (render_passes_cb, SCBX_ALPHA_ENTITIES_ACROSS_WATER, SCBX_MAIN_PASS_LAST);
+
+			vkCmdNextSubpass (render_passes_cb, VK_SUBPASS_CONTENTS_INLINE);
+
+			cb_context_t oit_cbx;
+			memset (&oit_cbx, 0, sizeof (oit_cbx));
+			oit_cbx.cb = render_passes_cb;
+
+			VkRect2D oit_scissor = render_area;
+			vkCmdSetScissor (render_passes_cb, 0, 1, &oit_scissor);
+
+			VkViewport oit_viewport;
+			oit_viewport.x = 0.0f;
+			oit_viewport.y = 0.0f;
+			oit_viewport.width = (float)parms->vid_width;
+			oit_viewport.height = (float)parms->vid_height;
+			oit_viewport.minDepth = 0.0f;
+			oit_viewport.maxDepth = 1.0f;
+			vkCmdSetViewport (render_passes_cb, 0, 1, &oit_viewport);
+
+			R_BindPipeline (&oit_cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.wboit_resolve_pipeline);
+			vkCmdBindDescriptorSets (
+				render_passes_cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.wboit_resolve_pipeline.layout.handle, 0, 1, &wboit_resolve_descriptor_set, 0,
+				NULL);
+			vkCmdDraw (render_passes_cb, 3, 1, 0, 0);
+		}
 
 		vkCmdEndRenderPass (render_passes_cb);
 	}
@@ -3208,8 +3666,10 @@ task_handle_t GL_EndRendering (qboolean use_tasks, qboolean swapchain)
 {
 	end_rendering_parms_t parms = {
 		.swapchain = swapchain,
+		.use_oit = oit_active,
 		.render_warp = render_warp,
 		.vid_palettize = vid_palettize.value != 0,
+		.polyblend = gl_polyblend.value != 0,
 		.menu = key_dest == key_menu,
 #if defined(_DEBUG)
 		.ray_debug = r_raydebug.value && (bmodel_tlas != VK_NULL_HANDLE),
@@ -3218,6 +3678,7 @@ task_handle_t GL_EndRendering (qboolean use_tasks, qboolean swapchain)
 		.vid_width = vid.width,
 		.vid_height = vid.height,
 		.time = fmod (cl.time, 2.0 * M_PI),
+		.color_clear_value = vulkan_globals.color_clear_value,
 		.v_blend[0] = v_blend[0],
 		.v_blend[1] = v_blend[1],
 		.v_blend[2] = v_blend[2],
@@ -3671,7 +4132,7 @@ void VID_Init (void)
 VID_Restart
 ===================
 */
-static void VID_Restart (qboolean set_mode)
+void VID_Restart (qboolean set_mode)
 {
 	if (!vid_initialized)
 		return;
@@ -3708,6 +4169,7 @@ static void VID_Restart (qboolean set_mode)
 		VID_SetMode (width, height, refreshrate, fullscreen);
 
 	GL_CreateRenderResources ();
+	oit_active = ((int)r_oit.value == 1);
 
 	// conwidth and conheight need to be recalculated
 	vid.conwidth = (scr_conwidth.value > 0) ? (int)scr_conwidth.value : (scr_conscale.value > 0) ? (int)(vid.width / scr_conscale.value) : vid.width;

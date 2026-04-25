@@ -137,7 +137,9 @@ SYSOBJ_MAIN:= main_sdl.o
 
 SHADER_OBJS = \
 	alias_frag.o \
+	alias_oit_frag.o \
 	alias_alphatest_frag.o \
+	alias_alphatest_oit_frag.o \
 	alias_vert.o \
 	md5_vert.o \
 	basic_alphatest_frag.o \
@@ -151,6 +153,7 @@ SHADER_OBJS = \
 	indirect_comp.o \
 	indirect_clear_comp.o \
 	basic_frag.o \
+	basic_oit_frag.o \
 	basic_notex_frag.o \
 	basic_vert.o \
 	sky_layer_frag.o \
@@ -160,7 +163,10 @@ SHADER_OBJS = \
 	sky_cube_vert.o \
 	postprocess_frag.o \
 	postprocess_vert.o \
+	wboit_resolve_frag.o \
+	wboit_resolve_msaa_frag.o \
 	world_frag.o \
+	world_oit_frag.o \
 	world_vert.o \
 	showtris_frag.o \
 	showtris_vert.o \

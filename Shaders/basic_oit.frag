@@ -17,11 +17,13 @@ layout (location = 0) in vec4 in_texcoord;
 layout (location = 1) in vec4 in_color;
 layout (location = 2) in float in_fog_frag_coord;
 
-layout (location = 0) out vec4 out_frag_color;
+layout (location = 0) out vec4 out_oit_accum;
+layout (location = 1) out float out_oit_reveal;
 
 #include "basic_common.inc"
+#include "wboit.inc"
 
 void main ()
 {
-	out_frag_color = BasicFragmentColor ();
+	WriteOITTransparency (BasicFragmentColor (), out_oit_accum, out_oit_reveal);
 }

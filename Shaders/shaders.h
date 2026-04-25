@@ -27,13 +27,17 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 DECLARE_SHADER_SPV (basic_vert);
 DECLARE_SHADER_SPV (basic_frag);
+DECLARE_SHADER_SPV (basic_oit_frag);
 DECLARE_SHADER_SPV (basic_alphatest_frag);
 DECLARE_SHADER_SPV (basic_notex_frag);
 DECLARE_SHADER_SPV (world_vert);
 DECLARE_SHADER_SPV (world_frag);
+DECLARE_SHADER_SPV (world_oit_frag);
 DECLARE_SHADER_SPV (alias_vert);
 DECLARE_SHADER_SPV (alias_frag);
 DECLARE_SHADER_SPV (alias_alphatest_frag);
+DECLARE_SHADER_SPV (alias_oit_frag);
+DECLARE_SHADER_SPV (alias_alphatest_oit_frag);
 DECLARE_SHADER_SPV (md5_vert);
 DECLARE_SHADER_SPV (sky_layer_vert);
 DECLARE_SHADER_SPV (sky_layer_frag);
@@ -42,6 +46,8 @@ DECLARE_SHADER_SPV (sky_cube_vert);
 DECLARE_SHADER_SPV (sky_cube_frag);
 DECLARE_SHADER_SPV (postprocess_vert);
 DECLARE_SHADER_SPV (postprocess_frag);
+DECLARE_SHADER_SPV (wboit_resolve_frag);
+DECLARE_SHADER_SPV (wboit_resolve_msaa_frag);
 DECLARE_SHADER_SPV (screen_effects_8bit_comp);
 DECLARE_SHADER_SPV (screen_effects_8bit_scale_comp);
 DECLARE_SHADER_SPV (screen_effects_8bit_scale_sops_comp);

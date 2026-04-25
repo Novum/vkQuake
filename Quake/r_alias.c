@@ -144,19 +144,27 @@ static void GL_DrawAliasFrame (
 		pipeline_index = (3 + CLAMP (1, showtris, 2));
 	}
 
+	const qboolean use_wboit_pipeline = (cbx->render_pass_index == RENDER_PASS_INDEX_WBOIT) && showtris == 0 && has_alpha;
+	if (cbx->render_pass_index == RENDER_PASS_INDEX_WBOIT && !use_wboit_pipeline)
+		return;
+
 	switch (paliashdr->poseverttype)
 	{
 	case PV_MD5:
-		pipeline = vulkan_globals.md5_pipelines[pipeline_index];
+		pipeline = use_wboit_pipeline ? vulkan_globals.md5_wboit_pipelines[pipeline_index]
+									  : vulkan_globals.md5_pipelines[R_MainPassPipelineVariant (cbx->render_pass_index)][pipeline_index];
 		break;
 	case PV_QUAKE1:
-		pipeline = vulkan_globals.alias_pipelines[pipeline_index];
+		pipeline = use_wboit_pipeline ? vulkan_globals.alias_wboit_pipelines[pipeline_index]
+									  : vulkan_globals.alias_pipelines[R_MainPassPipelineVariant (cbx->render_pass_index)][pipeline_index];
 		break;
 	case PV_QUAKE3:
-		pipeline = vulkan_globals.alias_pipelines[pipeline_index];
+		pipeline = use_wboit_pipeline ? vulkan_globals.alias_wboit_pipelines[pipeline_index]
+									  : vulkan_globals.alias_pipelines[R_MainPassPipelineVariant (cbx->render_pass_index)][pipeline_index];
 		break;
 	default:
-		pipeline = vulkan_globals.alias_pipelines[pipeline_index];
+		pipeline = use_wboit_pipeline ? vulkan_globals.alias_wboit_pipelines[pipeline_index]
+									  : vulkan_globals.alias_pipelines[R_MainPassPipelineVariant (cbx->render_pass_index)][pipeline_index];
 	}
 
 	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);

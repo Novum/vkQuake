@@ -29,8 +29,38 @@
     <Filter Include="Shaders\Debug">
       <UniqueIdentifier>{bae2a533-5f15-4207-88b7-db599dacebeb}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Shaders\Debug\Alias">
+      <UniqueIdentifier>{92443f2e-a0ea-4472-b406-4c580314f5af}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders\Debug\World">
+      <UniqueIdentifier>{670d4b67-3db2-4fca-b994-df4bdd9e8ef8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders\Debug\Screen Effects">
+      <UniqueIdentifier>{270530b0-cb95-48a1-9c5d-122f90f6d58b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders\Debug\Update Lightmap">
+      <UniqueIdentifier>{69e6738f-3fe1-40fd-b45e-5b4bdd9c0c54}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders\Debug\Sky">
+      <UniqueIdentifier>{d2f4b33d-2fd7-441d-b098-7f0da668e86b}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Shaders\Release">
       <UniqueIdentifier>{763ef85a-be38-4f72-952c-c351d27ce987}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders\Release\Alias">
+      <UniqueIdentifier>{9577a765-14ff-4f49-8b1b-155ad64fd71d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders\Release\World">
+      <UniqueIdentifier>{bc19c9dc-94b6-4209-856f-c3654c9c7a59}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders\Release\Screen Effects">
+      <UniqueIdentifier>{ca993cdd-bce2-48fe-83ec-f98bdd94febb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders\Release\Update Lightmap">
+      <UniqueIdentifier>{833b42cc-ac29-4f20-ba9e-b2f17f9545df}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders\Release\Sky">
+      <UniqueIdentifier>{f85c6827-1320-40e3-acbe-13f5c2495aed}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -284,28 +314,37 @@
       <Filter>Main</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\world.vert.c">
-      <Filter>Shaders\Debug</Filter>
+      <Filter>Shaders\Debug\World</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\alias.frag.c">
-      <Filter>Shaders\Debug</Filter>
+      <Filter>Shaders\Debug\Alias</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\alias_oit.frag.c">
+      <Filter>Shaders\Debug\Alias</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\alias.vert.c">
-      <Filter>Shaders\Debug</Filter>
+      <Filter>Shaders\Debug\Alias</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\alias_alphatest.frag.c">
-      <Filter>Shaders\Debug</Filter>
+      <Filter>Shaders\Debug\Alias</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\alias_alphatest_oit.frag.c">
+      <Filter>Shaders\Debug\Alias</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\basic.frag.c">
-      <Filter>Shaders\Debug</Filter>
+      <Filter>Shaders\Debug\World</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\basic_oit.frag.c">
+      <Filter>Shaders\Debug\World</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\basic.vert.c">
-      <Filter>Shaders\Debug</Filter>
+      <Filter>Shaders\Debug\World</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\basic_alphatest.frag.c">
-      <Filter>Shaders\Debug</Filter>
+      <Filter>Shaders\Debug\World</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\basic_notex.frag.c">
-      <Filter>Shaders\Debug</Filter>
+      <Filter>Shaders\Debug\World</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\cs_tex_warp.comp.c">
       <Filter>Shaders\Debug</Filter>
@@ -322,23 +361,29 @@
     <ClCompile Include="..\..\Shaders\Compiled\Debug\postprocess.vert.c">
       <Filter>Shaders\Debug</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Shaders\Compiled\Debug\screen_effects_8bit.comp.c">
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\wboit_resolve.frag.c">
       <Filter>Shaders\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\wboit_resolve_msaa.frag.c">
+      <Filter>Shaders\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\screen_effects_8bit.comp.c">
+      <Filter>Shaders\Debug\Screen Effects</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\screen_effects_8bit_scale.comp.c">
-      <Filter>Shaders\Debug</Filter>
+      <Filter>Shaders\Debug\Screen Effects</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\screen_effects_8bit_scale_sops.comp.c">
-      <Filter>Shaders\Debug</Filter>
+      <Filter>Shaders\Debug\Screen Effects</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\screen_effects_10bit.comp.c">
-      <Filter>Shaders\Debug</Filter>
+      <Filter>Shaders\Debug\Screen Effects</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\screen_effects_10bit_scale.comp.c">
-      <Filter>Shaders\Debug</Filter>
+      <Filter>Shaders\Debug\Screen Effects</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\screen_effects_10bit_scale_sops.comp.c">
-      <Filter>Shaders\Debug</Filter>
+      <Filter>Shaders\Debug\Screen Effects</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\showtris.frag.c">
       <Filter>Shaders\Debug</Filter>
@@ -347,46 +392,58 @@
       <Filter>Shaders\Debug</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\sky_box.frag.c">
-      <Filter>Shaders\Debug</Filter>
+      <Filter>Shaders\Debug\Sky</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\sky_cube.frag.c">
-      <Filter>Shaders\Debug</Filter>
+      <Filter>Shaders\Debug\Sky</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\sky_cube.vert.c">
-      <Filter>Shaders\Debug</Filter>
+      <Filter>Shaders\Debug\Sky</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\sky_layer.frag.c">
-      <Filter>Shaders\Debug</Filter>
+      <Filter>Shaders\Debug\Sky</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\sky_layer.vert.c">
-      <Filter>Shaders\Debug</Filter>
+      <Filter>Shaders\Debug\Sky</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\world.frag.c">
-      <Filter>Shaders\Debug</Filter>
+      <Filter>Shaders\Debug\World</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\world_oit.frag.c">
+      <Filter>Shaders\Debug\World</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\world.vert.c">
-      <Filter>Shaders\Release</Filter>
+      <Filter>Shaders\Release\World</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\alias.frag.c">
-      <Filter>Shaders\Release</Filter>
+      <Filter>Shaders\Release\Alias</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\alias_oit.frag.c">
+      <Filter>Shaders\Release\Alias</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\alias.vert.c">
-      <Filter>Shaders\Release</Filter>
+      <Filter>Shaders\Release\Alias</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\alias_alphatest.frag.c">
-      <Filter>Shaders\Release</Filter>
+      <Filter>Shaders\Release\Alias</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\alias_alphatest_oit.frag.c">
+      <Filter>Shaders\Release\Alias</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\basic.frag.c">
-      <Filter>Shaders\Release</Filter>
+      <Filter>Shaders\Release\World</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\basic_oit.frag.c">
+      <Filter>Shaders\Release\World</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\basic.vert.c">
-      <Filter>Shaders\Release</Filter>
+      <Filter>Shaders\Release\World</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\basic_alphatest.frag.c">
-      <Filter>Shaders\Release</Filter>
+      <Filter>Shaders\Release\World</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\basic_notex.frag.c">
-      <Filter>Shaders\Release</Filter>
+      <Filter>Shaders\Release\World</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\cs_tex_warp.comp.c">
       <Filter>Shaders\Release</Filter>
@@ -403,23 +460,29 @@
     <ClCompile Include="..\..\Shaders\Compiled\Release\postprocess.vert.c">
       <Filter>Shaders\Release</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Shaders\Compiled\Release\screen_effects_8bit.comp.c">
+    <ClCompile Include="..\..\Shaders\Compiled\Release\wboit_resolve.frag.c">
       <Filter>Shaders\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\wboit_resolve_msaa.frag.c">
+      <Filter>Shaders\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\screen_effects_8bit.comp.c">
+      <Filter>Shaders\Release\Screen Effects</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\screen_effects_8bit_scale.comp.c">
-      <Filter>Shaders\Release</Filter>
+      <Filter>Shaders\Release\Screen Effects</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\screen_effects_8bit_scale_sops.comp.c">
-      <Filter>Shaders\Release</Filter>
+      <Filter>Shaders\Release\Screen Effects</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\screen_effects_10bit.comp.c">
-      <Filter>Shaders\Release</Filter>
+      <Filter>Shaders\Release\Screen Effects</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\screen_effects_10bit_scale.comp.c">
-      <Filter>Shaders\Release</Filter>
+      <Filter>Shaders\Release\Screen Effects</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\screen_effects_10bit_scale_sops.comp.c">
-      <Filter>Shaders\Release</Filter>
+      <Filter>Shaders\Release\Screen Effects</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\showtris.frag.c">
       <Filter>Shaders\Release</Filter>
@@ -428,34 +491,37 @@
       <Filter>Shaders\Release</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\sky_box.frag.c">
-      <Filter>Shaders\Release</Filter>
+      <Filter>Shaders\Release\Sky</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\sky_cube.frag.c">
-      <Filter>Shaders\Release</Filter>
+      <Filter>Shaders\Release\Sky</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\sky_cube.vert.c">
-      <Filter>Shaders\Release</Filter>
+      <Filter>Shaders\Release\Sky</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\sky_layer.frag.c">
-      <Filter>Shaders\Release</Filter>
+      <Filter>Shaders\Release\Sky</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\sky_layer.vert.c">
-      <Filter>Shaders\Release</Filter>
+      <Filter>Shaders\Release\Sky</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\world.frag.c">
-      <Filter>Shaders\Release</Filter>
+      <Filter>Shaders\Release\World</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\world_oit.frag.c">
+      <Filter>Shaders\Release\World</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\update_lightmap_8bit.comp.c">
-      <Filter>Shaders\Release</Filter>
+      <Filter>Shaders\Release\Update Lightmap</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\update_lightmap_8bit.comp.c">
-      <Filter>Shaders\Debug</Filter>
+      <Filter>Shaders\Debug\Update Lightmap</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\update_lightmap_10bit.comp.c">
-      <Filter>Shaders\Release</Filter>
+      <Filter>Shaders\Release\Update Lightmap</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\update_lightmap_10bit.comp.c">
-      <Filter>Shaders\Debug</Filter>
+      <Filter>Shaders\Debug\Update Lightmap</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Quake\snd_mpg123.c">
       <Filter>Sound</Filter>
@@ -479,10 +545,10 @@
       <Filter>Main</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\update_lightmap_8bit_rt.comp.c">
-      <Filter>Shaders\Release</Filter>
+      <Filter>Shaders\Release\Update Lightmap</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\update_lightmap_10bit_rt.comp.c">
-      <Filter>Shaders\Release</Filter>
+      <Filter>Shaders\Release\Update Lightmap</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\ray_debug.comp.c">
       <Filter>Shaders\Release</Filter>
@@ -491,31 +557,31 @@
       <Filter>Shaders\Debug</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\mesh_interpolate.comp.c">
-      <Filter>Shaders\Release</Filter>
+      <Filter>Shaders\Release\Alias</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\mesh_interpolate.comp.c">
-      <Filter>Shaders\Debug</Filter>
+      <Filter>Shaders\Debug\Alias</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\skinning.comp.c">
-      <Filter>Shaders\Release</Filter>
+      <Filter>Shaders\Release\Alias</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\skinning.comp.c">
-      <Filter>Shaders\Debug</Filter>
+      <Filter>Shaders\Debug\Alias</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\update_lightmap_8bit_rt.comp.c">
-      <Filter>Shaders\Debug</Filter>
+      <Filter>Shaders\Debug\Update Lightmap</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\update_lightmap_10bit_rt.comp.c">
-      <Filter>Shaders\Debug</Filter>
+      <Filter>Shaders\Debug\Update Lightmap</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Quake\hash_map.c">
       <Filter>Main</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\md5.vert.c">
-      <Filter>Shaders\Release</Filter>
+      <Filter>Shaders\Release\Alias</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\md5.vert.c">
-      <Filter>Shaders\Debug</Filter>
+      <Filter>Shaders\Debug\Alias</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

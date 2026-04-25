@@ -1129,8 +1129,9 @@ void Sky_DrawSkyBox (cb_context_t *cbx, int *skypolys)
 		if (skymins[0][i] >= skymaxs[0][i] || skymins[1][i] >= skymaxs[1][i])
 			continue;
 
+		const main_render_pass_variant_t variant = R_MainPassPipelineVariant (cbx->render_pass_index);
 		vkCmdBindDescriptorSets (
-			cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_stencil_pipeline[indirect].layout.handle, 0, 1,
+			cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_stencil_pipeline[variant][indirect].layout.handle, 0, 1,
 			&skybox.textures[skytexorder[i]]->descriptor_set, 0, NULL);
 
 		VkBuffer	   buffer;
@@ -1207,6 +1208,7 @@ called once per frame after opaques before transparents, handles world + entitie
 void Sky_DrawSky (cb_context_t *cbx)
 {
 	int i;
+	const main_render_pass_variant_t variant = R_MainPassPipelineVariant (cbx->render_pass_index);
 
 	if (r_lightmap_cheatsafe)
 		return;
@@ -1246,14 +1248,15 @@ void Sky_DrawSky (cb_context_t *cbx)
 	{
 		if (indirect)
 			constant_values[19] = 1.0f;
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_color_pipeline[indirect]);
+		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_color_pipeline[variant][indirect]);
 		R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 20 * sizeof (float), constant_values);
 	}
 	else if (skybox.cubemap)
 	{
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_cube_pipeline[indirect]);
+		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_cube_pipeline[variant][indirect]);
 		vkCmdBindDescriptorSets (
-			cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_cube_pipeline[indirect].layout.handle, 0, 1, &skybox.cubemap->descriptor_set, 0, NULL);
+			cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_cube_pipeline[variant][indirect].layout.handle, 0, 1,
+			&skybox.cubemap->descriptor_set, 0, NULL);
 		memcpy (&constant_values[20], r_refdef.vieworg, sizeof (r_refdef.vieworg));
 
 		Skywind_UpdateParams (&constant_values[23], &constant_values[24]);
@@ -1267,10 +1270,10 @@ void Sky_DrawSky (cb_context_t *cbx)
 			R_EndDebugUtilsLabel (cbx);
 			return;
 		}
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_layer_pipeline[indirect]);
+		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_layer_pipeline[variant][indirect]);
 		VkDescriptorSet descriptor_sets[2] = {solidskytexture->descriptor_set, alphaskytexture->descriptor_set};
 		vkCmdBindDescriptorSets (
-			cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_layer_pipeline[indirect].layout.handle, 0, 2, descriptor_sets, 0, NULL);
+			cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_layer_pipeline[variant][indirect].layout.handle, 0, 2, descriptor_sets, 0, NULL);
 		memcpy (&constant_values[20], r_refdef.vieworg, sizeof (r_refdef.vieworg));
 		constant_values[23] = cl.time - (int)cl.time / 16 * 16;
 		constant_values[24] = r_skyalpha.value;
@@ -1278,7 +1281,7 @@ void Sky_DrawSky (cb_context_t *cbx)
 	}
 	else
 	{
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_stencil_pipeline[indirect]);
+		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_stencil_pipeline[variant][indirect]);
 		R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 20 * sizeof (float), constant_values);
 	}
 	vkCmdBindIndexBuffer (cbx->cb, vulkan_globals.fan_index_buffer, 0, VK_INDEX_TYPE_UINT16);
@@ -1294,13 +1297,13 @@ void Sky_DrawSky (cb_context_t *cbx)
 		// Entities cannot use the indirect pipelines
 		vkCmdBindIndexBuffer (cbx->cb, vulkan_globals.fan_index_buffer, 0, VK_INDEX_TYPE_UINT16);
 		if (flat_color)
-			R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_color_pipeline[0]);
+			R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_color_pipeline[variant][0]);
 		else if (skybox.cubemap)
-			R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_cube_pipeline[0]);
+			R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_cube_pipeline[variant][0]);
 		else if (!skybox.name[0])
-			R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_layer_pipeline[0]);
+			R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_layer_pipeline[variant][0]);
 		else
-			R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_stencil_pipeline[0]);
+			R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_stencil_pipeline[variant][0]);
 	}
 	else
 		Sky_ProcessTextureChains (cbx, color, &skypolys);
@@ -1312,7 +1315,7 @@ void Sky_DrawSky (cb_context_t *cbx)
 	//
 	if (!flat_color && !skybox.cubemap && skybox.name[0])
 	{
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_box_pipeline);
+		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_box_pipeline[variant]);
 		Sky_DrawSkyBox (cbx, &skypolys);
 	}
 
