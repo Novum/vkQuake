@@ -49,6 +49,7 @@ extern cvar_t r_lerpmodels;
 extern cvar_t r_lerpmove;
 extern cvar_t r_lerpturn;
 extern cvar_t r_nolerp_list;
+extern cvar_t r_oit;
 // johnfitz
 extern cvar_t gl_zfix; // QuakeSpasm z-fighting fix
 extern cvar_t r_alphasort;
@@ -86,12 +87,23 @@ atomic_uint64_t total_device_vulkan_allocation_size;
 atomic_uint64_t total_host_vulkan_allocation_size;
 
 qboolean use_simd;
+qboolean oit_active;
 
 static SDL_Mutex *vertex_allocate_mutex;
 static SDL_Mutex *index_allocate_mutex;
 static SDL_Mutex *uniform_allocate_mutex;
 static SDL_Mutex *storage_allocate_mutex;
 static SDL_Mutex *garbage_mutex;
+
+qboolean R_UseAlphaSort (void)
+{
+	return r_alphasort.value && !oit_active;
+}
+
+qboolean R_UseIndirectTransparentWater (void)
+{
+	return oit_active || !WATER_FIXED_ORDER;
+}
 
 /*
 ================
@@ -1295,6 +1307,29 @@ void R_CreateDescriptorSetLayouts ()
 	}
 
 	{
+		ZEROED_STRUCT_ARRAY (VkDescriptorSetLayoutBinding, oit_input_attachment_layout_bindings, 2);
+		for (int i = 0; i < 2; ++i)
+		{
+			oit_input_attachment_layout_bindings[i].binding = i;
+			oit_input_attachment_layout_bindings[i].descriptorCount = 1;
+			oit_input_attachment_layout_bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+			oit_input_attachment_layout_bindings[i].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+		}
+
+		descriptor_set_layout_create_info.bindingCount = countof (oit_input_attachment_layout_bindings);
+		descriptor_set_layout_create_info.pBindings = oit_input_attachment_layout_bindings;
+
+		memset (&vulkan_globals.oit_input_attachment_set_layout, 0, sizeof (vulkan_globals.oit_input_attachment_set_layout));
+		vulkan_globals.oit_input_attachment_set_layout.num_input_attachments = 2;
+
+		err = vkCreateDescriptorSetLayout (
+			vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.oit_input_attachment_set_layout.handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreateDescriptorSetLayout failed with code %i", (int)err);
+		GL_SetObjectName ((uint64_t)vulkan_globals.oit_input_attachment_set_layout.handle, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT, "oit input attachment");
+	}
+
+	{
 		ZEROED_STRUCT_ARRAY (VkDescriptorSetLayoutBinding, screen_effects_layout_bindings, 5);
 		screen_effects_layout_bindings[0].binding = 0;
 		screen_effects_layout_bindings[0].descriptorCount = 1;
@@ -1677,6 +1712,28 @@ void R_CreatePipelineLayouts ()
 			Sys_Error ("vkCreatePipelineLayout failed with code %i", (int)err);
 		GL_SetObjectName ((uint64_t)vulkan_globals.postprocess_pipeline.layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "postprocess_pipeline_layout");
 		vulkan_globals.postprocess_pipeline.layout.push_constant_range = push_constant_range;
+	}
+
+	{
+		// OIT resolve
+		VkDescriptorSetLayout oit_resolve_descriptor_set_layouts[1] = {
+			vulkan_globals.oit_input_attachment_set_layout.handle,
+		};
+
+		ZEROED_STRUCT (VkPushConstantRange, push_constant_range);
+
+		ZEROED_STRUCT (VkPipelineLayoutCreateInfo, pipeline_layout_create_info);
+		pipeline_layout_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+		pipeline_layout_create_info.setLayoutCount = 1;
+		pipeline_layout_create_info.pSetLayouts = oit_resolve_descriptor_set_layouts;
+		pipeline_layout_create_info.pushConstantRangeCount = 0;
+		pipeline_layout_create_info.pPushConstantRanges = NULL;
+
+		err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.oit_resolve_pipeline.layout.handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreatePipelineLayout failed with code %i", (int)err);
+		GL_SetObjectName ((uint64_t)vulkan_globals.oit_resolve_pipeline.layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "oit_resolve_pipeline_layout");
+		vulkan_globals.oit_resolve_pipeline.layout.push_constant_range = push_constant_range;
 	}
 
 	{
@@ -2088,7 +2145,7 @@ typedef struct pipeline_create_infos_s
 	VkPipelineMultisampleStateCreateInfo   multisample_state;
 	VkPipelineDepthStencilStateCreateInfo  depth_stencil_state;
 	VkPipelineColorBlendStateCreateInfo	   color_blend_state;
-	VkPipelineColorBlendAttachmentState	   blend_attachment_state;
+	VkPipelineColorBlendAttachmentState	   blend_attachment_states[3];
 	VkGraphicsPipelineCreateInfo		   graphics_pipeline;
 	VkComputePipelineCreateInfo			   compute_pipeline;
 } pipeline_create_infos_t;
@@ -2123,13 +2180,17 @@ static VkVertexInputBindingDescription	 md5_vertex_binding_description;
 
 DECLARE_SHADER_MODULE (basic_vert);
 DECLARE_SHADER_MODULE (basic_frag);
+DECLARE_SHADER_MODULE (basic_oit_frag);
 DECLARE_SHADER_MODULE (basic_alphatest_frag);
 DECLARE_SHADER_MODULE (basic_notex_frag);
 DECLARE_SHADER_MODULE (world_vert);
 DECLARE_SHADER_MODULE (world_frag);
+DECLARE_SHADER_MODULE (world_oit_frag);
 DECLARE_SHADER_MODULE (alias_vert);
 DECLARE_SHADER_MODULE (alias_frag);
 DECLARE_SHADER_MODULE (alias_alphatest_frag);
+DECLARE_SHADER_MODULE (alias_oit_frag);
+DECLARE_SHADER_MODULE (alias_alphatest_oit_frag);
 DECLARE_SHADER_MODULE (md5_vert);
 DECLARE_SHADER_MODULE (sky_layer_vert);
 DECLARE_SHADER_MODULE (sky_layer_frag);
@@ -2138,6 +2199,8 @@ DECLARE_SHADER_MODULE (sky_cube_vert);
 DECLARE_SHADER_MODULE (sky_cube_frag);
 DECLARE_SHADER_MODULE (postprocess_vert);
 DECLARE_SHADER_MODULE (postprocess_frag);
+DECLARE_SHADER_MODULE (oit_resolve_frag);
+DECLARE_SHADER_MODULE (oit_resolve_msaa_frag);
 DECLARE_SHADER_MODULE (screen_effects_8bit_comp);
 DECLARE_SHADER_MODULE (screen_effects_8bit_scale_comp);
 DECLARE_SHADER_MODULE (screen_effects_8bit_scale_sops_comp);
@@ -2156,6 +2219,11 @@ DECLARE_SHADER_MODULE (update_lightmap_10bit_rt_comp);
 DECLARE_SHADER_MODULE (ray_debug_comp);
 DECLARE_SHADER_MODULE (mesh_interpolate_comp);
 DECLARE_SHADER_MODULE (skinning_comp);
+
+static uint32_t R_MainColorAttachmentCount (qboolean use_oit)
+{
+	return use_oit ? 3 : 1;
+}
 
 /*
 ===============
@@ -2330,16 +2398,20 @@ static void R_InitDefaultStates (pipeline_create_infos_t *infos)
 	infos->depth_stencil_state.front = infos->depth_stencil_state.back;
 
 	infos->color_blend_state.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-	infos->blend_attachment_state.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-	infos->blend_attachment_state.blendEnable = VK_FALSE;
-	infos->blend_attachment_state.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-	infos->blend_attachment_state.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-	infos->blend_attachment_state.colorBlendOp = VK_BLEND_OP_ADD;
-	infos->blend_attachment_state.srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-	infos->blend_attachment_state.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-	infos->blend_attachment_state.alphaBlendOp = VK_BLEND_OP_ADD;
-	infos->color_blend_state.attachmentCount = 1;
-	infos->color_blend_state.pAttachments = &infos->blend_attachment_state;
+	for (int i = 0; i < countof (infos->blend_attachment_states); ++i)
+	{
+		infos->blend_attachment_states[i].colorWriteMask =
+			(i == 0) ? (VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT) : 0;
+		infos->blend_attachment_states[i].blendEnable = VK_FALSE;
+		infos->blend_attachment_states[i].srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+		infos->blend_attachment_states[i].dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+		infos->blend_attachment_states[i].colorBlendOp = VK_BLEND_OP_ADD;
+		infos->blend_attachment_states[i].srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+		infos->blend_attachment_states[i].dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+		infos->blend_attachment_states[i].alphaBlendOp = VK_BLEND_OP_ADD;
+	}
+	infos->color_blend_state.attachmentCount = R_MainColorAttachmentCount (false);
+	infos->color_blend_state.pAttachments = infos->blend_attachment_states;
 
 	infos->graphics_pipeline.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
 	infos->graphics_pipeline.stageCount = 2;
@@ -2353,7 +2425,7 @@ static void R_InitDefaultStates (pipeline_create_infos_t *infos)
 	infos->graphics_pipeline.pColorBlendState = &infos->color_blend_state;
 	infos->graphics_pipeline.pDynamicState = &infos->dynamic_state;
 	infos->graphics_pipeline.layout = vulkan_globals.basic_pipeline_layout.handle;
-	infos->graphics_pipeline.renderPass = vulkan_globals.secondary_cb_contexts[SCBX_WORLD][0].render_pass;
+	infos->graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_STANDARD][MAIN_RENDER_PASS_STENCIL_CLEAR];
 }
 
 /*
@@ -2363,44 +2435,59 @@ R_CreateBasicPipelines
 */
 static void R_CreateBasicPipelines ()
 {
-	int						render_pass;
 	VkResult				err;
 	pipeline_create_infos_t infos;
 	R_InitDefaultStates (&infos);
 
-	VkRenderPass main_render_pass = vulkan_globals.secondary_cb_contexts[SCBX_WORLD][0].render_pass;
-	VkRenderPass ui_render_pass = vulkan_globals.secondary_cb_contexts[SCBX_GUI]->render_pass;
+	const VkRenderPass main_render_pass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_STANDARD][MAIN_RENDER_PASS_STENCIL_CLEAR];
+	const VkRenderPass main_oit_render_pass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_OIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
+	VkRenderPass	   ui_render_pass = vulkan_globals.secondary_cb_contexts[SCBX_GUI]->render_pass;
+	const struct
+	{
+		render_pass_index_t	  index;
+		VkRenderPass		  render_pass;
+		VkSampleCountFlagBits rasterization_samples;
+		uint32_t			  attachment_count;
+	} render_pass_variants[] = {
+		{RENDER_PASS_INDEX_MAIN, main_render_pass, vulkan_globals.sample_count, R_MainColorAttachmentCount (false)},
+		{RENDER_PASS_INDEX_UI, ui_render_pass, VK_SAMPLE_COUNT_1_BIT, 1},
+		{RENDER_PASS_INDEX_MAIN_OIT, main_oit_render_pass, vulkan_globals.sample_count, R_MainColorAttachmentCount (true)},
+	};
 
 	infos.shader_stages[1].module = basic_alphatest_frag_module;
-	for (render_pass = 0; render_pass < 2; ++render_pass)
+	for (int render_pass = 0; render_pass < countof (render_pass_variants); ++render_pass)
 	{
-		infos.graphics_pipeline.renderPass = (render_pass == 0) ? main_render_pass : ui_render_pass;
-		infos.multisample_state.rasterizationSamples = (render_pass == 0) ? vulkan_globals.sample_count : VK_SAMPLE_COUNT_1_BIT;
+		const int index = render_pass_variants[render_pass].index;
+		infos.graphics_pipeline.renderPass = render_pass_variants[render_pass].render_pass;
+		infos.multisample_state.rasterizationSamples = render_pass_variants[render_pass].rasterization_samples;
+		infos.color_blend_state.attachmentCount = render_pass_variants[render_pass].attachment_count;
 
-		assert (vulkan_globals.basic_alphatest_pipeline[render_pass].handle == VK_NULL_HANDLE);
+		assert (vulkan_globals.basic_alphatest_pipeline[index].handle == VK_NULL_HANDLE);
 		err = vkCreateGraphicsPipelines (
-			vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.basic_alphatest_pipeline[render_pass].handle);
+			vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.basic_alphatest_pipeline[index].handle);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkCreateGraphicsPipelines failed with code %i", (int)err);
-		vulkan_globals.basic_alphatest_pipeline[render_pass].layout = vulkan_globals.basic_pipeline_layout;
-		GL_SetObjectName ((uint64_t)vulkan_globals.basic_alphatest_pipeline[render_pass].handle, VK_OBJECT_TYPE_PIPELINE, "basic_alphatest");
+		vulkan_globals.basic_alphatest_pipeline[index].layout = vulkan_globals.basic_pipeline_layout;
+		GL_SetObjectName ((uint64_t)vulkan_globals.basic_alphatest_pipeline[index].handle, VK_OBJECT_TYPE_PIPELINE, "basic_alphatest");
 	}
 
 	infos.shader_stages[1].module = basic_notex_frag_module;
-	infos.blend_attachment_state.blendEnable = VK_TRUE;
+	infos.blend_attachment_states[0].blendEnable = VK_TRUE;
 
-	for (render_pass = 0; render_pass < 2; ++render_pass)
+	for (int render_pass = 0; render_pass < countof (render_pass_variants); ++render_pass)
 	{
-		infos.graphics_pipeline.renderPass = (render_pass == 0) ? main_render_pass : ui_render_pass;
-		infos.multisample_state.rasterizationSamples = (render_pass == 0) ? vulkan_globals.sample_count : VK_SAMPLE_COUNT_1_BIT;
+		const int index = render_pass_variants[render_pass].index;
+		infos.graphics_pipeline.renderPass = render_pass_variants[render_pass].render_pass;
+		infos.multisample_state.rasterizationSamples = render_pass_variants[render_pass].rasterization_samples;
+		infos.color_blend_state.attachmentCount = render_pass_variants[render_pass].attachment_count;
 
-		assert (vulkan_globals.basic_notex_blend_pipeline[render_pass].handle == VK_NULL_HANDLE);
+		assert (vulkan_globals.basic_notex_blend_pipeline[index].handle == VK_NULL_HANDLE);
 		err = vkCreateGraphicsPipelines (
-			vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.basic_notex_blend_pipeline[render_pass].handle);
+			vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.basic_notex_blend_pipeline[index].handle);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkCreateGraphicsPipelines failed with code %i", (int)err);
-		vulkan_globals.basic_notex_blend_pipeline[render_pass].layout = vulkan_globals.basic_pipeline_layout;
-		GL_SetObjectName ((uint64_t)vulkan_globals.basic_notex_blend_pipeline[render_pass].handle, VK_OBJECT_TYPE_PIPELINE, "basic_notex_blend");
+		vulkan_globals.basic_notex_blend_pipeline[index].layout = vulkan_globals.basic_pipeline_layout;
+		GL_SetObjectName ((uint64_t)vulkan_globals.basic_notex_blend_pipeline[index].handle, VK_OBJECT_TYPE_PIPELINE, "basic_notex_blend");
 	}
 
 	infos.graphics_pipeline.renderPass = main_render_pass;
@@ -2409,19 +2496,21 @@ static void R_CreateBasicPipelines ()
 
 	infos.shader_stages[1].module = basic_frag_module;
 
-	for (render_pass = 0; render_pass < 2; ++render_pass)
+	for (int render_pass = 0; render_pass < countof (render_pass_variants); ++render_pass)
 	{
-		infos.graphics_pipeline.renderPass = (render_pass == 0) ? main_render_pass : ui_render_pass;
-		infos.multisample_state.rasterizationSamples = (render_pass == 0) ? vulkan_globals.sample_count : VK_SAMPLE_COUNT_1_BIT;
+		const int index = render_pass_variants[render_pass].index;
+		infos.graphics_pipeline.renderPass = render_pass_variants[render_pass].render_pass;
+		infos.multisample_state.rasterizationSamples = render_pass_variants[render_pass].rasterization_samples;
+		infos.color_blend_state.attachmentCount = render_pass_variants[render_pass].attachment_count;
 
-		assert (vulkan_globals.basic_blend_pipeline[render_pass].handle == VK_NULL_HANDLE);
+		assert (vulkan_globals.basic_blend_pipeline[index].handle == VK_NULL_HANDLE);
 		err = vkCreateGraphicsPipelines (
-			vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.basic_blend_pipeline[render_pass].handle);
+			vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.basic_blend_pipeline[index].handle);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkCreateGraphicsPipelines failed with code %i", (int)err);
-		vulkan_globals.basic_blend_pipeline[render_pass].layout = vulkan_globals.basic_pipeline_layout;
+		vulkan_globals.basic_blend_pipeline[index].layout = vulkan_globals.basic_pipeline_layout;
 
-		GL_SetObjectName ((uint64_t)vulkan_globals.basic_blend_pipeline[render_pass].handle, VK_OBJECT_TYPE_PIPELINE, "basic_blend");
+		GL_SetObjectName ((uint64_t)vulkan_globals.basic_blend_pipeline[index].handle, VK_OBJECT_TYPE_PIPELINE, "basic_blend");
 	}
 }
 
@@ -2441,7 +2530,8 @@ static void R_CreateWarpPipelines ()
 	infos.input_assembly_state.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
 	infos.rasterization_state.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
 
-	infos.blend_attachment_state.blendEnable = VK_FALSE;
+	infos.blend_attachment_states[0].blendEnable = VK_FALSE;
+	infos.color_blend_state.attachmentCount = 1;
 
 	infos.shader_stages[0].module = basic_vert_module;
 	infos.shader_stages[1].module = basic_frag_module;
@@ -2487,9 +2577,10 @@ static void R_CreateParticlesPipelines ()
 	infos.depth_stencil_state.depthTestEnable = VK_TRUE;
 	infos.depth_stencil_state.depthWriteEnable = VK_FALSE;
 
-	infos.graphics_pipeline.renderPass = vulkan_globals.secondary_cb_contexts[SCBX_WORLD][0].render_pass;
+	infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_STANDARD][MAIN_RENDER_PASS_STENCIL_CLEAR];
+	infos.color_blend_state.attachmentCount = R_MainColorAttachmentCount (false);
 
-	infos.blend_attachment_state.blendEnable = VK_TRUE;
+	infos.blend_attachment_states[0].blendEnable = VK_TRUE;
 
 	assert (vulkan_globals.particle_pipeline.handle == VK_NULL_HANDLE);
 	err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.particle_pipeline.handle);
@@ -2497,6 +2588,36 @@ static void R_CreateParticlesPipelines ()
 		Sys_Error ("vkCreateGraphicsPipelines failed with code %i", (int)err);
 	vulkan_globals.particle_pipeline.layout = vulkan_globals.basic_pipeline_layout;
 	GL_SetObjectName ((uint64_t)vulkan_globals.particle_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "particles");
+
+	infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_OIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
+	infos.color_blend_state.attachmentCount = R_MainColorAttachmentCount (true);
+	infos.shader_stages[1].module = basic_oit_frag_module;
+	infos.shader_stages[1].pSpecializationInfo = NULL;
+	infos.blend_attachment_states[0].blendEnable = VK_FALSE;
+	infos.blend_attachment_states[0].colorWriteMask = 0;
+	infos.blend_attachment_states[1].blendEnable = VK_TRUE;
+	infos.blend_attachment_states[1].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+	infos.blend_attachment_states[1].srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
+	infos.blend_attachment_states[1].dstColorBlendFactor = VK_BLEND_FACTOR_ONE;
+	infos.blend_attachment_states[1].colorBlendOp = VK_BLEND_OP_ADD;
+	infos.blend_attachment_states[1].srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+	infos.blend_attachment_states[1].dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+	infos.blend_attachment_states[1].alphaBlendOp = VK_BLEND_OP_ADD;
+	infos.blend_attachment_states[2].blendEnable = VK_TRUE;
+	infos.blend_attachment_states[2].colorWriteMask = VK_COLOR_COMPONENT_R_BIT;
+	infos.blend_attachment_states[2].srcColorBlendFactor = VK_BLEND_FACTOR_ZERO;
+	infos.blend_attachment_states[2].dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_COLOR;
+	infos.blend_attachment_states[2].colorBlendOp = VK_BLEND_OP_ADD;
+	infos.blend_attachment_states[2].srcAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+	infos.blend_attachment_states[2].dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+	infos.blend_attachment_states[2].alphaBlendOp = VK_BLEND_OP_ADD;
+
+	assert (vulkan_globals.particle_oit_pipeline.handle == VK_NULL_HANDLE);
+	err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.particle_oit_pipeline.handle);
+	if (err != VK_SUCCESS)
+		Sys_Error ("vkCreateGraphicsPipelines failed (particle_oit_pipeline) with code %i", (int)err);
+	vulkan_globals.particle_oit_pipeline.layout = vulkan_globals.basic_pipeline_layout;
+	GL_SetObjectName ((uint64_t)vulkan_globals.particle_oit_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "particles_oit");
 }
 
 /*
@@ -2632,8 +2753,9 @@ static void R_CreateFTEParticlesPipelines ()
 
 	infos.depth_stencil_state.depthTestEnable = VK_TRUE;
 	infos.depth_stencil_state.depthWriteEnable = VK_FALSE;
-	infos.graphics_pipeline.renderPass = vulkan_globals.secondary_cb_contexts[SCBX_WORLD][0].render_pass;
-	infos.blend_attachment_state.blendEnable = VK_TRUE;
+	infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_STANDARD][MAIN_RENDER_PASS_STENCIL_CLEAR];
+	infos.color_blend_state.attachmentCount = R_MainColorAttachmentCount (false);
+	infos.blend_attachment_states[0].blendEnable = VK_TRUE;
 
 	infos.multisample_state.sampleShadingEnable = VK_FALSE;
 
@@ -2641,11 +2763,11 @@ static void R_CreateFTEParticlesPipelines ()
 	{
 		infos.input_assembly_state.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 		infos.rasterization_state.polygonMode = VK_POLYGON_MODE_FILL;
-		infos.blend_attachment_state.srcColorBlendFactor = source_blend_factors[i];
-		infos.blend_attachment_state.dstColorBlendFactor = dest_blend_factors[i];
-		infos.blend_attachment_state.colorBlendOp = VK_BLEND_OP_ADD;
-		infos.blend_attachment_state.srcAlphaBlendFactor = source_blend_factors[i];
-		infos.blend_attachment_state.dstAlphaBlendFactor = source_blend_factors[i];
+		infos.blend_attachment_states[0].srcColorBlendFactor = source_blend_factors[i];
+		infos.blend_attachment_states[0].dstColorBlendFactor = dest_blend_factors[i];
+		infos.blend_attachment_states[0].colorBlendOp = VK_BLEND_OP_ADD;
+		infos.blend_attachment_states[0].srcAlphaBlendFactor = source_blend_factors[i];
+		infos.blend_attachment_states[0].dstAlphaBlendFactor = source_blend_factors[i];
 
 		assert (vulkan_globals.fte_particle_pipelines[i].handle == VK_NULL_HANDLE);
 		err = vkCreateGraphicsPipelines (
@@ -2654,6 +2776,19 @@ static void R_CreateFTEParticlesPipelines ()
 			Sys_Error ("vkCreateGraphicsPipelines failed (fte_particle_pipelines[%d]) with code %i", i, (int)err);
 		vulkan_globals.fte_particle_pipelines[i].layout = vulkan_globals.basic_pipeline_layout;
 		GL_SetObjectName ((uint64_t)vulkan_globals.fte_particle_pipelines[i].handle, VK_OBJECT_TYPE_PIPELINE, fte_particle_pipeline_names[i]);
+
+		infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_OIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
+		infos.color_blend_state.attachmentCount = R_MainColorAttachmentCount (true);
+		assert (vulkan_globals.fte_particle_oit_pipelines[i].handle == VK_NULL_HANDLE);
+		err = vkCreateGraphicsPipelines (
+			vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.fte_particle_oit_pipelines[i].handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreateGraphicsPipelines failed (fte_particle_oit_pipelines[%d]) with code %i", i, (int)err);
+		vulkan_globals.fte_particle_oit_pipelines[i].layout = vulkan_globals.basic_pipeline_layout;
+		GL_SetObjectName (
+			(uint64_t)vulkan_globals.fte_particle_oit_pipelines[i].handle, VK_OBJECT_TYPE_PIPELINE, va ("%s_oit", fte_particle_pipeline_names[i]));
+		infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_STANDARD][MAIN_RENDER_PASS_STENCIL_CLEAR];
+		infos.color_blend_state.attachmentCount = R_MainColorAttachmentCount (false);
 
 		if (vulkan_globals.non_solid_fill)
 		{
@@ -2667,6 +2802,19 @@ static void R_CreateFTEParticlesPipelines ()
 				Sys_Error ("vkCreateGraphicsPipelines failed (vulkan_globals.fte_particle_pipelines[%d]) with code %i", i + 8, (int)err);
 			vulkan_globals.fte_particle_pipelines[i + 8].layout = vulkan_globals.basic_pipeline_layout;
 			GL_SetObjectName ((uint64_t)vulkan_globals.fte_particle_pipelines[i + 8].handle, VK_OBJECT_TYPE_PIPELINE, fte_particle_pipeline_names[i + 8]);
+
+			infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_OIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
+			infos.color_blend_state.attachmentCount = R_MainColorAttachmentCount (true);
+			assert (vulkan_globals.fte_particle_oit_pipelines[i + 8].handle == VK_NULL_HANDLE);
+			err = vkCreateGraphicsPipelines (
+				vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.fte_particle_oit_pipelines[i + 8].handle);
+			if (err != VK_SUCCESS)
+				Sys_Error ("vkCreateGraphicsPipelines failed (vulkan_globals.fte_particle_oit_pipelines[%d]) with code %i", i + 8, (int)err);
+			vulkan_globals.fte_particle_oit_pipelines[i + 8].layout = vulkan_globals.basic_pipeline_layout;
+			GL_SetObjectName (
+				(uint64_t)vulkan_globals.fte_particle_oit_pipelines[i + 8].handle, VK_OBJECT_TYPE_PIPELINE, va ("%s_oit", fte_particle_pipeline_names[i + 8]));
+			infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_STANDARD][MAIN_RENDER_PASS_STENCIL_CLEAR];
+			infos.color_blend_state.attachmentCount = R_MainColorAttachmentCount (false);
 		}
 	}
 #endif
@@ -2685,9 +2833,11 @@ static void R_CreateSpritesPipelines ()
 
 	infos.shader_stages[0].module = basic_vert_module;
 	infos.shader_stages[1].module = basic_alphatest_frag_module;
-	infos.blend_attachment_state.blendEnable = VK_FALSE;
+	infos.blend_attachment_states[0].blendEnable = VK_FALSE;
 	infos.depth_stencil_state.depthTestEnable = VK_TRUE;
 	infos.depth_stencil_state.depthWriteEnable = VK_TRUE;
+	infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_STANDARD][MAIN_RENDER_PASS_STENCIL_CLEAR];
+	infos.color_blend_state.attachmentCount = R_MainColorAttachmentCount (false);
 
 	infos.dynamic_states[infos.dynamic_state.dynamicStateCount++] = VK_DYNAMIC_STATE_DEPTH_BIAS;
 
@@ -2697,6 +2847,16 @@ static void R_CreateSpritesPipelines ()
 		Sys_Error ("vkCreateGraphicsPipelines failed (sprite_pipeline) with code %i", (int)err);
 	vulkan_globals.sprite_pipeline.layout = vulkan_globals.basic_pipeline_layout;
 	GL_SetObjectName ((uint64_t)vulkan_globals.sprite_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "sprite");
+
+	infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_OIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
+	infos.color_blend_state.attachmentCount = R_MainColorAttachmentCount (true);
+
+	assert (vulkan_globals.sprite_oit_pipeline.handle == VK_NULL_HANDLE);
+	err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.sprite_oit_pipeline.handle);
+	if (err != VK_SUCCESS)
+		Sys_Error ("vkCreateGraphicsPipelines failed (sprite_oit_pipeline) with code %i", (int)err);
+	vulkan_globals.sprite_oit_pipeline.layout = vulkan_globals.basic_pipeline_layout;
+	GL_SetObjectName ((uint64_t)vulkan_globals.sprite_oit_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "sprite_oit");
 }
 
 /*
@@ -2722,7 +2882,8 @@ static void R_CreateSkyPipelines ()
 
 		infos.graphics_pipeline.layout = vulkan_globals.sky_pipeline_layout[0].handle;
 
-		infos.graphics_pipeline.renderPass = vulkan_globals.secondary_cb_contexts[SCBX_WORLD][0].render_pass;
+		infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_STANDARD][MAIN_RENDER_PASS_STENCIL_CLEAR];
+		infos.color_blend_state.attachmentCount = R_MainColorAttachmentCount (false);
 
 		infos.graphics_pipeline.stageCount = 1;
 		infos.shader_stages[1].module = VK_NULL_HANDLE;
@@ -2738,7 +2899,7 @@ static void R_CreateSkyPipelines ()
 		infos.depth_stencil_state.front.compareMask = 0xFF;
 		infos.depth_stencil_state.front.writeMask = 0xFF;
 		infos.depth_stencil_state.front.reference = 0x1;
-		infos.blend_attachment_state.colorWriteMask = 0; // We only want to write stencil
+		infos.blend_attachment_states[0].colorWriteMask = 0; // We only want to write stencil
 
 		assert (vulkan_globals.sky_stencil_pipeline[i].handle == VK_NULL_HANDLE);
 		err = vkCreateGraphicsPipelines (
@@ -2748,8 +2909,22 @@ static void R_CreateSkyPipelines ()
 		vulkan_globals.sky_stencil_pipeline[i].layout = vulkan_globals.sky_pipeline_layout[0];
 		GL_SetObjectName ((uint64_t)vulkan_globals.sky_stencil_pipeline[i].handle, VK_OBJECT_TYPE_PIPELINE, i ? "sky_stencil_indirect" : "sky_stencil");
 
+		infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_OIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
+		infos.color_blend_state.attachmentCount = R_MainColorAttachmentCount (true);
+		assert (vulkan_globals.sky_stencil_oit_pipeline[i].handle == VK_NULL_HANDLE);
+		err = vkCreateGraphicsPipelines (
+			vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.sky_stencil_oit_pipeline[i].handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreateGraphicsPipelines failed (sky_stencil_oit_pipeline) with code %i", (int)err);
+		vulkan_globals.sky_stencil_oit_pipeline[i].layout = vulkan_globals.sky_pipeline_layout[0];
+		GL_SetObjectName (
+			(uint64_t)vulkan_globals.sky_stencil_oit_pipeline[i].handle, VK_OBJECT_TYPE_PIPELINE, i ? "sky_stencil_indirect_oit" : "sky_stencil_oit");
+		infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_STANDARD][MAIN_RENDER_PASS_STENCIL_CLEAR];
+		infos.color_blend_state.attachmentCount = R_MainColorAttachmentCount (false);
+
 		infos.depth_stencil_state.stencilTestEnable = VK_FALSE;
-		infos.blend_attachment_state.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+		infos.blend_attachment_states[0].colorWriteMask =
+			VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
 		infos.graphics_pipeline.stageCount = 2;
 
 		infos.shader_stages[1].module = basic_notex_frag_module;
@@ -2762,6 +2937,18 @@ static void R_CreateSkyPipelines ()
 		vulkan_globals.sky_color_pipeline[i].layout = vulkan_globals.sky_pipeline_layout[0];
 		GL_SetObjectName ((uint64_t)vulkan_globals.sky_color_pipeline[i].handle, VK_OBJECT_TYPE_PIPELINE, i ? "sky_color_indirect" : "sky_color");
 
+		infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_OIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
+		infos.color_blend_state.attachmentCount = R_MainColorAttachmentCount (true);
+		assert (vulkan_globals.sky_color_oit_pipeline[i].handle == VK_NULL_HANDLE);
+		err = vkCreateGraphicsPipelines (
+			vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.sky_color_oit_pipeline[i].handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreateGraphicsPipelines failed (sky_color_oit_pipeline) with code %i", (int)err);
+		vulkan_globals.sky_color_oit_pipeline[i].layout = vulkan_globals.sky_pipeline_layout[0];
+		GL_SetObjectName ((uint64_t)vulkan_globals.sky_color_oit_pipeline[i].handle, VK_OBJECT_TYPE_PIPELINE, i ? "sky_color_indirect_oit" : "sky_color_oit");
+		infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_STANDARD][MAIN_RENDER_PASS_STENCIL_CLEAR];
+		infos.color_blend_state.attachmentCount = R_MainColorAttachmentCount (false);
+
 		infos.shader_stages[0].module = sky_cube_vert_module;
 		infos.shader_stages[1].module = sky_cube_frag_module;
 		assert (vulkan_globals.sky_cube_pipeline[i].handle == VK_NULL_HANDLE);
@@ -2770,6 +2957,18 @@ static void R_CreateSkyPipelines ()
 			Sys_Error ("vkCreateGraphicsPipelines failed (sky_cube_pipeline) with code %i", (int)err);
 		GL_SetObjectName ((uint64_t)vulkan_globals.sky_cube_pipeline[i].handle, VK_OBJECT_TYPE_PIPELINE, i ? "sky_cube_indirect" : "sky_cube");
 		vulkan_globals.sky_cube_pipeline[i].layout = vulkan_globals.sky_pipeline_layout[0];
+
+		infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_OIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
+		infos.color_blend_state.attachmentCount = R_MainColorAttachmentCount (true);
+		assert (vulkan_globals.sky_cube_oit_pipeline[i].handle == VK_NULL_HANDLE);
+		err = vkCreateGraphicsPipelines (
+			vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.sky_cube_oit_pipeline[i].handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreateGraphicsPipelines failed (sky_cube_oit_pipeline) with code %i", (int)err);
+		GL_SetObjectName ((uint64_t)vulkan_globals.sky_cube_oit_pipeline[i].handle, VK_OBJECT_TYPE_PIPELINE, i ? "sky_cube_indirect_oit" : "sky_cube_oit");
+		vulkan_globals.sky_cube_oit_pipeline[i].layout = vulkan_globals.sky_pipeline_layout[0];
+		infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_STANDARD][MAIN_RENDER_PASS_STENCIL_CLEAR];
+		infos.color_blend_state.attachmentCount = R_MainColorAttachmentCount (false);
 
 		infos.shader_stages[0].module = sky_layer_vert_module;
 		infos.shader_stages[1].module = sky_layer_frag_module;
@@ -2781,6 +2980,18 @@ static void R_CreateSkyPipelines ()
 			Sys_Error ("vkCreateGraphicsPipelines failed (sky_layer_pipeline) with code %i", (int)err);
 		GL_SetObjectName ((uint64_t)vulkan_globals.sky_layer_pipeline[i].handle, VK_OBJECT_TYPE_PIPELINE, i ? "sky_layer_indirect" : "sky_layer");
 		vulkan_globals.sky_layer_pipeline[i].layout = vulkan_globals.sky_pipeline_layout[1];
+
+		infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_OIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
+		infos.color_blend_state.attachmentCount = R_MainColorAttachmentCount (true);
+		assert (vulkan_globals.sky_layer_oit_pipeline[i].handle == VK_NULL_HANDLE);
+		err = vkCreateGraphicsPipelines (
+			vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.sky_layer_oit_pipeline[i].handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreateGraphicsPipelines failed (sky_layer_oit_pipeline) with code %i", (int)err);
+		GL_SetObjectName ((uint64_t)vulkan_globals.sky_layer_oit_pipeline[i].handle, VK_OBJECT_TYPE_PIPELINE, i ? "sky_layer_indirect_oit" : "sky_layer_oit");
+		vulkan_globals.sky_layer_oit_pipeline[i].layout = vulkan_globals.sky_pipeline_layout[1];
+		infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_STANDARD][MAIN_RENDER_PASS_STENCIL_CLEAR];
+		infos.color_blend_state.attachmentCount = R_MainColorAttachmentCount (false);
 
 		if (i > 0)
 			break;
@@ -2806,6 +3017,15 @@ static void R_CreateSkyPipelines ()
 		GL_SetObjectName ((uint64_t)vulkan_globals.sky_box_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "sky_box");
 
 		vulkan_globals.sky_box_pipeline.layout = vulkan_globals.sky_pipeline_layout[0];
+
+		infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_OIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
+		infos.color_blend_state.attachmentCount = R_MainColorAttachmentCount (true);
+		assert (vulkan_globals.sky_box_oit_pipeline.handle == VK_NULL_HANDLE);
+		err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.sky_box_oit_pipeline.handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreateGraphicsPipelines failed (sky_box_oit_pipeline) with code %i", (int)err);
+		GL_SetObjectName ((uint64_t)vulkan_globals.sky_box_oit_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "sky_box_oit");
+		vulkan_globals.sky_box_oit_pipeline.layout = vulkan_globals.sky_pipeline_layout[0];
 	}
 }
 
@@ -2827,6 +3047,8 @@ static void R_CreateShowTrisPipelines ()
 		infos.depth_stencil_state.depthTestEnable = VK_FALSE;
 		infos.depth_stencil_state.depthWriteEnable = VK_FALSE;
 		infos.input_assembly_state.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+		infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_STANDARD][MAIN_RENDER_PASS_STENCIL_CLEAR];
+		infos.color_blend_state.attachmentCount = R_MainColorAttachmentCount (false);
 
 		VkVertexInputAttributeDescription showtris_vertex_input_attribute_descriptions;
 		showtris_vertex_input_attribute_descriptions.binding = 0;
@@ -2856,6 +3078,18 @@ static void R_CreateShowTrisPipelines ()
 		vulkan_globals.showtris_pipeline.layout = vulkan_globals.basic_pipeline_layout;
 		GL_SetObjectName ((uint64_t)vulkan_globals.showtris_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "showtris");
 
+		infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_OIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
+		infos.color_blend_state.attachmentCount = R_MainColorAttachmentCount (true);
+		assert (vulkan_globals.showtris_oit_pipeline.handle == VK_NULL_HANDLE);
+		err =
+			vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.showtris_oit_pipeline.handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreateGraphicsPipelines failed (showtris_oit_pipeline) with code %i", (int)err);
+		vulkan_globals.showtris_oit_pipeline.layout = vulkan_globals.basic_pipeline_layout;
+		GL_SetObjectName ((uint64_t)vulkan_globals.showtris_oit_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "showtris_oit");
+		infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_STANDARD][MAIN_RENDER_PASS_STENCIL_CLEAR];
+		infos.color_blend_state.attachmentCount = R_MainColorAttachmentCount (false);
+
 		infos.depth_stencil_state.depthTestEnable = VK_TRUE;
 		infos.rasterization_state.depthBiasEnable = VK_TRUE;
 		infos.rasterization_state.depthBiasConstantFactor = 500.0f;
@@ -2870,6 +3104,18 @@ static void R_CreateShowTrisPipelines ()
 
 		GL_SetObjectName ((uint64_t)vulkan_globals.showtris_depth_test_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "showtris_depth_test");
 
+		infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_OIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
+		infos.color_blend_state.attachmentCount = R_MainColorAttachmentCount (true);
+		assert (vulkan_globals.showtris_depth_test_oit_pipeline.handle == VK_NULL_HANDLE);
+		err = vkCreateGraphicsPipelines (
+			vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.showtris_depth_test_oit_pipeline.handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreateGraphicsPipelines failed (showtris_depth_test_oit_pipeline) with code %i", (int)err);
+		vulkan_globals.showtris_depth_test_oit_pipeline.layout = vulkan_globals.basic_pipeline_layout;
+		GL_SetObjectName ((uint64_t)vulkan_globals.showtris_depth_test_oit_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "showtris_depth_test_oit");
+		infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_STANDARD][MAIN_RENDER_PASS_STENCIL_CLEAR];
+		infos.color_blend_state.attachmentCount = R_MainColorAttachmentCount (false);
+
 		infos.depth_stencil_state.depthTestEnable = VK_FALSE;
 		infos.rasterization_state.depthBiasEnable = VK_FALSE;
 		infos.input_assembly_state.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
@@ -2880,6 +3126,18 @@ static void R_CreateShowTrisPipelines ()
 		vulkan_globals.showbboxes_pipeline.layout = vulkan_globals.basic_pipeline_layout;
 
 		GL_SetObjectName ((uint64_t)vulkan_globals.showbboxes_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "showbboxes");
+
+		infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_OIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
+		infos.color_blend_state.attachmentCount = R_MainColorAttachmentCount (true);
+		assert (vulkan_globals.showbboxes_oit_pipeline.handle == VK_NULL_HANDLE);
+		err = vkCreateGraphicsPipelines (
+			vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.showbboxes_oit_pipeline.handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreateGraphicsPipelines failed (showbboxes_oit_pipeline) with code %i", (int)err);
+		vulkan_globals.showbboxes_oit_pipeline.layout = vulkan_globals.basic_pipeline_layout;
+		GL_SetObjectName ((uint64_t)vulkan_globals.showbboxes_oit_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "showbboxes_oit");
+		infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_STANDARD][MAIN_RENDER_PASS_STENCIL_CLEAR];
+		infos.color_blend_state.attachmentCount = R_MainColorAttachmentCount (false);
 
 		infos.input_assembly_state.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 		infos.vertex_input_state.vertexAttributeDescriptionCount = 3;
@@ -2895,6 +3153,18 @@ static void R_CreateShowTrisPipelines ()
 		vulkan_globals.showtris_indirect_pipeline.layout = vulkan_globals.basic_pipeline_layout;
 		GL_SetObjectName ((uint64_t)vulkan_globals.showtris_indirect_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "showtris_indirect");
 
+		infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_OIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
+		infos.color_blend_state.attachmentCount = R_MainColorAttachmentCount (true);
+		assert (vulkan_globals.showtris_indirect_oit_pipeline.handle == VK_NULL_HANDLE);
+		err = vkCreateGraphicsPipelines (
+			vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.showtris_indirect_oit_pipeline.handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreateGraphicsPipelines failed (showtris_indirect_oit_pipeline) with code %i", (int)err);
+		vulkan_globals.showtris_indirect_oit_pipeline.layout = vulkan_globals.basic_pipeline_layout;
+		GL_SetObjectName ((uint64_t)vulkan_globals.showtris_indirect_oit_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "showtris_indirect_oit");
+		infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_STANDARD][MAIN_RENDER_PASS_STENCIL_CLEAR];
+		infos.color_blend_state.attachmentCount = R_MainColorAttachmentCount (false);
+
 		infos.depth_stencil_state.depthTestEnable = VK_TRUE;
 		infos.rasterization_state.depthBiasEnable = VK_TRUE;
 
@@ -2905,6 +3175,17 @@ static void R_CreateShowTrisPipelines ()
 			Sys_Error ("vkCreateGraphicsPipelines failed (showtris_indirect_depth_test_pipeline) with code %i", (int)err);
 		vulkan_globals.showtris_indirect_depth_test_pipeline.layout = vulkan_globals.basic_pipeline_layout;
 		GL_SetObjectName ((uint64_t)vulkan_globals.showtris_indirect_depth_test_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "showtris_indirect_depth_test");
+
+		infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_OIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
+		infos.color_blend_state.attachmentCount = R_MainColorAttachmentCount (true);
+		assert (vulkan_globals.showtris_indirect_depth_test_oit_pipeline.handle == VK_NULL_HANDLE);
+		err = vkCreateGraphicsPipelines (
+			vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.showtris_indirect_depth_test_oit_pipeline.handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreateGraphicsPipelines failed (showtris_indirect_depth_test_oit_pipeline) with code %i", (int)err);
+		vulkan_globals.showtris_indirect_depth_test_oit_pipeline.layout = vulkan_globals.basic_pipeline_layout;
+		GL_SetObjectName (
+			(uint64_t)vulkan_globals.showtris_indirect_depth_test_oit_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "showtris_indirect_depth_test_oit");
 	}
 }
 
@@ -2960,7 +3241,7 @@ static void R_CreateWorldPipelines ()
 	VkSpecializationInfo specialization_info;
 	specialization_info.mapEntryCount = 5;
 	specialization_info.pMapEntries = specialization_entries;
-	specialization_info.dataSize = 20;
+	specialization_info.dataSize = sizeof (specialization_data);
 	specialization_info.pData = specialization_data;
 
 	infos.graphics_pipeline.layout = vulkan_globals.world_pipeline_layout.handle;
@@ -2968,6 +3249,8 @@ static void R_CreateWorldPipelines ()
 	infos.shader_stages[0].module = world_vert_module;
 	infos.shader_stages[1].module = world_frag_module;
 	infos.shader_stages[1].pSpecializationInfo = &specialization_info;
+	infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_STANDARD][MAIN_RENDER_PASS_STENCIL_CLEAR];
+	infos.color_blend_state.attachmentCount = R_MainColorAttachmentCount (false);
 
 	for (alpha_blend = 0; alpha_blend < 2; ++alpha_blend)
 	{
@@ -2984,7 +3267,13 @@ static void R_CreateWorldPipelines ()
 					specialization_data[2] = alpha_blend;
 					specialization_data[3] = quantize_lm;
 
-					infos.blend_attachment_state.blendEnable = alpha_blend ? VK_TRUE : VK_FALSE;
+					infos.blend_attachment_states[0].blendEnable = alpha_blend ? VK_TRUE : VK_FALSE;
+					infos.blend_attachment_states[0].colorWriteMask =
+						VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+					infos.blend_attachment_states[1].blendEnable = VK_FALSE;
+					infos.blend_attachment_states[2].blendEnable = VK_FALSE;
+					infos.blend_attachment_states[1].colorWriteMask = 0;
+					infos.blend_attachment_states[2].colorWriteMask = 0;
 					infos.depth_stencil_state.depthWriteEnable = alpha_blend ? VK_FALSE : VK_TRUE;
 					if (pipeline_index > 0)
 					{
@@ -3005,6 +3294,57 @@ static void R_CreateWorldPipelines ()
 					GL_SetObjectName (
 						(uint64_t)vulkan_globals.world_pipelines[pipeline_index].handle, VK_OBJECT_TYPE_PIPELINE, va ("world %d", pipeline_index));
 					vulkan_globals.world_pipelines[pipeline_index].layout = vulkan_globals.world_pipeline_layout;
+
+					infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_OIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
+					infos.color_blend_state.attachmentCount = R_MainColorAttachmentCount (true);
+					if (alpha_blend)
+					{
+						infos.shader_stages[1].module = world_oit_frag_module;
+						infos.blend_attachment_states[0].blendEnable = VK_FALSE;
+						infos.blend_attachment_states[0].colorWriteMask = 0;
+
+						infos.blend_attachment_states[1].blendEnable = VK_TRUE;
+						infos.blend_attachment_states[1].colorWriteMask =
+							VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+						infos.blend_attachment_states[1].srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
+						infos.blend_attachment_states[1].dstColorBlendFactor = VK_BLEND_FACTOR_ONE;
+						infos.blend_attachment_states[1].colorBlendOp = VK_BLEND_OP_ADD;
+						infos.blend_attachment_states[1].srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+						infos.blend_attachment_states[1].dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+						infos.blend_attachment_states[1].alphaBlendOp = VK_BLEND_OP_ADD;
+
+						infos.blend_attachment_states[2].blendEnable = VK_TRUE;
+						infos.blend_attachment_states[2].colorWriteMask = VK_COLOR_COMPONENT_R_BIT;
+						infos.blend_attachment_states[2].srcColorBlendFactor = VK_BLEND_FACTOR_ZERO;
+						infos.blend_attachment_states[2].dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_COLOR;
+						infos.blend_attachment_states[2].colorBlendOp = VK_BLEND_OP_ADD;
+						infos.blend_attachment_states[2].srcAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+						infos.blend_attachment_states[2].dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+						infos.blend_attachment_states[2].alphaBlendOp = VK_BLEND_OP_ADD;
+					}
+					else
+					{
+						infos.shader_stages[1].module = world_frag_module;
+						infos.blend_attachment_states[0].blendEnable = VK_FALSE;
+						infos.blend_attachment_states[0].colorWriteMask =
+							VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+						infos.blend_attachment_states[1].blendEnable = VK_FALSE;
+						infos.blend_attachment_states[2].blendEnable = VK_FALSE;
+						infos.blend_attachment_states[1].colorWriteMask = 0;
+						infos.blend_attachment_states[2].colorWriteMask = 0;
+					}
+
+					assert (vulkan_globals.world_oit_pipelines[pipeline_index].handle == VK_NULL_HANDLE);
+					err = vkCreateGraphicsPipelines (
+						vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.world_oit_pipelines[pipeline_index].handle);
+					if (err != VK_SUCCESS)
+						Sys_Error ("vkCreateGraphicsPipelines failed (world_oit_pipelines[%d]) with code %i", pipeline_index, (int)err);
+					GL_SetObjectName (
+						(uint64_t)vulkan_globals.world_oit_pipelines[pipeline_index].handle, VK_OBJECT_TYPE_PIPELINE, va ("world_oit %d", pipeline_index));
+					vulkan_globals.world_oit_pipelines[pipeline_index].layout = vulkan_globals.world_pipeline_layout;
+					infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_STANDARD][MAIN_RENDER_PASS_STENCIL_CLEAR];
+					infos.color_blend_state.attachmentCount = R_MainColorAttachmentCount (false);
+					infos.shader_stages[1].module = world_frag_module;
 				}
 			}
 		}
@@ -3025,7 +3365,7 @@ static void R_CreateAliasPipelines ()
 	infos.depth_stencil_state.depthTestEnable = VK_TRUE;
 	infos.depth_stencil_state.depthWriteEnable = VK_TRUE;
 	infos.rasterization_state.depthBiasEnable = VK_FALSE;
-	infos.blend_attachment_state.blendEnable = VK_FALSE;
+	infos.blend_attachment_states[0].blendEnable = VK_FALSE;
 	infos.shader_stages[1].pSpecializationInfo = NULL;
 
 	infos.vertex_input_state.vertexAttributeDescriptionCount = 5;
@@ -3035,6 +3375,8 @@ static void R_CreateAliasPipelines ()
 
 	infos.shader_stages[0].module = alias_vert_module;
 	infos.shader_stages[1].module = alias_frag_module;
+	infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_STANDARD][MAIN_RENDER_PASS_STENCIL_CLEAR];
+	infos.color_blend_state.attachmentCount = R_MainColorAttachmentCount (false);
 
 	infos.graphics_pipeline.layout = vulkan_globals.alias_pipelines[0].layout.handle;
 
@@ -3043,6 +3385,18 @@ static void R_CreateAliasPipelines ()
 	if (err != VK_SUCCESS)
 		Sys_Error ("vkCreateGraphicsPipelines failed (alias_pipeline) with code %i", (int)err);
 	GL_SetObjectName ((uint64_t)vulkan_globals.alias_pipelines[0].handle, VK_OBJECT_TYPE_PIPELINE, "alias");
+	vulkan_globals.alias_pipelines[0].layout = vulkan_globals.alias_pipelines[0].layout;
+
+	infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_OIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
+	infos.color_blend_state.attachmentCount = R_MainColorAttachmentCount (true);
+	assert (vulkan_globals.alias_oit_pipelines[0].handle == VK_NULL_HANDLE);
+	err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.alias_oit_pipelines[0].handle);
+	if (err != VK_SUCCESS)
+		Sys_Error ("vkCreateGraphicsPipelines failed (alias_oit_pipeline) with code %i", (int)err);
+	GL_SetObjectName ((uint64_t)vulkan_globals.alias_oit_pipelines[0].handle, VK_OBJECT_TYPE_PIPELINE, "alias_oit");
+	vulkan_globals.alias_oit_pipelines[0].layout = vulkan_globals.alias_pipelines[0].layout;
+	infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_STANDARD][MAIN_RENDER_PASS_STENCIL_CLEAR];
+	infos.color_blend_state.attachmentCount = R_MainColorAttachmentCount (false);
 
 	infos.shader_stages[1].module = alias_alphatest_frag_module;
 
@@ -3053,8 +3407,19 @@ static void R_CreateAliasPipelines ()
 	GL_SetObjectName ((uint64_t)vulkan_globals.alias_pipelines[1].handle, VK_OBJECT_TYPE_PIPELINE, "alias_alphatest");
 	vulkan_globals.alias_pipelines[1].layout = vulkan_globals.alias_pipelines[0].layout;
 
+	infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_OIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
+	infos.color_blend_state.attachmentCount = R_MainColorAttachmentCount (true);
+	assert (vulkan_globals.alias_oit_pipelines[1].handle == VK_NULL_HANDLE);
+	err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.alias_oit_pipelines[1].handle);
+	if (err != VK_SUCCESS)
+		Sys_Error ("vkCreateGraphicsPipelines failed (alias_oit_alphatest_pipeline) with code %i", (int)err);
+	GL_SetObjectName ((uint64_t)vulkan_globals.alias_oit_pipelines[1].handle, VK_OBJECT_TYPE_PIPELINE, "alias_oit_alphatest");
+	vulkan_globals.alias_oit_pipelines[1].layout = vulkan_globals.alias_pipelines[0].layout;
+	infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_STANDARD][MAIN_RENDER_PASS_STENCIL_CLEAR];
+	infos.color_blend_state.attachmentCount = R_MainColorAttachmentCount (false);
+
 	infos.depth_stencil_state.depthWriteEnable = VK_FALSE;
-	infos.blend_attachment_state.blendEnable = VK_TRUE;
+	infos.blend_attachment_states[0].blendEnable = VK_TRUE;
 	infos.shader_stages[1].module = alias_frag_module;
 
 	assert (vulkan_globals.alias_pipelines[2].handle == VK_NULL_HANDLE);
@@ -3064,6 +3429,44 @@ static void R_CreateAliasPipelines ()
 	GL_SetObjectName ((uint64_t)vulkan_globals.alias_pipelines[2].handle, VK_OBJECT_TYPE_PIPELINE, "alias_blend");
 	vulkan_globals.alias_pipelines[2].layout = vulkan_globals.alias_pipelines[0].layout;
 
+	infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_OIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
+	infos.color_blend_state.attachmentCount = R_MainColorAttachmentCount (true);
+	infos.blend_attachment_states[0].blendEnable = VK_FALSE;
+	infos.blend_attachment_states[0].colorWriteMask = 0;
+	infos.blend_attachment_states[1].blendEnable = VK_TRUE;
+	infos.blend_attachment_states[1].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+	infos.blend_attachment_states[1].srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
+	infos.blend_attachment_states[1].dstColorBlendFactor = VK_BLEND_FACTOR_ONE;
+	infos.blend_attachment_states[1].colorBlendOp = VK_BLEND_OP_ADD;
+	infos.blend_attachment_states[1].srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+	infos.blend_attachment_states[1].dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+	infos.blend_attachment_states[1].alphaBlendOp = VK_BLEND_OP_ADD;
+	infos.blend_attachment_states[2].blendEnable = VK_TRUE;
+	infos.blend_attachment_states[2].colorWriteMask = VK_COLOR_COMPONENT_R_BIT;
+	infos.blend_attachment_states[2].srcColorBlendFactor = VK_BLEND_FACTOR_ZERO;
+	infos.blend_attachment_states[2].dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_COLOR;
+	infos.blend_attachment_states[2].colorBlendOp = VK_BLEND_OP_ADD;
+	infos.blend_attachment_states[2].srcAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+	infos.blend_attachment_states[2].dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+	infos.blend_attachment_states[2].alphaBlendOp = VK_BLEND_OP_ADD;
+	infos.shader_stages[1].module = alias_oit_frag_module;
+
+	assert (vulkan_globals.alias_oit_pipelines[2].handle == VK_NULL_HANDLE);
+	err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.alias_oit_pipelines[2].handle);
+	if (err != VK_SUCCESS)
+		Sys_Error ("vkCreateGraphicsPipelines failed (alias_oit_blend_pipeline) with code %i", (int)err);
+	GL_SetObjectName ((uint64_t)vulkan_globals.alias_oit_pipelines[2].handle, VK_OBJECT_TYPE_PIPELINE, "alias_oit_blend");
+	vulkan_globals.alias_oit_pipelines[2].layout = vulkan_globals.alias_pipelines[0].layout;
+	infos.shader_stages[1].module = alias_frag_module;
+	infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_STANDARD][MAIN_RENDER_PASS_STENCIL_CLEAR];
+	infos.color_blend_state.attachmentCount = R_MainColorAttachmentCount (false);
+
+	infos.blend_attachment_states[0].blendEnable = VK_TRUE;
+	infos.blend_attachment_states[0].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+	infos.blend_attachment_states[1].blendEnable = VK_FALSE;
+	infos.blend_attachment_states[2].blendEnable = VK_FALSE;
+	infos.blend_attachment_states[1].colorWriteMask = 0;
+	infos.blend_attachment_states[2].colorWriteMask = 0;
 	infos.shader_stages[1].module = alias_alphatest_frag_module;
 
 	assert (vulkan_globals.alias_pipelines[3].handle == VK_NULL_HANDLE);
@@ -3073,13 +3476,52 @@ static void R_CreateAliasPipelines ()
 	GL_SetObjectName ((uint64_t)vulkan_globals.alias_pipelines[3].handle, VK_OBJECT_TYPE_PIPELINE, "alias_alphatest_blend");
 	vulkan_globals.alias_pipelines[3].layout = vulkan_globals.alias_pipelines[0].layout;
 
+	infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_OIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
+	infos.color_blend_state.attachmentCount = R_MainColorAttachmentCount (true);
+	infos.blend_attachment_states[0].blendEnable = VK_FALSE;
+	infos.blend_attachment_states[0].colorWriteMask = 0;
+	infos.blend_attachment_states[1].blendEnable = VK_TRUE;
+	infos.blend_attachment_states[1].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+	infos.blend_attachment_states[1].srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
+	infos.blend_attachment_states[1].dstColorBlendFactor = VK_BLEND_FACTOR_ONE;
+	infos.blend_attachment_states[1].colorBlendOp = VK_BLEND_OP_ADD;
+	infos.blend_attachment_states[1].srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+	infos.blend_attachment_states[1].dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+	infos.blend_attachment_states[1].alphaBlendOp = VK_BLEND_OP_ADD;
+	infos.blend_attachment_states[2].blendEnable = VK_TRUE;
+	infos.blend_attachment_states[2].colorWriteMask = VK_COLOR_COMPONENT_R_BIT;
+	infos.blend_attachment_states[2].srcColorBlendFactor = VK_BLEND_FACTOR_ZERO;
+	infos.blend_attachment_states[2].dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_COLOR;
+	infos.blend_attachment_states[2].colorBlendOp = VK_BLEND_OP_ADD;
+	infos.blend_attachment_states[2].srcAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+	infos.blend_attachment_states[2].dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+	infos.blend_attachment_states[2].alphaBlendOp = VK_BLEND_OP_ADD;
+	infos.shader_stages[1].module = alias_alphatest_oit_frag_module;
+
+	assert (vulkan_globals.alias_oit_pipelines[3].handle == VK_NULL_HANDLE);
+	err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.alias_oit_pipelines[3].handle);
+	if (err != VK_SUCCESS)
+		Sys_Error ("vkCreateGraphicsPipelines failed (alias_oit_alphatest_blend_pipeline) with code %i", (int)err);
+	GL_SetObjectName ((uint64_t)vulkan_globals.alias_oit_pipelines[3].handle, VK_OBJECT_TYPE_PIPELINE, "alias_oit_alphatest_blend");
+	vulkan_globals.alias_oit_pipelines[3].layout = vulkan_globals.alias_pipelines[0].layout;
+	infos.shader_stages[1].module = alias_alphatest_frag_module;
+	infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_STANDARD][MAIN_RENDER_PASS_STENCIL_CLEAR];
+	infos.color_blend_state.attachmentCount = R_MainColorAttachmentCount (false);
+
+	infos.blend_attachment_states[0].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+	infos.blend_attachment_states[0].blendEnable = VK_TRUE;
+	infos.blend_attachment_states[1].blendEnable = VK_FALSE;
+	infos.blend_attachment_states[2].blendEnable = VK_FALSE;
+	infos.blend_attachment_states[1].colorWriteMask = 0;
+	infos.blend_attachment_states[2].colorWriteMask = 0;
+
 	if (vulkan_globals.non_solid_fill)
 	{
 		infos.rasterization_state.cullMode = VK_CULL_MODE_NONE;
 		infos.rasterization_state.polygonMode = VK_POLYGON_MODE_LINE;
 		infos.depth_stencil_state.depthTestEnable = VK_FALSE;
 		infos.depth_stencil_state.depthWriteEnable = VK_FALSE;
-		infos.blend_attachment_state.blendEnable = VK_FALSE;
+		infos.blend_attachment_states[0].blendEnable = VK_FALSE;
 		infos.input_assembly_state.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
 		infos.shader_stages[0].module = alias_vert_module;
@@ -3094,6 +3536,18 @@ static void R_CreateAliasPipelines ()
 		GL_SetObjectName ((uint64_t)vulkan_globals.alias_pipelines[4].handle, VK_OBJECT_TYPE_PIPELINE, "alias_showtris");
 		vulkan_globals.alias_pipelines[4].layout = vulkan_globals.alias_pipelines[0].layout;
 
+		infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_OIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
+		infos.color_blend_state.attachmentCount = R_MainColorAttachmentCount (true);
+		assert (vulkan_globals.alias_oit_pipelines[4].handle == VK_NULL_HANDLE);
+		err =
+			vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.alias_oit_pipelines[4].handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreateGraphicsPipelines failed with code %i", (int)err);
+		GL_SetObjectName ((uint64_t)vulkan_globals.alias_oit_pipelines[4].handle, VK_OBJECT_TYPE_PIPELINE, "alias_showtris_oit");
+		vulkan_globals.alias_oit_pipelines[4].layout = vulkan_globals.alias_pipelines[0].layout;
+		infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_STANDARD][MAIN_RENDER_PASS_STENCIL_CLEAR];
+		infos.color_blend_state.attachmentCount = R_MainColorAttachmentCount (false);
+
 		infos.depth_stencil_state.depthTestEnable = VK_TRUE;
 		infos.rasterization_state.depthBiasEnable = VK_TRUE;
 		infos.rasterization_state.depthBiasConstantFactor = 500.0f;
@@ -3105,6 +3559,16 @@ static void R_CreateAliasPipelines ()
 			Sys_Error ("vkCreateGraphicsPipelines failed with code %i", (int)err);
 		GL_SetObjectName ((uint64_t)vulkan_globals.alias_pipelines[5].handle, VK_OBJECT_TYPE_PIPELINE, "alias_showtris_depth_test");
 		vulkan_globals.alias_pipelines[5].layout = vulkan_globals.alias_pipelines[0].layout;
+
+		infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_OIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
+		infos.color_blend_state.attachmentCount = R_MainColorAttachmentCount (true);
+		assert (vulkan_globals.alias_oit_pipelines[5].handle == VK_NULL_HANDLE);
+		err =
+			vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.alias_oit_pipelines[5].handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreateGraphicsPipelines failed with code %i", (int)err);
+		GL_SetObjectName ((uint64_t)vulkan_globals.alias_oit_pipelines[5].handle, VK_OBJECT_TYPE_PIPELINE, "alias_showtris_depth_test_oit");
+		vulkan_globals.alias_oit_pipelines[5].layout = vulkan_globals.alias_pipelines[0].layout;
 	}
 }
 
@@ -3118,11 +3582,10 @@ static void R_CreateMD5Pipelines ()
 	VkResult				err;
 	pipeline_create_infos_t infos;
 	R_InitDefaultStates (&infos);
-
 	infos.depth_stencil_state.depthTestEnable = VK_TRUE;
 	infos.depth_stencil_state.depthWriteEnable = VK_TRUE;
 	infos.rasterization_state.depthBiasEnable = VK_FALSE;
-	infos.blend_attachment_state.blendEnable = VK_FALSE;
+	infos.blend_attachment_states[0].blendEnable = VK_FALSE;
 	infos.shader_stages[1].pSpecializationInfo = NULL;
 
 	infos.vertex_input_state.vertexAttributeDescriptionCount = 5;
@@ -3132,6 +3595,8 @@ static void R_CreateMD5Pipelines ()
 
 	infos.shader_stages[0].module = md5_vert_module;
 	infos.shader_stages[1].module = alias_frag_module;
+	infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_STANDARD][MAIN_RENDER_PASS_STENCIL_CLEAR];
+	infos.color_blend_state.attachmentCount = R_MainColorAttachmentCount (false);
 
 	infos.graphics_pipeline.layout = vulkan_globals.md5_pipelines[0].layout.handle;
 
@@ -3140,6 +3605,18 @@ static void R_CreateMD5Pipelines ()
 	if (err != VK_SUCCESS)
 		Sys_Error ("vkCreateGraphicsPipelines failed (md5_pipeline) with code %i", (int)err);
 	GL_SetObjectName ((uint64_t)vulkan_globals.md5_pipelines[0].handle, VK_OBJECT_TYPE_PIPELINE, "md5");
+	vulkan_globals.md5_pipelines[0].layout = vulkan_globals.md5_pipelines[0].layout;
+
+	infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_OIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
+	infos.color_blend_state.attachmentCount = R_MainColorAttachmentCount (true);
+	assert (vulkan_globals.md5_oit_pipelines[0].handle == VK_NULL_HANDLE);
+	err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.md5_oit_pipelines[0].handle);
+	if (err != VK_SUCCESS)
+		Sys_Error ("vkCreateGraphicsPipelines failed (md5_oit_pipeline) with code %i", (int)err);
+	GL_SetObjectName ((uint64_t)vulkan_globals.md5_oit_pipelines[0].handle, VK_OBJECT_TYPE_PIPELINE, "md5_oit");
+	vulkan_globals.md5_oit_pipelines[0].layout = vulkan_globals.md5_pipelines[0].layout;
+	infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_STANDARD][MAIN_RENDER_PASS_STENCIL_CLEAR];
+	infos.color_blend_state.attachmentCount = R_MainColorAttachmentCount (false);
 
 	infos.shader_stages[1].module = alias_alphatest_frag_module;
 
@@ -3150,8 +3627,19 @@ static void R_CreateMD5Pipelines ()
 	GL_SetObjectName ((uint64_t)vulkan_globals.md5_pipelines[1].handle, VK_OBJECT_TYPE_PIPELINE, "md5_alphatest");
 	vulkan_globals.md5_pipelines[1].layout = vulkan_globals.md5_pipelines[0].layout;
 
+	infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_OIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
+	infos.color_blend_state.attachmentCount = R_MainColorAttachmentCount (true);
+	assert (vulkan_globals.md5_oit_pipelines[1].handle == VK_NULL_HANDLE);
+	err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.md5_oit_pipelines[1].handle);
+	if (err != VK_SUCCESS)
+		Sys_Error ("vkCreateGraphicsPipelines failed (md5_oit_alphatest_pipeline) with code %i", (int)err);
+	GL_SetObjectName ((uint64_t)vulkan_globals.md5_oit_pipelines[1].handle, VK_OBJECT_TYPE_PIPELINE, "md5_oit_alphatest");
+	vulkan_globals.md5_oit_pipelines[1].layout = vulkan_globals.md5_pipelines[0].layout;
+	infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_STANDARD][MAIN_RENDER_PASS_STENCIL_CLEAR];
+	infos.color_blend_state.attachmentCount = R_MainColorAttachmentCount (false);
+
 	infos.depth_stencil_state.depthWriteEnable = VK_FALSE;
-	infos.blend_attachment_state.blendEnable = VK_TRUE;
+	infos.blend_attachment_states[0].blendEnable = VK_TRUE;
 	infos.shader_stages[1].module = alias_frag_module;
 
 	assert (vulkan_globals.md5_pipelines[2].handle == VK_NULL_HANDLE);
@@ -3160,6 +3648,17 @@ static void R_CreateMD5Pipelines ()
 		Sys_Error ("vkCreateGraphicsPipelines failed (md5_blend_pipeline) with code %i", (int)err);
 	GL_SetObjectName ((uint64_t)vulkan_globals.md5_pipelines[2].handle, VK_OBJECT_TYPE_PIPELINE, "md5_blend");
 	vulkan_globals.md5_pipelines[2].layout = vulkan_globals.md5_pipelines[0].layout;
+
+	infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_OIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
+	infos.color_blend_state.attachmentCount = R_MainColorAttachmentCount (true);
+	assert (vulkan_globals.md5_oit_pipelines[2].handle == VK_NULL_HANDLE);
+	err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.md5_oit_pipelines[2].handle);
+	if (err != VK_SUCCESS)
+		Sys_Error ("vkCreateGraphicsPipelines failed (md5_oit_blend_pipeline) with code %i", (int)err);
+	GL_SetObjectName ((uint64_t)vulkan_globals.md5_oit_pipelines[2].handle, VK_OBJECT_TYPE_PIPELINE, "md5_oit_blend");
+	vulkan_globals.md5_oit_pipelines[2].layout = vulkan_globals.md5_pipelines[0].layout;
+	infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_STANDARD][MAIN_RENDER_PASS_STENCIL_CLEAR];
+	infos.color_blend_state.attachmentCount = R_MainColorAttachmentCount (false);
 
 	infos.shader_stages[1].module = alias_alphatest_frag_module;
 
@@ -3170,13 +3669,24 @@ static void R_CreateMD5Pipelines ()
 	GL_SetObjectName ((uint64_t)vulkan_globals.md5_pipelines[3].handle, VK_OBJECT_TYPE_PIPELINE, "md5_alphatest_blend");
 	vulkan_globals.md5_pipelines[3].layout = vulkan_globals.md5_pipelines[0].layout;
 
+	infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_OIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
+	infos.color_blend_state.attachmentCount = R_MainColorAttachmentCount (true);
+	assert (vulkan_globals.md5_oit_pipelines[3].handle == VK_NULL_HANDLE);
+	err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.md5_oit_pipelines[3].handle);
+	if (err != VK_SUCCESS)
+		Sys_Error ("vkCreateGraphicsPipelines failed (md5_oit_alphatest_blend_pipeline) with code %i", (int)err);
+	GL_SetObjectName ((uint64_t)vulkan_globals.md5_oit_pipelines[3].handle, VK_OBJECT_TYPE_PIPELINE, "md5_oit_alphatest_blend");
+	vulkan_globals.md5_oit_pipelines[3].layout = vulkan_globals.md5_pipelines[0].layout;
+	infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_STANDARD][MAIN_RENDER_PASS_STENCIL_CLEAR];
+	infos.color_blend_state.attachmentCount = R_MainColorAttachmentCount (false);
+
 	if (vulkan_globals.non_solid_fill)
 	{
 		infos.rasterization_state.cullMode = VK_CULL_MODE_NONE;
 		infos.rasterization_state.polygonMode = VK_POLYGON_MODE_LINE;
 		infos.depth_stencil_state.depthTestEnable = VK_FALSE;
 		infos.depth_stencil_state.depthWriteEnable = VK_FALSE;
-		infos.blend_attachment_state.blendEnable = VK_FALSE;
+		infos.blend_attachment_states[0].blendEnable = VK_FALSE;
 		infos.input_assembly_state.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
 		infos.shader_stages[0].module = md5_vert_module;
@@ -3193,6 +3703,17 @@ static void R_CreateMD5Pipelines ()
 
 		vulkan_globals.md5_pipelines[4].layout = vulkan_globals.md5_pipelines[0].layout;
 
+		infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_OIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
+		infos.color_blend_state.attachmentCount = R_MainColorAttachmentCount (true);
+		assert (vulkan_globals.md5_oit_pipelines[4].handle == VK_NULL_HANDLE);
+		err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.md5_oit_pipelines[4].handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreateGraphicsPipelines failed (md5_oit_showtris_pipeline) with code %i", (int)err);
+		GL_SetObjectName ((uint64_t)vulkan_globals.md5_oit_pipelines[4].handle, VK_OBJECT_TYPE_PIPELINE, "md5_oit_showtris");
+		vulkan_globals.md5_oit_pipelines[4].layout = vulkan_globals.md5_pipelines[0].layout;
+		infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_STANDARD][MAIN_RENDER_PASS_STENCIL_CLEAR];
+		infos.color_blend_state.attachmentCount = R_MainColorAttachmentCount (false);
+
 		infos.depth_stencil_state.depthTestEnable = VK_TRUE;
 		infos.rasterization_state.depthBiasEnable = VK_TRUE;
 		infos.rasterization_state.depthBiasConstantFactor = 500.0f;
@@ -3204,6 +3725,15 @@ static void R_CreateMD5Pipelines ()
 			Sys_Error ("vkCreateGraphicsPipelines failed with code %i", (int)err);
 		GL_SetObjectName ((uint64_t)vulkan_globals.md5_pipelines[5].handle, VK_OBJECT_TYPE_PIPELINE, "md5_showtris_depth_test");
 		vulkan_globals.md5_pipelines[5].layout = vulkan_globals.md5_pipelines[0].layout;
+
+		infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_OIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
+		infos.color_blend_state.attachmentCount = R_MainColorAttachmentCount (true);
+		assert (vulkan_globals.md5_oit_pipelines[5].handle == VK_NULL_HANDLE);
+		err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.md5_oit_pipelines[5].handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreateGraphicsPipelines failed (md5_oit_showtris_depth_test_pipeline) with code %i", (int)err);
+		GL_SetObjectName ((uint64_t)vulkan_globals.md5_oit_pipelines[5].handle, VK_OBJECT_TYPE_PIPELINE, "md5_oit_showtris_depth_test");
+		vulkan_globals.md5_oit_pipelines[5].layout = vulkan_globals.md5_pipelines[0].layout;
 	}
 }
 
@@ -3225,7 +3755,8 @@ static void R_CreatePostprocessPipelines ()
 	infos.rasterization_state.depthBiasEnable = VK_FALSE;
 	infos.depth_stencil_state.depthTestEnable = VK_TRUE;
 	infos.depth_stencil_state.depthWriteEnable = VK_TRUE;
-	infos.blend_attachment_state.blendEnable = VK_FALSE;
+	infos.blend_attachment_states[0].blendEnable = VK_FALSE;
+	infos.color_blend_state.attachmentCount = 1;
 
 	infos.vertex_input_state.vertexAttributeDescriptionCount = 0;
 	infos.vertex_input_state.pVertexAttributeDescriptions = NULL;
@@ -3243,6 +3774,28 @@ static void R_CreatePostprocessPipelines ()
 	if (err != VK_SUCCESS)
 		Sys_Error ("vkCreateGraphicsPipelines failed (postprocess_pipeline) with code %i", (int)err);
 	GL_SetObjectName ((uint64_t)vulkan_globals.postprocess_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "postprocess");
+
+	infos.multisample_state.rasterizationSamples = vulkan_globals.sample_count;
+	infos.depth_stencil_state.depthTestEnable = VK_FALSE;
+	infos.depth_stencil_state.depthWriteEnable = VK_FALSE;
+	infos.blend_attachment_states[0].blendEnable = VK_TRUE;
+	infos.blend_attachment_states[0].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+	infos.blend_attachment_states[0].srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+	infos.blend_attachment_states[0].dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+	infos.blend_attachment_states[0].colorBlendOp = VK_BLEND_OP_ADD;
+	infos.blend_attachment_states[0].srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+	infos.blend_attachment_states[0].dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+	infos.blend_attachment_states[0].alphaBlendOp = VK_BLEND_OP_ADD;
+	infos.shader_stages[1].module = (vulkan_globals.sample_count == VK_SAMPLE_COUNT_1_BIT) ? oit_resolve_frag_module : oit_resolve_msaa_frag_module;
+	infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_OIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
+	infos.graphics_pipeline.layout = vulkan_globals.oit_resolve_pipeline.layout.handle;
+	infos.graphics_pipeline.subpass = 1;
+
+	assert (vulkan_globals.oit_resolve_pipeline.handle == VK_NULL_HANDLE);
+	err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.oit_resolve_pipeline.handle);
+	if (err != VK_SUCCESS)
+		Sys_Error ("vkCreateGraphicsPipelines failed (oit_resolve_pipeline) with code %i", (int)err);
+	GL_SetObjectName ((uint64_t)vulkan_globals.oit_resolve_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "oit_resolve");
 }
 
 /*
@@ -3404,13 +3957,17 @@ static void R_CreateShaderModules ()
 {
 	CREATE_SHADER_MODULE (basic_vert);
 	CREATE_SHADER_MODULE (basic_frag);
+	CREATE_SHADER_MODULE (basic_oit_frag);
 	CREATE_SHADER_MODULE (basic_alphatest_frag);
 	CREATE_SHADER_MODULE (basic_notex_frag);
 	CREATE_SHADER_MODULE (world_vert);
 	CREATE_SHADER_MODULE (world_frag);
+	CREATE_SHADER_MODULE (world_oit_frag);
 	CREATE_SHADER_MODULE (alias_vert);
 	CREATE_SHADER_MODULE (alias_frag);
 	CREATE_SHADER_MODULE (alias_alphatest_frag);
+	CREATE_SHADER_MODULE (alias_oit_frag);
+	CREATE_SHADER_MODULE (alias_alphatest_oit_frag);
 	CREATE_SHADER_MODULE (md5_vert);
 	CREATE_SHADER_MODULE (sky_layer_vert);
 	CREATE_SHADER_MODULE (sky_layer_frag);
@@ -3419,6 +3976,8 @@ static void R_CreateShaderModules ()
 	CREATE_SHADER_MODULE (sky_cube_frag);
 	CREATE_SHADER_MODULE (postprocess_vert);
 	CREATE_SHADER_MODULE (postprocess_frag);
+	CREATE_SHADER_MODULE (oit_resolve_frag);
+	CREATE_SHADER_MODULE_COND (oit_resolve_msaa_frag, vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT);
 	CREATE_SHADER_MODULE (screen_effects_8bit_comp);
 	CREATE_SHADER_MODULE (screen_effects_8bit_scale_comp);
 	CREATE_SHADER_MODULE_COND (screen_effects_8bit_scale_sops_comp, vulkan_globals.screen_effects_sops);
@@ -3450,13 +4009,17 @@ static void R_DestroyShaderModules ()
 {
 	DESTROY_SHADER_MODULE (basic_vert);
 	DESTROY_SHADER_MODULE (basic_frag);
+	DESTROY_SHADER_MODULE (basic_oit_frag);
 	DESTROY_SHADER_MODULE (basic_alphatest_frag);
 	DESTROY_SHADER_MODULE (basic_notex_frag);
 	DESTROY_SHADER_MODULE (world_vert);
 	DESTROY_SHADER_MODULE (world_frag);
+	DESTROY_SHADER_MODULE (world_oit_frag);
 	DESTROY_SHADER_MODULE (alias_vert);
 	DESTROY_SHADER_MODULE (alias_frag);
 	DESTROY_SHADER_MODULE (alias_alphatest_frag);
+	DESTROY_SHADER_MODULE (alias_oit_frag);
+	DESTROY_SHADER_MODULE (alias_alphatest_oit_frag);
 	DESTROY_SHADER_MODULE (md5_vert);
 	DESTROY_SHADER_MODULE (sky_layer_vert);
 	DESTROY_SHADER_MODULE (sky_layer_frag);
@@ -3465,6 +4028,8 @@ static void R_DestroyShaderModules ()
 	DESTROY_SHADER_MODULE (sky_cube_frag);
 	DESTROY_SHADER_MODULE (postprocess_vert);
 	DESTROY_SHADER_MODULE (postprocess_frag);
+	DESTROY_SHADER_MODULE (oit_resolve_frag);
+	DESTROY_SHADER_MODULE (oit_resolve_msaa_frag);
 	DESTROY_SHADER_MODULE (screen_effects_8bit_comp);
 	DESTROY_SHADER_MODULE (screen_effects_8bit_scale_comp);
 	DESTROY_SHADER_MODULE (screen_effects_8bit_scale_sops_comp);
@@ -3525,7 +4090,7 @@ R_DestroyPipelines
 void R_DestroyPipelines (void)
 {
 	int i;
-	for (i = 0; i < 2; ++i)
+	for (i = 0; i < RENDER_PASS_INDEX_COUNT; ++i)
 	{
 		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.basic_alphatest_pipeline[i].handle, NULL);
 		vulkan_globals.basic_alphatest_pipeline[i].handle = VK_NULL_HANDLE;
@@ -3538,39 +4103,65 @@ void R_DestroyPipelines (void)
 	{
 		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.world_pipelines[i].handle, NULL);
 		vulkan_globals.world_pipelines[i].handle = VK_NULL_HANDLE;
+		if (vulkan_globals.world_oit_pipelines[i].handle != VK_NULL_HANDLE)
+		{
+			vkDestroyPipeline (vulkan_globals.device, vulkan_globals.world_oit_pipelines[i].handle, NULL);
+			vulkan_globals.world_oit_pipelines[i].handle = VK_NULL_HANDLE;
+		}
 	}
 	vkDestroyPipeline (vulkan_globals.device, vulkan_globals.raster_tex_warp_pipeline.handle, NULL);
 	vulkan_globals.raster_tex_warp_pipeline.handle = VK_NULL_HANDLE;
 	vkDestroyPipeline (vulkan_globals.device, vulkan_globals.particle_pipeline.handle, NULL);
 	vulkan_globals.particle_pipeline.handle = VK_NULL_HANDLE;
+	if (vulkan_globals.particle_oit_pipeline.handle != VK_NULL_HANDLE)
+	{
+		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.particle_oit_pipeline.handle, NULL);
+		vulkan_globals.particle_oit_pipeline.handle = VK_NULL_HANDLE;
+	}
 #ifdef PSET_SCRIPT
 	for (i = 0; i < 8; ++i)
 	{
 		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.fte_particle_pipelines[i].handle, NULL);
 		vulkan_globals.fte_particle_pipelines[i].handle = VK_NULL_HANDLE;
+		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.fte_particle_oit_pipelines[i].handle, NULL);
+		vulkan_globals.fte_particle_oit_pipelines[i].handle = VK_NULL_HANDLE;
 		if (vulkan_globals.non_solid_fill)
 		{
 			vkDestroyPipeline (vulkan_globals.device, vulkan_globals.fte_particle_pipelines[i + 8].handle, NULL);
 			vulkan_globals.fte_particle_pipelines[i + 8].handle = VK_NULL_HANDLE;
+			vkDestroyPipeline (vulkan_globals.device, vulkan_globals.fte_particle_oit_pipelines[i + 8].handle, NULL);
+			vulkan_globals.fte_particle_oit_pipelines[i + 8].handle = VK_NULL_HANDLE;
 		}
 	}
 #endif
 	vkDestroyPipeline (vulkan_globals.device, vulkan_globals.sprite_pipeline.handle, NULL);
 	vulkan_globals.sprite_pipeline.handle = VK_NULL_HANDLE;
+	vkDestroyPipeline (vulkan_globals.device, vulkan_globals.sprite_oit_pipeline.handle, NULL);
+	vulkan_globals.sprite_oit_pipeline.handle = VK_NULL_HANDLE;
 
 	for (i = 0; i < 2; ++i)
 	{
 		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.sky_stencil_pipeline[i].handle, NULL);
 		vulkan_globals.sky_stencil_pipeline[i].handle = VK_NULL_HANDLE;
+		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.sky_stencil_oit_pipeline[i].handle, NULL);
+		vulkan_globals.sky_stencil_oit_pipeline[i].handle = VK_NULL_HANDLE;
 		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.sky_color_pipeline[i].handle, NULL);
 		vulkan_globals.sky_color_pipeline[i].handle = VK_NULL_HANDLE;
+		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.sky_color_oit_pipeline[i].handle, NULL);
+		vulkan_globals.sky_color_oit_pipeline[i].handle = VK_NULL_HANDLE;
 		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.sky_cube_pipeline[i].handle, NULL);
 		vulkan_globals.sky_cube_pipeline[i].handle = VK_NULL_HANDLE;
+		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.sky_cube_oit_pipeline[i].handle, NULL);
+		vulkan_globals.sky_cube_oit_pipeline[i].handle = VK_NULL_HANDLE;
 		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.sky_layer_pipeline[i].handle, NULL);
 		vulkan_globals.sky_layer_pipeline[i].handle = VK_NULL_HANDLE;
+		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.sky_layer_oit_pipeline[i].handle, NULL);
+		vulkan_globals.sky_layer_oit_pipeline[i].handle = VK_NULL_HANDLE;
 	}
 	vkDestroyPipeline (vulkan_globals.device, vulkan_globals.sky_box_pipeline.handle, NULL);
 	vulkan_globals.sky_box_pipeline.handle = VK_NULL_HANDLE;
+	vkDestroyPipeline (vulkan_globals.device, vulkan_globals.sky_box_oit_pipeline.handle, NULL);
+	vulkan_globals.sky_box_oit_pipeline.handle = VK_NULL_HANDLE;
 	for (i = 0; i < MODEL_PIPELINE_COUNT; ++i)
 	{
 		if (vulkan_globals.alias_pipelines[i].handle != VK_NULL_HANDLE)
@@ -3578,14 +4169,29 @@ void R_DestroyPipelines (void)
 			vkDestroyPipeline (vulkan_globals.device, vulkan_globals.alias_pipelines[i].handle, NULL);
 			vulkan_globals.alias_pipelines[i].handle = VK_NULL_HANDLE;
 		}
+		if (vulkan_globals.alias_oit_pipelines[i].handle != VK_NULL_HANDLE)
+		{
+			vkDestroyPipeline (vulkan_globals.device, vulkan_globals.alias_oit_pipelines[i].handle, NULL);
+			vulkan_globals.alias_oit_pipelines[i].handle = VK_NULL_HANDLE;
+		}
 		if (vulkan_globals.md5_pipelines[i].handle != VK_NULL_HANDLE)
 		{
 			vkDestroyPipeline (vulkan_globals.device, vulkan_globals.md5_pipelines[i].handle, NULL);
 			vulkan_globals.md5_pipelines[i].handle = VK_NULL_HANDLE;
 		}
+		if (vulkan_globals.md5_oit_pipelines[i].handle != VK_NULL_HANDLE)
+		{
+			vkDestroyPipeline (vulkan_globals.device, vulkan_globals.md5_oit_pipelines[i].handle, NULL);
+			vulkan_globals.md5_oit_pipelines[i].handle = VK_NULL_HANDLE;
+		}
 	}
 	vkDestroyPipeline (vulkan_globals.device, vulkan_globals.postprocess_pipeline.handle, NULL);
 	vulkan_globals.postprocess_pipeline.handle = VK_NULL_HANDLE;
+	if (vulkan_globals.oit_resolve_pipeline.handle != VK_NULL_HANDLE)
+	{
+		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.oit_resolve_pipeline.handle, NULL);
+		vulkan_globals.oit_resolve_pipeline.handle = VK_NULL_HANDLE;
+	}
 	vkDestroyPipeline (vulkan_globals.device, vulkan_globals.screen_effects_pipeline.handle, NULL);
 	vulkan_globals.screen_effects_pipeline.handle = VK_NULL_HANDLE;
 	vkDestroyPipeline (vulkan_globals.device, vulkan_globals.screen_effects_scale_pipeline.handle, NULL);
@@ -3609,6 +4215,16 @@ void R_DestroyPipelines (void)
 		vulkan_globals.showtris_indirect_depth_test_pipeline.handle = VK_NULL_HANDLE;
 		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.showbboxes_pipeline.handle, NULL);
 		vulkan_globals.showbboxes_pipeline.handle = VK_NULL_HANDLE;
+		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.showtris_oit_pipeline.handle, NULL);
+		vulkan_globals.showtris_oit_pipeline.handle = VK_NULL_HANDLE;
+		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.showtris_indirect_oit_pipeline.handle, NULL);
+		vulkan_globals.showtris_indirect_oit_pipeline.handle = VK_NULL_HANDLE;
+		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.showtris_depth_test_oit_pipeline.handle, NULL);
+		vulkan_globals.showtris_depth_test_oit_pipeline.handle = VK_NULL_HANDLE;
+		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.showtris_indirect_depth_test_oit_pipeline.handle, NULL);
+		vulkan_globals.showtris_indirect_depth_test_oit_pipeline.handle = VK_NULL_HANDLE;
+		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.showbboxes_oit_pipeline.handle, NULL);
+		vulkan_globals.showbboxes_oit_pipeline.handle = VK_NULL_HANDLE;
 	}
 	vkDestroyPipeline (vulkan_globals.device, vulkan_globals.update_lightmap_pipeline.handle, NULL);
 	vulkan_globals.update_lightmap_pipeline.handle = VK_NULL_HANDLE;
@@ -3649,6 +4265,16 @@ static void R_ScaleChanged_f (cvar_t *var)
 }
 
 /*
+===================
+R_SetOIT_f
+===================
+*/
+static void R_SetOIT_f (cvar_t *var)
+{
+	VID_Restart (false);
+}
+
+/*
 ===============
 R_Init
 ===============
@@ -3664,7 +4290,9 @@ void R_Init (void)
 	Cvar_RegisterVariable (&r_drawentities);
 	Cvar_RegisterVariable (&r_drawviewmodel);
 	Cvar_RegisterVariable (&r_wateralpha);
+	Cvar_RegisterVariable (&r_oit);
 	Cvar_SetCallback (&r_wateralpha, R_SetWateralpha_f);
+	Cvar_SetCallback (&r_oit, R_SetOIT_f);
 	Cvar_RegisterVariable (&r_dynamic);
 	Cvar_RegisterVariable (&r_novis);
 #if defined(USE_SIMD)

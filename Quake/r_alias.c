@@ -147,16 +147,16 @@ static void GL_DrawAliasFrame (
 	switch (paliashdr->poseverttype)
 	{
 	case PV_MD5:
-		pipeline = vulkan_globals.md5_pipelines[pipeline_index];
+		pipeline = oit_active ? vulkan_globals.md5_oit_pipelines[pipeline_index] : vulkan_globals.md5_pipelines[pipeline_index];
 		break;
 	case PV_QUAKE1:
-		pipeline = vulkan_globals.alias_pipelines[pipeline_index];
+		pipeline = oit_active ? vulkan_globals.alias_oit_pipelines[pipeline_index] : vulkan_globals.alias_pipelines[pipeline_index];
 		break;
 	case PV_QUAKE3:
-		pipeline = vulkan_globals.alias_pipelines[pipeline_index];
+		pipeline = oit_active ? vulkan_globals.alias_oit_pipelines[pipeline_index] : vulkan_globals.alias_pipelines[pipeline_index];
 		break;
 	default:
-		pipeline = vulkan_globals.alias_pipelines[pipeline_index];
+		pipeline = oit_active ? vulkan_globals.alias_oit_pipelines[pipeline_index] : vulkan_globals.alias_pipelines[pipeline_index];
 	}
 
 	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);

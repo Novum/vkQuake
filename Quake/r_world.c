@@ -1052,7 +1052,8 @@ static void R_FlushBatch (
 	{
 		int pipeline_index =
 			(fullbright_enabled ? 1 : 0) + (alpha_test ? 2 : 0) + (alpha_blend ? 4 : 0) + (vid_filter.value != 0 && vid_palettize.value != 0 ? 8 : 0);
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipelines[pipeline_index]);
+		vulkan_pipeline_t pipeline = oit_active ? vulkan_globals.world_oit_pipelines[pipeline_index] : vulkan_globals.world_pipelines[pipeline_index];
+		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 
 		float constant_factor = 0.0f, slope_factor = 0.0f;
 		if (use_zbias)
@@ -1364,13 +1365,13 @@ void R_DrawWorld_Water (cb_context_t *cbx, qboolean transparent)
 	R_BeginDebugUtilsLabel (cbx, transparent ? "Transparent World Water" : "Opaque World Water");
 	if (indirect)
 	{
-		if (WATER_FIXED_ORDER && transparent)
+		if (!transparent || R_UseIndirectTransparentWater ())
+			R_DrawIndirectBrushes (cbx, true, transparent, false, -1);
+		else
 		{
 			R_ChainVisSurfaces_TransparentWater ();
 			R_DrawTextureChains_Water (cbx, cl.worldmodel, NULL, chain_world, false, true);
 		}
-		else
-			R_DrawIndirectBrushes (cbx, true, transparent, false, -1);
 	}
 	else
 		R_DrawTextureChains_Water (cbx, cl.worldmodel, NULL, chain_world, !transparent, transparent);
@@ -1385,9 +1386,10 @@ R_DrawWorld_ShowTris -- ericw -- moved from R_DrawTextureChains_ShowTris, which 
 void R_DrawWorld_ShowTris (cb_context_t *cbx)
 {
 	if (r_showtris.value == 1)
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_pipeline);
+		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, oit_active ? vulkan_globals.showtris_oit_pipeline : vulkan_globals.showtris_pipeline);
 	else
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_depth_test_pipeline);
+		R_BindPipeline (
+			cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, oit_active ? vulkan_globals.showtris_depth_test_oit_pipeline : vulkan_globals.showtris_depth_test_pipeline);
 
 	vkCmdBindIndexBuffer (cbx->cb, vulkan_globals.fan_index_buffer, 0, VK_INDEX_TYPE_UINT16);
 

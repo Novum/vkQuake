@@ -14,13 +14,22 @@
     <CustomBuild Include="..\..\Shaders\alias.frag">
       <FileType>Document</FileType>
     </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\alias_oit.frag">
+      <FileType>Document</FileType>
+    </CustomBuild>
     <CustomBuild Include="..\..\Shaders\alias.vert">
       <FileType>Document</FileType>
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\alias_alphatest.frag">
       <FileType>Document</FileType>
     </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\alias_alphatest_oit.frag">
+      <FileType>Document</FileType>
+    </CustomBuild>
     <CustomBuild Include="..\..\Shaders\basic.frag">
+      <FileType>Document</FileType>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\basic_oit.frag">
       <FileType>Document</FileType>
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\basic.vert">
@@ -45,6 +54,12 @@
       <FileType>Document</FileType>
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\postprocess.vert">
+      <FileType>Document</FileType>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\oit_resolve.frag">
+      <FileType>Document</FileType>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\oit_resolve_msaa.frag">
       <FileType>Document</FileType>
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\screen_effects_10bit.comp">
@@ -109,6 +124,9 @@ $(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(Solution
       <FileType>Document</FileType>
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\world.frag">
+      <FileType>Document</FileType>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\world_oit.frag">
       <FileType>Document</FileType>
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\world.vert">

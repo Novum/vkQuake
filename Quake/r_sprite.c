@@ -208,7 +208,7 @@ void R_DrawSpriteModel (cb_context_t *cbx, entity_t *e)
 	vkCmdBindVertexBuffers (cbx->cb, 0, 1, &buffer, &buffer_offset);
 	vkCmdBindIndexBuffer (cbx->cb, vulkan_globals.fan_index_buffer, 0, VK_INDEX_TYPE_UINT16);
 
-	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sprite_pipeline);
+	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, oit_active ? vulkan_globals.sprite_oit_pipeline : vulkan_globals.sprite_pipeline);
 
 	psprite = (msprite_t *)Mod_Extradata (e->model);
 	if (psprite->type == SPR_ORIENTED)
@@ -238,12 +238,13 @@ void R_DrawSpriteModel_ShowTris (cb_context_t *cbx, entity_t *e)
 	vkCmdBindVertexBuffers (cbx->cb, 0, 1, &buffer, &buffer_offset);
 	vkCmdBindIndexBuffer (cbx->cb, vulkan_globals.fan_index_buffer, 0, VK_INDEX_TYPE_UINT16);
 
-	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sprite_pipeline);
+	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, oit_active ? vulkan_globals.sprite_oit_pipeline : vulkan_globals.sprite_pipeline);
 
 	if (r_showtris.value == 1)
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_pipeline);
+		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, oit_active ? vulkan_globals.showtris_oit_pipeline : vulkan_globals.showtris_pipeline);
 	else
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_depth_test_pipeline);
+		R_BindPipeline (
+			cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, oit_active ? vulkan_globals.showtris_depth_test_oit_pipeline : vulkan_globals.showtris_depth_test_pipeline);
 
 	vkCmdBindDescriptorSets (
 		cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &frame->gltexture->descriptor_set, 0, NULL);

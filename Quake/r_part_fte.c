@@ -6795,7 +6795,9 @@ static void PScript_DrawParticleTypes (cb_context_t *cbx, float pframetime)
 			if (tris->numidx == 0)
 				continue;
 
-			const vulkan_pipeline_t pipeline = vulkan_globals.fte_particle_pipelines[blend_mode + (draw_lines ? 8 : 0)];
+			const vulkan_pipeline_t pipeline =
+				oit_active ? vulkan_globals.fte_particle_oit_pipelines[blend_mode + (draw_lines ? 8 : 0)]
+							: vulkan_globals.fte_particle_pipelines[blend_mode + (draw_lines ? 8 : 0)];
 			R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 			gltexture_t *tex = (tris->beflags & BEF_LINES) ? whitetexture : tris->texture;
 
@@ -6867,9 +6869,10 @@ R_DrawParticles_ShowTris
 void PScript_DrawParticles_ShowTris (cb_context_t *cbx)
 {
 	if (r_showtris.value == 1)
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_pipeline);
+		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, oit_active ? vulkan_globals.showtris_oit_pipeline : vulkan_globals.showtris_pipeline);
 	else
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_depth_test_pipeline);
+		R_BindPipeline (
+			cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, oit_active ? vulkan_globals.showtris_depth_test_oit_pipeline : vulkan_globals.showtris_depth_test_pipeline);
 
 	for (unsigned int i = 0; i < cl_numstris; i++)
 	{

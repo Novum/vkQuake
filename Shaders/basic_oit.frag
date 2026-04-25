@@ -11,30 +11,21 @@ layout (push_constant) uniform PushConsts
 }
 push_constants;
 
-layout (set = 0, binding = 0) uniform sampler2D diffuse_tex;
-layout (set = 1, binding = 0) uniform sampler2D fullbright_tex;
+layout (set = 0, binding = 0) uniform sampler2D tex;
 
-layout (set = 2, binding = 0) uniform UBO
-{
-	mat4  model_matrix;
-	vec3  shade_vector;
-	float blend_factor;
-	vec3  light_color;
-	float entalpha;
-	uint  flags;
-}
-ubo;
-
-layout (location = 0) in vec2 in_texcoord;
+layout (location = 0) in vec4 in_texcoord;
 layout (location = 1) in vec4 in_color;
 layout (location = 2) in float in_fog_frag_coord;
 
 layout (location = 0) out vec4 out_frag_color;
+layout (location = 1) out vec4 out_oit_accum;
+layout (location = 2) out float out_oit_reveal;
 
-#define ALIAS_ALPHA_TEST 1
-#include "alias_common.inc"
+#include "basic_common.inc"
+#include "oit.inc"
 
 void main ()
 {
-	out_frag_color = AliasFragmentColor ();
+	out_frag_color = BasicFragmentColor ();
+	WriteOITTransparency (out_frag_color, out_oit_accum, out_oit_reveal);
 }

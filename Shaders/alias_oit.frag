@@ -30,11 +30,15 @@ layout (location = 1) in vec4 in_color;
 layout (location = 2) in float in_fog_frag_coord;
 
 layout (location = 0) out vec4 out_frag_color;
+layout (location = 1) out vec4 out_oit_accum;
+layout (location = 2) out float out_oit_reveal;
 
-#define ALIAS_ALPHA_TEST 1
+#define ALIAS_ALPHA_TEST 0
 #include "alias_common.inc"
+#include "oit.inc"
 
 void main ()
 {
 	out_frag_color = AliasFragmentColor ();
+	WriteOITTransparency (out_frag_color, out_oit_accum, out_oit_reveal);
 }

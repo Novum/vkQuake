@@ -1,6 +1,7 @@
 #version 460
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_ARB_shading_language_420pack : enable
+#extension GL_GOOGLE_include_directive : enable
 
 layout (push_constant) uniform PushConsts
 {
@@ -18,11 +19,9 @@ layout (location = 2) in float in_fog_frag_coord;
 
 layout (location = 0) out vec4 out_frag_color;
 
+#include "basic_common.inc"
+
 void main ()
 {
-	out_frag_color = in_color * texture (tex, in_texcoord.xy);
-
-	float fog = exp (-push_constants.fog_density * push_constants.fog_density * in_fog_frag_coord * in_fog_frag_coord);
-	fog = clamp (fog, 0.0, 1.0);
-	out_frag_color.rgb = mix (push_constants.fog_color, out_frag_color.rgb, fog);
+	out_frag_color = BasicFragmentColor ();
 }

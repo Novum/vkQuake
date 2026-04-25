@@ -24,6 +24,8 @@ layout (location = 0) in vec4 in_texcoords;
 layout (location = 1) in float in_fog_frag_coord;
 
 layout (location = 0) out vec4 out_frag_color;
+layout (location = 1) out vec4 out_oit_accum;
+layout (location = 2) out float out_oit_reveal;
 
 layout (constant_id = 0) const bool use_fullbright = false;
 layout (constant_id = 1) const bool use_alpha_test = false;
@@ -32,8 +34,10 @@ layout (constant_id = 3) const bool quantize_lm = false;
 layout (constant_id = 4) const bool scaled_lm = false;
 
 #include "world_common.inc"
+#include "oit.inc"
 
 void main ()
 {
 	out_frag_color = WorldFragmentColor ();
+	WriteOITTransparency (out_frag_color, out_oit_accum, out_oit_reveal);
 }
