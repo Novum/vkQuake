@@ -17,6 +17,16 @@
     <CustomBuild Include="..\..\Shaders\alias_oit.frag">
       <FileType>Document</FileType>
     </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\alias_wavelet_coeff.frag">
+      <FileType>Document</FileType>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\alias_common.inc;$(SolutionDir)..\..\Shaders\wavelet.inc;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\alias_common.inc;$(SolutionDir)..\..\Shaders\wavelet.inc;%(AdditionalInputs)</AdditionalInputs>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\alias_wavelet_shade.frag">
+      <FileType>Document</FileType>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\alias_common.inc;$(SolutionDir)..\..\Shaders\wavelet.inc;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\alias_common.inc;$(SolutionDir)..\..\Shaders\wavelet.inc;%(AdditionalInputs)</AdditionalInputs>
+    </CustomBuild>
     <CustomBuild Include="..\..\Shaders\alias.vert">
       <FileType>Document</FileType>
     </CustomBuild>
@@ -26,11 +36,36 @@
     <CustomBuild Include="..\..\Shaders\alias_alphatest_oit.frag">
       <FileType>Document</FileType>
     </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\alias_alphatest_wavelet_coeff.frag">
+      <FileType>Document</FileType>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\alias_common.inc;$(SolutionDir)..\..\Shaders\wavelet.inc;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\alias_common.inc;$(SolutionDir)..\..\Shaders\wavelet.inc;%(AdditionalInputs)</AdditionalInputs>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\alias_alphatest_wavelet_shade.frag">
+      <FileType>Document</FileType>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\alias_common.inc;$(SolutionDir)..\..\Shaders\wavelet.inc;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\alias_common.inc;$(SolutionDir)..\..\Shaders\wavelet.inc;%(AdditionalInputs)</AdditionalInputs>
+    </CustomBuild>
     <CustomBuild Include="..\..\Shaders\basic.frag">
       <FileType>Document</FileType>
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\basic_oit.frag">
       <FileType>Document</FileType>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\basic_wavelet_coeff.frag">
+      <FileType>Document</FileType>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\basic_common.inc;$(SolutionDir)..\..\Shaders\wavelet.inc;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\basic_common.inc;$(SolutionDir)..\..\Shaders\wavelet.inc;%(AdditionalInputs)</AdditionalInputs>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\basic_wavelet_shade.frag">
+      <FileType>Document</FileType>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\basic_common.inc;$(SolutionDir)..\..\Shaders\wavelet.inc;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\basic_common.inc;$(SolutionDir)..\..\Shaders\wavelet.inc;%(AdditionalInputs)</AdditionalInputs>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\wavelet_resolve.frag">
+      <FileType>Document</FileType>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\wavelet.inc;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\wavelet.inc;%(AdditionalInputs)</AdditionalInputs>
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\basic.vert">
       <FileType>Document</FileType>
@@ -56,10 +91,10 @@
     <CustomBuild Include="..\..\Shaders\postprocess.vert">
       <FileType>Document</FileType>
     </CustomBuild>
-    <CustomBuild Include="..\..\Shaders\oit_resolve.frag">
+    <CustomBuild Include="..\..\Shaders\wboit_resolve.frag">
       <FileType>Document</FileType>
     </CustomBuild>
-    <CustomBuild Include="..\..\Shaders\oit_resolve_msaa.frag">
+    <CustomBuild Include="..\..\Shaders\wboit_resolve_msaa.frag">
       <FileType>Document</FileType>
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\screen_effects_10bit.comp">
@@ -129,6 +164,16 @@ $(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(Solution
     <CustomBuild Include="..\..\Shaders\world_oit.frag">
       <FileType>Document</FileType>
     </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\world_wavelet_coeff.frag">
+      <FileType>Document</FileType>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\world_common.inc;$(SolutionDir)..\..\Shaders\wavelet.inc;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\world_common.inc;$(SolutionDir)..\..\Shaders\wavelet.inc;%(AdditionalInputs)</AdditionalInputs>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\world_wavelet_shade.frag">
+      <FileType>Document</FileType>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\world_common.inc;$(SolutionDir)..\..\Shaders\wavelet.inc;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\world_common.inc;$(SolutionDir)..\..\Shaders\wavelet.inc;%(AdditionalInputs)</AdditionalInputs>
+    </CustomBuild>
     <CustomBuild Include="..\..\Shaders\world.vert">
       <FileType>Document</FileType>
     </CustomBuild>
@@ -139,6 +184,7 @@ $(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(Solution
       <FileType>Document</FileType>
     </CustomBuild>
     <None Include="..\..\Shaders\screen_effects.inc" />
+    <None Include="..\..\Shaders\wavelet.inc" />
     <CustomBuild Include="..\..\Shaders\skinning.comp">
       <FileType>Document</FileType>
     </CustomBuild>

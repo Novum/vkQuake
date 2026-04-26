@@ -13,7 +13,19 @@
     <CustomBuild Include="..\..\Shaders\alias_alphatest_oit.frag">
       <Filter>Shaders\Alias</Filter>
     </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\alias_alphatest_wavelet_coeff.frag">
+      <Filter>Shaders\Alias</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\alias_alphatest_wavelet_shade.frag">
+      <Filter>Shaders\Alias</Filter>
+    </CustomBuild>
     <CustomBuild Include="..\..\Shaders\alias_oit.frag">
+      <Filter>Shaders\Alias</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\alias_wavelet_coeff.frag">
+      <Filter>Shaders\Alias</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\alias_wavelet_shade.frag">
       <Filter>Shaders\Alias</Filter>
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\basic.frag">
@@ -21,6 +33,15 @@
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\basic_oit.frag">
       <Filter>Shaders\World</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\basic_wavelet_coeff.frag">
+      <Filter>Shaders\World</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\basic_wavelet_shade.frag">
+      <Filter>Shaders\World</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\wavelet_resolve.frag">
+      <Filter>Shaders\Screen Effects</Filter>
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\basic.vert">
       <Filter>Shaders\World</Filter>
@@ -91,6 +112,12 @@
     <CustomBuild Include="..\..\Shaders\world_oit.frag">
       <Filter>Shaders\World</Filter>
     </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\world_wavelet_coeff.frag">
+      <Filter>Shaders\World</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\world_wavelet_shade.frag">
+      <Filter>Shaders\World</Filter>
+    </CustomBuild>
     <CustomBuild Include="..\..\Shaders\world.vert">
       <Filter>Shaders\World</Filter>
     </CustomBuild>
@@ -118,6 +145,12 @@
     <CustomBuild Include="..\..\Shaders\mesh_interpolate.comp">
       <Filter>Shaders\Alias</Filter>
     </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\wboit_resolve.frag">
+      <Filter>Shaders\OIT</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\wboit_resolve_msaa.frag">
+      <Filter>Shaders\OIT</Filter>
+    </CustomBuild>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Shaders">
@@ -138,18 +171,15 @@
     <Filter Include="Shaders\Sky">
       <UniqueIdentifier>{751e04ba-f863-496f-ac88-cb20f0efae68}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Shaders\OIT">
+      <UniqueIdentifier>{b6e647bc-44c1-4fea-bb3c-45fe010a4665}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\..\Shaders\alias_common.inc">
-      <Filter>Shaders\Alias</Filter>
-    </None>
-    <None Include="..\..\Shaders\basic_common.inc">
-      <Filter>Shaders\World</Filter>
-    </None>
     <None Include="..\..\Shaders\screen_effects.inc">
       <Filter>Shaders\Screen Effects</Filter>
     </None>
-    <None Include="..\..\Shaders\oit.inc">
+    <None Include="..\..\Shaders\wavelet.inc">
       <Filter>Shaders</Filter>
     </None>
     <None Include="..\..\Shaders\update_lightmap.inc">
@@ -157,9 +187,6 @@
     </None>
     <None Include="..\..\Shaders\globals.inc">
       <Filter>Shaders</Filter>
-    </None>
-    <None Include="..\..\Shaders\world_common.inc">
-      <Filter>Shaders\World</Filter>
     </None>
   </ItemGroup>
 </Project>

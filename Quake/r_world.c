@@ -1052,8 +1052,16 @@ static void R_FlushBatch (
 	{
 		int pipeline_index =
 			(fullbright_enabled ? 1 : 0) + (alpha_test ? 2 : 0) + (alpha_blend ? 4 : 0) + (vid_filter.value != 0 && vid_palettize.value != 0 ? 8 : 0);
-		vulkan_pipeline_t pipeline = oit_active ? vulkan_globals.world_oit_pipelines[pipeline_index] : vulkan_globals.world_pipelines[pipeline_index];
+		vulkan_pipeline_t pipeline = vulkan_globals.world_pipelines[pipeline_index];
+		if (cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_OIT)
+			pipeline = vulkan_globals.world_oit_pipelines[pipeline_index];
+		else if (cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_WAVELET_COEFF)
+			pipeline = vulkan_globals.world_wavelet_coeff_pipelines[pipeline_index];
+		else if (cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_WAVELET_SHADE)
+			pipeline = vulkan_globals.world_wavelet_shade_pipelines[pipeline_index];
 		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+		if (cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_WAVELET_COEFF || cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_WAVELET_SHADE)
+			R_BindWaveletCoefficients (cbx, 3);
 
 		float constant_factor = 0.0f, slope_factor = 0.0f;
 		if (use_zbias)
@@ -1073,10 +1081,10 @@ static void R_FlushBatch (
 
 		if (!r_fullbright_cheatsafe)
 			vulkan_globals.vk_cmd_bind_descriptor_sets (
-				cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 1, 1, &lightmap_texture->descriptor_set, 0, NULL);
+				cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, cbx->current_pipeline.layout.handle, 1, 1, &lightmap_texture->descriptor_set, 0, NULL);
 		else
 			vulkan_globals.vk_cmd_bind_descriptor_sets (
-				cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 1, 1, &greylightmap->descriptor_set, 0, NULL);
+				cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, cbx->current_pipeline.layout.handle, 1, 1, &greylightmap->descriptor_set, 0, NULL);
 
 		VkBuffer	 buffer;
 		VkDeviceSize buffer_offset;
@@ -1171,11 +1179,16 @@ void R_DrawTextureChains_Water (cb_context_t *cbx, qmodel_t *model, entity_t *en
 	VkDeviceSize offset = 0;
 	vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 1, &bmodel_vertex_buffer, &offset);
 
+	const VkPipelineLayout world_layout =
+		(cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_WAVELET_COEFF || cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_WAVELET_SHADE)
+			? vulkan_globals.world_wavelet_pipeline_layout.handle
+			: vulkan_globals.world_pipeline_layout.handle;
+
 	vulkan_globals.vk_cmd_bind_descriptor_sets (
-		cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 2, 1, &nulltexture->descriptor_set, 0, NULL);
+		cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, world_layout, 2, 1, &nulltexture->descriptor_set, 0, NULL);
 	if (r_lightmap_cheatsafe)
 		vulkan_globals.vk_cmd_bind_descriptor_sets (
-			cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 0, 1, &greytexture->descriptor_set, 0, NULL);
+			cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, world_layout, 0, 1, &greytexture->descriptor_set, 0, NULL);
 
 	uint32_t brushpasses = 0;
 	for (i = 0; i < model->numtextures; ++i)
@@ -1211,7 +1224,7 @@ void R_DrawTextureChains_Water (cb_context_t *cbx, qmodel_t *model, entity_t *en
 		gltexture_t *gl_texture = t->warpimage;
 		if (!r_lightmap_cheatsafe)
 			vulkan_globals.vk_cmd_bind_descriptor_sets (
-				cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 0, 1, &gl_texture->descriptor_set, 0, NULL);
+				cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, world_layout, 0, 1, &gl_texture->descriptor_set, 0, NULL);
 
 		if (model != cl.worldmodel)
 			Atomic_StoreUInt32 (&t->update_warp, true); // FIXME: races against UpdateWarpTextures task, bmodel-only warps may end up updating at half frequency
@@ -1258,11 +1271,16 @@ void R_DrawTextureChains_Multitexture (cb_context_t *cbx, qmodel_t *model, entit
 	VkDeviceSize offset = 0;
 	vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 1, &bmodel_vertex_buffer, &offset);
 
+	const VkPipelineLayout world_layout =
+		(cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_WAVELET_COEFF || cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_WAVELET_SHADE)
+			? vulkan_globals.world_wavelet_pipeline_layout.handle
+			: vulkan_globals.world_pipeline_layout.handle;
+
 	vulkan_globals.vk_cmd_bind_descriptor_sets (
-		cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 2, 1, &nulltexture->descriptor_set, 0, NULL);
+		cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, world_layout, 2, 1, &nulltexture->descriptor_set, 0, NULL);
 	if (r_lightmap_cheatsafe)
 		vulkan_globals.vk_cmd_bind_descriptor_sets (
-			cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 0, 1, &greytexture->descriptor_set, 0, NULL);
+			cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, world_layout, 0, 1, &greytexture->descriptor_set, 0, NULL);
 
 	if (alpha_blend)
 	{
@@ -1281,7 +1299,7 @@ void R_DrawTextureChains_Multitexture (cb_context_t *cbx, qmodel_t *model, entit
 		{
 			fullbright_enabled = true;
 			vulkan_globals.vk_cmd_bind_descriptor_sets (
-				cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 2, 1, &fullbright->descriptor_set, 0, NULL);
+				cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, world_layout, 2, 1, &fullbright->descriptor_set, 0, NULL);
 		}
 		else
 			fullbright_enabled = false;
@@ -1296,7 +1314,7 @@ void R_DrawTextureChains_Multitexture (cb_context_t *cbx, qmodel_t *model, entit
 		gltexture_t *gl_texture = texture->gltexture;
 		if (!r_lightmap_cheatsafe)
 			vulkan_globals.vk_cmd_bind_descriptor_sets (
-				cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 0, 1, &gl_texture->descriptor_set, 0, NULL);
+				cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, world_layout, 0, 1, &gl_texture->descriptor_set, 0, NULL);
 
 		for (s = t->texturechains[chain]; s; s = s->texturechains[chain])
 		{
@@ -1386,10 +1404,11 @@ R_DrawWorld_ShowTris -- ericw -- moved from R_DrawTextureChains_ShowTris, which 
 void R_DrawWorld_ShowTris (cb_context_t *cbx)
 {
 	if (r_showtris.value == 1)
-		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, oit_active ? vulkan_globals.showtris_oit_pipeline : vulkan_globals.showtris_pipeline);
+		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, oit_mode == OIT_MODE_WEIGHTED ? vulkan_globals.showtris_oit_pipeline : vulkan_globals.showtris_pipeline);
 	else
 		R_BindPipeline (
-			cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, oit_active ? vulkan_globals.showtris_depth_test_oit_pipeline : vulkan_globals.showtris_depth_test_pipeline);
+			cbx, VK_PIPELINE_BIND_POINT_GRAPHICS,
+			oit_mode == OIT_MODE_WEIGHTED ? vulkan_globals.showtris_depth_test_oit_pipeline : vulkan_globals.showtris_depth_test_pipeline);
 
 	vkCmdBindIndexBuffer (cbx->cb, vulkan_globals.fan_index_buffer, 0, VK_INDEX_TYPE_UINT16);
 

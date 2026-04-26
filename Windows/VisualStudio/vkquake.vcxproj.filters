@@ -322,6 +322,12 @@
     <ClCompile Include="..\..\Shaders\Compiled\Debug\alias_oit.frag.c">
       <Filter>Shaders\Debug\Alias</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\alias_wavelet_coeff.frag.c">
+      <Filter>Shaders\Debug\Alias</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\alias_wavelet_shade.frag.c">
+      <Filter>Shaders\Debug\Alias</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\alias.vert.c">
       <Filter>Shaders\Debug\Alias</Filter>
     </ClCompile>
@@ -331,11 +337,26 @@
     <ClCompile Include="..\..\Shaders\Compiled\Debug\alias_alphatest_oit.frag.c">
       <Filter>Shaders\Debug\Alias</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\alias_alphatest_wavelet_coeff.frag.c">
+      <Filter>Shaders\Debug\Alias</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\alias_alphatest_wavelet_shade.frag.c">
+      <Filter>Shaders\Debug\Alias</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\basic.frag.c">
       <Filter>Shaders\Debug\World</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\basic_oit.frag.c">
       <Filter>Shaders\Debug\World</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\basic_wavelet_coeff.frag.c">
+      <Filter>Shaders\Debug\World</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\basic_wavelet_shade.frag.c">
+      <Filter>Shaders\Debug\World</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\wavelet_resolve.frag.c">
+      <Filter>Shaders\Debug\Screen Effects</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\basic.vert.c">
       <Filter>Shaders\Debug\World</Filter>
@@ -361,11 +382,11 @@
     <ClCompile Include="..\..\Shaders\Compiled\Debug\postprocess.vert.c">
       <Filter>Shaders\Debug</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Shaders\Compiled\Debug\oit_resolve.frag.c">
-      <Filter>Shaders\Debug</Filter>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\wboit_resolve.frag.c">
+      <Filter>Shaders\Debug\Screen Effects</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Shaders\Compiled\Debug\oit_resolve_msaa.frag.c">
-      <Filter>Shaders\Debug</Filter>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\wboit_resolve_msaa.frag.c">
+      <Filter>Shaders\Debug\Screen Effects</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\screen_effects_8bit.comp.c">
       <Filter>Shaders\Debug\Screen Effects</Filter>
@@ -412,6 +433,12 @@
     <ClCompile Include="..\..\Shaders\Compiled\Debug\world_oit.frag.c">
       <Filter>Shaders\Debug\World</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\world_wavelet_coeff.frag.c">
+      <Filter>Shaders\Debug\World</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\world_wavelet_shade.frag.c">
+      <Filter>Shaders\Debug\World</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\world.vert.c">
       <Filter>Shaders\Release\World</Filter>
     </ClCompile>
@@ -419,6 +446,12 @@
       <Filter>Shaders\Release\Alias</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\alias_oit.frag.c">
+      <Filter>Shaders\Release\Alias</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\alias_wavelet_coeff.frag.c">
+      <Filter>Shaders\Release\Alias</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\alias_wavelet_shade.frag.c">
       <Filter>Shaders\Release\Alias</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\alias.vert.c">
@@ -430,11 +463,26 @@
     <ClCompile Include="..\..\Shaders\Compiled\Release\alias_alphatest_oit.frag.c">
       <Filter>Shaders\Release\Alias</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\alias_alphatest_wavelet_coeff.frag.c">
+      <Filter>Shaders\Release\Alias</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\alias_alphatest_wavelet_shade.frag.c">
+      <Filter>Shaders\Release\Alias</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\basic.frag.c">
       <Filter>Shaders\Release\World</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\basic_oit.frag.c">
       <Filter>Shaders\Release\World</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\basic_wavelet_coeff.frag.c">
+      <Filter>Shaders\Release\World</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\basic_wavelet_shade.frag.c">
+      <Filter>Shaders\Release\World</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\wavelet_resolve.frag.c">
+      <Filter>Shaders\Release\Screen Effects</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\basic.vert.c">
       <Filter>Shaders\Release\World</Filter>
@@ -460,11 +508,11 @@
     <ClCompile Include="..\..\Shaders\Compiled\Release\postprocess.vert.c">
       <Filter>Shaders\Release</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Shaders\Compiled\Release\oit_resolve.frag.c">
-      <Filter>Shaders\Release</Filter>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\wboit_resolve.frag.c">
+      <Filter>Shaders\Release\Screen Effects</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Shaders\Compiled\Release\oit_resolve_msaa.frag.c">
-      <Filter>Shaders\Release</Filter>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\wboit_resolve_msaa.frag.c">
+      <Filter>Shaders\Release\Screen Effects</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\screen_effects_8bit.comp.c">
       <Filter>Shaders\Release\Screen Effects</Filter>
@@ -509,6 +557,12 @@
       <Filter>Shaders\Release\World</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\world_oit.frag.c">
+      <Filter>Shaders\Release\World</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\world_wavelet_coeff.frag.c">
+      <Filter>Shaders\Release\World</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\world_wavelet_shade.frag.c">
       <Filter>Shaders\Release\World</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\update_lightmap_8bit.comp.c">

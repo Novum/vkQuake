@@ -147,19 +147,45 @@ static void GL_DrawAliasFrame (
 	switch (paliashdr->poseverttype)
 	{
 	case PV_MD5:
-		pipeline = oit_active ? vulkan_globals.md5_oit_pipelines[pipeline_index] : vulkan_globals.md5_pipelines[pipeline_index];
+		if (cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_OIT)
+			pipeline = vulkan_globals.md5_oit_pipelines[pipeline_index];
+		else
+			pipeline = vulkan_globals.md5_pipelines[pipeline_index];
 		break;
 	case PV_QUAKE1:
-		pipeline = oit_active ? vulkan_globals.alias_oit_pipelines[pipeline_index] : vulkan_globals.alias_pipelines[pipeline_index];
+		if (cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_OIT)
+			pipeline = vulkan_globals.alias_oit_pipelines[pipeline_index];
+		else if (cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_WAVELET_COEFF)
+			pipeline = vulkan_globals.alias_wavelet_coeff_pipelines[pipeline_index];
+		else if (cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_WAVELET_SHADE)
+			pipeline = vulkan_globals.alias_wavelet_shade_pipelines[pipeline_index];
+		else
+			pipeline = vulkan_globals.alias_pipelines[pipeline_index];
 		break;
 	case PV_QUAKE3:
-		pipeline = oit_active ? vulkan_globals.alias_oit_pipelines[pipeline_index] : vulkan_globals.alias_pipelines[pipeline_index];
+		if (cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_OIT)
+			pipeline = vulkan_globals.alias_oit_pipelines[pipeline_index];
+		else if (cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_WAVELET_COEFF)
+			pipeline = vulkan_globals.alias_wavelet_coeff_pipelines[pipeline_index];
+		else if (cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_WAVELET_SHADE)
+			pipeline = vulkan_globals.alias_wavelet_shade_pipelines[pipeline_index];
+		else
+			pipeline = vulkan_globals.alias_pipelines[pipeline_index];
 		break;
 	default:
-		pipeline = oit_active ? vulkan_globals.alias_oit_pipelines[pipeline_index] : vulkan_globals.alias_pipelines[pipeline_index];
+		if (cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_OIT)
+			pipeline = vulkan_globals.alias_oit_pipelines[pipeline_index];
+		else if (cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_WAVELET_COEFF)
+			pipeline = vulkan_globals.alias_wavelet_coeff_pipelines[pipeline_index];
+		else if (cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_WAVELET_SHADE)
+			pipeline = vulkan_globals.alias_wavelet_shade_pipelines[pipeline_index];
+		else
+			pipeline = vulkan_globals.alias_pipelines[pipeline_index];
 	}
 
 	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+	if (cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_WAVELET_COEFF || cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_WAVELET_SHADE)
+		R_BindWaveletCoefficients (cbx, 3);
 
 	float blend;
 

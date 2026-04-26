@@ -1028,10 +1028,18 @@ R_DrawParticles -- johnfitz -- moved all non-drawing code to CL_RunParticles
 void R_DrawParticles (cb_context_t *cbx)
 {
 	R_BeginDebugUtilsLabel (cbx, "Particles");
-	R_BindPipeline (
-		cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, oit_active ? vulkan_globals.particle_oit_pipeline : vulkan_globals.particle_pipeline);
+	vulkan_pipeline_t pipeline = vulkan_globals.particle_pipeline;
+	if (cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_OIT)
+		pipeline = vulkan_globals.particle_oit_pipeline;
+	else if (cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_WAVELET_COEFF)
+		pipeline = vulkan_globals.particle_wavelet_coeff_pipeline;
+	else if (cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_WAVELET_SHADE)
+		pipeline = vulkan_globals.particle_wavelet_shade_pipeline;
+	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+	if (cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_WAVELET_COEFF || cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_WAVELET_SHADE)
+		R_BindWaveletCoefficients (cbx, 1);
 	vulkan_globals.vk_cmd_bind_descriptor_sets (
-		cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &particletexture->descriptor_set, 0, NULL);
+		cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, cbx->current_pipeline.layout.handle, 0, 1, &particletexture->descriptor_set, 0, NULL);
 
 	R_DrawParticlesFaces (cbx);
 	R_EndDebugUtilsLabel (cbx);

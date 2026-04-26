@@ -1207,7 +1207,7 @@ called once per frame after opaques before transparents, handles world + entitie
 void Sky_DrawSky (cb_context_t *cbx)
 {
 	int i;
-	const qboolean use_oit = oit_active;
+	const qboolean use_oit = (oit_mode == OIT_MODE_WEIGHTED);
 
 	if (r_lightmap_cheatsafe)
 		return;
