@@ -1055,12 +1055,15 @@ static void R_FlushBatch (
 		vulkan_pipeline_t pipeline = vulkan_globals.world_pipelines[pipeline_index];
 		if (cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_OIT)
 			pipeline = vulkan_globals.world_oit_pipelines[pipeline_index];
+		else if (cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_WAVELET_BOUNDS)
+			pipeline = vulkan_globals.world_wavelet_bounds_pipelines[pipeline_index];
 		else if (cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_WAVELET_COEFF)
 			pipeline = vulkan_globals.world_wavelet_coeff_pipelines[pipeline_index];
 		else if (cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_WAVELET_SHADE)
 			pipeline = vulkan_globals.world_wavelet_shade_pipelines[pipeline_index];
 		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
-		if (cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_WAVELET_COEFF || cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_WAVELET_SHADE)
+		if (cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_WAVELET_BOUNDS || cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_WAVELET_COEFF ||
+			cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_WAVELET_SHADE)
 			R_BindWaveletCoefficients (cbx, 3);
 
 		float constant_factor = 0.0f, slope_factor = 0.0f;
@@ -1180,7 +1183,8 @@ void R_DrawTextureChains_Water (cb_context_t *cbx, qmodel_t *model, entity_t *en
 	vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 1, &bmodel_vertex_buffer, &offset);
 
 	const VkPipelineLayout world_layout =
-		(cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_WAVELET_COEFF || cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_WAVELET_SHADE)
+		(cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_WAVELET_BOUNDS || cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_WAVELET_COEFF ||
+			cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_WAVELET_SHADE)
 			? vulkan_globals.world_wavelet_pipeline_layout.handle
 			: vulkan_globals.world_pipeline_layout.handle;
 
@@ -1272,7 +1276,8 @@ void R_DrawTextureChains_Multitexture (cb_context_t *cbx, qmodel_t *model, entit
 	vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 1, &bmodel_vertex_buffer, &offset);
 
 	const VkPipelineLayout world_layout =
-		(cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_WAVELET_COEFF || cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_WAVELET_SHADE)
+		(cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_WAVELET_BOUNDS || cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_WAVELET_COEFF ||
+			cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_WAVELET_SHADE)
 			? vulkan_globals.world_wavelet_pipeline_layout.handle
 			: vulkan_globals.world_pipeline_layout.handle;
 

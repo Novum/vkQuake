@@ -142,8 +142,10 @@ static VkCommandBuffer *secondary_command_buffers[SCBX_NUM][DOUBLE_BUFFERED];
 static VkFence			command_buffer_fences[DOUBLE_BUFFERED];
 static qboolean			frame_submitted[DOUBLE_BUFFERED];
 static VkFramebuffer	main_framebuffers[NUM_COLOR_BUFFERS];
+static VkFramebuffer	wavelet_bounds_framebuffer;
 static VkFramebuffer	wavelet_coeff_framebuffer;
-static VkFramebuffer	wavelet_shade_framebuffers[NUM_COLOR_BUFFERS];
+static VkFramebuffer	wavelet_lighting_framebuffer;
+static VkFramebuffer	wavelet_composite_framebuffers[NUM_COLOR_BUFFERS];
 static VkSemaphore		image_aquired_semaphores[DOUBLE_BUFFERED];
 static VkSemaphore		draw_complete_semaphores[DOUBLE_BUFFERED];
 static VkFramebuffer	ui_framebuffers[MAX_SWAP_CHAIN_IMAGES];
@@ -159,7 +161,13 @@ static vulkan_memory_t	oit_reveal_buffer_memory;
 static VkImageView		oit_accum_buffer_view;
 static VkImageView		oit_reveal_buffer_view;
 static vulkan_memory_t	wavelet_coeff_buffer_memory;
+static vulkan_memory_t	wavelet_depth_bounds_buffer_memory;
+static vulkan_memory_t	wavelet_lighting_buffer_memory;
+static vulkan_memory_t	wavelet_lighting_resolve_buffer_memory;
 static VkImageView		wavelet_coeff_buffer_view;
+static VkImageView		wavelet_depth_bounds_buffer_view;
+static VkImageView		wavelet_lighting_buffer_view;
+static VkImageView		wavelet_lighting_resolve_buffer_view;
 static VkImage			msaa_color_buffer;
 static vulkan_memory_t	msaa_color_buffer_memory;
 static VkImageView		msaa_color_buffer_view;
@@ -183,6 +191,13 @@ static const secondary_cb_contexts_t transparent_pass_contexts[] = {
 	SCBX_PARTICLES,
 };
 
+static const secondary_cb_contexts_t wavelet_bounds_contexts[] = {
+	SCBX_WAVELET_BOUNDS_ALPHA_ENTITIES_ACROSS_WATER,
+	SCBX_WAVELET_BOUNDS_WATER,
+	SCBX_WAVELET_BOUNDS_ALPHA_ENTITIES,
+	SCBX_WAVELET_BOUNDS_PARTICLES,
+};
+
 static const secondary_cb_contexts_t wavelet_coeff_contexts[] = {
 	SCBX_WAVELET_ALPHA_ENTITIES_ACROSS_WATER,
 	SCBX_WAVELET_WATER,
@@ -191,7 +206,11 @@ static const secondary_cb_contexts_t wavelet_coeff_contexts[] = {
 };
 
 static const secondary_cb_contexts_t wavelet_shade_contexts[] = {
-	SCBX_OIT_RESOLVE, SCBX_ALPHA_ENTITIES_ACROSS_WATER, SCBX_WATER, SCBX_ALPHA_ENTITIES, SCBX_PARTICLES,
+	SCBX_ALPHA_ENTITIES_ACROSS_WATER, SCBX_WATER, SCBX_ALPHA_ENTITIES, SCBX_PARTICLES,
+};
+
+static const secondary_cb_contexts_t wavelet_composite_contexts[] = {
+	SCBX_OIT_RESOLVE,
 };
 
 static const secondary_cb_contexts_t render_pass_contexts[] = {
@@ -199,6 +218,10 @@ static const secondary_cb_contexts_t render_pass_contexts[] = {
 	SCBX_ENTITIES,
 	SCBX_SKY,
 	SCBX_VIEW_MODEL,
+	SCBX_WAVELET_BOUNDS_ALPHA_ENTITIES_ACROSS_WATER,
+	SCBX_WAVELET_BOUNDS_WATER,
+	SCBX_WAVELET_BOUNDS_ALPHA_ENTITIES,
+	SCBX_WAVELET_BOUNDS_PARTICLES,
 	SCBX_WAVELET_ALPHA_ENTITIES_ACROSS_WATER,
 	SCBX_WAVELET_WATER,
 	SCBX_WAVELET_ALPHA_ENTITIES,
@@ -1936,6 +1959,7 @@ static void GL_CreateRenderPasses ()
 		if (err != VK_SUCCESS)
 			Sys_Error ("Couldn't create Vulkan render pass with code %i", (int)err);
 		GL_SetObjectName ((uint64_t)vulkan_globals.wavelet_shade_render_pass, VK_OBJECT_TYPE_RENDER_PASS, "wavelet_shade");
+		vulkan_globals.wavelet_composite_render_pass = vulkan_globals.wavelet_shade_render_pass;
 	}
 
 	{
@@ -2524,7 +2548,9 @@ static void GL_DestroyOITBuffers (void)
 GL_CreateWaveletBuffers
 ===============
 */
-static void GL_CreateWaveletBuffers (void)
+static void GL_CreateWaveletImage (
+	VkImage *image, vulkan_memory_t *memory, VkImageView *view, VkFormat format, VkSampleCountFlagBits samples, uint32_t layers, VkImageUsageFlags usage,
+	VkImageViewType view_type, const char *name)
 {
 	VkResult err;
 
@@ -2535,63 +2561,73 @@ static void GL_CreateWaveletBuffers (void)
 	image_create_info.extent.height = vid.height;
 	image_create_info.extent.depth = 1;
 	image_create_info.mipLevels = 1;
-	image_create_info.arrayLayers = WAVELET_COEFFICIENT_COUNT;
-	image_create_info.samples = VK_SAMPLE_COUNT_1_BIT;
+	image_create_info.arrayLayers = layers;
+	image_create_info.samples = samples;
 	image_create_info.tiling = VK_IMAGE_TILING_OPTIMAL;
-	image_create_info.usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-	image_create_info.format = VK_FORMAT_R32_UINT;
+	image_create_info.usage = usage;
+	image_create_info.format = format;
 
-	assert (vulkan_globals.wavelet_coeff_buffer == VK_NULL_HANDLE);
-	err = vkCreateImage (vulkan_globals.device, &image_create_info, NULL, &vulkan_globals.wavelet_coeff_buffer);
+	assert (*image == VK_NULL_HANDLE);
+	err = vkCreateImage (vulkan_globals.device, &image_create_info, NULL, image);
 	if (err != VK_SUCCESS)
 		Sys_Error ("vkCreateImage failed with code %i", (int)err);
+	GL_SetObjectName ((uint64_t)*image, VK_OBJECT_TYPE_IMAGE, name);
 
-	GL_SetObjectName ((uint64_t)vulkan_globals.wavelet_coeff_buffer, VK_OBJECT_TYPE_IMAGE, "Wavelet Coeff Buffer");
+	VkMemoryRequirements memory_requirements;
+	vkGetImageMemoryRequirements (vulkan_globals.device, *image, &memory_requirements);
 
-	{
-		VkMemoryRequirements memory_requirements;
-		vkGetImageMemoryRequirements (vulkan_globals.device, vulkan_globals.wavelet_coeff_buffer, &memory_requirements);
+	ZEROED_STRUCT (VkMemoryDedicatedAllocateInfoKHR, dedicated_allocation_info);
+	dedicated_allocation_info.sType = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO_KHR;
+	dedicated_allocation_info.image = *image;
 
-		ZEROED_STRUCT (VkMemoryDedicatedAllocateInfoKHR, dedicated_allocation_info);
-		dedicated_allocation_info.sType = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO_KHR;
-		dedicated_allocation_info.image = vulkan_globals.wavelet_coeff_buffer;
+	ZEROED_STRUCT (VkMemoryAllocateInfo, memory_allocate_info);
+	memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	memory_allocate_info.allocationSize = memory_requirements.size;
+	memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
+	if (vulkan_globals.dedicated_allocation)
+		memory_allocate_info.pNext = &dedicated_allocation_info;
 
-		ZEROED_STRUCT (VkMemoryAllocateInfo, memory_allocate_info);
-		memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-		memory_allocate_info.allocationSize = memory_requirements.size;
-		memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
+	assert (memory->handle == VK_NULL_HANDLE);
+	R_AllocateVulkanMemory (memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_DEVICE, &num_vulkan_misc_allocations);
+	GL_SetObjectName ((uint64_t)memory->handle, VK_OBJECT_TYPE_DEVICE_MEMORY, name);
 
-		if (vulkan_globals.dedicated_allocation)
-			memory_allocate_info.pNext = &dedicated_allocation_info;
+	err = vkBindImageMemory (vulkan_globals.device, *image, memory->handle, 0);
+	if (err != VK_SUCCESS)
+		Sys_Error ("vkBindImageMemory failed with code %i", (int)err);
 
-		assert (wavelet_coeff_buffer_memory.handle == VK_NULL_HANDLE);
-		R_AllocateVulkanMemory (&wavelet_coeff_buffer_memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_DEVICE, &num_vulkan_misc_allocations);
-		GL_SetObjectName ((uint64_t)wavelet_coeff_buffer_memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, "Wavelet Coeff Buffer");
+	ZEROED_STRUCT (VkImageViewCreateInfo, image_view_create_info);
+	image_view_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+	image_view_create_info.format = format;
+	image_view_create_info.image = *image;
+	image_view_create_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	image_view_create_info.subresourceRange.baseMipLevel = 0;
+	image_view_create_info.subresourceRange.levelCount = 1;
+	image_view_create_info.subresourceRange.baseArrayLayer = 0;
+	image_view_create_info.subresourceRange.layerCount = layers;
+	image_view_create_info.viewType = view_type;
 
-		err = vkBindImageMemory (vulkan_globals.device, vulkan_globals.wavelet_coeff_buffer, wavelet_coeff_buffer_memory.handle, 0);
-		if (err != VK_SUCCESS)
-			Sys_Error ("vkBindImageMemory failed with code %i", (int)err);
-	}
+	assert (*view == VK_NULL_HANDLE);
+	err = vkCreateImageView (vulkan_globals.device, &image_view_create_info, NULL, view);
+	if (err != VK_SUCCESS)
+		Sys_Error ("vkCreateImageView failed with code %i", (int)err);
+	GL_SetObjectName ((uint64_t)*view, VK_OBJECT_TYPE_IMAGE_VIEW, name);
+}
 
-	{
-		ZEROED_STRUCT (VkImageViewCreateInfo, image_view_create_info);
-		image_view_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-		image_view_create_info.format = VK_FORMAT_R32_UINT;
-		image_view_create_info.image = vulkan_globals.wavelet_coeff_buffer;
-		image_view_create_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		image_view_create_info.subresourceRange.baseMipLevel = 0;
-		image_view_create_info.subresourceRange.levelCount = 1;
-		image_view_create_info.subresourceRange.baseArrayLayer = 0;
-		image_view_create_info.subresourceRange.layerCount = WAVELET_COEFFICIENT_COUNT;
-		image_view_create_info.viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
-
-		assert (wavelet_coeff_buffer_view == VK_NULL_HANDLE);
-		err = vkCreateImageView (vulkan_globals.device, &image_view_create_info, NULL, &wavelet_coeff_buffer_view);
-		if (err != VK_SUCCESS)
-			Sys_Error ("vkCreateImageView failed with code %i", (int)err);
-
-		GL_SetObjectName ((uint64_t)wavelet_coeff_buffer_view, VK_OBJECT_TYPE_IMAGE_VIEW, "Wavelet Coeff Buffer View");
-	}
+static void GL_CreateWaveletBuffers (void)
+{
+	GL_CreateWaveletImage (&vulkan_globals.wavelet_coeff_buffer, &wavelet_coeff_buffer_memory, &wavelet_coeff_buffer_view, VK_FORMAT_R32_UINT,
+		VK_SAMPLE_COUNT_1_BIT, WAVELET_COEFFICIENT_COUNT, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_VIEW_TYPE_2D_ARRAY,
+		"Wavelet Coeff Buffer");
+	GL_CreateWaveletImage (&vulkan_globals.wavelet_depth_bounds_buffer, &wavelet_depth_bounds_buffer_memory, &wavelet_depth_bounds_buffer_view,
+		VK_FORMAT_R32_UINT, VK_SAMPLE_COUNT_1_BIT, 2, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_VIEW_TYPE_2D_ARRAY,
+		"Wavelet Depth Bounds Buffer");
+	GL_CreateWaveletImage (&vulkan_globals.wavelet_lighting_buffer, &wavelet_lighting_buffer_memory, &wavelet_lighting_buffer_view, vulkan_globals.color_format,
+		vulkan_globals.sample_count, 1, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+		VK_IMAGE_VIEW_TYPE_2D, "Wavelet Lighting Buffer");
+	if (vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT)
+		GL_CreateWaveletImage (&vulkan_globals.wavelet_lighting_resolve_buffer, &wavelet_lighting_resolve_buffer_memory, &wavelet_lighting_resolve_buffer_view,
+			vulkan_globals.color_format, VK_SAMPLE_COUNT_1_BIT, 1, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+			VK_IMAGE_VIEW_TYPE_2D, "Wavelet Lighting Resolve Buffer");
 }
 
 /*
@@ -2601,6 +2637,45 @@ GL_DestroyWaveletBuffers
 */
 static void GL_DestroyWaveletBuffers (void)
 {
+	if (wavelet_lighting_resolve_buffer_view != VK_NULL_HANDLE)
+	{
+		vkDestroyImageView (vulkan_globals.device, wavelet_lighting_resolve_buffer_view, NULL);
+		wavelet_lighting_resolve_buffer_view = VK_NULL_HANDLE;
+	}
+	if (vulkan_globals.wavelet_lighting_resolve_buffer != VK_NULL_HANDLE)
+	{
+		vkDestroyImage (vulkan_globals.device, vulkan_globals.wavelet_lighting_resolve_buffer, NULL);
+		vulkan_globals.wavelet_lighting_resolve_buffer = VK_NULL_HANDLE;
+	}
+	if (wavelet_lighting_resolve_buffer_memory.handle != VK_NULL_HANDLE)
+		R_FreeVulkanMemory (&wavelet_lighting_resolve_buffer_memory, &num_vulkan_misc_allocations);
+
+	if (wavelet_lighting_buffer_view != VK_NULL_HANDLE)
+	{
+		vkDestroyImageView (vulkan_globals.device, wavelet_lighting_buffer_view, NULL);
+		wavelet_lighting_buffer_view = VK_NULL_HANDLE;
+	}
+	if (vulkan_globals.wavelet_lighting_buffer != VK_NULL_HANDLE)
+	{
+		vkDestroyImage (vulkan_globals.device, vulkan_globals.wavelet_lighting_buffer, NULL);
+		vulkan_globals.wavelet_lighting_buffer = VK_NULL_HANDLE;
+	}
+	if (wavelet_lighting_buffer_memory.handle != VK_NULL_HANDLE)
+		R_FreeVulkanMemory (&wavelet_lighting_buffer_memory, &num_vulkan_misc_allocations);
+
+	if (wavelet_depth_bounds_buffer_view != VK_NULL_HANDLE)
+	{
+		vkDestroyImageView (vulkan_globals.device, wavelet_depth_bounds_buffer_view, NULL);
+		wavelet_depth_bounds_buffer_view = VK_NULL_HANDLE;
+	}
+	if (vulkan_globals.wavelet_depth_bounds_buffer != VK_NULL_HANDLE)
+	{
+		vkDestroyImage (vulkan_globals.device, vulkan_globals.wavelet_depth_bounds_buffer, NULL);
+		vulkan_globals.wavelet_depth_bounds_buffer = VK_NULL_HANDLE;
+	}
+	if (wavelet_depth_bounds_buffer_memory.handle != VK_NULL_HANDLE)
+		R_FreeVulkanMemory (&wavelet_depth_bounds_buffer_memory, &num_vulkan_misc_allocations);
+
 	if (wavelet_coeff_buffer_view != VK_NULL_HANDLE)
 	{
 		vkDestroyImageView (vulkan_globals.device, wavelet_coeff_buffer_view, NULL);
@@ -2683,19 +2758,35 @@ void GL_UpdateDescriptorSets (void)
 	{
 		vulkan_globals.wavelet_coeff_descriptor_set = R_AllocateDescriptorSet (&vulkan_globals.wavelet_coeff_set_layout);
 
-		ZEROED_STRUCT (VkDescriptorImageInfo, wavelet_image_info);
-		wavelet_image_info.imageView = wavelet_coeff_buffer_view;
-		wavelet_image_info.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+		ZEROED_STRUCT_ARRAY (VkDescriptorImageInfo, wavelet_image_infos, 3);
+		wavelet_image_infos[0].imageView = wavelet_coeff_buffer_view;
+		wavelet_image_infos[0].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+		wavelet_image_infos[1].imageView = wavelet_depth_bounds_buffer_view;
+		wavelet_image_infos[1].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+		wavelet_image_infos[2].imageView =
+			(vulkan_globals.sample_count == VK_SAMPLE_COUNT_1_BIT) ? wavelet_lighting_buffer_view : wavelet_lighting_resolve_buffer_view;
+		wavelet_image_infos[2].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		wavelet_image_infos[2].sampler = vulkan_globals.point_sampler;
 
-		ZEROED_STRUCT (VkWriteDescriptorSet, wavelet_write);
-		wavelet_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		wavelet_write.dstBinding = 0;
-		wavelet_write.dstArrayElement = 0;
-		wavelet_write.descriptorCount = 1;
-		wavelet_write.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-		wavelet_write.dstSet = vulkan_globals.wavelet_coeff_descriptor_set;
-		wavelet_write.pImageInfo = &wavelet_image_info;
-		vkUpdateDescriptorSets (vulkan_globals.device, 1, &wavelet_write, 0, NULL);
+		ZEROED_STRUCT_ARRAY (VkWriteDescriptorSet, wavelet_writes, 3);
+		for (int i = 0; i < 2; ++i)
+		{
+			wavelet_writes[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+			wavelet_writes[i].dstBinding = i;
+			wavelet_writes[i].dstArrayElement = 0;
+			wavelet_writes[i].descriptorCount = 1;
+			wavelet_writes[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+			wavelet_writes[i].dstSet = vulkan_globals.wavelet_coeff_descriptor_set;
+			wavelet_writes[i].pImageInfo = &wavelet_image_infos[i];
+		}
+		wavelet_writes[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		wavelet_writes[2].dstBinding = 2;
+		wavelet_writes[2].dstArrayElement = 0;
+		wavelet_writes[2].descriptorCount = 1;
+		wavelet_writes[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		wavelet_writes[2].dstSet = vulkan_globals.wavelet_coeff_descriptor_set;
+		wavelet_writes[2].pImageInfo = &wavelet_image_infos[2];
+		vkUpdateDescriptorSets (vulkan_globals.device, countof (wavelet_writes), wavelet_writes, 0, NULL);
 	}
 
 	if (vulkan_globals.screen_effects_desc_set != VK_NULL_HANDLE)
@@ -3102,6 +3193,32 @@ static void GL_CreateMainFrameBuffers (void)
 			Sys_Error ("vkCreateFramebuffer failed with code %i", (int)err);
 		GL_SetObjectName ((uint64_t)wavelet_coeff_framebuffer, VK_OBJECT_TYPE_FRAMEBUFFER, "wavelet_coeff");
 
+		assert (wavelet_bounds_framebuffer == VK_NULL_HANDLE);
+		err = vkCreateFramebuffer (vulkan_globals.device, &coeff_framebuffer_create_info, NULL, &wavelet_bounds_framebuffer);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreateFramebuffer failed with code %i", (int)err);
+		GL_SetObjectName ((uint64_t)wavelet_bounds_framebuffer, VK_OBJECT_TYPE_FRAMEBUFFER, "wavelet_bounds");
+
+		VkImageView lighting_attachments[3] = {
+			wavelet_lighting_buffer_view,
+			depth_buffer_view,
+			wavelet_lighting_resolve_buffer_view,
+		};
+		ZEROED_STRUCT (VkFramebufferCreateInfo, lighting_framebuffer_create_info);
+		lighting_framebuffer_create_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+		lighting_framebuffer_create_info.renderPass = vulkan_globals.wavelet_shade_render_pass;
+		lighting_framebuffer_create_info.attachmentCount = resolve ? countof (lighting_attachments) : 2;
+		lighting_framebuffer_create_info.width = vid.width;
+		lighting_framebuffer_create_info.height = vid.height;
+		lighting_framebuffer_create_info.layers = 1;
+		lighting_framebuffer_create_info.pAttachments = lighting_attachments;
+
+		assert (wavelet_lighting_framebuffer == VK_NULL_HANDLE);
+		err = vkCreateFramebuffer (vulkan_globals.device, &lighting_framebuffer_create_info, NULL, &wavelet_lighting_framebuffer);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreateFramebuffer failed with code %i", (int)err);
+		GL_SetObjectName ((uint64_t)wavelet_lighting_framebuffer, VK_OBJECT_TYPE_FRAMEBUFFER, "wavelet_lighting");
+
 		for (uint32_t i = 0; i < NUM_COLOR_BUFFERS; ++i)
 		{
 			VkImageView attachments[3] = {
@@ -3119,11 +3236,11 @@ static void GL_CreateMainFrameBuffers (void)
 			shade_framebuffer_create_info.layers = 1;
 			shade_framebuffer_create_info.pAttachments = attachments;
 
-			assert (wavelet_shade_framebuffers[i] == VK_NULL_HANDLE);
-			err = vkCreateFramebuffer (vulkan_globals.device, &shade_framebuffer_create_info, NULL, &wavelet_shade_framebuffers[i]);
+			assert (wavelet_composite_framebuffers[i] == VK_NULL_HANDLE);
+			err = vkCreateFramebuffer (vulkan_globals.device, &shade_framebuffer_create_info, NULL, &wavelet_composite_framebuffers[i]);
 			if (err != VK_SUCCESS)
 				Sys_Error ("vkCreateFramebuffer failed with code %i", (int)err);
-			GL_SetObjectName ((uint64_t)wavelet_shade_framebuffers[i], VK_OBJECT_TYPE_FRAMEBUFFER, "wavelet_shade");
+			GL_SetObjectName ((uint64_t)wavelet_composite_framebuffers[i], VK_OBJECT_TYPE_FRAMEBUFFER, "wavelet_composite");
 		}
 	}
 }
@@ -3135,17 +3252,27 @@ GL_DestroyMainFrameBuffers
 */
 static void GL_DestroyMainFrameBuffers (void)
 {
+	if (wavelet_bounds_framebuffer != VK_NULL_HANDLE)
+	{
+		vkDestroyFramebuffer (vulkan_globals.device, wavelet_bounds_framebuffer, NULL);
+		wavelet_bounds_framebuffer = VK_NULL_HANDLE;
+	}
 	if (wavelet_coeff_framebuffer != VK_NULL_HANDLE)
 	{
 		vkDestroyFramebuffer (vulkan_globals.device, wavelet_coeff_framebuffer, NULL);
 		wavelet_coeff_framebuffer = VK_NULL_HANDLE;
 	}
+	if (wavelet_lighting_framebuffer != VK_NULL_HANDLE)
+	{
+		vkDestroyFramebuffer (vulkan_globals.device, wavelet_lighting_framebuffer, NULL);
+		wavelet_lighting_framebuffer = VK_NULL_HANDLE;
+	}
 	for (int i = 0; i < NUM_COLOR_BUFFERS; ++i)
 	{
-		if (wavelet_shade_framebuffers[i] != VK_NULL_HANDLE)
+		if (wavelet_composite_framebuffers[i] != VK_NULL_HANDLE)
 		{
-			vkDestroyFramebuffer (vulkan_globals.device, wavelet_shade_framebuffers[i], NULL);
-			wavelet_shade_framebuffers[i] = VK_NULL_HANDLE;
+			vkDestroyFramebuffer (vulkan_globals.device, wavelet_composite_framebuffers[i], NULL);
+			wavelet_composite_framebuffers[i] = VK_NULL_HANDLE;
 		}
 	}
 
@@ -3413,6 +3540,12 @@ void GL_BeginRenderingTask (void *unused)
 					cbx->render_pass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_OIT][main_render_pass_stencil];
 					cbx->render_pass_index = RENDER_PASS_INDEX_MAIN_OIT;
 				}
+				else if (oit_mode == OIT_MODE_WAVELET && GL_ContextInList (scbx_index, wavelet_bounds_contexts, countof (wavelet_bounds_contexts)))
+				{
+					cbx->render_pass = vulkan_globals.wavelet_coeff_render_pass;
+					cbx->render_pass_index = RENDER_PASS_INDEX_MAIN_WAVELET_BOUNDS;
+					cbx->subpass = 0;
+				}
 				else if (oit_mode == OIT_MODE_WAVELET && GL_ContextInList (scbx_index, wavelet_coeff_contexts, countof (wavelet_coeff_contexts)))
 				{
 					cbx->render_pass = vulkan_globals.wavelet_coeff_render_pass;
@@ -3423,6 +3556,12 @@ void GL_BeginRenderingTask (void *unused)
 				{
 					cbx->render_pass = vulkan_globals.wavelet_shade_render_pass;
 					cbx->render_pass_index = RENDER_PASS_INDEX_MAIN_WAVELET_SHADE;
+					cbx->subpass = 0;
+				}
+				else if (oit_mode == OIT_MODE_WAVELET && GL_ContextInList (scbx_index, wavelet_composite_contexts, countof (wavelet_composite_contexts)))
+				{
+					cbx->render_pass = vulkan_globals.wavelet_composite_render_pass;
+					cbx->render_pass_index = RENDER_PASS_INDEX_MAIN_WAVELET_COMPOSITE;
 					cbx->subpass = 0;
 				}
 				else
@@ -3465,8 +3604,9 @@ void GL_BeginRenderingTask (void *unused)
 			viewport.maxDepth = 1.0f;
 			vkCmdSetViewport (cbx->cb, 0, 1, &viewport);
 
-			if (scbx_index != SCBX_OIT_RESOLVE && cbx->render_pass_index != RENDER_PASS_INDEX_MAIN_WAVELET_COEFF &&
-				cbx->render_pass_index != RENDER_PASS_INDEX_MAIN_WAVELET_SHADE)
+			if (scbx_index != SCBX_OIT_RESOLVE && cbx->render_pass_index != RENDER_PASS_INDEX_MAIN_WAVELET_BOUNDS &&
+				cbx->render_pass_index != RENDER_PASS_INDEX_MAIN_WAVELET_COEFF && cbx->render_pass_index != RENDER_PASS_INDEX_MAIN_WAVELET_SHADE &&
+				cbx->render_pass_index != RENDER_PASS_INDEX_MAIN_WAVELET_COMPOSITE)
 			{
 				R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_blend_pipeline[cbx->render_pass_index]);
 				GL_SetCanvas (cbx, CANVAS_NONE);
@@ -3474,6 +3614,9 @@ void GL_BeginRenderingTask (void *unused)
 			else if (oit_mode == OIT_MODE_WAVELET)
 			{
 				R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.wavelet_resolve_pipeline);
+				R_BindWaveletCoefficients (cbx, 1);
+				vkCmdDraw (cbx->cb, 3, 1, 0, 0);
+				R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.wavelet_composite_pipeline);
 				R_BindWaveletCoefficients (cbx, 1);
 				vkCmdDraw (cbx->cb, 3, 1, 0, 0);
 			}
@@ -4095,7 +4238,7 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 		if (use_wavelet_oit)
 		{
 			{
-				ZEROED_STRUCT_ARRAY (VkImageMemoryBarrier, image_barriers, 2);
+				ZEROED_STRUCT_ARRAY (VkImageMemoryBarrier, image_barriers, 3);
 				image_barriers[0].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 				image_barriers[0].srcAccessMask = 0;
 				image_barriers[0].dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
@@ -4109,22 +4252,86 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 				image_barriers[0].subresourceRange.levelCount = 1;
 				image_barriers[0].subresourceRange.baseArrayLayer = 0;
 				image_barriers[0].subresourceRange.layerCount = WAVELET_COEFFICIENT_COUNT;
+				image_barriers[1] = image_barriers[0];
+				image_barriers[1].image = vulkan_globals.wavelet_depth_bounds_buffer;
+				image_barriers[1].subresourceRange.layerCount = 2;
+				image_barriers[2] = image_barriers[0];
+				image_barriers[2].image = vulkan_globals.wavelet_lighting_buffer;
+				image_barriers[2].subresourceRange.layerCount = 1;
 
 				vkCmdPipelineBarrier (
-					render_passes_cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, NULL, 0, NULL, 1, image_barriers);
+					render_passes_cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, NULL, 0, NULL, countof (image_barriers),
+					image_barriers);
 
 				VkClearColorValue clear_value;
 				memset (&clear_value, 0, sizeof (clear_value));
 				VkImageSubresourceRange range = image_barriers[0].subresourceRange;
 				vkCmdClearColorImage (render_passes_cb, vulkan_globals.wavelet_coeff_buffer, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear_value, 1, &range);
 
-				image_barriers[1] = image_barriers[0];
-				image_barriers[1].srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+				VkClearColorValue bounds_clear_values[2];
+				memset (&bounds_clear_values, 0, sizeof (bounds_clear_values));
+				bounds_clear_values[0].uint32[0] = 0xffffffffu;
+				VkImageSubresourceRange bounds_range = image_barriers[1].subresourceRange;
+				bounds_range.baseArrayLayer = 0;
+				bounds_range.layerCount = 1;
+				vkCmdClearColorImage (
+					render_passes_cb, vulkan_globals.wavelet_depth_bounds_buffer, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &bounds_clear_values[0], 1,
+					&bounds_range);
+				bounds_range.baseArrayLayer = 1;
+				vkCmdClearColorImage (
+					render_passes_cb, vulkan_globals.wavelet_depth_bounds_buffer, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &bounds_clear_values[1], 1,
+					&bounds_range);
+				vkCmdClearColorImage (render_passes_cb, vulkan_globals.wavelet_lighting_buffer, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear_value, 1,
+					&image_barriers[2].subresourceRange);
+
+				for (int i = 0; i < countof (image_barriers); ++i)
+				{
+					image_barriers[i].srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+					image_barriers[i].oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+				}
+				image_barriers[0].dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+				image_barriers[0].newLayout = VK_IMAGE_LAYOUT_GENERAL;
 				image_barriers[1].dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
-				image_barriers[1].oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
 				image_barriers[1].newLayout = VK_IMAGE_LAYOUT_GENERAL;
+				image_barriers[2].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+				image_barriers[2].newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 				vkCmdPipelineBarrier (
-					render_passes_cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL, 1, &image_barriers[1]);
+					render_passes_cb, VK_PIPELINE_STAGE_TRANSFER_BIT,
+					VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, 0, 0, NULL, 0, NULL, countof (image_barriers),
+					image_barriers);
+
+				if (resolve)
+				{
+					ZEROED_STRUCT (VkImageMemoryBarrier, resolve_barrier);
+					resolve_barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+					resolve_barrier.srcAccessMask = 0;
+					resolve_barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+					resolve_barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+					resolve_barrier.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+					resolve_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+					resolve_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+					resolve_barrier.image = vulkan_globals.wavelet_lighting_resolve_buffer;
+					resolve_barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+					resolve_barrier.subresourceRange.baseMipLevel = 0;
+					resolve_barrier.subresourceRange.levelCount = 1;
+					resolve_barrier.subresourceRange.baseArrayLayer = 0;
+					resolve_barrier.subresourceRange.layerCount = 1;
+					vkCmdPipelineBarrier (
+						render_passes_cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, 0, 0, NULL, 0, NULL, 1,
+						&resolve_barrier);
+				}
+			}
+
+			{
+				ZEROED_STRUCT (VkRenderPassBeginInfo, wavelet_pass_begin_info);
+				wavelet_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+				wavelet_pass_begin_info.renderPass = vulkan_globals.wavelet_coeff_render_pass;
+				wavelet_pass_begin_info.framebuffer = wavelet_bounds_framebuffer;
+				wavelet_pass_begin_info.renderArea = render_area;
+				wavelet_pass_begin_info.clearValueCount = 0;
+				vkCmdBeginRenderPass (render_passes_cb, &wavelet_pass_begin_info, VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
+				GL_SubmitContexts (render_passes_cb, wavelet_bounds_contexts, countof (wavelet_bounds_contexts));
+				vkCmdEndRenderPass (render_passes_cb);
 			}
 
 			{
@@ -4143,11 +4350,44 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 				ZEROED_STRUCT (VkRenderPassBeginInfo, wavelet_pass_begin_info);
 				wavelet_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 				wavelet_pass_begin_info.renderPass = vulkan_globals.wavelet_shade_render_pass;
-				wavelet_pass_begin_info.framebuffer = wavelet_shade_framebuffers[screen_effects ? 1 : 0];
+				wavelet_pass_begin_info.framebuffer = wavelet_lighting_framebuffer;
 				wavelet_pass_begin_info.renderArea = render_area;
 				wavelet_pass_begin_info.clearValueCount = 0;
 				vkCmdBeginRenderPass (render_passes_cb, &wavelet_pass_begin_info, VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
 				GL_SubmitContexts (render_passes_cb, wavelet_shade_contexts, countof (wavelet_shade_contexts));
+				vkCmdEndRenderPass (render_passes_cb);
+			}
+
+			{
+				ZEROED_STRUCT (VkImageMemoryBarrier, image_barrier);
+				image_barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+				image_barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+				image_barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+				image_barrier.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+				image_barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+				image_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+				image_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+				image_barrier.image = (vulkan_globals.sample_count == VK_SAMPLE_COUNT_1_BIT) ? vulkan_globals.wavelet_lighting_buffer
+																							   : vulkan_globals.wavelet_lighting_resolve_buffer;
+				image_barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+				image_barrier.subresourceRange.baseMipLevel = 0;
+				image_barrier.subresourceRange.levelCount = 1;
+				image_barrier.subresourceRange.baseArrayLayer = 0;
+				image_barrier.subresourceRange.layerCount = 1;
+				vkCmdPipelineBarrier (
+					render_passes_cb, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL, 1,
+					&image_barrier);
+			}
+
+			{
+				ZEROED_STRUCT (VkRenderPassBeginInfo, wavelet_pass_begin_info);
+				wavelet_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+				wavelet_pass_begin_info.renderPass = vulkan_globals.wavelet_composite_render_pass;
+				wavelet_pass_begin_info.framebuffer = wavelet_composite_framebuffers[screen_effects ? 1 : 0];
+				wavelet_pass_begin_info.renderArea = render_area;
+				wavelet_pass_begin_info.clearValueCount = 0;
+				vkCmdBeginRenderPass (render_passes_cb, &wavelet_pass_begin_info, VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
+				GL_SubmitContexts (render_passes_cb, wavelet_composite_contexts, countof (wavelet_composite_contexts));
 				vkCmdEndRenderPass (render_passes_cb);
 			}
 		}

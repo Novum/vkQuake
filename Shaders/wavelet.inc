@@ -5,8 +5,10 @@
 #define WAVELET_RANK 2
 #define WAVELET_COEFFICIENT_COUNT 8
 #define WAVELET_COEFFICIENT_MAX 16.0f
+#define WAVELET_DEPTH_QUANTIZATION_MAX 16777215.0f
 
 layout (set = WAVELET_SET, binding = 0, r32ui) uniform coherent uimage2DArray wavelet_coefficients;
+layout (set = WAVELET_SET, binding = 1, r32ui) uniform coherent uimage2DArray wavelet_depth_bounds;
 
 uint WaveletPackCoefficient (vec3 value)
 {
@@ -30,9 +32,50 @@ vec3 WaveletSignal (vec4 frag_color)
 	return -log (WaveletTransmittance (frag_color));
 }
 
-float WaveletDepth ()
+float WaveletRawDepth ()
 {
 	return clamp (1.0f - gl_FragCoord.z, 0.0f, 1.0f);
+}
+
+uint WaveletPackDepth (float depth)
+{
+	return uint (round (clamp (depth, 0.0f, 1.0f) * WAVELET_DEPTH_QUANTIZATION_MAX));
+}
+
+float WaveletUnpackDepth (uint depth)
+{
+	return clamp (float (depth) / WAVELET_DEPTH_QUANTIZATION_MAX, 0.0f, 1.0f);
+}
+
+ivec3 WaveletDepthBoundsCoord (int layer)
+{
+	return ivec3 (ivec2 (gl_FragCoord.xy), layer);
+}
+
+void WriteWaveletDepthBounds (vec4 frag_color)
+{
+	float depth = WaveletRawDepth ();
+	uint  packed_depth = WaveletPackDepth (depth);
+	imageAtomicMin (wavelet_depth_bounds, WaveletDepthBoundsCoord (0), packed_depth);
+	imageAtomicMax (wavelet_depth_bounds, WaveletDepthBoundsCoord (1), packed_depth);
+}
+
+float WaveletDepth ()
+{
+	uint min_depth_packed = imageLoad (wavelet_depth_bounds, WaveletDepthBoundsCoord (0)).r;
+	uint max_depth_packed = imageLoad (wavelet_depth_bounds, WaveletDepthBoundsCoord (1)).r;
+	if (min_depth_packed > max_depth_packed)
+		return 0.0f;
+
+	float min_depth = WaveletUnpackDepth (min_depth_packed);
+	float max_depth = WaveletUnpackDepth (max_depth_packed);
+	float range = max (max_depth - min_depth, 1.0f / WAVELET_DEPTH_QUANTIZATION_MAX);
+	return clamp ((WaveletRawDepth () - min_depth) / range, 0.0f, 1.0f);
+}
+
+float WaveletFarDepth ()
+{
+	return float (WAVELET_COEFFICIENT_COUNT) / float (WAVELET_COEFFICIENT_COUNT - 1);
 }
 
 void WaveletAddCoefficient (int coefficient_index, vec3 addend)
@@ -122,7 +165,7 @@ vec3 WaveletEvaluate (float depth, vec3 self_signal)
 
 vec3 WaveletTotalTransmittance ()
 {
-	return exp (-WaveletEvaluate (0.0f, vec3 (0.0f)));
+	return exp (-WaveletEvaluate (WaveletFarDepth (), vec3 (0.0f)));
 }
 
 void WriteWaveletCoefficients (vec4 frag_color)

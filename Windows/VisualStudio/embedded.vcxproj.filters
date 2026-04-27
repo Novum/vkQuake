@@ -13,6 +13,9 @@
     <CustomBuild Include="..\..\Shaders\alias_alphatest_oit.frag">
       <Filter>Shaders\Alias</Filter>
     </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\alias_alphatest_wavelet_bounds.frag">
+      <Filter>Shaders\Alias</Filter>
+    </CustomBuild>
     <CustomBuild Include="..\..\Shaders\alias_alphatest_wavelet_coeff.frag">
       <Filter>Shaders\Alias</Filter>
     </CustomBuild>
@@ -20,6 +23,9 @@
       <Filter>Shaders\Alias</Filter>
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\alias_oit.frag">
+      <Filter>Shaders\Alias</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\alias_wavelet_bounds.frag">
       <Filter>Shaders\Alias</Filter>
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\alias_wavelet_coeff.frag">
@@ -34,6 +40,9 @@
     <CustomBuild Include="..\..\Shaders\basic_oit.frag">
       <Filter>Shaders\World</Filter>
     </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\basic_wavelet_bounds.frag">
+      <Filter>Shaders\World</Filter>
+    </CustomBuild>
     <CustomBuild Include="..\..\Shaders\basic_wavelet_coeff.frag">
       <Filter>Shaders\World</Filter>
     </CustomBuild>
@@ -41,6 +50,9 @@
       <Filter>Shaders\World</Filter>
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\wavelet_resolve.frag">
+      <Filter>Shaders\Screen Effects</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\wavelet_composite.frag">
       <Filter>Shaders\Screen Effects</Filter>
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\basic.vert">
@@ -110,6 +122,9 @@
       <Filter>Shaders\World</Filter>
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\world_oit.frag">
+      <Filter>Shaders\World</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\world_wavelet_bounds.frag">
       <Filter>Shaders\World</Filter>
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\world_wavelet_coeff.frag">

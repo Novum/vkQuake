@@ -355,7 +355,8 @@ R_SetupContext
 static void R_SetupContext (cb_context_t *cbx)
 {
 	GL_Viewport (cbx, r_refdef.vrect.x, glheight - r_refdef.vrect.y - r_refdef.vrect.height, r_refdef.vrect.width, r_refdef.vrect.height, 0.0f, 1.0f);
-	if (cbx->render_pass_index != RENDER_PASS_INDEX_MAIN_WAVELET_COEFF && cbx->render_pass_index != RENDER_PASS_INDEX_MAIN_WAVELET_SHADE)
+	if (cbx->render_pass_index != RENDER_PASS_INDEX_MAIN_WAVELET_BOUNDS && cbx->render_pass_index != RENDER_PASS_INDEX_MAIN_WAVELET_COEFF &&
+		cbx->render_pass_index != RENDER_PASS_INDEX_MAIN_WAVELET_SHADE && cbx->render_pass_index != RENDER_PASS_INDEX_MAIN_WAVELET_COMPOSITE)
 		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_blend_pipeline[cbx->render_pass_index]);
 	R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 16 * sizeof (float), vulkan_globals.view_projection_matrix);
 }
@@ -1163,8 +1164,35 @@ void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 		task_handle_t wavelet_water_task = INVALID_TASK_HANDLE;
 		task_handle_t wavelet_alpha_entities_task = INVALID_TASK_HANDLE;
 		task_handle_t wavelet_particles_task = INVALID_TASK_HANDLE;
+		task_handle_t wavelet_bounds_water_task = INVALID_TASK_HANDLE;
+		task_handle_t wavelet_bounds_alpha_entities_task = INVALID_TASK_HANDLE;
+		task_handle_t wavelet_bounds_particles_task = INVALID_TASK_HANDLE;
 		if (oit_mode == OIT_MODE_WAVELET)
 		{
+			secondary_cb_contexts_t wavelet_bounds_water_scbx = SCBX_WAVELET_BOUNDS_WATER;
+			wavelet_bounds_water_task = Task_AllocateAndAssignFunc (R_DrawWaterTask, &wavelet_bounds_water_scbx, sizeof (wavelet_bounds_water_scbx));
+			Task_AddDependency (chain_surfaces, wavelet_bounds_water_task);
+			Task_AddDependency (begin_rendering_task, wavelet_bounds_water_task);
+			Task_AddDependency (wavelet_bounds_water_task, draw_done_task);
+
+			draw_alpha_entities_parms_t wavelet_bounds_alpha_entities_parms = {
+				use_tasks,
+				SCBX_WAVELET_BOUNDS_ALPHA_ENTITIES_ACROSS_WATER,
+				SCBX_WAVELET_BOUNDS_ALPHA_ENTITIES,
+			};
+			wavelet_bounds_alpha_entities_task =
+				Task_AllocateAndAssignIndexedFunc (R_DrawAlphaEntitiesTask, 2, &wavelet_bounds_alpha_entities_parms, sizeof (wavelet_bounds_alpha_entities_parms));
+			Task_AddDependency (sort_transparents, wavelet_bounds_alpha_entities_task);
+			Task_AddDependency (begin_rendering_task, wavelet_bounds_alpha_entities_task);
+			Task_AddDependency (wavelet_bounds_alpha_entities_task, draw_done_task);
+
+			secondary_cb_contexts_t wavelet_bounds_particles_scbx = SCBX_WAVELET_BOUNDS_PARTICLES;
+			wavelet_bounds_particles_task =
+				Task_AllocateAndAssignFunc (R_DrawParticlesTask, &wavelet_bounds_particles_scbx, sizeof (wavelet_bounds_particles_scbx));
+			Task_AddDependency (before_mark, wavelet_bounds_particles_task);
+			Task_AddDependency (begin_rendering_task, wavelet_bounds_particles_task);
+			Task_AddDependency (wavelet_bounds_particles_task, draw_done_task);
+
 			secondary_cb_contexts_t wavelet_water_scbx = SCBX_WAVELET_WATER;
 			wavelet_water_task = Task_AllocateAndAssignFunc (R_DrawWaterTask, &wavelet_water_scbx, sizeof (wavelet_water_scbx));
 			Task_AddDependency (chain_surfaces, wavelet_water_task);
@@ -1215,7 +1243,8 @@ void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 
 		task_handle_t tasks[] = {before_mark,		   store_efrags,	   update_warp_textures,		draw_world_task,		sort_transparents,
 								 draw_sky_task,		   draw_water_task,	   draw_view_model_task,		draw_entities_task,		draw_alpha_entities_task,
-								 draw_particles_task,  wavelet_water_task, wavelet_alpha_entities_task, wavelet_particles_task, build_tlas_task,
+								 draw_particles_task,  wavelet_bounds_water_task, wavelet_bounds_alpha_entities_task, wavelet_bounds_particles_task,
+								 wavelet_water_task, wavelet_alpha_entities_task, wavelet_particles_task, build_tlas_task,
 								 update_lightmaps_task};
 		for (int i = 0; i < countof (tasks); ++i)
 			if (tasks[i] != INVALID_TASK_HANDLE)
@@ -1237,6 +1266,8 @@ void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 		secondary_cb_contexts_t particles_scbx = SCBX_PARTICLES;
 		if (oit_mode == OIT_MODE_WAVELET)
 		{
+			secondary_cb_contexts_t wavelet_bounds_water_scbx = SCBX_WAVELET_BOUNDS_WATER;
+			R_DrawWaterTask (&wavelet_bounds_water_scbx);
 			secondary_cb_contexts_t wavelet_water_scbx = SCBX_WAVELET_WATER;
 			R_DrawWaterTask (&wavelet_water_scbx);
 		}
@@ -1245,12 +1276,20 @@ void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 		R_SortAlphaEntitiesTask (NULL);
 		if (oit_mode == OIT_MODE_WAVELET)
 		{
+			secondary_cb_contexts_t		wavelet_bounds_particles_scbx = SCBX_WAVELET_BOUNDS_PARTICLES;
+			draw_alpha_entities_parms_t wavelet_bounds_alpha_entities_parms = {
+				false,
+				SCBX_WAVELET_BOUNDS_ALPHA_ENTITIES_ACROSS_WATER,
+				SCBX_WAVELET_BOUNDS_ALPHA_ENTITIES,
+			};
 			secondary_cb_contexts_t		wavelet_particles_scbx = SCBX_WAVELET_PARTICLES;
 			draw_alpha_entities_parms_t wavelet_alpha_entities_parms = {
 				false,
 				SCBX_WAVELET_ALPHA_ENTITIES_ACROSS_WATER,
 				SCBX_WAVELET_ALPHA_ENTITIES,
 			};
+			R_DrawAlphaEntitiesTask (0, &wavelet_bounds_alpha_entities_parms);
+			R_DrawParticlesTask (&wavelet_bounds_particles_scbx);
 			R_DrawAlphaEntitiesTask (0, &wavelet_alpha_entities_parms);
 			R_DrawParticlesTask (&wavelet_particles_scbx);
 		}

@@ -155,6 +155,8 @@ static void GL_DrawAliasFrame (
 	case PV_QUAKE1:
 		if (cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_OIT)
 			pipeline = vulkan_globals.alias_oit_pipelines[pipeline_index];
+		else if (cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_WAVELET_BOUNDS)
+			pipeline = vulkan_globals.alias_wavelet_bounds_pipelines[pipeline_index];
 		else if (cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_WAVELET_COEFF)
 			pipeline = vulkan_globals.alias_wavelet_coeff_pipelines[pipeline_index];
 		else if (cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_WAVELET_SHADE)
@@ -165,6 +167,8 @@ static void GL_DrawAliasFrame (
 	case PV_QUAKE3:
 		if (cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_OIT)
 			pipeline = vulkan_globals.alias_oit_pipelines[pipeline_index];
+		else if (cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_WAVELET_BOUNDS)
+			pipeline = vulkan_globals.alias_wavelet_bounds_pipelines[pipeline_index];
 		else if (cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_WAVELET_COEFF)
 			pipeline = vulkan_globals.alias_wavelet_coeff_pipelines[pipeline_index];
 		else if (cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_WAVELET_SHADE)
@@ -175,6 +179,8 @@ static void GL_DrawAliasFrame (
 	default:
 		if (cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_OIT)
 			pipeline = vulkan_globals.alias_oit_pipelines[pipeline_index];
+		else if (cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_WAVELET_BOUNDS)
+			pipeline = vulkan_globals.alias_wavelet_bounds_pipelines[pipeline_index];
 		else if (cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_WAVELET_COEFF)
 			pipeline = vulkan_globals.alias_wavelet_coeff_pipelines[pipeline_index];
 		else if (cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_WAVELET_SHADE)
@@ -184,7 +190,8 @@ static void GL_DrawAliasFrame (
 	}
 
 	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
-	if (cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_WAVELET_COEFF || cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_WAVELET_SHADE)
+	if (cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_WAVELET_BOUNDS || cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_WAVELET_COEFF ||
+		cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_WAVELET_SHADE)
 		R_BindWaveletCoefficients (cbx, 3);
 
 	float blend;

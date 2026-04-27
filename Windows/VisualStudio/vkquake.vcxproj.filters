@@ -322,6 +322,9 @@
     <ClCompile Include="..\..\Shaders\Compiled\Debug\alias_oit.frag.c">
       <Filter>Shaders\Debug\Alias</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\alias_wavelet_bounds.frag.c">
+      <Filter>Shaders\Debug\Alias</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\alias_wavelet_coeff.frag.c">
       <Filter>Shaders\Debug\Alias</Filter>
     </ClCompile>
@@ -337,6 +340,9 @@
     <ClCompile Include="..\..\Shaders\Compiled\Debug\alias_alphatest_oit.frag.c">
       <Filter>Shaders\Debug\Alias</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\alias_alphatest_wavelet_bounds.frag.c">
+      <Filter>Shaders\Debug\Alias</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\alias_alphatest_wavelet_coeff.frag.c">
       <Filter>Shaders\Debug\Alias</Filter>
     </ClCompile>
@@ -349,6 +355,9 @@
     <ClCompile Include="..\..\Shaders\Compiled\Debug\basic_oit.frag.c">
       <Filter>Shaders\Debug\World</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\basic_wavelet_bounds.frag.c">
+      <Filter>Shaders\Debug\World</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\basic_wavelet_coeff.frag.c">
       <Filter>Shaders\Debug\World</Filter>
     </ClCompile>
@@ -356,6 +365,9 @@
       <Filter>Shaders\Debug\World</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\wavelet_resolve.frag.c">
+      <Filter>Shaders\Debug\Screen Effects</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\wavelet_composite.frag.c">
       <Filter>Shaders\Debug\Screen Effects</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\basic.vert.c">
@@ -433,6 +445,9 @@
     <ClCompile Include="..\..\Shaders\Compiled\Debug\world_oit.frag.c">
       <Filter>Shaders\Debug\World</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\world_wavelet_bounds.frag.c">
+      <Filter>Shaders\Debug\World</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Debug\world_wavelet_coeff.frag.c">
       <Filter>Shaders\Debug\World</Filter>
     </ClCompile>
@@ -446,6 +461,9 @@
       <Filter>Shaders\Release\Alias</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\alias_oit.frag.c">
+      <Filter>Shaders\Release\Alias</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\alias_wavelet_bounds.frag.c">
       <Filter>Shaders\Release\Alias</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\alias_wavelet_coeff.frag.c">
@@ -463,6 +481,9 @@
     <ClCompile Include="..\..\Shaders\Compiled\Release\alias_alphatest_oit.frag.c">
       <Filter>Shaders\Release\Alias</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\alias_alphatest_wavelet_bounds.frag.c">
+      <Filter>Shaders\Release\Alias</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\alias_alphatest_wavelet_coeff.frag.c">
       <Filter>Shaders\Release\Alias</Filter>
     </ClCompile>
@@ -475,6 +496,9 @@
     <ClCompile Include="..\..\Shaders\Compiled\Release\basic_oit.frag.c">
       <Filter>Shaders\Release\World</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\basic_wavelet_bounds.frag.c">
+      <Filter>Shaders\Release\World</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\basic_wavelet_coeff.frag.c">
       <Filter>Shaders\Release\World</Filter>
     </ClCompile>
@@ -482,6 +506,9 @@
       <Filter>Shaders\Release\World</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\wavelet_resolve.frag.c">
+      <Filter>Shaders\Release\Screen Effects</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\wavelet_composite.frag.c">
       <Filter>Shaders\Release\Screen Effects</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\basic.vert.c">
@@ -557,6 +584,9 @@
       <Filter>Shaders\Release\World</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\world_oit.frag.c">
+      <Filter>Shaders\Release\World</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\world_wavelet_bounds.frag.c">
       <Filter>Shaders\Release\World</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Shaders\Compiled\Release\world_wavelet_coeff.frag.c">

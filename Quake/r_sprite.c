@@ -211,12 +211,15 @@ void R_DrawSpriteModel (cb_context_t *cbx, entity_t *e)
 	vulkan_pipeline_t pipeline = vulkan_globals.sprite_pipeline;
 	if (cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_OIT)
 		pipeline = vulkan_globals.sprite_oit_pipeline;
+	else if (cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_WAVELET_BOUNDS)
+		pipeline = vulkan_globals.sprite_wavelet_bounds_pipeline;
 	else if (cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_WAVELET_COEFF)
 		pipeline = vulkan_globals.sprite_wavelet_coeff_pipeline;
 	else if (cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_WAVELET_SHADE)
 		pipeline = vulkan_globals.sprite_wavelet_shade_pipeline;
 	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
-	if (cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_WAVELET_COEFF || cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_WAVELET_SHADE)
+	if (cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_WAVELET_BOUNDS || cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_WAVELET_COEFF ||
+		cbx->render_pass_index == RENDER_PASS_INDEX_MAIN_WAVELET_SHADE)
 		R_BindWaveletCoefficients (cbx, 1);
 
 	psprite = (msprite_t *)Mod_Extradata (e->model);

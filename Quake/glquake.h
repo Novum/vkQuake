@@ -215,6 +215,10 @@ typedef enum
 	SCBX_ENTITIES,
 	SCBX_SKY,
 	SCBX_VIEW_MODEL,
+	SCBX_WAVELET_BOUNDS_ALPHA_ENTITIES_ACROSS_WATER,
+	SCBX_WAVELET_BOUNDS_WATER,
+	SCBX_WAVELET_BOUNDS_ALPHA_ENTITIES,
+	SCBX_WAVELET_BOUNDS_PARTICLES,
 	SCBX_WAVELET_ALPHA_ENTITIES_ACROSS_WATER,
 	SCBX_WAVELET_WATER,
 	SCBX_WAVELET_ALPHA_ENTITIES,
@@ -237,8 +241,10 @@ typedef enum
 	RENDER_PASS_INDEX_MAIN,
 	RENDER_PASS_INDEX_UI,
 	RENDER_PASS_INDEX_MAIN_OIT,
+	RENDER_PASS_INDEX_MAIN_WAVELET_BOUNDS,
 	RENDER_PASS_INDEX_MAIN_WAVELET_COEFF,
 	RENDER_PASS_INDEX_MAIN_WAVELET_SHADE,
+	RENDER_PASS_INDEX_MAIN_WAVELET_COMPOSITE,
 	RENDER_PASS_INDEX_COUNT,
 } render_pass_index_t;
 
@@ -262,6 +268,10 @@ static const int SECONDARY_CB_MULTIPLICITY[SCBX_NUM] = {
 	NUM_ENTITIES_CBX, // SCBX_ENTITIES,
 	1,				  // SCBX_SKY,
 	1,				  // SCBX_VIEW_MODEL,
+	1,				  // SCBX_WAVELET_BOUNDS_ALPHA_ENTITIES_ACROSS_WATER,
+	1,				  // SCBX_WAVELET_BOUNDS_WATER,
+	1,				  // SCBX_WAVELET_BOUNDS_ALPHA_ENTITIES,
+	1,				  // SCBX_WAVELET_BOUNDS_PARTICLES,
 	1,				  // SCBX_WAVELET_ALPHA_ENTITIES_ACROSS_WATER,
 	1,				  // SCBX_WAVELET_WATER,
 	1,				  // SCBX_WAVELET_ALPHA_ENTITIES,
@@ -328,6 +338,9 @@ typedef struct
 	VkImage oit_accum_buffer;
 	VkImage oit_reveal_buffer;
 	VkImage wavelet_coeff_buffer;
+	VkImage wavelet_depth_bounds_buffer;
+	VkImage wavelet_lighting_buffer;
+	VkImage wavelet_lighting_resolve_buffer;
 
 	// Index buffers
 	VkBuffer fan_index_buffer;
@@ -337,8 +350,10 @@ typedef struct
 
 	// Render passes
 	VkRenderPass main_render_pass[MAIN_RENDER_PASS_VARIANT_COUNT][MAIN_RENDER_PASS_STENCIL_COUNT];
+	VkRenderPass wavelet_bounds_render_pass;
 	VkRenderPass wavelet_coeff_render_pass;
 	VkRenderPass wavelet_shade_render_pass;
+	VkRenderPass wavelet_composite_render_pass;
 	VkRenderPass warp_render_pass;
 
 	// Pipelines
@@ -349,6 +364,7 @@ typedef struct
 	vulkan_pipeline_layout_t basic_wavelet_pipeline_layout;
 	vulkan_pipeline_t		 world_pipelines[WORLD_PIPELINE_COUNT];
 	vulkan_pipeline_t		 world_oit_pipelines[WORLD_PIPELINE_COUNT];
+	vulkan_pipeline_t		 world_wavelet_bounds_pipelines[WORLD_PIPELINE_COUNT];
 	vulkan_pipeline_t		 world_wavelet_coeff_pipelines[WORLD_PIPELINE_COUNT];
 	vulkan_pipeline_t		 world_wavelet_shade_pipelines[WORLD_PIPELINE_COUNT];
 	vulkan_pipeline_layout_t world_pipeline_layout;
@@ -356,10 +372,12 @@ typedef struct
 	vulkan_pipeline_t		 raster_tex_warp_pipeline;
 	vulkan_pipeline_t		 particle_pipeline;
 	vulkan_pipeline_t		 particle_oit_pipeline;
+	vulkan_pipeline_t		 particle_wavelet_bounds_pipeline;
 	vulkan_pipeline_t		 particle_wavelet_coeff_pipeline;
 	vulkan_pipeline_t		 particle_wavelet_shade_pipeline;
 	vulkan_pipeline_t		 sprite_pipeline;
 	vulkan_pipeline_t		 sprite_oit_pipeline;
+	vulkan_pipeline_t		 sprite_wavelet_bounds_pipeline;
 	vulkan_pipeline_t		 sprite_wavelet_coeff_pipeline;
 	vulkan_pipeline_t		 sprite_wavelet_shade_pipeline;
 	vulkan_pipeline_layout_t sky_pipeline_layout[2]; // one texture (cubemap-like), two textures (animated layers)
@@ -375,17 +393,20 @@ typedef struct
 	vulkan_pipeline_t		 sky_layer_oit_pipeline[2];
 	vulkan_pipeline_t		 alias_pipelines[MODEL_PIPELINE_COUNT];
 	vulkan_pipeline_t		 alias_oit_pipelines[MODEL_PIPELINE_COUNT];
+	vulkan_pipeline_t		 alias_wavelet_bounds_pipelines[MODEL_PIPELINE_COUNT];
 	vulkan_pipeline_t		 alias_wavelet_coeff_pipelines[MODEL_PIPELINE_COUNT];
 	vulkan_pipeline_t		 alias_wavelet_shade_pipelines[MODEL_PIPELINE_COUNT];
 	vulkan_pipeline_layout_t alias_wavelet_pipeline_layout;
 	vulkan_pipeline_t		 md5_pipelines[MODEL_PIPELINE_COUNT];
 	vulkan_pipeline_t		 md5_oit_pipelines[MODEL_PIPELINE_COUNT];
+	vulkan_pipeline_t		 md5_wavelet_bounds_pipelines[MODEL_PIPELINE_COUNT];
 	vulkan_pipeline_t		 md5_wavelet_coeff_pipelines[MODEL_PIPELINE_COUNT];
 	vulkan_pipeline_t		 md5_wavelet_shade_pipelines[MODEL_PIPELINE_COUNT];
 	vulkan_pipeline_layout_t md5_wavelet_pipeline_layout;
 	vulkan_pipeline_t		 postprocess_pipeline;
 	vulkan_pipeline_t		 wboit_resolve_pipeline;
 	vulkan_pipeline_t		 wavelet_resolve_pipeline;
+	vulkan_pipeline_t		 wavelet_composite_pipeline;
 	vulkan_pipeline_t		 screen_effects_pipeline;
 	vulkan_pipeline_t		 screen_effects_scale_pipeline;
 	vulkan_pipeline_t		 screen_effects_scale_sops_pipeline;

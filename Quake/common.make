@@ -138,10 +138,12 @@ SYSOBJ_MAIN:= main_sdl.o
 SHADER_OBJS = \
 	alias_frag.o \
 	alias_oit_frag.o \
+	alias_wavelet_bounds_frag.o \
 	alias_wavelet_coeff_frag.o \
 	alias_wavelet_shade_frag.o \
 	alias_alphatest_frag.o \
 	alias_alphatest_oit_frag.o \
+	alias_alphatest_wavelet_bounds_frag.o \
 	alias_alphatest_wavelet_coeff_frag.o \
 	alias_alphatest_wavelet_shade_frag.o \
 	alias_vert.o \
@@ -158,9 +160,11 @@ SHADER_OBJS = \
 	indirect_clear_comp.o \
 	basic_frag.o \
 	basic_oit_frag.o \
+	basic_wavelet_bounds_frag.o \
 	basic_wavelet_coeff_frag.o \
 	basic_wavelet_shade_frag.o \
 	wavelet_resolve_frag.o \
+	wavelet_composite_frag.o \
 	basic_notex_frag.o \
 	basic_vert.o \
 	sky_layer_frag.o \
@@ -174,6 +178,7 @@ SHADER_OBJS = \
 	wboit_resolve_msaa_frag.o \
 	world_frag.o \
 	world_oit_frag.o \
+	world_wavelet_bounds_frag.o \
 	world_wavelet_coeff_frag.o \
 	world_wavelet_shade_frag.o \
 	world_vert.o \

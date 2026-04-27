@@ -1337,17 +1337,26 @@ void R_CreateDescriptorSetLayouts ()
 	}
 
 	{
-		ZEROED_STRUCT (VkDescriptorSetLayoutBinding, wavelet_coeff_layout_binding);
-		wavelet_coeff_layout_binding.binding = 0;
-		wavelet_coeff_layout_binding.descriptorCount = 1;
-		wavelet_coeff_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-		wavelet_coeff_layout_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+		ZEROED_STRUCT_ARRAY (VkDescriptorSetLayoutBinding, wavelet_layout_bindings, 3);
+		wavelet_layout_bindings[0].binding = 0;
+		wavelet_layout_bindings[0].descriptorCount = 1;
+		wavelet_layout_bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+		wavelet_layout_bindings[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+		wavelet_layout_bindings[1].binding = 1;
+		wavelet_layout_bindings[1].descriptorCount = 1;
+		wavelet_layout_bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+		wavelet_layout_bindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+		wavelet_layout_bindings[2].binding = 2;
+		wavelet_layout_bindings[2].descriptorCount = 1;
+		wavelet_layout_bindings[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		wavelet_layout_bindings[2].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-		descriptor_set_layout_create_info.bindingCount = 1;
-		descriptor_set_layout_create_info.pBindings = &wavelet_coeff_layout_binding;
+		descriptor_set_layout_create_info.bindingCount = countof (wavelet_layout_bindings);
+		descriptor_set_layout_create_info.pBindings = wavelet_layout_bindings;
 
 		memset (&vulkan_globals.wavelet_coeff_set_layout, 0, sizeof (vulkan_globals.wavelet_coeff_set_layout));
-		vulkan_globals.wavelet_coeff_set_layout.num_storage_images = 1;
+		vulkan_globals.wavelet_coeff_set_layout.num_storage_images = 2;
+		vulkan_globals.wavelet_coeff_set_layout.num_combined_image_samplers = 1;
 
 		err = vkCreateDescriptorSetLayout (vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.wavelet_coeff_set_layout.handle);
 		if (err != VK_SUCCESS)
@@ -2252,14 +2261,17 @@ static VkVertexInputBindingDescription	 md5_vertex_binding_description;
 DECLARE_SHADER_MODULE (basic_vert);
 DECLARE_SHADER_MODULE (basic_frag);
 DECLARE_SHADER_MODULE (basic_oit_frag);
+DECLARE_SHADER_MODULE (basic_wavelet_bounds_frag);
 DECLARE_SHADER_MODULE (basic_wavelet_coeff_frag);
 DECLARE_SHADER_MODULE (basic_wavelet_shade_frag);
 DECLARE_SHADER_MODULE (wavelet_resolve_frag);
+DECLARE_SHADER_MODULE (wavelet_composite_frag);
 DECLARE_SHADER_MODULE (basic_alphatest_frag);
 DECLARE_SHADER_MODULE (basic_notex_frag);
 DECLARE_SHADER_MODULE (world_vert);
 DECLARE_SHADER_MODULE (world_frag);
 DECLARE_SHADER_MODULE (world_oit_frag);
+DECLARE_SHADER_MODULE (world_wavelet_bounds_frag);
 DECLARE_SHADER_MODULE (world_wavelet_coeff_frag);
 DECLARE_SHADER_MODULE (world_wavelet_shade_frag);
 DECLARE_SHADER_MODULE (alias_vert);
@@ -2267,8 +2279,10 @@ DECLARE_SHADER_MODULE (alias_frag);
 DECLARE_SHADER_MODULE (alias_alphatest_frag);
 DECLARE_SHADER_MODULE (alias_oit_frag);
 DECLARE_SHADER_MODULE (alias_alphatest_oit_frag);
+DECLARE_SHADER_MODULE (alias_wavelet_bounds_frag);
 DECLARE_SHADER_MODULE (alias_wavelet_coeff_frag);
 DECLARE_SHADER_MODULE (alias_wavelet_shade_frag);
+DECLARE_SHADER_MODULE (alias_alphatest_wavelet_bounds_frag);
 DECLARE_SHADER_MODULE (alias_alphatest_wavelet_coeff_frag);
 DECLARE_SHADER_MODULE (alias_alphatest_wavelet_shade_frag);
 DECLARE_SHADER_MODULE (md5_vert);
@@ -2729,6 +2743,16 @@ static void R_CreateParticlesPipelines ()
 	infos.graphics_pipeline.renderPass = vulkan_globals.wavelet_coeff_render_pass;
 	infos.graphics_pipeline.layout = vulkan_globals.basic_wavelet_pipeline_layout.handle;
 	infos.color_blend_state.attachmentCount = 0;
+	infos.shader_stages[1].module = basic_wavelet_bounds_frag_module;
+	infos.blend_attachment_states[0].blendEnable = VK_FALSE;
+	assert (vulkan_globals.particle_wavelet_bounds_pipeline.handle == VK_NULL_HANDLE);
+	err = vkCreateGraphicsPipelines (
+		vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.particle_wavelet_bounds_pipeline.handle);
+	if (err != VK_SUCCESS)
+		Sys_Error ("vkCreateGraphicsPipelines failed (particle_wavelet_bounds_pipeline) with code %i", (int)err);
+	vulkan_globals.particle_wavelet_bounds_pipeline.layout = vulkan_globals.basic_wavelet_pipeline_layout;
+	GL_SetObjectName ((uint64_t)vulkan_globals.particle_wavelet_bounds_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "particles_wavelet_bounds");
+
 	infos.shader_stages[1].module = basic_wavelet_coeff_frag_module;
 	infos.blend_attachment_states[0].blendEnable = VK_FALSE;
 	assert (vulkan_globals.particle_wavelet_coeff_pipeline.handle == VK_NULL_HANDLE);
@@ -2999,6 +3023,16 @@ static void R_CreateSpritesPipelines ()
 	infos.depth_stencil_state.depthWriteEnable = VK_FALSE;
 	infos.graphics_pipeline.renderPass = vulkan_globals.wavelet_coeff_render_pass;
 	infos.color_blend_state.attachmentCount = 0;
+	infos.shader_stages[1].module = basic_wavelet_bounds_frag_module;
+
+	assert (vulkan_globals.sprite_wavelet_bounds_pipeline.handle == VK_NULL_HANDLE);
+	err = vkCreateGraphicsPipelines (
+		vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.sprite_wavelet_bounds_pipeline.handle);
+	if (err != VK_SUCCESS)
+		Sys_Error ("vkCreateGraphicsPipelines failed (sprite_wavelet_bounds_pipeline) with code %i", (int)err);
+	vulkan_globals.sprite_wavelet_bounds_pipeline.layout = vulkan_globals.basic_wavelet_pipeline_layout;
+	GL_SetObjectName ((uint64_t)vulkan_globals.sprite_wavelet_bounds_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "sprite_wavelet_bounds");
+
 	infos.shader_stages[1].module = basic_wavelet_coeff_frag_module;
 
 	assert (vulkan_globals.sprite_wavelet_coeff_pipeline.handle == VK_NULL_HANDLE);
@@ -3516,6 +3550,21 @@ static void R_CreateWorldPipelines ()
 						infos.graphics_pipeline.layout = vulkan_globals.world_wavelet_pipeline_layout.handle;
 						infos.graphics_pipeline.renderPass = vulkan_globals.wavelet_coeff_render_pass;
 						infos.color_blend_state.attachmentCount = 0;
+						infos.shader_stages[1].module = world_wavelet_bounds_frag_module;
+						infos.blend_attachment_states[0].blendEnable = VK_FALSE;
+						infos.depth_stencil_state.depthWriteEnable = VK_FALSE;
+
+						assert (vulkan_globals.world_wavelet_bounds_pipelines[pipeline_index].handle == VK_NULL_HANDLE);
+						err = vkCreateGraphicsPipelines (
+							vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL,
+							&vulkan_globals.world_wavelet_bounds_pipelines[pipeline_index].handle);
+						if (err != VK_SUCCESS)
+							Sys_Error ("vkCreateGraphicsPipelines failed (world_wavelet_bounds_pipelines[%d]) with code %i", pipeline_index, (int)err);
+						GL_SetObjectName (
+							(uint64_t)vulkan_globals.world_wavelet_bounds_pipelines[pipeline_index].handle, VK_OBJECT_TYPE_PIPELINE,
+							va ("world_wavelet_bounds %d", pipeline_index));
+						vulkan_globals.world_wavelet_bounds_pipelines[pipeline_index].layout = vulkan_globals.world_wavelet_pipeline_layout;
+
 						infos.shader_stages[1].module = world_wavelet_coeff_frag_module;
 						infos.blend_attachment_states[0].blendEnable = VK_FALSE;
 						infos.depth_stencil_state.depthWriteEnable = VK_FALSE;
@@ -3807,6 +3856,18 @@ static void R_CreateAliasPipelines ()
 		infos.graphics_pipeline.renderPass = vulkan_globals.wavelet_coeff_render_pass;
 		infos.color_blend_state.attachmentCount = 0;
 		infos.blend_attachment_states[0].blendEnable = VK_FALSE;
+		infos.shader_stages[1].module = alpha_test ? alias_alphatest_wavelet_bounds_frag_module : alias_wavelet_bounds_frag_module;
+
+		assert (vulkan_globals.alias_wavelet_bounds_pipelines[pipeline_index].handle == VK_NULL_HANDLE);
+		err = vkCreateGraphicsPipelines (
+			vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.alias_wavelet_bounds_pipelines[pipeline_index].handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreateGraphicsPipelines failed (alias_wavelet_bounds_pipelines[%d]) with code %i", pipeline_index, (int)err);
+		GL_SetObjectName (
+			(uint64_t)vulkan_globals.alias_wavelet_bounds_pipelines[pipeline_index].handle, VK_OBJECT_TYPE_PIPELINE,
+			va ("alias_wavelet_bounds %d", pipeline_index));
+		vulkan_globals.alias_wavelet_bounds_pipelines[pipeline_index].layout = vulkan_globals.alias_wavelet_pipeline_layout;
+
 		infos.shader_stages[1].module = alpha_test ? alias_alphatest_wavelet_coeff_frag_module : alias_wavelet_coeff_frag_module;
 
 		assert (vulkan_globals.alias_wavelet_coeff_pipelines[pipeline_index].handle == VK_NULL_HANDLE);
@@ -4080,6 +4141,17 @@ static void R_CreatePostprocessPipelines ()
 		Sys_Error ("vkCreateGraphicsPipelines failed (wavelet_resolve_pipeline) with code %i", (int)err);
 	vulkan_globals.wavelet_resolve_pipeline.layout = vulkan_globals.basic_wavelet_pipeline_layout;
 	GL_SetObjectName ((uint64_t)vulkan_globals.wavelet_resolve_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "wavelet_resolve");
+
+	infos.graphics_pipeline.renderPass = vulkan_globals.wavelet_composite_render_pass;
+	infos.shader_stages[1].module = wavelet_composite_frag_module;
+	R_SetAdditiveBlend (&infos.blend_attachment_states[0]);
+
+	assert (vulkan_globals.wavelet_composite_pipeline.handle == VK_NULL_HANDLE);
+	err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.wavelet_composite_pipeline.handle);
+	if (err != VK_SUCCESS)
+		Sys_Error ("vkCreateGraphicsPipelines failed (wavelet_composite_pipeline) with code %i", (int)err);
+	vulkan_globals.wavelet_composite_pipeline.layout = vulkan_globals.basic_wavelet_pipeline_layout;
+	GL_SetObjectName ((uint64_t)vulkan_globals.wavelet_composite_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "wavelet_composite");
 }
 
 /*
@@ -4242,14 +4314,17 @@ static void R_CreateShaderModules ()
 	CREATE_SHADER_MODULE (basic_vert);
 	CREATE_SHADER_MODULE (basic_frag);
 	CREATE_SHADER_MODULE (basic_oit_frag);
+	CREATE_SHADER_MODULE (basic_wavelet_bounds_frag);
 	CREATE_SHADER_MODULE (basic_wavelet_coeff_frag);
 	CREATE_SHADER_MODULE (basic_wavelet_shade_frag);
 	CREATE_SHADER_MODULE (wavelet_resolve_frag);
+	CREATE_SHADER_MODULE (wavelet_composite_frag);
 	CREATE_SHADER_MODULE (basic_alphatest_frag);
 	CREATE_SHADER_MODULE (basic_notex_frag);
 	CREATE_SHADER_MODULE (world_vert);
 	CREATE_SHADER_MODULE (world_frag);
 	CREATE_SHADER_MODULE (world_oit_frag);
+	CREATE_SHADER_MODULE (world_wavelet_bounds_frag);
 	CREATE_SHADER_MODULE (world_wavelet_coeff_frag);
 	CREATE_SHADER_MODULE (world_wavelet_shade_frag);
 	CREATE_SHADER_MODULE (alias_vert);
@@ -4257,8 +4332,10 @@ static void R_CreateShaderModules ()
 	CREATE_SHADER_MODULE (alias_alphatest_frag);
 	CREATE_SHADER_MODULE (alias_oit_frag);
 	CREATE_SHADER_MODULE (alias_alphatest_oit_frag);
+	CREATE_SHADER_MODULE (alias_wavelet_bounds_frag);
 	CREATE_SHADER_MODULE (alias_wavelet_coeff_frag);
 	CREATE_SHADER_MODULE (alias_wavelet_shade_frag);
+	CREATE_SHADER_MODULE (alias_alphatest_wavelet_bounds_frag);
 	CREATE_SHADER_MODULE (alias_alphatest_wavelet_coeff_frag);
 	CREATE_SHADER_MODULE (alias_alphatest_wavelet_shade_frag);
 	CREATE_SHADER_MODULE (md5_vert);
@@ -4303,14 +4380,17 @@ static void R_DestroyShaderModules ()
 	DESTROY_SHADER_MODULE (basic_vert);
 	DESTROY_SHADER_MODULE (basic_frag);
 	DESTROY_SHADER_MODULE (basic_oit_frag);
+	DESTROY_SHADER_MODULE (basic_wavelet_bounds_frag);
 	DESTROY_SHADER_MODULE (basic_wavelet_coeff_frag);
 	DESTROY_SHADER_MODULE (basic_wavelet_shade_frag);
 	DESTROY_SHADER_MODULE (wavelet_resolve_frag);
+	DESTROY_SHADER_MODULE (wavelet_composite_frag);
 	DESTROY_SHADER_MODULE (basic_alphatest_frag);
 	DESTROY_SHADER_MODULE (basic_notex_frag);
 	DESTROY_SHADER_MODULE (world_vert);
 	DESTROY_SHADER_MODULE (world_frag);
 	DESTROY_SHADER_MODULE (world_oit_frag);
+	DESTROY_SHADER_MODULE (world_wavelet_bounds_frag);
 	DESTROY_SHADER_MODULE (world_wavelet_coeff_frag);
 	DESTROY_SHADER_MODULE (world_wavelet_shade_frag);
 	DESTROY_SHADER_MODULE (alias_vert);
@@ -4318,8 +4398,10 @@ static void R_DestroyShaderModules ()
 	DESTROY_SHADER_MODULE (alias_alphatest_frag);
 	DESTROY_SHADER_MODULE (alias_oit_frag);
 	DESTROY_SHADER_MODULE (alias_alphatest_oit_frag);
+	DESTROY_SHADER_MODULE (alias_wavelet_bounds_frag);
 	DESTROY_SHADER_MODULE (alias_wavelet_coeff_frag);
 	DESTROY_SHADER_MODULE (alias_wavelet_shade_frag);
+	DESTROY_SHADER_MODULE (alias_alphatest_wavelet_bounds_frag);
 	DESTROY_SHADER_MODULE (alias_alphatest_wavelet_coeff_frag);
 	DESTROY_SHADER_MODULE (alias_alphatest_wavelet_shade_frag);
 	DESTROY_SHADER_MODULE (md5_vert);
@@ -4410,6 +4492,11 @@ void R_DestroyPipelines (void)
 			vkDestroyPipeline (vulkan_globals.device, vulkan_globals.world_oit_pipelines[i].handle, NULL);
 			vulkan_globals.world_oit_pipelines[i].handle = VK_NULL_HANDLE;
 		}
+		if (vulkan_globals.world_wavelet_bounds_pipelines[i].handle != VK_NULL_HANDLE)
+		{
+			vkDestroyPipeline (vulkan_globals.device, vulkan_globals.world_wavelet_bounds_pipelines[i].handle, NULL);
+			vulkan_globals.world_wavelet_bounds_pipelines[i].handle = VK_NULL_HANDLE;
+		}
 		if (vulkan_globals.world_wavelet_coeff_pipelines[i].handle != VK_NULL_HANDLE)
 		{
 			vkDestroyPipeline (vulkan_globals.device, vulkan_globals.world_wavelet_coeff_pipelines[i].handle, NULL);
@@ -4429,6 +4516,11 @@ void R_DestroyPipelines (void)
 	{
 		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.particle_oit_pipeline.handle, NULL);
 		vulkan_globals.particle_oit_pipeline.handle = VK_NULL_HANDLE;
+	}
+	if (vulkan_globals.particle_wavelet_bounds_pipeline.handle != VK_NULL_HANDLE)
+	{
+		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.particle_wavelet_bounds_pipeline.handle, NULL);
+		vulkan_globals.particle_wavelet_bounds_pipeline.handle = VK_NULL_HANDLE;
 	}
 	if (vulkan_globals.particle_wavelet_coeff_pipeline.handle != VK_NULL_HANDLE)
 	{
@@ -4460,6 +4552,11 @@ void R_DestroyPipelines (void)
 	vulkan_globals.sprite_pipeline.handle = VK_NULL_HANDLE;
 	vkDestroyPipeline (vulkan_globals.device, vulkan_globals.sprite_oit_pipeline.handle, NULL);
 	vulkan_globals.sprite_oit_pipeline.handle = VK_NULL_HANDLE;
+	if (vulkan_globals.sprite_wavelet_bounds_pipeline.handle != VK_NULL_HANDLE)
+	{
+		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.sprite_wavelet_bounds_pipeline.handle, NULL);
+		vulkan_globals.sprite_wavelet_bounds_pipeline.handle = VK_NULL_HANDLE;
+	}
 	if (vulkan_globals.sprite_wavelet_coeff_pipeline.handle != VK_NULL_HANDLE)
 	{
 		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.sprite_wavelet_coeff_pipeline.handle, NULL);
@@ -4506,6 +4603,11 @@ void R_DestroyPipelines (void)
 			vkDestroyPipeline (vulkan_globals.device, vulkan_globals.alias_oit_pipelines[i].handle, NULL);
 			vulkan_globals.alias_oit_pipelines[i].handle = VK_NULL_HANDLE;
 		}
+		if (vulkan_globals.alias_wavelet_bounds_pipelines[i].handle != VK_NULL_HANDLE)
+		{
+			vkDestroyPipeline (vulkan_globals.device, vulkan_globals.alias_wavelet_bounds_pipelines[i].handle, NULL);
+			vulkan_globals.alias_wavelet_bounds_pipelines[i].handle = VK_NULL_HANDLE;
+		}
 		if (vulkan_globals.alias_wavelet_coeff_pipelines[i].handle != VK_NULL_HANDLE)
 		{
 			vkDestroyPipeline (vulkan_globals.device, vulkan_globals.alias_wavelet_coeff_pipelines[i].handle, NULL);
@@ -4525,6 +4627,11 @@ void R_DestroyPipelines (void)
 		{
 			vkDestroyPipeline (vulkan_globals.device, vulkan_globals.md5_oit_pipelines[i].handle, NULL);
 			vulkan_globals.md5_oit_pipelines[i].handle = VK_NULL_HANDLE;
+		}
+		if (vulkan_globals.md5_wavelet_bounds_pipelines[i].handle != VK_NULL_HANDLE)
+		{
+			vkDestroyPipeline (vulkan_globals.device, vulkan_globals.md5_wavelet_bounds_pipelines[i].handle, NULL);
+			vulkan_globals.md5_wavelet_bounds_pipelines[i].handle = VK_NULL_HANDLE;
 		}
 		if (vulkan_globals.md5_wavelet_coeff_pipelines[i].handle != VK_NULL_HANDLE)
 		{
@@ -4548,6 +4655,11 @@ void R_DestroyPipelines (void)
 	{
 		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.wavelet_resolve_pipeline.handle, NULL);
 		vulkan_globals.wavelet_resolve_pipeline.handle = VK_NULL_HANDLE;
+	}
+	if (vulkan_globals.wavelet_composite_pipeline.handle != VK_NULL_HANDLE)
+	{
+		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.wavelet_composite_pipeline.handle, NULL);
+		vulkan_globals.wavelet_composite_pipeline.handle = VK_NULL_HANDLE;
 	}
 	vkDestroyPipeline (vulkan_globals.device, vulkan_globals.screen_effects_pipeline.handle, NULL);
 	vulkan_globals.screen_effects_pipeline.handle = VK_NULL_HANDLE;
