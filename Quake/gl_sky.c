@@ -942,11 +942,11 @@ void Sky_ProcessTextureChains (cb_context_t *cbx, float color[3], int *skypolys)
 	if (!r_drawworld_cheatsafe)
 		return;
 
-	for (i = 0; i < cl.worldmodel->numtextures; i++)
+	for (i = cl.worldmodel->texofs[TEXTYPE_SKY]; i < cl.worldmodel->texofs[TEXTYPE_SKY + 1]; i++)
 	{
-		t = cl.worldmodel->textures[i];
+		t = cl.worldmodel->textures[cl.worldmodel->usedtextures[i]];
 
-		if (!t || !t->texturechains[chain_world] || !(t->texturechains[chain_world]->flags & SURF_DRAWSKY))
+		if (!t || !t->texturechains[chain_world])
 			continue;
 
 		for (s = t->texturechains[chain_world]; s; s = s->texturechains[chain_world])
@@ -1207,7 +1207,7 @@ called once per frame after opaques before transparents, handles world + entitie
 */
 void Sky_DrawSky (cb_context_t *cbx)
 {
-	int i;
+	int								 i;
 	const main_render_pass_variant_t variant = R_MainPassPipelineVariant (cbx->render_pass_index);
 
 	if (r_lightmap_cheatsafe)
@@ -1255,8 +1255,8 @@ void Sky_DrawSky (cb_context_t *cbx)
 	{
 		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_cube_pipeline[variant][indirect]);
 		vkCmdBindDescriptorSets (
-			cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_cube_pipeline[variant][indirect].layout.handle, 0, 1,
-			&skybox.cubemap->descriptor_set, 0, NULL);
+			cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.sky_cube_pipeline[variant][indirect].layout.handle, 0, 1, &skybox.cubemap->descriptor_set,
+			0, NULL);
 		memcpy (&constant_values[20], r_refdef.vieworg, sizeof (r_refdef.vieworg));
 
 		Skywind_UpdateParams (&constant_values[23], &constant_values[24]);

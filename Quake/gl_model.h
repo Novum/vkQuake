@@ -84,11 +84,31 @@ typedef enum
 
 typedef uintptr_t src_offset_t;
 
+typedef enum
+{
+	TEXTYPE_DEFAULT,
+	TEXTYPE_CUTOUT,
+	TEXTYPE_SKY,
+	TEXTYPE_LAVA,
+	TEXTYPE_SLIME,
+	TEXTYPE_TELE,
+	TEXTYPE_WATER,
+
+	TEXTYPE_COUNT,
+
+	TEXTYPE_FIRSTLIQUID = TEXTYPE_LAVA,
+	TEXTYPE_LASTLIQUID = TEXTYPE_WATER,
+	TEXTYPE_NUMLIQUIDS = TEXTYPE_LASTLIQUID + 1 - TEXTYPE_FIRSTLIQUID,
+} textype_t;
+
+#define TEXTYPE_ISLIQUID(x) ((unsigned)((x) - TEXTYPE_FIRSTLIQUID) < (unsigned)TEXTYPE_NUMLIQUIDS)
+
 typedef struct texture_s
 {
 	char				name[16];
 	unsigned			width, height;
-	unsigned			shift;					  // Q64
+	unsigned			shift; // Q64
+	textype_t			type;
 	char				source_file[MAX_QPATH];	  // relative filepath to data source, or "" if source is in memory
 	src_offset_t		source_offset;			  // offset from start of BSP file for BSP textures
 	struct gltexture_s *gltexture;				  // johnfitz -- pointer to gltexture
@@ -652,6 +672,8 @@ typedef struct qmodel_s
 
 	int			numtextures;
 	texture_t **textures;
+	int			texofs[TEXTYPE_COUNT + 1]; // index of first texture of the given type in the usedtextures array
+	int		   *usedtextures;
 
 	byte *visdata;
 	byte *lightdata;

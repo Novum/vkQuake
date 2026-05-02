@@ -907,6 +907,33 @@ qboolean Mod_CheckAnimTextureArrayQ64 (texture_t *anims[], int numTex)
 }
 
 /*
+================
+Mod_TextureTypeFromName
+================
+*/
+static textype_t Mod_TextureTypeFromName (const char *texname)
+{
+	if (texname[0] == '*' || texname[0] == '!')
+	{
+		if (!strncmp (texname + 1, "lava", 4))
+			return TEXTYPE_LAVA;
+		if (!strncmp (texname + 1, "slime", 5))
+			return TEXTYPE_SLIME;
+		if (!strncmp (texname + 1, "tele", 4))
+			return TEXTYPE_TELE;
+		return TEXTYPE_WATER;
+	}
+
+	if (texname[0] == '{')
+		return TEXTYPE_CUTOUT;
+
+	if (!q_strncasecmp (texname, "sky", 3))
+		return TEXTYPE_SKY;
+
+	return TEXTYPE_DEFAULT;
+}
+
+/*
 =================
 Mod_LoadTextureTask
 =================
@@ -1144,6 +1171,7 @@ static void Mod_LoadTextures (qmodel_t *mod, byte *mod_base, lump_t *l)
 		memcpy (tx->name, mt.name, sizeof (tx->name));
 		tx->width = mt.width;
 		tx->height = mt.height;
+		tx->type = Mod_TextureTypeFromName (tx->name);
 		for (j = 0; j < MIPLEVELS; j++)
 			tx->offsets[j] = mt.offsets[j] + sizeof (texture_t) - sizeof (miptex_t);
 		// the pixels immediately follow the structures
@@ -1852,12 +1880,12 @@ static void Mod_LoadFaces (qmodel_t *mod, byte *mod_base, lump_t *l, qboolean bs
 
 		// johnfitz -- this section rewritten
 		out->lightmaptexturenum = -1;
-		if (!q_strncasecmp (out->texinfo->texture->name, "sky", 3)) // sky surface //also note -- was strncmp, changed to match qbsp
+		if (out->texinfo->texture->type == TEXTYPE_SKY) // sky surface //also note -- was strncmp, changed to match qbsp
 		{
 			out->flags |= (SURF_DRAWSKY | SURF_DRAWTILED);
 			Mod_PolyForUnlitSurface (mod, out); // no more subdivision
 		}
-		else if (out->texinfo->texture->name[0] == '*' || out->texinfo->texture->name[0] == '!') // warp surface
+		else if (TEXTYPE_ISLIQUID (out->texinfo->texture->type)) // warp surface
 		{
 			out->flags |= SURF_DRAWTURB;
 
@@ -1865,11 +1893,11 @@ static void Mod_LoadFaces (qmodel_t *mod, byte *mod_base, lump_t *l, qboolean bs
 				out->flags |= SURF_DRAWTILED; // unlit water
 
 			// detect special liquid types
-			if (!strncmp (out->texinfo->texture->name, "*lava", 5) || !strncmp (out->texinfo->texture->name, "!lava", 5))
+			if (out->texinfo->texture->type == TEXTYPE_LAVA)
 				out->flags |= SURF_DRAWLAVA;
-			else if (!strncmp (out->texinfo->texture->name, "*slime", 6) || !strncmp (out->texinfo->texture->name, "!slime", 6))
+			else if (out->texinfo->texture->type == TEXTYPE_SLIME)
 				out->flags |= SURF_DRAWSLIME;
-			else if (!strncmp (out->texinfo->texture->name, "*tele", 5) || !strncmp (out->texinfo->texture->name, "!tele", 5))
+			else if (out->texinfo->texture->type == TEXTYPE_TELE)
 				out->flags |= SURF_DRAWTELE;
 			else
 				out->flags |= SURF_DRAWWATER;
@@ -1877,7 +1905,7 @@ static void Mod_LoadFaces (qmodel_t *mod, byte *mod_base, lump_t *l, qboolean bs
 			if (out->flags & SURF_DRAWTILED)
 				Mod_PolyForUnlitSurface (mod, out);
 		}
-		else if (out->texinfo->texture->name[0] == '{') // ericw -- fence textures
+		else if (out->texinfo->texture->type == TEXTYPE_CUTOUT) // ericw -- fence textures
 		{
 			out->flags |= SURF_DRAWFENCE;
 		}
@@ -2839,13 +2867,29 @@ static void Mod_LoadLeafsExternal (qmodel_t *mod, FILE *f)
 Mod_CalcSpecialsAndTextures
 ================
 */
+static int Mod_TextureIndexForSurface (qmodel_t *model, msurface_t *surf)
+{
+	texture_t *texture = surf->texinfo->texture;
+
+	if (surf->texinfo->tex_idx >= 0 && surf->texinfo->tex_idx < model->numtextures && model->textures[surf->texinfo->tex_idx] == texture)
+		return surf->texinfo->tex_idx;
+
+	for (int i = 0; i < model->numtextures; i++)
+	{
+		if (model->textures[i] == texture)
+			return i;
+	}
+
+	return -1;
+}
+
 static void Mod_CalcSpecialsAndTextures (qmodel_t *model)
 {
 	qboolean is_submodel = model->name[0] == '*';
 
 	model->used_specials = 0;
 
-	TEMP_ALLOC_ZEROED_COND (byte, used_tex, model->numtextures, is_submodel);
+	TEMP_ALLOC_ZEROED (byte, used_tex, model->numtextures);
 
 	for (int i = 0; i < model->nummodelsurfaces; i++)
 	{
@@ -2867,24 +2911,61 @@ static void Mod_CalcSpecialsAndTextures (qmodel_t *model)
 		}
 	}
 
-	if (!is_submodel)
-		return;
-
-	int total = 0, placed = 0;
-	for (int i = 0; i < model->numtextures; i++)
-		if (used_tex[i])
-			++total;
-
-	texture_t **orig_textures = model->textures;
-	model->textures = (texture_t **)Mem_AllocNonZero (total * sizeof (*model->textures));
-	model->numtextures = total;
-
-	for (int i = 0; placed < total; i++)
+	if (is_submodel)
 	{
-		if (used_tex[i])
-			model->textures[placed++] = orig_textures[i];
+		int total = 0, placed = 0;
+		for (int i = 0; i < model->numtextures; i++)
+			if (used_tex[i])
+				++total;
+
+		texture_t **orig_textures = model->textures;
+		model->textures = (texture_t **)Mem_AllocNonZero (total * sizeof (*model->textures));
+		model->numtextures = total;
+
+		for (int i = 0; placed < total; i++)
+		{
+			if (used_tex[i])
+				model->textures[placed++] = orig_textures[i];
+		}
 	}
 
+	memset (used_tex, 0, temp_alloc_used_tex_size);
+	TEMP_ALLOC_ZEROED (int, tex_counts, TEXTYPE_COUNT);
+	TEMP_ALLOC_ZEROED (int, tex_offsets, TEXTYPE_COUNT);
+
+	for (int i = 0; i < model->nummodelsurfaces; i++)
+	{
+		msurface_t *psurf = &model->surfaces[model->firstmodelsurface] + i;
+		const int	tex_index = Mod_TextureIndexForSurface (model, psurf);
+		if (tex_index >= 0)
+			used_tex[tex_index] = true;
+	}
+
+	for (int i = 0; i < model->numtextures; i++)
+	{
+		texture_t *texture = model->textures[i];
+		if (texture && used_tex[i])
+			++tex_counts[texture->type];
+	}
+
+	int total = 0;
+	for (int i = 0; i < TEXTYPE_COUNT; i++)
+	{
+		model->texofs[i] = tex_offsets[i] = total;
+		total += tex_counts[i];
+	}
+	model->texofs[TEXTYPE_COUNT] = total;
+
+	model->usedtextures = total ? (int *)Mem_Alloc (total * sizeof (*model->usedtextures)) : NULL;
+	for (int i = 0; i < model->numtextures; i++)
+	{
+		texture_t *texture = model->textures[i];
+		if (texture && used_tex[i])
+			model->usedtextures[tex_offsets[texture->type]++] = i;
+	}
+
+	TEMP_FREE (tex_offsets);
+	TEMP_FREE (tex_counts);
 	TEMP_FREE (used_tex);
 }
 

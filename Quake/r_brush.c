@@ -752,13 +752,9 @@ void R_DrawBrushModel_ShowTris (cb_context_t *cbx, entity_t *e)
 	MatrixMultiply (mvp, model_matrix);
 
 	if (r_showtris.value == 1)
-		R_BindPipeline (
-			cbx, VK_PIPELINE_BIND_POINT_GRAPHICS,
-			vulkan_globals.showtris_pipeline[R_MainPassPipelineVariant (cbx->render_pass_index)]);
+		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_pipeline[R_MainPassPipelineVariant (cbx->render_pass_index)]);
 	else
-		R_BindPipeline (
-			cbx, VK_PIPELINE_BIND_POINT_GRAPHICS,
-			vulkan_globals.showtris_depth_test_pipeline[R_MainPassPipelineVariant (cbx->render_pass_index)]);
+		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_depth_test_pipeline[R_MainPassPipelineVariant (cbx->render_pass_index)]);
 	R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 16 * sizeof (float), mvp);
 
 	//
@@ -819,9 +815,9 @@ void R_DrawIndirectBrushes (cb_context_t *cbx, qboolean draw_water, qboolean tra
 
 		if (!draw_sky && !gl_texture)
 			continue;
-		if (draw_water != (texture->name[0] == '*' || texture->name[0] == '!')) // SURF_DRAWTURB is in surfaces only, but it's derived from the texture name
+		if (draw_water != TEXTYPE_ISLIQUID (texture->type))
 			continue;
-		if (draw_sky != (!q_strncasecmp (texture->name, "sky", 3))) // SURF_DRAWSKY is in surfaces only, but it's derived from the texture name
+		if (draw_sky != (texture->type == TEXTYPE_SKY))
 			continue;
 
 		if (!draw_sky && !r_lightmap_cheatsafe && lasttexture != gl_texture)
@@ -834,23 +830,7 @@ void R_DrawIndirectBrushes (cb_context_t *cbx, qboolean draw_water, qboolean tra
 		float alpha = 1.0f;
 		if (draw_water)
 		{
-			if (!q_strncasecmp (texture->name, "*lava", 5) || !q_strncasecmp (texture->name, "!lava", 5))
-			{
-				// SURF_DRAWLAVA is in surfaces only, but it's derived from the texture name
-				alpha = map_lavaalpha > 0 ? map_lavaalpha : map_fallbackalpha;
-			}
-			else if (!q_strncasecmp (texture->name, "*slime", 6) || !q_strncasecmp (texture->name, "!slime", 6))
-			{
-				// SURF_DRAWSLIME is in surfaces only, but it's derived from the texture name
-				alpha = map_slimealpha > 0 ? map_slimealpha : map_fallbackalpha;
-			}
-			else if (!q_strncasecmp (texture->name, "*tele", 5) || !q_strncasecmp (texture->name, "!tele", 5))
-			{
-				// SURF_DRAWTELE is in surfaces only, but it's derived from the texture name
-				alpha = map_telealpha > 0 ? map_telealpha : map_fallbackalpha;
-			}
-			else
-				alpha = map_wateralpha;
+			alpha = GL_WaterAlphaForTextureType (texture->type);
 
 			if ((alpha < 1.0f) != transparent_water)
 				continue;
@@ -877,7 +857,7 @@ void R_DrawIndirectBrushes (cb_context_t *cbx, qboolean draw_water, qboolean tra
 
 		if (!draw_sky)
 		{
-			const qboolean alpha_test = texture->name[0] == '{'; // SURF_DRAWFENCE is in surfaces only, but it's derived from the texture name
+			const qboolean alpha_test = texture->type == TEXTYPE_CUTOUT;
 			const qboolean alpha_blend = alpha < 1.0f;
 			int			   pipeline_index =
 				(fullbright_enabled ? 1 : 0) + (alpha_test ? 2 : 0) + (alpha_blend ? 4 : 0) + (vid_filter.value != 0 && vid_palettize.value != 0 ? 8 : 0);

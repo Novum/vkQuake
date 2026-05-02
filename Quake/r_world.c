@@ -148,7 +148,7 @@ void R_SetupWorldCBXTexRanges (qboolean use_tasks)
 	memset (world_texstart, 0, sizeof (world_texstart));
 	memset (world_texend, 0, sizeof (world_texend));
 
-	const int num_textures = cl.worldmodel->numtextures;
+	const int num_textures = cl.worldmodel->texofs[TEXTYPE_SKY];
 	if (!use_tasks)
 	{
 		world_texstart[0] = 0;
@@ -159,8 +159,8 @@ void R_SetupWorldCBXTexRanges (qboolean use_tasks)
 	int total_world_surfs = 0;
 	for (int i = 0; i < num_textures; ++i)
 	{
-		texture_t *t = cl.worldmodel->textures[i];
-		if (!t || !t->texturechains[chain_world] || t->texturechains[chain_world]->flags & (SURF_DRAWTURB | SURF_DRAWTILED))
+		texture_t *t = cl.worldmodel->textures[cl.worldmodel->usedtextures[i]];
+		if (!t || !t->texturechains[chain_world] || t->texturechains[chain_world]->flags & SURF_DRAWTILED)
 			continue;
 		total_world_surfs += t->chain_size[chain_world];
 	}
@@ -170,8 +170,8 @@ void R_SetupWorldCBXTexRanges (qboolean use_tasks)
 	int		  num_assigned_to_cbx = 0;
 	for (int i = 0; i < num_textures; ++i)
 	{
-		texture_t *t = cl.worldmodel->textures[i];
-		if (!t || !t->texturechains[chain_world] || t->texturechains[chain_world]->flags & (SURF_DRAWTURB | SURF_DRAWTILED))
+		texture_t *t = cl.worldmodel->textures[cl.worldmodel->usedtextures[i]];
+		if (!t || !t->texturechains[chain_world] || t->texturechains[chain_world]->flags & SURF_DRAWTILED)
 			continue;
 
 		assert (current_cbx < NUM_WORLD_CBX);
@@ -1111,20 +1111,13 @@ static void R_BatchSurface (
 	cbx->num_vbo_indices += num_surf_indices;
 }
 
-/*
-================
-GL_WaterAlphaForEntitySurface -- ericw
-
-Returns the water alpha to use for the entity and surface combination.
-================
-*/
-float GL_WaterAlphaForEntitySurface (entity_t *ent, msurface_t *s)
+float GL_WaterAlphaForEntityTextureType (entity_t *ent, textype_t type)
 {
 	float entalpha;
 	if (r_lightmap_cheatsafe)
 		entalpha = 1;
 	else if (ent == NULL || ent->alpha == ENTALPHA_DEFAULT)
-		entalpha = GL_WaterAlphaForSurface (s);
+		entalpha = GL_WaterAlphaForTextureType (type);
 	else
 		entalpha = ENTALPHA_DECODE (ent->alpha);
 	return entalpha;
@@ -1161,7 +1154,7 @@ R_DrawTextureChains_Water -- johnfitz
 */
 void R_DrawTextureChains_Water (cb_context_t *cbx, qmodel_t *model, entity_t *ent, texchain_t chain, qboolean opaque_only, qboolean transparent_only)
 {
-	int			i;
+	int			i, type;
 	msurface_t *s;
 	texture_t  *t;
 
@@ -1175,18 +1168,9 @@ void R_DrawTextureChains_Water (cb_context_t *cbx, qmodel_t *model, entity_t *en
 			cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 0, 1, &greytexture->descriptor_set, 0, NULL);
 
 	uint32_t brushpasses = 0;
-	for (i = 0; i < model->numtextures; ++i)
+	for (type = TEXTYPE_FIRSTLIQUID; type <= TEXTYPE_LASTLIQUID; ++type)
 	{
-		t = model->textures[i];
-
-		if (!t || !t->texturechains[chain] || !(t->texturechains[chain]->flags & SURF_DRAWTURB))
-			continue;
-
-		gltexture_t *lightmap_texture = NULL;
-		R_ClearBatch (cbx);
-
-		int			   lastlightmap = -2;
-		const float	   alpha = GL_WaterAlphaForEntitySurface (ent, t->texturechains[chain]);
+		const float	   alpha = GL_WaterAlphaForEntityTextureType (ent, (textype_t)type);
 		const qboolean alpha_blend = alpha < 1.0f;
 
 		if (opaque_only && alpha_blend)
@@ -1194,30 +1178,44 @@ void R_DrawTextureChains_Water (cb_context_t *cbx, qmodel_t *model, entity_t *en
 		if (transparent_only && !alpha_blend)
 			continue;
 
-		gltexture_t *gl_texture = t->warpimage;
-		if (!r_lightmap_cheatsafe)
-			vulkan_globals.vk_cmd_bind_descriptor_sets (
-				cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 0, 1, &gl_texture->descriptor_set, 0, NULL);
-
-		if (model != cl.worldmodel)
-			Atomic_StoreUInt32 (&t->update_warp, true); // FIXME: races against UpdateWarpTextures task, bmodel-only warps may end up updating at half frequency
-
-		for (s = t->texturechains[chain]; s; s = s->texturechains[chain])
+		for (i = model->texofs[type]; i < model->texofs[type + 1]; ++i)
 		{
-			if (s->lightmaptexturenum != lastlightmap)
-			{
-				if (alpha_blend)
-					R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 20 * sizeof (float), 1 * sizeof (float), &alpha);
-				R_FlushBatch (cbx, false, false, alpha_blend, false, lightmap_texture, &brushpasses);
-				lightmap_texture = (s->lightmaptexturenum >= 0) ? lightmaps[s->lightmaptexturenum].texture : greylightmap;
-				lastlightmap = s->lightmaptexturenum;
-			}
-			R_BatchSurface (cbx, s, false, false, alpha_blend, false, lightmap_texture, &brushpasses);
-		}
+			t = model->textures[model->usedtextures[i]];
 
-		if (alpha_blend)
-			R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 20 * sizeof (float), 1 * sizeof (float), &alpha);
-		R_FlushBatch (cbx, false, false, alpha_blend, false, lightmap_texture, &brushpasses);
+			if (!t || !t->texturechains[chain])
+				continue;
+
+			gltexture_t *lightmap_texture = NULL;
+			R_ClearBatch (cbx);
+
+			int lastlightmap = -2;
+
+			gltexture_t *gl_texture = t->warpimage;
+			if (!r_lightmap_cheatsafe)
+				vulkan_globals.vk_cmd_bind_descriptor_sets (
+					cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 0, 1, &gl_texture->descriptor_set, 0, NULL);
+
+			if (model != cl.worldmodel)
+				Atomic_StoreUInt32 (
+					&t->update_warp, true); // FIXME: races against UpdateWarpTextures task, bmodel-only warps may end up updating at half frequency
+
+			for (s = t->texturechains[chain]; s; s = s->texturechains[chain])
+			{
+				if (s->lightmaptexturenum != lastlightmap)
+				{
+					if (alpha_blend)
+						R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 20 * sizeof (float), 1 * sizeof (float), &alpha);
+					R_FlushBatch (cbx, false, false, alpha_blend, false, lightmap_texture, &brushpasses);
+					lightmap_texture = (s->lightmaptexturenum >= 0) ? lightmaps[s->lightmaptexturenum].texture : greylightmap;
+					lastlightmap = s->lightmaptexturenum;
+				}
+				R_BatchSurface (cbx, s, false, false, alpha_blend, false, lightmap_texture, &brushpasses);
+			}
+
+			if (alpha_blend)
+				R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 20 * sizeof (float), 1 * sizeof (float), &alpha);
+			R_FlushBatch (cbx, false, false, alpha_blend, false, lightmap_texture, &brushpasses);
+		}
 	}
 
 	Atomic_AddUInt32 (&rs_brushpasses, brushpasses);
@@ -1258,9 +1256,9 @@ void R_DrawTextureChains_Multitexture (cb_context_t *cbx, qmodel_t *model, entit
 	uint32_t brushpasses = 0;
 	for (i = texstart; i < texend; ++i)
 	{
-		t = model->textures[i];
+		t = model->textures[model->usedtextures[i]];
 
-		if (!t || !t->texturechains[chain] || t->texturechains[chain]->flags & (SURF_DRAWTURB | SURF_DRAWTILED))
+		if (!t || !t->texturechains[chain] || t->texturechains[chain]->flags & SURF_DRAWTILED)
 			continue;
 
 		if (gl_fullbrights.value && (fullbright = R_TextureAnimation (t, ent_frame)->fullbright) && !r_lightmap_cheatsafe)
@@ -1276,7 +1274,7 @@ void R_DrawTextureChains_Multitexture (cb_context_t *cbx, qmodel_t *model, entit
 		R_ClearBatch (cbx);
 
 		lastlightmap = -1; // avoid compiler warning
-		alpha_test = (t->texturechains[chain]->flags & SURF_DRAWFENCE) != 0;
+		alpha_test = t->type == TEXTYPE_CUTOUT;
 
 		texture_t	*texture = R_TextureAnimation (t, ent_frame);
 		gltexture_t *gl_texture = texture->gltexture;
@@ -1318,7 +1316,7 @@ void R_DrawTextureChains (cb_context_t *cbx, qmodel_t *model, entity_t *ent, tex
 
 	if (!r_gpulightmapupdate.value)
 		R_UploadLightmaps ();
-	R_DrawTextureChains_Multitexture (cbx, model, ent, chain, entalpha, 0, model->numtextures);
+	R_DrawTextureChains_Multitexture (cbx, model, ent, chain, entalpha, 0, model->texofs[TEXTYPE_SKY]);
 }
 
 /*
@@ -1372,13 +1370,9 @@ R_DrawWorld_ShowTris -- ericw -- moved from R_DrawTextureChains_ShowTris, which 
 void R_DrawWorld_ShowTris (cb_context_t *cbx)
 {
 	if (r_showtris.value == 1)
-		R_BindPipeline (
-			cbx, VK_PIPELINE_BIND_POINT_GRAPHICS,
-			vulkan_globals.showtris_pipeline[R_MainPassPipelineVariant (cbx->render_pass_index)]);
+		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_pipeline[R_MainPassPipelineVariant (cbx->render_pass_index)]);
 	else
-		R_BindPipeline (
-			cbx, VK_PIPELINE_BIND_POINT_GRAPHICS,
-			vulkan_globals.showtris_depth_test_pipeline[R_MainPassPipelineVariant (cbx->render_pass_index)]);
+		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.showtris_depth_test_pipeline[R_MainPassPipelineVariant (cbx->render_pass_index)]);
 
 	vkCmdBindIndexBuffer (cbx->cb, vulkan_globals.fan_index_buffer, 0, VK_INDEX_TYPE_UINT16);
 

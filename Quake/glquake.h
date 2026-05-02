@@ -708,6 +708,8 @@ void R_DrawTextureChains (cb_context_t *cbx, qmodel_t *model, entity_t *ent, tex
 void R_DrawWorld_Water (cb_context_t *cbx, qboolean transparent);
 
 float GL_WaterAlphaForSurface (msurface_t *fa);
+float GL_WaterAlphaForTextureType (textype_t type);
+float GL_WaterAlphaForEntityTextureType (entity_t *ent, textype_t type);
 
 int GL_MemoryTypeFromProperties (uint32_t type_bits, VkFlags requirements_mask, VkFlags preferred_mask);
 

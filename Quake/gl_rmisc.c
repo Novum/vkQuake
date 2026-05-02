@@ -415,6 +415,23 @@ float GL_WaterAlphaForSurface (msurface_t *fa)
 		return map_wateralpha;
 }
 
+float GL_WaterAlphaForTextureType (textype_t type)
+{
+	switch (type)
+	{
+	case TEXTYPE_LAVA:
+		return map_lavaalpha > 0 ? map_lavaalpha : map_fallbackalpha;
+	case TEXTYPE_SLIME:
+		return map_slimealpha > 0 ? map_slimealpha : map_fallbackalpha;
+	case TEXTYPE_TELE:
+		return map_telealpha > 0 ? map_telealpha : map_fallbackalpha;
+	case TEXTYPE_WATER:
+		return map_wateralpha;
+	default:
+		return 1.0f;
+	}
+}
+
 /*
 ===============
 R_CreateStagingBuffers
