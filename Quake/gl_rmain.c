@@ -855,6 +855,14 @@ static void R_DrawWaterTask (void *unused)
 	R_SetupContext (cbx);
 	Fog_EnableGFog (cbx);
 	R_DrawWorld_Water (cbx, true); // transparent worldmodel water only
+
+	if (R_UseMBOIT ())
+	{
+		cbx = vulkan_globals.secondary_cb_contexts[SCBX_MBOIT_COMPOSITE_WATER];
+		R_SetupContext (cbx);
+		Fog_EnableGFog (cbx);
+		R_DrawWorld_Water (cbx, true);
+	}
 }
 
 /*
@@ -982,6 +990,14 @@ static void R_DrawAlphaEntitiesTask (int index, void *use_tasks)
 		R_SetupContext (cbx);
 		Fog_EnableGFog (cbx);
 		R_DrawEntitiesOnList (cbx, underwater ? 1 + i : 2 - i, i ? chain_alpha_model : chain_alpha_model_across_water, false);
+
+		if (R_UseMBOIT ())
+		{
+			cbx = vulkan_globals.secondary_cb_contexts[i ? SCBX_MBOIT_COMPOSITE_ALPHA_ENTITIES : SCBX_MBOIT_COMPOSITE_ALPHA_ENTITIES_ACROSS_WATER];
+			R_SetupContext (cbx);
+			Fog_EnableGFog (cbx);
+			R_DrawEntitiesOnList (cbx, underwater ? 1 + i : 2 - i, i ? chain_alpha_model : chain_alpha_model_across_water, false);
+		}
 	}
 }
 
@@ -996,9 +1012,18 @@ static void R_DrawParticlesTask (void *unused)
 	R_SetupContext (cbx);
 	Fog_EnableGFog (cbx); // johnfitz
 	R_DrawParticles (cbx);
+
+	if (R_UseMBOIT ())
+	{
+		// MBOIT needs all transparent geometry a second time in the composite pass
+		cb_context_t *composite_cbx = vulkan_globals.secondary_cb_contexts[SCBX_MBOIT_COMPOSITE_PARTICLES];
+		R_SetupContext (composite_cbx);
+		Fog_EnableGFog (composite_cbx);
+		R_DrawParticles (composite_cbx);
+	}
 #ifdef PSET_SCRIPT
 	cb_context_t *fte_blend_cbx = NULL;
-	if (oit_active)
+	if (R_UseOIT ())
 	{
 		// the blend context is recorded for the resolve subpass, so only set the viewport here:
 		// R_SetupContext would bind a pipeline created for subpass 0
@@ -1006,7 +1031,7 @@ static void R_DrawParticlesTask (void *unused)
 		GL_Viewport (
 			fte_blend_cbx, r_refdef.vrect.x, glheight - r_refdef.vrect.y - r_refdef.vrect.height, r_refdef.vrect.width, r_refdef.vrect.height, 0.0f, 1.0f);
 	}
-	PScript_DrawParticles (oit_active ? fte_blend_cbx : cbx, oit_active ? cbx : NULL);
+	PScript_DrawParticles (R_UseOIT () ? fte_blend_cbx : cbx, NULL);
 #endif
 }
 

@@ -114,6 +114,7 @@ extern cvar_t autoload;
 extern cvar_t autofastload;
 extern cvar_t r_rtshadows;
 extern cvar_t r_particles;
+extern cvar_t r_oit;
 extern cvar_t r_enhancedmodels;
 extern cvar_t r_lerpmodels;
 extern cvar_t r_lerpmove;
@@ -1704,6 +1705,7 @@ enum
 	GRAPHICS_OPT_RENDER_SCALE,
 	GRAPHICS_OPT_ANISOTROPY,
 	GRAPHICS_OPT_UNDERWATER,
+	GRAPHICS_OPT_TRANSPARENCY,
 	GRAPHICS_OPT_MODELS,
 	GRAPHICS_OPT_MODEL_INTERPOLATION,
 	GRAPHICS_OPT_PARTICLES,
@@ -1885,6 +1887,9 @@ static void M_GraphicsOptions_AdjustSliders (int dir, qboolean mouse)
 	case GRAPHICS_OPT_UNDERWATER:
 		Cvar_SetValueQuick (&r_waterwarp, (float)(((int)r_waterwarp.value + 3 + dir) % 3));
 		break;
+	case GRAPHICS_OPT_TRANSPARENCY:
+		Cvar_SetValueQuick (&r_oit, (float)(((int)CLAMP (0, r_oit.value, 2) + 3 + dir) % 3));
+		break;
 	case GRAPHICS_OPT_MODELS:
 		Cvar_SetValueQuick (&r_enhancedmodels, (float)(((int)r_enhancedmodels.value + 2 + dir) % 2));
 		break;
@@ -2016,6 +2021,12 @@ static void M_GraphicsOptions_Draw (cb_context_t *cbx)
 	M_Print (
 		cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GRAPHICS_OPT_UNDERWATER,
 		(r_waterwarp.value == 0) ? "off" : ((r_waterwarp.value == 1) ? "Classic" : "glQuake"));
+
+	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_TRANSPARENCY, "Transparency");
+	{
+		const char *transparency_modes[] = {"Classic", "Low", "High"};
+		M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GRAPHICS_OPT_TRANSPARENCY, transparency_modes[(int)CLAMP (0, r_oit.value, 2)]);
+	}
 
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_MODELS, "Models");
 	M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GRAPHICS_OPT_MODELS, (r_enhancedmodels.value == 0) ? "classic" : "enhanced");

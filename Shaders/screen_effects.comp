@@ -2,10 +2,17 @@
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_ARB_shading_language_420pack : enable
 #extension GL_GOOGLE_include_directive : enable
+#ifdef USE_SUBGROUP_OPS
 #extension GL_KHR_shader_subgroup_shuffle : enable
+#endif
 
+// compiled in multiple variants: USE_10BIT selects the 10 bit output format,
+// SCALING the render scale path and USE_SUBGROUP_OPS the subgroup optimizations
+
+#ifdef USE_10BIT
 layout (set = 0, binding = 2, rgb10_a2) uniform writeonly image2D output_image;
+#else
+layout (set = 0, binding = 2, rgba8) uniform writeonly image2D output_image;
+#endif
 
-#define SCALING
-#define USE_SUBGROUP_OPS
 #include "screen_effects.inc"

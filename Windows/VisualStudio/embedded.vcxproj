@@ -11,38 +11,8 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="..\..\Shaders\alias.frag">
-      <FileType>Document</FileType>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\alias_common.inc;%(AdditionalInputs)</AdditionalInputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\alias_common.inc;%(AdditionalInputs)</AdditionalInputs>
-    </CustomBuild>
-    <CustomBuild Include="..\..\Shaders\alias_oit.frag">
-      <FileType>Document</FileType>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\alias_common.inc;$(SolutionDir)..\..\Shaders\wboit.inc;%(AdditionalInputs)</AdditionalInputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\alias_common.inc;$(SolutionDir)..\..\Shaders\wboit.inc;%(AdditionalInputs)</AdditionalInputs>
-    </CustomBuild>
     <CustomBuild Include="..\..\Shaders\alias.vert">
       <FileType>Document</FileType>
-    </CustomBuild>
-    <CustomBuild Include="..\..\Shaders\alias_alphatest.frag">
-      <FileType>Document</FileType>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\alias_common.inc;%(AdditionalInputs)</AdditionalInputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\alias_common.inc;%(AdditionalInputs)</AdditionalInputs>
-    </CustomBuild>
-    <CustomBuild Include="..\..\Shaders\alias_alphatest_oit.frag">
-      <FileType>Document</FileType>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\alias_common.inc;$(SolutionDir)..\..\Shaders\wboit.inc;%(AdditionalInputs)</AdditionalInputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\alias_common.inc;$(SolutionDir)..\..\Shaders\wboit.inc;%(AdditionalInputs)</AdditionalInputs>
-    </CustomBuild>
-    <CustomBuild Include="..\..\Shaders\basic.frag">
-      <FileType>Document</FileType>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\basic_common.inc;%(AdditionalInputs)</AdditionalInputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\basic_common.inc;%(AdditionalInputs)</AdditionalInputs>
-    </CustomBuild>
-    <CustomBuild Include="..\..\Shaders\basic_oit.frag">
-      <FileType>Document</FileType>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\basic_common.inc;$(SolutionDir)..\..\Shaders\wboit.inc;%(AdditionalInputs)</AdditionalInputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\basic_common.inc;$(SolutionDir)..\..\Shaders\wboit.inc;%(AdditionalInputs)</AdditionalInputs>
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\basic.vert">
       <FileType>Document</FileType>
@@ -65,54 +35,223 @@
     <CustomBuild Include="..\..\Shaders\postprocess.frag">
       <FileType>Document</FileType>
     </CustomBuild>
-    <CustomBuild Include="..\..\Shaders\postprocess.vert">
+    <CustomBuild Include="..\..\Shaders\basic.frag">
       <FileType>Document</FileType>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\basic_common.inc;$(SolutionDir)..\..\Shaders\mboit.inc;$(SolutionDir)..\..\Shaders\wboit.inc;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\basic_common.inc;$(SolutionDir)..\..\Shaders\mboit.inc;$(SolutionDir)..\..\Shaders\wboit.inc;%(AdditionalInputs)</AdditionalInputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe -g -V "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\basic.frag.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\basic.frag.spv" basic.frag_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\basic.frag.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -g -V -DWBOIT=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\basic_oit.frag.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\basic_oit.frag.spv" basic_oit.frag_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\basic_oit.frag.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -g -V -DMBOIT=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\basic_mboit_moment.frag.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\basic_mboit_moment.frag.spv" basic_mboit_moment.frag_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\basic_mboit_moment.frag.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -g -V -DMBOIT=1 -DMBOIT_COMPOSITE=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\basic_mboit_composite.frag.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\basic_mboit_composite.frag.spv" basic_mboit_composite.frag_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\basic_mboit_composite.frag.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -g -V -DMBOIT=1 -DMBOIT_COMPOSITE=1 -DMSAA=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\basic_mboit_composite_msaa.frag.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\basic_mboit_composite_msaa.frag.spv" basic_mboit_composite_msaa.frag_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\basic_mboit_composite_msaa.frag.c"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe -V "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\basic.frag.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\basic.frag.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\basic.frag.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\basic.frag.spv" basic.frag_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\basic.frag.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -V -DWBOIT=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\basic_oit.frag.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\basic_oit.frag.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\basic_oit.frag.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\basic_oit.frag.spv" basic_oit.frag_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\basic_oit.frag.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -V -DMBOIT=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\basic_mboit_moment.frag.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\basic_mboit_moment.frag.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\basic_mboit_moment.frag.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\basic_mboit_moment.frag.spv" basic_mboit_moment.frag_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\basic_mboit_moment.frag.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -V -DMBOIT=1 -DMBOIT_COMPOSITE=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\basic_mboit_composite.frag.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\basic_mboit_composite.frag.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\basic_mboit_composite.frag.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\basic_mboit_composite.frag.spv" basic_mboit_composite.frag_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\basic_mboit_composite.frag.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -V -DMBOIT=1 -DMBOIT_COMPOSITE=1 -DMSAA=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\basic_mboit_composite_msaa.frag.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\basic_mboit_composite_msaa.frag.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\basic_mboit_composite_msaa.frag.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\basic_mboit_composite_msaa.frag.spv" basic_mboit_composite_msaa.frag_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\basic_mboit_composite_msaa.frag.c"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\Compiled\Debug\basic.frag.c;$(SolutionDir)..\..\Shaders\Compiled\Debug\basic_oit.frag.c;$(SolutionDir)..\..\Shaders\Compiled\Debug\basic_mboit_moment.frag.c;$(SolutionDir)..\..\Shaders\Compiled\Debug\basic_mboit_composite.frag.c;$(SolutionDir)..\..\Shaders\Compiled\Debug\basic_mboit_composite_msaa.frag.c</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\Compiled\Release\basic.frag.c;$(SolutionDir)..\..\Shaders\Compiled\Release\basic_oit.frag.c;$(SolutionDir)..\..\Shaders\Compiled\Release\basic_mboit_moment.frag.c;$(SolutionDir)..\..\Shaders\Compiled\Release\basic_mboit_composite.frag.c;$(SolutionDir)..\..\Shaders\Compiled\Release\basic_mboit_composite_msaa.frag.c</Outputs>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\world.frag">
+      <FileType>Document</FileType>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\world_common.inc;$(SolutionDir)..\..\Shaders\mboit.inc;$(SolutionDir)..\..\Shaders\wboit.inc;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\world_common.inc;$(SolutionDir)..\..\Shaders\mboit.inc;$(SolutionDir)..\..\Shaders\wboit.inc;%(AdditionalInputs)</AdditionalInputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe -g -V "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\world.frag.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\world.frag.spv" world.frag_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\world.frag.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -g -V -DWBOIT=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\world_oit.frag.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\world_oit.frag.spv" world_oit.frag_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\world_oit.frag.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -g -V -DMBOIT=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\world_mboit_moment.frag.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\world_mboit_moment.frag.spv" world_mboit_moment.frag_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\world_mboit_moment.frag.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -g -V -DMBOIT=1 -DMBOIT_COMPOSITE=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\world_mboit_composite.frag.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\world_mboit_composite.frag.spv" world_mboit_composite.frag_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\world_mboit_composite.frag.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -g -V -DMBOIT=1 -DMBOIT_COMPOSITE=1 -DMSAA=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\world_mboit_composite_msaa.frag.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\world_mboit_composite_msaa.frag.spv" world_mboit_composite_msaa.frag_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\world_mboit_composite_msaa.frag.c"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe -V "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\world.frag.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\world.frag.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\world.frag.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\world.frag.spv" world.frag_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\world.frag.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -V -DWBOIT=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\world_oit.frag.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\world_oit.frag.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\world_oit.frag.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\world_oit.frag.spv" world_oit.frag_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\world_oit.frag.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -V -DMBOIT=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\world_mboit_moment.frag.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\world_mboit_moment.frag.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\world_mboit_moment.frag.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\world_mboit_moment.frag.spv" world_mboit_moment.frag_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\world_mboit_moment.frag.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -V -DMBOIT=1 -DMBOIT_COMPOSITE=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\world_mboit_composite.frag.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\world_mboit_composite.frag.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\world_mboit_composite.frag.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\world_mboit_composite.frag.spv" world_mboit_composite.frag_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\world_mboit_composite.frag.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -V -DMBOIT=1 -DMBOIT_COMPOSITE=1 -DMSAA=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\world_mboit_composite_msaa.frag.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\world_mboit_composite_msaa.frag.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\world_mboit_composite_msaa.frag.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\world_mboit_composite_msaa.frag.spv" world_mboit_composite_msaa.frag_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\world_mboit_composite_msaa.frag.c"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\Compiled\Debug\world.frag.c;$(SolutionDir)..\..\Shaders\Compiled\Debug\world_oit.frag.c;$(SolutionDir)..\..\Shaders\Compiled\Debug\world_mboit_moment.frag.c;$(SolutionDir)..\..\Shaders\Compiled\Debug\world_mboit_composite.frag.c;$(SolutionDir)..\..\Shaders\Compiled\Debug\world_mboit_composite_msaa.frag.c</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\Compiled\Release\world.frag.c;$(SolutionDir)..\..\Shaders\Compiled\Release\world_oit.frag.c;$(SolutionDir)..\..\Shaders\Compiled\Release\world_mboit_moment.frag.c;$(SolutionDir)..\..\Shaders\Compiled\Release\world_mboit_composite.frag.c;$(SolutionDir)..\..\Shaders\Compiled\Release\world_mboit_composite_msaa.frag.c</Outputs>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\alias.frag">
+      <FileType>Document</FileType>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\alias_common.inc;$(SolutionDir)..\..\Shaders\mboit.inc;$(SolutionDir)..\..\Shaders\wboit.inc;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\alias_common.inc;$(SolutionDir)..\..\Shaders\mboit.inc;$(SolutionDir)..\..\Shaders\wboit.inc;%(AdditionalInputs)</AdditionalInputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe -g -V "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\alias.frag.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\alias.frag.spv" alias.frag_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\alias.frag.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -g -V -DALIAS_ALPHA_TEST=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\alias_alphatest.frag.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\alias_alphatest.frag.spv" alias_alphatest.frag_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\alias_alphatest.frag.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -g -V -DWBOIT=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\alias_oit.frag.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\alias_oit.frag.spv" alias_oit.frag_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\alias_oit.frag.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -g -V -DALIAS_ALPHA_TEST=1 -DWBOIT=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\alias_alphatest_oit.frag.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\alias_alphatest_oit.frag.spv" alias_alphatest_oit.frag_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\alias_alphatest_oit.frag.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -g -V -DMBOIT=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\alias_mboit_moment.frag.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\alias_mboit_moment.frag.spv" alias_mboit_moment.frag_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\alias_mboit_moment.frag.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -g -V -DALIAS_ALPHA_TEST=1 -DMBOIT=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\alias_alphatest_mboit_moment.frag.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\alias_alphatest_mboit_moment.frag.spv" alias_alphatest_mboit_moment.frag_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\alias_alphatest_mboit_moment.frag.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -g -V -DMBOIT=1 -DMBOIT_COMPOSITE=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\alias_mboit_composite.frag.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\alias_mboit_composite.frag.spv" alias_mboit_composite.frag_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\alias_mboit_composite.frag.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -g -V -DALIAS_ALPHA_TEST=1 -DMBOIT=1 -DMBOIT_COMPOSITE=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\alias_alphatest_mboit_composite.frag.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\alias_alphatest_mboit_composite.frag.spv" alias_alphatest_mboit_composite.frag_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\alias_alphatest_mboit_composite.frag.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -g -V -DMBOIT=1 -DMBOIT_COMPOSITE=1 -DMSAA=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\alias_mboit_composite_msaa.frag.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\alias_mboit_composite_msaa.frag.spv" alias_mboit_composite_msaa.frag_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\alias_mboit_composite_msaa.frag.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -g -V -DALIAS_ALPHA_TEST=1 -DMBOIT=1 -DMBOIT_COMPOSITE=1 -DMSAA=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\alias_alphatest_mboit_composite_msaa.frag.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\alias_alphatest_mboit_composite_msaa.frag.spv" alias_alphatest_mboit_composite_msaa.frag_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\alias_alphatest_mboit_composite_msaa.frag.c"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe -V "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\alias.frag.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\alias.frag.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\alias.frag.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\alias.frag.spv" alias.frag_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\alias.frag.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -V -DALIAS_ALPHA_TEST=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\alias_alphatest.frag.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\alias_alphatest.frag.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\alias_alphatest.frag.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\alias_alphatest.frag.spv" alias_alphatest.frag_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\alias_alphatest.frag.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -V -DWBOIT=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\alias_oit.frag.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\alias_oit.frag.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\alias_oit.frag.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\alias_oit.frag.spv" alias_oit.frag_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\alias_oit.frag.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -V -DALIAS_ALPHA_TEST=1 -DWBOIT=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\alias_alphatest_oit.frag.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\alias_alphatest_oit.frag.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\alias_alphatest_oit.frag.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\alias_alphatest_oit.frag.spv" alias_alphatest_oit.frag_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\alias_alphatest_oit.frag.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -V -DMBOIT=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\alias_mboit_moment.frag.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\alias_mboit_moment.frag.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\alias_mboit_moment.frag.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\alias_mboit_moment.frag.spv" alias_mboit_moment.frag_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\alias_mboit_moment.frag.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -V -DALIAS_ALPHA_TEST=1 -DMBOIT=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\alias_alphatest_mboit_moment.frag.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\alias_alphatest_mboit_moment.frag.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\alias_alphatest_mboit_moment.frag.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\alias_alphatest_mboit_moment.frag.spv" alias_alphatest_mboit_moment.frag_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\alias_alphatest_mboit_moment.frag.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -V -DMBOIT=1 -DMBOIT_COMPOSITE=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\alias_mboit_composite.frag.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\alias_mboit_composite.frag.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\alias_mboit_composite.frag.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\alias_mboit_composite.frag.spv" alias_mboit_composite.frag_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\alias_mboit_composite.frag.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -V -DALIAS_ALPHA_TEST=1 -DMBOIT=1 -DMBOIT_COMPOSITE=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\alias_alphatest_mboit_composite.frag.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\alias_alphatest_mboit_composite.frag.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\alias_alphatest_mboit_composite.frag.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\alias_alphatest_mboit_composite.frag.spv" alias_alphatest_mboit_composite.frag_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\alias_alphatest_mboit_composite.frag.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -V -DMBOIT=1 -DMBOIT_COMPOSITE=1 -DMSAA=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\alias_mboit_composite_msaa.frag.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\alias_mboit_composite_msaa.frag.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\alias_mboit_composite_msaa.frag.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\alias_mboit_composite_msaa.frag.spv" alias_mboit_composite_msaa.frag_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\alias_mboit_composite_msaa.frag.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -V -DALIAS_ALPHA_TEST=1 -DMBOIT=1 -DMBOIT_COMPOSITE=1 -DMSAA=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\alias_alphatest_mboit_composite_msaa.frag.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\alias_alphatest_mboit_composite_msaa.frag.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\alias_alphatest_mboit_composite_msaa.frag.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\alias_alphatest_mboit_composite_msaa.frag.spv" alias_alphatest_mboit_composite_msaa.frag_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\alias_alphatest_mboit_composite_msaa.frag.c"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\Compiled\Debug\alias.frag.c;$(SolutionDir)..\..\Shaders\Compiled\Debug\alias_alphatest.frag.c;$(SolutionDir)..\..\Shaders\Compiled\Debug\alias_oit.frag.c;$(SolutionDir)..\..\Shaders\Compiled\Debug\alias_alphatest_oit.frag.c;$(SolutionDir)..\..\Shaders\Compiled\Debug\alias_mboit_moment.frag.c;$(SolutionDir)..\..\Shaders\Compiled\Debug\alias_alphatest_mboit_moment.frag.c;$(SolutionDir)..\..\Shaders\Compiled\Debug\alias_mboit_composite.frag.c;$(SolutionDir)..\..\Shaders\Compiled\Debug\alias_alphatest_mboit_composite.frag.c;$(SolutionDir)..\..\Shaders\Compiled\Debug\alias_mboit_composite_msaa.frag.c;$(SolutionDir)..\..\Shaders\Compiled\Debug\alias_alphatest_mboit_composite_msaa.frag.c</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\Compiled\Release\alias.frag.c;$(SolutionDir)..\..\Shaders\Compiled\Release\alias_alphatest.frag.c;$(SolutionDir)..\..\Shaders\Compiled\Release\alias_oit.frag.c;$(SolutionDir)..\..\Shaders\Compiled\Release\alias_alphatest_oit.frag.c;$(SolutionDir)..\..\Shaders\Compiled\Release\alias_mboit_moment.frag.c;$(SolutionDir)..\..\Shaders\Compiled\Release\alias_alphatest_mboit_moment.frag.c;$(SolutionDir)..\..\Shaders\Compiled\Release\alias_mboit_composite.frag.c;$(SolutionDir)..\..\Shaders\Compiled\Release\alias_alphatest_mboit_composite.frag.c;$(SolutionDir)..\..\Shaders\Compiled\Release\alias_mboit_composite_msaa.frag.c;$(SolutionDir)..\..\Shaders\Compiled\Release\alias_alphatest_mboit_composite_msaa.frag.c</Outputs>
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\wboit_resolve.frag">
       <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe -g -V "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\wboit_resolve.frag.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\wboit_resolve.frag.spv" wboit_resolve.frag_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\wboit_resolve.frag.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -g -V -DMSAA=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\wboit_resolve_msaa.frag.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\wboit_resolve_msaa.frag.spv" wboit_resolve_msaa.frag_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\wboit_resolve_msaa.frag.c"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe -V "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\wboit_resolve.frag.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\wboit_resolve.frag.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\wboit_resolve.frag.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\wboit_resolve.frag.spv" wboit_resolve.frag_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\wboit_resolve.frag.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -V -DMSAA=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\wboit_resolve_msaa.frag.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\wboit_resolve_msaa.frag.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\wboit_resolve_msaa.frag.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\wboit_resolve_msaa.frag.spv" wboit_resolve_msaa.frag_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\wboit_resolve_msaa.frag.c"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\Compiled\Debug\wboit_resolve.frag.c;$(SolutionDir)..\..\Shaders\Compiled\Debug\wboit_resolve_msaa.frag.c</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\Compiled\Release\wboit_resolve.frag.c;$(SolutionDir)..\..\Shaders\Compiled\Release\wboit_resolve_msaa.frag.c</Outputs>
     </CustomBuild>
-    <CustomBuild Include="..\..\Shaders\wboit_resolve_msaa.frag">
+    <CustomBuild Include="..\..\Shaders\mboit_resolve.frag">
       <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe -g -V "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\mboit_resolve.frag.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\mboit_resolve.frag.spv" mboit_resolve.frag_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\mboit_resolve.frag.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -g -V -DMSAA=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\mboit_resolve_msaa.frag.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\mboit_resolve_msaa.frag.spv" mboit_resolve_msaa.frag_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\mboit_resolve_msaa.frag.c"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe -V "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\mboit_resolve.frag.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\mboit_resolve.frag.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\mboit_resolve.frag.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\mboit_resolve.frag.spv" mboit_resolve.frag_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\mboit_resolve.frag.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -V -DMSAA=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\mboit_resolve_msaa.frag.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\mboit_resolve_msaa.frag.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\mboit_resolve_msaa.frag.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\mboit_resolve_msaa.frag.spv" mboit_resolve_msaa.frag_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\mboit_resolve_msaa.frag.c"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\Compiled\Debug\mboit_resolve.frag.c;$(SolutionDir)..\..\Shaders\Compiled\Debug\mboit_resolve_msaa.frag.c</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\Compiled\Release\mboit_resolve.frag.c;$(SolutionDir)..\..\Shaders\Compiled\Release\mboit_resolve_msaa.frag.c</Outputs>
     </CustomBuild>
-    <CustomBuild Include="..\..\Shaders\screen_effects_10bit.comp">
-      <FileType>Document</FileType>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\screen_effects.inc;%(AdditionalInputs)</AdditionalInputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\screen_effects.inc;%(AdditionalInputs)</AdditionalInputs>
-    </CustomBuild>
-    <CustomBuild Include="..\..\Shaders\screen_effects_10bit_scale.comp">
-      <FileType>Document</FileType>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\screen_effects.inc;%(AdditionalInputs)</AdditionalInputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\screen_effects.inc;%(AdditionalInputs)</AdditionalInputs>
-    </CustomBuild>
-    <CustomBuild Include="..\..\Shaders\screen_effects_10bit_scale_sops.comp">
-      <FileType>Document</FileType>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\screen_effects.inc;%(AdditionalInputs)</AdditionalInputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\screen_effects.inc;%(AdditionalInputs)</AdditionalInputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe --target-env vulkan1.1 -g -V "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\%(Filename)%(Extension).spv"
-"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\%(Filename)%(Extension).spv" %(Filename)%(Extension)_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\%(Filename)%(Extension).c"</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe --target-env vulkan1.1 -V "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).spv"
-$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug  "$(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).spv"
-"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).spv" %(Filename)%(Extension)_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).c"</Command>
-    </CustomBuild>
-    <CustomBuild Include="..\..\Shaders\screen_effects_8bit.comp">
-      <FileType>Document</FileType>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\screen_effects.inc;%(AdditionalInputs)</AdditionalInputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\screen_effects.inc;%(AdditionalInputs)</AdditionalInputs>
-    </CustomBuild>
-    <CustomBuild Include="..\..\Shaders\screen_effects_8bit_scale.comp">
-      <FileType>Document</FileType>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\screen_effects.inc;%(AdditionalInputs)</AdditionalInputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\screen_effects.inc;%(AdditionalInputs)</AdditionalInputs>
-    </CustomBuild>
-    <CustomBuild Include="..\..\Shaders\screen_effects_8bit_scale_sops.comp">
+    <CustomBuild Include="..\..\Shaders\screen_effects.comp">
       <FileType>Document</FileType>
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\screen_effects.inc;%(AdditionalInputs)</AdditionalInputs>
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\screen_effects.inc;%(AdditionalInputs)</AdditionalInputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe --target-env vulkan1.1 -g -V "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\%(Filename)%(Extension).spv"
-"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\%(Filename)%(Extension).spv" %(Filename)%(Extension)_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\%(Filename)%(Extension).c"</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe --target-env vulkan1.1 -V "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).spv"
-$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).spv"
-"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).spv" %(Filename)%(Extension)_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).c"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe -g -V "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\screen_effects_8bit.comp.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\screen_effects_8bit.comp.spv" screen_effects_8bit.comp_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\screen_effects_8bit.comp.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -g -V -DSCALING=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\screen_effects_8bit_scale.comp.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\screen_effects_8bit_scale.comp.spv" screen_effects_8bit_scale.comp_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\screen_effects_8bit_scale.comp.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -g -V --target-env vulkan1.1 -DSCALING=1 -DUSE_SUBGROUP_OPS=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\screen_effects_8bit_scale_sops.comp.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\screen_effects_8bit_scale_sops.comp.spv" screen_effects_8bit_scale_sops.comp_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\screen_effects_8bit_scale_sops.comp.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -g -V -DUSE_10BIT=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\screen_effects_10bit.comp.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\screen_effects_10bit.comp.spv" screen_effects_10bit.comp_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\screen_effects_10bit.comp.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -g -V -DUSE_10BIT=1 -DSCALING=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\screen_effects_10bit_scale.comp.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\screen_effects_10bit_scale.comp.spv" screen_effects_10bit_scale.comp_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\screen_effects_10bit_scale.comp.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -g -V --target-env vulkan1.1 -DUSE_10BIT=1 -DSCALING=1 -DUSE_SUBGROUP_OPS=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\screen_effects_10bit_scale_sops.comp.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\screen_effects_10bit_scale_sops.comp.spv" screen_effects_10bit_scale_sops.comp_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\screen_effects_10bit_scale_sops.comp.c"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe -V "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\screen_effects_8bit.comp.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\screen_effects_8bit.comp.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\screen_effects_8bit.comp.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\screen_effects_8bit.comp.spv" screen_effects_8bit.comp_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\screen_effects_8bit.comp.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -V -DSCALING=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\screen_effects_8bit_scale.comp.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\screen_effects_8bit_scale.comp.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\screen_effects_8bit_scale.comp.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\screen_effects_8bit_scale.comp.spv" screen_effects_8bit_scale.comp_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\screen_effects_8bit_scale.comp.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -V --target-env vulkan1.1 -DSCALING=1 -DUSE_SUBGROUP_OPS=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\screen_effects_8bit_scale_sops.comp.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\screen_effects_8bit_scale_sops.comp.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\screen_effects_8bit_scale_sops.comp.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\screen_effects_8bit_scale_sops.comp.spv" screen_effects_8bit_scale_sops.comp_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\screen_effects_8bit_scale_sops.comp.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -V -DUSE_10BIT=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\screen_effects_10bit.comp.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\screen_effects_10bit.comp.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\screen_effects_10bit.comp.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\screen_effects_10bit.comp.spv" screen_effects_10bit.comp_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\screen_effects_10bit.comp.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -V -DUSE_10BIT=1 -DSCALING=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\screen_effects_10bit_scale.comp.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\screen_effects_10bit_scale.comp.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\screen_effects_10bit_scale.comp.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\screen_effects_10bit_scale.comp.spv" screen_effects_10bit_scale.comp_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\screen_effects_10bit_scale.comp.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -V --target-env vulkan1.1 -DUSE_10BIT=1 -DSCALING=1 -DUSE_SUBGROUP_OPS=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\screen_effects_10bit_scale_sops.comp.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\screen_effects_10bit_scale_sops.comp.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\screen_effects_10bit_scale_sops.comp.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\screen_effects_10bit_scale_sops.comp.spv" screen_effects_10bit_scale_sops.comp_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\screen_effects_10bit_scale_sops.comp.c"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\Compiled\Debug\screen_effects_8bit.comp.c;$(SolutionDir)..\..\Shaders\Compiled\Debug\screen_effects_8bit_scale.comp.c;$(SolutionDir)..\..\Shaders\Compiled\Debug\screen_effects_8bit_scale_sops.comp.c;$(SolutionDir)..\..\Shaders\Compiled\Debug\screen_effects_10bit.comp.c;$(SolutionDir)..\..\Shaders\Compiled\Debug\screen_effects_10bit_scale.comp.c;$(SolutionDir)..\..\Shaders\Compiled\Debug\screen_effects_10bit_scale_sops.comp.c</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\Compiled\Release\screen_effects_8bit.comp.c;$(SolutionDir)..\..\Shaders\Compiled\Release\screen_effects_8bit_scale.comp.c;$(SolutionDir)..\..\Shaders\Compiled\Release\screen_effects_8bit_scale_sops.comp.c;$(SolutionDir)..\..\Shaders\Compiled\Release\screen_effects_10bit.comp.c;$(SolutionDir)..\..\Shaders\Compiled\Release\screen_effects_10bit_scale.comp.c;$(SolutionDir)..\..\Shaders\Compiled\Release\screen_effects_10bit_scale_sops.comp.c</Outputs>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\update_lightmap.comp">
+      <FileType>Document</FileType>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\update_lightmap.inc;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\update_lightmap.inc;%(AdditionalInputs)</AdditionalInputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe -g -V "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\update_lightmap_8bit.comp.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\update_lightmap_8bit.comp.spv" update_lightmap_8bit.comp_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\update_lightmap_8bit.comp.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -g -V -DRAY_QUERIES=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\update_lightmap_8bit_rt.comp.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\update_lightmap_8bit_rt.comp.spv" update_lightmap_8bit_rt.comp_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\update_lightmap_8bit_rt.comp.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -g -V -DUSE_10BIT=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\update_lightmap_10bit.comp.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\update_lightmap_10bit.comp.spv" update_lightmap_10bit.comp_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\update_lightmap_10bit.comp.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -g -V -DUSE_10BIT=1 -DRAY_QUERIES=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Debug\update_lightmap_10bit_rt.comp.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Debug\update_lightmap_10bit_rt.comp.spv" update_lightmap_10bit_rt.comp_spv "$(SolutionDir)..\..\Shaders\Compiled\Debug\update_lightmap_10bit_rt.comp.c"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe -V "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\update_lightmap_8bit.comp.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\update_lightmap_8bit.comp.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\update_lightmap_8bit.comp.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\update_lightmap_8bit.comp.spv" update_lightmap_8bit.comp_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\update_lightmap_8bit.comp.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -V -DRAY_QUERIES=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\update_lightmap_8bit_rt.comp.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\update_lightmap_8bit_rt.comp.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\update_lightmap_8bit_rt.comp.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\update_lightmap_8bit_rt.comp.spv" update_lightmap_8bit_rt.comp_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\update_lightmap_8bit_rt.comp.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -V -DUSE_10BIT=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\update_lightmap_10bit.comp.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\update_lightmap_10bit.comp.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\update_lightmap_10bit.comp.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\update_lightmap_10bit.comp.spv" update_lightmap_10bit.comp_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\update_lightmap_10bit.comp.c"
+$(VULKAN_SDK)\bin\glslangValidator.exe -V -DUSE_10BIT=1 -DRAY_QUERIES=1 "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\update_lightmap_10bit_rt.comp.spv"
+$(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(SolutionDir)..\..\Shaders\Compiled\Release\update_lightmap_10bit_rt.comp.spv" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\update_lightmap_10bit_rt.comp.spv"
+"$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\update_lightmap_10bit_rt.comp.spv" update_lightmap_10bit_rt.comp_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\update_lightmap_10bit_rt.comp.c"</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\Compiled\Debug\update_lightmap_8bit.comp.c;$(SolutionDir)..\..\Shaders\Compiled\Debug\update_lightmap_8bit_rt.comp.c;$(SolutionDir)..\..\Shaders\Compiled\Debug\update_lightmap_10bit.comp.c;$(SolutionDir)..\..\Shaders\Compiled\Debug\update_lightmap_10bit_rt.comp.c</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\Compiled\Release\update_lightmap_8bit.comp.c;$(SolutionDir)..\..\Shaders\Compiled\Release\update_lightmap_8bit_rt.comp.c;$(SolutionDir)..\..\Shaders\Compiled\Release\update_lightmap_10bit.comp.c;$(SolutionDir)..\..\Shaders\Compiled\Release\update_lightmap_10bit_rt.comp.c</Outputs>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\postprocess.vert">
+      <FileType>Document</FileType>
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\showtris.frag">
       <FileType>Document</FileType>
@@ -135,16 +274,6 @@ $(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(Solution
     <CustomBuild Include="..\..\Shaders\sky_layer.vert">
       <FileType>Document</FileType>
     </CustomBuild>
-    <CustomBuild Include="..\..\Shaders\world.frag">
-      <FileType>Document</FileType>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\world_common.inc;%(AdditionalInputs)</AdditionalInputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\world_common.inc;%(AdditionalInputs)</AdditionalInputs>
-    </CustomBuild>
-    <CustomBuild Include="..\..\Shaders\world_oit.frag">
-      <FileType>Document</FileType>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\world_common.inc;$(SolutionDir)..\..\Shaders\wboit.inc;%(AdditionalInputs)</AdditionalInputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\world_common.inc;$(SolutionDir)..\..\Shaders\wboit.inc;%(AdditionalInputs)</AdditionalInputs>
-    </CustomBuild>
     <CustomBuild Include="..\..\Shaders\world.vert">
       <FileType>Document</FileType>
     </CustomBuild>
@@ -157,6 +286,7 @@ $(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(Solution
     <None Include="..\..\Shaders\alias_common.inc" />
     <None Include="..\..\Shaders\basic_common.inc" />
     <None Include="..\..\Shaders\wboit.inc" />
+    <None Include="..\..\Shaders\mboit.inc" />
     <None Include="..\..\Shaders\screen_effects.inc" />
     <CustomBuild Include="..\..\Shaders\skinning.comp">
       <FileType>Document</FileType>
@@ -164,26 +294,6 @@ $(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(Solution
     <None Include="..\..\Shaders\update_lightmap.inc" />
     <None Include="..\..\Shaders\globals.inc" />
     <None Include="..\..\Shaders\world_common.inc" />
-    <CustomBuild Include="..\..\Shaders\update_lightmap_8bit.comp">
-      <FileType>Document</FileType>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\update_lightmap.inc;%(AdditionalInputs)</AdditionalInputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\update_lightmap.inc;%(AdditionalInputs)</AdditionalInputs>
-    </CustomBuild>
-    <CustomBuild Include="..\..\Shaders\update_lightmap_8bit_rt.comp">
-      <FileType>Document</FileType>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\update_lightmap.inc;%(AdditionalInputs)</AdditionalInputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\update_lightmap.inc;%(AdditionalInputs)</AdditionalInputs>
-    </CustomBuild>
-    <CustomBuild Include="..\..\Shaders\update_lightmap_10bit.comp">
-      <FileType>Document</FileType>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\update_lightmap.inc;%(AdditionalInputs)</AdditionalInputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\update_lightmap.inc;%(AdditionalInputs)</AdditionalInputs>
-    </CustomBuild>
-    <CustomBuild Include="..\..\Shaders\update_lightmap_10bit_rt.comp">
-      <FileType>Document</FileType>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\update_lightmap.inc;%(AdditionalInputs)</AdditionalInputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\update_lightmap.inc;%(AdditionalInputs)</AdditionalInputs>
-    </CustomBuild>
     <CustomBuild Include="..\..\Shaders\ray_debug.comp">
       <FileType>Document</FileType>
     </CustomBuild>

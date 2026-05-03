@@ -145,26 +145,38 @@ static void GL_DrawAliasFrame (
 	}
 
 	const qboolean use_wboit_pipeline = (cbx->render_pass_index == RENDER_PASS_INDEX_WBOIT) && showtris == 0 && has_alpha;
-	if (cbx->render_pass_index == RENDER_PASS_INDEX_WBOIT && !use_wboit_pipeline)
+	const qboolean use_mboit_moment_pipeline = (cbx->render_pass_index == RENDER_PASS_INDEX_MBOIT_MOMENTS) && showtris == 0 && has_alpha;
+	const qboolean use_mboit_composite_pipeline = (cbx->render_pass_index == RENDER_PASS_INDEX_MBOIT_COMPOSITE) && showtris == 0 && has_alpha;
+	if ((cbx->render_pass_index == RENDER_PASS_INDEX_WBOIT || cbx->render_pass_index == RENDER_PASS_INDEX_MBOIT_MOMENTS ||
+		 cbx->render_pass_index == RENDER_PASS_INDEX_MBOIT_COMPOSITE) &&
+		!(use_wboit_pipeline || use_mboit_moment_pipeline || use_mboit_composite_pipeline))
 		return;
 
 	switch (paliashdr->poseverttype)
 	{
 	case PV_MD5:
-		pipeline = use_wboit_pipeline ? vulkan_globals.md5_wboit_pipelines[pipeline_index]
-									  : vulkan_globals.md5_pipelines[R_MainPassPipelineVariant (cbx->render_pass_index)][pipeline_index];
+		pipeline = use_wboit_pipeline			  ? vulkan_globals.md5_wboit_pipelines[pipeline_index]
+				   : use_mboit_moment_pipeline	  ? vulkan_globals.md5_mboit_moment_pipelines[pipeline_index]
+				   : use_mboit_composite_pipeline ? vulkan_globals.md5_mboit_composite_pipelines[pipeline_index]
+												  : vulkan_globals.md5_pipelines[R_MainPassPipelineVariant (cbx->render_pass_index)][pipeline_index];
 		break;
 	case PV_QUAKE1:
-		pipeline = use_wboit_pipeline ? vulkan_globals.alias_wboit_pipelines[pipeline_index]
-									  : vulkan_globals.alias_pipelines[R_MainPassPipelineVariant (cbx->render_pass_index)][pipeline_index];
+		pipeline = use_wboit_pipeline			  ? vulkan_globals.alias_wboit_pipelines[pipeline_index]
+				   : use_mboit_moment_pipeline	  ? vulkan_globals.alias_mboit_moment_pipelines[pipeline_index]
+				   : use_mboit_composite_pipeline ? vulkan_globals.alias_mboit_composite_pipelines[pipeline_index]
+												  : vulkan_globals.alias_pipelines[R_MainPassPipelineVariant (cbx->render_pass_index)][pipeline_index];
 		break;
 	case PV_QUAKE3:
-		pipeline = use_wboit_pipeline ? vulkan_globals.alias_wboit_pipelines[pipeline_index]
-									  : vulkan_globals.alias_pipelines[R_MainPassPipelineVariant (cbx->render_pass_index)][pipeline_index];
+		pipeline = use_wboit_pipeline			  ? vulkan_globals.alias_wboit_pipelines[pipeline_index]
+				   : use_mboit_moment_pipeline	  ? vulkan_globals.alias_mboit_moment_pipelines[pipeline_index]
+				   : use_mboit_composite_pipeline ? vulkan_globals.alias_mboit_composite_pipelines[pipeline_index]
+												  : vulkan_globals.alias_pipelines[R_MainPassPipelineVariant (cbx->render_pass_index)][pipeline_index];
 		break;
 	default:
-		pipeline = use_wboit_pipeline ? vulkan_globals.alias_wboit_pipelines[pipeline_index]
-									  : vulkan_globals.alias_pipelines[R_MainPassPipelineVariant (cbx->render_pass_index)][pipeline_index];
+		pipeline = use_wboit_pipeline			  ? vulkan_globals.alias_wboit_pipelines[pipeline_index]
+				   : use_mboit_moment_pipeline	  ? vulkan_globals.alias_mboit_moment_pipelines[pipeline_index]
+				   : use_mboit_composite_pipeline ? vulkan_globals.alias_mboit_composite_pipelines[pipeline_index]
+												  : vulkan_globals.alias_pipelines[R_MainPassPipelineVariant (cbx->render_pass_index)][pipeline_index];
 	}
 
 	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);

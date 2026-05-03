@@ -6085,11 +6085,11 @@ static void PScript_DrawParticleBatches (cb_context_t *cbx, qboolean draw_oit_ba
 			if (tris->numidx == 0)
 				continue;
 
-			const int				pipeline_index = blend_mode + (draw_lines ? 8 : 0);
-			const vulkan_pipeline_t pipeline = draw_oit_batches ? vulkan_globals.fte_particle_wboit_pipelines[pipeline_index]
-											   : cbx->subpass != 0
-												   ? vulkan_globals.fte_particle_post_oit_pipelines[pipeline_index]
-												   : vulkan_globals.fte_particle_pipelines[R_MainPassPipelineVariant (cbx->render_pass_index)][pipeline_index];
+			const int						 pipeline_index = blend_mode + (draw_lines ? 8 : 0);
+			const main_render_pass_variant_t main_pass_variant = R_MainPassPipelineVariant (cbx->render_pass_index);
+			const vulkan_pipeline_t			 pipeline = draw_oit_batches	? vulkan_globals.fte_particle_wboit_pipelines[pipeline_index]
+														: cbx->subpass != 0 ? vulkan_globals.fte_particle_post_oit_pipelines[main_pass_variant][pipeline_index]
+																			: vulkan_globals.fte_particle_pipelines[main_pass_variant][pipeline_index];
 			R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 			R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 16 * sizeof (float), vulkan_globals.view_projection_matrix);
 			Fog_DisableGFog (cbx);
