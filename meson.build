@@ -14,14 +14,8 @@ else
 endif
 
 shaders = [
-    'Shaders/alias.frag',
-    'Shaders/alias_oit.frag',
     'Shaders/alias.vert',
-    'Shaders/alias_alphatest.frag',
-    'Shaders/alias_alphatest_oit.frag',
     'Shaders/md5.vert',
-    'Shaders/basic.frag',
-    'Shaders/basic_oit.frag',
     'Shaders/basic.vert',
     'Shaders/basic_alphatest.frag',
     'Shaders/basic_notex.frag',
@@ -30,14 +24,6 @@ shaders = [
     'Shaders/indirect_clear.comp',
     'Shaders/postprocess.frag',
     'Shaders/postprocess.vert',
-    'Shaders/wboit_resolve.frag',
-    'Shaders/wboit_resolve_msaa.frag',
-    'Shaders/screen_effects_10bit.comp',
-    'Shaders/screen_effects_10bit_scale.comp',
-    'Shaders/screen_effects_10bit_scale_sops.comp',
-    'Shaders/screen_effects_8bit.comp',
-    'Shaders/screen_effects_8bit_scale.comp',
-    'Shaders/screen_effects_8bit_scale_sops.comp',
     'Shaders/showtris.frag',
     'Shaders/showtris.vert',
     'Shaders/sky_box.frag',
@@ -45,12 +31,6 @@ shaders = [
     'Shaders/sky_cube.vert',
     'Shaders/sky_layer.frag',
     'Shaders/sky_layer.vert',
-    'Shaders/update_lightmap_10bit.comp',
-    'Shaders/update_lightmap_10bit_rt.comp',
-    'Shaders/update_lightmap_8bit.comp',
-    'Shaders/update_lightmap_8bit_rt.comp',
-    'Shaders/world.frag',
-    'Shaders/world_oit.frag',
     'Shaders/world.vert',
     'Shaders/ray_debug.comp',
     'Shaders/mesh_interpolate.comp',
@@ -114,6 +94,67 @@ foreach shader : shaders
                           + spirv_opt_command
                           + spirv_remap_command
                           + bintoc_command)
+endforeach
+
+# shader sources compiled multiple times with different preprocessor defines
+shader_variants = [
+    ['Shaders/basic.frag', 'basic.frag', []],
+    ['Shaders/basic.frag', 'basic_oit.frag', ['-DWBOIT=1']],
+    ['Shaders/basic.frag', 'basic_mboit_moment.frag', ['-DMBOIT=1']],
+    ['Shaders/basic.frag', 'basic_mboit_composite.frag', ['-DMBOIT=1', '-DMBOIT_COMPOSITE=1']],
+    ['Shaders/basic.frag', 'basic_mboit_composite_msaa.frag', ['-DMBOIT=1', '-DMBOIT_COMPOSITE=1', '-DMSAA=1']],
+    ['Shaders/world.frag', 'world.frag', []],
+    ['Shaders/world.frag', 'world_oit.frag', ['-DWBOIT=1']],
+    ['Shaders/world.frag', 'world_mboit_moment.frag', ['-DMBOIT=1']],
+    ['Shaders/world.frag', 'world_mboit_composite.frag', ['-DMBOIT=1', '-DMBOIT_COMPOSITE=1']],
+    ['Shaders/world.frag', 'world_mboit_composite_msaa.frag', ['-DMBOIT=1', '-DMBOIT_COMPOSITE=1', '-DMSAA=1']],
+    ['Shaders/alias.frag', 'alias.frag', []],
+    ['Shaders/alias.frag', 'alias_alphatest.frag', ['-DALIAS_ALPHA_TEST=1']],
+    ['Shaders/alias.frag', 'alias_oit.frag', ['-DWBOIT=1']],
+    ['Shaders/alias.frag', 'alias_alphatest_oit.frag', ['-DALIAS_ALPHA_TEST=1', '-DWBOIT=1']],
+    ['Shaders/alias.frag', 'alias_mboit_moment.frag', ['-DMBOIT=1']],
+    ['Shaders/alias.frag', 'alias_alphatest_mboit_moment.frag', ['-DALIAS_ALPHA_TEST=1', '-DMBOIT=1']],
+    ['Shaders/alias.frag', 'alias_mboit_composite.frag', ['-DMBOIT=1', '-DMBOIT_COMPOSITE=1']],
+    ['Shaders/alias.frag', 'alias_alphatest_mboit_composite.frag', ['-DALIAS_ALPHA_TEST=1', '-DMBOIT=1', '-DMBOIT_COMPOSITE=1']],
+    ['Shaders/alias.frag', 'alias_mboit_composite_msaa.frag', ['-DMBOIT=1', '-DMBOIT_COMPOSITE=1', '-DMSAA=1']],
+    ['Shaders/alias.frag', 'alias_alphatest_mboit_composite_msaa.frag', ['-DALIAS_ALPHA_TEST=1', '-DMBOIT=1', '-DMBOIT_COMPOSITE=1', '-DMSAA=1']],
+    ['Shaders/wboit_resolve.frag', 'wboit_resolve.frag', []],
+    ['Shaders/wboit_resolve.frag', 'wboit_resolve_msaa.frag', ['-DMSAA=1']],
+    ['Shaders/mboit_resolve.frag', 'mboit_resolve.frag', []],
+    ['Shaders/mboit_resolve.frag', 'mboit_resolve_msaa.frag', ['-DMSAA=1']],
+    ['Shaders/screen_effects.comp', 'screen_effects_8bit.comp', []],
+    ['Shaders/screen_effects.comp', 'screen_effects_8bit_scale.comp', ['-DSCALING=1']],
+    ['Shaders/screen_effects.comp', 'screen_effects_8bit_scale_sops.comp', ['--target-env', 'vulkan1.1', '-DSCALING=1', '-DUSE_SUBGROUP_OPS=1']],
+    ['Shaders/screen_effects.comp', 'screen_effects_10bit.comp', ['-DUSE_10BIT=1']],
+    ['Shaders/screen_effects.comp', 'screen_effects_10bit_scale.comp', ['-DUSE_10BIT=1', '-DSCALING=1']],
+    ['Shaders/screen_effects.comp', 'screen_effects_10bit_scale_sops.comp', ['--target-env', 'vulkan1.1', '-DUSE_10BIT=1', '-DSCALING=1', '-DUSE_SUBGROUP_OPS=1']],
+    ['Shaders/update_lightmap.comp', 'update_lightmap_8bit.comp', []],
+    ['Shaders/update_lightmap.comp', 'update_lightmap_8bit_rt.comp', ['-DRAY_QUERIES=1']],
+    ['Shaders/update_lightmap.comp', 'update_lightmap_10bit.comp', ['-DUSE_10BIT=1']],
+    ['Shaders/update_lightmap.comp', 'update_lightmap_10bit_rt.comp', ['-DUSE_10BIT=1', '-DRAY_QUERIES=1']],
+]
+
+foreach variant : shader_variants
+    variant_source = variant[0]
+    variant_output = variant[1]
+    variant_defines = variant[2]
+    debug_flag = get_option('buildtype').startswith('debug') ? ['-g'] : []
+    variant_command = [glslang, '-V', '--quiet'] + debug_flag + variant_defines + ['-o', variant_output + '.spv', '@INPUT@', '--depfile', variant_output + '.deps', '&&']
+    if spirv_opt_command.length() > 0
+        variant_command += [spirv_opt, '-Os']
+        if has_canonicalize_ids_spirv_opt
+            variant_command += ['--canonicalize-ids', '--strip-debug']
+        endif
+        variant_command += [variant_output + '.spv', '-o', variant_output + '.spv', '&&']
+    endif
+    if spirv_remap_command.length() > 0
+        variant_command += [spirv_remap, '-s', '-o', '.', '-i', variant_output + '.spv', '&&']
+    endif
+    shaders_c += custom_target(variant_output.underscorify(),
+                 input: variant_source,
+                 output: variant_output + '.c',
+                 depfile: variant_output + '.deps',
+                 command: variant_command + [bintoc, variant_output + '.spv', variant_output + '_spv', '@OUTPUT@'])
 endforeach
 
 srcs = [

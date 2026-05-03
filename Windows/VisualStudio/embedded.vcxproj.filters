@@ -7,19 +7,7 @@
     <CustomBuild Include="..\..\Shaders\alias.vert">
       <Filter>Shaders\Alias</Filter>
     </CustomBuild>
-    <CustomBuild Include="..\..\Shaders\alias_alphatest.frag">
-      <Filter>Shaders\Alias</Filter>
-    </CustomBuild>
-    <CustomBuild Include="..\..\Shaders\alias_alphatest_oit.frag">
-      <Filter>Shaders\Alias</Filter>
-    </CustomBuild>
-    <CustomBuild Include="..\..\Shaders\alias_oit.frag">
-      <Filter>Shaders\Alias</Filter>
-    </CustomBuild>
     <CustomBuild Include="..\..\Shaders\basic.frag">
-      <Filter>Shaders\World</Filter>
-    </CustomBuild>
-    <CustomBuild Include="..\..\Shaders\basic_oit.frag">
       <Filter>Shaders\World</Filter>
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\basic.vert">
@@ -37,26 +25,14 @@
     <CustomBuild Include="..\..\Shaders\postprocess.frag">
       <Filter>Shaders</Filter>
     </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\screen_effects.comp">
+      <Filter>Shaders\Screen Effects</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\update_lightmap.comp">
+      <Filter>Shaders\Update Lightmap</Filter>
+    </CustomBuild>
     <CustomBuild Include="..\..\Shaders\postprocess.vert">
       <Filter>Shaders</Filter>
-    </CustomBuild>
-    <CustomBuild Include="..\..\Shaders\screen_effects_8bit.comp">
-      <Filter>Shaders\Screen Effects</Filter>
-    </CustomBuild>
-    <CustomBuild Include="..\..\Shaders\screen_effects_8bit_scale.comp">
-      <Filter>Shaders\Screen Effects</Filter>
-    </CustomBuild>
-    <CustomBuild Include="..\..\Shaders\screen_effects_8bit_scale_sops.comp">
-      <Filter>Shaders\Screen Effects</Filter>
-    </CustomBuild>
-    <CustomBuild Include="..\..\Shaders\screen_effects_10bit.comp">
-      <Filter>Shaders\Screen Effects</Filter>
-    </CustomBuild>
-    <CustomBuild Include="..\..\Shaders\screen_effects_10bit_scale.comp">
-      <Filter>Shaders\Screen Effects</Filter>
-    </CustomBuild>
-    <CustomBuild Include="..\..\Shaders\screen_effects_10bit_scale_sops.comp">
-      <Filter>Shaders\Screen Effects</Filter>
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\showtris.frag">
       <Filter>Shaders</Filter>
@@ -82,9 +58,6 @@
     <CustomBuild Include="..\..\Shaders\world.frag">
       <Filter>Shaders\World</Filter>
     </CustomBuild>
-    <CustomBuild Include="..\..\Shaders\world_oit.frag">
-      <Filter>Shaders\World</Filter>
-    </CustomBuild>
     <CustomBuild Include="..\..\Shaders\world.vert">
       <Filter>Shaders\World</Filter>
     </CustomBuild>
@@ -94,26 +67,14 @@
     <CustomBuild Include="..\..\Shaders\md5.vert">
       <Filter>Shaders\Alias</Filter>
     </CustomBuild>
-    <CustomBuild Include="..\..\Shaders\update_lightmap_8bit.comp">
-      <Filter>Shaders\Update Lightmap</Filter>
-    </CustomBuild>
-    <CustomBuild Include="..\..\Shaders\update_lightmap_8bit_rt.comp">
-      <Filter>Shaders\Update Lightmap</Filter>
-    </CustomBuild>
-    <CustomBuild Include="..\..\Shaders\update_lightmap_10bit.comp">
-      <Filter>Shaders\Update Lightmap</Filter>
-    </CustomBuild>
-    <CustomBuild Include="..\..\Shaders\update_lightmap_10bit_rt.comp">
-      <Filter>Shaders\Update Lightmap</Filter>
-    </CustomBuild>
     <CustomBuild Include="..\..\Shaders\skinning.comp">
       <Filter>Shaders\Alias</Filter>
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\mesh_interpolate.comp">
       <Filter>Shaders\Alias</Filter>
     </CustomBuild>
-    <CustomBuild Include="..\..\Shaders\wboit_resolve_msaa.frag">
-      <Filter>Shaders\WBOIT</Filter>
+    <CustomBuild Include="..\..\Shaders\mboit_resolve.frag">
+      <Filter>Shaders\MBOIT</Filter>
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\wboit_resolve.frag">
       <Filter>Shaders\WBOIT</Filter>
@@ -147,6 +108,9 @@
     <Filter Include="Shaders\WBOIT">
       <UniqueIdentifier>{8108fddb-7213-4a8d-86a7-9991027a6024}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Shaders\MBOIT">
+      <UniqueIdentifier>{5dce1fe6-5b96-4019-9074-22af20b7988c}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Shaders\Indirect">
       <UniqueIdentifier>{7c9eddae-b82d-4f95-b3e8-c9294760ec37}</UniqueIdentifier>
     </Filter>
@@ -172,6 +136,9 @@
     </None>
     <None Include="..\..\Shaders\wboit.inc">
       <Filter>Shaders\WBOIT</Filter>
+    </None>
+    <None Include="..\..\Shaders\mboit.inc">
+      <Filter>Shaders\MBOIT</Filter>
     </None>
   </ItemGroup>
 </Project>

@@ -581,7 +581,7 @@ qboolean R_IndirectBrush (entity_t *e)
 	const qboolean has_water = brush_deps_data[e->model->combined_deps].water_count != 0;
 	// the indirect path only knows global water alpha, so entities with fixed alpha need per-entity drawing
 	const qboolean fixed_alpha_water = e->alpha != ENTALPHA_DEFAULT && has_water;
-	const qboolean alpha_sorted = !oit_active && (transparent_entity || (WATER_FIXED_ORDER && has_water));
+	const qboolean alpha_sorted = !R_UseOIT () && (transparent_entity || (WATER_FIXED_ORDER && has_water));
 	return indirect && !(transparent_entity || fixed_alpha_water || alpha_sorted || e->origin[0] || e->origin[1] || e->origin[2] || e->angles[0] ||
 						 e->angles[1] || e->angles[2] || ENTSCALE_DECODE (e->netstate.scale) != 1.0f || e->frame != 0 || e->model->name[0] != '*');
 }
@@ -864,8 +864,11 @@ void R_DrawIndirectBrushes (cb_context_t *cbx, qboolean draw_water, qboolean tra
 			const qboolean alpha_blend = alpha < 1.0f;
 			int			   pipeline_index =
 				(fullbright_enabled ? 1 : 0) + (alpha_test ? 2 : 0) + (alpha_blend ? 4 : 0) + (vid_filter.value != 0 && vid_palettize.value != 0 ? 8 : 0);
-			vulkan_pipeline_t pipeline = cbx->render_pass_index == RENDER_PASS_INDEX_WBOIT
-											 ? vulkan_globals.world_wboit_pipelines[pipeline_index]
+			vulkan_pipeline_t pipeline = cbx->render_pass_index == RENDER_PASS_INDEX_WBOIT ? vulkan_globals.world_wboit_pipelines[pipeline_index]
+										 : cbx->render_pass_index == RENDER_PASS_INDEX_MBOIT_MOMENTS
+											 ? vulkan_globals.world_mboit_moment_pipelines[pipeline_index]
+										 : cbx->render_pass_index == RENDER_PASS_INDEX_MBOIT_COMPOSITE
+											 ? vulkan_globals.world_mboit_composite_pipelines[pipeline_index]
 											 : vulkan_globals.world_pipelines[R_MainPassPipelineVariant (cbx->render_pass_index)][pipeline_index];
 			R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 

@@ -3,14 +3,19 @@
 #extension GL_ARB_shading_language_420pack : enable
 #extension GL_EXT_samplerless_texture_functions : enable
 #extension GL_GOOGLE_include_directive : enable
+#ifdef RAY_QUERIES
 #extension GL_EXT_ray_query : enable
-// #define DEBUG
-#ifdef DEBUG
+#else
 #extension GL_EXT_debug_printf : enable
 #endif
 
-#define RAY_QUERIES
+// compiled in multiple variants: USE_10BIT selects the 10 bit lightmap format
+// and RAY_QUERIES the ray traced shadow path
 
+#ifdef USE_10BIT
 layout (set = 0, binding = 0, rgb10_a2) uniform writeonly image2D output_image;
+#else
+layout (set = 0, binding = 0, rgba8) uniform writeonly image2D output_image;
+#endif
 
 #include "update_lightmap.inc"

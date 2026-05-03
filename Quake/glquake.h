@@ -147,6 +147,7 @@ typedef struct vulkan_pipeline_layout_s
 {
 	VkPipelineLayout	handle;
 	VkPushConstantRange push_constant_range;
+	int					mboit_input_attachment_set;
 } vulkan_pipeline_layout_t;
 
 typedef struct vulkan_pipeline_s
@@ -210,6 +211,10 @@ typedef enum
 	SCBX_WATER,
 	SCBX_ALPHA_ENTITIES,
 	SCBX_PARTICLES,
+	SCBX_MBOIT_COMPOSITE_ALPHA_ENTITIES_ACROSS_WATER,
+	SCBX_MBOIT_COMPOSITE_WATER,
+	SCBX_MBOIT_COMPOSITE_ALPHA_ENTITIES,
+	SCBX_MBOIT_COMPOSITE_PARTICLES,
 	SCBX_WBOIT_RESOLVE,
 	// UI render Pass:
 	SCBX_GUI,
@@ -218,6 +223,8 @@ typedef enum
 	// Last pass before UI
 	SCBX_MAIN_OPAQUE_PASS_LAST = SCBX_FTE_PARTICLES_BLEND,
 	SCBX_MAIN_PASS_LAST = SCBX_PARTICLES,
+	SCBX_MBOIT_COMPOSITE_PASS_FIRST = SCBX_MBOIT_COMPOSITE_ALPHA_ENTITIES_ACROSS_WATER,
+	SCBX_MBOIT_COMPOSITE_PASS_LAST = SCBX_MBOIT_COMPOSITE_PARTICLES,
 } secondary_cb_contexts_t;
 
 typedef enum
@@ -225,7 +232,10 @@ typedef enum
 	RENDER_PASS_INDEX_MAIN,
 	RENDER_PASS_INDEX_UI,
 	RENDER_PASS_INDEX_MAIN_OIT,
+	RENDER_PASS_INDEX_MAIN_MBOIT,
 	RENDER_PASS_INDEX_WBOIT,
+	RENDER_PASS_INDEX_MBOIT_MOMENTS,
+	RENDER_PASS_INDEX_MBOIT_COMPOSITE,
 	RENDER_PASS_INDEX_COUNT,
 } render_pass_index_t;
 
@@ -233,6 +243,7 @@ typedef enum
 {
 	MAIN_RENDER_PASS_STANDARD,
 	MAIN_RENDER_PASS_OIT,
+	MAIN_RENDER_PASS_MBOIT,
 	MAIN_RENDER_PASS_VARIANT_COUNT,
 } main_render_pass_variant_t;
 
@@ -243,9 +254,37 @@ typedef enum
 	MAIN_RENDER_PASS_STENCIL_COUNT,
 } main_render_pass_stencil_t;
 
+typedef enum
+{
+	OIT_MODE_NONE,
+	OIT_MODE_WBOIT,
+	OIT_MODE_MBOIT,
+} oit_mode_t;
+
+extern oit_mode_t frame_oit_mode;
+
+static inline qboolean R_UseOIT (void)
+{
+	return frame_oit_mode != OIT_MODE_NONE;
+}
+
+static inline qboolean R_UseWBOIT (void)
+{
+	return frame_oit_mode == OIT_MODE_WBOIT;
+}
+
+static inline qboolean R_UseMBOIT (void)
+{
+	return frame_oit_mode == OIT_MODE_MBOIT;
+}
+
 static inline main_render_pass_variant_t R_MainPassPipelineVariant (int render_pass_index)
 {
-	return (render_pass_index == RENDER_PASS_INDEX_MAIN_OIT) ? MAIN_RENDER_PASS_OIT : MAIN_RENDER_PASS_STANDARD;
+	if (render_pass_index == RENDER_PASS_INDEX_MAIN_OIT)
+		return MAIN_RENDER_PASS_OIT;
+	if (render_pass_index == RENDER_PASS_INDEX_MAIN_MBOIT)
+		return MAIN_RENDER_PASS_MBOIT;
+	return MAIN_RENDER_PASS_STANDARD;
 }
 
 static const int SECONDARY_CB_MULTIPLICITY[SCBX_NUM] = {
@@ -258,6 +297,10 @@ static const int SECONDARY_CB_MULTIPLICITY[SCBX_NUM] = {
 	1,				  // SCBX_WATER,
 	1,				  // SCBX_ALPHA_ENTITIES,
 	1,				  // SCBX_PARTICLES,
+	1,				  // SCBX_MBOIT_COMPOSITE_ALPHA_ENTITIES_ACROSS_WATER,
+	1,				  // SCBX_MBOIT_COMPOSITE_WATER,
+	1,				  // SCBX_MBOIT_COMPOSITE_ALPHA_ENTITIES,
+	1,				  // SCBX_MBOIT_COMPOSITE_PARTICLES,
 	1,				  // SCBX_WBOIT_RESOLVE,
 	1,				  // SCBX_GUI,
 	1,				  // SCBX_POST_PROCESS,
@@ -315,6 +358,9 @@ typedef struct
 	VkImage color_buffers[NUM_COLOR_BUFFERS];
 	VkImage oit_accum_buffer;
 	VkImage oit_reveal_buffer;
+	VkImage mboit_b0_buffer;
+	VkImage mboit_moments0_buffer;
+	VkImage mboit_color_buffer;
 
 	// Index buffers
 	VkBuffer fan_index_buffer;
@@ -333,12 +379,19 @@ typedef struct
 	vulkan_pipeline_layout_t basic_pipeline_layout;
 	vulkan_pipeline_t		 world_pipelines[MAIN_RENDER_PASS_VARIANT_COUNT][WORLD_PIPELINE_COUNT];
 	vulkan_pipeline_t		 world_wboit_pipelines[WORLD_PIPELINE_COUNT];
+	vulkan_pipeline_t		 world_mboit_moment_pipelines[WORLD_PIPELINE_COUNT];
+	vulkan_pipeline_t		 world_mboit_composite_pipelines[WORLD_PIPELINE_COUNT];
 	vulkan_pipeline_layout_t world_pipeline_layout;
 	vulkan_pipeline_t		 raster_tex_warp_pipeline;
 	vulkan_pipeline_t		 particle_pipeline;
 	vulkan_pipeline_t		 particle_oit_pipeline;
+	vulkan_pipeline_t		 particle_post_oit_pipeline[MAIN_RENDER_PASS_VARIANT_COUNT];
+	vulkan_pipeline_t		 particle_mboit_moment_pipeline;
+	vulkan_pipeline_t		 particle_mboit_composite_pipeline;
 	vulkan_pipeline_t		 sprite_pipeline[MAIN_RENDER_PASS_VARIANT_COUNT];
 	vulkan_pipeline_t		 sprite_oit_pipeline;
+	vulkan_pipeline_t		 sprite_mboit_moment_pipeline;
+	vulkan_pipeline_t		 sprite_mboit_composite_pipeline;
 	vulkan_pipeline_layout_t sky_pipeline_layout[2]; // one texture (cubemap-like), two textures (animated layers)
 	vulkan_pipeline_t		 sky_stencil_pipeline[MAIN_RENDER_PASS_VARIANT_COUNT][2];
 	vulkan_pipeline_t		 sky_color_pipeline[MAIN_RENDER_PASS_VARIANT_COUNT][2];
@@ -347,10 +400,15 @@ typedef struct
 	vulkan_pipeline_t		 sky_layer_pipeline[MAIN_RENDER_PASS_VARIANT_COUNT][2];
 	vulkan_pipeline_t		 alias_pipelines[MAIN_RENDER_PASS_VARIANT_COUNT][MODEL_PIPELINE_COUNT];
 	vulkan_pipeline_t		 alias_wboit_pipelines[MODEL_PIPELINE_COUNT];
+	vulkan_pipeline_t		 alias_mboit_moment_pipelines[MODEL_PIPELINE_COUNT];
+	vulkan_pipeline_t		 alias_mboit_composite_pipelines[MODEL_PIPELINE_COUNT];
 	vulkan_pipeline_t		 md5_pipelines[MAIN_RENDER_PASS_VARIANT_COUNT][MODEL_PIPELINE_COUNT];
 	vulkan_pipeline_t		 md5_wboit_pipelines[MODEL_PIPELINE_COUNT];
+	vulkan_pipeline_t		 md5_mboit_moment_pipelines[MODEL_PIPELINE_COUNT];
+	vulkan_pipeline_t		 md5_mboit_composite_pipelines[MODEL_PIPELINE_COUNT];
 	vulkan_pipeline_t		 postprocess_pipeline;
 	vulkan_pipeline_t		 wboit_resolve_pipeline;
+	vulkan_pipeline_t		 mboit_resolve_pipeline;
 	vulkan_pipeline_t		 screen_effects_pipeline;
 	vulkan_pipeline_t		 screen_effects_scale_pipeline;
 	vulkan_pipeline_t		 screen_effects_scale_sops_pipeline;
@@ -370,7 +428,7 @@ typedef struct
 #ifdef PSET_SCRIPT
 	vulkan_pipeline_t fte_particle_pipelines[MAIN_RENDER_PASS_VARIANT_COUNT][FTE_PARTICLE_PIPELINE_COUNT];
 	vulkan_pipeline_t fte_particle_wboit_pipelines[FTE_PARTICLE_PIPELINE_COUNT];
-	vulkan_pipeline_t fte_particle_post_oit_pipelines[FTE_PARTICLE_PIPELINE_COUNT];
+	vulkan_pipeline_t fte_particle_post_oit_pipelines[MAIN_RENDER_PASS_VARIANT_COUNT][FTE_PARTICLE_PIPELINE_COUNT];
 #endif
 
 	// Descriptors
@@ -379,6 +437,8 @@ typedef struct
 	vulkan_desc_set_layout_t single_texture_set_layout;
 	vulkan_desc_set_layout_t input_attachment_set_layout;
 	vulkan_desc_set_layout_t oit_input_attachment_set_layout;
+	vulkan_desc_set_layout_t mboit_input_attachment_set_layout;
+	VkDescriptorSet			 mboit_input_attachment_descriptor_set;
 	VkDescriptorSet			 screen_effects_desc_set;
 	vulkan_desc_set_layout_t screen_effects_set_layout;
 	vulkan_desc_set_layout_t single_texture_cs_write_set_layout;
@@ -585,9 +645,8 @@ extern qboolean r_fullbright_cheatsafe, r_lightmap_cheatsafe, r_drawworld_cheats
 extern float map_wateralpha, map_lavaalpha, map_telealpha, map_slimealpha; // ericw
 extern float map_fallbackalpha; // spike -- because we might want r_wateralpha to apply to teleporters while water itself wasn't watervised
 
-extern qboolean oit_active;
-qboolean		R_UseAlphaSort (void);
-qboolean		R_UseIndirectTransparentWater (void);
+qboolean R_UseAlphaSort (void);
+qboolean R_UseIndirectTransparentWater (void);
 
 extern task_handle_t prev_end_rendering_task;
 
@@ -738,6 +797,12 @@ static inline void R_BindPipeline (cb_context_t *cbx, VkPipelineBindPoint bind_p
 			vulkan_globals.vk_cmd_push_constants (
 				cbx->cb, pipeline.layout.handle, pipeline.layout.push_constant_range.stageFlags, 0, pipeline.layout.push_constant_range.size, zeroes);
 		cbx->current_pipeline = pipeline;
+		if (cbx->render_pass_index == RENDER_PASS_INDEX_MBOIT_COMPOSITE && pipeline.layout.mboit_input_attachment_set >= 0)
+		{
+			vulkan_globals.vk_cmd_bind_descriptor_sets (
+				cbx->cb, bind_point, pipeline.layout.handle, pipeline.layout.mboit_input_attachment_set, 1,
+				&vulkan_globals.mboit_input_attachment_descriptor_set, 0, NULL);
+		}
 	}
 }
 
