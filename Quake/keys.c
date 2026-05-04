@@ -31,8 +31,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 char key_lines[CMDLINES][MAXCMDLINE];
 
 int	   key_linepos;
-int	   key_insert;	  // johnfitz -- insert key toggle (for editing)
-double key_blinktime; // johnfitz -- fudge cursor blinking to make it easier to spot in certain cases
+int	   key_insert = 1; // johnfitz -- insert key toggle (for editing)
+double key_blinktime;  // johnfitz -- fudge cursor blinking to make it easier to spot in certain cases
 
 int edit_line = 0;
 int history_line = 0;
