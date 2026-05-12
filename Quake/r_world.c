@@ -375,6 +375,11 @@ void R_MarkVisSurfacesSIMD (qboolean *use_tasks)
 
 	int current_combined_dep_index = INT_MAX;
 
+	const bool cst_r_drawworld_cheatsafe = r_drawworld_cheatsafe;
+	const bool cst_indirect = indirect;
+	const bool cst_r_oldskyleaf = (r_oldskyleaf.value > 0.0f);
+	const bool cst_r_gpulightmapupdate = (r_gpulightmapupdate.value > 0.0f);
+
 	// iterate through leaves, marking surfaces
 	for (i = 0; i < numleafs; i += 32)
 	{
@@ -389,7 +394,7 @@ void R_MarkVisSurfacesSIMD (qboolean *use_tasks)
 			mask &= ~(1u << j);
 
 			mleaf_t *leaf = &cl.worldmodel->leafs[1 + i + j];
-			if (r_drawworld_cheatsafe && (leaf->contents != CONTENTS_SKY || r_oldskyleaf.value))
+			if (cst_r_drawworld_cheatsafe && (leaf->contents != CONTENTS_SKY || cst_r_oldskyleaf))
 			{
 				unsigned int nummarksurfaces = leaf->nummarksurfaces;
 				int			*marksurfaces = leaf->firstmarksurface;
@@ -399,7 +404,7 @@ void R_MarkVisSurfacesSIMD (qboolean *use_tasks)
 					surfvis[index / 32] |= 1u << (index % 32);
 				}
 
-				if (indirect && current_combined_dep_index != leaf->combined_deps)
+				if (cst_indirect && current_combined_dep_index != leaf->combined_deps)
 				{
 					R_MarkDeps (leaf->combined_deps, 0);
 					current_combined_dep_index = leaf->combined_deps;
@@ -412,7 +417,7 @@ void R_MarkVisSurfacesSIMD (qboolean *use_tasks)
 		}
 	}
 
-	if (indirect)
+	if (cst_indirect)
 		return;
 
 	uint32_t brushpolys = 0;
@@ -431,7 +436,7 @@ void R_MarkVisSurfacesSIMD (qboolean *use_tasks)
 			surf = &cl.worldmodel->surfaces[i + j];
 			++brushpolys;
 			R_ChainSurface (surf, chain_world);
-			if (!r_gpulightmapupdate.value)
+			if (!cst_r_gpulightmapupdate)
 				R_RenderDynamicLightmaps (surf);
 			else if (surf->lightmaptexturenum >= 0)
 				lightmaps[surf->lightmaptexturenum].modified[0] |= surf->styles_bitmap;
@@ -451,8 +456,6 @@ R_MarkLeafsSIMD
 */
 void R_MarkLeafsSIMD (int index, void *unused)
 {
-	unsigned int j;
-
 	const int batch_index = index;
 
 	// split leaf processing in as many as there are workers
@@ -483,9 +486,10 @@ void R_MarkLeafsSIMD (int index, void *unused)
 	{
 		const unsigned int index_32leaf = batch_index * nominal_nb_32leaf_in_batch + k;
 
-		unsigned int first_leaf = index_32leaf * 32;
+		const unsigned int first_leaf = index_32leaf * 32 + 1;
 
 		uint32_t *mask = &vis[index_32leaf];
+
 		if (*mask == 0)
 			continue;
 
@@ -497,14 +501,14 @@ void R_MarkLeafsSIMD (int index, void *unused)
 		{
 			const int i = FindFirstBitNonZero (mask_iter);
 
-			mleaf_t *leaf = &cl.worldmodel->leafs[1 + first_leaf + i];
+			mleaf_t *leaf = &cl.worldmodel->leafs[first_leaf + i];
 
 			if (cst_r_drawworld_cheatsafe && (leaf->contents != CONTENTS_SKY || cst_r_oldskyleaf))
 			{
 				unsigned int nummarksurfaces = leaf->nummarksurfaces;
 				int			*marksurfaces = leaf->firstmarksurface;
 
-				for (j = 0; j < nummarksurfaces; ++j)
+				for (unsigned int j = 0; j < nummarksurfaces; ++j)
 				{
 					const unsigned int surf_index = marksurfaces[j];
 
@@ -542,12 +546,10 @@ R_BackfaceCullSurfacesSIMD
 */
 void R_BackfaceCullSurfacesSIMD (int index, void *unused)
 {
-	uint32_t   *surfvis = (uint32_t *)cl.worldmodel->surfvis;
-	msurface_t *surf;
+	uint32_t *surfvis = (uint32_t *)cl.worldmodel->surfvis;
 
 	const int batch_index = index;
 
-	// split leaf processing in as many as there are workers
 	const int nb_batchs = Tasks_NumWorkers ();
 
 	const unsigned int numsurfaces = cl.worldmodel->numsurfaces;
@@ -565,17 +567,20 @@ void R_BackfaceCullSurfacesSIMD (int index, void *unused)
 		const unsigned int index_32surf = batch_index * nominal_nb_32surface_in_batch + k;
 
 		uint32_t *mask = &surfvis[index_32surf];
+
 		if (*mask == 0)
 			continue;
 
 		*mask &= R_BackFaceCullSIMD (&cl.worldmodel->soa_surfplanes[index_32surf * 4]);
 
 		uint32_t mask_iter = *mask;
+
 		while (mask_iter != 0)
 		{
 			const int i = FindFirstBitNonZero (mask_iter);
 
-			surf = &cl.worldmodel->surfaces[(index_32surf * 32) + i];
+			msurface_t *surf = &cl.worldmodel->surfaces[(index_32surf * 32) + i];
+
 			if (surf->lightmaptexturenum >= 0)
 				lightmaps[surf->lightmaptexturenum].modified[worker_index] |= surf->styles_bitmap;
 			if (surf->texinfo->texture->warpimage)
@@ -710,57 +715,90 @@ R_MarkLeafsParallel
 */
 void R_MarkLeafsParallel (int index, void *unused)
 {
-	mleaf_t			*leaf;
-	uint32_t		*mask = (uint32_t *)mark_surfaces_state.vis + index;
-	atomic_uint32_t *surfvis = (atomic_uint32_t *)cl.worldmodel->surfvis;
-	unsigned int	 first_leaf = index * 32 + 1;
+	const int batch_index = index;
 
-	uint32_t mask_iter = *mask;
+	// split leaf processing in as many as there are workers
+	const int nb_batchs = Tasks_NumWorkers ();
+
+	const int numleafs = cl.worldmodel->numleafs;
+
+	const int nominal_nb_32leaf_in_batch = ((numleafs + 31) / 32) / nb_batchs;
+
+	// the last batch gather the reminder
+	const int nb_32leaf_in_batch =
+		((batch_index != nb_batchs - 1) ? nominal_nb_32leaf_in_batch : ((numleafs + 31) / 32) - (nb_batchs - 1) * nominal_nb_32leaf_in_batch);
+
+	atomic_uint32_t *surfvis = (atomic_uint32_t *)cl.worldmodel->surfvis;
+	uint32_t		*vis = (uint32_t *)mark_surfaces_state.vis;
 
 	unsigned int current_surfvis_index_written = 0;
 	uint32_t	 current_surfvis_written = 0;
 	int			 current_combined_dep_index = INT_MAX;
 
-	while (mask_iter != 0)
+	const bool cst_r_drawworld_cheatsafe = r_drawworld_cheatsafe;
+	const bool cst_indirect = indirect;
+	const bool cst_r_oldskyleaf = (r_oldskyleaf.value > 0.0f);
+	const int  worker_index = Tasks_GetWorkerIndex ();
+
+	for (int k = 0; k < nb_32leaf_in_batch; k++)
 	{
-		const int	   i = FindFirstBitNonZero (mask_iter);
-		const uint32_t bit_mask = ~(1u << i);
-		mask_iter &= bit_mask;
-		leaf = &cl.worldmodel->leafs[first_leaf + i];
-		if (R_CullBox (leaf->minmaxs, leaf->minmaxs + 3))
-		{
-			*mask &= bit_mask;
+		const unsigned int index_32leaf = batch_index * nominal_nb_32leaf_in_batch + k;
+
+		const unsigned int first_leaf = index_32leaf * 32 + 1;
+
+		uint32_t *mask = &vis[index_32leaf];
+
+		if (*mask == 0)
 			continue;
-		}
-		if (!leaf->efrags)
-			*mask &= bit_mask;
-		if (r_drawworld_cheatsafe && (leaf->contents != CONTENTS_SKY || r_oldskyleaf.value))
+
+		uint32_t mask_iter = *mask;
+
+		while (mask_iter != 0)
 		{
-			unsigned int nummarksurfaces = leaf->nummarksurfaces;
-			int			*marksurfaces = leaf->firstmarksurface;
+			const int i = FindFirstBitNonZero (mask_iter);
 
-			for (unsigned int j = 0; j < nummarksurfaces; ++j)
+			const uint32_t bit_mask = ~(1u << i);
+
+			mask_iter &= bit_mask;
+
+			mleaf_t *leaf = &cl.worldmodel->leafs[first_leaf + i];
+
+			if (R_CullBox (leaf->minmaxs, leaf->minmaxs + 3))
 			{
-				unsigned int surf_index = marksurfaces[j];
-
-				if (surf_index / 32 != current_surfvis_index_written)
-				{
-					Atomic_OrUInt32_Relaxed (&surfvis[current_surfvis_index_written], current_surfvis_written);
-					current_surfvis_index_written = surf_index / 32;
-					current_surfvis_written = 0;
-				}
-				current_surfvis_written |= 1u << (surf_index % 32);
+				*mask &= bit_mask;
+				continue;
 			}
+			if (!leaf->efrags)
+				*mask &= bit_mask;
 
-			if (indirect && current_combined_dep_index != leaf->combined_deps)
+			if (cst_r_drawworld_cheatsafe && (leaf->contents != CONTENTS_SKY || cst_r_oldskyleaf))
 			{
-				R_MarkDeps (leaf->combined_deps, Tasks_GetWorkerIndex ());
-				current_combined_dep_index = leaf->combined_deps;
+				unsigned int nummarksurfaces = leaf->nummarksurfaces;
+				int			*marksurfaces = leaf->firstmarksurface;
+
+				for (unsigned int j = 0; j < nummarksurfaces; ++j)
+				{
+					unsigned int surf_index = marksurfaces[j];
+
+					if (surf_index / 32 != current_surfvis_index_written)
+					{
+						Atomic_OrUInt32_Relaxed (&surfvis[current_surfvis_index_written], current_surfvis_written);
+						current_surfvis_index_written = surf_index / 32;
+						current_surfvis_written = 0;
+					}
+					current_surfvis_written |= 1u << (surf_index % 32);
+				}
+
+				if (cst_indirect && current_combined_dep_index != leaf->combined_deps)
+				{
+					R_MarkDeps (leaf->combined_deps, worker_index);
+					current_combined_dep_index = leaf->combined_deps;
+				}
 			}
 		}
 	}
-	if (current_surfvis_written != 0)
-		Atomic_OrUInt32_Relaxed (&surfvis[current_surfvis_index_written], current_surfvis_written);
+
+	Atomic_OrUInt32 (&surfvis[current_surfvis_index_written], current_surfvis_written);
 }
 
 /*
@@ -770,30 +808,50 @@ R_BackfaceCullSurfacesParallel
 */
 void R_BackfaceCullSurfacesParallel (int index, void *unused)
 {
-	uint32_t   *surfvis = (uint32_t *)cl.worldmodel->surfvis + index;
-	msurface_t *surf;
+	uint32_t *surfvis = (uint32_t *)cl.worldmodel->surfvis;
 
-	uint32_t mask_iter = *surfvis;
-	if (mask_iter == 0)
-		return;
+	const int batch_index = index;
+
+	const int nb_batchs = Tasks_NumWorkers ();
+
+	const unsigned int numsurfaces = cl.worldmodel->numsurfaces;
+
+	const int nominal_nb_32surface_in_batch = ((numsurfaces + 31) / 32) / nb_batchs;
+
+	// the last batch gather the reminder
+	const int nb_32surface_in_batch =
+		((batch_index != nb_batchs - 1) ? nominal_nb_32surface_in_batch : ((numsurfaces + 31) / 32) - (nb_batchs - 1) * nominal_nb_32surface_in_batch);
 
 	const int worker_index = Tasks_GetWorkerIndex ();
-	while (mask_iter != 0)
+
+	for (int k = 0; k < nb_32surface_in_batch; k++)
 	{
-		const int	   i = FindFirstBitNonZero (mask_iter);
-		const uint32_t bit_mask = ~(1u << i);
-		mask_iter &= bit_mask;
+		const unsigned int index_32surf = batch_index * nominal_nb_32surface_in_batch + k;
 
-		surf = &cl.worldmodel->surfaces[(index * 32) + i];
+		uint32_t *mask = &surfvis[index_32surf];
 
-		if (R_BackFaceCull (surf))
-			*surfvis &= bit_mask;
-		else
+		if (*mask == 0)
+			continue;
+
+		uint32_t mask_iter = *mask;
+
+		while (mask_iter != 0)
 		{
-			if (surf->lightmaptexturenum >= 0)
-				lightmaps[surf->lightmaptexturenum].modified[worker_index] |= surf->styles_bitmap;
-			if (surf->texinfo->texture->warpimage)
-				Atomic_StoreUInt32_Relaxed (&surf->texinfo->texture->update_warp, true);
+			const int	   i = FindFirstBitNonZero (mask_iter);
+			const uint32_t bit_mask = ~(1u << i);
+			mask_iter &= bit_mask;
+
+			msurface_t *surf = &cl.worldmodel->surfaces[(index_32surf * 32) + i];
+
+			if (R_BackFaceCull (surf))
+				*surfvis &= bit_mask;
+			else
+			{
+				if (surf->lightmaptexturenum >= 0)
+					lightmaps[surf->lightmaptexturenum].modified[worker_index] |= surf->styles_bitmap;
+				if (surf->texinfo->texture->warpimage)
+					Atomic_StoreUInt32_Relaxed (&surf->texinfo->texture->update_warp, true);
+			}
 		}
 	}
 }
@@ -814,6 +872,11 @@ void R_MarkVisSurfaces (qboolean *use_tasks)
 
 	int current_combined_dep_index = INT_MAX;
 
+	const bool cst_r_drawworld_cheatsafe = r_drawworld_cheatsafe;
+	const bool cst_indirect = indirect;
+	const bool cst_r_oldskyleaf = (r_oldskyleaf.value > 0.0f);
+	const bool cst_r_gpulightmapupdate = (r_gpulightmapupdate.value > 0.0f);
+
 	leaf = &cl.worldmodel->leafs[1];
 	for (i = 0; i < cl.worldmodel->numleafs; i++, leaf++)
 	{
@@ -822,9 +885,9 @@ void R_MarkVisSurfaces (qboolean *use_tasks)
 			if (R_CullBox (leaf->minmaxs, leaf->minmaxs + 3))
 				continue;
 
-			if (r_drawworld_cheatsafe && (leaf->contents != CONTENTS_SKY || r_oldskyleaf.value))
+			if (cst_r_drawworld_cheatsafe && (leaf->contents != CONTENTS_SKY || cst_r_oldskyleaf))
 			{
-				if (indirect && current_combined_dep_index != leaf->combined_deps)
+				if (cst_indirect && current_combined_dep_index != leaf->combined_deps)
 				{
 					R_MarkDeps (leaf->combined_deps, 0);
 					current_combined_dep_index = leaf->combined_deps;
@@ -832,7 +895,7 @@ void R_MarkVisSurfaces (qboolean *use_tasks)
 
 				for (j = 0; j < leaf->nummarksurfaces; j++)
 				{
-					if (indirect)
+					if (cst_indirect)
 					{
 						unsigned int surf_index = leaf->firstmarksurface[j];
 						surfvis[surf_index / 32] |= 1u << (surf_index % 32);
@@ -846,7 +909,7 @@ void R_MarkVisSurfaces (qboolean *use_tasks)
 						{
 							++brushpolys;
 							R_ChainSurface (surf, chain_world);
-							if (!r_gpulightmapupdate.value)
+							if (!cst_r_gpulightmapupdate)
 								R_RenderDynamicLightmaps (surf);
 							else if (surf->lightmaptexturenum >= 0)
 								lightmaps[surf->lightmaptexturenum].modified[0] |= surf->styles_bitmap;
@@ -863,7 +926,7 @@ void R_MarkVisSurfaces (qboolean *use_tasks)
 		}
 	}
 
-	if (indirect)
+	if (cst_indirect)
 		return;
 
 	Atomic_AddUInt32 (&rs_brushpolys, brushpolys); // count wpolys here
@@ -972,14 +1035,14 @@ void R_MarkSurfaces (qboolean use_tasks, task_handle_t before_mark, task_handle_
 		Task_Submit (prepare_mark);
 		if (r_parallelmark.value)
 		{
-			unsigned int  numleafs = cl.worldmodel->numleafs;
 			task_handle_t mark_surfaces;
 #if defined(USE_SIMD)
+			// split leaf processing in as many as there are workers:
 			if (use_simd)
-				mark_surfaces = Task_AllocateAndAssignIndexedFunc (R_MarkLeafsSIMD, Tasks_NumWorkers (), /* (numleafs + 31) / 32 */ NULL, 0);
+				mark_surfaces = Task_AllocateAndAssignIndexedFunc (R_MarkLeafsSIMD, Tasks_NumWorkers (), NULL, 0);
 			else
 #endif
-				mark_surfaces = Task_AllocateAndAssignIndexedFunc (R_MarkLeafsParallel, (numleafs + 31) / 32, NULL, 0);
+				mark_surfaces = Task_AllocateAndAssignIndexedFunc (R_MarkLeafsParallel, Tasks_NumWorkers (), NULL, 0);
 			Task_AddDependency (prepare_mark, mark_surfaces);
 			Task_Submit (mark_surfaces);
 
@@ -988,14 +1051,13 @@ void R_MarkSurfaces (qboolean use_tasks, task_handle_t before_mark, task_handle_
 
 			if (!indirect && r_drawworld_cheatsafe)
 			{
-				unsigned int numsurfaces = cl.worldmodel->numsurfaces;
 #if defined(USE_SIMD)
+				// split surfvis processing in as many as there are workers:
 				if (use_simd)
-					*cull_surfaces =
-						Task_AllocateAndAssignIndexedFunc (R_BackfaceCullSurfacesSIMD, Tasks_NumWorkers (), /* (numsurfaces + 31) / 32, */ NULL, 0);
+					*cull_surfaces = Task_AllocateAndAssignIndexedFunc (R_BackfaceCullSurfacesSIMD, Tasks_NumWorkers (), NULL, 0);
 				else
 #endif
-					*cull_surfaces = Task_AllocateAndAssignIndexedFunc (R_BackfaceCullSurfacesParallel, (numsurfaces + 31) / 32, NULL, 0);
+					*cull_surfaces = Task_AllocateAndAssignIndexedFunc (R_BackfaceCullSurfacesParallel, Tasks_NumWorkers (), NULL, 0);
 				Task_AddDependency (mark_surfaces, *cull_surfaces);
 
 				*chain_surfaces = Task_AllocateAndAssignFunc ((task_func_t)R_ChainVisSurfaces, &use_tasks, sizeof (qboolean));
