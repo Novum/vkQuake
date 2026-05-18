@@ -44,6 +44,8 @@ extern VkBuffer bmodel_vertex_buffer;
 static int		world_texstart[NUM_WORLD_CBX];
 static int		world_texend[NUM_WORLD_CBX];
 
+#define MARK_SURFACE_CALLS_PER_WORKER (4)
+
 /*
 ===============
 mark_surfaces_state_t
@@ -458,8 +460,8 @@ void R_MarkLeafsSIMD (int index, void *unused)
 {
 	const int batch_index = index;
 
-	// split leaf processing in as many as there are workers
-	const int nb_batchs = Tasks_NumWorkers ();
+	// split processing in as many as there are workers and by MARK_SURFACE_CALLS_PER_WORKER
+	const int nb_batchs = MARK_SURFACE_CALLS_PER_WORKER * Tasks_NumWorkers ();
 
 	const int numleafs = cl.worldmodel->numleafs;
 
@@ -550,7 +552,8 @@ void R_BackfaceCullSurfacesSIMD (int index, void *unused)
 
 	const int batch_index = index;
 
-	const int nb_batchs = Tasks_NumWorkers ();
+	// split processing in as many as there are workers and by MARK_SURFACE_CALLS_PER_WORKER
+	const int nb_batchs = MARK_SURFACE_CALLS_PER_WORKER * Tasks_NumWorkers ();
 
 	const unsigned int numsurfaces = cl.worldmodel->numsurfaces;
 
@@ -717,8 +720,8 @@ void R_MarkLeafsParallel (int index, void *unused)
 {
 	const int batch_index = index;
 
-	// split leaf processing in as many as there are workers
-	const int nb_batchs = Tasks_NumWorkers ();
+	// split processing in as many as there are workers and by MARK_SURFACE_CALLS_PER_WORKER
+	const int nb_batchs = MARK_SURFACE_CALLS_PER_WORKER * Tasks_NumWorkers ();
 
 	const int numleafs = cl.worldmodel->numleafs;
 
@@ -812,7 +815,8 @@ void R_BackfaceCullSurfacesParallel (int index, void *unused)
 
 	const int batch_index = index;
 
-	const int nb_batchs = Tasks_NumWorkers ();
+	// split processing in as many as there are workers and by MARK_SURFACE_CALLS_PER_WORKER
+	const int nb_batchs = MARK_SURFACE_CALLS_PER_WORKER * Tasks_NumWorkers ();
 
 	const unsigned int numsurfaces = cl.worldmodel->numsurfaces;
 
@@ -1037,12 +1041,12 @@ void R_MarkSurfaces (qboolean use_tasks, task_handle_t before_mark, task_handle_
 		{
 			task_handle_t mark_surfaces;
 #if defined(USE_SIMD)
-			// split leaf processing in as many as there are workers:
+			// split processing in as many as there are workers and by MARK_SURFACE_CALLS_PER_WORKER:
 			if (use_simd)
-				mark_surfaces = Task_AllocateAndAssignIndexedFunc (R_MarkLeafsSIMD, Tasks_NumWorkers (), NULL, 0);
+				mark_surfaces = Task_AllocateAndAssignIndexedFunc (R_MarkLeafsSIMD, MARK_SURFACE_CALLS_PER_WORKER * Tasks_NumWorkers (), NULL, 0);
 			else
 #endif
-				mark_surfaces = Task_AllocateAndAssignIndexedFunc (R_MarkLeafsParallel, Tasks_NumWorkers (), NULL, 0);
+				mark_surfaces = Task_AllocateAndAssignIndexedFunc (R_MarkLeafsParallel, MARK_SURFACE_CALLS_PER_WORKER * Tasks_NumWorkers (), NULL, 0);
 			Task_AddDependency (prepare_mark, mark_surfaces);
 			Task_Submit (mark_surfaces);
 
@@ -1052,12 +1056,14 @@ void R_MarkSurfaces (qboolean use_tasks, task_handle_t before_mark, task_handle_
 			if (!indirect && r_drawworld_cheatsafe)
 			{
 #if defined(USE_SIMD)
-				// split surfvis processing in as many as there are workers:
+				// split processing in as many as there are workers and by MARK_SURFACE_CALLS_PER_WORKER:
 				if (use_simd)
-					*cull_surfaces = Task_AllocateAndAssignIndexedFunc (R_BackfaceCullSurfacesSIMD, Tasks_NumWorkers (), NULL, 0);
+					*cull_surfaces =
+						Task_AllocateAndAssignIndexedFunc (R_BackfaceCullSurfacesSIMD, MARK_SURFACE_CALLS_PER_WORKER * Tasks_NumWorkers (), NULL, 0);
 				else
 #endif
-					*cull_surfaces = Task_AllocateAndAssignIndexedFunc (R_BackfaceCullSurfacesParallel, Tasks_NumWorkers (), NULL, 0);
+					*cull_surfaces =
+						Task_AllocateAndAssignIndexedFunc (R_BackfaceCullSurfacesParallel, MARK_SURFACE_CALLS_PER_WORKER * Tasks_NumWorkers (), NULL, 0);
 				Task_AddDependency (mark_surfaces, *cull_surfaces);
 
 				*chain_surfaces = Task_AllocateAndAssignFunc ((task_func_t)R_ChainVisSurfaces, &use_tasks, sizeof (qboolean));
