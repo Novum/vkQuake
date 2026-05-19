@@ -5664,7 +5664,7 @@ void Mod_Print (void)
 	for (i = 0, mod = mod_known; i < mod_numknown; i++, mod++)
 	{
 		Con_SafePrintf (
-			"MDL: %s| MD5: %s| MD3: %s - %s\n", (mod->extradata[PV_QUAKE1]) ? "YES" : " no", (mod->extradata[PV_MD5]) ? "YES" : " no",
+			"MDL:%s || MD5:%s || MD3:%s  -  %s\n", (mod->extradata[PV_QUAKE1]) ? "YES" : " no", (mod->extradata[PV_MD5]) ? "YES" : " no",
 			(mod->extradata[PV_QUAKE3]) ? "YES" : " no", mod->name); // johnfitz -- safeprint instead of print
 	}
 	Con_Printf ("%i models\n", mod_numknown); // johnfitz -- print the total too
