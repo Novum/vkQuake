@@ -757,7 +757,7 @@ TexMgr_Downsample
 */
 static unsigned *TexMgr_Downsample (unsigned *data, int in_width, int in_height, int out_width, int out_height)
 {
-	const int out_size_bytes = out_width * out_height * 4;
+	const size_t out_size_bytes = (size_t)out_width * (size_t)out_height * 4u;
 
 	assert ((out_width >= 1) && (out_width <= in_width));
 	assert ((out_height >= 1) && (out_height <= in_height));
