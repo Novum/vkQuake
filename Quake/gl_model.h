@@ -596,9 +596,9 @@ typedef struct qmodel_s
 {
 	char		 name[MAX_QPATH];
 	qboolean	 is_worldmodel; // only true for a map
-	unsigned int path_id;  // path id of the game directory
-						   // that this model came from
-	qboolean	 needload; // bmodels and sprites don't cache normally
+	unsigned int path_id;		// path id of the game directory
+								// that this model came from
+	qboolean	 needload;		// bmodels and sprites don't cache normally
 
 	modtype_t  type;
 	int		   numframes;
