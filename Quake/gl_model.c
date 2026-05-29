@@ -952,6 +952,9 @@ static void Mod_LoadTextureTask (int i, qmodel_t **ppmod)
 	byte *data = NULL;
 	bool  fbright;
 
+	// Only filter out external textures for static models, not the level:
+	const unsigned int effective_min_path_id = (mod->is_worldmodel ? 0 : mod->path_id);
+
 #ifdef BSP29_VALVE
 	if (mod->bspversion != BSPVERSION_VALVE && !q_strncasecmp (tx->name, "sky", 3))
 #else
@@ -969,11 +972,11 @@ static void Mod_LoadTextureTask (int i, qmodel_t **ppmod)
 		COM_StripExtension (mod->name + 5, mapname, sizeof (mapname));
 		q_snprintf (filename, sizeof (filename), "textures/%s/#%s", mapname, tx->name + 1); // this also replaces the '*' with a '#'
 		enum srcformat fmt = SRC_RGBA;
-		data = Image_LoadImage (filename, &fwidth, &fheight, &fmt, mod->path_id);
+		data = Image_LoadImage (filename, &fwidth, &fheight, &fmt, effective_min_path_id);
 		if (!data)
 		{
 			q_snprintf (filename, sizeof (filename), "textures/#%s", tx->name + 1);
-			data = Image_LoadImage (filename, &fwidth, &fheight, &fmt, mod->path_id);
+			data = Image_LoadImage (filename, &fwidth, &fheight, &fmt, effective_min_path_id);
 		}
 
 		// now load whatever we found
@@ -1010,11 +1013,11 @@ static void Mod_LoadTextureTask (int i, qmodel_t **ppmod)
 		COM_StripExtension (mod->name + 5, mapname, sizeof (mapname));
 		q_snprintf (filename, sizeof (filename), "textures/%s/%s", mapname, tx->name);
 		enum srcformat fmt = SRC_RGBA;
-		data = Image_LoadImage (filename, &fwidth, &fheight, &fmt, mod->path_id);
+		data = Image_LoadImage (filename, &fwidth, &fheight, &fmt, effective_min_path_id);
 		if (!data)
 		{
 			q_snprintf (filename, sizeof (filename), "textures/%s", tx->name);
-			data = Image_LoadImage (filename, &fwidth, &fheight, &fmt, mod->path_id);
+			data = Image_LoadImage (filename, &fwidth, &fheight, &fmt, effective_min_path_id);
 		}
 
 		// now load whatever we found
@@ -1027,11 +1030,11 @@ static void Mod_LoadTextureTask (int i, qmodel_t **ppmod)
 
 			// now try to load glow/luma image from the same place
 			q_snprintf (filename2, sizeof (filename2), "%s_glow", filename);
-			data = Image_LoadImage (filename2, &fwidth, &fheight, &fmt, mod->path_id);
+			data = Image_LoadImage (filename2, &fwidth, &fheight, &fmt, effective_min_path_id);
 			if (!data)
 			{
 				q_snprintf (filename2, sizeof (filename2), "%s_luma", filename);
-				data = Image_LoadImage (filename2, &fwidth, &fheight, &fmt, mod->path_id);
+				data = Image_LoadImage (filename2, &fwidth, &fheight, &fmt, effective_min_path_id);
 			}
 
 			if (data)
@@ -3059,6 +3062,7 @@ static void Mod_LoadBrushModel (qmodel_t *mod, const char *loadname, void *buffe
 	dheader_t *header;
 
 	mod->type = mod_brush;
+	mod->is_worldmodel = (sv.modelname[0] && !q_strcasecmp (loadname, sv.name));
 
 	header = (dheader_t *)buffer;
 
@@ -3095,7 +3099,6 @@ static void Mod_LoadBrushModel (qmodel_t *mod, const char *loadname, void *buffe
 		((int *)header)[i] = LittleLong (((int *)header)[i]);
 
 	// load into heap
-
 	Mod_LoadVertexes (mod, mod_base, &header->lumps[LUMP_VERTEXES]);
 	Mod_LoadEdges (mod, mod_base, &header->lumps[LUMP_EDGES], bsp2);
 	Mod_LoadSurfedges (mod, mod_base, &header->lumps[LUMP_SURFEDGES]);
@@ -3107,7 +3110,7 @@ static void Mod_LoadBrushModel (qmodel_t *mod, const char *loadname, void *buffe
 	Mod_LoadFaces (mod, mod_base, &header->lumps[LUMP_FACES], bsp2);
 	Mod_LoadMarksurfaces (mod, mod_base, &header->lumps[LUMP_MARKSURFACES], bsp2);
 
-	if (mod->bspversion == BSPVERSION && external_vis.value && sv.modelname[0] && !q_strcasecmp (loadname, sv.name))
+	if (mod->bspversion == BSPVERSION && external_vis.value && mod->is_worldmodel)
 	{
 		FILE *fvis;
 		Con_DPrintf ("trying to open external vis file\n");
