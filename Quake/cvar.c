@@ -114,17 +114,44 @@ void Cvar_Set_f (void)
 	const char *varname = Cmd_Argv (1);
 	const char *varvalue = Cmd_Argv (2);
 	cvar_t	   *var;
+	int			fl = 0;
+
 	if (Cmd_Argc () < 3)
 	{
 		Con_Printf ("%s <cvar> <value>\n", Cmd_Argv (0));
 		return;
 	}
-	if (Cmd_Argc () > 3)
+
+	if (!strcmp (Cmd_Argv (0), "setfl") && Cmd_Argc () == 4)
+	{
+		const char *as = Cmd_Argv (3);
+		for (; *as; as++)
+		{
+			switch (*as)
+			{
+			case 'a':
+				fl |= CVAR_ARCHIVE | CVAR_SETA; // will forget other flags, but that's probably okay because this should be more for default.cfg and the other
+												// flags will get re-asserted that way anyway
+				break;
+			case 'u':
+				fl |= CVAR_USERINFO;
+				break;
+			case 's':
+				fl |= CVAR_SERVERINFO;
+				break;
+			default:
+				Con_Warning ("%s \"%s\" unknown cvar flag '%c'\n", Cmd_Argv (0), varname, *as);
+				return;
+			}
+		}
+	}
+	else if (Cmd_Argc () > 3)
 	{
 		Con_Warning ("%s \"%s\" command with extra args\n", Cmd_Argv (0), varname);
 		return;
 	}
 	var = Cvar_Create (varname, varvalue);
+	var->flags |= fl;
 	Cvar_SetQuick (var, varvalue);
 
 	if (!strcmp (Cmd_Argv (0), "seta"))
@@ -477,6 +504,38 @@ void Cvar_SetQuick (cvar_t *var, const char *value)
 		var->callback (var);
 	if (var->flags & CVAR_AUTOCVAR)
 		PR_AutoCvarChanged (var);
+
+	if (var->flags & CVAR_SERVERINFO)
+	{
+		// replicate the cvar change into the serverinfo string and let clients know.
+		Info_SetKey (svs.serverinfo, sizeof (svs.serverinfo), var->name, var->string);
+
+		for (client_t *current_client = svs.clients; current_client < svs.clients + svs.maxclients; current_client++)
+		{
+			if (current_client->active)
+			{
+				MSG_WriteByte (&current_client->message, svc_stufftext);
+				MSG_WriteString (&current_client->message, va ("%s \"%s\" \"%s\"\n", "//svi", var->name, var->string));
+			}
+		}
+	}
+	if (var->flags & CVAR_USERINFO)
+	{
+		// replicate the cvar change into the userinfo.
+		Info_SetKey (cls.userinfo, sizeof (cls.userinfo), var->name, var->string);
+
+		// let the server know.
+		if (cls.state == ca_connected)
+		{
+			MSG_WriteByte (&cls.message, clc_stringcmd);
+			if (var == &cl_name) // some hacks for legacy settings.
+				MSG_WriteString (&cls.message, va ("name \"%s\"\n", var->string));
+			else if (var == &cl_topcolor || var == &cl_bottomcolor)
+				MSG_WriteString (&cls.message, va ("color \"%s\" \"%s\"\n", cl_topcolor.string, cl_bottomcolor.string));
+			else
+				MSG_WriteString (&cls.message, va ("setinfo \"%s\" \"%s\"\n", var->name, var->string));
+		}
+	}
 }
 
 void Cvar_SetValueQuick (cvar_t *var, const float value)

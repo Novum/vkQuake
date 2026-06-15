@@ -69,8 +69,6 @@ typedef enum multicast_e
 } multicast_t;
 static void SV_Multicast (multicast_t to, float *org, int msg_entity, unsigned int requireext2);
 
-#define RETURN_EDICT(e) (((int *)qcvm->globals)[OFS_RETURN] = EDICT_TO_PROG (e))
-
 int PR_MakeTempString (const char *val)
 {
 	char *tmp = PR_GetTempString ();
@@ -4822,7 +4820,7 @@ static void PF_cl_drawfill (void)
 	vulkan_globals.vk_cmd_draw (cbx->cb, 6, 1, 0, 0);
 }
 
-void PF_cl_playerkey_internal (int player, const char *key, qboolean retfloat)
+static void PF_cl_playerkey_internal (int player, const char *key, qboolean retfloat)
 {
 	char		buf[1024];
 	const char *ret = buf;
@@ -4899,6 +4897,73 @@ static void PF_cl_registercommand (void)
 	const char *cmdname = G_STRING (OFS_PARM0);
 	Cmd_AddCommand (cmdname, NULL);
 }
+
+static void PF_cl_serverkey_internal (const char *key, qboolean retfloat)
+{
+	char		buf[1024];
+	const char *ret;
+	if (!strcmp (key, "constate"))
+	{
+		if (cls.state != ca_connected)
+			ret = "disconnected";
+		else if (cls.signon == SIGNONS)
+			ret = "active";
+		else
+			ret = "connecting";
+	}
+	else
+	{
+		ret = Info_GetKey (cl.serverinfo, key, buf, sizeof (buf));
+	}
+
+	if (retfloat)
+		G_FLOAT (OFS_RETURN) = atof (ret);
+	else
+		G_INT (OFS_RETURN) = PR_SetEngineString (ret);
+}
+
+static void PF_cl_serverkey_s (void)
+{
+	const char *keyname = G_STRING (OFS_PARM0);
+	PF_cl_serverkey_internal (keyname, false);
+}
+static void PF_cl_serverkey_f (void)
+{
+	const char *keyname = G_STRING (OFS_PARM0);
+	PF_cl_serverkey_internal (keyname, true);
+}
+
+static void PF_sv_serverkey_internal (const char *key, qboolean retfloat)
+{
+	char		buf[1024];
+	const char *ret = Info_GetKey (svs.serverinfo, key, buf, sizeof (buf));
+
+	if (retfloat)
+		G_FLOAT (OFS_RETURN) = atof (ret);
+	else
+		G_INT (OFS_RETURN) = PR_SetEngineString (ret);
+}
+
+static void PF_sv_serverkey_s (void)
+{
+	const char *keyname = G_STRING (OFS_PARM0);
+	PF_sv_serverkey_internal (keyname, false);
+}
+
+static void PF_sv_serverkey_f (void)
+{
+	const char *keyname = G_STRING (OFS_PARM0);
+	PF_sv_serverkey_internal (keyname, true);
+}
+
+static void PF_sv_forceinfokey (void)
+{
+	int			edict = G_EDICTNUM (OFS_PARM0);
+	const char *keyname = G_STRING (OFS_PARM1);
+	const char *value = G_STRING (OFS_PARM2);
+	SV_UpdateInfo (edict, keyname, value);
+}
+
 static void PF_cl_readbyte (void)
 {
 	G_FLOAT (OFS_RETURN) = MSG_ReadByte ();
@@ -5049,6 +5114,7 @@ static struct
 	{"strunzone",					PF_strunzone,					PF_strunzone,					119,	D("void(string s)", "Destroys a string that was allocated by strunzone. Further references to the string MAY crash the game.")},	// (FRIK_FILE)
 	{"tokenize_menuqc",				PF_Tokenize,					PF_Tokenize,					0,		"float(string s)"},
 	{"localsound",					PF_NoSSQC,						PF_cl_localsound,				177,	D("void(string soundname, optional float channel, optional float volume)", "Plays a sound... locally... probably best not to call this from ssqc. Also disables reverb.")},//	#177
+	{"forceinfokey",	            PF_sv_forceinfokey,	            PF_NoCSQC,			            213,	D("void(entity player, string key, string value)", "Directly changes a user's info without pinging off the client. Also allows explicitly setting * keys, including *spectator. Does not affect the user's config or other servers.")}, // #213
 	{"bitshift",					PF_bitshift,					PF_bitshift,					218,	"float(float number, float quantity)"},
 	{"te_lightningblood",			PF_sv_te_lightningblood,		NULL,							219,	"void(vector org)"},
 	{"strstrofs",					PF_strstrofs,					PF_strstrofs,					221,	D("float(string s1, string sub, optional float startidx)", "Returns the 0-based offset of sub within the s1 string, or -1 if sub is not in s1.\nIf startidx is set, this builtin will ignore matches before that 0-based offset.")},
@@ -5110,6 +5176,8 @@ static struct
 	{"getplayerkeyfloat",			PF_NoSSQC,						PF_cl_playerkey_f,				0,		D("float(float playernum, string keyname, optional float assumevalue)", "Cheaper version of getplayerkeyvalue that avoids the need for so many tempstrings.")},
 	{"registercommand",				PF_NoSSQC,						PF_cl_registercommand,			352,	D("void(string cmdname)", "Register the given console command, for easy console use.\nConsole commands that are later used will invoke CSQC_ConsoleCommand.")},//(EXT_CSQC)
 	{"wasfreed",					PF_WasFreed,					PF_WasFreed,					353,	D("float(entity ent)", "Quickly check to see if the entity is currently free. This function is only valid during the two-second non-reuse window, after that it may give bad results. Try one second to make it more robust.")},//(EXT_CSQC) (should be availabe on server too)
+	{"serverkey",					PF_sv_serverkey_s,				PF_cl_serverkey_s,				354,	D("string(string key)", "Look up a key in the server's public serverinfo string")},//
+	{"serverkeyfloat",				PF_sv_serverkey_f,				PF_cl_serverkey_f,				0,		D("float(string key, optional float assumevalue)", "Version of serverkey that returns the value as a float (which avoids tempstrings).")},//
 	{"readbyte",					PF_NoSSQC,						PF_cl_readbyte,					360,	"float()"},// (EXT_CSQC)
 	{"readchar",					PF_NoSSQC,						PF_cl_readchar,					361,	"float()"},// (EXT_CSQC)
 	{"readshort",					PF_NoSSQC,						PF_cl_readshort,				362,	"float()"},// (EXT_CSQC)
@@ -5354,6 +5422,7 @@ static struct
 	{"FTE_QC_CHECKCOMMAND"},
 	{"FTE_QC_CROSSPRODUCT"},
 	{"FTE_QC_INFOKEY"},
+	{"FTE_FORCEINFOKEY"},
 	{"FTE_QC_INTCONV"},
 	{"FTE_QC_MULTICAST"},
 	{"FTE_STRINGS"},

@@ -155,6 +155,8 @@ edict_t *PROG_TO_EDICT (int n);
 #define PROG_TO_EDICT(p) ((edict_t *)((byte *)qcvm->edicts + p))
 #endif
 
+#define RETURN_EDICT(e) (((int *)qcvm->globals)[OFS_RETURN] = EDICT_TO_PROG (e))
+
 #define G_FLOAT(o)	  (qcvm->globals[o])
 #define G_INT(o)	  (*(int *)&qcvm->globals[o])
 #define G_UINT(o)	  (*(unsigned int *)&qcvm->globals[o])

@@ -32,8 +32,6 @@ char *PR_GetTempString (void)
 	return pr_string_temp[(STRINGTEMP_BUFFERS - 1) & ++pr_string_tempindex];
 }
 
-#define RETURN_EDICT(e) (((int *)qcvm->globals)[OFS_RETURN] = EDICT_TO_PROG (e))
-
 /*
 ===============================================================================
 
