@@ -34,6 +34,8 @@ extern cvar_t pausable;
 extern cvar_t nomonsters;
 extern cvar_t autoload;
 extern cvar_t autofastload;
+extern cvar_t cl_topcolor;
+extern cvar_t cl_bottomcolor;
 
 int current_skill;
 
@@ -1710,7 +1712,7 @@ static void Host_Name_f (void)
 	if (host_client->name[0] && strcmp (host_client->name, "unconnected"))
 	{
 		if (strcmp (host_client->name, newName) != 0)
-			Con_Printf ("%s renamed to %s\n", host_client->name, newName);
+			Con_DPrintf ("\"%s\" renamed to \"%s\"\n", host_client->name, newName);
 	}
 	strcpy (host_client->name, newName);
 	host_client->edict->v.netname = PR_SetEngineString (host_client->name);
@@ -1877,48 +1879,36 @@ Host_Color_f
 */
 static void Host_Color_f (void)
 {
-	int top, bottom;
-	int playercolor;
+	const char *top, *bottom;
 
 	if (Cmd_Argc () == 1)
 	{
-		Con_Printf ("\"color\" is \"%i %i\"\n", ((int)cl_color.value) >> 4, ((int)cl_color.value) & 0x0f);
+		// TODO : do better and print color names instead like QSS ?
+		Con_Printf ("\"color\" is \"%i %i\"\n", (int)cl_topcolor.value, (int)cl_bottomcolor.value);
 		Con_Printf ("color <0-13> [0-13]\n");
 		return;
 	}
 
 	if (Cmd_Argc () == 2)
-		top = bottom = atoi (Cmd_Argv (1));
+		top = bottom = Cmd_Argv (1);
 	else
 	{
-		top = atoi (Cmd_Argv (1));
-		bottom = atoi (Cmd_Argv (2));
+		top = Cmd_Argv (1);
+		bottom = Cmd_Argv (2);
 	}
-
-	top &= 15;
-	if (top > 13)
-		top = 13;
-	bottom &= 15;
-	if (bottom > 13)
-		bottom = 13;
-
-	playercolor = top * 16 + bottom;
 
 	if (cmd_source != src_client)
 	{
-		Cvar_SetValue ("_cl_color", playercolor);
+		Cvar_Set ("topcolor", top);
+		Cvar_Set ("bottomcolor", bottom);
+
 		if (cls.state == ca_connected)
 			Cmd_ForwardToServer ();
 		return;
 	}
 
-	host_client->colors = playercolor;
-	host_client->edict->v.team = bottom + 1;
-
-	// send notification to all clients
-	MSG_WriteByte (&sv.reliable_datagram, svc_updatecolors);
-	MSG_WriteByte (&sv.reliable_datagram, host_client - svs.clients);
-	MSG_WriteByte (&sv.reliable_datagram, host_client->colors);
+	SV_UpdateInfo ((host_client - svs.clients) + 1, "topcolor", top);
+	SV_UpdateInfo ((host_client - svs.clients) + 1, "bottomcolor", bottom);
 }
 
 /*
@@ -2699,6 +2689,137 @@ void Host_Resetdemos (void)
 	cls.demonum = 0;
 }
 
+static void Info_ClientPrint_Callback (void *ctx, const char *key, const char *val)
+{
+	SV_ClientPrintf ("%20s: %s\n", key, val);
+}
+
+static void Host_Serverinfo_f (void)
+{
+	// serverinfo command
+	if (cmd_source == src_client)
+	{
+		Info_Enumerate (svs.serverinfo, Info_ClientPrint_Callback, NULL);
+		return;
+	}
+	if (Cmd_Argc () != 3)
+	{
+		Con_Printf ("Serverinfo:\n");
+		if (cls.state >= ca_connected && cmd_source != src_client)
+			Info_Print (cl.serverinfo);
+		else
+			Info_Print (svs.serverinfo);
+	}
+	else if (cmd_source == src_command)
+	{
+		const char *key = Cmd_Argv (1);
+		const char *val = Cmd_Argv (2);
+		if (*key == '*')
+		{
+			Con_Printf ("Refusing to set key \"%s\"\n", key);
+			return;
+		}
+		SV_UpdateInfo (0, key, val);
+	}
+	else
+		Con_Printf ("Serverinfo may not be changed here\n");
+}
+
+static void Host_Setinfo_f (void)
+{
+	const char *key = Cmd_Argv (1);
+	const char *val = Cmd_Argv (2);
+
+	if (cmd_source == src_client)
+	{ // clc_stringcmd version
+		if (Cmd_Argc () != 3)
+		{
+			SV_ClientPrintf ("Your Serverside User Info:\n");
+			Info_Enumerate (host_client->userinfo, Info_ClientPrint_Callback, NULL);
+		}
+		else
+		{
+			if (*key == '*')
+				return; // users may not change * keys (beyond initial connection anyway).
+			SV_UpdateInfo ((host_client - svs.clients) + 1, key, val);
+		}
+	}
+	else
+	{ // console version
+		if (Cmd_Argc () != 3)
+		{
+			Con_Printf ("User Info:\n");
+			Info_Print (cls.userinfo);
+		}
+		else
+		{
+			cvar_t *var = Cvar_FindVar (key);
+			if (var && var->flags & CVAR_USERINFO)
+				Cvar_Set (key, val);
+			else
+			{
+				Info_SetKey (cls.userinfo, sizeof (cls.userinfo), key, val);
+				if (cls.state == ca_connected)
+					Cmd_ForwardToServer ();
+			}
+		}
+	}
+}
+static void Host_User_f (void)
+{
+	/*if (sv.active)
+	{
+		int i;
+		if (Cmd_Argc() == 2)
+		{
+			i = atoi(Cmd_Argv(1));
+
+			if (i >= cl.maxclients)
+				return;	//not a valid slot.
+
+			Con_Printf("User %i (%s):\n", i, svs.clients[i].name);
+			Info_Print(svs.clients[i].userinfo);
+		}
+		else
+		{
+			for (i = 0; i < svs.maxclients; i++)
+			{
+				if (*svs.clients[i].name)
+				{
+					Con_Printf("User %i (%s):\n", i, svs.clients[i].name);
+					Info_Print(svs.clients[i].userinfo);
+				}
+			}
+		}
+	}
+	else*/
+	if (cls.state == ca_connected)
+	{
+		int i;
+		if (Cmd_Argc () == 2)
+		{
+			i = atoi (Cmd_Argv (1));
+
+			if (i >= cl.maxclients)
+				return; // not a valid slot.
+
+			Con_Printf ("User %i (%s):\n", i, cl.scores[i].name);
+			Info_Print (cl.scores[i].userinfo);
+		}
+		else
+		{
+			for (i = 0; i < cl.maxclients; i++)
+			{
+				if (*cl.scores[i].name)
+				{
+					Con_Printf ("User %i (%s):\n", i, cl.scores[i].name);
+					Info_Print (cl.scores[i].userinfo);
+				}
+			}
+		}
+	}
+}
+
 //=============================================================================
 
 /*
@@ -2713,6 +2834,10 @@ void Host_InitCommands (void)
 	Cmd_AddCommand ("games", Host_Mods_f);		// as an alias to "mods" -- S.A. / QuakeSpasm
 	Cmd_AddCommand ("mapname", Host_Mapname_f); // johnfitz
 	Cmd_AddCommand ("randmap", Host_Randmap_f); // ericw
+
+	Cmd_AddCommand_ClientCommand ("serverinfo", Host_Serverinfo_f); // spike
+	Cmd_AddCommand_ClientCommand ("setinfo", Host_Setinfo_f);		// spike
+	Cmd_AddCommand ("user", Host_User_f);							// spike
 
 	Cmd_AddCommand ("status", Host_Status_f);
 	Cmd_AddCommand ("quit", Host_Quit_f);

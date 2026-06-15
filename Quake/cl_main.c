@@ -28,8 +28,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // references them even when on a unix system.
 
 // these two are not intended to be set directly
-cvar_t cl_name = {"_cl_name", "player", CVAR_ARCHIVE};
-cvar_t cl_color = {"_cl_color", "0", CVAR_ARCHIVE};
+cvar_t cl_name = {"_cl_name", "player", CVAR_ARCHIVE | CVAR_USERINFO};
+
+cvar_t cl_topcolor = {"topcolor", "0", CVAR_ARCHIVE | CVAR_USERINFO};
+cvar_t cl_bottomcolor = {"bottomcolor", "0", CVAR_ARCHIVE | CVAR_USERINFO};
 
 cvar_t cl_shownet = {"cl_shownet", "0", CVAR_NONE}; // can be 0, 1, or 2
 cvar_t cl_nolerp = {"cl_nolerp", "0", CVAR_NONE};
@@ -268,7 +270,7 @@ void CL_SignonReply (void)
 
 	case 2:
 		MSG_WriteByte (&cls.message, clc_stringcmd);
-		MSG_WriteString (&cls.message, va ("color %i %i\n", ((int)cl_color.value) >> 4, ((int)cl_color.value) & 0x0f));
+		MSG_WriteString (&cls.message, va ("color %i %i\n", (int)cl_topcolor.value, (int)cl_bottomcolor.value));
 
 		if (*cl.serverinfo)
 			Info_Enumerate (cls.userinfo, CL_SendInitialUserinfo, NULL);
@@ -1194,6 +1196,126 @@ static void CL_ServerExtension_UserinfoUpdate_f (void)
 	}
 }
 
+static void SV_DecodeUserInfo (client_t *client)
+{
+	char tmp[64];
+	int	 top, bot;
+
+	// figure out the player's colours
+	Info_GetKey (client->userinfo, "topcolor", tmp, sizeof (tmp));
+	top = atoi (tmp) & 15;
+	if (top > 13)
+		top = 13;
+	Info_GetKey (client->userinfo, "bottomcolor", tmp, sizeof (tmp));
+	bot = atoi (tmp) & 15;
+	if (bot > 13)
+		bot = 13;
+	// update their entity
+	client->edict->v.team = bot + 1;
+	client->colors = (top << 4) | bot;
+
+	// pick out a name and try to clean it up a little.
+	Info_GetKey (client->userinfo, "name", tmp, sizeof (tmp));
+
+	if (!*tmp)
+		q_strlcpy (tmp, "unnamed", sizeof (tmp));
+
+	if (strcmp (client->name, tmp) != 0)
+	{ // name changed.
+		if (client->name[0] && strcmp (client->name, "unconnected"))
+			Con_DPrintf ("\"%s\" renamed to \"%s\"\n", host_client->name, tmp);
+		strcpy (host_client->name, tmp);
+
+		client->edict->v.netname = PR_SetEngineString (client->name);
+	}
+}
+void SV_UpdateInfo (int edict, const char *keyname, const char *value)
+{
+	char oldvalue[1024];
+
+	char	   *info;
+	size_t		infosize;
+	const char *pre;
+	client_t   *infoplayer = NULL;
+
+	if (!edict)
+	{
+		cvar_t *var = Cvar_FindVar (keyname);
+		if (var && var->flags & CVAR_SERVERINFO)
+		{
+			Cvar_Set (var->name, value);
+			return;
+		}
+		info = svs.serverinfo;
+		infosize = sizeof (svs.serverinfo);
+		pre = "//svi ";
+	}
+	else if (edict <= svs.maxclients)
+	{
+		edict -= 1;
+		infoplayer = &svs.clients[edict];
+		info = infoplayer->userinfo;
+		infosize = sizeof (infoplayer->userinfo);
+		pre = va ("//ui %i", edict);
+	}
+	else
+		return;
+
+	Info_GetKey (info, keyname, oldvalue, sizeof (oldvalue));
+
+	if (strcmp (value, oldvalue))
+	{
+		// its changed. actually broadcast it.
+		Info_SetKey (info, infosize, keyname, value);
+
+		if (infoplayer)
+			SV_DecodeUserInfo (infoplayer);
+
+		if (*keyname == '_' || !sv.active)
+			return; // underscore means private (user) keys. these are not networked to clients.
+
+		Info_GetKey (info, keyname, oldvalue, sizeof (oldvalue));
+		value = oldvalue;
+
+		for (client_t *current_client = svs.clients; current_client < svs.clients + svs.maxclients; current_client++)
+		{
+			if (current_client->active)
+			{
+				if (current_client->protocol_pext2 & PEXT2_PREDINFO)
+				{
+					MSG_WriteByte (&current_client->message, svc_stufftext);
+					MSG_WriteString (&current_client->message, va ("%s \"%s\" \"%s\"\n", pre, keyname, value));
+				}
+				else if (infoplayer && !strcmp (keyname, "name"))
+				{
+					MSG_WriteByte (&current_client->message, svc_updatename);
+					MSG_WriteByte (&current_client->message, edict);
+					MSG_WriteString (&current_client->message, value);
+				}
+				else if (infoplayer && (!strcmp (keyname, "topcolor") || !strcmp (keyname, "bottomcolor")))
+				{
+					MSG_WriteByte (&current_client->message, svc_updatecolors);
+					MSG_WriteByte (&current_client->message, edict);
+					MSG_WriteByte (&current_client->message, infoplayer->colors);
+				}
+			}
+		}
+	}
+}
+
+static void CL_ServerExtension_Ignore_f (void)
+{
+	Con_DPrintf2 ("Ignoring stufftext: %s\n", Cmd_Argv (0));
+}
+
+static void CL_LegacyColor_f (void)
+{
+	// spike -- code to handle the legacy _cl_color cvar (we now use separate qw-style topcolor/bottomcolor userinfo cvars)
+	int col = atoi (Cmd_Argv (1));
+	Cvar_SetValue ("topcolor", (col >> 4) & 0xf);
+	Cvar_SetValue ("bottomcolor", (col >> 0) & 0xf);
+}
+
 /*
 =================
 CL_Init
@@ -1207,7 +1329,9 @@ void CL_Init (void)
 	CL_InitTEnts ();
 
 	Cvar_RegisterVariable (&cl_name);
-	Cvar_RegisterVariable (&cl_color);
+	Cvar_RegisterVariable (&cl_topcolor);
+	Cvar_RegisterVariable (&cl_bottomcolor);
+	Cmd_AddCommand ("_cl_color", CL_LegacyColor_f); // for loading vanilla configs (we have separate qw-style topcolor/bottomcolor userinfo cvars instead)
 	Cvar_RegisterVariable (&cl_upspeed);
 	Cvar_RegisterVariable (&cl_forwardspeed);
 	Cvar_RegisterVariable (&cl_backspeed);
@@ -1254,4 +1378,20 @@ void CL_Init (void)
 	// spike -- userinfo stuff
 	Cmd_AddCommand_ServerCommand ("fui", CL_ServerExtension_FullUserinfo_f);
 	Cmd_AddCommand_ServerCommand ("ui", CL_ServerExtension_UserinfoUpdate_f);
+
+	Cmd_AddCommand_ServerCommand ("paknames", CL_ServerExtension_Ignore_f);		 // package names in use by the server (including gamedir+extension)
+	Cmd_AddCommand_ServerCommand ("paks", CL_ServerExtension_Ignore_f);			 // provides hashes to go with the paknames list
+	Cmd_AddCommand_ServerCommand ("wps", CL_ServerExtension_Ignore_f);			 // ktx/cspree weapon stats
+	Cmd_AddCommand_ServerCommand ("it", CL_ServerExtension_Ignore_f);			 // cspree item timers
+	Cmd_AddCommand_ServerCommand ("tinfo", CL_ServerExtension_Ignore_f);		 // ktx team info
+	Cmd_AddCommand_ServerCommand ("exectrigger", CL_ServerExtension_Ignore_f);	 // spike
+	Cmd_AddCommand_ServerCommand ("csqc_progname", CL_ServerExtension_Ignore_f); // spike
+	Cmd_AddCommand_ServerCommand ("csqc_progsize", CL_ServerExtension_Ignore_f); // spike
+	Cmd_AddCommand_ServerCommand ("csqc_progcrc", CL_ServerExtension_Ignore_f);	 // spike
+	Cmd_AddCommand_ServerCommand ("cl_fullpitch", CL_ServerExtension_Ignore_f);	 // spike
+	Cmd_AddCommand_ServerCommand ("pq_fullpitch", CL_ServerExtension_Ignore_f);	 // spike
+
+	Cmd_AddCommand_ServerCommand ("cl_serverextension_download", CL_ServerExtension_Ignore_f); // spike
+	Cmd_AddCommand_ServerCommand ("cl_downloadbegin", CL_ServerExtension_Ignore_f);			   // spike
+	Cmd_AddCommand_ServerCommand ("cl_downloadfinished", CL_ServerExtension_Ignore_f);		   // spike
 }
