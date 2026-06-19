@@ -13,6 +13,7 @@ layout (push_constant) uniform PushConsts
 	vec3  fog_color;
 	float fog_density;
 	float alpha;
+	float farclip;
 }
 push_constants;
 
