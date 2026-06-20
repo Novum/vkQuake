@@ -1160,9 +1160,13 @@ static void R_FlushBatch (
 	{
 		int pipeline_index =
 			(fullbright_enabled ? 1 : 0) + (alpha_test ? 2 : 0) + (alpha_blend ? 4 : 0) + (vid_filter.value != 0 && vid_palettize.value != 0 ? 8 : 0);
-		vulkan_pipeline_t pipeline = cbx->render_pass_index == RENDER_PASS_INDEX_WBOIT
-										 ? vulkan_globals.world_wboit_pipelines[pipeline_index]
-										 : vulkan_globals.world_pipelines[R_MainPassPipelineVariant (cbx->render_pass_index)][pipeline_index];
+		vulkan_pipeline_t pipeline;
+		if (cbx->render_pass_index == RENDER_PASS_INDEX_WBOIT)
+			pipeline = vulkan_globals.world_wboit_pipelines[pipeline_index];
+		else if (cbx->render_pass_index == RENDER_PASS_INDEX_PEEL_0 || cbx->render_pass_index == RENDER_PASS_INDEX_PEEL_1)
+			pipeline = vulkan_globals.world_peel_pipelines[cbx->render_pass_index - RENDER_PASS_INDEX_PEEL_0][pipeline_index];
+		else
+			pipeline = vulkan_globals.world_pipelines[R_MainPassPipelineVariant (cbx->render_pass_index)][pipeline_index];
 		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 
 		float constant_factor = 0.0f, slope_factor = 0.0f;

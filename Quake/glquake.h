@@ -229,6 +229,9 @@ typedef enum
 	RENDER_PASS_INDEX_COUNT,
 } render_pass_index_t;
 
+#define RENDER_PASS_INDEX_PEEL_0 4
+#define RENDER_PASS_INDEX_PEEL_1 5
+
 typedef enum
 {
 	MAIN_RENDER_PASS_STANDARD,
@@ -331,14 +334,18 @@ typedef struct
 	vulkan_pipeline_t		 basic_blend_pipeline[RENDER_PASS_INDEX_COUNT];
 	vulkan_pipeline_t		 basic_notex_blend_pipeline[RENDER_PASS_INDEX_COUNT];
 	vulkan_pipeline_layout_t basic_pipeline_layout;
+	vulkan_pipeline_layout_t depth_peel_pipeline_layout;
 	vulkan_pipeline_t		 world_pipelines[MAIN_RENDER_PASS_VARIANT_COUNT][WORLD_PIPELINE_COUNT];
 	vulkan_pipeline_t		 world_wboit_pipelines[WORLD_PIPELINE_COUNT];
+	vulkan_pipeline_t		 world_peel_pipelines[2][WORLD_PIPELINE_COUNT];
 	vulkan_pipeline_layout_t world_pipeline_layout;
 	vulkan_pipeline_t		 raster_tex_warp_pipeline;
 	vulkan_pipeline_t		 particle_pipeline;
 	vulkan_pipeline_t		 particle_oit_pipeline;
+	vulkan_pipeline_t		 particle_peel_pipeline[2];
 	vulkan_pipeline_t		 sprite_pipeline[MAIN_RENDER_PASS_VARIANT_COUNT];
 	vulkan_pipeline_t		 sprite_oit_pipeline;
+	vulkan_pipeline_t		 sprite_peel_pipeline[2];
 	vulkan_pipeline_layout_t sky_pipeline_layout[2]; // one texture (cubemap-like), two textures (animated layers)
 	vulkan_pipeline_t		 sky_stencil_pipeline[MAIN_RENDER_PASS_VARIANT_COUNT][2];
 	vulkan_pipeline_t		 sky_color_pipeline[MAIN_RENDER_PASS_VARIANT_COUNT][2];
@@ -347,10 +354,15 @@ typedef struct
 	vulkan_pipeline_t		 sky_layer_pipeline[MAIN_RENDER_PASS_VARIANT_COUNT][2];
 	vulkan_pipeline_t		 alias_pipelines[MAIN_RENDER_PASS_VARIANT_COUNT][MODEL_PIPELINE_COUNT];
 	vulkan_pipeline_t		 alias_wboit_pipelines[MODEL_PIPELINE_COUNT];
+	vulkan_pipeline_t		 alias_peel_pipelines[2][MODEL_PIPELINE_COUNT];
 	vulkan_pipeline_t		 md5_pipelines[MAIN_RENDER_PASS_VARIANT_COUNT][MODEL_PIPELINE_COUNT];
 	vulkan_pipeline_t		 md5_wboit_pipelines[MODEL_PIPELINE_COUNT];
+	vulkan_pipeline_t		 md5_peel_pipelines[2][MODEL_PIPELINE_COUNT];
 	vulkan_pipeline_t		 postprocess_pipeline;
 	vulkan_pipeline_t		 wboit_resolve_pipeline;
+	vulkan_pipeline_t		 hybrid_resolve_pipeline;
+	vulkan_pipeline_t		 hybrid_resolve_msaa_pipeline;
+	vulkan_pipeline_layout_t hybrid_resolve_pipeline_layout;
 	vulkan_pipeline_t		 screen_effects_pipeline;
 	vulkan_pipeline_t		 screen_effects_scale_pipeline;
 	vulkan_pipeline_t		 screen_effects_scale_sops_pipeline;
@@ -370,6 +382,7 @@ typedef struct
 #ifdef PSET_SCRIPT
 	vulkan_pipeline_t fte_particle_pipelines[MAIN_RENDER_PASS_VARIANT_COUNT][FTE_PARTICLE_PIPELINE_COUNT];
 	vulkan_pipeline_t fte_particle_wboit_pipelines[FTE_PARTICLE_PIPELINE_COUNT];
+	vulkan_pipeline_t fte_particle_peel_pipelines[2][FTE_PARTICLE_PIPELINE_COUNT];
 #endif
 
 	// Descriptors
@@ -378,6 +391,8 @@ typedef struct
 	vulkan_desc_set_layout_t single_texture_set_layout;
 	vulkan_desc_set_layout_t input_attachment_set_layout;
 	vulkan_desc_set_layout_t oit_input_attachment_set_layout;
+	vulkan_desc_set_layout_t hybrid_resolve_set_layout;
+	VkRenderPass			 peel_render_pass;
 	VkDescriptorSet			 screen_effects_desc_set;
 	vulkan_desc_set_layout_t screen_effects_set_layout;
 	vulkan_desc_set_layout_t single_texture_cs_write_set_layout;
@@ -718,6 +733,8 @@ void R_CreateDescriptorSetLayouts ();
 void R_InitSamplers ();
 void R_CreatePipelineLayouts ();
 void R_CreatePipelines ();
+void R_CreatePeelPipelines ();
+void R_CreatePeelPipelines ();
 void R_DestroyPipelines ();
 
 #define MAX_PUSH_CONSTANT_SIZE 128 // Vulkan guaranteed minimum maxPushConstantsSize

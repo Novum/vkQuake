@@ -145,25 +145,33 @@ static void GL_DrawAliasFrame (
 	}
 
 	const qboolean use_wboit_pipeline = (cbx->render_pass_index == RENDER_PASS_INDEX_WBOIT) && showtris == 0 && has_alpha;
+	const qboolean use_peel_pipeline = (cbx->render_pass_index == RENDER_PASS_INDEX_PEEL_0 || cbx->render_pass_index == RENDER_PASS_INDEX_PEEL_1) && showtris == 0 && has_alpha;
 	if (cbx->render_pass_index == RENDER_PASS_INDEX_WBOIT && !use_wboit_pipeline)
 		return;
+	if ((cbx->render_pass_index == RENDER_PASS_INDEX_PEEL_0 || cbx->render_pass_index == RENDER_PASS_INDEX_PEEL_1) && !use_peel_pipeline)
+		return;
+	int peel_layer = cbx->render_pass_index - RENDER_PASS_INDEX_PEEL_0;
 
 	switch (paliashdr->poseverttype)
 	{
 	case PV_MD5:
-		pipeline = use_wboit_pipeline ? vulkan_globals.md5_wboit_pipelines[pipeline_index]
+		pipeline = use_peel_pipeline ? vulkan_globals.md5_peel_pipelines[peel_layer][pipeline_index]
+									  : use_wboit_pipeline ? vulkan_globals.md5_wboit_pipelines[pipeline_index]
 									  : vulkan_globals.md5_pipelines[R_MainPassPipelineVariant (cbx->render_pass_index)][pipeline_index];
 		break;
 	case PV_QUAKE1:
-		pipeline = use_wboit_pipeline ? vulkan_globals.alias_wboit_pipelines[pipeline_index]
+		pipeline = use_peel_pipeline ? vulkan_globals.alias_peel_pipelines[peel_layer][pipeline_index]
+									  : use_wboit_pipeline ? vulkan_globals.alias_wboit_pipelines[pipeline_index]
 									  : vulkan_globals.alias_pipelines[R_MainPassPipelineVariant (cbx->render_pass_index)][pipeline_index];
 		break;
 	case PV_QUAKE3:
-		pipeline = use_wboit_pipeline ? vulkan_globals.alias_wboit_pipelines[pipeline_index]
+		pipeline = use_peel_pipeline ? vulkan_globals.alias_peel_pipelines[peel_layer][pipeline_index]
+									  : use_wboit_pipeline ? vulkan_globals.alias_wboit_pipelines[pipeline_index]
 									  : vulkan_globals.alias_pipelines[R_MainPassPipelineVariant (cbx->render_pass_index)][pipeline_index];
 		break;
 	default:
-		pipeline = use_wboit_pipeline ? vulkan_globals.alias_wboit_pipelines[pipeline_index]
+		pipeline = use_peel_pipeline ? vulkan_globals.alias_peel_pipelines[peel_layer][pipeline_index]
+									  : use_wboit_pipeline ? vulkan_globals.alias_wboit_pipelines[pipeline_index]
 									  : vulkan_globals.alias_pipelines[R_MainPassPipelineVariant (cbx->render_pass_index)][pipeline_index];
 	}
 

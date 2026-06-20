@@ -30,6 +30,8 @@ static vulkan_pipeline_t R_SpritePipelineForRenderPass (cb_context_t *cbx)
 {
 	if (cbx->render_pass_index == RENDER_PASS_INDEX_WBOIT)
 		return vulkan_globals.sprite_oit_pipeline;
+	if (cbx->render_pass_index == RENDER_PASS_INDEX_PEEL_0 || cbx->render_pass_index == RENDER_PASS_INDEX_PEEL_1)
+		return vulkan_globals.sprite_peel_pipeline[cbx->render_pass_index - RENDER_PASS_INDEX_PEEL_0];
 	return vulkan_globals.sprite_pipeline[R_MainPassPipelineVariant (cbx->render_pass_index)];
 }
 

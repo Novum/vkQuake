@@ -1028,9 +1028,14 @@ R_DrawParticles -- johnfitz -- moved all non-drawing code to CL_RunParticles
 void R_DrawParticles (cb_context_t *cbx)
 {
 	R_BeginDebugUtilsLabel (cbx, "Particles");
-	R_BindPipeline (
-		cbx, VK_PIPELINE_BIND_POINT_GRAPHICS,
-		(cbx->render_pass_index == RENDER_PASS_INDEX_WBOIT) ? vulkan_globals.particle_oit_pipeline : vulkan_globals.particle_pipeline);
+	vulkan_pipeline_t pp;
+	if (cbx->render_pass_index == RENDER_PASS_INDEX_WBOIT)
+		pp = vulkan_globals.particle_oit_pipeline;
+	else if (cbx->render_pass_index == RENDER_PASS_INDEX_PEEL_0 || cbx->render_pass_index == RENDER_PASS_INDEX_PEEL_1)
+		pp = vulkan_globals.particle_peel_pipeline[cbx->render_pass_index - RENDER_PASS_INDEX_PEEL_0];
+	else
+		pp = vulkan_globals.particle_pipeline;
+	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, pp);
 	vulkan_globals.vk_cmd_bind_descriptor_sets (
 		cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &particletexture->descriptor_set, 0, NULL);
 
