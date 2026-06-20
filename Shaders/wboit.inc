@@ -8,7 +8,9 @@ void WriteOITTransparency (vec4 frag_color, out vec4 oit_accum, out float oit_re
 	// Term 1: depth-based weight (closer fragments get higher influence)
 	float w_depth = alpha * d * d;
 	// Term 2: discontinuity weight (handles semi-transparent layers at depth jumps)
-	float M = 10.0f;
+	// Adaptive M: closer fragments get higher discontinuity weight to better
+	// resolve overlapping transparent layers near the camera
+	float M = clamp (10.0f / max (d, 0.01f), 1.0f, 100.0f);
 	float w_disc = alpha * (1.0f - alpha) * (1.0f - alpha) * M * M;
 
 	float weight = clamp (max (w_depth, w_disc), 1e-2f, 3e3f);
