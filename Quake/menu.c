@@ -114,6 +114,7 @@ extern cvar_t autoload;
 extern cvar_t autofastload;
 extern cvar_t r_rtshadows;
 extern cvar_t r_particles;
+extern cvar_t r_oit;
 extern cvar_t r_enhancedmodels;
 extern cvar_t r_lerpmodels;
 extern cvar_t r_lerpmove;
@@ -1708,6 +1709,7 @@ enum
 	GRAPHICS_OPT_MODEL_INTERPOLATION,
 	GRAPHICS_OPT_PARTICLES,
 	GRAPHICS_OPT_SHADOWS,
+	GRAPHICS_OPT_OIT,
 	GRAPHICS_OPTIONS_ITEMS,
 };
 
@@ -1820,6 +1822,29 @@ static void M_GraphicsOptions_ChooseNextParticles (int dir)
 	Cvar_SetValueQuick (&r_particles, (float)value);
 }
 
+static void M_GraphicsOptions_ChooseNextOIT (int dir)
+{
+	int value = r_oit.value;
+
+	if (dir > 0)
+	{
+		if (value >= 3)
+			value = 0;
+		else
+			++value;
+	}
+	else
+	{
+		if (value <= 0)
+			value = 3;
+		else
+			--value;
+	}
+
+	Cvar_SetValueQuick (&r_oit, (float)value);
+	Cbuf_AddText ("vid_restart\n");
+}
+
 static void M_GraphicsOptions_AdjustSliders (int dir, qboolean mouse)
 {
 	float f, clamped_mouse = CLAMP (SLIDER_START, (float)m_mouse_x, SLIDER_END);
@@ -1899,6 +1924,9 @@ static void M_GraphicsOptions_AdjustSliders (int dir, qboolean mouse)
 	case GRAPHICS_OPT_SHADOWS:
 		if (vulkan_globals.ray_query)
 			Cvar_SetValueQuick (&r_rtshadows, (float)(((int)r_rtshadows.value + 4 + dir) % 4));
+		break;
+	case GRAPHICS_OPT_OIT:
+		M_GraphicsOptions_ChooseNextOIT (dir);
 		break;
 	}
 }
@@ -2033,6 +2061,12 @@ static void M_GraphicsOptions_Draw (cb_context_t *cbx)
 		M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_SHADOWS, "Dynamic Shadows");
 		const char *shadow_modes[] = {"off", "low", "medium", "high"};
 		M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GRAPHICS_OPT_SHADOWS, shadow_modes[(int)r_rtshadows.value]);
+	}
+
+	{
+		M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_OIT, "Transparent");
+		const char *oit_modes[] = {"off", "WBOIT", "Hybrid", "MBOT"};
+		M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GRAPHICS_OPT_OIT, oit_modes[(int)r_oit.value]);
 	}
 
 	// cursor
