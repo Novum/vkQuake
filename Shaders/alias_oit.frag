@@ -36,7 +36,7 @@ layout (location = 1) out float out_oit_reveal;
 
 #define ALIAS_ALPHA_TEST 0
 #include "alias_common.inc"
-#include "wboit.inc"
+#include "oit.inc"
 
 void main ()
 {

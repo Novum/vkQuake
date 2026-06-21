@@ -23,7 +23,7 @@ layout (location = 0) out vec4 out_oit_accum;
 layout (location = 1) out vec2 out_oit_moments;
 
 #include "basic_common.inc"
-#include "mbot.inc"
+#include "oit.inc"
 
 void main ()
 {

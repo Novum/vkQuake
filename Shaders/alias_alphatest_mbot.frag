@@ -36,7 +36,7 @@ layout (location = 1) out vec2 out_oit_moments;
 
 #define ALIAS_ALPHA_TEST 1
 #include "alias_common.inc"
-#include "mbot.inc"
+#include "oit.inc"
 
 void main ()
 {

@@ -34,7 +34,7 @@ layout (constant_id = 3) const bool quantize_lm = false;
 layout (constant_id = 4) const bool scaled_lm = false;
 
 #include "world_common.inc"
-#include "mbot.inc"
+#include "oit.inc"
 
 void main ()
 {

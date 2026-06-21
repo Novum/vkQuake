@@ -18,8 +18,8 @@
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\alias_oit.frag">
       <FileType>Document</FileType>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\alias_common.inc;$(SolutionDir)..\..\Shaders\wboit.inc;%(AdditionalInputs)</AdditionalInputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\alias_common.inc;$(SolutionDir)..\..\Shaders\wboit.inc;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\alias_common.inc;$(SolutionDir)..\..\Shaders\oit.inc;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\alias_common.inc;$(SolutionDir)..\..\Shaders\oit.inc;%(AdditionalInputs)</AdditionalInputs>
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\alias.vert">
       <FileType>Document</FileType>
@@ -31,8 +31,8 @@
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\alias_alphatest_oit.frag">
       <FileType>Document</FileType>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\alias_common.inc;$(SolutionDir)..\..\Shaders\wboit.inc;%(AdditionalInputs)</AdditionalInputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\alias_common.inc;$(SolutionDir)..\..\Shaders\wboit.inc;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\alias_common.inc;$(SolutionDir)..\..\Shaders\oit.inc;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\alias_common.inc;$(SolutionDir)..\..\Shaders\oit.inc;%(AdditionalInputs)</AdditionalInputs>
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\basic.frag">
       <FileType>Document</FileType>
@@ -41,8 +41,8 @@
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\basic_oit.frag">
       <FileType>Document</FileType>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\basic_common.inc;$(SolutionDir)..\..\Shaders\wboit.inc;%(AdditionalInputs)</AdditionalInputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\basic_common.inc;$(SolutionDir)..\..\Shaders\wboit.inc;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\basic_common.inc;$(SolutionDir)..\..\Shaders\oit.inc;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\basic_common.inc;$(SolutionDir)..\..\Shaders\oit.inc;%(AdditionalInputs)</AdditionalInputs>
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\basic.vert">
       <FileType>Document</FileType>
@@ -142,8 +142,8 @@ $(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(Solution
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\world_oit.frag">
       <FileType>Document</FileType>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\world_common.inc;$(SolutionDir)..\..\Shaders\wboit.inc;%(AdditionalInputs)</AdditionalInputs>
-      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\world_common.inc;$(SolutionDir)..\..\Shaders\wboit.inc;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)..\..\Shaders\world_common.inc;$(SolutionDir)..\..\Shaders\oit.inc;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)..\..\Shaders\world_common.inc;$(SolutionDir)..\..\Shaders\oit.inc;%(AdditionalInputs)</AdditionalInputs>
     </CustomBuild>
     <CustomBuild Include="..\..\Shaders\world.vert">
       <FileType>Document</FileType>
@@ -156,7 +156,7 @@ $(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(Solution
     </CustomBuild>
     <None Include="..\..\Shaders\alias_common.inc" />
     <None Include="..\..\Shaders\basic_common.inc" />
-    <None Include="..\..\Shaders\wboit.inc" />
+    <None Include="..\..\Shaders\oit.inc" />
     <None Include="..\..\Shaders\screen_effects.inc" />
     <CustomBuild Include="..\..\Shaders\skinning.comp">
       <FileType>Document</FileType>
