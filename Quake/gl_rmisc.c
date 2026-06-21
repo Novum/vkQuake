@@ -1792,6 +1792,28 @@ void R_CreatePipelineLayouts ()
 	}
 
 	{
+		// Hybrid resolve (4 peel layers + 2 input attachments)
+		VkDescriptorSetLayout hybrid_resolve_descriptor_set_layouts[1] = {
+			vulkan_globals.hybrid_resolve_set_layout.handle,
+		};
+
+		ZEROED_STRUCT (VkPushConstantRange, push_constant_range);
+
+		ZEROED_STRUCT (VkPipelineLayoutCreateInfo, pipeline_layout_create_info);
+		pipeline_layout_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+		pipeline_layout_create_info.setLayoutCount = 1;
+		pipeline_layout_create_info.pSetLayouts = hybrid_resolve_descriptor_set_layouts;
+		pipeline_layout_create_info.pushConstantRangeCount = 0;
+		pipeline_layout_create_info.pPushConstantRanges = NULL;
+
+		err = vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &vulkan_globals.hybrid_resolve_pipeline_layout.handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreatePipelineLayout failed (hybrid_resolve_pipeline_layout) with code %i", (int)err);
+		GL_SetObjectName ((uint64_t)vulkan_globals.hybrid_resolve_pipeline_layout.handle, VK_OBJECT_TYPE_PIPELINE_LAYOUT, "hybrid_resolve_pipeline_layout");
+		vulkan_globals.hybrid_resolve_pipeline_layout.push_constant_range = push_constant_range;
+	}
+
+	{
 		// Screen effects
 		VkDescriptorSetLayout screen_effects_descriptor_set_layouts[1] = {
 			vulkan_globals.screen_effects_set_layout.handle,
@@ -4334,9 +4356,9 @@ void R_CreatePeelPipelines ()
 	infos.depth_stencil_state.depthWriteEnable = VK_TRUE;
 	infos.depth_stencil_state.depthCompareOp = VK_COMPARE_OP_LESS;
 	infos.shader_stages[1].module = basic_frag_module;
-	for (int peel = 0; peel < 2; ++peel)
+	for (int peel = 0; peel < NUM_PEEL_LAYERS; ++peel)
 	{
-		const int index = peel == 0 ? RENDER_PASS_INDEX_PEEL_0 : RENDER_PASS_INDEX_PEEL_1;
+		const int index = peel == 0 ? RENDER_PASS_INDEX_PEEL_0 : (peel == 1 ? RENDER_PASS_INDEX_PEEL_1 : (peel == 2 ? RENDER_PASS_INDEX_PEEL_2 : RENDER_PASS_INDEX_PEEL_3));
 		err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.basic_blend_pipeline[index].handle);
 		if (err != VK_SUCCESS) Sys_Error ("vkCreateGraphicsPipelines failed (basic_blend_peel) with code %i", (int)err);
 		vulkan_globals.basic_blend_pipeline[index].layout = vulkan_globals.basic_pipeline_layout;
@@ -4344,7 +4366,7 @@ void R_CreatePeelPipelines ()
 	}
 	infos.graphics_pipeline.layout = vulkan_globals.world_pipeline_layout.handle;
 	infos.shader_stages[1].module = world_frag_module;
-	for (int peel = 0; peel < 2; ++peel)
+	for (int peel = 0; peel < NUM_PEEL_LAYERS; ++peel)
 	{
 		for (int i = 0; i < WORLD_PIPELINE_COUNT; ++i)
 		{
@@ -4356,7 +4378,7 @@ void R_CreatePeelPipelines ()
 	}
 	infos.graphics_pipeline.layout = vulkan_globals.basic_pipeline_layout.handle;
 	infos.shader_stages[1].module = basic_frag_module;
-	for (int peel = 0; peel < 2; ++peel)
+	for (int peel = 0; peel < NUM_PEEL_LAYERS; ++peel)
 	{
 		err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.sprite_peel_pipeline[peel].handle);
 		if (err != VK_SUCCESS) Sys_Error ("vkCreateGraphicsPipelines failed (sprite_peel) with code %i", (int)err);
@@ -4554,13 +4576,13 @@ void R_DestroyPipelines (void)
 	}
 	for (i = 0; i < WORLD_PIPELINE_COUNT; ++i)
 	{
-		for (int peel = 0; peel < 2; ++peel)
+		for (int peel = 0; peel < NUM_PEEL_LAYERS; ++peel)
 		{
 			vkDestroyPipeline (vulkan_globals.device, vulkan_globals.world_peel_pipelines[peel][i].handle, NULL);
 			vulkan_globals.world_peel_pipelines[peel][i].handle = VK_NULL_HANDLE;
 		}
 	}
-	for (int peel = 0; peel < 2; ++peel)
+	for (int peel = 0; peel < NUM_PEEL_LAYERS; ++peel)
 	{
 		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.sprite_peel_pipeline[peel].handle, NULL);
 		vulkan_globals.sprite_peel_pipeline[peel].handle = VK_NULL_HANDLE;

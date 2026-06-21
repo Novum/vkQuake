@@ -866,7 +866,8 @@ void R_DrawIndirectBrushes (cb_context_t *cbx, qboolean draw_water, qboolean tra
 				pipeline = vulkan_globals.world_wboit_pipelines[pipeline_index];
 			else if (cbx->render_pass_index == RENDER_PASS_INDEX_MBOT)
 				pipeline = vulkan_globals.world_mbot_pipelines[pipeline_index];
-			else if (cbx->render_pass_index == RENDER_PASS_INDEX_PEEL_0 || cbx->render_pass_index == RENDER_PASS_INDEX_PEEL_1)
+			else if (cbx->render_pass_index == RENDER_PASS_INDEX_PEEL_0 || cbx->render_pass_index == RENDER_PASS_INDEX_PEEL_1 ||
+					 cbx->render_pass_index == RENDER_PASS_INDEX_PEEL_2 || cbx->render_pass_index == RENDER_PASS_INDEX_PEEL_3)
 				pipeline = vulkan_globals.world_peel_pipelines[cbx->render_pass_index - RENDER_PASS_INDEX_PEEL_0][pipeline_index];
 			else
 				pipeline = vulkan_globals.world_pipelines[R_MainPassPipelineVariant (cbx->render_pass_index)][pipeline_index];

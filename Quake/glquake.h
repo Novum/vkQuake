@@ -232,6 +232,9 @@ typedef enum
 
 #define RENDER_PASS_INDEX_PEEL_0 5
 #define RENDER_PASS_INDEX_PEEL_1 6
+#define RENDER_PASS_INDEX_PEEL_2 7
+#define RENDER_PASS_INDEX_PEEL_3 8
+#define NUM_PEEL_LAYERS 4
 
 typedef enum
 {
@@ -345,17 +348,17 @@ typedef struct
 	vulkan_pipeline_t		 world_pipelines[MAIN_RENDER_PASS_VARIANT_COUNT][WORLD_PIPELINE_COUNT];
 	vulkan_pipeline_t		 world_wboit_pipelines[WORLD_PIPELINE_COUNT];
 	vulkan_pipeline_t		 world_mbot_pipelines[WORLD_PIPELINE_COUNT];
-	vulkan_pipeline_t		 world_peel_pipelines[2][WORLD_PIPELINE_COUNT];
+	vulkan_pipeline_t		 world_peel_pipelines[NUM_PEEL_LAYERS][WORLD_PIPELINE_COUNT];
 	vulkan_pipeline_layout_t world_pipeline_layout;
 	vulkan_pipeline_t		 raster_tex_warp_pipeline;
 	vulkan_pipeline_t		 particle_pipeline;
 	vulkan_pipeline_t		 particle_oit_pipeline;
 	vulkan_pipeline_t		 particle_mbot_pipeline;
-	vulkan_pipeline_t		 particle_peel_pipeline[2];
+	vulkan_pipeline_t		 particle_peel_pipeline[NUM_PEEL_LAYERS];
 	vulkan_pipeline_t		 sprite_pipeline[MAIN_RENDER_PASS_VARIANT_COUNT];
 	vulkan_pipeline_t		 sprite_oit_pipeline;
 	vulkan_pipeline_t		 sprite_mbot_pipeline;
-	vulkan_pipeline_t		 sprite_peel_pipeline[2];
+	vulkan_pipeline_t		 sprite_peel_pipeline[NUM_PEEL_LAYERS];
 	vulkan_pipeline_layout_t sky_pipeline_layout[2]; // one texture (cubemap-like), two textures (animated layers)
 	vulkan_pipeline_t		 sky_stencil_pipeline[MAIN_RENDER_PASS_VARIANT_COUNT][2];
 	vulkan_pipeline_t		 sky_color_pipeline[MAIN_RENDER_PASS_VARIANT_COUNT][2];
@@ -365,11 +368,11 @@ typedef struct
 	vulkan_pipeline_t		 alias_pipelines[MAIN_RENDER_PASS_VARIANT_COUNT][MODEL_PIPELINE_COUNT];
 	vulkan_pipeline_t		 alias_wboit_pipelines[MODEL_PIPELINE_COUNT];
 	vulkan_pipeline_t		 alias_mbot_pipelines[MODEL_PIPELINE_COUNT];
-	vulkan_pipeline_t		 alias_peel_pipelines[2][MODEL_PIPELINE_COUNT];
+	vulkan_pipeline_t		 alias_peel_pipelines[NUM_PEEL_LAYERS][MODEL_PIPELINE_COUNT];
 	vulkan_pipeline_t		 md5_pipelines[MAIN_RENDER_PASS_VARIANT_COUNT][MODEL_PIPELINE_COUNT];
 	vulkan_pipeline_t		 md5_wboit_pipelines[MODEL_PIPELINE_COUNT];
 	vulkan_pipeline_t		 md5_mbot_pipelines[MODEL_PIPELINE_COUNT];
-	vulkan_pipeline_t		 md5_peel_pipelines[2][MODEL_PIPELINE_COUNT];
+	vulkan_pipeline_t		 md5_peel_pipelines[NUM_PEEL_LAYERS][MODEL_PIPELINE_COUNT];
 	vulkan_pipeline_t		 postprocess_pipeline;
 	vulkan_pipeline_t		 wboit_resolve_pipeline;
 	vulkan_pipeline_t		 mbot_resolve_pipeline;
@@ -397,7 +400,7 @@ typedef struct
 	vulkan_pipeline_t fte_particle_pipelines[MAIN_RENDER_PASS_VARIANT_COUNT][FTE_PARTICLE_PIPELINE_COUNT];
 	vulkan_pipeline_t fte_particle_wboit_pipelines[FTE_PARTICLE_PIPELINE_COUNT];
 	vulkan_pipeline_t fte_particle_mbot_pipelines[FTE_PARTICLE_PIPELINE_COUNT];
-	vulkan_pipeline_t fte_particle_peel_pipelines[2][FTE_PARTICLE_PIPELINE_COUNT];
+	vulkan_pipeline_t fte_particle_peel_pipelines[NUM_PEEL_LAYERS][FTE_PARTICLE_PIPELINE_COUNT];
 #endif
 
 	// Descriptors
