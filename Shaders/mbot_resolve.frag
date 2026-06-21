@@ -1,48 +1,18 @@
 #version 460
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_ARB_shading_language_420pack : enable
+#extension GL_GOOGLE_include_directive : enable
 
 layout (input_attachment_index = 0, set = 0, binding = 0) uniform subpassInput accum_input;
 layout (input_attachment_index = 1, set = 0, binding = 1) uniform subpassInput moments_input;
 
 layout (location = 0) out vec4 out_frag_color;
 
+#include "oit_resolve_common.inc"
+
 void main ()
 {
-	vec4  accumulation = subpassLoad (accum_input);
-
-	if (accumulation.a < 1e-6f)
-	{
-		out_frag_color = vec4 (0.0f, 0.0f, 0.0f, 0.0f);
-		return;
-	}
-
-	vec4  moments = subpassLoad (moments_input);
-
-	if (isinf (max (max (abs (accumulation.r), abs (accumulation.g)), abs (accumulation.b))))
-		accumulation.rgb = vec3 (accumulation.a);
-
-	float m1 = moments.r;
-	float m2 = moments.g;
-
-	float mean_z = m1 / accumulation.a;
-	float variance = m2 / accumulation.a - mean_z * mean_z;
-	float s2 = max (variance, 1e-10f);
-
-	float a = s2 / (s2 + mean_z * mean_z + 1e-10f);
-	float w0 = a * a;
-	float w1 = (1.0f - a);
-	float moment_transmittance = w0 * exp (-2.0f * m1) + w1 * exp (-m1 * mean_z / s2);
-
-	// WBOIT-style revealage as baseline
-	float wboit_revealage = exp (-accumulation.a * 10.0f);
-
-	// Blend: variance-aware when moments disagree (depth discontinuities),
-	// baseline otherwise — preserves murky water appearance
-	float transmittance = mix (wboit_revealage, moment_transmittance, clamp (variance * 1000.0f, 0.0f, 1.0f));
-	transmittance = clamp (transmittance, 0.0f, 1.0f);
-
-	vec3 average_color = accumulation.rgb / accumulation.a;
-
-	out_frag_color = vec4 (clamp (average_color, 0.0f, 1.0f), 1.0f - transmittance);
+	vec4 accumulation = subpassLoad (accum_input);
+	vec4 moments = subpassLoad (moments_input);
+	out_frag_color = MBOT_ResolveColor (accumulation, moments.rg);
 }
