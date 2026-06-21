@@ -24,6 +24,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 
 extern cvar_t gl_farclip;
+extern cvar_t r_oit_weight_m;
+extern cvar_t r_oit_weight_edge;
+extern cvar_t r_oit_weight_thick;
+extern cvar_t r_oit_weight_dither;
 
 //==============================================================================
 //
@@ -318,6 +322,26 @@ void Fog_EnableGFog (cb_context_t *cbx)
 	R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 16 * sizeof (float), 4 * sizeof (float), fog_values);
 	float farclip_value = gl_farclip.value;
 	R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 21 * sizeof (float), 1 * sizeof (float), &farclip_value);
+}
+
+/*
+============
+OIT_PushWeightParams
+
+Pushes OIT weight function parameters via push constants.
+Called alongside Fog_EnableGFog for secondary CBs that draw OIT geometry.
+Layout: float[22] = weight_m, float[23] = weight_edge, float[24] = weight_thick, float[25] = weight_dither
+============
+*/
+void OIT_PushWeightParams (cb_context_t *cbx)
+{
+	float oit_params[4] = {
+		r_oit_weight_m.value,
+		r_oit_weight_edge.value,
+		r_oit_weight_thick.value,
+		r_oit_weight_dither.value,
+	};
+	R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 22 * sizeof (float), 4 * sizeof (float), oit_params);
 }
 
 /*

@@ -14,6 +14,10 @@ layout (push_constant) uniform PushConsts
 	float fog_density;
 	float alpha;
 	float farclip;
+	float weight_m;
+	float weight_edge;
+	float weight_thick;
+	float weight_dither;
 }
 push_constants;
 

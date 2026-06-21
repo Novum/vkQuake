@@ -19,7 +19,7 @@ float OIT_Weight (float alpha, float z, vec2 position_screen)
 	// Term 2: discontinuity weight (handles semi-transparent layers at depth jumps)
 	// Adaptive M: closer fragments get higher discontinuity weight to better
 	// resolve overlapping transparent layers near the camera
-	float M = clamp (10.0f / max (d, 0.01f), 1.0f, 100.0f);
+	float M = clamp (push_constants.weight_m / max (d, 0.01f), 1.0f, 100.0f);
 	float w_disc = alpha * (1.0f - alpha) * (1.0f - alpha) * M * M;
 
 	// Term 3: per-pixel edge weight using screen-space derivatives of depth
@@ -27,16 +27,16 @@ float OIT_Weight (float alpha, float z, vec2 position_screen)
 	// surfaces meet — boosting weight here prevents background bleeding through edges
 	float grad = length (vec2 (dFdx (gl_FragCoord.z), dFdy (gl_FragCoord.z)));
 	float edge_scale = clamp (grad * z * 100.0f, 0.0f, 1.0f);
-	float w_edge = alpha * d * d * (1.0f + edge_scale * 4.0f);
+	float w_edge = alpha * d * d * (1.0f + edge_scale * push_constants.weight_edge);
 
 	// Term 4: thickness weight from screen-space depth gradients
 	// Thick transparent volumes (smoke, fog) should dominate thin layers (glass edges)
 	float thickness = abs (dFdx (z)) + abs (dFdy (z));
-	float w_thick = alpha * clamp (thickness * 0.1f, 0.0f, 1.0f) * d;
+	float w_thick = alpha * clamp (thickness * push_constants.weight_thick, 0.0f, 1.0f) * d;
 
 	float weight = max (max (max (w_depth, w_disc), w_edge), w_thick);
 
-	weight *= 1.0f + Dither4x4 (position_screen) * 0.1f;
+	weight *= 1.0f + Dither4x4 (position_screen) * push_constants.weight_dither;
 
 	weight = clamp (weight, 1e-2f, 1e2f);
 
@@ -48,7 +48,7 @@ float OIT_WeightParticle (float alpha, float z, vec2 position_screen)
 	float d = clamp (z / push_constants.farclip, 0.0f, 1.0f);
 	float weight = alpha * d * d;
 
-	weight *= 1.0f + Dither4x4 (position_screen) * 0.1f;
+	weight *= 1.0f + Dither4x4 (position_screen) * push_constants.weight_dither;
 	weight = clamp (weight, 1e-2f, 1e2f);
 
 	return weight;

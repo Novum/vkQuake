@@ -1710,6 +1710,7 @@ enum
 	GRAPHICS_OPT_PARTICLES,
 	GRAPHICS_OPT_SHADOWS,
 	GRAPHICS_OPT_OIT,
+	GRAPHICS_OPT_OIT_QUALITY,
 	GRAPHICS_OPTIONS_ITEMS,
 };
 
@@ -1845,6 +1846,51 @@ static void M_GraphicsOptions_ChooseNextOIT (int dir)
 	Cbuf_AddText ("vid_restart\n");
 }
 
+static void M_GraphicsOptions_ChooseNextOITQuality (int dir)
+{
+	static const char *oit_quality_names[] = {"default", "soft", "sharp", "aggressive"};
+	int num_presets = 4;
+
+	// Determine current preset by comparing cvar values to known presets
+	int current = 0; // default
+	if (r_oit_weight_m.value == 5.0f && r_oit_weight_edge.value == 6.0f)
+		current = 1; // soft
+	else if (r_oit_weight_m.value == 15.0f && r_oit_weight_edge.value == 2.0f)
+		current = 2; // sharp
+	else if (r_oit_weight_m.value == 20.0f && r_oit_weight_edge.value == 8.0f)
+		current = 3; // aggressive
+
+	int next = (current + dir + num_presets) % num_presets;
+
+	switch (next)
+	{
+	case 0: // default
+		Cvar_SetValueQuick (&r_oit_weight_m, 10.0f);
+		Cvar_SetValueQuick (&r_oit_weight_edge, 4.0f);
+		Cvar_SetValueQuick (&r_oit_weight_thick, 0.1f);
+		Cvar_SetValueQuick (&r_oit_weight_dither, 0.1f);
+		break;
+	case 1: // soft — better edge/thickness handling, less dither banding
+		Cvar_SetValueQuick (&r_oit_weight_m, 5.0f);
+		Cvar_SetValueQuick (&r_oit_weight_edge, 6.0f);
+		Cvar_SetValueQuick (&r_oit_weight_thick, 0.2f);
+		Cvar_SetValueQuick (&r_oit_weight_dither, 0.05f);
+		break;
+	case 2: // sharp — minimal edge boost, stronger dither to break banding
+		Cvar_SetValueQuick (&r_oit_weight_m, 15.0f);
+		Cvar_SetValueQuick (&r_oit_weight_edge, 2.0f);
+		Cvar_SetValueQuick (&r_oit_weight_thick, 0.05f);
+		Cvar_SetValueQuick (&r_oit_weight_dither, 0.2f);
+		break;
+	case 3: // aggressive — maximum quality, all terms boosted
+		Cvar_SetValueQuick (&r_oit_weight_m, 20.0f);
+		Cvar_SetValueQuick (&r_oit_weight_edge, 8.0f);
+		Cvar_SetValueQuick (&r_oit_weight_thick, 0.3f);
+		Cvar_SetValueQuick (&r_oit_weight_dither, 0.15f);
+		break;
+	}
+}
+
 static void M_GraphicsOptions_AdjustSliders (int dir, qboolean mouse)
 {
 	float f, clamped_mouse = CLAMP (SLIDER_START, (float)m_mouse_x, SLIDER_END);
@@ -1927,6 +1973,9 @@ static void M_GraphicsOptions_AdjustSliders (int dir, qboolean mouse)
 		break;
 	case GRAPHICS_OPT_OIT:
 		M_GraphicsOptions_ChooseNextOIT (dir);
+		break;
+	case GRAPHICS_OPT_OIT_QUALITY:
+		M_GraphicsOptions_ChooseNextOITQuality (dir);
 		break;
 	}
 }
@@ -2067,6 +2116,19 @@ static void M_GraphicsOptions_Draw (cb_context_t *cbx)
 		M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_OIT, "Transparent");
 		const char *oit_modes[] = {"off", "WBOIT", "Hybrid", "MBOT"};
 		M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GRAPHICS_OPT_OIT, oit_modes[(int)r_oit.value]);
+	}
+
+	{
+		M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_OIT_QUALITY, "OIT Quality");
+		const char *oit_quality_names[] = {"default", "soft", "sharp", "aggressive"};
+		int current = 0;
+		if (r_oit_weight_m.value == 5.0f && r_oit_weight_edge.value == 6.0f)
+			current = 1;
+		else if (r_oit_weight_m.value == 15.0f && r_oit_weight_edge.value == 2.0f)
+			current = 2;
+		else if (r_oit_weight_m.value == 20.0f && r_oit_weight_edge.value == 8.0f)
+			current = 3;
+		M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GRAPHICS_OPT_OIT_QUALITY, oit_quality_names[current]);
 	}
 
 	// cursor

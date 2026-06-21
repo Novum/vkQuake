@@ -64,6 +64,10 @@ cvar_t r_fullbright = {"r_fullbright", "0", CVAR_NONE};
 cvar_t r_lightmap = {"r_lightmap", "0", CVAR_NONE};
 cvar_t r_wateralpha = {"r_wateralpha", "0.5", CVAR_ARCHIVE};
 cvar_t r_oit = {"r_oit", "1", CVAR_ARCHIVE};
+cvar_t r_oit_weight_m = {"r_oit_weight_m", "10.0", CVAR_ARCHIVE};
+cvar_t r_oit_weight_edge = {"r_oit_weight_edge", "4.0", CVAR_ARCHIVE};
+cvar_t r_oit_weight_thick = {"r_oit_weight_thick", "0.1", CVAR_ARCHIVE};
+cvar_t r_oit_weight_dither = {"r_oit_weight_dither", "0.1", CVAR_ARCHIVE};
 cvar_t r_dynamic = {"r_dynamic", "1", CVAR_ARCHIVE};
 cvar_t r_novis = {"r_novis", "1", CVAR_ARCHIVE};
 #if defined(USE_SIMD)
@@ -981,6 +985,8 @@ static void R_DrawAlphaEntitiesTask (int index, void *use_tasks)
 		cb_context_t *cbx = vulkan_globals.secondary_cb_contexts[i ? SCBX_ALPHA_ENTITIES : SCBX_ALPHA_ENTITIES_ACROSS_WATER];
 		R_SetupContext (cbx);
 		Fog_EnableGFog (cbx);
+		if (oit_active)
+			OIT_PushWeightParams (cbx);
 		R_DrawEntitiesOnList (cbx, underwater ? 1 + i : 2 - i, i ? chain_alpha_model : chain_alpha_model_across_water, false);
 	}
 }
@@ -995,6 +1001,8 @@ static void R_DrawParticlesTask (void *unused)
 	cb_context_t *cbx = vulkan_globals.secondary_cb_contexts[SCBX_PARTICLES];
 	R_SetupContext (cbx);
 	Fog_EnableGFog (cbx); // johnfitz
+	if (oit_active)
+		OIT_PushWeightParams (cbx);
 	R_DrawParticles (cbx);
 #ifdef PSET_SCRIPT
 	cb_context_t *fte_blend_cbx = NULL;
@@ -1003,6 +1011,7 @@ static void R_DrawParticlesTask (void *unused)
 		fte_blend_cbx = vulkan_globals.secondary_cb_contexts[SCBX_FTE_PARTICLES_BLEND];
 		R_SetupContext (fte_blend_cbx);
 		Fog_EnableGFog (fte_blend_cbx);
+		OIT_PushWeightParams (fte_blend_cbx);
 	}
 	PScript_DrawParticles (oit_active ? fte_blend_cbx : cbx, oit_active ? cbx : NULL);
 #endif

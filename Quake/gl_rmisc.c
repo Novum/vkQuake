@@ -1571,7 +1571,7 @@ void R_CreatePipelineLayouts ()
 
 		ZEROED_STRUCT (VkPushConstantRange, push_constant_range);
 		push_constant_range.offset = 0;
-		push_constant_range.size = 21 * sizeof (float);
+		push_constant_range.size = 26 * sizeof (float);
 		push_constant_range.stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS;
 
 		ZEROED_STRUCT (VkPipelineLayoutCreateInfo, pipeline_layout_create_info);
@@ -1595,7 +1595,7 @@ void R_CreatePipelineLayouts ()
 
 		ZEROED_STRUCT (VkPushConstantRange, push_constant_range);
 		push_constant_range.offset = 0;
-		push_constant_range.size = 21 * sizeof (float);
+		push_constant_range.size = 26 * sizeof (float);
 		push_constant_range.stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS;
 
 		ZEROED_STRUCT (VkPipelineLayoutCreateInfo, pipeline_layout_create_info);
@@ -1619,7 +1619,7 @@ void R_CreatePipelineLayouts ()
 
 		ZEROED_STRUCT (VkPushConstantRange, push_constant_range);
 		push_constant_range.offset = 0;
-		push_constant_range.size = 21 * sizeof (float);
+		push_constant_range.size = 26 * sizeof (float);
 		push_constant_range.stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS;
 
 		ZEROED_STRUCT (VkPipelineLayoutCreateInfo, pipeline_layout_create_info);
@@ -1646,7 +1646,7 @@ void R_CreatePipelineLayouts ()
 
 		ZEROED_STRUCT (VkPushConstantRange, push_constant_range);
 		push_constant_range.offset = 0;
-		push_constant_range.size = 21 * sizeof (float);
+		push_constant_range.size = 26 * sizeof (float);
 		push_constant_range.stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS;
 
 		ZEROED_STRUCT (VkPipelineLayoutCreateInfo, pipeline_layout_create_info);
@@ -4633,9 +4633,13 @@ void R_Init (void)
 	Cvar_RegisterVariable (&r_drawentities);
 	Cvar_RegisterVariable (&r_drawviewmodel);
 	Cvar_RegisterVariable (&r_wateralpha);
-	Cvar_RegisterVariable (&r_oit);
 	Cvar_SetCallback (&r_wateralpha, R_SetWateralpha_f);
+	Cvar_RegisterVariable (&r_oit);
 	Cvar_SetCallback (&r_oit, R_SetOIT_f);
+	Cvar_RegisterVariable (&r_oit_weight_m);
+	Cvar_RegisterVariable (&r_oit_weight_edge);
+	Cvar_RegisterVariable (&r_oit_weight_thick);
+	Cvar_RegisterVariable (&r_oit_weight_dither);
 	Cvar_RegisterVariable (&r_dynamic);
 	Cvar_RegisterVariable (&r_novis);
 #if defined(USE_SIMD)
