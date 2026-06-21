@@ -2753,7 +2753,7 @@ static void R_CreateParticlesPipelines ()
 	infos.graphics_pipeline.subpass = 1;
 	infos.shader_stages[1].module = basic_mbot_frag_module;
 	infos.shader_stages[1].pSpecializationInfo = NULL;
-	R_SetWBOITBlend (infos.blend_attachment_states);
+	R_SetMBOTBlend (infos.blend_attachment_states);
 
 	assert (vulkan_globals.particle_mbot_pipeline.handle == VK_NULL_HANDLE);
 	err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.particle_mbot_pipeline.handle);
@@ -2953,7 +2953,7 @@ static void R_CreateFTEParticlesPipelines ()
 		infos.graphics_pipeline.subpass = 1;
 		infos.color_blend_state.attachmentCount = WBOIT_COLOR_ATTACHMENT_COUNT;
 		infos.shader_stages[1].module = basic_mbot_frag_module;
-		R_SetWBOITBlend (infos.blend_attachment_states);
+		R_SetMBOTBlend (infos.blend_attachment_states);
 		assert (vulkan_globals.fte_particle_mbot_pipelines[i].handle == VK_NULL_HANDLE);
 		err = vkCreateGraphicsPipelines (
 			vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.fte_particle_mbot_pipelines[i].handle);
@@ -3006,7 +3006,7 @@ static void R_CreateFTEParticlesPipelines ()
 			infos.graphics_pipeline.subpass = 1;
 			infos.color_blend_state.attachmentCount = WBOIT_COLOR_ATTACHMENT_COUNT;
 			infos.shader_stages[1].module = basic_mbot_frag_module;
-			R_SetWBOITBlend (infos.blend_attachment_states);
+			R_SetMBOTBlend (infos.blend_attachment_states);
 			assert (vulkan_globals.fte_particle_mbot_pipelines[i + 8].handle == VK_NULL_HANDLE);
 			err = vkCreateGraphicsPipelines (
 				vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.fte_particle_mbot_pipelines[i + 8].handle);
@@ -3075,7 +3075,7 @@ static void R_CreateSpritesPipelines ()
 	infos.graphics_pipeline.subpass = 1;
 	infos.color_blend_state.attachmentCount = WBOIT_COLOR_ATTACHMENT_COUNT;
 	infos.shader_stages[1].module = basic_mbot_frag_module;
-	R_SetWBOITBlend (infos.blend_attachment_states);
+	R_SetMBOTBlend (infos.blend_attachment_states);
 
 	assert (vulkan_globals.sprite_mbot_pipeline.handle == VK_NULL_HANDLE);
 	err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.sprite_mbot_pipeline.handle);
@@ -3701,7 +3701,7 @@ static void R_CreateAliasPipelines ()
 		infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_OIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
 		infos.graphics_pipeline.subpass = 1;
 		infos.color_blend_state.attachmentCount = WBOIT_COLOR_ATTACHMENT_COUNT;
-		R_SetWBOITBlend (infos.blend_attachment_states);
+		R_SetMBOTBlend (infos.blend_attachment_states);
 		infos.shader_stages[1].module = alpha_test ? alias_alphatest_mbot_frag_module : alias_mbot_frag_module;
 
 		assert (vulkan_globals.alias_mbot_pipelines[pipeline_index].handle == VK_NULL_HANDLE);
@@ -3852,7 +3852,7 @@ static void R_CreateMD5Pipelines ()
 			infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_OIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
 			infos.graphics_pipeline.subpass = 1;
 			infos.color_blend_state.attachmentCount = WBOIT_COLOR_ATTACHMENT_COUNT;
-			R_SetWBOITBlend (infos.blend_attachment_states);
+			R_SetMBOTBlend (infos.blend_attachment_states);
 			infos.shader_stages[1].module = alpha_test ? alias_alphatest_mbot_frag_module : alias_mbot_frag_module;
 
 			assert (vulkan_globals.md5_mbot_pipelines[pipeline_index].handle == VK_NULL_HANDLE);

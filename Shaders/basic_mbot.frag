@@ -20,12 +20,12 @@ layout (location = 1) in vec4 in_color;
 layout (location = 2) in float in_fog_frag_coord;
 
 layout (location = 0) out vec4 out_oit_accum;
-layout (location = 1) out float out_oit_reveal;
+layout (location = 1) out vec4 out_oit_moments;
 
 #include "basic_common.inc"
 #include "mbot.inc"
 
 void main ()
 {
-	WriteMBOTTransparency (BasicFragmentColor (), out_oit_accum, out_oit_reveal);
+	WriteMBOTTransparency (BasicFragmentColor (), out_oit_accum, out_oit_moments);
 }

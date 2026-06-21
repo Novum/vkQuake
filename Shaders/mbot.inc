@@ -1,4 +1,4 @@
-void WriteMBOTTransparency (vec4 frag_color, out vec4 oit_accum, out float oit_reveal)
+void WriteMBOTTransparency (vec4 frag_color, out vec4 oit_accum, out vec4 oit_moments)
 {
 	frag_color = clamp (frag_color, 0.0f, 1.0f);
 	float z = 1.0f / gl_FragCoord.w;
@@ -16,5 +16,5 @@ void WriteMBOTTransparency (vec4 frag_color, out vec4 oit_accum, out float oit_r
 	float weight = clamp (max (max (w_depth, w_disc), w_edge), 1e-2f, 3e3f);
 
 	oit_accum = vec4 (frag_color.rgb * alpha * weight, alpha * weight);
-	oit_reveal = frag_color.a;
+	oit_moments = vec4 (z, z * z, 0.0f, 0.0f) * alpha * weight;
 }

@@ -32,7 +32,7 @@ layout (location = 1) in vec4 in_color;
 layout (location = 2) in float in_fog_frag_coord;
 
 layout (location = 0) out vec4 out_oit_accum;
-layout (location = 1) out float out_oit_reveal;
+layout (location = 1) out vec4 out_oit_moments;
 
 #define ALIAS_ALPHA_TEST 1
 #include "alias_common.inc"
@@ -40,5 +40,5 @@ layout (location = 1) out float out_oit_reveal;
 
 void main ()
 {
-	WriteMBOTTransparency (AliasFragmentColor (), out_oit_accum, out_oit_reveal);
+	WriteMBOTTransparency (AliasFragmentColor (), out_oit_accum, out_oit_moments);
 }
