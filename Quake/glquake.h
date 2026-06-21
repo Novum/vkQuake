@@ -507,6 +507,7 @@ extern cvar_t r_oit_weight_m;
 extern cvar_t r_oit_weight_edge;
 extern cvar_t r_oit_weight_thick;
 extern cvar_t r_oit_weight_dither;
+extern cvar_t r_oit_peel_layers;
 extern cvar_t r_lavaalpha;
 extern cvar_t r_telealpha;
 extern cvar_t r_slimealpha;

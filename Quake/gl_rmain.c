@@ -68,6 +68,7 @@ cvar_t r_oit_weight_m = {"r_oit_weight_m", "10.0", CVAR_ARCHIVE};
 cvar_t r_oit_weight_edge = {"r_oit_weight_edge", "4.0", CVAR_ARCHIVE};
 cvar_t r_oit_weight_thick = {"r_oit_weight_thick", "0.1", CVAR_ARCHIVE};
 cvar_t r_oit_weight_dither = {"r_oit_weight_dither", "0.1", CVAR_ARCHIVE};
+cvar_t r_oit_peel_layers = {"r_oit_peel_layers", "4", CVAR_ARCHIVE};
 cvar_t r_dynamic = {"r_dynamic", "1", CVAR_ARCHIVE};
 cvar_t r_novis = {"r_novis", "1", CVAR_ARCHIVE};
 #if defined(USE_SIMD)

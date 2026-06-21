@@ -1711,6 +1711,7 @@ enum
 	GRAPHICS_OPT_SHADOWS,
 	GRAPHICS_OPT_OIT,
 	GRAPHICS_OPT_OIT_QUALITY,
+	GRAPHICS_OPT_OIT_PEEL_LAYERS,
 	GRAPHICS_OPTIONS_ITEMS,
 };
 
@@ -1977,6 +1978,9 @@ static void M_GraphicsOptions_AdjustSliders (int dir, qboolean mouse)
 	case GRAPHICS_OPT_OIT_QUALITY:
 		M_GraphicsOptions_ChooseNextOITQuality (dir);
 		break;
+	case GRAPHICS_OPT_OIT_PEEL_LAYERS:
+		Cvar_SetValueQuick (&r_oit_peel_layers, (float)CLAMP ((int)r_oit_peel_layers.value + dir, 2, 4));
+		break;
 	}
 }
 
@@ -2129,6 +2133,13 @@ static void M_GraphicsOptions_Draw (cb_context_t *cbx)
 		else if (r_oit_weight_m.value == 20.0f && r_oit_weight_edge.value == 8.0f)
 			current = 3;
 		M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GRAPHICS_OPT_OIT_QUALITY, oit_quality_names[current]);
+	}
+
+	{
+		M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_OIT_PEEL_LAYERS, "Peel Layers");
+		char buf[8];
+		snprintf (buf, sizeof (buf), "%d", (int)r_oit_peel_layers.value);
+		M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GRAPHICS_OPT_OIT_PEEL_LAYERS, buf);
 	}
 
 	// cursor

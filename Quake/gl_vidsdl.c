@@ -3804,7 +3804,7 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 			pc[1].color.float32[0] = 0.0f; pc[1].color.float32[1] = 0.0f; pc[1].color.float32[2] = 0.0f; pc[1].color.float32[3] = 0.0f;
 
 			const int peel_render_pass_indices[] = {RENDER_PASS_INDEX_PEEL_0, RENDER_PASS_INDEX_PEEL_1, RENDER_PASS_INDEX_PEEL_2, RENDER_PASS_INDEX_PEEL_3};
-			int num_peel_layers = NUM_PEEL_LAYERS;
+			int num_peel_layers = CLAMP ((int)r_oit_peel_layers.value, 2, NUM_PEEL_LAYERS);
 
 			for (int pl = 0; pl < num_peel_layers; ++pl)
 			{

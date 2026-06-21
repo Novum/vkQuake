@@ -4640,6 +4640,7 @@ void R_Init (void)
 	Cvar_RegisterVariable (&r_oit_weight_edge);
 	Cvar_RegisterVariable (&r_oit_weight_thick);
 	Cvar_RegisterVariable (&r_oit_weight_dither);
+	Cvar_RegisterVariable (&r_oit_peel_layers);
 	Cvar_RegisterVariable (&r_dynamic);
 	Cvar_RegisterVariable (&r_novis);
 #if defined(USE_SIMD)
