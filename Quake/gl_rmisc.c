@@ -2259,8 +2259,10 @@ static VkVertexInputBindingDescription	 md5_vertex_binding_description;
 
 DECLARE_SHADER_MODULE (basic_vert);
 DECLARE_SHADER_MODULE (basic_frag);
-DECLARE_SHADER_MODULE (basic_oit_frag);
-DECLARE_SHADER_MODULE (basic_mbot_frag);
+	DECLARE_SHADER_MODULE (basic_oit_frag);
+	DECLARE_SHADER_MODULE (basic_mbot_frag);
+	DECLARE_SHADER_MODULE (particle_oit_frag);
+	DECLARE_SHADER_MODULE (particle_mbot_frag);
 DECLARE_SHADER_MODULE (basic_alphatest_frag);
 DECLARE_SHADER_MODULE (basic_notex_frag);
 DECLARE_SHADER_MODULE (world_vert);
@@ -2759,7 +2761,7 @@ static void R_CreateParticlesPipelines ()
 	infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_OIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
 	infos.color_blend_state.attachmentCount = WBOIT_COLOR_ATTACHMENT_COUNT;
 	infos.graphics_pipeline.subpass = 1;
-	infos.shader_stages[1].module = basic_oit_frag_module;
+	infos.shader_stages[1].module = particle_oit_frag_module;
 	infos.shader_stages[1].pSpecializationInfo = NULL;
 	R_SetWBOITBlend (infos.blend_attachment_states);
 
@@ -2773,7 +2775,7 @@ static void R_CreateParticlesPipelines ()
 	infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_OIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
 	infos.color_blend_state.attachmentCount = WBOIT_COLOR_ATTACHMENT_COUNT;
 	infos.graphics_pipeline.subpass = 1;
-	infos.shader_stages[1].module = basic_mbot_frag_module;
+	infos.shader_stages[1].module = particle_mbot_frag_module;
 	infos.shader_stages[1].pSpecializationInfo = NULL;
 	R_SetMBOTBlend (infos.blend_attachment_states);
 
@@ -2960,7 +2962,7 @@ static void R_CreateFTEParticlesPipelines ()
 		infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_OIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
 		infos.graphics_pipeline.subpass = 1;
 		infos.color_blend_state.attachmentCount = WBOIT_COLOR_ATTACHMENT_COUNT;
-		infos.shader_stages[1].module = basic_oit_frag_module;
+		infos.shader_stages[1].module = particle_oit_frag_module;
 		R_SetWBOITBlend (infos.blend_attachment_states);
 		assert (vulkan_globals.fte_particle_wboit_pipelines[i].handle == VK_NULL_HANDLE);
 		err = vkCreateGraphicsPipelines (
@@ -2974,7 +2976,7 @@ static void R_CreateFTEParticlesPipelines ()
 		infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_OIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
 		infos.graphics_pipeline.subpass = 1;
 		infos.color_blend_state.attachmentCount = WBOIT_COLOR_ATTACHMENT_COUNT;
-		infos.shader_stages[1].module = basic_mbot_frag_module;
+		infos.shader_stages[1].module = particle_mbot_frag_module;
 		R_SetMBOTBlend (infos.blend_attachment_states);
 		assert (vulkan_globals.fte_particle_mbot_pipelines[i].handle == VK_NULL_HANDLE);
 		err = vkCreateGraphicsPipelines (
@@ -3012,7 +3014,10 @@ static void R_CreateFTEParticlesPipelines ()
 			infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_OIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
 			infos.graphics_pipeline.subpass = 1;
 			infos.color_blend_state.attachmentCount = WBOIT_COLOR_ATTACHMENT_COUNT;
-			infos.shader_stages[1].module = basic_oit_frag_module;
+	infos.shader_stages[1].module = particle_oit_frag_module;
+	R_SetWBOITBlend (infos.blend_attachment_states);
+
+	assert (vulkan_globals.sprite_oit_pipeline.handle == VK_NULL_HANDLE);
 			R_SetWBOITBlend (infos.blend_attachment_states);
 			assert (vulkan_globals.fte_particle_wboit_pipelines[i + 8].handle == VK_NULL_HANDLE);
 			err = vkCreateGraphicsPipelines (
@@ -3027,7 +3032,10 @@ static void R_CreateFTEParticlesPipelines ()
 			infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_OIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
 			infos.graphics_pipeline.subpass = 1;
 			infos.color_blend_state.attachmentCount = WBOIT_COLOR_ATTACHMENT_COUNT;
-			infos.shader_stages[1].module = basic_mbot_frag_module;
+	infos.shader_stages[1].module = particle_mbot_frag_module;
+	R_SetMBOTBlend (infos.blend_attachment_states);
+
+	assert (vulkan_globals.sprite_mbot_pipeline.handle == VK_NULL_HANDLE);
 			R_SetMBOTBlend (infos.blend_attachment_states);
 			assert (vulkan_globals.fte_particle_mbot_pipelines[i + 8].handle == VK_NULL_HANDLE);
 			err = vkCreateGraphicsPipelines (
@@ -3083,10 +3091,7 @@ static void R_CreateSpritesPipelines ()
 
 	infos.graphics_pipeline.subpass = 1;
 	infos.color_blend_state.attachmentCount = WBOIT_COLOR_ATTACHMENT_COUNT;
-	infos.shader_stages[1].module = basic_oit_frag_module;
-	R_SetWBOITBlend (infos.blend_attachment_states);
-
-	assert (vulkan_globals.sprite_oit_pipeline.handle == VK_NULL_HANDLE);
+	infos.shader_stages[1].module = particle_oit_frag_module;
 	err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.sprite_oit_pipeline.handle);
 	if (err != VK_SUCCESS)
 		Sys_Error ("vkCreateGraphicsPipelines failed (sprite_oit_pipeline) with code %i", (int)err);
@@ -3096,10 +3101,7 @@ static void R_CreateSpritesPipelines ()
 	infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_OIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
 	infos.graphics_pipeline.subpass = 1;
 	infos.color_blend_state.attachmentCount = WBOIT_COLOR_ATTACHMENT_COUNT;
-	infos.shader_stages[1].module = basic_mbot_frag_module;
-	R_SetMBOTBlend (infos.blend_attachment_states);
-
-	assert (vulkan_globals.sprite_mbot_pipeline.handle == VK_NULL_HANDLE);
+	infos.shader_stages[1].module = particle_mbot_frag_module;
 	err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.sprite_mbot_pipeline.handle);
 	if (err != VK_SUCCESS)
 		Sys_Error ("vkCreateGraphicsPipelines failed (sprite_mbot_pipeline) with code %i", (int)err);
@@ -4206,6 +4208,8 @@ static void R_CreateShaderModules ()
 	CREATE_SHADER_MODULE (alias_oit_frag);
 	CREATE_SHADER_MODULE (alias_alphatest_oit_frag);
 	CREATE_SHADER_MODULE (basic_mbot_frag);
+	CREATE_SHADER_MODULE (particle_oit_frag);
+	CREATE_SHADER_MODULE (particle_mbot_frag);
 	CREATE_SHADER_MODULE (alias_mbot_frag);
 	CREATE_SHADER_MODULE (alias_alphatest_mbot_frag);
 	CREATE_SHADER_MODULE (world_mbot_frag);
@@ -4267,6 +4271,8 @@ static void R_DestroyShaderModules ()
 	DESTROY_SHADER_MODULE (alias_oit_frag);
 	DESTROY_SHADER_MODULE (alias_alphatest_oit_frag);
 	DESTROY_SHADER_MODULE (basic_mbot_frag);
+	DESTROY_SHADER_MODULE (particle_oit_frag);
+	DESTROY_SHADER_MODULE (particle_mbot_frag);
 	DESTROY_SHADER_MODULE (alias_mbot_frag);
 	DESTROY_SHADER_MODULE (alias_alphatest_mbot_frag);
 	DESTROY_SHADER_MODULE (world_mbot_frag);

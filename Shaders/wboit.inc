@@ -32,12 +32,36 @@ void WriteOITTransparency (vec4 frag_color, out vec4 oit_accum, out float oit_re
 	float edge_scale = clamp (grad * z * 100.0f, 0.0f, 1.0f);
 	float w_edge = alpha * d * d * (1.0f + edge_scale * 4.0f);
 
-	float weight = max (max (w_depth, w_disc), w_edge);
+	// Term 4: thickness weight from screen-space depth gradients
+	// Thick transparent volumes (smoke, fog) should dominate thin layers (glass edges)
+	float thickness = abs (dFdx (z)) + abs (dFdy (z));
+	float w_thick = alpha * clamp (thickness * 0.1f, 0.0f, 1.0f) * d;
+
+	float weight = max (max (max (w_depth, w_disc), w_edge), w_thick);
 
 	// Spatial dithering via 4x4 Bayer matrix to break weight banding
 	// on smooth depth gradients — turns stair-stepping into noise
 	weight *= 1.0f + Dither4x4 (gl_FragCoord.xy) * 0.1f;
 
+	weight = clamp (weight, 1e-2f, 1e2f);
+
+	oit_accum = vec4 (frag_color.rgb * alpha * weight, alpha * weight);
+	oit_reveal = frag_color.a;
+}
+
+// Simplified weight for particles: depth-only, no edge/discontinuity terms
+// Particles are screen-space quads with flat depth gradients, making
+// edge and thickness weights meaningless for them
+void WriteOITTransparencyParticle (vec4 frag_color, out vec4 oit_accum, out float oit_reveal)
+{
+	frag_color = clamp (frag_color, 0.0f, 1.0f);
+	float z = 1.0f / gl_FragCoord.w;
+	float d = clamp (z / push_constants.farclip, 0.0f, 1.0f);
+	float alpha = frag_color.a;
+
+	float weight = alpha * d * d;
+
+	weight *= 1.0f + Dither4x4 (gl_FragCoord.xy) * 0.1f;
 	weight = clamp (weight, 1e-2f, 1e2f);
 
 	oit_accum = vec4 (frag_color.rgb * alpha * weight, alpha * weight);

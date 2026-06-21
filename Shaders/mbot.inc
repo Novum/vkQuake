@@ -25,10 +25,31 @@ void WriteMBOTTransparency (vec4 frag_color, out vec4 oit_accum, out vec2 oit_mo
 	float edge_scale = clamp (grad * z * 100.0f, 0.0f, 1.0f);
 	float w_edge = alpha * d * d * (1.0f + edge_scale * 4.0f);
 
-	float weight = max (max (w_depth, w_disc), w_edge);
+	// Thickness weight from screen-space depth gradients
+	float thickness = abs (dFdx (z)) + abs (dFdy (z));
+	float w_thick = alpha * clamp (thickness * 0.1f, 0.0f, 1.0f) * d;
+
+	float weight = max (max (max (w_depth, w_disc), w_edge), w_thick);
 
 	weight *= 1.0f + Dither4x4 (gl_FragCoord.xy) * 0.1f;
 
+	weight = clamp (weight, 1e-2f, 1e2f);
+
+	oit_accum = vec4 (frag_color.rgb * alpha * weight, alpha * weight);
+	oit_moments = vec2 (z, z * z) * alpha * weight;
+}
+
+// Simplified weight for particles: depth-only
+void WriteMBOTTransparencyParticle (vec4 frag_color, out vec4 oit_accum, out vec2 oit_moments)
+{
+	frag_color = clamp (frag_color, 0.0f, 1.0f);
+	float z = 1.0f / gl_FragCoord.w;
+	float d = clamp (z / push_constants.farclip, 0.0f, 1.0f);
+	float alpha = frag_color.a;
+
+	float weight = alpha * d * d;
+
+	weight *= 1.0f + Dither4x4 (gl_FragCoord.xy) * 0.1f;
 	weight = clamp (weight, 1e-2f, 1e2f);
 
 	oit_accum = vec4 (frag_color.rgb * alpha * weight, alpha * weight);
