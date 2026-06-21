@@ -3757,7 +3757,7 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 	{
 		const qboolean resolve = (vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT);
 		const qboolean use_oit = parms->use_oit;
-		const qboolean use_mbot = false;
+		const qboolean use_mbot = ((int)r_oit.value == 3);
 		const uint32_t scene_attachment_index = resolve ? 2 : 0;
 		const uint32_t accum_attachment_index = resolve ? 3 : 2;
 		const uint32_t reveal_attachment_index = resolve ? 4 : 3;
@@ -3875,6 +3875,11 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 			{
 				R_BindPipeline (&oit_cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.hybrid_resolve_pipeline);
 				vkCmdBindDescriptorSets (render_passes_cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.hybrid_resolve_pipeline_layout.handle, 0, 1, &hybrid_resolve_descriptor_set, 0, NULL);
+			}
+			else if (use_mbot && vulkan_globals.mbot_resolve_pipeline.handle)
+			{
+				R_BindPipeline (&oit_cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.mbot_resolve_pipeline);
+				vkCmdBindDescriptorSets (render_passes_cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.mbot_resolve_pipeline.layout.handle, 0, 1, &wboit_resolve_descriptor_set, 0, NULL);
 			}
 			else
 			{

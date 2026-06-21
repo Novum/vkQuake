@@ -32,7 +32,11 @@ void main ()
 	float a = s2 / (s2 + mean_z * mean_z + 1e-10f);
 	float w0 = a * a;
 	float w1 = (1.0f - a);
-	float transmittance = w0 * exp (-2.0f * m1) + w1 * exp (-m1 * mean_z / s2);
+	float moment_transmittance = w0 * exp (-2.0f * m1) + w1 * exp (-m1 * mean_z / s2);
+
+	float wboit_revealage = exp (-accumulation.a * 10.0f);
+
+	float transmittance = mix (wboit_revealage, moment_transmittance, clamp (variance * 1000.0f, 0.0f, 1.0f));
 	transmittance = clamp (transmittance, 0.0f, 1.0f);
 
 	vec3 average_color = accumulation.rgb / accumulation.a;

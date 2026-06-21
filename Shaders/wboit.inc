@@ -1,3 +1,15 @@
+float Dither4x4 (vec2 position_screen)
+{
+	const int bayer[16] = int[16] (
+		 0,  8,  2, 10,
+		12,  4, 14,  6,
+		 3, 11,  1,  9,
+		15,  7, 13,  5
+	);
+	ivec2 p = ivec2 (position_screen) % 4;
+	return float (bayer[p.x + p.y * 4]) / 16.0f - 0.5f;
+}
+
 void WriteOITTransparency (vec4 frag_color, out vec4 oit_accum, out float oit_reveal)
 {
 	frag_color = clamp (frag_color, 0.0f, 1.0f);
@@ -20,7 +32,13 @@ void WriteOITTransparency (vec4 frag_color, out vec4 oit_accum, out float oit_re
 	float edge_scale = clamp (grad * z * 100.0f, 0.0f, 1.0f);
 	float w_edge = alpha * d * d * (1.0f + edge_scale * 4.0f);
 
-	float weight = clamp (max (max (w_depth, w_disc), w_edge), 1e-2f, 3e3f);
+	float weight = max (max (w_depth, w_disc), w_edge);
+
+	// Spatial dithering via 4x4 Bayer matrix to break weight banding
+	// on smooth depth gradients — turns stair-stepping into noise
+	weight *= 1.0f + Dither4x4 (gl_FragCoord.xy) * 0.1f;
+
+	weight = clamp (weight, 1e-2f, 1e2f);
 
 	oit_accum = vec4 (frag_color.rgb * alpha * weight, alpha * weight);
 	oit_reveal = frag_color.a;
