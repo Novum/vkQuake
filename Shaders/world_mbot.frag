@@ -25,7 +25,7 @@ layout (location = 0) in vec4 in_texcoords;
 layout (location = 1) in float in_fog_frag_coord;
 
 layout (location = 0) out vec4 out_oit_accum;
-layout (location = 1) out vec4 out_oit_moments;
+layout (location = 1) out vec2 out_oit_moments;
 
 layout (constant_id = 0) const bool use_fullbright = false;
 layout (constant_id = 1) const bool use_alpha_test = false;

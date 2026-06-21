@@ -1525,7 +1525,7 @@ static void GL_CreateRenderPasses ()
 				attachment_descriptions[reveal_attachment_index].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 				attachment_descriptions[reveal_attachment_index].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 				attachment_descriptions[reveal_attachment_index].samples = vulkan_globals.sample_count;
-				attachment_descriptions[reveal_attachment_index].format = use_mbot ? VK_FORMAT_R32G32B32A32_SFLOAT : VK_FORMAT_R8_UNORM;
+				attachment_descriptions[reveal_attachment_index].format = use_mbot ? VK_FORMAT_R16G16_SFLOAT : VK_FORMAT_R8_UNORM;
 				attachment_descriptions[reveal_attachment_index].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 				attachment_descriptions[reveal_attachment_index].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 			}
@@ -2210,7 +2210,7 @@ static void GL_CreateOITBuffers (void)
 
 	if ((int)r_oit.value == 3)
 	{
-		image_create_info.format = VK_FORMAT_R32G32B32A32_SFLOAT;
+		image_create_info.format = VK_FORMAT_R16G16_SFLOAT;
 		assert (vulkan_globals.mbot_moments_buffer == VK_NULL_HANDLE);
 		err = vkCreateImage (vulkan_globals.device, &image_create_info, NULL, &vulkan_globals.mbot_moments_buffer);
 		if (err != VK_SUCCESS)
@@ -2246,7 +2246,7 @@ static void GL_CreateOITBuffers (void)
 		{
 			ZEROED_STRUCT (VkImageViewCreateInfo, image_view_create_info);
 			image_view_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-			image_view_create_info.format = VK_FORMAT_R32G32B32A32_SFLOAT;
+			image_view_create_info.format = VK_FORMAT_R16G16_SFLOAT;
 			image_view_create_info.image = vulkan_globals.mbot_moments_buffer;
 			image_view_create_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 			image_view_create_info.subresourceRange.baseMipLevel = 0;
