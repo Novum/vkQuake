@@ -6086,10 +6086,10 @@ static void PScript_DrawParticleBatches (cb_context_t *cbx, qboolean draw_oit_ba
 			if (tris->numidx == 0)
 				continue;
 
-			const int				pipeline_index = blend_mode + (draw_lines ? 8 : 0);
-			const vulkan_pipeline_t pipeline = draw_oit_batches
-												   ? vulkan_globals.fte_particle_wboit_pipelines[pipeline_index]
-												   : vulkan_globals.fte_particle_pipelines[R_MainPassPipelineVariant (cbx->render_pass_index)][pipeline_index];
+		const int				pipeline_index = blend_mode + (draw_lines ? 8 : 0);
+		const vulkan_pipeline_t pipeline = draw_oit_batches
+											   ? (cbx->render_pass_index == RENDER_PASS_INDEX_MBOT ? vulkan_globals.fte_particle_mbot_pipelines[pipeline_index] : vulkan_globals.fte_particle_wboit_pipelines[pipeline_index])
+											   : vulkan_globals.fte_particle_pipelines[R_MainPassPipelineVariant (cbx->render_pass_index)][pipeline_index];
 			R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 			gltexture_t *tex = (tris->beflags & BEF_LINES) ? whitetexture : tris->texture;
 

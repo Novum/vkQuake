@@ -157,6 +157,9 @@ static vulkan_memory_t	oit_accum_buffer_memory;
 static vulkan_memory_t	oit_reveal_buffer_memory;
 static VkImageView		oit_accum_buffer_view;
 static VkImageView		oit_reveal_buffer_view;
+static VkImage			mbot_moments_buffer;
+static vulkan_memory_t	mbot_moments_buffer_memory;
+static VkImageView		mbot_moments_buffer_view;
 static VkImage			peel_depth_buffer[2];
 static vulkan_memory_t	peel_depth_buffer_memory[2];
 static VkImageView		peel_depth_buffer_view[2];
@@ -1478,7 +1481,8 @@ static void GL_CreateRenderPasses ()
 		for (int variant = 0; variant < MAIN_RENDER_PASS_VARIANT_COUNT; ++variant)
 		{
 			ZEROED_STRUCT_ARRAY (VkAttachmentDescription, attachment_descriptions, 5);
-			const qboolean use_oit = (variant == MAIN_RENDER_PASS_OIT);
+			const qboolean use_oit = (variant == MAIN_RENDER_PASS_OIT || variant == MAIN_RENDER_PASS_MBOT);
+			const qboolean use_mbot = (variant == MAIN_RENDER_PASS_MBOT);
 			const uint32_t scene_attachment_index = resolve ? 2 : 0;
 			const uint32_t accum_attachment_index = resolve ? 3 : 2;
 			const uint32_t reveal_attachment_index = resolve ? 4 : 3;
@@ -1521,7 +1525,7 @@ static void GL_CreateRenderPasses ()
 				attachment_descriptions[reveal_attachment_index].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 				attachment_descriptions[reveal_attachment_index].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 				attachment_descriptions[reveal_attachment_index].samples = vulkan_globals.sample_count;
-				attachment_descriptions[reveal_attachment_index].format = VK_FORMAT_R8_UNORM;
+				attachment_descriptions[reveal_attachment_index].format = use_mbot ? VK_FORMAT_R32G32B32A32_SFLOAT : VK_FORMAT_R8_UNORM;
 				attachment_descriptions[reveal_attachment_index].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 				attachment_descriptions[reveal_attachment_index].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 			}
@@ -1635,6 +1639,7 @@ static void GL_CreateRenderPasses ()
 			for (int stencil = 0; stencil < MAIN_RENDER_PASS_STENCIL_COUNT; ++stencil)
 			{
 				const char *name = (variant == MAIN_RENDER_PASS_OIT) ? ((stencil == MAIN_RENDER_PASS_STENCIL_CLEAR) ? "main_oit" : "main_oit_no_stencil")
+																	 : (variant == MAIN_RENDER_PASS_MBOT) ? ((stencil == MAIN_RENDER_PASS_STENCIL_CLEAR) ? "main_mbot" : "main_mbot_no_stencil")
 																	 : ((stencil == MAIN_RENDER_PASS_STENCIL_CLEAR) ? "main" : "main_no_stencil");
 				if (stencil == MAIN_RENDER_PASS_NO_STENCIL)
 					attachment_descriptions[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
@@ -2065,7 +2070,7 @@ static void GL_CreateColorBuffer (void)
 	else
 		Sys_Printf ("AA disabled\n");
 
-	if ((int)r_oit.value == 1)
+	if ((int)r_oit.value == 1 || (int)r_oit.value == 3)
 		GL_CreateOITBuffers ();
 	if ((int)r_oit.value == 2)
 	{
@@ -2202,6 +2207,63 @@ static void GL_CreateOITBuffers (void)
 
 		GL_SetObjectName ((uint64_t)oit_reveal_buffer_view, VK_OBJECT_TYPE_IMAGE_VIEW, "OIT Reveal Buffer View");
 	}
+
+	if ((int)r_oit.value == 3)
+	{
+		image_create_info.format = VK_FORMAT_R32G32B32A32_SFLOAT;
+		assert (vulkan_globals.mbot_moments_buffer == VK_NULL_HANDLE);
+		err = vkCreateImage (vulkan_globals.device, &image_create_info, NULL, &vulkan_globals.mbot_moments_buffer);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreateImage failed with code %i", (int)err);
+
+		GL_SetObjectName ((uint64_t)vulkan_globals.mbot_moments_buffer, VK_OBJECT_TYPE_IMAGE, "MBOT Moments Buffer");
+
+		{
+			VkMemoryRequirements memory_requirements;
+			vkGetImageMemoryRequirements (vulkan_globals.device, vulkan_globals.mbot_moments_buffer, &memory_requirements);
+
+			ZEROED_STRUCT (VkMemoryDedicatedAllocateInfoKHR, dedicated_allocation_info);
+			dedicated_allocation_info.sType = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO_KHR;
+			dedicated_allocation_info.image = vulkan_globals.mbot_moments_buffer;
+
+			ZEROED_STRUCT (VkMemoryAllocateInfo, memory_allocate_info);
+			memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+			memory_allocate_info.allocationSize = memory_requirements.size;
+			memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
+
+			if (vulkan_globals.dedicated_allocation)
+				memory_allocate_info.pNext = &dedicated_allocation_info;
+
+			assert (mbot_moments_buffer_memory.handle == VK_NULL_HANDLE);
+			R_AllocateVulkanMemory (&mbot_moments_buffer_memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_DEVICE, &num_vulkan_misc_allocations);
+			GL_SetObjectName ((uint64_t)mbot_moments_buffer_memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, "MBOT Moments Buffer");
+
+			err = vkBindImageMemory (vulkan_globals.device, vulkan_globals.mbot_moments_buffer, mbot_moments_buffer_memory.handle, 0);
+			if (err != VK_SUCCESS)
+				Sys_Error ("vkBindImageMemory failed with code %i", (int)err);
+		}
+
+		{
+			ZEROED_STRUCT (VkImageViewCreateInfo, image_view_create_info);
+			image_view_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+			image_view_create_info.format = VK_FORMAT_R32G32B32A32_SFLOAT;
+			image_view_create_info.image = vulkan_globals.mbot_moments_buffer;
+			image_view_create_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+			image_view_create_info.subresourceRange.baseMipLevel = 0;
+			image_view_create_info.subresourceRange.levelCount = 1;
+			image_view_create_info.subresourceRange.baseArrayLayer = 0;
+			image_view_create_info.subresourceRange.layerCount = 1;
+			image_view_create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+			image_view_create_info.flags = 0;
+
+			assert (mbot_moments_buffer_view == VK_NULL_HANDLE);
+			err = vkCreateImageView (vulkan_globals.device, &image_view_create_info, NULL, &mbot_moments_buffer_view);
+			if (err != VK_SUCCESS)
+				Sys_Error ("vkCreateImageView failed with code %i", (int)err);
+
+			GL_SetObjectName ((uint64_t)mbot_moments_buffer_view, VK_OBJECT_TYPE_IMAGE_VIEW, "MBOT Moments Buffer View");
+		}
+	}
 }
 
 /*
@@ -2236,6 +2298,19 @@ static void GL_DestroyOITBuffers (void)
 	}
 	if (oit_reveal_buffer_memory.handle != VK_NULL_HANDLE)
 		R_FreeVulkanMemory (&oit_reveal_buffer_memory, &num_vulkan_misc_allocations);
+
+	if (mbot_moments_buffer_view != VK_NULL_HANDLE)
+	{
+		vkDestroyImageView (vulkan_globals.device, mbot_moments_buffer_view, NULL);
+		mbot_moments_buffer_view = VK_NULL_HANDLE;
+	}
+	if (vulkan_globals.mbot_moments_buffer != VK_NULL_HANDLE)
+	{
+		vkDestroyImage (vulkan_globals.device, vulkan_globals.mbot_moments_buffer, NULL);
+		vulkan_globals.mbot_moments_buffer = VK_NULL_HANDLE;
+	}
+	if (mbot_moments_buffer_memory.handle != VK_NULL_HANDLE)
+		R_FreeVulkanMemory (&mbot_moments_buffer_memory, &num_vulkan_misc_allocations);
 }
 
 static void GL_CreatePeelResources (void)
@@ -2428,14 +2503,14 @@ void GL_UpdateDescriptorSets (void)
 		R_FreeDescriptorSet (wboit_resolve_descriptor_set, &vulkan_globals.oit_input_attachment_set_layout);
 		wboit_resolve_descriptor_set = VK_NULL_HANDLE;
 	}
-	if ((int)r_oit.value == 1)
+	if ((int)r_oit.value == 1 || (int)r_oit.value == 3)
 	{
 		wboit_resolve_descriptor_set = R_AllocateDescriptorSet (&vulkan_globals.oit_input_attachment_set_layout);
 
 		ZEROED_STRUCT_ARRAY (VkDescriptorImageInfo, oit_image_infos, 2);
 		oit_image_infos[0].imageView = oit_accum_buffer_view;
 		oit_image_infos[0].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		oit_image_infos[1].imageView = oit_reveal_buffer_view;
+		oit_image_infos[1].imageView = ((int)r_oit.value == 3) ? mbot_moments_buffer_view : oit_reveal_buffer_view;
 		oit_image_infos[1].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
 		ZEROED_STRUCT_ARRAY (VkWriteDescriptorSet, oit_writes, 2);
@@ -2808,7 +2883,8 @@ static void GL_CreateMainFrameBuffers (void)
 {
 	VkResult	   err;
 	const qboolean resolve = (vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT);
-	const qboolean use_oit = ((int)r_oit.value == 1);
+	const qboolean use_oit = ((int)r_oit.value == 1 || (int)r_oit.value == 3);
+	const qboolean use_mbot = ((int)r_oit.value == 3);
 
 	for (uint32_t i = 0; i < NUM_COLOR_BUFFERS; ++i)
 	{
@@ -2822,12 +2898,13 @@ static void GL_CreateMainFrameBuffers (void)
 		framebuffer_create_info.layers = 1;
 
 		VkImageView attachments[5] = {
-			color_buffers_view[i], depth_buffer_view, msaa_color_buffer_view, oit_accum_buffer_view, oit_reveal_buffer_view,
+			color_buffers_view[i], depth_buffer_view, msaa_color_buffer_view, oit_accum_buffer_view,
+			use_mbot ? mbot_moments_buffer_view : oit_reveal_buffer_view,
 		};
 		if (!resolve)
 		{
 			attachments[2] = oit_accum_buffer_view;
-			attachments[3] = oit_reveal_buffer_view;
+			attachments[3] = use_mbot ? mbot_moments_buffer_view : oit_reveal_buffer_view;
 		}
 		framebuffer_create_info.pAttachments = attachments;
 
@@ -3087,6 +3164,7 @@ void GL_BeginRenderingTask (void *unused)
 			cbx->current_canvas = CANVAS_INVALID;
 			memset (&cbx->current_pipeline, 0, sizeof (cbx->current_pipeline));
 
+			const int mbot_active = (int)r_oit.value == 3;
 			if (scbx_index <= SCBX_WBOIT_RESOLVE)
 			{
 				const int main_render_pass_stencil = Sky_NeedStencil () ? MAIN_RENDER_PASS_STENCIL_CLEAR : MAIN_RENDER_PASS_NO_STENCIL;
@@ -3102,7 +3180,7 @@ void GL_BeginRenderingTask (void *unused)
 					}
 					else if (scbx_index > SCBX_MAIN_OPAQUE_PASS_LAST)
 					{
-						cbx->render_pass_index = RENDER_PASS_INDEX_WBOIT;
+						cbx->render_pass_index = mbot_active ? RENDER_PASS_INDEX_MBOT : RENDER_PASS_INDEX_WBOIT;
 						cbx->subpass = 1;
 					}
 					else
@@ -3199,7 +3277,7 @@ qboolean GL_BeginRendering (qboolean use_tasks, task_handle_t *begin_rendering_t
 		}
 	}
 
-	oit_active = ((int)r_oit.value == 1);
+	oit_active = ((int)r_oit.value == 1 || (int)r_oit.value == 3);
 
 	*width = vid.width;
 	*height = vid.height;
@@ -3679,6 +3757,7 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 	{
 		const qboolean resolve = (vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT);
 		const qboolean use_oit = parms->use_oit;
+		const qboolean use_mbot = false;
 		const uint32_t scene_attachment_index = resolve ? 2 : 0;
 		const uint32_t accum_attachment_index = resolve ? 3 : 2;
 		const uint32_t reveal_attachment_index = resolve ? 4 : 3;
@@ -3695,10 +3774,20 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 			main_pass_clear_values[accum_attachment_index].color.float32[1] = 0.0f;
 			main_pass_clear_values[accum_attachment_index].color.float32[2] = 0.0f;
 			main_pass_clear_values[accum_attachment_index].color.float32[3] = 0.0f;
-			main_pass_clear_values[reveal_attachment_index].color.float32[0] = 1.0f;
-			main_pass_clear_values[reveal_attachment_index].color.float32[1] = 1.0f;
-			main_pass_clear_values[reveal_attachment_index].color.float32[2] = 1.0f;
-			main_pass_clear_values[reveal_attachment_index].color.float32[3] = 1.0f;
+			if (use_mbot)
+			{
+				main_pass_clear_values[reveal_attachment_index].color.float32[0] = 0.0f;
+				main_pass_clear_values[reveal_attachment_index].color.float32[1] = 0.0f;
+				main_pass_clear_values[reveal_attachment_index].color.float32[2] = 0.0f;
+				main_pass_clear_values[reveal_attachment_index].color.float32[3] = 0.0f;
+			}
+			else
+			{
+				main_pass_clear_values[reveal_attachment_index].color.float32[0] = 1.0f;
+				main_pass_clear_values[reveal_attachment_index].color.float32[1] = 1.0f;
+				main_pass_clear_values[reveal_attachment_index].color.float32[2] = 1.0f;
+				main_pass_clear_values[reveal_attachment_index].color.float32[3] = 1.0f;
+			}
 		}
 
 		const qboolean use_hybrid = use_oit && ((int)r_oit.value == 2);
@@ -4397,7 +4486,7 @@ void VID_Restart (qboolean set_mode)
 		VID_SetMode (width, height, refreshrate, fullscreen);
 
 	GL_CreateRenderResources ();
-	oit_active = ((int)r_oit.value == 1);
+	oit_active = ((int)r_oit.value == 1 || (int)r_oit.value == 3);
 
 	// conwidth and conheight need to be recalculated
 	vid.conwidth = (scr_conwidth.value > 0) ? (int)scr_conwidth.value : (scr_conscale.value > 0) ? (int)(vid.width / scr_conscale.value) : vid.width;

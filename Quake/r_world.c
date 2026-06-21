@@ -1163,6 +1163,8 @@ static void R_FlushBatch (
 		vulkan_pipeline_t pipeline;
 		if (cbx->render_pass_index == RENDER_PASS_INDEX_WBOIT)
 			pipeline = vulkan_globals.world_wboit_pipelines[pipeline_index];
+		else if (cbx->render_pass_index == RENDER_PASS_INDEX_MBOT)
+			pipeline = vulkan_globals.world_mbot_pipelines[pipeline_index];
 		else if (cbx->render_pass_index == RENDER_PASS_INDEX_PEEL_0 || cbx->render_pass_index == RENDER_PASS_INDEX_PEEL_1)
 			pipeline = vulkan_globals.world_peel_pipelines[cbx->render_pass_index - RENDER_PASS_INDEX_PEEL_0][pipeline_index];
 		else

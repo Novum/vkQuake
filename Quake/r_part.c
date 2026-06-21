@@ -1031,6 +1031,8 @@ void R_DrawParticles (cb_context_t *cbx)
 	vulkan_pipeline_t pp;
 	if (cbx->render_pass_index == RENDER_PASS_INDEX_WBOIT)
 		pp = vulkan_globals.particle_oit_pipeline;
+	else if (cbx->render_pass_index == RENDER_PASS_INDEX_MBOT)
+		pp = vulkan_globals.particle_mbot_pipeline;
 	else if (cbx->render_pass_index == RENDER_PASS_INDEX_PEEL_0 || cbx->render_pass_index == RENDER_PASS_INDEX_PEEL_1)
 		pp = vulkan_globals.particle_peel_pipeline[cbx->render_pass_index - RENDER_PASS_INDEX_PEEL_0];
 	else

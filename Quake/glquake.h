@@ -226,16 +226,18 @@ typedef enum
 	RENDER_PASS_INDEX_UI,
 	RENDER_PASS_INDEX_MAIN_OIT,
 	RENDER_PASS_INDEX_WBOIT,
+	RENDER_PASS_INDEX_MBOT,
 	RENDER_PASS_INDEX_COUNT,
 } render_pass_index_t;
 
-#define RENDER_PASS_INDEX_PEEL_0 4
-#define RENDER_PASS_INDEX_PEEL_1 5
+#define RENDER_PASS_INDEX_PEEL_0 5
+#define RENDER_PASS_INDEX_PEEL_1 6
 
 typedef enum
 {
 	MAIN_RENDER_PASS_STANDARD,
 	MAIN_RENDER_PASS_OIT,
+	MAIN_RENDER_PASS_MBOT,
 	MAIN_RENDER_PASS_VARIANT_COUNT,
 } main_render_pass_variant_t;
 
@@ -248,7 +250,11 @@ typedef enum
 
 static inline main_render_pass_variant_t R_MainPassPipelineVariant (int render_pass_index)
 {
-	return (render_pass_index == RENDER_PASS_INDEX_MAIN_OIT) ? MAIN_RENDER_PASS_OIT : MAIN_RENDER_PASS_STANDARD;
+	if (render_pass_index == RENDER_PASS_INDEX_MAIN_OIT)
+		return MAIN_RENDER_PASS_OIT;
+	if (render_pass_index == RENDER_PASS_INDEX_MBOT)
+		return MAIN_RENDER_PASS_MBOT;
+	return MAIN_RENDER_PASS_STANDARD;
 }
 
 static const int SECONDARY_CB_MULTIPLICITY[SCBX_NUM] = {
@@ -318,6 +324,7 @@ typedef struct
 	VkImage color_buffers[NUM_COLOR_BUFFERS];
 	VkImage oit_accum_buffer;
 	VkImage oit_reveal_buffer;
+	VkImage mbot_moments_buffer;
 
 	// Index buffers
 	VkBuffer fan_index_buffer;
@@ -330,21 +337,24 @@ typedef struct
 	VkRenderPass warp_render_pass;
 
 	// Pipelines
-	vulkan_pipeline_t		 basic_alphatest_pipeline[RENDER_PASS_INDEX_COUNT];
-	vulkan_pipeline_t		 basic_blend_pipeline[RENDER_PASS_INDEX_COUNT];
-	vulkan_pipeline_t		 basic_notex_blend_pipeline[RENDER_PASS_INDEX_COUNT];
+	vulkan_pipeline_t		 basic_alphatest_pipeline[RENDER_PASS_INDEX_COUNT + 2];
+	vulkan_pipeline_t		 basic_blend_pipeline[RENDER_PASS_INDEX_COUNT + 2];
+	vulkan_pipeline_t		 basic_notex_blend_pipeline[RENDER_PASS_INDEX_COUNT + 2];
 	vulkan_pipeline_layout_t basic_pipeline_layout;
 	vulkan_pipeline_layout_t depth_peel_pipeline_layout;
 	vulkan_pipeline_t		 world_pipelines[MAIN_RENDER_PASS_VARIANT_COUNT][WORLD_PIPELINE_COUNT];
 	vulkan_pipeline_t		 world_wboit_pipelines[WORLD_PIPELINE_COUNT];
+	vulkan_pipeline_t		 world_mbot_pipelines[WORLD_PIPELINE_COUNT];
 	vulkan_pipeline_t		 world_peel_pipelines[2][WORLD_PIPELINE_COUNT];
 	vulkan_pipeline_layout_t world_pipeline_layout;
 	vulkan_pipeline_t		 raster_tex_warp_pipeline;
 	vulkan_pipeline_t		 particle_pipeline;
 	vulkan_pipeline_t		 particle_oit_pipeline;
+	vulkan_pipeline_t		 particle_mbot_pipeline;
 	vulkan_pipeline_t		 particle_peel_pipeline[2];
 	vulkan_pipeline_t		 sprite_pipeline[MAIN_RENDER_PASS_VARIANT_COUNT];
 	vulkan_pipeline_t		 sprite_oit_pipeline;
+	vulkan_pipeline_t		 sprite_mbot_pipeline;
 	vulkan_pipeline_t		 sprite_peel_pipeline[2];
 	vulkan_pipeline_layout_t sky_pipeline_layout[2]; // one texture (cubemap-like), two textures (animated layers)
 	vulkan_pipeline_t		 sky_stencil_pipeline[MAIN_RENDER_PASS_VARIANT_COUNT][2];
@@ -354,15 +364,19 @@ typedef struct
 	vulkan_pipeline_t		 sky_layer_pipeline[MAIN_RENDER_PASS_VARIANT_COUNT][2];
 	vulkan_pipeline_t		 alias_pipelines[MAIN_RENDER_PASS_VARIANT_COUNT][MODEL_PIPELINE_COUNT];
 	vulkan_pipeline_t		 alias_wboit_pipelines[MODEL_PIPELINE_COUNT];
+	vulkan_pipeline_t		 alias_mbot_pipelines[MODEL_PIPELINE_COUNT];
 	vulkan_pipeline_t		 alias_peel_pipelines[2][MODEL_PIPELINE_COUNT];
 	vulkan_pipeline_t		 md5_pipelines[MAIN_RENDER_PASS_VARIANT_COUNT][MODEL_PIPELINE_COUNT];
 	vulkan_pipeline_t		 md5_wboit_pipelines[MODEL_PIPELINE_COUNT];
+	vulkan_pipeline_t		 md5_mbot_pipelines[MODEL_PIPELINE_COUNT];
 	vulkan_pipeline_t		 md5_peel_pipelines[2][MODEL_PIPELINE_COUNT];
 	vulkan_pipeline_t		 postprocess_pipeline;
 	vulkan_pipeline_t		 wboit_resolve_pipeline;
+	vulkan_pipeline_t		 mbot_resolve_pipeline;
 	vulkan_pipeline_t		 hybrid_resolve_pipeline;
 	vulkan_pipeline_t		 hybrid_resolve_msaa_pipeline;
 	vulkan_pipeline_layout_t hybrid_resolve_pipeline_layout;
+	vulkan_pipeline_layout_t mbot_resolve_pipeline_layout;
 	vulkan_pipeline_t		 screen_effects_pipeline;
 	vulkan_pipeline_t		 screen_effects_scale_pipeline;
 	vulkan_pipeline_t		 screen_effects_scale_sops_pipeline;
@@ -382,6 +396,7 @@ typedef struct
 #ifdef PSET_SCRIPT
 	vulkan_pipeline_t fte_particle_pipelines[MAIN_RENDER_PASS_VARIANT_COUNT][FTE_PARTICLE_PIPELINE_COUNT];
 	vulkan_pipeline_t fte_particle_wboit_pipelines[FTE_PARTICLE_PIPELINE_COUNT];
+	vulkan_pipeline_t fte_particle_mbot_pipelines[FTE_PARTICLE_PIPELINE_COUNT];
 	vulkan_pipeline_t fte_particle_peel_pipelines[2][FTE_PARTICLE_PIPELINE_COUNT];
 #endif
 
