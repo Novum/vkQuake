@@ -23,20 +23,25 @@ void main ()
 	vec3 wboit_color = accumulation.rgb / max (accumulation.a, 1e-5f);
 	float wboit_alpha = 1.0f - revealage;
 
-	vec3  color = wboit_color;
-	float alpha = wboit_alpha;
+	vec3  color;
+	float alpha;
 
-	float omt1 = 1.0f - peel1.a;
-	float new_alpha = alpha * omt1 + peel1.a;
-	vec3  new_color = (peel1.rgb * peel1.a + color * alpha * omt1) / max (new_alpha, 1e-5f);
-	alpha = new_alpha;
-	color = new_color;
-
-	float omt0 = 1.0f - peel0.a;
-	new_alpha = alpha * omt0 + peel0.a;
-	new_color = (peel0.rgb * peel0.a + color * alpha * omt0) / max (new_alpha, 1e-5f);
-	alpha = new_alpha;
-	color = new_color;
+	if (peel0.a > 1e-6f)
+	{
+		color = peel0.rgb;
+		alpha = peel0.a;
+	}
+	else if (peel1.a > 1e-6f)
+	{
+		float omt1 = 1.0f - peel1.a;
+		alpha = peel1.a + wboit_alpha * omt1;
+		color = (peel1.rgb * peel1.a + wboit_color * wboit_alpha * omt1) / max (alpha, 1e-5f);
+	}
+	else
+	{
+		color = wboit_color;
+		alpha = wboit_alpha;
+	}
 
 	out_frag_color = vec4 (clamp (color, 0.0f, 1.0f), alpha);
 }
