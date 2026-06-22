@@ -4001,7 +4001,7 @@ static void R_CreatePostprocessPipelines ()
 	err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.wboit_resolve_pipeline.handle);
 	if (err != VK_SUCCESS)
 		Sys_Error ("vkCreateGraphicsPipelines failed (wboit_resolve_pipeline) with code %i", (int)err);
-		GL_SetObjectName ((uint64_t)vulkan_globals.wboit_resolve_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "wboit_resolve");
+	GL_SetObjectName ((uint64_t)vulkan_globals.wboit_resolve_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "wboit_resolve");
 
 	{
 		infos.shader_stages[1].module = (vulkan_globals.sample_count == VK_SAMPLE_COUNT_1_BIT) ? mbot_resolve_frag_module : mbot_resolve_msaa_frag_module;
@@ -4011,7 +4011,7 @@ static void R_CreatePostprocessPipelines ()
 		err = vkCreateGraphicsPipelines (vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.mbot_resolve_pipeline.handle);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkCreateGraphicsPipelines failed (mbot_resolve_pipeline) with code %i", (int)err);
-			GL_SetObjectName ((uint64_t)vulkan_globals.mbot_resolve_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "mbot_resolve");
+		GL_SetObjectName ((uint64_t)vulkan_globals.mbot_resolve_pipeline.handle, VK_OBJECT_TYPE_PIPELINE, "mbot_resolve");
 	}
 
 	if (vulkan_globals.peel_render_pass != VK_NULL_HANDLE)

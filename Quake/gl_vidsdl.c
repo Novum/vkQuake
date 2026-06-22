@@ -157,7 +157,6 @@ static vulkan_memory_t	oit_accum_buffer_memory;
 static vulkan_memory_t	oit_reveal_buffer_memory;
 static VkImageView		oit_accum_buffer_view;
 static VkImageView		oit_reveal_buffer_view;
-static VkImage			mbot_moments_buffer;
 static vulkan_memory_t	mbot_moments_buffer_memory;
 static VkImageView		mbot_moments_buffer_view;
 static VkImage			peel_depth_buffer[NUM_PEEL_LAYERS];
