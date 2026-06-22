@@ -14,6 +14,7 @@ layout (push_constant) uniform PushConsts
 	float weight_edge;
 	float weight_thick;
 	float weight_dither;
+	float frame_index;
 }
 push_constants;
 

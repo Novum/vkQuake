@@ -1,13 +1,8 @@
-float Dither4x4 (vec2 position_screen)
+float TemporalDither (vec2 position_screen, float frame_index)
 {
-	const int bayer[16] = int[16] (
-		 0,  8,  2, 10,
-		12,  4, 14,  6,
-		 3, 11,  1,  9,
-		15,  7, 13,  5
-	);
-	ivec2 p = ivec2 (position_screen) % 4;
-	return float (bayer[p.x + p.y * 4]) / 16.0f - 0.5f;
+	vec2 p = position_screen + frame_index * vec2 (0.7123, 0.3917);
+	float n = fract (sin (dot (p, vec2 (12.9898, 78.233))) * 43758.5453);
+	return n - 0.5f;
 }
 
 float OIT_Weight (float alpha, float z, vec2 position_screen)
@@ -36,7 +31,7 @@ float OIT_Weight (float alpha, float z, vec2 position_screen)
 
 	float weight = max (max (max (w_depth, w_disc), w_edge), w_thick);
 
-	weight *= 1.0f + Dither4x4 (position_screen) * push_constants.weight_dither;
+	weight *= 1.0f + TemporalDither (position_screen, push_constants.frame_index) * push_constants.weight_dither;
 
 	weight = clamp (weight, 1e-2f, 1e2f);
 
@@ -48,7 +43,7 @@ float OIT_WeightParticle (float alpha, float z, vec2 position_screen)
 	float d = clamp (z / push_constants.farclip, 0.0f, 1.0f);
 	float weight = alpha * d * d;
 
-	weight *= 1.0f + Dither4x4 (position_screen) * push_constants.weight_dither;
+	weight *= 1.0f + TemporalDither (position_screen, push_constants.frame_index) * push_constants.weight_dither;
 	weight = clamp (weight, 1e-2f, 1e2f);
 
 	return weight;

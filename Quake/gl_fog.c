@@ -330,18 +330,19 @@ OIT_PushWeightParams
 
 Pushes OIT weight function parameters via push constants.
 Called alongside Fog_EnableGFog for secondary CBs that draw OIT geometry.
-Layout: float[22] = weight_m, float[23] = weight_edge, float[24] = weight_thick, float[25] = weight_dither
+Layout: float[22] = weight_m, float[23] = weight_edge, float[24] = weight_thick, float[25] = weight_dither, float[26] = frame_index
 ============
 */
 void OIT_PushWeightParams (cb_context_t *cbx)
 {
-	float oit_params[4] = {
+	float oit_params[5] = {
 		r_oit_weight_m.value,
 		r_oit_weight_edge.value,
 		r_oit_weight_thick.value,
 		r_oit_weight_dither.value,
+		(float)r_framecount,
 	};
-	R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 22 * sizeof (float), 4 * sizeof (float), oit_params);
+	R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 22 * sizeof (float), 5 * sizeof (float), oit_params);
 }
 
 /*
