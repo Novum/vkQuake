@@ -445,11 +445,16 @@ static trace_t SV_PushEntity (edict_t *ent, vec3_t push)
 	else
 		trace = SV_Move (ent->v.origin, ent->v.mins, ent->v.maxs, end, MOVE_NORMAL, ent);
 
+	if (trace.ent)
+		assert (!trace.ent->free);
+
 	VectorCopy (trace.endpos, ent->v.origin);
+
 	SV_LinkEdict (ent, true);
 
-	// SV_LinkEdict could have freed ent calling its touch program:
-	if (!ent->free && trace.ent)
+	// SV_LinkEdict could have freed ent calling its touch program,
+	// and it can also piggyback to trace.ent and free it ??? :)
+	if (!ent->free && trace.ent && !trace.ent->free)
 		SV_Impact (ent, trace.ent);
 
 	return trace;
@@ -966,7 +971,9 @@ static void SV_WalkMove (edict_t *ent)
 		if (ent->v.solid == SOLID_BSP)
 		{
 			ent->v.flags = (int)ent->v.flags | FL_ONGROUND;
-			ent->v.groundentity = EDICT_TO_PROG (downtrace.ent);
+
+			if (downtrace.ent && !downtrace.ent->free)
+				ent->v.groundentity = EDICT_TO_PROG (downtrace.ent);
 		}
 	}
 	else
