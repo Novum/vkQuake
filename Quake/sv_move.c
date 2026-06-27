@@ -116,6 +116,8 @@ qboolean SV_movestep (edict_t *ent, vec3_t move, qboolean relink)
 	int		 i;
 	edict_t *enemy;
 
+	assert (!ent->free);
+
 	// try the move
 	VectorCopy (ent->v.origin, oldorg);
 	VectorAdd (ent->v.origin, move, neworg);
@@ -210,7 +212,8 @@ qboolean SV_movestep (edict_t *ent, vec3_t move, qboolean relink)
 		//		Con_Printf ("back on ground\n");
 		ent->v.flags = (int)ent->v.flags & ~FL_PARTIALGROUND;
 	}
-	ent->v.groundentity = EDICT_TO_PROG (trace.ent);
+	if (trace.ent)
+		ent->v.groundentity = EDICT_TO_PROG (trace.ent);
 
 	// the move is ok
 	if (relink)
@@ -251,11 +254,12 @@ qboolean SV_StepDirection (edict_t *ent, float yaw, float dist)
 		{ // not turned far enough, so don't take the step
 			VectorCopy (oldorigin, ent->v.origin);
 		}
+		assert (!ent->free);
 		SV_LinkEdict (ent, true);
 		return true;
 	}
+	assert (!ent->free);
 	SV_LinkEdict (ent, true);
-
 	return false;
 }
 

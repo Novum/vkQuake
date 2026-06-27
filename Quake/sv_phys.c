@@ -452,8 +452,8 @@ static trace_t SV_PushEntity (edict_t *ent, vec3_t push)
 
 	SV_LinkEdict (ent, true);
 
-	// SV_LinkEdict could have freed ent calling its touch program,
-	// and it can also piggyback to trace.ent and free it ??? :)
+	// SV_LinkEdict(true) could have freed ent calling its touch program,
+	// and also through calling SV_Touch_Links () internally could also free trace.ent.
 	if (!ent->free && trace.ent && !trace.ent->free)
 		SV_Impact (ent, trace.ent);
 
@@ -972,6 +972,7 @@ static void SV_WalkMove (edict_t *ent)
 		{
 			ent->v.flags = (int)ent->v.flags | FL_ONGROUND;
 
+			// SV_PushEntity() call SV_LinkEdict (true) that could free downtrace.ent
 			if (downtrace.ent && !downtrace.ent->free)
 				ent->v.groundentity = EDICT_TO_PROG (downtrace.ent);
 		}
@@ -1182,6 +1183,7 @@ static void SV_Physics_Toss (edict_t *ent)
 	// move origin
 	VectorScale (ent->v.velocity, host_frametime, move);
 	trace = SV_PushEntity (ent, move);
+
 	if (trace.fraction == 1)
 		return;
 	if (ent->free)
@@ -1201,7 +1203,11 @@ static void SV_Physics_Toss (edict_t *ent)
 			(sv_gameplayfix_bouncedownslopes.value ? DotProduct (trace.plane.normal, ent->v.velocity) : ent->v.velocity[2]) < 60)
 		{
 			ent->v.flags = (int)ent->v.flags | FL_ONGROUND;
-			ent->v.groundentity = EDICT_TO_PROG (trace.ent);
+
+			// SV_PushEntity() call SV_LinkEdict (true) that could free trace.ent
+			if (trace.ent && !trace.ent->free)
+				ent->v.groundentity = EDICT_TO_PROG (trace.ent);
+
 			VectorCopy (vec3_origin, ent->v.velocity);
 			VectorCopy (vec3_origin, ent->v.avelocity);
 		}

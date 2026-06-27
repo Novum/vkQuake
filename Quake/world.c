@@ -1300,5 +1300,8 @@ trace_t SV_Move (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type, e
 	if (qcvm == &cl.qcvm)
 		World_ClipToNetwork (&clip);
 
+	if (clip.trace.ent)
+		assert (!clip.trace.ent->free);
+
 	return clip.trace;
 }

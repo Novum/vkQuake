@@ -1436,36 +1436,36 @@ static void PF_sprintf_internal (const char *s, int firstarg, char *outbuf, int 
 							q_snprintf (o, end - o, formatbuf, width, precision, quotedarg);
 						o += strlen (o);
 					}
-/*								else
-								{
-									if(precision < 0) // not set
-										precision = end - o - 1;
-									o += u8_strpad(o, end - o, quotedarg, (flags & PRINTF_LEFT) != 0, width, precision);
-								}
-*/							}
-break;
-case 's':
-	// UTF-8-FIXME: figure it out yourself
-	//							if(flags & PRINTF_ALTERNATE)
-	{
-		if (precision < 0) // not set
-			q_snprintf (o, end - o, formatbuf, width, GETARG_STRING (thisarg));
-		else
-			q_snprintf (o, end - o, formatbuf, width, precision, GETARG_STRING (thisarg));
-		o += strlen (o);
-	}
-	/*							else
-								{
-									if(precision < 0) // not set
-										precision = end - o - 1;
-									o += u8_strpad(o, end - o, GETARG_STRING(thisarg), (flags & PRINTF_LEFT) != 0, width, precision);
-								}
-	*/
-	break;
-default:
-	Con_Warning ("PF_sprintf: invalid format string: %s\n", s0);
-	goto finished;
-}
+				/*								else
+												{
+													if(precision < 0) // not set
+														precision = end - o - 1;
+													o += u8_strpad(o, end - o, quotedarg, (flags & PRINTF_LEFT) != 0, width, precision);
+												}
+				*/							}
+				break;
+				case 's':
+					// UTF-8-FIXME: figure it out yourself
+					//							if(flags & PRINTF_ALTERNATE)
+					{
+						if (precision < 0) // not set
+							q_snprintf (o, end - o, formatbuf, width, GETARG_STRING (thisarg));
+						else
+							q_snprintf (o, end - o, formatbuf, width, precision, GETARG_STRING (thisarg));
+						o += strlen (o);
+					}
+					/*							else
+												{
+													if(precision < 0) // not set
+														precision = end - o - 1;
+													o += u8_strpad(o, end - o, GETARG_STRING(thisarg), (flags & PRINTF_LEFT) != 0, width, precision);
+												}
+					*/
+					break;
+				default:
+					Con_Warning ("PF_sprintf: invalid format string: %s\n", s0);
+					goto finished;
+				}
 			}
 			++s;
 			break;
@@ -5106,9 +5106,9 @@ static struct
 	{"trailparticles",				PF_sv_trailparticles,			PF_cl_trailparticles,			336,	D("void(float effectnum, entity ent, vector start, vector end)", "Draws the given effect between the two named points. If ent is not world, distances will be cached in the entity in order to avoid framerate dependancies. The entity is not otherwise used.")},// (EXT_CSQC),
 	{"pointparticles",				PF_sv_pointparticles,			PF_cl_pointparticles,			337,	D("void(float effectnum, vector origin, optional vector dir, optional float count)", "Spawn a load of particles from the given effect at the given point traveling or aiming along the direction specified. The number of particles are scaled by the count argument.")},// (EXT_CSQC)
 	{"print",						PF_print,						PF_print,						339,	D("void(string s, ...)", "Unconditionally print on the local system's console, even in ssqc (doesn't care about the value of the developer cvar).")},//(EXT_CSQC)
-	{"getplayerkeyvalue",			NULL,							PF_cl_playerkey_s,				348,	D("string(float playernum, string keyname)", "Look up a player's userinfo, to discover things like their name, topcolor, bottomcolor, skin, team, *ver.\nAlso includes scoreboard info like frags, ping, pl, userid, entertime, as well as voipspeaking and voiploudness.")},// (EXT_CSQC)
-	{"getplayerkeyfloat",			NULL,							PF_cl_playerkey_f,				0,		D("float(float playernum, string keyname, optional float assumevalue)", "Cheaper version of getplayerkeyvalue that avoids the need for so many tempstrings.")},
-	{"registercommand",				NULL,							PF_cl_registercommand,			352,	D("void(string cmdname)", "Register the given console command, for easy console use.\nConsole commands that are later used will invoke CSQC_ConsoleCommand.")},//(EXT_CSQC)
+	{"getplayerkeyvalue",			PF_NoSSQC,						PF_cl_playerkey_s,				348,	D("string(float playernum, string keyname)", "Look up a player's userinfo, to discover things like their name, topcolor, bottomcolor, skin, team, *ver.\nAlso includes scoreboard info like frags, ping, pl, userid, entertime, as well as voipspeaking and voiploudness.")},// (EXT_CSQC)
+	{"getplayerkeyfloat",			PF_NoSSQC,						PF_cl_playerkey_f,				0,		D("float(float playernum, string keyname, optional float assumevalue)", "Cheaper version of getplayerkeyvalue that avoids the need for so many tempstrings.")},
+	{"registercommand",				PF_NoSSQC,						PF_cl_registercommand,			352,	D("void(string cmdname)", "Register the given console command, for easy console use.\nConsole commands that are later used will invoke CSQC_ConsoleCommand.")},//(EXT_CSQC)
 	{"wasfreed",					PF_WasFreed,					PF_WasFreed,					353,	D("float(entity ent)", "Quickly check to see if the entity is currently free. This function is only valid during the two-second non-reuse window, after that it may give bad results. Try one second to make it more robust.")},//(EXT_CSQC) (should be availabe on server too)
 	{"readbyte",					PF_NoSSQC,						PF_cl_readbyte,					360,	"float()"},// (EXT_CSQC)
 	{"readchar",					PF_NoSSQC,						PF_cl_readchar,					361,	"float()"},// (EXT_CSQC)

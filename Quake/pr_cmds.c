@@ -716,6 +716,7 @@ static void PF_traceline (void)
 	VectorCopy (trace.endpos, pr_global_struct->trace_endpos);
 	VectorCopy (trace.plane.normal, pr_global_struct->trace_plane_normal);
 	pr_global_struct->trace_plane_dist = trace.plane.dist;
+
 	if (trace.ent)
 		pr_global_struct->trace_ent = EDICT_TO_PROG (trace.ent);
 	else
@@ -1289,7 +1290,9 @@ static void PF_droptofloor (void)
 		VectorCopy (trace.endpos, ent->v.origin);
 		SV_LinkEdict (ent, false);
 		ent->v.flags = (int)ent->v.flags | FL_ONGROUND;
-		ent->v.groundentity = EDICT_TO_PROG (trace.ent);
+
+		if (trace.ent)
+			ent->v.groundentity = EDICT_TO_PROG (trace.ent);
 		G_FLOAT (OFS_RETURN) = 1;
 	}
 }
