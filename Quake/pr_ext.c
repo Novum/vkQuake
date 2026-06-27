@@ -2998,6 +2998,250 @@ static void PF_cl_localsound (void)
 }
 // file stuff
 
+// returns false if the file is denied.
+// fallbackread can be NULL, if the qc is not allowed to read that (original) file at all.
+static qboolean QC_FixFileName (const char *name, const char **result, const char **fallbackread)
+{
+	if (!*name ||			   // blank names are bad
+		strchr (name, ':') ||  // dos/win absolute path, ntfs ADS, amiga drives. reject them all.
+		strchr (name, '\\') || // windows-only paths.
+		*name == '/' ||		   // absolute path was given - reject
+		strstr (name, ".."))   // someone tried to be clever.
+	{
+		return false;
+	}
+
+	*fallbackread = name;
+	// if its a user config, ban any fallback locations so that csqc can't read passwords or whatever.
+	if ((!strchr (name, '/') || q_strncasecmp (name, "configs/", 8)) && !q_strcasecmp (COM_FileGetExtension (name), "cfg") &&
+		q_strncasecmp (name, "particles/", 10) && q_strncasecmp (name, "huds/", 5) && q_strncasecmp (name, "models/", 7))
+		*fallbackread = NULL;
+	*result = va ("data/%s", name);
+	return true;
+}
+
+// small note on access modes:
+// when reading, we fopen files inside paks, for compat with (crappy non-zip-compatible) filesystem code
+// when writing, we directly fopen the file such that it can never be inside a pak.
+// this means that we need to take care when reading in order to detect EOF properly.
+// writing doesn't need anything like that, so it can just dump stuff out, but we do need to ensure that the modes don't get mixed up, because trying to read
+// from a writable file will not do what you would expect. even libc mandates a seek between reading+writing, so no great loss there.
+static struct qcfile_s
+{
+	qcvm_t *owningvm;
+	char	cache[1024];
+	int		cacheoffset, cachesize;
+	FILE   *file;
+	int		fileoffset;
+	int		filesize;
+	int		filebase; // the offset of the file inside a pak
+	int		mode;
+} *qcfiles;
+
+static size_t qcfiles_max;
+
+#define QC_FILE_BASE 1
+
+static void PF_fopen (void)
+{
+	const char *fname = G_STRING (OFS_PARM0);
+	int			fmode = G_FLOAT (OFS_PARM1);
+	const char *fallback;
+	FILE	   *file;
+	size_t		i;
+	char		name[MAX_OSPATH], *sl;
+	int			filesize = 0;
+
+	G_FLOAT (OFS_RETURN) = -1; // assume failure
+
+	if (!QC_FixFileName (fname, &fname, &fallback))
+	{
+		Con_Printf ("qcfopen: Access denied: %s\n", fname);
+		return;
+	}
+	// if we were told to use 'foo.txt'
+	// fname is now 'data/foo.txt'
+	// fallback is now 'foo.txt', and must ONLY be read.
+
+	switch (fmode)
+	{
+	case 0: // read
+		filesize = COM_FOpenFile (fname, &file, NULL);
+		if (!file && fallback)
+			filesize = COM_FOpenFile (fallback, &file, NULL);
+		break;
+	case 1: // append
+		q_snprintf (name, sizeof (name), "%s/%s", com_gamedir, fname);
+		Sys_mkdir (name);
+		file = fopen (name, "w+b");
+		if (file)
+			fseek (file, 0, SEEK_END);
+		break;
+	case 2: // write
+		q_snprintf (name, sizeof (name), "%s/%s", com_gamedir, fname);
+		sl = name + 1;
+		while (*sl)
+		{
+			if (*sl == '/')
+			{
+				*sl = 0;
+				Sys_mkdir (name); // make sure each part of the path exists.
+				*sl = '/';
+			}
+			sl++;
+		}
+		file = fopen (name, "wb");
+		break;
+	default:
+		Con_Warning ("PF_fopen: unsupported mode: %i\n", fmode);
+		return;
+	}
+	if (!file)
+		return;
+
+	for (i = 0;; i++)
+	{
+		if (i == qcfiles_max)
+		{
+			qcfiles_max++;
+			qcfiles = Mem_Realloc (qcfiles, sizeof (*qcfiles) * qcfiles_max);
+		}
+		if (!qcfiles[i].file)
+			break;
+	}
+	qcfiles[i].filebase = ftell (file);
+	qcfiles[i].owningvm = qcvm;
+	qcfiles[i].file = file;
+	qcfiles[i].mode = fmode;
+	// reading needs size info
+	qcfiles[i].filesize = filesize;
+	// clear the read cache.
+	qcfiles[i].fileoffset = qcfiles[i].cacheoffset = qcfiles[i].cachesize = 0;
+
+	G_FLOAT (OFS_RETURN) = i + QC_FILE_BASE;
+}
+
+static void PF_fgets (void)
+{
+	size_t fileid = G_FLOAT (OFS_PARM0) - QC_FILE_BASE;
+	G_INT (OFS_RETURN) = 0;
+	if (fileid >= qcfiles_max)
+		Con_Warning ("PF_fgets: invalid file handle\n");
+	else if (!qcfiles[fileid].file)
+		Con_Warning ("PF_fgets: file not open\n");
+	else if (qcfiles[fileid].mode != 0)
+		Con_Warning ("PF_fgets: file not open for reading\n");
+	else
+	{
+		struct qcfile_s *f = &qcfiles[fileid];
+		char			*ret = PR_GetTempString ();
+		char			*s = ret;
+		char			*end = ret + STRINGTEMP_LENGTH;
+		for (;;)
+		{
+			if (f->cacheoffset == f->cachesize)
+			{
+				// figure out how much we can try to cache.
+				int sz = f->filesize - f->fileoffset;
+				if (sz < 0 || f->fileoffset < 0) //... maybe we shouldn't have implemented seek support.
+					sz = 0;
+				else if ((size_t)sz > sizeof (f->cache))
+					sz = sizeof (f->cache);
+				// read a chunk
+				f->cacheoffset = 0;
+				f->cachesize = fread (f->cache, 1, sz, f->file);
+				f->fileoffset += f->cachesize;
+				if (!f->cachesize)
+				{
+					if (s == ret)
+					{ // absolutely nothing to spew
+						G_INT (OFS_RETURN) = 0;
+						return;
+					}
+					// classic eof...
+					break;
+				}
+			}
+			*s = f->cache[f->cacheoffset++];
+			if (*s == '\n') // new line, yay!
+				break;
+			s++;
+			if (s == end)
+				s--; // rewind if we're overflowing, such that we truncate the string.
+		}
+		if (s > ret && s[-1] == '\r')
+			s--; // terminate it on the \r of a \r\n pair.
+		*s = 0;	 // terminate it
+		G_INT (OFS_RETURN) = PR_SetEngineString (ret);
+	}
+}
+
+static void PF_fputs (void)
+{
+	size_t		fileid = G_FLOAT (OFS_PARM0) - QC_FILE_BASE;
+	const char *str = PF_VarString (1);
+	if (fileid >= qcfiles_max)
+		Con_Warning ("PF_fputs: invalid file handle\n");
+	else if (!qcfiles[fileid].file)
+		Con_Warning ("PF_fputs: file not open\n");
+	else if (qcfiles[fileid].mode == 0)
+		Con_Warning ("PF_fgets: file not open for writing\n");
+	else
+		fputs (str, qcfiles[fileid].file);
+}
+
+static void PF_fclose (void)
+{
+	size_t fileid = G_FLOAT (OFS_PARM0) - QC_FILE_BASE;
+	if (fileid >= qcfiles_max)
+		Con_Warning ("PF_fclose: invalid file handle\n");
+	else if (!qcfiles[fileid].file)
+		Con_Warning ("PF_fclose: file not open\n");
+	else
+	{
+		fclose (qcfiles[fileid].file);
+		qcfiles[fileid].file = NULL;
+		qcfiles[fileid].owningvm = NULL;
+	}
+}
+
+static void PF_frikfile_shutdown (void)
+{
+	size_t i;
+	for (i = 0; i < qcfiles_max; i++)
+	{
+		if (qcfiles[i].owningvm == qcvm)
+		{
+			fclose (qcfiles[i].file);
+			qcfiles[i].file = NULL;
+			qcfiles[i].owningvm = NULL;
+		}
+	}
+}
+
+static void PF_fseek (void)
+{ // returns current position. or changes that position.
+	size_t fileid = G_FLOAT (OFS_PARM0) - QC_FILE_BASE;
+	G_INT (OFS_RETURN) = 0;
+	if (fileid >= qcfiles_max)
+		Con_Warning ("PF_fread: invalid file handle\n");
+	else if (!qcfiles[fileid].file)
+		Con_Warning ("PF_fread: file not open\n");
+	else
+	{
+		if (qcfiles[fileid].mode == 0)
+			G_INT (OFS_RETURN) = qcfiles[fileid].fileoffset; // when we're reading, use the cached read offset
+		else
+			G_INT (OFS_RETURN) = ftell (qcfiles[fileid].file) - qcfiles[fileid].filebase;
+		if (qcvm->argc > 1)
+		{
+			qcfiles[fileid].fileoffset = G_INT (OFS_PARM1);
+			fseek (qcfiles[fileid].file, qcfiles[fileid].filebase + qcfiles[fileid].fileoffset, SEEK_SET);
+			qcfiles[fileid].cachesize = qcfiles[fileid].cacheoffset = 0;
+		}
+	}
+}
+
 static void PF_whichpack (void)
 {
 	const char	*fname = G_STRING (OFS_PARM0); // uses native paths, as this isn't actually reading anything.
@@ -4142,6 +4386,7 @@ static struct svcustomstat_s *PR_CustomStat (int idx, int type)
 	sv.customstats[i].ptr = NULL;
 	return &sv.customstats[i];
 }
+
 static void PF_clientstat (void)
 {
 	int					   idx = G_FLOAT (OFS_PARM0);
@@ -4152,6 +4397,37 @@ static void PF_clientstat (void)
 		return;
 	stat->fld = fldofs;
 }
+
+static void PF_globalstat (void)
+{
+	int					   idx = G_FLOAT (OFS_PARM0);
+	int					   type = G_FLOAT (OFS_PARM1);
+	const char			  *globname = G_STRING (OFS_PARM2);
+	eval_t				  *ptr = PR_FindExtGlobal (type, globname);
+	struct svcustomstat_s *stat;
+	if (ptr)
+	{
+		stat = PR_CustomStat (idx, type);
+		if (!stat)
+			return;
+		stat->ptr = ptr;
+	}
+}
+
+static void PF_pointerstat (void)
+{
+	int					   idx = G_FLOAT (OFS_PARM0);
+	int					   type = G_FLOAT (OFS_PARM1);
+	int					   qcptr = G_INT (OFS_PARM2);
+	struct svcustomstat_s *stat;
+	if (qcptr < 0 || qcptr >= qcvm->max_edicts * qcvm->edict_size || (qcptr % qcvm->edict_size) < sizeof (edict_t) - sizeof (entvars_t))
+		return; // invalid pointer. this is a more strict check than the qcvm...
+	stat = PR_CustomStat (idx, type);
+	if (!stat)
+		return;
+	stat->ptr = (eval_t *)((byte *)qcvm->edicts + qcptr);
+}
+
 static void PF_isbackbuffered (void)
 {
 	unsigned int plnum = G_EDICTNUM (OFS_PARM0) - 1;
@@ -5106,6 +5382,11 @@ static struct
 	{"checkbuiltin",				PF_checkbuiltin,				PF_checkbuiltin,				0,		D("float(__variant funcref)", "Checks to see if the specified builtin is supported/mapped. This is intended as a way to check for #0 functions, allowing for simple single-builtin functions.")},
 	{"builtin_find",				PF_builtinsupported,			PF_builtinsupported,			100,	D("float(string builtinname)", "Looks to see if the named builtin is valid, and returns the builtin number it exists at.")},	// #100	//per builtin system.
 	{"anglemod",					PF_anglemod,					PF_anglemod,					102,	"float(float value)"},	//telejano
+	{"fopen",						PF_fopen,						PF_fopen,						110,	D("filestream(string filename, float mode, optional float mmapminsize)", "Opens a file, typically prefixed with \"data/\", for either read or write access.")},	// (FRIK_FILE)
+	{"fclose",						PF_fclose,						PF_fclose,						111,	"void(filestream fhandle)"},	// (FRIK_FILE)
+	{"fgets",						PF_fgets,						PF_fgets,						112,	D("string(filestream fhandle)", "Reads a single line out of the file. The new line character is not returned as part of the string. Returns the null string on EOF (use if not(string) to easily test for this, which distinguishes it from the empty string which is returned if the line being read is blank")},	// (FRIK_FILE)
+	{"fputs",						PF_fputs,						PF_fputs,						113,	D("void(filestream fhandle, string s, optional string s2, optional string s3, optional string s4, optional string s5, optional string s6, optional string s7)", "Writes the given string(s) into the file. For compatibility with fgets, you should ensure that the string is terminated with a \\n - this will not otherwise be done for you. It is up to the engine whether dos or unix line endings are actually written.")},	// (FRIK_FILE)
+	{"fseek",						PF_fseek,						PF_fseek,						0,		D("#define ftell fseek //c-compat\nint(filestream fhandle, optional int newoffset)", "Changes the current position of the file, if specified. Returns prior position, in bytes.")},
 	{"strlen",						PF_strlen,						PF_strlen,						114,	"float(string s)"},	// (FRIK_FILE)
 	{"strcat",						PF_strcat,						PF_strcat,						115,	"string(string s1, optional string s2, optional string s3, optional string s4, optional string s5, optional string s6, optional string s7, optional string s8)"},	// (FRIK_FILE)
 	{"substring",					PF_substring,					PF_substring,					116,	"string(string s, float start, float length)"},	// (FRIK_FILE)
@@ -5129,6 +5410,8 @@ static struct
 	{"strncasecmp",					PF_strncasecmp,					PF_strncasecmp,					230,	D("float(string s1, string s2, float len, optional float s1ofs, optional float s2ofs)", "Compares up to 'len' chars in the two strings without case sensitivity. s1ofs allows you to treat s2 as a substring to compare against, or should be 0.\nReturns 0 if they are equal. The sign of the return value may be significant, but should not be depended upon.")},
 	{"strtrim",						PF_strtrim,						PF_strtrim,						0,		D("string(string s)", "Trims the whitespace from the start+end of the string.")},
 	{"clientstat",					PF_clientstat,					PF_NoCSQC,						232,	D("void(float num, float type, .__variant fld)", "Specifies what data to use in order to send various stats, in a client-specific way.\n'num' should be a value between 32 and 127, other values are reserved.\n'type' must be set to one of the EV_* constants, one of EV_FLOAT, EV_STRING, EV_INTEGER, EV_ENTITY.\nfld must be a reference to the field used, each player will be sent only their own copy of these fields.")},	//EXT_CSQC
+	{"globalstat",					PF_globalstat,					PF_NoCSQC,						233,	D("void(float num, float type, string name)", "Specifies what data to use in order to send various stats, in a non-client-specific way. num and type are as in clientstat, name however, is the name of the global to read in the form of a string (pass \"foo\").")},	//EXT_CSQC_1 actually
+	{"pointerstat",					PF_pointerstat,					PF_NoCSQC,						0,		D("void(float num, float type, __variant *address)", "Specifies what data to use in order to send various stats, in a non-client-specific way. num and type are as in clientstat, address however, is the address of the variable you would like to use (pass &foo).")},
 	{"isbackbuffered",				PF_isbackbuffered,				PF_NoCSQC,						234,	D("float(entity player)", "Returns if the given player's network buffer will take multiple network frames in order to clear. If this builtin returns non-zero, you should delay or reduce the amount of reliable (and also unreliable) data that you are sending to that client.")},
 	{"te_bloodqw",					PF_sv_te_bloodqw,				NULL,							239,	"void(vector org, float count)"},
 	{"checkpvs",					PF_checkpvs,					PF_checkpvs,					240,	"float(vector viewpos, entity entity)"},
@@ -5410,6 +5693,7 @@ static struct
 #endif
 	{"DP_TE_STANDARDEFFECTBUILTINS"},
 	{"EXT_BITSHIFT"},
+	{"FRIK_FILE"},
 //	{"FTE_ENT_SKIN_CONTENTS"}, // SOLID_BSP&&skin==CONTENTS_FOO changes CONTENTS_SOLID to CONTENTS_FOO, allowing you to swim in moving ents without qc hacks,
 //							   // as well as correcting view cshifts etc.
 #ifdef PSET_SCRIPT
@@ -5613,6 +5897,7 @@ void PF_Fixme (void)
 void PR_ShutdownExtensions (void)
 {
 	PR_UnzoneAll ();
+	PF_frikfile_shutdown ();
 	PF_buf_shutdown ();
 	tokenize_flush ();
 	pr_ext_warned_particleeffectnum = 0;
