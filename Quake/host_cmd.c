@@ -1645,6 +1645,14 @@ static void Host_Loadgame_f (void)
 		memset (cl_temp_entities, 0, sizeof (cl_temp_entities));
 		memset (cl_beams, 0, sizeof (cl_beams));
 		cl.faceanimtime = 0.0;
+		// Clear pending damage on the player entity so the server doesn't
+		// re-send a stale svc_damage that would overwrite faceanimtime
+		// with a value based on the old cl.time (before svc_time resets it).
+		{
+			edict_t *pent = EDICT_NUM (1);
+			pent->v.dmg_take = 0;
+			pent->v.dmg_save = 0;
+		}
 		V_ResetBlend ();
 		Fog_ResetFade ();
 		R_ClearParticles ();
@@ -2614,6 +2622,67 @@ DEMO LOOP CONTROL
 
 /*
 ==================
+Test_FaceAnim_f
+
+Debug command for issue #847: tests that faceanimtime is properly
+reset during fastload and doesn't get stuck by a stale svc_damage.
+==================
+*/
+static void Test_FaceAnim_f (void)
+{
+	edict_t *pent;
+
+	if (Cmd_Argc () < 2)
+	{
+		Con_Printf ("test_faceanim usage:\n");
+		Con_Printf ("  test_faceanim run   - set damage, save game, fastload, check\n");
+		return;
+	}
+
+	if (!sv.active || svs.maxclients != 1 || cls.signon != SIGNONS)
+	{
+		if (cls.state == ca_dedicated)
+			return;
+		Cbuf_InsertText ("wait\ntest_faceanim run\n");
+		return;
+	}
+
+	pent = svs.clients->edict;
+
+	if (!strcmp (Cmd_Argv (1), "run"))
+	{
+		Con_Printf ("test_faceanim: setting dmg_take=50 on player...\n");
+		pent->v.dmg_take = 50;
+		pent->v.dmg_save = 0;
+		Con_Printf ("test_faceanim: scheduling save -> wait -> fastload -> wait -> check\n");
+		// Cbuf_InsertText prepends, so insert in REVERSE execution order.
+		// Desired execution: save -> wait10 -> fastload -> wait10 -> result
+		Cbuf_InsertText ("test_faceanim result\n");
+		Cbuf_InsertText ("wait\nwait\nwait\nwait\nwait\nwait\nwait\nwait\nwait\nwait\n");
+		Cbuf_InsertText ("fastload _test_faceanim\n");
+		Cbuf_InsertText ("wait\nwait\nwait\nwait\nwait\nwait\nwait\nwait\nwait\nwait\n");
+		Cbuf_InsertText ("save _test_faceanim\n");
+		return;
+	}
+
+	if (!strcmp (Cmd_Argv (1), "result"))
+	{
+		Con_Printf ("test_faceanim: cl.time = %f, cl.faceanimtime = %f\n", cl.time, cl.faceanimtime);
+		Con_Printf ("test_faceanim: dmg_take = %f, dmg_save = %f\n", pent->v.dmg_take, pent->v.dmg_save);
+
+		if (cl.faceanimtime <= cl.time)
+			Con_Printf ("test_faceanim: PASS - face is not stuck (faceanimtime <= cl.time)\n");
+		else
+			Con_Printf ("test_faceanim: FAIL - face is STUCK (faceanimtime = %f > cl.time = %f, delta = %f)\n",
+				cl.faceanimtime, cl.time, cl.faceanimtime - cl.time);
+		return;
+	}
+
+	Con_Printf ("test_faceanim: unknown subcommand '%s'\n", Cmd_Argv (1));
+}
+
+/*
+==================
 Host_Startdemos_f
 ==================
 */
@@ -2744,6 +2813,8 @@ void Host_InitCommands (void)
 	Cmd_AddCommand ("fastload", Host_Loadgame_f);
 	Cmd_AddCommand ("save", Host_Savegame_f);
 	Cmd_AddCommand ("give", Host_Give_f);
+
+	Cmd_AddCommand ("test_faceanim", Test_FaceAnim_f);
 
 	Cmd_AddCommand ("startdemos", Host_Startdemos_f);
 	Cmd_AddCommand ("demos", Host_Demos_f);
