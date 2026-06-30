@@ -23,8 +23,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 
-static byte *Image_LoadPCX (FILE *f, int *width, int *height);
-static byte *Image_LoadLMP (FILE *f, int *width, int *height);
+static byte *Image_LoadPCX (int file_handle, int *width, int *height, const char *image_name);
+static byte *Image_LoadLMP (int file_handle, int *width, int *height, const char *image_name);
 
 #ifdef _MSC_VER
 // Disable warning C4505: Unused functions
@@ -48,6 +48,7 @@ static byte *Image_LoadLMP (FILE *f, int *width, int *height);
 #define STBI_NO_PIC
 #define STBI_NO_PNM
 #define STBI_NO_LINEAR
+#define STBI_NO_STDIO
 // plug our Mem_Alloc in stb_image:
 #define STBI_MALLOC(sz)		   Mem_Alloc (sz)
 #define STBI_REALLOC(p, newsz) Mem_Realloc (p, newsz)
@@ -96,40 +97,35 @@ void lodepng_free (void *ptr)
 	Mem_Free (ptr);
 }
 
-static THREAD_LOCAL char loadfilename[MAX_OSPATH]; // file scope so that error messages can use it
-
-typedef struct stdio_buffer_s
+static int stbi_read_cb (void *user, char *data, int size)
 {
-	FILE		 *f;
-	unsigned char buffer[1024];
-	int			  size;
-	int			  pos;
-} stdio_buffer_t;
+	int *file_handle = (int *)user;
 
-static stdio_buffer_t *Buf_Alloc (FILE *f)
-{
-	stdio_buffer_t *buf = (stdio_buffer_t *)Mem_Alloc (sizeof (stdio_buffer_t));
-	buf->f = f;
-	return buf;
+	return Sys_FileRead (*file_handle, (void *)data, size);
 }
 
-static void Buf_Free (stdio_buffer_t *buf)
+static void stbi_skip_cb (void *user, int n)
 {
-	Mem_Free (buf);
-}
+	int *file_handle = (int *)user;
 
-static inline int Buf_GetC (stdio_buffer_t *buf)
-{
-	if (buf->pos >= buf->size)
+	qfileofs_t current_pos = Sys_FilePos (*file_handle);
+
+	qfileofs_t new_pos = current_pos + n;
+
+	// mimic default stbi__stdio_skip() :
+	Sys_FileSeek (*file_handle, new_pos);
+
+	if (Sys_fgetc (*file_handle) != EOF)
 	{
-		buf->size = fread (buf->buffer, 1, sizeof (buf->buffer), buf->f);
-		buf->pos = 0;
-
-		if (buf->size == 0)
-			return EOF;
+		Sys_FileSeek (*file_handle, new_pos);
 	}
+}
 
-	return buf->buffer[buf->pos++];
+static int stbi_eof_cb (void *user)
+{
+	int *file_handle = (int *)user;
+
+	return (int)Sys_feof (*file_handle);
 }
 
 /*
@@ -147,22 +143,26 @@ byte *Image_LoadImage (const char *name, int *width, int *height, enum srcformat
 {
 	static const char *const stbi_formats[] = {"png", "tga", "jpg", NULL};
 
-	FILE *f;
-	int	  i;
+	char loadfilename[MAX_OSPATH];
+
+	int file_handle = -1;
+	int i;
 
 	unsigned int opened_file_path_id = 0;
 
 	for (i = 0; stbi_formats[i]; i++)
 	{
 		q_snprintf (loadfilename, sizeof (loadfilename), "%s.%s", name, stbi_formats[i]);
-		COM_FOpenFile (loadfilename, &f, &opened_file_path_id);
+		COM_OpenFile (loadfilename, &file_handle, &opened_file_path_id);
 
-		if (f)
+		if (file_handle >= 0)
 		{
 			if (opened_file_path_id >= min_path_id)
 			{
+				stbi_io_callbacks sys_file_cb = {.read = stbi_read_cb, .eof = stbi_eof_cb, .skip = stbi_skip_cb};
+
 				// data is managed by our Mem_Alloc routines, nothing more to do.
-				byte *data = stbi_load_from_file (f, width, height, NULL, 4);
+				byte *data = stbi_load_from_callbacks (&sys_file_cb, (void *)&file_handle, width, height, NULL, 4);
 
 				if (data)
 				{
@@ -170,46 +170,47 @@ byte *Image_LoadImage (const char *name, int *width, int *height, enum srcformat
 				}
 				else
 					Con_Warning ("couldn't load %s (%s)\n", loadfilename, stbi_failure_reason ());
-				fclose (f);
+
+				COM_CloseFile (file_handle);
 				return data;
 			}
 			else
 			{
 				Con_DPrintf ("Image_LoadImage: ignored %s from a gamedir with lower priority\n", loadfilename);
-				fclose (f);
+				COM_CloseFile (file_handle);
 			}
 		}
 	}
 
 	q_snprintf (loadfilename, sizeof (loadfilename), "%s.pcx", name);
-	COM_FOpenFile (loadfilename, &f, &opened_file_path_id);
-	if (f)
+	COM_OpenFile (loadfilename, &file_handle, &opened_file_path_id);
+	if (file_handle >= 0)
 	{
 		if (opened_file_path_id >= min_path_id)
 		{
 			*fmt = SRC_RGBA;
-			return Image_LoadPCX (f, width, height);
+			return Image_LoadPCX (file_handle, width, height, loadfilename);
 		}
 		else
 		{
 			Con_DPrintf ("Image_LoadImage: ignored %s from a gamedir with lower priority\n", loadfilename);
-			fclose (f);
+			COM_CloseFile (file_handle);
 		}
 	}
 
 	q_snprintf (loadfilename, sizeof (loadfilename), "%s%s.lmp", "", name);
-	COM_FOpenFile (loadfilename, &f, &opened_file_path_id);
-	if (f)
+	COM_OpenFile (loadfilename, &file_handle, &opened_file_path_id);
+	if (file_handle >= 0)
 	{
 		if (opened_file_path_id >= min_path_id)
 		{
 			*fmt = SRC_INDEXED;
-			return Image_LoadLMP (f, width, height);
+			return Image_LoadLMP (file_handle, width, height, loadfilename);
 		}
 		else
 		{
 			Con_DPrintf ("Image_LoadImage: ignored %s from a gamedir with lower priority\n", loadfilename);
-			fclose (f);
+			COM_CloseFile (file_handle);
 		}
 	}
 
@@ -297,18 +298,22 @@ typedef struct
 Image_LoadPCX
 ============
 */
-static byte *Image_LoadPCX (FILE *f, int *width, int *height)
+static byte *Image_LoadPCX (int file_handle, int *width, int *height, const char *image_name)
 {
-	pcxheader_t		pcx;
-	int				x, y, w, h, readbyte, runlength, start;
-	byte		   *p, *data;
-	byte			palette[768];
-	stdio_buffer_t *buf;
+	pcxheader_t pcx;
+	int			x, y, w, h, readbyte, runlength;
+	byte	   *p, *data;
+	byte		palette[768];
 
-	start = ftell (f); // save start of file (since we might be inside a pak file, SEEK_SET might not be the start of the pcx)
+	// save start of file since we might be inside a pak file
+	const int start = Sys_FilePos (file_handle);
 
-	if (fread (&pcx, sizeof (pcx), 1, f) != 1)
-		Sys_Error ("'%s' is not a valid PCX file", loadfilename);
+	// We may are in a pak file (in this case file_handle is the one of the pak),
+	// so that resource size is com_filesize
+	const int file_size = com_filesize;
+
+	if (Sys_FileRead (file_handle, &pcx, sizeof (pcx)) != sizeof (pcx))
+		Sys_Error ("'%s' is not a valid PCX file", image_name);
 
 	pcx.xmin = (unsigned short)LittleShort (pcx.xmin);
 	pcx.ymin = (unsigned short)LittleShort (pcx.ymin);
@@ -317,13 +322,13 @@ static byte *Image_LoadPCX (FILE *f, int *width, int *height)
 	pcx.bytes_per_line = (unsigned short)LittleShort (pcx.bytes_per_line);
 
 	if (pcx.signature != 0x0A)
-		Sys_Error ("'%s' is not a valid PCX file", loadfilename);
+		Sys_Error ("'%s' is not a valid PCX file", image_name);
 
 	if (pcx.version != 5)
-		Sys_Error ("'%s' is version %i, should be 5", loadfilename, pcx.version);
+		Sys_Error ("'%s' is version %i, should be 5", image_name, pcx.version);
 
 	if (pcx.encoding != 1 || pcx.bits_per_pixel != 8 || pcx.color_planes != 1)
-		Sys_Error ("'%s' has wrong encoding or bit depth", loadfilename);
+		Sys_Error ("'%s' has wrong encoding or bit depth", image_name);
 
 	w = pcx.xmax - pcx.xmin + 1;
 	h = pcx.ymax - pcx.ymin + 1;
@@ -331,14 +336,13 @@ static byte *Image_LoadPCX (FILE *f, int *width, int *height)
 	data = (byte *)Mem_Alloc ((w * h + 1) * 4); //+1 to allow reading padding byte on last line
 
 	// load palette
-	fseek (f, start + com_filesize - 768, SEEK_SET);
-	if (fread (palette, 1, 768, f) != 768)
-		Sys_Error ("'%s' is not a valid PCX file", loadfilename);
+	Sys_FileSeek (file_handle, start + file_size - 768);
+
+	if (Sys_FileRead (file_handle, palette, 768) != 768)
+		Sys_Error ("'%s' is not a valid PCX file", image_name);
 
 	// back to start of image data
-	fseek (f, start + sizeof (pcx), SEEK_SET);
-
-	buf = Buf_Alloc (f);
+	Sys_FileSeek (file_handle, start + sizeof (pcx));
 
 	for (y = 0; y < h; y++)
 	{
@@ -346,12 +350,12 @@ static byte *Image_LoadPCX (FILE *f, int *width, int *height)
 
 		for (x = 0; x < (pcx.bytes_per_line);) // read the extra padding byte if necessary
 		{
-			readbyte = Buf_GetC (buf);
+			readbyte = Sys_fgetc (file_handle);
 
 			if (readbyte >= 0xC0)
 			{
 				runlength = readbyte & 0x3F;
-				readbyte = Buf_GetC (buf);
+				readbyte = Sys_fgetc (file_handle);
 			}
 			else
 				runlength = 1;
@@ -368,8 +372,7 @@ static byte *Image_LoadPCX (FILE *f, int *width, int *height)
 		}
 	}
 
-	Buf_Free (buf);
-	fclose (f);
+	COM_CloseFile (file_handle);
 
 	*width = w;
 	*height = h;
@@ -392,30 +395,36 @@ typedef struct
 Image_LoadLMP
 ============
 */
-static byte *Image_LoadLMP (FILE *f, int *width, int *height)
+static byte *Image_LoadLMP (int file_handle, int *width, int *height, const char *image_name)
 {
 	lmpheader_t qpic;
 	size_t		pix;
 	void	   *data;
 
-	if (fread (&qpic, 1, sizeof (qpic), f) != sizeof (qpic))
-		Sys_Error ("'%s' is not a valid LMP file", loadfilename);
+	// We may are in a pak file (in this case file_handle is the one f the pak),
+	// so that resource size is com_filesize
+	const int file_size = com_filesize;
+
+	if (Sys_FileRead (file_handle, &qpic, sizeof (qpic)) != sizeof (qpic))
+		Sys_Error ("'%s' is not a valid LMP file", image_name);
 
 	qpic.width = LittleLong (qpic.width);
 	qpic.height = LittleLong (qpic.height);
 
 	pix = qpic.width * qpic.height;
 
-	if (com_filesize != 8 + pix)
+	if (file_size != 8 + pix)
 	{
-		fclose (f);
+		COM_CloseFile (file_handle);
 		return NULL;
 	}
 
 	data = (byte *)Mem_Alloc (pix); //+1 to allow reading padding byte on last line
-	if (fread (data, 1, pix, f) != pix)
-		Sys_Error ("'%s' is not a valid LMP file", loadfilename);
-	fclose (f);
+
+	if (Sys_FileRead (file_handle, data, pix) != pix)
+		Sys_Error ("'%s' is not a valid LMP file", image_name);
+
+	COM_CloseFile (file_handle);
 
 	*width = qpic.width;
 	*height = qpic.height;

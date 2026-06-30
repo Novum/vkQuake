@@ -51,6 +51,8 @@ extern cvar_t sv_gameplayfix_setmodelrealbox, r_fteparticles;
 cvar_t pr_checkextension = {"pr_checkextension", "1", CVAR_NONE}; // spike - enables qc extensions. if 0 then they're ALL BLOCKED! MWAHAHAHA! *cough* *splutter*
 static int pr_ext_warned_particleeffectnum;						  // so these only spam once per map
 
+extern qpic_t *pic_nul;
+
 static void *PR_FindExtGlobal (int type, const char *name);
 void		 SV_CheckVelocity (edict_t *ent);
 
@@ -3066,9 +3068,9 @@ static void PF_fopen (void)
 	switch (fmode)
 	{
 	case 0: // read
-		filesize = COM_FOpenFile (fname, &file, NULL);
+		filesize = (int)COM_FOpenFile (fname, &file, NULL);
 		if (!file && fallback)
-			filesize = COM_FOpenFile (fallback, &file, NULL);
+			filesize = (int)COM_FOpenFile (fallback, &file, NULL);
 		break;
 	case 1: // append
 		q_snprintf (name, sizeof (name), "%s/%s", com_gamedir, fname);
@@ -4745,7 +4747,8 @@ static struct
 }			 *qcpics;
 static size_t numqcpics;
 static size_t maxqcpics;
-void		  PR_ReloadPics (qboolean purge)
+
+void PR_ReloadPics (qboolean purge)
 {
 	numqcpics = 0;
 
@@ -4753,28 +4756,44 @@ void		  PR_ReloadPics (qboolean purge)
 	qcpics = NULL;
 	maxqcpics = 0;
 }
+
 #define PICFLAG_AUTO   0		 // value used when no flags known
 #define PICFLAG_WAD	   (1u << 0) // name matches that of a wad lump
 #define PICFLAG_WRAP   (1u << 2) // make sure npot stuff doesn't break wrapping.
 #define PICFLAG_MIPMAP (1u << 3) // disable use of scrap...
 #define PICFLAG_BLOCK  (1u << 9) // wait until the texture is fully loaded.
 #define PICFLAG_NOLOAD (1u << 31)
+
 static qpic_t *DrawQC_CachePic (const char *picname, unsigned int flags)
-{ // okay, so this is silly. we've ended up with 3 different cache levels. qcpics, pics, and images.
+{
+	if (strlen (picname) >= MAX_QPATH)
+		return NULL; // too long. get lost.
+
+	// okay, so this is silly. we've ended up with 3 different cache levels. qcpics, pics, and images.
 	size_t		 i;
 	unsigned int texflags;
+
+	// cleanup picname of all its leading slashes or backslashes
+	// because sometimes the input is silly.
+	char tmp_qpic_name[countof (qcpics[i].name)] = {0};
+
+	q_strlcpy (tmp_qpic_name, picname, countof (qcpics[i].name));
+
+	char *clean_picname = &tmp_qpic_name[0];
+
+	// trim leading:
+	while (*clean_picname == '/' || *clean_picname == '\\')
+		clean_picname++;
+
 	for (i = 0; i < numqcpics; i++)
-	{ // binary search? something more sane?
-		if (!strcmp (picname, qcpics[i].name))
+	{
+		// binary search? something more sane?
+		if (!strcmp (clean_picname, qcpics[i].name))
 		{
 			if (qcpics[i].pic)
 				return qcpics[i].pic;
-			break;
 		}
 	}
-
-	if (strlen (picname) >= MAX_QPATH)
-		return NULL; // too long. get lost.
 
 	if (flags & PICFLAG_NOLOAD)
 		return NULL; // its a query, not actually needed.
@@ -4785,7 +4804,8 @@ static qpic_t *DrawQC_CachePic (const char *picname, unsigned int flags)
 		qcpics = Mem_Realloc (qcpics, maxqcpics * sizeof (*qcpics));
 	}
 
-	strcpy (qcpics[i].name, picname);
+	strcpy (qcpics[i].name, clean_picname);
+
 	qcpics[i].flags = flags;
 	qcpics[i].pic = NULL;
 
@@ -4800,13 +4820,13 @@ static qpic_t *DrawQC_CachePic (const char *picname, unsigned int flags)
 	// the extra gfx/ crap is because DP insists on it for wad images. and its a nightmare to get things working in all engines if we don't accept that quirk
 	// too.
 	if (flags & PICFLAG_WAD)
-		qcpics[i].pic = Draw_PicFromWad2 (picname + (strncmp (picname, "gfx/", 4) ? 0 : 4), texflags);
-	else if (!strncmp (picname, "gfx/", 4) && !strchr (picname + 4, '.'))
-		qcpics[i].pic = Draw_PicFromWad2 (picname + 4, texflags);
+		qcpics[i].pic = Draw_PicFromWad2 (clean_picname + (strncmp (clean_picname, "gfx/", 4) ? 0 : 4), texflags);
+	else if (!strncmp (clean_picname, "gfx/", 4) && !strchr (clean_picname + 4, '.'))
+		qcpics[i].pic = Draw_PicFromWad2 (clean_picname + 4, texflags);
 
 	// okay, not a wad pic, try and load a lmp/tga/etc
-	if (!qcpics[i].pic)
-		qcpics[i].pic = Draw_TryCachePic (picname, texflags);
+	if (!qcpics[i].pic || qcpics[i].pic == pic_nul)
+		qcpics[i].pic = Draw_TryCachePic (clean_picname, texflags);
 
 	if (i == numqcpics)
 		numqcpics++;
@@ -5381,7 +5401,7 @@ static void PF_cl_getrenderentity (void)
 	vec3_t						tmp;
 	size_t						entnum = G_FLOAT (OFS_PARM0);
 	enum getrenderentityfield_e fldnum = G_FLOAT (OFS_PARM1);
-	
+
 #if 0 // vso : Always authorize it, who cares...
 	if (qcvm->nogameaccess)
 	{

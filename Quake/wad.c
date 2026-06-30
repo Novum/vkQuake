@@ -116,15 +116,14 @@ void W_LoadWadFile (void) // johnfitz -- filename is now hard-coded for honesty
 		{
 			if (lump_p->filepos > com_filesize || lump_p->size < 0)
 			{
-				Con_Printf (
-					"Wad file %s lump \"%.16s\" begins %" SDL_PRIs64 " bytes beyond end of wad\n", filename, lump_p->name, lump_p->filepos - com_filesize);
+				Con_Printf ("Wad file %s lump \"%.16s\" begins %lld bytes beyond end of wad\n", filename, lump_p->name, lump_p->filepos - com_filesize);
 				lump_p->filepos = 0;
 				lump_p->size = q_max (0, lump_p->size - lump_p->filepos);
 			}
 			else
 			{
 				Con_Printf (
-					"Wad file %s lump \"%.16s\" extends %" SDL_PRIs64 " bytes beyond end of wad (lump size: %u)\n", filename, lump_p->name,
+					"Wad file %s lump \"%.16s\" extends %lld bytes beyond end of wad (lump size: %u)\n", filename, lump_p->name,
 					(lump_p->filepos + lump_p->size) - com_filesize, lump_p->size);
 				lump_p->size = q_max (0, lump_p->size - lump_p->filepos);
 			}
@@ -178,14 +177,14 @@ W_OpenWadFile
 static qboolean W_OpenWadFile (const char *filename, fshandle_t *fh)
 {
 	FILE *f;
-	long  length;
 
-	length = (long)COM_FOpenFile (filename, &f, NULL);
+	const qfilesize_t length = COM_FOpenFile (filename, &f, NULL);
+
 	if (length == -1)
 		return false;
 
 	fh->file = f;
-	fh->start = ftell (f);
+	fh->start = Sys_ftell (f);
 	fh->pos = 0;
 	fh->length = length;
 	fh->pak = file_from_pak;
@@ -248,7 +247,7 @@ static wad_t *W_AddWadFile (const char *name, fshandle_t *fh)
 		{
 			if (info->filepos > fh->length || info->size < 0)
 			{
-				Con_Warning ("WAD file %s lump \"%.16s\" begins %li bytes beyond end of WAD\n", name, info->name, info->filepos - fh->length);
+				Con_Warning ("WAD file %s lump \"%.16s\" begins %lld bytes beyond end of WAD\n", name, info->name, (qfilesize_t)info->filepos - fh->length);
 
 				info->filepos = 0;
 				info->size = q_max (0, info->size - info->filepos);
@@ -256,8 +255,8 @@ static wad_t *W_AddWadFile (const char *name, fshandle_t *fh)
 			else
 			{
 				Con_Warning (
-					"WAD file %s lump \"%.16s\" extends %li bytes beyond end of WAD (lump size is %i)\n", name, info->name,
-					(info->filepos + info->size) - fh->length, info->size);
+					"WAD file %s lump \"%.16s\" extends %lld bytes beyond end of WAD (lump size is %i)\n", name, info->name,
+					(qfilesize_t)(info->filepos + info->size) - fh->length, info->size);
 
 				info->size = q_max (0, info->size - info->filepos);
 			}

@@ -288,9 +288,8 @@ void Cmd_Exec_f (void)
 	qboolean read_from_pref_path = false;
 	if (f)
 	{
-		fseek (f, 0, SEEK_END);
-		long length = ftell (f);
-		fseek (f, 0, SEEK_SET);
+		qfilesize_t length = Sys_filelength (f);
+
 		buf = Mem_Alloc (length + 1);
 		if (fread (buf, 1, length, f) != length)
 			Mem_Free (buf);
