@@ -92,11 +92,13 @@ typedef struct cachepic_s
 	byte   padding[32]; // for appended glpic
 } cachepic_t;
 
-#define MAX_CACHED_PICS 512 // Spike -- increased to avoid csqc issues.
-cachepic_t menu_cachepics[MAX_CACHED_PICS];
-int		   menu_numcachepics;
+// TODO : vso : should be dynamically allocated instead ?
+// On the other hand it takes so little memory that we can push MAX_CACHED_PICS very very high and never touch it again.
+#define MAX_CACHED_PICS 8192 // vso : from Spike = 512 - increased to avoid csqc issues.
+static cachepic_t menu_cachepics[MAX_CACHED_PICS];
+static int		  menu_numcachepics;
 
-byte menuplyr_pixels[4096];
+static byte menuplyr_pixels[4096];
 
 //  scrap allocation
 //  Allocate all the little status bar obejcts into a single texture
@@ -256,7 +258,7 @@ qpic_t *Draw_PicFromWad2 (const char *name, unsigned int texflags)
 	menu_numcachepics++;
 	strcpy (pic->name, name);
 	pic->pic = *p;
-	memcpy (pic->pic.data, &gl, sizeof (glpic_t));
+	memcpy ((void *)&(pic->pic.data), &gl, sizeof (glpic_t));
 
 	return &pic->pic;
 }
@@ -288,7 +290,6 @@ qpic_t *Draw_TryCachePic (const char *path, unsigned int texflags)
 {
 	cachepic_t *pic;
 	int			i;
-	qpic_t	   *dat;
 	glpic_t		gl;
 
 	for (pic = menu_cachepics, i = 0; i < menu_numcachepics; pic++, i++)
@@ -302,10 +303,20 @@ qpic_t *Draw_TryCachePic (const char *path, unsigned int texflags)
 	//
 	// load the pic from disk
 	//
-	dat = (qpic_t *)COM_LoadFile (path, NULL);
-	if (!dat)
+	unsigned int   pic_width = 0;
+	unsigned int   pic_height = 0;
+	void		  *pic_data = NULL;
+	//
+	enum srcformat pic_fmt = SRC_INDEXED;
+
+	// Image_LoadImage works without file extension.
+	char npath[MAX_QPATH];
+	COM_StripExtension (path, npath, sizeof (npath));
+
+	pic_data = Image_LoadImage (npath, (int *)&pic_width, (int *)&pic_height, &pic_fmt, 0);
+
+	if (!pic_data)
 		return NULL;
-	SwapPic (dat);
 
 	menu_numcachepics++;
 	strcpy (pic->name, path);
@@ -313,22 +324,23 @@ qpic_t *Draw_TryCachePic (const char *path, unsigned int texflags)
 	// HACK HACK HACK --- we need to keep the bytes for
 	// the translatable player picture just for the menu
 	// configuration dialog
-	if (!strcmp (path, "gfx/menuplyr.lmp"))
-		memcpy (menuplyr_pixels, dat->data, dat->width * dat->height);
+	if (!strcmp (npath, "gfx/menuplyr.lmp"))
+		memcpy (menuplyr_pixels, pic_data, pic_width * pic_height);
 
-	pic->pic.width = dat->width;
-	pic->pic.height = dat->height;
+	pic->pic.width = pic_width;
+	pic->pic.height = pic_height;
 
-	gl.gltexture = TexMgr_LoadImage (
-		NULL, path, dat->width, dat->height, SRC_INDEXED, dat->data, path, sizeof (int) * 2, texflags | TEXPREF_NOPICMIP); // johnfitz -- TexMgr
+	gl.gltexture = TexMgr_LoadImage (NULL, npath, pic_width, pic_height, pic_fmt, pic_data, npath, 0, texflags | TEXPREF_NOPICMIP); // johnfitz -- TexMgr
+
+	// those are always normalized coordinates
 	gl.sl = 0;
 	gl.sh = 1;
 	gl.tl = 0;
 	gl.th = 1;
 
-	memcpy (pic->pic.data, &gl, sizeof (glpic_t));
+	memcpy ((void *)&(pic->pic.data), &gl, sizeof (glpic_t));
 
-	Mem_Free (dat);
+	Mem_Free (pic_data);
 
 	return &pic->pic;
 }
@@ -361,7 +373,8 @@ static qpic_t *Draw_MakePic (const char *name, int width, int height, const byte
 	gl.sh = 1;
 	gl.tl = 0;
 	gl.th = 1;
-	memcpy (pic->data, &gl, sizeof (glpic_t));
+
+	memcpy ((void *)&(pic->data), &gl, sizeof (glpic_t));
 
 	return pic;
 }
