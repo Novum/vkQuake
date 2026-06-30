@@ -1511,7 +1511,16 @@ _load_embedded:
 		mod->entities = NULL;
 		return;
 	}
-	mod->entities = (char *)Mem_Alloc (l->filelen);
+	// The BSP entity lump is a text-based lump intended to be read
+	// by COM_Parse(), which expects a valid null-terminated string.
+	// However l->filelen is the character (byte) length of the lump
+	// not including the null-character, which, as it happens, can be absent from the BSP
+	// in some cases.
+	// To properly terminate the text-blob and prevent buffer overflows in COM_Parse, over-allocate + 1 byte
+	// using Mem_Alloc (which 0-initialize)
+	// The external .ent files are safe because COM_LoadFile also overallocate
+	// with a 0-byte at the end by default.
+	mod->entities = (char *)Mem_Alloc (l->filelen + 1);
 	memcpy (mod->entities, mod_base + l->fileofs, l->filelen);
 	Mem_Free (ents);
 }
