@@ -152,9 +152,9 @@ void CFG_CloseConfig (void)
 
 int CFG_OpenConfig (const char *cfg_name)
 {
-	FILE	*f = NULL;
-	long	 length;
-	qboolean pak = false;
+	FILE	   *f = NULL;
+	qfilesize_t length;
+	qboolean	pak = false;
 
 	CFG_CloseConfig ();
 
@@ -166,13 +166,11 @@ int CFG_OpenConfig (const char *cfg_name)
 	}
 	if (f)
 	{
-		fseek (f, 0, SEEK_END);
-		length = ftell (f);
-		fseek (f, 0, SEEK_SET);
+		length = Sys_filelength (f);
 	}
 	else
 	{
-		length = (long)COM_FOpenFile (cfg_name, &f, NULL);
+		length = COM_FOpenFile (cfg_name, &f, NULL);
 		pak = file_from_pak;
 		if (length == -1)
 			return -1;
@@ -180,7 +178,7 @@ int CFG_OpenConfig (const char *cfg_name)
 
 	cfg_file = (fshandle_t *)Mem_Alloc (sizeof (fshandle_t));
 	cfg_file->file = f;
-	cfg_file->start = ftell (f);
+	cfg_file->start = Sys_ftell (f);
 	cfg_file->pos = 0;
 	cfg_file->length = length;
 	cfg_file->pak = pak;

@@ -1370,7 +1370,7 @@ static void Mod_LoadLighting (qmodel_t *mod, byte *mod_base, lump_t *l)
 					Mem_Free (data);
 					return;
 				}
-				Con_Printf ("Outdated .lit file (%s should be %u bytes, not %" SDL_PRIs64 ")\n", litfilename, 8 + l->filelen * 3, com_filesize);
+				Con_Printf ("Outdated .lit file (%s should be %u bytes, not %lld)\n", litfilename, 8 + l->filelen * 3, com_filesize);
 			}
 			else
 			{
@@ -2826,7 +2826,7 @@ static FILE *Mod_FindVisibilityExternal (qmodel_t *mod, const char *loadname)
 		if (!q_strcasecmp (header.mapname, shortname))
 			break;
 		pos += header.filelen + VISPATCH_HEADER_LEN;
-		fseek (f, pos, SEEK_SET);
+		Sys_fseek (f, pos, SEEK_SET);
 	}
 	if (r != VISPATCH_HEADER_LEN)
 	{

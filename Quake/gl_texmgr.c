@@ -1486,7 +1486,7 @@ void TexMgr_ReloadImage (gltexture_t *glt, int shirt, int pants)
 		COM_FOpenFile (glt->source_file, &f, NULL);
 		if (!f)
 			goto invalid;
-		fseek (f, glt->source_offset, SEEK_CUR);
+		Sys_fseek (f, glt->source_offset, SEEK_CUR);
 		size = glt->source_width * glt->source_height;
 		/* should be SRC_INDEXED, but no harm being paranoid:  */
 		if (glt->source_format == SRC_RGBA)

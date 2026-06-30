@@ -217,6 +217,8 @@ static void Sys_GetBasedir (char *argv0, char *dst, size_t dstsize)
 
 void Sys_Init (void)
 {
+	Sys_FileInit ();
+
 	memset (cwd, 0, sizeof (cwd));
 	Sys_GetBasedir (host_parms->argv[0], cwd, sizeof (cwd));
 	host_parms->basedir = cwd;
@@ -253,7 +255,8 @@ static const char errortxt2[] = "\nQUAKE ERROR: ";
 
 void Sys_Error (const char *error, ...)
 {
-	host_parms->errstate++;
+	if (!Tasks_IsWorker ())
+		host_parms->errstate++;
 
 	va_list argptr;
 	va_start (argptr, error);
@@ -271,16 +274,22 @@ void Sys_Error (const char *error, ...)
 		Mem_Free (captured_stack_trace);
 	}
 
-	PR_SwitchQCVM (NULL);
+	if (!Tasks_IsWorker ())
+		PR_SwitchQCVM (NULL);
 
 	fputs (errortxt1, stdout);
-	Host_Shutdown ();
+
+	if (!Tasks_IsWorker ())
+		Host_Shutdown ();
+
 	fputs (errortxt2, stdout);
 
 	Sys_Printf ("%s\n\n", text);
 
-	if (!isDedicated && !Sys_IsInDebugger ())
+	if (!Tasks_IsWorker () && !isDedicated && !Sys_IsInDebugger ())
+	{
 		PL_ErrorDialog (text);
+	}
 
 	Mem_Free (text);
 

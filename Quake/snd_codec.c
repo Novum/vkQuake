@@ -294,10 +294,11 @@ snd_stream_t *S_CodecUtilOpen (const char *filename, snd_codec_t *codec, qboolea
 	snd_stream_t *stream;
 	FILE		 *handle;
 	qboolean	  pak;
-	long		  length;
+	qfilesize_t	  length;
 
 	/* Try to open the file */
-	length = (long)COM_FOpenFile (filename, &handle, NULL);
+	length = COM_FOpenFile (filename, &handle, NULL);
+
 	pak = file_from_pak;
 	if (length == -1)
 	{
@@ -310,7 +311,7 @@ snd_stream_t *S_CodecUtilOpen (const char *filename, snd_codec_t *codec, qboolea
 	stream->codec = codec;
 	stream->loop = loop;
 	stream->fh.file = handle;
-	stream->fh.start = ftell (handle);
+	stream->fh.start = Sys_ftell (handle);
 	stream->fh.pos = 0;
 	stream->fh.length = length;
 	stream->fh.pak = stream->pak = pak;

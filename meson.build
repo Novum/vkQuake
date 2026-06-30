@@ -240,7 +240,7 @@ srcs = [
 	 run_generate_embedded_pak,
 ]
 
-cflags = ['-Wall', '-Wno-trigraphs', '-Werror', '-std=gnu11']
+cflags = ['-Wall', '-Wno-trigraphs', '-Werror', '-std=gnu11', '-D_FILE_OFFSET_BITS=64']
 
 if use_sdl3
     sdl_dep = dependency('sdl3')

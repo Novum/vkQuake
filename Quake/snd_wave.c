@@ -100,7 +100,7 @@ static int WAV_FindRIFFChunk (FILE *f, const char *chunk)
 		len = ((len + 1) & ~1); /* pad by 2 . */
 
 		/* Not the right chunk - skip it */
-		fseek (f, len, SEEK_CUR);
+		Sys_fseek (f, len, SEEK_CUR);
 	}
 
 	return -1;
@@ -157,7 +157,7 @@ static qboolean WAV_ReadRIFFHeader (const char *name, FILE *file, snd_info_t *in
 	if (fmtlen > 16)
 	{
 		fmtlen -= 16;
-		fseek (file, fmtlen, SEEK_CUR);
+		Sys_fseek (file, fmtlen, SEEK_CUR);
 	}
 
 	/* Scan for the data chunk */
@@ -198,7 +198,7 @@ static qboolean S_WAV_CodecOpenStream (snd_stream_t *stream)
 	if (!WAV_ReadRIFFHeader (stream->name, stream->fh.file, &stream->info))
 		return false;
 
-	stream->fh.start = ftell (stream->fh.file); /* reset to data position */
+	stream->fh.start = Sys_ftell (stream->fh.file); /* reset to data position */
 	if (stream->fh.start - start + stream->info.size > stream->fh.length)
 	{
 		Con_Printf ("%s data size mismatch\n", stream->name);

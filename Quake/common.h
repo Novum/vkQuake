@@ -387,11 +387,11 @@ const char *COM_GetGameNames (qboolean full);
 qboolean	COM_GameDirMatches (const char *tdirs);
 qboolean	COM_ModForbiddenChars (const char *p);
 
-void	 COM_WriteFile (const char *filename, const void *data, int len);
-int		 COM_OpenFile (const char *filename, int *handle, unsigned int *path_id);
-int		 COM_FOpenFile (const char *filename, FILE **file, unsigned int *path_id);
-qboolean COM_FileExists (const char *filename, unsigned int *path_id);
-void	 COM_CloseFile (int h);
+void		COM_WriteFile (const char *filename, const void *data, int len);
+qfilesize_t COM_OpenFile (const char *filename, int *handle, unsigned int *path_id);
+qfilesize_t COM_FOpenFile (const char *filename, FILE **file, unsigned int *path_id);
+qboolean	COM_FileExists (const char *filename, unsigned int *path_id);
+void		COM_CloseFile (int h);
 
 byte *COM_LoadFile (const char *path, unsigned int *path_id);
 
@@ -440,23 +440,25 @@ size_t COM_SanitizeDescriptionString (char *dst, size_t dstsize, const char *src
 
 typedef struct _fshandle_t
 {
-	FILE	*file;
-	qboolean pak;	 /* is the file read from a pak */
-	long	 start;	 /* file or data start position */
-	long	 length; /* file or data size */
-	long	 pos;	 /* current position relative to start */
+	FILE	   *file;
+	qboolean	pak;	/* is the file read from a pak */
+	qfileofs_t	start;	/* file or data start position */
+	qfilesize_t length; /* file or data size */
+	qfileofs_t	pos;	/* current position relative to start */
 } fshandle_t;
 
+// Only read 2**31 elements max, should be enough still
 size_t FS_fread (void *ptr, size_t size, size_t nmemb, fshandle_t *fh);
-int	   FS_fseek (fshandle_t *fh, long offset, int whence);
-long   FS_ftell (fshandle_t *fh);
-void   FS_rewind (fshandle_t *fh);
-int	   FS_feof (fshandle_t *fh);
-int	   FS_ferror (fshandle_t *fh);
-int	   FS_fclose (fshandle_t *fh);
-int	   FS_fgetc (fshandle_t *fh);
-char  *FS_fgets (char *s, int size, fshandle_t *fh);
-long   FS_filelength (fshandle_t *fh);
+
+int			FS_fseek (fshandle_t *fh, qfileofs_t offset, int whence);
+qfileofs_t	FS_ftell (fshandle_t *fh);
+void		FS_rewind (fshandle_t *fh);
+int			FS_feof (fshandle_t *fh);
+int			FS_ferror (fshandle_t *fh);
+int			FS_fclose (fshandle_t *fh);
+int			FS_fgetc (fshandle_t *fh);
+char	   *FS_fgets (char *s, int size, fshandle_t *fh);
+qfilesize_t FS_filelength (fshandle_t *fh);
 
 extern struct cvar_s registered;
 extern qboolean		 standard_quake, rogue, hipnotic;
