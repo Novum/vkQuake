@@ -1370,7 +1370,7 @@ static void Mod_LoadLighting (qmodel_t *mod, byte *mod_base, lump_t *l)
 					Mem_Free (data);
 					return;
 				}
-				Con_Printf ("Outdated .lit file (%s should be %u bytes, not %" SDL_PRIs64 ")\n", litfilename, 8 + l->filelen * 3, com_filesize);
+				Con_Printf ("Outdated .lit file (%s should be %u bytes, not %lld)\n", litfilename, 8 + l->filelen * 3, com_filesize);
 			}
 			else
 			{

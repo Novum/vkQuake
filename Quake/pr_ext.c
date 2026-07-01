@@ -5381,7 +5381,7 @@ static void PF_cl_getrenderentity (void)
 	vec3_t						tmp;
 	size_t						entnum = G_FLOAT (OFS_PARM0);
 	enum getrenderentityfield_e fldnum = G_FLOAT (OFS_PARM1);
-	
+
 #if 0 // vso : Always authorize it, who cares...
 	if (qcvm->nogameaccess)
 	{
