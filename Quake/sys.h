@@ -25,55 +25,74 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // sys.h -- non-portable functions
 
 void Sys_Init (void);
+void Sys_FileInit (void);
 
 //
-// file IO
+// file IO : support huge files > 2GB (qfilesize_t), and huge file seeks > 2**31 strides (qfileofs_t)
 //
+typedef long long qfilesize_t;
+typedef long long qfileofs_t;
 
-typedef int64_t qfileofs_t;
+// return 0 on success
+// origin is SEEK_CUR / SEEK_END / SEEK_SET
+int Sys_fseek (FILE *file, qfileofs_t ofs, int origin);
 
-int		   Sys_fseek (FILE *file, qfileofs_t ofs, int origin);
-qfileofs_t Sys_ftell (FILE *file);
-qfileofs_t Sys_filelength (FILE *f);
+qfileofs_t	Sys_ftell (FILE *file);
+qfilesize_t Sys_filelength (FILE *f);
 
 // returns the file size or -1 if file is not present.
 // the file should be in BINARY mode for stupid OSs that care
-qfileofs_t Sys_FileOpenRead (const char *path, int *hndl);
+qfilesize_t Sys_FileOpenRead (const char *path, int *hndl);
 
-void Sys_MemFileOpenRead (const byte *memory, int size, int *hndl);
+void Sys_MemFileOpenRead (const byte *memory, qfilesize_t size, int *hndl);
 
 // Returns a file handle
 int Sys_FileOpenWrite (const char *path);
 
+// same as Sys_filelength, but for handles.
+qfilesize_t Sys_FileSize (int handle);
+
+// same as Sys_ftell, but for handles.
+qfileofs_t Sys_FilePos (int handle);
+
 void Sys_FileClose (int handle);
-void Sys_FileSeek (int handle, int position);
-int	 Sys_FileRead (int handle, void *dest, int count);
-int	 Sys_FileWrite (int handle, const void *data, int count);
+
+// Sys_FileSeek return 0 on success like fseek().
+int Sys_FileSeek (int handle, qfileofs_t position);
+
+// Return true if we are in EOF condition. (Valid only for a file for reading)
+bool Sys_FileIsEOF (int handle);
+
+// A single File read/write is limited to 2**31 bytes, should be enough in all cases.
+int Sys_FileRead (int handle, void *dest, int count);
+int Sys_FileWrite (int handle, const void *data, int count);
+
 void Sys_mkdir (const char *path);
 
-int Sys_FileType (const char *path);
 /* returns an FS entity type, i.e. FS_ENT_FILE or FS_ENT_DIRECTORY.
  * returns FS_ENT_NONE (0) if no such file or directory is present. */
+int Sys_FileType (const char *path);
 
 //
 // system IO
 //
 FUNC_NORETURN void Sys_Quit (void);
-FUNC_NORETURN void Sys_Error (const char *error, ...) FUNC_PRINTF (1, 2);
-// an error will cause the entire program to exit
 
+// An error that will cause the entire program to exit. Can be safely called from any thread.
+FUNC_NORETURN void Sys_Error (const char *error, ...) FUNC_PRINTF (1, 2);
+
+// Print a message on the system console (NOT the Quake console !). Can be safely called from any thread.
 void Sys_Printf (const char *fmt, ...) FUNC_PRINTF (1, 2);
-// send text to the console
 
 double Sys_DoubleTime (void);
 
 const char *Sys_ConsoleInput (void);
 
-void Sys_Sleep (unsigned long msecs);
 // yield for about 'msecs' milliseconds.
+void Sys_Sleep (unsigned long msecs);
 
-void Sys_SendKeyEvents (void);
 // Perform Key_Event () callbacks until the input que is empty
+void Sys_SendKeyEvents (void);
 
 // Pin the calling Thread to core core_index, return true if succcessfull
 bool Sys_PinCurrentThread (int core_index);

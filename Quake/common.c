@@ -1818,7 +1818,7 @@ QUAKE FILESYSTEM
 =============================================================================
 */
 
-THREAD_LOCAL qfileofs_t com_filesize;
+THREAD_LOCAL qfilesize_t com_filesize;
 
 //
 // on-disk pakfile
@@ -1921,7 +1921,7 @@ void COM_CreatePath (char *path)
 COM_filelength
 ================
 */
-qfileofs_t COM_filelength (FILE *f)
+static qfilesize_t COM_filelength (FILE *f)
 {
 	return Sys_filelength (f);
 }
@@ -1936,7 +1936,7 @@ If neither of file or handle is set, this
 can be used for detecting a file's presence.
 ===========
 */
-static int COM_FindFile (const char *filename, int *handle, FILE **file, unsigned int *path_id)
+static qfilesize_t COM_FindFile (const char *filename, int *handle, FILE **file, unsigned int *path_id)
 {
 	searchpath_t *search;
 	char		  netpath[MAX_OSPATH];
@@ -1976,7 +1976,7 @@ static int COM_FindFile (const char *filename, int *handle, FILE **file, unsigne
 				{ /* open a new file on the pakfile */
 					*file = fopen (pak->filename, "rb");
 					if (*file)
-						fseek (*file, pak->files[i].filepos, SEEK_SET);
+						Sys_fseek (*file, pak->files[i].filepos, SEEK_SET);
 					return com_filesize;
 				}
 				else /* for COM_FileExists() */
@@ -2050,7 +2050,7 @@ Returns whether the file is found in the quake filesystem.
 */
 qboolean COM_FileExists (const char *filename, unsigned int *path_id)
 {
-	int ret = COM_FindFile (filename, NULL, NULL, path_id);
+	qfilesize_t ret = COM_FindFile (filename, NULL, NULL, path_id);
 	return (ret == -1) ? false : true;
 }
 
@@ -2063,7 +2063,7 @@ returns a handle and a length
 it may actually be inside a pak file
 ===========
 */
-int COM_OpenFile (const char *filename, int *handle, unsigned int *path_id)
+qfilesize_t COM_OpenFile (const char *filename, int *handle, unsigned int *path_id)
 {
 	return COM_FindFile (filename, handle, NULL, path_id);
 }
@@ -2076,7 +2076,7 @@ If the requested file is inside a packfile, a new FILE * will be opened
 into the file.
 ===========
 */
-int COM_FOpenFile (const char *filename, FILE **file, unsigned int *path_id)
+qfilesize_t COM_FOpenFile (const char *filename, FILE **file, unsigned int *path_id)
 {
 	return COM_FindFile (filename, NULL, file, path_id);
 }
@@ -2112,9 +2112,9 @@ Allways appends a 0 byte.
 */
 byte *COM_LoadFile (const char *path, unsigned int *path_id)
 {
-	int	  h;
-	byte *buf;
-	int	  len;
+	int			h;
+	byte	   *buf;
+	qfilesize_t len;
 
 	buf = NULL; // quiet compiler warning
 
@@ -2138,9 +2138,9 @@ byte *COM_LoadFile (const char *path, unsigned int *path_id)
 
 byte *COM_LoadMallocFile_TextMode_OSPath (const char *path, long *len_out)
 {
-	FILE *f;
-	byte *data;
-	long  len, actuallen;
+	FILE	   *f;
+	byte	   *data;
+	qfilesize_t len, actuallen;
 
 	// ericw -- this is used by Host_Loadgame_f. Translate CRLF to LF on load games,
 	// othewise multiline messages have a garbage character at the end of each line.

@@ -387,11 +387,11 @@ const char *COM_GetGameNames (qboolean full);
 qboolean	COM_GameDirMatches (const char *tdirs);
 qboolean	COM_ModForbiddenChars (const char *p);
 
-void	 COM_WriteFile (const char *filename, const void *data, int len);
-int		 COM_OpenFile (const char *filename, int *handle, unsigned int *path_id);
-int		 COM_FOpenFile (const char *filename, FILE **file, unsigned int *path_id);
-qboolean COM_FileExists (const char *filename, unsigned int *path_id);
-void	 COM_CloseFile (int h);
+void		COM_WriteFile (const char *filename, const void *data, int len);
+qfilesize_t COM_OpenFile (const char *filename, int *handle, unsigned int *path_id);
+qfilesize_t COM_FOpenFile (const char *filename, FILE **file, unsigned int *path_id);
+qboolean	COM_FileExists (const char *filename, unsigned int *path_id);
+void		COM_CloseFile (int h);
 
 byte *COM_LoadFile (const char *path, unsigned int *path_id);
 

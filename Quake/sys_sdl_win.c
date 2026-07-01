@@ -143,6 +143,8 @@ static void Sys_SetTimerResolution (void)
 
 void Sys_Init (void)
 {
+	Sys_FileInit ();
+
 	Sys_SetTimerResolution ();
 	Sys_SetDPIAware ();
 
@@ -228,7 +230,8 @@ static const char errortxt2[] = "\nQUAKE ERROR: ";
 
 void Sys_Error (const char *error, ...)
 {
-	host_parms->errstate++;
+	if (!Tasks_IsWorker ())
+		host_parms->errstate++;
 
 	va_list argptr;
 	DWORD	dummy;
@@ -250,9 +253,10 @@ void Sys_Error (const char *error, ...)
 		Mem_Free (captured_stack_trace);
 	}
 
-	PR_SwitchQCVM (NULL);
+	if (!Tasks_IsWorker ())
+		PR_SwitchQCVM (NULL);
 
-	if (isDedicated)
+	if (Tasks_IsWorker () || isDedicated)
 		WriteFile (houtput, errortxt1, strlen (errortxt1), &dummy, NULL);
 	/* SDL will put these into its own stderr log,
 	   so print to stderr even in graphical mode. */
@@ -261,7 +265,7 @@ void Sys_Error (const char *error, ...)
 
 	Sys_Printf ("%s\n\n", text);
 
-	if (!isDedicated && !Sys_IsInDebugger ())
+	if (!Tasks_IsWorker () && !isDedicated && !Sys_IsInDebugger ())
 	{
 		PL_ErrorDialog (text);
 	}
@@ -289,7 +293,7 @@ void Sys_Printf (const char *fmt, ...)
 
 	va_end (argptr);
 
-	if (isDedicated)
+	if (Tasks_IsWorker () || isDedicated)
 	{
 		WriteFile (houtput, output_buffer, strlen (output_buffer), &dummy, NULL);
 	}
