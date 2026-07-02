@@ -1566,6 +1566,7 @@ static void GL_CreateRenderPasses ()
 
 				subpass_descriptions[2].colorAttachmentCount = 1;
 				subpass_descriptions[2].pColorAttachments = &scene_color_attachment_reference;
+				subpass_descriptions[2].pDepthStencilAttachment = &depth_attachment_reference;
 				subpass_descriptions[2].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 				subpass_descriptions[2].inputAttachmentCount = countof (oit_input_attachment_references);
 				subpass_descriptions[2].pInputAttachments = oit_input_attachment_references;
@@ -1598,18 +1599,24 @@ static void GL_CreateRenderPasses ()
 
 			subpass_dependencies[2].srcSubpass = 1;
 			subpass_dependencies[2].dstSubpass = 2;
-			subpass_dependencies[2].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-			subpass_dependencies[2].dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+			subpass_dependencies[2].srcStageMask =
+				VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+			subpass_dependencies[2].dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT |
+												   VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 			subpass_dependencies[2].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-			subpass_dependencies[2].dstAccessMask = VK_ACCESS_INPUT_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+			subpass_dependencies[2].dstAccessMask =
+				VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_INPUT_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 			subpass_dependencies[2].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
 
 			subpass_dependencies[3].srcSubpass = 0;
 			subpass_dependencies[3].dstSubpass = 2;
-			subpass_dependencies[3].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-			subpass_dependencies[3].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-			subpass_dependencies[3].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-			subpass_dependencies[3].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+			subpass_dependencies[3].srcStageMask =
+				VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+			subpass_dependencies[3].dstStageMask =
+				VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+			subpass_dependencies[3].srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+			subpass_dependencies[3].dstAccessMask =
+				VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 			subpass_dependencies[3].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
 
 			ZEROED_STRUCT (VkRenderPassCreateInfo, render_pass_create_info);
