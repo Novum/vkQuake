@@ -285,6 +285,25 @@ static inline main_render_pass_variant_t R_MainPassPipelineVariant (int render_p
 	return MAIN_RENDER_PASS_STANDARD;
 }
 
+// selects between the standard, WBOIT accumulation, MBOIT moment and MBOIT composite
+// pipelines of a shader family based on the render pass a context records into
+static inline vulkan_pipeline_t R_PipelineForRenderPass (
+	int render_pass_index, vulkan_pipeline_t main_pipeline, vulkan_pipeline_t wboit_pipeline, vulkan_pipeline_t mboit_moment_pipeline,
+	vulkan_pipeline_t mboit_composite_pipeline)
+{
+	switch (render_pass_index)
+	{
+	case RENDER_PASS_INDEX_WBOIT:
+		return wboit_pipeline;
+	case RENDER_PASS_INDEX_MBOIT_MOMENTS:
+		return mboit_moment_pipeline;
+	case RENDER_PASS_INDEX_MBOIT_COMPOSITE:
+		return mboit_composite_pipeline;
+	default:
+		return main_pipeline;
+	}
+}
+
 static const int SECONDARY_CB_MULTIPLICITY[SCBX_NUM] = {
 	NUM_WORLD_CBX,	  // SCBX_WORLD,
 	NUM_ENTITIES_CBX, // SCBX_ENTITIES,

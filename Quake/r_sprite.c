@@ -28,13 +28,9 @@ extern cvar_t r_showtris;
 
 static vulkan_pipeline_t R_SpritePipelineForRenderPass (cb_context_t *cbx)
 {
-	if (cbx->render_pass_index == RENDER_PASS_INDEX_WBOIT)
-		return vulkan_globals.sprite_oit_pipeline;
-	if (cbx->render_pass_index == RENDER_PASS_INDEX_MBOIT_MOMENTS)
-		return vulkan_globals.sprite_mboit_moment_pipeline;
-	if (cbx->render_pass_index == RENDER_PASS_INDEX_MBOIT_COMPOSITE)
-		return vulkan_globals.sprite_mboit_composite_pipeline;
-	return vulkan_globals.sprite_pipeline[R_MainPassPipelineVariant (cbx->render_pass_index)];
+	return R_PipelineForRenderPass (
+		cbx->render_pass_index, vulkan_globals.sprite_pipeline[R_MainPassPipelineVariant (cbx->render_pass_index)], vulkan_globals.sprite_oit_pipeline,
+		vulkan_globals.sprite_mboit_moment_pipeline, vulkan_globals.sprite_mboit_composite_pipeline);
 }
 
 /*

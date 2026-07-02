@@ -865,12 +865,10 @@ void R_DrawIndirectBrushes (cb_context_t *cbx, qboolean draw_water, qboolean tra
 			const qboolean alpha_blend = alpha < 1.0f;
 			int			   pipeline_index =
 				(fullbright_enabled ? 1 : 0) + (alpha_test ? 2 : 0) + (alpha_blend ? 4 : 0) + (vid_filter.value != 0 && vid_palettize.value != 0 ? 8 : 0);
-			vulkan_pipeline_t pipeline = cbx->render_pass_index == RENDER_PASS_INDEX_WBOIT ? vulkan_globals.world_wboit_pipelines[pipeline_index]
-										 : cbx->render_pass_index == RENDER_PASS_INDEX_MBOIT_MOMENTS
-											 ? vulkan_globals.world_mboit_moment_pipelines[pipeline_index]
-										 : cbx->render_pass_index == RENDER_PASS_INDEX_MBOIT_COMPOSITE
-											 ? vulkan_globals.world_mboit_composite_pipelines[pipeline_index]
-											 : vulkan_globals.world_pipelines[R_MainPassPipelineVariant (cbx->render_pass_index)][pipeline_index];
+			vulkan_pipeline_t pipeline = R_PipelineForRenderPass (
+				cbx->render_pass_index, vulkan_globals.world_pipelines[R_MainPassPipelineVariant (cbx->render_pass_index)][pipeline_index],
+				vulkan_globals.world_wboit_pipelines[pipeline_index], vulkan_globals.world_mboit_moment_pipelines[pipeline_index],
+				vulkan_globals.world_mboit_composite_pipelines[pipeline_index]);
 			R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 
 			qboolean use_zbias = INDIRECT_ZBIAS && gl_zfix.value && indirect_draws[i].is_bmodel;
