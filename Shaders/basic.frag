@@ -27,8 +27,6 @@ layout (location = 2) in float in_fog_frag_coord;
 #define MBOIT_INPUT_SET 1
 #include "mboit.inc"
 #elif WBOIT
-layout (location = 0) out vec4 out_oit_accum;
-layout (location = 1) out float out_oit_reveal;
 #include "wboit.inc"
 #else
 layout (location = 0) out vec4 out_frag_color;
@@ -39,7 +37,7 @@ void main ()
 #if MBOIT
 	MBOITWrite (BasicFragmentColor ());
 #elif WBOIT
-	WriteOITTransparency (BasicFragmentColor (), out_oit_accum, out_oit_reveal);
+	WBOITWrite (BasicFragmentColor ());
 #else
 	out_frag_color = BasicFragmentColor ();
 #endif

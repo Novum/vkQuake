@@ -39,8 +39,6 @@ layout (constant_id = 4) const bool scaled_lm = false;
 #define MBOIT_INPUT_SET 3
 #include "mboit.inc"
 #elif WBOIT
-layout (location = 0) out vec4 out_oit_accum;
-layout (location = 1) out float out_oit_reveal;
 #include "wboit.inc"
 #else
 layout (location = 0) out vec4 out_frag_color;
@@ -51,7 +49,7 @@ void main ()
 #if MBOIT
 	MBOITWrite (WorldFragmentColor ());
 #elif WBOIT
-	WriteOITTransparency (WorldFragmentColor (), out_oit_accum, out_oit_reveal);
+	WBOITWrite (WorldFragmentColor ());
 #else
 	out_frag_color = WorldFragmentColor ();
 #endif

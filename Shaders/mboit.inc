@@ -1,6 +1,6 @@
 // Compiled in three variants per shader family:
-// (default)                     moment pass, writes b0 and the power moments
-// MBOIT_COMPOSITE               composite pass, reconstructs transmittance from the moments
+// (default)               moment pass, writes b0 and the power moments
+// MBOIT_COMPOSITE         composite pass, reconstructs transmittance from the moments
 // MBOIT_COMPOSITE + MSAA  composite pass reading multisampled moment buffers
 #if MBOIT_COMPOSITE
 #if MSAA
