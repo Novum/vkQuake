@@ -581,7 +581,8 @@ qboolean R_IndirectBrush (entity_t *e)
 	const qboolean has_water = brush_deps_data[e->model->combined_deps].water_count != 0;
 	// the indirect path only knows global water alpha, so entities with fixed alpha need per-entity drawing
 	const qboolean fixed_alpha_water = e->alpha != ENTALPHA_DEFAULT && has_water;
-	const qboolean alpha_sorted = !R_UseOIT () && (transparent_entity || (WATER_FIXED_ORDER && has_water));
+	// without OIT, water needs the stable draw order of the texture chains even in indirect mode
+	const qboolean alpha_sorted = !R_UseOIT () && (transparent_entity || has_water);
 	return indirect && !(transparent_entity || fixed_alpha_water || alpha_sorted || e->origin[0] || e->origin[1] || e->origin[2] || e->angles[0] ||
 						 e->angles[1] || e->angles[2] || ENTSCALE_DECODE (e->netstate.scale) != 1.0f || e->frame != 0 || e->model->name[0] != '*');
 }

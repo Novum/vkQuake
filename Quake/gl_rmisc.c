@@ -100,7 +100,7 @@ qboolean R_UseAlphaSort (void)
 
 qboolean R_UseIndirectTransparentWater (void)
 {
-	return R_UseOIT () || !WATER_FIXED_ORDER;
+	return R_UseOIT ();
 }
 
 /*
