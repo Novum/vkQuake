@@ -3355,7 +3355,7 @@ void ScheduleScreenshotCopy (VkCommandBuffer command_buffer, VkBuffer *buffer, v
 		image_barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
 		image_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 		image_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		image_barrier.image = swapchain_images[current_cb_index];
+		image_barrier.image = swapchain_images[current_swapchain_buffer];
 		image_barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 		image_barrier.subresourceRange.baseMipLevel = 0;
 		image_barrier.subresourceRange.levelCount = 1;
@@ -3376,7 +3376,7 @@ void ScheduleScreenshotCopy (VkCommandBuffer command_buffer, VkBuffer *buffer, v
 	image_copy.imageExtent.height = glheight;
 	image_copy.imageExtent.depth = 1;
 
-	vkCmdCopyImageToBuffer (command_buffer, swapchain_images[current_cb_index], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, *buffer, 1, &image_copy);
+	vkCmdCopyImageToBuffer (command_buffer, swapchain_images[current_swapchain_buffer], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, *buffer, 1, &image_copy);
 
 	{
 		ZEROED_STRUCT (VkImageMemoryBarrier, image_barrier);
@@ -3387,7 +3387,7 @@ void ScheduleScreenshotCopy (VkCommandBuffer command_buffer, VkBuffer *buffer, v
 		image_barrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 		image_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 		image_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		image_barrier.image = swapchain_images[current_cb_index];
+		image_barrier.image = swapchain_images[current_swapchain_buffer];
 		image_barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 		image_barrier.subresourceRange.baseMipLevel = 0;
 		image_barrier.subresourceRange.levelCount = 1;
