@@ -578,9 +578,12 @@ qboolean R_IndirectBrush (entity_t *e)
 {
 	assert (e->model->type == mod_brush);
 	const qboolean transparent_entity = ENTALPHA_DECODE (e->alpha) != 1.0f;
-	const qboolean alpha_sorted = !oit_active && (transparent_entity || (WATER_FIXED_ORDER && brush_deps_data[e->model->combined_deps].water_count != 0));
-	return indirect && !(transparent_entity || alpha_sorted || e->origin[0] || e->origin[1] || e->origin[2] || e->angles[0] || e->angles[1] || e->angles[2] ||
-						 ENTSCALE_DECODE (e->netstate.scale) != 1.0f || e->frame != 0 || e->model->name[0] != '*');
+	const qboolean has_water = brush_deps_data[e->model->combined_deps].water_count != 0;
+	// the indirect path only knows global water alpha, so entities with fixed alpha need per-entity drawing
+	const qboolean fixed_alpha_water = e->alpha != ENTALPHA_DEFAULT && has_water;
+	const qboolean alpha_sorted = !oit_active && (transparent_entity || (WATER_FIXED_ORDER && has_water));
+	return indirect && !(transparent_entity || fixed_alpha_water || alpha_sorted || e->origin[0] || e->origin[1] || e->origin[2] || e->angles[0] ||
+						 e->angles[1] || e->angles[2] || ENTSCALE_DECODE (e->netstate.scale) != 1.0f || e->frame != 0 || e->model->name[0] != '*');
 }
 
 /*
