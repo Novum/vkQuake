@@ -3301,7 +3301,7 @@ static oit_mode_t GL_FrameOITModeForCvarValue (int r_oit_value)
 {
 	if (r_oit_value == 1)
 		return OIT_MODE_WBOIT;
-	if (r_oit_value == 2)
+	if (r_oit_value >= 2)
 		return OIT_MODE_MBOIT;
 	return OIT_MODE_NONE;
 }
@@ -4470,7 +4470,7 @@ void VID_Init (void)
 
 	// johnfitz -- removed code creating "glquake" subdirectory
 
-	VID_Gamma_Init ();			// johnfitz
+	VID_Gamma_Init ();			 // johnfitz
 	VID_Menu_RebuildModeList (); // johnfitz
 
 	// QuakeSpasm: current vid settings should override config file settings.
@@ -4667,7 +4667,7 @@ static int vid_menu_numrates = 0;
 
 // common window sizes offered in addition to the display modes when windowed
 static const vid_menu_mode vid_menu_windowed_modes[] = {
-	{640, 480},	  {800, 600},	{1024, 768},  {1280, 720},	{1280, 800},  {1366, 768},	{1440, 900},  {1600, 900},	 {1600, 1200}, {1680, 1050},
+	{640, 480},	  {800, 600},	{1024, 768},  {1280, 720},	{1280, 800},  {1366, 768},	{1440, 900},  {1600, 900},	{1600, 1200}, {1680, 1050},
 	{1920, 1080}, {1920, 1200}, {2560, 1080}, {2560, 1440}, {2560, 1600}, {3440, 1440}, {3840, 1600}, {3840, 2160}, {5120, 1440}, {5120, 2880},
 };
 
