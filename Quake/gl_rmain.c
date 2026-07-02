@@ -446,10 +446,10 @@ static qboolean R_IsEntityTransparent (entity_t *e, qboolean *opaque_with_transp
 	qboolean transparent = ENTALPHA_DECODE (e->alpha) != 1;
 	*opaque_with_transparent_water =
 		(!transparent && e->model->type == mod_brush && e->model->used_specials & SURF_DRAWTURB && e->alpha == ENTALPHA_DEFAULT &&
-		 ((e->model->used_specials & SURF_DRAWLAVA && (map_lavaalpha > 0 ? map_lavaalpha : map_fallbackalpha) != 1) ||
-		  (e->model->used_specials & SURF_DRAWTELE && (map_telealpha > 0 ? map_telealpha : map_fallbackalpha) != 1) ||
-		  (e->model->used_specials & SURF_DRAWSLIME && (map_slimealpha > 0 ? map_slimealpha : map_fallbackalpha) != 1) ||
-		  (e->model->used_specials & SURF_DRAWWATER && map_wateralpha != 1)));
+		 ((e->model->used_specials & SURF_DRAWLAVA && GL_WaterAlphaForTextureType (TEXTYPE_LAVA) != 1) ||
+		  (e->model->used_specials & SURF_DRAWTELE && GL_WaterAlphaForTextureType (TEXTYPE_TELE) != 1) ||
+		  (e->model->used_specials & SURF_DRAWSLIME && GL_WaterAlphaForTextureType (TEXTYPE_SLIME) != 1) ||
+		  (e->model->used_specials & SURF_DRAWWATER && GL_WaterAlphaForTextureType (TEXTYPE_WATER) != 1)));
 	return transparent;
 }
 

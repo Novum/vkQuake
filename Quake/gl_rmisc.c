@@ -400,7 +400,11 @@ static void R_SetRTShadows_f (cvar_t *var)
 
 /*
 ====================
-GL_WaterAlphaForSurfface -- ericw
+GL_WaterAlphaForSurface -- ericw
+
+Returns the map level alpha for the surface's liquid type. Only valid in
+contexts where the entity alpha is known to be ENTALPHA_DEFAULT; entities
+with an explicit alpha need GL_WaterAlphaForEntityTextureType instead.
 ====================
 */
 float GL_WaterAlphaForSurface (msurface_t *fa)
