@@ -81,7 +81,7 @@ static SDL_Window *draw_context;
 static qboolean vid_locked = false; // johnfitz
 static qboolean vid_changed = false;
 
-static void VID_Menu_Init (void); // johnfitz
+static void VID_Menu_RebuildModeList (void); // johnfitz
 static void VID_Restart_f (void);
 
 static void ClearAllStates (void);
@@ -4470,8 +4470,8 @@ void VID_Init (void)
 
 	// johnfitz -- removed code creating "glquake" subdirectory
 
-	VID_Gamma_Init (); // johnfitz
-	VID_Menu_Init ();  // johnfitz
+	VID_Gamma_Init ();			// johnfitz
+	VID_Menu_RebuildModeList (); // johnfitz
 
 	// QuakeSpasm: current vid settings should override config file settings.
 	// so we have to lock the vid mode from now until after all config files are read.
@@ -4665,33 +4665,94 @@ static int			 vid_menu_nummodes = 0;
 static int vid_menu_rates[MAX_RATES_LIST];
 static int vid_menu_numrates = 0;
 
+// common window sizes offered in addition to the display modes when windowed
+static const vid_menu_mode vid_menu_windowed_modes[] = {
+	{640, 480},	  {800, 600},	{1024, 768},  {1280, 720},	{1280, 800},  {1366, 768},	{1440, 900},  {1600, 900},	 {1600, 1200}, {1680, 1050},
+	{1920, 1080}, {1920, 1200}, {2560, 1080}, {2560, 1440}, {2560, 1600}, {3440, 1440}, {3840, 1600}, {3840, 2160}, {5120, 1440}, {5120, 2880},
+};
+
 /*
 ================
-VID_Menu_Init
+VID_Menu_AddMode
 ================
 */
-static void VID_Menu_Init (void)
+static void VID_Menu_AddMode (int w, int h)
 {
-	int i, j, h, w;
+	int i;
+
+	if (vid_menu_nummodes >= MAX_MODE_LIST)
+		return;
+
+	for (i = 0; i < vid_menu_nummodes; i++)
+	{
+		if (vid_menu_modes[i].width == w && vid_menu_modes[i].height == h)
+			return;
+	}
+
+	vid_menu_modes[vid_menu_nummodes].width = w;
+	vid_menu_modes[vid_menu_nummodes].height = h;
+	vid_menu_nummodes++;
+}
+
+/*
+================
+VID_Menu_CompareModes
+================
+*/
+static int VID_Menu_CompareModes (const void *a, const void *b)
+{
+	const vid_menu_mode *ma = (const vid_menu_mode *)a;
+	const vid_menu_mode *mb = (const vid_menu_mode *)b;
+
+	if (ma->width != mb->width)
+		return mb->width - ma->width;
+	return mb->height - ma->height;
+}
+
+/*
+================
+VID_Menu_RebuildModeList
+
+regenerates mode list based on current vid_fullscreen. fullscreen offers the
+display modes, windowed additionally offers common window sizes that fit on
+the desktop since windows are not limited to display modes
+================
+*/
+static void VID_Menu_RebuildModeList (void)
+{
+	int i;
+
+	vid_menu_nummodes = 0;
 
 	for (i = 0; i < nummodes; i++)
+		VID_Menu_AddMode (modelist[i].width, modelist[i].height);
+
+	if (!vid_fullscreen.value)
 	{
-		w = modelist[i].width;
-		h = modelist[i].height;
-
-		for (j = 0; j < vid_menu_nummodes; j++)
+		int desktop_width = 0, desktop_height = 0;
+#ifdef USE_SDL3
+		const SDL_DisplayMode *mode = SDL_GetDesktopDisplayMode (SDL_GetPrimaryDisplay ());
+		if (mode)
 		{
-			if (vid_menu_modes[j].width == w && vid_menu_modes[j].height == h)
-				break;
+			desktop_width = mode->w;
+			desktop_height = mode->h;
 		}
-
-		if (j == vid_menu_nummodes)
+#else
+		SDL_DisplayMode mode;
+		if (SDL_GetDesktopDisplayMode (0, &mode) == 0)
 		{
-			vid_menu_modes[j].width = w;
-			vid_menu_modes[j].height = h;
-			vid_menu_nummodes++;
+			desktop_width = mode.w;
+			desktop_height = mode.h;
+		}
+#endif
+		for (i = 0; i < (int)countof (vid_menu_windowed_modes); i++)
+		{
+			if (vid_menu_windowed_modes[i].width <= desktop_width && vid_menu_windowed_modes[i].height <= desktop_height)
+				VID_Menu_AddMode (vid_menu_windowed_modes[i].width, vid_menu_windowed_modes[i].height);
 		}
 	}
+
+	qsort (vid_menu_modes, vid_menu_nummodes, sizeof (vid_menu_modes[0]), VID_Menu_CompareModes);
 }
 
 /*
@@ -4823,10 +4884,39 @@ VID_Menu_ChooseNextFullScreenMode
 */
 static void VID_Menu_ChooseNextFullScreenMode (int dir)
 {
+	int i, best, bestdist, dist;
+
 	if (vulkan_globals.full_screen_exclusive)
 		Cvar_SetValueQuick (&vid_fullscreen, (float)(((int)vid_fullscreen.value + 3 + dir) % 3));
 	else
 		Cvar_SetValueQuick (&vid_fullscreen, (float)(((int)vid_fullscreen.value + 2 + dir) % 2));
+
+	VID_Menu_RebuildModeList ();
+
+	// if the current width/height is not in the new list, snap to the closest mode
+	for (i = 0; i < vid_menu_nummodes; i++)
+	{
+		if (vid_menu_modes[i].width == vid_width.value && vid_menu_modes[i].height == vid_height.value)
+			break;
+	}
+
+	if (i == vid_menu_nummodes && vid_menu_nummodes > 0)
+	{
+		best = 0;
+		bestdist = INT_MAX;
+		for (i = 0; i < vid_menu_nummodes; i++)
+		{
+			dist = abs (vid_menu_modes[i].width - (int)vid_width.value) + abs (vid_menu_modes[i].height - (int)vid_height.value);
+			if (dist < bestdist)
+			{
+				bestdist = dist;
+				best = i;
+			}
+		}
+		Cvar_SetValueQuick (&vid_width, (float)vid_menu_modes[best].width);
+		Cvar_SetValueQuick (&vid_height, (float)vid_menu_modes[best].height);
+		VID_Menu_RebuildRateList ();
+	}
 }
 
 /*
@@ -5026,7 +5116,8 @@ void M_Menu_Video_f (void)
 	// set all the cvars to match the current mode when entering the menu
 	VID_SyncCvars ();
 
-	// set up bpp and rate lists based on current cvars
+	// set up mode and rate lists based on current cvars
+	VID_Menu_RebuildModeList ();
 	VID_Menu_RebuildRateList ();
 }
 
