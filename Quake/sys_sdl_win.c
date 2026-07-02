@@ -55,6 +55,7 @@ int Sys_FileType (const char *path)
 
 static HANDLE hinput, houtput;
 static char	  cwd[1024];
+static char	  userdir[1024];
 static double counter_freq;
 
 // DbgHelp initialization:
@@ -93,6 +94,52 @@ static void Sys_GetBasedir (char *argv0, char *dst, size_t dstsize)
 		if (tmp != dst && (*tmp == '/' || *tmp == '\\'))
 			*tmp = 0;
 	}
+}
+
+static qboolean Sys_GetUserdirArgs (int argc, char **argv, char *dst, size_t dstsize)
+{
+	int i = 1;
+	for (; i < argc - 1; ++i)
+	{
+		if (strcmp (argv[i], "-userdir") == 0)
+		{
+			char	   *p = dst;
+			const char *arg = argv[i + 1];
+			const int	n = (int)strlen (arg);
+			if (n < 1)
+				Sys_Error ("Bad argument to -userdir");
+			if (q_strlcpy (dst, arg, dstsize) >= dstsize)
+				Sys_Error ("Insufficient array size for userspace directory");
+			if (dst[n - 1] == '/' || dst[n - 1] == '\\')
+				dst[n - 1] = 0;
+			if (*p == '/' || *p == '\\')
+				p++;
+			for (; *p; p++)
+			{
+				const char c = *p;
+				if (c == '/' || c == '\\')
+				{
+					*p = 0;
+					Sys_mkdir (dst);
+					*p = c;
+				}
+			}
+			return true;
+		}
+	}
+	return false;
+}
+
+static void Sys_GetUserdir (int argc, char **argv, char *dst, size_t dstsize)
+{
+	if (Sys_GetUserdirArgs (argc, argv, dst, dstsize))
+		return;
+
+	const char *appdata = getenv ("APPDATA");
+	if (appdata == NULL)
+		Sys_Error ("Couldn't determine userspace directory");
+
+	q_snprintf (dst, dstsize, "%s\\vkQuake", appdata);
 }
 
 typedef enum
@@ -150,9 +197,10 @@ void Sys_Init (void)
 	Sys_GetBasedir (NULL, cwd, sizeof (cwd));
 	host_parms->basedir = cwd;
 
-	/* userdirs not really necessary for windows guys.
-	 * can be done if necessary, though... */
-	host_parms->userdir = host_parms->basedir; /* code elsewhere relies on this ! */
+	memset (userdir, 0, sizeof (userdir));
+	Sys_GetUserdir (host_parms->argc, host_parms->argv, userdir, sizeof (userdir));
+	Sys_mkdir (userdir);
+	host_parms->userdir = userdir;
 
 	if (isDedicated)
 	{
