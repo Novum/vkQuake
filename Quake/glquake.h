@@ -370,6 +370,7 @@ typedef struct
 #ifdef PSET_SCRIPT
 	vulkan_pipeline_t fte_particle_pipelines[MAIN_RENDER_PASS_VARIANT_COUNT][FTE_PARTICLE_PIPELINE_COUNT];
 	vulkan_pipeline_t fte_particle_wboit_pipelines[FTE_PARTICLE_PIPELINE_COUNT];
+	vulkan_pipeline_t fte_particle_post_oit_pipelines[FTE_PARTICLE_PIPELINE_COUNT];
 #endif
 
 	// Descriptors

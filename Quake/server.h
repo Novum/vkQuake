@@ -25,6 +25,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 // server.h
 
+#define SERVER_INFO_STRING_SIZE 8192
+
 typedef struct
 {
 	int				 maxclients;
@@ -32,6 +34,8 @@ typedef struct
 	struct client_s *clients;			 // [maxclients]
 	int				 serverflags;		 // episode completion information
 	qboolean		 changelevel_issued; // cleared when at SV_SpawnServer
+
+	char serverinfo[SERVER_INFO_STRING_SIZE]; // \key\value infostring data.
 } server_static_t;
 
 //=============================================================================
@@ -211,6 +215,8 @@ typedef struct client_s
 	int		 lastmovemessage;
 	double	 lastmovetime;
 	qboolean knowntoqc; // putclientinserver was called
+
+	char userinfo[SERVER_INFO_STRING_SIZE]; // spike -- for csqc to (ab)use.
 } client_t;
 
 //=============================================================================

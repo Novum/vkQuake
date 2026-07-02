@@ -2855,10 +2855,22 @@ static void R_CreateFTEParticlesPipelines ()
 		vulkan_globals.fte_particle_wboit_pipelines[i].layout = vulkan_globals.basic_pipeline_layout;
 		GL_SetObjectName (
 			(uint64_t)vulkan_globals.fte_particle_wboit_pipelines[i].handle, VK_OBJECT_TYPE_PIPELINE, va ("%s_wboit", fte_particle_pipeline_names[i]));
-		infos.graphics_pipeline.subpass = 0;
+
+		// batches that keep their original blend equations are drawn after the WBOIT resolve, which needs pipelines targeting that subpass
+		infos.graphics_pipeline.subpass = 2;
 		infos.color_blend_state.attachmentCount = MAIN_COLOR_ATTACHMENT_COUNT;
 		infos.shader_stages[1].module = basic_frag_module;
 		R_SetFTEParticleBlend (&infos.blend_attachment_states[0], i);
+		assert (vulkan_globals.fte_particle_post_oit_pipelines[i].handle == VK_NULL_HANDLE);
+		err = vkCreateGraphicsPipelines (
+			vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.fte_particle_post_oit_pipelines[i].handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreateGraphicsPipelines failed (fte_particle_post_oit_pipelines[%d]) with code %i", i, (int)err);
+		vulkan_globals.fte_particle_post_oit_pipelines[i].layout = vulkan_globals.basic_pipeline_layout;
+		GL_SetObjectName (
+			(uint64_t)vulkan_globals.fte_particle_post_oit_pipelines[i].handle, VK_OBJECT_TYPE_PIPELINE, va ("%s_post_oit", fte_particle_pipeline_names[i]));
+
+		infos.graphics_pipeline.subpass = 0;
 
 		if (vulkan_globals.non_solid_fill)
 		{
@@ -2894,10 +2906,22 @@ static void R_CreateFTEParticlesPipelines ()
 			GL_SetObjectName (
 				(uint64_t)vulkan_globals.fte_particle_wboit_pipelines[i + 8].handle, VK_OBJECT_TYPE_PIPELINE,
 				va ("%s_wboit", fte_particle_pipeline_names[i + 8]));
-			infos.graphics_pipeline.subpass = 0;
+
+			infos.graphics_pipeline.subpass = 2;
 			infos.color_blend_state.attachmentCount = MAIN_COLOR_ATTACHMENT_COUNT;
 			infos.shader_stages[1].module = basic_frag_module;
 			R_SetFTEParticleBlend (&infos.blend_attachment_states[0], i);
+			assert (vulkan_globals.fte_particle_post_oit_pipelines[i + 8].handle == VK_NULL_HANDLE);
+			err = vkCreateGraphicsPipelines (
+				vulkan_globals.device, VK_NULL_HANDLE, 1, &infos.graphics_pipeline, NULL, &vulkan_globals.fte_particle_post_oit_pipelines[i + 8].handle);
+			if (err != VK_SUCCESS)
+				Sys_Error ("vkCreateGraphicsPipelines failed (fte_particle_post_oit_pipelines[%d]) with code %i", i + 8, (int)err);
+			vulkan_globals.fte_particle_post_oit_pipelines[i + 8].layout = vulkan_globals.basic_pipeline_layout;
+			GL_SetObjectName (
+				(uint64_t)vulkan_globals.fte_particle_post_oit_pipelines[i + 8].handle, VK_OBJECT_TYPE_PIPELINE,
+				va ("%s_post_oit", fte_particle_pipeline_names[i + 8]));
+
+			infos.graphics_pipeline.subpass = 0;
 		}
 	}
 #endif
@@ -4128,6 +4152,8 @@ void R_DestroyPipelines (void)
 		}
 		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.fte_particle_wboit_pipelines[i].handle, NULL);
 		vulkan_globals.fte_particle_wboit_pipelines[i].handle = VK_NULL_HANDLE;
+		vkDestroyPipeline (vulkan_globals.device, vulkan_globals.fte_particle_post_oit_pipelines[i].handle, NULL);
+		vulkan_globals.fte_particle_post_oit_pipelines[i].handle = VK_NULL_HANDLE;
 		if (vulkan_globals.non_solid_fill)
 		{
 			for (int variant = 0; variant < MAIN_RENDER_PASS_VARIANT_COUNT; ++variant)
@@ -4137,6 +4163,8 @@ void R_DestroyPipelines (void)
 			}
 			vkDestroyPipeline (vulkan_globals.device, vulkan_globals.fte_particle_wboit_pipelines[i + 8].handle, NULL);
 			vulkan_globals.fte_particle_wboit_pipelines[i + 8].handle = VK_NULL_HANDLE;
+			vkDestroyPipeline (vulkan_globals.device, vulkan_globals.fte_particle_post_oit_pipelines[i + 8].handle, NULL);
+			vulkan_globals.fte_particle_post_oit_pipelines[i + 8].handle = VK_NULL_HANDLE;
 		}
 	}
 #endif

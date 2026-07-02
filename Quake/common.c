@@ -1906,11 +1906,12 @@ void COM_CreatePath (char *path)
 
 	for (ofs = path + 1; *ofs; ofs++)
 	{
-		if (*ofs == '/')
+		if (IS_DIR_SEPARATOR (*ofs))
 		{ // create the directory
+			char sep = *ofs;
 			*ofs = 0;
 			Sys_mkdir (path);
-			*ofs = '/';
+			*ofs = sep;
 		}
 	}
 }

@@ -1000,9 +1000,11 @@ static void R_DrawParticlesTask (void *unused)
 	cb_context_t *fte_blend_cbx = NULL;
 	if (oit_active)
 	{
+		// the blend context is recorded for the resolve subpass, so only set the viewport here:
+		// R_SetupContext would bind a pipeline created for subpass 0
 		fte_blend_cbx = vulkan_globals.secondary_cb_contexts[SCBX_FTE_PARTICLES_BLEND];
-		R_SetupContext (fte_blend_cbx);
-		Fog_EnableGFog (fte_blend_cbx);
+		GL_Viewport (
+			fte_blend_cbx, r_refdef.vrect.x, glheight - r_refdef.vrect.y - r_refdef.vrect.height, r_refdef.vrect.width, r_refdef.vrect.height, 0.0f, 1.0f);
 	}
 	PScript_DrawParticles (oit_active ? fte_blend_cbx : cbx, oit_active ? cbx : NULL);
 #endif
