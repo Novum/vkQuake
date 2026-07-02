@@ -1464,7 +1464,7 @@ static void GL_CreateRenderPasses ()
 		// Main render pass
 		const qboolean resolve = (vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT);
 
-		for (int scbx_index = SCBX_WORLD; scbx_index <= SCBX_WBOIT_RESOLVE; ++scbx_index)
+		for (int scbx_index = SCBX_WORLD; scbx_index <= SCBX_OIT_RESOLVE; ++scbx_index)
 		{
 			for (int i = 0; i < SECONDARY_CB_MULTIPLICITY[scbx_index]; ++i)
 				assert (vulkan_globals.secondary_cb_contexts[scbx_index][i].render_pass == VK_NULL_HANDLE);
@@ -1736,7 +1736,7 @@ static void GL_CreateRenderPasses ()
 			}
 		}
 
-		cb_context_t *wboit_resolve_cbx = vulkan_globals.secondary_cb_contexts[SCBX_WBOIT_RESOLVE];
+		cb_context_t *wboit_resolve_cbx = vulkan_globals.secondary_cb_contexts[SCBX_OIT_RESOLVE];
 		wboit_resolve_cbx->render_pass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_OIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
 		wboit_resolve_cbx->render_pass_index = RENDER_PASS_INDEX_MAIN_OIT;
 		wboit_resolve_cbx->subpass = 2;
@@ -3019,7 +3019,7 @@ static void GL_DestroyMainRenderPasses (void)
 		}
 	}
 
-	for (int scbx_index = SCBX_WORLD; scbx_index <= SCBX_WBOIT_RESOLVE; ++scbx_index)
+	for (int scbx_index = SCBX_WORLD; scbx_index <= SCBX_OIT_RESOLVE; ++scbx_index)
 		for (int i = 0; i < SECONDARY_CB_MULTIPLICITY[scbx_index]; ++i)
 			vulkan_globals.secondary_cb_contexts[scbx_index][i].render_pass = VK_NULL_HANDLE;
 }
@@ -3169,7 +3169,7 @@ void GL_BeginRenderingTask (void *unused)
 			cbx->current_canvas = CANVAS_INVALID;
 			memset (&cbx->current_pipeline, 0, sizeof (cbx->current_pipeline));
 
-			if (scbx_index <= SCBX_WBOIT_RESOLVE)
+			if (scbx_index <= SCBX_OIT_RESOLVE)
 			{
 				const int main_render_pass_stencil = Sky_NeedStencil () ? MAIN_RENDER_PASS_STENCIL_CLEAR : MAIN_RENDER_PASS_NO_STENCIL;
 				cbx->render_pass = vulkan_globals.main_render_pass
@@ -3181,7 +3181,7 @@ void GL_BeginRenderingTask (void *unused)
 
 				if (R_UseMBOIT ())
 				{
-					if (scbx_index == SCBX_WBOIT_RESOLVE)
+					if (scbx_index == SCBX_OIT_RESOLVE)
 					{
 						cbx->render_pass_index = RENDER_PASS_INDEX_MAIN_MBOIT;
 						cbx->subpass = 3;
@@ -3208,7 +3208,7 @@ void GL_BeginRenderingTask (void *unused)
 				}
 				else if (R_UseWBOIT ())
 				{
-					if (scbx_index == SCBX_WBOIT_RESOLVE)
+					if (scbx_index == SCBX_OIT_RESOLVE)
 					{
 						cbx->render_pass_index = RENDER_PASS_INDEX_MAIN_OIT;
 						cbx->subpass = 2;
@@ -3262,7 +3262,7 @@ void GL_BeginRenderingTask (void *unused)
 			viewport.maxDepth = 1.0f;
 			vkCmdSetViewport (cbx->cb, 0, 1, &viewport);
 
-			if (scbx_index != SCBX_WBOIT_RESOLVE && !(scbx_index == SCBX_FTE_PARTICLES_BLEND && R_UseOIT ()) &&
+			if (scbx_index != SCBX_OIT_RESOLVE && !(scbx_index == SCBX_FTE_PARTICLES_BLEND && R_UseOIT ()) &&
 				vulkan_globals.basic_blend_pipeline[cbx->render_pass_index].handle != VK_NULL_HANDLE)
 			{
 				R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_blend_pipeline[cbx->render_pass_index]);
@@ -3764,7 +3764,7 @@ static void GL_RecordOITResolveContext (end_rendering_parms_t *parms, VkRect2D r
 	if (!parms->use_oit)
 		return;
 
-	cb_context_t *cbx = vulkan_globals.secondary_cb_contexts[SCBX_WBOIT_RESOLVE];
+	cb_context_t *cbx = vulkan_globals.secondary_cb_contexts[SCBX_OIT_RESOLVE];
 	vkCmdSetScissor (cbx->cb, 0, 1, &render_area);
 
 	VkViewport viewport;
@@ -3901,7 +3901,7 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 			GL_SubmitContexts (render_passes_cb, SCBX_ALPHA_ENTITIES_ACROSS_WATER, SCBX_MAIN_PASS_LAST);
 
 			vkCmdNextSubpass (render_passes_cb, VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
-			GL_SubmitContexts (render_passes_cb, SCBX_WBOIT_RESOLVE, SCBX_WBOIT_RESOLVE);
+			GL_SubmitContexts (render_passes_cb, SCBX_OIT_RESOLVE, SCBX_OIT_RESOLVE);
 			GL_SubmitContexts (render_passes_cb, SCBX_FTE_PARTICLES_BLEND, SCBX_FTE_PARTICLES_BLEND);
 		}
 		else if (use_mboit)
@@ -3913,7 +3913,7 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 			GL_SubmitContexts (render_passes_cb, SCBX_MBOIT_COMPOSITE_PASS_FIRST, SCBX_MBOIT_COMPOSITE_PASS_LAST);
 
 			vkCmdNextSubpass (render_passes_cb, VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
-			GL_SubmitContexts (render_passes_cb, SCBX_WBOIT_RESOLVE, SCBX_WBOIT_RESOLVE);
+			GL_SubmitContexts (render_passes_cb, SCBX_OIT_RESOLVE, SCBX_OIT_RESOLVE);
 			GL_SubmitContexts (render_passes_cb, SCBX_FTE_PARTICLES_BLEND, SCBX_FTE_PARTICLES_BLEND);
 		}
 
