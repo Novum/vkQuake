@@ -3325,10 +3325,10 @@ static void R_CreateAliasPipelines ()
 	const vulkan_pipeline_layout_t layout = vulkan_globals.alias_pipelines[MAIN_RENDER_PASS_STANDARD][0].layout;
 
 	pipeline_create_infos_t infos;
-	for (int pipeline_index = 0; pipeline_index < 4; ++pipeline_index)
+	for (int pipeline_index = 0; pipeline_index < MODEL_PIPELINE_SHOWTRIS; ++pipeline_index)
 	{
-		const qboolean alpha_test = pipeline_index & 1;
-		const qboolean alpha_blend = pipeline_index & 2;
+		const qboolean alpha_test = pipeline_index & MODEL_PIPELINE_ALPHA_TEST_BIT;
+		const qboolean alpha_blend = pipeline_index & MODEL_PIPELINE_ALPHA_BLEND_BIT;
 
 		for (int variant = 0; variant < MAIN_RENDER_PASS_VARIANT_COUNT; ++variant)
 		{
@@ -3378,17 +3378,18 @@ static void R_CreateAliasPipelines ()
 
 	if (vulkan_globals.non_solid_fill)
 	{
-		for (int pipeline_index = 4; pipeline_index < 6; ++pipeline_index)
+		for (int pipeline_index = MODEL_PIPELINE_SHOWTRIS; pipeline_index <= MODEL_PIPELINE_SHOWTRIS_DEPTH_TEST; ++pipeline_index)
 		{
+			const qboolean depth_test = pipeline_index == MODEL_PIPELINE_SHOWTRIS_DEPTH_TEST;
 			for (int variant = 0; variant < MAIN_RENDER_PASS_VARIANT_COUNT; ++variant)
 			{
 				R_CopyPipelineCreateInfos (&infos, &base);
 				infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[variant][MAIN_RENDER_PASS_STENCIL_CLEAR];
 				infos.rasterization_state.cullMode = VK_CULL_MODE_NONE;
 				infos.rasterization_state.polygonMode = VK_POLYGON_MODE_LINE;
-				infos.depth_stencil_state.depthTestEnable = (pipeline_index == 5) ? VK_TRUE : VK_FALSE;
+				infos.depth_stencil_state.depthTestEnable = depth_test ? VK_TRUE : VK_FALSE;
 				infos.depth_stencil_state.depthWriteEnable = VK_FALSE;
-				infos.rasterization_state.depthBiasEnable = (pipeline_index == 5) ? VK_TRUE : VK_FALSE;
+				infos.rasterization_state.depthBiasEnable = depth_test ? VK_TRUE : VK_FALSE;
 				infos.rasterization_state.depthBiasConstantFactor = 500.0f;
 				infos.rasterization_state.depthBiasSlopeFactor = 0.0f;
 				infos.shader_stages[1].module = showtris_frag_module;
@@ -3423,10 +3424,10 @@ static void R_CreateMD5Pipelines ()
 	const vulkan_pipeline_layout_t layout = vulkan_globals.md5_pipelines[MAIN_RENDER_PASS_STANDARD][0].layout;
 
 	pipeline_create_infos_t infos;
-	for (int pipeline_index = 0; pipeline_index < 4; ++pipeline_index)
+	for (int pipeline_index = 0; pipeline_index < MODEL_PIPELINE_SHOWTRIS; ++pipeline_index)
 	{
-		const qboolean alpha_test = pipeline_index & 1;
-		const qboolean alpha_blend = pipeline_index & 2;
+		const qboolean alpha_test = pipeline_index & MODEL_PIPELINE_ALPHA_TEST_BIT;
+		const qboolean alpha_blend = pipeline_index & MODEL_PIPELINE_ALPHA_BLEND_BIT;
 
 		for (int variant = 0; variant < MAIN_RENDER_PASS_VARIANT_COUNT; ++variant)
 		{
@@ -3475,17 +3476,18 @@ static void R_CreateMD5Pipelines ()
 
 	if (vulkan_globals.non_solid_fill)
 	{
-		for (int pipeline_index = 4; pipeline_index < 6; ++pipeline_index)
+		for (int pipeline_index = MODEL_PIPELINE_SHOWTRIS; pipeline_index <= MODEL_PIPELINE_SHOWTRIS_DEPTH_TEST; ++pipeline_index)
 		{
+			const qboolean depth_test = pipeline_index == MODEL_PIPELINE_SHOWTRIS_DEPTH_TEST;
 			for (int variant = 0; variant < MAIN_RENDER_PASS_VARIANT_COUNT; ++variant)
 			{
 				R_CopyPipelineCreateInfos (&infos, &base);
 				infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[variant][MAIN_RENDER_PASS_STENCIL_CLEAR];
 				infos.rasterization_state.cullMode = VK_CULL_MODE_NONE;
 				infos.rasterization_state.polygonMode = VK_POLYGON_MODE_LINE;
-				infos.depth_stencil_state.depthTestEnable = (pipeline_index == 5) ? VK_TRUE : VK_FALSE;
+				infos.depth_stencil_state.depthTestEnable = depth_test ? VK_TRUE : VK_FALSE;
 				infos.depth_stencil_state.depthWriteEnable = VK_FALSE;
-				infos.rasterization_state.depthBiasEnable = (pipeline_index == 5) ? VK_TRUE : VK_FALSE;
+				infos.rasterization_state.depthBiasEnable = depth_test ? VK_TRUE : VK_FALSE;
 				infos.rasterization_state.depthBiasConstantFactor = 500.0f;
 				infos.rasterization_state.depthBiasSlopeFactor = 0.0f;
 				infos.shader_stages[1].module = showtris_frag_module;

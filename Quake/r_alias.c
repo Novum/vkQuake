@@ -95,54 +95,15 @@ static void GL_DrawAliasFrame (
 {
 	vulkan_pipeline_t pipeline;
 
-	int pipeline_index = 0;
-
 	// only enable alpha management if entity have alpha or the surface texture has effective
 	// non-opaque pixels:
 	const bool has_alpha = (entity_alpha < 1.0f) || (tx->flags & TEXPREF_ALPHAPIXELS);
 
-	// was : pipeline_index = (showtris == 0) ? (((entity_alpha >= 1.0f) ? 0 : 2) + (alphatest ? 1 : 0)) : (3 + CLAMP (1, showtris, 2));
-	//  decomposed below for clarity:
+	int pipeline_index;
 	if (showtris == 0)
-	{
-		// depthBiasEnable = VK_FALSE;
-		// depthTestEnable = VK_TRUE;
-		//
-		//  has_alpha = none, alphatest = 0 ? => 0
-		//  depthWriteEnable = VK_TRUE;
-		//  blendEnable = VK_FALSE;
-		//
-		//  has_alpha = none, alphatest = 1 ? => 1
-		//  alias_alphatest_frag_module ON
-		//  depthWriteEnable = VK_TRUE;
-		//  blendEnable = VK_FALSE;
-		//
-		//  has_alpha = yes, alphatest = 0 ?  => 2
-		//  depthWriteEnable = VK_TRUE => VK_FALSE;
-		//  blendEnable = VK_FALSE => VK_TRUE;
-		//
-		//  has_alpha = yes, alphatest = 1 ?  => 3
-		//  alias_alphatest_frag_module ON
-		//  depthWriteEnable = VK_FALSE;
-		//  blendEnable = VK_TRUE;
-		pipeline_index = ((has_alpha ? 2 : 0) + (alphatest ? 1 : 0));
-	}
+		pipeline_index = (has_alpha ? MODEL_PIPELINE_ALPHA_BLEND_BIT : 0) | (alphatest ? MODEL_PIPELINE_ALPHA_TEST_BIT : 0);
 	else
-	{
-		// polygonMode = VK_POLYGON_MODE_LINE;
-		// blendEnable = VK_FALSE;
-		//
-		//  showtris == 1
-		//  depthTestEnable = VK_FALSE;
-		//  depthWriteEnable = VK_FALSE;
-		//  depthBiasEnable = VK_FALSE;
-		//
-		//  showtris >= 2
-		//  depthTestEnable = VK_FALSE => VK_TRUE;
-		//  depthWriteEnable = VK_FALSE;
-		//  depthBiasEnable = VK_FALSE => VK_TRUE;
-		pipeline_index = (3 + CLAMP (1, showtris, 2));
-	}
+		pipeline_index = (showtris >= 2) ? MODEL_PIPELINE_SHOWTRIS_DEPTH_TEST : MODEL_PIPELINE_SHOWTRIS;
 
 	const qboolean oit_pass = cbx->render_pass_index == RENDER_PASS_INDEX_WBOIT || cbx->render_pass_index == RENDER_PASS_INDEX_MBOIT_MOMENTS ||
 							  cbx->render_pass_index == RENDER_PASS_INDEX_MBOIT_COMPOSITE;

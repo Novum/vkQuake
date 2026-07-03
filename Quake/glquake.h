@@ -181,12 +181,17 @@ typedef struct vulkan_memory_s
 	vulkan_memory_type_t type;
 } vulkan_memory_t;
 
-#define WORLD_PIPELINE_COUNT		16
-#define MODEL_PIPELINE_COUNT		6
-#define FTE_PARTICLE_PIPELINE_COUNT 16
-#define MAX_BATCH_SIZE				65536
-#define NUM_WORLD_CBX				6
-#define NUM_ENTITIES_CBX			6
+#define WORLD_PIPELINE_COUNT			   16
+// slot layout of the alias/md5 pipeline arrays: 0..3 encode alpha test/blend, 4..5 are the r_showtris variants
+#define MODEL_PIPELINE_ALPHA_TEST_BIT	   1
+#define MODEL_PIPELINE_ALPHA_BLEND_BIT	   2
+#define MODEL_PIPELINE_SHOWTRIS			   4
+#define MODEL_PIPELINE_SHOWTRIS_DEPTH_TEST 5
+#define MODEL_PIPELINE_COUNT			   6
+#define FTE_PARTICLE_PIPELINE_COUNT		   16
+#define MAX_BATCH_SIZE					   65536
+#define NUM_WORLD_CBX					   6
+#define NUM_ENTITIES_CBX				   6
 
 typedef enum
 {
