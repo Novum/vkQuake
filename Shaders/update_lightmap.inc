@@ -37,6 +37,8 @@ struct light_t
 	float radius;
 	vec3  color;
 	float minlight;
+	vec3  cone_dir;
+	float cone_cos; // cos of the spotlight half angle, <= -1: not a spotlight
 };
 
 const uint	LIGHT_MASK_SIZE = (MAX_DLIGHTS + 31) / 32;
@@ -278,6 +280,16 @@ void main ()
 				if (dist > (light.radius - light.minlight))
 					continue;
 
+				float cone_scale = 1.0f;
+				if ((light.cone_cos > -1.0f) && (dist > 0.0f))
+				{
+					// soft edged spotlight falloff
+					const float cone_dot = dot ((world_pos - light.origin) / dist, light.cone_dir);
+					cone_scale = smoothstep (light.cone_cos, mix (light.cone_cos, 1.0f, 0.25f), cone_dot);
+					if (cone_scale <= 0.0f)
+						continue;
+				}
+
 				float occlusion = 1.0f;
 #ifdef RAY_QUERIES
 				// R2 sequence constants (based on plastic constant φ₂)
@@ -299,7 +311,7 @@ void main ()
 #endif
 
 				const float brightness = (light.radius - dist) / 256.0f;
-				light_accumulated.xyz += brightness * max (occlusion, 0.0f) * light.color;
+				light_accumulated.xyz += brightness * cone_scale * max (occlusion, 0.0f) * light.color;
 			}
 		}
 	}
