@@ -190,6 +190,13 @@ is empty ("No special functionality, just to hold dynamic shadowcasting lights
 for KEX"), the KEX engine reads them directly from the entity lump, so do the
 same and turn them into persistent dlights.
 
+The updated id1 and ctf maps also carry "_shadowlight 1" keys on info_null
+entities, but those sit in areas whose lighting is fully baked into the
+lightmaps (the same maps have to look right in the classic renderer). Their
+value in KEX is casting real time shadows from moving objects, i.e. darkening,
+which an additive dlight can't reproduce - adding light there just double
+brightens the baked lighting, so they are deliberately not parsed.
+
 =============================================================================
 */
 
