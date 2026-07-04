@@ -274,8 +274,10 @@ typedef struct lm_compute_light_s
 	float  radius;
 	vec3_t color;
 	float  minlight;
+	vec3_t cone_dir;
+	float  cone_cos; // cos of the spotlight half angle, <= -1: not a spotlight
 } lm_compute_light_t;
-COMPILE_TIME_ASSERT (lm_compute_light_t, sizeof (lm_compute_light_t) == 32);
+COMPILE_TIME_ASSERT (lm_compute_light_t, sizeof (lm_compute_light_t) == 48);
 
 #define WORKGROUP_BOUNDS_BUFFER_SIZE ((LMBLOCK_WIDTH / 8) * (LMBLOCK_HEIGHT / 8) * sizeof (lm_compute_workgroup_bounds_t))
 
@@ -3403,6 +3405,8 @@ void R_UpdateLightmapsAndIndirect (void *unused)
 		light->radius = cl_dlights[i].radius;
 		VectorCopy (cl_dlights[i].color, light->color);
 		light->minlight = cl_dlights[i].minlight;
+		VectorCopy (cl_dlights[i].cone_dir, light->cone_dir);
+		light->cone_cos = cl_dlights[i].cone_cos;
 		squared_radius[num_used_dlights] = cl_dlights[i].radius * cl_dlights[i].radius;
 		used_dlights[num_used_dlights++] = i;
 	}
