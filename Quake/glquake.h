@@ -618,12 +618,16 @@ extern int gl_lightmap_format;
 #define LM_CULL_BLOCK_W 128
 #define LM_CULL_BLOCK_H 256
 
+#define LM_WORKGROUP_SUBMODEL_EMPTY 0xFFFFFFFE // no surfaces assigned yet, converted to 0 before upload
+#define LM_WORKGROUP_SUBMODEL_MIXED 0xFFFFFFFF // surfaces from multiple coordinate spaces, the shader can't cull and passes all lights
+
 typedef struct lm_compute_workgroup_bounds_s
 {
-	float mins[3];
-	float maxs[3];
+	float	 mins[3];
+	float	 maxs[3];
+	uint32_t submodel; // submodel the surfaces in this workgroup belong to (bounds are in its model space), or LM_WORKGROUP_SUBMODEL_*
 } lm_compute_workgroup_bounds_t;
-COMPILE_TIME_ASSERT (lm_compute_workgroup_bounds_t, sizeof (lm_compute_workgroup_bounds_t) == 24);
+COMPILE_TIME_ASSERT (lm_compute_workgroup_bounds_t, sizeof (lm_compute_workgroup_bounds_t) == 28);
 
 typedef struct glRect_s
 {
@@ -647,6 +651,7 @@ struct lightmap_s
 
 	lm_compute_workgroup_bounds_t global_bounds[LMBLOCK_HEIGHT / LM_CULL_BLOCK_H][LMBLOCK_WIDTH / LM_CULL_BLOCK_W];
 	byte						  active_dlights[LMBLOCK_HEIGHT / LM_CULL_BLOCK_H][LMBLOCK_WIDTH / LM_CULL_BLOCK_W];
+	byte						  block_has_submodels[LMBLOCK_HEIGHT / LM_CULL_BLOCK_H][LMBLOCK_WIDTH / LM_CULL_BLOCK_W];
 	byte						  num_used_lightstyles[LMBLOCK_HEIGHT / LM_CULL_BLOCK_H][LMBLOCK_WIDTH / LM_CULL_BLOCK_W];
 	byte						  used_lightstyles[LMBLOCK_HEIGHT / LM_CULL_BLOCK_H][LMBLOCK_WIDTH / LM_CULL_BLOCK_W][MAX_LIGHTSTYLES];
 	int							  cached_light[MAX_LIGHTSTYLES];
@@ -692,11 +697,12 @@ void R_BuildTopLevelAccelerationStructure (void *unused);
 void R_UpdateAnimatedBLASes (cb_context_t *cbx);
 void R_UpdateLightmapsAndIndirect (void *unused);
 void R_MarkSurfaces (qboolean use_tasks, task_handle_t before_mark, task_handle_t *store_efrags, task_handle_t *cull_surfaces, task_handle_t *chain_surfaces);
-qboolean R_CullBox (vec3_t emins, vec3_t emaxs);
-void	 R_StoreEfrags (efrag_t **ppefrag);
-qboolean R_CullModelForEntity (entity_t *e);
-void	 R_RotateForEntity (float matrix[16], vec3_t origin, vec3_t angles, unsigned char scale);
-void	 R_MarkLights (dlight_t *light, int num, mnode_t *node);
+qboolean	  R_CullBox (vec3_t emins, vec3_t emaxs);
+void		  R_StoreEfrags (efrag_t **ppefrag);
+qboolean	  R_CullModelForEntity (entity_t *e);
+void		  R_RotateForEntity (float matrix[16], vec3_t origin, vec3_t angles, unsigned char scale);
+void		  R_MarkLights (dlight_t *light, int num, mnode_t *node);
+extern vec3_t lightmap_dlight_origins[MAX_DLIGHTS]; // dlight origins in the space of the model currently having its lightmaps built (CPU lightmap update path)
 
 void R_InitParticles (void);
 void R_DrawParticles (cb_context_t *cbx);

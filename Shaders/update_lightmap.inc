@@ -12,6 +12,8 @@ layout (push_constant) uniform PushConsts
 	uint y_workgroup_offset;
 	bool dlights_only;
 	uint num_cached_dlights;
+	uint submodel_transforms_offset;
+	uint prev_submodel_transforms_offset;
 #ifdef RAY_QUERIES
 	uint shadow_samples;
 #endif
@@ -26,6 +28,7 @@ struct bounds_t
 	float maxs_x;
 	float maxs_y;
 	float maxs_z;
+	uint  submodel;
 };
 
 struct light_t
@@ -62,6 +65,14 @@ layout (std140, set = 0, binding = 6) uniform lights_buffer
 layout (std430, set = 0, binding = 7) readonly restrict buffer world_verts_buffer
 {
 	world_vert_t world_verts[];
+};
+layout (std430, set = 0, binding = 8) readonly restrict buffer surface_submodels_buffer
+{
+	uint surface_submodels[];
+};
+layout (std430, set = 0, binding = 9) readonly restrict buffer submodel_transforms_buffer
+{
+	vec4 submodel_transforms[]; // three model to world matrix rows per submodel
 };
 
 #ifdef RAY_QUERIES
@@ -121,13 +132,30 @@ vec3 CalculateWorldPos (const surface_t surf, const float s, const float t, inou
 	return vert1_pos + ((s + vert1_offset_s) * tangent) + ((t + vert1_offset_t) * bitangent);
 }
 
-bool LightIntersects (const light_t light, const uint workgroup_index)
+bool LightIntersects (const light_t light, const uint workgroup_index, const uint transforms_offset)
 {
 	if (light.radius == 0.0f)
 		return false;
 	const bounds_t bounds = workgroup_bounds[workgroup_index];
-	const vec3	   mins = vec3 (bounds.mins_x, bounds.mins_y, bounds.mins_z);
-	const vec3	   maxs = vec3 (bounds.maxs_x, bounds.maxs_y, bounds.maxs_z);
+	// workgroups with surfaces from multiple coordinate spaces can't be culled with a single AABB
+	if (bounds.submodel == 0xFFFFFFFF)
+		return true;
+	vec3 mins = vec3 (bounds.mins_x, bounds.mins_y, bounds.mins_z);
+	vec3 maxs = vec3 (bounds.maxs_x, bounds.maxs_y, bounds.maxs_z);
+	if (bounds.submodel != 0)
+	{
+		// model space bounds of a movable submodel, transform to world space with the entity transform
+		const uint base = (transforms_offset + bounds.submodel) * 3;
+		const vec4 row0 = submodel_transforms[base + 0];
+		const vec4 row1 = submodel_transforms[base + 1];
+		const vec4 row2 = submodel_transforms[base + 2];
+		const vec4 center = vec4 ((mins + maxs) * 0.5f, 1.0f);
+		const vec3 extents = (maxs - mins) * 0.5f;
+		const vec3 world_center = vec3 (dot (row0, center), dot (row1, center), dot (row2, center));
+		const vec3 world_extents = vec3 (dot (abs (row0.xyz), extents), dot (abs (row1.xyz), extents), dot (abs (row2.xyz), extents));
+		mins = world_center - world_extents;
+		maxs = world_center + world_extents;
+	}
 	return TestSphereAABB (light, mins, maxs);
 }
 
@@ -152,7 +180,7 @@ void main ()
 		if (light_index < push_constants.num_dlights)
 		{
 			const light_t light = lights[light_index];
-			if (LightIntersects (light, workgroup_index))
+			if (LightIntersects (light, workgroup_index, push_constants.submodel_transforms_offset))
 				atomicOr (light_mask[light_index / 32], 1u << (light_index % 32));
 		}
 	}
@@ -171,8 +199,10 @@ void main ()
 			const uint light_index = (iter * workgroup_size) + gl_LocalInvocationIndex;
 			if (light_index < push_constants.num_cached_dlights)
 			{
+				// cached lights are tested against the previous frame transform so texels of a
+				// submodel that moved away from a light still get one clearing update
 				const light_t light = cached_lights[light_index];
-				if (LightIntersects (light, workgroup_index))
+				if (LightIntersects (light, workgroup_index, push_constants.prev_submodel_transforms_offset))
 					atomicOr (was_lit, 1);
 			}
 		}
@@ -219,7 +249,21 @@ void main ()
 		const float t = float (coords.y - (surf.packed_light_st >> 16)) - 0.5f;
 		vec3		tangent = vec3 (0.0f);
 		vec3		bitangent = vec3 (0.0f);
-		const vec3	world_pos = CalculateWorldPos (surf, s, t, tangent, bitangent);
+		vec3		world_pos = CalculateWorldPos (surf, s, t, tangent, bitangent);
+
+		// submodel vertices are in model space, transform to world space with the current entity transform
+		const uint submodel = surface_submodels[surface_index & 0x7FFFFFFF];
+		if (submodel != 0)
+		{
+			const uint base = (push_constants.submodel_transforms_offset + submodel) * 3;
+			const vec4 row0 = submodel_transforms[base + 0];
+			const vec4 row1 = submodel_transforms[base + 1];
+			const vec4 row2 = submodel_transforms[base + 2];
+			const vec4 model_pos = vec4 (world_pos, 1.0f);
+			world_pos = vec3 (dot (row0, model_pos), dot (row1, model_pos), dot (row2, model_pos));
+			tangent = vec3 (dot (row0.xyz, tangent), dot (row1.xyz, tangent), dot (row2.xyz, tangent));
+			bitangent = vec3 (dot (row0.xyz, bitangent), dot (row1.xyz, bitangent), dot (row2.xyz, bitangent));
+		}
 
 		for (uint light_mask_index = 0; light_mask_index < LIGHT_MASK_SIZE; ++light_mask_index)
 		{
