@@ -436,7 +436,22 @@ static void R_SetupAliasLighting (entity_t *e, vec3_t *shadevector, vec3_t *ligh
 			VectorSubtract (e->origin, cl_dlights[i].origin, dist);
 			add = cl_dlights[i].radius - VectorLength (dist);
 			if (add > 0)
+			{
+				if (cl_dlights[i].cone_cos > -1.0f)
+				{
+					// soft edged spotlight falloff, matches update_lightmap.inc
+					vec3_t dir;
+					VectorCopy (dist, dir);
+					VectorNormalize (dir);
+					const float cone_cos = cl_dlights[i].cone_cos;
+					const float cone_soft = cone_cos + ((1.0f - cone_cos) * 0.25f);
+					const float cone_scale = CLAMP (0.0f, (DotProduct (dir, cl_dlights[i].cone_dir) - cone_cos) / q_max (cone_soft - cone_cos, 0.0001f), 1.0f);
+					add *= cone_scale;
+					if (add <= 0.0f)
+						continue;
+				}
 				VectorMA (*lightcolor, add, cl_dlights[i].color, *lightcolor);
+			}
 		}
 	}
 

@@ -415,6 +415,8 @@ void R_UpdateEntityDlights (void)
 		dl->radius = l->radius;
 		dl->die = cl.time + 0.001f;
 		VectorScale (l->color, scale, dl->color);
+		VectorCopy (l->cone_dir, dl->cone_dir);
+		dl->cone_cos = l->cone_cos;
 	}
 }
 
