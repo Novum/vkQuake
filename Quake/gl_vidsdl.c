@@ -4117,8 +4117,10 @@ void VID_Shutdown (void)
 {
 	if (vid_initialized)
 	{
-		SDL_QuitSubSystem (SDL_INIT_VIDEO);
+		assert (draw_context != NULL);
+		SDL_DestroyWindow (draw_context);
 		draw_context = NULL;
+		SDL_QuitSubSystem (SDL_INIT_VIDEO);
 		PL_VID_Shutdown ();
 	}
 }
