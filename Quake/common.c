@@ -2213,7 +2213,11 @@ size_t COM_SanitizeDescriptionString (char *dst, size_t dstsize, const char *src
 	{
 		char c = src[srcpos] & (remove_color ? 0x7f : 0xFF); // remove_color
 
-		if (c == '\n' || c == '\r') // replace newlines with spaces
+		// When reducing to plain ASCII, also strip control chars: colored glyphs can mask down to
+		// scanf whitespace (e.g. 0x8b -> \v), which would split the savegame comment line on load
+		if (remove_color && !q_isprint (c))
+			c = ' ';
+		else if (c == '\n' || c == '\r') // replace newlines with spaces
 			c = ' ';
 		else if (c == '\\' && src[srcpos + 1] == 'n') // replace '\\' followed by 'n' with space
 		{
