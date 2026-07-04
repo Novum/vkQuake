@@ -703,6 +703,8 @@ qboolean	  R_CullModelForEntity (entity_t *e);
 void		  R_RotateForEntity (float matrix[16], vec3_t origin, vec3_t angles, unsigned char scale);
 void		  R_MarkLights (dlight_t *light, int num, mnode_t *node);
 extern vec3_t lightmap_dlight_origins[MAX_DLIGHTS]; // dlight origins in the space of the model currently having its lightmaps built (CPU lightmap update path)
+void		  R_ParseEntityDlights (void);			// 2021 rerelease "dynamiclight" entities, parsed from the entity lump at map load
+void		  R_UpdateEntityDlights (void);			// keeps the parsed entity dlights alive, called every frame
 
 void R_InitParticles (void);
 void R_DrawParticles (cb_context_t *cbx);
