@@ -908,6 +908,8 @@ void CL_RelinkEntities (void)
 		}
 	}
 
+	R_UpdateEntityDlights (); // 2021 rerelease shadow casting light entities
+
 	// johnfitz -- lerping
 	// ericw -- this was done before the upper 8 bits of cl.stats[STAT_WEAPON] were filled in, breaking on large maps like zendar.bsp
 	if (cl.viewent.model != cl.model_precache[cl.stats[STAT_WEAPON]])
