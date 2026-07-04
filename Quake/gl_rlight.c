@@ -25,6 +25,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 int r_dlightframecount;
 
+// dlight origins in the space of the model currently having its lightmaps built: world space for the world model,
+// entity space for brush models (R_DrawBrushModel updates these while marking its surfaces)
+vec3_t lightmap_dlight_origins[MAX_DLIGHTS];
+
 extern cvar_t r_flatlightstyles; // johnfitz
 extern cvar_t r_lerplightstyles;
 extern cvar_t r_gpulightmapupdate;
@@ -170,6 +174,7 @@ void R_PushDlights (void)
 	{
 		if (l->die < cl.time || !l->radius)
 			continue;
+		VectorCopy (l->origin, lightmap_dlight_origins[i]);
 		R_MarkLights (l, i, cl.worldmodel->nodes);
 	}
 }

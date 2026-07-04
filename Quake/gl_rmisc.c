@@ -1429,7 +1429,7 @@ void R_CreateDescriptorSetLayouts ()
 
 	{
 		int num_descriptors = 0;
-		ZEROED_STRUCT_ARRAY (VkDescriptorSetLayoutBinding, lightmap_compute_layout_bindings, 9);
+		ZEROED_STRUCT_ARRAY (VkDescriptorSetLayoutBinding, lightmap_compute_layout_bindings, 10);
 		lightmap_compute_layout_bindings[0].binding = num_descriptors++;
 		lightmap_compute_layout_bindings[0].descriptorCount = 1;
 		lightmap_compute_layout_bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
@@ -1462,6 +1462,14 @@ void R_CreateDescriptorSetLayouts ()
 		lightmap_compute_layout_bindings[7].descriptorCount = 1;
 		lightmap_compute_layout_bindings[7].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 		lightmap_compute_layout_bindings[7].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+		lightmap_compute_layout_bindings[8].binding = num_descriptors++;
+		lightmap_compute_layout_bindings[8].descriptorCount = 1;
+		lightmap_compute_layout_bindings[8].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+		lightmap_compute_layout_bindings[8].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+		lightmap_compute_layout_bindings[9].binding = num_descriptors++;
+		lightmap_compute_layout_bindings[9].descriptorCount = 1;
+		lightmap_compute_layout_bindings[9].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+		lightmap_compute_layout_bindings[9].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
 		descriptor_set_layout_create_info.bindingCount = num_descriptors;
 		descriptor_set_layout_create_info.pBindings = lightmap_compute_layout_bindings;
@@ -1469,7 +1477,7 @@ void R_CreateDescriptorSetLayouts ()
 		memset (&vulkan_globals.lightmap_compute_set_layout, 0, sizeof (vulkan_globals.lightmap_compute_set_layout));
 		vulkan_globals.lightmap_compute_set_layout.num_storage_images = 1;
 		vulkan_globals.lightmap_compute_set_layout.num_sampled_images = 1 + MAXLIGHTMAPS * 3 / 4;
-		vulkan_globals.lightmap_compute_set_layout.num_storage_buffers = 3;
+		vulkan_globals.lightmap_compute_set_layout.num_storage_buffers = 5;
 		vulkan_globals.lightmap_compute_set_layout.num_ubos_dynamic = 2;
 
 		err = vkCreateDescriptorSetLayout (vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.lightmap_compute_set_layout.handle);
@@ -1891,7 +1899,7 @@ void R_CreatePipelineLayouts ()
 
 		ZEROED_STRUCT (VkPushConstantRange, push_constant_range);
 		push_constant_range.offset = 0;
-		push_constant_range.size = 6 * sizeof (uint32_t);
+		push_constant_range.size = 8 * sizeof (uint32_t);
 		push_constant_range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
 		ZEROED_STRUCT (VkPipelineLayoutCreateInfo, pipeline_layout_create_info);
@@ -1918,7 +1926,7 @@ void R_CreatePipelineLayouts ()
 
 		ZEROED_STRUCT (VkPushConstantRange, push_constant_range);
 		push_constant_range.offset = 0;
-		push_constant_range.size = 7 * sizeof (uint32_t);
+		push_constant_range.size = 9 * sizeof (uint32_t);
 		push_constant_range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
 		ZEROED_STRUCT (VkPipelineLayoutCreateInfo, pipeline_layout_create_info);
