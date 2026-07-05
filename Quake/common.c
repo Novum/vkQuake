@@ -1971,6 +1971,8 @@ static qfilesize_t COM_FindFile (const char *filename, int *handle, FILE **file,
 					// We can have concurrent reads to the pack (either as file or memory-based)
 					// So we MUST duplicate the pak handle to allow independent reads and seeks.
 					int new_handle = Sys_DuplicateHandle (pak->handle);
+					if (new_handle < 0)
+						Sys_Error ("COM_FindFile: couldn't reopen %s", pak->filename);
 					Sys_FileSeek (new_handle, pak->files[i].filepos);
 					*handle = new_handle;
 					return com_filesize;
