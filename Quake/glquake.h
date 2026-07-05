@@ -379,6 +379,7 @@ typedef struct
 	qboolean dedicated_allocation;
 	qboolean full_screen_exclusive;
 	qboolean ray_query;
+	qboolean present_wait;
 
 	// Buffers
 	VkImage color_buffers[NUM_COLOR_BUFFERS];
