@@ -69,7 +69,7 @@ VULKAN_LINK= -L$(VK_SDK_PATH)/lib
 VULKAN_LIBS= -lvulkan-1
 CFLAGS += $(VULKAN_INC)
 
-COMMON_LIBS:= -lwinmm -ldbghelp
+COMMON_LIBS:= -lole32 -lwinmm -ldbghelp
 
 LIBS := $(COMMON_LIBS) $(NET_LIBS) $(CODEC_LINK) $(CODECLIBS) $(VULKAN_LINK) $(VULKAN_LIBS)
 
