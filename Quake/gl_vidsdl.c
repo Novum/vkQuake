@@ -30,6 +30,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "resource.h"
 #include "palette.h"
 #include "menu.h"
+#include "steam.h"
 
 #ifdef USE_SDL3
 #include <SDL3/SDL_vulkan.h>
@@ -3805,20 +3806,26 @@ void WriteScreenshot (VkBuffer buffer, vulkan_memory_t memory)
 		}
 	}
 
-	qboolean ok;
-	if (!q_strncasecmp (screenshot_ext, "png", sizeof (screenshot_ext)))
-		ok = Image_WritePNG (screenshot_imagename, buffer_ptr, glwidth, glheight, 32, true);
-	else if (!q_strncasecmp (screenshot_ext, "tga", sizeof (screenshot_ext)))
-		ok = Image_WriteTGA (screenshot_imagename, buffer_ptr, glwidth, glheight, 32, true);
-	else if (!q_strncasecmp (screenshot_ext, "jpg", sizeof (screenshot_ext)))
-		ok = Image_WriteJPG (screenshot_imagename, buffer_ptr, glwidth, glheight, 32, screenshot_quality, true);
+	// with the Steam API active, screenshots go to the Steam library instead (from Ironwail)
+	if (Steam_SaveScreenshot (buffer_ptr, glwidth, glheight))
+		Con_Printf ("Wrote screenshot to the Steam library\n");
 	else
-		ok = false;
+	{
+		qboolean ok;
+		if (!q_strncasecmp (screenshot_ext, "png", sizeof (screenshot_ext)))
+			ok = Image_WritePNG (screenshot_imagename, buffer_ptr, glwidth, glheight, 32, true);
+		else if (!q_strncasecmp (screenshot_ext, "tga", sizeof (screenshot_ext)))
+			ok = Image_WriteTGA (screenshot_imagename, buffer_ptr, glwidth, glheight, 32, true);
+		else if (!q_strncasecmp (screenshot_ext, "jpg", sizeof (screenshot_ext)))
+			ok = Image_WriteJPG (screenshot_imagename, buffer_ptr, glwidth, glheight, 32, screenshot_quality, true);
+		else
+			ok = false;
 
-	if (ok)
-		Con_Printf ("Wrote %s\n", screenshot_imagename);
-	else
-		Con_Printf ("SCR_ScreenShot_f: Couldn't create %s\n", screenshot_imagename);
+		if (ok)
+			Con_Printf ("Wrote %s\n", screenshot_imagename);
+		else
+			Con_Printf ("SCR_ScreenShot_f: Couldn't create %s\n", screenshot_imagename);
+	}
 
 	R_FreeBuffer (buffer, &memory, NULL);
 }

@@ -51,6 +51,7 @@ void	 Steam_ClearStatus (void);
 void	 Steam_SetStatus_Menu (void);
 void	 Steam_SetStatus_SinglePlayer (const char *map);
 void	 Steam_SetStatus_Multiplayer (int players, int maxplayers, const char *map);
+qboolean Steam_SaveScreenshot (const void *rgba, int width, int height);
 
 // OS path of the steam_api library inside the given install, false if unavailable
 qboolean Sys_GetSteamAPILibraryPath (char *path, size_t pathsize, const steamgame_t *game);

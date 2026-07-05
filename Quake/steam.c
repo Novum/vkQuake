@@ -415,14 +415,19 @@ library shipped with the rerelease, loaded dynamically at runtime
 	x(void*,	SteamInternal_CreateInterface, (const char *which))\
 	x(void*,	SteamAPI_ISteamClient_GetISteamFriends, (void *client, int huser, int hpipe, const char *version))\
 	x(void*,	SteamAPI_ISteamClient_GetISteamUserStats, (void *client, int huser, int hpipe, const char *version))\
+	x(void*,	SteamAPI_ISteamClient_GetISteamScreenshots, (void *client, int huser, int hpipe, const char *version))\
 	x(void,		SteamAPI_ISteamFriends_ClearRichPresence, (void *client))\
 	x(int,		SteamAPI_ISteamFriends_SetRichPresence, (void *friends, const char *key, const char *val))\
 	x(int,		SteamAPI_ISteamUserStats_SetAchievement, (void *userstats, const char *name))\
-	x(int,		SteamAPI_ISteamUserStats_StoreStats, (void *userstats)) // clang-format on
+	x(int,		SteamAPI_ISteamUserStats_StoreStats, (void *userstats))\
+	x(int,		SteamAPI_ISteamScreenshots_HookScreenshots, (void *screenshots, int hook))\
+	x(uint32_t,	SteamAPI_ISteamScreenshots_WriteScreenshot, (void *screenshots, const void *data, uint32_t size, int width, int height))
+// clang-format on
 
-#define STEAMAPI_CLIENT_VERSION	   "SteamClient015"
-#define STEAMAPI_FRIENDS_VERSION   "SteamFriends015"
-#define STEAMAPI_USERSTATS_VERSION "STEAMUSERSTATS_INTERFACE_VERSION012"
+#define STEAMAPI_CLIENT_VERSION		 "SteamClient015"
+#define STEAMAPI_FRIENDS_VERSION	 "SteamFriends015"
+#define STEAMAPI_USERSTATS_VERSION	 "STEAMUSERSTATS_INTERFACE_VERSION012"
+#define STEAMAPI_SCREENSHOTS_VERSION "STEAMSCREENSHOTS_INTERFACE_VERSION003"
 
 #define STEAMAPI_DECLARE_FUNCTION(ret, name, args) static ret (STEAMAPI *name##_Func) args;
 STEAMAPI_FUNCTIONS (STEAMAPI_DECLARE_FUNCTION)
@@ -448,6 +453,7 @@ static struct
 	void	*client;
 	void	*friends;
 	void	*userstats;
+	void	*screenshots;
 	qboolean needs_shutdown;
 } steamapi;
 
@@ -601,6 +607,13 @@ qboolean Steam_Init (const steamgame_t *game)
 		return false;
 	}
 
+	steamapi.screenshots =
+		SteamAPI_ISteamClient_GetISteamScreenshots_Func (steamapi.client, steamapi.hsteamuser, steamapi.hsteampipe, STEAMAPI_SCREENSHOTS_VERSION);
+	if (!steamapi.screenshots)
+		Sys_Printf ("Couldn't initialize SteamScreenshots interface\n");
+	else
+		SteamAPI_ISteamScreenshots_HookScreenshots_Func (steamapi.screenshots, true);
+
 	Sys_Printf ("Steam API initialized\n");
 
 	Steam_ClearStatus ();
@@ -672,6 +685,39 @@ void Steam_SetStatus_SinglePlayer (const char *map)
 		SteamAPI_ISteamFriends_SetRichPresence_Func (steamapi.friends, "map", map);
 		SteamAPI_ISteamFriends_SetRichPresence_Func (steamapi.friends, "steam_display", "#singleplayer");
 	}
+}
+
+/*
+========================
+Steam_SaveScreenshot
+
+Adds a screenshot to the Steam library; expects top-down RGBA data
+========================
+*/
+qboolean Steam_SaveScreenshot (const void *rgba, int width, int height)
+{
+	const byte *src = (const byte *)rgba;
+	byte	   *rgb;
+	int			i, numpixels;
+	qboolean	result;
+
+	if (!steamapi.screenshots)
+		return false;
+
+	// pack to the RGB format expected by WriteScreenshot
+	numpixels = width * height;
+	rgb = (byte *)Mem_Alloc (numpixels * 3);
+	for (i = 0; i < numpixels; i++)
+	{
+		rgb[i * 3 + 0] = src[i * 4 + 0];
+		rgb[i * 3 + 1] = src[i * 4 + 1];
+		rgb[i * 3 + 2] = src[i * 4 + 2];
+	}
+
+	result = SteamAPI_ISteamScreenshots_WriteScreenshot_Func (steamapi.screenshots, rgb, (uint32_t)numpixels * 3, width, height) != 0;
+	Mem_Free (rgb);
+
+	return result;
 }
 
 /*
