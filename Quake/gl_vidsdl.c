@@ -632,6 +632,16 @@ static void VID_FSAAChanged_f (cvar_t *var)
 }
 
 /*
+===================
+VID_VsyncChanged_f -- vsync only needs the swapchain recreated, apply it immediately
+===================
+*/
+static void VID_VsyncChanged_f (cvar_t *var)
+{
+	VID_Restart (false);
+}
+
+/*
 ================
 VID_Test -- johnfitz -- like vid_restart, but asks for confirmation after switching modes
 ================
@@ -4326,7 +4336,7 @@ void VID_Init (void)
 	Cvar_SetCallback (&vid_anisotropic, VID_FilterChanged_f);
 	Cvar_SetCallback (&vid_fsaamode, VID_FSAAChanged_f);
 	Cvar_SetCallback (&vid_fsaa, VID_FSAAChanged_f);
-	Cvar_SetCallback (&vid_vsync, VID_Changed_f);
+	Cvar_SetCallback (&vid_vsync, VID_VsyncChanged_f);
 	Cvar_SetCallback (&vid_desktopfullscreen, VID_Changed_f);
 	Cvar_SetCallback (&vid_borderless, VID_Changed_f);
 
