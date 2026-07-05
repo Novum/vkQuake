@@ -141,7 +141,7 @@ static VkFence			command_buffer_fences[DOUBLE_BUFFERED];
 static qboolean			frame_submitted[DOUBLE_BUFFERED];
 static VkFramebuffer	main_framebuffers[NUM_COLOR_BUFFERS];
 static VkSemaphore		image_aquired_semaphores[DOUBLE_BUFFERED];
-static VkSemaphore		draw_complete_semaphores[DOUBLE_BUFFERED];
+static VkSemaphore		draw_complete_semaphores[MAX_SWAP_CHAIN_IMAGES];
 static VkFramebuffer	ui_framebuffers[MAX_SWAP_CHAIN_IMAGES];
 static VkImage			swapchain_images[MAX_SWAP_CHAIN_IMAGES];
 static VkImageView		swapchain_images_views[MAX_SWAP_CHAIN_IMAGES];
@@ -1452,10 +1452,6 @@ static void GL_InitCommandBuffers (void)
 		err = vkCreateFence (vulkan_globals.device, &fence_create_info, NULL, &command_buffer_fences[i]);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkCreateFence failed with code %i", (int)err);
-
-		ZEROED_STRUCT (VkSemaphoreCreateInfo, semaphore_create_info);
-		semaphore_create_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-		err = vkCreateSemaphore (vulkan_globals.device, &semaphore_create_info, NULL, &draw_complete_semaphores[i]);
 	}
 }
 
@@ -2876,6 +2872,17 @@ static qboolean GL_CreateSwapChain (void)
 			Sys_Error ("vkCreateSemaphore failed with code %i", (int)err);
 	}
 
+	// one draw complete semaphore per swapchain image, indexed by the acquired image: a present keeps
+	// using its wait semaphore until that image is re-acquired, so per frame slot semaphores can be
+	// re-signaled too early when the same image doesn't come back for a while
+	for (i = 0; i < num_swap_chain_images; ++i)
+	{
+		assert (draw_complete_semaphores[i] == VK_NULL_HANDLE);
+		err = vkCreateSemaphore (vulkan_globals.device, &semaphore_create_info, NULL, &draw_complete_semaphores[i]);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreateSemaphore failed with code %i", (int)err);
+	}
+
 	return true;
 }
 
@@ -3115,6 +3122,12 @@ static void GL_DestroyRenderResources (void)
 	{
 		vkDestroySemaphore (vulkan_globals.device, image_aquired_semaphores[i], NULL);
 		image_aquired_semaphores[i] = VK_NULL_HANDLE;
+	}
+
+	for (uint32_t i = 0; i < num_swap_chain_images; ++i)
+	{
+		vkDestroySemaphore (vulkan_globals.device, draw_complete_semaphores[i], NULL);
+		draw_complete_semaphores[i] = VK_NULL_HANDLE;
 	}
 
 	fpDestroySwapchainKHR (vulkan_globals.device, vulkan_swapchain, NULL);
@@ -3971,7 +3984,7 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 		submit_info.waitSemaphoreCount = swapchain_acquired ? 1 : 0;
 		submit_info.pWaitSemaphores = &image_aquired_semaphores[cb_index];
 		submit_info.signalSemaphoreCount = swapchain_acquired ? 1 : 0;
-		submit_info.pSignalSemaphores = &draw_complete_semaphores[cb_index];
+		submit_info.pSignalSemaphores = &draw_complete_semaphores[current_swapchain_buffer];
 		VkPipelineStageFlags wait_dst_stage_mask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 		submit_info.pWaitDstStageMask = &wait_dst_stage_mask;
 
@@ -3995,7 +4008,7 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 		present_info.swapchainCount = 1;
 		present_info.pSwapchains = &vulkan_swapchain, present_info.pImageIndices = &current_swapchain_buffer;
 		present_info.waitSemaphoreCount = 1;
-		present_info.pWaitSemaphores = &draw_complete_semaphores[cb_index];
+		present_info.pWaitSemaphores = &draw_complete_semaphores[current_swapchain_buffer];
 		err = fpQueuePresentKHR (vulkan_globals.queue, &present_info);
 #if defined(VK_EXT_full_screen_exclusive)
 		if ((err == VK_ERROR_OUT_OF_DATE_KHR) || (err == VK_ERROR_SURFACE_LOST_KHR) || (err == VK_SUBOPTIMAL_KHR) ||
