@@ -20,7 +20,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 #include "json.h"
-#include "json.h"
 
 // https://github.com/zserge/jsmn
 #define JSMN_PARENT_LINKS
@@ -113,13 +112,18 @@ static char *JSON_Unescape (char *dst, const char *src, int len)
 				int codepoint, lowsurrogate;
 				if (JSON_ReadHexNumber (src + 1, &codepoint))
 				{
-					if (codepoint >= 0xd800 && codepoint < 0xdbff && srcend - src > 10 && src[5] == '\\' && src[6] == 'u' &&
-						JSON_ReadHexNumber (src + 7, &lowsurrogate) && lowsurrogate >= 0xdc00 && lowsurrogate < 0xdfff)
+					if (codepoint >= 0xd800 && codepoint <= 0xdbff && srcend - src > 10 && src[5] == '\\' && src[6] == 'u' &&
+						JSON_ReadHexNumber (src + 7, &lowsurrogate) && lowsurrogate >= 0xdc00 && lowsurrogate <= 0xdfff)
 					{
 						codepoint -= 0xd800;
 						lowsurrogate -= 0xdc00;
 						codepoint = 0x10000 + (codepoint << 10) + lowsurrogate;
 						src += 6;
+					}
+					else if (codepoint >= 0xd800 && codepoint <= 0xdfff)
+					{
+						// unpaired surrogate, don't emit invalid UTF-8
+						codepoint = 0xfffd;
 					}
 					dst += UTF8_WriteCodePoint (dst, 4, codepoint);
 					src += 4;
@@ -286,7 +290,7 @@ const jsonentry_t *JSON_Find (const jsonentry_t *entry, const char *name, jsonty
 		if (strcmp (entry->string, name) != 0)
 			continue;
 		if (entry->firstchild->type != type)
-			return NULL;
+			continue; // keep looking in case of duplicate keys
 		return entry->firstchild;
 	}
 	return NULL;
