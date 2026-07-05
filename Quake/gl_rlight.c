@@ -190,18 +190,31 @@ is empty ("No special functionality, just to hold dynamic shadowcasting lights
 for KEX"), the KEX engine reads them directly from the entity lump, so do the
 same and turn them into persistent dlights.
 
+The KEX shading math is public: QuakeEX.kpf ships the shader source, and
+ComputeLightShading/ComputeSpotLight in progs/includes/QuakeClusteredShading.inc
+add color * intensity * (range - dist) / range * saturate(N.L), spotlights
+scaled by a linear falloff from cone axis to edge, all multiplied by a shadow
+map term. KEX only renders them while its shadow system is enabled
+(r_staticshadows 0 removes the lights entirely), so they are tied to the ray
+traced occlusion path here as well.
+
 The updated id1 and ctf maps also carry "_shadowlight 1" keys on info_null
 entities, but those sit in areas whose lighting is fully baked into the
-lightmaps (the same maps have to look right in the classic renderer). Their
-value in KEX is casting real time shadows from moving objects, i.e. darkening,
-which an additive dlight can't reproduce - adding light there just double
-brightens the baked lighting, so they are deliberately not parsed.
+lightmaps (the same maps have to look right in the classic renderer). Adding
+their light on top just double brightens the baked lighting, so they are
+deliberately not parsed.
 
 =============================================================================
 */
 
 #define MAX_ENTITY_DLIGHTS 64
 #define ENTITY_DLIGHT_KEY  0x40000000 // dlight key space for entity dlights, outside entity indices
+
+extern cvar_t r_rtshadows;
+
+// scales the intensity of the rerelease dynamiclight entities; the KEX intensity
+// units don't map 1:1 onto lightmap space, so this is calibrated visually
+cvar_t r_entdlightscale = {"r_entdlightscale", "1", CVAR_NONE};
 
 typedef struct entity_dlight_s
 {
@@ -329,7 +342,9 @@ void R_ParseEntityDlights (void)
 				l->cone_dir[1] = sinf (DEG2RAD (angle));
 				l->cone_dir[2] = 0.0f;
 			}
-			l->cone_cos = cosf (DEG2RAD (cone_angle * 0.5f));
+			// _shadowlightconeangle is the full apex angle: KEX visibly lights surfaces
+			// sideways from the axis (e.g. the fan walls), impossible with a half angle read
+			l->cone_cos = cosf (DEG2RAD (cone_angle));
 		}
 		cone_angles[num_entity_dlights] = cone_angle;
 		any_targets = any_targets || (targets[num_entity_dlights][0] != 0);
@@ -387,7 +402,7 @@ void R_ParseEntityDlights (void)
 			{
 				VectorNormalize (dir);
 				VectorCopy (dir, entity_dlights[i].cone_dir);
-				entity_dlights[i].cone_cos = cosf (DEG2RAD (cone_angles[i] * 0.5f));
+				entity_dlights[i].cone_cos = cosf (DEG2RAD (cone_angles[i]));
 			}
 		}
 	}
@@ -400,10 +415,15 @@ R_UpdateEntityDlights -- called every frame, keeps the parsed entity dlights ali
 */
 void R_UpdateEntityDlights (void)
 {
+	// KEX ties these lights to its shadow system (r_staticshadows 0 removes them
+	// entirely), so require the ray traced occlusion path here as well
+	if (!vulkan_globals.ray_query || !r_rtshadows.value || !r_gpulightmapupdate.value)
+		return;
+
 	for (int i = 0; i < num_entity_dlights; i++)
 	{
 		entity_dlight_t *l = &entity_dlights[i];
-		float			 scale = ((float)d_lightstylevalue[l->style] / 256.0f) * l->intensity * (1.0f / 10.0f);
+		float			 intensity = ((float)d_lightstylevalue[l->style] / 256.0f) * l->intensity * r_entdlightscale.value;
 		if (l->end_fade_distance > 0.0f)
 		{
 			vec3_t offset;
@@ -412,18 +432,19 @@ void R_UpdateEntityDlights (void)
 			if (view_distance >= l->end_fade_distance)
 				continue;
 			if ((view_distance > l->start_fade_distance) && (l->end_fade_distance > l->start_fade_distance))
-				scale *= (l->end_fade_distance - view_distance) / (l->end_fade_distance - l->start_fade_distance);
+				intensity *= (l->end_fade_distance - view_distance) / (l->end_fade_distance - l->start_fade_distance);
 		}
-		if (scale <= 0.0f)
+		if (intensity <= 0.0f)
 			continue;
 
 		dlight_t *dl = CL_AllocDlight (ENTITY_DLIGHT_KEY + i);
 		VectorCopy (l->origin, dl->origin);
 		dl->radius = l->radius;
 		dl->die = cl.time + 0.001f;
-		VectorScale (l->color, scale, dl->color);
+		VectorCopy (l->color, dl->color);
 		VectorCopy (l->cone_dir, dl->cone_dir);
 		dl->cone_cos = l->cone_cos;
+		dl->kex_intensity = intensity;
 	}
 }
 

@@ -439,16 +439,34 @@ static void R_SetupAliasLighting (entity_t *e, vec3_t *shadevector, vec3_t *ligh
 			{
 				if (cl_dlights[i].cone_cos > -1.0f)
 				{
-					// soft edged spotlight falloff, matches update_lightmap.inc
 					vec3_t dir;
 					VectorCopy (dist, dir);
 					VectorNormalize (dir);
 					const float cone_cos = cl_dlights[i].cone_cos;
-					const float cone_soft = cone_cos + ((1.0f - cone_cos) * 0.25f);
-					const float cone_scale = CLAMP (0.0f, (DotProduct (dir, cl_dlights[i].cone_dir) - cone_cos) / q_max (cone_soft - cone_cos, 0.0001f), 1.0f);
+					const float cone_dot = DotProduct (dir, cl_dlights[i].cone_dir);
+					float		cone_scale;
+					if (cl_dlights[i].kex_intensity > 0.0f)
+					{
+						// linear falloff from cone axis to edge, matches update_lightmap.inc
+						if (cone_dot < cone_cos)
+							continue;
+						cone_scale = 1.0f - (1.0f - cone_dot) / (1.0f - cone_cos);
+					}
+					else
+					{
+						// soft edged spotlight falloff, matches update_lightmap.inc
+						const float cone_soft = cone_cos + ((1.0f - cone_cos) * 0.25f);
+						cone_scale = CLAMP (0.0f, (cone_dot - cone_cos) / q_max (cone_soft - cone_cos, 0.0001f), 1.0f);
+					}
 					add *= cone_scale;
 					if (add <= 0.0f)
 						continue;
+				}
+				if (cl_dlights[i].kex_intensity > 0.0f)
+				{
+					// KEX falloff: range-normalized, scaled by intensity (matches update_lightmap.inc,
+					// sans the Lambert term since alias models use their own shading)
+					add *= cl_dlights[i].kex_intensity * 0.5f * (256.0f / cl_dlights[i].radius);
 				}
 				VectorMA (*lightcolor, add, cl_dlights[i].color, *lightcolor);
 			}

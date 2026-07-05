@@ -35,6 +35,7 @@ extern cvar_t r_clearcolor;
 extern cvar_t r_fastclear;
 extern cvar_t r_flatlightstyles;
 extern cvar_t r_lerplightstyles;
+extern cvar_t r_entdlightscale;
 extern cvar_t gl_fullbrights;
 extern cvar_t gl_farclip;
 extern cvar_t r_waterquality;
@@ -4049,6 +4050,7 @@ void R_Init (void)
 	Cvar_RegisterVariable (&r_waterwarpcompute);
 	Cvar_RegisterVariable (&r_flatlightstyles);
 	Cvar_RegisterVariable (&r_lerplightstyles);
+	Cvar_RegisterVariable (&r_entdlightscale);
 	Cvar_RegisterVariable (&r_oldskyleaf);
 	Cvar_RegisterVariable (&r_drawworld);
 	Cvar_RegisterVariable (&r_showtris);

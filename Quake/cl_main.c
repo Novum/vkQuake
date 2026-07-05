@@ -374,6 +374,7 @@ dlight_t *CL_AllocDlight (int key)
 				dl->key = key;
 				dl->color[0] = dl->color[1] = dl->color[2] = 1; // johnfitz -- lit support via lordhavoc
 				dl->cone_cos = -2.0f;
+				dl->kex_intensity = 0.0f;
 				return dl;
 			}
 		}
@@ -389,6 +390,7 @@ dlight_t *CL_AllocDlight (int key)
 			dl->key = key;
 			dl->color[0] = dl->color[1] = dl->color[2] = 1; // johnfitz -- lit support via lordhavoc
 			dl->cone_cos = -2.0f;
+			dl->kex_intensity = 0.0f;
 			return dl;
 		}
 	}

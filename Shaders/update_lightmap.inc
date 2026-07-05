@@ -36,9 +36,9 @@ struct light_t
 	vec3  origin;
 	float radius;
 	vec3  color;
-	float minlight;
+	float minlight; // < 0: rerelease dynamiclight with intensity -minlight, using the KEX falloff
 	vec3  cone_dir;
-	float cone_cos; // cos of the spotlight half angle, <= -1: not a spotlight
+	float cone_cos; // cos of the spotlight apex angle, <= -1: not a spotlight
 };
 
 const uint	LIGHT_MASK_SIZE = (MAX_DLIGHTS + 31) / 32;
@@ -252,6 +252,9 @@ void main ()
 		vec3		tangent = vec3 (0.0f);
 		vec3		bitangent = vec3 (0.0f);
 		vec3		world_pos = CalculateWorldPos (surf, s, t, tangent, bitangent);
+		vec3		normal = vec3 (surf.normal_x, surf.normal_y, surf.normal_z);
+		if (((surf.packed_tex_edgecount >> 15) & 1u) != 0u) // SURF_PLANEBACK
+			normal = -normal;
 
 		// submodel vertices are in model space, transform to world space with the current entity transform
 		const uint submodel = surface_submodels[surface_index & 0x7FFFFFFF];
@@ -265,6 +268,7 @@ void main ()
 			world_pos = vec3 (dot (row0, model_pos), dot (row1, model_pos), dot (row2, model_pos));
 			tangent = vec3 (dot (row0.xyz, tangent), dot (row1.xyz, tangent), dot (row2.xyz, tangent));
 			bitangent = vec3 (dot (row0.xyz, bitangent), dot (row1.xyz, bitangent), dot (row2.xyz, bitangent));
+			normal = normalize (vec3 (dot (row0.xyz, normal), dot (row1.xyz, normal), dot (row2.xyz, normal)));
 		}
 
 		for (uint light_mask_index = 0; light_mask_index < LIGHT_MASK_SIZE; ++light_mask_index)
@@ -277,17 +281,30 @@ void main ()
 				const uint	  light_index = (light_mask_index * 32) + light_offset;
 				const light_t light = lights[light_index];
 				const float	  dist = length (world_pos - light.origin);
-				if (dist > (light.radius - light.minlight))
+				if (dist > (light.radius - max (light.minlight, 0.0f)))
 					continue;
+
+				const bool kex_light = light.minlight < 0.0f;
 
 				float cone_scale = 1.0f;
 				if ((light.cone_cos > -1.0f) && (dist > 0.0f))
 				{
-					// soft edged spotlight falloff
 					const float cone_dot = dot ((world_pos - light.origin) / dist, light.cone_dir);
-					cone_scale = smoothstep (light.cone_cos, mix (light.cone_cos, 1.0f, 0.25f), cone_dot);
-					if (cone_scale <= 0.0f)
-						continue;
+					if (kex_light)
+					{
+						// linear falloff from cone axis to edge, from the KEX shader
+						// (ComputeSpotLight in QuakeClusteredShading.inc, QuakeEX.kpf)
+						if (cone_dot < light.cone_cos)
+							continue;
+						cone_scale = 1.0f - (1.0f - cone_dot) / (1.0f - light.cone_cos);
+					}
+					else
+					{
+						// soft edged spotlight falloff
+						cone_scale = smoothstep (light.cone_cos, mix (light.cone_cos, 1.0f, 0.25f), cone_dot);
+						if (cone_scale <= 0.0f)
+							continue;
+					}
 				}
 
 				float occlusion = 1.0f;
@@ -310,7 +327,20 @@ void main ()
 				}
 #endif
 
-				const float brightness = (light.radius - dist) / 256.0f;
+				float brightness;
+				if (kex_light)
+				{
+					// KEX clustered shading (ComputeLightShading in QuakeClusteredShading.inc):
+					// range-normalized linear falloff with a Lambert term. KEX adds this on
+					// top of lightmap * 2 (ComputeShadedColor in QuakeUtils.inc) while our
+					// lightmap gets the same 2x overbright after this shader, so divide by 2
+					const float len = (light.radius - dist) / light.radius;
+					const vec3	dir = (light.origin - world_pos) / max (dist, 0.001f);
+					const float lambert = max (dot (normal, dir), 0.0f);
+					brightness = -light.minlight * 0.5f * len * lambert;
+				}
+				else
+					brightness = (light.radius - dist) / 256.0f;
 				light_accumulated.xyz += brightness * cone_scale * max (occlusion, 0.0f) * light.color;
 			}
 		}

@@ -76,9 +76,10 @@ typedef struct
 	float  decay;	 // drop this each second
 	float  minlight; // don't add when contributing less
 	int	   key;
-	vec3_t color;	 // johnfitz -- lit support via lordhavoc
-	vec3_t cone_dir; // spotlight direction
-	float  cone_cos; // cos of the spotlight half angle, <= -1: not a spotlight
+	vec3_t color;		  // johnfitz -- lit support via lordhavoc
+	vec3_t cone_dir;	  // spotlight direction
+	float  cone_cos;	  // cos of the spotlight apex angle, <= -1: not a spotlight
+	float  kex_intensity; // > 0: rerelease dynamiclight entity, lit with the KEX falloff (linear over radius, Lambert, linear cone)
 } dlight_t;
 
 #define MAX_BEAMS 32 // johnfitz -- was 24

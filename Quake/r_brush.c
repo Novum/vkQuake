@@ -273,9 +273,9 @@ typedef struct lm_compute_light_s
 	vec3_t origin;
 	float  radius;
 	vec3_t color;
-	float  minlight;
+	float  minlight; // < 0: rerelease dynamiclight with intensity -minlight, using the KEX falloff
 	vec3_t cone_dir;
-	float  cone_cos; // cos of the spotlight half angle, <= -1: not a spotlight
+	float  cone_cos; // cos of the spotlight apex angle, <= -1: not a spotlight
 } lm_compute_light_t;
 COMPILE_TIME_ASSERT (lm_compute_light_t, sizeof (lm_compute_light_t) == 48);
 
@@ -3404,7 +3404,8 @@ void R_UpdateLightmapsAndIndirect (void *unused)
 		VectorCopy (cl_dlights[i].origin, light->origin);
 		light->radius = cl_dlights[i].radius;
 		VectorCopy (cl_dlights[i].color, light->color);
-		light->minlight = cl_dlights[i].minlight;
+		// rerelease dynamiclights don't use minlight, so its sign packs the KEX intensity
+		light->minlight = (cl_dlights[i].kex_intensity > 0.0f) ? -cl_dlights[i].kex_intensity : cl_dlights[i].minlight;
 		VectorCopy (cl_dlights[i].cone_dir, light->cone_dir);
 		light->cone_cos = cl_dlights[i].cone_cos;
 		squared_radius[num_used_dlights] = cl_dlights[i].radius * cl_dlights[i].radius;
