@@ -98,8 +98,6 @@ typedef struct cachepic_s
 static cachepic_t menu_cachepics[MAX_CACHED_PICS];
 static int		  menu_numcachepics;
 
-static byte menuplyr_pixels[4096];
-
 //  scrap allocation
 //  Allocate all the little status bar obejcts into a single texture
 //  to crutch up stupid hardware / drivers
@@ -321,16 +319,12 @@ qpic_t *Draw_TryCachePic (const char *path, unsigned int texflags)
 	menu_numcachepics++;
 	q_strlcpy (pic->name, path, countof (pic->name));
 
-	// HACK HACK HACK --- we need to keep the bytes for
-	// the translatable player picture just for the menu
-	// configuration dialog
-	if (!strcmp (npath, "gfx/menuplyr.lmp"))
-		memcpy (menuplyr_pixels, pic_data, pic_width * pic_height);
-
 	pic->pic.width = pic_width;
 	pic->pic.height = pic_height;
 
-	gl.gltexture = TexMgr_LoadImage (NULL, path, pic_width, pic_height, pic_fmt, pic_data, path, 0, texflags | TEXPREF_NOPICMIP); // johnfitz -- TexMgr
+	// pass the extensionless name as the source so TexMgr_ReloadImage can find the image
+	// again through Image_LoadImage (needed to recolor gfx/menuplyr.lmp in the setup menu)
+	gl.gltexture = TexMgr_LoadImage (NULL, path, pic_width, pic_height, pic_fmt, pic_data, npath, 0, texflags | TEXPREF_NOPICMIP); // johnfitz -- TexMgr
 
 	// those are always normalized coordinates
 	gl.sl = 0;
