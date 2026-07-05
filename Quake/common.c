@@ -2780,6 +2780,51 @@ static void COM_FindStoreBaseDir (void)
 
 /*
 =================
+COM_IsPathPrefix
+
+Compares path components case-insensitively, treating / and \ as equal
+=================
+*/
+static qboolean COM_IsPathPrefix (const char *prefix, const char *path)
+{
+	size_t i, len = strlen (prefix);
+
+	for (i = 0; i < len; i++)
+	{
+		char a = (prefix[i] == '\\') ? '/' : prefix[i];
+		char b = (path[i] == '\\') ? '/' : path[i];
+		if (q_tolower (a) != q_tolower (b))
+			return false;
+	}
+
+	return path[len] == '\0' || path[len] == '/' || path[len] == '\\';
+}
+
+/*
+=================
+COM_InitSteamAPI
+
+Enables Steam achievements and rich presence when the game data
+comes from the Steam install (from Ironwail)
+=================
+*/
+static void COM_InitSteamAPI (void)
+{
+	steamgame_t steamquake;
+	char		steampath[MAX_OSPATH];
+
+	if (COM_CheckParm ("-nosteam"))
+		return;
+	if (!Steam_FindGame (&steamquake, QUAKE_STEAM_APPID) || !Steam_ResolvePath (steampath, sizeof (steampath), &steamquake))
+		return;
+	if (!COM_IsPathPrefix (steampath, com_basedir))
+		return;
+
+	Steam_Init (&steamquake);
+}
+
+/*
+=================
 COM_InitFilesystem
 =================
 */
@@ -2809,6 +2854,10 @@ void COM_InitFilesystem (void) // johnfitz -- modified based on topaz's tutorial
 	// game data, or if a store version was requested explicitly on the command line
 	if (!i && (!COM_IsValidBaseDir (com_basedir) || COM_CheckParm ("-steam") || COM_CheckParm ("-gog") || COM_CheckParm ("-egs") || COM_CheckParm ("-epic")))
 		COM_FindStoreBaseDir ();
+
+	// achievements/rich presence if the game data comes from the Steam install,
+	// no matter whether it was found by detection, -basedir or the working directory
+	COM_InitSteamAPI ();
 
 	i = COM_CheckParmNext (i, "-basegame");
 	if (i)

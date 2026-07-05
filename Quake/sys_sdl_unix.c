@@ -112,6 +112,52 @@ qboolean Sys_GetSteamDir (char *path, size_t pathsize)
 	return false;
 }
 
+qboolean Sys_GetSteamAPILibraryPath (char *path, size_t pathsize, const steamgame_t *game)
+{
+	char	 config_info_path[MAX_OSPATH];
+	char	*line = NULL;
+	size_t	 line_size = 0;
+	FILE	*config_info;
+	int		 read_lines;
+	qboolean result;
+
+	if ((size_t)q_snprintf (config_info_path, sizeof (config_info_path), "%s/steamapps/compatdata/%d/config_info", game->library, game->appid) >= pathsize)
+		return false;
+
+	config_info = fopen (config_info_path, "r");
+	if (!config_info)
+		return false;
+
+	// lib dir is on line 3, lib64 on line 4
+	read_lines = sizeof (void *) == 4 ? 3 : 4;
+	while (read_lines-- > 0)
+	{
+		if (getline (&line, &line_size, config_info) == -1)
+		{
+			fclose (config_info);
+			free (line); // getline buffer is libc-allocated, NOT Mem_Free
+			return false;
+		}
+	}
+
+	fclose (config_info);
+	if (!line)
+		return false;
+
+	line_size = strlen (line);
+
+	if (line_size > 0 && line[line_size - 1] == '\n')
+		line[--line_size] = '\0';
+	if (line_size > 0 && line[line_size - 1] == '/')
+		line[--line_size] = '\0';
+
+	result = (size_t)q_snprintf (path, pathsize, "%s/libsteam_api.so", line) < pathsize;
+
+	free (line); // getline buffer is libc-allocated, NOT Mem_Free
+
+	return result;
+}
+
 qboolean Sys_GetGOGQuakeDir (char *path, size_t pathsize)
 {
 	return false;

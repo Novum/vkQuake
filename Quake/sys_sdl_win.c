@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 */
 
 #include "quakedef.h"
+#include "steam.h"
 
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -177,6 +178,18 @@ static qboolean Sys_GetKnownFolder (const KNOWNFOLDERID *base, const char *subdi
 	CoUninitialize ();
 
 	return ret && (size_t)q_strlcat (path, subdir, pathsize) < pathsize;
+}
+
+qboolean Sys_GetSteamAPILibraryPath (char *path, size_t pathsize, const steamgame_t *game)
+{
+#ifdef _WIN64
+	char installdir[MAX_OSPATH];
+	if (!Steam_ResolvePath (installdir, sizeof (installdir), game))
+		return false;
+	return (size_t)q_snprintf (path, pathsize, "%s/rerelease/steam_api64.dll", installdir) < pathsize;
+#else
+	return false;
+#endif
 }
 
 qboolean Sys_GetEGSManifestDir (char *path, size_t pathsize)

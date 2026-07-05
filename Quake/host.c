@@ -24,6 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 #include "bgmusic.h"
+#include "steam.h"
 #include "tasks.h"
 #include <setjmp.h>
 #ifdef _DEBUG
@@ -893,6 +894,62 @@ static void CL_LoadCSProgs (void)
 
 /*
 ==================
+Host_UpdateSteamStatus
+
+Updates the Steam rich presence status when the map or
+player counts change (based on the Ironwail equivalent)
+==================
+*/
+static void Host_UpdateSteamStatus (void)
+{
+	static double nextupdate = 0.0;
+	static char	  lastmap[sizeof (cl.levelname)];
+	static int	  lastplayers = -1, lastmaxplayers = -1;
+	char		  mapname[sizeof (cl.levelname)];
+	int			  players = 0, maxplayers = 0, i;
+
+	if (realtime < nextupdate)
+		return;
+	nextupdate = realtime + 0.25;
+
+	mapname[0] = '\0';
+	if (cls.state == ca_connected && cl.worldmodel)
+	{
+		// strip Quake color codes and control characters from the level name
+		const char *src = cl.levelname;
+		size_t		len = 0;
+		while (*src && len < sizeof (mapname) - 1)
+		{
+			char c = *src++ & 0x7f;
+			if (c >= 32)
+				mapname[len++] = c;
+		}
+		mapname[len] = '\0';
+		if (!mapname[0])
+			COM_StripExtension (COM_SkipPath (cl.worldmodel->name), mapname, sizeof (mapname));
+
+		maxplayers = cl.maxclients;
+		for (i = 0; i < cl.maxclients; i++)
+			if (cl.scores[i].name[0])
+				players++;
+	}
+
+	if (!strcmp (mapname, lastmap) && players == lastplayers && maxplayers == lastmaxplayers)
+		return;
+	q_strlcpy (lastmap, mapname, sizeof (lastmap));
+	lastplayers = players;
+	lastmaxplayers = maxplayers;
+
+	if (!mapname[0])
+		Steam_SetStatus_Menu ();
+	else if (maxplayers > 1)
+		Steam_SetStatus_Multiplayer (players, maxplayers, mapname);
+	else
+		Steam_SetStatus_SinglePlayer (mapname);
+}
+
+/*
+==================
 Host_Frame
 
 Runs all active servers
@@ -1029,6 +1086,8 @@ static void _Host_Frame (double time)
 		S_Update (vec3_origin, vec3_origin, vec3_origin, vec3_origin);
 
 	CDAudio_Update ();
+
+	Host_UpdateSteamStatus ();
 
 	if (host_speeds.value)
 	{
@@ -1220,6 +1279,8 @@ void Host_Shutdown (void)
 		IN_Shutdown ();
 		VID_Shutdown ();
 	}
+
+	Steam_Shutdown ();
 
 	LOG_Close ();
 

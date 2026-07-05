@@ -25,6 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 #include "bgmusic.h"
+#include "steam.h"
 
 const char *svc_strings[128] = {
 	"svc_bad", "svc_nop", "svc_disconnect", "svc_updatestat",
@@ -2059,7 +2060,8 @@ void CL_ParseServerMessage (void)
 		// used by the 2021 rerelease
 		case svc_achievement:
 			str = MSG_ReadString ();
-			Con_DPrintf ("Ignoring svc_achievement (%s)\n", str);
+			if (!Steam_SetAchievement (str))
+				Con_DPrintf ("Couldn't set achievement \"%s\"\n", str);
 			break;
 		case svc_localsound:
 			CL_ParseLocalSound ();
