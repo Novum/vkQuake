@@ -549,29 +549,77 @@ static qboolean Q1BSP_RecursiveHullCheck (hull_t *hull, int num, float p1f, floa
 	return Q1BSP_RecursiveHullTrace (&ctx, num, p1f, p2f, p1, p2, trace) != rht_impact;
 }
 
-static int num_trace_line_ents;
-static int trace_line_ents[MAX_EDICTS];
-static int trace_line_cache_valid_count = -1;
+// bounds are kept separate from the cold rotation data so the cull loop streams a dense array
+typedef struct trace_line_bounds_s
+{
+	vec3_t mins, maxs; // conservative world space bounds for culling
+} trace_line_bounds_t;
 
-// rebuilds the brush entity list if it is stale. Must be called from a single thread
-// before CL_TraceLine can be used concurrently, e.g. by the parallel particle update
+typedef struct trace_line_ent_s
+{
+	int		 entnum;
+	qboolean rotated;
+	vec3_t	 axis[3]; // forward/right/up of the entity, matching the renderer's brush model rotation
+} trace_line_ent_t;
+
+static trace_line_bounds_t *trace_line_bounds;
+static trace_line_ent_t	   *trace_line_ents;
+static int					num_trace_line_ents, max_trace_line_ents;
+static int					trace_line_cache_valid_count = -1;
+static int					trace_line_prepared_framecount = -1;
+
+// rebuilds the brush entity list if it is stale and refreshes the per frame entity
+// transforms. Must be called from a single thread before CL_TraceLine can be used
+// concurrently, e.g. by the parallel particle update
 static void CL_PrepareTraceLineEntities (void)
 {
 	int		  i;
 	entity_t *ent;
 
-	if (trace_line_cache_valid_count == r_trace_line_cache_counter)
-		return;
-
-	num_trace_line_ents = 0;
-	for (i = 1; i < cl.num_entities; i++)
+	if (trace_line_cache_valid_count != r_trace_line_cache_counter)
 	{
-		ent = &cl.entities[i];
-		if (!ent->model || ent->model->needload || ent->model->type != mod_brush || ent->model == cl.worldmodel)
-			continue;
-		trace_line_ents[num_trace_line_ents++] = i;
+		num_trace_line_ents = 0;
+		for (i = 1; i < cl.num_entities; i++)
+		{
+			ent = &cl.entities[i];
+			if (!ent->model || ent->model->needload || ent->model->type != mod_brush || ent->model == cl.worldmodel)
+				continue;
+			if (num_trace_line_ents == max_trace_line_ents)
+			{
+				max_trace_line_ents = q_max (256, max_trace_line_ents * 2);
+				trace_line_ents = (trace_line_ent_t *)Mem_Realloc (trace_line_ents, max_trace_line_ents * sizeof (trace_line_ent_t));
+				trace_line_bounds = (trace_line_bounds_t *)Mem_Realloc (trace_line_bounds, max_trace_line_ents * sizeof (trace_line_bounds_t));
+			}
+			trace_line_ents[num_trace_line_ents++].entnum = i;
+		}
+		trace_line_cache_valid_count = r_trace_line_cache_counter;
+		trace_line_prepared_framecount = -1;
 	}
-	trace_line_cache_valid_count = r_trace_line_cache_counter;
+
+	// entity origins and angles change without invalidating the list, refresh once per frame
+	if (trace_line_prepared_framecount == host_framecount)
+		return;
+	trace_line_prepared_framecount = host_framecount;
+
+	for (i = 0; i < num_trace_line_ents; i++)
+	{
+		trace_line_ent_t	*tent = &trace_line_ents[i];
+		trace_line_bounds_t *tbounds = &trace_line_bounds[i];
+		ent = &cl.entities[tent->entnum];
+		tent->rotated = ent->angles[0] || ent->angles[1] || ent->angles[2];
+		if (tent->rotated)
+		{
+			AngleVectors (ent->angles, tent->axis[0], tent->axis[1], tent->axis[2]);
+			// rmins/rmaxs are the radius cube, valid for any rotation
+			VectorAdd (ent->origin, ent->model->rmins, tbounds->mins);
+			VectorAdd (ent->origin, ent->model->rmaxs, tbounds->maxs);
+		}
+		else
+		{
+			VectorAdd (ent->origin, ent->model->mins, tbounds->mins);
+			VectorAdd (ent->origin, ent->model->maxs, tbounds->maxs);
+		}
+	}
 }
 
 float CL_TraceLine (vec3_t start, vec3_t end, vec3_t impact, vec3_t normal, int *entnum)
@@ -612,16 +660,31 @@ float CL_TraceLine (vec3_t start, vec3_t end, vec3_t impact, vec3_t normal, int 
 
 	for (i = 0; i < num_trace_line_ents; i++)
 	{
-		ent = &cl.entities[trace_line_ents[i]];
-
-		// unrotated bounds are consistent with the unrotated hull check below (FIXME: deal with rotations)
-		if (((ent->origin[0] + ent->model->mins[0]) > seg_maxs[0]) || ((ent->origin[0] + ent->model->maxs[0]) < seg_mins[0]) ||
-			((ent->origin[1] + ent->model->mins[1]) > seg_maxs[1]) || ((ent->origin[1] + ent->model->maxs[1]) < seg_mins[1]) ||
-			((ent->origin[2] + ent->model->mins[2]) > seg_maxs[2]) || ((ent->origin[2] + ent->model->maxs[2]) < seg_mins[2]))
+		const trace_line_bounds_t *tbounds = &trace_line_bounds[i];
+		if ((tbounds->mins[0] > seg_maxs[0]) || (tbounds->maxs[0] < seg_mins[0]) || (tbounds->mins[1] > seg_maxs[1]) || (tbounds->maxs[1] < seg_mins[1]) ||
+			(tbounds->mins[2] > seg_maxs[2]) || (tbounds->maxs[2] < seg_mins[2]))
 			continue;
 
-		VectorSubtract (start, ent->origin, relstart);
-		VectorSubtract (end, ent->origin, relend);
+		const trace_line_ent_t *tent = &trace_line_ents[i];
+		ent = &cl.entities[tent->entnum];
+		if (tent->rotated)
+		{
+			// rotate the segment into entity space, matching how the renderer rotates brush models
+			vec3_t temp;
+			VectorSubtract (start, ent->origin, temp);
+			relstart[0] = DotProduct (temp, tent->axis[0]);
+			relstart[1] = -DotProduct (temp, tent->axis[1]);
+			relstart[2] = DotProduct (temp, tent->axis[2]);
+			VectorSubtract (end, ent->origin, temp);
+			relend[0] = DotProduct (temp, tent->axis[0]);
+			relend[1] = -DotProduct (temp, tent->axis[1]);
+			relend[2] = DotProduct (temp, tent->axis[2]);
+		}
+		else
+		{
+			VectorSubtract (start, ent->origin, relstart);
+			VectorSubtract (end, ent->origin, relend);
+		}
 
 		memset (&trace, 0, sizeof (trace));
 		trace.fraction = 1;
@@ -631,12 +694,25 @@ float CL_TraceLine (vec3_t start, vec3_t end, vec3_t impact, vec3_t normal, int 
 		{
 			frac = trace.fraction;
 
-			// FIXME: deal with rotations.
-			VectorAdd (trace.endpos, ent->origin, impact);
-			VectorCopy (trace.plane.normal, normal);
+			if (tent->rotated)
+			{
+				// rotate the impact point and normal back to world space
+				for (int j = 0; j < 3; j++)
+				{
+					impact[j] =
+						ent->origin[j] + (trace.endpos[0] * tent->axis[0][j]) - (trace.endpos[1] * tent->axis[1][j]) + (trace.endpos[2] * tent->axis[2][j]);
+					normal[j] =
+						(trace.plane.normal[0] * tent->axis[0][j]) - (trace.plane.normal[1] * tent->axis[1][j]) + (trace.plane.normal[2] * tent->axis[2][j]);
+				}
+			}
+			else
+			{
+				VectorAdd (trace.endpos, ent->origin, impact);
+				VectorCopy (trace.plane.normal, normal);
+			}
 
 			if (entnum)
-				*entnum = trace_line_ents[i];
+				*entnum = tent->entnum;
 			if (frac <= 0)
 				break;
 
