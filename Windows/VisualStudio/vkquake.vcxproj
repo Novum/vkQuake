@@ -23,13 +23,13 @@
     <CharacterSet>NotSet</CharacterSet>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <SpectreMitigation>false</SpectreMitigation>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <CharacterSet>NotSet</CharacterSet>
     <SpectreMitigation>false</SpectreMitigation>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -857,7 +857,7 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClInclude Include="..\..\Quake\crc.h" />
     <ClInclude Include="..\..\Quake\cvar.h" />
     <ClInclude Include="..\..\Quake\draw.h" />
-	<ClInclude Include="..\..\Quake\filenames.h" />
+    <ClInclude Include="..\..\Quake\filenames.h" />
     <ClInclude Include="..\..\Quake\glquake.h" />
     <ClInclude Include="..\..\Quake\gl_heap.h" />
     <ClInclude Include="..\..\Quake\gl_model.h" />

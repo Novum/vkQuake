@@ -5,7 +5,7 @@ on: [push, pull_request]
 jobs:
   build-windows:
     name: Build Windows
-    runs-on: windows-2022
+    runs-on: windows-2025-vs2026
     strategy:
       fail-fast: false
       matrix:
@@ -16,7 +16,7 @@ jobs:
     - name: Install Vulkan SDK
       uses: humbletim/install-vulkan-sdk@v1.2
       with:
-        version: 1.4.321.1
+        version: 1.4.341.1
         cache: true
     - name: Build vkQuake
       run: |
