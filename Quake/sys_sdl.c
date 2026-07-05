@@ -283,7 +283,7 @@ int Sys_FileRead (int handle, void *dest, int count)
 		sys_handles[handle].pos += computed_read_count;
 
 		// if partial read, triggers EOF
-		sys_handles[handle].eof_condition = ((sys_handles[handle].size - sys_handles[handle].pos) <= 0);
+		sys_handles[handle].eof_condition = (computed_read_count < count);
 
 		return computed_read_count;
 	}
