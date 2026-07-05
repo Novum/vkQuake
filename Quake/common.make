@@ -146,6 +146,10 @@ SHADER_OBJS = \
 	alias_alphatest_mboit_composite_frag.o \
 	alias_mboit_composite_msaa_frag.o \
 	alias_alphatest_mboit_composite_msaa_frag.o \
+	md5_mboit_composite_frag.o \
+	md5_alphatest_mboit_composite_frag.o \
+	md5_mboit_composite_msaa_frag.o \
+	md5_alphatest_mboit_composite_msaa_frag.o \
 	alias_vert.o \
 	md5_vert.o \
 	basic_alphatest_frag.o \
@@ -329,6 +333,10 @@ $(eval $(call SHADER_VARIANT,alias_mboit_composite_frag,alias.frag,-DMBOIT=1 -DM
 $(eval $(call SHADER_VARIANT,alias_alphatest_mboit_composite_frag,alias.frag,-DALIAS_ALPHA_TEST=1 -DMBOIT=1 -DMBOIT_COMPOSITE=1))
 $(eval $(call SHADER_VARIANT,alias_mboit_composite_msaa_frag,alias.frag,-DMBOIT=1 -DMBOIT_COMPOSITE=1 -DMSAA=1))
 $(eval $(call SHADER_VARIANT,alias_alphatest_mboit_composite_msaa_frag,alias.frag,-DALIAS_ALPHA_TEST=1 -DMBOIT=1 -DMBOIT_COMPOSITE=1 -DMSAA=1))
+$(eval $(call SHADER_VARIANT,md5_mboit_composite_frag,alias.frag,-DMBOIT=1 -DMBOIT_COMPOSITE=1 -DMBOIT_INPUT_SET=4))
+$(eval $(call SHADER_VARIANT,md5_alphatest_mboit_composite_frag,alias.frag,-DALIAS_ALPHA_TEST=1 -DMBOIT=1 -DMBOIT_COMPOSITE=1 -DMBOIT_INPUT_SET=4))
+$(eval $(call SHADER_VARIANT,md5_mboit_composite_msaa_frag,alias.frag,-DMBOIT=1 -DMBOIT_COMPOSITE=1 -DMSAA=1 -DMBOIT_INPUT_SET=4))
+$(eval $(call SHADER_VARIANT,md5_alphatest_mboit_composite_msaa_frag,alias.frag,-DALIAS_ALPHA_TEST=1 -DMBOIT=1 -DMBOIT_COMPOSITE=1 -DMSAA=1 -DMBOIT_INPUT_SET=4))
 $(eval $(call SHADER_VARIANT,wboit_resolve_msaa_frag,wboit_resolve.frag,-DMSAA=1))
 $(eval $(call SHADER_VARIANT,mboit_resolve_msaa_frag,mboit_resolve.frag,-DMSAA=1))
 $(eval $(call SHADER_VARIANT,screen_effects_8bit_comp,screen_effects.comp,))

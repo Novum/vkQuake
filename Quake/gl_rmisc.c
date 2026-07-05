@@ -2286,6 +2286,10 @@ DECLARE_SHADER_MODULE (alias_mboit_composite_msaa_frag);
 DECLARE_SHADER_MODULE (alias_alphatest_mboit_moment_frag);
 DECLARE_SHADER_MODULE (alias_alphatest_mboit_composite_frag);
 DECLARE_SHADER_MODULE (alias_alphatest_mboit_composite_msaa_frag);
+DECLARE_SHADER_MODULE (md5_mboit_composite_frag);
+DECLARE_SHADER_MODULE (md5_mboit_composite_msaa_frag);
+DECLARE_SHADER_MODULE (md5_alphatest_mboit_composite_frag);
+DECLARE_SHADER_MODULE (md5_alphatest_mboit_composite_msaa_frag);
 DECLARE_SHADER_MODULE (md5_vert);
 DECLARE_SHADER_MODULE (sky_layer_vert);
 DECLARE_SHADER_MODULE (sky_layer_frag);
@@ -3472,9 +3476,11 @@ static void R_CreateMD5Pipelines ()
 			infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_MBOIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
 			infos.graphics_pipeline.subpass = 2;
 			infos.color_blend_state.attachmentCount = MBOIT_COMPOSITE_COLOR_ATTACHMENT_COUNT;
+			// the composite shader reads the moment input attachments, which the md5 layout binds
+			// at set 4 because the joints occupy set 3, so it needs its own MBOIT_INPUT_SET variant
 			infos.shader_stages[1].module = (vulkan_globals.sample_count == VK_SAMPLE_COUNT_1_BIT)
-												? (alpha_test ? alias_alphatest_mboit_composite_frag_module : alias_mboit_composite_frag_module)
-												: (alpha_test ? alias_alphatest_mboit_composite_msaa_frag_module : alias_mboit_composite_msaa_frag_module);
+												? (alpha_test ? md5_alphatest_mboit_composite_frag_module : md5_mboit_composite_frag_module)
+												: (alpha_test ? md5_alphatest_mboit_composite_msaa_frag_module : md5_mboit_composite_msaa_frag_module);
 			infos.depth_stencil_state.depthWriteEnable = VK_FALSE;
 			R_SetMBOITCompositeBlend (infos.blend_attachment_states);
 			R_CreateGraphicsPipeline (
@@ -3655,6 +3661,10 @@ static void R_CreateShaderModules ()
 	CREATE_SHADER_MODULE (alias_alphatest_mboit_moment_frag);
 	CREATE_SHADER_MODULE (alias_alphatest_mboit_composite_frag);
 	CREATE_SHADER_MODULE_COND (alias_alphatest_mboit_composite_msaa_frag, vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT);
+	CREATE_SHADER_MODULE (md5_mboit_composite_frag);
+	CREATE_SHADER_MODULE_COND (md5_mboit_composite_msaa_frag, vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT);
+	CREATE_SHADER_MODULE (md5_alphatest_mboit_composite_frag);
+	CREATE_SHADER_MODULE_COND (md5_alphatest_mboit_composite_msaa_frag, vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT);
 	CREATE_SHADER_MODULE (md5_vert);
 	CREATE_SHADER_MODULE (sky_layer_vert);
 	CREATE_SHADER_MODULE (sky_layer_frag);
@@ -3721,6 +3731,10 @@ static void R_DestroyShaderModules ()
 	DESTROY_SHADER_MODULE (alias_alphatest_mboit_moment_frag);
 	DESTROY_SHADER_MODULE (alias_alphatest_mboit_composite_frag);
 	DESTROY_SHADER_MODULE (alias_alphatest_mboit_composite_msaa_frag);
+	DESTROY_SHADER_MODULE (md5_mboit_composite_frag);
+	DESTROY_SHADER_MODULE (md5_mboit_composite_msaa_frag);
+	DESTROY_SHADER_MODULE (md5_alphatest_mboit_composite_frag);
+	DESTROY_SHADER_MODULE (md5_alphatest_mboit_composite_msaa_frag);
 	DESTROY_SHADER_MODULE (md5_vert);
 	DESTROY_SHADER_MODULE (sky_layer_vert);
 	DESTROY_SHADER_MODULE (sky_layer_frag);

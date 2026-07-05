@@ -39,7 +39,9 @@ layout (location = 2) in float in_fog_frag_coord;
 #include "alias_common.inc"
 
 #if MBOIT
+#ifndef MBOIT_INPUT_SET
 #define MBOIT_INPUT_SET 3
+#endif
 #include "mboit.inc"
 #elif WBOIT
 #include "wboit.inc"
