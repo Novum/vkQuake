@@ -1171,12 +1171,21 @@ void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 
 		task_handle_t update_particles_task = Task_AllocateAndAssignIndexedFunc (PScript_UpdateParticlesTask, Tasks_NumWorkers (), NULL, 0);
 		Task_AddDependency (update_particles_setup_task, update_particles_task);
+
+		// layout is the first task that writes the double buffered vertex/index buffers, it
+		// must wait for begin_rendering so the GPU is done reading them from two frames ago
+		task_handle_t layout_particles_task = Task_AllocateAndAssignFunc (PScript_LayoutParticlesTask, NULL, 0);
+		Task_AddDependency (update_particles_task, layout_particles_task);
+		Task_AddDependency (begin_rendering_task, layout_particles_task);
+
+		task_handle_t emit_particles_task = Task_AllocateAndAssignIndexedFunc (PScript_EmitParticlesTask, Tasks_NumWorkers (), NULL, 0);
+		Task_AddDependency (layout_particles_task, emit_particles_task);
 #endif
 
 		task_handle_t draw_particles_task = Task_AllocateAndAssignFunc (R_DrawParticlesTask, NULL, 0);
 		Task_AddDependency (before_mark, draw_particles_task);
 #ifdef PSET_SCRIPT
-		Task_AddDependency (update_particles_task, draw_particles_task);
+		Task_AddDependency (emit_particles_task, draw_particles_task);
 #endif
 		Task_AddDependency (begin_rendering_task, draw_particles_task);
 		Task_AddDependency (draw_particles_task, draw_done_task);
@@ -1219,6 +1228,8 @@ void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 #ifdef PSET_SCRIPT
 			update_particles_setup_task,
 			update_particles_task,
+			layout_particles_task,
+			emit_particles_task,
 #endif
 			draw_particles_task,
 			build_tlas_task,
@@ -1245,6 +1256,9 @@ void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 		PScript_UpdateParticlesSetupTask (NULL);
 		for (int pi = 0; pi < q_max (Tasks_NumWorkers (), 1); pi++)
 			PScript_UpdateParticlesTask (pi, NULL);
+		PScript_LayoutParticlesTask (NULL);
+		for (int pi = 0; pi < q_max (Tasks_NumWorkers (), 1); pi++)
+			PScript_EmitParticlesTask (pi, NULL);
 #endif
 		R_DrawParticlesTask (NULL);
 		R_DrawViewModelTask (NULL);

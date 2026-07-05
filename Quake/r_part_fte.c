@@ -5614,13 +5614,10 @@ static void ReallocateIndexBuffer ()
 
 static vec3_t pright, pup;
 
-static void R_AddFanSparkParticle (scenetris_t *t, particle_t *p, plooks_t *type)
+static void R_EmitFanSparkParticle (scenetris_t *t, particle_t *p, plooks_t *type, unsigned int vertofs, unsigned int idxofs)
 {
 	vec3_t v, cr, o2;
 	float  scale;
-
-	if (cl_numstrisvert + 3 > cl_maxstrisvert[current_buffer_index])
-		ReallocateVertexBuffer ();
 
 	scale = (p->org[0] - r_origin[0]) * vpn[0] + (p->org[1] - r_origin[1]) * vpn[1] + (p->org[2] - r_origin[2]) * vpn[2];
 	scale = (scale * p->scale) * (type->invscalefactor) + p->scale * (type->scalefactor * 250);
@@ -5640,47 +5637,50 @@ static void R_AddFanSparkParticle (scenetris_t *t, particle_t *p, plooks_t *type
 		rgba[1] = p->rgba[1] * a;
 		rgba[2] = p->rgba[2] * a;
 		rgba[3] = (type->premul == 2) ? 0 : a;
-		Vector4ToColor (rgba, cl_curstrisvert[cl_numstrisvert + 0].color);
-		Vector4ToColor (rgba, cl_curstrisvert[cl_numstrisvert + 1].color);
-		Vector4ToColor (rgba, cl_curstrisvert[cl_numstrisvert + 2].color);
+		Vector4ToColor (rgba, cl_curstrisvert[vertofs + 0].color);
+		Vector4ToColor (rgba, cl_curstrisvert[vertofs + 1].color);
+		Vector4ToColor (rgba, cl_curstrisvert[vertofs + 2].color);
 	}
 	else
 	{
-		Vector4ToColor (p->rgba, cl_curstrisvert[cl_numstrisvert + 0].color);
-		Vector4ToColor (p->rgba, cl_curstrisvert[cl_numstrisvert + 1].color);
-		Vector4ToColor (p->rgba, cl_curstrisvert[cl_numstrisvert + 2].color);
+		Vector4ToColor (p->rgba, cl_curstrisvert[vertofs + 0].color);
+		Vector4ToColor (p->rgba, cl_curstrisvert[vertofs + 1].color);
+		Vector4ToColor (p->rgba, cl_curstrisvert[vertofs + 2].color);
 	}
 
-	Vector2Set (cl_curstrisvert[cl_numstrisvert + 0].texcoord, p->s1, p->t1);
-	Vector2Set (cl_curstrisvert[cl_numstrisvert + 1].texcoord, p->s1, p->t2);
-	Vector2Set (cl_curstrisvert[cl_numstrisvert + 2].texcoord, p->s2, p->t1);
+	Vector2Set (cl_curstrisvert[vertofs + 0].texcoord, p->s1, p->t1);
+	Vector2Set (cl_curstrisvert[vertofs + 1].texcoord, p->s1, p->t2);
+	Vector2Set (cl_curstrisvert[vertofs + 2].texcoord, p->s2, p->t1);
 
 	VectorMA (p->org, -scale, p->vel, o2);
 	VectorSubtract (r_refdef.vieworg, o2, v);
 	CrossProduct (v, p->vel, cr);
 	VectorNormalize (cr);
 
-	VectorCopy (p->org, cl_curstrisvert[cl_numstrisvert + 0].position);
-	VectorMA (o2, -p->scale, cr, cl_curstrisvert[cl_numstrisvert + 1].position);
-	VectorMA (o2, p->scale, cr, cl_curstrisvert[cl_numstrisvert + 2].position);
+	VectorCopy (p->org, cl_curstrisvert[vertofs + 0].position);
+	VectorMA (o2, -p->scale, cr, cl_curstrisvert[vertofs + 1].position);
+	VectorMA (o2, p->scale, cr, cl_curstrisvert[vertofs + 2].position);
 
+	cl_curstrisidx[idxofs++] = (vertofs - t->firstvert) + 0;
+	cl_curstrisidx[idxofs++] = (vertofs - t->firstvert) + 1;
+	cl_curstrisidx[idxofs++] = (vertofs - t->firstvert) + 2;
+}
+
+static void R_AddFanSparkParticle (scenetris_t *t, particle_t *p, plooks_t *type)
+{
+	if (cl_numstrisvert + 3 > cl_maxstrisvert[current_buffer_index])
+		ReallocateVertexBuffer ();
 	if (cl_numstrisidx + 3 > cl_maxstrisidx[current_buffer_index])
 		ReallocateIndexBuffer ();
-
-	cl_curstrisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 0;
-	cl_curstrisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 1;
-	cl_curstrisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 2;
-
+	R_EmitFanSparkParticle (t, p, type, cl_numstrisvert, cl_numstrisidx);
 	cl_numstrisvert += 3;
-
+	cl_numstrisidx += 3;
 	t->numvert += 3;
 	t->numidx += 3;
 }
 
-static void R_AddLineSparkParticle (scenetris_t *t, particle_t *p, plooks_t *type)
+static void R_EmitLineSparkParticle (scenetris_t *t, particle_t *p, plooks_t *type, unsigned int vertofs, unsigned int idxofs)
 {
-	if (cl_numstrisvert + 2 > cl_maxstrisvert[current_buffer_index])
-		ReallocateVertexBuffer ();
 
 	if (type->premul)
 	{
@@ -5689,40 +5689,42 @@ static void R_AddLineSparkParticle (scenetris_t *t, particle_t *p, plooks_t *typ
 		if (a > 1)
 			a = 1;
 		VectorScale (p->rgba, a, scaled_color);
-		Vector3ToColor (scaled_color, cl_curstrisvert[cl_numstrisvert + 0].color);
-		FloatToColor ((type->premul == 2) ? 0 : a, cl_curstrisvert[cl_numstrisvert + 0].color[3]);
-		Vector4Clear (cl_curstrisvert[cl_numstrisvert + 1].color);
+		Vector3ToColor (scaled_color, cl_curstrisvert[vertofs + 0].color);
+		FloatToColor ((type->premul == 2) ? 0 : a, cl_curstrisvert[vertofs + 0].color[3]);
+		Vector4Clear (cl_curstrisvert[vertofs + 1].color);
 	}
 	else
 	{
-		Vector4ToColor (p->rgba, cl_curstrisvert[cl_numstrisvert + 0].color);
-		Vector3ToColor (p->rgba, cl_curstrisvert[cl_numstrisvert + 1].color);
-		cl_curstrisvert[cl_numstrisvert + 1].color[3] = 0;
+		Vector4ToColor (p->rgba, cl_curstrisvert[vertofs + 0].color);
+		Vector3ToColor (p->rgba, cl_curstrisvert[vertofs + 1].color);
+		cl_curstrisvert[vertofs + 1].color[3] = 0;
 	}
-	Vector2Set (cl_curstrisvert[cl_numstrisvert + 0].texcoord, p->s1, p->t1);
-	Vector2Set (cl_curstrisvert[cl_numstrisvert + 1].texcoord, p->s2, p->t2);
+	Vector2Set (cl_curstrisvert[vertofs + 0].texcoord, p->s1, p->t1);
+	Vector2Set (cl_curstrisvert[vertofs + 1].texcoord, p->s2, p->t2);
 
-	VectorCopy (p->org, cl_curstrisvert[cl_numstrisvert + 0].position);
-	VectorMA (p->org, -1.0 / 10, p->vel, cl_curstrisvert[cl_numstrisvert + 1].position);
+	VectorCopy (p->org, cl_curstrisvert[vertofs + 0].position);
+	VectorMA (p->org, -1.0 / 10, p->vel, cl_curstrisvert[vertofs + 1].position);
 
+	cl_curstrisidx[idxofs++] = (vertofs - t->firstvert) + 0;
+	cl_curstrisidx[idxofs++] = (vertofs - t->firstvert) + 1;
+}
+
+static void R_AddLineSparkParticle (scenetris_t *t, particle_t *p, plooks_t *type)
+{
+	if (cl_numstrisvert + 2 > cl_maxstrisvert[current_buffer_index])
+		ReallocateVertexBuffer ();
 	if (cl_numstrisidx + 2 > cl_maxstrisidx[current_buffer_index])
 		ReallocateIndexBuffer ();
-
-	cl_curstrisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 0;
-	cl_curstrisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 1;
-
+	R_EmitLineSparkParticle (t, p, type, cl_numstrisvert, cl_numstrisidx);
 	cl_numstrisvert += 2;
-
+	cl_numstrisidx += 2;
 	t->numvert += 2;
 	t->numidx += 2;
 }
 
-static void R_AddTSparkParticle (scenetris_t *t, particle_t *p, plooks_t *type)
+static void R_EmitTSparkParticle (scenetris_t *t, particle_t *p, plooks_t *type, unsigned int vertofs, unsigned int idxofs)
 {
 	vec3_t v, cr, o2;
-
-	if (cl_numstrisvert + 4 > cl_maxstrisvert[current_buffer_index])
-		ReallocateVertexBuffer ();
 
 	if (type->premul)
 	{
@@ -5734,23 +5736,23 @@ static void R_AddTSparkParticle (scenetris_t *t, particle_t *p, plooks_t *type)
 		rgba[1] = p->rgba[1] * a;
 		rgba[2] = p->rgba[2] * a;
 		rgba[3] = (type->premul == 2) ? 0 : a;
-		Vector4ToColor (rgba, cl_curstrisvert[cl_numstrisvert + 0].color);
-		Vector4ToColor (rgba, cl_curstrisvert[cl_numstrisvert + 1].color);
-		Vector4ToColor (rgba, cl_curstrisvert[cl_numstrisvert + 2].color);
-		Vector4ToColor (rgba, cl_curstrisvert[cl_numstrisvert + 3].color);
+		Vector4ToColor (rgba, cl_curstrisvert[vertofs + 0].color);
+		Vector4ToColor (rgba, cl_curstrisvert[vertofs + 1].color);
+		Vector4ToColor (rgba, cl_curstrisvert[vertofs + 2].color);
+		Vector4ToColor (rgba, cl_curstrisvert[vertofs + 3].color);
 	}
 	else
 	{
-		Vector4ToColor (p->rgba, cl_curstrisvert[cl_numstrisvert + 0].color);
-		Vector4ToColor (p->rgba, cl_curstrisvert[cl_numstrisvert + 1].color);
-		Vector4ToColor (p->rgba, cl_curstrisvert[cl_numstrisvert + 2].color);
-		Vector4ToColor (p->rgba, cl_curstrisvert[cl_numstrisvert + 3].color);
+		Vector4ToColor (p->rgba, cl_curstrisvert[vertofs + 0].color);
+		Vector4ToColor (p->rgba, cl_curstrisvert[vertofs + 1].color);
+		Vector4ToColor (p->rgba, cl_curstrisvert[vertofs + 2].color);
+		Vector4ToColor (p->rgba, cl_curstrisvert[vertofs + 3].color);
 	}
 
-	Vector2Set (cl_curstrisvert[cl_numstrisvert + 0].texcoord, p->s1, p->t1);
-	Vector2Set (cl_curstrisvert[cl_numstrisvert + 1].texcoord, p->s1, p->t2);
-	Vector2Set (cl_curstrisvert[cl_numstrisvert + 2].texcoord, p->s2, p->t2);
-	Vector2Set (cl_curstrisvert[cl_numstrisvert + 3].texcoord, p->s2, p->t1);
+	Vector2Set (cl_curstrisvert[vertofs + 0].texcoord, p->s1, p->t1);
+	Vector2Set (cl_curstrisvert[vertofs + 1].texcoord, p->s1, p->t2);
+	Vector2Set (cl_curstrisvert[vertofs + 2].texcoord, p->s2, p->t2);
+	Vector2Set (cl_curstrisvert[vertofs + 3].texcoord, p->s2, p->t1);
 
 	{
 		vec3_t movedir;
@@ -5771,8 +5773,8 @@ static void R_AddTSparkParticle (scenetris_t *t, particle_t *p, plooks_t *type)
 		VectorSubtract (r_refdef.vieworg, o2, v);
 		CrossProduct (v, p->vel, cr);
 		VectorNormalize (cr);
-		VectorMA (o2, -p->scale / 2, cr, cl_curstrisvert[cl_numstrisvert + 0].position);
-		VectorMA (o2, p->scale / 2, cr, cl_curstrisvert[cl_numstrisvert + 1].position);
+		VectorMA (o2, -p->scale / 2, cr, cl_curstrisvert[vertofs + 0].position);
+		VectorMA (o2, p->scale / 2, cr, cl_curstrisvert[vertofs + 1].position);
 
 		VectorMA (p->org, length, movedir, o2);
 	}
@@ -5781,21 +5783,26 @@ static void R_AddTSparkParticle (scenetris_t *t, particle_t *p, plooks_t *type)
 	CrossProduct (v, p->vel, cr);
 	VectorNormalize (cr);
 
-	VectorMA (o2, p->scale * 0.5, cr, cl_curstrisvert[cl_numstrisvert + 2].position);
-	VectorMA (o2, -p->scale * 0.5, cr, cl_curstrisvert[cl_numstrisvert + 3].position);
+	VectorMA (o2, p->scale * 0.5, cr, cl_curstrisvert[vertofs + 2].position);
+	VectorMA (o2, -p->scale * 0.5, cr, cl_curstrisvert[vertofs + 3].position);
 
+	cl_curstrisidx[idxofs++] = (vertofs - t->firstvert) + 0;
+	cl_curstrisidx[idxofs++] = (vertofs - t->firstvert) + 1;
+	cl_curstrisidx[idxofs++] = (vertofs - t->firstvert) + 2;
+	cl_curstrisidx[idxofs++] = (vertofs - t->firstvert) + 0;
+	cl_curstrisidx[idxofs++] = (vertofs - t->firstvert) + 2;
+	cl_curstrisidx[idxofs++] = (vertofs - t->firstvert) + 3;
+}
+
+static void R_AddTSparkParticle (scenetris_t *t, particle_t *p, plooks_t *type)
+{
+	if (cl_numstrisvert + 4 > cl_maxstrisvert[current_buffer_index])
+		ReallocateVertexBuffer ();
 	if (cl_numstrisidx + 6 > cl_maxstrisidx[current_buffer_index])
 		ReallocateIndexBuffer ();
-
-	cl_curstrisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 0;
-	cl_curstrisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 1;
-	cl_curstrisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 2;
-	cl_curstrisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 0;
-	cl_curstrisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 2;
-	cl_curstrisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 3;
-
+	R_EmitTSparkParticle (t, p, type, cl_numstrisvert, cl_numstrisidx);
 	cl_numstrisvert += 4;
-
+	cl_numstrisidx += 6;
 	t->numvert += 4;
 	t->numidx += 6;
 }
@@ -5931,13 +5938,10 @@ static void R_AddClippedDecal (scenetris_t *t, clippeddecal_t *d, plooks_t *type
 	t->numidx += 3;
 }
 
-static void R_AddUnclippedDecal (scenetris_t *t, particle_t *p, plooks_t *type)
+static void R_EmitUnclippedDecal (scenetris_t *t, particle_t *p, plooks_t *type, unsigned int vertofs, unsigned int idxofs)
 {
 	float  x, y;
 	vec3_t sdir, tdir;
-
-	if (cl_numstrisvert + 4 > cl_maxstrisvert[current_buffer_index])
-		ReallocateVertexBuffer ();
 
 	if (type->premul)
 	{
@@ -5949,23 +5953,23 @@ static void R_AddUnclippedDecal (scenetris_t *t, particle_t *p, plooks_t *type)
 		rgba[1] = p->rgba[1] * a;
 		rgba[2] = p->rgba[2] * a;
 		rgba[3] = (type->premul == 2) ? 0 : a;
-		Vector4ToColor (rgba, cl_curstrisvert[cl_numstrisvert + 0].color);
-		Vector4ToColor (rgba, cl_curstrisvert[cl_numstrisvert + 1].color);
-		Vector4ToColor (rgba, cl_curstrisvert[cl_numstrisvert + 2].color);
-		Vector4ToColor (rgba, cl_curstrisvert[cl_numstrisvert + 3].color);
+		Vector4ToColor (rgba, cl_curstrisvert[vertofs + 0].color);
+		Vector4ToColor (rgba, cl_curstrisvert[vertofs + 1].color);
+		Vector4ToColor (rgba, cl_curstrisvert[vertofs + 2].color);
+		Vector4ToColor (rgba, cl_curstrisvert[vertofs + 3].color);
 	}
 	else
 	{
-		Vector4ToColor (p->rgba, cl_curstrisvert[cl_numstrisvert + 0].color);
-		Vector4ToColor (p->rgba, cl_curstrisvert[cl_numstrisvert + 1].color);
-		Vector4ToColor (p->rgba, cl_curstrisvert[cl_numstrisvert + 2].color);
-		Vector4ToColor (p->rgba, cl_curstrisvert[cl_numstrisvert + 3].color);
+		Vector4ToColor (p->rgba, cl_curstrisvert[vertofs + 0].color);
+		Vector4ToColor (p->rgba, cl_curstrisvert[vertofs + 1].color);
+		Vector4ToColor (p->rgba, cl_curstrisvert[vertofs + 2].color);
+		Vector4ToColor (p->rgba, cl_curstrisvert[vertofs + 3].color);
 	}
 
-	Vector2Set (cl_curstrisvert[cl_numstrisvert + 0].texcoord, p->s1, p->t1);
-	Vector2Set (cl_curstrisvert[cl_numstrisvert + 1].texcoord, p->s1, p->t2);
-	Vector2Set (cl_curstrisvert[cl_numstrisvert + 2].texcoord, p->s2, p->t2);
-	Vector2Set (cl_curstrisvert[cl_numstrisvert + 3].texcoord, p->s2, p->t1);
+	Vector2Set (cl_curstrisvert[vertofs + 0].texcoord, p->s1, p->t1);
+	Vector2Set (cl_curstrisvert[vertofs + 1].texcoord, p->s1, p->t2);
+	Vector2Set (cl_curstrisvert[vertofs + 2].texcoord, p->s2, p->t2);
+	Vector2Set (cl_curstrisvert[vertofs + 3].texcoord, p->s2, p->t1);
 
 	//	if (p->vel[1] == 1)
 	{
@@ -5978,49 +5982,51 @@ static void R_AddUnclippedDecal (scenetris_t *t, particle_t *p, plooks_t *type)
 		x = sin (p->angle) * p->scale;
 		y = cos (p->angle) * p->scale;
 
-		cl_curstrisvert[cl_numstrisvert + 0].position[0] = p->org[0] - x * sdir[0] - y * tdir[0];
-		cl_curstrisvert[cl_numstrisvert + 0].position[1] = p->org[1] - x * sdir[1] - y * tdir[1];
-		cl_curstrisvert[cl_numstrisvert + 0].position[2] = p->org[2] - x * sdir[2] - y * tdir[2];
-		cl_curstrisvert[cl_numstrisvert + 1].position[0] = p->org[0] - y * sdir[0] + x * tdir[0];
-		cl_curstrisvert[cl_numstrisvert + 1].position[1] = p->org[1] - y * sdir[1] + x * tdir[1];
-		cl_curstrisvert[cl_numstrisvert + 1].position[2] = p->org[2] - y * sdir[2] + x * tdir[2];
-		cl_curstrisvert[cl_numstrisvert + 2].position[0] = p->org[0] + x * sdir[0] + y * tdir[0];
-		cl_curstrisvert[cl_numstrisvert + 2].position[1] = p->org[1] + x * sdir[1] + y * tdir[1];
-		cl_curstrisvert[cl_numstrisvert + 2].position[2] = p->org[2] + x * sdir[2] + y * tdir[2];
-		cl_curstrisvert[cl_numstrisvert + 3].position[0] = p->org[0] + y * sdir[0] - x * tdir[0];
-		cl_curstrisvert[cl_numstrisvert + 3].position[1] = p->org[1] + y * sdir[1] - x * tdir[1];
-		cl_curstrisvert[cl_numstrisvert + 3].position[2] = p->org[2] + y * sdir[2] - x * tdir[2];
+		cl_curstrisvert[vertofs + 0].position[0] = p->org[0] - x * sdir[0] - y * tdir[0];
+		cl_curstrisvert[vertofs + 0].position[1] = p->org[1] - x * sdir[1] - y * tdir[1];
+		cl_curstrisvert[vertofs + 0].position[2] = p->org[2] - x * sdir[2] - y * tdir[2];
+		cl_curstrisvert[vertofs + 1].position[0] = p->org[0] - y * sdir[0] + x * tdir[0];
+		cl_curstrisvert[vertofs + 1].position[1] = p->org[1] - y * sdir[1] + x * tdir[1];
+		cl_curstrisvert[vertofs + 1].position[2] = p->org[2] - y * sdir[2] + x * tdir[2];
+		cl_curstrisvert[vertofs + 2].position[0] = p->org[0] + x * sdir[0] + y * tdir[0];
+		cl_curstrisvert[vertofs + 2].position[1] = p->org[1] + x * sdir[1] + y * tdir[1];
+		cl_curstrisvert[vertofs + 2].position[2] = p->org[2] + x * sdir[2] + y * tdir[2];
+		cl_curstrisvert[vertofs + 3].position[0] = p->org[0] + y * sdir[0] - x * tdir[0];
+		cl_curstrisvert[vertofs + 3].position[1] = p->org[1] + y * sdir[1] - x * tdir[1];
+		cl_curstrisvert[vertofs + 3].position[2] = p->org[2] + y * sdir[2] - x * tdir[2];
 	}
 	else
 	{
-		VectorMA (p->org, -p->scale, tdir, cl_curstrisvert[cl_numstrisvert + 0].position);
-		VectorMA (p->org, -p->scale, sdir, cl_curstrisvert[cl_numstrisvert + 1].position);
-		VectorMA (p->org, p->scale, tdir, cl_curstrisvert[cl_numstrisvert + 2].position);
-		VectorMA (p->org, p->scale, sdir, cl_curstrisvert[cl_numstrisvert + 3].position);
+		VectorMA (p->org, -p->scale, tdir, cl_curstrisvert[vertofs + 0].position);
+		VectorMA (p->org, -p->scale, sdir, cl_curstrisvert[vertofs + 1].position);
+		VectorMA (p->org, p->scale, tdir, cl_curstrisvert[vertofs + 2].position);
+		VectorMA (p->org, p->scale, sdir, cl_curstrisvert[vertofs + 3].position);
 	}
 
+	cl_curstrisidx[idxofs++] = (vertofs - t->firstvert) + 0;
+	cl_curstrisidx[idxofs++] = (vertofs - t->firstvert) + 1;
+	cl_curstrisidx[idxofs++] = (vertofs - t->firstvert) + 2;
+	cl_curstrisidx[idxofs++] = (vertofs - t->firstvert) + 0;
+	cl_curstrisidx[idxofs++] = (vertofs - t->firstvert) + 2;
+	cl_curstrisidx[idxofs++] = (vertofs - t->firstvert) + 3;
+}
+
+static void R_AddUnclippedDecal (scenetris_t *t, particle_t *p, plooks_t *type)
+{
+	if (cl_numstrisvert + 4 > cl_maxstrisvert[current_buffer_index])
+		ReallocateVertexBuffer ();
 	if (cl_numstrisidx + 6 > cl_maxstrisidx[current_buffer_index])
 		ReallocateIndexBuffer ();
-
-	cl_curstrisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 0;
-	cl_curstrisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 1;
-	cl_curstrisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 2;
-	cl_curstrisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 0;
-	cl_curstrisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 2;
-	cl_curstrisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 3;
-
+	R_EmitUnclippedDecal (t, p, type, cl_numstrisvert, cl_numstrisidx);
 	cl_numstrisvert += 4;
-
+	cl_numstrisidx += 6;
 	t->numvert += 4;
 	t->numidx += 6;
 }
 
-static void R_AddTexturedParticle (scenetris_t *t, particle_t *p, plooks_t *type)
+static void R_EmitTexturedParticle (scenetris_t *t, particle_t *p, plooks_t *type, unsigned int vertofs, unsigned int idxofs)
 {
 	float scale, x, y;
-
-	if (cl_numstrisvert + 4 > cl_maxstrisvert[current_buffer_index])
-		ReallocateVertexBuffer ();
 
 	if (type->scalefactor == 1)
 		scale = p->scale * 0.25;
@@ -6044,62 +6050,67 @@ static void R_AddTexturedParticle (scenetris_t *t, particle_t *p, plooks_t *type
 		rgba[1] = p->rgba[1] * a;
 		rgba[2] = p->rgba[2] * a;
 		rgba[3] = (type->premul == 2) ? 0 : a;
-		Vector4ToColor (rgba, cl_curstrisvert[cl_numstrisvert + 0].color);
-		Vector4ToColor (rgba, cl_curstrisvert[cl_numstrisvert + 1].color);
-		Vector4ToColor (rgba, cl_curstrisvert[cl_numstrisvert + 2].color);
-		Vector4ToColor (rgba, cl_curstrisvert[cl_numstrisvert + 3].color);
+		Vector4ToColor (rgba, cl_curstrisvert[vertofs + 0].color);
+		Vector4ToColor (rgba, cl_curstrisvert[vertofs + 1].color);
+		Vector4ToColor (rgba, cl_curstrisvert[vertofs + 2].color);
+		Vector4ToColor (rgba, cl_curstrisvert[vertofs + 3].color);
 	}
 	else
 	{
-		Vector4ToColor (p->rgba, cl_curstrisvert[cl_numstrisvert + 0].color);
-		Vector4ToColor (p->rgba, cl_curstrisvert[cl_numstrisvert + 1].color);
-		Vector4ToColor (p->rgba, cl_curstrisvert[cl_numstrisvert + 2].color);
-		Vector4ToColor (p->rgba, cl_curstrisvert[cl_numstrisvert + 3].color);
+		Vector4ToColor (p->rgba, cl_curstrisvert[vertofs + 0].color);
+		Vector4ToColor (p->rgba, cl_curstrisvert[vertofs + 1].color);
+		Vector4ToColor (p->rgba, cl_curstrisvert[vertofs + 2].color);
+		Vector4ToColor (p->rgba, cl_curstrisvert[vertofs + 3].color);
 	}
 
-	Vector2Set (cl_curstrisvert[cl_numstrisvert + 0].texcoord, p->s1, p->t1);
-	Vector2Set (cl_curstrisvert[cl_numstrisvert + 1].texcoord, p->s1, p->t2);
-	Vector2Set (cl_curstrisvert[cl_numstrisvert + 2].texcoord, p->s2, p->t2);
-	Vector2Set (cl_curstrisvert[cl_numstrisvert + 3].texcoord, p->s2, p->t1);
+	Vector2Set (cl_curstrisvert[vertofs + 0].texcoord, p->s1, p->t1);
+	Vector2Set (cl_curstrisvert[vertofs + 1].texcoord, p->s1, p->t2);
+	Vector2Set (cl_curstrisvert[vertofs + 2].texcoord, p->s2, p->t2);
+	Vector2Set (cl_curstrisvert[vertofs + 3].texcoord, p->s2, p->t1);
 
 	if (p->angle)
 	{
 		x = sin (p->angle) * scale;
 		y = cos (p->angle) * scale;
 
-		cl_curstrisvert[cl_numstrisvert + 0].position[0] = p->org[0] - x * pright[0] - y * pup[0];
-		cl_curstrisvert[cl_numstrisvert + 0].position[1] = p->org[1] - x * pright[1] - y * pup[1];
-		cl_curstrisvert[cl_numstrisvert + 0].position[2] = p->org[2] - x * pright[2] - y * pup[2];
-		cl_curstrisvert[cl_numstrisvert + 1].position[0] = p->org[0] - y * pright[0] + x * pup[0];
-		cl_curstrisvert[cl_numstrisvert + 1].position[1] = p->org[1] - y * pright[1] + x * pup[1];
-		cl_curstrisvert[cl_numstrisvert + 1].position[2] = p->org[2] - y * pright[2] + x * pup[2];
-		cl_curstrisvert[cl_numstrisvert + 2].position[0] = p->org[0] + x * pright[0] + y * pup[0];
-		cl_curstrisvert[cl_numstrisvert + 2].position[1] = p->org[1] + x * pright[1] + y * pup[1];
-		cl_curstrisvert[cl_numstrisvert + 2].position[2] = p->org[2] + x * pright[2] + y * pup[2];
-		cl_curstrisvert[cl_numstrisvert + 3].position[0] = p->org[0] + y * pright[0] - x * pup[0];
-		cl_curstrisvert[cl_numstrisvert + 3].position[1] = p->org[1] + y * pright[1] - x * pup[1];
-		cl_curstrisvert[cl_numstrisvert + 3].position[2] = p->org[2] + y * pright[2] - x * pup[2];
+		cl_curstrisvert[vertofs + 0].position[0] = p->org[0] - x * pright[0] - y * pup[0];
+		cl_curstrisvert[vertofs + 0].position[1] = p->org[1] - x * pright[1] - y * pup[1];
+		cl_curstrisvert[vertofs + 0].position[2] = p->org[2] - x * pright[2] - y * pup[2];
+		cl_curstrisvert[vertofs + 1].position[0] = p->org[0] - y * pright[0] + x * pup[0];
+		cl_curstrisvert[vertofs + 1].position[1] = p->org[1] - y * pright[1] + x * pup[1];
+		cl_curstrisvert[vertofs + 1].position[2] = p->org[2] - y * pright[2] + x * pup[2];
+		cl_curstrisvert[vertofs + 2].position[0] = p->org[0] + x * pright[0] + y * pup[0];
+		cl_curstrisvert[vertofs + 2].position[1] = p->org[1] + x * pright[1] + y * pup[1];
+		cl_curstrisvert[vertofs + 2].position[2] = p->org[2] + x * pright[2] + y * pup[2];
+		cl_curstrisvert[vertofs + 3].position[0] = p->org[0] + y * pright[0] - x * pup[0];
+		cl_curstrisvert[vertofs + 3].position[1] = p->org[1] + y * pright[1] - x * pup[1];
+		cl_curstrisvert[vertofs + 3].position[2] = p->org[2] + y * pright[2] - x * pup[2];
 	}
 	else
 	{
-		VectorMA (p->org, -scale, pup, cl_curstrisvert[cl_numstrisvert + 0].position);
-		VectorMA (p->org, -scale, pright, cl_curstrisvert[cl_numstrisvert + 1].position);
-		VectorMA (p->org, scale, pup, cl_curstrisvert[cl_numstrisvert + 2].position);
-		VectorMA (p->org, scale, pright, cl_curstrisvert[cl_numstrisvert + 3].position);
+		VectorMA (p->org, -scale, pup, cl_curstrisvert[vertofs + 0].position);
+		VectorMA (p->org, -scale, pright, cl_curstrisvert[vertofs + 1].position);
+		VectorMA (p->org, scale, pup, cl_curstrisvert[vertofs + 2].position);
+		VectorMA (p->org, scale, pright, cl_curstrisvert[vertofs + 3].position);
 	}
 
+	cl_curstrisidx[idxofs++] = (vertofs - t->firstvert) + 0;
+	cl_curstrisidx[idxofs++] = (vertofs - t->firstvert) + 1;
+	cl_curstrisidx[idxofs++] = (vertofs - t->firstvert) + 2;
+	cl_curstrisidx[idxofs++] = (vertofs - t->firstvert) + 0;
+	cl_curstrisidx[idxofs++] = (vertofs - t->firstvert) + 2;
+	cl_curstrisidx[idxofs++] = (vertofs - t->firstvert) + 3;
+}
+
+static void R_AddTexturedParticle (scenetris_t *t, particle_t *p, plooks_t *type)
+{
+	if (cl_numstrisvert + 4 > cl_maxstrisvert[current_buffer_index])
+		ReallocateVertexBuffer ();
 	if (cl_numstrisidx + 6 > cl_maxstrisidx[current_buffer_index])
 		ReallocateIndexBuffer ();
-
-	cl_curstrisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 0;
-	cl_curstrisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 1;
-	cl_curstrisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 2;
-	cl_curstrisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 0;
-	cl_curstrisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 2;
-	cl_curstrisidx[cl_numstrisidx++] = (cl_numstrisvert - t->firstvert) + 3;
-
+	R_EmitTexturedParticle (t, p, type, cl_numstrisvert, cl_numstrisidx);
 	cl_numstrisvert += 4;
-
+	cl_numstrisidx += 6;
 	t->numvert += 4;
 	t->numidx += 6;
 }
@@ -6259,6 +6270,20 @@ static inline uint32_t P_UpdateRand (uint32_t *state)
 }
 #define ufrandom(rng) (P_UpdateRand (rng) * (1.0f / 4294967296.0f))
 #define ucrandom(rng) (P_UpdateRand (rng) * (2.0f / 4294967296.0f) - 1.0f)
+
+// per type draw metadata: every draw function emits a fixed number of vertices/indices
+// per particle, so the serial layout pass only reserves ranges and the vertices are
+// written in parallel by PScript_EmitParticlesTask with pure arithmetic addressing
+typedef struct particle_emit_meta_s
+{
+	int start, count;  // contiguous segment of this type's particles in particle_updates
+	int first_stri;	   // first of the consecutive batches reserved for this type
+	int vpp, ipp, ppb; // vertices/indices per particle, particles per batch
+	void (*emit_core) (scenetris_t *t, particle_t *p, plooks_t *type, unsigned int vertofs, unsigned int idxofs);
+} particle_emit_meta_t;
+
+static particle_emit_meta_t *type_emit_meta;
+static int					 num_type_emit_meta;
 
 /*
 ===============
@@ -6530,10 +6555,20 @@ void PScript_UpdateParticlesSetupTask (void *unused)
 		}
 	}
 
+	if (num_type_emit_meta != numparticletypes)
+	{
+		type_emit_meta = (particle_emit_meta_t *)Mem_Realloc (type_emit_meta, sizeof (particle_emit_meta_t) * numparticletypes);
+		num_type_emit_meta = numparticletypes;
+	}
+	memset (type_emit_meta, 0, sizeof (particle_emit_meta_t) * numparticletypes);
+
 	// walk the lists once to unlink expired particles and flatten the live ones, so the
 	// update runs over a plain array without touching any list structure
 	for (type = part_run_list; type != NULL; type = type->nexttorun)
 	{
+		particle_emit_meta_t *meta = &type_emit_meta[type - part_type];
+		meta->start = num_particle_updates;
+
 		if (!type->die)
 			continue; // types without a lifetime are drained during drawing
 
@@ -6576,6 +6611,7 @@ void PScript_UpdateParticlesSetupTask (void *unused)
 			particle_updates[num_particle_updates].type = type;
 			++num_particle_updates;
 		}
+		meta->count = num_particle_updates - meta->start;
 	}
 
 	particle_trace_limit = q_max ((int)r_particle_tracelimit.value, 0);
@@ -6608,6 +6644,8 @@ static void PScript_UpdateParticleTypes (float pframetime)
 {
 	void (*bdraw) (scenetris_t *t, beamseg_t *p, plooks_t *type);
 	void (*tdraw) (scenetris_t *t, particle_t *p, plooks_t *type);
+	void (*emit_core) (scenetris_t *t, particle_t *p, plooks_t *type, unsigned int vertofs, unsigned int idxofs);
+	int vpp, ipp;
 
 	vec3_t			oldorg;
 	vec3_t			stop;
@@ -6742,7 +6780,9 @@ static void PScript_UpdateParticleTypes (float pframetime)
 
 		bdraw = NULL;
 		tdraw = NULL;
+		emit_core = NULL;
 		batchflags = 0;
+		vpp = ipp = 0;
 
 		// set drawing methods by type and cvars and hope branch
 		// prediction takes care of the rest
@@ -6758,20 +6798,80 @@ static void PScript_UpdateParticleTypes (float pframetime)
 			break;
 		case PT_UDECAL:
 			tdraw = R_AddUnclippedDecal;
+			emit_core = R_EmitUnclippedDecal;
+			vpp = 4;
+			ipp = 6;
 			break;
 		case PT_NORMAL:
 			tdraw = R_AddTexturedParticle;
+			emit_core = R_EmitTexturedParticle;
+			vpp = 4;
+			ipp = 6;
 			break;
 		case PT_SPARK:
 			tdraw = R_AddLineSparkParticle;
+			emit_core = R_EmitLineSparkParticle;
+			vpp = 2;
+			ipp = 2;
 			batchflags = BEF_LINES;
 			break;
 		case PT_SPARKFAN:
 			tdraw = R_AddFanSparkParticle;
+			emit_core = R_EmitFanSparkParticle;
+			vpp = 3;
+			ipp = 3;
 			break;
 		case PT_TEXTUREDSPARK:
 			tdraw = R_AddTSparkParticle;
+			emit_core = R_EmitTSparkParticle;
+			vpp = 4;
+			ipp = 6;
 			break;
+		}
+
+		// types with a fixed size draw function only get their batches and vertex ranges
+		// reserved here, the vertices are written in parallel by PScript_EmitParticlesTask
+		if (emit_core && type->die)
+		{
+			particle_emit_meta_t *meta = &type_emit_meta[type - part_type];
+			if (meta->count)
+			{
+				const qboolean use_oit = PScript_LooksUseWBOIT (type->slooks);
+				int			   remaining = meta->count;
+
+				meta->vpp = vpp;
+				meta->ipp = ipp;
+				meta->ppb = (MAX_INDICES - 8) / vpp;
+				meta->first_stri = (int)cl_numstris;
+				meta->emit_core = emit_core;
+
+				while (remaining > 0)
+				{
+					const int n = q_min (remaining, meta->ppb);
+					if (cl_numstris == cl_maxstris)
+					{
+						cl_maxstris += 8;
+						cl_stris = Mem_Realloc (cl_stris, sizeof (*cl_stris) * cl_maxstris);
+					}
+					scenetri = &cl_stris[cl_numstris++];
+					scenetri->texture = type->looks.texture;
+					scenetri->blendmode = type->looks.blendmode;
+					scenetri->beflags = batchflags;
+					scenetri->use_oit = use_oit;
+					scenetri->firstidx = cl_numstrisidx;
+					scenetri->firstvert = cl_numstrisvert;
+					scenetri->numvert = n * vpp;
+					scenetri->numidx = n * ipp;
+					while (cl_numstrisvert + n * vpp > cl_maxstrisvert[current_buffer_index])
+						ReallocateVertexBuffer ();
+					while (cl_numstrisidx + n * ipp > cl_maxstrisidx[current_buffer_index])
+						ReallocateIndexBuffer ();
+					cl_numstrisvert += n * vpp;
+					cl_numstrisidx += n * ipp;
+					remaining -= n;
+				}
+			}
+			goto endtype;
 		}
 
 		const qboolean use_oit = PScript_LooksUseWBOIT (type->slooks);
@@ -6879,35 +6979,6 @@ static void PScript_UpdateParticleTypes (float pframetime)
 			}
 
 			goto endtype;
-		}
-
-		for (p = type->particles; p; p = p->next)
-		{
-			if (p->die < particletime)
-				continue; // died during this frame's update, unlinked next frame
-
-			if (scenetri && tdraw)
-			{
-				if (cl_numstrisvert - scenetri->firstvert >= MAX_INDICES - 6)
-				{
-					// generate a new mesh if the old one overflowed. yay smc...
-					if (cl_numstris == cl_maxstris)
-					{
-						cl_maxstris += 8;
-						cl_stris = Mem_Realloc (cl_stris, sizeof (*cl_stris) * cl_maxstris);
-					}
-					scenetri = &cl_stris[cl_numstris++];
-					scenetri->texture = scenetri[-1].texture;
-					scenetri->blendmode = scenetri[-1].blendmode;
-					scenetri->beflags = scenetri[-1].beflags;
-					scenetri->use_oit = scenetri[-1].use_oit;
-					scenetri->firstidx = cl_numstrisidx;
-					scenetri->firstvert = cl_numstrisvert;
-					scenetri->numvert = 0;
-					scenetri->numidx = 0;
-				}
-				tdraw (scenetri, p, type->slooks);
-			}
 		}
 
 		// beams are dealt with here
@@ -7083,7 +7154,15 @@ static void PScript_UpdateParticleTypes (float pframetime)
 PScript_DrawParticles
 ===============
 */
-void PScript_DrawParticles (cb_context_t *blend_cbx, cb_context_t *wboit_cbx)
+/*
+===============
+PScript_LayoutParticlesTask
+
+Serial: batch creation and vertex range reservation for the fixed size particle
+types, decals, beams and zero lifetime drains, then the deferred spawns
+===============
+*/
+void PScript_LayoutParticlesTask (void *unused)
 {
 	current_buffer_index = (current_buffer_index + 1) % 2;
 	cl_numstris = 0;
@@ -7095,8 +7174,54 @@ void PScript_DrawParticles (cb_context_t *blend_cbx, cb_context_t *wboit_cbx)
 	if (!r_particles.value)
 		return;
 
-	// simulation ran in PScript_UpdateParticlesSetupTask/PScript_UpdateParticlesTask, this only draws
 	PScript_UpdateParticleTypes (p_frametime);
+}
+
+/*
+===============
+PScript_EmitParticlesTask
+
+Indexed over the worker count: fills the vertex ranges reserved by the layout.
+Every slot is addressed arithmetically so the workers never contend
+===============
+*/
+void PScript_EmitParticlesTask (int index, void *unused)
+{
+	const int stride = q_max (Tasks_NumWorkers (), 1) * PARTICLE_UPDATE_CHUNK_SIZE;
+	for (int start = index * PARTICLE_UPDATE_CHUNK_SIZE; start < num_particle_updates; start += stride)
+	{
+		const int end = q_min (start + PARTICLE_UPDATE_CHUNK_SIZE, num_particle_updates);
+		for (int i = start; i < end; i++)
+		{
+			particle_t				   *p = particle_updates[i].p;
+			part_type_t				   *type = particle_updates[i].type;
+			const particle_emit_meta_t *meta = &type_emit_meta[type - part_type];
+			if (!meta->emit_core)
+				continue;
+			const int		   local = i - meta->start;
+			scenetris_t		  *stri = &cl_stris[meta->first_stri + (local / meta->ppb)];
+			const int		   batch_local = local % meta->ppb;
+			const unsigned int vertofs = stri->firstvert + batch_local * meta->vpp;
+			const unsigned int idxofs = stri->firstidx + batch_local * meta->ipp;
+			if (p->die < particletime)
+			{
+				// died during the update: fill the reserved slot with degenerate primitives
+				memset (&cl_curstrisvert[vertofs], 0, meta->vpp * sizeof (basicvertex_t));
+				for (int k = 0; k < meta->ipp; k++)
+					cl_curstrisidx[idxofs + k] = vertofs - stri->firstvert;
+				continue;
+			}
+			meta->emit_core (stri, p, type->slooks, vertofs, idxofs);
+		}
+	}
+}
+
+void PScript_DrawParticles (cb_context_t *blend_cbx, cb_context_t *wboit_cbx)
+{
+	if (!r_particles.value)
+		return;
+
+	// simulated and emitted by the PScript_*ParticlesTask graph nodes, this only records the draws
 	PScript_DrawParticleBatches (blend_cbx, false, wboit_cbx != NULL);
 	PScript_DrawParticleBatches (wboit_cbx, true, true);
 }
