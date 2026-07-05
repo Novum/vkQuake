@@ -308,8 +308,7 @@ static byte *Image_LoadPCX (int file_handle, int *width, int *height, const char
 	// save start of file since we might be inside a pak file
 	const int start = Sys_FilePos (file_handle);
 
-	// We may are in a pak file (in this case file_handle is the one of the pak),
-	// so that resource size is com_filesize
+	// We may are in a pak file so that resource size is com_filesize
 	const int file_size = com_filesize;
 
 	if (Sys_FileRead (file_handle, &pcx, sizeof (pcx)) != sizeof (pcx))
@@ -401,8 +400,7 @@ static byte *Image_LoadLMP (int file_handle, int *width, int *height, const char
 	size_t		pix;
 	void	   *data;
 
-	// We may are in a pak file (in this case file_handle is the one f the pak),
-	// so that resource size is com_filesize
+	// We may are in a pak file so that resource size is com_filesize
 	const int file_size = com_filesize;
 
 	if (Sys_FileRead (file_handle, &qpic, sizeof (qpic)) != sizeof (qpic))
