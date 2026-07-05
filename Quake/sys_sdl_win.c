@@ -21,10 +21,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-#ifdef __MINGW32__
-#define INITGUID /* for FOLDERID_xxx constants. */
-#endif
-
 #include "quakedef.h"
 #include "steam.h"
 
