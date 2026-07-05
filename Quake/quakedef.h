@@ -443,6 +443,9 @@ extern filelist_item_t *extralevels;
 extern filelist_item_t *demolist;
 extern filelist_item_t *savelist;
 
+// friendly display name for a mod list entry (only valid for modlist items), NULL if unknown
+const char *Modlist_GetFullName (const filelist_item_t *item);
+
 void			   Host_ClearMemory (void);
 void			   Host_ServerFrame (void);
 void			   Host_InitCommands (void);

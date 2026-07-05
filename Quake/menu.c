@@ -2589,7 +2589,10 @@ static void M_Mods_Draw (cb_context_t *cbx)
 		if (mod_index >= MAX_MODS_ON_SCREEN)
 			break;
 		if (mod_index >= 0)
-			M_PrintElided (cbx, MENU_LABEL_X, 32 + mod_index * CHARACTER_SIZE, item->name, 20);
+		{
+			const char *fullname = Modlist_GetFullName (item);
+			M_PrintElided (cbx, MENU_LABEL_X, 32 + mod_index * CHARACTER_SIZE, fullname ? fullname : item->name, 23);
+		}
 		++mod_index;
 	}
 
