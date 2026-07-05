@@ -553,11 +553,15 @@ float CL_TraceLine (vec3_t start, vec3_t end, vec3_t impact, vec3_t normal, int 
 { // FIXME: not sure what to do about startsolid.
 	int		  i;
 	trace_t	  trace;
-	float	  frac = 1;
+	float	  frac;
 	entity_t *ent;
 	vec3_t	  relstart, relend;
+	vec3_t	  seg_mins, seg_maxs;
+
 	VectorCopy (end, impact);
 	VectorSet (normal, 0, 0, 1);
+	if (entnum)
+		*entnum = 0;
 
 	static int num_trace_line_ents;
 	static int trace_line_ents[MAX_EDICTS];
@@ -565,23 +569,46 @@ float CL_TraceLine (vec3_t start, vec3_t end, vec3_t impact, vec3_t normal, int 
 	if (cache_valid_count != r_trace_line_cache_counter)
 	{
 		num_trace_line_ents = 0;
-		for (i = 0; i < cl.num_entities; i++)
+		for (i = 1; i < cl.num_entities; i++)
 		{
 			ent = &cl.entities[i];
-			if (!ent->model || ent->model->needload || ent->model->type != mod_brush)
+			if (!ent->model || ent->model->needload || ent->model->type != mod_brush || ent->model == cl.worldmodel)
 				continue;
 			trace_line_ents[num_trace_line_ents++] = i;
 		}
 		cache_valid_count = r_trace_line_cache_counter;
 	}
 
-	if (entnum)
-		*entnum = 0;
+	// the world usually clips the line the most, trace it first and only test
+	// brush entities whose bounds overlap the remaining segment
+	memset (&trace, 0, sizeof (trace));
+	trace.fraction = 1;
+	Q1BSP_RecursiveHullCheck (&cl.worldmodel->hulls[0], cl.worldmodel->hulls[0].firstclipnode, 0, 1, start, end, &trace);
+	frac = trace.fraction;
+	if (frac < 1)
+	{
+		VectorCopy (trace.endpos, impact);
+		VectorCopy (trace.plane.normal, normal);
+		if (frac <= 0)
+			return frac;
+	}
+
+	for (i = 0; i < 3; i++)
+	{
+		seg_mins[i] = q_min (start[i], impact[i]) - 1.0f;
+		seg_maxs[i] = q_max (start[i], impact[i]) + 1.0f;
+	}
+
 	for (i = 0; i < num_trace_line_ents; i++)
 	{
 		ent = &cl.entities[trace_line_ents[i]];
 
-		// FIXME: deal with rotations
+		// unrotated bounds are consistent with the unrotated hull check below (FIXME: deal with rotations)
+		if (((ent->origin[0] + ent->model->mins[0]) > seg_maxs[0]) || ((ent->origin[0] + ent->model->maxs[0]) < seg_mins[0]) ||
+			((ent->origin[1] + ent->model->mins[1]) > seg_maxs[1]) || ((ent->origin[1] + ent->model->maxs[1]) < seg_mins[1]) ||
+			((ent->origin[2] + ent->model->mins[2]) > seg_maxs[2]) || ((ent->origin[2] + ent->model->maxs[2]) < seg_mins[2]))
+			continue;
+
 		VectorSubtract (start, ent->origin, relstart);
 		VectorSubtract (end, ent->origin, relend);
 
@@ -598,9 +625,16 @@ float CL_TraceLine (vec3_t start, vec3_t end, vec3_t impact, vec3_t normal, int 
 			VectorCopy (trace.plane.normal, normal);
 
 			if (entnum)
-				*entnum = i;
+				*entnum = trace_line_ents[i];
 			if (frac <= 0)
 				break;
+
+			// shrink the segment bounds to the new impact point
+			for (int j = 0; j < 3; j++)
+			{
+				seg_mins[j] = q_min (start[j], impact[j]) - 1.0f;
+				seg_maxs[j] = q_max (start[j], impact[j]) + 1.0f;
+			}
 		}
 	}
 	return frac;
