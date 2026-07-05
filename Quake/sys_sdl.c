@@ -176,7 +176,10 @@ int Sys_DuplicateHandle (int handle)
 
 	// Re-Seek:
 	Sys_FileSeek (new_handle, sys_handles[handle].pos);
-	sys_handles[new_handle].eof_condition = false;
+
+	// Technically, the EOF condition of the original must be preserved,
+	// even if duplicating a handle of an out-of bound file/memory pointer (sys_handles[handle].pos)
+	// would be ludicrous in practice.
 
 	return new_handle;
 }
