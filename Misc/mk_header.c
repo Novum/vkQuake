@@ -34,20 +34,20 @@ int main (int argc, char **argv)
 	if (stat(argv[1], &s) == -1 ||
 		! S_ISREG(s.st_mode) )
 	{
-		printf ("Couldn't stat %s\n", argv[1]);
+		fprintf (stderr, "Couldn't stat %s\n", argv[1]);
 		return 1;
 	}
 
 	if (s.st_size == 0)
 	{
-		printf ("%s is an empty file\n", argv[1]);
+		fprintf (stderr, "%s is an empty file\n", argv[1]);
 		return 1;
 	}
 
 	buf = (unsigned char *) malloc (s.st_size);
 	if (buf == NULL)
 	{
-		printf ("Couldn't malloc %ld bytes\n",
+		fprintf (stderr, "Couldn't malloc %ld bytes\n",
 					(long)s.st_size);
 		return 1;
 	}
@@ -56,7 +56,7 @@ int main (int argc, char **argv)
 	if (f == NULL)
 	{
 		free(buf);
-		printf ("Couldn't open %s\n", argv[1]);
+		fprintf (stderr, "Couldn't open %s\n", argv[1]);
 		return 1;
 	}
 
@@ -64,7 +64,7 @@ int main (int argc, char **argv)
 	{
 		fclose (f);
 		free (buf);
-		printf ("Error reading %s\n", argv[1]);
+		fprintf (stderr, "Error reading %s\n", argv[1]);
 		return 1;
 	}
 	fclose (f);
@@ -74,7 +74,7 @@ int main (int argc, char **argv)
 	if (!f)
 	{
 		free (buf);
-		printf ("Couldn't open %s\n", output);
+		fprintf (stderr, "Couldn't open %s\n", output);
 		return 1;
 	}
 
