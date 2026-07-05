@@ -6140,21 +6140,256 @@ static void PScript_DrawParticleBatches (cb_context_t *cbx, qboolean draw_oit_ba
 	R_EndDebugUtilsLabel (cbx);
 }
 
+// Deferred spawns and the flat update list decouple the per particle update from the
+// per type linked lists: the update never mutates any list and never spawns into other
+// types, so it only touches the particle itself and can eventually run in parallel
+typedef struct deferred_effect_s
+{
+	vec3_t org;
+	vec3_t dir;
+	float  count;
+	int	   type;
+} deferred_effect_t;
+
+typedef struct deferred_trail_s
+{
+	vec3_t		   start;
+	vec3_t		   end;
+	int			   type;
+	trailstate_t **tsk;
+} deferred_trail_t;
+
+typedef struct deferred_decal_s
+{
+	part_type_t *type;
+	int			 entity;
+	vec3_t		 center;
+	vec3_t		 normal;
+	float		 scale;
+} deferred_decal_t;
+
+typedef struct particle_update_s
+{
+	particle_t	*p;
+	part_type_t *type;
+} particle_update_t;
+
+#define DEFERRED_PUSH(array, num, max, elemtype)                                  \
+	do                                                                            \
+	{                                                                             \
+		if ((num) == (max))                                                       \
+		{                                                                         \
+			(max) = q_max (256, (max) * 2);                                       \
+			(array) = (elemtype *)Mem_Realloc (array, (max) * sizeof (elemtype)); \
+		}                                                                         \
+	} while (false)
+
+static deferred_effect_t *deferred_effects;
+static int				  num_deferred_effects, max_deferred_effects;
+static deferred_trail_t	 *deferred_trails;
+static int				  num_deferred_trails, max_deferred_trails;
+static deferred_decal_t	 *deferred_decals;
+static int				  num_deferred_decals, max_deferred_decals;
+static particle_update_t *particle_updates;
+static int				  num_particle_updates, max_particle_updates;
+
+static void PScript_QueueEffect (vec3_t org, vec3_t dir, float count, int type)
+{
+	DEFERRED_PUSH (deferred_effects, num_deferred_effects, max_deferred_effects, deferred_effect_t);
+	deferred_effect_t *fx = &deferred_effects[num_deferred_effects++];
+	VectorCopy (org, fx->org);
+	VectorCopy (dir, fx->dir);
+	fx->count = count;
+	fx->type = type;
+}
+
+static void PScript_QueueTrail (vec3_t start, vec3_t end, int type, trailstate_t **tsk)
+{
+	DEFERRED_PUSH (deferred_trails, num_deferred_trails, max_deferred_trails, deferred_trail_t);
+	deferred_trail_t *trail = &deferred_trails[num_deferred_trails++];
+	VectorCopy (start, trail->start);
+	VectorCopy (end, trail->end);
+	trail->type = type;
+	trail->tsk = tsk;
+}
+
+static void PScript_QueueDecal (part_type_t *type, int entity, vec3_t center, vec3_t normal, float scale)
+{
+	DEFERRED_PUSH (deferred_decals, num_deferred_decals, max_deferred_decals, deferred_decal_t);
+	deferred_decal_t *decal = &deferred_decals[num_deferred_decals++];
+	decal->type = type;
+	decal->entity = entity;
+	VectorCopy (center, decal->center);
+	VectorCopy (normal, decal->normal);
+	decal->scale = scale;
+}
+
+/*
+===============
+PScript_UpdateParticle
+
+Advances a single live particle: physics, color/scale ramps, emission and BSP
+collision. Only mutates the particle itself, everything else goes through the
+deferred queues
+===============
+*/
+static void PScript_UpdateParticle (particle_t *p, part_type_t *type, float pframetime, qboolean doflurry, int *traces)
+{
+	vec3_t	oldorg, stop, normal;
+	vec3_t	friction;
+	float	dist;
+	ramp_t *ramp;
+	int		rampind;
+
+	const float grav = type->gravity * pframetime;
+	friction[0] = 1 - type->friction[0] * pframetime;
+	friction[1] = 1 - type->friction[1] * pframetime;
+	friction[2] = 1 - type->friction[2] * pframetime;
+
+	VectorCopy (p->org, oldorg);
+	if (type->flags & PT_VELOCITY)
+	{
+		p->org[0] += p->vel[0] * pframetime;
+		p->org[1] += p->vel[1] * pframetime;
+		p->org[2] += p->vel[2] * pframetime;
+		p->vel[2] -= grav;
+		if (type->flags & PT_FRICTION)
+		{
+			p->vel[0] *= friction[0];
+			p->vel[1] *= friction[1];
+			p->vel[2] *= friction[2];
+		}
+		if (type->flurry && doflurry)
+		{ // these should probably be partially synced,
+			p->vel[0] += crandom () * type->flurry;
+			p->vel[1] += crandom () * type->flurry;
+		}
+	}
+
+	p->angle += p->rotationspeed * pframetime;
+
+	switch (type->rampmode)
+	{
+	case RAMP_NEAREST:
+		rampind = (int)(type->rampindexes * (type->die - (p->die - particletime)) / type->die);
+		if (rampind >= type->rampindexes)
+			rampind = type->rampindexes - 1;
+		ramp = type->ramp + rampind;
+		VectorCopy (ramp->rgb, p->rgba);
+		p->rgba[3] = ramp->alpha;
+		p->scale = ramp->scale;
+		break;
+	case RAMP_LERP:
+	{
+		float frac = (type->rampindexes * (type->die - (p->die - particletime)) / type->die);
+		int	  s1, s2;
+		s1 = frac;
+		s2 = s1 + 1;
+		if (s1 > type->rampindexes - 1)
+			s1 = type->rampindexes - 1;
+		if (s2 > type->rampindexes - 1)
+			s2 = type->rampindexes - 1;
+		frac -= s1;
+		VectorInterpolate (type->ramp[s1].rgb, frac, type->ramp[s2].rgb, p->rgba);
+		FloatInterpolate (type->ramp[s1].alpha, frac, type->ramp[s2].alpha, p->rgba[3]);
+		FloatInterpolate (type->ramp[s1].scale, frac, type->ramp[s2].scale, p->scale);
+	}
+	break;
+	case RAMP_DELTA: // particle ramps
+		rampind = (int)(type->rampindexes * (type->die - (p->die - particletime)) / type->die);
+		if (rampind >= type->rampindexes)
+			rampind = type->rampindexes - 1;
+		ramp = type->ramp + rampind;
+		VectorMA (p->rgba, pframetime, ramp->rgb, p->rgba);
+		p->rgba[3] -= pframetime * ramp->alpha;
+		p->scale += pframetime * ramp->scale;
+		break;
+	case RAMP_NONE: // particle changes acording to it's preset properties.
+		if (particletime < (p->die - type->die + type->rgbchangetime))
+		{
+			p->rgba[0] += pframetime * type->rgbchange[0];
+			p->rgba[1] += pframetime * type->rgbchange[1];
+			p->rgba[2] += pframetime * type->rgbchange[2];
+		}
+		p->rgba[3] += pframetime * type->alphachange;
+		p->scale += pframetime * type->scaledelta;
+	}
+
+	if (type->emit >= 0)
+	{
+		if (type->emittime < 0)
+			PScript_QueueTrail (oldorg, p->org, type->emit, &p->state.trailstate);
+		else if (p->state.nextemit < particletime)
+		{
+			p->state.nextemit = particletime + type->emittime + frandom () * type->emitrand;
+			PScript_QueueEffect (p->org, p->vel, 1, type->emit);
+		}
+	}
+
+	if (type->cliptype >= 0 && r_bouncysparks.value)
+	{
+		VectorSubtract (p->org, p->oldorg, stop);
+		if (!type->clipbounce || DotProduct (stop, stop) > 10 * 10)
+		{
+			int e;
+			if ((*traces)-- > 0 && CL_TraceLine (p->oldorg, p->org, stop, normal, &e) < 1)
+			{
+				if (type->clipbounce < 0)
+				{
+					p->die = -1;
+#ifdef USE_DECALS
+					if (type->clipbounce == -2)
+					{ // this type of particle splatters itself as a decal when it hits a wall.
+						PScript_QueueDecal (type, e, p->org, normal, p->scale);
+					}
+#endif
+					return;
+				}
+				else if (part_type + type->cliptype == type)
+				{										// bounce
+					dist = DotProduct (p->vel, normal); // * (-1-(rand()/(float)0x7fff)/2);
+					dist *= -type->clipbounce;
+					VectorMA (p->vel, dist, normal, p->vel);
+					VectorCopy (stop, p->org);
+
+					if (!*type->texname && VectorLength (p->vel) < 1000 * pframetime && type->looks.type == PT_NORMAL)
+					{
+						p->die = -1;
+						return;
+					}
+				}
+				else
+				{
+					p->die = -1;
+					VectorNormalize (p->vel);
+
+					if (type->clipbounce)
+					{
+						VectorScale (normal, type->clipbounce, normal);
+						PScript_QueueEffect (stop, normal, type->clipcount / part_type[type->cliptype].count, type->cliptype);
+					}
+					else
+						PScript_QueueEffect (stop, p->vel, type->clipcount / part_type[type->cliptype].count, type->cliptype);
+					return;
+				}
+			}
+			VectorCopy (p->org, p->oldorg);
+		}
+	}
+}
+
 static void PScript_UpdateParticleTypes (float pframetime)
 {
 	void (*bdraw) (scenetris_t *t, beamseg_t *p, plooks_t *type);
 	void (*tdraw) (scenetris_t *t, particle_t *p, plooks_t *type);
 
 	vec3_t			oldorg;
-	vec3_t			stop, normal;
+	vec3_t			stop;
 	part_type_t	   *type, *lastvalidtype;
 	particle_t	   *p, *kill;
 	clippeddecal_t *d, *dkill;
 	ramp_t		   *ramp;
-	float			grav;
-	vec3_t			friction;
 	scenetris_t	   *scenetri;
-	float			dist;
 	particle_t	   *kill_list, *kill_first; // the kill list is to stop particles from being freed and reused whilst still in this loop
 											// which is bad because beams need to find out when particles died. Reuse can do wierd things.
 											// remember that they're not drawn instantly either.
@@ -6228,6 +6463,59 @@ static void PScript_UpdateParticleTypes (float pframetime)
 				r_particlerecycle = 0;
 		}
 	}
+
+	// walk the lists once to unlink expired particles and flatten the live ones, so the
+	// update below runs over a plain array without touching any list structure
+	num_particle_updates = 0;
+	for (type = part_run_list; type != NULL; type = type->nexttorun)
+	{
+		if (!type->die)
+			continue; // types without a lifetime are drained during drawing
+
+		for (;;)
+		{
+			kill = type->particles;
+			if (kill && kill->die < particletime)
+			{
+				if (type->emittime < 0)
+					PScript_DelinkTrailstate (&kill->state.trailstate);
+				type->particles = kill->next;
+				kill->next = kill_list;
+				kill_list = kill;
+				if (!kill_first)
+					kill_first = kill;
+				continue;
+			}
+			break;
+		}
+		for (p = type->particles; p; p = p->next)
+		{
+			for (;;)
+			{
+				kill = p->next;
+				if (kill && kill->die < particletime)
+				{
+					if (type->emittime < 0)
+						PScript_DelinkTrailstate (&kill->state.trailstate);
+					p->next = kill->next;
+					kill->next = kill_list;
+					kill_list = kill;
+					if (!kill_first)
+						kill_first = kill;
+					continue;
+				}
+				break;
+			}
+			DEFERRED_PUSH (particle_updates, num_particle_updates, max_particle_updates, particle_update_t);
+			particle_updates[num_particle_updates].p = p;
+			particle_updates[num_particle_updates].type = type;
+			++num_particle_updates;
+		}
+	}
+
+	// update all live particles: pure particle local work plus read only BSP traces
+	for (int upd = 0; upd < num_particle_updates; upd++)
+		PScript_UpdateParticle (particle_updates[upd].p, particle_updates[upd].type, pframetime, doflurry, &traces);
 
 	for (type = part_run_list, lastvalidtype = NULL; type != NULL; type = type->nexttorun)
 	{
@@ -6432,7 +6720,7 @@ static void PScript_UpdateParticleTypes (float pframetime)
 
 				// make sure emitter runs at least once
 				if (type->emit >= 0 && type->emitstart <= 0)
-					PScript_RunParticleEffectState (p->org, p->vel, 1, type->emit, NULL);
+					PScript_QueueEffect (p->org, p->vel, 1, type->emit);
 
 				type->particles = p->next;
 				p->next = kill_list;
@@ -6488,261 +6776,11 @@ static void PScript_UpdateParticleTypes (float pframetime)
 			goto endtype;
 		}
 
-		// kill off early ones.
-		if (type->emittime < 0)
-		{
-			for (;;)
-			{
-				kill = type->particles;
-				if (kill && kill->die < particletime)
-				{
-					PScript_DelinkTrailstate (&kill->state.trailstate);
-					type->particles = kill->next;
-					kill->next = kill_list;
-					kill_list = kill;
-					if (!kill_first)
-						kill_first = kill;
-					continue;
-				}
-				break;
-			}
-		}
-		else
-		{
-			for (;;)
-			{
-				kill = type->particles;
-				if (kill && kill->die < particletime)
-				{
-					type->particles = kill->next;
-					kill->next = kill_list;
-					kill_list = kill;
-					if (!kill_first)
-						kill_first = kill;
-					continue;
-				}
-				break;
-			}
-		}
-
-		grav = type->gravity * pframetime;
-		friction[0] = 1 - type->friction[0] * pframetime;
-		friction[1] = 1 - type->friction[1] * pframetime;
-		friction[2] = 1 - type->friction[2] * pframetime;
-
 		for (p = type->particles; p; p = p->next)
 		{
-			if (type->emittime < 0)
-			{
-				for (;;)
-				{
-					kill = p->next;
-					if (kill && kill->die < particletime)
-					{
-						PScript_DelinkTrailstate (&kill->state.trailstate);
-						p->next = kill->next;
-						kill->next = kill_list;
-						kill_list = kill;
-						if (!kill_first)
-							kill_first = kill;
-						continue;
-					}
-					break;
-				}
-			}
-			else
-			{
-				for (;;)
-				{
-					kill = p->next;
-					if (kill && kill->die < particletime)
-					{
-						p->next = kill->next;
-						kill->next = kill_list;
-						kill_list = kill;
-						if (!kill_first)
-							kill_first = kill;
-						continue;
-					}
-					break;
-				}
-			}
+			if (p->die < particletime)
+				continue; // died during this frame's update, unlinked next frame
 
-			VectorCopy (p->org, oldorg);
-			if (type->flags & PT_VELOCITY)
-			{
-				p->org[0] += p->vel[0] * pframetime;
-				p->org[1] += p->vel[1] * pframetime;
-				p->org[2] += p->vel[2] * pframetime;
-				p->vel[2] -= grav;
-				if (type->flags & PT_FRICTION)
-				{
-					p->vel[0] *= friction[0];
-					p->vel[1] *= friction[1];
-					p->vel[2] *= friction[2];
-				}
-				if (type->flurry && doflurry)
-				{ // these should probably be partially synced,
-					p->vel[0] += crandom () * type->flurry;
-					p->vel[1] += crandom () * type->flurry;
-				}
-			}
-
-			p->angle += p->rotationspeed * pframetime;
-
-			switch (type->rampmode)
-			{
-			case RAMP_NEAREST:
-				rampind = (int)(type->rampindexes * (type->die - (p->die - particletime)) / type->die);
-				if (rampind >= type->rampindexes)
-					rampind = type->rampindexes - 1;
-				ramp = type->ramp + rampind;
-				VectorCopy (ramp->rgb, p->rgba);
-				p->rgba[3] = ramp->alpha;
-				p->scale = ramp->scale;
-				break;
-			case RAMP_LERP:
-			{
-				float frac = (type->rampindexes * (type->die - (p->die - particletime)) / type->die);
-				int	  s1, s2;
-				s1 = frac;
-				s2 = s1 + 1;
-				if (s1 > type->rampindexes - 1)
-					s1 = type->rampindexes - 1;
-				if (s2 > type->rampindexes - 1)
-					s2 = type->rampindexes - 1;
-				frac -= s1;
-				VectorInterpolate (type->ramp[s1].rgb, frac, type->ramp[s2].rgb, p->rgba);
-				FloatInterpolate (type->ramp[s1].alpha, frac, type->ramp[s2].alpha, p->rgba[3]);
-				FloatInterpolate (type->ramp[s1].scale, frac, type->ramp[s2].scale, p->scale);
-			}
-			break;
-			case RAMP_DELTA: // particle ramps
-				rampind = (int)(type->rampindexes * (type->die - (p->die - particletime)) / type->die);
-				if (rampind >= type->rampindexes)
-					rampind = type->rampindexes - 1;
-				ramp = type->ramp + rampind;
-				VectorMA (p->rgba, pframetime, ramp->rgb, p->rgba);
-				p->rgba[3] -= pframetime * ramp->alpha;
-				p->scale += pframetime * ramp->scale;
-				break;
-			case RAMP_NONE: // particle changes acording to it's preset properties.
-				if (particletime < (p->die - type->die + type->rgbchangetime))
-				{
-					p->rgba[0] += pframetime * type->rgbchange[0];
-					p->rgba[1] += pframetime * type->rgbchange[1];
-					p->rgba[2] += pframetime * type->rgbchange[2];
-				}
-				p->rgba[3] += pframetime * type->alphachange;
-				p->scale += pframetime * type->scaledelta;
-			}
-
-			if (type->emit >= 0)
-			{
-				if (type->emittime < 0)
-					PScript_ParticleTrail (oldorg, p->org, type->emit, pframetime, 0, NULL, &p->state.trailstate);
-				else if (p->state.nextemit < particletime)
-				{
-					p->state.nextemit = particletime + type->emittime + frandom () * type->emitrand;
-					PScript_RunParticleEffectState (p->org, p->vel, 1, type->emit, NULL);
-				}
-			}
-
-			if (type->cliptype >= 0 && r_bouncysparks.value)
-			{
-				VectorSubtract (p->org, p->oldorg, stop);
-				if (!type->clipbounce || DotProduct (stop, stop) > 10 * 10)
-				{
-					int e;
-					if (traces-- > 0 && CL_TraceLine (p->oldorg, p->org, stop, normal, &e) < 1)
-					{
-						if (type->clipbounce < 0)
-						{
-							p->die = -1;
-#ifdef USE_DECALS
-							if (type->clipbounce == -2)
-							{ // this type of particle splatters itself as a decal when it hits a wall.
-								decalctx_t ctx;
-								float	   m;
-								vec3_t	   vec = {0.5, 0.5, 0.431};
-								qmodel_t  *model;
-
-								ctx.entity = e;
-								if (!ctx.entity)
-								{
-									model = cl.worldmodel;
-									VectorCopy (p->org, ctx.center);
-								}
-								else if (e)
-								{ // this trace hit a door or something.
-									entity_t *ent = CL_EntityNum (e);
-									model = ent->model;
-									VectorSubtract (p->org, ent->origin, ctx.center);
-									// FIXME: rotate center+normal around entity.
-								}
-								else
-									continue; // err, no idea.
-
-								VectorScale (normal, -1, ctx.normal);
-								VectorNormalize (ctx.normal);
-
-								VectorNormalize (vec);
-								CrossProduct (ctx.normal, vec, ctx.tangent1);
-								RotatePointAroundVector (ctx.tangent2, ctx.normal, ctx.tangent1, frandom () * 360);
-								CrossProduct (ctx.normal, ctx.tangent2, ctx.tangent1);
-
-								VectorNormalize (ctx.tangent1);
-								VectorNormalize (ctx.tangent2);
-
-								ctx.ptype = type;
-								ctx.scale1 = type->s2 - type->s1;
-								ctx.bias1 = type->s1 + (ctx.scale1 * 0.5);
-								ctx.scale2 = type->t2 - type->t1;
-								ctx.bias2 = type->t1 + (ctx.scale2 * 0.5);
-								m = p->scale * (1.5 + frandom () * 0.5) * 0.5; // decals should be a little bigger, for some reason.
-								ctx.scale0 = 2.0 / m;
-								ctx.scale1 /= m;
-								ctx.scale2 /= m;
-
-								// inserts decals through a callback.
-								Mod_ClipDecal (
-									model, ctx.center, ctx.normal, ctx.tangent2, ctx.tangent1, m, type->surfflagmask, type->surfflagmatch, PScript_AddDecals,
-									&ctx);
-							}
-#endif
-							continue;
-						}
-						else if (part_type + type->cliptype == type)
-						{										// bounce
-							dist = DotProduct (p->vel, normal); // * (-1-(rand()/(float)0x7fff)/2);
-							dist *= -type->clipbounce;
-							VectorMA (p->vel, dist, normal, p->vel);
-							VectorCopy (stop, p->org);
-
-							if (!*type->texname && VectorLength (p->vel) < 1000 * pframetime && type->looks.type == PT_NORMAL)
-							{
-								p->die = -1;
-								continue;
-							}
-						}
-						else
-						{
-							p->die = -1;
-							VectorNormalize (p->vel);
-
-							if (type->clipbounce)
-							{
-								VectorScale (normal, type->clipbounce, normal);
-								PScript_RunParticleEffectState (stop, normal, type->clipcount / part_type[type->cliptype].count, type->cliptype, NULL);
-							}
-							else
-								PScript_RunParticleEffectState (stop, p->vel, type->clipcount / part_type[type->cliptype].count, type->cliptype, NULL);
-							continue;
-						}
-					}
-					VectorCopy (p->org, p->oldorg);
-				}
-			}
 			if (scenetri && tdraw)
 			{
 				if (cl_numstrisvert - scenetri->firstvert >= MAX_INDICES - 6)
@@ -6860,6 +6898,66 @@ static void PScript_UpdateParticleTypes (float pframetime)
 		else
 			lastvalidtype = type;
 	}
+
+	// run the spawns that were queued during the update. New particles get their first
+	// update and draw next frame, which also gives every emitted effect the same timing
+	// instead of depending on the run list order of its parent type
+	for (int fx = 0; fx < num_deferred_trails; fx++)
+		PScript_ParticleTrail (deferred_trails[fx].start, deferred_trails[fx].end, deferred_trails[fx].type, pframetime, 0, NULL, deferred_trails[fx].tsk);
+	num_deferred_trails = 0;
+	for (int fx = 0; fx < num_deferred_effects; fx++)
+		PScript_RunParticleEffectState (deferred_effects[fx].org, deferred_effects[fx].dir, deferred_effects[fx].count, deferred_effects[fx].type, NULL);
+	num_deferred_effects = 0;
+#ifdef USE_DECALS
+	for (int fx = 0; fx < num_deferred_decals; fx++)
+	{
+		deferred_decal_t *dd = &deferred_decals[fx];
+		part_type_t		 *dtype = dd->type;
+		decalctx_t		  ctx;
+		float			  m;
+		vec3_t			  vec = {0.5, 0.5, 0.431};
+		qmodel_t		 *model;
+
+		ctx.entity = dd->entity;
+		if (!ctx.entity)
+		{
+			model = cl.worldmodel;
+			VectorCopy (dd->center, ctx.center);
+		}
+		else
+		{ // this trace hit a door or something.
+			entity_t *ent = CL_EntityNum (ctx.entity);
+			model = ent->model;
+			VectorSubtract (dd->center, ent->origin, ctx.center);
+			// FIXME: rotate center+normal around entity.
+		}
+
+		VectorScale (dd->normal, -1, ctx.normal);
+		VectorNormalize (ctx.normal);
+
+		VectorNormalize (vec);
+		CrossProduct (ctx.normal, vec, ctx.tangent1);
+		RotatePointAroundVector (ctx.tangent2, ctx.normal, ctx.tangent1, frandom () * 360);
+		CrossProduct (ctx.normal, ctx.tangent2, ctx.tangent1);
+
+		VectorNormalize (ctx.tangent1);
+		VectorNormalize (ctx.tangent2);
+
+		ctx.ptype = dtype;
+		ctx.scale1 = dtype->s2 - dtype->s1;
+		ctx.bias1 = dtype->s1 + (ctx.scale1 * 0.5);
+		ctx.scale2 = dtype->t2 - dtype->t1;
+		ctx.bias2 = dtype->t1 + (ctx.scale2 * 0.5);
+		m = dd->scale * (1.5 + frandom () * 0.5) * 0.5; // decals should be a little bigger, for some reason.
+		ctx.scale0 = 2.0 / m;
+		ctx.scale1 /= m;
+		ctx.scale2 /= m;
+
+		// inserts decals through a callback.
+		Mod_ClipDecal (model, ctx.center, ctx.normal, ctx.tangent2, ctx.tangent1, m, dtype->surfflagmask, dtype->surfflagmatch, PScript_AddDecals, &ctx);
+	}
+	num_deferred_decals = 0;
+#endif
 
 	// lazy delete for particles is done here
 	if (kill_list)
