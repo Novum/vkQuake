@@ -106,6 +106,8 @@ typedef struct particle_s
 #ifdef PSET_SCRIPT
 void PScript_InitParticles (void);
 void PScript_Shutdown (void);
+void PScript_UpdateParticlesSetupTask (void *unused);		// serial: frame time step, rain spawns, kill + flatten live particles
+void PScript_UpdateParticlesTask (int index, void *unused); // indexed over the worker count: the parallel particle update
 void PScript_DrawParticles (cb_context_t *blend_cbx, cb_context_t *wboit_cbx);
 void PScript_DrawParticles_ShowTris (cb_context_t *cbx);
 struct trailstate_s;

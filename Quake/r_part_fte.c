@@ -549,6 +549,31 @@ static qboolean Q1BSP_RecursiveHullCheck (hull_t *hull, int num, float p1f, floa
 	return Q1BSP_RecursiveHullTrace (&ctx, num, p1f, p2f, p1, p2, trace) != rht_impact;
 }
 
+static int num_trace_line_ents;
+static int trace_line_ents[MAX_EDICTS];
+static int trace_line_cache_valid_count = -1;
+
+// rebuilds the brush entity list if it is stale. Must be called from a single thread
+// before CL_TraceLine can be used concurrently, e.g. by the parallel particle update
+static void CL_PrepareTraceLineEntities (void)
+{
+	int		  i;
+	entity_t *ent;
+
+	if (trace_line_cache_valid_count == r_trace_line_cache_counter)
+		return;
+
+	num_trace_line_ents = 0;
+	for (i = 1; i < cl.num_entities; i++)
+	{
+		ent = &cl.entities[i];
+		if (!ent->model || ent->model->needload || ent->model->type != mod_brush || ent->model == cl.worldmodel)
+			continue;
+		trace_line_ents[num_trace_line_ents++] = i;
+	}
+	trace_line_cache_valid_count = r_trace_line_cache_counter;
+}
+
 float CL_TraceLine (vec3_t start, vec3_t end, vec3_t impact, vec3_t normal, int *entnum)
 { // FIXME: not sure what to do about startsolid.
 	int		  i;
@@ -563,21 +588,7 @@ float CL_TraceLine (vec3_t start, vec3_t end, vec3_t impact, vec3_t normal, int 
 	if (entnum)
 		*entnum = 0;
 
-	static int num_trace_line_ents;
-	static int trace_line_ents[MAX_EDICTS];
-	static int cache_valid_count = -1;
-	if (cache_valid_count != r_trace_line_cache_counter)
-	{
-		num_trace_line_ents = 0;
-		for (i = 1; i < cl.num_entities; i++)
-		{
-			ent = &cl.entities[i];
-			if (!ent->model || ent->model->needload || ent->model->type != mod_brush || ent->model == cl.worldmodel)
-				continue;
-			trace_line_ents[num_trace_line_ents++] = i;
-		}
-		cache_valid_count = r_trace_line_cache_counter;
-	}
+	CL_PrepareTraceLineEntities (); // no-op during the parallel particle update, the list is prepared beforehand
 
 	// the world usually clips the line the most, trace it first and only test
 	// brush entities whose bounds overlap the remaining segment
@@ -6184,19 +6195,29 @@ typedef struct particle_update_s
 		}                                                                         \
 	} while (false)
 
-static deferred_effect_t *deferred_effects;
-static int				  num_deferred_effects, max_deferred_effects;
-static deferred_trail_t	 *deferred_trails;
-static int				  num_deferred_trails, max_deferred_trails;
-static deferred_decal_t	 *deferred_decals;
-static int				  num_deferred_decals, max_deferred_decals;
+// each task worker queues into its own arrays so the parallel update never contends
+typedef struct deferred_queues_s
+{
+	deferred_effect_t *effects;
+	int				   num_effects, max_effects;
+	deferred_trail_t  *trails;
+	int				   num_trails, max_trails;
+	deferred_decal_t  *decals;
+	int				   num_decals, max_decals;
+} deferred_queues_t;
+
+static deferred_queues_t  deferred_queues[TASKS_MAX_WORKERS];
 static particle_update_t *particle_updates;
 static int				  num_particle_updates, max_particle_updates;
+static atomic_uint32_t	  particle_traces_used;
+static uint32_t			  particle_trace_limit;
+static uint32_t			  particle_update_seed;
 
 static void PScript_QueueEffect (vec3_t org, vec3_t dir, float count, int type)
 {
-	DEFERRED_PUSH (deferred_effects, num_deferred_effects, max_deferred_effects, deferred_effect_t);
-	deferred_effect_t *fx = &deferred_effects[num_deferred_effects++];
+	deferred_queues_t *queue = &deferred_queues[Tasks_GetWorkerIndex ()];
+	DEFERRED_PUSH (queue->effects, queue->num_effects, queue->max_effects, deferred_effect_t);
+	deferred_effect_t *fx = &queue->effects[queue->num_effects++];
 	VectorCopy (org, fx->org);
 	VectorCopy (dir, fx->dir);
 	fx->count = count;
@@ -6205,8 +6226,9 @@ static void PScript_QueueEffect (vec3_t org, vec3_t dir, float count, int type)
 
 static void PScript_QueueTrail (vec3_t start, vec3_t end, int type, trailstate_t **tsk)
 {
-	DEFERRED_PUSH (deferred_trails, num_deferred_trails, max_deferred_trails, deferred_trail_t);
-	deferred_trail_t *trail = &deferred_trails[num_deferred_trails++];
+	deferred_queues_t *queue = &deferred_queues[Tasks_GetWorkerIndex ()];
+	DEFERRED_PUSH (queue->trails, queue->num_trails, queue->max_trails, deferred_trail_t);
+	deferred_trail_t *trail = &queue->trails[queue->num_trails++];
 	VectorCopy (start, trail->start);
 	VectorCopy (end, trail->end);
 	trail->type = type;
@@ -6215,14 +6237,28 @@ static void PScript_QueueTrail (vec3_t start, vec3_t end, int type, trailstate_t
 
 static void PScript_QueueDecal (part_type_t *type, int entity, vec3_t center, vec3_t normal, float scale)
 {
-	DEFERRED_PUSH (deferred_decals, num_deferred_decals, max_deferred_decals, deferred_decal_t);
-	deferred_decal_t *decal = &deferred_decals[num_deferred_decals++];
+	deferred_queues_t *queue = &deferred_queues[Tasks_GetWorkerIndex ()];
+	DEFERRED_PUSH (queue->decals, queue->num_decals, queue->max_decals, deferred_decal_t);
+	deferred_decal_t *decal = &queue->decals[queue->num_decals++];
 	decal->type = type;
 	decal->entity = entity;
 	VectorCopy (center, decal->center);
 	VectorCopy (normal, decal->normal);
 	decal->scale = scale;
 }
+
+// small local RNG so the parallel update doesn't contend on (or require thread safety of) COM_Rand
+static inline uint32_t P_UpdateRand (uint32_t *state)
+{
+	uint32_t x = *state;
+	x ^= x << 13;
+	x ^= x >> 17;
+	x ^= x << 5;
+	*state = x;
+	return x;
+}
+#define ufrandom(rng) (P_UpdateRand (rng) * (1.0f / 4294967296.0f))
+#define ucrandom(rng) (P_UpdateRand (rng) * (2.0f / 4294967296.0f) - 1.0f)
 
 /*
 ===============
@@ -6233,7 +6269,7 @@ collision. Only mutates the particle itself, everything else goes through the
 deferred queues
 ===============
 */
-static void PScript_UpdateParticle (particle_t *p, part_type_t *type, float pframetime, qboolean doflurry, int *traces)
+static void PScript_UpdateParticle (particle_t *p, part_type_t *type, float pframetime, qboolean doflurry, uint32_t *rng)
 {
 	vec3_t	oldorg, stop, normal;
 	vec3_t	friction;
@@ -6261,8 +6297,8 @@ static void PScript_UpdateParticle (particle_t *p, part_type_t *type, float pfra
 		}
 		if (type->flurry && doflurry)
 		{ // these should probably be partially synced,
-			p->vel[0] += crandom () * type->flurry;
-			p->vel[1] += crandom () * type->flurry;
+			p->vel[0] += ucrandom (rng) * type->flurry;
+			p->vel[1] += ucrandom (rng) * type->flurry;
 		}
 	}
 
@@ -6321,7 +6357,7 @@ static void PScript_UpdateParticle (particle_t *p, part_type_t *type, float pfra
 			PScript_QueueTrail (oldorg, p->org, type->emit, &p->state.trailstate);
 		else if (p->state.nextemit < particletime)
 		{
-			p->state.nextemit = particletime + type->emittime + frandom () * type->emitrand;
+			p->state.nextemit = particletime + type->emittime + ufrandom (rng) * type->emitrand;
 			PScript_QueueEffect (p->org, p->vel, 1, type->emit);
 		}
 	}
@@ -6332,7 +6368,7 @@ static void PScript_UpdateParticle (particle_t *p, part_type_t *type, float pfra
 		if (!type->clipbounce || DotProduct (stop, stop) > 10 * 10)
 		{
 			int e;
-			if ((*traces)-- > 0 && CL_TraceLine (p->oldorg, p->org, stop, normal, &e) < 1)
+			if ((Atomic_IncrementUInt32 (&particle_traces_used) < particle_trace_limit) && CL_TraceLine (p->oldorg, p->org, stop, normal, &e) < 1)
 			{
 				if (type->clipbounce < 0)
 				{
@@ -6378,29 +6414,42 @@ static void PScript_UpdateParticle (particle_t *p, part_type_t *type, float pfra
 	}
 }
 
-static void PScript_UpdateParticleTypes (float pframetime)
+#define PARTICLE_UPDATE_CHUNK_SIZE 1024
+
+static float	   p_frametime;
+static qboolean	   p_doflurry;
+static particle_t *p_kill_list, *p_kill_first; // the kill list is to stop particles from being freed and reused whilst still in this frame
+											   // which is bad because beams need to find out when particles died. Reuse can do wierd things.
+											   // remember that they're not drawn instantly either.
+
+/*
+===============
+PScript_UpdateParticlesSetupTask
+
+Serial preparation for the particle update: advances the frame time, spawns rain,
+unlinks expired particles and flattens the live ones into the update array
+===============
+*/
+void PScript_UpdateParticlesSetupTask (void *unused)
 {
-	void (*bdraw) (scenetris_t *t, beamseg_t *p, plooks_t *type);
-	void (*tdraw) (scenetris_t *t, particle_t *p, plooks_t *type);
-
-	vec3_t			oldorg;
-	vec3_t			stop;
-	part_type_t	   *type, *lastvalidtype;
-	particle_t	   *p, *kill;
-	clippeddecal_t *d, *dkill;
-	ramp_t		   *ramp;
-	scenetris_t	   *scenetri;
-	particle_t	   *kill_list, *kill_first; // the kill list is to stop particles from being freed and reused whilst still in this loop
-											// which is bad because beams need to find out when particles died. Reuse can do wierd things.
-											// remember that they're not drawn instantly either.
-	beamseg_t	   *b, *bkill;
-
-	int			 traces = r_particle_tracelimit.value;
-	int			 rampind;
+	static float oldtime;
 	static float flurrytime;
-	qboolean	 doflurry;
-	int			 batchflags;
+	part_type_t *type;
+	particle_t	*p, *kill;
 	unsigned int i;
+
+	p_frametime = cl.time - oldtime;
+	if (p_frametime < 0)
+		p_frametime = 0;
+	if (p_frametime > 1)
+		p_frametime = 1;
+	oldtime = cl.time;
+
+	num_particle_updates = 0;
+	p_kill_list = p_kill_first = NULL;
+
+	if (!r_particles.value)
+		return;
 
 	if (r_plooksdirty)
 	{
@@ -6432,16 +6481,14 @@ static void PScript_UpdateParticleTypes (float pframetime)
 	VectorScale (vup, 1.5, pup);
 	VectorScale (vright, 1.5, pright);
 
-	kill_list = kill_first = NULL;
-
-	flurrytime -= pframetime;
+	flurrytime -= p_frametime;
 	if (flurrytime < 0)
 	{
-		doflurry = true;
+		p_doflurry = true;
 		flurrytime = 0.1 + frandom () * 0.3;
 	}
 	else
-		doflurry = false;
+		p_doflurry = false;
 
 	if (!free_decals)
 	{
@@ -6464,9 +6511,27 @@ static void PScript_UpdateParticleTypes (float pframetime)
 		}
 	}
 
+	if (r_part_rain.value && r_fteparticles.value)
+	{
+		entity_t *ent;
+		vec3_t	  axis[3];
+		int		  j;
+		for (j = 0; j < cl.num_entities; j++)
+		{
+			ent = &cl.entities[j];
+			if (!ent->model || ent->model->needload)
+				continue;
+			if (!ent->model->skytris)
+				continue;
+			AngleVectors (ent->angles, axis[0], axis[1], axis[2]);
+			// this timer, as well as the per-tri timer, are unable to deal with certain rates+sizes. it would be good to fix that...
+			// it would also be nice to do mdls too...
+			P_AddRainParticles (ent->model, axis, ent->origin, p_frametime);
+		}
+	}
+
 	// walk the lists once to unlink expired particles and flatten the live ones, so the
-	// update below runs over a plain array without touching any list structure
-	num_particle_updates = 0;
+	// update runs over a plain array without touching any list structure
 	for (type = part_run_list; type != NULL; type = type->nexttorun)
 	{
 		if (!type->die)
@@ -6480,10 +6545,10 @@ static void PScript_UpdateParticleTypes (float pframetime)
 				if (type->emittime < 0)
 					PScript_DelinkTrailstate (&kill->state.trailstate);
 				type->particles = kill->next;
-				kill->next = kill_list;
-				kill_list = kill;
-				if (!kill_first)
-					kill_first = kill;
+				kill->next = p_kill_list;
+				p_kill_list = kill;
+				if (!p_kill_first)
+					p_kill_first = kill;
 				continue;
 			}
 			break;
@@ -6498,10 +6563,10 @@ static void PScript_UpdateParticleTypes (float pframetime)
 					if (type->emittime < 0)
 						PScript_DelinkTrailstate (&kill->state.trailstate);
 					p->next = kill->next;
-					kill->next = kill_list;
-					kill_list = kill;
-					if (!kill_first)
-						kill_first = kill;
+					kill->next = p_kill_list;
+					p_kill_list = kill;
+					if (!p_kill_first)
+						p_kill_first = kill;
 					continue;
 				}
 				break;
@@ -6513,9 +6578,49 @@ static void PScript_UpdateParticleTypes (float pframetime)
 		}
 	}
 
-	// update all live particles: pure particle local work plus read only BSP traces
-	for (int upd = 0; upd < num_particle_updates; upd++)
-		PScript_UpdateParticle (particle_updates[upd].p, particle_updates[upd].type, pframetime, doflurry, &traces);
+	particle_trace_limit = q_max ((int)r_particle_tracelimit.value, 0);
+	Atomic_StoreUInt32 (&particle_traces_used, 0);
+	particle_update_seed = COM_Rand ();
+	CL_PrepareTraceLineEntities ();
+}
+
+/*
+===============
+PScript_UpdateParticlesTask
+
+Indexed over the worker count: pure particle local work plus read only BSP traces.
+Each index updates an interleaved set of chunks so uneven trace costs still balance
+===============
+*/
+void PScript_UpdateParticlesTask (int index, void *unused)
+{
+	const int stride = q_max (Tasks_NumWorkers (), 1) * PARTICLE_UPDATE_CHUNK_SIZE;
+	uint32_t  rng = (particle_update_seed ^ ((uint32_t)index * 2654435761u)) | 1;
+	for (int start = index * PARTICLE_UPDATE_CHUNK_SIZE; start < num_particle_updates; start += stride)
+	{
+		const int end = q_min (start + PARTICLE_UPDATE_CHUNK_SIZE, num_particle_updates);
+		for (int upd = start; upd < end; upd++)
+			PScript_UpdateParticle (particle_updates[upd].p, particle_updates[upd].type, p_frametime, p_doflurry, &rng);
+	}
+}
+
+static void PScript_UpdateParticleTypes (float pframetime)
+{
+	void (*bdraw) (scenetris_t *t, beamseg_t *p, plooks_t *type);
+	void (*tdraw) (scenetris_t *t, particle_t *p, plooks_t *type);
+
+	vec3_t			oldorg;
+	vec3_t			stop;
+	part_type_t	   *type, *lastvalidtype;
+	particle_t	   *p;
+	clippeddecal_t *d, *dkill;
+	ramp_t		   *ramp;
+	scenetris_t	   *scenetri;
+	particle_t	   *kill_list = p_kill_list, *kill_first = p_kill_first;
+	beamseg_t	   *b, *bkill;
+
+	int rampind;
+	int batchflags;
 
 	for (type = part_run_list, lastvalidtype = NULL; type != NULL; type = type->nexttorun)
 	{
@@ -6902,62 +7007,66 @@ static void PScript_UpdateParticleTypes (float pframetime)
 	// run the spawns that were queued during the update. New particles get their first
 	// update and draw next frame, which also gives every emitted effect the same timing
 	// instead of depending on the run list order of its parent type
-	for (int fx = 0; fx < num_deferred_trails; fx++)
-		PScript_ParticleTrail (deferred_trails[fx].start, deferred_trails[fx].end, deferred_trails[fx].type, pframetime, 0, NULL, deferred_trails[fx].tsk);
-	num_deferred_trails = 0;
-	for (int fx = 0; fx < num_deferred_effects; fx++)
-		PScript_RunParticleEffectState (deferred_effects[fx].org, deferred_effects[fx].dir, deferred_effects[fx].count, deferred_effects[fx].type, NULL);
-	num_deferred_effects = 0;
-#ifdef USE_DECALS
-	for (int fx = 0; fx < num_deferred_decals; fx++)
+	for (int w = 0; w < TASKS_MAX_WORKERS; w++)
 	{
-		deferred_decal_t *dd = &deferred_decals[fx];
-		part_type_t		 *dtype = dd->type;
-		decalctx_t		  ctx;
-		float			  m;
-		vec3_t			  vec = {0.5, 0.5, 0.431};
-		qmodel_t		 *model;
-
-		ctx.entity = dd->entity;
-		if (!ctx.entity)
+		deferred_queues_t *queue = &deferred_queues[w];
+		for (int fx = 0; fx < queue->num_trails; fx++)
+			PScript_ParticleTrail (queue->trails[fx].start, queue->trails[fx].end, queue->trails[fx].type, pframetime, 0, NULL, queue->trails[fx].tsk);
+		queue->num_trails = 0;
+		for (int fx = 0; fx < queue->num_effects; fx++)
+			PScript_RunParticleEffectState (queue->effects[fx].org, queue->effects[fx].dir, queue->effects[fx].count, queue->effects[fx].type, NULL);
+		queue->num_effects = 0;
+#ifdef USE_DECALS
+		for (int fx = 0; fx < queue->num_decals; fx++)
 		{
-			model = cl.worldmodel;
-			VectorCopy (dd->center, ctx.center);
+			deferred_decal_t *dd = &queue->decals[fx];
+			part_type_t		 *dtype = dd->type;
+			decalctx_t		  ctx;
+			float			  m;
+			vec3_t			  vec = {0.5, 0.5, 0.431};
+			qmodel_t		 *model;
+
+			ctx.entity = dd->entity;
+			if (!ctx.entity)
+			{
+				model = cl.worldmodel;
+				VectorCopy (dd->center, ctx.center);
+			}
+			else
+			{ // this trace hit a door or something.
+				entity_t *ent = CL_EntityNum (ctx.entity);
+				model = ent->model;
+				VectorSubtract (dd->center, ent->origin, ctx.center);
+				// FIXME: rotate center+normal around entity.
+			}
+
+			VectorScale (dd->normal, -1, ctx.normal);
+			VectorNormalize (ctx.normal);
+
+			VectorNormalize (vec);
+			CrossProduct (ctx.normal, vec, ctx.tangent1);
+			RotatePointAroundVector (ctx.tangent2, ctx.normal, ctx.tangent1, frandom () * 360);
+			CrossProduct (ctx.normal, ctx.tangent2, ctx.tangent1);
+
+			VectorNormalize (ctx.tangent1);
+			VectorNormalize (ctx.tangent2);
+
+			ctx.ptype = dtype;
+			ctx.scale1 = dtype->s2 - dtype->s1;
+			ctx.bias1 = dtype->s1 + (ctx.scale1 * 0.5);
+			ctx.scale2 = dtype->t2 - dtype->t1;
+			ctx.bias2 = dtype->t1 + (ctx.scale2 * 0.5);
+			m = dd->scale * (1.5 + frandom () * 0.5) * 0.5; // decals should be a little bigger, for some reason.
+			ctx.scale0 = 2.0 / m;
+			ctx.scale1 /= m;
+			ctx.scale2 /= m;
+
+			// inserts decals through a callback.
+			Mod_ClipDecal (model, ctx.center, ctx.normal, ctx.tangent2, ctx.tangent1, m, dtype->surfflagmask, dtype->surfflagmatch, PScript_AddDecals, &ctx);
 		}
-		else
-		{ // this trace hit a door or something.
-			entity_t *ent = CL_EntityNum (ctx.entity);
-			model = ent->model;
-			VectorSubtract (dd->center, ent->origin, ctx.center);
-			// FIXME: rotate center+normal around entity.
-		}
-
-		VectorScale (dd->normal, -1, ctx.normal);
-		VectorNormalize (ctx.normal);
-
-		VectorNormalize (vec);
-		CrossProduct (ctx.normal, vec, ctx.tangent1);
-		RotatePointAroundVector (ctx.tangent2, ctx.normal, ctx.tangent1, frandom () * 360);
-		CrossProduct (ctx.normal, ctx.tangent2, ctx.tangent1);
-
-		VectorNormalize (ctx.tangent1);
-		VectorNormalize (ctx.tangent2);
-
-		ctx.ptype = dtype;
-		ctx.scale1 = dtype->s2 - dtype->s1;
-		ctx.bias1 = dtype->s1 + (ctx.scale1 * 0.5);
-		ctx.scale2 = dtype->t2 - dtype->t1;
-		ctx.bias2 = dtype->t1 + (ctx.scale2 * 0.5);
-		m = dd->scale * (1.5 + frandom () * 0.5) * 0.5; // decals should be a little bigger, for some reason.
-		ctx.scale0 = 2.0 / m;
-		ctx.scale1 /= m;
-		ctx.scale2 /= m;
-
-		// inserts decals through a callback.
-		Mod_ClipDecal (model, ctx.center, ctx.normal, ctx.tangent2, ctx.tangent1, m, dtype->surfflagmask, dtype->surfflagmatch, PScript_AddDecals, &ctx);
-	}
-	num_deferred_decals = 0;
+		queue->num_decals = 0;
 #endif
+	}
 
 	// lazy delete for particles is done here
 	if (kill_list)
@@ -6976,19 +7085,6 @@ PScript_DrawParticles
 */
 void PScript_DrawParticles (cb_context_t *blend_cbx, cb_context_t *wboit_cbx)
 {
-	int			 i;
-	entity_t	*ent;
-	vec3_t		 axis[3];
-	float		 pframetime;
-	static float oldtime;
-
-	pframetime = cl.time - oldtime;
-	if (pframetime < 0)
-		pframetime = 0;
-	if (pframetime > 1)
-		pframetime = 1;
-	oldtime = cl.time;
-
 	current_buffer_index = (current_buffer_index + 1) % 2;
 	cl_numstris = 0;
 	cl_numstrisvert = 0;
@@ -6999,23 +7095,8 @@ void PScript_DrawParticles (cb_context_t *blend_cbx, cb_context_t *wboit_cbx)
 	if (!r_particles.value)
 		return;
 
-	if (r_part_rain.value && r_fteparticles.value)
-	{
-		for (i = 0; i < cl.num_entities; i++)
-		{
-			ent = &cl.entities[i];
-			if (!ent->model || ent->model->needload)
-				continue;
-			if (!ent->model->skytris)
-				continue;
-			AngleVectors (ent->angles, axis[0], axis[1], axis[2]);
-			// this timer, as well as the per-tri timer, are unable to deal with certain rates+sizes. it would be good to fix that...
-			// it would also be nice to do mdls too...
-			P_AddRainParticles (ent->model, axis, ent->origin, pframetime);
-		}
-	}
-
-	PScript_UpdateParticleTypes (pframetime);
+	// simulation ran in PScript_UpdateParticlesSetupTask/PScript_UpdateParticlesTask, this only draws
+	PScript_UpdateParticleTypes (p_frametime);
 	PScript_DrawParticleBatches (blend_cbx, false, wboit_cbx != NULL);
 	PScript_DrawParticleBatches (wboit_cbx, true, true);
 }

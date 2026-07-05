@@ -1165,8 +1165,19 @@ void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 		Task_AddDependency (sort_transparents, draw_alpha_entities_task);
 		Task_AddDependency (begin_rendering_task, draw_alpha_entities_task);
 
+#ifdef PSET_SCRIPT
+		task_handle_t update_particles_setup_task = Task_AllocateAndAssignFunc (PScript_UpdateParticlesSetupTask, NULL, 0);
+		Task_AddDependency (before_mark, update_particles_setup_task);
+
+		task_handle_t update_particles_task = Task_AllocateAndAssignIndexedFunc (PScript_UpdateParticlesTask, Tasks_NumWorkers (), NULL, 0);
+		Task_AddDependency (update_particles_setup_task, update_particles_task);
+#endif
+
 		task_handle_t draw_particles_task = Task_AllocateAndAssignFunc (R_DrawParticlesTask, NULL, 0);
 		Task_AddDependency (before_mark, draw_particles_task);
+#ifdef PSET_SCRIPT
+		Task_AddDependency (update_particles_task, draw_particles_task);
+#endif
 		Task_AddDependency (begin_rendering_task, draw_particles_task);
 		Task_AddDependency (draw_particles_task, draw_done_task);
 
@@ -1194,9 +1205,24 @@ void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 #endif
 		}
 
-		task_handle_t tasks[] = {before_mark,		  store_efrags,	   update_warp_textures, draw_world_task,	 sort_transparents,
-								 draw_sky_task,		  draw_water_task, draw_view_model_task, draw_entities_task, draw_alpha_entities_task,
-								 draw_particles_task, build_tlas_task, update_lightmaps_task};
+		task_handle_t tasks[] = {
+			before_mark,
+			store_efrags,
+			update_warp_textures,
+			draw_world_task,
+			sort_transparents,
+			draw_sky_task,
+			draw_water_task,
+			draw_view_model_task,
+			draw_entities_task,
+			draw_alpha_entities_task,
+#ifdef PSET_SCRIPT
+			update_particles_setup_task,
+			update_particles_task,
+#endif
+			draw_particles_task,
+			build_tlas_task,
+			update_lightmaps_task};
 		Tasks_Submit ((sizeof (tasks) / sizeof (task_handle_t)), tasks);
 		if (cull_surfaces != chain_surfaces)
 		{
@@ -1215,6 +1241,11 @@ void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 		R_DrawEntitiesTask (0, NULL);
 		R_SortAlphaEntitiesTask (NULL);
 		R_DrawAlphaEntitiesTask (0, NULL);
+#ifdef PSET_SCRIPT
+		PScript_UpdateParticlesSetupTask (NULL);
+		for (int pi = 0; pi < q_max (Tasks_NumWorkers (), 1); pi++)
+			PScript_UpdateParticlesTask (pi, NULL);
+#endif
 		R_DrawParticlesTask (NULL);
 		R_DrawViewModelTask (NULL);
 		if (r_gpulightmapupdate.value)
