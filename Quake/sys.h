@@ -112,6 +112,10 @@ qboolean	Sys_GetGOGQuakeEnhancedDir (char *path, size_t pathsize);
 qboolean	Sys_GetEGSManifestDir (char *path, size_t pathsize);
 const char *Sys_GetEGSLauncherData (void); // Mem_Alloc'ed buffer, caller Mem_Frees
 
+// user dir of the official rerelease client (downloaded add-ons live there);
+// steamlibrary is only needed on Linux (proton prefix) and may be NULL
+qboolean Sys_GetNightdiveUserDir (char *path, size_t pathsize, const char *steamlibrary);
+
 //
 // system IO
 //

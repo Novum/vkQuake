@@ -382,9 +382,14 @@ extern searchpath_t *com_base_searchpaths;
 extern THREAD_LOCAL qfileofs_t com_filesize;
 struct cache_user_s;
 
+#define MAX_BASEDIRS 4
 extern char				com_basedir[MAX_OSPATH];
+extern char				com_basedirs[MAX_BASEDIRS][MAX_OSPATH]; // additional read-only content roots
+extern int				com_numbasedirs;
 extern char				com_gamedir[MAX_OSPATH];
 extern THREAD_LOCAL int file_from_pak; // global indicating that file came from a pak
+
+void COM_AddBaseDir (const char *dir);
 
 const char *COM_GetGameNames (qboolean full);
 qboolean	COM_GameDirMatches (const char *tdirs);

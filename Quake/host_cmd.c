@@ -245,90 +245,55 @@ static void Host_Maps_f (void)
 
 filelist_item_t *modlist;
 
-static void Modlist_Add (const char *name)
+static void Modlist_Add (const char *base, const char *name)
 {
-	struct stat maps_info;
 	if ((strlen (name) == 3) && (q_tolower (name[0]) == 'i') && (q_tolower (name[1]) == 'd') && (name[2] == '1'))
 		return;
 	if (COM_ModForbiddenChars (name))
 		return;
-	char pak_path[MAX_OSPATH];
-	char progs_path[MAX_OSPATH];
-	char csprogs_path[MAX_OSPATH];
-	char maps_path[MAX_OSPATH];
-	q_snprintf (pak_path, sizeof (pak_path), "%s/%s/pak0.pak", com_basedir, name);
-	q_snprintf (progs_path, sizeof (progs_path), "%s/%s/progs.dat", com_basedir, name);
-	q_snprintf (csprogs_path, sizeof (csprogs_path), "%s/%s/csprogs.dat", com_basedir, name);
-	q_snprintf (maps_path, sizeof (maps_path), "%s/%s/maps", com_basedir, name);
-	FILE *pak_file = fopen (pak_path, "rb");
-	FILE *progs_file = fopen (progs_path, "rb");
-	FILE *csprogs_file = fopen (csprogs_path, "rb");
-	if (pak_file || progs_file || csprogs_file || (stat (maps_path, &maps_info) == 0 && maps_info.st_mode & S_IFDIR))
-		FileList_Add (name, &modlist);
-	if (pak_file)
-		fclose (pak_file);
-	if (progs_file)
-		fclose (progs_file);
-	if (csprogs_file)
-		fclose (csprogs_file);
-}
-
-#ifdef _WIN32
-void Modlist_Init (void)
-{
-	WIN32_FIND_DATA fdat;
-	HANDLE			fhnd;
-	DWORD			attribs;
-	char			dir_string[MAX_OSPATH], mod_string[MAX_OSPATH];
-
-	q_snprintf (dir_string, sizeof (dir_string), "%s/*", com_basedir);
-	fhnd = FindFirstFile (dir_string, &fdat);
-	if (fhnd == INVALID_HANDLE_VALUE)
-		return;
-
-	do
+	char path[MAX_OSPATH];
+	q_snprintf (path, sizeof (path), "%s/%s/pak0.pak", base, name);
+	if (Sys_FileType (path) != FS_ENT_FILE)
 	{
-		if (!strcmp (fdat.cFileName, ".") || !strcmp (fdat.cFileName, ".."))
-			continue;
-		q_snprintf (mod_string, sizeof (mod_string), "%s/%s", com_basedir, fdat.cFileName);
-		attribs = GetFileAttributes (mod_string);
-		if (attribs != INVALID_FILE_ATTRIBUTES && (attribs & FILE_ATTRIBUTE_DIRECTORY))
+		q_snprintf (path, sizeof (path), "%s/%s/progs.dat", base, name);
+		if (Sys_FileType (path) != FS_ENT_FILE)
 		{
-			Modlist_Add (fdat.cFileName);
+			q_snprintf (path, sizeof (path), "%s/%s/csprogs.dat", base, name);
+			if (Sys_FileType (path) != FS_ENT_FILE)
+			{
+				q_snprintf (path, sizeof (path), "%s/%s/maps", base, name);
+				if (Sys_FileType (path) != FS_ENT_DIRECTORY)
+					return;
+			}
 		}
-	} while (FindNextFile (fhnd, &fdat));
-
-	FindClose (fhnd);
+	}
+	FileList_Add (name, &modlist);
 }
-#else
+
+static void Modlist_AddRoot (const char *base)
+{
+	findfile_t *find;
+
+	for (find = Sys_FindFirst (base, NULL); find; find = Sys_FindNext (find))
+	{
+		if (!(find->attribs & FA_DIRECTORY))
+			continue;
+		if (!strcmp (find->name, ".") || !strcmp (find->name, ".."))
+			continue;
+		if (!q_strcasecmp (COM_FileGetExtension (find->name), "app")) // skip .app bundles on macOS
+			continue;
+		Modlist_Add (base, find->name);
+	}
+}
+
 void Modlist_Init (void)
 {
-	DIR			  *dir_p, *mod_dir_p;
-	struct dirent *dir_t;
-	char		   dir_string[MAX_OSPATH], mod_string[MAX_OSPATH];
+	int i;
 
-	q_snprintf (dir_string, sizeof (dir_string), "%s/", com_basedir);
-	dir_p = opendir (dir_string);
-	if (dir_p == NULL)
-		return;
-
-	while ((dir_t = readdir (dir_p)) != NULL)
-	{
-		if (!strcmp (dir_t->d_name, ".") || !strcmp (dir_t->d_name, ".."))
-			continue;
-		if (!q_strcasecmp (COM_FileGetExtension (dir_t->d_name), "app")) // skip .app bundles on macOS
-			continue;
-		q_snprintf (mod_string, sizeof (mod_string), "%s%s/", dir_string, dir_t->d_name);
-		mod_dir_p = opendir (mod_string);
-		if (mod_dir_p == NULL)
-			continue;
-		Modlist_Add (dir_t->d_name);
-		closedir (mod_dir_p);
-	}
-
-	closedir (dir_p);
+	Modlist_AddRoot (com_basedir);
+	for (i = 0; i < com_numbasedirs; i++)
+		Modlist_AddRoot (com_basedirs[i]);
 }
-#endif
 
 //==============================================================================
 // ericw -- demo list management

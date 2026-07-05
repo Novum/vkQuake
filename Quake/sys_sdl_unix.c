@@ -158,6 +158,16 @@ qboolean Sys_GetSteamAPILibraryPath (char *path, size_t pathsize, const steamgam
 	return result;
 }
 
+qboolean Sys_GetNightdiveUserDir (char *path, size_t pathsize, const char *steamlibrary)
+{
+	const char *fmt = "%s/steamapps/compatdata/%d/pfx/drive_c/users/steamuser/Saved Games/Nightdive Studios/Quake";
+
+	if (!steamlibrary)
+		return false;
+
+	return (size_t)q_snprintf (path, pathsize, fmt, steamlibrary, QUAKE_STEAM_APPID) < pathsize;
+}
+
 qboolean Sys_GetGOGQuakeDir (char *path, size_t pathsize)
 {
 	return false;

@@ -192,6 +192,12 @@ qboolean Sys_GetSteamAPILibraryPath (char *path, size_t pathsize, const steamgam
 #endif
 }
 
+qboolean Sys_GetNightdiveUserDir (char *path, size_t pathsize, const char *steamlibrary)
+{
+	(void)steamlibrary; // same location for Steam and GOG on Windows
+	return Sys_GetKnownFolder (&FOLDERID_SavedGames, "\\Nightdive Studios\\Quake", path, pathsize);
+}
+
 qboolean Sys_GetEGSManifestDir (char *path, size_t pathsize)
 {
 	return Sys_GetKnownFolder (&FOLDERID_ProgramData, "\\Epic\\EpicGamesLauncher\\Data\\Manifests", path, pathsize);

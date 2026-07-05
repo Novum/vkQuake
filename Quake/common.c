@@ -1895,7 +1895,24 @@ typedef struct
 char			 com_gamenames[1024]; // eg: "hipnotic;quoth;warp" ... no id1
 char			 com_gamedir[MAX_OSPATH];
 char			 com_basedir[MAX_OSPATH];
+char			 com_basedirs[MAX_BASEDIRS][MAX_OSPATH]; // additional read-only content roots, e.g. the Nightdive add-on dir
+int				 com_numbasedirs;
 THREAD_LOCAL int file_from_pak; // ZOID: global indicating that file came from a pak
+
+/*
+=================
+COM_AddBaseDir
+
+Registers an additional read-only content root; game directories are
+looked up in all roots, with the main basedir taking precedence
+=================
+*/
+void COM_AddBaseDir (const char *dir)
+{
+	if (com_numbasedirs == MAX_BASEDIRS)
+		Sys_Error ("COM_AddBaseDir: too many base directories");
+	q_strlcpy (com_basedirs[com_numbasedirs++], dir, sizeof (com_basedirs[0]));
+}
 
 searchpath_t *com_searchpaths;
 searchpath_t *com_base_searchpaths;
@@ -2430,43 +2447,16 @@ qboolean COM_GameDirMatches (const char *tdirs)
 COM_AddGameDirectory -- johnfitz -- modified based on topaz's tutorial
 =================
 */
-static void COM_AddGameDirectory (const char *dir)
+static void COM_AddGameDirectoryRoot (const char *base, const char *dir, unsigned int path_id, qboolean add_embedded)
 {
-	const char	 *base = com_basedir;
 	int			  i, packhandle;
-	unsigned int  path_id;
 	searchpath_t *search;
 	pack_t		 *pak;
 	char		  pakfile[MAX_OSPATH];
-	qboolean	  been_here = false;
 	static byte	 *vkquake_pak_extracted;
-
-	if (*com_gamenames)
-		q_strlcat (com_gamenames, ";", sizeof (com_gamenames));
-	q_strlcat (com_gamenames, dir, sizeof (com_gamenames));
-
-	// quakespasm enables mission pack flags automatically,
-	// so e.g. -game rogue works without breaking the hud
-	if (!q_strcasecmp (dir, "rogue"))
-	{
-		rogue = true;
-		standard_quake = false;
-	}
-	if (!q_strcasecmp (dir, "hipnotic") || !q_strcasecmp (dir, "quoth"))
-	{
-		hipnotic = true;
-		standard_quake = false;
-	}
 
 	q_strlcpy (com_gamedir, va ("%s/%s", base, dir), sizeof (com_gamedir));
 
-	// assign a path_id to this game directory
-	if (com_searchpaths)
-		path_id = com_searchpaths->path_id << 1;
-	else
-		path_id = 1U;
-
-_add_path:
 	// add the directory to the search path
 	search = (searchpath_t *)Mem_Alloc (sizeof (searchpath_t));
 	search->path_id = path_id;
@@ -2492,7 +2482,7 @@ _add_path:
 			com_searchpaths = search;
 		}
 
-		if ((i == 0) && (path_id == 1) && !fitzmode)
+		if ((i == 0) && (path_id == 1) && add_embedded && !fitzmode)
 		{
 			size_t vkquake_pak_size_compressed = vkquake_pak_size, vkquake_pak_size_extracted = vkquake_pak_decompressed_size;
 			if (!vkquake_pak_extracted)
@@ -2523,13 +2513,53 @@ _add_path:
 		if (!pak)
 			break;
 	}
+}
 
-	if (!been_here && host_parms->userdir != host_parms->basedir)
+static void COM_AddGameDirectory (const char *dir)
+{
+	int			 i;
+	unsigned int path_id;
+	char		 path[MAX_OSPATH];
+
+	if (*com_gamenames)
+		q_strlcat (com_gamenames, ";", sizeof (com_gamenames));
+	q_strlcat (com_gamenames, dir, sizeof (com_gamenames));
+
+	// quakespasm enables mission pack flags automatically,
+	// so e.g. -game rogue works without breaking the hud
+	if (!q_strcasecmp (dir, "rogue"))
 	{
-		been_here = true;
-		q_strlcpy (com_gamedir, va ("%s/%s", host_parms->userdir, dir), sizeof (com_gamedir));
-		Sys_mkdir (com_gamedir);
-		goto _add_path;
+		rogue = true;
+		standard_quake = false;
+	}
+	if (!q_strcasecmp (dir, "hipnotic") || !q_strcasecmp (dir, "quoth"))
+	{
+		hipnotic = true;
+		standard_quake = false;
+	}
+
+	// assign a path_id to this game directory; all roots share it
+	if (com_searchpaths)
+		path_id = com_searchpaths->path_id << 1;
+	else
+		path_id = 1U;
+
+	// extra basedirs first so the main basedir takes precedence on conflicts
+	for (i = com_numbasedirs - 1; i >= 0; i--)
+	{
+		q_snprintf (path, sizeof (path), "%s/%s", com_basedirs[i], dir);
+		if (Sys_FileType (path) == FS_ENT_DIRECTORY)
+			COM_AddGameDirectoryRoot (com_basedirs[i], dir, path_id, false);
+	}
+
+	COM_AddGameDirectoryRoot (com_basedir, dir, path_id, true);
+
+	// the userdir overrides everything and is where new files are written
+	if (host_parms->userdir != host_parms->basedir)
+	{
+		q_strlcpy (path, va ("%s/%s", host_parms->userdir, dir), sizeof (path));
+		Sys_mkdir (path);
+		COM_AddGameDirectoryRoot (host_parms->userdir, dir, path_id, false);
 	}
 }
 
@@ -2825,6 +2855,40 @@ static void COM_InitSteamAPI (void)
 
 /*
 =================
+COM_MountNightdiveUserDir
+
+The official rerelease client downloads add-ons into its user dir
+(e.g. Saved Games/Nightdive Studios/Quake); mount it as an extra
+content root so they show up in the mods menu (like Ironwail does)
+=================
+*/
+static void COM_MountNightdiveUserDir (void)
+{
+	steamgame_t steamquake;
+	char		path[MAX_OSPATH];
+	const char *steamlibrary = NULL;
+
+	if (COM_CheckParm ("-nonightdive"))
+		return;
+
+	// only relevant when running rerelease data
+	if ((size_t)q_snprintf (path, sizeof (path), "%s/QuakeEX.kpf", com_basedir) >= sizeof (path) || Sys_FileType (path) != FS_ENT_FILE)
+		return;
+
+	if (!COM_CheckParm ("-nosteam") && Steam_FindGame (&steamquake, QUAKE_STEAM_APPID))
+		steamlibrary = steamquake.library;
+
+	if (!Sys_GetNightdiveUserDir (path, sizeof (path), steamlibrary))
+		return;
+	if (Sys_FileType (path) != FS_ENT_DIRECTORY || COM_IsPathPrefix (path, com_basedir))
+		return;
+
+	COM_AddBaseDir (path);
+	Sys_Printf ("Mounted Nightdive add-on dir %s\n", path);
+}
+
+/*
+=================
 COM_InitFilesystem
 =================
 */
@@ -2858,6 +2922,8 @@ void COM_InitFilesystem (void) // johnfitz -- modified based on topaz's tutorial
 	// achievements/rich presence if the game data comes from the Steam install,
 	// no matter whether it was found by detection, -basedir or the working directory
 	COM_InitSteamAPI ();
+
+	COM_MountNightdiveUserDir ();
 
 	i = COM_CheckParmNext (i, "-basegame");
 	if (i)
