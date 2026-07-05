@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "arch_def.h"
 #include "quakedef.h"
+#include "steam.h"
 
 #include <sys/types.h>
 #include <errno.h>
@@ -36,9 +37,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <fcntl.h>
-#ifdef DO_USERDIRS
+#include <dirent.h>
 #include <pwd.h>
-#endif
 
 #if defined(PLATFORM_UNIX) && !defined(PLATFORM_OSX) && !defined(PLATFORM_BSD) && !defined(TASK_AFFINITY_NOT_AVAILABLE)
 #include <sched.h>
@@ -77,6 +77,151 @@ int Sys_FileType (const char *path)
 		return FS_ENT_FILE;
 
 	return FS_ENT_NONE;
+}
+
+/*
+==============================================================================
+STORE INSTALL LOCATIONS (from Ironwail)
+==============================================================================
+*/
+
+qboolean Sys_GetSteamDir (char *path, size_t pathsize)
+{
+	const char	  *home_dir = NULL;
+	struct passwd *pwent;
+
+	pwent = getpwuid (getuid ());
+	if (pwent == NULL)
+		perror ("getpwuid");
+	else
+		home_dir = pwent->pw_dir;
+	if (home_dir == NULL)
+		home_dir = getenv ("HOME");
+	if (home_dir == NULL)
+		return false;
+
+	if ((size_t)q_snprintf (path, pathsize, "%s/.steam/steam", home_dir) < pathsize && Steam_IsValidPath (path))
+		return true;
+	if ((size_t)q_snprintf (path, pathsize, "%s/.local/share/Steam", home_dir) < pathsize && Steam_IsValidPath (path))
+		return true;
+	if ((size_t)q_snprintf (path, pathsize, "%s/.var/app/com.valvesoftware.Steam/.steam/steam", home_dir) < pathsize && Steam_IsValidPath (path))
+		return true;
+	if ((size_t)q_snprintf (path, pathsize, "%s/.var/app/com.valvesoftware.Steam/.local/share/Steam", home_dir) < pathsize && Steam_IsValidPath (path))
+		return true;
+
+	return false;
+}
+
+qboolean Sys_GetGOGQuakeDir (char *path, size_t pathsize)
+{
+	return false;
+}
+
+qboolean Sys_GetGOGQuakeEnhancedDir (char *path, size_t pathsize)
+{
+	return false;
+}
+
+qboolean Sys_GetEGSManifestDir (char *path, size_t pathsize)
+{
+	return false;
+}
+
+const char *Sys_GetEGSLauncherData (void)
+{
+	return NULL;
+}
+
+/*
+==============================================================================
+DIRECTORY ENUMERATION (from Ironwail)
+==============================================================================
+*/
+
+typedef struct unixfindfile_s
+{
+	findfile_t	   base;
+	DIR			  *handle;
+	struct dirent *data;
+	char		   filter[8];
+} unixfindfile_t;
+
+static void Sys_FillFindData (unixfindfile_t *find)
+{
+	q_strlcpy (find->base.name, find->data->d_name, sizeof (find->base.name));
+	find->base.attribs = 0;
+	if (find->data->d_type & DT_DIR)
+		find->base.attribs |= FA_DIRECTORY;
+}
+
+static struct dirent *readdir_filtered (DIR *handle, const char *ext)
+{
+	while (1)
+	{
+		struct dirent *data = readdir (handle);
+		if (!data || ext[0] == '*' || !strcmp (ext, COM_FileGetExtension (data->d_name)))
+			return data;
+	}
+	return NULL;
+}
+
+findfile_t *Sys_FindFirst (const char *dir, const char *ext)
+{
+	unixfindfile_t *ret;
+	DIR			   *handle;
+	struct dirent  *data;
+
+	if (!ext)
+		ext = "*";
+	else if (*ext == '.')
+		++ext;
+
+	if (strlen (ext) >= countof (ret->filter))
+		Sys_Error ("Sys_FindFirst: extension too long '%s'", ext);
+
+	handle = opendir (dir);
+	if (!handle)
+		return NULL;
+
+	data = readdir_filtered (handle, ext);
+	if (!data)
+	{
+		closedir (handle);
+		return NULL;
+	}
+
+	ret = (unixfindfile_t *)Mem_Alloc (sizeof (unixfindfile_t));
+	if (!ret)
+		Sys_Error ("Sys_FindFirst: out of memory");
+	ret->handle = handle;
+	ret->data = data;
+	q_strlcpy (ret->filter, ext, sizeof (ret->filter));
+	Sys_FillFindData (ret);
+
+	return (findfile_t *)ret;
+}
+
+findfile_t *Sys_FindNext (findfile_t *find)
+{
+	unixfindfile_t *ufind = (unixfindfile_t *)find;
+	ufind->data = readdir_filtered (ufind->handle, ufind->filter);
+	if (!ufind->data)
+	{
+		Sys_FindClose (find);
+		return NULL;
+	}
+	Sys_FillFindData (ufind);
+	return find;
+}
+
+void Sys_FindClose (findfile_t *find)
+{
+	if (find)
+	{
+		unixfindfile_t *ufind = (unixfindfile_t *)find;
+		closedir (ufind->handle);
+		Mem_Free (ufind);
+	}
 }
 
 static char cwd[MAX_OSPATH];

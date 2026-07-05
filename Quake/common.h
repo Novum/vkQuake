@@ -256,6 +256,9 @@ char *q_strcasestr (const char *haystack, const char *needle);
 char *q_strlwr (char *str);
 char *q_strupr (char *str);
 
+/* writes the UTF-8 encoding of the code point; returns bytes written (up to 4) or 0 on error */
+size_t UTF8_WriteCodePoint (char *dst, size_t maxbytes, uint32_t codepoint);
+
 /* Trim whitespace on both ends, modifying str on-place: Returns the new start of str after trim */
 char *q_strtrim (char *str);
 

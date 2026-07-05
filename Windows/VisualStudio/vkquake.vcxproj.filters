@@ -217,6 +217,12 @@
     <ClCompile Include="..\..\Quake\image.c">
       <Filter>Main</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Quake\json.c">
+      <Filter>Main</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\steam.c">
+      <Filter>Main</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\Quake\in_sdl.c">
       <Filter>Main</Filter>
     </ClCompile>

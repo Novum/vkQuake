@@ -83,6 +83,36 @@ void Sys_mkdir (const char *path);
 int Sys_FileType (const char *path);
 
 //
+// directory enumeration (from Ironwail)
+//
+typedef enum
+{
+	FA_DIRECTORY = 1,
+} fileattribs_t;
+
+typedef struct findfile_s
+{
+	fileattribs_t attribs;
+	char		  name[MAX_OSPATH];
+} findfile_t;
+
+findfile_t *Sys_FindFirst (const char *dir, const char *ext);
+findfile_t *Sys_FindNext (findfile_t *find);
+
+// Only needs to be called manually when breaking out of the loop,
+// otherwise the last Sys_FindNext will also close the handle
+void Sys_FindClose (findfile_t *find);
+
+//
+// store install locations (from Ironwail); all return false/NULL when not found
+//
+qboolean	Sys_GetSteamDir (char *path, size_t pathsize);
+qboolean	Sys_GetGOGQuakeDir (char *path, size_t pathsize);
+qboolean	Sys_GetGOGQuakeEnhancedDir (char *path, size_t pathsize);
+qboolean	Sys_GetEGSManifestDir (char *path, size_t pathsize);
+const char *Sys_GetEGSLauncherData (void); // Mem_Alloc'ed buffer, caller Mem_Frees
+
+//
 // system IO
 //
 FUNC_NORETURN void Sys_Quit (void);

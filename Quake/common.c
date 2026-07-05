@@ -27,6 +27,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "q_ctype.h"
 #include "filenames.h"
+#include "steam.h"
 #include <errno.h>
 
 // Plug our allocators into miniz:
@@ -350,6 +351,59 @@ char *q_strupr (char *str)
 		c++;
 	}
 	return str;
+}
+
+/*
+==================
+UTF8_WriteCodePoint
+
+Writes the UTF-8 encoding of the given code point.
+Returns the number of bytes written (up to 4),
+or 0 on error (overflow or invalid code point)
+==================
+*/
+size_t UTF8_WriteCodePoint (char *dst, size_t maxbytes, uint32_t codepoint)
+{
+	if (!maxbytes)
+		return 0;
+
+	if (codepoint < 0x80)
+	{
+		dst[0] = (char)codepoint;
+		return 1;
+	}
+
+	if (codepoint < 0x800)
+	{
+		if (maxbytes < 2)
+			return 0;
+		dst[0] = 0xC0 | (codepoint >> 6);
+		dst[1] = 0x80 | (codepoint & 63);
+		return 2;
+	}
+
+	if (codepoint < 0x10000)
+	{
+		if (maxbytes < 3)
+			return 0;
+		dst[0] = 0xE0 | (codepoint >> 12);
+		dst[1] = 0x80 | ((codepoint >> 6) & 63);
+		dst[2] = 0x80 | (codepoint & 63);
+		return 3;
+	}
+
+	if (codepoint < 0x110000)
+	{
+		if (maxbytes < 4)
+			return 0;
+		dst[0] = 0xF0 | (codepoint >> 18);
+		dst[1] = 0x80 | ((codepoint >> 12) & 63);
+		dst[2] = 0x80 | ((codepoint >> 6) & 63);
+		dst[3] = 0x80 | (codepoint & 63);
+		return 4;
+	}
+
+	return 0;
 }
 
 char *q_strtrim (char *str)
@@ -2631,6 +2685,101 @@ static void COM_Game_f (void)
 
 /*
 =================
+COM_IsValidBaseDir
+
+Returns true if the directory contains usable game data:
+either classic id1/pak0.pak or the rerelease QuakeEX.kpf
+=================
+*/
+static qboolean COM_IsValidBaseDir (const char *dir)
+{
+	char path[MAX_OSPATH];
+
+	if ((size_t)q_snprintf (path, sizeof (path), "%s/" GAMENAME "/pak0.pak", dir) < sizeof (path) && Sys_FileType (path) == FS_ENT_FILE)
+		return true;
+	if ((size_t)q_snprintf (path, sizeof (path), "%s/QuakeEX.kpf", dir) < sizeof (path) && Sys_FileType (path) == FS_ENT_FILE)
+		return true;
+
+	return false;
+}
+
+/*
+=================
+COM_FindStoreBaseDir
+
+Locates a Steam/GOG/Epic Games Store install of Quake and points
+com_basedir at it (based on the Ironwail startup flow). Used when
+the working directory has no game data and no -basedir was given.
+=================
+*/
+static void COM_FindStoreBaseDir (void)
+{
+	steamgame_t	  steamquake;
+	char		  original[MAX_OSPATH] = {0};
+	char		  remastered[MAX_OSPATH] = {0};
+	quakeflavor_t flavor;
+	qboolean	  force_steam = COM_CheckParm ("-steam") != 0;
+	qboolean	  force_gog = COM_CheckParm ("-gog") != 0;
+	qboolean	  force_egs = (COM_CheckParm ("-egs") || COM_CheckParm ("-epic")) != 0;
+	qboolean	  forced = force_steam || force_gog || force_egs;
+
+	if ((!forced || force_steam) && !COM_CheckParm ("-nosteam"))
+	{
+		if (Steam_FindGame (&steamquake, QUAKE_STEAM_APPID) && Steam_ResolvePath (original, sizeof (original), &steamquake))
+		{
+			if ((size_t)q_snprintf (remastered, sizeof (remastered), "%s/rerelease", original) >= sizeof (remastered))
+				remastered[0] = '\0';
+		}
+	}
+
+	if ((!forced || force_gog) && !COM_CheckParm ("-nogog"))
+	{
+		if (!original[0] && !Sys_GetGOGQuakeDir (original, sizeof (original)))
+			original[0] = '\0';
+		if (!remastered[0] && !Sys_GetGOGQuakeEnhancedDir (remastered, sizeof (remastered)))
+			remastered[0] = '\0';
+	}
+
+	if ((!forced || force_egs) && !COM_CheckParm ("-noegs") && !COM_CheckParm ("-noepic"))
+	{
+		if (!remastered[0] && !EGS_FindGame (remastered, sizeof (remastered), QUAKE_EGS_NAMESPACE, QUAKE_EGS_ITEM_ID, QUAKE_EGS_APP_NAME))
+			remastered[0] = '\0';
+	}
+
+	if (original[0] && !COM_IsValidBaseDir (original))
+		original[0] = '\0';
+	if (remastered[0] && !COM_IsValidBaseDir (remastered))
+		remastered[0] = '\0';
+
+	if (!original[0] && !remastered[0])
+	{
+		if (force_steam)
+			Sys_Error ("Couldn't find Steam Quake");
+		if (force_gog)
+			Sys_Error ("Couldn't find GOG Quake");
+		if (force_egs)
+			Sys_Error ("Couldn't find Epic Games Store Quake");
+		return; // fall through to the regular missing-data error
+	}
+
+	if (original[0] && remastered[0])
+	{
+		if (COM_CheckParm ("-prefremaster") || COM_CheckParm ("-remaster") || COM_CheckParm ("-remastered"))
+			flavor = QUAKE_FLAVOR_REMASTERED;
+		else if (COM_CheckParm ("-preforiginal") || COM_CheckParm ("-original"))
+			flavor = QUAKE_FLAVOR_ORIGINAL;
+		else
+			flavor = ChooseQuakeFlavor ();
+	}
+	else
+		flavor = remastered[0] ? QUAKE_FLAVOR_REMASTERED : QUAKE_FLAVOR_ORIGINAL;
+
+	q_strlcpy (com_basedir, (flavor == QUAKE_FLAVOR_REMASTERED) ? remastered : original, sizeof (com_basedir));
+	Sys_Printf ("Using Quake data from %s\n", com_basedir);
+}
+
+/*
+=================
 COM_InitFilesystem
 =================
 */
@@ -2655,6 +2804,11 @@ void COM_InitFilesystem (void) // johnfitz -- modified based on topaz's tutorial
 		Sys_Error ("Bad argument to -basedir");
 	if ((com_basedir[j - 1] == '\\') || (com_basedir[j - 1] == '/'))
 		com_basedir[j - 1] = 0;
+
+	// no explicit -basedir: run store detection if the working directory has no
+	// game data, or if a store version was requested explicitly on the command line
+	if (!i && (!COM_IsValidBaseDir (com_basedir) || COM_CheckParm ("-steam") || COM_CheckParm ("-gog") || COM_CheckParm ("-egs") || COM_CheckParm ("-epic")))
+		COM_FindStoreBaseDir ();
 
 	i = COM_CheckParmNext (i, "-basegame");
 	if (i)

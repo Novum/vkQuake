@@ -169,6 +169,7 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClCompile Include="..\..\Quake\host.c" />
     <ClCompile Include="..\..\Quake\host_cmd.c" />
     <ClCompile Include="..\..\Quake\image.c" />
+    <ClCompile Include="..\..\Quake\json.c" />
     <ClCompile Include="..\..\Quake\in_sdl.c" />
     <ClCompile Include="..\..\Quake\in_sdl2.c" />
     <ClCompile Include="..\..\Quake\keys.c" />
@@ -225,6 +226,7 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClCompile Include="..\..\Quake\snd_umx.c" />
     <ClCompile Include="..\..\Quake\snd_vorbis.c" />
     <ClCompile Include="..\..\Quake\snd_wave.c" />
+    <ClCompile Include="..\..\Quake\steam.c" />
     <ClCompile Include="..\..\Quake\snd_xmp.c" />
     <ClCompile Include="..\..\Quake\strlcat.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
@@ -863,6 +865,8 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClInclude Include="..\..\Quake\gl_warp_sin.h" />
     <ClInclude Include="..\..\Quake\hash_map.h" />
     <ClInclude Include="..\..\Quake\image.h" />
+    <ClInclude Include="..\..\Quake\jsmn.h" />
+    <ClInclude Include="..\..\Quake\json.h" />
     <ClInclude Include="..\..\Quake\input.h" />
     <ClInclude Include="..\..\Quake\keys.h" />
     <ClInclude Include="..\..\Quake\mathlib.h" />
@@ -905,6 +909,7 @@ copy "$(SolutionDir)\..\SDL2\lib64\*.dll" "$(TargetDir)"</Command>
     <ClInclude Include="..\..\Quake\snd_xmp.h" />
     <ClInclude Include="..\..\Quake\spritegn.h" />
     <ClInclude Include="..\..\Quake\strl_fn.h" />
+    <ClInclude Include="..\..\Quake\steam.h" />
     <ClInclude Include="..\..\Quake\sys.h" />
     <ClInclude Include="..\..\Quake\tasks.h" />
     <ClInclude Include="..\..\Quake\vid.h" />

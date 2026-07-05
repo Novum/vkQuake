@@ -28,6 +28,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #endif
 #include <windows.h>
 #include <mmsystem.h>
+#include <shlobj.h>
+#include <objbase.h>
 
 #include <sys/types.h>
 #include <errno.h>
@@ -51,6 +53,286 @@ int Sys_FileType (const char *path)
 		return FS_ENT_DIRECTORY;
 
 	return FS_ENT_FILE;
+}
+
+static void UTF8ToWideString (const char *src, wchar_t *dst, size_t maxchars)
+{
+	if (!MultiByteToWideChar (CP_UTF8, 0, src, -1, dst, (int)maxchars))
+		Sys_Error ("MultiByteToWideChar failed: %lu", GetLastError ());
+}
+
+static void WideStringToUTF8 (const wchar_t *src, char *dst, size_t maxbytes)
+{
+	if (!WideCharToMultiByte (CP_UTF8, 0, src, -1, dst, (int)maxbytes, NULL, NULL))
+		Sys_Error ("WideCharToMultiByte failed: %lu", GetLastError ());
+}
+
+/*
+==============================================================================
+STORE INSTALL LOCATIONS (from Ironwail)
+==============================================================================
+*/
+
+static qboolean Sys_GetRegistryString (HKEY root, const wchar_t *dir, const wchar_t *keyname, char *out, size_t maxchars)
+{
+	LSTATUS err;
+	HKEY	key;
+	WCHAR	wpath[MAX_PATH + 1];
+	DWORD	size, type;
+
+	if (!maxchars)
+		return false;
+	*out = 0;
+
+	err = RegOpenKeyExW (root, dir, 0, KEY_READ, &key);
+	if (err != ERROR_SUCCESS)
+		return false;
+
+	// Note: string might not contain a terminating null character
+	// https://docs.microsoft.com/en-us/windows/win32/api/winreg/nf-winreg-regqueryvalueexw#remarks
+
+	err = RegQueryValueExW (key, keyname, NULL, &type, NULL, &size);
+	if (err != ERROR_SUCCESS || type != REG_SZ || size > sizeof (wpath) - sizeof (wpath[0]))
+	{
+		RegCloseKey (key);
+		return false;
+	}
+
+	err = RegQueryValueExW (key, keyname, NULL, &type, (BYTE *)wpath, &size);
+	RegCloseKey (key);
+	if (err != ERROR_SUCCESS || type != REG_SZ)
+		return false;
+
+	wpath[size / sizeof (wpath[0])] = 0;
+
+	if (WideCharToMultiByte (CP_UTF8, 0, wpath, -1, out, (int)maxchars, NULL, NULL) != 0)
+		return true;
+	*out = 0;
+	return false;
+}
+
+qboolean Sys_GetSteamDir (char *path, size_t pathsize)
+{
+	return Sys_GetRegistryString (HKEY_CURRENT_USER, L"Software\\Valve\\Steam", L"SteamPath", path, pathsize);
+}
+
+static qboolean Sys_StripTrailingSlashes (char *path)
+{
+	size_t i = strlen (path);
+	while (i > 0 && (path[i - 1] == '\\' || path[i - 1] == '/'))
+		path[--i] = 0;
+	return i > 0;
+}
+
+qboolean Sys_GetGOGQuakeDir (char *path, size_t pathsize)
+{
+	if (!Sys_GetRegistryString (HKEY_LOCAL_MACHINE, L"SOFTWARE\\Wow6432Node\\GOG.com\\Games\\1435828198", L"path", path, pathsize))
+		return false;
+
+	return Sys_StripTrailingSlashes (path);
+}
+
+qboolean Sys_GetGOGQuakeEnhancedDir (char *path, size_t pathsize)
+{
+	if (!Sys_GetRegistryString (HKEY_LOCAL_MACHINE, L"SOFTWARE\\Wow6432Node\\GOG.com\\Games\\1739637082", L"path", path, pathsize))
+		return false;
+
+	return Sys_StripTrailingSlashes (path);
+}
+
+// https://github.com/libsdl-org/SDL/blob/120c76c84bbce4c1bfed4e9eb74e10678bd83120/src/core/windows/SDL_windows.c#L88-L99
+static HRESULT Sys_InitCOM (void)
+{
+	HRESULT hr = CoInitializeEx (NULL, COINIT_APARTMENTTHREADED);
+	if (hr == RPC_E_CHANGED_MODE)
+		hr = CoInitializeEx (NULL, COINIT_MULTITHREADED);
+
+	/* S_FALSE means success, but someone else already initialized. */
+	/* You still need to call CoUninitialize in this case! */
+	if (hr == S_FALSE)
+		return S_OK;
+
+	return hr;
+}
+
+static qboolean Sys_GetKnownFolder (const KNOWNFOLDERID *base, const char *subdir, char *path, size_t pathsize)
+{
+	PWSTR	 wpath;
+	HRESULT	 hr;
+	qboolean ret;
+
+	hr = Sys_InitCOM ();
+	if (FAILED (hr))
+		return false;
+
+	hr = SHGetKnownFolderPath (base, 0, NULL, &wpath);
+	if (FAILED (hr))
+	{
+		CoUninitialize ();
+		return false;
+	}
+
+	ret = WideCharToMultiByte (CP_UTF8, 0, wpath, -1, path, (int)pathsize, NULL, NULL) != 0;
+	CoTaskMemFree (wpath);
+	CoUninitialize ();
+
+	return ret && (size_t)q_strlcat (path, subdir, pathsize) < pathsize;
+}
+
+qboolean Sys_GetEGSManifestDir (char *path, size_t pathsize)
+{
+	return Sys_GetKnownFolder (&FOLDERID_ProgramData, "\\Epic\\EpicGamesLauncher\\Data\\Manifests", path, pathsize);
+}
+
+const char *Sys_GetEGSLauncherData (void)
+{
+	char	path[MAX_OSPATH];
+	char   *buf;
+	FILE   *file;
+	int64_t filesize;
+	int		size;
+
+	if (!Sys_GetKnownFolder (&FOLDERID_ProgramData, "\\Epic\\UnrealEngineLauncher\\LauncherInstalled.dat", path, sizeof (path)))
+		return NULL;
+
+	file = fopen (path, "rb");
+	if (!file)
+		return NULL;
+
+	_fseeki64 (file, 0, SEEK_END);
+	filesize = _ftelli64 (file);
+	_fseeki64 (file, 0, SEEK_SET);
+
+	if (filesize < 2 || filesize > (1 << 30))
+	{
+		fclose (file);
+		return NULL;
+	}
+
+	size = (int)filesize;
+	buf = (char *)Mem_Alloc (size + 1);
+	if (!buf)
+	{
+		fclose (file);
+		return NULL;
+	}
+
+	if (fread (buf, size, 1, file) != 1)
+	{
+		Mem_Free (buf);
+		fclose (file);
+		return NULL;
+	}
+	buf[size] = '\0';
+
+	fclose (file);
+
+	// Convert to UTF-8 if needed
+	if ((byte)buf[0] == 0xff && (byte)buf[1] == 0xfe) // UTF-16 little-endian byte order mark
+	{
+		int	  size8;
+		char *buf8;
+
+		size8 = WideCharToMultiByte (CP_UTF8, 0, (WCHAR *)(buf + 2), size / 2 - 1, NULL, 0, NULL, NULL);
+		if (size8 <= 0)
+		{
+			Mem_Free (buf);
+			return NULL;
+		}
+
+		buf8 = (char *)Mem_Alloc (size8 + 1);
+		if (!buf8)
+		{
+			Mem_Free (buf);
+			return NULL;
+		}
+
+		if (WideCharToMultiByte (CP_UTF8, 0, (WCHAR *)(buf + 2), size / 2 - 1, buf8, size8, NULL, NULL) != size8)
+		{
+			Mem_Free (buf8);
+			Mem_Free (buf);
+			return NULL;
+		}
+		buf8[size8] = '\0';
+
+		Mem_Free (buf);
+		buf = buf8;
+	}
+
+	return buf;
+}
+
+/*
+==============================================================================
+DIRECTORY ENUMERATION (from Ironwail)
+==============================================================================
+*/
+
+typedef struct winfindfile_s
+{
+	findfile_t		 base;
+	WIN32_FIND_DATAW data;
+	HANDLE			 handle;
+} winfindfile_t;
+
+static void Sys_FillFindData (winfindfile_t *find)
+{
+	WideStringToUTF8 (find->data.cFileName, find->base.name, countof (find->base.name));
+	find->base.attribs = 0;
+	if (find->data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+		find->base.attribs |= FA_DIRECTORY;
+}
+
+findfile_t *Sys_FindFirst (const char *dir, const char *ext)
+{
+	winfindfile_t	*ret;
+	char			 pattern[MAX_OSPATH];
+	wchar_t			 wpattern[MAX_PATH];
+	HANDLE			 handle;
+	WIN32_FIND_DATAW data;
+
+	if (!ext)
+		ext = "*";
+	else if (*ext == '.')
+		++ext;
+	q_snprintf (pattern, sizeof (pattern), "%s/*.%s", dir, ext);
+
+	UTF8ToWideString (pattern, wpattern, countof (wpattern));
+	handle = FindFirstFileW (wpattern, &data);
+
+	if (handle == INVALID_HANDLE_VALUE)
+		return NULL;
+
+	ret = (winfindfile_t *)Mem_Alloc (sizeof (winfindfile_t));
+	if (!ret)
+		Sys_Error ("Sys_FindFirst: out of memory");
+	ret->handle = handle;
+	ret->data = data;
+	Sys_FillFindData (ret);
+
+	return (findfile_t *)ret;
+}
+
+findfile_t *Sys_FindNext (findfile_t *find)
+{
+	winfindfile_t *wfind = (winfindfile_t *)find;
+	if (!FindNextFileW (wfind->handle, &wfind->data))
+	{
+		Sys_FindClose (find);
+		return NULL;
+	}
+	Sys_FillFindData (wfind);
+	return find;
+}
+
+void Sys_FindClose (findfile_t *find)
+{
+	if (find)
+	{
+		winfindfile_t *wfind = (winfindfile_t *)find;
+		FindClose (wfind->handle);
+		Mem_Free (wfind);
+	}
 }
 
 static HANDLE hinput, houtput;
