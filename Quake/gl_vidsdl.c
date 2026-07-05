@@ -4537,6 +4537,11 @@ void VID_Init (void)
 	putenv (vid_center); /* SDL_putenv is problematic in versions <= 1.2.9 */
 
 #ifdef USE_SDL3
+#ifdef __APPLE__
+	// Disable MacOS Spaces to reclaim the notch screen space.
+	SDL_SetHint(SDL_HINT_VIDEO_MAC_FULLSCREEN_SPACES, "0");
+#endif
+
 	if (!SDL_InitSubSystem (SDL_INIT_VIDEO))
 		Sys_Error ("Couldn't init SDL video: %s", SDL_GetError ());
 
