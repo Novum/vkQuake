@@ -248,6 +248,8 @@ OBJS := strlcat.o \
 	crc.o \
 	cvar.o \
 	cfgfile.o \
+	json.o \
+	steam.o \
 	host.o \
 	host_cmd.o \
 	mathlib.o \
