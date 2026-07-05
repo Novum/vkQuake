@@ -3867,12 +3867,13 @@ static float r_avertexnormals[NUMVERTEXNORMALS][3] = {
 static vec2_t avelocities[NUMVERTEXNORMALS];
 #define BEAMLENGTH 16
 
+static void PScript_QueueDlight (int key, vec3_t org, float radius, float die, float decay, vec3_t rgb); // defined with the deferred queues
+
 static void PScript_EffectSpawned (part_type_t *ptype, vec3_t org, vec3_t axis[3], int dlkey, float countscale)
 {
 	if (ptype->dl_radius[0] || ptype->dl_radius[1]) // && r_rocketlight.value)
 	{
-		float	  radius;
-		dlight_t *dl;
+		float radius;
 
 		static int flickertime;
 		static int flicker;
@@ -3884,13 +3885,22 @@ static void PScript_EffectSpawned (part_type_t *ptype, vec3_t org, vec3_t axis[3
 		}
 		radius = ptype->dl_radius[0] + (r_lightflicker.value ? ((flicker + dlkey * 2000) & 0xffff) * (1.0f / 0xffff) : 0.5) * ptype->dl_radius[1];
 
-		dl = CL_AllocDlight (dlkey);
-		VectorCopy (org, dl->origin);
-		dl->radius = radius;
-		dl->minlight = 0;
-		dl->die = cl.time + ptype->dl_time;
-		dl->decay = ptype->dl_decay[3];
-		VectorCopy (ptype->dl_rgb, dl->color);
+		if (Tasks_IsWorker ())
+		{
+			// the deferred spawn drain runs inside the task graph, concurrently with
+			// tasks that read cl_dlights - queue for PScript_FlushDlightsTask instead
+			PScript_QueueDlight (dlkey, org, radius, cl.time + ptype->dl_time, ptype->dl_decay[3], ptype->dl_rgb);
+		}
+		else
+		{
+			dlight_t *dl = CL_AllocDlight (dlkey);
+			VectorCopy (org, dl->origin);
+			dl->radius = radius;
+			dl->minlight = 0;
+			dl->die = cl.time + ptype->dl_time;
+			dl->decay = ptype->dl_decay[3];
+			VectorCopy (ptype->dl_rgb, dl->color);
+		}
 	}
 	if (ptype->numsounds)
 	{
@@ -6266,6 +6276,16 @@ typedef struct deferred_decal_s
 	float		 scale;
 } deferred_decal_t;
 
+typedef struct deferred_dlight_s
+{
+	int	   key;
+	vec3_t org;
+	float  radius;
+	float  die;
+	float  decay;
+	vec3_t rgb;
+} deferred_dlight_t;
+
 typedef struct particle_update_s
 {
 	particle_t	*p;
@@ -6291,6 +6311,8 @@ typedef struct deferred_queues_s
 	int				   num_trails, max_trails;
 	deferred_decal_t  *decals;
 	int				   num_decals, max_decals;
+	deferred_dlight_t *dlights;
+	int				   num_dlights, max_dlights;
 } deferred_queues_t;
 
 static deferred_queues_t  deferred_queues[TASKS_MAX_WORKERS];
@@ -6332,6 +6354,51 @@ static void PScript_QueueDecal (part_type_t *type, int entity, vec3_t center, ve
 	VectorCopy (center, decal->center);
 	VectorCopy (normal, decal->normal);
 	decal->scale = scale;
+}
+
+static void PScript_QueueDlight (int key, vec3_t org, float radius, float die, float decay, vec3_t rgb)
+{
+	deferred_queues_t *queue = &deferred_queues[Tasks_GetWorkerIndex ()];
+	DEFERRED_PUSH (queue->dlights, queue->num_dlights, queue->max_dlights, deferred_dlight_t);
+	deferred_dlight_t *dl = &queue->dlights[queue->num_dlights++];
+	dl->key = key;
+	VectorCopy (org, dl->org);
+	dl->radius = radius;
+	dl->die = die;
+	dl->decay = decay;
+	VectorCopy (rgb, dl->rgb);
+}
+
+/*
+===============
+PScript_FlushDlightsTask
+
+Allocates the dlights queued by the previous frame's deferred effect spawns
+(which run inside the task graph, where writing cl_dlights would race with
+the tasks reading them). Scheduled at the start of the graph, before anything
+reads cl_dlights and before the next layout task refills the queues.
+===============
+*/
+void PScript_FlushDlightsTask (void *unused)
+{
+	for (int w = 0; w < TASKS_MAX_WORKERS; w++)
+	{
+		deferred_queues_t *queue = &deferred_queues[w];
+		for (int i = 0; i < queue->num_dlights; i++)
+		{
+			deferred_dlight_t *qdl = &queue->dlights[i];
+			if (qdl->die < cl.time)
+				continue;
+			dlight_t *dl = CL_AllocDlight (qdl->key);
+			VectorCopy (qdl->org, dl->origin);
+			dl->radius = qdl->radius;
+			dl->minlight = 0;
+			dl->die = qdl->die;
+			dl->decay = qdl->decay;
+			VectorCopy (qdl->rgb, dl->color);
+		}
+		queue->num_dlights = 0;
+	}
 }
 
 // small local RNG so the parallel update doesn't contend on (or require thread safety of) COM_Rand

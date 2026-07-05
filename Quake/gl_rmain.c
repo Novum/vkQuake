@@ -1166,6 +1166,13 @@ void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 		Task_AddDependency (begin_rendering_task, draw_alpha_entities_task);
 
 #ifdef PSET_SCRIPT
+		// dlights queued by last frame's deferred effect spawns; must run before
+		// anything reads cl_dlights and before layout refills the queues
+		task_handle_t flush_dlights_task = Task_AllocateAndAssignFunc (PScript_FlushDlightsTask, NULL, 0);
+		Task_AddDependency (flush_dlights_task, draw_view_model_task);
+		Task_AddDependency (flush_dlights_task, draw_entities_task);
+		Task_AddDependency (flush_dlights_task, draw_alpha_entities_task);
+
 		task_handle_t update_particles_setup_task = Task_AllocateAndAssignFunc (PScript_UpdateParticlesSetupTask, NULL, 0);
 		Task_AddDependency (before_mark, update_particles_setup_task);
 
@@ -1177,6 +1184,7 @@ void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 		task_handle_t layout_particles_task = Task_AllocateAndAssignFunc (PScript_LayoutParticlesTask, NULL, 0);
 		Task_AddDependency (update_particles_task, layout_particles_task);
 		Task_AddDependency (begin_rendering_task, layout_particles_task);
+		Task_AddDependency (flush_dlights_task, layout_particles_task);
 
 		task_handle_t emit_particles_task = Task_AllocateAndAssignIndexedFunc (PScript_EmitParticlesTask, Tasks_NumWorkers (), NULL, 0);
 		Task_AddDependency (layout_particles_task, emit_particles_task);
@@ -1199,6 +1207,9 @@ void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 		Task_AddDependency (cull_surfaces, update_lightmaps_task);
 		Task_AddDependency (draw_entities_task, update_lightmaps_task);
 		Task_AddDependency (draw_alpha_entities_task, update_lightmaps_task);
+#ifdef PSET_SCRIPT
+		Task_AddDependency (flush_dlights_task, update_lightmaps_task);
+#endif
 		Task_AddDependency (update_lightmaps_task, draw_done_task);
 
 		if (r_showtris.value)
@@ -1214,26 +1225,18 @@ void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 #endif
 		}
 
-		task_handle_t tasks[] = {
-			before_mark,
-			store_efrags,
-			update_warp_textures,
-			draw_world_task,
-			sort_transparents,
-			draw_sky_task,
-			draw_water_task,
-			draw_view_model_task,
-			draw_entities_task,
-			draw_alpha_entities_task,
+		task_handle_t tasks[] = {before_mark,			store_efrags,
+								 update_warp_textures,	draw_world_task,
+								 sort_transparents,		draw_sky_task,
+								 draw_water_task,		draw_view_model_task,
+								 draw_entities_task,	draw_alpha_entities_task,
 #ifdef PSET_SCRIPT
-			update_particles_setup_task,
-			update_particles_task,
-			layout_particles_task,
-			emit_particles_task,
+								 flush_dlights_task,	update_particles_setup_task,
+								 update_particles_task, layout_particles_task,
+								 emit_particles_task,
 #endif
-			draw_particles_task,
-			build_tlas_task,
-			update_lightmaps_task};
+								 draw_particles_task,	build_tlas_task,
+								 update_lightmaps_task};
 		Tasks_Submit ((sizeof (tasks) / sizeof (task_handle_t)), tasks);
 		if (cull_surfaces != chain_surfaces)
 		{
@@ -1253,6 +1256,7 @@ void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 		R_SortAlphaEntitiesTask (NULL);
 		R_DrawAlphaEntitiesTask (0, NULL);
 #ifdef PSET_SCRIPT
+		PScript_FlushDlightsTask (NULL); // no-op here (spawns run on the main thread), but keeps the queues drained across mode switches
 		PScript_UpdateParticlesSetupTask (NULL);
 		for (int pi = 0; pi < q_max (Tasks_NumWorkers (), 1); pi++)
 			PScript_UpdateParticlesTask (pi, NULL);

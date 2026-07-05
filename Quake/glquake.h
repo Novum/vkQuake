@@ -106,6 +106,8 @@ typedef struct particle_s
 #ifdef PSET_SCRIPT
 void PScript_InitParticles (void);
 void PScript_Shutdown (void);
+void PScript_FlushDlightsTask (void *unused);				// serial: dlights queued by last frame's deferred effect spawns; must
+															// run before anything reads cl_dlights and before the next layout
 void PScript_UpdateParticlesSetupTask (void *unused);		// serial: frame time step, rain spawns, kill + flatten live particles
 void PScript_UpdateParticlesTask (int index, void *unused); // indexed over the worker count: the parallel particle update
 void PScript_LayoutParticlesTask (void *unused);			// serial: batch creation and vertex range reservation, beams, decals
