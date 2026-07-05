@@ -111,6 +111,7 @@ qfilesize_t Sys_FileOpenRead (const char *path, int *hndl)
 
 	if (!f)
 	{
+		freeHandle (i);
 		*hndl = -1;
 		retval = -1;
 	}
