@@ -409,10 +409,9 @@ VID_SDL_GetDisplayMode
 Returns a pointer to a SDL_DisplayMode structure with the requested size.
 Returns NULL if the size is not available at all.
 
-SDL3: searches the display the window is on (or the primary display before
-the window exists) and picks the mode whose refresh rate is closest to the
-requested one, so a config carried over from another display or an SDL2
-build still works. SDL2 keeps the old exact match on the primary display.
+SDL3: searches the display the window is on (the primary display before the
+window exists) and picks the available mode with the closest refresh rate.
+SDL2: requires an exact refresh rate match on the primary display.
 
 This is passed to SDL_SetWindowFullscreenMode to specify a pixel format
 with the requested bpp. If we didn't care about bpp we could just pass NULL.

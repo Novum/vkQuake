@@ -25,8 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <stdio.h>
 
 #ifdef USE_SDL3
-// SDL3 has no SDL3main library; this header provides the WinMain shim
-// in the translation unit that defines main().
+// provides the WinMain shim; must be included in the file that defines main ()
 #include <SDL3/SDL_main.h>
 #endif
 

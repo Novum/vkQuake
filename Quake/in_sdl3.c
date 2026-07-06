@@ -126,9 +126,8 @@ void IN_SendKeyEvents (void)
 			S_BlockSound ();
 			VID_FocusLost ();
 			break;
-		// PIXEL_SIZE_CHANGED instead of RESIZED: data1/data2 are in pixels
-		// (vid.width/height are pixel sizes), and it also fires when only the
-		// display scale changes, e.g. when moving between monitors
+		// data1/data2 are in pixels, matching vid.width/height, and this also
+		// fires when only the display scale changes
 		case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED:
 			vid.width = event.window.data1;
 			vid.height = event.window.data2;
