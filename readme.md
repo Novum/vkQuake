@@ -119,8 +119,6 @@ cd vkQuake/Quake
 make -f Makefile.w64a
 ~~~
 
-Both makefiles build against the bundled SDL3 by default; append `USE_SDL3=0` to build against SDL2 instead.
-
 If you are on Linux and want to cross-compile for Windows, see the `build_cross_win??.sh` scripts.
 
 ### Linux

@@ -35,7 +35,7 @@
                 "/usr/include/x86_64-linux-gnu",
                 "/usr/include",
                 "${workspaceRoot}",
-                "${workspaceRoot}/Windows/SDL2/include"
+                "${workspaceRoot}/Windows/SDL3/include"
             ],
             "defines": [],
             "intelliSenseMode": "clang-x64",
@@ -45,7 +45,7 @@
                     "/usr/include/x86_64-linux-gnu",
                     "/usr/include",
                     "${workspaceRoot}",
-                    "${workspaceRoot}/Windows/SDL2/include"
+                    "${workspaceRoot}/Windows/SDL3/include"
                 ],
                 "limitSymbolsToIncludedHeaders": true,
                 "databaseFilename": ""

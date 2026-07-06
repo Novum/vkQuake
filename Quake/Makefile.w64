@@ -3,8 +3,6 @@
 # To cross-compile on Linux hosts, see the 'build_cross_win64.sh' script.
 # "make VK_SDK_PATH=/path/to/vksdk" to specify the Vulkan SDK root
 # "make DEBUG=1" to build a debug client.
-# "make USE_SDL3=0" to build against the locally included SDL2 instead of SDL3.
-# "make SDL_CONFIG=/path/to/sdl2-config" to override the locally included SDL2 version.
 
 ### Enable/disable codecs for streaming music support
 USE_CODEC_WAVE = 1
@@ -31,6 +29,9 @@ LDFLAGS = -m64 -mwindows -static-libgcc
 DFLAGS ?=
 CFLAGS ?= -m64 -D_WIN32_WINNT=0x0600 -DMI_WIN_USE_FLS
 
+# Windows builds are SDL3 only
+USE_SDL3 := 1
+
 # ---------------------------
 # objects
 # ---------------------------
@@ -47,18 +48,9 @@ include common.make
 # ---------------------------
 # libraries
 # --------------------------- 
-ifeq ($(USE_SDL3),1)
 # our local SDL3 has no config script; hardcode the flags
-SDL_DLL_DIR := ../Windows/SDL3/lib64
 SDL_CFLAGS := -I../Windows/SDL3/include
 SDL_LIBS := -L../Windows/SDL3/lib64 -lSDL3
-else
-# USE_SDL3=0: build against our local SDL2
-SDL_DLL_DIR := ../Windows/SDL2/lib64
-SDL_CONFIG ?=../Windows/SDL2/bin/sdl2-config --prefix=../Windows/SDL2 --lib-suffix=64
-SDL_CFLAGS := $(shell $(SDL_CONFIG) --cflags)
-SDL_LIBS := $(shell $(SDL_CONFIG) --libs)
-endif
 
 ifeq ($(USE_CODEC_OPUS),1)
 CODECLIBS += -lopusfile -lopus -logg
@@ -104,7 +96,7 @@ dll:
 		cp $(LIBWINPTHREAD)  . ; \
 	fi
 	cp ../Windows/codecs/x64/*.dll .
-	cp $(SDL_DLL_DIR)/*.dll .
+	cp ../Windows/SDL3/lib64/*.dll .
 
 release: vkQuake.exe
 debug:
