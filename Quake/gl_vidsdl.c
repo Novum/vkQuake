@@ -64,8 +64,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 typedef struct
 {
-	int width;
-	int height;
+	int	  width;
+	int	  height;
 	float refreshrate;
 } vmode_t;
 
