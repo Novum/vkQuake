@@ -10,12 +10,13 @@ jobs:
       fail-fast: false
       matrix:
         configuration: [release, debug]
+        use-sdl3: ['auto', 'disabled']
     steps:
     - uses: actions/checkout@v6
     - name: Install Dependencies
-      run: brew install molten-vk vulkan-headers glslang spirv-tools sdl2 libvorbis flac opus opusfile flac mpg123 meson
+      run: brew install molten-vk vulkan-headers glslang spirv-tools sdl2 sdl3 libvorbis flac opus opusfile flac mpg123 meson
     - name: Build vkQuake
-      run: meson build --buildtype=${{ matrix.configuration }} -Ddebug=true -Dstrip=false && ninja -C build
+      run: meson build --buildtype=${{ matrix.configuration }} -Ddebug=true -Dstrip=false -Duse_sdl3=${{ matrix.use-sdl3 }} && ninja -C build
     - name: Extract debug information and bundle it to .dSYM
       run: |
         dsymutil build/vkquake -o build/vkquake.dSYM
@@ -24,7 +25,7 @@ jobs:
     - name: Upload vkQuake
       uses: actions/upload-artifact@v7
       with:
-        name: vkQuake archive (${{ matrix.configuration }})
+        name: vkQuake archive (${{ matrix.configuration }}${{ matrix.use-sdl3 == 'disabled' && ', SDL2' || '' }})
         path: |
           build/vkquake
           build/vkquake.dSYM

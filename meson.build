@@ -37,9 +37,19 @@ shaders = [
     'Shaders/skinning.comp',
 ]
 
-use_sdl3 = get_option('use_sdl3')
+# Prefer SDL3 over SDL2; -Duse_sdl3=enabled requires SDL3, disabled forces SDL2
+use_sdl3_opt = get_option('use_sdl3')
+use_sdl3 = false
+if not use_sdl3_opt.disabled()
+    sdl_dep = dependency('sdl3', required : use_sdl3_opt.enabled())
+    use_sdl3 = sdl_dep.found()
+endif
 if use_sdl3
     add_project_arguments('-DUSE_SDL3', language: 'c')
+    message('Info: Using SDL3.')
+else
+    sdl_dep = dependency('sdl2')
+    message('Info: Using SDL2.')
 endif
 
 glslang = find_program('glslangValidator')
@@ -195,6 +205,8 @@ srcs = [
     'Quake/image.c',
     'Quake/json.c',
     'Quake/in_sdl.c',
+    'Quake/in_sdl2.c',
+    'Quake/in_sdl3.c',
     'Quake/keys.c',
     'Quake/main_sdl.c',
     'Quake/mathlib.c',
@@ -223,6 +235,8 @@ srcs = [
     'Quake/snd_dma.c',
     'Quake/snd_mem.c',
     'Quake/snd_mix.c',
+    'Quake/snd_sdl.c',
+    'Quake/snd_sdl3.c',
     'Quake/snd_umx.c',
     'Quake/snd_wave.c',
     'Quake/steam.c',
@@ -243,16 +257,6 @@ srcs = [
 ]
 
 cflags = ['-Wall', '-Wno-trigraphs', '-Werror', '-std=gnu11', '-D_FILE_OFFSET_BITS=64']
-
-if use_sdl3
-    sdl_dep = dependency('sdl3')
-    srcs += 'Quake/in_sdl3.c'
-    srcs += 'Quake/snd_sdl3.c'
-else
-    sdl_dep = dependency('sdl2')
-    srcs += 'Quake/in_sdl2.c'
-    srcs += 'Quake/snd_sdl.c'
-endif
 
 deps = [
     cc.find_library('m', required : false),

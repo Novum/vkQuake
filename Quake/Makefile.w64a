@@ -32,6 +32,9 @@ LDFLAGS = -mwindows -static-libgcc
 DFLAGS ?=
 CFLAGS ?= -D_WIN32_WINNT=0x0600 -DMI_WIN_USE_FLS
 
+# Windows builds are SDL3 only
+USE_SDL3 := 1
+
 # ---------------------------
 # objects
 # ---------------------------
@@ -48,10 +51,9 @@ include common.make
 # ---------------------------
 # libraries
 # ---------------------------
-# default to our local SDL2 for build
-SDL_CONFIG ?= sdl2-config
-SDL_CFLAGS := $(shell $(SDL_CONFIG) --cflags)
-SDL_LIBS := $(shell $(SDL_CONFIG) --libs)
+# headers come from the ${MSYSTEM_PREFIX}/include added to CFLAGS below
+SDL_CFLAGS :=
+SDL_LIBS := -lSDL3
 
 ifeq ($(USE_CODEC_OPUS),1)
 CFLAGS += -I ${MSYSTEM_PREFIX}/include/opus
@@ -101,7 +103,7 @@ dll:
 	cp -p ${MSYSTEM_PREFIX}/bin/libmpg123-0.dll .
 	cp -p ${MSYSTEM_PREFIX}/bin/libxmp.dll .
 	cp -p ${MSYSTEM_PREFIX}/bin/libopusfile-0.dll .
-	cp -p ${MSYSTEM_PREFIX}/bin/SDL2.dll .
+	cp -p ${MSYSTEM_PREFIX}/bin/SDL3.dll .
 	cp -p ${MSYSTEM_PREFIX}/bin/libogg-0.dll .
 	cp -p ${MSYSTEM_PREFIX}/bin/libwinpthread-1.dll .
 	cp -p ${MSYSTEM_PREFIX}/bin/libvorbis-0.dll .

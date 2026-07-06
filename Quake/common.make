@@ -9,6 +9,11 @@ STRIP ?= strip
 WINDRES ?= windres
 GLSLANG = glslangValidator
 DEBUG ?= 0
+USE_SDL3 ?= 1
+
+ifeq ($(USE_SDL3),1)
+CFLAGS += -DUSE_SDL3
+endif
 
 CHECK_GCC = $(shell if echo | $(CC) $(1) -Werror -S -o /dev/null -xc - > /dev/null 2>&1; then echo "$(1)"; else echo "$(2)"; fi;)
 
@@ -129,9 +134,9 @@ MUSIC_OBJS:= bgmusic.o \
 	snd_xmp.o \
 	snd_umx.o
 COMOBJ_SND := snd_dma.o snd_mix.o snd_mem.o $(MUSIC_OBJS)
-SYSOBJ_SND := snd_sdl.o
+SYSOBJ_SND := snd_sdl.o snd_sdl3.o
 SYSOBJ_CDA := cd_sdl.o
-SYSOBJ_INPUT := in_sdl.o in_sdl2.o
+SYSOBJ_INPUT := in_sdl.o in_sdl2.o in_sdl3.o
 SYSOBJ_GL_VID:= gl_vidsdl.o
 SYSOBJ_MAIN:= main_sdl.o
 

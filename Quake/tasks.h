@@ -80,7 +80,8 @@ void TestTasks_f (void);
 #endif
 
 #ifdef USE_SDL3
-#define TASK_TIMEOUT_INFINITE -1
+// passed through to SDL3's Sint32 millisecond timeouts, where -1 means infinite
+#define TASK_TIMEOUT_INFINITE ((uint32_t) - 1)
 #else
 #define TASK_TIMEOUT_INFINITE SDL_MUTEX_MAXWAIT
 #endif

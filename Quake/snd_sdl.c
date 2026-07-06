@@ -24,6 +24,8 @@
 
 #include "quakedef.h"
 
+#ifndef USE_SDL3
+
 static int buffersize;
 
 static void SDLCALL paint_audio (void *unused, Uint8 *stream, int len)
@@ -190,3 +192,5 @@ void SNDDMA_UnblockSound (void)
 {
 	SDL_PauseAudio (0);
 }
+
+#endif

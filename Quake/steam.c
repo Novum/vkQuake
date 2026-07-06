@@ -856,7 +856,11 @@ quakeflavor_t ChooseQuakeFlavor (void)
 	messagebox.title = "vkQuake";
 	messagebox.message = "Which Quake version would you like to play?";
 
+#ifdef USE_SDL3
+	if (!SDL_ShowMessageBox (&messagebox, &choice))
+#else
 	if (SDL_ShowMessageBox (&messagebox, &choice) < 0)
+#endif
 	{
 		Sys_Printf ("ChooseQuakeFlavor: %s\n", SDL_GetError ());
 		return QUAKE_FLAVOR_REMASTERED;

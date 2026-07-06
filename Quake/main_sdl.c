@@ -24,6 +24,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 #include <stdio.h>
 
+#ifdef USE_SDL3
+// provides the WinMain shim; must be included in the file that defines main ()
+#include <SDL3/SDL_main.h>
+#endif
+
 static void Sys_AtExit (void)
 {
 	SDL_Quit ();

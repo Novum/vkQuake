@@ -8,6 +8,7 @@ RUN apt-get update \
  && apt-get update \
  && apt-get install -y \
 	build-essential \
+	cmake \
 	file \
 	fuse \
 	unzip \
@@ -26,8 +27,13 @@ RUN apt-get update \
 	libvulkan-dev \
 	libx11-xcb-dev \
 	libxcursor-dev \
+	libxext-dev \
+	libxfixes-dev \
+	libxi-dev \
 	libxrandr-dev \
+	libxss-dev \
 	libxt-dev \
+	libxtst-dev \
 	libxv-dev \
 	libxxf86vm-dev \
 	libflac-dev \
@@ -45,6 +51,16 @@ RUN cd /tmp \
  && ./configure \
  && make -j \
  && make install
+
+RUN cd /tmp \
+ && wget https://github.com/libsdl-org/SDL/releases/download/release-3.4.12/SDL3-3.4.12.tar.gz \
+ && tar -xzf SDL3-3.4.12.tar.gz \
+ && rm SDL3-3.4.12.tar.gz \
+ && cd /tmp/SDL3-3.4.12 \
+ && cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
+ && cmake --build build -j$(nproc) \
+ && cmake --install build \
+ && ldconfig
 
 RUN cd /tmp \
  && wget https://github.com/ninja-build/ninja/releases/download/v1.11.1/ninja-linux.zip \

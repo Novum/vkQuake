@@ -94,6 +94,9 @@
     <ClCompile Include="..\..\Quake\snd_sdl.c">
       <Filter>Sound</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Quake\snd_sdl3.c">
+      <Filter>Sound</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\Quake\snd_umx.c">
       <Filter>Sound</Filter>
     </ClCompile>
@@ -227,6 +230,9 @@
       <Filter>Main</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Quake\in_sdl2.c">
+      <Filter>Main</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Quake\in_sdl3.c">
       <Filter>Main</Filter>
     </ClCompile>
     <ClCompile Include="..\..\Quake\keys.c">
