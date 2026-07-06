@@ -53,7 +53,7 @@ SDL_DLL_DIR := ../Windows/SDL3/lib64
 SDL_CFLAGS := -I../Windows/SDL3/include
 SDL_LIBS := -L../Windows/SDL3/lib64 -lSDL3
 else
-# default to our local SDL2 for build
+# USE_SDL3=0: build against our local SDL2
 SDL_DLL_DIR := ../Windows/SDL2/lib64
 SDL_CONFIG ?=../Windows/SDL2/bin/sdl2-config --prefix=../Windows/SDL2 --lib-suffix=64
 SDL_CFLAGS := $(shell $(SDL_CONFIG) --cflags)
