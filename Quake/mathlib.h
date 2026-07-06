@@ -172,6 +172,7 @@ qboolean IsOriginWithinMinMax (const vec3_t origin, const vec3_t mins, const vec
 #elif defined(__aarch64__) && defined(__ARM_NEON)
 #define USE_SIMD
 #define USE_NEON
+#include <arm_neon.h>
 #endif
 
 static inline uint32_t Q_log2 (uint32_t val)
