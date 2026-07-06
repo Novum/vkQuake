@@ -44,14 +44,19 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #define NUM_INDEX_BITS		 8
 #define MAX_PENDING_TASKS	 (1u << NUM_INDEX_BITS)
-#define MAX_EXECUTABLE_TASKS 256
+#define MAX_EXECUTABLE_TASKS (MAX_PENDING_TASKS * TASKS_MAX_WORKERS)
 #define MAX_DEPENDENT_TASKS	 16
 #define MAX_PAYLOAD_SIZE	 128
 #define WORKER_HUNK_SIZE	 (1 * 1024 * 1024)
 #define WAIT_SPIN_COUNT		 100
 
+// If all workers block in TaskQueuePush on a full executable queue no worker is left
+// to pop it, deadlocking. Each pending task enqueues at most TASKS_MAX_WORKERS entries
+// (indexed fan-out), so this capacity guarantees workers never block while pushing.
+COMPILE_TIME_ASSERT (tasks, MAX_EXECUTABLE_TASKS >= MAX_PENDING_TASKS * TASKS_MAX_WORKERS);
+// ShuffleIndex is only a bijection for capacities >= 256
+COMPILE_TIME_ASSERT (tasks, MAX_PENDING_TASKS >= 256);
 COMPILE_TIME_ASSERT (tasks, MAX_EXECUTABLE_TASKS >= 256);
-COMPILE_TIME_ASSERT (tasks, MAX_PENDING_TASKS >= MAX_EXECUTABLE_TASKS);
 
 typedef enum
 {
@@ -77,14 +82,23 @@ typedef struct
 
 typedef struct
 {
-	atomic_uint32_t head;
-	uint32_t		head_padding[15]; // Pad to 64 byte cache line size
-	atomic_uint32_t tail;
-	uint32_t		tail_padding[15];
+	// Vyukov MPMC slot: sequence == ticket means ready for push, ticket + 1 means
+	// ready for pop. 64-bit tickets never wrap, so a thread stalled between claiming
+	// its ticket and touching the slot can never collide with a later lap of the ring.
+	atomic_uint64_t sequence;
+	uint32_t		task_index;
+} task_slot_t;
+
+typedef struct
+{
+	atomic_uint64_t head;
+	uint64_t		head_padding[7]; // Pad to 64 byte cache line size
+	atomic_uint64_t tail;
+	uint64_t		tail_padding[7];
 	uint32_t		capacity_mask;
 	SDL_Semaphore  *push_semaphore;
 	SDL_Semaphore  *pop_semaphore;
-	atomic_uint32_t task_indices[1];
+	task_slot_t		task_slots[1];
 } task_queue_t;
 
 typedef struct
@@ -201,12 +215,14 @@ CreateTaskQueue
 */
 static task_queue_t *CreateTaskQueue (int capacity)
 {
-	assert (capacity > 0);
+	assert (capacity >= 256);				   // Required for ShuffleIndex to be a bijection
 	assert ((capacity & (capacity - 1)) == 0); // Needs to be power of 2
-	task_queue_t *queue = Mem_Alloc (sizeof (task_queue_t) + (sizeof (atomic_uint32_t) * (capacity - 1)));
+	task_queue_t *queue = Mem_Alloc (sizeof (task_queue_t) + (sizeof (task_slot_t) * (capacity - 1)));
 	queue->capacity_mask = capacity - 1;
 	queue->push_semaphore = SDL_CreateSemaphore (capacity - 1);
 	queue->pop_semaphore = SDL_CreateSemaphore (0);
+	for (uint32_t i = 0; i < (uint32_t)capacity; ++i)
+		Atomic_StoreUInt64 (&queue->task_slots[ShuffleIndex (i)].sequence, i);
 	return queue;
 }
 
@@ -218,20 +234,15 @@ TaskQueuePush
 static inline void TaskQueuePush (task_queue_t *queue, uint32_t task_index)
 {
 	SpinWaitSemaphore (queue->push_semaphore);
-	uint32_t head = Atomic_LoadUInt32 (&queue->head);
-	qboolean cas_successful = false;
-	do
-	{
-		const uint32_t next = (head + 1u) & queue->capacity_mask;
-		cas_successful = Atomic_CompareExchangeUInt32 (&queue->head, &head, next);
-	} while (!cas_successful);
+	const uint64_t ticket = Atomic_IncrementUInt64 (&queue->head);
+	task_slot_t	  *slot = &queue->task_slots[ShuffleIndex ((uint32_t)ticket & queue->capacity_mask)];
 
-	const uint32_t shuffled_index = ShuffleIndex (head);
-	while (Atomic_LoadUInt32 (&queue->task_indices[shuffled_index]) != 0u)
+	while (Atomic_LoadUInt64 (&slot->sequence) != ticket)
 		CPUPause ();
 
-	ANNOTATE_HAPPENS_BEFORE (&queue->task_indices[shuffled_index]);
-	Atomic_StoreUInt32 (&queue->task_indices[shuffled_index], task_index + 1);
+	slot->task_index = task_index;
+	ANNOTATE_HAPPENS_BEFORE (slot);
+	Atomic_StoreUInt64 (&slot->sequence, ticket + 1);
 	SDL_SignalSemaphore (queue->pop_semaphore);
 }
 
@@ -243,24 +254,18 @@ TaskQueuePop
 static inline uint32_t TaskQueuePop (task_queue_t *queue)
 {
 	SpinWaitSemaphore (queue->pop_semaphore);
-	uint32_t tail = Atomic_LoadUInt32 (&queue->tail);
-	qboolean cas_successful = false;
-	do
-	{
-		const uint32_t next = (tail + 1u) & queue->capacity_mask;
-		cas_successful = Atomic_CompareExchangeUInt32 (&queue->tail, &tail, next);
-	} while (!cas_successful);
+	const uint64_t ticket = Atomic_IncrementUInt64 (&queue->tail);
+	task_slot_t	  *slot = &queue->task_slots[ShuffleIndex ((uint32_t)ticket & queue->capacity_mask)];
 
-	const uint32_t shuffled_index = ShuffleIndex (tail);
-	while (Atomic_LoadUInt32 (&queue->task_indices[shuffled_index]) == 0u)
+	while (Atomic_LoadUInt64 (&slot->sequence) != ticket + 1)
 		CPUPause ();
 
-	const uint32_t val = Atomic_LoadUInt32 (&queue->task_indices[shuffled_index]) - 1;
-	Atomic_StoreUInt32 (&queue->task_indices[shuffled_index], 0u);
+	const uint32_t task_index = slot->task_index;
+	Atomic_StoreUInt64 (&slot->sequence, ticket + queue->capacity_mask + 1);
 	SDL_SignalSemaphore (queue->push_semaphore);
-	ANNOTATE_HAPPENS_AFTER (&queue->task_indices[shuffled_index]);
+	ANNOTATE_HAPPENS_AFTER (slot);
 
-	return val;
+	return task_index;
 }
 
 /*
@@ -371,7 +376,7 @@ static void parse_pinned_workers (void)
 
 		char **fields = q_strsplit (com_argv[pinned_workers_param_index + 1], ",", &max_num_workers);
 
-		for (size_t core_index = 0; core_index < max_num_workers; core_index++)
+		for (size_t core_index = 0; core_index < max_num_workers && num_pinned_workers < TASKS_MAX_WORKERS; core_index++)
 		{
 			const size_t core_id_len = strlen (fields[core_index]);
 
@@ -387,13 +392,22 @@ static void parse_pinned_workers (void)
 				}
 			}
 
-			pinned_workers_core_ids[num_pinned_workers++] = strtol (fields[core_index], NULL, 0) % SDL_GetNumLogicalCPUCores ();
+			if (core_id_len == 0)
+			{
+				// invalid input, invalidate all
+				Mem_Free (fields);
+				num_pinned_workers = 0;
+				return;
+			}
+
+			pinned_workers_core_ids[num_pinned_workers++] = strtol (fields[core_index], NULL, 10) % SDL_GetNumLogicalCPUCores ();
 		}
 
 		Mem_Free (fields);
 
-		// override num_works with the number of valid fields
-		num_workers = num_pinned_workers;
+		// override num_workers with the number of valid fields
+		if (num_pinned_workers)
+			num_workers = num_pinned_workers;
 	}
 }
 
