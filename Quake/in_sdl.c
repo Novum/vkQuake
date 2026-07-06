@@ -84,14 +84,14 @@ static cvar_t joy_enable = {"joy_enable", "1", CVAR_ARCHIVE};
 #define SDL_GAMEPAD_BUTTON_LEFT_PADDLE2	  SDL_CONTROLLER_BUTTON_PADDLE4
 #define SDL_GAMEPAD_BUTTON_TOUCHPAD		  SDL_CONTROLLER_BUTTON_TOUCHPAD
 
-#define SDL_EVENT_WINDOW_FOCUS_GAINED SDL_WINDOWEVENT_FOCUS_GAINED
 #define SDL3_GET_WINDOW
 #endif
 
 static qboolean no_mouse = false;
 
-/* total accumulated mouse movement since last frame */
-static int total_dx, total_dy = 0;
+/* total accumulated mouse movement since last frame,
+   float because SDL3 reports relative motion in subpixel precision */
+static float total_dx, total_dy = 0;
 
 void IN_Activate (void)
 {
@@ -205,7 +205,7 @@ extern cvar_t cl_maxpitch; /* johnfitz -- variable pitch clamping */
 extern cvar_t cl_minpitch; /* johnfitz -- variable pitch clamping */
 extern cvar_t scr_fov;
 
-void IN_MouseMotion (int dx, int dy)
+void IN_MouseMotion (float dx, float dy)
 {
 	if (cls.state != ca_connected || cls.signon != SIGNONS || key_dest != key_game || CL_AngleLocked ())
 	{

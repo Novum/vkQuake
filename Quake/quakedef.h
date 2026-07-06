@@ -46,9 +46,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #ifndef USE_SDL3
 #define SDL_Mutex SDL_mutex
-#define SDL_Mutex SDL_mutex
 
-#define SDL_Condition							SDL_cond
 #define SDL_Condition							SDL_cond
 #define SDL_CreateCondition						SDL_CreateCond
 #define SDL_BroadcastCondition					SDL_CondBroadcast
