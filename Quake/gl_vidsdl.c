@@ -43,6 +43,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #endif
 
 #ifdef _WIN32
+#include <windows.h>
 #include <vulkan/vulkan_win32.h>
 #endif
 
