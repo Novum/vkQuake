@@ -33,6 +33,7 @@ RUN apt-get update \
 	libxrandr-dev \
 	libxss-dev \
 	libxt-dev \
+	libxtst-dev \
 	libxv-dev \
 	libxxf86vm-dev \
 	libflac-dev \
