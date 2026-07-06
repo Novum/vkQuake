@@ -9,7 +9,7 @@ STRIP ?= strip
 WINDRES ?= windres
 GLSLANG = glslangValidator
 DEBUG ?= 0
-USE_SDL3 ?= 0
+USE_SDL3 ?= 1
 
 ifeq ($(USE_SDL3),1)
 CFLAGS += -DUSE_SDL3

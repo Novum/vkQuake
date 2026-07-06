@@ -16,7 +16,7 @@ jobs:
       matrix:
         platform:
         - { name: Windows (mingw64),  os: windows-latest, shell: 'msys2 {0}', msystem: mingw64, msys-env: mingw-w64-x86_64, makefile: Makefile.w64, make-args: '' }
-        - { name: Windows (mingw64, SDL3),  os: windows-latest, shell: 'msys2 {0}', msystem: mingw64, msys-env: mingw-w64-x86_64, makefile: Makefile.w64, make-args: 'USE_SDL3=1' }
+        - { name: Windows (mingw64, SDL2),  os: windows-latest, shell: 'msys2 {0}', msystem: mingw64, msys-env: mingw-w64-x86_64, makefile: Makefile.w64, make-args: 'USE_SDL3=0' }
 
     steps:
     - name: Set up MSYS2

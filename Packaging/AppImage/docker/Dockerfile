@@ -54,7 +54,8 @@ RUN cd /tmp \
  && cd /tmp/SDL3-3.4.12 \
  && cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
  && cmake --build build -j$(nproc) \
- && cmake --install build
+ && cmake --install build \
+ && ldconfig
 
 RUN cd /tmp \
  && wget https://github.com/ninja-build/ninja/releases/download/v1.11.1/ninja-linux.zip \

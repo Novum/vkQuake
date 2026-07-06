@@ -98,7 +98,7 @@ Prerequisites:
 * Install [Visual Studio Community](https://www.visualstudio.com/products/free-developer-offers-vs) with Visual C++ component.
 
 Open the Visual Studio solution, `Windows\VisualStudio\vkquake.sln`, select the desired configuration and platform, then
-build the solution. The `Debug-SDL3` and `Release-SDL3` configurations build against the bundled SDL3 instead of SDL2.
+build the solution.
 
 #### MinGW
 
@@ -119,7 +119,7 @@ cd vkQuake/Quake
 make -f Makefile.w64a
 ~~~
 
-Append `USE_SDL3=1` to either make command to build against SDL3 instead of SDL2.
+Both makefiles build against the bundled SDL3 by default; append `USE_SDL3=0` to build against SDL2 instead.
 
 If you are on Linux and want to cross-compile for Windows, see the `build_cross_win??.sh` scripts.
 
@@ -131,18 +131,20 @@ To compile vkQuake, first install the build dependencies:
 
 Ubuntu:
 ~~~
-apt-get install git meson gcc glslang-tools spirv-tools libsdl2-dev libvulkan-dev libvorbis-dev libmpg123-dev libx11-xcb-dev
+apt-get install git meson gcc glslang-tools spirv-tools libsdl3-dev libvulkan-dev libvorbis-dev libmpg123-dev libx11-xcb-dev
 ~~~
 
 Arch Linux:
 ~~~
-pacman -S git meson flac glibc libgl mpg123 libvorbis libx11 sdl2 vulkan-headers glslang spirv-tools
+pacman -S git meson flac glibc libgl mpg123 libvorbis libx11 sdl3 vulkan-headers glslang spirv-tools
 ~~~
 
 Fedora:
 ~~~
-dnf install git meson gcc glslang spirv-tools vulkan-loader-devel SDL2-devel mpg123-devel libvorbis-devel flac-devel opusfile-devel
+dnf install git meson gcc glslang spirv-tools vulkan-loader-devel SDL3-devel mpg123-devel libvorbis-devel flac-devel opusfile-devel
 ~~~
+
+On distributions that do not ship SDL3 yet, install the SDL2 development package instead (e.g. `libsdl2-dev`); the build falls back to SDL2 automatically.
 
 Then clone the vkQuake repo:
 
@@ -157,7 +159,7 @@ cd vkQuake
 meson build -Ddebug=true -Dstrip=false && ninja -C build
 ~~~
 
-To build against SDL3 instead of SDL2, add `-Duse_sdl3=true` to the Meson command line.
+Meson prefers SDL3 and falls back to SDL2 if it is not installed; add `-Duse_sdl3=disabled` to force SDL2 (or `enabled` to require SDL3).
 
 > **Note**\
 > The Meson version needs to be 0.47.0 or newer. For older distributions you can use make:
@@ -175,7 +177,7 @@ To build against SDL3 instead of SDL2, add `-Duse_sdl3=true` to the Meson comman
 To compile vkQuake, first install the build dependencies with Homebrew:
 
 ~~~
-brew install molten-vk vulkan-headers glslang spirv-tools sdl2 libvorbis flac opus opusfile flac mpg123 meson pkgconfig
+brew install molten-vk vulkan-headers glslang spirv-tools sdl3 libvorbis flac opus opusfile flac mpg123 meson pkgconfig
 ~~~
 
 Then clone the vkQuake repo:
@@ -191,7 +193,7 @@ cd vkQuake
 meson build -Ddebug=true -Dstrip=false && ninja -C build
 ~~~
 
-To build against SDL3 instead of SDL2, add `-Duse_sdl3=true` to the Meson command line.
+Meson prefers SDL3 and falls back to SDL2 if it is not installed; add `-Duse_sdl3=disabled` to force SDL2 (or `enabled` to require SDL3).
 
 > **Note**\
 > The Meson version needs to be 0.47.0 or newer.

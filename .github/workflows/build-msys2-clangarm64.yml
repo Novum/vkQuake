@@ -16,7 +16,7 @@ jobs:
       matrix:
         platform:
         - { name: Windows (clangarm64),  os: windows-11-arm, shell: 'msys2 {0}', msystem: clangarm64, msys-env: mingw-w64-clang-aarch64, makefile: Makefile.w64a, make-args: '' }
-        - { name: Windows (clangarm64, SDL3),  os: windows-11-arm, shell: 'msys2 {0}', msystem: clangarm64, msys-env: mingw-w64-clang-aarch64, makefile: Makefile.w64a, make-args: 'USE_SDL3=1' }
+        - { name: Windows (clangarm64, SDL2),  os: windows-11-arm, shell: 'msys2 {0}', msystem: clangarm64, msys-env: mingw-w64-clang-aarch64, makefile: Makefile.w64a, make-args: 'USE_SDL3=0' }
 
     steps:
     - name: Set up MSYS2

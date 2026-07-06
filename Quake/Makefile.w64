@@ -3,8 +3,8 @@
 # To cross-compile on Linux hosts, see the 'build_cross_win64.sh' script.
 # "make VK_SDK_PATH=/path/to/vksdk" to specify the Vulkan SDK root
 # "make DEBUG=1" to build a debug client.
+# "make USE_SDL3=0" to build against the locally included SDL2 instead of SDL3.
 # "make SDL_CONFIG=/path/to/sdl2-config" to override the locally included SDL2 version.
-# "make USE_SDL3=1" to build against the locally included SDL3 instead of SDL2.
 
 ### Enable/disable codecs for streaming music support
 USE_CODEC_WAVE = 1

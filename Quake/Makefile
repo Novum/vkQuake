@@ -1,8 +1,8 @@
 # GNU Makefile for vkQuake unix x86_64 targets.
-# You need the SDL2 library fully installed.
+# You need the SDL3 (or SDL2, see USE_SDL3) library fully installed.
 # "make DEBUG=1" to build a debug client.
+# "make USE_SDL3=0" to build against SDL2 instead of SDL3.
 # "make SDL_CONFIG=/path/to/sdl2-config" for unusual SDL2 installations.
-# "make USE_SDL3=1" to build against SDL3 (found via pkg-config) instead of SDL2.
 # "make DO_USERDIRS=1" to enable user directories support
 # "make VULKAN_SDK=/path/to/sdk" if it is not already in path
 

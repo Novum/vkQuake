@@ -10,7 +10,7 @@ jobs:
       fail-fast: false
       matrix:
         configuration: [release, debug]
-        use-sdl3: ['false', 'true']
+        use-sdl3: ['auto', 'disabled']
     steps:
     - uses: actions/checkout@v6
     - name: Install Dependencies
@@ -25,7 +25,7 @@ jobs:
     - name: Upload vkQuake
       uses: actions/upload-artifact@v7
       with:
-        name: vkQuake archive (${{ matrix.configuration }}${{ matrix.use-sdl3 == 'true' && ', SDL3' || '' }})
+        name: vkQuake archive (${{ matrix.configuration }}${{ matrix.use-sdl3 == 'disabled' && ', SDL2' || '' }})
         path: |
           build/vkquake
           build/vkquake.dSYM
