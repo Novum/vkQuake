@@ -396,42 +396,6 @@ static void Sys_GetBasedir (char *argv0, char *dst, size_t dstsize)
 	}
 }
 
-typedef enum
-{
-	dpi_unaware = 0,
-	dpi_system_aware = 1,
-	dpi_monitor_aware = 2
-} dpi_awareness;
-typedef BOOL (WINAPI *SetProcessDPIAwareFunc) ();
-typedef HRESULT (WINAPI *SetProcessDPIAwarenessFunc) (dpi_awareness value);
-
-static void Sys_SetDPIAware (void)
-{
-	HMODULE					   hUser32, hShcore;
-	SetProcessDPIAwarenessFunc setDPIAwareness;
-	SetProcessDPIAwareFunc	   setDPIAware;
-
-	/* Neither SDL 1.2 nor SDL 2.0.3 can handle the OS scaling our window.
-	  (e.g. https://bugzilla.libsdl.org/show_bug.cgi?id=2713)
-	  Call SetProcessDpiAwareness/SetProcessDPIAware to opt out of scaling.
-	*/
-
-	hShcore = LoadLibraryA ("Shcore.dll");
-	hUser32 = LoadLibraryA ("user32.dll");
-	setDPIAwareness = (SetProcessDPIAwarenessFunc)(hShcore ? GetProcAddress (hShcore, "SetProcessDpiAwareness") : NULL);
-	setDPIAware = (SetProcessDPIAwareFunc)(hUser32 ? GetProcAddress (hUser32, "SetProcessDPIAware") : NULL);
-
-	if (setDPIAwareness) /* Windows 8.1+ */
-		setDPIAwareness (dpi_monitor_aware);
-	else if (setDPIAware) /* Windows Vista-8.0 */
-		setDPIAware ();
-
-	if (hShcore)
-		FreeLibrary (hShcore);
-	if (hUser32)
-		FreeLibrary (hUser32);
-}
-
 static void Sys_SetTimerResolution (void)
 {
 	/* Set OS timer resolution to 1ms.
@@ -447,7 +411,6 @@ void Sys_Init (void)
 	Sys_FileInit ();
 
 	Sys_SetTimerResolution ();
-	Sys_SetDPIAware ();
 
 	memset (cwd, 0, sizeof (cwd));
 	Sys_GetBasedir (NULL, cwd, sizeof (cwd));

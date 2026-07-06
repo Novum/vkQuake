@@ -46,6 +46,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <vulkan/vulkan_win32.h>
 #endif
 
+#include <float.h>
 #include <time.h>
 
 #define MAX_MODE_LIST  600 // johnfitz -- was 30
@@ -65,7 +66,7 @@ typedef struct
 {
 	int width;
 	int height;
-	int refreshrate;
+	float refreshrate;
 } vmode_t;
 
 static vmode_t *modelist = NULL;
@@ -295,7 +296,7 @@ static int VID_GetCurrentHeight (void)
 VID_GetCurrentRefreshRate
 ====================
 */
-static int VID_GetCurrentRefreshRate (void)
+static float VID_GetCurrentRefreshRate (void)
 {
 #ifdef USE_SDL3
 	SDL_DisplayID		   current_display;
@@ -309,7 +310,7 @@ static int VID_GetCurrentRefreshRate (void)
 	if (!mode)
 		return DEFAULT_REFRESHRATE;
 
-	return (int)mode->refresh_rate;
+	return mode->refresh_rate;
 #else
 	int				current_display;
 	SDL_DisplayMode mode;
@@ -405,37 +406,53 @@ qboolean VID_IsMinimized (void)
 ================
 VID_SDL_GetDisplayMode
 
-Returns a pointer to a SDL_DisplayMode structure
-if there is one with the requested params on the default display.
-Otherwise returns NULL.
+Returns a pointer to a SDL_DisplayMode structure with the requested size.
+Returns NULL if the size is not available at all.
+
+SDL3: searches the display the window is on (or the primary display before
+the window exists) and picks the mode whose refresh rate is closest to the
+requested one, so a config carried over from another display or an SDL2
+build still works. SDL2 keeps the old exact match on the primary display.
 
 This is passed to SDL_SetWindowFullscreenMode to specify a pixel format
 with the requested bpp. If we didn't care about bpp we could just pass NULL.
 ================
 */
-static const SDL_DisplayMode *VID_SDL_GetDisplayMode (int width, int height, int refreshrate)
+static const SDL_DisplayMode *VID_SDL_GetDisplayMode (int width, int height, float refreshrate)
 {
 #ifdef USE_SDL3
-	SDL_DisplayID		   display = SDL_GetPrimaryDisplay ();
-	int					   count = 0;
-	SDL_DisplayMode		 **modes = (SDL_DisplayMode **)SDL_GetFullscreenDisplayModes (display, &count);
-	const SDL_DisplayMode *result = NULL;
+	static SDL_DisplayMode result;
+	qboolean			   found = false;
+	float				   best_dist = FLT_MAX;
 	int					   i;
 
+	SDL_DisplayID display = draw_context ? SDL_GetDisplayForWindow (draw_context) : 0;
+	if (display == 0)
+		display = SDL_GetPrimaryDisplay ();
+
+	int				  count = 0;
+	SDL_DisplayMode **modes = (SDL_DisplayMode **)SDL_GetFullscreenDisplayModes (display, &count);
 	if (!modes)
 		return NULL;
 
 	for (i = 0; i < count; i++)
 	{
 		const SDL_DisplayMode *mode = modes[i];
-		if (mode->w == width && mode->h == height && SDL_BITSPERPIXEL (mode->format) >= 24 && (int)mode->refresh_rate == refreshrate)
+		if (mode->w != width || mode->h != height || SDL_BITSPERPIXEL (mode->format) < 24)
+			continue;
+
+		const float dist = fabsf (mode->refresh_rate - refreshrate);
+		if (dist < best_dist)
 		{
-			result = mode;
-			break;
+			best_dist = dist;
+			// copy before SDL_free: the mode structs live inside the same
+			// allocation as the returned pointer array
+			result = *mode;
+			found = true;
 		}
 	}
 	SDL_free (modes);
-	return result;
+	return found ? &result : NULL;
 #else
 	static SDL_DisplayMode mode;
 	const int			   sdlmodes = SDL_GetNumDisplayModes (0);
@@ -460,7 +477,7 @@ static const SDL_DisplayMode *VID_SDL_GetDisplayMode (int width, int height, int
 VID_ValidMode
 ================
 */
-static qboolean VID_ValidMode (int width, int height, int refreshrate, qboolean fullscreen)
+static qboolean VID_ValidMode (int width, int height, float refreshrate, qboolean fullscreen)
 {
 	// ignore width / height / bpp if vid_desktopfullscreen is enabled
 	if (fullscreen && vid_desktopfullscreen.value)
@@ -483,7 +500,7 @@ static qboolean VID_ValidMode (int width, int height, int refreshrate, qboolean 
 VID_SetMode
 ================
 */
-static qboolean VID_SetMode (int width, int height, int refreshrate, qboolean fullscreen)
+static qboolean VID_SetMode (int width, int height, float refreshrate, qboolean fullscreen)
 {
 	int	   temp;
 	Uint32 flags;
@@ -581,6 +598,13 @@ static qboolean VID_SetMode (int width, int height, int refreshrate, qboolean fu
 	SDL_ShowWindow (draw_context);
 	SDL_RaiseWindow (draw_context);
 
+#ifdef USE_SDL3
+	// window size, position and fullscreen changes are asynchronous requests
+	// on some platforms (X11, Wayland); wait until they are actually applied
+	// so the sizes queried below are correct
+	SDL_SyncWindow (draw_context);
+#endif
+
 	vid.width = VID_GetCurrentWidth ();
 	vid.height = VID_GetCurrentHeight ();
 	vid.conwidth = vid.width & 0xFFFFFFF8;
@@ -652,7 +676,8 @@ VID_Test -- johnfitz -- like vid_restart, but asks for confirmation after switch
 */
 static void VID_Test (void)
 {
-	int old_width, old_height, old_refreshrate, old_fullscreen;
+	int	  old_width, old_height, old_fullscreen;
+	float old_refreshrate;
 
 	if (vid_locked || !vid_changed)
 		return;
@@ -4232,7 +4257,7 @@ static void VID_DescribeCurrentMode_f (void)
 {
 	if (draw_context)
 		Con_Printf (
-			"%dx%dx%d %dHz %s\n", VID_GetCurrentWidth (), VID_GetCurrentHeight (), VID_GetCurrentBPP (), VID_GetCurrentRefreshRate (),
+			"%dx%dx%d %gHz %s\n", VID_GetCurrentWidth (), VID_GetCurrentHeight (), VID_GetCurrentBPP (), VID_GetCurrentRefreshRate (),
 			VID_GetFullscreen () ? "fullscreen" : "windowed");
 }
 
@@ -4254,7 +4279,7 @@ static void VID_DescribeModes_f (void)
 		{
 			if (count > 0)
 				Con_SafePrintf ("\n");
-			Con_SafePrintf ("   %4i x %4i : %i", modelist[i].width, modelist[i].height, modelist[i].refreshrate);
+			Con_SafePrintf ("   %4i x %4i : %g", modelist[i].width, modelist[i].height, modelist[i].refreshrate);
 			lastwidth = modelist[i].width;
 			lastheight = modelist[i].height;
 			count++;
@@ -4296,7 +4321,7 @@ static void VID_InitModelist (void)
 		const SDL_DisplayMode *mode = modes[i];
 		modelist[nummodes].width = mode->w;
 		modelist[nummodes].height = mode->h;
-		modelist[nummodes].refreshrate = (int)mode->refresh_rate;
+		modelist[nummodes].refreshrate = mode->refresh_rate;
 		nummodes++;
 	}
 
@@ -4394,8 +4419,10 @@ VID_Init
 void VID_Init (void)
 {
 	static char vid_center[] = "SDL_VIDEO_CENTERED=center";
-	int			p, width, height, refreshrate;
-	int			display_width, display_height, display_refreshrate;
+	int			p, width, height;
+	float		refreshrate;
+	int			display_width, display_height;
+	float		display_refreshrate;
 	qboolean	fullscreen;
 	const char *read_vars[] = {"vid_fullscreen",		"vid_width",	"vid_height", "vid_refreshrate", "vid_vsync",
 							   "vid_desktopfullscreen", "vid_fsaamode", "vid_fsaa",	  "vid_borderless"};
@@ -4453,7 +4480,7 @@ void VID_Init (void)
 
 		display_width = mode->w;
 		display_height = mode->h;
-		display_refreshrate = (int)mode->refresh_rate;
+		display_refreshrate = mode->refresh_rate;
 	}
 #else
 	if (SDL_InitSubSystem (SDL_INIT_VIDEO) < 0)
@@ -4483,7 +4510,7 @@ void VID_Init (void)
 
 	width = (int)vid_width.value;
 	height = (int)vid_height.value;
-	refreshrate = (int)vid_refreshrate.value;
+	refreshrate = vid_refreshrate.value;
 	fullscreen = (int)vid_fullscreen.value;
 	vulkan_globals.want_full_screen_exclusive = vid_fullscreen.value >= 2;
 
@@ -4516,7 +4543,7 @@ void VID_Init (void)
 
 		p = COM_CheckParm ("-refreshrate");
 		if (p && p < com_argc - 1)
-			refreshrate = atoi (com_argv[p + 1]);
+			refreshrate = (float)atof (com_argv[p + 1]);
 
 		if (COM_CheckParm ("-window") || COM_CheckParm ("-w"))
 			fullscreen = false;
@@ -4528,7 +4555,7 @@ void VID_Init (void)
 	{
 		width = (int)vid_width.value;
 		height = (int)vid_height.value;
-		refreshrate = (int)vid_refreshrate.value;
+		refreshrate = vid_refreshrate.value;
 		fullscreen = (int)vid_fullscreen.value;
 	}
 
@@ -4589,12 +4616,13 @@ void VID_Restart (qboolean set_mode)
 
 	GL_SynchronizeEndRenderingTask ();
 
-	int		 width, height, refreshrate;
+	int		 width, height;
+	float	 refreshrate;
 	qboolean fullscreen;
 
 	width = (int)vid_width.value;
 	height = (int)vid_height.value;
-	refreshrate = (int)vid_refreshrate.value;
+	refreshrate = vid_refreshrate.value;
 	fullscreen = vid_fullscreen.value ? true : false;
 	vulkan_globals.want_full_screen_exclusive = vid_fullscreen.value >= 2;
 
@@ -4603,7 +4631,7 @@ void VID_Restart (qboolean set_mode)
 	//
 	if (set_mode && !VID_ValidMode (width, height, refreshrate, fullscreen))
 	{
-		Con_Printf ("%dx%d %dHz %s is not a valid mode\n", width, height, refreshrate, fullscreen ? "fullscreen" : "windowed");
+		Con_Printf ("%dx%d %gHz %s is not a valid mode\n", width, height, refreshrate, fullscreen ? "fullscreen" : "windowed");
 		return;
 	}
 
@@ -4680,7 +4708,7 @@ void VID_Toggle (void)
 		if (vid_desktopfullscreen.value)
 			SDL_SetWindowFullscreenMode (draw_context, NULL);
 		else
-			SDL_SetWindowFullscreenMode (draw_context, VID_SDL_GetDisplayMode (vid.width, vid.height, (int)vid_refreshrate.value));
+			SDL_SetWindowFullscreenMode (draw_context, VID_SDL_GetDisplayMode (vid.width, vid.height, vid_refreshrate.value));
 		flags = SDL_WINDOW_FULLSCREEN;
 #else
 		flags = vid_desktopfullscreen.value ? SDL_WINDOW_FULLSCREEN_DESKTOP : SDL_WINDOW_FULLSCREEN;
@@ -4761,8 +4789,8 @@ typedef struct
 static vid_menu_mode vid_menu_modes[MAX_MODE_LIST];
 static int			 vid_menu_nummodes = 0;
 
-static int vid_menu_rates[MAX_RATES_LIST];
-static int vid_menu_numrates = 0;
+static float vid_menu_rates[MAX_RATES_LIST];
+static int	 vid_menu_numrates = 0;
 
 // common window sizes offered in addition to the display modes when windowed
 static const vid_menu_mode vid_menu_windowed_modes[] = {
@@ -4863,7 +4891,8 @@ regenerates rate list based on current vid_width, vid_height
 */
 static void VID_Menu_RebuildRateList (void)
 {
-	int i, j, r;
+	int	  i, j;
+	float r;
 
 	vid_menu_numrates = 0;
 
@@ -4891,17 +4920,17 @@ static void VID_Menu_RebuildRateList (void)
 	// if there are no valid fullscreen refreshrates for this width/height, just pick one
 	if (vid_menu_numrates == 0)
 	{
-		Cvar_SetValue ("vid_refreshrate", (float)modelist[0].refreshrate);
+		Cvar_SetValue ("vid_refreshrate", modelist[0].refreshrate);
 		return;
 	}
 
 	// if vid_refreshrate is not in the new list, change vid_refreshrate
 	for (i = 0; i < vid_menu_numrates; i++)
-		if (vid_menu_rates[i] == (int)(vid_refreshrate.value))
+		if (vid_menu_rates[i] == vid_refreshrate.value)
 			break;
 
 	if (i == vid_menu_numrates)
-		Cvar_SetValue ("vid_refreshrate", (float)vid_menu_rates[0]);
+		Cvar_SetValue ("vid_refreshrate", vid_menu_rates[0]);
 }
 
 /*
@@ -4973,7 +5002,7 @@ static void VID_Menu_ChooseNextRate (int dir)
 			i = vid_menu_numrates - 1;
 	}
 
-	Cvar_SetValue ("vid_refreshrate", (float)vid_menu_rates[i]);
+	Cvar_SetValue ("vid_refreshrate", vid_menu_rates[i]);
 }
 
 /*
@@ -5171,7 +5200,7 @@ void M_Video_Draw (cb_context_t *cbx)
 			break;
 		case VID_OPT_REFRESHRATE:
 			M_Print (cbx, MENU_LABEL_X, y, "Refresh rate");
-			M_Print (cbx, MENU_VALUE_X, y, va ("%i", (int)vid_refreshrate.value));
+			M_Print (cbx, MENU_VALUE_X, y, va ("%g", vid_refreshrate.value));
 			break;
 		case VID_OPT_FULLSCREEN:
 			M_Print (cbx, MENU_LABEL_X, y, "Fullscreen");
