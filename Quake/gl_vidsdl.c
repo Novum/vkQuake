@@ -36,10 +36,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <SDL3/SDL_vulkan.h>
 #else
 #if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
-#include <SDL2/SDL_syswm.h>
 #include <SDL2/SDL_vulkan.h>
 #else
-#include "SDL_syswm.h"
 #include "SDL_vulkan.h"
 #endif
 #endif
@@ -2687,14 +2685,7 @@ static qboolean GL_CreateSwapChain (void)
 	ZEROED_STRUCT (VkSurfaceFullScreenExclusiveWin32InfoEXT, full_screen_exclusive_win32_info);
 	if (try_use_exclusive_full_screen)
 	{
-#ifdef USE_SDL3
 		HWND hwnd = (HWND)SDL_GetPointerProperty (SDL_GetWindowProperties (draw_context), SDL_PROP_WINDOW_WIN32_HWND_POINTER, NULL);
-#else
-		SDL_SysWMinfo wm_info;
-		SDL_VERSION (&wm_info.version);
-		SDL_GetWindowWMInfo (draw_context, &wm_info);
-		HWND hwnd = wm_info.info.win.window;
-#endif
 
 		HMONITOR monitor = MonitorFromWindow (hwnd, MONITOR_DEFAULTTOPRIMARY);
 
