@@ -51,8 +51,9 @@ include common.make
 # ---------------------------
 # libraries
 # ---------------------------
-SDL_CFLAGS := $(shell pkg-config --cflags sdl3)
-SDL_LIBS := $(shell pkg-config --libs sdl3)
+# headers come from the ${MSYSTEM_PREFIX}/include added to CFLAGS below
+SDL_CFLAGS :=
+SDL_LIBS := -lSDL3
 
 ifeq ($(USE_CODEC_OPUS),1)
 CFLAGS += -I ${MSYSTEM_PREFIX}/include/opus
