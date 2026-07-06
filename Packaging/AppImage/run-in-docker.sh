@@ -7,9 +7,14 @@ ARCHIVE=$FOLDER.tar.gz
 cd /usr/src/vkQuake
 
 rm -rf build/appimage
+rm -rf build/sdl3
 
 python3 /opt/meson/meson.py build/appimage -Ddebug=true -Dstrip=false -Dmp3_lib=mad
 ninja -C build/appimage
+
+# Compile check the SDL3 backend (the AppImage still ships SDL2)
+python3 /opt/meson/meson.py build/sdl3 -Ddebug=true -Dstrip=false -Dmp3_lib=mad -Duse_sdl3=true
+ninja -C build/sdl3
 
 BIN="build/appimage/vkquake"
 DBG="build/appimage/vkquake.debuginfo"

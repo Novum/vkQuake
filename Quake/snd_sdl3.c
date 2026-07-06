@@ -24,9 +24,10 @@
 
 #include "quakedef.h"
 
-static int				 buffersize;
-static SDL_AudioDeviceID audio_device = 0;
-static SDL_AudioStream	*audio_stream = NULL;
+#ifdef USE_SDL3
+
+static int				buffersize;
+static SDL_AudioStream *audio_stream = NULL;
 
 static void SDLCALL paint_audio (void *userdata, SDL_AudioStream *stream, int additional_amount, int total_amount)
 {
@@ -90,8 +91,6 @@ qboolean SNDDMA_Init (dma_t *dma)
 		return false;
 	}
 
-	audio_device = SDL_GetAudioStreamDevice (audio_stream);
-
 	memset ((void *)dma, 0, sizeof (dma_t));
 	shm = dma;
 
@@ -112,7 +111,8 @@ qboolean SNDDMA_Init (dma_t *dma)
 	Con_Printf ("SDL audio spec  : %d Hz, %d channels\n", spec.freq, spec.channels);
 	{
 		const char *driver = SDL_GetCurrentAudioDriver ();
-		q_snprintf (drivername, sizeof (drivername), "%s", driver != NULL ? driver : "(UNKNOWN)");
+		const char *device = SDL_GetAudioDeviceName (SDL_GetAudioStreamDevice (audio_stream));
+		q_snprintf (drivername, sizeof (drivername), "%s - %s", driver != NULL ? driver : "(UNKNOWN)", device != NULL ? device : "(UNKNOWN)");
 	}
 	buffersize = shm->samples * (shm->samplebits / 8);
 	Con_Printf ("SDL audio driver: %s, %d bytes buffer\n", drivername, buffersize);
@@ -122,14 +122,13 @@ qboolean SNDDMA_Init (dma_t *dma)
 	{
 		SDL_DestroyAudioStream (audio_stream);
 		audio_stream = NULL;
-		audio_device = 0;
 		SDL_QuitSubSystem (SDL_INIT_AUDIO);
 		shm = NULL;
 		Con_Printf ("Failed allocating memory for SDL audio\n");
 		return false;
 	}
 
-	SDL_ResumeAudioDevice (audio_device);
+	SDL_ResumeAudioStreamDevice (audio_stream);
 
 	Con_Printf ("SDL audio initialized: samples=%d, samplebits=%d, channels=%d\n", shm->samples, shm->samplebits, shm->channels);
 
@@ -148,7 +147,6 @@ void SNDDMA_Shutdown (void)
 		Con_Printf ("Shutting down SDL sound\n");
 		SDL_DestroyAudioStream (audio_stream);
 		audio_stream = NULL;
-		audio_device = 0;
 		SDL_QuitSubSystem (SDL_INIT_AUDIO);
 		if (shm->buffer)
 			Mem_Free (shm->buffer);
@@ -172,12 +170,14 @@ void SNDDMA_Submit (void)
 
 void SNDDMA_BlockSound (void)
 {
-	if (audio_device)
-		SDL_PauseAudioDevice (audio_device);
+	if (audio_stream)
+		SDL_PauseAudioStreamDevice (audio_stream);
 }
 
 void SNDDMA_UnblockSound (void)
 {
-	if (audio_device)
-		SDL_ResumeAudioDevice (audio_device);
+	if (audio_stream)
+		SDL_ResumeAudioStreamDevice (audio_stream);
 }
+
+#endif

@@ -3,6 +3,7 @@
 #
 # "make VK_SDK_PATH=/path/to/vksdk" to specify the Vulkan SDK root
 # "make DEBUG=1" to build a debug client.
+# "make USE_SDL3=1" to build against SDL3 (found via pkg-config) instead of SDL2.
 #
 # WINDRES currently unsupported on Aarch64 ?
 # https://github.com/llvm/llvm-project/issues/125371
@@ -48,10 +49,16 @@ include common.make
 # ---------------------------
 # libraries
 # ---------------------------
-# default to our local SDL2 for build
+ifeq ($(USE_SDL3),1)
+SDL_DLL := SDL3.dll
+SDL_CFLAGS := $(shell pkg-config --cflags sdl3)
+SDL_LIBS := $(shell pkg-config --libs sdl3)
+else
+SDL_DLL := SDL2.dll
 SDL_CONFIG ?= sdl2-config
 SDL_CFLAGS := $(shell $(SDL_CONFIG) --cflags)
 SDL_LIBS := $(shell $(SDL_CONFIG) --libs)
+endif
 
 ifeq ($(USE_CODEC_OPUS),1)
 CFLAGS += -I ${MSYSTEM_PREFIX}/include/opus
@@ -101,7 +108,7 @@ dll:
 	cp -p ${MSYSTEM_PREFIX}/bin/libmpg123-0.dll .
 	cp -p ${MSYSTEM_PREFIX}/bin/libxmp.dll .
 	cp -p ${MSYSTEM_PREFIX}/bin/libopusfile-0.dll .
-	cp -p ${MSYSTEM_PREFIX}/bin/SDL2.dll .
+	cp -p ${MSYSTEM_PREFIX}/bin/$(SDL_DLL) .
 	cp -p ${MSYSTEM_PREFIX}/bin/libogg-0.dll .
 	cp -p ${MSYSTEM_PREFIX}/bin/libwinpthread-1.dll .
 	cp -p ${MSYSTEM_PREFIX}/bin/libvorbis-0.dll .

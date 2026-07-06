@@ -2,6 +2,7 @@
 # You need the SDL2 library fully installed.
 # "make DEBUG=1" to build a debug client.
 # "make SDL_CONFIG=/path/to/sdl2-config" for unusual SDL2 installations.
+# "make USE_SDL3=1" to build against SDL3 (found via pkg-config) instead of SDL2.
 # "make DO_USERDIRS=1" to enable user directories support
 # "make VULKAN_SDK=/path/to/sdk" if it is not already in path
 
@@ -53,9 +54,14 @@ include common.make
 # ---------------------------
 # libraries
 # ---------------------------
+ifeq ($(USE_SDL3),1)
+SDL_CFLAGS := $(shell pkg-config --cflags sdl3)
+SDL_LIBS := $(shell pkg-config --libs sdl3)
+else
 SDL_CONFIG ?= sdl2-config
 SDL_CFLAGS := $(shell $(SDL_CONFIG) --cflags)
 SDL_LIBS := $(shell $(SDL_CONFIG) --libs)
+endif
 
 ifneq ($(VULKAN_SDK),)
 LDFLAGS += -L$(VULKAN_SDK)/lib

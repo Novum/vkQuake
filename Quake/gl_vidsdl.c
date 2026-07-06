@@ -3362,11 +3362,7 @@ void GL_SynchronizeEndRenderingTask (void)
 {
 	if (prev_end_rendering_task != INVALID_TASK_HANDLE)
 	{
-#ifdef USE_SDL3
-		Task_Join (prev_end_rendering_task, -1);
-#else
-		Task_Join (prev_end_rendering_task, SDL_MUTEX_MAXWAIT);
-#endif
+		Task_Join (prev_end_rendering_task, TASK_TIMEOUT_INFINITE);
 		prev_end_rendering_task = INVALID_TASK_HANDLE;
 	}
 }

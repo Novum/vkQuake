@@ -9,7 +9,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        configuration: [Release, Debug]
+        configuration: [Release, Debug, Release-SDL3, Debug-SDL3]
         platform: [x64]
     steps:
     - uses: actions/checkout@v6

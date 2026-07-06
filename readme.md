@@ -98,7 +98,7 @@ Prerequisites:
 * Install [Visual Studio Community](https://www.visualstudio.com/products/free-developer-offers-vs) with Visual C++ component.
 
 Open the Visual Studio solution, `Windows\VisualStudio\vkquake.sln`, select the desired configuration and platform, then
-build the solution.
+build the solution. The `Debug-SDL3` and `Release-SDL3` configurations build against the bundled SDL3 instead of SDL2.
 
 #### MinGW
 
@@ -118,6 +118,8 @@ Build 64 bit Arm vkQuake:
 cd vkQuake/Quake
 make -f Makefile.w64a
 ~~~
+
+Append `USE_SDL3=1` to either make command to build against SDL3 instead of SDL2.
 
 If you are on Linux and want to cross-compile for Windows, see the `build_cross_win??.sh` scripts.
 
@@ -155,6 +157,8 @@ cd vkQuake
 meson build -Ddebug=true -Dstrip=false && ninja -C build
 ~~~
 
+To build against SDL3 instead of SDL2, add `-Duse_sdl3=true` to the Meson command line.
+
 > **Note**\
 > The Meson version needs to be 0.47.0 or newer. For older distributions you can use make:
 > ~~~
@@ -186,6 +190,8 @@ Now go to the Quake directory and compile the executable:
 cd vkQuake
 meson build -Ddebug=true -Dstrip=false && ninja -C build
 ~~~
+
+To build against SDL3 instead of SDL2, add `-Duse_sdl3=true` to the Meson command line.
 
 > **Note**\
 > The Meson version needs to be 0.47.0 or newer.

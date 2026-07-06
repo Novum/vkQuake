@@ -4,6 +4,7 @@
 # "make VK_SDK_PATH=/path/to/vksdk" to specify the Vulkan SDK root
 # "make DEBUG=1" to build a debug client.
 # "make SDL_CONFIG=/path/to/sdl2-config" to override the locally included SDL2 version.
+# "make USE_SDL3=1" to build against the locally included SDL3 instead of SDL2.
 
 ### Enable/disable codecs for streaming music support
 USE_CODEC_WAVE = 1
@@ -46,10 +47,18 @@ include common.make
 # ---------------------------
 # libraries
 # --------------------------- 
+ifeq ($(USE_SDL3),1)
+# our local SDL3 has no config script; hardcode the flags
+SDL_DLL_DIR := ../Windows/SDL3/lib64
+SDL_CFLAGS := -I../Windows/SDL3/include
+SDL_LIBS := -L../Windows/SDL3/lib64 -lSDL3
+else
 # default to our local SDL2 for build
+SDL_DLL_DIR := ../Windows/SDL2/lib64
 SDL_CONFIG ?=../Windows/SDL2/bin/sdl2-config --prefix=../Windows/SDL2 --lib-suffix=64
 SDL_CFLAGS := $(shell $(SDL_CONFIG) --cflags)
 SDL_LIBS := $(shell $(SDL_CONFIG) --libs)
+endif
 
 ifeq ($(USE_CODEC_OPUS),1)
 CODECLIBS += -lopusfile -lopus -logg
@@ -95,7 +104,7 @@ dll:
 		cp $(LIBWINPTHREAD)  . ; \
 	fi
 	cp ../Windows/codecs/x64/*.dll .
-	cp ../Windows/SDL2/lib64/*.dll .
+	cp $(SDL_DLL_DIR)/*.dll .
 
 release: vkQuake.exe
 debug:

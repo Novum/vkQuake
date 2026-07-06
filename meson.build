@@ -195,6 +195,8 @@ srcs = [
     'Quake/image.c',
     'Quake/json.c',
     'Quake/in_sdl.c',
+    'Quake/in_sdl2.c',
+    'Quake/in_sdl3.c',
     'Quake/keys.c',
     'Quake/main_sdl.c',
     'Quake/mathlib.c',
@@ -223,6 +225,8 @@ srcs = [
     'Quake/snd_dma.c',
     'Quake/snd_mem.c',
     'Quake/snd_mix.c',
+    'Quake/snd_sdl.c',
+    'Quake/snd_sdl3.c',
     'Quake/snd_umx.c',
     'Quake/snd_wave.c',
     'Quake/steam.c',
@@ -246,12 +250,8 @@ cflags = ['-Wall', '-Wno-trigraphs', '-Werror', '-std=gnu11', '-D_FILE_OFFSET_BI
 
 if use_sdl3
     sdl_dep = dependency('sdl3')
-    srcs += 'Quake/in_sdl3.c'
-    srcs += 'Quake/snd_sdl3.c'
 else
     sdl_dep = dependency('sdl2')
-    srcs += 'Quake/in_sdl2.c'
-    srcs += 'Quake/snd_sdl.c'
 endif
 
 deps = [

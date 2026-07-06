@@ -28,7 +28,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 extern cvar_t in_debugkeys;
 
-static SDL_JoystickID joy_active_instaceid = -1;
+static SDL_JoystickID joy_active_instaceid = 0; // in SDL3, 0 is the invalid joystick ID
 SDL_Gamepad			 *joy_active_controller = NULL;
 
 void IN_StartupJoystick (void)
@@ -189,9 +189,9 @@ void IN_SendKeyEvents (void)
 			break;
 
 		case SDL_EVENT_GAMEPAD_ADDED:
-			if (joy_active_instaceid == -1)
+			if (joy_active_instaceid == 0)
 			{
-				joy_active_controller = SDL_OpenGamepad (event.cdevice.which);
+				joy_active_controller = SDL_OpenGamepad (event.gdevice.which);
 				if (joy_active_controller == NULL)
 					Con_DPrintf ("Couldn't open game controller\n");
 				else
@@ -205,11 +205,11 @@ void IN_SendKeyEvents (void)
 				Con_DPrintf ("Ignoring SDL_EVENT_GAMEPAD_ADDED\n");
 			break;
 		case SDL_EVENT_GAMEPAD_REMOVED:
-			if (joy_active_instaceid != -1 && event.cdevice.which == joy_active_instaceid)
+			if (joy_active_instaceid != 0 && event.gdevice.which == joy_active_instaceid)
 			{
 				SDL_CloseGamepad (joy_active_controller);
 				joy_active_controller = NULL;
-				joy_active_instaceid = -1;
+				joy_active_instaceid = 0;
 			}
 			else
 				Con_DPrintf ("Ignoring SDL_EVENT_GAMEPAD_REMOVED\n");
