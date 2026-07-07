@@ -1,4 +1,4 @@
-project('vkquake', 'c', default_options : ['c_std=gnu11', 'buildtype=release', 'strip=false', 'debug=true'])
+project('vkquake', 'c', default_options : ['c_std=gnu11', 'buildtype=release', 'strip=false', 'debug=true', 'b_ndebug=if-release'])
 
 cc = meson.get_compiler('c')
 
