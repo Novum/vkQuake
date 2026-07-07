@@ -595,6 +595,114 @@
     <ClCompile Include="..\..\Shaders\Compiled\Debug\md5.vert.c">
       <Filter>Shaders\Debug\Alias</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\alias_mboit_moment.frag.c">
+      <Filter>Shaders\Debug\Alias</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\alias_mboit_composite.frag.c">
+      <Filter>Shaders\Debug\Alias</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\alias_mboit_composite_msaa.frag.c">
+      <Filter>Shaders\Debug\Alias</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\alias_alphatest_mboit_moment.frag.c">
+      <Filter>Shaders\Debug\Alias</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\alias_alphatest_mboit_composite.frag.c">
+      <Filter>Shaders\Debug\Alias</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\alias_alphatest_mboit_composite_msaa.frag.c">
+      <Filter>Shaders\Debug\Alias</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\md5_mboit_composite.frag.c">
+      <Filter>Shaders\Debug\Alias</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\md5_mboit_composite_msaa.frag.c">
+      <Filter>Shaders\Debug\Alias</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\md5_alphatest_mboit_composite.frag.c">
+      <Filter>Shaders\Debug\Alias</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\md5_alphatest_mboit_composite_msaa.frag.c">
+      <Filter>Shaders\Debug\Alias</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\basic_mboit_moment.frag.c">
+      <Filter>Shaders\Debug\World</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\basic_mboit_composite.frag.c">
+      <Filter>Shaders\Debug\World</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\basic_mboit_composite_msaa.frag.c">
+      <Filter>Shaders\Debug\World</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\world_mboit_moment.frag.c">
+      <Filter>Shaders\Debug\World</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\world_mboit_composite.frag.c">
+      <Filter>Shaders\Debug\World</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\world_mboit_composite_msaa.frag.c">
+      <Filter>Shaders\Debug\World</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\mboit_resolve.frag.c">
+      <Filter>Shaders\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Debug\mboit_resolve_msaa.frag.c">
+      <Filter>Shaders\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\alias_mboit_moment.frag.c">
+      <Filter>Shaders\Release\Alias</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\alias_mboit_composite.frag.c">
+      <Filter>Shaders\Release\Alias</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\alias_mboit_composite_msaa.frag.c">
+      <Filter>Shaders\Release\Alias</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\alias_alphatest_mboit_moment.frag.c">
+      <Filter>Shaders\Release\Alias</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\alias_alphatest_mboit_composite.frag.c">
+      <Filter>Shaders\Release\Alias</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\alias_alphatest_mboit_composite_msaa.frag.c">
+      <Filter>Shaders\Release\Alias</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\md5_mboit_composite.frag.c">
+      <Filter>Shaders\Release\Alias</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\md5_mboit_composite_msaa.frag.c">
+      <Filter>Shaders\Release\Alias</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\md5_alphatest_mboit_composite.frag.c">
+      <Filter>Shaders\Release\Alias</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\md5_alphatest_mboit_composite_msaa.frag.c">
+      <Filter>Shaders\Release\Alias</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\basic_mboit_moment.frag.c">
+      <Filter>Shaders\Release\World</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\basic_mboit_composite.frag.c">
+      <Filter>Shaders\Release\World</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\basic_mboit_composite_msaa.frag.c">
+      <Filter>Shaders\Release\World</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\world_mboit_moment.frag.c">
+      <Filter>Shaders\Release\World</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\world_mboit_composite.frag.c">
+      <Filter>Shaders\Release\World</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\world_mboit_composite_msaa.frag.c">
+      <Filter>Shaders\Release\World</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\mboit_resolve.frag.c">
+      <Filter>Shaders\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\Shaders\Compiled\Release\mboit_resolve_msaa.frag.c">
+      <Filter>Shaders\Release</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\Quake\snd_codec.h">
@@ -814,6 +922,15 @@
       <Filter>Main</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Quake\hash_map.h">
+      <Filter>Main</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\jsmn.h">
+      <Filter>Main</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\json.h">
+      <Filter>Main</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\Quake\steam.h">
       <Filter>Main</Filter>
     </ClInclude>
   </ItemGroup>
