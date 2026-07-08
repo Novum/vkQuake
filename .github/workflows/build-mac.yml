@@ -16,7 +16,7 @@ jobs:
     - name: Install Dependencies
       run: brew install molten-vk vulkan-headers glslang spirv-tools sdl2 sdl3 libvorbis flac opus opusfile flac mpg123 meson
     - name: Build vkQuake
-      run: meson build --buildtype=${{ matrix.configuration }} -Ddebug=true -Dstrip=false -Duse_sdl3=${{ matrix.use-sdl3 }} && ninja -C build
+      run: meson setup build --buildtype=${{ matrix.configuration }} -Ddebug=true -Dstrip=false -Duse_sdl3=${{ matrix.use-sdl3 }} && ninja -C build
     - name: Extract debug information and bundle it to .dSYM
       run: |
         dsymutil build/vkquake -o build/vkquake.dSYM

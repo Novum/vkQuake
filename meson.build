@@ -1,16 +1,28 @@
-project('vkquake', 'c', default_options : ['c_std=gnu11', 'buildtype=release', 'strip=false', 'debug=true', 'b_ndebug=if-release'])
+project(
+    'vkquake',
+    'c',
+    meson_version : '>= 1.3',
+    default_options : ['c_std=gnu11,c11', 'buildtype=release', 'strip=false', 'debug=true', 'b_ndebug=if-release', 'warning_level=1', 'werror=true'])
 
 cc = meson.get_compiler('c')
 
 # Always build keeping frame pointers to get better backtraces
-add_project_arguments(['-fno-omit-frame-pointer'], language: 'c')
+add_project_arguments(cc.get_supported_arguments('-fno-omit-frame-pointer', '/Oy-'), language: 'c')
 
-if cc.has_header_symbol('sched.h', 'CPU_ZERO', prefix: '#define _GNU_SOURCE')
-    message('Info: Task affinity support enabled.')
-    add_project_arguments('-D_GNU_SOURCE', language: 'c')
-else
-    message('Warning: sched.h not found, disabling Task affinity support.')
-    add_project_arguments('-DTASK_AFFINITY_NOT_AVAILABLE', language: 'c')
+if host_machine.system() == 'windows'
+    foreach native : [true, false]
+        add_project_arguments('-D_CRT_SECURE_NO_WARNINGS', '-D_CRT_NONSTDC_NO_DEPRECATE', '-D_WINSOCK_DEPRECATED_NO_WARNINGS', language : 'c', native : native)
+    endforeach
+endif
+
+if host_machine.system() != 'windows'
+    if cc.has_header_symbol('sched.h', 'CPU_ZERO', prefix: '#define _GNU_SOURCE')
+        message('Info: Task affinity support enabled.')
+        add_project_arguments('-D_GNU_SOURCE', language: 'c')
+    else
+        message('Warning: sched.h not found, disabling Task affinity support.')
+        add_project_arguments('-DTASK_AFFINITY_NOT_AVAILABLE', language: 'c')
+    endif
 endif
 
 shaders = [
@@ -40,9 +52,20 @@ shaders = [
 # Prefer SDL3 over SDL2; -Duse_sdl3=enabled requires SDL3, disabled forces SDL2
 use_sdl3_opt = get_option('use_sdl3')
 use_sdl3 = false
-if not use_sdl3_opt.disabled()
-    sdl_dep = dependency('sdl3', required : use_sdl3_opt.enabled())
-    use_sdl3 = sdl_dep.found()
+if host_machine.system() == 'windows'
+    if use_sdl3_opt.disabled()
+        error('SDL2 is not supported on Windows')
+    endif
+    # use the bundled SDL3 like the other Windows builds do
+    sdl_dep = declare_dependency(
+        include_directories : include_directories('Windows/SDL3/include'),
+        dependencies : cc.find_library('SDL3', dirs : meson.project_source_root() / 'Windows/SDL3/lib64'))
+    use_sdl3 = true
+else
+    if not use_sdl3_opt.disabled()
+        sdl_dep = dependency('sdl3', required : use_sdl3_opt.enabled())
+        use_sdl3 = sdl_dep.found()
+    endif
 endif
 if use_sdl3
     add_project_arguments('-DUSE_SDL3', language: 'c')
@@ -54,25 +77,24 @@ endif
 
 glslang = find_program('glslangValidator')
 spirv_opt = find_program('spirv-opt')
-spirv_remap_command = []
-spirv_opt_command  = []
 run_test_canonicalize_ids_spirv_opt = run_command(spirv_opt, '-h', check : false)
 has_canonicalize_ids_spirv_opt = (run_test_canonicalize_ids_spirv_opt.stdout().strip().contains('--canonicalize-ids'))
 bintoc = executable('bintoc', ['Shaders/bintoc.c'], native: true)
 mkpak = executable('mkpak', ['Misc/vq_pak/mkpak.c'], native: true)
+
 if (build_machine.system() == 'darwin') or get_option('buildtype').startswith('debug')
-    spirv_opt_command = [] # MoltenVK spirv-cross has a bug that breaks optimized shaders
-elif has_canonicalize_ids_spirv_opt
-	message('Info: spirv-opt has --canonicalize-ids (glslang >= 16.0).')
-    spirv_opt_command = [spirv_opt, '-Os', '--canonicalize-ids', '--strip-debug', '@PLAINNAME@.spv', '-o', '@PLAINNAME@.spv', '&&']   
-else 
-    spirv_opt_command = [spirv_opt, '-Os', '@PLAINNAME@.spv', '-o', '@PLAINNAME@.spv', '&&']
-	message('Info: spirv-opt has NOT --canonicalize-ids (glslang < 16.0) so use spirv-remap instead.')
-	spirv_remap = find_program('spirv-remap')
-	spirv_remap_command = [spirv_remap, '-s', '-o', '.', '-i', '@PLAINNAME@.spv', '&&']
+    spirv_opt_args = [] # MoltenVK spirv-cross has a bug that breaks optimized shaders
+else
+    if not has_canonicalize_ids_spirv_opt
+        error('spirv-opt does not support --canonicalize-ids, a newer Vulkan SDK is required')
+    endif
+    spirv_opt_args = ['-Os', '--canonicalize-ids', '--strip-debug']
 endif
 
-bintoc_command = [bintoc, '@PLAINNAME@.spv', '@PLAINNAME@_spv', '@OUTPUT@']
+glslang_args = ['-V', '--quiet']
+if get_option('buildtype').startswith('debug')
+    glslang_args += '-g'
+endif
 
 vq_pak_path = join_paths(meson.project_source_root(), 'Misc', 'vq_pak')
 mkpak_toc_file = join_paths(vq_pak_path, 'vq_pak_contents.txt')
@@ -91,20 +113,6 @@ run_generate_embedded_pak = custom_target('run-embed_vkquake_pak',
 							output : 'embedded_pak.c',
 							input : run_mkpak,
 							command : bintoc_compress_command)
-shaders_c = []
-foreach shader : shaders
-    target_env = shader.contains('sops') ? ['--target-env', 'vulkan1.1'] : []
-    debug_flag = get_option('buildtype').startswith('debug') ? ['-g'] : []
-    glslang_command = [glslang, '-V', '--quiet'] + debug_flag + target_env + ['-o', '@PLAINNAME@.spv', '@INPUT@', '--depfile', '@PLAINNAME@.deps', '&&']
-    shaders_c += custom_target(shader.underscorify(),
-                 input: shader,
-                 output: '@PLAINNAME@.c',
-                 depfile: '@PLAINNAME@.deps',
-                 command: glslang_command
-                          + spirv_opt_command
-                          + spirv_remap_command
-                          + bintoc_command)
-endforeach
 
 # shader sources compiled multiple times with different preprocessor defines
 shader_variants = [
@@ -148,27 +156,43 @@ shader_variants = [
     ['Shaders/update_lightmap.comp', 'update_lightmap_10bit_rt.comp', ['-DUSE_10BIT=1', '-DRAY_QUERIES=1']],
 ]
 
+fs = import('fs')
+
+shader_jobs = []
+foreach shader : shaders
+    target_env = shader.contains('sops') ? ['--target-env', 'vulkan1.1'] : []
+    shader_jobs += [[shader, fs.name(shader), target_env]]
+endforeach
 foreach variant : shader_variants
-    variant_source = variant[0]
-    variant_output = variant[1]
-    variant_defines = variant[2]
-    debug_flag = get_option('buildtype').startswith('debug') ? ['-g'] : []
-    variant_command = [glslang, '-V', '--quiet'] + debug_flag + variant_defines + ['-o', variant_output + '.spv', '@INPUT@', '--depfile', variant_output + '.deps', '&&']
-    if spirv_opt_command.length() > 0
-        variant_command += [spirv_opt, '-Os']
-        if has_canonicalize_ids_spirv_opt
-            variant_command += ['--canonicalize-ids', '--strip-debug']
-        endif
-        variant_command += [variant_output + '.spv', '-o', variant_output + '.spv', '&&']
+    shader_jobs += [[variant[0], variant[1], variant[2]]]
+endforeach
+
+shaders_c = []
+foreach job : shader_jobs
+    source = job[0]
+    name = job[1]
+    args = glslang_args + job[2]
+    if spirv_opt_args.length() > 0
+        spv = custom_target(name.underscorify() + '_raw_spv',
+            input : source,
+            output : name + '.raw.spv',
+            depfile : name + '.deps',
+            command : [glslang] + args + ['-o', '@OUTPUT@', '@INPUT@', '--depfile', '@DEPFILE@'])
+        spv = custom_target(name.underscorify() + '_spv',
+            input : spv,
+            output : name + '.spv',
+            command : [spirv_opt] + spirv_opt_args + ['@INPUT@', '-o', '@OUTPUT@'])
+    else
+        spv = custom_target(name.underscorify() + '_spv',
+            input : source,
+            output : name + '.spv',
+            depfile : name + '.deps',
+            command : [glslang] + args + ['-o', '@OUTPUT@', '@INPUT@', '--depfile', '@DEPFILE@'])
     endif
-    if spirv_remap_command.length() > 0
-        variant_command += [spirv_remap, '-s', '-o', '.', '-i', variant_output + '.spv', '&&']
-    endif
-    shaders_c += custom_target(variant_output.underscorify(),
-                 input: variant_source,
-                 output: variant_output + '.c',
-                 depfile: variant_output + '.deps',
-                 command: variant_command + [bintoc, variant_output + '.spv', variant_output + '_spv', '@OUTPUT@'])
+    shaders_c += custom_target(name.underscorify() + '_c',
+        input : spv,
+        output : name + '.c',
+        command : [bintoc, '@INPUT@', name + '_spv', '@OUTPUT@'])
 endforeach
 
 srcs = [
@@ -213,13 +237,10 @@ srcs = [
     'Quake/mdfour.c',
     'Quake/mem.c',
     'Quake/menu.c',
-    'Quake/net_bsd.c',
     'Quake/net_dgrm.c',
     'Quake/net_loop.c',
     'Quake/net_main.c',
-    'Quake/net_udp.c',
     'Quake/palette.c',
-    'Quake/pl_linux.c',
     'Quake/pr_cmds.c',
     'Quake/pr_edict.c',
     'Quake/pr_exec.c',
@@ -247,7 +268,6 @@ srcs = [
     'Quake/sv_phys.c',
     'Quake/sv_user.c',
 	'Quake/sys_sdl.c',
-    'Quake/sys_sdl_unix.c',
     'Quake/tasks.c',
     'Quake/view.c',
     'Quake/wad.c',
@@ -256,7 +276,36 @@ srcs = [
 	 run_generate_embedded_pak,
 ]
 
-cflags = ['-Wall', '-Wno-trigraphs', '-Werror', '-std=gnu11', '-D_FILE_OFFSET_BITS=64']
+if host_machine.system() == 'windows'
+    srcs += [
+        'Quake/net_win.c',
+        'Quake/net_wins.c',
+        'Quake/net_wipx.c',
+        'Quake/pl_win.c',
+        'Quake/sys_sdl_win.c',
+    ]
+    srcs += import('windows').compile_resources(
+        'Windows/vkQuake.rc',
+        # the \xA9 copyright escape is Windows-1252; llvm-rc refuses 8 bit
+        # codepoints without an explicit codepage. gcc builds use windres,
+        # which takes no /C option
+        args : cc.get_id() == 'gcc' ? [] : ['/C', '1252'],
+        include_directories : include_directories('Windows', 'Quake'),
+        depend_files : ['Windows/vkQuake.ico'])
+else
+    srcs += [
+        'Quake/net_bsd.c',
+        'Quake/net_udp.c',
+        'Quake/pl_linux.c',
+        'Quake/sys_sdl_unix.c',
+    ]
+endif
+
+cflags = cc.get_supported_arguments('-Wno-trigraphs', '-Wno-microsoft-enum-forward-reference') + ['-D_FILE_OFFSET_BITS=64']
+if cc.get_id() == 'clang'
+    # the stb single header libraries define their whole API static
+    cflags += '-Wno-unused-function'
+endif
 
 deps = [
     cc.find_library('m', required : false),
@@ -264,6 +313,13 @@ deps = [
     dependency('threads'),
     sdl_dep,
 ]
+
+if host_machine.system() == 'windows'
+    foreach syslib : ['ws2_32', 'winmm', 'dbghelp']
+        deps += cc.find_library(syslib)
+    endforeach
+    import('fs').copyfile('Windows/SDL3/lib64/SDL3.dll')
+endif
 
 if build_machine.system() == 'darwin'
     molten_dirs = []
@@ -279,49 +335,88 @@ if get_option('use_codec_wave').enabled()
     cflags += '-DUSE_CODEC_WAVE'
 endif
 
+if host_machine.system() == 'windows'
+    # the bundled codec libraries, like the other Windows builds use
+    codec_inc = include_directories('Windows/codecs/include')
+    codec_lib_dir = meson.project_source_root() / 'Windows/codecs/x64'
+    codec_deps = {}
+    foreach name, option : {
+        'libmad' : 'use_codec_mp3',
+        'libmpg123' : 'use_codec_mp3',
+        'libFLAC' : 'use_codec_flac',
+        'libogg' : 'use_codec_vorbis',
+        'libvorbisfile' : 'use_codec_vorbis',
+        'libvorbis' : 'use_codec_vorbis',
+        'libopus' : 'use_codec_opus',
+        'libopusfile' : 'use_codec_opus',
+    }
+        lib = cc.find_library(name, dirs : codec_lib_dir, required : get_option(option))
+        codec_deps += {name : lib.found() ? declare_dependency(include_directories : codec_inc, dependencies : lib) : lib}
+    endforeach
+    foreach dll : ['libFLAC-8.dll', 'libmad-0.dll', 'libmpg123-0.dll', 'libogg-0.dll', 'libopus-0.dll', 'libopusfile-0.dll', 'libvorbis-0.dll', 'libvorbisfile-3.dll']
+        import('fs').copyfile('Windows/codecs/x64' / dll)
+    endforeach
+    mad_dep = codec_deps['libmad']
+    mpg123_dep = codec_deps['libmpg123']
+    flac_dep = codec_deps['libFLAC']
+    ogg_dep = codec_deps['libogg']
+    vorbisfile_dep = codec_deps['libvorbisfile']
+    vorbis_dep = codec_deps['libvorbis']
+    tremor_dep = dependency('', required : false)
+    opus_dep = codec_deps['libopus']
+    opusfile_dep = codec_deps['libopusfile']
+else
+    if get_option('mp3_lib') == 'mad'
+        mad_dep = dependency('mad', required : get_option('use_codec_mp3'))
+    else
+        mpg123_dep = dependency('libmpg123', required : get_option('use_codec_mp3'))
+    endif
+    flac_dep = dependency('flac', required : get_option('use_codec_flac'))
+    ogg_dep = dependency('ogg', required : get_option('use_codec_vorbis'))
+    if get_option('vorbis_lib') == 'vorbis'
+        vorbisfile_dep = dependency('vorbisfile', required : get_option('use_codec_vorbis'))
+        vorbis_dep = dependency('vorbis', required : get_option('use_codec_vorbis'))
+    else
+        tremor_dep = dependency('vorbisidec', required : get_option('use_codec_vorbis'))
+    endif
+    opus_dep = dependency('opus', required : get_option('use_codec_opus'))
+    opusfile_dep = dependency('opusfile', required : get_option('use_codec_opus'))
+endif
+
 if get_option('mp3_lib') == 'mad'
-    mp3_dep = dependency('mad', required : get_option('use_codec_mp3'))
-    if mp3_dep.found()
+    if mad_dep.found()
         srcs += [ 'Quake/snd_mp3.c', 'Quake/snd_mp3tag.c' ]
-        deps += mp3_dep
+        deps += mad_dep
         cflags += '-DUSE_CODEC_MP3'
     endif
 else
-    mp3_dep = dependency('libmpg123', required : get_option('use_codec_mp3'))
-    if mp3_dep.found()
+    if mpg123_dep.found()
         srcs += [ 'Quake/snd_mpg123.c', 'Quake/snd_mp3tag.c' ]
-        deps += mp3_dep
+        deps += mpg123_dep
         cflags += '-DUSE_CODEC_MP3'
     endif
 endif
 
-flac_dep = dependency('flac', required : get_option('use_codec_flac'))
 if flac_dep.found()
     srcs += 'Quake/snd_flac.c'
     deps += flac_dep
     cflags += '-DUSE_CODEC_FLAC'
 endif
 
-ogg_dep = dependency('ogg', required : get_option('use_codec_vorbis'))
 if get_option('vorbis_lib') == 'vorbis'
-    vorbisfile_dep = dependency('vorbisfile', required : get_option('use_codec_vorbis'))
-    vorbis_dep = dependency('vorbis', required : get_option('use_codec_vorbis'))
     if ogg_dep.found() and vorbisfile_dep.found() and vorbis_dep.found()
         srcs += 'Quake/snd_vorbis.c'
         deps += [ ogg_dep, vorbisfile_dep, vorbis_dep ]
         cflags += '-DUSE_CODEC_VORBIS'
     endif
 else
-    vorbis_dep = dependency('vorbisidec', required : get_option('use_codec_vorbis'))
-    if ogg_dep.found() and vorbis_dep.found()
+    if ogg_dep.found() and tremor_dep.found()
         srcs += 'Quake/snd_vorbis.c'
-        deps += [ ogg_dep, vorbis_dep ]
+        deps += [ ogg_dep, tremor_dep ]
         cflags += [ '-DUSE_CODEC_VORBIS', '-DVORBIS_USE_TREMOR' ]
     endif
 endif
 
-opus_dep = dependency('opus', required : get_option('use_codec_opus'))
-opusfile_dep = dependency('opusfile', required : get_option('use_codec_opus'))
 if opus_dep.found() and opusfile_dep.found()
     srcs += 'Quake/snd_opus.c'
     deps += [ opus_dep, opusfile_dep ]
@@ -340,4 +435,11 @@ incdirs = [
     'Quake/mimalloc',
 ]
 
-executable('vkquake', [srcs, shaders_c], dependencies : deps, include_directories : incdirs, c_args : cflags, c_pch: ['Quake/quakedef.h', 'Quake/quakedef.c'])
+executable(
+    'vkquake',
+    [srcs, shaders_c],
+    dependencies : deps,
+    include_directories : incdirs,
+    c_args : cflags,
+    c_pch : 'Quake/quakedef.h',
+    win_subsystem : 'windows')
