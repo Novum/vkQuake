@@ -348,13 +348,13 @@ static inline int FindLastBitNonZero64 (const uint64_t mask)
 #include "filenames.h"
 #include "common.h"
 
-// Our custom assert() output stack traces either on the console with Host_Error
+// Our customized assert_always() output stack traces either on the console with Host_Error
 // if we are on the main thread, else print on stdout and abort()
-// TBC : performance impact ? reserved for Debug builds ?
-#ifndef assert
-#define assert(e) ((e) ? (void)0 : COM_Assert_Failed (#e, __FILE__, __LINE__))
+// assert_always() is present in either Release or Debug builds.
+#ifndef assert_always
+#define assert_always(e) ((e) ? (void)0 : COM_Assert_Failed (#e, __FILE__, __LINE__))
 #else
-#include <assert.h>
+
 #endif
 
 #include "mem.h"

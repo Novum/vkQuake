@@ -333,7 +333,7 @@ static void SV_TouchLinks (edict_t *ent)
 	int old_self, old_other;
 	int listcount;
 
-	assert (!ent->free);
+	assert_always (!ent->free);
 
 	// Make a list of edicts num to take less stack space that edict_t*
 	// TODO : can list be a static variable ? SV_TouchLinks is only called from the main thread,
@@ -1301,7 +1301,7 @@ trace_t SV_Move (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type, e
 		World_ClipToNetwork (&clip);
 
 	if (clip.trace.ent)
-		assert (!clip.trace.ent->free);
+		assert_always (!clip.trace.ent->free);
 
 	return clip.trace;
 }

@@ -116,7 +116,7 @@ qboolean SV_movestep (edict_t *ent, vec3_t move, qboolean relink)
 	int		 i;
 	edict_t *enemy;
 
-	assert (!ent->free);
+	assert_always (!ent->free);
 
 	// try the move
 	VectorCopy (ent->v.origin, oldorg);
@@ -254,11 +254,11 @@ qboolean SV_StepDirection (edict_t *ent, float yaw, float dist)
 		{ // not turned far enough, so don't take the step
 			VectorCopy (oldorigin, ent->v.origin);
 		}
-		assert (!ent->free);
+		assert_always (!ent->free);
 		SV_LinkEdict (ent, true);
 		return true;
 	}
-	assert (!ent->free);
+	assert_always (!ent->free);
 	SV_LinkEdict (ent, true);
 	return false;
 }

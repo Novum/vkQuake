@@ -105,8 +105,6 @@ edict_t *ED_Alloc (void)
 
 	e->baseline = nullentitystate;
 
-	assert (!e->free);
-
 #if defined(DEBUG) || defined(_DEBUG)
 	// fill debug fields, they were overwriten above:
 	e->qcvm_owner = qcvm;

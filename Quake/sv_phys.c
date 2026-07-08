@@ -180,7 +180,7 @@ Two entities have touched, so run their touch functions
 */
 static void SV_Impact (edict_t *e1, edict_t *e2)
 {
-	assert (!e1->free && !e2->free);
+	assert_always (!e1->free && !e2->free);
 
 	int old_self, old_other;
 
@@ -330,7 +330,7 @@ static int SV_FlyMove (edict_t *ent, float time, trace_t *steptrace)
 		//
 		// run the impact function
 		//
-		assert (!ent->free);
+		assert_always (!ent->free);
 
 		SV_Impact (ent, trace.ent);
 		if (ent->free)
@@ -446,7 +446,7 @@ static trace_t SV_PushEntity (edict_t *ent, vec3_t push)
 		trace = SV_Move (ent->v.origin, ent->v.mins, ent->v.maxs, end, MOVE_NORMAL, ent);
 
 	if (trace.ent)
-		assert (!trace.ent->free);
+		assert_always (!trace.ent->free);
 
 	VectorCopy (trace.endpos, ent->v.origin);
 
@@ -1009,7 +1009,7 @@ static void SV_Physics_Client (edict_t *ent, int num)
 	pr_global_struct->self = EDICT_TO_PROG (ent);
 	PR_ExecuteProgram (pr_global_struct->PlayerPreThink);
 
-	assert (!ent->free);
+	assert_always (!ent->free);
 	//
 	// do a move
 	//
@@ -1031,7 +1031,7 @@ static void SV_Physics_Client (edict_t *ent, int num)
 		if (!SV_CheckWater (ent) && !((int)ent->v.flags & FL_WATERJUMP))
 			SV_AddGravity (ent);
 		SV_CheckStuck (ent);
-		assert (!ent->free);
+		assert_always (!ent->free);
 		SV_WalkMove (ent);
 		break;
 
@@ -1062,7 +1062,7 @@ static void SV_Physics_Client (edict_t *ent, int num)
 	//
 	SV_LinkEdict (ent, true);
 
-	assert (!ent->free);
+	assert_always (!ent->free);
 
 	pr_global_struct->time = qcvm->time;
 	pr_global_struct->self = EDICT_TO_PROG (ent);
