@@ -353,8 +353,6 @@ static inline int FindLastBitNonZero64 (const uint64_t mask)
 // assert_always() is present in either Release or Debug builds.
 #ifndef assert_always
 #define assert_always(e) ((e) ? (void)0 : COM_Assert_Failed (#e, __FILE__, __LINE__))
-#else
-
 #endif
 
 #include "mem.h"
