@@ -109,9 +109,11 @@ COMPILE_TIME_ASSERT (enum, sizeof (THE_DUMMY_ENUM) == sizeof (int));
 /* Provide a substitute for offsetof() if we don't have one.
  * This variant works on most (but not *all*) systems...
  */
+// clang-format off
 #ifndef offsetof
 #define offsetof(t, m) ((intptr_t)&(((t *)0)->m))
 #endif
+// clang-format on
 
 /*==========================================================================*/
 
