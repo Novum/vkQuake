@@ -151,11 +151,21 @@ int main (int argc, char *argv[])
 		size_t in_size = (size_t)ftell (in);
 		fseek (in, 0, SEEK_SET);
 		in_buffer = realloc (in_buffer, in_size);
-		fread (in_buffer, in_size, 1, in);
+		if (in_size != 0 && fread (in_buffer, in_size, 1, in) != 1)
+		{
+			fprintf (stderr, "Could not read input file '%s', index %d", input_file_path, file_index);
+			return 1;
+		}
 
 		dpackfile_t pack_entry;
 		memset (&pack_entry, 0, sizeof (pack_entry));
-		strncpy (pack_entry.name, entry_path_start, sizeof (pack_entry.name) - 1);
+		const size_t name_len = strlen (entry_path_start);
+		if (name_len >= sizeof (pack_entry.name))
+		{
+			fprintf (stderr, "Entry name '%s' does not fit in the pak directory", entry_path_start);
+			return 1;
+		}
+		memcpy (pack_entry.name, entry_path_start, name_len);
 		pack_entry.filelen = (int)in_size;
 		pack_entry.filepos = file_offset;
 

@@ -121,6 +121,15 @@ make -f Makefile.w64a
 
 If you are on Linux and want to cross-compile for Windows, see the `build_cross_win??.sh` scripts.
 
+#### Meson
+
+With [Meson](https://mesonbuild.com/), [Ninja](https://ninja-build.org/) and a compiler installed (LLVM/Clang on PATH, or run `meson setup --vsenv build` for MSVC):
+
+~~~
+cd vkQuake
+meson setup build && ninja -C build
+~~~
+
 ### Linux
 
 Make sure that both your GPU and your GPU driver support [Vulkan](https://en.wikipedia.org/wiki/Vulkan#Support_across_vendors).
@@ -160,7 +169,7 @@ meson build -Ddebug=true -Dstrip=false && ninja -C build
 Meson prefers SDL3 and falls back to SDL2 if it is not installed; add `-Duse_sdl3=disabled` to force SDL2 (or `enabled` to require SDL3).
 
 > **Note**\
-> The Meson version needs to be 0.47.0 or newer. For older distributions you can use make:
+> The Meson version needs to be 1.3.0 or newer. For older distributions you can use make:
 > ~~~
 > cd vkQuake/Quake
 > make -j
@@ -168,7 +177,7 @@ Meson prefers SDL3 and falls back to SDL2 if it is not installed; add `-Duse_sdl
 > Meson is the preferred way to build vkQuake because it automatically checks for out of date file depenencies, is faster and has better error reporting for missing dependencies.
 
 > **Note**\
-> vkQuake 0.97 and later requires at least **SDL2 2.0.6 with enabled Vulkan support**. The precompiled versions in some of the distribution repositories (e.g. Ubuntu) do not currently ship with Vulkan support. You will therefore need to compile it from source. Make sure you have libvulkan-dev installed before running configure.
+> vkQuake requires **SDL3** or, as a fallback for older distributions, at least **SDL2 2.0.6 with enabled Vulkan support**.
 
 ### MacOS
 
@@ -194,7 +203,7 @@ meson build -Ddebug=true -Dstrip=false && ninja -C build
 Meson prefers SDL3 and falls back to SDL2 if it is not installed; add `-Duse_sdl3=disabled` to force SDL2 (or `enabled` to require SDL3).
 
 > **Note**\
-> The Meson version needs to be 0.47.0 or newer.
+> The Meson version needs to be 1.3.0 or newer.
 
 ## Error reporting
 
