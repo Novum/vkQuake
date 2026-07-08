@@ -11,12 +11,12 @@ either alongside the `vkQuake` executable, or in a place where it can be found f
 -  Windows MSYS2 for either `x64` or `arm64` : Debug information is already built-in the `vkQuake.exe` file.  
 
 - Linux :
-   - Using the Appimage build: the archive contains `vkquake.debuginfo` that will be used for post-mortem analysis. 
-   - Using either `Meson` or `Makefile` builds : Debug information is already built-in the `vkquake` executable.
+   - Using Appimage : Extract the original executable `vkquake` from the .AppImage itself using the following command : `./vkQuake-<version>-x86_64.AppImage --appimage-extract`. That executable have Debug information included.
+   - Using either `Meson` or `Makefile` builds : Debug information is included in the `vkquake` executable.
  
 - MacOS :
    - `vkquake.dSYM` directory contains the Debug information that will be used for post-mortem analysis, and should be put at the same place
-     where the `vkquake` exeutable is. 
+     where the `vkquake` executable is. 
  
 ## Extracting file+line information from in-game vkQuake fatal errors :  
 
@@ -67,8 +67,7 @@ or Run:
 # Using absolute addresses: 
 addr2line -f -e [VKQUAKEBEBUG] 0x588582e618a8 0x588582d8a267 0x588582e5c735 0x588582e5c839 0x588582e5d9dd 0x588582e5dea0 0x588582d8a6ed
 ```
-Use whatever works best, where `[VKQUAKEBEBUG]` is the vkQuake executable if built with either `Meson` or `Makefile`, or `vkquake.debuginfo` 
-for Appimage.  
+Use whatever works best, where `[VKQUAKEBEBUG]` is the vkQuake executable built using either Meson or Makefile, or the executable extracted from the `.AppImage`. 
 
 
 -  ##### MacOS:
