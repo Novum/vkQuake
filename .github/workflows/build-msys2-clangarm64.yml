@@ -6,6 +6,8 @@ jobs:
   build-mingw:
     name: ${{ matrix.platform.name }}
     runs-on: ${{ matrix.platform.os }}
+    permissions:
+      contents: write
 
     defaults:
       run:
@@ -23,6 +25,7 @@ jobs:
       with:
         msystem: ${{ matrix.platform.msystem }}
         install: base-devel
+          zip
           ${{ matrix.platform.msys-env }}-gcc-compat
           ${{ matrix.platform.msys-env }}-glslang
           ${{ matrix.platform.msys-env }}-vulkan-headers
@@ -38,6 +41,16 @@ jobs:
 
     - uses: actions/checkout@v6
 
+    - name: Determine version
+      id: version
+      shell: bash
+      run: |
+        if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+          echo "version=$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
+        else
+          echo "version=${GITHUB_SHA::8}" >> "$GITHUB_OUTPUT"
+        fi
+
     - name: Build MinGW
       run: |
         set -eu
@@ -50,3 +63,18 @@ jobs:
         path: |
             Quake/*.exe
             Quake/*.dll
+    - name: Package
+      run: |
+        set -eu
+        zip -j vkQuake-${{ steps.version.outputs.version }}_windows_arm64.zip Quake/*.exe Quake/*.dll LICENSE.txt
+    - name: Upload package
+      uses: actions/upload-artifact@v7
+      with:
+        name: vkQuake package (arm64)
+        path: vkQuake-*_windows_arm64.zip
+    - name: Attach to release
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v2
+      with:
+        draft: true
+        files: vkQuake-*_windows_arm64.zip

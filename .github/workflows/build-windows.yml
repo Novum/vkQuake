@@ -6,6 +6,8 @@ jobs:
   build-windows:
     name: Build Windows
     runs-on: windows-2025-vs2026
+    permissions:
+      contents: write
     strategy:
       fail-fast: false
       matrix:
@@ -13,6 +15,15 @@ jobs:
         platform: [x64]
     steps:
     - uses: actions/checkout@v6
+    - name: Determine version
+      id: version
+      run: |
+        if ($env:GITHUB_REF -like 'refs/tags/*') {
+          $version = $env:GITHUB_REF_NAME
+        } else {
+          $version = $env:GITHUB_SHA.Substring(0, 8)
+        }
+        "version=$version" >> $env:GITHUB_OUTPUT
     - name: Install Vulkan SDK
       uses: jakoch/install-vulkan-sdk-action@v1.6.0
       with:
@@ -40,3 +51,34 @@ jobs:
             Windows\VisualStudio\Build-vkQuake\**\*.exe
             Windows\VisualStudio\Build-vkQuake\**\*.dll
             Windows\VisualStudio\Build-vkQuake\**\vkQuake.pdb
+    - name: Package
+      if: matrix.configuration == 'Release'
+      run: |
+        $version = '${{ steps.version.outputs.version }}'
+        $srcdir = 'Windows\VisualStudio\Build-vkQuake\${{ matrix.platform }}\Release'
+        $compress = @{
+          Path = "$srcdir\*.exe", "$srcdir\vkQuake.pdb", "$srcdir\*.dll", 'LICENSE.txt'
+          CompressionLevel = 'Optimal'
+          DestinationPath = "Packaging\Windows\vkQuake-${version}_windows_${{ matrix.platform }}.zip"
+        }
+        Compress-Archive @compress
+        choco install nsis -y --no-progress
+        Set-Location Packaging\Windows
+        & makensis -V4 '-DSRCDIR=..\..\Windows\VisualStudio\Build-vkQuake\${{ matrix.platform }}\Release' '-DPLATFORM=windows_${{ matrix.platform }}' "-DVERSION=$version" vkQuake.nsi
+        if (-not $?) { throw "makensis failed" }
+    - name: Upload package
+      if: matrix.configuration == 'Release'
+      uses: actions/upload-artifact@v7
+      with:
+        name: vkQuake package (${{ matrix.platform }})
+        path: |
+            Packaging\Windows\vkQuake-*.zip
+            Packaging\Windows\vkQuake-Installer-*.exe
+    - name: Attach to release
+      if: matrix.configuration == 'Release' && startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v2
+      with:
+        draft: true
+        files: |
+          Packaging/Windows/vkQuake-*.zip
+          Packaging/Windows/vkQuake-Installer-*.exe
