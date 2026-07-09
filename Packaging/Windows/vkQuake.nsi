@@ -59,10 +59,14 @@ Section "Game" GAME
 	
 	!insertmacro MUI_STARTMENU_WRITE_BEGIN Application
 		CreateDirectory "$SMPROGRAMS\$StartMenuFolder"
-		# the engine locates Steam/GOG/Epic Quake installs at startup, no -basedir needed
-		CreateShortCut "$SMPROGRAMS\$StartMenuFolder\vkQuake.lnk" $OUTDIR\vkQuake.exe "" \
+		# the engine locates Steam/GOG/Epic Quake installs at startup or asks for the folder, no -basedir needed
+		CreateShortCut "$SMPROGRAMS\$StartMenuFolder\vkQuake (classic).lnk" $OUTDIR\vkQuake.exe "-multiuser -original" \
 			"$OUTDIR\vkQuake.exe" "" "" "" ""
-		CreateShortCut "$INSTDIR\vkQuake.lnk" $OUTDIR\vkQuake.exe "" \
+		CreateShortCut "$SMPROGRAMS\$StartMenuFolder\vkQuake (rerelease).lnk" $OUTDIR\vkQuake.exe "-multiuser -remastered" \
+			"$OUTDIR\vkQuake.exe" "" "" "" ""
+		CreateShortCut "$INSTDIR\vkQuake (classic).lnk" $OUTDIR\vkQuake.exe "-multiuser -original" \
+			"$OUTDIR\vkQuake.exe" "" "" "" ""
+		CreateShortCut "$INSTDIR\vkQuake (rerelease).lnk" $OUTDIR\vkQuake.exe "-multiuser -remastered" \
 			"$OUTDIR\vkQuake.exe" "" "" "" ""
 	!insertmacro MUI_STARTMENU_WRITE_END
 SectionEnd
@@ -88,8 +92,7 @@ Function ${UN}Clean
 	DeleteRegKey HKLM "Software\vkQuake"
 	RMDir /r $INSTDIR
 	!insertmacro MUI_STARTMENU_GETFOLDER Application $StartMenuFolder
-	Delete "$SMPROGRAMS\$StartMenuFolder\vkQuake.lnk"
-	RMDir "$SMPROGRAMS\$StartMenuFolder"
+	RMDir /r "$SMPROGRAMS\$StartMenuFolder"
 	SetAutoClose true
 FunctionEnd
 !macroend

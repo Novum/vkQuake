@@ -1224,6 +1224,10 @@ void Host_Init (void)
 	host_initialized = true;
 	Con_Printf ("\n========= Quake Initialized =========\n\n");
 
+	// the folder from the selection dialog is only remembered now,
+	// with the game data proven to actually work
+	COM_WriteSelectedBaseDir ();
+
 	if (cls.state != ca_dedicated)
 	{
 		Cbuf_InsertText ("exec quake.rc\n");

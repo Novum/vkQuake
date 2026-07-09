@@ -2715,22 +2715,178 @@ static void COM_Game_f (void)
 
 /*
 =================
-COM_IsValidBaseDir
+COM_IsValidFlavorDir
 
-Returns true if the directory contains usable game data:
-either classic id1/pak0.pak or the rerelease QuakeEX.kpf
+Returns true if the directory contains usable game data for the given
+flavor: classic id1/pak0.pak or the rerelease QuakeEX.kpf (-1 accepts
+either)
 =================
 */
-static qboolean COM_IsValidBaseDir (const char *dir)
+static qboolean COM_IsValidFlavorDir (const char *dir, int flavor)
 {
 	char path[MAX_OSPATH];
 
-	if ((size_t)q_snprintf (path, sizeof (path), "%s/" GAMENAME "/pak0.pak", dir) < sizeof (path) && Sys_FileType (path) == FS_ENT_FILE)
+	if (flavor != QUAKE_FLAVOR_REMASTERED && (size_t)q_snprintf (path, sizeof (path), "%s/" GAMENAME "/pak0.pak", dir) < sizeof (path) &&
+		Sys_FileType (path) == FS_ENT_FILE)
 		return true;
-	if ((size_t)q_snprintf (path, sizeof (path), "%s/QuakeEX.kpf", dir) < sizeof (path) && Sys_FileType (path) == FS_ENT_FILE)
+	if (flavor != QUAKE_FLAVOR_ORIGINAL && (size_t)q_snprintf (path, sizeof (path), "%s/QuakeEX.kpf", dir) < sizeof (path) &&
+		Sys_FileType (path) == FS_ENT_FILE)
 		return true;
 
 	return false;
+}
+
+static qboolean COM_IsValidBaseDir (const char *dir)
+{
+	return COM_IsValidFlavorDir (dir, -1);
+}
+
+/*
+=================
+COM_RequestedQuakeFlavor
+
+Quake version requested on the command line, -1 if none
+=================
+*/
+static int COM_RequestedQuakeFlavor (void)
+{
+	if (COM_CheckParm ("-prefremaster") || COM_CheckParm ("-remaster") || COM_CheckParm ("-remastered"))
+		return QUAKE_FLAVOR_REMASTERED;
+	if (COM_CheckParm ("-preforiginal") || COM_CheckParm ("-original"))
+		return QUAKE_FLAVOR_ORIGINAL;
+	return -1;
+}
+
+#ifdef USE_SDL3
+/*
+=================
+COM_LoadSelectedBaseDirs / COM_SaveSelectedBaseDirs
+
+Game folders the user picked in the folder dialog, kept in the pref
+dir. A new pick is only written once the engine is fully initialized
+(COM_WriteSelectedBaseDir) so a folder with broken data can't get
+remembered.
+=================
+*/
+static int	com_pendingbasedirflavor = -1;
+static char com_pendingbasedir[MAX_OSPATH];
+
+static void COM_LoadSelectedBaseDirs (char *original, size_t originalsize, char *remastered, size_t remasteredsize)
+{
+	char  line[MAX_OSPATH + 16];
+	FILE *f;
+	char *pref_path = SDL_GetPrefPath ("", "vkQuake");
+
+	f = fopen (va ("%s/basedirs.txt", pref_path), "r");
+	SDL_free (pref_path);
+	if (!f)
+		return;
+
+	while (fgets (line, sizeof (line), f))
+	{
+		char *path = strchr (line, ' ');
+		if (!path)
+			continue;
+		*path++ = '\0';
+		path[strcspn (path, "\r\n")] = '\0';
+		if (!strcmp (line, "classic"))
+			q_strlcpy (original, path, originalsize);
+		else if (!strcmp (line, "remastered"))
+			q_strlcpy (remastered, path, remasteredsize);
+	}
+
+	fclose (f);
+}
+
+static void COM_SaveSelectedBaseDirs (const char *original, const char *remastered)
+{
+	FILE *f;
+	char *pref_path = SDL_GetPrefPath ("", "vkQuake");
+
+	f = fopen (va ("%s/basedirs.txt", pref_path), "w");
+	SDL_free (pref_path);
+	if (!f)
+		return;
+
+	if (original[0])
+		fprintf (f, "classic %s\n", original);
+	if (remastered[0])
+		fprintf (f, "remastered %s\n", remastered);
+
+	fclose (f);
+}
+
+/*
+=================
+COM_SelectBaseDir
+
+Asks the user for a game folder until it contains data for the wanted
+flavor (-1 accepts either); returns false if the dialog was cancelled
+=================
+*/
+static qboolean COM_SelectBaseDir (int flavor, const char *default_location, char *dst, size_t dstsize)
+{
+	const char *title, *complaint;
+
+	switch (flavor)
+	{
+	case QUAKE_FLAVOR_ORIGINAL:
+		title = "Select your classic Quake folder";
+		complaint = "The selected folder does not contain " GAMENAME "/pak0.pak.";
+		break;
+	case QUAKE_FLAVOR_REMASTERED:
+		title = "Select your remastered Quake folder";
+		complaint = "The selected folder does not contain QuakeEX.kpf.";
+		break;
+	default:
+		title = "Select your Quake folder";
+		complaint = "The selected folder does not contain Quake game data (" GAMENAME "/pak0.pak or QuakeEX.kpf).";
+		break;
+	}
+
+	while (Sys_SelectFolder (title, default_location, dst, dstsize))
+	{
+		if (COM_IsValidFlavorDir (dst, flavor))
+			return true;
+		SDL_ShowSimpleMessageBox (SDL_MESSAGEBOX_WARNING, "vkQuake", complaint, NULL);
+	}
+
+	return false;
+}
+
+static void COM_SetPendingBaseDir (int flavor, const char *dir)
+{
+	com_pendingbasedirflavor = flavor;
+	q_strlcpy (com_pendingbasedir, dir, sizeof (com_pendingbasedir));
+}
+#endif
+
+/*
+=================
+COM_WriteSelectedBaseDir
+
+Remembers the folder picked in the dialog; called once the engine is
+fully initialized as proof the folder contains working game data
+=================
+*/
+void COM_WriteSelectedBaseDir (void)
+{
+#ifdef USE_SDL3
+	char original[MAX_OSPATH] = {0};
+	char remastered[MAX_OSPATH] = {0};
+
+	if (com_pendingbasedirflavor < 0)
+		return;
+
+	COM_LoadSelectedBaseDirs (original, sizeof (original), remastered, sizeof (remastered));
+	if (com_pendingbasedirflavor == QUAKE_FLAVOR_REMASTERED)
+		q_strlcpy (remastered, com_pendingbasedir, sizeof (remastered));
+	else
+		q_strlcpy (original, com_pendingbasedir, sizeof (original));
+	COM_SaveSelectedBaseDirs (original, remastered);
+
+	com_pendingbasedirflavor = -1;
+#endif
 }
 
 /*
@@ -2740,6 +2896,8 @@ COM_FindStoreBaseDir
 Locates a Steam/GOG/Epic Games Store install of Quake and points
 com_basedir at it (based on the Ironwail startup flow). Used when
 the working directory has no game data and no -basedir was given.
+Asks the user for the folder when the requested version isn't found,
+starting at the previously picked folder.
 =================
 */
 static void COM_FindStoreBaseDir (void)
@@ -2748,6 +2906,7 @@ static void COM_FindStoreBaseDir (void)
 	char		  original[MAX_OSPATH] = {0};
 	char		  remastered[MAX_OSPATH] = {0};
 	quakeflavor_t flavor;
+	int			  requested;
 	qboolean	  force_steam = COM_CheckParm ("-steam") != 0;
 	qboolean	  force_gog = COM_CheckParm ("-gog") != 0;
 	qboolean	  force_egs = (COM_CheckParm ("-egs") || COM_CheckParm ("-epic")) != 0;
@@ -2776,10 +2935,76 @@ static void COM_FindStoreBaseDir (void)
 			remastered[0] = '\0';
 	}
 
-	if (original[0] && !COM_IsValidBaseDir (original))
+	if (original[0] && !COM_IsValidFlavorDir (original, QUAKE_FLAVOR_ORIGINAL))
 		original[0] = '\0';
-	if (remastered[0] && !COM_IsValidBaseDir (remastered))
+	if (remastered[0] && !COM_IsValidFlavorDir (remastered, QUAKE_FLAVOR_REMASTERED))
 		remastered[0] = '\0';
+
+	requested = COM_RequestedQuakeFlavor ();
+
+	if (!forced && !isDedicated)
+	{
+#ifdef USE_SDL3
+		char stored_original[MAX_OSPATH] = {0};
+		char stored_remastered[MAX_OSPATH] = {0};
+
+		COM_LoadSelectedBaseDirs (stored_original, sizeof (stored_original), stored_remastered, sizeof (stored_remastered));
+
+		// use the folder picked in a previous run unless the user wants a new one
+		if (!COM_CheckParm ("-select-basedir"))
+		{
+			if (!original[0] && stored_original[0] && COM_IsValidFlavorDir (stored_original, QUAKE_FLAVOR_ORIGINAL))
+				q_strlcpy (original, stored_original, sizeof (original));
+			if (!remastered[0] && stored_remastered[0] && COM_IsValidFlavorDir (stored_remastered, QUAKE_FLAVOR_REMASTERED))
+				q_strlcpy (remastered, stored_remastered, sizeof (remastered));
+		}
+
+		// still missing: ask for the folder, starting the dialog at the previous pick
+		if (requested == QUAKE_FLAVOR_ORIGINAL && !original[0])
+		{
+			if (!COM_SelectBaseDir (QUAKE_FLAVOR_ORIGINAL, stored_original, original, sizeof (original)))
+			{
+				SDL_Quit ();
+				exit (0);
+			}
+			COM_SetPendingBaseDir (QUAKE_FLAVOR_ORIGINAL, original);
+		}
+		else if (requested == QUAKE_FLAVOR_REMASTERED && !remastered[0])
+		{
+			if (!COM_SelectBaseDir (QUAKE_FLAVOR_REMASTERED, stored_remastered, remastered, sizeof (remastered)))
+			{
+				SDL_Quit ();
+				exit (0);
+			}
+			COM_SetPendingBaseDir (QUAKE_FLAVOR_REMASTERED, remastered);
+		}
+		else if (requested < 0 && !original[0] && !remastered[0])
+		{
+			char selected[MAX_OSPATH];
+			if (!COM_SelectBaseDir (-1, stored_remastered[0] ? stored_remastered : stored_original, selected, sizeof (selected)))
+			{
+				SDL_Quit ();
+				exit (0);
+			}
+			if (COM_IsValidFlavorDir (selected, QUAKE_FLAVOR_REMASTERED))
+			{
+				q_strlcpy (remastered, selected, sizeof (remastered));
+				COM_SetPendingBaseDir (QUAKE_FLAVOR_REMASTERED, selected);
+			}
+			else
+			{
+				q_strlcpy (original, selected, sizeof (original));
+				COM_SetPendingBaseDir (QUAKE_FLAVOR_ORIGINAL, selected);
+			}
+		}
+#else
+		// no folder picker without the SDL3 dialog API
+		if (requested == QUAKE_FLAVOR_ORIGINAL && !original[0])
+			Sys_Error ("Couldn't find the classic Quake folder. Use -basedir to specify it.");
+		else if (requested == QUAKE_FLAVOR_REMASTERED && !remastered[0])
+			Sys_Error ("Couldn't find the remastered Quake folder. Use -basedir to specify it.");
+#endif
+	}
 
 	if (!original[0] && !remastered[0])
 	{
@@ -2792,15 +3017,12 @@ static void COM_FindStoreBaseDir (void)
 		return; // fall through to the regular missing-data error
 	}
 
-	if (original[0] && remastered[0])
-	{
-		if (COM_CheckParm ("-prefremaster") || COM_CheckParm ("-remaster") || COM_CheckParm ("-remastered"))
-			flavor = QUAKE_FLAVOR_REMASTERED;
-		else if (COM_CheckParm ("-preforiginal") || COM_CheckParm ("-original"))
-			flavor = QUAKE_FLAVOR_ORIGINAL;
-		else
-			flavor = ChooseQuakeFlavor ();
-	}
+	if (requested == QUAKE_FLAVOR_REMASTERED && remastered[0])
+		flavor = QUAKE_FLAVOR_REMASTERED;
+	else if (requested == QUAKE_FLAVOR_ORIGINAL && original[0])
+		flavor = QUAKE_FLAVOR_ORIGINAL;
+	else if (original[0] && remastered[0])
+		flavor = ChooseQuakeFlavor ();
 	else
 		flavor = remastered[0] ? QUAKE_FLAVOR_REMASTERED : QUAKE_FLAVOR_ORIGINAL;
 

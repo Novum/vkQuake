@@ -321,3 +321,52 @@ int Sys_FileWrite (int handle, const void *data, int count)
 
 	return effective_nb_write;
 }
+
+#ifdef USE_SDL3
+typedef struct folderselect_s
+{
+	char		 *dst;
+	size_t		  dstsize;
+	SDL_AtomicInt done;
+	qboolean	  ok;
+} folderselect_t;
+
+static void SDLCALL Sys_FolderSelected (void *userdata, const char *const *filelist, int filter)
+{
+	folderselect_t *sel = (folderselect_t *)userdata;
+	(void)filter;
+
+	if (filelist && filelist[0])
+	{
+		q_strlcpy (sel->dst, filelist[0], sel->dstsize);
+		sel->ok = true;
+	}
+	SDL_SetAtomicInt (&sel->done, 1);
+}
+
+qboolean Sys_SelectFolder (const char *title, const char *default_location, char *dst, size_t dstsize)
+{
+	folderselect_t	 sel;
+	SDL_PropertiesID props;
+
+	memset (&sel, 0, sizeof (sel));
+	sel.dst = dst;
+	sel.dstsize = dstsize;
+
+	props = SDL_CreateProperties ();
+	SDL_SetStringProperty (props, SDL_PROP_FILE_DIALOG_TITLE_STRING, title);
+	if (default_location && default_location[0])
+		SDL_SetStringProperty (props, SDL_PROP_FILE_DIALOG_LOCATION_STRING, default_location);
+	SDL_ShowFileDialogWithProperties (SDL_FILEDIALOG_OPENFOLDER, Sys_FolderSelected, &sel, props);
+	SDL_DestroyProperties (props);
+
+	// the callback can come from another thread; XDG portals on Linux need event pumping
+	while (!SDL_GetAtomicInt (&sel.done))
+	{
+		SDL_PumpEvents ();
+		SDL_Delay (10);
+	}
+
+	return sel.ok;
+}
+#endif

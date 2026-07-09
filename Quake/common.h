@@ -314,6 +314,7 @@ int COM_CheckParm (const char *parm);
 void COM_Init (void);
 void COM_InitArgv (int argc, char **argv);
 void COM_InitFilesystem (void);
+void COM_WriteSelectedBaseDir (void);
 
 const char *COM_SkipPath (const char *pathname);
 void		COM_StripExtension (const char *in, char *out, size_t outsize);

@@ -116,6 +116,12 @@ const char *Sys_GetEGSLauncherData (void); // Mem_Alloc'ed buffer, caller Mem_Fr
 // steamlibrary is only needed on Linux (proton prefix) and may be NULL
 qboolean Sys_GetNightdiveUserDir (char *path, size_t pathsize, const char *steamlibrary);
 
+#ifdef USE_SDL3
+// folder picker (SDL3 file dialog); starts at default_location if non-NULL,
+// returns false when cancelled
+qboolean Sys_SelectFolder (const char *title, const char *default_location, char *dst, size_t dstsize);
+#endif
+
 //
 // system IO
 //

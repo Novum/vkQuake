@@ -29,7 +29,7 @@ Windows and Linux binaries can be found in [Releases](https://github.com/Novum/v
 MacOS (both Apple Silicon and 64-bit Intel) binaries are at [Mac Source Ports](https://www.macsourceports.com/game/quake).
 
 ### Windows
-It is recommended to use the installer on Windows. This sets up start menu entries for the original and remastered Quake versions. Save data and config files will be written to the user folder (`%APPDATA\vkQuake`) instead of the Quake data folder.
+It is recommended to use the installer on Windows. This sets up start menu entries for the classic and remastered Quake versions. The engine finds Steam, GOG and Epic Games Store installs automatically; otherwise it asks for the game folder once and remembers it. Save data and config files will be written to the user folder (`%APPDATA%\vkQuake`) instead of the Quake data folder.
 
 Otherwise copy all files inside the `vkquake-<version>_windows_x64.zip` (Intel) or `vkquake-<version>_windows_arm64.zip` (Arm64) folder in the zip to the Quake base directory. Overwrite any existing files. Afterward to run the game just execute `vkQuake.exe`.
 
