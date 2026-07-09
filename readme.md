@@ -51,7 +51,7 @@ $ pkg_add vkquake
 
 ### FreeBSD
 
-[FreeBSD](https://freebsd.org) includes vkQuake in the standard port/package repoistories since version [11.3](https://www.freebsd.org/releases/11.3R/announce).
+[FreeBSD](https://freebsd.org) includes vkQuake in the ports collection since version [11.3](https://www.freebsd.org/releases/11.3R/announce).
 
 If you're running `FreeBSD 11.3` or greater, you can install the package with:
 
@@ -59,10 +59,15 @@ If you're running `FreeBSD 11.3` or greater, you can install the package with:
 # pkg install vkquake
 ```
 
-Alternatvely, you can build vkQuake with FreeBSD's port collection:
+Alternatvely, you can build vkQuake using the ports framework:
 ```console
 $ cd /usr/ports/games/vkquake
 # make install
+```
+
+Place game assets in `/usr/local/share/quake/` where they will be detected automatically:
+```console
+$ cd ~/Downloads/; cp id1 hipnotic mg1 rogue ctf /usr/local/share/quake/
 ```
 
 ### Quake '2021 re-release'
