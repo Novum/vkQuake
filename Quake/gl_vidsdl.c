@@ -3536,7 +3536,7 @@ typedef struct end_rendering_parms_s
 	qboolean	 polyblend	   : 1;
 	qboolean	 menu		   : 1;
 	qboolean	 ray_debug	   : 1;
-	uint32_t	 render_scale  : 3;
+	uint32_t	 render_scale  : 4;
 	uint32_t	 vid_height	   : 20;
 	float		 time;
 	VkClearValue color_clear_value;
