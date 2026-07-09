@@ -131,87 +131,96 @@ static int stbi_eof_cb (void *user)
 /*
 ============
 Image_LoadImage
+of an image filename 'name' (with no extension)
 either returns a pointer to Mem_Alloc allocated RGBA data
 or returns NULL if not loaded, either because not found OR if name
 is ignored because from a gamedir with lower priority than min_path_id.
 Use min_path_id = 0 if gamedir priority is N/A.
 Search order:  png tga jpg pcx lmp
-Note : makes a thread-safe copy of 'name' so ve can use va() as inuput.
+Note : makes a thread-safe copy of 'name' so we can use va() as inuput.
 ============
 */
+// image formats supported, ordered by priority
+typedef enum
+{
+	STB_IMAGE_LOADER,
+	PCX_LOADER,
+	LMP_LOADER
+} image_loader_t;
+
+static struct
+{
+	const char	  *file_extension;
+	image_loader_t loader;
+} supported_image_formats[] = {{"png", STB_IMAGE_LOADER}, {"tga", STB_IMAGE_LOADER}, {"jpg", STB_IMAGE_LOADER}, {"pcx", PCX_LOADER}, {"lmp", LMP_LOADER}};
+
+const int num_supported_image_formats = countof (supported_image_formats);
+
 byte *Image_LoadImage (const char *name, int *width, int *height, enum srcformat *fmt, unsigned int min_path_id)
 {
-	static const char *const stbi_formats[] = {"png", "tga", "jpg", NULL};
+	// 1. Search 'name' image by supported_image_formats, keeping only the best, as:
+	// a) The highest path_id wins,
+	// b) For equivalent path_id, Highest supported_image_formats[] priority wins. (smallest index)
+	int			 best_path_id = -1;
+	unsigned int path_id = 0;
+	int			 best_image_kind_index = -1;
+	char		 loadfilename[MAX_OSPATH];
+	int			 file_handle = -1;
 
-	char loadfilename[MAX_OSPATH];
-
-	int file_handle = -1;
-	int i;
-
-	unsigned int opened_file_path_id = 0;
-
-	for (i = 0; stbi_formats[i]; i++)
+	for (int image_kind_index = 0; image_kind_index < num_supported_image_formats; image_kind_index++)
 	{
-		q_snprintf (loadfilename, sizeof (loadfilename), "%s.%s", name, stbi_formats[i]);
-		COM_OpenFile (loadfilename, &file_handle, &opened_file_path_id);
+		q_snprintf (loadfilename, sizeof (loadfilename), "%s.%s", name, supported_image_formats[image_kind_index].file_extension);
 
-		if (file_handle >= 0)
+		if (COM_FileExists (loadfilename, &path_id))
 		{
-			if (opened_file_path_id >= min_path_id)
+			if ((int)path_id > best_path_id)
 			{
-				stbi_io_callbacks sys_file_cb = {.read = stbi_read_cb, .eof = stbi_eof_cb, .skip = stbi_skip_cb};
-
-				// data is managed by our Mem_Alloc routines, nothing more to do.
-				byte *data = stbi_load_from_callbacks (&sys_file_cb, (void *)&file_handle, width, height, NULL, 4);
-
-				if (data)
-				{
-					*fmt = SRC_RGBA;
-				}
-				else
-					Con_Warning ("couldn't load %s (%s)\n", loadfilename, stbi_failure_reason ());
-
-				COM_CloseFile (file_handle);
-				return data;
-			}
-			else
-			{
-				Con_DPrintf ("Image_LoadImage: ignored %s from a gamedir with lower priority\n", loadfilename);
-				COM_CloseFile (file_handle);
+				best_path_id = (int)path_id;
+				best_image_kind_index = image_kind_index;
 			}
 		}
 	}
 
-	q_snprintf (loadfilename, sizeof (loadfilename), "%s.pcx", name);
-	COM_OpenFile (loadfilename, &file_handle, &opened_file_path_id);
-	if (file_handle >= 0)
+	// at that point, best_image_kind_index points on the highest path_id image,
+	// or in case of path_id equality, the best format in terms of priority.
+	// min_path_id is the final barrier of entry:
+	// if no file was found, this is also used to bail out. (best_path_id  = -1 < min_path_id ( = 0))
+	if (best_path_id < (int)min_path_id)
+		return NULL;
+
+	// 2. Load image matching supported_image_formats[best_image_kind_index].file_extension
+	q_snprintf (loadfilename, sizeof (loadfilename), "%s.%s", name, supported_image_formats[best_image_kind_index].file_extension);
+
+	COM_OpenFile (loadfilename, &file_handle, NULL);
+
+	assert (file_handle >= 0);
+
+	if (supported_image_formats[best_image_kind_index].loader == STB_IMAGE_LOADER)
 	{
-		if (opened_file_path_id >= min_path_id)
+		stbi_io_callbacks sys_file_cb = {.read = stbi_read_cb, .eof = stbi_eof_cb, .skip = stbi_skip_cb};
+
+		// data is managed by our Mem_Alloc routines, nothing more to do.
+		byte *data = stbi_load_from_callbacks (&sys_file_cb, (void *)&file_handle, width, height, NULL, 4);
+
+		if (data)
 		{
 			*fmt = SRC_RGBA;
-			return Image_LoadPCX (file_handle, width, height, loadfilename);
 		}
 		else
-		{
-			Con_DPrintf ("Image_LoadImage: ignored %s from a gamedir with lower priority\n", loadfilename);
-			COM_CloseFile (file_handle);
-		}
-	}
+			Con_Warning ("couldn't load %s (%s)\n", loadfilename, stbi_failure_reason ());
 
-	q_snprintf (loadfilename, sizeof (loadfilename), "%s%s.lmp", "", name);
-	COM_OpenFile (loadfilename, &file_handle, &opened_file_path_id);
-	if (file_handle >= 0)
+		COM_CloseFile (file_handle);
+		return data;
+	}
+	else if (supported_image_formats[best_image_kind_index].loader == PCX_LOADER)
 	{
-		if (opened_file_path_id >= min_path_id)
-		{
-			*fmt = SRC_INDEXED;
-			return Image_LoadLMP (file_handle, width, height, loadfilename);
-		}
-		else
-		{
-			Con_DPrintf ("Image_LoadImage: ignored %s from a gamedir with lower priority\n", loadfilename);
-			COM_CloseFile (file_handle);
-		}
+		*fmt = SRC_RGBA;
+		return Image_LoadPCX (file_handle, width, height, loadfilename);
+	}
+	else if (supported_image_formats[best_image_kind_index].loader == LMP_LOADER)
+	{
+		*fmt = SRC_INDEXED;
+		return Image_LoadLMP (file_handle, width, height, loadfilename);
 	}
 
 	return NULL;

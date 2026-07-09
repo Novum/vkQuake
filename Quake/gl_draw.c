@@ -307,7 +307,7 @@ qpic_t *Draw_TryCachePic (const char *path, unsigned int texflags)
 	//
 	enum srcformat pic_fmt = SRC_INDEXED;
 
-	// Image_LoadImage works without file extension.
+	// Image_LoadImage works without file extensions.
 	char npath[MAX_QPATH];
 	COM_StripExtension (path, npath, sizeof (npath));
 
