@@ -4656,7 +4656,8 @@ void VID_Restart (qboolean set_mode)
 	//
 	// keep cvars in line with actual mode
 	//
-	VID_SyncCvars ();
+	if (set_mode)
+		VID_SyncCvars ();
 
 	//
 	// update mouse grab
