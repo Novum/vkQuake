@@ -2,12 +2,55 @@ project(
     'vkquake',
     'c',
     meson_version : '>= 1.3',
-    default_options : ['c_std=gnu11,c11', 'buildtype=release', 'strip=false', 'debug=true', 'b_ndebug=if-release', 'warning_level=1', 'werror=true'])
+    default_options : ['c_std=gnu2x,c2x', 'buildtype=release', 'strip=false', 'debug=true', 'b_ndebug=if-release', 'warning_level=1', 'werror=true'])
 
 cc = meson.get_compiler('c')
 
 # Always build keeping frame pointers to get better backtraces
-add_project_arguments(cc.get_supported_arguments('-fno-omit-frame-pointer', '/Oy-'), language: 'c')
+if cc.get_argument_syntax() == 'msvc'
+add_project_arguments(cc.get_supported_arguments('/Oy-'), language: 'c')
+add_project_arguments(cc.get_supported_arguments('/Gv'), language: 'c')
+add_project_arguments(cc.get_supported_arguments('/std:clatest'), language: 'c')
+add_project_arguments(cc.get_supported_arguments('/Zc:__STDC__'), language: 'c')
+add_project_arguments(cc.get_supported_arguments('/Zc:preprocessor'), language: 'c')
+add_project_arguments(cc.get_supported_arguments('/openmp:experimental'), language: 'c')
+else
+add_project_arguments(cc.get_supported_arguments('-march=native'), language: 'c', native: true)
+
+if target_machine.cpu_family() == 'x86_64'
+    message('SSE floating-point math is supported')
+    add_project_arguments(cc.get_supported_arguments('-mfpmath=sse'), language: 'c')
+elif target_machine.cpu_family() == 'ppc' or target_machine.cpu_family() == 'ppc64'
+  if cc.has_header('altivec.h')
+    # Test if the compiler can actually compile Altivec code
+    altivec_test = '''
+      #include <altivec.h>
+      int main() {
+        vector unsigned char v1 = vec_splat_u8(1);
+        return 0;
+      }
+    '''
+    if cc.compiles(altivec_test, name : 'AltiVec support')
+      message('AltiVec is supported')
+      add_project_arguments('-maltivec', language : 'c')
+    endif
+  endif
+endif
+
+add_project_arguments(cc.get_supported_arguments('-fno-omit-frame-pointer'), language: 'c')
+add_project_arguments(cc.get_supported_arguments('-ftree-vectorize'), language: 'c')
+add_project_arguments(cc.get_supported_arguments('-fopenmp', '-fopenmp-simd'), language: 'c')
+add_project_arguments(cc.get_supported_arguments('-fno-asynchronous-unwind-tables'), language: 'c')
+add_project_arguments(cc.get_supported_arguments('-ffunction-sections'), language: 'c')
+add_project_arguments(cc.get_supported_arguments('-fdata-sections'), language: 'c')
+
+cflags = cc.get_supported_arguments('-Wno-trigraphs', '-Wno-microsoft-enum-forward-reference') + ['-D_FILE_OFFSET_BITS=64']
+if cc.get_id() == 'clang'
+    # the stb single header libraries define their whole API static
+    cflags += '-Wno-unused-function'
+    cflags += '-Wno-gnu-alignof-expression'
+endif
+endif
 
 if host_machine.system() == 'windows'
     foreach native : [true, false]
@@ -299,12 +342,6 @@ else
         'Quake/pl_linux.c',
         'Quake/sys_sdl_unix.c',
     ]
-endif
-
-cflags = cc.get_supported_arguments('-Wno-trigraphs', '-Wno-microsoft-enum-forward-reference') + ['-D_FILE_OFFSET_BITS=64']
-if cc.get_id() == 'clang'
-    # the stb single header libraries define their whole API static
-    cflags += '-Wno-unused-function'
 endif
 
 deps = [
