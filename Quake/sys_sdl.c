@@ -328,7 +328,7 @@ typedef struct folderselect_s
 	char		 *dst;
 	size_t		  dstsize;
 	SDL_AtomicInt done;
-	qboolean	  ok;
+	int			  result;
 } folderselect_t;
 
 static void SDLCALL Sys_FolderSelected (void *userdata, const char *const *filelist, int filter)
@@ -336,15 +336,19 @@ static void SDLCALL Sys_FolderSelected (void *userdata, const char *const *filel
 	folderselect_t *sel = (folderselect_t *)userdata;
 	(void)filter;
 
-	if (filelist && filelist[0])
+	if (!filelist)
+		sel->result = -1; // dialog could not be shown
+	else if (!filelist[0])
+		sel->result = 0; // cancelled
+	else
 	{
 		q_strlcpy (sel->dst, filelist[0], sel->dstsize);
-		sel->ok = true;
+		sel->result = 1;
 	}
 	SDL_SetAtomicInt (&sel->done, 1);
 }
 
-qboolean Sys_SelectFolder (const char *title, const char *default_location, char *dst, size_t dstsize)
+int Sys_SelectFolder (const char *title, const char *default_location, char *dst, size_t dstsize)
 {
 	folderselect_t	 sel;
 	SDL_PropertiesID props;
@@ -367,6 +371,6 @@ qboolean Sys_SelectFolder (const char *title, const char *default_location, char
 		SDL_Delay (10);
 	}
 
-	return sel.ok;
+	return sel.result;
 }
 #endif

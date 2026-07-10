@@ -117,9 +117,10 @@ const char *Sys_GetEGSLauncherData (void); // Mem_Alloc'ed buffer, caller Mem_Fr
 qboolean Sys_GetNightdiveUserDir (char *path, size_t pathsize, const char *steamlibrary);
 
 #ifdef USE_SDL3
-// folder picker (SDL3 file dialog); starts at default_location if non-NULL,
-// returns false when cancelled
-qboolean Sys_SelectFolder (const char *title, const char *default_location, char *dst, size_t dstsize);
+// folder picker (SDL3 file dialog); starts at default_location if non-NULL.
+// returns 1 with dst filled in, 0 when the user cancelled, -1 when no dialog
+// could be shown
+int Sys_SelectFolder (const char *title, const char *default_location, char *dst, size_t dstsize);
 #endif
 
 //

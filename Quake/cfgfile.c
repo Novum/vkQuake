@@ -159,11 +159,7 @@ int CFG_OpenConfig (const char *cfg_name)
 	CFG_CloseConfig ();
 
 	if (multiuser)
-	{
-		char *pref_path = SDL_GetPrefPath ("", "vkQuake");
-		f = fopen (va ("%s/config.cfg", pref_path), "rb");
-		SDL_free (pref_path);
-	}
+		f = COM_FOpenPrefFile ("config.cfg", "rb");
 	if (f)
 	{
 		length = Sys_filelength (f);

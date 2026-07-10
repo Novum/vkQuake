@@ -316,6 +316,9 @@ void COM_InitArgv (int argc, char **argv);
 void COM_InitFilesystem (void);
 void COM_WriteSelectedBaseDir (void);
 
+// opens a file in the per-user preferences dir (%APPDATA%\vkQuake on Windows)
+FILE *COM_FOpenPrefFile (const char *filename, const char *mode);
+
 const char *COM_SkipPath (const char *pathname);
 void		COM_StripExtension (const char *in, char *out, size_t outsize);
 void		COM_FileBase (const char *in, char *out, size_t outsize);
