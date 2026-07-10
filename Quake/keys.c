@@ -337,6 +337,7 @@ void Key_Console (int key)
 		else
 			key_linepos = 1;
 		Con_TabComplete (TABCOMPLETE_AUTOHINT);
+		Con_ForceMouseMove ();
 		return;
 
 	case K_END:
@@ -345,6 +346,7 @@ void Key_Console (int key)
 		else
 			key_linepos = strlen (workline);
 		Con_TabComplete (TABCOMPLETE_AUTOHINT);
+		Con_ForceMouseMove ();
 		return;
 
 	case K_PGUP:
@@ -443,6 +445,11 @@ void Key_Console (int key)
 	case K_INS:
 		if (keydown[K_SHIFT]) /* Shift-Ins paste */
 			PasteToConsole ();
+		else if (keydown[K_CTRL])
+		{
+			Con_CopySelectionToClipboard ();
+			return;
+		}
 		else
 			key_insert ^= 1;
 		Con_TabComplete (TABCOMPLETE_AUTOHINT);
@@ -466,10 +473,21 @@ void Key_Console (int key)
 		}
 		break;
 
+	case 'a':
+	case 'A':
+		if (keydown[K_CTRL])
+		{ /* Ctrl+A: select whole buffer */
+			Con_SelectAll ();
+			return;
+		}
+		break;
+
 	case 'c':
 	case 'C':
 		if (keydown[K_CTRL])
 		{ /* Ctrl+C: abort the line -- S.A */
+			if (Con_CopySelectionToClipboard ())
+				return;
 			Con_Printf ("%s\n", workline);
 			workline[0] = ']';
 			workline[1] = 0;
@@ -1286,7 +1304,7 @@ void Key_UpdateForDest (void)
 		if (cls.state != ca_connected)
 		{
 			forced = true;
-			IN_Deactivate (modestate == MS_WINDOWED);
+			IN_DeactivateForConsole ();
 			key_dest = key_console;
 			break;
 		}

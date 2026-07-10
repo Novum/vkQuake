@@ -4208,6 +4208,63 @@ void GL_WaitForDeviceIdle (void)
 
 /*
 =================
+VID_SetMouseCursor
+=================
+*/
+static SDL_Cursor *cursor_default;
+static SDL_Cursor *cursor_hand;
+static SDL_Cursor *cursor_ibeam;
+
+static void VID_CreateCursors (void)
+{
+#ifdef USE_SDL3
+	cursor_default = SDL_CreateSystemCursor (SDL_SYSTEM_CURSOR_DEFAULT);
+	cursor_hand = SDL_CreateSystemCursor (SDL_SYSTEM_CURSOR_POINTER);
+	cursor_ibeam = SDL_CreateSystemCursor (SDL_SYSTEM_CURSOR_TEXT);
+#else
+	cursor_default = SDL_CreateSystemCursor (SDL_SYSTEM_CURSOR_ARROW);
+	cursor_hand = SDL_CreateSystemCursor (SDL_SYSTEM_CURSOR_HAND);
+	cursor_ibeam = SDL_CreateSystemCursor (SDL_SYSTEM_CURSOR_IBEAM);
+#endif
+}
+
+static void VID_DestroyCursors (void)
+{
+#ifdef USE_SDL3
+	SDL_DestroyCursor (cursor_default);
+	SDL_DestroyCursor (cursor_hand);
+	SDL_DestroyCursor (cursor_ibeam);
+#else
+	SDL_FreeCursor (cursor_default);
+	SDL_FreeCursor (cursor_hand);
+	SDL_FreeCursor (cursor_ibeam);
+#endif
+	cursor_default = NULL;
+	cursor_hand = NULL;
+	cursor_ibeam = NULL;
+}
+
+void VID_SetMouseCursor (mousecursor_t cursor)
+{
+	switch (cursor)
+	{
+	case MOUSECURSOR_HAND:
+		SDL_SetCursor (cursor_hand);
+		break;
+
+	case MOUSECURSOR_IBEAM:
+		SDL_SetCursor (cursor_ibeam);
+		break;
+
+	case MOUSECURSOR_DEFAULT:
+	default:
+		SDL_SetCursor (cursor_default);
+		break;
+	}
+}
+
+/*
+=================
 VID_Shutdown
 =================
 */
@@ -4216,6 +4273,7 @@ void VID_Shutdown (void)
 	if (vid_initialized)
 	{
 		assert (draw_context != NULL);
+		VID_DestroyCursors ();
 		SDL_DestroyWindow (draw_context);
 		draw_context = NULL;
 		SDL_QuitSubSystem (SDL_INIT_VIDEO);
@@ -4498,6 +4556,8 @@ void VID_Init (void)
 #endif
 
 	Sys_Printf ("SDL Video Driver: %s\n", SDL_GetCurrentVideoDriver ());
+
+	VID_CreateCursors ();
 
 	if (CFG_OpenConfig ("config.cfg") == 0)
 	{

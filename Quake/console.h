@@ -65,6 +65,12 @@ void		Con_AddToTabList (const char *name, const char *partial, const char *type)
 qboolean	Con_Match (const char *str, const char *partial);
 void		Con_LogCenterPrint (const char *str);
 
+void	 Con_Mousemove (int x, int y);
+void	 Con_ForceMouseMove (void);
+void	 Con_UpdateMouseState (void);
+void	 Con_SelectAll (void);
+qboolean Con_CopySelectionToClipboard (void);
+
 //
 // debuglog
 //

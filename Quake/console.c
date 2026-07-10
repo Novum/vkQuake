@@ -34,6 +34,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <unistd.h>
 #endif
 
+extern qboolean keydown[256];
+
 int con_linewidth;
 
 float con_cursorspeed = 4;
@@ -73,6 +75,619 @@ qboolean con_debuglog = false;
 qboolean con_initialized;
 
 SDL_Mutex *con_mutex;
+
+#define CON_MARGIN			 1
+#define CON_SCROLL_ZONE		 (CHARACTER_SIZE * 2)
+#define CON_MAX_SCROLL_SPEED 32.f
+
+static float con_scrollspeed;
+static float con_scrolldelta;
+
+typedef struct
+{
+	int line;
+	int col;
+} conofs_t;
+
+typedef struct
+{
+	const char *path;
+	conofs_t	begin;
+	conofs_t	end;
+} conlink_t;
+
+typedef struct
+{
+	conofs_t begin;
+	conofs_t end;
+} conselection_t;
+
+typedef enum
+{
+	// Used for link hover/clicking:
+	// - picks the character that contains the cursor
+	// - rejects areas outside the visible console region
+	CT_INSIDE,
+
+	// Used for text selection:
+	// - picks the closest edge horizontally, on whichever line contains the cursor vertically
+	// - clamps to the margins of the visible console region
+	CT_NEAREST,
+} contest_t; // Console hit testing mode
+
+typedef enum
+{
+	CMS_NOTPRESSED,
+	CMS_PRESSED,
+	CMS_DRAGGING,
+} conmouse_t;
+
+static conlink_t **con_links = NULL;
+static conlink_t  *con_hotlink = NULL;
+
+static const double DOUBLECLICK_TIME = 0.5;
+
+static double		  con_mouseclickdelay = 0.0;
+static int			  con_mouseclicks = 0;
+static conmouse_t	  con_mousestate = CMS_NOTPRESSED;
+static conselection_t con_mouseselection;
+static conselection_t con_selection;
+static int			  con_clickx;
+static int			  con_clicky;
+
+/*
+================
+Con_GetLine
+================
+*/
+static const char *Con_GetLine (int line)
+{
+	return con_text + (line % con_totallines) * con_linewidth;
+}
+
+/*
+================
+Con_StrLen
+================
+*/
+static size_t Con_StrLen (int line)
+{
+	const char *text;
+	size_t		len;
+	if (line > con_current)
+		return 0;
+	text = Con_GetLine (line);
+	len = con_linewidth;
+	while (len > 0 && (char)(text[len - 1] & 0x7f) == ' ')
+		len--;
+	return len;
+}
+
+/*
+================
+Con_ScreenToCanvas
+
+Converts screen (display pixel) coordinates to CANVAS_CONSOLE coordinates
+================
+*/
+static void Con_ScreenToCanvas (int x, int y, int *outx, int *outy)
+{
+	// mirrors the CANVAS_CONSOLE ortho matrix setup in GL_SetCanvas
+	int lines = vid.conheight - ((int)scr_con_current * (int)vid.conheight / glheight);
+
+	*outx = x * (int)vid.conwidth / glwidth;
+	*outy = lines + y * (int)vid.conheight / glheight;
+}
+
+/*
+================
+Con_CanvasToOffset
+
+Converts canvas coordinates to a console offset
+Returns true if the offset is inside the visible portion of the console
+================
+*/
+static qboolean Con_CanvasToOffset (int x, int y, conofs_t *ofs, contest_t testmode)
+{
+	qboolean ret = true;
+
+	// Start from the bottom of the console
+	y = vid.conheight - y;
+
+	// Apply rounding
+	if (testmode == CT_NEAREST)
+		x += 4;
+
+	// pixels to characters
+	x >>= 3;
+	y >>= 3;
+
+	// apply margins and scrolling
+	x -= CON_MARGIN;
+	y -= 2;
+
+	if (testmode == CT_INSIDE)
+	{
+		if (x < 0 || x >= con_linewidth)
+			ret = false;
+		if (y < 0 || y >= con_vislines)
+			ret = false;
+		if (con_backscroll && y < 2)
+			ret = false;
+	}
+	else
+	{
+		// Allow the cursor to move one character past the end of the line
+		// by clamping to con_linewidth instead of con_linewidth - 1
+		x = CLAMP (0, x, con_linewidth);
+
+		// Enable selecting the entire bottom line by allowing the cursor
+		// to move to the beginning of the line below it (line -1)
+		y = CLAMP (-1, y, con_vislines);
+		if (y < 0)
+			x = 0;
+
+		// Enable selecting the entire line above the backscroll cutoff by
+		// allowing the cursor to move to the beginning of the line below it
+		if (con_backscroll && y < 2)
+		{
+			x = 0;
+			y = 1;
+		}
+	}
+
+	y += con_backscroll;
+	y = con_current - y;
+
+	ofs->line = y;
+	ofs->col = x;
+
+	return ret;
+}
+
+/*
+================
+Con_ScreenToOffset
+
+Converts screen (pixel) coordinates to a console offset
+Returns true if the offset is inside the visible portion of the console
+================
+*/
+static qboolean Con_ScreenToOffset (int x, int y, conofs_t *ofs, contest_t testmode)
+{
+	Con_ScreenToCanvas (x, y, &x, &y);
+	return Con_CanvasToOffset (x, y, ofs, testmode);
+}
+
+/*
+================
+Con_OfsCompare
+
+Performs a three-way comparison on console offsets
+================
+*/
+static int Con_OfsCompare (const conofs_t *lhs, const conofs_t *rhs)
+{
+	if (lhs->line != rhs->line)
+		return lhs->line - rhs->line;
+	return lhs->col - rhs->col;
+}
+
+/*
+================
+Con_GetCurrentRange
+================
+*/
+static void Con_GetCurrentRange (conofs_t *begin, conofs_t *end)
+{
+	begin->line = con_current - con_totallines + 1;
+	begin->col = 0;
+	end->line = con_current + 1;
+	end->col = 0;
+}
+
+/*
+================
+Con_IntersectRanges
+================
+*/
+static qboolean Con_IntersectRanges (conofs_t *begin, conofs_t *end, const conofs_t *selbegin, const conofs_t *selend)
+{
+	if (Con_OfsCompare (selend, begin) <= 0)
+		return false;
+	if (Con_OfsCompare (end, selbegin) <= 0)
+		return false;
+
+	if (Con_OfsCompare (begin, selbegin) < 0)
+		*begin = *selbegin;
+	if (Con_OfsCompare (selend, end) < 0)
+		*end = *selend;
+
+	return true;
+}
+
+/*
+================
+Con_GetLinkAtOfs
+
+Returns the link at the given offset, if any, or NULL otherwise
+================
+*/
+static conlink_t *Con_GetLinkAtOfs (const conofs_t *ofs)
+{
+	size_t lo, hi;
+
+	// find the first link that ends after the offset
+	lo = 0;
+	hi = VEC_SIZE (con_links);
+	while (lo < hi)
+	{
+		size_t mid = (lo + hi) / 2;
+		if (Con_OfsCompare (ofs, &con_links[mid]->end) >= 0)
+			lo = mid + 1;
+		else
+			hi = mid;
+	}
+
+	if (lo == VEC_SIZE (con_links))
+		return NULL;
+
+	if (Con_OfsCompare (ofs, &con_links[lo]->begin) >= 0)
+		return con_links[lo];
+
+	return NULL;
+}
+
+/*
+================
+Con_GetLinkAtPixel
+
+Returns the link at the given pixel coordinates, if any, or NULL otherwise
+================
+*/
+static conlink_t *Con_GetLinkAtPixel (int x, int y)
+{
+	conofs_t ofs;
+	if (!Con_ScreenToOffset (x, y, &ofs, CT_INSIDE))
+		return NULL;
+	return Con_GetLinkAtOfs (&ofs);
+}
+
+/*
+================
+Con_SetHotLink
+================
+*/
+static void Con_SetHotLink (conlink_t *link)
+{
+	con_hotlink = link;
+}
+
+/*
+================
+Con_ClearSelection
+================
+*/
+static void Con_ClearSelection (void)
+{
+	memset (&con_selection, 0, sizeof (con_selection));
+}
+
+/*
+================
+Con_HasSelection
+================
+*/
+static qboolean Con_HasSelection (void)
+{
+	return Con_OfsCompare (&con_selection.begin, &con_selection.end) != 0;
+}
+
+/*
+================
+Con_SelectAll
+================
+*/
+void Con_SelectAll (void)
+{
+	Con_GetCurrentRange (&con_selection.begin, &con_selection.end);
+	while (Con_HasSelection () && Con_StrLen (con_selection.begin.line) == 0)
+		con_selection.begin.line++;
+}
+
+/*
+================
+Con_GetNormalizedSelection
+================
+*/
+static qboolean Con_GetNormalizedSelection (conofs_t *begin, conofs_t *end)
+{
+	conofs_t *selbegin = &con_selection.begin;
+	conofs_t *selend = &con_selection.end;
+	conofs_t  tbegin, tend;
+
+	if (Con_OfsCompare (selbegin, selend) > 0)
+	{
+		conofs_t *tmp = selbegin;
+		selbegin = selend;
+		selend = tmp;
+	}
+	*begin = *selbegin;
+	*end = *selend;
+
+	Con_GetCurrentRange (&tbegin, &tend);
+
+	return Con_IntersectRanges (begin, end, &tbegin, &tend);
+}
+
+/*
+================
+Con_TestWordBoundary
+
+Returns:
+	 < 0 if on a word boundary and non-whitespace characters are to the left
+	   0 if not on a word boundary
+	 > 0 if on a word boundary and non-whitespace characters are to the right
+================
+*/
+static int Con_TestWordBoundary (int pos, const char *text, int len)
+{
+	if (pos <= 0)
+		return 1;
+	if (pos >= len)
+		return -1;
+	return q_isspace (text[pos - 1] & 0x7f) - q_isspace (text[pos] & 0x7f);
+}
+
+static int IntSign (int i)
+{
+	if (i < 0)
+		return -1;
+	if (i > 0)
+		return 1;
+	return i;
+}
+
+/*
+================
+Con_ApplyMouseSelection
+================
+*/
+static void Con_ApplyMouseSelection (void)
+{
+	const char *line;
+	int			len;
+
+	con_selection = con_mouseselection;
+
+	line = Con_GetLine (con_selection.begin.line);
+	len = (int)Con_StrLen (con_selection.begin.line);
+
+	// Clamp starting point to the end of the actual content (one character past it)
+	// so that double-clicking beyond the end of the line selects the last word
+	con_selection.begin.col = q_min (con_selection.begin.col, len);
+
+	// Special case: if we're selecting whole words, the initial click was on a word boundary,
+	// and the current selection hasn't advanced towards the actual content (either left or right),
+	// then we nudge the starting point by one character so that the word adjacent to the initial click
+	// is always selected.
+	if (con_mouseclicks == 2)
+	{
+		int boundary = IntSign (Con_TestWordBoundary (con_selection.begin.col, line, len));
+		int dir = IntSign (Con_OfsCompare (&con_selection.end, &con_selection.begin));
+		if (boundary && boundary != dir)
+			con_selection.begin.col += boundary;
+	}
+
+	// Swap begin/end if necessary
+	if (Con_OfsCompare (&con_selection.begin, &con_selection.end) > 0)
+	{
+		conofs_t tmp = con_selection.begin;
+		con_selection.begin = con_selection.end;
+		con_selection.end = tmp;
+	}
+
+	// If the starting point is beyond the newline, move to the beginning of the next line
+	line = Con_GetLine (con_selection.begin.line);
+	len = (int)Con_StrLen (con_selection.begin.line);
+	if (con_selection.begin.col > len)
+	{
+		con_selection.begin.line++;
+		con_selection.begin.col = 0;
+		// Fix up the end point if necessary
+		if (Con_OfsCompare (&con_selection.begin, &con_selection.end) > 0)
+			con_selection.end = con_selection.begin;
+	}
+
+	// Selecting character by character? Nothing left to do
+	if (con_mouseclicks <= 1)
+		return;
+
+	// Quadruple click: select whole buffer
+	if (con_mouseclicks >= 4)
+	{
+		Con_SelectAll ();
+		return;
+	}
+
+	// Triple click: select whole lines
+	if (con_mouseclicks == 3)
+	{
+		con_selection.begin.col = 0;
+		con_selection.end.col = 0;
+		con_selection.end.line = q_min (con_selection.end.line, con_current) + 1;
+		return;
+	}
+
+	// Double click: select whole words
+
+	// Move begin marker to the first word boundary to its left
+	line = Con_GetLine (con_selection.begin.line);
+	len = (int)Con_StrLen (con_selection.begin.line);
+	while (!Con_TestWordBoundary (con_selection.begin.col, line, len))
+		--con_selection.begin.col;
+
+	// Move end marker to the first word boundary to its right
+	if (con_selection.end.line <= con_current)
+	{
+		line = Con_GetLine (con_selection.end.line);
+		len = (int)Con_StrLen (con_selection.end.line);
+		while (!Con_TestWordBoundary (con_selection.end.col, line, len))
+			++con_selection.end.col;
+	}
+}
+
+/*
+================
+Con_SetMouseState
+================
+*/
+static void Con_SetMouseState (conmouse_t state)
+{
+	int		 x, y;
+	conofs_t pos;
+
+	if (con_mousestate == state)
+		return;
+
+	switch (state)
+	{
+	case CMS_PRESSED:
+		IN_GetMousePos (&x, &y);
+		Con_ScreenToCanvas (x, y, &con_clickx, &con_clicky);
+		Con_CanvasToOffset (con_clickx, con_clicky, &pos, CT_NEAREST);
+
+		if (con_mouseclicks == 0 || con_mouseclickdelay >= DOUBLECLICK_TIME || Con_OfsCompare (&pos, &con_mouseselection.end) != 0)
+			con_mouseclicks = 1;
+		else
+			con_mouseclicks++;
+		con_mouseclickdelay = 0.0;
+		con_mouseselection.begin = con_mouseselection.end = pos;
+
+		Con_ApplyMouseSelection ();
+
+		if (con_mouseclicks >= 2)
+			VID_SetMouseCursor (MOUSECURSOR_IBEAM);
+		break;
+
+	case CMS_DRAGGING:
+		Con_SetHotLink (NULL);
+		VID_SetMouseCursor (MOUSECURSOR_IBEAM);
+		break;
+
+	case CMS_NOTPRESSED:
+		con_scrolldelta = 0.f;
+		con_scrollspeed = 0.f;
+		break;
+
+	default:
+		break;
+	}
+
+	con_mousestate = state;
+	Con_ForceMouseMove ();
+}
+
+/*
+================
+Con_Mousemove
+Mouse movement callback
+================
+*/
+void Con_Mousemove (int x, int y)
+{
+	if (con_mousestate == CMS_NOTPRESSED)
+	{
+		conofs_t ofs;
+		qboolean inside = Con_ScreenToOffset (x, y, &ofs, CT_INSIDE);
+		Con_SetHotLink (Con_GetLinkAtPixel (x, y));
+		VID_SetMouseCursor (con_hotlink ? MOUSECURSOR_HAND : inside ? MOUSECURSOR_IBEAM : MOUSECURSOR_DEFAULT);
+	}
+	else
+	{
+		int	  cx, cy, delta;
+		float frac;
+
+		Con_ScreenToCanvas (x, y, &cx, &cy);
+		Con_CanvasToOffset (cx, cy, &con_mouseselection.end, CT_NEAREST);
+		Con_ApplyMouseSelection ();
+		if (Con_OfsCompare (&con_mouseselection.begin, &con_mouseselection.end) != 0)
+			Con_SetMouseState (CMS_DRAGGING);
+
+		// Compute distance inside the auto-scroll range
+		delta = cy + con_vislines / 2 - vid.conheight;
+		if (abs (delta) < con_vislines / 2 - CON_SCROLL_ZONE)
+			delta = 0;
+		else
+			delta -= IntSign (delta) * (con_vislines / 2 - CON_SCROLL_ZONE);
+		delta = CLAMP (-CON_SCROLL_ZONE, delta, CON_SCROLL_ZONE);
+
+		if (delta < 0)
+		{
+			// If the initial click was close to the top (inside the scroll range),
+			// we don't want to immediately start scrolling.
+			// Once we've started scrolling we gradually relax the restriction.
+			// NOTE: This is not an issue on the bottom because of the input line and margin.
+			int moved = cy - con_clicky;
+			int scrolled = q_min (con_mouseselection.end.line - con_mouseselection.begin.line, 0) * CHARACTER_SIZE;
+			delta = q_max (delta, moved + scrolled / 4);
+			delta = q_min (delta, 0);
+		}
+
+		// Compute scroll speed
+		frac = delta / (float)CON_SCROLL_ZONE;
+		frac *= fabs (frac); // quadratic easing
+		con_scrollspeed = -CON_MAX_SCROLL_SPEED * frac;
+		if (!delta)
+			con_scrolldelta = 0.0f;
+	}
+}
+
+/*
+================
+Con_ForceMouseMove
+================
+*/
+void Con_ForceMouseMove (void)
+{
+	int x, y;
+	IN_GetMousePos (&x, &y);
+	Con_Mousemove (x, y);
+}
+
+/*
+================
+Con_UpdateMouseState
+
+Called once per frame from the main thread
+================
+*/
+void Con_UpdateMouseState (void)
+{
+	if (key_dest != key_console)
+	{
+		Con_SetHotLink (NULL);
+		Con_SetMouseState (CMS_NOTPRESSED);
+		Con_ClearSelection ();
+		return;
+	}
+
+	if (!keydown[K_MOUSE1])
+		Con_SetMouseState (CMS_NOTPRESSED);
+	else if (con_mousestate == CMS_NOTPRESSED)
+		Con_SetMouseState (CMS_PRESSED);
+
+	con_mouseclickdelay += host_rawframetime;
+
+	// Handle auto-scrolling
+	con_scrolldelta += con_scrollspeed * host_rawframetime;
+	if (fabs (con_scrolldelta) >= 1.0f)
+	{
+		int lines = (int)con_scrolldelta;
+		Con_Scroll (lines);
+		con_scrolldelta -= lines;
+	}
+}
 
 /*
 ================
@@ -121,6 +736,7 @@ void Con_ToggleConsole_f (void)
 		con_backscroll = 0;		  // johnfitz -- toggleconsole should return you to the bottom of the scrollback
 		history_line = edit_line; // johnfitz -- it should also return you to the bottom of the command history
 		key_tabhint[0] = '\0';	  // clear tab hint
+		Con_SetHotLink (NULL);
 
 		if (cls.state == ca_connected)
 		{
@@ -134,7 +750,7 @@ void Con_ToggleConsole_f (void)
 	}
 	else
 	{
-		IN_Deactivate (modestate == MS_WINDOWED);
+		IN_DeactivateForConsole ();
 		key_dest = key_console;
 	}
 
@@ -149,9 +765,66 @@ Con_Clear_f
 */
 static void Con_Clear_f (void)
 {
+	size_t i;
+
 	if (con_text)
 		memset (con_text, ' ', con_buffersize); // johnfitz -- con_buffersize replaces CON_TEXTSIZE
 	con_backscroll = 0;							// johnfitz -- if console is empty, being scrolled up is confusing
+
+	Con_SetHotLink (NULL);
+	for (i = 0; i < VEC_SIZE (con_links); i++)
+		Mem_Free (con_links[i]);
+	VEC_CLEAR (con_links);
+}
+
+/*
+================
+Con_CopySelectionToClipboard
+================
+*/
+qboolean Con_CopySelectionToClipboard (void)
+{
+	conofs_t selbegin, selend;
+	conofs_t cursor, eol;
+	char	*qtext = NULL;
+	char	*utf8 = NULL;
+	size_t	 maxsize;
+
+	S_LocalSound ("misc/menu2.wav");
+
+	// Get forward selection range
+	if (!Con_GetNormalizedSelection (&selbegin, &selend))
+		return false;
+
+	// Iterate through all lines in the selection
+	for (cursor = selbegin; Con_OfsCompare (&cursor, &selend) <= 0; cursor.line++, cursor.col = 0)
+	{
+		const char *text = Con_GetLine (cursor.line);
+		eol.line = cursor.line;
+		eol.col = (int)Con_StrLen (cursor.line);
+		if (cursor.line == selend.line)
+			eol.col = q_min (eol.col, selend.col);
+		Vec_Append ((void **)&qtext, 1, text + cursor.col, eol.col - cursor.col);
+		if (eol.line != selend.line)
+			VEC_PUSH (qtext, '\n');
+	}
+	VEC_PUSH (qtext, '\0');
+
+	// Convert to UTF-8
+	maxsize = UTF8_FromQuake (NULL, 0, qtext);
+	utf8 = (char *)Mem_Alloc (maxsize);
+	UTF8_FromQuake (utf8, maxsize, qtext);
+
+	// Copy the UTF-8 text to clipboard
+	SDL_SetClipboardText (utf8);
+
+	// Clean up temporary buffers
+	Mem_Free (utf8);
+	VEC_FREE (qtext);
+
+	Con_ClearSelection ();
+
+	return true;
 }
 
 /*
@@ -326,6 +999,8 @@ void Con_Scroll (int lines)
 		if (con_backscroll < 0)
 			con_backscroll = 0;
 	}
+
+	Con_ForceMouseMove ();
 }
 
 /*
@@ -777,7 +1452,6 @@ typedef struct tab_s
 tab_t *tablist;
 
 // defs from elsewhere
-extern qboolean		   keydown[256];
 extern cmd_function_t *cmd_functions;
 #define MAX_ALIAS_NAME 32
 typedef struct cmdalias_s
@@ -1470,6 +2144,39 @@ void Con_DrawInput (cb_context_t *cbx)
 
 /*
 ================
+Con_DrawSelectionHighlight
+================
+*/
+static void Con_DrawSelectionHighlight (cb_context_t *cbx, int x, int y, int line)
+{
+	conofs_t selbegin, selend;
+	conofs_t begin, end;
+	size_t	 len;
+
+	if (!Con_GetNormalizedSelection (&selbegin, &selend))
+		return;
+
+	len = Con_StrLen (line);
+	begin.line = line;
+	begin.col = 0;
+	end.line = line;
+	end.col = (int)len;
+
+	// Highlight line ends (as in Notepad, Visual Studio etc.)
+	if (end.line != selend.line && end.col == (int)len)
+		end.col++;
+
+	// ...unless we would end up overlapping the console margin
+	end.col = q_min (end.col, con_linewidth);
+
+	if (!Con_IntersectRanges (&begin, &end, &selbegin, &selend))
+		return;
+
+	Draw_Fill (cbx, x + begin.col * 8, y, (end.col - begin.col) * 8, 8, 220, 1.0f);
+}
+
+/*
+================
 Con_DrawConsole -- johnfitz -- heavy revision
 
 Draws the console with the solid background
@@ -1491,12 +2198,22 @@ void Con_DrawConsole (cb_context_t *cbx, int lines, qboolean drawinput)
 	// draw the background
 	Draw_ConsoleBackground (cbx);
 
-	// draw the buffer text
+	// draw the selection highlight
 	rows = (con_vislines + 7) / 8;
 	y = vid.conheight - rows * 8;
 	rows -= 2; // for input and version lines
 	sb = (con_backscroll) ? 2 : 0;
 
+	for (i = con_current - rows + 1; i <= con_current - sb; i++, y += 8)
+	{
+		j = i - con_backscroll;
+		if (j < 0)
+			j = 0;
+		Con_DrawSelectionHighlight (cbx, 8, y, j);
+	}
+
+	// draw the buffer text
+	y = vid.conheight - (rows + 2) * 8;
 	for (i = con_current - rows + 1; i <= con_current - sb; i++, y += 8)
 	{
 		j = i - con_backscroll;
@@ -1544,7 +2261,7 @@ void Con_NotifyBox (const char *text)
 	Con_Printf ("Press a key.\n");
 	Con_Printf ("%s", Con_Quakebar (40)); // johnfitz
 
-	IN_Deactivate (modestate == MS_WINDOWED);
+	IN_DeactivateForConsole ();
 	key_dest = key_console;
 
 	Key_BeginInputGrab ();

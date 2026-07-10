@@ -90,6 +90,15 @@ qboolean VID_HasMouseOrInputFocus (void);
 qboolean VID_IsMinimized (void);
 void	 VID_Lock (void);
 
+typedef enum
+{
+	MOUSECURSOR_DEFAULT,
+	MOUSECURSOR_HAND,
+	MOUSECURSOR_IBEAM,
+} mousecursor_t;
+
+void VID_SetMouseCursor (mousecursor_t cursor);
+
 void VID_FocusGained (void);
 void VID_FocusLost (void);
 
