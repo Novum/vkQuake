@@ -329,6 +329,29 @@ char *q_strcasestr (const char *haystack, const char *needle)
 	return NULL;
 }
 
+/*
+================
+COM_TintSubstring
+================
+*/
+char *COM_TintSubstring (const char *in, const char *substr, char *out, size_t outsize)
+{
+	int	  l;
+	char *m = out;
+	q_strlcpy (out, in, outsize);
+	if (*substr)
+	{
+		while ((m = q_strcasestr (m, substr)))
+		{
+			for (l = 0; substr[l]; l++)
+				if (m[l] > ' ')
+					m[l] |= 0x80;
+			m += l;
+		}
+	}
+	return out;
+}
+
 char *q_strlwr (char *str)
 {
 	char *c;
@@ -404,6 +427,103 @@ size_t UTF8_WriteCodePoint (char *dst, size_t maxbytes, uint32_t codepoint)
 	}
 
 	return 0;
+}
+
+// clang-format off
+static const uint32_t qchar_to_unicode[256] =
+{/*     0       1       2       3       4       5       6       7       8       9       10      11      12      13      14      15
+      ----------------------------------------------------------------------------------------------------------------------------------
+  0 */  0x00B7, 0,      0,      0,      0,      0x00B7, 0,      0,      0,      0,      '\n',   0x25A0, ' ',    0x25B6, 0x00B7, 0x00B7, /*
+  1 */  0x301A, 0x301B, '0',    '1',    '2',    '3',    '4',    '5',    '6',    '7',    '8',    '9',    0x00B7, '-',    '-',    '-',    /*
+  2 */  ' ',    '!',    '"',    '#',    '$',    '%',    '&',    '\'',   '(',    ')',    '*',    '+',    ',',    '-',    '.',    '/',    /*
+  3 */  '0',    '1',    '2',    '3',    '4',    '5',    '6',    '7',    '8',    '9',    ':',    ';',    '<',    '=',    '>',    '?',    /*
+  4 */  '@',    'A',    'B',    'C',    'D',    'E',    'F',    'G',    'H',    'I',    'J',    'K',    'L',    'M',    'N',    'O',    /*
+  5 */  'P',    'Q',    'R',    'S',    'T',    'U',    'V',    'W',    'X',    'Y',    'Z',    '[',    '\\',   ']',    '^',    '_',    /*
+  6 */  '`',    'a',    'b',    'c',    'd',    'e',    'f',    'g',    'h',    'i',    'j',    'k',    'l',    'm',    'n',    'o',    /*
+  7 */  'p',    'q',    'r',    's',    't',    'u',    'v',    'w',    'x',    'y',    'z',    '{',    '|',    '}',    '~',    0x2190, /*
+
+  8 */  '-',    '-',    '-',    '-',    0,      0x2022, 0,      0,      0,      0,      '\n',   0x25A0, ' ',    0x25B6, 0x2022, 0x2022, /*
+  9 */  0x301A, 0x301B, '0',    '1',    '2',    '3',    '4',    '5',    '6',    '7',    '8',    '9',    0x2022, '-',    '-',    '-',    /*
+ 10 */  ' ',    '!',    '"',    '#',    '$',    '%',    '&',    '\'',   '(',    ')',    '*',    '+',    ',',    '-',    '.',    '/',    /*
+ 11 */  '0',    '1',    '2',    '3',    '4',    '5',    '6',    '7',    '8',    '9',    ':',    ';',    '<',    '=',    '>',    '?',    /*
+ 12 */  '@',    'A',    'B',    'C',    'D',    'E',    'F',    'G',    'H',    'I',    'J',    'K',    'L',    'M',    'N',    'O',    /*
+ 13 */  'P',    'Q',    'R',    'S',    'T',    'U',    'V',    'W',    'X',    'Y',    'Z',    '[',    '\\',   ']',    '^',    '_',    /*
+ 14 */  '`',    'a',    'b',    'c',    'd',    'e',    'f',    'g',    'h',    'i',    'j',    'k',    'l',    'm',    'n',    'o',    /*
+ 15 */  'p',    'q',    'r',    's',    't',    'u',    'v',    'w',    'x',    'y',    'z',    '{',    '|',    '}',    '~',    0x2190, /*
+      ----------------------------------------------------------------------------------------------------------------------------------
+*/};
+// clang-format on
+
+/*
+==================
+UTF8_CodePointLength
+
+Returns the number of bytes needed to encode the codepoint
+using UTF-8 (max 4), or 0 for an invalid code point
+==================
+*/
+size_t UTF8_CodePointLength (uint32_t codepoint)
+{
+	if (codepoint < 0x80)
+		return 1;
+
+	if (codepoint < 0x800)
+		return 2;
+
+	if (codepoint < 0x10000)
+		return 3;
+
+	if (codepoint < 0x110000)
+		return 4;
+
+	return 0;
+}
+
+/*
+==================
+UTF8_FromQuake
+
+Converts a string from Quake encoding to UTF-8
+
+Returns the number of written characters (including the NUL terminator)
+if a valid output buffer is provided (dst is non-NULL, maxbytes > 0),
+or the total amount of space necessary to encode the entire src string
+if dst is NULL and maxbytes is 0.
+==================
+*/
+size_t UTF8_FromQuake (char *dst, size_t maxbytes, const char *src)
+{
+	size_t i, j, written;
+
+	if (!maxbytes)
+	{
+		if (dst)
+			return 0; // error
+		for (i = 0, j = 0; src[i]; i++)
+		{
+			uint32_t codepoint = qchar_to_unicode[(unsigned char)src[i]];
+			if (codepoint)
+				j += UTF8_CodePointLength (codepoint);
+		}
+		return j + 1; // include terminator
+	}
+
+	--maxbytes;
+
+	for (i = 0, j = 0; j < maxbytes && src[i]; i++)
+	{
+		uint32_t codepoint = qchar_to_unicode[(unsigned char)src[i]];
+		if (!codepoint)
+			continue;
+		written = UTF8_WriteCodePoint (dst + j, maxbytes - j, codepoint);
+		if (!written)
+			break;
+		j += written;
+	}
+
+	dst[j++] = '\0';
+
+	return j;
 }
 
 char *q_strtrim (char *str)

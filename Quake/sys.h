@@ -82,6 +82,10 @@ void Sys_mkdir (const char *path);
  * returns FS_ENT_NONE (0) if no such file or directory is present. */
 int Sys_FileType (const char *path);
 
+/* opens the given file (or directory) in the OS file manager.
+ * returns false if the file doesn't exist or couldn't be shown. */
+qboolean Sys_Explore (const char *path);
+
 //
 // directory enumeration (from Ironwail)
 //

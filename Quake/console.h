@@ -36,6 +36,7 @@ typedef struct cb_context_s cb_context_t;
 extern char con_lastcenterstring[]; // johnfitz
 
 void	 Con_CheckResize (void);
+void	 Con_Scroll (int lines);
 void	 Con_Init (void);
 void	 Con_DrawConsole (cb_context_t *cbx, int lines, qboolean drawinput);
 void	 Con_Printf (const char *fmt, ...) FUNC_PRINTF (1, 2);
@@ -43,6 +44,7 @@ void	 Con_DWarning (const char *fmt, ...) FUNC_PRINTF (1, 2); // ericw
 void	 Con_Warning (const char *fmt, ...) FUNC_PRINTF (1, 2);	 // johnfitz
 void	 Con_DPrintf (const char *fmt, ...) FUNC_PRINTF (1, 2);
 void	 Con_DPrintf2 (const char *fmt, ...) FUNC_PRINTF (1, 2); // johnfitz
+void	 Con_LinkPrintf (const char *addr, const char *fmt, ...) FUNC_PRINTF (2, 3);
 void	 Con_SafePrintf (const char *fmt, ...) FUNC_PRINTF (1, 2);
 void	 Con_DrawNotify (cb_context_t *cbx);
 void	 Con_ClearNotify (void);
@@ -52,9 +54,23 @@ void	 Con_Redirect (void (*flush) (const char *text));
 
 void Con_NotifyBox (const char *text); // during startup for sound / cd warnings
 
+typedef enum
+{
+	TABCOMPLETE_AUTOHINT,
+	TABCOMPLETE_USER,
+} tabcomplete_t;
+
 const char *Con_Quakebar (int len);
-void		Con_TabComplete (void);
+void		Con_TabComplete (tabcomplete_t mode);
+void		Con_AddToTabList (const char *name, const char *partial, const char *type);
+qboolean	Con_Match (const char *str, const char *partial);
 void		Con_LogCenterPrint (const char *str);
+
+void	 Con_Mousemove (int x, int y);
+void	 Con_ForceMouseMove (void);
+void	 Con_UpdateMouseState (void);
+void	 Con_SelectAll (void);
+qboolean Con_CopySelectionToClipboard (void);
 
 //
 // debuglog

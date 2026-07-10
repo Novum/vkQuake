@@ -112,6 +112,11 @@ qboolean Cmd_AliasExists (const char *aliasname);
 qboolean Cmd_Exists (const char *cmd_name);
 // used by the cvar code to check for cvar / command name overlap
 
+cmd_function_t *Cmd_FindCommand (const char *cmd_name);
+
+qboolean Cmd_IsReservedName (const char *name);
+// returns true if name starts with 2 underscores
+
 const char *Cmd_CompleteCommand (const char *partial);
 // attempts to match a partial command for automatic command line completion
 // returns NULL if nothing fits
@@ -130,6 +135,9 @@ int Cmd_CheckParm (const char *parm);
 void Cmd_TokenizeString (const char *text);
 // Takes a null terminated string.  Does not need to be /n terminated.
 // breaks the string up into arg tokens.
+
+void Cmd_AddArg (const char *arg);
+// appends a token to the current argument list
 
 qboolean Cmd_ExecuteString (const char *text, cmd_source_t src);
 // Parses a single line of text into arguments and tries to execute it.

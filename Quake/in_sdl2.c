@@ -170,6 +170,12 @@ void IN_SendKeyEvents (void)
 				Con_Printf ("Ignored event for mouse button %d\n", event.button.button);
 				break;
 			}
+			if (key_dest == key_console)
+			{
+				int x, y;
+				IN_ScaleMouseCoords ((float)event.button.x, (float)event.button.y, &x, &y);
+				Con_Mousemove (x, y);
+			}
 			Key_Event (buttonremap[event.button.button - 1], event.button.state == SDL_PRESSED);
 			break;
 
@@ -238,6 +244,12 @@ static int SDLCALL IN_FilterMouseEvents (const SDL_Event *event)
 	case SDL_MOUSEMOTION:
 		// case SDL_MOUSEBUTTONDOWN:
 		// case SDL_MOUSEBUTTONUP:
+		if (key_dest == key_console)
+		{
+			int x, y;
+			IN_ScaleMouseCoords ((float)event->motion.x, (float)event->motion.y, &x, &y);
+			Con_Mousemove (x, y);
+		}
 		return 0;
 	}
 

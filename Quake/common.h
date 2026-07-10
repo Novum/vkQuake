@@ -252,12 +252,22 @@ int q_strncasecmp (const char *s1, const char *s2, size_t n);
 /* locale-insensitive case-insensitive alternative to strstr */
 char *q_strcasestr (const char *haystack, const char *needle);
 
+/* copies in to out, highlighting all occurrences of substr using the colored charset */
+char *COM_TintSubstring (const char *in, const char *substr, char *out, size_t outsize);
+
 /* locale-insensitive strlwr/upr replacement functions: */
 char *q_strlwr (char *str);
 char *q_strupr (char *str);
 
 /* writes the UTF-8 encoding of the code point; returns bytes written (up to 4) or 0 on error */
 size_t UTF8_WriteCodePoint (char *dst, size_t maxbytes, uint32_t codepoint);
+
+/* returns the number of bytes needed to encode the code point using UTF-8 (max 4), or 0 for an invalid code point */
+size_t UTF8_CodePointLength (uint32_t codepoint);
+
+/* converts a string from Quake encoding to UTF-8; returns the number of written characters (including the NUL terminator)
+if a valid output buffer is provided, or the total amount of space necessary if dst is NULL and maxbytes is 0 */
+size_t UTF8_FromQuake (char *dst, size_t maxbytes, const char *src);
 
 /* Trim whitespace on both ends, modifying str on-place: Returns the new start of str after trim */
 char *q_strtrim (char *str);

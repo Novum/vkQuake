@@ -50,5 +50,6 @@ void	Draw_NewGame (void);
 
 void GL_Viewport (cb_context_t *cbx, float x, float y, float width, float height, float min_depth, float max_depth);
 void GL_SetCanvas (cb_context_t *cbx, canvastype newcanvas); // johnfitz
+void GL_SetCanvasColor (float r, float g, float b, float a); // modulates Draw_Character/Draw_String output
 
 #endif /* _QUAKE_DRAW_H */

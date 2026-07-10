@@ -337,7 +337,9 @@ static void Skywind_Save_f (void)
 
 	fclose (f);
 
-	Con_SafePrintf ("Wrote %s\n", relname);
+	Con_SafePrintf ("Wrote ");
+	Con_LinkPrintf (path, "%s", relname);
+	Con_SafePrintf ("\n");
 }
 
 /*

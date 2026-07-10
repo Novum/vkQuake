@@ -47,8 +47,9 @@ quakeparms_t *host_parms;
 qboolean host_initialized; // true if into command execution
 
 double host_frametime;
-double realtime;	// without any filtering or bounding
-double oldrealtime; // last frame run
+double host_rawframetime; // unscaled and unbounded
+double realtime;		  // without any filtering or bounding
+double oldrealtime;		  // last frame run
 
 int host_framecount;
 
@@ -723,7 +724,7 @@ qboolean Host_FilterTime (float time)
 						  // johnfitz
 	}
 
-	host_frametime = delta_since_last_frame;
+	host_frametime = host_rawframetime = delta_since_last_frame;
 	oldrealtime = realtime;
 
 	if (cls.demoplayback && cls.demospeed != 1.f && cls.demospeed > 0.f)
@@ -982,6 +983,9 @@ static void _Host_Frame (double time)
 
 		// allow mice or other external controllers to add commands
 		IN_Commands ();
+
+		// handle mouse interaction with the console (selection, links)
+		Con_UpdateMouseState ();
 	}
 
 	// check the stdin for commands (dedicated servers)

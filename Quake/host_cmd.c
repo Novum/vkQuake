@@ -1315,7 +1315,9 @@ static void Host_Savegame_f (void)
 		q_snprintf (name, sizeof (name), "%s/%s", com_gamedir, Cmd_Argv (1));
 	COM_AddExtension (name, ".sav", sizeof (name));
 
-	Con_Printf ("Saving game to %s...\n", name);
+	Con_SafePrintf ("Saving game to ");
+	Con_LinkPrintf (name, "%s", name);
+	Con_SafePrintf ("...\n");
 	f = fopen (name, "w");
 	if (!f)
 	{

@@ -82,16 +82,18 @@ typedef enum
 // clang-format on
 
 typedef void (*cvarcallback_t) (struct cvar_s *);
+typedef void (*cvarcompletion_t) (struct cvar_s *var, const char *partial);
 
 typedef struct cvar_s
 {
-	const char	  *name;
-	const char	  *string;
-	cvarflags_t	   flags;
-	float		   value;
-	const char	  *default_string; // johnfitz -- remember defaults for reset function
-	cvarcallback_t callback;
-	struct cvar_s *next;
+	const char		*name;
+	const char		*string;
+	cvarflags_t		 flags;
+	float			 value;
+	const char		*default_string; // johnfitz -- remember defaults for reset function
+	cvarcallback_t	 callback;
+	cvarcompletion_t completion;
+	struct cvar_s	*next;
 } cvar_t;
 
 void Cvar_RegisterVariable (cvar_t *variable);
@@ -103,6 +105,9 @@ cvar_t *Cvar_Create (const char *name, const char *value);
 
 void Cvar_SetCallback (cvar_t *var, cvarcallback_t func);
 // set a callback function to the var
+
+void Cvar_SetCompletion (cvar_t *var, cvarcompletion_t func);
+// set a tab completion function for the var's argument
 
 void Cvar_Set (const char *var_name, const char *value);
 // equivelant to "<name> <variable>" typed at the console

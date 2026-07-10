@@ -143,6 +143,37 @@ void IN_Deactivate (qboolean free_cursor)
 	IN_BeginIgnoringMouseEvents ();
 }
 
+void IN_DeactivateForConsole (void)
+{
+	IN_Deactivate (true);
+}
+
+void IN_ScaleMouseCoords (float x, float y, int *outx, int *outy)
+{
+	SDL_Window *window = (SDL_Window *)VID_GetWindow ();
+	int			w = 0, h = 0;
+
+	SDL_GetWindowSize (window, &w, &h);
+	if (w > 0 && h > 0)
+	{
+		x = x * vid.width / w;
+		y = y * vid.height / h;
+	}
+	*outx = (int)x;
+	*outy = (int)y;
+}
+
+void IN_GetMousePos (int *outx, int *outy)
+{
+#ifdef USE_SDL3
+	float x, y;
+#else
+	int x, y;
+#endif
+	SDL_GetMouseState (&x, &y);
+	IN_ScaleMouseCoords ((float)x, (float)y, outx, outy);
+}
+
 void IN_HideCursor ()
 {
 	if (no_mouse)

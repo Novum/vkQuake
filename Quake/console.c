@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // console.c
 
 #include "quakedef.h"
+#include "q_ctype.h"
 
 #include <sys/types.h>
 #include <time.h>
@@ -32,6 +33,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #else
 #include <unistd.h>
 #endif
+
+extern qboolean keydown[256];
 
 int con_linewidth;
 
@@ -52,6 +55,10 @@ char *con_text = NULL;
 
 cvar_t con_notifytime = {"con_notifytime", "3", CVAR_NONE};			// seconds
 cvar_t con_logcenterprint = {"con_logcenterprint", "1", CVAR_NONE}; // johnfitz
+cvar_t con_notifycenter = {"con_notifycenter", "0", CVAR_ARCHIVE};
+cvar_t con_notifyfade = {"con_notifyfade", "0", CVAR_ARCHIVE};
+cvar_t con_notifyfadetime = {"con_notifyfadetime", "0.5", CVAR_ARCHIVE};
+cvar_t con_maxcols = {"con_maxcols", "0", CVAR_ARCHIVE};
 
 char con_lastcenterstring[1024];				 // johnfitz
 void (*con_redirect_flush) (const char *buffer); // call this to flush the redirection buffer (for rcon)
@@ -68,6 +75,634 @@ qboolean con_debuglog = false;
 qboolean con_initialized;
 
 SDL_Mutex *con_mutex;
+
+#define CON_MARGIN			 1
+#define CON_SCROLL_ZONE		 (CHARACTER_SIZE * 2)
+#define CON_MAX_SCROLL_SPEED 32.f
+
+static float con_scrollspeed;
+static float con_scrolldelta;
+
+typedef struct
+{
+	int line;
+	int col;
+} conofs_t;
+
+typedef struct
+{
+	const char *path;
+	conofs_t	begin;
+	conofs_t	end;
+} conlink_t;
+
+typedef struct
+{
+	conofs_t begin;
+	conofs_t end;
+} conselection_t;
+
+typedef enum
+{
+	// Used for link hover/clicking:
+	// - picks the character that contains the cursor
+	// - rejects areas outside the visible console region
+	CT_INSIDE,
+
+	// Used for text selection:
+	// - picks the closest edge horizontally, on whichever line contains the cursor vertically
+	// - clamps to the margins of the visible console region
+	CT_NEAREST,
+} contest_t; // Console hit testing mode
+
+typedef enum
+{
+	CMS_NOTPRESSED,
+	CMS_PRESSED,
+	CMS_DRAGGING,
+} conmouse_t;
+
+static conlink_t **con_links = NULL;
+static conlink_t  *con_hotlink = NULL;
+
+static const double DOUBLECLICK_TIME = 0.5;
+
+static double		  con_mouseclickdelay = 0.0;
+static int			  con_mouseclicks = 0;
+static conmouse_t	  con_mousestate = CMS_NOTPRESSED;
+static conselection_t con_mouseselection;
+static conselection_t con_selection;
+static int			  con_clickx;
+static int			  con_clicky;
+
+/*
+================
+Con_GetLine
+================
+*/
+static const char *Con_GetLine (int line)
+{
+	return con_text + (line % con_totallines) * con_linewidth;
+}
+
+/*
+================
+Con_StrLen
+================
+*/
+static size_t Con_StrLen (int line)
+{
+	const char *text;
+	size_t		len;
+	if (line > con_current)
+		return 0;
+	text = Con_GetLine (line);
+	len = con_linewidth;
+	while (len > 0 && (char)(text[len - 1] & 0x7f) == ' ')
+		len--;
+	return len;
+}
+
+/*
+================
+Con_ScreenToCanvas
+
+Converts screen (display pixel) coordinates to CANVAS_CONSOLE coordinates
+================
+*/
+static void Con_ScreenToCanvas (int x, int y, int *outx, int *outy)
+{
+	// mirrors the CANVAS_CONSOLE ortho matrix setup in GL_SetCanvas
+	int lines = vid.conheight - ((int)scr_con_current * (int)vid.conheight / glheight);
+
+	*outx = x * (int)vid.conwidth / glwidth;
+	*outy = lines + y * (int)vid.conheight / glheight;
+}
+
+/*
+================
+Con_CanvasToOffset
+
+Converts canvas coordinates to a console offset
+Returns true if the offset is inside the visible portion of the console
+================
+*/
+static qboolean Con_CanvasToOffset (int x, int y, conofs_t *ofs, contest_t testmode)
+{
+	qboolean ret = true;
+
+	// Start from the bottom of the console
+	y = vid.conheight - y;
+
+	// Apply rounding
+	if (testmode == CT_NEAREST)
+		x += 4;
+
+	// pixels to characters
+	x >>= 3;
+	y >>= 3;
+
+	// apply margins and scrolling
+	x -= CON_MARGIN;
+	y -= 2;
+
+	if (testmode == CT_INSIDE)
+	{
+		if (x < 0 || x >= con_linewidth)
+			ret = false;
+		if (y < 0 || y >= con_vislines)
+			ret = false;
+		if (con_backscroll && y < 2)
+			ret = false;
+	}
+	else
+	{
+		// Allow the cursor to move one character past the end of the line
+		// by clamping to con_linewidth instead of con_linewidth - 1
+		x = CLAMP (0, x, con_linewidth);
+
+		// Enable selecting the entire bottom line by allowing the cursor
+		// to move to the beginning of the line below it (line -1)
+		y = CLAMP (-1, y, con_vislines);
+		if (y < 0)
+			x = 0;
+
+		// Enable selecting the entire line above the backscroll cutoff by
+		// allowing the cursor to move to the beginning of the line below it
+		if (con_backscroll && y < 2)
+		{
+			x = 0;
+			y = 1;
+		}
+	}
+
+	y += con_backscroll;
+	y = con_current - y;
+
+	ofs->line = y;
+	ofs->col = x;
+
+	return ret;
+}
+
+/*
+================
+Con_ScreenToOffset
+
+Converts screen (pixel) coordinates to a console offset
+Returns true if the offset is inside the visible portion of the console
+================
+*/
+static qboolean Con_ScreenToOffset (int x, int y, conofs_t *ofs, contest_t testmode)
+{
+	Con_ScreenToCanvas (x, y, &x, &y);
+	return Con_CanvasToOffset (x, y, ofs, testmode);
+}
+
+/*
+================
+Con_OfsCompare
+
+Performs a three-way comparison on console offsets
+================
+*/
+static int Con_OfsCompare (const conofs_t *lhs, const conofs_t *rhs)
+{
+	if (lhs->line != rhs->line)
+		return lhs->line - rhs->line;
+	return lhs->col - rhs->col;
+}
+
+/*
+================
+Con_OfsInRange
+
+Checks if an offset is within a half-open range
+================
+*/
+static qboolean Con_OfsInRange (const conofs_t *ofs, const conofs_t *begin, const conofs_t *end)
+{
+	return Con_OfsCompare (ofs, begin) >= 0 && Con_OfsCompare (ofs, end) < 0;
+}
+
+/*
+================
+Con_GetCurrentRange
+================
+*/
+static void Con_GetCurrentRange (conofs_t *begin, conofs_t *end)
+{
+	begin->line = con_current - con_totallines + 1;
+	begin->col = 0;
+	end->line = con_current + 1;
+	end->col = 0;
+}
+
+/*
+================
+Con_IntersectRanges
+================
+*/
+static qboolean Con_IntersectRanges (conofs_t *begin, conofs_t *end, const conofs_t *selbegin, const conofs_t *selend)
+{
+	if (Con_OfsCompare (selend, begin) <= 0)
+		return false;
+	if (Con_OfsCompare (end, selbegin) <= 0)
+		return false;
+
+	if (Con_OfsCompare (begin, selbegin) < 0)
+		*begin = *selbegin;
+	if (Con_OfsCompare (selend, end) < 0)
+		*end = *selend;
+
+	return true;
+}
+
+/*
+================
+Con_GetLinkAtOfs
+
+Returns the link at the given offset, if any, or NULL otherwise
+================
+*/
+static conlink_t *Con_GetLinkAtOfs (const conofs_t *ofs)
+{
+	size_t lo, hi;
+
+	// find the first link that ends after the offset
+	lo = 0;
+	hi = VEC_SIZE (con_links);
+	while (lo < hi)
+	{
+		size_t mid = (lo + hi) / 2;
+		if (Con_OfsCompare (ofs, &con_links[mid]->end) >= 0)
+			lo = mid + 1;
+		else
+			hi = mid;
+	}
+
+	if (lo == VEC_SIZE (con_links))
+		return NULL;
+
+	if (Con_OfsCompare (ofs, &con_links[lo]->begin) >= 0)
+		return con_links[lo];
+
+	return NULL;
+}
+
+/*
+================
+Con_GetLinkAtPixel
+
+Returns the link at the given pixel coordinates, if any, or NULL otherwise
+================
+*/
+static conlink_t *Con_GetLinkAtPixel (int x, int y)
+{
+	conofs_t ofs;
+	if (!Con_ScreenToOffset (x, y, &ofs, CT_INSIDE))
+		return NULL;
+	return Con_GetLinkAtOfs (&ofs);
+}
+
+/*
+================
+Con_SetHotLink
+================
+*/
+static void Con_SetHotLink (conlink_t *link)
+{
+	con_hotlink = link;
+}
+
+/*
+================
+Con_ClearSelection
+================
+*/
+static void Con_ClearSelection (void)
+{
+	memset (&con_selection, 0, sizeof (con_selection));
+}
+
+/*
+================
+Con_HasSelection
+================
+*/
+static qboolean Con_HasSelection (void)
+{
+	return Con_OfsCompare (&con_selection.begin, &con_selection.end) != 0;
+}
+
+/*
+================
+Con_SelectAll
+================
+*/
+void Con_SelectAll (void)
+{
+	Con_GetCurrentRange (&con_selection.begin, &con_selection.end);
+	while (Con_HasSelection () && Con_StrLen (con_selection.begin.line) == 0)
+		con_selection.begin.line++;
+}
+
+/*
+================
+Con_GetNormalizedSelection
+================
+*/
+static qboolean Con_GetNormalizedSelection (conofs_t *begin, conofs_t *end)
+{
+	conofs_t *selbegin = &con_selection.begin;
+	conofs_t *selend = &con_selection.end;
+	conofs_t  tbegin, tend;
+
+	if (Con_OfsCompare (selbegin, selend) > 0)
+	{
+		conofs_t *tmp = selbegin;
+		selbegin = selend;
+		selend = tmp;
+	}
+	*begin = *selbegin;
+	*end = *selend;
+
+	Con_GetCurrentRange (&tbegin, &tend);
+
+	return Con_IntersectRanges (begin, end, &tbegin, &tend);
+}
+
+/*
+================
+Con_TestWordBoundary
+
+Returns:
+	 < 0 if on a word boundary and non-whitespace characters are to the left
+	   0 if not on a word boundary
+	 > 0 if on a word boundary and non-whitespace characters are to the right
+================
+*/
+static int Con_TestWordBoundary (int pos, const char *text, int len)
+{
+	if (pos <= 0)
+		return 1;
+	if (pos >= len)
+		return -1;
+	return q_isspace (text[pos - 1] & 0x7f) - q_isspace (text[pos] & 0x7f);
+}
+
+static int IntSign (int i)
+{
+	if (i < 0)
+		return -1;
+	if (i > 0)
+		return 1;
+	return i;
+}
+
+/*
+================
+Con_ApplyMouseSelection
+================
+*/
+static void Con_ApplyMouseSelection (void)
+{
+	const char *line;
+	int			len;
+
+	con_selection = con_mouseselection;
+
+	line = Con_GetLine (con_selection.begin.line);
+	len = (int)Con_StrLen (con_selection.begin.line);
+
+	// Clamp starting point to the end of the actual content (one character past it)
+	// so that double-clicking beyond the end of the line selects the last word
+	con_selection.begin.col = q_min (con_selection.begin.col, len);
+
+	// Special case: if we're selecting whole words, the initial click was on a word boundary,
+	// and the current selection hasn't advanced towards the actual content (either left or right),
+	// then we nudge the starting point by one character so that the word adjacent to the initial click
+	// is always selected.
+	if (con_mouseclicks == 2)
+	{
+		int boundary = IntSign (Con_TestWordBoundary (con_selection.begin.col, line, len));
+		int dir = IntSign (Con_OfsCompare (&con_selection.end, &con_selection.begin));
+		if (boundary && boundary != dir)
+			con_selection.begin.col += boundary;
+	}
+
+	// Swap begin/end if necessary
+	if (Con_OfsCompare (&con_selection.begin, &con_selection.end) > 0)
+	{
+		conofs_t tmp = con_selection.begin;
+		con_selection.begin = con_selection.end;
+		con_selection.end = tmp;
+	}
+
+	// If the starting point is beyond the newline, move to the beginning of the next line
+	line = Con_GetLine (con_selection.begin.line);
+	len = (int)Con_StrLen (con_selection.begin.line);
+	if (con_selection.begin.col > len)
+	{
+		con_selection.begin.line++;
+		con_selection.begin.col = 0;
+		// Fix up the end point if necessary
+		if (Con_OfsCompare (&con_selection.begin, &con_selection.end) > 0)
+			con_selection.end = con_selection.begin;
+	}
+
+	// Selecting character by character? Nothing left to do
+	if (con_mouseclicks <= 1)
+		return;
+
+	// Quadruple click: select whole buffer
+	if (con_mouseclicks >= 4)
+	{
+		Con_SelectAll ();
+		return;
+	}
+
+	// Triple click: select whole lines
+	if (con_mouseclicks == 3)
+	{
+		con_selection.begin.col = 0;
+		con_selection.end.col = 0;
+		con_selection.end.line = q_min (con_selection.end.line, con_current) + 1;
+		return;
+	}
+
+	// Double click: select whole words
+
+	// Move begin marker to the first word boundary to its left
+	line = Con_GetLine (con_selection.begin.line);
+	len = (int)Con_StrLen (con_selection.begin.line);
+	while (!Con_TestWordBoundary (con_selection.begin.col, line, len))
+		--con_selection.begin.col;
+
+	// Move end marker to the first word boundary to its right
+	if (con_selection.end.line <= con_current)
+	{
+		line = Con_GetLine (con_selection.end.line);
+		len = (int)Con_StrLen (con_selection.end.line);
+		while (!Con_TestWordBoundary (con_selection.end.col, line, len))
+			++con_selection.end.col;
+	}
+}
+
+/*
+================
+Con_SetMouseState
+================
+*/
+static void Con_SetMouseState (conmouse_t state)
+{
+	int		 x, y;
+	conofs_t pos;
+
+	if (con_mousestate == state)
+		return;
+
+	switch (state)
+	{
+	case CMS_PRESSED:
+		IN_GetMousePos (&x, &y);
+		Con_ScreenToCanvas (x, y, &con_clickx, &con_clicky);
+		Con_CanvasToOffset (con_clickx, con_clicky, &pos, CT_NEAREST);
+
+		if (con_mouseclicks == 0 || con_mouseclickdelay >= DOUBLECLICK_TIME || Con_OfsCompare (&pos, &con_mouseselection.end) != 0)
+			con_mouseclicks = 1;
+		else
+			con_mouseclicks++;
+		con_mouseclickdelay = 0.0;
+		con_mouseselection.begin = con_mouseselection.end = pos;
+
+		Con_ApplyMouseSelection ();
+
+		if (con_mouseclicks >= 2)
+			VID_SetMouseCursor (MOUSECURSOR_IBEAM);
+		break;
+
+	case CMS_DRAGGING:
+		Con_SetHotLink (NULL);
+		VID_SetMouseCursor (MOUSECURSOR_IBEAM);
+		break;
+
+	case CMS_NOTPRESSED:
+		if (con_mousestate != CMS_DRAGGING && con_hotlink && !Sys_Explore (con_hotlink->path))
+			S_LocalSound ("misc/menu2.wav");
+		con_scrolldelta = 0.f;
+		con_scrollspeed = 0.f;
+		break;
+
+	default:
+		break;
+	}
+
+	con_mousestate = state;
+	Con_ForceMouseMove ();
+}
+
+/*
+================
+Con_Mousemove
+Mouse movement callback
+================
+*/
+void Con_Mousemove (int x, int y)
+{
+	if (con_mousestate == CMS_NOTPRESSED)
+	{
+		conofs_t ofs;
+		qboolean inside = Con_ScreenToOffset (x, y, &ofs, CT_INSIDE);
+		Con_SetHotLink (Con_GetLinkAtPixel (x, y));
+		VID_SetMouseCursor (con_hotlink ? MOUSECURSOR_HAND : inside ? MOUSECURSOR_IBEAM : MOUSECURSOR_DEFAULT);
+	}
+	else
+	{
+		int	  cx, cy, delta;
+		float frac;
+
+		Con_ScreenToCanvas (x, y, &cx, &cy);
+		Con_CanvasToOffset (cx, cy, &con_mouseselection.end, CT_NEAREST);
+		Con_ApplyMouseSelection ();
+		if (Con_OfsCompare (&con_mouseselection.begin, &con_mouseselection.end) != 0)
+			Con_SetMouseState (CMS_DRAGGING);
+
+		// Compute distance inside the auto-scroll range
+		delta = cy + con_vislines / 2 - vid.conheight;
+		if (abs (delta) < con_vislines / 2 - CON_SCROLL_ZONE)
+			delta = 0;
+		else
+			delta -= IntSign (delta) * (con_vislines / 2 - CON_SCROLL_ZONE);
+		delta = CLAMP (-CON_SCROLL_ZONE, delta, CON_SCROLL_ZONE);
+
+		if (delta < 0)
+		{
+			// If the initial click was close to the top (inside the scroll range),
+			// we don't want to immediately start scrolling.
+			// Once we've started scrolling we gradually relax the restriction.
+			// NOTE: This is not an issue on the bottom because of the input line and margin.
+			int moved = cy - con_clicky;
+			int scrolled = q_min (con_mouseselection.end.line - con_mouseselection.begin.line, 0) * CHARACTER_SIZE;
+			delta = q_max (delta, moved + scrolled / 4);
+			delta = q_min (delta, 0);
+		}
+
+		// Compute scroll speed
+		frac = delta / (float)CON_SCROLL_ZONE;
+		frac *= fabs (frac); // quadratic easing
+		con_scrollspeed = -CON_MAX_SCROLL_SPEED * frac;
+		if (!delta)
+			con_scrolldelta = 0.0f;
+	}
+}
+
+/*
+================
+Con_ForceMouseMove
+================
+*/
+void Con_ForceMouseMove (void)
+{
+	int x, y;
+	IN_GetMousePos (&x, &y);
+	Con_Mousemove (x, y);
+}
+
+/*
+================
+Con_UpdateMouseState
+
+Called once per frame from the main thread
+================
+*/
+void Con_UpdateMouseState (void)
+{
+	if (key_dest != key_console)
+	{
+		Con_SetHotLink (NULL);
+		Con_SetMouseState (CMS_NOTPRESSED);
+		Con_ClearSelection ();
+		VID_SetMouseCursor (MOUSECURSOR_DEFAULT);
+		return;
+	}
+
+	if (!keydown[K_MOUSE1])
+		Con_SetMouseState (CMS_NOTPRESSED);
+	else if (con_mousestate == CMS_NOTPRESSED)
+		Con_SetMouseState (CMS_PRESSED);
+
+	con_mouseclickdelay += host_rawframetime;
+
+	// Handle auto-scrolling
+	con_scrolldelta += con_scrollspeed * host_rawframetime;
+	if (fabs (con_scrolldelta) >= 1.0f)
+	{
+		int lines = (int)con_scrolldelta;
+		Con_Scroll (lines);
+		con_scrolldelta -= lines;
+	}
+}
 
 /*
 ================
@@ -115,6 +750,8 @@ void Con_ToggleConsole_f (void)
 		key_linepos = 1;
 		con_backscroll = 0;		  // johnfitz -- toggleconsole should return you to the bottom of the scrollback
 		history_line = edit_line; // johnfitz -- it should also return you to the bottom of the command history
+		key_tabhint[0] = '\0';	  // clear tab hint
+		Con_SetHotLink (NULL);
 
 		if (cls.state == ca_connected)
 		{
@@ -128,7 +765,7 @@ void Con_ToggleConsole_f (void)
 	}
 	else
 	{
-		IN_Deactivate (modestate == MS_WINDOWED);
+		IN_DeactivateForConsole ();
 		key_dest = key_console;
 	}
 
@@ -143,9 +780,66 @@ Con_Clear_f
 */
 static void Con_Clear_f (void)
 {
+	size_t i;
+
 	if (con_text)
 		memset (con_text, ' ', con_buffersize); // johnfitz -- con_buffersize replaces CON_TEXTSIZE
 	con_backscroll = 0;							// johnfitz -- if console is empty, being scrolled up is confusing
+
+	Con_SetHotLink (NULL);
+	for (i = 0; i < VEC_SIZE (con_links); i++)
+		Mem_Free (con_links[i]);
+	VEC_CLEAR (con_links);
+}
+
+/*
+================
+Con_CopySelectionToClipboard
+================
+*/
+qboolean Con_CopySelectionToClipboard (void)
+{
+	conofs_t selbegin, selend;
+	conofs_t cursor, eol;
+	char	*qtext = NULL;
+	char	*utf8 = NULL;
+	size_t	 maxsize;
+
+	S_LocalSound ("misc/menu2.wav");
+
+	// Get forward selection range
+	if (!Con_GetNormalizedSelection (&selbegin, &selend))
+		return false;
+
+	// Iterate through all lines in the selection
+	for (cursor = selbegin; Con_OfsCompare (&cursor, &selend) <= 0; cursor.line++, cursor.col = 0)
+	{
+		const char *text = Con_GetLine (cursor.line);
+		eol.line = cursor.line;
+		eol.col = (int)Con_StrLen (cursor.line);
+		if (cursor.line == selend.line)
+			eol.col = q_min (eol.col, selend.col);
+		Vec_Append ((void **)&qtext, 1, text + cursor.col, eol.col - cursor.col);
+		if (eol.line != selend.line)
+			VEC_PUSH (qtext, '\n');
+	}
+	VEC_PUSH (qtext, '\0');
+
+	// Convert to UTF-8
+	maxsize = UTF8_FromQuake (NULL, 0, qtext);
+	utf8 = (char *)Mem_Alloc (maxsize);
+	UTF8_FromQuake (utf8, maxsize, qtext);
+
+	// Copy the UTF-8 text to clipboard
+	SDL_SetClipboardText (utf8);
+
+	// Clean up temporary buffers
+	Mem_Free (utf8);
+	VEC_FREE (qtext);
+
+	Con_ClearSelection ();
+
+	return true;
 }
 
 /*
@@ -159,14 +853,17 @@ static void Con_Dump_f (void)
 	const char *line;
 	FILE	   *f;
 	char		buffer[1024];
+	char		relname[MAX_OSPATH];
 	char		name[MAX_OSPATH];
 
-	q_snprintf (name, sizeof (name), "%s/%s", com_gamedir, Cmd_Argc () >= 2 ? Cmd_Argv (1) : "condump.txt");
+	q_strlcpy (relname, Cmd_Argc () >= 2 ? Cmd_Argv (1) : "condump.txt", sizeof (relname));
+	COM_AddExtension (relname, ".txt", sizeof (relname));
+	q_snprintf (name, sizeof (name), "%s/%s", com_gamedir, relname);
 	COM_CreatePath (name);
 	f = fopen (name, "w");
 	if (!f)
 	{
-		Con_Printf ("ERROR: couldn't open file %s.\n", name);
+		Con_Printf ("ERROR: couldn't open file %s.\n", relname);
 		return;
 	}
 
@@ -201,7 +898,9 @@ static void Con_Dump_f (void)
 	}
 
 	fclose (f);
-	Con_Printf ("Dumped console text to %s.\n", name);
+	Con_SafePrintf ("Dumped console text to ");
+	Con_LinkPrintf (name, "%s", relname);
+	Con_SafePrintf (".\n");
 }
 
 /*
@@ -241,6 +940,17 @@ static void Con_MessageMode2_f (void)
 		return;
 	chat_team = true;
 	key_dest = key_message;
+}
+
+/*
+================
+Con_RecalcOffset
+================
+*/
+static void Con_RecalcOffset (conofs_t *ofs, int oldnumlines)
+{
+	ofs->col = q_min (ofs->col, con_linewidth);
+	ofs->line += con_totallines - 1 - oldnumlines;
 }
 
 /*
@@ -289,13 +999,47 @@ void Con_CheckResize (void)
 		}
 	}
 
-	Con_ClearNotify ();
 	Mem_Free (tbuf);
+
+	for (i = 0; i < (int)VEC_SIZE (con_links); i++)
+	{
+		conlink_t *link = con_links[i];
+		Con_RecalcOffset (&link->begin, con_current);
+		Con_RecalcOffset (&link->end, con_current);
+	}
+
+	Con_ClearNotify ();
 
 	con_backscroll = 0;
 	con_current = con_totallines - 1;
 
 	SDL_UnlockMutex (con_mutex);
+}
+
+/*
+================
+Con_Scroll
+================
+*/
+void Con_Scroll (int lines)
+{
+	if (!lines)
+		return;
+
+	con_backscroll += lines;
+
+	if (lines > 0)
+	{
+		if (con_backscroll > con_totallines - (vid.height >> 3) - 1)
+			con_backscroll = con_totallines - (vid.height >> 3) - 1;
+	}
+	else
+	{
+		if (con_backscroll < 0)
+			con_backscroll = 0;
+	}
+
+	Con_ForceMouseMove ();
 }
 
 /*
@@ -332,6 +1076,10 @@ void Con_Init (void)
 
 	Cvar_RegisterVariable (&con_notifytime);
 	Cvar_RegisterVariable (&con_logcenterprint); // johnfitz
+	Cvar_RegisterVariable (&con_notifycenter);
+	Cvar_RegisterVariable (&con_notifyfade);
+	Cvar_RegisterVariable (&con_notifyfadetime);
+	Cvar_RegisterVariable (&con_maxcols);
 
 	Cmd_AddCommand ("toggleconsole", Con_ToggleConsole_f);
 	Cmd_AddCommand ("messagemode", Con_MessageMode_f);
@@ -478,6 +1226,20 @@ void Con_DebugLog (const char *msg)
 
 /*
 ================
+Con_StripControlPrefixes
+================
+*/
+static const char *Con_StripControlPrefixes (const char *txt)
+{
+	// colored text
+	if (txt[0] == 1 || txt[0] == 2)
+		txt++;
+
+	return txt;
+}
+
+/*
+================
 Con_Printf
 
 Handles cursor positioning, line wrapping, etc
@@ -497,7 +1259,7 @@ void Con_Printf (const char *fmt, ...)
 	if (con_redirect_flush)
 		q_strlcat (con_redirect_buffer, msg, sizeof (con_redirect_buffer));
 	// also echo to debugging console
-	Sys_Printf ("%s", msg);
+	Sys_Printf ("%s", Con_StripControlPrefixes (msg));
 
 	// log all messages to file
 	if (con_debuglog)
@@ -616,6 +1378,59 @@ void Con_DPrintf2 (const char *fmt, ...)
 
 /*
 ==================
+Con_LinkPrintf
+
+Prints text that opens a link when clicked
+==================
+*/
+void Con_LinkPrintf (const char *addr, const char *fmt, ...)
+{
+	conlink_t *link;
+	size_t	   len;
+	va_list	   argptr;
+	char	   msg[MAXPRINTMSG];
+	char	  *text;
+
+	len = strlen (addr);
+	link = (conlink_t *)Mem_Alloc (sizeof (conlink_t) + len + 1);
+
+	SDL_LockMutex (con_mutex);
+
+	memcpy (link + 1, addr, len + 1);
+	link->path = (const char *)(link + 1);
+	link->begin.line = con_current;
+	link->begin.col = con_x;
+	link->end = link->begin;
+
+	va_start (argptr, fmt);
+	q_vsnprintf (msg, sizeof (msg), fmt, argptr);
+	va_end (argptr);
+
+	Con_SafePrintf ("\x02%s", msg);
+
+	link->end.line = con_current;
+	link->end.col = con_x;
+	VEC_PUSH (con_links, link);
+
+	// Because of wrapping our text might actually start on the next line, so we skip leading spaces
+	text = con_text + (link->begin.line % con_totallines) * con_linewidth + link->begin.col;
+	while (Con_OfsCompare (&link->begin, &link->end) < 0)
+	{
+		if ((*text & 0x7f) != ' ')
+			break;
+		text++;
+		if (++link->begin.col == con_linewidth)
+		{
+			link->begin.col = 0;
+			link->begin.line++;
+		}
+	}
+
+	SDL_UnlockMutex (con_mutex);
+}
+
+/*
+==================
 Con_SafePrintf
 
 Okay to call even when the screen can't be updated
@@ -701,8 +1516,9 @@ void Con_LogCenterPrint (const char *str)
 
 	if (con_logcenterprint.value)
 	{
+		qboolean trailing_newline = *str && str[strlen (str) - 1] == '\n';
 		Con_Printf ("%s", Con_Quakebar (40));
-		Con_CenterPrintf (40, "%s\n", str);
+		Con_CenterPrintf (40, trailing_newline ? "%s" : "%s\n", str);
 		Con_Printf ("%s", Con_Quakebar (40));
 		Con_ClearNotify ();
 	}
@@ -737,11 +1553,11 @@ typedef struct tab_s
 	const char	 *type;
 	struct tab_s *next;
 	struct tab_s *prev;
+	int			  count;
 } tab_t;
 tab_t *tablist;
 
 // defs from elsewhere
-extern qboolean		   keydown[256];
 extern cmd_function_t *cmd_functions;
 #define MAX_ALIAS_NAME 32
 typedef struct cmdalias_s
@@ -754,7 +1570,28 @@ extern cmdalias_t *cmd_alias;
 
 /*
 ============
-AddToTabList -- johnfitz
+Con_ClearTabList
+============
+*/
+static void Con_ClearTabList (void)
+{
+	tab_t *t, *next;
+
+	if (!tablist)
+		return;
+
+	tablist->prev->next = NULL; // break the loop
+	for (t = tablist; t; t = next)
+	{
+		next = t->next;
+		Mem_Free (t);
+	}
+	tablist = NULL;
+}
+
+/*
+============
+Con_AddToTabList -- johnfitz
 
 tablist is a doubly-linked loop, alphabetized by name
 ============
@@ -765,34 +1602,58 @@ tablist is a doubly-linked loop, alphabetized by name
 static char		bash_partial[80];
 static qboolean bash_singlematch;
 
-void AddToTabList (const char *name, const char *type)
+void Con_AddToTabList (const char *name, const char *partial, const char *type)
 {
 	tab_t	   *t, *insert;
-	char	   *i_bash;
-	const char *i_name;
+	char	   *i_bash, *i_bash2;
+	const char *i_name, *i_name2;
+	int			namelen, typelen;
 
-	if (!*bash_partial)
+	if (!Con_Match (name, partial))
+		return;
+
+	if (!*bash_partial && bash_singlematch)
 	{
-		strncpy (bash_partial, name, 79);
-		bash_partial[79] = '\0';
+		q_strlcpy (bash_partial, name, sizeof (bash_partial));
 	}
 	else
 	{
 		bash_singlematch = 0;
-		// find max common between bash_partial and name
-		i_bash = bash_partial;
-		i_name = name;
-		while (*i_bash && (*i_bash == *i_name))
+		i_bash = q_strcasestr (bash_partial, partial);
+		i_name = q_strcasestr (name, partial);
+		if (i_name && i_bash)
 		{
-			i_bash++;
-			i_name++;
+			i_bash2 = i_bash;
+			i_name2 = i_name;
+			// find max common between bash_partial and name (right side)
+			while (*i_bash && q_toupper (*i_bash) == q_toupper (*i_name))
+			{
+				i_bash++;
+				i_name++;
+			}
+			*i_bash = 0;
+			// find max common between bash_partial and name (left side)
+			while (i_bash2 != bash_partial && i_name2 != name && q_toupper (i_bash2[-1]) == q_toupper (i_name2[-1]))
+			{
+				i_bash2--;
+				i_name2--;
+			}
+			if (i_bash2 != bash_partial)
+				memmove (bash_partial, i_bash2, strlen (i_bash2) + 1);
 		}
-		*i_bash = 0;
 	}
 
-	t = (tab_t *)Mem_Alloc (sizeof (tab_t));
-	t->name = name;
-	t->type = type;
+	namelen = (int)strlen (name) + 1;
+	typelen = type ? (int)strlen (type) + 1 : 0;
+	t = (tab_t *)Mem_Alloc (sizeof (tab_t) + namelen + typelen);
+	t->name = (const char *)(t + 1);
+	memcpy ((char *)t->name, name, namelen);
+	if (type)
+	{
+		t->type = t->name + namelen;
+		memcpy ((char *)t->type, type, typelen);
+	}
+	t->count = 1;
 
 	if (!tablist) // create list
 	{
@@ -800,7 +1661,7 @@ void AddToTabList (const char *name, const char *type)
 		t->next = t;
 		t->prev = t;
 	}
-	else if (strcmp (name, tablist->name) < 0) // insert at front
+	else if (q_strnaturalcmp (name, tablist->name) < 0) // insert at front
 	{
 		t->next = tablist;
 		t->prev = tablist->prev;
@@ -813,7 +1674,14 @@ void AddToTabList (const char *name, const char *type)
 		insert = tablist;
 		do
 		{
-			if (strcmp (name, insert->name) < 0)
+			int cmp = q_strnaturalcmp (name, insert->name);
+			if (!cmp && !strcmp (name, insert->name)) // avoid duplicates
+			{
+				Mem_Free (t);
+				insert->count++;
+				return;
+			}
+			if (cmp < 0)
 				break;
 			insert = insert->next;
 		} while (insert != tablist);
@@ -825,104 +1693,290 @@ void AddToTabList (const char *name, const char *type)
 	}
 }
 
-typedef struct arg_completion_type_s
+/*
+============
+Con_Match
+============
+*/
+qboolean Con_Match (const char *str, const char *partial)
 {
-	const char		 *command;
-	filelist_item_t **filelist;
-} arg_completion_type_t;
-
-static const arg_completion_type_t arg_completion_types[] = {{"map ", &extralevels}, {"changelevel ", &extralevels}, {"game ", &modlist},
-															 {"record ", &demolist}, {"playdemo ", &demolist},		 {"timedemo ", &demolist},
-															 {"save ", &savelist},	 {"load ", &savelist},			 {"fastload ", &savelist}};
-
-static const int num_arg_completion_types = countof (arg_completion_types);
+	return q_strcasestr (str, partial) != NULL;
+}
 
 /*
 ============
-FindCompletion -- stevenaaus
+ParseCommand
 ============
 */
-const char *FindCompletion (const char *partial, filelist_item_t *filelist, int *nummatches_out)
+static const char *ParseCommand (void)
 {
-	static char		 matched[32];
-	char			*i_matched, *i_name;
-	filelist_item_t *file;
-	int				 init, match, plen;
+	char		buf[MAXCMDLINE];
+	const char *str = key_lines[edit_line] + 1;
+	const char *end = str + key_linepos - 1;
+	const char *ret = str;
+	const char *quote = NULL;
 
-	memset (matched, 0, sizeof (matched));
-	plen = strlen (partial);
-	match = 0;
-
-	for (file = filelist, init = 0; file; file = file->next)
+	while (*str && str != end)
 	{
-		if (!strncmp (file->name, partial, plen))
+		char c = *str++;
+		if (c == '\"')
 		{
-			if (init == 0)
+			if (!quote)
 			{
-				init = 1;
-				memcpy (matched, file->name, sizeof (matched));
-				matched[sizeof (matched) - 1] = '\0';
+				quote = ret; // save previous command boundary
+				ret = str;	 // new command
 			}
 			else
-			{ // find max common
-				i_matched = matched;
-				i_name = file->name;
-				while (*i_matched && (*i_matched == *i_name))
-				{
-					i_matched++;
-					i_name++;
-				}
-				*i_matched = 0;
+			{
+				ret = quote; // restore saved cursor
+				quote = NULL;
 			}
-			match++;
 		}
+		else if (c == ';')
+			ret = str;
+		else if (!quote && c == '/' && *str == '/')
+			break;
 	}
 
-	*nummatches_out = match;
+	while (*ret == ' ')
+		ret++;
 
-	if (match > 1)
-	{
-		for (file = filelist; file; file = file->next)
-		{
-			if (!strncmp (file->name, partial, plen))
-				Con_SafePrintf ("   %s\n", file->name);
-		}
-		Con_SafePrintf ("\n");
-	}
+	q_strlcpy (buf, ret, sizeof (buf));
+	if ((uintptr_t)(end - ret) < sizeof (buf))
+		buf[end - ret] = '\0';
+	end = buf + strlen (buf);
 
-	return matched;
+	Cmd_TokenizeString (buf);
+	// last arg should always be the one we're trying to complete,
+	// so we add a new empty one if the command ends with a space
+	if (end != buf && end[-1] == ' ')
+		Cmd_AddArg ("");
+
+	return ret;
 }
+
+static qboolean CompleteFileList (const char *partial, void *param)
+{
+	filelist_item_t *file, **list = (filelist_item_t **)param;
+	for (file = *list; file; file = file->next)
+		Con_AddToTabList (file->name, partial, NULL);
+	return true;
+}
+
+static qboolean CompleteFileListSingle (const char *partial, void *param)
+{
+	if (Cmd_Argc () < 3)
+		CompleteFileList (partial, param);
+	return true;
+}
+
+static qboolean CompleteBindKeys (const char *partial, void *unused)
+{
+	int i;
+
+	// fall back to default tab completion after 1st arg (key name)
+	if (Cmd_Argc () > 2)
+		return false;
+
+	for (i = 0; i < MAX_KEYS; i++)
+	{
+		const char *name = Key_KeynumToString (i);
+		if (strcmp (name, "<UNKNOWN KEYNUM>") != 0)
+			Con_AddToTabList (name, partial, keybindings[i]);
+	}
+
+	return true;
+}
+
+static qboolean CompleteUnbindKeys (const char *partial, void *unused)
+{
+	int i;
+
+	// disable completion after 1st arg (key name)
+	if (Cmd_Argc () > 2)
+		return true;
+
+	for (i = 0; i < MAX_KEYS; i++)
+	{
+		if (keybindings[i])
+		{
+			const char *name = Key_KeynumToString (i);
+			if (strcmp (name, "<UNKNOWN KEYNUM>") != 0)
+				Con_AddToTabList (name, partial, keybindings[i]);
+		}
+	}
+
+	return true;
+}
+
+typedef struct arg_completion_type_s
+{
+	const char *command;
+	qboolean (*function) (const char *partial, void *param);
+	void *param;
+} arg_completion_type_t;
+
+static const arg_completion_type_t arg_completion_types[] = {
+	{"map", CompleteFileListSingle, &extralevels},
+	{"changelevel", CompleteFileListSingle, &extralevels},
+	{"game", CompleteFileList, &modlist},
+	{"record", CompleteFileListSingle, &demolist},
+	{"playdemo", CompleteFileListSingle, &demolist},
+	{"timedemo", CompleteFileListSingle, &demolist},
+	{"load", CompleteFileListSingle, &savelist},
+	{"save", CompleteFileListSingle, &savelist},
+	{"fastload", CompleteFileListSingle, &savelist},
+	{"bind", CompleteBindKeys, NULL},
+	{"unbind", CompleteUnbindKeys, NULL},
+};
+
+static const int num_arg_completion_types = countof (arg_completion_types);
 
 /*
 ============
 BuildTabList -- johnfitz
 ============
 */
-void BuildTabList (const char *partial)
+static void BuildTabList (const char *partial)
 {
 	cmdalias_t	   *alias;
 	cvar_t		   *cvar;
 	cmd_function_t *cmd;
-	int				len;
+	int				i;
 
-	tablist = NULL;
-	len = strlen (partial);
+	Con_ClearTabList ();
 
 	bash_partial[0] = 0;
 	bash_singlematch = 1;
 
+	ParseCommand ();
+
+	if (Cmd_Argc () >= 2)
+	{
+		cvar = Cvar_FindVar (Cmd_Argv (0));
+		if (cvar)
+		{
+			// cvars can only have one argument
+			if (Cmd_Argc () == 2 && cvar->completion)
+				cvar->completion (cvar, partial);
+			return;
+		}
+
+		cmd = Cmd_FindCommand (Cmd_Argv (0));
+		if (cmd)
+		{
+			for (i = 0; i < num_arg_completion_types; i++)
+			{
+				// arg_completion contains a command we can complete the arguments
+				// for (like "map") and a list of all the maps.
+				arg_completion_type_t arg_completion = arg_completion_types[i];
+
+				if (!q_strcasecmp (Cmd_Argv (0), arg_completion.command))
+				{
+					if (arg_completion.function (partial, arg_completion.param))
+						return;
+					break;
+				}
+			}
+		}
+	}
+
+	if (!*partial)
+		return;
+
 	cvar = Cvar_FindVarAfter ("", CVAR_NONE);
 	for (; cvar; cvar = cvar->next)
-		if (!strncmp (partial, cvar->name, len))
-			AddToTabList (cvar->name, "cvar");
+		if (q_strcasestr (cvar->name, partial))
+			Con_AddToTabList (cvar->name, partial, "cvar");
 
 	for (cmd = cmd_functions; cmd; cmd = cmd->next)
-		if (!strncmp (partial, cmd->name, len))
-			AddToTabList (cmd->name, "command");
+		if (cmd->srctype != src_server && q_strcasestr (cmd->name, partial) && !Cmd_IsReservedName (cmd->name))
+			Con_AddToTabList (cmd->name, partial, "command");
 
 	for (alias = cmd_alias; alias; alias = alias->next)
-		if (!strncmp (partial, alias->name, len))
-			AddToTabList (alias->name, "alias");
+		if (q_strcasestr (alias->name, partial))
+			Con_AddToTabList (alias->name, partial, "alias");
+}
+
+/*
+============
+Con_FormatTabMatch
+============
+*/
+static void Con_FormatTabMatch (const tab_t *t, char *dst, size_t dstsize)
+{
+	char tinted[MAXCMDLINE];
+
+	COM_TintSubstring (t->name, bash_partial, tinted, sizeof (tinted));
+
+	if (!t->type)
+		q_strlcpy (dst, tinted, dstsize);
+	else if (t->type[0] == '#' && !t->type[1])
+		q_snprintf (dst, dstsize, "%s (%d)", tinted, t->count);
+	else
+		q_snprintf (dst, dstsize, "%s (%s)", tinted, t->type);
+}
+
+/*
+============
+Con_PrintTabList
+============
+*/
+static void Con_PrintTabList (void)
+{
+	char   buf[MAXCMDLINE];
+	int	   i, maxlen, cols, matches, total;
+	tab_t *t;
+
+	// determine maximum item length
+	matches = maxlen = 0;
+	t = tablist;
+	do
+	{
+		Con_FormatTabMatch (t, buf, sizeof (buf));
+		total = (int)strlen (buf);
+		maxlen = q_max (maxlen, total);
+		t = t->next;
+		++matches;
+	} while (t != tablist);
+
+	// determine number of columns
+	if (!maxlen)
+		return;
+	maxlen += 3;				// indent
+	maxlen = q_max (maxlen, 8); // min width
+	maxlen = (maxlen + 3) & ~3; // round up to multiple of 4
+	cols = q_max (con_linewidth, maxlen) / maxlen;
+	if (con_maxcols.value >= 1.f)
+		cols = q_min (cols, (int)con_maxcols.value); // apply user limit
+	if (matches < 6)								 // single column if fewer than 6 matches
+		cols = 1;
+
+	// print all matches
+	Con_SafePrintf ("\n");
+	i = total = 0;
+	t = tablist;
+	do
+	{
+		Con_FormatTabMatch (t, buf, sizeof (buf));
+		if (++i == cols)
+		{
+			i = 0;
+			Con_SafePrintf ("   %s\n", buf);
+		}
+		else
+			Con_SafePrintf ("   %*s", -(maxlen - 3), buf);
+		if (t->type && t->type[0] == '#' && !t->type[1])
+			total += t->count;
+		t = t->next;
+	} while (t != tablist);
+	if (i != 0)
+		Con_SafePrintf ("\n");
+
+	if (total > 0)
+		Con_SafePrintf ("   %d unique matches (%d total)\n", matches, total);
+
+	Con_SafePrintf ("\n");
 }
 
 /*
@@ -930,13 +1984,23 @@ void BuildTabList (const char *partial)
 Con_TabComplete -- johnfitz
 ============
 */
-void Con_TabComplete (void)
+void Con_TabComplete (tabcomplete_t mode)
 {
 	char		 partial[MAXCMDLINE];
 	const char	*match;
 	static char *c;
 	tab_t		*t;
-	int			 i, j;
+	int			 i;
+
+	key_tabhint[0] = '\0';
+	if (mode == TABCOMPLETE_AUTOHINT)
+	{
+		key_tabpartial[0] = '\0';
+
+		// only show completion hint when the cursor is at the end of the line
+		if ((size_t)key_linepos >= sizeof (key_lines[edit_line]) || key_lines[edit_line][key_linepos])
+			return;
+	}
 
 	// if editline is empty, return
 	if (key_lines[edit_line][1] == 0)
@@ -955,43 +2019,6 @@ void Con_TabComplete (void)
 		partial[i] = c[i];
 	partial[i] = 0;
 
-	// Map autocomplete function -- S.A
-	// Since we don't have argument completion, this hack will do for now...
-	for (j = 0; j < num_arg_completion_types; j++)
-	{
-		// arg_completion contains a command we can complete the arguments
-		// for (like "map ") and a list of all the maps.
-		arg_completion_type_t arg_completion = arg_completion_types[j];
-		const char			 *command_name = arg_completion.command;
-
-		if (!strncmp (key_lines[edit_line] + 1, command_name, strlen (command_name)))
-		{
-			int			nummatches = 0;
-			const char *matched_map = FindCompletion (partial, *arg_completion.filelist, &nummatches);
-			if (!*matched_map)
-				return;
-			q_strlcpy (partial, matched_map, MAXCMDLINE);
-			*c = '\0';
-			q_strlcat (key_lines[edit_line], partial, MAXCMDLINE);
-			key_linepos = c - key_lines[edit_line] + strlen (matched_map); // set new cursor position
-			if (key_linepos >= MAXCMDLINE)
-				key_linepos = MAXCMDLINE - 1;
-			// if only one match, append a space
-			if (key_linepos < MAXCMDLINE - 1 && key_lines[edit_line][key_linepos] == 0 && (nummatches == 1))
-			{
-				key_lines[edit_line][key_linepos] = ' ';
-				key_linepos++;
-				key_lines[edit_line][key_linepos] = 0;
-			}
-			c = key_lines[edit_line] + key_linepos;
-			return;
-		}
-	}
-
-	// if partial is empty, return
-	if (partial[0] == 0)
-		return;
-
 	// trim trailing space becuase it screws up string comparisons
 	if (i > 0 && partial[i - 1] == ' ')
 		partial[i - 1] = 0;
@@ -1005,22 +2032,13 @@ void Con_TabComplete (void)
 		if (!tablist)
 			return;
 
-		// print list if length > 1
-		if (tablist->next != tablist)
-		{
-			t = tablist;
-			Con_SafePrintf ("\n");
-			do
-			{
-				Con_SafePrintf ("   %s (%s)\n", t->name, t->type);
-				t = t->next;
-			} while (t != tablist);
-			Con_SafePrintf ("\n");
-		}
+		// print list if length > 1 and action is user-initiated
+		if (tablist->next != tablist && mode == TABCOMPLETE_USER)
+			Con_PrintTabList ();
 
 		//	match = tablist->name;
 		// First time, just show maximum matching chars -- S.A.
-		match = bash_partial;
+		match = bash_singlematch ? tablist->name : bash_partial;
 	}
 	else
 	{
@@ -1034,13 +2052,24 @@ void Con_TabComplete (void)
 		match = keydown[K_SHIFT] ? t->prev->name : t->name;
 		do
 		{
-			if (!strcmp (t->name, partial))
+			if (!q_strcasecmp (t->name, partial))
 			{
 				match = keydown[K_SHIFT] ? t->prev->name : t->next->name;
 				break;
 			}
 			t = t->next;
 		} while (t != tablist);
+	}
+
+	if (mode == TABCOMPLETE_AUTOHINT)
+	{
+		size_t len = strlen (partial);
+		match = q_strcasestr (match, partial);
+		if (match && match[len])
+			q_strlcpy (key_tabhint, match + len, sizeof (key_tabhint));
+		Con_ClearTabList ();
+		key_tabpartial[0] = '\0';
+		return;
 	}
 
 	// insert new match into edit line
@@ -1052,17 +2081,23 @@ void Con_TabComplete (void)
 	if (key_linepos >= MAXCMDLINE)
 		key_linepos = MAXCMDLINE - 1;
 
+	match = NULL;
+	Con_ClearTabList ();
+
 	// if cursor is at end of string, let's append a space to make life easier
 	if (key_linepos < MAXCMDLINE - 1 && key_lines[edit_line][key_linepos] == 0 && bash_singlematch)
 	{
 		key_lines[edit_line][key_linepos] = ' ';
 		key_linepos++;
 		key_lines[edit_line][key_linepos] = 0;
+		key_tabpartial[0] = 0; // restart cycle
 		// S.A.: the map argument completion (may be in combination with the bash-style
 		// display behavior changes, causes weirdness when completing the arguments for
 		// the changelevel command. the line below "fixes" it, although I'm not sure about
 		// the reason, yet, neither do I know any possible side effects of it:
 		c = key_lines[edit_line] + key_linepos;
+
+		Con_TabComplete (TABCOMPLETE_AUTOHINT);
 	}
 }
 
@@ -1076,6 +2111,27 @@ DRAWING
 
 /*
 ================
+Con_NotifyAlpha
+================
+*/
+static float Con_NotifyAlpha (float time)
+{
+	float fade;
+	float notifytime = con_notifytime.value / (scr_viewsize.value >= 130 ? 4 : 1);
+	if (!time)
+		return 0.f;
+	fade = q_max (con_notifyfade.value * con_notifyfadetime.value, 0.f);
+	time += notifytime + fade - realtime;
+	if (time <= 0.f)
+		return 0.f;
+	if (!fade)
+		return 1.f;
+	time = time / fade;
+	return q_min (time, 1.0f);
+}
+
+/*
+================
 Con_DrawNotify
 
 Draws the last few lines of output transparently over the game top
@@ -1085,7 +2141,7 @@ void Con_DrawNotify (cb_context_t *cbx)
 {
 	int			i, x, v;
 	const char *text;
-	float		time;
+	float		alpha;
 
 	GL_SetCanvas (cbx, CANVAS_CONSOLE); // johnfitz
 	v = vid.conheight;					// johnfitz
@@ -1094,16 +2150,24 @@ void Con_DrawNotify (cb_context_t *cbx)
 	{
 		if (i < 0)
 			continue;
-		time = con_times[i % NUM_CON_TIMES];
-		if (time == 0)
-			continue;
-		time = realtime - time;
-		if (time > con_notifytime.value / (scr_viewsize.value >= 130 ? 4 : 1))
+		alpha = Con_NotifyAlpha (con_times[i % NUM_CON_TIMES]);
+		if (alpha <= 0.f)
 			continue;
 		text = con_text + (i % con_totallines) * con_linewidth;
 
-		for (x = 0; x < con_linewidth; x++)
-			Draw_Character (cbx, (x + 1) << 3, v, text[x]);
+		GL_SetCanvasColor (1.f, 1.f, 1.f, alpha);
+		if (con_notifycenter.value)
+		{
+			int len = con_linewidth;
+			while (len > 0 && text[len - 1] == ' ')
+				--len;
+			for (x = 0; x < len; x++)
+				Draw_Character (cbx, (con_linewidth - len) * 4 + (x + 1) * 8, v, text[x]);
+		}
+		else
+			for (x = 0; x < con_linewidth; x++)
+				Draw_Character (cbx, (x + 1) << 3, v, text[x]);
+		GL_SetCanvasColor (1.f, 1.f, 1.f, 1.f);
 
 		v += 8;
 	}
@@ -1149,7 +2213,8 @@ extern qpic_t *pic_ovr, *pic_ins; // johnfitz -- new cursor handling
 
 void Con_DrawInput (cb_context_t *cbx)
 {
-	int i, ofs;
+	const char *workline = key_lines[edit_line];
+	int			i, ofs, len;
 
 	if (key_dest != key_console && !con_forcedup)
 		return; // don't draw anything
@@ -1160,9 +2225,20 @@ void Con_DrawInput (cb_context_t *cbx)
 	else
 		ofs = 0;
 
+	len = strlen (workline);
+
 	// draw input string
-	for (i = 0; key_lines[edit_line][i + ofs] && i < con_linewidth; i++)
-		Draw_Character (cbx, (i + 1) << 3, vid.conheight - 16, key_lines[edit_line][i + ofs]);
+	for (i = 0; i + ofs < len && i < con_linewidth; i++)
+		Draw_Character (cbx, (i + 1) << 3, vid.conheight - 16, workline[i + ofs]);
+
+	// draw tab completion hint
+	if (key_tabhint[0])
+	{
+		GL_SetCanvasColor (1.0f, 1.0f, 1.0f, 0.75f);
+		for (i = 0; key_tabhint[i] && i + 1 + len - ofs < con_linewidth + 2; i++)
+			Draw_Character (cbx, (i + 1 + len - ofs) << 3, vid.conheight - 16, key_tabhint[i] | 0x80);
+		GL_SetCanvasColor (1.0f, 1.0f, 1.0f, 1.0f);
+	}
 
 	// johnfitz -- new cursor handling
 	if (!((int)((realtime - key_blinktime) * con_cursorspeed) & 1))
@@ -1170,6 +2246,39 @@ void Con_DrawInput (cb_context_t *cbx)
 		i = key_linepos - ofs;
 		Draw_Pic (cbx, (i + 1) << 3, vid.conheight - 16, key_insert ? pic_ins : pic_ovr, 1.0f, false);
 	}
+}
+
+/*
+================
+Con_DrawSelectionHighlight
+================
+*/
+static void Con_DrawSelectionHighlight (cb_context_t *cbx, int x, int y, int line)
+{
+	conofs_t selbegin, selend;
+	conofs_t begin, end;
+	size_t	 len;
+
+	if (!Con_GetNormalizedSelection (&selbegin, &selend))
+		return;
+
+	len = Con_StrLen (line);
+	begin.line = line;
+	begin.col = 0;
+	end.line = line;
+	end.col = (int)len;
+
+	// Highlight line ends (as in Notepad, Visual Studio etc.)
+	if (end.line != selend.line && end.col == (int)len)
+		end.col++;
+
+	// ...unless we would end up overlapping the console margin
+	end.col = q_min (end.col, con_linewidth);
+
+	if (!Con_IntersectRanges (&begin, &end, &selbegin, &selend))
+		return;
+
+	Draw_Fill (cbx, x + begin.col * 8, y, (end.col - begin.col) * 8, 8, 220, 1.0f);
 }
 
 /*
@@ -1195,7 +2304,7 @@ void Con_DrawConsole (cb_context_t *cbx, int lines, qboolean drawinput)
 	// draw the background
 	Draw_ConsoleBackground (cbx);
 
-	// draw the buffer text
+	// draw the selection highlight
 	rows = (con_vislines + 7) / 8;
 	y = vid.conheight - rows * 8;
 	rows -= 2; // for input and version lines
@@ -1206,10 +2315,32 @@ void Con_DrawConsole (cb_context_t *cbx, int lines, qboolean drawinput)
 		j = i - con_backscroll;
 		if (j < 0)
 			j = 0;
+		Con_DrawSelectionHighlight (cbx, 8, y, j);
+	}
+
+	// draw the buffer text
+	y = vid.conheight - (rows + 2) * 8;
+	for (i = con_current - rows + 1; i <= con_current - sb; i++, y += 8)
+	{
+		conofs_t ofs;
+		j = i - con_backscroll;
+		if (j < 0)
+			j = 0;
 		text = con_text + (j % con_totallines) * con_linewidth;
+		ofs.line = j;
 
 		for (x = 0; x < con_linewidth; x++)
-			Draw_Character (cbx, (x + 1) << 3, y, text[x]);
+		{
+			char c = text[x];
+			ofs.col = x;
+			if (con_hotlink && Con_OfsInRange (&ofs, &con_hotlink->begin, &con_hotlink->end))
+			{
+				if (keydown[K_MOUSE1])
+					c &= 0x7f;
+				Draw_Character (cbx, (x + 1) << 3, y + 2, '_' | (c & 0x80));
+			}
+			Draw_Character (cbx, (x + 1) << 3, y, c);
+		}
 	}
 
 	// draw scrollback arrows
@@ -1248,7 +2379,7 @@ void Con_NotifyBox (const char *text)
 	Con_Printf ("Press a key.\n");
 	Con_Printf ("%s", Con_Quakebar (40)); // johnfitz
 
-	IN_Deactivate (modestate == MS_WINDOWED);
+	IN_DeactivateForConsole ();
 	key_dest = key_console;
 
 	Key_BeginInputGrab ();
