@@ -92,7 +92,11 @@ Function ${UN}Clean
 	DeleteRegKey HKLM "Software\vkQuake"
 	RMDir /r $INSTDIR
 	!insertmacro MUI_STARTMENU_GETFOLDER Application $StartMenuFolder
-	RMDir /r "$SMPROGRAMS\$StartMenuFolder"
+	# empty when the install failed before the folder name was written or the
+	# user disabled shortcuts; RMDir /r "$SMPROGRAMS\" would wipe the whole start menu
+	${If} $StartMenuFolder != ""
+		RMDir /r "$SMPROGRAMS\$StartMenuFolder"
+	${EndIf}
 	SetAutoClose true
 FunctionEnd
 !macroend
