@@ -275,6 +275,18 @@ static int Con_OfsCompare (const conofs_t *lhs, const conofs_t *rhs)
 
 /*
 ================
+Con_OfsInRange
+
+Checks if an offset is within a half-open range
+================
+*/
+static qboolean Con_OfsInRange (const conofs_t *ofs, const conofs_t *begin, const conofs_t *end)
+{
+	return Con_OfsCompare (ofs, begin) >= 0 && Con_OfsCompare (ofs, end) < 0;
+}
+
+/*
+================
 Con_GetCurrentRange
 ================
 */
@@ -576,6 +588,8 @@ static void Con_SetMouseState (conmouse_t state)
 		break;
 
 	case CMS_NOTPRESSED:
+		if (con_mousestate != CMS_DRAGGING && con_hotlink && !Sys_Explore (con_hotlink->path))
+			S_LocalSound ("misc/menu2.wav");
 		con_scrolldelta = 0.f;
 		con_scrollspeed = 0.f;
 		break;
@@ -838,14 +852,17 @@ static void Con_Dump_f (void)
 	const char *line;
 	FILE	   *f;
 	char		buffer[1024];
+	char		relname[MAX_OSPATH];
 	char		name[MAX_OSPATH];
 
-	q_snprintf (name, sizeof (name), "%s/%s", com_gamedir, Cmd_Argc () >= 2 ? Cmd_Argv (1) : "condump.txt");
+	q_strlcpy (relname, Cmd_Argc () >= 2 ? Cmd_Argv (1) : "condump.txt", sizeof (relname));
+	COM_AddExtension (relname, ".txt", sizeof (relname));
+	q_snprintf (name, sizeof (name), "%s/%s", com_gamedir, relname);
 	COM_CreatePath (name);
 	f = fopen (name, "w");
 	if (!f)
 	{
-		Con_Printf ("ERROR: couldn't open file %s.\n", name);
+		Con_Printf ("ERROR: couldn't open file %s.\n", relname);
 		return;
 	}
 
@@ -880,7 +897,9 @@ static void Con_Dump_f (void)
 	}
 
 	fclose (f);
-	Con_Printf ("Dumped console text to %s.\n", name);
+	Con_SafePrintf ("Dumped console text to ");
+	Con_LinkPrintf (name, "%s", relname);
+	Con_SafePrintf (".\n");
 }
 
 /*
@@ -920,6 +939,17 @@ static void Con_MessageMode2_f (void)
 		return;
 	chat_team = true;
 	key_dest = key_message;
+}
+
+/*
+================
+Con_RecalcOffset
+================
+*/
+static void Con_RecalcOffset (conofs_t *ofs, int oldnumlines)
+{
+	ofs->col = q_min (ofs->col, con_linewidth);
+	ofs->line += con_totallines - 1 - oldnumlines;
 }
 
 /*
@@ -968,8 +998,16 @@ void Con_CheckResize (void)
 		}
 	}
 
-	Con_ClearNotify ();
 	Mem_Free (tbuf);
+
+	for (i = 0; i < (int)VEC_SIZE (con_links); i++)
+	{
+		conlink_t *link = con_links[i];
+		Con_RecalcOffset (&link->begin, con_current);
+		Con_RecalcOffset (&link->end, con_current);
+	}
+
+	Con_ClearNotify ();
 
 	con_backscroll = 0;
 	con_current = con_totallines - 1;
@@ -1321,6 +1359,59 @@ void Con_DPrintf2 (const char *fmt, ...)
 		va_end (argptr);
 		Con_Printf ("%s", msg);
 	}
+}
+
+/*
+==================
+Con_LinkPrintf
+
+Prints text that opens a link when clicked
+==================
+*/
+void Con_LinkPrintf (const char *addr, const char *fmt, ...)
+{
+	conlink_t *link;
+	size_t	   len;
+	va_list	   argptr;
+	char	   msg[MAXPRINTMSG];
+	char	  *text;
+
+	len = strlen (addr);
+	link = (conlink_t *)Mem_Alloc (sizeof (conlink_t) + len + 1);
+
+	SDL_LockMutex (con_mutex);
+
+	memcpy (link + 1, addr, len + 1);
+	link->path = (const char *)(link + 1);
+	link->begin.line = con_current;
+	link->begin.col = con_x;
+	link->end = link->begin;
+
+	va_start (argptr, fmt);
+	q_vsnprintf (msg, sizeof (msg), fmt, argptr);
+	va_end (argptr);
+
+	Con_SafePrintf ("\x02%s", msg);
+
+	link->end.line = con_current;
+	link->end.col = con_x;
+	VEC_PUSH (con_links, link);
+
+	// Because of wrapping our text might actually start on the next line, so we skip leading spaces
+	text = con_text + (link->begin.line % con_totallines) * con_linewidth + link->begin.col;
+	while (Con_OfsCompare (&link->begin, &link->end) < 0)
+	{
+		if ((*text & 0x7f) != ' ')
+			break;
+		text++;
+		if (++link->begin.col == con_linewidth)
+		{
+			link->begin.col = 0;
+			link->begin.line++;
+		}
+	}
+
+	SDL_UnlockMutex (con_mutex);
 }
 
 /*
@@ -2216,13 +2307,25 @@ void Con_DrawConsole (cb_context_t *cbx, int lines, qboolean drawinput)
 	y = vid.conheight - (rows + 2) * 8;
 	for (i = con_current - rows + 1; i <= con_current - sb; i++, y += 8)
 	{
+		conofs_t ofs;
 		j = i - con_backscroll;
 		if (j < 0)
 			j = 0;
 		text = con_text + (j % con_totallines) * con_linewidth;
+		ofs.line = j;
 
 		for (x = 0; x < con_linewidth; x++)
-			Draw_Character (cbx, (x + 1) << 3, y, text[x]);
+		{
+			char c = text[x];
+			ofs.col = x;
+			if (con_hotlink && Con_OfsInRange (&ofs, &con_hotlink->begin, &con_hotlink->end))
+			{
+				if (keydown[K_MOUSE1])
+					c &= 0x7f;
+				Draw_Character (cbx, (x + 1) << 3, y + 2, '_' | (c & 0x80));
+			}
+			Draw_Character (cbx, (x + 1) << 3, y, c);
+		}
 	}
 
 	// draw scrollback arrows

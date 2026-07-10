@@ -625,8 +625,6 @@ void CL_Record_f (void)
 		track = -1;
 	}
 
-	q_snprintf (name, sizeof (name), "%s/%s", com_gamedir, Cmd_Argv (1));
-
 	// start the map up
 	if (c > 2)
 	{
@@ -636,9 +634,17 @@ void CL_Record_f (void)
 	}
 
 	// open the demo file
-	COM_AddExtension (name, ".dem", sizeof (name));
+	{
+		char relname[MAX_OSPATH];
+		q_strlcpy (relname, Cmd_Argv (1), sizeof (relname));
+		COM_AddExtension (relname, ".dem", sizeof (relname));
+		q_snprintf (name, sizeof (name), "%s/%s", com_gamedir, relname);
 
-	Con_Printf ("recording to %s.\n", name);
+		Con_SafePrintf ("Recording to ");
+		Con_LinkPrintf (name, "%s", relname);
+		Con_SafePrintf (".\n");
+	}
+
 	cls.demofile = fopen (name, "wb");
 	if (!cls.demofile)
 	{

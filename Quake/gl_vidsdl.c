@@ -3834,7 +3834,11 @@ void WriteScreenshot (VkBuffer buffer, vulkan_memory_t memory)
 			ok = false;
 
 		if (ok)
-			Con_Printf ("Wrote %s\n", screenshot_imagename);
+		{
+			Con_SafePrintf ("Wrote ");
+			Con_LinkPrintf (va ("%s/%s", com_gamedir, screenshot_imagename), "%s", screenshot_imagename);
+			Con_SafePrintf ("\n");
+		}
 		else
 			Con_Printf ("SCR_ScreenShot_f: Couldn't create %s\n", screenshot_imagename);
 	}

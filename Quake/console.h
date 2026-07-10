@@ -44,6 +44,7 @@ void	 Con_DWarning (const char *fmt, ...) FUNC_PRINTF (1, 2); // ericw
 void	 Con_Warning (const char *fmt, ...) FUNC_PRINTF (1, 2);	 // johnfitz
 void	 Con_DPrintf (const char *fmt, ...) FUNC_PRINTF (1, 2);
 void	 Con_DPrintf2 (const char *fmt, ...) FUNC_PRINTF (1, 2); // johnfitz
+void	 Con_LinkPrintf (const char *addr, const char *fmt, ...) FUNC_PRINTF (2, 3);
 void	 Con_SafePrintf (const char *fmt, ...) FUNC_PRINTF (1, 2);
 void	 Con_DrawNotify (cb_context_t *cbx);
 void	 Con_ClearNotify (void);
