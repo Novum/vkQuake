@@ -315,7 +315,7 @@ deps = [
 ]
 
 if host_machine.system() == 'windows'
-    foreach syslib : ['ws2_32', 'winmm', 'dbghelp']
+    foreach syslib : ['ws2_32', 'winmm', 'dbghelp', 'ole32', 'uuid']
         deps += cc.find_library(syslib)
     endforeach
     import('fs').copyfile('Windows/SDL3/lib64/SDL3.dll')

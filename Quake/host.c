@@ -416,11 +416,7 @@ void Host_WriteConfiguration (void)
 	if (host_initialized && !isDedicated && !host_parms->errstate)
 	{
 		if (multiuser)
-		{
-			char *pref_path = SDL_GetPrefPath ("", "vkQuake");
-			f = fopen (va ("%s/config.cfg", pref_path), "w");
-			SDL_free (pref_path);
-		}
+			f = COM_FOpenPrefFile ("config.cfg", "w");
 		else
 			f = fopen (va ("%s/" CONFIG_NAME, com_gamedir), "w");
 		if (!f)
@@ -1223,6 +1219,10 @@ void Host_Init (void)
 
 	host_initialized = true;
 	Con_Printf ("\n========= Quake Initialized =========\n\n");
+
+	// the folder from the selection dialog is only remembered now,
+	// with the game data proven to actually work
+	COM_WriteSelectedBaseDir ();
 
 	if (cls.state != ca_dedicated)
 	{

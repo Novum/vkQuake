@@ -280,11 +280,7 @@ void Cmd_Exec_f (void)
 	}
 
 	if (multiuser)
-	{
-		char *pref_path = SDL_GetPrefPath ("", "vkQuake");
-		f = fopen (va ("%s/%s", pref_path, Cmd_Argv (1)), "rb");
-		SDL_free (pref_path);
-	}
+		f = COM_FOpenPrefFile (Cmd_Argv (1), "rb");
 	qboolean read_from_pref_path = false;
 	if (f)
 	{
