@@ -2541,55 +2541,22 @@ Mod_LoadMarksurfaces
 */
 static void Mod_LoadMarksurfaces (qmodel_t *mod, byte *mod_base, lump_t *l, int bsp2)
 {
-	int	 i, j, count;
-	int *out;
-	if (bsp2)
-	{
-		byte *in = mod_base + l->fileofs;
+	int		i, count;
+	void *in = mod_base + l->fileofs;
 
-		if (l->filelen % sizeof (unsigned int))
-			Host_Error ("Mod_LoadMarksurfaces: funny lump size in %s", mod->name);
+	if(l->filelen % (bsp2 ? sizeof(uint32_t) : sizeof(int16_t)))
+		Host_Error ("Mod_LoadMarksurfaces: funny lump size in %s",mod->name);
 
-		count = l->filelen / sizeof (unsigned int);
-		out = (int *)Mem_Alloc (count * sizeof (*out));
+	count = l->filelen / (bsp2 ? sizeof(uint32_t) : sizeof(int16_t));
+	mod->marksurfaces = (int*)Mem_Alloc (count * sizeof(int));
+	mod->nummarksurfaces = count;
 
-		mod->marksurfaces = out;
-		mod->nummarksurfaces = count;
+	if (count > 32767)
+		Con_DWarning ("%i marksurfaces exceeds standard limit of 32767.\n", count);
 
-		for (i = 0; i < count; i++)
-		{
-			j = ReadLongUnaligned (in + (i * sizeof (int)));
-			if (j >= mod->numsurfaces)
-				Host_Error ("Mod_LoadMarksurfaces: bad surface number");
-			out[i] = j;
-		}
-	}
-	else
-	{
-		byte *in = mod_base + l->fileofs;
-
-		if (l->filelen % sizeof (short))
-			Host_Error ("Mod_LoadMarksurfaces: funny lump size in %s", mod->name);
-
-		count = l->filelen / sizeof (short);
-		out = (int *)Mem_Alloc (count * sizeof (*out));
-
-		mod->marksurfaces = out;
-		mod->nummarksurfaces = count;
-
-		// johnfitz -- warn mappers about exceeding old limits
-		if (count > 32767)
-			Con_DWarning ("%i marksurfaces exceeds standard limit of 32767.\n", count);
-		// johnfitz
-
-		for (i = 0; i < count; i++)
-		{
-			j = (unsigned short)ReadShortUnaligned (in + (i * sizeof (short))); // johnfitz -- explicit cast as unsigned short
-			if (j >= mod->numsurfaces)
-				Sys_Error ("Mod_LoadMarksurfaces: bad surface number");
-			out[i] = j;
-		}
-	}
+	for (i=0 ; i<count ; i++)
+		if((mod->marksurfaces[i] = bsp2 ? le32toh(((uint32_t*)in)[i]) : le16toh(((int16_t*)in)[i])) >= mod->numsurfaces)
+			Sys_Error ("Mod_LoadMarksurfaces: bad surface number");
 }
 
 /*
@@ -4248,34 +4215,40 @@ static double MD5_ParseFloat (const void **buffer)
 md5vertinfo_s
 ================
 */
+#pragma pack(push,1)
 typedef struct md5vertinfo_s
 {
 	size_t		 firstweight;
 	unsigned int count;
 } md5vertinfo_t;
+#pragma pack(pop)
 
 /*
 ================
 md5weightinfo_s
 ================
 */
+#pragma pack(push,1)
 typedef struct md5weightinfo_s
 {
 	size_t joint_index;
 	vec4_t pos;
 } md5weightinfo_t;
+#pragma pack(pop)
 
 /*
 ================
 jointinfo_s
 ================
 */
+#pragma pack(push,1)
 typedef struct jointinfo_s
 {
 	ssize_t		parent; //-1 for a root joint
 	char		name[32];
 	jointpose_t inverse;
 } jointinfo_t;
+#pragma pack(pop)
 
 /*
 ================
