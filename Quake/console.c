@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // console.c
 
 #include "quakedef.h"
+#include "q_ctype.h"
 
 #include <sys/types.h>
 #include <time.h>
@@ -52,6 +53,10 @@ char *con_text = NULL;
 
 cvar_t con_notifytime = {"con_notifytime", "3", CVAR_NONE};			// seconds
 cvar_t con_logcenterprint = {"con_logcenterprint", "1", CVAR_NONE}; // johnfitz
+cvar_t con_notifycenter = {"con_notifycenter", "0", CVAR_ARCHIVE};
+cvar_t con_notifyfade = {"con_notifyfade", "0", CVAR_ARCHIVE};
+cvar_t con_notifyfadetime = {"con_notifyfadetime", "0.5", CVAR_ARCHIVE};
+cvar_t con_maxcols = {"con_maxcols", "0", CVAR_ARCHIVE};
 
 char con_lastcenterstring[1024];				 // johnfitz
 void (*con_redirect_flush) (const char *buffer); // call this to flush the redirection buffer (for rcon)
@@ -115,6 +120,7 @@ void Con_ToggleConsole_f (void)
 		key_linepos = 1;
 		con_backscroll = 0;		  // johnfitz -- toggleconsole should return you to the bottom of the scrollback
 		history_line = edit_line; // johnfitz -- it should also return you to the bottom of the command history
+		key_tabhint[0] = '\0';	  // clear tab hint
 
 		if (cls.state == ca_connected)
 		{
@@ -300,6 +306,30 @@ void Con_CheckResize (void)
 
 /*
 ================
+Con_Scroll
+================
+*/
+void Con_Scroll (int lines)
+{
+	if (!lines)
+		return;
+
+	con_backscroll += lines;
+
+	if (lines > 0)
+	{
+		if (con_backscroll > con_totallines - (vid.height >> 3) - 1)
+			con_backscroll = con_totallines - (vid.height >> 3) - 1;
+	}
+	else
+	{
+		if (con_backscroll < 0)
+			con_backscroll = 0;
+	}
+}
+
+/*
+================
 Con_Init
 ================
 */
@@ -332,6 +362,10 @@ void Con_Init (void)
 
 	Cvar_RegisterVariable (&con_notifytime);
 	Cvar_RegisterVariable (&con_logcenterprint); // johnfitz
+	Cvar_RegisterVariable (&con_notifycenter);
+	Cvar_RegisterVariable (&con_notifyfade);
+	Cvar_RegisterVariable (&con_notifyfadetime);
+	Cvar_RegisterVariable (&con_maxcols);
 
 	Cmd_AddCommand ("toggleconsole", Con_ToggleConsole_f);
 	Cmd_AddCommand ("messagemode", Con_MessageMode_f);
@@ -701,8 +735,9 @@ void Con_LogCenterPrint (const char *str)
 
 	if (con_logcenterprint.value)
 	{
+		qboolean trailing_newline = *str && str[strlen (str) - 1] == '\n';
 		Con_Printf ("%s", Con_Quakebar (40));
-		Con_CenterPrintf (40, "%s\n", str);
+		Con_CenterPrintf (40, trailing_newline ? "%s" : "%s\n", str);
 		Con_Printf ("%s", Con_Quakebar (40));
 		Con_ClearNotify ();
 	}
@@ -737,6 +772,7 @@ typedef struct tab_s
 	const char	 *type;
 	struct tab_s *next;
 	struct tab_s *prev;
+	int			  count;
 } tab_t;
 tab_t *tablist;
 
@@ -754,7 +790,28 @@ extern cmdalias_t *cmd_alias;
 
 /*
 ============
-AddToTabList -- johnfitz
+Con_ClearTabList
+============
+*/
+static void Con_ClearTabList (void)
+{
+	tab_t *t, *next;
+
+	if (!tablist)
+		return;
+
+	tablist->prev->next = NULL; // break the loop
+	for (t = tablist; t; t = next)
+	{
+		next = t->next;
+		Mem_Free (t);
+	}
+	tablist = NULL;
+}
+
+/*
+============
+Con_AddToTabList -- johnfitz
 
 tablist is a doubly-linked loop, alphabetized by name
 ============
@@ -765,34 +822,58 @@ tablist is a doubly-linked loop, alphabetized by name
 static char		bash_partial[80];
 static qboolean bash_singlematch;
 
-void AddToTabList (const char *name, const char *type)
+void Con_AddToTabList (const char *name, const char *partial, const char *type)
 {
 	tab_t	   *t, *insert;
-	char	   *i_bash;
-	const char *i_name;
+	char	   *i_bash, *i_bash2;
+	const char *i_name, *i_name2;
+	int			namelen, typelen;
 
-	if (!*bash_partial)
+	if (!Con_Match (name, partial))
+		return;
+
+	if (!*bash_partial && bash_singlematch)
 	{
-		strncpy (bash_partial, name, 79);
-		bash_partial[79] = '\0';
+		q_strlcpy (bash_partial, name, sizeof (bash_partial));
 	}
 	else
 	{
 		bash_singlematch = 0;
-		// find max common between bash_partial and name
-		i_bash = bash_partial;
-		i_name = name;
-		while (*i_bash && (*i_bash == *i_name))
+		i_bash = q_strcasestr (bash_partial, partial);
+		i_name = q_strcasestr (name, partial);
+		if (i_name && i_bash)
 		{
-			i_bash++;
-			i_name++;
+			i_bash2 = i_bash;
+			i_name2 = i_name;
+			// find max common between bash_partial and name (right side)
+			while (*i_bash && q_toupper (*i_bash) == q_toupper (*i_name))
+			{
+				i_bash++;
+				i_name++;
+			}
+			*i_bash = 0;
+			// find max common between bash_partial and name (left side)
+			while (i_bash2 != bash_partial && i_name2 != name && q_toupper (i_bash2[-1]) == q_toupper (i_name2[-1]))
+			{
+				i_bash2--;
+				i_name2--;
+			}
+			if (i_bash2 != bash_partial)
+				memmove (bash_partial, i_bash2, strlen (i_bash2) + 1);
 		}
-		*i_bash = 0;
 	}
 
-	t = (tab_t *)Mem_Alloc (sizeof (tab_t));
-	t->name = name;
-	t->type = type;
+	namelen = (int)strlen (name) + 1;
+	typelen = type ? (int)strlen (type) + 1 : 0;
+	t = (tab_t *)Mem_Alloc (sizeof (tab_t) + namelen + typelen);
+	t->name = (const char *)(t + 1);
+	memcpy ((char *)t->name, name, namelen);
+	if (type)
+	{
+		t->type = t->name + namelen;
+		memcpy ((char *)t->type, type, typelen);
+	}
+	t->count = 1;
 
 	if (!tablist) // create list
 	{
@@ -800,7 +881,7 @@ void AddToTabList (const char *name, const char *type)
 		t->next = t;
 		t->prev = t;
 	}
-	else if (strcmp (name, tablist->name) < 0) // insert at front
+	else if (q_strnaturalcmp (name, tablist->name) < 0) // insert at front
 	{
 		t->next = tablist;
 		t->prev = tablist->prev;
@@ -813,7 +894,14 @@ void AddToTabList (const char *name, const char *type)
 		insert = tablist;
 		do
 		{
-			if (strcmp (name, insert->name) < 0)
+			int cmp = q_strnaturalcmp (name, insert->name);
+			if (!cmp && !strcmp (name, insert->name)) // avoid duplicates
+			{
+				Mem_Free (t);
+				insert->count++;
+				return;
+			}
+			if (cmp < 0)
 				break;
 			insert = insert->next;
 		} while (insert != tablist);
@@ -825,104 +913,290 @@ void AddToTabList (const char *name, const char *type)
 	}
 }
 
-typedef struct arg_completion_type_s
+/*
+============
+Con_Match
+============
+*/
+qboolean Con_Match (const char *str, const char *partial)
 {
-	const char		 *command;
-	filelist_item_t **filelist;
-} arg_completion_type_t;
-
-static const arg_completion_type_t arg_completion_types[] = {{"map ", &extralevels}, {"changelevel ", &extralevels}, {"game ", &modlist},
-															 {"record ", &demolist}, {"playdemo ", &demolist},		 {"timedemo ", &demolist},
-															 {"save ", &savelist},	 {"load ", &savelist},			 {"fastload ", &savelist}};
-
-static const int num_arg_completion_types = countof (arg_completion_types);
+	return q_strcasestr (str, partial) != NULL;
+}
 
 /*
 ============
-FindCompletion -- stevenaaus
+ParseCommand
 ============
 */
-const char *FindCompletion (const char *partial, filelist_item_t *filelist, int *nummatches_out)
+static const char *ParseCommand (void)
 {
-	static char		 matched[32];
-	char			*i_matched, *i_name;
-	filelist_item_t *file;
-	int				 init, match, plen;
+	char		buf[MAXCMDLINE];
+	const char *str = key_lines[edit_line] + 1;
+	const char *end = str + key_linepos - 1;
+	const char *ret = str;
+	const char *quote = NULL;
 
-	memset (matched, 0, sizeof (matched));
-	plen = strlen (partial);
-	match = 0;
-
-	for (file = filelist, init = 0; file; file = file->next)
+	while (*str && str != end)
 	{
-		if (!strncmp (file->name, partial, plen))
+		char c = *str++;
+		if (c == '\"')
 		{
-			if (init == 0)
+			if (!quote)
 			{
-				init = 1;
-				memcpy (matched, file->name, sizeof (matched));
-				matched[sizeof (matched) - 1] = '\0';
+				quote = ret; // save previous command boundary
+				ret = str;	 // new command
 			}
 			else
-			{ // find max common
-				i_matched = matched;
-				i_name = file->name;
-				while (*i_matched && (*i_matched == *i_name))
-				{
-					i_matched++;
-					i_name++;
-				}
-				*i_matched = 0;
+			{
+				ret = quote; // restore saved cursor
+				quote = NULL;
 			}
-			match++;
 		}
+		else if (c == ';')
+			ret = str;
+		else if (!quote && c == '/' && *str == '/')
+			break;
 	}
 
-	*nummatches_out = match;
+	while (*ret == ' ')
+		ret++;
 
-	if (match > 1)
-	{
-		for (file = filelist; file; file = file->next)
-		{
-			if (!strncmp (file->name, partial, plen))
-				Con_SafePrintf ("   %s\n", file->name);
-		}
-		Con_SafePrintf ("\n");
-	}
+	q_strlcpy (buf, ret, sizeof (buf));
+	if ((uintptr_t)(end - ret) < sizeof (buf))
+		buf[end - ret] = '\0';
+	end = buf + strlen (buf);
 
-	return matched;
+	Cmd_TokenizeString (buf);
+	// last arg should always be the one we're trying to complete,
+	// so we add a new empty one if the command ends with a space
+	if (end != buf && end[-1] == ' ')
+		Cmd_AddArg ("");
+
+	return ret;
 }
+
+static qboolean CompleteFileList (const char *partial, void *param)
+{
+	filelist_item_t *file, **list = (filelist_item_t **)param;
+	for (file = *list; file; file = file->next)
+		Con_AddToTabList (file->name, partial, NULL);
+	return true;
+}
+
+static qboolean CompleteFileListSingle (const char *partial, void *param)
+{
+	if (Cmd_Argc () < 3)
+		CompleteFileList (partial, param);
+	return true;
+}
+
+static qboolean CompleteBindKeys (const char *partial, void *unused)
+{
+	int i;
+
+	// fall back to default tab completion after 1st arg (key name)
+	if (Cmd_Argc () > 2)
+		return false;
+
+	for (i = 0; i < MAX_KEYS; i++)
+	{
+		const char *name = Key_KeynumToString (i);
+		if (strcmp (name, "<UNKNOWN KEYNUM>") != 0)
+			Con_AddToTabList (name, partial, keybindings[i]);
+	}
+
+	return true;
+}
+
+static qboolean CompleteUnbindKeys (const char *partial, void *unused)
+{
+	int i;
+
+	// disable completion after 1st arg (key name)
+	if (Cmd_Argc () > 2)
+		return true;
+
+	for (i = 0; i < MAX_KEYS; i++)
+	{
+		if (keybindings[i])
+		{
+			const char *name = Key_KeynumToString (i);
+			if (strcmp (name, "<UNKNOWN KEYNUM>") != 0)
+				Con_AddToTabList (name, partial, keybindings[i]);
+		}
+	}
+
+	return true;
+}
+
+typedef struct arg_completion_type_s
+{
+	const char *command;
+	qboolean (*function) (const char *partial, void *param);
+	void *param;
+} arg_completion_type_t;
+
+static const arg_completion_type_t arg_completion_types[] = {
+	{"map", CompleteFileListSingle, &extralevels},
+	{"changelevel", CompleteFileListSingle, &extralevels},
+	{"game", CompleteFileList, &modlist},
+	{"record", CompleteFileListSingle, &demolist},
+	{"playdemo", CompleteFileListSingle, &demolist},
+	{"timedemo", CompleteFileListSingle, &demolist},
+	{"load", CompleteFileListSingle, &savelist},
+	{"save", CompleteFileListSingle, &savelist},
+	{"fastload", CompleteFileListSingle, &savelist},
+	{"bind", CompleteBindKeys, NULL},
+	{"unbind", CompleteUnbindKeys, NULL},
+};
+
+static const int num_arg_completion_types = countof (arg_completion_types);
 
 /*
 ============
 BuildTabList -- johnfitz
 ============
 */
-void BuildTabList (const char *partial)
+static void BuildTabList (const char *partial)
 {
 	cmdalias_t	   *alias;
 	cvar_t		   *cvar;
 	cmd_function_t *cmd;
-	int				len;
+	int				i;
 
-	tablist = NULL;
-	len = strlen (partial);
+	Con_ClearTabList ();
 
 	bash_partial[0] = 0;
 	bash_singlematch = 1;
 
+	ParseCommand ();
+
+	if (Cmd_Argc () >= 2)
+	{
+		cvar = Cvar_FindVar (Cmd_Argv (0));
+		if (cvar)
+		{
+			// cvars can only have one argument
+			if (Cmd_Argc () == 2 && cvar->completion)
+				cvar->completion (cvar, partial);
+			return;
+		}
+
+		cmd = Cmd_FindCommand (Cmd_Argv (0));
+		if (cmd)
+		{
+			for (i = 0; i < num_arg_completion_types; i++)
+			{
+				// arg_completion contains a command we can complete the arguments
+				// for (like "map") and a list of all the maps.
+				arg_completion_type_t arg_completion = arg_completion_types[i];
+
+				if (!q_strcasecmp (Cmd_Argv (0), arg_completion.command))
+				{
+					if (arg_completion.function (partial, arg_completion.param))
+						return;
+					break;
+				}
+			}
+		}
+	}
+
+	if (!*partial)
+		return;
+
 	cvar = Cvar_FindVarAfter ("", CVAR_NONE);
 	for (; cvar; cvar = cvar->next)
-		if (!strncmp (partial, cvar->name, len))
-			AddToTabList (cvar->name, "cvar");
+		if (q_strcasestr (cvar->name, partial))
+			Con_AddToTabList (cvar->name, partial, "cvar");
 
 	for (cmd = cmd_functions; cmd; cmd = cmd->next)
-		if (!strncmp (partial, cmd->name, len))
-			AddToTabList (cmd->name, "command");
+		if (cmd->srctype != src_server && q_strcasestr (cmd->name, partial) && !Cmd_IsReservedName (cmd->name))
+			Con_AddToTabList (cmd->name, partial, "command");
 
 	for (alias = cmd_alias; alias; alias = alias->next)
-		if (!strncmp (partial, alias->name, len))
-			AddToTabList (alias->name, "alias");
+		if (q_strcasestr (alias->name, partial))
+			Con_AddToTabList (alias->name, partial, "alias");
+}
+
+/*
+============
+Con_FormatTabMatch
+============
+*/
+static void Con_FormatTabMatch (const tab_t *t, char *dst, size_t dstsize)
+{
+	char tinted[MAXCMDLINE];
+
+	COM_TintSubstring (t->name, bash_partial, tinted, sizeof (tinted));
+
+	if (!t->type)
+		q_strlcpy (dst, tinted, dstsize);
+	else if (t->type[0] == '#' && !t->type[1])
+		q_snprintf (dst, dstsize, "%s (%d)", tinted, t->count);
+	else
+		q_snprintf (dst, dstsize, "%s (%s)", tinted, t->type);
+}
+
+/*
+============
+Con_PrintTabList
+============
+*/
+static void Con_PrintTabList (void)
+{
+	char   buf[MAXCMDLINE];
+	int	   i, maxlen, cols, matches, total;
+	tab_t *t;
+
+	// determine maximum item length
+	matches = maxlen = 0;
+	t = tablist;
+	do
+	{
+		Con_FormatTabMatch (t, buf, sizeof (buf));
+		total = (int)strlen (buf);
+		maxlen = q_max (maxlen, total);
+		t = t->next;
+		++matches;
+	} while (t != tablist);
+
+	// determine number of columns
+	if (!maxlen)
+		return;
+	maxlen += 3;				// indent
+	maxlen = q_max (maxlen, 8); // min width
+	maxlen = (maxlen + 3) & ~3; // round up to multiple of 4
+	cols = q_max (con_linewidth, maxlen) / maxlen;
+	if (con_maxcols.value >= 1.f)
+		cols = q_min (cols, (int)con_maxcols.value); // apply user limit
+	if (matches < 6)								 // single column if fewer than 6 matches
+		cols = 1;
+
+	// print all matches
+	Con_SafePrintf ("\n");
+	i = total = 0;
+	t = tablist;
+	do
+	{
+		Con_FormatTabMatch (t, buf, sizeof (buf));
+		if (++i == cols)
+		{
+			i = 0;
+			Con_SafePrintf ("   %s\n", buf);
+		}
+		else
+			Con_SafePrintf ("   %*s", -(maxlen - 3), buf);
+		if (t->type && t->type[0] == '#' && !t->type[1])
+			total += t->count;
+		t = t->next;
+	} while (t != tablist);
+	if (i != 0)
+		Con_SafePrintf ("\n");
+
+	if (total > 0)
+		Con_SafePrintf ("   %d unique matches (%d total)\n", matches, total);
+
+	Con_SafePrintf ("\n");
 }
 
 /*
@@ -930,13 +1204,23 @@ void BuildTabList (const char *partial)
 Con_TabComplete -- johnfitz
 ============
 */
-void Con_TabComplete (void)
+void Con_TabComplete (tabcomplete_t mode)
 {
 	char		 partial[MAXCMDLINE];
 	const char	*match;
 	static char *c;
 	tab_t		*t;
-	int			 i, j;
+	int			 i;
+
+	key_tabhint[0] = '\0';
+	if (mode == TABCOMPLETE_AUTOHINT)
+	{
+		key_tabpartial[0] = '\0';
+
+		// only show completion hint when the cursor is at the end of the line
+		if ((size_t)key_linepos >= sizeof (key_lines[edit_line]) || key_lines[edit_line][key_linepos])
+			return;
+	}
 
 	// if editline is empty, return
 	if (key_lines[edit_line][1] == 0)
@@ -955,43 +1239,6 @@ void Con_TabComplete (void)
 		partial[i] = c[i];
 	partial[i] = 0;
 
-	// Map autocomplete function -- S.A
-	// Since we don't have argument completion, this hack will do for now...
-	for (j = 0; j < num_arg_completion_types; j++)
-	{
-		// arg_completion contains a command we can complete the arguments
-		// for (like "map ") and a list of all the maps.
-		arg_completion_type_t arg_completion = arg_completion_types[j];
-		const char			 *command_name = arg_completion.command;
-
-		if (!strncmp (key_lines[edit_line] + 1, command_name, strlen (command_name)))
-		{
-			int			nummatches = 0;
-			const char *matched_map = FindCompletion (partial, *arg_completion.filelist, &nummatches);
-			if (!*matched_map)
-				return;
-			q_strlcpy (partial, matched_map, MAXCMDLINE);
-			*c = '\0';
-			q_strlcat (key_lines[edit_line], partial, MAXCMDLINE);
-			key_linepos = c - key_lines[edit_line] + strlen (matched_map); // set new cursor position
-			if (key_linepos >= MAXCMDLINE)
-				key_linepos = MAXCMDLINE - 1;
-			// if only one match, append a space
-			if (key_linepos < MAXCMDLINE - 1 && key_lines[edit_line][key_linepos] == 0 && (nummatches == 1))
-			{
-				key_lines[edit_line][key_linepos] = ' ';
-				key_linepos++;
-				key_lines[edit_line][key_linepos] = 0;
-			}
-			c = key_lines[edit_line] + key_linepos;
-			return;
-		}
-	}
-
-	// if partial is empty, return
-	if (partial[0] == 0)
-		return;
-
 	// trim trailing space becuase it screws up string comparisons
 	if (i > 0 && partial[i - 1] == ' ')
 		partial[i - 1] = 0;
@@ -1005,22 +1252,13 @@ void Con_TabComplete (void)
 		if (!tablist)
 			return;
 
-		// print list if length > 1
-		if (tablist->next != tablist)
-		{
-			t = tablist;
-			Con_SafePrintf ("\n");
-			do
-			{
-				Con_SafePrintf ("   %s (%s)\n", t->name, t->type);
-				t = t->next;
-			} while (t != tablist);
-			Con_SafePrintf ("\n");
-		}
+		// print list if length > 1 and action is user-initiated
+		if (tablist->next != tablist && mode == TABCOMPLETE_USER)
+			Con_PrintTabList ();
 
 		//	match = tablist->name;
 		// First time, just show maximum matching chars -- S.A.
-		match = bash_partial;
+		match = bash_singlematch ? tablist->name : bash_partial;
 	}
 	else
 	{
@@ -1034,13 +1272,24 @@ void Con_TabComplete (void)
 		match = keydown[K_SHIFT] ? t->prev->name : t->name;
 		do
 		{
-			if (!strcmp (t->name, partial))
+			if (!q_strcasecmp (t->name, partial))
 			{
 				match = keydown[K_SHIFT] ? t->prev->name : t->next->name;
 				break;
 			}
 			t = t->next;
 		} while (t != tablist);
+	}
+
+	if (mode == TABCOMPLETE_AUTOHINT)
+	{
+		size_t len = strlen (partial);
+		match = q_strcasestr (match, partial);
+		if (match && match[len])
+			q_strlcpy (key_tabhint, match + len, sizeof (key_tabhint));
+		Con_ClearTabList ();
+		key_tabpartial[0] = '\0';
+		return;
 	}
 
 	// insert new match into edit line
@@ -1052,17 +1301,23 @@ void Con_TabComplete (void)
 	if (key_linepos >= MAXCMDLINE)
 		key_linepos = MAXCMDLINE - 1;
 
+	match = NULL;
+	Con_ClearTabList ();
+
 	// if cursor is at end of string, let's append a space to make life easier
 	if (key_linepos < MAXCMDLINE - 1 && key_lines[edit_line][key_linepos] == 0 && bash_singlematch)
 	{
 		key_lines[edit_line][key_linepos] = ' ';
 		key_linepos++;
 		key_lines[edit_line][key_linepos] = 0;
+		key_tabpartial[0] = 0; // restart cycle
 		// S.A.: the map argument completion (may be in combination with the bash-style
 		// display behavior changes, causes weirdness when completing the arguments for
 		// the changelevel command. the line below "fixes" it, although I'm not sure about
 		// the reason, yet, neither do I know any possible side effects of it:
 		c = key_lines[edit_line] + key_linepos;
+
+		Con_TabComplete (TABCOMPLETE_AUTOHINT);
 	}
 }
 
@@ -1076,6 +1331,27 @@ DRAWING
 
 /*
 ================
+Con_NotifyAlpha
+================
+*/
+static float Con_NotifyAlpha (float time)
+{
+	float fade;
+	float notifytime = con_notifytime.value / (scr_viewsize.value >= 130 ? 4 : 1);
+	if (!time)
+		return 0.f;
+	fade = q_max (con_notifyfade.value * con_notifyfadetime.value, 0.f);
+	time += notifytime + fade - realtime;
+	if (time <= 0.f)
+		return 0.f;
+	if (!fade)
+		return 1.f;
+	time = time / fade;
+	return q_min (time, 1.0f);
+}
+
+/*
+================
 Con_DrawNotify
 
 Draws the last few lines of output transparently over the game top
@@ -1085,7 +1361,7 @@ void Con_DrawNotify (cb_context_t *cbx)
 {
 	int			i, x, v;
 	const char *text;
-	float		time;
+	float		alpha;
 
 	GL_SetCanvas (cbx, CANVAS_CONSOLE); // johnfitz
 	v = vid.conheight;					// johnfitz
@@ -1094,16 +1370,24 @@ void Con_DrawNotify (cb_context_t *cbx)
 	{
 		if (i < 0)
 			continue;
-		time = con_times[i % NUM_CON_TIMES];
-		if (time == 0)
-			continue;
-		time = realtime - time;
-		if (time > con_notifytime.value / (scr_viewsize.value >= 130 ? 4 : 1))
+		alpha = Con_NotifyAlpha (con_times[i % NUM_CON_TIMES]);
+		if (alpha <= 0.f)
 			continue;
 		text = con_text + (i % con_totallines) * con_linewidth;
 
-		for (x = 0; x < con_linewidth; x++)
-			Draw_Character (cbx, (x + 1) << 3, v, text[x]);
+		GL_SetCanvasColor (1.f, 1.f, 1.f, alpha);
+		if (con_notifycenter.value)
+		{
+			int len = con_linewidth;
+			while (len > 0 && text[len - 1] == ' ')
+				--len;
+			for (x = 0; x < len; x++)
+				Draw_Character (cbx, (con_linewidth - len) * 4 + (x + 1) * 8, v, text[x]);
+		}
+		else
+			for (x = 0; x < con_linewidth; x++)
+				Draw_Character (cbx, (x + 1) << 3, v, text[x]);
+		GL_SetCanvasColor (1.f, 1.f, 1.f, 1.f);
 
 		v += 8;
 	}
@@ -1149,7 +1433,8 @@ extern qpic_t *pic_ovr, *pic_ins; // johnfitz -- new cursor handling
 
 void Con_DrawInput (cb_context_t *cbx)
 {
-	int i, ofs;
+	const char *workline = key_lines[edit_line];
+	int			i, ofs, len;
 
 	if (key_dest != key_console && !con_forcedup)
 		return; // don't draw anything
@@ -1160,9 +1445,20 @@ void Con_DrawInput (cb_context_t *cbx)
 	else
 		ofs = 0;
 
+	len = strlen (workline);
+
 	// draw input string
-	for (i = 0; key_lines[edit_line][i + ofs] && i < con_linewidth; i++)
-		Draw_Character (cbx, (i + 1) << 3, vid.conheight - 16, key_lines[edit_line][i + ofs]);
+	for (i = 0; i + ofs < len && i < con_linewidth; i++)
+		Draw_Character (cbx, (i + 1) << 3, vid.conheight - 16, workline[i + ofs]);
+
+	// draw tab completion hint
+	if (key_tabhint[0])
+	{
+		GL_SetCanvasColor (1.0f, 1.0f, 1.0f, 0.75f);
+		for (i = 0; key_tabhint[i] && i + 1 + len - ofs < con_linewidth + 2; i++)
+			Draw_Character (cbx, (i + 1 + len - ofs) << 3, vid.conheight - 16, key_tabhint[i] | 0x80);
+		GL_SetCanvasColor (1.0f, 1.0f, 1.0f, 1.0f);
+	}
 
 	// johnfitz -- new cursor handling
 	if (!((int)((realtime - key_blinktime) * con_cursorspeed) & 1))

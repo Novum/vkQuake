@@ -252,6 +252,9 @@ int q_strncasecmp (const char *s1, const char *s2, size_t n);
 /* locale-insensitive case-insensitive alternative to strstr */
 char *q_strcasestr (const char *haystack, const char *needle);
 
+/* copies in to out, highlighting all occurrences of substr using the colored charset */
+char *COM_TintSubstring (const char *in, const char *substr, char *out, size_t outsize);
+
 /* locale-insensitive strlwr/upr replacement functions: */
 char *q_strlwr (char *str);
 char *q_strupr (char *str);

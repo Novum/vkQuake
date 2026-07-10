@@ -698,11 +698,21 @@ void Cmd_TokenizeString (const char *text)
 		if (!text)
 			return;
 
-		if (cmd_argc < MAX_ARGS)
-		{
-			strcpy (cmd_argv[cmd_argc], com_token);
-			cmd_argc++;
-		}
+		Cmd_AddArg (com_token);
+	}
+}
+
+/*
+============
+Cmd_AddArg
+============
+*/
+void Cmd_AddArg (const char *arg)
+{
+	if (cmd_argc < MAX_ARGS)
+	{
+		q_strlcpy (cmd_argv[cmd_argc], arg, sizeof (cmd_argv[cmd_argc]));
+		cmd_argc++;
 	}
 }
 
@@ -788,6 +798,34 @@ void Cmd_RemoveCommand (cmd_function_t *cmd)
 		}
 	}
 	Sys_Error ("Cmd_RemoveCommand unable to remove command %s", cmd->name);
+}
+
+/*
+============
+Cmd_FindCommand
+============
+*/
+cmd_function_t *Cmd_FindCommand (const char *cmd_name)
+{
+	cmd_function_t *cmd;
+
+	for (cmd = cmd_functions; cmd; cmd = cmd->next)
+		if (!q_strcasecmp (cmd_name, cmd->name))
+			return cmd;
+
+	return NULL;
+}
+
+/*
+============
+Cmd_IsReservedName
+
+Returns true if name starts with 2 underscores
+============
+*/
+qboolean Cmd_IsReservedName (const char *name)
+{
+	return name[0] == '_' && name[1] == '_';
 }
 
 /*

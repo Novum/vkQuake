@@ -329,6 +329,29 @@ char *q_strcasestr (const char *haystack, const char *needle)
 	return NULL;
 }
 
+/*
+================
+COM_TintSubstring
+================
+*/
+char *COM_TintSubstring (const char *in, const char *substr, char *out, size_t outsize)
+{
+	int	  l;
+	char *m = out;
+	q_strlcpy (out, in, outsize);
+	if (*substr)
+	{
+		while ((m = q_strcasestr (m, substr)))
+		{
+			for (l = 0; substr[l]; l++)
+				if (m[l] > ' ')
+					m[l] |= 0x80;
+			m += l;
+		}
+	}
+	return out;
+}
+
 char *q_strlwr (char *str)
 {
 	char *c;

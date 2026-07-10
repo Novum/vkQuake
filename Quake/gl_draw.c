@@ -460,6 +460,21 @@ void Draw_Init (void)
 //
 //==============================================================================
 
+static float canvas_color[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+
+/*
+================
+GL_SetCanvasColor
+================
+*/
+void GL_SetCanvasColor (float r, float g, float b, float a)
+{
+	canvas_color[0] = r;
+	canvas_color[1] = g;
+	canvas_color[2] = b;
+	canvas_color[3] = a;
+}
+
 /*
 ================
 Draw_FillCharacterQuad
@@ -484,6 +499,10 @@ static void Draw_FillCharacterQuad (float x, float y, char num, basicvertex_t *o
 		{x + CHARACTER_SIZE, y + CHARACTER_SIZE},
 		{x, y + CHARACTER_SIZE},
 	};
+
+	for (int i = 0; i < 4; ++i)
+		for (int j = 0; j < 4; ++j)
+			corner_verts[i].color[j] = (byte)(canvas_color[j] * 255.0f);
 
 	corner_verts[0].position[0] = texcoords[(rotation + 0) % 4][0];
 	corner_verts[0].position[1] = texcoords[(rotation + 0) % 4][1];
@@ -540,7 +559,10 @@ void Draw_Character (cb_context_t *cbx, float x, float y, int num)
 	Draw_FillCharacterQuad (x, y, (char)num, vertices, rotation);
 
 	vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 1, &buffer, &buffer_offset);
-	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_alphatest_pipeline[cbx->render_pass_index]);
+	if (canvas_color[3] < 1.0f)
+		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_blend_pipeline[cbx->render_pass_index]);
+	else
+		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_alphatest_pipeline[cbx->render_pass_index]);
 	vulkan_globals.vk_cmd_bind_descriptor_sets (
 		cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &char_texture->descriptor_set, 0, NULL);
 	vulkan_globals.vk_cmd_draw (cbx->cb, 6, 1, 0, 0);
@@ -579,7 +601,10 @@ void Draw_String (cb_context_t *cbx, float x, float y, const char *str)
 	}
 
 	vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 1, &buffer, &buffer_offset);
-	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_alphatest_pipeline[cbx->render_pass_index]);
+	if (canvas_color[3] < 1.0f)
+		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_blend_pipeline[cbx->render_pass_index]);
+	else
+		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_alphatest_pipeline[cbx->render_pass_index]);
 	vulkan_globals.vk_cmd_bind_descriptor_sets (
 		cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.basic_pipeline_layout.handle, 0, 1, &char_texture->descriptor_set, 0, NULL);
 	vulkan_globals.vk_cmd_draw (cbx->cb, num_verts, 1, 0, 0);
