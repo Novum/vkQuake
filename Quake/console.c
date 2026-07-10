@@ -683,6 +683,7 @@ void Con_UpdateMouseState (void)
 		Con_SetHotLink (NULL);
 		Con_SetMouseState (CMS_NOTPRESSED);
 		Con_ClearSelection ();
+		VID_SetMouseCursor (MOUSECURSOR_DEFAULT);
 		return;
 	}
 

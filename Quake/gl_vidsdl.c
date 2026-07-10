@@ -4250,6 +4250,12 @@ static void VID_DestroyCursors (void)
 
 void VID_SetMouseCursor (mousecursor_t cursor)
 {
+	static mousecursor_t current_cursor = MOUSECURSOR_DEFAULT;
+
+	if (cursor == current_cursor)
+		return;
+	current_cursor = cursor;
+
 	switch (cursor)
 	{
 	case MOUSECURSOR_HAND:
