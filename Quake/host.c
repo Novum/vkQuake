@@ -1199,8 +1199,9 @@ void Host_Init (void)
 		Chase_Init ();
 		M_Init ();
 		ExtraMaps_Init (); // johnfitz
-		Modlist_Init ();   // johnfitz
-		DemoList_Init ();  // ericw
+		M_CheckMods ();
+		Modlist_Init ();  // johnfitz
+		DemoList_Init (); // ericw
 		SaveList_Init ();
 		VID_Init ();
 		IN_Init ();
@@ -1277,6 +1278,7 @@ void Host_Shutdown (void)
 	{
 		if (con_initialized)
 			History_Shutdown ();
+		ExtraMaps_ShutDown ();
 		BGM_Shutdown ();
 		CDAudio_Shutdown ();
 		S_Shutdown ();

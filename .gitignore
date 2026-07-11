@@ -40,3 +40,5 @@ helgrind.log
 
 # clangd index
 .cache/
+*.user
+*.user

@@ -2805,6 +2805,9 @@ static void COM_Game_f (void)
 		// Write config file
 		Host_WriteConfiguration ();
 
+		// stop parsing map files before changing file system search paths
+		ExtraMaps_Clear ();
+
 		COM_ResetGameDirectories (paths);
 
 		// clear out and reload appropriate data
@@ -2821,6 +2824,7 @@ static void COM_Game_f (void)
 		Host_Resetdemos ();
 		DemoList_Rebuild ();
 		SaveList_Rebuild ();
+		M_CheckMods ();
 		S_ClearAll ();
 
 		Con_Printf ("\"game\" changed to \"%s\"\n", COM_GetGameNames (true));
@@ -3591,6 +3595,24 @@ unsigned COM_HashString (const char *str)
 	while (*str)
 	{
 		hash ^= *str++;
+		hash *= 0x01000193u;
+	}
+	return hash;
+}
+
+/*
+================
+COM_HashBlock
+Computes the FNV-1a hash of a memory block
+================
+*/
+unsigned COM_HashBlock (const void *data, size_t size)
+{
+	const byte *ptr = (const byte *)data;
+	unsigned	hash = 0x811c9dc5u;
+	while (size--)
+	{
+		hash ^= *ptr++;
 		hash *= 0x01000193u;
 	}
 	return hash;

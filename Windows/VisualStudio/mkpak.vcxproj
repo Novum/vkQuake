@@ -65,10 +65,6 @@
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
-    <PostBuildEvent>
-      <Message>Building vkquake.pak</Message>
-      <Command>$(OutDir)mkpak.exe $(ProjectDir)\..\..\Quake\vkquake.pak $(ProjectDir)\..\..\Misc\vq_pak $(ProjectDir)\..\..\Misc\vq_pak\vq_pak_contents.txt</Command>
-    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -86,12 +82,6 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
-    <PostBuildEvent>
-      <Command>$(OutDir)mkpak.exe $(ProjectDir)\..\..\Quake\vkquake.pak $(ProjectDir)\..\..\Misc\vq_pak $(ProjectDir)\..\..\Misc\vq_pak\vq_pak_contents.txt</Command>
-    </PostBuildEvent>
-    <PostBuildEvent>
-      <Message>Building vkquake.pak</Message>
-    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\Misc\vq_pak\mkpak.c" />

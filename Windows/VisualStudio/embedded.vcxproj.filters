@@ -85,6 +85,7 @@
     <CustomBuild Include="..\..\Shaders\indirect.comp">
       <Filter>Shaders\Indirect</Filter>
     </CustomBuild>
+    <CustomBuild Include="..\..\Misc\vq_pak\vq_pak_contents.txt" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Shaders">

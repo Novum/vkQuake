@@ -344,6 +344,7 @@ char *va (const char *format, ...) FUNC_PRINTF (1, 2);
 // does a varargs printf into a temp buffer
 
 unsigned COM_HashString (const char *str);
+unsigned COM_HashBlock (const void *data, size_t size);
 
 // localization support for 2021 rerelease version:
 void		LOC_Init (void);

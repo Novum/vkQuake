@@ -721,4 +721,7 @@ byte	*Mod_NoVisPVS (qmodel_t *model);
 
 void Mod_SetExtraFlags (qmodel_t *mod);
 
+size_t	 Mod_SanitizeMapDescription (char *dst, size_t dstsize, const char *src);
+qboolean Mod_LoadMapDescription (char *desc, size_t maxchars, const char *map);
+
 #endif // __MODEL__
