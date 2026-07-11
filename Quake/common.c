@@ -3017,6 +3017,28 @@ void COM_WriteSelectedBaseDir (void)
 
 /*
 =================
+COM_MountNightdiveUserDir
+
+The official rerelease client downloads add-ons into its user dir
+(e.g. Saved Games/Nightdive Studios/Quake); mount it as an extra
+content root so they show up in the mods menu (like Ironwail does)
+=================
+*/
+static char com_nightdivedir[MAX_OSPATH];
+
+static void COM_MountNightdiveUserDir (void)
+{
+	if (!com_nightdivedir[0] || COM_CheckParm ("-nonightdive"))
+		return;
+	if (Sys_FileType (com_nightdivedir) != FS_ENT_DIRECTORY)
+		return;
+
+	COM_AddBaseDir (com_nightdivedir);
+	Sys_Printf ("Mounted Nightdive add-on dir %s\n", com_nightdivedir);
+}
+
+/*
+=================
 COM_FindStoreBaseDir
 
 Locates a Steam/GOG/Epic Games Store install of Quake and points
@@ -3044,6 +3066,8 @@ static void COM_FindStoreBaseDir (void)
 		{
 			if ((size_t)q_snprintf (remastered, sizeof (remastered), "%s/rerelease", original) >= sizeof (remastered))
 				remastered[0] = '\0';
+			else if (!Sys_GetNightdiveUserDir (com_nightdivedir, sizeof (com_nightdivedir), steamquake.library))
+				com_nightdivedir[0] = '\0';
 		}
 	}
 
@@ -3051,20 +3075,36 @@ static void COM_FindStoreBaseDir (void)
 	{
 		if (!original[0] && !Sys_GetGOGQuakeDir (original, sizeof (original)))
 			original[0] = '\0';
-		if (!remastered[0] && !Sys_GetGOGQuakeEnhancedDir (remastered, sizeof (remastered)))
-			remastered[0] = '\0';
+		if (!remastered[0])
+		{
+			if (Sys_GetGOGQuakeEnhancedDir (remastered, sizeof (remastered)))
+			{
+				if (!com_nightdivedir[0] && !Sys_GetNightdiveUserDir (com_nightdivedir, sizeof (com_nightdivedir), NULL))
+					com_nightdivedir[0] = '\0';
+			}
+			else
+				remastered[0] = '\0';
+		}
 	}
 
 	if ((!forced || force_egs) && !COM_CheckParm ("-noegs") && !COM_CheckParm ("-noepic"))
 	{
-		if (!remastered[0] && !EGS_FindGame (remastered, sizeof (remastered), QUAKE_EGS_NAMESPACE, QUAKE_EGS_ITEM_ID, QUAKE_EGS_APP_NAME))
-			remastered[0] = '\0';
+		if (!remastered[0])
+		{
+			if (EGS_FindGame (remastered, sizeof (remastered), QUAKE_EGS_NAMESPACE, QUAKE_EGS_ITEM_ID, QUAKE_EGS_APP_NAME))
+			{
+				if (!com_nightdivedir[0] && !Sys_GetNightdiveUserDir (com_nightdivedir, sizeof (com_nightdivedir), NULL))
+					com_nightdivedir[0] = '\0';
+			}
+			else
+				remastered[0] = '\0';
+		}
 	}
 
 	if (original[0] && !COM_IsValidFlavorDir (original, QUAKE_FLAVOR_ORIGINAL))
 		original[0] = '\0';
 	if (remastered[0] && !COM_IsValidFlavorDir (remastered, QUAKE_FLAVOR_REMASTERED))
-		remastered[0] = '\0';
+		remastered[0] = com_nightdivedir[0] = '\0';
 
 	requested = COM_RequestedQuakeFlavor ();
 
@@ -3143,6 +3183,11 @@ static void COM_FindStoreBaseDir (void)
 
 	q_strlcpy (com_basedir, (flavor == QUAKE_FLAVOR_REMASTERED) ? remastered : original, sizeof (com_basedir));
 	Sys_Printf ("Using Quake data from %s\n", com_basedir);
+
+	if (flavor == QUAKE_FLAVOR_REMASTERED)
+		COM_MountNightdiveUserDir ();
+	else
+		com_nightdivedir[0] = '\0';
 }
 
 /*
@@ -3192,40 +3237,6 @@ static void COM_InitSteamAPI (void)
 
 /*
 =================
-COM_MountNightdiveUserDir
-
-The official rerelease client downloads add-ons into its user dir
-(e.g. Saved Games/Nightdive Studios/Quake); mount it as an extra
-content root so they show up in the mods menu (like Ironwail does)
-=================
-*/
-static void COM_MountNightdiveUserDir (void)
-{
-	steamgame_t steamquake;
-	char		path[MAX_OSPATH];
-	const char *steamlibrary = NULL;
-
-	if (COM_CheckParm ("-nonightdive"))
-		return;
-
-	// only relevant when running rerelease data
-	if ((size_t)q_snprintf (path, sizeof (path), "%s/QuakeEX.kpf", com_basedir) >= sizeof (path) || Sys_FileType (path) != FS_ENT_FILE)
-		return;
-
-	if (!COM_CheckParm ("-nosteam") && Steam_FindGame (&steamquake, QUAKE_STEAM_APPID))
-		steamlibrary = steamquake.library;
-
-	if (!Sys_GetNightdiveUserDir (path, sizeof (path), steamlibrary))
-		return;
-	if (Sys_FileType (path) != FS_ENT_DIRECTORY || COM_IsPathPrefix (path, com_basedir))
-		return;
-
-	COM_AddBaseDir (path);
-	Sys_Printf ("Mounted Nightdive add-on dir %s\n", path);
-}
-
-/*
-=================
 COM_InitFilesystem
 =================
 */
@@ -3261,8 +3272,6 @@ void COM_InitFilesystem (void) // johnfitz -- modified based on topaz's tutorial
 	// achievements/rich presence if the game data comes from the Steam install,
 	// no matter whether it was found by detection, -basedir or the working directory
 	COM_InitSteamAPI ();
-
-	COM_MountNightdiveUserDir ();
 
 	i = COM_CheckParmNext (i, "-basegame");
 	if (i)
