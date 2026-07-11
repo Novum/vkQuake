@@ -797,6 +797,20 @@ void Key_WriteBindings (FILE *f)
 	}
 }
 
+static FILE *History_OpenFile (const char *mode)
+{
+	if (host_parms->userdir != host_parms->basedir)
+		return fopen (va ("%s/%s", host_parms->userdir, HISTORY_FILE_NAME), mode);
+
+	char *pref_path = SDL_GetPrefPath ("vkQuake", "");
+	if (!pref_path)
+		return fopen (va ("%s/%s", host_parms->userdir, HISTORY_FILE_NAME), mode);
+
+	FILE *hf = fopen (va ("%s%s", pref_path, HISTORY_FILE_NAME), mode);
+	SDL_free (pref_path);
+	return hf;
+}
+
 void History_Init (void)
 {
 	int	  i, c;
@@ -809,7 +823,7 @@ void History_Init (void)
 	}
 	key_linepos = 1;
 
-	hf = fopen (va ("%s/%s", host_parms->userdir, HISTORY_FILE_NAME), "rt");
+	hf = History_OpenFile ("rt");
 	if (hf != NULL)
 	{
 		do
@@ -847,7 +861,7 @@ void History_Shutdown (void)
 	int	  i;
 	FILE *hf;
 
-	hf = fopen (va ("%s/%s", host_parms->userdir, HISTORY_FILE_NAME), "wt");
+	hf = History_OpenFile ("wt");
 	if (hf != NULL)
 	{
 		i = edit_line;
