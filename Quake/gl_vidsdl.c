@@ -183,9 +183,10 @@ static PFN_vkDestroySwapchainKHR					  fpDestroySwapchainKHR;
 static PFN_vkGetSwapchainImagesKHR					  fpGetSwapchainImagesKHR;
 static PFN_vkAcquireNextImageKHR					  fpAcquireNextImageKHR;
 static PFN_vkQueuePresentKHR						  fpQueuePresentKHR;
-#if defined(VK_KHR_present_wait)
-static PFN_vkWaitForPresentKHR fpWaitForPresentKHR;
-static uint64_t				   current_present_id;
+#if defined(VK_KHR_present_wait2)
+static PFN_vkWaitForPresent2KHR fpWaitForPresent2KHR;
+static uint64_t					current_present_id;
+static qboolean					swapchain_present_wait;
 #endif
 static PFN_vkEnumerateInstanceVersion	  fpEnumerateInstanceVersion;
 static PFN_vkGetPhysicalDeviceFeatures2	  fpGetPhysicalDeviceFeatures2;
@@ -1096,10 +1097,10 @@ static void GL_InitDevice (void)
 				push_descriptor = true;
 			if (strcmp (VK_KHR_RAY_QUERY_EXTENSION_NAME, device_extensions[i].extensionName) == 0)
 				vulkan_globals.ray_query = true;
-#if defined(VK_KHR_present_wait)
-			if (strcmp (VK_KHR_PRESENT_ID_EXTENSION_NAME, device_extensions[i].extensionName) == 0)
+#if defined(VK_KHR_present_wait2)
+			if (strcmp (VK_KHR_PRESENT_ID_2_EXTENSION_NAME, device_extensions[i].extensionName) == 0)
 				present_id = true;
-			if (strcmp (VK_KHR_PRESENT_WAIT_EXTENSION_NAME, device_extensions[i].extensionName) == 0)
+			if (strcmp (VK_KHR_PRESENT_WAIT_2_EXTENSION_NAME, device_extensions[i].extensionName) == 0)
 				present_wait = true;
 #endif
 		}
@@ -1183,9 +1184,9 @@ static void GL_InitDevice (void)
 	ZEROED_STRUCT (VkPhysicalDeviceBufferDeviceAddressFeaturesKHR, buffer_device_address_features);
 	ZEROED_STRUCT (VkPhysicalDeviceAccelerationStructureFeaturesKHR, acceleration_structure_features);
 	ZEROED_STRUCT (VkPhysicalDeviceRayQueryFeaturesKHR, ray_query_features);
-#if defined(VK_KHR_present_wait)
-	ZEROED_STRUCT (VkPhysicalDevicePresentIdFeaturesKHR, present_id_features);
-	ZEROED_STRUCT (VkPhysicalDevicePresentWaitFeaturesKHR, present_wait_features);
+#if defined(VK_KHR_present_wait2)
+	ZEROED_STRUCT (VkPhysicalDevicePresentId2FeaturesKHR, present_id_features);
+	ZEROED_STRUCT (VkPhysicalDevicePresentWait2FeaturesKHR, present_wait_features);
 #endif
 	memset (&vulkan_globals.physical_device_acceleration_structure_properties, 0, sizeof (vulkan_globals.physical_device_acceleration_structure_properties));
 	if (vulkan_globals.vulkan_1_1_available)
@@ -1227,12 +1228,12 @@ static void GL_InitDevice (void)
 			ray_query_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR;
 			CHAIN_PNEXT (device_features_next, ray_query_features);
 		}
-#if defined(VK_KHR_present_wait)
+#if defined(VK_KHR_present_wait2)
 		if (present_id && present_wait)
 		{
-			present_id_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENT_ID_FEATURES_KHR;
+			present_id_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENT_ID_2_FEATURES_KHR;
 			CHAIN_PNEXT (device_features_next, present_id_features);
-			present_wait_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENT_WAIT_FEATURES_KHR;
+			present_wait_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENT_WAIT_2_FEATURES_KHR;
 			CHAIN_PNEXT (device_features_next, present_wait_features);
 		}
 #endif
@@ -1263,9 +1264,9 @@ static void GL_InitDevice (void)
 		Con_Printf ("Using ray queries\n");
 
 	vulkan_globals.present_wait = false;
-#if defined(VK_KHR_present_wait)
-	vulkan_globals.present_wait =
-		vulkan_globals.vulkan_1_1_available && present_id && present_wait && present_id_features.presentId && present_wait_features.presentWait;
+#if defined(VK_KHR_present_wait2)
+	vulkan_globals.present_wait = vulkan_globals.vulkan_1_1_available && vulkan_globals.get_surface_capabilities_2 && present_id && present_wait &&
+								  present_id_features.presentId2 && present_wait_features.presentWait2;
 	if (vulkan_globals.present_wait)
 		Con_Printf ("Using present wait\n");
 #endif
@@ -1283,11 +1284,11 @@ static void GL_InitDevice (void)
 	if (vulkan_globals.full_screen_exclusive)
 		device_extensions[numEnabledExtensions++] = VK_EXT_FULL_SCREEN_EXCLUSIVE_EXTENSION_NAME;
 #endif
-#if defined(VK_KHR_present_wait)
+#if defined(VK_KHR_present_wait2)
 	if (vulkan_globals.present_wait)
 	{
-		device_extensions[numEnabledExtensions++] = VK_KHR_PRESENT_ID_EXTENSION_NAME;
-		device_extensions[numEnabledExtensions++] = VK_KHR_PRESENT_WAIT_EXTENSION_NAME;
+		device_extensions[numEnabledExtensions++] = VK_KHR_PRESENT_ID_2_EXTENSION_NAME;
+		device_extensions[numEnabledExtensions++] = VK_KHR_PRESENT_WAIT_2_EXTENSION_NAME;
 	}
 #endif
 	if (vulkan_globals.ray_query)
@@ -1363,9 +1364,9 @@ static void GL_InitDevice (void)
 		GET_DEVICE_PROC_ADDR (ReleaseFullScreenExclusiveModeEXT);
 	}
 #endif
-#if defined(VK_KHR_present_wait)
+#if defined(VK_KHR_present_wait2)
 	if (vulkan_globals.present_wait)
-		GET_DEVICE_PROC_ADDR (WaitForPresentKHR);
+		GET_DEVICE_PROC_ADDR (WaitForPresent2KHR);
 #endif
 	if (vulkan_globals.ray_query)
 	{
@@ -2756,6 +2757,30 @@ static qboolean GL_CreateSwapChain (void)
 		return false;
 	}
 
+#if defined(VK_KHR_present_wait2)
+	swapchain_present_wait = false;
+	if (vulkan_globals.present_wait)
+	{
+		ZEROED_STRUCT (VkSurfaceCapabilitiesPresentId2KHR, present_id_2_capabilities);
+		present_id_2_capabilities.sType = VK_STRUCTURE_TYPE_SURFACE_CAPABILITIES_PRESENT_ID_2_KHR;
+		ZEROED_STRUCT (VkSurfaceCapabilitiesPresentWait2KHR, present_wait_2_capabilities);
+		present_wait_2_capabilities.sType = VK_STRUCTURE_TYPE_SURFACE_CAPABILITIES_PRESENT_WAIT_2_KHR;
+		present_wait_2_capabilities.pNext = &present_id_2_capabilities;
+
+		ZEROED_STRUCT (VkPhysicalDeviceSurfaceInfo2KHR, present_wait_surface_info);
+		present_wait_surface_info.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SURFACE_INFO_2_KHR;
+		present_wait_surface_info.surface = vulkan_surface;
+
+		ZEROED_STRUCT (VkSurfaceCapabilities2KHR, surface_capabilities_2);
+		surface_capabilities_2.sType = VK_STRUCTURE_TYPE_SURFACE_CAPABILITIES_2_KHR;
+		surface_capabilities_2.pNext = &present_wait_2_capabilities;
+
+		err = fpGetPhysicalDeviceSurfaceCapabilities2KHR (vulkan_physical_device, &present_wait_surface_info, &surface_capabilities_2);
+		if (err == VK_SUCCESS)
+			swapchain_present_wait = present_id_2_capabilities.presentId2Supported && present_wait_2_capabilities.presentWait2Supported;
+	}
+#endif
+
 	uint32_t format_count;
 	err = fpGetPhysicalDeviceSurfaceFormatsKHR (vulkan_physical_device, vulkan_surface, &format_count, NULL);
 	if (err != VK_SUCCESS)
@@ -2858,6 +2883,10 @@ static qboolean GL_CreateSwapChain (void)
 	// Not all devices support ALPHA_OPAQUE
 	if (!(vulkan_surface_capabilities.supportedCompositeAlpha & VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR))
 		swapchain_create_info.compositeAlpha = VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR;
+#if defined(VK_KHR_present_wait2)
+	if (swapchain_present_wait)
+		swapchain_create_info.flags |= VK_SWAPCHAIN_CREATE_PRESENT_ID_2_BIT_KHR | VK_SWAPCHAIN_CREATE_PRESENT_WAIT_2_BIT_KHR;
+#endif
 
 	vulkan_globals.swap_chain_full_screen_exclusive = false;
 	vulkan_globals.swap_chain_full_screen_acquired = false;
@@ -2893,7 +2922,7 @@ static qboolean GL_CreateSwapChain (void)
 		}
 	}
 	num_images_acquired = 0;
-#if defined(VK_KHR_present_wait)
+#if defined(VK_KHR_present_wait2)
 	current_present_id = 0; // present ids are scoped to the swapchain
 #endif
 
@@ -3907,13 +3936,18 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 	render_area.extent.width = parms->vid_width;
 	render_area.extent.height = parms->vid_height;
 
-#if defined(VK_KHR_present_wait)
+#if defined(VK_KHR_present_wait2)
 	// cap the number of frames queued for display: DXGI layered swapchains force 3+ images, so
 	// under FIFO the acquire alone lets the CPU run several vblanks ahead of scan out
 	const uint64_t max_frame_latency = (uint64_t)CLAMP (1, (int)vid_maxframelatency.value, 8);
-	if (vulkan_globals.present_wait && parms->swapchain && (vid_maxframelatency.value > 0) && (vid_vsync.value > 0) &&
-		(current_present_id + 1 > max_frame_latency))
-		fpWaitForPresentKHR (vulkan_globals.device, vulkan_swapchain, current_present_id + 1 - max_frame_latency, 50ull * 1000ull * 1000ull);
+	if (swapchain_present_wait && parms->swapchain && (vid_maxframelatency.value > 0) && (vid_vsync.value > 0) && (current_present_id + 1 > max_frame_latency))
+	{
+		ZEROED_STRUCT (VkPresentWait2InfoKHR, present_wait_2_info);
+		present_wait_2_info.sType = VK_STRUCTURE_TYPE_PRESENT_WAIT_2_INFO_KHR;
+		present_wait_2_info.presentId = current_present_id + 1 - max_frame_latency;
+		present_wait_2_info.timeout = 50ull * 1000ull * 1000ull;
+		fpWaitForPresent2KHR (vulkan_globals.device, vulkan_swapchain, &present_wait_2_info);
+	}
 #endif
 
 	qboolean swapchain_acquired = parms->swapchain && GL_AcquireNextSwapChainImage ();
@@ -4096,20 +4130,20 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 		present_info.pSwapchains = &vulkan_swapchain, present_info.pImageIndices = &current_swapchain_buffer;
 		present_info.waitSemaphoreCount = 1;
 		present_info.pWaitSemaphores = &draw_complete_semaphores[current_swapchain_buffer];
-#if defined(VK_KHR_present_wait)
-		ZEROED_STRUCT (VkPresentIdKHR, present_id_info);
+#if defined(VK_KHR_present_wait2)
+		ZEROED_STRUCT (VkPresentId2KHR, present_id_info);
 		uint64_t next_present_id = current_present_id + 1;
-		if (vulkan_globals.present_wait)
+		if (swapchain_present_wait)
 		{
-			present_id_info.sType = VK_STRUCTURE_TYPE_PRESENT_ID_KHR;
+			present_id_info.sType = VK_STRUCTURE_TYPE_PRESENT_ID_2_KHR;
 			present_id_info.swapchainCount = 1;
 			present_id_info.pPresentIds = &next_present_id;
 			present_info.pNext = &present_id_info;
 		}
 #endif
 		err = fpQueuePresentKHR (vulkan_globals.queue, &present_info);
-#if defined(VK_KHR_present_wait)
-		if (vulkan_globals.present_wait)
+#if defined(VK_KHR_present_wait2)
+		if (swapchain_present_wait)
 			current_present_id = next_present_id;
 #endif
 #if defined(VK_EXT_full_screen_exclusive)
