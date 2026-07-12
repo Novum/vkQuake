@@ -2215,18 +2215,9 @@ static void Host_Name_f (void)
 		return;
 	}
 
-	if (host_client->name[0] && strcmp (host_client->name, "unconnected"))
-	{
-		if (strcmp (host_client->name, newName) != 0)
-			Con_DPrintf ("\"%s\" renamed to \"%s\"\n", host_client->name, newName);
-	}
-	strcpy (host_client->name, newName);
-	host_client->edict->v.netname = PR_SetEngineString (host_client->name);
-
-	// send notification to all clients
-	MSG_WriteByte (&sv.reliable_datagram, svc_updatename);
-	MSG_WriteByte (&sv.reliable_datagram, host_client - svs.clients);
-	MSG_WriteString (&sv.reliable_datagram, host_client->name);
+	// set the name into the userinfo, otherwise SV_DecodeUserInfo resets
+	// it to "unnamed" as soon as another key (e.g. topcolor) is updated
+	SV_UpdateInfo ((host_client - svs.clients) + 1, "name", newName);
 }
 
 static void Host_Say (qboolean teamonly)
