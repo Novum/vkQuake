@@ -144,7 +144,7 @@ typedef enum
 extern keydest_t key_dest;
 extern char		*keybindings[MAX_KEYS];
 
-#define CMDLINES 64
+#define CMDLINES 1024
 
 extern char	  key_lines[CMDLINES][MAXCMDLINE];
 extern char	  key_tabhint[MAXCMDLINE];
