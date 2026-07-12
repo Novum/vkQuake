@@ -2414,7 +2414,14 @@ void LOG_Init (quakeparms_t *parms)
 
 	inittime = time (NULL);
 	strftime (session, sizeof (session), "%m/%d/%Y %H:%M:%S", localtime (&inittime));
-	q_snprintf (logfilename, sizeof (logfilename), "%s/qconsole.log", parms->basedir);
+	char *pref_path = SDL_GetPrefPath ("vkQuake", "");
+	if (pref_path)
+	{
+		q_snprintf (logfilename, sizeof (logfilename), "%sqconsole.log", pref_path);
+		SDL_free (pref_path);
+	}
+	else
+		q_snprintf (logfilename, sizeof (logfilename), "%s/qconsole.log", parms->basedir);
 
 	//	unlink (logfilename);
 

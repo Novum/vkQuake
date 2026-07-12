@@ -924,6 +924,12 @@ copy "$(SolutionDir)\..\SDL3\lib64\*.dll" "$(TargetDir)"</Command>
   <ItemGroup>
     <ResourceCompile Include="..\vkQuake.rc" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="embedded.vcxproj">
+      <Project>{50420275-bae3-4fdb-8a26-f2e07737fcd6}</Project>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

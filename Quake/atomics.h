@@ -153,6 +153,23 @@ static inline uint64_t Atomic_SubUInt64 (volatile atomic_uint64_t *atomic, uint6
 	return InterlockedAdd64 ((volatile LONG64 *)&atomic->value, (~value) + 1) + value;
 }
 
+typedef struct
+{
+	void *volatile value;
+} atomic_ptr_t;
+
+static inline void *Atomic_LoadPtr (volatile atomic_ptr_t *atomic)
+{
+	_WriteBarrier ();
+	return atomic->value;
+}
+
+static inline void Atomic_StorePtr (volatile atomic_ptr_t *atomic, void *desired)
+{
+	atomic->value = desired;
+	_ReadBarrier ();
+}
+
 static inline void Atomic_ReadBarrier (void)
 {
 	_ReadBarrier ();
@@ -252,6 +269,18 @@ static inline uint64_t Atomic_AddUInt64 (atomic_uint64_t *atomic, const uint64_t
 static inline uint64_t Atomic_SubUInt64 (atomic_uint64_t *atomic, const uint64_t value)
 {
 	return atomic_fetch_sub (atomic, value);
+}
+
+typedef void *_Atomic atomic_ptr_t;
+
+static inline void *Atomic_LoadPtr (atomic_ptr_t *atomic)
+{
+	return atomic_load (atomic);
+}
+
+static inline void Atomic_StorePtr (atomic_ptr_t *atomic, void *desired)
+{
+	atomic_store (atomic, desired);
 }
 
 static inline void Atomic_ReadBarrier (void)

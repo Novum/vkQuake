@@ -440,6 +440,43 @@ extern filelist_item_t *extralevels;
 extern filelist_item_t *demolist;
 extern filelist_item_t *savelist;
 
+typedef enum
+{
+	MAPTYPE_CUSTOM_MOD_START,
+	MAPTYPE_CUSTOM_MOD_LEVEL,
+	MAPTYPE_CUSTOM_MOD_END,
+	MAPTYPE_CUSTOM_MOD_DM,
+
+	MAPTYPE_MOD_START,
+	MAPTYPE_MOD_LEVEL,
+	MAPTYPE_MOD_END,
+	MAPTYPE_MOD_DM,
+
+	MAPTYPE_CUSTOM_ID_START,
+	MAPTYPE_CUSTOM_ID_LEVEL,
+	MAPTYPE_CUSTOM_ID_END,
+	MAPTYPE_CUSTOM_ID_DM,
+
+	MAPTYPE_ID_START,
+	MAPTYPE_ID_EP1_LEVEL,
+	MAPTYPE_ID_EP2_LEVEL,
+	MAPTYPE_ID_EP3_LEVEL,
+	MAPTYPE_ID_EP4_LEVEL,
+	MAPTYPE_ID_END,
+	MAPTYPE_ID_DM,
+	MAPTYPE_ID_LEVEL,
+
+	MAPTYPE_BMODEL,
+
+	MAPTYPE_COUNT,
+} maptype_t;
+
+maptype_t	ExtraMaps_GetType (const filelist_item_t *item);
+qboolean	ExtraMaps_IsStart (maptype_t type);
+const char *ExtraMaps_GetMessage (const filelist_item_t *item);
+
+extern filelist_item_t **extralevels_sorted;
+
 // friendly display name for a mod list entry (only valid for modlist items), NULL if unknown
 const char *Modlist_GetFullName (const filelist_item_t *item);
 
@@ -464,8 +501,12 @@ void DemoList_Init (void);
 void SaveList_Init (void);
 
 void ExtraMaps_NewGame (void);
+void ExtraMaps_Clear (void);
+void ExtraMaps_ShutDown (void);
 void DemoList_Rebuild (void);
 void SaveList_Rebuild (void);
+
+void M_CheckMods (void);
 
 extern int current_skill; // skill level for currently loaded level (in case
 						  //  the user changes the cvar while the level is

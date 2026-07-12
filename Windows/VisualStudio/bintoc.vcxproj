@@ -65,10 +65,6 @@
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
-    <PostBuildEvent>
-      <Message>Building embedded_pak.c</Message>
-      <Command>$(OutDir)bintoc.exe -c  $(ProjectDir)\..\..\Quake\vkquake.pak vkquake.pak $(ProjectDir)\..\..\Quake\embedded_pak.c</Command>
-    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -86,12 +82,6 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
-    <PostBuildEvent>
-      <Command>$(OutDir)bintoc.exe -c  $(ProjectDir)\..\..\Quake\vkquake.pak vkquake.pak $(ProjectDir)\..\..\Quake\embedded_pak.c</Command>
-    </PostBuildEvent>
-    <PostBuildEvent>
-      <Message>Building embedded_pak.c</Message>
-    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\Shaders\bintoc.c" />

@@ -317,6 +317,14 @@ $(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(Solution
     <CustomBuild Include="..\..\Shaders\ray_debug.comp">
       <FileType>Document</FileType>
     </CustomBuild>
+    <CustomBuild Include="..\..\Misc\vq_pak\vq_pak_contents.txt">
+      <FileType>Document</FileType>
+      <Message>Building vkquake.pak and embedded_pak.c</Message>
+      <Command>"$(SolutionDir)Build-mkpak\$(Platform)\$(Configuration)\mkpak.exe" "$(SolutionDir)..\..\Quake\vkquake.pak" "$(SolutionDir)..\..\Misc\vq_pak" "$(SolutionDir)..\..\Misc\vq_pak\vq_pak_contents.txt"
+"$(SolutionDir)Build-bintoc\$(Platform)\$(Configuration)\bintoc.exe" -c "$(SolutionDir)..\..\Quake\vkquake.pak" vkquake.pak "$(SolutionDir)..\..\Quake\embedded_pak.c"</Command>
+      <Outputs>$(SolutionDir)..\..\Quake\vkquake.pak;$(SolutionDir)..\..\Quake\embedded_pak.c</Outputs>
+      <AdditionalInputs>$(SolutionDir)..\..\Misc\vq_pak\gfx\conback.png;$(SolutionDir)..\..\Misc\vq_pak\gfx\mainmenu2.lmp;$(SolutionDir)..\..\Misc\vq_pak\gfx\p_mods.png;$(SolutionDir)..\..\Misc\vq_pak\gfx\sp_maps.lmp;$(SolutionDir)..\..\Misc\vq_pak\maps\e1m1@c49d.ent;$(SolutionDir)..\..\Misc\vq_pak\maps\e1m2@0caa.ent;$(SolutionDir)..\..\Misc\vq_pak\maps\e1m4@958e.ent;$(SolutionDir)..\..\Misc\vq_pak\maps\e2m2@fbfe.ent;$(SolutionDir)..\..\Misc\vq_pak\maps\e2m3@237a.ent;$(SolutionDir)..\..\Misc\vq_pak\maps\e2m7@10a8.ent;$(SolutionDir)..\..\Misc\vq_pak\maps\r2m3@63f4.ent;$(SolutionDir)..\..\Misc\vq_pak\maps\r2m3@76ec.ent;$(SolutionDir)..\..\Misc\vq_pak\default.cfg;$(SolutionDir)Build-mkpak\$(Platform)\$(Configuration)\mkpak.exe;$(SolutionDir)Build-bintoc\$(Platform)\$(Configuration)\bintoc.exe</AdditionalInputs>
+    </CustomBuild>
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
@@ -411,6 +419,16 @@ $(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(Solution
       <AdditionalInputs>$(SolutionDir)..\..\Shaders\globals.inc</AdditionalInputs>
     </CustomBuild>
   </ItemDefinitionGroup>
+  <ItemGroup>
+    <ProjectReference Include="mkpak.vcxproj">
+      <Project>{5b3a2c1d-9e4f-4b2a-a123-0f1e2d3c4b5a}</Project>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+    <ProjectReference Include="bintoc.vcxproj">
+      <Project>{91d0ed02-d4db-4cd4-a232-9f0acc573048}</Project>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

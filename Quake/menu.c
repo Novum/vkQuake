@@ -41,6 +41,7 @@ static void M_Menu_ServerList_f (void);
 static void M_Menu_Keys_f (void);
 static void M_Menu_Help_f (void);
 static void M_Menu_Mods_f (void);
+static void M_Menu_Maps_f (void);
 
 static void M_Main_Draw (cb_context_t *cbx);
 static void M_SinglePlayer_Draw (cb_context_t *cbx);
@@ -55,6 +56,7 @@ static void M_Search_Draw (cb_context_t *cbx);
 static void M_ServerList_Draw (cb_context_t *cbx);
 static void M_Options_Draw (cb_context_t *cbx);
 static void M_Mods_Draw (cb_context_t *cbx);
+static void M_Maps_Draw (cb_context_t *cbx);
 static void M_Keys_Draw (cb_context_t *cbx);
 static void M_Help_Draw (cb_context_t *cbx);
 static void M_Quit_Draw (cb_context_t *cbx);
@@ -74,6 +76,7 @@ static void M_Options_Key (int key);
 static void M_Keys_Key (int key);
 static void M_Help_Key (int key);
 static void M_Mods_Key (int key);
+static void M_Maps_Key (int key);
 static void M_Quit_Key (int key);
 
 qboolean		m_entersound; // play after drawing a frame, so caching
@@ -719,8 +722,9 @@ void M_Main_Key (int key)
 //=============================================================================
 /* SINGLE PLAYER MENU */
 
-int m_singleplayer_cursor;
-#define SINGLEPLAYER_ITEMS 3
+int				m_singleplayer_cursor;
+static qboolean m_singleplayer_showlevels;
+#define SINGLEPLAYER_ITEMS (3 + (m_singleplayer_showlevels ? 1 : 0))
 
 static void M_Menu_SinglePlayer_f (void)
 {
@@ -728,6 +732,8 @@ static void M_Menu_SinglePlayer_f (void)
 	IN_Deactivate (true);
 	key_dest = key_menu;
 	m_state = m_singleplayer;
+	if (m_singleplayer_cursor >= SINGLEPLAYER_ITEMS)
+		m_singleplayer_cursor = 0;
 }
 
 static void M_SinglePlayer_Draw (cb_context_t *cbx)
@@ -739,6 +745,8 @@ static void M_SinglePlayer_Draw (cb_context_t *cbx)
 	p = Draw_CachePic ("gfx/ttl_sgl.lmp");
 	M_DrawPic (cbx, (320 - p->width) / 2, 4, p);
 	M_DrawTransPic (cbx, 72, 32, Draw_CachePic ("gfx/sp_menu.lmp"));
+	if (m_singleplayer_showlevels)
+		M_DrawTransPic (cbx, 72, 92, Draw_CachePic ("gfx/sp_maps.lmp"));
 
 	f = (int)(realtime * 10) % 6;
 
@@ -796,6 +804,10 @@ static void M_SinglePlayer_Key (int key)
 
 		case 2:
 			M_Menu_Save_f ();
+			break;
+
+		case 3:
+			M_Menu_Maps_f ();
 			break;
 		}
 	}
@@ -2635,6 +2647,787 @@ static void M_Mods_Key (int key)
 }
 
 //=============================================================================
+/* MAPS MENU (from Ironwail) */
+
+#define MAPLIST_X		 8
+#define MAPLIST_TOP		 32
+#define MAPLIST_COLS	 38
+#define MAPLIST_VIEWSIZE 19
+#define MAPLIST_NAMECOLS 14
+
+typedef struct
+{
+	double scroll_time;
+	double scroll_wait_time;
+} menuticker_t;
+
+static void M_Ticker_Init (menuticker_t *ticker)
+{
+	ticker->scroll_time = 0.0;
+	ticker->scroll_wait_time = 1.0;
+}
+
+static void M_Ticker_Update (menuticker_t *ticker)
+{
+	if (ticker->scroll_wait_time <= 0.0)
+		ticker->scroll_time += host_rawframetime;
+	else
+		ticker->scroll_wait_time = q_max (0.0, ticker->scroll_wait_time - host_rawframetime);
+}
+
+static qboolean M_Ticker_Key (menuticker_t *ticker, int key)
+{
+	switch (key)
+	{
+	case K_RIGHTARROW:
+		ticker->scroll_time += 0.25;
+		ticker->scroll_wait_time = 1.5;
+		return true;
+
+	case K_LEFTARROW:
+		ticker->scroll_time -= 0.25;
+		ticker->scroll_wait_time = 1.5;
+		return true;
+
+	default:
+		return false;
+	}
+}
+
+/*
+================
+M_PrintScroll
+================
+*/
+static void M_PrintScroll (cb_context_t *cbx, int x, int y, int maxwidth, const char *str, double time, qboolean color)
+{
+	int	 maxchars = maxwidth / CHARACTER_SIZE;
+	int	 len = strlen (str);
+	int	 i, ofs;
+	char mask = color ? 0x80 : 0;
+
+	if (len <= maxchars)
+	{
+		if (color)
+			M_Print (cbx, x, y, str);
+		else
+			M_PrintWhite (cbx, x, y, str);
+		return;
+	}
+
+	ofs = (int)floor (time * 4.0);
+	ofs %= len + 5;
+	if (ofs < 0)
+		ofs += len + 5;
+
+	for (i = 0; i < maxchars; i++)
+	{
+		char c = (ofs < len) ? str[ofs] : " /// "[ofs - len];
+		Draw_Character (cbx, x, y, c ^ mask);
+		x += CHARACTER_SIZE;
+		if (++ofs >= len + 5)
+			ofs = 0;
+	}
+}
+
+/*
+================
+M_DrawQuakeBar
+================
+*/
+static void M_DrawQuakeBar (cb_context_t *cbx, int x, int y, int cols)
+{
+	Draw_Character (cbx, x, y, '\35');
+	x += CHARACTER_SIZE;
+	cols -= 2;
+	while (cols-- > 0)
+	{
+		Draw_Character (cbx, x, y, '\36');
+		x += CHARACTER_SIZE;
+	}
+	Draw_Character (cbx, x, y, '\37');
+}
+
+/*
+================
+M_DrawEllipsisBar
+================
+*/
+static void M_DrawEllipsisBar (cb_context_t *cbx, int x, int y, int cols)
+{
+	while (cols > 0)
+	{
+		Draw_Character (cbx, x, y, '.' | 0x80);
+		cols -= 2;
+		x += CHARACTER_SIZE * 2;
+	}
+}
+
+typedef struct
+{
+	const char			  *name;
+	const filelist_item_t *source;
+	int					   mapidx;
+	qboolean			   active;
+} mapitem_t;
+
+static struct
+{
+	int			 cursor;
+	int			 scroll;
+	int			 numitems;
+	int			 mapcount; // not all items represent actual maps!
+	int			 prev_cursor;
+	menuticker_t ticker;
+	mapitem_t	*items;
+	struct
+	{
+		int	 len;
+		char text[33];
+	} search;
+} mapsmenu;
+
+static const char *M_Maps_GetMessage (const mapitem_t *item)
+{
+	if (!item->source)
+		return item->name;
+	return ExtraMaps_GetMessage (item->source);
+}
+
+static qboolean M_Maps_IsActive (const char *map)
+{
+	return cls.state == ca_connected && cls.signon == SIGNONS && !strcmp (cl.mapname, map);
+}
+
+static void M_Maps_AddDecoration (const char *text)
+{
+	mapitem_t item;
+	memset (&item, 0, sizeof (item));
+	item.name = text;
+	item.mapidx = -1;
+	VEC_PUSH (mapsmenu.items, item);
+	mapsmenu.numitems++;
+}
+
+static void M_Maps_AddSeparator (maptype_t before, maptype_t after)
+{
+#define QBAR "\35\36\37"
+
+	if (after >= MAPTYPE_ID_START)
+	{
+		if (before < MAPTYPE_ID_START)
+		{
+			M_Maps_AddDecoration ("");
+			M_Maps_AddDecoration (QBAR " Original Quake levels " QBAR);
+		}
+		M_Maps_AddDecoration ("");
+	}
+	else if (after >= MAPTYPE_CUSTOM_ID_START && before < MAPTYPE_CUSTOM_ID_START)
+	{
+		M_Maps_AddDecoration ("");
+		M_Maps_AddDecoration (QBAR " Custom Quake levels " QBAR);
+		M_Maps_AddDecoration ("");
+	}
+	else if (after >= MAPTYPE_MOD_START && before < MAPTYPE_MOD_START)
+	{
+		M_Maps_AddDecoration ("");
+		M_Maps_AddDecoration (QBAR " Official mod levels " QBAR);
+		M_Maps_AddDecoration ("");
+	}
+
+#undef QBAR
+}
+
+static qboolean M_Maps_IsSelectable (int index)
+{
+	return mapsmenu.items[index].source != NULL;
+}
+
+static qboolean M_Maps_Match (int index)
+{
+	const char *message;
+	if (mapsmenu.items[index].mapidx < 0)
+		return false;
+
+	if (q_strcasestr (mapsmenu.items[index].name, mapsmenu.search.text))
+		return true;
+
+	message = M_Maps_GetMessage (&mapsmenu.items[index]);
+	return message && q_strcasestr (message, mapsmenu.search.text);
+}
+
+static void M_Maps_ClearSearch (void)
+{
+	mapsmenu.search.len = 0;
+	mapsmenu.search.text[0] = '\0';
+}
+
+static int M_Maps_GetOverflow (void)
+{
+	return mapsmenu.numitems - MAPLIST_VIEWSIZE;
+}
+
+static void M_Maps_ClampScroll (void)
+{
+	mapsmenu.scroll = CLAMP (0, mapsmenu.scroll, q_max (M_Maps_GetOverflow (), 0));
+}
+
+static void M_Maps_AutoScroll (void)
+{
+	if (mapsmenu.numitems <= MAPLIST_VIEWSIZE)
+		return;
+	if (mapsmenu.cursor < mapsmenu.scroll)
+	{
+		mapsmenu.scroll = mapsmenu.cursor;
+		// show decorations right above the selected item (e.g. a section header)
+		while (mapsmenu.scroll > 0 && mapsmenu.scroll > mapsmenu.cursor - MAPLIST_VIEWSIZE + 1 && !M_Maps_IsSelectable (mapsmenu.scroll - 1))
+			--mapsmenu.scroll;
+	}
+	else if (mapsmenu.cursor >= mapsmenu.scroll + MAPLIST_VIEWSIZE)
+		mapsmenu.scroll = mapsmenu.cursor - MAPLIST_VIEWSIZE + 1;
+	M_Maps_ClampScroll ();
+}
+
+static void M_Maps_CenterCursor (void)
+{
+	if (mapsmenu.cursor >= MAPLIST_VIEWSIZE)
+		mapsmenu.scroll = mapsmenu.cursor - MAPLIST_VIEWSIZE / 2; // keep centered
+	else
+		mapsmenu.scroll = 0;
+	M_Maps_ClampScroll ();
+}
+
+static qboolean M_Maps_SelectNextMatch (qboolean (*match_fn) (int idx), int start, int dir, qboolean wrap)
+{
+	int i, j;
+
+	if (mapsmenu.numitems <= 0)
+		return false;
+
+	if (!wrap)
+		start = CLAMP (0, start, mapsmenu.numitems - 1);
+
+	for (i = 0, j = start; i < mapsmenu.numitems; i++, j += dir)
+	{
+		if (j < 0)
+		{
+			if (!wrap)
+				return false;
+			j = mapsmenu.numitems - 1;
+		}
+		else if (j >= mapsmenu.numitems)
+		{
+			if (!wrap)
+				return false;
+			j = 0;
+		}
+		if (!M_Maps_IsSelectable (j))
+			continue;
+		if (!match_fn || match_fn (j))
+		{
+			mapsmenu.cursor = j;
+			M_Maps_AutoScroll ();
+			return true;
+		}
+	}
+
+	return false;
+}
+
+static qboolean M_Maps_SelectNextSearchMatch (int start, int dir)
+{
+	return M_Maps_SelectNextMatch (M_Maps_Match, start, dir, true);
+}
+
+static qboolean M_Maps_SelectNextActive (int start, int dir, qboolean wrap)
+{
+	return M_Maps_SelectNextMatch (NULL, start, dir, wrap);
+}
+
+static void M_Maps_UpdateMouseSelection (void)
+{
+	if (mapsmenu.cursor < mapsmenu.scroll)
+		M_Maps_SelectNextActive (mapsmenu.scroll, 1, false);
+	else if (mapsmenu.cursor >= mapsmenu.scroll + MAPLIST_VIEWSIZE)
+		M_Maps_SelectNextActive (mapsmenu.scroll + MAPLIST_VIEWSIZE - 1, -1, false);
+}
+
+static void M_Maps_Init (void)
+{
+	int				 i, active;
+	maptype_t		 type, prev_type;
+	filelist_item_t *item;
+
+	M_Maps_ClearSearch ();
+	mapsmenu.cursor = -1;
+	mapsmenu.scroll = 0;
+	mapsmenu.numitems = 0;
+	mapsmenu.mapcount = 0;
+	VEC_CLEAR (mapsmenu.items);
+
+	M_Ticker_Init (&mapsmenu.ticker);
+
+	for (i = 0, active = -1, prev_type = (maptype_t)-1; extralevels_sorted && extralevels_sorted[i]; i++)
+	{
+		mapitem_t map;
+
+		item = extralevels_sorted[i];
+		type = ExtraMaps_GetType (item);
+		if (type >= MAPTYPE_BMODEL)
+			continue;
+		if (prev_type != (maptype_t)-1 && prev_type != type)
+			M_Maps_AddSeparator (prev_type, type);
+		prev_type = type;
+
+		map.name = item->name;
+		map.active = M_Maps_IsActive (item->name);
+		map.source = item;
+		map.mapidx = mapsmenu.mapcount++;
+		if (map.active)
+			active = VEC_SIZE (mapsmenu.items);
+		if ((map.active && !cls.demoplayback) || (mapsmenu.cursor == -1 && ExtraMaps_IsStart (type)))
+			mapsmenu.cursor = VEC_SIZE (mapsmenu.items);
+		VEC_PUSH (mapsmenu.items, map);
+		mapsmenu.numitems++;
+	}
+
+	if (mapsmenu.cursor == -1)
+		mapsmenu.cursor = (active != -1) ? active : 0;
+
+	M_Maps_CenterCursor ();
+
+	mapsmenu.prev_cursor = mapsmenu.cursor;
+}
+
+static void M_Menu_Maps_f (void)
+{
+	M_MenuChanged ();
+	IN_Deactivate (true);
+	key_dest = key_menu;
+	m_state = m_maps;
+	m_entersound = true;
+	M_Maps_Init ();
+}
+
+static void M_Menu_Maps_Cmd_f (void)
+{
+	M_Menu_Maps_f ();
+
+	// handle optional map argument
+	if (Cmd_Argc () >= 2)
+	{
+		char   mapname[MAX_QPATH];
+		size_t i;
+
+		COM_StripExtension (Cmd_Argv (1), mapname, sizeof (mapname));
+
+		for (i = 0; i < VEC_SIZE (mapsmenu.items); i++)
+			if (q_strcasecmp (mapname, mapsmenu.items[i].name) == 0)
+				break;
+
+		if (i == VEC_SIZE (mapsmenu.items))
+		{
+			Con_SafePrintf ("Couldn't find map \"%s\".\n", mapname);
+			return;
+		}
+
+		mapsmenu.cursor = i;
+		M_Maps_CenterCursor ();
+	}
+}
+
+static void M_Maps_UpdateMouse (void)
+{
+	int i, yrel, numvis;
+
+	if (scrollbar_grab || slider_grab || !m_mouse_moved)
+		return;
+	if (m_mouse_x < MAPLIST_X - CHARACTER_SIZE || m_mouse_x > MAPLIST_X + MAPLIST_COLS * CHARACTER_SIZE)
+		return;
+
+	yrel = m_mouse_y - MAPLIST_TOP;
+	numvis = q_min (mapsmenu.scroll + MAPLIST_VIEWSIZE, mapsmenu.numitems) - mapsmenu.scroll;
+	if (!numvis || yrel < 0)
+		return;
+	i = yrel / CHARACTER_SIZE;
+	if (i >= numvis)
+		return;
+
+	i += mapsmenu.scroll;
+	if (mapsmenu.cursor == i)
+		return;
+
+	if (!M_Maps_IsSelectable (i))
+	{
+		// snap to the closest selectable item instead (from Ironwail)
+		int firstvis = mapsmenu.scroll;
+		int before, after;
+		yrel += firstvis * CHARACTER_SIZE;
+
+		for (before = i - 1; before >= firstvis; before--)
+			if (M_Maps_IsSelectable (before))
+				break;
+		for (after = i + 1; after < firstvis + numvis; after++)
+			if (M_Maps_IsSelectable (after))
+				break;
+
+		if (before >= firstvis && after < firstvis + numvis)
+		{
+			int distbefore = yrel - CHARACTER_SIZE / 2 - before * CHARACTER_SIZE;
+			int distafter = after * CHARACTER_SIZE + CHARACTER_SIZE / 2 - yrel;
+			i = distbefore < distafter ? before : after;
+		}
+		else if (before >= firstvis)
+			i = before;
+		else if (after < firstvis + numvis)
+			i = after;
+		else
+			return;
+
+		if (mapsmenu.cursor == i)
+			return;
+	}
+
+	mapsmenu.cursor = i;
+}
+
+static void M_Maps_Draw (cb_context_t *cbx)
+{
+	const char *str;
+	int			x, y, i, j, cols;
+	int			firstvis, numvis;
+	int			firstvismap, numvismaps;
+	int			namecols, desccols;
+
+	M_Maps_UpdateMouse ();
+
+	x = MAPLIST_X;
+	cols = MAPLIST_COLS;
+	namecols = MAPLIST_NAMECOLS;
+	desccols = cols - 1 - namecols;
+
+	if (mapsmenu.prev_cursor != mapsmenu.cursor)
+	{
+		mapsmenu.prev_cursor = mapsmenu.cursor;
+		M_Ticker_Init (&mapsmenu.ticker);
+	}
+	else
+		M_Ticker_Update (&mapsmenu.ticker);
+
+	M_PrintWhite (cbx, x, 8, "Levels");
+	M_DrawQuakeBar (cbx, x - 8, 16, namecols + 1);
+	M_DrawQuakeBar (cbx, x + namecols * CHARACTER_SIZE, 16, cols + 1 - namecols);
+
+	y = MAPLIST_TOP;
+
+	firstvismap = -1;
+	numvismaps = 0;
+	firstvis = mapsmenu.scroll;
+	numvis = q_min (firstvis + MAPLIST_VIEWSIZE, mapsmenu.numitems) - firstvis;
+	for (i = 0; i < numvis; i++)
+	{
+		int				 idx = i + firstvis;
+		const mapitem_t *item = &mapsmenu.items[idx];
+		const char		*message = M_Maps_GetMessage (item);
+		int				 mask = item->active ? 128 : 0;
+		qboolean		 selected = (idx == mapsmenu.cursor);
+
+		if (!item->source)
+		{
+			M_PrintWhite (cbx, x + (cols - strlen (item->name)) / 2 * CHARACTER_SIZE, y + i * CHARACTER_SIZE, item->name);
+		}
+		else
+		{
+			char buf[256];
+			if (mapsmenu.search.len > 0)
+				COM_TintSubstring (item->name, mapsmenu.search.text, buf, sizeof (buf));
+			else
+				q_strlcpy (buf, item->name, sizeof (buf));
+
+			if (firstvismap == -1)
+				firstvismap = item->mapidx;
+			numvismaps++;
+
+			for (j = 0; j < namecols - 2 && buf[j]; j++)
+				Draw_Character (cbx, x + j * CHARACTER_SIZE, y + i * CHARACTER_SIZE, buf[j] ^ mask);
+
+			if (!message || message[0])
+			{
+				if (!message) // still parsing, show a fully dotted line
+				{
+					memset (buf, '.' | 0x80, desccols);
+					buf[desccols] = '\0';
+				}
+				else if (mapsmenu.search.len > 0)
+					COM_TintSubstring (message, mapsmenu.search.text, buf, sizeof (buf));
+				else
+					q_strlcpy (buf, message, sizeof (buf));
+
+				GL_SetCanvasColor (1, 1, 1, 0.375f);
+				for (/**/; j < namecols; j++)
+					Draw_Character (cbx, x + j * CHARACTER_SIZE, y + i * CHARACTER_SIZE, '.' | mask);
+				if (message)
+					GL_SetCanvasColor (1, 1, 1, 1);
+
+				M_PrintScroll (
+					cbx, x + namecols * CHARACTER_SIZE, y + i * CHARACTER_SIZE, desccols * CHARACTER_SIZE, buf, selected ? mapsmenu.ticker.scroll_time : 0.0,
+					true);
+
+				if (!message)
+					GL_SetCanvasColor (1, 1, 1, 1);
+			}
+		}
+
+		if (selected)
+			Draw_Character (cbx, x - CHARACTER_SIZE, y + i * CHARACTER_SIZE, 12 + ((int)(realtime * 4) & 1));
+	}
+
+	str = va ("%d-%d of %d", firstvismap + 1, firstvismap + numvismaps, mapsmenu.mapcount);
+	M_Print (cbx, x + (cols - strlen (str)) * CHARACTER_SIZE, 8, str);
+
+	if (M_Maps_GetOverflow () > 0)
+	{
+		M_DrawScrollbar (
+			cbx, x + cols * CHARACTER_SIZE - CHARACTER_SIZE, y + CHARACTER_SIZE, (float)mapsmenu.scroll / (float)M_Maps_GetOverflow (), MAPLIST_VIEWSIZE - 2);
+
+		if (mapsmenu.scroll > 0)
+			M_DrawEllipsisBar (cbx, x, y - CHARACTER_SIZE, cols);
+		if (mapsmenu.scroll + MAPLIST_VIEWSIZE < mapsmenu.numitems)
+			M_DrawEllipsisBar (cbx, x, y + MAPLIST_VIEWSIZE * CHARACTER_SIZE, cols);
+	}
+
+	if (mapsmenu.search.len > 0)
+	{
+		int ofs = q_max (0, mapsmenu.search.len + 1 - namecols);
+		int cy = y + MAPLIST_VIEWSIZE * CHARACTER_SIZE + 4;
+		M_DrawTextBox (cbx, x - CHARACTER_SIZE, cy - CHARACTER_SIZE, namecols, 1);
+		for (i = ofs; i < mapsmenu.search.len; i++)
+			Draw_Character (cbx, x + (i - ofs) * CHARACTER_SIZE, cy, mapsmenu.search.text[i]);
+		Draw_Character (cbx, x + (i - ofs) * CHARACTER_SIZE, cy, 10 + ((int)(realtime * 4) & 1));
+	}
+}
+
+static qboolean M_Maps_ListKey (int key)
+{
+	qboolean overflow = M_Maps_GetOverflow () > 0;
+
+	switch (key)
+	{
+	case K_BACKSPACE:
+		if (mapsmenu.search.len)
+		{
+			if (keydown[K_CTRL])
+				M_Maps_ClearSearch ();
+			else
+			{
+				mapsmenu.search.len--;
+				mapsmenu.search.text[mapsmenu.search.len] = '\0';
+			}
+			return true;
+		}
+		return false;
+
+	case K_ESCAPE:
+	case K_BBUTTON:
+	case K_MOUSE4:
+	case K_MOUSE2:
+		if (mapsmenu.search.len)
+		{
+			M_Maps_ClearSearch ();
+			return true;
+		}
+		return false;
+
+	case K_HOME:
+	case K_KP_HOME:
+		S_LocalSound ("misc/menu1.wav");
+		if (mapsmenu.search.len)
+			M_Maps_SelectNextSearchMatch (0, 1);
+		else
+		{
+			M_Maps_SelectNextActive (0, 1, false);
+			mapsmenu.scroll = 0;
+			M_Maps_AutoScroll ();
+		}
+		return true;
+
+	case K_END:
+	case K_KP_END:
+		S_LocalSound ("misc/menu1.wav");
+		if (mapsmenu.search.len)
+			M_Maps_SelectNextSearchMatch (mapsmenu.numitems - 1, -1);
+		else
+			M_Maps_SelectNextActive (mapsmenu.numitems - 1, -1, false);
+		return true;
+
+	case K_PGDN:
+	case K_KP_PGDN:
+		S_LocalSound ("misc/menu1.wav");
+		if (mapsmenu.search.len)
+			M_Maps_SelectNextSearchMatch (mapsmenu.cursor + 1, 1);
+		else
+		{
+			qboolean sel;
+			if (mapsmenu.cursor - mapsmenu.scroll < MAPLIST_VIEWSIZE - 1)
+				sel = M_Maps_SelectNextActive (mapsmenu.scroll + MAPLIST_VIEWSIZE - 1, 1, false);
+			else
+				sel = M_Maps_SelectNextActive (mapsmenu.cursor + MAPLIST_VIEWSIZE - 1, 1, false);
+			if (!sel)
+				M_Maps_SelectNextActive (mapsmenu.numitems - 1, -1, false);
+		}
+		return true;
+
+	case K_PGUP:
+	case K_KP_PGUP:
+		S_LocalSound ("misc/menu1.wav");
+		if (mapsmenu.search.len)
+			M_Maps_SelectNextSearchMatch (mapsmenu.cursor - 1, -1);
+		else
+		{
+			qboolean sel;
+			if (mapsmenu.cursor > mapsmenu.scroll)
+				sel = M_Maps_SelectNextActive (mapsmenu.scroll, -1, false);
+			else
+				sel = M_Maps_SelectNextActive (mapsmenu.cursor - MAPLIST_VIEWSIZE + 1, -1, false);
+			if (!sel)
+				M_Maps_SelectNextActive (0, 1, false);
+		}
+		return true;
+
+	case K_UPARROW:
+	case K_KP_UPARROW:
+		S_LocalSound ("misc/menu1.wav");
+		if (mapsmenu.search.len)
+			M_Maps_SelectNextSearchMatch (mapsmenu.cursor - 1, -1);
+		else
+			M_Maps_SelectNextActive (mapsmenu.cursor - 1, -1, true);
+		return true;
+
+	case K_DOWNARROW:
+	case K_KP_DOWNARROW:
+		S_LocalSound ("misc/menu1.wav");
+		if (mapsmenu.search.len)
+			M_Maps_SelectNextSearchMatch (mapsmenu.cursor + 1, 1);
+		else
+			M_Maps_SelectNextActive (mapsmenu.cursor + 1, 1, true);
+		return true;
+
+	case K_MWHEELUP:
+		if (!overflow)
+			return false;
+		mapsmenu.scroll -= 3;
+		M_Maps_ClampScroll ();
+		M_Maps_UpdateMouseSelection ();
+		return true;
+
+	case K_MWHEELDOWN:
+		if (!overflow)
+			return false;
+		mapsmenu.scroll += 3;
+		M_Maps_ClampScroll ();
+		M_Maps_UpdateMouseSelection ();
+		return true;
+
+	default:
+		return false;
+	}
+}
+
+static void M_Maps_Key (int key)
+{
+	if (M_Maps_ListKey (key))
+		return;
+
+	if (M_Ticker_Key (&mapsmenu.ticker, key))
+		return;
+
+	switch (key)
+	{
+	case K_MOUSE2:
+	case K_ESCAPE:
+	case K_BBUTTON:
+		M_Menu_SinglePlayer_f ();
+		break;
+
+	case K_MOUSE1:
+		if (M_InScrollbar () && M_Maps_GetOverflow () > 0 && !slider_grab)
+		{
+			scrollbar_grab = true;
+			int clamped_mouse = CLAMP (scrollbar_y + 8, m_mouse_y, scrollbar_y + scrollbar_size - 8);
+			mapsmenu.scroll = (int)(((float)clamped_mouse - scrollbar_y - 8) / (scrollbar_size - 16) * M_Maps_GetOverflow () + 0.5f);
+			M_Maps_ClampScroll ();
+			M_Maps_UpdateMouseSelection ();
+			break;
+		}
+		/* fall through */
+	case K_ENTER:
+	case K_KP_ENTER:
+	case K_ABUTTON:
+		if (mapsmenu.numitems > 0 && mapsmenu.items[mapsmenu.cursor].source)
+		{
+			const char *mapname = mapsmenu.items[mapsmenu.cursor].name;
+			M_Maps_ClearSearch ();
+			m_entersound = true;
+			IN_Activate ();
+			key_dest = key_game;
+			m_state = m_none;
+			if (sv.active)
+				Cbuf_AddText ("disconnect\n");
+			Cbuf_AddText ("maxplayers 1\n");
+			Cbuf_AddText ("deathmatch 0\n");
+			Cbuf_AddText ("coop 0\n");
+			Cbuf_AddText (va ("map \"%s\"\n", mapname));
+		}
+		else
+			S_LocalSound ("misc/menu3.wav");
+		break;
+
+	default:
+		break;
+	}
+}
+
+static void M_Maps_Char (int key)
+{
+	int start;
+
+	if (mapsmenu.numitems <= 0)
+		return;
+
+	// don't allow starting with a space
+	if (mapsmenu.search.len <= 0 && key == ' ')
+		return;
+
+	if (mapsmenu.search.len >= (int)sizeof (mapsmenu.search.text) - 1)
+	{
+		S_LocalSound ("misc/menu2.wav");
+		return;
+	}
+
+	mapsmenu.search.text[mapsmenu.search.len++] = (char)key;
+	mapsmenu.search.text[mapsmenu.search.len] = '\0';
+
+	if (mapsmenu.cursor < 0)
+		mapsmenu.cursor = 0;
+
+	start = mapsmenu.cursor;
+	if (mapsmenu.search.len == 1)
+		start++;
+
+	if (!M_Maps_SelectNextSearchMatch (start, 1))
+	{
+		mapsmenu.search.len--;
+		mapsmenu.search.text[mapsmenu.search.len] = '\0';
+		S_LocalSound ("misc/menu2.wav");
+	}
+}
+
+static qboolean M_Maps_TextEntry (void)
+{
+	return true;
+}
+
+//=============================================================================
 /* QUIT MENU */
 
 static int			  msg_number;
@@ -3559,6 +4352,50 @@ static void M_ServerList_Key (int k)
 }
 
 //=============================================================================
+/* Custom gfx checks (from Ironwail) */
+
+static qboolean M_CheckCustomGfx (const char *custompath, const char *basepath, int knownlength, const unsigned int *hashes, int numhashes)
+{
+	unsigned int id_custom, id_base;
+	int			 h;
+	qfilesize_t	 length;
+	qboolean	 ret = false;
+
+	if (!COM_FileExists (custompath, &id_custom))
+		return false;
+
+	length = COM_OpenFile (basepath, &h, &id_base);
+	if (length == -1)
+		return false;
+
+	if (id_custom >= id_base)
+		ret = true;
+	else if (length == knownlength)
+	{
+		byte *data = (byte *)Mem_Alloc (length);
+		if (length == Sys_FileRead (h, data, length))
+		{
+			unsigned int hash = COM_HashBlock (data, length);
+			while (numhashes-- > 0 && !ret)
+				if (hash == *hashes++)
+					ret = true;
+		}
+		Mem_Free (data);
+	}
+
+	COM_CloseFile (h);
+
+	return ret;
+}
+
+void M_CheckMods (void)
+{
+	const unsigned int sp_hashes[] = {0x86a6f086};
+
+	m_singleplayer_showlevels = M_CheckCustomGfx ("gfx/sp_maps.lmp", "gfx/sp_menu.lmp", 14856, sp_hashes, countof (sp_hashes));
+}
+
+//=============================================================================
 /* Credits menu -- used by the 2021 re-release */
 
 static void M_Menu_Credits_f (void) {}
@@ -3574,6 +4411,7 @@ void M_Init (void)
 	Cmd_AddCommand ("menu_singleplayer", M_Menu_SinglePlayer_f);
 	Cmd_AddCommand ("menu_load", M_Menu_Load_f);
 	Cmd_AddCommand ("menu_save", M_Menu_Save_f);
+	Cmd_AddCommand ("menu_maps", M_Menu_Maps_Cmd_f);
 	Cmd_AddCommand ("menu_multiplayer", M_Menu_MultiPlayer_f);
 	Cmd_AddCommand ("menu_setup", M_Menu_Setup_f);
 	Cmd_AddCommand ("menu_options", M_Menu_Options_f);
@@ -3587,6 +4425,8 @@ void M_Init (void)
 void M_NewGame (void)
 {
 	m_main_cursor = 0;
+	if (m_state == m_maps) // the map list is about to be rebuilt
+		m_state = m_main;
 }
 
 void M_UpdateMouse (void)
@@ -3723,6 +4563,10 @@ void M_Draw (cb_context_t *cbx)
 		M_Mods_Draw (cbx);
 		break;
 
+	case m_maps:
+		M_Maps_Draw (cbx);
+		break;
+
 	case m_quit:
 		if (!fitzmode)
 		{ /* QuakeSpasm customization: */
@@ -3812,6 +4656,10 @@ void M_Keydown (int key)
 		M_Mods_Key (key);
 		break;
 
+	case m_maps:
+		M_Maps_Key (key);
+		break;
+
 	case m_keys:
 		M_Keys_Key (key);
 		return;
@@ -3857,6 +4705,9 @@ void M_Charinput (int key)
 	case m_setup:
 		M_Setup_Char (key);
 		return;
+	case m_maps:
+		M_Maps_Char (key);
+		return;
 	case m_quit:
 		M_Quit_Char (key);
 		return;
@@ -3874,6 +4725,8 @@ qboolean M_TextEntry (void)
 	{
 	case m_setup:
 		return M_Setup_TextEntry ();
+	case m_maps:
+		return M_Maps_TextEntry ();
 	case m_quit:
 		return M_Quit_TextEntry ();
 	case m_lanconfig:
