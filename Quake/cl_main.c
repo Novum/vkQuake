@@ -509,7 +509,7 @@ static qboolean CL_LerpEntity (entity_t *ent, vec3_t org, vec3_t ang, float frac
 		a = f;
 
 		// johnfitz -- don't cl_lerp entities that will be r_lerped
-		if (r_lerpmove.value && (ent->lerpflags & LERP_MOVESTEP))
+		if (r_lerpmove.value && ent->lerp.movestep)
 		{
 			f = 1;
 
@@ -652,6 +652,7 @@ void CL_RelinkEntities (void)
 	dlight_t *dl;
 	float	  frametime;
 	int		  modelflags;
+	qboolean  teleported;
 
 	// determine partial update time
 	frac = CL_LerpPoint ();
@@ -714,18 +715,24 @@ void CL_RelinkEntities (void)
 		{
 			ent->model = NULL;
 			R_FreeEntityBLAS (ent);
-			ent->lerpflags |= LERP_RESETMOVE | LERP_RESETANIM; // johnfitz -- next time this entity slot is reused, the lerp will need to be reset
 			InvalidateTraceLineCache ();
 			continue;
 		}
 
 		VectorCopy (ent->origin, oldorg);
 
-		if (CL_LerpEntity (ent, ent->origin, ent->angles, frac))
-			ent->lerpflags |= LERP_RESETMOVE;
+		teleported = CL_LerpEntity (ent, ent->origin, ent->angles, frac);
 
 		if (cl.time < cl.oldtime)
-			ent->lerpflags |= LERP_RESETMOVE | LERP_RESETANIM;
+		{
+			// time ran backwards (demo jump): show current state without lerping
+			ent->lerp.prev_frame = ent->frame;
+			ent->lerp.frame_change_time = 0;
+			ent->lerp.snap_frames = 0;
+			VectorCopy (ent->msg_origins[0], ent->lerp.prev_origin);
+			VectorCopy (ent->msg_angles[0], ent->lerp.prev_angles);
+			ent->lerp.move_change_time = 0;
+		}
 
 		if (ent->netstate.tagentity)
 			if (!CL_AttachEntity (ent, frac))
@@ -737,7 +744,7 @@ void CL_RelinkEntities (void)
 		modelflags = (ent->effects >> 24) & 0xff;
 		modelflags |= ent->model->flags;
 
-		if (ent->forcelink || ent->lerpflags & LERP_RESETMOVE)
+		if (ent->forcelink || teleported)
 			CL_ResetTrail (ent);
 
 		// rotate binary objects locally
@@ -761,13 +768,32 @@ void CL_RelinkEntities (void)
 			dl->minlight = 32;
 			dl->die = cl.time + 0.1;
 
-			// johnfitz -- assume muzzle flash accompanied by muzzle flare, which looks bad when lerped
+			// johnfitz -- assume muzzle flash accompanied by muzzle flare, which looks bad when lerped:
+			// snap the transition into the flash frame and the one out of it
 			if (r_lerpmodels.value != 2)
 			{
 				if (ent == &cl.entities[cl.viewentity])
-					cl.viewent.lerpflags |= LERP_RESETANIM | LERP_RESETANIM2; // no lerping for two frames
+				{
+					// viewent frame changes are detected later in V_CalcRefdef, so the
+					// transitions into and out of the flash frame both consume the counter.
+					// effects keeps the flash bit until the next update overwrites it and
+					// relink runs per render frame, so arm only once per server update
+					if (cl.viewent.lerp.snap_msgtime != ent->msgtime)
+					{
+						cl.viewent.lerp.prev_frame = cl.viewent.frame;
+						cl.viewent.lerp.frame_change_time = 0;
+						cl.viewent.lerp.snap_frames = 2;
+						cl.viewent.lerp.snap_msgtime = ent->msgtime;
+					}
+				}
 				else
-					ent->lerpflags |= LERP_RESETANIM | LERP_RESETANIM2; // no lerping for two frames
+				{
+					// the flash frame arrived in the same packet and was already recorded
+					// at parse; snap it retroactively, the counter covers the change out
+					ent->lerp.prev_frame = ent->frame;
+					ent->lerp.frame_change_time = 0;
+					ent->lerp.snap_frames = 1;
+				}
 			}
 			// johnfitz
 		}
@@ -902,26 +928,10 @@ void CL_RelinkEntities (void)
 			R_AllocateEntityBLAS (ent);
 			cl_visedicts[cl_numvisedicts] = ent;
 			cl_numvisedicts++;
-			// Update animation state for alias models
-			if (ent->model && ent->model->type == mod_alias)
-			{
-				aliashdr_t *hdr = (aliashdr_t *)Mod_Extradata (ent->model);
-				if (hdr)
-					R_UpdateEntityAnimState (ent, hdr);
-				R_UpdateEntityMoveState (ent);
-			}
 		}
 	}
 
 	R_UpdateEntityDlights (); // 2021 rerelease shadow casting light entities
-
-	// johnfitz -- lerping
-	// ericw -- this was done before the upper 8 bits of cl.stats[STAT_WEAPON] were filled in, breaking on large maps like zendar.bsp
-	if (cl.viewent.model != cl.model_precache[cl.stats[STAT_WEAPON]])
-	{
-		cl.viewent.lerpflags |= LERP_RESETANIM; // don't lerp animation across model changes
-	}
-	// johnfitz
 }
 
 #ifdef PSET_SCRIPT

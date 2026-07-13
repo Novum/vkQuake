@@ -48,14 +48,6 @@ typedef struct lightcache_s
 	short  dt;
 } lightcache_t;
 
-// johnfitz -- for lerping
-#define LERP_MOVESTEP	(1 << 0) // this is a MOVETYPE_STEP entity, enable movement lerp
-#define LERP_RESETANIM	(1 << 1) // disable anim lerping until next anim frame
-#define LERP_RESETANIM2 (1 << 2) // set this and previous flag to disable anim lerping for two anim frames
-#define LERP_RESETMOVE	(1 << 3) // disable movement lerping until next origin/angles change
-#define LERP_FINISH		(1 << 4) // use lerpfinish time from server update instead of assuming interval of 0.1
-// johnfitz
-
 // Separate allocation for RT BLAS state (hot/cold split for cache efficiency)
 typedef struct entity_blas_s
 {
@@ -69,9 +61,26 @@ typedef struct entity_blas_s
 	qboolean				   needs_initial_build;
 } entity_blas_t;
 
+// Entity interpolation state. Written only by the parse layer (view.c for the
+// view weapon), read by the renderer. Change times are server (message) times.
+typedef struct entlerp_s
+{
+	qboolean movestep;			// this is a MOVETYPE_STEP entity, enable movement lerp
+	int		 prev_frame;		// frame before the current e->frame; equal to e->frame when the transition must not be lerped
+	double	 frame_change_time; // server time the current frame took effect; 0 = show current frame without lerping
+	double	 frame_duration;	// duration of the current frame transition, frozen when the change was recorded
+	double	 frame_finish_time; // latest server hint (U_LERPFINISH) for the next frame change; becomes the duration of the next transition
+	int		 snap_frames;		// pending frame changes to show without lerping (muzzleflash)
+	double	 snap_msgtime;		// server time of the update that armed snap_frames, to arm once per update
+	vec3_t	 prev_origin;		// origin/angles before msg_origins[0]/msg_angles[0]; shifted only when they change
+	vec3_t	 prev_angles;
+	double	 move_change_time; // server time msg_origins[0]/msg_angles[0] took effect; 0 = don't lerp movement
+	double	 move_duration;	   // duration of the current movement transition, frozen when the change was recorded
+} entlerp_t;
+
 typedef struct entity_s
 {
-	qboolean forcelink; // model changed
+	qboolean forcelink; // no previous update to lerp from, snap to the new state
 
 	int update_type;
 
@@ -101,20 +110,9 @@ typedef struct entity_s
 							 //  that splits bmodel, or NULL if
 							 //  not split
 
-	byte   eflags;		 // spike -- mostly a mirror of netstate, but handles tag inheritance (eww!)
-	byte   alpha;		 // johnfitz -- alpha
-	byte   lerpflags;	 // johnfitz -- lerping
-	float  lerpstart;	 // johnfitz -- animation lerping
-	float  lerptime;	 // johnfitz -- animation lerping
-	float  lerpfinish;	 // johnfitz -- lerping -- server sent us a more accurate interval, use it instead of 0.1
-	short  previouspose; // johnfitz -- animation lerping
-	short  currentpose;	 // johnfitz -- animation lerping
-	//	short					futurepose;		//johnfitz -- animation lerping
-	float  movelerpstart;  // johnfitz -- transform lerping
-	vec3_t previousorigin; // johnfitz -- transform lerping
-	vec3_t currentorigin;  // johnfitz -- transform lerping
-	vec3_t previousangles; // johnfitz -- transform lerping
-	vec3_t currentangles;  // johnfitz -- transform lerping
+	byte	  eflags; // spike -- mostly a mirror of netstate, but handles tag inheritance (eww!)
+	byte	  alpha;  // johnfitz -- alpha
+	entlerp_t lerp;
 
 #ifdef PSET_SCRIPT
 	struct trailstate_s *trailstate; // spike -- managed by the particle system, so we don't loose our position and spawn the wrong number of particles, and we

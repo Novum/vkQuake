@@ -1023,7 +1023,7 @@ static void _Host_Frame (double time)
 				}
 				else
 				{
-					host_frametime = q_max (accumtime, host_netinterval);
+					host_frametime = host_netinterval;
 				}
 			}
 			else

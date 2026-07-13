@@ -786,16 +786,33 @@ void V_CalcRefdef (void)
 			view->origin[2] += 0.5;
 	}
 
-	if (ent->lerpflags & LERP_FINISH)
+	view->lerp.frame_finish_time = ent->lerp.frame_finish_time;
+
+	// the weapon's frames come from stats, so its change detection lives here
+	// ericw -- model check is done after the upper 8 bits of cl.stats[STAT_WEAPON] are filled in (broke on large maps like zendar.bsp)
+	if (view->model != cl.model_precache[cl.stats[STAT_WEAPON]])
 	{
-		view->lerpflags |= LERP_FINISH;
-		view->lerpfinish = ent->lerpfinish;
+		// don't lerp animation across model changes
+		view->frame = cl.stats[STAT_WEAPONFRAME];
+		view->lerp.prev_frame = view->frame;
+		view->lerp.frame_change_time = 0;
+		view->lerp.snap_frames = 0;
 	}
-	else
-		view->lerpflags &= ~LERP_FINISH;
+	else if (view->frame != cl.stats[STAT_WEAPONFRAME])
+	{
+		if (view->lerp.snap_frames > 0)
+		{
+			view->lerp.snap_frames--;
+			view->lerp.prev_frame = cl.stats[STAT_WEAPONFRAME];
+		}
+		else
+			view->lerp.prev_frame = view->frame;
+		view->frame = cl.stats[STAT_WEAPONFRAME];
+		view->lerp.frame_change_time = cl.mtime[0];
+		view->lerp.frame_duration = (view->lerp.frame_finish_time > cl.mtime[0]) ? view->lerp.frame_finish_time - cl.mtime[0] : 0.1;
+	}
 
 	view->model = cl.model_precache[cl.stats[STAT_WEAPON]];
-	view->frame = cl.stats[STAT_WEAPONFRAME];
 	view->netstate.colormap = 0;
 
 	// johnfitz -- v_gunkick
