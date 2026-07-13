@@ -6,14 +6,17 @@
 
 layout (push_constant) uniform PushConsts
 {
-	uint num_dlights;
-	uint lightmap_width;
-	uint x_workgroup_offset;
-	uint y_workgroup_offset;
-	bool dlights_only;
-	uint num_cached_dlights;
-	uint submodel_transforms_offset;
-	uint prev_submodel_transforms_offset;
+	uint  num_dlights;
+	uint  lightmap_width;
+	uint  x_workgroup_offset;
+	uint  y_workgroup_offset;
+	bool  dlights_only;
+	uint  num_cached_dlights;
+	uint  submodel_transforms_offset;
+	uint  prev_submodel_transforms_offset;
+	float view_pos_x;
+	float view_pos_y;
+	float view_pos_z;
 #ifdef RAY_QUERIES
 	uint shadow_samples;
 #endif
@@ -271,6 +274,11 @@ void main ()
 			normal = normalize (vec3 (dot (row0.xyz, normal), dot (row1.xyz, normal), dot (row2.xyz, normal)));
 		}
 
+		// texels on surfaces facing away from the camera can't be rasterized this frame, write base
+		// light only; the update runs before rendering, so they are re-lit with dlights on the same
+		// frame the camera turns back to them
+		const vec3 view_pos = vec3 (push_constants.view_pos_x, push_constants.view_pos_y, push_constants.view_pos_z);
+		if (dot (view_pos - world_pos, normal) > 0.0f)
 		for (uint light_mask_index = 0; light_mask_index < LIGHT_MASK_SIZE; ++light_mask_index)
 		{
 			uint mask = light_mask[light_mask_index];
@@ -307,26 +315,6 @@ void main ()
 					}
 				}
 
-				float occlusion = 1.0f;
-#ifdef RAY_QUERIES
-				// R2 sequence constants (based on plastic constant φ₂)
-				const float R2_ALPHA1 = 0.7548776662466927;
-				const float R2_ALPHA2 = 0.5698402909980532;
-
-				// Per-texel offset breaks coherence between adjacent texels
-				const vec2 texel_offset = fract (vec2 (coords) * vec2 (R2_ALPHA1, R2_ALPHA2));
-
-				for (int i = 0; i < push_constants.shadow_samples; ++i)
-				{
-					const vec2	sample_offset = fract (texel_offset + float (i) * vec2 (R2_ALPHA1, R2_ALPHA2));
-					const vec3	pos = world_pos + (sample_offset.x * tangent) + (sample_offset.y * bitangent);
-					const vec3	light_vec = pos - light.origin;
-					const float light_dist = length (light_vec);
-					if (IsOccluded (light.origin, normalize (light_vec), light_dist - 1e-2f))
-						occlusion -= 1.0f / float (push_constants.shadow_samples);
-				}
-#endif
-
 				float brightness;
 				if (kex_light)
 				{
@@ -341,6 +329,31 @@ void main ()
 				}
 				else
 					brightness = (light.radius - dist) / 256.0f;
+
+				// below half a lightmap quantization step the contribution is invisible,
+				// skip the shadow rays (in particular for texels facing away from the light)
+				if ((brightness * cone_scale) < (1.0f / 512.0f))
+					continue;
+
+				float occlusion = 1.0f;
+#ifdef RAY_QUERIES
+				// R2 sequence constants (based on plastic constant φ₂)
+				const float R2_ALPHA1 = 0.7548776662466927;
+				const float R2_ALPHA2 = 0.5698402909980532;
+
+				// Per-texel offset breaks coherence between adjacent texels
+				const vec2 texel_offset = fract (vec2 (coords) * vec2 (R2_ALPHA1, R2_ALPHA2));
+
+				for (uint i = 0; i < push_constants.shadow_samples; ++i)
+				{
+					const vec2	sample_offset = fract (texel_offset + float (i) * vec2 (R2_ALPHA1, R2_ALPHA2));
+					const vec3	pos = world_pos + (sample_offset.x * tangent) + (sample_offset.y * bitangent);
+					const vec3	light_vec = pos - light.origin;
+					const float light_dist = length (light_vec);
+					if (IsOccluded (light.origin, normalize (light_vec), light_dist - 1e-2f))
+						occlusion -= 1.0f / float (push_constants.shadow_samples);
+				}
+#endif
 				light_accumulated.xyz += brightness * cone_scale * max (occlusion, 0.0f) * light.color;
 			}
 		}

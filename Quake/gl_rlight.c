@@ -416,8 +416,10 @@ R_UpdateEntityDlights -- called every frame, keeps the parsed entity dlights ali
 void R_UpdateEntityDlights (void)
 {
 	// KEX ties these lights to its shadow system (r_staticshadows 0 removes them
-	// entirely), so require the ray traced occlusion path here as well
-	if (!vulkan_globals.ray_query || !r_rtshadows.value || !r_gpulightmapupdate.value)
+	// entirely), so require the ray traced occlusion path here as well. They light
+	// whole rooms that get retraced every frame, which is much more expensive than
+	// the transient dlights, so r_rtshadows 1 (low) leaves them off
+	if (!vulkan_globals.ray_query || (r_rtshadows.value < 2.0f) || !r_gpulightmapupdate.value)
 		return;
 
 	for (int i = 0; i < num_entity_dlights; i++)

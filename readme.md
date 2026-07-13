@@ -11,7 +11,7 @@ Improvements over QuakeSpasm include:
 * When both Classic and Enhanced versions of models exist, display one or other kind using the Models menu option.
 * True color skins support (`.png`, `.tga`, `.jpg`) for MD3/MD5 models, including fullbrights (from QSS)
 * Dynamic shadows (requires a GPU with ray tracing support)
-* Dynamic lights, using 2021 rerelease `dynamiclight` entities (requires a GPU with ray tracing support)
+* Dynamic lights, using 2021 rerelease `dynamiclight` entities (requires a GPU with ray tracing support and "Dynamic Shadows" set to medium or higher)
 * Better color precision reducing banding in dark areas
 * Native support for anti aliasing and anisotropic filtering
 * 8-bit color emulation

@@ -3283,7 +3283,7 @@ void R_FlushUpdateLightmaps (
 							lightmap_regions[j][y + h][i] = false;
 						h += 1;
 					}
-					uint32_t push_constants[9] = {
+					uint32_t push_constants[12] = {
 						current_dlights,
 						LMBLOCK_WIDTH,
 						x * LM_CULL_BLOCK_W / 8,
@@ -3292,12 +3292,13 @@ void R_FlushUpdateLightmaps (
 						cached_dlights,
 						current_compute_buffer_index * MAX_MODELS,
 						(1 - current_compute_buffer_index) * MAX_MODELS};
-					int push_size = 8 * sizeof (uint32_t);
+					memcpy (&push_constants[8], r_refdef.vieworg, 3 * sizeof (float));
+					int push_size = 11 * sizeof (uint32_t);
 					if (pipeline == &vulkan_globals.update_lightmap_rt_pipeline)
 					{
 						uint32_t shadow_samples = 1 << ((int)r_rtshadows.value + 1);
-						push_constants[8] = shadow_samples;
-						push_size = 9 * sizeof (uint32_t);
+						push_constants[11] = shadow_samples;
+						push_size = 12 * sizeof (uint32_t);
 					}
 					R_PushConstants (cbx, VK_SHADER_STAGE_COMPUTE_BIT, 0, push_size, push_constants);
 					w = q_min (lightmaps[lightmap_indexes[j]].lightstyle_rectused[0].w / 8 - x * LM_CULL_BLOCK_W / 8, w * LM_CULL_BLOCK_W / 8);
