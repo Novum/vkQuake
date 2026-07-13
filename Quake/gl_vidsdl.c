@@ -141,6 +141,8 @@ static VkCommandBuffer	primary_command_buffers[PCBX_NUM][DOUBLE_BUFFERED];
 static VkCommandBuffer *secondary_command_buffers[SCBX_NUM][DOUBLE_BUFFERED];
 static VkFence			command_buffer_fences[DOUBLE_BUFFERED];
 static qboolean			frame_submitted[DOUBLE_BUFFERED];
+static VkQueryPool		timestamp_query_pool;
+static qboolean			timestamps_written[DOUBLE_BUFFERED];
 static VkFramebuffer	main_framebuffers[NUM_COLOR_BUFFERS];
 static VkSemaphore		image_aquired_semaphores[DOUBLE_BUFFERED];
 static VkSemaphore		draw_complete_semaphores[MAX_SWAP_CHAIN_IMAGES];
@@ -1529,6 +1531,19 @@ static void GL_InitCommandBuffers (void)
 		err = vkCreateFence (vulkan_globals.device, &fence_create_info, NULL, &command_buffer_fences[i]);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkCreateFence failed with code %i", (int)err);
+	}
+
+	// GPU frame time for scr_speeds
+	if ((timestamp_query_pool == VK_NULL_HANDLE) && vulkan_globals.device_properties.limits.timestampComputeAndGraphics &&
+		(vulkan_globals.device_properties.limits.timestampPeriod > 0.0f))
+	{
+		ZEROED_STRUCT (VkQueryPoolCreateInfo, query_pool_create_info);
+		query_pool_create_info.sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO;
+		query_pool_create_info.queryType = VK_QUERY_TYPE_TIMESTAMP;
+		query_pool_create_info.queryCount = 2 * DOUBLE_BUFFERED;
+		err = vkCreateQueryPool (vulkan_globals.device, &query_pool_create_info, NULL, &timestamp_query_pool);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreateQueryPool failed with code %i", (int)err);
 	}
 }
 
@@ -3252,14 +3267,26 @@ void GL_BeginRenderingTask (void *unused)
 
 	if (frame_submitted[current_cb_index])
 	{
+		const double wait_start = Sys_DoubleTime ();
 		err = vkWaitForFences (vulkan_globals.device, 1, &command_buffer_fences[current_cb_index], VK_TRUE, UINT64_MAX);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkWaitForFences failed with code %i", (int)err);
+		rs_gpuwaitaccum_us += (uint32_t)((Sys_DoubleTime () - wait_start) * 1000000.0);
 	}
 
 	err = vkResetFences (vulkan_globals.device, 1, &command_buffer_fences[current_cb_index]);
 	if (err != VK_SUCCESS)
 		Sys_Error ("vkResetFences failed with code %i", (int)err);
+
+	// the fence wait above guarantees the timestamps of the submission that used this slot are available
+	if ((timestamp_query_pool != VK_NULL_HANDLE) && timestamps_written[current_cb_index])
+	{
+		uint64_t timestamps[2];
+		if (vkGetQueryPoolResults (
+				vulkan_globals.device, timestamp_query_pool, current_cb_index * 2, 2, sizeof (timestamps), timestamps, sizeof (uint64_t),
+				VK_QUERY_RESULT_64_BIT) == VK_SUCCESS)
+			rs_gputime_us = (uint32_t)((double)(timestamps[1] - timestamps[0]) * (double)vulkan_globals.device_properties.limits.timestampPeriod / 1000.0);
+	}
 
 	R_CollectDynamicBufferGarbage ();
 	R_CollectMeshBufferGarbage ();
@@ -3282,6 +3309,13 @@ void GL_BeginRenderingTask (void *unused)
 			Sys_Error ("vkBeginCommandBuffer failed with code %i", (int)err);
 
 		R_BeginDebugUtilsLabel (cbx, "Primary CB");
+	}
+
+	if (timestamp_query_pool != VK_NULL_HANDLE)
+	{
+		VkCommandBuffer first_cb = vulkan_globals.primary_cb_contexts[0].cb;
+		vkCmdResetQueryPool (first_cb, timestamp_query_pool, current_cb_index * 2, 2);
+		vkCmdWriteTimestamp (first_cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, timestamp_query_pool, current_cb_index * 2);
 	}
 
 	for (int scbx_index = 0; scbx_index < SCBX_NUM; ++scbx_index)
@@ -3936,6 +3970,7 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 	render_area.extent.width = parms->vid_width;
 	render_area.extent.height = parms->vid_height;
 
+	const double display_wait_start = Sys_DoubleTime ();
 #if defined(VK_KHR_present_wait2)
 	// cap the number of frames queued for display: DXGI layered swapchains force 3+ images, so
 	// under FIFO the acquire alone lets the CPU run several vblanks ahead of scan out
@@ -3951,6 +3986,7 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 #endif
 
 	qboolean swapchain_acquired = parms->swapchain && GL_AcquireNextSwapChainImage ();
+	rs_gpuwaitaccum_us += (uint32_t)((Sys_DoubleTime () - display_wait_start) * 1000000.0);
 	if (swapchain_acquired == true)
 	{
 		cb_context_t *cbx = vulkan_globals.secondary_cb_contexts[SCBX_POST_PROCESS];
@@ -4085,6 +4121,12 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 	if (take_screenshot)
 	{
 		ScheduleScreenshotCopy (render_passes_cb, &screenshot_buffer, &screenshot_memory);
+	}
+
+	if (timestamp_query_pool != VK_NULL_HANDLE)
+	{
+		vkCmdWriteTimestamp (render_passes_cb, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, timestamp_query_pool, (cb_index * 2) + 1);
+		timestamps_written[cb_index] = true;
 	}
 
 	{

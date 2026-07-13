@@ -651,6 +651,25 @@ static void SCR_DrawFPS (cb_context_t *cbx)
 
 /*
 ==============
+SCR_DrawSpeeds -- scr_speeds overlay in the top right corner
+==============
+*/
+static void SCR_DrawSpeeds (cb_context_t *cbx)
+{
+	if (!scr_speeds.value || (rs_display_numlines == 0) || (scr_viewsize.value >= 130))
+		return;
+
+	GL_SetCanvas (cbx, CANVAS_TOPRIGHT);
+	int y = 0;
+	for (int i = 0; i < rs_display_numlines; i++)
+	{
+		Draw_String (cbx, 320 - ((int)strlen (rs_display_lines[i]) << 3), y, rs_display_lines[i]);
+		y += CHARACTER_SIZE;
+	}
+}
+
+/*
+==============
 SCR_DrawClock -- johnfitz
 ==============
 */
@@ -1156,7 +1175,8 @@ static void SCR_DrawGUI (void *unused)
 		Sbar_Draw (cbx);
 		SCR_DrawDevStats (cbx); // johnfitz
 		SCR_DrawFPS (cbx);		// johnfitz
-		SCR_DrawClock (cbx);	// johnfitz
+		SCR_DrawSpeeds (cbx);
+		SCR_DrawClock (cbx); // johnfitz
 		SCR_DrawConsole (cbx);
 		M_Draw (cbx);
 	}
@@ -1185,6 +1205,11 @@ SCR_DrawDone
 */
 static void SCR_DrawDone (void *unused)
 {
+	if (scr_speeds.value)
+		rs_cputime_us = (uint32_t)((Sys_DoubleTime () - rs_frame_starttime) * 1000000.0);
+	// end_rendering depends on draw_done, so this can't lose a wait from the current frame
+	rs_gpuwaittime_us = rs_gpuwaitaccum_us;
+	rs_gpuwaitaccum_us = 0;
 	r_framecount++;
 }
 

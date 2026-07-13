@@ -36,6 +36,11 @@ int		 render_scale;
 // johnfitz -- rendering statistics
 atomic_uint32_t rs_brushpolys, rs_aliaspolys, rs_skypolys, rs_particles, rs_fogpolys;
 atomic_uint32_t rs_dynamiclightmaps, rs_brushpasses, rs_aliaspasses;
+uint32_t		rs_cputime_us, rs_gputime_us;
+uint32_t		rs_gpuwaittime_us, rs_gpuwaitaccum_us;
+double			rs_frame_starttime;
+char			rs_display_lines[3][40];
+int				rs_display_numlines;
 
 //
 // view origin
@@ -58,7 +63,7 @@ int d_lightstylevalue[MAX_LIGHTSTYLES]; // 8.8 fraction of base light value
 
 cvar_t r_drawentities = {"r_drawentities", "1", CVAR_NONE};
 cvar_t r_drawviewmodel = {"r_drawviewmodel", "1", CVAR_NONE};
-cvar_t r_speeds = {"r_speeds", "0", CVAR_NONE};
+cvar_t scr_speeds = {"scr_speeds", "0", CVAR_NONE};
 cvar_t r_pos = {"r_pos", "0", CVAR_NONE};
 cvar_t r_fullbright = {"r_fullbright", "0", CVAR_NONE};
 cvar_t r_lightmap = {"r_lightmap", "0", CVAR_NONE};
@@ -1054,25 +1059,36 @@ static void R_DrawViewModelTask (void *unused)
 R_PrintStats
 ================
 */
-static void R_PrintStats (double time1)
+static void R_PrintStats (void)
 {
-	// johnfitz -- modified r_speeds output
-	double time2 = 0;
-	double lms = r_gpulightmapupdate.value
-					 ? (double)Atomic_LoadUInt32 (&rs_dynamiclightmaps) / (LMBLOCK_HEIGHT / LM_CULL_BLOCK_H * LMBLOCK_WIDTH / LM_CULL_BLOCK_W)
-					 : Atomic_LoadUInt32 (&rs_dynamiclightmaps);
-	if (r_speeds.value)
-		time2 = Sys_DoubleTime ();
+	// johnfitz -- modified scr_speeds output
+	double		 lms = r_gpulightmapupdate.value
+						   ? (double)Atomic_LoadUInt32 (&rs_dynamiclightmaps) / (LMBLOCK_HEIGHT / LM_CULL_BLOCK_H * LMBLOCK_WIDTH / LM_CULL_BLOCK_W)
+						   : Atomic_LoadUInt32 (&rs_dynamiclightmaps);
+	const double cpu_ms = (double)rs_cputime_us / 1000.0;
+	const double gpu_ms = (double)rs_gputime_us / 1000.0;
+	const double gpu_wait_ms = (double)rs_gpuwaittime_us / 1000.0;
+	rs_display_numlines = 0;
 	if (r_pos.value)
 		Con_Printf (
 			"x %i y %i z %i (pitch %i yaw %i roll %i)\n", (int)cl.entities[cl.viewentity].origin[0], (int)cl.entities[cl.viewentity].origin[1],
 			(int)cl.entities[cl.viewentity].origin[2], (int)cl.viewangles[PITCH], (int)cl.viewangles[YAW], (int)cl.viewangles[ROLL]);
-	else if (r_speeds.value == 2)
-		Con_Printf (
-			"%6.3f ms  %4u/%4u wpoly %4u/%4u epoly %5.3g lmap %4u skypoly\n", (time2 - time1) * 1000.0, rs_brushpolys, rs_brushpasses, rs_aliaspolys,
-			rs_aliaspasses, lms, rs_skypolys);
-	else if (r_speeds.value)
-		Con_Printf ("%3i ms  %4i wpoly %4i epoly %5.3g lmap\n", (int)((time2 - time1) * 1000), rs_brushpolys, rs_aliaspolys, lms);
+	else if (scr_speeds.value)
+	{
+		q_snprintf (rs_display_lines[0], sizeof (rs_display_lines[0]), "cpu%6.2f gpu%6.2f wait%6.2f ms", cpu_ms, gpu_ms, gpu_wait_ms);
+		if (scr_speeds.value == 2)
+		{
+			q_snprintf (
+				rs_display_lines[1], sizeof (rs_display_lines[1]), "%4u/%u wpoly %4u/%u epoly", rs_brushpolys, rs_brushpasses, rs_aliaspolys, rs_aliaspasses);
+			q_snprintf (rs_display_lines[2], sizeof (rs_display_lines[2]), "%5.3g lmap %4u skypoly", lms, rs_skypolys);
+			rs_display_numlines = 3;
+		}
+		else
+		{
+			q_snprintf (rs_display_lines[1], sizeof (rs_display_lines[1]), "%4u wpoly %4u epoly %5.3g lmap", rs_brushpolys, rs_aliaspolys, lms);
+			rs_display_numlines = 2;
+		}
+	}
 	// johnfitz
 }
 
@@ -1084,21 +1100,19 @@ R_RenderView
 void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_handle_t setup_frame_task, task_handle_t draw_done_task)
 {
 	static qboolean stats_ready;
-	double			time1;
 
-	indirect = r_indirect.value && indirect_ready && r_gpulightmapupdate.value && !r_speeds.value;
+	indirect = r_indirect.value && indirect_ready && r_gpulightmapupdate.value && !scr_speeds.value;
 
 	if (!cl.worldmodel)
 		Sys_Error ("R_RenderView: NULL worldmodel");
 
-	time1 = 0; /* avoid compiler warning */
-	if (r_speeds.value)
-		time1 = Sys_DoubleTime ();
+	if (scr_speeds.value)
+		rs_frame_starttime = Sys_DoubleTime ();
 
 	if (use_tasks && (r_pos.value || stats_ready))
-		R_PrintStats (time1); // time2 will be ~= time1
+		R_PrintStats (); // stats and frame times of the last completed frame
 
-	if (r_speeds.value)
+	if (scr_speeds.value)
 	{
 		// johnfitz -- rendering statistics
 		Atomic_StoreUInt32 (&rs_brushpolys, 0u);
@@ -1271,6 +1285,6 @@ void R_RenderView (qboolean use_tasks, task_handle_t begin_rendering_task, task_
 			R_BuildTopLevelAccelerationStructure (NULL);
 			R_UpdateLightmapsAndIndirect (NULL);
 		}
-		R_PrintStats (time1);
+		R_PrintStats ();
 	}
 }

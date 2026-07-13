@@ -553,7 +553,7 @@ extern int		d_lightstylevalue[MAX_LIGHTSTYLES]; // 8.8 fraction of base light va
 extern cvar_t r_drawentities;
 extern cvar_t r_drawworld;
 extern cvar_t r_drawviewmodel;
-extern cvar_t r_speeds;
+extern cvar_t scr_speeds;
 extern cvar_t r_pos;
 extern cvar_t r_waterwarp;
 extern cvar_t r_fullbright;
@@ -577,6 +577,13 @@ extern cvar_t gl_nocolors;
 // johnfitz -- rendering statistics
 extern atomic_uint32_t rs_brushpolys, rs_aliaspolys, rs_skypolys, rs_particles, rs_fogpolys;
 extern atomic_uint32_t rs_dynamiclightmaps, rs_brushpasses, rs_aliaspasses;
+// scr_speeds frame times: all accesses are ordered by the task graph (draw_done -> end_rendering -> begin_rendering -> draw_done)
+extern uint32_t		   rs_cputime_us, rs_gputime_us;
+extern uint32_t		   rs_gpuwaittime_us; // time the CPU spent blocked on the GPU during the last completed frame
+extern uint32_t		   rs_gpuwaitaccum_us;
+extern double		   rs_frame_starttime;
+extern char			   rs_display_lines[3][40]; // scr_speeds on screen overlay, updated from the counters once per frame
+extern int			   rs_display_numlines;
 
 extern atomic_uint64_t total_device_vulkan_allocation_size;
 extern atomic_uint64_t total_host_vulkan_allocation_size;

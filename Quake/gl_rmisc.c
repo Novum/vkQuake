@@ -4034,7 +4034,7 @@ void R_Init (void)
 	R_SIMD_f (&r_simd);
 #endif
 	Cvar_RegisterVariable (&r_alphasort);
-	Cvar_RegisterVariable (&r_speeds);
+	Cvar_RegisterVariable (&scr_speeds);
 	Cvar_RegisterVariable (&r_pos);
 	Cvar_RegisterVariable (&gl_polyblend);
 	Cvar_RegisterVariable (&gl_nocolors);
