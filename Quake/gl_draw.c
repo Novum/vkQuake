@@ -206,15 +206,28 @@ qpic_t *Draw_PicFromWad2 (const char *name, unsigned int texflags)
 	p = (qpic_t *)W_GetLumpName (name, &info);
 	if (!p)
 	{
-		Con_DPrintf ("W_GetLumpName: %s not found\n", name);
+		Con_Warning ("W_GetLumpName: %s not found\n", name);
 		return pic_nul; // johnfitz
 	}
 	if (info->type != TYP_QPIC)
-		Sys_Error ("Draw_PicFromWad: lump \"%s\" is not a qpic", name);
+	{
+		// can be another format that QPIC (.lmp), ex. png, tga, jpg, pcx , this is not an error at that point
+		Con_DPrintf ("Draw_PicFromWad: lump \"%s\" is not a qpic\n", name);
+		return pic_nul; // johnfitz
+	}
+
+	// We have TYP_QPIC, check its basic characteristics:
 	if (info->size < (int)(sizeof (int) * 2) || sizeof (int) * 2 + p->width * p->height > (size_t)info->size)
-		Sys_Error ("Draw_PicFromWad: pic \"%s\" truncated", name);
+	{
+		Con_Warning ("Draw_PicFromWad: pic \"%s\" truncated\n", name);
+		return pic_nul; // johnfitz
+	}
+
 	if (p->width < 0 || p->height < 0)
-		Sys_Error ("Draw_PicFromWad: bad size (%dx%d) for pic \"%s\"", p->width, p->height, name);
+	{
+		Con_Warning ("Draw_PicFromWad: bad size (%dx%d) for pic \"%s\"\n", p->width, p->height, name);
+		return pic_nul; // johnfitz
+	}
 
 	// load little ones into the scrap
 	if (p->width < 64 && p->height < 64)

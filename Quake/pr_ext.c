@@ -4824,7 +4824,7 @@ static qpic_t *DrawQC_CachePic (const char *picname, unsigned int flags)
 	else if (!strncmp (clean_picname, "gfx/", 4) && !strchr (clean_picname + 4, '.'))
 		qcpics[i].pic = Draw_PicFromWad2 (clean_picname + 4, texflags);
 
-	// okay, not a wad pic, try and load a lmp/tga/etc
+	// okay, not a wad pic, try and load a png/tga/jpg/pcx/lmp
 	if (!qcpics[i].pic || qcpics[i].pic == pic_nul)
 		qcpics[i].pic = Draw_TryCachePic (clean_picname, texflags);
 
