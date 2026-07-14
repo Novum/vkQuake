@@ -322,7 +322,7 @@ static void Skywind_Save_f (void)
 
 	q_snprintf (relname, sizeof (relname), "gfx/env/%s" SKYWIND_CFG, skybox.name);
 	q_snprintf (path, sizeof (path), "%s/%s", com_gamedir, relname);
-	f = fopen (path, "wt");
+	f = Sys_fopen (path, "wt");
 	if (!f)
 	{
 		Con_Printf ("Couldn't write '%s'.\n", relname);

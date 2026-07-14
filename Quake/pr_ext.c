@@ -3051,7 +3051,7 @@ static void PF_fopen (void)
 	const char *fallback;
 	FILE	   *file;
 	size_t		i;
-	char		name[MAX_OSPATH], *sl;
+	char		name[MAX_OSPATH];
 	int			filesize = 0;
 
 	G_FLOAT (OFS_RETURN) = -1; // assume failure
@@ -3074,25 +3074,13 @@ static void PF_fopen (void)
 		break;
 	case 1: // append
 		q_snprintf (name, sizeof (name), "%s/%s", com_gamedir, fname);
-		Sys_mkdir (name);
-		file = fopen (name, "w+b");
+		file = Sys_fopen (name, "w+b");
 		if (file)
 			fseek (file, 0, SEEK_END);
 		break;
 	case 2: // write
 		q_snprintf (name, sizeof (name), "%s/%s", com_gamedir, fname);
-		sl = name + 1;
-		while (*sl)
-		{
-			if (*sl == '/')
-			{
-				*sl = 0;
-				Sys_mkdir (name); // make sure each part of the path exists.
-				*sl = '/';
-			}
-			sl++;
-		}
-		file = fopen (name, "wb");
+		file = Sys_fopen (name, "wb");
 		break;
 	default:
 		Con_Warning ("PF_fopen: unsupported mode: %i\n", fmode);
@@ -6337,7 +6325,7 @@ void PR_DumpPlatform_f (void)
 	q_snprintf (name, sizeof (name), "%s/src/%s", com_gamedir, outname);
 	COM_AddExtension (name, ".qc", sizeof (name));
 
-	f = fopen (name, "w");
+	f = Sys_fopen (name, "w");
 	if (!f)
 	{
 		Con_Printf ("%s: Couldn't write %s\n", Cmd_Argv (0), name);

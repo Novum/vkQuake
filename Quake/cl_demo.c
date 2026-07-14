@@ -645,7 +645,7 @@ void CL_Record_f (void)
 		Con_SafePrintf (".\n");
 	}
 
-	cls.demofile = fopen (name, "wb");
+	cls.demofile = Sys_fopen (name, "wb");
 	if (!cls.demofile)
 	{
 		Con_Printf ("ERROR: couldn't create %s\n", name);
@@ -671,7 +671,7 @@ Keep recording demo after loading a savegame
 */
 void CL_Resume_Record (qboolean recordsignons)
 {
-	cls.demofile = fopen (name, "r+b");
+	cls.demofile = Sys_fopen (name, "r+b");
 	if (!cls.demofile)
 	{
 		Con_Printf ("ERROR: couldn't append to %s - recording stopped\n", name);

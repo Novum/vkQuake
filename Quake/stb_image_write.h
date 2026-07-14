@@ -144,9 +144,7 @@ extern "C"
 
 	typedef void stbi_write_func (void *context, void *data, int size);
 
-#if 0 /* not used in QuakeSpasm */
 STBIWDEF int stbi_write_jpg_to_func(stbi_write_func *func, void *context, int x, int y, int comp, const void  *data, int quality);
-#endif
 
 #ifdef __cplusplus
 }
@@ -629,14 +627,12 @@ static int stbi_write_jpg_core (stbi__write_context *s, int width, int height, i
 	return 1;
 }
 
-#if 0 /* not used in QuakeSpasm */
 STBIWDEF int stbi_write_jpg_to_func(stbi_write_func *func, void *context, int x, int y, int comp, const void *data, int quality)
 {
    stbi__write_context s;
    stbi__start_write_callbacks(&s, func, context);
    return stbi_write_jpg_core(&s, x, y, comp, (void *) data, quality);
 }
-#endif
 
 #ifndef STBI_WRITE_NO_STDIO
 STBIWDEF int stbi_write_jpg (char const *filename, int x, int y, int comp, const void *data, int quality)

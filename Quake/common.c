@@ -2015,7 +2015,8 @@ typedef struct
 char			 com_gamenames[1024]; // eg: "hipnotic;quoth;warp" ... no id1
 char			 com_gamedir[MAX_OSPATH];
 char			 com_basedir[MAX_OSPATH];
-char			 com_basedirs[MAX_BASEDIRS][MAX_OSPATH]; // additional read-only content roots, e.g. the Nightdive add-on dir
+char			 com_basedirs[MAX_BASEDIRS][MAX_OSPATH]; // all content roots in mount order: extras (e.g. the Nightdive
+														 // add-on dir), the main basedir, the userdir (write target) last
 int				 com_numbasedirs;
 THREAD_LOCAL int file_from_pak; // ZOID: global indicating that file came from a pak
 
@@ -2023,12 +2024,16 @@ THREAD_LOCAL int file_from_pak; // ZOID: global indicating that file came from a
 =================
 COM_AddBaseDir
 
-Registers an additional read-only content root; game directories are
-looked up in all roots, with the main basedir taking precedence
+Registers a content root; game directories are looked up in all roots,
+with later-added roots taking precedence over earlier ones
 =================
 */
 void COM_AddBaseDir (const char *dir)
 {
+	int i;
+	for (i = 0; i < com_numbasedirs; i++)
+		if (!q_strcasecmp (com_basedirs[i], dir))
+			return;
 	if (com_numbasedirs == MAX_BASEDIRS)
 		Sys_Error ("COM_AddBaseDir: too many base directories");
 	q_strlcpy (com_basedirs[com_numbasedirs++], dir, sizeof (com_basedirs[0]));
@@ -2070,8 +2075,6 @@ void COM_WriteFile (const char *filename, const void *data, int len)
 	int	 handle;
 	char name[MAX_OSPATH];
 
-	Sys_mkdir (com_gamedir); // johnfitz -- if we've switched to a nonexistant gamedir, create it now so we don't crash
-
 	q_snprintf (name, sizeof (name), "%s/%s", com_gamedir, filename);
 
 	handle = Sys_FileOpenWrite (name);
@@ -2084,27 +2087,6 @@ void COM_WriteFile (const char *filename, const void *data, int len)
 	Sys_Printf ("COM_WriteFile: %s\n", name);
 	Sys_FileWrite (handle, data, len);
 	Sys_FileClose (handle);
-}
-
-/*
-============
-COM_CreatePath
-============
-*/
-void COM_CreatePath (char *path)
-{
-	char *ofs;
-
-	for (ofs = path + 1; *ofs; ofs++)
-	{
-		if (IS_DIR_SEPARATOR (*ofs))
-		{ // create the directory
-			char sep = *ofs;
-			*ofs = 0;
-			Sys_mkdir (path);
-			*ofs = sep;
-		}
-	}
 }
 
 /*
@@ -2170,7 +2152,7 @@ static qfilesize_t COM_FindFile (const char *filename, int *handle, FILE **file,
 				}
 				else if (file)
 				{ /* open a new file on the pakfile */
-					*file = fopen (pak->filename, "rb");
+					*file = Sys_fopen (pak->filename, "rb");
 					if (*file)
 						Sys_fseek (*file, pak->files[i].filepos, SEEK_SET);
 					return com_filesize;
@@ -2213,7 +2195,7 @@ static qfilesize_t COM_FindFile (const char *filename, int *handle, FILE **file,
 			}
 			else if (file)
 			{
-				*file = fopen (netpath, "rb");
+				*file = Sys_fopen (netpath, "rb");
 				com_filesize = (*file == NULL) ? -1 : COM_filelength (*file);
 				return com_filesize;
 			}
@@ -2342,7 +2324,7 @@ byte *COM_LoadMallocFile_TextMode_OSPath (const char *path, long *len_out)
 	// othewise multiline messages have a garbage character at the end of each line.
 	// TODO: could handle in a way that allows loading CRLF savegames on mac/linux
 	// without the junk characters appearing.
-	f = fopen (path, "rt");
+	f = Sys_fopen (path, "rt");
 	if (f == NULL)
 		return NULL;
 
@@ -2664,22 +2646,19 @@ static void COM_AddGameDirectory (const char *dir)
 	else
 		path_id = 1U;
 
-	// extra basedirs first so the main basedir takes precedence on conflicts
-	for (i = com_numbasedirs - 1; i >= 0; i--)
+	// mount all roots in order: the extras sit below the main basedir (so it
+	// takes precedence on conflicts), the userdir on top as the write target
+	for (i = 0; i < com_numbasedirs; i++)
 	{
+		qboolean is_main = !q_strcasecmp (com_basedirs[i], com_basedir);
+		qboolean is_user = (host_parms->userdir != host_parms->basedir) && !q_strcasecmp (com_basedirs[i], host_parms->userdir);
+
 		q_snprintf (path, sizeof (path), "%s/%s", com_basedirs[i], dir);
-		if (Sys_FileType (path) == FS_ENT_DIRECTORY)
-			COM_AddGameDirectoryRoot (com_basedirs[i], dir, path_id, false);
-	}
-
-	COM_AddGameDirectoryRoot (com_basedir, dir, path_id, true);
-
-	// the userdir overrides everything and is where new files are written
-	if (host_parms->userdir != host_parms->basedir)
-	{
-		q_strlcpy (path, va ("%s/%s", host_parms->userdir, dir), sizeof (path));
-		Sys_mkdir (path);
-		COM_AddGameDirectoryRoot (host_parms->userdir, dir, path_id, false);
+		if (is_user)
+			Sys_mkdir (path);
+		else if (!is_main && Sys_FileType (path) != FS_ENT_DIRECTORY)
+			continue;
+		COM_AddGameDirectoryRoot (com_basedirs[i], dir, path_id, is_main);
 	}
 }
 
@@ -2707,7 +2686,7 @@ void COM_ResetGameDirectories (const char *newdirs)
 	// wipe the list of mod gamedirs
 	*com_gamenames = 0;
 	// reset this too
-	q_strlcpy (com_gamedir, va ("%s/%s", (host_parms->userdir != host_parms->basedir) ? host_parms->userdir : com_basedir, GAMENAME), sizeof (com_gamedir));
+	q_strlcpy (com_gamedir, va ("%s/%s", com_basedirs[com_numbasedirs - 1], GAMENAME), sizeof (com_gamedir));
 
 	for (newpath = newgamedirs; newpath && *newpath;)
 	{
@@ -2887,9 +2866,40 @@ Opens a file in the per-user preferences directory
 FILE *COM_FOpenPrefFile (const char *filename, const char *mode)
 {
 	char *pref_path = SDL_GetPrefPath ("", "vkQuake");
-	FILE *f = fopen (va ("%s/%s", pref_path, filename), mode);
+	FILE *f = Sys_fopen (va ("%s/%s", pref_path, filename), mode);
 	SDL_free (pref_path);
 	return f;
+}
+
+/*
+=================
+COM_SetUserPrefDir
+
+Makes the per-user preferences directory the userdir, i.e. the write
+target for saves, configs, screenshots etc. and the top-priority
+content root. No-op if a real userdir is already set up.
+=================
+*/
+static void COM_SetUserPrefDir (void)
+{
+	static char userprefdir[MAX_OSPATH];
+	char	   *pref_path;
+	size_t		len;
+
+	if (host_parms->userdir != host_parms->basedir)
+		return;
+	pref_path = SDL_GetPrefPath ("", "vkQuake");
+	if (!pref_path)
+		return;
+
+	len = q_strlcpy (userprefdir, pref_path, sizeof (userprefdir));
+	SDL_free (pref_path);
+	len = q_min (len, sizeof (userprefdir) - 1);
+	while (len > 0 && IS_DIR_SEPARATOR (userprefdir[len - 1]))
+		userprefdir[--len] = '\0';
+
+	host_parms->userdir = userprefdir;
+	Sys_Printf ("Writing user files to %s\n", userprefdir);
 }
 
 #ifdef USE_SDL3
@@ -3052,7 +3062,7 @@ Asks the user for the folder when the requested version isn't found,
 starting at the previously picked folder.
 =================
 */
-static void COM_FindStoreBaseDir (void)
+static qboolean COM_FindStoreBaseDir (void)
 {
 	steamgame_t	  steamquake;
 	char		  original[MAX_OSPATH] = {0};
@@ -3173,7 +3183,7 @@ static void COM_FindStoreBaseDir (void)
 			Sys_Error ("Couldn't find GOG Quake");
 		if (force_egs)
 			Sys_Error ("Couldn't find Epic Games Store Quake");
-		return; // fall through to the regular missing-data error
+		return false; // fall through to the regular missing-data error
 	}
 
 	if (requested == QUAKE_FLAVOR_REMASTERED && remastered[0])
@@ -3192,6 +3202,8 @@ static void COM_FindStoreBaseDir (void)
 		COM_MountNightdiveUserDir ();
 	else
 		com_nightdivedir[0] = '\0';
+
+	return true;
 }
 
 /*
@@ -3269,13 +3281,26 @@ void COM_InitFilesystem (void) // johnfitz -- modified based on topaz's tutorial
 	// no explicit -basedir: run store detection if the working directory has no
 	// game data for the requested version (any version if none was requested),
 	// or if a store was named explicitly on the command line
+	qboolean store_install = false;
 	if (!i && (!COM_IsValidFlavorDir (com_basedir, COM_RequestedQuakeFlavor ()) || COM_CheckParm ("-steam") || COM_CheckParm ("-gog") ||
 			   COM_CheckParm ("-egs") || COM_CheckParm ("-epic")))
-		COM_FindStoreBaseDir ();
+		store_install = COM_FindStoreBaseDir ();
+
+	// keep all writes out of the game dirs: always for store installs (the
+	// user didn't opt into writing there, and they might not even be
+	// writable), otherwise only when -multiuser asks for it
+	if (store_install || multiuser)
+		COM_SetUserPrefDir ();
 
 	// achievements/rich presence if the game data comes from the Steam install,
 	// no matter whether it was found by detection, -basedir or the working directory
 	COM_InitSteamAPI ();
+
+	// register the remaining content roots: the main basedir above the extras
+	// added so far, the userdir on top of everything as the write target
+	COM_AddBaseDir (com_basedir);
+	if (host_parms->userdir != host_parms->basedir)
+		COM_AddBaseDir (host_parms->userdir);
 
 	i = COM_CheckParmNext (i, "-basegame");
 	if (i)

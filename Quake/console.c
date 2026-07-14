@@ -859,8 +859,7 @@ static void Con_Dump_f (void)
 	q_strlcpy (relname, Cmd_Argc () >= 2 ? Cmd_Argv (1) : "condump.txt", sizeof (relname));
 	COM_AddExtension (relname, ".txt", sizeof (relname));
 	q_snprintf (name, sizeof (name), "%s/%s", com_gamedir, relname);
-	COM_CreatePath (name);
-	f = fopen (name, "w");
+	f = Sys_fopen (name, "w");
 	if (!f)
 	{
 		Con_Printf ("ERROR: couldn't open file %s.\n", relname);
@@ -1206,8 +1205,8 @@ static void Con_Print (const char *txt)
 
 // borrowed from uhexen2 by S.A. for new procs, LOG_Init, LOG_Close
 
-static char logfilename[MAX_OSPATH]; // current logfile name
-static int	log_fd = -1;			 // log file descriptor
+static char	 logfilename[MAX_OSPATH]; // current logfile name
+static FILE *log_file;
 
 /*
 ================
@@ -1216,12 +1215,10 @@ Con_DebugLog
 */
 void Con_DebugLog (const char *msg)
 {
-	if (log_fd == -1)
+	if (!log_file)
 		return;
 
-	size_t msg_len = strlen (msg);
-	if (write (log_fd, msg, msg_len) != msg_len)
-		return; // Nonsense to supress warning
+	fwrite (msg, 1, strlen (msg), log_file);
 }
 
 /*
@@ -2423,14 +2420,13 @@ void LOG_Init (quakeparms_t *parms)
 	else
 		q_snprintf (logfilename, sizeof (logfilename), "%s/qconsole.log", parms->basedir);
 
-	//	unlink (logfilename);
-
-	log_fd = open (logfilename, O_WRONLY | O_CREAT | O_TRUNC, 0666);
-	if (log_fd == -1)
+	log_file = Sys_fopen (logfilename, "w");
+	if (!log_file)
 	{
 		fprintf (stderr, "Error: Unable to create log file %s\n", logfilename);
 		return;
 	}
+	setvbuf (log_file, NULL, _IONBF, 0); // keep the log complete on crashes
 
 	con_debuglog = true;
 	Con_DebugLog (va ("LOG started on: %s \n", session));
@@ -2438,8 +2434,8 @@ void LOG_Init (quakeparms_t *parms)
 
 void LOG_Close (void)
 {
-	if (log_fd == -1)
+	if (!log_file)
 		return;
-	close (log_fd);
-	log_fd = -1;
+	fclose (log_file);
+	log_file = NULL;
 }

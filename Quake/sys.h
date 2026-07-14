@@ -76,6 +76,10 @@ bool Sys_feof (int handle);
 int Sys_FileRead (int handle, void *dest, int count);
 int Sys_FileWrite (int handle, const void *data, int count);
 
+/* fopen replacement (from Ironwail): handles non-ASCII paths on Windows and
+ * creates missing directories when opening a file for writing */
+FILE *Sys_fopen (const char *path, const char *mode);
+
 void Sys_mkdir (const char *path);
 
 /* returns an FS entity type, i.e. FS_ENT_FILE or FS_ENT_DIRECTORY.

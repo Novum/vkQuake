@@ -338,7 +338,6 @@ void COM_DefaultExtension (char *path, const char *extension, size_t len);
 #endif
 const char *COM_FileGetExtension (const char *in); /* doesn't return NULL */
 void		COM_ExtractExtension (const char *in, char *out, size_t outsize);
-void		COM_CreatePath (char *path);
 
 char *va (const char *format, ...) FUNC_PRINTF (1, 2);
 // does a varargs printf into a temp buffer
@@ -399,7 +398,7 @@ struct cache_user_s;
 
 #define MAX_BASEDIRS 4
 extern char				com_basedir[MAX_OSPATH];
-extern char				com_basedirs[MAX_BASEDIRS][MAX_OSPATH]; // additional read-only content roots
+extern char				com_basedirs[MAX_BASEDIRS][MAX_OSPATH]; // all content roots in mount order, write target (userdir) last
 extern int				com_numbasedirs;
 extern char				com_gamedir[MAX_OSPATH];
 extern THREAD_LOCAL int file_from_pak; // global indicating that file came from a pak

@@ -79,6 +79,34 @@ int Sys_FileType (const char *path)
 	return FS_ENT_NONE;
 }
 
+FILE *Sys_fopen (const char *path, const char *mode)
+{
+	if (strchr (mode, 'w'))
+	{
+		char dir[MAX_OSPATH];
+		int	 i, rc;
+		q_strlcpy (dir, path, sizeof (dir));
+		for (i = 1; dir[i]; i++)
+		{
+			if (dir[i] != '/')
+				continue;
+			dir[i] = '\0';
+			rc = mkdir (dir, 0777);
+			if (rc != 0 && errno == EEXIST)
+			{
+				struct stat st;
+				if (stat (dir, &st) == 0 && S_ISDIR (st.st_mode))
+					rc = 0;
+			}
+			if (rc != 0)
+				return NULL;
+			dir[i] = '/';
+		}
+	}
+
+	return fopen (path, mode);
+}
+
 static qboolean Sys_Exec (const char *cmd, ...)
 {
 	pid_t p = fork ();
@@ -294,7 +322,7 @@ static struct dirent *readdir_filtered (DIR *handle, const char *ext)
 	while (1)
 	{
 		struct dirent *data = readdir (handle);
-		if (!data || ext[0] == '*' || !strcmp (ext, COM_FileGetExtension (data->d_name)))
+		if (!data || ext[0] == '*' || !q_strcasecmp (ext, COM_FileGetExtension (data->d_name)))
 			return data;
 	}
 	return NULL;

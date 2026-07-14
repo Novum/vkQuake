@@ -134,15 +134,9 @@ static void FileList_Clear (filelist_item_t **list)
 
 static void FileList_Init (char *path, char *ext, filelist_item_t **list)
 {
-#ifdef _WIN32
-	WIN32_FIND_DATA fdat;
-	HANDLE			fhnd;
-#else
-	DIR			  *dir_p;
-	struct dirent *dir_t;
-#endif
 	char		  filestring[MAX_OSPATH];
 	char		  filename[32];
+	findfile_t	 *find;
 	searchpath_t *search;
 	searchpath_t  multiuser_saves;
 
@@ -160,32 +154,14 @@ static void FileList_Init (char *path, char *ext, filelist_item_t **list)
 	{
 		if (*search->filename) // directory
 		{
-#ifdef _WIN32
-			q_snprintf (filestring, sizeof (filestring), "%s/%s*.%s", search->filename, path, ext);
-			fhnd = FindFirstFile (filestring, &fdat);
-			if (fhnd == INVALID_HANDLE_VALUE)
-				goto next;
-			do
-			{
-				COM_StripExtension (fdat.cFileName, filename, sizeof (filename));
-				FileList_Add (filename, list);
-			} while (FindNextFile (fhnd, &fdat));
-			FindClose (fhnd);
-#else
 			q_snprintf (filestring, sizeof (filestring), "%s/%s", search->filename, path);
-			dir_p = opendir (filestring);
-			if (dir_p == NULL)
-				goto next;
-			while ((dir_t = readdir (dir_p)) != NULL)
+			for (find = Sys_FindFirst (filestring, ext); find; find = Sys_FindNext (find))
 			{
-				if (q_strcasecmp (COM_FileGetExtension (dir_t->d_name), ext) != 0)
+				if (find->attribs & FA_DIRECTORY)
 					continue;
-				COM_StripExtension (dir_t->d_name, filename, sizeof (filename));
+				COM_StripExtension (find->name, filename, sizeof (filename));
 				FileList_Add (filename, list);
 			}
-			closedir (dir_p);
-#endif
-		next:
 			if (!strcmp (ext, "sav") && (!multiuser || search != &multiuser_saves)) // only game dir for savegames
 				break;
 		}
@@ -807,12 +783,10 @@ void Modlist_Init (void)
 	char			*mapdb;
 	int				 i;
 
-	Modlist_AddRoot (com_basedir);
 	for (i = 0; i < com_numbasedirs; i++)
 		Modlist_AddRoot (com_basedirs[i]);
 
 	// names from the official client's download catalog
-	Modlist_LoadAddonsJSON (com_basedir);
 	for (i = 0; i < com_numbasedirs; i++)
 		Modlist_LoadAddonsJSON (com_basedirs[i]);
 
@@ -1647,7 +1621,7 @@ static void Host_Savegame_f (void)
 	Con_SafePrintf ("Saving game to ");
 	Con_LinkPrintf (name, "%s", name);
 	Con_SafePrintf ("...\n");
-	f = fopen (name, "w");
+	f = Sys_fopen (name, "w");
 	if (!f)
 	{
 		Con_Printf ("ERROR: couldn't open.\n");

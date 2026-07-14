@@ -107,7 +107,7 @@ qfilesize_t Sys_FileOpenRead (const char *path, int *hndl)
 	qfilesize_t retval;
 
 	i = allocHandle ();
-	f = fopen (path, "rb");
+	f = Sys_fopen (path, "rb");
 
 	if (!f)
 	{
@@ -153,7 +153,7 @@ int Sys_DuplicateHandle (int handle)
 
 	if (sys_handles[handle].file)
 	{
-		new_file = fopen (sys_handles[handle].file_path, "rb");
+		new_file = Sys_fopen (sys_handles[handle].file_path, "rb");
 
 		if (!new_file)
 			return -1;
@@ -190,7 +190,7 @@ int Sys_FileOpenWrite (const char *path)
 	int	  i;
 
 	i = allocHandle ();
-	f = fopen (path, "wb");
+	f = Sys_fopen (path, "wb");
 
 	if (!f)
 		Sys_Error ("Error opening %s: %s", path, strerror (errno));

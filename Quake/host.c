@@ -419,7 +419,7 @@ void Host_WriteConfiguration (void)
 		if (multiuser)
 			f = COM_FOpenPrefFile ("config.cfg", "w");
 		else
-			f = fopen (va ("%s/" CONFIG_NAME, com_gamedir), "w");
+			f = Sys_fopen (va ("%s/" CONFIG_NAME, com_gamedir), "w");
 		if (!f)
 		{
 			Con_Printf ("Couldn't write " CONFIG_NAME ".\n");

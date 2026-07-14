@@ -840,7 +840,7 @@ static void M_ScanSaves (void)
 				q_snprintf (name, sizeof (name), "%ss%i.sav", save_path, i);
 			else
 				q_snprintf (name, sizeof (name), "%s/s%i.sav", com_gamedir, i);
-			f = fopen (name, "r");
+			f = Sys_fopen (name, "r");
 			if (!f)
 				continue;
 			if (fscanf (f, "%i\n", &version) != 1)

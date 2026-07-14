@@ -44,9 +44,19 @@ qboolean isDedicated;
 #ifndef INVALID_FILE_ATTRIBUTES
 #define INVALID_FILE_ATTRIBUTES ((DWORD) - 1)
 #endif
+static void UTF8ToWideString (const char *src, wchar_t *dst, size_t maxchars)
+{
+	if (!MultiByteToWideChar (CP_UTF8, 0, src, -1, dst, (int)maxchars))
+		Sys_Error ("MultiByteToWideChar failed: %lu", GetLastError ());
+}
+
 int Sys_FileType (const char *path)
 {
-	DWORD result = GetFileAttributes (path);
+	wchar_t wpath[MAX_PATH];
+	DWORD	result;
+
+	UTF8ToWideString (path, wpath, countof (wpath));
+	result = GetFileAttributesW (wpath);
 
 	if (result == INVALID_FILE_ATTRIBUTES)
 		return FS_ENT_NONE;
@@ -56,10 +66,52 @@ int Sys_FileType (const char *path)
 	return FS_ENT_FILE;
 }
 
-static void UTF8ToWideString (const char *src, wchar_t *dst, size_t maxchars)
+FILE *Sys_fopen (const char *path, const char *mode)
 {
-	if (!MultiByteToWideChar (CP_UTF8, 0, src, -1, dst, (int)maxchars))
-		Sys_Error ("MultiByteToWideChar failed: %lu", GetLastError ());
+	wchar_t wpath[MAX_PATH];
+	wchar_t wmode[8];
+	int		i;
+
+	for (i = 0; mode[i]; i++)
+	{
+		if (i == countof (wmode) - 1)
+			Sys_Error ("Sys_fopen: invalid mode \"%s\"", mode);
+		wmode[i] = mode[i];
+	}
+	wmode[i] = 0;
+
+	UTF8ToWideString (path, wpath, countof (wpath));
+
+	if (wpath[0] && strchr (mode, 'w'))
+	{
+		// create directory structure
+		for (i = 1; wpath[i]; i++)
+		{
+			DWORD	attr;
+			wchar_t wc;
+			if (wpath[i] != L'\\' && wpath[i] != L'/')
+				continue;
+
+			// keep the trailing slash
+			wc = wpath[i + 1];
+			wpath[i + 1] = L'\0';
+
+			attr = GetFileAttributesW (wpath);
+			if (attr != INVALID_FILE_ATTRIBUTES && !(attr & FILE_ATTRIBUTE_DIRECTORY))
+				return NULL;
+
+			if (attr == INVALID_FILE_ATTRIBUTES && !CreateDirectoryW (wpath, NULL))
+			{
+				DWORD err = GetLastError ();
+				if (err != ERROR_ALREADY_EXISTS)
+					return NULL;
+			}
+
+			wpath[i + 1] = wc;
+		}
+	}
+
+	return _wfopen (wpath, wmode);
 }
 
 static void WideStringToUTF8 (const wchar_t *src, char *dst, size_t maxbytes)
@@ -318,7 +370,7 @@ const char *Sys_GetEGSLauncherData (void)
 	if (!Sys_GetKnownFolder (&FOLDERID_ProgramData, "\\Epic\\UnrealEngineLauncher\\LauncherInstalled.dat", path, sizeof (path)))
 		return NULL;
 
-	file = fopen (path, "rb");
+	file = Sys_fopen (path, "rb");
 	if (!file)
 		return NULL;
 
@@ -587,7 +639,10 @@ void Sys_Init (void)
 
 void Sys_mkdir (const char *path)
 {
-	if (CreateDirectory (path, NULL) != 0)
+	wchar_t wpath[MAX_PATH];
+
+	UTF8ToWideString (path, wpath, countof (wpath));
+	if (CreateDirectoryW (wpath, NULL) != 0)
 		return;
 	if (GetLastError () != ERROR_ALREADY_EXISTS)
 		Sys_Error ("Unable to create directory %s", path);

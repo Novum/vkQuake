@@ -67,6 +67,7 @@ static byte *Image_LoadLMP (int file_handle, int *width, int *height, const char
 // STB_IMAGE_WRITE config:
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_STATIC
+#define STBI_WRITE_NO_STDIO		// all file output goes through Sys_fopen
 // plug our Mem_Alloc in stb_image_write:
 #define STBIW_MALLOC(sz)		Mem_Alloc (sz)
 #define STBIW_REALLOC(p, newsz) Mem_Realloc (p, newsz)
@@ -247,7 +248,6 @@ qboolean Image_WriteTGA (const char *name, byte *data, int width, int height, in
 	char pathname[MAX_OSPATH];
 	byte header[TARGAHEADERSIZE];
 
-	Sys_mkdir (com_gamedir); // if we've switched to a nonexistant gamedir, create it now so we don't crash
 	q_snprintf (pathname, sizeof (pathname), "%s/%s", com_gamedir, name);
 	handle = Sys_FileOpenWrite (pathname);
 	if (handle == -1)
@@ -461,6 +461,13 @@ static byte *CopyFlipped (const byte *data, int width, int height, int bpp)
 	return flipped;
 }
 
+// stbi_write_func that writes to a FILE opened with Sys_fopen, so non-ASCII
+// paths work on Windows (stb's own file output goes through ANSI fopen)
+static void Image_WriteToFileFunc (void *context, void *data, int size)
+{
+	fwrite (data, 1, size, (FILE *)context);
+}
+
 /*
 ============
 Image_WriteJPG -- writes using stb_image_write
@@ -480,7 +487,6 @@ qboolean Image_WriteJPG (const char *name, byte *data, int width, int height, in
 
 	bytes_per_pixel = bpp / 8;
 
-	Sys_mkdir (com_gamedir); // if we've switched to a nonexistant gamedir, create it now so we don't crash
 	q_snprintf (pathname, sizeof (pathname), "%s/%s", com_gamedir, name);
 
 	if (!upsidedown)
@@ -492,7 +498,14 @@ qboolean Image_WriteJPG (const char *name, byte *data, int width, int height, in
 	else
 		flipped = data;
 
-	error = stbi_write_jpg (pathname, width, height, bytes_per_pixel, flipped, quality);
+	FILE *f = Sys_fopen (pathname, "wb");
+	if (f)
+	{
+		error = stbi_write_jpg_to_func (Image_WriteToFileFunc, f, width, height, bytes_per_pixel, flipped, quality);
+		fclose (f);
+	}
+	else
+		error = 0;
 	if (!upsidedown)
 		Mem_Free (flipped);
 
@@ -512,7 +525,6 @@ qboolean Image_WritePNG (const char *name, byte *data, int width, int height, in
 	if (!(bpp == 32 || bpp == 24))
 		Sys_Error ("bpp not 24 or 32");
 
-	Sys_mkdir (com_gamedir); // if we've switched to a nonexistant gamedir, create it now so we don't crash
 	q_snprintf (pathname, sizeof (pathname), "%s/%s", com_gamedir, name);
 
 	flipped = (!upsidedown) ? CopyFlipped (data, width, height, bpp) : data;
@@ -546,7 +558,16 @@ qboolean Image_WritePNG (const char *name, byte *data, int width, int height, in
 
 	error = lodepng_encode (&png, &pngsize, flipped, width, height, &state);
 	if (error == 0)
-		lodepng_save_file (png, pngsize, pathname);
+	{
+		FILE *f = Sys_fopen (pathname, "wb");
+		if (f)
+		{
+			fwrite (png, 1, pngsize, f);
+			fclose (f);
+		}
+		else
+			error = 1;
+	}
 #ifdef LODEPNG_COMPILE_ERROR_TEXT
 	else
 		Con_Printf ("WritePNG: %s\n", lodepng_error_text (error));
