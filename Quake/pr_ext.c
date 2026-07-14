@@ -3031,7 +3031,7 @@ static qboolean QC_FixFileName (const char *name, const char **result, const cha
 static struct qcfile_s
 {
 	qcvm_t	   *owningvm;
-	char		cache[8192];
+	char		cache[4 * 4096];
 	qfileofs_t	cacheoffset;
 	qfilesize_t cachesize;
 	FILE	   *file;
@@ -3069,9 +3069,9 @@ static void PF_fopen (void)
 	switch (fmode)
 	{
 	case 0: // read
-		filesize = (int)COM_FOpenFile (fname, &file, NULL);
+		filesize = COM_FOpenFile (fname, &file, NULL);
 		if (!file && fallback)
-			filesize = (int)COM_FOpenFile (fallback, &file, NULL);
+			filesize = COM_FOpenFile (fallback, &file, NULL);
 		break;
 	case 1: // append
 		q_snprintf (name, sizeof (name), "%s/%s", com_gamedir, fname);
@@ -3210,6 +3210,9 @@ static void PF_frikfile_shutdown (void)
 	}
 }
 
+// QuakeC can only handles int as offests/sizes
+// so technically QC fseek() can only manage files smaller than 2**31 bytes
+// which should be enough in all cases.
 static void PF_fseek (void)
 {
 	// returns current position. or changes that position.
@@ -3222,9 +3225,9 @@ static void PF_fseek (void)
 	else
 	{
 		if (qcfiles[fileid].mode == 0)
-			G_INT (OFS_RETURN) = qcfiles[fileid].fileoffset; // when we're reading, use the cached read offset
+			G_INT (OFS_RETURN) = (int)qcfiles[fileid].fileoffset; // when we're reading, use the cached read offset
 		else
-			G_INT (OFS_RETURN) = Sys_ftell (qcfiles[fileid].file) - qcfiles[fileid].filebase;
+			G_INT (OFS_RETURN) = (int)Sys_ftell (qcfiles[fileid].file) - qcfiles[fileid].filebase;
 		if (qcvm->argc > 1)
 		{
 			qcfiles[fileid].fileoffset = G_INT (OFS_PARM1);
