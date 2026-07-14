@@ -3274,7 +3274,7 @@ qboolean Mod_LoadMapDescription (char *desc, size_t maxchars, const char *map)
 		entlump->filelen = sizeof (buf) - 1;
 	}
 
-	fseek (f, entlump->fileofs - sizeof (header), SEEK_CUR);
+	Sys_fseek (f, (qfileofs_t)entlump->fileofs - sizeof (header), SEEK_CUR);
 	i = fread (buf, 1, entlump->filelen, f);
 	fclose (f);
 

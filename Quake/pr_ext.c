@@ -3030,14 +3030,15 @@ static qboolean QC_FixFileName (const char *name, const char **result, const cha
 // from a writable file will not do what you would expect. even libc mandates a seek between reading+writing, so no great loss there.
 static struct qcfile_s
 {
-	qcvm_t *owningvm;
-	char	cache[1024];
-	int		cacheoffset, cachesize;
-	FILE   *file;
-	int		fileoffset;
-	int		filesize;
-	int		filebase; // the offset of the file inside a pak
-	int		mode;
+	qcvm_t	   *owningvm;
+	char		cache[8192];
+	qfileofs_t	cacheoffset;
+	qfilesize_t cachesize;
+	FILE	   *file;
+	qfileofs_t	fileoffset;
+	qfilesize_t filesize;
+	qfileofs_t	filebase; // the offset of the file inside a pak
+	int			mode;
 } *qcfiles;
 
 static size_t qcfiles_max;
@@ -3052,13 +3053,13 @@ static void PF_fopen (void)
 	FILE	   *file;
 	size_t		i;
 	char		name[MAX_OSPATH];
-	int			filesize = 0;
+	qfilesize_t filesize = 0;
 
 	G_FLOAT (OFS_RETURN) = -1; // assume failure
 
 	if (!QC_FixFileName (fname, &fname, &fallback))
 	{
-		Con_Printf ("qcfopen: Access denied: %s\n", fname);
+		Con_Printf ("PF_fopen: Access denied: %s\n", fname);
 		return;
 	}
 	// if we were told to use 'foo.txt'
@@ -3076,7 +3077,7 @@ static void PF_fopen (void)
 		q_snprintf (name, sizeof (name), "%s/%s", com_gamedir, fname);
 		file = Sys_fopen (name, "w+b");
 		if (file)
-			fseek (file, 0, SEEK_END);
+			Sys_fseek (file, 0, SEEK_END);
 		break;
 	case 2: // write
 		q_snprintf (name, sizeof (name), "%s/%s", com_gamedir, fname);
@@ -3099,7 +3100,7 @@ static void PF_fopen (void)
 		if (!qcfiles[i].file)
 			break;
 	}
-	qcfiles[i].filebase = ftell (file);
+	qcfiles[i].filebase = Sys_ftell (file);
 	qcfiles[i].owningvm = qcvm;
 	qcfiles[i].file = file;
 	qcfiles[i].mode = fmode;
@@ -3132,10 +3133,10 @@ static void PF_fgets (void)
 			if (f->cacheoffset == f->cachesize)
 			{
 				// figure out how much we can try to cache.
-				int sz = f->filesize - f->fileoffset;
+				qfilesize_t sz = f->filesize - f->fileoffset;
 				if (sz < 0 || f->fileoffset < 0) //... maybe we shouldn't have implemented seek support.
 					sz = 0;
-				else if ((size_t)sz > sizeof (f->cache))
+				else if (sz > sizeof (f->cache))
 					sz = sizeof (f->cache);
 				// read a chunk
 				f->cacheoffset = 0;
@@ -3210,7 +3211,8 @@ static void PF_frikfile_shutdown (void)
 }
 
 static void PF_fseek (void)
-{ // returns current position. or changes that position.
+{
+	// returns current position. or changes that position.
 	size_t fileid = G_FLOAT (OFS_PARM0) - QC_FILE_BASE;
 	G_INT (OFS_RETURN) = 0;
 	if (fileid >= qcfiles_max)
@@ -3222,11 +3224,11 @@ static void PF_fseek (void)
 		if (qcfiles[fileid].mode == 0)
 			G_INT (OFS_RETURN) = qcfiles[fileid].fileoffset; // when we're reading, use the cached read offset
 		else
-			G_INT (OFS_RETURN) = ftell (qcfiles[fileid].file) - qcfiles[fileid].filebase;
+			G_INT (OFS_RETURN) = Sys_ftell (qcfiles[fileid].file) - qcfiles[fileid].filebase;
 		if (qcvm->argc > 1)
 		{
 			qcfiles[fileid].fileoffset = G_INT (OFS_PARM1);
-			fseek (qcfiles[fileid].file, qcfiles[fileid].filebase + qcfiles[fileid].fileoffset, SEEK_SET);
+			Sys_fseek (qcfiles[fileid].file, qcfiles[fileid].filebase + qcfiles[fileid].fileoffset, SEEK_SET);
 			qcfiles[fileid].cachesize = qcfiles[fileid].cacheoffset = 0;
 		}
 	}
