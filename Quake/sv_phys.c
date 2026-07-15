@@ -395,24 +395,34 @@ static int SV_FlyMove (edict_t *ent, float time, trace_t *steptrace)
 	return blocked;
 }
 
+static float SV_EntGravity (edict_t *ent)
+{
+	eval_t *val = GetEdictFieldValue (ent, ED_FindFieldOffset ("gravity"));
+	return (val && val->_float) ? val->_float : 1.0f;
+}
+
 /*
 ============
 SV_AddGravity
 
+Gravity is applied in two phases: the move runs with velocity biased to the
+average of this frame's 72Hz gravity steps, which lands positions exactly on
+the canonical 72Hz trajectory for any frame duration. SV_FinishGravity removes
+the bias after the move; both phases sum to gravity*frametime and the bias is
+zero when frametime == 1/72.
 ============
 */
 static void SV_AddGravity (edict_t *ent)
 {
-	float	ent_gravity;
-	eval_t *val;
+	ent->v.velocity[2] -= SV_EntGravity (ent) * sv_gravity.value * (host_frametime + 1.0 / MAX_PHYSICS_FREQ) * 0.5;
+}
 
-	val = GetEdictFieldValue (ent, ED_FindFieldOffset ("gravity"));
-	if (val && val->_float)
-		ent_gravity = val->_float;
-	else
-		ent_gravity = 1.0;
-
-	ent->v.velocity[2] -= ent_gravity * sv_gravity.value * host_frametime;
+static void SV_FinishGravity (edict_t *ent)
+{
+	// entities that landed during the move keep their clipped velocity, like at 72fps
+	if ((int)ent->v.flags & FL_ONGROUND)
+		return;
+	ent->v.velocity[2] -= SV_EntGravity (ent) * sv_gravity.value * (host_frametime - 1.0 / MAX_PHYSICS_FREQ) * 0.5;
 }
 
 /*
@@ -1029,10 +1039,20 @@ static void SV_Physics_Client (edict_t *ent, int num)
 		if (!SV_RunThink (ent))
 			return;
 		if (!SV_CheckWater (ent) && !((int)ent->v.flags & FL_WATERJUMP))
+		{
 			SV_AddGravity (ent);
-		SV_CheckStuck (ent);
-		assert_always (!ent->free);
-		SV_WalkMove (ent);
+			SV_CheckStuck (ent);
+			assert_always (!ent->free);
+			SV_WalkMove (ent);
+			if (!ent->free)
+				SV_FinishGravity (ent);
+		}
+		else
+		{
+			SV_CheckStuck (ent);
+			assert_always (!ent->free);
+			SV_WalkMove (ent);
+		}
 		break;
 
 	case MOVETYPE_TOSS:
@@ -1184,9 +1204,13 @@ static void SV_Physics_Toss (edict_t *ent)
 	VectorScale (ent->v.velocity, host_frametime, move);
 	trace = SV_PushEntity (ent, move);
 
-	if (trace.fraction == 1)
-		return;
 	if (ent->free)
+		return;
+
+	if (ent->v.movetype != MOVETYPE_FLY && ent->v.movetype != MOVETYPE_FLYMISSILE)
+		SV_FinishGravity (ent);
+
+	if (trace.fraction == 1)
 		return;
 
 	if (ent->v.movetype == MOVETYPE_BOUNCE)
@@ -1255,6 +1279,8 @@ static void SV_Physics_Step (edict_t *ent)
 
 		if (ent->free)
 			return;
+
+		SV_FinishGravity (ent);
 
 		if ((int)ent->v.flags & FL_ONGROUND) // just hit ground
 		{
