@@ -62,8 +62,9 @@ typedef struct edict_s
 	int			 leafnums[MAX_ENT_LEAFS];
 
 	entity_state_t baseline;
-	unsigned char  alpha;		 /* johnfitz -- hack to support alpha since it's not part of entvars_t */
-	qboolean	   sendinterval; /* johnfitz -- send time until nextthink to client for better lerp timing */
+	unsigned char  alpha;				 /* johnfitz -- hack to support alpha since it's not part of entvars_t */
+	qboolean	   sendinterval;		 /* johnfitz -- send time until nextthink to client for better lerp timing */
+	qboolean	   sendinterval_default; /* interval is the 0.1 the client assumes anyway; only sent where datagram size is unconstrained */
 	float		   oldframe;
 	float		   oldthinktime;
 	vec3_t		   predthinkpos; /* expected edict origin once its nextthink arrives (sv_smoothplatformlerps) */

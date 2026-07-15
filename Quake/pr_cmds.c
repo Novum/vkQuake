@@ -1843,8 +1843,8 @@ static void PF_cl_makestatic (void)
 	stat->trailstate = NULL;
 	stat->emitstate = NULL;
 	stat->model = cl.model_precache[stat->baseline.modelindex];
-	stat->lerpflags |= LERP_RESETANIM; // johnfitz -- lerping
 	stat->frame = stat->baseline.frame;
+	stat->lerp.prev_frame = stat->frame; // johnfitz -- lerping
 
 	stat->skinnum = stat->baseline.skin;
 	stat->effects = stat->baseline.effects;

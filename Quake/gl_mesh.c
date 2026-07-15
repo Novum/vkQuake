@@ -916,7 +916,7 @@ void R_UpdateAnimatedBLASes (cb_context_t *cbx)
 
 			// Get lerp data for vertex interpolation
 			lerpdata_t lerpdata;
-			R_SetupAliasFrame (e, hdr, e->frame, &lerpdata);
+			R_SetupAliasFrame (e, hdr, &lerpdata);
 			int	  pose1 = lerpdata.pose1;
 			int	  pose2 = lerpdata.pose2;
 			float blend = lerpdata.blend;

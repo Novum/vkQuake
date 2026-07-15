@@ -869,7 +869,7 @@ void SV_BuildEntityState (edict_t *ent, entity_state_t *state)
 	state->velocity[0] = state->velocity[1] = state->velocity[2] = 0;
 
 #ifdef LERP_BANDAID
-	state->lerp = ent->sendinterval ? Q_rint ((ent->v.nextthink - qcvm->time) * 1000) + 1 : 0;
+	state->lerp = (ent->sendinterval || ent->sendinterval_default) ? Q_rint ((ent->v.nextthink - qcvm->time) * 1000) + 1 : 0;
 #endif
 }
 
@@ -2145,7 +2145,9 @@ void SV_WriteEntitiesToClient (client_t *client, sizebuf_t *msg, size_t overflow
 				bits |= U_FRAME2;
 			if (bits & U_MODEL && (int)ent->v.modelindex & 0xFF00)
 				bits |= U_MODEL2;
-			if (ent->sendinterval)
+			// nonstandard intervals are always sent; the default 0.1 the client assumes anyway is only worth
+			// the extra bytes on clients that are not constrained by the DATAGRAM_MTU packet budget
+			if (ent->sendinterval || (ent->sendinterval_default && client->limit_unreliable > DATAGRAM_MTU))
 				bits |= U_LERPFINISH;
 			if (bits >= 65536)
 				bits |= U_EXTEND1;
@@ -2213,7 +2215,7 @@ void SV_WriteEntitiesToClient (client_t *client, sizebuf_t *msg, size_t overflow
 		if (bits & U_MODEL2)
 			MSG_WriteByte (msg, (int)ent->v.modelindex >> 8);
 		if (bits & U_LERPFINISH)
-			MSG_WriteByte (msg, (byte)(Q_rint ((ent->v.nextthink - qcvm->time) * 255)));
+			MSG_WriteByte (msg, (byte)CLAMP (0, Q_rint ((ent->v.nextthink - qcvm->time) * 255), 255)); // qcvm->time may have advanced past nextthink
 		// johnfitz
 
 		if ((size_t)msg->cursize > origmaxsize)

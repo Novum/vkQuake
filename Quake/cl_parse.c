@@ -116,7 +116,6 @@ entity_t *CL_EntityNum (int num)
 		while (cl.num_entities <= num)
 		{
 			cl.entities[cl.num_entities].baseline = nullentitystate;
-			cl.entities[cl.num_entities].lerpflags |= LERP_RESETMOVE | LERP_RESETANIM; // johnfitz
 			cl.num_entities++;
 		}
 	}
@@ -451,20 +450,91 @@ static void CLFTE_ParseBaseline (entity_state_t *es)
 	CLFTE_ReadDelta (0, es, &nullentitystate, &nullentitystate);
 }
 
+/*
+==================
+CL_EntityLerpUpdated
+
+Single point where entity interpolation state advances. Called by both
+protocol paths once the entity's frame and msg_origins/msg_angles hold the
+values from the current message. The renderer only reads this state.
+
+snap_anim: this update must not be animation-lerped (new/reused entity slot,
+missed thinks).
+==================
+*/
+static void CL_EntityLerpUpdated (entity_t *ent, int oldframe, qboolean forcelink, qboolean snap_anim)
+{
+	int j;
+
+	// the finish hint sent with this update belongs to changes recorded from this
+	// update; the duration is frozen here so later hints can't stretch it
+	double duration = (ent->lerp.frame_finish_time > cl.mtime[0]) ? ent->lerp.frame_finish_time - cl.mtime[0] : 0.1;
+
+	if (ent->frame != oldframe || forcelink || snap_anim)
+	{
+		if (forcelink || snap_anim)
+		{
+			ent->lerp.prev_frame = ent->frame;
+			ent->lerp.frame_change_time = 0;
+			if (forcelink)
+				ent->lerp.snap_frames = 0; // don't inherit a pending muzzleflash snap from a previous occupant of this slot
+		}
+		else if (ent->lerp.snap_frames > 0)
+		{
+			ent->lerp.snap_frames--;
+			ent->lerp.prev_frame = ent->frame;
+			ent->lerp.frame_change_time = cl.mtime[0];
+		}
+		else
+		{
+			ent->lerp.prev_frame = oldframe;
+			ent->lerp.frame_change_time = cl.mtime[0];
+		}
+		ent->lerp.frame_duration = duration;
+	}
+
+	if (!VectorCompare (ent->msg_origins[0], ent->msg_origins[1]) || !VectorCompare (ent->msg_angles[0], ent->msg_angles[1]))
+	{
+		qboolean teleport = false;
+		for (j = 0; j < 3; j++)
+			if (fabs (ent->msg_origins[0][j] - ent->msg_origins[1][j]) > 100)
+				teleport = true; // johnfitz -- don't lerp teleports
+
+		if (forcelink || teleport)
+		{
+			VectorCopy (ent->msg_origins[0], ent->lerp.prev_origin);
+			VectorCopy (ent->msg_angles[0], ent->lerp.prev_angles);
+			ent->lerp.move_change_time = 0;
+		}
+		else
+		{
+			VectorCopy (ent->msg_origins[1], ent->lerp.prev_origin);
+			VectorCopy (ent->msg_angles[1], ent->lerp.prev_angles);
+			ent->lerp.move_change_time = cl.mtime[0];
+		}
+		ent->lerp.move_duration = duration;
+	}
+}
+
 // called with both fte+dp deltas
 static void CL_EntitiesDeltaed (void)
 {
 	int		  newnum;
 	qmodel_t *model;
 	qboolean  forcelink;
+	qboolean  snap_anim;
 	entity_t *ent;
 	int		  skin;
+	int		  oldframe;
 
 	for (newnum = 1; newnum < cl.num_entities; newnum++)
 	{
 		ent = CL_EntityNum (newnum);
 		if (!ent->update_type)
 			continue; // not interested in this one
+
+		oldframe = ent->frame;
+		snap_anim = false;
 
 		if (ent->msgtime == cl.mtime[0])
 			forcelink = false; // update got fragmented, don't dirty anything.
@@ -477,7 +547,7 @@ static void CL_EntitiesDeltaed (void)
 
 			// johnfitz -- lerping
 			if (ent->msgtime + 0.2 < cl.mtime[0]) // more than 0.2 seconds since the last message (most entities think every 0.1 sec)
-				ent->lerpflags |= LERP_RESETANIM; // if we missed a think, we'd be lerping from the wrong frame
+				snap_anim = true;				  // if we missed a think, we'd be lerping from the wrong frame
 
 			ent->msgtime = cl.mtime[0];
 
@@ -498,22 +568,15 @@ static void CL_EntitiesDeltaed (void)
 		ent->effects = ent->netstate.effects;
 
 		// johnfitz -- lerping for movetype_step entities
-		if (ent->netstate.eflags & EFLAGS_STEP)
-		{
-			ent->lerpflags |= LERP_MOVESTEP;
+		ent->lerp.movestep = (ent->netstate.eflags & EFLAGS_STEP) != 0;
+		if (ent->lerp.movestep)
 			ent->forcelink = true;
-		}
-		else
-			ent->lerpflags &= ~LERP_MOVESTEP;
 
 		ent->alpha = ent->netstate.alpha;
-		ent->lerpflags &= ~LERP_FINISH;
+		ent->lerp.frame_finish_time = 0;
 #ifdef LERP_BANDAID
 		if (ent->netstate.lerp > 0)
-		{
-			ent->lerpfinish = ent->msgtime + (ent->netstate.lerp - 1) / 1000.f;
-			ent->lerpflags |= LERP_FINISH;
-		}
+			ent->lerp.frame_finish_time = ent->msgtime + (ent->netstate.lerp - 1) / 1000.f;
 #endif
 
 		model = cl.model_precache[ent->netstate.modelindex];
@@ -539,11 +602,13 @@ static void CL_EntitiesDeltaed (void)
 			if (newnum > 0 && newnum <= cl.maxclients)
 				R_TranslateNewPlayerSkin (newnum - 1); // johnfitz -- was R_TranslatePlayerSkin
 
-			ent->lerpflags |= LERP_RESETANIM; // johnfitz -- don't lerp animation across model changes
+			snap_anim = true; // johnfitz -- don't lerp animation across model changes
 		}
 		else if (model && model->synctype == ST_FRAMETIME && ent->frame != ent->netstate.frame)
 			ent->syncbase = -cl.time;
 		ent->frame = ent->netstate.frame;
+
+		CL_EntityLerpUpdated (ent, oldframe, forcelink, snap_anim);
 
 		if (forcelink)
 		{ // didn't have an update last message
@@ -632,9 +697,7 @@ static void CLFTE_ParseEntitiesUpdate (void)
 		{ // we had no previous copy of this entity...
 			ent->update_type = true;
 			CLFTE_ReadDelta (newnum, &ent->netstate, NULL, &ent->baseline);
-
-			// stupid interpolation junk.
-			ent->lerpflags |= LERP_RESETMOVE | LERP_RESETANIM;
+			ent->msgtime = 0; // the slot's stale msgtime must not defeat the forcelink check in CL_EntitiesDeltaed
 		}
 	}
 
@@ -1085,9 +1148,11 @@ static void CL_ParseUpdate (int bits)
 	qmodel_t	*model;
 	unsigned int modnum;
 	qboolean	 forcelink;
+	qboolean	 snap_anim = false;
 	entity_t	*ent;
 	int			 num;
 	int			 skin;
+	int			 oldframe;
 
 	if (cls.signon == SIGNONS - 1)
 	{ // first update is the final signon stage
@@ -1117,6 +1182,7 @@ static void CL_ParseUpdate (int bits)
 		num = MSG_ReadByte ();
 
 	ent = CL_EntityNum (num);
+	oldframe = ent->frame;
 
 	if (ent->msgtime != cl.mtime[1])
 		forcelink = true; // no previous frame to lerp from
@@ -1125,7 +1191,7 @@ static void CL_ParseUpdate (int bits)
 
 	// johnfitz -- lerping
 	if (ent->msgtime + 0.2 < cl.mtime[0]) // more than 0.2 seconds since the last message (most entities think every 0.1 sec)
-		ent->lerpflags |= LERP_RESETANIM; // if we missed a think, we'd be lerping from the wrong frame
+		snap_anim = true;				  // if we missed a think, we'd be lerping from the wrong frame
 	// johnfitz
 
 	ent->msgtime = cl.mtime[0];
@@ -1199,13 +1265,9 @@ static void CL_ParseUpdate (int bits)
 		ent->msg_angles[0][2] = ent->baseline.angles[2];
 
 	// johnfitz -- lerping for movetype_step entities
-	if (bits & U_STEP)
-	{
-		ent->lerpflags |= LERP_MOVESTEP;
+	ent->lerp.movestep = (bits & U_STEP) != 0;
+	if (ent->lerp.movestep)
 		ent->forcelink = true;
-	}
-	else
-		ent->lerpflags &= ~LERP_MOVESTEP;
 	// johnfitz
 
 	// johnfitz -- PROTOCOL_FITZQUAKE and PROTOCOL_NEHAHRA
@@ -1226,12 +1288,9 @@ static void CL_ParseUpdate (int bits)
 				Host_Error ("CL_ParseModel: bad modnum");
 		}
 		if (bits & U_LERPFINISH)
-		{
-			ent->lerpfinish = ent->msgtime + ((float)(MSG_ReadByte ()) / 255);
-			ent->lerpflags |= LERP_FINISH;
-		}
+			ent->lerp.frame_finish_time = ent->msgtime + ((float)(MSG_ReadByte ()) / 255);
 		else
-			ent->lerpflags &= ~LERP_FINISH;
+			ent->lerp.frame_finish_time = 0;
 	}
 	else if (cl.protocol == PROTOCOL_NETQUAKE)
 	{
@@ -1280,9 +1339,11 @@ static void CL_ParseUpdate (int bits)
 		if (num > 0 && num <= cl.maxclients)
 			R_TranslateNewPlayerSkin (num - 1); // johnfitz -- was R_TranslatePlayerSkin
 
-		ent->lerpflags |= LERP_RESETANIM; // johnfitz -- don't lerp animation across model changes
+		snap_anim = true; // johnfitz -- don't lerp animation across model changes
 	}
 	// johnfitz
+
+	CL_EntityLerpUpdated (ent, oldframe, forcelink, snap_anim);
 
 	if (forcelink)
 	{ // didn't have an update last message
@@ -1503,8 +1564,8 @@ static void CL_ParseStatic (int version) // johnfitz -- added a parameter
 	ent->eflags = ent->netstate.eflags; // spike -- annoying and probably not used anyway, but w/e
 
 	ent->model = cl.model_precache[ent->baseline.modelindex];
-	ent->lerpflags |= LERP_RESETANIM; // johnfitz -- lerping
 	ent->frame = ent->baseline.frame;
+	ent->lerp.prev_frame = ent->frame; // johnfitz -- lerping
 
 	ent->skinnum = ent->baseline.skin;
 	ent->effects = ent->baseline.effects;

@@ -205,95 +205,76 @@ static void GL_DrawAliasFrame (
 
 /*
 =================
-R_UpdateEntityAnimState
+R_EntityPoseAt
 
-Updates entity animation state (previouspose, currentpose, lerpstart, lerptime).
-Call once per frame when entity becomes visible, before R_SetupAliasFrame.
+Pose displayed by the given model frame at the given time (framegroup poses
+advance with time).
 =================
 */
-void R_UpdateEntityAnimState (entity_t *e, aliashdr_t *paliashdr)
+static int R_EntityPoseAt (aliashdr_t *paliashdr, int frame, double time)
 {
-	int frame = e->frame;
 	if ((frame >= paliashdr->numframes) || (frame < 0))
 		frame = 0;
 
 	int posenum = paliashdr->frames[frame].firstpose;
 	int numposes = paliashdr->frames[frame].numposes;
-
 	if (numposes > 1)
-	{
-		e->lerptime = paliashdr->frames[frame].interval;
-		posenum += (int)(cl.time / e->lerptime) % numposes;
-	}
-	else
-		e->lerptime = 0.1;
-
-	if (e->lerpflags & LERP_RESETANIM)
-	{
-		e->lerpstart = 0;
-		e->previouspose = posenum;
-		e->currentpose = posenum;
-		e->lerpflags -= LERP_RESETANIM;
-	}
-	else if (e->currentpose != posenum)
-	{
-		if (e->lerpflags & LERP_RESETANIM2)
-		{
-			e->lerpstart = 0;
-			e->previouspose = posenum;
-			e->currentpose = posenum;
-			e->lerpflags -= LERP_RESETANIM2;
-		}
-		else
-		{
-			e->lerpstart = cl.time;
-			e->previouspose = e->currentpose;
-			e->currentpose = posenum;
-		}
-	}
-
-	// Check blend==1 and snap previouspose
-	if (r_lerpmodels.value && !(e->model->flags & MOD_NOLERP && r_lerpmodels.value != 2))
-	{
-		float blend;
-		if (e->lerpflags & LERP_FINISH && numposes == 1)
-			blend = CLAMP (0, (cl.time - e->lerpstart) / (e->lerpfinish - e->lerpstart), 1);
-		else
-			blend = CLAMP (0, (cl.time - e->lerpstart) / e->lerptime, 1);
-
-		if (blend == 1.0f)
-			e->previouspose = e->currentpose;
-	}
+		posenum += (int)(time / paliashdr->frames[frame].interval) % numposes;
+	return posenum;
 }
 
 /*
 =================
 R_SetupAliasFrame -- johnfitz -- rewritten to support lerping
 
-Computes output lerp data from stable entity animation state.
-Call R_UpdateEntityAnimState first to update entity state.
+Computes pose1/pose2/blend from the parse-side interpolation state and
+cl.time. Does not modify the entity.
 =================
 */
-void R_SetupAliasFrame (entity_t *e, aliashdr_t *paliashdr, int frame, lerpdata_t *lerpdata)
+void R_SetupAliasFrame (const entity_t *e, aliashdr_t *paliashdr, lerpdata_t *lerpdata)
 {
+	int frame = e->frame;
 	if ((frame >= paliashdr->numframes) || (frame < 0))
 		frame = 0;
 
-	int posenum = paliashdr->frames[frame].firstpose;
-	int numposes = paliashdr->frames[frame].numposes;
-
-	if (numposes > 1)
-		posenum += (int)(cl.time / e->lerptime) % numposes;
-
 	if (r_lerpmodels.value && !(e->model->flags & MOD_NOLERP && r_lerpmodels.value != 2))
 	{
-		if (e->lerpflags & LERP_FINISH && numposes == 1)
-			lerpdata->blend = CLAMP (0, (cl.time - e->lerpstart) / (e->lerpfinish - e->lerpstart), 1);
-		else
-			lerpdata->blend = CLAMP (0, (cl.time - e->lerpstart) / e->lerptime, 1);
+		int	   numposes = paliashdr->frames[frame].numposes;
+		double change_time = e->lerp.frame_change_time;
 
-		lerpdata->pose1 = e->previouspose;
-		lerpdata->pose2 = e->currentpose;
+		if (numposes > 1)
+		{
+			// framegroup: poses advance with cl.time; lerp from the previous
+			// group pose unless the entity entered this frame more recently
+			double interval = paliashdr->frames[frame].interval;
+			int	   idx = (int)(cl.time / interval);
+			double boundary = idx * interval;
+
+			lerpdata->pose2 = paliashdr->frames[frame].firstpose + idx % numposes;
+			if (change_time > boundary)
+			{
+				lerpdata->pose1 = R_EntityPoseAt (paliashdr, e->lerp.prev_frame, change_time);
+				lerpdata->blend = CLAMP (0, (cl.time - change_time) / interval, 1);
+			}
+			else
+			{
+				lerpdata->pose1 = paliashdr->frames[frame].firstpose + (idx + numposes - 1) % numposes;
+				lerpdata->blend = CLAMP (0, (cl.time - boundary) / interval, 1);
+			}
+		}
+		else if (change_time > 0)
+		{
+			double duration = (e->lerp.frame_duration > 0) ? e->lerp.frame_duration : 0.1;
+			lerpdata->pose2 = paliashdr->frames[frame].firstpose;
+			lerpdata->pose1 = R_EntityPoseAt (paliashdr, e->lerp.prev_frame, change_time);
+			lerpdata->blend = CLAMP (0, (cl.time - change_time) / duration, 1);
+		}
+		else
+		{
+			lerpdata->pose2 = paliashdr->frames[frame].firstpose;
+			lerpdata->pose1 = lerpdata->pose2;
+			lerpdata->blend = 1;
+		}
 
 		// Clamp poses (safety check for Quake1 models)
 		if (paliashdr->poseverttype == PV_QUAKE1)
@@ -321,39 +302,8 @@ void R_SetupAliasFrame (entity_t *e, aliashdr_t *paliashdr, int frame, lerpdata_
 	else
 	{
 		lerpdata->blend = 1;
-		lerpdata->pose1 = posenum;
-		lerpdata->pose2 = posenum;
-	}
-}
-
-/*
-=================
-R_UpdateEntityMoveState
-
-Updates entity movement state (previousorigin, currentorigin, etc.).
-Call once per frame when entity becomes visible, before R_GetEntityLerpedTransform.
-=================
-*/
-void R_UpdateEntityMoveState (entity_t *e)
-{
-	// if LERP_RESETMOVE, kill any lerps in progress
-	if (e->lerpflags & LERP_RESETMOVE)
-	{
-		e->movelerpstart = 0;
-		VectorCopy (e->origin, e->previousorigin);
-		VectorCopy (e->origin, e->currentorigin);
-		VectorCopy (e->angles, e->previousangles);
-		VectorCopy (e->angles, e->currentangles);
-		e->lerpflags -= LERP_RESETMOVE;
-	}
-	else if (!VectorCompare (e->origin, e->currentorigin) || (r_lerpturn.value && !VectorCompare (e->angles, e->currentangles)))
-	{
-		// origin/angles changed, start new lerp
-		e->movelerpstart = cl.time;
-		VectorCopy (e->currentorigin, e->previousorigin);
-		VectorCopy (e->origin, e->currentorigin);
-		VectorCopy (e->currentangles, e->previousangles);
-		VectorCopy (e->angles, e->currentangles);
+		lerpdata->pose1 = R_EntityPoseAt (paliashdr, frame, cl.time);
+		lerpdata->pose2 = lerpdata->pose1;
 	}
 }
 
@@ -361,31 +311,32 @@ void R_UpdateEntityMoveState (entity_t *e)
 =================
 R_GetEntityLerpedTransform
 
-Computes lerped origin/angles from stable entity state.
-Call R_UpdateEntityMoveState first to update entity state.
+Computes lerped origin/angles from the parse-side interpolation state and
+cl.time. Does not modify the entity.
+
+Attached entities (tagentity) use their post-attachment origin/angles, which
+only exist on the entity itself.
 =================
 */
-void R_GetEntityLerpedTransform (entity_t *e, vec3_t out_origin, vec3_t out_angles)
+void R_GetEntityLerpedTransform (const entity_t *e, vec3_t out_origin, vec3_t out_angles)
 {
-	if (r_lerpmove.value && e != &cl.viewent && e->lerpflags & LERP_MOVESTEP)
+	if (r_lerpmove.value && e != &cl.viewent && e->lerp.movestep && !e->netstate.tagentity && e->lerp.move_change_time > 0)
 	{
-		float blend;
-		if (e->lerpflags & LERP_FINISH)
-			blend = CLAMP (0, (cl.time - e->movelerpstart) / (e->lerpfinish - e->movelerpstart), 1);
-		else
-			blend = CLAMP (0, (cl.time - e->movelerpstart) / 0.1, 1);
+		double change_time = e->lerp.move_change_time;
+		double duration = (e->lerp.move_duration > 0) ? e->lerp.move_duration : 0.1;
+		float  blend = CLAMP (0, (cl.time - change_time) / duration, 1);
 
 		// translation
 		vec3_t d;
-		VectorSubtract (e->currentorigin, e->previousorigin, d);
-		out_origin[0] = e->previousorigin[0] + d[0] * blend;
-		out_origin[1] = e->previousorigin[1] + d[1] * blend;
-		out_origin[2] = e->previousorigin[2] + d[2] * blend;
+		VectorSubtract (e->msg_origins[0], e->lerp.prev_origin, d);
+		out_origin[0] = e->lerp.prev_origin[0] + d[0] * blend;
+		out_origin[1] = e->lerp.prev_origin[1] + d[1] * blend;
+		out_origin[2] = e->lerp.prev_origin[2] + d[2] * blend;
 
-		// rotation (if enabled)
-		if (r_lerpturn.value)
+		// rotation (if enabled); EF_ROTATE angles are client-side and only exist on the entity
+		if (r_lerpturn.value && !(e->model->flags & EF_ROTATE))
 		{
-			VectorSubtract (e->currentangles, e->previousangles, d);
+			VectorSubtract (e->msg_angles[0], e->lerp.prev_angles, d);
 			for (int i = 0; i < 3; i++)
 			{
 				if (d[i] > 180)
@@ -393,9 +344,9 @@ void R_GetEntityLerpedTransform (entity_t *e, vec3_t out_origin, vec3_t out_angl
 				if (d[i] < -180)
 					d[i] += 360;
 			}
-			out_angles[0] = e->previousangles[0] + d[0] * blend;
-			out_angles[1] = e->previousangles[1] + d[1] * blend;
-			out_angles[2] = e->previousangles[2] + d[2] * blend;
+			out_angles[0] = e->lerp.prev_angles[0] + d[0] * blend;
+			out_angles[1] = e->lerp.prev_angles[1] + d[1] * blend;
+			out_angles[2] = e->lerp.prev_angles[2] + d[2] * blend;
 		}
 		else
 		{
@@ -535,7 +486,7 @@ void R_DrawAliasModel (cb_context_t *cbx, entity_t *e, int *aliaspolys)
 
 	qboolean alphatest = !!(e->model->flags & MF_HOLEY);
 
-	R_SetupAliasFrame (e, paliashdr, e->frame, &lerpdata);
+	R_SetupAliasFrame (e, paliashdr, &lerpdata);
 	R_GetEntityLerpedTransform (e, lerpdata.origin, lerpdata.angles);
 
 	//
@@ -663,7 +614,7 @@ void R_DrawAliasModel_ShowTris (cb_context_t *cbx, entity_t *e)
 	//
 	paliashdr = (aliashdr_t *)Mod_Extradata_CheckSkin (e->model, e->skinnum);
 
-	R_SetupAliasFrame (e, paliashdr, e->frame, &lerpdata);
+	R_SetupAliasFrame (e, paliashdr, &lerpdata);
 	R_GetEntityLerpedTransform (e, lerpdata.origin, lerpdata.angles);
 
 	//

@@ -3686,6 +3686,7 @@ static void PF_copyentity (void)
 	memcpy (&dst->v, &src->v, qcvm->edict_size - sizeof (entvars_t));
 	dst->alpha = src->alpha;
 	dst->sendinterval = src->sendinterval;
+	dst->sendinterval_default = src->sendinterval_default;
 	SV_LinkEdict (dst, false);
 
 	G_INT (OFS_RETURN) = EDICT_TO_PROG (dst);
