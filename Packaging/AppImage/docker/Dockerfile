@@ -25,6 +25,7 @@ RUN apt-get update \
 	libopenal-dev \
 	libpango1.0-dev \
 	libpulse-dev \
+	libpipewire-0.3-dev \
 	libsdl2-dev \
 	libsndio-dev \
 	libudev-dev \
