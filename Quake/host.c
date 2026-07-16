@@ -792,7 +792,8 @@ void Host_ServerFrame (void)
 		SV_Physics ();
 
 	// johnfitz -- devstats
-	if (cls.signon == SIGNONS)
+	// the count is only observable through the devstats overlay and a developer warning, so don't walk every edict per tick unless one of them can see it
+	if (cls.signon == SIGNONS && (devstats.value || developer.value))
 	{
 		for (i = 0, active = 0; i < qcvm->num_edicts; i++)
 		{
