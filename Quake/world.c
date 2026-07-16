@@ -492,6 +492,8 @@ void SV_LinkEdict (edict_t *ent, qboolean touch_triggers)
 	if (ent->v.modelindex)
 		SV_FindTouchedLeafs (ent, qcvm->worldmodel->nodes);
 
+	SV_PushGridEntityLinked (ent);
+
 	if (ent->v.solid == SOLID_NOT)
 		return;
 

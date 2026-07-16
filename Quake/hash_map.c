@@ -140,6 +140,20 @@ void HashMap_Reserve (hash_map_t *map, int capacity)
 
 /*
 =================
+HashMap_Clear
+
+Removes all entries but keeps the allocated storage.
+=================
+*/
+void HashMap_Clear (hash_map_t *map)
+{
+	if (map->num_entries && map->hash_to_index)
+		memset (map->hash_to_index, 0xFF, map->hash_size * sizeof (uint32_t));
+	map->num_entries = 0;
+}
+
+/*
+=================
 HashMap_InsertImpl
 =================
 */

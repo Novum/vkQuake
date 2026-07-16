@@ -62,6 +62,9 @@ void SV_LinkEdict (edict_t *ent, qboolean touch_triggers);
 // sets ent->v.absmin and ent->v.absmax
 // if touchtriggers, calls prog functions for the intersected triggers
 
+void SV_PushGridEntityLinked (edict_t *ent);
+// sv_phys.c: keeps the SV_PushMove spatial grid in sync with entities that move mid-tick
+
 int SV_PointContentsAllBsps (vec3_t p, edict_t *forent); // check all SOLID_BSP ents
 int SV_PointContents (vec3_t p);
 int SV_TruePointContents (vec3_t p);

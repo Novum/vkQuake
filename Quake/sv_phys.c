@@ -60,6 +60,209 @@ static void SV_Physics_Toss (edict_t *ent);
 static edict_t *pushable_ent_cache[MAX_EDICTS];
 static int		num_pushable_ent_cache;
 
+// Spatial hash over the pushable cache so each moving pusher only tests nearby
+// entities instead of scanning the whole cache. Rebuilt once per SV_Physics.
+// Entities that move during the tick are reinserted at their new position by
+// SV_LinkEdict, so entries only need to cover linked positions. Entities
+// allocated mid-tick (cache entries at index >= push_grid_tail_start) and
+// oversized entities bypass the grid and are always tested.
+#define PUSH_GRID_CELL_SHIFT 8 // 256 unit cells
+#define PUSH_GRID_MAX_LARGE	 1024
+
+typedef struct
+{
+	edict_t *ent;
+	int		 next;
+} push_grid_entry_t;
+
+static hash_map_t		 *push_grid_map; // cell coords -> head index into push_grid_entries
+static push_grid_entry_t *push_grid_entries;
+static int				  push_grid_entries_capacity;
+static int				  push_grid_num_entries;
+static edict_t			 *push_grid_large[PUSH_GRID_MAX_LARGE];
+static int				  push_grid_num_large;
+static int				  push_grid_tail_start;
+static qboolean			  push_grid_valid;
+static qboolean			  push_grid_active; // inside SV_Physics with a built grid
+static qcvm_t			 *push_grid_qcvm;	// vm the grid was built for, entities from other vms must not mix in
+
+static qboolean SV_IsPushable (edict_t *ent)
+{
+	return ent->v.movetype != MOVETYPE_PUSH && ent->v.movetype != MOVETYPE_NONE && ent->v.movetype != MOVETYPE_NOCLIP;
+}
+
+typedef struct
+{
+	int32_t x, y, z;
+} push_grid_cell_t;
+
+static uint32_t PushGrid_HashCell (const void *const val)
+{
+	const push_grid_cell_t *cell = (const push_grid_cell_t *)val;
+	return HashCombine (HashInt32 (&cell->x), HashCombine (HashInt32 (&cell->y), HashInt32 (&cell->z)));
+}
+
+static int PushGrid_Cell (float v)
+{
+	// garbage origins (NaN, huge floats from broken QC) must not reach the int conversion
+	const float limit = 1 << 23;
+	if (!(v >= -limit)) // also catches NaN
+		v = -limit;
+	else if (v > limit)
+		v = limit;
+	return ((int)floorf (v)) >> PUSH_GRID_CELL_SHIFT;
+}
+
+static void PushGrid_CellRange (const vec3_t absmin, const vec3_t absmax, float inflate, int lo[3], int hi[3])
+{
+	for (int i = 0; i < 3; i++)
+	{
+		lo[i] = PushGrid_Cell (absmin[i] - inflate);
+		hi[i] = PushGrid_Cell (absmax[i] + inflate);
+	}
+}
+
+static void PushGrid_Clear (void)
+{
+	if (!push_grid_map)
+		push_grid_map = HashMap_Create (push_grid_cell_t, int32_t, &PushGrid_HashCell, NULL);
+	HashMap_Clear (push_grid_map);
+	push_grid_num_entries = 0;
+	push_grid_num_large = 0;
+	push_grid_valid = true;
+	push_grid_active = false;
+}
+
+static void PushGrid_Insert (edict_t *ent)
+{
+	int lo[3], hi[3];
+	PushGrid_CellRange (ent->v.absmin, ent->v.absmax, 0.0f, lo, hi);
+
+	// per-axis span check before the multiply so huge boxes can't overflow the cell count
+	if (hi[0] - lo[0] >= 4 || hi[1] - lo[1] >= 4 || hi[2] - lo[2] >= 4)
+	{
+		if (push_grid_num_large == PUSH_GRID_MAX_LARGE)
+			push_grid_valid = false;
+		else
+			push_grid_large[push_grid_num_large++] = ent;
+		return;
+	}
+
+	int cells = (hi[0] - lo[0] + 1) * (hi[1] - lo[1] + 1) * (hi[2] - lo[2] + 1);
+
+	if (push_grid_num_entries + cells > push_grid_entries_capacity)
+	{
+		push_grid_entries_capacity = q_max (push_grid_entries_capacity * 2, 4096);
+		push_grid_entries = Mem_Realloc (push_grid_entries, push_grid_entries_capacity * sizeof (push_grid_entry_t));
+	}
+
+	for (int x = lo[0]; x <= hi[0]; x++)
+		for (int y = lo[1]; y <= hi[1]; y++)
+			for (int z = lo[2]; z <= hi[2]; z++)
+			{
+				push_grid_cell_t key = {x, y, z};
+				int32_t			 index = push_grid_num_entries;
+				int32_t			*head = HashMap_Lookup (int32_t, push_grid_map, &key);
+
+				push_grid_entries[index].ent = ent;
+				push_grid_entries[index].next = head ? *head : -1;
+				if (head)
+					*head = index;
+				else
+					HashMap_Insert (push_grid_map, &key, &index);
+				push_grid_num_entries++;
+			}
+}
+
+/*
+============
+SV_PushGridEntityLinked
+
+Called from SV_LinkEdict. All absbox changes pass through there, so
+re-inserting keeps the grid a superset of every position an entity occupied
+during this tick — including teleports (setorigin) and entities displaced by
+earlier pushers. Stale entries are harmless: candidates are verified against
+live state.
+============
+*/
+void SV_PushGridEntityLinked (edict_t *ent)
+{
+	if (!push_grid_active || qcvm != push_grid_qcvm || ent->free)
+		return;
+	if (!SV_IsPushable (ent))
+		return;
+	PushGrid_Insert (ent);
+}
+
+/*
+============
+PushGrid_GatherCandidates
+
+Collects pushable entities near the given box (in vanilla edict order, no
+duplicates) into out. Returns the count, or -1 if the grid is unusable this
+tick and the caller must scan the full cache.
+============
+*/
+static int PushGrid_GatherCandidates (const vec3_t mins, const vec3_t maxs, edict_t **out)
+{
+	int num = 0;
+
+	if (!push_grid_valid)
+		return -1;
+
+	// strictly overlapping absboxes always share a cell, and riders touching the
+	// pusher overlap it through the +-1 absbox expansion in SV_LinkEdict, so no
+	// inflation is needed in theory. The +2 is a safety margin for riders whose
+	// ONGROUND/groundentity state outlives actual contact by a small gap (the
+	// elevator DIST_EPSILON nudge, float drift); it almost never adds a cell.
+	int lo[3], hi[3];
+	PushGrid_CellRange (mins, maxs, 2.0f, lo, hi);
+
+	for (int x = lo[0]; x <= hi[0]; x++)
+		for (int y = lo[1]; y <= hi[1]; y++)
+			for (int z = lo[2]; z <= hi[2]; z++)
+			{
+				push_grid_cell_t key = {x, y, z};
+				int32_t			*head = HashMap_Lookup (int32_t, push_grid_map, &key);
+				for (int i = head ? *head : -1; i >= 0; i = push_grid_entries[i].next)
+				{
+					if (num == MAX_EDICTS)
+						return -1; // pathological duplication, let the caller scan the cache
+					out[num++] = push_grid_entries[i].ent;
+				}
+			}
+
+	if (num + push_grid_num_large + (num_pushable_ent_cache - push_grid_tail_start) > MAX_EDICTS)
+		return -1;
+
+	for (int i = 0; i < push_grid_num_large; i++)
+		out[num++] = push_grid_large[i];
+
+	// entities allocated after the grid was built
+	for (int i = push_grid_tail_start; i < num_pushable_ent_cache; i++)
+		out[num++] = pushable_ent_cache[i];
+
+	// restore vanilla processing order (blocked pushers roll back everything
+	// moved so far, so order is observable) and drop multi-cell duplicates
+	for (int i = 1; i < num; i++)
+	{
+		edict_t *key = out[i];
+		int		 j = i - 1;
+		while (j >= 0 && out[j] > key)
+		{
+			out[j + 1] = out[j];
+			j--;
+		}
+		out[j + 1] = key;
+	}
+	int unique = 0;
+	for (int i = 0; i < num; i++)
+		if (unique == 0 || out[unique - 1] != out[i])
+			out[unique++] = out[i];
+
+	return unique;
+}
+
 /*
 ================
 SV_CheckAllEnts
@@ -483,6 +686,7 @@ static void SV_PushMove (edict_t *pusher, float movetime)
 	edict_t *check, *block;
 	vec3_t	 mins, maxs, move;
 	vec3_t	 entorig, pushorig;
+	vec3_t	 querymins, querymaxs;
 	int		 num_moved;
 	float	 solid_backup;
 
@@ -502,6 +706,10 @@ static void SV_PushMove (edict_t *pusher, float movetime)
 		move[i] = pusher->v.velocity[i] * movetime;
 		mins[i] = pusher->v.absmin[i] + move[i];
 		maxs[i] = pusher->v.absmax[i] + move[i];
+		// the grid query must span the whole sweep: riders rest on the pre-move
+		// box and are exempt from the final-box overlap test below
+		querymins[i] = q_min (pusher->v.absmin[i], mins[i]);
+		querymaxs[i] = q_max (pusher->v.absmax[i], maxs[i]);
 	}
 
 	VectorCopy (pusher->v.origin, pushorig);
@@ -515,7 +723,21 @@ static void SV_PushMove (edict_t *pusher, float movetime)
 	// see if any solid entities are inside the final position
 	num_moved = 0;
 
-	const bool fast_pushers = (sv_fastpushmove.value > 0.f);
+	static edict_t *push_candidates[MAX_EDICTS];
+	edict_t		  **fast_list = NULL;
+	int				fast_count = 0;
+
+	if (push_grid_active)
+	{
+		fast_count = PushGrid_GatherCandidates (querymins, querymaxs, push_candidates);
+		if (fast_count >= 0)
+			fast_list = push_candidates;
+		else
+		{ // grid unusable this tick, scan the whole cache
+			fast_list = pushable_ent_cache;
+			fast_count = num_pushable_ent_cache;
+		}
+	}
 
 	int e = -1;
 
@@ -524,14 +746,14 @@ static void SV_PushMove (edict_t *pusher, float movetime)
 
 	while (true)
 	{
-		if (e >= (fast_pushers ? num_pushable_ent_cache - 1 : qcvm->num_edicts - 1 - 1))
+		if (e >= (fast_list ? fast_count - 1 : qcvm->num_edicts - 1 - 1))
 			break;
 
 		e++;
 
-		if (fast_pushers)
+		if (fast_list)
 		{
-			check = pushable_ent_cache[e];
+			check = fast_list[e];
 		}
 		else if (e > 0)
 		{
@@ -541,7 +763,7 @@ static void SV_PushMove (edict_t *pusher, float movetime)
 		if (check->free)
 			continue;
 
-		if (check->v.movetype == MOVETYPE_PUSH || check->v.movetype == MOVETYPE_NONE || check->v.movetype == MOVETYPE_NOCLIP)
+		if (!SV_IsPushable (check))
 			continue;
 
 		qboolean riding = false;
@@ -616,7 +838,8 @@ static void SV_PushMove (edict_t *pusher, float movetime)
 			}
 
 			// try moving the entity up a bit if it's blocked by the pusher while also standing on it
-			if (riding && block == pusher && (sv_gameplayfix_elevators.value >= 2.f || (sv_gameplayfix_elevators.value && e <= svs.maxclients)))
+			if (riding && block == pusher &&
+				(sv_gameplayfix_elevators.value >= 2.f || (sv_gameplayfix_elevators.value && NUM_FOR_EDICT (check) <= svs.maxclients)))
 			{
 				check->v.origin[2] += DIST_EPSILON;
 				if (!SV_TestEntityPosition (check))
@@ -1366,21 +1589,29 @@ void SV_Physics (void)
 	else
 		entity_cap = qcvm->num_edicts;
 
-	// fill the pushable entities cache
-	if (sv_fastpushmove.value > 0.f)
+	// QC can flip the cvar mid-tick, the whole tick must use one consistent decision
+	const qboolean fast_pushers = (sv_fastpushmove.value > 0.f);
+
+	// fill the pushable entities cache and the spatial grid over it
+	if (fast_pushers)
 	{
 		num_pushable_ent_cache = 0;
+		PushGrid_Clear ();
 		// beware, we skip entity 0 here:
 		edict_t *check = NEXT_EDICT (qcvm->edicts);
 		for (int e = 1; e < qcvm->num_edicts; e++, check = NEXT_EDICT (check))
 		{
 			if (check->free)
 				continue;
-			if (check->v.movetype == MOVETYPE_PUSH || check->v.movetype == MOVETYPE_NONE || check->v.movetype == MOVETYPE_NOCLIP)
+			if (!SV_IsPushable (check))
 				continue;
 
 			pushable_ent_cache[num_pushable_ent_cache++] = check;
+			PushGrid_Insert (check);
 		}
+		push_grid_tail_start = num_pushable_ent_cache;
+		push_grid_qcvm = qcvm;
+		push_grid_active = true;
 
 		previous_alloc_hook = ED_AllocSetHook (SV_Physics_Alloc_Hook);
 	}
@@ -1441,6 +1672,9 @@ void SV_Physics (void)
 	if (!(sv_freezenonclients.value && qcvm == &sv.qcvm))
 		qcvm->time += host_frametime;
 
-	if (sv_fastpushmove.value > 0.f)
+	if (fast_pushers)
+	{
+		push_grid_active = false;
 		ED_AllocSetHook (previous_alloc_hook);
+	}
 }
