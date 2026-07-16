@@ -1488,7 +1488,7 @@ void R_CreateDescriptorSetLayouts ()
 	}
 
 	{
-		ZEROED_STRUCT_ARRAY (VkDescriptorSetLayoutBinding, indirect_compute_layout_bindings, 4);
+		ZEROED_STRUCT_ARRAY (VkDescriptorSetLayoutBinding, indirect_compute_layout_bindings, 6);
 		indirect_compute_layout_bindings[0].binding = 0;
 		indirect_compute_layout_bindings[0].descriptorCount = 1;
 		indirect_compute_layout_bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
@@ -1505,17 +1505,48 @@ void R_CreateDescriptorSetLayouts ()
 		indirect_compute_layout_bindings[3].descriptorCount = 1;
 		indirect_compute_layout_bindings[3].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 		indirect_compute_layout_bindings[3].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+		indirect_compute_layout_bindings[4].binding = 4;
+		indirect_compute_layout_bindings[4].descriptorCount = 1;
+		indirect_compute_layout_bindings[4].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+		indirect_compute_layout_bindings[4].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+		indirect_compute_layout_bindings[5].binding = 5;
+		indirect_compute_layout_bindings[5].descriptorCount = 1;
+		indirect_compute_layout_bindings[5].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+		indirect_compute_layout_bindings[5].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
 		descriptor_set_layout_create_info.bindingCount = countof (indirect_compute_layout_bindings);
 		descriptor_set_layout_create_info.pBindings = indirect_compute_layout_bindings;
 
 		memset (&vulkan_globals.indirect_compute_set_layout, 0, sizeof (vulkan_globals.indirect_compute_set_layout));
-		vulkan_globals.indirect_compute_set_layout.num_storage_buffers = 4;
+		vulkan_globals.indirect_compute_set_layout.num_storage_buffers = 6;
 
 		err = vkCreateDescriptorSetLayout (vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.indirect_compute_set_layout.handle);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkCreateDescriptorSetLayout failed with code %i", (int)err);
 		GL_SetObjectName ((uint64_t)vulkan_globals.indirect_compute_set_layout.handle, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT, "indirect compute");
+	}
+
+	{
+		ZEROED_STRUCT_ARRAY (VkDescriptorSetLayoutBinding, bmodel_instances_layout_bindings, 2);
+		bmodel_instances_layout_bindings[0].binding = 0;
+		bmodel_instances_layout_bindings[0].descriptorCount = 1;
+		bmodel_instances_layout_bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+		bmodel_instances_layout_bindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+		bmodel_instances_layout_bindings[1].binding = 1;
+		bmodel_instances_layout_bindings[1].descriptorCount = 1;
+		bmodel_instances_layout_bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+		bmodel_instances_layout_bindings[1].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+		descriptor_set_layout_create_info.bindingCount = countof (bmodel_instances_layout_bindings);
+		descriptor_set_layout_create_info.pBindings = bmodel_instances_layout_bindings;
+
+		memset (&vulkan_globals.bmodel_instances_set_layout, 0, sizeof (vulkan_globals.bmodel_instances_set_layout));
+		vulkan_globals.bmodel_instances_set_layout.num_storage_buffers = 2;
+
+		err = vkCreateDescriptorSetLayout (vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.bmodel_instances_set_layout.handle);
+		if (err != VK_SUCCESS)
+			Sys_Error ("vkCreateDescriptorSetLayout failed with code %i", (int)err);
+		GL_SetObjectName ((uint64_t)vulkan_globals.bmodel_instances_set_layout.handle, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT, "bmodel instances");
 	}
 
 	if (vulkan_globals.ray_query)
@@ -1616,7 +1647,7 @@ void R_CreatePipelineLayouts ()
 
 		ZEROED_STRUCT (VkPushConstantRange, push_constant_range);
 		push_constant_range.offset = 0;
-		push_constant_range.size = 21 * sizeof (float);
+		push_constant_range.size = 22 * sizeof (float);
 		push_constant_range.stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS;
 
 		ZEROED_STRUCT (VkPipelineLayoutCreateInfo, pipeline_layout_create_info);
@@ -1636,13 +1667,13 @@ void R_CreatePipelineLayouts ()
 
 	{
 		// World
-		VkDescriptorSetLayout world_descriptor_set_layouts[4] = {
+		VkDescriptorSetLayout world_descriptor_set_layouts[5] = {
 			vulkan_globals.single_texture_set_layout.handle, vulkan_globals.single_texture_set_layout.handle, vulkan_globals.single_texture_set_layout.handle,
-			vulkan_globals.mboit_input_attachment_set_layout.handle};
+			vulkan_globals.mboit_input_attachment_set_layout.handle, vulkan_globals.bmodel_instances_set_layout.handle};
 
 		ZEROED_STRUCT (VkPushConstantRange, push_constant_range);
 		push_constant_range.offset = 0;
-		push_constant_range.size = 21 * sizeof (float);
+		push_constant_range.size = 22 * sizeof (float);
 		push_constant_range.stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS;
 
 		ZEROED_STRUCT (VkPipelineLayoutCreateInfo, pipeline_layout_create_info);
@@ -1668,7 +1699,7 @@ void R_CreatePipelineLayouts ()
 
 		ZEROED_STRUCT (VkPushConstantRange, push_constant_range);
 		push_constant_range.offset = 0;
-		push_constant_range.size = 21 * sizeof (float);
+		push_constant_range.size = 22 * sizeof (float);
 		push_constant_range.stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS;
 
 		ZEROED_STRUCT (VkPipelineLayoutCreateInfo, pipeline_layout_create_info);
@@ -1696,7 +1727,7 @@ void R_CreatePipelineLayouts ()
 
 		ZEROED_STRUCT (VkPushConstantRange, push_constant_range);
 		push_constant_range.offset = 0;
-		push_constant_range.size = 21 * sizeof (float);
+		push_constant_range.size = 22 * sizeof (float);
 		push_constant_range.stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS;
 
 		ZEROED_STRUCT (VkPipelineLayoutCreateInfo, pipeline_layout_create_info);
@@ -1953,7 +1984,7 @@ void R_CreatePipelineLayouts ()
 
 		ZEROED_STRUCT (VkPushConstantRange, push_constant_range);
 		push_constant_range.offset = 0;
-		push_constant_range.size = 6 * sizeof (uint32_t);
+		push_constant_range.size = 7 * sizeof (uint32_t);
 		push_constant_range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
 		ZEROED_STRUCT (VkPipelineLayoutCreateInfo, pipeline_layout_create_info);
@@ -3168,17 +3199,20 @@ static void R_CreateShowTrisPipelines ()
 		infos.input_assembly_state.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
 		R_CreateGraphicsPipeline (&vulkan_globals.showbboxes_pipeline[variant], &infos, vulkan_globals.basic_pipeline_layout, va ("showbboxes%s", pass_suffix));
 
+		// indirect showtris uses the world vertex shader so moved submodels get their instance transform applied
 		R_CopyPipelineCreateInfos (&infos, &base);
 		infos.graphics_pipeline.renderPass = render_pass;
+		infos.shader_stages[0].module = world_vert_module;
 		infos.vertex_input_state.vertexAttributeDescriptionCount = 3;
 		infos.vertex_input_state.pVertexAttributeDescriptions = world_vertex_input_attribute_descriptions;
 		infos.vertex_input_state.vertexBindingDescriptionCount = 1;
 		infos.vertex_input_state.pVertexBindingDescriptions = &world_vertex_binding_description;
 		R_CreateGraphicsPipeline (
-			&vulkan_globals.showtris_indirect_pipeline[variant], &infos, vulkan_globals.basic_pipeline_layout, va ("showtris_indirect%s", pass_suffix));
+			&vulkan_globals.showtris_indirect_pipeline[variant], &infos, vulkan_globals.world_pipeline_layout, va ("showtris_indirect%s", pass_suffix));
 
 		R_CopyPipelineCreateInfos (&infos, &base);
 		infos.graphics_pipeline.renderPass = render_pass;
+		infos.shader_stages[0].module = world_vert_module;
 		infos.vertex_input_state.vertexAttributeDescriptionCount = 3;
 		infos.vertex_input_state.pVertexAttributeDescriptions = world_vertex_input_attribute_descriptions;
 		infos.vertex_input_state.vertexBindingDescriptionCount = 1;
@@ -3188,7 +3222,7 @@ static void R_CreateShowTrisPipelines ()
 		infos.rasterization_state.depthBiasConstantFactor = 500.0f;
 		infos.rasterization_state.depthBiasSlopeFactor = 0.0f;
 		R_CreateGraphicsPipeline (
-			&vulkan_globals.showtris_indirect_depth_test_pipeline[variant], &infos, vulkan_globals.basic_pipeline_layout,
+			&vulkan_globals.showtris_indirect_depth_test_pipeline[variant], &infos, vulkan_globals.world_pipeline_layout,
 			va ("showtris_indirect_depth_test%s", pass_suffix));
 	}
 }

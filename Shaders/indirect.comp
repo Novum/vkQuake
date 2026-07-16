@@ -13,6 +13,7 @@ layout (push_constant) uniform PushConsts
 	float vieworg_x;
 	float vieworg_y;
 	float vieworg_z;
+	uint  instance_base;
 }
 push_constants;
 
@@ -31,6 +32,14 @@ layout (std430, set = 0, binding = 2) restrict readonly buffer visibility_buffer
 layout (std430, set = 0, binding = 3) restrict buffer ib
 {
 	uint indices[];
+};
+layout (std430, set = 0, binding = 4) restrict readonly buffer surface_submodels_buffer
+{
+	uint surface_submodels[];
+};
+layout (std430, set = 0, binding = 5) restrict readonly buffer instances_buffer
+{
+	bmodel_instance_t bmodel_instances[];
 };
 
 uint R_NumTriangleIndicesForSurf (uint edges)
@@ -61,8 +70,11 @@ void main ()
 	if ((vis_word & vis_mask) == 0)
 		return;
 
+	// surface planes are in model space, so test moved submodels against the model space view origin
+	const uint	submodel = surface_submodels[surf];
 	const vec3	surf_normal = vec3 (surfaces[surf].normal_x, surfaces[surf].normal_y, surfaces[surf].normal_z);
-	const vec3	vieworg = vec3 (push_constants.vieworg_x, push_constants.vieworg_y, push_constants.vieworg_z);
+	const vec3	vieworg = (submodel != 0) ? bmodel_instances[push_constants.instance_base + submodel].local_vieworg.xyz
+										  : vec3 (push_constants.vieworg_x, push_constants.vieworg_y, push_constants.vieworg_z);
 	const float dist = surfaces[surf].dist;
 	const float dp = dot (surf_normal, vieworg);
 	const bool	backface = (surfaces[surf].packed_tex_edgecount & 0x8000) != 0;

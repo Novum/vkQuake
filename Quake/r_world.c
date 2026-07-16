@@ -969,6 +969,9 @@ static void R_MarkSurfacesPrepare (void *unused)
 
 	r_visframecount++;
 
+	if (indirect)
+		R_ClearBModelInstanceClaims ();
+
 	// set all chains to null
 	for (i = 0; i < cl.worldmodel->numtextures; i++)
 		if (cl.worldmodel->textures[i])
@@ -1280,6 +1283,10 @@ void R_DrawTextureChains_Water (cb_context_t *cbx, qmodel_t *model, entity_t *en
 	if (r_lightmap_cheatsafe)
 		vulkan_globals.vk_cmd_bind_descriptor_sets (
 			cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 0, 1, &greytexture->descriptor_set, 0, NULL);
+	vulkan_globals.vk_cmd_bind_descriptor_sets (
+		cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 4, 1, &vulkan_globals.bmodel_instances_desc_set, 0, NULL);
+	const uint32_t instance_base = 0; // texture chain draws bake the entity transform into the mvp push constant
+	R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 21 * sizeof (float), sizeof (uint32_t), &instance_base);
 
 	uint32_t brushpasses = 0;
 	for (type = TEXTYPE_FIRSTLIQUID; type <= TEXTYPE_LASTLIQUID; ++type)
@@ -1361,6 +1368,10 @@ void R_DrawTextureChains_Multitexture (cb_context_t *cbx, qmodel_t *model, entit
 	if (r_lightmap_cheatsafe)
 		vulkan_globals.vk_cmd_bind_descriptor_sets (
 			cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 0, 1, &greytexture->descriptor_set, 0, NULL);
+	vulkan_globals.vk_cmd_bind_descriptor_sets (
+		cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 4, 1, &vulkan_globals.bmodel_instances_desc_set, 0, NULL);
+	const uint32_t instance_base = 0; // texture chain draws bake the entity transform into the mvp push constant
+	R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 21 * sizeof (float), sizeof (uint32_t), &instance_base);
 
 	if (alpha_blend)
 	{

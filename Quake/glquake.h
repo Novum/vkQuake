@@ -474,6 +474,8 @@ typedef struct
 	vulkan_desc_set_layout_t lightmap_compute_set_layout;
 	VkDescriptorSet			 indirect_compute_desc_set;
 	vulkan_desc_set_layout_t indirect_compute_set_layout;
+	VkDescriptorSet			 bmodel_instances_desc_set;
+	vulkan_desc_set_layout_t bmodel_instances_set_layout;
 	vulkan_desc_set_layout_t ray_query_push_set_layout;
 	VkDescriptorSet			 ray_debug_desc_set;
 	vulkan_desc_set_layout_t ray_debug_set_layout;
@@ -732,6 +734,7 @@ void R_UpdateWarpTextures (void *unused);
 void R_MarkDeps (int combined_deps, int worker_index);
 
 qboolean R_IndirectBrush (entity_t *e);
+void	 R_ClearBModelInstanceClaims (void);
 
 void R_DrawWorld (cb_context_t *cbx, int index);
 

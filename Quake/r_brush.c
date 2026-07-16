@@ -268,6 +268,14 @@ typedef struct lm_compute_surface_data_s
 } lm_compute_surface_data_t;
 COMPILE_TIME_ASSERT (lm_compute_surface_data_t, sizeof (lm_compute_surface_data_t) == 64);
 
+// keep in sync with bmodel_instance_t in globals.inc
+typedef struct bmodel_instance_s
+{
+	vec4_t transform[3];  // model to world, transposed rows
+	vec4_t local_vieworg; // view origin in model space, for backface culling
+} bmodel_instance_t;
+COMPILE_TIME_ASSERT (bmodel_instance_t, sizeof (bmodel_instance_t) == 64);
+
 typedef struct lm_compute_light_s
 {
 	vec3_t origin;
@@ -302,6 +310,17 @@ static VkBuffer			   submodel_transforms_buffer;
 static float			  *lightstyles_scales_buffer_mapped;
 static lm_compute_light_t *lights_buffer_mapped;
 static float			  *submodel_transforms_buffer_mapped;
+static vulkan_memory_t	   vertex_submodels_buffer_memory;
+static VkBuffer			   vertex_submodels_buffer;
+static VkBuffer			   bmodel_instances_buffer;
+static bmodel_instance_t  *bmodel_instances_buffer_mapped;
+
+// The first entity drawing a submodel through the indirect path each frame claims its instance slot,
+// additional entities sharing the submodel fall back to per-entity drawing
+static atomic_uint64_t bmodel_instance_claims[MAX_MODELS];
+
+// current_compute_buffer_index flips mid frame, latch the instance buffer half while the frame is set up
+static int bmodel_instances_index;
 
 // Movable brush submodels ('*' models) have their lightmap texels lit in entity space: per surface the submodel
 // index selects a per-frame model to world transform that is also used to cull dlights per workgroup on the GPU
@@ -581,6 +600,30 @@ static void R_RecursiveNode (
 
 /*
 =================
+R_ClearBModelInstanceClaims
+=================
+*/
+void R_ClearBModelInstanceClaims (void)
+{
+	bmodel_instances_index = current_compute_buffer_index;
+	memset ((void *)bmodel_instance_claims, 0, num_worldmodel_submodels * sizeof (bmodel_instance_claims[0]));
+}
+
+/*
+=================
+R_ClaimBModelInstance
+=================
+*/
+static qboolean R_ClaimBModelInstance (entity_t *e, int submodel)
+{
+	uint64_t expected = 0;
+	if (Atomic_CompareExchangeUInt64 (&bmodel_instance_claims[submodel], &expected, (uint64_t)(uintptr_t)e))
+		return true;
+	return expected == (uint64_t)(uintptr_t)e;
+}
+
+/*
+=================
 R_IndirectBrush
 =================
 */
@@ -593,8 +636,17 @@ qboolean R_IndirectBrush (entity_t *e)
 	const qboolean fixed_alpha_water = e->alpha != ENTALPHA_DEFAULT && has_water;
 	// without OIT, water needs the stable draw order of the texture chains even in indirect mode
 	const qboolean alpha_sorted = !R_UseOIT () && (transparent_entity || has_water);
-	return indirect && !(transparent_entity || fixed_alpha_water || alpha_sorted || e->origin[0] || e->origin[1] || e->origin[2] || e->angles[0] ||
-						 e->angles[1] || e->angles[2] || ENTSCALE_DECODE (e->netstate.scale) != 1.0f || e->frame != 0 || e->model->name[0] != '*');
+	if (!indirect || transparent_entity || fixed_alpha_water || alpha_sorted || (e->frame != 0) || (e->model->name[0] != '*'))
+		return false;
+	const qboolean transformed =
+		e->origin[0] || e->origin[1] || e->origin[2] || e->angles[0] || e->angles[1] || e->angles[2] || (ENTSCALE_DECODE (e->netstate.scale) != 1.0f);
+	// sky surfaces are drawn with pipelines that don't apply instance transforms
+	if (transformed && (e->model->used_specials & SURF_DRAWSKY))
+		return false;
+	const int submodel = atoi (e->model->name + 1);
+	if ((submodel <= 0) || (submodel >= num_worldmodel_submodels))
+		return !transformed;
+	return R_ClaimBModelInstance (e, submodel);
 }
 
 /*
@@ -618,6 +670,38 @@ void R_DrawBrushModel (cb_context_t *cbx, entity_t *e, int chain, int *brushpoly
 
 	if (!water_opaque_only && !water_transparent_only && R_IndirectBrush (e))
 	{
+		const int submodel = atoi (clmodel->name + 1);
+		if ((submodel > 0) && (submodel < num_worldmodel_submodels))
+		{
+			bmodel_instance_t *instance = bmodel_instances_buffer_mapped + ((size_t)bmodel_instances_index * MAX_MODELS) + submodel;
+
+			vec3_t e_angles;
+			VectorCopy (e->angles, e_angles);
+			e_angles[0] = -e_angles[0]; // stupid quake bug
+			float model_matrix[16];
+			IdentityMatrix (model_matrix);
+			R_RotateForEntity (model_matrix, e->origin, e_angles, e->netstate.scale);
+			for (int row = 0; row < 3; ++row)
+				for (int col = 0; col < 4; ++col)
+					instance->transform[row][col] = model_matrix[(col * 4) + row];
+
+			// same backface culling origin as the per-entity path below: rotated into model space, unscaled
+			VectorSubtract (r_refdef.vieworg, e->origin, modelorg);
+			if (e->angles[0] || e->angles[1] || e->angles[2])
+			{
+				vec3_t temp;
+				vec3_t forward, right, up;
+
+				VectorCopy (modelorg, temp);
+				AngleVectors (e->angles, forward, right, up);
+				modelorg[0] = DotProduct (temp, forward);
+				modelorg[1] = -DotProduct (temp, right);
+				modelorg[2] = DotProduct (temp, up);
+			}
+			VectorCopy (modelorg, instance->local_vieworg);
+			instance->local_vieworg[3] = 0.0f;
+		}
+
 		// indirect mark
 		int				 start = clmodel->firstmodelsurface;
 		int				 end = start + clmodel->nummodelsurfaces;
@@ -824,6 +908,10 @@ void R_DrawIndirectBrushes (cb_context_t *cbx, qboolean draw_water, qboolean tra
 		if (r_lightmap_cheatsafe)
 			vulkan_globals.vk_cmd_bind_descriptor_sets (
 				cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 0, 1, &greytexture->descriptor_set, 0, NULL);
+		vulkan_globals.vk_cmd_bind_descriptor_sets (
+			cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 4, 1, &vulkan_globals.bmodel_instances_desc_set, 0, NULL);
+		const uint32_t instance_base = ((uint32_t)bmodel_instances_index * MAX_MODELS) + 1;
+		R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 21 * sizeof (float), sizeof (uint32_t), &instance_base);
 	}
 
 	gltexture_t *lastfullbright = NULL;
@@ -944,6 +1032,11 @@ void R_DrawIndirectBrushes_ShowTris (cb_context_t *cbx)
 		cbx, VK_PIPELINE_BIND_POINT_GRAPHICS,
 		r_showtris.value == 1 ? vulkan_globals.showtris_indirect_pipeline[R_MainPassPipelineVariant (cbx->render_pass_index)]
 							  : vulkan_globals.showtris_indirect_depth_test_pipeline[R_MainPassPipelineVariant (cbx->render_pass_index)]);
+
+	vulkan_globals.vk_cmd_bind_descriptor_sets (
+		cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.world_pipeline_layout.handle, 4, 1, &vulkan_globals.bmodel_instances_desc_set, 0, NULL);
+	const uint32_t instance_base = ((uint32_t)bmodel_instances_index * MAX_MODELS) + 1;
+	R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 21 * sizeof (float), sizeof (uint32_t), &instance_base);
 
 	VkDeviceSize offset = 0;
 	vulkan_globals.vk_cmd_bind_vertex_buffers (cbx->cb, 0, 1, &bmodel_vertex_buffer, &offset);
@@ -1440,17 +1533,21 @@ void R_AllocateLightmapComputeBuffers ()
 	size_t lightstyles_buffer_size = MAX_LIGHTSTYLES * sizeof (float) * 2;
 	size_t lights_buffer_size = MAX_DLIGHTS * 2 * sizeof (lm_compute_light_t) * 2;
 	size_t submodel_transforms_buffer_size = MAX_MODELS * 12 * sizeof (float) * 2;
+	size_t bmodel_instances_buffer_size = MAX_MODELS * sizeof (bmodel_instance_t) * 2;
 
 	Sys_Printf ("Allocating lightstyles buffer (%u KB)\n", (int)lightstyles_buffer_size / 1024);
 	Sys_Printf ("Allocating lights buffer (%u KB)\n", (int)lights_buffer_size / 1024);
 	Sys_Printf ("Allocating submodel transforms buffer (%u KB)\n", (int)submodel_transforms_buffer_size / 1024);
+	Sys_Printf ("Allocating bmodel instances buffer (%u KB)\n", (int)bmodel_instances_buffer_size / 1024);
 
-	buffer_create_info_t buffer_create_infos[3] = {
+	buffer_create_info_t buffer_create_infos[4] = {
 		{&lightstyles_scales_buffer, lightstyles_buffer_size, 0, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, (void **)&lightstyles_scales_buffer_mapped, NULL,
 		 "Lightstyle scales"},
 		{&lights_buffer, lights_buffer_size, 0, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, (void **)&lights_buffer_mapped, NULL, "Lights"},
 		{&submodel_transforms_buffer, submodel_transforms_buffer_size, 0, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, (void **)&submodel_transforms_buffer_mapped, NULL,
 		 "Submodel transforms"},
+		{&bmodel_instances_buffer, bmodel_instances_buffer_size, 0, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, (void **)&bmodel_instances_buffer_mapped, NULL,
+		 "BModel instances"},
 	};
 	R_CreateBuffers (
 		countof (buffer_create_infos), buffer_create_infos, &lights_buffer_memory, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
@@ -1938,7 +2035,17 @@ void GL_SetupIndirectDraws ()
 	index_buffer_info.offset = 0;
 	index_buffer_info.range = VK_WHOLE_SIZE;
 
-	ZEROED_STRUCT_ARRAY (VkWriteDescriptorSet, indirect_d, 4);
+	ZEROED_STRUCT (VkDescriptorBufferInfo, indirect_surface_submodels_buffer_info);
+	indirect_surface_submodels_buffer_info.buffer = surface_submodels_buffer;
+	indirect_surface_submodels_buffer_info.offset = 0;
+	indirect_surface_submodels_buffer_info.range = num_surfaces * sizeof (uint32_t);
+
+	ZEROED_STRUCT (VkDescriptorBufferInfo, bmodel_instances_buffer_info);
+	bmodel_instances_buffer_info.buffer = bmodel_instances_buffer;
+	bmodel_instances_buffer_info.offset = 0;
+	bmodel_instances_buffer_info.range = VK_WHOLE_SIZE;
+
+	ZEROED_STRUCT_ARRAY (VkWriteDescriptorSet, indirect_d, 6);
 
 	indirect_d[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 	indirect_d[0].dstBinding = 0;
@@ -1971,6 +2078,22 @@ void GL_SetupIndirectDraws ()
 	indirect_d[3].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 	indirect_d[3].dstSet = vulkan_globals.indirect_compute_desc_set;
 	indirect_d[3].pBufferInfo = &index_buffer_info;
+
+	indirect_d[4].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	indirect_d[4].dstBinding = 4;
+	indirect_d[4].dstArrayElement = 0;
+	indirect_d[4].descriptorCount = 1;
+	indirect_d[4].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	indirect_d[4].dstSet = vulkan_globals.indirect_compute_desc_set;
+	indirect_d[4].pBufferInfo = &indirect_surface_submodels_buffer_info;
+
+	indirect_d[5].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	indirect_d[5].dstBinding = 5;
+	indirect_d[5].dstArrayElement = 0;
+	indirect_d[5].descriptorCount = 1;
+	indirect_d[5].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	indirect_d[5].dstSet = vulkan_globals.indirect_compute_desc_set;
+	indirect_d[5].pBufferInfo = &bmodel_instances_buffer_info;
 
 	vkUpdateDescriptorSets (vulkan_globals.device, countof (indirect_d), indirect_d, 0, NULL);
 
@@ -2263,6 +2386,7 @@ void GL_DeleteBModelVertexBuffer (void)
 {
 	GL_WaitForDeviceIdle ();
 	R_FreeBuffer (bmodel_vertex_buffer, &bmodel_memory, &num_vulkan_bmodel_allocations);
+	R_FreeBuffer (vertex_submodels_buffer, &vertex_submodels_buffer_memory, &num_vulkan_bmodel_allocations);
 }
 
 /*
@@ -2340,7 +2464,9 @@ void GL_BuildBModelVertexBuffer (void)
 	// build vertex array
 	varray_bytes = VERTEXSIZE * sizeof (float) * bmodel_numverts;
 	TEMP_ALLOC_ZEROED (float, varray, varray_bytes / sizeof (float));
+	TEMP_ALLOC_ZEROED (uint32_t, vertex_submodels, bmodel_numverts);
 
+	int current_submodel = 0;
 	for (j = 1; j < MAX_MODELS; j++)
 	{
 		m = cl.model_precache[j];
@@ -2351,6 +2477,17 @@ void GL_BuildBModelVertexBuffer (void)
 		{
 			msurface_t *s = &m->surfaces[i];
 			memcpy (&varray[VERTEXSIZE * s->vbo_firstvert], s->polys->verts, VERTEXSIZE * sizeof (float) * s->numedges);
+
+			uint32_t submodel = 0;
+			if (j == 1) // the worldmodel surface array also contains all movable submodel surfaces
+			{
+				while (((current_submodel + 1) < m->numsubmodels) && (i >= m->submodels[current_submodel + 1].firstface))
+					++current_submodel;
+				if (current_submodel < num_worldmodel_submodels)
+					submodel = current_submodel;
+			}
+			for (int v = 0; v < s->numedges; v++)
+				vertex_submodels[s->vbo_firstvert + v] = submodel;
 		}
 	}
 
@@ -2363,7 +2500,45 @@ void GL_BuildBModelVertexBuffer (void)
 		&bmodel_vertex_buffer, &bmodel_memory, varray_bytes, usage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, &num_vulkan_bmodel_allocations,
 		&bmodel_vertex_buffer_device_address, "BModel vertices");
 	R_StagingUploadBuffer (bmodel_vertex_buffer, varray_bytes, (byte *)varray);
+
+	R_CreateBuffer (
+		&vertex_submodels_buffer, &vertex_submodels_buffer_memory, bmodel_numverts * sizeof (uint32_t),
+		VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, &num_vulkan_bmodel_allocations, NULL,
+		"BModel vertex submodels");
+	R_StagingUploadBuffer (vertex_submodels_buffer, bmodel_numverts * sizeof (uint32_t), (byte *)vertex_submodels);
+	TEMP_FREE (vertex_submodels);
 	TEMP_FREE (varray);
+
+	if (vulkan_globals.bmodel_instances_desc_set != VK_NULL_HANDLE)
+		R_FreeDescriptorSet (vulkan_globals.bmodel_instances_desc_set, &vulkan_globals.bmodel_instances_set_layout);
+	vulkan_globals.bmodel_instances_desc_set = R_AllocateDescriptorSet (&vulkan_globals.bmodel_instances_set_layout);
+
+	ZEROED_STRUCT (VkDescriptorBufferInfo, vertex_submodels_buffer_info);
+	vertex_submodels_buffer_info.buffer = vertex_submodels_buffer;
+	vertex_submodels_buffer_info.offset = 0;
+	vertex_submodels_buffer_info.range = VK_WHOLE_SIZE;
+
+	ZEROED_STRUCT (VkDescriptorBufferInfo, bmodel_instances_buffer_info);
+	bmodel_instances_buffer_info.buffer = bmodel_instances_buffer;
+	bmodel_instances_buffer_info.offset = 0;
+	bmodel_instances_buffer_info.range = VK_WHOLE_SIZE;
+
+	ZEROED_STRUCT_ARRAY (VkWriteDescriptorSet, instance_writes, 2);
+	instance_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	instance_writes[0].dstBinding = 0;
+	instance_writes[0].dstArrayElement = 0;
+	instance_writes[0].descriptorCount = 1;
+	instance_writes[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	instance_writes[0].dstSet = vulkan_globals.bmodel_instances_desc_set;
+	instance_writes[0].pBufferInfo = &vertex_submodels_buffer_info;
+	instance_writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	instance_writes[1].dstBinding = 1;
+	instance_writes[1].dstArrayElement = 0;
+	instance_writes[1].descriptorCount = 1;
+	instance_writes[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	instance_writes[1].dstSet = vulkan_globals.bmodel_instances_desc_set;
+	instance_writes[1].pBufferInfo = &bmodel_instances_buffer_info;
+	vkUpdateDescriptorSets (vulkan_globals.device, countof (instance_writes), instance_writes, 0, NULL);
 }
 
 /*
@@ -3340,13 +3515,15 @@ static void R_IndirectComputeDispatch (cb_context_t *cbx)
 	vkCmdPipelineBarrier (cbx->cb, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 1, &memory_barrier, 0, NULL, 0, NULL);
 
 	R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_COMPUTE, vulkan_globals.indirect_draw_pipeline);
-	char push_constants[6 * 4];
+	char push_constants[7 * 4];
 	memcpy (push_constants, &cl.model_precache[1]->numsurfaces, sizeof (int));
 	memset (push_constants + 4, 0, sizeof (uint32_t));
 	uint32_t offset = current_compute_buffer_index * dyn_visibility_offset / 4;
 	memcpy (push_constants + 8, &offset, sizeof (uint32_t));
 	memcpy (push_constants + 12, r_refdef.vieworg, sizeof (vec3_t));
-	R_PushConstants (cbx, VK_SHADER_STAGE_COMPUTE_BIT, 0, 6 * 4, push_constants);
+	const uint32_t instance_base = (uint32_t)bmodel_instances_index * MAX_MODELS;
+	memcpy (push_constants + 24, &instance_base, sizeof (uint32_t));
+	R_PushConstants (cbx, VK_SHADER_STAGE_COMPUTE_BIT, 0, 7 * 4, push_constants);
 	const uint32_t num_workgroups = (cl.worldmodel->numsurfaces + 63) / 64;
 	const uint32_t max_dispatch = vulkan_globals.device_properties.limits.maxComputeWorkGroupCount[0];
 	uint32_t	   start_workgroup = 0;
