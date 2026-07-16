@@ -64,6 +64,7 @@ byte  *host_colormap;
 float  host_netinterval = 1.0 / HOST_NETITERVAL_FREQ;
 cvar_t host_framerate = {"host_framerate", "0", CVAR_NONE}; // set for slow motion
 cvar_t host_speeds = {"host_speeds", "0", CVAR_NONE};		// set for running times
+cvar_t sv_speeds = {"sv_speeds", "0", CVAR_NONE};			// print per-tick server cost, split by section
 cvar_t host_maxfps = {"host_maxfps", "200", CVAR_ARCHIVE};	// johnfitz
 
 cvar_t host_phys_max_ticrate = {"host_phys_max_ticrate", "0", CVAR_NONE}; // vso = [0 = disabled; MAX_PHYSICS_FREQ]
@@ -359,6 +360,7 @@ void Host_InitLocal (void)
 	Cvar_RegisterVariable (&pr_engine);
 	Cvar_RegisterVariable (&host_framerate);
 	Cvar_RegisterVariable (&host_speeds);
+	Cvar_RegisterVariable (&sv_speeds);
 	Cvar_RegisterVariable (&host_maxfps); // johnfitz
 	Cvar_SetCallback (&host_maxfps, Max_Fps_f);
 	Cvar_RegisterVariable (&host_phys_max_ticrate); // vso
@@ -771,8 +773,14 @@ Host_ServerFrame
 */
 void Host_ServerFrame (void)
 {
-	int		 i, active; // johnfitz
-	edict_t *ent;		// johnfitz
+	int			  i, active; // johnfitz
+	edict_t		 *ent;		 // johnfitz
+	double		  t0 = 0, t1 = 0, t2 = 0, t3 = 0, t4 = 0;
+	static double clients_ms, physics_ms, stats_ms, send_ms, interval_start;
+	static int	  ticks;
+
+	if (sv_speeds.value)
+		t0 = Sys_DoubleTime ();
 
 	// run the world state
 	pr_global_struct->frametime = host_frametime;
@@ -786,10 +794,16 @@ void Host_ServerFrame (void)
 	// read client messages
 	SV_RunClients ();
 
+	if (sv_speeds.value)
+		t1 = Sys_DoubleTime ();
+
 	// move things around and think
 	// always pause in single player if in console or menus
 	if (!sv.paused && (svs.maxclients > 1 || key_dest == key_game))
 		SV_Physics ();
+
+	if (sv_speeds.value)
+		t2 = Sys_DoubleTime ();
 
 	// johnfitz -- devstats
 	// the count is only observable through the devstats overlay and a developer warning, so don't walk every edict per tick unless one of them can see it
@@ -808,8 +822,54 @@ void Host_ServerFrame (void)
 	}
 	// johnfitz
 
+	if (sv_speeds.value)
+		t3 = Sys_DoubleTime ();
+
 	// send all messages to the clients
 	SV_SendClientMessages ();
+
+	extern double sv_speeds_think_ms, sv_speeds_pusher_ms, sv_speeds_build_ms;
+	extern int	  sv_speeds_thinks, sv_speeds_pushers, sv_speeds_pushables, sv_speeds_grid_entries;
+
+	if (!sv_speeds.value && interval_start != 0)
+	{
+		// reset on toggle so a later enable doesn't average across the gap
+		clients_ms = physics_ms = stats_ms = send_ms = 0;
+		sv_speeds_think_ms = sv_speeds_pusher_ms = sv_speeds_build_ms = 0;
+		sv_speeds_thinks = sv_speeds_pushers = sv_speeds_pushables = sv_speeds_grid_entries = 0;
+		ticks = 0;
+		interval_start = 0;
+	}
+
+	if (sv_speeds.value)
+	{
+		t4 = Sys_DoubleTime ();
+		clients_ms += (t1 - t0) * 1000.0;
+		physics_ms += (t2 - t1) * 1000.0;
+		stats_ms += (t3 - t2) * 1000.0;
+		send_ms += (t4 - t3) * 1000.0;
+		ticks++;
+		if (interval_start == 0)
+			interval_start = t0;
+		if (t4 - interval_start >= 1.0)
+		{
+			double physics = physics_ms / ticks;
+			double pushers = sv_speeds_pusher_ms / ticks;
+			double thinks = sv_speeds_think_ms / ticks;
+			double build = sv_speeds_build_ms / ticks;
+			Con_Printf (
+				"sv_speeds: %3d ticks | clients %.3f | physics %.3f [pushers %.3f (%.0f) thinks %.3f (%.0f) build %.3f loop %.3f] | stats %.3f | send %.3f "
+				"ms/tick | %d edicts, %.0f pushables, %.0f grid entries\n",
+				ticks, clients_ms / ticks, physics, pushers, (double)sv_speeds_pushers / ticks, thinks, (double)sv_speeds_thinks / ticks, build,
+				physics - pushers - thinks - build, stats_ms / ticks, send_ms / ticks, qcvm->num_edicts, (double)sv_speeds_pushables / ticks,
+				(double)sv_speeds_grid_entries / ticks);
+			clients_ms = physics_ms = stats_ms = send_ms = 0;
+			sv_speeds_think_ms = sv_speeds_pusher_ms = sv_speeds_build_ms = 0;
+			sv_speeds_thinks = sv_speeds_pushers = sv_speeds_pushables = sv_speeds_grid_entries = 0;
+			ticks = 0;
+			interval_start = t4;
+		}
+	}
 }
 
 static void CL_LoadCSProgs (void)

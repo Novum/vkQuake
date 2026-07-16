@@ -328,13 +328,22 @@ in a frame.  Not used for pushmove objects, because they must be exact.
 Returns false if the entity removed itself.
 =============
 */
+extern cvar_t sv_speeds;
+
+double sv_speeds_think_ms, sv_speeds_pusher_ms, sv_speeds_build_ms;
+int	   sv_speeds_thinks, sv_speeds_pushers, sv_speeds_pushables, sv_speeds_grid_entries;
+
 static qboolean SV_RunThink (edict_t *ent)
 {
-	float thinktime;
+	float  thinktime;
+	double think_start = 0;
 
 	thinktime = ent->v.nextthink;
 	if (thinktime <= 0 || thinktime > qcvm->time + host_frametime)
 		return true;
+
+	if (sv_speeds.value && qcvm == &sv.qcvm)
+		think_start = Sys_DoubleTime ();
 
 	if (thinktime < qcvm->time)
 		thinktime = qcvm->time; // don't let things stay in the past.
@@ -369,6 +378,12 @@ static qboolean SV_RunThink (edict_t *ent)
 				}
 			}
 		}
+	}
+
+	if (think_start != 0)
+	{
+		sv_speeds_think_ms += (Sys_DoubleTime () - think_start) * 1000.0;
+		sv_speeds_thinks++;
 	}
 
 	return !ent->free;
@@ -881,9 +896,11 @@ SV_Physics_Pusher
 */
 static void SV_Physics_Pusher (edict_t *ent)
 {
-	float thinktime;
-	float oldltime;
-	float movetime;
+	float	 thinktime;
+	float	 oldltime;
+	float	 movetime;
+	double	 push_start = 0;
+	qboolean timing;
 
 	oldltime = ent->v.ltime;
 
@@ -897,6 +914,10 @@ static void SV_Physics_Pusher (edict_t *ent)
 	else
 		movetime = host_frametime;
 
+	timing = sv_speeds.value && qcvm == &sv.qcvm && (movetime || thinktime > oldltime);
+	if (timing)
+		push_start = Sys_DoubleTime ();
+
 	if (movetime)
 	{
 		SV_PushMove (ent, movetime); // advances ent->v.ltime if not blocked
@@ -909,6 +930,12 @@ static void SV_Physics_Pusher (edict_t *ent)
 		pr_global_struct->self = EDICT_TO_PROG (ent);
 		pr_global_struct->other = EDICT_TO_PROG (qcvm->edicts);
 		PR_ExecuteProgram (ent->v.think);
+	}
+
+	if (timing)
+	{
+		sv_speeds_pusher_ms += (Sys_DoubleTime () - push_start) * 1000.0;
+		sv_speeds_pushers++;
 	}
 }
 
@@ -1599,6 +1626,10 @@ void SV_Physics (void)
 	// fill the pushable entities cache and the spatial grid over it
 	if (fast_pushers)
 	{
+		double build_start = 0;
+		if (sv_speeds.value && qcvm == &sv.qcvm)
+			build_start = Sys_DoubleTime ();
+
 		num_pushable_ent_cache = 0;
 		PushGrid_Clear ();
 		// beware, we skip entity 0 here:
@@ -1616,6 +1647,13 @@ void SV_Physics (void)
 		push_grid_tail_start = num_pushable_ent_cache;
 		push_grid_qcvm = qcvm;
 		push_grid_active = true;
+
+		if (sv_speeds.value && qcvm == &sv.qcvm)
+		{
+			sv_speeds_build_ms += (Sys_DoubleTime () - build_start) * 1000.0;
+			sv_speeds_pushables += num_pushable_ent_cache;
+			sv_speeds_grid_entries += push_grid_num_entries;
+		}
 
 		previous_alloc_hook = ED_AllocSetHook (SV_Physics_Alloc_Hook);
 	}
