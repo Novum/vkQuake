@@ -1143,6 +1143,8 @@ void SV_Init (void)
 	extern cvar_t sv_gameplayfix_bouncedownslopes;
 	extern cvar_t sv_gameplayfix_elevators;
 	extern cvar_t sv_fastpushmove;
+	extern cvar_t sv_pushgrid;
+	extern cvar_t sv_analyticphysics;
 	extern cvar_t sv_friction;
 	extern cvar_t sv_edgefriction;
 	extern cvar_t sv_stopspeed;
@@ -1174,6 +1176,8 @@ void SV_Init (void)
 	Cvar_RegisterVariable (&sv_gameplayfix_bouncedownslopes);
 	Cvar_RegisterVariable (&sv_gameplayfix_elevators);
 	Cvar_RegisterVariable (&sv_fastpushmove);
+	Cvar_RegisterVariable (&sv_pushgrid);
+	Cvar_RegisterVariable (&sv_analyticphysics);
 	Cvar_RegisterVariable (&pr_checkextension);
 	Cvar_RegisterVariable (&sv_altnoclip); // johnfitz
 	Cvar_RegisterVariable (&sv_netsort);

@@ -147,14 +147,16 @@ void SV_UserFriction (void)
 	// apply friction, matching the canonical 72Hz decay for any frame duration:
 	// exponential while speed is above stopspeed, then linear below it
 	{
+		extern qboolean sv_analyticphysics_frame;
+
 		const double tau = 1.0 / MAX_PHYSICS_FREQ;
 		double		 s = host_frametime / tau;
 		double		 r = 1.0 - friction * tau;
 		double		 ns = speed;
 
-		if (r <= 0)
+		if (!sv_analyticphysics_frame || r <= 0)
 		{
-			// degenerate friction values stop within one tick, keep the classic formula
+			// classic frame-dependent formula; also for degenerate friction values that stop within one tick
 			control = speed < sv_stopspeed.value ? sv_stopspeed.value : speed;
 			ns = speed - host_frametime * control * friction;
 		}
@@ -284,9 +286,11 @@ void SV_WaterMove (void)
 	speed = VectorLength (velocity);
 	if (speed)
 	{
+		extern qboolean sv_analyticphysics_frame;
+
 		const double tau = 1.0 / MAX_PHYSICS_FREQ;
 		double		 r = 1.0 - sv_friction.value * tau;
-		if (r <= 0)
+		if (!sv_analyticphysics_frame || r <= 0)
 			newspeed = speed - host_frametime * speed * sv_friction.value;
 		else
 			newspeed = speed * pow (r, host_frametime / tau);

@@ -50,6 +50,10 @@ cvar_t sv_freezenonclients = {"sv_freezenonclients", "0", CVAR_NONE};
 cvar_t sv_gameplayfix_spawnbeforethinks = {"sv_gameplayfix_spawnbeforethinks", "0", CVAR_NONE};
 cvar_t sv_gameplayfix_bouncedownslopes = {"sv_gameplayfix_bouncedownslopes", "1", CVAR_NONE}; // fixes grenades making horrible noises on slopes.
 cvar_t sv_fastpushmove = {"sv_fastpushmove", "1", CVAR_ARCHIVE};							  // 0=old SV_PushMove processing; 1= faster SV_PushMove, (default)
+cvar_t sv_pushgrid = {"sv_pushgrid", "1", CVAR_NONE};				// cull SV_PushMove candidates with a spatial hash, needs sv_fastpushmove
+cvar_t sv_analyticphysics = {"sv_analyticphysics", "1", CVAR_NONE}; // gravity/friction integration matches 72Hz physics at any tick rate
+
+qboolean sv_analyticphysics_frame = true; // sv_analyticphysics latched per SV_Physics, QC can flip the cvar mid-tick
 
 #define MOVE_EPSILON 0.01
 
@@ -83,8 +87,9 @@ static edict_t			 *push_grid_large[PUSH_GRID_MAX_LARGE];
 static int				  push_grid_num_large;
 static int				  push_grid_tail_start;
 static qboolean			  push_grid_valid;
-static qboolean			  push_grid_active; // inside SV_Physics with a built grid
-static qcvm_t			 *push_grid_qcvm;	// vm the grid was built for, entities from other vms must not mix in
+static qboolean			  push_grid_active;	 // inside SV_Physics with a built grid
+static qboolean			  push_cache_active; // inside SV_Physics with a filled pushable cache
+static qcvm_t			 *push_grid_qcvm;	 // vm the grid was built for, entities from other vms must not mix in
 
 static qboolean SV_IsPushable (edict_t *ent)
 {
@@ -632,11 +637,14 @@ zero when frametime == 1/72.
 */
 static void SV_AddGravity (edict_t *ent)
 {
-	ent->v.velocity[2] -= SV_EntGravity (ent) * sv_gravity.value * (host_frametime + 1.0 / MAX_PHYSICS_FREQ) * 0.5;
+	const double dt = sv_analyticphysics_frame ? (host_frametime + 1.0 / MAX_PHYSICS_FREQ) * 0.5 : host_frametime;
+	ent->v.velocity[2] -= SV_EntGravity (ent) * sv_gravity.value * dt;
 }
 
 static void SV_FinishGravity (edict_t *ent)
 {
+	if (!sv_analyticphysics_frame)
+		return;
 	// entities that landed during the move keep their clipped velocity, like at 72fps
 	if ((int)ent->v.flags & FL_ONGROUND)
 		return;
@@ -752,6 +760,11 @@ static void SV_PushMove (edict_t *pusher, float movetime)
 			fast_list = pushable_ent_cache;
 			fast_count = num_pushable_ent_cache;
 		}
+	}
+	else if (push_cache_active)
+	{ // sv_pushgrid 0: scan the whole cache
+		fast_list = pushable_ent_cache;
+		fast_count = num_pushable_ent_cache;
 	}
 
 	int e = -1;
@@ -1620,8 +1633,10 @@ void SV_Physics (void)
 	else
 		entity_cap = qcvm->num_edicts;
 
-	// QC can flip the cvar mid-tick, the whole tick must use one consistent decision
+	// QC can flip the cvars mid-tick, the whole tick must use one consistent decision
 	const qboolean fast_pushers = (sv_fastpushmove.value > 0.f);
+	const qboolean use_push_grid = fast_pushers && (sv_pushgrid.value > 0.f);
+	sv_analyticphysics_frame = (sv_analyticphysics.value > 0.f);
 
 	// fill the pushable entities cache and the spatial grid over it
 	if (fast_pushers)
@@ -1631,7 +1646,8 @@ void SV_Physics (void)
 			build_start = Sys_DoubleTime ();
 
 		num_pushable_ent_cache = 0;
-		PushGrid_Clear ();
+		if (use_push_grid)
+			PushGrid_Clear ();
 		// beware, we skip entity 0 here:
 		edict_t *check = NEXT_EDICT (qcvm->edicts);
 		for (int e = 1; e < qcvm->num_edicts; e++, check = NEXT_EDICT (check))
@@ -1642,11 +1658,16 @@ void SV_Physics (void)
 				continue;
 
 			pushable_ent_cache[num_pushable_ent_cache++] = check;
-			PushGrid_Insert (check);
+			if (use_push_grid)
+				PushGrid_Insert (check);
 		}
 		push_grid_tail_start = num_pushable_ent_cache;
-		push_grid_qcvm = qcvm;
-		push_grid_active = true;
+		push_cache_active = true;
+		if (use_push_grid)
+		{
+			push_grid_qcvm = qcvm;
+			push_grid_active = true;
+		}
 
 		if (sv_speeds.value && qcvm == &sv.qcvm)
 		{
@@ -1717,6 +1738,7 @@ void SV_Physics (void)
 	if (fast_pushers)
 	{
 		push_grid_active = false;
+		push_cache_active = false;
 		ED_AllocSetHook (previous_alloc_hook);
 	}
 }
