@@ -1340,6 +1340,10 @@ static void SV_Physics_Noclip (edict_t *ent)
 	if (!SV_RunThink (ent))
 		return;
 
+	// stationary: the move below would be an exact no-op, skip the relink (and its BSP leaf walk)
+	if (!ent->v.velocity[0] && !ent->v.velocity[1] && !ent->v.velocity[2] && !ent->v.avelocity[0] && !ent->v.avelocity[1] && !ent->v.avelocity[2])
+		return;
+
 	VectorMA (ent->v.angles, host_frametime, ent->v.avelocity, ent->v.angles);
 	VectorMA (ent->v.origin, host_frametime, ent->v.velocity, ent->v.origin);
 
