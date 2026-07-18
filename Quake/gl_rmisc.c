@@ -148,7 +148,7 @@ static vulkan_memory_t dyn_vertex_buffer_memory;
 static vulkan_memory_t dyn_index_buffer_memory;
 static vulkan_memory_t dyn_uniform_buffer_memory;
 static vulkan_memory_t dyn_storage_buffer_memory;
-extern vulkan_memory_t lights_buffer_memory;
+extern vulkan_memory_t frame_upload_buffers_memory;
 static dynbuffer_t	   dyn_vertex_buffers[NUM_DYNAMIC_BUFFERS];
 static dynbuffer_t	   dyn_index_buffers[NUM_DYNAMIC_BUFFERS];
 static dynbuffer_t	   dyn_uniform_buffers[NUM_DYNAMIC_BUFFERS];
@@ -1027,7 +1027,7 @@ void R_FlushDynamicBuffers (void)
 	ranges[num_ranges].memory = dyn_uniform_buffer_memory.handle;
 	ranges[num_ranges++].size = VK_WHOLE_SIZE;
 	ranges[num_ranges].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
-	ranges[num_ranges].memory = lights_buffer_memory.handle;
+	ranges[num_ranges].memory = frame_upload_buffers_memory.handle;
 	ranges[num_ranges++].size = VK_WHOLE_SIZE;
 	if (dyn_storage_buffer_memory.handle != VK_NULL_HANDLE)
 	{

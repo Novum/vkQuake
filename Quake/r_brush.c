@@ -289,7 +289,7 @@ COMPILE_TIME_ASSERT (lm_compute_light_t, sizeof (lm_compute_light_t) == 48);
 
 #define WORKGROUP_BOUNDS_BUFFER_SIZE ((LMBLOCK_WIDTH / 8) * (LMBLOCK_HEIGHT / 8) * sizeof (lm_compute_workgroup_bounds_t))
 
-vulkan_memory_t			   lights_buffer_memory;
+vulkan_memory_t			   frame_upload_buffers_memory;
 static vulkan_memory_t	   surface_data_buffer_memory;
 static vulkan_memory_t	   surface_submodels_buffer_memory;
 static vulkan_memory_t	   workgroup_bounds_buffer_memory;
@@ -1550,8 +1550,8 @@ void R_AllocateLightmapComputeBuffers ()
 		 "BModel instances"},
 	};
 	R_CreateBuffers (
-		countof (buffer_create_infos), buffer_create_infos, &lights_buffer_memory, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
-		&num_vulkan_bmodel_allocations, "Lights");
+		countof (buffer_create_infos), buffer_create_infos, &frame_upload_buffers_memory, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
+		&num_vulkan_bmodel_allocations, "Frame upload buffers");
 }
 
 /*
