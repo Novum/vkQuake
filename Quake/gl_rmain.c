@@ -371,6 +371,11 @@ R_SetupViewBeforeMark
 */
 static void R_SetupViewBeforeMark (void *unused)
 {
+	// must happen here: in indirect mode draw_world only depends on this task, latching
+	// bmodel_instances_index any later would race the read in R_DrawIndirectBrushes
+	if (indirect)
+		R_ClearBModelInstanceClaims ();
+
 	// Need to do those early because we now update dynamic light maps during R_MarkSurfaces
 	if (!r_gpulightmapupdate.value)
 		R_PushDlights ();

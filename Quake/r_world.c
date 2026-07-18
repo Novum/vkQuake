@@ -969,9 +969,6 @@ static void R_MarkSurfacesPrepare (void *unused)
 
 	r_visframecount++;
 
-	if (indirect)
-		R_ClearBModelInstanceClaims ();
-
 	// set all chains to null
 	for (i = 0; i < cl.worldmodel->numtextures; i++)
 		if (cl.worldmodel->textures[i])
