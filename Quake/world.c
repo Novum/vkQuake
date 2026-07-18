@@ -30,9 +30,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // but it differs from other engines and sometimes entities are falling through
 // the world at level start because being misplaced.
 // In such case, disable it (0) to get the same behaviour as QuakeSpasm.
-cvar_t sv_fte_recursivehullckeck = {"sv_fte_recursivehullckeck", "1", CVAR_ARCHIVE};
+cvar_t sv_fte_recursivehullckeck = {"sv_fte_recursivehullckeck", "1", CVAR_NONE};
 
-cvar_t sv_fte_createareanode = {"sv_fte_createareanode", "1", CVAR_ARCHIVE};
+cvar_t sv_fte_createareanode = {"sv_fte_createareanode", "1", CVAR_NONE};
 
 /*
 
