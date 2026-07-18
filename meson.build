@@ -328,7 +328,7 @@ if build_machine.system() == 'darwin'
     endif
     deps += cc.find_library('MoltenVK', required : true, dirs : molten_dirs)
 else
-    deps += dependency('vulkan')
+    deps += dependency('vulkan', version: '>=1.4.341')
 endif
 
 if get_option('use_codec_wave').enabled()
