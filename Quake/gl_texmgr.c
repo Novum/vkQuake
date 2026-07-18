@@ -292,6 +292,19 @@ void TexMgr_UpdateTextureDescriptorSets (void)
 
 /*
 ===============
+TexMgr_Imagelist_Completion_f -- tab completion for imagelist/imagedump
+===============
+*/
+static void TexMgr_Imagelist_Completion_f (const char *partial)
+{
+	gltexture_t *glt;
+
+	for (glt = active_gltextures; glt; glt = glt->next)
+		Con_AddToTabList (glt->name, partial, NULL);
+}
+
+/*
+===============
 TexMgr_Imagelist_f -- report loaded textures
 ===============
 */
@@ -299,25 +312,64 @@ static void TexMgr_Imagelist_f (void)
 {
 	float		 mb;
 	float		 texels = 0;
+	int			 count = 0;
 	gltexture_t *glt;
+	const char	*filter = NULL;
+
+	if (Cmd_Argc () >= 2)
+		filter = Cmd_Argv (1);
+
+	char displayed_name[MAX_QPATH];
 
 	for (glt = active_gltextures; glt; glt = glt->next)
 	{
+		if (filter)
+		{
+			if (!q_strcasestr (glt->name, filter))
+				continue;
+			COM_TintSubstring (glt->name, filter, displayed_name, sizeof (displayed_name));
+		}
+		else
+		{
+			q_strlcpy (displayed_name, glt->name, sizeof (displayed_name));
+		}
+
 		if (glt->flags & TEXPREF_MIPMAP)
 			texels += glt->width * glt->height * 4.0f / 3.0f;
 		else
 			texels += (glt->width * glt->height);
 		if (glt->source_format == SRC_RGBA_CUBEMAP)
 		{
-			Con_SafePrintf ("   %4i CUBE  %s\n", glt->width, glt->name);
+			Con_SafePrintf ("   %4i CUBE  %s\n", glt->width, displayed_name);
 			texels *= 6.0f;
 		}
 		else
-			Con_SafePrintf ("   %4i x%4i %s\n", glt->width, glt->height, glt->name);
+			Con_SafePrintf ("   %4i x%4i %s\n", glt->width, glt->height, displayed_name);
+
+		count++;
 	}
 
 	mb = (texels * 4) / 0x100000;
-	Con_Printf ("%i textures %i pixels %1.1f megabytes\n", numgltextures, (int)texels, mb);
+
+	if (filter)
+	{
+		if (texels < 100000)
+		{
+			Con_Printf ("%i/%i textures containing '%s': %.1lf pixels %1.1lf bytes\n", count, numgltextures, filter, texels, texels * 4);
+		}
+		else
+			Con_Printf (
+				"%i/%i textures containing '%s': %.1lf mpixels %1.1lf megabytes\n", count, numgltextures, filter, texels * 1e-6, (texels * 4) / 0x100000);
+	}
+	else
+	{
+		if (texels < 100000)
+		{
+			Con_Printf ("%i textures %.1lf pixels %1.1lf bytes\n", numgltextures, texels, texels * 4);
+		}
+		else
+			Con_Printf ("%i textures %.1lf mpixels %1.1lf megabytes\n", numgltextures, texels * 1e-6, mb);
+	}
 }
 
 /*
@@ -701,6 +753,8 @@ void TexMgr_Init (void)
 	static byte		  greytexture_data[16] = {127, 127, 127, 255, 127, 127, 127, 255, 127, 127, 127, 255, 127, 127, 127, 255};	// 50% grey
 	extern texture_t *r_notexture_mip, *r_notexture_mip2;
 
+	cmd_function_t *cmd;
+
 	texmgr_mutex = SDL_CreateMutex ();
 
 	// init texture list
@@ -716,7 +770,11 @@ void TexMgr_Init (void)
 
 	Cvar_RegisterVariable (&gl_max_size);
 	Cvar_RegisterVariable (&gl_picmip);
-	Cmd_AddCommand ("imagelist", &TexMgr_Imagelist_f);
+
+	cmd = Cmd_AddCommand ("imagelist", &TexMgr_Imagelist_f);
+
+	if (cmd)
+		cmd->completion = TexMgr_Imagelist_Completion_f;
 
 	// load notexture images
 	notexture = TexMgr_LoadImage (

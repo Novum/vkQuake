@@ -719,7 +719,7 @@ Cmd_AddCommand
 spike -- added an extra arg for client (also renamed and made a macro)
 ============
 */
-cmd_function_t *Cmd_AddCommand2 (const char *cmd_name, xcommand_t function, cmd_source_t srctype)
+cmd_function_t *Cmd_AddCommand2 (const char *cmd_name, xcommand_t function, cmd_source_t srctype, qboolean qcinterceptable)
 {
 	cmd_function_t *cmd;
 	cmd_function_t *cursor, *prev; // johnfitz -- sorted list insert
@@ -756,6 +756,7 @@ cmd_function_t *Cmd_AddCommand2 (const char *cmd_name, xcommand_t function, cmd_
 	}
 	cmd->function = function;
 	cmd->srctype = srctype;
+	cmd->qcinterceptable = qcinterceptable;
 
 	// johnfitz -- insert each entry in alphabetical order
 	if (cmd_functions == NULL || strcmp (cmd->name, cmd_functions->name) < 0) // insert at front
@@ -777,9 +778,7 @@ cmd_function_t *Cmd_AddCommand2 (const char *cmd_name, xcommand_t function, cmd_
 	}
 	// johnfitz
 
-	if (cmd->dynamic)
-		return cmd;
-	return NULL;
+	return cmd;
 }
 void Cmd_RemoveCommand (cmd_function_t *cmd)
 {

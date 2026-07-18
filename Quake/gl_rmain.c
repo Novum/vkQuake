@@ -91,7 +91,6 @@ cvar_t r_oldskyleaf = {"r_oldskyleaf", "0", CVAR_NONE};
 cvar_t r_drawworld = {"r_drawworld", "1", CVAR_NONE};
 cvar_t r_showtris = {"r_showtris", "0", CVAR_NONE};
 cvar_t r_showbboxes = {"r_showbboxes", "0", CVAR_NONE};
-cvar_t r_showbboxes_filter = {"r_showbboxes_filter", "", CVAR_NONE};
 cvar_t r_lerpmodels = {"r_lerpmodels", "1", CVAR_ARCHIVE};
 cvar_t r_lerpmove = {"r_lerpmove", "1", CVAR_ARCHIVE};
 cvar_t r_lerpturn = {"r_lerpturn", "1", CVAR_ARCHIVE};
@@ -645,28 +644,47 @@ R_ShowBoundingBoxesFilter
 r_showbboxes_filter "artifact,=trigger_secret"
 ================
 */
-char *r_showbboxes_filter_strings = NULL;
+char	*r_showbboxes_filter_strings = NULL;
+qboolean r_showbboxes_filter_byindex = false;
 
 static qboolean R_ShowBoundingBoxesFilter (edict_t *ed)
 {
-	if (!r_showbboxes_filter_strings)
+	char		entnum[16] = "";
+	const char *classname = NULL;
+	const char *filter_p = r_showbboxes_filter_strings;
+
+	if (!r_showbboxes_filter_strings || !r_showbboxes_filter_strings[0])
 		return true;
 
+	if (r_showbboxes_filter_byindex)
+		q_snprintf (entnum, sizeof (entnum), "%d", NUM_FOR_EDICT (ed));
+
 	if (ed->v.classname)
+		classname = PR_GetString (ed->v.classname);
+
+	for (filter_p = r_showbboxes_filter_strings; *filter_p; filter_p += strlen (filter_p) + 1)
 	{
-		const char *classname = PR_GetString (ed->v.classname);
-		char	   *str = r_showbboxes_filter_strings;
-		qboolean	is_allowed = false;
-		while (*str && !is_allowed)
+		if (*filter_p == '#')
 		{
-			if (*str == '=')
-				is_allowed = !strcmp (classname, str + 1);
-			else
-				is_allowed = strstr (classname, str) != NULL;
-			str += strlen (str) + 1;
+			if (!strcmp (entnum, filter_p + 1))
+				return true;
+			continue;
 		}
-		return is_allowed;
+
+		if (!classname)
+			continue;
+
+		if (*filter_p == '=')
+		{
+			if (!strcmp (classname, filter_p + 1))
+				return true;
+			continue;
+		}
+
+		if (strstr (classname, filter_p) != NULL)
+			return true;
 	}
+
 	return false;
 }
 

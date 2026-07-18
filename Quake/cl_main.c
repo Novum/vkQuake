@@ -1153,11 +1153,31 @@ void CL_Viewpos_f (void)
 		(int)r_refdef.viewangles[YAW],
 		(int)r_refdef.viewangles[ROLL]);
 #else
+	char buf[256];
 	// player position
-	Con_Printf (
-		"Viewpos: (%i %i %i) %i %i %i\n", (int)cl.entities[cl.viewentity].origin[0], (int)cl.entities[cl.viewentity].origin[1],
+	q_snprintf (
+		buf, sizeof (buf), "(%i %i %i) %i %i %i", (int)cl.entities[cl.viewentity].origin[0], (int)cl.entities[cl.viewentity].origin[1],
 		(int)cl.entities[cl.viewentity].origin[2], (int)cl.viewangles[PITCH], (int)cl.viewangles[YAW], (int)cl.viewangles[ROLL]);
+
+	// player position
+	Con_SafePrintf ("Viewpos: %s\n", buf);
+
+	if (Cmd_Argc () >= 2 && !q_strcasecmp (Cmd_Argv (1), "copy"))
+		if (SDL_SetClipboardText (buf) < 0)
+			Con_SafePrintf ("Clipboard copy failed: %s\n", SDL_GetError ());
 #endif
+}
+
+/*
+===============
+CL_Viewpos_Completion_f -- tab completion for the viewpos command
+===============
+*/
+static void CL_Viewpos_Completion_f (const char *partial)
+{
+	if (Cmd_Argc () != 2)
+		return;
+	Con_AddToTabList ("copy", partial, NULL);
 }
 
 static void CL_ServerExtension_FullServerinfo_f (void)
@@ -1345,6 +1365,8 @@ void CL_Init (void)
 	CL_InitInput ();
 	CL_InitTEnts ();
 
+	cmd_function_t *cmd;
+
 	Cvar_RegisterVariable (&cl_name);
 	Cvar_RegisterVariable (&cl_topcolor);
 	Cvar_RegisterVariable (&cl_bottomcolor);
@@ -1385,8 +1407,10 @@ void CL_Init (void)
 	Cmd_AddCommand ("timedemo", CL_TimeDemo_f);
 	Cmd_AddCommand ("seek", CL_Seek_f);
 
-	Cmd_AddCommand ("tracepos", CL_Tracepos_f); // johnfitz
-	Cmd_AddCommand ("viewpos", CL_Viewpos_f);	// johnfitz
+	Cmd_AddCommand ("tracepos", CL_Tracepos_f);		// johnfitz
+	cmd = Cmd_AddCommand ("viewpos", CL_Viewpos_f); // johnfitz
+	if (cmd)
+		cmd->completion = CL_Viewpos_Completion_f;
 
 	// spike -- serverinfo stuff
 	Cmd_AddCommand_ServerCommand ("fullserverinfo", CL_ServerExtension_FullServerinfo_f);

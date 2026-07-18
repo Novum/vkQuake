@@ -45,7 +45,6 @@ extern cvar_t r_oldskyleaf;
 extern cvar_t r_drawworld;
 extern cvar_t r_showtris;
 extern cvar_t r_showbboxes;
-extern cvar_t r_showbboxes_filter;
 extern cvar_t r_lerpmodels;
 extern cvar_t r_lerpmove;
 extern cvar_t r_lerpturn;
@@ -203,38 +202,103 @@ int GL_MemoryTypeFromProperties (uint32_t type_bits, VkFlags requirements_mask, 
 
 /*
 ====================
-R_SetShowbboxesFilter_f
+R_ShowbboxesFilter_f
 ====================
 */
-static void R_SetShowbboxesFilter_f (cvar_t *var)
+static void R_ShowbboxesFilter_f (void)
 {
-	extern char *r_showbboxes_filter_strings;
+	extern char	   *r_showbboxes_filter_strings;
+	extern qboolean r_showbboxes_filter_byindex;
 
-	Mem_Free (r_showbboxes_filter_strings);
-	r_showbboxes_filter_strings = NULL;
-
-	if (*var->string)
+	if (Cmd_Argc () >= 2)
 	{
-		char	   *filter, *p, *token;
-		const char *delim = ",";
-		int			len = strlen (var->string);
-		int			size = len + 2;
+		// reset
+		SAFE_FREE (r_showbboxes_filter_strings);
+		r_showbboxes_filter_byindex = false;
 
-		r_showbboxes_filter_strings = (char *)Mem_Alloc (size);
-		filter = q_strdup (var->string);
-
-		p = r_showbboxes_filter_strings;
-		token = strtok (filter, delim);
-		while (token != NULL)
+		// Concat all arguments adding a ' ' (space) separator
+		for (int i = 1; i < Cmd_Argc (); i++)
 		{
-			strcpy (p, token);
-			p += strlen (token) + 1;
-			token = strtok (NULL, delim);
-		}
-		*p = '\0';
+			const char *arg = Cmd_Argv (i);
+			if (!*arg)
+				continue;
 
-		Mem_Free (filter);
+			r_showbboxes_filter_strings = q_strcatf (r_showbboxes_filter_strings, "%s ", arg);
+
+			r_showbboxes_filter_byindex |= (arg[0] == '#');
+		}
+
+		// Re-split r_showbboxes_filter_strings by ' ' (space) on-place, effectively splitting it by '\0'
+		if (r_showbboxes_filter_strings)
+			q_strsplit (r_showbboxes_filter_strings, " ", NULL);
 	}
+	else
+	{
+		const char *p = r_showbboxes_filter_strings;
+
+		Con_SafePrintf ("\"r_showbboxes_filter\" is");
+		if (!p)
+			Con_SafePrintf (" \"\"");
+		else
+			do
+			{
+				Con_SafePrintf (" \"%s\"", p);
+				p += strlen (p) + 1;
+			} while (*p);
+		Con_SafePrintf ("\n");
+	}
+}
+
+/*
+====================
+R_ShowbboxesFilter_Completion_f -- tab completion for r_showbboxes_filter
+====================
+*/
+static void R_ShowbboxesFilter_Completion_f (const char *partial)
+{
+	extern edict_t *sv_player;
+	edict_t		   *ed;
+	int				i;
+
+	if (!sv.active)
+		return;
+
+	extern SDL_Mutex *draw_qcvm_mutex;
+
+	SDL_LockMutex (draw_qcvm_mutex);
+	PR_SwitchQCVM (&sv.qcvm);
+
+	for (i = 1, ed = NEXT_EDICT (qcvm->edicts); i < qcvm->num_edicts; i++, ed = NEXT_EDICT (ed))
+	{
+		const char *name;
+		if (ed == sv_player || ed->free || !ed->v.classname)
+			continue;
+		name = PR_GetString (ed->v.classname);
+		if (*name)
+			Con_AddToTabList (name, partial, "#");
+	}
+
+	PR_SwitchQCVM (NULL);
+	SDL_UnlockMutex (draw_qcvm_mutex);
+}
+
+/*
+====================
+R_ShowbboxesFilterClear_f
+====================
+*/
+static void R_ShowbboxesFilterClear_f (void)
+{
+	extern char		 *r_showbboxes_filter_strings;
+	extern qboolean	  r_showbboxes_filter_byindex;
+	extern SDL_Mutex *draw_qcvm_mutex;
+
+	SDL_LockMutex (draw_qcvm_mutex);
+
+	SAFE_FREE (r_showbboxes_filter_strings);
+	r_showbboxes_filter_byindex = false;
+
+	SDL_UnlockMutex (draw_qcvm_mutex);
 }
 
 /*
@@ -4049,8 +4113,17 @@ R_Init
 */
 void R_Init (void)
 {
+	cmd_function_t *cmd;
+
 	Cmd_AddCommand ("timerefresh", R_TimeRefresh_f);
 	Cmd_AddCommand ("pointfile", R_ReadPointFile_f);
+
+	cmd = Cmd_AddCommand ("r_showbboxes_filter", R_ShowbboxesFilter_f);
+	if (cmd)
+		cmd->completion = R_ShowbboxesFilter_Completion_f;
+
+	Cmd_AddCommand ("r_showbboxes_filter_clear", R_ShowbboxesFilterClear_f);
+
 	Cmd_AddCommand ("vkmemstats", R_VulkanMemStats_f);
 
 	Cvar_RegisterVariable (&r_fullbright);
@@ -4089,8 +4162,6 @@ void R_Init (void)
 	Cvar_RegisterVariable (&r_drawworld);
 	Cvar_RegisterVariable (&r_showtris);
 	Cvar_RegisterVariable (&r_showbboxes);
-	Cvar_RegisterVariable (&r_showbboxes_filter);
-	Cvar_SetCallback (&r_showbboxes_filter, R_SetShowbboxesFilter_f);
 	Cvar_RegisterVariable (&gl_farclip);
 	Cvar_RegisterVariable (&gl_fullbrights);
 	Cvar_SetCallback (&gl_fullbrights, GL_Fullbrights_f);
