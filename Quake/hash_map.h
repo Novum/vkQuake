@@ -24,6 +24,7 @@ hash_map_t *HashMap_CreateImpl (
 	const uint32_t key_size, const uint32_t value_size, uint32_t (*hasher) (const void *const), qboolean (*comp) (const void *const, const void *const));
 void	 HashMap_Destroy (hash_map_t *map);
 void	 HashMap_Reserve (hash_map_t *map, int capacity);
+void	 HashMap_Clear (hash_map_t *map);
 qboolean HashMap_InsertImpl (hash_map_t *map, const uint32_t key_size, const uint32_t value_size, const void *const key, const void *const value);
 qboolean HashMap_EraseImpl (hash_map_t *map, const uint32_t key_size, const void *const key);
 void	*HashMap_LookupImpl (hash_map_t *map, const uint32_t key_size, const void *const key);
