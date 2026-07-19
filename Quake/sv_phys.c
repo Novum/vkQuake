@@ -49,13 +49,16 @@ cvar_t sv_nostep = {"sv_nostep", "0", CVAR_NONE};
 cvar_t sv_freezenonclients = {"sv_freezenonclients", "0", CVAR_NONE};
 cvar_t sv_gameplayfix_spawnbeforethinks = {"sv_gameplayfix_spawnbeforethinks", "0", CVAR_NONE};
 cvar_t sv_gameplayfix_bouncedownslopes = {"sv_gameplayfix_bouncedownslopes", "1", CVAR_NONE}; // fixes grenades making horrible noises on slopes.
-cvar_t sv_fastpushmove = {"sv_fastpushmove", "1", CVAR_ARCHIVE};							  // 0=old SV_PushMove processing; 1= faster SV_PushMove, (default)
+cvar_t sv_fastpushmove = {"sv_fastpushmove", "1", CVAR_NONE};								  // 0=old SV_PushMove processing; 1= faster SV_PushMove, (default)
 cvar_t sv_pushgrid = {"sv_pushgrid", "1", CVAR_NONE};				// cull SV_PushMove candidates with a spatial hash, needs sv_fastpushmove
 cvar_t sv_analyticphysics = {"sv_analyticphysics", "1", CVAR_NONE}; // gravity/friction integration matches 72Hz physics at any tick rate
 
 qboolean sv_analyticphysics_frame = true; // sv_analyticphysics latched per SV_Physics, QC can flip the cvar mid-tick
 
 #define MOVE_EPSILON 0.01
+
+// max depth float rounding can embed an entity into the surface it rests on, anything deeper is a real overlap
+#define PUSH_CONTACT_EPSILON (2 * DIST_EPSILON)
 
 static void SV_Physics_Toss (edict_t *ent);
 
@@ -659,27 +662,56 @@ PUSHMOVE
 ===============================================================================
 */
 
+// 0=off; 1=legacy DIST_EPSILON nudge, clients only; 2=legacy nudge, all entities; 3=robust pusher contact (default)
+cvar_t sv_gameplayfix_elevators = {"sv_gameplayfix_elevators", "3", CVAR_NONE};
+
+static trace_t SV_PushEntityMove (edict_t *ent, vec3_t start, vec3_t end)
+{
+	if (ent->v.movetype == MOVETYPE_FLYMISSILE)
+		return SV_Move (start, ent->v.mins, ent->v.maxs, end, MOVE_MISSILE, ent);
+	else if (ent->v.solid == SOLID_TRIGGER || ent->v.solid == SOLID_NOT)
+		// only clip against bmodels
+		return SV_Move (start, ent->v.mins, ent->v.maxs, end, MOVE_NOMONSTERS, ent);
+	else
+		return SV_Move (start, ent->v.mins, ent->v.maxs, end, MOVE_NORMAL, ent);
+}
+
 /*
 ============
-SV_PushEntity
+SV_PushEntityTo
 
 Does not change the entities velocity at all
 ============
 */
-static trace_t SV_PushEntity (edict_t *ent, vec3_t push)
+static trace_t SV_PushEntityTo (edict_t *ent, vec3_t end)
 {
 	trace_t trace;
-	vec3_t	end;
 
-	VectorAdd (ent->v.origin, push, end);
+	trace = SV_PushEntityMove (ent, ent->v.origin, end);
 
-	if (ent->v.movetype == MOVETYPE_FLYMISSILE)
-		trace = SV_Move (ent->v.origin, ent->v.mins, ent->v.maxs, end, MOVE_MISSILE, ent);
-	else if (ent->v.solid == SOLID_TRIGGER || ent->v.solid == SOLID_NOT)
-		// only clip against bmodels
-		trace = SV_Move (ent->v.origin, ent->v.mins, ent->v.maxs, end, MOVE_NOMONSTERS, ent);
-	else
-		trace = SV_Move (ent->v.origin, ent->v.mins, ent->v.maxs, end, MOVE_NORMAL, ent);
+	// a move that starts solid registers no impact, so an entity marginally inside the
+	// pusher it rests on would glide through it and fall out the far side. un-embed
+	// with a sweep against the pusher and redo the move so it collides normally.
+	if (trace.startsolid && ent->v.groundentity && sv_gameplayfix_elevators.value >= 3.f)
+	{
+		edict_t *ground = PROG_TO_EDICT (ent->v.groundentity);
+		if (ground != qcvm->edicts && !ground->free && ground->v.movetype == MOVETYPE_PUSH && ground->v.solid == SOLID_BSP &&
+			SV_ClipMoveToEntity (ground, ent->v.origin, ent->v.mins, ent->v.maxs, ent->v.origin, CONTENTMASK_ANYSOLID).startsolid)
+		{
+			vec3_t	above;
+			trace_t exit;
+
+			VectorCopy (ent->v.origin, above);
+			above[2] += PUSH_CONTACT_EPSILON;
+			exit = SV_ClipMoveToEntity (ground, above, ent->v.mins, ent->v.maxs, ent->v.origin, CONTENTMASK_ANYSOLID);
+			if (!exit.startsolid && exit.fraction < 1)
+			{
+				Con_DPrintf2 ("SV_PushEntityTo: un-embedded entity %i from pusher %i\n", NUM_FOR_EDICT (ent), NUM_FOR_EDICT (ground));
+				VectorCopy (exit.endpos, ent->v.origin);
+				trace = SV_PushEntityMove (ent, ent->v.origin, end);
+			}
+		}
+	}
 
 	if (trace.ent)
 		assert_always (!trace.ent->free);
@@ -701,7 +733,6 @@ static trace_t SV_PushEntity (edict_t *ent, vec3_t push)
 SV_PushMove
 ============
 */
-cvar_t sv_gameplayfix_elevators = {"sv_gameplayfix_elevators", "2", CVAR_ARCHIVE}; // 0=off; 1=clients only; 2=all entities
 
 static void SV_PushMove (edict_t *pusher, float movetime)
 {
@@ -724,9 +755,27 @@ static void SV_PushMove (edict_t *pusher, float movetime)
 		return;
 	}
 
+	const qboolean robust_push = (sv_gameplayfix_elevators.value >= 3.f);
+	const float	   newltime = pusher->v.ltime + movetime;
+	vec3_t		   neworigin;
+
 	for (i = 0; i < 3; i++)
 	{
-		move[i] = pusher->v.velocity[i] * movetime;
+		if (robust_push)
+		{
+			// the mover runs at constant velocity until its think at nextthink, so
+			// evaluate the position on that trajectory in double instead of
+			// accumulating velocity*movetime rounding every tick: the final partial
+			// step lands exactly on the destination QC aimed for
+			const double dest = (double)pusher->v.origin[i] + (double)pusher->v.velocity[i] * ((double)pusher->v.nextthink - (double)pusher->v.ltime);
+			neworigin[i] = (float)(dest - (double)pusher->v.velocity[i] * ((double)pusher->v.nextthink - (double)newltime));
+			move[i] = neworigin[i] - pusher->v.origin[i];
+		}
+		else
+		{
+			move[i] = pusher->v.velocity[i] * movetime;
+			neworigin[i] = pusher->v.origin[i] + move[i];
+		}
 		mins[i] = pusher->v.absmin[i] + move[i];
 		maxs[i] = pusher->v.absmax[i] + move[i];
 		// the grid query must span the whole sweep: riders rest on the pre-move
@@ -739,8 +788,8 @@ static void SV_PushMove (edict_t *pusher, float movetime)
 
 	// move the pusher to it's final position
 
-	VectorAdd (pusher->v.origin, move, pusher->v.origin);
-	pusher->v.ltime += movetime;
+	VectorCopy (neworigin, pusher->v.origin);
+	pusher->v.ltime = newltime;
 	SV_LinkEdict (pusher, false);
 
 	// see if any solid entities are inside the final position
@@ -835,9 +884,20 @@ static void SV_PushMove (edict_t *pusher, float movetime)
 			|| solid_backup == SOLID_BBOX	   // normally boxes
 			|| solid_backup == SOLID_SLIDEBOX) // normally monsters
 		{
+			vec3_t dest;
+			if (robust_push)
+			{
+				// carry to a target derived from the pusher's new origin so the
+				// relative offset can't drift from parallel float integration
+				for (i = 0; i < 3; i++)
+					dest[i] = pusher->v.origin[i] + (entorig[i] - pushorig[i]);
+			}
+			else
+				VectorAdd (entorig, move, dest);
+
 			// try moving the contacted entity
 			pusher->v.solid = SOLID_NOT;
-			SV_PushEntity (check, move);
+			SV_PushEntityTo (check, dest);
 
 			// if it is still inside the pusher, block
 			if (pusher->v.skin < 0)
@@ -858,6 +918,31 @@ static void SV_PushMove (edict_t *pusher, float movetime)
 			if (check->v.mins[0] == check->v.maxs[0])
 				continue;
 
+			// riders only embed through their ground contact and never deeper than
+			// PUSH_CONTACT_EPSILON, so a single sweep from above recovers the exact
+			// contact position. must run before the corpse path so items don't get
+			// their bbox zeroed over a rounding error; real squeezes still crush.
+			if (robust_push && riding && block == pusher)
+			{
+				vec3_t	pushedorg, above;
+				trace_t settle;
+
+				VectorCopy (check->v.origin, pushedorg);
+				VectorCopy (check->v.origin, above);
+				above[2] += PUSH_CONTACT_EPSILON;
+				settle = SV_PushEntityMove (check, above, pushedorg);
+				if (!settle.startsolid)
+				{
+					VectorCopy (settle.endpos, check->v.origin);
+					if (!SV_TestEntityPosition (check))
+					{
+						SV_LinkEdict (check, false);
+						continue;
+					}
+					VectorCopy (pushedorg, check->v.origin);
+				}
+			}
+
 			if (check->v.solid == SOLID_NOT || check->v.solid == SOLID_TRIGGER)
 			{ // corpse
 				check->v.mins[0] = check->v.mins[1] = 0;
@@ -866,7 +951,7 @@ static void SV_PushMove (edict_t *pusher, float movetime)
 			}
 
 			// try moving the entity up a bit if it's blocked by the pusher while also standing on it
-			if (riding && block == pusher &&
+			if (!robust_push && riding && block == pusher &&
 				(sv_gameplayfix_elevators.value >= 2.f || (sv_gameplayfix_elevators.value && NUM_FOR_EDICT (check) <= svs.maxclients)))
 			{
 				check->v.origin[2] += DIST_EPSILON;
@@ -1088,7 +1173,7 @@ static int SV_TryUnstick (edict_t *ent, vec3_t oldvel)
 {
 	int		i;
 	vec3_t	oldorg;
-	vec3_t	dir;
+	vec3_t	dir, dest;
 	int		clip;
 	trace_t steptrace;
 
@@ -1134,7 +1219,8 @@ static int SV_TryUnstick (edict_t *ent, vec3_t oldvel)
 			break;
 		}
 
-		SV_PushEntity (ent, dir);
+		VectorAdd (ent->v.origin, dir, dest);
+		SV_PushEntityTo (ent, dest);
 
 		// retry the original move
 		ent->v.velocity[0] = oldvel[0];
@@ -1207,13 +1293,11 @@ static void SV_WalkMove (edict_t *ent)
 	//
 	VectorCopy (oldorg, ent->v.origin); // back to start pos
 
-	VectorCopy (vec3_origin, upmove);
-	VectorCopy (vec3_origin, downmove);
-	upmove[2] = STEPSIZE;
-	downmove[2] = -STEPSIZE + oldvel[2] * host_frametime;
+	VectorCopy (ent->v.origin, upmove);
+	upmove[2] += STEPSIZE;
 
 	// move up
-	SV_PushEntity (ent, upmove); // FIXME: don't link?
+	SV_PushEntityTo (ent, upmove); // FIXME: don't link?
 
 	// move forward
 	ent->v.velocity[0] = oldvel[0];
@@ -1237,7 +1321,9 @@ static void SV_WalkMove (edict_t *ent)
 		SV_WallFriction (ent, &steptrace);
 
 	// move down
-	downtrace = SV_PushEntity (ent, downmove); // FIXME: don't link?
+	VectorCopy (ent->v.origin, downmove);
+	downmove[2] += -STEPSIZE + oldvel[2] * host_frametime;
+	downtrace = SV_PushEntityTo (ent, downmove); // FIXME: don't link?
 
 	if (downtrace.plane.normal[2] > 0.7)
 	{
@@ -1245,7 +1331,7 @@ static void SV_WalkMove (edict_t *ent)
 		{
 			ent->v.flags = (int)ent->v.flags | FL_ONGROUND;
 
-			// SV_PushEntity() call SV_LinkEdict (true) that could free downtrace.ent
+			// SV_PushEntityTo() calls SV_LinkEdict (true) that could free downtrace.ent
 			if (downtrace.ent && !downtrace.ent->free)
 				ent->v.groundentity = EDICT_TO_PROG (downtrace.ent);
 		}
@@ -1447,7 +1533,7 @@ Toss, bounce, and fly movement.  When onground, do nothing.
 static void SV_Physics_Toss (edict_t *ent)
 {
 	trace_t trace;
-	vec3_t	move;
+	vec3_t	end;
 	float	backoff;
 
 	// regular thinking
@@ -1468,8 +1554,8 @@ static void SV_Physics_Toss (edict_t *ent)
 	VectorMA (ent->v.angles, host_frametime, ent->v.avelocity, ent->v.angles);
 
 	// move origin
-	VectorScale (ent->v.velocity, host_frametime, move);
-	trace = SV_PushEntity (ent, move);
+	VectorMA (ent->v.origin, host_frametime, ent->v.velocity, end);
+	trace = SV_PushEntityTo (ent, end);
 
 	if (ent->free)
 		return;
@@ -1495,7 +1581,7 @@ static void SV_Physics_Toss (edict_t *ent)
 		{
 			ent->v.flags = (int)ent->v.flags | FL_ONGROUND;
 
-			// SV_PushEntity() call SV_LinkEdict (true) that could free trace.ent
+			// SV_PushEntityTo() calls SV_LinkEdict (true) that could free trace.ent
 			if (trace.ent && !trace.ent->free)
 				ent->v.groundentity = EDICT_TO_PROG (trace.ent);
 
