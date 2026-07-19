@@ -61,11 +61,13 @@ RUN cd /tmp \
 	${VULKAN_SDK_VER}/x86_64/bin/spirv-opt \
 	${VULKAN_SDK_VER}/x86_64/include \
 	"${VULKAN_SDK_VER}/x86_64/lib/libvulkan.so*" \
+	${VULKAN_SDK_VER}/x86_64/lib/pkgconfig/vulkan.pc \
  && rm vulkan-sdk.tar.xz
 
 ENV VULKAN_SDK=/opt/vulkan-sdk/x86_64
 ENV PATH=${VULKAN_SDK}/bin:${PATH}
 ENV LD_LIBRARY_PATH=${VULKAN_SDK}/lib
+ENV PKG_CONFIG_PATH=${VULKAN_SDK}/lib/pkgconfig
 
 RUN cd /opt \
  && wget https://github.com/mesonbuild/meson/releases/download/${MESON_VER}/meson-${MESON_VER}.tar.gz \
