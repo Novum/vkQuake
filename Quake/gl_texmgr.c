@@ -286,21 +286,29 @@ void TexMgr_UpdateTextureDescriptorSets (void)
 {
 	gltexture_t *glt;
 
+	SDL_LockMutex (texmgr_mutex);
+
 	for (glt = active_gltextures; glt; glt = glt->next)
 		TexMgr_SetFilterModes (glt);
+
+	SDL_UnlockMutex (texmgr_mutex);
 }
 
 /*
 ===============
-TexMgr_Imagelist_Completion_f -- tab completion for imagelist/imagedump
+TexMgr_Imagelist_Completion_f -- tab completion for imagelist
 ===============
 */
 static void TexMgr_Imagelist_Completion_f (const char *partial)
 {
 	gltexture_t *glt;
 
+	SDL_LockMutex (texmgr_mutex);
+
 	for (glt = active_gltextures; glt; glt = glt->next)
 		Con_AddToTabList (glt->name, partial, NULL);
+
+	SDL_UnlockMutex (texmgr_mutex);
 }
 
 /*
@@ -310,7 +318,6 @@ TexMgr_Imagelist_f -- report loaded textures
 */
 static void TexMgr_Imagelist_f (void)
 {
-	float		 mb;
 	float		 texels = 0;
 	int			 count = 0;
 	gltexture_t *glt;
@@ -320,6 +327,8 @@ static void TexMgr_Imagelist_f (void)
 		filter = Cmd_Argv (1);
 
 	char displayed_name[MAX_QPATH];
+
+	SDL_LockMutex (texmgr_mutex);
 
 	for (glt = active_gltextures; glt; glt = glt->next)
 	{
@@ -349,7 +358,7 @@ static void TexMgr_Imagelist_f (void)
 		count++;
 	}
 
-	mb = (texels * 4) / 0x100000;
+	SDL_UnlockMutex (texmgr_mutex);
 
 	if (filter)
 	{
@@ -368,7 +377,7 @@ static void TexMgr_Imagelist_f (void)
 			Con_Printf ("%i textures %.1lf pixels %1.1lf bytes\n", numgltextures, texels, texels * 4);
 		}
 		else
-			Con_Printf ("%i textures %.1lf mpixels %1.1lf megabytes\n", numgltextures, texels * 1e-6, mb);
+			Con_Printf ("%i textures %.1lf mpixels %1.1lf megabytes\n", numgltextures, texels * 1e-6, (texels * 4) / 0x100000);
 	}
 }
 
@@ -481,8 +490,11 @@ compares each bit in "flags" to the one in glt->flags only if that bit is active
 */
 void TexMgr_FreeTextures (unsigned int flags, unsigned int mask)
 {
-	SDL_LockMutex (texmgr_mutex);
 	gltexture_t *glt, *next;
+
+	// OK to lock texmgr_mutex here while TexMgr_FreeTexture() also uses texmgr_mutex
+	// internally because SDL mutexes are re-entrant.
+	SDL_LockMutex (texmgr_mutex);
 
 	for (glt = active_gltextures; glt; glt = next)
 	{
@@ -490,6 +502,7 @@ void TexMgr_FreeTextures (unsigned int flags, unsigned int mask)
 		if ((glt->flags & mask) == (flags & mask))
 			TexMgr_FreeTexture (glt);
 	}
+
 	SDL_UnlockMutex (texmgr_mutex);
 }
 
@@ -500,8 +513,11 @@ TexMgr_FreeTexturesForOwner
 */
 void TexMgr_FreeTexturesForOwner (qmodel_t *owner)
 {
-	SDL_LockMutex (texmgr_mutex);
 	gltexture_t *glt, *next;
+
+	// OK to lock texmgr_mutex here while TexMgr_FreeTexture() also uses texmgr_mutex
+	// internally because SDL mutexes are re-entrant.
+	SDL_LockMutex (texmgr_mutex);
 
 	for (glt = active_gltextures; glt; glt = next)
 	{
@@ -1667,9 +1683,13 @@ void TexMgr_ReloadNobrightImages (void)
 {
 	gltexture_t *glt;
 
+	SDL_LockMutex (texmgr_mutex);
+
 	for (glt = active_gltextures; glt; glt = glt->next)
 		if (glt->flags & TEXPREF_NOBRIGHT)
 			TexMgr_ReloadImage (glt, -1, -1);
+
+	SDL_UnlockMutex (texmgr_mutex);
 }
 
 /*

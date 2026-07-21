@@ -571,7 +571,7 @@ char **q_strsplit (char *str, const char *sep_set, size_t *nb_substr)
 {
 	size_t nb_sub_strings_max_size = 8;
 	// if the nb_substr is NULL, we are just interested in splitting str-on place by '\0' ,
-	// and not in returning the token indices at all.
+	// and not in returning the token starts at all.
 	char **sub_strings = (nb_substr ? Mem_Alloc (nb_sub_strings_max_size * sizeof (char *)) : NULL);
 	int	   nb_sub_strings = 0;
 
