@@ -692,7 +692,7 @@ static void SCR_DrawClock (cb_context_t *cbx)
 		shown_pause = true;
 	}
 
-	if ((scr_clock.value == 0 && scr_clock_off <= 0 && !(sb_showscores && !fitzmode && scr_autoclock.value)) || scr_viewsize.value >= 130)
+	if ((scr_clock.value == 0 && scr_clock_off <= 0 && !(sb_showscores && scr_autoclock.value)) || scr_viewsize.value >= 130)
 		return;
 
 	scr_clock_off -= host_frametime / (cls.demospeed ? cls.demospeed : 1.f);

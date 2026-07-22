@@ -49,7 +49,6 @@ cvar_t cmdline = {"cmdline", "", CVAR_ROM /*|CVAR_SERVERINFO*/}; /* sending cmdl
 
 static qboolean com_modified; // set true if using non-id files
 
-qboolean fitzmode;
 qboolean multiuser;
 
 static void COM_Path_f (void);
@@ -1938,9 +1937,6 @@ void COM_Init (void)
 	if (bytes[0] != 0x78 || bytes[1] != 0x56 || bytes[2] != 0x34 || bytes[3] != 0x12)
 		Sys_Error ("Unsupported endianism. Only little endian is supported");
 
-	if (COM_CheckParm ("-fitz"))
-		fitzmode = true;
-
 	if (COM_CheckParm ("-validation"))
 		vulkan_globals.validation = true;
 
@@ -2587,7 +2583,7 @@ static void COM_AddGameDirectoryRoot (const char *base, const char *dir, unsigne
 			com_searchpaths = search;
 		}
 
-		if ((i == 0) && (path_id == 1) && add_embedded && !fitzmode)
+		if ((i == 0) && (path_id == 1) && add_embedded)
 		{
 			size_t vkquake_pak_size_compressed = vkquake_pak_size, vkquake_pak_size_extracted = vkquake_pak_decompressed_size;
 			if (!vkquake_pak_extracted)

@@ -112,6 +112,7 @@ extern qboolean keydown[256];
 
 extern cvar_t scr_fov;
 extern cvar_t scr_showfps;
+extern cvar_t cl_confirmquit;
 extern cvar_t scr_style;
 extern cvar_t autoload;
 extern cvar_t autofastload;
@@ -666,7 +667,7 @@ void M_Main_Key (int key)
 		key_dest = key_game;
 		m_state = m_none;
 		cls.demonum = m_save_demonum;
-		if (!fitzmode && !cl_startdemos.value) /* QuakeSpasm customization: */
+		if (!cl_startdemos.value) /* QuakeSpasm customization: */
 			break;
 		if (cls.demonum != -1 && !cls.demoplayback && cls.state != ca_connected)
 			CL_NextDemo ();
@@ -1395,6 +1396,7 @@ enum
 	GAME_OPT_AUTOLOAD,
 	GAME_OPT_STARTUP_DEMOS,
 	GAME_OPT_SHOWFPS,
+	GAME_OPT_CONFIRMQUIT,
 	GAME_OPTIONS_ITEMS
 };
 
@@ -1532,6 +1534,9 @@ static void M_GameOptions_AdjustSliders (int dir, qboolean mouse)
 		break;
 	case GAME_OPT_SHOWFPS:
 		Cvar_SetValue ("scr_showfps", ((int)scr_showfps.value + 2 + dir) % 2);
+		break;
+	case GAME_OPT_CONFIRMQUIT:
+		Cvar_SetValue ("cl_confirmquit", ((int)cl_confirmquit.value + 2 + dir) % 2);
 		break;
 	}
 }
@@ -1687,6 +1692,11 @@ static void M_GameOptions_Draw (cb_context_t *cbx)
 		case GAME_OPT_SHOWFPS:
 			M_Print (cbx, MENU_LABEL_X, y, "Show FPS");
 			M_DrawCheckbox (cbx, MENU_VALUE_X, y, scr_showfps.value);
+			break;
+
+		case GAME_OPT_CONFIRMQUIT:
+			M_Print (cbx, MENU_LABEL_X, y, "Quit Prompt");
+			M_DrawCheckbox (cbx, MENU_VALUE_X, y, cl_confirmquit.value);
 			break;
 		}
 	}
@@ -3494,6 +3504,7 @@ static void M_Quit_Char (int key)
 
 	case 'y':
 	case 'Y':
+	case ' ':
 		m_is_quitting = true;
 		IN_Deactivate (true);
 		key_dest = key_console;
@@ -3513,9 +3524,12 @@ static qboolean M_Quit_TextEntry (void)
 static void M_Quit_Draw (cb_context_t *cbx) // johnfitz -- modified for new quit message
 {
 	char msg1[40];
-	char msg2[] = "by Axel Gneiting"; /* msg2/msg3 are mostly [40] */
-	char msg3[] = "Press y to quit";
+	char msg2[] = "by Axel Gneiting and devs"; /* msg2/msg3 are mostly [40] */
+	char msg3[] = "Press y/space to quit";
 	int	 boxlen;
+
+	if (!cl_confirmquit.value)
+		return;
 
 	if (was_in_menus)
 	{
@@ -4568,7 +4582,7 @@ void M_Draw (cb_context_t *cbx)
 		break;
 
 	case m_quit:
-		if (!fitzmode)
+		if (!cl_confirmquit.value)
 		{ /* QuakeSpasm customization: */
 			/* Quit now! S.A. */
 			m_is_quitting = true;

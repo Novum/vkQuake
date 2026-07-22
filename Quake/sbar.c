@@ -501,20 +501,19 @@ void Sbar_SoloScoreboard (cb_context_t *cbx)
 	char cleanname[sizeof (cl.levelname)];
 	COM_SanitizeDescriptionString (cleanname, sizeof (cleanname), cl.levelname, false);
 
-	if (!fitzmode)
-	{ /* QuakeSpasm customization: */
-		q_snprintf (str, sizeof (str), "skill %i", (int)(skill.value + 0.5));
-		Sbar_DrawString (cbx, (left + right) / 2 - strlen (str) * 4, 12, str);
+	/* QuakeSpasm customization: */
+	q_snprintf (str, sizeof (str), "skill %i", (int)(skill.value + 0.5));
+	Sbar_DrawString (cbx, (left + right) / 2 - strlen (str) * 4, 12, str);
 
-		q_snprintf (str, sizeof (str), "%s (%s)", cleanname, cl.mapname);
+	q_snprintf (str, sizeof (str), "%s (%s)", cleanname, cl.mapname);
 
-		len = strlen (str);
-		if (len > 40)
-			Sbar_DrawScrollString (cbx, 0, 4, 320, str);
-		else
-			Sbar_DrawString (cbx, 160 - len * 4, 4, str);
-		return;
-	}
+	len = strlen (str);
+	if (len > 40)
+		Sbar_DrawScrollString (cbx, 0, 4, 320, str);
+	else
+		Sbar_DrawString (cbx, 160 - len * 4, 4, str);
+	return;
+
 	minutes = cl.time / 60;
 	seconds = cl.time - 60 * minutes;
 	tens = seconds / 10;
