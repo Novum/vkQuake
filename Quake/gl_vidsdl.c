@@ -524,6 +524,10 @@ static qboolean VID_SetMode (int width, int height, float refreshrate, qboolean 
 	{
 		flags = SDL_WINDOW_HIDDEN | SDL_WINDOW_VULKAN;
 
+#ifdef USE_SDL3
+		flags |= SDL_WINDOW_HIGH_PIXEL_DENSITY;
+#endif
+
 		if (vid_borderless.value)
 			flags |= SDL_WINDOW_BORDERLESS;
 		else if (!fullscreen)
