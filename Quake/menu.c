@@ -3563,7 +3563,7 @@ static int lan_config_cursor = -1;
 
 static int	lan_config_port;
 static char lan_config_portname[6];
-static char lan_config_joinname[22];
+static char lan_config_joinname[33];
 
 static void M_Menu_LanConfig_f (void)
 {
@@ -3632,7 +3632,7 @@ static void M_LanConfig_Draw (cb_context_t *cbx)
 
 	y += 8; // for the port's box
 	M_Print (cbx, basex, y, "Port");
-	M_DrawTextBox (cbx, basex + 8 * 8, y - 8, 6, 1);
+	M_DrawTextBox (cbx, basex + 8 * 8, y - 8, countof (lan_config_portname), 1);
 	M_Print (cbx, basex + 9 * 8, y, lan_config_portname);
 	M_Mouse_UpdateCursor (&lan_config_cursor, basex, 320, y, 8, 0);
 	if (lan_config_cursor == 0)
@@ -3654,11 +3654,11 @@ static void M_LanConfig_Draw (cb_context_t *cbx)
 		M_Mouse_UpdateCursor (&lan_config_cursor, basex, 320, y, 8, 2);
 		if (lan_config_cursor == 2)
 			Draw_Character (cbx, basex - 8, y, 12 + ((int)(realtime * 4) & 1));
-		y += 8;
+		y += 24;
 
 		M_Print (cbx, basex, y, "Join game at:");
-		y += 24;
-		M_DrawTextBox (cbx, basex + 8, y - 8, 22, 1);
+		y += 12;
+		M_DrawTextBox (cbx, basex + 8, y - 8, countof (lan_config_joinname), 1);
 		M_Print (cbx, basex + 16, y, lan_config_joinname);
 		M_Mouse_UpdateCursor (&lan_config_cursor, basex, 320, y, 8, 3);
 		if (lan_config_cursor == 3)
@@ -3756,6 +3756,56 @@ static void M_LanConfig_Key (int key)
 				lan_config_joinname[strlen (lan_config_joinname) - 1] = 0;
 		}
 		break;
+
+	case 'v':
+	case 'V':
+		// Ctrl + v : paste a hostname
+		if (lan_config_cursor == 3 &&
+#if defined(PLATFORM_OSX) || defined(PLATFORM_MAC)
+			(keydown[K_COMMAND])
+#else
+			(keydown[K_CTRL])
+#endif
+		)
+		{
+			const int current_joinname_size = strlen (lan_config_joinname);
+
+			const int joinname_remaining_room_size = countof (lan_config_joinname) - 1 - current_joinname_size;
+
+			if (joinname_remaining_room_size > 0)
+			{
+				char raw_join_address[countof (lan_config_joinname)];
+
+				q_strlcpy (raw_join_address, lan_config_joinname, sizeof (lan_config_joinname));
+
+				char *clipboard_text = PL_GetClipboardData ();
+
+				// append the existing clipboard text
+				if (clipboard_text)
+					q_strlcpy (raw_join_address + current_joinname_size, clipboard_text, joinname_remaining_room_size);
+
+				// Check if the resulting raw_join_address is of form 'address:port', in this case overwrite lan_config_portname with it
+				size_t nb_parts = 0;
+
+				char **split_adress = q_strsplit (raw_join_address, ":", &nb_parts);
+
+				if (nb_parts == 2 && atoi (split_adress[1]) > 0 && atoi (split_adress[1]) <= 65535)
+				{
+					// overwrite existing port
+					q_strlcpy (lan_config_portname, split_adress[1], sizeof (lan_config_portname));
+
+					// set join name from the first part:
+					q_strlcpy (lan_config_joinname, q_strtrim (split_adress[0]), sizeof (lan_config_joinname));
+				}
+				else
+				{
+					q_strlcpy (lan_config_joinname, raw_join_address, sizeof (lan_config_joinname));
+				}
+				Mem_Free (split_adress);
+				Mem_Free (clipboard_text);
+			} // end if enough room to Ctrl+v
+		}
+		break;
 	}
 
 	if (StartingGame && lan_config_cursor >= 2)
@@ -3784,7 +3834,8 @@ static void M_LanConfig_Char (int key)
 		if (key < '0' || key > '9')
 			return;
 		l = strlen (lan_config_portname);
-		if (l < 5)
+		// append one character, assure null-termination
+		if (l < countof (lan_config_portname) - 1)
 		{
 			lan_config_portname[l + 1] = 0;
 			lan_config_portname[l] = key;
@@ -3792,7 +3843,7 @@ static void M_LanConfig_Char (int key)
 		break;
 	case 3:
 		l = strlen (lan_config_joinname);
-		if (l < 21)
+		if (l < countof (lan_config_joinname) - 1)
 		{
 			lan_config_joinname[l + 1] = 0;
 			lan_config_joinname[l] = key;

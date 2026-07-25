@@ -459,13 +459,9 @@ void Key_Console (int key)
 	case 'V':
 #if defined(PLATFORM_OSX) || defined(PLATFORM_MAC)
 		if (keydown[K_COMMAND])
-		{ /* Cmd+v paste (Mac-only) */
-			PasteToConsole ();
-			Con_TabComplete (TABCOMPLETE_AUTOHINT);
-			return;
-		}
-#endif
+#else
 		if (keydown[K_CTRL])
+#endif
 		{ /* Ctrl+v paste */
 			PasteToConsole ();
 			Con_TabComplete (TABCOMPLETE_AUTOHINT);
