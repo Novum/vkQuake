@@ -273,8 +273,12 @@ size_t UTF8_FromQuake (char *dst, size_t maxbytes, const char *src);
 char *q_strtrim (char *str);
 
 /* Split str around any of the characters of sep_set, gobbling any number of consecutive found separators, modifying str in-place.
-The returned char** subs is the array of resulting sub-strings: subs[k] for k in 0 ..  nb_substr - 1.
-The returned char** is allocated by Mem_Alloc */
+In addition, if nb_substr != NULL:
+  The returned char** subs is the array of the nb_substr splitted sub-strings of str: subs[k] for k in [0 .. nb_substr [.
+else if nb_substr == NULL:
+   q_strsplit returns NULL.
+The returned char** subs array is allocated by Mem_Alloc.
+*/
 char **q_strsplit (char *str, const char *sep_set, size_t *nb_substr);
 
 // strdup that calls Mem_Alloc
