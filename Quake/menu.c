@@ -3682,6 +3682,32 @@ static void M_LanConfig_Draw (cb_context_t *cbx)
 		M_PrintWhite (cbx, basex, 148, m_return_reason);
 }
 
+static void validate_LanConfig (void)
+{
+	char raw_join_address[countof (lan_config_joinname)];
+
+	q_strlcpy (raw_join_address, lan_config_joinname, sizeof (lan_config_joinname));
+
+	// Check if the resulting raw_join_address is of form 'address:port', in this case overwrite lan_config_portname with it
+	size_t nb_parts = 0;
+
+	char **split_adress = q_strsplit (raw_join_address, ":", &nb_parts);
+
+	if (nb_parts == 2 && atoi (split_adress[1]) > 0 && atoi (split_adress[1]) <= 65535)
+	{
+		// overwrite existing port value
+		q_strlcpy (lan_config_portname, split_adress[1], sizeof (lan_config_portname));
+
+		// set join name from the first part:
+		q_strlcpy (lan_config_joinname, q_strtrim (split_adress[0]), sizeof (lan_config_joinname));
+	}
+	else
+	{
+		q_strlcpy (lan_config_joinname, raw_join_address, sizeof (lan_config_joinname));
+	}
+	Mem_Free (split_adress);
+}
+
 static void M_LanConfig_Key (int key)
 {
 	int l;
@@ -3732,6 +3758,7 @@ static void M_LanConfig_Key (int key)
 				M_Menu_Search_f (SLIST_INTERNET);
 			else if (lan_config_cursor == 3)
 			{
+				validate_LanConfig ();
 				m_return_state = m_state;
 				m_return_onerror = true;
 				IN_Activate ();
@@ -3774,34 +3801,15 @@ static void M_LanConfig_Key (int key)
 
 			if (joinname_remaining_room_size > 0)
 			{
-				char raw_join_address[countof (lan_config_joinname)];
-
-				q_strlcpy (raw_join_address, lan_config_joinname, sizeof (lan_config_joinname));
-
 				char *clipboard_text = PL_GetClipboardData ();
 
 				// append the existing clipboard text
 				if (clipboard_text)
-					q_strlcpy (raw_join_address + current_joinname_size, clipboard_text, joinname_remaining_room_size);
+					q_strlcpy (lan_config_joinname + current_joinname_size, clipboard_text, joinname_remaining_room_size);
 
 				// Check if the resulting raw_join_address is of form 'address:port', in this case overwrite lan_config_portname with it
-				size_t nb_parts = 0;
+				validate_LanConfig ();
 
-				char **split_adress = q_strsplit (raw_join_address, ":", &nb_parts);
-
-				if (nb_parts == 2 && atoi (split_adress[1]) > 0 && atoi (split_adress[1]) <= 65535)
-				{
-					// overwrite existing port
-					q_strlcpy (lan_config_portname, split_adress[1], sizeof (lan_config_portname));
-
-					// set join name from the first part:
-					q_strlcpy (lan_config_joinname, q_strtrim (split_adress[0]), sizeof (lan_config_joinname));
-				}
-				else
-				{
-					q_strlcpy (lan_config_joinname, raw_join_address, sizeof (lan_config_joinname));
-				}
-				Mem_Free (split_adress);
 				Mem_Free (clipboard_text);
 			} // end if enough room to Ctrl+v
 		}
