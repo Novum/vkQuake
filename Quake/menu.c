@@ -3686,26 +3686,28 @@ static void validate_LanConfig (void)
 {
 	char raw_join_address[countof (lan_config_joinname)];
 
+	// make a copy of lan_config_joinname because of q_strsplit / q_strtrim on-place modification.
 	q_strlcpy (raw_join_address, lan_config_joinname, sizeof (lan_config_joinname));
 
 	// Check if the resulting raw_join_address is of form 'address:port', in this case overwrite lan_config_portname with it
 	size_t nb_parts = 0;
 
-	char **split_adress = q_strsplit (raw_join_address, ":", &nb_parts);
+	char **split_address = q_strsplit (raw_join_address, ":", &nb_parts);
 
-	if (nb_parts == 2 && atoi (split_adress[1]) > 0 && atoi (split_adress[1]) <= 65535)
+	if (nb_parts == 2 && atoi (split_address[1]) > 0 && atoi (split_address[1]) <= 65535)
 	{
-		// overwrite existing port value
-		q_strlcpy (lan_config_portname, split_adress[1], sizeof (lan_config_portname));
-
 		// set join name from the first part:
-		q_strlcpy (lan_config_joinname, q_strtrim (split_adress[0]), sizeof (lan_config_joinname));
+		q_strlcpy (lan_config_joinname, q_strtrim (split_address[0]), sizeof (lan_config_joinname));
+
+		// overwrite existing port value from the second part:
+		q_strlcpy (lan_config_portname, split_address[1], sizeof (lan_config_portname));
 	}
 	else
 	{
-		q_strlcpy (lan_config_joinname, raw_join_address, sizeof (lan_config_joinname));
+		// Sanitize lan_config_joinname w.r.t whitespace:
+		q_strlcpy (lan_config_joinname, q_strtrim (raw_join_address), sizeof (lan_config_joinname));
 	}
-	Mem_Free (split_adress);
+	Mem_Free (split_address);
 }
 
 static void M_LanConfig_Key (int key)
