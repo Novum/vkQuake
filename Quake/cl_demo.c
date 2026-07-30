@@ -563,6 +563,8 @@ record <demoname> <map> [cd track]
 */
 void CL_Record_f (void)
 {
+	char relname[MAX_OSPATH];
+
 	int c;
 	int track;
 
@@ -625,6 +627,9 @@ void CL_Record_f (void)
 		track = -1;
 	}
 
+	// save the demo name here, before potentially loading a new map (which would change argv[1])
+	q_strlcpy (relname, Cmd_Argv (1), sizeof (relname));
+
 	// start the map up
 	if (c > 2)
 	{
@@ -634,16 +639,12 @@ void CL_Record_f (void)
 	}
 
 	// open the demo file
-	{
-		char relname[MAX_OSPATH];
-		q_strlcpy (relname, Cmd_Argv (1), sizeof (relname));
-		COM_AddExtension (relname, ".dem", sizeof (relname));
-		q_snprintf (name, sizeof (name), "%s/%s", com_gamedir, relname);
+	COM_AddExtension (relname, ".dem", sizeof (relname));
+	q_snprintf (name, sizeof (name), "%s/%s", com_gamedir, relname);
 
-		Con_SafePrintf ("Recording to ");
-		Con_LinkPrintf (name, "%s", relname);
-		Con_SafePrintf (".\n");
-	}
+	Con_SafePrintf ("Recording to ");
+	Con_LinkPrintf (name, "%s", relname);
+	Con_SafePrintf (".\n");
 
 	cls.demofile = Sys_fopen (name, "wb");
 	if (!cls.demofile)
