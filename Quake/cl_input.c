@@ -528,8 +528,8 @@ void CL_SendMove (const usercmd_t *cmd)
 		MSG_WriteShort (&buf, cmd->sidemove);
 		MSG_WriteShort (&buf, cmd->upmove);
 
-		MSG_WriteByte (&buf, bits);
-		MSG_WriteByte (&buf, cmd->impulse);
+		MSG_WriteByte (&buf, bits & 0xff);
+		MSG_WriteByte (&buf, cmd->impulse & 0xff);
 		if (bits & (1u << 30))
 			MSG_WriteLong (&buf, cmd->weapon);
 		in_impulse = 0;

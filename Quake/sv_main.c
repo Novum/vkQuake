@@ -744,7 +744,7 @@ static void SVFTE_WriteEntitiesToClient (client_t *client, sizebuf_t *msg, size_
 			if (entnum > 0x3fff)
 			{
 				MSG_WriteShort (msg, 0xc000 | (entnum & 0x3fff));
-				MSG_WriteByte (msg, entnum >> 14);
+				MSG_WriteByte (msg, (entnum >> 14) & 0xff);
 			}
 			else
 				MSG_WriteShort (msg, 0x8000 | entnum);
@@ -778,7 +778,7 @@ static void SVFTE_WriteEntitiesToClient (client_t *client, sizebuf_t *msg, size_
 				if (entnum >= 0x4000)
 				{
 					MSG_WriteShort (msg, 0x4000 | (entnum & 0x3fff));
-					MSG_WriteByte (msg, entnum >> 14);
+					MSG_WriteByte (msg, (entnum >> 14) & 0xff);
 				}
 				else
 					MSG_WriteShort (msg, entnum);
@@ -992,9 +992,9 @@ void MSG_WriteStaticOrBaseLine (sizebuf_t *buf, int idx, entity_state_t *state, 
 		{
 			if (protocol == PROTOCOL_FITZQUAKE || protocol == PROTOCOL_RMQ) // still want to send baseline in PROTOCOL_NETQUAKE, so reset these values
 			{
-				if (state->modelindex & 0xFF00)
+				if (state->modelindex > 255)
 					bits |= B_LARGEMODEL;
-				if (state->frame & 0xFF00)
+				if (state->frame > 255)
 					bits |= B_LARGEFRAME;
 				if (state->alpha != ENTALPHA_DEFAULT)
 					bits |= B_ALPHA;
@@ -1264,7 +1264,8 @@ weapon, feet, etc.
 
 Channel 0 is an auto-allocate channel, the others override anything
 allready running on that entity/channel pair.
-volume is in 0-255.
+Volume is in 0-255.
+Attenuation is in 0-4
 An attenuation of 0 will play full volume everywhere in the level.
 Larger attenuations will drop off.  (max 4 attenuation)
 
@@ -2145,9 +2146,9 @@ void SV_WriteEntitiesToClient (client_t *client, sizebuf_t *msg, size_t overflow
 			}
 			else if (ENTSCALE_DEFAULT != scale) // for 666, we didn't send the scale in the baseline!
 				bits |= U_SCALE;
-			if (bits & U_FRAME && (int)ent->v.frame & 0xFF00)
+			if (bits & U_FRAME && (int)ent->v.frame > 255)
 				bits |= U_FRAME2;
-			if (bits & U_MODEL && (int)ent->v.modelindex & 0xFF00)
+			if (bits & U_MODEL && (int)ent->v.modelindex > 255)
 				bits |= U_MODEL2;
 			// nonstandard intervals are always sent; the default 0.1 the client assumes anyway is only worth
 			// the extra bytes on clients that are not constrained by the DATAGRAM_MTU packet budget
@@ -2169,16 +2170,16 @@ void SV_WriteEntitiesToClient (client_t *client, sizebuf_t *msg, size_t overflow
 		//
 		// write the message
 		//
-		MSG_WriteByte (msg, bits | U_SIGNAL);
+		MSG_WriteByte (msg, (bits | U_SIGNAL) & 0xff);
 
 		if (bits & U_MOREBITS)
-			MSG_WriteByte (msg, bits >> 8);
+			MSG_WriteByte (msg, (bits >> 8) & 0xff);
 
 		// johnfitz -- PROTOCOL_FITZQUAKE
 		if (bits & U_EXTEND1)
-			MSG_WriteByte (msg, bits >> 16);
+			MSG_WriteByte (msg, (bits >> 16) & 0xff);
 		if (bits & U_EXTEND2)
-			MSG_WriteByte (msg, bits >> 24);
+			MSG_WriteByte (msg, (bits >> 24) & 0xff);
 		// johnfitz
 
 		if (bits & U_LONGENTITY)
@@ -2187,9 +2188,9 @@ void SV_WriteEntitiesToClient (client_t *client, sizebuf_t *msg, size_t overflow
 			MSG_WriteByte (msg, e);
 
 		if (bits & U_MODEL)
-			MSG_WriteByte (msg, ent->v.modelindex);
+			MSG_WriteByte (msg, (int)ent->v.modelindex & 0xff);
 		if (bits & U_FRAME)
-			MSG_WriteByte (msg, ent->v.frame);
+			MSG_WriteByte (msg, (int)ent->v.frame & 0xff);
 		if (bits & U_COLORMAP)
 			MSG_WriteByte (msg, ent->v.colormap);
 		if (bits & U_SKIN)
@@ -2376,21 +2377,21 @@ void SV_WriteClientdataToMessage (client_t *client, sizebuf_t *msg)
 	// johnfitz -- PROTOCOL_FITZQUAKE
 	if (sv.protocol != PROTOCOL_NETQUAKE)
 	{
-		if (bits & SU_WEAPON && weaponmodelindex & 0xFF00)
+		if (bits & SU_WEAPON && weaponmodelindex > 255)
 			bits |= SU_WEAPON2;
-		if ((int)ent->v.armorvalue & 0xFF00)
+		if ((int)ent->v.armorvalue > 255)
 			bits |= SU_ARMOR2;
-		if ((int)ent->v.currentammo & 0xFF00)
+		if ((int)ent->v.currentammo > 255)
 			bits |= SU_AMMO2;
-		if ((int)ent->v.ammo_shells & 0xFF00)
+		if ((int)ent->v.ammo_shells > 255)
 			bits |= SU_SHELLS2;
-		if ((int)ent->v.ammo_nails & 0xFF00)
+		if ((int)ent->v.ammo_nails > 255)
 			bits |= SU_NAILS2;
-		if ((int)ent->v.ammo_rockets & 0xFF00)
+		if ((int)ent->v.ammo_rockets > 255)
 			bits |= SU_ROCKETS2;
-		if ((int)ent->v.ammo_cells & 0xFF00)
+		if ((int)ent->v.ammo_cells > 255)
 			bits |= SU_CELLS2;
-		if (bits & SU_WEAPONFRAME && (int)ent->v.weaponframe & 0xFF00)
+		if (bits & SU_WEAPONFRAME && (int)ent->v.weaponframe > 255)
 			bits |= SU_WEAPONFRAME2;
 		if (bits & SU_WEAPON && ent->alpha != ENTALPHA_DEFAULT)
 			bits |= SU_WEAPONALPHA; // for now, weaponalpha = client entity alpha
@@ -2431,22 +2432,22 @@ void SV_WriteClientdataToMessage (client_t *client, sizebuf_t *msg)
 	MSG_WriteLong (msg, items);
 
 	if (bits & SU_WEAPONFRAME)
-		MSG_WriteByte (msg, ent->v.weaponframe);
+		MSG_WriteByte (msg, (int)ent->v.weaponframe & 0xff);
 	if (bits & SU_ARMOR)
-		MSG_WriteByte (msg, ent->v.armorvalue);
+		MSG_WriteByte (msg, (int)ent->v.armorvalue & 0xff);
 	if (bits & SU_WEAPON)
-		MSG_WriteByte (msg, weaponmodelindex);
+		MSG_WriteByte (msg, (int)weaponmodelindex & 0xff);
 
 	MSG_WriteShort (msg, ent->v.health);
-	MSG_WriteByte (msg, ent->v.currentammo);
-	MSG_WriteByte (msg, ent->v.ammo_shells);
-	MSG_WriteByte (msg, ent->v.ammo_nails);
-	MSG_WriteByte (msg, ent->v.ammo_rockets);
-	MSG_WriteByte (msg, ent->v.ammo_cells);
+	MSG_WriteByte (msg, (int)ent->v.currentammo & 0xff);
+	MSG_WriteByte (msg, (int)ent->v.ammo_shells & 0xff);
+	MSG_WriteByte (msg, (int)ent->v.ammo_nails & 0xff);
+	MSG_WriteByte (msg, (int)ent->v.ammo_rockets & 0xff);
+	MSG_WriteByte (msg, (int)ent->v.ammo_cells & 0xff);
 
 	if (standard_quake)
 	{
-		MSG_WriteByte (msg, ent->v.weapon);
+		MSG_WriteByte (msg, (int)ent->v.weapon & 0xff);
 	}
 	else
 	{

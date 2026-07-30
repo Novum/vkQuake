@@ -397,7 +397,7 @@ static void CL_Record_Prespawn (void)
 		else
 			MSG_WriteByte (&net_message, idx);
 		MSG_WriteByte (&net_message, ss->master_vol);
-		MSG_WriteByte (&net_message, ss->dist_mult * 1000 * 64);
+		MSG_WriteByte (&net_message, (int)CLAMP (0.f, ss->dist_mult * 1000 * 64, 255.f));
 
 		if (net_message.cursize > 4096)
 		{ // periodically flush so that large maps don't need larger than vanilla limits
