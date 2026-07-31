@@ -2661,8 +2661,8 @@ static void M_Mods_Key (int key)
 
 #define MAPLIST_X		 8
 #define MAPLIST_TOP		 32
-#define MAPLIST_COLS	 (38 + 8)
-#define MAPLIST_NAMECOLS (14 + 8)
+#define MAPLIST_COLS	 (38 + 6)
+#define MAPLIST_NAMECOLS (14 + 4)
 #define MAPLIST_VIEWSIZE 19
 
 typedef struct
