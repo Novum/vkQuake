@@ -53,6 +53,9 @@ static int pr_ext_warned_particleeffectnum;						  // so these only spam once pe
 
 extern qpic_t *pic_nul;
 
+// draw_qcvm_mutex also protects q_cachepics  / scrap updates
+extern SDL_Mutex *draw_qcvm_mutex;
+
 static void *PR_FindExtGlobal (int type, const char *name);
 void		 SV_CheckVelocity (edict_t *ent);
 
@@ -4733,45 +4736,18 @@ static void PF_cl_getstat_string (void)
 	}
 }
 
-static struct
-{
-	char		 name[MAX_QPATH];
-	unsigned int flags;
-	qpic_t		*pic;
-}			 *qcpics;
-static size_t numqcpics;
-static size_t maxqcpics;
-
-void PR_ReloadPics (qboolean purge)
-{
-	numqcpics = 0;
-
-	Mem_Free (qcpics);
-	qcpics = NULL;
-	maxqcpics = 0;
-}
-
-#define PICFLAG_AUTO   0		 // value used when no flags known
-#define PICFLAG_WAD	   (1u << 0) // name matches that of a wad lump
-#define PICFLAG_WRAP   (1u << 2) // make sure npot stuff doesn't break wrapping.
-#define PICFLAG_MIPMAP (1u << 3) // disable use of scrap...
-#define PICFLAG_BLOCK  (1u << 9) // wait until the texture is fully loaded.
-#define PICFLAG_NOLOAD (1u << 31)
-
-static qpic_t *DrawQC_CachePic (const char *picname, unsigned int flags)
+static qpic_t *DrawQC_CachePic (const char *picname, int picflags)
 {
 	if (strlen (picname) >= MAX_QPATH)
 		return NULL; // too long. get lost.
 
-	// okay, so this is silly. we've ended up with 3 different cache levels. qcpics, pics, and images.
-	size_t		 i;
-	unsigned int texflags;
+	unsigned int texflags = TEXPREF_ALPHA | TEXPREF_PAD | TEXPREF_NOPICMIP;
 
 	// cleanup picname of all its leading slashes or backslashes
 	// because sometimes the input is silly.
-	char tmp_qpic_name[countof (qcpics[i].name)] = {0};
+	char tmp_qpic_name[MAX_QPATH] = {0};
 
-	q_strlcpy (tmp_qpic_name, picname, countof (qcpics[i].name));
+	q_strlcpy (tmp_qpic_name, picname, MAX_QPATH);
 
 	char *clean_picname = &tmp_qpic_name[0];
 
@@ -4779,53 +4755,35 @@ static qpic_t *DrawQC_CachePic (const char *picname, unsigned int flags)
 	while (*clean_picname == '/' || *clean_picname == '\\')
 		clean_picname++;
 
-	for (i = 0; i < numqcpics; i++)
-	{
-		// binary search? something more sane?
-		if (!strcmp (clean_picname, qcpics[i].name))
-		{
-			if (qcpics[i].pic)
-				return qcpics[i].pic;
-		}
-	}
+	// Fast lookup:
+	qpic_t *p = Draw_GetCachedPic (clean_picname);
 
-	if (flags & PICFLAG_NOLOAD)
-		return NULL; // its a query, not actually needed.
+	if (p)
+		return p;
 
-	if (i + 1 > maxqcpics)
-	{
-		maxqcpics = i + 32;
-		qcpics = Mem_Realloc (qcpics, maxqcpics * sizeof (*qcpics));
-	}
+	if (picflags & PICFLAG_NOLOAD)
+		return NULL; // only query the cached status.
 
-	strcpy (qcpics[i].name, clean_picname);
-
-	qcpics[i].flags = flags;
-	qcpics[i].pic = NULL;
-
-	texflags = TEXPREF_ALPHA | TEXPREF_PAD | TEXPREF_NOPICMIP;
-	if (flags & PICFLAG_WRAP)
+	// load a new pic:
+	if (picflags & PICFLAG_WRAP)
 		texflags &= ~TEXPREF_PAD; // don't allow padding if its going to need to wrap (even if we don't enable clamp-to-edge normally). I just hope we have
 								  // npot support.
-	if (flags & PICFLAG_MIPMAP)
+	if (picflags & PICFLAG_MIPMAP)
 		texflags |= TEXPREF_MIPMAP;
 
 	// try to load it from a wad if applicable.
 	// the extra gfx/ crap is because DP insists on it for wad images. and its a nightmare to get things working in all engines if we don't accept that quirk
 	// too.
-	if (flags & PICFLAG_WAD)
-		qcpics[i].pic = Draw_PicFromWad2 (clean_picname + (strncmp (clean_picname, "gfx/", 4) ? 0 : 4), texflags);
+	if (picflags & PICFLAG_WAD)
+		p = Draw_PicFromWad2 (clean_picname + (strncmp (clean_picname, "gfx/", 4) ? 0 : 4), texflags, picflags);
 	else if (!strncmp (clean_picname, "gfx/", 4) && !strchr (clean_picname + 4, '.'))
-		qcpics[i].pic = Draw_PicFromWad2 (clean_picname + 4, texflags);
+		p = Draw_PicFromWad2 (clean_picname + 4, texflags, picflags);
 
 	// okay, not a wad pic, try and load a png/tga/jpg/pcx/lmp
-	if (!qcpics[i].pic || qcpics[i].pic == pic_nul)
-		qcpics[i].pic = Draw_TryCachePic (clean_picname, texflags);
+	if (!p || p == pic_nul)
+		p = Draw_TryCachePic (clean_picname, texflags, picflags);
 
-	if (i == numqcpics)
-		numqcpics++;
-
-	return qcpics[i].pic;
+	return p;
 }
 extern gltexture_t *char_texture;
 static void			DrawQC_CharacterQuad (cb_context_t *cbx, float x, float y, int num, float w, float h, float *rgb, float alpha)
@@ -5003,25 +4961,35 @@ static void PF_cl_drawresetclip (void)
 
 static void PF_cl_precachepic (void)
 {
-	const char	*name = G_STRING (OFS_PARM0);
-	unsigned int flags = G_FLOAT (OFS_PARM1);
+	const char *name = G_STRING (OFS_PARM0);
+	int			flags = (int)G_FLOAT (OFS_PARM1);
 
 	G_INT (OFS_RETURN) = G_INT (OFS_PARM0); // return input string, for convienience
 
-	if (!DrawQC_CachePic (name, flags) && (flags & PICFLAG_BLOCK))
+	SDL_LockMutex (draw_qcvm_mutex);
+
+	if (!DrawQC_CachePic (name, flags))
+		// failure to load because the pic 'name" was not found.
 		G_INT (OFS_RETURN) = 0; // return input string, for convienience
+
+	SDL_UnlockMutex (draw_qcvm_mutex);
 }
 static void PF_cl_iscachedpic (void)
 {
+	SDL_LockMutex (draw_qcvm_mutex);
 	const char *name = G_STRING (OFS_PARM0);
 	if (DrawQC_CachePic (name, PICFLAG_NOLOAD))
 		G_FLOAT (OFS_RETURN) = true;
 	else
 		G_FLOAT (OFS_RETURN) = false;
+
+	SDL_UnlockMutex (draw_qcvm_mutex);
 }
 
 static void PF_cl_drawpic (void)
 {
+	SDL_LockMutex (draw_qcvm_mutex);
+
 	float  *pos = G_VECTOR (OFS_PARM0);
 	qpic_t *pic = DrawQC_CachePic (G_STRING (OFS_PARM1), PICFLAG_AUTO);
 	float  *size = G_VECTOR (OFS_PARM2);
@@ -5030,19 +4998,27 @@ static void PF_cl_drawpic (void)
 
 	if (pic)
 		Draw_SubPic (vulkan_globals.secondary_cb_contexts[SCBX_GUI], pos[0], pos[1], size[0], size[1], pic, 0, 0, 1, 1, rgb, alpha);
+
+	SDL_UnlockMutex (draw_qcvm_mutex);
 }
 
 static void PF_cl_getimagesize (void)
 {
+	SDL_LockMutex (draw_qcvm_mutex);
+
 	qpic_t *pic = DrawQC_CachePic (G_STRING (OFS_PARM0), PICFLAG_AUTO);
 	if (pic)
 		G_VECTORSET (OFS_RETURN, pic->width, pic->height, 0);
 	else
 		G_VECTORSET (OFS_RETURN, 0, 0, 0);
+
+	SDL_UnlockMutex (draw_qcvm_mutex);
 }
 
 static void PF_cl_drawsubpic (void)
 {
+	SDL_LockMutex (draw_qcvm_mutex);
+
 	float  *pos = G_VECTOR (OFS_PARM0);
 	float  *size = G_VECTOR (OFS_PARM1);
 	qpic_t *pic = DrawQC_CachePic (G_STRING (OFS_PARM2), PICFLAG_AUTO);
@@ -5054,6 +5030,8 @@ static void PF_cl_drawsubpic (void)
 	if (pic)
 		Draw_SubPic (
 			vulkan_globals.secondary_cb_contexts[SCBX_GUI], pos[0], pos[1], size[0], size[1], pic, srcpos[0], srcpos[1], srcsize[0], srcsize[1], rgb, alpha);
+
+	SDL_UnlockMutex (draw_qcvm_mutex);
 }
 
 static void PF_cl_drawfill (void)

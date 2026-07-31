@@ -108,13 +108,13 @@ Sbar_DontShowScores
 Tab key up
 ===============
 */
-void Sbar_DontShowScores (void)
+static void Sbar_DontShowScores (void)
 {
 	Sbar_CSQCCommand ();
 	sb_showscores = false;
 }
 
-qpic_t *Sbar_CheckPicFromWad (const char *name)
+static qpic_t *Sbar_CheckPicFromWad (const char *name)
 {
 	extern qpic_t *pic_nul;
 	qpic_t		  *r;

@@ -87,16 +87,20 @@ typedef struct
 
 typedef struct cachepic_s
 {
-	char   name[MAX_QPATH];
-	qpic_t pic;
-	byte   padding[32]; // for appended glpic
+	// dynamically-allocated chained cachepic_t
+	struct cachepic_s *next;
+	char			   name[MAX_QPATH];
+	qpic_t			   pic;
+	int				   picflags;
+	byte			   padding[32]; // for appended glpic
 } cachepic_t;
 
-// TODO : vso : should be dynamically allocated instead ?
-// On the other hand it takes so little memory that we can push MAX_CACHED_PICS very very high and never touch it again.
-#define MAX_CACHED_PICS 8192 // vso : from Spike = 512 - increased to avoid csqc issues.
-static cachepic_t menu_cachepics[MAX_CACHED_PICS];
-static int		  menu_numcachepics;
+// draw_qcvm_mutex also protects q_cachepics  / scrap updates
+extern SDL_Mutex *draw_qcvm_mutex;
+
+static cachepic_t *q_cachepics = NULL;
+// Fast lookup pic name => cachepic_t* from q_cachepics.
+hash_map_t		  *q_cachepics_map = NULL;
 
 //  scrap allocation
 //  Allocate all the little status bar obejcts into a single texture
@@ -118,7 +122,7 @@ Scrap_AllocBlock
 returns an index into scrap_texnums[] and the position inside it
 ================
 */
-int Scrap_AllocBlock (int w, int h, int *x, int *y)
+static int Scrap_AllocBlock (int w, int h, int *x, int *y)
 {
 	int i, j;
 	int best, best2;
@@ -164,7 +168,7 @@ int Scrap_AllocBlock (int w, int h, int *x, int *y)
 Scrap_Upload -- johnfitz -- now uses TexMgr
 ================
 */
-void Scrap_Upload (void)
+static void Scrap_Upload (void)
 {
 	char name[8];
 	int	 i;
@@ -185,25 +189,24 @@ void Scrap_Upload (void)
 Draw_PicFromWad
 ================
 */
-qpic_t *Draw_PicFromWad2 (const char *name, unsigned int texflags)
+qpic_t *Draw_PicFromWad2 (const char *name, unsigned int texflags, int picflags)
 {
 	int			 i;
-	cachepic_t	*pic;
 	qpic_t		*p;
+	cachepic_t	*pic;
 	glpic_t		 gl;
 	src_offset_t offset; // johnfitz
 	lumpinfo_t	*info;
 
-	// Spike -- added cachepic stuff here, to avoid glitches if the function is called multiple times with the same image.
-	for (pic = menu_cachepics, i = 0; i < menu_numcachepics; pic++, i++)
-	{
-		if (!strncmp (name, pic->name, countof (pic->name)))
-			return &pic->pic;
-	}
-	if (menu_numcachepics == MAX_CACHED_PICS)
-		Sys_Error ("menu_numcachepics == MAX_CACHED_PICS");
+	// Fast lookup:
+	p = Draw_GetCachedPic (name);
 
+	if (p)
+		return p;
+
+	// not cached, searched for it:
 	p = (qpic_t *)W_GetLumpName (name, &info);
+
 	if (!p)
 	{
 		Con_Warning ("W_GetLumpName: %s not found\n", name);
@@ -266,17 +269,44 @@ qpic_t *Draw_PicFromWad2 (const char *name, unsigned int texflags)
 		gl.th = 1;
 	}
 
-	menu_numcachepics++;
+	// Create a new pic:
+	pic = Mem_Alloc (sizeof (*pic));
+	pic->picflags = picflags;
+
 	q_strlcpy (pic->name, name, countof (pic->name));
 	pic->pic = *p;
+
 	memcpy ((void *)&(pic->pic.data), &gl, sizeof (glpic_t));
+
+	// Add to cache:
+	if (!q_cachepics)
+	{
+		q_cachepics = pic;
+	}
+	else
+	{
+		cachepic_t *current_pic = q_cachepics;
+		cachepic_t *previous_pic = q_cachepics;
+
+		while (current_pic)
+		{
+			previous_pic = current_pic;
+			current_pic = current_pic->next;
+		}
+
+		previous_pic->next = pic;
+	}
+
+	// we must downgrade pic->name as a pointer because the hashmap expects a key 8 bytes long (const char*)
+	const char *pic_name_as_pointer = &pic->name[0];
+	HashMap_Insert (q_cachepics_map, &pic_name_as_pointer, &pic);
 
 	return &pic->pic;
 }
 
 qpic_t *Draw_PicFromWad (const char *name)
 {
-	return Draw_PicFromWad2 (name, TEXPREF_ALPHA | TEXPREF_PAD | TEXPREF_NOPICMIP);
+	return Draw_PicFromWad2 (name, TEXPREF_ALPHA | TEXPREF_PAD | TEXPREF_NOPICMIP, PICFLAG_AUTO);
 }
 #if 0 // vso - unused 
 static qpic_t *Draw_GetCachedPic (const char *path)
@@ -294,22 +324,39 @@ static qpic_t *Draw_GetCachedPic (const char *path)
 #endif
 /*
 ================
+Draw_GetCachedPic : get a pic from cache if already present, or return NULL if not.
+================
+*/
+qpic_t *Draw_GetCachedPic (const char *path)
+{
+	// Fast lookup:
+	cachepic_t **pic_ptr = HashMap_Lookup (cachepic_t *, q_cachepics_map, &path);
+
+	// found
+	if (pic_ptr)
+	{
+		return &((*pic_ptr)->pic);
+	}
+
+	return NULL;
+}
+
+/*
+================
 Draw_CachePic
 ================
 */
-qpic_t *Draw_TryCachePic (const char *path, unsigned int texflags)
+qpic_t *Draw_TryCachePic (const char *path, unsigned int texflags, int picflags)
 {
+	qpic_t	   *p;
 	cachepic_t *pic;
-	int			i;
 	glpic_t		gl;
 
-	for (pic = menu_cachepics, i = 0; i < menu_numcachepics; pic++, i++)
-	{
-		if (!strncmp (path, pic->name, countof (pic->name)))
-			return &pic->pic;
-	}
-	if (menu_numcachepics == MAX_CACHED_PICS)
-		Sys_Error ("menu_numcachepics == MAX_CACHED_PICS");
+	// Fast lookup:
+	p = Draw_GetCachedPic (path);
+
+	if (p)
+		return p;
 
 	//
 	// load the pic from disk
@@ -327,9 +374,14 @@ qpic_t *Draw_TryCachePic (const char *path, unsigned int texflags)
 	pic_data = Image_LoadImage (npath, (int *)&pic_width, (int *)&pic_height, &pic_fmt, 0);
 
 	if (!pic_data)
+	{
 		return NULL;
+	}
 
-	menu_numcachepics++;
+	// Create a new pic:
+	pic = Mem_Alloc (sizeof (*pic));
+	pic->picflags = picflags;
+
 	q_strlcpy (pic->name, path, countof (pic->name));
 
 	pic->pic.width = pic_width;
@@ -347,6 +399,28 @@ qpic_t *Draw_TryCachePic (const char *path, unsigned int texflags)
 
 	memcpy ((void *)&(pic->pic.data), &gl, sizeof (glpic_t));
 
+	// Add to cache:
+	if (!q_cachepics)
+	{
+		q_cachepics = pic;
+	}
+	else
+	{
+		cachepic_t *current_pic = q_cachepics;
+		cachepic_t *previous_pic = q_cachepics;
+
+		while (current_pic)
+		{
+			previous_pic = current_pic;
+			current_pic = current_pic->next;
+		}
+
+		previous_pic->next = pic;
+	}
+	// we must downgrade pic->name as a pointer because the hashmap expects a key 8 bytes long (const char*)
+	const char *pic_name_as_pointer = &pic->name[0];
+	HashMap_Insert (q_cachepics_map, &pic_name_as_pointer, &pic);
+
 	Mem_Free (pic_data);
 
 	return &pic->pic;
@@ -354,7 +428,7 @@ qpic_t *Draw_TryCachePic (const char *path, unsigned int texflags)
 
 qpic_t *Draw_CachePic (const char *path)
 {
-	qpic_t *pic = Draw_TryCachePic (path, TEXPREF_ALPHA | TEXPREF_PAD | TEXPREF_NOPICMIP);
+	qpic_t *pic = Draw_TryCachePic (path, TEXPREF_ALPHA | TEXPREF_PAD | TEXPREF_NOPICMIP, PICFLAG_AUTO);
 	if (!pic)
 		Sys_Error ("Draw_CachePic: failed to load %s", path);
 	return pic;
@@ -421,8 +495,7 @@ Draw_NewGame -- johnfitz
 */
 void Draw_NewGame (void)
 {
-	cachepic_t *pic;
-	int			i;
+	SDL_LockMutex (draw_qcvm_mutex);
 
 	// empty scrap and reallocate gltextures
 	memset (scrap_allocated, 0, sizeof (scrap_allocated));
@@ -430,17 +503,27 @@ void Draw_NewGame (void)
 
 	Scrap_Upload (); // creates 2 empty gltextures
 
-	// empty lmp cache
-	for (pic = menu_cachepics, i = 0; i < menu_numcachepics; pic++, i++)
-		pic->name[0] = 0;
-	menu_numcachepics = 0;
+	// empty pic cache :
+	cachepic_t *cached_pic = q_cachepics;
+	cachepic_t *next_cached_pic;
+
+	while (cached_pic)
+	{
+		next_cached_pic = cached_pic->next;
+		Mem_Free (cached_pic);
+		cached_pic = next_cached_pic;
+	}
+	q_cachepics = NULL;
+
+	HashMap_Clear (q_cachepics_map);
 
 	// reload wad pics
 	W_LoadWadFile (); // johnfitz -- filename is now hard-coded for honesty
 	Draw_LoadPics ();
 	SCR_LoadPics ();
 	Sbar_LoadPics ();
-	PR_ReloadPics (false);
+
+	SDL_UnlockMutex (draw_qcvm_mutex);
 }
 
 /*
@@ -450,6 +533,8 @@ Draw_Init -- johnfitz -- rewritten
 */
 void Draw_Init (void)
 {
+	q_cachepics_map = HashMap_Create (const char *, cachepic_t *, &HashStr, &HashStrCmp);
+
 	Cvar_RegisterVariable (&scr_conalpha);
 
 	// clear scrap and allocate gltextures
