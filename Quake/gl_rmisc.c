@@ -93,6 +93,8 @@ static SDL_Mutex *uniform_allocate_mutex;
 static SDL_Mutex *storage_allocate_mutex;
 static SDL_Mutex *garbage_mutex;
 
+extern SDL_Mutex *draw_qcvm_mutex;
+
 qboolean R_UseAlphaSort (void)
 {
 	return r_alphasort.value && !R_UseOIT ();
@@ -263,8 +265,6 @@ static void R_ShowbboxesFilter_Completion_f (const char *partial)
 	if (!sv.active)
 		return;
 
-	extern SDL_Mutex *draw_qcvm_mutex;
-
 	SDL_LockMutex (draw_qcvm_mutex);
 	PR_SwitchQCVM (&sv.qcvm);
 
@@ -289,9 +289,8 @@ R_ShowbboxesFilterClear_f
 */
 static void R_ShowbboxesFilterClear_f (void)
 {
-	extern char		 *r_showbboxes_filter_strings;
-	extern qboolean	  r_showbboxes_filter_byindex;
-	extern SDL_Mutex *draw_qcvm_mutex;
+	extern char	   *r_showbboxes_filter_strings;
+	extern qboolean r_showbboxes_filter_byindex;
 
 	SDL_LockMutex (draw_qcvm_mutex);
 

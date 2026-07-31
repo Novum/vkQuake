@@ -1134,13 +1134,11 @@ static void SCR_DrawGUI (void *unused)
 	SCR_TileClear (cbx);
 
 	const qboolean cscqhud = (scr_style.value < 1.0f) && cl.qcvm.extfuncs.CSQC_DrawHud;
-	qboolean	   use_mutex = r_showbboxes.value && cscqhud;
-
-	if (use_mutex)
-		SDL_LockMutex (draw_qcvm_mutex);
 
 	if (cscqhud && setjmp (screen_error))
 		PR_ClearProgs (&cl.qcvm);
+
+	SDL_LockMutex (draw_qcvm_mutex);
 
 	if (scr_drawdialog) // new game confirm
 	{
@@ -1181,9 +1179,7 @@ static void SCR_DrawGUI (void *unused)
 		M_Draw (cbx);
 	}
 
-	if (use_mutex)
-		SDL_UnlockMutex (draw_qcvm_mutex);
-
+	SDL_UnlockMutex (draw_qcvm_mutex);
 	R_EndDebugUtilsLabel (cbx);
 }
 
