@@ -100,11 +100,14 @@ COMPILE_TIME_ASSERT ("cachepic padding placement", offsetof (cachepic_t, padding
 COMPILE_TIME_ASSERT ("cachepic padding size", sizeof (((struct cachepic_s *)0)->padding) >= sizeof (glpic_t));
 
 // draw_qcvm_mutex also protects q_cachepics  / scrap updates
-extern SDL_Mutex *draw_qcvm_mutex;
+extern SDL_Mutex  *draw_qcvm_mutex;
+static cachepic_t *q_cachepics;
 
-static cachepic_t *q_cachepics = NULL;
-// Fast lookup pic name => cachepic_t* from q_cachepics.
-hash_map_t		  *q_cachepics_map = NULL;
+// last entry of the chained q_cachepics, new entries are appended to it
+static cachepic_t *q_cachepics_last_entry;
+
+// Fast lookup pic name => cachepic_t* for q_cachepics.
+static hash_map_t *q_cachepics_map;
 
 //  scrap allocation
 //  Allocate all the little status bar obejcts into a single texture
@@ -283,25 +286,20 @@ qpic_t *Draw_PicFromWad2 (const char *name, unsigned int texflags, int picflags)
 	memcpy ((void *)&(pic->pic.data), &gl, sizeof (glpic_t));
 
 	// Add to cache:
+	assert (pic->next == NULL);
+
 	if (!q_cachepics)
 	{
 		q_cachepics = pic;
+		q_cachepics_last_entry = pic;
 	}
 	else
 	{
-		cachepic_t *current_pic = q_cachepics;
-		cachepic_t *previous_pic = q_cachepics;
-
-		while (current_pic)
-		{
-			previous_pic = current_pic;
-			current_pic = current_pic->next;
-		}
-
-		previous_pic->next = pic;
+		q_cachepics_last_entry->next = pic;
+		q_cachepics_last_entry = pic;
 	}
 
-	// we must downgrade pic->name as a pointer because the hashmap expects a key 8 bytes long (const char*)
+	// we must degrade pic->name to a (const char*) because this is what the hashmap expects (8 bytes pointer)
 	const char *pic_name_as_pointer = &pic->name[0];
 	HashMap_Insert (q_cachepics_map, &pic_name_as_pointer, &pic);
 
@@ -404,24 +402,20 @@ qpic_t *Draw_TryCachePic (const char *path, unsigned int texflags, int picflags)
 	memcpy ((void *)&(pic->pic.data), &gl, sizeof (glpic_t));
 
 	// Add to cache:
+	assert (pic->next == NULL);
+
 	if (!q_cachepics)
 	{
 		q_cachepics = pic;
+		q_cachepics_last_entry = pic;
 	}
 	else
 	{
-		cachepic_t *current_pic = q_cachepics;
-		cachepic_t *previous_pic = q_cachepics;
-
-		while (current_pic)
-		{
-			previous_pic = current_pic;
-			current_pic = current_pic->next;
-		}
-
-		previous_pic->next = pic;
+		q_cachepics_last_entry->next = pic;
+		q_cachepics_last_entry = pic;
 	}
-	// we must downgrade pic->name as a pointer because the hashmap expects a key 8 bytes long (const char*)
+
+	// we must degrade pic->name to a (const char*) because this is what the hashmap expects (8 bytes pointer)
 	const char *pic_name_as_pointer = &pic->name[0];
 	HashMap_Insert (q_cachepics_map, &pic_name_as_pointer, &pic);
 
@@ -518,6 +512,7 @@ void Draw_NewGame (void)
 		cached_pic = next_cached_pic;
 	}
 	q_cachepics = NULL;
+	q_cachepics_last_entry = NULL;
 
 	HashMap_Clear (q_cachepics_map);
 
