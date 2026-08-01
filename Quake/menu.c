@@ -3562,8 +3562,8 @@ static int lan_config_cursor = -1;
 #define NUM_LANCONFIG_CMDS 4
 
 static int	lan_config_port;
-static char lan_config_portname[6];
-static char lan_config_joinname[33];
+static char lan_config_portname[5 + 1];
+static char lan_config_joinname[36 + 1];
 
 static void M_Menu_LanConfig_f (void)
 {
@@ -3601,8 +3601,8 @@ static void M_LanConfig_Draw (cb_context_t *cbx)
 	p = Draw_CachePic ("gfx/p_multi.lmp");
 	basex = (320 - p->width) / 2;
 	M_DrawPic (cbx, basex, 4, p);
-
-	basex = 72;
+	//
+	basex = 72 - (8 * 2);
 
 	if (StartingGame)
 		startJoin = "New Game";
@@ -3612,7 +3612,7 @@ static void M_LanConfig_Draw (cb_context_t *cbx)
 		protocol = "IPX";
 	else
 		protocol = "TCP/IP";
-	M_Print (cbx, basex, 32, va ("%s - %s", startJoin, protocol));
+	M_Print (cbx, basex + 8 * 4, 32, va ("%s - %s", startJoin, protocol));
 	basex += 8;
 
 	y = 52;
@@ -3700,11 +3700,10 @@ static void validate_LanConfig (void)
 		q_strlcpy (lan_config_joinname, q_strtrim (split_address[0]), sizeof (lan_config_joinname));
 
 		// overwrite existing port value from the second part:
-		q_strlcpy (lan_config_portname, split_address[1], sizeof (lan_config_portname));
+		q_strlcpy (lan_config_portname, q_strtrim (split_address[1]), sizeof (lan_config_portname));
 	}
 	else
 	{
-		// Sanitize lan_config_joinname w.r.t whitespace:
 		q_strlcpy (lan_config_joinname, q_strtrim (raw_join_address), sizeof (lan_config_joinname));
 	}
 	Mem_Free (split_address);
@@ -3999,23 +3998,26 @@ static void M_MPGameOptions_Draw (cb_context_t *cbx)
 {
 	qpic_t *p;
 
+#define OPTION_NAMES_CX	 64
+#define OPTION_VALUES_CX 176
+
 	M_DrawTransPic (cbx, 16, 4, Draw_CachePic ("gfx/qplaque.lmp"));
 	p = Draw_CachePic ("gfx/p_multi.lmp");
 	M_DrawPic (cbx, (320 - p->width) / 2, 4, p);
 
-	M_DrawTextBox (cbx, 152, 32, 10, 1);
-	M_Print (cbx, 160, 40, "begin game");
+	M_DrawTextBox (cbx, OPTION_NAMES_CX - 4, 32, 10, 1);
+	M_Print (cbx, OPTION_NAMES_CX + 4, 40, "begin game");
 
-	M_Print (cbx, 0, 56, "      Max players");
-	M_Print (cbx, 160, 56, va ("%i", maxplayers));
+	M_Print (cbx, OPTION_NAMES_CX, 56, "Max players");
+	M_Print (cbx, OPTION_VALUES_CX, 56, va ("%i", maxplayers));
 
-	M_Print (cbx, 0, 64, "        Game Type");
+	M_Print (cbx, OPTION_NAMES_CX, 64, "Game Type");
 	if (coop.value)
-		M_Print (cbx, 160, 64, "Cooperative");
+		M_Print (cbx, OPTION_VALUES_CX, 64, "Cooperative");
 	else
-		M_Print (cbx, 160, 64, "Deathmatch");
+		M_Print (cbx, OPTION_VALUES_CX, 64, "Deathmatch");
 
-	M_Print (cbx, 0, 72, "        Teamplay");
+	M_Print (cbx, OPTION_NAMES_CX, 72, "Teamplay");
 	if (rogue)
 	{
 		const char *msg;
@@ -4044,7 +4046,7 @@ static void M_MPGameOptions_Draw (cb_context_t *cbx)
 			msg = "Off";
 			break;
 		}
-		M_Print (cbx, 160, 72, msg);
+		M_Print (cbx, OPTION_VALUES_CX, 72, msg);
 	}
 	else
 	{
@@ -4062,64 +4064,67 @@ static void M_MPGameOptions_Draw (cb_context_t *cbx)
 			msg = "Off";
 			break;
 		}
-		M_Print (cbx, 160, 72, msg);
+		M_Print (cbx, OPTION_VALUES_CX, 72, msg);
 	}
 
-	M_Print (cbx, 0, 80, "            Skill");
+	M_Print (cbx, OPTION_NAMES_CX, 80, "Skill");
 	if (skill.value == 0)
-		M_Print (cbx, 160, 80, "Easy difficulty");
+		M_Print (cbx, OPTION_VALUES_CX, 80, "Easy difficulty");
 	else if (skill.value == 1)
-		M_Print (cbx, 160, 80, "Normal difficulty");
+		M_Print (cbx, OPTION_VALUES_CX, 80, "Normal difficulty");
 	else if (skill.value == 2)
-		M_Print (cbx, 160, 80, "Hard difficulty");
+		M_Print (cbx, OPTION_VALUES_CX, 80, "Hard difficulty");
 	else
-		M_Print (cbx, 160, 80, "Nightmare difficulty");
+		M_Print (cbx, OPTION_VALUES_CX, 80, "Nightmare difficulty");
 
-	M_Print (cbx, 0, 88, "     Frag Limit");
+	M_Print (cbx, OPTION_NAMES_CX, 88, "Frag Limit");
 	if (fraglimit.value == 0)
-		M_Print (cbx, 160, 88, "none");
+		M_Print (cbx, OPTION_VALUES_CX, 88, "none");
 	else
-		M_Print (cbx, 160, 88, va ("%i frags", (int)fraglimit.value));
+		M_Print (cbx, OPTION_VALUES_CX, 88, va ("%i frags", (int)fraglimit.value));
 
-	M_Print (cbx, 0, 96, "     Time Limit");
+	M_Print (cbx, OPTION_NAMES_CX, 96, "Time Limit");
 	if (timelimit.value == 0)
-		M_Print (cbx, 160, 96, "none");
+		M_Print (cbx, OPTION_VALUES_CX, 96, "none");
 	else
-		M_Print (cbx, 160, 96, va ("%i minutes", (int)timelimit.value));
+		M_Print (cbx, OPTION_VALUES_CX, 96, va ("%i minutes", (int)timelimit.value));
 
-	M_Print (cbx, 0, 112, "         Episode");
+	M_Print (cbx, OPTION_NAMES_CX, 112, "Episode");
 	// MED 01/06/97 added hipnotic episodes
 	if (hipnotic)
-		M_Print (cbx, 160, 112, hipnoticepisodes[startepisode].description);
+		M_Print (cbx, OPTION_VALUES_CX, 112, hipnoticepisodes[startepisode].description);
 	// PGM 01/07/97 added rogue episodes
 	else if (rogue)
-		M_Print (cbx, 160, 112, rogueepisodes[startepisode].description);
+		M_Print (cbx, OPTION_VALUES_CX, 112, rogueepisodes[startepisode].description);
 	else
-		M_Print (cbx, 160, 112, episodes[startepisode].description);
+		M_Print (cbx, OPTION_VALUES_CX, 112, episodes[startepisode].description);
 
-	M_Print (cbx, 0, 120, "           Level");
+	M_Print (cbx, OPTION_NAMES_CX, 120, "Level");
 	// MED 01/06/97 added hipnotic episodes
 	if (hipnotic)
 	{
-		M_Print (cbx, 160, 120, hipnoticlevels[hipnoticepisodes[startepisode].firstLevel + startlevel].description);
-		M_Print (cbx, 160, 128, hipnoticlevels[hipnoticepisodes[startepisode].firstLevel + startlevel].name);
+		M_Print (cbx, OPTION_VALUES_CX, 120, hipnoticlevels[hipnoticepisodes[startepisode].firstLevel + startlevel].description);
+		M_Print (cbx, OPTION_VALUES_CX, 128, hipnoticlevels[hipnoticepisodes[startepisode].firstLevel + startlevel].name);
 	}
 	// PGM 01/07/97 added rogue episodes
 	else if (rogue)
 	{
-		M_Print (cbx, 160, 120, roguelevels[rogueepisodes[startepisode].firstLevel + startlevel].description);
-		M_Print (cbx, 160, 128, roguelevels[rogueepisodes[startepisode].firstLevel + startlevel].name);
+		M_Print (cbx, OPTION_VALUES_CX, 120, roguelevels[rogueepisodes[startepisode].firstLevel + startlevel].description);
+		M_Print (cbx, OPTION_VALUES_CX, 128, roguelevels[rogueepisodes[startepisode].firstLevel + startlevel].name);
 	}
 	else
 	{
-		M_Print (cbx, 160, 120, levels[episodes[startepisode].firstLevel + startlevel].description);
-		M_Print (cbx, 160, 128, levels[episodes[startepisode].firstLevel + startlevel].name);
+		M_Print (cbx, OPTION_VALUES_CX, 120, levels[episodes[startepisode].firstLevel + startlevel].description);
+		M_Print (cbx, OPTION_VALUES_CX, 128, levels[episodes[startepisode].firstLevel + startlevel].name);
 	}
 
 	// line cursor
 	for (int i = 0; i < NUM_MPGAMEOPTIONS; ++i)
 		M_Mouse_UpdateCursor (&mpgameoptions_cursor, 0, 400, mpgameoptions_cursor_table[i], 8, i);
-	Draw_Character (cbx, 144, mpgameoptions_cursor_table[mpgameoptions_cursor], 12 + ((int)(realtime * 4) & 1));
+	Draw_Character (cbx, OPTION_NAMES_CX - 8, mpgameoptions_cursor_table[mpgameoptions_cursor], 12 + ((int)(realtime * 4) & 1));
+
+#undef OPTION_NAMES_CX
+#undef OPTION_VALUES_CX
 }
 
 static void M_NetStart_Change (int dir)
