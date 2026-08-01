@@ -84,16 +84,20 @@ typedef struct
 //  PIC CACHING
 //
 //==============================================================================
-
 typedef struct cachepic_s
 {
 	// dynamically-allocated chained cachepic_t
 	struct cachepic_s *next;
 	char			   name[MAX_QPATH];
-	qpic_t			   pic;
 	int				   picflags;
-	byte			   padding[32]; // for appended glpic
+	qpic_t			   pic;
+	byte			   padding[32];
 } cachepic_t;
+
+// For appended glpic paylaod, padding MUST by placed just AFTER pic and being of enough size to hold glpic_t.
+// (Technically the total padding size is (pic.data[4] + padding[32]) but we discard pic.data size in this check)
+COMPILE_TIME_ASSERT ("cachepic padding placement", offsetof (cachepic_t, padding) == offsetof (cachepic_t, pic) + sizeof (((struct cachepic_s *)0)->pic));
+COMPILE_TIME_ASSERT ("cachepic padding size", sizeof (((struct cachepic_s *)0)->padding) >= sizeof (glpic_t));
 
 // draw_qcvm_mutex also protects q_cachepics  / scrap updates
 extern SDL_Mutex *draw_qcvm_mutex;
