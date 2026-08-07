@@ -2785,6 +2785,7 @@ static void COM_Game_f (void)
 
 		// stop parsing map files before changing file system search paths
 		ExtraMaps_Clear ();
+		LOC_Shutdown ();
 
 		COM_ResetGameDirectories (paths);
 
@@ -2807,6 +2808,7 @@ static void COM_Game_f (void)
 
 		Con_Printf ("\"game\" changed to \"%s\"\n", COM_GetGameNames (true));
 
+		LOC_Init ();
 		VID_Lock ();
 		Cbuf_AddText ("exec quake.rc\n");
 		Cbuf_AddText ("vid_unlock\n");
@@ -3689,6 +3691,10 @@ void LOC_LoadFile (const char *file)
 
 	Con_Printf ("\nLanguage initialization\n");
 
+	localization.text = (char *)COM_LoadFile (file, NULL);
+	if (localization.text)
+		goto loaded;
+
 	memset (&archive, 0, sizeof (archive));
 	q_snprintf (path, sizeof (path), "%s/%s", com_basedir, file);
 #ifdef USE_SDL3
@@ -3782,7 +3788,7 @@ void LOC_LoadFile (const char *file)
 		SDL_RWclose (rw);
 #endif
 	}
-
+loaded:
 	cursor = localization.text;
 
 	// skip BOM
@@ -3973,6 +3979,7 @@ void LOC_Shutdown (void)
 	Mem_Free (localization.indices);
 	Mem_Free (localization.entries);
 	Mem_Free (localization.text);
+	memset (&localization, 0, sizeof (localization));
 }
 
 /*
