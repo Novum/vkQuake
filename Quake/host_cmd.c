@@ -579,6 +579,7 @@ static const char *const knownmods[][2] = {
 	{"rogue",		"Dissolution of Eternity"},
 	{"dopa",		"Dimension of the Past"},
 	{"mg1",			"Dimension of the Machine"},
+	{"mg3",			"Dawn of the Machine"},
 	{"q64",			"Quake (Nintendo 64)"},
 	{"ctf",			"Capture The Flag"},
 	{"udob",		"Underdark Overbright"},
