@@ -20,8 +20,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 */
 
-#ifndef _Q_COMMON_H
-#define _Q_COMMON_H
+#ifndef Q_COMMON_H
+#define Q_COMMON_H
 
 // comndef.h  -- general definitions
 
@@ -488,6 +488,5 @@ qfilesize_t FS_filelength (fshandle_t *fh);
 
 extern struct cvar_s registered;
 extern qboolean		 standard_quake, rogue, hipnotic;
-/* if true, run in fitzquake mode disabling custom quakespasm hacks */
 
-#endif /* _Q_COMMON_H */
+#endif /* Q_COMMON_H */
