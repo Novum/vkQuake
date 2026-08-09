@@ -68,7 +68,7 @@ char			**com_argv;
 
 static char com_cmdline[CMDLINE_LENGTH];
 
-qboolean standard_quake = true, rogue, hipnotic;
+qboolean standard_quake = true, rogue, hipnotic, mg3;
 
 extern const unsigned char vkquake_pak[];
 extern const int		   vkquake_pak_size;
@@ -2756,6 +2756,10 @@ static void COM_AddGameDirectory (const char *dir)
 		standard_quake = false;
 	}
 
+	if (!q_strcasecmp(dir,"mg3")) {
+		mg3 = true;
+	}
+
 	// assign a path_id to this game directory; all roots share it
 	if (com_searchpaths)
 		path_id = com_searchpaths->path_id << 1;
@@ -2798,6 +2802,7 @@ void COM_ResetGameDirectories (const char *newdirs)
 	}
 	hipnotic = false;
 	rogue = false;
+	mg3 = false;
 	standard_quake = true;
 	// wipe the list of mod gamedirs
 	*com_gamenames = 0;
@@ -2922,6 +2927,9 @@ static void COM_Game_f (void)
 		SaveList_Rebuild ();
 		M_CheckMods ();
 		S_ClearAll ();
+        
+        // 2026 update compat: enable scr_usekfont (for word wrapping) in case mg3 is used with original id1 data.
+		Cvar_SetValueQuick (&scr_usekfont, mg3 ? 1.0f : 0.0f);
 
 		Con_Printf ("\"game\" changed to \"%s\"\n", COM_GetGameNames (true));
 

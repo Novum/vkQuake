@@ -59,6 +59,7 @@ extern cvar_t scr_conscale;
 extern cvar_t scr_relativescale;
 extern cvar_t scr_scale;
 extern cvar_t scr_crosshairscale;
+extern	cvar_t		scr_usekfont;
 // johnfitz
 
 #endif /* _QUAKE_SCREEN_H */

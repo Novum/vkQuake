@@ -492,6 +492,6 @@ char	   *FS_fgets (char *s, int size, fshandle_t *fh);
 qfilesize_t FS_filelength (fshandle_t *fh);
 
 extern struct cvar_s registered;
-extern qboolean		 standard_quake, rogue, hipnotic;
+extern qboolean		 standard_quake, rogue, hipnotic, mg3;
 
 #endif /* Q_COMMON_H */
