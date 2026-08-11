@@ -104,10 +104,13 @@ bool valid_surface_sample (ivec2 pixel, float depth)
 	return inside_viewport (pixel) && depth > 0.00001f && (sample_stencil (pixel) & (STENCIL_MASK_SKY | STENCIL_MASK_VIEWMODEL)) == 0u;
 }
 
-float sample_horizon_depth (ivec2 pixel, float offset_length)
+float sample_horizon_depth (ivec2 pixel, float offset_length, out bool valid)
 {
 	float depth = sample_depth (pixel);
-	if (push_constants.depth_mip_offset > 32.0f || !valid_surface_sample (pixel, depth))
+	valid = inside_viewport (pixel) && depth > 0.00001f;
+	if (valid)
+		valid = (sample_stencil (pixel) & (STENCIL_MASK_SKY | STENCIL_MASK_VIEWMODEL)) == 0u;
+	if (push_constants.depth_mip_offset > 32.0f || !valid)
 		return depth;
 
 	float mip_level = clamp (log2 (max (offset_length, 1.0f)) - push_constants.depth_mip_offset, 0.0f, float (textureQueryLevels (view_depth_pyramid_tex) - 1));
@@ -121,7 +124,9 @@ float sample_horizon_depth (ivec2 pixel, float offset_length)
 	float depth_0 = texelFetch (view_depth_pyramid_tex, coord_0, mip_0).r;
 	float depth_1 = texelFetch (view_depth_pyramid_tex, coord_1, mip_1).r;
 	float view_depth = mix (depth_0, depth_1, fract (mip_level));
-	return view_depth > 0.00001f ? push_constants.projection.w / view_depth - push_constants.projection.z : depth;
+	float result = view_depth > 0.00001f ? push_constants.projection.w / view_depth - push_constants.projection.z : depth;
+	valid = result > 0.00001f;
+	return result;
 }
 
 vec4 calculate_edges (float center_z, float left_z, float right_z, float top_z, float bottom_z)
@@ -417,8 +422,9 @@ void main ()
 			ivec2 sample_pixel_0 = pixel + sample_offset;
 			if (inside_viewport (sample_pixel_0))
 			{
-				float sample_depth_0 = sample_horizon_depth (sample_pixel_0, sample_offset_length);
-				if (valid_surface_sample (sample_pixel_0, sample_depth_0))
+				bool sample_valid_0;
+				float sample_depth_0 = sample_horizon_depth (sample_pixel_0, sample_offset_length, sample_valid_0);
+				if (sample_valid_0)
 				{
 					vec3 sample_delta_0 = reconstruct_position (sample_pixel_0, sample_depth_0) - center;
 					float sample_distance_0 = length (sample_delta_0);
@@ -436,8 +442,9 @@ void main ()
 			ivec2 sample_pixel_1 = pixel - sample_offset;
 			if (inside_viewport (sample_pixel_1))
 			{
-				float sample_depth_1 = sample_horizon_depth (sample_pixel_1, sample_offset_length);
-				if (valid_surface_sample (sample_pixel_1, sample_depth_1))
+				bool sample_valid_1;
+				float sample_depth_1 = sample_horizon_depth (sample_pixel_1, sample_offset_length, sample_valid_1);
+				if (sample_valid_1)
 				{
 					vec3 sample_delta_1 = reconstruct_position (sample_pixel_1, sample_depth_1) - center;
 					float sample_distance_1 = length (sample_delta_1);
