@@ -4281,7 +4281,7 @@ static void GL_GTAODenoise (cb_context_t *cbx, end_rendering_parms_t *parms)
 	const uint32_t working_height = (parms->vid_height + working_stride - 1) / working_stride;
 	gtao_denoise_constants_t constants = {working_width - 1, working_height - 1, 1u, pass_count == 1 ? 1.2f : 0.24f};
 	R_PushConstants (cbx, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof (constants), &constants);
-	vkCmdDispatch (cbx->cb, (working_width + 7) / 8, (working_height + 7) / 8, 1);
+	vkCmdDispatch (cbx->cb, (working_width + 15) / 16, (working_height + 7) / 8, 1);
 
 	if (pass_count >= 2)
 	{
@@ -4302,7 +4302,7 @@ static void GL_GTAODenoise (cb_context_t *cbx, end_rendering_parms_t *parms)
 			&vulkan_globals.gtao_denoise_desc_sets[1], 0, NULL);
 		constants.center_weight = pass_count == 2 ? 1.2f : 0.24f;
 		R_PushConstants (cbx, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof (constants), &constants);
-		vkCmdDispatch (cbx->cb, (working_width + 7) / 8, (working_height + 7) / 8, 1);
+		vkCmdDispatch (cbx->cb, (working_width + 15) / 16, (working_height + 7) / 8, 1);
 		barriers[1].srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
 		barriers[1].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 		barriers[1].oldLayout = VK_IMAGE_LAYOUT_GENERAL;
@@ -4321,7 +4321,7 @@ static void GL_GTAODenoise (cb_context_t *cbx, end_rendering_parms_t *parms)
 				&vulkan_globals.gtao_denoise_desc_sets[0], 0, NULL);
 			constants.center_weight = 1.2f;
 			R_PushConstants (cbx, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof (constants), &constants);
-			vkCmdDispatch (cbx->cb, (working_width + 7) / 8, (working_height + 7) / 8, 1);
+			vkCmdDispatch (cbx->cb, (working_width + 15) / 16, (working_height + 7) / 8, 1);
 			barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
 			barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 			barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
