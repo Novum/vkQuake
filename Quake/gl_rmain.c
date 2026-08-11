@@ -134,6 +134,10 @@ cvar_t r_gtao_multibounce = {"r_gtao_multibounce", "1", CVAR_ARCHIVE};
 cvar_t r_gtao_temporal = {"r_gtao_temporal", "0", CVAR_ARCHIVE};
 cvar_t r_gtao_temporal_blend = {"r_gtao_temporal_blend", "0.85", CVAR_ARCHIVE};
 cvar_t r_gtao_halfres = {"r_gtao_halfres", "1", CVAR_ARCHIVE};
+cvar_t r_gtao_liquid_water = {"r_gtao_liquid_water", "1", CVAR_ARCHIVE};
+cvar_t r_gtao_liquid_slime = {"r_gtao_liquid_slime", "1", CVAR_ARCHIVE};
+cvar_t r_gtao_liquid_lava = {"r_gtao_liquid_lava", "1", CVAR_ARCHIVE};
+cvar_t r_gtao_liquid_tele = {"r_gtao_liquid_tele", "1", CVAR_ARCHIVE};
 
 cvar_t r_gpulightmapupdate = {"r_gpulightmapupdate", "1", CVAR_NONE};
 cvar_t r_rtshadows = {"r_rtshadows", "2", CVAR_ARCHIVE};

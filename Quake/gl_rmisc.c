@@ -79,6 +79,10 @@ extern cvar_t r_gtao_multibounce;
 extern cvar_t r_gtao_temporal;
 extern cvar_t r_gtao_temporal_blend;
 extern cvar_t r_gtao_halfres;
+extern cvar_t r_gtao_liquid_water;
+extern cvar_t r_gtao_liquid_slime;
+extern cvar_t r_gtao_liquid_lava;
+extern cvar_t r_gtao_liquid_tele;
 
 #if defined(USE_SIMD)
 extern cvar_t r_simd;
@@ -1455,7 +1459,7 @@ void R_CreateDescriptorSetLayouts ()
 	}
 
 	{
-		ZEROED_STRUCT_ARRAY (VkDescriptorSetLayoutBinding, screen_effects_layout_bindings, 8);
+		ZEROED_STRUCT_ARRAY (VkDescriptorSetLayoutBinding, screen_effects_layout_bindings, 9);
 		screen_effects_layout_bindings[0].binding = 0;
 		screen_effects_layout_bindings[0].descriptorCount = 1;
 		screen_effects_layout_bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -1488,12 +1492,16 @@ void R_CreateDescriptorSetLayouts ()
 		screen_effects_layout_bindings[7].descriptorCount = 1;
 		screen_effects_layout_bindings[7].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 		screen_effects_layout_bindings[7].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+		screen_effects_layout_bindings[8].binding = 8;
+		screen_effects_layout_bindings[8].descriptorCount = 1;
+		screen_effects_layout_bindings[8].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		screen_effects_layout_bindings[8].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
 		descriptor_set_layout_create_info.bindingCount = countof (screen_effects_layout_bindings);
 		descriptor_set_layout_create_info.pBindings = screen_effects_layout_bindings;
 
 		memset (&vulkan_globals.screen_effects_set_layout, 0, sizeof (vulkan_globals.screen_effects_set_layout));
-		vulkan_globals.screen_effects_set_layout.num_combined_image_samplers = 5;
+		vulkan_globals.screen_effects_set_layout.num_combined_image_samplers = 6;
 		vulkan_globals.screen_effects_set_layout.num_storage_images = 1;
 
 		err = vkCreateDescriptorSetLayout (vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.screen_effects_set_layout.handle);
@@ -1543,7 +1551,7 @@ void R_CreateDescriptorSetLayouts ()
 	}
 
 	{
-		ZEROED_STRUCT_ARRAY (VkDescriptorSetLayoutBinding, bindings, 3);
+		ZEROED_STRUCT_ARRAY (VkDescriptorSetLayoutBinding, bindings, 4);
 		bindings[0].binding = 0;
 		bindings[0].descriptorCount = 1;
 		bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -1556,11 +1564,15 @@ void R_CreateDescriptorSetLayouts ()
 		bindings[2].descriptorCount = 1;
 		bindings[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 		bindings[2].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+		bindings[3].binding = 3;
+		bindings[3].descriptorCount = 1;
+		bindings[3].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+		bindings[3].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 		descriptor_set_layout_create_info.bindingCount = countof (bindings);
 		descriptor_set_layout_create_info.pBindings = bindings;
 		memset (&vulkan_globals.gtao_depth_set_layout, 0, sizeof (vulkan_globals.gtao_depth_set_layout));
 		vulkan_globals.gtao_depth_set_layout.num_combined_image_samplers = 2;
-		vulkan_globals.gtao_depth_set_layout.num_storage_images = 1;
+		vulkan_globals.gtao_depth_set_layout.num_storage_images = 2;
 		err = vkCreateDescriptorSetLayout (vulkan_globals.device, &descriptor_set_layout_create_info, NULL, &vulkan_globals.gtao_depth_set_layout.handle);
 		if (err != VK_SUCCESS)
 			Sys_Error ("vkCreateDescriptorSetLayout failed with code %i", (int)err);
@@ -2042,7 +2054,7 @@ void R_CreatePipelineLayouts ()
 
 		ZEROED_STRUCT (VkPushConstantRange, push_constant_range);
 		push_constant_range.offset = 0;
-		push_constant_range.size = 6 * sizeof (uint32_t) + 10 * sizeof (float);
+		push_constant_range.size = 6 * sizeof (uint32_t) + 14 * sizeof (float);
 		push_constant_range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
 		ZEROED_STRUCT (VkPipelineLayoutCreateInfo, pipeline_layout_create_info);
@@ -2504,7 +2516,7 @@ typedef struct pipeline_create_infos_s
 {
 	VkPipelineShaderStageCreateInfo		   shader_stages[2];
 	VkPipelineDynamicStateCreateInfo	   dynamic_state;
-	VkDynamicState						   dynamic_states[3];
+	VkDynamicState						   dynamic_states[4];
 	VkPipelineVertexInputStateCreateInfo   vertex_input_state;
 	VkPipelineInputAssemblyStateCreateInfo input_assembly_state;
 	VkPipelineViewportStateCreateInfo	   viewport_state;
@@ -3492,6 +3504,20 @@ static void R_CreateShowTrisPipelines ()
 	}
 }
 
+static void R_SetLiquidStencilState (pipeline_create_infos_t *infos)
+{
+	infos->depth_stencil_state.stencilTestEnable = VK_TRUE;
+	infos->depth_stencil_state.front.compareOp = VK_COMPARE_OP_ALWAYS;
+	infos->depth_stencil_state.front.failOp = VK_STENCIL_OP_KEEP;
+	infos->depth_stencil_state.front.depthFailOp = VK_STENCIL_OP_KEEP;
+	infos->depth_stencil_state.front.passOp = VK_STENCIL_OP_REPLACE;
+	infos->depth_stencil_state.front.compareMask = STENCIL_MASK_LIQUID;
+	infos->depth_stencil_state.front.writeMask = STENCIL_MASK_LIQUID;
+	infos->depth_stencil_state.front.reference = STENCIL_MASK_WATER;
+	infos->depth_stencil_state.back = infos->depth_stencil_state.front;
+	infos->dynamic_states[infos->dynamic_state.dynamicStateCount++] = VK_DYNAMIC_STATE_STENCIL_REFERENCE;
+}
+
 /*
 ===============
 R_CreateWorldPipelines
@@ -3545,68 +3571,80 @@ static void R_CreateWorldPipelines ()
 	base.shader_stages[1].pSpecializationInfo = &specialization_info;
 
 	pipeline_create_infos_t infos;
-	for (int alpha_blend = 0; alpha_blend < 2; ++alpha_blend)
+	for (int liquid = 0; liquid < 2; ++liquid)
 	{
-		for (int alpha_test = 0; alpha_test < 2; ++alpha_test)
+		for (int alpha_blend = 0; alpha_blend < 2; ++alpha_blend)
 		{
-			for (int fullbright_enabled = 0; fullbright_enabled < 2; ++fullbright_enabled)
+			for (int alpha_test = 0; alpha_test < 2; ++alpha_test)
 			{
-				for (int quantize_lm = 0; quantize_lm < 2; ++quantize_lm)
+				for (int fullbright_enabled = 0; fullbright_enabled < 2; ++fullbright_enabled)
 				{
-					const int pipeline_index = fullbright_enabled + (alpha_test * 2) + (alpha_blend * 4) + (quantize_lm * 8);
-
-					specialization_data[0] = fullbright_enabled;
-					specialization_data[1] = alpha_test;
-					specialization_data[2] = alpha_blend;
-					specialization_data[3] = quantize_lm;
-
-					for (int variant = 0; variant < MAIN_RENDER_PASS_VARIANT_COUNT; ++variant)
+					for (int quantize_lm = 0; quantize_lm < 2; ++quantize_lm)
 					{
-						R_CopyPipelineCreateInfos (&infos, &base);
-						infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[variant][MAIN_RENDER_PASS_STENCIL_CLEAR];
-						infos.shader_stages[1].module = world_frag_module;
-						infos.blend_attachment_states[0].blendEnable = alpha_blend ? VK_TRUE : VK_FALSE;
-						infos.depth_stencil_state.depthWriteEnable = alpha_blend ? VK_FALSE : VK_TRUE;
-						R_CreateGraphicsPipeline (
-							&vulkan_globals.world_pipelines[variant][pipeline_index], &infos, vulkan_globals.world_pipeline_layout,
-							va (variant ? "world_main_oit %d" : "world %d", pipeline_index));
-					}
+						const int pipeline_index =
+							fullbright_enabled + (alpha_test * 2) + (alpha_blend * 4) + (quantize_lm * 8) + (liquid ? WORLD_PIPELINE_LIQUID_BIT : 0);
 
-					if (alpha_blend)
-					{
-						R_CopyPipelineCreateInfos (&infos, &base);
-						infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_OIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
-						infos.graphics_pipeline.subpass = 1;
-						infos.color_blend_state.attachmentCount = WBOIT_COLOR_ATTACHMENT_COUNT;
-						infos.shader_stages[1].module = world_oit_frag_module;
-						infos.depth_stencil_state.depthWriteEnable = VK_FALSE;
-						R_SetWBOITBlend (infos.blend_attachment_states);
-						R_CreateGraphicsPipeline (
-							&vulkan_globals.world_wboit_pipelines[pipeline_index], &infos, vulkan_globals.world_pipeline_layout,
-							va ("world_wboit %d", pipeline_index));
+						specialization_data[0] = fullbright_enabled;
+						specialization_data[1] = alpha_test;
+						specialization_data[2] = alpha_blend;
+						specialization_data[3] = quantize_lm;
 
-						R_CopyPipelineCreateInfos (&infos, &base);
-						infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_MBOIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
-						infos.graphics_pipeline.subpass = 1;
-						infos.color_blend_state.attachmentCount = MBOIT_MOMENT_COLOR_ATTACHMENT_COUNT;
-						infos.shader_stages[1].module = world_mboit_moment_frag_module;
-						infos.depth_stencil_state.depthWriteEnable = VK_FALSE;
-						R_SetMBOITMomentBlend (infos.blend_attachment_states);
-						R_CreateGraphicsPipeline (
-							&vulkan_globals.world_mboit_moment_pipelines[pipeline_index], &infos, vulkan_globals.world_pipeline_layout,
-							va ("world_mboit_moment %d", pipeline_index));
+						for (int variant = 0; variant < MAIN_RENDER_PASS_VARIANT_COUNT; ++variant)
+						{
+							R_CopyPipelineCreateInfos (&infos, &base);
+							if (liquid)
+								R_SetLiquidStencilState (&infos);
+							infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[variant][MAIN_RENDER_PASS_STENCIL_CLEAR];
+							infos.shader_stages[1].module = world_frag_module;
+							infos.blend_attachment_states[0].blendEnable = alpha_blend ? VK_TRUE : VK_FALSE;
+							infos.depth_stencil_state.depthWriteEnable = alpha_blend ? VK_FALSE : VK_TRUE;
+							R_CreateGraphicsPipeline (
+								&vulkan_globals.world_pipelines[variant][pipeline_index], &infos, vulkan_globals.world_pipeline_layout,
+								va (variant ? "world_main_oit %d" : "world %d", pipeline_index));
+						}
 
-						R_CopyPipelineCreateInfos (&infos, &base);
-						infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_MBOIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
-						infos.graphics_pipeline.subpass = 2;
-						infos.color_blend_state.attachmentCount = MBOIT_COMPOSITE_COLOR_ATTACHMENT_COUNT;
-						infos.shader_stages[1].module =
-							(vulkan_globals.sample_count == VK_SAMPLE_COUNT_1_BIT) ? world_mboit_composite_frag_module : world_mboit_composite_msaa_frag_module;
-						infos.depth_stencil_state.depthWriteEnable = VK_FALSE;
-						R_SetMBOITCompositeBlend (infos.blend_attachment_states);
-						R_CreateGraphicsPipeline (
-							&vulkan_globals.world_mboit_composite_pipelines[pipeline_index], &infos, vulkan_globals.world_pipeline_layout,
-							va ("world_mboit_composite %d", pipeline_index));
+						if (alpha_blend)
+						{
+							R_CopyPipelineCreateInfos (&infos, &base);
+							if (liquid)
+								R_SetLiquidStencilState (&infos);
+							infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_OIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
+							infos.graphics_pipeline.subpass = 1;
+							infos.color_blend_state.attachmentCount = WBOIT_COLOR_ATTACHMENT_COUNT;
+							infos.shader_stages[1].module = world_oit_frag_module;
+							infos.depth_stencil_state.depthWriteEnable = VK_FALSE;
+							R_SetWBOITBlend (infos.blend_attachment_states);
+							R_CreateGraphicsPipeline (
+								&vulkan_globals.world_wboit_pipelines[pipeline_index], &infos, vulkan_globals.world_pipeline_layout,
+								va ("world_wboit %d", pipeline_index));
+
+							R_CopyPipelineCreateInfos (&infos, &base);
+							if (liquid)
+								R_SetLiquidStencilState (&infos);
+							infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_MBOIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
+							infos.graphics_pipeline.subpass = 1;
+							infos.color_blend_state.attachmentCount = MBOIT_MOMENT_COLOR_ATTACHMENT_COUNT;
+							infos.shader_stages[1].module = world_mboit_moment_frag_module;
+							infos.depth_stencil_state.depthWriteEnable = VK_FALSE;
+							R_SetMBOITMomentBlend (infos.blend_attachment_states);
+							R_CreateGraphicsPipeline (
+								&vulkan_globals.world_mboit_moment_pipelines[pipeline_index], &infos, vulkan_globals.world_pipeline_layout,
+								va ("world_mboit_moment %d", pipeline_index));
+
+							R_CopyPipelineCreateInfos (&infos, &base);
+							if (liquid)
+								R_SetLiquidStencilState (&infos);
+							infos.graphics_pipeline.renderPass = vulkan_globals.main_render_pass[MAIN_RENDER_PASS_MBOIT][MAIN_RENDER_PASS_STENCIL_CLEAR];
+							infos.graphics_pipeline.subpass = 2;
+							infos.color_blend_state.attachmentCount = MBOIT_COMPOSITE_COLOR_ATTACHMENT_COUNT;
+							infos.shader_stages[1].module = (vulkan_globals.sample_count == VK_SAMPLE_COUNT_1_BIT) ? world_mboit_composite_frag_module
+																												   : world_mboit_composite_msaa_frag_module;
+							infos.depth_stencil_state.depthWriteEnable = VK_FALSE;
+							R_SetMBOITCompositeBlend (infos.blend_attachment_states);
+							R_CreateGraphicsPipeline (
+								&vulkan_globals.world_mboit_composite_pipelines[pipeline_index], &infos, vulkan_globals.world_pipeline_layout,
+								va ("world_mboit_composite %d", pipeline_index));
+						}
 					}
 				}
 			}
@@ -4399,6 +4437,10 @@ static void R_GTAODefaults_f (void)
 		&r_gtao_temporal,
 		&r_gtao_temporal_blend,
 		&r_gtao_halfres,
+		&r_gtao_liquid_water,
+		&r_gtao_liquid_slime,
+		&r_gtao_liquid_lava,
+		&r_gtao_liquid_tele,
 	};
 
 	for (uint32_t i = 0; i < countof (gtao_cvars); ++i)
@@ -4497,6 +4539,10 @@ void R_Init (void)
 	Cvar_RegisterVariable (&r_gtao_temporal);
 	Cvar_RegisterVariable (&r_gtao_temporal_blend);
 	Cvar_RegisterVariable (&r_gtao_halfres);
+	Cvar_RegisterVariable (&r_gtao_liquid_water);
+	Cvar_RegisterVariable (&r_gtao_liquid_slime);
+	Cvar_RegisterVariable (&r_gtao_liquid_lava);
+	Cvar_RegisterVariable (&r_gtao_liquid_tele);
 	Cvar_RegisterVariable (&r_lodbias);
 	Cvar_RegisterVariable (&gl_lodbias);
 	Cvar_SetCallback (&r_scale, R_ScaleChanged_f);

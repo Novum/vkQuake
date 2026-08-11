@@ -1154,17 +1154,27 @@ Draw the current batch if non-empty and clears it, ready for more R_BatchSurface
 */
 static void R_FlushBatch (
 	cb_context_t *cbx, qboolean fullbright_enabled, qboolean alpha_test, qboolean alpha_blend, qboolean use_zbias, gltexture_t *lightmap_texture,
-	uint32_t *brushpasses)
+	textype_t liquid_type, uint32_t *brushpasses)
 {
 	if (cbx->num_vbo_indices > 0)
 	{
 		int pipeline_index =
 			(fullbright_enabled ? 1 : 0) + (alpha_test ? 2 : 0) + (alpha_blend ? 4 : 0) + (vid_filter.value != 0 && vid_palettize.value != 0 ? 8 : 0);
+		if (TEXTYPE_ISLIQUID (liquid_type))
+			pipeline_index |= WORLD_PIPELINE_LIQUID_BIT;
 		vulkan_pipeline_t pipeline = R_PipelineForRenderPass (
 			cbx->render_pass_index, vulkan_globals.world_pipelines[R_MainPassPipelineVariant (cbx->render_pass_index)][pipeline_index],
 			vulkan_globals.world_wboit_pipelines[pipeline_index], vulkan_globals.world_mboit_moment_pipelines[pipeline_index],
 			vulkan_globals.world_mboit_composite_pipelines[pipeline_index]);
 		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+		if (TEXTYPE_ISLIQUID (liquid_type))
+		{
+			const uint32_t stencil_reference = liquid_type == TEXTYPE_WATER	  ? STENCIL_MASK_WATER
+											   : liquid_type == TEXTYPE_SLIME ? STENCIL_MASK_SLIME
+											   : liquid_type == TEXTYPE_LAVA  ? STENCIL_MASK_LAVA
+																			  : STENCIL_MASK_TELE;
+			vkCmdSetStencilReference (cbx->cb, VK_STENCIL_FACE_FRONT_AND_BACK, stencil_reference);
+		}
 
 		float constant_factor = 0.0f, slope_factor = 0.0f;
 		if (use_zbias)
@@ -1212,14 +1222,14 @@ using VBOs.
 */
 static void R_BatchSurface (
 	cb_context_t *cbx, msurface_t *s, qboolean fullbright_enabled, qboolean alpha_test, qboolean alpha_blend, qboolean use_zbias, gltexture_t *lightmap_texture,
-	uint32_t *brushpasses)
+	textype_t liquid_type, uint32_t *brushpasses)
 {
 	int num_surf_indices;
 
 	num_surf_indices = R_NumTriangleIndicesForSurf (s);
 
 	if (cbx->num_vbo_indices + num_surf_indices > MAX_BATCH_SIZE)
-		R_FlushBatch (cbx, fullbright_enabled, alpha_test, alpha_blend, use_zbias, lightmap_texture, brushpasses);
+		R_FlushBatch (cbx, fullbright_enabled, alpha_test, alpha_blend, use_zbias, lightmap_texture, liquid_type, brushpasses);
 
 	R_TriangleIndicesForSurf (s, &cbx->vbo_indices[cbx->num_vbo_indices]);
 	cbx->num_vbo_indices += num_surf_indices;
@@ -1323,16 +1333,16 @@ void R_DrawTextureChains_Water (cb_context_t *cbx, qmodel_t *model, entity_t *en
 				{
 					if (alpha_blend)
 						R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 20 * sizeof (float), 1 * sizeof (float), &alpha);
-					R_FlushBatch (cbx, false, false, alpha_blend, false, lightmap_texture, &brushpasses);
+					R_FlushBatch (cbx, false, false, alpha_blend, false, lightmap_texture, (textype_t)type, &brushpasses);
 					lightmap_texture = (s->lightmaptexturenum >= 0) ? lightmaps[s->lightmaptexturenum].texture : greylightmap;
 					lastlightmap = s->lightmaptexturenum;
 				}
-				R_BatchSurface (cbx, s, false, false, alpha_blend, false, lightmap_texture, &brushpasses);
+				R_BatchSurface (cbx, s, false, false, alpha_blend, false, lightmap_texture, (textype_t)type, &brushpasses);
 			}
 
 			if (alpha_blend)
 				R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 20 * sizeof (float), 1 * sizeof (float), &alpha);
-			R_FlushBatch (cbx, false, false, alpha_blend, false, lightmap_texture, &brushpasses);
+			R_FlushBatch (cbx, false, false, alpha_blend, false, lightmap_texture, (textype_t)type, &brushpasses);
 		}
 	}
 
@@ -1408,15 +1418,15 @@ void R_DrawTextureChains_Multitexture (cb_context_t *cbx, qmodel_t *model, entit
 		{
 			if (s->lightmaptexturenum != lastlightmap)
 			{
-				R_FlushBatch (cbx, fullbright_enabled, alpha_test, alpha_blend, use_zbias, lightmap_texture, &brushpasses);
+				R_FlushBatch (cbx, fullbright_enabled, alpha_test, alpha_blend, use_zbias, lightmap_texture, TEXTYPE_COUNT, &brushpasses);
 				lightmap_texture = lightmaps[s->lightmaptexturenum].texture;
 			}
 
 			lastlightmap = s->lightmaptexturenum;
-			R_BatchSurface (cbx, s, fullbright_enabled, alpha_test, alpha_blend, use_zbias, lightmap_texture, &brushpasses);
+			R_BatchSurface (cbx, s, fullbright_enabled, alpha_test, alpha_blend, use_zbias, lightmap_texture, TEXTYPE_COUNT, &brushpasses);
 		}
 
-		R_FlushBatch (cbx, fullbright_enabled, alpha_test, alpha_blend, use_zbias, lightmap_texture, &brushpasses);
+		R_FlushBatch (cbx, fullbright_enabled, alpha_test, alpha_blend, use_zbias, lightmap_texture, TEXTYPE_COUNT, &brushpasses);
 	}
 
 	Atomic_AddUInt32 (&rs_brushpasses, brushpasses);

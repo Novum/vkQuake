@@ -188,7 +188,15 @@ typedef struct vulkan_memory_s
 	vulkan_memory_type_t type;
 } vulkan_memory_t;
 
-#define WORLD_PIPELINE_COUNT			   16
+#define WORLD_PIPELINE_LIQUID_BIT	   16
+#define WORLD_PIPELINE_COUNT			   32
+#define STENCIL_MASK_SKY				   0x01u
+#define STENCIL_MASK_VIEWMODEL		   0x02u
+#define STENCIL_MASK_WATER			   0x04u
+#define STENCIL_MASK_SLIME			   0x08u
+#define STENCIL_MASK_LAVA			   0x10u
+#define STENCIL_MASK_TELE			   0x20u
+#define STENCIL_MASK_LIQUID			   (STENCIL_MASK_WATER | STENCIL_MASK_SLIME | STENCIL_MASK_LAVA | STENCIL_MASK_TELE)
 // slot layout of the alias/md5 pipeline arrays: 0..3 encode alpha test/blend, 4..5 are the r_showtris variants
 #define MODEL_PIPELINE_ALPHA_TEST_BIT	   1
 #define MODEL_PIPELINE_ALPHA_BLEND_BIT	   2
@@ -608,6 +616,10 @@ extern cvar_t r_gtao_multibounce;
 extern cvar_t r_gtao_temporal;
 extern cvar_t r_gtao_temporal_blend;
 extern cvar_t r_gtao_halfres;
+extern cvar_t r_gtao_liquid_water;
+extern cvar_t r_gtao_liquid_slime;
+extern cvar_t r_gtao_liquid_lava;
+extern cvar_t r_gtao_liquid_tele;
 
 extern cvar_t gl_polyblend;
 extern cvar_t gl_nocolors;

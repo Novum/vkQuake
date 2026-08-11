@@ -195,6 +195,10 @@ static vulkan_memory_t	gtao_depth_pyramid_memory;
 static VkImageView		gtao_depth_pyramid_view;
 static VkImageView		gtao_depth_mip_views[GTAO_DEPTH_MIP_LEVELS];
 static qboolean			gtao_depth_pyramid_initialized;
+static VkImage			gtao_liquid_mask_buffer;
+static vulkan_memory_t	gtao_liquid_mask_buffer_memory;
+static VkImageView		gtao_liquid_mask_buffer_view;
+static qboolean			gtao_liquid_mask_buffer_initialized;
 static qboolean			gtao_supported;
 static vulkan_memory_t	color_buffers_memory[NUM_COLOR_BUFFERS];
 static VkImageView		color_buffers_view[NUM_COLOR_BUFFERS];
@@ -2204,6 +2208,28 @@ static void GL_CreateGTAOBuffer (void)
 	gtao_buffer_initialized = false;
 
 	image_create_info.usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+	err = vkCreateImage (vulkan_globals.device, &image_create_info, NULL, &gtao_liquid_mask_buffer);
+	if (err != VK_SUCCESS)
+		Sys_Error ("vkCreateImage failed with code %i", (int)err);
+	GL_SetObjectName ((uint64_t)gtao_liquid_mask_buffer, VK_OBJECT_TYPE_IMAGE, "GTAO Liquid Mask Buffer");
+	vkGetImageMemoryRequirements (vulkan_globals.device, gtao_liquid_mask_buffer, &memory_requirements);
+	dedicated_allocation_info.image = gtao_liquid_mask_buffer;
+	memory_allocate_info.allocationSize = memory_requirements.size;
+	memory_allocate_info.memoryTypeIndex = GL_MemoryTypeFromProperties (memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0);
+	assert (gtao_liquid_mask_buffer_memory.handle == VK_NULL_HANDLE);
+	R_AllocateVulkanMemory (&gtao_liquid_mask_buffer_memory, &memory_allocate_info, VULKAN_MEMORY_TYPE_DEVICE, &num_vulkan_misc_allocations);
+	GL_SetObjectName ((uint64_t)gtao_liquid_mask_buffer_memory.handle, VK_OBJECT_TYPE_DEVICE_MEMORY, "GTAO Liquid Mask Buffer");
+	err = vkBindImageMemory (vulkan_globals.device, gtao_liquid_mask_buffer, gtao_liquid_mask_buffer_memory.handle, 0);
+	if (err != VK_SUCCESS)
+		Sys_Error ("vkBindImageMemory failed with code %i", (int)err);
+	image_view_create_info.image = gtao_liquid_mask_buffer;
+	err = vkCreateImageView (vulkan_globals.device, &image_view_create_info, NULL, &gtao_liquid_mask_buffer_view);
+	if (err != VK_SUCCESS)
+		Sys_Error ("vkCreateImageView failed with code %i", (int)err);
+	GL_SetObjectName ((uint64_t)gtao_liquid_mask_buffer_view, VK_OBJECT_TYPE_IMAGE_VIEW, "GTAO Liquid Mask Buffer View");
+	gtao_liquid_mask_buffer_initialized = false;
+
+	image_create_info.usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 	err = vkCreateImage (vulkan_globals.device, &image_create_info, NULL, &gtao_denoise_buffer);
 	if (err != VK_SUCCESS)
 		Sys_Error ("vkCreateImage failed with code %i", (int)err);
@@ -2958,7 +2984,7 @@ void GL_UpdateDescriptorSets (void)
 		for (uint32_t mip = 0; mip < GTAO_DEPTH_MIP_LEVELS; ++mip)
 		{
 			vulkan_globals.gtao_depth_desc_sets[mip] = R_AllocateDescriptorSet (&vulkan_globals.gtao_depth_set_layout);
-			ZEROED_STRUCT_ARRAY (VkDescriptorImageInfo, image_infos, 3);
+			ZEROED_STRUCT_ARRAY (VkDescriptorImageInfo, image_infos, 4);
 			image_infos[0].imageView = mip == 0 ? depth_buffer_view : gtao_depth_mip_views[mip - 1];
 			image_infos[0].imageLayout = mip == 0 ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 			image_infos[0].sampler = vulkan_globals.point_sampler;
@@ -2967,14 +2993,16 @@ void GL_UpdateDescriptorSets (void)
 			image_infos[2].imageView = stencil_buffer_view;
 			image_infos[2].imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
 			image_infos[2].sampler = vulkan_globals.point_sampler;
-			ZEROED_STRUCT_ARRAY (VkWriteDescriptorSet, writes, 3);
-			for (uint32_t binding = 0; binding < 3; ++binding)
+			image_infos[3].imageView = gtao_liquid_mask_buffer_view;
+			image_infos[3].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+			ZEROED_STRUCT_ARRAY (VkWriteDescriptorSet, writes, 4);
+			for (uint32_t binding = 0; binding < 4; ++binding)
 			{
 				writes[binding].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 				writes[binding].dstSet = vulkan_globals.gtao_depth_desc_sets[mip];
 				writes[binding].dstBinding = binding;
 				writes[binding].descriptorCount = 1;
-				writes[binding].descriptorType = binding == 1 ? VK_DESCRIPTOR_TYPE_STORAGE_IMAGE : VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+				writes[binding].descriptorType = binding == 1 || binding == 3 ? VK_DESCRIPTOR_TYPE_STORAGE_IMAGE : VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 				writes[binding].pImageInfo = &image_infos[binding];
 			}
 			vkUpdateDescriptorSets (vulkan_globals.device, countof (writes), writes, 0, NULL);
@@ -3019,8 +3047,12 @@ void GL_UpdateDescriptorSets (void)
 	gtao_denoise_image_info.imageView = gtao_supported ? gtao_denoise_buffer_view : color_buffers_view[1];
 	gtao_denoise_image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	gtao_denoise_image_info.sampler = vulkan_globals.point_sampler;
+	ZEROED_STRUCT (VkDescriptorImageInfo, gtao_liquid_mask_image_info);
+	gtao_liquid_mask_image_info.imageView = gtao_supported ? gtao_liquid_mask_buffer_view : color_buffers_view[1];
+	gtao_liquid_mask_image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	gtao_liquid_mask_image_info.sampler = vulkan_globals.point_sampler;
 
-	ZEROED_STRUCT_ARRAY (VkWriteDescriptorSet, screen_effects_writes, 8);
+	ZEROED_STRUCT_ARRAY (VkWriteDescriptorSet, screen_effects_writes, 9);
 	screen_effects_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 	screen_effects_writes[0].dstBinding = 0;
 	screen_effects_writes[0].dstArrayElement = 0;
@@ -3084,6 +3116,14 @@ void GL_UpdateDescriptorSets (void)
 	screen_effects_writes[7].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	screen_effects_writes[7].dstSet = vulkan_globals.screen_effects_desc_set;
 	screen_effects_writes[7].pImageInfo = &gtao_denoise_image_info;
+
+	screen_effects_writes[8].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	screen_effects_writes[8].dstBinding = 8;
+	screen_effects_writes[8].dstArrayElement = 0;
+	screen_effects_writes[8].descriptorCount = 1;
+	screen_effects_writes[8].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	screen_effects_writes[8].dstSet = vulkan_globals.screen_effects_desc_set;
+	screen_effects_writes[8].pImageInfo = &gtao_liquid_mask_image_info;
 
 	vkUpdateDescriptorSets (vulkan_globals.device, countof (screen_effects_writes), screen_effects_writes, 0, NULL);
 
@@ -3653,6 +3693,13 @@ static void GL_DestroyRenderResources (void)
 	gtao_buffer = VK_NULL_HANDLE;
 	gtao_buffer_initialized = false;
 
+	vkDestroyImageView (vulkan_globals.device, gtao_liquid_mask_buffer_view, NULL);
+	vkDestroyImage (vulkan_globals.device, gtao_liquid_mask_buffer, NULL);
+	R_FreeVulkanMemory (&gtao_liquid_mask_buffer_memory, &num_vulkan_misc_allocations);
+	gtao_liquid_mask_buffer_view = VK_NULL_HANDLE;
+	gtao_liquid_mask_buffer = VK_NULL_HANDLE;
+	gtao_liquid_mask_buffer_initialized = false;
+
 	vkDestroyImageView (vulkan_globals.device, gtao_denoise_buffer_view, NULL);
 	vkDestroyImage (vulkan_globals.device, gtao_denoise_buffer, NULL);
 	R_FreeVulkanMemory (&gtao_denoise_buffer_memory, &num_vulkan_misc_allocations);
@@ -4028,6 +4075,10 @@ typedef struct screen_effect_constants_s
 	uint32_t gtao_denoise;
 	float	 gtao_multibounce;
 	uint32_t gtao_halfres;
+	float	 gtao_liquid_water;
+	float	 gtao_liquid_slime;
+	float	 gtao_liquid_lava;
+	float	 gtao_liquid_tele;
 } screen_effect_constants_t;
 
 typedef struct gtao_constants_s
@@ -4125,6 +4176,21 @@ typedef struct gtao_depth_constants_s
 static void GL_GTAODepthPyramid (cb_context_t *cbx, end_rendering_parms_t *parms)
 {
 	R_BeginDebugUtilsLabel (cbx, "GTAO Depth Pyramid");
+	ZEROED_STRUCT (VkImageMemoryBarrier, liquid_mask_barrier);
+	liquid_mask_barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+	liquid_mask_barrier.srcAccessMask = gtao_liquid_mask_buffer_initialized ? VK_ACCESS_SHADER_READ_BIT : 0;
+	liquid_mask_barrier.dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+	liquid_mask_barrier.oldLayout = gtao_liquid_mask_buffer_initialized ? VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_UNDEFINED;
+	liquid_mask_barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+	liquid_mask_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	liquid_mask_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	liquid_mask_barrier.image = gtao_liquid_mask_buffer;
+	liquid_mask_barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	liquid_mask_barrier.subresourceRange.levelCount = 1;
+	liquid_mask_barrier.subresourceRange.layerCount = 1;
+	vkCmdPipelineBarrier (
+		cbx->cb, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, NULL, 0, NULL, 1, &liquid_mask_barrier);
+
 	uint32_t width = parms->vid_width;
 	uint32_t height = parms->vid_height;
 	for (uint32_t mip = 0; mip < GTAO_DEPTH_MIP_LEVELS; ++mip)
@@ -4167,6 +4233,13 @@ static void GL_GTAODepthPyramid (cb_context_t *cbx, end_rendering_parms_t *parms
 		height = q_max (1u, height / 2);
 	}
 	gtao_depth_pyramid_initialized = true;
+	liquid_mask_barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+	liquid_mask_barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+	liquid_mask_barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
+	liquid_mask_barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	vkCmdPipelineBarrier (
+		cbx->cb, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, NULL, 0, NULL, 1, &liquid_mask_barrier);
+	gtao_liquid_mask_buffer_initialized = true;
 	R_EndDebugUtilsLabel (cbx);
 }
 
@@ -4580,10 +4653,14 @@ static void GL_ScreenEffects (cb_context_t *cbx, qboolean enabled, end_rendering
 				(float)parms->v_blend[2] / 255.0f,
 				(float)parms->v_blend[3] / 255.0f,
 				r_gtao_strength.value,
-				(uint32_t)CLAMP (0, (int)r_gtao_debug.value, 7),
+				(uint32_t)CLAMP (0, (int)r_gtao_debug.value, 8),
 				(r_gtao_debug.value == 0.0f || (int)r_gtao_debug.value == 7) ? (uint32_t)CLAMP (0, (int)r_gtao_denoise.value, 3) : 0u,
 				CLAMP (0.0f, r_gtao_multibounce.value, 1.0f),
 				r_gtao_halfres.value > 0.0f ? 1u : 0u,
+				CLAMP (0.0f, r_gtao_liquid_water.value, 1.0f) * CLAMP (0.0f, GL_WaterAlphaForTextureType (TEXTYPE_WATER), 1.0f),
+				CLAMP (0.0f, r_gtao_liquid_slime.value, 1.0f) * CLAMP (0.0f, GL_WaterAlphaForTextureType (TEXTYPE_SLIME), 1.0f),
+				CLAMP (0.0f, r_gtao_liquid_lava.value, 1.0f) * CLAMP (0.0f, GL_WaterAlphaForTextureType (TEXTYPE_LAVA), 1.0f),
+				CLAMP (0.0f, r_gtao_liquid_tele.value, 1.0f) * CLAMP (0.0f, GL_WaterAlphaForTextureType (TEXTYPE_TELE), 1.0f),
 			};
 			R_PushConstants (cbx, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof (push_constants), &push_constants);
 		}

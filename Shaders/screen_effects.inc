@@ -12,6 +12,7 @@ layout (set = 0, binding = 1) uniform sampler2D blue_noise_tex;
 layout (set = 0, binding = 5) uniform sampler2D gtao_tex;
 layout (set = 0, binding = 6) uniform sampler2D gtao_view_depth_tex;
 layout (set = 0, binding = 7) uniform sampler2D gtao_denoise_tex;
+layout (set = 0, binding = 8) uniform sampler2D gtao_liquid_mask_tex;
 layout (set = 0, binding = 3) uniform samplerBuffer palette_colors;
 layout (set = 0, binding = 4) uniform PaletteOctree
 {
@@ -35,8 +36,49 @@ layout (push_constant) uniform PushConsts
 	uint  gtao_denoise;
 	float gtao_multibounce;
 	uint  gtao_halfres;
+	float gtao_liquid_water;
+	float gtao_liquid_slime;
+	float gtao_liquid_lava;
+	float gtao_liquid_tele;
 }
 push_constants;
+
+const uint STENCIL_MASK_WATER = 0x04u;
+const uint STENCIL_MASK_SLIME = 0x08u;
+const uint STENCIL_MASK_LAVA = 0x10u;
+const uint STENCIL_MASK_TELE = 0x20u;
+
+uint gtao_liquid_mask (ivec2 pixel)
+{
+	return uint (round (texelFetch (gtao_liquid_mask_tex, pixel, 0).r * 255.0f));
+}
+
+float gtao_liquid_suppression (uint mask)
+{
+	float suppression = 0.0f;
+	if ((mask & STENCIL_MASK_WATER) != 0u)
+		suppression = max (suppression, push_constants.gtao_liquid_water);
+	if ((mask & STENCIL_MASK_SLIME) != 0u)
+		suppression = max (suppression, push_constants.gtao_liquid_slime);
+	if ((mask & STENCIL_MASK_LAVA) != 0u)
+		suppression = max (suppression, push_constants.gtao_liquid_lava);
+	if ((mask & STENCIL_MASK_TELE) != 0u)
+		suppression = max (suppression, push_constants.gtao_liquid_tele);
+	return clamp (suppression, 0.0f, 1.0f);
+}
+
+vec3 gtao_liquid_debug_color (uint mask)
+{
+	if ((mask & STENCIL_MASK_LAVA) != 0u)
+		return vec3 (1.0f, 0.15f, 0.02f);
+	if ((mask & STENCIL_MASK_SLIME) != 0u)
+		return vec3 (0.1f, 1.0f, 0.1f);
+	if ((mask & STENCIL_MASK_TELE) != 0u)
+		return vec3 (0.8f, 0.1f, 1.0f);
+	if ((mask & STENCIL_MASK_WATER) != 0u)
+		return vec3 (0.1f, 0.4f, 1.0f);
+	return vec3 (0.0f);
+}
 
 #if defined(USE_SUBGROUP_OPS)
 uint Compact1By1 (uint x)
@@ -245,7 +287,12 @@ void main ()
 		const ivec2 ao_pixel = ivec2 (min (push_constants.clamp_size.x, pos_x), min (push_constants.clamp_size.y, pos_y));
 		const bool gtao_warped = (push_constants.flags & SCREEN_EFFECT_FLAG_WATER_WARP) != 0;
 		const vec4 ao_sample = gtao_resolve (ao_pixel, effect_texcoord, gtao_warped);
-		if (push_constants.gtao_debug_mode == 1u || push_constants.gtao_debug_mode == 7u)
+		const ivec2 liquid_pixel = gtao_warped ?
+			clamp (ivec2 (effect_texcoord / push_constants.screen_size_rcp), ivec2 (0), ivec2 (push_constants.clamp_size)) : ao_pixel;
+		const uint liquid_mask = gtao_liquid_mask (liquid_pixel);
+		if (push_constants.gtao_debug_mode == 8u)
+			color.rgb = gtao_liquid_debug_color (liquid_mask);
+		else if (push_constants.gtao_debug_mode == 1u || push_constants.gtao_debug_mode == 7u)
 			color.rgb = vec3 (clamp (ao_sample.r, 0.0f, 1.0f));
 		else if (push_constants.gtao_debug_mode > 1u)
 			color.rgb = ao_sample.rgb;
@@ -253,6 +300,7 @@ void main ()
 		{
 			float ao_visibility = clamp (ao_sample.r, 0.0f, 1.0f);
 			float visibility = clamp (1.0f - ((1.0f - ao_visibility) * push_constants.gtao_strength), 0.0f, 1.0f);
+			visibility = mix (visibility, 1.0f, gtao_liquid_suppression (liquid_mask));
 			vec3 single_bounce = color.rgb * visibility;
 			vec3 multi_bounce = color.rgb * gtao_multibounce_visibility (visibility, color.rgb);
 			color.rgb = mix (single_bounce, multi_bounce, clamp (push_constants.gtao_multibounce, 0.0f, 1.0f));
